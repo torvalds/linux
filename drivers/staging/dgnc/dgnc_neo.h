@@ -11,19 +11,11 @@
  * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
  * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *	NOTE: THIS IS A SHARED HEADER. DO NOT CHANGE CODING STYLE!!!
- *
  */
 
 #ifndef __DGNC_NEO_H
 #define __DGNC_NEO_H
 
-#include "dgnc_types.h"
 #include "dgnc_driver.h"
 
 /************************************************************************
@@ -72,7 +64,6 @@ struct neo_uart_struct {
 #define NEO_EEDI  0x40		/* Data In  is an Output Pin */
 #define NEO_EEDO  0x80		/* Data Out is an Input Pin */
 #define NEO_EEREG 0x8E		/* offset to EEPROM control reg */
-
 
 #define NEO_VPD_IMAGESIZE 0x40	/* size of image to read from EEPROM in words */
 #define NEO_VPD_IMAGEBYTES (NEO_VPD_IMAGESIZE * 2)

@@ -28,6 +28,41 @@ Required properties:
 	ti,adc-channels: List of analog inputs available for ADC.
 			 AIN0 = 0, AIN1 = 1 and so on till AIN7 = 7.
 
+Optional properties:
+- child "tsc"
+	ti,charge-delay: Length of touch screen charge delay step in terms of
+			 ADC clock cycles. Charge delay value should be large
+			 in order to avoid false pen-up events. This value
+			 effects the overall sampling speed, hence need to be
+			 kept as low as possible, while avoiding false pen-up
+			 event. Start from a lower value, say 0x400, and
+			 increase value until false pen-up events are avoided.
+			 The pen-up detection happens immediately after the
+			 charge step, so this does in fact function as a
+			 hardware knob for adjusting the amount of "settling
+			 time".
+
+- child "adc"
+	ti,chan-step-opendelay: List of open delays for each channel of
+				ADC in the order of ti,adc-channels. The
+				value corresponds to the number of ADC
+				clock cycles to wait after applying the
+				step configuration registers and before
+				sending the start of ADC conversion.
+				Maximum value is 0x3FFFF.
+       ti,chan-step-sampledelay: List of sample delays for each channel
+				  of ADC in the order of ti,adc-channels.
+				  The value corresponds to the number of
+				  ADC clock cycles to sample (to hold
+				  start of conversion high).
+				  Maximum value is 0xFF.
+       ti,chan-step-avg: Number of averages to be performed for each
+			  channel of ADC. If average is 16 then input
+			  is sampled 16 times and averaged to get more
+			  accurate value. This increases the time taken
+			  by ADC to generate a sample. Valid range is 0
+			  average to 16 averages. Maximum value is 16.
+
 Example:
 	tscadc: tscadc@44e0d000 {
 		compatible = "ti,am3359-tscadc";
@@ -36,9 +71,13 @@ Example:
 			ti,x-plate-resistance = <200>;
 			ti,coordiante-readouts = <5>;
 			ti,wire-config = <0x00 0x11 0x22 0x33>;
+			ti,charge-delay = <0x400>;
 		};
 
 		adc {
 			ti,adc-channels = <4 5 6 7>;
+			ti,chan-step-opendelay = <0x098 0x3ffff 0x098 0x0>;
+			ti,chan-step-sampledelay = <0xff 0x0 0xf 0x0>;
+			ti,chan-step-avg = <16 2 4 8>;
 		};
 	}

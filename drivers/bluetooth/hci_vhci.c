@@ -55,17 +55,12 @@ struct vhci_data {
 
 static int vhci_open_dev(struct hci_dev *hdev)
 {
-	set_bit(HCI_RUNNING, &hdev->flags);
-
 	return 0;
 }
 
 static int vhci_close_dev(struct hci_dev *hdev)
 {
 	struct vhci_data *data = hci_get_drvdata(hdev);
-
-	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
 
 	skb_queue_purge(&data->readq);
 
@@ -85,10 +80,7 @@ static int vhci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct vhci_data *data = hci_get_drvdata(hdev);
 
-	if (!test_bit(HCI_RUNNING, &hdev->flags))
-		return -EBUSY;
-
-	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
+	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
 	skb_queue_tail(&data->readq, skb);
 
 	wake_up_interruptible(&data->read_wait);
@@ -148,7 +140,7 @@ static int vhci_create_device(struct vhci_data *data, __u8 opcode)
 		return -EBUSY;
 	}
 
-	bt_cb(skb)->pkt_type = HCI_VENDOR_PKT;
+	hci_skb_pkt_type(skb) = HCI_VENDOR_PKT;
 
 	*skb_put(skb, 1) = 0xff;
 	*skb_put(skb, 1) = opcode;
@@ -160,13 +152,11 @@ static int vhci_create_device(struct vhci_data *data, __u8 opcode)
 }
 
 static inline ssize_t vhci_get_user(struct vhci_data *data,
-				    const struct iovec *iov,
-				    unsigned long count)
+				    struct iov_iter *from)
 {
-	size_t len = iov_length(iov, count);
+	size_t len = iov_iter_count(from);
 	struct sk_buff *skb;
 	__u8 pkt_type, opcode;
-	unsigned long i;
 	int ret;
 
 	if (len < 2 || len > HCI_MAX_FRAME_SIZE)
@@ -176,12 +166,9 @@ static inline ssize_t vhci_get_user(struct vhci_data *data,
 	if (!skb)
 		return -ENOMEM;
 
-	for (i = 0; i < count; i++) {
-		if (copy_from_user(skb_put(skb, iov[i].iov_len),
-				   iov[i].iov_base, iov[i].iov_len)) {
-			kfree_skb(skb);
-			return -EFAULT;
-		}
+	if (copy_from_iter(skb_put(skb, len), len, from) != len) {
+		kfree_skb(skb);
+		return -EFAULT;
 	}
 
 	pkt_type = *((__u8 *) skb->data);
@@ -196,7 +183,7 @@ static inline ssize_t vhci_get_user(struct vhci_data *data,
 			return -ENODEV;
 		}
 
-		bt_cb(skb)->pkt_type = pkt_type;
+		hci_skb_pkt_type(skb) = pkt_type;
 
 		ret = hci_recv_frame(data->hdev, skb);
 		break;
@@ -247,7 +234,7 @@ static inline ssize_t vhci_put_user(struct vhci_data *data,
 
 	data->hdev->stat.byte_tx += len;
 
-	switch (bt_cb(skb)->pkt_type) {
+	switch (hci_skb_pkt_type(skb)) {
 	case HCI_COMMAND_PKT:
 		data->hdev->stat.cmd_tx++;
 		break;
@@ -294,13 +281,12 @@ static ssize_t vhci_read(struct file *file,
 	return ret;
 }
 
-static ssize_t vhci_write(struct kiocb *iocb, const struct iovec *iov,
-			  unsigned long count, loff_t pos)
+static ssize_t vhci_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct vhci_data *data = file->private_data;
 
-	return vhci_get_user(data, iov, count);
+	return vhci_get_user(data, from);
 }
 
 static unsigned int vhci_poll(struct file *file, poll_table *wait)
@@ -365,14 +351,14 @@ static int vhci_release(struct inode *inode, struct file *file)
 static const struct file_operations vhci_fops = {
 	.owner		= THIS_MODULE,
 	.read		= vhci_read,
-	.aio_write	= vhci_write,
+	.write_iter	= vhci_write,
 	.poll		= vhci_poll,
 	.open		= vhci_open,
 	.release	= vhci_release,
 	.llseek		= no_llseek,
 };
 
-static struct miscdevice vhci_miscdev= {
+static struct miscdevice vhci_miscdev = {
 	.name	= "vhci",
 	.fops	= &vhci_fops,
 	.minor	= VHCI_MINOR,

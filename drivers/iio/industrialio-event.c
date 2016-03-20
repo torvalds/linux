@@ -32,6 +32,7 @@
  * @dev_attr_list:	list of event interface sysfs attribute
  * @flags:		file operations related flags including busy flag.
  * @group:		event interface sysfs attribute group
+ * @read_lock:		lock to protect kfifo read operations
  */
 struct iio_event_interface {
 	wait_queue_head_t	wait;
@@ -75,6 +76,11 @@ EXPORT_SYMBOL(iio_push_event);
 
 /**
  * iio_event_poll() - poll the event queue to find out if it has data
+ * @filep:	File structure pointer to identify the device
+ * @wait:	Poll table pointer to add the wait queue on
+ *
+ * Return: (POLLIN | POLLRDNORM) if data is available for reading
+ *	   or a negative error code on failure
  */
 static unsigned int iio_event_poll(struct file *filep,
 			     struct poll_table_struct *wait)
@@ -84,7 +90,7 @@ static unsigned int iio_event_poll(struct file *filep,
 	unsigned int events = 0;
 
 	if (!indio_dev->info)
-		return -ENODEV;
+		return events;
 
 	poll_wait(filep, &ev_int->wait, wait);
 
@@ -197,6 +203,7 @@ static const char * const iio_ev_type_text[] = {
 	[IIO_EV_TYPE_ROC] = "roc",
 	[IIO_EV_TYPE_THRESH_ADAPTIVE] = "thresh_adaptive",
 	[IIO_EV_TYPE_MAG_ADAPTIVE] = "mag_adaptive",
+	[IIO_EV_TYPE_CHANGE] = "change",
 };
 
 static const char * const iio_ev_dir_text[] = {
@@ -210,6 +217,8 @@ static const char * const iio_ev_info_text[] = {
 	[IIO_EV_INFO_VALUE] = "value",
 	[IIO_EV_INFO_HYSTERESIS] = "hysteresis",
 	[IIO_EV_INFO_PERIOD] = "period",
+	[IIO_EV_INFO_HIGH_PASS_FILTER_3DB] = "high_pass_filter_3db",
+	[IIO_EV_INFO_LOW_PASS_FILTER_3DB] = "low_pass_filter_3db",
 };
 
 static enum iio_event_direction iio_ev_attr_dir(struct iio_dev_attr *attr)
@@ -327,9 +336,15 @@ static int iio_device_add_event(struct iio_dev *indio_dev,
 	for_each_set_bit(i, mask, sizeof(*mask)*8) {
 		if (i >= ARRAY_SIZE(iio_ev_info_text))
 			return -EINVAL;
-		postfix = kasprintf(GFP_KERNEL, "%s_%s_%s",
-				iio_ev_type_text[type], iio_ev_dir_text[dir],
-				iio_ev_info_text[i]);
+		if (dir != IIO_EV_DIR_NONE)
+			postfix = kasprintf(GFP_KERNEL, "%s_%s_%s",
+					iio_ev_type_text[type],
+					iio_ev_dir_text[dir],
+					iio_ev_info_text[i]);
+		else
+			postfix = kasprintf(GFP_KERNEL, "%s_%s",
+					iio_ev_type_text[type],
+					iio_ev_info_text[i]);
 		if (postfix == NULL)
 			return -ENOMEM;
 
@@ -404,7 +419,7 @@ static inline int __iio_add_event_config_attrs(struct iio_dev *indio_dev)
 {
 	int j, ret, attrcount = 0;
 
-	/* Dynically created from the channels array */
+	/* Dynamically created from the channels array */
 	for (j = 0; j < indio_dev->num_channels; j++) {
 		ret = iio_device_add_event_sysfs(indio_dev,
 						 &indio_dev->channels[j]);
@@ -493,6 +508,7 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 error_free_setup_event_lines:
 	iio_free_chan_devattr_list(&indio_dev->event_interface->dev_attr_list);
 	kfree(indio_dev->event_interface);
+	indio_dev->event_interface = NULL;
 	return ret;
 }
 

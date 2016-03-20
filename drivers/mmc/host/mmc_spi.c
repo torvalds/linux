@@ -925,6 +925,10 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 
 			dma_addr = dma_map_page(dma_dev, sg_page(sg), 0,
 						PAGE_SIZE, dir);
+			if (dma_mapping_error(dma_dev, dma_addr)) {
+				data->error = -EFAULT;
+				break;
+			}
 			if (direction == DMA_TO_DEVICE)
 				t->tx_dma = dma_addr + sg->offset;
 			else
@@ -1393,10 +1397,12 @@ static int mmc_spi_probe(struct spi_device *spi)
 		host->dma_dev = dev;
 		host->ones_dma = dma_map_single(dev, ones,
 				MMC_SPI_BLOCKSIZE, DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, host->ones_dma))
+			goto fail_ones_dma;
 		host->data_dma = dma_map_single(dev, host->data,
 				sizeof(*host->data), DMA_BIDIRECTIONAL);
-
-		/* REVISIT in theory those map operations can fail... */
+		if (dma_mapping_error(dev, host->data_dma))
+			goto fail_data_dma;
 
 		dma_sync_single_for_cpu(host->dma_dev,
 				host->data_dma, sizeof(*host->data),
@@ -1436,6 +1442,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 					     host->pdata->cd_debounce);
 		if (status != 0)
 			goto fail_add_host;
+		mmc_gpiod_request_cd_irq(mmc);
 	}
 
 	if (host->pdata && host->pdata->flags & MMC_SPI_USE_RO_GPIO) {
@@ -1461,6 +1468,11 @@ fail_glue_init:
 	if (host->dma_dev)
 		dma_unmap_single(host->dma_dev, host->data_dma,
 				sizeof(*host->data), DMA_BIDIRECTIONAL);
+fail_data_dma:
+	if (host->dma_dev)
+		dma_unmap_single(host->dma_dev, host->ones_dma,
+				MMC_SPI_BLOCKSIZE, DMA_TO_DEVICE);
+fail_ones_dma:
 	kfree(host->data);
 
 fail_nobuf1:
@@ -1506,15 +1518,15 @@ static int mmc_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
-static struct of_device_id mmc_spi_of_match_table[] = {
+static const struct of_device_id mmc_spi_of_match_table[] = {
 	{ .compatible = "mmc-spi-slot", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mmc_spi_of_match_table);
 
 static struct spi_driver mmc_spi_driver = {
 	.driver = {
 		.name =		"mmc_spi",
-		.owner =	THIS_MODULE,
 		.of_match_table = mmc_spi_of_match_table,
 	},
 	.probe =	mmc_spi_probe,

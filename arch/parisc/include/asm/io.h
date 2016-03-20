@@ -137,6 +137,8 @@ static inline void __iomem * ioremap(unsigned long offset, unsigned long size)
 	return __ioremap(offset, size, _PAGE_NO_CACHE);
 }
 #define ioremap_nocache(off, sz)	ioremap((off), (sz))
+#define ioremap_wc			ioremap_nocache
+#define ioremap_uc			ioremap_nocache
 
 extern void iounmap(const volatile void __iomem *addr);
 
@@ -217,10 +219,14 @@ static inline void writeq(unsigned long long q, volatile void __iomem *addr)
 #define writel	writel
 #define writeq	writeq
 
-#define readb_relaxed(addr) readb(addr)
-#define readw_relaxed(addr) readw(addr)
-#define readl_relaxed(addr) readl(addr)
-#define readq_relaxed(addr) readq(addr)
+#define readb_relaxed(addr)	readb(addr)
+#define readw_relaxed(addr)	readw(addr)
+#define readl_relaxed(addr)	readl(addr)
+#define readq_relaxed(addr)	readq(addr)
+#define writeb_relaxed(b, addr)	writeb(b, addr)
+#define writew_relaxed(w, addr)	writew(w, addr)
+#define writel_relaxed(l, addr)	writel(l, addr)
+#define writeq_relaxed(q, addr)	writeq(q, addr)
 
 #define mmiowb() do { } while (0)
 

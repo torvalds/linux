@@ -143,9 +143,15 @@ static int ad799x_write_config(struct ad799x_state *st, u16 val)
 	case ad7998:
 		return i2c_smbus_write_word_swapped(st->client, AD7998_CONF_REG,
 			val);
-	default:
+	case ad7992:
+	case ad7993:
+	case ad7994:
 		return i2c_smbus_write_byte_data(st->client, AD7998_CONF_REG,
 			val);
+	default:
+		/* Will be written when doing a conversion */
+		st->config = val;
+		return 0;
 	}
 }
 
@@ -155,8 +161,13 @@ static int ad799x_read_config(struct ad799x_state *st)
 	case ad7997:
 	case ad7998:
 		return i2c_smbus_read_word_swapped(st->client, AD7998_CONF_REG);
-	default:
+	case ad7992:
+	case ad7993:
+	case ad7994:
 		return i2c_smbus_read_byte_data(st->client, AD7998_CONF_REG);
+	default:
+		/* No readback support */
+		return st->config;
 	}
 }
 
@@ -517,7 +528,6 @@ static struct attribute *ad799x_event_attributes[] = {
 
 static struct attribute_group ad799x_event_attrs_group = {
 	.attrs = ad799x_event_attributes,
-	.name = "events",
 };
 
 static const struct iio_info ad7991_info = {

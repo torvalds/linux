@@ -14,7 +14,7 @@
 	compatible = "atmel,sama5d3-xplained", "atmel,sama5d3", "atmel,sama5";
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -35,11 +35,24 @@
 		apb {
 			mmc0: mmc@f0000000 {
 				pinctrl-0 = <&pinctrl_mmc0_clk_cmd_dat0 &pinctrl_mmc0_dat1_3 &pinctrl_mmc0_dat4_7 &pinctrl_mmc0_cd>;
+				vmmc-supply = <&vcc_mmc0_reg>;
+				vqmmc-supply = <&vcc_3v3_reg>;
 				status = "okay";
 				slot@0 {
 					reg = <0>;
 					bus-width = <8>;
 					cd-gpios = <&pioE 0 GPIO_ACTIVE_LOW>;
+				};
+			};
+
+			mmc1: mmc@f8000000 {
+				vmmc-supply = <&vcc_3v3_reg>;
+				vqmmc-supply = <&vcc_3v3_reg>;
+				status = "disabled";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioE 1 GPIO_ACTIVE_LOW>;
 				};
 			};
 
@@ -63,7 +76,7 @@
 				pmic: act8865@5b {
 					compatible = "active-semi,act8865";
 					reg = <0x5b>;
-					status = "okay";
+					status = "disabled";
 
 					regulators {
 						vcc_1v8_reg: DCDC_REG1 {
@@ -105,7 +118,13 @@
 
 			macb0: ethernet@f0028000 {
 				phy-mode = "rgmii";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "okay";
+
+				ethernet-phy@7 {
+					reg = <0x7>;
+				};
 			};
 
 			pwm0: pwm@f002c000 {
@@ -167,7 +186,13 @@
 
 			macb1: ethernet@f802c000 {
 				phy-mode = "rmii";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "okay";
+
+				ethernet-phy@1 {
+					reg = <0x1>;
+				};
 			};
 
 			dbgu: serial@ffffee00 {
@@ -188,6 +213,11 @@
 							<AT91_PIOA 19 AT91_PERIPH_B AT91_PINCTRL_PULL_UP>;
 					};
 
+					pinctrl_key_gpio: key_gpio_0 {
+						atmel,pins =
+							<AT91_PIOE 29 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
+					};
+
 					pinctrl_mmc0_cd: mmc0_cd {
 						atmel,pins =
 							<AT91_PIOE 0 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
@@ -202,12 +232,6 @@
 						atmel,pins =
 							<AT91_PIOE 9 AT91_PERIPH_GPIO AT91_PINCTRL_DEGLITCH>;	/* PE9, conflicts with A9 */
 					};
-				};
-			};
-
-			pmc: pmc@fffffc00 {
-				main: mainck {
-					clock-frequency = <12000000>;
 				};
 			};
 		};
@@ -273,14 +297,25 @@
 		};
 	};
 
+	vcc_mmc0_reg: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		gpio = <&pioE 2 GPIO_ACTIVE_LOW>;
+		regulator-name = "mmc0-card-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	gpio_keys {
 		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_key_gpio>;
 
 		bp3 {
 			label = "PB_USER";
 			gpios = <&pioE 29 GPIO_ACTIVE_LOW>;
 			linux,code = <0x104>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

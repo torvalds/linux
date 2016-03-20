@@ -87,11 +87,14 @@ static const unsigned short normal_i2c[] = {
 #define AT30TSE004_DEVID_MASK	0xffff
 
 /* IDT */
-#define TS3000B3_DEVID		0x2903  /* Also matches TSE2002B3 */
-#define TS3000B3_DEVID_MASK	0xffff
+#define TSE2004_DEVID		0x2200
+#define TSE2004_DEVID_MASK	0xff00
 
-#define TS3000GB2_DEVID		0x2912  /* Also matches TSE2002GB2 */
-#define TS3000GB2_DEVID_MASK	0xffff
+#define TS3000_DEVID		0x2900  /* Also matches TSE2002 */
+#define TS3000_DEVID_MASK	0xff00
+
+#define TS3001_DEVID		0x3000
+#define TS3001_DEVID_MASK	0xff00
 
 /* Maxim */
 #define MAX6604_DEVID		0x3e00
@@ -152,8 +155,9 @@ static struct jc42_chips jc42_chips[] = {
 	{ ADT_MANID, ADT7408_DEVID, ADT7408_DEVID_MASK },
 	{ ATMEL_MANID, AT30TS00_DEVID, AT30TS00_DEVID_MASK },
 	{ ATMEL_MANID2, AT30TSE004_DEVID, AT30TSE004_DEVID_MASK },
-	{ IDT_MANID, TS3000B3_DEVID, TS3000B3_DEVID_MASK },
-	{ IDT_MANID, TS3000GB2_DEVID, TS3000GB2_DEVID_MASK },
+	{ IDT_MANID, TSE2004_DEVID, TSE2004_DEVID_MASK },
+	{ IDT_MANID, TS3000_DEVID, TS3000_DEVID_MASK },
+	{ IDT_MANID, TS3001_DEVID, TS3001_DEVID_MASK },
 	{ MAX_MANID, MAX6604_DEVID, MAX6604_DEVID_MASK },
 	{ MCP_MANID, MCP9804_DEVID, MCP9804_DEVID_MASK },
 	{ MCP_MANID, MCP98242_DEVID, MCP98242_DEVID_MASK },
@@ -201,7 +205,7 @@ struct jc42_data {
 #define JC42_TEMP_MIN		0
 #define JC42_TEMP_MAX		125000
 
-static u16 jc42_temp_to_reg(int temp, bool extended)
+static u16 jc42_temp_to_reg(long temp, bool extended)
 {
 	int ntemp = clamp_val(temp,
 			      extended ? JC42_TEMP_MIN_EXTENDED :
@@ -213,11 +217,7 @@ static u16 jc42_temp_to_reg(int temp, bool extended)
 
 static int jc42_temp_from_reg(s16 reg)
 {
-	reg &= 0x1fff;
-
-	/* sign extend register */
-	if (reg & 0x1000)
-		reg |= 0xf000;
+	reg = sign_extend32(reg, 12);
 
 	/* convert from 0.0625 to 0.001 resolution */
 	return reg * 125 / 2;
@@ -308,15 +308,18 @@ static ssize_t set_temp_crit_hyst(struct device *dev,
 				  const char *buf, size_t count)
 {
 	struct jc42_data *data = dev_get_drvdata(dev);
-	unsigned long val;
+	long val;
 	int diff, hyst;
 	int err;
 	int ret = count;
 
-	if (kstrtoul(buf, 10, &val) < 0)
+	if (kstrtol(buf, 10, &val) < 0)
 		return -EINVAL;
 
+	val = clamp_val(val, (data->extended ? JC42_TEMP_MIN_EXTENDED :
+			      JC42_TEMP_MIN) - 6000, JC42_TEMP_MAX);
 	diff = jc42_temp_from_reg(data->temp[t_crit]) - val;
+
 	hyst = 0;
 	if (diff > 0) {
 		if (diff < 2250)

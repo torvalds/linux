@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/cdev.h>
 #include <linux/iio/types.h>
+#include <linux/of.h>
 /* IIO TODO LIST */
 /*
  * Provide means of adjusting timer accuracy.
@@ -31,12 +32,20 @@ enum iio_chan_info_enum {
 	IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW,
 	IIO_CHAN_INFO_AVERAGE_RAW,
 	IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY,
+	IIO_CHAN_INFO_HIGH_PASS_FILTER_3DB_FREQUENCY,
 	IIO_CHAN_INFO_SAMP_FREQ,
 	IIO_CHAN_INFO_FREQUENCY,
 	IIO_CHAN_INFO_PHASE,
 	IIO_CHAN_INFO_HARDWAREGAIN,
 	IIO_CHAN_INFO_HYSTERESIS,
 	IIO_CHAN_INFO_INT_TIME,
+	IIO_CHAN_INFO_ENABLE,
+	IIO_CHAN_INFO_CALIBHEIGHT,
+	IIO_CHAN_INFO_CALIBWEIGHT,
+	IIO_CHAN_INFO_DEBOUNCE_COUNT,
+	IIO_CHAN_INFO_DEBOUNCE_TIME,
+	IIO_CHAN_INFO_CALIBEMISSIVITY,
+	IIO_CHAN_INFO_OVERSAMPLING_RATIO,
 };
 
 enum iio_shared_by {
@@ -171,18 +180,18 @@ struct iio_event_spec {
  * @address:		Driver specific identifier.
  * @scan_index:		Monotonic index to give ordering in scans when read
  *			from a buffer.
- * @scan_type:		Sign:		's' or 'u' to specify signed or unsigned
+ * @scan_type:		sign:		's' or 'u' to specify signed or unsigned
  *			realbits:	Number of valid bits of data
- *			storage_bits:	Realbits + padding
+ *			storagebits:	Realbits + padding
  *			shift:		Shift right by this before masking out
  *					realbits.
- *			endianness:	little or big endian
  *			repeat:		Number of times real/storage bits
  *					repeats. When the repeat element is
  *					more than 1, then the type element in
  *					sysfs will show a repeat value.
  *					Otherwise, the number of repetitions is
  *					omitted.
+ *			endianness:	little or big endian
  * @info_mask_separate: What information is to be exported that is specific to
  *			this channel.
  * @info_mask_shared_by_type: What information is to be exported that is shared
@@ -283,10 +292,12 @@ static inline s64 iio_get_time_ns(void)
 /* Device operating modes */
 #define INDIO_DIRECT_MODE		0x01
 #define INDIO_BUFFER_TRIGGERED		0x02
+#define INDIO_BUFFER_SOFTWARE		0x04
 #define INDIO_BUFFER_HARDWARE		0x08
+#define INDIO_EVENT_TRIGGERED		0x10
 
 #define INDIO_ALL_BUFFER_MODES					\
-	(INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE)
+	(INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE | INDIO_BUFFER_SOFTWARE)
 
 #define INDIO_MAX_RAW_ELEMENTS		4
 
@@ -326,6 +337,21 @@ struct iio_dev;
  * @update_scan_mode:	function to configure device and scan buffer when
  *			channels have changed
  * @debugfs_reg_access:	function to read or write register value of device
+ * @of_xlate:		function pointer to obtain channel specifier index.
+ *			When #iio-cells is greater than '0', the driver could
+ *			provide a custom of_xlate function that reads the
+ *			*args* and returns the appropriate index in registered
+ *			IIO channels array.
+ * @hwfifo_set_watermark: function pointer to set the current hardware
+ *			fifo watermark level; see hwfifo_* entries in
+ *			Documentation/ABI/testing/sysfs-bus-iio for details on
+ *			how the hardware fifo operates
+ * @hwfifo_flush_to_buffer: function pointer to flush the samples stored
+ *			in the hardware fifo to the device buffer. The driver
+ *			should not flush more than count samples. The function
+ *			must return the number of samples flushed, 0 if no
+ *			samples were flushed or a negative integer if no samples
+ *			were flushed and there was an error.
  **/
 struct iio_info {
 	struct module			*driver_module;
@@ -385,6 +411,11 @@ struct iio_info {
 	int (*debugfs_reg_access)(struct iio_dev *indio_dev,
 				  unsigned reg, unsigned writeval,
 				  unsigned *readval);
+	int (*of_xlate)(struct iio_dev *indio_dev,
+			const struct of_phandle_args *iiospec);
+	int (*hwfifo_set_watermark)(struct iio_dev *indio_dev, unsigned val);
+	int (*hwfifo_flush_to_buffer)(struct iio_dev *indio_dev,
+				      unsigned count);
 };
 
 /**
@@ -417,7 +448,7 @@ struct iio_buffer_setup_ops {
  * @buffer:		[DRIVER] any buffer present
  * @buffer_list:	[INTERN] list of all buffers currently attached
  * @scan_bytes:		[INTERN] num bytes captured to be fed to buffer demux
- * @mlock:		[INTERN] lock used to prevent simultaneous device state
+ * @mlock:		[DRIVER] lock used to prevent simultaneous device state
  *			changes
  * @available_scan_masks: [DRIVER] optional array of allowed bitmasks
  * @masklength:		[INTERN] the length of the mask established from
@@ -427,6 +458,7 @@ struct iio_buffer_setup_ops {
  * @scan_index_timestamp:[INTERN] cache of the index to the timestamp
  * @trig:		[INTERN] current device trigger (buffer modes)
  * @pollfunc:		[DRIVER] function run on trigger being received
+ * @pollfunc_event:	[DRIVER] function run on events trigger being received
  * @channels:		[DRIVER] channel specification structure table
  * @num_channels:	[DRIVER] number of channels specified in @channels.
  * @channel_attr_list:	[INTERN] keep track of automatically created channel
@@ -465,6 +497,7 @@ struct iio_dev {
 	unsigned			scan_index_timestamp;
 	struct iio_trigger		*trig;
 	struct iio_poll_func		*pollfunc;
+	struct iio_poll_func		*pollfunc_event;
 
 	struct iio_chan_spec const	*channels;
 	int				num_channels;
@@ -583,7 +616,8 @@ void devm_iio_trigger_free(struct device *dev, struct iio_trigger *iio_trig);
 static inline bool iio_buffer_enabled(struct iio_dev *indio_dev)
 {
 	return indio_dev->currentmode
-		& (INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE);
+		& (INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE |
+		   INDIO_BUFFER_SOFTWARE);
 }
 
 /**
@@ -602,6 +636,8 @@ static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
 }
 #endif
 
+ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals);
+
 int iio_str_to_fixpoint(const char *str, int fract_mult, int *integer,
 	int *fract);
 
@@ -614,11 +650,28 @@ int iio_str_to_fixpoint(const char *str, int fract_mult, int *integer,
 #define IIO_DEGREE_TO_RAD(deg) (((deg) * 314159ULL + 9000000ULL) / 18000000ULL)
 
 /**
+ * IIO_RAD_TO_DEGREE() - Convert rad to degree
+ * @rad: A value in rad
+ *
+ * Returns the given value converted from rad to degree
+ */
+#define IIO_RAD_TO_DEGREE(rad) \
+	(((rad) * 18000000ULL + 314159ULL / 2) / 314159ULL)
+
+/**
  * IIO_G_TO_M_S_2() - Convert g to meter / second**2
  * @g: A value in g
  *
  * Returns the given value converted from g to meter / second**2
  */
 #define IIO_G_TO_M_S_2(g) ((g) * 980665ULL / 100000ULL)
+
+/**
+ * IIO_M_S_2_TO_G() - Convert meter / second**2 to g
+ * @ms2: A value in meter / second**2
+ *
+ * Returns the given value converted from meter / second**2 to g
+ */
+#define IIO_M_S_2_TO_G(ms2) (((ms2) * 100000ULL + 980665ULL / 2) / 980665ULL)
 
 #endif /* _INDUSTRIAL_IO_H_ */

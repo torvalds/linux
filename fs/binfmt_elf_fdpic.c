@@ -35,6 +35,7 @@
 #include <linux/elf-fdpic.h>
 #include <linux/elfcore.h>
 #include <linux/coredump.h>
+#include <linux/dax.h>
 
 #include <asm/uaccess.h>
 #include <asm/param.h>
@@ -103,17 +104,34 @@ static void __exit exit_elf_fdpic_binfmt(void)
 core_initcall(init_elf_fdpic_binfmt);
 module_exit(exit_elf_fdpic_binfmt);
 
-static int is_elf_fdpic(struct elfhdr *hdr, struct file *file)
+static int is_elf(struct elfhdr *hdr, struct file *file)
 {
 	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) != 0)
 		return 0;
 	if (hdr->e_type != ET_EXEC && hdr->e_type != ET_DYN)
 		return 0;
-	if (!elf_check_arch(hdr) || !elf_check_fdpic(hdr))
+	if (!elf_check_arch(hdr))
 		return 0;
 	if (!file->f_op->mmap)
 		return 0;
 	return 1;
+}
+
+#ifndef elf_check_fdpic
+#define elf_check_fdpic(x) 0
+#endif
+
+#ifndef elf_check_const_displacement
+#define elf_check_const_displacement(x) 0
+#endif
+
+static int is_constdisp(struct elfhdr *hdr)
+{
+	if (!elf_check_fdpic(hdr))
+		return 1;
+	if (elf_check_const_displacement(hdr))
+		return 1;
+	return 0;
 }
 
 /*****************************************************************************/
@@ -191,8 +209,18 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 
 	/* check that this is a binary we know how to deal with */
 	retval = -ENOEXEC;
-	if (!is_elf_fdpic(&exec_params.hdr, bprm->file))
+	if (!is_elf(&exec_params.hdr, bprm->file))
 		goto error;
+	if (!elf_check_fdpic(&exec_params.hdr)) {
+#ifdef CONFIG_MMU
+		/* binfmt_elf handles non-fdpic elf except on nommu */
+		goto error;
+#else
+		/* nommu can only load ET_DYN (PIE) ELF */
+		if (exec_params.hdr.e_type != ET_DYN)
+			goto error;
+#endif
+	}
 
 	/* read the program header table */
 	retval = elf_fdpic_fetch_phdrs(&exec_params, bprm->file);
@@ -269,13 +297,13 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 
 	}
 
-	if (elf_check_const_displacement(&exec_params.hdr))
+	if (is_constdisp(&exec_params.hdr))
 		exec_params.flags |= ELF_FDPIC_FLAG_CONSTDISP;
 
 	/* perform insanity checks on the interpreter */
 	if (interpreter_name) {
 		retval = -ELIBBAD;
-		if (!is_elf_fdpic(&interp_params.hdr, interpreter))
+		if (!is_elf(&interp_params.hdr, interpreter))
 			goto error;
 
 		interp_params.flags = ELF_FDPIC_FLAG_PRESENT;
@@ -306,9 +334,9 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 
 	retval = -ENOEXEC;
 	if (stack_size == 0)
-		goto error;
+		stack_size = 131072UL; /* same as exec.c's default commit */
 
-	if (elf_check_const_displacement(&interp_params.hdr))
+	if (is_constdisp(&interp_params.hdr))
 		interp_params.flags |= ELF_FDPIC_FLAG_CONSTDISP;
 
 	/* flush all traces of the currently running executable */
@@ -317,9 +345,12 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 		goto error;
 
 	/* there's now no turning back... the old userspace image is dead,
-	 * defunct, deceased, etc. after this point we have to exit via
-	 * error_kill */
-	set_personality(PER_LINUX_FDPIC);
+	 * defunct, deceased, etc.
+	 */
+	if (elf_check_fdpic(&exec_params.hdr))
+		set_personality(PER_LINUX_FDPIC);
+	else
+		set_personality(PER_LINUX);
 	if (elf_read_implies_exec(&exec_params.hdr, executable_stack))
 		current->personality |= READ_IMPLIES_EXEC;
 
@@ -343,24 +374,22 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 
 	retval = setup_arg_pages(bprm, current->mm->start_stack,
 				 executable_stack);
-	if (retval < 0) {
-		send_sig(SIGKILL, current, 0);
-		goto error_kill;
-	}
+	if (retval < 0)
+		goto error;
 #endif
 
 	/* load the executable and interpreter into memory */
 	retval = elf_fdpic_map_file(&exec_params, bprm->file, current->mm,
 				    "executable");
 	if (retval < 0)
-		goto error_kill;
+		goto error;
 
 	if (interpreter_name) {
 		retval = elf_fdpic_map_file(&interp_params, interpreter,
 					    current->mm, "interpreter");
 		if (retval < 0) {
 			printk(KERN_ERR "Unable to load interpreter\n");
-			goto error_kill;
+			goto error;
 		}
 
 		allow_write_access(interpreter);
@@ -376,10 +405,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 		PAGE_ALIGN(current->mm->start_brk);
 
 #else
-	/* create a stack and brk area big enough for everyone
-	 * - the brk heap starts at the bottom and works up
-	 * - the stack starts at the top and works down
-	 */
+	/* create a stack area and zero-size brk area */
 	stack_size = (stack_size + PAGE_SIZE - 1) & PAGE_MASK;
 	if (stack_size < PAGE_SIZE * 2)
 		stack_size = PAGE_SIZE * 2;
@@ -397,20 +423,18 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 	if (IS_ERR_VALUE(current->mm->start_brk)) {
 		retval = current->mm->start_brk;
 		current->mm->start_brk = 0;
-		goto error_kill;
+		goto error;
 	}
 
 	current->mm->brk = current->mm->start_brk;
 	current->mm->context.end_brk = current->mm->start_brk;
-	current->mm->context.end_brk +=
-		(stack_size > PAGE_SIZE) ? (stack_size - PAGE_SIZE) : 0;
 	current->mm->start_stack = current->mm->start_brk + stack_size;
 #endif
 
 	install_exec_creds(bprm);
 	if (create_elf_fdpic_tables(bprm, current->mm,
 				    &exec_params, &interp_params) < 0)
-		goto error_kill;
+		goto error;
 
 	kdebug("- start_code  %lx", current->mm->start_code);
 	kdebug("- end_code    %lx", current->mm->end_code);
@@ -449,12 +473,6 @@ error:
 	kfree(interp_params.phdrs);
 	kfree(interp_params.loadmap);
 	return retval;
-
-	/* unrecoverable error - kill the process */
-error_kill:
-	send_sig(SIGSEGV, current, 0);
-	goto error;
-
 }
 
 /*****************************************************************************/
@@ -1212,6 +1230,20 @@ static int maydump(struct vm_area_struct *vma, unsigned long mm_flags)
 	if (!(vma->vm_flags & VM_READ)) {
 		kdcore("%08lx: %08lx: no (!read)", vma->vm_start, vma->vm_flags);
 		return 0;
+	}
+
+	/* support for DAX */
+	if (vma_is_dax(vma)) {
+		if (vma->vm_flags & VM_SHARED) {
+			dump_ok = test_bit(MMF_DUMP_DAX_SHARED, &mm_flags);
+			kdcore("%08lx: %08lx: %s (DAX shared)", vma->vm_start,
+			       vma->vm_flags, dump_ok ? "yes" : "no");
+		} else {
+			dump_ok = test_bit(MMF_DUMP_DAX_PRIVATE, &mm_flags);
+			kdcore("%08lx: %08lx: %s (DAX private)", vma->vm_start,
+			       vma->vm_flags, dump_ok ? "yes" : "no");
+		}
+		return dump_ok;
 	}
 
 	/* By default, dump shared memory if mapped from an anonymous file. */

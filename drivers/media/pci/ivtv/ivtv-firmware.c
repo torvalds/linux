@@ -26,7 +26,7 @@
 #include "ivtv-ioctl.h"
 #include "ivtv-cards.h"
 #include <linux/firmware.h>
-#include <media/saa7127.h>
+#include <media/i2c/saa7127.h>
 
 #define IVTV_MASK_SPU_ENABLE 		0xFFFFFFFE
 #define IVTV_MASK_VPU_ENABLE15 		0xFFFFFFF6
@@ -65,7 +65,7 @@ retry:
 			   the wrong file was sometimes loaded. So we check filesizes to
 			   see if at least the right-sized file was loaded. If not, then we
 			   retry. */
-			IVTV_INFO("Retry: file loaded was not %s (expected size %ld, got %zd)\n", fn, size, fw->size);
+			IVTV_INFO("Retry: file loaded was not %s (expected size %ld, got %zu)\n", fn, size, fw->size);
 			release_firmware(fw);
 			retries--;
 			goto retry;
@@ -76,7 +76,7 @@ retry:
 			dst++;
 			src++;
 		}
-		IVTV_INFO("Loaded %s firmware (%zd bytes)\n", fn, fw->size);
+		IVTV_INFO("Loaded %s firmware (%zu bytes)\n", fn, fw->size);
 		release_firmware(fw);
 		return size;
 	}

@@ -73,8 +73,7 @@ int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 	 * wants.  Most devices only want 1, which will give
 	 * configured_private_bits and request_private_bits equal 0.
 	 */
-	pci_read_config_word(dev, desc->msi_attrib.pos + PCI_MSI_FLAGS,
-			     &control);
+	pci_read_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, &control);
 
 	/*
 	 * If the number of private bits has been configured then use
@@ -176,11 +175,10 @@ msi_irq_allocated:
 	/* Update the number of IRQs the device has available to it */
 	control &= ~PCI_MSI_FLAGS_QSIZE;
 	control |= request_private_bits << 4;
-	pci_write_config_word(dev, desc->msi_attrib.pos + PCI_MSI_FLAGS,
-			      control);
+	pci_write_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, control);
 
 	irq_set_msi_desc(irq, desc);
-	write_msi_msg(irq, &msg);
+	pci_write_msi_msg(irq, &msg);
 	return 0;
 }
 
@@ -202,7 +200,7 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (type == PCI_CAP_ID_MSI && nvec > 1)
 		return 1;
 
-	list_for_each_entry(entry, &dev->msi_list, list) {
+	for_each_pci_msi_entry(entry, dev) {
 		ret = arch_setup_msi_irq(dev, entry);
 		if (ret < 0)
 			return ret;

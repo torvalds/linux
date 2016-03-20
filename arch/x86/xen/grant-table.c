@@ -133,7 +133,7 @@ static int __init xlated_setup_gnttab_pages(void)
 		kfree(pages);
 		return -ENOMEM;
 	}
-	rc = alloc_xenballooned_pages(nr_grant_frames, pages, 0 /* lowmem */);
+	rc = alloc_xenballooned_pages(nr_grant_frames, pages);
 	if (rc) {
 		pr_warn("%s Couldn't balloon alloc %ld pfns rc:%d\n", __func__,
 			nr_grant_frames, rc);

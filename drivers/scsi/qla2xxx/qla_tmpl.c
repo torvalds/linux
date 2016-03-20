@@ -128,62 +128,48 @@ qla27xx_insert32(uint32_t value, void *buf, ulong *len)
 static inline void
 qla27xx_insertbuf(void *mem, ulong size, void *buf, ulong *len)
 {
-	ulong cnt = size;
 
-	if (buf && mem) {
+	if (buf && mem && size) {
 		buf += *len;
-		while (cnt >= sizeof(uint32_t)) {
-			*(__le32 *)buf = cpu_to_le32p(mem);
-			buf += sizeof(uint32_t);
-			mem += sizeof(uint32_t);
-			cnt -= sizeof(uint32_t);
-		}
-		if (cnt)
-			memcpy(buf, mem, cnt);
+		memcpy(buf, mem, size);
 	}
 	*len += size;
 }
 
 static inline void
-qla27xx_read8(void *window, void *buf, ulong *len)
+qla27xx_read8(void __iomem *window, void *buf, ulong *len)
 {
 	uint8_t value = ~0;
 
 	if (buf) {
-		value = RD_REG_BYTE((__iomem void *)window);
-		ql_dbg(ql_dbg_misc, NULL, 0xd011,
-		    "%s: -> %x\n", __func__, value);
+		value = RD_REG_BYTE(window);
 	}
 	qla27xx_insert32(value, buf, len);
 }
 
 static inline void
-qla27xx_read16(void *window, void *buf, ulong *len)
+qla27xx_read16(void __iomem *window, void *buf, ulong *len)
 {
 	uint16_t value = ~0;
 
 	if (buf) {
-		value = RD_REG_WORD((__iomem void *)window);
-		ql_dbg(ql_dbg_misc, NULL, 0xd012,
-		    "%s: -> %x\n", __func__, value);
+		value = RD_REG_WORD(window);
 	}
 	qla27xx_insert32(value, buf, len);
 }
 
 static inline void
-qla27xx_read32(void *window, void *buf, ulong *len)
+qla27xx_read32(void __iomem *window, void *buf, ulong *len)
 {
 	uint32_t value = ~0;
 
 	if (buf) {
-		value = RD_REG_DWORD((__iomem void *)window);
-		ql_dbg(ql_dbg_misc, NULL, 0xd013,
-		    "%s: -> %x\n", __func__, value);
+		value = RD_REG_DWORD(window);
 	}
 	qla27xx_insert32(value, buf, len);
 }
 
-static inline void (*qla27xx_read_vector(uint width))(void *, void *, ulong *)
+static inline void (*qla27xx_read_vector(uint width))(void __iomem*, void *, ulong *)
 {
 	return
 	    (width == 1) ? qla27xx_read8 :
@@ -195,12 +181,8 @@ static inline void
 qla27xx_read_reg(__iomem struct device_reg_24xx *reg,
 	uint offset, void *buf, ulong *len)
 {
-	void *window = (void *)reg + offset;
+	void __iomem *window = (void __iomem *)reg + offset;
 
-	if (buf) {
-		ql_dbg(ql_dbg_misc, NULL, 0xd014,
-		    "%s: @%x\n", __func__, offset);
-	}
 	qla27xx_read32(window, buf, len);
 }
 
@@ -208,11 +190,9 @@ static inline void
 qla27xx_write_reg(__iomem struct device_reg_24xx *reg,
 	uint offset, uint32_t data, void *buf)
 {
-	__iomem void *window = reg + offset;
+	__iomem void *window = (void __iomem *)reg + offset;
 
 	if (buf) {
-		ql_dbg(ql_dbg_misc, NULL, 0xd015,
-		    "%s: @%x <- %x\n", __func__, offset, data);
 		WRT_REG_DWORD(window, data);
 	}
 }
@@ -222,14 +202,9 @@ qla27xx_read_window(__iomem struct device_reg_24xx *reg,
 	uint32_t addr, uint offset, uint count, uint width, void *buf,
 	ulong *len)
 {
-	void *window = (void *)reg + offset;
-	void (*readn)(void *, void *, ulong *) = qla27xx_read_vector(width);
+	void __iomem *window = (void __iomem *)reg + offset;
+	void (*readn)(void __iomem*, void *, ulong *) = qla27xx_read_vector(width);
 
-	if (buf) {
-		ql_dbg(ql_dbg_misc, NULL, 0xd016,
-		    "%s: base=%x offset=%x count=%x width=%x\n",
-		    __func__, addr, offset, count, width);
-	}
 	qla27xx_write_reg(reg, IOBASE_ADDR, addr, buf);
 	while (count--) {
 		qla27xx_insert32(addr, buf, len);
@@ -244,6 +219,8 @@ qla27xx_skip_entry(struct qla27xx_fwdt_entry *ent, void *buf)
 {
 	if (buf)
 		ent->hdr.driver_flags |= DRIVER_FLAG_SKIP_ENTRY;
+	ql_dbg(ql_dbg_misc + ql_dbg_verbose, NULL, 0xd011,
+	    "Skipping entry %d\n", ent->hdr.entry_type);
 }
 
 static int
@@ -380,14 +357,9 @@ qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 			ent->t262.start_addr = start;
 			ent->t262.end_addr = end;
 		}
-	} else if (ent->t262.ram_area == T262_RAM_AREA_DDR_RAM) {
-		ql_dbg(ql_dbg_misc, vha, 0xd021,
-		    "%s: unsupported ddr ram\n", __func__);
-		qla27xx_skip_entry(ent, buf);
-		goto done;
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd022,
-		    "%s: unknown area %u\n", __func__, ent->t262.ram_area);
+		    "%s: unknown area %x\n", __func__, ent->t262.ram_area);
 		qla27xx_skip_entry(ent, buf);
 		goto done;
 	}
@@ -402,8 +374,6 @@ qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 
 	dwords = end - start + 1;
 	if (buf) {
-		ql_dbg(ql_dbg_misc, vha, 0xd024,
-		    "%s: @%lx -> (%lx dwords)\n", __func__, start, dwords);
 		buf += *len;
 		qla24xx_dump_ram(vha->hw, start, buf, dwords, &buf);
 	}
@@ -425,6 +395,10 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 	if (ent->t263.queue_type == T263_QUEUE_TYPE_REQ) {
 		for (i = 0; i < vha->hw->max_req_queues; i++) {
 			struct req_que *req = vha->hw->req_q_map[i];
+
+			if (!test_bit(i, vha->hw->req_qid_map))
+				continue;
+
 			if (req || !buf) {
 				length = req ?
 				    req->length : REQUEST_ENTRY_CNT_24XX;
@@ -438,6 +412,10 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 	} else if (ent->t263.queue_type == T263_QUEUE_TYPE_RSP) {
 		for (i = 0; i < vha->hw->max_rsp_queues; i++) {
 			struct rsp_que *rsp = vha->hw->rsp_q_map[i];
+
+			if (!test_bit(i, vha->hw->rsp_qid_map))
+				continue;
+
 			if (rsp || !buf) {
 				length = rsp ?
 				    rsp->length : RESPONSE_ENTRY_CNT_MQ;
@@ -448,13 +426,9 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 				count++;
 			}
 		}
-	} else if (ent->t263.queue_type == T263_QUEUE_TYPE_ATIO) {
-		ql_dbg(ql_dbg_misc, vha, 0xd025,
-		    "%s: unsupported atio queue\n", __func__);
-		qla27xx_skip_entry(ent, buf);
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd026,
-		    "%s: unknown queue %u\n", __func__, ent->t263.queue_type);
+		    "%s: unknown queue %x\n", __func__, ent->t263.queue_type);
 		qla27xx_skip_entry(ent, buf);
 	}
 
@@ -549,17 +523,9 @@ qla27xx_fwdt_entry_t268(struct scsi_qla_host *vha,
 			    "%s: missing eft\n", __func__);
 			qla27xx_skip_entry(ent, buf);
 		}
-	} else if (ent->t268.buf_type == T268_BUF_TYPE_EXCH_BUFOFF) {
-		ql_dbg(ql_dbg_misc, vha, 0xd029,
-		    "%s: unsupported exchange offload buffer\n", __func__);
-		qla27xx_skip_entry(ent, buf);
-	} else if (ent->t268.buf_type == T268_BUF_TYPE_EXTD_LOGIN) {
-		ql_dbg(ql_dbg_misc, vha, 0xd02a,
-		    "%s: unsupported extended login buffer\n", __func__);
-		qla27xx_skip_entry(ent, buf);
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd02b,
-		    "%s: unknown buf %x\n", __func__, ent->t268.buf_type);
+		    "%s: unknown buffer %x\n", __func__, ent->t268.buf_type);
 		qla27xx_skip_entry(ent, buf);
 	}
 
@@ -676,6 +642,10 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 	if (ent->t274.queue_type == T274_QUEUE_TYPE_REQ_SHAD) {
 		for (i = 0; i < vha->hw->max_req_queues; i++) {
 			struct req_que *req = vha->hw->req_q_map[i];
+
+			if (!test_bit(i, vha->hw->req_qid_map))
+				continue;
+
 			if (req || !buf) {
 				qla27xx_insert16(i, buf, len);
 				qla27xx_insert16(1, buf, len);
@@ -687,6 +657,10 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 	} else if (ent->t274.queue_type == T274_QUEUE_TYPE_RSP_SHAD) {
 		for (i = 0; i < vha->hw->max_rsp_queues; i++) {
 			struct rsp_que *rsp = vha->hw->rsp_q_map[i];
+
+			if (!test_bit(i, vha->hw->rsp_qid_map))
+				continue;
+
 			if (rsp || !buf) {
 				qla27xx_insert16(i, buf, len);
 				qla27xx_insert16(1, buf, len);
@@ -695,13 +669,9 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 				count++;
 			}
 		}
-	} else if (ent->t274.queue_type == T274_QUEUE_TYPE_ATIO_SHAD) {
-		ql_dbg(ql_dbg_misc, vha, 0xd02e,
-		    "%s: unsupported atio queue\n", __func__);
-		qla27xx_skip_entry(ent, buf);
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd02f,
-		    "%s: unknown queue %u\n", __func__, ent->t274.queue_type);
+		    "%s: unknown queue %x\n", __func__, ent->t274.queue_type);
 		qla27xx_skip_entry(ent, buf);
 	}
 
@@ -711,6 +681,32 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 	if (!count)
 		qla27xx_skip_entry(ent, buf);
 
+	return false;
+}
+
+static int
+qla27xx_fwdt_entry_t275(struct scsi_qla_host *vha,
+	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
+{
+	ulong offset = offsetof(typeof(*ent), t275.buffer);
+
+	ql_dbg(ql_dbg_misc, vha, 0xd213,
+	    "%s: buffer(%x) [%lx]\n", __func__, ent->t275.length, *len);
+	if (!ent->t275.length) {
+		ql_dbg(ql_dbg_misc, vha, 0xd020,
+		    "%s: buffer zero length\n", __func__);
+		qla27xx_skip_entry(ent, buf);
+		goto done;
+	}
+	if (offset + ent->t275.length > ent->hdr.entry_size) {
+		ql_dbg(ql_dbg_misc, vha, 0xd030,
+		    "%s: buffer overflow\n", __func__);
+		qla27xx_skip_entry(ent, buf);
+		goto done;
+	}
+
+	qla27xx_insertbuf(ent->t275.buffer, ent->t275.length, buf, len);
+done:
 	return false;
 }
 
@@ -726,7 +722,7 @@ qla27xx_fwdt_entry_other(struct scsi_qla_host *vha,
 }
 
 struct qla27xx_fwdt_entry_call {
-	int type;
+	uint type;
 	int (*call)(
 	    struct scsi_qla_host *,
 	    struct qla27xx_fwdt_entry *,
@@ -756,18 +752,21 @@ static struct qla27xx_fwdt_entry_call ql27xx_fwdt_entry_call_list[] = {
 	{ ENTRY_TYPE_RDREMRAM		, qla27xx_fwdt_entry_t272  } ,
 	{ ENTRY_TYPE_PCICFG		, qla27xx_fwdt_entry_t273  } ,
 	{ ENTRY_TYPE_GET_SHADOW		, qla27xx_fwdt_entry_t274  } ,
+	{ ENTRY_TYPE_WRITE_BUF		, qla27xx_fwdt_entry_t275  } ,
 	{ -1				, qla27xx_fwdt_entry_other }
 };
 
-static inline int (*qla27xx_find_entry(int type))
+static inline int (*qla27xx_find_entry(uint type))
 	(struct scsi_qla_host *, struct qla27xx_fwdt_entry *, void *, ulong *)
 {
 	struct qla27xx_fwdt_entry_call *list = ql27xx_fwdt_entry_call_list;
 
-	while (list->type != -1 && list->type != type)
+	while (list->type < type)
 		list++;
 
-	return list->call;
+	if (list->type == type)
+		return list->call;
+	return qla27xx_fwdt_entry_other;
 }
 
 static inline void *
@@ -792,8 +791,24 @@ qla27xx_walk_template(struct scsi_qla_host *vha,
 			break;
 		ent = qla27xx_next_entry(ent);
 	}
+
+	if (count)
+		ql_dbg(ql_dbg_misc, vha, 0xd018,
+		    "%s: residual count (%lx)\n", __func__, count);
+
+	if (ent->hdr.entry_type != ENTRY_TYPE_TMP_END)
+		ql_dbg(ql_dbg_misc, vha, 0xd019,
+		    "%s: missing end (%lx)\n", __func__, count);
+
 	ql_dbg(ql_dbg_misc, vha, 0xd01b,
 	    "%s: len=%lx\n", __func__, *len);
+
+	if (buf) {
+		ql_log(ql_log_warn, vha, 0xd015,
+		    "Firmware dump saved to temp buffer (%ld/%p)\n",
+		    vha->host_no, vha->hw->fw_dump);
+		qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
+	}
 }
 
 static void
@@ -806,9 +821,8 @@ static void
 qla27xx_driver_info(struct qla27xx_fwdt_template *tmp)
 {
 	uint8_t v[] = { 0, 0, 0, 0, 0, 0 };
-	int rval = 0;
 
-	rval = sscanf(qla2x00_version_str, "%hhu.%hhu.%hhu.%hhu.%hhu.%hhu",
+	sscanf(qla2x00_version_str, "%hhu.%hhu.%hhu.%hhu.%hhu.%hhu",
 	    v+0, v+1, v+2, v+3, v+4, v+5);
 
 	tmp->driver_info[0] = v[3] << 24 | v[2] << 16 | v[1] << 8 | v[0];
@@ -941,16 +955,24 @@ qla27xx_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 {
 	ulong flags = 0;
 
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_lock_irqsave(&vha->hw->hardware_lock, flags);
+#endif
 
 	if (!vha->hw->fw_dump)
 		ql_log(ql_log_warn, vha, 0xd01e, "fwdump buffer missing.\n");
 	else if (!vha->hw->fw_dump_template)
 		ql_log(ql_log_warn, vha, 0xd01f, "fwdump template missing.\n");
+	else if (vha->hw->fw_dumped)
+		ql_log(ql_log_warn, vha, 0xd300,
+		    "Firmware has been previously dumped (%p),"
+		    " -- ignoring request\n", vha->hw->fw_dump);
 	else
 		qla27xx_execute_fwdt_template(vha);
 
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
+#endif
 }

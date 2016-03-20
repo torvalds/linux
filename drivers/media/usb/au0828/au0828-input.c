@@ -17,6 +17,8 @@
   GNU General Public License for more details.
  */
 
+#include "au0828.h"
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -25,7 +27,9 @@
 #include <linux/slab.h>
 #include <media/rc-core.h>
 
-#include "au0828.h"
+static int disable_ir;
+module_param(disable_ir,        int, 0444);
+MODULE_PARM_DESC(disable_ir, "disable infrared remote support");
 
 struct au0828_rc {
 	struct au0828_dev *dev;
@@ -90,13 +94,18 @@ static int au8522_rc_read(struct au0828_rc *ir, u16 reg, int val,
 static int au8522_rc_andor(struct au0828_rc *ir, u16 reg, u8 mask, u8 value)
 {
 	int rc;
-	char buf;
+	char buf, oldbuf;
 
 	rc = au8522_rc_read(ir, reg, -1, &buf, 1);
 	if (rc < 0)
 		return rc;
 
+	oldbuf = buf;
 	buf = (buf & ~mask) | (value & mask);
+
+	/* Nothing to do, just return */
+	if (buf == oldbuf)
+		return 0;
 
 	return au8522_rc_write(ir, reg, buf);
 }
@@ -120,10 +129,17 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 	int prv_bit, bit, width;
 	bool first = true;
 
+	/* do nothing if device is disconnected */
+	if (ir->dev->dev_state == DEV_DISCONNECTED)
+		return 0;
+
 	/* Check IR int */
 	rc = au8522_rc_read(ir, 0xe1, -1, buf, 1);
-	if (rc < 0 || !(buf[0] & (1 << 4)))
+	if (rc < 0 || !(buf[0] & (1 << 4))) {
+		/* Be sure that IR is enabled */
+		au8522_rc_set(ir, 0xe0, 1 << 4);
 		return 0;
+	}
 
 	/* Something arrived. Get the data */
 	rc = au8522_rc_read(ir, 0xe3, 0x11, buf, sizeof(buf));
@@ -134,8 +150,6 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 
 	/* Disable IR */
 	au8522_rc_clear(ir, 0xe0, 1 << 4);
-
-	usleep_range(45000, 46000);
 
 	/* Enable IR */
 	au8522_rc_set(ir, 0xe0, 1 << 4);
@@ -243,10 +257,13 @@ static void au0828_rc_stop(struct rc_dev *rc)
 {
 	struct au0828_rc *ir = rc->priv;
 
-	/* Disable IR */
-	au8522_rc_clear(ir, 0xe0, 1 << 4);
-
 	cancel_delayed_work_sync(&ir->work);
+
+	/* do nothing if device is disconnected */
+	if (ir->dev->dev_state != DEV_DISCONNECTED) {
+		/* Disable IR */
+		au8522_rc_clear(ir, 0xe0, 1 << 4);
+	}
 }
 
 static int au0828_probe_i2c_ir(struct au0828_dev *dev)
@@ -273,7 +290,7 @@ int au0828_rc_register(struct au0828_dev *dev)
 	int err = -ENOMEM;
 	u16 i2c_rc_dev_addr = 0;
 
-	if (!dev->board.has_ir_i2c)
+	if (!dev->board.has_ir_i2c || disable_ir)
 		return 0;
 
 	i2c_rc_dev_addr = au0828_probe_i2c_ir(dev);
@@ -353,8 +370,7 @@ void au0828_rc_unregister(struct au0828_dev *dev)
 	if (!ir)
 		return;
 
-	if (ir->rc)
-		rc_unregister_device(ir->rc);
+	rc_unregister_device(ir->rc);
 
 	/* done */
 	kfree(ir);
@@ -368,7 +384,12 @@ int au0828_rc_suspend(struct au0828_dev *dev)
 	if (!ir)
 		return 0;
 
+	pr_info("Stopping RC\n");
+
 	cancel_delayed_work_sync(&ir->work);
+
+	/* Disable IR */
+	au8522_rc_clear(ir, 0xe0, 1 << 4);
 
 	return 0;
 }
@@ -379,6 +400,11 @@ int au0828_rc_resume(struct au0828_dev *dev)
 
 	if (!ir)
 		return 0;
+
+	pr_info("Restarting RC\n");
+
+	/* Enable IR */
+	au8522_rc_set(ir, 0xe0, 1 << 4);
 
 	schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling));
 

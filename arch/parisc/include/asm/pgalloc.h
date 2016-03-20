@@ -26,7 +26,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 	if (likely(pgd != NULL)) {
 		memset(pgd, 0, PAGE_SIZE<<PGD_ALLOC_ORDER);
-#ifdef CONFIG_64BIT
+#if CONFIG_PGTABLE_LEVELS == 3
 		actual_pgd += PTRS_PER_PGD;
 		/* Populate first pmd with allocated memory.  We mark it
 		 * with PxD_FLAG_ATTACHED as a signal to the system that this
@@ -35,7 +35,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 				        PxD_FLAG_VALID | 
 					PxD_FLAG_ATTACHED) 
 			+ (__u32)(__pa((unsigned long)pgd) >> PxD_VALUE_SHIFT));
-		/* The first pmd entry also is marked with _PAGE_GATEWAY as
+		/* The first pmd entry also is marked with PxD_FLAG_ATTACHED as
 		 * a signal that this pmd may not be freed */
 		__pgd_val_set(*pgd, PxD_FLAG_ATTACHED);
 #endif
@@ -45,13 +45,13 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
-#ifdef CONFIG_64BIT
+#if CONFIG_PGTABLE_LEVELS == 3
 	pgd -= PTRS_PER_PGD;
 #endif
 	free_pages((unsigned long)pgd, PGD_ALLOC_ORDER);
 }
 
-#if PT_NLEVELS == 3
+#if CONFIG_PGTABLE_LEVELS == 3
 
 /* Three Level Page Table Support for pmd's */
 
@@ -72,12 +72,16 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
 
 static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 {
-#ifdef CONFIG_64BIT
-	if(pmd_flag(*pmd) & PxD_FLAG_ATTACHED)
-		/* This is the permanent pmd attached to the pgd;
-		 * cannot free it */
+	if (pmd_flag(*pmd) & PxD_FLAG_ATTACHED) {
+		/*
+		 * This is the permanent pmd attached to the pgd;
+		 * cannot free it.
+		 * Increment the counter to compensate for the decrement
+		 * done by generic mm code.
+		 */
+		mm_inc_nr_pmds(mm);
 		return;
-#endif
+	}
 	free_pages((unsigned long)pmd, PMD_ORDER);
 }
 
@@ -99,7 +103,7 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 static inline void
 pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
 {
-#ifdef CONFIG_64BIT
+#if CONFIG_PGTABLE_LEVELS == 3
 	/* preserve the gateway marker if this is the beginning of
 	 * the permanent pmd */
 	if(pmd_flag(*pmd) & PxD_FLAG_ATTACHED)

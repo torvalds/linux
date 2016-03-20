@@ -30,7 +30,6 @@
 #include <linux/idr.h>
 #include <linux/spinlock.h>
 #include <linux/percpu.h>
-#include <linux/hardirq.h>
 
 #define MAX_IDR_SHIFT		(sizeof(int) * 8 - 1)
 #define MAX_IDR_BIT		(1U << MAX_IDR_SHIFT)
@@ -400,7 +399,7 @@ void idr_preload(gfp_t gfp_mask)
 	 * allocation guarantee.  Disallow usage from those contexts.
 	 */
 	WARN_ON_ONCE(in_interrupt());
-	might_sleep_if(gfp_mask & __GFP_WAIT);
+	might_sleep_if(gfpflags_allow_blocking(gfp_mask));
 
 	preempt_disable();
 
@@ -454,7 +453,7 @@ int idr_alloc(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask)
 	struct idr_layer *pa[MAX_IDR_LEVEL + 1];
 	int id;
 
-	might_sleep_if(gfp_mask & __GFP_WAIT);
+	might_sleep_if(gfpflags_allow_blocking(gfp_mask));
 
 	/* sanity checks */
 	if (WARN_ON_ONCE(start < 0))
@@ -626,7 +625,7 @@ static void __idr_remove_all(struct idr *idp)
  * idr_destroy().
  *
  * A typical clean-up sequence for objects stored in an idr tree will use
- * idr_for_each() to free all objects, if necessay, then idr_destroy() to
+ * idr_for_each() to free all objects, if necessary, then idr_destroy() to
  * free up the id mappings and cached idr_layers.
  */
 void idr_destroy(struct idr *idp)

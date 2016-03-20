@@ -47,11 +47,6 @@ checking of rcu_dereference() primitives:
 		Use explicit check expression "c" along with
 		srcu_read_lock_held()().  This is useful in code that
 		is invoked by both SRCU readers and updaters.
-	rcu_dereference_index_check(p, c):
-		Use explicit check expression "c", but the caller
-		must supply one of the rcu_read_lock_held() functions.
-		This is useful in code that uses RCU-protected arrays
-		that is invoked by both RCU readers and updaters.
 	rcu_dereference_raw(p):
 		Don't check.  (Use sparingly, if at all.)
 	rcu_dereference_protected(p, c):
@@ -64,11 +59,6 @@ checking of rcu_dereference() primitives:
 		but retain the compiler constraints that prevent duplicating
 		or coalescsing.  This is useful when when testing the
 		value of the pointer itself, for example, against NULL.
-	rcu_access_index(idx):
-		Return the value of the index and omit all barriers, but
-		retain the compiler constraints that prevent duplicating
-		or coalescsing.  This is useful when when testing the
-		value of the index itself, for example, against -1.
 
 The rcu_dereference_check() check expression can be any boolean
 expression, but would normally include a lockdep expression.  However,

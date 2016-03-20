@@ -31,7 +31,6 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
-#include <linux/netfilter.h>
 #include <linux/init.h>
 #include <net/rose.h>
 #include <linux/seq_file.h>

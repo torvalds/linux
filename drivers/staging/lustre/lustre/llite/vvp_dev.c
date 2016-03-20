@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, Intel Corporation.
+ * Copyright (c) 2012, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -39,7 +39,6 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LLITE
-
 
 #include "../include/obd.h"
 #include "../include/lustre_lite.h"
@@ -63,12 +62,12 @@ static struct lu_kmem_descr vvp_caches[] = {
 	{
 		.ckd_cache = &vvp_thread_kmem,
 		.ckd_name  = "vvp_thread_kmem",
-		.ckd_size  = sizeof (struct vvp_thread_info),
+		.ckd_size  = sizeof(struct vvp_thread_info),
 	},
 	{
 		.ckd_cache = &vvp_session_kmem,
 		.ckd_name  = "vvp_session_kmem",
-		.ckd_size  = sizeof (struct vvp_session)
+		.ckd_size  = sizeof(struct vvp_session)
 	},
 	{
 		.ckd_cache = NULL
@@ -80,8 +79,8 @@ static void *vvp_key_init(const struct lu_context *ctx,
 {
 	struct vvp_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, vvp_thread_kmem, GFP_NOFS);
-	if (info == NULL)
+	info = kmem_cache_zalloc(vvp_thread_kmem, GFP_NOFS);
+	if (!info)
 		info = ERR_PTR(-ENOMEM);
 	return info;
 }
@@ -90,7 +89,8 @@ static void vvp_key_fini(const struct lu_context *ctx,
 			 struct lu_context_key *key, void *data)
 {
 	struct vvp_thread_info *info = data;
-	OBD_SLAB_FREE_PTR(info, vvp_thread_kmem);
+
+	kmem_cache_free(vvp_thread_kmem, info);
 }
 
 static void *vvp_session_key_init(const struct lu_context *ctx,
@@ -98,8 +98,8 @@ static void *vvp_session_key_init(const struct lu_context *ctx,
 {
 	struct vvp_session *session;
 
-	OBD_SLAB_ALLOC_PTR_GFP(session, vvp_session_kmem, GFP_NOFS);
-	if (session == NULL)
+	session = kmem_cache_zalloc(vvp_session_kmem, GFP_NOFS);
+	if (!session)
 		session = ERR_PTR(-ENOMEM);
 	return session;
 }
@@ -108,9 +108,9 @@ static void vvp_session_key_fini(const struct lu_context *ctx,
 				 struct lu_context_key *key, void *data)
 {
 	struct vvp_session *session = data;
-	OBD_SLAB_FREE_PTR(session, vvp_session_kmem);
-}
 
+	kmem_cache_free(vvp_session_kmem, session);
+}
 
 struct lu_context_key vvp_key = {
 	.lct_tags = LCT_CL_THREAD,
@@ -185,7 +185,6 @@ void vvp_global_fini(void)
 	lu_kmem_fini(vvp_caches);
 }
 
-
 /*****************************************************************************
  *
  * mirror obd-devices into cl devices.
@@ -229,7 +228,7 @@ int cl_sb_fini(struct super_block *sb)
 	if (!IS_ERR(env)) {
 		cld = sbi->ll_cl;
 
-		if (cld != NULL) {
+		if (cld) {
 			cl_stack_fini(env, cld);
 			sbi->ll_cl = NULL;
 			sbi->ll_site = NULL;
@@ -251,7 +250,7 @@ int cl_sb_fini(struct super_block *sb)
 
 /****************************************************************************
  *
- * /proc/fs/lustre/llite/$MNT/dump_page_cache
+ * debugfs/lustre/llite/$MNT/dump_page_cache
  *
  ****************************************************************************/
 
@@ -286,7 +285,7 @@ static void vvp_pgcache_id_unpack(loff_t pos, struct vvp_pgcache_id *id)
 
 	id->vpi_index  = pos & 0xffffffff;
 	id->vpi_depth  = (pos >> PGC_DEPTH_SHIFT) & 0xf;
-	id->vpi_bucket = ((unsigned long long)pos >> PGC_OBJ_SHIFT);
+	id->vpi_bucket = (unsigned long long)pos >> PGC_OBJ_SHIFT;
 }
 
 static loff_t vvp_pgcache_id_pack(struct vvp_pgcache_id *id)
@@ -326,11 +325,11 @@ static struct cl_object *vvp_pgcache_obj(const struct lu_env *env,
 
 	cfs_hash_hlist_for_each(dev->ld_site->ls_obj_hash, id->vpi_bucket,
 				vvp_pgcache_obj_get, id);
-	if (id->vpi_obj != NULL) {
+	if (id->vpi_obj) {
 		struct lu_object *lu_obj;
 
 		lu_obj = lu_object_locate(id->vpi_obj, dev->ld_type);
-		if (lu_obj != NULL) {
+		if (lu_obj) {
 			lu_object_ref_add(lu_obj, "dump", current);
 			return lu2cl(lu_obj);
 		}
@@ -356,7 +355,7 @@ static loff_t vvp_pgcache_find(const struct lu_env *env,
 		if (id.vpi_bucket >= CFS_HASH_NHLIST(site->ls_obj_hash))
 			return ~0ULL;
 		clob = vvp_pgcache_obj(env, dev, &id);
-		if (clob != NULL) {
+		if (clob) {
 			struct cl_object_header *hdr;
 			int		      nr;
 			struct cl_page	  *pg;
@@ -394,7 +393,7 @@ static loff_t vvp_pgcache_find(const struct lu_env *env,
 		seq_printf(seq, "%s"#flag, has_flags ? "|" : "");       \
 		has_flags = 1;					  \
 	}							       \
-} while(0)
+} while (0)
 
 static void vvp_pgcache_page_show(const struct lu_env *env,
 				  struct seq_file *seq, struct cl_page *page)
@@ -405,7 +404,7 @@ static void vvp_pgcache_page_show(const struct lu_env *env,
 
 	cpg = cl2ccc_page(cl_page_at(page, &vvp_device_type));
 	vmpage = cpg->cpg_page;
-	seq_printf(seq," %5i | %p %p %s %s %s %s | %p %lu/%u(%p) %lu %u [",
+	seq_printf(seq, " %5i | %p %p %s %s %s %s | %p %lu/%u(%p) %lu %u [",
 		   0 /* gen */,
 		   cpg, page,
 		   "none",
@@ -444,7 +443,7 @@ static int vvp_pgcache_show(struct seq_file *f, void *v)
 		vvp_pgcache_id_unpack(pos, &id);
 		sbi = f->private;
 		clob = vvp_pgcache_obj(env, &sbi->ll_cl->cd_lu_dev, &id);
-		if (clob != NULL) {
+		if (clob) {
 			hdr = cl_object_header(clob);
 
 			spin_lock(&hdr->coh_page_guard);
@@ -453,7 +452,7 @@ static int vvp_pgcache_show(struct seq_file *f, void *v)
 
 			seq_printf(f, "%8x@"DFID": ",
 				   id.vpi_index, PFID(&hdr->coh_lu.loh_fid));
-			if (page != NULL) {
+			if (page) {
 				vvp_pgcache_page_show(env, f, page);
 				cl_page_put(env, page);
 			} else
@@ -515,7 +514,7 @@ static void vvp_pgcache_stop(struct seq_file *f, void *v)
 	/* Nothing to do */
 }
 
-static struct seq_operations vvp_pgcache_ops = {
+static const struct seq_operations vvp_pgcache_ops = {
 	.start = vvp_pgcache_start,
 	.next  = vvp_pgcache_next,
 	.stop  = vvp_pgcache_stop,
@@ -524,16 +523,17 @@ static struct seq_operations vvp_pgcache_ops = {
 
 static int vvp_dump_pgcache_seq_open(struct inode *inode, struct file *filp)
 {
-	struct ll_sb_info     *sbi = PDE_DATA(inode);
-	struct seq_file       *seq;
-	int		    result;
+	struct seq_file *seq;
+	int rc;
 
-	result = seq_open(filp, &vvp_pgcache_ops);
-	if (result == 0) {
-		seq = filp->private_data;
-		seq->private = sbi;
-	}
-	return result;
+	rc = seq_open(filp, &vvp_pgcache_ops);
+	if (rc)
+		return rc;
+
+	seq = filp->private_data;
+	seq->private = inode->i_private;
+
+	return 0;
 }
 
 const struct file_operations vvp_dump_pgcache_file_ops = {

@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2013, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -61,7 +61,6 @@ enum {
 	LUSTRE_CLI_FLD_HASH_RRB
 };
 
-
 struct lu_fld_target {
 	struct list_head	       ft_chain;
 	struct obd_export       *ft_exp;
@@ -71,62 +70,45 @@ struct lu_fld_target {
 
 struct lu_server_fld {
 	/**
-	 * Fld dir proc entry. */
-	struct proc_dir_entry    *lsf_proc_dir;
-
-	/**
-	 * /fld file object device */
-	struct dt_object	*lsf_obj;
-
-	/**
 	 * super sequence controller export, needed to forward fld
-	 * lookup  request. */
+	 * lookup  request.
+	 */
 	struct obd_export       *lsf_control_exp;
 
-	/**
-	 * Client FLD cache. */
+	/** Client FLD cache. */
 	struct fld_cache	*lsf_cache;
 
-	/**
-	 * Protect index modifications */
+	/** Protect index modifications */
 	struct mutex		lsf_lock;
 
-	/**
-	 * Fld service name in form "fld-srv-lustre-MDTXXX" */
-	char		     lsf_name[80];
+	/** Fld service name in form "fld-srv-lustre-MDTXXX" */
+	char		     lsf_name[LUSTRE_MDT_MAXNAMELEN];
 
 };
 
 struct lu_client_fld {
-	/**
-	 * Client side proc entry. */
-	struct proc_dir_entry    *lcf_proc_dir;
+	/** Client side debugfs entry. */
+	struct dentry		*lcf_debugfs_entry;
 
-	/**
-	 * List of exports client FLD knows about. */
+	/** List of exports client FLD knows about. */
 	struct list_head	       lcf_targets;
 
-	/**
-	 * Current hash to be used to chose an export. */
+	/** Current hash to be used to chose an export. */
 	struct lu_fld_hash      *lcf_hash;
 
-	/**
-	 * Exports count. */
+	/** Exports count. */
 	int		      lcf_count;
 
-	/**
-	 * Lock protecting exports list and fld_hash. */
+	/** Lock protecting exports list and fld_hash. */
 	spinlock_t		 lcf_lock;
 
-	/**
-	 * Client FLD cache. */
+	/** Client FLD cache. */
 	struct fld_cache	*lcf_cache;
 
-	/**
-	 * Client fld proc entry name. */
-	char		     lcf_name[80];
+	/** Client fld debugfs entry name. */
+	char			 lcf_name[LUSTRE_MDT_MAXNAMELEN];
 
-	int		      lcf_flags;
+	int			 lcf_flags;
 };
 
 /* Client methods */
@@ -137,15 +119,14 @@ void fld_client_fini(struct lu_client_fld *fld);
 
 void fld_client_flush(struct lu_client_fld *fld);
 
-int fld_client_lookup(struct lu_client_fld *fld, seqno_t seq, mdsno_t *mds,
+int fld_client_lookup(struct lu_client_fld *fld, u64 seq, u32 *mds,
 		      __u32 flags, const struct lu_env *env);
 
 int fld_client_create(struct lu_client_fld *fld,
 		      struct lu_seq_range *range,
 		      const struct lu_env *env);
 
-int fld_client_delete(struct lu_client_fld *fld,
-		      seqno_t seq,
+int fld_client_delete(struct lu_client_fld *fld, u64 seq,
 		      const struct lu_env *env);
 
 int fld_client_add_target(struct lu_client_fld *fld,
@@ -154,7 +135,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 int fld_client_del_target(struct lu_client_fld *fld,
 			  __u64 idx);
 
-void fld_client_proc_fini(struct lu_client_fld *fld);
+void fld_client_debugfs_fini(struct lu_client_fld *fld);
 
 /** @} fld */
 

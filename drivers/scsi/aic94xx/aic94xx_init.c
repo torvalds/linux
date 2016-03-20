@@ -49,14 +49,6 @@ MODULE_PARM_DESC(use_msi, "\n"
 	"\tEnable(1) or disable(0) using PCI MSI.\n"
 	"\tDefault: 0");
 
-static int lldd_max_execute_num = 0;
-module_param_named(collector, lldd_max_execute_num, int, S_IRUGO);
-MODULE_PARM_DESC(collector, "\n"
-	"\tIf greater than one, tells the SAS Layer to run in Task Collector\n"
-	"\tMode.  If 1 or 0, tells the SAS Layer to run in Direct Mode.\n"
-	"\tThe aic94xx SAS LLDD supports both modes.\n"
-	"\tDefault: 0 (Direct Mode).\n");
-
 static struct scsi_transport_template *aic94xx_transport_template;
 static int asd_scan_finished(struct Scsi_Host *, unsigned long);
 static void asd_scan_start(struct Scsi_Host *);
@@ -71,10 +63,8 @@ static struct scsi_host_template aic94xx_sht = {
 	.scan_finished		= asd_scan_finished,
 	.scan_start		= asd_scan_start,
 	.change_queue_depth	= sas_change_queue_depth,
-	.change_queue_type	= sas_change_queue_type,
 	.bios_param		= sas_bios_param,
 	.can_queue		= 1,
-	.cmd_per_lun		= 1,
 	.this_id		= -1,
 	.sg_tablesize		= SG_ALL,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
@@ -83,6 +73,7 @@ static struct scsi_host_template aic94xx_sht = {
 	.eh_bus_reset_handler	= sas_eh_bus_reset_handler,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
+	.track_queue_depth	= 1,
 };
 
 static int asd_map_memio(struct asd_ha_struct *asd_ha)
@@ -108,15 +99,11 @@ static int asd_map_memio(struct asd_ha_struct *asd_ha)
 				   pci_name(asd_ha->pcidev));
 			goto Err;
 		}
-		if (io_handle->flags & IORESOURCE_CACHEABLE)
-			io_handle->addr = ioremap(io_handle->start,
-						  io_handle->len);
-		else
-			io_handle->addr = ioremap_nocache(io_handle->start,
-							  io_handle->len);
+		io_handle->addr = ioremap(io_handle->start, io_handle->len);
 		if (!io_handle->addr) {
 			asd_printk("couldn't map MBAR%d of %s\n", i==0?0:1,
 				   pci_name(asd_ha->pcidev));
+			err = -ENOMEM;
 			goto Err_unreq;
 		}
 	}
@@ -709,9 +696,6 @@ static int asd_register_sas_ha(struct asd_ha_struct *asd_ha)
 	asd_ha->sas_ha.sas_port= sas_ports;
 	asd_ha->sas_ha.num_phys= ASD_MAX_PHYS;
 
-	asd_ha->sas_ha.lldd_queue_size = asd_ha->seq.can_queue;
-	asd_ha->sas_ha.lldd_max_execute_num = lldd_max_execute_num;
-
 	return sas_register_ha(&asd_ha->sas_ha);
 }
 
@@ -719,10 +703,10 @@ static int asd_unregister_sas_ha(struct asd_ha_struct *asd_ha)
 {
 	int err;
 
+	scsi_remove_host(asd_ha->sas_ha.core.shost);
 	err = sas_unregister_ha(&asd_ha->sas_ha);
 
 	sas_remove_host(asd_ha->sas_ha.core.shost);
-	scsi_remove_host(asd_ha->sas_ha.core.shost);
 	scsi_host_put(asd_ha->sas_ha.core.shost);
 
 	kfree(asd_ha->sas_ha.sas_phy);

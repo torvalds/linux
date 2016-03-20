@@ -100,8 +100,7 @@
 #include <linux/highmem.h>
 #include <linux/gfp.h>
 #include <linux/pagevec.h>
-
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "../include/lustre_lib.h"
 #include "../include/lustre_lite.h"
@@ -126,7 +125,7 @@ struct lloop_device {
 	struct block_device *lo_device;
 	unsigned	     lo_blocksize;
 
-	int		  old_gfp_mask;
+	gfp_t		  old_gfp_mask;
 
 	spinlock_t		lo_lock;
 	struct bio		*lo_bio;
@@ -163,7 +162,7 @@ static int max_loop = MAX_LOOP_DEFAULT;
 static struct lloop_device *loop_dev;
 static struct gendisk **disks;
 static struct mutex lloop_mutex;
-static void *ll_iocontrol_magic = NULL;
+static void *ll_iocontrol_magic;
 
 static loff_t get_loop_size(struct lloop_device *lo, struct file *file)
 {
@@ -187,12 +186,12 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 {
 	const struct lu_env  *env   = lo->lo_env;
 	struct cl_io	 *io    = &lo->lo_io;
-	struct inode	 *inode = lo->lo_backing_file->f_dentry->d_inode;
+	struct inode	 *inode = file_inode(lo->lo_backing_file);
 	struct cl_object     *obj = ll_i2info(inode)->lli_clob;
 	pgoff_t	       offset;
 	int		   ret;
 	int		   rw;
-	obd_count	     page_count = 0;
+	u32		   page_count = 0;
 	struct bio_vec       bvec;
 	struct bvec_iter   iter;
 	struct bio	   *bio;
@@ -212,9 +211,8 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 		return io->ci_result;
 	io->ci_lockreq = CILR_NEVER;
 
-	LASSERT(head != NULL);
 	rw = head->bi_rw;
-	for (bio = head; bio != NULL; bio = bio->bi_next) {
+	for (bio = head; bio ; bio = bio->bi_next) {
 		LASSERT(rw == bio->bi_rw);
 
 		offset = (pgoff_t)(bio->bi_iter.bi_sector << 9) + lo->lo_offset;
@@ -258,9 +256,9 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 	 *    be asked to write less pages once, this purely depends on
 	 *    implementation. Anyway, we should be careful to avoid deadlocking.
 	 */
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	bytes = ll_direct_rw_pages(env, io, rw, inode, pvec);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	cl_io_fini(env, io);
 	return (bytes == pvec->ldp_size) ? 0 : (int)bytes;
 }
@@ -298,7 +296,7 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 
 	spin_lock_irq(&lo->lo_lock);
 	first = lo->lo_bio;
-	if (unlikely(first == NULL)) {
+	if (unlikely(!first)) {
 		spin_unlock_irq(&lo->lo_lock);
 		return 0;
 	}
@@ -309,13 +307,12 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 	rw = first->bi_rw;
 	bio = &lo->lo_bio;
 	while (*bio && (*bio)->bi_rw == rw) {
-		CDEBUG(D_INFO, "bio sector %llu size %u count %u vcnt%u \n",
+		CDEBUG(D_INFO, "bio sector %llu size %u count %u vcnt%u\n",
 		       (unsigned long long)(*bio)->bi_iter.bi_sector,
 		       (*bio)->bi_iter.bi_size,
 		       page_count, (*bio)->bi_vcnt);
 		if (page_count + (*bio)->bi_vcnt > LLOOP_MAX_SEGMENTS)
 			break;
-
 
 		page_count += (*bio)->bi_vcnt;
 		count++;
@@ -335,11 +332,13 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 	return count;
 }
 
-static void loop_make_request(struct request_queue *q, struct bio *old_bio)
+static blk_qc_t loop_make_request(struct request_queue *q, struct bio *old_bio)
 {
 	struct lloop_device *lo = q->queuedata;
 	int rw = bio_rw(old_bio);
 	int inactive;
+
+	blk_queue_split(q, &old_bio, q->bio_split);
 
 	if (!lo)
 		goto err;
@@ -349,7 +348,7 @@ static void loop_make_request(struct request_queue *q, struct bio *old_bio)
 	       old_bio->bi_iter.bi_size);
 
 	spin_lock_irq(&lo->lo_lock);
-	inactive = (lo->lo_state != LLOOP_BOUND);
+	inactive = lo->lo_state != LLOOP_BOUND;
 	spin_unlock_irq(&lo->lo_lock);
 	if (inactive)
 		goto err;
@@ -364,20 +363,23 @@ static void loop_make_request(struct request_queue *q, struct bio *old_bio)
 		goto err;
 	}
 	loop_add_bio(lo, old_bio);
-	return;
+	return BLK_QC_T_NONE;
 err:
-	cfs_bio_io_error(old_bio, old_bio->bi_iter.bi_size);
+	bio_io_error(old_bio);
+	return BLK_QC_T_NONE;
 }
-
 
 static inline void loop_handle_bio(struct lloop_device *lo, struct bio *bio)
 {
 	int ret;
+
 	ret = do_bio_lustrebacked(lo, bio);
 	while (bio) {
 		struct bio *tmp = bio->bi_next;
+
 		bio->bi_next = NULL;
-		cfs_bio_endio(bio, bio->bi_iter.bi_size, ret);
+		bio->bi_error = ret;
+		bio_endio(bio);
 		bio = tmp;
 	}
 }
@@ -409,8 +411,10 @@ static int loop_thread(void *data)
 	lo->lo_state = LLOOP_BOUND;
 
 	env = cl_env_get(&refcheck);
-	if (IS_ERR(env))
-		GOTO(out, ret = PTR_ERR(env));
+	if (IS_ERR(env)) {
+		ret = PTR_ERR(env);
+		goto out;
+	}
 
 	lo->lo_env = env;
 	memset(&lo->lo_pvec, 0, sizeof(lo->lo_pvec));
@@ -426,6 +430,7 @@ static int loop_thread(void *data)
 		wait_event(lo->lo_bh_wait, loop_active(lo));
 		if (!atomic_read(&lo->lo_pending)) {
 			int exiting = 0;
+
 			spin_lock_irq(&lo->lo_lock);
 			exiting = (lo->lo_state == LLOOP_RUNDOWN);
 			spin_unlock_irq(&lo->lo_lock);
@@ -452,7 +457,7 @@ static int loop_thread(void *data)
 			       total_count, times, total_count / times);
 		}
 
-		LASSERT(bio != NULL);
+		LASSERT(bio);
 		LASSERT(count <= atomic_read(&lo->lo_pending));
 		loop_handle_bio(lo, bio);
 		atomic_sub(count, &lo->lo_pending);
@@ -546,7 +551,7 @@ static int loop_clr_fd(struct lloop_device *lo, struct block_device *bdev,
 		       int count)
 {
 	struct file *filp = lo->lo_backing_file;
-	int gfp = lo->old_gfp_mask;
+	gfp_t gfp = lo->old_gfp_mask;
 
 	if (lo->lo_state != LLOOP_BOUND)
 		return -ENXIO;
@@ -554,7 +559,7 @@ static int loop_clr_fd(struct lloop_device *lo, struct block_device *bdev,
 	if (lo->lo_refcnt > count)	/* we needed one fd for the ioctl */
 		return -EBUSY;
 
-	if (filp == NULL)
+	if (!filp)
 		return -EINVAL;
 
 	spin_lock_irq(&lo->lo_lock);
@@ -619,18 +624,18 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 	case LL_IOC_LLOOP_INFO: {
 		struct lu_fid fid;
 
-		if (lo->lo_backing_file == NULL) {
+		if (!lo->lo_backing_file) {
 			err = -ENOENT;
 			break;
 		}
-		if (inode == NULL)
-			inode = lo->lo_backing_file->f_dentry->d_inode;
+		if (!inode)
+			inode = file_inode(lo->lo_backing_file);
 		if (lo->lo_state == LLOOP_BOUND)
 			fid = ll_i2info(inode)->lli_fid;
 		else
 			fid_zero(&fid);
 
-		if (copy_to_user((struct lu_fid *)arg, &fid, sizeof(fid)))
+		if (copy_to_user((void __user *)arg, &fid, sizeof(fid)))
 			err = -EFAULT;
 		break;
 	}
@@ -670,8 +675,10 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 	if (magic != ll_iocontrol_magic)
 		return LLIOC_CONT;
 
-	if (disks == NULL)
-		GOTO(out1, err = -ENODEV);
+	if (!disks) {
+		err = -ENODEV;
+		goto out1;
+	}
 
 	CWARN("Enter llop_ioctl\n");
 
@@ -688,23 +695,28 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 					lo_free = lo;
 				continue;
 			}
-			if (lo->lo_backing_file->f_dentry->d_inode ==
-			    file->f_dentry->d_inode)
+			if (file_inode(lo->lo_backing_file) == file_inode(file))
 				break;
 		}
-		if (lo || !lo_free)
-			GOTO(out, err = -EBUSY);
+		if (lo || !lo_free) {
+			err = -EBUSY;
+			goto out;
+		}
 
 		lo = lo_free;
 		dev = MKDEV(lloop_major, lo->lo_number);
 
 		/* quit if the used pointer is writable */
-		if (put_user((long)old_encode_dev(dev), (long*)arg))
-			GOTO(out, err = -EFAULT);
+		if (put_user((long)old_encode_dev(dev), (long __user *)arg)) {
+			err = -EFAULT;
+			goto out;
+		}
 
 		bdev = blkdev_get_by_dev(dev, file->f_mode, NULL);
-		if (IS_ERR(bdev))
-			GOTO(out, err = PTR_ERR(bdev));
+		if (IS_ERR(bdev)) {
+			err = PTR_ERR(bdev);
+			goto out;
+		}
 
 		get_file(file);
 		err = loop_set_fd(lo, NULL, bdev, file);
@@ -720,16 +732,22 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 		int minor;
 
 		dev = old_decode_dev(arg);
-		if (MAJOR(dev) != lloop_major)
-			GOTO(out, err = -EINVAL);
+		if (MAJOR(dev) != lloop_major) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		minor = MINOR(dev);
-		if (minor > max_loop - 1)
-			GOTO(out, err = -EINVAL);
+		if (minor > max_loop - 1) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		lo = &loop_dev[minor];
-		if (lo->lo_state != LLOOP_BOUND)
-			GOTO(out, err = -EINVAL);
+		if (lo->lo_state != LLOOP_BOUND) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		bdev = lo->lo_device;
 		err = loop_clr_fd(lo, bdev, 1);
@@ -762,8 +780,8 @@ static int __init lloop_init(void)
 
 	if (max_loop < 1 || max_loop > 256) {
 		max_loop = MAX_LOOP_DEFAULT;
-		CWARN("lloop: invalid max_loop (must be between"
-		      " 1 and 256), using default (%u)\n", max_loop);
+		CWARN("lloop: invalid max_loop (must be between 1 and 256), using default (%u)\n",
+		      max_loop);
 	}
 
 	lloop_major = register_blkdev(0, "lloop");
@@ -774,14 +792,14 @@ static int __init lloop_init(void)
 	       lloop_major, max_loop);
 
 	ll_iocontrol_magic = ll_iocontrol_register(lloop_ioctl, 2, cmdlist);
-	if (ll_iocontrol_magic == NULL)
+	if (!ll_iocontrol_magic)
 		goto out_mem1;
 
-	OBD_ALLOC_WAIT(loop_dev, max_loop * sizeof(*loop_dev));
+	loop_dev = kcalloc(max_loop, sizeof(*loop_dev), GFP_KERNEL);
 	if (!loop_dev)
 		goto out_mem1;
 
-	OBD_ALLOC_WAIT(disks, max_loop * sizeof(*disks));
+	disks = kcalloc(max_loop, sizeof(*disks), GFP_KERNEL);
 	if (!disks)
 		goto out_mem2;
 
@@ -826,9 +844,9 @@ out_mem4:
 out_mem3:
 	while (i--)
 		put_disk(disks[i]);
-	OBD_FREE(disks, max_loop * sizeof(*disks));
+	kfree(disks);
 out_mem2:
-	OBD_FREE(loop_dev, max_loop * sizeof(*loop_dev));
+	kfree(loop_dev);
 out_mem1:
 	unregister_blkdev(lloop_major, "lloop");
 	ll_iocontrol_unregister(ll_iocontrol_magic);
@@ -849,15 +867,16 @@ static void lloop_exit(void)
 
 	unregister_blkdev(lloop_major, "lloop");
 
-	OBD_FREE(disks, max_loop * sizeof(*disks));
-	OBD_FREE(loop_dev, max_loop * sizeof(*loop_dev));
+	kfree(disks);
+	kfree(loop_dev);
 }
-
-module_init(lloop_init);
-module_exit(lloop_exit);
 
 module_param(max_loop, int, 0444);
 MODULE_PARM_DESC(max_loop, "maximum of lloop_device");
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre virtual block device");
+MODULE_VERSION(LUSTRE_VERSION_STRING);
 MODULE_LICENSE("GPL");
+
+module_init(lloop_init);
+module_exit(lloop_exit);

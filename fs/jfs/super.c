@@ -102,7 +102,7 @@ void jfs_error(struct super_block *sb, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	pr_err("ERROR: (device %s): %pf: %pV\n",
+	pr_err("ERROR: (device %s): %ps: %pV\n",
 	       sb->s_id, __builtin_return_address(0), &vaf);
 
 	va_end(args);
@@ -117,6 +117,9 @@ static struct inode *jfs_alloc_inode(struct super_block *sb)
 	jfs_inode = kmem_cache_alloc(jfs_inode_cachep, GFP_NOFS);
 	if (!jfs_inode)
 		return NULL;
+#ifdef CONFIG_QUOTA
+	memset(&jfs_inode->i_dquot, 0, sizeof(jfs_inode->i_dquot));
+#endif
 	return &jfs_inode->vfs_inode;
 }
 
@@ -493,9 +496,6 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	jfs_info("In jfs_read_super: s_flags=0x%lx", sb->s_flags);
 
-	if (!new_valid_dev(sb->s_bdev->bd_dev))
-		return -EOVERFLOW;
-
 	sbi = kzalloc(sizeof(struct jfs_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
@@ -537,6 +537,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_QUOTA
 	sb->dq_op = &dquot_operations;
 	sb->s_qcop = &dquot_quotactl_ops;
+	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP;
 #endif
 
 	/*
@@ -550,7 +551,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	inode->i_ino = 0;
 	inode->i_size = sb->s_bdev->bd_inode->i_size;
 	inode->i_mapping->a_ops = &jfs_metapage_aops;
-	insert_inode_hash(inode);
+	hlist_add_fake(&inode->i_hash);
 	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
 
 	sbi->direct_inode = inode;
@@ -615,8 +616,7 @@ out_mount_failed:
 	iput(sbi->direct_inode);
 	sbi->direct_inode = NULL;
 out_unload:
-	if (sbi->nls_tab)
-		unload_nls(sbi->nls_tab);
+	unload_nls(sbi->nls_tab);
 out_kfree:
 	kfree(sbi);
 	return ret;
@@ -792,7 +792,7 @@ static ssize_t jfs_quota_write(struct super_block *sb, int type,
 	struct buffer_head tmp_bh;
 	struct buffer_head *bh;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	while (towrite > 0) {
 		tocopy = sb->s_blocksize - offset < towrite ?
 				sb->s_blocksize - offset : towrite;
@@ -824,7 +824,7 @@ static ssize_t jfs_quota_write(struct super_block *sb, int type,
 	}
 out:
 	if (len == towrite) {
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 		return err;
 	}
 	if (inode->i_size < off+len-towrite)
@@ -832,10 +832,14 @@ out:
 	inode->i_version++;
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	mark_inode_dirty(inode);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return len - towrite;
 }
 
+static struct dquot **jfs_get_dquots(struct inode *inode)
+{
+	return JFS_IP(inode)->i_dquot;
+}
 #endif
 
 static const struct super_operations jfs_super_operations = {
@@ -854,6 +858,7 @@ static const struct super_operations jfs_super_operations = {
 #ifdef CONFIG_QUOTA
 	.quota_read	= jfs_quota_read,
 	.quota_write	= jfs_quota_write,
+	.get_dquots	= jfs_get_dquots,
 #endif
 };
 
@@ -893,7 +898,7 @@ static int __init init_jfs_fs(void)
 
 	jfs_inode_cachep =
 	    kmem_cache_create("jfs_ip", sizeof(struct jfs_inode_info), 0,
-			    SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
+			    SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
 			    init_once);
 	if (jfs_inode_cachep == NULL)
 		return -ENOMEM;

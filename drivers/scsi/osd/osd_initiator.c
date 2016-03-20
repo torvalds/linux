@@ -7,7 +7,7 @@
  * Copyright (C) 2008 Panasas Inc.  All rights reserved.
  *
  * Authors:
- *   Boaz Harrosh <bharrosh@panasas.com>
+ *   Boaz Harrosh <ooo@electrozaur.com>
  *   Benny Halevy <bhalevy@panasas.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -57,7 +57,7 @@
 
 enum { OSD_REQ_RETRIES = 1 };
 
-MODULE_AUTHOR("Boaz Harrosh <bharrosh@panasas.com>");
+MODULE_AUTHOR("Boaz Harrosh <ooo@electrozaur.com>");
 MODULE_DESCRIPTION("open-osd initiator library libosd.ko");
 MODULE_LICENSE("GPL");
 
@@ -170,10 +170,7 @@ static int _osd_get_print_system_info(struct osd_dev *od,
 
 	/* FIXME: Where are the time utilities */
 	pFirst = get_attrs[a++].val_ptr;
-	OSD_INFO("CLOCK                  [0x%02x%02x%02x%02x%02x%02x]\n",
-		((char *)pFirst)[0], ((char *)pFirst)[1],
-		((char *)pFirst)[2], ((char *)pFirst)[3],
-		((char *)pFirst)[4], ((char *)pFirst)[5]);
+	OSD_INFO("CLOCK                  [0x%6phN]\n", pFirst);
 
 	if (a < nelem) { /* IBM-OSD-SIM bug, Might not have it */
 		unsigned len = get_attrs[a].len;
@@ -186,7 +183,7 @@ static int _osd_get_print_system_info(struct osd_dev *od,
 
 		if (unlikely(len > sizeof(odi->systemid))) {
 			OSD_ERR("OSD Target error: OSD_SYSTEM_ID too long(%d). "
-				"device idetification might not work\n", len);
+				"device identification might not work\n", len);
 			len = sizeof(odi->systemid);
 		}
 		odi->systemid_len = len;
@@ -1567,8 +1564,8 @@ static struct request *_make_request(struct request_queue *q, bool has_write,
 		struct request *req;
 
 		req = blk_get_request(q, has_write ? WRITE : READ, flags);
-		if (unlikely(!req))
-			return ERR_PTR(-ENOMEM);
+		if (IS_ERR(req))
+			return req;
 
 		blk_rq_set_block_pc(req);
 		return req;
@@ -2009,9 +2006,8 @@ EXPORT_SYMBOL(osd_sec_init_nosec_doall_caps);
  */
 void osd_set_caps(struct osd_cdb *cdb, const void *caps)
 {
-	bool is_ver1 = true;
 	/* NOTE: They start at same address */
-	memcpy(&cdb->v1.caps, caps, is_ver1 ? OSDv1_CAP_LEN : OSD_CAP_LEN);
+	memcpy(&cdb->v1.caps, caps, OSDv1_CAP_LEN);
 }
 
 bool osd_is_sec_alldata(struct osd_security_parameters *sec_parms __unused)

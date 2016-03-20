@@ -181,7 +181,7 @@ int svc_send_common(struct socket *sock, struct xdr_buf *xdr,
 	struct page	**ppage = xdr->pages;
 	size_t		base = xdr->page_base;
 	unsigned int	pglen = xdr->page_len;
-	unsigned int	flags = MSG_MORE;
+	unsigned int	flags = MSG_MORE | MSG_SENDPAGE_NOTLAST;
 	int		slen;
 	int		len = 0;
 
@@ -257,7 +257,7 @@ static int svc_sendto(struct svc_rqst *rqstp, struct xdr_buf *xdr)
 
 		svc_set_cmsg_data(rqstp, cmh);
 
-		if (sock_sendmsg(sock, &msg, 0) < 0)
+		if (sock_sendmsg(sock, &msg) < 0)
 			goto out;
 	}
 
@@ -312,19 +312,6 @@ static int svc_one_sock_name(struct svc_sock *svsk, char *buf, int remaining)
 }
 
 /*
- * Check input queue length
- */
-static int svc_recv_available(struct svc_sock *svsk)
-{
-	struct socket	*sock = svsk->sk_sock;
-	int		avail, err;
-
-	err = kernel_sock_ioctl(sock, TIOCINQ, (unsigned long) &avail);
-
-	return (err >= 0)? avail : err;
-}
-
-/*
  * Generic recvfrom routine.
  */
 static int svc_recvfrom(struct svc_rqst *rqstp, struct kvec *iov, int nr,
@@ -339,8 +326,14 @@ static int svc_recvfrom(struct svc_rqst *rqstp, struct kvec *iov, int nr,
 
 	rqstp->rq_xprt_hlen = 0;
 
+	clear_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 	len = kernel_recvmsg(svsk->sk_sock, &msg, iov, nr, buflen,
 				msg.msg_flags);
+	/* If we read a full record, then assume there may be more
+	 * data to read (stream based sockets only!)
+	 */
+	if (len == buflen)
+		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 
 	dprintk("svc: socket %p recvfrom(%p, %Zu) = %d\n",
 		svsk, iov[0].iov_base, iov[0].iov_len, len);
@@ -406,6 +399,31 @@ static int svc_sock_secure_port(struct svc_rqst *rqstp)
 	return svc_port_is_privileged(svc_addr(rqstp));
 }
 
+static bool sunrpc_waitqueue_active(wait_queue_head_t *wq)
+{
+	if (!wq)
+		return false;
+	/*
+	 * There should normally be a memory * barrier here--see
+	 * wq_has_sleeper().
+	 *
+	 * It appears that isn't currently necessary, though, basically
+	 * because callers all appear to have sufficient memory barriers
+	 * between the time the relevant change is made and the
+	 * time they call these callbacks.
+	 *
+	 * The nfsd code itself doesn't actually explicitly wait on
+	 * these waitqueues, but it may wait on them for example in
+	 * sendpage() or sendmsg() calls.  (And those may be the only
+	 * places, since it it uses nonblocking reads.)
+	 *
+	 * Maybe we should add the memory barriers anyway, but these are
+	 * hot paths so we'd need to be convinced there's no sigificant
+	 * penalty.
+	 */
+	return waitqueue_active(wq);
+}
+
 /*
  * INET callback when data has been received on the socket.
  */
@@ -421,7 +439,7 @@ static void svc_udp_data_ready(struct sock *sk)
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 		svc_xprt_enqueue(&svsk->sk_xprt);
 	}
-	if (wq && waitqueue_active(wq))
+	if (sunrpc_waitqueue_active(wq))
 		wake_up_interruptible(wq);
 }
 
@@ -439,7 +457,7 @@ static void svc_write_space(struct sock *sk)
 		svc_xprt_enqueue(&svsk->sk_xprt);
 	}
 
-	if (wq && waitqueue_active(wq)) {
+	if (sunrpc_waitqueue_active(wq)) {
 		dprintk("RPC svc_write_space: someone sleeping on %p\n",
 		       svsk);
 		wake_up_interruptible(wq);
@@ -794,7 +812,7 @@ static void svc_tcp_listen_data_ready(struct sock *sk)
 	}
 
 	wq = sk_sleep(sk);
-	if (wq && waitqueue_active(wq))
+	if (sunrpc_waitqueue_active(wq))
 		wake_up_interruptible_all(wq);
 }
 
@@ -815,7 +833,7 @@ static void svc_tcp_state_change(struct sock *sk)
 		set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
 		svc_xprt_enqueue(&svsk->sk_xprt);
 	}
-	if (wq && waitqueue_active(wq))
+	if (sunrpc_waitqueue_active(wq))
 		wake_up_interruptible_all(wq);
 }
 
@@ -830,7 +848,7 @@ static void svc_tcp_data_ready(struct sock *sk)
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 		svc_xprt_enqueue(&svsk->sk_xprt);
 	}
-	if (wq && waitqueue_active(wq))
+	if (sunrpc_waitqueue_active(wq))
 		wake_up_interruptible(wq);
 }
 
@@ -980,8 +998,6 @@ static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 	unsigned int want;
 	int len;
 
-	clear_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
-
 	if (svsk->sk_tcplen < sizeof(rpc_fraghdr)) {
 		struct kvec	iov;
 
@@ -1028,17 +1044,12 @@ static int receive_cb_reply(struct svc_sock *svsk, struct svc_rqst *rqstp)
 	xid = *p++;
 	calldir = *p;
 
-	if (bc_xprt)
-		req = xprt_lookup_rqst(bc_xprt, xid);
-
-	if (!req) {
-		printk(KERN_NOTICE
-			"%s: Got unrecognized reply: "
-			"calldir 0x%x xpt_bc_xprt %p xid %08x\n",
-			__func__, ntohl(calldir),
-			bc_xprt, xid);
+	if (!bc_xprt)
 		return -EAGAIN;
-	}
+	spin_lock_bh(&bc_xprt->transport_lock);
+	req = xprt_lookup_rqst(bc_xprt, xid);
+	if (!req)
+		goto unlock_notfound;
 
 	memcpy(&req->rq_private_buf, &req->rq_rcv_buf, sizeof(struct xdr_buf));
 	/*
@@ -1049,11 +1060,21 @@ static int receive_cb_reply(struct svc_sock *svsk, struct svc_rqst *rqstp)
 	dst = &req->rq_private_buf.head[0];
 	src = &rqstp->rq_arg.head[0];
 	if (dst->iov_len < src->iov_len)
-		return -EAGAIN; /* whatever; just giving up. */
+		goto unlock_eagain; /* whatever; just giving up. */
 	memcpy(dst->iov_base, src->iov_base, src->iov_len);
 	xprt_complete_rqst(req->rq_task, rqstp->rq_arg.len);
 	rqstp->rq_arg.len = 0;
+	spin_unlock_bh(&bc_xprt->transport_lock);
 	return 0;
+unlock_notfound:
+	printk(KERN_NOTICE
+		"%s: Got unrecognized reply: "
+		"calldir 0x%x xpt_bc_xprt %p xid %08x\n",
+		__func__, ntohl(calldir),
+		bc_xprt, ntohl(xid));
+unlock_eagain:
+	spin_unlock_bh(&bc_xprt->transport_lock);
+	return -EAGAIN;
 }
 
 static int copy_pages_to_kvecs(struct kvec *vec, struct page **pages, int len)
@@ -1073,8 +1094,6 @@ static int copy_pages_to_kvecs(struct kvec *vec, struct page **pages, int len)
 static void svc_tcp_fragment_received(struct svc_sock *svsk)
 {
 	/* If we have more data, signal svc_xprt_enqueue() to try again */
-	if (svc_recv_available(svsk) > sizeof(rpc_fraghdr))
-		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 	dprintk("svc: TCP %s record (%d bytes)\n",
 		svc_sock_final_rec(svsk) ? "final" : "nonfinal",
 		svc_sock_reclen(svsk));
@@ -1151,7 +1170,10 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 
 	rqstp->rq_xprt_ctxt   = NULL;
 	rqstp->rq_prot	      = IPPROTO_TCP;
-	rqstp->rq_local	      = !!test_bit(XPT_LOCAL, &svsk->sk_xprt.xpt_flags);
+	if (test_bit(XPT_LOCAL, &svsk->sk_xprt.xpt_flags))
+		set_bit(RQ_LOCAL, &rqstp->rq_flags);
+	else
+		clear_bit(RQ_LOCAL, &rqstp->rq_flags);
 
 	p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
 	calldir = p[1];
@@ -1370,7 +1392,6 @@ EXPORT_SYMBOL_GPL(svc_sock_update_bufs);
 
 /*
  * Initialize socket for RPC use and create svc_sock struct
- * XXX: May want to setsockopt SO_SNDBUF and SO_RCVBUF.
  */
 static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 						struct socket *sock,
@@ -1597,7 +1618,7 @@ static void svc_sock_detach(struct svc_xprt *xprt)
 	sk->sk_write_space = svsk->sk_owspace;
 
 	wq = sk_sleep(sk);
-	if (wq && waitqueue_active(wq))
+	if (sunrpc_waitqueue_active(wq))
 		wake_up_interruptible(wq);
 }
 

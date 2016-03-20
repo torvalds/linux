@@ -181,7 +181,7 @@ static void __init mpc8272_ads_setup_arch(void)
 		ppc_md.progress("mpc8272_ads_setup_arch(), finish", 0);
 }
 
-static struct of_device_id __initdata of_bus_ids[] = {
+static const struct of_device_id of_bus_ids[] __initconst = {
 	{ .name = "soc", },
 	{ .name = "cpm", },
 	{ .name = "localbus", },

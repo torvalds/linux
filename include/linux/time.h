@@ -39,9 +39,20 @@ static inline int timeval_compare(const struct timeval *lhs, const struct timeva
 	return lhs->tv_usec - rhs->tv_usec;
 }
 
-extern unsigned long mktime(const unsigned int year, const unsigned int mon,
-			    const unsigned int day, const unsigned int hour,
-			    const unsigned int min, const unsigned int sec);
+extern time64_t mktime64(const unsigned int year, const unsigned int mon,
+			const unsigned int day, const unsigned int hour,
+			const unsigned int min, const unsigned int sec);
+
+/**
+ * Deprecated. Use mktime64().
+ */
+static inline unsigned long mktime(const unsigned int year,
+			const unsigned int mon, const unsigned int day,
+			const unsigned int hour, const unsigned int min,
+			const unsigned int sec)
+{
+	return mktime64(year, mon, day, hour, min, sec);
+}
 
 extern void set_normalized_timespec(struct timespec *ts, time_t sec, s64 nsec);
 
@@ -99,7 +110,46 @@ static inline bool timespec_valid_strict(const struct timespec *ts)
 	return true;
 }
 
+static inline bool timeval_valid(const struct timeval *tv)
+{
+	/* Dates before 1970 are bogus */
+	if (tv->tv_sec < 0)
+		return false;
+
+	/* Can't have more microseconds then a second */
+	if (tv->tv_usec < 0 || tv->tv_usec >= USEC_PER_SEC)
+		return false;
+
+	return true;
+}
+
 extern struct timespec timespec_trunc(struct timespec t, unsigned gran);
+
+/*
+ * Validates if a timespec/timeval used to inject a time offset is valid.
+ * Offsets can be postive or negative. The value of the timeval/timespec
+ * is the sum of its fields, but *NOTE*: the field tv_usec/tv_nsec must
+ * always be non-negative.
+ */
+static inline bool timeval_inject_offset_valid(const struct timeval *tv)
+{
+	/* We don't check the tv_sec as it can be positive or negative */
+
+	/* Can't have more microseconds then a second */
+	if (tv->tv_usec < 0 || tv->tv_usec >= USEC_PER_SEC)
+		return false;
+	return true;
+}
+
+static inline bool timespec_inject_offset_valid(const struct timespec *ts)
+{
+	/* We don't check the tv_sec as it can be positive or negative */
+
+	/* Can't have more nanoseconds then a second */
+	if (ts->tv_nsec < 0 || ts->tv_nsec >= NSEC_PER_SEC)
+		return false;
+	return true;
+}
 
 #define CURRENT_TIME		(current_kernel_time())
 #define CURRENT_TIME_SEC	((struct timespec) { get_seconds(), 0 })

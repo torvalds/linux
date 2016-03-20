@@ -306,7 +306,7 @@ int ocfs2_slot_to_node_num_locked(struct ocfs2_super *osb, int slot_num,
 	assert_spin_locked(&osb->osb_lock);
 
 	BUG_ON(slot_num < 0);
-	BUG_ON(slot_num > osb->max_slots);
+	BUG_ON(slot_num >= osb->max_slots);
 
 	if (!si->si_slots[slot_num].sl_valid)
 		return -ENOENT;
@@ -322,8 +322,7 @@ static void __ocfs2_free_slot_info(struct ocfs2_slot_info *si)
 	if (si == NULL)
 		return;
 
-	if (si->si_inode)
-		iput(si->si_inode);
+	iput(si->si_inode);
 	if (si->si_bh) {
 		for (i = 0; i < si->si_blocks; i++) {
 			if (si->si_bh[i]) {
@@ -427,7 +426,7 @@ int ocfs2_init_slot_info(struct ocfs2_super *osb)
 	if (!si) {
 		status = -ENOMEM;
 		mlog_errno(status);
-		goto bail;
+		return status;
 	}
 
 	si->si_extended = ocfs2_uses_extended_slot_map(osb);
@@ -452,7 +451,7 @@ int ocfs2_init_slot_info(struct ocfs2_super *osb)
 
 	osb->slot_info = (struct ocfs2_slot_info *)si;
 bail:
-	if (status < 0 && si)
+	if (status < 0)
 		__ocfs2_free_slot_info(si);
 
 	return status;
@@ -503,8 +502,17 @@ int ocfs2_find_slot(struct ocfs2_super *osb)
 	trace_ocfs2_find_slot(osb->slot_num);
 
 	status = ocfs2_update_disk_slot(osb, si, osb->slot_num);
-	if (status < 0)
+	if (status < 0) {
 		mlog_errno(status);
+		/*
+		 * if write block failed, invalidate slot to avoid overwrite
+		 * slot during dismount in case another node rightly has mounted
+		 */
+		spin_lock(&osb->osb_lock);
+		ocfs2_invalidate_slot(si, osb->slot_num);
+		osb->slot_num = OCFS2_INVALID_SLOT;
+		spin_unlock(&osb->osb_lock);
+	}
 
 bail:
 	return status;

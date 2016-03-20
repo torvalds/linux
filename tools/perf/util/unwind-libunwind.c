@@ -24,6 +24,7 @@
 #include <linux/list.h>
 #include <libunwind.h>
 #include <libunwind-ptrace.h>
+#include "callchain.h"
 #include "thread.h"
 #include "session.h"
 #include "perf_regs.h"
@@ -184,6 +185,28 @@ static u64 elf_section_offset(int fd, const char *name)
 	return offset;
 }
 
+#ifndef NO_LIBUNWIND_DEBUG_FRAME
+static int elf_is_exec(int fd, const char *name)
+{
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	int retval = 0;
+
+	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
+	if (elf == NULL)
+		return 0;
+	if (gelf_getehdr(elf, &ehdr) == NULL)
+		goto out;
+
+	retval = (ehdr.e_type == ET_EXEC);
+
+out:
+	elf_end(elf);
+	pr_debug("unwind: elf_is_exec(%s): %d\n", name, retval);
+	return retval;
+}
+#endif
+
 struct table_entry {
 	u32 start_ip_offset;
 	u32 fde_offset;
@@ -243,14 +266,18 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct machine *machine,
 				     u64 *fde_count)
 {
 	int ret = -EINVAL, fd;
-	u64 offset;
+	u64 offset = dso->data.eh_frame_hdr_offset;
 
-	fd = dso__data_fd(dso, machine);
-	if (fd < 0)
-		return -EINVAL;
+	if (offset == 0) {
+		fd = dso__data_get_fd(dso, machine);
+		if (fd < 0)
+			return -EINVAL;
 
-	/* Check the .eh_frame section for unwinding info */
-	offset = elf_section_offset(fd, ".eh_frame_hdr");
+		/* Check the .eh_frame section for unwinding info */
+		offset = elf_section_offset(fd, ".eh_frame_hdr");
+		dso->data.eh_frame_hdr_offset = offset;
+		dso__data_put_fd(dso);
+	}
 
 	if (offset)
 		ret = unwind_spec_ehframe(dso, machine, offset,
@@ -264,14 +291,21 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct machine *machine,
 static int read_unwind_spec_debug_frame(struct dso *dso,
 					struct machine *machine, u64 *offset)
 {
-	int fd = dso__data_fd(dso, machine);
+	int fd;
+	u64 ofs = dso->data.debug_frame_offset;
 
-	if (fd < 0)
-		return -EINVAL;
+	if (ofs == 0) {
+		fd = dso__data_get_fd(dso, machine);
+		if (fd < 0)
+			return -EINVAL;
 
-	/* Check the .debug_frame section for unwinding info */
-	*offset = elf_section_offset(fd, ".debug_frame");
+		/* Check the .debug_frame section for unwinding info */
+		ofs = elf_section_offset(fd, ".debug_frame");
+		dso->data.debug_frame_offset = ofs;
+		dso__data_put_fd(dso);
+	}
 
+	*offset = ofs;
 	if (*offset)
 		return 0;
 
@@ -283,8 +317,17 @@ static struct map *find_map(unw_word_t ip, struct unwind_info *ui)
 {
 	struct addr_location al;
 
-	thread__find_addr_map(ui->thread, ui->machine, PERF_RECORD_MISC_USER,
+	thread__find_addr_map(ui->thread, PERF_RECORD_MISC_USER,
 			      MAP__FUNCTION, ip, &al);
+	if (!al.map) {
+		/*
+		 * We've seen cases (softice) where DWARF unwinder went
+		 * through non executable mmaps, which we need to lookup
+		 * in MAP__VARIABLE tree.
+		 */
+		thread__find_addr_map(ui->thread, PERF_RECORD_MISC_USER,
+				      MAP__VARIABLE, ip, &al);
+	}
 	return al.map;
 }
 
@@ -296,6 +339,7 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 	struct map *map;
 	unw_dyn_info_t di;
 	u64 table_data, segbase, fde_count;
+	int ret = -EINVAL;
 
 	map = find_map(ip, ui);
 	if (!map || !map->dso)
@@ -314,22 +358,33 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 		di.u.rti.table_data = map->start + table_data;
 		di.u.rti.table_len  = fde_count * sizeof(struct table_entry)
 				      / sizeof(unw_word_t);
-		return dwarf_search_unwind_table(as, ip, &di, pi,
-						 need_unwind_info, arg);
+		ret = dwarf_search_unwind_table(as, ip, &di, pi,
+						need_unwind_info, arg);
 	}
 
 #ifndef NO_LIBUNWIND_DEBUG_FRAME
 	/* Check the .debug_frame section for unwinding info */
-	if (!read_unwind_spec_debug_frame(map->dso, ui->machine, &segbase)) {
+	if (ret < 0 &&
+	    !read_unwind_spec_debug_frame(map->dso, ui->machine, &segbase)) {
+		int fd = dso__data_get_fd(map->dso, ui->machine);
+		int is_exec = elf_is_exec(fd, map->dso->name);
+		unw_word_t base = is_exec ? 0 : map->start;
+		const char *symfile;
+
+		if (fd >= 0)
+			dso__data_put_fd(map->dso);
+
+		symfile = map->dso->symsrc_filename ?: map->dso->name;
+
 		memset(&di, 0, sizeof(di));
-		if (dwarf_find_debug_frame(0, &di, ip, 0, map->dso->name,
+		if (dwarf_find_debug_frame(0, &di, ip, base, symfile,
 					   map->start, map->end))
 			return dwarf_search_unwind_table(as, ip, &di, pi,
 							 need_unwind_info, arg);
 	}
 #endif
 
-	return -EINVAL;
+	return ret;
 }
 
 static int access_fpreg(unw_addr_space_t __maybe_unused as,
@@ -370,20 +425,19 @@ get_proc_name(unw_addr_space_t __maybe_unused as,
 static int access_dso_mem(struct unwind_info *ui, unw_word_t addr,
 			  unw_word_t *data)
 {
-	struct addr_location al;
+	struct map *map;
 	ssize_t size;
 
-	thread__find_addr_map(ui->thread, ui->machine, PERF_RECORD_MISC_USER,
-			      MAP__FUNCTION, addr, &al);
-	if (!al.map) {
+	map = find_map(addr, ui);
+	if (!map) {
 		pr_debug("unwind: no map for %lx\n", (unsigned long)addr);
 		return -1;
 	}
 
-	if (!al.map->dso)
+	if (!map->dso)
 		return -1;
 
-	size = dso__data_read_addr(al.map->dso, al.map, ui->machine,
+	size = dso__data_read_addr(map->dso, map, ui->machine,
 				   addr, (u8 *) data, sizeof(*data));
 
 	return !(size == sizeof(*data));
@@ -420,7 +474,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 		if (ret) {
 			pr_debug("unwind: access_mem %p not inside range"
 				 " 0x%" PRIx64 "-0x%" PRIx64 "\n",
-				 (void *) addr, start, end);
+				 (void *) (uintptr_t) addr, start, end);
 			*valp = 0;
 			return ret;
 		}
@@ -430,7 +484,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 	offset = addr - start;
 	*valp  = *(unw_word_t *)&stack->data[offset];
 	pr_debug("unwind: access_mem addr %p val %lx, offset %d\n",
-		 (void *) addr, (unsigned long)*valp, offset);
+		 (void *) (uintptr_t) addr, (unsigned long)*valp, offset);
 	return 0;
 }
 
@@ -475,14 +529,13 @@ static void put_unwind_info(unw_addr_space_t __maybe_unused as,
 	pr_debug("unwind: put_unwind_info called\n");
 }
 
-static int entry(u64 ip, struct thread *thread, struct machine *machine,
+static int entry(u64 ip, struct thread *thread,
 		 unwind_entry_cb_t cb, void *arg)
 {
 	struct unwind_entry e;
 	struct addr_location al;
 
-	thread__find_addr_location(thread, machine,
-				   PERF_RECORD_MISC_USER,
+	thread__find_addr_location(thread, PERF_RECORD_MISC_USER,
 				   MAP__FUNCTION, ip, &al);
 
 	e.ip = ip;
@@ -525,12 +578,12 @@ static unw_accessors_t accessors = {
 	.get_proc_name		= get_proc_name,
 };
 
-static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
-		       void *arg, int max_stack)
+int unwind__prepare_access(struct thread *thread)
 {
 	unw_addr_space_t addr_space;
-	unw_cursor_t c;
-	int ret;
+
+	if (callchain_param.record_mode != CALLCHAIN_DWARF)
+		return 0;
 
 	addr_space = unw_create_addr_space(&accessors, 0);
 	if (!addr_space) {
@@ -538,43 +591,99 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 		return -ENOMEM;
 	}
 
-	ret = unw_init_remote(&c, addr_space, ui);
+	unw_set_caching_policy(addr_space, UNW_CACHE_GLOBAL);
+	thread__set_priv(thread, addr_space);
+
+	return 0;
+}
+
+void unwind__flush_access(struct thread *thread)
+{
+	unw_addr_space_t addr_space;
+
+	if (callchain_param.record_mode != CALLCHAIN_DWARF)
+		return;
+
+	addr_space = thread__priv(thread);
+	unw_flush_cache(addr_space, 0, 0);
+}
+
+void unwind__finish_access(struct thread *thread)
+{
+	unw_addr_space_t addr_space;
+
+	if (callchain_param.record_mode != CALLCHAIN_DWARF)
+		return;
+
+	addr_space = thread__priv(thread);
+	unw_destroy_addr_space(addr_space);
+}
+
+static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
+		       void *arg, int max_stack)
+{
+	u64 val;
+	unw_word_t ips[max_stack];
+	unw_addr_space_t addr_space;
+	unw_cursor_t c;
+	int ret, i = 0;
+
+	ret = perf_reg_value(&val, &ui->sample->user_regs, PERF_REG_IP);
 	if (ret)
-		display_error(ret);
+		return ret;
 
-	while (!ret && (unw_step(&c) > 0) && max_stack--) {
-		unw_word_t ip;
+	ips[i++] = (unw_word_t) val;
 
-		unw_get_reg(&c, UNW_REG_IP, &ip);
-		ret = ip ? entry(ip, ui->thread, ui->machine, cb, arg) : 0;
+	/*
+	 * If we need more than one entry, do the DWARF
+	 * unwind itself.
+	 */
+	if (max_stack - 1 > 0) {
+		addr_space = thread__priv(ui->thread);
+		if (addr_space == NULL)
+			return -1;
+
+		ret = unw_init_remote(&c, addr_space, ui);
+		if (ret)
+			display_error(ret);
+
+		while (!ret && (unw_step(&c) > 0) && i < max_stack) {
+			unw_get_reg(&c, UNW_REG_IP, &ips[i]);
+			++i;
+		}
+
+		max_stack = i;
 	}
 
-	unw_destroy_addr_space(addr_space);
+	/*
+	 * Display what we got based on the order setup.
+	 */
+	for (i = 0; i < max_stack && !ret; i++) {
+		int j = i;
+
+		if (callchain_param.order == ORDER_CALLER)
+			j = max_stack - i - 1;
+		ret = ips[j] ? entry(ips[j], ui->thread, cb, arg) : 0;
+	}
+
 	return ret;
 }
 
 int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
-			struct machine *machine, struct thread *thread,
+			struct thread *thread,
 			struct perf_sample *data, int max_stack)
 {
-	u64 ip;
 	struct unwind_info ui = {
 		.sample       = data,
 		.thread       = thread,
-		.machine      = machine,
+		.machine      = thread->mg->machine,
 	};
-	int ret;
 
 	if (!data->user_regs.regs)
 		return -EINVAL;
 
-	ret = perf_reg_value(&ip, &data->user_regs, PERF_REG_IP);
-	if (ret)
-		return ret;
+	if (max_stack <= 0)
+		return -EINVAL;
 
-	ret = entry(ip, thread, machine, cb, arg);
-	if (ret)
-		return -ENOMEM;
-
-	return --max_stack > 0 ? get_entries(&ui, cb, arg, max_stack) : 0;
+	return get_entries(&ui, cb, arg, max_stack);
 }

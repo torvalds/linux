@@ -12,7 +12,7 @@
 
 #undef DEBUG
 
-#include <asm/pci.h>
+#include <linux/pci.h>
 #include <asm/mpc52xx.h>
 #include <asm/delay.h>
 #include <asm/machdep.h>
@@ -319,7 +319,7 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 
 	tmp = in_be32(&pci_regs->gscr);
 #if 0
-	/* Reset the exteral bus ( internal PCI controller is NOT resetted ) */
+	/* Reset the exteral bus ( internal PCI controller is NOT reset ) */
 	/* Not necessary and can be a bad thing if for example the bootloader
 	   is displaying a splash screen or ... Just left here for
 	   documentation purpose if anyone need it */

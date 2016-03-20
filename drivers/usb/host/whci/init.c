@@ -175,8 +175,7 @@ void whc_clean_up(struct whc *whc)
 	pzl_clean_up(whc);
 	asl_clean_up(whc);
 
-	if (whc->qset_pool)
-		dma_pool_destroy(whc->qset_pool);
+	dma_pool_destroy(whc->qset_pool);
 
 	len   = resource_size(&whc->umc->resource);
 	if (whc->base)

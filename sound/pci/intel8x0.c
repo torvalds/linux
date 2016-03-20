@@ -26,7 +26,7 @@
  *
  */      
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -1795,7 +1795,7 @@ static struct ac97_pcm ac97_pcm_defs[] = {
 	},
 };
 
-static struct ac97_quirk ac97_quirks[] = {
+static const struct ac97_quirk ac97_quirks[] = {
         {
 		.subvendor = 0x0e11,
 		.subdevice = 0x000e,
@@ -2654,7 +2654,6 @@ static int snd_intel8x0_free(struct intel8x0 *chip)
  */
 static int intel8x0_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct intel8x0 *chip = card->private_data;
 	int i;
@@ -2682,12 +2681,6 @@ static int intel8x0_suspend(struct device *dev)
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
 	}
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	/* The call below may disable built-in speaker on some laptops
-	 * after S2RAM.  So, don't touch it.
-	 */
-	/* pci_set_power_state(pci, PCI_D3hot); */
 	return 0;
 }
 
@@ -2698,14 +2691,6 @@ static int intel8x0_resume(struct device *dev)
 	struct intel8x0 *chip = card->private_data;
 	int i;
 
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "pci_enable_device failed, disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 	snd_intel8x0_chip_init(chip, 0);
 	if (request_irq(pci->irq, snd_intel8x0_interrupt,
 			IRQF_SHARED, KBUILD_MODNAME, chip)) {
@@ -2894,6 +2879,7 @@ static void intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 
 static struct snd_pci_quirk intel8x0_clock_list[] = {
 	SND_PCI_QUIRK(0x0e11, 0x008a, "AD1885", 41000),
+	SND_PCI_QUIRK(0x1014, 0x0581, "AD1981B", 48000),
 	SND_PCI_QUIRK(0x1028, 0x00be, "AD1885", 44100),
 	SND_PCI_QUIRK(0x1028, 0x0177, "AD1980", 48000),
 	SND_PCI_QUIRK(0x1028, 0x01ad, "AD1981B", 48000),
@@ -2915,7 +2901,6 @@ static int intel8x0_in_clock_list(struct intel8x0 *chip)
 	return 1;
 }
 
-#ifdef CONFIG_PROC_FS
 static void snd_intel8x0_proc_read(struct snd_info_entry * entry,
 				   struct snd_info_buffer *buffer)
 {
@@ -2957,9 +2942,6 @@ static void snd_intel8x0_proc_init(struct intel8x0 *chip)
 	if (! snd_card_proc_new(chip->card, "intel8x0", &entry))
 		snd_info_set_text_ops(entry, chip, snd_intel8x0_proc_read);
 }
-#else
-#define snd_intel8x0_proc_init(x)
-#endif
 
 static int snd_intel8x0_dev_free(struct snd_device *device)
 {
@@ -2999,8 +2981,8 @@ static int snd_intel8x0_inside_vm(struct pci_dev *pci)
 		goto fini;
 
 	/* check for known (emulated) devices */
-	if (pci->subsystem_vendor == 0x1af4 &&
-	    pci->subsystem_device == 0x1100) {
+	if (pci->subsystem_vendor == PCI_SUBVENDOR_ID_REDHAT_QUMRANET &&
+	    pci->subsystem_device == PCI_SUBDEVICE_ID_QEMU) {
 		/* KVM emulated sound, PCI SSID: 1af4:1100 */
 		msg = "enable KVM";
 	} else if (pci->subsystem_vendor == 0x1ab8) {
@@ -3116,13 +3098,13 @@ static int snd_intel8x0_create(struct snd_card *card,
 		chip->bmaddr = pci_iomap(pci, 3, 0);
 	else
 		chip->bmaddr = pci_iomap(pci, 1, 0);
+
+ port_inited:
 	if (!chip->bmaddr) {
 		dev_err(card->dev, "Controller space ioremap problem\n");
 		snd_intel8x0_free(chip);
 		return -EIO;
 	}
-
- port_inited:
 	chip->bdbars_count = bdbars[device_type];
 
 	/* initialize offsets */

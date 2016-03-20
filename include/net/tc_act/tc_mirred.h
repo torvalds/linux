@@ -8,7 +8,7 @@ struct tcf_mirred {
 	int			tcfm_eaction;
 	int			tcfm_ifindex;
 	int			tcfm_ok_push;
-	struct net_device	*tcfm_dev;
+	struct net_device __rcu	*tcfm_dev;
 	struct list_head	tcfm_list;
 };
 #define to_mirred(a) \

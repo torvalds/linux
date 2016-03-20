@@ -97,7 +97,7 @@ static int pn_socket_create(struct net *net, struct socket *sock, int protocol,
 		goto out;
 	}
 
-	sk = sk_alloc(net, PF_PHONET, GFP_KERNEL, pnp->prot);
+	sk = sk_alloc(net, PF_PHONET, GFP_KERNEL, pnp->prot, kern);
 	if (sk == NULL) {
 		err = -ENOMEM;
 		goto out;
@@ -377,6 +377,10 @@ static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct sockaddr_pn sa;
 	u16 len;
 
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
+		return NET_RX_DROP;
+
 	/* check we have at least a full Phonet header */
 	if (!pskb_pull(skb, sizeof(struct phonethdr)))
 		goto out;
@@ -426,16 +430,17 @@ static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 
 		out_dev = phonet_route_output(net, pn_sockaddr_get_addr(&sa));
 		if (!out_dev) {
-			LIMIT_NETDEBUG(KERN_WARNING"No Phonet route to %02X\n",
-					pn_sockaddr_get_addr(&sa));
+			net_dbg_ratelimited("No Phonet route to %02X\n",
+					    pn_sockaddr_get_addr(&sa));
 			goto out;
 		}
 
 		__skb_push(skb, sizeof(struct phonethdr));
 		skb->dev = out_dev;
 		if (out_dev == dev) {
-			LIMIT_NETDEBUG(KERN_ERR"Phonet loop to %02X on %s\n",
-					pn_sockaddr_get_addr(&sa), dev->name);
+			net_dbg_ratelimited("Phonet loop to %02X on %s\n",
+					    pn_sockaddr_get_addr(&sa),
+					    dev->name);
 			goto out_dev;
 		}
 		/* Some drivers (e.g. TUN) do not allocate HW header space */

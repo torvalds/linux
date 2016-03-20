@@ -13,7 +13,8 @@
 #include <sound/pcm.h>
 #include <linux/input.h>
 #include <linux/delay.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
+#include <linux/mm.h>
 #include "pcsp_input.h"
 #include "pcsp.h"
 
@@ -42,16 +43,13 @@ struct snd_pcsp pcsp_chip;
 static int snd_pcsp_create(struct snd_card *card)
 {
 	static struct snd_device_ops ops = { };
-	struct timespec tp;
-	int err;
-	int div, min_div, order;
-
-	hrtimer_get_res(CLOCK_MONOTONIC, &tp);
+	unsigned int resolution = hrtimer_resolution;
+	int err, div, min_div, order;
 
 	if (!nopcm) {
-		if (tp.tv_sec || tp.tv_nsec > PCSP_MAX_PERIOD_NS) {
+		if (resolution > PCSP_MAX_PERIOD_NS) {
 			printk(KERN_ERR "PCSP: Timer resolution is not sufficient "
-				"(%linS)\n", tp.tv_nsec);
+				"(%unS)\n", resolution);
 			printk(KERN_ERR "PCSP: Make sure you have HPET and ACPI "
 				"enabled.\n");
 			printk(KERN_ERR "PCSP: Turned into nopcm mode.\n");
@@ -59,13 +57,13 @@ static int snd_pcsp_create(struct snd_card *card)
 		}
 	}
 
-	if (loops_per_jiffy >= PCSP_MIN_LPJ && tp.tv_nsec <= PCSP_MIN_PERIOD_NS)
+	if (loops_per_jiffy >= PCSP_MIN_LPJ && resolution <= PCSP_MIN_PERIOD_NS)
 		min_div = MIN_DIV;
 	else
 		min_div = MAX_DIV;
 #if PCSP_DEBUG
-	printk(KERN_DEBUG "PCSP: lpj=%li, min_div=%i, res=%li\n",
-	       loops_per_jiffy, min_div, tp.tv_nsec);
+	printk(KERN_DEBUG "PCSP: lpj=%li, min_div=%i, res=%u\n",
+	       loops_per_jiffy, min_div, resolution);
 #endif
 
 	div = MAX_DIV / min_div;
@@ -151,11 +149,11 @@ static int alsa_card_pcsp_init(struct device *dev)
 		return err;
 	}
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
 	/* Well, CONFIG_DEBUG_PAGEALLOC makes the sound horrible. Lets alert */
-	printk(KERN_WARNING "PCSP: CONFIG_DEBUG_PAGEALLOC is enabled, "
-	       "which may make the sound noisy.\n");
-#endif
+	if (debug_pagealloc_enabled()) {
+		printk(KERN_WARNING "PCSP: CONFIG_DEBUG_PAGEALLOC is enabled, "
+		       "which may make the sound noisy.\n");
+	}
 
 	return 0;
 }
@@ -221,7 +219,6 @@ static void pcsp_shutdown(struct platform_device *dev)
 static struct platform_driver pcsp_platform_driver = {
 	.driver		= {
 		.name	= "pcspkr",
-		.owner	= THIS_MODULE,
 		.pm	= PCSP_PM_OPS,
 	},
 	.probe		= pcsp_probe,

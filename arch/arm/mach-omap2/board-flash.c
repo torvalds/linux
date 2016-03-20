@@ -13,6 +13,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/omap-gpmc.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/io.h>
@@ -23,8 +24,6 @@
 #include "soc.h"
 #include "common.h"
 #include "board-flash.h"
-#include "gpmc-onenand.h"
-#include "gpmc-nand.h"
 
 #define REG_FPGA_REV			0x10
 #define REG_FPGA_DIP_SWITCH_INPUT2	0x60
@@ -142,7 +141,7 @@ __init board_nand_init(struct mtd_partition *nand_parts, u8 nr_parts, u8 cs,
 	board_nand_data.nr_parts	= nr_parts;
 	board_nand_data.devsize		= nand_type;
 
-	board_nand_data.ecc_opt = OMAP_ECC_HAM1_CODE_HW;
+	board_nand_data.ecc_opt = OMAP_ECC_HAM1_CODE_SW;
 	gpmc_nand_init(&board_nand_data, gpmc_t);
 }
 #endif /* CONFIG_MTD_NAND_OMAP2 || CONFIG_MTD_NAND_OMAP2_MODULE */

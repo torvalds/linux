@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,7 @@
 EXTERN u8 INIT_GLOBAL(gbl_summary_mode, FALSE);
 EXTERN u8 INIT_GLOBAL(gbl_verbose_mode, FALSE);
 EXTERN u8 INIT_GLOBAL(gbl_binary_mode, FALSE);
-EXTERN u8 INIT_GLOBAL(gbl_dump_customized_tables, FALSE);
+EXTERN u8 INIT_GLOBAL(gbl_dump_customized_tables, TRUE);
 EXTERN u8 INIT_GLOBAL(gbl_do_not_dump_xsdt, FALSE);
 EXTERN ACPI_FILE INIT_GLOBAL(gbl_output_file, NULL);
 EXTERN char INIT_GLOBAL(*gbl_output_filename, NULL);

@@ -105,11 +105,8 @@ static irqreturn_t solo_isr(int irq, void *data)
 	if (!status)
 		return IRQ_NONE;
 
-	if (status & ~solo_dev->irq_mask) {
-		solo_reg_write(solo_dev, SOLO_IRQ_STAT,
-			       status & ~solo_dev->irq_mask);
-		status &= solo_dev->irq_mask;
-	}
+	/* Acknowledge all interrupts immediately */
+	solo_reg_write(solo_dev, SOLO_IRQ_STAT, status);
 
 	if (status & SOLO_IRQ_PCI_ERR)
 		solo_p2m_error_isr(solo_dev);
@@ -132,30 +129,15 @@ static irqreturn_t solo_isr(int irq, void *data)
 	if (status & SOLO_IRQ_G723)
 		solo_g723_isr(solo_dev);
 
-	/* Clear all interrupts handled */
-	solo_reg_write(solo_dev, SOLO_IRQ_STAT, status);
-
 	return IRQ_HANDLED;
 }
 
 static void free_solo_dev(struct solo_dev *solo_dev)
 {
-	struct pci_dev *pdev;
-
-	if (!solo_dev)
-		return;
+	struct pci_dev *pdev = solo_dev->pdev;
 
 	if (solo_dev->dev.parent)
 		device_unregister(&solo_dev->dev);
-
-	pdev = solo_dev->pdev;
-
-	/* If we never initialized the PCI device, then nothing else
-	 * below here needs cleanup */
-	if (!pdev) {
-		kfree(solo_dev);
-		return;
-	}
 
 	if (solo_dev->reg_base) {
 		/* Bring down the sub-devices first */
@@ -170,9 +152,8 @@ static void free_solo_dev(struct solo_dev *solo_dev)
 
 		/* Now cleanup the PCI device */
 		solo_irq_off(solo_dev, ~0);
+		free_irq(pdev->irq, solo_dev);
 		pci_iounmap(pdev, solo_dev->reg_base);
-		if (pdev->irq)
-			free_irq(pdev->irq, solo_dev);
 	}
 
 	pci_release_regions(pdev);
@@ -188,7 +169,7 @@ static ssize_t eeprom_store(struct device *dev, struct device_attribute *attr,
 {
 	struct solo_dev *solo_dev =
 		container_of(dev, struct solo_dev, dev);
-	unsigned short *p = (unsigned short *)buf;
+	u16 *p = (u16 *)buf;
 	int i;
 
 	if (count & 0x1)
@@ -218,7 +199,7 @@ static ssize_t eeprom_show(struct device *dev, struct device_attribute *attr,
 {
 	struct solo_dev *solo_dev =
 		container_of(dev, struct solo_dev, dev);
-	unsigned short *p = (unsigned short *)buf;
+	u16 *p = (u16 *)buf;
 	int count = (full_eeprom ? 128 : 64);
 	int i;
 
@@ -489,7 +470,6 @@ static int solo_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	solo_dev->type = id->driver_data;
 	solo_dev->pdev = pdev;
-	spin_lock_init(&solo_dev->reg_io_lock);
 	ret = v4l2_device_register(&pdev->dev, &solo_dev->v4l2_dev);
 	if (ret)
 		goto fail_probe;

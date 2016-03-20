@@ -218,13 +218,12 @@ static int drv_cp_harray_to_user(void __user *user_buf_uva,
 }
 
 /*
- * Sets up a given context for notify to work.  Calls drv_map_bool_ptr()
- * which maps the notify boolean in user VA in kernel space.
+ * Sets up a given context for notify to work. Maps the notify
+ * boolean in user VA into kernel space.
  */
 static int vmci_host_setup_notify(struct vmci_ctx *context,
 				  unsigned long uva)
 {
-	struct page *page;
 	int retval;
 
 	if (context->notify_page) {
@@ -243,14 +242,16 @@ static int vmci_host_setup_notify(struct vmci_ctx *context,
 	/*
 	 * Lock physical page backing a given user VA.
 	 */
-	retval = get_user_pages_fast(PAGE_ALIGN(uva), 1, 1, &page);
-	if (retval != 1)
+	retval = get_user_pages_fast(uva, 1, 1, &context->notify_page);
+	if (retval != 1) {
+		context->notify_page = NULL;
 		return VMCI_ERROR_GENERIC;
+	}
 
 	/*
 	 * Map the locked page and set up notify pointer.
 	 */
-	context->notify = kmap(page) + (uva & (PAGE_SIZE - 1));
+	context->notify = kmap(context->notify_page) + (uva & (PAGE_SIZE - 1));
 	vmci_ctx_check_signal_notify(context);
 
 	return VMCI_SUCCESS;
@@ -392,6 +393,12 @@ static int vmci_host_do_send_datagram(struct vmci_host_dev *vmci_host_dev,
 		vmci_ioctl_err("error getting datagram\n");
 		kfree(dg);
 		return -EFAULT;
+	}
+
+	if (VMCI_DG_SIZE(dg) != send_info.len) {
+		vmci_ioctl_err("datagram size mismatch\n");
+		kfree(dg);
+		return -EINVAL;
 	}
 
 	pr_devel("Datagram dst (handle=0x%x:0x%x) src (handle=0x%x:0x%x), payload (size=%llu bytes)\n",
@@ -1024,14 +1031,9 @@ int __init vmci_host_init(void)
 
 void __exit vmci_host_exit(void)
 {
-	int error;
-
 	vmci_host_device_initialized = false;
 
-	error = misc_deregister(&vmci_host_miscdev);
-	if (error)
-		pr_warn("Error unregistering character device: %d\n", error);
-
+	misc_deregister(&vmci_host_miscdev);
 	vmci_ctx_destroy(host_context);
 	vmci_qp_broker_exit();
 

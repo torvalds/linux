@@ -9,7 +9,7 @@
 #include "util/thread.h"
 #include "util/header.h"
 
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/trace-event.h"
 
 #include "util/debug.h"
@@ -769,6 +769,7 @@ static void dump_threads(void)
 		t = perf_session__findnew(session, st->tid);
 		pr_info("%10d: %s\n", st->tid, thread__comm_str(t));
 		node = rb_next(node);
+		thread__put(t);
 	};
 }
 
@@ -810,6 +811,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				struct perf_evsel *evsel,
 				struct machine *machine)
 {
+	int err = 0;
 	struct thread *thread = machine__findnew_thread(machine, sample->pid,
 							sample->tid);
 
@@ -821,10 +823,12 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 
 	if (evsel->handler != NULL) {
 		tracepoint_handler f = evsel->handler;
-		return f(evsel, sample);
+		err = f(evsel, sample);
 	}
 
-	return 0;
+	thread__put(thread);
+
+	return err;
 }
 
 static void sort_result(void)
@@ -846,24 +850,29 @@ static const struct perf_evsel_str_handler lock_tracepoints[] = {
 	{ "lock:lock_release",	 perf_evsel__process_lock_release,   }, /* CONFIG_LOCKDEP */
 };
 
+static bool force;
+
 static int __cmd_report(bool display_info)
 {
 	int err = -EINVAL;
 	struct perf_tool eops = {
 		.sample		 = process_sample_event,
 		.comm		 = perf_event__process_comm,
-		.ordered_samples = true,
+		.ordered_events	 = true,
 	};
 	struct perf_data_file file = {
 		.path = input_name,
 		.mode = PERF_DATA_MODE_READ,
+		.force = force,
 	};
 
 	session = perf_session__new(&file, false, &eops);
 	if (!session) {
 		pr_err("Initializing perf session failed\n");
-		return -ENOMEM;
+		return -1;
 	}
+
+	symbol__init(&session->header.env);
 
 	if (!perf_session__has_traces(session, "lock record"))
 		goto out_delete;
@@ -876,7 +885,7 @@ static int __cmd_report(bool display_info)
 	if (select_key())
 		goto out_delete;
 
-	err = perf_session__process_events(session, &eops);
+	err = perf_session__process_events(session);
 	if (err)
 		goto out_delete;
 
@@ -943,6 +952,7 @@ int cmd_lock(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "dump thread list in perf.data"),
 	OPT_BOOLEAN('m', "map", &info_map,
 		    "map of lock instances (address:name table)"),
+	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
 	OPT_END()
 	};
 	const struct option lock_options[] = {
@@ -954,6 +964,7 @@ int cmd_lock(int argc, const char **argv, const char *prefix __maybe_unused)
 	const struct option report_options[] = {
 	OPT_STRING('k', "key", &sort_key, "acquired",
 		    "key for sorting (acquired / contended / avg_wait / wait_total / wait_max / wait_min)"),
+	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
 	/* TODO: type */
 	OPT_END()
 	};
@@ -974,7 +985,6 @@ int cmd_lock(int argc, const char **argv, const char *prefix __maybe_unused)
 	unsigned int i;
 	int rc = 0;
 
-	symbol__init();
 	for (i = 0; i < LOCKHASH_SIZE; i++)
 		INIT_LIST_HEAD(lockhash_table + i);
 

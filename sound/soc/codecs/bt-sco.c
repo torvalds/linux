@@ -63,7 +63,7 @@ static int bt_sco_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id bt_sco_driver_ids[] = {
+static const struct platform_device_id bt_sco_driver_ids[] = {
 	{
 		.name		= "dfbmcs320",
 	},
@@ -74,10 +74,18 @@ static struct platform_device_id bt_sco_driver_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, bt_sco_driver_ids);
 
+#if defined(CONFIG_OF)
+static const struct of_device_id bt_sco_codec_of_match[] = {
+	{ .compatible = "delta,dfbmcs320", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, bt_sco_codec_of_match);
+#endif
+
 static struct platform_driver bt_sco_driver = {
 	.driver = {
 		.name = "bt-sco",
-		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(bt_sco_codec_of_match),
 	},
 	.probe = bt_sco_probe,
 	.remove = bt_sco_remove,
@@ -87,5 +95,5 @@ static struct platform_driver bt_sco_driver = {
 module_platform_driver(bt_sco_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
-MODULE_DESCRIPTION("ASoC generic bluethooth sco link driver");
+MODULE_DESCRIPTION("ASoC generic bluetooth sco link driver");
 MODULE_LICENSE("GPL");

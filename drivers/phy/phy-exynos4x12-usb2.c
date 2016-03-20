@@ -361,7 +361,6 @@ static const struct samsung_usb2_common_phy exynos4x12_phys[] = {
 		.power_on	= exynos4x12_power_on,
 		.power_off	= exynos4x12_power_off,
 	},
-	{},
 };
 
 const struct samsung_usb2_phy_config exynos3250_usb2_phy_config = {

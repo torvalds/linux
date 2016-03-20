@@ -226,7 +226,7 @@ static long compat_nanosleep_restart(struct restart_block *restart)
 	ret = hrtimer_nanosleep_restart(restart);
 	set_fs(oldfs);
 
-	if (ret) {
+	if (ret == -ERESTART_RESTARTBLOCK) {
 		rmtp = restart->nanosleep.compat_rmtp;
 
 		if (rmtp && compat_put_timespec(&rmt, rmtp))
@@ -256,9 +256,27 @@ COMPAT_SYSCALL_DEFINE2(nanosleep, struct compat_timespec __user *, rqtp,
 				HRTIMER_MODE_REL, CLOCK_MONOTONIC);
 	set_fs(oldfs);
 
-	if (ret) {
-		struct restart_block *restart
-			= &current_thread_info()->restart_block;
+	/*
+	 * hrtimer_nanosleep() can only return 0 or
+	 * -ERESTART_RESTARTBLOCK here because:
+	 *
+	 * - we call it with HRTIMER_MODE_REL and therefor exclude the
+	 *   -ERESTARTNOHAND return path.
+	 *
+	 * - we supply the rmtp argument from the task stack (due to
+	 *   the necessary compat conversion. So the update cannot
+	 *   fail, which excludes the -EFAULT return path as well. If
+	 *   it fails nevertheless we have a bigger problem and wont
+	 *   reach this place anymore.
+	 *
+	 * - if the return value is 0, we do not have to update rmtp
+	 *    because there is no remaining time.
+	 *
+	 * We check for -ERESTART_RESTARTBLOCK nevertheless if the
+	 * core implementation decides to return random nonsense.
+	 */
+	if (ret == -ERESTART_RESTARTBLOCK) {
+		struct restart_block *restart = &current->restart_block;
 
 		restart->fn = compat_nanosleep_restart;
 		restart->nanosleep.compat_rmtp = rmtp;
@@ -266,7 +284,6 @@ COMPAT_SYSCALL_DEFINE2(nanosleep, struct compat_timespec __user *, rqtp,
 		if (rmtp && compat_put_timespec(&rmt, rmtp))
 			return -EFAULT;
 	}
-
 	return ret;
 }
 
@@ -842,7 +859,7 @@ COMPAT_SYSCALL_DEFINE4(clock_nanosleep, clockid_t, which_clock, int, flags,
 		return -EFAULT;
 
 	if (err == -ERESTART_RESTARTBLOCK) {
-		restart = &current_thread_info()->restart_block;
+		restart = &current->restart_block;
 		restart->fn = compat_clock_nanosleep_restart;
 		restart->nanosleep.compat_rmtp = rmtp;
 	}
@@ -895,7 +912,8 @@ long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 			 * bitmap. We must however ensure the end of the
 			 * kernel bitmap is zeroed.
 			 */
-			if (nr_compat_longs-- > 0) {
+			if (nr_compat_longs) {
+				nr_compat_longs--;
 				if (__get_user(um, umask))
 					return -EFAULT;
 			} else {
@@ -937,7 +955,8 @@ long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
 			 * We dont want to write past the end of the userspace
 			 * bitmap.
 			 */
-			if (nr_compat_longs-- > 0) {
+			if (nr_compat_longs) {
+				nr_compat_longs--;
 				if (__put_user(um, umask))
 					return -EFAULT;
 			}

@@ -131,7 +131,7 @@ static int msm_iommu_probe(struct platform_device *pdev)
 	struct clk *iommu_clk;
 	struct clk *iommu_pclk;
 	struct msm_iommu_drvdata *drvdata;
-	struct msm_iommu_dev *iommu_dev = pdev->dev.platform_data;
+	struct msm_iommu_dev *iommu_dev = dev_get_platdata(&pdev->dev);
 	void __iomem *regs_base;
 	int ret, irq, par;
 
@@ -224,8 +224,7 @@ static int msm_iommu_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, drvdata);
 
-	if (iommu_clk)
-		clk_disable(iommu_clk);
+	clk_disable(iommu_clk);
 
 	clk_disable(iommu_pclk);
 
@@ -264,7 +263,7 @@ static int msm_iommu_remove(struct platform_device *pdev)
 
 static int msm_iommu_ctx_probe(struct platform_device *pdev)
 {
-	struct msm_iommu_ctx_dev *c = pdev->dev.platform_data;
+	struct msm_iommu_ctx_dev *c = dev_get_platdata(&pdev->dev);
 	struct msm_iommu_drvdata *drvdata;
 	struct msm_iommu_ctx_drvdata *ctx_drvdata;
 	int i, ret;
@@ -323,8 +322,7 @@ static int msm_iommu_ctx_probe(struct platform_device *pdev)
 		SET_NSCFG(drvdata->base, mid, 3);
 	}
 
-	if (drvdata->clk)
-		clk_disable(drvdata->clk);
+	clk_disable(drvdata->clk);
 	clk_disable(drvdata->pclk);
 
 	dev_info(&pdev->dev, "context %s using bank %d\n", c->name, c->num);
@@ -361,30 +359,19 @@ static struct platform_driver msm_iommu_ctx_driver = {
 	.remove		= msm_iommu_ctx_remove,
 };
 
+static struct platform_driver * const drivers[] = {
+	&msm_iommu_driver,
+	&msm_iommu_ctx_driver,
+};
+
 static int __init msm_iommu_driver_init(void)
 {
-	int ret;
-	ret = platform_driver_register(&msm_iommu_driver);
-	if (ret != 0) {
-		pr_err("Failed to register IOMMU driver\n");
-		goto error;
-	}
-
-	ret = platform_driver_register(&msm_iommu_ctx_driver);
-	if (ret != 0) {
-		platform_driver_unregister(&msm_iommu_driver);
-		pr_err("Failed to register IOMMU context driver\n");
-		goto error;
-	}
-
-error:
-	return ret;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 static void __exit msm_iommu_driver_exit(void)
 {
-	platform_driver_unregister(&msm_iommu_ctx_driver);
-	platform_driver_unregister(&msm_iommu_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 subsys_initcall(msm_iommu_driver_init);

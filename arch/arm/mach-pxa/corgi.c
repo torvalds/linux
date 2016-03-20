@@ -26,6 +26,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c/pxa-i2c.h>
 #include <linux/io.h>
+#include <linux/regulator/machine.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/spi/corgi_lcd.h>
@@ -47,12 +48,12 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/pxa25x.h>
+#include "pxa25x.h"
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/mmc-pxamci.h>
-#include <mach/udc.h>
+#include "udc.h"
 #include <mach/corgi.h>
-#include <mach/sharpsl_pm.h>
+#include "sharpsl_pm.h"
 
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/scoop.h>
@@ -752,6 +753,8 @@ static void __init corgi_init(void)
 		sharpsl_nand_partitions[1].size = 53 * 1024 * 1024;
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+
+	regulator_has_full_constraints();
 }
 
 static void __init fixup_corgi(struct tag *tags, char **cmdline)

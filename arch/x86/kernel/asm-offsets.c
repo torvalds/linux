@@ -41,15 +41,29 @@ void common(void) {
 	OFFSET(pbe_orig_address, pbe, orig_address);
 	OFFSET(pbe_next, pbe, next);
 
+#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
+	BLANK();
+	OFFSET(IA32_SIGCONTEXT_ax, sigcontext_32, ax);
+	OFFSET(IA32_SIGCONTEXT_bx, sigcontext_32, bx);
+	OFFSET(IA32_SIGCONTEXT_cx, sigcontext_32, cx);
+	OFFSET(IA32_SIGCONTEXT_dx, sigcontext_32, dx);
+	OFFSET(IA32_SIGCONTEXT_si, sigcontext_32, si);
+	OFFSET(IA32_SIGCONTEXT_di, sigcontext_32, di);
+	OFFSET(IA32_SIGCONTEXT_bp, sigcontext_32, bp);
+	OFFSET(IA32_SIGCONTEXT_sp, sigcontext_32, sp);
+	OFFSET(IA32_SIGCONTEXT_ip, sigcontext_32, ip);
+
+	BLANK();
+	OFFSET(IA32_RT_SIGFRAME_sigcontext, rt_sigframe_ia32, uc.uc_mcontext);
+#endif
+
 #ifdef CONFIG_PARAVIRT
 	BLANK();
-	OFFSET(PARAVIRT_enabled, pv_info, paravirt_enabled);
 	OFFSET(PARAVIRT_PATCH_pv_cpu_ops, paravirt_patch_template, pv_cpu_ops);
 	OFFSET(PARAVIRT_PATCH_pv_irq_ops, paravirt_patch_template, pv_irq_ops);
 	OFFSET(PV_IRQ_irq_disable, pv_irq_ops, irq_disable);
 	OFFSET(PV_IRQ_irq_enable, pv_irq_ops, irq_enable);
 	OFFSET(PV_CPU_iret, pv_cpu_ops, iret);
-	OFFSET(PV_CPU_irq_enable_sysexit, pv_cpu_ops, irq_enable_sysexit);
 	OFFSET(PV_CPU_read_cr0, pv_cpu_ops, read_cr0);
 	OFFSET(PV_MMU_read_cr2, pv_mmu_ops, read_cr2);
 #endif

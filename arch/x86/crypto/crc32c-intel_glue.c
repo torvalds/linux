@@ -30,10 +30,9 @@
 #include <linux/kernel.h>
 #include <crypto/internal/hash.h>
 
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/cpu_device_id.h>
-#include <asm/i387.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
 
 #define CHKSUM_BLOCK_SIZE	1
 #define CHKSUM_DIGEST_SIZE	4
@@ -258,7 +257,7 @@ static int __init crc32c_intel_mod_init(void)
 	if (!x86_match_cpu(crc32c_cpu_id))
 		return -ENODEV;
 #ifdef CONFIG_X86_64
-	if (cpu_has_pclmulqdq) {
+	if (boot_cpu_has(X86_FEATURE_PCLMULQDQ)) {
 		alg.update = crc32c_pcl_intel_update;
 		alg.finup = crc32c_pcl_intel_finup;
 		alg.digest = crc32c_pcl_intel_digest;
@@ -280,5 +279,5 @@ MODULE_AUTHOR("Austin Zhang <austin.zhang@intel.com>, Kent Liu <kent.liu@intel.c
 MODULE_DESCRIPTION("CRC32c (Castagnoli) optimization using Intel Hardware.");
 MODULE_LICENSE("GPL");
 
-MODULE_ALIAS("crc32c");
-MODULE_ALIAS("crc32c-intel");
+MODULE_ALIAS_CRYPTO("crc32c");
+MODULE_ALIAS_CRYPTO("crc32c-intel");

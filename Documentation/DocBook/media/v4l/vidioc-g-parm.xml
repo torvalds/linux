@@ -267,7 +267,7 @@ is intended for still imaging applications. The idea is to get the
 best possible image quality that the hardware can deliver. It is not
 defined how the driver writer may achieve that; it will depend on the
 hardware and the ingenuity of the driver writer. High quality mode is
-a different mode from the the regular motion video capture modes. In
+a different mode from the regular motion video capture modes. In
 high quality mode:<itemizedlist>
 		  <listitem>
 		    <para>The driver may be able to capture higher

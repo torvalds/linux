@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/sizes.h>
 #include <asm/unaligned.h>
@@ -27,7 +28,12 @@
 /* Runtime PM autosuspend timeout: PM is fairly light on this driver */
 #define SPI_AUTOSUSPEND_TIMEOUT		200
 
-#define ORION_NUM_CHIPSELECTS		1 /* only one slave is supported*/
+/* Some SoCs using this driver support up to 8 chip selects.
+ * It is up to the implementer to only use the chip selects
+ * that are available.
+ */
+#define ORION_NUM_CHIPSELECTS		8
+
 #define ORION_SPI_WAIT_RDY_MAX_LOOP	2000 /* in usec */
 
 #define ORION_SPI_IF_CTRL_REG		0x00
@@ -35,18 +41,48 @@
 #define ORION_SPI_DATA_OUT_REG		0x08
 #define ORION_SPI_DATA_IN_REG		0x0c
 #define ORION_SPI_INT_CAUSE_REG		0x10
+#define ORION_SPI_TIMING_PARAMS_REG	0x18
+
+#define ORION_SPI_TMISO_SAMPLE_MASK	(0x3 << 6)
+#define ORION_SPI_TMISO_SAMPLE_1	(1 << 6)
+#define ORION_SPI_TMISO_SAMPLE_2	(2 << 6)
 
 #define ORION_SPI_MODE_CPOL		(1 << 11)
 #define ORION_SPI_MODE_CPHA		(1 << 12)
 #define ORION_SPI_IF_8_16_BIT_MODE	(1 << 5)
 #define ORION_SPI_CLK_PRESCALE_MASK	0x1F
+#define ARMADA_SPI_CLK_PRESCALE_MASK	0xDF
 #define ORION_SPI_MODE_MASK		(ORION_SPI_MODE_CPOL | \
 					 ORION_SPI_MODE_CPHA)
+#define ORION_SPI_CS_MASK	0x1C
+#define ORION_SPI_CS_SHIFT	2
+#define ORION_SPI_CS(cs)	((cs << ORION_SPI_CS_SHIFT) & \
+					ORION_SPI_CS_MASK)
+
+enum orion_spi_type {
+	ORION_SPI,
+	ARMADA_SPI,
+};
+
+struct orion_spi_dev {
+	enum orion_spi_type	typ;
+	/*
+	 * min_divisor and max_hz should be exclusive, the only we can
+	 * have both is for managing the armada-370-spi case with old
+	 * device tree
+	 */
+	unsigned long		max_hz;
+	unsigned int		min_divisor;
+	unsigned int		max_divisor;
+	u32			prescale_mask;
+	bool			is_errata_50mhz_ac;
+};
 
 struct orion_spi {
 	struct spi_master	*master;
 	void __iomem		*base;
 	struct clk              *clk;
+	const struct orion_spi_dev *devdata;
 };
 
 static inline void __iomem *spi_reg(struct orion_spi *orion_spi, u32 reg)
@@ -83,30 +119,66 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 	u32 prescale;
 	u32 reg;
 	struct orion_spi *orion_spi;
+	const struct orion_spi_dev *devdata;
 
 	orion_spi = spi_master_get_devdata(spi->master);
+	devdata = orion_spi->devdata;
 
 	tclk_hz = clk_get_rate(orion_spi->clk);
 
-	/*
-	 * the supported rates are: 4,6,8...30
-	 * round up as we look for equal or less speed
-	 */
-	rate = DIV_ROUND_UP(tclk_hz, speed);
-	rate = roundup(rate, 2);
+	if (devdata->typ == ARMADA_SPI) {
+		unsigned int clk, spr, sppr, sppr2, err;
+		unsigned int best_spr, best_sppr, best_err;
 
-	/* check if requested speed is too small */
-	if (rate > 30)
-		return -EINVAL;
+		best_err = speed;
+		best_spr = 0;
+		best_sppr = 0;
 
-	if (rate < 4)
-		rate = 4;
+		/* Iterate over the valid range looking for best fit */
+		for (sppr = 0; sppr < 8; sppr++) {
+			sppr2 = 0x1 << sppr;
 
-	/* Convert the rate to SPI clock divisor value.	*/
-	prescale = 0x10 + rate/2;
+			spr = tclk_hz / sppr2;
+			spr = DIV_ROUND_UP(spr, speed);
+			if ((spr == 0) || (spr > 15))
+				continue;
+
+			clk = tclk_hz / (spr * sppr2);
+			err = speed - clk;
+
+			if (err < best_err) {
+				best_spr = spr;
+				best_sppr = sppr;
+				best_err = err;
+			}
+		}
+
+		if ((best_sppr == 0) && (best_spr == 0))
+			return -EINVAL;
+
+		prescale = ((best_sppr & 0x6) << 5) |
+			((best_sppr & 0x1) << 4) | best_spr;
+	} else {
+		/*
+		 * the supported rates are: 4,6,8...30
+		 * round up as we look for equal or less speed
+		 */
+		rate = DIV_ROUND_UP(tclk_hz, speed);
+		rate = roundup(rate, 2);
+
+		/* check if requested speed is too small */
+		if (rate > 30)
+			return -EINVAL;
+
+		if (rate < 4)
+			rate = 4;
+
+		/* Convert the rate to SPI clock divisor value.	*/
+		prescale = 0x10 + rate/2;
+	}
 
 	reg = readl(spi_reg(orion_spi, ORION_SPI_IF_CONFIG_REG));
-	reg = ((reg & ~ORION_SPI_CLK_PRESCALE_MASK) | prescale);
+	reg = ((reg & ~devdata->prescale_mask) | prescale);
 	writel(reg, spi_reg(orion_spi, ORION_SPI_IF_CONFIG_REG));
 
 	return 0;
@@ -127,6 +199,41 @@ orion_spi_mode_set(struct spi_device *spi)
 	if (spi->mode & SPI_CPHA)
 		reg |= ORION_SPI_MODE_CPHA;
 	writel(reg, spi_reg(orion_spi, ORION_SPI_IF_CONFIG_REG));
+}
+
+static void
+orion_spi_50mhz_ac_timing_erratum(struct spi_device *spi, unsigned int speed)
+{
+	u32 reg;
+	struct orion_spi *orion_spi;
+
+	orion_spi = spi_master_get_devdata(spi->master);
+
+	/*
+	 * Erratum description: (Erratum NO. FE-9144572) The device
+	 * SPI interface supports frequencies of up to 50 MHz.
+	 * However, due to this erratum, when the device core clock is
+	 * 250 MHz and the SPI interfaces is configured for 50MHz SPI
+	 * clock and CPOL=CPHA=1 there might occur data corruption on
+	 * reads from the SPI device.
+	 * Erratum Workaround:
+	 * Work in one of the following configurations:
+	 * 1. Set CPOL=CPHA=0 in "SPI Interface Configuration
+	 * Register".
+	 * 2. Set TMISO_SAMPLE value to 0x2 in "SPI Timing Parameters 1
+	 * Register" before setting the interface.
+	 */
+	reg = readl(spi_reg(orion_spi, ORION_SPI_TIMING_PARAMS_REG));
+	reg &= ~ORION_SPI_TMISO_SAMPLE_MASK;
+
+	if (clk_get_rate(orion_spi->clk) == 250000000 &&
+			speed == 50000000 && spi->mode & SPI_CPOL &&
+			spi->mode & SPI_CPHA)
+		reg |= ORION_SPI_TMISO_SAMPLE_2;
+	else
+		reg |= ORION_SPI_TMISO_SAMPLE_1; /* This is the default value */
+
+	writel(reg, spi_reg(orion_spi, ORION_SPI_TIMING_PARAMS_REG));
 }
 
 /*
@@ -150,6 +257,9 @@ orion_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 
 	orion_spi_mode_set(spi);
 
+	if (orion_spi->devdata->is_errata_50mhz_ac)
+		orion_spi_50mhz_ac_timing_erratum(spi, speed);
+
 	rc = orion_spi_baudrate_set(spi, speed);
 	if (rc)
 		return rc;
@@ -164,9 +274,18 @@ orion_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	return 0;
 }
 
-static void orion_spi_set_cs(struct orion_spi *orion_spi, int enable)
+static void orion_spi_set_cs(struct spi_device *spi, bool enable)
 {
-	if (enable)
+	struct orion_spi *orion_spi;
+
+	orion_spi = spi_master_get_devdata(spi->master);
+
+	orion_spi_clrbits(orion_spi, ORION_SPI_IF_CTRL_REG, ORION_SPI_CS_MASK);
+	orion_spi_setbits(orion_spi, ORION_SPI_IF_CTRL_REG,
+				ORION_SPI_CS(spi->chip_select));
+
+	/* Chip select logic is inverted from spi_set_cs */
+	if (!enable)
 		orion_spi_setbits(orion_spi, ORION_SPI_IF_CTRL_REG, 0x1);
 	else
 		orion_spi_clrbits(orion_spi, ORION_SPI_IF_CTRL_REG, 0x1);
@@ -179,8 +298,8 @@ static inline int orion_spi_wait_till_ready(struct orion_spi *orion_spi)
 	for (i = 0; i < ORION_SPI_WAIT_RDY_MAX_LOOP; i++) {
 		if (readl(spi_reg(orion_spi, ORION_SPI_INT_CAUSE_REG)))
 			return 1;
-		else
-			udelay(1);
+
+		udelay(1);
 	}
 
 	return -1;
@@ -281,69 +400,105 @@ out:
 	return xfer->len - count;
 }
 
-static int orion_spi_transfer_one_message(struct spi_master *master,
-					   struct spi_message *m)
+static int orion_spi_transfer_one(struct spi_master *master,
+					struct spi_device *spi,
+					struct spi_transfer *t)
 {
-	struct orion_spi *orion_spi = spi_master_get_devdata(master);
-	struct spi_device *spi = m->spi;
-	struct spi_transfer *t = NULL;
-	int par_override = 0;
 	int status = 0;
-	int cs_active = 0;
 
-	/* Load defaults */
-	status = orion_spi_setup_transfer(spi, NULL);
-
+	status = orion_spi_setup_transfer(spi, t);
 	if (status < 0)
-		goto msg_done;
+		return status;
 
-	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if (par_override || t->speed_hz || t->bits_per_word) {
-			par_override = 1;
-			status = orion_spi_setup_transfer(spi, t);
-			if (status < 0)
-				break;
-			if (!t->speed_hz && !t->bits_per_word)
-				par_override = 0;
-		}
+	if (t->len)
+		orion_spi_write_read(spi, t);
 
-		if (!cs_active) {
-			orion_spi_set_cs(orion_spi, 1);
-			cs_active = 1;
-		}
+	return status;
+}
 
-		if (t->len)
-			m->actual_length += orion_spi_write_read(spi, t);
-
-		if (t->delay_usecs)
-			udelay(t->delay_usecs);
-
-		if (t->cs_change) {
-			orion_spi_set_cs(orion_spi, 0);
-			cs_active = 0;
-		}
-	}
-
-msg_done:
-	if (cs_active)
-		orion_spi_set_cs(orion_spi, 0);
-
-	m->status = status;
-	spi_finalize_current_message(master);
-
-	return 0;
+static int orion_spi_setup(struct spi_device *spi)
+{
+	return orion_spi_setup_transfer(spi, NULL);
 }
 
 static int orion_spi_reset(struct orion_spi *orion_spi)
 {
 	/* Verify that the CS is deasserted */
-	orion_spi_set_cs(orion_spi, 0);
-
+	orion_spi_clrbits(orion_spi, ORION_SPI_IF_CTRL_REG, 0x1);
 	return 0;
 }
 
+static const struct orion_spi_dev orion_spi_dev_data = {
+	.typ = ORION_SPI,
+	.min_divisor = 4,
+	.max_divisor = 30,
+	.prescale_mask = ORION_SPI_CLK_PRESCALE_MASK,
+};
+
+static const struct orion_spi_dev armada_370_spi_dev_data = {
+	.typ = ARMADA_SPI,
+	.min_divisor = 4,
+	.max_divisor = 1920,
+	.max_hz = 50000000,
+	.prescale_mask = ARMADA_SPI_CLK_PRESCALE_MASK,
+};
+
+static const struct orion_spi_dev armada_xp_spi_dev_data = {
+	.typ = ARMADA_SPI,
+	.max_hz = 50000000,
+	.max_divisor = 1920,
+	.prescale_mask = ARMADA_SPI_CLK_PRESCALE_MASK,
+};
+
+static const struct orion_spi_dev armada_375_spi_dev_data = {
+	.typ = ARMADA_SPI,
+	.min_divisor = 15,
+	.max_divisor = 1920,
+	.prescale_mask = ARMADA_SPI_CLK_PRESCALE_MASK,
+};
+
+static const struct orion_spi_dev armada_380_spi_dev_data = {
+	.typ = ARMADA_SPI,
+	.max_hz = 50000000,
+	.max_divisor = 1920,
+	.prescale_mask = ARMADA_SPI_CLK_PRESCALE_MASK,
+	.is_errata_50mhz_ac = true,
+};
+
+static const struct of_device_id orion_spi_of_match_table[] = {
+	{
+		.compatible = "marvell,orion-spi",
+		.data = &orion_spi_dev_data,
+	},
+	{
+		.compatible = "marvell,armada-370-spi",
+		.data = &armada_370_spi_dev_data,
+	},
+	{
+		.compatible = "marvell,armada-375-spi",
+		.data = &armada_375_spi_dev_data,
+	},
+	{
+		.compatible = "marvell,armada-380-spi",
+		.data = &armada_380_spi_dev_data,
+	},
+	{
+		.compatible = "marvell,armada-390-spi",
+		.data = &armada_xp_spi_dev_data,
+	},
+	{
+		.compatible = "marvell,armada-xp-spi",
+		.data = &armada_xp_spi_dev_data,
+	},
+
+	{}
+};
+MODULE_DEVICE_TABLE(of, orion_spi_of_match_table);
+
 static int orion_spi_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id;
+	const struct orion_spi_dev *devdata;
 	struct spi_master *master;
 	struct orion_spi *spi;
 	struct resource *r;
@@ -360,6 +515,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 		master->bus_num = pdev->id;
 	if (pdev->dev.of_node) {
 		u32 cell_index;
+
 		if (!of_property_read_u32(pdev->dev.of_node, "cell-index",
 					  &cell_index))
 			master->bus_num = cell_index;
@@ -367,9 +523,10 @@ static int orion_spi_probe(struct platform_device *pdev)
 
 	/* we support only mode 0, and no options */
 	master->mode_bits = SPI_CPHA | SPI_CPOL;
-
-	master->transfer_one_message = orion_spi_transfer_one_message;
+	master->set_cs = orion_spi_set_cs;
+	master->transfer_one = orion_spi_transfer_one;
 	master->num_chipselect = ORION_NUM_CHIPSELECTS;
+	master->setup = orion_spi_setup;
 	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 	master->auto_runtime_pm = true;
 
@@ -377,6 +534,10 @@ static int orion_spi_probe(struct platform_device *pdev)
 
 	spi = spi_master_get_devdata(master);
 	spi->master = master;
+
+	of_id = of_match_device(orion_spi_of_match_table, &pdev->dev);
+	devdata = (of_id) ? of_id->data : &orion_spi_dev_data;
+	spi->devdata = devdata;
 
 	spi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(spi->clk)) {
@@ -389,8 +550,24 @@ static int orion_spi_probe(struct platform_device *pdev)
 		goto out;
 
 	tclk_hz = clk_get_rate(spi->clk);
-	master->max_speed_hz = DIV_ROUND_UP(tclk_hz, 4);
-	master->min_speed_hz = DIV_ROUND_UP(tclk_hz, 30);
+
+	/*
+	 * With old device tree, armada-370-spi could be used with
+	 * Armada XP, however for this SoC the maximum frequency is
+	 * 50MHz instead of tclk/4. On Armada 370, tclk cannot be
+	 * higher than 200MHz. So, in order to be able to handle both
+	 * SoCs, we can take the minimum of 50MHz and tclk/4.
+	 */
+	if (of_device_is_compatible(pdev->dev.of_node,
+					"marvell,armada-370-spi"))
+		master->max_speed_hz = min(devdata->max_hz,
+				DIV_ROUND_UP(tclk_hz, devdata->min_divisor));
+	else if (devdata->min_divisor)
+		master->max_speed_hz =
+			DIV_ROUND_UP(tclk_hz, devdata->min_divisor);
+	else
+		master->max_speed_hz = devdata->max_hz;
+	master->min_speed_hz = DIV_ROUND_UP(tclk_hz, devdata->max_divisor);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	spi->base = devm_ioremap_resource(&pdev->dev, r);
@@ -444,7 +621,7 @@ static int orion_spi_remove(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int orion_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
@@ -469,16 +646,9 @@ static const struct dev_pm_ops orion_spi_pm_ops = {
 			   NULL)
 };
 
-static const struct of_device_id orion_spi_of_match_table[] = {
-	{ .compatible = "marvell,orion-spi", },
-	{}
-};
-MODULE_DEVICE_TABLE(of, orion_spi_of_match_table);
-
 static struct platform_driver orion_spi_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &orion_spi_pm_ops,
 		.of_match_table = of_match_ptr(orion_spi_of_match_table),
 	},

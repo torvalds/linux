@@ -76,7 +76,7 @@ static void channel64_write_CHAR(const struct txx9dmac_chan *dc, dma_addr_t val)
 
 static void channel64_clear_CHAR(const struct txx9dmac_chan *dc)
 {
-#if defined(CONFIG_32BIT) && !defined(CONFIG_64BIT_PHYS_ADDR)
+#if defined(CONFIG_32BIT) && !defined(CONFIG_PHYS_ADDR_T_64BIT)
 	channel64_writel(dc, CHAR, 0);
 	channel64_writel(dc, __pad_CHAR, 0);
 #else
@@ -901,16 +901,11 @@ txx9dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	return &first->txd;
 }
 
-static int txx9dmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-			    unsigned long arg)
+static int txx9dmac_terminate_all(struct dma_chan *chan)
 {
 	struct txx9dmac_chan *dc = to_txx9dmac_chan(chan);
 	struct txx9dmac_desc *desc, *_desc;
 	LIST_HEAD(list);
-
-	/* Only supports DMA_TERMINATE_ALL */
-	if (cmd != DMA_TERMINATE_ALL)
-		return -EINVAL;
 
 	dev_vdbg(chan2dev(chan), "terminate_all\n");
 	spin_lock_bh(&dc->lock);
@@ -1109,7 +1104,7 @@ static int __init txx9dmac_chan_probe(struct platform_device *pdev)
 	dc->dma.dev = &pdev->dev;
 	dc->dma.device_alloc_chan_resources = txx9dmac_alloc_chan_resources;
 	dc->dma.device_free_chan_resources = txx9dmac_free_chan_resources;
-	dc->dma.device_control = txx9dmac_control;
+	dc->dma.device_terminate_all = txx9dmac_terminate_all;
 	dc->dma.device_tx_status = txx9dmac_tx_status;
 	dc->dma.device_issue_pending = txx9dmac_issue_pending;
 	if (pdata && pdata->memcpy_chan == ch) {

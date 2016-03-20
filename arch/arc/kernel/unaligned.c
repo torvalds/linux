@@ -12,6 +12,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/perf_event.h>
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
 #include <asm/disasm.h>
@@ -33,7 +34,7 @@
 	"	.section .fixup,\"ax\"\n"		\
 	"	.align	4\n"				\
 	"3:	mov	%0, 1\n"			\
-	"	b	2b\n"				\
+	"	j	2b\n"				\
 	"	.previous\n"				\
 	"	.section __ex_table,\"a\"\n"		\
 	"	.align	4\n"				\
@@ -81,7 +82,7 @@
 		"	.section .fixup,\"ax\"\n"	\
 		"	.align	4\n"			\
 		"4:	mov	%0, 1\n"		\
-		"	b	3b\n"			\
+		"	j	3b\n"			\
 		"	.previous\n"			\
 		"	.section __ex_table,\"a\"\n"	\
 		"	.align	4\n"			\
@@ -112,7 +113,7 @@
 		"	.section .fixup,\"ax\"\n"	\
 		"	.align	4\n"			\
 		"6:	mov	%0, 1\n"		\
-		"	b	5b\n"			\
+		"	j	5b\n"			\
 		"	.previous\n"			\
 		"	.section __ex_table,\"a\"\n"	\
 		"	.align	4\n"			\
@@ -253,6 +254,7 @@ int misaligned_fixup(unsigned long address, struct pt_regs *regs,
 		}
 	}
 
+	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, address);
 	return 0;
 
 fault:

@@ -20,7 +20,7 @@
 /*
  * Time after last use at which transport record is cleaned up.
  */
-unsigned rxrpc_transport_expiry = 3600 * 24;
+unsigned int rxrpc_transport_expiry = 3600 * 24;
 
 static void rxrpc_transport_reaper(struct work_struct *work);
 
@@ -51,6 +51,7 @@ static struct rxrpc_transport *rxrpc_alloc_transport(struct rxrpc_local *local,
 		spin_lock_init(&trans->client_lock);
 		rwlock_init(&trans->conn_lock);
 		atomic_set(&trans->usage, 1);
+		trans->conn_idcounter = peer->srx.srx_service << 16;
 		trans->debug_id = atomic_inc_return(&rxrpc_debug_id);
 
 		if (peer->srx.transport.family == AF_INET) {
@@ -189,7 +190,7 @@ void rxrpc_put_transport(struct rxrpc_transport *trans)
 
 	ASSERTCMP(atomic_read(&trans->usage), >, 0);
 
-	trans->put_time = get_seconds();
+	trans->put_time = ktime_get_seconds();
 	if (unlikely(atomic_dec_and_test(&trans->usage))) {
 		_debug("zombie");
 		/* let the reaper determine the timeout to avoid a race with
@@ -226,7 +227,7 @@ static void rxrpc_transport_reaper(struct work_struct *work)
 
 	_enter("");
 
-	now = get_seconds();
+	now = ktime_get_seconds();
 	earliest = ULONG_MAX;
 
 	/* extract all the transports that have been dead too long */

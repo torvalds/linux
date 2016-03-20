@@ -422,12 +422,12 @@ static struct tps6586x_platform_data *tps6586x_parse_regulator_dt(
 		return NULL;
 
 	for (i = 0; i < num; i++) {
-		int id;
+		uintptr_t id;
 		if (!tps6586x_matches[i].init_data)
 			continue;
 
 		pdata->reg_init_data[i] = tps6586x_matches[i].init_data;
-		id = (int)tps6586x_matches[i].driver_data;
+		id = (uintptr_t)tps6586x_matches[i].driver_data;
 		if (id == TPS6586X_ID_SYS)
 			sys_rail = pdata->reg_init_data[i]->constraints.name;
 
@@ -522,7 +522,6 @@ static int tps6586x_regulator_probe(struct platform_device *pdev)
 static struct platform_driver tps6586x_regulator_driver = {
 	.driver	= {
 		.name	= "tps6586x-regulator",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= tps6586x_regulator_probe,
 };

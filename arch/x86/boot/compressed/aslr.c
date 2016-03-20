@@ -1,6 +1,5 @@
 #include "misc.h"
 
-#ifdef CONFIG_RANDOMIZE_BASE
 #include <asm/msr.h>
 #include <asm/archrandom.h>
 #include <asm/e820.h>
@@ -83,7 +82,7 @@ static unsigned long get_random_long(void)
 
 	if (has_cpuflag(X86_FEATURE_TSC)) {
 		debug_putstr(" RDTSC");
-		rdtscll(raw);
+		raw = rdtsc();
 
 		random ^= raw;
 		use_i8254 = false;
@@ -183,10 +182,25 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 static bool mem_avoid_overlap(struct mem_vector *img)
 {
 	int i;
+	struct setup_data *ptr;
 
 	for (i = 0; i < MEM_AVOID_MAX; i++) {
 		if (mem_overlaps(img, &mem_avoid[i]))
 			return true;
+	}
+
+	/* Avoid all entries in the setup_data linked list. */
+	ptr = (struct setup_data *)(unsigned long)real_mode->hdr.setup_data;
+	while (ptr) {
+		struct mem_vector avoid;
+
+		avoid.start = (unsigned long)ptr;
+		avoid.size = sizeof(*ptr) + ptr->len;
+
+		if (mem_overlaps(img, &avoid))
+			return true;
+
+		ptr = (struct setup_data *)(unsigned long)ptr->next;
 	}
 
 	return false;
@@ -281,7 +295,8 @@ static unsigned long find_random_addr(unsigned long minimum,
 	return slots_fetch_random();
 }
 
-unsigned char *choose_kernel_location(unsigned char *input,
+unsigned char *choose_kernel_location(struct boot_params *boot_params,
+				      unsigned char *input,
 				      unsigned long input_size,
 				      unsigned char *output,
 				      unsigned long output_size)
@@ -300,6 +315,8 @@ unsigned char *choose_kernel_location(unsigned char *input,
 		goto out;
 	}
 #endif
+
+	boot_params->hdr.loadflags |= KASLR_FLAG;
 
 	/* Record the various known unsafe memory ranges. */
 	mem_avoid_init((unsigned long)input, input_size,
@@ -320,5 +337,3 @@ unsigned char *choose_kernel_location(unsigned char *input,
 out:
 	return (unsigned char *)choice;
 }
-
-#endif /* CONFIG_RANDOMIZE_BASE */

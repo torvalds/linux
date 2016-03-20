@@ -1,0 +1,52 @@
+Freescale Layerscape PCIe controller
+
+This PCIe host controller is based on the Synopsys DesignWare PCIe IP
+and thus inherits all the common properties defined in designware-pcie.txt.
+
+This controller derives its clocks from the Reset Configuration Word (RCW)
+which is used to describe the PLL settings at the time of chip-reset.
+
+Also as per the available Reference Manuals, there is no specific 'version'
+register available in the Freescale PCIe controller register set,
+which can allow determining the underlying DesignWare PCIe controller version
+information.
+
+Required properties:
+- compatible: should contain the platform identifier such as:
+        "fsl,ls1021a-pcie", "snps,dw-pcie"
+        "fsl,ls2080a-pcie", "snps,dw-pcie"
+- reg: base addresses and lengths of the PCIe controller
+- interrupts: A list of interrupt outputs of the controller. Must contain an
+  entry for each entry in the interrupt-names property.
+- interrupt-names: Must include the following entries:
+  "intr": The interrupt that is asserted for controller interrupts
+- fsl,pcie-scfg: Must include two entries.
+  The first entry must be a link to the SCFG device node
+  The second entry must be '0' or '1' based on physical PCIe controller index.
+  This is used to get SCFG PEXN registers
+
+Example:
+
+	pcie@3400000 {
+		compatible = "fsl,ls1021a-pcie", "snps,dw-pcie";
+		reg = <0x00 0x03400000 0x0 0x00010000   /* controller registers */
+		       0x40 0x00000000 0x0 0x00002000>; /* configuration space */
+		reg-names = "regs", "config";
+		interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>; /* controller interrupt */
+		interrupt-names = "intr";
+		fsl,pcie-scfg = <&scfg 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		num-lanes = <4>;
+		bus-range = <0x0 0xff>;
+		ranges = <0x81000000 0x0 0x00000000 0x40 0x00010000 0x0 0x00010000   /* downstream I/O */
+			  0xc2000000 0x0 0x20000000 0x40 0x20000000 0x0 0x20000000   /* prefetchable memory */
+			  0x82000000 0x0 0x40000000 0x40 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 7>;
+		interrupt-map = <0000 0 0 1 &gic GIC_SPI 91  IRQ_TYPE_LEVEL_HIGH>,
+				<0000 0 0 2 &gic GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>,
+				<0000 0 0 3 &gic GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>,
+				<0000 0 0 4 &gic GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
+	};

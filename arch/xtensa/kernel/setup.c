@@ -190,7 +190,7 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 #ifdef CONFIG_OF
 bool __initdata dt_memory_scan = false;
 
-#if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
+#if !XCHAL_HAVE_PTP_MMU || XCHAL_HAVE_SPANNING_WAY
 unsigned long xtensa_kio_paddr = XCHAL_KIO_DEFAULT_PADDR;
 EXPORT_SYMBOL(xtensa_kio_paddr);
 
@@ -334,7 +334,10 @@ extern char _Level5InterruptVector_text_end;
 extern char _Level6InterruptVector_text_start;
 extern char _Level6InterruptVector_text_end;
 #endif
-
+#ifdef CONFIG_SMP
+extern char _SecondaryResetVector_text_start;
+extern char _SecondaryResetVector_text_end;
+#endif
 
 
 #ifdef CONFIG_S32C1I_SELFTEST
@@ -506,6 +509,10 @@ void __init setup_arch(char **cmdline_p)
 		    __pa(&_Level6InterruptVector_text_end), 0);
 #endif
 
+#ifdef CONFIG_SMP
+	mem_reserve(__pa(&_SecondaryResetVector_text_start),
+		    __pa(&_SecondaryResetVector_text_end), 0);
+#endif
 	parse_early_param();
 	bootmem_init();
 
@@ -574,12 +581,9 @@ void machine_power_off(void)
 static int
 c_show(struct seq_file *f, void *slot)
 {
-	char buf[NR_CPUS * 5];
-
-	cpulist_scnprintf(buf, sizeof(buf), cpu_online_mask);
 	/* high-level stuff */
 	seq_printf(f, "CPU count\t: %u\n"
-		      "CPU list\t: %s\n"
+		      "CPU list\t: %*pbl\n"
 		      "vendor_id\t: Tensilica\n"
 		      "model\t\t: Xtensa " XCHAL_HW_VERSION_NAME "\n"
 		      "core ID\t\t: " XCHAL_CORE_ID "\n"
@@ -588,7 +592,7 @@ c_show(struct seq_file *f, void *slot)
 		      "cpu MHz\t\t: %lu.%02lu\n"
 		      "bogomips\t: %lu.%02lu\n",
 		      num_online_cpus(),
-		      buf,
+		      cpumask_pr_args(cpu_online_mask),
 		      XCHAL_BUILD_UNIQUE_ID,
 		      XCHAL_HAVE_BE ?  "big" : "little",
 		      ccount_freq/1000000,

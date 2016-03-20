@@ -7,7 +7,8 @@ menu "Multiplexer I2C Chip support"
 
 config I2C_ARB_GPIO_CHALLENGE
 	tristate "GPIO-based I2C arbitration"
-	depends on GPIOLIB && OF
+	depends on GPIOLIB || COMPILE_TEST
+	depends on OF
 	help
 	  If you say yes to this option, support will be included for an
 	  I2C multimaster arbitration scheme using GPIOs and a challenge &
@@ -40,7 +41,7 @@ config I2C_MUX_PCA9541
 
 config I2C_MUX_PCA954x
 	tristate "Philips PCA954x I2C Mux/switches"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  If you say yes here you get support for the Philips PCA954x
 	  I2C mux/switch devices.
@@ -59,5 +60,16 @@ config I2C_MUX_PINCTRL
 
 	  This driver can also be built as a module. If so, the module will be
 	  called pinctrl-i2cmux.
+
+config I2C_MUX_REG
+	tristate "Register-based I2C multiplexer"
+	help
+	  If you say yes to this option, support will be included for a
+	  register based I2C multiplexer. This driver provides access to
+	  I2C busses connected through a MUX, which is controlled
+	  by a single register.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-mux-reg.
 
 endmenu

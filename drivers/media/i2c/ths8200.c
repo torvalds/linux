@@ -58,19 +58,9 @@ static inline struct ths8200_state *to_state(struct v4l2_subdev *sd)
 	return container_of(sd, struct ths8200_state, sd);
 }
 
-static inline unsigned hblanking(const struct v4l2_bt_timings *t)
-{
-	return V4L2_DV_BT_BLANKING_WIDTH(t);
-}
-
 static inline unsigned htotal(const struct v4l2_bt_timings *t)
 {
 	return V4L2_DV_BT_FRAME_WIDTH(t);
-}
-
-static inline unsigned vblanking(const struct v4l2_bt_timings *t)
-{
-	return V4L2_DV_BT_BLANKING_HEIGHT(t);
 }
 
 static inline unsigned vtotal(const struct v4l2_bt_timings *t)
@@ -489,7 +479,6 @@ static int ths8200_remove(struct i2c_client *client)
 
 	ths8200_s_power(sd, false);
 	v4l2_async_unregister_subdev(&decoder->sd);
-	v4l2_device_unregister_subdev(sd);
 
 	return 0;
 }

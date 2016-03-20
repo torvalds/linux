@@ -11,8 +11,8 @@ Required properties:
   are made in native endianness.
 - #address-cells, #size-cells : Must be present if the device has sub-nodes
   representing partitions.
-- gpios : specifies the gpio pins to control the NAND device.  nwp is an
-  optional gpio and may be set to 0 if not present.
+- gpios : Specifies the GPIO pins to control the NAND device.  The order of
+  GPIO references is:  RDY, nCE, ALE, CLE, and an optional nWP.
 
 Optional properties:
 - bank-width : Width (in bytes) of the device.  If not present, the width
@@ -35,11 +35,11 @@ gpio-nand@1,0 {
 	reg = <1 0x0000 0x2>;
 	#address-cells = <1>;
 	#size-cells = <1>;
-	gpios = <&banka 1 0	/* rdy */
-		 &banka 2 0 	/* nce */
-		 &banka 3 0 	/* ale */
-		 &banka 4 0 	/* cle */
-		 0		/* nwp */>;
+	gpios = <&banka 1 0>,	/* RDY */
+		<&banka 2 0>, 	/* nCE */
+		<&banka 3 0>, 	/* ALE */
+		<&banka 4 0>, 	/* CLE */
+		<0>;		/* nWP */
 
 	partition@0 {
 	...

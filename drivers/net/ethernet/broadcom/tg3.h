@@ -3254,7 +3254,6 @@ struct tg3 {
 	int				pcie_readrq;
 
 	struct mii_bus			*mdio_bus;
-	int				mdio_irq[PHY_MAX_ADDR];
 	int				old_link;
 
 	u8				phy_addr;
@@ -3407,6 +3406,7 @@ struct tg3 {
 
 	struct device			*hwmon_dev;
 	bool				link_up;
+	bool				pcierr_recovery;
 };
 
 /* Accessor macros for chip and asic attributes

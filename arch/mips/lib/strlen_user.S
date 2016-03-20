@@ -28,7 +28,6 @@ LEAF(__strlen_\func\()_asm)
 	and		v0, a0
 	bnez		v0, .Lfault\@
 
-FEXPORT(__strlen_\func\()_nocheck_asm)
 	move		v0, a0
 .ifeqs "\func", "kernel"
 1:	EX(lbu, v1, (v0), .Lfault\@)
@@ -48,9 +47,7 @@ FEXPORT(__strlen_\func\()_nocheck_asm)
 #ifndef CONFIG_EVA
 	/* Set aliases */
 	.global __strlen_user_asm
-	.global __strlen_user_nocheck_asm
 	.set __strlen_user_asm, __strlen_kernel_asm
-	.set __strlen_user_nocheck_asm, __strlen_kernel_nocheck_asm
 #endif
 
 __BUILD_STRLEN_ASM kernel

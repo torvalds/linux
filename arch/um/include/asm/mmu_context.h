@@ -10,7 +10,26 @@
 #include <asm/mmu.h>
 
 extern void uml_setup_stubs(struct mm_struct *mm);
+/*
+ * Needed since we do not use the asm-generic/mm_hooks.h:
+ */
+static inline void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+{
+	uml_setup_stubs(mm);
+}
 extern void arch_exit_mmap(struct mm_struct *mm);
+static inline void arch_unmap(struct mm_struct *mm,
+			struct vm_area_struct *vma,
+			unsigned long start, unsigned long end)
+{
+}
+static inline void arch_bprm_mm_init(struct mm_struct *mm,
+				     struct vm_area_struct *vma)
+{
+}
+/*
+ * end asm-generic/mm_hooks.h functions
+ */
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
 
@@ -39,11 +58,6 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		if(next != &init_mm)
 			__switch_mm(&next->context.id);
 	}
-}
-
-static inline void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
-{
-	uml_setup_stubs(mm);
 }
 
 static inline void enter_lazy_tlb(struct mm_struct *mm, 

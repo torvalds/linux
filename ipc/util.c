@@ -71,44 +71,6 @@ struct ipc_proc_iface {
 	int (*show)(struct seq_file *, void *);
 };
 
-static void ipc_memory_notifier(struct work_struct *work)
-{
-	ipcns_notify(IPCNS_MEMCHANGED);
-}
-
-static int ipc_memory_callback(struct notifier_block *self,
-				unsigned long action, void *arg)
-{
-	static DECLARE_WORK(ipc_memory_wq, ipc_memory_notifier);
-
-	switch (action) {
-	case MEM_ONLINE:    /* memory successfully brought online */
-	case MEM_OFFLINE:   /* or offline: it's time to recompute msgmni */
-		/*
-		 * This is done by invoking the ipcns notifier chain with the
-		 * IPC_MEMCHANGED event.
-		 * In order not to keep the lock on the hotplug memory chain
-		 * for too long, queue a work item that will, when waken up,
-		 * activate the ipcns notification chain.
-		 */
-		schedule_work(&ipc_memory_wq);
-		break;
-	case MEM_GOING_ONLINE:
-	case MEM_GOING_OFFLINE:
-	case MEM_CANCEL_ONLINE:
-	case MEM_CANCEL_OFFLINE:
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block ipc_memory_nb = {
-	.notifier_call = ipc_memory_callback,
-	.priority = IPC_CALLBACK_PRI,
-};
-
 /**
  * ipc_init - initialise ipc subsystem
  *
@@ -124,8 +86,6 @@ static int __init ipc_init(void)
 	sem_init();
 	msg_init();
 	shm_init();
-	register_hotmemory_notifier(&ipc_memory_nb);
-	register_ipcns_notifier(&init_ipc_ns);
 	return 0;
 }
 device_initcall(ipc_init);
@@ -277,6 +237,10 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
 	rcu_read_lock();
 	spin_lock(&new->lock);
 
+	current_euid_egid(&euid, &egid);
+	new->cuid = new->uid = euid;
+	new->gid = new->cgid = egid;
+
 	id = idr_alloc(&ids->ipcs_idr, new,
 		       (next_id < 0) ? 0 : ipcid_to_idx(next_id), 0,
 		       GFP_NOWAIT);
@@ -288,10 +252,6 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
 	}
 
 	ids->in_use++;
-
-	current_euid_egid(&euid, &egid);
-	new->cuid = new->uid = euid;
-	new->gid = new->cgid = egid;
 
 	if (next_id < 0) {
 		new->seq = ids->seq++;
@@ -309,7 +269,7 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
 /**
  * ipcget_new -	create a new ipc object
  * @ns: ipc namespace
- * @ids: ipc identifer set
+ * @ids: ipc identifier set
  * @ops: the actual creation routine to call
  * @params: its parameters
  *
@@ -363,7 +323,7 @@ static int ipc_check_perms(struct ipc_namespace *ns,
 /**
  * ipcget_public - get an ipc object or create a new one
  * @ns: ipc namespace
- * @ids: ipc identifer set
+ * @ids: ipc identifier set
  * @ops: the actual creation routine to call
  * @params: its parameters
  *
@@ -454,17 +414,12 @@ void *ipc_alloc(int size)
 /**
  * ipc_free - free ipc space
  * @ptr: pointer returned by ipc_alloc
- * @size: size of block
  *
- * Free a block created with ipc_alloc(). The caller must know the size
- * used in the allocation call.
+ * Free a block created with ipc_alloc().
  */
-void ipc_free(void *ptr, int size)
+void ipc_free(void *ptr)
 {
-	if (size > PAGE_SIZE)
-		vfree(ptr);
-	else
-		kfree(ptr);
+	kvfree(ptr);
 }
 
 /**
@@ -507,10 +462,7 @@ void ipc_rcu_free(struct rcu_head *head)
 {
 	struct ipc_rcu *p = container_of(head, struct ipc_rcu, rcu);
 
-	if (is_vmalloc_addr(p))
-		vfree(p);
-	else
-		kfree(p);
+	kvfree(p);
 }
 
 /**
@@ -598,7 +550,7 @@ void ipc64_perm_to_ipc_perm(struct ipc64_perm *in, struct ipc_perm *out)
  * Call inside the RCU critical section.
  * The ipc object is *not* locked on exit.
  */
-struct kern_ipc_perm *ipc_obtain_object(struct ipc_ids *ids, int id)
+struct kern_ipc_perm *ipc_obtain_object_idr(struct ipc_ids *ids, int id)
 {
 	struct kern_ipc_perm *out;
 	int lid = ipcid_to_idx(id);
@@ -624,21 +576,24 @@ struct kern_ipc_perm *ipc_lock(struct ipc_ids *ids, int id)
 	struct kern_ipc_perm *out;
 
 	rcu_read_lock();
-	out = ipc_obtain_object(ids, id);
+	out = ipc_obtain_object_idr(ids, id);
 	if (IS_ERR(out))
-		goto err1;
+		goto err;
 
 	spin_lock(&out->lock);
 
-	/* ipc_rmid() may have already freed the ID while ipc_lock
-	 * was spinning: here verify that the structure is still valid
+	/*
+	 * ipc_rmid() may have already freed the ID while ipc_lock()
+	 * was spinning: here verify that the structure is still valid.
+	 * Upon races with RMID, return -EIDRM, thus indicating that
+	 * the ID points to a removed identifier.
 	 */
 	if (ipc_valid_object(out))
 		return out;
 
 	spin_unlock(&out->lock);
-	out = ERR_PTR(-EINVAL);
-err1:
+	out = ERR_PTR(-EIDRM);
+err:
 	rcu_read_unlock();
 	return out;
 }
@@ -648,7 +603,7 @@ err1:
  * @ids: ipc identifier set
  * @id: ipc id to look for
  *
- * Similar to ipc_obtain_object() but also checks
+ * Similar to ipc_obtain_object_idr() but also checks
  * the ipc object reference counter.
  *
  * Call inside the RCU critical section.
@@ -656,20 +611,20 @@ err1:
  */
 struct kern_ipc_perm *ipc_obtain_object_check(struct ipc_ids *ids, int id)
 {
-	struct kern_ipc_perm *out = ipc_obtain_object(ids, id);
+	struct kern_ipc_perm *out = ipc_obtain_object_idr(ids, id);
 
 	if (IS_ERR(out))
 		goto out;
 
 	if (ipc_checkid(out, id))
-		return ERR_PTR(-EIDRM);
+		return ERR_PTR(-EINVAL);
 out:
 	return out;
 }
 
 /**
  * ipcget - Common sys_*get() code
- * @ns: namsepace
+ * @ns: namespace
  * @ids: ipc identifier set
  * @ops: operations to be called on ipc object creation, permission checks
  *       and further checks
@@ -877,8 +832,10 @@ static int sysvipc_proc_show(struct seq_file *s, void *it)
 	struct ipc_proc_iter *iter = s->private;
 	struct ipc_proc_iface *iface = iter->iface;
 
-	if (it == SEQ_START_TOKEN)
-		return seq_puts(s, iface->header);
+	if (it == SEQ_START_TOKEN) {
+		seq_puts(s, iface->header);
+		return 0;
+	}
 
 	return iface->show(s, it);
 }
@@ -892,28 +849,16 @@ static const struct seq_operations sysvipc_proc_seqops = {
 
 static int sysvipc_proc_open(struct inode *inode, struct file *file)
 {
-	int ret;
-	struct seq_file *seq;
 	struct ipc_proc_iter *iter;
 
-	ret = -ENOMEM;
-	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+	iter = __seq_open_private(file, &sysvipc_proc_seqops, sizeof(*iter));
 	if (!iter)
-		goto out;
-
-	ret = seq_open(file, &sysvipc_proc_seqops);
-	if (ret) {
-		kfree(iter);
-		goto out;
-	}
-
-	seq = file->private_data;
-	seq->private = iter;
+		return -ENOMEM;
 
 	iter->iface = PDE_DATA(inode);
 	iter->ns    = get_ipc_ns(current->nsproxy->ipc_ns);
-out:
-	return ret;
+
+	return 0;
 }
 
 static int sysvipc_proc_release(struct inode *inode, struct file *file)

@@ -1,9 +1,7 @@
-Yama is a Linux Security Module that collects a number of system-wide DAC
-security protections that are not handled by the core kernel itself. To
-select it at boot time, specify "security=yama" (though this will disable
-any other LSM).
-
-Yama is controlled through sysctl in /proc/sys/kernel/yama:
+Yama is a Linux Security Module that collects system-wide DAC security
+protections that are not handled by the core kernel itself. This is
+selectable at build-time with CONFIG_SECURITY_YAMA, and can be controlled
+at run-time through sysctls in /proc/sys/kernel/yama:
 
 - ptrace_scope
 

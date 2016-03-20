@@ -1,0 +1,8 @@
+What:		/sys/bus/coresight/devices/<memory_map>.tmc/trigger_cntr
+Date:		November 2014
+KernelVersion:	3.19
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(RW) Disables write access to the Trace RAM by stopping the
+		formatter after a defined number of words have been stored
+		following the trigger event. Additional interface for this
+		driver are expected to be added as it matures.

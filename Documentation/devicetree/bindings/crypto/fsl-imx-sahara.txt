@@ -1,5 +1,5 @@
 Freescale SAHARA Cryptographic Accelerator included in some i.MX chips.
-Currently only i.MX27 is supported.
+Currently only i.MX27 and i.MX53 are supported.
 
 Required properties:
 - compatible : Should be "fsl,<soc>-sahara"

@@ -412,21 +412,7 @@ static struct tty_ldisc_ops cx81801_ops = {
  * over the modem port.
  */
 
-static int ams_delta_hw_params(struct snd_pcm_substream *substream,
-			 struct snd_pcm_hw_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-
-	/* Set cpu DAI configuration */
-	return snd_soc_dai_set_fmt(rtd->cpu_dai,
-				   SND_SOC_DAIFMT_DSP_A |
-				   SND_SOC_DAIFMT_NB_NF |
-				   SND_SOC_DAIFMT_CBM_CFM);
-}
-
-static struct snd_soc_ops ams_delta_ops = {
-	.hw_params = ams_delta_hw_params,
-};
+static struct snd_soc_ops ams_delta_ops;
 
 
 /* Digital mute implemented using modem/CPU multiplexer.
@@ -493,8 +479,8 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 
 	/* Add hook switch - can be used to control the codec from userspace
 	 * even if line discipline fails */
-	ret = snd_soc_jack_new(rtd->codec, "hook_switch",
-				SND_JACK_HEADSET, &ams_delta_hook_switch);
+	ret = snd_soc_card_jack_new(card, "hook_switch", SND_JACK_HEADSET,
+				    &ams_delta_hook_switch, NULL, 0);
 	if (ret)
 		dev_warn(card->dev,
 				"Failed to allocate resources for hook switch, "
@@ -546,6 +532,8 @@ static struct snd_soc_dai_link ams_delta_dai_link = {
 	.platform_name = "omap-mcbsp.1",
 	.codec_name = "cx20442-codec",
 	.ops = &ams_delta_ops,
+	.dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_NB_NF |
+		   SND_SOC_DAIFMT_CBM_CFM,
 };
 
 /* Audio card driver */
@@ -599,7 +587,6 @@ static int ams_delta_remove(struct platform_device *pdev)
 static struct platform_driver ams_delta_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = ams_delta_probe,
 	.remove = ams_delta_remove,

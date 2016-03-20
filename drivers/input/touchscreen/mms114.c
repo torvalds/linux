@@ -394,12 +394,12 @@ static struct mms114_platform_data *mms114_parse_dt(struct device *dev)
 	if (of_property_read_u32(np, "x-size", &pdata->x_size)) {
 		dev_err(dev, "failed to get x-size property\n");
 		return NULL;
-	};
+	}
 
 	if (of_property_read_u32(np, "y-size", &pdata->y_size)) {
 		dev_err(dev, "failed to get y-size property\n");
 		return NULL;
-	};
+	}
 
 	of_property_read_u32(np, "contact-threshold",
 				&pdata->contact_threshold);
@@ -515,8 +515,7 @@ static int mms114_probe(struct i2c_client *client,
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int mms114_suspend(struct device *dev)
+static int __maybe_unused mms114_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mms114_data *data = i2c_get_clientdata(client);
@@ -540,7 +539,7 @@ static int mms114_suspend(struct device *dev)
 	return 0;
 }
 
-static int mms114_resume(struct device *dev)
+static int __maybe_unused mms114_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mms114_data *data = i2c_get_clientdata(client);
@@ -559,7 +558,6 @@ static int mms114_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(mms114_pm_ops, mms114_suspend, mms114_resume);
 
@@ -574,12 +572,12 @@ static const struct of_device_id mms114_dt_match[] = {
 	{ .compatible = "melfas,mms114" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, mms114_dt_match);
 #endif
 
 static struct i2c_driver mms114_driver = {
 	.driver = {
 		.name	= "mms114",
-		.owner	= THIS_MODULE,
 		.pm	= &mms114_pm_ops,
 		.of_match_table = of_match_ptr(mms114_dt_match),
 	},

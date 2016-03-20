@@ -23,12 +23,12 @@
 #include <asm/mpc52xx.h>
 
 /* MPC5200 device tree match tables */
-static struct of_device_id mpc52xx_xlb_ids[] __initdata = {
+static const struct of_device_id mpc52xx_xlb_ids[] __initconst = {
 	{ .compatible = "fsl,mpc5200-xlb", },
 	{ .compatible = "mpc5200-xlb", },
 	{}
 };
-static struct of_device_id mpc52xx_bus_ids[] __initdata = {
+static const struct of_device_id mpc52xx_bus_ids[] __initconst = {
 	{ .compatible = "fsl,mpc5200-immr", },
 	{ .compatible = "fsl,mpc5200b-immr", },
 	{ .compatible = "simple-bus", },
@@ -108,21 +108,21 @@ void __init mpc52xx_declare_of_platform_devices(void)
 /*
  * match tables used by mpc52xx_map_common_devices()
  */
-static struct of_device_id mpc52xx_gpt_ids[] __initdata = {
+static const struct of_device_id mpc52xx_gpt_ids[] __initconst = {
 	{ .compatible = "fsl,mpc5200-gpt", },
 	{ .compatible = "mpc5200-gpt", }, /* old */
 	{}
 };
-static struct of_device_id mpc52xx_cdm_ids[] __initdata = {
+static const struct of_device_id mpc52xx_cdm_ids[] __initconst = {
 	{ .compatible = "fsl,mpc5200-cdm", },
 	{ .compatible = "mpc5200-cdm", }, /* old */
 	{}
 };
-static const struct of_device_id mpc52xx_gpio_simple[] = {
+static const struct of_device_id mpc52xx_gpio_simple[] __initconst = {
 	{ .compatible = "fsl,mpc5200-gpio", },
 	{}
 };
-static const struct of_device_id mpc52xx_gpio_wkup[] = {
+static const struct of_device_id mpc52xx_gpio_wkup[] __initconst = {
 	{ .compatible = "fsl,mpc5200-gpio-wkup", },
 	{}
 };

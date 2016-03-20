@@ -15,7 +15,31 @@
 
 #include "efistub.h"
 
+/*
+ * Some firmware implementations have problems reading files in one go.
+ * A read chunk size of 1MB seems to work for most platforms.
+ *
+ * Unfortunately, reading files in chunks triggers *other* bugs on some
+ * platforms, so we provide a way to disable this workaround, which can
+ * be done by passing "efi=nochunk" on the EFI boot stub command line.
+ *
+ * If you experience issues with initrd images being corrupt it's worth
+ * trying efi=nochunk, but chunking is enabled by default because there
+ * are far more machines that require the workaround than those that
+ * break with it enabled.
+ */
 #define EFI_READ_CHUNK_SIZE	(1024 * 1024)
+
+static unsigned long __chunk_size = EFI_READ_CHUNK_SIZE;
+
+/*
+ * Allow the platform to override the allocation granularity: this allows
+ * systems that have the capability to run with a larger page size to deal
+ * with the allocations for initrd and fdt more efficiently.
+ */
+#ifndef EFI_ALLOC_ALIGN
+#define EFI_ALLOC_ALIGN		EFI_PAGE_SIZE
+#endif
 
 struct file_info {
 	efi_file_handle_t *handle;
@@ -86,7 +110,7 @@ fail:
 }
 
 
-unsigned long __init get_dram_base(efi_system_table_t *sys_table_arg)
+unsigned long get_dram_base(efi_system_table_t *sys_table_arg)
 {
 	efi_status_t status;
 	unsigned long map_size;
@@ -135,10 +159,10 @@ efi_status_t efi_high_alloc(efi_system_table_t *sys_table_arg,
 	 * a specific address.  We are doing page-based allocations,
 	 * so we must be aligned to a page.
 	 */
-	if (align < EFI_PAGE_SIZE)
-		align = EFI_PAGE_SIZE;
+	if (align < EFI_ALLOC_ALIGN)
+		align = EFI_ALLOC_ALIGN;
 
-	nr_pages = round_up(size, EFI_PAGE_SIZE) / EFI_PAGE_SIZE;
+	nr_pages = round_up(size, EFI_ALLOC_ALIGN) / EFI_PAGE_SIZE;
 again:
 	for (i = 0; i < map_size / desc_size; i++) {
 		efi_memory_desc_t *desc;
@@ -155,11 +179,11 @@ again:
 		start = desc->phys_addr;
 		end = start + desc->num_pages * (1UL << EFI_PAGE_SHIFT);
 
-		if ((start + size) > end || (start + size) > max)
-			continue;
-
-		if (end - size > max)
+		if (end > max)
 			end = max;
+
+		if ((start + size) > end)
+			continue;
 
 		if (round_down(end - size, align) < start)
 			continue;
@@ -220,10 +244,10 @@ efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
 	 * a specific address.  We are doing page-based allocations,
 	 * so we must be aligned to a page.
 	 */
-	if (align < EFI_PAGE_SIZE)
-		align = EFI_PAGE_SIZE;
+	if (align < EFI_ALLOC_ALIGN)
+		align = EFI_ALLOC_ALIGN;
 
-	nr_pages = round_up(size, EFI_PAGE_SIZE) / EFI_PAGE_SIZE;
+	nr_pages = round_up(size, EFI_ALLOC_ALIGN) / EFI_PAGE_SIZE;
 	for (i = 0; i < map_size / desc_size; i++) {
 		efi_memory_desc_t *desc;
 		unsigned long m = (unsigned long)map;
@@ -277,10 +301,53 @@ void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
 	if (!size)
 		return;
 
-	nr_pages = round_up(size, EFI_PAGE_SIZE) / EFI_PAGE_SIZE;
+	nr_pages = round_up(size, EFI_ALLOC_ALIGN) / EFI_PAGE_SIZE;
 	efi_call_early(free_pages, addr, nr_pages);
 }
 
+/*
+ * Parse the ASCII string 'cmdline' for EFI options, denoted by the efi=
+ * option, e.g. efi=nochunk.
+ *
+ * It should be noted that efi= is parsed in two very different
+ * environments, first in the early boot environment of the EFI boot
+ * stub, and subsequently during the kernel boot.
+ */
+efi_status_t efi_parse_options(char *cmdline)
+{
+	char *str;
+
+	/*
+	 * If no EFI parameters were specified on the cmdline we've got
+	 * nothing to do.
+	 */
+	str = strstr(cmdline, "efi=");
+	if (!str)
+		return EFI_SUCCESS;
+
+	/* Skip ahead to first argument */
+	str += strlen("efi=");
+
+	/*
+	 * Remember, because efi= is also used by the kernel we need to
+	 * skip over arguments we don't understand.
+	 */
+	while (*str) {
+		if (!strncmp(str, "nochunk", 7)) {
+			str += strlen("nochunk");
+			__chunk_size = -1UL;
+		}
+
+		/* Group words together, delimited by "," */
+		while (*str && *str != ',')
+			str++;
+
+		if (*str == ',')
+			str++;
+	}
+
+	return EFI_SUCCESS;
+}
 
 /*
  * Check the cmdline for a LILO-style file= arguments.
@@ -423,8 +490,8 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 			size = files[j].size;
 			while (size) {
 				unsigned long chunksize;
-				if (size > EFI_READ_CHUNK_SIZE)
-					chunksize = EFI_READ_CHUNK_SIZE;
+				if (size > __chunk_size)
+					chunksize = __chunk_size;
 				else
 					chunksize = size;
 
@@ -503,7 +570,7 @@ efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
 	 * to the preferred address.  If that fails, allocate as low
 	 * as possible while respecting the required alignment.
 	 */
-	nr_pages = round_up(alloc_size, EFI_PAGE_SIZE) / EFI_PAGE_SIZE;
+	nr_pages = round_up(alloc_size, EFI_ALLOC_ALIGN) / EFI_PAGE_SIZE;
 	status = efi_call_early(allocate_pages,
 				EFI_ALLOCATE_ADDRESS, EFI_LOADER_DATA,
 				nr_pages, &efi_addr);
@@ -582,6 +649,10 @@ static u8 *efi_utf16_to_utf8(u8 *dst, const u16 *src, int n)
 	return dst;
 }
 
+#ifndef MAX_CMDLINE_ADDRESS
+#define MAX_CMDLINE_ADDRESS	ULONG_MAX
+#endif
+
 /*
  * Convert the unicode UEFI command line to ASCII to pass to kernel.
  * Size of memory allocated return in *cmd_line_len.
@@ -617,7 +688,8 @@ char *efi_convert_cmdline(efi_system_table_t *sys_table_arg,
 
 	options_bytes++;	/* NUL termination */
 
-	status = efi_low_alloc(sys_table_arg, options_bytes, 0, &cmdline_addr);
+	status = efi_high_alloc(sys_table_arg, options_bytes, 0,
+				&cmdline_addr, MAX_CMDLINE_ADDRESS);
 	if (status != EFI_SUCCESS)
 		return NULL;
 

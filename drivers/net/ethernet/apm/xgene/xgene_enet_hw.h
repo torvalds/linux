@@ -26,6 +26,7 @@
 
 struct xgene_enet_pdata;
 struct xgene_enet_stats;
+struct xgene_enet_desc_ring;
 
 /* clears and then set bits */
 static inline void xgene_set_bits(u32 *dst, u32 val, u32 start, u32 len)
@@ -42,17 +43,27 @@ static inline u32 xgene_get_bits(u32 val, u32 start, u32 end)
 	return (val & GENMASK(end, start)) >> start;
 }
 
+enum xgene_enet_rm {
+	RM0,
+	RM1,
+	RM3 = 3
+};
+
 #define CSR_RING_ID		0x0008
 #define OVERWRITE		BIT(31)
 #define IS_BUFFER_POOL		BIT(20)
 #define PREFETCH_BUF_EN		BIT(21)
 #define CSR_RING_ID_BUF		0x000c
+#define CSR_PBM_COAL		0x0014
+#define CSR_PBM_CTICK1		0x001c
+#define CSR_PBM_CTICK2		0x0020
+#define CSR_THRESHOLD0_SET1	0x0030
+#define CSR_THRESHOLD1_SET1	0x0034
 #define CSR_RING_NE_INT_MODE	0x017c
 #define CSR_RING_CONFIG		0x006c
 #define CSR_RING_WR_BASE	0x0070
 #define NUM_RING_CONFIG		5
 #define BUFPOOL_MODE		3
-#define RM3			3
 #define INC_DEC_CMD_ADDR	0x002c
 #define UDP_HDR_SIZE		2
 #define BUF_LEN_CODE_2K		0x5000
@@ -92,26 +103,24 @@ static inline u32 xgene_get_bits(u32 val, u32 start, u32 end)
 #define QCOHERENT		BIT(4)
 #define RECOMBBUF		BIT(27)
 
-#define BLOCK_ETH_CSR_OFFSET		0x2000
-#define BLOCK_ETH_RING_IF_OFFSET	0x9000
-#define BLOCK_ETH_CLKRST_CSR_OFFSET	0xC000
-#define BLOCK_ETH_DIAG_CSR_OFFSET	0xD000
+#define MAC_OFFSET			0x30
 
+#define BLOCK_ETH_CSR_OFFSET		0x2000
+#define BLOCK_ETH_CLE_CSR_OFFSET	0x6000
+#define BLOCK_ETH_RING_IF_OFFSET	0x9000
+#define BLOCK_ETH_CLKRST_CSR_OFFSET	0xc000
+#define BLOCK_ETH_DIAG_CSR_OFFSET	0xD000
 #define BLOCK_ETH_MAC_OFFSET		0x0000
-#define BLOCK_ETH_STATS_OFFSET		0x0014
 #define BLOCK_ETH_MAC_CSR_OFFSET	0x2800
+
+#define CLKEN_ADDR			0xc208
+#define SRST_ADDR			0xc200
 
 #define MAC_ADDR_REG_OFFSET		0x00
 #define MAC_COMMAND_REG_OFFSET		0x04
 #define MAC_WRITE_REG_OFFSET		0x08
 #define MAC_READ_REG_OFFSET		0x0c
 #define MAC_COMMAND_DONE_REG_OFFSET	0x10
-
-#define STAT_ADDR_REG_OFFSET		0x00
-#define STAT_COMMAND_REG_OFFSET		0x04
-#define STAT_WRITE_REG_OFFSET		0x08
-#define STAT_READ_REG_OFFSET		0x0c
-#define STAT_COMMAND_DONE_REG_OFFSET	0x10
 
 #define MII_MGMT_CONFIG_ADDR		0x20
 #define MII_MGMT_COMMAND_ADDR		0x24
@@ -141,12 +150,15 @@ static inline u32 xgene_get_bits(u32 val, u32 start, u32 end)
 #define CFG_BYPASS_UNISEC_RX		BIT(1)
 #define CFG_CLE_BYPASS_EN0		BIT(31)
 #define CFG_TXCLK_MUXSEL0_SET(dst, val)	xgene_set_bits(dst, val, 29, 3)
+#define CFG_RXCLK_MUXSEL0_SET(dst, val)	xgene_set_bits(dst, val, 26, 3)
 
 #define CFG_CLE_IP_PROTOCOL0_SET(dst, val)	xgene_set_bits(dst, val, 16, 2)
 #define CFG_CLE_DSTQID0_SET(dst, val)		xgene_set_bits(dst, val, 0, 12)
 #define CFG_CLE_FPSEL0_SET(dst, val)		xgene_set_bits(dst, val, 16, 4)
 #define CFG_MACMODE_SET(dst, val)		xgene_set_bits(dst, val, 18, 2)
 #define CFG_WAITASYNCRD_SET(dst, val)		xgene_set_bits(dst, val, 0, 16)
+#define CFG_CLE_DSTQID0(val)		(val & GENMASK(11, 0))
+#define CFG_CLE_FPSEL0(val)		((val << 16) & GENMASK(19, 16))
 #define ICM_CONFIG0_REG_0_ADDR		0x0400
 #define ICM_CONFIG2_REG_0_ADDR		0x0410
 #define RX_DV_GATE_REG_0_ADDR		0x05fc
@@ -175,6 +187,7 @@ static inline u32 xgene_get_bits(u32 val, u32 start, u32 end)
 #define ENET_LHD_MODE			BIT(25)
 #define ENET_GHD_MODE			BIT(26)
 #define FULL_DUPLEX2			BIT(0)
+#define PAD_CRC				BIT(2)
 #define SCAN_AUTO_INCR			BIT(5)
 #define TBYT_ADDR			0x38
 #define TPKT_ADDR			0x39
@@ -183,18 +196,21 @@ static inline u32 xgene_get_bits(u32 val, u32 start, u32 end)
 #define TUND_ADDR			0x4a
 
 #define TSO_IPPROTO_TCP			1
-#define	FULL_DUPLEX			2
 
 #define USERINFO_POS			0
 #define USERINFO_LEN			32
 #define FPQNUM_POS			32
 #define FPQNUM_LEN			12
+#define NV_POS				50
+#define NV_LEN				1
+#define LL_POS				51
+#define LL_LEN				1
 #define LERR_POS			60
 #define LERR_LEN			3
 #define STASH_POS			52
 #define STASH_LEN			2
 #define BUFDATALEN_POS			48
-#define BUFDATALEN_LEN			12
+#define BUFDATALEN_LEN			15
 #define DATAADDR_POS			0
 #define DATAADDR_LEN			42
 #define COHERENT_POS			63
@@ -211,9 +227,19 @@ static inline u32 xgene_get_bits(u32 val, u32 start, u32 end)
 #define IPHDR_LEN			6
 #define EC_POS				22	/* Enable checksum */
 #define EC_LEN				1
+#define ET_POS				23	/* Enable TSO */
 #define IS_POS				24	/* IP protocol select */
 #define IS_LEN				1
 #define TYPE_ETH_WORK_MESSAGE_POS	44
+#define LL_BYTES_MSB_POS		56
+#define LL_BYTES_MSB_LEN		8
+#define LL_BYTES_LSB_POS		48
+#define LL_BYTES_LSB_LEN		12
+#define LL_LEN_POS			48
+#define LL_LEN_LEN			8
+#define DATALEN_MASK			GENMASK(11, 0)
+
+#define LAST_BUFFER			(0x7800ULL << BUFDATALEN_POS)
 
 struct xgene_enet_raw_desc {
 	__le64 m0;
@@ -258,6 +284,7 @@ enum xgene_enet_ring_type {
 
 enum xgene_ring_owner {
 	RING_OWNER_ETH0,
+	RING_OWNER_ETH1,
 	RING_OWNER_CPU = 15,
 	RING_OWNER_INVALID
 };
@@ -311,27 +338,16 @@ static inline u16 xgene_enet_get_numslots(u16 id, u32 size)
 		      size / WORK_DESC_SIZE;
 }
 
-struct xgene_enet_desc_ring *xgene_enet_setup_ring(
-		struct xgene_enet_desc_ring *ring);
-void xgene_enet_clear_ring(struct xgene_enet_desc_ring *ring);
 void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
 			    struct xgene_enet_pdata *pdata,
 			    enum xgene_enet_err_code status);
 
-void xgene_enet_reset(struct xgene_enet_pdata *priv);
-void xgene_gmac_reset(struct xgene_enet_pdata *priv);
-void xgene_gmac_init(struct xgene_enet_pdata *priv, int speed);
-void xgene_gmac_tx_enable(struct xgene_enet_pdata *priv);
-void xgene_gmac_rx_enable(struct xgene_enet_pdata *priv);
-void xgene_gmac_tx_disable(struct xgene_enet_pdata *priv);
-void xgene_gmac_rx_disable(struct xgene_enet_pdata *priv);
-void xgene_gmac_set_mac_addr(struct xgene_enet_pdata *pdata);
-void xgene_enet_cle_bypass(struct xgene_enet_pdata *pdata,
-			   u32 dst_ring_num, u16 bufpool_id);
-void xgene_gport_shutdown(struct xgene_enet_pdata *priv);
-void xgene_gmac_get_tx_stats(struct xgene_enet_pdata *pdata);
-
 int xgene_enet_mdio_config(struct xgene_enet_pdata *pdata);
 void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata);
+bool xgene_ring_mgr_init(struct xgene_enet_pdata *p);
+
+extern const struct xgene_mac_ops xgene_gmac_ops;
+extern const struct xgene_port_ops xgene_gport_ops;
+extern struct xgene_ring_ops xgene_ring1_ops;
 
 #endif /* __XGENE_ENET_HW_H__ */

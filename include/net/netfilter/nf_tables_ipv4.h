@@ -6,14 +6,12 @@
 
 static inline void
 nft_set_pktinfo_ipv4(struct nft_pktinfo *pkt,
-		     const struct nf_hook_ops *ops,
 		     struct sk_buff *skb,
-		     const struct net_device *in,
-		     const struct net_device *out)
+		     const struct nf_hook_state *state)
 {
 	struct iphdr *ip;
 
-	nft_set_pktinfo(pkt, ops, skb, in, out);
+	nft_set_pktinfo(pkt, skb, state);
 
 	ip = ip_hdr(pkt->skb);
 	pkt->tprot = ip->protocol;

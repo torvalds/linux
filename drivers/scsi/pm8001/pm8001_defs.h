@@ -49,13 +49,17 @@ enum chip_flavors {
 	chip_8019,
 	chip_8074,
 	chip_8076,
-	chip_8077
+	chip_8077,
+	chip_8006,
+	chip_8070,
+	chip_8072
 };
 
 enum phy_speed {
 	PHY_SPEED_15 = 0x01,
 	PHY_SPEED_30 = 0x02,
 	PHY_SPEED_60 = 0x04,
+	PHY_SPEED_120 = 0x08,
 };
 
 enum data_direction {

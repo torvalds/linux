@@ -154,8 +154,7 @@ err_out:
  */
 static int orion_gpio_request(struct gpio_chip *chip, unsigned pin)
 {
-	struct orion_gpio_chip *ochip =
-		container_of(chip, struct orion_gpio_chip, chip);
+	struct orion_gpio_chip *ochip = gpiochip_get_data(chip);
 
 	if (orion_gpio_is_valid(ochip, pin, GPIO_INPUT_OK) ||
 	    orion_gpio_is_valid(ochip, pin, GPIO_OUTPUT_OK))
@@ -166,8 +165,7 @@ static int orion_gpio_request(struct gpio_chip *chip, unsigned pin)
 
 static int orion_gpio_direction_input(struct gpio_chip *chip, unsigned pin)
 {
-	struct orion_gpio_chip *ochip =
-		container_of(chip, struct orion_gpio_chip, chip);
+	struct orion_gpio_chip *ochip = gpiochip_get_data(chip);
 	unsigned long flags;
 
 	if (!orion_gpio_is_valid(ochip, pin, GPIO_INPUT_OK))
@@ -182,8 +180,7 @@ static int orion_gpio_direction_input(struct gpio_chip *chip, unsigned pin)
 
 static int orion_gpio_get(struct gpio_chip *chip, unsigned pin)
 {
-	struct orion_gpio_chip *ochip =
-		container_of(chip, struct orion_gpio_chip, chip);
+	struct orion_gpio_chip *ochip = gpiochip_get_data(chip);
 	int val;
 
 	if (readl(GPIO_IO_CONF(ochip)) & (1 << pin)) {
@@ -198,8 +195,7 @@ static int orion_gpio_get(struct gpio_chip *chip, unsigned pin)
 static int
 orion_gpio_direction_output(struct gpio_chip *chip, unsigned pin, int value)
 {
-	struct orion_gpio_chip *ochip =
-		container_of(chip, struct orion_gpio_chip, chip);
+	struct orion_gpio_chip *ochip = gpiochip_get_data(chip);
 	unsigned long flags;
 
 	if (!orion_gpio_is_valid(ochip, pin, GPIO_OUTPUT_OK))
@@ -216,8 +212,7 @@ orion_gpio_direction_output(struct gpio_chip *chip, unsigned pin, int value)
 
 static void orion_gpio_set(struct gpio_chip *chip, unsigned pin, int value)
 {
-	struct orion_gpio_chip *ochip =
-		container_of(chip, struct orion_gpio_chip, chip);
+	struct orion_gpio_chip *ochip = gpiochip_get_data(chip);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ochip->lock, flags);
@@ -227,8 +222,7 @@ static void orion_gpio_set(struct gpio_chip *chip, unsigned pin, int value)
 
 static int orion_gpio_to_irq(struct gpio_chip *chip, unsigned pin)
 {
-	struct orion_gpio_chip *ochip =
-		container_of(chip, struct orion_gpio_chip, chip);
+	struct orion_gpio_chip *ochip = gpiochip_get_data(chip);
 
 	return irq_create_mapping(ochip->domain,
 				  ochip->secondary_irq_base + pin);
@@ -306,9 +300,10 @@ EXPORT_SYMBOL(orion_gpio_set_blink);
 
 #define ORION_BLINK_HALF_PERIOD 100 /* ms */
 
-int orion_gpio_led_blink_set(unsigned gpio, int state,
+int orion_gpio_led_blink_set(struct gpio_desc *desc, int state,
 	unsigned long *delay_on, unsigned long *delay_off)
 {
+	unsigned gpio = desc_to_gpio(desc);
 
 	if (delay_on && delay_off && !*delay_on && !*delay_off)
 		*delay_on = *delay_off = ORION_BLINK_HALF_PERIOD;
@@ -406,9 +401,9 @@ static int gpio_irq_set_type(struct irq_data *d, u32 type)
 	return 0;
 }
 
-static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
+static void gpio_irq_handler(struct irq_desc *desc)
 {
-	struct orion_gpio_chip *ochip = irq_get_handler_data(irq);
+	struct orion_gpio_chip *ochip = irq_desc_get_handler_data(desc);
 	u32 cause, type;
 	int i;
 
@@ -444,8 +439,8 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 
 static void orion_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
-	struct orion_gpio_chip *ochip =
-		container_of(chip, struct orion_gpio_chip, chip);
+
+	struct orion_gpio_chip *ochip = gpiochip_get_data(chip);
 	u32 out, io_conf, blink, in_pol, data_in, cause, edg_msk, lvl_msk;
 	int i;
 
@@ -497,6 +492,34 @@ static void orion_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 #define orion_gpio_dbg_show NULL
 #endif
 
+static void orion_gpio_unmask_irq(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct irq_chip_type *ct = irq_data_get_chip_type(d);
+	u32 reg_val;
+	u32 mask = d->mask;
+
+	irq_gc_lock(gc);
+	reg_val = irq_reg_readl(gc, ct->regs.mask);
+	reg_val |= mask;
+	irq_reg_writel(gc, reg_val, ct->regs.mask);
+	irq_gc_unlock(gc);
+}
+
+static void orion_gpio_mask_irq(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct irq_chip_type *ct = irq_data_get_chip_type(d);
+	u32 mask = d->mask;
+	u32 reg_val;
+
+	irq_gc_lock(gc);
+	reg_val = irq_reg_readl(gc, ct->regs.mask);
+	reg_val &= ~mask;
+	irq_reg_writel(gc, reg_val, ct->regs.mask);
+	irq_gc_unlock(gc);
+}
+
 void __init orion_gpio_init(struct device_node *np,
 			    int gpio_base, int ngpio,
 			    void __iomem *base, int mask_offset,
@@ -538,7 +561,7 @@ void __init orion_gpio_init(struct device_node *np,
 	ochip->mask_offset = mask_offset;
 	ochip->secondary_irq_base = secondary_irq_base;
 
-	gpiochip_add(&ochip->chip);
+	gpiochip_add_data(&ochip->chip, ochip);
 
 	/*
 	 * Mask and clear GPIO interrupts.
@@ -553,8 +576,9 @@ void __init orion_gpio_init(struct device_node *np,
 
 	for (i = 0; i < 4; i++) {
 		if (irqs[i]) {
-			irq_set_handler_data(irqs[i], ochip);
-			irq_set_chained_handler(irqs[i], gpio_irq_handler);
+			irq_set_chained_handler_and_data(irqs[i],
+							 gpio_irq_handler,
+							 ochip);
 		}
 	}
 
@@ -565,8 +589,8 @@ void __init orion_gpio_init(struct device_node *np,
 	ct = gc->chip_types;
 	ct->regs.mask = ochip->mask_offset + GPIO_LEVEL_MASK_OFF;
 	ct->type = IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW;
-	ct->chip.irq_mask = irq_gc_mask_clr_bit;
-	ct->chip.irq_unmask = irq_gc_mask_set_bit;
+	ct->chip.irq_mask = orion_gpio_mask_irq;
+	ct->chip.irq_unmask = orion_gpio_unmask_irq;
 	ct->chip.irq_set_type = gpio_irq_set_type;
 	ct->chip.name = ochip->chip.label;
 
@@ -575,8 +599,8 @@ void __init orion_gpio_init(struct device_node *np,
 	ct->regs.ack = GPIO_EDGE_CAUSE_OFF;
 	ct->type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	ct->chip.irq_ack = irq_gc_ack_clr_bit;
-	ct->chip.irq_mask = irq_gc_mask_clr_bit;
-	ct->chip.irq_unmask = irq_gc_mask_set_bit;
+	ct->chip.irq_mask = orion_gpio_mask_irq;
+	ct->chip.irq_unmask = orion_gpio_unmask_irq;
 	ct->chip.irq_set_type = gpio_irq_set_type;
 	ct->handler = handle_edge_irq;
 	ct->chip.name = ochip->chip.label;

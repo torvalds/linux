@@ -1,11 +1,11 @@
 NVIDIA Tegra20/Tegra30/Tegra114 I2C controller driver.
 
 Required properties:
-- compatible : should be:
-	"nvidia,tegra114-i2c"
-	"nvidia,tegra30-i2c"
-	"nvidia,tegra20-i2c"
-	"nvidia,tegra20-i2c-dvc"
+- compatible : For Tegra20, must be one of "nvidia,tegra20-i2c-dvc" or
+  "nvidia,tegra20-i2c".  For Tegra30, must be "nvidia,tegra30-i2c".
+  For Tegra114, must be "nvidia,tegra114-i2c".  Otherwise, must be
+  "nvidia,<chip>-i2c", plus at least one of the above, where <chip> is
+  tegra124, tegra132, or tegra210.
   Details of compatible are as follows:
   nvidia,tegra20-i2c-dvc: Tegra20 has specific I2C controller called as DVC I2C
 	controller. This only support master mode of I2C communication. Register

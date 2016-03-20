@@ -20,9 +20,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_inum.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -34,10 +31,25 @@
 #include "xfs_dir2_priv.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
-#include "xfs_dinode.h"
 
 struct xfs_name xfs_name_dotdot = { (unsigned char *)"..", 2, XFS_DIR3_FT_DIR };
 
+/*
+ * @mode, if set, indicates that the type field needs to be set up.
+ * This uses the transformation from file mode to DT_* as defined in linux/fs.h
+ * for file type specification. This will be propagated into the directory
+ * structure if appropriate for the given operation and filesystem config.
+ */
+const unsigned char xfs_mode_to_ftype[S_IFMT >> S_SHIFT] = {
+	[0]			= XFS_DIR3_FT_UNKNOWN,
+	[S_IFREG >> S_SHIFT]    = XFS_DIR3_FT_REG_FILE,
+	[S_IFDIR >> S_SHIFT]    = XFS_DIR3_FT_DIR,
+	[S_IFCHR >> S_SHIFT]    = XFS_DIR3_FT_CHRDEV,
+	[S_IFBLK >> S_SHIFT]    = XFS_DIR3_FT_BLKDEV,
+	[S_IFIFO >> S_SHIFT]    = XFS_DIR3_FT_FIFO,
+	[S_IFSOCK >> S_SHIFT]   = XFS_DIR3_FT_SOCK,
+	[S_IFLNK >> S_SHIFT]    = XFS_DIR3_FT_SYMLINK,
+};
 
 /*
  * ASCII case-insensitive (ie. A-Z) support for directories that was
@@ -237,7 +249,8 @@ xfs_dir_init(
 }
 
 /*
-  Enter a name in a directory.
+ * Enter a name in a directory, or check for available space.
+ * If inum is 0, only the available space test is performed.
  */
 int
 xfs_dir_createname(
@@ -254,10 +267,12 @@ xfs_dir_createname(
 	int			v;		/* type-checking value */
 
 	ASSERT(S_ISDIR(dp->i_d.di_mode));
-	rval = xfs_dir_ino_validate(tp->t_mountp, inum);
-	if (rval)
-		return rval;
-	XFS_STATS_INC(xs_dir_create);
+	if (inum) {
+		rval = xfs_dir_ino_validate(tp->t_mountp, inum);
+		if (rval)
+			return rval;
+		XFS_STATS_INC(dp->i_mount, xs_dir_create);
+	}
 
 	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
 	if (!args)
@@ -276,6 +291,8 @@ xfs_dir_createname(
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
 	args->op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
+	if (!inum)
+		args->op_flags |= XFS_DA_OP_JUSTCHECK;
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL) {
 		rval = xfs_dir2_sf_addname(args);
@@ -345,9 +362,10 @@ xfs_dir_lookup(
 	struct xfs_da_args *args;
 	int		rval;
 	int		v;		/* type-checking value */
+	int		lock_mode;
 
 	ASSERT(S_ISDIR(dp->i_d.di_mode));
-	XFS_STATS_INC(xs_dir_lookup);
+	XFS_STATS_INC(dp->i_mount, xs_dir_lookup);
 
 	/*
 	 * We need to use KM_NOFS here so that lockdep will not throw false
@@ -370,6 +388,7 @@ xfs_dir_lookup(
 	if (ci_name)
 		args->op_flags |= XFS_DA_OP_CILOOKUP;
 
+	lock_mode = xfs_ilock_data_map_shared(dp);
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL) {
 		rval = xfs_dir2_sf_lookup(args);
 		goto out_check_rval;
@@ -402,6 +421,7 @@ out_check_rval:
 		}
 	}
 out_free:
+	xfs_iunlock(dp, lock_mode);
 	kmem_free(args);
 	return rval;
 }
@@ -424,7 +444,7 @@ xfs_dir_removename(
 	int		v;		/* type-checking value */
 
 	ASSERT(S_ISDIR(dp->i_d.di_mode));
-	XFS_STATS_INC(xs_dir_remove);
+	XFS_STATS_INC(dp->i_mount, xs_dir_remove);
 
 	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
 	if (!args)
@@ -535,62 +555,14 @@ out_free:
 
 /*
  * See if this entry can be added to the directory without allocating space.
- * First checks that the caller couldn't reserve enough space (resblks = 0).
  */
 int
 xfs_dir_canenter(
 	xfs_trans_t	*tp,
 	xfs_inode_t	*dp,
-	struct xfs_name	*name,		/* name of entry to add */
-	uint		resblks)
+	struct xfs_name	*name)		/* name of entry to add */
 {
-	struct xfs_da_args *args;
-	int		rval;
-	int		v;		/* type-checking value */
-
-	if (resblks)
-		return 0;
-
-	ASSERT(S_ISDIR(dp->i_d.di_mode));
-
-	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
-	if (!args)
-		return -ENOMEM;
-
-	args->geo = dp->i_mount->m_dir_geo;
-	args->name = name->name;
-	args->namelen = name->len;
-	args->filetype = name->type;
-	args->hashval = dp->i_mount->m_dirnameops->hashname(name);
-	args->dp = dp;
-	args->whichfork = XFS_DATA_FORK;
-	args->trans = tp;
-	args->op_flags = XFS_DA_OP_JUSTCHECK | XFS_DA_OP_ADDNAME |
-							XFS_DA_OP_OKNOENT;
-
-	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL) {
-		rval = xfs_dir2_sf_addname(args);
-		goto out_free;
-	}
-
-	rval = xfs_dir2_isblock(args, &v);
-	if (rval)
-		goto out_free;
-	if (v) {
-		rval = xfs_dir2_block_addname(args);
-		goto out_free;
-	}
-
-	rval = xfs_dir2_isleaf(args, &v);
-	if (rval)
-		goto out_free;
-	if (v)
-		rval = xfs_dir2_leaf_addname(args);
-	else
-		rval = xfs_dir2_node_addname(args);
-out_free:
-	kmem_free(args);
-	return rval;
+	return xfs_dir_createname(tp, dp, name, 0, NULL, NULL, 0);
 }
 
 /*
@@ -705,25 +677,22 @@ xfs_dir2_shrink_inode(
 	mp = dp->i_mount;
 	tp = args->trans;
 	da = xfs_dir2_db_to_da(args->geo, db);
-	/*
-	 * Unmap the fsblock(s).
-	 */
-	if ((error = xfs_bunmapi(tp, dp, da, args->geo->fsbcount,
-			XFS_BMAPI_METADATA, 0, args->firstblock, args->flist,
-			&done))) {
+
+	/* Unmap the fsblock(s). */
+	error = xfs_bunmapi(tp, dp, da, args->geo->fsbcount, 0, 0,
+			    args->firstblock, args->flist, &done);
+	if (error) {
 		/*
-		 * ENOSPC actually can happen if we're in a removename with
-		 * no space reservation, and the resulting block removal
-		 * would cause a bmap btree split or conversion from extents
-		 * to btree.  This can only happen for un-fragmented
-		 * directory blocks, since you need to be punching out
-		 * the middle of an extent.
-		 * In this case we need to leave the block in the file,
-		 * and not binval it.
-		 * So the block has to be in a consistent empty state
-		 * and appropriately logged.
-		 * We don't free up the buffer, the caller can tell it
-		 * hasn't happened since it got an error back.
+		 * ENOSPC actually can happen if we're in a removename with no
+		 * space reservation, and the resulting block removal would
+		 * cause a bmap btree split or conversion from extents to btree.
+		 * This can only happen for un-fragmented directory blocks,
+		 * since you need to be punching out the middle of an extent.
+		 * In this case we need to leave the block in the file, and not
+		 * binval it.  So the block has to be in a consistent empty
+		 * state and appropriately logged.  We don't free up the buffer,
+		 * the caller can tell it hasn't happened since it got an error
+		 * back.
 		 */
 		return error;
 	}

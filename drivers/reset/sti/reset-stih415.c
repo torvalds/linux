@@ -13,7 +13,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
-#include <dt-bindings/reset-controller/stih415-resets.h>
+#include <dt-bindings/reset/stih415-resets.h>
 
 #include "reset-syscfg.h"
 
@@ -89,7 +89,7 @@ static struct syscfg_reset_controller_data stih415_softreset_controller = {
 	.channels = stih415_softresets,
 };
 
-static struct of_device_id stih415_reset_match[] = {
+static const struct of_device_id stih415_reset_match[] = {
 	{ .compatible = "st,stih415-powerdown",
 	  .data = &stih415_powerdown_controller, },
 	{ .compatible = "st,stih415-softreset",
@@ -101,7 +101,6 @@ static struct platform_driver stih415_reset_driver = {
 	.probe = syscfg_reset_probe,
 	.driver = {
 		.name = "reset-stih415",
-		.owner = THIS_MODULE,
 		.of_match_table = stih415_reset_match,
 	},
 };

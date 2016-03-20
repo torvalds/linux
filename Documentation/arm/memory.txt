@@ -41,7 +41,7 @@ fffe8000	fffeffff	DTCM mapping area for platforms with
 fffe0000	fffe7fff	ITCM mapping area for platforms with
 				ITCM mounted inside the CPU.
 
-ffc00000	ffdfffff	Fixmap mapping region.  Addresses provided
+ffc00000	ffefffff	Fixmap mapping region.  Addresses provided
 				by fix_to_virt() will be located here.
 
 fee00000	feffffff	Mapping of PCI I/O space. This is a static
@@ -54,7 +54,7 @@ VMALLOC_START	VMALLOC_END-1	vmalloc() / ioremap() space.
 				located here through iotable_init().
 				VMALLOC_START is based upon the value
 				of the high_memory variable, and VMALLOC_END
-				is equal to 0xff000000.
+				is equal to 0xff800000.
 
 PAGE_OFFSET	high_memory-1	Kernel direct-mapped RAM region.
 				This maps the platforms RAM, and typically

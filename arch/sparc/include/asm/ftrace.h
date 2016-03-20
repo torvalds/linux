@@ -2,7 +2,7 @@
 #define _ASM_SPARC64_FTRACE
 
 #ifdef CONFIG_MCOUNT
-#define MCOUNT_ADDR		((long)(_mcount))
+#define MCOUNT_ADDR		((unsigned long)(_mcount))
 #define MCOUNT_INSN_SIZE	4 /* sizeof mcount call */
 
 #ifndef __ASSEMBLY__

@@ -78,33 +78,35 @@ MLX4_EN_PARM_INT(inline_thold, MAX_INLINE,
 #define MAX_PFC_TX     0xff
 #define MAX_PFC_RX     0xff
 
-int en_print(const char *level, const struct mlx4_en_priv *priv,
-	     const char *format, ...)
+void en_print(const char *level, const struct mlx4_en_priv *priv,
+	      const char *format, ...)
 {
 	va_list args;
 	struct va_format vaf;
-	int i;
 
 	va_start(args, format);
 
 	vaf.fmt = format;
 	vaf.va = &args;
 	if (priv->registered)
-		i = printk("%s%s: %s: %pV",
-			   level, DRV_NAME, priv->dev->name, &vaf);
+		printk("%s%s: %s: %pV",
+		       level, DRV_NAME, priv->dev->name, &vaf);
 	else
-		i = printk("%s%s: %s: Port %d: %pV",
-			   level, DRV_NAME, dev_name(&priv->mdev->pdev->dev),
-			   priv->port, &vaf);
+		printk("%s%s: %s: Port %d: %pV",
+		       level, DRV_NAME, dev_name(&priv->mdev->pdev->dev),
+		       priv->port, &vaf);
 	va_end(args);
-
-	return i;
 }
 
 void mlx4_en_update_loopback_state(struct net_device *dev,
 				   netdev_features_t features)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	if (features & NETIF_F_LOOPBACK)
+		priv->ctrl_flags |= cpu_to_be32(MLX4_WQE_CTRL_FORCE_LOOPBACK);
+	else
+		priv->ctrl_flags &= cpu_to_be32(~MLX4_WQE_CTRL_FORCE_LOOPBACK);
 
 	priv->flags &= ~(MLX4_EN_FLAG_RX_FILTER_NEEDED|
 			MLX4_EN_FLAG_ENABLE_HW_LOOPBACK);
@@ -121,6 +123,28 @@ void mlx4_en_update_loopback_state(struct net_device *dev,
 	 */
 	if (mlx4_is_mfunc(priv->mdev->dev) || priv->validate_loopback)
 		priv->flags |= MLX4_EN_FLAG_ENABLE_HW_LOOPBACK;
+
+	mutex_lock(&priv->mdev->state_lock);
+	if (priv->mdev->dev->caps.flags2 &
+	    MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB &&
+	    priv->rss_map.indir_qp.qpn) {
+		int i;
+		int err = 0;
+		int loopback = !!(features & NETIF_F_LOOPBACK);
+
+		for (i = 0; i < priv->rx_ring_num; i++) {
+			int ret;
+
+			ret = mlx4_en_change_mcast_lb(priv,
+						      &priv->rss_map.qps[i],
+						      loopback);
+			if (!err)
+				err = ret;
+		}
+		if (err)
+			mlx4_warn(priv->mdev, "failed to change mcast loopback\n");
+	}
+	mutex_unlock(&priv->mdev->state_lock);
 }
 
 static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
@@ -208,31 +232,47 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 		if (mdev->pndev[i])
 			mlx4_en_destroy_netdev(mdev->pndev[i]);
 
-	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
-		mlx4_en_remove_timestamp(mdev);
-
 	flush_workqueue(mdev->workqueue);
 	destroy_workqueue(mdev->workqueue);
 	(void) mlx4_mr_free(dev, &mdev->mr);
 	iounmap(mdev->uar_map);
 	mlx4_uar_free(dev, &mdev->priv_uar);
 	mlx4_pd_free(dev, mdev->priv_pdn);
+	if (mdev->nb.notifier_call)
+		unregister_netdevice_notifier(&mdev->nb);
 	kfree(mdev);
+}
+
+static void mlx4_en_activate(struct mlx4_dev *dev, void *ctx)
+{
+	int i;
+	struct mlx4_en_dev *mdev = ctx;
+
+	/* Create a netdev for each port */
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
+		mlx4_info(mdev, "Activating port:%d\n", i);
+		if (mlx4_en_init_netdev(mdev, i, &mdev->profile.prof[i]))
+			mdev->pndev[i] = NULL;
+	}
+
+	/* register notifier */
+	mdev->nb.notifier_call = mlx4_en_netdev_event;
+	if (register_netdevice_notifier(&mdev->nb)) {
+		mdev->nb.notifier_call = NULL;
+		mlx4_err(mdev, "Failed to create notifier\n");
+	}
 }
 
 static void *mlx4_en_add(struct mlx4_dev *dev)
 {
 	struct mlx4_en_dev *mdev;
 	int i;
-	int err;
 
 	printk_once(KERN_INFO "%s", mlx4_en_version);
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
-	if (!mdev) {
-		err = -ENOMEM;
+	if (!mdev)
 		goto err_free_res;
-	}
 
 	if (mlx4_pd_alloc(dev, &mdev->priv_pdn))
 		goto err_free_dev;
@@ -247,8 +287,8 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	spin_lock_init(&mdev->uar_lock);
 
 	mdev->dev = dev;
-	mdev->dma_device = &(dev->pdev->dev);
-	mdev->pdev = dev->pdev;
+	mdev->dma_device = &dev->persist->pdev->dev;
+	mdev->pdev = dev->persist->pdev;
 	mdev->device_up = false;
 
 	mdev->LSO_support = !!(dev->caps.flags & (1 << 15));
@@ -267,8 +307,7 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	}
 
 	/* Build device profile according to supplied module parameters */
-	err = mlx4_en_get_profile(mdev);
-	if (err) {
+	if (mlx4_en_get_profile(mdev)) {
 		mlx4_err(mdev, "Bad module parameters, aborting\n");
 		goto err_mr;
 	}
@@ -278,10 +317,6 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH)
 		mdev->port_cnt++;
 
-	/* Initialize time stamp mechanism */
-	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
-		mlx4_en_init_timestamp(mdev);
-
 	/* Set default number of RX rings*/
 	mlx4_en_set_num_rx_rings(mdev);
 
@@ -289,24 +324,13 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	 * Note: we cannot use the shared workqueue because of deadlocks caused
 	 *       by the rtnl lock */
 	mdev->workqueue = create_singlethread_workqueue("mlx4_en");
-	if (!mdev->workqueue) {
-		err = -ENOMEM;
+	if (!mdev->workqueue)
 		goto err_mr;
-	}
 
 	/* At this stage all non-port specific tasks are complete:
 	 * mark the card state as up */
 	mutex_init(&mdev->state_lock);
 	mdev->device_up = true;
-
-	/* Setup ports */
-
-	/* Create a netdev for each port */
-	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
-		mlx4_info(mdev, "Activating port:%d\n", i);
-		if (mlx4_en_init_netdev(mdev, i, &mdev->profile.prof[i]))
-			mdev->pndev[i] = NULL;
-	}
 
 	return mdev;
 
@@ -331,6 +355,7 @@ static struct mlx4_interface mlx4_en_interface = {
 	.event		= mlx4_en_event,
 	.get_dev	= mlx4_en_get_netdev,
 	.protocol	= MLX4_PROT_ETH,
+	.activate	= mlx4_en_activate,
 };
 
 static void mlx4_en_verify_params(void)
@@ -357,6 +382,7 @@ static void mlx4_en_verify_params(void)
 static int __init mlx4_en_init(void)
 {
 	mlx4_en_verify_params();
+	mlx4_en_init_ptys2ethtool_map();
 
 	return mlx4_register_interface(&mlx4_en_interface);
 }

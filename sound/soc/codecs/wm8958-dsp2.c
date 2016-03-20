@@ -418,7 +418,7 @@ static void wm8958_dsp_apply(struct snd_soc_codec *codec, int path, int start)
 int wm8958_aif_ev(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	int i;
 
 	switch (event) {
@@ -459,7 +459,7 @@ static int wm8958_put_mbc_enum(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = wm8994->wm8994;
-	int value = ucontrol->value.integer.value[0];
+	int value = ucontrol->value.enumerated.item[0];
 	int reg;
 
 	/* Don't allow on the fly reconfiguration */
@@ -549,7 +549,7 @@ static int wm8958_put_vss_enum(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = wm8994->wm8994;
-	int value = ucontrol->value.integer.value[0];
+	int value = ucontrol->value.enumerated.item[0];
 	int reg;
 
 	/* Don't allow on the fly reconfiguration */
@@ -582,7 +582,7 @@ static int wm8958_put_vss_hpf_enum(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = wm8994->wm8994;
-	int value = ucontrol->value.integer.value[0];
+	int value = ucontrol->value.enumerated.item[0];
 	int reg;
 
 	/* Don't allow on the fly reconfiguration */
@@ -749,7 +749,7 @@ static int wm8958_put_enh_eq_enum(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = wm8994->wm8994;
-	int value = ucontrol->value.integer.value[0];
+	int value = ucontrol->value.enumerated.item[0];
 	int reg;
 
 	/* Don't allow on the fly reconfiguration */
@@ -867,9 +867,9 @@ static void wm8958_enh_eq_loaded(const struct firmware *fw, void *context)
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
 	if (fw && (wm8958_dsp2_fw(codec, "ENH_EQ", fw, true) == 0)) {
-		mutex_lock(&codec->mutex);
+		mutex_lock(&wm8994->fw_lock);
 		wm8994->enh_eq = fw;
-		mutex_unlock(&codec->mutex);
+		mutex_unlock(&wm8994->fw_lock);
 	}
 }
 
@@ -879,9 +879,9 @@ static void wm8958_mbc_vss_loaded(const struct firmware *fw, void *context)
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
 	if (fw && (wm8958_dsp2_fw(codec, "MBC+VSS", fw, true) == 0)) {
-		mutex_lock(&codec->mutex);
+		mutex_lock(&wm8994->fw_lock);
 		wm8994->mbc_vss = fw;
-		mutex_unlock(&codec->mutex);
+		mutex_unlock(&wm8994->fw_lock);
 	}
 }
 
@@ -891,9 +891,9 @@ static void wm8958_mbc_loaded(const struct firmware *fw, void *context)
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
 	if (fw && (wm8958_dsp2_fw(codec, "MBC", fw, true) == 0)) {
-		mutex_lock(&codec->mutex);
+		mutex_lock(&wm8994->fw_lock);
 		wm8994->mbc = fw;
-		mutex_unlock(&codec->mutex);
+		mutex_unlock(&wm8994->fw_lock);
 	}
 }
 

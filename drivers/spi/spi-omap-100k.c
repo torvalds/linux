@@ -16,11 +16,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -29,6 +24,7 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -69,10 +65,6 @@
 
 #define SPI_STATUS_WE                   (1UL << 1)
 #define SPI_STATUS_RD                   (1UL << 0)
-
-#define WRITE 0
-#define READ  1
-
 
 /* use PIO for small transfers, avoiding DMA setup/teardown overhead and
  * cache operations; better heuristics consider wordsize and bitrate.
@@ -252,12 +244,12 @@ static int omap1_spi100k_setup_transfer(struct spi_device *spi,
 {
 	struct omap1_spi100k *spi100k = spi_master_get_devdata(spi->master);
 	struct omap1_spi100k_cs *cs = spi->controller_state;
-	u8 word_len = spi->bits_per_word;
+	u8 word_len;
 
-	if (t != NULL && t->bits_per_word)
+	if (t != NULL)
 		word_len = t->bits_per_word;
-	if (!word_len)
-		word_len = 8;
+	else
+		word_len = spi->bits_per_word;
 
 	if (spi->bits_per_word > 32)
 		return -EINVAL;
@@ -303,16 +295,6 @@ static int omap1_spi100k_setup(struct spi_device *spi)
 	return ret;
 }
 
-static int omap1_spi100k_prepare_hardware(struct spi_master *master)
-{
-	struct omap1_spi100k *spi100k = spi_master_get_devdata(master);
-
-	clk_prepare_enable(spi100k->ick);
-	clk_prepare_enable(spi100k->fck);
-
-	return 0;
-}
-
 static int omap1_spi100k_transfer_one_message(struct spi_master *master,
 					      struct spi_message *m)
 {
@@ -320,7 +302,6 @@ static int omap1_spi100k_transfer_one_message(struct spi_master *master,
 	struct spi_device *spi = m->spi;
 	struct spi_transfer *t = NULL;
 	int cs_active = 0;
-	int par_override = 0;
 	int status = 0;
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
@@ -328,14 +309,9 @@ static int omap1_spi100k_transfer_one_message(struct spi_master *master,
 			status = -EINVAL;
 			break;
 		}
-		if (par_override || t->speed_hz || t->bits_per_word) {
-			par_override = 1;
-			status = omap1_spi100k_setup_transfer(spi, t);
-			if (status < 0)
-				break;
-			if (!t->speed_hz && !t->bits_per_word)
-				par_override = 0;
-		}
+		status = omap1_spi100k_setup_transfer(spi, t);
+		if (status < 0)
+			break;
 
 		if (!cs_active) {
 			omap1_spi100k_force_cs(spi100k, 1);
@@ -365,11 +341,7 @@ static int omap1_spi100k_transfer_one_message(struct spi_master *master,
 		}
 	}
 
-	/* Restore defaults if they were overriden */
-	if (par_override) {
-		par_override = 0;
-		status = omap1_spi100k_setup_transfer(spi, NULL);
-	}
+	status = omap1_spi100k_setup_transfer(spi, NULL);
 
 	if (cs_active)
 		omap1_spi100k_force_cs(spi100k, 0);
@@ -379,16 +351,6 @@ static int omap1_spi100k_transfer_one_message(struct spi_master *master,
 	spi_finalize_current_message(master);
 
 	return status;
-}
-
-static int omap1_spi100k_unprepare_hardware(struct spi_master *master)
-{
-	struct omap1_spi100k *spi100k = spi_master_get_devdata(master);
-
-	clk_disable_unprepare(spi100k->ick);
-	clk_disable_unprepare(spi100k->fck);
-
-	return 0;
 }
 
 static int omap1_spi100k_probe(struct platform_device *pdev)
@@ -411,14 +373,12 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 
 	master->setup = omap1_spi100k_setup;
 	master->transfer_one_message = omap1_spi100k_transfer_one_message;
-	master->prepare_transfer_hardware = omap1_spi100k_prepare_hardware;
-	master->unprepare_transfer_hardware = omap1_spi100k_unprepare_hardware;
-	master->cleanup = NULL;
 	master->num_chipselect = 2;
 	master->mode_bits = MODEBITS;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	master->min_speed_hz = OMAP1_SPI100K_MAX_FREQ/(1<<16);
 	master->max_speed_hz = OMAP1_SPI100K_MAX_FREQ;
+	master->auto_runtime_pm = true;
 
 	spi100k = spi_master_get_devdata(master);
 
@@ -443,23 +403,96 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	status = clk_prepare_enable(spi100k->ick);
+	if (status != 0) {
+		dev_err(&pdev->dev, "failed to enable ick: %d\n", status);
+		goto err;
+	}
+
+	status = clk_prepare_enable(spi100k->fck);
+	if (status != 0) {
+		dev_err(&pdev->dev, "failed to enable fck: %d\n", status);
+		goto err_ick;
+	}
+
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+
 	status = devm_spi_register_master(&pdev->dev, master);
 	if (status < 0)
-		goto err;
+		goto err_fck;
 
 	return status;
 
+err_fck:
+	clk_disable_unprepare(spi100k->fck);
+err_ick:
+	clk_disable_unprepare(spi100k->ick);
 err:
 	spi_master_put(master);
 	return status;
 }
 
+static int omap1_spi100k_remove(struct platform_device *pdev)
+{
+	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
+	struct omap1_spi100k *spi100k = spi_master_get_devdata(master);
+
+	pm_runtime_disable(&pdev->dev);
+
+	clk_disable_unprepare(spi100k->fck);
+	clk_disable_unprepare(spi100k->ick);
+
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int omap1_spi100k_runtime_suspend(struct device *dev)
+{
+	struct spi_master *master = spi_master_get(dev_get_drvdata(dev));
+	struct omap1_spi100k *spi100k = spi_master_get_devdata(master);
+
+	clk_disable_unprepare(spi100k->ick);
+	clk_disable_unprepare(spi100k->fck);
+
+	return 0;
+}
+
+static int omap1_spi100k_runtime_resume(struct device *dev)
+{
+	struct spi_master *master = spi_master_get(dev_get_drvdata(dev));
+	struct omap1_spi100k *spi100k = spi_master_get_devdata(master);
+	int ret;
+
+	ret = clk_prepare_enable(spi100k->ick);
+	if (ret != 0) {
+		dev_err(dev, "Failed to enable ick: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(spi100k->fck);
+	if (ret != 0) {
+		dev_err(dev, "Failed to enable fck: %d\n", ret);
+		clk_disable_unprepare(spi100k->ick);
+		return ret;
+	}
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops omap1_spi100k_pm = {
+	SET_RUNTIME_PM_OPS(omap1_spi100k_runtime_suspend,
+			   omap1_spi100k_runtime_resume, NULL)
+};
+
 static struct platform_driver omap1_spi100k_driver = {
 	.driver = {
 		.name		= "omap1_spi100k",
-		.owner		= THIS_MODULE,
+		.pm		= &omap1_spi100k_pm,
 	},
 	.probe		= omap1_spi100k_probe,
+	.remove		= omap1_spi100k_remove,
 };
 
 module_platform_driver(omap1_spi100k_driver);

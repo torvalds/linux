@@ -7,6 +7,7 @@
 #include <linux/sys.h>
 #include <linux/cache.h>
 #include <generated/user_constants.h>
+#include <asm/syscall.h>
 
 #define __NO_STUBS
 
@@ -24,17 +25,15 @@
 
 #define old_mmap sys_old_mmap
 
-#define __SYSCALL_I386(nr, sym, compat) extern asmlinkage void sym(void) ;
+#define __SYSCALL_I386(nr, sym, qual) extern asmlinkage long sym(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long) ;
 #include <asm/syscalls_32.h>
 
 #undef __SYSCALL_I386
-#define __SYSCALL_I386(nr, sym, compat) [ nr ] = sym,
+#define __SYSCALL_I386(nr, sym, qual) [ nr ] = sym,
 
-typedef asmlinkage void (*sys_call_ptr_t)(void);
+extern asmlinkage long sys_ni_syscall(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long);
 
-extern asmlinkage void sys_ni_syscall(void);
-
-const sys_call_ptr_t sys_call_table[] __cacheline_aligned = {
+const sys_call_ptr_t sys_call_table[] ____cacheline_aligned = {
 	/*
 	 * Smells like a compiler bug -- it doesn't work
 	 * when the & below is removed.

@@ -121,7 +121,7 @@ static struct pci_driver b44_pci_driver = {
 
 static const struct ssb_device_id b44_ssb_tbl[] = {
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_ETHERNET, SSB_ANY_REV),
-	SSB_DEVTABLE_END
+	{},
 };
 MODULE_DEVICE_TABLE(ssb, b44_ssb_tbl);
 
@@ -400,7 +400,7 @@ static void b44_set_flow_ctrl(struct b44 *bp, u32 local, u32 remote)
 }
 
 #ifdef CONFIG_BCM47XX
-#include <bcm47xx_nvram.h>
+#include <linux/bcm47xx_nvram.h>
 static void b44_wap54g10_workaround(struct b44 *bp)
 {
 	char buf[20];
@@ -427,7 +427,7 @@ static void b44_wap54g10_workaround(struct b44 *bp)
 	}
 	return;
 error:
-	pr_warning("PHY: cannot reset MII transceiver isolate bit\n");
+	pr_warn("PHY: cannot reset MII transceiver isolate bit\n");
 }
 #else
 static inline void b44_wap54g10_workaround(struct b44 *bp)
@@ -836,7 +836,7 @@ static int b44_rx(struct b44 *bp, int budget)
 			struct sk_buff *copy_skb;
 
 			b44_recycle_rx(bp, cons, bp->rx_prod);
-			copy_skb = netdev_alloc_skb_ip_align(bp->dev, len);
+			copy_skb = napi_alloc_skb(&bp->napi, len);
 			if (copy_skb == NULL)
 				goto drop_it_no_recycle;
 
@@ -1697,7 +1697,7 @@ static struct rtnl_link_stats64 *b44_get_stats64(struct net_device *dev,
 				     hwstat->tx_underruns +
 				     hwstat->tx_excessive_cols +
 				     hwstat->tx_late_cols);
-		nstat->multicast  = hwstat->tx_multicast_pkts;
+		nstat->multicast  = hwstat->rx_multicast_pkts;
 		nstat->collisions = hwstat->tx_total_cols;
 
 		nstat->rx_length_errors = (hwstat->rx_oversize_pkts +
@@ -2104,6 +2104,7 @@ static int b44_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 		bp->flags &= ~B44_FLAG_WOL_ENABLE;
 	spin_unlock_irq(&bp->lock);
 
+	device_set_wakeup_enable(bp->sdev->dev, wol->wolopts & WAKE_MAGIC);
 	return 0;
 }
 
@@ -2262,24 +2263,16 @@ static int b44_register_phy_one(struct b44 *bp)
 	mii_bus->parent = sdev->dev;
 	mii_bus->phy_mask = ~(1 << bp->phy_addr);
 	snprintf(mii_bus->id, MII_BUS_ID_SIZE, "%x", instance);
-	mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!mii_bus->irq) {
-		dev_err(sdev->dev, "mii_bus irq allocation failed\n");
-		err = -ENOMEM;
-		goto err_out_mdiobus;
-	}
-
-	memset(mii_bus->irq, PHY_POLL, sizeof(int) * PHY_MAX_ADDR);
 
 	bp->mii_bus = mii_bus;
 
 	err = mdiobus_register(mii_bus);
 	if (err) {
 		dev_err(sdev->dev, "failed to register MII bus\n");
-		goto err_out_mdiobus_irq;
+		goto err_out_mdiobus;
 	}
 
-	if (!bp->mii_bus->phy_map[bp->phy_addr] &&
+	if (!mdiobus_is_registered_device(bp->mii_bus, bp->phy_addr) &&
 	    (sprom->boardflags_lo & (B44_BOARDFLAG_ROBO | B44_BOARDFLAG_ADM))) {
 
 		dev_info(sdev->dev,
@@ -2312,18 +2305,14 @@ static int b44_register_phy_one(struct b44 *bp)
 
 	bp->phydev = phydev;
 	bp->old_link = 0;
-	bp->phy_addr = phydev->addr;
+	bp->phy_addr = phydev->mdio.addr;
 
-	dev_info(sdev->dev, "attached PHY driver [%s] (mii_bus:phy_addr=%s)\n",
-		 phydev->drv->name, dev_name(&phydev->dev));
+	phy_attached_info(phydev);
 
 	return 0;
 
 err_out_mdiobus_unregister:
 	mdiobus_unregister(mii_bus);
-
-err_out_mdiobus_irq:
-	kfree(mii_bus->irq);
 
 err_out_mdiobus:
 	mdiobus_free(mii_bus);
@@ -2338,7 +2327,6 @@ static void b44_unregister_phy_one(struct b44 *bp)
 
 	phy_disconnect(bp->phydev);
 	mdiobus_unregister(mii_bus);
-	kfree(mii_bus->irq);
 	mdiobus_free(mii_bus);
 }
 
@@ -2452,6 +2440,7 @@ static int b44_init_one(struct ssb_device *sdev,
 		}
 	}
 
+	device_set_wakeup_capable(sdev->dev, true);
 	netdev_info(dev, "%s %pM\n", DRV_DESCRIPTION, dev->dev_addr);
 
 	return 0;
@@ -2462,6 +2451,7 @@ err_out_powerdown:
 	ssb_bus_may_powerdown(sdev->bus);
 
 err_out_free_dev:
+	netif_napi_del(&bp->napi);
 	free_netdev(dev);
 
 out:
@@ -2478,6 +2468,7 @@ static void b44_remove_one(struct ssb_device *sdev)
 		b44_unregister_phy_one(bp);
 	ssb_device_disable(sdev, 0);
 	ssb_bus_may_powerdown(sdev->bus);
+	netif_napi_del(&bp->napi);
 	free_netdev(dev);
 	ssb_pcihost_set_power_state(sdev, PCI_D3hot);
 	ssb_set_drvdata(sdev, NULL);

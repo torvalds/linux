@@ -53,11 +53,7 @@ static int omap_twl4030_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_card *card = rtd->card;
 	unsigned int fmt;
-	int ret;
 
 	switch (params_channels(params)) {
 	case 2: /* Stereo I2S mode */
@@ -74,21 +70,7 @@ static int omap_twl4030_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	/* Set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, fmt);
-	if (ret < 0) {
-		dev_err(card->dev, "can't set codec DAI configuration\n");
-		return ret;
-	}
-
-	/* Set cpu DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
-	if (ret < 0) {
-		dev_err(card->dev, "can't set cpu DAI configuration\n");
-		return ret;
-	}
-
-	return 0;
+	return snd_soc_runtime_set_dai_fmt(rtd, fmt);
 }
 
 static struct snd_soc_ops omap_twl4030_ops = {
@@ -177,9 +159,8 @@ static inline void twl4030_disconnect_pin(struct snd_soc_dapm_context *dapm,
 
 static int omap_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_card *card = rtd->card;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = &card->dapm;
 	struct omap_tw4030_pdata *pdata = dev_get_platdata(card->dev);
 	struct omap_twl4030 *priv = snd_soc_card_get_drvdata(card);
 	int ret = 0;
@@ -188,14 +169,10 @@ static int omap_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 	if (priv->jack_detect > 0) {
 		hs_jack_gpios[0].gpio = priv->jack_detect;
 
-		ret = snd_soc_jack_new(codec, "Headset Jack", SND_JACK_HEADSET,
-				       &priv->hs_jack);
-		if (ret)
-			return ret;
-
-		ret = snd_soc_jack_add_pins(&priv->hs_jack,
-					    ARRAY_SIZE(hs_jack_pins),
-					    hs_jack_pins);
+		ret = snd_soc_card_jack_new(rtd->card, "Headset Jack",
+					    SND_JACK_HEADSET, &priv->hs_jack,
+					    hs_jack_pins,
+					    ARRAY_SIZE(hs_jack_pins));
 		if (ret)
 			return ret;
 
@@ -260,7 +237,7 @@ static struct snd_soc_dai_link omap_twl4030_dai_links[] = {
 		.stream_name = "TWL4030 Voice",
 		.cpu_dai_name = "omap-mcbsp.3",
 		.codec_dai_name = "twl4030-voice",
-		.platform_name = "omap-mcbsp.2",
+		.platform_name = "omap-mcbsp.3",
 		.codec_name = "twl4030-codec",
 		.dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_IB_NF |
 			   SND_SOC_DAIFMT_CBM_CFM,
@@ -375,7 +352,6 @@ MODULE_DEVICE_TABLE(of, omap_twl4030_of_match);
 static struct platform_driver omap_twl4030_driver = {
 	.driver = {
 		.name = "omap-twl4030",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = omap_twl4030_of_match,
 	},

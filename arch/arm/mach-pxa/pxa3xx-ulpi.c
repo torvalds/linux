@@ -26,7 +26,7 @@
 #include <linux/usb/otg.h>
 
 #include <mach/hardware.h>
-#include <mach/regs-u2d.h>
+#include "regs-u2d.h"
 #include <linux/platform_data/usb-pxa3xx-ulpi.h>
 
 struct pxa3xx_u2d_ulpi {
@@ -74,7 +74,7 @@ static int pxa310_ulpi_poll(void)
 		cpu_relax();
 	}
 
-	pr_warning("%s: ULPI access timed out!\n", __func__);
+	pr_warn("%s: ULPI access timed out!\n", __func__);
 
 	return -ETIMEDOUT;
 }
@@ -84,7 +84,7 @@ static int pxa310_ulpi_read(struct usb_phy *otg, u32 reg)
 	int err;
 
 	if (pxa310_ulpi_get_phymode() != SYNCH) {
-		pr_warning("%s: PHY is not in SYNCH mode!\n", __func__);
+		pr_warn("%s: PHY is not in SYNCH mode!\n", __func__);
 		return -EBUSY;
 	}
 
@@ -101,7 +101,7 @@ static int pxa310_ulpi_read(struct usb_phy *otg, u32 reg)
 static int pxa310_ulpi_write(struct usb_phy *otg, u32 val, u32 reg)
 {
 	if (pxa310_ulpi_get_phymode() != SYNCH) {
-		pr_warning("%s: PHY is not in SYNCH mode!\n", __func__);
+		pr_warn("%s: PHY is not in SYNCH mode!\n", __func__);
 		return -EBUSY;
 	}
 
@@ -379,7 +379,6 @@ static int pxa3xx_u2d_remove(struct platform_device *pdev)
 static struct platform_driver pxa3xx_u2d_ulpi_driver = {
         .driver		= {
                 .name   = "pxa3xx-u2d",
-		.owner	= THIS_MODULE,
         },
         .probe          = pxa3xx_u2d_probe,
         .remove         = pxa3xx_u2d_remove,

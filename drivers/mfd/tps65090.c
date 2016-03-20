@@ -30,7 +30,6 @@
 #include <linux/err.h>
 
 #define NUM_INT_REG 2
-#define TOTAL_NUM_REG 0x18
 
 #define TPS65090_INT1_MASK_VAC_STATUS_CHANGE		1
 #define TPS65090_INT1_MASK_VSYS_STATUS_CHANGE		2
@@ -76,58 +75,58 @@ static struct mfd_cell tps65090s[] = {
 static const struct regmap_irq tps65090_irqs[] = {
 	/* INT1 IRQs*/
 	[TPS65090_IRQ_VAC_STATUS_CHANGE] = {
-			.mask = TPS65090_INT1_MASK_VAC_STATUS_CHANGE,
+		.mask = TPS65090_INT1_MASK_VAC_STATUS_CHANGE,
 	},
 	[TPS65090_IRQ_VSYS_STATUS_CHANGE] = {
-			.mask = TPS65090_INT1_MASK_VSYS_STATUS_CHANGE,
+		.mask = TPS65090_INT1_MASK_VSYS_STATUS_CHANGE,
 	},
 	[TPS65090_IRQ_BAT_STATUS_CHANGE] = {
-			.mask = TPS65090_INT1_MASK_BAT_STATUS_CHANGE,
+		.mask = TPS65090_INT1_MASK_BAT_STATUS_CHANGE,
 	},
 	[TPS65090_IRQ_CHARGING_STATUS_CHANGE] = {
-			.mask = TPS65090_INT1_MASK_CHARGING_STATUS_CHANGE,
+		.mask = TPS65090_INT1_MASK_CHARGING_STATUS_CHANGE,
 	},
 	[TPS65090_IRQ_CHARGING_COMPLETE] = {
-			.mask = TPS65090_INT1_MASK_CHARGING_COMPLETE,
+		.mask = TPS65090_INT1_MASK_CHARGING_COMPLETE,
 	},
 	[TPS65090_IRQ_OVERLOAD_DCDC1] = {
-			.mask = TPS65090_INT1_MASK_OVERLOAD_DCDC1,
+		.mask = TPS65090_INT1_MASK_OVERLOAD_DCDC1,
 	},
 	[TPS65090_IRQ_OVERLOAD_DCDC2] = {
-			.mask = TPS65090_INT1_MASK_OVERLOAD_DCDC2,
+		.mask = TPS65090_INT1_MASK_OVERLOAD_DCDC2,
 	},
 	/* INT2 IRQs*/
 	[TPS65090_IRQ_OVERLOAD_DCDC3] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_DCDC3,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_DCDC3,
 	},
 	[TPS65090_IRQ_OVERLOAD_FET1] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_FET1,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_FET1,
 	},
 	[TPS65090_IRQ_OVERLOAD_FET2] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_FET2,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_FET2,
 	},
 	[TPS65090_IRQ_OVERLOAD_FET3] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_FET3,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_FET3,
 	},
 	[TPS65090_IRQ_OVERLOAD_FET4] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_FET4,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_FET4,
 	},
 	[TPS65090_IRQ_OVERLOAD_FET5] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_FET5,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_FET5,
 	},
 	[TPS65090_IRQ_OVERLOAD_FET6] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_FET6,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_FET6,
 	},
 	[TPS65090_IRQ_OVERLOAD_FET7] = {
-			.reg_offset = 1,
-			.mask = TPS65090_INT2_MASK_OVERLOAD_FET7,
+		.reg_offset = 1,
+		.mask = TPS65090_INT2_MASK_OVERLOAD_FET7,
 	},
 };
 
@@ -161,8 +160,8 @@ static bool is_volatile_reg(struct device *dev, unsigned int reg)
 static const struct regmap_config tps65090_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.max_register = TOTAL_NUM_REG,
-	.num_reg_defaults_raw = TOTAL_NUM_REG,
+	.max_register = TPS65090_MAX_REG,
+	.num_reg_defaults_raw = TPS65090_NUM_REGS,
 	.cache_type = REGCACHE_RBTREE,
 	.volatile_reg = is_volatile_reg,
 };
@@ -176,7 +175,7 @@ MODULE_DEVICE_TABLE(of, tps65090_of_match);
 #endif
 
 static int tps65090_i2c_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+			      const struct i2c_device_id *id)
 {
 	struct tps65090_platform_data *pdata = dev_get_platdata(&client->dev);
 	int irq_base = 0;
@@ -210,11 +209,11 @@ static int tps65090_i2c_probe(struct i2c_client *client,
 
 	if (client->irq) {
 		ret = regmap_add_irq_chip(tps65090->rmap, client->irq,
-			IRQF_ONESHOT | IRQF_TRIGGER_LOW, irq_base,
-			&tps65090_irq_chip, &tps65090->irq_data);
-			if (ret) {
-				dev_err(&client->dev,
-					"IRQ init failed with err: %d\n", ret);
+					  IRQF_ONESHOT | IRQF_TRIGGER_LOW, irq_base,
+					  &tps65090_irq_chip, &tps65090->irq_data);
+		if (ret) {
+			dev_err(&client->dev,
+				"IRQ init failed with err: %d\n", ret);
 			return ret;
 		}
 	} else {
@@ -223,8 +222,8 @@ static int tps65090_i2c_probe(struct i2c_client *client,
 	}
 
 	ret = mfd_add_devices(tps65090->dev, -1, tps65090s,
-		ARRAY_SIZE(tps65090s), NULL,
-		0, regmap_irq_get_domain(tps65090->irq_data));
+			      ARRAY_SIZE(tps65090s), NULL,
+			      0, regmap_irq_get_domain(tps65090->irq_data));
 	if (ret) {
 		dev_err(&client->dev, "add mfd devices failed with err: %d\n",
 			ret);
@@ -259,7 +258,6 @@ MODULE_DEVICE_TABLE(i2c, tps65090_id_table);
 static struct i2c_driver tps65090_driver = {
 	.driver	= {
 		.name	= "tps65090",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(tps65090_of_match),
 	},
 	.probe		= tps65090_i2c_probe,

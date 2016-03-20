@@ -16,7 +16,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
 #include <linux/interrupt.h>
 #include <linux/clockchips.h>
 #include <linux/of_address.h>
@@ -25,7 +24,7 @@
 #include <linux/sched_clock.h>
 
 /*
- * This driver configures the 2 16-bit count-up timers as follows:
+ * This driver configures the 2 16/32-bit count-up timers as follows:
  *
  * T1: Timer 1, clocksource for generic timekeeping
  * T2: Timer 2, clockevent source for hrtimers
@@ -191,40 +190,42 @@ static int ttc_set_next_event(unsigned long cycles,
 }
 
 /**
- * ttc_set_mode - Sets the mode of timer
+ * ttc_set_{shutdown|oneshot|periodic} - Sets the state of timer
  *
- * @mode:	Mode to be set
  * @evt:	Address of clock event instance
  **/
-static void ttc_set_mode(enum clock_event_mode mode,
-					struct clock_event_device *evt)
+static int ttc_shutdown(struct clock_event_device *evt)
 {
 	struct ttc_timer_clockevent *ttce = to_ttc_timer_clkevent(evt);
 	struct ttc_timer *timer = &ttce->ttc;
 	u32 ctrl_reg;
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		ttc_set_interval(timer, DIV_ROUND_CLOSEST(ttce->ttc.freq,
-						PRESCALE * HZ));
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		ctrl_reg = readl_relaxed(timer->base_addr +
-					TTC_CNT_CNTRL_OFFSET);
-		ctrl_reg |= TTC_CNT_CNTRL_DISABLE_MASK;
-		writel_relaxed(ctrl_reg,
-				timer->base_addr + TTC_CNT_CNTRL_OFFSET);
-		break;
-	case CLOCK_EVT_MODE_RESUME:
-		ctrl_reg = readl_relaxed(timer->base_addr +
-					TTC_CNT_CNTRL_OFFSET);
-		ctrl_reg &= ~TTC_CNT_CNTRL_DISABLE_MASK;
-		writel_relaxed(ctrl_reg,
-				timer->base_addr + TTC_CNT_CNTRL_OFFSET);
-		break;
-	}
+	ctrl_reg = readl_relaxed(timer->base_addr + TTC_CNT_CNTRL_OFFSET);
+	ctrl_reg |= TTC_CNT_CNTRL_DISABLE_MASK;
+	writel_relaxed(ctrl_reg, timer->base_addr + TTC_CNT_CNTRL_OFFSET);
+	return 0;
+}
+
+static int ttc_set_periodic(struct clock_event_device *evt)
+{
+	struct ttc_timer_clockevent *ttce = to_ttc_timer_clkevent(evt);
+	struct ttc_timer *timer = &ttce->ttc;
+
+	ttc_set_interval(timer,
+			 DIV_ROUND_CLOSEST(ttce->ttc.freq, PRESCALE * HZ));
+	return 0;
+}
+
+static int ttc_resume(struct clock_event_device *evt)
+{
+	struct ttc_timer_clockevent *ttce = to_ttc_timer_clkevent(evt);
+	struct ttc_timer *timer = &ttce->ttc;
+	u32 ctrl_reg;
+
+	ctrl_reg = readl_relaxed(timer->base_addr + TTC_CNT_CNTRL_OFFSET);
+	ctrl_reg &= ~TTC_CNT_CNTRL_DISABLE_MASK;
+	writel_relaxed(ctrl_reg, timer->base_addr + TTC_CNT_CNTRL_OFFSET);
+	return 0;
 }
 
 static int ttc_rate_change_clocksource_cb(struct notifier_block *nb,
@@ -321,7 +322,8 @@ static int ttc_rate_change_clocksource_cb(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static void __init ttc_setup_clocksource(struct clk *clk, void __iomem *base)
+static void __init ttc_setup_clocksource(struct clk *clk, void __iomem *base,
+					 u32 timer_width)
 {
 	struct ttc_timer_clocksource *ttccs;
 	int err;
@@ -351,7 +353,7 @@ static void __init ttc_setup_clocksource(struct clk *clk, void __iomem *base)
 	ttccs->cs.name = "ttc_clocksource";
 	ttccs->cs.rating = 200;
 	ttccs->cs.read = __ttc_clocksource_read;
-	ttccs->cs.mask = CLOCKSOURCE_MASK(16);
+	ttccs->cs.mask = CLOCKSOURCE_MASK(timer_width);
 	ttccs->cs.flags = CLOCK_SOURCE_IS_CONTINUOUS;
 
 	/*
@@ -372,7 +374,8 @@ static void __init ttc_setup_clocksource(struct clk *clk, void __iomem *base)
 	}
 
 	ttc_sched_clock_val_reg = base + TTC_COUNT_VAL_OFFSET;
-	sched_clock_register(ttc_sched_clock_read, 16, ttccs->ttc.freq / PRESCALE);
+	sched_clock_register(ttc_sched_clock_read, timer_width,
+			     ttccs->ttc.freq / PRESCALE);
 }
 
 static int ttc_rate_change_clockevent_cb(struct notifier_block *nb,
@@ -428,7 +431,10 @@ static void __init ttc_setup_clockevent(struct clk *clk,
 	ttcce->ce.name = "ttc_clockevent";
 	ttcce->ce.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
 	ttcce->ce.set_next_event = ttc_set_next_event;
-	ttcce->ce.set_mode = ttc_set_mode;
+	ttcce->ce.set_state_shutdown = ttc_shutdown;
+	ttcce->ce.set_state_periodic = ttc_set_periodic;
+	ttcce->ce.set_state_oneshot = ttc_shutdown;
+	ttcce->ce.tick_resume = ttc_resume;
 	ttcce->ce.rating = 200;
 	ttcce->ce.irq = irq;
 	ttcce->ce.cpumask = cpu_possible_mask;
@@ -467,6 +473,7 @@ static void __init ttc_timer_init(struct device_node *timer)
 	struct clk *clk_cs, *clk_ce;
 	static int initialized;
 	int clksel;
+	u32 timer_width = 16;
 
 	if (initialized)
 		return;
@@ -490,6 +497,8 @@ static void __init ttc_timer_init(struct device_node *timer)
 		BUG();
 	}
 
+	of_property_read_u32(timer, "timer-width", &timer_width);
+
 	clksel = readl_relaxed(timer_baseaddr + TTC_CLK_CNTRL_OFFSET);
 	clksel = !!(clksel & TTC_CLK_CNTRL_CSRC_MASK);
 	clk_cs = of_clk_get(timer, clksel);
@@ -506,7 +515,7 @@ static void __init ttc_timer_init(struct device_node *timer)
 		BUG();
 	}
 
-	ttc_setup_clocksource(clk_cs, timer_baseaddr);
+	ttc_setup_clocksource(clk_cs, timer_baseaddr, timer_width);
 	ttc_setup_clockevent(clk_ce, timer_baseaddr + 4, irq);
 
 	pr_info("%s #0 at %p, irq=%d\n", timer->name, timer_baseaddr, irq);

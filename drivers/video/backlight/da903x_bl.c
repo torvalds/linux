@@ -162,7 +162,6 @@ static int da903x_backlight_probe(struct platform_device *pdev)
 static struct platform_driver da903x_backlight_driver = {
 	.driver		= {
 		.name	= "da903x-backlight",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= da903x_backlight_probe,
 };

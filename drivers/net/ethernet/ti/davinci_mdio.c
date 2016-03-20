@@ -393,10 +393,10 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 
 	/* scan and dump the bus */
 	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
-		phy = data->bus->phy_map[addr];
+		phy = mdiobus_get_phy(data->bus, addr);
 		if (phy) {
 			dev_info(dev, "phy[%d]: device %s, driver %s\n",
-				 phy->addr, dev_name(&phy->dev),
+				 phy->mdio.addr, phydev_name(phy),
 				 phy->drv ? phy->drv->name : "unknown");
 		}
 	}
@@ -423,6 +423,7 @@ static int davinci_mdio_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int davinci_mdio_suspend(struct device *dev)
 {
 	struct davinci_mdio_data *data = dev_get_drvdata(dev);
@@ -464,10 +465,10 @@ static int davinci_mdio_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops davinci_mdio_pm_ops = {
-	.suspend_late	= davinci_mdio_suspend,
-	.resume_early	= davinci_mdio_resume,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(davinci_mdio_suspend, davinci_mdio_resume)
 };
 
 #if IS_ENABLED(CONFIG_OF)
@@ -481,7 +482,6 @@ MODULE_DEVICE_TABLE(of, davinci_mdio_of_mtable);
 static struct platform_driver davinci_mdio_driver = {
 	.driver = {
 		.name	 = "davinci_mdio",
-		.owner	 = THIS_MODULE,
 		.pm	 = &davinci_mdio_pm_ops,
 		.of_match_table = of_match_ptr(davinci_mdio_of_mtable),
 	},

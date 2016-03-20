@@ -14,9 +14,10 @@ define allow-override
     $(eval $(1) = $(2)))
 endef
 
-# Allow setting CC and AR, or setting CROSS_COMPILE as a prefix.
+# Allow setting CC and AR and LD, or setting CROSS_COMPILE as a prefix.
 $(call allow-override,CC,$(CROSS_COMPILE)gcc)
 $(call allow-override,AR,$(CROSS_COMPILE)ar)
+$(call allow-override,LD,$(CROSS_COMPILE)ld)
 
 INSTALL = install
 
@@ -35,6 +36,10 @@ bindir = $(prefix)/$(bindir_relative)
 
 export DESTDIR DESTDIR_SQ INSTALL
 
+MAKEFLAGS += --no-print-directory
+
+include ../../scripts/Makefile.include
+
 # copy a bit from Linux kbuild
 
 ifeq ("$(origin V)", "command line")
@@ -44,56 +49,21 @@ ifndef VERBOSE
   VERBOSE = 0
 endif
 
-ifeq ("$(origin O)", "command line")
-  BUILD_OUTPUT := $(O)
+ifeq ($(srctree),)
+srctree := $(patsubst %/,%,$(dir $(shell pwd)))
+srctree := $(patsubst %/,%,$(dir $(srctree)))
+srctree := $(patsubst %/,%,$(dir $(srctree)))
+#$(info Determined 'srctree' to be $(srctree))
 endif
-
-ifeq ($(BUILD_SRC),)
-ifneq ($(BUILD_OUTPUT),)
-
-define build_output
-	$(if $(VERBOSE:1=),@)$(MAKE) -C $(BUILD_OUTPUT)	\
-	BUILD_SRC=$(CURDIR) -f $(CURDIR)/Makefile $1
-endef
-
-saved-output := $(BUILD_OUTPUT)
-BUILD_OUTPUT := $(shell cd $(BUILD_OUTPUT) && /bin/pwd)
-$(if $(BUILD_OUTPUT),, \
-     $(error output directory "$(saved-output)" does not exist))
-
-all: sub-make
-
-gui: force
-	$(call build_output, all_cmd)
-
-$(filter-out gui,$(MAKECMDGOALS)): sub-make
-
-sub-make: force
-	$(call build_output, $(MAKECMDGOALS))
-
-
-# Leave processing to above invocation of make
-skip-makefile := 1
-
-endif # BUILD_OUTPUT
-endif # BUILD_SRC
-
-# We process the rest of the Makefile if this is the final invocation of make
-ifeq ($(skip-makefile),)
-
-srctree		:= $(realpath $(if $(BUILD_SRC),$(BUILD_SRC),$(CURDIR)))
-objtree		:= $(realpath $(CURDIR))
-src		:= $(srctree)
-obj		:= $(objtree)
-
-export prefix libdir bindir src obj
 
 # Shell quotes
 libdir_SQ = $(subst ','\'',$(libdir))
 bindir_SQ = $(subst ','\'',$(bindir))
 
-LIB_FILE = liblockdep.a liblockdep.so.$(LIBLOCKDEP_VERSION)
+LIB_IN := $(OUTPUT)liblockdep-in.o
+
 BIN_FILE = lockdep
+LIB_FILE = $(OUTPUT)liblockdep.a $(OUTPUT)liblockdep.so.$(LIBLOCKDEP_VERSION)
 
 CONFIG_INCLUDES =
 CONFIG_LIBS	=
@@ -104,106 +74,55 @@ N		=
 
 export Q VERBOSE
 
-INCLUDES = -I. -I/usr/local/include -I./uinclude -I./include -I../../include $(CONFIG_INCLUDES)
+INCLUDES = -I. -I./uinclude -I./include -I../../include $(CONFIG_INCLUDES)
 
 # Set compile option CFLAGS if not set elsewhere
 CFLAGS ?= -g -DCONFIG_LOCKDEP -DCONFIG_STACKTRACE -DCONFIG_PROVE_LOCKING -DBITS_PER_LONG=__WORDSIZE -DLIBLOCKDEP_VERSION='"$(LIBLOCKDEP_VERSION)"' -rdynamic -O0 -g
+CFLAGS += -fPIC
 
 override CFLAGS += $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ)
 
 ifeq ($(VERBOSE),1)
   Q =
-  print_compile =
-  print_app_build =
-  print_fpic_compile =
   print_shared_lib_compile =
   print_install =
 else
   Q = @
-  print_compile =		echo '  CC                 '$(OBJ);
-  print_app_build =		echo '  BUILD              '$(OBJ);
-  print_fpic_compile =		echo '  CC FPIC            '$(OBJ);
-  print_shared_lib_compile =	echo '  BUILD SHARED LIB   '$(OBJ);
-  print_static_lib_build =	echo '  BUILD STATIC LIB   '$(OBJ);
-  print_install =		echo '  INSTALL     '$1'	to	$(DESTDIR_SQ)$2';
+  print_shared_lib_compile =	echo '  LD       '$(OBJ);
+  print_static_lib_build =	echo '  LD       '$(OBJ);
+  print_install =		echo '  INSTALL  '$1'	to	$(DESTDIR_SQ)$2';
 endif
 
-do_fpic_compile =					\
-	($(print_fpic_compile)				\
-	$(CC) -c $(CFLAGS) $(EXT) -fPIC $< -o $@)
+all:
 
-do_app_build =						\
-	($(print_app_build)				\
-	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS))
+export srctree OUTPUT CC LD CFLAGS V
+include $(srctree)/tools/build/Makefile.include
 
 do_compile_shared_library =			\
 	($(print_shared_lib_compile)		\
-	$(CC) --shared $^ -o $@ -lpthread -ldl -Wl,-soname='"$@"';$(shell ln -s $@ liblockdep.so))
+	$(CC) --shared $^ -o $@ -lpthread -ldl -Wl,-soname='"$@"';$(shell ln -sf $@ liblockdep.so))
 
 do_build_static_lib =				\
 	($(print_static_lib_build)		\
 	$(RM) $@;  $(AR) rcs $@ $^)
-
-
-define do_compile
-	$(print_compile)						\
-	$(CC) -c $(CFLAGS) $(EXT) $< -o $(obj)/$@;
-endef
-
-$(obj)/%.o: $(src)/%.c
-	$(Q)$(call do_compile)
-
-%.o: $(src)/%.c
-	$(Q)$(call do_compile)
-
-PEVENT_LIB_OBJS = common.o lockdep.o preload.o rbtree.o
-
-ALL_OBJS = $(PEVENT_LIB_OBJS)
 
 CMD_TARGETS = $(LIB_FILE)
 
 TARGETS = $(CMD_TARGETS)
 
 
-all: all_cmd
+all: fixdep all_cmd
 
 all_cmd: $(CMD_TARGETS)
 
-liblockdep.so.$(LIBLOCKDEP_VERSION): $(PEVENT_LIB_OBJS)
+$(LIB_IN): force
+	$(Q)$(MAKE) $(build)=liblockdep
+
+liblockdep.so.$(LIBLOCKDEP_VERSION): $(LIB_IN)
 	$(Q)$(do_compile_shared_library)
 
-liblockdep.a: $(PEVENT_LIB_OBJS)
+liblockdep.a: $(LIB_IN)
 	$(Q)$(do_build_static_lib)
-
-$(PEVENT_LIB_OBJS): %.o: $(src)/%.c
-	$(Q)$(do_fpic_compile)
-
-## make deps
-
-all_objs := $(sort $(ALL_OBJS))
-all_deps := $(all_objs:%.o=.%.d)
-
-# let .d file also depends on the source and header files
-define check_deps
-		@set -e; $(RM) $@; \
-		$(CC) -MM $(CFLAGS) $< > $@.$$$$; \
-		sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
-		$(RM) $@.$$$$
-endef
-
-$(all_deps): .%.d: $(src)/%.c
-	$(Q)$(call check_deps)
-
-$(all_objs) : %.o : .%.d
-
-dep_includes := $(wildcard $(all_deps))
-
-ifneq ($(dep_includes),)
- include $(dep_includes)
-endif
-
-### Detect environment changes
-TRACK_CFLAGS = $(subst ','\'',$(CFLAGS)):$(ARCH):$(CROSS_COMPILE)
 
 tags:	force
 	$(RM) tags
@@ -230,10 +149,8 @@ install_lib: all_cmd
 install: install_lib
 
 clean:
-	$(RM) *.o *~ $(TARGETS) *.a *liblockdep*.so* $(VERSION_FILES) .*.d
+	$(RM) *.o *~ $(TARGETS) *.a *liblockdep*.so* $(VERSION_FILES) .*.d .*.cmd
 	$(RM) tags TAGS
-
-endif # skip-makefile
 
 PHONY += force
 force:

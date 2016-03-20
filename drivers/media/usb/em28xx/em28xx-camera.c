@@ -21,12 +21,11 @@
 
 #include <linux/i2c.h>
 #include <media/soc_camera.h>
-#include <media/mt9v011.h>
+#include <media/i2c/mt9v011.h>
 #include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
 
 #include "em28xx.h"
-
 
 /* Possible i2c addresses of Micron sensors */
 static unsigned short micron_sensor_addrs[] = {
@@ -43,14 +42,12 @@ static unsigned short omnivision_sensor_addrs[] = {
 	I2C_CLIENT_END
 };
 
-
 static struct soc_camera_link camlink = {
 	.bus_id = 0,
 	.flags = 0,
 	.module_name = "em28xx",
 	.unbalanced_power = true,
 };
-
 
 /* FIXME: Should be replaced by a proper mt9m111 driver */
 static int em28xx_initialize_mt9m111(struct em28xx *dev)
@@ -67,9 +64,10 @@ static int em28xx_initialize_mt9m111(struct em28xx *dev)
 		i2c_master_send(&dev->i2c_client[dev->def_i2c_bus],
 				&regs[i][0], 3);
 
+	/* FIXME: This won't be creating a sensor at the media graph */
+
 	return 0;
 }
-
 
 /* FIXME: Should be replaced by a proper mt9m001 driver */
 static int em28xx_initialize_mt9m001(struct em28xx *dev)
@@ -95,9 +93,10 @@ static int em28xx_initialize_mt9m001(struct em28xx *dev)
 		i2c_master_send(&dev->i2c_client[dev->def_i2c_bus],
 				&regs[i][0], 3);
 
+	/* FIXME: This won't be creating a sensor at the media graph */
+
 	return 0;
 }
-
 
 /*
  * Probes Micron sensors with 8 bit address and 16 bit register width
@@ -327,7 +326,7 @@ int em28xx_detect_sensor(struct em28xx *dev)
 
 int em28xx_init_camera(struct em28xx *dev)
 {
-	char clk_name[V4L2_SUBDEV_NAME_SIZE];
+	char clk_name[V4L2_CLK_NAME_SIZE];
 	struct i2c_client *client = &dev->i2c_client[dev->def_i2c_bus];
 	struct i2c_adapter *adap = &dev->i2c_adap[dev->def_i2c_bus];
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
@@ -335,7 +334,7 @@ int em28xx_init_camera(struct em28xx *dev)
 
 	v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
 			  i2c_adapter_id(adap), client->addr);
-	v4l2->clk = v4l2_clk_register_fixed(clk_name, "mclk", -EINVAL);
+	v4l2->clk = v4l2_clk_register_fixed(clk_name, -EINVAL);
 	if (IS_ERR(v4l2->clk))
 		return PTR_ERR(v4l2->clk);
 
@@ -409,7 +408,9 @@ int em28xx_init_camera(struct em28xx *dev)
 			.addr = client->addr,
 			.platform_data = &camlink,
 		};
-		struct v4l2_mbus_framefmt fmt;
+		struct v4l2_subdev_format format = {
+			.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		};
 
 		/*
 		 * FIXME: sensor supports resolutions up to 1600x1200, but
@@ -430,10 +431,10 @@ int em28xx_init_camera(struct em28xx *dev)
 			break;
 		}
 
-		fmt.code = V4L2_MBUS_FMT_YUYV8_2X8;
-		fmt.width = 640;
-		fmt.height = 480;
-		v4l2_subdev_call(subdev, video, s_mbus_fmt, &fmt);
+		format.format.code = MEDIA_BUS_FMT_YUYV8_2X8;
+		format.format.width = 640;
+		format.format.height = 480;
+		v4l2_subdev_call(subdev, pad, set_fmt, NULL, &format);
 
 		/* NOTE: for UXGA=1600x1200 switch to 12MHz */
 		dev->board.xclk = EM28XX_XCLK_FREQUENCY_24MHZ;

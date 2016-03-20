@@ -153,14 +153,14 @@
 struct ade7854_state {
 	struct spi_device	*spi;
 	struct i2c_client	*i2c;
-	int			(*read_reg_8) (struct device *, u16, u8 *);
-	int			(*read_reg_16) (struct device *, u16, u16 *);
-	int			(*read_reg_24) (struct device *, u16, u32 *);
-	int			(*read_reg_32) (struct device *, u16, u32 *);
-	int			(*write_reg_8) (struct device *, u16, u8);
-	int			(*write_reg_16) (struct device *, u16, u16);
-	int			(*write_reg_24) (struct device *, u16, u32);
-	int			(*write_reg_32) (struct device *, u16, u32);
+	int			(*read_reg_8)(struct device *, u16, u8 *);
+	int			(*read_reg_16)(struct device *, u16, u16 *);
+	int			(*read_reg_24)(struct device *, u16, u32 *);
+	int			(*read_reg_32)(struct device *, u16, u32 *);
+	int			(*write_reg_8)(struct device *, u16, u8);
+	int			(*write_reg_16)(struct device *, u16, u16);
+	int			(*write_reg_24)(struct device *, u16, u32);
+	int			(*write_reg_32)(struct device *, u16, u32);
 	int			irq;
 	struct mutex		buf_lock;
 	u8			tx[ADE7854_MAX_TX] ____cacheline_aligned;
@@ -168,7 +168,7 @@ struct ade7854_state {
 
 };
 
-extern int ade7854_probe(struct iio_dev *indio_dev, struct device *dev);
-extern int ade7854_remove(struct iio_dev *indio_dev);
+int ade7854_probe(struct iio_dev *indio_dev, struct device *dev);
+int ade7854_remove(struct iio_dev *indio_dev);
 
 #endif

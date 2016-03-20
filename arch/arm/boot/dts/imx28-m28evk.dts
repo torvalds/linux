@@ -41,7 +41,7 @@
 				flash: m25p80@0 {
 					#address-cells = <1>;
 					#size-cells = <1>;
-					compatible = "m25p80";
+					compatible = "m25p80", "jedec,spi-nor";
 					spi-max-frequency = <40000000>;
 					reg = <0>;
 				};
@@ -81,10 +81,10 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_24bit_pins_a
 					     &lcdif_pins_m28>;
-				display = <&display>;
+				display = <&display0>;
 				status = "okay";
 
-				display: display {
+				display0: display0 {
 					bits-per-pixel = <16>;
 					bus-width = <18>;
 

@@ -51,8 +51,35 @@
 /*
  * Perform Subsystem Function / Sub-Orders
  */
-#define PSF_ORDER_PRSSD 0x18
-#define PSF_ORDER_SSC	0x1D
+#define PSF_ORDER_PRSSD			 0x18
+#define PSF_ORDER_CUIR_RESPONSE		 0x1A
+#define PSF_ORDER_SSC			 0x1D
+
+/*
+ * CUIR response condition codes
+ */
+#define PSF_CUIR_INVALID		 0x00
+#define PSF_CUIR_COMPLETED		 0x01
+#define PSF_CUIR_NOT_SUPPORTED		 0x02
+#define PSF_CUIR_ERROR_IN_REQ		 0x03
+#define PSF_CUIR_DENIED			 0x04
+#define PSF_CUIR_LAST_PATH		 0x05
+#define PSF_CUIR_DEVICE_ONLINE		 0x06
+#define PSF_CUIR_VARY_FAILURE		 0x07
+#define PSF_CUIR_SOFTWARE_FAILURE	 0x08
+#define PSF_CUIR_NOT_RECOGNIZED		 0x09
+
+/*
+ * CUIR codes
+ */
+#define CUIR_QUIESCE			 0x01
+#define CUIR_RESUME			 0x02
+
+/*
+ * attention message definitions
+ */
+#define ATTENTION_LENGTH_CUIR		 0x0e
+#define ATTENTION_FORMAT_CUIR		 0x01
 
 /*
  * Size that is reportet for large volumes in the old 16-bit no_cyl field
@@ -328,7 +355,8 @@ struct dasd_gneq {
 		__u8 identifier:2;
 		__u8 reserved:6;
 	} __attribute__ ((packed)) flags;
-	__u8 reserved[5];
+	__u8 record_selector;
+	__u8 reserved[4];
 	struct {
 		__u8 value:2;
 		__u8 number:6;
@@ -342,6 +370,38 @@ struct dasd_rssd_features {
 	char feature[256];
 } __attribute__((packed));
 
+struct dasd_rssd_messages {
+	__u16 length;
+	__u8 format;
+	__u8 code;
+	__u32 message_id;
+	__u8 flags;
+	char messages[4087];
+} __packed;
+
+struct dasd_cuir_message {
+	__u16 length;
+	__u8 format;
+	__u8 code;
+	__u32 message_id;
+	__u8 flags;
+	__u8 neq_map[3];
+	__u8 ned_map;
+	__u8 record_selector;
+} __packed;
+
+struct dasd_psf_cuir_response {
+	__u8 order;
+	__u8 flags;
+	__u8 cc;
+	__u8 chpid;
+	__u16 device_nr;
+	__u16 reserved;
+	__u32 message_id;
+	__u64 system_id;
+	__u8 cssid;
+	__u8 ssid;
+} __packed;
 
 /*
  * Perform Subsystem Function - Prepare for Read Subsystem Data
@@ -433,10 +493,18 @@ struct alias_pav_group {
 	struct dasd_device *next;
 };
 
+struct dasd_conf_data {
+	struct dasd_ned neds[5];
+	u8 reserved[64];
+	struct dasd_gneq gneq;
+} __packed;
+
 struct dasd_eckd_private {
 	struct dasd_eckd_characteristics rdc_data;
 	u8 *conf_data;
 	int conf_len;
+	/* per path configuration data */
+	struct dasd_conf_data *path_conf_data[8];
 	/* pointers to specific parts in the conf_data */
 	struct dasd_ned *ned;
 	struct dasd_sneq *sneq;

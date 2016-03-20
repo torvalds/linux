@@ -699,7 +699,7 @@ linkend="v4l2-buf-type" /></entry>
 buffer. It depends on the negotiated data format and may change with
 each buffer for compressed variable size data like JPEG images.
 Drivers must set this field when <structfield>type</structfield>
-refers to an input stream, applications when it refers to an output stream.
+refers to a capture stream, applications when it refers to an output stream.
 If the application sets this to 0 for an output stream, then
 <structfield>bytesused</structfield> will be set to the size of the
 buffer (see the <structfield>length</structfield> field of this struct) by
@@ -720,14 +720,14 @@ linkend="buffer-flags" />.</entry>
 	    <entry>Indicates the field order of the image in the
 buffer, see <xref linkend="v4l2-field" />. This field is not used when
 the buffer contains VBI data. Drivers must set it when
-<structfield>type</structfield> refers to an input stream,
+<structfield>type</structfield> refers to a capture stream,
 applications when it refers to an output stream.</entry>
 	  </row>
 	  <row>
 	    <entry>struct timeval</entry>
 	    <entry><structfield>timestamp</structfield></entry>
 	    <entry></entry>
-	    <entry><para>For input streams this is time when the first data
+	    <entry><para>For capture streams this is time when the first data
 	    byte was captured, as returned by the
 	    <function>clock_gettime()</function> function for the relevant
 	    clock id; see <constant>V4L2_BUF_FLAG_TIMESTAMP_*</constant> in
@@ -841,15 +841,15 @@ is the file descriptor associated with a DMABUF buffer.</entry>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved2</structfield></entry>
 	    <entry></entry>
-	    <entry>A place holder for future extensions. Applications
-should set this to 0.</entry>
+	    <entry>A place holder for future extensions. Drivers and applications
+must set this to 0.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved</structfield></entry>
 	    <entry></entry>
-	    <entry>A place holder for future extensions. Applications
-should set this to 0.</entry>
+	    <entry>A place holder for future extensions. Drivers and applications
+must set this to 0.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -866,7 +866,7 @@ should set this to 0.</entry>
 	    <entry></entry>
 	    <entry>The number of bytes occupied by data in the plane
 	      (its payload). Drivers must set this field when <structfield>type</structfield>
-	      refers to an input stream, applications when it refers to an output stream.
+	      refers to a capture stream, applications when it refers to an output stream.
 	      If the application sets this to 0 for an output stream, then
 	      <structfield>bytesused</structfield> will be set to the size of the
 	      plane (see the <structfield>length</structfield> field of this struct)
@@ -919,7 +919,7 @@ should set this to 0.</entry>
 	    <entry></entry>
 	    <entry>Offset in bytes to video data in the plane.
 	      Drivers must set this field when <structfield>type</structfield>
-	      refers to an input stream, applications when it refers to an output stream.
+	      refers to a capture stream, applications when it refers to an output stream.
 	      Note that data_offset is included in <structfield>bytesused</structfield>.
 	      So the size of the image in the plane is
 	      <structfield>bytesused</structfield>-<structfield>data_offset</structfield> at
@@ -930,8 +930,8 @@ should set this to 0.</entry>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved[11]</structfield></entry>
 	    <entry></entry>
-	    <entry>Reserved for future use. Should be zeroed by an
-	    application.</entry>
+	    <entry>Reserved for future use. Should be zeroed by drivers and
+	    applications.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -1006,8 +1006,14 @@ should set this to 0.</entry>
 	  <row>
 	    <entry><constant>V4L2_BUF_TYPE_SDR_CAPTURE</constant></entry>
 	    <entry>11</entry>
-	    <entry>Buffer for Software Defined Radio (SDR), see <xref
-		linkend="sdr" />.</entry>
+	    <entry>Buffer for Software Defined Radio (SDR) capture stream, see
+		<xref linkend="sdr" />.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_TYPE_SDR_OUTPUT</constant></entry>
+	    <entry>12</entry>
+	    <entry>Buffer for Software Defined Radio (SDR) output stream, see
+		<xref linkend="sdr" />.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -1129,6 +1135,18 @@ in this buffer has not been created by the CPU but by some DMA-capable unit,
 in which case caches have not been used.</entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_LAST</constant></entry>
+	    <entry>0x00100000</entry>
+	    <entry>Last buffer produced by the hardware. mem2mem codec drivers
+set this flag on the capture queue for the last buffer when the
+<link linkend="vidioc-querybuf">VIDIOC_QUERYBUF</link> or
+<link linkend="vidioc-qbuf">VIDIOC_DQBUF</link> ioctl is called. Due to hardware
+limitations, the last buffer may be empty. In this case the driver will set the
+<structfield>bytesused</structfield> field to 0, regardless of the format. Any
+Any subsequent call to the <link linkend="vidioc-qbuf">VIDIOC_DQBUF</link> ioctl
+will not block anymore, but return an &EPIPE;.</entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_TIMESTAMP_MASK</constant></entry>
 	    <entry>0x0000e000</entry>
 	    <entry>Mask for timestamp types below. To test the
@@ -1155,7 +1173,7 @@ in which case caches have not been used.</entry>
 	    <entry>The buffer timestamp has been taken from the
 	    <constant>CLOCK_MONOTONIC</constant> clock. To access the
 	    same clock outside V4L2, use
-	    <function>clock_gettime(2)</function> .</entry>
+	    <function>clock_gettime(2)</function>.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_TIMESTAMP_COPY</constant></entry>
@@ -1422,7 +1440,10 @@ one of the <constant>V4L2_FIELD_NONE</constant>,
 <constant>V4L2_FIELD_BOTTOM</constant>, or
 <constant>V4L2_FIELD_INTERLACED</constant> formats is acceptable.
 Drivers choose depending on hardware capabilities or e.&nbsp;g. the
-requested image size, and return the actual field order. &v4l2-buffer;
+requested image size, and return the actual field order. Drivers must
+never return <constant>V4L2_FIELD_ANY</constant>. If multiple
+field orders are possible the driver must choose one of the possible
+field orders during &VIDIOC-S-FMT; or &VIDIOC-TRY-FMT;. &v4l2-buffer;
 <structfield>field</structfield> can never be
 <constant>V4L2_FIELD_ANY</constant>.</entry>
 	  </row>

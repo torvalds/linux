@@ -1,9 +1,24 @@
 /*
  * Copyright (c) 2013, Cisco Systems, Inc. All rights reserved.
  *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
@@ -36,7 +51,7 @@
 
 static void usnic_ib_fw_string_to_u64(char *fw_ver_str, u64 *fw_ver)
 {
-	*fw_ver = (u64) *fw_ver_str;
+	*fw_ver = *((u64 *)fw_ver_str);
 }
 
 static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
@@ -248,18 +263,20 @@ enum rdma_link_layer usnic_ib_port_link_layer(struct ib_device *device,
 }
 
 int usnic_ib_query_device(struct ib_device *ibdev,
-				struct ib_device_attr *props)
+			  struct ib_device_attr *props,
+			  struct ib_udata *uhw)
 {
 	struct usnic_ib_dev *us_ibdev = to_usdev(ibdev);
 	union ib_gid gid;
 	struct ethtool_drvinfo info;
-	struct ethtool_cmd cmd;
 	int qp_per_vf;
 
 	usnic_dbg("\n");
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
+
 	mutex_lock(&us_ibdev->usdev_lock);
 	us_ibdev->netdev->ethtool_ops->get_drvinfo(us_ibdev->netdev, &info);
-	us_ibdev->netdev->ethtool_ops->get_settings(us_ibdev->netdev, &cmd);
 	memset(props, 0, sizeof(*props));
 	usnic_mac_ip_to_gid(us_ibdev->ufdev->mac, us_ibdev->ufdev->inaddr,
 			&gid.raw[0]);
@@ -307,12 +324,12 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 				struct ib_port_attr *props)
 {
 	struct usnic_ib_dev *us_ibdev = to_usdev(ibdev);
-	struct ethtool_cmd cmd;
+	struct ethtool_link_ksettings cmd;
 
 	usnic_dbg("\n");
 
 	mutex_lock(&us_ibdev->usdev_lock);
-	us_ibdev->netdev->ethtool_ops->get_settings(us_ibdev->netdev, &cmd);
+	__ethtool_get_link_ksettings(us_ibdev->netdev, &cmd);
 	memset(props, 0, sizeof(*props));
 
 	props->lid = 0;
@@ -336,8 +353,8 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 	props->pkey_tbl_len = 1;
 	props->bad_pkey_cntr = 0;
 	props->qkey_viol_cntr = 0;
-	eth_speed_to_ib_speed(cmd.speed, &props->active_speed,
-				&props->active_width);
+	eth_speed_to_ib_speed(cmd.base.speed, &props->active_speed,
+			      &props->active_width);
 	props->max_mtu = IB_MTU_4096;
 	props->active_mtu = iboe_get_mtu(us_ibdev->ufdev->mtu);
 	/* Userspace will adjust for hdrs */
@@ -552,31 +569,35 @@ int usnic_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	qp_grp = to_uqp_grp(ibqp);
 
-	/* TODO: Future Support All States */
 	mutex_lock(&qp_grp->vf->pf->usdev_lock);
-	if ((attr_mask & IB_QP_STATE) && attr->qp_state == IB_QPS_INIT) {
-		status = usnic_ib_qp_grp_modify(qp_grp, IB_QPS_INIT, NULL);
-	} else if ((attr_mask & IB_QP_STATE) && attr->qp_state == IB_QPS_RTR) {
-		status = usnic_ib_qp_grp_modify(qp_grp, IB_QPS_RTR, NULL);
-	} else if ((attr_mask & IB_QP_STATE) && attr->qp_state == IB_QPS_RTS) {
-		status = usnic_ib_qp_grp_modify(qp_grp, IB_QPS_RTS, NULL);
+	if ((attr_mask & IB_QP_PORT) && attr->port_num != 1) {
+		/* usnic devices only have one port */
+		status = -EINVAL;
+		goto out_unlock;
+	}
+	if (attr_mask & IB_QP_STATE) {
+		status = usnic_ib_qp_grp_modify(qp_grp, attr->qp_state, NULL);
 	} else {
-		usnic_err("Unexpected combination mask: %u state: %u\n",
-				attr_mask & IB_QP_STATE, attr->qp_state);
+		usnic_err("Unhandled request, attr_mask=0x%x\n", attr_mask);
 		status = -EINVAL;
 	}
 
+out_unlock:
 	mutex_unlock(&qp_grp->vf->pf->usdev_lock);
 	return status;
 }
 
-struct ib_cq *usnic_ib_create_cq(struct ib_device *ibdev, int entries,
-					int vector, struct ib_ucontext *context,
-					struct ib_udata *udata)
+struct ib_cq *usnic_ib_create_cq(struct ib_device *ibdev,
+				 const struct ib_cq_init_attr *attr,
+				 struct ib_ucontext *context,
+				 struct ib_udata *udata)
 {
 	struct ib_cq *cq;
 
 	usnic_dbg("\n");
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
+
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq)
 		return ERR_PTR(-EBUSY);
@@ -602,8 +623,8 @@ struct ib_mr *usnic_ib_reg_mr(struct ib_pd *pd, u64 start, u64 length,
 			virt_addr, length);
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
-	if (IS_ERR_OR_NULL(mr))
-		return ERR_PTR(mr ? PTR_ERR(mr) : -ENOMEM);
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
 
 	mr->umem = usnic_uiom_reg_get(to_upd(pd)->umem_pd, start, length,
 					access_flags, 0);

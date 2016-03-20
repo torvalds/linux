@@ -10,7 +10,7 @@
 
 static inline int atomic_read(const atomic_t *v)
 {
-	return (v)->counter;
+	return READ_ONCE((v)->counter);
 }
 
 /*
@@ -37,75 +37,44 @@ static inline int atomic_set(atomic_t *v, int i)
 	return i;
 }
 
-static inline void atomic_add(int i, atomic_t *v)
-{
-	unsigned long flags;
+#define ATOMIC_OP(op, c_op)						\
+static inline void atomic_##op(int i, atomic_t *v)			\
+{									\
+	unsigned long flags;						\
+									\
+	__global_lock1(flags);						\
+	fence();							\
+	v->counter c_op i;						\
+	__global_unlock1(flags);					\
+}									\
 
-	__global_lock1(flags);
-	fence();
-	v->counter += i;
-	__global_unlock1(flags);
+#define ATOMIC_OP_RETURN(op, c_op)					\
+static inline int atomic_##op##_return(int i, atomic_t *v)		\
+{									\
+	unsigned long result;						\
+	unsigned long flags;						\
+									\
+	__global_lock1(flags);						\
+	result = v->counter;						\
+	result c_op i;							\
+	fence();							\
+	v->counter = result;						\
+	__global_unlock1(flags);					\
+									\
+	return result;							\
 }
 
-static inline void atomic_sub(int i, atomic_t *v)
-{
-	unsigned long flags;
+#define ATOMIC_OPS(op, c_op) ATOMIC_OP(op, c_op) ATOMIC_OP_RETURN(op, c_op)
 
-	__global_lock1(flags);
-	fence();
-	v->counter -= i;
-	__global_unlock1(flags);
-}
+ATOMIC_OPS(add, +=)
+ATOMIC_OPS(sub, -=)
+ATOMIC_OP(and, &=)
+ATOMIC_OP(or, |=)
+ATOMIC_OP(xor, ^=)
 
-static inline int atomic_add_return(int i, atomic_t *v)
-{
-	unsigned long result;
-	unsigned long flags;
-
-	__global_lock1(flags);
-	result = v->counter;
-	result += i;
-	fence();
-	v->counter = result;
-	__global_unlock1(flags);
-
-	return result;
-}
-
-static inline int atomic_sub_return(int i, atomic_t *v)
-{
-	unsigned long result;
-	unsigned long flags;
-
-	__global_lock1(flags);
-	result = v->counter;
-	result -= i;
-	fence();
-	v->counter = result;
-	__global_unlock1(flags);
-
-	return result;
-}
-
-static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
-{
-	unsigned long flags;
-
-	__global_lock1(flags);
-	fence();
-	v->counter &= ~mask;
-	__global_unlock1(flags);
-}
-
-static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
-{
-	unsigned long flags;
-
-	__global_lock1(flags);
-	fence();
-	v->counter |= mask;
-	__global_unlock1(flags);
-}
+#undef ATOMIC_OPS
+#undef ATOMIC_OP_RETURN
+#undef ATOMIC_OP
 
 static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 {

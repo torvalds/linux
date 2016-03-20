@@ -60,6 +60,35 @@ void uvd_v2_2_fence_emit(struct radeon_device *rdev,
 }
 
 /**
+ * uvd_v2_2_semaphore_emit - emit semaphore command
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring pointer
+ * @semaphore: semaphore to emit commands for
+ * @emit_wait: true if we should emit a wait command
+ *
+ * Emit a semaphore command (either wait or signal) to the UVD ring.
+ */
+bool uvd_v2_2_semaphore_emit(struct radeon_device *rdev,
+			     struct radeon_ring *ring,
+			     struct radeon_semaphore *semaphore,
+			     bool emit_wait)
+{
+	uint64_t addr = semaphore->gpu_addr;
+
+	radeon_ring_write(ring, PACKET0(UVD_SEMA_ADDR_LOW, 0));
+	radeon_ring_write(ring, (addr >> 3) & 0x000FFFFF);
+
+	radeon_ring_write(ring, PACKET0(UVD_SEMA_ADDR_HIGH, 0));
+	radeon_ring_write(ring, (addr >> 23) & 0x000FFFFF);
+
+	radeon_ring_write(ring, PACKET0(UVD_SEMA_CMD, 0));
+	radeon_ring_write(ring, emit_wait ? 1 : 0);
+
+	return true;
+}
+
+/**
  * uvd_v2_2_resume - memory controller programming
  *
  * @rdev: radeon_device pointer
@@ -71,6 +100,10 @@ int uvd_v2_2_resume(struct radeon_device *rdev)
 	uint64_t addr;
 	uint32_t chip_id, size;
 	int r;
+
+	/* RV770 uses V1.0 MC */
+	if (rdev->family == CHIP_RV770)
+		return uvd_v1_0_resume(rdev);
 
 	r = radeon_uvd_resume(rdev);
 	if (r)

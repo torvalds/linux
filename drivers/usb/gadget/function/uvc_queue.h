@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/poll.h>
 #include <linux/videodev2.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 /* Maximum frame size in bytes, for sanity checking. */
 #define UVC_MAX_FRAME_SIZE	(16*1024*1024)
@@ -26,7 +26,7 @@ enum uvc_buffer_state {
 };
 
 struct uvc_buffer {
-	struct vb2_buffer buf;
+	struct vb2_v4l2_buffer buf;
 	struct list_head queue;
 
 	enum uvc_buffer_state state;
@@ -41,7 +41,6 @@ struct uvc_buffer {
 
 struct uvc_video_queue {
 	struct vb2_queue queue;
-	struct mutex mutex;	/* Protects queue */
 
 	unsigned int flags;
 	__u32 sequence;
@@ -56,6 +55,40 @@ static inline int uvc_queue_streaming(struct uvc_video_queue *queue)
 {
 	return vb2_is_streaming(&queue->queue);
 }
+
+int uvcg_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type,
+		    struct mutex *lock);
+
+void uvcg_free_buffers(struct uvc_video_queue *queue);
+
+int uvcg_alloc_buffers(struct uvc_video_queue *queue,
+		       struct v4l2_requestbuffers *rb);
+
+int uvcg_query_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf);
+
+int uvcg_queue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf);
+
+int uvcg_dequeue_buffer(struct uvc_video_queue *queue,
+			struct v4l2_buffer *buf, int nonblocking);
+
+unsigned int uvcg_queue_poll(struct uvc_video_queue *queue,
+			     struct file *file, poll_table *wait);
+
+int uvcg_queue_mmap(struct uvc_video_queue *queue, struct vm_area_struct *vma);
+
+#ifndef CONFIG_MMU
+unsigned long uvcg_queue_get_unmapped_area(struct uvc_video_queue *queue,
+					   unsigned long pgoff);
+#endif /* CONFIG_MMU */
+
+void uvcg_queue_cancel(struct uvc_video_queue *queue, int disconnect);
+
+int uvcg_queue_enable(struct uvc_video_queue *queue, int enable);
+
+struct uvc_buffer *uvcg_queue_next_buffer(struct uvc_video_queue *queue,
+					  struct uvc_buffer *buf);
+
+struct uvc_buffer *uvcg_queue_head(struct uvc_video_queue *queue);
 
 #endif /* __KERNEL__ */
 

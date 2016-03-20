@@ -213,7 +213,7 @@ void uwb_rsv_backoff_win_timer(unsigned long arg)
 		bow->total_expired = 0;
 		bow->window = UWB_DRP_BACKOFF_WIN_MIN >> 1;
 	}
-	dev_dbg(dev, "backoff_win_timer total_expired=%d, n=%d\n: ", bow->total_expired, bow->n);
+	dev_dbg(dev, "backoff_win_timer total_expired=%d, n=%d\n", bow->total_expired, bow->n);
 
 	/* try to relocate all the "to be moved" relocations */
 	uwb_rsv_handle_drp_avail_change(rc);
@@ -234,7 +234,7 @@ void uwb_rsv_backoff_win_increment(struct uwb_rc *rc)
 
 	bow->window <<= 1;
 	bow->n = prandom_u32() & (bow->window - 1);
-	dev_dbg(dev, "new_window=%d, n=%d\n: ", bow->window, bow->n);
+	dev_dbg(dev, "new_window=%d, n=%d\n", bow->window, bow->n);
 
 	/* reset the timer associated variables */
 	timeout_us = bow->n * UWB_SUPERFRAME_LENGTH_US;
@@ -470,9 +470,7 @@ static struct uwb_rsv *uwb_rsv_alloc(struct uwb_rc *rc)
 	INIT_LIST_HEAD(&rsv->rc_node);
 	INIT_LIST_HEAD(&rsv->pal_node);
 	kref_init(&rsv->kref);
-	init_timer(&rsv->timer);
-	rsv->timer.function = uwb_rsv_timer;
-	rsv->timer.data     = (unsigned long)rsv;
+	setup_timer(&rsv->timer, uwb_rsv_timer, (unsigned long)rsv);
 
 	rsv->rc = rc;
 	INIT_WORK(&rsv->handle_timeout_work, uwb_rsv_handle_timeout_work);
@@ -989,9 +987,8 @@ void uwb_rsv_init(struct uwb_rc *rc)
 	rc->bow.can_reserve_extra_mases = true;
 	rc->bow.total_expired = 0;
 	rc->bow.window = UWB_DRP_BACKOFF_WIN_MIN >> 1;
-	init_timer(&rc->bow.timer);
-	rc->bow.timer.function = uwb_rsv_backoff_win_timer;
-	rc->bow.timer.data     = (unsigned long)&rc->bow;
+	setup_timer(&rc->bow.timer, uwb_rsv_backoff_win_timer,
+			(unsigned long)&rc->bow);
 
 	bitmap_complement(rc->uwb_dev.streams, rc->uwb_dev.streams, UWB_NUM_STREAMS);
 }

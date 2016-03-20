@@ -28,7 +28,7 @@
  *
  * Why is *this* driver using two configurations, rather than setting up
  * two interfaces with different functions?  To help verify that multiple
- * configuration infrastucture is working correctly; also, so that it can
+ * configuration infrastructure is working correctly; also, so that it can
  * work with low capability USB controllers without four bulk endpoints.
  */
 
@@ -68,6 +68,8 @@ static struct usb_zero_options gzero_options = {
 	.isoc_maxpacket = GZERO_ISOC_MAXPACKET,
 	.bulk_buflen = GZERO_BULK_BUFLEN,
 	.qlen = GZERO_QLEN,
+	.ss_bulk_qlen = GZERO_SS_BULK_QLEN,
+	.ss_iso_qlen = GZERO_SS_ISO_QLEN,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -113,7 +115,7 @@ static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
 
-	.bcdUSB =		cpu_to_le16(0x0200),
+	/* .bcdUSB = DYNAMIC */
 	.bDeviceClass =		USB_CLASS_VENDOR_SPEC,
 
 	.idVendor =		cpu_to_le16(DRIVER_VENDOR_NUM),
@@ -121,24 +123,7 @@ static struct usb_device_descriptor device_desc = {
 	.bNumConfigurations =	2,
 };
 
-#ifdef CONFIG_USB_OTG
-static struct usb_otg_descriptor otg_descriptor = {
-	.bLength =		sizeof otg_descriptor,
-	.bDescriptorType =	USB_DT_OTG,
-
-	/* REVISIT SRP-only hardware is possible, although
-	 * it would not be called "OTG" ...
-	 */
-	.bmAttributes =		USB_OTG_SRP | USB_OTG_HNP,
-};
-
-static const struct usb_descriptor_header *otg_desc[] = {
-	(struct usb_descriptor_header *) &otg_descriptor,
-	NULL,
-};
-#else
-#define otg_desc	NULL
-#endif
+static const struct usb_descriptor_header *otg_desc[2];
 
 /* string IDs are assigned dynamically */
 /* default serial number takes at least two packets */
@@ -272,7 +257,15 @@ static struct usb_function_instance *func_inst_lb;
 module_param_named(qlen, gzero_options.qlen, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(qlen, "depth of loopback queue");
 
-static int __init zero_bind(struct usb_composite_dev *cdev)
+module_param_named(ss_bulk_qlen, gzero_options.ss_bulk_qlen, uint,
+		S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(bulk_qlen, "depth of sourcesink queue for bulk transfer");
+
+module_param_named(ss_iso_qlen, gzero_options.ss_iso_qlen, uint,
+		S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(iso_qlen, "depth of sourcesink queue for iso transfer");
+
+static int zero_bind(struct usb_composite_dev *cdev)
 {
 	struct f_ss_opts	*ss_opts;
 	struct f_lb_opts	*lb_opts;
@@ -302,6 +295,8 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 	ss_opts->isoc_mult = gzero_options.isoc_mult;
 	ss_opts->isoc_maxburst = gzero_options.isoc_maxburst;
 	ss_opts->bulk_buflen = gzero_options.bulk_buflen;
+	ss_opts->bulk_qlen = gzero_options.ss_bulk_qlen;
+	ss_opts->iso_qlen = gzero_options.ss_iso_qlen;
 
 	func_ss = usb_get_function(func_inst_ss);
 	if (IS_ERR(func_ss)) {
@@ -341,6 +336,18 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 
 	/* support OTG systems */
 	if (gadget_is_otg(cdev->gadget)) {
+		if (!otg_desc[0]) {
+			struct usb_descriptor_header *usb_desc;
+
+			usb_desc = usb_otg_descriptor_alloc(cdev->gadget);
+			if (!usb_desc) {
+				status = -ENOMEM;
+				goto err_conf_flb;
+			}
+			usb_otg_descriptor_init(cdev->gadget, usb_desc);
+			otg_desc[0] = usb_desc;
+			otg_desc[1] = NULL;
+		}
 		sourcesink_driver.descriptors = otg_desc;
 		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 		loopback_driver.descriptors = otg_desc;
@@ -359,12 +366,12 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 	}
 	status = usb_add_function(&sourcesink_driver, func_ss);
 	if (status)
-		goto err_conf_flb;
+		goto err_free_otg_desc;
 
 	usb_ep_autoconfig_reset(cdev->gadget);
 	status = usb_add_function(&loopback_driver, func_lb);
 	if (status)
-		goto err_conf_flb;
+		goto err_free_otg_desc;
 
 	usb_ep_autoconfig_reset(cdev->gadget);
 	usb_composite_overwrite_options(cdev, &coverwrite);
@@ -373,6 +380,9 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 
 	return 0;
 
+err_free_otg_desc:
+	kfree(otg_desc[0]);
+	otg_desc[0] = NULL;
 err_conf_flb:
 	usb_put_function(func_lb);
 	func_lb = NULL;
@@ -397,10 +407,13 @@ static int zero_unbind(struct usb_composite_dev *cdev)
 	if (!IS_ERR_OR_NULL(func_lb))
 		usb_put_function(func_lb);
 	usb_put_function_instance(func_inst_lb);
+	kfree(otg_desc[0]);
+	otg_desc[0] = NULL;
+
 	return 0;
 }
 
-static __refdata struct usb_composite_driver zero_driver = {
+static struct usb_composite_driver zero_driver = {
 	.name		= "zero",
 	.dev		= &device_desc,
 	.strings	= dev_strings,

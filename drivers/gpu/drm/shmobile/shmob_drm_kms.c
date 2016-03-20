@@ -1,7 +1,7 @@
 /*
  * shmob_drm_kms.c  --  SH Mobile DRM Mode Setting
  *
- * Copyright (C) 2012 Renesas Corporation
+ * Copyright (C) 2012 Renesas Electronics Corporation
  *
  * Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -104,7 +104,7 @@ const struct shmob_drm_format_info *shmob_drm_format_info(u32 fourcc)
 
 static struct drm_framebuffer *
 shmob_drm_fb_create(struct drm_device *dev, struct drm_file *file_priv,
-		    struct drm_mode_fb_cmd2 *mode_cmd)
+		    const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	const struct shmob_drm_format_info *format;
 

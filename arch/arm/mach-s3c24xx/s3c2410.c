@@ -42,7 +42,6 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
-#include <plat/watchdog-reset.h>
 
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
@@ -122,7 +121,7 @@ int __init s3c2410_init(void)
 {
 	printk("S3C2410: Initialising architecture\n");
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	register_syscore_ops(&s3c2410_pm_syscore_ops);
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 #endif
@@ -134,16 +133,4 @@ int __init s3c2410a_init(void)
 {
 	s3c2410_dev.bus = &s3c2410a_subsys;
 	return s3c2410_init();
-}
-
-void s3c2410_restart(enum reboot_mode mode, const char *cmd)
-{
-	if (mode == REBOOT_SOFT) {
-		soft_restart(0);
-	}
-
-	samsung_wdt_reset();
-
-	/* we'll take a jump through zero as a poor second */
-	soft_restart(0);
 }

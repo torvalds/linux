@@ -31,6 +31,7 @@
 #define PSTOREFS_MAGIC		0x6165676C
 #define EFIVARFS_MAGIC		0xde5e81e4
 #define HOSTFS_SUPER_MAGIC	0x00c0ffee
+#define OVERLAYFS_SUPER_MAGIC	0x794c7630
 
 #define MINIX_SUPER_MAGIC	0x137F		/* minix v1 fs, 14 char names */
 #define MINIX_SUPER_MAGIC2	0x138F		/* minix v1 fs, 30 char names */
@@ -54,9 +55,12 @@
 
 #define SMB_SUPER_MAGIC		0x517B
 #define CGROUP_SUPER_MAGIC	0x27e0eb
+#define CGROUP2_SUPER_MAGIC	0x63677270
 
 
 #define STACK_END_MAGIC		0x57AC6E9D
+
+#define TRACEFS_MAGIC          0x74726163
 
 #define V9FS_MAGIC		0x01021997
 
@@ -72,5 +76,7 @@
 #define MTD_INODE_FS_MAGIC      0x11307854
 #define ANON_INODE_FS_MAGIC	0x09041934
 #define BTRFS_TEST_MAGIC	0x73727279
+#define NSFS_MAGIC		0x6e736673
+#define BPF_FS_MAGIC		0xcafe4a11
 
 #endif /* __LINUX_MAGIC_H__ */

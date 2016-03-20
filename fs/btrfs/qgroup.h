@@ -19,44 +19,26 @@
 #ifndef __BTRFS_QGROUP__
 #define __BTRFS_QGROUP__
 
-/*
- * A description of the operations, all of these operations only happen when we
- * are adding the 1st reference for that subvolume in the case of adding space
- * or on the last reference delete in the case of subtraction.  The only
- * exception is the last one, which is added for confusion.
- *
- * BTRFS_QGROUP_OPER_ADD_EXCL: adding bytes where this subvolume is the only
- * one pointing at the bytes we are adding.  This is called on the first
- * allocation.
- *
- * BTRFS_QGROUP_OPER_ADD_SHARED: adding bytes where this bytenr is going to be
- * shared between subvols.  This is called on the creation of a ref that already
- * has refs from a different subvolume, so basically reflink.
- *
- * BTRFS_QGROUP_OPER_SUB_EXCL: removing bytes where this subvolume is the only
- * one referencing the range.
- *
- * BTRFS_QGROUP_OPER_SUB_SHARED: removing bytes where this subvolume shares with
- * refs with other subvolumes.
- */
-enum btrfs_qgroup_operation_type {
-	BTRFS_QGROUP_OPER_ADD_EXCL,
-	BTRFS_QGROUP_OPER_ADD_SHARED,
-	BTRFS_QGROUP_OPER_SUB_EXCL,
-	BTRFS_QGROUP_OPER_SUB_SHARED,
-	BTRFS_QGROUP_OPER_SUB_SUBTREE,
-};
+#include "ulist.h"
+#include "delayed-ref.h"
 
-struct btrfs_qgroup_operation {
-	u64 ref_root;
+/*
+ * Record a dirty extent, and info qgroup to update quota on it
+ * TODO: Use kmem cache to alloc it.
+ */
+struct btrfs_qgroup_extent_record {
+	struct rb_node node;
 	u64 bytenr;
 	u64 num_bytes;
-	u64 seq;
-	enum btrfs_qgroup_operation_type type;
-	struct seq_list elem;
-	struct rb_node n;
-	struct list_head list;
+	struct ulist *old_roots;
 };
+
+/*
+ * For qgroup event trace points only
+ */
+#define QGROUP_RESERVE		(1<<0)
+#define QGROUP_RELEASE		(1<<1)
+#define QGROUP_FREE		(1<<2)
 
 int btrfs_quota_enable(struct btrfs_trans_handle *trans,
 		       struct btrfs_fs_info *fs_info);
@@ -70,8 +52,7 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans,
 			      struct btrfs_fs_info *fs_info, u64 src, u64 dst);
 int btrfs_create_qgroup(struct btrfs_trans_handle *trans,
-			struct btrfs_fs_info *fs_info, u64 qgroupid,
-			char *name);
+			struct btrfs_fs_info *fs_info, u64 qgroupid);
 int btrfs_remove_qgroup(struct btrfs_trans_handle *trans,
 			      struct btrfs_fs_info *fs_info, u64 qgroupid);
 int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
@@ -80,24 +61,35 @@ int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
 int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info);
 void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info);
 struct btrfs_delayed_extent_op;
-int btrfs_qgroup_record_ref(struct btrfs_trans_handle *trans,
-			    struct btrfs_fs_info *fs_info, u64 ref_root,
+int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
+					 struct btrfs_fs_info *fs_info);
+struct btrfs_qgroup_extent_record
+*btrfs_qgroup_insert_dirty_extent(struct btrfs_delayed_ref_root *delayed_refs,
+				  struct btrfs_qgroup_extent_record *record);
+int
+btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
+			    struct btrfs_fs_info *fs_info,
 			    u64 bytenr, u64 num_bytes,
-			    enum btrfs_qgroup_operation_type type,
-			    int mod_seq);
-int btrfs_delayed_qgroup_accounting(struct btrfs_trans_handle *trans,
-				    struct btrfs_fs_info *fs_info);
-void btrfs_remove_qgroup_operation(struct btrfs_trans_handle *trans,
-				   struct btrfs_fs_info *fs_info,
-				   struct btrfs_qgroup_operation *oper);
+			    struct ulist *old_roots, struct ulist *new_roots);
+int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans,
+				 struct btrfs_fs_info *fs_info);
 int btrfs_run_qgroups(struct btrfs_trans_handle *trans,
 		      struct btrfs_fs_info *fs_info);
 int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 			 struct btrfs_fs_info *fs_info, u64 srcid, u64 objectid,
 			 struct btrfs_qgroup_inherit *inherit);
-int btrfs_qgroup_reserve(struct btrfs_root *root, u64 num_bytes);
-void btrfs_qgroup_free(struct btrfs_root *root, u64 num_bytes);
-
+void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
+			       u64 ref_root, u64 num_bytes);
+/*
+ * TODO: Add proper trace point for it, as btrfs_qgroup_free() is
+ * called by everywhere, can't provide good trace for delayed ref case.
+ */
+static inline void btrfs_qgroup_free_delayed_ref(struct btrfs_fs_info *fs_info,
+						 u64 ref_root, u64 num_bytes)
+{
+	btrfs_qgroup_free_refroot(fs_info, ref_root, num_bytes);
+	trace_btrfs_qgroup_free_delayed_ref(ref_root, num_bytes);
+}
 void assert_qgroups_uptodate(struct btrfs_trans_handle *trans);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
@@ -105,4 +97,13 @@ int btrfs_verify_qgroup_counts(struct btrfs_fs_info *fs_info, u64 qgroupid,
 			       u64 rfer, u64 excl);
 #endif
 
+/* New io_tree based accurate qgroup reserve API */
+int btrfs_qgroup_reserve_data(struct inode *inode, u64 start, u64 len);
+int btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len);
+int btrfs_qgroup_free_data(struct inode *inode, u64 start, u64 len);
+
+int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes);
+void btrfs_qgroup_free_meta_all(struct btrfs_root *root);
+void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes);
+void btrfs_qgroup_check_reserved_leak(struct inode *inode);
 #endif /* __BTRFS_QGROUP__ */

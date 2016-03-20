@@ -24,19 +24,18 @@
 #include "../comedidev.h"
 
 #include "amplc_pc236.h"
-#include "comedi_fc.h"
 #include "8255.h"
 
 static void pc236_intr_update(struct comedi_device *dev, bool enable)
 {
-	const struct pc236_board *thisboard = comedi_board(dev);
+	const struct pc236_board *board = dev->board_ptr;
 	struct pc236_private *devpriv = dev->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->enable_irq = enable;
-	if (thisboard->intr_update_cb)
-		thisboard->intr_update_cb(dev, enable);
+	if (board->intr_update_cb)
+		board->intr_update_cb(dev, enable);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
@@ -49,15 +48,15 @@ static void pc236_intr_update(struct comedi_device *dev, bool enable)
  */
 static bool pc236_intr_check(struct comedi_device *dev)
 {
-	const struct pc236_board *thisboard = comedi_board(dev);
+	const struct pc236_board *board = dev->board_ptr;
 	struct pc236_private *devpriv = dev->private;
 	bool retval = false;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	if (devpriv->enable_irq) {
-		if (thisboard->intr_chk_clr_cb)
-			retval = thisboard->intr_chk_clr_cb(dev);
+		if (board->intr_chk_clr_cb)
+			retval = board->intr_chk_clr_cb(dev);
 		else
 			retval = true;
 	}
@@ -82,11 +81,11 @@ static int pc236_intr_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
 
 	if (err)
 		return 1;
@@ -94,24 +93,21 @@ static int pc236_intr_cmdtest(struct comedi_device *dev,
 	/* Step 2a : make sure trigger sources are unique */
 	/* Step 2b : and mutually compatible */
 
-	if (err)
-		return 2;
-
 	/* Step 3: check it arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
-	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
 
-	/* step 4: ignored */
+	/* Step 4: fix up any arguments */
 
-	if (err)
-		return 4;
+	/* Step 5: check channel list if it exists */
 
 	return 0;
 }
@@ -139,9 +135,8 @@ static irqreturn_t pc236_interrupt(int irq, void *d)
 
 	handled = pc236_intr_check(dev);
 	if (dev->attached && handled) {
-		comedi_buf_put(s, 0);
-		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-		comedi_event(dev, s);
+		comedi_buf_write_samples(s, &s->state, 1);
+		comedi_handle_events(dev, s);
 	}
 	return IRQ_RETVAL(handled);
 }
@@ -160,7 +155,7 @@ int amplc_pc236_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	s = &dev->subdevices[0];
 	/* digital i/o subdevice (8255) */
-	ret = subdev_8255_init(dev, s, NULL, iobase);
+	ret = subdev_8255_init(dev, s, NULL, 0x00);
 	if (ret)
 		return ret;
 
@@ -199,7 +194,6 @@ static void __exit amplc_pc236_common_exit(void)
 {
 }
 module_exit(amplc_pc236_common_exit);
-
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi helper for amplc_pc236 and amplc_pci236");

@@ -36,13 +36,13 @@
 #define TMP006_CONFIG_DRDY_EN BIT(8)
 #define TMP006_CONFIG_DRDY BIT(7)
 
-#define TMP006_CONFIG_MOD_MASK 0x7000
+#define TMP006_CONFIG_MOD_MASK GENMASK(14, 12)
 
-#define TMP006_CONFIG_CR_MASK 0x0e00
+#define TMP006_CONFIG_CR_MASK GENMASK(11, 9)
 #define TMP006_CONFIG_CR_SHIFT 9
 
-#define MANUFACTURER_MAGIC 0x5449
-#define DEVICE_MAGIC 0x0067
+#define TMP006_MANUFACTURER_MAGIC 0x5449
+#define TMP006_DEVICE_MAGIC 0x0067
 
 struct tmp006_data {
 	struct i2c_client *client;
@@ -132,6 +132,9 @@ static int tmp006_write_raw(struct iio_dev *indio_dev,
 	struct tmp006_data *data = iio_priv(indio_dev);
 	int i;
 
+	if (mask != IIO_CHAN_INFO_SAMP_FREQ)
+		return -EINVAL;
+
 	for (i = 0; i < ARRAY_SIZE(tmp006_freqs); i++)
 		if ((val == tmp006_freqs[i][0]) &&
 		    (val2 == tmp006_freqs[i][1])) {
@@ -191,7 +194,7 @@ static bool tmp006_check_identification(struct i2c_client *client)
 	if (did < 0)
 		return false;
 
-	return mid == MANUFACTURER_MAGIC && did == DEVICE_MAGIC;
+	return mid == TMP006_MANUFACTURER_MAGIC && did == TMP006_DEVICE_MAGIC;
 }
 
 static int tmp006_probe(struct i2c_client *client,
@@ -202,7 +205,7 @@ static int tmp006_probe(struct i2c_client *client,
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	if (!tmp006_check_identification(client)) {
 		dev_err(&client->dev, "no TMP006 sensor\n");
@@ -277,7 +280,6 @@ static struct i2c_driver tmp006_driver = {
 	.driver = {
 		.name	= "tmp006",
 		.pm	= &tmp006_pm_ops,
-		.owner	= THIS_MODULE,
 	},
 	.probe = tmp006_probe,
 	.remove = tmp006_remove,

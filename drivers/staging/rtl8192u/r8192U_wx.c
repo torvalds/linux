@@ -1,30 +1,33 @@
-/*
-   This file contains wireless extension handlers.
-
-   This is part of rtl8180 OpenSource driver.
-   Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
-   Released under the terms of GPL (General Public Licence)
-
-   Parts of this driver are based on the GPL part
-   of the official realtek driver.
-
-   Parts of this driver are based on the rtl8180 driver skeleton
-   from Patric Schenke & Andres Salomon.
-
-   Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
-
-   We want to thank the Authors of those projects and the Ndiswrapper
-   project Authors.
-*/
+/******************************************************************************
+ *
+ * This file contains wireless extension handlers.
+ *
+ * This is part of rtl8180 OpenSource driver.
+ * Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
+ * Released under the terms of GPL (General Public Licence)
+ *
+ * Parts of this driver are based on the GPL part
+ * of the official realtek driver.
+ *
+ * Parts of this driver are based on the rtl8180 driver skeleton
+ * from Patric Schenke & Andres Salomon.
+ *
+ * Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
+ *
+ * We want to thank the Authors of those projects and the Ndiswrapper
+ * project Authors.
+ *
+ *****************************************************************************/
 
 #include <linux/string.h>
 #include "r8192U.h"
 #include "r8192U_hw.h"
 
 #include "dot11d.h"
+#include "r8192U_wx.h"
 
 #define RATE_COUNT 12
-u32 rtl8180_rates[] = {1000000, 2000000, 5500000, 11000000,
+static const u32 rtl8180_rates[] = {1000000, 2000000, 5500000, 11000000,
 	6000000, 9000000, 12000000, 18000000, 24000000, 36000000, 48000000, 54000000};
 
 
@@ -138,7 +141,7 @@ static int r8192_wx_force_reset(struct net_device *dev,
 
 	down(&priv->wx_sem);
 
-	printk("%s(): force reset ! extra is %d\n", __func__, *extra);
+	netdev_dbg(dev, "%s(): force reset ! extra is %d\n", __func__, *extra);
 	priv->force_reset = *extra;
 	up(&priv->wx_sem);
 	return 0;
@@ -170,7 +173,6 @@ static int r8192_wx_set_crcmon(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int *parms = (int *)extra;
 	int enable = (parms[0] > 0);
-	short prev = priv->crcmon;
 
 	down(&priv->wx_sem);
 
@@ -181,11 +183,6 @@ static int r8192_wx_set_crcmon(struct net_device *dev,
 
 	DMESG("bad CRC in monitor mode are %s",
 	      priv->crcmon ? "accepted" : "rejected");
-
-	if (prev != priv->crcmon && priv->up) {
-		/* rtl8180_down(dev); */
-		/* rtl8180_up(dev); */
-	}
 
 	up(&priv->wx_sem);
 
@@ -268,12 +265,12 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	range->max_qual.qual = 100;
 	/* TODO: Find real max RSSI and stick here */
 	range->max_qual.level = 0;
-	range->max_qual.noise = -98;
+	range->max_qual.noise = 0x100 - 98;
 	range->max_qual.updated = 7; /* Updated all three */
 
 	range->avg_qual.qual = 92; /* > 8% missed beacons is 'bad' */
 	/* TODO: Find real 'good' to 'bad' threshold value for RSSI */
-	range->avg_qual.level = 20 + -98;
+	range->avg_qual.level = 0x100 - 78;
 	range->avg_qual.noise = 0;
 	range->avg_qual.updated = 7; /* Updated all three */
 
@@ -340,10 +337,11 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	if (!priv->up)
 		return -ENETDOWN;
 
-	if (priv->ieee80211->LinkDetectInfo.bBusyTraffic == true)
+	if (priv->ieee80211->LinkDetectInfo.bBusyTraffic)
 		return -EAGAIN;
 	if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 		struct iw_scan_req *req = (struct iw_scan_req *)b;
+
 		if (req->essid_len) {
 			ieee->current_network.ssid_len = req->essid_len;
 			memcpy(ieee->current_network.ssid, req->essid, req->essid_len);
@@ -758,6 +756,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 		struct iw_point *encoding = &wrqu->encoding;
 		u8 idx = 0, alg = 0, group = 0;
+
 		if ((encoding->flags & IW_ENCODE_DISABLED) || ext->alg == IW_ENCODE_ALG_NONE)
 			/* none is not allowed to use hwsec WB 2008.07.01 */
 			goto end_hw_sec;

@@ -27,7 +27,8 @@
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/seqlock.h>
-#include <linux/irq_work.h>
+#include <linux/swait.h>
+#include <linux/stop_machine.h>
 
 /*
  * Define shape of hierarchy based on NR_CPUS, CONFIG_RCU_FANOUT, and
@@ -36,46 +37,73 @@
  * In practice, this did work well going from three levels to four.
  * Of course, your mileage may vary.
  */
-#define MAX_RCU_LVLS 4
-#define RCU_FANOUT_1	      (CONFIG_RCU_FANOUT_LEAF)
-#define RCU_FANOUT_2	      (RCU_FANOUT_1 * CONFIG_RCU_FANOUT)
-#define RCU_FANOUT_3	      (RCU_FANOUT_2 * CONFIG_RCU_FANOUT)
-#define RCU_FANOUT_4	      (RCU_FANOUT_3 * CONFIG_RCU_FANOUT)
+
+#ifdef CONFIG_RCU_FANOUT
+#define RCU_FANOUT CONFIG_RCU_FANOUT
+#else /* #ifdef CONFIG_RCU_FANOUT */
+# ifdef CONFIG_64BIT
+# define RCU_FANOUT 64
+# else
+# define RCU_FANOUT 32
+# endif
+#endif /* #else #ifdef CONFIG_RCU_FANOUT */
+
+#ifdef CONFIG_RCU_FANOUT_LEAF
+#define RCU_FANOUT_LEAF CONFIG_RCU_FANOUT_LEAF
+#else /* #ifdef CONFIG_RCU_FANOUT_LEAF */
+# ifdef CONFIG_64BIT
+# define RCU_FANOUT_LEAF 64
+# else
+# define RCU_FANOUT_LEAF 32
+# endif
+#endif /* #else #ifdef CONFIG_RCU_FANOUT_LEAF */
+
+#define RCU_FANOUT_1	      (RCU_FANOUT_LEAF)
+#define RCU_FANOUT_2	      (RCU_FANOUT_1 * RCU_FANOUT)
+#define RCU_FANOUT_3	      (RCU_FANOUT_2 * RCU_FANOUT)
+#define RCU_FANOUT_4	      (RCU_FANOUT_3 * RCU_FANOUT)
 
 #if NR_CPUS <= RCU_FANOUT_1
 #  define RCU_NUM_LVLS	      1
 #  define NUM_RCU_LVL_0	      1
-#  define NUM_RCU_LVL_1	      (NR_CPUS)
-#  define NUM_RCU_LVL_2	      0
-#  define NUM_RCU_LVL_3	      0
-#  define NUM_RCU_LVL_4	      0
+#  define NUM_RCU_NODES	      NUM_RCU_LVL_0
+#  define NUM_RCU_LVL_INIT    { NUM_RCU_LVL_0 }
+#  define RCU_NODE_NAME_INIT  { "rcu_node_0" }
+#  define RCU_FQS_NAME_INIT   { "rcu_node_fqs_0" }
+#  define RCU_EXP_NAME_INIT   { "rcu_node_exp_0" }
 #elif NR_CPUS <= RCU_FANOUT_2
 #  define RCU_NUM_LVLS	      2
 #  define NUM_RCU_LVL_0	      1
 #  define NUM_RCU_LVL_1	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_1)
-#  define NUM_RCU_LVL_2	      (NR_CPUS)
-#  define NUM_RCU_LVL_3	      0
-#  define NUM_RCU_LVL_4	      0
+#  define NUM_RCU_NODES	      (NUM_RCU_LVL_0 + NUM_RCU_LVL_1)
+#  define NUM_RCU_LVL_INIT    { NUM_RCU_LVL_0, NUM_RCU_LVL_1 }
+#  define RCU_NODE_NAME_INIT  { "rcu_node_0", "rcu_node_1" }
+#  define RCU_FQS_NAME_INIT   { "rcu_node_fqs_0", "rcu_node_fqs_1" }
+#  define RCU_EXP_NAME_INIT   { "rcu_node_exp_0", "rcu_node_exp_1" }
 #elif NR_CPUS <= RCU_FANOUT_3
 #  define RCU_NUM_LVLS	      3
 #  define NUM_RCU_LVL_0	      1
 #  define NUM_RCU_LVL_1	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_2)
 #  define NUM_RCU_LVL_2	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_1)
-#  define NUM_RCU_LVL_3	      (NR_CPUS)
-#  define NUM_RCU_LVL_4	      0
+#  define NUM_RCU_NODES	      (NUM_RCU_LVL_0 + NUM_RCU_LVL_1 + NUM_RCU_LVL_2)
+#  define NUM_RCU_LVL_INIT    { NUM_RCU_LVL_0, NUM_RCU_LVL_1, NUM_RCU_LVL_2 }
+#  define RCU_NODE_NAME_INIT  { "rcu_node_0", "rcu_node_1", "rcu_node_2" }
+#  define RCU_FQS_NAME_INIT   { "rcu_node_fqs_0", "rcu_node_fqs_1", "rcu_node_fqs_2" }
+#  define RCU_EXP_NAME_INIT   { "rcu_node_exp_0", "rcu_node_exp_1", "rcu_node_exp_2" }
 #elif NR_CPUS <= RCU_FANOUT_4
 #  define RCU_NUM_LVLS	      4
 #  define NUM_RCU_LVL_0	      1
 #  define NUM_RCU_LVL_1	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_3)
 #  define NUM_RCU_LVL_2	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_2)
 #  define NUM_RCU_LVL_3	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_1)
-#  define NUM_RCU_LVL_4	      (NR_CPUS)
+#  define NUM_RCU_NODES	      (NUM_RCU_LVL_0 + NUM_RCU_LVL_1 + NUM_RCU_LVL_2 + NUM_RCU_LVL_3)
+#  define NUM_RCU_LVL_INIT    { NUM_RCU_LVL_0, NUM_RCU_LVL_1, NUM_RCU_LVL_2, NUM_RCU_LVL_3 }
+#  define RCU_NODE_NAME_INIT  { "rcu_node_0", "rcu_node_1", "rcu_node_2", "rcu_node_3" }
+#  define RCU_FQS_NAME_INIT   { "rcu_node_fqs_0", "rcu_node_fqs_1", "rcu_node_fqs_2", "rcu_node_fqs_3" }
+#  define RCU_EXP_NAME_INIT   { "rcu_node_exp_0", "rcu_node_exp_1", "rcu_node_exp_2", "rcu_node_exp_3" }
 #else
 # error "CONFIG_RCU_FANOUT insufficient for NR_CPUS"
 #endif /* #if (NR_CPUS) <= RCU_FANOUT_1 */
-
-#define RCU_SUM (NUM_RCU_LVL_0 + NUM_RCU_LVL_1 + NUM_RCU_LVL_2 + NUM_RCU_LVL_3 + NUM_RCU_LVL_4)
-#define NUM_RCU_NODES (RCU_SUM - NR_CPUS)
 
 extern int rcu_num_lvls;
 extern int rcu_num_nodes;
@@ -122,8 +150,9 @@ struct rcu_dynticks {
  * Definition for node within the RCU grace-period-detection hierarchy.
  */
 struct rcu_node {
-	raw_spinlock_t lock;	/* Root rcu_node's lock protects some */
-				/*  rcu_state fields as well as following. */
+	raw_spinlock_t __private lock;	/* Root rcu_node's lock protects */
+					/*  some rcu_state fields as well as */
+					/*  following. */
 	unsigned long gpnum;	/* Current grace period for this node. */
 				/*  This will either be equal to or one */
 				/*  behind the root rcu_node's gpnum. */
@@ -136,18 +165,33 @@ struct rcu_node {
 				/*  an rcu_data structure, otherwise, each */
 				/*  bit corresponds to a child rcu_node */
 				/*  structure. */
-	unsigned long expmask;	/* Groups that have ->blkd_tasks */
-				/*  elements that need to drain to allow the */
-				/*  current expedited grace period to */
-				/*  complete (only for TREE_PREEMPT_RCU). */
 	unsigned long qsmaskinit;
-				/* Per-GP initial value for qsmask & expmask. */
+				/* Per-GP initial value for qsmask. */
+				/*  Initialized from ->qsmaskinitnext at the */
+				/*  beginning of each grace period. */
+	unsigned long qsmaskinitnext;
+				/* Online CPUs for next grace period. */
+	unsigned long expmask;	/* CPUs or groups that need to check in */
+				/*  to allow the current expedited GP */
+				/*  to complete. */
+	unsigned long expmaskinit;
+				/* Per-GP initial values for expmask. */
+				/*  Initialized from ->expmaskinitnext at the */
+				/*  beginning of each expedited GP. */
+	unsigned long expmaskinitnext;
+				/* Online CPUs for next expedited GP. */
+				/*  Any CPU that has ever been online will */
+				/*  have its bit set. */
 	unsigned long grpmask;	/* Mask to apply to parent qsmask. */
 				/*  Only one bit will be set in this mask. */
 	int	grplo;		/* lowest-numbered CPU or group here. */
 	int	grphi;		/* highest-numbered CPU or group here. */
 	u8	grpnum;		/* CPU/group number for next level up. */
 	u8	level;		/* root is at level 0. */
+	bool	wait_blkd_tasks;/* Necessary to wait for blocked tasks to */
+				/*  exit RCU read-side critical sections */
+				/*  before propagating offline up the */
+				/*  rcu_node tree? */
 	struct rcu_node *parent;
 	struct list_head blkd_tasks;
 				/* Tasks blocked in RCU read-side critical */
@@ -163,7 +207,6 @@ struct rcu_node {
 				/*  if there is no such task.  If there */
 				/*  is no current expedited grace period, */
 				/*  then there can cannot be any such task. */
-#ifdef CONFIG_RCU_BOOST
 	struct list_head *boost_tasks;
 				/* Pointer to first task that needs to be */
 				/*  priority boosted, or NULL if no priority */
@@ -172,11 +215,6 @@ struct rcu_node {
 				/*  queued on this rcu_node structure that */
 				/*  are blocking the current grace period, */
 				/*  there can be no such task. */
-	struct completion boost_completion;
-				/* Used to ensure that the rt_mutex used */
-				/*  to carry out the boosting is fully */
-				/*  released with no future boostee accesses */
-				/*  before that rt_mutex is re-initialized. */
 	struct rt_mutex boost_mtx;
 				/* Used only for the priority-boosting */
 				/*  side effect, not as a lock. */
@@ -206,14 +244,15 @@ struct rcu_node {
 	unsigned long n_balk_nos;
 				/* Refused to boost: not sure why, though. */
 				/*  This can happen due to race conditions. */
-#endif /* #ifdef CONFIG_RCU_BOOST */
 #ifdef CONFIG_RCU_NOCB_CPU
-	wait_queue_head_t nocb_gp_wq[2];
+	struct swait_queue_head nocb_gp_wq[2];
 				/* Place for rcu_nocb_kthread() to wait GP. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 	int need_future_gp[2];
 				/* Counts of upcoming no-CB GP requests. */
 	raw_spinlock_t fqslock ____cacheline_internodealigned_in_smp;
+
+	struct mutex exp_funnel_mutex ____cacheline_internodealigned_in_smp;
 } ____cacheline_internodealigned_in_smp;
 
 /*
@@ -243,6 +282,18 @@ struct rcu_node {
 	for ((rnp) = (rsp)->level[rcu_num_lvls - 1]; \
 	     (rnp) < &(rsp)->node[rcu_num_nodes]; (rnp)++)
 
+/*
+ * Union to allow "aggregate OR" operation on the need for a quiescent
+ * state by the normal and expedited grace periods.
+ */
+union rcu_noqs {
+	struct {
+		u8 norm;
+		u8 exp;
+	} b; /* Bits. */
+	u16 s; /* Set of bits, aggregate OR here. */
+};
+
 /* Index values for nxttail array in struct rcu_data. */
 #define RCU_DONE_TAIL		0	/* Also RCU_WAIT head. */
 #define RCU_WAIT_TAIL		1	/* Also RCU_NEXT_READY head. */
@@ -257,17 +308,18 @@ struct rcu_data {
 					/*  in order to detect GP end. */
 	unsigned long	gpnum;		/* Highest gp number that this CPU */
 					/*  is aware of having started. */
-	bool		passed_quiesce;	/* User-mode/idle loop etc. */
-	bool		qs_pending;	/* Core waits for quiesc state. */
+	unsigned long	rcu_qs_ctr_snap;/* Snapshot of rcu_qs_ctr to check */
+					/*  for rcu_all_qs() invocations. */
+	union rcu_noqs	cpu_no_qs;	/* No QSes yet for this CPU. */
+	bool		core_needs_qs;	/* Core waits for quiesc state. */
 	bool		beenonline;	/* CPU online at least once. */
+	bool		gpwrap;		/* Possible gpnum/completed wrap. */
 	struct rcu_node *mynode;	/* This CPU's leaf of hierarchy */
 	unsigned long grpmask;		/* Mask to apply to leaf qsmask. */
-#ifdef CONFIG_RCU_CPU_STALL_INFO
 	unsigned long	ticks_this_gp;	/* The number of scheduling-clock */
 					/*  ticks this CPU has handled */
 					/*  during and after the last grace */
 					/* period it is aware of. */
-#endif /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
 
 	/* 2) batch handling */
 	/*
@@ -321,7 +373,7 @@ struct rcu_data {
 
 	/* 5) __rcu_pending() statistics. */
 	unsigned long n_rcu_pending;	/* rcu_pending() calls since boot. */
-	unsigned long n_rp_qs_pending;
+	unsigned long n_rp_core_needs_qs;
 	unsigned long n_rp_report_qs;
 	unsigned long n_rp_cb_ready;
 	unsigned long n_rp_cpu_needs_gp;
@@ -330,35 +382,34 @@ struct rcu_data {
 	unsigned long n_rp_nocb_defer_wakeup;
 	unsigned long n_rp_need_nothing;
 
-	/* 6) _rcu_barrier() and OOM callbacks. */
+	/* 6) _rcu_barrier(), OOM callbacks, and expediting. */
 	struct rcu_head barrier_head;
 #ifdef CONFIG_RCU_FAST_NO_HZ
 	struct rcu_head oom_head;
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
+	struct mutex exp_funnel_mutex;
+	atomic_long_t expedited_workdone0;	/* # done by others #0. */
+	atomic_long_t expedited_workdone1;	/* # done by others #1. */
+	atomic_long_t expedited_workdone2;	/* # done by others #2. */
+	atomic_long_t expedited_workdone3;	/* # done by others #3. */
 
 	/* 7) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU
 	struct rcu_head *nocb_head;	/* CBs waiting for kthread. */
 	struct rcu_head **nocb_tail;
-	atomic_long_t nocb_q_count;	/* # CBs waiting for kthread */
-	atomic_long_t nocb_q_count_lazy; /*  (approximate). */
+	atomic_long_t nocb_q_count;	/* # CBs waiting for nocb */
+	atomic_long_t nocb_q_count_lazy; /*  invocation (all stages). */
 	struct rcu_head *nocb_follower_head; /* CBs ready to invoke. */
 	struct rcu_head **nocb_follower_tail;
-	atomic_long_t nocb_follower_count; /* # CBs ready to invoke. */
-	atomic_long_t nocb_follower_count_lazy; /*  (approximate). */
-	int nocb_p_count;		/* # CBs being invoked by kthread */
-	int nocb_p_count_lazy;		/*  (approximate). */
-	wait_queue_head_t nocb_wq;	/* For nocb kthreads to sleep on. */
+	struct swait_queue_head nocb_wq; /* For nocb kthreads to sleep on. */
 	struct task_struct *nocb_kthread;
-	bool nocb_defer_wakeup;		/* Defer wakeup of nocb_kthread. */
+	int nocb_defer_wakeup;		/* Defer wakeup of nocb_kthread. */
 
 	/* The following fields are used by the leader, hence own cacheline. */
 	struct rcu_head *nocb_gp_head ____cacheline_internodealigned_in_smp;
 					/* CBs waiting for GP. */
 	struct rcu_head **nocb_gp_tail;
-	long nocb_gp_count;
-	long nocb_gp_count_lazy;
-	bool nocb_leader_wake;		/* Is the nocb leader thread awake? */
+	bool nocb_leader_sleep;		/* Is the nocb leader thread asleep? */
 	struct rcu_data *nocb_next_follower;
 					/* Next follower in wakeup chain. */
 
@@ -368,20 +419,16 @@ struct rcu_data {
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
 	/* 8) RCU CPU stall data. */
-#ifdef CONFIG_RCU_CPU_STALL_INFO
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
-#endif /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
 
 	int cpu;
 	struct rcu_state *rsp;
 };
 
-/* Values for fqs_state field in struct rcu_state. */
-#define RCU_GP_IDLE		0	/* No grace period in progress. */
-#define RCU_GP_INIT		1	/* Grace period being initialized. */
-#define RCU_SAVE_DYNTICK	2	/* Need to scan dyntick state. */
-#define RCU_FORCE_QS		3	/* Need to force quiescent state. */
-#define RCU_SIGNAL_INIT		RCU_SAVE_DYNTICK
+/* Values for nocb_defer_wakeup field in struct rcu_data. */
+#define RCU_NOGP_WAKE_NOT	0
+#define RCU_NOGP_WAKE		1
+#define RCU_NOGP_WAKE_FORCE	2
 
 #define RCU_JIFFIES_TILL_FORCE_QS (1 + (HZ > 250) + (HZ > 500))
 					/* For jiffies_till_first_fqs and */
@@ -418,23 +465,22 @@ do {									\
  */
 struct rcu_state {
 	struct rcu_node node[NUM_RCU_NODES];	/* Hierarchy. */
-	struct rcu_node *level[RCU_NUM_LVLS];	/* Hierarchy levels. */
-	u32 levelcnt[MAX_RCU_LVLS + 1];		/* # nodes in each level. */
-	u8 levelspread[RCU_NUM_LVLS];		/* kids/node in each level. */
+	struct rcu_node *level[RCU_NUM_LVLS + 1];
+						/* Hierarchy levels (+1 to */
+						/*  shut bogus gcc warning) */
 	u8 flavor_mask;				/* bit in flavor mask. */
 	struct rcu_data __percpu *rda;		/* pointer of percu rcu_data. */
-	void (*call)(struct rcu_head *head,	/* call_rcu() flavor. */
-		     void (*func)(struct rcu_head *head));
+	call_rcu_func_t call;			/* call_rcu() flavor. */
+	int ncpus;				/* # CPUs seen so far. */
 
 	/* The following fields are guarded by the root rcu_node's lock. */
 
-	u8	fqs_state ____cacheline_internodealigned_in_smp;
-						/* Force QS state. */
-	u8	boost;				/* Subject to priority boost. */
+	u8	boost ____cacheline_internodealigned_in_smp;
+						/* Subject to priority boost. */
 	unsigned long gpnum;			/* Current gp number. */
 	unsigned long completed;		/* # of last completed gp. */
 	struct task_struct *gp_kthread;		/* Task for grace periods. */
-	wait_queue_head_t gp_wq;		/* Where GP task waits. */
+	struct swait_queue_head gp_wq;		/* Where GP task waits. */
 	short gp_flags;				/* Commands for GP task. */
 	short gp_state;				/* GP kthread sleep state. */
 
@@ -452,26 +498,18 @@ struct rcu_state {
 	long qlen;				/* Total number of callbacks. */
 	/* End of fields guarded by orphan_lock. */
 
-	struct mutex onoff_mutex;		/* Coordinate hotplug & GPs. */
-
 	struct mutex barrier_mutex;		/* Guards barrier fields. */
 	atomic_t barrier_cpu_count;		/* # CPUs waiting on. */
 	struct completion barrier_completion;	/* Wake at barrier end. */
-	unsigned long n_barrier_done;		/* ++ at start and end of */
+	unsigned long barrier_sequence;		/* ++ at start and end of */
 						/*  _rcu_barrier(). */
 	/* End of fields guarded by barrier_mutex. */
 
-	atomic_long_t expedited_start;		/* Starting ticket. */
-	atomic_long_t expedited_done;		/* Done ticket. */
-	atomic_long_t expedited_wrap;		/* # near-wrap incidents. */
-	atomic_long_t expedited_tryfail;	/* # acquisition failures. */
-	atomic_long_t expedited_workdone1;	/* # done by others #1. */
-	atomic_long_t expedited_workdone2;	/* # done by others #2. */
+	unsigned long expedited_sequence;	/* Take a ticket. */
 	atomic_long_t expedited_normal;		/* # fallbacks to normal. */
-	atomic_long_t expedited_stoppedcpus;	/* # successful stop_cpus. */
-	atomic_long_t expedited_done_tries;	/* # tries to update _done. */
-	atomic_long_t expedited_done_lost;	/* # times beaten to _done. */
-	atomic_long_t expedited_done_exit;	/* # times exited _done loop. */
+	atomic_t expedited_need_qs;		/* # CPUs left to check in. */
+	struct swait_queue_head expedited_wq;	/* Wait for check-ins. */
+	int ncpus_snap;				/* # CPUs seen last time. */
 
 	unsigned long jiffies_force_qs;		/* Time at which to invoke */
 						/*  force_quiescent_state(). */
@@ -483,10 +521,14 @@ struct rcu_state {
 						/*  due to no GP active. */
 	unsigned long gp_start;			/* Time at which GP started, */
 						/*  but in jiffies. */
+	unsigned long gp_activity;		/* Time of last GP kthread */
+						/*  activity in jiffies. */
 	unsigned long jiffies_stall;		/* Time at which to check */
 						/*  for CPU stalls. */
 	unsigned long jiffies_resched;		/* Time at which to resched */
 						/*  a reluctant CPU. */
+	unsigned long n_force_qs_gpstart;	/* Snapshot of n_force_qs at */
+						/*  GP start. */
 	unsigned long gp_max;			/* Maximum GP duration in */
 						/*  jiffies. */
 	const char *name;			/* Name of structure. */
@@ -498,10 +540,26 @@ struct rcu_state {
 #define RCU_GP_FLAG_INIT 0x1	/* Need grace-period initialization. */
 #define RCU_GP_FLAG_FQS  0x2	/* Need grace-period quiescent-state forcing. */
 
-/* Values for rcu_state structure's gp_flags field. */
-#define RCU_GP_WAIT_INIT 0	/* Initial state. */
+/* Values for rcu_state structure's gp_state field. */
+#define RCU_GP_IDLE	 0	/* Initial state and no GP in progress. */
 #define RCU_GP_WAIT_GPS  1	/* Wait for grace-period start. */
-#define RCU_GP_WAIT_FQS  2	/* Wait for force-quiescent-state time. */
+#define RCU_GP_DONE_GPS  2	/* Wait done for grace-period start. */
+#define RCU_GP_WAIT_FQS  3	/* Wait for force-quiescent-state time. */
+#define RCU_GP_DOING_FQS 4	/* Wait done for force-quiescent-state time. */
+#define RCU_GP_CLEANUP   5	/* Grace-period cleanup started. */
+#define RCU_GP_CLEANED   6	/* Grace-period cleanup complete. */
+
+#ifndef RCU_TREE_NONCORE
+static const char * const gp_state_names[] = {
+	"RCU_GP_IDLE",
+	"RCU_GP_WAIT_GPS",
+	"RCU_GP_DONE_GPS",
+	"RCU_GP_WAIT_FQS",
+	"RCU_GP_DOING_FQS",
+	"RCU_GP_CLEANUP",
+	"RCU_GP_CLEANED",
+};
+#endif /* #ifndef RCU_TREE_NONCORE */
 
 extern struct list_head rcu_struct_flavors;
 
@@ -509,26 +567,16 @@ extern struct list_head rcu_struct_flavors;
 #define for_each_rcu_flavor(rsp) \
 	list_for_each_entry((rsp), &rcu_struct_flavors, flavors)
 
-/* Return values for rcu_preempt_offline_tasks(). */
-
-#define RCU_OFL_TASKS_NORM_GP	0x1		/* Tasks blocking normal */
-						/*  GP were moved to root. */
-#define RCU_OFL_TASKS_EXP_GP	0x2		/* Tasks blocking expedited */
-						/*  GP were moved to root. */
-
 /*
  * RCU implementation internal declarations:
  */
 extern struct rcu_state rcu_sched_state;
-DECLARE_PER_CPU(struct rcu_data, rcu_sched_data);
 
 extern struct rcu_state rcu_bh_state;
-DECLARE_PER_CPU(struct rcu_data, rcu_bh_data);
 
-#ifdef CONFIG_TREE_PREEMPT_RCU
+#ifdef CONFIG_PREEMPT_RCU
 extern struct rcu_state rcu_preempt_state;
-DECLARE_PER_CPU(struct rcu_data, rcu_preempt_data);
-#endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+#endif /* #ifdef CONFIG_PREEMPT_RCU */
 
 #ifdef CONFIG_RCU_BOOST
 DECLARE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
@@ -541,27 +589,17 @@ DECLARE_PER_CPU(char, rcu_cpu_has_work);
 
 /* Forward declarations for rcutree_plugin.h */
 static void rcu_bootup_announce(void);
-long rcu_batches_completed(void);
-static void rcu_preempt_note_context_switch(int cpu);
+static void rcu_preempt_note_context_switch(void);
 static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp);
 #ifdef CONFIG_HOTPLUG_CPU
-static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp,
-				      unsigned long flags);
+static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 static void rcu_print_detail_task_stall(struct rcu_state *rsp);
 static int rcu_print_task_stall(struct rcu_node *rnp);
+static int rcu_print_task_exp_stall(struct rcu_node *rnp);
 static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp);
-#ifdef CONFIG_HOTPLUG_CPU
-static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
-				     struct rcu_node *rnp,
-				     struct rcu_data *rdp);
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
-static void rcu_preempt_check_callbacks(int cpu);
-void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu));
-#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_TREE_PREEMPT_RCU)
-static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
-			       bool wake);
-#endif /* #if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_TREE_PREEMPT_RCU) */
+static void rcu_preempt_check_callbacks(void);
+void call_rcu(struct rcu_head *head, rcu_callback_t func);
 static void __init __rcu_init_preempt(void);
 static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags);
 static void rcu_preempt_boost_start_gp(struct rcu_node *rnp);
@@ -572,31 +610,39 @@ static void rcu_preempt_do_callbacks(void);
 static int rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 						 struct rcu_node *rnp);
 #endif /* #ifdef CONFIG_RCU_BOOST */
+static void __init rcu_spawn_boost_kthreads(void);
 static void rcu_prepare_kthreads(int cpu);
-static void rcu_cleanup_after_idle(int cpu);
-static void rcu_prepare_for_idle(int cpu);
+static void rcu_cleanup_after_idle(void);
+static void rcu_prepare_for_idle(void);
 static void rcu_idle_count_callbacks_posted(void);
+static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
 static void print_cpu_stall_info_begin(void);
 static void print_cpu_stall_info(struct rcu_state *rsp, int cpu);
 static void print_cpu_stall_info_end(void);
 static void zero_cpu_stall_ticks(struct rcu_data *rdp);
 static void increment_cpu_stall_ticks(void);
+static bool rcu_nocb_cpu_needs_barrier(struct rcu_state *rsp, int cpu);
 static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq);
-static void rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp);
+static struct swait_queue_head *rcu_nocb_gp_get(struct rcu_node *rnp);
+static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq);
 static void rcu_init_one_nocb(struct rcu_node *rnp);
 static bool __call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *rhp,
 			    bool lazy, unsigned long flags);
 static bool rcu_nocb_adopt_orphan_cbs(struct rcu_state *rsp,
 				      struct rcu_data *rdp,
 				      unsigned long flags);
-static bool rcu_nocb_need_deferred_wakeup(struct rcu_data *rdp);
+static int rcu_nocb_need_deferred_wakeup(struct rcu_data *rdp);
 static void do_nocb_deferred_wakeup(struct rcu_data *rdp);
 static void rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp);
-static void rcu_spawn_nocb_kthreads(struct rcu_state *rsp);
+static void rcu_spawn_all_nocb_kthreads(int cpu);
+static void __init rcu_spawn_nocb_kthreads(void);
+#ifdef CONFIG_RCU_NOCB_CPU
+static void __init rcu_organize_nocb_kthreads(struct rcu_state *rsp);
+#endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 static void __maybe_unused rcu_kick_nohz_cpu(int cpu);
 static bool init_nocb_callback_list(struct rcu_data *rdp);
-static void rcu_sysidle_enter(struct rcu_dynticks *rdtp, int irq);
-static void rcu_sysidle_exit(struct rcu_dynticks *rdtp, int irq);
+static void rcu_sysidle_enter(int irq);
+static void rcu_sysidle_exit(int irq);
 static void rcu_sysidle_check_cpu(struct rcu_data *rdp, bool *isidle,
 				  unsigned long *maxj);
 static bool is_sysidle_rcu_state(struct rcu_state *rsp);
@@ -605,28 +651,91 @@ static void rcu_sysidle_report_gp(struct rcu_state *rsp, int isidle,
 static void rcu_bind_gp_kthread(void);
 static void rcu_sysidle_init_percpu_data(struct rcu_dynticks *rdtp);
 static bool rcu_nohz_full_cpu(struct rcu_state *rsp);
+static void rcu_dynticks_task_enter(void);
+static void rcu_dynticks_task_exit(void);
 
 #endif /* #ifndef RCU_TREE_NONCORE */
 
 #ifdef CONFIG_RCU_TRACE
+/* Read out queue lengths for tracing. */
+static inline void rcu_nocb_q_lengths(struct rcu_data *rdp, long *ql, long *qll)
+{
 #ifdef CONFIG_RCU_NOCB_CPU
-/* Sum up queue lengths for tracing. */
-static inline void rcu_nocb_q_lengths(struct rcu_data *rdp, long *ql, long *qll)
-{
-	*ql = atomic_long_read(&rdp->nocb_q_count) +
-	      rdp->nocb_p_count +
-	      atomic_long_read(&rdp->nocb_follower_count) +
-	      rdp->nocb_p_count + rdp->nocb_gp_count;
-	*qll = atomic_long_read(&rdp->nocb_q_count_lazy) +
-	       rdp->nocb_p_count_lazy +
-	       atomic_long_read(&rdp->nocb_follower_count_lazy) +
-	       rdp->nocb_p_count_lazy + rdp->nocb_gp_count_lazy;
-}
+	*ql = atomic_long_read(&rdp->nocb_q_count);
+	*qll = atomic_long_read(&rdp->nocb_q_count_lazy);
 #else /* #ifdef CONFIG_RCU_NOCB_CPU */
-static inline void rcu_nocb_q_lengths(struct rcu_data *rdp, long *ql, long *qll)
-{
 	*ql = 0;
 	*qll = 0;
-}
 #endif /* #else #ifdef CONFIG_RCU_NOCB_CPU */
+}
 #endif /* #ifdef CONFIG_RCU_TRACE */
+
+/*
+ * Place this after a lock-acquisition primitive to guarantee that
+ * an UNLOCK+LOCK pair act as a full barrier.  This guarantee applies
+ * if the UNLOCK and LOCK are executed by the same CPU or if the
+ * UNLOCK and LOCK operate on the same lock variable.
+ */
+#ifdef CONFIG_PPC
+#define smp_mb__after_unlock_lock()	smp_mb()  /* Full ordering for lock. */
+#else /* #ifdef CONFIG_PPC */
+#define smp_mb__after_unlock_lock()	do { } while (0)
+#endif /* #else #ifdef CONFIG_PPC */
+
+/*
+ * Wrappers for the rcu_node::lock acquire and release.
+ *
+ * Because the rcu_nodes form a tree, the tree traversal locking will observe
+ * different lock values, this in turn means that an UNLOCK of one level
+ * followed by a LOCK of another level does not imply a full memory barrier;
+ * and most importantly transitivity is lost.
+ *
+ * In order to restore full ordering between tree levels, augment the regular
+ * lock acquire functions with smp_mb__after_unlock_lock().
+ *
+ * As ->lock of struct rcu_node is a __private field, therefore one should use
+ * these wrappers rather than directly call raw_spin_{lock,unlock}* on ->lock.
+ */
+static inline void raw_spin_lock_rcu_node(struct rcu_node *rnp)
+{
+	raw_spin_lock(&ACCESS_PRIVATE(rnp, lock));
+	smp_mb__after_unlock_lock();
+}
+
+static inline void raw_spin_unlock_rcu_node(struct rcu_node *rnp)
+{
+	raw_spin_unlock(&ACCESS_PRIVATE(rnp, lock));
+}
+
+static inline void raw_spin_lock_irq_rcu_node(struct rcu_node *rnp)
+{
+	raw_spin_lock_irq(&ACCESS_PRIVATE(rnp, lock));
+	smp_mb__after_unlock_lock();
+}
+
+static inline void raw_spin_unlock_irq_rcu_node(struct rcu_node *rnp)
+{
+	raw_spin_unlock_irq(&ACCESS_PRIVATE(rnp, lock));
+}
+
+#define raw_spin_lock_irqsave_rcu_node(rnp, flags)			\
+do {									\
+	typecheck(unsigned long, flags);				\
+	raw_spin_lock_irqsave(&ACCESS_PRIVATE(rnp, lock), flags);	\
+	smp_mb__after_unlock_lock();					\
+} while (0)
+
+#define raw_spin_unlock_irqrestore_rcu_node(rnp, flags)			\
+do {									\
+	typecheck(unsigned long, flags);				\
+	raw_spin_unlock_irqrestore(&ACCESS_PRIVATE(rnp, lock), flags);	\
+} while (0)
+
+static inline bool raw_spin_trylock_rcu_node(struct rcu_node *rnp)
+{
+	bool locked = raw_spin_trylock(&ACCESS_PRIVATE(rnp, lock));
+
+	if (locked)
+		smp_mb__after_unlock_lock();
+	return locked;
+}

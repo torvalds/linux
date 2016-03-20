@@ -9,12 +9,14 @@
 UTS_MACHINE := arc
 
 ifeq ($(CROSS_COMPILE),)
-CROSS_COMPILE := arc-linux-uclibc-
+CROSS_COMPILE := arc-linux-
 endif
 
-KBUILD_DEFCONFIG := fpga_defconfig
+KBUILD_DEFCONFIG := nsim_700_defconfig
 
-cflags-y	+= -mA7 -fno-common -pipe -fno-builtin -D__linux__
+cflags-y	+= -fno-common -pipe -fno-builtin -D__linux__
+cflags-$(CONFIG_ISA_ARCOMPACT)	+= -mA7
+cflags-$(CONFIG_ISA_ARCV2)	+= -mcpu=archs
 
 ifdef CONFIG_ARC_CURR_IN_REG
 # For a global register defintion, make sure it gets passed to every file
@@ -25,7 +27,6 @@ ifdef CONFIG_ARC_CURR_IN_REG
 LINUXINCLUDE	+=  -include ${src}/arch/arc/include/asm/current.h
 endif
 
-upto_gcc42    :=  $(call cc-ifversion, -le, 0402, y)
 upto_gcc44    :=  $(call cc-ifversion, -le, 0404, y)
 atleast_gcc44 :=  $(call cc-ifversion, -ge, 0404, y)
 atleast_gcc48 :=  $(call cc-ifversion, -ge, 0408, y)
@@ -34,7 +35,19 @@ cflags-$(atleast_gcc44)			+= -fsection-anchors
 
 cflags-$(CONFIG_ARC_HAS_LLSC)		+= -mlock
 cflags-$(CONFIG_ARC_HAS_SWAPE)		+= -mswape
-cflags-$(CONFIG_ARC_HAS_RTSC)		+= -mrtsc
+
+ifdef CONFIG_ISA_ARCV2
+
+ifndef CONFIG_ARC_HAS_LL64
+cflags-y				+= -mno-ll64
+endif
+
+ifndef CONFIG_ARC_HAS_DIV_REM
+cflags-y				+= -mno-div-rem
+endif
+
+endif
+
 cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -fasynchronous-unwind-tables
 
 # By default gcc 4.8 generates dwarf4 which kernel unwinder can't grok
@@ -44,7 +57,8 @@ endif
 
 ifndef CONFIG_CC_OPTIMIZE_FOR_SIZE
 # Generic build system uses -O2, we want -O3
-cflags-y  += -O3
+# Note: No need to add to cflags-y as that happens anyways
+ARCH_CFLAGS += -O3
 endif
 
 # small data is default for elf32 tool-chain. If not usable, disable it
@@ -60,28 +74,10 @@ ldflags-$(CONFIG_CPU_BIG_ENDIAN)	+= -EB
 # --build-id w/o "-marclinux". Default arc-elf32-ld is OK
 ldflags-$(upto_gcc44)			+= -marclinux
 
-ARC_LIBGCC				:= -mA7
-cflags-$(CONFIG_ARC_HAS_HW_MPY)		+= -multcost=16
-
-ifndef CONFIG_ARC_HAS_HW_MPY
-	cflags-y	+= -mno-mpy
-
-# newlib for ARC700 assumes MPY to be always present, which is generally true
-# However, if someone really doesn't want MPY, we need to use the 600 ver
-# which coupled with -mno-mpy will use mpy emulation
-# With gcc 4.4.7, -mno-mpy is enough to make any other related adjustments,
-# e.g. increased cost of MPY. With gcc 4.2.1 this had to be explicitly hinted
-
-	ifeq ($(upto_gcc42),y)
-		ARC_LIBGCC	:= -marc600
-		cflags-y	+= -multcost=30
-	endif
-endif
-
-LIBGCC	:= $(shell $(CC) $(ARC_LIBGCC) $(cflags-y) --print-libgcc-file-name)
+LIBGCC	:= $(shell $(CC) $(cflags-y) --print-libgcc-file-name)
 
 # Modules with short calls might break for calls into builtin-kernel
-KBUILD_CFLAGS_MODULE	+= -mlong-calls
+KBUILD_CFLAGS_MODULE	+= -mlong-calls -mno-millicode
 
 # Finally dump eveything into kernel build system
 KBUILD_CFLAGS	+= $(cflags-y)
@@ -96,8 +92,9 @@ core-y		+= arch/arc/
 # w/o this dtb won't embed into kernel binary
 core-y		+= arch/arc/boot/dts/
 
-core-$(CONFIG_ARC_PLAT_FPGA_LEGACY)	+= arch/arc/plat-arcfpga/
-core-$(CONFIG_ARC_PLAT_TB10X)		+= arch/arc/plat-tb10x/
+core-$(CONFIG_ARC_PLAT_SIM)	+= arch/arc/plat-sim/
+core-$(CONFIG_ARC_PLAT_TB10X)	+= arch/arc/plat-tb10x/
+core-$(CONFIG_ARC_PLAT_AXS10X)	+= arch/arc/plat-axs10x/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/arc/oprofile/
 
@@ -120,7 +117,7 @@ $(boot_targets): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
 
 dtbs: scripts
-	$(Q)$(MAKE) $(build)=$(boot)/dts dtbs
+	$(Q)$(MAKE) $(build)=$(boot)/dts
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)

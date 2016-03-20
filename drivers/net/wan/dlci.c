@@ -192,8 +192,10 @@ static netdev_tx_t dlci_transmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dlci_local *dlp = netdev_priv(dev);
 
-	if (skb)
-		dlp->slave->netdev_ops->ndo_start_xmit(skb, dlp->slave);
+	if (skb) {
+		struct netdev_queue *txq = skb_get_tx_queue(dev, skb);
+		netdev_start_xmit(skb, dlp->slave, txq, false);
+	}
 	return NETDEV_TX_OK;
 }
 

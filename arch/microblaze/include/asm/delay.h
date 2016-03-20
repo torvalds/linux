@@ -15,7 +15,7 @@
 
 #include <linux/param.h>
 
-extern inline void __delay(unsigned long loops)
+static inline void __delay(unsigned long loops)
 {
 	asm volatile ("# __delay		\n\t"		\
 			"1: addi	%0, %0, -1\t\n"		\
@@ -43,7 +43,7 @@ extern inline void __delay(unsigned long loops)
 
 extern unsigned long loops_per_jiffy;
 
-extern inline void __udelay(unsigned int x)
+static inline void __udelay(unsigned int x)
 {
 
 	unsigned long long tmp =

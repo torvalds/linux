@@ -241,8 +241,8 @@ static const struct regmap_config rc5t583_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.volatile_reg = volatile_reg,
-	.max_register = RC5T583_MAX_REGS,
-	.num_reg_defaults_raw = RC5T583_MAX_REGS,
+	.max_register = RC5T583_MAX_REG,
+	.num_reg_defaults_raw = RC5T583_NUM_REGS,
 	.cache_type = REGCACHE_RBTREE,
 };
 
@@ -322,7 +322,6 @@ MODULE_DEVICE_TABLE(i2c, rc5t583_i2c_id);
 static struct i2c_driver rc5t583_i2c_driver = {
 	.driver = {
 		   .name = "rc5t583",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = rc5t583_i2c_probe,
 	.remove = rc5t583_i2c_remove,

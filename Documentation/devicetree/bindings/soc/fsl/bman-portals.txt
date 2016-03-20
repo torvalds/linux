@@ -1,0 +1,56 @@
+QorIQ DPAA Buffer Manager Portals Device Tree Binding
+
+Copyright (C) 2008 - 2014 Freescale Semiconductor Inc.
+
+CONTENTS
+
+	- BMan Portal
+	- Example
+
+BMan Portal Node
+
+Portals are memory mapped interfaces to BMan that allow low-latency, lock-less
+interaction by software running on processor cores, accelerators and network
+interfaces with the BMan
+
+PROPERTIES
+
+- compatible
+	Usage:		Required
+	Value type:	<stringlist>
+	Definition:	Must include "fsl,bman-portal-<hardware revision>"
+			May include "fsl,<SoC>-bman-portal" or "fsl,bman-portal"
+
+- reg
+	Usage:		Required
+	Value type:	<prop-encoded-array>
+	Definition:	Two regions. The first is the cache-enabled region of
+			the portal. The second is the cache-inhibited region of
+			the portal
+
+- interrupts
+	Usage:		Required
+	Value type:	<prop-encoded-array>
+	Definition:	Standard property
+
+EXAMPLE
+
+The example below shows a (P4080) BMan portals container/bus node with two portals
+
+	bman-portals@ff4000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0 0xf 0xf4000000 0x200000>;
+
+		bman-portal@0 {
+			compatible = "fsl,bman-portal-1.0.0", "fsl,bman-portal";
+			reg = <0x0 0x4000>, <0x100000 0x1000>;
+			interrupts = <105 2 0 0>;
+		};
+		bman-portal@4000 {
+			compatible = "fsl,bman-portal-1.0.0", "fsl,bman-portal";
+			reg = <0x4000 0x4000>, <0x101000 0x1000>;
+			interrupts = <107 2 0 0>;
+		};
+	};

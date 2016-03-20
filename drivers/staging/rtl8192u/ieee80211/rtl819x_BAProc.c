@@ -4,6 +4,8 @@
  * ADDBAREQ ADDBARSP and DELBA packet is still on consideration. Temporarily use MANAGE QUEUE instead of Normal Queue.
  * WB 2008-05-27
  * *****************************************************************************************************************************/
+#include <asm/byteorder.h>
+#include <asm/unaligned.h>
 #include "ieee80211.h"
 #include "rtl819x_BA.h"
 
@@ -17,7 +19,7 @@ static void ActivateBAEntry(struct ieee80211_device *ieee, PBA_RECORD pBA, u16 T
 {
 	pBA->bValid = true;
 	if(Time != 0)
-		mod_timer(&pBA->Timer, jiffies + MSECS(Time));
+		mod_timer(&pBA->Timer, jiffies + msecs_to_jiffies(Time));
 }
 
 /********************************************************************************************************************
@@ -44,14 +46,14 @@ static u8 TxTsDeleteBA(struct ieee80211_device *ieee, PTX_TS_RECORD pTxTs)
 	u8			bSendDELBA = false;
 
 	// Delete pending BA
-	if(pPendingBa->bValid)
+	if (pPendingBa->bValid)
 	{
 		DeActivateBAEntry(ieee, pPendingBa);
 		bSendDELBA = true;
 	}
 
 	// Delete admitted BA
-	if(pAdmittedBa->bValid)
+	if (pAdmittedBa->bValid)
 	{
 		DeActivateBAEntry(ieee, pAdmittedBa);
 		bSendDELBA = true;
@@ -72,7 +74,7 @@ static u8 RxTsDeleteBA(struct ieee80211_device *ieee, PRX_TS_RECORD pRxTs)
 	PBA_RECORD		pBa = &pRxTs->RxAdmittedBARecord;
 	u8			bSendDELBA = false;
 
-	if(pBa->bValid)
+	if (pBa->bValid)
 	{
 		DeActivateBAEntry(ieee, pBa);
 		bSendDELBA = true;
@@ -87,7 +89,7 @@ static u8 RxTsDeleteBA(struct ieee80211_device *ieee, PRX_TS_RECORD pRxTs)
  *	     PBA_RECORD		pBA //entry to be reset
  *  output:  none
 ********************************************************************************************************************/
-void ResetBaEntry( PBA_RECORD pBA)
+void ResetBaEntry(PBA_RECORD pBA)
 {
 	pBA->bValid			= false;
 	pBA->BaParamSet.shortData	= 0;
@@ -108,28 +110,27 @@ void ResetBaEntry( PBA_RECORD pBA)
 static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, PBA_RECORD pBA, u16 StatusCode, u8 type)
 {
 	struct sk_buff *skb = NULL;
-	 struct ieee80211_hdr_3addr *BAReq = NULL;
+	 struct rtl_80211_hdr_3addr *BAReq = NULL;
 	u8 *tag = NULL;
-	u16 tmp = 0;
 	u16 len = ieee->tx_headroom + 9;
 	//category(1) + action field(1) + Dialog Token(1) + BA Parameter Set(2) +  BA Timeout Value(2) +  BA Start SeqCtrl(2)(or StatusCode(2))
 	IEEE80211_DEBUG(IEEE80211_DL_TRACE | IEEE80211_DL_BA, "========>%s(), frame(%d) sentd to:%pM, ieee->dev:%p\n", __func__, type, Dst, ieee->dev);
-	if (pBA == NULL||ieee == NULL)
+	if (pBA == NULL)
 	{
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "pBA(%p) is NULL or ieee(%p) is NULL\n", pBA, ieee);
+		IEEE80211_DEBUG(IEEE80211_DL_ERR, "pBA is NULL\n");
 		return NULL;
 	}
-	skb = dev_alloc_skb(len + sizeof( struct ieee80211_hdr_3addr)); //need to add something others? FIXME
+	skb = dev_alloc_skb(len + sizeof( struct rtl_80211_hdr_3addr)); //need to add something others? FIXME
 	if (skb == NULL)
 	{
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc skb for ADDBA_REQ\n");
 		return NULL;
 	}
 
-	memset(skb->data, 0, sizeof( struct ieee80211_hdr_3addr));	//I wonder whether it's necessary. Apparently kernel will not do it when alloc a skb.
+	memset(skb->data, 0, sizeof( struct rtl_80211_hdr_3addr));	//I wonder whether it's necessary. Apparently kernel will not do it when alloc a skb.
 	skb_reserve(skb, ieee->tx_headroom);
 
-	BAReq = ( struct ieee80211_hdr_3addr *) skb_put(skb,sizeof( struct ieee80211_hdr_3addr));
+	BAReq = ( struct rtl_80211_hdr_3addr *) skb_put(skb,sizeof( struct rtl_80211_hdr_3addr));
 
 	memcpy(BAReq->addr1, Dst, ETH_ALEN);
 	memcpy(BAReq->addr2, ieee->dev->dev_addr, ETH_ALEN);
@@ -138,7 +139,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, P
 
 	BAReq->frame_ctl = cpu_to_le16(IEEE80211_STYPE_MANAGE_ACT); //action frame
 
-	//tag += sizeof( struct ieee80211_hdr_3addr); //move to action field
+	//tag += sizeof( struct rtl_80211_hdr_3addr); //move to action field
 	tag = (u8 *)skb_put(skb, 9);
 	*tag ++= ACT_CAT_BA;
 	*tag ++= type;
@@ -149,23 +150,23 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, P
 	{
 		// Status Code
 		printk("=====>to send ADDBARSP\n");
-		tmp = cpu_to_le16(StatusCode);
-		memcpy(tag, (u8 *)&tmp, 2);
+
+		put_unaligned_le16(StatusCode, tag);
 		tag += 2;
 	}
 	// BA Parameter Set
-	tmp = cpu_to_le16(pBA->BaParamSet.shortData);
-	memcpy(tag, (u8 *)&tmp, 2);
+
+	put_unaligned_le16(pBA->BaParamSet.shortData, tag);
 	tag += 2;
 	// BA Timeout Value
-	tmp = cpu_to_le16(pBA->BaTimeoutValue);
-	memcpy(tag, (u8 *)&tmp, 2);
+
+	put_unaligned_le16(pBA->BaTimeoutValue, tag);
 	tag += 2;
 
 	if (ACT_ADDBAREQ == type)
 	{
 	// BA Start SeqCtrl
-		memcpy(tag,(u8 *)&(pBA->BaStartSeqCtrl), 2);
+		memcpy(tag, (u8 *)&(pBA->BaStartSeqCtrl), 2);
 		tag += 2;
 	}
 
@@ -194,9 +195,8 @@ static struct sk_buff *ieee80211_DELBA(
 {
 	DELBA_PARAM_SET	DelbaParamSet;
 	struct sk_buff *skb = NULL;
-	 struct ieee80211_hdr_3addr *Delba = NULL;
+	 struct rtl_80211_hdr_3addr *Delba = NULL;
 	u8 *tag = NULL;
-	u16 tmp = 0;
 	//len = head len + DELBA Parameter Set(2) + Reason Code(2)
 	u16 len = 6 + ieee->tx_headroom;
 
@@ -208,16 +208,16 @@ static struct sk_buff *ieee80211_DELBA(
 	DelbaParamSet.field.Initiator	= (TxRxSelect==TX_DIR)?1:0;
 	DelbaParamSet.field.TID	= pBA->BaParamSet.field.TID;
 
-	skb = dev_alloc_skb(len + sizeof( struct ieee80211_hdr_3addr)); //need to add something others? FIXME
+	skb = dev_alloc_skb(len + sizeof( struct rtl_80211_hdr_3addr)); //need to add something others? FIXME
 	if (skb == NULL)
 	{
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc skb for ADDBA_REQ\n");
 		return NULL;
 	}
-//	memset(skb->data, 0, len+sizeof( struct ieee80211_hdr_3addr));
+//	memset(skb->data, 0, len+sizeof( struct rtl_80211_hdr_3addr));
 	skb_reserve(skb, ieee->tx_headroom);
 
-	Delba = ( struct ieee80211_hdr_3addr *) skb_put(skb,sizeof( struct ieee80211_hdr_3addr));
+	Delba = ( struct rtl_80211_hdr_3addr *) skb_put(skb,sizeof( struct rtl_80211_hdr_3addr));
 
 	memcpy(Delba->addr1, dst, ETH_ALEN);
 	memcpy(Delba->addr2, ieee->dev->dev_addr, ETH_ALEN);
@@ -230,12 +230,12 @@ static struct sk_buff *ieee80211_DELBA(
 	*tag ++= ACT_DELBA;
 
 	// DELBA Parameter Set
-	tmp = cpu_to_le16(DelbaParamSet.shortData);
-	memcpy(tag, (u8 *)&tmp, 2);
+
+	put_unaligned_le16(DelbaParamSet.shortData, tag);
 	tag += 2;
 	// Reason Code
-	tmp = cpu_to_le16(ReasonCode);
-	memcpy(tag, (u8 *)&tmp, 2);
+
+	put_unaligned_le16(ReasonCode, tag);
 	tag += 2;
 
 	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
@@ -254,7 +254,7 @@ static struct sk_buff *ieee80211_DELBA(
 static void ieee80211_send_ADDBAReq(struct ieee80211_device *ieee,
 				    u8 *dst, PBA_RECORD pBA)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 	skb = ieee80211_ADDBA(ieee, dst, pBA, 0, ACT_ADDBAREQ); //construct ACT_ADDBAREQ frames so set statuscode zero.
 
 	if (skb)
@@ -282,7 +282,7 @@ static void ieee80211_send_ADDBAReq(struct ieee80211_device *ieee,
 static void ieee80211_send_ADDBARsp(struct ieee80211_device *ieee, u8 *dst,
 				    PBA_RECORD pBA, u16 StatusCode)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 	skb = ieee80211_ADDBA(ieee, dst, pBA, StatusCode, ACT_ADDBARSP); //construct ACT_ADDBARSP frames
 	if (skb)
 	{
@@ -311,7 +311,7 @@ static void ieee80211_send_DELBA(struct ieee80211_device *ieee, u8 *dst,
 				 PBA_RECORD pBA, TR_SELECT TxRxSelect,
 				 u16 ReasonCode)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 	skb = ieee80211_DELBA(ieee, dst, pBA, TxRxSelect, ReasonCode); //construct ACT_ADDBARSP frames
 	if (skb)
 	{
@@ -331,9 +331,9 @@ static void ieee80211_send_DELBA(struct ieee80211_device *ieee, u8 *dst,
  *  return:  0(pass), other(fail)
  *  notice:  As this function need support of QOS, I comment some code out. And when qos is ready, this code need to be support.
 ********************************************************************************************************************/
-int ieee80211_rx_ADDBAReq( struct ieee80211_device *ieee, struct sk_buff *skb)
+int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
-	 struct ieee80211_hdr_3addr *req = NULL;
+	 struct rtl_80211_hdr_3addr *req = NULL;
 	u16 rc = 0;
 	u8 *dst = NULL, *pDialogToken = NULL, *tag = NULL;
 	PBA_RECORD pBA = NULL;
@@ -342,18 +342,20 @@ int ieee80211_rx_ADDBAReq( struct ieee80211_device *ieee, struct sk_buff *skb)
 	PSEQUENCE_CONTROL pBaStartSeqCtrl = NULL;
 	PRX_TS_RECORD	pTS = NULL;
 
-	if (skb->len < sizeof( struct ieee80211_hdr_3addr) + 9)
-	{
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, " Invalid skb len in BAREQ(%d / %zu)\n", skb->len,	(sizeof( struct ieee80211_hdr_3addr) + 9));
+	if (skb->len < sizeof(struct rtl_80211_hdr_3addr) + 9) {
+		IEEE80211_DEBUG(IEEE80211_DL_ERR,
+				" Invalid skb len in BAREQ(%d / %zu)\n",
+				skb->len,
+				(sizeof(struct rtl_80211_hdr_3addr) + 9));
 		return -1;
 	}
 
 	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
 
-	req = ( struct ieee80211_hdr_3addr *) skb->data;
+	req = (struct rtl_80211_hdr_3addr *) skb->data;
 	tag = (u8 *)req;
 	dst = (u8 *)(&req->addr2[0]);
-	tag += sizeof( struct ieee80211_hdr_3addr);
+	tag += sizeof(struct rtl_80211_hdr_3addr);
 	pDialogToken = tag + 2;  //category+action
 	pBaParamSet = (PBA_PARAM_SET)(tag + 3);   //+DialogToken
 	pBaTimeoutVal = (u16 *)(tag + 5);
@@ -361,9 +363,9 @@ int ieee80211_rx_ADDBAReq( struct ieee80211_device *ieee, struct sk_buff *skb)
 
 	printk("====================>rx ADDBAREQ from :%pM\n", dst);
 //some other capability is not ready now.
-	if(	(ieee->current_network.qos_data.active == 0) ||
-		(ieee->pHTInfo->bCurrentHTSupport == false)) //||
-	//	(ieee->pStaQos->bEnableRxImmBA == false)	)
+	if ((ieee->current_network.qos_data.active == 0) ||
+		(!ieee->pHTInfo->bCurrentHTSupport)) //||
+	//	(!ieee->pStaQos->bEnableRxImmBA)	)
 	{
 		rc = ADDBA_STATUS_REFUSED;
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "Failed to reply on ADDBA_REQ as some capability is not ready(%d, %d)\n", ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport);
@@ -371,7 +373,7 @@ int ieee80211_rx_ADDBAReq( struct ieee80211_device *ieee, struct sk_buff *skb)
 	}
 	// Search for related traffic stream.
 	// If there is no matched TS, reject the ADDBA request.
-	if(	!GetTs(
+	if (!GetTs(
 			ieee,
 			(PTS_COMMON_INFO *)(&pTS),
 			dst,
@@ -388,7 +390,7 @@ int ieee80211_rx_ADDBAReq( struct ieee80211_device *ieee, struct sk_buff *skb)
 	// We can do much more check here, including BufferSize, AMSDU_Support, Policy, StartSeqCtrl...
 	// I want to check StartSeqCtrl to make sure when we start aggregation!!!
 	//
-	if(pBaParamSet->field.BAPolicy == BA_POLICY_DELAYED)
+	if (pBaParamSet->field.BAPolicy == BA_POLICY_DELAYED)
 	{
 		rc = ADDBA_STATUS_INVALID_PARAM;
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "BA Policy is not correct in %s()\n", __func__);
@@ -431,9 +433,9 @@ OnADDBAReq_Fail:
  *  return:  0(pass), other(fail)
  *  notice:  As this function need support of QOS, I comment some code out. And when qos is ready, this code need to be support.
 ********************************************************************************************************************/
-int ieee80211_rx_ADDBARsp( struct ieee80211_device *ieee, struct sk_buff *skb)
+int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
-	 struct ieee80211_hdr_3addr *rsp = NULL;
+	 struct rtl_80211_hdr_3addr *rsp = NULL;
 	PBA_RECORD		pPendingBA, pAdmittedBA;
 	PTX_TS_RECORD		pTS = NULL;
 	u8 *dst = NULL, *pDialogToken = NULL, *tag = NULL;
@@ -441,15 +443,17 @@ int ieee80211_rx_ADDBARsp( struct ieee80211_device *ieee, struct sk_buff *skb)
 	PBA_PARAM_SET		pBaParamSet = NULL;
 	u16			ReasonCode;
 
-	if (skb->len < sizeof( struct ieee80211_hdr_3addr) + 9)
-	{
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, " Invalid skb len in BARSP(%d / %zu)\n", skb->len,	(sizeof( struct ieee80211_hdr_3addr) + 9));
+	if (skb->len < sizeof(struct rtl_80211_hdr_3addr) + 9) {
+		IEEE80211_DEBUG(IEEE80211_DL_ERR,
+				" Invalid skb len in BARSP(%d / %zu)\n",
+				skb->len,
+				(sizeof(struct rtl_80211_hdr_3addr) + 9));
 		return -1;
 	}
-	rsp = ( struct ieee80211_hdr_3addr *)skb->data;
+	rsp = (struct rtl_80211_hdr_3addr *)skb->data;
 	tag = (u8 *)rsp;
 	dst = (u8 *)(&rsp->addr2[0]);
-	tag += sizeof( struct ieee80211_hdr_3addr);
+	tag += sizeof(struct rtl_80211_hdr_3addr);
 	pDialogToken = tag + 2;
 	pStatusCode = (u16 *)(tag + 3);
 	pBaParamSet = (PBA_PARAM_SET)(tag + 5);
@@ -457,10 +461,9 @@ int ieee80211_rx_ADDBARsp( struct ieee80211_device *ieee, struct sk_buff *skb)
 
 	// Check the capability
 	// Since we can always receive A-MPDU, we just check if it is under HT mode.
-	if(     ieee->current_network.qos_data.active == 0  ||
-		ieee->pHTInfo->bCurrentHTSupport == false ||
-		ieee->pHTInfo->bCurrentAMPDUEnable == false )
-	{
+	if (ieee->current_network.qos_data.active == 0  ||
+	    !ieee->pHTInfo->bCurrentHTSupport ||
+	    !ieee->pHTInfo->bCurrentAMPDUEnable) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "reject to ADDBA_RSP as some capability is not ready(%d, %d, %d)\n",ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport, ieee->pHTInfo->bCurrentAMPDUEnable);
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
@@ -499,7 +502,7 @@ int ieee80211_rx_ADDBARsp( struct ieee80211_device *ieee, struct sk_buff *skb)
 		IEEE80211_DEBUG(IEEE80211_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp. Drop because already admit it! \n");
 		return -1;
 	}
-	else if((pPendingBA->bValid == false) ||(*pDialogToken != pPendingBA->DialogToken))
+	else if((!pPendingBA->bValid) ||(*pDialogToken != pPendingBA->DialogToken))
 	{
 		IEEE80211_DEBUG(IEEE80211_DL_ERR,  "OnADDBARsp(): Recv ADDBA Rsp. BA invalid, DELBA! \n");
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
@@ -519,7 +522,7 @@ int ieee80211_rx_ADDBARsp( struct ieee80211_device *ieee, struct sk_buff *skb)
 		// We can compare the value of BA parameter set that Peer returned and Self sent.
 		// If it is OK, then admitted. Or we can send DELBA to cancel BA mechanism.
 		//
-		if(pBaParamSet->field.BAPolicy == BA_POLICY_DELAYED)
+		if (pBaParamSet->field.BAPolicy == BA_POLICY_DELAYED)
 		{
 			// Since this is a kind of ADDBA failed, we delay next ADDBA process.
 			pTS->bAddBaReqDelayed = true;
@@ -564,38 +567,37 @@ OnADDBARsp_Reject:
  *  return:  0(pass), other(fail)
  *  notice:  As this function need support of QOS, I comment some code out. And when qos is ready, this code need to be support.
 ********************************************************************************************************************/
-int ieee80211_rx_DELBA(struct ieee80211_device *ieee,struct sk_buff *skb)
+int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
-	 struct ieee80211_hdr_3addr *delba = NULL;
+	 struct rtl_80211_hdr_3addr *delba = NULL;
 	PDELBA_PARAM_SET	pDelBaParamSet = NULL;
-	u16			*pReasonCode = NULL;
 	u8			*dst = NULL;
 
-	if (skb->len < sizeof( struct ieee80211_hdr_3addr) + 6)
-	{
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, " Invalid skb len in DELBA(%d / %zu)\n", skb->len,	(sizeof( struct ieee80211_hdr_3addr) + 6));
+	if (skb->len < sizeof(struct rtl_80211_hdr_3addr) + 6) {
+		IEEE80211_DEBUG(IEEE80211_DL_ERR,
+				" Invalid skb len in DELBA(%d / %zu)\n",
+				skb->len,
+				(sizeof(struct rtl_80211_hdr_3addr) + 6));
 		return -1;
 	}
 
-	if(ieee->current_network.qos_data.active == 0 ||
-		ieee->pHTInfo->bCurrentHTSupport == false )
+	if (ieee->current_network.qos_data.active == 0 ||
+	    !ieee->pHTInfo->bCurrentHTSupport)
 	{
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "received DELBA while QOS or HT is not supported(%d, %d)\n",ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport);
 		return -1;
 	}
 
 	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
-	delba = ( struct ieee80211_hdr_3addr *)skb->data;
+	delba = (struct rtl_80211_hdr_3addr *)skb->data;
 	dst = (u8 *)(&delba->addr2[0]);
-	delba += sizeof( struct ieee80211_hdr_3addr);
-	pDelBaParamSet = (PDELBA_PARAM_SET)(delba+2);
-	pReasonCode = (u16 *)(delba+4);
+	pDelBaParamSet = (PDELBA_PARAM_SET)&delba->payload[2];
 
 	if(pDelBaParamSet->field.Initiator == 1)
 	{
 		PRX_TS_RECORD	pRxTs;
 
-		if( !GetTs(
+		if (!GetTs(
 				ieee,
 				(PTS_COMMON_INFO *)&pRxTs,
 				dst,
@@ -613,7 +615,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee,struct sk_buff *skb)
 	{
 		PTX_TS_RECORD	pTxTs;
 
-		if(!GetTs(
+		if (!GetTs(
 			ieee,
 			(PTS_COMMON_INFO *)&pTxTs,
 			dst,

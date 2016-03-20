@@ -24,7 +24,7 @@
 #include "export.h"
 
 #undef ifdebug
-#ifdef NFSD_DEBUG
+#ifdef CONFIG_SUNRPC_DEBUG
 # define ifdebug(flag)		if (nfsd_debug & NFSDDBG_##flag)
 #else
 # define ifdebug(flag)		if (0)
@@ -251,7 +251,7 @@ void		nfsd_lockd_shutdown(void);
 #define nfserr_deleg_revoked		cpu_to_be32(NFS4ERR_DELEG_REVOKED)
 #define nfserr_partner_notsupp		cpu_to_be32(NFS4ERR_PARTNER_NOTSUPP)
 #define nfserr_partner_no_auth		cpu_to_be32(NFS4ERR_PARTNER_NO_AUTH)
-#define nfserr_metadata_notsupp		cpu_to_be32(NFS4ERR_METADATA_NOTSUPP)
+#define nfserr_union_notsupp		cpu_to_be32(NFS4ERR_UNION_NOTSUPP)
 #define nfserr_offload_denied		cpu_to_be32(NFS4ERR_OFFLOAD_DENIED)
 #define nfserr_wrong_lfs		cpu_to_be32(NFS4ERR_WRONG_LFS)
 #define nfserr_badlabel		cpu_to_be32(NFS4ERR_BADLABEL)
@@ -325,21 +325,36 @@ void		nfsd_lockd_shutdown(void);
 
 #define NFSD4_SUPPORTED_ATTRS_WORD2 0
 
+/* 4.1 */
+#ifdef CONFIG_NFSD_PNFS
+#define PNFSD_SUPPORTED_ATTRS_WORD1	FATTR4_WORD1_FS_LAYOUT_TYPES
+#define PNFSD_SUPPORTED_ATTRS_WORD2 \
+(FATTR4_WORD2_LAYOUT_BLKSIZE	| FATTR4_WORD2_LAYOUT_TYPES)
+#else
+#define PNFSD_SUPPORTED_ATTRS_WORD1	0
+#define PNFSD_SUPPORTED_ATTRS_WORD2	0
+#endif /* CONFIG_NFSD_PNFS */
+
 #define NFSD4_1_SUPPORTED_ATTRS_WORD0 \
 	NFSD4_SUPPORTED_ATTRS_WORD0
 
 #define NFSD4_1_SUPPORTED_ATTRS_WORD1 \
-	NFSD4_SUPPORTED_ATTRS_WORD1
+	(NFSD4_SUPPORTED_ATTRS_WORD1	| PNFSD_SUPPORTED_ATTRS_WORD1)
 
 #define NFSD4_1_SUPPORTED_ATTRS_WORD2 \
-	(NFSD4_SUPPORTED_ATTRS_WORD2 | FATTR4_WORD2_SUPPATTR_EXCLCREAT)
+	(NFSD4_SUPPORTED_ATTRS_WORD2	| PNFSD_SUPPORTED_ATTRS_WORD2 | \
+	 FATTR4_WORD2_SUPPATTR_EXCLCREAT)
 
+/* 4.2 */
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
-#define NFSD4_2_SUPPORTED_ATTRS_WORD2 \
-	(NFSD4_1_SUPPORTED_ATTRS_WORD2 | FATTR4_WORD2_SECURITY_LABEL)
+#define NFSD4_2_SECURITY_ATTRS		FATTR4_WORD2_SECURITY_LABEL
 #else
-#define NFSD4_2_SUPPORTED_ATTRS_WORD2 0
+#define NFSD4_2_SECURITY_ATTRS		0
 #endif
+
+#define NFSD4_2_SUPPORTED_ATTRS_WORD2 \
+	(NFSD4_1_SUPPORTED_ATTRS_WORD2 | \
+	NFSD4_2_SECURITY_ATTRS)
 
 static inline u32 nfsd_suppattrs0(u32 minorversion)
 {

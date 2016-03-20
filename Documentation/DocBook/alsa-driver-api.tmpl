@@ -57,12 +57,17 @@
 !Esound/core/pcm.c
 !Esound/core/pcm_lib.c
 !Esound/core/pcm_native.c
+!Iinclude/sound/pcm.h
      </sect1>
      <sect1><title>PCM Format Helpers</title>
 !Esound/core/pcm_misc.c
      </sect1>
      <sect1><title>PCM Memory Management</title>
 !Esound/core/pcm_memory.c
+     </sect1>
+     <sect1><title>PCM DMA Engine API</title>
+!Esound/core/pcm_dmaengine.c
+!Iinclude/sound/dmaengine_pcm.h
      </sect1>
   </chapter>
   <chapter><title>Control/Mixer API</title>
@@ -91,12 +96,40 @@
 !Esound/core/info.c
      </sect1>
   </chapter>
+  <chapter><title>Compress Offload</title>
+     <sect1><title>Compress Offload API</title>
+!Esound/core/compress_offload.c
+!Iinclude/uapi/sound/compress_offload.h
+!Iinclude/uapi/sound/compress_params.h
+!Iinclude/sound/compress_driver.h
+     </sect1>
+  </chapter>
+  <chapter><title>ASoC</title>
+     <sect1><title>ASoC Core API</title>
+!Iinclude/sound/soc.h
+!Esound/soc/soc-core.c
+<!-- !Esound/soc/soc-cache.c no docbook comments here -->
+!Esound/soc/soc-devres.c
+!Esound/soc/soc-io.c
+!Esound/soc/soc-pcm.c
+!Esound/soc/soc-ops.c
+!Esound/soc/soc-compress.c
+     </sect1>
+     <sect1><title>ASoC DAPM API</title>
+!Esound/soc/soc-dapm.c
+     </sect1>
+     <sect1><title>ASoC DMA Engine API</title>
+!Esound/soc/soc-generic-dmaengine-pcm.c
+     </sect1>
+  </chapter>
   <chapter><title>Miscellaneous Functions</title>
      <sect1><title>Hardware-Dependent Devices API</title>
 !Esound/core/hwdep.c
      </sect1>
      <sect1><title>Jack Abstraction Layer API</title>
+!Iinclude/sound/jack.h
 !Esound/core/jack.c
+!Esound/soc/soc-jack.c
      </sect1>
      <sect1><title>ISA DMA Helpers</title>
 !Esound/core/isadma.c

@@ -41,7 +41,7 @@
 			bank-width = <4>;
 		};
 
-		vram@2,00000000 {
+		v2m_video_ram: vram@2,00000000 {
 			compatible = "arm,vexpress-vram";
 			reg = <2 0x00000000 0x00800000>;
 		};
@@ -101,6 +101,8 @@
 				clock-names = "refclk", "timclk", "apb_pclk";
 				#clock-cells = <1>;
 				clock-output-names = "timerclken0", "timerclken1", "timerclken2", "timerclken3";
+				assigned-clocks = <&v2m_sysctl 0>, <&v2m_sysctl 1>, <&v2m_sysctl 3>, <&v2m_sysctl 3>;
+				assigned-clock-parents = <&v2m_refclk1mhz>, <&v2m_refclk1mhz>, <&v2m_refclk1mhz>, <&v2m_refclk1mhz>;
 			};
 
 			/* PCI-E I2C bus */
@@ -246,9 +248,41 @@
 			clcd@1f0000 {
 				compatible = "arm,pl111", "arm,primecell";
 				reg = <0x1f0000 0x1000>;
+				interrupt-names = "combined";
 				interrupts = <14>;
 				clocks = <&v2m_oscclk1>, <&smbclk>;
 				clock-names = "clcdclk", "apb_pclk";
+				memory-region = <&v2m_video_ram>;
+				max-memory-bandwidth = <50350000>; /* 16bpp @ 25.175MHz */
+
+				port {
+					v2m_clcd_pads: endpoint {
+						remote-endpoint = <&v2m_clcd_panel>;
+						arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+					};
+				};
+
+				panel {
+					compatible = "panel-dpi";
+
+					port {
+						v2m_clcd_panel: endpoint {
+							remote-endpoint = <&v2m_clcd_pads>;
+						};
+					};
+
+					panel-timing {
+						clock-frequency = <25175000>;
+						hactive = <640>;
+						hback-porch = <40>;
+						hfront-porch = <24>;
+						hsync-len = <96>;
+						vactive = <480>;
+						vback-porch = <32>;
+						vfront-porch = <11>;
+						vsync-len = <2>;
+					};
+				};
 			};
 		};
 
@@ -350,7 +384,7 @@
 				/* CLCD clock */
 				compatible = "arm,vexpress-osc";
 				arm,vexpress-sysreg,func = <1 1>;
-				freq-range = <23750000 63500000>;
+				freq-range = <23750000 65000000>;
 				#clock-cells = <0>;
 				clock-output-names = "v2m:oscclk1";
 			};

@@ -13,8 +13,7 @@
   more details.
 
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  this program; if not, see <http://www.gnu.org/licenses/>.
 
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
@@ -25,17 +24,16 @@
 
 *******************************************************************************/
 
-
 #include "vf.h"
 
 static s32 e1000_check_for_link_vf(struct e1000_hw *hw);
 static s32 e1000_get_link_up_info_vf(struct e1000_hw *hw, u16 *speed,
-                                     u16 *duplex);
+				     u16 *duplex);
 static s32 e1000_init_hw_vf(struct e1000_hw *hw);
 static s32 e1000_reset_hw_vf(struct e1000_hw *hw);
 
 static void e1000_update_mc_addr_list_vf(struct e1000_hw *hw, u8 *,
-                                         u32, u32, u32);
+					 u32, u32, u32);
 static void e1000_rar_set_vf(struct e1000_hw *, u8 *, u32);
 static s32 e1000_read_mac_addr_vf(struct e1000_hw *);
 static s32 e1000_set_vfta_vf(struct e1000_hw *, u16, bool);
@@ -94,7 +92,7 @@ void e1000_init_function_pointers_vf(struct e1000_hw *hw)
  *  the status register's data which is often stale and inaccurate.
  **/
 static s32 e1000_get_link_up_info_vf(struct e1000_hw *hw, u16 *speed,
-                                     u16 *duplex)
+				     u16 *duplex)
 {
 	s32 status;
 
@@ -130,7 +128,7 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 	u8 *addr = (u8 *)(&msgbuf[1]);
 	u32 ctrl;
 
-	/* assert vf queue/interrupt reset */
+	/* assert VF queue/interrupt reset */
 	ctrl = er32(CTRL);
 	ew32(CTRL, ctrl | E1000_CTRL_RST);
 
@@ -144,7 +142,7 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 		/* mailbox timeout can now become active */
 		mbx->timeout = E1000_VF_MBX_INIT_TIMEOUT;
 
-		/* notify pf of vf reset completion */
+		/* notify PF of VF reset completion */
 		msgbuf[0] = E1000_VF_RESET;
 		mbx->ops.write_posted(hw, msgbuf, 1);
 
@@ -153,7 +151,8 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 		/* set our "perm_addr" based on info provided by PF */
 		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
 		if (!ret_val) {
-			if (msgbuf[0] == (E1000_VF_RESET | E1000_VT_MSGTYPE_ACK))
+			if (msgbuf[0] == (E1000_VF_RESET |
+					  E1000_VT_MSGTYPE_ACK))
 				memcpy(hw->mac.perm_addr, addr, ETH_ALEN);
 			else
 				ret_val = -E1000_ERR_MAC_INIT;
@@ -194,15 +193,14 @@ static u32 e1000_hash_mc_addr_vf(struct e1000_hw *hw, u8 *mc_addr)
 	/* Register count multiplied by bits per register */
 	hash_mask = (hw->mac.mta_reg_count * 32) - 1;
 
-	/*
-	 * The bit_shift is the number of left-shifts
+	/* The bit_shift is the number of left-shifts
 	 * where 0xFF would still fall within the hash mask.
 	 */
 	while (hash_mask >> bit_shift != 0xFF)
 		bit_shift++;
 
 	hash_value = hash_mask & (((mc_addr[4] >> (8 - bit_shift)) |
-	                          (((u16) mc_addr[5]) << bit_shift)));
+				  (((u16)mc_addr[5]) << bit_shift)));
 
 	return hash_value;
 }
@@ -221,8 +219,8 @@ static u32 e1000_hash_mc_addr_vf(struct e1000_hw *hw, u8 *mc_addr)
  *  unless there are workarounds that change this.
  **/
 static void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
-                                  u8 *mc_addr_list, u32 mc_addr_count,
-                                  u32 rar_used_count, u32 rar_count)
+					 u8 *mc_addr_list, u32 mc_addr_count,
+					 u32 rar_used_count, u32 rar_count)
 {
 	struct e1000_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[E1000_VFMAILBOX_SIZE];
@@ -305,7 +303,7 @@ void e1000_rlpml_set_vf(struct e1000_hw *hw, u16 max_size)
  *  @addr: pointer to the receive address
  *  @index: receive address array register
  **/
-static void e1000_rar_set_vf(struct e1000_hw *hw, u8 * addr, u32 index)
+static void e1000_rar_set_vf(struct e1000_hw *hw, u8 *addr, u32 index)
 {
 	struct e1000_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[3];
@@ -354,8 +352,7 @@ static s32 e1000_check_for_link_vf(struct e1000_hw *hw)
 	s32 ret_val = E1000_SUCCESS;
 	u32 in_msg = 0;
 
-	/*
-	 * We only want to run this if there has been a rst asserted.
+	/* We only want to run this if there has been a rst asserted.
 	 * in this case that could mean a link change, device reset,
 	 * or a virtual function reset
 	 */
@@ -367,31 +364,33 @@ static s32 e1000_check_for_link_vf(struct e1000_hw *hw)
 	if (!mac->get_link_status)
 		goto out;
 
-	/* if link status is down no point in checking to see if pf is up */
+	/* if link status is down no point in checking to see if PF is up */
 	if (!(er32(STATUS) & E1000_STATUS_LU))
 		goto out;
 
 	/* if the read failed it could just be a mailbox collision, best wait
-	 * until we are called again and don't report an error */
+	 * until we are called again and don't report an error
+	 */
 	if (mbx->ops.read(hw, &in_msg, 1))
 		goto out;
 
 	/* if incoming message isn't clear to send we are waiting on response */
 	if (!(in_msg & E1000_VT_MSGTYPE_CTS)) {
-		/* message is not CTS and is NACK we must have lost CTS status */
+		/* msg is not CTS and is NACK we must have lost CTS status */
 		if (in_msg & E1000_VT_MSGTYPE_NACK)
 			ret_val = -E1000_ERR_MAC_INIT;
 		goto out;
 	}
 
-	/* the pf is talking, if we timed out in the past we reinit */
+	/* the PF is talking, if we timed out in the past we reinit */
 	if (!mbx->timeout) {
 		ret_val = -E1000_ERR_MAC_INIT;
 		goto out;
 	}
 
 	/* if we passed all the tests above then the link is up and we no
-	 * longer need to check for link */
+	 * longer need to check for link
+	 */
 	mac->get_link_status = false;
 
 out:

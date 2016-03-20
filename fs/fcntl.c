@@ -51,7 +51,8 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 	       if (arg & O_NDELAY)
 		   arg |= O_NONBLOCK;
 
-	if (arg & O_DIRECT) {
+	/* Pipe packetized mode is controlled by O_DIRECT flag */
+	if (!S_ISFIFO(filp->f_inode->i_mode) && (arg & O_DIRECT)) {
 		if (!filp->f_mapping || !filp->f_mapping->a_ops ||
 			!filp->f_mapping->a_ops->direct_IO)
 				return -EINVAL;
@@ -98,26 +99,19 @@ static void f_modown(struct file *filp, struct pid *pid, enum pid_type type,
 	write_unlock_irq(&filp->f_owner.lock);
 }
 
-int __f_setown(struct file *filp, struct pid *pid, enum pid_type type,
+void __f_setown(struct file *filp, struct pid *pid, enum pid_type type,
 		int force)
 {
-	int err;
-
-	err = security_file_set_fowner(filp);
-	if (err)
-		return err;
-
+	security_file_set_fowner(filp);
 	f_modown(filp, pid, type, force);
-	return 0;
 }
 EXPORT_SYMBOL(__f_setown);
 
-int f_setown(struct file *filp, unsigned long arg, int force)
+void f_setown(struct file *filp, unsigned long arg, int force)
 {
 	enum pid_type type;
 	struct pid *pid;
 	int who = arg;
-	int result;
 	type = PIDTYPE_PID;
 	if (who < 0) {
 		type = PIDTYPE_PGID;
@@ -125,9 +119,8 @@ int f_setown(struct file *filp, unsigned long arg, int force)
 	}
 	rcu_read_lock();
 	pid = find_vpid(who);
-	result = __f_setown(filp, pid, type, force);
+	__f_setown(filp, pid, type, force);
 	rcu_read_unlock();
-	return result;
 }
 EXPORT_SYMBOL(f_setown);
 
@@ -181,7 +174,7 @@ static int f_setown_ex(struct file *filp, unsigned long arg)
 	if (owner.pid && !pid)
 		ret = -ESRCH;
 	else
-		ret = __f_setown(filp, pid, type, 1);
+		 __f_setown(filp, pid, type, 1);
 	rcu_read_unlock();
 
 	return ret;
@@ -302,7 +295,8 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		force_successful_syscall_return();
 		break;
 	case F_SETOWN:
-		err = f_setown(filp, arg, 1);
+		f_setown(filp, arg, 1);
+		err = 0;
 		break;
 	case F_GETOWN_EX:
 		err = f_getown_ex(filp, arg);
@@ -747,14 +741,15 @@ static int __init fcntl_init(void)
 	 * Exceptions: O_NONBLOCK is a two bit define on parisc; O_NDELAY
 	 * is defined as O_NONBLOCK on some platforms and not on others.
 	 */
-	BUILD_BUG_ON(20 - 1 /* for O_RDONLY being 0 */ != HWEIGHT32(
+	BUILD_BUG_ON(21 - 1 /* for O_RDONLY being 0 */ != HWEIGHT32(
 		O_RDONLY	| O_WRONLY	| O_RDWR	|
 		O_CREAT		| O_EXCL	| O_NOCTTY	|
 		O_TRUNC		| O_APPEND	| /* O_NONBLOCK	| */
 		__O_SYNC	| O_DSYNC	| FASYNC	|
 		O_DIRECT	| O_LARGEFILE	| O_DIRECTORY	|
 		O_NOFOLLOW	| O_NOATIME	| O_CLOEXEC	|
-		__FMODE_EXEC	| O_PATH	| __O_TMPFILE
+		__FMODE_EXEC	| O_PATH	| __O_TMPFILE	|
+		__FMODE_NONOTIFY
 		));
 
 	fasync_cache = kmem_cache_create("fasync_cache",

@@ -17,7 +17,7 @@
 /*
  * Extends the address range given by *start and *stop to include the address
  * range starting with estart and the length len. Takes care of overflowing
- * intervals and tries to minimize the overall intervall size.
+ * intervals and tries to minimize the overall interval size.
  */
 static void extend_address_range(u64 *start, u64 *stop, u64 estart, int len)
 {
@@ -72,7 +72,7 @@ static void enable_all_hw_bp(struct kvm_vcpu *vcpu)
 		return;
 
 	/*
-	 * If the guest is not interrested in branching events, we can savely
+	 * If the guest is not interested in branching events, we can safely
 	 * limit them to the PER address range.
 	 */
 	if (!(*cr9 & PER_EVENT_BRANCH))
@@ -116,7 +116,7 @@ static void enable_all_hw_wp(struct kvm_vcpu *vcpu)
 	if (*cr9 & PER_EVENT_STORE && *cr9 & PER_CONTROL_ALTERATION) {
 		*cr9 &= ~PER_CONTROL_ALTERATION;
 		*cr10 = 0;
-		*cr11 = PSW_ADDR_INSN;
+		*cr11 = -1UL;
 	} else {
 		*cr9 &= ~PER_CONTROL_ALTERATION;
 		*cr9 |= PER_EVENT_STORE;
@@ -159,7 +159,7 @@ void kvm_s390_patch_guest_per_regs(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->gcr[0] &= ~0x800ul;
 		vcpu->arch.sie_block->gcr[9] |= PER_EVENT_IFETCH;
 		vcpu->arch.sie_block->gcr[10] = 0;
-		vcpu->arch.sie_block->gcr[11] = PSW_ADDR_INSN;
+		vcpu->arch.sie_block->gcr[11] = -1UL;
 	}
 
 	if (guestdbg_hw_bp_enabled(vcpu)) {
@@ -191,8 +191,8 @@ static int __import_wp_info(struct kvm_vcpu *vcpu,
 	if (!wp_info->old_data)
 		return -ENOMEM;
 	/* try to backup the original value */
-	ret = read_guest(vcpu, wp_info->phys_addr, wp_info->old_data,
-			 wp_info->len);
+	ret = read_guest_abs(vcpu, wp_info->phys_addr, wp_info->old_data,
+			     wp_info->len);
 	if (ret) {
 		kfree(wp_info->old_data);
 		wp_info->old_data = NULL;
@@ -362,8 +362,8 @@ static struct kvm_hw_wp_info_arch *any_wp_changed(struct kvm_vcpu *vcpu)
 			continue;
 
 		/* refetch the wp data and compare it to the old value */
-		if (!read_guest(vcpu, wp_info->phys_addr, temp,
-				wp_info->len)) {
+		if (!read_guest_abs(vcpu, wp_info->phys_addr, temp,
+				    wp_info->len)) {
 			if (memcmp(temp, wp_info->old_data, wp_info->len)) {
 				kfree(temp);
 				return wp_info;
@@ -473,10 +473,45 @@ static void filter_guest_per_event(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->iprcc &= ~PGM_PER;
 }
 
+#define pssec(vcpu) (vcpu->arch.sie_block->gcr[1] & _ASCE_SPACE_SWITCH)
+#define hssec(vcpu) (vcpu->arch.sie_block->gcr[13] & _ASCE_SPACE_SWITCH)
+#define old_ssec(vcpu) ((vcpu->arch.sie_block->tecmc >> 31) & 0x1)
+#define old_as_is_home(vcpu) !(vcpu->arch.sie_block->tecmc & 0xffff)
+
 void kvm_s390_handle_per_event(struct kvm_vcpu *vcpu)
 {
+	int new_as;
+
 	if (debug_exit_required(vcpu))
 		vcpu->guest_debug |= KVM_GUESTDBG_EXIT_PENDING;
 
 	filter_guest_per_event(vcpu);
+
+	/*
+	 * Only RP, SAC, SACF, PT, PTI, PR, PC instructions can trigger
+	 * a space-switch event. PER events enforce space-switch events
+	 * for these instructions. So if no PER event for the guest is left,
+	 * we might have to filter the space-switch element out, too.
+	 */
+	if (vcpu->arch.sie_block->iprcc == PGM_SPACE_SWITCH) {
+		vcpu->arch.sie_block->iprcc = 0;
+		new_as = psw_bits(vcpu->arch.sie_block->gpsw).as;
+
+		/*
+		 * If the AS changed from / to home, we had RP, SAC or SACF
+		 * instruction. Check primary and home space-switch-event
+		 * controls. (theoretically home -> home produced no event)
+		 */
+		if (((new_as == PSW_AS_HOME) ^ old_as_is_home(vcpu)) &&
+		     (pssec(vcpu) || hssec(vcpu)))
+			vcpu->arch.sie_block->iprcc = PGM_SPACE_SWITCH;
+
+		/*
+		 * PT, PTI, PR, PC instruction operate on primary AS only. Check
+		 * if the primary-space-switch-event control was or got set.
+		 */
+		if (new_as == PSW_AS_PRIMARY && !old_as_is_home(vcpu) &&
+		    (pssec(vcpu) || old_ssec(vcpu)))
+			vcpu->arch.sie_block->iprcc = PGM_SPACE_SWITCH;
+	}
 }

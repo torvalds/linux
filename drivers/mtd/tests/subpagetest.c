@@ -57,7 +57,7 @@ static int write_eraseblock(int ebnum)
 {
 	size_t written;
 	int err = 0;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	prandom_bytes_state(&rnd_state, writebuf, subpgsize);
 	err = mtd_write(mtd, addr, subpgsize, &written, writebuf);
@@ -92,10 +92,10 @@ static int write_eraseblock2(int ebnum)
 {
 	size_t written;
 	int err = 0, k;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	for (k = 1; k < 33; ++k) {
-		if (addr + (subpgsize * k) > (ebnum + 1) * mtd->erasesize)
+		if (addr + (subpgsize * k) > (loff_t)(ebnum + 1) * mtd->erasesize)
 			break;
 		prandom_bytes_state(&rnd_state, writebuf, subpgsize * k);
 		err = mtd_write(mtd, addr, subpgsize * k, &written, writebuf);
@@ -131,7 +131,7 @@ static int verify_eraseblock(int ebnum)
 {
 	size_t read;
 	int err = 0;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	prandom_bytes_state(&rnd_state, writebuf, subpgsize);
 	clear_data(readbuf, subpgsize);
@@ -192,10 +192,10 @@ static int verify_eraseblock2(int ebnum)
 {
 	size_t read;
 	int err = 0, k;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	for (k = 1; k < 33; ++k) {
-		if (addr + (subpgsize * k) > (ebnum + 1) * mtd->erasesize)
+		if (addr + (subpgsize * k) > (loff_t)(ebnum + 1) * mtd->erasesize)
 			break;
 		prandom_bytes_state(&rnd_state, writebuf, subpgsize * k);
 		clear_data(readbuf, subpgsize * k);
@@ -227,7 +227,7 @@ static int verify_eraseblock_ff(int ebnum)
 	uint32_t j;
 	size_t read;
 	int err = 0;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	memset(writebuf, 0xff, subpgsize);
 	for (j = 0; j < mtd->erasesize / subpgsize; ++j) {
@@ -269,7 +269,10 @@ static int verify_all_eraseblocks_ff(void)
 			return err;
 		if (i % 256 == 0)
 			pr_info("verified up to eraseblock %u\n", i);
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			return err;
 	}
 	pr_info("verified %u eraseblocks\n", i);
 	return 0;
@@ -346,7 +349,10 @@ static int __init mtd_subpagetest_init(void)
 			goto out;
 		if (i % 256 == 0)
 			pr_info("written up to eraseblock %u\n", i);
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			goto out;
 	}
 	pr_info("written %u eraseblocks\n", i);
 
@@ -360,7 +366,10 @@ static int __init mtd_subpagetest_init(void)
 			goto out;
 		if (i % 256 == 0)
 			pr_info("verified up to eraseblock %u\n", i);
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			goto out;
 	}
 	pr_info("verified %u eraseblocks\n", i);
 
@@ -383,7 +392,10 @@ static int __init mtd_subpagetest_init(void)
 			goto out;
 		if (i % 256 == 0)
 			pr_info("written up to eraseblock %u\n", i);
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			goto out;
 	}
 	pr_info("written %u eraseblocks\n", i);
 
@@ -398,7 +410,10 @@ static int __init mtd_subpagetest_init(void)
 			goto out;
 		if (i % 256 == 0)
 			pr_info("verified up to eraseblock %u\n", i);
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			goto out;
 	}
 	pr_info("verified %u eraseblocks\n", i);
 

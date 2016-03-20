@@ -51,7 +51,7 @@ struct tda827x_config
  * @param cfg optional callback function pointers.
  * @return FE pointer on success, NULL on failure.
  */
-#if IS_ENABLED(CONFIG_MEDIA_TUNER_TDA827X)
+#if IS_REACHABLE(CONFIG_MEDIA_TUNER_TDA827X)
 extern struct dvb_frontend* tda827x_attach(struct dvb_frontend *fe, int addr,
 					   struct i2c_adapter *i2c,
 					   struct tda827x_config *cfg);

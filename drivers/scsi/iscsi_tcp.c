@@ -26,12 +26,12 @@
  *	Zhenyu Wang
  */
 
+#include <crypto/hash.h>
 #include <linux/types.h>
 #include <linux/inet.h>
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/blkdev.h>
-#include <linux/crypto.h>
 #include <linux/delay.h>
 #include <linux/kfifo.h>
 #include <linux/scatterlist.h>
@@ -428,7 +428,7 @@ static void iscsi_sw_tcp_send_hdr_prep(struct iscsi_conn *conn, void *hdr,
 	 * sufficient room.
 	 */
 	if (conn->hdrdgst_en) {
-		iscsi_tcp_dgst_header(&tcp_sw_conn->tx_hash, hdr, hdrlen,
+		iscsi_tcp_dgst_header(tcp_sw_conn->tx_hash, hdr, hdrlen,
 				      hdr + hdrlen);
 		hdrlen += ISCSI_DIGEST_SIZE;
 	}
@@ -454,7 +454,7 @@ iscsi_sw_tcp_send_data_prep(struct iscsi_conn *conn, struct scatterlist *sg,
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct iscsi_sw_tcp_conn *tcp_sw_conn = tcp_conn->dd_data;
-	struct hash_desc *tx_hash = NULL;
+	struct ahash_request *tx_hash = NULL;
 	unsigned int hdr_spec_len;
 
 	ISCSI_SW_TCP_DBG(conn, "offset=%d, datalen=%d %s\n", offset, len,
@@ -467,7 +467,7 @@ iscsi_sw_tcp_send_data_prep(struct iscsi_conn *conn, struct scatterlist *sg,
 	WARN_ON(iscsi_padded(len) != iscsi_padded(hdr_spec_len));
 
 	if (conn->datadgst_en)
-		tx_hash = &tcp_sw_conn->tx_hash;
+		tx_hash = tcp_sw_conn->tx_hash;
 
 	return iscsi_segment_seek_sg(&tcp_sw_conn->out.data_segment,
 				     sg, count, offset, len,
@@ -480,7 +480,7 @@ iscsi_sw_tcp_send_linear_data_prep(struct iscsi_conn *conn, void *data,
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct iscsi_sw_tcp_conn *tcp_sw_conn = tcp_conn->dd_data;
-	struct hash_desc *tx_hash = NULL;
+	struct ahash_request *tx_hash = NULL;
 	unsigned int hdr_spec_len;
 
 	ISCSI_SW_TCP_DBG(conn, "datalen=%zd %s\n", len, conn->datadgst_en ?
@@ -492,7 +492,7 @@ iscsi_sw_tcp_send_linear_data_prep(struct iscsi_conn *conn, void *data,
 	WARN_ON(iscsi_padded(len) != iscsi_padded(hdr_spec_len));
 
 	if (conn->datadgst_en)
-		tx_hash = &tcp_sw_conn->tx_hash;
+		tx_hash = tcp_sw_conn->tx_hash;
 
 	iscsi_segment_init_linear(&tcp_sw_conn->out.data_segment,
 				data, len, NULL, tx_hash);
@@ -543,6 +543,7 @@ iscsi_sw_tcp_conn_create(struct iscsi_cls_session *cls_session,
 	struct iscsi_cls_conn *cls_conn;
 	struct iscsi_tcp_conn *tcp_conn;
 	struct iscsi_sw_tcp_conn *tcp_sw_conn;
+	struct crypto_ahash *tfm;
 
 	cls_conn = iscsi_tcp_conn_setup(cls_session, sizeof(*tcp_sw_conn),
 					conn_idx);
@@ -552,23 +553,28 @@ iscsi_sw_tcp_conn_create(struct iscsi_cls_session *cls_session,
 	tcp_conn = conn->dd_data;
 	tcp_sw_conn = tcp_conn->dd_data;
 
-	tcp_sw_conn->tx_hash.tfm = crypto_alloc_hash("crc32c", 0,
-						     CRYPTO_ALG_ASYNC);
-	tcp_sw_conn->tx_hash.flags = 0;
-	if (IS_ERR(tcp_sw_conn->tx_hash.tfm))
+	tfm = crypto_alloc_ahash("crc32c", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm))
 		goto free_conn;
 
-	tcp_sw_conn->rx_hash.tfm = crypto_alloc_hash("crc32c", 0,
-						     CRYPTO_ALG_ASYNC);
-	tcp_sw_conn->rx_hash.flags = 0;
-	if (IS_ERR(tcp_sw_conn->rx_hash.tfm))
-		goto free_tx_tfm;
-	tcp_conn->rx_hash = &tcp_sw_conn->rx_hash;
+	tcp_sw_conn->tx_hash = ahash_request_alloc(tfm, GFP_KERNEL);
+	if (!tcp_sw_conn->tx_hash)
+		goto free_tfm;
+	ahash_request_set_callback(tcp_sw_conn->tx_hash, 0, NULL, NULL);
+
+	tcp_sw_conn->rx_hash = ahash_request_alloc(tfm, GFP_KERNEL);
+	if (!tcp_sw_conn->rx_hash)
+		goto free_tx_hash;
+	ahash_request_set_callback(tcp_sw_conn->rx_hash, 0, NULL, NULL);
+
+	tcp_conn->rx_hash = tcp_sw_conn->rx_hash;
 
 	return cls_conn;
 
-free_tx_tfm:
-	crypto_free_hash(tcp_sw_conn->tx_hash.tfm);
+free_tx_hash:
+	ahash_request_free(tcp_sw_conn->tx_hash);
+free_tfm:
+	crypto_free_ahash(tfm);
 free_conn:
 	iscsi_conn_printk(KERN_ERR, conn,
 			  "Could not create connection due to crc32c "
@@ -607,10 +613,14 @@ static void iscsi_sw_tcp_conn_destroy(struct iscsi_cls_conn *cls_conn)
 
 	iscsi_sw_tcp_release_conn(conn);
 
-	if (tcp_sw_conn->tx_hash.tfm)
-		crypto_free_hash(tcp_sw_conn->tx_hash.tfm);
-	if (tcp_sw_conn->rx_hash.tfm)
-		crypto_free_hash(tcp_sw_conn->rx_hash.tfm);
+	ahash_request_free(tcp_sw_conn->rx_hash);
+	if (tcp_sw_conn->tx_hash) {
+		struct crypto_ahash *tfm;
+
+		tfm = crypto_ahash_reqtfm(tcp_sw_conn->tx_hash);
+		ahash_request_free(tcp_sw_conn->tx_hash);
+		crypto_free_ahash(tfm);
+	}
 
 	iscsi_tcp_conn_teardown(cls_conn);
 }
@@ -726,13 +736,18 @@ static int iscsi_sw_tcp_conn_get_param(struct iscsi_cls_conn *cls_conn,
 	switch(param) {
 	case ISCSI_PARAM_CONN_PORT:
 	case ISCSI_PARAM_CONN_ADDRESS:
+	case ISCSI_PARAM_LOCAL_PORT:
 		spin_lock_bh(&conn->session->frwd_lock);
 		if (!tcp_sw_conn || !tcp_sw_conn->sock) {
 			spin_unlock_bh(&conn->session->frwd_lock);
 			return -ENOTCONN;
 		}
-		rc = kernel_getpeername(tcp_sw_conn->sock,
-					(struct sockaddr *)&addr, &len);
+		if (param == ISCSI_PARAM_LOCAL_PORT)
+			rc = kernel_getsockname(tcp_sw_conn->sock,
+						(struct sockaddr *)&addr, &len);
+		else
+			rc = kernel_getpeername(tcp_sw_conn->sock,
+						(struct sockaddr *)&addr, &len);
 		spin_unlock_bh(&conn->session->frwd_lock);
 		if (rc)
 			return rc;
@@ -895,6 +910,7 @@ static umode_t iscsi_sw_tcp_attr_is_visible(int param_type, int param)
 		case ISCSI_PARAM_DATADGST_EN:
 		case ISCSI_PARAM_CONN_ADDRESS:
 		case ISCSI_PARAM_CONN_PORT:
+		case ISCSI_PARAM_LOCAL_PORT:
 		case ISCSI_PARAM_EXP_STATSN:
 		case ISCSI_PARAM_PERSISTENT_ADDRESS:
 		case ISCSI_PARAM_PERSISTENT_PORT:
@@ -946,7 +962,7 @@ static struct scsi_host_template iscsi_sw_tcp_sht = {
 	.module			= THIS_MODULE,
 	.name			= "iSCSI Initiator over TCP/IP",
 	.queuecommand           = iscsi_queuecommand,
-	.change_queue_depth	= iscsi_change_queue_depth,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.can_queue		= ISCSI_DEF_XMIT_CMDS_MAX - 1,
 	.sg_tablesize		= 4096,
 	.max_sectors		= 0xFFFF,
@@ -960,6 +976,7 @@ static struct scsi_host_template iscsi_sw_tcp_sht = {
 	.target_alloc		= iscsi_target_alloc,
 	.proc_name		= "iscsi_tcp",
 	.this_id		= -1,
+	.track_queue_depth	= 1,
 };
 
 static struct iscsi_transport iscsi_sw_tcp_transport = {

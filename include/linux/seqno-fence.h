@@ -62,6 +62,7 @@ to_seqno_fence(struct fence *fence)
  * @context: the execution context this fence is a part of
  * @seqno_ofs: the offset within @sync_buf
  * @seqno: the sequence # to signal on
+ * @cond: fence wait condition
  * @ops: the fence_ops for operations on this seqno fence
  *
  * This function initializes a struct seqno_fence with passed parameters,

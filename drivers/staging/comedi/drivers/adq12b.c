@@ -1,77 +1,59 @@
 /*
-    comedi/drivers/adq12b.c
-    driver for MicroAxial ADQ12-B data acquisition and control card
+ * adq12b.c
+ * Driver for MicroAxial ADQ12-B data acquisition and control card
+ * written by jeremy theler <thelerg@ib.cnea.gov.ar>
+ *	instituto balseiro
+ *	commission nacional de energia atomica
+ *	universidad nacional de cuyo
+ *	argentina
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: adq12b
-Description: driver for MicroAxial ADQ12-B data acquisition and control card
-Devices: [MicroAxial] ADQ12-B (adq12b)
-Author: jeremy theler <thelerg@ib.cnea.gov.ar>
-Updated: Thu, 21 Feb 2008 02:56:27 -0300
-Status: works
-
-Driver for the acquisition card ADQ12-B (without any add-on).
-
- - Analog input is subdevice 0 (16 channels single-ended or 8 differential)
- - Digital input is subdevice 1 (5 channels)
- - Digital output is subdevice 1 (8 channels)
- - The PACER is not supported in this version
-
-If you do not specify any options, they will default to
-
-  # comedi_config /dev/comedi0 adq12b 0x300,0,0
-
-  option 1: I/O base address. The following table is provided as a help
-   of the hardware jumpers.
-
-	 address            jumper JADR
-	  0x300                 1 (factory default)
-	  0x320                 2
-	  0x340                 3
-	  0x360                 4
-	  0x380                 5
-	  0x3A0                 6
-
-  option 2: unipolar/bipolar ADC selection: 0 -> bipolar, 1 -> unipolar
-
-	selection         comedi_config option            JUB
-	 bipolar                0                         2-3 (factory default)
-	 unipolar               1                         1-2
-
-  option 3: single-ended/differential AI selection: 0 -> SE, 1 -> differential
-
-	selection         comedi_config option     JCHA    JCHB
-       single-ended             0                  1-2     1-2 (factory default)
-       differential             1                  2-3     2-3
-
-   written by jeremy theler <thelerg@ib.cnea.gov.ar>
-
-   instituto balseiro
-   commission nacional de energia atomica
-   universidad nacional de cuyo
-   argentina
-
-   21-feb-2008
-     + changed supported devices string (missused the [] and ())
-
-   13-oct-2007
-     + first try
-
-
-*/
+ * Driver: adq12b
+ * Description: Driver for MicroAxial ADQ12-B data acquisition and control card
+ * Devices: [MicroAxial] ADQ12-B (adq12b)
+ * Author: jeremy theler <thelerg@ib.cnea.gov.ar>
+ * Updated: Thu, 21 Feb 2008 02:56:27 -0300
+ * Status: works
+ *
+ * Configuration options:
+ *   [0] - I/O base address (set with hardware jumpers)
+ *		address		jumper JADR
+ *		0x300		1 (factory default)
+ *		0x320		2
+ *		0x340		3
+ *		0x360		4
+ *		0x380		5
+ *		0x3A0		6
+ *   [1] - Analog Input unipolar/bipolar selection
+ *		selection	option	JUB
+ *		bipolar		0	2-3 (factory default)
+ *		unipolar	1	1-2
+ *   [2] - Analog Input single-ended/differential selection
+ *		selection	option	JCHA	JCHB
+ *		single-ended	0	1-2	1-2 (factory default)
+ *		differential	1	2-3	2-3
+ *
+ * Driver for the acquisition card ADQ12-B (without any add-on).
+ *
+ * - Analog input is subdevice 0 (16 channels single-ended or 8 differential)
+ * - Digital input is subdevice 1 (5 channels)
+ * - Digital output is subdevice 1 (8 channels)
+ * - The PACER is not supported in this version
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -80,14 +62,14 @@ If you do not specify any options, they will default to
 
 /* address scheme (page 2.17 of the manual) */
 #define ADQ12B_CTREG		0x00
-#define ADQ12B_CTREG_MSKP	(1 << 7)	/* enable pacer interrupt */
-#define ADQ12B_CTREG_GTP	(1 << 6)	/* enable pacer */
+#define ADQ12B_CTREG_MSKP	BIT(7)	/* enable pacer interrupt */
+#define ADQ12B_CTREG_GTP	BIT(6)	/* enable pacer */
 #define ADQ12B_CTREG_RANGE(x)	((x) << 4)
 #define ADQ12B_CTREG_CHAN(x)	((x) << 0)
 #define ADQ12B_STINR		0x00
-#define ADQ12B_STINR_OUT2	(1 << 7)	/* timer 2 output state */
-#define ADQ12B_STINR_OUTP	(1 << 6)	/* pacer output state */
-#define ADQ12B_STINR_EOC	(1 << 5)	/* A/D end-of-conversion */
+#define ADQ12B_STINR_OUT2	BIT(7)	/* timer 2 output state */
+#define ADQ12B_STINR_OUTP	BIT(6)	/* pacer output state */
+#define ADQ12B_STINR_EOC	BIT(5)	/* A/D end-of-conversion */
 #define ADQ12B_STINR_IN_MASK	(0x1f << 0)
 #define ADQ12B_OUTBR		0x04
 #define ADQ12B_ADLOW		0x08
@@ -147,7 +129,7 @@ static int adq12b_ai_insn_read(struct comedi_device *dev,
 	if (val != devpriv->last_ctreg) {
 		outb(val, dev->iobase + ADQ12B_CTREG);
 		devpriv->last_ctreg = val;
-		udelay(50);	/* wait for the mux to settle */
+		usleep_range(50, 100);	/* wait for the mux to settle */
 	}
 
 	val = inb(dev->iobase + ADQ12B_ADLOW);	/* trigger A/D */
@@ -170,7 +152,6 @@ static int adq12b_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-
 	/* only bits 0-4 have information about digital inputs */
 	data[1] = (inb(dev->iobase + ADQ12B_STINR) & ADQ12B_STINR_IN_MASK);
 

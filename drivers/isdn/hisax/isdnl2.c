@@ -1247,7 +1247,7 @@ static void
 l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 {
 	struct PStack *st = fi->userdata;
-	struct sk_buff *skb;
+	struct sk_buff *skb, *nskb;
 	struct Layer2 *l2 = &st->l2;
 	u_char header[MAX_HEADER_LEN];
 	int i, hdr_space_needed;
@@ -1262,14 +1262,10 @@ l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 		return;
 
 	hdr_space_needed = l2headersize(l2, 0);
-	if (hdr_space_needed > skb_headroom(skb)) {
-		struct sk_buff *orig_skb = skb;
-
-		skb = skb_realloc_headroom(skb, hdr_space_needed);
-		if (!skb) {
-			dev_kfree_skb(orig_skb);
-			return;
-		}
+	nskb = skb_realloc_headroom(skb, hdr_space_needed);
+	if (!nskb) {
+		skb_queue_head(&l2->i_queue, skb);
+		return;
 	}
 	spin_lock_irqsave(&l2->lock, flags);
 	if (test_bit(FLG_MOD128, &l2->flag))
@@ -1282,7 +1278,7 @@ l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 		       p1);
 		dev_kfree_skb(l2->windowar[p1]);
 	}
-	l2->windowar[p1] = skb_clone(skb, GFP_ATOMIC);
+	l2->windowar[p1] = skb;
 
 	i = sethdraddr(&st->l2, header, CMD);
 
@@ -1295,8 +1291,8 @@ l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 		l2->vs = (l2->vs + 1) % 8;
 	}
 	spin_unlock_irqrestore(&l2->lock, flags);
-	memcpy(skb_push(skb, i), header, i);
-	st->l2.l2l1(st, PH_PULL | INDICATION, skb);
+	memcpy(skb_push(nskb, i), header, i);
+	st->l2.l2l1(st, PH_PULL | INDICATION, nskb);
 	test_and_clear_bit(FLG_ACK_PEND, &st->l2.flag);
 	if (!test_and_set_bit(FLG_T200_RUN, &st->l2.flag)) {
 		FsmDelTimer(&st->l2.t203, 13);

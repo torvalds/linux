@@ -22,8 +22,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -270,7 +268,6 @@ xfs_dir3_data_get_ftype(
 {
 	__uint8_t	ftype = dep->name[dep->namelen];
 
-	ASSERT(ftype < XFS_DIR3_FT_MAX);
 	if (ftype >= XFS_DIR3_FT_MAX)
 		return XFS_DIR3_FT_UNKNOWN;
 	return ftype;

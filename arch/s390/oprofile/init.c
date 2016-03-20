@@ -16,12 +16,9 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <asm/processor.h>
+#include <asm/perf_event.h>
 
 #include "../../../drivers/oprofile/oprof.h"
-
-extern void s390_backtrace(struct pt_regs * const regs, unsigned int depth);
-
-#ifdef CONFIG_64BIT
 
 #include "hwsampler.h"
 #include "op_counter.h"
@@ -457,6 +454,7 @@ static int oprofile_hwsampler_init(struct oprofile_operations *ops)
 		case 0x2097: case 0x2098: ops->cpu_type = "s390/z10"; break;
 		case 0x2817: case 0x2818: ops->cpu_type = "s390/z196"; break;
 		case 0x2827: case 0x2828: ops->cpu_type = "s390/zEC12"; break;
+		case 0x2964: case 0x2965: ops->cpu_type = "s390/z13"; break;
 		default: return -ENODEV;
 		}
 	}
@@ -495,13 +493,27 @@ static void oprofile_hwsampler_exit(void)
 	hwsampler_shutdown();
 }
 
-#endif /* CONFIG_64BIT */
+static int __s390_backtrace(void *data, unsigned long address)
+{
+	unsigned int *depth = data;
+
+	if (*depth == 0)
+		return 1;
+	(*depth)--;
+	oprofile_add_trace(address);
+	return 0;
+}
+
+static void s390_backtrace(struct pt_regs *regs, unsigned int depth)
+{
+	if (user_mode(regs))
+		return;
+	dump_trace(__s390_backtrace, &depth, NULL, regs->gprs[15]);
+}
 
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 	ops->backtrace = s390_backtrace;
-
-#ifdef CONFIG_64BIT
 
 	/*
 	 * -ENODEV is not reported to the caller.  The module itself
@@ -511,14 +523,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	hwsampler_available = oprofile_hwsampler_init(ops) == 0;
 
 	return 0;
-#else
-	return -ENODEV;
-#endif
 }
 
 void oprofile_arch_exit(void)
 {
-#ifdef CONFIG_64BIT
 	oprofile_hwsampler_exit();
-#endif
 }

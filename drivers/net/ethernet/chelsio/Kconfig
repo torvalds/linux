@@ -7,9 +7,7 @@ config NET_VENDOR_CHELSIO
 	default y
 	depends on PCI
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -67,13 +65,14 @@ config CHELSIO_T3
 	  will be called cxgb3.
 
 config CHELSIO_T4
-	tristate "Chelsio Communications T4/T5 Ethernet support"
-	depends on PCI
+	tristate "Chelsio Communications T4/T5/T6 Ethernet support"
+	depends on PCI && (IPV6 || IPV6=n)
 	select FW_LOADER
 	select MDIO
 	---help---
-	  This driver supports Chelsio T4 and T5 based gigabit, 10Gb Ethernet
-	  adapter and T5 based 40Gb Ethernet adapter.
+	  This driver supports Chelsio T4, T5 & T6 based gigabit, 10Gb Ethernet
+	  adapter and T5/T6 based 40Gb and T6 based 25Gb, 50Gb and 100Gb
+	  Ethernet adapters.
 
 	  For general information about Chelsio and our products, visit
 	  our website at <http://www.chelsio.com>.
@@ -87,7 +86,7 @@ config CHELSIO_T4
 	  will be called cxgb4.
 
 config CHELSIO_T4_DCB
-	bool "Data Center Bridging (DCB) Support for Chelsio T4/T5 cards"
+	bool "Data Center Bridging (DCB) Support for Chelsio T4/T5/T6 cards"
 	default n
 	depends on CHELSIO_T4 && DCB
 	---help---
@@ -97,13 +96,24 @@ config CHELSIO_T4_DCB
 
 	  If unsure, say N.
 
+config CHELSIO_T4_FCOE
+	bool "Fibre Channel over Ethernet (FCoE) Support for Chelsio T5 cards"
+	default n
+	depends on CHELSIO_T4 && CHELSIO_T4_DCB && FCOE
+	---help---
+	  Enable FCoE offload features.
+	  Say Y here if you want to enable Fibre Channel over Ethernet (FCoE) support
+	  in the driver.
+
+	  If unsure, say N.
+
 config CHELSIO_T4VF
-	tristate "Chelsio Communications T4/T5 Virtual Function Ethernet support"
+	tristate "Chelsio Communications T4/T5/T6 Virtual Function Ethernet support"
 	depends on PCI
 	---help---
-	  This driver supports Chelsio T4 and T5 based gigabit, 10Gb Ethernet
-	  adapters and T5 based 40Gb Ethernet adapters with PCI-E SR-IOV Virtual
-	  Functions.
+	  This driver supports Chelsio T4, T5 & T6 based gigabit, 10Gb Ethernet
+	  adapters and T5/T6 based 40Gb and T6 based 25Gb, 50Gb and 100Gb
+	  Ethernet adapters with PCI-E SR-IOV Virtual Functions.
 
 	  For general information about Chelsio and our products, visit
 	  our website at <http://www.chelsio.com>.

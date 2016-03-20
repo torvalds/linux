@@ -612,6 +612,18 @@ static struct regulator_ops palmas_ops_ldo = {
 	.map_voltage		= regulator_map_voltage_linear,
 };
 
+static struct regulator_ops palmas_ops_ldo9 = {
+	.is_enabled		= palmas_is_enabled_ldo,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
+	.list_voltage		= regulator_list_voltage_linear,
+	.map_voltage		= regulator_map_voltage_linear,
+	.set_bypass		= regulator_set_bypass_regmap,
+	.get_bypass		= regulator_get_bypass_regmap,
+};
+
 static struct regulator_ops palmas_ops_ext_control_ldo = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
@@ -637,6 +649,19 @@ static struct regulator_ops tps65917_ops_ldo = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+};
+
+static struct regulator_ops tps65917_ops_ldo_1_2 = {
+	.is_enabled		= palmas_is_enabled_ldo,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
+	.list_voltage		= regulator_list_voltage_linear,
+	.map_voltage		= regulator_map_voltage_linear,
+	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+	.set_bypass		= regulator_set_bypass_regmap,
+	.get_bypass		= regulator_get_bypass_regmap,
 };
 
 static int palmas_regulator_config_external(struct palmas *palmas, int id,
@@ -915,7 +940,17 @@ static int palmas_ldo_registration(struct palmas_pmic *pmic,
 			if (pdata && pdata->ldo6_vibrator &&
 			    (id == PALMAS_REG_LDO6))
 				desc->enable_time = 2000;
+
+			if (id == PALMAS_REG_LDO9) {
+				desc->ops = &palmas_ops_ldo9;
+				desc->bypass_reg = desc->enable_reg;
+				desc->bypass_mask =
+						PALMAS_LDO9_CTRL_LDO_BYPASS_EN;
+			}
 		} else {
+			if (!ddata->has_regen3 && id == PALMAS_REG_REGEN3)
+				continue;
+
 			desc->n_voltages = 1;
 			if (reg_init && reg_init->roof_floor)
 				desc->ops = &palmas_ops_ext_control_extreg;
@@ -1016,6 +1051,13 @@ static int tps65917_ldo_registration(struct palmas_pmic *pmic,
 			 * It is of the order of ~60mV/uS.
 			 */
 			desc->ramp_delay = 2500;
+			if (id == TPS65917_REG_LDO1 ||
+			    id == TPS65917_REG_LDO2) {
+				desc->ops = &tps65917_ops_ldo_1_2;
+				desc->bypass_reg = desc->enable_reg;
+				desc->bypass_mask =
+						TPS65917_LDO1_CTRL_BYPASS_EN;
+			}
 		} else {
 			desc->n_voltages = 1;
 			if (reg_init && reg_init->roof_floor)
@@ -1398,6 +1440,7 @@ static struct palmas_pmic_driver_data palmas_ddata = {
 	.ldo_begin = PALMAS_REG_LDO1,
 	.ldo_end = PALMAS_REG_LDOUSB,
 	.max_reg = PALMAS_NUM_REGS,
+	.has_regen3 = true,
 	.palmas_regs_info = palmas_generic_regs_info,
 	.palmas_matches = palmas_matches,
 	.sleep_req_info = palma_sleep_req_info,
@@ -1411,6 +1454,7 @@ static struct palmas_pmic_driver_data tps65917_ddata = {
 	.ldo_begin = TPS65917_REG_LDO1,
 	.ldo_end = TPS65917_REG_LDO5,
 	.max_reg = TPS65917_NUM_REGS,
+	.has_regen3 = true,
 	.palmas_regs_info = tps65917_regs_info,
 	.palmas_matches = tps65917_matches,
 	.sleep_req_info = tps65917_sleep_req_info,
@@ -1427,7 +1471,6 @@ static void palmas_dt_to_pdata(struct device *dev,
 	u32 prop;
 	int idx, ret;
 
-	node = of_node_get(node);
 	regulators = of_get_child_by_name(node, "regulators");
 	if (!regulators) {
 		dev_info(dev, "regulator node not found\n");
@@ -1506,7 +1549,7 @@ static void palmas_dt_to_pdata(struct device *dev,
 	pdata->ldo6_vibrator = of_property_read_bool(node, "ti,ldo6-vibrator");
 }
 
-static struct of_device_id of_palmas_match_tbl[] = {
+static const struct of_device_id of_palmas_match_tbl[] = {
 	{
 		.compatible = "ti,palmas-pmic",
 		.data = &palmas_ddata,
@@ -1573,6 +1616,12 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 	if (!pmic)
 		return -ENOMEM;
 
+	if (of_device_is_compatible(node, "ti,tps659038-pmic")) {
+		palmas_generic_regs_info[PALMAS_REG_REGEN2].ctrl_addr =
+							TPS659038_REGEN2_CTRL;
+		palmas_ddata.has_regen3 = false;
+	}
+
 	pmic->dev = &pdev->dev;
 	pmic->palmas = palmas;
 	palmas->pmic = pmic;
@@ -1611,7 +1660,6 @@ static struct platform_driver palmas_driver = {
 	.driver = {
 		.name = "palmas-pmic",
 		.of_match_table = of_palmas_match_tbl,
-		.owner = THIS_MODULE,
 	},
 	.probe = palmas_regulators_probe,
 };

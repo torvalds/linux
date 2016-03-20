@@ -35,9 +35,9 @@ struct f2fs_gc_kthread {
 	unsigned int gc_idle;
 };
 
-struct inode_entry {
-	struct list_head list;
-	struct inode *inode;
+struct gc_inode_list {
+	struct list_head ilist;
+	struct radix_tree_root iroot;
 };
 
 /*
@@ -64,26 +64,26 @@ static inline block_t limit_free_user_blocks(struct f2fs_sb_info *sbi)
 	return (long)(reclaimable_user_blocks * LIMIT_FREE_BLOCK) / 100;
 }
 
-static inline long increase_sleep_time(struct f2fs_gc_kthread *gc_th, long wait)
+static inline void increase_sleep_time(struct f2fs_gc_kthread *gc_th,
+								long *wait)
 {
-	if (wait == gc_th->no_gc_sleep_time)
-		return wait;
+	if (*wait == gc_th->no_gc_sleep_time)
+		return;
 
-	wait += gc_th->min_sleep_time;
-	if (wait > gc_th->max_sleep_time)
-		wait = gc_th->max_sleep_time;
-	return wait;
+	*wait += gc_th->min_sleep_time;
+	if (*wait > gc_th->max_sleep_time)
+		*wait = gc_th->max_sleep_time;
 }
 
-static inline long decrease_sleep_time(struct f2fs_gc_kthread *gc_th, long wait)
+static inline void decrease_sleep_time(struct f2fs_gc_kthread *gc_th,
+								long *wait)
 {
-	if (wait == gc_th->no_gc_sleep_time)
-		wait = gc_th->max_sleep_time;
+	if (*wait == gc_th->no_gc_sleep_time)
+		*wait = gc_th->max_sleep_time;
 
-	wait -= gc_th->min_sleep_time;
-	if (wait <= gc_th->min_sleep_time)
-		wait = gc_th->min_sleep_time;
-	return wait;
+	*wait -= gc_th->min_sleep_time;
+	if (*wait <= gc_th->min_sleep_time)
+		*wait = gc_th->min_sleep_time;
 }
 
 static inline bool has_enough_invalid_blocks(struct f2fs_sb_info *sbi)
@@ -91,7 +91,7 @@ static inline bool has_enough_invalid_blocks(struct f2fs_sb_info *sbi)
 	block_t invalid_user_blocks = sbi->user_block_count -
 					written_block_count(sbi);
 	/*
-	 * Background GC is triggered with the following condition.
+	 * Background GC is triggered with the following conditions.
 	 * 1. There are a number of invalid blocks.
 	 * 2. There is not enough free space.
 	 */
@@ -99,12 +99,4 @@ static inline bool has_enough_invalid_blocks(struct f2fs_sb_info *sbi)
 			free_user_blocks(sbi) < limit_free_user_blocks(sbi))
 		return true;
 	return false;
-}
-
-static inline int is_idle(struct f2fs_sb_info *sbi)
-{
-	struct block_device *bdev = sbi->sb->s_bdev;
-	struct request_queue *q = bdev_get_queue(bdev);
-	struct request_list *rl = &q->root_rl;
-	return !(rl->count[BLK_RW_SYNC]) && !(rl->count[BLK_RW_ASYNC]);
 }

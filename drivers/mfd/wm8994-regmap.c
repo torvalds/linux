@@ -19,7 +19,7 @@
 
 #include "wm8994.h"
 
-static struct reg_default wm1811_defaults[] = {
+static const struct reg_default wm1811_defaults[] = {
 	{ 0x0001, 0x0000 },    /* R1    - Power Management (1) */
 	{ 0x0002, 0x6000 },    /* R2    - Power Management (2) */
 	{ 0x0003, 0x0000 },    /* R3    - Power Management (3) */
@@ -251,7 +251,7 @@ static struct reg_default wm1811_defaults[] = {
 	{ 0x0748, 0x003F },    /* R1864 - IRQ Debounce */
 };
 
-static struct reg_default wm8994_defaults[] = {
+static const struct reg_default wm8994_defaults[] = {
 	{ 0x0001, 0x0000 },    /* R1     - Power Management (1) */ 
 	{ 0x0002, 0x6000 },    /* R2     - Power Management (2) */ 
 	{ 0x0003, 0x0000 },    /* R3     - Power Management (3) */ 
@@ -470,7 +470,7 @@ static struct reg_default wm8994_defaults[] = {
 	{ 0x0748, 0x003F },    /* R1864  - IRQ Debounce */ 
 };
 
-static struct reg_default wm8958_defaults[] = {
+static const struct reg_default wm8958_defaults[] = {
 	{ 0x0001, 0x0000 },    /* R1     - Power Management (1) */
 	{ 0x0002, 0x6000 },    /* R2     - Power Management (2) */
 	{ 0x0003, 0x0000 },    /* R3     - Power Management (3) */
@@ -1252,6 +1252,7 @@ struct regmap_config wm1811_regmap_config = {
 	.volatile_reg = wm1811_volatile_register,
 	.readable_reg = wm1811_readable_register,
 };
+EXPORT_SYMBOL(wm1811_regmap_config);
 
 struct regmap_config wm8994_regmap_config = {
 	.reg_bits = 16,
@@ -1266,6 +1267,7 @@ struct regmap_config wm8994_regmap_config = {
 	.volatile_reg = wm8994_volatile_register,
 	.readable_reg = wm8994_readable_register,
 };
+EXPORT_SYMBOL(wm8994_regmap_config);
 
 struct regmap_config wm8958_regmap_config = {
 	.reg_bits = 16,
@@ -1280,8 +1282,10 @@ struct regmap_config wm8958_regmap_config = {
 	.volatile_reg = wm8958_volatile_register,
 	.readable_reg = wm8958_readable_register,
 };
+EXPORT_SYMBOL(wm8958_regmap_config);
 
 struct regmap_config wm8994_base_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 16,
 };
+EXPORT_SYMBOL(wm8994_base_regmap_config);

@@ -35,18 +35,21 @@ static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct lirc_codec *lirc = &dev->raw->lirc;
 	int sample;
 
-	if (!(dev->enabled_protocols & RC_BIT_LIRC))
-		return 0;
-
 	if (!dev->raw->lirc.drv || !dev->raw->lirc.drv->rbuf)
 		return -EINVAL;
 
 	/* Packet start */
-	if (ev.reset)
-		return 0;
+	if (ev.reset) {
+		/* Userspace expects a long space event before the start of
+		 * the signal to use as a sync.  This may be done with repeat
+		 * packets and normal samples.  But if a reset has been sent
+		 * then we assume that a long time has passed, so we send a
+		 * space with the maximum time value. */
+		sample = LIRC_SPACE(LIRC_VALUE_MASK);
+		IR_dprintk(2, "delivering reset sync space to lirc_dev\n");
 
 	/* Carrier reports */
-	if (ev.carrier_report) {
+	} else if (ev.carrier_report) {
 		sample = LIRC_FREQUENCY(ev.carrier);
 		IR_dprintk(2, "carrier report (freq: %d)\n", sample);
 
@@ -412,13 +415,14 @@ static int ir_lirc_unregister(struct rc_dev *dev)
 
 	lirc_unregister_driver(lirc->drv->minor);
 	lirc_buffer_free(lirc->drv->rbuf);
+	kfree(lirc->drv->rbuf);
 	kfree(lirc->drv);
 
 	return 0;
 }
 
 static struct ir_raw_handler lirc_handler = {
-	.protocols	= RC_BIT_LIRC,
+	.protocols	= 0,
 	.decode		= ir_lirc_decode,
 	.raw_register	= ir_lirc_register,
 	.raw_unregister	= ir_lirc_unregister,

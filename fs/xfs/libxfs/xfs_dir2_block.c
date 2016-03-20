@@ -21,8 +21,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -36,7 +34,7 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_cksum.h"
-#include "xfs_dinode.h"
+#include "xfs_log.h"
 
 /*
  * Local function prototypes.
@@ -70,9 +68,11 @@ xfs_dir3_block_verify(
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		if (hdr3->magic != cpu_to_be32(XFS_DIR3_BLOCK_MAGIC))
 			return false;
-		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_uuid))
+		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
 			return false;
 		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
+			return false;
+		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
 			return false;
 	} else {
 		if (hdr3->magic != cpu_to_be32(XFS_DIR2_BLOCK_MAGIC))
@@ -123,6 +123,7 @@ xfs_dir3_block_write_verify(
 }
 
 const struct xfs_buf_ops xfs_dir3_block_buf_ops = {
+	.name = "xfs_dir3_block",
 	.verify_read = xfs_dir3_block_read_verify,
 	.verify_write = xfs_dir3_block_write_verify,
 };
@@ -160,7 +161,7 @@ xfs_dir3_block_init(
 		hdr3->magic = cpu_to_be32(XFS_DIR3_BLOCK_MAGIC);
 		hdr3->blkno = cpu_to_be64(bp->b_bn);
 		hdr3->owner = cpu_to_be64(dp->i_ino);
-		uuid_copy(&hdr3->uuid, &mp->m_sb.sb_uuid);
+		uuid_copy(&hdr3->uuid, &mp->m_sb.sb_meta_uuid);
 		return;
 
 	}
@@ -353,7 +354,6 @@ xfs_dir2_block_addname(
 	int			low;		/* low index for binary srch */
 	int			lowstale;	/* low stale index */
 	int			mid=0;		/* midpoint for binary srch */
-	xfs_mount_t		*mp;		/* filesystem mount point */
 	int			needlog;	/* need to log header */
 	int			needscan;	/* need to rescan freespace */
 	__be16			*tagp;		/* pointer to tag value */
@@ -363,7 +363,6 @@ xfs_dir2_block_addname(
 
 	dp = args->dp;
 	tp = args->trans;
-	mp = dp->i_mount;
 
 	/* Read the (one and only) directory block into bp. */
 	error = xfs_dir3_block_read(tp, dp, &bp);
@@ -618,7 +617,6 @@ xfs_dir2_block_lookup(
 	xfs_inode_t		*dp;		/* incore inode */
 	int			ent;		/* entry index */
 	int			error;		/* error return value */
-	xfs_mount_t		*mp;		/* filesystem mount point */
 
 	trace_xfs_dir2_block_lookup(args);
 
@@ -629,7 +627,6 @@ xfs_dir2_block_lookup(
 	if ((error = xfs_dir2_block_lookup_int(args, &bp, &ent)))
 		return error;
 	dp = args->dp;
-	mp = dp->i_mount;
 	hdr = bp->b_addr;
 	xfs_dir3_data_check(dp, bp);
 	btp = xfs_dir2_block_tail_p(args->geo, hdr);
@@ -770,7 +767,6 @@ xfs_dir2_block_removename(
 	xfs_inode_t		*dp;		/* incore inode */
 	int			ent;		/* block leaf entry index */
 	int			error;		/* error return value */
-	xfs_mount_t		*mp;		/* filesystem mount point */
 	int			needlog;	/* need to log block header */
 	int			needscan;	/* need to fixup bestfree */
 	xfs_dir2_sf_hdr_t	sfh;		/* shortform header */
@@ -788,7 +784,6 @@ xfs_dir2_block_removename(
 	}
 	dp = args->dp;
 	tp = args->trans;
-	mp = dp->i_mount;
 	hdr = bp->b_addr;
 	btp = xfs_dir2_block_tail_p(args->geo, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
@@ -852,7 +847,6 @@ xfs_dir2_block_replace(
 	xfs_inode_t		*dp;		/* incore inode */
 	int			ent;		/* leaf entry index */
 	int			error;		/* error return value */
-	xfs_mount_t		*mp;		/* filesystem mount point */
 
 	trace_xfs_dir2_block_replace(args);
 
@@ -864,7 +858,6 @@ xfs_dir2_block_replace(
 		return error;
 	}
 	dp = args->dp;
-	mp = dp->i_mount;
 	hdr = bp->b_addr;
 	btp = xfs_dir2_block_tail_p(args->geo, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);

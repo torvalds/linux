@@ -42,7 +42,7 @@ struct cfg80211_conn {
 		CFG80211_CONN_CONNECTED,
 	} state;
 	u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
-	u8 *ie;
+	const u8 *ie;
 	size_t ie_len;
 	bool auto_auth, prev_bssid_valid;
 };
@@ -80,9 +80,18 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 	if (!request)
 		return -ENOMEM;
 
-	if (wdev->conn->params.channel)
+	if (wdev->conn->params.channel) {
+		enum ieee80211_band band = wdev->conn->params.channel->band;
+		struct ieee80211_supported_band *sband =
+			wdev->wiphy->bands[band];
+
+		if (!sband) {
+			kfree(request);
+			return -EINVAL;
+		}
 		request->channels[0] = wdev->conn->params.channel;
-	else {
+		request->rates[band] = (1 << sband->n_bitrates) - 1;
+	} else {
 		int i = 0, j;
 		enum ieee80211_band band;
 		struct ieee80211_supported_band *bands;
@@ -248,19 +257,15 @@ static struct cfg80211_bss *cfg80211_get_conn_bss(struct wireless_dev *wdev)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_bss *bss;
-	u16 capa = WLAN_CAPABILITY_ESS;
 
 	ASSERT_WDEV_LOCK(wdev);
-
-	if (wdev->conn->params.privacy)
-		capa |= WLAN_CAPABILITY_PRIVACY;
 
 	bss = cfg80211_get_bss(wdev->wiphy, wdev->conn->params.channel,
 			       wdev->conn->params.bssid,
 			       wdev->conn->params.ssid,
 			       wdev->conn->params.ssid_len,
-			       WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_PRIVACY,
-			       capa);
+			       wdev->conn_bss_type,
+			       IEEE80211_PRIVACY(wdev->conn->params.privacy));
 	if (!bss)
 		return NULL;
 
@@ -418,6 +423,62 @@ void cfg80211_sme_assoc_timeout(struct wireless_dev *wdev)
 	schedule_work(&rdev->conn_work);
 }
 
+static int cfg80211_sme_get_conn_ies(struct wireless_dev *wdev,
+				     const u8 *ies, size_t ies_len,
+				     const u8 **out_ies, size_t *out_ies_len)
+{
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
+	u8 *buf;
+	size_t offs;
+
+	if (!rdev->wiphy.extended_capabilities_len ||
+	    (ies && cfg80211_find_ie(WLAN_EID_EXT_CAPABILITY, ies, ies_len))) {
+		*out_ies = kmemdup(ies, ies_len, GFP_KERNEL);
+		if (!*out_ies)
+			return -ENOMEM;
+		*out_ies_len = ies_len;
+		return 0;
+	}
+
+	buf = kmalloc(ies_len + rdev->wiphy.extended_capabilities_len + 2,
+		      GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	if (ies_len) {
+		static const u8 before_extcapa[] = {
+			/* not listing IEs expected to be created by driver */
+			WLAN_EID_RSN,
+			WLAN_EID_QOS_CAPA,
+			WLAN_EID_RRM_ENABLED_CAPABILITIES,
+			WLAN_EID_MOBILITY_DOMAIN,
+			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
+			WLAN_EID_BSS_COEX_2040,
+		};
+
+		offs = ieee80211_ie_split(ies, ies_len, before_extcapa,
+					  ARRAY_SIZE(before_extcapa), 0);
+		memcpy(buf, ies, offs);
+		/* leave a whole for extended capabilities IE */
+		memcpy(buf + offs + rdev->wiphy.extended_capabilities_len + 2,
+		       ies + offs, ies_len - offs);
+	} else {
+		offs = 0;
+	}
+
+	/* place extended capabilities IE (with only driver capabilities) */
+	buf[offs] = WLAN_EID_EXT_CAPABILITY;
+	buf[offs + 1] = rdev->wiphy.extended_capabilities_len;
+	memcpy(buf + offs + 2,
+	       rdev->wiphy.extended_capabilities,
+	       rdev->wiphy.extended_capabilities_len);
+
+	*out_ies = buf;
+	*out_ies_len = ies_len + rdev->wiphy.extended_capabilities_len + 2;
+
+	return 0;
+}
+
 static int cfg80211_sme_connect(struct wireless_dev *wdev,
 				struct cfg80211_connect_params *connect,
 				const u8 *prev_bssid)
@@ -448,16 +509,14 @@ static int cfg80211_sme_connect(struct wireless_dev *wdev,
 		memcpy(wdev->conn->bssid, connect->bssid, ETH_ALEN);
 	}
 
-	if (connect->ie) {
-		wdev->conn->ie = kmemdup(connect->ie, connect->ie_len,
-					GFP_KERNEL);
-		wdev->conn->params.ie = wdev->conn->ie;
-		if (!wdev->conn->ie) {
-			kfree(wdev->conn);
-			wdev->conn = NULL;
-			return -ENOMEM;
-		}
+	if (cfg80211_sme_get_conn_ies(wdev, connect->ie, connect->ie_len,
+				      &wdev->conn->ie,
+				      &wdev->conn->params.ie_len)) {
+		kfree(wdev->conn);
+		wdev->conn = NULL;
+		return -ENOMEM;
 	}
+	wdev->conn->params.ie = wdev->conn->ie;
 
 	if (connect->auth_type == NL80211_AUTHTYPE_AUTOMATIC) {
 		wdev->conn->auto_auth = true;
@@ -628,8 +687,8 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 		WARN_ON_ONCE(!wiphy_to_rdev(wdev->wiphy)->ops->connect);
 		bss = cfg80211_get_bss(wdev->wiphy, NULL, bssid,
 				       wdev->ssid, wdev->ssid_len,
-				       WLAN_CAPABILITY_ESS,
-				       WLAN_CAPABILITY_ESS);
+				       wdev->conn_bss_type,
+				       IEEE80211_PRIVACY_ANY);
 		if (bss)
 			cfg80211_hold_bss(bss_from_pub(bss));
 	}
@@ -641,7 +700,7 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	}
 
 	if (status != WLAN_STATUS_SUCCESS) {
-		kfree(wdev->connect_keys);
+		kzfree(wdev->connect_keys);
 		wdev->connect_keys = NULL;
 		wdev->ssid_len = 0;
 		if (bss) {
@@ -786,8 +845,8 @@ void cfg80211_roamed(struct net_device *dev,
 	struct cfg80211_bss *bss;
 
 	bss = cfg80211_get_bss(wdev->wiphy, channel, bssid, wdev->ssid,
-			       wdev->ssid_len, WLAN_CAPABILITY_ESS,
-			       WLAN_CAPABILITY_ESS);
+			       wdev->ssid_len,
+			       wdev->conn_bss_type, IEEE80211_PRIVACY_ANY);
 	if (WARN_ON(!bss))
 		return;
 
@@ -858,6 +917,12 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 
 	nl80211_send_disconnected(rdev, dev, reason, ie, ie_len, from_ap);
 
+	/* stop critical protocol if supported */
+	if (rdev->ops->crit_proto_stop && rdev->crit_proto_nlportid) {
+		rdev->crit_proto_nlportid = 0;
+		rdev_crit_proto_stop(rdev, wdev);
+	}
+
 	/*
 	 * Delete all the keys ... pairwise keys can't really
 	 * exist any more anyway, but default keys might.
@@ -879,7 +944,8 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 }
 
 void cfg80211_disconnected(struct net_device *dev, u16 reason,
-			   const u8 *ie, size_t ie_len, gfp_t gfp)
+			   const u8 *ie, size_t ie_len,
+			   bool locally_generated, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
@@ -895,6 +961,7 @@ void cfg80211_disconnected(struct net_device *dev, u16 reason,
 	ev->dc.ie_len = ie_len;
 	memcpy((void *)ev->dc.ie, ie, ie_len);
 	ev->dc.reason = reason;
+	ev->dc.locally_generated = locally_generated;
 
 	spin_lock_irqsave(&wdev->event_lock, flags);
 	list_add_tail(&ev->list, &wdev->event_list);
@@ -918,7 +985,7 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 	ASSERT_WDEV_LOCK(wdev);
 
 	if (WARN_ON(wdev->connect_keys)) {
-		kfree(wdev->connect_keys);
+		kzfree(wdev->connect_keys);
 		wdev->connect_keys = NULL;
 	}
 
@@ -956,6 +1023,9 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 	memcpy(wdev->ssid, connect->ssid, connect->ssid_len);
 	wdev->ssid_len = connect->ssid_len;
 
+	wdev->conn_bss_type = connect->pbss ? IEEE80211_BSS_TYPE_PBSS :
+					      IEEE80211_BSS_TYPE_ESS;
+
 	if (!rdev->ops->connect)
 		err = cfg80211_sme_connect(wdev, connect, prev_bssid);
 	else
@@ -978,7 +1048,7 @@ int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	kfree(wdev->connect_keys);
+	kzfree(wdev->connect_keys);
 	wdev->connect_keys = NULL;
 
 	if (wdev->conn)

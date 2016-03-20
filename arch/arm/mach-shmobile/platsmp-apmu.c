@@ -1,6 +1,7 @@
 /*
  * SMP support for SoCs with APMU
  *
+ * Copyright (C) 2014  Renesas Electronics Corporation
  * Copyright (C) 2013  Magnus Damm
  *
  * This program is free software; you can redistribute it and/or modify
@@ -22,6 +23,7 @@
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
 #include "common.h"
+#include "platsmp-apmu.h"
 
 static struct {
 	void __iomem *iomem;
@@ -44,7 +46,7 @@ static int __maybe_unused apmu_power_on(void __iomem *p, int bit)
 	return 0;
 }
 
-static int apmu_power_off(void __iomem *p, int bit)
+static int __maybe_unused apmu_power_off(void __iomem *p, int bit)
 {
 	/* request Core Standby for next WFI */
 	writel_relaxed(3, p + CPUNCR_OFFS(bit));
@@ -65,7 +67,7 @@ static int __maybe_unused apmu_power_off_poll(void __iomem *p, int bit)
 	return 0;
 }
 
-static int apmu_wrap(int cpu, int (*fn)(void __iomem *p, int cpu))
+static int __maybe_unused apmu_wrap(int cpu, int (*fn)(void __iomem *p, int cpu))
 {
 	void __iomem *p = apmu_cpus[cpu].iomem;
 
@@ -83,28 +85,15 @@ static void apmu_init_cpu(struct resource *res, int cpu, int bit)
 	pr_debug("apmu ioremap %d %d %pr\n", cpu, bit, res);
 }
 
-static struct {
-	struct resource iomem;
-	int cpus[4];
-} apmu_config[] = {
-	{
-		.iomem = DEFINE_RES_MEM(0xe6152000, 0x88),
-		.cpus = { 0, 1, 2, 3 },
-	},
-	{
-		.iomem = DEFINE_RES_MEM(0xe6151000, 0x88),
-		.cpus = { 0x100, 0x101, 0x102, 0x103 },
-	}
-};
-
-static void apmu_parse_cfg(void (*fn)(struct resource *res, int cpu, int bit))
+static void apmu_parse_cfg(void (*fn)(struct resource *res, int cpu, int bit),
+			   struct rcar_apmu_config *apmu_config, int num)
 {
-	u32 id;
+	int id;
 	int k;
 	int bit, index;
 	bool is_allowed;
 
-	for (k = 0; k < ARRAY_SIZE(apmu_config); k++) {
+	for (k = 0; k < num; k++) {
 		/* only enable the cluster that includes the boot CPU */
 		is_allowed = false;
 		for (bit = 0; bit < ARRAY_SIZE(apmu_config[k].cpus); bit++) {
@@ -128,21 +117,22 @@ static void apmu_parse_cfg(void (*fn)(struct resource *res, int cpu, int bit))
 	}
 }
 
-void __init shmobile_smp_apmu_prepare_cpus(unsigned int max_cpus)
+void __init shmobile_smp_apmu_prepare_cpus(unsigned int max_cpus,
+					   struct rcar_apmu_config *apmu_config,
+					   int num)
 {
 	/* install boot code shared by all CPUs */
 	shmobile_boot_fn = virt_to_phys(shmobile_smp_boot);
-	shmobile_boot_arg = MPIDR_HWID_BITMASK;
 
 	/* perform per-cpu setup */
-	apmu_parse_cfg(apmu_init_cpu);
+	apmu_parse_cfg(apmu_init_cpu, apmu_config, num);
 }
 
 #ifdef CONFIG_SMP
 int shmobile_smp_apmu_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	/* For this particular CPU register boot vector */
-	shmobile_smp_hook(cpu, virt_to_phys(shmobile_invalidate_start), 0);
+	shmobile_smp_hook(cpu, virt_to_phys(secondary_startup), 0);
 
 	return apmu_wrap(cpu, apmu_power_on);
 }
@@ -179,7 +169,7 @@ static inline void cpu_enter_lowpower_a15(void)
 	dsb();
 }
 
-void shmobile_smp_apmu_cpu_shutdown(unsigned int cpu)
+static void shmobile_smp_apmu_cpu_shutdown(unsigned int cpu)
 {
 
 	/* Select next sleep mode using the APMU */

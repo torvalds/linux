@@ -240,6 +240,8 @@ static int axi_i2s_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk_disable;
 
+	return 0;
+
 err_clk_disable:
 	clk_disable_unprepare(i2s->clk);
 	return ret;
@@ -263,7 +265,6 @@ MODULE_DEVICE_TABLE(of, axi_i2s_of_match);
 static struct platform_driver axi_i2s_driver = {
 	.driver = {
 		.name = "axi-i2s",
-		.owner = THIS_MODULE,
 		.of_match_table = axi_i2s_of_match,
 	},
 	.probe = axi_i2s_probe,

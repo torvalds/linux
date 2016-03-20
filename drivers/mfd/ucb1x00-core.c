@@ -133,7 +133,7 @@ static int ucb1x00_gpio_get(struct gpio_chip *chip, unsigned offset)
 	val = ucb1x00_reg_read(ucb, UCB_IO_DATA);
 	ucb1x00_disable(ucb);
 
-	return val & (1 << offset);
+	return !!(val & (1 << offset));
 }
 
 static int ucb1x00_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -282,7 +282,7 @@ void ucb1x00_adc_disable(struct ucb1x00 *ucb)
  * SIBCLK to talk to the chip.  We leave the clock running until
  * we have finished processing all interrupts from the chip.
  */
-static void ucb1x00_irq(unsigned int irq, struct irq_desc *desc)
+static void ucb1x00_irq(struct irq_desc *desc)
 {
 	struct ucb1x00 *ucb = irq_desc_get_handler_data(desc);
 	unsigned int isr, i;
@@ -292,7 +292,7 @@ static void ucb1x00_irq(unsigned int irq, struct irq_desc *desc)
 	ucb1x00_reg_write(ucb, UCB_IE_CLEAR, isr);
 	ucb1x00_reg_write(ucb, UCB_IE_CLEAR, 0);
 
-	for (i = 0; i < 16 && isr; i++, isr >>= 1, irq++)
+	for (i = 0; i < 16 && isr; i++, isr >>= 1)
 		if (isr & 1)
 			generic_handle_irq(ucb->irq_base + i);
 	ucb1x00_disable(ucb);
@@ -562,16 +562,15 @@ static int ucb1x00_probe(struct mcp *mcp)
 
 		irq_set_chip_and_handler(irq, &ucb1x00_irqchip, handle_edge_irq);
 		irq_set_chip_data(irq, ucb);
-		set_irq_flags(irq, IRQF_VALID | IRQ_NOREQUEST);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST);
 	}
 
 	irq_set_irq_type(ucb->irq, IRQ_TYPE_EDGE_RISING);
-	irq_set_handler_data(ucb->irq, ucb);
-	irq_set_chained_handler(ucb->irq, ucb1x00_irq);
+	irq_set_chained_handler_and_data(ucb->irq, ucb1x00_irq, ucb);
 
 	if (pdata && pdata->gpio_base) {
 		ucb->gpio.label = dev_name(&ucb->dev);
-		ucb->gpio.dev = &ucb->dev;
+		ucb->gpio.parent = &ucb->dev;
 		ucb->gpio.owner = THIS_MODULE;
 		ucb->gpio.base = pdata->gpio_base;
 		ucb->gpio.ngpio = 10;
@@ -621,7 +620,6 @@ static void ucb1x00_remove(struct mcp *mcp)
 	struct ucb1x00_plat_data *pdata = mcp->attached_device.platform_data;
 	struct ucb1x00 *ucb = mcp_get_drvdata(mcp);
 	struct list_head *l, *n;
-	int ret;
 
 	mutex_lock(&ucb1x00_mutex);
 	list_del(&ucb->node);
@@ -631,11 +629,8 @@ static void ucb1x00_remove(struct mcp *mcp)
 	}
 	mutex_unlock(&ucb1x00_mutex);
 
-	if (ucb->gpio.base != -1) {
-		ret = gpiochip_remove(&ucb->gpio);
-		if (ret)
-			dev_err(&ucb->dev, "Can't remove gpio chip: %d\n", ret);
-	}
+	if (ucb->gpio.base != -1)
+		gpiochip_remove(&ucb->gpio);
 
 	irq_set_chained_handler(ucb->irq, NULL);
 	irq_free_descs(ucb->irq_base, 16);

@@ -20,6 +20,14 @@
 #define CONTEXT_TT_MULTI_LEVEL	0
 #define CONTEXT_TT_DEV_IOTLB	1
 #define CONTEXT_TT_PASS_THROUGH 2
+/* Extended context entry types */
+#define CONTEXT_TT_PT_PASID	4
+#define CONTEXT_TT_PT_PASID_DEV_IOTLB 5
+#define CONTEXT_TT_MASK (7ULL << 2)
+
+#define CONTEXT_DINVE		(1ULL << 8)
+#define CONTEXT_PRS		(1ULL << 9)
+#define CONTEXT_PASIDE		(1ULL << 11)
 
 struct intel_iommu;
 struct dmar_domain;

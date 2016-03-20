@@ -52,12 +52,12 @@ static int transient_prepare_exception(struct dm_exception_store *store,
 }
 
 static void transient_commit_exception(struct dm_exception_store *store,
-				       struct dm_exception *e,
+				       struct dm_exception *e, int valid,
 				       void (*callback) (void *, int success),
 				       void *callback_context)
 {
 	/* Just succeed */
-	callback(callback_context, 1);
+	callback(callback_context, valid);
 }
 
 static void transient_usage(struct dm_exception_store *store,
@@ -70,8 +70,7 @@ static void transient_usage(struct dm_exception_store *store,
 	*metadata_sectors = 0;
 }
 
-static int transient_ctr(struct dm_exception_store *store,
-			 unsigned argc, char **argv)
+static int transient_ctr(struct dm_exception_store *store, char *options)
 {
 	struct transient_c *tc;
 

@@ -143,7 +143,8 @@ static int cx24110_readreg (struct cx24110_state* state, u8 reg)
 	return b1[0];
 }
 
-static int cx24110_set_inversion (struct cx24110_state* state, fe_spectral_inversion_t inversion)
+static int cx24110_set_inversion(struct cx24110_state *state,
+				 enum fe_spectral_inversion inversion)
 {
 /* fixme (low): error handling */
 
@@ -177,52 +178,50 @@ static int cx24110_set_inversion (struct cx24110_state* state, fe_spectral_inver
 	return 0;
 }
 
-static int cx24110_set_fec (struct cx24110_state* state, fe_code_rate_t fec)
+static int cx24110_set_fec(struct cx24110_state *state, enum fe_code_rate fec)
 {
-/* fixme (low): error handling */
-
-	static const int rate[]={-1,1,2,3,5,7,-1};
-	static const int g1[]={-1,0x01,0x02,0x05,0x15,0x45,-1};
-	static const int g2[]={-1,0x01,0x03,0x06,0x1a,0x7a,-1};
+	static const int rate[FEC_AUTO] = {-1,    1,    2,    3,    5,    7, -1};
+	static const int g1[FEC_AUTO]   = {-1, 0x01, 0x02, 0x05, 0x15, 0x45, -1};
+	static const int g2[FEC_AUTO]   = {-1, 0x01, 0x03, 0x06, 0x1a, 0x7a, -1};
 
 	/* Well, the AutoAcq engine of the cx24106 and 24110 automatically
 	   searches all enabled viterbi rates, and can handle non-standard
 	   rates as well. */
 
-	if (fec>FEC_AUTO)
-		fec=FEC_AUTO;
+	if (fec > FEC_AUTO)
+		fec = FEC_AUTO;
 
-	if (fec==FEC_AUTO) { /* (re-)establish AutoAcq behaviour */
-		cx24110_writereg(state,0x37,cx24110_readreg(state,0x37)&0xdf);
+	if (fec == FEC_AUTO) { /* (re-)establish AutoAcq behaviour */
+		cx24110_writereg(state, 0x37, cx24110_readreg(state, 0x37) & 0xdf);
 		/* clear AcqVitDis bit */
-		cx24110_writereg(state,0x18,0xae);
+		cx24110_writereg(state, 0x18, 0xae);
 		/* allow all DVB standard code rates */
-		cx24110_writereg(state,0x05,(cx24110_readreg(state,0x05)&0xf0)|0x3);
+		cx24110_writereg(state, 0x05, (cx24110_readreg(state, 0x05) & 0xf0) | 0x3);
 		/* set nominal Viterbi rate 3/4 */
-		cx24110_writereg(state,0x22,(cx24110_readreg(state,0x22)&0xf0)|0x3);
+		cx24110_writereg(state, 0x22, (cx24110_readreg(state, 0x22) & 0xf0) | 0x3);
 		/* set current Viterbi rate 3/4 */
-		cx24110_writereg(state,0x1a,0x05); cx24110_writereg(state,0x1b,0x06);
+		cx24110_writereg(state, 0x1a, 0x05);
+		cx24110_writereg(state, 0x1b, 0x06);
 		/* set the puncture registers for code rate 3/4 */
 		return 0;
 	} else {
-		cx24110_writereg(state,0x37,cx24110_readreg(state,0x37)|0x20);
+		cx24110_writereg(state, 0x37, cx24110_readreg(state, 0x37) | 0x20);
 		/* set AcqVitDis bit */
-		if(rate[fec]>0) {
-			cx24110_writereg(state,0x05,(cx24110_readreg(state,0x05)&0xf0)|rate[fec]);
-			/* set nominal Viterbi rate */
-			cx24110_writereg(state,0x22,(cx24110_readreg(state,0x22)&0xf0)|rate[fec]);
-			/* set current Viterbi rate */
-			cx24110_writereg(state,0x1a,g1[fec]);
-			cx24110_writereg(state,0x1b,g2[fec]);
-			/* not sure if this is the right way: I always used AutoAcq mode */
-	   } else
-		   return -EOPNOTSUPP;
-/* fixme (low): which is the correct return code? */
+		if (rate[fec] < 0)
+			return -EINVAL;
+
+		cx24110_writereg(state, 0x05, (cx24110_readreg(state, 0x05) & 0xf0) | rate[fec]);
+		/* set nominal Viterbi rate */
+		cx24110_writereg(state, 0x22, (cx24110_readreg(state, 0x22) & 0xf0) | rate[fec]);
+		/* set current Viterbi rate */
+		cx24110_writereg(state, 0x1a, g1[fec]);
+		cx24110_writereg(state, 0x1b, g2[fec]);
+		/* not sure if this is the right way: I always used AutoAcq mode */
 	}
 	return 0;
 }
 
-static fe_code_rate_t cx24110_get_fec (struct cx24110_state* state)
+static enum fe_code_rate cx24110_get_fec(struct cx24110_state *state)
 {
 	int i;
 
@@ -367,7 +366,8 @@ static int cx24110_initfe(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int cx24110_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t voltage)
+static int cx24110_set_voltage(struct dvb_frontend *fe,
+			       enum fe_sec_voltage voltage)
 {
 	struct cx24110_state *state = fe->demodulator_priv;
 
@@ -381,7 +381,8 @@ static int cx24110_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t voltag
 	}
 }
 
-static int cx24110_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t burst)
+static int cx24110_diseqc_send_burst(struct dvb_frontend *fe,
+				     enum fe_sec_mini_cmd burst)
 {
 	int rv, bit;
 	struct cx24110_state *state = fe->demodulator_priv;
@@ -436,7 +437,8 @@ static int cx24110_send_diseqc_msg(struct dvb_frontend* fe,
 	return 0;
 }
 
-static int cx24110_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int cx24110_read_status(struct dvb_frontend *fe,
+			       enum fe_status *status)
 {
 	struct cx24110_state *state = fe->demodulator_priv;
 
@@ -548,9 +550,9 @@ static int cx24110_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int cx24110_get_frontend(struct dvb_frontend *fe)
+static int cx24110_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct cx24110_state *state = fe->demodulator_priv;
 	s32 afc; unsigned sclk;
 
@@ -576,7 +578,8 @@ static int cx24110_get_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int cx24110_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
+static int cx24110_set_tone(struct dvb_frontend *fe,
+			    enum fe_sec_tone_mode tone)
 {
 	struct cx24110_state *state = fe->demodulator_priv;
 

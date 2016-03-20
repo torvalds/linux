@@ -6,15 +6,13 @@
 
 static inline int
 nft_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
-		     const struct nf_hook_ops *ops,
 		     struct sk_buff *skb,
-		     const struct net_device *in,
-		     const struct net_device *out)
+		     const struct nf_hook_state *state)
 {
 	int protohdr, thoff = 0;
 	unsigned short frag_off;
 
-	nft_set_pktinfo(pkt, ops, skb, in, out);
+	nft_set_pktinfo(pkt, skb, state);
 
 	protohdr = ipv6_find_hdr(pkt->skb, &thoff, -1, &frag_off, NULL);
 	/* If malformed, drop it */

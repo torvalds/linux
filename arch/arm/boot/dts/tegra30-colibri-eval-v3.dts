@@ -10,6 +10,9 @@
 		rtc0 = "/i2c@7000c000/rtc@68";
 		rtc1 = "/i2c@7000d000/tps65911@2d";
 		rtc2 = "/rtc@7000e000";
+		serial0 = &uarta;
+		serial1 = &uartb;
+		serial2 = &uartd;
 	};
 
 	host1x@50000000 {
@@ -52,7 +55,7 @@
 
 		/* M41T0M6 real time clock on carrier board */
 		rtc@68 {
-			compatible = "stm,m41t00";
+			compatible = "st,m41t00";
 			reg = <0x68>;
 		};
 	};
@@ -81,6 +84,7 @@
 		};
 	};
 
+	/* SD/MMC */
 	sdhci@78000200 {
 		status = "okay";
 		bus-width = <4>;
@@ -133,10 +137,10 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		power {
-			label = "Power";
+		wakeup {
+			label = "SODIMM pin 45 wakeup";
 			gpios = <&gpio TEGRA_GPIO(V, 1) GPIO_ACTIVE_HIGH>;
-			linux,code = <KEY_POWER>;
+			linux,code = <KEY_WAKEUP>;
 			debounce-interval = <10>;
 			gpio-key,wakeup;
 		};

@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
@@ -102,6 +103,8 @@ struct rcar_pci_priv {
 	unsigned busnr;
 	int irq;
 	unsigned long window_size;
+	unsigned long window_addr;
+	unsigned long window_pci;
 };
 
 /* PCI configuration space operations */
@@ -129,52 +132,6 @@ static void __iomem *rcar_pci_cfg_base(struct pci_bus *bus, unsigned int devfn,
 
 	iowrite32(val, priv->reg + RCAR_AHBPCI_WIN1_CTR_REG);
 	return priv->reg + (slot >> 1) * 0x100 + where;
-}
-
-static int rcar_pci_read_config(struct pci_bus *bus, unsigned int devfn,
-				int where, int size, u32 *val)
-{
-	void __iomem *reg = rcar_pci_cfg_base(bus, devfn, where);
-
-	if (!reg)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	switch (size) {
-	case 1:
-		*val = ioread8(reg);
-		break;
-	case 2:
-		*val = ioread16(reg);
-		break;
-	default:
-		*val = ioread32(reg);
-		break;
-	}
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static int rcar_pci_write_config(struct pci_bus *bus, unsigned int devfn,
-				 int where, int size, u32 val)
-{
-	void __iomem *reg = rcar_pci_cfg_base(bus, devfn, where);
-
-	if (!reg)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	switch (size) {
-	case 1:
-		iowrite8(val, reg);
-		break;
-	case 2:
-		iowrite16(val, reg);
-		break;
-	default:
-		iowrite32(val, reg);
-		break;
-	}
-
-	return PCIBIOS_SUCCESSFUL;
 }
 
 /* PCI interrupt mapping */
@@ -285,8 +242,8 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 	       RCAR_PCI_ARBITER_PCIBP_MODE;
 	iowrite32(val, reg + RCAR_PCI_ARBITER_CTR_REG);
 
-	/* PCI-AHB mapping: 0x40000000 base */
-	iowrite32(0x40000000 | RCAR_PCIAHB_PREFETCH16,
+	/* PCI-AHB mapping */
+	iowrite32(priv->window_addr | RCAR_PCIAHB_PREFETCH16,
 		  reg + RCAR_PCIAHB_WIN1_CTR_REG);
 
 	/* AHB-PCI mapping: OHCI/EHCI registers */
@@ -297,7 +254,7 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 	iowrite32(RCAR_AHBPCI_WIN1_HOST | RCAR_AHBPCI_WIN_CTR_CFG,
 		  reg + RCAR_AHBPCI_WIN1_CTR_REG);
 	/* Set PCI-AHB Window1 address */
-	iowrite32(0x40000000 | PCI_BASE_ADDRESS_MEM_PREFETCH,
+	iowrite32(priv->window_pci | PCI_BASE_ADDRESS_MEM_PREFETCH,
 		  reg + PCI_BASE_ADDRESS_1);
 	/* Set AHB-PCI bridge PCI communication area address */
 	val = priv->cfg_res->start + RCAR_AHBPCI_PCICOM_OFFSET;
@@ -325,9 +282,68 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 }
 
 static struct pci_ops rcar_pci_ops = {
-	.read	= rcar_pci_read_config,
-	.write	= rcar_pci_write_config,
+	.map_bus = rcar_pci_cfg_base,
+	.read	= pci_generic_config_read,
+	.write	= pci_generic_config_write,
 };
+
+static int pci_dma_range_parser_init(struct of_pci_range_parser *parser,
+				     struct device_node *node)
+{
+	const int na = 3, ns = 2;
+	int rlen;
+
+	parser->node = node;
+	parser->pna = of_n_addr_cells(node);
+	parser->np = parser->pna + na + ns;
+
+	parser->range = of_get_property(node, "dma-ranges", &rlen);
+	if (!parser->range)
+		return -ENOENT;
+
+	parser->end = parser->range + rlen / sizeof(__be32);
+	return 0;
+}
+
+static int rcar_pci_parse_map_dma_ranges(struct rcar_pci_priv *pci,
+					 struct device_node *np)
+{
+	struct of_pci_range range;
+	struct of_pci_range_parser parser;
+	int index = 0;
+
+	/* Failure to parse is ok as we fall back to defaults */
+	if (pci_dma_range_parser_init(&parser, np))
+		return 0;
+
+	/* Get the dma-ranges from DT */
+	for_each_of_pci_range(&parser, &range) {
+		/* Hardware only allows one inbound 32-bit range */
+		if (index)
+			return -EINVAL;
+
+		pci->window_addr = (unsigned long)range.cpu_addr;
+		pci->window_pci = (unsigned long)range.pci_addr;
+		pci->window_size = (unsigned long)range.size;
+
+		/* Catch HW limitations */
+		if (!(range.flags & IORESOURCE_PREFETCH)) {
+			dev_err(pci->dev, "window must be prefetchable\n");
+			return -EINVAL;
+		}
+		if (pci->window_addr) {
+			u32 lowaddr = 1 << (ffs(pci->window_addr) - 1);
+
+			if (lowaddr < pci->window_size) {
+				dev_err(pci->dev, "invalid window size/addr\n");
+				return -EINVAL;
+			}
+		}
+		index++;
+	}
+
+	return 0;
+}
 
 static int rcar_pci_probe(struct platform_device *pdev)
 {
@@ -345,6 +361,9 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!mem_res || !mem_res->start)
 		return -ENODEV;
+
+	if (mem_res->start & 0xFFFF)
+		return -EINVAL;
 
 	priv = devm_kzalloc(&pdev->dev,
 			    sizeof(struct rcar_pci_priv), GFP_KERNEL);
@@ -371,6 +390,9 @@ static int rcar_pci_probe(struct platform_device *pdev)
 		return priv->irq;
 	}
 
+	/* default window addr and size if not specified in DT */
+	priv->window_addr = 0x40000000;
+	priv->window_pci = 0x40000000;
 	priv->window_size = SZ_1G;
 
 	if (pdev->dev.of_node) {
@@ -386,6 +408,12 @@ static int rcar_pci_probe(struct platform_device *pdev)
 		priv->busnr = busnr.start;
 		if (busnr.end != busnr.start)
 			dev_warn(&pdev->dev, "only one bus number supported\n");
+
+		ret = rcar_pci_parse_map_dma_ranges(priv, pdev->dev.of_node);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "failed to parse dma-range\n");
+			return ret;
+		}
 	} else {
 		priv->busnr = pdev->id;
 	}
@@ -402,8 +430,10 @@ static int rcar_pci_probe(struct platform_device *pdev)
 }
 
 static struct of_device_id rcar_pci_of_match[] = {
+	{ .compatible = "renesas,pci-rcar-gen2", },
 	{ .compatible = "renesas,pci-r8a7790", },
 	{ .compatible = "renesas,pci-r8a7791", },
+	{ .compatible = "renesas,pci-r8a7794", },
 	{ },
 };
 
@@ -412,7 +442,6 @@ MODULE_DEVICE_TABLE(of, rcar_pci_of_match);
 static struct platform_driver rcar_pci_driver = {
 	.driver = {
 		.name = "pci-rcar-gen2",
-		.owner = THIS_MODULE,
 		.suppress_bind_attrs = true,
 		.of_match_table = rcar_pci_of_match,
 	},

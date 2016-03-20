@@ -532,9 +532,8 @@ static int reader_config(struct pcmcia_device *link, int devno)
 
 	fail_rc = pcmcia_enable_device(link);
 	if (fail_rc != 0) {
-		dev_printk(KERN_INFO, &link->dev,
-			   "pcmcia_enable_device failed 0x%x\n",
-			   fail_rc);
+		dev_info(&link->dev, "pcmcia_enable_device failed 0x%x\n",
+			 fail_rc);
 		goto cs_release;
 	}
 

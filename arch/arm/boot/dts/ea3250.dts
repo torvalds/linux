@@ -12,7 +12,7 @@
  */
 
 /dts-v1/;
-/include/ "lpc32xx.dtsi"
+#include "lpc32xx.dtsi"
 
 / {
 	model = "Embedded Artists LPC3250 board based on NXP LPC3250";
@@ -22,7 +22,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0 0x4000000>;
+		reg = <0x80000000 0x4000000>;
 	};
 
 	ahb {
@@ -30,19 +30,6 @@
 			phy-mode = "rmii";
 			use-iram;
 		};
-
-		/* Here, choose exactly one from: ohci, usbd */
-		ohci@31020000 {
-			transceiver = <&isp1301>;
-			status = "okay";
-		};
-
-/*
-		usbd@31020000 {
-			transceiver = <&isp1301>;
-			status = "okay";
-		};
-*/
 
 		/* 128MB Flash via SLC NAND controller */
 		slc: flash@20020000 {
@@ -128,15 +115,6 @@
 
 			i2c2: i2c@400A8000 {
 				clock-frequency = <100000>;
-			};
-
-			i2cusb: i2c@31020300 {
-				clock-frequency = <100000>;
-
-				isp1301: usb-transceiver@2d {
-					compatible = "nxp,isp1301";
-					reg = <0x2d>;
-				};
 			};
 
 			sd@20098000 {
@@ -277,5 +255,20 @@
 			gpios = <&pca9532 15 0>;
 			default-state = "off";
 		};
+	};
+};
+
+/* Here, choose exactly one from: ohci, usbd */
+&ohci /* &usbd */ {
+	transceiver = <&isp1301>;
+	status = "okay";
+};
+
+&i2cusb {
+	clock-frequency = <100000>;
+
+	isp1301: usb-transceiver@2d {
+		compatible = "nxp,isp1301";
+		reg = <0x2d>;
 	};
 };

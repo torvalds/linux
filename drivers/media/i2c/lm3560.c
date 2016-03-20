@@ -24,7 +24,7 @@
 #include <linux/mutex.h>
 #include <linux/regmap.h>
 #include <linux/videodev2.h>
-#include <media/lm3560.h>
+#include <media/i2c/lm3560.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 
@@ -100,14 +100,14 @@ static int lm3560_enable_ctrl(struct lm3560_flash *flash,
 	int rval;
 
 	if (led_no == LM3560_LED0) {
-		if (on == true)
+		if (on)
 			rval = regmap_update_bits(flash->regmap,
 						  REG_ENABLE, 0x08, 0x08);
 		else
 			rval = regmap_update_bits(flash->regmap,
 						  REG_ENABLE, 0x08, 0x00);
 	} else {
-		if (on == true)
+		if (on)
 			rval = regmap_update_bits(flash->regmap,
 						  REG_ENABLE, 0x10, 0x10);
 		else
@@ -365,10 +365,10 @@ static int lm3560_subdev_init(struct lm3560_flash *flash,
 	rval = lm3560_init_controls(flash, led_no);
 	if (rval)
 		goto err_out;
-	rval = media_entity_init(&flash->subdev_led[led_no].entity, 0, NULL, 0);
+	rval = media_entity_pads_init(&flash->subdev_led[led_no].entity, 0, NULL);
 	if (rval < 0)
 		goto err_out;
-	flash->subdev_led[led_no].entity.type = MEDIA_ENT_T_V4L2_SUBDEV_FLASH;
+	flash->subdev_led[led_no].entity.function = MEDIA_ENT_F_FLASH;
 
 	return rval;
 

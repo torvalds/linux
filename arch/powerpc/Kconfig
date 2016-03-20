@@ -47,9 +47,6 @@ config STACKTRACE_SUPPORT
 	bool
 	default y
 
-config HAVE_LATENCYTOP_SUPPORT
-	def_bool y
-
 config TRACE_IRQFLAGS_SUPPORT
 	bool
 	default y
@@ -82,17 +79,22 @@ config GENERIC_HWEIGHT
 	bool
 	default y
 
+config ARCH_HAS_DMA_SET_COHERENT_MASK
+        bool
+
 config PPC
 	bool
 	default y
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select BINFMT_ELF
+	select ARCH_HAS_ELF_RANDOMIZE
 	select OF
 	select OF_EARLY_FLATTREE
 	select OF_RESERVED_MEM
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS if MPROFILE_KERNEL
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select SYSCTL_EXCEPTION_TRACE
@@ -107,7 +109,6 @@ config PPC
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
-	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select HAVE_OPROFILE
 	select HAVE_DEBUG_KMEMLEAK
@@ -125,9 +126,10 @@ config PPC
 	select IRQ_FORCED_THREADING
 	select HAVE_RCU_TABLE_FREE if SMP
 	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_BPF_JIT if PPC64
+	select HAVE_BPF_JIT
 	select HAVE_ARCH_JUMP_LABEL
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select ARCH_HAS_GCOV_PROFILE_ALL
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_TIME_VSYSCALL_OLD
@@ -147,6 +149,17 @@ config PPC
 	select ARCH_USE_CMPXCHG_LOCKREF if PPC64
 	select HAVE_ARCH_AUDITSYSCALL
 	select ARCH_SUPPORTS_ATOMIC_RMW
+	select DCACHE_WORD_ACCESS if PPC64 && CPU_LITTLE_ENDIAN
+	select NO_BOOTMEM
+	select HAVE_GENERIC_RCU_GUP
+	select HAVE_PERF_EVENTS_NMI if PPC64
+	select EDAC_SUPPORT
+	select EDAC_ATOMIC_SCRUB
+	select ARCH_HAS_DMA_SET_COHERENT_MASK
+	select ARCH_HAS_DEVMEM_IS_ALLOWED
+	select HAVE_ARCH_SECCOMP_FILTER
+	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
 
 config GENERIC_CSUM
 	def_bool CPU_LITTLE_ENDIAN
@@ -182,10 +195,7 @@ config SCHED_OMIT_FRAME_POINTER
 
 config ARCH_MAY_HAVE_PC_FDC
 	bool
-	default !PPC_PSERIES || PCI
-
-config PPC_OF
-	def_bool y
+	default PCI
 
 config PPC_UDBG_16550
 	bool
@@ -251,6 +261,7 @@ config PPC_OF_PLATFORM_PCI
 	default n
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	depends on PPC32 || PPC_STD_MMU_64
 	def_bool y
 
 config ARCH_SUPPORTS_UPROBES
@@ -286,6 +297,16 @@ config PPC_ADV_DEBUG_DAC_RANGE
 config PPC_EMULATE_SSTEP
 	bool
 	default y if KPROBES || UPROBES || XMON || HAVE_HW_BREAKPOINT
+
+config ZONE_DMA32
+	bool
+	default y if PPC64
+
+config PGTABLE_LEVELS
+	int
+	default 2 if !PPC64
+	default 3 if PPC_64K_PAGES && !PPC_BOOK3S_64
+	default 4
 
 source "init/Kconfig"
 
@@ -354,6 +375,24 @@ config PPC_TRANSACTIONAL_MEM
        ---help---
          Support user-mode Transactional Memory on POWERPC.
 
+config DISABLE_MPROFILE_KERNEL
+	bool "Disable use of mprofile-kernel for kernel tracing"
+	depends on PPC64 && CPU_LITTLE_ENDIAN
+	default y
+	help
+	  Selecting this options disables use of the mprofile-kernel ABI for
+	  kernel tracing. That will cause options such as live patching
+	  (CONFIG_LIVEPATCH) which depend on CONFIG_DYNAMIC_FTRACE_WITH_REGS to
+	  be disabled also.
+
+	  If you have a toolchain which supports mprofile-kernel, then you can
+	  enable this. Otherwise leave it disabled. If you're not sure, say
+	  "N".
+
+config MPROFILE_KERNEL
+	depends on PPC64 && CPU_LITTLE_ENDIAN
+	def_bool !DISABLE_MPROFILE_KERNEL
+
 config IOMMU_HELPER
 	def_bool PPC64
 
@@ -370,7 +409,7 @@ config SWIOTLB
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
 	depends on SMP && (PPC_PSERIES || \
-	PPC_PMAC || PPC_POWERNV || (PPC_85xx && !PPC_E500MC))
+	PPC_PMAC || PPC_POWERNV || FSL_SOC_BOOKE)
 	---help---
 	  Say Y here to be able to disable and re-enable individual
 	  CPUs at runtime on SMP machines.
@@ -398,9 +437,8 @@ config PPC64_SUPPORTS_MEMORY_FAILURE
 
 config KEXEC
 	bool "kexec system call"
-	depends on (PPC_BOOK3S || FSL_BOOKE || (44x && !SMP))
-	select CRYPTO
-	select CRYPTO_SHA256
+	depends on (PPC_BOOK3S || FSL_BOOKE || (44x && !SMP)) || PPC_BOOK3E
+	select KEXEC_CORE
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -500,11 +538,6 @@ config NODES_SPAN_OTHER_NODES
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
 
-config PPC_HAS_HASH_64K
-	bool
-	depends on PPC64
-	default n
-
 config STDBINUTILS
 	bool "Using standard binutils settings"
 	depends on 44x
@@ -544,18 +577,20 @@ choice
 
 config PPC_4K_PAGES
 	bool "4k page size"
+	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
 
 config PPC_16K_PAGES
-	bool "16k page size" if 44x
+	bool "16k page size"
+	depends on 44x || PPC_8xx
 
 config PPC_64K_PAGES
-	bool "64k page size" if 44x || PPC_STD_MMU_64 || PPC_BOOK3E_64
-	depends on !PPC_FSL_BOOK3E
-	select PPC_HAS_HASH_64K if PPC_STD_MMU_64
+	bool "64k page size"
+	depends on !PPC_FSL_BOOK3E && (44x || PPC_STD_MMU_64 || PPC_BOOK3E_64)
+	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
 
 config PPC_256K_PAGES
-	bool "256k page size" if 44x
-	depends on !STDBINUTILS
+	bool "256k page size"
+	depends on 44x && !STDBINUTILS
 	help
 	  Make the page size 256k.
 
@@ -604,6 +639,10 @@ config PPC_SUBPAGE_PROT
 	  This option adds support for a system call to allow user programs
 	  to set access permissions (read/write, readonly, or no access)
 	  on the 4k subpages of each 64k page.
+
+config PPC_COPRO_BASE
+	bool
+	default n
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
@@ -809,13 +848,9 @@ config PCI_8260
 	select PPC_INDIRECT_PCI
 	default y
 
-source "drivers/pci/pcie/Kconfig"
-
 source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
-
-source "drivers/pci/hotplug/Kconfig"
 
 config HAS_RAPIDIO
 	bool
@@ -1054,8 +1089,6 @@ source "net/Kconfig"
 source "drivers/Kconfig"
 
 source "fs/Kconfig"
-
-source "arch/powerpc/sysdev/qe_lib/Kconfig"
 
 source "lib/Kconfig"
 

@@ -28,7 +28,7 @@ befs_bread_iaddr(struct super_block *sb, befs_inode_addr iaddr)
 {
 	struct buffer_head *bh = NULL;
 	befs_blocknr_t block = 0;
-	befs_sb_info *befs_sb = BEFS_SB(sb);
+	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 
 	befs_debug(sb, "---> Enter %s "
 		   "[%u, %hu, %hu]", __func__, iaddr.allocation_group,

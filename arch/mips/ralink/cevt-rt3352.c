@@ -36,8 +36,8 @@ struct systick_device {
 	int freq_scale;
 };
 
-static void systick_set_clock_mode(enum clock_event_mode mode,
-				struct clock_event_device *evt);
+static int systick_set_oneshot(struct clock_event_device *evt);
+static int systick_shutdown(struct clock_event_device *evt);
 
 static int systick_next_event(unsigned long delta,
 				struct clock_event_device *evt)
@@ -48,7 +48,7 @@ static int systick_next_event(unsigned long delta,
 	sdev = container_of(evt, struct systick_device, dev);
 	count = ioread32(sdev->membase + SYSTICK_COUNT);
 	count = (count + delta) % SYSTICK_FREQ;
-	iowrite32(count + delta, sdev->membase + SYSTICK_COMPARE);
+	iowrite32(count, sdev->membase + SYSTICK_COMPARE);
 
 	return 0;
 }
@@ -73,11 +73,12 @@ static struct systick_device systick = {
 		 * cevt-r4k uses 300, make sure systick
 		 * gets used if available
 		 */
-		.rating		= 310,
-		.features	= CLOCK_EVT_FEAT_ONESHOT,
-		.set_next_event	= systick_next_event,
-		.set_mode	= systick_set_clock_mode,
-		.event_handler	= systick_event_handler,
+		.rating			= 310,
+		.features		= CLOCK_EVT_FEAT_ONESHOT,
+		.set_next_event		= systick_next_event,
+		.set_state_shutdown	= systick_shutdown,
+		.set_state_oneshot	= systick_set_oneshot,
+		.event_handler		= systick_event_handler,
 	},
 };
 
@@ -87,33 +88,33 @@ static struct irqaction systick_irqaction = {
 	.dev_id = &systick.dev,
 };
 
-static void systick_set_clock_mode(enum clock_event_mode mode,
-				struct clock_event_device *evt)
+static int systick_shutdown(struct clock_event_device *evt)
 {
 	struct systick_device *sdev;
 
 	sdev = container_of(evt, struct systick_device, dev);
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_ONESHOT:
-		if (!sdev->irq_requested)
-			setup_irq(systick.dev.irq, &systick_irqaction);
-		sdev->irq_requested = 1;
-		iowrite32(CFG_EXT_STK_EN | CFG_CNT_EN,
-				systick.membase + SYSTICK_CONFIG);
-		break;
+	if (sdev->irq_requested)
+		free_irq(systick.dev.irq, &systick_irqaction);
+	sdev->irq_requested = 0;
+	iowrite32(0, systick.membase + SYSTICK_CONFIG);
 
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		if (sdev->irq_requested)
-			free_irq(systick.dev.irq, &systick_irqaction);
-		sdev->irq_requested = 0;
-		iowrite32(0, systick.membase + SYSTICK_CONFIG);
-		break;
+	return 0;
+}
 
-	default:
-		pr_err("%s: Unhandeled mips clock_mode\n", systick.dev.name);
-		break;
-	}
+static int systick_set_oneshot(struct clock_event_device *evt)
+{
+	struct systick_device *sdev;
+
+	sdev = container_of(evt, struct systick_device, dev);
+
+	if (!sdev->irq_requested)
+		setup_irq(systick.dev.irq, &systick_irqaction);
+	sdev->irq_requested = 1;
+	iowrite32(CFG_EXT_STK_EN | CFG_CNT_EN,
+		  systick.membase + SYSTICK_CONFIG);
+
+	return 0;
 }
 
 static void __init ralink_systick_init(struct device_node *np)

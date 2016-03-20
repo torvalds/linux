@@ -33,6 +33,7 @@ show up in /proc/sys/kernel:
 - domainname
 - hostname
 - hotplug
+- hardlockup_all_cpu_backtrace
 - hung_task_panic
 - hung_task_check_count
 - hung_task_timeout_secs
@@ -54,14 +55,18 @@ show up in /proc/sys/kernel:
 - overflowuid
 - panic
 - panic_on_oops
-- panic_on_unrecovered_nmi
 - panic_on_stackoverflow
+- panic_on_unrecovered_nmi
+- panic_on_warn
+- perf_cpu_time_max_percent
+- perf_event_paranoid
 - pid_max
 - powersave-nap               [ PPC only ]
 - printk
 - printk_delay
 - printk_ratelimit
 - printk_ratelimit_burst
+- pty                         ==> Documentation/filesystems/devpts.txt
 - randomize_va_space
 - real-root-dev               ==> Documentation/initrd.txt
 - reboot-cmd                  [ SPARC only ]
@@ -76,12 +81,14 @@ show up in /proc/sys/kernel:
 - shmmax                      [ sysv ipc ]
 - shmmni
 - softlockup_all_cpu_backtrace
+- soft_watchdog
 - stop-a                      [ SPARC only ]
 - sysrq                       ==> Documentation/sysrq.txt
 - sysctl_writes_strict
 - tainted
 - threads-max
 - unknown_nmi_panic
+- watchdog
 - watchdog_thresh
 - version
 
@@ -115,10 +122,12 @@ set during run time.
 
 auto_msgmni:
 
-Enables/Disables automatic recomputing of msgmni upon memory add/remove
-or upon ipc namespace creation/removal (see the msgmni description
-above). Echoing "1" into this file enables msgmni automatic recomputing.
-Echoing "0" turns it off. auto_msgmni default value is 1.
+This variable has no effect and may be removed in future kernel
+releases. Reading it always returns 0.
+Up to Linux 3.17, it enabled/disabled automatic recomputing of msgmni
+upon memory add/remove or upon ipc namespace creation/removal.
+Echoing "1" into this file enabled msgmni automatic recomputing.
+Echoing "0" turned it off. auto_msgmni default value was 1.
 
 
 ==============================================================
@@ -190,8 +199,10 @@ core_pattern is used to specify a core dumpfile pattern name.
 	%%	output one '%'
 	%p	pid
 	%P	global pid (init PID namespace)
-	%u	uid
-	%g	gid
+	%i	tid
+	%I	global tid (init PID namespace)
+	%u	uid (in initial user namespace)
+	%g	gid (in initial user namespace)
 	%d	dump mode, matches PR_SET_DUMPABLE and
 		/proc/sys/fs/suid_dumpable
 	%s	signal number
@@ -285,6 +296,17 @@ Information Service) or YP (Yellow Pages) domainname. These two
 domain names are in general different. For a detailed discussion
 see the hostname(1) man page.
 
+==============================================================
+hardlockup_all_cpu_backtrace:
+
+This value controls the hard lockup detector behavior when a hard
+lockup condition is detected as to whether or not to gather further
+debug information. If enabled, arch-specific all-CPU stack dumping
+will be initiated.
+
+0: do nothing. This is the default behavior.
+
+1: on detection capture more debug information.
 ==============================================================
 
 hotplug:
@@ -412,16 +434,23 @@ successful IPC object allocation.
 
 nmi_watchdog:
 
-Enables/Disables the NMI watchdog on x86 systems. When the value is
-non-zero the NMI watchdog is enabled and will continuously test all
-online cpus to determine whether or not they are still functioning
-properly. Currently, passing "nmi_watchdog=" parameter at boot time is
-required for this function to work.
+This parameter can be used to control the NMI watchdog
+(i.e. the hard lockup detector) on x86 systems.
 
-If LAPIC NMI watchdog method is in use (nmi_watchdog=2 kernel
-parameter), the NMI watchdog shares registers with oprofile. By
-disabling the NMI watchdog, oprofile may have more registers to
-utilize.
+   0 - disable the hard lockup detector
+   1 - enable the hard lockup detector
+
+The hard lockup detector monitors each CPU for its ability to respond to
+timer interrupts. The mechanism utilizes CPU performance counter registers
+that are programmed to generate Non-Maskable Interrupts (NMIs) periodically
+while a CPU is busy. Hence, the alternative name 'NMI watchdog'.
+
+The NMI watchdog is disabled by default if the kernel is running as a guest
+in a KVM virtual machine. This default can be overridden by adding
+
+   nmi_watchdog=1
+
+to the guest kernel command line (see Documentation/kernel-parameters.txt).
 
 ==============================================================
 
@@ -525,16 +554,18 @@ the recommended setting is 60.
 
 ==============================================================
 
-panic_on_unrecovered_nmi:
+panic_on_io_nmi:
 
-The default Linux behaviour on an NMI of either memory or unknown is
-to continue operation. For many environments such as scientific
-computing it is preferable that the box is taken out and the error
-dealt with than an uncorrected parity/ECC error get propagated.
+Controls the kernel's behavior when a CPU receives an NMI caused by
+an IO error.
 
-A small number of systems do generate NMI's for bizarre random reasons
-such as power management so the default is off. That sysctl works like
-the existing panic controls already in that directory.
+0: try to continue operation (default)
+
+1: panic immediately. The IO error triggered an NMI. This indicates a
+   serious system condition which could result in IO data corruption.
+   Rather than continuing, panicking might be a better choice. Some
+   servers issue this sort of NMI when the dump button is pushed,
+   and you can use this option to take a crash dump.
 
 ==============================================================
 
@@ -558,6 +589,30 @@ This file shows up if CONFIG_DEBUG_STACKOVERFLOW is enabled.
 0: try to continue operation.
 
 1: panic immediately.
+
+==============================================================
+
+panic_on_unrecovered_nmi:
+
+The default Linux behaviour on an NMI of either memory or unknown is
+to continue operation. For many environments such as scientific
+computing it is preferable that the box is taken out and the error
+dealt with than an uncorrected parity/ECC error get propagated.
+
+A small number of systems do generate NMI's for bizarre random reasons
+such as power management so the default is off. That sysctl works like
+the existing panic controls already in that directory.
+
+==============================================================
+
+panic_on_warn:
+
+Calls panic() in the WARN() path when set to 1.  This is useful to avoid
+a kernel rebuild when attempting to kdump at the location of a WARN().
+
+0: only WARN(), default behaviour.
+
+1: call panic() after printing out WARN() location.
 
 ==============================================================
 
@@ -587,6 +642,17 @@ allowed to execute.
 
 ==============================================================
 
+perf_event_paranoid:
+
+Controls use of the performance events system by unprivileged
+users (without CAP_SYS_ADMIN).  The default value is 1.
+
+ -1: Allow use of (almost) all events by all users
+>=0: Disallow raw tracepoint access by users without CAP_IOC_LOCK
+>=1: Disallow CPU event access by users without CAP_SYS_ADMIN
+>=2: Disallow kernel profiling by users without CAP_SYS_ADMIN
+
+==============================================================
 
 pid_max:
 
@@ -708,6 +774,14 @@ rtsig-nr shows the number of RT signals currently queued.
 
 ==============================================================
 
+sched_schedstats:
+
+Enables/disables scheduler statistics. Enabling this feature
+incurs a small amount of overhead in the scheduler but is
+useful for debugging and performance tuning.
+
+==============================================================
+
 sg-big-buff:
 
 This file shows the size of the generic SCSI (sg) buffer.
@@ -773,14 +847,13 @@ via the /proc/sys interface:
        Each write syscall must fully contain the sysctl value to be
        written, and multiple writes on the same sysctl file descriptor
        will rewrite the sysctl value, regardless of file position.
-   0 - (default) Same behavior as above, but warn about processes that
-       perform writes to a sysctl file descriptor when the file position
-       is not 0.
-   1 - Respect file position when writing sysctl strings. Multiple writes
-       will append to the sysctl value buffer. Anything past the max length
-       of the sysctl value buffer will be ignored. Writes to numeric sysctl
-       entries must always be at file position 0 and the value must be
-       fully contained in the buffer sent in the write syscall.
+   0 - Same behavior as above, but warn about processes that perform writes
+       to a sysctl file descriptor when the file position is not 0.
+   1 - (default) Respect file position when writing sysctl strings. Multiple
+       writes will append to the sysctl value buffer. Anything past the max
+       length of the sysctl value buffer will be ignored. Writes to numeric
+       sysctl entries must always be at file position 0 and the value must
+       be fully contained in the buffer sent in the write syscall.
 
 ==============================================================
 
@@ -797,6 +870,22 @@ NMI.
 0: do nothing. This is the default behavior.
 
 1: on detection capture more debug information.
+
+==============================================================
+
+soft_watchdog
+
+This parameter can be used to control the soft lockup detector.
+
+   0 - disable the soft lockup detector
+   1 - enable the soft lockup detector
+
+The soft lockup detector monitors CPUs for threads that are hogging the CPUs
+without rescheduling voluntarily, and thus prevent the 'watchdog/N' threads
+from running. The mechanism depends on the CPUs ability to respond to timer
+interrupts which are needed for the 'watchdog/N' threads to be woken up by
+the watchdog timer function, otherwise the NMI watchdog - if enabled - can
+detect a hard lockup condition.
 
 ==============================================================
 
@@ -827,6 +916,28 @@ can be ORed together:
 8192 - An unsigned module has been loaded in a kernel supporting module
        signature.
 16384 - A soft lockup has previously occurred on the system.
+32768 - The kernel has been live patched.
+
+==============================================================
+
+threads-max
+
+This value controls the maximum number of threads that can be created
+using fork().
+
+During initialization the kernel sets this value such that even if the
+maximum number of threads is created, the thread structures occupy only
+a part (1/8th) of the available RAM pages.
+
+The minimum value that can be written to threads-max is 20.
+The maximum value that can be written to threads-max is given by the
+constant FUTEX_TID_MASK (0x3fffffff).
+If a value outside of this range is written to threads-max an error
+EINVAL occurs.
+
+The value written is checked against the available RAM pages. If the
+thread structures would occupy too much (more than 1/8th) of the
+available RAM pages threads-max is reduced accordingly.
 
 ==============================================================
 
@@ -838,6 +949,46 @@ that time, kernel debugging information is displayed on console.
 
 NMI switch that most IA32 servers have fires unknown NMI up, for
 example.  If a system hangs up, try pressing the NMI switch.
+
+==============================================================
+
+watchdog:
+
+This parameter can be used to disable or enable the soft lockup detector
+_and_ the NMI watchdog (i.e. the hard lockup detector) at the same time.
+
+   0 - disable both lockup detectors
+   1 - enable both lockup detectors
+
+The soft lockup detector and the NMI watchdog can also be disabled or
+enabled individually, using the soft_watchdog and nmi_watchdog parameters.
+If the watchdog parameter is read, for example by executing
+
+   cat /proc/sys/kernel/watchdog
+
+the output of this command (0 or 1) shows the logical OR of soft_watchdog
+and nmi_watchdog.
+
+==============================================================
+
+watchdog_cpumask:
+
+This value can be used to control on which cpus the watchdog may run.
+The default cpumask is all possible cores, but if NO_HZ_FULL is
+enabled in the kernel config, and cores are specified with the
+nohz_full= boot argument, those cores are excluded by default.
+Offline cores can be included in this mask, and if the core is later
+brought online, the watchdog will be started based on the mask value.
+
+Typically this value would only be touched in the nohz_full case
+to re-enable cores that by default were not running the watchdog,
+if a kernel lockup was suspected on those cores.
+
+The argument value is the standard cpulist format for cpumasks,
+so for example to enable the watchdog on cores 0, 2, 3, and 4 you
+might say:
+
+  echo 0,2-4 > /proc/sys/kernel/watchdog_cpumask
 
 ==============================================================
 

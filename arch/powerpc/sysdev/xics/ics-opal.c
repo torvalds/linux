@@ -54,7 +54,7 @@ static void ics_opal_unmask_irq(struct irq_data *d)
 	if (hw_irq == XICS_IPI || hw_irq == XICS_IRQ_SPURIOUS)
 		return;
 
-	server = xics_get_irq_server(d->irq, d->affinity, 0);
+	server = xics_get_irq_server(d->irq, irq_data_get_affinity_mask(d), 0);
 	server = ics_opal_mangle_server(server);
 
 	rc = opal_set_xive(hw_irq, server, DEFAULT_PRIORITY);
@@ -72,8 +72,8 @@ static unsigned int ics_opal_startup(struct irq_data *d)
 	 * card, using the MSI mask bits. Firmware doesn't appear to unmask
 	 * at that level, so we do it here by hand.
 	 */
-	if (d->msi_desc)
-		unmask_msi_irq(d);
+	if (irq_data_get_msi_desc(d))
+		pci_msi_unmask_irq(d);
 #endif
 
 	/* unmask it */
@@ -131,10 +131,8 @@ static int ics_opal_set_affinity(struct irq_data *d,
 
 	wanted_server = xics_get_irq_server(d->irq, cpumask, 1);
 	if (wanted_server < 0) {
-		char cpulist[128];
-		cpumask_scnprintf(cpulist, sizeof(cpulist), cpumask);
-		pr_warning("%s: No online cpus in the mask %s for irq %d\n",
-			   __func__, cpulist, d->irq);
+		pr_warning("%s: No online cpus in the mask %*pb for irq %d\n",
+			   __func__, cpumask_pr_args(cpumask), d->irq);
 		return -1;
 	}
 	server = ics_opal_mangle_server(wanted_server);

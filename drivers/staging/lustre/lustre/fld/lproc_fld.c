@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, 2013, Intel Corporation.
+ * Copyright (c) 2012, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -48,8 +48,6 @@
 
 #include "../include/obd.h"
 #include "../include/obd_class.h"
-#include "../include/dt_object.h"
-#include "../include/md_object.h"
 #include "../include/obd_support.h"
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_fld.h"
@@ -57,16 +55,13 @@
 #include "fld_internal.h"
 
 static int
-fld_proc_targets_seq_show(struct seq_file *m, void *unused)
+fld_debugfs_targets_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_fld *fld = (struct lu_client_fld *)m->private;
 	struct lu_fld_target *target;
 
-	LASSERT(fld != NULL);
-
 	spin_lock(&fld->lcf_lock);
-	list_for_each_entry(target,
-				&fld->lcf_targets, ft_chain)
+	list_for_each_entry(target, &fld->lcf_targets, ft_chain)
 		seq_printf(m, "%s\n", fld_target_name(target));
 	spin_unlock(&fld->lcf_lock);
 
@@ -74,11 +69,9 @@ fld_proc_targets_seq_show(struct seq_file *m, void *unused)
 }
 
 static int
-fld_proc_hash_seq_show(struct seq_file *m, void *unused)
+fld_debugfs_hash_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_fld *fld = (struct lu_client_fld *)m->private;
-
-	LASSERT(fld != NULL);
 
 	spin_lock(&fld->lcf_lock);
 	seq_printf(m, "%s\n", fld->lcf_hash->fh_name);
@@ -88,27 +81,34 @@ fld_proc_hash_seq_show(struct seq_file *m, void *unused)
 }
 
 static ssize_t
-fld_proc_hash_seq_write(struct file *file, const char *buffer,
-			size_t count, loff_t *off)
+fld_debugfs_hash_seq_write(struct file *file,
+			   const char __user *buffer,
+			   size_t count, loff_t *off)
 {
 	struct lu_client_fld *fld;
 	struct lu_fld_hash *hash = NULL;
+	char fh_name[8];
 	int i;
 
-	fld = ((struct seq_file *)file->private_data)->private;
-	LASSERT(fld != NULL);
+	if (count > sizeof(fh_name))
+		return -ENAMETOOLONG;
 
-	for (i = 0; fld_hash[i].fh_name != NULL; i++) {
+	if (copy_from_user(fh_name, buffer, count) != 0)
+		return -EFAULT;
+
+	fld = ((struct seq_file *)file->private_data)->private;
+
+	for (i = 0; fld_hash[i].fh_name; i++) {
 		if (count != strlen(fld_hash[i].fh_name))
 			continue;
 
-		if (!strncmp(fld_hash[i].fh_name, buffer, count)) {
+		if (!strncmp(fld_hash[i].fh_name, fh_name, count)) {
 			hash = &fld_hash[i];
 			break;
 		}
 	}
 
-	if (hash != NULL) {
+	if (hash) {
 		spin_lock(&fld->lcf_lock);
 		fld->lcf_hash = hash;
 		spin_unlock(&fld->lcf_lock);
@@ -121,12 +121,10 @@ fld_proc_hash_seq_write(struct file *file, const char *buffer,
 }
 
 static ssize_t
-fld_proc_cache_flush_write(struct file *file, const char __user *buffer,
-			       size_t count, loff_t *pos)
+fld_debugfs_cache_flush_write(struct file *file, const char __user *buffer,
+			      size_t count, loff_t *pos)
 {
 	struct lu_client_fld *fld = file->private_data;
-
-	LASSERT(fld != NULL);
 
 	fld_cache_flush(fld->lcf_cache);
 
@@ -135,30 +133,26 @@ fld_proc_cache_flush_write(struct file *file, const char __user *buffer,
 	return count;
 }
 
-static int fld_proc_cache_flush_open(struct inode *inode, struct file *file)
-{
-	file->private_data = PDE_DATA(inode);
-	return 0;
-}
-
-static int fld_proc_cache_flush_release(struct inode *inode, struct file *file)
+static int
+fld_debugfs_cache_flush_release(struct inode *inode, struct file *file)
 {
 	file->private_data = NULL;
 	return 0;
 }
 
-struct file_operations fld_proc_cache_flush_fops = {
+static struct file_operations fld_debugfs_cache_flush_fops = {
 	.owner		= THIS_MODULE,
-	.open		= fld_proc_cache_flush_open,
-	.write		= fld_proc_cache_flush_write,
-	.release	= fld_proc_cache_flush_release,
+	.open           = simple_open,
+	.write		= fld_debugfs_cache_flush_write,
+	.release	= fld_debugfs_cache_flush_release,
 };
 
-LPROC_SEQ_FOPS_RO(fld_proc_targets);
-LPROC_SEQ_FOPS(fld_proc_hash);
+LPROC_SEQ_FOPS_RO(fld_debugfs_targets);
+LPROC_SEQ_FOPS(fld_debugfs_hash);
 
-struct lprocfs_vars fld_client_proc_list[] = {
-	{ "targets", &fld_proc_targets_fops },
-	{ "hash", &fld_proc_hash_fops },
-	{ "cache_flush", &fld_proc_cache_flush_fops },
-	{ NULL }};
+struct lprocfs_vars fld_client_debugfs_list[] = {
+	{ "targets",	 &fld_debugfs_targets_fops },
+	{ "hash",	 &fld_debugfs_hash_fops },
+	{ "cache_flush", &fld_debugfs_cache_flush_fops },
+	{ NULL }
+};

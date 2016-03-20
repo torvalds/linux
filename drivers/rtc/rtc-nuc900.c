@@ -262,7 +262,6 @@ static int __init nuc900_rtc_probe(struct platform_device *pdev)
 static struct platform_driver nuc900_rtc_driver = {
 	.driver		= {
 		.name	= "nuc900-rtc",
-		.owner	= THIS_MODULE,
 	},
 };
 

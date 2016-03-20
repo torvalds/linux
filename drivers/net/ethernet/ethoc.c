@@ -201,6 +201,7 @@ struct ethoc {
 	void __iomem *membase;
 	int dma_alloc;
 	resource_size_t io_region_size;
+	bool big_endian;
 
 	unsigned int num_bd;
 	unsigned int num_tx;
@@ -236,12 +237,18 @@ struct ethoc_bd {
 
 static inline u32 ethoc_read(struct ethoc *dev, loff_t offset)
 {
-	return ioread32(dev->iobase + offset);
+	if (dev->big_endian)
+		return ioread32be(dev->iobase + offset);
+	else
+		return ioread32(dev->iobase + offset);
 }
 
 static inline void ethoc_write(struct ethoc *dev, loff_t offset, u32 data)
 {
-	iowrite32(data, dev->iobase + offset);
+	if (dev->big_endian)
+		iowrite32be(data, dev->iobase + offset);
+	else
+		iowrite32(data, dev->iobase + offset);
 }
 
 static inline void ethoc_read_bd(struct ethoc *dev, int index,
@@ -671,7 +678,7 @@ static int ethoc_mdio_probe(struct net_device *dev)
 	int err;
 
 	if (priv->phy_id != -1)
-		phy = priv->mdio->phy_map[priv->phy_id];
+		phy = mdiobus_get_phy(priv->mdio, priv->phy_id);
 	else
 		phy = phy_find_first(priv->mdio);
 
@@ -759,7 +766,7 @@ static int ethoc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (mdio->phy_id >= PHY_MAX_ADDR)
 			return -ERANGE;
 
-		phy = priv->mdio->phy_map[mdio->phy_id];
+		phy = mdiobus_get_phy(priv->mdio, mdio->phy_id);
 		if (!phy)
 			return -ENODEV;
 	} else {
@@ -1008,7 +1015,6 @@ static int ethoc_probe(struct platform_device *pdev)
 	struct resource *mmio = NULL;
 	struct resource *mem = NULL;
 	struct ethoc *priv = NULL;
-	unsigned int phy;
 	int num_bd;
 	int ret = 0;
 	bool random_mac = false;
@@ -1106,6 +1112,9 @@ static int ethoc_probe(struct platform_device *pdev)
 		priv->dma_alloc = buffer_size;
 	}
 
+	priv->big_endian = pdata ? pdata->big_endian :
+		of_device_is_big_endian(pdev->dev.of_node);
+
 	/* calculate the number of TX/RX buffers, maximum 128 supported */
 	num_bd = min_t(unsigned int,
 		128, (netdev->mem_end - netdev->mem_start + 1) / ETHOC_BUFSIZ);
@@ -1132,10 +1141,6 @@ static int ethoc_probe(struct platform_device *pdev)
 		memcpy(netdev->dev_addr, pdata->hwaddr, IFHWADDRLEN);
 		priv->phy_id = pdata->phy_id;
 	} else {
-		priv->phy_id = -1;
-
-#ifdef CONFIG_OF
-		{
 		const uint8_t *mac;
 
 		mac = of_get_property(pdev->dev.of_node,
@@ -1143,8 +1148,7 @@ static int ethoc_probe(struct platform_device *pdev)
 				      NULL);
 		if (mac)
 			memcpy(netdev->dev_addr, mac, IFHWADDRLEN);
-		}
-#endif
+		priv->phy_id = -1;
 	}
 
 	/* Check that the given MAC address is valid. If it isn't, read the
@@ -1201,19 +1205,10 @@ static int ethoc_probe(struct platform_device *pdev)
 	priv->mdio->write = ethoc_mdio_write;
 	priv->mdio->priv = priv;
 
-	priv->mdio->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!priv->mdio->irq) {
-		ret = -ENOMEM;
-		goto free_mdio;
-	}
-
-	for (phy = 0; phy < PHY_MAX_ADDR; phy++)
-		priv->mdio->irq[phy] = PHY_POLL;
-
 	ret = mdiobus_register(priv->mdio);
 	if (ret) {
 		dev_err(&netdev->dev, "failed to register MDIO bus\n");
-		goto free_mdio;
+		goto free;
 	}
 
 	ret = ethoc_mdio_probe(netdev);
@@ -1221,8 +1216,6 @@ static int ethoc_probe(struct platform_device *pdev)
 		dev_err(&netdev->dev, "failed to probe MDIO bus\n");
 		goto error;
 	}
-
-	ether_setup(netdev);
 
 	/* setup the net_device structure */
 	netdev->netdev_ops = &ethoc_netdev_ops;
@@ -1247,8 +1240,6 @@ error2:
 	netif_napi_del(&priv->napi);
 error:
 	mdiobus_unregister(priv->mdio);
-free_mdio:
-	kfree(priv->mdio->irq);
 	mdiobus_free(priv->mdio);
 free:
 	if (priv->clk)
@@ -1274,7 +1265,6 @@ static int ethoc_remove(struct platform_device *pdev)
 
 		if (priv->mdio) {
 			mdiobus_unregister(priv->mdio);
-			kfree(priv->mdio->irq);
 			mdiobus_free(priv->mdio);
 		}
 		if (priv->clk)
@@ -1301,7 +1291,7 @@ static int ethoc_resume(struct platform_device *pdev)
 # define ethoc_resume  NULL
 #endif
 
-static struct of_device_id ethoc_match[] = {
+static const struct of_device_id ethoc_match[] = {
 	{ .compatible = "opencores,ethoc", },
 	{},
 };
@@ -1314,7 +1304,6 @@ static struct platform_driver ethoc_driver = {
 	.resume  = ethoc_resume,
 	.driver  = {
 		.name = "ethoc",
-		.owner = THIS_MODULE,
 		.of_match_table = ethoc_match,
 	},
 };

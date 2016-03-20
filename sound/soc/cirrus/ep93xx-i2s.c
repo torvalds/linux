@@ -451,7 +451,6 @@ static struct platform_driver ep93xx_i2s_driver = {
 	.remove	= ep93xx_i2s_remove,
 	.driver	= {
 		.name	= "ep93xx-i2s",
-		.owner	= THIS_MODULE,
 	},
 };
 

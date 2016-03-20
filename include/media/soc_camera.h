@@ -18,7 +18,7 @@
 #include <linux/pm.h>
 #include <linux/videodev2.h>
 #include <media/videobuf-core.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -296,7 +296,7 @@ const struct soc_camera_format_xlate *soc_camera_xlate_by_fourcc(
  * format setup.
  */
 struct soc_camera_format_xlate {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	const struct soc_mbus_pixelfmt *host_fmt;
 };
 

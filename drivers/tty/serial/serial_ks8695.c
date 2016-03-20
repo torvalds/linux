@@ -328,7 +328,7 @@ static int ks8695uart_startup(struct uart_port *port)
 {
 	int retval;
 
-	set_irq_flags(KS8695_IRQ_UART_TX, IRQF_VALID | IRQF_NOAUTOEN);
+	irq_modify_status(KS8695_IRQ_UART_TX, IRQ_NOREQUEST, IRQ_NOAUTOEN);
 	tx_enable(port, 0);
 	rx_enable(port, 1);
 	ms_enable(port, 1);
@@ -554,7 +554,7 @@ static struct uart_port ks8695uart_ports[SERIAL_KS8695_NR] = {
 		.uartclk	= KS8695_CLOCK_RATE * 16,
 		.fifosize	= 16,
 		.ops		= &ks8695uart_pops,
-		.flags		= ASYNC_BOOT_AUTOCONF,
+		.flags		= UPF_BOOT_AUTOCONF,
 		.line		= 0,
 	}
 };

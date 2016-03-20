@@ -12,13 +12,14 @@
 static unsigned int
 nouveau_vga_set_decode(void *priv, bool state)
 {
-	struct nvif_device *device = &nouveau_drm(priv)->device;
+	struct nouveau_drm *drm = nouveau_drm(priv);
+	struct nvif_object *device = &drm->device.object;
 
-	if (device->info.family == NV_DEVICE_INFO_V0_CURIE &&
-	    device->info.chipset >= 0x4c)
+	if (drm->device.info.family == NV_DEVICE_INFO_V0_CURIE &&
+	    drm->device.info.chipset >= 0x4c)
 		nvif_wr32(device, 0x088060, state);
 	else
-	if (device->info.chipset >= 0x40)
+	if (drm->device.info.chipset >= 0x40)
 		nvif_wr32(device, 0x088054, state);
 	else
 		nvif_wr32(device, 0x001854, state);
@@ -108,7 +109,16 @@ void
 nouveau_vga_fini(struct nouveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
+	bool runtime = false;
+
+	if (nouveau_runtime_pm == 1)
+		runtime = true;
+	if ((nouveau_runtime_pm == -1) && (nouveau_is_optimus() || nouveau_is_v1_dsm()))
+		runtime = true;
+
 	vga_switcheroo_unregister_client(dev->pdev);
+	if (runtime && nouveau_is_v1_dsm() && !nouveau_is_optimus())
+		vga_switcheroo_fini_domain_pm_ops(drm->dev->dev);
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 }
 

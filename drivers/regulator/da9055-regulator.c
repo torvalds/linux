@@ -324,7 +324,7 @@ static int da9055_suspend_disable(struct regulator_dev *rdev)
 		return 0;
 }
 
-static struct regulator_ops da9055_buck_ops = {
+static const struct regulator_ops da9055_buck_ops = {
 	.get_mode = da9055_buck_get_mode,
 	.set_mode = da9055_buck_set_mode,
 
@@ -345,7 +345,7 @@ static struct regulator_ops da9055_buck_ops = {
 	.set_suspend_mode = da9055_buck_set_mode,
 };
 
-static struct regulator_ops da9055_ldo_ops = {
+static const struct regulator_ops da9055_ldo_ops = {
 	.get_mode = da9055_ldo_get_mode,
 	.set_mode = da9055_ldo_set_mode,
 
@@ -665,7 +665,6 @@ static struct platform_driver da9055_regulator_driver = {
 	.probe = da9055_regulator_probe,
 	.driver = {
 		.name = "da9055-regulator",
-		.owner = THIS_MODULE,
 	},
 };
 

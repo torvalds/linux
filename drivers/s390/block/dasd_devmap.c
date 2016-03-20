@@ -77,7 +77,7 @@ EXPORT_SYMBOL_GPL(dasd_nofcx);
  * strings when running as a module.
  */
 static char *dasd[256];
-module_param_array(dasd, charp, NULL, 0);
+module_param_array(dasd, charp, NULL, S_IRUGO);
 
 /*
  * Single spinlock to protect devmap and servermap structures and lists.
@@ -214,8 +214,8 @@ dasd_feature_list(char *str, char **endp)
 		else if (len == 8 && !strncmp(str, "failfast", 8))
 			features |= DASD_FEATURE_FAILFAST;
 		else {
-			pr_warning("%*s is not a supported device option\n",
-				   len, str);
+			pr_warn("%*s is not a supported device option\n",
+				len, str);
 			rc = -EINVAL;
 		}
 		str += len;
@@ -224,8 +224,7 @@ dasd_feature_list(char *str, char **endp)
 		str++;
 	}
 	if (*str != ')') {
-		pr_warning("A closing parenthesis ')' is missing in the "
-			   "dasd= parameter\n");
+		pr_warn("A closing parenthesis ')' is missing in the dasd= parameter\n");
 		rc = -EINVAL;
 	} else
 		str++;
@@ -348,8 +347,7 @@ dasd_parse_range( char *parsestring ) {
 		return str + 1;
 	if (*str == '\0')
 		return str;
-	pr_warning("The dasd= parameter value %s has an invalid ending\n",
-		   str);
+	pr_warn("The dasd= parameter value %s has an invalid ending\n", str);
 	return ERR_PTR(-EINVAL);
 }
 
@@ -1432,6 +1430,29 @@ static ssize_t dasd_reservation_state_store(struct device *dev,
 static DEVICE_ATTR(last_known_reservation_state, 0644,
 		   dasd_reservation_state_show, dasd_reservation_state_store);
 
+static ssize_t dasd_pm_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct dasd_device *device;
+	u8 opm, nppm, cablepm, cuirpm, hpfpm;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return sprintf(buf, "0\n");
+
+	opm = device->path_data.opm;
+	nppm = device->path_data.npm;
+	cablepm = device->path_data.cablepm;
+	cuirpm = device->path_data.cuirpm;
+	hpfpm = device->path_data.hpfpm;
+	dasd_put_device(device);
+
+	return sprintf(buf, "%02x %02x %02x %02x %02x\n", opm, nppm,
+		       cablepm, cuirpm, hpfpm);
+}
+
+static DEVICE_ATTR(path_masks, 0444, dasd_pm_show, NULL);
+
 static struct attribute * dasd_attrs[] = {
 	&dev_attr_readonly.attr,
 	&dev_attr_discipline.attr,
@@ -1450,6 +1471,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_reservation_policy.attr,
 	&dev_attr_last_known_reservation_state.attr,
 	&dev_attr_safe_offline.attr,
+	&dev_attr_path_masks.attr,
 	NULL,
 };
 

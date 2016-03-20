@@ -643,7 +643,6 @@ static void raw3215_shutdown(struct raw3215_info *raw)
 	if ((raw->flags & RAW3215_WORKING) ||
 	    raw->queued_write != NULL ||
 	    raw->queued_read != NULL) {
-		raw->port.flags |= ASYNC_CLOSING;
 		add_wait_queue(&raw->empty_wait, &wait);
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
@@ -651,7 +650,7 @@ static void raw3215_shutdown(struct raw3215_info *raw)
 		spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 		remove_wait_queue(&raw->empty_wait, &wait);
 		set_current_state(TASK_RUNNING);
-		raw->port.flags &= ~(ASYNC_INITIALIZED | ASYNC_CLOSING);
+		raw->port.flags &= ~ASYNC_INITIALIZED;
 	}
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
 }
@@ -667,6 +666,8 @@ static struct raw3215_info *raw3215_alloc_info(void)
 	info->buffer = kzalloc(RAW3215_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
 	info->inbuf = kzalloc(RAW3215_INBUF_SIZE, GFP_KERNEL | GFP_DMA);
 	if (!info->buffer || !info->inbuf) {
+		kfree(info->inbuf);
+		kfree(info->buffer);
 		kfree(info);
 		return NULL;
 	}
@@ -920,6 +921,8 @@ static int __init con3215_init(void)
 	spin_lock_init(&raw3215_freelist_lock);
 	for (i = 0; i < NR_3215_REQ; i++) {
 		req = kzalloc(sizeof(struct raw3215_req), GFP_KERNEL | GFP_DMA);
+		if (!req)
+			return -ENOMEM;
 		req->next = raw3215_freelist;
 		raw3215_freelist = req;
 	}
@@ -1035,12 +1038,26 @@ static int tty3215_write(struct tty_struct * tty,
 			 const unsigned char *buf, int count)
 {
 	struct raw3215_info *raw;
+	int i, written;
 
 	if (!tty)
 		return 0;
 	raw = (struct raw3215_info *) tty->driver_data;
-	raw3215_write(raw, buf, count);
-	return count;
+	written = count;
+	while (count > 0) {
+		for (i = 0; i < count; i++)
+			if (buf[i] == '\t' || buf[i] == '\n')
+				break;
+		raw3215_write(raw, buf, i);
+		count -= i;
+		buf += i;
+		if (count > 0) {
+			raw3215_putchar(raw, *buf);
+			count--;
+			buf++;
+		}
+	}
+	return written;
 }
 
 /*
@@ -1188,7 +1205,7 @@ static int __init tty3215_init(void)
 	driver->subtype = SYSTEM_TYPE_TTY;
 	driver->init_termios = tty_std_termios;
 	driver->init_termios.c_iflag = IGNBRK | IGNPAR;
-	driver->init_termios.c_oflag = ONLCR | XTABS;
+	driver->init_termios.c_oflag = ONLCR;
 	driver->init_termios.c_lflag = ISIG;
 	driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(driver, &tty3215_ops);

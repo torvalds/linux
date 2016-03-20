@@ -44,7 +44,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <mach/hx4700.h>
 #include <linux/platform_data/irda-pxaficp.h>
 
@@ -557,10 +557,8 @@ static struct platform_device hx4700_lcd = {
  */
 
 static struct platform_pwm_backlight_data backlight_data = {
-	.pwm_id         = -1,	/* Superseded by pwm_lookup */
 	.max_brightness = 200,
 	.dft_brightness = 100,
-	.pwm_period_ns  = 30923,
 	.enable_gpio    = -1,
 };
 
@@ -630,7 +628,6 @@ static struct spi_board_info tsc2046_board_info[] __initdata = {
 
 static struct pxa2xx_spi_master pxa_ssp2_master_info = {
 	.num_chipselect = 1,
-	.clock_enable   = CKEN_SSP2,
 	.enable_dma     = 1,
 };
 
@@ -893,6 +890,8 @@ static void __init hx4700_init(void)
 	mdelay(10);
 	gpio_set_value(GPIO71_HX4700_ASIC3_nRESET, 1);
 	mdelay(10);
+
+	regulator_has_full_constraints();
 }
 
 MACHINE_START(H4700, "HP iPAQ HX4700")

@@ -31,7 +31,7 @@
 MODULE_DESCRIPTION("driver for s390 eadm subchannels");
 MODULE_LICENSE("GPL");
 
-#define EADM_TIMEOUT (5 * HZ)
+#define EADM_TIMEOUT (7 * HZ)
 static DEFINE_SPINLOCK(list_lock);
 static LIST_HEAD(eadm_list);
 
@@ -134,7 +134,7 @@ static void eadm_subchannel_irq(struct subchannel *sch)
 {
 	struct eadm_private *private = get_eadm_private(sch);
 	struct eadm_scsw *scsw = &sch->schib.scsw.eadm;
-	struct irb *irb = &__get_cpu_var(cio_irb);
+	struct irb *irb = this_cpu_ptr(&cio_irb);
 	int error = 0;
 
 	EADM_LOG(6, "irq");
@@ -336,7 +336,6 @@ static int eadm_subchannel_sch_event(struct subchannel *sch, int process)
 {
 	struct eadm_private *private;
 	unsigned long flags;
-	int ret = 0;
 
 	spin_lock_irqsave(sch->lock, flags);
 	if (!device_is_registered(&sch->dev))
@@ -356,7 +355,7 @@ static int eadm_subchannel_sch_event(struct subchannel *sch, int process)
 out_unlock:
 	spin_unlock_irqrestore(sch->lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static struct css_device_id eadm_subchannel_ids[] = {

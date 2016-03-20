@@ -14,7 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/mpage.h>
 #include <linux/sched.h>
-#include <linux/aio.h>
+#include <linux/uio.h>
 
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
@@ -122,8 +122,8 @@ static int hfsplus_releasepage(struct page *page, gfp_t mask)
 	return res ? try_to_free_buffers(page) : 0;
 }
 
-static ssize_t hfsplus_direct_IO(int rw, struct kiocb *iocb,
-		struct iov_iter *iter, loff_t offset)
+static ssize_t hfsplus_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
+				 loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
@@ -131,14 +131,13 @@ static ssize_t hfsplus_direct_IO(int rw, struct kiocb *iocb,
 	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
-	ret = blockdev_direct_IO(rw, iocb, inode, iter, offset, 
-				 hfsplus_get_block);
+	ret = blockdev_direct_IO(iocb, inode, iter, offset, hfsplus_get_block);
 
 	/*
 	 * In case of error extending write may have instantiated a few
 	 * blocks outside i_size. Trim these off again.
 	 */
-	if (unlikely((rw & WRITE) && ret < 0)) {
+	if (unlikely(iov_iter_rw(iter) == WRITE && ret < 0)) {
 		loff_t isize = i_size_read(inode);
 		loff_t end = offset + count;
 
@@ -230,21 +229,21 @@ static int hfsplus_file_release(struct inode *inode, struct file *file)
 	if (HFSPLUS_IS_RSRC(inode))
 		inode = HFSPLUS_I(inode)->rsrc_inode;
 	if (atomic_dec_and_test(&HFSPLUS_I(inode)->opencnt)) {
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		hfsplus_file_truncate(inode);
 		if (inode->i_flags & S_DEAD) {
 			hfsplus_delete_cat(inode->i_ino,
 					   HFSPLUS_SB(sb)->hidden_dir, NULL);
 			hfsplus_delete_inode(inode);
 		}
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	}
 	return 0;
 }
 
 static int hfsplus_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error;
 
 	error = inode_change_ok(inode, attr);
@@ -254,6 +253,12 @@ static int hfsplus_setattr(struct dentry *dentry, struct iattr *attr)
 	if ((attr->ia_valid & ATTR_SIZE) &&
 	    attr->ia_size != i_size_read(inode)) {
 		inode_dio_wait(inode);
+		if (attr->ia_size > inode->i_size) {
+			error = generic_cont_expand_simple(inode,
+							   attr->ia_size);
+			if (error)
+				return error;
+		}
 		truncate_setsize(inode, attr->ia_size);
 		hfsplus_file_truncate(inode);
 	}
@@ -281,7 +286,7 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 	error = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (error)
 		return error;
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	/*
 	 * Sync inode metadata into the catalog and extent trees.
@@ -322,7 +327,7 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 	if (!test_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags))
 		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
 
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	return error;
 }
@@ -341,9 +346,7 @@ static const struct inode_operations hfsplus_file_inode_operations = {
 
 static const struct file_operations hfsplus_file_operations = {
 	.llseek		= generic_file_llseek,
-	.read		= new_sync_read,
 	.read_iter	= generic_file_read_iter,
-	.write		= new_sync_write,
 	.write_iter	= generic_file_write_iter,
 	.mmap		= generic_file_mmap,
 	.splice_read	= generic_file_splice_read,
@@ -400,6 +403,7 @@ struct inode *hfsplus_new_inode(struct super_block *sb, umode_t mode)
 	} else if (S_ISLNK(inode->i_mode)) {
 		sbi->file_count++;
 		inode->i_op = &page_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &hfsplus_aops;
 		hip->clump_blocks = 1;
 	} else
@@ -523,6 +527,7 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 			inode->i_mapping->a_ops = &hfsplus_aops;
 		} else if (S_ISLNK(inode->i_mode)) {
 			inode->i_op = &page_symlink_inode_operations;
+			inode_nohighmem(inode);
 			inode->i_mapping->a_ops = &hfsplus_aops;
 		} else {
 			init_special_inode(inode, inode->i_mode,

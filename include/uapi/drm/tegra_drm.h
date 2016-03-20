@@ -23,7 +23,7 @@
 #ifndef _UAPI_TEGRA_DRM_H_
 #define _UAPI_TEGRA_DRM_H_
 
-#include <drm/drm.h>
+#include "drm.h"
 
 #define DRM_TEGRA_GEM_CREATE_TILED     (1 << 0)
 #define DRM_TEGRA_GEM_CREATE_BOTTOM_UP (1 << 1)
@@ -36,7 +36,8 @@ struct drm_tegra_gem_create {
 
 struct drm_tegra_gem_mmap {
 	__u32 handle;
-	__u32 offset;
+	__u32 pad;
+	__u64 offset;
 };
 
 struct drm_tegra_syncpt_read {

@@ -111,8 +111,7 @@ static void stsi_1_1_1(struct seq_file *m, struct sysinfo_1_1_1 *info)
 
 static void stsi_15_1_x(struct seq_file *m, struct sysinfo_15_1_x *info)
 {
-	static int max_mnest;
-	int i, rc;
+	int i;
 
 	seq_putc(m, '\n');
 	if (!MACHINE_HAS_TOPOLOGY)
@@ -123,7 +122,7 @@ static void stsi_15_1_x(struct seq_file *m, struct sysinfo_15_1_x *info)
 	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
 		seq_printf(m, " %d", info->mag[i]);
 	seq_putc(m, '\n');
-#ifdef CONFIG_SCHED_MC
+#ifdef CONFIG_SCHED_TOPOLOGY
 	store_topology(info);
 	seq_printf(m, "CPU Topology SW:     ");
 	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
@@ -145,6 +144,10 @@ static void stsi_1_2_2(struct seq_file *m, struct sysinfo_1_2_2 *info)
 	seq_printf(m, "CPUs Configured:      %d\n", info->cpus_configured);
 	seq_printf(m, "CPUs Standby:         %d\n", info->cpus_standby);
 	seq_printf(m, "CPUs Reserved:        %d\n", info->cpus_reserved);
+	if (info->mt_installed) {
+		seq_printf(m, "CPUs G-MTID:          %d\n", info->mt_gtid);
+		seq_printf(m, "CPUs S-MTID:          %d\n", info->mt_stid);
+	}
 	/*
 	 * Sigh 2. According to the specification the alternate
 	 * capability field is a 32 bit floating point number
@@ -194,6 +197,38 @@ static void stsi_2_2_2(struct seq_file *m, struct sysinfo_2_2_2 *info)
 	seq_printf(m, "LPAR CPUs Reserved:   %d\n", info->cpus_reserved);
 	seq_printf(m, "LPAR CPUs Dedicated:  %d\n", info->cpus_dedicated);
 	seq_printf(m, "LPAR CPUs Shared:     %d\n", info->cpus_shared);
+	if (info->mt_installed) {
+		seq_printf(m, "LPAR CPUs G-MTID:     %d\n", info->mt_gtid);
+		seq_printf(m, "LPAR CPUs S-MTID:     %d\n", info->mt_stid);
+		seq_printf(m, "LPAR CPUs PS-MTID:    %d\n", info->mt_psmtid);
+	}
+}
+
+static void print_ext_name(struct seq_file *m, int lvl,
+			   struct sysinfo_3_2_2 *info)
+{
+	if (info->vm[lvl].ext_name_encoding == 0)
+		return;
+	if (info->ext_names[lvl][0] == 0)
+		return;
+	switch (info->vm[lvl].ext_name_encoding) {
+	case 1: /* EBCDIC */
+		EBCASC(info->ext_names[lvl], sizeof(info->ext_names[lvl]));
+		break;
+	case 2:	/* UTF-8 */
+		break;
+	default:
+		return;
+	}
+	seq_printf(m, "VM%02d Extended Name:   %-.256s\n", lvl,
+		   info->ext_names[lvl]);
+}
+
+static void print_uuid(struct seq_file *m, int i, struct sysinfo_3_2_2 *info)
+{
+	if (!memcmp(&info->vm[i].uuid, &NULL_UUID_BE, sizeof(uuid_be)))
+		return;
+	seq_printf(m, "VM%02d UUID:            %pUb\n", i, &info->vm[i].uuid);
 }
 
 static void stsi_3_2_2(struct seq_file *m, struct sysinfo_3_2_2 *info)
@@ -213,6 +248,8 @@ static void stsi_3_2_2(struct seq_file *m, struct sysinfo_3_2_2 *info)
 		seq_printf(m, "VM%02d CPUs Configured: %d\n", i, info->vm[i].cpus_configured);
 		seq_printf(m, "VM%02d CPUs Standby:    %d\n", i, info->vm[i].cpus_standby);
 		seq_printf(m, "VM%02d CPUs Reserved:   %d\n", i, info->vm[i].cpus_reserved);
+		print_ext_name(m, i, info);
+		print_uuid(m, i, info);
 	}
 }
 

@@ -11,10 +11,10 @@
 
 #include <linux/types.h>
 
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_PCI)
-extern phys_t __fixup_bigphys_addr(phys_t, phys_t);
+#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_PCI)
+extern phys_addr_t __fixup_bigphys_addr(phys_addr_t, phys_addr_t);
 #else
-static inline phys_t __fixup_bigphys_addr(phys_t phys_addr, phys_t size)
+static inline phys_addr_t __fixup_bigphys_addr(phys_addr_t phys_addr, phys_addr_t size)
 {
 	return phys_addr;
 }
@@ -23,12 +23,12 @@ static inline phys_t __fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 /*
  * Allow physical addresses to be fixed up to help 36-bit peripherals.
  */
-static inline phys_t fixup_bigphys_addr(phys_t phys_addr, phys_t size)
+static inline phys_addr_t fixup_bigphys_addr(phys_addr_t phys_addr, phys_addr_t size)
 {
 	return __fixup_bigphys_addr(phys_addr, size);
 }
 
-static inline void __iomem *plat_ioremap(phys_t offset, unsigned long size,
+static inline void __iomem *plat_ioremap(phys_addr_t offset, unsigned long size,
 	unsigned long flags)
 {
 	return NULL;

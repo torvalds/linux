@@ -184,7 +184,7 @@ static enum imx_audmux_type {
 	IMX31_AUDMUX,
 } audmux_type;
 
-static struct platform_device_id imx_audmux_ids[] = {
+static const struct platform_device_id imx_audmux_ids[] = {
 	{
 		.name = "imx21-audmux",
 		.driver_data = IMX21_AUDMUX,
@@ -356,7 +356,6 @@ static struct platform_driver imx_audmux_driver = {
 	.id_table	= imx_audmux_ids,
 	.driver	= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = imx_audmux_dt_ids,
 	}
 };

@@ -27,13 +27,14 @@
 struct thread_info {
 	unsigned long		uwinmask;
 	struct task_struct	*task;		/* main task structure */
-	struct exec_domain	*exec_domain;	/* execution domain */
 	unsigned long		flags;		/* low level flags */
 	int			cpu;		/* cpu we're on */
 	int			preempt_count;	/* 0 => preemptable,
 						   <0 => BUG */
 	int			softirq_count;
 	int			hardirq_count;
+
+	u32 __unused;
 
 	/* Context switch saved kernel state. */
 	unsigned long ksp;	/* ... ksp __attribute__ ((aligned (8))); */
@@ -47,8 +48,6 @@ struct thread_info {
 	struct reg_window32	reg_window[NSWINS];	/* align for ldd! */
 	unsigned long		rwbuf_stkptrs[NSWINS];
 	unsigned long		w_saved;
-
-	struct restart_block	restart_block;
 };
 
 /*
@@ -58,13 +57,9 @@ struct thread_info {
 {							\
 	.uwinmask	=	0,			\
 	.task		=	&tsk,			\
-	.exec_domain	=	&default_exec_domain,	\
 	.flags		=	0,			\
 	.cpu		=	0,			\
 	.preempt_count	=	INIT_PREEMPT_COUNT,	\
-	.restart_block	= {				\
-		.fn	=	do_no_restart_syscall,	\
-	},						\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)
@@ -90,12 +85,11 @@ register struct thread_info *current_thread_info_reg asm("g6");
  */
 #define TI_UWINMASK	0x00	/* uwinmask */
 #define TI_TASK		0x04
-#define TI_EXECDOMAIN	0x08	/* exec_domain */
-#define TI_FLAGS	0x0c
-#define TI_CPU		0x10
-#define TI_PREEMPT	0x14	/* preempt_count */
-#define TI_SOFTIRQ	0x18	/* softirq_count */
-#define TI_HARDIRQ	0x1c	/* hardirq_count */
+#define TI_FLAGS	0x08
+#define TI_CPU		0x0c
+#define TI_PREEMPT	0x10	/* preempt_count */
+#define TI_SOFTIRQ	0x14	/* softirq_count */
+#define TI_HARDIRQ	0x18	/* hardirq_count */
 #define TI_KSP		0x20	/* ksp */
 #define TI_KPC		0x24	/* kpc (ldd'ed with kpc) */
 #define TI_KPSR		0x28	/* kpsr */
@@ -103,7 +97,6 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define TI_REG_WINDOW	0x30
 #define TI_RWIN_SPTRS	0x230
 #define TI_W_SAVED	0x250
-/* #define TI_RESTART_BLOCK 0x25n */ /* Nobody cares */
 
 /*
  * thread information flag bit numbers
@@ -129,6 +122,8 @@ register struct thread_info *current_thread_info_reg asm("g6");
 
 #define _TIF_DO_NOTIFY_RESUME_MASK	(_TIF_NOTIFY_RESUME | \
 					 _TIF_SIGPENDING)
+
+#define is_32bit_task()	(1)
 
 #endif /* __KERNEL__ */
 

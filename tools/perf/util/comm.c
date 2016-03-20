@@ -2,24 +2,27 @@
 #include "util.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <linux/atomic.h>
 
 struct comm_str {
 	char *str;
 	struct rb_node rb_node;
-	int ref;
+	atomic_t refcnt;
 };
 
 /* Should perhaps be moved to struct machine */
 static struct rb_root comm_str_root;
 
-static void comm_str__get(struct comm_str *cs)
+static struct comm_str *comm_str__get(struct comm_str *cs)
 {
-	cs->ref++;
+	if (cs)
+		atomic_inc(&cs->refcnt);
+	return cs;
 }
 
 static void comm_str__put(struct comm_str *cs)
 {
-	if (!--cs->ref) {
+	if (cs && atomic_dec_and_test(&cs->refcnt)) {
 		rb_erase(&cs->rb_node, &comm_str_root);
 		zfree(&cs->str);
 		free(cs);
@@ -39,6 +42,8 @@ static struct comm_str *comm_str__alloc(const char *str)
 		free(cs);
 		return NULL;
 	}
+
+	atomic_set(&cs->refcnt, 0);
 
 	return cs;
 }
@@ -74,7 +79,7 @@ static struct comm_str *comm_str__findnew(const char *str, struct rb_root *root)
 	return new;
 }
 
-struct comm *comm__new(const char *str, u64 timestamp)
+struct comm *comm__new(const char *str, u64 timestamp, bool exec)
 {
 	struct comm *comm = zalloc(sizeof(*comm));
 
@@ -82,6 +87,7 @@ struct comm *comm__new(const char *str, u64 timestamp)
 		return NULL;
 
 	comm->start = timestamp;
+	comm->exec = exec;
 
 	comm->comm_str = comm_str__findnew(str, &comm_str_root);
 	if (!comm->comm_str) {
@@ -94,7 +100,7 @@ struct comm *comm__new(const char *str, u64 timestamp)
 	return comm;
 }
 
-int comm__override(struct comm *comm, const char *str, u64 timestamp)
+int comm__override(struct comm *comm, const char *str, u64 timestamp, bool exec)
 {
 	struct comm_str *new, *old = comm->comm_str;
 
@@ -106,6 +112,8 @@ int comm__override(struct comm *comm, const char *str, u64 timestamp)
 	comm_str__put(old);
 	comm->comm_str = new;
 	comm->start = timestamp;
+	if (exec)
+		comm->exec = true;
 
 	return 0;
 }

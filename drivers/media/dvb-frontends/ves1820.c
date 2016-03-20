@@ -90,7 +90,8 @@ static u8 ves1820_readreg(struct ves1820_state *state, u8 reg)
 	return b1[0];
 }
 
-static int ves1820_setup_reg0(struct ves1820_state *state, u8 reg0, fe_spectral_inversion_t inversion)
+static int ves1820_setup_reg0(struct ves1820_state *state,
+			      u8 reg0, enum fe_spectral_inversion inversion)
 {
 	reg0 |= state->reg0 & 0x62;
 
@@ -237,7 +238,8 @@ static int ves1820_set_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int ves1820_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int ves1820_read_status(struct dvb_frontend *fe,
+			       enum fe_status *status)
 {
 	struct ves1820_state* state = fe->demodulator_priv;
 	int sync;
@@ -310,9 +312,9 @@ static int ves1820_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	return 0;
 }
 
-static int ves1820_get_frontend(struct dvb_frontend *fe)
+static int ves1820_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct ves1820_state* state = fe->demodulator_priv;
 	int sync;
 	s8 afc = 0;

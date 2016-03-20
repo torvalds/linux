@@ -23,12 +23,12 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
-#include <media/s5c73m3.h>
+#include <media/i2c/s5c73m3.h>
 
 #define DRIVER_NAME			"S5C73M3"
 
-#define S5C73M3_ISP_FMT			V4L2_MBUS_FMT_VYUY8_2X8
-#define S5C73M3_JPEG_FMT		V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8
+#define S5C73M3_ISP_FMT			MEDIA_BUS_FMT_VYUY8_2X8
+#define S5C73M3_JPEG_FMT		MEDIA_BUS_FMT_S5C_UYVY_JPEG_1X8
 
 /* Subdevs pad index definitions */
 enum s5c73m3_pads {
@@ -402,7 +402,7 @@ struct s5c73m3 {
 
 	const struct s5c73m3_frame_size *sensor_pix_size[2];
 	const struct s5c73m3_frame_size *oif_pix_size[2];
-	enum v4l2_mbus_pixelcode mbus_code;
+	u32 mbus_code;
 
 	const struct s5c73m3_interval *fiv;
 

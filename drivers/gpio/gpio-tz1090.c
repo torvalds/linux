@@ -62,7 +62,6 @@ struct tz1090_gpio_bank {
 	int irq;
 	char label[16];
 };
-#define to_bank(c)	container_of(c, struct tz1090_gpio_bank, chip)
 
 /**
  * struct tz1090_gpio - Overall GPIO device private data
@@ -187,7 +186,7 @@ static inline int tz1090_gpio_read_bit(struct tz1090_gpio_bank *bank,
 static int tz1090_gpio_direction_input(struct gpio_chip *chip,
 				       unsigned int offset)
 {
-	struct tz1090_gpio_bank *bank = to_bank(chip);
+	struct tz1090_gpio_bank *bank = gpiochip_get_data(chip);
 	tz1090_gpio_set_bit(bank, REG_GPIO_DIR, offset);
 
 	return 0;
@@ -196,7 +195,7 @@ static int tz1090_gpio_direction_input(struct gpio_chip *chip,
 static int tz1090_gpio_direction_output(struct gpio_chip *chip,
 					unsigned int offset, int output_value)
 {
-	struct tz1090_gpio_bank *bank = to_bank(chip);
+	struct tz1090_gpio_bank *bank = gpiochip_get_data(chip);
 	int lstat;
 
 	__global_lock2(lstat);
@@ -212,9 +211,9 @@ static int tz1090_gpio_direction_output(struct gpio_chip *chip,
  */
 static int tz1090_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
-	struct tz1090_gpio_bank *bank = to_bank(chip);
+	struct tz1090_gpio_bank *bank = gpiochip_get_data(chip);
 
-	return tz1090_gpio_read_bit(bank, REG_GPIO_DIN, offset);
+	return !!tz1090_gpio_read_bit(bank, REG_GPIO_DIN, offset);
 }
 
 /*
@@ -223,14 +222,14 @@ static int tz1090_gpio_get(struct gpio_chip *chip, unsigned int offset)
 static void tz1090_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			    int output_value)
 {
-	struct tz1090_gpio_bank *bank = to_bank(chip);
+	struct tz1090_gpio_bank *bank = gpiochip_get_data(chip);
 
 	tz1090_gpio_mod_bit(bank, REG_GPIO_DOUT, offset, output_value);
 }
 
 static int tz1090_gpio_request(struct gpio_chip *chip, unsigned int offset)
 {
-	struct tz1090_gpio_bank *bank = to_bank(chip);
+	struct tz1090_gpio_bank *bank = gpiochip_get_data(chip);
 	int ret;
 
 	ret = pinctrl_request_gpio(chip->base + offset);
@@ -245,7 +244,7 @@ static int tz1090_gpio_request(struct gpio_chip *chip, unsigned int offset)
 
 static void tz1090_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
-	struct tz1090_gpio_bank *bank = to_bank(chip);
+	struct tz1090_gpio_bank *bank = gpiochip_get_data(chip);
 
 	pinctrl_free_gpio(chip->base + offset);
 
@@ -254,7 +253,7 @@ static void tz1090_gpio_free(struct gpio_chip *chip, unsigned int offset)
 
 static int tz1090_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 {
-	struct tz1090_gpio_bank *bank = to_bank(chip);
+	struct tz1090_gpio_bank *bank = gpiochip_get_data(chip);
 
 	if (!bank->domain)
 		return -EINVAL;
@@ -375,7 +374,7 @@ static int gpio_set_irq_wake(struct irq_data *data, unsigned int on)
 #define gpio_set_irq_wake NULL
 #endif
 
-static void tz1090_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void tz1090_gpio_irq_handler(struct irq_desc *desc)
 {
 	irq_hw_number_t hw;
 	unsigned int irq_stat, irq_no;
@@ -400,7 +399,7 @@ static void tz1090_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 				== IRQ_TYPE_EDGE_BOTH)
 			tz1090_gpio_irq_next_edge(bank, hw);
 
-		generic_handle_irq_desc(irq_no, child_desc);
+		generic_handle_irq_desc(child_desc);
 	}
 }
 
@@ -425,7 +424,7 @@ static int tz1090_gpio_bank_probe(struct tz1090_gpio_bank_info *info)
 	snprintf(bank->label, sizeof(bank->label), "tz1090-gpio-%u",
 		 info->index);
 	bank->chip.label		= bank->label;
-	bank->chip.dev			= dev;
+	bank->chip.parent		= dev;
 	bank->chip.direction_input	= tz1090_gpio_direction_input;
 	bank->chip.direction_output	= tz1090_gpio_direction_output;
 	bank->chip.get			= tz1090_gpio_get;
@@ -440,13 +439,13 @@ static int tz1090_gpio_bank_probe(struct tz1090_gpio_bank_info *info)
 	bank->chip.ngpio		= 30;
 
 	/* Add the GPIO bank */
-	gpiochip_add(&bank->chip);
+	gpiochip_add_data(&bank->chip, bank);
 
 	/* Get the GPIO bank IRQ if provided */
 	bank->irq = irq_of_parse_and_map(np, 0);
 
 	/* The interrupt is optional (it may be used by another core on chip) */
-	if (bank->irq < 0) {
+	if (!bank->irq) {
 		dev_info(dev, "IRQ not provided for bank %u, IRQs disabled\n",
 			 info->index);
 		return 0;
@@ -510,8 +509,8 @@ static int tz1090_gpio_bank_probe(struct tz1090_gpio_bank_info *info)
 	gc->chip_types[1].chip.flags		= IRQCHIP_MASK_ON_SUSPEND;
 
 	/* Setup chained handler for this GPIO bank */
-	irq_set_handler_data(bank->irq, bank);
-	irq_set_chained_handler(bank->irq, tz1090_gpio_irq_handler);
+	irq_set_chained_handler_and_data(bank->irq, tz1090_gpio_irq_handler,
+					 bank);
 
 	return 0;
 }
@@ -573,7 +572,7 @@ static int tz1090_gpio_probe(struct platform_device *pdev)
 
 	/* Ioremap the registers */
 	priv.reg = devm_ioremap(&pdev->dev, res_regs->start,
-				 res_regs->end - res_regs->start);
+				resource_size(res_regs));
 	if (!priv.reg) {
 		dev_err(&pdev->dev, "unable to ioremap registers\n");
 		return -ENOMEM;
@@ -593,7 +592,6 @@ static struct of_device_id tz1090_gpio_of_match[] = {
 static struct platform_driver tz1090_gpio_driver = {
 	.driver = {
 		.name		= "tz1090-gpio",
-		.owner		= THIS_MODULE,
 		.of_match_table	= tz1090_gpio_of_match,
 	},
 	.probe		= tz1090_gpio_probe,

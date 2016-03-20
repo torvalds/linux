@@ -81,7 +81,7 @@ struct isl29028_chip {
 };
 
 static int isl29028_set_proxim_sampling(struct isl29028_chip *chip,
-			unsigned int sampling)
+					unsigned int sampling)
 {
 	static unsigned int prox_period[] = {800, 400, 200, 100, 75, 50, 12, 0};
 	int sel;
@@ -103,7 +103,7 @@ static int isl29028_enable_proximity(struct isl29028_chip *chip, bool enable)
 	if (enable)
 		val = CONFIGURE_PROX_EN;
 	ret = regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
-			CONFIGURE_PROX_EN_MASK, val);
+				 CONFIGURE_PROX_EN_MASK, val);
 	if (ret < 0)
 		return ret;
 
@@ -122,24 +122,27 @@ static int isl29028_set_als_scale(struct isl29028_chip *chip, int lux_scale)
 }
 
 static int isl29028_set_als_ir_mode(struct isl29028_chip *chip,
-	enum als_ir_mode mode)
+				    enum als_ir_mode mode)
 {
 	int ret = 0;
 
 	switch (mode) {
 	case MODE_ALS:
 		ret = regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
-			CONFIGURE_ALS_IR_MODE_MASK, CONFIGURE_ALS_IR_MODE_ALS);
+					 CONFIGURE_ALS_IR_MODE_MASK,
+					 CONFIGURE_ALS_IR_MODE_ALS);
 		if (ret < 0)
 			return ret;
 
 		ret = regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
-			CONFIGURE_ALS_RANGE_MASK, CONFIGURE_ALS_RANGE_HIGH_LUX);
+					 CONFIGURE_ALS_RANGE_MASK,
+					 CONFIGURE_ALS_RANGE_HIGH_LUX);
 		break;
 
 	case MODE_IR:
 		ret = regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
-			CONFIGURE_ALS_IR_MODE_MASK, CONFIGURE_ALS_IR_MODE_IR);
+					 CONFIGURE_ALS_IR_MODE_MASK,
+					 CONFIGURE_ALS_IR_MODE_IR);
 		break;
 
 	case MODE_NONE:
@@ -152,7 +155,7 @@ static int isl29028_set_als_ir_mode(struct isl29028_chip *chip,
 
 	/* Enable the ALS/IR */
 	ret = regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
-			CONFIGURE_ALS_EN_MASK, CONFIGURE_ALS_EN);
+				 CONFIGURE_ALS_EN_MASK, CONFIGURE_ALS_EN);
 	if (ret < 0)
 		return ret;
 
@@ -193,7 +196,7 @@ static int isl29028_read_proxim(struct isl29028_chip *chip, int *prox)
 	ret = regmap_read(chip->regmap, ISL29028_REG_PROX_DATA, &data);
 	if (ret < 0) {
 		dev_err(chip->dev, "Error in reading register %d, error %d\n",
-				ISL29028_REG_PROX_DATA, ret);
+			ISL29028_REG_PROX_DATA, ret);
 		return ret;
 	}
 	*prox = data;
@@ -264,7 +267,8 @@ static int isl29028_ir_get(struct isl29028_chip *chip, int *ir_data)
 
 /* Channel IO */
 static int isl29028_write_raw(struct iio_dev *indio_dev,
-	     struct iio_chan_spec const *chan, int val, int val2, long mask)
+			      struct iio_chan_spec const *chan,
+			      int val, int val2, long mask)
 {
 	struct isl29028_chip *chip = iio_priv(indio_dev);
 	int ret = -EINVAL;
@@ -323,7 +327,8 @@ static int isl29028_write_raw(struct iio_dev *indio_dev,
 }
 
 static int isl29028_read_raw(struct iio_dev *indio_dev,
-	     struct iio_chan_spec const *chan, int *val, int *val2, long mask)
+			     struct iio_chan_spec const *chan,
+			     int *val, int *val2, long mask)
 {
 	struct isl29028_chip *chip = iio_priv(indio_dev);
 	int ret = -EINVAL;
@@ -406,8 +411,8 @@ static const struct iio_chan_spec isl29028_channels[] = {
 static const struct iio_info isl29028_info = {
 	.attrs = &isl29108_group,
 	.driver_module = THIS_MODULE,
-	.read_raw = &isl29028_read_raw,
-	.write_raw = &isl29028_write_raw,
+	.read_raw = isl29028_read_raw,
+	.write_raw = isl29028_write_raw,
 };
 
 static int isl29028_chip_init(struct isl29028_chip *chip)
@@ -441,15 +446,15 @@ static int isl29028_chip_init(struct isl29028_chip *chip)
 
 	ret = isl29028_set_proxim_sampling(chip, chip->prox_sampling);
 	if (ret < 0) {
-		dev_err(chip->dev, "%s(): setting the proximity, err = %d\n",
-			__func__, ret);
+		dev_err(chip->dev, "setting the proximity, err = %d\n",
+			ret);
 		return ret;
 	}
 
 	ret = isl29028_set_als_scale(chip, chip->lux_scale);
 	if (ret < 0)
-		dev_err(chip->dev, "%s(): setting als scale failed, err = %d\n",
-			__func__, ret);
+		dev_err(chip->dev,
+			"setting als scale failed, err = %d\n", ret);
 	return ret;
 }
 
@@ -476,7 +481,7 @@ static const struct regmap_config isl29028_regmap_config = {
 };
 
 static int isl29028_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+			  const struct i2c_device_id *id)
 {
 	struct isl29028_chip *chip;
 	struct iio_dev *indio_dev;
@@ -513,20 +518,12 @@ static int isl29028_probe(struct i2c_client *client,
 	indio_dev->name = id->name;
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(indio_dev->dev.parent, indio_dev);
 	if (ret < 0) {
 		dev_err(chip->dev, "iio registration fails with error %d\n",
 			ret);
 		return ret;
 	}
-	return 0;
-}
-
-static int isl29028_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
 	return 0;
 }
 
@@ -537,6 +534,7 @@ static const struct i2c_device_id isl29028_id[] = {
 MODULE_DEVICE_TABLE(i2c, isl29028_id);
 
 static const struct of_device_id isl29028_of_match[] = {
+	{ .compatible = "isl,isl29028", }, /* for backward compat., don't use */
 	{ .compatible = "isil,isl29028", },
 	{ },
 };
@@ -546,11 +544,9 @@ static struct i2c_driver isl29028_driver = {
 	.class	= I2C_CLASS_HWMON,
 	.driver  = {
 		.name = "isl29028",
-		.owner = THIS_MODULE,
 		.of_match_table = isl29028_of_match,
 	},
 	.probe	 = isl29028_probe,
-	.remove  = isl29028_remove,
 	.id_table = isl29028_id,
 };
 

@@ -37,6 +37,7 @@
 #include <asm/thread_info.h>
 #include <asm/rtas.h>
 #include <asm/vdso_datapage.h>
+#include <asm/dbell.h>
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #include <asm/lppaca.h>
@@ -94,12 +95,14 @@ int main(void)
 	DEFINE(THREAD_FPSTATE, offsetof(struct thread_struct, fp_state));
 	DEFINE(THREAD_FPSAVEAREA, offsetof(struct thread_struct, fp_save_area));
 	DEFINE(FPSTATE_FPSCR, offsetof(struct thread_fp_state, fpscr));
+	DEFINE(THREAD_LOAD_FP, offsetof(struct thread_struct, load_fp));
 #ifdef CONFIG_ALTIVEC
 	DEFINE(THREAD_VRSTATE, offsetof(struct thread_struct, vr_state));
 	DEFINE(THREAD_VRSAVEAREA, offsetof(struct thread_struct, vr_save_area));
 	DEFINE(THREAD_VRSAVE, offsetof(struct thread_struct, vrsave));
 	DEFINE(THREAD_USED_VR, offsetof(struct thread_struct, used_vr));
 	DEFINE(VRSTATE_VSCR, offsetof(struct thread_vr_state, vscr));
+	DEFINE(THREAD_LOAD_VEC, offsetof(struct thread_struct, load_vec));
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_VSX
 	DEFINE(THREAD_USED_VSR, offsetof(struct thread_struct, used_vsr));
@@ -184,14 +187,16 @@ int main(void)
 	DEFINE(PACAKMSR, offsetof(struct paca_struct, kernel_msr));
 	DEFINE(PACASOFTIRQEN, offsetof(struct paca_struct, soft_enabled));
 	DEFINE(PACAIRQHAPPENED, offsetof(struct paca_struct, irq_happened));
-	DEFINE(PACACONTEXTID, offsetof(struct paca_struct, context.id));
+#ifdef CONFIG_PPC_BOOK3S
+	DEFINE(PACACONTEXTID, offsetof(struct paca_struct, mm_ctx_id));
 #ifdef CONFIG_PPC_MM_SLICES
 	DEFINE(PACALOWSLICESPSIZE, offsetof(struct paca_struct,
-					    context.low_slices_psize));
+					    mm_ctx_low_slices_psize));
 	DEFINE(PACAHIGHSLICEPSIZE, offsetof(struct paca_struct,
-					    context.high_slices_psize));
+					    mm_ctx_high_slices_psize));
 	DEFINE(MMUPSIZEDEFSIZE, sizeof(struct mmu_psize_def));
 #endif /* CONFIG_PPC_MM_SLICES */
+#endif
 
 #ifdef CONFIG_PPC_BOOK3E
 	DEFINE(PACAPGD, offsetof(struct paca_struct, pgd));
@@ -212,7 +217,6 @@ int main(void)
 		offsetof(struct tlb_core_data, esel_max));
 	DEFINE(TCD_ESEL_FIRST,
 		offsetof(struct tlb_core_data, esel_first));
-	DEFINE(TCD_LOCK, offsetof(struct tlb_core_data, lock));
 #endif /* CONFIG_PPC_BOOK3E */
 
 #ifdef CONFIG_PPC_STD_MMU_64
@@ -222,7 +226,7 @@ int main(void)
 #ifdef CONFIG_PPC_MM_SLICES
 	DEFINE(MMUPSIZESLLP, offsetof(struct mmu_psize_def, sllp));
 #else
-	DEFINE(PACACONTEXTSLLP, offsetof(struct paca_struct, context.sllp));
+	DEFINE(PACACONTEXTSLLP, offsetof(struct paca_struct, mm_ctx_sllp));
 #endif /* CONFIG_PPC_MM_SLICES */
 	DEFINE(PACA_EXGEN, offsetof(struct paca_struct, exgen));
 	DEFINE(PACA_EXMC, offsetof(struct paca_struct, exmc));
@@ -246,7 +250,7 @@ int main(void)
 #endif
 	DEFINE(PACAHWCPUID, offsetof(struct paca_struct, hw_cpu_id));
 	DEFINE(PACAKEXECSTATE, offsetof(struct paca_struct, kexec_state));
-	DEFINE(PACA_DSCR, offsetof(struct paca_struct, dscr_default));
+	DEFINE(PACA_DSCR_DEFAULT, offsetof(struct paca_struct, dscr_default));
 	DEFINE(PACA_STARTTIME, offsetof(struct paca_struct, starttime));
 	DEFINE(PACA_STARTTIME_USER, offsetof(struct paca_struct, starttime_user));
 	DEFINE(PACA_USER_TIME, offsetof(struct paca_struct, user_time));
@@ -372,6 +376,7 @@ int main(void)
 	DEFINE(CPU_SPEC_FEATURES, offsetof(struct cpu_spec, cpu_features));
 	DEFINE(CPU_SPEC_SETUP, offsetof(struct cpu_spec, cpu_setup));
 	DEFINE(CPU_SPEC_RESTORE, offsetof(struct cpu_spec, cpu_restore));
+	DEFINE(CPU_DOWN_FLUSH, offsetof(struct cpu_spec, cpu_down_flush));
 
 	DEFINE(pbe_address, offsetof(struct pbe, address));
 	DEFINE(pbe_orig_address, offsetof(struct pbe, orig_address));
@@ -459,6 +464,19 @@ int main(void)
 	DEFINE(VCPU_SPRG2, offsetof(struct kvm_vcpu, arch.shregs.sprg2));
 	DEFINE(VCPU_SPRG3, offsetof(struct kvm_vcpu, arch.shregs.sprg3));
 #endif
+#ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
+	DEFINE(VCPU_TB_RMENTRY, offsetof(struct kvm_vcpu, arch.rm_entry));
+	DEFINE(VCPU_TB_RMINTR, offsetof(struct kvm_vcpu, arch.rm_intr));
+	DEFINE(VCPU_TB_RMEXIT, offsetof(struct kvm_vcpu, arch.rm_exit));
+	DEFINE(VCPU_TB_GUEST, offsetof(struct kvm_vcpu, arch.guest_time));
+	DEFINE(VCPU_TB_CEDE, offsetof(struct kvm_vcpu, arch.cede_time));
+	DEFINE(VCPU_CUR_ACTIVITY, offsetof(struct kvm_vcpu, arch.cur_activity));
+	DEFINE(VCPU_ACTIVITY_START, offsetof(struct kvm_vcpu, arch.cur_tb_start));
+	DEFINE(TAS_SEQCOUNT, offsetof(struct kvmhv_tb_accumulator, seqcount));
+	DEFINE(TAS_TOTAL, offsetof(struct kvmhv_tb_accumulator, tb_total));
+	DEFINE(TAS_MIN, offsetof(struct kvmhv_tb_accumulator, tb_min));
+	DEFINE(TAS_MAX, offsetof(struct kvmhv_tb_accumulator, tb_max));
+#endif
 	DEFINE(VCPU_SHARED_SPRG3, offsetof(struct kvm_vcpu_arch_shared, sprg3));
 	DEFINE(VCPU_SHARED_SPRG4, offsetof(struct kvm_vcpu_arch_shared, sprg4));
 	DEFINE(VCPU_SHARED_SPRG5, offsetof(struct kvm_vcpu_arch_shared, sprg5));
@@ -489,16 +507,17 @@ int main(void)
 	DEFINE(KVM_HOST_LPID, offsetof(struct kvm, arch.host_lpid));
 	DEFINE(KVM_HOST_LPCR, offsetof(struct kvm, arch.host_lpcr));
 	DEFINE(KVM_HOST_SDR1, offsetof(struct kvm, arch.host_sdr1));
-	DEFINE(KVM_TLBIE_LOCK, offsetof(struct kvm, arch.tlbie_lock));
 	DEFINE(KVM_NEED_FLUSH, offsetof(struct kvm, arch.need_tlb_flush.bits));
 	DEFINE(KVM_ENABLED_HCALLS, offsetof(struct kvm, arch.enabled_hcalls));
 	DEFINE(KVM_LPCR, offsetof(struct kvm, arch.lpcr));
-	DEFINE(KVM_RMOR, offsetof(struct kvm, arch.rmor));
 	DEFINE(KVM_VRMA_SLB_V, offsetof(struct kvm, arch.vrma_slb_v));
 	DEFINE(VCPU_DSISR, offsetof(struct kvm_vcpu, arch.shregs.dsisr));
 	DEFINE(VCPU_DAR, offsetof(struct kvm_vcpu, arch.shregs.dar));
 	DEFINE(VCPU_VPA, offsetof(struct kvm_vcpu, arch.vpa.pinned_addr));
 	DEFINE(VCPU_VPA_DIRTY, offsetof(struct kvm_vcpu, arch.vpa.dirty));
+	DEFINE(VCPU_HEIR, offsetof(struct kvm_vcpu, arch.emul_inst));
+	DEFINE(VCPU_CPU, offsetof(struct kvm_vcpu, cpu));
+	DEFINE(VCPU_THREAD_CPU, offsetof(struct kvm_vcpu, arch.thread_cpu));
 #endif
 #ifdef CONFIG_PPC_BOOK3S
 	DEFINE(VCPU_VCPUID, offsetof(struct kvm_vcpu, vcpu_id));
@@ -550,8 +569,7 @@ int main(void)
 	DEFINE(VCPU_ACOP, offsetof(struct kvm_vcpu, arch.acop));
 	DEFINE(VCPU_WORT, offsetof(struct kvm_vcpu, arch.wort));
 	DEFINE(VCPU_SHADOW_SRR1, offsetof(struct kvm_vcpu, arch.shadow_srr1));
-	DEFINE(VCORE_ENTRY_EXIT, offsetof(struct kvmppc_vcore, entry_exit_count));
-	DEFINE(VCORE_NAP_COUNT, offsetof(struct kvmppc_vcore, nap_count));
+	DEFINE(VCORE_ENTRY_EXIT, offsetof(struct kvmppc_vcore, entry_exit_map));
 	DEFINE(VCORE_IN_GUEST, offsetof(struct kvmppc_vcore, in_guest));
 	DEFINE(VCORE_NAPPING_THREADS, offsetof(struct kvmppc_vcore, napping_threads));
 	DEFINE(VCORE_KVM, offsetof(struct kvmppc_vcore, kvm));
@@ -644,14 +662,32 @@ int main(void)
 	HSTATE_FIELD(HSTATE_SAVED_XIRR, saved_xirr);
 	HSTATE_FIELD(HSTATE_HOST_IPI, host_ipi);
 	HSTATE_FIELD(HSTATE_PTID, ptid);
-	HSTATE_FIELD(HSTATE_MMCR, host_mmcr);
-	HSTATE_FIELD(HSTATE_PMC, host_pmc);
+	HSTATE_FIELD(HSTATE_MMCR0, host_mmcr[0]);
+	HSTATE_FIELD(HSTATE_MMCR1, host_mmcr[1]);
+	HSTATE_FIELD(HSTATE_MMCRA, host_mmcr[2]);
+	HSTATE_FIELD(HSTATE_SIAR, host_mmcr[3]);
+	HSTATE_FIELD(HSTATE_SDAR, host_mmcr[4]);
+	HSTATE_FIELD(HSTATE_MMCR2, host_mmcr[5]);
+	HSTATE_FIELD(HSTATE_SIER, host_mmcr[6]);
+	HSTATE_FIELD(HSTATE_PMC1, host_pmc[0]);
+	HSTATE_FIELD(HSTATE_PMC2, host_pmc[1]);
+	HSTATE_FIELD(HSTATE_PMC3, host_pmc[2]);
+	HSTATE_FIELD(HSTATE_PMC4, host_pmc[3]);
+	HSTATE_FIELD(HSTATE_PMC5, host_pmc[4]);
+	HSTATE_FIELD(HSTATE_PMC6, host_pmc[5]);
 	HSTATE_FIELD(HSTATE_PURR, host_purr);
 	HSTATE_FIELD(HSTATE_SPURR, host_spurr);
 	HSTATE_FIELD(HSTATE_DSCR, host_dscr);
 	HSTATE_FIELD(HSTATE_DABR, dabr);
 	HSTATE_FIELD(HSTATE_DECEXP, dec_expires);
+	HSTATE_FIELD(HSTATE_SPLIT_MODE, kvm_split_mode);
 	DEFINE(IPI_PRIORITY, IPI_PRIORITY);
+	DEFINE(KVM_SPLIT_RPR, offsetof(struct kvm_split_mode, rpr));
+	DEFINE(KVM_SPLIT_PMMAR, offsetof(struct kvm_split_mode, pmmar));
+	DEFINE(KVM_SPLIT_LDBAR, offsetof(struct kvm_split_mode, ldbar));
+	DEFINE(KVM_SPLIT_SIZE, offsetof(struct kvm_split_mode, subcore_size));
+	DEFINE(KVM_SPLIT_DO_NAP, offsetof(struct kvm_split_mode, do_nap));
+	DEFINE(KVM_SPLIT_NAPPED, offsetof(struct kvm_split_mode, napped));
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -727,11 +763,17 @@ int main(void)
 #endif
 
 #ifdef CONFIG_PPC_POWERNV
-	DEFINE(OPAL_MC_GPR3, offsetof(struct opal_machine_check_event, gpr3));
-	DEFINE(OPAL_MC_SRR0, offsetof(struct opal_machine_check_event, srr0));
-	DEFINE(OPAL_MC_SRR1, offsetof(struct opal_machine_check_event, srr1));
-	DEFINE(PACA_OPAL_MC_EVT, offsetof(struct paca_struct, opal_mc_evt));
+	DEFINE(PACA_CORE_IDLE_STATE_PTR,
+			offsetof(struct paca_struct, core_idle_state_ptr));
+	DEFINE(PACA_THREAD_IDLE_STATE,
+			offsetof(struct paca_struct, thread_idle_state));
+	DEFINE(PACA_THREAD_MASK,
+			offsetof(struct paca_struct, thread_mask));
+	DEFINE(PACA_SUBCORE_SIBLING_MASK,
+			offsetof(struct paca_struct, subcore_sibling_mask));
 #endif
+
+	DEFINE(PPC_DBELL_SERVER, PPC_DBELL_SERVER);
 
 	return 0;
 }

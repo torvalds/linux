@@ -124,7 +124,7 @@ static void snd_malloc_dev_iram(struct snd_dma_buffer *dmab, size_t size)
 	dmab->addr = 0;
 
 	if (dev->of_node)
-		pool = of_get_named_gen_pool(dev->of_node, "iram", 0);
+		pool = of_gen_pool_get(dev->of_node, "iram", 0);
 
 	if (!pool)
 		return;

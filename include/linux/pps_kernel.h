@@ -48,9 +48,9 @@ struct pps_source_info {
 
 struct pps_event_time {
 #ifdef CONFIG_NTP_PPS
-	struct timespec ts_raw;
+	struct timespec64 ts_raw;
 #endif /* CONFIG_NTP_PPS */
-	struct timespec ts_real;
+	struct timespec64 ts_real;
 };
 
 /* The main struct */
@@ -105,34 +105,29 @@ extern void pps_event(struct pps_device *pps,
 struct pps_device *pps_lookup_dev(void const *cookie);
 
 static inline void timespec_to_pps_ktime(struct pps_ktime *kt,
-		struct timespec ts)
+		struct timespec64 ts)
 {
 	kt->sec = ts.tv_sec;
 	kt->nsec = ts.tv_nsec;
 }
 
+static inline void pps_get_ts(struct pps_event_time *ts)
+{
+	struct system_time_snapshot snap;
+
+	ktime_get_snapshot(&snap);
+	ts->ts_real = ktime_to_timespec64(snap.real);
 #ifdef CONFIG_NTP_PPS
-
-static inline void pps_get_ts(struct pps_event_time *ts)
-{
-	getnstime_raw_and_real(&ts->ts_raw, &ts->ts_real);
+	ts->ts_raw = ktime_to_timespec64(snap.raw);
+#endif
 }
-
-#else /* CONFIG_NTP_PPS */
-
-static inline void pps_get_ts(struct pps_event_time *ts)
-{
-	getnstimeofday(&ts->ts_real);
-}
-
-#endif /* CONFIG_NTP_PPS */
 
 /* Subtract known time delay from PPS event time(s) */
-static inline void pps_sub_ts(struct pps_event_time *ts, struct timespec delta)
+static inline void pps_sub_ts(struct pps_event_time *ts, struct timespec64 delta)
 {
-	ts->ts_real = timespec_sub(ts->ts_real, delta);
+	ts->ts_real = timespec64_sub(ts->ts_real, delta);
 #ifdef CONFIG_NTP_PPS
-	ts->ts_raw = timespec_sub(ts->ts_raw, delta);
+	ts->ts_raw = timespec64_sub(ts->ts_raw, delta);
 #endif
 }
 

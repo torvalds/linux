@@ -38,6 +38,9 @@ extern int reboot_force;
 extern int register_reboot_notifier(struct notifier_block *);
 extern int unregister_reboot_notifier(struct notifier_block *);
 
+extern int register_restart_handler(struct notifier_block *);
+extern int unregister_restart_handler(struct notifier_block *);
+extern void do_kernel_restart(char *cmd);
 
 /*
  * Architecture-specific implementations of sys_reboot commands.
@@ -67,7 +70,8 @@ void ctrl_alt_del(void);
 #define POWEROFF_CMD_PATH_LEN	256
 extern char poweroff_cmd[POWEROFF_CMD_PATH_LEN];
 
-extern int orderly_poweroff(bool force);
+extern void orderly_poweroff(bool force);
+extern void orderly_reboot(void);
 
 /*
  * Emergency restart, callable from an interrupt handler.

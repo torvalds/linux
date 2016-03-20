@@ -10,11 +10,11 @@
 #include <linux/usb/phy.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/otg-fsm.h>
+#include <linux/usb/chipidea.h>
 
 #include "ci.h"
 #include "udc.h"
 #include "bits.h"
-#include "debug.h"
 #include "otg.h"
 
 /**
@@ -66,9 +66,11 @@ static int ci_port_test_show(struct seq_file *s, void *data)
 	unsigned long flags;
 	unsigned mode;
 
+	pm_runtime_get_sync(ci->dev);
 	spin_lock_irqsave(&ci->lock, flags);
 	mode = hw_port_test_get(ci);
 	spin_unlock_irqrestore(&ci->lock, flags);
+	pm_runtime_put_sync(ci->dev);
 
 	seq_printf(s, "mode = %u\n", mode);
 
@@ -88,15 +90,24 @@ static ssize_t ci_port_test_write(struct file *file, const char __user *ubuf,
 	char buf[32];
 	int ret;
 
-	if (copy_from_user(buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+	count = min_t(size_t, sizeof(buf) - 1, count);
+	if (copy_from_user(buf, ubuf, count))
 		return -EFAULT;
+
+	/* sscanf requires a zero terminated string */
+	buf[count] = '\0';
 
 	if (sscanf(buf, "%u", &mode) != 1)
 		return -EINVAL;
 
+	if (mode > 255)
+		return -EBADRQC;
+
+	pm_runtime_get_sync(ci->dev);
 	spin_lock_irqsave(&ci->lock, flags);
 	ret = hw_port_test_set(ci, mode);
 	spin_unlock_irqrestore(&ci->lock, flags);
+	pm_runtime_put_sync(ci->dev);
 
 	return ret ? ret : count;
 }
@@ -164,7 +175,6 @@ static int ci_requests_show(struct seq_file *s, void *data)
 {
 	struct ci_hdrc *ci = s->private;
 	unsigned long flags;
-	struct list_head   *ptr = NULL;
 	struct ci_hw_req *req = NULL;
 	struct td_node *node, *tmpnode;
 	unsigned i, j, qsize = sizeof(struct ci_hw_td)/sizeof(u32);
@@ -176,9 +186,7 @@ static int ci_requests_show(struct seq_file *s, void *data)
 
 	spin_lock_irqsave(&ci->lock, flags);
 	for (i = 0; i < ci->hw_ep_max; i++)
-		list_for_each(ptr, &ci->ci_hw_ep[i].qh.queue) {
-			req = list_entry(ptr, struct ci_hw_req, queue);
-
+		list_for_each_entry(req, &ci->ci_hw_ep[i].qh.queue, queue) {
 			list_for_each_entry_safe(node, tmpnode, &req->tds, td) {
 				seq_printf(s, "EP=%02i: TD=%08X %s\n",
 					   i % (ci->hw_ep_max / 2),
@@ -220,7 +228,7 @@ static int ci_otg_show(struct seq_file *s, void *unused)
 
 	/* ------ State ----- */
 	seq_printf(s, "OTG state: %s\n\n",
-		usb_otg_state_string(ci->transceiver->state));
+			usb_otg_state_string(ci->otg.state));
 
 	/* ------ State Machine Variables ----- */
 	seq_printf(s, "a_bus_drop: %d\n", fsm->a_bus_drop);
@@ -312,8 +320,12 @@ static ssize_t ci_role_write(struct file *file, const char __user *ubuf,
 	if (role == CI_ROLE_END || role == ci->role)
 		return -EINVAL;
 
+	pm_runtime_get_sync(ci->dev);
+	disable_irq(ci->irq);
 	ci_role_stop(ci);
 	ret = ci_role_start(ci, role);
+	enable_irq(ci->irq);
+	pm_runtime_put_sync(ci->dev);
 
 	return ret ? ret : count;
 }
@@ -336,8 +348,8 @@ static int ci_registers_show(struct seq_file *s, void *unused)
 	struct ci_hdrc *ci = s->private;
 	u32 tmp_reg;
 
-	if (!ci)
-		return 0;
+	if (!ci || ci->in_lpm)
+		return -EPERM;
 
 	/* ------ Registers ----- */
 	tmp_reg = hw_read_intr_enable(ci);

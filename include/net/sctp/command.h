@@ -115,7 +115,7 @@ typedef enum {
  * analysis of the state functions, but in reality just taken from
  * thin air in the hopes othat we don't trigger a kernel panic.
  */
-#define SCTP_MAX_NUM_COMMANDS 14
+#define SCTP_MAX_NUM_COMMANDS 20
 
 typedef union {
 	void *zero_all;	/* Set to NULL to clear the entire union */

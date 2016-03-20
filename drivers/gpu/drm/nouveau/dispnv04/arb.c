@@ -198,7 +198,7 @@ nv04_update_arb(struct drm_device *dev, int VClk, int bpp,
 		int *burst, int *lwm)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_device *device = &nouveau_drm(dev)->device;
+	struct nvif_object *device = &nouveau_drm(dev)->device.object;
 	struct nv_fifo_info fifo_data;
 	struct nv_sim_state sim_data;
 	int MClk = nouveau_hw_get_clock(dev, PLL_MEMORY);

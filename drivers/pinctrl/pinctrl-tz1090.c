@@ -1131,7 +1131,7 @@ static int tz1090_pinctrl_dt_subnode_to_map(struct device *dev,
 		function = NULL;
 	}
 
-	ret = pinconf_generic_parse_dt_config(np, &configs, &num_configs);
+	ret = pinconf_generic_parse_dt_config(np, NULL, &configs, &num_configs);
 	if (ret)
 		return ret;
 
@@ -1415,8 +1415,8 @@ found_mux:
  * the effect is the same as enabling the function on each individual pin in the
  * group.
  */
-static int tz1090_pinctrl_enable(struct pinctrl_dev *pctldev,
-				 unsigned int function, unsigned int group)
+static int tz1090_pinctrl_set_mux(struct pinctrl_dev *pctldev,
+				  unsigned int function, unsigned int group)
 {
 	struct tz1090_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	struct tz1090_pingroup *grp;
@@ -1517,7 +1517,7 @@ static struct pinmux_ops tz1090_pinmux_ops = {
 	.get_functions_count	= tz1090_pinctrl_get_funcs_count,
 	.get_function_name	= tz1090_pinctrl_get_func_name,
 	.get_function_groups	= tz1090_pinctrl_get_func_groups,
-	.enable			= tz1090_pinctrl_enable,
+	.set_mux		= tz1090_pinctrl_set_mux,
 	.gpio_request_enable	= tz1090_pinctrl_gpio_request_enable,
 	.gpio_disable_free	= tz1090_pinctrl_gpio_disable_free,
 };
@@ -1661,7 +1661,7 @@ static int tz1090_pinconf_reg(struct pinctrl_dev *pctldev,
 		break;
 	default:
 		return -ENOTSUPP;
-	};
+	}
 
 	/* Only input bias parameters supported */
 	pu = &tz1090_pinconf_pullup[pin];
@@ -1790,7 +1790,7 @@ static int tz1090_pinconf_group_reg(struct pinctrl_dev *pctldev,
 		break;
 	default:
 		return -ENOTSUPP;
-	};
+	}
 
 	/* Calculate field information */
 	*shift = g->slw_bit * *width;
@@ -1963,9 +1963,9 @@ static int tz1090_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(pmx->regs);
 
 	pmx->pctl = pinctrl_register(&tz1090_pinctrl_desc, &pdev->dev, pmx);
-	if (!pmx->pctl) {
+	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(pmx->pctl);
 	}
 
 	platform_set_drvdata(pdev, pmx);
@@ -1984,7 +1984,7 @@ static int tz1090_pinctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id tz1090_pinctrl_of_match[] = {
+static const struct of_device_id tz1090_pinctrl_of_match[] = {
 	{ .compatible = "img,tz1090-pinctrl", },
 	{ },
 };
@@ -1992,7 +1992,6 @@ static struct of_device_id tz1090_pinctrl_of_match[] = {
 static struct platform_driver tz1090_pinctrl_driver = {
 	.driver = {
 		.name		= "tz1090-pinctrl",
-		.owner		= THIS_MODULE,
 		.of_match_table	= tz1090_pinctrl_of_match,
 	},
 	.probe	= tz1090_pinctrl_probe,

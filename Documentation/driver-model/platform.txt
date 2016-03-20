@@ -63,6 +63,20 @@ runtime memory footprint:
 	int platform_driver_probe(struct platform_driver *drv,
 			  int (*probe)(struct platform_device *))
 
+Kernel modules can be composed of several platform drivers. The platform core
+provides helpers to register and unregister an array of drivers:
+
+	int __platform_register_drivers(struct platform_driver * const *drivers,
+				      unsigned int count, struct module *owner);
+	void platform_unregister_drivers(struct platform_driver * const *drivers,
+					 unsigned int count);
+
+If one of the drivers fails to register, all drivers registered up to that
+point will be unregistered in reverse order. Note that there is a convenience
+macro that passes THIS_MODULE as owner parameter:
+
+	#define platform_register_drivers(drivers, count)
+
 
 Device Enumeration
 ~~~~~~~~~~~~~~~~~~

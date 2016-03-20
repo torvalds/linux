@@ -561,8 +561,8 @@ static int __ks8842_start_new_rx_dma(struct net_device *netdev)
 		sg_init_table(sg, 1);
 		sg_dma_address(sg) = dma_map_single(adapter->dev,
 			ctl->skb->data, DMA_BUFFER_SIZE, DMA_FROM_DEVICE);
-		err = dma_mapping_error(adapter->dev, sg_dma_address(sg));
-		if (unlikely(err)) {
+		if (dma_mapping_error(adapter->dev, sg_dma_address(sg))) {
+			err = -ENOMEM;
 			sg_dma_address(sg) = 0;
 			goto out;
 		}
@@ -572,8 +572,10 @@ static int __ks8842_start_new_rx_dma(struct net_device *netdev)
 		ctl->adesc = dmaengine_prep_slave_sg(ctl->chan,
 			sg, 1, DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);
 
-		if (!ctl->adesc)
+		if (!ctl->adesc) {
+			err = -ENOMEM;
 			goto out;
+		}
 
 		ctl->adesc->callback_param = netdev;
 		ctl->adesc->callback = ks8842_dma_rx_cb;
@@ -584,7 +586,7 @@ static int __ks8842_start_new_rx_dma(struct net_device *netdev)
 		goto out;
 	}
 
-	return err;
+	return 0;
 out:
 	if (sg_dma_address(sg))
 		dma_unmap_single(adapter->dev, sg_dma_address(sg),
@@ -875,13 +877,11 @@ static void ks8842_stop_dma(struct ks8842_adapter *adapter)
 
 	tx_ctl->adesc = NULL;
 	if (tx_ctl->chan)
-		tx_ctl->chan->device->device_control(tx_ctl->chan,
-			DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(tx_ctl->chan);
 
 	rx_ctl->adesc = NULL;
 	if (rx_ctl->chan)
-		rx_ctl->chan->device->device_control(rx_ctl->chan,
-			DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(rx_ctl->chan);
 
 	if (sg_dma_address(&rx_ctl->sg))
 		dma_unmap_single(adapter->dev, sg_dma_address(&rx_ctl->sg),
@@ -954,9 +954,8 @@ static int ks8842_alloc_dma_bufs(struct net_device *netdev)
 
 	sg_dma_address(&tx_ctl->sg) = dma_map_single(adapter->dev,
 		tx_ctl->buf, DMA_BUFFER_SIZE, DMA_TO_DEVICE);
-	err = dma_mapping_error(adapter->dev,
-		sg_dma_address(&tx_ctl->sg));
-	if (err) {
+	if (dma_mapping_error(adapter->dev, sg_dma_address(&tx_ctl->sg))) {
+		err = -ENOMEM;
 		sg_dma_address(&tx_ctl->sg) = 0;
 		goto err;
 	}
@@ -1257,7 +1256,6 @@ static int ks8842_remove(struct platform_device *pdev)
 static struct platform_driver ks8842_platform_driver = {
 	.driver = {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ks8842_probe,
 	.remove		= ks8842_remove,

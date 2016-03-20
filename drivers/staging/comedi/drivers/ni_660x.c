@@ -35,12 +35,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
-#include "comedi_fc.h"
 #include "mite.h"
 #include "ni_tio.h"
 
@@ -195,7 +193,6 @@ static inline unsigned NI_660X_GPCT_SUBDEV(unsigned index)
 }
 
 struct NI_660xRegisterData {
-
 	const char *name;	/*  Register Name */
 	int offset;		/*  Offset from base address from GPCT chip */
 	enum ni_660x_register_direction direction;
@@ -433,7 +430,7 @@ struct ni_660x_private {
 
 static inline unsigned ni_660x_num_counters(struct comedi_device *dev)
 {
-	const struct ni_660x_board *board = comedi_board(dev);
+	const struct ni_660x_board *board = dev->board_ptr;
 
 	return board->n_chips * counters_per_chip;
 }
@@ -702,7 +699,7 @@ static int ni_660x_request_mite_channel(struct comedi_device *dev,
 	BUG_ON(counter->mite_chan);
 	mite_chan = mite_request_channel(devpriv->mite,
 					 mite_ring(devpriv, counter));
-	if (mite_chan == NULL) {
+	if (!mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
 			"failed to reserve mite dma channel for counter\n");
@@ -780,7 +777,7 @@ static void ni_660x_handle_gpct_interrupt(struct comedi_device *dev,
 	struct ni_gpct *counter = s->private;
 
 	ni_tio_handle_interrupt(counter, s);
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static irqreturn_t ni_660x_interrupt(int irq, void *d)
@@ -852,7 +849,7 @@ static int ni_660x_allocate_private(struct comedi_device *dev)
 
 static int ni_660x_alloc_mite_rings(struct comedi_device *dev)
 {
-	const struct ni_660x_board *board = comedi_board(dev);
+	const struct ni_660x_board *board = dev->board_ptr;
 	struct ni_660x_private *devpriv = dev->private;
 	unsigned i;
 	unsigned j;
@@ -861,7 +858,7 @@ static int ni_660x_alloc_mite_rings(struct comedi_device *dev)
 		for (j = 0; j < counters_per_chip; ++j) {
 			devpriv->mite_rings[i][j] =
 			    mite_alloc_ring(devpriv->mite);
-			if (devpriv->mite_rings[i][j] == NULL)
+			if (!devpriv->mite_rings[i][j])
 				return -ENOMEM;
 		}
 	}
@@ -870,7 +867,7 @@ static int ni_660x_alloc_mite_rings(struct comedi_device *dev)
 
 static void ni_660x_free_mite_rings(struct comedi_device *dev)
 {
-	const struct ni_660x_board *board = comedi_board(dev);
+	const struct ni_660x_board *board = dev->board_ptr;
 	struct ni_660x_private *devpriv = dev->private;
 	unsigned i;
 	unsigned j;
@@ -924,7 +921,7 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 				      unsigned pfi_channel,
 				      unsigned output_select)
 {
-	const struct ni_660x_board *board = comedi_board(dev);
+	const struct ni_660x_board *board = dev->board_ptr;
 	static const unsigned counter_4_7_first_pfi = 8;
 	static const unsigned counter_4_7_last_pfi = 23;
 	unsigned active_chipset = 0;
@@ -1107,7 +1104,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 						     ni_gpct_variant_660x,
 						     ni_660x_num_counters
 						     (dev));
-	if (devpriv->counter_dev == NULL)
+	if (!devpriv->counter_dev)
 		return -ENOMEM;
 	for (i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i) {
 		s = &dev->subdevices[NI_660X_GPCT_SUBDEV(i)];

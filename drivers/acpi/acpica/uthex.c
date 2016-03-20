@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@
 ACPI_MODULE_NAME("uthex")
 
 /* Hex to ASCII conversion table */
-static char acpi_gbl_hex_to_ascii[] = {
+static const char acpi_gbl_hex_to_ascii[] = {
 	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D',
 	    'E', 'F'
 };
@@ -75,9 +75,9 @@ char acpi_ut_hex_to_ascii_char(u64 integer, u32 position)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_hex_char_to_value
+ * FUNCTION:    acpi_ut_ascii_char_to_hex
  *
- * PARAMETERS:  ascii_char            - Hex character in Ascii
+ * PARAMETERS:  hex_char                - Hex character in Ascii
  *
  * RETURN:      The binary value of the ascii/hex character
  *

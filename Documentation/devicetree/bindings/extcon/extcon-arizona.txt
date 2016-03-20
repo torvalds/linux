@@ -1,0 +1,75 @@
+Cirrus Logic Arizona class audio SoCs
+
+These devices are audio SoCs with extensive digital capabilities and a range
+of analogue I/O.
+
+This document lists Extcon specific bindings, see the primary binding document:
+  ../mfd/arizona.txt
+
+Optional properties:
+
+  - wlf,hpdet-channel : Headphone detection channel.
+    ARIZONA_ACCDET_MODE_HPL or 1 - Headphone detect mode is set to HPDETL
+    ARIZONA_ACCDET_MODE_HPR or 2 - Headphone detect mode is set to HPDETR
+    If this node is not mentioned or if the value is unknown, then
+    headphone detection mode is set to HPDETL.
+
+  - wlf,use-jd2 : Use the additional JD input along with JD1 for dual pin jack
+    detection.
+  - wlf,use-jd2-nopull : Internal pull on JD2 is disabled when used for
+    jack detection.
+  - wlf,jd-invert : Invert the polarity of the jack detection switch
+
+  - wlf,micd-software-compare : Use a software comparison to determine mic
+    presence
+  - wlf,micd-detect-debounce : Additional software microphone detection
+    debounce specified in milliseconds.
+  - wlf,micd-pol-gpio : GPIO specifier for the GPIO controlling the headset
+    polarity if one exists.
+  - wlf,micd-bias-start-time : Time allowed for MICBIAS to startup prior to
+    performing microphone detection, specified as per the ARIZONA_MICD_TIME_XXX
+    defines.
+  - wlf,micd-rate : Delay between successive microphone detection measurements,
+    specified as per the ARIZONA_MICD_TIME_XXX defines.
+  - wlf,micd-dbtime : Microphone detection hardware debounces specified as the
+    number of measurements to take, valid values being 2 and 4.
+  - wlf,micd-timeout-ms : Timeout for microphone detection, specified in
+    milliseconds.
+  - wlf,micd-force-micbias : Force MICBIAS continuously on during microphone
+    detection.
+  - wlf,micd-configs : Headset polarity configurations (generally used for
+    detection of CTIA / OMTP headsets), the field can be of variable length
+    but should always be a multiple of 3 cells long, each three cell group
+    represents one polarity configuration.
+    The first cell defines the accessory detection pin, zero will use MICDET1
+    and all other values will use MICDET2.
+    The second cell represents the MICBIAS to be used.
+    The third cell represents the value of the micd-pol-gpio pin.
+
+  - wlf,gpsw : Settings for the general purpose switch
+
+Example:
+
+codec: wm8280@0 {
+	compatible = "wlf,wm8280";
+	reg = <0>;
+	...
+
+	wlf,use-jd2;
+	wlf,use-jd2-nopull;
+	wlf,jd-invert;
+
+	wlf,micd-software-compare;
+	wlf,micd-detect-debounce = <0>;
+	wlf,micd-pol-gpio = <&codec 2 0>;
+	wlf,micd-rate = <ARIZONA_MICD_TIME_8MS>;
+	wlf,micd-dbtime = <4>;
+	wlf,micd-timeout-ms = <100>;
+	wlf,micd-force-micbias;
+	wlf,micd-configs = <
+		0 1 0 /* MICDET1 MICBIAS1 GPIO=low */
+		1 2 1 /* MICDET2 MICBIAS2 GPIO=high */
+	>;
+
+	wlf,gpsw = <0>;
+};

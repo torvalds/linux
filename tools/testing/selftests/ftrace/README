@@ -1,0 +1,82 @@
+Linux Ftrace Testcases
+
+This is a collection of testcases for ftrace tracing feature in the Linux
+kernel. Since ftrace exports interfaces via the debugfs, we just need
+shell scripts for testing. Feel free to add new test cases.
+
+Running the ftrace testcases
+============================
+
+At first, you need to be the root user to run this script.
+To run all testcases:
+
+  $ sudo ./ftracetest
+
+To run specific testcases:
+
+  # ./ftracetest test.d/basic3.tc
+
+Or you can also run testcases under given directory:
+
+  # ./ftracetest test.d/kprobe/
+
+Contributing new testcases
+==========================
+
+Copy test.d/template to your testcase (whose filename must have *.tc
+extension) and rewrite the test description line.
+
+ * The working directory of the script is <debugfs>/tracing/.
+
+ * Take care with side effects as the tests are run with root privilege.
+
+ * The tests should not run for a long period of time (more than 1 min.)
+   These are to be unit tests.
+
+ * You can add a directory for your testcases under test.d/ if needed.
+
+ * The test cases should run on dash (busybox shell) for testing on
+   minimal cross-build environments.
+
+ * Note that the tests are run with "set -e" (errexit) option. If any
+   command fails, the test will be terminated immediately.
+
+ * The tests can return some result codes instead of pass or fail by
+   using exit_unresolved, exit_untested, exit_unsupported and exit_xfail.
+
+Result code
+===========
+
+Ftracetest supports following result codes.
+
+ * PASS: The test succeeded as expected. The test which exits with 0 is
+         counted as passed test.
+
+ * FAIL: The test failed, but was expected to succeed. The test which exits
+         with !0 is counted as failed test.
+
+ * UNRESOLVED: The test produced unclear or intermidiate results.
+             for example, the test was interrupted
+                       or the test depends on a previous test, which failed.
+                       or the test was set up incorrectly
+             The test which is in above situation, must call exit_unresolved.
+
+ * UNTESTED: The test was not run, currently just a placeholder.
+             In this case, the test must call exit_untested.
+
+ * UNSUPPORTED: The test failed because of lack of feature.
+               In this case, the test must call exit_unsupported.
+
+ * XFAIL: The test failed, and was expected to fail.
+          To return XFAIL, call exit_xfail from the test.
+
+There are some sample test scripts for result code under samples/.
+You can also run samples as below:
+
+  # ./ftracetest samples/
+
+TODO
+====
+
+ * Fancy colored output :)
+

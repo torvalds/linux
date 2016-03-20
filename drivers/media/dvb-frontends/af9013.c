@@ -39,7 +39,7 @@ struct af9013_state {
 	u32 ucblocks;
 	u16 snr;
 	u32 bandwidth_hz;
-	fe_status_t fe_status;
+	enum fe_status fe_status;
 	unsigned long set_frontend_jiffies;
 	unsigned long read_status_jiffies;
 	bool first_tune;
@@ -605,6 +605,10 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 			}
 		}
 
+		/* Return an error if can't find bandwidth or the right clock */
+		if (i == ARRAY_SIZE(coeff_lut))
+			return -EINVAL;
+
 		ret = af9013_wr_regs(state, 0xae00, coeff_lut[i].val,
 			sizeof(coeff_lut[i].val));
 	}
@@ -683,7 +687,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 
 	switch (c->transmission_mode) {
 	case TRANSMISSION_MODE_AUTO:
-		auto_mode = 1;
+		auto_mode = true;
 		break;
 	case TRANSMISSION_MODE_2K:
 		break;
@@ -693,12 +697,12 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 	default:
 		dev_dbg(&state->i2c->dev, "%s: invalid transmission_mode\n",
 				__func__);
-		auto_mode = 1;
+		auto_mode = true;
 	}
 
 	switch (c->guard_interval) {
 	case GUARD_INTERVAL_AUTO:
-		auto_mode = 1;
+		auto_mode = true;
 		break;
 	case GUARD_INTERVAL_1_32:
 		break;
@@ -714,12 +718,12 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 	default:
 		dev_dbg(&state->i2c->dev, "%s: invalid guard_interval\n",
 				__func__);
-		auto_mode = 1;
+		auto_mode = true;
 	}
 
 	switch (c->hierarchy) {
 	case HIERARCHY_AUTO:
-		auto_mode = 1;
+		auto_mode = true;
 		break;
 	case HIERARCHY_NONE:
 		break;
@@ -734,12 +738,12 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 		break;
 	default:
 		dev_dbg(&state->i2c->dev, "%s: invalid hierarchy\n", __func__);
-		auto_mode = 1;
+		auto_mode = true;
 	}
 
 	switch (c->modulation) {
 	case QAM_AUTO:
-		auto_mode = 1;
+		auto_mode = true;
 		break;
 	case QPSK:
 		break;
@@ -751,7 +755,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 		break;
 	default:
 		dev_dbg(&state->i2c->dev, "%s: invalid modulation\n", __func__);
-		auto_mode = 1;
+		auto_mode = true;
 	}
 
 	/* Use HP. How and which case we can switch to LP? */
@@ -759,7 +763,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 
 	switch (c->code_rate_HP) {
 	case FEC_AUTO:
-		auto_mode = 1;
+		auto_mode = true;
 		break;
 	case FEC_1_2:
 		break;
@@ -778,12 +782,12 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 	default:
 		dev_dbg(&state->i2c->dev, "%s: invalid code_rate_HP\n",
 				__func__);
-		auto_mode = 1;
+		auto_mode = true;
 	}
 
 	switch (c->code_rate_LP) {
 	case FEC_AUTO:
-		auto_mode = 1;
+		auto_mode = true;
 		break;
 	case FEC_1_2:
 		break;
@@ -804,7 +808,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 	default:
 		dev_dbg(&state->i2c->dev, "%s: invalid code_rate_LP\n",
 				__func__);
-		auto_mode = 1;
+		auto_mode = true;
 	}
 
 	switch (c->bandwidth_hz) {
@@ -862,9 +866,9 @@ err:
 	return ret;
 }
 
-static int af9013_get_frontend(struct dvb_frontend *fe)
+static int af9013_get_frontend(struct dvb_frontend *fe,
+			       struct dtv_frontend_properties *c)
 {
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct af9013_state *state = fe->demodulator_priv;
 	int ret;
 	u8 buf[3];
@@ -979,7 +983,7 @@ err:
 	return ret;
 }
 
-static int af9013_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct af9013_state *state = fe->demodulator_priv;
 	int ret;
@@ -1340,6 +1344,10 @@ err:
 static void af9013_release(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
+
+	/* stop statistics polling */
+	cancel_delayed_work_sync(&state->statistics_work);
+
 	kfree(state);
 }
 

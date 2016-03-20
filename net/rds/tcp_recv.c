@@ -59,50 +59,30 @@ void rds_tcp_inc_free(struct rds_incoming *inc)
 /*
  * this is pretty lame, but, whatever.
  */
-int rds_tcp_inc_copy_to_user(struct rds_incoming *inc, struct iovec *first_iov,
-			     size_t size)
+int rds_tcp_inc_copy_to_user(struct rds_incoming *inc, struct iov_iter *to)
 {
 	struct rds_tcp_incoming *tinc;
-	struct iovec *iov, tmp;
 	struct sk_buff *skb;
-	unsigned long to_copy, skb_off;
 	int ret = 0;
 
-	if (size == 0)
+	if (!iov_iter_count(to))
 		goto out;
 
 	tinc = container_of(inc, struct rds_tcp_incoming, ti_inc);
-	iov = first_iov;
-	tmp = *iov;
 
 	skb_queue_walk(&tinc->ti_skb_list, skb) {
-		skb_off = 0;
-		while (skb_off < skb->len) {
-			while (tmp.iov_len == 0) {
-				iov++;
-				tmp = *iov;
-			}
-
-			to_copy = min(tmp.iov_len, size);
+		unsigned long to_copy, skb_off;
+		for (skb_off = 0; skb_off < skb->len; skb_off += to_copy) {
+			to_copy = iov_iter_count(to);
 			to_copy = min(to_copy, skb->len - skb_off);
 
-			rdsdebug("ret %d size %zu skb %p skb_off %lu "
-				 "skblen %d iov_base %p iov_len %zu cpy %lu\n",
-				 ret, size, skb, skb_off, skb->len,
-				 tmp.iov_base, tmp.iov_len, to_copy);
-
-			/* modifies tmp as it copies */
-			if (skb_copy_datagram_iovec(skb, skb_off, &tmp,
-						    to_copy)) {
-				ret = -EFAULT;
-				goto out;
-			}
+			if (skb_copy_datagram_iter(skb, skb_off, to, to_copy))
+				return -EFAULT;
 
 			rds_stats_add(s_copy_to_user, to_copy);
-			size -= to_copy;
 			ret += to_copy;
-			skb_off += to_copy;
-			if (size == 0)
+
+			if (!iov_iter_count(to))
 				goto out;
 		}
 	}
@@ -234,8 +214,15 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 			}
 
 			to_copy = min(tc->t_tinc_data_rem, left);
-			pskb_pull(clone, offset);
-			pskb_trim(clone, to_copy);
+			if (!pskb_pull(clone, offset) ||
+			    pskb_trim(clone, to_copy)) {
+				pr_warn("rds_tcp_data_recv: pull/trim failed "
+					"left %zu data_rem %zu skb_len %d\n",
+					left, tc->t_tinc_data_rem, skb->len);
+				kfree_skb(clone);
+				desc->error = -ENOMEM;
+				goto out;
+			}
 			skb_queue_tail(&tinc->ti_skb_list, clone);
 
 			rdsdebug("skb %p data %p len %d off %u to_copy %zu -> "

@@ -624,6 +624,10 @@ extend_lmmio_len(unsigned long start, unsigned long end, unsigned long lba_len)
 {
 	struct resource *tmp;
 
+	/* exit if not a C8000 */
+	if (boot_cpu_data.cpu_type < mako)
+		return end;
+
 	pr_debug("LMMIO mismatch: PAT length = 0x%lx, MASK register = 0x%lx\n",
 		end - start, lba_len);
 
@@ -631,10 +635,6 @@ extend_lmmio_len(unsigned long start, unsigned long end, unsigned long lba_len)
 
 	pr_debug("LBA: lmmio_space [0x%lx-0x%lx] - original\n", start, end);
 
-	if (boot_cpu_data.cpu_type < mako) {
-		pr_info("LBA: Not a C8000 system - not extending LMMIO range.\n");
-		return end;
-	}
 
 	end += lba_len;
 	if (end < start) /* fix overflow */
@@ -694,9 +694,8 @@ lba_fixup_bus(struct pci_bus *bus)
 		int i;
 		/* PCI-PCI Bridge */
 		pci_read_bridge_bases(bus);
-		for (i = PCI_BRIDGE_RESOURCES; i < PCI_NUM_RESOURCES; i++) {
-			pci_claim_resource(bus->self, i);
-		}
+		for (i = PCI_BRIDGE_RESOURCES; i < PCI_NUM_RESOURCES; i++)
+			pci_claim_bridge_resource(bus->self, i);
 	} else {
 		/* Host-PCI Bridge */
 		int err;
@@ -791,8 +790,10 @@ lba_fixup_bus(struct pci_bus *bus)
                 /*
 		** P2PB's have no IRQs. ignore them.
 		*/
-		if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)
+		if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
+			pcibios_init_bridge(dev);
 			continue;
+		}
 
 		/* Adjust INTERRUPT_LINE for this dev */
 		iosapic_fixup_irq(ldev->iosapic_obj, dev);
@@ -1557,8 +1558,11 @@ lba_driver_probe(struct parisc_device *dev)
 	if (lba_dev->hba.lmmio_space.flags)
 		pci_add_resource_offset(&resources, &lba_dev->hba.lmmio_space,
 					lba_dev->hba.lmmio_space_offset);
-	if (lba_dev->hba.gmmio_space.flags)
-		pci_add_resource(&resources, &lba_dev->hba.gmmio_space);
+	if (lba_dev->hba.gmmio_space.flags) {
+		/* Not registering GMMIO space - according to docs it's not
+		 * even used on HP-UX. */
+		/* pci_add_resource(&resources, &lba_dev->hba.gmmio_space); */
+	}
 
 	pci_add_resource(&resources, &lba_dev->hba.bus_num);
 

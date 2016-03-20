@@ -27,6 +27,7 @@
 #include <linux/atomic.h>
 
 #define W1_FAMILY_DEFAULT	0
+#define W1_FAMILY_BQ27000	0x01
 #define W1_FAMILY_SMEM_01	0x01
 #define W1_FAMILY_SMEM_81	0x81
 #define W1_THERM_DS18S20 	0x10

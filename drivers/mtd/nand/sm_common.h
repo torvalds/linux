@@ -18,7 +18,7 @@ struct sm_oob {
 	uint8_t ecc2[3];
 	uint8_t lba_copy2[2];
 	uint8_t ecc1[3];
-} __attribute__((packed));
+} __packed;
 
 
 /* one sector is always 512 bytes, but it can consist of two nand pages */

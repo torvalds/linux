@@ -11,6 +11,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <elf.h>
+#include <fcntl.h>
+#include <link.h>
+#include <sys/stat.h>
 
 #include "subunit.h"
 #include "utils.h"

@@ -14,6 +14,7 @@
  */
 
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/io.h>
 
 #include <asm/mach/map.h>
@@ -22,6 +23,7 @@
 #include <plat/pm-common.h>
 
 #ifdef CONFIG_SAMSUNG_ATAGS
+#include <plat/pm.h>
 #include <mach/pm-core.h>
 #else
 static inline void s3c_pm_debug_init_uart(void) {}

@@ -21,9 +21,13 @@ static int test_body(void)
 		 * Typically the mmap will fail because no huge pages are
 		 * allocated on the system. But if there are huge pages
 		 * allocated the mmap will succeed. That's fine too, we just
-		 * munmap here before continuing.
+		 * munmap here before continuing.  munmap() length of
+		 * MAP_HUGETLB memory must be hugepage aligned.
 		 */
-		munmap(addr, SIZE);
+		if (munmap(addr, SIZE)) {
+			perror("munmap");
+			return 1;
+		}
 	}
 
 	p = mmap(addr, SIZE, PROT_READ | PROT_WRITE,

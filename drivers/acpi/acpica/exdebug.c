@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,6 +76,8 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 {
 	u32 i;
 	u32 timer;
+	union acpi_operand_object *object_desc;
+	u32 value;
 
 	ACPI_FUNCTION_TRACE_PTR(ex_do_debug_object, source_desc);
 
@@ -86,20 +88,40 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 		return_VOID;
 	}
 
-	/*
-	 * We will emit the current timer value (in microseconds) with each
-	 * debug output. Only need the lower 26 bits. This allows for 67
-	 * million microseconds or 67 seconds before rollover.
-	 */
-	timer = ((u32)acpi_os_get_timer() / 10);	/* (100 nanoseconds to microseconds) */
-	timer &= 0x03FFFFFF;
+	/* Null string or newline -- don't emit the line header */
+
+	if (source_desc &&
+	    (ACPI_GET_DESCRIPTOR_TYPE(source_desc) == ACPI_DESC_TYPE_OPERAND) &&
+	    (source_desc->common.type == ACPI_TYPE_STRING)) {
+		if ((source_desc->string.length == 0) ||
+		    ((source_desc->string.length == 1) &&
+		     (*source_desc->string.pointer == '\n'))) {
+			acpi_os_printf("\n");
+			return_VOID;
+		}
+	}
 
 	/*
 	 * Print line header as long as we are not in the middle of an
 	 * object display
 	 */
 	if (!((level > 0) && index == 0)) {
-		acpi_os_printf("[ACPI Debug %.8u] %*s", timer, level, " ");
+		if (acpi_gbl_display_debug_timer) {
+			/*
+			 * We will emit the current timer value (in microseconds) with each
+			 * debug output. Only need the lower 26 bits. This allows for 67
+			 * million microseconds or 67 seconds before rollover.
+			 *
+			 * Convert 100 nanosecond units to microseconds
+			 */
+			timer = ((u32)acpi_os_get_timer() / 10);
+			timer &= 0x03FFFFFF;
+
+			acpi_os_printf("[ACPI Debug T=0x%8.8X] %*s", timer,
+				       level, " ");
+		} else {
+			acpi_os_printf("[ACPI Debug] %*s", level, " ");
+		}
 	}
 
 	/* Display the index for package output only */
@@ -114,8 +136,15 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(source_desc) == ACPI_DESC_TYPE_OPERAND) {
-		acpi_os_printf("%s ",
-			       acpi_ut_get_object_type_name(source_desc));
+
+		/* No object type prefix needed for integers and strings */
+
+		if ((source_desc->common.type != ACPI_TYPE_INTEGER) &&
+		    (source_desc->common.type != ACPI_TYPE_STRING)) {
+			acpi_os_printf("%s ",
+				       acpi_ut_get_object_type_name
+				       (source_desc));
+		}
 
 		if (!acpi_ut_valid_internal_object(source_desc)) {
 			acpi_os_printf("%p, Invalid Internal Object!\n",
@@ -124,7 +153,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 		}
 	} else if (ACPI_GET_DESCRIPTOR_TYPE(source_desc) ==
 		   ACPI_DESC_TYPE_NAMED) {
-		acpi_os_printf("%s: %p\n",
+		acpi_os_printf("%s (Node %p)\n",
 			       acpi_ut_get_type_name(((struct
 						       acpi_namespace_node *)
 						      source_desc)->type),
@@ -162,14 +191,12 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 	case ACPI_TYPE_STRING:
 
-		acpi_os_printf("[0x%.2X] \"%s\"\n",
-			       source_desc->string.length,
-			       source_desc->string.pointer);
+		acpi_os_printf("\"%s\"\n", source_desc->string.pointer);
 		break;
 
 	case ACPI_TYPE_PACKAGE:
 
-		acpi_os_printf("[Contains 0x%.2X Elements]\n",
+		acpi_os_printf("(Contains 0x%.2X Elements):\n",
 			       source_desc->package.count);
 
 		/* Output the entire contents of the package */
@@ -248,21 +275,65 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			if (ACPI_GET_DESCRIPTOR_TYPE
 			    (source_desc->reference.object) ==
 			    ACPI_DESC_TYPE_NAMED) {
-				acpi_ex_do_debug_object(((struct
-							  acpi_namespace_node *)
+
+				/* Reference object is a namespace node */
+
+				acpi_ex_do_debug_object(ACPI_CAST_PTR
+							(union
+							 acpi_operand_object,
 							 source_desc->reference.
-							 object)->object,
-							level + 4, 0);
+							 object), level + 4, 0);
 			} else {
-				acpi_ex_do_debug_object(source_desc->reference.
-							object, level + 4, 0);
+				object_desc = source_desc->reference.object;
+				value = source_desc->reference.value;
+
+				switch (object_desc->common.type) {
+				case ACPI_TYPE_BUFFER:
+
+					acpi_os_printf("Buffer[%u] = 0x%2.2X\n",
+						       value,
+						       *source_desc->reference.
+						       index_pointer);
+					break;
+
+				case ACPI_TYPE_STRING:
+
+					acpi_os_printf
+					    ("String[%u] = \"%c\" (0x%2.2X)\n",
+					     value,
+					     *source_desc->reference.
+					     index_pointer,
+					     *source_desc->reference.
+					     index_pointer);
+					break;
+
+				case ACPI_TYPE_PACKAGE:
+
+					acpi_os_printf("Package[%u] = ", value);
+					if (!(*source_desc->reference.where)) {
+						acpi_os_printf
+						    ("[Uninitialized Package Element]\n");
+					} else {
+						acpi_ex_do_debug_object
+						    (*source_desc->reference.
+						     where, level + 4, 0);
+					}
+					break;
+
+				default:
+
+					acpi_os_printf
+					    ("Unknown Reference object type %X\n",
+					     object_desc->common.type);
+					break;
+				}
 			}
 		}
 		break;
 
 	default:
 
-		acpi_os_printf("%p\n", source_desc);
+		acpi_os_printf("(Descriptor %p)\n", source_desc);
 		break;
 	}
 

@@ -21,7 +21,7 @@
 #include "util/evsel.h"
 #include "util/annotate.h"
 #include "util/event.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/thread.h"
 #include "util/sort.h"
@@ -36,7 +36,8 @@
 
 struct perf_annotate {
 	struct perf_tool tool;
-	bool	   force, use_tui, use_stdio, use_gtk;
+	struct perf_session *session;
+	bool	   use_tui, use_stdio, use_gtk;
 	bool	   full_paths;
 	bool	   print_line;
 	bool	   skip_missing;
@@ -46,10 +47,11 @@ struct perf_annotate {
 };
 
 static int perf_evsel__add_sample(struct perf_evsel *evsel,
-				  struct perf_sample *sample __maybe_unused,
+				  struct perf_sample *sample,
 				  struct addr_location *al,
 				  struct perf_annotate *ann)
 {
+	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he;
 	int ret;
 
@@ -57,21 +59,28 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	    (al->sym == NULL ||
 	     strcmp(ann->sym_hist_filter, al->sym->name) != 0)) {
 		/* We're only interested in a symbol named sym_hist_filter */
+		/*
+		 * FIXME: why isn't this done in the symbol_filter when loading
+		 * the DSO?
+		 */
 		if (al->sym != NULL) {
 			rb_erase(&al->sym->rb_node,
 				 &al->map->dso->symbols[al->map->type]);
 			symbol__delete(al->sym);
+			dso__reset_find_symbol_cache(al->map->dso);
 		}
 		return 0;
 	}
 
-	he = __hists__add_entry(&evsel->hists, al, NULL, NULL, NULL, 1, 1, 0,
-				true);
+	sample->period = 1;
+	sample->weight = 1;
+
+	he = __hists__add_entry(hists, al, NULL, NULL, NULL, sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
 	ret = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
-	hists__inc_nr_samples(&evsel->hists, true);
+	hists__inc_nr_samples(hists, true);
 	return ret;
 }
 
@@ -83,6 +92,7 @@ static int process_sample_event(struct perf_tool *tool,
 {
 	struct perf_annotate *ann = container_of(tool, struct perf_annotate, tool);
 	struct addr_location al;
+	int ret = 0;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
@@ -91,15 +101,16 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 	if (ann->cpu_list && !test_bit(sample->cpu, ann->cpu_bitmap))
-		return 0;
+		goto out_put;
 
 	if (!al.filtered && perf_evsel__add_sample(evsel, sample, &al, ann)) {
 		pr_warning("problem incrementing symbol count, "
 			   "skipping event\n");
-		return -1;
+		ret = -1;
 	}
-
-	return 0;
+out_put:
+	addr_location__put(&al);
+	return ret;
 }
 
 static int hist_entry__tty_annotate(struct hist_entry *he,
@@ -180,6 +191,7 @@ find_next:
 			 * symbol, free he->ms.sym->src to signal we already
 			 * processed this symbol.
 			 */
+			zfree(&notes->src->cycles_hist);
 			zfree(&notes->src);
 		}
 	}
@@ -188,18 +200,9 @@ find_next:
 static int __cmd_annotate(struct perf_annotate *ann)
 {
 	int ret;
-	struct perf_session *session;
+	struct perf_session *session = ann->session;
 	struct perf_evsel *pos;
 	u64 total_nr_samples;
-	struct perf_data_file file = {
-		.path  = input_name,
-		.mode  = PERF_DATA_MODE_READ,
-		.force = ann->force,
-	};
-
-	session = perf_session__new(&file, false, &ann->tool);
-	if (session == NULL)
-		return -ENOMEM;
 
 	machines__set_symbol_filter(&session->machines, symbol__annotate_init);
 
@@ -207,22 +210,23 @@ static int __cmd_annotate(struct perf_annotate *ann)
 		ret = perf_session__cpu_bitmap(session, ann->cpu_list,
 					       ann->cpu_bitmap);
 		if (ret)
-			goto out_delete;
+			goto out;
 	}
 
 	if (!objdump_path) {
-		ret = perf_session_env__lookup_objdump(&session->header.env);
+		ret = perf_env__lookup_objdump(&session->header.env);
 		if (ret)
-			goto out_delete;
+			goto out;
 	}
 
-	ret = perf_session__process_events(session, &ann->tool);
+	ret = perf_session__process_events(session);
 	if (ret)
-		goto out_delete;
+		goto out;
 
 	if (dump_trace) {
 		perf_session__fprintf_nr_events(session, stdout);
-		goto out_delete;
+		perf_evlist__fprintf_nr_events(session->evlist, stdout);
+		goto out;
 	}
 
 	if (verbose > 3)
@@ -233,13 +237,15 @@ static int __cmd_annotate(struct perf_annotate *ann)
 
 	total_nr_samples = 0;
 	evlist__for_each(session->evlist, pos) {
-		struct hists *hists = &pos->hists;
+		struct hists *hists = evsel__hists(pos);
 		u32 nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 
 		if (nr_samples > 0) {
 			total_nr_samples += nr_samples;
 			hists__collapse_resort(hists, NULL);
-			hists__output_resort(hists);
+			/* Don't sort callchain */
+			perf_evsel__reset_sample_bit(pos, CALLCHAIN);
+			perf_evsel__output_resort(pos, NULL);
 
 			if (symbol_conf.event_group &&
 			    !perf_evsel__is_group_leader(pos))
@@ -250,8 +256,8 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	}
 
 	if (total_nr_samples == 0) {
-		ui__error("The %s file has no samples!\n", file.path);
-		goto out_delete;
+		ui__error("The %s file has no samples!\n", session->file->path);
+		goto out;
 	}
 
 	if (use_browser == 2) {
@@ -261,24 +267,12 @@ static int __cmd_annotate(struct perf_annotate *ann)
 					 "perf_gtk__show_annotations");
 		if (show_annotations == NULL) {
 			ui__error("GTK browser not found!\n");
-			goto out_delete;
+			goto out;
 		}
 		show_annotations();
 	}
 
-out_delete:
-	/*
-	 * Speed up the exit process, for large files this can
-	 * take quite a while.
-	 *
-	 * XXX Enable this when using valgrind or if we ever
-	 * librarize this command.
-	 *
-	 * Also experiment with obstacks to see how much speed
-	 * up we'll get here.
-	 *
-	 * perf_session__delete(session);
-	 */
+out:
 	return ret;
 }
 
@@ -297,9 +291,12 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 			.comm	= perf_event__process_comm,
 			.exit	= perf_event__process_exit,
 			.fork	= perf_event__process_fork,
-			.ordered_samples = true,
+			.ordered_events = true,
 			.ordering_requires_timestamps = true,
 		},
+	};
+	struct perf_data_file file = {
+		.mode  = PERF_DATA_MODE_READ,
 	};
 	const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
@@ -308,7 +305,7 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "only consider symbols in these dsos"),
 	OPT_STRING('s', "symbol", &annotate.sym_hist_filter, "symbol",
 		    "symbol to annotate"),
-	OPT_BOOLEAN('f', "force", &annotate.force, "don't complain, do it"),
+	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
@@ -339,29 +336,16 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "objdump binary to use for disassembly and annotations"),
 	OPT_BOOLEAN(0, "group", &symbol_conf.event_group,
 		    "Show event group information together"),
+	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
+		    "Show a column with the sum of periods"),
 	OPT_END()
 	};
+	int ret = hists__init();
+
+	if (ret < 0)
+		return ret;
 
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
-
-	if (annotate.use_stdio)
-		use_browser = 0;
-	else if (annotate.use_tui)
-		use_browser = 1;
-	else if (annotate.use_gtk)
-		use_browser = 2;
-
-	setup_browser(true);
-
-	symbol_conf.priv_size = sizeof(struct annotation);
-	symbol_conf.try_vmlinux_path = true;
-
-	if (symbol__init() < 0)
-		return -1;
-
-	if (setup_sorting() < 0)
-		usage_with_options(annotate_usage, options);
-
 	if (argc) {
 		/*
 		 * Special case: if there's an argument left then assume that
@@ -373,5 +357,45 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		annotate.sym_hist_filter = argv[0];
 	}
 
-	return __cmd_annotate(&annotate);
+	file.path  = input_name;
+
+	annotate.session = perf_session__new(&file, false, &annotate.tool);
+	if (annotate.session == NULL)
+		return -1;
+
+	symbol_conf.priv_size = sizeof(struct annotation);
+	symbol_conf.try_vmlinux_path = true;
+
+	ret = symbol__init(&annotate.session->header.env);
+	if (ret < 0)
+		goto out_delete;
+
+	if (setup_sorting(NULL) < 0)
+		usage_with_options(annotate_usage, options);
+
+	if (annotate.use_stdio)
+		use_browser = 0;
+	else if (annotate.use_tui)
+		use_browser = 1;
+	else if (annotate.use_gtk)
+		use_browser = 2;
+
+	setup_browser(true);
+
+	ret = __cmd_annotate(&annotate);
+
+out_delete:
+	/*
+	 * Speed up the exit process, for large files this can
+	 * take quite a while.
+	 *
+	 * XXX Enable this when using valgrind or if we ever
+	 * librarize this command.
+	 *
+	 * Also experiment with obstacks to see how much speed
+	 * up we'll get here.
+	 *
+	 * perf_session__delete(session);
+	 */
+	return ret;
 }

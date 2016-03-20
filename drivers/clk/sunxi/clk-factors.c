@@ -9,18 +9,18 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/io.h>
-#include <linux/err.h>
-#include <linux/string.h>
-
 #include <linux/delay.h>
+#include <linux/err.h>
+#include <linux/io.h>
+#include <linux/module.h>
+#include <linux/of_address.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 
 #include "clk-factors.h"
 
 /*
- * DOC: basic adjustable factor-based clock that cannot gate
+ * DOC: basic adjustable factor-based clock
  *
  * Traits of this clock:
  * prepare - clk_prepare only ensures that parents are prepared
@@ -31,6 +31,8 @@
  */
 
 #define to_clk_factors(_hw) container_of(_hw, struct clk_factors, hw)
+
+#define FACTORS_MAX_PARENTS		5
 
 #define SETMASK(len, pos)		(((1U << (len)) - 1) << (pos))
 #define CLRMASK(len, pos)		(~(SETMASK(len, pos)))
@@ -77,39 +79,42 @@ static long clk_factors_round_rate(struct clk_hw *hw, unsigned long rate,
 	return rate;
 }
 
-static long clk_factors_determine_rate(struct clk_hw *hw, unsigned long rate,
-				       unsigned long *best_parent_rate,
-				       struct clk **best_parent_p)
+static int clk_factors_determine_rate(struct clk_hw *hw,
+				      struct clk_rate_request *req)
 {
-	struct clk *clk = hw->clk, *parent, *best_parent = NULL;
+	struct clk_hw *parent, *best_parent = NULL;
 	int i, num_parents;
 	unsigned long parent_rate, best = 0, child_rate, best_child_rate = 0;
 
 	/* find the parent that can help provide the fastest rate <= rate */
-	num_parents = __clk_get_num_parents(clk);
+	num_parents = clk_hw_get_num_parents(hw);
 	for (i = 0; i < num_parents; i++) {
-		parent = clk_get_parent_by_index(clk, i);
+		parent = clk_hw_get_parent_by_index(hw, i);
 		if (!parent)
 			continue;
-		if (__clk_get_flags(clk) & CLK_SET_RATE_PARENT)
-			parent_rate = __clk_round_rate(parent, rate);
+		if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT)
+			parent_rate = clk_hw_round_rate(parent, req->rate);
 		else
-			parent_rate = __clk_get_rate(parent);
+			parent_rate = clk_hw_get_rate(parent);
 
-		child_rate = clk_factors_round_rate(hw, rate, &parent_rate);
+		child_rate = clk_factors_round_rate(hw, req->rate,
+						    &parent_rate);
 
-		if (child_rate <= rate && child_rate > best_child_rate) {
+		if (child_rate <= req->rate && child_rate > best_child_rate) {
 			best_parent = parent;
 			best = parent_rate;
 			best_child_rate = child_rate;
 		}
 	}
 
-	if (best_parent)
-		*best_parent_p = best_parent;
-	*best_parent_rate = best;
+	if (!best_parent)
+		return -EINVAL;
 
-	return best_child_rate;
+	req->best_parent_hw = best_parent;
+	req->best_parent_rate = best;
+	req->rate = best_child_rate;
+
+	return 0;
 }
 
 static int clk_factors_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -147,9 +152,92 @@ static int clk_factors_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-const struct clk_ops clk_factors_ops = {
+static const struct clk_ops clk_factors_ops = {
 	.determine_rate = clk_factors_determine_rate,
 	.recalc_rate = clk_factors_recalc_rate,
 	.round_rate = clk_factors_round_rate,
 	.set_rate = clk_factors_set_rate,
 };
+
+struct clk *sunxi_factors_register(struct device_node *node,
+				   const struct factors_data *data,
+				   spinlock_t *lock,
+				   void __iomem *reg)
+{
+	struct clk *clk;
+	struct clk_factors *factors;
+	struct clk_gate *gate = NULL;
+	struct clk_mux *mux = NULL;
+	struct clk_hw *gate_hw = NULL;
+	struct clk_hw *mux_hw = NULL;
+	const char *clk_name = node->name;
+	const char *parents[FACTORS_MAX_PARENTS];
+	int i = 0;
+
+	/* if we have a mux, we will have >1 parents */
+	i = of_clk_parent_fill(node, parents, FACTORS_MAX_PARENTS);
+
+	/*
+	 * some factor clocks, such as pll5 and pll6, may have multiple
+	 * outputs, and have their name designated in factors_data
+	 */
+	if (data->name)
+		clk_name = data->name;
+	else
+		of_property_read_string(node, "clock-output-names", &clk_name);
+
+	factors = kzalloc(sizeof(struct clk_factors), GFP_KERNEL);
+	if (!factors)
+		return NULL;
+
+	/* set up factors properties */
+	factors->reg = reg;
+	factors->config = data->table;
+	factors->get_factors = data->getter;
+	factors->lock = lock;
+
+	/* Add a gate if this factor clock can be gated */
+	if (data->enable) {
+		gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
+		if (!gate) {
+			kfree(factors);
+			return NULL;
+		}
+
+		/* set up gate properties */
+		gate->reg = reg;
+		gate->bit_idx = data->enable;
+		gate->lock = factors->lock;
+		gate_hw = &gate->hw;
+	}
+
+	/* Add a mux if this factor clock can be muxed */
+	if (data->mux) {
+		mux = kzalloc(sizeof(struct clk_mux), GFP_KERNEL);
+		if (!mux) {
+			kfree(factors);
+			kfree(gate);
+			return NULL;
+		}
+
+		/* set up gate properties */
+		mux->reg = reg;
+		mux->shift = data->mux;
+		mux->mask = data->muxmask;
+		mux->lock = factors->lock;
+		mux_hw = &mux->hw;
+	}
+
+	clk = clk_register_composite(NULL, clk_name,
+			parents, i,
+			mux_hw, &clk_mux_ops,
+			&factors->hw, &clk_factors_ops,
+			gate_hw, &clk_gate_ops, 0);
+
+	if (!IS_ERR(clk)) {
+		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		clk_register_clkdev(clk, clk_name, NULL);
+	}
+
+	return clk;
+}

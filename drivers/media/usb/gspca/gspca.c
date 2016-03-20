@@ -436,7 +436,7 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 		}
 		j = gspca_dev->fr_queue[i];
 		frame = &gspca_dev->frame[j];
-		frame->v4l2_buf.timestamp = ktime_to_timeval(ktime_get());
+		v4l2_get_timestamp(&frame->v4l2_buf.timestamp);
 		frame->v4l2_buf.sequence = gspca_dev->sequence++;
 		gspca_dev->image = frame->data;
 		gspca_dev->image_len = 0;
@@ -876,9 +876,8 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		ep_tb[0].alt = gspca_dev->alt;
 		alt_idx = 1;
 	} else {
-
-	/* else, compute the minimum bandwidth
-	 * and build the endpoint table */
+		/* else, compute the minimum bandwidth
+		 * and build the endpoint table */
 		alt_idx = build_isoc_ep_tb(gspca_dev, intf, ep_tb);
 		if (alt_idx <= 0) {
 			pr_err("no transfer endpoint found\n");
@@ -1563,7 +1562,7 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 			struct v4l2_streamparm *parm)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(filp);
-	int n;
+	unsigned int n;
 
 	n = parm->parm.capture.readbuffers;
 	if (n == 0 || n >= GSPCA_MAX_FRAMES)
@@ -1910,7 +1909,7 @@ static ssize_t dev_read(struct file *file, char __user *data,
 	}
 
 	/* get a frame */
-	timestamp = ktime_to_timeval(ktime_get());
+	v4l2_get_timestamp(&timestamp);
 	timestamp.tv_sec--;
 	n = 2;
 	for (;;) {

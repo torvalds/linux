@@ -322,7 +322,7 @@ static int ad5686_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);
 
-	st->reg = devm_regulator_get(&spi->dev, "vcc");
+	st->reg = devm_regulator_get_optional(&spi->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
@@ -395,7 +395,6 @@ MODULE_DEVICE_TABLE(spi, ad5686_id);
 static struct spi_driver ad5686_driver = {
 	.driver = {
 		   .name = "ad5686",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = ad5686_probe,
 	.remove = ad5686_remove,

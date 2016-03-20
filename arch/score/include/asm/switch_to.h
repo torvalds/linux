@@ -8,6 +8,4 @@ do {								\
 	(last) = resume(prev, next, task_thread_info(next));	\
 } while (0)
 
-#define finish_arch_switch(prev)	do {} while (0)
-
 #endif /* _ASM_SCORE_SWITCH_TO_H */

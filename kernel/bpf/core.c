@@ -20,8 +20,14 @@
  * Andi Kleen - Fix a few bad bugs and races.
  * Kris Katterjohn - Added many additional checks in bpf_check_classic()
  */
+
 #include <linux/filter.h>
 #include <linux/skbuff.h>
+#include <linux/vmalloc.h>
+#include <linux/random.h>
+#include <linux/moduleloader.h>
+#include <linux/bpf.h>
+
 #include <asm/unaligned.h>
 
 /* Registers */
@@ -57,11 +63,117 @@ void *bpf_internal_load_pointer_neg_helper(const struct sk_buff *skb, int k, uns
 		ptr = skb_network_header(skb) + k - SKF_NET_OFF;
 	else if (k >= SKF_LL_OFF)
 		ptr = skb_mac_header(skb) + k - SKF_LL_OFF;
+
 	if (ptr >= skb->head && ptr + size <= skb_tail_pointer(skb))
 		return ptr;
 
 	return NULL;
 }
+
+struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
+{
+	gfp_t gfp_flags = GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO |
+			  gfp_extra_flags;
+	struct bpf_prog_aux *aux;
+	struct bpf_prog *fp;
+
+	size = round_up(size, PAGE_SIZE);
+	fp = __vmalloc(size, gfp_flags, PAGE_KERNEL);
+	if (fp == NULL)
+		return NULL;
+
+	kmemcheck_annotate_bitfield(fp, meta);
+
+	aux = kzalloc(sizeof(*aux), GFP_KERNEL | gfp_extra_flags);
+	if (aux == NULL) {
+		vfree(fp);
+		return NULL;
+	}
+
+	fp->pages = size / PAGE_SIZE;
+	fp->aux = aux;
+	fp->aux->prog = fp;
+
+	return fp;
+}
+EXPORT_SYMBOL_GPL(bpf_prog_alloc);
+
+struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
+				  gfp_t gfp_extra_flags)
+{
+	gfp_t gfp_flags = GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO |
+			  gfp_extra_flags;
+	struct bpf_prog *fp;
+
+	BUG_ON(fp_old == NULL);
+
+	size = round_up(size, PAGE_SIZE);
+	if (size <= fp_old->pages * PAGE_SIZE)
+		return fp_old;
+
+	fp = __vmalloc(size, gfp_flags, PAGE_KERNEL);
+	if (fp != NULL) {
+		kmemcheck_annotate_bitfield(fp, meta);
+
+		memcpy(fp, fp_old, fp_old->pages * PAGE_SIZE);
+		fp->pages = size / PAGE_SIZE;
+		fp->aux->prog = fp;
+
+		/* We keep fp->aux from fp_old around in the new
+		 * reallocated structure.
+		 */
+		fp_old->aux = NULL;
+		__bpf_prog_free(fp_old);
+	}
+
+	return fp;
+}
+EXPORT_SYMBOL_GPL(bpf_prog_realloc);
+
+void __bpf_prog_free(struct bpf_prog *fp)
+{
+	kfree(fp->aux);
+	vfree(fp);
+}
+EXPORT_SYMBOL_GPL(__bpf_prog_free);
+
+#ifdef CONFIG_BPF_JIT
+struct bpf_binary_header *
+bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
+		     unsigned int alignment,
+		     bpf_jit_fill_hole_t bpf_fill_ill_insns)
+{
+	struct bpf_binary_header *hdr;
+	unsigned int size, hole, start;
+
+	/* Most of BPF filters are really small, but if some of them
+	 * fill a page, allow at least 128 extra bytes to insert a
+	 * random section of illegal instructions.
+	 */
+	size = round_up(proglen + sizeof(*hdr) + 128, PAGE_SIZE);
+	hdr = module_alloc(size);
+	if (hdr == NULL)
+		return NULL;
+
+	/* Fill space with illegal/arch-dep instructions. */
+	bpf_fill_ill_insns(hdr, size);
+
+	hdr->pages = size / PAGE_SIZE;
+	hole = min_t(unsigned int, size - (proglen + sizeof(*hdr)),
+		     PAGE_SIZE - sizeof(*hdr));
+	start = (prandom_u32() % hole) & ~(alignment - 1);
+
+	/* Leave a random number of instructions before BPF code. */
+	*image_ptr = &hdr->image[start];
+
+	return hdr;
+}
+
+void bpf_jit_binary_free(struct bpf_binary_header *hdr)
+{
+	module_memfree(hdr);
+}
+#endif /* CONFIG_BPF_JIT */
 
 /* Base function for offset calculation. Needs to go into .text section,
  * therefore keeping it non-static as well; will also be used by JITs
@@ -71,6 +183,7 @@ noinline u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 {
 	return 0;
 }
+EXPORT_SYMBOL_GPL(__bpf_call_base);
 
 /**
  *	__bpf_prog_run - run eBPF program on a given context
@@ -140,6 +253,7 @@ static unsigned int __bpf_prog_run(void *ctx, const struct bpf_insn *insn)
 		[BPF_ALU64 | BPF_NEG] = &&ALU64_NEG,
 		/* Call instruction */
 		[BPF_JMP | BPF_CALL] = &&JMP_CALL,
+		[BPF_JMP | BPF_CALL | BPF_X] = &&JMP_TAIL_CALL,
 		/* Jumps */
 		[BPF_JMP | BPF_JA] = &&JMP_JA,
 		[BPF_JMP | BPF_JEQ | BPF_X] = &&JMP_JEQ_X,
@@ -180,7 +294,9 @@ static unsigned int __bpf_prog_run(void *ctx, const struct bpf_insn *insn)
 		[BPF_LD | BPF_IND | BPF_W] = &&LD_IND_W,
 		[BPF_LD | BPF_IND | BPF_H] = &&LD_IND_H,
 		[BPF_LD | BPF_IND | BPF_B] = &&LD_IND_B,
+		[BPF_LD | BPF_IMM | BPF_DW] = &&LD_IMM_DW,
 	};
+	u32 tail_call_cnt = 0;
 	void *ptr;
 	int off;
 
@@ -189,10 +305,6 @@ static unsigned int __bpf_prog_run(void *ctx, const struct bpf_insn *insn)
 
 	FP = (u64) (unsigned long) &stack[ARRAY_SIZE(stack)];
 	ARG1 = (u64) (unsigned long) ctx;
-
-	/* Registers used in classic BPF programs need to be reset first. */
-	regs[BPF_REG_A] = 0;
-	regs[BPF_REG_X] = 0;
 
 select_insn:
 	goto *jumptable[insn->code];
@@ -239,6 +351,10 @@ select_insn:
 	ALU64_MOV_K:
 		DST = IMM;
 		CONT;
+	LD_IMM_DW:
+		DST = (u64) (u32) insn[0].imm | ((u64) (u32) insn[1].imm) << 32;
+		insn++;
+		CONT;
 	ALU64_ARSH_X:
 		(*(s64 *) &DST) >>= SRC;
 		CONT;
@@ -248,8 +364,8 @@ select_insn:
 	ALU64_MOD_X:
 		if (unlikely(SRC == 0))
 			return 0;
-		tmp = DST;
-		DST = do_div(tmp, SRC);
+		div64_u64_rem(DST, SRC, &tmp);
+		DST = tmp;
 		CONT;
 	ALU_MOD_X:
 		if (unlikely(SRC == 0))
@@ -258,8 +374,8 @@ select_insn:
 		DST = do_div(tmp, (u32) SRC);
 		CONT;
 	ALU64_MOD_K:
-		tmp = DST;
-		DST = do_div(tmp, IMM);
+		div64_u64_rem(DST, IMM, &tmp);
+		DST = tmp;
 		CONT;
 	ALU_MOD_K:
 		tmp = (u32) DST;
@@ -268,7 +384,7 @@ select_insn:
 	ALU64_DIV_X:
 		if (unlikely(SRC == 0))
 			return 0;
-		do_div(DST, SRC);
+		DST = div64_u64(DST, SRC);
 		CONT;
 	ALU_DIV_X:
 		if (unlikely(SRC == 0))
@@ -278,7 +394,7 @@ select_insn:
 		DST = (u32) tmp;
 		CONT;
 	ALU64_DIV_K:
-		do_div(DST, IMM);
+		DST = div64_u64(DST, IMM);
 		CONT;
 	ALU_DIV_K:
 		tmp = (u32) DST;
@@ -322,6 +438,34 @@ select_insn:
 						       BPF_R4, BPF_R5);
 		CONT;
 
+	JMP_TAIL_CALL: {
+		struct bpf_map *map = (struct bpf_map *) (unsigned long) BPF_R2;
+		struct bpf_array *array = container_of(map, struct bpf_array, map);
+		struct bpf_prog *prog;
+		u64 index = BPF_R3;
+
+		if (unlikely(index >= array->map.max_entries))
+			goto out;
+
+		if (unlikely(tail_call_cnt > MAX_TAIL_CALL_CNT))
+			goto out;
+
+		tail_call_cnt++;
+
+		prog = READ_ONCE(array->ptrs[index]);
+		if (unlikely(!prog))
+			goto out;
+
+		/* ARG1 at this point is guaranteed to point to CTX from
+		 * the verifier side due to the fact that the tail call is
+		 * handeled like a helper, that is, bpf_tail_call_proto,
+		 * where arg1_type is ARG_PTR_TO_CTX.
+		 */
+		insn = prog->insnsi;
+		goto select_insn;
+out:
+		CONT;
+	}
 	/* JMP */
 	JMP_JA:
 		insn += insn->off;
@@ -506,29 +650,146 @@ load_byte:
 		return 0;
 }
 
+bool bpf_prog_array_compatible(struct bpf_array *array,
+			       const struct bpf_prog *fp)
+{
+	if (!array->owner_prog_type) {
+		/* There's no owner yet where we could check for
+		 * compatibility.
+		 */
+		array->owner_prog_type = fp->type;
+		array->owner_jited = fp->jited;
+
+		return true;
+	}
+
+	return array->owner_prog_type == fp->type &&
+	       array->owner_jited == fp->jited;
+}
+
+static int bpf_check_tail_call(const struct bpf_prog *fp)
+{
+	struct bpf_prog_aux *aux = fp->aux;
+	int i;
+
+	for (i = 0; i < aux->used_map_cnt; i++) {
+		struct bpf_map *map = aux->used_maps[i];
+		struct bpf_array *array;
+
+		if (map->map_type != BPF_MAP_TYPE_PROG_ARRAY)
+			continue;
+
+		array = container_of(map, struct bpf_array, map);
+		if (!bpf_prog_array_compatible(array, fp))
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ *	bpf_prog_select_runtime - select exec runtime for BPF program
+ *	@fp: bpf_prog populated with internal BPF program
+ *
+ * Try to JIT eBPF program, if JIT is not available, use interpreter.
+ * The BPF program will be executed via BPF_PROG_RUN() macro.
+ */
+int bpf_prog_select_runtime(struct bpf_prog *fp)
+{
+	fp->bpf_func = (void *) __bpf_prog_run;
+
+	bpf_int_jit_compile(fp);
+	bpf_prog_lock_ro(fp);
+
+	/* The tail call compatibility check can only be done at
+	 * this late stage as we need to determine, if we deal
+	 * with JITed or non JITed program concatenations and not
+	 * all eBPF JITs might immediately support all features.
+	 */
+	return bpf_check_tail_call(fp);
+}
+EXPORT_SYMBOL_GPL(bpf_prog_select_runtime);
+
+static void bpf_prog_free_deferred(struct work_struct *work)
+{
+	struct bpf_prog_aux *aux;
+
+	aux = container_of(work, struct bpf_prog_aux, work);
+	bpf_jit_free(aux->prog);
+}
+
+/* Free internal BPF program */
+void bpf_prog_free(struct bpf_prog *fp)
+{
+	struct bpf_prog_aux *aux = fp->aux;
+
+	INIT_WORK(&aux->work, bpf_prog_free_deferred);
+	schedule_work(&aux->work);
+}
+EXPORT_SYMBOL_GPL(bpf_prog_free);
+
+/* RNG for unpriviledged user space with separated state from prandom_u32(). */
+static DEFINE_PER_CPU(struct rnd_state, bpf_user_rnd_state);
+
+void bpf_user_rnd_init_once(void)
+{
+	prandom_init_once(&bpf_user_rnd_state);
+}
+
+u64 bpf_user_rnd_u32(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+{
+	/* Should someone ever have the rather unwise idea to use some
+	 * of the registers passed into this function, then note that
+	 * this function is called from native eBPF and classic-to-eBPF
+	 * transformations. Register assignments from both sides are
+	 * different, f.e. classic always sets fn(ctx, A, X) here.
+	 */
+	struct rnd_state *state;
+	u32 res;
+
+	state = &get_cpu_var(bpf_user_rnd_state);
+	res = prandom_u32_state(state);
+	put_cpu_var(state);
+
+	return res;
+}
+
+/* Weak definitions of helper functions in case we don't have bpf syscall. */
+const struct bpf_func_proto bpf_map_lookup_elem_proto __weak;
+const struct bpf_func_proto bpf_map_update_elem_proto __weak;
+const struct bpf_func_proto bpf_map_delete_elem_proto __weak;
+
+const struct bpf_func_proto bpf_get_prandom_u32_proto __weak;
+const struct bpf_func_proto bpf_get_smp_processor_id_proto __weak;
+const struct bpf_func_proto bpf_ktime_get_ns_proto __weak;
+const struct bpf_func_proto bpf_get_current_pid_tgid_proto __weak;
+const struct bpf_func_proto bpf_get_current_uid_gid_proto __weak;
+const struct bpf_func_proto bpf_get_current_comm_proto __weak;
+const struct bpf_func_proto * __weak bpf_get_trace_printk_proto(void)
+{
+	return NULL;
+}
+
+/* Always built-in helper functions. */
+const struct bpf_func_proto bpf_tail_call_proto = {
+	.func		= NULL,
+	.gpl_only	= false,
+	.ret_type	= RET_VOID,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_CONST_MAP_PTR,
+	.arg3_type	= ARG_ANYTHING,
+};
+
+/* For classic BPF JITs that don't implement bpf_int_jit_compile(). */
 void __weak bpf_int_jit_compile(struct bpf_prog *prog)
 {
 }
 
-/**
- *	bpf_prog_select_runtime - select execution runtime for BPF program
- *	@fp: bpf_prog populated with internal BPF program
- *
- * try to JIT internal BPF program, if JIT is not available select interpreter
- * BPF program will be executed via BPF_PROG_RUN() macro
+/* To execute LD_ABS/LD_IND instructions __bpf_prog_run() may call
+ * skb_copy_bits(), so provide a weak definition of it for NET-less config.
  */
-void bpf_prog_select_runtime(struct bpf_prog *fp)
+int __weak skb_copy_bits(const struct sk_buff *skb, int offset, void *to,
+			 int len)
 {
-	fp->bpf_func = (void *) __bpf_prog_run;
-
-	/* Probe if internal BPF can be JITed */
-	bpf_int_jit_compile(fp);
+	return -EFAULT;
 }
-EXPORT_SYMBOL_GPL(bpf_prog_select_runtime);
-
-/* free internal BPF program */
-void bpf_prog_free(struct bpf_prog *fp)
-{
-	bpf_jit_free(fp);
-}
-EXPORT_SYMBOL_GPL(bpf_prog_free);

@@ -24,14 +24,16 @@
 #include "iss_ipipe.h"
 
 static struct v4l2_mbus_framefmt *
-__ipipe_get_format(struct iss_ipipe_device *ipipe, struct v4l2_subdev_fh *fh,
-		  unsigned int pad, enum v4l2_subdev_format_whence which);
+__ipipe_get_format(struct iss_ipipe_device *ipipe,
+		   struct v4l2_subdev_pad_config *cfg,
+		   unsigned int pad,
+		   enum v4l2_subdev_format_whence which);
 
 static const unsigned int ipipe_fmts[] = {
-	V4L2_MBUS_FMT_SGRBG10_1X10,
-	V4L2_MBUS_FMT_SRGGB10_1X10,
-	V4L2_MBUS_FMT_SBGGR10_1X10,
-	V4L2_MBUS_FMT_SGBRG10_1X10,
+	MEDIA_BUS_FMT_SGRBG10_1X10,
+	MEDIA_BUS_FMT_SRGGB10_1X10,
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+	MEDIA_BUS_FMT_SGBRG10_1X10,
 };
 
 /*
@@ -176,26 +178,30 @@ static int ipipe_set_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static struct v4l2_mbus_framefmt *
-__ipipe_get_format(struct iss_ipipe_device *ipipe, struct v4l2_subdev_fh *fh,
-		  unsigned int pad, enum v4l2_subdev_format_whence which)
+__ipipe_get_format(struct iss_ipipe_device *ipipe,
+		   struct v4l2_subdev_pad_config *cfg,
+		   unsigned int pad,
+		   enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(fh, pad);
-	else
-		return &ipipe->formats[pad];
+		return v4l2_subdev_get_try_format(&ipipe->subdev, cfg, pad);
+
+	return &ipipe->formats[pad];
 }
 
 /*
  * ipipe_try_format - Try video format on a pad
  * @ipipe: ISS IPIPE device
- * @fh : V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad config
  * @pad: Pad number
  * @fmt: Format
  */
 static void
-ipipe_try_format(struct iss_ipipe_device *ipipe, struct v4l2_subdev_fh *fh,
-		unsigned int pad, struct v4l2_mbus_framefmt *fmt,
-		enum v4l2_subdev_format_whence which)
+ipipe_try_format(struct iss_ipipe_device *ipipe,
+		 struct v4l2_subdev_pad_config *cfg,
+		 unsigned int pad,
+		 struct v4l2_mbus_framefmt *fmt,
+		 enum v4l2_subdev_format_whence which)
 {
 	struct v4l2_mbus_framefmt *format;
 	unsigned int width = fmt->width;
@@ -211,7 +217,7 @@ ipipe_try_format(struct iss_ipipe_device *ipipe, struct v4l2_subdev_fh *fh,
 
 		/* If not found, use SGRBG10 as default */
 		if (i >= ARRAY_SIZE(ipipe_fmts))
-			fmt->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
 		/* Clamp the input size. */
 		fmt->width = clamp_t(u32, width, 1, 8192);
@@ -220,10 +226,10 @@ ipipe_try_format(struct iss_ipipe_device *ipipe, struct v4l2_subdev_fh *fh,
 		break;
 
 	case IPIPE_PAD_SOURCE_VP:
-		format = __ipipe_get_format(ipipe, fh, IPIPE_PAD_SINK, which);
+		format = __ipipe_get_format(ipipe, cfg, IPIPE_PAD_SINK, which);
 		memcpy(fmt, format, sizeof(*fmt));
 
-		fmt->code = V4L2_MBUS_FMT_UYVY8_1X16;
+		fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 		fmt->width = clamp_t(u32, width, 32, fmt->width);
 		fmt->height = clamp_t(u32, height, 32, fmt->height);
 		fmt->colorspace = V4L2_COLORSPACE_JPEG;
@@ -236,13 +242,13 @@ ipipe_try_format(struct iss_ipipe_device *ipipe, struct v4l2_subdev_fh *fh,
 /*
  * ipipe_enum_mbus_code - Handle pixel format enumeration
  * @sd     : pointer to v4l2 subdev structure
- * @fh : V4L2 subdev file handle
+ * @cfg    : V4L2 subdev pad config
  * @code   : pointer to v4l2_subdev_mbus_code_enum structure
  * return -EINVAL or zero on success
  */
 static int ipipe_enum_mbus_code(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_fh *fh,
-			       struct v4l2_subdev_mbus_code_enum *code)
+				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_mbus_code_enum *code)
 {
 	switch (code->pad) {
 	case IPIPE_PAD_SINK:
@@ -257,7 +263,7 @@ static int ipipe_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index != 0)
 			return -EINVAL;
 
-		code->code = V4L2_MBUS_FMT_UYVY8_1X16;
+		code->code = MEDIA_BUS_FMT_UYVY8_1X16;
 		break;
 
 	default:
@@ -268,8 +274,8 @@ static int ipipe_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ipipe_enum_frame_size(struct v4l2_subdev *sd,
-				struct v4l2_subdev_fh *fh,
-				struct v4l2_subdev_frame_size_enum *fse)
+				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct iss_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt format;
@@ -280,7 +286,7 @@ static int ipipe_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	ipipe_try_format(ipipe, fh, fse->pad, &format, V4L2_SUBDEV_FORMAT_TRY);
+	ipipe_try_format(ipipe, cfg, fse->pad, &format, fse->which);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
 
@@ -290,7 +296,7 @@ static int ipipe_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	ipipe_try_format(ipipe, fh, fse->pad, &format, V4L2_SUBDEV_FORMAT_TRY);
+	ipipe_try_format(ipipe, cfg, fse->pad, &format, fse->which);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
 
@@ -300,20 +306,21 @@ static int ipipe_enum_frame_size(struct v4l2_subdev *sd,
 /*
  * ipipe_get_format - Retrieve the video format on a pad
  * @sd : ISP IPIPE V4L2 subdevice
- * @fh : V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad config
  * @fmt: Format
  *
  * Return 0 on success or -EINVAL if the pad is invalid or doesn't correspond
  * to the format type.
  */
-static int ipipe_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
-			   struct v4l2_subdev_format *fmt)
+static int ipipe_get_format(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_format *fmt)
 {
 	struct iss_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __ipipe_get_format(ipipe, fh, fmt->pad, fmt->which);
-	if (format == NULL)
+	format = __ipipe_get_format(ipipe, cfg, fmt->pad, fmt->which);
+	if (!format)
 		return -EINVAL;
 
 	fmt->format = *format;
@@ -323,40 +330,41 @@ static int ipipe_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * ipipe_set_format - Set the video format on a pad
  * @sd : ISP IPIPE V4L2 subdevice
- * @fh : V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad config
  * @fmt: Format
  *
  * Return 0 on success or -EINVAL if the pad is invalid or doesn't correspond
  * to the format type.
  */
-static int ipipe_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
-			   struct v4l2_subdev_format *fmt)
+static int ipipe_set_format(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_format *fmt)
 {
 	struct iss_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __ipipe_get_format(ipipe, fh, fmt->pad, fmt->which);
-	if (format == NULL)
+	format = __ipipe_get_format(ipipe, cfg, fmt->pad, fmt->which);
+	if (!format)
 		return -EINVAL;
 
-	ipipe_try_format(ipipe, fh, fmt->pad, &fmt->format, fmt->which);
+	ipipe_try_format(ipipe, cfg, fmt->pad, &fmt->format, fmt->which);
 	*format = fmt->format;
 
 	/* Propagate the format from sink to source */
 	if (fmt->pad == IPIPE_PAD_SINK) {
-		format = __ipipe_get_format(ipipe, fh, IPIPE_PAD_SOURCE_VP,
-					   fmt->which);
+		format = __ipipe_get_format(ipipe, cfg, IPIPE_PAD_SOURCE_VP,
+					    fmt->which);
 		*format = fmt->format;
-		ipipe_try_format(ipipe, fh, IPIPE_PAD_SOURCE_VP, format,
-				fmt->which);
+		ipipe_try_format(ipipe, cfg, IPIPE_PAD_SOURCE_VP, format,
+				 fmt->which);
 	}
 
 	return 0;
 }
 
 static int ipipe_link_validate(struct v4l2_subdev *sd, struct media_link *link,
-				 struct v4l2_subdev_format *source_fmt,
-				 struct v4l2_subdev_format *sink_fmt)
+			       struct v4l2_subdev_format *source_fmt,
+			       struct v4l2_subdev_format *sink_fmt)
 {
 	/* Check if the two ends match */
 	if (source_fmt->format.width != sink_fmt->format.width ||
@@ -385,10 +393,10 @@ static int ipipe_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	memset(&format, 0, sizeof(format));
 	format.pad = IPIPE_PAD_SINK;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	format.format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	format.format.width = 4096;
 	format.format.height = 4096;
-	ipipe_set_format(sd, fh, &format);
+	ipipe_set_format(sd, fh ? fh->pad : NULL, &format);
 
 	return 0;
 }
@@ -432,15 +440,18 @@ static const struct v4l2_subdev_internal_ops ipipe_v4l2_internal_ops = {
  * return -EINVAL or zero on success
  */
 static int ipipe_link_setup(struct media_entity *entity,
-			   const struct media_pad *local,
-			   const struct media_pad *remote, u32 flags)
+			    const struct media_pad *local,
+			    const struct media_pad *remote, u32 flags)
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct iss_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 	struct iss_device *iss = to_iss_device(ipipe);
 
-	switch (local->index | media_entity_type(remote->entity)) {
-	case IPIPE_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+	if (!is_media_entity_v4l2_subdev(remote->entity))
+		return -EINVAL;
+
+	switch (local->index) {
+	case IPIPE_PAD_SINK:
 		/* Read from IPIPEIF. */
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 			ipipe->input = IPIPE_INPUT_NONE;
@@ -455,7 +466,7 @@ static int ipipe_link_setup(struct media_entity *entity,
 
 		break;
 
-	case IPIPE_PAD_SOURCE_VP | MEDIA_ENT_T_V4L2_SUBDEV:
+	case IPIPE_PAD_SOURCE_VP:
 		/* Send to RESIZER */
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (ipipe->output & ~IPIPE_OUTPUT_VP)
@@ -505,7 +516,7 @@ static int ipipe_init_entities(struct iss_ipipe_device *ipipe)
 	pads[IPIPE_PAD_SOURCE_VP].flags = MEDIA_PAD_FL_SOURCE;
 
 	me->ops = &ipipe_media_ops;
-	ret = media_entity_init(me, IPIPE_PADS_NUM, pads, 0);
+	ret = media_entity_pads_init(me, IPIPE_PADS_NUM, pads);
 	if (ret < 0)
 		return ret;
 
@@ -516,13 +527,11 @@ static int ipipe_init_entities(struct iss_ipipe_device *ipipe)
 
 void omap4iss_ipipe_unregister_entities(struct iss_ipipe_device *ipipe)
 {
-	media_entity_cleanup(&ipipe->subdev.entity);
-
 	v4l2_device_unregister_subdev(&ipipe->subdev);
 }
 
 int omap4iss_ipipe_register_entities(struct iss_ipipe_device *ipipe,
-	struct v4l2_device *vdev)
+				     struct v4l2_device *vdev)
 {
 	int ret;
 
@@ -566,5 +575,7 @@ int omap4iss_ipipe_init(struct iss_device *iss)
  */
 void omap4iss_ipipe_cleanup(struct iss_device *iss)
 {
-	/* FIXME: are you sure there's nothing to do? */
+	struct iss_ipipe_device *ipipe = &iss->ipipe;
+
+	media_entity_cleanup(&ipipe->subdev.entity);
 }

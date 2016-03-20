@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,7 @@
 #define AML_PACKAGE_OP              (u16) 0x12
 #define AML_VAR_PACKAGE_OP          (u16) 0x13	/* ACPI 2.0 */
 #define AML_METHOD_OP               (u16) 0x14
+#define AML_EXTERNAL_OP             (u16) 0x15	/* ACPI 6.0 */
 #define AML_DUAL_NAME_PREFIX        (u16) 0x2e
 #define AML_MULTI_NAME_PREFIX_OP    (u16) 0x2f
 #define AML_NAME_CHAR_SUBSEQ        (u16) 0x30
@@ -119,7 +120,7 @@
 #define AML_CREATE_WORD_FIELD_OP    (u16) 0x8b
 #define AML_CREATE_BYTE_FIELD_OP    (u16) 0x8c
 #define AML_CREATE_BIT_FIELD_OP     (u16) 0x8d
-#define AML_TYPE_OP                 (u16) 0x8e
+#define AML_OBJECT_TYPE_OP          (u16) 0x8e
 #define AML_CREATE_QWORD_FIELD_OP   (u16) 0x8f	/* ACPI 2.0 */
 #define AML_LAND_OP                 (u16) 0x90
 #define AML_LOR_OP                  (u16) 0x91
@@ -206,7 +207,6 @@
 #define AML_INT_RESERVEDFIELD_OP    (u16) 0x0031
 #define AML_INT_ACCESSFIELD_OP      (u16) 0x0032
 #define AML_INT_BYTELIST_OP         (u16) 0x0033
-#define AML_INT_STATICSTRING_OP     (u16) 0x0034
 #define AML_INT_METHODCALL_OP       (u16) 0x0035
 #define AML_INT_RETURN_VALUE_OP     (u16) 0x0036
 #define AML_INT_EVAL_SUBTREE_OP     (u16) 0x0037
@@ -238,7 +238,8 @@
 #define ARGP_TERMLIST               0x0F
 #define ARGP_WORDDATA               0x10
 #define ARGP_QWORDDATA              0x11
-#define ARGP_SIMPLENAME             0x12
+#define ARGP_SIMPLENAME             0x12	/* name_string | local_term | arg_term */
+#define ARGP_NAME_OR_REF            0x13	/* For object_type only */
 
 /*
  * Resolved argument types for the AML Interpreter
@@ -277,14 +278,15 @@
 #define ARGI_TARGETREF              0x0F	/* Target, subject to implicit conversion */
 #define ARGI_FIXED_TARGET           0x10	/* Target, no implicit conversion */
 #define ARGI_SIMPLE_TARGET          0x11	/* Name, Local, Arg -- no implicit conversion */
+#define ARGI_STORE_TARGET           0x12	/* Target for store is TARGETREF + package objects */
 
 /* Multiple/complex types */
 
-#define ARGI_DATAOBJECT             0x12	/* Buffer, String, package or reference to a node - Used only by size_of operator */
-#define ARGI_COMPLEXOBJ             0x13	/* Buffer, String, or package (Used by INDEX op only) */
-#define ARGI_REF_OR_STRING          0x14	/* Reference or String (Used by DEREFOF op only) */
-#define ARGI_REGION_OR_BUFFER       0x15	/* Used by LOAD op only */
-#define ARGI_DATAREFOBJ             0x16
+#define ARGI_DATAOBJECT             0x13	/* Buffer, String, package or reference to a node - Used only by size_of operator */
+#define ARGI_COMPLEXOBJ             0x14	/* Buffer, String, or package (Used by INDEX op only) */
+#define ARGI_REF_OR_STRING          0x15	/* Reference or String (Used by DEREFOF op only) */
+#define ARGI_REGION_OR_BUFFER       0x16	/* Used by LOAD op only */
+#define ARGI_DATAREFOBJ             0x17
 
 /* Note: types above can expand to 0x1F maximum */
 

@@ -1,0 +1,10 @@
+# Note: This documents additional properties of any device beyond what
+# is documented in Documentation/sysfs-rules.txt
+
+What:		/sys/devices/*/of_path
+Date:		February 2015
+Contact:	Device Tree mailing list <devicetree@vger.kernel.org>
+Description:
+		Any device associated with a device-tree node will have
+		an of_path symlink pointing to the corresponding device
+		node in /sys/firmware/devicetree/

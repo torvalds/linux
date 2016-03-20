@@ -81,6 +81,13 @@ increase the chances of your change being accepted.
 
 * Provide a detect function if and only if a chip can be detected reliably.
 
+* Only the following I2C addresses shall be probed: 0x18-0x1f, 0x28-0x2f,
+  0x48-0x4f, 0x58, 0x5c, 0x73 and 0x77. Probing other addresses is strongly
+  discouraged as it is known to cause trouble with other (non-hwmon) I2C
+  chips. If your chip lives at an address which can't be probed then the
+  device will have to be instantiated explicitly (which is always better
+  anyway.)
+
 * Avoid writing to chip registers in the detect function. If you have to write,
   only do it after you have already gathered enough data to be certain that the
   detection is going to be successful.

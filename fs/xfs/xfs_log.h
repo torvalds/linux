@@ -111,15 +111,6 @@ static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 #define	XFS_LSN_CMP(x,y) _lsn_cmp(x,y)
 
 /*
- * Macros, structures, prototypes for interface to the log manager.
- */
-
-/*
- * Flags to xfs_log_done()
- */
-#define XFS_LOG_REL_PERM_RESERV	0x1
-
-/*
  * Flags to xfs_log_force()
  *
  *	XFS_LOG_SYNC:	Synchronous force in-core log to disk
@@ -138,7 +129,7 @@ struct xfs_log_callback;
 xfs_lsn_t xfs_log_done(struct xfs_mount *mp,
 		       struct xlog_ticket *ticket,
 		       struct xlog_in_core **iclog,
-		       uint		flags);
+		       bool regrant);
 int	  _xfs_log_force(struct xfs_mount *mp,
 			 uint		flags,
 			 int		*log_forced);
@@ -156,6 +147,7 @@ int	  xfs_log_mount(struct xfs_mount	*mp,
 			xfs_daddr_t		start_block,
 			int		 	num_bblocks);
 int	  xfs_log_mount_finish(struct xfs_mount *mp);
+int	xfs_log_mount_cancel(struct xfs_mount *);
 xfs_lsn_t xlog_assign_tail_lsn(struct xfs_mount *mp);
 xfs_lsn_t xlog_assign_tail_lsn_locked(struct xfs_mount *mp);
 void	  xfs_log_space_wake(struct xfs_mount *mp);
@@ -183,11 +175,12 @@ struct xlog_ticket *xfs_log_ticket_get(struct xlog_ticket *ticket);
 void	  xfs_log_ticket_put(struct xlog_ticket *ticket);
 
 void	xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
-				xfs_lsn_t *commit_lsn, int flags);
+				xfs_lsn_t *commit_lsn, bool regrant);
 bool	xfs_log_item_in_current_chkpt(struct xfs_log_item *lip);
 
 void	xfs_log_work_queue(struct xfs_mount *mp);
 void	xfs_log_worker(struct work_struct *work);
 void	xfs_log_quiesce(struct xfs_mount *mp);
+bool	xfs_log_check_lsn(struct xfs_mount *, xfs_lsn_t);
 
 #endif	/* __XFS_LOG_H__ */

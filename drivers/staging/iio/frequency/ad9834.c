@@ -27,7 +27,8 @@
 
 static unsigned int ad9834_calc_freqreg(unsigned long mclk, unsigned long fout)
 {
-	unsigned long long freqreg = (u64) fout * (u64) (1 << AD9834_FREQ_BITS);
+	unsigned long long freqreg = (u64)fout * (u64)BIT(AD9834_FREQ_BITS);
+
 	do_div(freqreg, mclk);
 	return freqreg;
 }
@@ -52,9 +53,9 @@ static int ad9834_write_frequency(struct ad9834_state *st,
 }
 
 static int ad9834_write_phase(struct ad9834_state *st,
-				  unsigned long addr, unsigned long phase)
+			      unsigned long addr, unsigned long phase)
 {
-	if (phase > (1 << AD9834_PHASE_BITS))
+	if (phase > BIT(AD9834_PHASE_BITS))
 		return -EINVAL;
 	st->data = cpu_to_be16(addr | phase);
 
@@ -62,9 +63,9 @@ static int ad9834_write_phase(struct ad9834_state *st,
 }
 
 static ssize_t ad9834_write(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+			    struct device_attribute *attr,
+			    const char *buf,
+			    size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad9834_state *st = iio_priv(indio_dev);
@@ -77,7 +78,7 @@ static ssize_t ad9834_write(struct device *dev,
 		goto error_ret;
 
 	mutex_lock(&indio_dev->mlock);
-	switch ((u32) this_attr->address) {
+	switch ((u32)this_attr->address) {
 	case AD9834_REG_FREQ0:
 	case AD9834_REG_FREQ1:
 		ret = ad9834_write_frequency(st, this_attr->address, val);
@@ -110,9 +111,9 @@ static ssize_t ad9834_write(struct device *dev,
 		break;
 	case AD9834_FSEL:
 	case AD9834_PSEL:
-		if (val == 0)
+		if (!val) {
 			st->control &= ~(this_attr->address | AD9834_PIN_SW);
-		else if (val == 1) {
+		} else if (val == 1) {
 			st->control |= this_attr->address;
 			st->control &= ~AD9834_PIN_SW;
 		} else {
@@ -141,9 +142,9 @@ error_ret:
 }
 
 static ssize_t ad9834_store_wavetype(struct device *dev,
-				 struct device_attribute *attr,
-				 const char *buf,
-				 size_t len)
+				     struct device_attribute *attr,
+				     const char *buf,
+				     size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad9834_state *st = iio_priv(indio_dev);
@@ -153,7 +154,7 @@ static ssize_t ad9834_store_wavetype(struct device *dev,
 
 	mutex_lock(&indio_dev->mlock);
 
-	switch ((u32) this_attr->address) {
+	switch ((u32)this_attr->address) {
 	case 0:
 		if (sysfs_streq(buf, "sine")) {
 			st->control &= ~AD9834_MODE;
@@ -178,7 +179,7 @@ static ssize_t ad9834_store_wavetype(struct device *dev,
 		break;
 	case 1:
 		if (sysfs_streq(buf, "square") &&
-			!(st->control & AD9834_MODE)) {
+		    !(st->control & AD9834_MODE)) {
 			st->control &= ~AD9834_MODE;
 			st->control |= AD9834_OPBITEN;
 		} else {
@@ -199,9 +200,10 @@ static ssize_t ad9834_store_wavetype(struct device *dev,
 	return ret ? ret : len;
 }
 
-static ssize_t ad9834_show_out0_wavetype_available(struct device *dev,
-						struct device_attribute *attr,
-						char *buf)
+static
+ssize_t ad9834_show_out0_wavetype_available(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad9834_state *st = iio_priv(indio_dev);
@@ -217,13 +219,13 @@ static ssize_t ad9834_show_out0_wavetype_available(struct device *dev,
 	return sprintf(buf, "%s\n", str);
 }
 
-
 static IIO_DEVICE_ATTR(out_altvoltage0_out0_wavetype_available, S_IRUGO,
 		       ad9834_show_out0_wavetype_available, NULL, 0);
 
-static ssize_t ad9834_show_out1_wavetype_available(struct device *dev,
-						struct device_attribute *attr,
-						char *buf)
+static
+ssize_t ad9834_show_out1_wavetype_available(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad9834_state *st = iio_priv(indio_dev);
@@ -316,7 +318,7 @@ static const struct iio_info ad9833_info = {
 
 static int ad9834_probe(struct spi_device *spi)
 {
-	struct ad9834_platform_data *pdata = spi->dev.platform_data;
+	struct ad9834_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct ad9834_state *st;
 	struct iio_dev *indio_dev;
 	struct regulator *reg;
@@ -335,7 +337,7 @@ static int ad9834_probe(struct spi_device *spi)
 	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (indio_dev == NULL) {
+	if (!indio_dev) {
 		ret = -ENOMEM;
 		goto error_disable_reg;
 	}
@@ -444,7 +446,6 @@ MODULE_DEVICE_TABLE(spi, ad9834_id);
 static struct spi_driver ad9834_driver = {
 	.driver = {
 		.name	= "ad9834",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ad9834_probe,
 	.remove		= ad9834_remove,

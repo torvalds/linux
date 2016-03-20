@@ -14,7 +14,7 @@
 #include <linux/io.h>		/* outb, outb_p			*/
 #include <linux/isa.h>
 #include <linux/pnp.h>
-#include <media/tea575x.h>
+#include <media/drv-intf/tea575x.h>
 
 MODULE_AUTHOR("Ondrej Zary");
 MODULE_DESCRIPTION("MediaForte SF16-FMR2 and SF16-FMD2 FM radio card driver");
@@ -82,7 +82,7 @@ static void fmr2_tea575x_set_direction(struct snd_tea575x *tea, bool output)
 {
 }
 
-static struct snd_tea575x_ops fmr2_tea_ops = {
+static const struct snd_tea575x_ops fmr2_tea_ops = {
 	.set_pins = fmr2_tea575x_set_pins,
 	.get_pins = fmr2_tea575x_get_pins,
 	.set_direction = fmr2_tea575x_set_direction,
@@ -305,7 +305,7 @@ static void fmr2_pnp_remove(struct pnp_dev *pdev)
 	pnp_set_drvdata(pdev, NULL);
 }
 
-struct isa_driver fmr2_isa_driver = {
+static struct isa_driver fmr2_isa_driver = {
 	.match		= fmr2_isa_match,
 	.remove		= fmr2_isa_remove,
 	.driver		= {
@@ -313,7 +313,7 @@ struct isa_driver fmr2_isa_driver = {
 	},
 };
 
-struct pnp_driver fmr2_pnp_driver = {
+static struct pnp_driver fmr2_pnp_driver = {
 	.name		= "radio-sf16fmr2",
 	.id_table	= fmr2_pnp_ids,
 	.probe		= fmr2_pnp_probe,

@@ -69,13 +69,16 @@ static int imx_wm8962_set_bias_level(struct snd_soc_card *card,
 					struct snd_soc_dapm_context *dapm,
 					enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *codec_dai;
 	struct imx_priv *priv = &card_priv;
 	struct imx_wm8962_data *data = snd_soc_card_get_drvdata(card);
 	struct device *dev = &priv->pdev->dev;
 	unsigned int pll_out;
 	int ret;
 
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	codec_dai = rtd->codec_dai;
 	if (dapm->dev != codec_dai->dev)
 		return 0;
 
@@ -135,12 +138,15 @@ static int imx_wm8962_set_bias_level(struct snd_soc_card *card,
 
 static int imx_wm8962_late_probe(struct snd_soc_card *card)
 {
-	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *codec_dai;
 	struct imx_priv *priv = &card_priv;
 	struct imx_wm8962_data *data = snd_soc_card_get_drvdata(card);
 	struct device *dev = &priv->pdev->dev;
 	int ret;
 
+	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	codec_dai = rtd->codec_dai;
 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8962_SYSCLK_MCLK,
 			data->clk_frequency, SND_SOC_CLOCK_IN);
 	if (ret < 0)
@@ -190,7 +196,7 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "audmux internal port setup failed\n");
 		return ret;
 	}
-	imx_audmux_v2_configure_port(ext_port,
+	ret = imx_audmux_v2_configure_port(ext_port,
 			IMX_AUDMUX_V2_PTCR_SYN,
 			IMX_AUDMUX_V2_PDCR_RXDSEL(int_port));
 	if (ret) {
@@ -257,6 +263,7 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 	if (ret)
 		goto clk_fail;
 	data->card.num_links = 1;
+	data->card.owner = THIS_MODULE;
 	data->card.dai_link = &data->dai;
 	data->card.dapm_widgets = imx_wm8962_dapm_widgets;
 	data->card.num_dapm_widgets = ARRAY_SIZE(imx_wm8962_dapm_widgets);
@@ -281,10 +288,8 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 clk_fail:
 	clk_disable_unprepare(data->codec_clk);
 fail:
-	if (ssi_np)
-		of_node_put(ssi_np);
-	if (codec_np)
-		of_node_put(codec_np);
+	of_node_put(ssi_np);
+	of_node_put(codec_np);
 
 	return ret;
 }
@@ -309,7 +314,6 @@ MODULE_DEVICE_TABLE(of, imx_wm8962_dt_ids);
 static struct platform_driver imx_wm8962_driver = {
 	.driver = {
 		.name = "imx-wm8962",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = imx_wm8962_dt_ids,
 	},

@@ -118,33 +118,37 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 	struct dentry *dentry, *root = sb->s_root;
 	unsigned long size = 0;
 	char *name;
-	int len, i;
+	int len;
 	int err = -ENOMEM;
+	bool is_removable = false;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return err;
 
 	memcpy(entry->var.VariableName, name16, name_size);
 	memcpy(&(entry->var.VendorGuid), &vendor, sizeof(efi_guid_t));
 
-	len = ucs2_strlen(entry->var.VariableName);
+	len = ucs2_utf8size(entry->var.VariableName);
 
 	/* name, plus '-', plus GUID, plus NUL*/
 	name = kmalloc(len + 1 + EFI_VARIABLE_GUID_LEN + 1, GFP_KERNEL);
 	if (!name)
 		goto fail;
 
-	for (i = 0; i < len; i++)
-		name[i] = entry->var.VariableName[i] & 0xFF;
+	ucs2_as_utf8(name, entry->var.VariableName, len);
+
+	if (efivar_variable_is_removable(entry->var.VendorGuid, name, len))
+		is_removable = true;
 
 	name[len] = '-';
 
-	efi_guid_unparse(&entry->var.VendorGuid, name + len + 1);
+	efi_guid_to_str(&entry->var.VendorGuid, name + len + 1);
 
 	name[len + EFI_VARIABLE_GUID_LEN+1] = '\0';
 
-	inode = efivarfs_get_inode(sb, root->d_inode, S_IFREG | 0644, 0);
+	inode = efivarfs_get_inode(sb, d_inode(root), S_IFREG | 0644, 0,
+				   is_removable);
 	if (!inode)
 		goto fail_name;
 
@@ -160,10 +164,10 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 	efivar_entry_size(entry, &size);
 	efivar_entry_add(entry, &efivarfs_list);
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	inode->i_private = entry;
 	i_size_write(inode, size + sizeof(entry->var.Attributes));
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	d_add(dentry, inode);
 
 	return 0;
@@ -200,7 +204,7 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_d_op		= &efivarfs_d_ops;
 	sb->s_time_gran         = 1;
 
-	inode = efivarfs_get_inode(sb, NULL, S_IFDIR | 0755, 0);
+	inode = efivarfs_get_inode(sb, NULL, S_IFDIR | 0755, 0, true);
 	if (!inode)
 		return -ENOMEM;
 	inode->i_op = &efivarfs_dir_inode_operations;
@@ -236,6 +240,7 @@ static void efivarfs_kill_sb(struct super_block *sb)
 }
 
 static struct file_system_type efivarfs_type = {
+	.owner   = THIS_MODULE,
 	.name    = "efivarfs",
 	.mount   = efivarfs_mount,
 	.kill_sb = efivarfs_kill_sb,
@@ -244,12 +249,17 @@ static struct file_system_type efivarfs_type = {
 static __init int efivarfs_init(void)
 {
 	if (!efi_enabled(EFI_RUNTIME_SERVICES))
-		return 0;
+		return -ENODEV;
 
 	if (!efivars_kobject())
-		return 0;
+		return -ENODEV;
 
 	return register_filesystem(&efivarfs_type);
+}
+
+static __exit void efivarfs_exit(void)
+{
+	unregister_filesystem(&efivarfs_type);
 }
 
 MODULE_AUTHOR("Matthew Garrett, Jeremy Kerr");
@@ -258,3 +268,4 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_FS("efivarfs");
 
 module_init(efivarfs_init);
+module_exit(efivarfs_exit);

@@ -23,8 +23,6 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -102,14 +100,14 @@ xfs_attr3_rmt_verify(
 		return false;
 	if (rmt->rm_magic != cpu_to_be32(XFS_ATTR3_RMT_MAGIC))
 		return false;
-	if (!uuid_equal(&rmt->rm_uuid, &mp->m_sb.sb_uuid))
+	if (!uuid_equal(&rmt->rm_uuid, &mp->m_sb.sb_meta_uuid))
 		return false;
 	if (be64_to_cpu(rmt->rm_blkno) != bno)
 		return false;
 	if (be32_to_cpu(rmt->rm_bytes) > fsbsize - sizeof(*rmt))
 		return false;
 	if (be32_to_cpu(rmt->rm_offset) +
-				be32_to_cpu(rmt->rm_bytes) > XATTR_SIZE_MAX)
+				be32_to_cpu(rmt->rm_bytes) > XFS_XATTR_SIZE_MAX)
 		return false;
 	if (rmt->rm_owner == 0)
 		return false;
@@ -161,11 +159,10 @@ xfs_attr3_rmt_write_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
-	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+	int		blksize = mp->m_attr_geo->blksize;
 	char		*ptr;
 	int		len;
 	xfs_daddr_t	bno;
-	int		blksize = mp->m_attr_geo->blksize;
 
 	/* no verification of non-crc buffers */
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
@@ -177,16 +174,22 @@ xfs_attr3_rmt_write_verify(
 	ASSERT(len >= blksize);
 
 	while (len > 0) {
+		struct xfs_attr3_rmt_hdr *rmt = (struct xfs_attr3_rmt_hdr *)ptr;
+
 		if (!xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
 			xfs_buf_ioerror(bp, -EFSCORRUPTED);
 			xfs_verifier_error(bp);
 			return;
 		}
-		if (bip) {
-			struct xfs_attr3_rmt_hdr *rmt;
 
-			rmt = (struct xfs_attr3_rmt_hdr *)ptr;
-			rmt->rm_lsn = cpu_to_be64(bip->bli_item.li_lsn);
+		/*
+		 * Ensure we aren't writing bogus LSNs to disk. See
+		 * xfs_attr3_rmt_hdr_set() for the explanation.
+		 */
+		if (rmt->rm_lsn != cpu_to_be64(NULLCOMMITLSN)) {
+			xfs_buf_ioerror(bp, -EFSCORRUPTED);
+			xfs_verifier_error(bp);
+			return;
 		}
 		xfs_update_cksum(ptr, blksize, XFS_ATTR3_RMT_CRC_OFF);
 
@@ -198,6 +201,7 @@ xfs_attr3_rmt_write_verify(
 }
 
 const struct xfs_buf_ops xfs_attr3_rmt_buf_ops = {
+	.name = "xfs_attr3_rmt",
 	.verify_read = xfs_attr3_rmt_read_verify,
 	.verify_write = xfs_attr3_rmt_write_verify,
 };
@@ -219,9 +223,21 @@ xfs_attr3_rmt_hdr_set(
 	rmt->rm_magic = cpu_to_be32(XFS_ATTR3_RMT_MAGIC);
 	rmt->rm_offset = cpu_to_be32(offset);
 	rmt->rm_bytes = cpu_to_be32(size);
-	uuid_copy(&rmt->rm_uuid, &mp->m_sb.sb_uuid);
+	uuid_copy(&rmt->rm_uuid, &mp->m_sb.sb_meta_uuid);
 	rmt->rm_owner = cpu_to_be64(ino);
 	rmt->rm_blkno = cpu_to_be64(bno);
+
+	/*
+	 * Remote attribute blocks are written synchronously, so we don't
+	 * have an LSN that we can stamp in them that makes any sense to log
+	 * recovery. To ensure that log recovery handles overwrites of these
+	 * blocks sanely (i.e. once they've been freed and reallocated as some
+	 * other type of metadata) we need to ensure that the LSN has a value
+	 * that tells log recovery to ignore the LSN and overwrite the buffer
+	 * with whatever is in it's log. To do this, we use the magic
+	 * NULLCOMMITLSN to indicate that the LSN is invalid.
+	 */
+	rmt->rm_lsn = cpu_to_be64(NULLCOMMITLSN);
 
 	return sizeof(struct xfs_attr3_rmt_hdr);
 }
@@ -432,35 +448,30 @@ xfs_attr_rmtval_set(
 	 * Roll through the "value", allocating blocks on disk as required.
 	 */
 	while (blkcnt > 0) {
-		int	committed;
-
 		/*
 		 * Allocate a single extent, up to the size of the value.
+		 *
+		 * Note that we have to consider this a data allocation as we
+		 * write the remote attribute without logging the contents.
+		 * Hence we must ensure that we aren't using blocks that are on
+		 * the busy list so that we don't overwrite blocks which have
+		 * recently been freed but their transactions are not yet
+		 * committed to disk. If we overwrite the contents of a busy
+		 * extent and then crash then the block may not contain the
+		 * correct metadata after log recovery occurs.
 		 */
 		xfs_bmap_init(args->flist, args->firstblock);
 		nmap = 1;
 		error = xfs_bmapi_write(args->trans, dp, (xfs_fileoff_t)lblkno,
-				  blkcnt,
-				  XFS_BMAPI_ATTRFORK | XFS_BMAPI_METADATA,
-				  args->firstblock, args->total, &map, &nmap,
-				  args->flist);
-		if (!error) {
-			error = xfs_bmap_finish(&args->trans, args->flist,
-						&committed);
-		}
+				  blkcnt, XFS_BMAPI_ATTRFORK, args->firstblock,
+				  args->total, &map, &nmap, args->flist);
+		if (!error)
+			error = xfs_bmap_finish(&args->trans, args->flist, dp);
 		if (error) {
-			ASSERT(committed);
 			args->trans = NULL;
 			xfs_bmap_cancel(args->flist);
 			return error;
 		}
-
-		/*
-		 * bmap_finish() may have committed the last trans and started
-		 * a new one.  We need the inode to be in all transactions.
-		 */
-		if (committed)
-			xfs_trans_ijoin(args->trans, dp, 0);
 
 		ASSERT(nmap == 1);
 		ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
@@ -592,30 +603,18 @@ xfs_attr_rmtval_remove(
 	blkcnt = args->rmtblkcnt;
 	done = 0;
 	while (!done) {
-		int committed;
-
 		xfs_bmap_init(args->flist, args->firstblock);
 		error = xfs_bunmapi(args->trans, args->dp, lblkno, blkcnt,
-				    XFS_BMAPI_ATTRFORK | XFS_BMAPI_METADATA,
-				    1, args->firstblock, args->flist,
-				    &done);
-		if (!error) {
+				    XFS_BMAPI_ATTRFORK, 1, args->firstblock,
+				    args->flist, &done);
+		if (!error)
 			error = xfs_bmap_finish(&args->trans, args->flist,
-						&committed);
-		}
+						args->dp);
 		if (error) {
-			ASSERT(committed);
 			args->trans = NULL;
 			xfs_bmap_cancel(args->flist);
 			return error;
 		}
-
-		/*
-		 * bmap_finish() may have committed the last trans and started
-		 * a new one.  We need the inode to be in all transactions.
-		 */
-		if (committed)
-			xfs_trans_ijoin(args->trans, args->dp, 0);
 
 		/*
 		 * Close out trans and start the next one in the chain.

@@ -46,7 +46,7 @@ static __u32 cifs_ssetup_hdr(struct cifs_ses *ses, SESSION_SETUP_ANDX *pSMB)
 					CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4,
 					USHRT_MAX));
 	pSMB->req.MaxMpxCount = cpu_to_le16(ses->server->maxReq);
-	pSMB->req.VcNumber = __constant_cpu_to_le16(1);
+	pSMB->req.VcNumber = cpu_to_le16(1);
 
 	/* Now no need to set SMBFLG_CASELESS or obsolete CANONICAL PATH */
 
@@ -243,10 +243,11 @@ static void decode_ascii_ssetup(char **pbcc_area, __u16 bleft,
 	kfree(ses->serverOS);
 
 	ses->serverOS = kzalloc(len + 1, GFP_KERNEL);
-	if (ses->serverOS)
+	if (ses->serverOS) {
 		strncpy(ses->serverOS, bcc_ptr, len);
-	if (strncmp(ses->serverOS, "OS/2", 4) == 0)
-		cifs_dbg(FYI, "OS/2 server\n");
+		if (strncmp(ses->serverOS, "OS/2", 4) == 0)
+			cifs_dbg(FYI, "OS/2 server\n");
+	}
 
 	bcc_ptr += len + 1;
 	bleft -= len + 1;
@@ -744,14 +745,6 @@ out:
 	sess_free_buffer(sess_data);
 }
 
-#else
-
-static void
-sess_auth_lanman(struct sess_data *sess_data)
-{
-	sess_data->result = -EOPNOTSUPP;
-	sess_data->func = NULL;
-}
 #endif
 
 static void
@@ -995,7 +988,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 		goto out;
 	}
 
-	msg = spnego_key->payload.data;
+	msg = spnego_key->payload.data[0];
 	/*
 	 * check version field to make sure that cifs.upcall is
 	 * sending us a response in an expected form
@@ -1102,15 +1095,6 @@ out:
 	ses->auth_key.response = NULL;
 }
 
-#else
-
-static void
-sess_auth_kerberos(struct sess_data *sess_data)
-{
-	cifs_dbg(VFS, "Kerberos negotiated but upcall support disabled!\n");
-	sess_data->result = -ENOSYS;
-	sess_data->func = NULL;
-}
 #endif /* ! CONFIG_CIFS_UPCALL */
 
 /*
@@ -1318,6 +1302,11 @@ sess_auth_rawntlmssp_authenticate(struct sess_data *sess_data)
 
 	if (le16_to_cpu(pSMB->resp.Action) & GUEST_LOGIN)
 		cifs_dbg(FYI, "Guest login\n"); /* BB mark SesInfo struct? */
+
+	if (ses->Suid != smb_buf->Uid) {
+		ses->Suid = smb_buf->Uid;
+		cifs_dbg(FYI, "UID changed! new UID = %llu\n", ses->Suid);
+	}
 
 	bytes_remaining = get_bcc(smb_buf);
 	bcc_ptr = pByteArea(smb_buf);

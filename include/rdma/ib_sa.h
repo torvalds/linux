@@ -39,6 +39,7 @@
 #include <linux/compiler.h>
 
 #include <linux/atomic.h>
+#include <linux/netdevice.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_mad.h>
@@ -154,10 +155,18 @@ struct ib_sa_path_rec {
 	u8           packet_life_time_selector;
 	u8           packet_life_time;
 	u8           preference;
-	u8           smac[ETH_ALEN];
 	u8           dmac[ETH_ALEN];
-	u16	     vlan_id;
+	/* ignored in IB */
+	int	     ifindex;
+	/* ignored in IB */
+	struct net  *net;
+	enum ib_gid_type gid_type;
 };
+
+static inline struct net_device *ib_get_ndev_from_path(struct ib_sa_path_rec *rec)
+{
+	return rec->net ? dev_get_by_index(rec->net, rec->ifindex) : NULL;
+}
 
 #define IB_SA_MCMEMBER_REC_MGID				IB_SA_COMP_MASK( 0)
 #define IB_SA_MCMEMBER_REC_PORT_GID			IB_SA_COMP_MASK( 1)
@@ -394,6 +403,8 @@ int ib_sa_get_mcmember_rec(struct ib_device *device, u8 port_num,
  */
 int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
 			     struct ib_sa_mcmember_rec *rec,
+			     struct net_device *ndev,
+			     enum ib_gid_type gid_type,
 			     struct ib_ah_attr *ah_attr);
 
 /**

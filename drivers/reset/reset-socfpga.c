@@ -24,11 +24,11 @@
 #include <linux/types.h>
 
 #define NR_BANKS		4
-#define OFFSET_MODRST		0x10
 
 struct socfpga_reset_data {
 	spinlock_t			lock;
 	void __iomem			*membase;
+	u32				modrst_offset;
 	struct reset_controller_dev	rcdev;
 };
 
@@ -45,8 +45,8 @@ static int socfpga_reset_assert(struct reset_controller_dev *rcdev,
 
 	spin_lock_irqsave(&data->lock, flags);
 
-	reg = readl(data->membase + OFFSET_MODRST + (bank * NR_BANKS));
-	writel(reg | BIT(offset), data->membase + OFFSET_MODRST +
+	reg = readl(data->membase + data->modrst_offset + (bank * NR_BANKS));
+	writel(reg | BIT(offset), data->membase + data->modrst_offset +
 				 (bank * NR_BANKS));
 	spin_unlock_irqrestore(&data->lock, flags);
 
@@ -67,8 +67,8 @@ static int socfpga_reset_deassert(struct reset_controller_dev *rcdev,
 
 	spin_lock_irqsave(&data->lock, flags);
 
-	reg = readl(data->membase + OFFSET_MODRST + (bank * NR_BANKS));
-	writel(reg & ~BIT(offset), data->membase + OFFSET_MODRST +
+	reg = readl(data->membase + data->modrst_offset + (bank * NR_BANKS));
+	writel(reg & ~BIT(offset), data->membase + data->modrst_offset +
 				  (bank * NR_BANKS));
 
 	spin_unlock_irqrestore(&data->lock, flags);
@@ -76,15 +76,32 @@ static int socfpga_reset_deassert(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
+static int socfpga_reset_status(struct reset_controller_dev *rcdev,
+				unsigned long id)
+{
+	struct socfpga_reset_data *data = container_of(rcdev,
+						struct socfpga_reset_data, rcdev);
+	int bank = id / BITS_PER_LONG;
+	int offset = id % BITS_PER_LONG;
+	u32 reg;
+
+	reg = readl(data->membase + data->modrst_offset + (bank * NR_BANKS));
+
+	return !(reg & BIT(offset));
+}
+
 static struct reset_control_ops socfpga_reset_ops = {
 	.assert		= socfpga_reset_assert,
 	.deassert	= socfpga_reset_deassert,
+	.status		= socfpga_reset_status,
 };
 
 static int socfpga_reset_probe(struct platform_device *pdev)
 {
 	struct socfpga_reset_data *data;
 	struct resource *res;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 
 	/*
 	 * The binding was mainlined without the required property.
@@ -105,15 +122,19 @@ static int socfpga_reset_probe(struct platform_device *pdev)
 	if (IS_ERR(data->membase))
 		return PTR_ERR(data->membase);
 
+	if (of_property_read_u32(np, "altr,modrst-offset", &data->modrst_offset)) {
+		dev_warn(dev, "missing altr,modrst-offset property, assuming 0x10!\n");
+		data->modrst_offset = 0x10;
+	}
+
 	spin_lock_init(&data->lock);
 
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = NR_BANKS * BITS_PER_LONG;
 	data->rcdev.ops = &socfpga_reset_ops;
 	data->rcdev.of_node = pdev->dev.of_node;
-	reset_controller_register(&data->rcdev);
 
-	return 0;
+	return reset_controller_register(&data->rcdev);
 }
 
 static int socfpga_reset_remove(struct platform_device *pdev)
@@ -135,7 +156,6 @@ static struct platform_driver socfpga_reset_driver = {
 	.remove	= socfpga_reset_remove,
 	.driver = {
 		.name		= "socfpga-reset",
-		.owner		= THIS_MODULE,
 		.of_match_table	= socfpga_reset_dt_ids,
 	},
 };

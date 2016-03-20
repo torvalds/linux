@@ -1,7 +1,7 @@
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
- *  Copyright (c) 2010 Steven Toth <stoth@kernellabs.com>
+ *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,20 +21,6 @@
 
 #include "saa7164.h"
 
-static struct saa7164_tvnorm saa7164_tvnorms[] = {
-	{
-		.name      = "NTSC-M",
-		.id        = V4L2_STD_NTSC_M,
-	}, {
-		.name      = "NTSC-JP",
-		.id        = V4L2_STD_NTSC_M_JP,
-	}
-};
-
-static const u32 saa7164_v4l2_ctrls[] = {
-	0
-};
-
 /* Take the encoder configuration from the port struct and
  * flush it to the hardware.
  */
@@ -43,23 +29,13 @@ static void saa7164_vbi_configure(struct saa7164_port *port)
 	struct saa7164_dev *dev = port->dev;
 	dprintk(DBGLVL_VBI, "%s()\n", __func__);
 
-	port->vbi_params.width = port->width;
-	port->vbi_params.height = port->height;
+	port->vbi_params.width = port->enc_port->width;
+	port->vbi_params.height = port->enc_port->height;
 	port->vbi_params.is_50hz =
-		(port->encodernorm.id & V4L2_STD_625_50) != 0;
+		(port->enc_port->encodernorm.id & V4L2_STD_625_50) != 0;
 
 	/* Set up the DIF (enable it) for analog mode by default */
 	saa7164_api_initialize_dif(port);
-
-	/* Configure the correct video standard */
-#if 0
-	saa7164_api_configure_dif(port, port->encodernorm.id);
-#endif
-
-#if 0
-	/* Ensure the audio decoder is correct configured */
-	saa7164_api_set_audio_std(port);
-#endif
 	dprintk(DBGLVL_VBI, "%s() ends\n", __func__);
 }
 
@@ -186,466 +162,48 @@ static int saa7164_vbi_initialize(struct saa7164_port *port)
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	struct saa7164_dev *dev = port->dev;
-	unsigned int i;
 
-	dprintk(DBGLVL_VBI, "%s(id=0x%x)\n", __func__, (u32)id);
-
-	for (i = 0; i < ARRAY_SIZE(saa7164_tvnorms); i++) {
-		if (id & saa7164_tvnorms[i].id)
-			break;
-	}
-	if (i == ARRAY_SIZE(saa7164_tvnorms))
-		return -EINVAL;
-
-	port->encodernorm = saa7164_tvnorms[i];
-	port->std = id;
-
-	/* Update the audio decoder while is not running in
-	 * auto detect mode.
-	 */
-	saa7164_api_set_audio_std(port);
-
-	dprintk(DBGLVL_VBI, "%s(id=0x%x) OK\n", __func__, (u32)id);
-
-	return 0;
+	return saa7164_s_std(fh->port->enc_port, id);
 }
 
 static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct saa7164_encoder_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
 
-	*id = port->std;
-	return 0;
-}
-
-static int vidioc_enum_input(struct file *file, void *priv,
-	struct v4l2_input *i)
-{
-	int n;
-
-	char *inputs[] = { "tuner", "composite", "svideo", "aux",
-		"composite 2", "svideo 2", "aux 2" };
-
-	if (i->index >= 7)
-		return -EINVAL;
-
-	strcpy(i->name, inputs[i->index]);
-
-	if (i->index == 0)
-		i->type = V4L2_INPUT_TYPE_TUNER;
-	else
-		i->type  = V4L2_INPUT_TYPE_CAMERA;
-
-	for (n = 0; n < ARRAY_SIZE(saa7164_tvnorms); n++)
-		i->std |= saa7164_tvnorms[n].id;
-
-	return 0;
+	return saa7164_g_std(fh->port->enc_port, id);
 }
 
 static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 {
 	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	struct saa7164_dev *dev = port->dev;
 
-	if (saa7164_api_get_videomux(port) != SAA_OK)
-		return -EIO;
-
-	*i = (port->mux_input - 1);
-
-	dprintk(DBGLVL_VBI, "%s() input=%d\n", __func__, *i);
-
-	return 0;
+	return saa7164_g_input(fh->port->enc_port, i);
 }
 
 static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	struct saa7164_dev *dev = port->dev;
 
-	dprintk(DBGLVL_VBI, "%s() input=%d\n", __func__, i);
-
-	if (i >= 7)
-		return -EINVAL;
-
-	port->mux_input = i + 1;
-
-	if (saa7164_api_set_videomux(port) != SAA_OK)
-		return -EIO;
-
-	return 0;
-}
-
-static int vidioc_g_tuner(struct file *file, void *priv,
-	struct v4l2_tuner *t)
-{
-	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	struct saa7164_dev *dev = port->dev;
-
-	if (0 != t->index)
-		return -EINVAL;
-
-	strcpy(t->name, "tuner");
-	t->type = V4L2_TUNER_ANALOG_TV;
-	t->capability = V4L2_TUNER_CAP_NORM | V4L2_TUNER_CAP_STEREO;
-
-	dprintk(DBGLVL_VBI, "VIDIOC_G_TUNER: tuner type %d\n", t->type);
-
-	return 0;
-}
-
-static int vidioc_s_tuner(struct file *file, void *priv,
-	const struct v4l2_tuner *t)
-{
-	/* Update the A/V core */
-	return 0;
+	return saa7164_s_input(fh->port->enc_port, i);
 }
 
 static int vidioc_g_frequency(struct file *file, void *priv,
 	struct v4l2_frequency *f)
 {
 	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
 
-	f->type = V4L2_TUNER_ANALOG_TV;
-	f->frequency = port->freq;
-
-	return 0;
+	return saa7164_g_frequency(fh->port->enc_port, f);
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
 	const struct v4l2_frequency *f)
 {
 	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	struct saa7164_dev *dev = port->dev;
-	struct saa7164_port *tsport;
-	struct dvb_frontend *fe;
+	int ret = saa7164_s_frequency(fh->port->enc_port, f);
 
-	/* TODO: Pull this for the std */
-	struct analog_parameters params = {
-		.mode      = V4L2_TUNER_ANALOG_TV,
-		.audmode   = V4L2_TUNER_MODE_STEREO,
-		.std       = port->encodernorm.id,
-		.frequency = f->frequency
-	};
-
-	/* Stop the encoder */
-	dprintk(DBGLVL_VBI, "%s() frequency=%d tuner=%d\n", __func__,
-		f->frequency, f->tuner);
-
-	if (f->tuner != 0)
-		return -EINVAL;
-
-	if (f->type != V4L2_TUNER_ANALOG_TV)
-		return -EINVAL;
-
-	port->freq = f->frequency;
-
-	/* Update the hardware */
-	if (port->nr == SAA7164_PORT_VBI1)
-		tsport = &dev->ports[SAA7164_PORT_TS1];
-	else
-	if (port->nr == SAA7164_PORT_VBI2)
-		tsport = &dev->ports[SAA7164_PORT_TS2];
-	else
-		BUG();
-
-	fe = tsport->dvb.frontend;
-
-	if (fe && fe->ops.tuner_ops.set_analog_params)
-		fe->ops.tuner_ops.set_analog_params(fe, &params);
-	else
-		printk(KERN_ERR "%s() No analog tuner, aborting\n", __func__);
-
-	saa7164_vbi_initialize(port);
-
-	return 0;
-}
-
-static int vidioc_g_ctrl(struct file *file, void *priv,
-	struct v4l2_control *ctl)
-{
-	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	struct saa7164_dev *dev = port->dev;
-
-	dprintk(DBGLVL_VBI, "%s(id=%d, value=%d)\n", __func__,
-		ctl->id, ctl->value);
-
-	switch (ctl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		ctl->value = port->ctl_brightness;
-		break;
-	case V4L2_CID_CONTRAST:
-		ctl->value = port->ctl_contrast;
-		break;
-	case V4L2_CID_SATURATION:
-		ctl->value = port->ctl_saturation;
-		break;
-	case V4L2_CID_HUE:
-		ctl->value = port->ctl_hue;
-		break;
-	case V4L2_CID_SHARPNESS:
-		ctl->value = port->ctl_sharpness;
-		break;
-	case V4L2_CID_AUDIO_VOLUME:
-		ctl->value = port->ctl_volume;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int vidioc_s_ctrl(struct file *file, void *priv,
-	struct v4l2_control *ctl)
-{
-	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	struct saa7164_dev *dev = port->dev;
-	int ret = 0;
-
-	dprintk(DBGLVL_VBI, "%s(id=%d, value=%d)\n", __func__,
-		ctl->id, ctl->value);
-
-	switch (ctl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		if ((ctl->value >= 0) && (ctl->value <= 255)) {
-			port->ctl_brightness = ctl->value;
-			saa7164_api_set_usercontrol(port,
-				PU_BRIGHTNESS_CONTROL);
-		} else
-			ret = -EINVAL;
-		break;
-	case V4L2_CID_CONTRAST:
-		if ((ctl->value >= 0) && (ctl->value <= 255)) {
-			port->ctl_contrast = ctl->value;
-			saa7164_api_set_usercontrol(port, PU_CONTRAST_CONTROL);
-		} else
-			ret = -EINVAL;
-		break;
-	case V4L2_CID_SATURATION:
-		if ((ctl->value >= 0) && (ctl->value <= 255)) {
-			port->ctl_saturation = ctl->value;
-			saa7164_api_set_usercontrol(port,
-				PU_SATURATION_CONTROL);
-		} else
-			ret = -EINVAL;
-		break;
-	case V4L2_CID_HUE:
-		if ((ctl->value >= 0) && (ctl->value <= 255)) {
-			port->ctl_hue = ctl->value;
-			saa7164_api_set_usercontrol(port, PU_HUE_CONTROL);
-		} else
-			ret = -EINVAL;
-		break;
-	case V4L2_CID_SHARPNESS:
-		if ((ctl->value >= 0) && (ctl->value <= 255)) {
-			port->ctl_sharpness = ctl->value;
-			saa7164_api_set_usercontrol(port, PU_SHARPNESS_CONTROL);
-		} else
-			ret = -EINVAL;
-		break;
-	case V4L2_CID_AUDIO_VOLUME:
-		if ((ctl->value >= -83) && (ctl->value <= 24)) {
-			port->ctl_volume = ctl->value;
-			saa7164_api_set_audio_volume(port, port->ctl_volume);
-		} else
-			ret = -EINVAL;
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
+	if (ret == 0)
+		saa7164_vbi_initialize(fh->port);
 	return ret;
-}
-
-static int saa7164_get_ctrl(struct saa7164_port *port,
-	struct v4l2_ext_control *ctrl)
-{
-	struct saa7164_vbi_params *params = &port->vbi_params;
-
-	switch (ctrl->id) {
-	case V4L2_CID_MPEG_STREAM_TYPE:
-		ctrl->value = params->stream_type;
-		break;
-	case V4L2_CID_MPEG_AUDIO_MUTE:
-		ctrl->value = params->ctl_mute;
-		break;
-	case V4L2_CID_MPEG_VIDEO_ASPECT:
-		ctrl->value = params->ctl_aspect;
-		break;
-	case V4L2_CID_MPEG_VIDEO_B_FRAMES:
-		ctrl->value = params->refdist;
-		break;
-	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
-		ctrl->value = params->gop_size;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int vidioc_g_ext_ctrls(struct file *file, void *priv,
-	struct v4l2_ext_controls *ctrls)
-{
-	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	int i, err = 0;
-
-	if (ctrls->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
-		for (i = 0; i < ctrls->count; i++) {
-			struct v4l2_ext_control *ctrl = ctrls->controls + i;
-
-			err = saa7164_get_ctrl(port, ctrl);
-			if (err) {
-				ctrls->error_idx = i;
-				break;
-			}
-		}
-		return err;
-
-	}
-
-	return -EINVAL;
-}
-
-static int saa7164_try_ctrl(struct v4l2_ext_control *ctrl, int ac3)
-{
-	int ret = -EINVAL;
-
-	switch (ctrl->id) {
-	case V4L2_CID_MPEG_STREAM_TYPE:
-		if ((ctrl->value == V4L2_MPEG_STREAM_TYPE_MPEG2_PS) ||
-			(ctrl->value == V4L2_MPEG_STREAM_TYPE_MPEG2_TS))
-			ret = 0;
-		break;
-	case V4L2_CID_MPEG_AUDIO_MUTE:
-		if ((ctrl->value >= 0) &&
-			(ctrl->value <= 1))
-			ret = 0;
-		break;
-	case V4L2_CID_MPEG_VIDEO_ASPECT:
-		if ((ctrl->value >= V4L2_MPEG_VIDEO_ASPECT_1x1) &&
-			(ctrl->value <= V4L2_MPEG_VIDEO_ASPECT_221x100))
-			ret = 0;
-		break;
-	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
-		if ((ctrl->value >= 0) &&
-			(ctrl->value <= 255))
-			ret = 0;
-		break;
-	case V4L2_CID_MPEG_VIDEO_B_FRAMES:
-		if ((ctrl->value >= 1) &&
-			(ctrl->value <= 3))
-			ret = 0;
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	return ret;
-}
-
-static int vidioc_try_ext_ctrls(struct file *file, void *priv,
-	struct v4l2_ext_controls *ctrls)
-{
-	int i, err = 0;
-
-	if (ctrls->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
-		for (i = 0; i < ctrls->count; i++) {
-			struct v4l2_ext_control *ctrl = ctrls->controls + i;
-
-			err = saa7164_try_ctrl(ctrl, 0);
-			if (err) {
-				ctrls->error_idx = i;
-				break;
-			}
-		}
-		return err;
-	}
-
-	return -EINVAL;
-}
-
-static int saa7164_set_ctrl(struct saa7164_port *port,
-	struct v4l2_ext_control *ctrl)
-{
-	struct saa7164_vbi_params *params = &port->vbi_params;
-	int ret = 0;
-
-	switch (ctrl->id) {
-	case V4L2_CID_MPEG_STREAM_TYPE:
-		params->stream_type = ctrl->value;
-		break;
-	case V4L2_CID_MPEG_AUDIO_MUTE:
-		params->ctl_mute = ctrl->value;
-		ret = saa7164_api_audio_mute(port, params->ctl_mute);
-		if (ret != SAA_OK) {
-			printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__,
-				ret);
-			ret = -EIO;
-		}
-		break;
-	case V4L2_CID_MPEG_VIDEO_ASPECT:
-		params->ctl_aspect = ctrl->value;
-		ret = saa7164_api_set_aspect_ratio(port);
-		if (ret != SAA_OK) {
-			printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__,
-				ret);
-			ret = -EIO;
-		}
-		break;
-	case V4L2_CID_MPEG_VIDEO_B_FRAMES:
-		params->refdist = ctrl->value;
-		break;
-	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
-		params->gop_size = ctrl->value;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* TODO: Update the hardware */
-
-	return ret;
-}
-
-static int vidioc_s_ext_ctrls(struct file *file, void *priv,
-	struct v4l2_ext_controls *ctrls)
-{
-	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	int i, err = 0;
-
-	if (ctrls->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
-		for (i = 0; i < ctrls->count; i++) {
-			struct v4l2_ext_control *ctrl = ctrls->controls + i;
-
-			err = saa7164_try_ctrl(ctrl, 0);
-			if (err) {
-				ctrls->error_idx = i;
-				break;
-			}
-			err = saa7164_set_ctrl(port, ctrl);
-			if (err) {
-				ctrls->error_idx = i;
-				break;
-			}
-		}
-		return err;
-
-	}
-
-	return -EINVAL;
 }
 
 static int vidioc_querycap(struct file *file, void  *priv,
@@ -660,153 +218,16 @@ static int vidioc_querycap(struct file *file, void  *priv,
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
 
-	cap->capabilities =
+	cap->device_caps =
 		V4L2_CAP_VBI_CAPTURE |
-		V4L2_CAP_READWRITE     |
-		0;
+		V4L2_CAP_READWRITE |
+		V4L2_CAP_TUNER;
 
-	cap->capabilities |= V4L2_CAP_TUNER;
-	cap->version = 0;
-
-	return 0;
-}
-
-static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
-	struct v4l2_fmtdesc *f)
-{
-	if (f->index != 0)
-		return -EINVAL;
-
-	strlcpy(f->description, "VBI", sizeof(f->description));
-	f->pixelformat = V4L2_PIX_FMT_MPEG;
+	cap->capabilities = cap->device_caps |
+		V4L2_CAP_VIDEO_CAPTURE |
+		V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
-}
-
-static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
-				struct v4l2_format *f)
-{
-	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	struct saa7164_dev *dev = port->dev;
-
-	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
-	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    =
-		port->ts_packet_size * port->ts_packet_count;
-	f->fmt.pix.colorspace   = 0;
-	f->fmt.pix.width        = port->width;
-	f->fmt.pix.height       = port->height;
-
-	dprintk(DBGLVL_VBI, "VIDIOC_G_FMT: w: %d, h: %d\n",
-		port->width, port->height);
-
-	return 0;
-}
-
-static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
-				struct v4l2_format *f)
-{
-	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	struct saa7164_dev *dev = port->dev;
-
-	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
-	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    =
-		port->ts_packet_size * port->ts_packet_count;
-	f->fmt.pix.colorspace   = 0;
-	dprintk(DBGLVL_VBI, "VIDIOC_TRY_FMT: w: %d, h: %d\n",
-		port->width, port->height);
-	return 0;
-}
-
-static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
-				struct v4l2_format *f)
-{
-	struct saa7164_vbi_fh *fh = file->private_data;
-	struct saa7164_port *port = fh->port;
-	struct saa7164_dev *dev = port->dev;
-
-	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
-	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.sizeimage    =
-		port->ts_packet_size * port->ts_packet_count;
-	f->fmt.pix.colorspace   = 0;
-
-	dprintk(DBGLVL_VBI, "VIDIOC_S_FMT: w: %d, h: %d, f: %d\n",
-		f->fmt.pix.width, f->fmt.pix.height, f->fmt.pix.field);
-
-	return 0;
-}
-
-static int fill_queryctrl(struct saa7164_vbi_params *params,
-	struct v4l2_queryctrl *c)
-{
-	switch (c->id) {
-	case V4L2_CID_BRIGHTNESS:
-		return v4l2_ctrl_query_fill(c, 0x0, 0xff, 1, 127);
-	case V4L2_CID_CONTRAST:
-		return v4l2_ctrl_query_fill(c, 0x0, 0xff, 1, 66);
-	case V4L2_CID_SATURATION:
-		return v4l2_ctrl_query_fill(c, 0x0, 0xff, 1, 62);
-	case V4L2_CID_HUE:
-		return v4l2_ctrl_query_fill(c, 0x0, 0xff, 1, 128);
-	case V4L2_CID_SHARPNESS:
-		return v4l2_ctrl_query_fill(c, 0x0, 0x0f, 1, 8);
-	case V4L2_CID_MPEG_AUDIO_MUTE:
-		return v4l2_ctrl_query_fill(c, 0x0, 0x01, 1, 0);
-	case V4L2_CID_AUDIO_VOLUME:
-		return v4l2_ctrl_query_fill(c, -83, 24, 1, 20);
-	case V4L2_CID_MPEG_STREAM_TYPE:
-		return v4l2_ctrl_query_fill(c,
-			V4L2_MPEG_STREAM_TYPE_MPEG2_PS,
-			V4L2_MPEG_STREAM_TYPE_MPEG2_TS,
-			1, V4L2_MPEG_STREAM_TYPE_MPEG2_PS);
-	case V4L2_CID_MPEG_VIDEO_ASPECT:
-		return v4l2_ctrl_query_fill(c,
-			V4L2_MPEG_VIDEO_ASPECT_1x1,
-			V4L2_MPEG_VIDEO_ASPECT_221x100,
-			1, V4L2_MPEG_VIDEO_ASPECT_4x3);
-	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
-		return v4l2_ctrl_query_fill(c, 1, 255, 1, 15);
-	case V4L2_CID_MPEG_VIDEO_B_FRAMES:
-		return v4l2_ctrl_query_fill(c,
-			1, 3, 1, 1);
-	default:
-		return -EINVAL;
-	}
-}
-
-static int vidioc_queryctrl(struct file *file, void *priv,
-	struct v4l2_queryctrl *c)
-{
-	struct saa7164_vbi_fh *fh = priv;
-	struct saa7164_port *port = fh->port;
-	int i, next;
-	u32 id = c->id;
-
-	memset(c, 0, sizeof(*c));
-
-	next = !!(id & V4L2_CTRL_FLAG_NEXT_CTRL);
-	c->id = id & ~V4L2_CTRL_FLAG_NEXT_CTRL;
-
-	for (i = 0; i < ARRAY_SIZE(saa7164_v4l2_ctrls); i++) {
-		if (next) {
-			if (c->id < saa7164_v4l2_ctrls[i])
-				c->id = saa7164_v4l2_ctrls[i];
-			else
-				continue;
-		}
-
-		if (c->id == saa7164_v4l2_ctrls[i])
-			return fill_queryctrl(&port->vbi_params, c);
-
-		if (c->id < saa7164_v4l2_ctrls[i])
-			break;
-	}
-
-	return -EINVAL;
 }
 
 static int saa7164_vbi_stop_port(struct saa7164_port *port)
@@ -998,7 +419,6 @@ static int saa7164_vbi_fmt(struct file *file, void *priv,
 			   struct v4l2_format *f)
 {
 	/* ntsc */
-	f->fmt.vbi.samples_per_line = 1600;
 	f->fmt.vbi.samples_per_line = 1440;
 	f->fmt.vbi.sampling_rate = 27000000;
 	f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
@@ -1008,6 +428,7 @@ static int saa7164_vbi_fmt(struct file *file, void *priv,
 	f->fmt.vbi.count[0] = 18;
 	f->fmt.vbi.start[1] = 263 + 10 + 1;
 	f->fmt.vbi.count[1] = 18;
+	memset(f->fmt.vbi.reserved, 0, sizeof(f->fmt.vbi.reserved));
 	return 0;
 }
 
@@ -1030,8 +451,10 @@ static int fops_open(struct file *file)
 	if (NULL == fh)
 		return -ENOMEM;
 
-	file->private_data = fh;
 	fh->port = port;
+	v4l2_fh_init(&fh->fh, video_devdata(file));
+	v4l2_fh_add(&fh->fh);
+	file->private_data = fh;
 
 	return 0;
 }
@@ -1052,7 +475,8 @@ static int fops_release(struct file *file)
 		}
 	}
 
-	file->private_data = NULL;
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	kfree(fh);
 
 	return 0;
@@ -1247,24 +671,14 @@ static const struct v4l2_file_operations vbi_fops = {
 static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
 	.vidioc_s_std		 = vidioc_s_std,
 	.vidioc_g_std		 = vidioc_g_std,
-	.vidioc_enum_input	 = vidioc_enum_input,
+	.vidioc_enum_input	 = saa7164_enum_input,
 	.vidioc_g_input		 = vidioc_g_input,
 	.vidioc_s_input		 = vidioc_s_input,
-	.vidioc_g_tuner		 = vidioc_g_tuner,
-	.vidioc_s_tuner		 = vidioc_s_tuner,
+	.vidioc_g_tuner		 = saa7164_g_tuner,
+	.vidioc_s_tuner		 = saa7164_s_tuner,
 	.vidioc_g_frequency	 = vidioc_g_frequency,
 	.vidioc_s_frequency	 = vidioc_s_frequency,
-	.vidioc_s_ctrl		 = vidioc_s_ctrl,
-	.vidioc_g_ctrl		 = vidioc_g_ctrl,
 	.vidioc_querycap	 = vidioc_querycap,
-	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
-	.vidioc_g_fmt_vid_cap	 = vidioc_g_fmt_vid_cap,
-	.vidioc_try_fmt_vid_cap	 = vidioc_try_fmt_vid_cap,
-	.vidioc_s_fmt_vid_cap	 = vidioc_s_fmt_vid_cap,
-	.vidioc_g_ext_ctrls	 = vidioc_g_ext_ctrls,
-	.vidioc_s_ext_ctrls	 = vidioc_s_ext_ctrls,
-	.vidioc_try_ext_ctrls	 = vidioc_try_ext_ctrls,
-	.vidioc_queryctrl	 = vidioc_queryctrl,
 	.vidioc_g_fmt_vbi_cap	 = saa7164_vbi_fmt,
 	.vidioc_try_fmt_vbi_cap	 = saa7164_vbi_fmt,
 	.vidioc_s_fmt_vbi_cap	 = saa7164_vbi_fmt,
@@ -1334,7 +748,7 @@ int saa7164_vbi_register(struct saa7164_port *port)
 		goto failed;
 	}
 
-	port->std = V4L2_STD_NTSC_M;
+	port->enc_port = &dev->ports[port->nr - 2];
 	video_set_drvdata(port->v4l_device, port);
 	result = video_register_device(port->v4l_device,
 		VFL_TYPE_VBI, -1);

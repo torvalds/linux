@@ -60,8 +60,12 @@ DEFINE_PER_CPU(cpumask_t, cpu_sibling_map) = CPU_MASK_NONE;
 cpumask_t cpu_core_map[NR_CPUS] __read_mostly =
 	{ [0 ... NR_CPUS-1] = CPU_MASK_NONE };
 
+cpumask_t cpu_core_sib_map[NR_CPUS] __read_mostly = {
+	[0 ... NR_CPUS-1] = CPU_MASK_NONE };
+
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 EXPORT_SYMBOL(cpu_core_map);
+EXPORT_SYMBOL(cpu_core_sib_map);
 
 static cpumask_t smp_commenced_mask;
 
@@ -130,7 +134,7 @@ void smp_callin(void)
 
 	local_irq_enable();
 
-	cpu_startup_entry(CPUHP_ONLINE);
+	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
 void cpu_panic(void)
@@ -816,13 +820,17 @@ void arch_send_call_function_single_ipi(int cpu)
 void __irq_entry smp_call_function_client(int irq, struct pt_regs *regs)
 {
 	clear_softint(1 << irq);
+	irq_enter();
 	generic_smp_call_function_interrupt();
+	irq_exit();
 }
 
 void __irq_entry smp_call_function_single_client(int irq, struct pt_regs *regs)
 {
 	clear_softint(1 << irq);
+	irq_enter();
 	generic_smp_call_function_single_interrupt();
+	irq_exit();
 }
 
 static void tsb_sync(void *info)
@@ -1138,7 +1146,7 @@ static unsigned long penguins_are_doing_time;
 
 void smp_capture(void)
 {
-	int result = atomic_add_ret(1, &smp_capture_depth);
+	int result = atomic_add_return(1, &smp_capture_depth);
 
 	if (result == 1) {
 		int ncpus = num_online_cpus();
@@ -1236,6 +1244,15 @@ void smp_fill_in_sib_core_maps(void)
 			if (cpu_data(i).core_id ==
 			    cpu_data(j).core_id)
 				cpumask_set_cpu(j, &cpu_core_map[i]);
+		}
+	}
+
+	for_each_present_cpu(i)  {
+		unsigned int j;
+
+		for_each_present_cpu(j)  {
+			if (cpu_data(i).sock_id == cpu_data(j).sock_id)
+				cpumask_set_cpu(j, &cpu_core_sib_map[i]);
 		}
 	}
 
@@ -1402,11 +1419,32 @@ void __irq_entry smp_receive_signal_client(int irq, struct pt_regs *regs)
 	scheduler_ipi();
 }
 
-/* This is a nop because we capture all other cpus
- * anyways when making the PROM active.
- */
+static void stop_this_cpu(void *dummy)
+{
+	prom_stopself();
+}
+
 void smp_send_stop(void)
 {
+	int cpu;
+
+	if (tlb_type == hypervisor) {
+		for_each_online_cpu(cpu) {
+			if (cpu == smp_processor_id())
+				continue;
+#ifdef CONFIG_SUN_LDOMS
+			if (ldom_domaining_enabled) {
+				unsigned long hv_err;
+				hv_err = sun4v_cpu_stop(cpu);
+				if (hv_err)
+					printk(KERN_ERR "sun4v_cpu_stop() "
+					       "failed err=%lu\n", hv_err);
+			} else
+#endif
+				prom_stopcpu_cpuid(cpu);
+		}
+	} else
+		smp_call_function(stop_this_cpu, NULL, 0);
 }
 
 /**
@@ -1466,6 +1504,13 @@ static void __init pcpu_populate_pte(unsigned long addr)
 	pgd_t *pgd = pgd_offset_k(addr);
 	pud_t *pud;
 	pmd_t *pmd;
+
+	if (pgd_none(*pgd)) {
+		pud_t *new;
+
+		new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+		pgd_populate(&init_mm, pgd, new);
+	}
 
 	pud = pud_offset(pgd, addr);
 	if (pud_none(*pud)) {

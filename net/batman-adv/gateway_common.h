@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2016  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -17,6 +17,12 @@
 
 #ifndef _NET_BATMAN_ADV_GATEWAY_COMMON_H_
 #define _NET_BATMAN_ADV_GATEWAY_COMMON_H_
+
+#include "main.h"
+
+#include <linux/types.h>
+
+struct net_device;
 
 enum batadv_gw_modes {
 	BATADV_GW_MODE_OFF,
@@ -43,5 +49,7 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv);
 void batadv_gw_init(struct batadv_priv *bat_priv);
 void batadv_gw_free(struct batadv_priv *bat_priv);
+bool batadv_parse_throughput(struct net_device *net_dev, char *buff,
+			     const char *description, u32 *throughput);
 
 #endif /* _NET_BATMAN_ADV_GATEWAY_COMMON_H_ */

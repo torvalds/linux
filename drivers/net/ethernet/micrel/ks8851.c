@@ -1601,12 +1601,12 @@ static const struct of_device_id ks8851_match_table[] = {
 	{ .compatible = "micrel,ks8851" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, ks8851_match_table);
 
 static struct spi_driver ks8851_driver = {
 	.driver = {
 		.name = "ks8851",
 		.of_match_table = ks8851_match_table,
-		.owner = THIS_MODULE,
 		.pm = &ks8851_pm_ops,
 	},
 	.probe = ks8851_probe,

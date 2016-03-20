@@ -38,12 +38,10 @@ static inline pud_t *vmem_pud_alloc(void)
 {
 	pud_t *pud = NULL;
 
-#ifdef CONFIG_64BIT
 	pud = vmem_alloc_pages(2);
 	if (!pud)
 		return NULL;
 	clear_table((unsigned long *) pud, _REGION3_ENTRY_EMPTY, PAGE_SIZE * 4);
-#endif
 	return pud;
 }
 
@@ -51,12 +49,10 @@ static inline pmd_t *vmem_pmd_alloc(void)
 {
 	pmd_t *pmd = NULL;
 
-#ifdef CONFIG_64BIT
 	pmd = vmem_alloc_pages(2);
 	if (!pmd)
 		return NULL;
 	clear_table((unsigned long *) pmd, _SEGMENT_ENTRY_EMPTY, PAGE_SIZE * 4);
-#endif
 	return pmd;
 }
 
@@ -65,7 +61,7 @@ static pte_t __ref *vmem_pte_alloc(unsigned long address)
 	pte_t *pte;
 
 	if (slab_is_available())
-		pte = (pte_t *) page_table_alloc(&init_mm, address);
+		pte = (pte_t *) page_table_alloc(&init_mm);
 	else
 		pte = alloc_bootmem_align(PTRS_PER_PTE * sizeof(pte_t),
 					  PTRS_PER_PTE * sizeof(pte_t));
@@ -98,16 +94,15 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 			pgd_populate(&init_mm, pg_dir, pu_dir);
 		}
 		pu_dir = pud_offset(pg_dir, address);
-#if defined(CONFIG_64BIT) && !defined(CONFIG_DEBUG_PAGEALLOC)
 		if (MACHINE_HAS_EDAT2 && pud_none(*pu_dir) && address &&
-		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end)) {
+		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end) &&
+		     !debug_pagealloc_enabled()) {
 			pud_val(*pu_dir) = __pa(address) |
 				_REGION_ENTRY_TYPE_R3 | _REGION3_ENTRY_LARGE |
 				(ro ? _REGION_ENTRY_PROTECT : 0);
 			address += PUD_SIZE;
 			continue;
 		}
-#endif
 		if (pud_none(*pu_dir)) {
 			pm_dir = vmem_pmd_alloc();
 			if (!pm_dir)
@@ -115,9 +110,9 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 			pud_populate(&init_mm, pu_dir, pm_dir);
 		}
 		pm_dir = pmd_offset(pu_dir, address);
-#if defined(CONFIG_64BIT) && !defined(CONFIG_DEBUG_PAGEALLOC)
 		if (MACHINE_HAS_EDAT1 && pmd_none(*pm_dir) && address &&
-		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end)) {
+		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end) &&
+		    !debug_pagealloc_enabled()) {
 			pmd_val(*pm_dir) = __pa(address) |
 				_SEGMENT_ENTRY | _SEGMENT_ENTRY_LARGE |
 				_SEGMENT_ENTRY_YOUNG |
@@ -125,7 +120,6 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 			address += PMD_SIZE;
 			continue;
 		}
-#endif
 		if (pmd_none(*pm_dir)) {
 			pt_dir = vmem_pte_alloc(address);
 			if (!pt_dir)
@@ -222,7 +216,6 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 
 		pm_dir = pmd_offset(pu_dir, address);
 		if (pmd_none(*pm_dir)) {
-#ifdef CONFIG_64BIT
 			/* Use 1MB frames for vmemmap if available. We always
 			 * use large frames even if they are only partially
 			 * used.
@@ -236,12 +229,10 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 				if (!new_page)
 					goto out;
 				pmd_val(*pm_dir) = __pa(new_page) |
-					_SEGMENT_ENTRY | _SEGMENT_ENTRY_LARGE |
-					_SEGMENT_ENTRY_CO;
+					_SEGMENT_ENTRY | _SEGMENT_ENTRY_LARGE;
 				address = (address + PMD_SIZE) & PMD_MASK;
 				continue;
 			}
-#endif
 			pt_dir = vmem_pte_alloc(address);
 			if (!pt_dir)
 				goto out;
@@ -253,9 +244,9 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 
 		pt_dir = pte_offset_kernel(pm_dir, address);
 		if (pte_none(*pt_dir)) {
-			unsigned long new_page;
+			void *new_page;
 
-			new_page =__pa(vmem_alloc_pages(0));
+			new_page = vmemmap_alloc_block(PAGE_SIZE, node);
 			if (!new_page)
 				goto out;
 			pte_val(*pt_dir) =
@@ -263,7 +254,6 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 		}
 		address += PAGE_SIZE;
 	}
-	memset((void *)start, 0, end - start);
 	ret = 0;
 out:
 	return ret;

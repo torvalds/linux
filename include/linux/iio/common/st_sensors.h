@@ -119,6 +119,8 @@ struct st_sensor_bdu {
  * @addr: address of the register.
  * @mask_int1: mask to enable/disable IRQ on INT1 pin.
  * @mask_int2: mask to enable/disable IRQ on INT2 pin.
+ * @addr_ihl: address to enable/disable active low on the INT lines.
+ * @mask_ihl: mask to enable/disable active low on the INT lines.
  * struct ig1 - represents the Interrupt Generator 1 of sensors.
  * @en_addr: address of the enable ig1 register.
  * @en_mask: mask to write the on/off value for enable.
@@ -127,6 +129,8 @@ struct st_sensor_data_ready_irq {
 	u8 addr;
 	u8 mask_int1;
 	u8 mask_int2;
+	u8 addr_ihl;
+	u8 mask_ihl;
 	struct {
 		u8 en_addr;
 		u8 en_mask;
@@ -164,8 +168,9 @@ struct st_sensor_transfer_function {
 };
 
 /**
- * struct st_sensors - ST sensors list
+ * struct st_sensor_settings - ST specific sensor settings
  * @wai: Contents of WhoAmI register.
+ * @wai_addr: The address of WhoAmI register.
  * @sensors_supported: List of supported sensors by struct itself.
  * @ch: IIO channels for the sensor.
  * @odr: Output data rate register and ODR list available.
@@ -177,8 +182,9 @@ struct st_sensor_transfer_function {
  * @multi_read_bit: Use or not particular bit for [I2C/SPI] multi-read.
  * @bootime: samples to discard when sensor passing from power-down to power-up.
  */
-struct st_sensors {
+struct st_sensor_settings {
 	u8 wai;
+	u8 wai_addr;
 	char sensors_supported[ST_SENSORS_MAX_4WAI][ST_SENSORS_MAX_NAME];
 	struct iio_chan_spec *ch;
 	int num_ch;
@@ -196,7 +202,7 @@ struct st_sensors {
  * struct st_sensor_data - ST sensor device status
  * @dev: Pointer to instance of struct device (I2C or SPI).
  * @trig: The trigger in use by the core driver.
- * @sensor: Pointer to the current sensor struct in use.
+ * @sensor_settings: Pointer to the specific sensor settings in use.
  * @current_fullscale: Maximum range of measure by the sensor.
  * @vdd: Pointer to sensor's Vdd power supply
  * @vdd_io: Pointer to sensor's Vdd-IO power supply
@@ -213,7 +219,7 @@ struct st_sensors {
 struct st_sensor_data {
 	struct device *dev;
 	struct iio_trigger *trig;
-	struct st_sensors *sensor;
+	struct st_sensor_settings *sensor_settings;
 	struct st_sensor_fullscale_avl *current_fullscale;
 	struct regulator *vdd;
 	struct regulator *vdd_io;
@@ -269,6 +275,10 @@ void st_sensors_power_enable(struct iio_dev *indio_dev);
 
 void st_sensors_power_disable(struct iio_dev *indio_dev);
 
+int st_sensors_debugfs_reg_access(struct iio_dev *indio_dev,
+				  unsigned reg, unsigned writeval,
+				  unsigned *readval);
+
 int st_sensors_set_odr(struct iio_dev *indio_dev, unsigned int odr);
 
 int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable);
@@ -279,7 +289,7 @@ int st_sensors_read_info_raw(struct iio_dev *indio_dev,
 				struct iio_chan_spec const *ch, int *val);
 
 int st_sensors_check_device_support(struct iio_dev *indio_dev,
-			int num_sensors_list, const struct st_sensors *sensors);
+	int num_sensors_list, const struct st_sensor_settings *sensor_settings);
 
 ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 				struct device_attribute *attr, char *buf);

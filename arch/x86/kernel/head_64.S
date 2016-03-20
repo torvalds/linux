@@ -1,5 +1,5 @@
 /*
- *  linux/arch/x86_64/kernel/head.S -- start in 32bit and switch to 64bit
+ *  linux/arch/x86/kernel/head_64.S -- start in 32bit and switch to 64bit
  *
  *  Copyright (C) 2000 Andrea Arcangeli <andrea@suse.de> SuSE
  *  Copyright (C) 2000 Pavel Machek <pavel@suse.cz>
@@ -38,7 +38,6 @@
 #define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
 
 L4_PAGE_OFFSET = pgd_index(__PAGE_OFFSET)
-L3_PAGE_OFFSET = pud_index(__PAGE_OFFSET)
 L4_START_KERNEL = pgd_index(__START_KERNEL_map)
 L3_START_KERNEL = pud_index(__START_KERNEL_map)
 
@@ -56,7 +55,7 @@ startup_64:
 	 * %rsi holds a physical pointer to real_mode_data.
 	 *
 	 * We come here either directly from a 64bit bootloader, or from
-	 * arch/x86_64/boot/compressed/head.S.
+	 * arch/x86/boot/compressed/head_64.S.
 	 *
 	 * We only come here initially at boot nothing else comes here.
 	 *
@@ -64,6 +63,9 @@ startup_64:
 	 * compiled to run at we first fixup the physical addresses in our page
 	 * tables and then reload them.
 	 */
+
+	/* Sanitize CPU configuration */
+	call verify_cpu
 
 	/*
 	 * Compute the delta between the address I am compiled to run at and the
@@ -73,9 +75,7 @@ startup_64:
 	subq	$_text - __START_KERNEL_map, %rbp
 
 	/* Is the address not 2M aligned? */
-	movq	%rbp, %rax
-	andl	$~PMD_PAGE_MASK, %eax
-	testl	%eax, %eax
+	testl	$~PMD_PAGE_MASK, %ebp
 	jnz	bad_address
 
 	/*
@@ -146,7 +146,7 @@ startup_64:
 	leaq	level2_kernel_pgt(%rip), %rdi
 	leaq	4096(%rdi), %r8
 	/* See if it is a valid page table entry */
-1:	testq	$1, 0(%rdi)
+1:	testb	$1, 0(%rdi)
 	jz	2f
 	addq	%rbp, 0(%rdi)
 	/* Go to the next page */
@@ -173,6 +173,9 @@ ENTRY(secondary_startup_64)
 	 * to have any identity mapped pages in the kernel page table
 	 * after the boot processor executes this code.
 	 */
+
+	/* Sanitize CPU configuration */
+	call verify_cpu
 
 	movq	$(init_level4_pgt - __START_KERNEL_map), %rax
 1:
@@ -288,6 +291,8 @@ ENTRY(secondary_startup_64)
 	pushq	%rax		# target address in negative space
 	lretq
 
+#include "verify_cpu.S"
+
 #ifdef CONFIG_HOTPLUG_CPU
 /*
  * Boot CPU0 entry point. It's called from play_dead(). Everything has been set
@@ -321,30 +326,32 @@ bad_address:
 	jmp bad_address
 
 	__INIT
-	.globl early_idt_handlers
-early_idt_handlers:
+ENTRY(early_idt_handler_array)
 	# 104(%rsp) %rflags
 	#  96(%rsp) %cs
 	#  88(%rsp) %rip
 	#  80(%rsp) error code
 	i = 0
 	.rept NUM_EXCEPTION_VECTORS
-	.if (EXCEPTION_ERRCODE_MASK >> i) & 1
-	ASM_NOP2
-	.else
+	.ifeq (EXCEPTION_ERRCODE_MASK >> i) & 1
 	pushq $0		# Dummy error code, to make stack frame uniform
 	.endif
 	pushq $i		# 72(%rsp) Vector number
-	jmp early_idt_handler
+	jmp early_idt_handler_common
 	i = i + 1
+	.fill early_idt_handler_array + i*EARLY_IDT_HANDLER_SIZE - ., 1, 0xcc
 	.endr
+ENDPROC(early_idt_handler_array)
 
-/* This is global to keep gas from relaxing the jumps */
-ENTRY(early_idt_handler)
+early_idt_handler_common:
+	/*
+	 * The stack is the hardware frame, an error code or zero, and the
+	 * vector number.
+	 */
 	cld
 
 	cmpl $2,(%rsp)		# X86_TRAP_NMI
-	je is_nmi		# Ignore NMI
+	je .Lis_nmi		# Ignore NMI
 
 	cmpl $2,early_recursion_flag(%rip)
 	jz  1f
@@ -409,10 +416,10 @@ ENTRY(early_idt_handler)
 	popq %rcx
 	popq %rax
 	decl early_recursion_flag(%rip)
-is_nmi:
+.Lis_nmi:
 	addq $16,%rsp		# drop vector number and error code
 	INTERRUPT_RETURN
-ENDPROC(early_idt_handler)
+ENDPROC(early_idt_handler_common)
 
 	__INITDATA
 
@@ -519,3 +526,4 @@ ENTRY(phys_base)
 	__PAGE_ALIGNED_BSS
 NEXT_PAGE(empty_zero_page)
 	.skip PAGE_SIZE
+

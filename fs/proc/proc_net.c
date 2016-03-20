@@ -142,7 +142,7 @@ static struct dentry *proc_tgid_net_lookup(struct inode *dir,
 static int proc_tgid_net_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		struct kstat *stat)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct net *net;
 
 	net = get_proc_task_net(inode);
@@ -192,6 +192,7 @@ static __net_init int proc_net_ns_init(struct net *net)
 	if (!netd)
 		goto out;
 
+	netd->subdir = RB_ROOT;
 	netd->data = net;
 	netd->nlink = 2;
 	netd->namelen = 3;

@@ -10,6 +10,7 @@
 
 #include <linux/types.h>
 #include <linux/etherdevice.h>
+
 #include "qlcnic_hw.h"
 
 #define QLCNIC_83XX_BAR0_LENGTH 0x4000
@@ -83,6 +84,7 @@
 /* Firmware image definitions */
 #define QLC_83XX_BOOTLOADER_FLASH_ADDR	0x10000
 #define QLC_83XX_FW_FILE_NAME		"83xx_fw.bin"
+#define QLC_83XX_POST_FW_FILE_NAME	"83xx_post_fw.bin"
 #define QLC_84XX_FW_FILE_NAME		"84xx_fw.bin"
 #define QLC_83XX_BOOT_FROM_FLASH	0
 #define QLC_83XX_BOOT_FROM_FILE		0x12345678
@@ -204,7 +206,7 @@ struct qlcnic_add_rings_mbx_out {
  * @phys_addr_{low|high}: DMA address of the transmit buffer
  * @cnsmr_index_{low|high}: host consumer index
  * @size: legth of transmit buffer ring
- * @intr_id: interrput id
+ * @intr_id: interrupt id
  * @src: src of interrupt
  */
 struct qlcnic_tx_mbx {
@@ -360,7 +362,6 @@ enum qlcnic_83xx_states {
 #define QLC_83XX_SFP_MODULE_TYPE(data)		(((data) >> 4) & 0x1F)
 #define QLC_83XX_SFP_CU_LENGTH(data)		(LSB((data) >> 16))
 #define QLC_83XX_SFP_TX_FAULT(data)		((data) & BIT_10)
-#define QLC_83XX_SFP_10G_CAPABLE(data)		((data) & BIT_11)
 #define QLC_83XX_LINK_STATS(data)		((data) & BIT_0)
 #define QLC_83XX_CURRENT_LINK_SPEED(data)	(((data) >> 3) & 7)
 #define QLC_83XX_LINK_PAUSE(data)		(((data) >> 6) & 3)
@@ -626,6 +627,7 @@ int qlcnic_83xx_set_port_eswitch_status(struct qlcnic_adapter *, int, int *);
 
 void qlcnic_83xx_get_minidump_template(struct qlcnic_adapter *);
 void qlcnic_83xx_get_stats(struct qlcnic_adapter *adapter, u64 *data);
+int qlcnic_83xx_extend_md_capab(struct qlcnic_adapter *);
 int qlcnic_83xx_get_settings(struct qlcnic_adapter *, struct ethtool_cmd *);
 int qlcnic_83xx_set_settings(struct qlcnic_adapter *, struct ethtool_cmd *);
 void qlcnic_83xx_get_pauseparam(struct qlcnic_adapter *,

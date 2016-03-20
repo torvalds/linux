@@ -188,7 +188,7 @@ void sun4d_handler_irq(unsigned int pil, struct pt_regs *regs)
 
 static void sun4d_mask_irq(struct irq_data *data)
 {
-	struct sun4d_handler_data *handler_data = data->handler_data;
+	struct sun4d_handler_data *handler_data = irq_data_get_irq_handler_data(data);
 	unsigned int real_irq;
 #ifdef CONFIG_SMP
 	int cpuid = handler_data->cpuid;
@@ -206,7 +206,7 @@ static void sun4d_mask_irq(struct irq_data *data)
 
 static void sun4d_unmask_irq(struct irq_data *data)
 {
-	struct sun4d_handler_data *handler_data = data->handler_data;
+	struct sun4d_handler_data *handler_data = irq_data_get_irq_handler_data(data);
 	unsigned int real_irq;
 #ifdef CONFIG_SMP
 	int cpuid = handler_data->cpuid;

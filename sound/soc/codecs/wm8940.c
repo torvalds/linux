@@ -492,7 +492,7 @@ static int wm8940_set_bias_level(struct snd_soc_codec *codec,
 		ret = snd_soc_write(codec, WM8940_POWER1, pwr_reg | 0x1);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regcache_sync(wm8940->regmap);
 			if (ret < 0) {
 				dev_err(codec->dev, "Failed to sync cache: %d\n", ret);
@@ -509,8 +509,6 @@ static int wm8940_set_bias_level(struct snd_soc_codec *codec,
 		ret = snd_soc_write(codec, WM8940_POWER1, pwr_reg);
 		break;
 	}
-
-	codec->dapm.bias_level = level;
 
 	return ret;
 }
@@ -695,17 +693,6 @@ static struct snd_soc_dai_driver wm8940_dai = {
 	.symmetric_rates = 1,
 };
 
-static int wm8940_suspend(struct snd_soc_codec *codec)
-{
-	return wm8940_set_bias_level(codec, SND_SOC_BIAS_OFF);
-}
-
-static int wm8940_resume(struct snd_soc_codec *codec)
-{
-	wm8940_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int wm8940_probe(struct snd_soc_codec *codec)
 {
 	struct wm8940_setup_data *pdata = codec->dev->platform_data;
@@ -718,7 +705,7 @@ static int wm8940_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	wm8940_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	ret = snd_soc_write(codec, WM8940_POWER1, 0x180);
 	if (ret < 0)
@@ -736,18 +723,11 @@ static int wm8940_probe(struct snd_soc_codec *codec)
 	return ret;
 }
 
-static int wm8940_remove(struct snd_soc_codec *codec)
-{
-	wm8940_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8940 = {
 	.probe =	wm8940_probe,
-	.remove =	wm8940_remove,
-	.suspend =	wm8940_suspend,
-	.resume =	wm8940_resume,
 	.set_bias_level = wm8940_set_bias_level,
+	.suspend_bias_off = true,
+
 	.controls =     wm8940_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8940_snd_controls),
 	.dapm_widgets = wm8940_dapm_widgets,
@@ -807,7 +787,6 @@ MODULE_DEVICE_TABLE(i2c, wm8940_i2c_id);
 static struct i2c_driver wm8940_i2c_driver = {
 	.driver = {
 		.name = "wm8940",
-		.owner = THIS_MODULE,
 	},
 	.probe =    wm8940_i2c_probe,
 	.remove =   wm8940_i2c_remove,

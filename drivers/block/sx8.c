@@ -23,7 +23,7 @@
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
-#include <linux/time.h>
+#include <linux/ktime.h>
 #include <linux/hdreg.h>
 #include <linux/dma-mapping.h>
 #include <linux/completion.h>
@@ -568,7 +568,7 @@ static struct carm_request *carm_get_special(struct carm_host *host)
 		return NULL;
 
 	rq = blk_get_request(host->oob_q, WRITE /* bogus */, GFP_KERNEL);
-	if (!rq) {
+	if (IS_ERR(rq)) {
 		spin_lock_irqsave(&host->lock, flags);
 		carm_put_request(host, crq);
 		spin_unlock_irqrestore(&host->lock, flags);
@@ -620,7 +620,7 @@ static int carm_array_info (struct carm_host *host, unsigned int array_idx)
 	spin_unlock_irq(&host->lock);
 
 	DPRINTK("blk_execute_rq_nowait, tag == %u\n", idx);
-	crq->rq->cmd_type = REQ_TYPE_SPECIAL;
+	crq->rq->cmd_type = REQ_TYPE_DRV_PRIV;
 	crq->rq->special = crq;
 	blk_execute_rq_nowait(host->oob_q, NULL, crq->rq, true, NULL);
 
@@ -661,7 +661,7 @@ static int carm_send_special (struct carm_host *host, carm_sspc_t func)
 	crq->msg_bucket = (u32) rc;
 
 	DPRINTK("blk_execute_rq_nowait, tag == %u\n", idx);
-	crq->rq->cmd_type = REQ_TYPE_SPECIAL;
+	crq->rq->cmd_type = REQ_TYPE_DRV_PRIV;
 	crq->rq->special = crq;
 	blk_execute_rq_nowait(host->oob_q, NULL, crq->rq, true, NULL);
 
@@ -671,16 +671,15 @@ static int carm_send_special (struct carm_host *host, carm_sspc_t func)
 static unsigned int carm_fill_sync_time(struct carm_host *host,
 					unsigned int idx, void *mem)
 {
-	struct timeval tv;
 	struct carm_msg_sync_time *st = mem;
 
-	do_gettimeofday(&tv);
+	time64_t tv = ktime_get_real_seconds();
 
 	memset(st, 0, sizeof(*st));
 	st->type	= CARM_MSG_MISC;
 	st->subtype	= MISC_SET_TIME;
 	st->handle	= cpu_to_le32(TAG_ENCODE(idx));
-	st->timestamp	= cpu_to_le32(tv.tv_sec);
+	st->timestamp	= cpu_to_le32(tv);
 
 	return sizeof(struct carm_msg_sync_time);
 }

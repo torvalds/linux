@@ -34,7 +34,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/flash.h>
+#include "flash.h"
 #include <mach/mux.h>
 #include <linux/omap-dma.h>
 #include <mach/tc.h>
@@ -282,6 +282,7 @@ MACHINE_START(OMAP_PALMTT, "OMAP1510 based Palm Tungsten|T")
 	.map_io		= omap15xx_map_io,
 	.init_early     = omap1_init_early,
 	.init_irq	= omap1_init_irq,
+	.handle_irq	= omap1_handle_irq,
 	.init_machine	= omap_palmtt_init,
 	.init_late	= omap1_init_late,
 	.init_time	= omap1_timer_init,

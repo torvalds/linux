@@ -21,8 +21,8 @@
  */
 
 #include <linux/export.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 #include <sound/core.h>
 
 /**

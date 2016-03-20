@@ -13,9 +13,13 @@
  * Select video mode
  */
 
+#include <uapi/asm/boot.h>
+
 #include "boot.h"
 #include "video.h"
 #include "vesa.h"
+
+static u16 video_segment;
 
 static void store_cursor_position(void)
 {

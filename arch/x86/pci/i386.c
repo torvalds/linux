@@ -216,7 +216,7 @@ static void pcibios_allocate_bridge_resources(struct pci_dev *dev)
 			continue;
 		if (r->parent)	/* Already allocated */
 			continue;
-		if (!r->start || pci_claim_resource(dev, idx) < 0) {
+		if (!r->start || pci_claim_bridge_resource(dev, idx) < 0) {
 			/*
 			 * Something is wrong with the region.
 			 * Invalidate the resource to prevent
@@ -429,20 +429,18 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
  	 * Caller can followup with UC MINUS request and add a WC mtrr if there
  	 * is a free mtrr slot.
  	 */
-	if (!pat_enabled && write_combine)
+	if (!pat_enabled() && write_combine)
 		return -EINVAL;
 
-	if (pat_enabled && write_combine)
-		prot |= _PAGE_CACHE_WC;
-	else if (pat_enabled || boot_cpu_data.x86 > 3)
+	if (pat_enabled() && write_combine)
+		prot |= cachemode2protval(_PAGE_CACHE_MODE_WC);
+	else if (pat_enabled() || boot_cpu_data.x86 > 3)
 		/*
 		 * ioremap() and ioremap_nocache() defaults to UC MINUS for now.
 		 * To avoid attribute conflicts, request UC MINUS here
 		 * as well.
 		 */
-		prot |= _PAGE_CACHE_UC_MINUS;
-
-	prot |= _PAGE_IOMAP;	/* creating a mapping for IO */
+		prot |= cachemode2protval(_PAGE_CACHE_MODE_UC_MINUS);
 
 	vma->vm_page_prot = __pgprot(prot);
 

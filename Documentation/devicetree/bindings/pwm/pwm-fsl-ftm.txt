@@ -1,5 +1,20 @@
 Freescale FlexTimer Module (FTM) PWM controller
 
+The same FTM PWM device can have a different endianness on different SoCs. The
+device tree provides a property to describing this so that an operating system
+device driver can handle all variants of the device. Refer to the table below
+for the endianness of the FTM PWM block as integrated into the existing SoCs:
+
+	SoC     | FTM-PWM endianness
+	--------+-------------------
+	Vybrid  | LE
+	LS1     | BE
+	LS2     | LE
+
+Please see ../regmap/regmap.txt for more detail about how to specify endian
+modes in device tree.
+
+
 Required properties:
 - compatible: Should be "fsl,vf610-ftm-pwm".
 - reg: Physical base address and length of the controller's registers
@@ -16,7 +31,8 @@ Required properties:
 - pinctrl-names: Must contain a "default" entry.
 - pinctrl-NNN: One property must exist for each entry in pinctrl-names.
   See pinctrl/pinctrl-bindings.txt for details of the property values.
-
+- big-endian: Boolean property, required if the FTM PWM registers use a big-
+  endian rather than little-endian layout.
 
 Example:
 
@@ -32,4 +48,5 @@ pwm0: pwm@40038000 {
 			<&clks VF610_CLK_FTM0_EXT_FIX_EN>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pwm0_1>;
+		big-endian;
 };

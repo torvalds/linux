@@ -1007,7 +1007,6 @@ static struct attribute *max1363_event_attributes[] = {
 
 static struct attribute_group max1363_event_attribute_group = {
 	.attrs = max1363_event_attributes,
-	.name = "events",
 };
 
 static int max1363_update_scan_mode(struct iio_dev *indio_dev,

@@ -823,7 +823,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* Flush the plane changes */
 	{
-		struct drm_crtc_helper_funcs *crtc_funcs =
+		const struct drm_crtc_helper_funcs *crtc_funcs =
 		    crtc->helper_private;
 		crtc_funcs->mode_set_base(crtc, x, y, old_fb);
 	}
@@ -983,8 +983,6 @@ const struct drm_crtc_helper_funcs cdv_intel_helper_funcs = {
 };
 
 const struct drm_crtc_funcs cdv_intel_crtc_funcs = {
-	.save = gma_crtc_save,
-	.restore = gma_crtc_restore,
 	.cursor_set = gma_crtc_cursor_set,
 	.cursor_move = gma_crtc_cursor_move,
 	.gamma_set = gma_crtc_gamma_set,

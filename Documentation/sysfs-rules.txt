@@ -161,3 +161,24 @@ versions of the sysfs interface.
   the device that matches the expected subsystem. Depending on a specific
   position of a parent device or exposing relative paths using "../" to
   access the chain of parents is a bug in the application.
+
+- When reading and writing sysfs device attribute files, avoid dependency
+  on specific error codes wherever possible. This minimizes coupling to
+  the error handling implementation within the kernel.
+
+  In general, failures to read or write sysfs device attributes shall
+  propagate errors wherever possible. Common errors include, but are not
+  limited to:
+
+  -EIO: The read or store operation is not supported, typically returned by
+        the sysfs system itself if the read or store pointer is NULL.
+
+  -ENXIO: The read or store operation failed
+
+  Error codes will not be changed without good reason, and should a change
+  to error codes result in user-space breakage, it will be fixed, or the
+  the offending change will be reverted.
+
+  Userspace applications can, however, expect the format and contents of
+  the attribute files to remain consistent in the absence of a version
+  attribute change in the context of a given attribute.

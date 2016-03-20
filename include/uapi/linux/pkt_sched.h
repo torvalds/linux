@@ -72,6 +72,10 @@ struct tc_estimator {
 #define TC_H_UNSPEC	(0U)
 #define TC_H_ROOT	(0xFFFFFFFFU)
 #define TC_H_INGRESS    (0xFFFFFFF1U)
+#define TC_H_CLSACT	TC_H_INGRESS
+
+#define TC_H_MIN_INGRESS	0xFFF2U
+#define TC_H_MIN_EGRESS		0xFFF3U
 
 /* Need to corrospond to iproute2 tc/tc_core.h "enum link_layer" */
 enum tc_link_layer {
@@ -268,7 +272,8 @@ enum {
        TCA_GRED_STAB,
        TCA_GRED_DPS,
        TCA_GRED_MAX_P,
-	   __TCA_GRED_MAX,
+       TCA_GRED_LIMIT,
+       __TCA_GRED_MAX,
 };
 
 #define TCA_GRED_MAX (__TCA_GRED_MAX - 1)
@@ -679,6 +684,7 @@ enum {
 	TCA_CODEL_LIMIT,
 	TCA_CODEL_INTERVAL,
 	TCA_CODEL_ECN,
+	TCA_CODEL_CE_THRESHOLD,
 	__TCA_CODEL_MAX
 };
 
@@ -695,6 +701,7 @@ struct tc_codel_xstats {
 	__u32	drop_overlimit; /* number of time max qdisc packet limit was hit */
 	__u32	ecn_mark;  /* number of packets we ECN marked instead of dropped */
 	__u32	dropping;  /* are we in dropping state ? */
+	__u32	ce_mark;   /* number of CE marked packets because of ce_threshold */
 };
 
 /* FQ_CODEL */
@@ -707,6 +714,7 @@ enum {
 	TCA_FQ_CODEL_ECN,
 	TCA_FQ_CODEL_FLOWS,
 	TCA_FQ_CODEL_QUANTUM,
+	TCA_FQ_CODEL_CE_THRESHOLD,
 	__TCA_FQ_CODEL_MAX
 };
 
@@ -730,6 +738,7 @@ struct tc_fq_codel_qd_stats {
 				 */
 	__u32	new_flows_len;	/* count of flows in new list */
 	__u32	old_flows_len;	/* count of flows in old list */
+	__u32	ce_mark;	/* packets above ce_threshold */
 };
 
 struct tc_fq_codel_cl_stats {
@@ -773,6 +782,8 @@ enum {
 	TCA_FQ_BUCKETS_LOG,	/* log2(number of buckets) */
 
 	TCA_FQ_FLOW_REFILL_DELAY,	/* flow credit refill delay in usec */
+
+	TCA_FQ_ORPHAN_MASK,	/* mask applied to orphaned skb hashes */
 
 	__TCA_FQ_MAX
 };

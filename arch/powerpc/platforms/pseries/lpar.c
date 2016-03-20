@@ -26,7 +26,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/console.h>
 #include <linux/export.h>
-#include <linux/static_key.h>
+#include <linux/jump_label.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
@@ -43,6 +43,8 @@
 #include <asm/trace.h>
 #include <asm/firmware.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/kexec.h>
+#include <asm/fadump.h>
 
 #include "pseries.h"
 
@@ -58,8 +60,6 @@
 EXPORT_SYMBOL(plpar_hcall);
 EXPORT_SYMBOL(plpar_hcall9);
 EXPORT_SYMBOL(plpar_hcall_norets);
-
-extern void pSeries_find_serial_port(void);
 
 void vpa_init(int cpu)
 {
@@ -249,8 +249,17 @@ static void pSeries_lpar_hptab_clear(void)
 	}
 
 #ifdef __LITTLE_ENDIAN__
-	/* Reset exceptions to big endian */
-	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
+	/*
+	 * Reset exceptions to big endian.
+	 *
+	 * FIXME this is a hack for kexec, we need to reset the exception
+	 * endian before starting the new kernel and this is a convenient place
+	 * to do it.
+	 *
+	 * This is also called on boot when a fadump happens. In that case we
+	 * must not change the exception endian mode.
+	 */
+	if (firmware_has_feature(FW_FEATURE_SET_MODE) && !is_fadump_active()) {
 		long rc;
 
 		rc = pseries_big_endian_exceptions();
@@ -259,8 +268,13 @@ static void pSeries_lpar_hptab_clear(void)
 		 * out to the user, but at least this will stop us from
 		 * continuing on further and creating an even more
 		 * difficult to debug situation.
+		 *
+		 * There is a known problem when kdump'ing, if cpus are offline
+		 * the above call will fail. Rather than panicking again, keep
+		 * going and hope the kdump kernel is also little endian, which
+		 * it usually is.
 		 */
-		if (rc)
+		if (rc && !kdump_in_progress())
 			panic("Could not enable big endian exceptions");
 	}
 #endif
@@ -276,7 +290,7 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 				       unsigned long newpp,
 				       unsigned long vpn,
 				       int psize, int apsize,
-				       int ssize, int local)
+				       int ssize, unsigned long inv_flags)
 {
 	unsigned long lpar_rc;
 	unsigned long flags = (newpp & 7) | H_AVPN;
@@ -301,48 +315,48 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 	return 0;
 }
 
-static unsigned long pSeries_lpar_hpte_getword0(unsigned long slot)
+static long __pSeries_lpar_hpte_find(unsigned long want_v, unsigned long hpte_group)
 {
-	unsigned long dword0;
-	unsigned long lpar_rc;
-	unsigned long dummy_word1;
-	unsigned long flags;
+	long lpar_rc;
+	unsigned long i, j;
+	struct {
+		unsigned long pteh;
+		unsigned long ptel;
+	} ptes[4];
 
-	/* Read 1 pte at a time                        */
-	/* Do not need RPN to logical page translation */
-	/* No cross CEC PFT access                     */
-	flags = 0;
+	for (i = 0; i < HPTES_PER_GROUP; i += 4, hpte_group += 4) {
 
-	lpar_rc = plpar_pte_read(flags, slot, &dword0, &dummy_word1);
+		lpar_rc = plpar_pte_read_4(0, hpte_group, (void *)ptes);
+		if (lpar_rc != H_SUCCESS)
+			continue;
 
-	BUG_ON(lpar_rc != H_SUCCESS);
+		for (j = 0; j < 4; j++) {
+			if (HPTE_V_COMPARE(ptes[j].pteh, want_v) &&
+			    (ptes[j].pteh & HPTE_V_VALID))
+				return i + j;
+		}
+	}
 
-	return dword0;
+	return -1;
 }
 
 static long pSeries_lpar_hpte_find(unsigned long vpn, int psize, int ssize)
 {
-	unsigned long hash;
-	unsigned long i;
 	long slot;
-	unsigned long want_v, hpte_v;
+	unsigned long hash;
+	unsigned long want_v;
+	unsigned long hpte_group;
 
 	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, ssize);
 	want_v = hpte_encode_avpn(vpn, psize, ssize);
 
 	/* Bolted entries are always in the primary group */
-	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
-	for (i = 0; i < HPTES_PER_GROUP; i++) {
-		hpte_v = pSeries_lpar_hpte_getword0(slot);
-
-		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID))
-			/* HPTE matches */
-			return slot;
-		++slot;
-	}
-
-	return -1;
-} 
+	hpte_group = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+	slot = __pSeries_lpar_hpte_find(want_v, hpte_group);
+	if (slot < 0)
+		return -1;
+	return hpte_group + slot;
+}
 
 static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 					     unsigned long ea,
@@ -382,6 +396,7 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	BUG_ON(lpar_rc != H_SUCCESS);
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 /*
  * Limit iterations holding pSeries_lpar_tlbie_lock to 3. We also need
  * to make sure that we avoid bouncing the hypervisor tlbie lock.
@@ -434,7 +449,7 @@ static void __pSeries_lpar_hugepage_invalidate(unsigned long *slot,
 static void pSeries_lpar_hugepage_invalidate(unsigned long vsid,
 					     unsigned long addr,
 					     unsigned char *hpte_slot_array,
-					     int psize, int ssize)
+					     int psize, int ssize, int local)
 {
 	int i, index = 0;
 	unsigned long s_addr = addr;
@@ -480,9 +495,18 @@ static void pSeries_lpar_hugepage_invalidate(unsigned long vsid,
 		__pSeries_lpar_hugepage_invalidate(slot_array, vpn_array,
 						   index, psize, ssize);
 }
+#else
+static void pSeries_lpar_hugepage_invalidate(unsigned long vsid,
+					     unsigned long addr,
+					     unsigned char *hpte_slot_array,
+					     int psize, int ssize, int local)
+{
+	WARN(1, "%s called without THP support\n", __func__);
+}
+#endif
 
-static void pSeries_lpar_hpte_removebolted(unsigned long ea,
-					   int psize, int ssize)
+static int pSeries_lpar_hpte_removebolted(unsigned long ea,
+					  int psize, int ssize)
 {
 	unsigned long vpn;
 	unsigned long slot, vsid;
@@ -491,11 +515,14 @@ static void pSeries_lpar_hpte_removebolted(unsigned long ea,
 	vpn = hpt_vpn(ea, vsid, ssize);
 
 	slot = pSeries_lpar_hpte_find(vpn, psize, ssize);
-	BUG_ON(slot == -1);
+	if (slot == -1)
+		return -ENOENT;
+
 	/*
 	 * lpar doesn't use the passed actual page size
 	 */
 	pSeries_lpar_hpte_invalidate(slot, vpn, psize, 0, ssize, 0);
+	return 0;
 }
 
 /*
@@ -507,7 +534,7 @@ static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 	unsigned long vpn;
 	unsigned long i, pix, rc;
 	unsigned long flags = 0;
-	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
+	struct ppc64_tlb_batch *batch = this_cpu_ptr(&ppc64_tlb_batch);
 	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 	unsigned long param[9];
 	unsigned long hash, index, shift, hidx, slot;
@@ -642,7 +669,7 @@ EXPORT_SYMBOL(arch_free_page);
 #endif
 
 #ifdef CONFIG_TRACEPOINTS
-#ifdef CONFIG_JUMP_LABEL
+#ifdef HAVE_JUMP_LABEL
 struct static_key hcall_tracepoint_key = STATIC_KEY_INIT;
 
 void hcall_tracepoint_regfunc(void)
@@ -697,7 +724,7 @@ void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
 
 	local_irq_save(flags);
 
-	depth = &__get_cpu_var(hcall_trace_depth);
+	depth = this_cpu_ptr(&hcall_trace_depth);
 
 	if (*depth)
 		goto out;
@@ -722,7 +749,7 @@ void __trace_hcall_exit(long opcode, unsigned long retval,
 
 	local_irq_save(flags);
 
-	depth = &__get_cpu_var(hcall_trace_depth);
+	depth = this_cpu_ptr(&hcall_trace_depth);
 
 	if (*depth)
 		goto out;

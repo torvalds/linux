@@ -129,7 +129,7 @@ static struct platform_device *devices[] __initdata = {
 	&pcm043_flash,
 };
 
-static iomux_v3_cfg_t pcm043_pads[] = {
+static const iomux_v3_cfg_t pcm043_pads[] __initconst = {
 	/* UART1 */
 	MX35_PAD_CTS1__UART1_CTS,
 	MX35_PAD_RTS1__UART1_RTS,

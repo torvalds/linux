@@ -34,7 +34,6 @@
 #include <linux/of_device.h>
 
 #include <asm/irq.h>
-#include <mach/hardware.h>
 
 static DEFINE_MUTEX(ssp_lock);
 static LIST_HEAD(ssp_list);
@@ -107,7 +106,6 @@ static const struct of_device_id pxa_ssp_of_ids[] = {
 	{ .compatible = "mvrl,pxa168-ssp",	.data = (void *) PXA168_SSP },
 	{ .compatible = "mrvl,pxa910-ssp",	.data = (void *) PXA910_SSP },
 	{ .compatible = "mrvl,ce4100-ssp",	.data = (void *) CE4100_SSP },
-	{ .compatible = "mrvl,lpss-ssp",	.data = (void *) LPSS_SSP },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, pxa_ssp_of_ids);
@@ -258,6 +256,7 @@ static const struct platform_device_id ssp_id_table[] = {
 	{ "pxa25x-ssp",		PXA25x_SSP },
 	{ "pxa25x-nssp",	PXA25x_NSSP },
 	{ "pxa27x-ssp",		PXA27x_SSP },
+	{ "pxa3xx-ssp",		PXA3xx_SSP },
 	{ "pxa168-ssp",		PXA168_SSP },
 	{ "pxa910-ssp",		PXA910_SSP },
 	{ },
@@ -267,7 +266,6 @@ static struct platform_driver pxa_ssp_driver = {
 	.probe		= pxa_ssp_probe,
 	.remove		= pxa_ssp_remove,
 	.driver		= {
-		.owner		= THIS_MODULE,
 		.name		= "pxa2xx-ssp",
 		.of_match_table	= of_match_ptr(pxa_ssp_of_ids),
 	},

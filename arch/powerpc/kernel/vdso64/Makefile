@@ -8,10 +8,11 @@ targets := $(obj-vdso64) vdso64.so vdso64.so.dbg
 obj-vdso64 := $(addprefix $(obj)/, $(obj-vdso64))
 
 GCOV_PROFILE := n
+UBSAN_SANITIZE := n
 
 ccflags-y := -shared -fno-common -fno-builtin
 ccflags-y += -nostdlib -Wl,-soname=linux-vdso64.so.1 \
-		$(call cc-ldoption, -Wl$(comma)--hash-style=sysv)
+		$(call cc-ldoption, -Wl$(comma)--hash-style=both)
 asflags-y := -D__VDSO64__ -s
 
 obj-y += vdso64_wrapper.o

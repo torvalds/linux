@@ -11,13 +11,13 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/clk/shmobile.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 struct rcar_gen2_cpg {
@@ -33,6 +33,8 @@ struct rcar_gen2_cpg {
 #define CPG_FRQCRC			0x000000e0
 #define CPG_FRQCRC_ZFC_MASK		(0x1f << 8)
 #define CPG_FRQCRC_ZFC_SHIFT		8
+#define CPG_ADSPCKCR			0x0000025c
+#define CPG_RCANCKCR			0x00000270
 
 /* -----------------------------------------------------------------------------
  * Z Clock
@@ -113,7 +115,7 @@ static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	 *
 	 * Using experimental measurements, it seems that no more than
 	 * ~10 iterations are needed, independently of the CPU rate.
-	 * Since this value might be dependant of external xtal rate, pll1
+	 * Since this value might be dependent on external xtal rate, pll1
 	 * rate or even the other emulation clocks rate, use 1000 as a
 	 * "super" safe value.
 	 */
@@ -161,6 +163,88 @@ static struct clk * __init cpg_z_clk_register(struct rcar_gen2_cpg *cpg)
 	return clk;
 }
 
+static struct clk * __init cpg_rcan_clk_register(struct rcar_gen2_cpg *cpg,
+						 struct device_node *np)
+{
+	const char *parent_name = of_clk_get_parent_name(np, 1);
+	struct clk_fixed_factor *fixed;
+	struct clk_gate *gate;
+	struct clk *clk;
+
+	fixed = kzalloc(sizeof(*fixed), GFP_KERNEL);
+	if (!fixed)
+		return ERR_PTR(-ENOMEM);
+
+	fixed->mult = 1;
+	fixed->div = 6;
+
+	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	if (!gate) {
+		kfree(fixed);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	gate->reg = cpg->reg + CPG_RCANCKCR;
+	gate->bit_idx = 8;
+	gate->flags = CLK_GATE_SET_TO_DISABLE;
+	gate->lock = &cpg->lock;
+
+	clk = clk_register_composite(NULL, "rcan", &parent_name, 1, NULL, NULL,
+				     &fixed->hw, &clk_fixed_factor_ops,
+				     &gate->hw, &clk_gate_ops, 0);
+	if (IS_ERR(clk)) {
+		kfree(gate);
+		kfree(fixed);
+	}
+
+	return clk;
+}
+
+/* ADSP divisors */
+static const struct clk_div_table cpg_adsp_div_table[] = {
+	{  1,  3 }, {  2,  4 }, {  3,  6 }, {  4,  8 },
+	{  5, 12 }, {  6, 16 }, {  7, 18 }, {  8, 24 },
+	{ 10, 36 }, { 11, 48 }, {  0,  0 },
+};
+
+static struct clk * __init cpg_adsp_clk_register(struct rcar_gen2_cpg *cpg)
+{
+	const char *parent_name = "pll1";
+	struct clk_divider *div;
+	struct clk_gate *gate;
+	struct clk *clk;
+
+	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	if (!div)
+		return ERR_PTR(-ENOMEM);
+
+	div->reg = cpg->reg + CPG_ADSPCKCR;
+	div->width = 4;
+	div->table = cpg_adsp_div_table;
+	div->lock = &cpg->lock;
+
+	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	if (!gate) {
+		kfree(div);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	gate->reg = cpg->reg + CPG_ADSPCKCR;
+	gate->bit_idx = 8;
+	gate->flags = CLK_GATE_SET_TO_DISABLE;
+	gate->lock = &cpg->lock;
+
+	clk = clk_register_composite(NULL, "adsp", &parent_name, 1, NULL, NULL,
+				     &div->hw, &clk_divider_ops,
+				     &gate->hw, &clk_gate_ops, 0);
+	if (IS_ERR(clk)) {
+		kfree(gate);
+		kfree(div);
+	}
+
+	return clk;
+}
+
 /* -----------------------------------------------------------------------------
  * CPG Clock Data
  */
@@ -178,7 +262,7 @@ static struct clk * __init cpg_z_clk_register(struct rcar_gen2_cpg *cpg)
  * 1  1  0	30 / 2		x172/2	x208/2	x106
  * 1  1  1	30 / 2		x172/2	x208/2	x88
  *
- * *1 :	Table 7.6 indicates VCO ouput (PLLx = VCO/2)
+ * *1 :	Table 7.6 indicates VCO output (PLLx = VCO/2)
  */
 #define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 12) | \
 					 (((md) & BIT(13)) >> 12) | \
@@ -202,6 +286,7 @@ static const struct clk_div_table cpg_sdh_div_table[] = {
 };
 
 static const struct clk_div_table cpg_sd01_div_table[] = {
+	{  4,  8 },
 	{  5, 12 }, {  6, 16 }, {  7, 18 }, {  8, 24 },
 	{ 10, 36 }, { 11, 48 }, { 12, 10 }, {  0,  0 },
 };
@@ -262,6 +347,10 @@ rcar_gen2_cpg_register_clock(struct device_node *np, struct rcar_gen2_cpg *cpg,
 		shift = 0;
 	} else if (!strcmp(name, "z")) {
 		return cpg_z_clk_register(cpg);
+	} else if (!strcmp(name, "rcan")) {
+		return cpg_rcan_clk_register(cpg, np);
+	} else if (!strcmp(name, "adsp")) {
+		return cpg_adsp_clk_register(cpg);
 	} else {
 		return ERR_PTR(-EINVAL);
 	}
@@ -326,6 +415,8 @@ static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
 	}
 
 	of_clk_add_provider(np, of_clk_src_onecell_get, &cpg->data);
+
+	cpg_mstp_add_clk_domain(np);
 }
 CLK_OF_DECLARE(rcar_gen2_cpg_clks, "renesas,rcar-gen2-cpg-clocks",
 	       rcar_gen2_cpg_clocks_init);

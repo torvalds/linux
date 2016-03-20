@@ -888,7 +888,7 @@ static int inia100_build_scb(struct orc_host * host, struct orc_scb * scb, struc
 	scb->sense_len = SENSE_SIZE;
 	scb->cdb_len = cmd->cmd_len;
 	if (scb->cdb_len >= IMAX_CDB) {
-		printk("max cdb length= %x\b", cmd->cmd_len);
+		printk("max cdb length= %x\n", cmd->cmd_len);
 		scb->cdb_len = IMAX_CDB;
 	}
 	scb->ident = (u8)(cmd->device->lun & 0xff) | DISC_ALLOW;
@@ -1078,7 +1078,6 @@ static struct scsi_host_template inia100_template = {
 	.can_queue		= 1,
 	.this_id		= 1,
 	.sg_tablesize		= SG_ALL,
-	.cmd_per_lun 		= 1,
 	.use_clustering		= ENABLE_CLUSTERING,
 };
 

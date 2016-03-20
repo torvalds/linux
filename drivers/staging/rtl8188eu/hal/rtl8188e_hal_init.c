@@ -23,7 +23,7 @@
 #include <linux/vmalloc.h>
 #include <drv_types.h>
 #include <rtw_efuse.h>
-
+#include <phy.h>
 #include <rtl8188e_hal.h>
 
 #include <rtw_iol.h>
@@ -53,7 +53,7 @@ s32 iol_execute(struct adapter *padapter, u8 control)
 {
 	s32 status = _FAIL;
 	u8 reg_0x88 = 0;
-	u32 start = 0, passing_time = 0;
+	unsigned long start = 0;
 
 	control = control&0x0f;
 	reg_0x88 = usb_read8(padapter, REG_HMEBOX_E0);
@@ -61,8 +61,8 @@ s32 iol_execute(struct adapter *padapter, u8 control)
 
 	start = jiffies;
 	while ((reg_0x88 = usb_read8(padapter, REG_HMEBOX_E0)) & control &&
-	       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
-		;
+	       jiffies_to_msecs(jiffies - start) < 1000) {
+		udelay(5);
 	}
 
 	reg_0x88 = usb_read8(padapter, REG_HMEBOX_E0);
@@ -99,385 +99,16 @@ s32 rtl8188e_iol_efuse_patch(struct adapter *padapter)
 	return result;
 }
 
-static s32 iol_ioconfig(struct adapter *padapter, u8 iocfg_bndy)
-{
-	s32 rst = _SUCCESS;
-
-	usb_write8(padapter, REG_TDECTRL+1, iocfg_bndy);
-	rst = iol_execute(padapter, CMD_IOCONFIG);
-	return rst;
-}
-
-static int rtl8188e_IOL_exec_cmds_sync(struct adapter *adapter, struct xmit_frame *xmit_frame, u32 max_wating_ms, u32 bndy_cnt)
-{
-	struct pkt_attrib *pattrib = &xmit_frame->attrib;
-	u8 i;
-	int ret = _FAIL;
-
-	if (rtw_IOL_append_END_cmd(xmit_frame) != _SUCCESS)
-		goto exit;
-	if (rtw_usb_bulk_size_boundary(adapter, TXDESC_SIZE+pattrib->last_txcmdsz)) {
-		if (rtw_IOL_append_END_cmd(xmit_frame) != _SUCCESS)
-			goto exit;
-	}
-
-	dump_mgntframe_and_wait(adapter, xmit_frame, max_wating_ms);
-
-	iol_mode_enable(adapter, 1);
-	for (i = 0; i < bndy_cnt; i++) {
-		u8 page_no = 0;
-		page_no = i*2;
-		ret = iol_ioconfig(adapter, page_no);
-		if (ret != _SUCCESS)
-			break;
-	}
-	iol_mode_enable(adapter, 0);
-exit:
-	/* restore BCN_HEAD */
-	usb_write8(adapter, REG_TDECTRL+1, 0);
-	return ret;
-}
-
-void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter *Adapter, int data_len)
-{
-	u32 fifo_data, reg_140;
-	u32 addr, rstatus, loop = 0;
-	u16 data_cnts = (data_len/8)+1;
-	u8 *pbuf = vzalloc(data_len+10);
-	DBG_88E("###### %s ######\n", __func__);
-
-	usb_write8(Adapter, REG_PKT_BUFF_ACCESS_CTRL, TXPKT_BUF_SELECT);
-	if (pbuf) {
-		for (addr = 0; addr < data_cnts; addr++) {
-			usb_write32(Adapter, 0x140, addr);
-			msleep(1);
-			loop = 0;
-			do {
-				rstatus = (reg_140 = usb_read32(Adapter, REG_PKTBUF_DBG_CTRL)&BIT24);
-				if (rstatus) {
-					fifo_data = usb_read32(Adapter, REG_PKTBUF_DBG_DATA_L);
-					memcpy(pbuf+(addr*8), &fifo_data, 4);
-
-					fifo_data = usb_read32(Adapter, REG_PKTBUF_DBG_DATA_H);
-					memcpy(pbuf+(addr*8+4), &fifo_data, 4);
-				}
-				msleep(1);
-			} while (!rstatus && (loop++ < 10));
-		}
-		rtw_IOL_cmd_buf_dump(Adapter, data_len, pbuf);
-		vfree(pbuf);
-	}
-	DBG_88E("###### %s ######\n", __func__);
-}
-
-static void _FWDownloadEnable(struct adapter *padapter, bool enable)
-{
-	u8 tmp;
-
-	if (enable) {
-		/*  MCU firmware download enable. */
-		tmp = usb_read8(padapter, REG_MCUFWDL);
-		usb_write8(padapter, REG_MCUFWDL, tmp | 0x01);
-
-		/*  8051 reset */
-		tmp = usb_read8(padapter, REG_MCUFWDL+2);
-		usb_write8(padapter, REG_MCUFWDL+2, tmp&0xf7);
-	} else {
-		/*  MCU firmware download disable. */
-		tmp = usb_read8(padapter, REG_MCUFWDL);
-		usb_write8(padapter, REG_MCUFWDL, tmp&0xfe);
-
-		/*  Reserved for fw extension. */
-		usb_write8(padapter, REG_MCUFWDL+1, 0x00);
-	}
-}
-
 #define MAX_REG_BOLCK_SIZE	196
-
-static int _BlockWrite(struct adapter *padapter, void *buffer, u32 buffSize)
-{
-	int ret = _SUCCESS;
-	u32	blockSize_p1 = 4;	/*  (Default) Phase #1 : PCI muse use 4-byte write to download FW */
-	u32	blockSize_p2 = 8;	/*  Phase #2 : Use 8-byte, if Phase#1 use big size to write FW. */
-	u32	blockSize_p3 = 1;	/*  Phase #3 : Use 1-byte, the remnant of FW image. */
-	u32	blockCount_p1 = 0, blockCount_p2 = 0, blockCount_p3 = 0;
-	u32	remainSize_p1 = 0, remainSize_p2 = 0;
-	u8 *bufferPtr	= (u8 *)buffer;
-	u32	i = 0, offset = 0;
-
-	blockSize_p1 = MAX_REG_BOLCK_SIZE;
-
-	/* 3 Phase #1 */
-	blockCount_p1 = buffSize / blockSize_p1;
-	remainSize_p1 = buffSize % blockSize_p1;
-
-	if (blockCount_p1) {
-		RT_TRACE(_module_hal_init_c_, _drv_notice_,
-			 ("_BlockWrite: [P1] buffSize(%d) blockSize_p1(%d) blockCount_p1(%d) remainSize_p1(%d)\n",
-			 buffSize, blockSize_p1, blockCount_p1, remainSize_p1));
-	}
-
-	for (i = 0; i < blockCount_p1; i++) {
-		ret = usb_writeN(padapter, (FW_8188E_START_ADDRESS + i * blockSize_p1), blockSize_p1, (bufferPtr + i * blockSize_p1));
-		if (ret == _FAIL)
-			goto exit;
-	}
-
-	/* 3 Phase #2 */
-	if (remainSize_p1) {
-		offset = blockCount_p1 * blockSize_p1;
-
-		blockCount_p2 = remainSize_p1/blockSize_p2;
-		remainSize_p2 = remainSize_p1%blockSize_p2;
-
-		if (blockCount_p2) {
-				RT_TRACE(_module_hal_init_c_, _drv_notice_,
-					 ("_BlockWrite: [P2] buffSize_p2(%d) blockSize_p2(%d) blockCount_p2(%d) remainSize_p2(%d)\n",
-					 (buffSize-offset), blockSize_p2 , blockCount_p2, remainSize_p2));
-		}
-
-		for (i = 0; i < blockCount_p2; i++) {
-			ret = usb_writeN(padapter, (FW_8188E_START_ADDRESS + offset + i*blockSize_p2), blockSize_p2, (bufferPtr + offset + i*blockSize_p2));
-
-			if (ret == _FAIL)
-				goto exit;
-		}
-	}
-
-	/* 3 Phase #3 */
-	if (remainSize_p2) {
-		offset = (blockCount_p1 * blockSize_p1) + (blockCount_p2 * blockSize_p2);
-
-		blockCount_p3 = remainSize_p2 / blockSize_p3;
-
-		RT_TRACE(_module_hal_init_c_, _drv_notice_,
-			 ("_BlockWrite: [P3] buffSize_p3(%d) blockSize_p3(%d) blockCount_p3(%d)\n",
-			 (buffSize-offset), blockSize_p3, blockCount_p3));
-
-		for (i = 0; i < blockCount_p3; i++) {
-			ret = usb_write8(padapter, (FW_8188E_START_ADDRESS + offset + i), *(bufferPtr + offset + i));
-
-			if (ret == _FAIL)
-				goto exit;
-		}
-	}
-
-exit:
-	return ret;
-}
-
-static int _PageWrite(struct adapter *padapter, u32 page, void *buffer, u32 size)
-{
-	u8 value8;
-	u8 u8Page = (u8)(page & 0x07);
-
-	value8 = (usb_read8(padapter, REG_MCUFWDL+2) & 0xF8) | u8Page;
-	usb_write8(padapter, REG_MCUFWDL+2, value8);
-
-	return _BlockWrite(padapter, buffer, size);
-}
-
-static int _WriteFW(struct adapter *padapter, void *buffer, u32 size)
-{
-	/*  Since we need dynamic decide method of dwonload fw, so we call this function to get chip version. */
-	/*  We can remove _ReadChipVersion from ReadpadapterInfo8192C later. */
-	int ret = _SUCCESS;
-	u32	pageNums, remainSize;
-	u32	page, offset;
-	u8 *bufferPtr = (u8 *)buffer;
-
-	pageNums = size / MAX_PAGE_SIZE;
-	remainSize = size % MAX_PAGE_SIZE;
-
-	for (page = 0; page < pageNums; page++) {
-		offset = page * MAX_PAGE_SIZE;
-		ret = _PageWrite(padapter, page, bufferPtr+offset, MAX_PAGE_SIZE);
-
-		if (ret == _FAIL)
-			goto exit;
-	}
-	if (remainSize) {
-		offset = pageNums * MAX_PAGE_SIZE;
-		page = pageNums;
-		ret = _PageWrite(padapter, page, bufferPtr+offset, remainSize);
-
-		if (ret == _FAIL)
-			goto exit;
-	}
-	RT_TRACE(_module_hal_init_c_, _drv_info_, ("_WriteFW Done- for Normal chip.\n"));
-exit:
-	return ret;
-}
 
 void _8051Reset88E(struct adapter *padapter)
 {
 	u8 u1bTmp;
 
 	u1bTmp = usb_read8(padapter, REG_SYS_FUNC_EN+1);
-	usb_write8(padapter, REG_SYS_FUNC_EN+1, u1bTmp&(~BIT2));
-	usb_write8(padapter, REG_SYS_FUNC_EN+1, u1bTmp|(BIT2));
+	usb_write8(padapter, REG_SYS_FUNC_EN+1, u1bTmp&(~BIT(2)));
+	usb_write8(padapter, REG_SYS_FUNC_EN+1, u1bTmp|(BIT(2)));
 	DBG_88E("=====> _8051Reset88E(): 8051 reset success .\n");
-}
-
-static s32 _FWFreeToGo(struct adapter *padapter)
-{
-	u32	counter = 0;
-	u32	value32;
-
-	/*  polling CheckSum report */
-	do {
-		value32 = usb_read32(padapter, REG_MCUFWDL);
-		if (value32 & FWDL_ChkSum_rpt)
-			break;
-	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
-
-	if (counter >= POLLING_READY_TIMEOUT_COUNT) {
-		DBG_88E("%s: chksum report fail! REG_MCUFWDL:0x%08x\n", __func__, value32);
-		return _FAIL;
-	}
-	DBG_88E("%s: Checksum report OK! REG_MCUFWDL:0x%08x\n", __func__, value32);
-
-	value32 = usb_read32(padapter, REG_MCUFWDL);
-	value32 |= MCUFWDL_RDY;
-	value32 &= ~WINTINI_RDY;
-	usb_write32(padapter, REG_MCUFWDL, value32);
-
-	_8051Reset88E(padapter);
-
-	/*  polling for FW ready */
-	counter = 0;
-	do {
-		value32 = usb_read32(padapter, REG_MCUFWDL);
-		if (value32 & WINTINI_RDY) {
-			DBG_88E("%s: Polling FW ready success!! REG_MCUFWDL:0x%08x\n", __func__, value32);
-			return _SUCCESS;
-		}
-		udelay(5);
-	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
-
-	DBG_88E("%s: Polling FW ready fail!! REG_MCUFWDL:0x%08x\n", __func__, value32);
-	return _FAIL;
-}
-
-#define IS_FW_81xxC(padapter)	(((GET_HAL_DATA(padapter))->FirmwareSignature & 0xFFF0) == 0x88C0)
-
-static int load_firmware(struct rt_firmware *pFirmware, struct device *device)
-{
-	int rtstatus = _SUCCESS;
-	const struct firmware *fw;
-	const char fw_name[] = "rtlwifi/rtl8188eufw.bin";
-
-	if (request_firmware(&fw, fw_name, device)) {
-		rtstatus = _FAIL;
-		goto exit;
-	}
-	if (!fw) {
-		pr_err("Firmware %s not available\n", fw_name);
-		rtstatus = _FAIL;
-		goto exit;
-	}
-	if (fw->size > FW_8188E_SIZE) {
-		rtstatus = _FAIL;
-		RT_TRACE(_module_hal_init_c_, _drv_err_,
-			 ("Firmware size exceed 0x%X. Check it.\n",
-			 FW_8188E_SIZE));
-		goto exit;
-	}
-
-	pFirmware->szFwBuffer = kzalloc(FW_8188E_SIZE, GFP_KERNEL);
-	if (!pFirmware->szFwBuffer) {
-		rtstatus = _FAIL;
-		goto exit;
-	}
-	memcpy(pFirmware->szFwBuffer, fw->data, fw->size);
-	pFirmware->ulFwLength = fw->size;
-	release_firmware(fw);
-
-	DBG_88E_LEVEL(_drv_info_,
-		      "+%s: !bUsedWoWLANFw, FmrmwareLen:%d+\n", __func__,
-		      pFirmware->ulFwLength);
-exit:
-	return rtstatus;
-}
-
-s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
-{
-	s32	rtStatus = _SUCCESS;
-	u8 writeFW_retry = 0;
-	u32 fwdl_start_time;
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(padapter);
-	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
-	struct device *device = dvobj_to_dev(dvobj);
-	struct rt_firmware_hdr *pFwHdr = NULL;
-	u8 *pFirmwareBuf;
-	u32 FirmwareLen;
-	static int log_version;
-
-	RT_TRACE(_module_hal_init_c_, _drv_info_, ("+%s\n", __func__));
-	if (!dvobj->firmware.szFwBuffer)
-		rtStatus = load_firmware(&dvobj->firmware, device);
-	if (rtStatus == _FAIL) {
-		dvobj->firmware.szFwBuffer = NULL;
-		goto Exit;
-	}
-	pFirmwareBuf = dvobj->firmware.szFwBuffer;
-	FirmwareLen = dvobj->firmware.ulFwLength;
-
-	/*  To Check Fw header. Added by tynli. 2009.12.04. */
-	pFwHdr = (struct rt_firmware_hdr *)dvobj->firmware.szFwBuffer;
-
-	pHalData->FirmwareVersion =  le16_to_cpu(pFwHdr->Version);
-	pHalData->FirmwareSubVersion = pFwHdr->Subversion;
-	pHalData->FirmwareSignature = le16_to_cpu(pFwHdr->Signature);
-
-	if (!log_version++)
-		pr_info("%sFirmware Version %d, SubVersion %d, Signature 0x%x\n",
-			DRIVER_PREFIX, pHalData->FirmwareVersion,
-			pHalData->FirmwareSubVersion, pHalData->FirmwareSignature);
-
-	if (IS_FW_HEADER_EXIST(pFwHdr)) {
-		/*  Shift 32 bytes for FW header */
-		pFirmwareBuf = pFirmwareBuf + 32;
-		FirmwareLen = FirmwareLen - 32;
-	}
-
-	/*  Suggested by Filen. If 8051 is running in RAM code, driver should inform Fw to reset by itself, */
-	/*  or it will cause download Fw fail. 2010.02.01. by tynli. */
-	if (usb_read8(padapter, REG_MCUFWDL) & RAM_DL_SEL) { /* 8051 RAM code */
-		usb_write8(padapter, REG_MCUFWDL, 0x00);
-		_8051Reset88E(padapter);
-	}
-
-	_FWDownloadEnable(padapter, true);
-	fwdl_start_time = jiffies;
-	while (1) {
-		/* reset the FWDL chksum */
-		usb_write8(padapter, REG_MCUFWDL, usb_read8(padapter, REG_MCUFWDL) | FWDL_ChkSum_rpt);
-
-		rtStatus = _WriteFW(padapter, pFirmwareBuf, FirmwareLen);
-
-		if (rtStatus == _SUCCESS ||
-		    (rtw_get_passing_time_ms(fwdl_start_time) > 500 && writeFW_retry++ >= 3))
-			break;
-
-		DBG_88E("%s writeFW_retry:%u, time after fwdl_start_time:%ums\n",
-			__func__, writeFW_retry, rtw_get_passing_time_ms(fwdl_start_time)
-		);
-	}
-	_FWDownloadEnable(padapter, false);
-	if (_SUCCESS != rtStatus) {
-		DBG_88E("DL Firmware failed!\n");
-		goto Exit;
-	}
-
-	rtStatus = _FWFreeToGo(padapter);
-	if (_SUCCESS != rtStatus) {
-		DBG_88E("DL Firmware failed!\n");
-		goto Exit;
-	}
-	RT_TRACE(_module_hal_init_c_, _drv_info_, ("Firmware is ready to run!\n"));
-Exit:
-	return rtStatus;
 }
 
 void rtl8188e_InitializeFirmwareVars(struct adapter *padapter)
@@ -497,7 +128,7 @@ static void rtl8188e_free_hal_data(struct adapter *padapter)
 	padapter->HalData = NULL;
 }
 
-static struct HAL_VERSION ReadChipVersion8188E(struct adapter *padapter)
+static void ReadChipVersion8188E(struct adapter *padapter)
 {
 	u32				value32;
 	struct HAL_VERSION		ChipVersion;
@@ -506,41 +137,17 @@ static struct HAL_VERSION ReadChipVersion8188E(struct adapter *padapter)
 	pHalData = GET_HAL_DATA(padapter);
 
 	value32 = usb_read32(padapter, REG_SYS_CFG);
-	ChipVersion.ICType = CHIP_8188E;
 	ChipVersion.ChipType = ((value32 & RTL_ID) ? TEST_CHIP : NORMAL_CHIP);
-
-	ChipVersion.RFType = RF_TYPE_1T1R;
 	ChipVersion.VendorType = ((value32 & VENDOR_ID) ? CHIP_VENDOR_UMC : CHIP_VENDOR_TSMC);
 	ChipVersion.CUTVersion = (value32 & CHIP_VER_RTL_MASK)>>CHIP_VER_RTL_SHIFT; /*  IC version (CUT) */
-
-	/*  For regulator mode. by tynli. 2011.01.14 */
-	pHalData->RegulatorMode = ((value32 & TRP_BT_EN) ? RT_LDO_REGULATOR : RT_SWITCHING_REGULATOR);
-
-	ChipVersion.ROMVer = 0;	/*  ROM code version. */
 
 	dump_chip_info(ChipVersion);
 
 	pHalData->VersionID = ChipVersion;
-
-	if (IS_1T2R(ChipVersion)) {
-		pHalData->rf_type = RF_1T2R;
-		pHalData->NumTotalRFPath = 2;
-	} else if (IS_2T2R(ChipVersion)) {
-		pHalData->rf_type = RF_2T2R;
-		pHalData->NumTotalRFPath = 2;
-	} else{
-		pHalData->rf_type = RF_1T1R;
-		pHalData->NumTotalRFPath = 1;
-	}
+	pHalData->rf_type = RF_1T1R;
+	pHalData->NumTotalRFPath = 1;
 
 	MSG_88E("RF_Type is %x!!\n", pHalData->rf_type);
-
-	return ChipVersion;
-}
-
-static void rtl8188e_read_chip_version(struct adapter *padapter)
-{
-	ReadChipVersion8188E(padapter);
 }
 
 static void rtl8188e_SetHalODMVar(struct adapter *Adapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet)
@@ -550,7 +157,8 @@ static void rtl8188e_SetHalODMVar(struct adapter *Adapter, enum hal_odm_variable
 	switch (eVariable) {
 	case HAL_ODM_STA_INFO:
 		{
-			struct sta_info *psta = (struct sta_info *)pValue1;
+			struct sta_info *psta = pValue1;
+
 			if (bSet) {
 				DBG_88E("### Set STA_(%d) info\n", psta->mac_id);
 				ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS, psta->mac_id, psta);
@@ -576,10 +184,10 @@ static void hal_notch_filter_8188e(struct adapter *adapter, bool enable)
 {
 	if (enable) {
 		DBG_88E("Enable notch filter\n");
-		usb_write8(adapter, rOFDM0_RxDSP+1, usb_read8(adapter, rOFDM0_RxDSP+1) | BIT1);
+		usb_write8(adapter, rOFDM0_RxDSP+1, usb_read8(adapter, rOFDM0_RxDSP+1) | BIT(1));
 	} else {
 		DBG_88E("Disable notch filter\n");
-		usb_write8(adapter, rOFDM0_RxDSP+1, usb_read8(adapter, rOFDM0_RxDSP+1) & ~BIT1);
+		usb_write8(adapter, rOFDM0_RxDSP+1, usb_read8(adapter, rOFDM0_RxDSP+1) & ~BIT(1));
 	}
 }
 void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
@@ -588,10 +196,10 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 
 	pHalFunc->dm_init = &rtl8188e_init_dm_priv;
 
-	pHalFunc->read_chip_version = &rtl8188e_read_chip_version;
+	pHalFunc->read_chip_version = &ReadChipVersion8188E;
 
-	pHalFunc->set_bwmode_handler = &PHY_SetBWMode8188E;
-	pHalFunc->set_channel_handler = &PHY_SwChnl8188E;
+	pHalFunc->set_bwmode_handler = &phy_set_bw_mode;
+	pHalFunc->set_channel_handler = &phy_sw_chnl;
 
 	pHalFunc->hal_dm_watchdog = &rtl8188e_HalDmWatchDog;
 
@@ -599,33 +207,14 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 
 	pHalFunc->AntDivBeforeLinkHandler = &AntDivBeforeLink8188E;
 	pHalFunc->AntDivCompareHandler = &AntDivCompare8188E;
-	pHalFunc->read_bbreg = &rtl8188e_PHY_QueryBBReg;
-	pHalFunc->write_bbreg = &rtl8188e_PHY_SetBBReg;
-	pHalFunc->read_rfreg = &rtl8188e_PHY_QueryRFReg;
-	pHalFunc->write_rfreg = &rtl8188e_PHY_SetRFReg;
+	pHalFunc->read_rfreg = &phy_query_rf_reg;
 
 	pHalFunc->sreset_init_value = &sreset_init_value;
 	pHalFunc->sreset_get_wifi_status  = &sreset_get_wifi_status;
 
 	pHalFunc->SetHalODMVarHandler = &rtl8188e_SetHalODMVar;
 
-	pHalFunc->IOL_exec_cmds_sync = &rtl8188e_IOL_exec_cmds_sync;
-
 	pHalFunc->hal_notch_filter = &hal_notch_filter_8188e;
-}
-
-u8 GetEEPROMSize8188E(struct adapter *padapter)
-{
-	u8 size = 0;
-	u32	cr;
-
-	cr = usb_read16(padapter, REG_9346CR);
-	/*  6: EEPROM used is 93C46, 4: boot from E-Fuse. */
-	size = (cr & BOOT_FROM_EEPROM) ? 6 : 4;
-
-	MSG_88E("EEPROM type is %s\n", size == 4 ? "E-FUSE" : "93C46");
-
-	return size;
 }
 
 /*  */
@@ -653,6 +242,7 @@ static s32 _LLTWrite(struct adapter *padapter, u32 address, u32 data)
 			status = _FAIL;
 			break;
 		}
+		udelay(5);
 	} while (count++);
 
 	return status;
@@ -783,7 +373,7 @@ static void Hal_ReadPowerValueFromPROM_8188E(struct txpowerinfo24g *pwrInfo24G, 
 					pwrInfo24G->BW20_Diff[rfPath][TxCount] = EEPROM_DEFAULT_24G_HT20_DIFF;
 				} else {
 					pwrInfo24G->BW20_Diff[rfPath][TxCount] = (PROMContent[eeAddr]&0xf0)>>4;
-					if (pwrInfo24G->BW20_Diff[rfPath][TxCount] & BIT3)		/* 4bit sign number to 8 bit sign number */
+					if (pwrInfo24G->BW20_Diff[rfPath][TxCount] & BIT(3))		/* 4bit sign number to 8 bit sign number */
 						pwrInfo24G->BW20_Diff[rfPath][TxCount] |= 0xF0;
 				}
 
@@ -791,7 +381,7 @@ static void Hal_ReadPowerValueFromPROM_8188E(struct txpowerinfo24g *pwrInfo24G, 
 					pwrInfo24G->OFDM_Diff[rfPath][TxCount] =	EEPROM_DEFAULT_24G_OFDM_DIFF;
 				} else {
 					pwrInfo24G->OFDM_Diff[rfPath][TxCount] =	(PROMContent[eeAddr]&0x0f);
-					if (pwrInfo24G->OFDM_Diff[rfPath][TxCount] & BIT3)		/* 4bit sign number to 8 bit sign number */
+					if (pwrInfo24G->OFDM_Diff[rfPath][TxCount] & BIT(3))		/* 4bit sign number to 8 bit sign number */
 						pwrInfo24G->OFDM_Diff[rfPath][TxCount] |= 0xF0;
 				}
 				pwrInfo24G->CCK_Diff[rfPath][TxCount] = 0;
@@ -801,7 +391,7 @@ static void Hal_ReadPowerValueFromPROM_8188E(struct txpowerinfo24g *pwrInfo24G, 
 					pwrInfo24G->BW40_Diff[rfPath][TxCount] =	EEPROM_DEFAULT_DIFF;
 				} else {
 					pwrInfo24G->BW40_Diff[rfPath][TxCount] =	(PROMContent[eeAddr]&0xf0)>>4;
-					if (pwrInfo24G->BW40_Diff[rfPath][TxCount] & BIT3)		/* 4bit sign number to 8 bit sign number */
+					if (pwrInfo24G->BW40_Diff[rfPath][TxCount] & BIT(3))		/* 4bit sign number to 8 bit sign number */
 						pwrInfo24G->BW40_Diff[rfPath][TxCount] |= 0xF0;
 				}
 
@@ -809,7 +399,7 @@ static void Hal_ReadPowerValueFromPROM_8188E(struct txpowerinfo24g *pwrInfo24G, 
 					pwrInfo24G->BW20_Diff[rfPath][TxCount] =	EEPROM_DEFAULT_DIFF;
 				} else {
 					pwrInfo24G->BW20_Diff[rfPath][TxCount] =	(PROMContent[eeAddr]&0x0f);
-					if (pwrInfo24G->BW20_Diff[rfPath][TxCount] & BIT3)		/* 4bit sign number to 8 bit sign number */
+					if (pwrInfo24G->BW20_Diff[rfPath][TxCount] & BIT(3))		/* 4bit sign number to 8 bit sign number */
 						pwrInfo24G->BW20_Diff[rfPath][TxCount] |= 0xF0;
 				}
 				eeAddr++;
@@ -818,7 +408,7 @@ static void Hal_ReadPowerValueFromPROM_8188E(struct txpowerinfo24g *pwrInfo24G, 
 					pwrInfo24G->OFDM_Diff[rfPath][TxCount] = EEPROM_DEFAULT_DIFF;
 				} else {
 					pwrInfo24G->OFDM_Diff[rfPath][TxCount] =	(PROMContent[eeAddr]&0xf0)>>4;
-					if (pwrInfo24G->OFDM_Diff[rfPath][TxCount] & BIT3)		/* 4bit sign number to 8 bit sign number */
+					if (pwrInfo24G->OFDM_Diff[rfPath][TxCount] & BIT(3))		/* 4bit sign number to 8 bit sign number */
 						pwrInfo24G->OFDM_Diff[rfPath][TxCount] |= 0xF0;
 				}
 
@@ -826,7 +416,7 @@ static void Hal_ReadPowerValueFromPROM_8188E(struct txpowerinfo24g *pwrInfo24G, 
 					pwrInfo24G->CCK_Diff[rfPath][TxCount] =	EEPROM_DEFAULT_DIFF;
 				} else {
 					pwrInfo24G->CCK_Diff[rfPath][TxCount] =	(PROMContent[eeAddr]&0x0f);
-					if (pwrInfo24G->CCK_Diff[rfPath][TxCount] & BIT3)		/* 4bit sign number to 8 bit sign number */
+					if (pwrInfo24G->CCK_Diff[rfPath][TxCount] & BIT(3))		/* 4bit sign number to 8 bit sign number */
 						pwrInfo24G->CCK_Diff[rfPath][TxCount] |= 0xF0;
 				}
 				eeAddr++;
@@ -855,6 +445,9 @@ static u8 Hal_GetChnlGroup88E(u8 chnl, u8 *pGroup)
 		else if (chnl == 14)		/*  Channel 14 */
 			*pGroup = 5;
 	} else {
+
+		/* probably, this branch is suitable only for 5 GHz */
+
 		bIn24G = false;
 
 		if (chnl <= 40)
@@ -896,13 +489,13 @@ void Hal_ReadPowerSavingMode88E(struct adapter *padapter, u8 *hwinfo, bool AutoL
 		/* hw power down mode selection , 0:rf-off / 1:power down */
 
 		if (padapter->registrypriv.hwpdn_mode == 2)
-			padapter->pwrctrlpriv.bHWPowerdown = (hwinfo[EEPROM_RF_FEATURE_OPTION_88E] & BIT4);
+			padapter->pwrctrlpriv.bHWPowerdown = (hwinfo[EEPROM_RF_FEATURE_OPTION_88E] & BIT(4));
 		else
 			padapter->pwrctrlpriv.bHWPowerdown = padapter->registrypriv.hwpdn_mode;
 
 		/*  decide hw if support remote wakeup function */
 		/*  if hw supported, 8051 (SIE) will generate WeakUP signal(D+/D- toggle) when autoresume */
-		padapter->pwrctrlpriv.bSupportRemoteWakeup = (hwinfo[EEPROM_USB_OPTIONAL_FUNCTION0] & BIT1) ? true : false;
+		padapter->pwrctrlpriv.bSupportRemoteWakeup = (hwinfo[EEPROM_USB_OPTIONAL_FUNCTION0] & BIT(1)) ? true : false;
 
 		DBG_88E("%s...bHWPwrPindetect(%x)-bHWPowerdown(%x) , bSupportRemoteWakeup(%x)\n", __func__,
 		padapter->pwrctrlpriv.bHWPwrPindetect, padapter->pwrctrlpriv.bHWPowerdown , padapter->pwrctrlpriv.bSupportRemoteWakeup);
@@ -982,7 +575,8 @@ void Hal_EfuseParseBoardType88E(struct adapter *pAdapter, u8 *hwinfo, bool AutoL
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(pAdapter);
 
 	if (!AutoLoadFail)
-		pHalData->BoardType = ((hwinfo[EEPROM_RF_BOARD_OPTION_88E]&0xE0)>>5);
+		pHalData->BoardType = (hwinfo[EEPROM_RF_BOARD_OPTION_88E]
+					& 0xE0) >> 5;
 	else
 		pHalData->BoardType = 0;
 	DBG_88E("Board Type: 0x%2x\n", pHalData->BoardType);
@@ -1076,22 +670,4 @@ void Hal_ReadThermalMeter_88E(struct adapter *Adapter, u8 *PROMContent, bool Aut
 		pHalData->EEPROMThermalMeter = EEPROM_Default_ThermalMeter_88E;
 	}
 	DBG_88E("ThermalMeter = 0x%x\n", pHalData->EEPROMThermalMeter);
-}
-
-/*  This function is used only for 92C to set REG_BCN_CTRL(0x550) register. */
-/*  We just reserve the value of the register in variable pHalData->RegBcnCtrlVal and then operate */
-/*  the value of the register via atomic operation. */
-/*  This prevents from race condition when setting this register. */
-/*  The value of pHalData->RegBcnCtrlVal is initialized in HwConfigureRTL8192CE() function. */
-
-void SetBcnCtrlReg(struct adapter *padapter, u8 SetBits, u8 ClearBits)
-{
-	struct hal_data_8188e *pHalData;
-
-	pHalData = GET_HAL_DATA(padapter);
-
-	pHalData->RegBcnCtrlVal |= SetBits;
-	pHalData->RegBcnCtrlVal &= ~ClearBits;
-
-	usb_write8(padapter, REG_BCN_CTRL, (u8)pHalData->RegBcnCtrlVal);
 }

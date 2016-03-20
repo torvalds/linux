@@ -212,11 +212,11 @@ static void s5pv210_set_refresh(enum s5pv210_dmc_port ch, unsigned long freq)
 	/* Find current DRAM frequency */
 	tmp = s5pv210_dram_conf[ch].freq;
 
-	do_div(tmp, freq);
+	tmp /= freq;
 
 	tmp1 = s5pv210_dram_conf[ch].refresh;
 
-	do_div(tmp1, tmp);
+	tmp1 /= tmp;
 
 	__raw_writel(tmp1, reg);
 }
@@ -501,7 +501,7 @@ static int check_mem_type(void __iomem *dmc_reg)
 	return val >> 8;
 }
 
-static int __init s5pv210_cpu_init(struct cpufreq_policy *policy)
+static int s5pv210_cpu_init(struct cpufreq_policy *policy)
 {
 	unsigned long mem_type;
 	int ret;
@@ -597,7 +597,7 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 	 * and dependencies on platform headers. It is necessary to enable
 	 * S5PV210 multi-platform support and will be removed together with
 	 * this whole driver as soon as S5PV210 gets migrated to use
-	 * cpufreq-cpu0 driver.
+	 * cpufreq-dt driver.
 	 */
 	np = of_find_compatible_node(NULL, NULL, "samsung,s5pv210-clock");
 	if (!np) {
@@ -656,8 +656,7 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 static struct platform_driver s5pv210_cpufreq_platdrv = {
 	.driver = {
 		.name	= "s5pv210-cpufreq",
-		.owner	= THIS_MODULE,
 	},
 	.probe = s5pv210_cpufreq_probe,
 };
-module_platform_driver(s5pv210_cpufreq_platdrv);
+builtin_platform_driver(s5pv210_cpufreq_platdrv);

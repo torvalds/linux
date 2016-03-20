@@ -38,7 +38,7 @@ huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
 	if (pud) {
 		pmd = pmd_alloc(mm, pud, taddr);
 		if (pmd)
-			pte = pte_alloc_map(mm, NULL, pmd, taddr);
+			pte = pte_alloc_map(mm, pmd, taddr);
 	}
 	return pte;
 }
@@ -63,11 +63,6 @@ huge_pte_offset (struct mm_struct *mm, unsigned long addr)
 	}
 
 	return pte;
-}
-
-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
-{
-	return 0;
 }
 
 #define mk_pte_huge(entry) { pte_val(entry) |= _PAGE_P; }
@@ -112,12 +107,6 @@ int pmd_huge(pmd_t pmd)
 int pud_huge(pud_t pud)
 {
 	return 0;
-}
-
-struct page *
-follow_huge_pmd(struct mm_struct *mm, unsigned long address, pmd_t *pmd, int write)
-{
-	return NULL;
 }
 
 void hugetlb_free_pgd_range(struct mmu_gather *tlb,

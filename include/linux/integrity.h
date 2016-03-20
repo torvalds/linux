@@ -24,6 +24,7 @@ enum integrity_status {
 #ifdef CONFIG_INTEGRITY
 extern struct integrity_iint_cache *integrity_inode_get(struct inode *inode);
 extern void integrity_inode_free(struct inode *inode);
+extern void __init integrity_load_keys(void);
 
 #else
 static inline struct integrity_iint_cache *
@@ -36,5 +37,10 @@ static inline void integrity_inode_free(struct inode *inode)
 {
 	return;
 }
+
+static inline void integrity_load_keys(void)
+{
+}
 #endif /* CONFIG_INTEGRITY */
+
 #endif /* _LINUX_INTEGRITY_H */

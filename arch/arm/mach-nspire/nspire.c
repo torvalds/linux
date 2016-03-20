@@ -22,12 +22,10 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <asm/hardware/timer-sp.h>
-
 #include "mmio.h"
 #include "clcd.h"
 
-static const char *nspire_dt_match[] __initconst = {
+static const char *const nspire_dt_match[] __initconst = {
 	"ti,nspire",
 	"ti,nspire-cx",
 	"ti,nspire-tp",

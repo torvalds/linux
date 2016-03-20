@@ -738,7 +738,7 @@ static int siu_probe(struct platform_device *pdev)
 	struct siu_info *info;
 	int ret;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kmalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 	siu_i2s_data = info;
@@ -746,7 +746,7 @@ static int siu_probe(struct platform_device *pdev)
 
 	ret = request_firmware(&fw_entry, "siu_spb.bin", &pdev->dev);
 	if (ret)
-		goto ereqfw;
+		return ret;
 
 	/*
 	 * Loaded firmware is "const" - read only, but we have to modify it in
@@ -757,95 +757,57 @@ static int siu_probe(struct platform_device *pdev)
 	release_firmware(fw_entry);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENODEV;
-		goto egetres;
-	}
+	if (!res)
+		return -ENODEV;
 
-	region = request_mem_region(res->start, resource_size(res),
-				    pdev->name);
+	region = devm_request_mem_region(&pdev->dev, res->start,
+					 resource_size(res), pdev->name);
 	if (!region) {
 		dev_err(&pdev->dev, "SIU region already claimed\n");
-		ret = -EBUSY;
-		goto ereqmemreg;
+		return -EBUSY;
 	}
 
-	ret = -ENOMEM;
-	info->pram = ioremap(res->start, PRAM_SIZE);
+	info->pram = devm_ioremap(&pdev->dev, res->start, PRAM_SIZE);
 	if (!info->pram)
-		goto emappram;
-	info->xram = ioremap(res->start + XRAM_OFFSET, XRAM_SIZE);
+		return -ENOMEM;
+	info->xram = devm_ioremap(&pdev->dev, res->start + XRAM_OFFSET,
+				  XRAM_SIZE);
 	if (!info->xram)
-		goto emapxram;
-	info->yram = ioremap(res->start + YRAM_OFFSET, YRAM_SIZE);
+		return -ENOMEM;
+	info->yram = devm_ioremap(&pdev->dev, res->start + YRAM_OFFSET,
+				  YRAM_SIZE);
 	if (!info->yram)
-		goto emapyram;
-	info->reg = ioremap(res->start + REG_OFFSET, resource_size(res) -
-			    REG_OFFSET);
+		return -ENOMEM;
+	info->reg = devm_ioremap(&pdev->dev, res->start + REG_OFFSET,
+			    resource_size(res) - REG_OFFSET);
 	if (!info->reg)
-		goto emapreg;
+		return -ENOMEM;
 
 	dev_set_drvdata(&pdev->dev, info);
 
 	/* register using ARRAY version so we can keep dai name */
-	ret = snd_soc_register_component(&pdev->dev, &siu_i2s_component,
-					 &siu_i2s_dai, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev, &siu_i2s_component,
+					      &siu_i2s_dai, 1);
 	if (ret < 0)
-		goto edaiinit;
+		return ret;
 
-	ret = snd_soc_register_platform(&pdev->dev, &siu_platform);
+	ret = devm_snd_soc_register_platform(&pdev->dev, &siu_platform);
 	if (ret < 0)
-		goto esocregp;
+		return ret;
 
 	pm_runtime_enable(&pdev->dev);
 
-	return ret;
-
-esocregp:
-	snd_soc_unregister_component(&pdev->dev);
-edaiinit:
-	iounmap(info->reg);
-emapreg:
-	iounmap(info->yram);
-emapyram:
-	iounmap(info->xram);
-emapxram:
-	iounmap(info->pram);
-emappram:
-	release_mem_region(res->start, resource_size(res));
-ereqmemreg:
-egetres:
-ereqfw:
-	kfree(info);
-
-	return ret;
+	return 0;
 }
 
 static int siu_remove(struct platform_device *pdev)
 {
-	struct siu_info *info = dev_get_drvdata(&pdev->dev);
-	struct resource *res;
-
 	pm_runtime_disable(&pdev->dev);
-
-	snd_soc_unregister_platform(&pdev->dev);
-	snd_soc_unregister_component(&pdev->dev);
-
-	iounmap(info->reg);
-	iounmap(info->yram);
-	iounmap(info->xram);
-	iounmap(info->pram);
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
-	kfree(info);
-
 	return 0;
 }
 
 static struct platform_driver siu_driver = {
 	.driver 	= {
-		.owner	= THIS_MODULE,
 		.name	= "siu-pcm-audio",
 	},
 	.probe		= siu_probe,

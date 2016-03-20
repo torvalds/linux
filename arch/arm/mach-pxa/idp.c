@@ -31,11 +31,12 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/pxa25x.h>
-#include <mach/idp.h>
+#include "pxa25x.h"
+#include "idp.h"
 #include <linux/platform_data/video-pxafb.h>
 #include <mach/bitfield.h>
 #include <linux/platform_data/mmc-pxamci.h>
+#include <linux/smc91x.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -81,11 +82,16 @@ static struct resource smc91x_resources[] = {
 	}
 };
 
+static struct smc91x_platdata smc91x_platdata = {
+	.flags = SMC91X_USE_32BIT | SMC91X_USE_DMA | SMC91X_NOWAIT,
+};
+
 static struct platform_device smc91x_device = {
 	.name		= "smc91x",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(smc91x_resources),
 	.resource	= smc91x_resources,
+	.dev.platform_data = &smc91x_platdata,
 };
 
 static void idp_backlight_power(int on)

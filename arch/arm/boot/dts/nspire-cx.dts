@@ -69,6 +69,10 @@
 	0x0709001d 	0x070a0033 	>;
 };
 
+&vbus_reg {
+	gpio = <&gpio 2 0>;
+};
+
 / {
 	model = "TI-NSPIRE CX";
 	compatible = "ti,nspire-cx";

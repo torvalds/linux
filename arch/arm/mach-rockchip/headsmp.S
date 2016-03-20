@@ -15,11 +15,6 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
-ENTRY(rockchip_secondary_startup)
-	bl	v7_invalidate_l1
-	b	secondary_startup
-ENDPROC(rockchip_secondary_startup)
-
 ENTRY(rockchip_secondary_trampoline)
 	ldr	pc, 1f
 ENDPROC(rockchip_secondary_trampoline)

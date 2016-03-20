@@ -16,6 +16,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -139,9 +140,13 @@ static long atl_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 static int atl_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 			    unsigned long parent_rate)
 {
-	struct dra7_atl_desc *cdesc = to_atl_desc(hw);
+	struct dra7_atl_desc *cdesc;
 	u32 divider;
 
+	if (!hw || !rate)
+		return -EINVAL;
+
+	cdesc = to_atl_desc(hw);
 	divider = ((parent_rate + rate / 2) / rate) - 1;
 	if (divider > DRA7_ATL_DIVIDER_MASK)
 		divider = DRA7_ATL_DIVIDER_MASK;
@@ -151,7 +156,7 @@ static int atl_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-const struct clk_ops atl_clk_ops = {
+static const struct clk_ops atl_clk_ops = {
 	.enable		= atl_clk_enable,
 	.disable	= atl_clk_disable,
 	.is_enabled	= atl_clk_is_enabled,
@@ -163,7 +168,7 @@ const struct clk_ops atl_clk_ops = {
 static void __init of_dra7_atl_clock_setup(struct device_node *node)
 {
 	struct dra7_atl_desc *clk_hw = NULL;
-	struct clk_init_data init = { 0 };
+	struct clk_init_data init = { NULL };
 	const char **parent_names = NULL;
 	struct clk *clk;
 
@@ -199,6 +204,7 @@ static void __init of_dra7_atl_clock_setup(struct device_node *node)
 
 	if (!IS_ERR(clk)) {
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		kfree(parent_names);
 		return;
 	}
 cleanup:
@@ -224,6 +230,7 @@ static int of_dra7_atl_clk_probe(struct platform_device *pdev)
 	cinfo->iobase = of_iomap(node, 0);
 	cinfo->dev = &pdev->dev;
 	pm_runtime_enable(cinfo->dev);
+	pm_runtime_irq_safe(cinfo->dev);
 
 	pm_runtime_get_sync(cinfo->dev);
 	atl_write(cinfo, DRA7_ATL_PCLKMUX_REG(0), DRA7_ATL_PCLKMUX);
@@ -246,6 +253,11 @@ static int of_dra7_atl_clk_probe(struct platform_device *pdev)
 		}
 
 		clk = of_clk_get_from_provider(&clkspec);
+		if (IS_ERR(clk)) {
+			pr_err("%s: failed to get atl clock %d from provider\n",
+			       __func__, i);
+			return PTR_ERR(clk);
+		}
 
 		cdesc = to_atl_desc(__clk_get_hw(clk));
 		cdesc->cinfo = cinfo;
@@ -288,7 +300,7 @@ static int of_dra7_atl_clk_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id of_dra7_atl_clk_match_tbl[] = {
+static const struct of_device_id of_dra7_atl_clk_match_tbl[] = {
 	{ .compatible = "ti,dra7-atl", },
 	{},
 };
@@ -297,7 +309,6 @@ MODULE_DEVICE_TABLE(of, of_dra7_atl_clk_match_tbl);
 static struct platform_driver dra7_atl_clk_driver = {
 	.driver = {
 		.name = "dra7-atl",
-		.owner = THIS_MODULE,
 		.of_match_table = of_dra7_atl_clk_match_tbl,
 	},
 	.probe = of_dra7_atl_clk_probe,

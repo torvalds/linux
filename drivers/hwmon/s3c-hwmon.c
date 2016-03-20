@@ -378,7 +378,6 @@ static int s3c_hwmon_remove(struct platform_device *dev)
 static struct platform_driver s3c_hwmon_driver = {
 	.driver	= {
 		.name		= "s3c-hwmon",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= s3c_hwmon_probe,
 	.remove		= s3c_hwmon_remove,

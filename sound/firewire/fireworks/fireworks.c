@@ -138,12 +138,12 @@ get_hardware_info(struct snd_efw *efw)
 	efw->midi_out_ports = hwinfo->midi_out_ports;
 	efw->midi_in_ports = hwinfo->midi_in_ports;
 
-	if (hwinfo->amdtp_tx_pcm_channels    > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_tx_pcm_channels_2x > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_tx_pcm_channels_4x > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_rx_pcm_channels    > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_rx_pcm_channels_2x > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    hwinfo->amdtp_rx_pcm_channels_4x > AMDTP_MAX_CHANNELS_FOR_PCM) {
+	if (hwinfo->amdtp_tx_pcm_channels    > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_tx_pcm_channels_2x > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_tx_pcm_channels_4x > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_rx_pcm_channels    > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_rx_pcm_channels_2x > AM824_MAX_CHANNELS_FOR_PCM ||
+	    hwinfo->amdtp_rx_pcm_channels_4x > AM824_MAX_CHANNELS_FOR_PCM) {
 		err = -ENOSYS;
 		goto end;
 	}
@@ -173,10 +173,22 @@ end:
 	return err;
 }
 
+/*
+ * This module releases the FireWire unit data after all ALSA character devices
+ * are released by applications. This is for releasing stream data or finishing
+ * transactions safely. Thus at returning from .remove(), this module still keep
+ * references for the unit.
+ */
 static void
 efw_card_free(struct snd_card *card)
 {
 	struct snd_efw *efw = card->private_data;
+
+	snd_efw_stream_destroy_duplex(efw);
+	snd_efw_transaction_remove_instance(efw);
+	fw_unit_put(efw->unit);
+
+	kfree(efw->resp_buf);
 
 	if (efw->card_index >= 0) {
 		mutex_lock(&devices_mutex);
@@ -185,7 +197,6 @@ efw_card_free(struct snd_card *card)
 	}
 
 	mutex_destroy(&efw->mutex);
-	kfree(efw->resp_buf);
 }
 
 static int
@@ -218,7 +229,7 @@ efw_probe(struct fw_unit *unit,
 	card->private_free = efw_card_free;
 
 	efw->card = card;
-	efw->unit = unit;
+	efw->unit = fw_unit_get(unit);
 	mutex_init(&efw->mutex);
 	spin_lock_init(&efw->lock);
 	init_waitqueue_head(&efw->hwdep_wait);
@@ -237,8 +248,16 @@ efw_probe(struct fw_unit *unit,
 	err = get_hardware_info(efw);
 	if (err < 0)
 		goto error;
+	/* AudioFire8 (since 2009) and AudioFirePre8 */
 	if (entry->model_id == MODEL_ECHO_AUDIOFIRE_9)
 		efw->is_af9 = true;
+	/* These models uses the same firmware. */
+	if (entry->model_id == MODEL_ECHO_AUDIOFIRE_2 ||
+	    entry->model_id == MODEL_ECHO_AUDIOFIRE_4 ||
+	    entry->model_id == MODEL_ECHO_AUDIOFIRE_9 ||
+	    entry->model_id == MODEL_GIBSON_RIP ||
+	    entry->model_id == MODEL_GIBSON_GOLDTOP)
+		efw->is_fireworks3 = true;
 
 	snd_efw_proc_init(efw);
 
@@ -282,17 +301,17 @@ static void efw_update(struct fw_unit *unit)
 	struct snd_efw *efw = dev_get_drvdata(&unit->device);
 
 	snd_efw_transaction_bus_reset(efw->unit);
+
+	mutex_lock(&efw->mutex);
 	snd_efw_stream_update_duplex(efw);
+	mutex_unlock(&efw->mutex);
 }
 
 static void efw_remove(struct fw_unit *unit)
 {
 	struct snd_efw *efw = dev_get_drvdata(&unit->device);
 
-	snd_efw_stream_destroy_duplex(efw);
-	snd_efw_transaction_remove_instance(efw);
-
-	snd_card_disconnect(efw->card);
+	/* No need to wait for releasing card object in this context. */
 	snd_card_free_when_closed(efw->card);
 }
 

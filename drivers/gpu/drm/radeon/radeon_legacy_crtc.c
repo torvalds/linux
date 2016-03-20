@@ -25,6 +25,7 @@
  */
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/radeon_drm.h>
 #include <drm/drm_fixed.h>
 #include "radeon.h"
@@ -1054,6 +1055,7 @@ static int radeon_crtc_mode_set(struct drm_crtc *crtc,
 			DRM_ERROR("Mode need scaling but only first crtc can do that.\n");
 		}
 	}
+	radeon_cursor_reset(crtc);
 	return 0;
 }
 

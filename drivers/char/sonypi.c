@@ -1482,7 +1482,6 @@ static void sonypi_shutdown(struct platform_device *dev)
 static struct platform_driver sonypi_driver = {
 	.driver		= {
 		.name	= "sonypi",
-		.owner	= THIS_MODULE,
 		.pm	= SONYPI_PM,
 	},
 	.probe		= sonypi_probe,

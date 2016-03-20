@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -79,6 +79,8 @@ struct lpfc_iocbq {
 #define LPFC_FIP_ELS_ID_SHIFT	14
 
 #define LPFC_IO_OAS		0x10000 /* OAS FCP IO */
+#define LPFC_IO_FOF		0x20000 /* FOF FCP IO */
+#define LPFC_IO_LOOPBACK	0x40000 /* Loopback IO */
 
 	uint32_t drvrTimeout;	/* driver timeout in seconds */
 	uint32_t fcp_wqidx;	/* index to FCP work queue */

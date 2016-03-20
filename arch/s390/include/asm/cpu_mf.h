@@ -22,15 +22,10 @@
 #define CPU_MF_INT_SF_LSDA	(1 << 22)	/* loss of sample data alert */
 #define CPU_MF_INT_CF_CACA	(1 <<  7)	/* counter auth. change alert */
 #define CPU_MF_INT_CF_LCDA	(1 <<  6)	/* loss of counter data alert */
-#define CPU_MF_INT_RI_HALTED	(1 <<  5)	/* run-time instr. halted */
-#define CPU_MF_INT_RI_BUF_FULL	(1 <<  4)	/* run-time instr. program
-						   buffer full */
-
 #define CPU_MF_INT_CF_MASK	(CPU_MF_INT_CF_CACA|CPU_MF_INT_CF_LCDA)
 #define CPU_MF_INT_SF_MASK	(CPU_MF_INT_SF_IAE|CPU_MF_INT_SF_ISE|	\
 				 CPU_MF_INT_SF_PRA|CPU_MF_INT_SF_SACA|	\
 				 CPU_MF_INT_SF_LSDA)
-#define CPU_MF_INT_RI_MASK	(CPU_MF_INT_RI_HALTED|CPU_MF_INT_RI_BUF_FULL)
 
 /* CPU measurement facility support */
 static inline int cpum_cf_avail(void)
@@ -186,6 +181,20 @@ static inline int ecctr(u64 ctr, u64 *val)
 		: "=d" (content), "=d" (cc) : "d" (ctr) : "cc");
 	if (!cc)
 		*val = content;
+	return cc;
+}
+
+/* Store CPU counter multiple for the MT utilization counter set */
+static inline int stcctm5(u64 num, u64 *val)
+{
+	typedef struct { u64 _[num]; } addrtype;
+	int cc;
+
+	asm volatile (
+		"	.insn	rsy,0xeb0000000017,%2,5,%1\n"
+		"	ipm	%0\n"
+		"	srl	%0,28\n"
+		: "=d" (cc), "=Q" (*(addrtype *) val)  : "d" (num) : "cc");
 	return cc;
 }
 

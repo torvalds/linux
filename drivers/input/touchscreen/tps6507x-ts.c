@@ -50,14 +50,7 @@ struct tps6507x_ts {
 
 static int tps6507x_read_u8(struct tps6507x_ts *tsc, u8 reg, u8 *data)
 {
-	int err;
-
-	err = tsc->mfd->read_dev(tsc->mfd, reg, 1, data);
-
-	if (err)
-		return err;
-
-	return 0;
+	return tsc->mfd->read_dev(tsc->mfd, reg, 1, data);
 }
 
 static int tps6507x_write_u8(struct tps6507x_ts *tsc, u8 reg, u8 data)
@@ -314,7 +307,6 @@ static int tps6507x_ts_remove(struct platform_device *pdev)
 static struct platform_driver tps6507x_ts_driver = {
 	.driver = {
 		.name = "tps6507x-ts",
-		.owner = THIS_MODULE,
 	},
 	.probe = tps6507x_ts_probe,
 	.remove = tps6507x_ts_remove,

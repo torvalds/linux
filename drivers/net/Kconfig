@@ -135,6 +135,7 @@ config MACVLAN
 config MACVTAP
 	tristate "MAC-VLAN based tap driver"
 	depends on MACVLAN
+	depends on INET
 	help
 	  This adds a specialized tap character device driver that is based
 	  on the MAC-VLAN network interface, called macvtap. A macvtap device
@@ -144,10 +145,29 @@ config MACVTAP
 	  To compile this driver as a module, choose M here: the module
 	  will be called macvtap.
 
+
+config IPVLAN
+    tristate "IP-VLAN support"
+    depends on INET
+    depends on IPV6
+    ---help---
+      This allows one to create virtual devices off of a main interface
+      and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
+      on packets. All interfaces (including the main interface) share L2
+      making it transparent to the connected L2 switch.
+
+      Ipvlan devices can be added using the "ip" command from the
+      iproute2 package starting with the iproute2-3.19 release:
+
+      "ip link add link <main-dev> [ NAME ] type ipvlan"
+
+      To compile this driver as a module, choose M here: the module
+      will be called ipvlan.
+
+
 config VXLAN
        tristate "Virtual eXtensible Local Area Network (VXLAN)"
        depends on INET
-       select NET_IP_TUNNEL
        select NET_UDP_TUNNEL
        ---help---
 	  This allows one to create vxlan virtual interfaces that provide
@@ -158,6 +178,27 @@ config VXLAN
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called vxlan.
+
+config GENEVE
+       tristate "Generic Network Virtualization Encapsulation"
+       depends on INET && NET_UDP_TUNNEL
+       select NET_IP_TUNNEL
+       ---help---
+	  This allows one to create geneve virtual interfaces that provide
+	  Layer 2 Networks over Layer 3 Networks. GENEVE is often used
+	  to tunnel virtual network infrastructure in virtualized environments.
+	  For more information see:
+	    http://tools.ietf.org/html/draft-gross-geneve-02
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called geneve.
+
+config MACSEC
+	tristate "IEEE 802.1AE MAC-level encryption (MACsec)"
+	select CRYPTO_AES
+	select CRYPTO_GCM
+	---help---
+	   MACsec is an encryption standard for Ethernet.
 
 config NETCONSOLE
 	tristate "Network console logging support"
@@ -177,13 +218,14 @@ config NETCONSOLE_DYNAMIC
 
 config NETPOLL
 	def_bool NETCONSOLE
+	select SRCU
 
 config NET_POLL_CONTROLLER
 	def_bool NETPOLL
 
 config NTB_NETDEV
-	tristate "Virtual Ethernet over NTB"
-	depends on NTB
+	tristate "Virtual Ethernet over NTB Transport"
+	depends on NTB_TRANSPORT
 
 config RIONET
 	tristate "RapidIO Ethernet over messaging driver support"
@@ -201,6 +243,7 @@ config RIONET_RX_SIZE
 
 config TUN
 	tristate "Universal TUN/TAP device driver support"
+	depends on INET
 	select CRC32
 	---help---
 	  TUN/TAP provides packet reception and transmission for user space
@@ -222,6 +265,20 @@ config TUN
 
 	  If you don't know what to use this for, you don't need it.
 
+config TUN_VNET_CROSS_LE
+	bool "Support for cross-endian vnet headers on little-endian kernels"
+	default n
+	---help---
+	  This option allows TUN/TAP and MACVTAP device drivers in a
+	  little-endian kernel to parse vnet headers that come from a
+	  big-endian legacy virtio device.
+
+	  Userspace programs can control the feature using the TUNSETVNETBE
+	  and TUNGETVNETBE ioctls.
+
+	  Unless you have a little-endian system hosting a big-endian virtual
+	  machine with a legacy virtio NIC, you should say N.
+
 config VETH
 	tristate "Virtual ethernet pair device"
 	---help---
@@ -232,7 +289,6 @@ config VETH
 config VIRTIO_NET
 	tristate "Virtio network driver"
 	depends on VIRTIO
-	select AVERAGE
 	---help---
 	  This is the virtual network driver for virtio.  It can be used with
 	  lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
@@ -246,6 +302,16 @@ config NLMON
 	  messages if they tap into the netlink device, record pcaps for further
 	  diagnostics, etc. This is mostly intended for developers or support
 	  to debug netlink issues. If unsure, say N.
+
+config NET_VRF
+	tristate "Virtual Routing and Forwarding (Lite)"
+	depends on IP_MULTIPLE_TABLES
+	depends on NET_L3_MASTER_DEV
+	depends on IPV6 || IPV6=n
+	depends on IPV6_MULTIPLE_TABLES || IPV6=n
+	---help---
+	  This option enables the support for mapping interfaces into VRF's. The
+	  support enables VRF devices.
 
 endif # NET_CORE
 
@@ -356,6 +422,13 @@ config VMXNET3
 	  This driver supports VMware's vmxnet3 virtual ethernet NIC.
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmxnet3.
+
+config FUJITSU_ES
+	tristate "FUJITSU Extended Socket Network Device driver"
+	depends on ACPI
+	help
+	  This driver provides support for Extended Socket network device
+          on Extended Partitioning of FUJITSU PRIMEQUEST 2000 E2 series.
 
 source "drivers/net/hyperv/Kconfig"
 

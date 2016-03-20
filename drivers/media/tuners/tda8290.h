@@ -38,7 +38,7 @@ struct tda829x_config {
 	struct tda18271_std_map *tda18271_std_map;
 };
 
-#if IS_ENABLED(CONFIG_MEDIA_TUNER_TDA8290)
+#if IS_REACHABLE(CONFIG_MEDIA_TUNER_TDA8290)
 extern int tda829x_probe(struct i2c_adapter *i2c_adap, u8 i2c_addr);
 
 extern struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,

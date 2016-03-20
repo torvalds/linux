@@ -6,9 +6,11 @@
 # Networking Core Drivers
 #
 obj-$(CONFIG_BONDING) += bonding/
+obj-$(CONFIG_IPVLAN) += ipvlan/
 obj-$(CONFIG_DUMMY) += dummy.o
 obj-$(CONFIG_EQUALIZER) += eql.o
 obj-$(CONFIG_IFB) += ifb.o
+obj-$(CONFIG_MACSEC) += macsec.o
 obj-$(CONFIG_MACVLAN) += macvlan.o
 obj-$(CONFIG_MACVTAP) += macvtap.o
 obj-$(CONFIG_MII) += mii.o
@@ -22,7 +24,9 @@ obj-$(CONFIG_TUN) += tun.o
 obj-$(CONFIG_VETH) += veth.o
 obj-$(CONFIG_VIRTIO_NET) += virtio_net.o
 obj-$(CONFIG_VXLAN) += vxlan.o
+obj-$(CONFIG_GENEVE) += geneve.o
 obj-$(CONFIG_NLMON) += nlmon.o
+obj-$(CONFIG_NET_VRF) += vrf.o
 
 #
 # Networking Drivers
@@ -65,3 +69,5 @@ obj-$(CONFIG_USB_NET_DRIVERS) += usb/
 
 obj-$(CONFIG_HYPERV_NET) += hyperv/
 obj-$(CONFIG_NTB_NETDEV) += ntb_netdev.o
+
+obj-$(CONFIG_FUJITSU_ES) += fjes/

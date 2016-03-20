@@ -1,11 +1,16 @@
 Audio complex for Eukrea boards with tlv320aic23 codec.
 
 Required properties:
-- compatible : "eukrea,asoc-tlv320"
-- eukrea,model : The user-visible name of this sound complex.
-- ssi-controller : The phandle of the SSI controller.
-- fsl,mux-int-port : The internal port of the i.MX audio muxer (AUDMUX).
-- fsl,mux-ext-port : The external port of the i.MX audio muxer.
+
+  - compatible		: "eukrea,asoc-tlv320"
+
+  - eukrea,model	: The user-visible name of this sound complex.
+
+  - ssi-controller	: The phandle of the SSI controller.
+
+  - fsl,mux-int-port	: The internal port of the i.MX audio muxer (AUDMUX).
+
+  - fsl,mux-ext-port	: The external port of the i.MX audio muxer.
 
 Note: The AUDMUX port numbering should start at 1, which is consistent with
 hardware manual.

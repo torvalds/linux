@@ -22,7 +22,7 @@
 #include "wme.h"
 
 int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
-				 struct ieee802_11_elems *elems, bool beacon,
+				 struct ieee802_11_elems *elems,
 				 enum ieee80211_band current_band,
 				 u32 sta_flags, u8 *bssid,
 				 struct ieee80211_csa_ie *csa_ie)
@@ -34,19 +34,15 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 	struct cfg80211_chan_def new_vht_chandef = {};
 	const struct ieee80211_sec_chan_offs_ie *sec_chan_offs;
 	const struct ieee80211_wide_bw_chansw_ie *wide_bw_chansw_ie;
-	const struct ieee80211_ht_operation *ht_oper;
 	int secondary_channel_offset = -1;
 
 	sec_chan_offs = elems->sec_chan_offs;
 	wide_bw_chansw_ie = elems->wide_bw_chansw_ie;
-	ht_oper = elems->ht_operation;
 
 	if (sta_flags & (IEEE80211_STA_DISABLE_HT |
 			 IEEE80211_STA_DISABLE_40MHZ)) {
 		sec_chan_offs = NULL;
 		wide_bw_chansw_ie = NULL;
-		/* only used for bandwidth here */
-		ht_oper = NULL;
 	}
 
 	if (sta_flags & IEEE80211_STA_DISABLE_VHT)
@@ -91,19 +87,13 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		return -EINVAL;
 	}
 
-	if (!beacon && sec_chan_offs) {
+	if (sec_chan_offs) {
 		secondary_channel_offset = sec_chan_offs->sec_chan_offs;
-	} else if (beacon && ht_oper) {
-		secondary_channel_offset =
-			ht_oper->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET;
 	} else if (!(sta_flags & IEEE80211_STA_DISABLE_HT)) {
-		/* If it's not a beacon, HT is enabled and the IE not present,
-		 * it's 20 MHz, 802.11-2012 8.5.2.6:
-		 *	This element [the Secondary Channel Offset Element] is
-		 *	present when switching to a 40 MHz channel. It may be
-		 *	present when switching to a 20 MHz channel (in which
-		 *	case the secondary channel offset is set to SCN).
-		 */
+		/* If the secondary channel offset IE is not present,
+		 * we can't know what's the post-CSA offset, so the
+		 * best we can do is use 20MHz.
+		*/
 		secondary_channel_offset = IEEE80211_HT_PARAM_CHA_SEC_NONE;
 	}
 

@@ -61,6 +61,8 @@ struct ext2_block_alloc_info {
 #define rsv_start rsv_window._rsv_start
 #define rsv_end rsv_window._rsv_end
 
+struct mb_cache;
+
 /*
  * second extended-fs super-block data in memory
  */
@@ -111,6 +113,7 @@ struct ext2_sb_info {
 	 * of the mount options.
 	 */
 	spinlock_t s_lock;
+	struct mb_cache *s_mb_cache;
 };
 
 static inline spinlock_t *
@@ -380,10 +383,15 @@ struct ext2_inode {
 #define EXT2_MOUNT_NO_UID32		0x000200  /* Disable 32-bit UIDs */
 #define EXT2_MOUNT_XATTR_USER		0x004000  /* Extended user attributes */
 #define EXT2_MOUNT_POSIX_ACL		0x008000  /* POSIX Access Control Lists */
-#define EXT2_MOUNT_XIP			0x010000  /* Execute in place */
+#define EXT2_MOUNT_XIP			0x010000  /* Obsolete, use DAX */
 #define EXT2_MOUNT_USRQUOTA		0x020000  /* user quota */
 #define EXT2_MOUNT_GRPQUOTA		0x040000  /* group quota */
 #define EXT2_MOUNT_RESERVATION		0x080000  /* Preallocation */
+#ifdef CONFIG_FS_DAX
+#define EXT2_MOUNT_DAX			0x100000  /* Direct Access */
+#else
+#define EXT2_MOUNT_DAX			0
+#endif
 
 
 #define clear_opt(o, opt)		o &= ~EXT2_MOUNT_##opt
@@ -679,6 +687,9 @@ struct ext2_inode_info {
 	struct rw_semaphore xattr_sem;
 #endif
 	rwlock_t i_meta_lock;
+#ifdef CONFIG_FS_DAX
+	struct rw_semaphore dax_sem;
+#endif
 
 	/*
 	 * truncate_mutex is for serialising ext2_truncate() against
@@ -689,7 +700,18 @@ struct ext2_inode_info {
 	struct mutex truncate_mutex;
 	struct inode	vfs_inode;
 	struct list_head i_orphan;	/* unlinked but open inodes */
+#ifdef CONFIG_QUOTA
+	struct dquot *i_dquot[MAXQUOTAS];
+#endif
 };
+
+#ifdef CONFIG_FS_DAX
+#define dax_sem_down_write(ext2_inode)	down_write(&(ext2_inode)->dax_sem)
+#define dax_sem_up_write(ext2_inode)	up_write(&(ext2_inode)->dax_sem)
+#else
+#define dax_sem_down_write(ext2_inode)
+#define dax_sem_up_write(ext2_inode)
+#endif
 
 /*
  * Inode dynamic state flags
@@ -785,11 +807,9 @@ extern int ext2_fsync(struct file *file, loff_t start, loff_t end,
 		      int datasync);
 extern const struct inode_operations ext2_file_inode_operations;
 extern const struct file_operations ext2_file_operations;
-extern const struct file_operations ext2_xip_file_operations;
 
 /* inode.c */
 extern const struct address_space_operations ext2_aops;
-extern const struct address_space_operations ext2_aops_xip;
 extern const struct address_space_operations ext2_nobh_aops;
 
 /* namei.c */

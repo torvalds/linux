@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  * File: baseband.c
  *
@@ -167,20 +163,18 @@ unsigned int vnt_get_frame_time(u8 preamble_type, u8 pkt_type,
 			frame_time++;
 
 		return preamble + frame_time;
-	} else {
-		frame_time = (frame_length * 8 + 22) / rate;
-		tmp = ((frame_time * rate) - 22) / 8;
-
-		if (frame_length != tmp)
-			frame_time++;
-
-		frame_time = frame_time * 4;
-
-		if (pkt_type != PK_TYPE_11A)
-			frame_time += 6;
-
-		return 20 + frame_time;
 	}
+	frame_time = (frame_length * 8 + 22) / rate;
+	tmp = ((frame_time * rate) - 22) / 8;
+
+	if (frame_length != tmp)
+		frame_time++;
+
+	frame_time = frame_time * 4;
+
+	if (pkt_type != PK_TYPE_11A)
+		frame_time += 6;
+	return 20 + frame_time;
 }
 
 /*
@@ -529,7 +523,6 @@ void vnt_set_short_slot_time(struct vnt_private *priv)
 
 void vnt_set_vga_gain_offset(struct vnt_private *priv, u8 data)
 {
-
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG, 0xE7, data);
 
 	/* patch for 3253B0 Baseband with Cardbus module */
@@ -813,7 +806,6 @@ void vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning)
 			cr_206 = 0x38;
 		}
 		break;
-
 	}
 
 	if (ed_inx == priv->bb_pre_ed_index && !scanning)

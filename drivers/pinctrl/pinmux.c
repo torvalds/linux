@@ -41,7 +41,7 @@ int pinmux_check_ops(struct pinctrl_dev *pctldev)
 	    !ops->get_functions_count ||
 	    !ops->get_function_name ||
 	    !ops->get_function_groups ||
-	    !ops->enable) {
+	    !ops->set_mux) {
 		dev_err(pctldev->dev, "pinmux ops lacks necessary functions\n");
 		return -EINVAL;
 	}
@@ -107,6 +107,13 @@ static int pin_request(struct pinctrl_dev *pctldev,
 				desc->name, desc->gpio_owner, owner);
 			goto out;
 		}
+		if (ops->strict && desc->mux_usecount &&
+		    strcmp(desc->mux_owner, owner)) {
+			dev_err(pctldev->dev,
+				"pin %s already requested by %s; cannot claim for %s\n",
+				desc->name, desc->mux_owner, owner);
+			goto out;
+		}
 
 		desc->gpio_owner = owner;
 	} else {
@@ -114,6 +121,12 @@ static int pin_request(struct pinctrl_dev *pctldev,
 			dev_err(pctldev->dev,
 				"pin %s already requested by %s; cannot claim for %s\n",
 				desc->name, desc->mux_owner, owner);
+			goto out;
+		}
+		if (ops->strict && desc->gpio_owner) {
+			dev_err(pctldev->dev,
+				"pin %s already requested by %s; cannot claim for %s\n",
+				desc->name, desc->gpio_owner, owner);
 			goto out;
 		}
 
@@ -300,8 +313,7 @@ static int pinmux_func_name_to_selector(struct pinctrl_dev *pctldev,
 
 	/* See if this pctldev has this function */
 	while (selector < nfuncs) {
-		const char *fname = ops->get_function_name(pctldev,
-							   selector);
+		const char *fname = ops->get_function_name(pctldev, selector);
 
 		if (!strcmp(function, fname))
 			return selector;
@@ -309,8 +321,7 @@ static int pinmux_func_name_to_selector(struct pinctrl_dev *pctldev,
 		selector++;
 	}
 
-	pr_err("%s does not support function %s\n",
-	       pinctrl_dev_get_name(pctldev), function);
+	dev_err(pctldev->dev, "function '%s' not supported\n", function);
 	return -EINVAL;
 }
 
@@ -323,7 +334,6 @@ int pinmux_map_to_setting(struct pinctrl_map const *map,
 	unsigned num_groups;
 	int ret;
 	const char *group;
-	int i;
 
 	if (!pmxops) {
 		dev_err(pctldev->dev, "does not support mux function\n");
@@ -352,19 +362,13 @@ int pinmux_map_to_setting(struct pinctrl_map const *map,
 		return -EINVAL;
 	}
 	if (map->data.mux.group) {
-		bool found = false;
 		group = map->data.mux.group;
-		for (i = 0; i < num_groups; i++) {
-			if (!strcmp(group, groups[i])) {
-				found = true;
-				break;
-			}
-		}
-		if (!found) {
+		ret = match_string(groups, num_groups, group);
+		if (ret < 0) {
 			dev_err(pctldev->dev,
 				"invalid group \"%s\" for function \"%s\"\n",
 				group, map->data.mux.function);
-			return -EINVAL;
+			return ret;
 		}
 	} else {
 		group = groups[0];
@@ -445,15 +449,15 @@ int pinmux_enable_setting(struct pinctrl_setting const *setting)
 		desc->mux_setting = &(setting->data.mux);
 	}
 
-	ret = ops->enable(pctldev, setting->data.mux.func,
-			  setting->data.mux.group);
+	ret = ops->set_mux(pctldev, setting->data.mux.func,
+			   setting->data.mux.group);
 
 	if (ret)
-		goto err_enable;
+		goto err_set_mux;
 
 	return 0;
 
-err_enable:
+err_set_mux:
 	for (i = 0; i < num_pins; i++) {
 		desc = pin_desc_get(pctldev, pins[i]);
 		if (desc)
@@ -544,9 +548,12 @@ static int pinmux_functions_show(struct seq_file *s, void *what)
 
 		ret = pmxops->get_function_groups(pctldev, func_selector,
 						  &groups, &num_groups);
-		if (ret)
+		if (ret) {
 			seq_printf(s, "function %s: COULD NOT GET GROUPS\n",
 				   func);
+			func_selector++;
+			continue;
+		}
 
 		seq_printf(s, "function: %s, groups = [ ", func);
 		for (i = 0; i < num_groups; i++)
@@ -572,7 +579,12 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 		return 0;
 
 	seq_puts(s, "Pinmux settings per pin\n");
-	seq_puts(s, "Format: pin (name): mux_owner gpio_owner hog?\n");
+	if (pmxops->strict)
+		seq_puts(s,
+		 "Format: pin (name): mux_owner|gpio_owner (strict) hog?\n");
+	else
+		seq_puts(s,
+		"Format: pin (name): mux_owner gpio_owner hog?\n");
 
 	mutex_lock(&pctldev->mutex);
 
@@ -591,14 +603,34 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 		    !strcmp(desc->mux_owner, pinctrl_dev_get_name(pctldev)))
 			is_hog = true;
 
-		seq_printf(s, "pin %d (%s): %s %s%s", pin,
-			   desc->name ? desc->name : "unnamed",
-			   desc->mux_owner ? desc->mux_owner
-				: "(MUX UNCLAIMED)",
-			   desc->gpio_owner ? desc->gpio_owner
-				: "(GPIO UNCLAIMED)",
-			   is_hog ? " (HOG)" : "");
+		if (pmxops->strict) {
+			if (desc->mux_owner)
+				seq_printf(s, "pin %d (%s): device %s%s",
+					   pin,
+					   desc->name ? desc->name : "unnamed",
+					   desc->mux_owner,
+					   is_hog ? " (HOG)" : "");
+			else if (desc->gpio_owner)
+				seq_printf(s, "pin %d (%s): GPIO %s",
+					   pin,
+					   desc->name ? desc->name : "unnamed",
+					   desc->gpio_owner);
+			else
+				seq_printf(s, "pin %d (%s): UNCLAIMED",
+					   pin,
+					   desc->name ? desc->name : "unnamed");
+		} else {
+			/* For non-strict controllers */
+			seq_printf(s, "pin %d (%s): %s %s%s", pin,
+				   desc->name ? desc->name : "unnamed",
+				   desc->mux_owner ? desc->mux_owner
+				   : "(MUX UNCLAIMED)",
+				   desc->gpio_owner ? desc->gpio_owner
+				   : "(GPIO UNCLAIMED)",
+				   is_hog ? " (HOG)" : "");
+		}
 
+		/* If mux: print function+group claiming the pin */
 		if (desc->mux_setting)
 			seq_printf(s, " function %s group %s\n",
 				   pmxops->get_function_name(pctldev,

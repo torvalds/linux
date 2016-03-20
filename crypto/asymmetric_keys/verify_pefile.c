@@ -128,6 +128,7 @@ static int pefile_strip_sig_wrapper(const void *pebuf,
 {
 	struct win_certificate wrapper;
 	const u8 *pkcs7;
+	unsigned len;
 
 	if (ctx->sig_len < sizeof(wrapper)) {
 		pr_debug("Signature wrapper too short\n");
@@ -154,33 +155,49 @@ static int pefile_strip_sig_wrapper(const void *pebuf,
 		return -ENOTSUPP;
 	}
 
-	/* Looks like actual pkcs signature length is in wrapper->length.
-	 * size obtained from data dir entries lists the total size of
-	 * certificate table which is also aligned to octawrod boundary.
-	 *
-	 * So set signature length field appropriately.
+	/* It looks like the pkcs signature length in wrapper->length and the
+	 * size obtained from the data dir entries, which lists the total size
+	 * of certificate table, are both aligned to an octaword boundary, so
+	 * we may have to deal with some padding.
 	 */
 	ctx->sig_len = wrapper.length;
 	ctx->sig_offset += sizeof(wrapper);
 	ctx->sig_len -= sizeof(wrapper);
-	if (ctx->sig_len == 0) {
+	if (ctx->sig_len < 4) {
 		pr_debug("Signature data missing\n");
 		return -EKEYREJECTED;
 	}
 
-	/* What's left should a PKCS#7 cert */
+	/* What's left should be a PKCS#7 cert */
 	pkcs7 = pebuf + ctx->sig_offset;
-	if (pkcs7[0] == (ASN1_CONS_BIT | ASN1_SEQ)) {
-		if (pkcs7[1] == 0x82 &&
-		    pkcs7[2] == (((ctx->sig_len - 4) >> 8) & 0xff) &&
-		    pkcs7[3] ==  ((ctx->sig_len - 4)       & 0xff))
-			return 0;
-		if (pkcs7[1] == 0x80)
-			return 0;
-		if (pkcs7[1] > 0x82)
-			return -EMSGSIZE;
+	if (pkcs7[0] != (ASN1_CONS_BIT | ASN1_SEQ))
+		goto not_pkcs7;
+
+	switch (pkcs7[1]) {
+	case 0 ... 0x7f:
+		len = pkcs7[1] + 2;
+		goto check_len;
+	case ASN1_INDEFINITE_LENGTH:
+		return 0;
+	case 0x81:
+		len = pkcs7[2] + 3;
+		goto check_len;
+	case 0x82:
+		len = ((pkcs7[2] << 8) | pkcs7[3]) + 4;
+		goto check_len;
+	case 0x83 ... 0xff:
+		return -EMSGSIZE;
+	default:
+		goto not_pkcs7;
 	}
 
+check_len:
+	if (len <= ctx->sig_len) {
+		/* There may be padding */
+		ctx->sig_len = len;
+		return 0;
+	}
+not_pkcs7:
 	pr_debug("Signature data not PKCS#7\n");
 	return -ELIBBAD;
 }
@@ -311,12 +328,12 @@ static int pefile_digest_pe(const void *pebuf, unsigned int pelen,
 	void *digest;
 	int ret;
 
-	kenter(",%u", ctx->digest_algo);
+	kenter(",%s", ctx->digest_algo);
 
 	/* Allocate the hashing algorithm we're going to need and find out how
 	 * big the hash operational data will be.
 	 */
-	tfm = crypto_alloc_shash(hash_algo_name[ctx->digest_algo], 0, 0);
+	tfm = crypto_alloc_shash(ctx->digest_algo, 0, 0);
 	if (IS_ERR(tfm))
 		return (PTR_ERR(tfm) == -ENOENT) ? -ENOPKG : PTR_ERR(tfm);
 
@@ -376,6 +393,7 @@ error_no_desc:
  * @pebuf: Buffer containing the PE binary image
  * @pelen: Length of the binary image
  * @trust_keyring: Signing certificates to use as starting points
+ * @usage: The use to which the key is being put.
  * @_trusted: Set to true if trustworth, false otherwise
  *
  * Validate that the certificate chain inside the PKCS#7 message inside the PE
@@ -400,7 +418,9 @@ error_no_desc:
  * May also return -ENOMEM.
  */
 int verify_pefile_signature(const void *pebuf, unsigned pelen,
-			    struct key *trusted_keyring, bool *_trusted)
+			    struct key *trusted_keyring,
+			    enum key_being_used_for usage,
+			    bool *_trusted)
 {
 	struct pkcs7_message *pkcs7;
 	struct pefile_context ctx;
@@ -445,7 +465,7 @@ int verify_pefile_signature(const void *pebuf, unsigned pelen,
 	if (ret < 0)
 		goto error;
 
-	ret = pkcs7_verify(pkcs7);
+	ret = pkcs7_verify(pkcs7, usage);
 	if (ret < 0)
 		goto error;
 

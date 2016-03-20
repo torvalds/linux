@@ -23,7 +23,6 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_ialloc.h"
@@ -33,77 +32,14 @@
 #include "xfs_cksum.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
-#include "xfs_dinode.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
+#include "xfs_log.h"
 
 /*
  * Physical superblock buffer manipulations. Shared with libxfs in userspace.
  */
-
-static const struct {
-	short offset;
-	short type;	/* 0 = integer
-			 * 1 = binary / string (no translation)
-			 */
-} xfs_sb_info[] = {
-	{ offsetof(xfs_sb_t, sb_magicnum),	0 },
-	{ offsetof(xfs_sb_t, sb_blocksize),	0 },
-	{ offsetof(xfs_sb_t, sb_dblocks),	0 },
-	{ offsetof(xfs_sb_t, sb_rblocks),	0 },
-	{ offsetof(xfs_sb_t, sb_rextents),	0 },
-	{ offsetof(xfs_sb_t, sb_uuid),		1 },
-	{ offsetof(xfs_sb_t, sb_logstart),	0 },
-	{ offsetof(xfs_sb_t, sb_rootino),	0 },
-	{ offsetof(xfs_sb_t, sb_rbmino),	0 },
-	{ offsetof(xfs_sb_t, sb_rsumino),	0 },
-	{ offsetof(xfs_sb_t, sb_rextsize),	0 },
-	{ offsetof(xfs_sb_t, sb_agblocks),	0 },
-	{ offsetof(xfs_sb_t, sb_agcount),	0 },
-	{ offsetof(xfs_sb_t, sb_rbmblocks),	0 },
-	{ offsetof(xfs_sb_t, sb_logblocks),	0 },
-	{ offsetof(xfs_sb_t, sb_versionnum),	0 },
-	{ offsetof(xfs_sb_t, sb_sectsize),	0 },
-	{ offsetof(xfs_sb_t, sb_inodesize),	0 },
-	{ offsetof(xfs_sb_t, sb_inopblock),	0 },
-	{ offsetof(xfs_sb_t, sb_fname[0]),	1 },
-	{ offsetof(xfs_sb_t, sb_blocklog),	0 },
-	{ offsetof(xfs_sb_t, sb_sectlog),	0 },
-	{ offsetof(xfs_sb_t, sb_inodelog),	0 },
-	{ offsetof(xfs_sb_t, sb_inopblog),	0 },
-	{ offsetof(xfs_sb_t, sb_agblklog),	0 },
-	{ offsetof(xfs_sb_t, sb_rextslog),	0 },
-	{ offsetof(xfs_sb_t, sb_inprogress),	0 },
-	{ offsetof(xfs_sb_t, sb_imax_pct),	0 },
-	{ offsetof(xfs_sb_t, sb_icount),	0 },
-	{ offsetof(xfs_sb_t, sb_ifree),		0 },
-	{ offsetof(xfs_sb_t, sb_fdblocks),	0 },
-	{ offsetof(xfs_sb_t, sb_frextents),	0 },
-	{ offsetof(xfs_sb_t, sb_uquotino),	0 },
-	{ offsetof(xfs_sb_t, sb_gquotino),	0 },
-	{ offsetof(xfs_sb_t, sb_qflags),	0 },
-	{ offsetof(xfs_sb_t, sb_flags),		0 },
-	{ offsetof(xfs_sb_t, sb_shared_vn),	0 },
-	{ offsetof(xfs_sb_t, sb_inoalignmt),	0 },
-	{ offsetof(xfs_sb_t, sb_unit),		0 },
-	{ offsetof(xfs_sb_t, sb_width),		0 },
-	{ offsetof(xfs_sb_t, sb_dirblklog),	0 },
-	{ offsetof(xfs_sb_t, sb_logsectlog),	0 },
-	{ offsetof(xfs_sb_t, sb_logsectsize),	0 },
-	{ offsetof(xfs_sb_t, sb_logsunit),	0 },
-	{ offsetof(xfs_sb_t, sb_features2),	0 },
-	{ offsetof(xfs_sb_t, sb_bad_features2),	0 },
-	{ offsetof(xfs_sb_t, sb_features_compat),	0 },
-	{ offsetof(xfs_sb_t, sb_features_ro_compat),	0 },
-	{ offsetof(xfs_sb_t, sb_features_incompat),	0 },
-	{ offsetof(xfs_sb_t, sb_features_log_incompat),	0 },
-	{ offsetof(xfs_sb_t, sb_crc),		0 },
-	{ offsetof(xfs_sb_t, sb_pad),		0 },
-	{ offsetof(xfs_sb_t, sb_pquotino),	0 },
-	{ offsetof(xfs_sb_t, sb_lsn),		0 },
-	{ sizeof(xfs_sb_t),			0 }
-};
 
 /*
  * Reference counting access wrappers to the perag structures.
@@ -176,14 +112,6 @@ xfs_mount_validate_sb(
 	bool		check_inprogress,
 	bool		check_version)
 {
-
-	/*
-	 * If the log device and data device have the
-	 * same device number, the log is internal.
-	 * Consequently, the sb_logstart should be non-zero.  If
-	 * we have a zero sb_logstart in this case, we may be trying to mount
-	 * a volume filesystem in a non-volume manner.
-	 */
 	if (sbp->sb_magicnum != XFS_SB_MAGIC) {
 		xfs_warn(mp, "bad magic number");
 		return -EWRONGFS;
@@ -204,10 +132,11 @@ xfs_mount_validate_sb(
 		if (xfs_sb_has_compat_feature(sbp,
 					XFS_SB_FEAT_COMPAT_UNKNOWN)) {
 			xfs_warn(mp,
-"Superblock has unknown compatible features (0x%x) enabled.\n"
-"Using a more recent kernel is recommended.",
+"Superblock has unknown compatible features (0x%x) enabled.",
 				(sbp->sb_features_compat &
 						XFS_SB_FEAT_COMPAT_UNKNOWN));
+			xfs_warn(mp,
+"Using a more recent kernel is recommended.");
 		}
 
 		if (xfs_sb_has_ro_compat_feature(sbp,
@@ -218,20 +147,32 @@ xfs_mount_validate_sb(
 						XFS_SB_FEAT_RO_COMPAT_UNKNOWN));
 			if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
 				xfs_warn(mp,
-"Attempted to mount read-only compatible filesystem read-write.\n"
+"Attempted to mount read-only compatible filesystem read-write.");
+				xfs_warn(mp,
 "Filesystem can only be safely mounted read only.");
+
 				return -EINVAL;
 			}
 		}
 		if (xfs_sb_has_incompat_feature(sbp,
 					XFS_SB_FEAT_INCOMPAT_UNKNOWN)) {
 			xfs_warn(mp,
-"Superblock has unknown incompatible features (0x%x) enabled.\n"
-"Filesystem can not be safely mounted by this kernel.",
+"Superblock has unknown incompatible features (0x%x) enabled.",
 				(sbp->sb_features_incompat &
 						XFS_SB_FEAT_INCOMPAT_UNKNOWN));
+			xfs_warn(mp,
+"Filesystem can not be safely mounted by this kernel.");
 			return -EINVAL;
 		}
+	} else if (xfs_sb_version_hascrc(sbp)) {
+		/*
+		 * We can't read verify the sb LSN because the read verifier is
+		 * called before the log is allocated and processed. We know the
+		 * log is set up before write verifier (!check_version) calls,
+		 * so just check it here.
+		 */
+		if (!xfs_log_check_lsn(mp, sbp->sb_lsn))
+			return -EFSCORRUPTED;
 	}
 
 	if (xfs_sb_version_has_pquotino(sbp)) {
@@ -245,6 +186,24 @@ xfs_mount_validate_sb(
 			xfs_notice(mp,
 "Superblock earlier than Version 5 has XFS_[PQ]UOTA_{ENFD|CHKD} bits.");
 			return -EFSCORRUPTED;
+	}
+
+	/*
+	 * Full inode chunks must be aligned to inode chunk size when
+	 * sparse inodes are enabled to support the sparse chunk
+	 * allocation algorithm and prevent overlapping inode records.
+	 */
+	if (xfs_sb_version_hassparseinodes(sbp)) {
+		uint32_t	align;
+
+		align = XFS_INODES_PER_CHUNK * sbp->sb_inodesize
+				>> sbp->sb_blocklog;
+		if (sbp->sb_inoalignmt != align) {
+			xfs_warn(mp,
+"Inode block alignment (%u) must match chunk size (%u) for sparse inodes.",
+				 sbp->sb_inoalignmt, align);
+			return -EINVAL;
+		}
 	}
 
 	if (unlikely(
@@ -279,11 +238,13 @@ xfs_mount_validate_sb(
 	    sbp->sb_blocklog < XFS_MIN_BLOCKSIZE_LOG			||
 	    sbp->sb_blocklog > XFS_MAX_BLOCKSIZE_LOG			||
 	    sbp->sb_blocksize != (1 << sbp->sb_blocklog)		||
+	    sbp->sb_dirblklog > XFS_MAX_BLOCKSIZE_LOG			||
 	    sbp->sb_inodesize < XFS_DINODE_MIN_SIZE			||
 	    sbp->sb_inodesize > XFS_DINODE_MAX_SIZE			||
 	    sbp->sb_inodelog < XFS_DINODE_MIN_LOG			||
 	    sbp->sb_inodelog > XFS_DINODE_MAX_LOG			||
 	    sbp->sb_inodesize != (1 << sbp->sb_inodelog)		||
+	    sbp->sb_logsunit > XLOG_MAX_RECORD_BSIZE			||
 	    sbp->sb_inopblock != howmany(sbp->sb_blocksize,sbp->sb_inodesize) ||
 	    (sbp->sb_blocklog - sbp->sb_inodelog != sbp->sb_inopblog)	||
 	    (sbp->sb_rextsize * sbp->sb_blocksize > XFS_MAX_RTEXTSIZE)	||
@@ -443,9 +404,19 @@ __xfs_sb_from_disk(
 	to->sb_features_incompat = be32_to_cpu(from->sb_features_incompat);
 	to->sb_features_log_incompat =
 				be32_to_cpu(from->sb_features_log_incompat);
-	to->sb_pad = 0;
+	/* crc is only used on disk, not in memory; just init to 0 here. */
+	to->sb_crc = 0;
+	to->sb_spino_align = be32_to_cpu(from->sb_spino_align);
 	to->sb_pquotino = be64_to_cpu(from->sb_pquotino);
 	to->sb_lsn = be64_to_cpu(from->sb_lsn);
+	/*
+	 * sb_meta_uuid is only on disk if it differs from sb_uuid and the
+	 * feature flag is set; if not set we keep it only in memory.
+	 */
+	if (xfs_sb_version_hasmetauuid(to))
+		uuid_copy(&to->sb_meta_uuid, &from->sb_meta_uuid);
+	else
+		uuid_copy(&to->sb_meta_uuid, &from->sb_uuid);
 	/* Convert on-disk flags to in-memory flags? */
 	if (convert_xquota)
 		xfs_sb_quota_from_disk(to);
@@ -459,58 +430,49 @@ xfs_sb_from_disk(
 	__xfs_sb_from_disk(to, from, true);
 }
 
-static inline void
+static void
 xfs_sb_quota_to_disk(
-	xfs_dsb_t	*to,
-	xfs_sb_t	*from,
-	__int64_t	*fields)
+	struct xfs_dsb	*to,
+	struct xfs_sb	*from)
 {
 	__uint16_t	qflags = from->sb_qflags;
 
-	/*
-	 * We need to do these manipilations only if we are working
-	 * with an older version of on-disk superblock.
-	 */
-	if (xfs_sb_version_has_pquotino(from))
+	to->sb_uquotino = cpu_to_be64(from->sb_uquotino);
+	if (xfs_sb_version_has_pquotino(from)) {
+		to->sb_qflags = cpu_to_be16(from->sb_qflags);
+		to->sb_gquotino = cpu_to_be64(from->sb_gquotino);
+		to->sb_pquotino = cpu_to_be64(from->sb_pquotino);
 		return;
-
-	if (*fields & XFS_SB_QFLAGS) {
-		/*
-		 * The in-core version of sb_qflags do not have
-		 * XFS_OQUOTA_* flags, whereas the on-disk version
-		 * does.  So, convert incore XFS_{PG}QUOTA_* flags
-		 * to on-disk XFS_OQUOTA_* flags.
-		 */
-		qflags &= ~(XFS_PQUOTA_ENFD | XFS_PQUOTA_CHKD |
-				XFS_GQUOTA_ENFD | XFS_GQUOTA_CHKD);
-
-		if (from->sb_qflags &
-				(XFS_PQUOTA_ENFD | XFS_GQUOTA_ENFD))
-			qflags |= XFS_OQUOTA_ENFD;
-		if (from->sb_qflags &
-				(XFS_PQUOTA_CHKD | XFS_GQUOTA_CHKD))
-			qflags |= XFS_OQUOTA_CHKD;
-		to->sb_qflags = cpu_to_be16(qflags);
-		*fields &= ~XFS_SB_QFLAGS;
 	}
 
 	/*
-	 * GQUOTINO and PQUOTINO cannot be used together in versions of
-	 * superblock that do not have pquotino. from->sb_flags tells us which
-	 * quota is active and should be copied to disk. If neither are active,
-	 * make sure we write NULLFSINO to the sb_gquotino field as a quota
-	 * inode value of "0" is invalid when the XFS_SB_VERSION_QUOTA feature
-	 * bit is set.
-	 *
-	 * Note that we don't need to handle the sb_uquotino or sb_pquotino here
-	 * as they do not require any translation. Hence the main sb field loop
-	 * will write them appropriately from the in-core superblock.
+	 * The in-core version of sb_qflags do not have XFS_OQUOTA_*
+	 * flags, whereas the on-disk version does.  So, convert incore
+	 * XFS_{PG}QUOTA_* flags to on-disk XFS_OQUOTA_* flags.
 	 */
-	if ((*fields & XFS_SB_GQUOTINO) &&
-				(from->sb_qflags & XFS_GQUOTA_ACCT))
+	qflags &= ~(XFS_PQUOTA_ENFD | XFS_PQUOTA_CHKD |
+			XFS_GQUOTA_ENFD | XFS_GQUOTA_CHKD);
+
+	if (from->sb_qflags &
+			(XFS_PQUOTA_ENFD | XFS_GQUOTA_ENFD))
+		qflags |= XFS_OQUOTA_ENFD;
+	if (from->sb_qflags &
+			(XFS_PQUOTA_CHKD | XFS_GQUOTA_CHKD))
+		qflags |= XFS_OQUOTA_CHKD;
+	to->sb_qflags = cpu_to_be16(qflags);
+
+	/*
+	 * GQUOTINO and PQUOTINO cannot be used together in versions
+	 * of superblock that do not have pquotino. from->sb_flags
+	 * tells us which quota is active and should be copied to
+	 * disk. If neither are active, we should NULL the inode.
+	 *
+	 * In all cases, the separate pquotino must remain 0 because it
+	 * it beyond the "end" of the valid non-pquotino superblock.
+	 */
+	if (from->sb_qflags & XFS_GQUOTA_ACCT)
 		to->sb_gquotino = cpu_to_be64(from->sb_gquotino);
-	else if ((*fields & XFS_SB_PQUOTINO) &&
-				(from->sb_qflags & XFS_PQUOTA_ACCT))
+	else if (from->sb_qflags & XFS_PQUOTA_ACCT)
 		to->sb_gquotino = cpu_to_be64(from->sb_pquotino);
 	else {
 		/*
@@ -524,60 +486,80 @@ xfs_sb_quota_to_disk(
 			to->sb_gquotino = cpu_to_be64(NULLFSINO);
 	}
 
-	*fields &= ~(XFS_SB_PQUOTINO | XFS_SB_GQUOTINO);
+	to->sb_pquotino = 0;
 }
 
-/*
- * Copy in core superblock to ondisk one.
- *
- * The fields argument is mask of superblock fields to copy.
- */
 void
 xfs_sb_to_disk(
-	xfs_dsb_t	*to,
-	xfs_sb_t	*from,
-	__int64_t	fields)
+	struct xfs_dsb	*to,
+	struct xfs_sb	*from)
 {
-	xfs_caddr_t	to_ptr = (xfs_caddr_t)to;
-	xfs_caddr_t	from_ptr = (xfs_caddr_t)from;
-	xfs_sb_field_t	f;
-	int		first;
-	int		size;
+	xfs_sb_quota_to_disk(to, from);
 
-	ASSERT(fields);
-	if (!fields)
-		return;
+	to->sb_magicnum = cpu_to_be32(from->sb_magicnum);
+	to->sb_blocksize = cpu_to_be32(from->sb_blocksize);
+	to->sb_dblocks = cpu_to_be64(from->sb_dblocks);
+	to->sb_rblocks = cpu_to_be64(from->sb_rblocks);
+	to->sb_rextents = cpu_to_be64(from->sb_rextents);
+	memcpy(&to->sb_uuid, &from->sb_uuid, sizeof(to->sb_uuid));
+	to->sb_logstart = cpu_to_be64(from->sb_logstart);
+	to->sb_rootino = cpu_to_be64(from->sb_rootino);
+	to->sb_rbmino = cpu_to_be64(from->sb_rbmino);
+	to->sb_rsumino = cpu_to_be64(from->sb_rsumino);
+	to->sb_rextsize = cpu_to_be32(from->sb_rextsize);
+	to->sb_agblocks = cpu_to_be32(from->sb_agblocks);
+	to->sb_agcount = cpu_to_be32(from->sb_agcount);
+	to->sb_rbmblocks = cpu_to_be32(from->sb_rbmblocks);
+	to->sb_logblocks = cpu_to_be32(from->sb_logblocks);
+	to->sb_versionnum = cpu_to_be16(from->sb_versionnum);
+	to->sb_sectsize = cpu_to_be16(from->sb_sectsize);
+	to->sb_inodesize = cpu_to_be16(from->sb_inodesize);
+	to->sb_inopblock = cpu_to_be16(from->sb_inopblock);
+	memcpy(&to->sb_fname, &from->sb_fname, sizeof(to->sb_fname));
+	to->sb_blocklog = from->sb_blocklog;
+	to->sb_sectlog = from->sb_sectlog;
+	to->sb_inodelog = from->sb_inodelog;
+	to->sb_inopblog = from->sb_inopblog;
+	to->sb_agblklog = from->sb_agblklog;
+	to->sb_rextslog = from->sb_rextslog;
+	to->sb_inprogress = from->sb_inprogress;
+	to->sb_imax_pct = from->sb_imax_pct;
+	to->sb_icount = cpu_to_be64(from->sb_icount);
+	to->sb_ifree = cpu_to_be64(from->sb_ifree);
+	to->sb_fdblocks = cpu_to_be64(from->sb_fdblocks);
+	to->sb_frextents = cpu_to_be64(from->sb_frextents);
 
-	xfs_sb_quota_to_disk(to, from, &fields);
-	while (fields) {
-		f = (xfs_sb_field_t)xfs_lowbit64((__uint64_t)fields);
-		first = xfs_sb_info[f].offset;
-		size = xfs_sb_info[f + 1].offset - first;
+	to->sb_flags = from->sb_flags;
+	to->sb_shared_vn = from->sb_shared_vn;
+	to->sb_inoalignmt = cpu_to_be32(from->sb_inoalignmt);
+	to->sb_unit = cpu_to_be32(from->sb_unit);
+	to->sb_width = cpu_to_be32(from->sb_width);
+	to->sb_dirblklog = from->sb_dirblklog;
+	to->sb_logsectlog = from->sb_logsectlog;
+	to->sb_logsectsize = cpu_to_be16(from->sb_logsectsize);
+	to->sb_logsunit = cpu_to_be32(from->sb_logsunit);
 
-		ASSERT(xfs_sb_info[f].type == 0 || xfs_sb_info[f].type == 1);
+	/*
+	 * We need to ensure that bad_features2 always matches features2.
+	 * Hence we enforce that here rather than having to remember to do it
+	 * everywhere else that updates features2.
+	 */
+	from->sb_bad_features2 = from->sb_features2;
+	to->sb_features2 = cpu_to_be32(from->sb_features2);
+	to->sb_bad_features2 = cpu_to_be32(from->sb_bad_features2);
 
-		if (size == 1 || xfs_sb_info[f].type == 1) {
-			memcpy(to_ptr + first, from_ptr + first, size);
-		} else {
-			switch (size) {
-			case 2:
-				*(__be16 *)(to_ptr + first) =
-				      cpu_to_be16(*(__u16 *)(from_ptr + first));
-				break;
-			case 4:
-				*(__be32 *)(to_ptr + first) =
-				      cpu_to_be32(*(__u32 *)(from_ptr + first));
-				break;
-			case 8:
-				*(__be64 *)(to_ptr + first) =
-				      cpu_to_be64(*(__u64 *)(from_ptr + first));
-				break;
-			default:
-				ASSERT(0);
-			}
-		}
-
-		fields &= ~(1LL << f);
+	if (xfs_sb_version_hascrc(from)) {
+		to->sb_features_compat = cpu_to_be32(from->sb_features_compat);
+		to->sb_features_ro_compat =
+				cpu_to_be32(from->sb_features_ro_compat);
+		to->sb_features_incompat =
+				cpu_to_be32(from->sb_features_incompat);
+		to->sb_features_log_incompat =
+				cpu_to_be32(from->sb_features_log_incompat);
+		to->sb_spino_align = cpu_to_be32(from->sb_spino_align);
+		to->sb_lsn = cpu_to_be64(from->sb_lsn);
+		if (xfs_sb_version_hasmetauuid(from))
+			uuid_copy(&to->sb_meta_uuid, &from->sb_meta_uuid);
 	}
 }
 
@@ -697,11 +679,13 @@ xfs_sb_write_verify(
 }
 
 const struct xfs_buf_ops xfs_sb_buf_ops = {
+	.name = "xfs_sb",
 	.verify_read = xfs_sb_read_verify,
 	.verify_write = xfs_sb_write_verify,
 };
 
 const struct xfs_buf_ops xfs_sb_quiet_buf_ops = {
+	.name = "xfs_sb_quiet",
 	.verify_read = xfs_sb_quiet_read_verify,
 	.verify_write = xfs_sb_write_verify,
 };
@@ -749,6 +733,11 @@ xfs_sb_mount_common(
 	mp->m_ialloc_inos = (int)MAX((__uint16_t)XFS_INODES_PER_CHUNK,
 					sbp->sb_inopblock);
 	mp->m_ialloc_blks = mp->m_ialloc_inos >> sbp->sb_inopblog;
+
+	if (sbp->sb_spino_align)
+		mp->m_ialloc_min_blks = sbp->sb_spino_align;
+	else
+		mp->m_ialloc_min_blks = mp->m_ialloc_blks;
 }
 
 /*
@@ -795,58 +784,69 @@ xfs_initialize_perag_data(
 		btree += pag->pagf_btreeblks;
 		xfs_perag_put(pag);
 	}
-	/*
-	 * Overwrite incore superblock counters with just-read data
-	 */
+
+	/* Overwrite incore superblock counters with just-read data */
 	spin_lock(&mp->m_sb_lock);
 	sbp->sb_ifree = ifree;
 	sbp->sb_icount = ialloc;
 	sbp->sb_fdblocks = bfree + bfreelst + btree;
 	spin_unlock(&mp->m_sb_lock);
 
-	/* Fixup the per-cpu counters as well. */
-	xfs_icsb_reinit_counters(mp);
+	xfs_reinit_percpu_counters(mp);
 
 	return 0;
 }
 
 /*
- * xfs_mod_sb() can be used to copy arbitrary changes to the
- * in-core superblock into the superblock buffer to be logged.
- * It does not provide the higher level of locking that is
- * needed to protect the in-core superblock from concurrent
- * access.
+ * xfs_log_sb() can be used to copy arbitrary changes to the in-core superblock
+ * into the superblock buffer to be logged.  It does not provide the higher
+ * level of locking that is needed to protect the in-core superblock from
+ * concurrent access.
  */
 void
-xfs_mod_sb(xfs_trans_t *tp, __int64_t fields)
+xfs_log_sb(
+	struct xfs_trans	*tp)
 {
-	xfs_buf_t	*bp;
-	int		first;
-	int		last;
-	xfs_mount_t	*mp;
-	xfs_sb_field_t	f;
+	struct xfs_mount	*mp = tp->t_mountp;
+	struct xfs_buf		*bp = xfs_trans_getsb(tp, mp, 0);
 
-	ASSERT(fields);
-	if (!fields)
-		return;
-	mp = tp->t_mountp;
-	bp = xfs_trans_getsb(tp, mp, 0);
-	first = sizeof(xfs_sb_t);
-	last = 0;
+	mp->m_sb.sb_icount = percpu_counter_sum(&mp->m_icount);
+	mp->m_sb.sb_ifree = percpu_counter_sum(&mp->m_ifree);
+	mp->m_sb.sb_fdblocks = percpu_counter_sum(&mp->m_fdblocks);
 
-	/* translate/copy */
-
-	xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb, fields);
-
-	/* find modified range */
-	f = (xfs_sb_field_t)xfs_highbit64((__uint64_t)fields);
-	ASSERT((1LL << f) & XFS_SB_MOD_BITS);
-	last = xfs_sb_info[f + 1].offset - 1;
-
-	f = (xfs_sb_field_t)xfs_lowbit64((__uint64_t)fields);
-	ASSERT((1LL << f) & XFS_SB_MOD_BITS);
-	first = xfs_sb_info[f].offset;
-
+	xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb);
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_SB_BUF);
-	xfs_trans_log_buf(tp, bp, first, last);
+	xfs_trans_log_buf(tp, bp, 0, sizeof(struct xfs_dsb));
+}
+
+/*
+ * xfs_sync_sb
+ *
+ * Sync the superblock to disk.
+ *
+ * Note that the caller is responsible for checking the frozen state of the
+ * filesystem. This procedure uses the non-blocking transaction allocator and
+ * thus will allow modifications to a frozen fs. This is required because this
+ * code can be called during the process of freezing where use of the high-level
+ * allocator would deadlock.
+ */
+int
+xfs_sync_sb(
+	struct xfs_mount	*mp,
+	bool			wait)
+{
+	struct xfs_trans	*tp;
+	int			error;
+
+	tp = _xfs_trans_alloc(mp, XFS_TRANS_SB_CHANGE, KM_SLEEP);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_sb, 0, 0);
+	if (error) {
+		xfs_trans_cancel(tp);
+		return error;
+	}
+
+	xfs_log_sb(tp);
+	if (wait)
+		xfs_trans_set_sync(tp);
+	return xfs_trans_commit(tp);
 }

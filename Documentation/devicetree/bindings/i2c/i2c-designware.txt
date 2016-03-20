@@ -14,10 +14,10 @@ Optional properties :
  - i2c-sda-hold-time-ns : should contain the SDA hold time in nanoseconds.
    This option is only supported in hardware blocks version 1.11a or newer.
 
- - i2c-scl-falling-time : should contain the SCL falling time in nanoseconds.
+ - i2c-scl-falling-time-ns : should contain the SCL falling time in nanoseconds.
    This value which is by default 300ns is used to compute the tLOW period.
 
- - i2c-sda-falling-time : should contain the SDA falling time in nanoseconds.
+ - i2c-sda-falling-time-ns : should contain the SDA falling time in nanoseconds.
    This value which is by default 300ns is used to compute the tHIGH period.
 
 Example :

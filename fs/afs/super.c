@@ -91,7 +91,7 @@ int __init afs_fs_init(void)
 	afs_inode_cachep = kmem_cache_create("afs_inode_cache",
 					     sizeof(struct afs_vnode),
 					     0,
-					     SLAB_HWCACHE_ALIGN,
+					     SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT,
 					     afs_i_init_once);
 	if (!afs_inode_cachep) {
 		printk(KERN_NOTICE "kAFS: Failed to allocate inode cache\n");
@@ -529,7 +529,7 @@ static void afs_destroy_inode(struct inode *inode)
 static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct afs_volume_status vs;
-	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
+	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
 	struct key *key;
 	int ret;
 

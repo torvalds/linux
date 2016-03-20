@@ -60,7 +60,7 @@ static void o2_pci_led_enable(struct sdhci_pci_chip *chip)
 
 }
 
-void sdhci_pci_o2_fujin2_pci_init(struct sdhci_pci_chip *chip)
+static void sdhci_pci_o2_fujin2_pci_init(struct sdhci_pci_chip *chip)
 {
 	u32 scratch_32;
 	int ret;
@@ -127,8 +127,6 @@ void sdhci_pci_o2_fujin2_pci_init(struct sdhci_pci_chip *chip)
 		return;
 	scratch_32 &= ~((1 << 21) | (1 << 30));
 
-	/* Set RTD3 function disabled */
-	scratch_32 |= ((1 << 29) | (1 << 28));
 	pci_write_config_dword(chip->pdev, O2_SD_FUNC_REG3, scratch_32);
 
 	/* Set L1 Entrance Timer */
@@ -147,7 +145,6 @@ void sdhci_pci_o2_fujin2_pci_init(struct sdhci_pci_chip *chip)
 	scratch_32 |= 0x00080000;
 	pci_write_config_dword(chip->pdev, O2_SD_MISC_CTRL4, scratch_32);
 }
-EXPORT_SYMBOL_GPL(sdhci_pci_o2_fujin2_pci_init);
 
 int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
 {
@@ -181,7 +178,6 @@ int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(sdhci_pci_o2_probe_slot);
 
 int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip)
 {
@@ -387,11 +383,9 @@ int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(sdhci_pci_o2_probe);
 
 int sdhci_pci_o2_resume(struct sdhci_pci_chip *chip)
 {
 	sdhci_pci_o2_probe(chip);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(sdhci_pci_o2_resume);

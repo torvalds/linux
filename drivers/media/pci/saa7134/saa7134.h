@@ -21,6 +21,8 @@
 
 #define SAA7134_VERSION "0, 2, 17"
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
@@ -40,7 +42,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/tuner.h>
 #include <media/rc-core.h>
-#include <media/ir-kbd-i2c.h>
+#include <media/i2c/ir-kbd-i2c.h>
 #include <media/videobuf2-dma-sg.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -338,6 +340,10 @@ struct saa7134_card_ir {
 #define SAA7134_BOARD_ASUSTeK_PS3_100      190
 #define SAA7134_BOARD_HAWELL_HW_9004V1      191
 #define SAA7134_BOARD_AVERMEDIA_A706		192
+#define SAA7134_BOARD_WIS_VOYAGER           193
+#define SAA7134_BOARD_AVERMEDIA_505         194
+#define SAA7134_BOARD_LEADTEK_WINFAST_TV2100_FM 195
+#define SAA7134_BOARD_SNAZIO_TVPVR_PRO      196
 
 #define SAA7134_MAXBOARDS 32
 #define SAA7134_INPUT_MAX 8
@@ -356,18 +362,36 @@ struct saa7134_card_ir {
 #define SET_CLOCK_INVERTED			(1 << 2)
 #define SET_VSYNC_OFF				(1 << 3)
 
+enum saa7134_input_types {
+	SAA7134_NO_INPUT = 0,
+	SAA7134_INPUT_MUTE,
+	SAA7134_INPUT_RADIO,
+	SAA7134_INPUT_TV,
+	SAA7134_INPUT_TV_MONO,
+	SAA7134_INPUT_COMPOSITE,
+	SAA7134_INPUT_COMPOSITE0,
+	SAA7134_INPUT_COMPOSITE1,
+	SAA7134_INPUT_COMPOSITE2,
+	SAA7134_INPUT_COMPOSITE3,
+	SAA7134_INPUT_COMPOSITE4,
+	SAA7134_INPUT_SVIDEO,
+	SAA7134_INPUT_SVIDEO0,
+	SAA7134_INPUT_SVIDEO1,
+	SAA7134_INPUT_COMPOSITE_OVER_SVIDEO,
+};
+
 struct saa7134_input {
-	char                    *name;
-	unsigned int            vmux;
-	enum saa7134_audio_in   amux;
-	unsigned int            gpio;
-	unsigned int            tv:1;
+	enum saa7134_input_types type;
+	unsigned int             vmux;
+	enum saa7134_audio_in    amux;
+	unsigned int             gpio;
 };
 
 enum saa7134_mpeg_type {
 	SAA7134_MPEG_UNUSED,
 	SAA7134_MPEG_EMPRESS,
 	SAA7134_MPEG_DVB,
+	SAA7134_MPEG_GO7007,
 };
 
 enum saa7134_mpeg_ts_type {
@@ -404,9 +428,10 @@ struct saa7134_board {
 	unsigned int            ts_force_val:1;
 };
 
-#define card_has_radio(dev)   (NULL != saa7134_boards[dev->board].radio.name)
+#define card_has_radio(dev)   (SAA7134_NO_INPUT != saa7134_boards[dev->board].radio.type)
 #define card_is_empress(dev)  (SAA7134_MPEG_EMPRESS == saa7134_boards[dev->board].mpeg)
 #define card_is_dvb(dev)      (SAA7134_MPEG_DVB     == saa7134_boards[dev->board].mpeg)
+#define card_is_go7007(dev)   (SAA7134_MPEG_GO7007  == saa7134_boards[dev->board].mpeg)
 #define card_has_mpeg(dev)    (SAA7134_MPEG_UNUSED  != saa7134_boards[dev->board].mpeg)
 #define card(dev)             (saa7134_boards[dev->board])
 #define card_in(dev,n)        (saa7134_boards[dev->board].inputs[n])
@@ -453,7 +478,7 @@ struct saa7134_thread {
 /* buffer for one video/vbi/ts frame */
 struct saa7134_buf {
 	/* common v4l buffer stuff -- must be first */
-	struct vb2_buffer vb2;
+	struct vb2_v4l2_buffer vb2;
 
 	/* saa7134 specific */
 	unsigned int            top_seen;
@@ -522,6 +547,8 @@ struct saa7134_mpeg_ops {
 	int                        (*init)(struct saa7134_dev *dev);
 	int                        (*fini)(struct saa7134_dev *dev);
 	void                       (*signal_change)(struct saa7134_dev *dev);
+	void                       (*irq_ts_done)(struct saa7134_dev *dev,
+						  unsigned long status);
 };
 
 /* global device status */
@@ -583,6 +610,7 @@ struct saa7134_dev {
 
 
 	/* video+ts+vbi capture */
+	void			   *alloc_ctx;
 	struct saa7134_dmaqueue    video_q;
 	struct vb2_queue           video_vbq;
 	struct saa7134_dmaqueue    vbi_q;
@@ -644,11 +672,25 @@ struct saa7134_dev {
 	/* I2C keyboard data */
 	struct IR_i2c_init_data    init_data;
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *media_dev;
+
+	struct media_entity input_ent[SAA7134_INPUT_MAX + 1];
+	struct media_pad input_pad[SAA7134_INPUT_MAX + 1];
+
+	struct media_entity demod;
+	struct media_pad demod_pad[DEMOD_NUM_PADS];
+
+	struct media_pad video_pad, vbi_pad;
+	struct media_entity *decoder;
+#endif
+
 #if IS_ENABLED(CONFIG_VIDEO_SAA7134_DVB)
 	/* SAA7134_MPEG_DVB only */
 	struct vb2_dvb_frontends frontends;
 	int (*original_demod_sleep)(struct dvb_frontend *fe);
-	int (*original_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
+	int (*original_set_voltage)(struct dvb_frontend *fe,
+				    enum fe_sec_voltage voltage);
 	int (*original_set_high_voltage)(struct dvb_frontend *fe, long arg);
 #endif
 	void (*gate_ctrl)(struct saa7134_dev *dev, int open);
@@ -716,7 +758,7 @@ extern struct mutex saa7134_devlist_lock;
 extern int saa7134_no_overlay;
 extern bool saa7134_userptr;
 
-void saa7134_track_gpio(struct saa7134_dev *dev, char *msg);
+void saa7134_track_gpio(struct saa7134_dev *dev, const char *msg);
 void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value);
 
 #define SAA7134_PGTABLE_SIZE 4096
@@ -749,6 +791,7 @@ extern int (*saa7134_dmasound_exit)(struct saa7134_dev *dev);
 /* saa7134-cards.c                                             */
 
 extern struct saa7134_board saa7134_boards[];
+extern const char * const saa7134_input_name[];
 extern const unsigned int saa7134_bcount;
 extern struct pci_device_id saa7134_pci_tbl[];
 
@@ -809,8 +852,7 @@ void saa7134_video_fini(struct saa7134_dev *dev);
 
 int saa7134_ts_buffer_init(struct vb2_buffer *vb2);
 int saa7134_ts_buffer_prepare(struct vb2_buffer *vb2);
-void saa7134_ts_buffer_finish(struct vb2_buffer *vb2);
-int saa7134_ts_queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+int saa7134_ts_queue_setup(struct vb2_queue *q,
 			   unsigned int *nbuffers, unsigned int *nplanes,
 			   unsigned int sizes[], void *alloc_ctxs[]);
 int saa7134_ts_start_streaming(struct vb2_queue *vq, unsigned int count);

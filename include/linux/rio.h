@@ -298,7 +298,7 @@ struct rio_id_table {
  * struct rio_net - RIO network info
  * @node: Node in global list of RIO networks
  * @devices: List of devices in this network
- * @switches: List of switches in this netowrk
+ * @switches: List of switches in this network
  * @mports: List of master ports accessing this network
  * @hport: Default port for accessing this network
  * @id: RIO network ID

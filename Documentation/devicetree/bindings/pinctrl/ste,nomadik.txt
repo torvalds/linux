@@ -3,7 +3,9 @@ ST Ericsson Nomadik pinmux controller
 Required properties:
 - compatible: "stericsson,db8500-pinctrl", "stericsson,db8540-pinctrl",
               "stericsson,stn8815-pinctrl"
-- reg: Should contain the register physical address and length of the PRCMU.
+- nomadik-gpio-chips: array of phandles to the corresponding GPIO chips
+              (these have the register ranges used by the pin controller).
+- prcm: phandle to the PRCMU managing the back end of this pin controller
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
@@ -16,17 +18,22 @@ mux function to select on those pin(s)/group(s), and various pin configuration
 parameters, such as input, output, pull up, pull down...
 
 The name of each subnode is not important; all subnodes should be enumerated
-and processed purely based on their content.
+and processed purely based on their content. The subnodes use the generic
+pin multiplexing node layout from the standard pin control bindings
+(see pinctrl-bindings.txt):
 
-Required subnode-properties:
-- ste,pins : An array of strings. Each string contains the name of a pin or
-    group.
-
-Optional subnode-properties:
-- ste,function: A string containing the name of the function to mux to the
+Required pin multiplexing subnode properties:
+- function: A string containing the name of the function to mux to the
   pin or group.
+- groups : An array of strings. Each string contains the name of a pin
+  group that will be combined with the function to form a multiplexing
+  set-up.
 
-- ste,config: Handle of pin configuration node (e.g. ste,config = <&slpm_in_wkup_pdis>)
+Required pin configuration subnode properties:
+- pins: A string array describing the pins affected by the configuration
+  in the node.
+- ste,config: Handle of pin configuration node
+  (e.g. ste,config = <&slpm_in_wkup_pdis>)
 
 - ste,input : <0/1/2>
 	0: input with no pull
@@ -69,7 +76,8 @@ Example board file extract:
 
 	pinctrl@80157000 {
 		compatible = "stericsson,db8500-pinctrl";
-		reg = <0x80157000 0x2000>;
+		nomadik-gpio-chips = <&gpio0>, <&gpio1>, <&gpio2>, <&gpio3>;
+		prcm = <&prcmu>;
 
 		pinctrl-names = "default";
 
@@ -97,32 +105,32 @@ Example board file extract:
 		uart0 {
 			uart0_default_mux: uart0_mux {
 				u0_default_mux {
-					ste,function = "u0";
-					ste,pins = "u0_a_1";
+					function = "u0";
+					pins = "u0_a_1";
 				};
 			};
 			uart0_default_mode: uart0_default {
 				uart0_default_cfg1 {
-					ste,pins = "GPIO0", "GPIO2";
+					pins = "GPIO0", "GPIO2";
 					ste,input = <1>;
 				};
 
 				uart0_default_cfg2 {
-					ste,pins = "GPIO1", "GPIO3";
+					pins = "GPIO1", "GPIO3";
 					ste,output = <1>;
 				};
 			};
 			uart0_sleep_mode: uart0_sleep {
 				uart0_sleep_cfg1 {
-					ste,pins = "GPIO0", "GPIO2";
+					pins = "GPIO0", "GPIO2";
 					ste,config = <&slpm_in_wkup_pdis>;
 				};
 				uart0_sleep_cfg2 {
-					ste,pins = "GPIO1";
+					pins = "GPIO1";
 					ste,config = <&slpm_out_hi_wkup_pdis>;
 				};
 				uart0_sleep_cfg3 {
-					ste,pins = "GPIO3";
+					pins = "GPIO3";
 					ste,config = <&slpm_out_wkup_pdis>;
 				};
 			};

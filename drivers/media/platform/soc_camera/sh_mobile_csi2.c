@@ -18,10 +18,10 @@
 #include <linux/videodev2.h>
 #include <linux/module.h>
 
-#include <media/sh_mobile_ceu.h>
-#include <media/sh_mobile_csi2.h>
+#include <media/drv-intf/sh_mobile_ceu.h>
+#include <media/drv-intf/sh_mobile_csi2.h>
 #include <media/soc_camera.h>
-#include <media/soc_mediabus.h>
+#include <media/drv-intf/soc_mediabus.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
@@ -45,11 +45,17 @@ struct sh_csi2 {
 
 static void sh_csi2_hwinit(struct sh_csi2 *priv);
 
-static int sh_csi2_try_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_mbus_framefmt *mf)
+static int sh_csi2_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
 	struct sh_csi2 *priv = container_of(sd, struct sh_csi2, subdev);
 	struct sh_csi2_pdata *pdata = priv->pdev->dev.platform_data;
+	struct v4l2_mbus_framefmt *mf = &format->format;
+	u32 tmp = (priv->client->channel & 3) << 8;
+
+	if (format->pad)
+		return -EINVAL;
 
 	if (mf->width > 8188)
 		mf->width = 8188;
@@ -59,66 +65,56 @@ static int sh_csi2_try_fmt(struct v4l2_subdev *sd,
 	switch (pdata->type) {
 	case SH_CSI2C:
 		switch (mf->code) {
-		case V4L2_MBUS_FMT_UYVY8_2X8:		/* YUV422 */
-		case V4L2_MBUS_FMT_YUYV8_1_5X8:		/* YUV420 */
-		case V4L2_MBUS_FMT_Y8_1X8:		/* RAW8 */
-		case V4L2_MBUS_FMT_SBGGR8_1X8:
-		case V4L2_MBUS_FMT_SGRBG8_1X8:
+		case MEDIA_BUS_FMT_UYVY8_2X8:		/* YUV422 */
+		case MEDIA_BUS_FMT_YUYV8_1_5X8:		/* YUV420 */
+		case MEDIA_BUS_FMT_Y8_1X8:		/* RAW8 */
+		case MEDIA_BUS_FMT_SBGGR8_1X8:
+		case MEDIA_BUS_FMT_SGRBG8_1X8:
 			break;
 		default:
 			/* All MIPI CSI-2 devices must support one of primary formats */
-			mf->code = V4L2_MBUS_FMT_YUYV8_2X8;
+			mf->code = MEDIA_BUS_FMT_YUYV8_2X8;
 		}
 		break;
 	case SH_CSI2I:
 		switch (mf->code) {
-		case V4L2_MBUS_FMT_Y8_1X8:		/* RAW8 */
-		case V4L2_MBUS_FMT_SBGGR8_1X8:
-		case V4L2_MBUS_FMT_SGRBG8_1X8:
-		case V4L2_MBUS_FMT_SBGGR10_1X10:	/* RAW10 */
-		case V4L2_MBUS_FMT_SBGGR12_1X12:	/* RAW12 */
+		case MEDIA_BUS_FMT_Y8_1X8:		/* RAW8 */
+		case MEDIA_BUS_FMT_SBGGR8_1X8:
+		case MEDIA_BUS_FMT_SGRBG8_1X8:
+		case MEDIA_BUS_FMT_SBGGR10_1X10:	/* RAW10 */
+		case MEDIA_BUS_FMT_SBGGR12_1X12:	/* RAW12 */
 			break;
 		default:
 			/* All MIPI CSI-2 devices must support one of primary formats */
-			mf->code = V4L2_MBUS_FMT_SBGGR8_1X8;
+			mf->code = MEDIA_BUS_FMT_SBGGR8_1X8;
 		}
 		break;
 	}
 
-	return 0;
-}
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		cfg->try_fmt = *mf;
+		return 0;
+	}
 
-/*
- * We have done our best in try_fmt to try and tell the sensor, which formats
- * we support. If now the configuration is unsuitable for us we can only
- * error out.
- */
-static int sh_csi2_s_fmt(struct v4l2_subdev *sd,
-			 struct v4l2_mbus_framefmt *mf)
-{
-	struct sh_csi2 *priv = container_of(sd, struct sh_csi2, subdev);
-	u32 tmp = (priv->client->channel & 3) << 8;
-
-	dev_dbg(sd->v4l2_dev->dev, "%s(%u)\n", __func__, mf->code);
 	if (mf->width > 8188 || mf->width & 1)
 		return -EINVAL;
 
 	switch (mf->code) {
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		tmp |= 0x1e;	/* YUV422 8 bit */
 		break;
-	case V4L2_MBUS_FMT_YUYV8_1_5X8:
+	case MEDIA_BUS_FMT_YUYV8_1_5X8:
 		tmp |= 0x18;	/* YUV420 8 bit */
 		break;
-	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_BE:
+	case MEDIA_BUS_FMT_RGB555_2X8_PADHI_BE:
 		tmp |= 0x21;	/* RGB555 */
 		break;
-	case V4L2_MBUS_FMT_RGB565_2X8_BE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 		tmp |= 0x22;	/* RGB565 */
 		break;
-	case V4L2_MBUS_FMT_Y8_1X8:
-	case V4L2_MBUS_FMT_SBGGR8_1X8:
-	case V4L2_MBUS_FMT_SGRBG8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+	case MEDIA_BUS_FMT_SGRBG8_1X8:
 		tmp |= 0x2a;	/* RAW8 */
 		break;
 	default:
@@ -211,10 +207,12 @@ static int sh_csi2_s_mbus_config(struct v4l2_subdev *sd,
 }
 
 static struct v4l2_subdev_video_ops sh_csi2_subdev_video_ops = {
-	.s_mbus_fmt	= sh_csi2_s_fmt,
-	.try_mbus_fmt	= sh_csi2_try_fmt,
 	.g_mbus_config	= sh_csi2_g_mbus_config,
 	.s_mbus_config	= sh_csi2_s_mbus_config,
+};
+
+static struct v4l2_subdev_pad_ops sh_csi2_subdev_pad_ops = {
+	.set_fmt	= sh_csi2_set_fmt,
 };
 
 static void sh_csi2_hwinit(struct sh_csi2 *priv)
@@ -313,6 +311,7 @@ static struct v4l2_subdev_core_ops sh_csi2_subdev_core_ops = {
 static struct v4l2_subdev_ops sh_csi2_subdev_ops = {
 	.core	= &sh_csi2_subdev_core_ops,
 	.video	= &sh_csi2_subdev_video_ops,
+	.pad	= &sh_csi2_subdev_pad_ops,
 };
 
 static int sh_csi2_probe(struct platform_device *pdev)
@@ -380,7 +379,6 @@ static int sh_csi2_remove(struct platform_device *pdev)
 	struct sh_csi2 *priv = container_of(subdev, struct sh_csi2, subdev);
 
 	v4l2_async_unregister_subdev(&priv->subdev);
-	v4l2_device_unregister_subdev(subdev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
@@ -391,7 +389,6 @@ static struct platform_driver __refdata sh_csi2_pdrv = {
 	.probe	= sh_csi2_probe,
 	.driver	= {
 		.name	= "sh-mobile-csi2",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -3,7 +3,6 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <asm/processor.h>
 //#include <asm/cmpxchg.h>
 
 /* An 64bit atomic type */
@@ -312,5 +311,19 @@ static inline long long atomic64_dec_if_positive(atomic64_t *v)
 
 #undef alternative_atomic64
 #undef __alternative_atomic64
+
+#define ATOMIC64_OP(op, c_op)						\
+static inline void atomic64_##op(long long i, atomic64_t *v)		\
+{									\
+	long long old, c = 0;						\
+	while ((old = atomic64_cmpxchg(v, c, c c_op i)) != c)		\
+		c = old;						\
+}
+
+ATOMIC64_OP(and, &)
+ATOMIC64_OP(or, |)
+ATOMIC64_OP(xor, ^)
+
+#undef ATOMIC64_OP
 
 #endif /* _ASM_X86_ATOMIC64_32_H */

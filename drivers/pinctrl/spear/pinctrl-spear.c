@@ -2,7 +2,7 @@
  * Driver for the ST Microelectronics SPEAr pinmux
  *
  * Copyright (C) 2012 ST Microelectronics
- * Viresh Kumar <viresh.linux@gmail.com>
+ * Viresh Kumar <vireshk@kernel.org>
  *
  * Inspired from:
  * - U300 Pinctl drivers
@@ -268,7 +268,7 @@ static int spear_pinctrl_endisable(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int spear_pinctrl_enable(struct pinctrl_dev *pctldev, unsigned function,
+static int spear_pinctrl_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 		unsigned group)
 {
 	return spear_pinctrl_endisable(pctldev, function, group, true);
@@ -338,7 +338,7 @@ static const struct pinmux_ops spear_pinmux_ops = {
 	.get_functions_count = spear_pinctrl_get_funcs_count,
 	.get_function_name = spear_pinctrl_get_func_name,
 	.get_function_groups = spear_pinctrl_get_func_groups,
-	.enable = spear_pinctrl_enable,
+	.set_mux = spear_pinctrl_set_mux,
 	.gpio_request_enable = gpio_request_enable,
 	.gpio_disable_free = gpio_disable_free,
 };
@@ -396,9 +396,9 @@ int spear_pinctrl_probe(struct platform_device *pdev,
 	spear_pinctrl_desc.npins = machdata->npins;
 
 	pmx->pctl = pinctrl_register(&spear_pinctrl_desc, &pdev->dev, pmx);
-	if (!pmx->pctl) {
+	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return -ENODEV;
+		return PTR_ERR(pmx->pctl);
 	}
 
 	return 0;

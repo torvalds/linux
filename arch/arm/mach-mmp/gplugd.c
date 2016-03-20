@@ -16,9 +16,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
-#include <mach/irqs.h>
-#include <mach/pxa168.h>
-#include <mach/mfp-pxa168.h>
+#include "irqs.h"
+#include "pxa168.h"
+#include "mfp-pxa168.h"
 
 #include "common.h"
 
@@ -158,6 +158,7 @@ struct pxa168_eth_platform_data gplugd_eth_platform_data = {
 	.port_number = 0,
 	.phy_addr    = 0,
 	.speed       = 0, /* Autonagotiation */
+	.intf        = PHY_INTERFACE_MODE_RMII,
 	.init        = gplugd_eth_init,
 };
 

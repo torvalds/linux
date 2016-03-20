@@ -233,9 +233,8 @@ struct pwrctrl_priv {
 #define RTW_PWR_STATE_CHK_INTERVAL 2000
 
 #define _rtw_set_pwr_state_check_timer(pwrctrlpriv, ms) \
-	do { \
-		_set_timer(&(pwrctrlpriv)->pwr_state_check_timer, (ms)); \
-	} while (0)
+	mod_timer(&pwrctrlpriv->pwr_state_check_timer,	\
+		  jiffies + msecs_to_jiffies(ms))
 
 #define rtw_set_pwr_state_check_timer(pwrctrl)			\
 	_rtw_set_pwr_state_check_timer((pwrctrl),		\
@@ -258,7 +257,6 @@ s32 LPS_RF_ON_check(struct adapter *adapter, u32 delay_ms);
 void LPS_Enter(struct adapter *adapter);
 void LPS_Leave(struct adapter *adapter);
 
-void rtw_set_ips_deny(struct adapter *adapter, u32 ms);
 int _rtw_pwr_wakeup(struct adapter *adapter, u32 ips_defer_ms,
 		    const char *caller);
 #define rtw_pwr_wakeup(adapter)						\

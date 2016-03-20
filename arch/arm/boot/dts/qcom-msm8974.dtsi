@@ -1,13 +1,24 @@
 /dts-v1/;
 
-#include "skeleton.dtsi"
-
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/qcom,gcc-msm8974.h>
+#include "skeleton.dtsi"
 
 / {
 	model = "Qualcomm MSM8974";
 	compatible = "qcom,msm8974";
 	interrupt-parent = <&intc>;
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		smem_region: smem@fa00000 {
+			reg = <0xfa00000 0x200000>;
+			no-map;
+		};
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -21,6 +32,8 @@
 			reg = <0>;
 			next-level-cache = <&L2>;
 			qcom,acc = <&acc0>;
+			qcom,saw = <&saw0>;
+			cpu-idle-states = <&CPU_SPC>;
 		};
 
 		cpu@1 {
@@ -30,6 +43,8 @@
 			reg = <1>;
 			next-level-cache = <&L2>;
 			qcom,acc = <&acc1>;
+			qcom,saw = <&saw1>;
+			cpu-idle-states = <&CPU_SPC>;
 		};
 
 		cpu@2 {
@@ -39,6 +54,8 @@
 			reg = <2>;
 			next-level-cache = <&L2>;
 			qcom,acc = <&acc2>;
+			qcom,saw = <&saw2>;
+			cpu-idle-states = <&CPU_SPC>;
 		};
 
 		cpu@3 {
@@ -48,12 +65,24 @@
 			reg = <3>;
 			next-level-cache = <&L2>;
 			qcom,acc = <&acc3>;
+			qcom,saw = <&saw3>;
+			cpu-idle-states = <&CPU_SPC>;
 		};
 
 		L2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
 			qcom,saw = <&saw_l2>;
+		};
+
+		idle-states {
+			CPU_SPC: spc {
+				compatible = "qcom,idle-state-spc",
+						"arm,idle-state";
+				entry-latency-us = <150>;
+				exit-latency-us = <200>;
+				min-residency-us = <2000>;
+			};
 		};
 	};
 
@@ -71,6 +100,15 @@
 		clock-frequency = <19200000>;
 	};
 
+	smem {
+		compatible = "qcom,smem";
+
+		memory-region = <&smem_region>;
+		qcom,rpm-msg-ram = <&rpm_msg_ram>;
+
+		hwlocks = <&tcsr_mutex 3>;
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -83,6 +121,11 @@
 			#interrupt-cells = <3>;
 			reg = <0xf9000000 0x1000>,
 			      <0xf9002000 0x1000>;
+		};
+
+		apcs: syscon@f9011000 {
+			compatible = "syscon";
+			reg = <0xf9011000 0x1000>;
 		};
 
 		timer@f9020000 {
@@ -144,7 +187,27 @@
 			};
 		};
 
-		saw_l2: regulator@f9012000 {
+		saw0: power-controller@f9089000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf9089000 0x1000>, <0xf9009000 0x1000>;
+		};
+
+		saw1: power-controller@f9099000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf9099000 0x1000>, <0xf9009000 0x1000>;
+		};
+
+		saw2: power-controller@f90a9000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf90a9000 0x1000>, <0xf9009000 0x1000>;
+		};
+
+		saw3: power-controller@f90b9000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf90b9000 0x1000>, <0xf9009000 0x1000>;
+		};
+
+		saw_l2: power-controller@f9012000 {
 			compatible = "qcom,saw2";
 			reg = <0xf9012000 0x1000>;
 			regulator;
@@ -179,17 +242,36 @@
 			compatible = "qcom,gcc-msm8974";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			#power-domain-cells = <1>;
 			reg = <0xfc400000 0x4000>;
+		};
+
+		tcsr_mutex_block: syscon@fd484000 {
+			compatible = "syscon";
+			reg = <0xfd484000 0x2000>;
 		};
 
 		mmcc: clock-controller@fd8c0000 {
 			compatible = "qcom,mmcc-msm8974";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			#power-domain-cells = <1>;
 			reg = <0xfd8c0000 0x6000>;
 		};
 
-		serial@f991e000 {
+		tcsr_mutex: tcsr-mutex {
+			compatible = "qcom,tcsr-mutex";
+			syscon = <&tcsr_mutex_block 0 0x80>;
+
+			#hwlock-cells = <1>;
+		};
+
+		rpm_msg_ram: memory@fc428000 {
+			compatible = "qcom,rpm-msg-ram";
+			reg = <0xfc428000 0x4000>;
+		};
+
+		blsp1_uart2: serial@f991e000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0xf991e000 0x1000>;
 			interrupts = <0 108 0x0>;
@@ -235,6 +317,113 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			interrupts = <0 208 0>;
+		};
+
+		blsp_i2c8: i2c@f9964000 {
+			status = "disabled";
+			compatible = "qcom,i2c-qup-v2.1.1";
+			reg = <0xf9964000 0x1000>;
+			interrupts = <0 102 IRQ_TYPE_NONE>;
+			clocks = <&gcc GCC_BLSP2_QUP2_I2C_APPS_CLK>, <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "core", "iface";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		blsp_i2c11: i2c@f9967000 {
+			status = "disabled";
+			compatible = "qcom,i2c-qup-v2.1.1";
+			reg = <0xf9967000 0x1000>;
+			interrupts = <0 105 IRQ_TYPE_NONE>;
+			clocks = <&gcc GCC_BLSP2_QUP5_I2C_APPS_CLK>, <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "core", "iface";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		spmi_bus: spmi@fc4cf000 {
+			compatible = "qcom,spmi-pmic-arb";
+			reg-names = "core", "intr", "cnfg";
+			reg = <0xfc4cf000 0x1000>,
+			      <0xfc4cb000 0x1000>,
+			      <0xfc4ca000 0x1000>;
+			interrupt-names = "periph_irq";
+			interrupts = <0 190 0>;
+			qcom,ee = <0>;
+			qcom,channel = <0>;
+			#address-cells = <2>;
+			#size-cells = <0>;
+			interrupt-controller;
+			#interrupt-cells = <4>;
+		};
+	};
+
+	smd {
+		compatible = "qcom,smd";
+
+		rpm {
+			interrupts = <0 168 1>;
+			qcom,ipc = <&apcs 8 0>;
+			qcom,smd-edge = <15>;
+
+			rpm_requests {
+				compatible = "qcom,rpm-msm8974";
+				qcom,smd-channels = "rpm_requests";
+
+				pm8841-regulators {
+					compatible = "qcom,rpm-pm8841-regulators";
+
+					pm8841_s1: s1 {};
+					pm8841_s2: s2 {};
+					pm8841_s3: s3 {};
+					pm8841_s4: s4 {};
+					pm8841_s5: s5 {};
+					pm8841_s6: s6 {};
+					pm8841_s7: s7 {};
+					pm8841_s8: s8 {};
+				};
+
+				pm8941-regulators {
+					compatible = "qcom,rpm-pm8941-regulators";
+
+					pm8941_s1: s1 {};
+					pm8941_s2: s2 {};
+					pm8941_s3: s3 {};
+					pm8941_5v: s4 {};
+
+					pm8941_l1: l1 {};
+					pm8941_l2: l2 {};
+					pm8941_l3: l3 {};
+					pm8941_l4: l4 {};
+					pm8941_l5: l5 {};
+					pm8941_l6: l6 {};
+					pm8941_l7: l7 {};
+					pm8941_l8: l8 {};
+					pm8941_l9: l9 {};
+					pm8941_l10: l10 {};
+					pm8941_l11: l11 {};
+					pm8941_l12: l12 {};
+					pm8941_l13: l13 {};
+					pm8941_l14: l14 {};
+					pm8941_l15: l15 {};
+					pm8941_l16: l16 {};
+					pm8941_l17: l17 {};
+					pm8941_l18: l18 {};
+					pm8941_l19: l19 {};
+					pm8941_l20: l20 {};
+					pm8941_l21: l21 {};
+					pm8941_l22: l22 {};
+					pm8941_l23: l23 {};
+					pm8941_l24: l24 {};
+
+					pm8941_lvs1: lvs1 {};
+					pm8941_lvs2: lvs2 {};
+					pm8941_lvs3: lvs3 {};
+
+					pm8941_5vs1: 5vs1 {};
+					pm8941_5vs2: 5vs2 {};
+				};
+			};
 		};
 	};
 };

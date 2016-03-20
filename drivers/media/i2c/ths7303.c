@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include <media/ths7303.h>
+#include <media/i2c/ths7303.h>
 #include <media/v4l2-device.h>
 
 #define THS7303_CHANNEL_1	1
@@ -51,10 +51,6 @@ enum ths7303_filter_mode {
 MODULE_DESCRIPTION("TI THS7303 video amplifier driver");
 MODULE_AUTHOR("Chaithrika U S");
 MODULE_LICENSE("GPL");
-
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level 0-1");
 
 static inline struct ths7303_state *to_state(struct v4l2_subdev *sd)
 {
@@ -381,7 +377,6 @@ MODULE_DEVICE_TABLE(i2c, ths7303_id);
 
 static struct i2c_driver ths7303_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "ths73x3",
 	},
 	.probe		= ths7303_probe,

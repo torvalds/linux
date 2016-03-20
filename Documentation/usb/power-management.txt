@@ -47,14 +47,15 @@ dynamic PM is implemented in the USB subsystem, although system PM is
 covered to some extent (see Documentation/power/*.txt for more
 information about system PM).
 
-Note: Dynamic PM support for USB is present only if the kernel was
-built with CONFIG_USB_SUSPEND enabled (which depends on
-CONFIG_PM_RUNTIME).  System PM support is present only if the kernel
-was built with CONFIG_SUSPEND or CONFIG_HIBERNATION enabled.
+System PM support is present only if the kernel was built with CONFIG_SUSPEND
+or CONFIG_HIBERNATION enabled.  Dynamic PM support for USB is present whenever
+the kernel was built with CONFIG_PM enabled.
 
-(Starting with the 3.10 kernel release, dynamic PM support for USB is
-present whenever the kernel was built with CONFIG_PM_RUNTIME enabled.
-The CONFIG_USB_SUSPEND option has been eliminated.)
+[Historically, dynamic PM support for USB was present only if the
+kernel had been built with CONFIG_USB_SUSPEND enabled (which depended on
+CONFIG_PM_RUNTIME).  Starting with the 3.10 kernel release, dynamic PM support
+for USB was present whenever the kernel was built with CONFIG_PM_RUNTIME
+enabled.  The CONFIG_USB_SUSPEND option had been eliminated.]
 
 
 	What is Remote Wakeup?
@@ -520,10 +521,10 @@ enabling hardware LPM, the host can automatically put the device into
 lower power state(L1 for usb2.0 devices, or U1/U2 for usb3.0 devices),
 which state device can enter and resume very quickly.
 
-The user interface for controlling USB2 hardware LPM is located in the
+The user interface for controlling hardware LPM is located in the
 power/ subdirectory of each USB device's sysfs directory, that is, in
 /sys/bus/usb/devices/.../power/ where "..." is the device's ID. The
-relevant attribute files is usb2_hardware_lpm.
+relevant attribute files are usb2_hardware_lpm and usb3_hardware_lpm.
 
 	power/usb2_hardware_lpm
 
@@ -536,6 +537,18 @@ relevant attribute files is usb2_hardware_lpm.
 		can write y/Y/1 or n/N/0 to the file to	enable/disable
 		USB2 hardware LPM manually. This is for	test purpose mainly.
 
+	power/usb3_hardware_lpm_u1
+	power/usb3_hardware_lpm_u2
+
+		When a USB 3.0 lpm-capable device is plugged in to a
+		xHCI host which supports link PM, it will check if U1
+		and U2 exit latencies have been set in the BOS
+		descriptor; if the check is is passed and the host
+		supports USB3 hardware LPM, USB3 hardware LPM will be
+		enabled for the device and these files will be created.
+		The files hold a string value (enable or disable)
+		indicating whether or not USB3 hardware LPM U1 or U2
+		is enabled for the device.
 
 	USB Port Power Control
 	----------------------

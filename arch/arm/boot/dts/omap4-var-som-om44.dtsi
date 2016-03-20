@@ -185,7 +185,6 @@
 		reg = <0x48>;
 		/* SPI = 0, IRQ# = 7, 4 = active high level-sensitive */
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_1N cascaded to gic */
-		interrupt-parent = <&gic>;
 	};
 
 	twl6040: twl@4b {
@@ -197,8 +196,7 @@
 
 		/* SPI = 0, IRQ# = 119, 4 = active high level-sensitive */
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_2N cascaded to gic */
-		interrupt-parent = <&gic>;
-		ti,audpwron-gpio = <&gpio6 22 0>; /* gpio 182 */
+		ti,audpwron-gpio = <&gpio6 22 GPIO_ACTIVE_HIGH>; /* gpio 182 */
 
 		vio-supply = <&v1v8>;
 		v2v1-supply = <&v2v1>;

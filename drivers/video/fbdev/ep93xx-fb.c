@@ -316,9 +316,8 @@ static int ep93xxfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	unsigned int offset = vma->vm_pgoff << PAGE_SHIFT;
 
 	if (offset < info->fix.smem_len) {
-		return dma_mmap_writecombine(info->dev, vma, info->screen_base,
-					     info->fix.smem_start,
-					     info->fix.smem_len);
+		return dma_mmap_wc(info->dev, vma, info->screen_base,
+				   info->fix.smem_start, info->fix.smem_len);
 	}
 
 	return -EINVAL;
@@ -419,38 +418,16 @@ static struct fb_ops ep93xxfb_ops = {
 	.fb_mmap	= ep93xxfb_mmap,
 };
 
-static int ep93xxfb_calc_fbsize(struct ep93xxfb_mach_info *mach_info)
-{
-	int i, fb_size = 0;
-
-	if (mach_info->num_modes == EP93XXFB_USE_MODEDB) {
-		fb_size = EP93XXFB_MAX_XRES * EP93XXFB_MAX_YRES *
-			mach_info->bpp / 8;
-	} else {
-		for (i = 0; i < mach_info->num_modes; i++) {
-			const struct fb_videomode *mode;
-			int size;
-
-			mode = &mach_info->modes[i];
-			size = mode->xres * mode->yres * mach_info->bpp / 8;
-			if (size > fb_size)
-				fb_size = size;
-		}
-	}
-
-	return fb_size;
-}
-
 static int ep93xxfb_alloc_videomem(struct fb_info *info)
 {
-	struct ep93xx_fbi *fbi = info->par;
 	char __iomem *virt_addr;
 	dma_addr_t phys_addr;
 	unsigned int fb_size;
 
-	fb_size = ep93xxfb_calc_fbsize(fbi->mach_info);
-	virt_addr = dma_alloc_writecombine(info->dev, fb_size,
-					   &phys_addr, GFP_KERNEL);
+	/* Maximum 16bpp -> used memory is maximum x*y*2 bytes */
+	fb_size = EP93XXFB_MAX_XRES * EP93XXFB_MAX_YRES * 2;
+
+	virt_addr = dma_alloc_wc(info->dev, fb_size, &phys_addr, GFP_KERNEL);
 	if (!virt_addr)
 		return -ENOMEM;
 
@@ -550,8 +527,7 @@ static int ep93xxfb_probe(struct platform_device *pdev)
 
 	fb_get_options("ep93xx-fb", &video_mode);
 	err = fb_find_mode(&info->var, info, video_mode,
-			   fbi->mach_info->modes, fbi->mach_info->num_modes,
-			   fbi->mach_info->default_mode, fbi->mach_info->bpp);
+			   NULL, 0, NULL, 16);
 	if (err == 0) {
 		dev_err(info->dev, "No suitable video mode found\n");
 		err = -EINVAL;
@@ -622,7 +598,6 @@ static struct platform_driver ep93xxfb_driver = {
 	.remove		= ep93xxfb_remove,
 	.driver = {
 		.name	= "ep93xx-fb",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(ep93xxfb_driver);

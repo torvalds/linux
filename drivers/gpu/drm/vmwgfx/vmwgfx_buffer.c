@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -30,66 +30,107 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_page_alloc.h>
 
-static uint32_t vram_placement_flags = TTM_PL_FLAG_VRAM |
-	TTM_PL_FLAG_CACHED;
-
-static uint32_t vram_ne_placement_flags = TTM_PL_FLAG_VRAM |
-	TTM_PL_FLAG_CACHED |
-	TTM_PL_FLAG_NO_EVICT;
-
-static uint32_t sys_placement_flags = TTM_PL_FLAG_SYSTEM |
-	TTM_PL_FLAG_CACHED;
-
-static uint32_t sys_ne_placement_flags = TTM_PL_FLAG_SYSTEM |
-	TTM_PL_FLAG_CACHED |
-	TTM_PL_FLAG_NO_EVICT;
-
-static uint32_t gmr_placement_flags = VMW_PL_FLAG_GMR |
-	TTM_PL_FLAG_CACHED;
-
-static uint32_t gmr_ne_placement_flags = VMW_PL_FLAG_GMR |
-	TTM_PL_FLAG_CACHED |
-	TTM_PL_FLAG_NO_EVICT;
-
-static uint32_t mob_placement_flags = VMW_PL_FLAG_MOB |
-	TTM_PL_FLAG_CACHED;
-
-struct ttm_placement vmw_vram_placement = {
+static struct ttm_place vram_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
+	.flags = TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED
+};
+
+static struct ttm_place vram_ne_placement_flags = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.flags = TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT
+};
+
+static struct ttm_place sys_placement_flags = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.flags = TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED
+};
+
+static struct ttm_place sys_ne_placement_flags = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.flags = TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT
+};
+
+static struct ttm_place gmr_placement_flags = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.flags = VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
+};
+
+static struct ttm_place gmr_ne_placement_flags = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.flags = VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT
+};
+
+static struct ttm_place mob_placement_flags = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.flags = VMW_PL_FLAG_MOB | TTM_PL_FLAG_CACHED
+};
+
+static struct ttm_place mob_ne_placement_flags = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.flags = VMW_PL_FLAG_MOB | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT
+};
+
+struct ttm_placement vmw_vram_placement = {
 	.num_placement = 1,
 	.placement = &vram_placement_flags,
 	.num_busy_placement = 1,
 	.busy_placement = &vram_placement_flags
 };
 
-static uint32_t vram_gmr_placement_flags[] = {
-	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED,
-	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
+static struct ttm_place vram_gmr_placement_flags[] = {
+	{
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED
+	}, {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
+	}
 };
 
-static uint32_t gmr_vram_placement_flags[] = {
-	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED,
-	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED
+static struct ttm_place gmr_vram_placement_flags[] = {
+	{
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
+	}, {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED
+	}
 };
 
 struct ttm_placement vmw_vram_gmr_placement = {
-	.fpfn = 0,
-	.lpfn = 0,
 	.num_placement = 2,
 	.placement = vram_gmr_placement_flags,
 	.num_busy_placement = 1,
 	.busy_placement = &gmr_placement_flags
 };
 
-static uint32_t vram_gmr_ne_placement_flags[] = {
-	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT,
-	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT
+static struct ttm_place vram_gmr_ne_placement_flags[] = {
+	{
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED |
+			 TTM_PL_FLAG_NO_EVICT
+	}, {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED |
+			 TTM_PL_FLAG_NO_EVICT
+	}
 };
 
 struct ttm_placement vmw_vram_gmr_ne_placement = {
-	.fpfn = 0,
-	.lpfn = 0,
 	.num_placement = 2,
 	.placement = vram_gmr_ne_placement_flags,
 	.num_busy_placement = 1,
@@ -97,8 +138,6 @@ struct ttm_placement vmw_vram_gmr_ne_placement = {
 };
 
 struct ttm_placement vmw_vram_sys_placement = {
-	.fpfn = 0,
-	.lpfn = 0,
 	.num_placement = 1,
 	.placement = &vram_placement_flags,
 	.num_busy_placement = 1,
@@ -106,8 +145,6 @@ struct ttm_placement vmw_vram_sys_placement = {
 };
 
 struct ttm_placement vmw_vram_ne_placement = {
-	.fpfn = 0,
-	.lpfn = 0,
 	.num_placement = 1,
 	.placement = &vram_ne_placement_flags,
 	.num_busy_placement = 1,
@@ -115,8 +152,6 @@ struct ttm_placement vmw_vram_ne_placement = {
 };
 
 struct ttm_placement vmw_sys_placement = {
-	.fpfn = 0,
-	.lpfn = 0,
 	.num_placement = 1,
 	.placement = &sys_placement_flags,
 	.num_busy_placement = 1,
@@ -124,24 +159,33 @@ struct ttm_placement vmw_sys_placement = {
 };
 
 struct ttm_placement vmw_sys_ne_placement = {
-	.fpfn = 0,
-	.lpfn = 0,
 	.num_placement = 1,
 	.placement = &sys_ne_placement_flags,
 	.num_busy_placement = 1,
 	.busy_placement = &sys_ne_placement_flags
 };
 
-static uint32_t evictable_placement_flags[] = {
-	TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED,
-	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED,
-	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED,
-	VMW_PL_FLAG_MOB | TTM_PL_FLAG_CACHED
+static struct ttm_place evictable_placement_flags[] = {
+	{
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED
+	}, {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED
+	}, {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
+	}, {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = VMW_PL_FLAG_MOB | TTM_PL_FLAG_CACHED
+	}
 };
 
 struct ttm_placement vmw_evictable_placement = {
-	.fpfn = 0,
-	.lpfn = 0,
 	.num_placement = 4,
 	.placement = evictable_placement_flags,
 	.num_busy_placement = 1,
@@ -149,8 +193,6 @@ struct ttm_placement vmw_evictable_placement = {
 };
 
 struct ttm_placement vmw_srf_placement = {
-	.fpfn = 0,
-	.lpfn = 0,
 	.num_placement = 1,
 	.num_busy_placement = 2,
 	.placement = &gmr_placement_flags,
@@ -158,12 +200,17 @@ struct ttm_placement vmw_srf_placement = {
 };
 
 struct ttm_placement vmw_mob_placement = {
-	.fpfn = 0,
-	.lpfn = 0,
 	.num_placement = 1,
 	.num_busy_placement = 1,
 	.placement = &mob_placement_flags,
 	.busy_placement = &mob_placement_flags
+};
+
+struct ttm_placement vmw_mob_ne_placement = {
+	.num_placement = 1,
+	.num_busy_placement = 1,
+	.placement = &mob_ne_placement_flags,
+	.busy_placement = &mob_ne_placement_flags
 };
 
 struct vmw_ttm_tt {
@@ -768,49 +815,11 @@ static int vmw_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 }
 
 /**
- * FIXME: We're using the old vmware polling method to sync.
- * Do this with fences instead.
- */
-
-static void *vmw_sync_obj_ref(void *sync_obj)
-{
-
-	return (void *)
-		vmw_fence_obj_reference((struct vmw_fence_obj *) sync_obj);
-}
-
-static void vmw_sync_obj_unref(void **sync_obj)
-{
-	vmw_fence_obj_unreference((struct vmw_fence_obj **) sync_obj);
-}
-
-static int vmw_sync_obj_flush(void *sync_obj)
-{
-	vmw_fence_obj_flush((struct vmw_fence_obj *) sync_obj);
-	return 0;
-}
-
-static bool vmw_sync_obj_signaled(void *sync_obj)
-{
-	return	vmw_fence_obj_signaled((struct vmw_fence_obj *) sync_obj,
-				       DRM_VMW_FENCE_FLAG_EXEC);
-
-}
-
-static int vmw_sync_obj_wait(void *sync_obj, bool lazy, bool interruptible)
-{
-	return vmw_fence_obj_wait((struct vmw_fence_obj *) sync_obj,
-				  DRM_VMW_FENCE_FLAG_EXEC,
-				  lazy, interruptible,
-				  VMW_FENCE_WAIT_TIMEOUT);
-}
-
-/**
  * vmw_move_notify - TTM move_notify_callback
  *
- * @bo:             The TTM buffer object about to move.
- * @mem:            The truct ttm_mem_reg indicating to what memory
- *                  region the move is taking place.
+ * @bo: The TTM buffer object about to move.
+ * @mem: The struct ttm_mem_reg indicating to what memory
+ *       region the move is taking place.
  *
  * Calls move_notify for all subsystems needing it.
  * (currently only resources).
@@ -819,21 +828,18 @@ static void vmw_move_notify(struct ttm_buffer_object *bo,
 			    struct ttm_mem_reg *mem)
 {
 	vmw_resource_move_notify(bo, mem);
+	vmw_query_move_notify(bo, mem);
 }
 
 
 /**
  * vmw_swap_notify - TTM move_notify_callback
  *
- * @bo:             The TTM buffer object about to be swapped out.
+ * @bo: The TTM buffer object about to be swapped out.
  */
 static void vmw_swap_notify(struct ttm_buffer_object *bo)
 {
-	struct ttm_bo_device *bdev = bo->bdev;
-
-	spin_lock(&bdev->fence_lock);
 	ttm_bo_wait(bo, false, false, false);
-	spin_unlock(&bdev->fence_lock);
 }
 
 
@@ -846,11 +852,6 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.evict_flags = vmw_evict_flags,
 	.move = NULL,
 	.verify_access = vmw_verify_access,
-	.sync_obj_signaled = vmw_sync_obj_signaled,
-	.sync_obj_wait = vmw_sync_obj_wait,
-	.sync_obj_flush = vmw_sync_obj_flush,
-	.sync_obj_unref = vmw_sync_obj_unref,
-	.sync_obj_ref = vmw_sync_obj_ref,
 	.move_notify = vmw_move_notify,
 	.swap_notify = vmw_swap_notify,
 	.fault_reserve_notify = &vmw_ttm_fault_reserve_notify,

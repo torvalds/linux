@@ -167,7 +167,7 @@ Boston, MA 02111-1307, USA.  */
 
 #endif
 
-	@ Perform all needed substractions to keep only the reminder.
+	@ Perform all needed subtractions to keep only the reminder.
 	@ Do comparisons in batch of 4 first.
 	subs	\order, \order, #3		@ yes, 3 is intended here
 	blt	2f
@@ -189,7 +189,7 @@ Boston, MA 02111-1307, USA.  */
 	teqne	\dividend, #0
 	beq	5f
 
-	@ Either 1, 2 or 3 comparison/substractions are left.
+	@ Either 1, 2 or 3 comparison/subtractions are left.
 2:	cmn	\order, #2
 	blt	4f
 	beq	3f
@@ -204,6 +204,10 @@ Boston, MA 02111-1307, USA.  */
 5:
 .endm
 
+
+#ifdef CONFIG_ARM_PATCH_IDIV
+	.align	3
+#endif
 
 ENTRY(__udivsi3)
 ENTRY(__aeabi_uidiv)
@@ -252,6 +256,10 @@ UNWIND(.fnstart)
 
 UNWIND(.fnend)
 ENDPROC(__umodsi3)
+
+#ifdef CONFIG_ARM_PATCH_IDIV
+	.align 3
+#endif
 
 ENTRY(__divsi3)
 ENTRY(__aeabi_idiv)

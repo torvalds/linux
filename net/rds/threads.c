@@ -78,8 +78,7 @@ void rds_connect_complete(struct rds_connection *conn)
 				"current state is %d\n",
 				__func__,
 				atomic_read(&conn->c_state));
-		atomic_set(&conn->c_state, RDS_CONN_ERROR);
-		queue_work(rds_wq, &conn->c_down_w);
+		rds_conn_drop(conn);
 		return;
 	}
 
@@ -163,7 +162,9 @@ void rds_send_worker(struct work_struct *work)
 	int ret;
 
 	if (rds_conn_state(conn) == RDS_CONN_UP) {
+		clear_bit(RDS_LL_SEND_FULL, &conn->c_flags);
 		ret = rds_send_xmit(conn);
+		cond_resched();
 		rdsdebug("conn %p ret %d\n", conn, ret);
 		switch (ret) {
 		case -EAGAIN:

@@ -57,10 +57,35 @@ do {							\
 #define sysfs_attr_init(attr) do {} while (0)
 #endif
 
+/**
+ * struct attribute_group - data structure used to declare an attribute group.
+ * @name:	Optional: Attribute group name
+ *		If specified, the attribute group will be created in
+ *		a new subdirectory with this name.
+ * @is_visible:	Optional: Function to return permissions associated with an
+ *		attribute of the group. Will be called repeatedly for each
+ *		non-binary attribute in the group. Only read/write
+ *		permissions as well as SYSFS_PREALLOC are accepted. Must
+ *		return 0 if an attribute is not visible. The returned value
+ *		will replace static permissions defined in struct attribute.
+ * @is_bin_visible:
+ *		Optional: Function to return permissions associated with a
+ *		binary attribute of the group. Will be called repeatedly
+ *		for each binary attribute in the group. Only read/write
+ *		permissions as well as SYSFS_PREALLOC are accepted. Must
+ *		return 0 if a binary attribute is not visible. The returned
+ *		value will replace static permissions defined in
+ *		struct bin_attribute.
+ * @attrs:	Pointer to NULL terminated list of attributes.
+ * @bin_attrs:	Pointer to NULL terminated list of binary attributes.
+ *		Either attrs or bin_attrs or both must be provided.
+ */
 struct attribute_group {
 	const char		*name;
 	umode_t			(*is_visible)(struct kobject *,
 					      struct attribute *, int);
+	umode_t			(*is_bin_visible)(struct kobject *,
+						  struct bin_attribute *, int);
 	struct attribute	**attrs;
 	struct bin_attribute	**bin_attrs;
 };
@@ -70,9 +95,18 @@ struct attribute_group {
  * for examples..
  */
 
+#define SYSFS_PREALLOC 010000
+
 #define __ATTR(_name, _mode, _show, _store) {				\
 	.attr = {.name = __stringify(_name),				\
 		 .mode = VERIFY_OCTAL_PERMISSIONS(_mode) },		\
+	.show	= _show,						\
+	.store	= _store,						\
+}
+
+#define __ATTR_PREALLOC(_name, _mode, _show, _store) {			\
+	.attr = {.name = __stringify(_name),				\
+		 .mode = SYSFS_PREALLOC | VERIFY_OCTAL_PERMISSIONS(_mode) },\
 	.show	= _show,						\
 	.store	= _store,						\
 }
@@ -186,6 +220,10 @@ int __must_check sysfs_rename_dir_ns(struct kobject *kobj, const char *new_name,
 int __must_check sysfs_move_dir_ns(struct kobject *kobj,
 				   struct kobject *new_parent_kobj,
 				   const void *new_ns);
+int __must_check sysfs_create_mount_point(struct kobject *parent_kobj,
+					  const char *name);
+void sysfs_remove_mount_point(struct kobject *parent_kobj,
+			      const char *name);
 
 int __must_check sysfs_create_file_ns(struct kobject *kobj,
 				      const struct attribute *attr,
@@ -240,6 +278,9 @@ int sysfs_add_link_to_group(struct kobject *kobj, const char *group_name,
 			    struct kobject *target, const char *link_name);
 void sysfs_remove_link_from_group(struct kobject *kobj, const char *group_name,
 				  const char *link_name);
+int __compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
+				      struct kobject *target_kobj,
+				      const char *target_name);
 
 void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
 
@@ -272,6 +313,17 @@ static inline int sysfs_move_dir_ns(struct kobject *kobj,
 				    const void *new_ns)
 {
 	return 0;
+}
+
+static inline int sysfs_create_mount_point(struct kobject *parent_kobj,
+					   const char *name)
+{
+	return 0;
+}
+
+static inline void sysfs_remove_mount_point(struct kobject *parent_kobj,
+					    const char *name)
+{
 }
 
 static inline int sysfs_create_file_ns(struct kobject *kobj,
@@ -410,6 +462,14 @@ static inline int sysfs_add_link_to_group(struct kobject *kobj,
 static inline void sysfs_remove_link_from_group(struct kobject *kobj,
 		const char *group_name, const char *link_name)
 {
+}
+
+static inline int __compat_only_sysfs_link_entry_to_kobj(
+	struct kobject *kobj,
+	struct kobject *target_kobj,
+	const char *target_name)
+{
+	return 0;
 }
 
 static inline void sysfs_notify(struct kobject *kobj, const char *dir,

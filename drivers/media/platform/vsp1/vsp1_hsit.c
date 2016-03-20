@@ -26,11 +26,6 @@
  * Device Access
  */
 
-static inline u32 vsp1_hsit_read(struct vsp1_hsit *hsit, u32 reg)
-{
-	return vsp1_read(hsit->entity.vsp1, reg);
-}
-
 static inline void vsp1_hsit_write(struct vsp1_hsit *hsit, u32 reg, u32 data)
 {
 	vsp1_write(hsit->entity.vsp1, reg, data);
@@ -60,7 +55,7 @@ static int hsit_s_stream(struct v4l2_subdev *subdev, int enable)
  */
 
 static int hsit_enum_mbus_code(struct v4l2_subdev *subdev,
-			       struct v4l2_subdev_fh *fh,
+			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct vsp1_hsit *hsit = to_hsit(subdev);
@@ -70,20 +65,22 @@ static int hsit_enum_mbus_code(struct v4l2_subdev *subdev,
 
 	if ((code->pad == HSIT_PAD_SINK && !hsit->inverse) |
 	    (code->pad == HSIT_PAD_SOURCE && hsit->inverse))
-		code->code = V4L2_MBUS_FMT_ARGB8888_1X32;
+		code->code = MEDIA_BUS_FMT_ARGB8888_1X32;
 	else
-		code->code = V4L2_MBUS_FMT_AHSV8888_1X32;
+		code->code = MEDIA_BUS_FMT_AHSV8888_1X32;
 
 	return 0;
 }
 
 static int hsit_enum_frame_size(struct v4l2_subdev *subdev,
-				struct v4l2_subdev_fh *fh,
+				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_frame_size_enum *fse)
 {
+	struct vsp1_hsit *hsit = to_hsit(subdev);
 	struct v4l2_mbus_framefmt *format;
 
-	format = v4l2_subdev_get_try_format(fh, fse->pad);
+	format = vsp1_entity_get_pad_format(&hsit->entity, cfg, fse->pad,
+					    fse->which);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;
@@ -107,25 +104,25 @@ static int hsit_enum_frame_size(struct v4l2_subdev *subdev,
 }
 
 static int hsit_get_format(struct v4l2_subdev *subdev,
-			   struct v4l2_subdev_fh *fh,
+			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_hsit *hsit = to_hsit(subdev);
 
-	fmt->format = *vsp1_entity_get_pad_format(&hsit->entity, fh, fmt->pad,
+	fmt->format = *vsp1_entity_get_pad_format(&hsit->entity, cfg, fmt->pad,
 						  fmt->which);
 
 	return 0;
 }
 
 static int hsit_set_format(struct v4l2_subdev *subdev,
-			   struct v4l2_subdev_fh *fh,
+			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_hsit *hsit = to_hsit(subdev);
 	struct v4l2_mbus_framefmt *format;
 
-	format = vsp1_entity_get_pad_format(&hsit->entity, fh, fmt->pad,
+	format = vsp1_entity_get_pad_format(&hsit->entity, cfg, fmt->pad,
 					    fmt->which);
 
 	if (fmt->pad == HSIT_PAD_SOURCE) {
@@ -136,8 +133,8 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 		return 0;
 	}
 
-	format->code = hsit->inverse ? V4L2_MBUS_FMT_AHSV8888_1X32
-		     : V4L2_MBUS_FMT_ARGB8888_1X32;
+	format->code = hsit->inverse ? MEDIA_BUS_FMT_AHSV8888_1X32
+		     : MEDIA_BUS_FMT_ARGB8888_1X32;
 	format->width = clamp_t(unsigned int, fmt->format.width,
 				HSIT_MIN_SIZE, HSIT_MAX_SIZE);
 	format->height = clamp_t(unsigned int, fmt->format.height,
@@ -148,11 +145,11 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 	fmt->format = *format;
 
 	/* Propagate the format to the source pad. */
-	format = vsp1_entity_get_pad_format(&hsit->entity, fh, HSIT_PAD_SOURCE,
+	format = vsp1_entity_get_pad_format(&hsit->entity, cfg, HSIT_PAD_SOURCE,
 					    fmt->which);
 	*format = fmt->format;
-	format->code = hsit->inverse ? V4L2_MBUS_FMT_ARGB8888_1X32
-		     : V4L2_MBUS_FMT_AHSV8888_1X32;
+	format->code = hsit->inverse ? MEDIA_BUS_FMT_ARGB8888_1X32
+		     : MEDIA_BUS_FMT_AHSV8888_1X32;
 
 	return 0;
 }
@@ -206,7 +203,7 @@ struct vsp1_hsit *vsp1_hsit_create(struct vsp1_device *vsp1, bool inverse)
 	subdev = &hsit->entity.subdev;
 	v4l2_subdev_init(subdev, &hsit_ops);
 
-	subdev->entity.ops = &vsp1_media_ops;
+	subdev->entity.ops = &vsp1->media_ops;
 	subdev->internal_ops = &vsp1_subdev_internal_ops;
 	snprintf(subdev->name, sizeof(subdev->name), "%s %s",
 		 dev_name(vsp1->dev), inverse ? "hsi" : "hst");

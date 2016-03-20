@@ -196,39 +196,62 @@ static int cpu_clock_sample(const clockid_t which_clock, struct task_struct *p,
 	return 0;
 }
 
-static void update_gt_cputime(struct task_cputime *a, struct task_cputime *b)
+/*
+ * Set cputime to sum_cputime if sum_cputime > cputime. Use cmpxchg
+ * to avoid race conditions with concurrent updates to cputime.
+ */
+static inline void __update_gt_cputime(atomic64_t *cputime, u64 sum_cputime)
 {
-	if (b->utime > a->utime)
-		a->utime = b->utime;
+	u64 curr_cputime;
+retry:
+	curr_cputime = atomic64_read(cputime);
+	if (sum_cputime > curr_cputime) {
+		if (atomic64_cmpxchg(cputime, curr_cputime, sum_cputime) != curr_cputime)
+			goto retry;
+	}
+}
 
-	if (b->stime > a->stime)
-		a->stime = b->stime;
+static void update_gt_cputime(struct task_cputime_atomic *cputime_atomic, struct task_cputime *sum)
+{
+	__update_gt_cputime(&cputime_atomic->utime, sum->utime);
+	__update_gt_cputime(&cputime_atomic->stime, sum->stime);
+	__update_gt_cputime(&cputime_atomic->sum_exec_runtime, sum->sum_exec_runtime);
+}
 
-	if (b->sum_exec_runtime > a->sum_exec_runtime)
-		a->sum_exec_runtime = b->sum_exec_runtime;
+/* Sample task_cputime_atomic values in "atomic_timers", store results in "times". */
+static inline void sample_cputime_atomic(struct task_cputime *times,
+					 struct task_cputime_atomic *atomic_times)
+{
+	times->utime = atomic64_read(&atomic_times->utime);
+	times->stime = atomic64_read(&atomic_times->stime);
+	times->sum_exec_runtime = atomic64_read(&atomic_times->sum_exec_runtime);
 }
 
 void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
 {
 	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
 	struct task_cputime sum;
-	unsigned long flags;
 
-	if (!cputimer->running) {
+	/* Check if cputimer isn't running. This is accessed without locking. */
+	if (!READ_ONCE(cputimer->running)) {
 		/*
 		 * The POSIX timer interface allows for absolute time expiry
 		 * values through the TIMER_ABSTIME flag, therefore we have
-		 * to synchronize the timer to the clock every time we start
-		 * it.
+		 * to synchronize the timer to the clock every time we start it.
 		 */
 		thread_group_cputime(tsk, &sum);
-		raw_spin_lock_irqsave(&cputimer->lock, flags);
-		cputimer->running = 1;
-		update_gt_cputime(&cputimer->cputime, &sum);
-	} else
-		raw_spin_lock_irqsave(&cputimer->lock, flags);
-	*times = cputimer->cputime;
-	raw_spin_unlock_irqrestore(&cputimer->lock, flags);
+		update_gt_cputime(&cputimer->cputime_atomic, &sum);
+
+		/*
+		 * We're setting cputimer->running without a lock. Ensure
+		 * this only gets written to in one operation. We set
+		 * running after update_gt_cputime() as a small optimization,
+		 * but barriers are not required because update_gt_cputime()
+		 * can handle concurrent updates.
+		 */
+		WRITE_ONCE(cputimer->running, true);
+	}
+	sample_cputime_atomic(times, &cputimer->cputime_atomic);
 }
 
 /*
@@ -272,22 +295,8 @@ static int posix_cpu_clock_get_task(struct task_struct *tsk,
 		if (same_thread_group(tsk, current))
 			err = cpu_clock_sample(which_clock, tsk, &rtn);
 	} else {
-		unsigned long flags;
-		struct sighand_struct *sighand;
-
-		/*
-		 * while_each_thread() is not yet entirely RCU safe,
-		 * keep locking the group while sampling process
-		 * clock for now.
-		 */
-		sighand = lock_task_sighand(tsk, &flags);
-		if (!sighand)
-			return err;
-
 		if (tsk == current || thread_group_leader(tsk))
 			err = cpu_clock_sample_group(which_clock, tsk, &rtn);
-
-		unlock_task_sighand(tsk, &flags);
 	}
 
 	if (!err)
@@ -323,7 +332,6 @@ static int posix_cpu_clock_get(const clockid_t which_clock, struct timespec *tp)
 
 	return err;
 }
-
 
 /*
  * Validate the clockid_t for a new CPU-clock timer, and initialize the timer.
@@ -508,6 +516,10 @@ static void arm_timer(struct k_itimer *timer)
 				cputime_expires->sched_exp = exp;
 			break;
 		}
+		if (CPUCLOCK_PERTHREAD(timer->it_clock))
+			tick_dep_set_task(p, TICK_DEP_BIT_POSIX_TIMER);
+		else
+			tick_dep_set_signal(p->signal, TICK_DEP_BIT_POSIX_TIMER);
 	}
 }
 
@@ -567,43 +579,11 @@ static int cpu_timer_sample_group(const clockid_t which_clock,
 		*sample = cputime_to_expires(cputime.utime);
 		break;
 	case CPUCLOCK_SCHED:
-		*sample = cputime.sum_exec_runtime + task_delta_exec(p);
+		*sample = cputime.sum_exec_runtime;
 		break;
 	}
 	return 0;
 }
-
-#ifdef CONFIG_NO_HZ_FULL
-static void nohz_kick_work_fn(struct work_struct *work)
-{
-	tick_nohz_full_kick_all();
-}
-
-static DECLARE_WORK(nohz_kick_work, nohz_kick_work_fn);
-
-/*
- * We need the IPIs to be sent from sane process context.
- * The posix cpu timers are always set with irqs disabled.
- */
-static void posix_cpu_timer_kick_nohz(void)
-{
-	if (context_tracking_is_enabled())
-		schedule_work(&nohz_kick_work);
-}
-
-bool posix_cpu_timers_can_stop_tick(struct task_struct *tsk)
-{
-	if (!task_cputime_zero(&tsk->cputime_expires))
-		return false;
-
-	if (tsk->signal->cputimer.running)
-		return false;
-
-	return true;
-}
-#else
-static inline void posix_cpu_timer_kick_nohz(void) { }
-#endif
 
 /*
  * Guts of sys_timer_settime for CPU timers.
@@ -751,8 +731,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 		sample_to_timespec(timer->it_clock,
 				   old_incr, &old->it_interval);
 	}
-	if (!ret)
-		posix_cpu_timer_kick_nohz();
+
 	return ret;
 }
 
@@ -854,6 +833,13 @@ static void check_thread_timers(struct task_struct *tsk,
 	unsigned long long expires;
 	unsigned long soft;
 
+	/*
+	 * If cputime_expires is zero, then there are no active
+	 * per thread CPU timers.
+	 */
+	if (task_cputime_zero(&tsk->cputime_expires))
+		return;
+
 	expires = check_timers_list(timers, firing, prof_ticks(tsk));
 	tsk_expires->prof_exp = expires_to_cputime(expires);
 
@@ -866,10 +852,10 @@ static void check_thread_timers(struct task_struct *tsk,
 	/*
 	 * Check for the special case thread timers.
 	 */
-	soft = ACCESS_ONCE(sig->rlim[RLIMIT_RTTIME].rlim_cur);
+	soft = READ_ONCE(sig->rlim[RLIMIT_RTTIME].rlim_cur);
 	if (soft != RLIM_INFINITY) {
 		unsigned long hard =
-			ACCESS_ONCE(sig->rlim[RLIMIT_RTTIME].rlim_max);
+			READ_ONCE(sig->rlim[RLIMIT_RTTIME].rlim_max);
 
 		if (hard != RLIM_INFINITY &&
 		    tsk->rt.timeout > DIV_ROUND_UP(hard, USEC_PER_SEC/HZ)) {
@@ -894,16 +880,17 @@ static void check_thread_timers(struct task_struct *tsk,
 			__group_send_sig_info(SIGXCPU, SEND_SIG_PRIV, tsk);
 		}
 	}
+	if (task_cputime_zero(tsk_expires))
+		tick_dep_clear_task(tsk, TICK_DEP_BIT_POSIX_TIMER);
 }
 
-static void stop_process_timers(struct signal_struct *sig)
+static inline void stop_process_timers(struct signal_struct *sig)
 {
 	struct thread_group_cputimer *cputimer = &sig->cputimer;
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&cputimer->lock, flags);
-	cputimer->running = 0;
-	raw_spin_unlock_irqrestore(&cputimer->lock, flags);
+	/* Turn off cputimer->running. This is done without locking. */
+	WRITE_ONCE(cputimer->running, false);
+	tick_dep_clear_signal(sig, TICK_DEP_BIT_POSIX_TIMER);
 }
 
 static u32 onecputick;
@@ -954,6 +941,19 @@ static void check_process_timers(struct task_struct *tsk,
 	unsigned long soft;
 
 	/*
+	 * If cputimer is not running, then there are no active
+	 * process wide timers (POSIX 1.b, itimers, RLIMIT_CPU).
+	 */
+	if (!READ_ONCE(tsk->signal->cputimer.running))
+		return;
+
+        /*
+	 * Signify that a thread is checking for process timers.
+	 * Write access to this field is protected by the sighand lock.
+	 */
+	sig->cputimer.checking_timer = true;
+
+	/*
 	 * Collect the current process totals.
 	 */
 	thread_group_cputimer(tsk, &cputime);
@@ -972,11 +972,11 @@ static void check_process_timers(struct task_struct *tsk,
 			 SIGPROF);
 	check_cpu_itimer(tsk, &sig->it[CPUCLOCK_VIRT], &virt_expires, utime,
 			 SIGVTALRM);
-	soft = ACCESS_ONCE(sig->rlim[RLIMIT_CPU].rlim_cur);
+	soft = READ_ONCE(sig->rlim[RLIMIT_CPU].rlim_cur);
 	if (soft != RLIM_INFINITY) {
 		unsigned long psecs = cputime_to_secs(ptime);
 		unsigned long hard =
-			ACCESS_ONCE(sig->rlim[RLIMIT_CPU].rlim_max);
+			READ_ONCE(sig->rlim[RLIMIT_CPU].rlim_max);
 		cputime_t x;
 		if (psecs >= hard) {
 			/*
@@ -1007,6 +1007,8 @@ static void check_process_timers(struct task_struct *tsk,
 	sig->cputime_expires.sched_exp = sched_expires;
 	if (task_cputime_zero(&sig->cputime_expires))
 		stop_process_timers(sig);
+
+	sig->cputimer.checking_timer = false;
 }
 
 /*
@@ -1065,8 +1067,6 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 	arm_timer(timer);
 	unlock_task_sighand(p, &flags);
 
-	/* Kick full dynticks CPUs in case they need to tick on the new timer */
-	posix_cpu_timer_kick_nohz();
 out:
 	timer->it_overrun_last = timer->it_overrun;
 	timer->it_overrun = -1;
@@ -1109,28 +1109,36 @@ static inline int task_cputime_expired(const struct task_cputime *sample,
 static inline int fastpath_timer_check(struct task_struct *tsk)
 {
 	struct signal_struct *sig;
-	cputime_t utime, stime;
-
-	task_cputime(tsk, &utime, &stime);
 
 	if (!task_cputime_zero(&tsk->cputime_expires)) {
-		struct task_cputime task_sample = {
-			.utime = utime,
-			.stime = stime,
-			.sum_exec_runtime = tsk->se.sum_exec_runtime
-		};
+		struct task_cputime task_sample;
 
+		task_cputime(tsk, &task_sample.utime, &task_sample.stime);
+		task_sample.sum_exec_runtime = tsk->se.sum_exec_runtime;
 		if (task_cputime_expired(&task_sample, &tsk->cputime_expires))
 			return 1;
 	}
 
 	sig = tsk->signal;
-	if (sig->cputimer.running) {
+	/*
+	 * Check if thread group timers expired when the cputimer is
+	 * running and no other thread in the group is already checking
+	 * for thread group cputimers. These fields are read without the
+	 * sighand lock. However, this is fine because this is meant to
+	 * be a fastpath heuristic to determine whether we should try to
+	 * acquire the sighand lock to check/handle timers.
+	 *
+	 * In the worst case scenario, if 'running' or 'checking_timer' gets
+	 * set but the current thread doesn't see the change yet, we'll wait
+	 * until the next thread in the group gets a scheduler interrupt to
+	 * handle the timer. This isn't an issue in practice because these
+	 * types of delays with signals actually getting sent are expected.
+	 */
+	if (READ_ONCE(sig->cputimer.running) &&
+	    !READ_ONCE(sig->cputimer.checking_timer)) {
 		struct task_cputime group_sample;
 
-		raw_spin_lock(&sig->cputimer.lock);
-		group_sample = sig->cputimer.cputime;
-		raw_spin_unlock(&sig->cputimer.lock);
+		sample_cputime_atomic(&group_sample, &sig->cputimer.cputime_atomic);
 
 		if (task_cputime_expired(&group_sample, &sig->cputime_expires))
 			return 1;
@@ -1167,12 +1175,8 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 	 * put them on the firing list.
 	 */
 	check_thread_timers(tsk, &firing);
-	/*
-	 * If there are any active process wide timers (POSIX 1.b, itimers,
-	 * RLIMIT_CPU) cputimer must be running.
-	 */
-	if (tsk->signal->cputimer.running)
-		check_process_timers(tsk, &firing);
+
+	check_process_timers(tsk, &firing);
 
 	/*
 	 * We must release these locks before taking any timer's lock.
@@ -1236,7 +1240,7 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 		}
 
 		if (!*newval)
-			goto out;
+			return;
 		*newval += now;
 	}
 
@@ -1254,8 +1258,8 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 			tsk->signal->cputime_expires.virt_exp = *newval;
 		break;
 	}
-out:
-	posix_cpu_timer_kick_nohz();
+
+	tick_dep_set_signal(tsk->signal, TICK_DEP_BIT_POSIX_TIMER);
 }
 
 static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
@@ -1348,8 +1352,7 @@ static long posix_cpu_nsleep_restart(struct restart_block *restart_block);
 static int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 			    struct timespec *rqtp, struct timespec __user *rmtp)
 {
-	struct restart_block *restart_block =
-		&current_thread_info()->restart_block;
+	struct restart_block *restart_block = &current->restart_block;
 	struct itimerspec it;
 	int error;
 

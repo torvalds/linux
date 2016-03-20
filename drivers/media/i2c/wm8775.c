@@ -34,7 +34,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/wm8775.h>
+#include <media/i2c/wm8775.h>
 
 MODULE_DESCRIPTION("wm8775 driver");
 MODULE_AUTHOR("Ulf Eklund, Hans Verkuil");
@@ -318,7 +318,6 @@ MODULE_DEVICE_TABLE(i2c, wm8775_id);
 
 static struct i2c_driver wm8775_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "wm8775",
 	},
 	.probe		= wm8775_probe,

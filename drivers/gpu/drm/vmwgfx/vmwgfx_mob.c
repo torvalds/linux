@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2012 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2012-2015 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -31,7 +31,7 @@
  * If we set up the screen target otable, screen objects stop working.
  */
 
-#define VMW_OTABLE_SETUP_SUB ((VMWGFX_ENABLE_SCREEN_TARGET_OTABLE) ? 0 : 1)
+#define VMW_OTABLE_SETUP_SUB ((VMWGFX_ENABLE_SCREEN_TARGET_OTABLE ? 0 : 1))
 
 #ifdef CONFIG_64BIT
 #define VMW_PPN_SIZE 8
@@ -67,9 +67,23 @@ struct vmw_mob {
  * @size:           Size of the table (page-aligned).
  * @page_table:     Pointer to a struct vmw_mob holding the page table.
  */
-struct vmw_otable {
-	unsigned long size;
-	struct vmw_mob *page_table;
+static const struct vmw_otable pre_dx_tables[] = {
+	{VMWGFX_NUM_MOB * SVGA3D_OTABLE_MOB_ENTRY_SIZE, NULL, true},
+	{VMWGFX_NUM_GB_SURFACE * SVGA3D_OTABLE_SURFACE_ENTRY_SIZE, NULL, true},
+	{VMWGFX_NUM_GB_CONTEXT * SVGA3D_OTABLE_CONTEXT_ENTRY_SIZE, NULL, true},
+	{VMWGFX_NUM_GB_SHADER * SVGA3D_OTABLE_SHADER_ENTRY_SIZE, NULL, true},
+	{VMWGFX_NUM_GB_SCREEN_TARGET * SVGA3D_OTABLE_SCREEN_TARGET_ENTRY_SIZE,
+	 NULL, VMWGFX_ENABLE_SCREEN_TARGET_OTABLE}
+};
+
+static const struct vmw_otable dx_tables[] = {
+	{VMWGFX_NUM_MOB * SVGA3D_OTABLE_MOB_ENTRY_SIZE, NULL, true},
+	{VMWGFX_NUM_GB_SURFACE * SVGA3D_OTABLE_SURFACE_ENTRY_SIZE, NULL, true},
+	{VMWGFX_NUM_GB_CONTEXT * SVGA3D_OTABLE_CONTEXT_ENTRY_SIZE, NULL, true},
+	{VMWGFX_NUM_GB_SHADER * SVGA3D_OTABLE_SHADER_ENTRY_SIZE, NULL, true},
+	{VMWGFX_NUM_GB_SCREEN_TARGET * SVGA3D_OTABLE_SCREEN_TARGET_ENTRY_SIZE,
+	 NULL, VMWGFX_ENABLE_SCREEN_TARGET_OTABLE},
+	{VMWGFX_NUM_DXCONTEXT * sizeof(SVGAOTableDXContextEntry), NULL, true},
 };
 
 static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
@@ -92,6 +106,7 @@ static void vmw_mob_pt_setup(struct vmw_mob *mob,
  */
 static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 				 SVGAOTableType type,
+				 struct ttm_buffer_object *otable_bo,
 				 unsigned long offset,
 				 struct vmw_otable *otable)
 {
@@ -106,7 +121,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 
 	BUG_ON(otable->page_table != NULL);
 
-	vsgt = vmw_bo_sg_table(dev_priv->otable_bo);
+	vsgt = vmw_bo_sg_table(otable_bo);
 	vmw_piter_start(&iter, vsgt, offset >> PAGE_SHIFT);
 	WARN_ON(!vmw_piter_next(&iter));
 
@@ -142,7 +157,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 	cmd->header.id = SVGA_3D_CMD_SET_OTABLE_BASE64;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.type = type;
-	cmd->body.baseAddress = cpu_to_le64(mob->pt_root_page >> PAGE_SHIFT);
+	cmd->body.baseAddress = mob->pt_root_page >> PAGE_SHIFT;
 	cmd->body.sizeInBytes = otable->size;
 	cmd->body.validSizeInBytes = 0;
 	cmd->body.ptDepth = mob->pt_level;
@@ -191,17 +206,18 @@ static void vmw_takedown_otable_base(struct vmw_private *dev_priv,
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving FIFO space for OTable "
 			  "takedown.\n");
-	} else {
-		memset(cmd, 0, sizeof(*cmd));
-		cmd->header.id = SVGA_3D_CMD_SET_OTABLE_BASE;
-		cmd->header.size = sizeof(cmd->body);
-		cmd->body.type = type;
-		cmd->body.baseAddress = 0;
-		cmd->body.sizeInBytes = 0;
-		cmd->body.validSizeInBytes = 0;
-		cmd->body.ptDepth = SVGA3D_MOBFMT_INVALID;
-		vmw_fifo_commit(dev_priv, sizeof(*cmd));
+		return;
 	}
+
+	memset(cmd, 0, sizeof(*cmd));
+	cmd->header.id = SVGA_3D_CMD_SET_OTABLE_BASE;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.type = type;
+	cmd->body.baseAddress = 0;
+	cmd->body.sizeInBytes = 0;
+	cmd->body.validSizeInBytes = 0;
+	cmd->body.ptDepth = SVGA3D_MOBFMT_INVALID;
+	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 
 	if (bo) {
 		int ret;
@@ -217,47 +233,21 @@ static void vmw_takedown_otable_base(struct vmw_private *dev_priv,
 	otable->page_table = NULL;
 }
 
-/*
- * vmw_otables_setup - Set up guest backed memory object tables
- *
- * @dev_priv:       Pointer to a device private structure
- *
- * Takes care of the device guest backed surface
- * initialization, by setting up the guest backed memory object tables.
- * Returns 0 on success and various error codes on failure. A succesful return
- * means the object tables can be taken down using the vmw_otables_takedown
- * function.
- */
-int vmw_otables_setup(struct vmw_private *dev_priv)
+
+static int vmw_otable_batch_setup(struct vmw_private *dev_priv,
+				  struct vmw_otable_batch *batch)
 {
 	unsigned long offset;
 	unsigned long bo_size;
-	struct vmw_otable *otables;
+	struct vmw_otable *otables = batch->otables;
 	SVGAOTableType i;
 	int ret;
 
-	otables = kzalloc(SVGA_OTABLE_DX9_MAX * sizeof(*otables),
-			  GFP_KERNEL);
-	if (unlikely(otables == NULL)) {
-		DRM_ERROR("Failed to allocate space for otable "
-			  "metadata.\n");
-		return -ENOMEM;
-	}
-
-	otables[SVGA_OTABLE_MOB].size =
-		VMWGFX_NUM_MOB * SVGA3D_OTABLE_MOB_ENTRY_SIZE;
-	otables[SVGA_OTABLE_SURFACE].size =
-		VMWGFX_NUM_GB_SURFACE * SVGA3D_OTABLE_SURFACE_ENTRY_SIZE;
-	otables[SVGA_OTABLE_CONTEXT].size =
-		VMWGFX_NUM_GB_CONTEXT * SVGA3D_OTABLE_CONTEXT_ENTRY_SIZE;
-	otables[SVGA_OTABLE_SHADER].size =
-		VMWGFX_NUM_GB_SHADER * SVGA3D_OTABLE_SHADER_ENTRY_SIZE;
-	otables[SVGA_OTABLE_SCREEN_TARGET].size =
-		VMWGFX_NUM_GB_SCREEN_TARGET *
-		SVGA3D_OTABLE_SCREEN_TARGET_ENTRY_SIZE;
-
 	bo_size = 0;
-	for (i = 0; i < SVGA_OTABLE_DX9_MAX; ++i) {
+	for (i = 0; i < batch->num_otables; ++i) {
+		if (!otables[i].enabled)
+			continue;
+
 		otables[i].size =
 			(otables[i].size + PAGE_SIZE - 1) & PAGE_MASK;
 		bo_size += otables[i].size;
@@ -267,46 +257,114 @@ int vmw_otables_setup(struct vmw_private *dev_priv)
 			    ttm_bo_type_device,
 			    &vmw_sys_ne_placement,
 			    0, false, NULL,
-			    &dev_priv->otable_bo);
+			    &batch->otable_bo);
 
 	if (unlikely(ret != 0))
 		goto out_no_bo;
 
-	ret = ttm_bo_reserve(dev_priv->otable_bo, false, true, false, NULL);
+	ret = ttm_bo_reserve(batch->otable_bo, false, true, false, NULL);
 	BUG_ON(ret != 0);
-	ret = vmw_bo_driver.ttm_tt_populate(dev_priv->otable_bo->ttm);
+	ret = vmw_bo_driver.ttm_tt_populate(batch->otable_bo->ttm);
 	if (unlikely(ret != 0))
 		goto out_unreserve;
-	ret = vmw_bo_map_dma(dev_priv->otable_bo);
+	ret = vmw_bo_map_dma(batch->otable_bo);
 	if (unlikely(ret != 0))
 		goto out_unreserve;
 
-	ttm_bo_unreserve(dev_priv->otable_bo);
+	ttm_bo_unreserve(batch->otable_bo);
 
 	offset = 0;
-	for (i = 0; i < SVGA_OTABLE_DX9_MAX - VMW_OTABLE_SETUP_SUB; ++i) {
-		ret = vmw_setup_otable_base(dev_priv, i, offset,
+	for (i = 0; i < batch->num_otables; ++i) {
+		if (!batch->otables[i].enabled)
+			continue;
+
+		ret = vmw_setup_otable_base(dev_priv, i, batch->otable_bo,
+					    offset,
 					    &otables[i]);
 		if (unlikely(ret != 0))
 			goto out_no_setup;
 		offset += otables[i].size;
 	}
 
-	dev_priv->otables = otables;
 	return 0;
 
 out_unreserve:
-	ttm_bo_unreserve(dev_priv->otable_bo);
+	ttm_bo_unreserve(batch->otable_bo);
 out_no_setup:
-	for (i = 0; i < SVGA_OTABLE_DX9_MAX - VMW_OTABLE_SETUP_SUB; ++i)
-		vmw_takedown_otable_base(dev_priv, i, &otables[i]);
+	for (i = 0; i < batch->num_otables; ++i) {
+		if (batch->otables[i].enabled)
+			vmw_takedown_otable_base(dev_priv, i,
+						 &batch->otables[i]);
+	}
 
-	ttm_bo_unref(&dev_priv->otable_bo);
+	ttm_bo_unref(&batch->otable_bo);
 out_no_bo:
-	kfree(otables);
 	return ret;
 }
 
+/*
+ * vmw_otables_setup - Set up guest backed memory object tables
+ *
+ * @dev_priv:       Pointer to a device private structure
+ *
+ * Takes care of the device guest backed surface
+ * initialization, by setting up the guest backed memory object tables.
+ * Returns 0 on success and various error codes on failure. A successful return
+ * means the object tables can be taken down using the vmw_otables_takedown
+ * function.
+ */
+int vmw_otables_setup(struct vmw_private *dev_priv)
+{
+	struct vmw_otable **otables = &dev_priv->otable_batch.otables;
+	int ret;
+
+	if (dev_priv->has_dx) {
+		*otables = kmalloc(sizeof(dx_tables), GFP_KERNEL);
+		if (*otables == NULL)
+			return -ENOMEM;
+
+		memcpy(*otables, dx_tables, sizeof(dx_tables));
+		dev_priv->otable_batch.num_otables = ARRAY_SIZE(dx_tables);
+	} else {
+		*otables = kmalloc(sizeof(pre_dx_tables), GFP_KERNEL);
+		if (*otables == NULL)
+			return -ENOMEM;
+
+		memcpy(*otables, pre_dx_tables, sizeof(pre_dx_tables));
+		dev_priv->otable_batch.num_otables = ARRAY_SIZE(pre_dx_tables);
+	}
+
+	ret = vmw_otable_batch_setup(dev_priv, &dev_priv->otable_batch);
+	if (unlikely(ret != 0))
+		goto out_setup;
+
+	return 0;
+
+out_setup:
+	kfree(*otables);
+	return ret;
+}
+
+static void vmw_otable_batch_takedown(struct vmw_private *dev_priv,
+			       struct vmw_otable_batch *batch)
+{
+	SVGAOTableType i;
+	struct ttm_buffer_object *bo = batch->otable_bo;
+	int ret;
+
+	for (i = 0; i < batch->num_otables; ++i)
+		if (batch->otables[i].enabled)
+			vmw_takedown_otable_base(dev_priv, i,
+						 &batch->otables[i]);
+
+	ret = ttm_bo_reserve(bo, false, true, false, NULL);
+	BUG_ON(ret != 0);
+
+	vmw_fence_single_bo(bo, NULL);
+	ttm_bo_unreserve(bo);
+
+	ttm_bo_unref(&batch->otable_bo);
+}
 
 /*
  * vmw_otables_takedown - Take down guest backed memory object tables
@@ -317,25 +375,9 @@ out_no_bo:
  */
 void vmw_otables_takedown(struct vmw_private *dev_priv)
 {
-	SVGAOTableType i;
-	struct ttm_buffer_object *bo = dev_priv->otable_bo;
-	int ret;
-
-	for (i = 0; i < SVGA_OTABLE_DX9_MAX - VMW_OTABLE_SETUP_SUB; ++i)
-		vmw_takedown_otable_base(dev_priv, i,
-					 &dev_priv->otables[i]);
-
-	ret = ttm_bo_reserve(bo, false, true, false, NULL);
-	BUG_ON(ret != 0);
-
-	vmw_fence_single_bo(bo, NULL);
-	ttm_bo_unreserve(bo);
-
-	ttm_bo_unref(&dev_priv->otable_bo);
-	kfree(dev_priv->otables);
-	dev_priv->otables = NULL;
+	vmw_otable_batch_takedown(dev_priv, &dev_priv->otable_batch);
+	kfree(dev_priv->otable_batch.otables);
 }
-
 
 /*
  * vmw_mob_calculate_pt_pages - Calculate the number of page table pages
@@ -409,7 +451,7 @@ static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
 		goto out_unreserve;
 
 	ttm_bo_unreserve(mob->pt_bo);
-	
+
 	return 0;
 
 out_unreserve:
@@ -429,15 +471,15 @@ out_unreserve:
  * *@addr according to the page table entry size.
  */
 #if (VMW_PPN_SIZE == 8)
-static void vmw_mob_assign_ppn(__le32 **addr, dma_addr_t val)
+static void vmw_mob_assign_ppn(u32 **addr, dma_addr_t val)
 {
-	*((__le64 *) *addr) = cpu_to_le64(val >> PAGE_SHIFT);
+	*((u64 *) *addr) = val >> PAGE_SHIFT;
 	*addr += 2;
 }
 #else
-static void vmw_mob_assign_ppn(__le32 **addr, dma_addr_t val)
+static void vmw_mob_assign_ppn(u32 **addr, dma_addr_t val)
 {
-	*(*addr)++ = cpu_to_le32(val >> PAGE_SHIFT);
+	*(*addr)++ = val >> PAGE_SHIFT;
 }
 #endif
 
@@ -459,7 +501,7 @@ static unsigned long vmw_mob_build_pt(struct vmw_piter *data_iter,
 	unsigned long pt_size = num_data_pages * VMW_PPN_SIZE;
 	unsigned long num_pt_pages = DIV_ROUND_UP(pt_size, PAGE_SIZE);
 	unsigned long pt_page;
-	__le32 *addr, *save_addr;
+	u32 *addr, *save_addr;
 	unsigned long i;
 	struct page *page;
 
@@ -574,7 +616,7 @@ void vmw_mob_unbind(struct vmw_private *dev_priv,
 		vmw_fence_single_bo(bo, NULL);
 		ttm_bo_unreserve(bo);
 	}
-	vmw_3d_resource_dec(dev_priv, false);
+	vmw_fifo_resource_dec(dev_priv);
 }
 
 /*
@@ -627,7 +669,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 		mob->pt_level += VMW_MOBFMT_PTDEPTH_1 - SVGA3D_MOBFMT_PTDEPTH_1;
 	}
 
-	(void) vmw_3d_resource_inc(dev_priv, false);
+	vmw_fifo_resource_inc(dev_priv);
 
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
@@ -640,7 +682,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.mobid = mob_id;
 	cmd->body.ptDepth = mob->pt_level;
-	cmd->body.base = cpu_to_le64(mob->pt_root_page >> PAGE_SHIFT);
+	cmd->body.base = mob->pt_root_page >> PAGE_SHIFT;
 	cmd->body.sizeInBytes = num_data_pages * PAGE_SIZE;
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
@@ -648,7 +690,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 	return 0;
 
 out_no_cmd_space:
-	vmw_3d_resource_dec(dev_priv, false);
+	vmw_fifo_resource_dec(dev_priv);
 	if (pt_set_up)
 		ttm_bo_unref(&mob->pt_bo);
 

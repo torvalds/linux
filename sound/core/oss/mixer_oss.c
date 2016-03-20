@@ -24,6 +24,7 @@
 #include <linux/time.h>
 #include <linux/string.h>
 #include <linux/module.h>
+#include <linux/compat.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/control.h>
@@ -397,7 +398,12 @@ int snd_mixer_oss_ioctl_card(struct snd_card *card, unsigned int cmd, unsigned l
 
 #ifdef CONFIG_COMPAT
 /* all compatible */
-#define snd_mixer_oss_ioctl_compat	snd_mixer_oss_ioctl
+static long snd_mixer_oss_ioctl_compat(struct file *file, unsigned int cmd,
+				       unsigned long arg)
+{
+	return snd_mixer_oss_ioctl1(file->private_data, cmd,
+				    (unsigned long)compat_ptr(arg));
+}
 #else
 #define snd_mixer_oss_ioctl_compat	NULL
 #endif
@@ -1111,7 +1117,7 @@ static int snd_mixer_oss_build_input(struct snd_mixer_oss *mixer, struct snd_mix
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 /*
  */
 #define MIXER_VOL(name) [SOUND_MIXER_##name] = #name
@@ -1177,7 +1183,8 @@ static void snd_mixer_oss_proc_write(struct snd_info_entry *entry,
 	struct snd_mixer_oss *mixer = entry->private_data;
 	char line[128], str[32], idxstr[16];
 	const char *cptr;
-	int ch, idx;
+	unsigned int idx;
+	int ch;
 	struct snd_mixer_oss_assign_table *tbl;
 	struct slot *slot;
 
@@ -1212,10 +1219,8 @@ static void snd_mixer_oss_proc_write(struct snd_info_entry *entry,
 			/* not changed */
 			goto __unlock;
 		tbl = kmalloc(sizeof(*tbl), GFP_KERNEL);
-		if (! tbl) {
-			pr_err("ALSA: mixer_oss: no memory\n");
+		if (!tbl)
 			goto __unlock;
-		}
 		tbl->oss_id = ch;
 		tbl->name = kstrdup(str, GFP_KERNEL);
 		if (! tbl->name) {
@@ -1257,10 +1262,10 @@ static void snd_mixer_oss_proc_done(struct snd_mixer_oss *mixer)
 	snd_info_free_entry(mixer->proc_entry);
 	mixer->proc_entry = NULL;
 }
-#else /* !CONFIG_PROC_FS */
+#else /* !CONFIG_SND_PROC_FS */
 #define snd_mixer_oss_proc_init(mix)
 #define snd_mixer_oss_proc_done(mix)
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SND_PROC_FS */
 
 static void snd_mixer_oss_build(struct snd_mixer_oss *mixer)
 {

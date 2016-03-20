@@ -1,11 +1,11 @@
 /*
- *	HP WatchDog Driver
+ *	HPE WatchDog Driver
  *	based on
  *
  *	SoftDog	0.05:	A Software Watchdog Device
  *
- *	(c) Copyright 2007 Hewlett-Packard Development Company, L.P.
- *	Thomas Mingarelli <thomas.mingarelli@hp.com>
+ *	(c) Copyright 2015 Hewlett Packard Enterprise Development LP
+ *	Thomas Mingarelli <thomas.mingarelli@hpe.com>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -580,7 +580,7 @@ static const struct watchdog_info ident = {
 	.options = WDIOF_SETTIMEOUT |
 		   WDIOF_KEEPALIVEPING |
 		   WDIOF_MAGICCLOSE,
-	.identity = "HP iLO2+ HW Watchdog Timer",
+	.identity = "HPE iLO2+ HW Watchdog Timer",
 };
 
 static long hpwdt_ioctl(struct file *file, unsigned int cmd,
@@ -588,7 +588,7 @@ static long hpwdt_ioctl(struct file *file, unsigned int cmd,
 {
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
-	int new_margin;
+	int new_margin, options;
 	int ret = -ENOTTY;
 
 	switch (cmd) {
@@ -606,6 +606,20 @@ static long hpwdt_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_KEEPALIVE:
 		hpwdt_ping();
 		ret = 0;
+		break;
+
+	case WDIOC_SETOPTIONS:
+		ret = get_user(options, p);
+		if (ret)
+			break;
+
+		if (options & WDIOS_DISABLECARD)
+			hpwdt_stop();
+
+		if (options & WDIOS_ENABLECARD) {
+			hpwdt_start();
+			hpwdt_ping();
+		}
 		break;
 
 	case WDIOC_SETTIMEOUT:
@@ -744,8 +758,8 @@ static int hpwdt_init_nmi_decoding(struct pci_dev *dev)
 		goto error2;
 
 	dev_info(&dev->dev,
-			"HP Watchdog Timer Driver: NMI decoding initialized"
-			", allow kernel dump: %s (default = 0/OFF)\n",
+			"HPE Watchdog Timer Driver: NMI decoding initialized"
+			", allow kernel dump: %s (default = 1/ON)\n",
 			(allow_kdump == 0) ? "OFF" : "ON");
 	return 0;
 
@@ -849,7 +863,7 @@ static int hpwdt_init_one(struct pci_dev *dev,
 		goto error_misc_register;
 	}
 
-	dev_info(&dev->dev, "HP Watchdog Timer Driver: %s"
+	dev_info(&dev->dev, "HPE Watchdog Timer Driver: %s"
 			", timer margin: %d seconds (nowayout=%d).\n",
 			HPWDT_VERSION, soft_margin, nowayout);
 	return 0;

@@ -29,12 +29,6 @@
 	dsb
 .endm
 
-ppa_zero_params:
-	.word		0x0
-
-ppa_por_params:
-	.word		1, 0
-
 #ifdef CONFIG_ARCH_OMAP4
 
 /*
@@ -266,7 +260,9 @@ ENTRY(omap4_cpu_resume)
 	beq	skip_ns_smp_enable
 ppa_actrl_retry:
 	mov     r0, #OMAP4_PPA_CPU_ACTRL_SMP_INDEX
-	adr	r3, ppa_zero_params		@ Pointer to parameters
+	adr	r1, ppa_zero_params_offset
+	ldr	r3, [r1]
+	add	r3, r3, r1			@ Pointer to ppa_zero_params
 	mov	r1, #0x0			@ Process ID
 	mov	r2, #0x4			@ Flag
 	mov	r6, #0xff
@@ -303,7 +299,9 @@ skip_ns_smp_enable:
 	ldr     r0, =OMAP4_PPA_L2_POR_INDEX
 	ldr     r1, =OMAP44XX_SAR_RAM_BASE
 	ldr     r4, [r1, #L2X0_PREFETCH_CTRL_OFFSET]
-	adr     r3, ppa_por_params
+	adr     r1, ppa_por_params_offset
+	ldr	r3, [r1]
+	add	r3, r3, r1			@ Pointer to ppa_por_params
 	str     r4, [r3, #0x04]
 	mov	r1, #0x0			@ Process ID
 	mov	r2, #0x4			@ Flag
@@ -328,21 +326,19 @@ skip_l2en:
 #endif
 
 	b	cpu_resume			@ Jump to generic resume
+ppa_por_params_offset:
+	.long	ppa_por_params - .
 ENDPROC(omap4_cpu_resume)
 #endif	/* CONFIG_ARCH_OMAP4 */
 
 #endif	/* defined(CONFIG_SMP) && defined(CONFIG_PM) */
 
-#ifndef CONFIG_OMAP4_ERRATA_I688
-ENTRY(omap_bus_sync)
-	ret	lr
-ENDPROC(omap_bus_sync)
-#endif
-
 ENTRY(omap_do_wfi)
 	stmfd	sp!, {lr}
+#ifdef CONFIG_OMAP_INTERCONNECT_BARRIER
 	/* Drain interconnect write buffers. */
-	bl omap_bus_sync
+	bl	omap_interconnect_sync
+#endif
 
 	/*
 	 * Execute an ISB instruction to ensure that all of the
@@ -384,4 +380,13 @@ ENTRY(omap_do_wfi)
 	nop
 
 	ldmfd	sp!, {pc}
+ppa_zero_params_offset:
+	.long	ppa_zero_params - .
 ENDPROC(omap_do_wfi)
+
+	.data
+ppa_zero_params:
+	.word		0
+
+ppa_por_params:
+	.word		1, 0

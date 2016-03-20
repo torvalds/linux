@@ -534,9 +534,9 @@ int wl12xx_acx_sg_cfg(struct wl1271 *wl)
 	}
 
 	/* BT-WLAN coext parameters */
-	for (i = 0; i < CONF_SG_PARAMS_MAX; i++)
+	for (i = 0; i < WLCORE_CONF_SG_PARAMS_MAX; i++)
 		param->params[i] = cpu_to_le32(c->params[i]);
-	param->param_idx = CONF_SG_PARAMS_ALL;
+	param->param_idx = WLCORE_CONF_SG_PARAMS_ALL;
 
 	ret = wl1271_cmd_configure(wl, ACX_SG_CFG, param, sizeof(*param));
 	if (ret < 0) {
@@ -1725,7 +1725,7 @@ int wl12xx_acx_config_hangover(struct wl1271 *wl)
 	acx->decrease_delta = conf->decrease_delta;
 	acx->quiet_time = conf->quiet_time;
 	acx->increase_time = conf->increase_time;
-	acx->window_size = acx->window_size;
+	acx->window_size = conf->window_size;
 
 	ret = wl1271_cmd_configure(wl, ACX_CONFIG_HANGOVER, acx,
 				   sizeof(*acx));

@@ -31,7 +31,10 @@ DEFINE_SPINLOCK(mq_lock);
 struct ipc_namespace init_ipc_ns = {
 	.count		= ATOMIC_INIT(1),
 	.user_ns = &init_user_ns,
-	.proc_inum = PROC_IPC_INIT_INO,
+	.ns.inum = PROC_IPC_INIT_INO,
+#ifdef CONFIG_IPC_NS
+	.ns.ops = &ipcns_operations,
+#endif
 };
 
 atomic_t nr_ipc_ns = ATOMIC_INIT(1);
@@ -120,7 +123,6 @@ struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
 	size_t len = src->m_ts;
 	size_t alen;
 
-	BUG_ON(dst == NULL);
 	if (src->m_ts > dst->m_ts)
 		return ERR_PTR(-EINVAL);
 

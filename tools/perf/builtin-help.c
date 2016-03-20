@@ -6,11 +6,11 @@
 #include "perf.h"
 #include "util/cache.h"
 #include "builtin.h"
-#include "util/exec_cmd.h"
+#include <subcmd/exec-cmd.h>
 #include "common-cmds.h"
-#include "util/parse-options.h"
-#include "util/run-command.h"
-#include "util/help.h"
+#include <subcmd/parse-options.h>
+#include <subcmd/run-command.h>
+#include <subcmd/help.h>
 #include "util/debug.h"
 
 static struct man_viewer_list {
@@ -86,8 +86,7 @@ static int check_emacsclient_version(void)
 		return -1;
 	}
 
-	strbuf_remove(&buffer, 0, strlen("emacsclient"));
-	version = atoi(buffer.buf);
+	version = atoi(buffer.buf + strlen("emacsclient"));
 
 	if (version < 22) {
 		fprintf(stderr,
@@ -103,6 +102,8 @@ static int check_emacsclient_version(void)
 
 static void exec_woman_emacs(const char *path, const char *page)
 {
+	char sbuf[STRERR_BUFSIZE];
+
 	if (!check_emacsclient_version()) {
 		/* This works only with emacsclient version >= 22. */
 		struct strbuf man_page = STRBUF_INIT;
@@ -111,16 +112,19 @@ static void exec_woman_emacs(const char *path, const char *page)
 			path = "emacsclient";
 		strbuf_addf(&man_page, "(woman \"%s\")", page);
 		execlp(path, "emacsclient", "-e", man_page.buf, NULL);
-		warning("failed to exec '%s': %s", path, strerror(errno));
+		warning("failed to exec '%s': %s", path,
+			strerror_r(errno, sbuf, sizeof(sbuf)));
 	}
 }
 
 static void exec_man_konqueror(const char *path, const char *page)
 {
 	const char *display = getenv("DISPLAY");
+
 	if (display && *display) {
 		struct strbuf man_page = STRBUF_INIT;
 		const char *filename = "kfmclient";
+		char sbuf[STRERR_BUFSIZE];
 
 		/* It's simpler to launch konqueror using kfmclient. */
 		if (path) {
@@ -139,24 +143,31 @@ static void exec_man_konqueror(const char *path, const char *page)
 			path = "kfmclient";
 		strbuf_addf(&man_page, "man:%s(1)", page);
 		execlp(path, filename, "newTab", man_page.buf, NULL);
-		warning("failed to exec '%s': %s", path, strerror(errno));
+		warning("failed to exec '%s': %s", path,
+			strerror_r(errno, sbuf, sizeof(sbuf)));
 	}
 }
 
 static void exec_man_man(const char *path, const char *page)
 {
+	char sbuf[STRERR_BUFSIZE];
+
 	if (!path)
 		path = "man";
 	execlp(path, "man", page, NULL);
-	warning("failed to exec '%s': %s", path, strerror(errno));
+	warning("failed to exec '%s': %s", path,
+		strerror_r(errno, sbuf, sizeof(sbuf)));
 }
 
 static void exec_man_cmd(const char *cmd, const char *page)
 {
 	struct strbuf shell_cmd = STRBUF_INIT;
+	char sbuf[STRERR_BUFSIZE];
+
 	strbuf_addf(&shell_cmd, "%s %s", cmd, page);
 	execl("/bin/sh", "sh", "-c", shell_cmd.buf, NULL);
-	warning("failed to exec '%s': %s", cmd, strerror(errno));
+	warning("failed to exec '%s': %s", cmd,
+		strerror_r(errno, sbuf, sizeof(sbuf)));
 }
 
 static void add_man_viewer(const char *name)
@@ -261,7 +272,7 @@ static int perf_help_config(const char *var, const char *value, void *cb)
 	if (!prefixcmp(var, "man."))
 		return add_man_viewer_info(var, value);
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
 static struct cmdnames main_cmds, other_cmds;
@@ -395,7 +406,7 @@ static int get_html_page_path(struct strbuf *page_path, const char *page)
 #ifndef open_html
 static void open_html(const char *path)
 {
-	execl_perf_cmd("web--browse", "-c", "help.browser", path, NULL);
+	execl_cmd("web--browse", "-c", "help.browser", path, NULL);
 }
 #endif
 
@@ -425,7 +436,18 @@ int cmd_help(int argc, const char **argv, const char *prefix __maybe_unused)
 			HELP_FORMAT_INFO),
 	OPT_END(),
 	};
-	const char * const builtin_help_usage[] = {
+	const char * const builtin_help_subcommands[] = {
+		"buildid-cache", "buildid-list", "diff", "evlist", "help", "list",
+		"record", "report", "bench", "stat", "timechart", "top", "annotate",
+		"script", "sched", "kmem", "lock", "kvm", "test", "inject", "mem", "data",
+#ifdef HAVE_LIBELF_SUPPORT
+		"probe",
+#endif
+#ifdef HAVE_LIBAUDIT_SUPPORT
+		"trace",
+#endif
+	NULL };
+	const char *builtin_help_usage[] = {
 		"perf help [--all] [--man|--web|--info] [command]",
 		NULL
 	};
@@ -436,11 +458,11 @@ int cmd_help(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	perf_config(perf_help_config, &help_format);
 
-	argc = parse_options(argc, argv, builtin_help_options,
-			builtin_help_usage, 0);
+	argc = parse_options_subcommand(argc, argv, builtin_help_options,
+			builtin_help_subcommands, builtin_help_usage, 0);
 
 	if (show_all) {
-		printf("\n usage: %s\n\n", perf_usage_string);
+		printf("\n Usage: %s\n\n", perf_usage_string);
 		list_commands("perf commands", &main_cmds, &other_cmds);
 		printf(" %s\n\n", perf_more_info_string);
 		return 0;

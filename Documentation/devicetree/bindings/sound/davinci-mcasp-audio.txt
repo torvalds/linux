@@ -32,7 +32,7 @@ Optional properties:
 - rx-num-evt : FIFO levels.
 - sram-size-playback : size of sram to be allocated during playback
 - sram-size-capture  : size of sram to be allocated during capture
-- interrupts : Interrupt numbers for McASP, currently not used by the driver
+- interrupts : Interrupt numbers for McASP
 - interrupt-names : Known interrupt names are "tx" and "rx"
 - pinctrl-0: Should specify pin control group used for this controller.
 - pinctrl-names: Should contain only one value - "default", for more details

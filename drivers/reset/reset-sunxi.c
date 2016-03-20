@@ -102,13 +102,14 @@ static int sunxi_reset_init(struct device_node *np)
 		goto err_alloc;
 	}
 
+	spin_lock_init(&data->lock);
+
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = size * 32;
 	data->rcdev.ops = &sunxi_reset_ops;
 	data->rcdev.of_node = np;
-	reset_controller_register(&data->rcdev);
 
-	return 0;
+	return reset_controller_register(&data->rcdev);
 
 err_alloc:
 	kfree(data);
@@ -120,7 +121,7 @@ err_alloc:
  * our system, before we can even think of using a regular device
  * driver for it.
  */
-static const struct of_device_id sunxi_early_reset_dt_ids[] __initdata = {
+static const struct of_device_id sunxi_early_reset_dt_ids[] __initconst = {
 	{ .compatible = "allwinner,sun6i-a31-ahb1-reset", },
 	{ /* sentinel */ },
 };
@@ -157,6 +158,8 @@ static int sunxi_reset_probe(struct platform_device *pdev)
 	if (IS_ERR(data->membase))
 		return PTR_ERR(data->membase);
 
+	spin_lock_init(&data->lock);
+
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = resource_size(res) * 32;
 	data->rcdev.ops = &sunxi_reset_ops;
@@ -179,7 +182,6 @@ static struct platform_driver sunxi_reset_driver = {
 	.remove	= sunxi_reset_remove,
 	.driver = {
 		.name		= "sunxi-reset",
-		.owner		= THIS_MODULE,
 		.of_match_table	= sunxi_reset_dt_ids,
 	},
 };

@@ -459,7 +459,6 @@ static int mc13783_regulator_probe(struct platform_device *pdev)
 static struct platform_driver mc13783_regulator_driver = {
 	.driver	= {
 		.name	= "mc13783-regulator",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= mc13783_regulator_probe,
 };

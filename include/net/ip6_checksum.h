@@ -37,8 +37,7 @@
 #ifndef _HAVE_ARCH_IPV6_CSUM
 __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 			const struct in6_addr *daddr,
-			__u32 len, unsigned short proto,
-			__wsum csum);
+			__u32 len, __u8 proto, __wsum csum);
 #endif
 
 static inline __wsum ip6_compute_pseudo(struct sk_buff *skb, int proto)
@@ -46,6 +45,14 @@ static inline __wsum ip6_compute_pseudo(struct sk_buff *skb, int proto)
 	return ~csum_unfold(csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 					    &ipv6_hdr(skb)->daddr,
 					    skb->len, proto, 0));
+}
+
+static inline __wsum ip6_gro_compute_pseudo(struct sk_buff *skb, int proto)
+{
+	const struct ipv6hdr *iph = skb_gro_network_header(skb);
+
+	return ~csum_unfold(csum_ipv6_magic(&iph->saddr, &iph->daddr,
+					    skb_gro_len(skb), proto, 0));
 }
 
 static __inline__ __sum16 tcp_v6_check(int len,

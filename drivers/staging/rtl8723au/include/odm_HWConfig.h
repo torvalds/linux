@@ -67,9 +67,9 @@
 
 struct phy_rx_agc_info {
 	#ifdef __LITTLE_ENDIAN
-		u8	gain:7,trsw:1;
+		u8	gain:7, trsw:1;
 	#else
-		u8	trsw:1,gain:7;
+		u8	trsw:1, gain:7;
 	#endif
 };
 
@@ -141,8 +141,6 @@ struct phy_status_rpt_8195 {
 #endif
 };
 
-
-void odm_Init_RSSIForDM23a(struct dm_odm_t *pDM_Odm);
 
 void
 ODM_PhyStatusQuery23a(

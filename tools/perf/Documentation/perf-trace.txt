@@ -20,7 +20,7 @@ scheduling events, etc.
 This is a live mode tool in addition to working with perf.data files like
 the other perf tools. Files can be generated using the 'perf record' command
 but the session needs to include the raw_syscalls events (-e 'raw_syscalls:*').
-Alernatively, the 'perf trace record' can be used as a shortcut to
+Alternatively, 'perf trace record' can be used as a shortcut to
 automatically include the raw_syscalls events when writing events to a file.
 
 The following options apply to perf trace; options to perf trace record are
@@ -35,7 +35,7 @@ OPTIONS
 
 -e::
 --expr::
-	List of events to show, currently only syscall names.
+	List of syscalls to show, currently only syscall names.
 	Prefixing with ! shows all syscalls but the ones specified.  You may
 	need to escape it.
 
@@ -55,11 +55,13 @@ OPTIONS
 --uid=::
         Record events in threads owned by uid. Name or number.
 
+--filter-pids=::
+	Filter out events for these pids and for 'trace' itself (comma separated list).
+
 -v::
 --verbose=::
         Verbosity level.
 
--i::
 --no-inherit::
 	Child tasks do not inherit counters.
 
@@ -114,6 +116,14 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 --syscalls::
 	Trace system calls. This options is enabled by default.
+
+--event::
+	Trace other events, see 'perf list' for a complete list.
+
+--proc-map-timeout::
+	When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
+	because the file may be huge. A time out is needed in such cases.
+	This option sets the time out limit. The default value is 500 ms.
 
 PAGEFAULTS
 ----------

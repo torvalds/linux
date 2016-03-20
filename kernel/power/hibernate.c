@@ -28,6 +28,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/ctype.h>
 #include <linux/genhd.h>
+#include <linux/ktime.h>
 #include <trace/events/power.h>
 
 #include "power.h"
@@ -232,20 +233,17 @@ static void platform_recover(int platform_mode)
  * @nr_pages: Number of memory pages processed between @start and @stop.
  * @msg: Additional diagnostic message to print.
  */
-void swsusp_show_speed(struct timeval *start, struct timeval *stop,
-			unsigned nr_pages, char *msg)
+void swsusp_show_speed(ktime_t start, ktime_t stop,
+		      unsigned nr_pages, char *msg)
 {
+	ktime_t diff;
 	u64 elapsed_centisecs64;
 	unsigned int centisecs;
 	unsigned int k;
 	unsigned int kps;
 
-	elapsed_centisecs64 = timeval_to_ns(stop) - timeval_to_ns(start);
-	/*
-	 * If "(s64)elapsed_centisecs64 < 0", it will print long elapsed time,
-	 * it is obvious enough for what went wrong.
-	 */
-	do_div(elapsed_centisecs64, NSEC_PER_SEC / 100);
+	diff = ktime_sub(stop, start);
+	elapsed_centisecs64 = ktime_divns(diff, 10*NSEC_PER_MSEC);
 	centisecs = elapsed_centisecs64;
 	if (centisecs == 0)
 		centisecs = 1;	/* avoid div-by-zero */
@@ -502,8 +500,14 @@ int hibernation_restore(int platform_mode)
 	error = dpm_suspend_start(PMSG_QUIESCE);
 	if (!error) {
 		error = resume_target_kernel(platform_mode);
-		dpm_resume_end(PMSG_RECOVER);
+		/*
+		 * The above should either succeed and jump to the new kernel,
+		 * or return with an error. Otherwise things are just
+		 * undefined, so let's be paranoid.
+		 */
+		BUG_ON(!error);
 	}
+	dpm_resume_end(PMSG_RECOVER);
 	pm_restore_gfp_mask();
 	resume_console();
 	pm_restore_console();
@@ -548,7 +552,7 @@ int hibernation_platform_enter(void)
 
 	error = disable_nonboot_cpus();
 	if (error)
-		goto Platform_finish;
+		goto Enable_cpus;
 
 	local_irq_disable();
 	syscore_suspend();
@@ -564,6 +568,8 @@ int hibernation_platform_enter(void)
  Power_up:
 	syscore_resume();
 	local_irq_enable();
+
+ Enable_cpus:
 	enable_nonboot_cpus();
 
  Platform_finish:
@@ -727,7 +733,7 @@ int hibernate(void)
  * contents of memory is restored from the saved image.
  *
  * If this is successful, control reappears in the restored target kernel in
- * hibernation_snaphot() which returns to hibernate().  Otherwise, the routine
+ * hibernation_snapshot() which returns to hibernate().  Otherwise, the routine
  * attempts to recover gracefully and make the kernel return to the normal mode
  * of operation.
  */
@@ -1152,6 +1158,22 @@ static int __init kaslr_nohibernate_setup(char *str)
 	return nohibernate_setup(str);
 }
 
+static int __init page_poison_nohibernate_setup(char *str)
+{
+#ifdef CONFIG_PAGE_POISONING_ZERO
+	/*
+	 * The zeroing option for page poison skips the checks on alloc.
+	 * since hibernation doesn't save free pages there's no way to
+	 * guarantee the pages will still be zeroed.
+	 */
+	if (!strcmp(str, "on")) {
+		pr_info("Disabling hibernation due to page poisoning\n");
+		return nohibernate_setup(str);
+	}
+#endif
+	return 1;
+}
+
 __setup("noresume", noresume_setup);
 __setup("resume_offset=", resume_offset_setup);
 __setup("resume=", resume_setup);
@@ -1160,3 +1182,4 @@ __setup("resumewait", resumewait_setup);
 __setup("resumedelay=", resumedelay_setup);
 __setup("nohibernate", nohibernate_setup);
 __setup("kaslr", kaslr_nohibernate_setup);
+__setup("page_poison=", page_poison_nohibernate_setup);

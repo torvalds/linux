@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/mtd/physmap.h>
@@ -116,22 +116,6 @@ void clk_put(struct clk *clk)
 {
 }
 EXPORT_SYMBOL(clk_put);
-
-/* GPIO support */
-
-#ifdef CONFIG_GPIOLIB
-int gpio_to_irq(unsigned gpio)
-{
-	return -EINVAL;
-}
-EXPORT_SYMBOL(gpio_to_irq);
-
-int irq_to_gpio(unsigned irq)
-{
-	return -EINVAL;
-}
-EXPORT_SYMBOL(irq_to_gpio);
-#endif
 
 #define BOARD_VEC(board)	extern struct txx9_board_vec board;
 #include <asm/txx9/boards.h>
@@ -703,16 +687,14 @@ struct txx9_iocled_data {
 
 static int txx9_iocled_get(struct gpio_chip *chip, unsigned int offset)
 {
-	struct txx9_iocled_data *data =
-		container_of(chip, struct txx9_iocled_data, chip);
-	return data->cur_val & (1 << offset);
+	struct txx9_iocled_data *data = gpiochip_get_data(chip);
+	return !!(data->cur_val & (1 << offset));
 }
 
 static void txx9_iocled_set(struct gpio_chip *chip, unsigned int offset,
 			    int value)
 {
-	struct txx9_iocled_data *data =
-		container_of(chip, struct txx9_iocled_data, chip);
+	struct txx9_iocled_data *data = gpiochip_get_data(chip);
 	unsigned long flags;
 	spin_lock_irqsave(&txx9_iocled_lock, flags);
 	if (value)
@@ -765,7 +747,7 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 	iocled->chip.label = "iocled";
 	iocled->chip.base = basenum;
 	iocled->chip.ngpio = num;
-	if (gpiochip_add(&iocled->chip))
+	if (gpiochip_add_data(&iocled->chip, iocled))
 		goto out_unmap;
 	if (basenum < 0)
 		basenum = iocled->chip.base;
@@ -789,11 +771,11 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 	if (platform_device_add(pdev))
 		goto out_pdev;
 	return;
+
 out_pdev:
 	platform_device_put(pdev);
 out_gpio:
-	if (gpiochip_remove(&iocled->chip))
-		return;
+	gpiochip_remove(&iocled->chip);
 out_unmap:
 	iounmap(iocled->mmioaddr);
 out_free:

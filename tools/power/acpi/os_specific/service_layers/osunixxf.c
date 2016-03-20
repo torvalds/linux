@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -121,6 +121,14 @@ static void os_exit_line_edit_mode(void);
 static void os_enter_line_edit_mode(void)
 {
 	struct termios local_term_attributes;
+
+	term_attributes_were_set = 0;
+
+	/* STDIN must be a terminal */
+
+	if (!isatty(STDIN_FILENO)) {
+		return;
+	}
 
 	/* Get and keep the original attributes */
 

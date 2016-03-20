@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -53,7 +49,7 @@ static void __init emev2_smp_prepare_cpus(unsigned int max_cpus)
 	shmobile_smp_scu_prepare_cpus(max_cpus);
 }
 
-struct smp_operations emev2_smp_ops __initdata = {
+const struct smp_operations emev2_smp_ops __initconst = {
 	.smp_prepare_cpus	= emev2_smp_prepare_cpus,
 	.smp_boot_secondary	= emev2_boot_secondary,
 };

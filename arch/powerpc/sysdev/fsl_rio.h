@@ -50,9 +50,12 @@
 #define RIO_S_DBELL_REGS_OFFSET	0x13400
 #define RIO_S_PW_REGS_OFFSET	0x134e0
 #define RIO_ATMU_REGS_DBELL_OFFSET	0x10C40
+#define RIO_INB_ATMU_REGS_PORT1_OFFSET 0x10d60
+#define RIO_INB_ATMU_REGS_PORT2_OFFSET 0x10f60
 
 #define MAX_MSG_UNIT_NUM	2
 #define MAX_PORT_NUM		4
+#define RIO_INB_ATMU_COUNT	4
 
 struct rio_atmu_regs {
 	 u32 rowtar;
@@ -61,6 +64,15 @@ struct rio_atmu_regs {
 	 u32 pad1;
 	 u32 rowar;
 	 u32 pad2[3];
+};
+
+struct rio_inb_atmu_regs {
+	u32 riwtar;
+	u32 pad1;
+	u32 riwbar;
+	u32 pad2;
+	u32 riwar;
+	u32 pad3[3];
 };
 
 struct rio_dbell_ring {
@@ -99,6 +111,7 @@ struct rio_priv {
 	void __iomem *regs_win;
 	struct rio_atmu_regs __iomem *atmu_regs;
 	struct rio_atmu_regs __iomem *maint_atmu_regs;
+	struct rio_inb_atmu_regs __iomem *inb_atmu_regs;
 	void __iomem *maint_win;
 	void *rmm_handle; /* RapidIO message manager(unit) Handle */
 };

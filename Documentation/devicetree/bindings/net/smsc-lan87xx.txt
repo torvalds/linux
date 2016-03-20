@@ -1,0 +1,24 @@
+SMSC LAN87xx Ethernet PHY
+
+Some boards require special tuning values. Configure them
+through an Ethernet OF device node.
+
+Optional properties:
+
+- smsc,disable-energy-detect:
+  If set, do not enable energy detect mode for the SMSC phy.
+  default: enable energy detect mode
+
+Examples:
+smsc phy with disabled energy detect mode on an am335x based board.
+&davinci_mdio {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&davinci_mdio_default>;
+	pinctrl-1 = <&davinci_mdio_sleep>;
+	status = "okay";
+
+	ethernetphy0: ethernet-phy@0 {
+		reg = <0>;
+		smsc,disable-energy-detect;
+	};
+};

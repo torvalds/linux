@@ -11,17 +11,18 @@ Construction Parameters
     <data_block_size> <hash_block_size>
     <num_data_blocks> <hash_start_block>
     <algorithm> <digest> <salt>
+    [<#opt_params> <opt_params>]
 
 <version>
     This is the type of the on-disk hash format.
 
     0 is the original format used in the Chromium OS.
       The salt is appended when hashing, digests are stored continuously and
-      the rest of the block is padded with zeros.
+      the rest of the block is padded with zeroes.
 
     1 is the current format that should be used for new devices.
       The salt is prepended when hashing and each digest is
-      padded with zeros to the power of two.
+      padded with zeroes to the power of two.
 
 <dev>
     This is the device containing data, the integrity of which needs to be
@@ -62,6 +63,53 @@ Construction Parameters
 <salt>
     The hexadecimal encoding of the salt value.
 
+<#opt_params>
+    Number of optional parameters. If there are no optional parameters,
+    the optional paramaters section can be skipped or #opt_params can be zero.
+    Otherwise #opt_params is the number of following arguments.
+
+    Example of optional parameters section:
+        1 ignore_corruption
+
+ignore_corruption
+    Log corrupted blocks, but allow read operations to proceed normally.
+
+restart_on_corruption
+    Restart the system when a corrupted block is discovered. This option is
+    not compatible with ignore_corruption and requires user space support to
+    avoid restart loops.
+
+ignore_zero_blocks
+    Do not verify blocks that are expected to contain zeroes and always return
+    zeroes instead. This may be useful if the partition contains unused blocks
+    that are not guaranteed to contain zeroes.
+
+use_fec_from_device <fec_dev>
+    Use forward error correction (FEC) to recover from corruption if hash
+    verification fails. Use encoding data from the specified device. This
+    may be the same device where data and hash blocks reside, in which case
+    fec_start must be outside data and hash areas.
+
+    If the encoding data covers additional metadata, it must be accessible
+    on the hash device after the hash blocks.
+
+    Note: block sizes for data and hash devices must match. Also, if the
+    verity <dev> is encrypted the <fec_dev> should be too.
+
+fec_roots <num>
+    Number of generator roots. This equals to the number of parity bytes in
+    the encoding data. For example, in RS(M, N) encoding, the number of roots
+    is M-N.
+
+fec_blocks <num>
+    The number of encoding data blocks on the FEC device. The block size for
+    the FEC device is <data_block_size>.
+
+fec_start <offset>
+    This is the offset, in <data_block_size> blocks, from the start of the
+    FEC device to the beginning of the encoding data.
+
+
 Theory of operation
 ===================
 
@@ -80,6 +128,11 @@ Cryptographic hashes are used to assert the integrity of the device on a
 per-block basis. This allows for a lightweight hash computation on first read
 into the page cache. Block hashes are stored linearly, aligned to the nearest
 block size.
+
+If forward error correction (FEC) support is enabled any recovery of
+corrupted data will be verified using the cryptographic hash of the
+corresponding data. This is why combining error correction with
+integrity checking is essential.
 
 Hash Tree
 ---------
@@ -125,7 +178,7 @@ block boundary) are the hash blocks which are stored a depth at a time
 
 The full specification of kernel parameters and on-disk metadata format
 is available at the cryptsetup project's wiki page
-  http://code.google.com/p/cryptsetup/wiki/DMVerity
+  https://gitlab.com/cryptsetup/cryptsetup/wikis/DMVerity
 
 Status
 ======
@@ -142,7 +195,7 @@ Set up a device:
 
 A command line tool veritysetup is available to compute or verify
 the hash tree or activate the kernel device. This is available from
-the cryptsetup upstream repository http://code.google.com/p/cryptsetup/
+the cryptsetup upstream repository https://gitlab.com/cryptsetup/cryptsetup/
 (as a libcryptsetup extension).
 
 Create hash on the device:

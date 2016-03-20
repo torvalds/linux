@@ -1,3 +1,5 @@
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	regulators {
 		compatible = "simple-bus";
@@ -36,7 +38,7 @@
 	flash: m25p80@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "sst,sst25vf040b", "m25p80";
+		compatible = "sst,sst25vf040b", "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};
@@ -181,7 +183,7 @@
 &usdhc2 { /* module slot */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
-	cd-gpios = <&gpio2 2 0>;
+	cd-gpios = <&gpio2 2 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

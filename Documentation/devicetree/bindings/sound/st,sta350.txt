@@ -33,7 +33,7 @@ Optional properties:
 	0: Channel 1
 	1: Channel 2
 	2: Channel 3
-	If parameter is missing, channel 1 is choosen.
+	If parameter is missing, channel 1 is chosen.
 	This properties have to be specified as '/bits/ 8' values.
 
   -  st,thermal-warning-recover:

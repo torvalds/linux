@@ -36,7 +36,7 @@ struct nv04_crtc_reg {
 
 	/* PRAMDAC regs */
 	uint32_t nv10_cursync;
-	struct nouveau_pll_vals pllvals;
+	struct nvkm_pll_vals pllvals;
 	uint32_t ramdac_gen_ctrl;
 	uint32_t ramdac_630;
 	uint32_t ramdac_634;
@@ -90,8 +90,6 @@ nv04_display(struct drm_device *dev)
 }
 
 /* nv04_display.c */
-int nv04_display_early_init(struct drm_device *);
-void nv04_display_late_takedown(struct drm_device *);
 int nv04_display_create(struct drm_device *);
 void nv04_display_destroy(struct drm_device *);
 int nv04_display_init(struct drm_device *);
@@ -172,9 +170,9 @@ nouveau_bios_run_init_table(struct drm_device *dev, u16 table,
 			    struct dcb_output *outp, int crtc)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_bios *bios = nvkm_bios(&drm->device);
+	struct nvkm_bios *bios = nvxx_bios(&drm->device);
 	struct nvbios_init init = {
-		.subdev = nv_subdev(bios),
+		.subdev = &bios->subdev,
 		.bios = bios,
 		.offset = table,
 		.outp = outp,

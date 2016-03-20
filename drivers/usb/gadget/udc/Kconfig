@@ -32,6 +32,7 @@ menu "USB Peripheral Controller"
 config USB_AT91
 	tristate "Atmel AT91 USB Device Port"
 	depends on ARCH_AT91
+	depends on OF || COMPILE_TEST
 	help
 	   Many Atmel AT91 processors (such as the AT91RM2000) have a
 	   full speed USB Device Port with support for five configurable
@@ -54,7 +55,7 @@ config USB_LPC32XX
 
 config USB_ATMEL_USBA
 	tristate "Atmel USBA"
-	depends on AVR32 || ARCH_AT91
+	depends on ((AVR32 && !OF) || ARCH_AT91)
 	help
 	  USBA is the integrated high-speed USB Device controller on
 	  the AT32AP700x, some AT91SAM9 and AT91CAP9 processors from Atmel.
@@ -73,7 +74,6 @@ config USB_BCM63XX_UDC
 config USB_FSL_USB2
 	tristate "Freescale Highspeed USB DR Peripheral Controller"
 	depends on FSL_SOC || ARCH_MXC
-	select USB_FSL_MPH_DR_OF if OF
 	help
 	   Some of Freescale PowerPC and i.MX processors have a High Speed
 	   Dual-Role(DR) USB controller, which supports device mode.
@@ -127,6 +127,7 @@ config USB_OMAP
 config USB_PXA25X
 	tristate "PXA 25x or IXP 4xx"
 	depends on (ARCH_PXA && PXA25x) || ARCH_IXP4XX
+	depends on HAS_IOMEM
 	help
 	   Intel's PXA 25x series XScale ARM-5TE processors include
 	   an integrated full speed USB 1.1 device controller.  The
@@ -163,7 +164,7 @@ config USB_R8A66597
 
 config USB_RENESAS_USBHS_UDC
 	tristate 'Renesas USBHS controller'
-	depends on USB_RENESAS_USBHS
+	depends on USB_RENESAS_USBHS && HAS_DMA
 	help
 	   Renesas USBHS is a discrete USB host and peripheral controller chip
 	   that supports both full and high speed USB 2.0 data transfers.
@@ -173,8 +174,20 @@ config USB_RENESAS_USBHS_UDC
 	   dynamically linked module called "renesas_usbhs" and force all
 	   gadget drivers to also be dynamically linked.
 
+config USB_RENESAS_USB3
+	tristate 'Renesas USB3.0 Peripheral controller'
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	   Renesas USB3.0 Peripheral controller is a USB peripheral controller
+	   that supports super, high, and full speed USB 3.0 data transfers.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "renesas_usb3" and force all
+	   gadget drivers to also be dynamically linked.
+
 config USB_PXA27X
 	tristate "PXA 27x"
+	depends on HAS_IOMEM
 	help
 	   Intel's PXA 27x series XScale ARM v5TE processors include
 	   an integrated full speed USB 1.1 device controller.
@@ -198,7 +211,7 @@ config USB_S3C2410
 	  S3C2440 processors.
 
 config USB_S3C2410_DEBUG
-	boolean "S3C2410 udc debug messages"
+	bool "S3C2410 udc debug messages"
 	depends on USB_S3C2410
 
 config USB_S3C_HSUDC
@@ -232,6 +245,7 @@ config USB_MV_U3D
 
 config USB_M66592
 	tristate "Renesas M66592 USB Peripheral Controller"
+	depends on HAS_IOMEM
 	help
 	   M66592 is a discrete USB peripheral controller chip that
 	   supports both full and high speed USB 2.0 data transfers.
@@ -240,6 +254,8 @@ config USB_M66592
 	   Say "y" to link the driver statically, or "m" to build a
 	   dynamically linked module called "m66592_udc" and force all
 	   gadget drivers to also be dynamically linked.
+
+source "drivers/usb/gadget/udc/bdc/Kconfig"
 
 #
 # Controllers available only in discrete form (and all PCI controllers)
@@ -273,6 +289,7 @@ config USB_FSL_QE
 	   dynamically linked module called "fsl_qe_udc".
 
 config USB_NET2272
+	depends on HAS_IOMEM
 	tristate "PLX NET2272"
 	help
 	  PLX NET2272 is a USB peripheral controller which supports
@@ -285,7 +302,7 @@ config USB_NET2272
 	  gadget drivers to also be dynamically linked.
 
 config USB_NET2272_DMA
-	boolean "Support external DMA controller"
+	bool "Support external DMA controller"
 	depends on USB_NET2272 && HAS_DMA
 	help
 	  The NET2272 part can optionally support an external DMA
@@ -332,7 +349,7 @@ config USB_GOKU
 	   gadget drivers to also be dynamically linked.
 
 config USB_EG20T
-	tristate "Intel EG20T PCH/LAPIS Semiconductor IOH(ML7213/ML7831) UDC"
+	tristate "Intel QUARK X1000/EG20T PCH/LAPIS Semiconductor IOH(ML7213/ML7831) UDC"
 	depends on PCI
 	help
 	  This is a USB device driver for EG20T PCH.
@@ -352,6 +369,23 @@ config USB_EG20T
 	  ML7831 is for general purpose use.
 	  ML7213/ML7831 is companion chip for Intel Atom E6xx series.
 	  ML7213/ML7831 is completely compatible for Intel EG20T PCH.
+
+	  This driver can be used with Intel's Quark X1000 SOC platform
+
+config USB_GADGET_XILINX
+	tristate "Xilinx USB Driver"
+	depends on HAS_DMA
+	depends on OF || COMPILE_TEST
+	help
+	  USB peripheral controller driver for Xilinx USB2 device.
+	  Xilinx USB2 device is a soft IP which supports both full
+	  and high speed USB 2.0 data transfers. It has seven configurable
+	  endpoints(bulk or interrupt or isochronous), as well as
+	  endpoint zero(for control transfers).
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "udc-xilinx" and force all
+	  gadget drivers to also be dynamically linked.
 
 #
 # LAST -- dummy/emulated controller

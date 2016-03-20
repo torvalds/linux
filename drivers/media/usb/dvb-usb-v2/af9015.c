@@ -419,7 +419,7 @@ static int af9015_eeprom_hash(struct dvb_usb_device *d)
 	/* calculate checksum */
 	for (i = 0; i < AF9015_EEPROM_SIZE / sizeof(u32); i++) {
 		state->eeprom_sum *= GOLDEN_RATIO_PRIME_32;
-		state->eeprom_sum += le32_to_cpu(((u32 *)buf)[i]);
+		state->eeprom_sum += le32_to_cpu(((__le32 *)buf)[i]);
 	}
 
 	for (i = 0; i < AF9015_EEPROM_SIZE; i += 16)
@@ -641,7 +641,7 @@ static int af9015_af9013_set_frontend(struct dvb_frontend *fe)
 
 /* override demod callbacks for resource locking */
 static int af9015_af9013_read_status(struct dvb_frontend *fe,
-	fe_status_t *status)
+	enum fe_status *status)
 {
 	int ret;
 	struct af9015_state *state = fe_to_priv(fe);

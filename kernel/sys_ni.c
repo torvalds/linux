@@ -140,6 +140,7 @@ cond_syscall(sys_sgetmask);
 cond_syscall(sys_ssetmask);
 cond_syscall(sys_vm86old);
 cond_syscall(sys_vm86);
+cond_syscall(sys_modify_ldt);
 cond_syscall(sys_ipc);
 cond_syscall(compat_sys_ipc);
 cond_syscall(compat_sys_sysctl);
@@ -156,6 +157,24 @@ cond_syscall(sys_process_vm_writev);
 cond_syscall(compat_sys_process_vm_readv);
 cond_syscall(compat_sys_process_vm_writev);
 cond_syscall(sys_uselib);
+cond_syscall(sys_fadvise64);
+cond_syscall(sys_fadvise64_64);
+cond_syscall(sys_madvise);
+cond_syscall(sys_setuid);
+cond_syscall(sys_setregid);
+cond_syscall(sys_setgid);
+cond_syscall(sys_setreuid);
+cond_syscall(sys_setresuid);
+cond_syscall(sys_getresuid);
+cond_syscall(sys_setresgid);
+cond_syscall(sys_getresgid);
+cond_syscall(sys_setgroups);
+cond_syscall(sys_getgroups);
+cond_syscall(sys_setfsuid);
+cond_syscall(sys_setfsgid);
+cond_syscall(sys_capget);
+cond_syscall(sys_capset);
+cond_syscall(sys_copy_file_range);
 
 /* arch-specific weak syscall entries */
 cond_syscall(sys_pciconfig_read);
@@ -166,6 +185,8 @@ cond_syscall(ppc_rtas);
 cond_syscall(sys_spu_run);
 cond_syscall(sys_spu_create);
 cond_syscall(sys_subpage_prot);
+cond_syscall(sys_s390_pci_mmio_read);
+cond_syscall(sys_s390_pci_mmio_write);
 
 /* mmu depending weak syscall entries */
 cond_syscall(sys_mprotect);
@@ -174,6 +195,7 @@ cond_syscall(sys_mlock);
 cond_syscall(sys_munlock);
 cond_syscall(sys_mlockall);
 cond_syscall(sys_munlockall);
+cond_syscall(sys_mlock2);
 cond_syscall(sys_mincore);
 cond_syscall(sys_madvise);
 cond_syscall(sys_mremap);
@@ -199,6 +221,7 @@ cond_syscall(compat_sys_timerfd_gettime);
 cond_syscall(sys_eventfd);
 cond_syscall(sys_eventfd2);
 cond_syscall(sys_memfd_create);
+cond_syscall(sys_userfaultfd);
 
 /* performance counters: */
 cond_syscall(sys_perf_event_open);
@@ -218,3 +241,12 @@ cond_syscall(sys_kcmp);
 
 /* operate on Secure Computing state */
 cond_syscall(sys_seccomp);
+
+/* access BPF programs and maps */
+cond_syscall(sys_bpf);
+
+/* execveat */
+cond_syscall(sys_execveat);
+
+/* membarrier */
+cond_syscall(sys_membarrier);

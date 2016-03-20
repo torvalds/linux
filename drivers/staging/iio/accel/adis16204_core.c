@@ -119,6 +119,7 @@ static int adis16204_write_raw(struct iio_dev *indio_dev,
 	int bits;
 	s16 val16;
 	u8 addr;
+
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
 		switch (chan->type) {
@@ -140,11 +141,13 @@ static const struct iio_chan_spec adis16204_channels[] = {
 	ADIS_AUX_ADC_CHAN(ADIS16204_AUX_ADC, ADIS16204_SCAN_AUX_ADC, 0, 12),
 	ADIS_TEMP_CHAN(ADIS16204_TEMP_OUT, ADIS16204_SCAN_TEMP, 0, 12),
 	ADIS_ACCEL_CHAN(X, ADIS16204_XACCL_OUT, ADIS16204_SCAN_ACC_X,
-		BIT(IIO_CHAN_INFO_CALIBBIAS) | BIT(IIO_CHAN_INFO_PEAK), 0, 14),
+			BIT(IIO_CHAN_INFO_CALIBBIAS) | BIT(IIO_CHAN_INFO_PEAK),
+			0, 14),
 	ADIS_ACCEL_CHAN(Y, ADIS16204_YACCL_OUT, ADIS16204_SCAN_ACC_Y,
-		BIT(IIO_CHAN_INFO_CALIBBIAS) | BIT(IIO_CHAN_INFO_PEAK), 0, 14),
+			BIT(IIO_CHAN_INFO_CALIBBIAS) | BIT(IIO_CHAN_INFO_PEAK),
+			0, 14),
 	ADIS_ACCEL_CHAN(ROOT_SUM_SQUARED_X_Y, ADIS16204_XY_RSS_OUT,
-		ADIS16204_SCAN_ACC_XY, BIT(IIO_CHAN_INFO_PEAK), 0, 14),
+			ADIS16204_SCAN_ACC_XY, BIT(IIO_CHAN_INFO_PEAK), 0, 14),
 	IIO_CHAN_SOFT_TIMESTAMP(5),
 };
 
@@ -238,7 +241,6 @@ static int adis16204_remove(struct spi_device *spi)
 static struct spi_driver adis16204_driver = {
 	.driver = {
 		.name = "adis16204",
-		.owner = THIS_MODULE,
 	},
 	.probe = adis16204_probe,
 	.remove = adis16204_remove,

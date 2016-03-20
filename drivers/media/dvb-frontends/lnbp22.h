@@ -22,7 +22,7 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org
+ * the project's page is at https://linuxtv.org
  */
 
 #ifndef _LNBP22_H
@@ -39,7 +39,7 @@
 
 #include <linux/dvb/frontend.h>
 
-#if IS_ENABLED(CONFIG_DVB_LNBP22)
+#if IS_REACHABLE(CONFIG_DVB_LNBP22)
 /*
  * override_set and override_clear control which system register bits (above)
  * to always set & clear

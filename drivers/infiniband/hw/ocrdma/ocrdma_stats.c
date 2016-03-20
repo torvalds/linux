@@ -1,21 +1,36 @@
-/*******************************************************************
- * This file is part of the Emulex RoCE Device Driver for          *
- * RoCE (RDMA over Converged Ethernet) adapters.                   *
- * Copyright (C) 2008-2014 Emulex. All rights reserved.            *
- * EMULEX and SLI are trademarks of Emulex.                        *
- * www.emulex.com                                                  *
- *                                                                 *
- * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of version 2 of the GNU General       *
- * Public License as published by the Free Software Foundation.    *
- * This program is distributed in the hope that it will be useful. *
- * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
- * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
- * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
- * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
- * more details, a copy of which can be found in the file COPYING  *
- * included with this package.                                     *
+/* This file is part of the Emulex RoCE Device Driver for
+ * RoCE (RDMA over Converged Ethernet) adapters.
+ * Copyright (C) 2012-2015 Emulex. All rights reserved.
+ * EMULEX and SLI are trademarks of Emulex.
+ * www.emulex.com
+ *
+ * This software is available to you under a choice of one of two licenses.
+ * You may choose to be licensed under the terms of the GNU General Public
+ * License (GPL) Version 2, available from the file COPYING in the main
+ * directory of this source tree, or the BSD license below:
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * - Redistributions of source code must retain the above copyright notice,
+ *   this list of conditions and the following disclaimer.
+ *
+ * - Redistributions in binary form must reproduce the above copyright
+ *   notice, this list of conditions and the following disclaimer in
+ *   the documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Contact Information:
  * linux-drivers@emulex.com
@@ -23,9 +38,10 @@
  * Emulex
  * 3333 Susan Street
  * Costa Mesa, CA 92626
- *******************************************************************/
+ */
 
 #include <rdma/ib_addr.h>
+#include <rdma/ib_pma.h>
 #include "ocrdma_stats.h"
 
 static struct dentry *ocrdma_dbgfs_dir;
@@ -48,10 +64,11 @@ static int ocrdma_add_stat(char *start, char *pcur,
 	return cpy_len;
 }
 
-static bool ocrdma_alloc_stats_mem(struct ocrdma_dev *dev)
+bool ocrdma_alloc_stats_resources(struct ocrdma_dev *dev)
 {
 	struct stats_mem *mem = &dev->stats_mem;
 
+	mutex_init(&dev->stats_lock);
 	/* Alloc mbox command mem*/
 	mem->size = max_t(u32, sizeof(struct ocrdma_rdma_stats_req),
 			sizeof(struct ocrdma_rdma_stats_resp));
@@ -75,13 +92,14 @@ static bool ocrdma_alloc_stats_mem(struct ocrdma_dev *dev)
 	return true;
 }
 
-static void ocrdma_release_stats_mem(struct ocrdma_dev *dev)
+void ocrdma_release_stats_resources(struct ocrdma_dev *dev)
 {
 	struct stats_mem *mem = &dev->stats_mem;
 
 	if (mem->va)
 		dma_free_coherent(&dev->nic_info.pdev->dev, mem->size,
 				  mem->va, mem->pa);
+	mem->va = NULL;
 	kfree(mem->debugfs_mem);
 }
 
@@ -249,6 +267,27 @@ static char *ocrdma_rx_stats(struct ocrdma_dev *dev)
 	return stats;
 }
 
+static u64 ocrdma_sysfs_rcv_pkts(struct ocrdma_dev *dev)
+{
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_rx_stats *rx_stats = &rdma_stats->rx_stats;
+
+	return convert_to_64bit(rx_stats->roce_frames_lo,
+		rx_stats->roce_frames_hi) + (u64)rx_stats->roce_frame_icrc_drops
+		+ (u64)rx_stats->roce_frame_payload_len_drops;
+}
+
+static u64 ocrdma_sysfs_rcv_data(struct ocrdma_dev *dev)
+{
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_rx_stats *rx_stats = &rdma_stats->rx_stats;
+
+	return (convert_to_64bit(rx_stats->roce_frame_bytes_lo,
+		rx_stats->roce_frame_bytes_hi))/4;
+}
+
 static char *ocrdma_tx_stats(struct ocrdma_dev *dev)
 {
 	char *stats = dev->stats_mem.debugfs_mem, *pcur;
@@ -290,6 +329,37 @@ static char *ocrdma_tx_stats(struct ocrdma_dev *dev)
 				(u64)tx_stats->ack_timeouts);
 
 	return stats;
+}
+
+static u64 ocrdma_sysfs_xmit_pkts(struct ocrdma_dev *dev)
+{
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_tx_stats *tx_stats = &rdma_stats->tx_stats;
+
+	return (convert_to_64bit(tx_stats->send_pkts_lo,
+				 tx_stats->send_pkts_hi) +
+	convert_to_64bit(tx_stats->write_pkts_lo, tx_stats->write_pkts_hi) +
+	convert_to_64bit(tx_stats->read_pkts_lo, tx_stats->read_pkts_hi) +
+	convert_to_64bit(tx_stats->read_rsp_pkts_lo,
+			 tx_stats->read_rsp_pkts_hi) +
+	convert_to_64bit(tx_stats->ack_pkts_lo, tx_stats->ack_pkts_hi));
+}
+
+static u64 ocrdma_sysfs_xmit_data(struct ocrdma_dev *dev)
+{
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_tx_stats *tx_stats = &rdma_stats->tx_stats;
+
+	return (convert_to_64bit(tx_stats->send_bytes_lo,
+				 tx_stats->send_bytes_hi) +
+		convert_to_64bit(tx_stats->write_bytes_lo,
+				 tx_stats->write_bytes_hi) +
+		convert_to_64bit(tx_stats->read_req_bytes_lo,
+				 tx_stats->read_req_bytes_hi) +
+		convert_to_64bit(tx_stats->read_rsp_bytes_lo,
+				 tx_stats->read_rsp_bytes_hi))/4;
 }
 
 static char *ocrdma_wqe_stats(struct ocrdma_dev *dev)
@@ -432,10 +502,118 @@ static char *ocrdma_rx_dbg_stats(struct ocrdma_dev *dev)
 	return dev->stats_mem.debugfs_mem;
 }
 
+static char *ocrdma_driver_dbg_stats(struct ocrdma_dev *dev)
+{
+	char *stats = dev->stats_mem.debugfs_mem, *pcur;
+
+
+	memset(stats, 0, (OCRDMA_MAX_DBGFS_MEM));
+
+	pcur = stats;
+	pcur += ocrdma_add_stat(stats, pcur, "async_cq_err",
+				(u64)(dev->async_err_stats
+				[OCRDMA_CQ_ERROR].counter));
+	pcur += ocrdma_add_stat(stats, pcur, "async_cq_overrun_err",
+				(u64)dev->async_err_stats
+				[OCRDMA_CQ_OVERRUN_ERROR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_cq_qpcat_err",
+				(u64)dev->async_err_stats
+				[OCRDMA_CQ_QPCAT_ERROR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_qp_access_err",
+				(u64)dev->async_err_stats
+				[OCRDMA_QP_ACCESS_ERROR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_qp_commm_est_evt",
+				(u64)dev->async_err_stats
+				[OCRDMA_QP_COMM_EST_EVENT].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_sq_drained_evt",
+				(u64)dev->async_err_stats
+				[OCRDMA_SQ_DRAINED_EVENT].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_dev_fatal_evt",
+				(u64)dev->async_err_stats
+				[OCRDMA_DEVICE_FATAL_EVENT].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_srqcat_err",
+				(u64)dev->async_err_stats
+				[OCRDMA_SRQCAT_ERROR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_srq_limit_evt",
+				(u64)dev->async_err_stats
+				[OCRDMA_SRQ_LIMIT_EVENT].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_qp_last_wqe_evt",
+				(u64)dev->async_err_stats
+				[OCRDMA_QP_LAST_WQE_EVENT].counter);
+
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_loc_len_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_LOC_LEN_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_loc_qp_op_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_LOC_QP_OP_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_loc_eec_op_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_LOC_EEC_OP_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_loc_prot_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_LOC_PROT_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_wr_flush_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_WR_FLUSH_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_mw_bind_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_MW_BIND_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_bad_resp_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_BAD_RESP_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_loc_access_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_LOC_ACCESS_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_rem_inv_req_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_REM_INV_REQ_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_rem_access_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_REM_ACCESS_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_rem_op_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_REM_OP_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_retry_exc_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_RETRY_EXC_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_rnr_retry_exc_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_RNR_RETRY_EXC_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_loc_rdd_viol_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_LOC_RDD_VIOL_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_rem_inv_rd_req_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_REM_INV_RD_REQ_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_rem_abort_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_REM_ABORT_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_inv_eecn_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_INV_EECN_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_inv_eec_state_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_INV_EEC_STATE_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_fatal_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_FATAL_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_resp_timeout_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_RESP_TIMEOUT_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_general_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_GENERAL_ERR].counter);
+	return stats;
+}
+
 static void ocrdma_update_stats(struct ocrdma_dev *dev)
 {
 	ulong now = jiffies, secs;
-	int status = 0;
+	int status;
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		      (struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_rsrc_stats *rsrc_stats = &rdma_stats->act_rsrc_stats;
 
 	secs = jiffies_to_msecs(now - dev->last_stats_time) / 1000U;
 	if (secs) {
@@ -444,8 +622,72 @@ static void ocrdma_update_stats(struct ocrdma_dev *dev)
 		if (status)
 			pr_err("%s: stats mbox failed with status = %d\n",
 			       __func__, status);
+		/* Update PD counters from PD resource manager */
+		if (dev->pd_mgr->pd_prealloc_valid) {
+			rsrc_stats->dpp_pds = dev->pd_mgr->pd_dpp_count;
+			rsrc_stats->non_dpp_pds = dev->pd_mgr->pd_norm_count;
+			/* Threshold stata*/
+			rsrc_stats = &rdma_stats->th_rsrc_stats;
+			rsrc_stats->dpp_pds = dev->pd_mgr->pd_dpp_thrsh;
+			rsrc_stats->non_dpp_pds = dev->pd_mgr->pd_norm_thrsh;
+		}
 		dev->last_stats_time = jiffies;
 	}
+}
+
+static ssize_t ocrdma_dbgfs_ops_write(struct file *filp,
+					const char __user *buffer,
+					size_t count, loff_t *ppos)
+{
+	char tmp_str[32];
+	long reset;
+	int status;
+	struct ocrdma_stats *pstats = filp->private_data;
+	struct ocrdma_dev *dev = pstats->dev;
+
+	if (count > 32)
+		goto err;
+
+	if (copy_from_user(tmp_str, buffer, count))
+		goto err;
+
+	tmp_str[count-1] = '\0';
+	if (kstrtol(tmp_str, 10, &reset))
+		goto err;
+
+	switch (pstats->type) {
+	case OCRDMA_RESET_STATS:
+		if (reset) {
+			status = ocrdma_mbx_rdma_stats(dev, true);
+			if (status) {
+				pr_err("Failed to reset stats = %d", status);
+				goto err;
+			}
+		}
+		break;
+	default:
+		goto err;
+	}
+
+	return count;
+err:
+	return -EFAULT;
+}
+
+int ocrdma_pma_counters(struct ocrdma_dev *dev,
+			struct ib_mad *out_mad)
+{
+	struct ib_pma_portcounters *pma_cnt;
+
+	memset(out_mad->data, 0, sizeof out_mad->data);
+	pma_cnt = (void *)(out_mad->data + 40);
+	ocrdma_update_stats(dev);
+
+	pma_cnt->port_xmit_data    = cpu_to_be32(ocrdma_sysfs_xmit_data(dev));
+	pma_cnt->port_rcv_data     = cpu_to_be32(ocrdma_sysfs_rcv_data(dev));
+	pma_cnt->port_xmit_packets = cpu_to_be32(ocrdma_sysfs_xmit_pkts(dev));
+	pma_cnt->port_rcv_packets  = cpu_to_be32(ocrdma_sysfs_rcv_pkts(dev));
+	return 0;
 }
 
 static ssize_t ocrdma_dbgfs_ops_read(struct file *filp, char __user *buffer,
@@ -492,6 +734,9 @@ static ssize_t ocrdma_dbgfs_ops_read(struct file *filp, char __user *buffer,
 	case OCRDMA_RX_DBG_STATS:
 		data = ocrdma_rx_dbg_stats(dev);
 		break;
+	case OCRDMA_DRV_STATS:
+		data = ocrdma_driver_dbg_stats(dev);
+		break;
 
 	default:
 		status = -EFAULT;
@@ -514,6 +759,7 @@ static const struct file_operations ocrdma_dbg_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
 	.read = ocrdma_dbgfs_ops_read,
+	.write = ocrdma_dbgfs_ops_write,
 };
 
 void ocrdma_add_port_stats(struct ocrdma_dev *dev)
@@ -582,15 +828,21 @@ void ocrdma_add_port_stats(struct ocrdma_dev *dev)
 				 &dev->rx_dbg_stats, &ocrdma_dbg_ops))
 		goto err;
 
-	/* Now create dma_mem for stats mbx command */
-	if (!ocrdma_alloc_stats_mem(dev))
+	dev->driver_stats.type = OCRDMA_DRV_STATS;
+	dev->driver_stats.dev = dev;
+	if (!debugfs_create_file("driver_dbg_stats", S_IRUSR, dev->dir,
+					&dev->driver_stats, &ocrdma_dbg_ops))
 		goto err;
 
-	mutex_init(&dev->stats_lock);
+	dev->reset_stats.type = OCRDMA_RESET_STATS;
+	dev->reset_stats.dev = dev;
+	if (!debugfs_create_file("reset_stats", S_IRUSR, dev->dir,
+				&dev->reset_stats, &ocrdma_dbg_ops))
+		goto err;
+
 
 	return;
 err:
-	ocrdma_release_stats_mem(dev);
 	debugfs_remove_recursive(dev->dir);
 	dev->dir = NULL;
 }
@@ -599,9 +851,7 @@ void ocrdma_rem_port_stats(struct ocrdma_dev *dev)
 {
 	if (!dev->dir)
 		return;
-	mutex_destroy(&dev->stats_lock);
-	ocrdma_release_stats_mem(dev);
-	debugfs_remove(dev->dir);
+	debugfs_remove_recursive(dev->dir);
 }
 
 void ocrdma_init_debugfs(void)

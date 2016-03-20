@@ -132,7 +132,7 @@ static int mixart_set_pipe_state(struct mixart_mgr *mgr,
 	}
 
 	if(start) {
-		u32 stat;
+		u32 stat = 0;
 
 		group_state.pipe_count = 0; /* in case of start same command once again with pipe_count=0 */
 
@@ -986,6 +986,7 @@ static int snd_mixart_pcm_analog(struct snd_mixart *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_mixart_capture_ops);
 
 	pcm->info_flags = 0;
+	pcm->nonatomic = true;
 	strcpy(pcm->name, name);
 
 	preallocate_buffers(chip, pcm);
@@ -1018,6 +1019,7 @@ static int snd_mixart_pcm_digital(struct snd_mixart *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_mixart_capture_ops);
 
 	pcm->info_flags = 0;
+	pcm->nonatomic = true;
 	strcpy(pcm->name, name);
 
 	preallocate_buffers(chip, pcm);
@@ -1112,10 +1114,9 @@ static int snd_mixart_free(struct mixart_mgr *mgr)
 	}
 
 	/* release the i/o ports */
-	for (i = 0; i < 2; i++) {
-		if (mgr->mem[i].virt)
-			iounmap(mgr->mem[i].virt);
-	}
+	for (i = 0; i < 2; ++i)
+		iounmap(mgr->mem[i].virt);
+
 	pci_release_regions(mgr->pci);
 
 	/* free flowarray */
@@ -1268,7 +1269,7 @@ static int snd_mixart_probe(struct pci_dev *pci,
 	pci_set_master(pci);
 
 	/* check if we can restrict PCI DMA transfers to 32 bits */
-	if (pci_set_dma_mask(pci, DMA_BIT_MASK(32)) < 0) {
+	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(32)) < 0) {
 		dev_err(&pci->dev,
 			"architecture does not support 32bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
@@ -1303,8 +1304,9 @@ static int snd_mixart_probe(struct pci_dev *pci,
 		}
 	}
 
-	if (request_irq(pci->irq, snd_mixart_interrupt, IRQF_SHARED,
-			KBUILD_MODNAME, mgr)) {
+	if (request_threaded_irq(pci->irq, snd_mixart_interrupt,
+				 snd_mixart_threaded_irq, IRQF_SHARED,
+				 KBUILD_MODNAME, mgr)) {
 		dev_err(&pci->dev, "unable to grab IRQ %d\n", pci->irq);
 		snd_mixart_free(mgr);
 		return -EBUSY;
@@ -1314,23 +1316,17 @@ static int snd_mixart_probe(struct pci_dev *pci,
 	sprintf(mgr->shortname, "Digigram miXart");
 	sprintf(mgr->longname, "%s at 0x%lx & 0x%lx, irq %i", mgr->shortname, mgr->mem[0].phys, mgr->mem[1].phys, mgr->irq);
 
-	/* ISR spinlock  */
-	spin_lock_init(&mgr->lock);
-
 	/* init mailbox  */
 	mgr->msg_fifo_readptr = 0;
 	mgr->msg_fifo_writeptr = 0;
 
-	spin_lock_init(&mgr->msg_lock);
-	mutex_init(&mgr->msg_mutex);
+	mutex_init(&mgr->lock);
+	mutex_init(&mgr->msg_lock);
 	init_waitqueue_head(&mgr->msg_sleep);
 	atomic_set(&mgr->msg_processed, 0);
 
 	/* init setup mutex*/
 	mutex_init(&mgr->setup_mutex);
-
-	/* init message taslket */
-	tasklet_init(&mgr->msg_taskq, snd_mixart_msg_tasklet, (unsigned long) mgr);
 
 	/* card assignment */
 	mgr->num_cards = MIXART_MAX_CARDS; /* 4  FIXME: configurable? */

@@ -78,7 +78,7 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 	if (buffer->flags & EFX_TX_BUF_SKB) {
 		(*pkts_compl)++;
 		(*bytes_compl) += buffer->skb->len;
-		dev_kfree_skb_any((struct sk_buff *) buffer->skb);
+		dev_consume_skb_any((struct sk_buff *)buffer->skb);
 		netif_vdbg(tx_queue->efx, tx_done, tx_queue->efx->net_dev,
 			   "TX queue %d transmission id %x complete\n",
 			   tx_queue->queue, tx_queue->read_count);
@@ -130,15 +130,6 @@ unsigned int efx_tx_max_skb_descs(struct efx_nic *efx)
 				   DIV_ROUND_UP(GSO_MAX_SIZE, EFX_PAGE_SIZE));
 
 	return max_descs;
-}
-
-/* Get partner of a TX queue, seen as part of the same net core queue */
-static struct efx_tx_queue *efx_tx_queue_partner(struct efx_tx_queue *tx_queue)
-{
-	if (tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD)
-		return tx_queue - EFX_TXQ_TYPE_OFFLOAD;
-	else
-		return tx_queue + EFX_TXQ_TYPE_OFFLOAD;
 }
 
 static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
@@ -344,14 +335,13 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	struct efx_nic *efx = tx_queue->efx;
 	struct device *dma_dev = &efx->pci_dev->dev;
 	struct efx_tx_buffer *buffer;
+	unsigned int old_insert_count = tx_queue->insert_count;
 	skb_frag_t *fragment;
 	unsigned int len, unmap_len = 0;
 	dma_addr_t dma_addr, unmap_addr = 0;
 	unsigned int dma_len;
 	unsigned short dma_flags;
 	int i = 0;
-
-	EFX_BUG_ON_PARANOID(tx_queue->write_count != tx_queue->insert_count);
 
 	if (skb_shinfo(skb)->gso_size)
 		return efx_enqueue_skb_tso(tx_queue, skb);
@@ -369,9 +359,8 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 
 	/* Consider using PIO for short packets */
 #ifdef EFX_USE_PIO
-	if (skb->len <= efx_piobuf_size && tx_queue->piobuf &&
-	    efx_nic_tx_is_empty(tx_queue) &&
-	    efx_nic_tx_is_empty(efx_tx_queue_partner(tx_queue))) {
+	if (skb->len <= efx_piobuf_size && !skb->xmit_more &&
+	    efx_nic_may_tx_pio(tx_queue)) {
 		buffer = efx_enqueue_skb_pio(tx_queue, skb);
 		dma_flags = EFX_TX_BUF_OPTION;
 		goto finish_packet;
@@ -439,12 +428,25 @@ finish_packet:
 
 	netdev_tx_sent_queue(tx_queue->core_txq, skb->len);
 
+	efx_tx_maybe_stop_queue(tx_queue);
+
 	/* Pass off to hardware */
-	efx_nic_push_buffers(tx_queue);
+	if (!skb->xmit_more || netif_xmit_stopped(tx_queue->core_txq)) {
+		struct efx_tx_queue *txq2 = efx_tx_queue_partner(tx_queue);
+
+		/* There could be packets left on the partner queue if those
+		 * SKBs had skb->xmit_more set. If we do not push those they
+		 * could be left for a long time and cause a netdev watchdog.
+		 */
+		if (txq2->xmit_more_available)
+			efx_nic_push_buffers(txq2);
+
+		efx_nic_push_buffers(tx_queue);
+	} else {
+		tx_queue->xmit_more_available = skb->xmit_more;
+	}
 
 	tx_queue->tx_packets++;
-
-	efx_tx_maybe_stop_queue(tx_queue);
 
 	return NETDEV_TX_OK;
 
@@ -458,7 +460,7 @@ finish_packet:
 	dev_kfree_skb_any(skb);
 
 	/* Work backwards until we hit the original insert pointer value */
-	while (tx_queue->insert_count != tx_queue->write_count) {
+	while (tx_queue->insert_count != old_insert_count) {
 		unsigned int pkts_compl = 0, bytes_compl = 0;
 		--tx_queue->insert_count;
 		buffer = __efx_tx_queue_get_insert_buffer(tx_queue);
@@ -560,13 +562,19 @@ void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
 				     efx->n_tx_channels : 0));
 }
 
-int efx_setup_tc(struct net_device *net_dev, u8 num_tc)
+int efx_setup_tc(struct net_device *net_dev, u32 handle, __be16 proto,
+		 struct tc_to_netdev *ntc)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
-	unsigned tc;
+	unsigned tc, num_tc;
 	int rc;
+
+	if (ntc->type != TC_SETUP_MQPRIO)
+		return -EINVAL;
+
+	num_tc = ntc->tc;
 
 	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0 || num_tc > EFX_MAX_TX_TC)
 		return -EINVAL;
@@ -627,7 +635,8 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	EFX_BUG_ON_PARANOID(index > tx_queue->ptr_mask);
 
 	efx_dequeue_buffers(tx_queue, index, &pkts_compl, &bytes_compl);
-	netdev_tx_completed_queue(tx_queue->core_txq, pkts_compl, bytes_compl);
+	tx_queue->pkts_compl += pkts_compl;
+	tx_queue->bytes_compl += bytes_compl;
 
 	if (pkts_compl > 1)
 		++tx_queue->merge_events;
@@ -731,6 +740,7 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 	tx_queue->read_count = 0;
 	tx_queue->old_read_count = 0;
 	tx_queue->empty_read_count = 0 | EFX_EMPTY_COUNT_VALID;
+	tx_queue->xmit_more_available = false;
 
 	/* Set up TX descriptor ring */
 	efx_nic_init_tx(tx_queue);
@@ -756,6 +766,7 @@ void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
 
 		++tx_queue->read_count;
 	}
+	tx_queue->xmit_more_available = false;
 	netdev_tx_reset_queue(tx_queue->core_txq);
 }
 
@@ -989,12 +1000,13 @@ static int efx_tso_put_header(struct efx_tx_queue *tx_queue,
 /* Remove buffers put into a tx_queue.  None of the buffers must have
  * an skb attached.
  */
-static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
+static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue,
+			       unsigned int insert_count)
 {
 	struct efx_tx_buffer *buffer;
 
 	/* Work backwards until we hit the original insert pointer value */
-	while (tx_queue->insert_count != tx_queue->write_count) {
+	while (tx_queue->insert_count != insert_count) {
 		--tx_queue->insert_count;
 		buffer = __efx_tx_queue_get_insert_buffer(tx_queue);
 		efx_dequeue_buffer(tx_queue, buffer, NULL, NULL);
@@ -1004,12 +1016,16 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 
 /* Parse the SKB header and initialise state. */
 static int tso_start(struct tso_state *st, struct efx_nic *efx,
+		     struct efx_tx_queue *tx_queue,
 		     const struct sk_buff *skb)
 {
-	bool use_opt_desc = efx_nic_rev(efx) >= EFX_REV_HUNT_A0;
 	struct device *dma_dev = &efx->pci_dev->dev;
 	unsigned int header_len, in_len;
+	bool use_opt_desc = false;
 	dma_addr_t dma_addr;
+
+	if (tx_queue->tso_version == 1)
+		use_opt_desc = true;
 
 	st->ip_off = skb_network_header(skb) - skb->data;
 	st->tcp_off = skb_transport_header(skb) - skb->data;
@@ -1258,15 +1274,14 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 			       struct sk_buff *skb)
 {
 	struct efx_nic *efx = tx_queue->efx;
+	unsigned int old_insert_count = tx_queue->insert_count;
 	int frag_i, rc;
 	struct tso_state state;
 
 	/* Find the packet protocol and sanity-check it */
 	state.protocol = efx_tso_check_protocol(skb);
 
-	EFX_BUG_ON_PARANOID(tx_queue->write_count != tx_queue->insert_count);
-
-	rc = tso_start(&state, efx, skb);
+	rc = tso_start(&state, efx, tx_queue, skb);
 	if (rc)
 		goto mem_err;
 
@@ -1308,10 +1323,23 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 
 	netdev_tx_sent_queue(tx_queue->core_txq, skb->len);
 
-	/* Pass off to hardware */
-	efx_nic_push_buffers(tx_queue);
-
 	efx_tx_maybe_stop_queue(tx_queue);
+
+	/* Pass off to hardware */
+	if (!skb->xmit_more || netif_xmit_stopped(tx_queue->core_txq)) {
+		struct efx_tx_queue *txq2 = efx_tx_queue_partner(tx_queue);
+
+		/* There could be packets left on the partner queue if those
+		 * SKBs had skb->xmit_more set. If we do not push those they
+		 * could be left for a long time and cause a netdev watchdog.
+		 */
+		if (txq2->xmit_more_available)
+			efx_nic_push_buffers(txq2);
+
+		efx_nic_push_buffers(tx_queue);
+	} else {
+		tx_queue->xmit_more_available = skb->xmit_more;
+	}
 
 	tx_queue->tso_bursts++;
 	return NETDEV_TX_OK;
@@ -1336,6 +1364,6 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 		dma_unmap_single(&efx->pci_dev->dev, state.header_dma_addr,
 				 state.header_unmap_len, DMA_TO_DEVICE);
 
-	efx_enqueue_unwind(tx_queue);
+	efx_enqueue_unwind(tx_queue, old_insert_count);
 	return NETDEV_TX_OK;
 }

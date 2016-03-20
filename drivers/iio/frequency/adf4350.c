@@ -72,7 +72,6 @@ static int adf4350_sync_config(struct adf4350_state *st)
 	for (i = ADF4350_REG5; i >= ADF4350_REG0; i--) {
 		if ((st->regs_hw[i] != st->regs[i]) ||
 			((i == ADF4350_REG0) && doublebuf)) {
-
 			switch (i) {
 			case ADF4350_REG1:
 			case ADF4350_REG4:
@@ -387,10 +386,8 @@ static struct adf4350_platform_data *adf4350_parse_dt(struct device *dev)
 	int ret;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		dev_err(dev, "could not allocate memory for platform data\n");
+	if (!pdata)
 		return NULL;
-	}
 
 	strncpy(&pdata->name[0], np->name, SPI_NAME_SIZE - 1);
 
@@ -613,23 +610,30 @@ static int adf4350_remove(struct spi_device *spi)
 	if (st->clk)
 		clk_disable_unprepare(st->clk);
 
-	if (!IS_ERR(reg)) {
+	if (!IS_ERR(reg))
 		regulator_disable(reg);
-	}
 
 	return 0;
 }
+
+static const struct of_device_id adf4350_of_match[] = {
+	{ .compatible = "adi,adf4350", },
+	{ .compatible = "adi,adf4351", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, adf4350_of_match);
 
 static const struct spi_device_id adf4350_id[] = {
 	{"adf4350", 4350},
 	{"adf4351", 4351},
 	{}
 };
+MODULE_DEVICE_TABLE(spi, adf4350_id);
 
 static struct spi_driver adf4350_driver = {
 	.driver = {
 		.name	= "adf4350",
-		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(adf4350_of_match),
 	},
 	.probe		= adf4350_probe,
 	.remove		= adf4350_remove,

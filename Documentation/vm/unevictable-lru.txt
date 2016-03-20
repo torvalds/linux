@@ -22,6 +22,7 @@ CONTENTS
      - Filtering special vmas.
      - munlock()/munlockall() system call handling.
      - Migrating mlocked pages.
+     - Compacting mlocked pages.
      - mmap(MAP_LOCKED) system call handling.
      - munmap()/exit()/exec() system call handling.
      - try_to_unmap().
@@ -317,7 +318,7 @@ If the VMA passes some filtering as described in "Filtering Special Vmas"
 below, mlock_fixup() will attempt to merge the VMA with its neighbors or split
 off a subset of the VMA if the range does not cover the entire VMA.  Once the
 VMA has been merged or split or neither, mlock_fixup() will call
-__mlock_vma_pages_range() to fault in the pages via get_user_pages() and to
+populate_vma_page_range() to fault in the pages via get_user_pages() and to
 mark the pages as mlocked via mlock_vma_page().
 
 Note that the VMA being mlocked might be mapped with PROT_NONE.  In this case,
@@ -327,7 +328,7 @@ fault path or in vmscan.
 
 Also note that a page returned by get_user_pages() could be truncated or
 migrated out from under us, while we're trying to mlock it.  To detect this,
-__mlock_vma_pages_range() checks page_mapping() after acquiring the page lock.
+populate_vma_page_range() checks page_mapping() after acquiring the page lock.
 If the page is still associated with its mapping, we'll go ahead and call
 mlock_vma_page().  If the mapping is gone, we just unlock the page and move on.
 In the worst case, this will result in a page mapped in a VM_LOCKED VMA
@@ -392,7 +393,7 @@ ignored for munlock.
 
 If the VMA is VM_LOCKED, mlock_fixup() again attempts to merge or split off the
 specified range.  The range is then munlocked via the function
-__mlock_vma_pages_range() - the same function used to mlock a VMA range -
+populate_vma_page_range() - the same function used to mlock a VMA range -
 passing a flag to indicate that munlock() is being performed.
 
 Because the VMA access protections could have been changed to PROT_NONE after
@@ -402,7 +403,7 @@ get_user_pages() was enhanced to accept a flag to ignore the permissions when
 fetching the pages - all of which should be resident as a result of previous
 mlocking.
 
-For munlock(), __mlock_vma_pages_range() unlocks individual pages by calling
+For munlock(), populate_vma_page_range() unlocks individual pages by calling
 munlock_vma_page().  munlock_vma_page() unconditionally clears the PG_mlocked
 flag using TestClearPageMlocked().  As with mlock_vma_page(),
 munlock_vma_page() use the Test*PageMlocked() function to handle the case where
@@ -450,12 +451,29 @@ list because of a race between munlock and migration, page migration uses the
 putback_lru_page() function to add migrated pages back to the LRU.
 
 
+COMPACTING MLOCKED PAGES
+------------------------
+
+The unevictable LRU can be scanned for compactable regions and the default
+behavior is to do so.  /proc/sys/vm/compact_unevictable_allowed controls
+this behavior (see Documentation/sysctl/vm.txt).  Once scanning of the
+unevictable LRU is enabled, the work of compaction is mostly handled by
+the page migration code and the same work flow as described in MIGRATING
+MLOCKED PAGES will apply.
+
+
 mmap(MAP_LOCKED) SYSTEM CALL HANDLING
 -------------------------------------
 
 In addition the mlock()/mlockall() system calls, an application can request
 that a region of memory be mlocked supplying the MAP_LOCKED flag to the mmap()
-call.  Furthermore, any mmap() call or brk() call that expands the heap by a
+call. There is one important and subtle difference here, though. mmap() + mlock()
+will fail if the range cannot be faulted in (e.g. because mm_populate fails)
+and returns with ENOMEM while mmap(MAP_LOCKED) will not fail. The mmaped
+area will still have properties of the locked area - aka. pages will not get
+swapped out - but major page faults to fault memory in might still happen.
+
+Furthermore, any mmap() call or brk() call that expands the heap by a
 task that has previously called mlockall() with the MCL_FUTURE flag will result
 in the newly mapped memory being mlocked.  Before the unevictable/mlock
 changes, the kernel simply called make_pages_present() to allocate pages and
@@ -463,21 +481,11 @@ populate the page table.
 
 To mlock a range of memory under the unevictable/mlock infrastructure, the
 mmap() handler and task address space expansion functions call
-mlock_vma_pages_range() specifying the vma and the address range to mlock.
-mlock_vma_pages_range() filters VMAs like mlock_fixup(), as described above in
-"Filtering Special VMAs".  It will clear the VM_LOCKED flag, which will have
-already been set by the caller, in filtered VMAs.  Thus these VMA's need not be
-visited for munlock when the region is unmapped.
+populate_vma_page_range() specifying the vma and the address range to mlock.
 
-For "normal" VMAs, mlock_vma_pages_range() calls __mlock_vma_pages_range() to
-fault/allocate the pages and mlock them.  Again, like mlock_fixup(),
-mlock_vma_pages_range() downgrades the mmap semaphore to read mode before
-attempting to fault/allocate and mlock the pages and "upgrades" the semaphore
-back to write mode before returning.
-
-The callers of mlock_vma_pages_range() will have already added the memory range
+The callers of populate_vma_page_range() will have already added the memory range
 to be mlocked to the task's "locked_vm".  To account for filtered VMAs,
-mlock_vma_pages_range() returns the number of pages NOT mlocked.  All of the
+populate_vma_page_range() returns the number of pages NOT mlocked.  All of the
 callers then subtract a non-negative return value from the task's locked_vm.  A
 negative return value represent an error - for example, from get_user_pages()
 attempting to fault in a VMA with PROT_NONE access.  In this case, we leave the
@@ -523,83 +531,20 @@ map.
 
 try_to_unmap() is always called, by either vmscan for reclaim or for page
 migration, with the argument page locked and isolated from the LRU.  Separate
-functions handle anonymous and mapped file pages, as these types of pages have
-different reverse map mechanisms.
+functions handle anonymous and mapped file and KSM pages, as these types of
+pages have different reverse map lookup mechanisms, with different locking.
+In each case, whether rmap_walk_anon() or rmap_walk_file() or rmap_walk_ksm(),
+it will call try_to_unmap_one() for every VMA which might contain the page.
 
- (*) try_to_unmap_anon()
+When trying to reclaim, if try_to_unmap_one() finds the page in a VM_LOCKED
+VMA, it will then mlock the page via mlock_vma_page() instead of unmapping it,
+and return SWAP_MLOCK to indicate that the page is unevictable: and the scan
+stops there.
 
-     To unmap anonymous pages, each VMA in the list anchored in the anon_vma
-     must be visited - at least until a VM_LOCKED VMA is encountered.  If the
-     page is being unmapped for migration, VM_LOCKED VMAs do not stop the
-     process because mlocked pages are migratable.  However, for reclaim, if
-     the page is mapped into a VM_LOCKED VMA, the scan stops.
-
-     try_to_unmap_anon() attempts to acquire in read mode the mmap semaphore of
-     the mm_struct to which the VMA belongs.  If this is successful, it will
-     mlock the page via mlock_vma_page() - we wouldn't have gotten to
-     try_to_unmap_anon() if the page were already mlocked - and will return
-     SWAP_MLOCK, indicating that the page is unevictable.
-
-     If the mmap semaphore cannot be acquired, we are not sure whether the page
-     is really unevictable or not.  In this case, try_to_unmap_anon() will
-     return SWAP_AGAIN.
-
- (*) try_to_unmap_file() - linear mappings
-
-     Unmapping of a mapped file page works the same as for anonymous mappings,
-     except that the scan visits all VMAs that map the page's index/page offset
-     in the page's mapping's reverse map priority search tree.  It also visits
-     each VMA in the page's mapping's non-linear list, if the list is
-     non-empty.
-
-     As for anonymous pages, on encountering a VM_LOCKED VMA for a mapped file
-     page, try_to_unmap_file() will attempt to acquire the associated
-     mm_struct's mmap semaphore to mlock the page, returning SWAP_MLOCK if this
-     is successful, and SWAP_AGAIN, if not.
-
- (*) try_to_unmap_file() - non-linear mappings
-
-     If a page's mapping contains a non-empty non-linear mapping VMA list, then
-     try_to_un{map|lock}() must also visit each VMA in that list to determine
-     whether the page is mapped in a VM_LOCKED VMA.  Again, the scan must visit
-     all VMAs in the non-linear list to ensure that the pages is not/should not
-     be mlocked.
-
-     If a VM_LOCKED VMA is found in the list, the scan could terminate.
-     However, there is no easy way to determine whether the page is actually
-     mapped in a given VMA - either for unmapping or testing whether the
-     VM_LOCKED VMA actually pins the page.
-
-     try_to_unmap_file() handles non-linear mappings by scanning a certain
-     number of pages - a "cluster" - in each non-linear VMA associated with the
-     page's mapping, for each file mapped page that vmscan tries to unmap.  If
-     this happens to unmap the page we're trying to unmap, try_to_unmap() will
-     notice this on return (page_mapcount(page) will be 0) and return
-     SWAP_SUCCESS.  Otherwise, it will return SWAP_AGAIN, causing vmscan to
-     recirculate this page.  We take advantage of the cluster scan in
-     try_to_unmap_cluster() as follows:
-
-	For each non-linear VMA, try_to_unmap_cluster() attempts to acquire the
-	mmap semaphore of the associated mm_struct for read without blocking.
-
-	If this attempt is successful and the VMA is VM_LOCKED,
-	try_to_unmap_cluster() will retain the mmap semaphore for the scan;
-	otherwise it drops it here.
-
-	Then, for each page in the cluster, if we're holding the mmap semaphore
-	for a locked VMA, try_to_unmap_cluster() calls mlock_vma_page() to
-	mlock the page.  This call is a no-op if the page is already locked,
-	but will mlock any pages in the non-linear mapping that happen to be
-	unlocked.
-
-	If one of the pages so mlocked is the page passed in to try_to_unmap(),
-	try_to_unmap_cluster() will return SWAP_MLOCK, rather than the default
-	SWAP_AGAIN.  This will allow vmscan to cull the page, rather than
-	recirculating it on the inactive list.
-
-	Again, if try_to_unmap_cluster() cannot acquire the VMA's mmap sem, it
-	returns SWAP_AGAIN, indicating that the page is mapped by a VM_LOCKED
-	VMA, but couldn't be mlocked.
+mlock_vma_page() is called while holding the page table's lock (in addition
+to the page lock, and the rmap lock): to serialize against concurrent mlock or
+munlock or munmap system calls, mm teardown (munlock_vma_pages_all), reclaim,
+holepunching, and truncation of file pages and their anonymous COWed pages.
 
 
 try_to_munlock() REVERSE MAP SCAN
@@ -615,29 +560,15 @@ all PTEs from the page.  For this purpose, the unevictable/mlock infrastructure
 introduced a variant of try_to_unmap() called try_to_munlock().
 
 try_to_munlock() calls the same functions as try_to_unmap() for anonymous and
-mapped file pages with an additional argument specifying unlock versus unmap
+mapped file and KSM pages with a flag argument specifying unlock versus unmap
 processing.  Again, these functions walk the respective reverse maps looking
-for VM_LOCKED VMAs.  When such a VMA is found for anonymous pages and file
-pages mapped in linear VMAs, as in the try_to_unmap() case, the functions
-attempt to acquire the associated mmap semaphore, mlock the page via
-mlock_vma_page() and return SWAP_MLOCK.  This effectively undoes the
-pre-clearing of the page's PG_mlocked done by munlock_vma_page.
-
-If try_to_unmap() is unable to acquire a VM_LOCKED VMA's associated mmap
-semaphore, it will return SWAP_AGAIN.  This will allow shrink_page_list() to
-recycle the page on the inactive list and hope that it has better luck with the
-page next time.
-
-For file pages mapped into non-linear VMAs, the try_to_munlock() logic works
-slightly differently.  On encountering a VM_LOCKED non-linear VMA that might
-map the page, try_to_munlock() returns SWAP_AGAIN without actually mlocking the
-page.  munlock_vma_page() will just leave the page unlocked and let vmscan deal
-with it - the usual fallback position.
+for VM_LOCKED VMAs.  When such a VMA is found, as in the try_to_unmap() case,
+the functions mlock the page via mlock_vma_page() and return SWAP_MLOCK.  This
+undoes the pre-clearing of the page's PG_mlocked done by munlock_vma_page.
 
 Note that try_to_munlock()'s reverse map walk must visit every VMA in a page's
 reverse map to determine that a page is NOT mapped into any VM_LOCKED VMA.
-However, the scan can terminate when it encounters a VM_LOCKED VMA and can
-successfully acquire the VMA's mmap semaphore for read and mlock the page.
+However, the scan can terminate when it encounters a VM_LOCKED VMA.
 Although try_to_munlock() might be called a great many times when munlocking a
 large region or tearing down a large address space that has been mlocked via
 mlockall(), overall this is a fairly rare event.
@@ -664,11 +595,6 @@ Some examples of these unevictable pages on the LRU lists are:
 
  (3) mlocked pages that could not be isolated from the LRU and moved to the
      unevictable list in mlock_vma_page().
-
- (4) Pages mapped into multiple VM_LOCKED VMAs, but try_to_munlock() couldn't
-     acquire the VMA's mmap semaphore to test the flags and set PageMlocked.
-     munlock_vma_page() was forced to let the page back on to the normal LRU
-     list for vmscan to handle.
 
 shrink_inactive_list() also diverts any unevictable pages that it finds on the
 inactive lists to the appropriate zone's unevictable list.

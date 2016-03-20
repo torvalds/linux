@@ -1,6 +1,7 @@
 config MN10300
 	def_bool y
 	select HAVE_OPROFILE
+	select HAVE_UID16
 	select GENERIC_IRQ_SHOW
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select HAVE_ARCH_TRACEHOOK
@@ -13,6 +14,7 @@ config MN10300
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
 	select HAVE_DEBUG_STACKOVERFLOW
+	select ARCH_NO_COHERENT_DMA_MMAP
 
 config AM33_2
 	def_bool n
@@ -37,9 +39,6 @@ config HIGHMEM
 config NUMA
 	def_bool n
 
-config UID16
-	def_bool y
-
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
@@ -54,6 +53,7 @@ config GENERIC_HWEIGHT
 
 config GENERIC_BUG
 	def_bool y
+	depends on BUG
 
 config QUICKLIST
 	def_bool y
@@ -181,7 +181,7 @@ endmenu
 config SMP
 	bool "Symmetric multi-processing support"
 	default y
-	depends on MN10300_PROC_MN2WS0038 || MN10300_PROC_MN2WS0050
+	depends on MN10300_PROC_MN2WS0050
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more

@@ -1405,9 +1405,9 @@ static int dib7000p_identify(struct dib7000p_state *st)
 	return 0;
 }
 
-static int dib7000p_get_frontend(struct dvb_frontend *fe)
+static int dib7000p_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *fep)
 {
-	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dib7000p_state *state = fe->demodulator_priv;
 	u16 tps = dib7000p_read_word(state, 463);
 
@@ -1540,7 +1540,7 @@ static int dib7000p_set_frontend(struct dvb_frontend *fe)
 		if (found == 0 || found == 1)
 			return 0;
 
-		dib7000p_get_frontend(fe);
+		dib7000p_get_frontend(fe, fep);
 	}
 
 	ret = dib7000p_tune(fe);
@@ -1558,9 +1558,9 @@ static int dib7000p_set_frontend(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int dib7000p_get_stats(struct dvb_frontend *fe, fe_status_t stat);
+static int dib7000p_get_stats(struct dvb_frontend *fe, enum fe_status stat);
 
-static int dib7000p_read_status(struct dvb_frontend *fe, fe_status_t * stat)
+static int dib7000p_read_status(struct dvb_frontend *fe, enum fe_status *stat)
 {
 	struct dib7000p_state *state = fe->demodulator_priv;
 	u16 lock = dib7000p_read_word(state, 509);
@@ -1780,7 +1780,7 @@ static u32 interpolate_value(u32 value, struct linear_segments *segments,
 }
 
 /* FIXME: may require changes - this one was borrowed from dib8000 */
-static u32 dib7000p_get_time_us(struct dvb_frontend *demod, int layer)
+static u32 dib7000p_get_time_us(struct dvb_frontend *demod)
 {
 	struct dtv_frontend_properties *c = &demod->dtv_property_cache;
 	u64 time_us, tmp64;
@@ -1877,11 +1877,10 @@ static u32 dib7000p_get_time_us(struct dvb_frontend *demod, int layer)
 	return time_us;
 }
 
-static int dib7000p_get_stats(struct dvb_frontend *demod, fe_status_t stat)
+static int dib7000p_get_stats(struct dvb_frontend *demod, enum fe_status stat)
 {
 	struct dib7000p_state *state = demod->demodulator_priv;
 	struct dtv_frontend_properties *c = &demod->dtv_property_cache;
-	int i;
 	int show_per_stats = 0;
 	u32 time_us = 0, val, snr;
 	u64 blocks, ucb;
@@ -1935,7 +1934,7 @@ static int dib7000p_get_stats(struct dvb_frontend *demod, fe_status_t stat)
 
 		/* Estimate the number of packets based on bitrate */
 		if (!time_us)
-			time_us = dib7000p_get_time_us(demod, -1);
+			time_us = dib7000p_get_time_us(demod);
 
 		if (time_us) {
 			blocks = 1250000ULL * 1000000ULL;
@@ -1949,7 +1948,7 @@ static int dib7000p_get_stats(struct dvb_frontend *demod, fe_status_t stat)
 
 	/* Get post-BER measures */
 	if (time_after(jiffies, state->ber_jiffies_stats)) {
-		time_us = dib7000p_get_time_us(demod, -1);
+		time_us = dib7000p_get_time_us(demod);
 		state->ber_jiffies_stats = jiffies + msecs_to_jiffies((time_us + 500) / 1000);
 
 		dprintk("Next all layers stats available in %u us.", time_us);
@@ -1969,7 +1968,7 @@ static int dib7000p_get_stats(struct dvb_frontend *demod, fe_status_t stat)
 		c->block_error.stat[0].scale = FE_SCALE_COUNTER;
 		c->block_error.stat[0].uvalue += val;
 
-		time_us = dib7000p_get_time_us(demod, i);
+		time_us = dib7000p_get_time_us(demod);
 		if (time_us) {
 			blocks = 1250000ULL * 1000000ULL;
 			do_div(blocks, time_us * 8 * 204);
@@ -2559,7 +2558,7 @@ static void dib7090_setHostBusMux(struct dib7000p_state *state, int mode)
 	dib7000p_write_word(state, 1288, reg_1288);
 }
 
-int dib7090_set_diversity_in(struct dvb_frontend *fe, int onoff)
+static int dib7090_set_diversity_in(struct dvb_frontend *fe, int onoff)
 {
 	struct dib7000p_state *state = fe->demodulator_priv;
 	u16 reg_1287;
@@ -2835,7 +2834,7 @@ static struct dvb_frontend_ops dib7000p_ops = {
 	.read_ucblocks = dib7000p_read_unc_blocks,
 };
 
-MODULE_AUTHOR("Olivier Grenie <ogrenie@dibcom.fr>");
-MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");
+MODULE_AUTHOR("Olivier Grenie <olivie.grenie@parrot.com>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Driver for the DiBcom 7000PC COFDM demodulator");
 MODULE_LICENSE("GPL");

@@ -330,7 +330,7 @@ struct pch_vbus_gpio_data {
  * @prot_stall:		protcol stall requested
  * @irq_registered:	irq registered with system
  * @mem_region:		device memory mapped
- * @registered:		driver regsitered with system
+ * @registered:		driver registered with system
  * @suspended:		driver in suspended state
  * @connected:		gadget driver associated
  * @vbus_session:	required vbus_session state
@@ -343,6 +343,7 @@ struct pch_vbus_gpio_data {
  * @setup_data:		Received setup data
  * @phys_addr:		of device memory
  * @base_addr:		for mapped device memory
+ * @bar:		Indicates which PCI BAR for USB regs
  * @irq:		IRQ line for the device
  * @cfg_data:		current cfg, intf, and alt in use
  * @vbus_gpio:		GPIO informaton for detecting VBUS
@@ -370,14 +371,17 @@ struct pch_udc_dev {
 	struct usb_ctrlrequest		setup_data;
 	unsigned long			phys_addr;
 	void __iomem			*base_addr;
+	unsigned			bar;
 	unsigned			irq;
 	struct pch_udc_cfg_data		cfg_data;
 	struct pch_vbus_gpio_data	vbus_gpio;
 };
 #define to_pch_udc(g)	(container_of((g), struct pch_udc_dev, gadget))
 
+#define PCH_UDC_PCI_BAR_QUARK_X1000	0
 #define PCH_UDC_PCI_BAR			1
 #define PCI_DEVICE_ID_INTEL_EG20T_UDC	0x8808
+#define PCI_DEVICE_ID_INTEL_QUARK_X1000_UDC	0x0939
 #define PCI_VENDOR_ID_ROHM		0x10DB
 #define PCI_DEVICE_ID_ML7213_IOH_UDC	0x801D
 #define PCI_DEVICE_ID_ML7831_IOH_UDC	0x8808
@@ -616,9 +620,9 @@ static inline void pch_udc_vbus_session(struct pch_udc_dev *dev,
 		dev->vbus_session = 1;
 	} else {
 		if (dev->driver && dev->driver->disconnect) {
-			spin_unlock(&dev->lock);
-			dev->driver->disconnect(&dev->gadget);
 			spin_lock(&dev->lock);
+			dev->driver->disconnect(&dev->gadget);
+			spin_unlock(&dev->lock);
 		}
 		pch_udc_set_disconnect(dev);
 		dev->vbus_session = 0;
@@ -1157,6 +1161,7 @@ static int pch_udc_pcd_selfpowered(struct usb_gadget *gadget, int value)
 
 	if (!gadget)
 		return -EINVAL;
+	gadget->is_selfpowered = (value != 0);
 	dev = container_of(gadget, struct pch_udc_dev, gadget);
 	if (value)
 		pch_udc_set_selfpowered(dev);
@@ -1186,9 +1191,9 @@ static int pch_udc_pcd_pullup(struct usb_gadget *gadget, int is_on)
 		pch_udc_reconnect(dev);
 	} else {
 		if (dev->driver && dev->driver->disconnect) {
-			spin_unlock(&dev->lock);
-			dev->driver->disconnect(&dev->gadget);
 			spin_lock(&dev->lock);
+			dev->driver->disconnect(&dev->gadget);
+			spin_unlock(&dev->lock);
 		}
 		pch_udc_set_disconnect(dev);
 	}
@@ -1236,8 +1241,8 @@ static int pch_udc_pcd_vbus_draw(struct usb_gadget *gadget, unsigned int mA)
 
 static int pch_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
-static int pch_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver);
+static int pch_udc_stop(struct usb_gadget *g);
+
 static const struct usb_gadget_ops pch_udc_ops = {
 	.get_frame = pch_udc_pcd_get_frame,
 	.wakeup = pch_udc_pcd_wakeup,
@@ -1483,11 +1488,11 @@ static void complete_req(struct pch_udc_ep *ep, struct pch_udc_request *req,
 		req->dma_mapped = 0;
 	}
 	ep->halted = 1;
-	spin_unlock(&dev->lock);
+	spin_lock(&dev->lock);
 	if (!ep->in)
 		pch_udc_ep_clear_rrdy(ep);
-	req->req.complete(&ep->ep, &req->req);
-	spin_lock(&dev->lock);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
+	spin_unlock(&dev->lock);
 	ep->halted = halted;
 }
 
@@ -1788,7 +1793,7 @@ static struct usb_request *pch_udc_alloc_request(struct usb_ep *usbep,
 	}
 	/* prevent from using desc. - set HOST BUSY */
 	dma_desc->status |= PCH_UDC_BS_HST_BSY;
-	dma_desc->dataptr = __constant_cpu_to_le32(DMA_ADDR_INVALID);
+	dma_desc->dataptr = cpu_to_le32(DMA_ADDR_INVALID);
 	req->td_data = dma_desc;
 	req->td_data_last = dma_desc;
 	req->chain_len = 1;
@@ -2409,7 +2414,7 @@ static void pch_udc_svc_control_out(struct pch_udc_dev *dev)
 			dev->gadget.ep0 = &dev->ep[UDC_EP0IN_IDX].ep;
 		else /* OUT */
 			dev->gadget.ep0 = &ep->ep;
-		spin_unlock(&dev->lock);
+		spin_lock(&dev->lock);
 		/* If Mass storage Reset */
 		if ((dev->setup_data.bRequestType == 0x21) &&
 		    (dev->setup_data.bRequest == 0xFF))
@@ -2417,7 +2422,7 @@ static void pch_udc_svc_control_out(struct pch_udc_dev *dev)
 		/* call gadget with setup data received */
 		setup_supported = dev->driver->setup(&dev->gadget,
 						     &dev->setup_data);
-		spin_lock(&dev->lock);
+		spin_unlock(&dev->lock);
 
 		if (dev->setup_data.bRequestType & USB_DIR_IN) {
 			ep->td_data->status = (ep->td_data->status &
@@ -2588,10 +2593,10 @@ static void pch_udc_svc_ur_interrupt(struct pch_udc_dev *dev)
 		/* Complete request queue */
 		empty_req_queue(ep);
 	}
-	if (dev->driver && dev->driver->disconnect) {
-		spin_unlock(&dev->lock);
-		dev->driver->disconnect(&dev->gadget);
+	if (dev->driver) {
 		spin_lock(&dev->lock);
+		usb_gadget_udc_reset(&dev->gadget, dev->driver);
+		spin_unlock(&dev->lock);
 	}
 }
 
@@ -2670,9 +2675,9 @@ static void pch_udc_svc_intf_interrupt(struct pch_udc_dev *dev)
 		dev->ep[i].halted = 0;
 	}
 	dev->stall = 0;
-	spin_unlock(&dev->lock);
-	ret = dev->driver->setup(&dev->gadget, &dev->setup_data);
 	spin_lock(&dev->lock);
+	ret = dev->driver->setup(&dev->gadget, &dev->setup_data);
+	spin_unlock(&dev->lock);
 }
 
 /**
@@ -2707,9 +2712,9 @@ static void pch_udc_svc_cfg_interrupt(struct pch_udc_dev *dev)
 	dev->stall = 0;
 
 	/* call gadget zero with setup data received */
-	spin_unlock(&dev->lock);
-	ret = dev->driver->setup(&dev->gadget, &dev->setup_data);
 	spin_lock(&dev->lock);
+	ret = dev->driver->setup(&dev->gadget, &dev->setup_data);
+	spin_unlock(&dev->lock);
 }
 
 /**
@@ -2890,11 +2895,21 @@ static void pch_udc_pcd_reinit(struct pch_udc_dev *dev)
 		ep->in = ~i & 1;
 		ep->ep.name = ep_string[i];
 		ep->ep.ops = &pch_udc_ep_ops;
-		if (ep->in)
+		if (ep->in) {
 			ep->offset_addr = ep->num * UDC_EP_REG_SHIFT;
-		else
+			ep->ep.caps.dir_in = true;
+		} else {
 			ep->offset_addr = (UDC_EPINT_OUT_SHIFT + ep->num) *
 					  UDC_EP_REG_SHIFT;
+			ep->ep.caps.dir_out = true;
+		}
+		if (i == UDC_EP0IN_IDX || i == UDC_EP0OUT_IDX) {
+			ep->ep.caps.type_control = true;
+		} else {
+			ep->ep.caps.type_iso = true;
+			ep->ep.caps.type_bulk = true;
+			ep->ep.caps.type_int = true;
+		}
 		/* need to set ep->ep.maxpacket and set Default Configuration?*/
 		usb_ep_set_maxpacket_limit(&ep->ep, UDC_BULK_MAX_PKT_SIZE);
 		list_add_tail(&ep->ep.ep_list, &dev->gadget.ep_list);
@@ -3004,8 +3019,7 @@ static int pch_udc_start(struct usb_gadget *g,
 	return 0;
 }
 
-static int pch_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int pch_udc_stop(struct usb_gadget *g)
 {
 	struct pch_udc_dev	*dev = to_pch_udc(g);
 
@@ -3076,7 +3090,7 @@ static void pch_udc_remove(struct pci_dev *pdev)
 		iounmap(dev->base_addr);
 	if (dev->mem_region)
 		release_mem_region(dev->phys_addr,
-				   pci_resource_len(pdev, PCH_UDC_PCI_BAR));
+				   pci_resource_len(pdev, dev->bar));
 	if (dev->active)
 		pci_disable_device(pdev);
 	kfree(dev);
@@ -3144,9 +3158,15 @@ static int pch_udc_probe(struct pci_dev *pdev,
 	dev->active = 1;
 	pci_set_drvdata(pdev, dev);
 
+	/* Determine BAR based on PCI ID */
+	if (id->device == PCI_DEVICE_ID_INTEL_QUARK_X1000_UDC)
+		dev->bar = PCH_UDC_PCI_BAR_QUARK_X1000;
+	else
+		dev->bar = PCH_UDC_PCI_BAR;
+
 	/* PCI resource allocation */
-	resource = pci_resource_start(pdev, 1);
-	len = pci_resource_len(pdev, 1);
+	resource = pci_resource_start(pdev, dev->bar);
+	len = pci_resource_len(pdev, dev->bar);
 
 	if (!request_mem_region(resource, len, KBUILD_MODNAME)) {
 		dev_err(&pdev->dev, "%s: pci device used already\n", __func__);
@@ -3212,18 +3232,24 @@ finished:
 
 static const struct pci_device_id pch_udc_pcidev_id[] = {
 	{
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL,
+			   PCI_DEVICE_ID_INTEL_QUARK_X1000_UDC),
+		.class = PCI_CLASS_SERIAL_USB_DEVICE,
+		.class_mask = 0xffffffff,
+	},
+	{
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_EG20T_UDC),
-		.class = (PCI_CLASS_SERIAL_USB << 8) | 0xfe,
+		.class = PCI_CLASS_SERIAL_USB_DEVICE,
 		.class_mask = 0xffffffff,
 	},
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_ROHM, PCI_DEVICE_ID_ML7213_IOH_UDC),
-		.class = (PCI_CLASS_SERIAL_USB << 8) | 0xfe,
+		.class = PCI_CLASS_SERIAL_USB_DEVICE,
 		.class_mask = 0xffffffff,
 	},
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_ROHM, PCI_DEVICE_ID_ML7831_IOH_UDC),
-		.class = (PCI_CLASS_SERIAL_USB << 8) | 0xfe,
+		.class = PCI_CLASS_SERIAL_USB_DEVICE,
 		.class_mask = 0xffffffff,
 	},
 	{ 0 },

@@ -38,6 +38,7 @@ struct ptp_clock_request {
 	};
 };
 
+struct system_device_crosststamp;
 /**
  * struct ptp_clock_info - decribes a PTP hardware clock
  *
@@ -64,11 +65,16 @@ struct ptp_clock_request {
  * @adjtime:  Shifts the time of the hardware clock.
  *            parameter delta: Desired change in nanoseconds.
  *
- * @gettime:  Reads the current time from the hardware clock.
- *            parameter ts: Holds the result.
+ * @gettime64:  Reads the current time from the hardware clock.
+ *              parameter ts: Holds the result.
  *
- * @settime:  Set the current time on the hardware clock.
- *            parameter ts: Time value to set.
+ * @getcrosststamp:  Reads the current time from the hardware clock and
+ *                   system clock simultaneously.
+ *                   parameter cts: Contains timestamp (device,system) pair,
+ *                   where system time is realtime and monotonic.
+ *
+ * @settime64:  Set the current time on the hardware clock.
+ *              parameter ts: Time value to set.
  *
  * @enable:   Request driver to enable or disable an ancillary feature.
  *            parameter request: Desired resource to enable or disable.
@@ -104,8 +110,10 @@ struct ptp_clock_info {
 	struct ptp_pin_desc *pin_config;
 	int (*adjfreq)(struct ptp_clock_info *ptp, s32 delta);
 	int (*adjtime)(struct ptp_clock_info *ptp, s64 delta);
-	int (*gettime)(struct ptp_clock_info *ptp, struct timespec *ts);
-	int (*settime)(struct ptp_clock_info *ptp, const struct timespec *ts);
+	int (*gettime64)(struct ptp_clock_info *ptp, struct timespec64 *ts);
+	int (*getcrosststamp)(struct ptp_clock_info *ptp,
+			      struct system_device_crosststamp *cts);
+	int (*settime64)(struct ptp_clock_info *p, const struct timespec64 *ts);
 	int (*enable)(struct ptp_clock_info *ptp,
 		      struct ptp_clock_request *request, int on);
 	int (*verify)(struct ptp_clock_info *ptp, unsigned int pin,

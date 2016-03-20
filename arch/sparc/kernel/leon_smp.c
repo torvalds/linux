@@ -343,7 +343,7 @@ static void leon_ipi_resched(int cpu)
 
 void leonsmp_ipi_interrupt(void)
 {
-	struct leon_ipi_work *work = &__get_cpu_var(leon_ipi_work);
+	struct leon_ipi_work *work = this_cpu_ptr(&leon_ipi_work);
 
 	if (work->single) {
 		work->single = 0;
@@ -368,7 +368,7 @@ static struct smp_funcall {
 	unsigned long arg5;
 	unsigned long processors_in[NR_CPUS];	/* Set when ipi entered. */
 	unsigned long processors_out[NR_CPUS];	/* Set when ipi exited. */
-} ccall_info;
+} ccall_info __attribute__((aligned(8)));
 
 static DEFINE_SPINLOCK(cross_call_lock);
 

@@ -119,12 +119,12 @@
 
 
 /* MPC5200 device tree match tables */
-static struct of_device_id mpc52xx_pic_ids[] __initdata = {
+static const struct of_device_id mpc52xx_pic_ids[] __initconst = {
 	{ .compatible = "fsl,mpc5200-pic", },
 	{ .compatible = "mpc5200-pic", },
 	{}
 };
-static struct of_device_id mpc52xx_sdma_ids[] __initdata = {
+static const struct of_device_id mpc52xx_sdma_ids[] __initconst = {
 	{ .compatible = "fsl,mpc5200-bestcomm", },
 	{ .compatible = "mpc5200-bestcomm", },
 	{}
@@ -196,7 +196,7 @@ static int mpc52xx_extirq_set_type(struct irq_data *d, unsigned int flow_type)
 	ctrl_reg |= (type << (22 - (l2irq * 2)));
 	out_be32(&intr->ctrl, ctrl_reg);
 
-	__irq_set_handler_locked(d->irq, handler);
+	irq_set_handler_locked(d, handler);
 
 	return 0;
 }

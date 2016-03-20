@@ -165,12 +165,16 @@ at91_clk_register_master(struct at91_pmc *pmc, unsigned int irq,
 	irq_set_status_flags(master->irq, IRQ_NOAUTOEN);
 	ret = request_irq(master->irq, clk_master_irq_handler,
 			  IRQF_TRIGGER_HIGH, "clk-master", master);
-	if (ret)
+	if (ret) {
+		kfree(master);
 		return ERR_PTR(ret);
+	}
 
 	clk = clk_register(NULL, &master->hw);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
+		free_irq(master->irq, master);
 		kfree(master);
+	}
 
 	return clk;
 }
@@ -218,21 +222,16 @@ of_at91_clk_master_setup(struct device_node *np, struct at91_pmc *pmc,
 {
 	struct clk *clk;
 	int num_parents;
-	int i;
 	unsigned int irq;
 	const char *parent_names[MASTER_SOURCE_MAX];
 	const char *name = np->name;
 	struct clk_master_characteristics *characteristics;
 
-	num_parents = of_count_phandle_with_args(np, "clocks", "#clock-cells");
+	num_parents = of_clk_get_parent_count(np);
 	if (num_parents <= 0 || num_parents > MASTER_SOURCE_MAX)
 		return;
 
-	for (i = 0; i < num_parents; ++i) {
-		parent_names[i] = of_clk_get_parent_name(np, i);
-		if (!parent_names[i])
-			return;
-	}
+	of_clk_parent_fill(np, parent_names, num_parents);
 
 	of_property_read_string(np, "clock-output-names", &name);
 

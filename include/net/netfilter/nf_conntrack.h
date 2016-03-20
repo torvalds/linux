@@ -92,11 +92,16 @@ struct nf_conn {
 	/* Have we seen traffic both ways yet? (bitset) */
 	unsigned long status;
 
-	/* If we were expected by an expectation, this will be it */
-	struct nf_conn *master;
-
 	/* Timer function; drops refcnt when it goes off. */
 	struct timer_list timeout;
+
+	possible_net_t ct_net;
+
+	/* all members below initialized via memset */
+	u8 __nfct_init_offset[0];
+
+	/* If we were expected by an expectation, this will be it */
+	struct nf_conn *master;
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	u_int32_t mark;
@@ -108,9 +113,6 @@ struct nf_conn {
 
 	/* Extensions */
 	struct nf_ct_ext *ext;
-#ifdef CONFIG_NET_NS
-	struct net *ct_net;
-#endif
 
 	/* Storage reserved for other modules, must be the last member */
 	union nf_conntrack_proto proto;
@@ -181,17 +183,12 @@ void *nf_ct_alloc_hashtable(unsigned int *sizep, int nulls);
 
 void nf_ct_free_hashtable(void *hash, unsigned int size);
 
-struct nf_conntrack_tuple_hash *
-__nf_conntrack_find(struct net *net, u16 zone,
-		    const struct nf_conntrack_tuple *tuple);
-
 int nf_conntrack_hash_check_insert(struct nf_conn *ct);
 bool nf_ct_delete(struct nf_conn *ct, u32 pid, int report);
 
-void nf_conntrack_flush_report(struct net *net, u32 portid, int report);
-
 bool nf_ct_get_tuplepr(const struct sk_buff *skb, unsigned int nhoff,
-		       u_int16_t l3num, struct nf_conntrack_tuple *tuple);
+		       u_int16_t l3num, struct net *net,
+		       struct nf_conntrack_tuple *tuple);
 bool nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
 			  const struct nf_conntrack_tuple *orig);
 
@@ -242,7 +239,7 @@ extern s32 (*nf_ct_nat_offset)(const struct nf_conn *ct,
 DECLARE_PER_CPU(struct nf_conn, nf_conntrack_untracked);
 static inline struct nf_conn *nf_ct_untracked_get(void)
 {
-	return &__raw_get_cpu_var(nf_conntrack_untracked);
+	return raw_cpu_ptr(&nf_conntrack_untracked);
 }
 void nf_ct_untracked_status_or(unsigned long bits);
 
@@ -250,8 +247,12 @@ void nf_ct_untracked_status_or(unsigned long bits);
 void nf_ct_iterate_cleanup(struct net *net,
 			   int (*iter)(struct nf_conn *i, void *data),
 			   void *data, u32 portid, int report);
+
+struct nf_conntrack_zone;
+
 void nf_conntrack_free(struct nf_conn *ct);
-struct nf_conn *nf_conntrack_alloc(struct net *net, u16 zone,
+struct nf_conn *nf_conntrack_alloc(struct net *net,
+				   const struct nf_conntrack_zone *zone,
 				   const struct nf_conntrack_tuple *orig,
 				   const struct nf_conntrack_tuple *repl,
 				   gfp_t gfp);
@@ -291,7 +292,10 @@ extern unsigned int nf_conntrack_max;
 extern unsigned int nf_conntrack_hash_rnd;
 void init_nf_conntrack_hash_rnd(void);
 
-void nf_conntrack_tmpl_insert(struct net *net, struct nf_conn *tmpl);
+struct nf_conn *nf_ct_tmpl_alloc(struct net *net,
+				 const struct nf_conntrack_zone *zone,
+				 gfp_t flags);
+void nf_ct_tmpl_free(struct nf_conn *tmpl);
 
 #define NF_CT_STAT_INC(net, count)	  __this_cpu_inc((net)->ct.stat->count)
 #define NF_CT_STAT_INC_ATOMIC(net, count) this_cpu_inc((net)->ct.stat->count)

@@ -130,16 +130,6 @@ static int toim3232delay = 150;	/* default is 150 ms */
 module_param(toim3232delay, int, 0);
 MODULE_PARM_DESC(toim3232delay, "toim3232 dongle write complete delay");
 
-#if 0
-static int toim3232flipdtr = 0;	/* default is DTR high to reset */
-module_param(toim3232flipdtr, int, 0);
-MODULE_PARM_DESC(toim3232flipdtr, "toim3232 dongle invert DTR (Reset)");
-
-static int toim3232fliprts = 0;	/* default is RTS high for baud change */
-module_param(toim3232fliptrs, int, 0);
-MODULE_PARM_DESC(toim3232fliprts, "toim3232 dongle invert RTS (BR/D)");
-#endif
-
 static int toim3232_open(struct sir_dev *);
 static int toim3232_close(struct sir_dev *);
 static int toim3232_change_speed(struct sir_dev *, unsigned);
@@ -168,8 +158,8 @@ static int __init toim3232_sir_init(void)
 {
 	if (toim3232delay < 1  ||  toim3232delay > 500)
 		toim3232delay = 200;
-	IRDA_DEBUG(1, "%s - using %d ms delay\n",
-		toim3232.driver_name, toim3232delay);
+	pr_debug("%s - using %d ms delay\n",
+		 toim3232.driver_name, toim3232delay);
 	return irda_register_dongle(&toim3232);
 }
 
@@ -181,8 +171,6 @@ static void __exit toim3232_sir_cleanup(void)
 static int toim3232_open(struct sir_dev *dev)
 {
 	struct qos_info *qos = &dev->qos;
-
-	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	/* Pull the lines high to start with.
 	 *
@@ -210,8 +198,6 @@ static int toim3232_open(struct sir_dev *dev)
 
 static int toim3232_close(struct sir_dev *dev)
 {
-	IRDA_DEBUG(2, "%s()\n", __func__);
-
 	/* Power off dongle */
 	sirdev_set_dtr_rts(dev, FALSE, FALSE);
 
@@ -241,8 +227,6 @@ static int toim3232_change_speed(struct sir_dev *dev, unsigned speed)
 	unsigned delay = 0;
 	u8 byte;
 	static int ret = 0;
-
-	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	switch(state) {
 	case SIRDEV_STATE_DONGLE_SPEED:
@@ -345,8 +329,6 @@ static int toim3232_change_speed(struct sir_dev *dev, unsigned speed)
 
 static int toim3232_reset(struct sir_dev *dev)
 {
-	IRDA_DEBUG(2, "%s()\n", __func__);
-
 	/* Switch off both DTR and RTS to switch off dongle */
 	sirdev_set_dtr_rts(dev, FALSE, FALSE);
 

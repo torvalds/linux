@@ -216,9 +216,6 @@ struct snd_wm8776 {
 
 void snd_wm8776_init(struct snd_wm8776 *wm);
 void snd_wm8776_resume(struct snd_wm8776 *wm);
-void snd_wm8776_set_dac_if(struct snd_wm8776 *wm, u16 dac);
-void snd_wm8776_set_adc_if(struct snd_wm8776 *wm, u16 adc);
-void snd_wm8776_set_master_mode(struct snd_wm8776 *wm, u16 mode);
 void snd_wm8776_set_power(struct snd_wm8776 *wm, u16 power);
 void snd_wm8776_volume_restore(struct snd_wm8776 *wm);
 int snd_wm8776_build_controls(struct snd_wm8776 *wm);

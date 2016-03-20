@@ -918,11 +918,8 @@ static int pcnet_open(struct net_device *dev)
 
     info->phy_id = info->eth_phy;
     info->link_status = 0x00;
-    init_timer(&info->watchdog);
-    info->watchdog.function = ei_watchdog;
-    info->watchdog.data = (u_long)dev;
-    info->watchdog.expires = jiffies + HZ;
-    add_timer(&info->watchdog);
+    setup_timer(&info->watchdog, ei_watchdog, (u_long)dev);
+    mod_timer(&info->watchdog, jiffies + HZ);
 
     return ei_open(dev);
 } /* pcnet_open */
@@ -1504,6 +1501,7 @@ static const struct pcmcia_device_id pcnet_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x026f, 0x030a),
 	PCMCIA_DEVICE_MANF_CARD(0x0274, 0x1103),
 	PCMCIA_DEVICE_MANF_CARD(0x0274, 0x1121),
+	PCMCIA_DEVICE_MANF_CARD(0xc001, 0x0009),
 	PCMCIA_DEVICE_PROD_ID12("2408LAN", "Ethernet", 0x352fff7f, 0x00b2e941),
 	PCMCIA_DEVICE_PROD_ID1234("Socket", "CF 10/100 Ethernet Card", "Revision B", "05/11/06", 0xb38bcc2e, 0x4de88352, 0xeaca6c8d, 0x7e57c22e),
 	PCMCIA_DEVICE_PROD_ID123("Cardwell", "PCMCIA", "ETHERNET", 0x9533672e, 0x281f1c5d, 0x3ff7175b),

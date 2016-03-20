@@ -57,10 +57,6 @@
 #include <asm/irq.h>
 #include <asm/pgtable.h>
 
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
-
 #include "savagefb.h"
 
 
@@ -1775,7 +1771,7 @@ static int savage_map_video(struct fb_info *info, int video_len)
 
 	par->video.pbase = pci_resource_start(par->pcidev, resource);
 	par->video.len   = video_len;
-	par->video.vbase = ioremap(par->video.pbase, par->video.len);
+	par->video.vbase = ioremap_wc(par->video.pbase, par->video.len);
 
 	if (!par->video.vbase) {
 		printk("savagefb: unable to map screen memory\n");
@@ -1787,11 +1783,7 @@ static int savage_map_video(struct fb_info *info, int video_len)
 	info->fix.smem_start = par->video.pbase;
 	info->fix.smem_len   = par->video.len - par->cob_size;
 	info->screen_base    = par->video.vbase;
-
-#ifdef CONFIG_MTRR
-	par->video.mtrr = mtrr_add(par->video.pbase, video_len,
-				   MTRR_TYPE_WRCOMB, 1);
-#endif
+	par->video.wc_cookie = arch_phys_wc_add(par->video.pbase, video_len);
 
 	/* Clear framebuffer, it's all white in memory after boot */
 	memset_io(par->video.vbase, 0, par->video.len);
@@ -1806,10 +1798,7 @@ static void savage_unmap_video(struct fb_info *info)
 	DBG("savage_unmap_video");
 
 	if (par->video.vbase) {
-#ifdef CONFIG_MTRR
-		mtrr_del(par->video.mtrr, par->video.pbase, par->video.len);
-#endif
-
+		arch_phys_wc_del(par->video.wc_cookie);
 		iounmap(par->video.vbase);
 		par->video.vbase = NULL;
 		info->screen_base = NULL;

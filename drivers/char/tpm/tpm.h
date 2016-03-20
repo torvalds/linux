@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2004 IBM Corporation
+ * Copyright (C) 2015 Intel Corporation
  *
  * Authors:
  * Leendert van Doorn <leendert@watson.ibm.com>
@@ -10,23 +11,25 @@
  * Maintained by: <tpmdd-devel@lists.sourceforge.net>
  *
  * Device driver for TCG/TCPA TPM (trusted platform module).
- * Specifications at www.trustedcomputinggroup.org	 
+ * Specifications at www.trustedcomputinggroup.org
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, version 2 of the
  * License.
- * 
+ *
  */
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
-#include <linux/miscdevice.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/tpm.h>
+#include <linux/acpi.h>
+#include <linux/cdev.h>
+#include <linux/highmem.h>
 
 enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
@@ -61,6 +64,70 @@ enum tpm_duration {
 #define TPM_ERR_INVALID_POSTINIT 38
 
 #define TPM_HEADER_SIZE		10
+
+enum tpm2_const {
+	TPM2_PLATFORM_PCR	= 24,
+	TPM2_PCR_SELECT_MIN	= ((TPM2_PLATFORM_PCR + 7) / 8),
+	TPM2_TIMEOUT_A		= 750,
+	TPM2_TIMEOUT_B		= 2000,
+	TPM2_TIMEOUT_C		= 200,
+	TPM2_TIMEOUT_D		= 30,
+	TPM2_DURATION_SHORT	= 20,
+	TPM2_DURATION_MEDIUM	= 750,
+	TPM2_DURATION_LONG	= 2000,
+};
+
+enum tpm2_structures {
+	TPM2_ST_NO_SESSIONS	= 0x8001,
+	TPM2_ST_SESSIONS	= 0x8002,
+};
+
+enum tpm2_return_codes {
+	TPM2_RC_HASH		= 0x0083, /* RC_FMT1 */
+	TPM2_RC_INITIALIZE	= 0x0100, /* RC_VER1 */
+	TPM2_RC_DISABLED	= 0x0120,
+	TPM2_RC_TESTING		= 0x090A, /* RC_WARN */
+};
+
+enum tpm2_algorithms {
+	TPM2_ALG_SHA1		= 0x0004,
+	TPM2_ALG_KEYEDHASH	= 0x0008,
+	TPM2_ALG_SHA256		= 0x000B,
+	TPM2_ALG_SHA384		= 0x000C,
+	TPM2_ALG_SHA512		= 0x000D,
+	TPM2_ALG_NULL		= 0x0010,
+	TPM2_ALG_SM3_256	= 0x0012,
+};
+
+enum tpm2_command_codes {
+	TPM2_CC_FIRST		= 0x011F,
+	TPM2_CC_SELF_TEST	= 0x0143,
+	TPM2_CC_STARTUP		= 0x0144,
+	TPM2_CC_SHUTDOWN	= 0x0145,
+	TPM2_CC_CREATE		= 0x0153,
+	TPM2_CC_LOAD		= 0x0157,
+	TPM2_CC_UNSEAL		= 0x015E,
+	TPM2_CC_FLUSH_CONTEXT	= 0x0165,
+	TPM2_CC_GET_CAPABILITY	= 0x017A,
+	TPM2_CC_GET_RANDOM	= 0x017B,
+	TPM2_CC_PCR_READ	= 0x017E,
+	TPM2_CC_PCR_EXTEND	= 0x0182,
+	TPM2_CC_LAST		= 0x018F,
+};
+
+enum tpm2_permanent_handles {
+	TPM2_RS_PW		= 0x40000009,
+};
+
+enum tpm2_capabilities {
+	TPM2_CAP_TPM_PROPERTIES = 6,
+};
+
+enum tpm2_startup_types {
+	TPM2_SU_CLEAR	= 0x0000,
+	TPM2_SU_STATE	= 0x0001,
+};
+
 struct tpm_chip;
 
 struct tpm_vendor_specific {
@@ -68,12 +135,10 @@ struct tpm_vendor_specific {
 	unsigned long base;		/* TPM base address */
 
 	int irq;
-	int probed_irq;
 
 	int region_size;
 	int have_region;
 
-	struct miscdevice miscdev;
 	struct list_head list;
 	int locality;
 	unsigned long timeout_a, timeout_b, timeout_c, timeout_d; /* jiffies */
@@ -88,15 +153,26 @@ struct tpm_vendor_specific {
 	u16 manufacturer_id;
 };
 
-#define TPM_VPRIV(c)	(c)->vendor.priv
+#define TPM_VPRIV(c)     ((c)->vendor.priv)
 
 #define TPM_VID_INTEL    0x8086
 #define TPM_VID_WINBOND  0x1050
 #define TPM_VID_STM      0x104A
 
+#define TPM_PPI_VERSION_LEN		3
+
+enum tpm_chip_flags {
+	TPM_CHIP_FLAG_REGISTERED	= BIT(0),
+	TPM_CHIP_FLAG_TPM2		= BIT(1),
+};
+
 struct tpm_chip {
-	struct device *dev;	/* Device stuff */
+	struct device *pdev;	/* Device stuff */
+	struct device dev;
+	struct cdev cdev;
+
 	const struct tpm_class_ops *ops;
+	unsigned int flags;
 
 	int dev_num;		/* /dev/tpm# */
 	char devname[7];
@@ -109,15 +185,21 @@ struct tpm_chip {
 
 	struct dentry **bios_dir;
 
+#ifdef CONFIG_ACPI
+	const struct attribute_group *groups[2];
+	unsigned int groups_cnt;
+	acpi_handle acpi_dev_handle;
+	char ppi_version[TPM_PPI_VERSION_LEN + 1];
+#endif /* CONFIG_ACPI */
+
 	struct list_head list;
-	void (*release) (struct device *);
 };
 
-#define to_tpm_chip(n) container_of(n, struct tpm_chip, vendor)
+#define to_tpm_chip(d) container_of(d, struct tpm_chip, dev)
 
 static inline void tpm_chip_put(struct tpm_chip *chip)
 {
-	module_put(chip->dev->driver->owner);
+	module_put(chip->pdev->driver->owner);
 }
 
 static inline int tpm_read_index(int base, int index)
@@ -313,40 +395,153 @@ struct tpm_cmd_t {
 	tpm_cmd_params	params;
 } __packed;
 
-ssize_t	tpm_getcap(struct device *, __be32, cap_t *, const char *);
+/* A string buffer type for constructing TPM commands. This is based on the
+ * ideas of string buffer code in security/keys/trusted.h but is heap based
+ * in order to keep the stack usage minimal.
+ */
 
+enum tpm_buf_flags {
+	TPM_BUF_OVERFLOW	= BIT(0),
+};
+
+struct tpm_buf {
+	struct page *data_page;
+	unsigned int flags;
+	u8 *data;
+};
+
+static inline int tpm_buf_init(struct tpm_buf *buf, u16 tag, u32 ordinal)
+{
+	struct tpm_input_header *head;
+
+	buf->data_page = alloc_page(GFP_HIGHUSER);
+	if (!buf->data_page)
+		return -ENOMEM;
+
+	buf->flags = 0;
+	buf->data = kmap(buf->data_page);
+
+	head = (struct tpm_input_header *) buf->data;
+
+	head->tag = cpu_to_be16(tag);
+	head->length = cpu_to_be32(sizeof(*head));
+	head->ordinal = cpu_to_be32(ordinal);
+
+	return 0;
+}
+
+static inline void tpm_buf_destroy(struct tpm_buf *buf)
+{
+	kunmap(buf->data_page);
+	__free_page(buf->data_page);
+}
+
+static inline u32 tpm_buf_length(struct tpm_buf *buf)
+{
+	struct tpm_input_header *head = (struct tpm_input_header *) buf->data;
+
+	return be32_to_cpu(head->length);
+}
+
+static inline u16 tpm_buf_tag(struct tpm_buf *buf)
+{
+	struct tpm_input_header *head = (struct tpm_input_header *) buf->data;
+
+	return be16_to_cpu(head->tag);
+}
+
+static inline void tpm_buf_append(struct tpm_buf *buf,
+				  const unsigned char *new_data,
+				  unsigned int new_len)
+{
+	struct tpm_input_header *head = (struct tpm_input_header *) buf->data;
+	u32 len = tpm_buf_length(buf);
+
+	/* Return silently if overflow has already happened. */
+	if (buf->flags & TPM_BUF_OVERFLOW)
+		return;
+
+	if ((len + new_len) > PAGE_SIZE) {
+		WARN(1, "tpm_buf: overflow\n");
+		buf->flags |= TPM_BUF_OVERFLOW;
+		return;
+	}
+
+	memcpy(&buf->data[len], new_data, new_len);
+	head->length = cpu_to_be32(len + new_len);
+}
+
+static inline void tpm_buf_append_u8(struct tpm_buf *buf, const u8 value)
+{
+	tpm_buf_append(buf, &value, 1);
+}
+
+static inline void tpm_buf_append_u16(struct tpm_buf *buf, const u16 value)
+{
+	__be16 value2 = cpu_to_be16(value);
+
+	tpm_buf_append(buf, (u8 *) &value2, 2);
+}
+
+static inline void tpm_buf_append_u32(struct tpm_buf *buf, const u32 value)
+{
+	__be32 value2 = cpu_to_be32(value);
+
+	tpm_buf_append(buf, (u8 *) &value2, 4);
+}
+
+extern struct class *tpm_class;
+extern dev_t tpm_devt;
+extern const struct file_operations tpm_fops;
+
+ssize_t	tpm_getcap(struct device *, __be32, cap_t *, const char *);
 ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		     size_t bufsiz);
+ssize_t tpm_transmit_cmd(struct tpm_chip *chip, void *cmd, int len,
+			 const char *desc);
 extern int tpm_get_timeouts(struct tpm_chip *);
 extern void tpm_gen_interrupt(struct tpm_chip *);
 extern int tpm_do_selftest(struct tpm_chip *);
 extern unsigned long tpm_calc_ordinal_duration(struct tpm_chip *, u32);
-extern struct tpm_chip* tpm_register_hardware(struct device *,
-					      const struct tpm_class_ops *ops);
-extern void tpm_dev_vendor_release(struct tpm_chip *);
-extern void tpm_remove_hardware(struct device *);
 extern int tpm_pm_suspend(struct device *);
 extern int tpm_pm_resume(struct device *);
 extern int wait_for_tpm_stat(struct tpm_chip *, u8, unsigned long,
 			     wait_queue_head_t *, bool);
 
-int tpm_dev_add_device(struct tpm_chip *chip);
-void tpm_dev_del_device(struct tpm_chip *chip);
+struct tpm_chip *tpm_chip_find_get(int chip_num);
+extern struct tpm_chip *tpmm_chip_alloc(struct device *dev,
+				       const struct tpm_class_ops *ops);
+extern int tpm_chip_register(struct tpm_chip *chip);
+extern void tpm_chip_unregister(struct tpm_chip *chip);
+
 int tpm_sysfs_add_device(struct tpm_chip *chip);
 void tpm_sysfs_del_device(struct tpm_chip *chip);
 
 int tpm_pcr_read_dev(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
 
 #ifdef CONFIG_ACPI
-extern int tpm_add_ppi(struct kobject *);
-extern void tpm_remove_ppi(struct kobject *);
+extern void tpm_add_ppi(struct tpm_chip *chip);
 #else
-static inline int tpm_add_ppi(struct kobject *parent)
-{
-	return 0;
-}
-
-static inline void tpm_remove_ppi(struct kobject *parent)
+static inline void tpm_add_ppi(struct tpm_chip *chip)
 {
 }
 #endif
+
+int tpm2_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
+int tpm2_pcr_extend(struct tpm_chip *chip, int pcr_idx, const u8 *hash);
+int tpm2_get_random(struct tpm_chip *chip, u8 *out, size_t max);
+int tpm2_seal_trusted(struct tpm_chip *chip,
+		      struct trusted_key_payload *payload,
+		      struct trusted_key_options *options);
+int tpm2_unseal_trusted(struct tpm_chip *chip,
+			struct trusted_key_payload *payload,
+			struct trusted_key_options *options);
+ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,
+			u32 *value, const char *desc);
+
+extern int tpm2_startup(struct tpm_chip *chip, u16 startup_type);
+extern void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type);
+extern unsigned long tpm2_calc_ordinal_duration(struct tpm_chip *, u32);
+extern int tpm2_do_selftest(struct tpm_chip *chip);
+extern int tpm2_gen_interrupt(struct tpm_chip *chip);
+extern int tpm2_probe(struct tpm_chip *chip);

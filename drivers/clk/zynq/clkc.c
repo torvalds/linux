@@ -19,6 +19,7 @@
  */
 
 #include <linux/clk/zynq.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -85,24 +86,29 @@ static DEFINE_SPINLOCK(canmioclk_lock);
 static DEFINE_SPINLOCK(dbgclk_lock);
 static DEFINE_SPINLOCK(aperclk_lock);
 
-static const char dummy_nm[] __initconst = "dummy_name";
-
-static const char *armpll_parents[] __initdata = {"armpll_int", "ps_clk"};
-static const char *ddrpll_parents[] __initdata = {"ddrpll_int", "ps_clk"};
-static const char *iopll_parents[] __initdata = {"iopll_int", "ps_clk"};
-static const char *gem0_mux_parents[] __initdata = {"gem0_div1", dummy_nm};
-static const char *gem1_mux_parents[] __initdata = {"gem1_div1", dummy_nm};
-static const char *can0_mio_mux2_parents[] __initdata = {"can0_gate",
+static const char *const armpll_parents[] __initconst = {"armpll_int",
+	"ps_clk"};
+static const char *const ddrpll_parents[] __initconst = {"ddrpll_int",
+	"ps_clk"};
+static const char *const iopll_parents[] __initconst = {"iopll_int",
+	"ps_clk"};
+static const char *gem0_mux_parents[] __initdata = {"gem0_div1", "dummy_name"};
+static const char *gem1_mux_parents[] __initdata = {"gem1_div1", "dummy_name"};
+static const char *const can0_mio_mux2_parents[] __initconst = {"can0_gate",
 	"can0_mio_mux"};
-static const char *can1_mio_mux2_parents[] __initdata = {"can1_gate",
+static const char *const can1_mio_mux2_parents[] __initconst = {"can1_gate",
 	"can1_mio_mux"};
 static const char *dbg_emio_mux_parents[] __initdata = {"dbg_div",
-	dummy_nm};
+	"dummy_name"};
 
-static const char *dbgtrc_emio_input_names[] __initdata = {"trace_emio_clk"};
-static const char *gem0_emio_input_names[] __initdata = {"gem0_emio_clk"};
-static const char *gem1_emio_input_names[] __initdata = {"gem1_emio_clk"};
-static const char *swdt_ext_clk_input_names[] __initdata = {"swdt_ext_clk"};
+static const char *const dbgtrc_emio_input_names[] __initconst = {
+	"trace_emio_clk"};
+static const char *const gem0_emio_input_names[] __initconst = {
+	"gem0_emio_clk"};
+static const char *const gem1_emio_input_names[] __initconst = {
+	"gem1_emio_clk"};
+static const char *const swdt_ext_clk_input_names[] __initconst = {
+	"swdt_ext_clk"};
 
 static void __init zynq_clk_register_fclk(enum zynq_clk fclk,
 		const char *clk_name, void __iomem *fclk_ctrl_reg,
@@ -230,6 +236,7 @@ static void __init zynq_clk_setup(struct device_node *np)
 	const char *periph_parents[4];
 	const char *swdt_ext_clk_mux_parents[2];
 	const char *can_mio_mux_parents[NUM_MIO_PINS];
+	const char *dummy_nm = "dummy_name";
 
 	pr_info("Zynq clock init\n");
 
@@ -304,6 +311,7 @@ static void __init zynq_clk_setup(struct device_node *np)
 	clks[cpu_2x] = clk_register_gate(NULL, clk_output_name[cpu_2x],
 			"cpu_2x_div", CLK_IGNORE_UNUSED, SLCR_ARM_CLK_CTRL,
 			26, 0, &armclk_lock);
+	clk_prepare_enable(clks[cpu_2x]);
 
 	clk = clk_register_fixed_factor(NULL, "cpu_1x_div", "cpu_div", 0, 1,
 			4 + 2 * tmp);
@@ -619,5 +627,4 @@ void __init zynq_clock_init(void)
 np_err:
 	of_node_put(np);
 	BUG();
-	return;
 }

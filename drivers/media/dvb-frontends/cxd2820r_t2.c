@@ -23,8 +23,8 @@
 
 int cxd2820r_set_frontend_t2(struct dvb_frontend *fe)
 {
-	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	int ret, i, bw_i;
 	u32 if_freq, if_ctl;
 	u64 num;
@@ -120,7 +120,7 @@ int cxd2820r_set_frontend_t2(struct dvb_frontend *fe)
 
 	num = if_freq / 1000; /* Hz => kHz */
 	num *= 0x1000000;
-	if_ctl = cxd2820r_div_u64_round_closest(num, 41000);
+	if_ctl = DIV_ROUND_CLOSEST_ULL(num, 41000);
 	buf[0] = ((if_ctl >> 16) & 0xff);
 	buf[1] = ((if_ctl >>  8) & 0xff);
 	buf[2] = ((if_ctl >>  0) & 0xff);
@@ -169,10 +169,10 @@ error:
 
 }
 
-int cxd2820r_get_frontend_t2(struct dvb_frontend *fe)
+int cxd2820r_get_frontend_t2(struct dvb_frontend *fe,
+			     struct dtv_frontend_properties *c)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u8 buf[2];
 
@@ -284,7 +284,7 @@ error:
 	return ret;
 }
 
-int cxd2820r_read_status_t2(struct dvb_frontend *fe, fe_status_t *status)
+int cxd2820r_read_status_t2(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	int ret;

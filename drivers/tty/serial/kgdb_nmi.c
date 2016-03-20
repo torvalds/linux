@@ -46,6 +46,8 @@ static atomic_t kgdb_nmi_num_readers = ATOMIC_INIT(0);
 
 static int kgdb_nmi_console_setup(struct console *co, char *options)
 {
+	arch_kgdb_ops.enable_nmi(1);
+
 	/* The NMI console uses the dbg_io_ops to issue console messages. To
 	 * avoid duplicate messages during kdb sessions we must inform kdb's
 	 * I/O utilities that messages sent to the console will automatically
@@ -77,7 +79,7 @@ static struct console kgdb_nmi_console = {
 	.setup  = kgdb_nmi_console_setup,
 	.write	= kgdb_nmi_console_write,
 	.device	= kgdb_nmi_console_device,
-	.flags	= CON_PRINTBUFFER | CON_ANYTIME | CON_ENABLED,
+	.flags	= CON_PRINTBUFFER | CON_ANYTIME,
 	.index	= -1,
 };
 
@@ -171,18 +173,18 @@ static int kgdb_nmi_poll_one_knock(void)
 bool kgdb_nmi_poll_knock(void)
 {
 	if (kgdb_nmi_knock < 0)
-		return 1;
+		return true;
 
 	while (1) {
 		int ret;
 
 		ret = kgdb_nmi_poll_one_knock();
 		if (ret == NO_POLL_CHAR)
-			return 0;
+			return false;
 		else if (ret == 1)
 			break;
 	}
-	return 1;
+	return true;
 }
 
 /*
@@ -354,7 +356,6 @@ int kgdb_register_nmi_console(void)
 	}
 
 	register_console(&kgdb_nmi_console);
-	arch_kgdb_ops.enable_nmi(1);
 
 	return 0;
 err_drv_reg:

@@ -19,31 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 #ifndef __NOUVEAU_PLATFORM_H__
 #define __NOUVEAU_PLATFORM_H__
+#include "nouveau_drm.h"
 
-#include "core/device.h"
-
-struct reset_control;
-struct clk;
-struct regulator;
-
-struct nouveau_platform_gpu {
-	struct reset_control *rst;
-	struct clk *clk;
-	struct clk *clk_pwr;
-
-	struct regulator *vdd;
-};
-
-struct nouveau_platform_device {
-	struct nouveau_device device;
-
-	struct nouveau_platform_gpu *gpu;
-};
-
-#define nv_device_to_platform(d)                                               \
-	container_of(d, struct nouveau_platform_device, device)
-
+extern struct platform_driver nouveau_platform_driver;
 #endif

@@ -8,14 +8,15 @@
  * option) any later version.
  */
 
+#include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/irqchip/mips-gic.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/types.h>
 
 #include <asm/bcache.h>
-#include <asm/gic.h>
 #include <asm/mips-cm.h>
 #include <asm/mips-cpc.h>
 #include <asm/mips_mt.h>
@@ -37,8 +38,9 @@ static unsigned core_vpe_count(unsigned core)
 	if (!config_enabled(CONFIG_MIPS_MT_SMP) || !cpu_has_mipsmt)
 		return 1;
 
-	write_gcr_cl_other(core << CM_GCR_Cx_OTHER_CORENUM_SHF);
+	mips_cm_lock_other(core, 0);
 	cfg = read_gcr_co_config() & CM_GCR_Cx_CONFIG_PVPE_MSK;
+	mips_cm_unlock_other();
 	return (cfg >> CM_GCR_Cx_CONFIG_PVPE_SHF) + 1;
 }
 
@@ -88,6 +90,12 @@ static void __init cps_smp_setup(void)
 
 	/* Make core 0 coherent with everything */
 	write_gcr_cl_coherence(0xff);
+
+#ifdef CONFIG_MIPS_MT_FPAFF
+	/* If we have an FPU, enroll ourselves in the FPU-full mask */
+	if (cpu_has_fpu)
+		cpumask_set_cpu(0, &mt_fpu_cpumask);
+#endif /* CONFIG_MIPS_MT_FPAFF */
 }
 
 static void __init cps_prepare_cpus(unsigned int max_cpus)
@@ -127,11 +135,9 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	/*
 	 * Patch the start of mips_cps_core_entry to provide:
 	 *
-	 * v0 = CM base address
 	 * s0 = kseg0 CCA
 	 */
 	entry_code = (u32 *)&mips_cps_core_entry;
-	UASM_i_LA(&entry_code, 3, (long)mips_cm_base);
 	uasm_i_addiu(&entry_code, 16, 0, cca);
 	blast_dcache_range((unsigned long)&mips_cps_core_entry,
 			   (unsigned long)entry_code);
@@ -184,16 +190,20 @@ err_out:
 
 static void boot_core(unsigned core)
 {
-	u32 access;
+	u32 access, stat, seq_state;
+	unsigned timeout;
 
 	/* Select the appropriate core */
-	write_gcr_cl_other(core << CM_GCR_Cx_OTHER_CORENUM_SHF);
+	mips_cm_lock_other(core, 0);
 
 	/* Set its reset vector */
 	write_gcr_co_reset_base(CKSEG1ADDR((unsigned long)mips_cps_core_entry));
 
 	/* Ensure its coherency is disabled */
 	write_gcr_co_coherence(0);
+
+	/* Start it with the legacy memory map and exception base */
+	write_gcr_co_reset_ext_base(CM_GCR_RESET_EXT_BASE_UEB);
 
 	/* Ensure the core can access the GCRs */
 	access = read_gcr_access();
@@ -204,11 +214,35 @@ static void boot_core(unsigned core)
 		/* Reset the core */
 		mips_cpc_lock_other(core);
 		write_cpc_co_cmd(CPC_Cx_CMD_RESET);
+
+		timeout = 100;
+		while (true) {
+			stat = read_cpc_co_stat_conf();
+			seq_state = stat & CPC_Cx_STAT_CONF_SEQSTATE_MSK;
+
+			/* U6 == coherent execution, ie. the core is up */
+			if (seq_state == CPC_Cx_STAT_CONF_SEQSTATE_U6)
+				break;
+
+			/* Delay a little while before we start warning */
+			if (timeout) {
+				timeout--;
+				mdelay(10);
+				continue;
+			}
+
+			pr_warn("Waiting for core %u to start... STAT_CONF=0x%x\n",
+				core, stat);
+			mdelay(1000);
+		}
+
 		mips_cpc_unlock_other();
 	} else {
 		/* Take the core out of reset */
 		write_gcr_co_reset_release(0);
 	}
+
+	mips_cm_unlock_other();
 
 	/* The core is now powered up */
 	bitmap_set(core_power, core, 1);
@@ -273,8 +307,8 @@ static void cps_init_secondary(void)
 	if (cpu_has_mipsmt)
 		dmt();
 
-	change_c0_status(ST0_IM, STATUSF_IP3 | STATUSF_IP4 |
-				 STATUSF_IP6 | STATUSF_IP7);
+	change_c0_status(ST0_IM, STATUSF_IP2 | STATUSF_IP3 | STATUSF_IP4 |
+				 STATUSF_IP5 | STATUSF_IP6 | STATUSF_IP7);
 }
 
 static void cps_smp_finish(void)
@@ -284,7 +318,7 @@ static void cps_smp_finish(void)
 #ifdef CONFIG_MIPS_MT_FPAFF
 	/* If we have an FPU, enroll ourselves in the FPU-full mask */
 	if (cpu_has_fpu)
-		cpu_set(smp_processor_id(), mt_fpu_cpumask);
+		cpumask_set_cpu(smp_processor_id(), &mt_fpu_cpumask);
 #endif /* CONFIG_MIPS_MT_FPAFF */
 
 	local_irq_enable();
@@ -307,7 +341,7 @@ static int cps_cpu_disable(void)
 	atomic_sub(1 << cpu_vpe_id(&current_cpu_data), &core_cfg->vpe_mask);
 	smp_mb__after_atomic();
 	set_cpu_online(cpu, false);
-	cpu_clear(cpu, cpu_callin_map);
+	cpumask_clear_cpu(cpu, &cpu_callin_map);
 
 	return 0;
 }
@@ -363,7 +397,7 @@ void play_dead(void)
 
 static void wait_for_sibling_halt(void *ptr_cpu)
 {
-	unsigned cpu = (unsigned)ptr_cpu;
+	unsigned cpu = (unsigned long)ptr_cpu;
 	unsigned vpe_id = cpu_vpe_id(&cpu_data[cpu]);
 	unsigned halted;
 	unsigned long flags;
@@ -424,7 +458,7 @@ static void cps_cpu_die(unsigned int cpu)
 		 */
 		err = smp_call_function_single(cpu_death_sibling,
 					       wait_for_sibling_halt,
-					       (void *)cpu, 1);
+					       (void *)(unsigned long)cpu, 1);
 		if (err)
 			panic("Failed to call remote sibling CPU\n");
 	}
@@ -438,8 +472,8 @@ static struct plat_smp_ops cps_smp_ops = {
 	.boot_secondary		= cps_boot_secondary,
 	.init_secondary		= cps_init_secondary,
 	.smp_finish		= cps_smp_finish,
-	.send_ipi_single	= gic_send_ipi_single,
-	.send_ipi_mask		= gic_send_ipi_mask,
+	.send_ipi_single	= mips_smp_send_ipi_single,
+	.send_ipi_mask		= mips_smp_send_ipi_mask,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable		= cps_cpu_disable,
 	.cpu_die		= cps_cpu_die,

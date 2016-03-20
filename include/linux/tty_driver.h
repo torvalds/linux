@@ -152,6 +152,8 @@
  * 	This routine notifies the tty driver that it should stop
  * 	outputting characters to the tty device.  
  *
+ *	Called with ->flow_lock held. Serialized with start() method.
+ *
  *	Optional:
  *
  *	Note: Call stop_tty not this method.
@@ -160,6 +162,8 @@
  *
  * 	This routine notifies the tty driver that it resume sending
  *	characters to the tty device.
+ *
+ *	Called with ->flow_lock held. Serialized with stop() method.
  *
  *	Optional:
  *
@@ -292,7 +296,7 @@ struct tty_operations {
 struct tty_driver {
 	int	magic;		/* magic number for this structure */
 	struct kref kref;	/* Reference management */
-	struct cdev *cdevs;
+	struct cdev **cdevs;
 	struct module	*owner;
 	const char	*driver_name;
 	const char	*name;

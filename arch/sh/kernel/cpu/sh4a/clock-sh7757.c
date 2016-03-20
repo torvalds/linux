@@ -125,9 +125,9 @@ static struct clk_lookup lookups[] = {
 
 	CLKDEV_ICK_ID("fck", "sh-tmu.0", &mstp_clks[MSTP113]),
 	CLKDEV_ICK_ID("fck", "sh-tmu.1", &mstp_clks[MSTP114]),
-	CLKDEV_ICK_ID("sci_fck", "sh-sci.2", &mstp_clks[MSTP112]),
-	CLKDEV_ICK_ID("sci_fck", "sh-sci.1", &mstp_clks[MSTP111]),
-	CLKDEV_ICK_ID("sci_fck", "sh-sci.0", &mstp_clks[MSTP110]),
+	CLKDEV_ICK_ID("fck", "sh-sci.2", &mstp_clks[MSTP112]),
+	CLKDEV_ICK_ID("fck", "sh-sci.1", &mstp_clks[MSTP111]),
+	CLKDEV_ICK_ID("fck", "sh-sci.0", &mstp_clks[MSTP110]),
 
 	CLKDEV_CON_ID("usb_fck", &mstp_clks[MSTP103]),
 	CLKDEV_DEV_ID("renesas_usbhs.0", &mstp_clks[MSTP102]),
@@ -141,8 +141,8 @@ int __init arch_clk_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(clks); i++)
 		ret |= clk_register(clks[i]);
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
 		ret = sh_clk_div4_register(div4_clks, ARRAY_SIZE(div4_clks),

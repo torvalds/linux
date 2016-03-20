@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
@@ -34,6 +35,7 @@ struct sym_entry {
 	unsigned int len;
 	unsigned int start_pos;
 	unsigned char *sym;
+	unsigned int percpu_absolute;
 };
 
 struct addr_range {
@@ -42,6 +44,7 @@ struct addr_range {
 };
 
 static unsigned long long _text;
+static unsigned long long relative_base;
 static struct addr_range text_ranges[] = {
 	{ "_stext",     "_etext"     },
 	{ "_sinittext", "_einittext" },
@@ -61,6 +64,7 @@ static int all_symbols = 0;
 static int absolute_percpu = 0;
 static char symbol_prefix_char = '\0';
 static unsigned long long kernel_start_addr = 0;
+static int base_relative = 0;
 
 int token_profit[0x10000];
 
@@ -74,7 +78,7 @@ static void usage(void)
 	fprintf(stderr, "Usage: kallsyms [--all-symbols] "
 			"[--symbol-prefix=<prefix char>] "
 			"[--page-offset=<CONFIG_PAGE_OFFSET>] "
-			"< in.map > out.S\n");
+			"[--base-relative] < in.map > out.S\n");
 	exit(1);
 }
 
@@ -84,7 +88,7 @@ static void usage(void)
  */
 static inline int is_arm_mapping_symbol(const char *str)
 {
-	return str[0] == '$' && strchr("atd", str[1])
+	return str[0] == '$' && strchr("axtd", str[1])
 	       && (str[2] == '\0' || str[2] == '.');
 }
 
@@ -171,6 +175,8 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 	strcpy((char *)s->sym + 1, str);
 	s->sym[0] = stype;
 
+	s->percpu_absolute = 0;
+
 	/* Record if we've found __per_cpu_start/end. */
 	check_symbol_range(sym, s->addr, &percpu_range, 1);
 
@@ -202,6 +208,8 @@ static int symbol_valid(struct sym_entry *s)
 	 */
 	static char *special_symbols[] = {
 		"kallsyms_addresses",
+		"kallsyms_offsets",
+		"kallsyms_relative_base",
 		"kallsyms_num_syms",
 		"kallsyms_names",
 		"kallsyms_markers",
@@ -212,15 +220,22 @@ static int symbol_valid(struct sym_entry *s)
 		"_SDA_BASE_",		/* ppc */
 		"_SDA2_BASE_",		/* ppc */
 		NULL };
+
+	static char *special_suffixes[] = {
+		"_veneer",		/* arm */
+		NULL };
+
 	int i;
-	int offset = 1;
+	char *sym_name = (char *)s->sym + 1;
+
 
 	if (s->addr < kernel_start_addr)
 		return 0;
 
 	/* skip prefix char */
-	if (symbol_prefix_char && *(s->sym + 1) == symbol_prefix_char)
-		offset++;
+	if (symbol_prefix_char && *sym_name == symbol_prefix_char)
+		sym_name++;
+
 
 	/* if --all-symbols is not specified, then symbols outside the text
 	 * and inittext sections are discarded */
@@ -235,21 +250,25 @@ static int symbol_valid(struct sym_entry *s)
 		 * rules.
 		 */
 		if ((s->addr == text_range_text->end &&
-				strcmp((char *)s->sym + offset,
+				strcmp(sym_name,
 				       text_range_text->end_sym)) ||
 		    (s->addr == text_range_inittext->end &&
-				strcmp((char *)s->sym + offset,
+				strcmp(sym_name,
 				       text_range_inittext->end_sym)))
 			return 0;
 	}
 
 	/* Exclude symbols which vary between passes. */
-	if (strstr((char *)s->sym + offset, "_compiled."))
-		return 0;
-
 	for (i = 0; special_symbols[i]; i++)
-		if( strcmp((char *)s->sym + offset, special_symbols[i]) == 0 )
+		if (strcmp(sym_name, special_symbols[i]) == 0)
 			return 0;
+
+	for (i = 0; special_suffixes[i]; i++) {
+		int l = strlen(sym_name) - strlen(special_suffixes[i]);
+
+		if (l >= 0 && strcmp(sym_name + l, special_suffixes[i]) == 0)
+			return 0;
+	}
 
 	return 1;
 }
@@ -314,7 +333,7 @@ static int expand_symbol(unsigned char *data, int len, char *result)
 
 static int symbol_absolute(struct sym_entry *s)
 {
-	return toupper(s->sym[0]) == 'A';
+	return s->percpu_absolute;
 }
 
 static void write_src(void)
@@ -335,16 +354,48 @@ static void write_src(void)
 
 	printf("\t.section .rodata, \"a\"\n");
 
-	/* Provide proper symbols relocatability by their '_text'
-	 * relativeness.  The symbol names cannot be used to construct
-	 * normal symbol references as the list of symbols contains
-	 * symbols that are declared static and are private to their
-	 * .o files.  This prevents .tmp_kallsyms.o or any other
-	 * object from referencing them.
+	/* Provide proper symbols relocatability by their relativeness
+	 * to a fixed anchor point in the runtime image, either '_text'
+	 * for absolute address tables, in which case the linker will
+	 * emit the final addresses at build time. Otherwise, use the
+	 * offset relative to the lowest value encountered of all relative
+	 * symbols, and emit non-relocatable fixed offsets that will be fixed
+	 * up at runtime.
+	 *
+	 * The symbol names cannot be used to construct normal symbol
+	 * references as the list of symbols contains symbols that are
+	 * declared static and are private to their .o files.  This prevents
+	 * .tmp_kallsyms.o or any other object from referencing them.
 	 */
-	output_label("kallsyms_addresses");
+	if (!base_relative)
+		output_label("kallsyms_addresses");
+	else
+		output_label("kallsyms_offsets");
+
 	for (i = 0; i < table_cnt; i++) {
-		if (!symbol_absolute(&table[i])) {
+		if (base_relative) {
+			long long offset;
+			int overflow;
+
+			if (!absolute_percpu) {
+				offset = table[i].addr - relative_base;
+				overflow = (offset < 0 || offset > UINT_MAX);
+			} else if (symbol_absolute(&table[i])) {
+				offset = table[i].addr;
+				overflow = (offset < 0 || offset > INT_MAX);
+			} else {
+				offset = relative_base - table[i].addr - 1;
+				overflow = (offset < INT_MIN || offset >= 0);
+			}
+			if (overflow) {
+				fprintf(stderr, "kallsyms failure: "
+					"%s symbol value %#llx out of range in relative mode\n",
+					symbol_absolute(&table[i]) ? "absolute" : "relative",
+					table[i].addr);
+				exit(EXIT_FAILURE);
+			}
+			printf("\t.long\t%#x\n", (int)offset);
+		} else if (!symbol_absolute(&table[i])) {
 			if (_text <= table[i].addr)
 				printf("\tPTR\t_text + %#llx\n",
 					table[i].addr - _text);
@@ -356,6 +407,12 @@ static void write_src(void)
 		}
 	}
 	printf("\n");
+
+	if (base_relative) {
+		output_label("kallsyms_relative_base");
+		printf("\tPTR\t_text - %#llx\n", _text - relative_base);
+		printf("\n");
+	}
 
 	output_label("kallsyms_num_syms");
 	printf("\tPTR\t%d\n", table_cnt);
@@ -670,8 +727,27 @@ static void make_percpus_absolute(void)
 	unsigned int i;
 
 	for (i = 0; i < table_cnt; i++)
-		if (symbol_in_range(&table[i], &percpu_range, 1))
+		if (symbol_in_range(&table[i], &percpu_range, 1)) {
+			/*
+			 * Keep the 'A' override for percpu symbols to
+			 * ensure consistent behavior compared to older
+			 * versions of this tool.
+			 */
 			table[i].sym[0] = 'A';
+			table[i].percpu_absolute = 1;
+		}
+}
+
+/* find the minimum non-absolute symbol address */
+static void record_relative_base(void)
+{
+	unsigned int i;
+
+	relative_base = -1ULL;
+	for (i = 0; i < table_cnt; i++)
+		if (!symbol_absolute(&table[i]) &&
+		    table[i].addr < relative_base)
+			relative_base = table[i].addr;
 }
 
 int main(int argc, char **argv)
@@ -692,7 +768,9 @@ int main(int argc, char **argv)
 			} else if (strncmp(argv[i], "--page-offset=", 14) == 0) {
 				const char *p = &argv[i][14];
 				kernel_start_addr = strtoull(p, NULL, 16);
-			} else
+			} else if (strcmp(argv[i], "--base-relative") == 0)
+				base_relative = 1;
+			else
 				usage();
 		}
 	} else if (argc != 1)
@@ -701,6 +779,8 @@ int main(int argc, char **argv)
 	read_map(stdin);
 	if (absolute_percpu)
 		make_percpus_absolute();
+	if (base_relative)
+		record_relative_base();
 	sort_symbols();
 	optimize_token_table();
 	write_src();

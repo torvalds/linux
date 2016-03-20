@@ -28,7 +28,7 @@
 #include <asm/mach/map.h>
 
 #include <mach/hardware.h>
-#include <mach/pxa25x.h>
+#include "pxa25x.h"
 #include <mach/smemc.h>
 
 #include "generic.h"

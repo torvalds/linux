@@ -1,0 +1,41 @@
+Texas Instruments TAS5711/TAS5717/TAS5719 stereo power amplifiers
+
+The codec is controlled through an I2C interface.  It also has two other
+signals that can be wired up to GPIOs: reset (strongly recommended), and
+powerdown (optional).
+
+Required properties:
+
+- compatible: "ti,tas5711", "ti,tas5717", or "ti,tas5719"
+- reg: The I2C address of the device
+- #sound-dai-cells: must be equal to 0
+
+Optional properties:
+
+- reset-gpios: GPIO specifier for the TAS571x's active low reset line
+- pdn-gpios: GPIO specifier for the TAS571x's active low powerdown line
+- clocks: clock phandle for the MCLK input
+- clock-names: should be "mclk"
+- AVDD-supply: regulator phandle for the AVDD supply (all chips)
+- DVDD-supply: regulator phandle for the DVDD supply (all chips)
+- HPVDD-supply: regulator phandle for the HPVDD supply (5717/5719)
+- PVDD_AB-supply: regulator phandle for the PVDD_AB supply (5717/5719)
+- PVDD_CD-supply: regulator phandle for the PVDD_CD supply (5717/5719)
+- PVDD_A-supply: regulator phandle for the PVDD_A supply (5711)
+- PVDD_B-supply: regulator phandle for the PVDD_B supply (5711)
+- PVDD_C-supply: regulator phandle for the PVDD_C supply (5711)
+- PVDD_D-supply: regulator phandle for the PVDD_D supply (5711)
+
+Example:
+
+	tas5717: audio-codec@2a {
+		compatible = "ti,tas5717";
+		reg = <0x2a>;
+		#sound-dai-cells = <0>;
+
+		reset-gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
+		pdn-gpios = <&gpio5 2 GPIO_ACTIVE_LOW>;
+
+		clocks = <&clk_core CLK_I2S>;
+		clock-names = "mclk";
+	};

@@ -486,6 +486,11 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 	tps65910->i2c_client = i2c;
 	tps65910->id = chip_id;
 
+	/* Work around silicon erratum SWCZ010: the tps65910 may miss the
+	 * first I2C transfer. So issue a dummy transfer before the first
+	 * real transfer.
+	 */
+	i2c_master_send(i2c, "", 1);
 	tps65910->regmap = devm_regmap_init_i2c(i2c, &tps65910_regmap_config);
 	if (IS_ERR(tps65910->regmap)) {
 		ret = PTR_ERR(tps65910->regmap);
@@ -539,7 +544,6 @@ MODULE_DEVICE_TABLE(i2c, tps65910_i2c_id);
 static struct i2c_driver tps65910_i2c_driver = {
 	.driver = {
 		   .name = "tps65910",
-		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(tps65910_of_match),
 	},
 	.probe = tps65910_i2c_probe,

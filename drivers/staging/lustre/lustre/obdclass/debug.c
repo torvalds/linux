@@ -40,35 +40,22 @@
 
 #define DEBUG_SUBSYSTEM D_OTHER
 
+#include <asm/unaligned.h>
 
-#include "../include/obd_ost.h"
 #include "../include/obd_support.h"
 #include "../include/lustre_debug.h"
 #include "../include/lustre_net.h"
-
-void dump_lniobuf(struct niobuf_local *nb)
-{
-	CDEBUG(D_RPCTRACE,
-	       "niobuf_local: file_offset=%lld, len=%d, page=%p, rc=%d\n",
-	       nb->lnb_file_offset, nb->len, nb->page, nb->rc);
-	CDEBUG(D_RPCTRACE, "nb->page: index = %ld\n",
-			nb->page ? page_index(nb->page) : -1);
-}
-EXPORT_SYMBOL(dump_lniobuf);
 
 #define LPDS sizeof(__u64)
 int block_debug_setup(void *addr, int len, __u64 off, __u64 id)
 {
 	LASSERT(addr);
 
-	off = cpu_to_le64 (off);
-	id = cpu_to_le64 (id);
-	memcpy(addr, (char *)&off, LPDS);
-	memcpy(addr + LPDS, (char *)&id, LPDS);
-
+	put_unaligned_le64(off, addr);
+	put_unaligned_le64(id, addr+LPDS);
 	addr += len - LPDS - LPDS;
-	memcpy(addr, (char *)&off, LPDS);
-	memcpy(addr + LPDS, (char *)&id, LPDS);
+	put_unaligned_le64(off, addr);
+	put_unaligned_le64(id, addr+LPDS);
 
 	return 0;
 }

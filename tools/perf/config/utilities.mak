@@ -132,7 +132,7 @@ endef
 #
 # Usage: bool-value = $(call is-absolute,path)
 #
-is-absolute = $(shell echo $(shell-sq) | grep ^/ -q && echo y)
+is-absolute = $(shell echo $(shell-sq) | grep -q ^/ && echo y)
 
 # lookup
 #
@@ -175,6 +175,5 @@ _ge-abspath = $(if $(is-executable),$(1))
 define get-executable-or-default
 $(if $($(1)),$(call _ge_attempt,$($(1)),$(1)),$(call _ge_attempt,$(2)))
 endef
-_ge_attempt = $(if $(get-executable),$(get-executable),$(_gea_warn)$(call _gea_err,$(2)))
-_gea_warn = $(warning The path '$(1)' is not executable.)
+_ge_attempt = $(if $(get-executable),$(get-executable),$(call _gea_err,$(2)))
 _gea_err  = $(if $(1),$(error Please set '$(1)' appropriately))

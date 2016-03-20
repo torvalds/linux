@@ -23,7 +23,6 @@
 #include <asm/reboot.h>
 #include <asm/mach-ar7/ar7.h>
 #include <asm/mach-ar7/prom.h>
-#include <asm/mach-ar7/gpio.h>
 
 static void ar7_machine_restart(char *command)
 {

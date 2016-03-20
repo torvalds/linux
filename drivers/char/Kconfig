@@ -6,6 +6,15 @@ menu "Character devices"
 
 source "drivers/tty/Kconfig"
 
+config DEVMEM
+	bool "/dev/mem virtual device support"
+	default y
+	help
+	  Say Y here if you want to support the /dev/mem device.
+	  The /dev/mem device is used to access areas of physical
+	  memory.
+	  When in doubt, say "Y".
+
 config DEVKMEM
 	bool "/dev/kmem virtual device support"
 	default y
@@ -319,7 +328,8 @@ config JS_RTC
 
 config GEN_RTC
 	tristate "Generic /dev/rtc emulation"
-	depends on RTC!=y && !IA64 && !ARM && !M32R && !MIPS && !SPARC && !FRV && !S390 && !SUPERH && !AVR32 && !BLACKFIN && !UML
+	depends on RTC!=y
+	depends on ALPHA || M68K || MN10300 || PARISC || PPC || X86
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -581,14 +591,6 @@ config DEVPORT
 
 source "drivers/s390/char/Kconfig"
 
-config MSM_SMD_PKT
-	bool "Enable device interface for some SMD packet ports"
-	default n
-	depends on MSM_SMD
-	help
-	  Enables userspace clients to read and write to some packet SMD
-	  ports via device interface for MSM chipset.
-
 config TILE_SROM
 	bool "Character-device access via hypervisor to the Tilera SPI ROM"
 	depends on TILE
@@ -599,6 +601,8 @@ config TILE_SROM
 	  in /dev/srom/.  The Tilera hypervisor makes the flash
 	  device appear much like a simple EEPROM, and knows
 	  how to partition a single ROM for multiple purposes.
+
+source "drivers/char/xillybus/Kconfig"
 
 endmenu
 

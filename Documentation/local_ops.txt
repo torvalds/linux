@@ -8,6 +8,11 @@ to implement them for any given architecture and shows how they can be used
 properly. It also stresses on the precautions that must be taken when reading
 those local variables across CPUs when the order of memory writes matters.
 
+Note that local_t based operations are not recommended for general kernel use.
+Please use the this_cpu operations instead unless there is really a special purpose.
+Most uses of local_t in the kernel have been replaced by this_cpu operations.
+this_cpu operations combine the relocation with the local_t like semantics in
+a single instruction and yield more compact and faster executing code.
 
 
 * Purpose of local atomic operations
@@ -87,10 +92,10 @@ the per cpu variable. For instance :
 	local_inc(&get_cpu_var(counters));
 	put_cpu_var(counters);
 
-If you are already in a preemption-safe context, you can directly use
-__get_cpu_var() instead.
+If you are already in a preemption-safe context, you can use
+this_cpu_ptr() instead.
 
-	local_inc(&__get_cpu_var(counters));
+	local_inc(this_cpu_ptr(&counters));
 
 
 
@@ -134,7 +139,7 @@ static void test_each(void *info)
 {
 	/* Increment the counter from a non preemptible context */
 	printk("Increment on cpu %d\n", smp_processor_id());
-	local_inc(&__get_cpu_var(counters));
+	local_inc(this_cpu_ptr(&counters));
 
 	/* This is what incrementing the variable would look like within a
 	 * preemptible context (it disables preemption) :

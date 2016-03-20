@@ -295,27 +295,14 @@ static int __init ssi_get_iomem(struct platform_device *pd,
 		const char *name, void __iomem **pbase, dma_addr_t *phy)
 {
 	struct resource *mem;
-	struct resource *ioarea;
 	void __iomem *base;
 	struct hsi_controller *ssi = platform_get_drvdata(pd);
 
 	mem = platform_get_resource_byname(pd, IORESOURCE_MEM, name);
-	if (!mem) {
-		dev_err(&pd->dev, "IO memory region missing (%s)\n", name);
-		return -ENXIO;
-	}
-	ioarea = devm_request_mem_region(&ssi->device, mem->start,
-					resource_size(mem), dev_name(&pd->dev));
-	if (!ioarea) {
-		dev_err(&pd->dev, "%s IO memory region request failed\n",
-								mem->name);
-		return -ENXIO;
-	}
-	base = devm_ioremap(&ssi->device, mem->start, resource_size(mem));
-	if (!base) {
-		dev_err(&pd->dev, "%s IO remap failed\n", mem->name);
-		return -ENXIO;
-	}
+	base = devm_ioremap_resource(&ssi->device, mem);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
 	*pbase = base;
 
 	if (phy)
@@ -336,11 +323,10 @@ static int __init ssi_add_controller(struct hsi_controller *ssi,
 		return -ENOMEM;
 	}
 
-	ssi->id = ida_simple_get(&platform_omap_ssi_ida, 0, 0, GFP_KERNEL);
-	if (ssi->id < 0) {
-		err = ssi->id;
+	err = ida_simple_get(&platform_omap_ssi_ida, 0, 0, GFP_KERNEL);
+	if (err < 0)
 		goto out_err;
-	}
+	ssi->id = err;
 
 	ssi->owner = THIS_MODULE;
 	ssi->device.parent = &pd->dev;
@@ -555,7 +541,7 @@ static int __exit ssi_remove(struct platform_device *pd)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int omap_ssi_runtime_suspend(struct device *dev)
 {
 	struct hsi_controller *ssi = dev_get_drvdata(dev);
@@ -610,7 +596,6 @@ static struct platform_driver ssi_pdriver = {
 	.remove	= __exit_p(ssi_remove),
 	.driver	= {
 		.name	= "omap_ssi",
-		.owner	= THIS_MODULE,
 		.pm     = DEV_PM_OPS,
 		.of_match_table = omap_ssi_of_match,
 	},

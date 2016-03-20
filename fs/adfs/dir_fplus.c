@@ -61,6 +61,7 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 			kcalloc(size, sizeof(struct buffer_head *),
 				GFP_KERNEL);
 		if (!bh_fplus) {
+			ret = -ENOMEM;
 			adfs_error(sb, "not enough memory for"
 					" dir object %X (%d blocks)", id, size);
 			goto out;
@@ -255,7 +256,7 @@ adfs_fplus_free(struct adfs_dir *dir)
 	dir->sb = NULL;
 }
 
-struct adfs_dir_ops adfs_fplus_dir_ops = {
+const struct adfs_dir_ops adfs_fplus_dir_ops = {
 	.read		= adfs_fplus_read,
 	.setpos		= adfs_fplus_setpos,
 	.getnext	= adfs_fplus_getnext,

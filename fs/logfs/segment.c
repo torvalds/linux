@@ -57,7 +57,7 @@ static struct page *get_mapping_page(struct super_block *sb, pgoff_t index,
 	filler_t *filler = super->s_devops->readpage;
 	struct page *page;
 
-	BUG_ON(mapping_gfp_mask(mapping) & __GFP_FS);
+	BUG_ON(mapping_gfp_constraint(mapping, __GFP_FS));
 	if (use_filler)
 		page = read_cache_page(mapping, index, filler, sb);
 	else {
@@ -197,7 +197,7 @@ static int btree_write_alias(struct super_block *sb, struct logfs_block *block,
 	return 0;
 }
 
-static struct logfs_block_ops btree_block_ops = {
+static const struct logfs_block_ops btree_block_ops = {
 	.write_block	= btree_write_block,
 	.free_block	= __free_block,
 	.write_alias	= btree_write_alias,

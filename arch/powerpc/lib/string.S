@@ -93,6 +93,7 @@ _GLOBAL(strlen)
 	subf	r3,r3,r4
 	blr
 
+#ifdef CONFIG_PPC32
 _GLOBAL(memcmp)
 	PPC_LCMPI 0,r5,0
 	beq-	2f
@@ -106,6 +107,7 @@ _GLOBAL(memcmp)
 	blr
 2:	li	r3,0
 	blr
+#endif
 
 _GLOBAL(memchr)
 	PPC_LCMPI 0,r5,0

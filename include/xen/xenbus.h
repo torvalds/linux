@@ -46,6 +46,10 @@
 #include <xen/interface/io/xenbus.h>
 #include <xen/interface/io/xs_wire.h>
 
+#define XENBUS_MAX_RING_GRANT_ORDER 4
+#define XENBUS_MAX_RING_GRANTS      (1U << XENBUS_MAX_RING_GRANT_ORDER)
+#define INVALID_GRANT_HANDLE       (~0U)
+
 /* Register callback to watch this node. */
 struct xenbus_watch
 {
@@ -86,6 +90,7 @@ struct xenbus_device_id
 
 /* A xenbus driver. */
 struct xenbus_driver {
+	const char *name;       /* defaults to ids[0].devicetype */
 	const struct xenbus_device_id *ids;
 	int (*probe)(struct xenbus_device *dev,
 		     const struct xenbus_device_id *id);
@@ -100,20 +105,22 @@ struct xenbus_driver {
 	int (*is_ready)(struct xenbus_device *dev);
 };
 
-#define DEFINE_XENBUS_DRIVER(var, drvname, methods...)		\
-struct xenbus_driver var ## _driver = {				\
-	.driver.name = drvname + 0 ?: var ## _ids->devicetype,	\
-	.driver.owner = THIS_MODULE,				\
-	.ids = var ## _ids, ## methods				\
-}
-
 static inline struct xenbus_driver *to_xenbus_driver(struct device_driver *drv)
 {
 	return container_of(drv, struct xenbus_driver, driver);
 }
 
-int __must_check xenbus_register_frontend(struct xenbus_driver *);
-int __must_check xenbus_register_backend(struct xenbus_driver *);
+int __must_check __xenbus_register_frontend(struct xenbus_driver *drv,
+					    struct module *owner,
+					    const char *mod_name);
+int __must_check __xenbus_register_backend(struct xenbus_driver *drv,
+					   struct module *owner,
+					   const char *mod_name);
+
+#define xenbus_register_frontend(drv) \
+	__xenbus_register_frontend(drv, THIS_MODULE, KBUILD_MODNAME)
+#define xenbus_register_backend(drv) \
+	__xenbus_register_backend(drv, THIS_MODULE, KBUILD_MODNAME)
 
 void xenbus_unregister_driver(struct xenbus_driver *drv);
 
@@ -196,15 +203,19 @@ int xenbus_watch_pathfmt(struct xenbus_device *dev, struct xenbus_watch *watch,
 			 const char *pathfmt, ...);
 
 int xenbus_switch_state(struct xenbus_device *dev, enum xenbus_state new_state);
-int xenbus_grant_ring(struct xenbus_device *dev, unsigned long ring_mfn);
-int xenbus_map_ring_valloc(struct xenbus_device *dev,
-			   int gnt_ref, void **vaddr);
-int xenbus_map_ring(struct xenbus_device *dev, int gnt_ref,
-			   grant_handle_t *handle, void *vaddr);
+int xenbus_grant_ring(struct xenbus_device *dev, void *vaddr,
+		      unsigned int nr_pages, grant_ref_t *grefs);
+int xenbus_map_ring_valloc(struct xenbus_device *dev, grant_ref_t *gnt_refs,
+			   unsigned int nr_grefs, void **vaddr);
+int xenbus_map_ring(struct xenbus_device *dev,
+		    grant_ref_t *gnt_refs, unsigned int nr_grefs,
+		    grant_handle_t *handles, unsigned long *vaddrs,
+		    bool *leaked);
 
 int xenbus_unmap_ring_vfree(struct xenbus_device *dev, void *vaddr);
 int xenbus_unmap_ring(struct xenbus_device *dev,
-		      grant_handle_t handle, void *vaddr);
+		      grant_handle_t *handles, unsigned int nr_handles,
+		      unsigned long *vaddrs);
 
 int xenbus_alloc_evtchn(struct xenbus_device *dev, int *port);
 int xenbus_free_evtchn(struct xenbus_device *dev, int port);

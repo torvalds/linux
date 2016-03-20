@@ -32,11 +32,11 @@
 			red {
 				#gpio-cells = <1>;
 				label	= "Front Panel LED";
-				gpios	= <&PIO4 1>;
+				gpios	= <&pio4 1>;
 				linux,default-trigger	= "heartbeat";
 			};
 			green {
-				gpios	= <&PIO4 7>;
+				gpios	= <&pio4 7>;
 				default-state = "off";
 			};
 		};
@@ -68,11 +68,15 @@
 			phy-mode		= "rgmii-id";
 			max-speed		= <1000>;
 			st,tx-retime-src	= "clk_125";
-			snps,reset-gpio 	= <&PIO3 0>;
+			snps,reset-gpio 	= <&pio3 0>;
 			snps,reset-active-low;
 			snps,reset-delays-us 	= <0 10000 10000>;
 
 			pinctrl-0	= <&pinctrl_rgmii1>;
+		};
+
+		mmc0: sdhci@fe81e000 {
+			bus-width = <8>;
 		};
 	};
 };

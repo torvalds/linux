@@ -22,7 +22,7 @@ static ssize_t speakup_file_write(struct file *fp, const char __user *buffer,
 	unsigned long flags;
 	u_char buf[256];
 
-	if (synth == NULL)
+	if (!synth)
 		return -ENODEV;
 	while (count > 0) {
 		bytes = min(count, sizeof(buf));
@@ -45,7 +45,7 @@ static ssize_t speakup_file_read(struct file *fp, char __user *buf,
 
 static int speakup_file_open(struct inode *ip, struct file *fp)
 {
-	if (synth == NULL)
+	if (!synth)
 		return -ENODEV;
 	if (xchg(&dev_opened, 1))
 		return -EBUSY;
@@ -76,9 +76,9 @@ void speakup_register_devsynth(void)
 	if (misc_registered != 0)
 		return;
 /* zero it so if register fails, deregister will not ref invalid ptrs */
-	if (misc_register(&synth_device))
+	if (misc_register(&synth_device)) {
 		pr_warn("Couldn't initialize miscdevice /dev/synth.\n");
-	else {
+	} else {
 		pr_info("initialized device: /dev/synth, node (MAJOR %d, MINOR %d)\n",
 			MISC_MAJOR, SYNTH_MINOR);
 		misc_registered = 1;

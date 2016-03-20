@@ -239,7 +239,7 @@ static int palmas_rtc_probe(struct platform_device *pdev)
 	struct palmas_rtc *palmas_rtc = NULL;
 	int ret;
 	bool enable_bb_charging = false;
-	bool high_bb_charging;
+	bool high_bb_charging = false;
 
 	if (pdev->dev.of_node) {
 		enable_bb_charging = of_property_read_bool(pdev->dev.of_node,
@@ -311,8 +311,7 @@ static int palmas_rtc_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(&pdev->dev, palmas_rtc->irq, NULL,
 			palmas_rtc_interrupt,
-			IRQF_TRIGGER_LOW | IRQF_ONESHOT |
-			IRQF_EARLY_RESUME,
+			IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 			dev_name(&pdev->dev), palmas_rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "IRQ request failed, err = %d\n", ret);
@@ -363,7 +362,6 @@ static struct platform_driver palmas_rtc_driver = {
 	.probe		= palmas_rtc_probe,
 	.remove		= palmas_rtc_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "palmas-rtc",
 		.pm	= &palmas_rtc_pm_ops,
 		.of_match_table = of_match_ptr(of_palmas_rtc_match),

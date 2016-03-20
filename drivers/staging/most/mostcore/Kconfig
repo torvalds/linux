@@ -1,0 +1,14 @@
+#
+# MOSTCore configuration
+#
+
+config MOSTCORE
+	tristate "MOST Core"
+	depends on HAS_DMA
+
+	---help---
+	  Say Y here if you want to enable MOST support.
+	  This device driver needs at least an additional AIM and HDM to work.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mostcore.

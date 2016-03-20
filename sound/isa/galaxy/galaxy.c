@@ -569,7 +569,7 @@ static int snd_galaxy_probe(struct device *dev, unsigned int n)
 	if (err < 0)
 		goto error;
 
-	err = snd_wss_pcm(chip, 0, NULL);
+	err = snd_wss_pcm(chip, 0);
 	if (err < 0)
 		goto error;
 
@@ -577,7 +577,7 @@ static int snd_galaxy_probe(struct device *dev, unsigned int n)
 	if (err < 0)
 		goto error;
 
-	err = snd_wss_timer(chip, 0, NULL);
+	err = snd_wss_timer(chip, 0);
 	if (err < 0)
 		goto error;
 

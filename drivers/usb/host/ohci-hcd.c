@@ -99,13 +99,13 @@ static void io_watchdog_func(unsigned long _ohci);
 
 
 /* Some boards misreport power switching/overcurrent */
-static bool distrust_firmware = 1;
+static bool distrust_firmware = true;
 module_param (distrust_firmware, bool, 0);
 MODULE_PARM_DESC (distrust_firmware,
 	"true to distrust firmware power/overcurrent setup");
 
 /* Some boards leave IR set wrongly, since they fail BIOS/SMM handshakes */
-static bool no_handshake = 0;
+static bool no_handshake;
 module_param (no_handshake, bool, 0);
 MODULE_PARM_DESC (no_handshake, "true (not default) disables BIOS handshake");
 
@@ -155,7 +155,8 @@ static int ohci_urb_enqueue (
 	int		retval = 0;
 
 	/* every endpoint has a ed, locate and maybe (re)initialize it */
-	if (! (ed = ed_get (ohci, urb->ep, urb->dev, pipe, urb->interval)))
+	ed = ed_get(ohci, urb->ep, urb->dev, pipe, urb->interval);
+	if (! ed)
 		return -ENOMEM;
 
 	/* for the private part of the URB we need the number of TDs (size) */
@@ -632,7 +633,7 @@ retry:
 		return -EOVERFLOW;
 	}
 
-	/* use rhsc irqs after khubd is fully initialized */
+	/* use rhsc irqs after hub_wq is allocated */
 	set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 	hcd->uses_new_polling = 1;
 
@@ -909,8 +910,8 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 		 * choices for RHSC.  Many followed the spec; RHSC triggers
 		 * on an edge, like setting and maybe clearing a port status
 		 * change bit.  With others it's level-triggered, active
-		 * until khubd clears all the port status change bits.  We'll
-		 * always disable it here and rely on polling until khubd
+		 * until hub_wq clears all the port status change bits.  We'll
+		 * always disable it here and rely on polling until hub_wq
 		 * re-enables it.
 		 */
 		ohci_writel(ohci, OHCI_INTR_RHSC, &regs->intrdisable);
@@ -1247,11 +1248,6 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_MACH_JZ4740
 #include "ohci-jz4740.c"
 #define PLATFORM_DRIVER	ohci_hcd_jz4740_driver
-#endif
-
-#ifdef CONFIG_USB_OCTEON_OHCI
-#include "ohci-octeon.c"
-#define PLATFORM_DRIVER		ohci_octeon_driver
 #endif
 
 #ifdef CONFIG_TILE_USB

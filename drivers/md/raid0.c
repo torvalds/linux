@@ -1,10 +1,9 @@
 /*
    raid0.c : Multiple Devices driver for Linux
-             Copyright (C) 1994-96 Marc ZYNGIER
+	     Copyright (C) 1994-96 Marc ZYNGIER
 	     <zyngier@ufr-info-p7.ibp.fr> or
 	     <maz@gloups.fdn.fr>
-             Copyright (C) 1999, 2000 Ingo Molnar, Red Hat
-
+	     Copyright (C) 1999, 2000 Ingo Molnar, Red Hat
 
    RAID-0 management functions.
 
@@ -12,10 +11,10 @@
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    You should have received a copy of the GNU General Public License
    (for example /usr/src/linux/COPYING); if not, write to the Free
-   Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  
+   Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include <linux/blkdev.h>
@@ -26,16 +25,12 @@
 #include "raid0.h"
 #include "raid5.h"
 
-static int raid0_congested(void *data, int bits)
+static int raid0_congested(struct mddev *mddev, int bits)
 {
-	struct mddev *mddev = data;
 	struct r0conf *conf = mddev->private;
 	struct md_rdev **devlist = conf->devlist;
 	int raid_disks = conf->strip_zone[0].nb_dev;
 	int i, ret = 0;
-
-	if (mddev_congested(mddev, bits))
-		return 1;
 
 	for (i = 0; i < raid_disks && !ret ; i++) {
 		struct request_queue *q = bdev_get_queue(devlist[i]->bdev);
@@ -88,7 +83,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 	char b[BDEVNAME_SIZE];
 	char b2[BDEVNAME_SIZE];
 	struct r0conf *conf = kzalloc(sizeof(*conf), GFP_KERNEL);
-	bool discard_supported = false;
+	unsigned short blksize = 512;
 
 	if (!conf)
 		return -ENOMEM;
@@ -102,6 +97,9 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 		sectors = rdev1->sectors;
 		sector_div(sectors, mddev->chunk_sectors);
 		rdev1->sectors = sectors * mddev->chunk_sectors;
+
+		blksize = max(blksize, queue_logical_block_size(
+				      rdev1->bdev->bd_disk->queue));
 
 		rdev_for_each(rdev2, mddev) {
 			pr_debug("md/raid0:%s:   comparing %s(%llu)"
@@ -139,6 +137,18 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 	}
 	pr_debug("md/raid0:%s: FINAL %d zones\n",
 		 mdname(mddev), conf->nr_strip_zones);
+	/*
+	 * now since we have the hard sector sizes, we can make sure
+	 * chunk size is a multiple of that sector size
+	 */
+	if ((mddev->chunk_sectors << 9) % blksize) {
+		printk(KERN_ERR "md/raid0:%s: chunk_size of %d not multiple of block size %d\n",
+		       mdname(mddev),
+		       mddev->chunk_sectors << 9, blksize);
+		err = -EINVAL;
+		goto abort;
+	}
+
 	err = -ENOMEM;
 	conf->strip_zone = kzalloc(sizeof(struct strip_zone)*
 				conf->nr_strip_zones, GFP_KERNEL);
@@ -193,18 +203,9 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 		}
 		dev[j] = rdev1;
 
-		disk_stack_limits(mddev->gendisk, rdev1->bdev,
-				  rdev1->data_offset << 9);
-
-		if (rdev1->bdev->bd_disk->queue->merge_bvec_fn)
-			conf->has_merge_bvec = 1;
-
 		if (!smallest || (rdev1->sectors < smallest->sectors))
 			smallest = rdev1;
 		cnt++;
-
-		if (blk_queue_discard(bdev_get_queue(rdev1->bdev)))
-			discard_supported = true;
 	}
 	if (cnt != mddev->raid_disks) {
 		printk(KERN_ERR "md/raid0:%s: too few disks (%d of %d) - "
@@ -264,28 +265,6 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 			 mdname(mddev),
 			 (unsigned long long)smallest->sectors);
 	}
-	mddev->queue->backing_dev_info.congested_fn = raid0_congested;
-	mddev->queue->backing_dev_info.congested_data = mddev;
-
-	/*
-	 * now since we have the hard sector sizes, we can make sure
-	 * chunk size is a multiple of that sector size
-	 */
-	if ((mddev->chunk_sectors << 9) % queue_logical_block_size(mddev->queue)) {
-		printk(KERN_ERR "md/raid0:%s: chunk_size of %d not valid\n",
-		       mdname(mddev),
-		       mddev->chunk_sectors << 9);
-		goto abort;
-	}
-
-	blk_queue_io_min(mddev->queue, mddev->chunk_sectors << 9);
-	blk_queue_io_opt(mddev->queue,
-			 (mddev->chunk_sectors << 9) * mddev->raid_disks);
-
-	if (!discard_supported)
-		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, mddev->queue);
-	else
-		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, mddev->queue);
 
 	pr_debug("md/raid0:%s: done.\n", mdname(mddev));
 	*private_conf = conf;
@@ -320,7 +299,7 @@ static struct strip_zone *find_zone(struct r0conf *conf,
 
 /*
  * remaps the bio to the target device. we separate two flows.
- * power 2 flow and a general flow for the sake of perfromance
+ * power 2 flow and a general flow for the sake of performance
 */
 static struct md_rdev *map_sector(struct mddev *mddev, struct strip_zone *zone,
 				sector_t sector, sector_t *sector_offset)
@@ -355,59 +334,6 @@ static struct md_rdev *map_sector(struct mddev *mddev, struct strip_zone *zone,
 			     + sector_div(sector, zone->nb_dev)];
 }
 
-/**
- *	raid0_mergeable_bvec -- tell bio layer if two requests can be merged
- *	@q: request queue
- *	@bvm: properties of new bio
- *	@biovec: the request that could be merged to it.
- *
- *	Return amount of bytes we can accept at this offset
- */
-static int raid0_mergeable_bvec(struct request_queue *q,
-				struct bvec_merge_data *bvm,
-				struct bio_vec *biovec)
-{
-	struct mddev *mddev = q->queuedata;
-	struct r0conf *conf = mddev->private;
-	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
-	sector_t sector_offset = sector;
-	int max;
-	unsigned int chunk_sectors = mddev->chunk_sectors;
-	unsigned int bio_sectors = bvm->bi_size >> 9;
-	struct strip_zone *zone;
-	struct md_rdev *rdev;
-	struct request_queue *subq;
-
-	if (is_power_of_2(chunk_sectors))
-		max =  (chunk_sectors - ((sector & (chunk_sectors-1))
-						+ bio_sectors)) << 9;
-	else
-		max =  (chunk_sectors - (sector_div(sector, chunk_sectors)
-						+ bio_sectors)) << 9;
-	if (max < 0)
-		max = 0; /* bio_add cannot handle a negative return */
-	if (max <= biovec->bv_len && bio_sectors == 0)
-		return biovec->bv_len;
-	if (max < biovec->bv_len)
-		/* too small already, no need to check further */
-		return max;
-	if (!conf->has_merge_bvec)
-		return max;
-
-	/* May need to check subordinate device */
-	sector = sector_offset;
-	zone = find_zone(mddev->private, &sector_offset);
-	rdev = map_sector(mddev, zone, sector, &sector_offset);
-	subq = bdev_get_queue(rdev->bdev);
-	if (subq->merge_bvec_fn) {
-		bvm->bi_bdev = rdev->bdev;
-		bvm->bi_sector = sector_offset + zone->dev_start +
-			rdev->data_offset;
-		return min(max, subq->merge_bvec_fn(subq, bvm, biovec));
-	} else
-		return max;
-}
-
 static sector_t raid0_size(struct mddev *mddev, sector_t sectors, int raid_disks)
 {
 	sector_t array_sectors = 0;
@@ -423,7 +349,7 @@ static sector_t raid0_size(struct mddev *mddev, sector_t sectors, int raid_disks
 	return array_sectors;
 }
 
-static int raid0_stop(struct mddev *mddev);
+static void raid0_free(struct mddev *mddev, void *priv);
 
 static int raid0_run(struct mddev *mddev)
 {
@@ -437,9 +363,6 @@ static int raid0_run(struct mddev *mddev)
 	}
 	if (md_check_no_bitmap(mddev))
 		return -EINVAL;
-	blk_queue_max_hw_sectors(mddev->queue, mddev->chunk_sectors);
-	blk_queue_max_write_same_sectors(mddev->queue, mddev->chunk_sectors);
-	blk_queue_max_discard_sectors(mddev->queue, mddev->chunk_sectors);
 
 	/* if private is not null, we are here after takeover */
 	if (mddev->private == NULL) {
@@ -449,6 +372,29 @@ static int raid0_run(struct mddev *mddev)
 		mddev->private = conf;
 	}
 	conf = mddev->private;
+	if (mddev->queue) {
+		struct md_rdev *rdev;
+		bool discard_supported = false;
+
+		blk_queue_max_hw_sectors(mddev->queue, mddev->chunk_sectors);
+		blk_queue_max_write_same_sectors(mddev->queue, mddev->chunk_sectors);
+		blk_queue_max_discard_sectors(mddev->queue, mddev->chunk_sectors);
+
+		blk_queue_io_min(mddev->queue, mddev->chunk_sectors << 9);
+		blk_queue_io_opt(mddev->queue,
+				 (mddev->chunk_sectors << 9) * mddev->raid_disks);
+
+		rdev_for_each(rdev, mddev) {
+			disk_stack_limits(mddev->gendisk, rdev->bdev,
+					  rdev->data_offset << 9);
+			if (blk_queue_discard(bdev_get_queue(rdev->bdev)))
+				discard_supported = true;
+		}
+		if (!discard_supported)
+			queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, mddev->queue);
+		else
+			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, mddev->queue);
+	}
 
 	/* calculate array device size */
 	md_set_array_sectors(mddev, raid0_size(mddev, 0, 0));
@@ -456,42 +402,37 @@ static int raid0_run(struct mddev *mddev)
 	printk(KERN_INFO "md/raid0:%s: md_size is %llu sectors.\n",
 	       mdname(mddev),
 	       (unsigned long long)mddev->array_sectors);
-	/* calculate the max read-ahead size.
-	 * For read-ahead of large files to be effective, we need to
-	 * readahead at least twice a whole stripe. i.e. number of devices
-	 * multiplied by chunk size times 2.
-	 * If an individual device has an ra_pages greater than the
-	 * chunk size, then we will not drive that device as hard as it
-	 * wants.  We consider this a configuration error: a larger
-	 * chunksize should be used in that case.
-	 */
-	{
+
+	if (mddev->queue) {
+		/* calculate the max read-ahead size.
+		 * For read-ahead of large files to be effective, we need to
+		 * readahead at least twice a whole stripe. i.e. number of devices
+		 * multiplied by chunk size times 2.
+		 * If an individual device has an ra_pages greater than the
+		 * chunk size, then we will not drive that device as hard as it
+		 * wants.  We consider this a configuration error: a larger
+		 * chunksize should be used in that case.
+		 */
 		int stripe = mddev->raid_disks *
 			(mddev->chunk_sectors << 9) / PAGE_SIZE;
 		if (mddev->queue->backing_dev_info.ra_pages < 2* stripe)
 			mddev->queue->backing_dev_info.ra_pages = 2* stripe;
 	}
 
-	blk_queue_merge_bvec(mddev->queue, raid0_mergeable_bvec);
 	dump_zones(mddev);
 
 	ret = md_integrity_register(mddev);
-	if (ret)
-		raid0_stop(mddev);
 
 	return ret;
 }
 
-static int raid0_stop(struct mddev *mddev)
+static void raid0_free(struct mddev *mddev, void *priv)
 {
-	struct r0conf *conf = mddev->private;
+	struct r0conf *conf = priv;
 
-	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	kfree(conf->strip_zone);
 	kfree(conf->devlist);
 	kfree(conf);
-	mddev->private = NULL;
-	return 0;
 }
 
 /*
@@ -531,6 +472,9 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 			 ? (sector & (chunk_sects-1))
 			 : sector_div(sector, chunk_sects));
 
+		/* Restore due to sector_div */
+		sector = bio->bi_iter.bi_sector;
+
 		if (sectors < bio_sectors(bio)) {
 			split = bio_split(bio, sectors, GFP_NOIO, fs_bio_set);
 			bio_chain(split, bio);
@@ -547,7 +491,7 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 		if (unlikely((split->bi_rw & REQ_DISCARD) &&
 			 !blk_queue_discard(bdev_get_queue(split->bi_bdev)))) {
 			/* Just ignore it */
-			bio_endio(split, 0);
+			bio_endio(split);
 		} else
 			generic_make_request(split);
 	} while (split != bio);
@@ -605,13 +549,13 @@ static void *raid0_takeover_raid10(struct mddev *mddev)
 	 *  - all mirrors must be already degraded
 	 */
 	if (mddev->layout != ((1 << 8) + 2)) {
-		printk(KERN_ERR "md/raid0:%s:: Raid0 cannot takover layout: 0x%x\n",
+		printk(KERN_ERR "md/raid0:%s:: Raid0 cannot takeover layout: 0x%x\n",
 		       mdname(mddev),
 		       mddev->layout);
 		return ERR_PTR(-EINVAL);
 	}
 	if (mddev->raid_disks & 1) {
-		printk(KERN_ERR "md/raid0:%s: Raid0 cannot takover Raid10 with odd disk number.\n",
+		printk(KERN_ERR "md/raid0:%s: Raid0 cannot takeover Raid10 with odd disk number.\n",
 		       mdname(mddev));
 		return ERR_PTR(-EINVAL);
 	}
@@ -725,11 +669,12 @@ static struct md_personality raid0_personality=
 	.owner		= THIS_MODULE,
 	.make_request	= raid0_make_request,
 	.run		= raid0_run,
-	.stop		= raid0_stop,
+	.free		= raid0_free,
 	.status		= raid0_status,
 	.size		= raid0_size,
 	.takeover	= raid0_takeover,
 	.quiesce	= raid0_quiesce,
+	.congested	= raid0_congested,
 };
 
 static int __init raid0_init (void)

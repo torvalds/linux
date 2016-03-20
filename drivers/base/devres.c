@@ -82,12 +82,12 @@ static struct devres_group * node_to_group(struct devres_node *node)
 }
 
 static __always_inline struct devres * alloc_dr(dr_release_t release,
-						size_t size, gfp_t gfp)
+						size_t size, gfp_t gfp, int nid)
 {
 	size_t tot_size = sizeof(struct devres) + size;
 	struct devres *dr;
 
-	dr = kmalloc_track_caller(tot_size, gfp);
+	dr = kmalloc_node_track_caller(tot_size, gfp, nid);
 	if (unlikely(!dr))
 		return NULL;
 
@@ -106,24 +106,25 @@ static void add_dr(struct device *dev, struct devres_node *node)
 }
 
 #ifdef CONFIG_DEBUG_DEVRES
-void * __devres_alloc(dr_release_t release, size_t size, gfp_t gfp,
+void * __devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid,
 		      const char *name)
 {
 	struct devres *dr;
 
-	dr = alloc_dr(release, size, gfp | __GFP_ZERO);
+	dr = alloc_dr(release, size, gfp | __GFP_ZERO, nid);
 	if (unlikely(!dr))
 		return NULL;
 	set_node_dbginfo(&dr->node, name, size);
 	return dr->data;
 }
-EXPORT_SYMBOL_GPL(__devres_alloc);
+EXPORT_SYMBOL_GPL(__devres_alloc_node);
 #else
 /**
  * devres_alloc - Allocate device resource data
  * @release: Release function devres will be associated with
  * @size: Allocation size
  * @gfp: Allocation flags
+ * @nid: NUMA node
  *
  * Allocate devres of @size bytes.  The allocated area is zeroed, then
  * associated with @release.  The returned pointer can be passed to
@@ -132,16 +133,16 @@ EXPORT_SYMBOL_GPL(__devres_alloc);
  * RETURNS:
  * Pointer to allocated devres on success, NULL on failure.
  */
-void * devres_alloc(dr_release_t release, size_t size, gfp_t gfp)
+void * devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid)
 {
 	struct devres *dr;
 
-	dr = alloc_dr(release, size, gfp | __GFP_ZERO);
+	dr = alloc_dr(release, size, gfp | __GFP_ZERO, nid);
 	if (unlikely(!dr))
 		return NULL;
 	return dr->data;
 }
-EXPORT_SYMBOL_GPL(devres_alloc);
+EXPORT_SYMBOL_GPL(devres_alloc_node);
 #endif
 
 /**
@@ -297,10 +298,10 @@ void * devres_get(struct device *dev, void *new_res,
 	if (!dr) {
 		add_dr(dev, &new_dr->node);
 		dr = new_dr;
-		new_dr = NULL;
+		new_res = NULL;
 	}
 	spin_unlock_irqrestore(&dev->devres_lock, flags);
-	devres_free(new_dr);
+	devres_free(new_res);
 
 	return dr->data;
 }
@@ -776,7 +777,7 @@ void * devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
 	struct devres *dr;
 
 	/* use raw alloc_dr for kmalloc caller tracing */
-	dr = alloc_dr(devm_kmalloc_release, size, gfp);
+	dr = alloc_dr(devm_kmalloc_release, size, gfp, dev_to_node(dev));
 	if (unlikely(!dr))
 		return NULL;
 
@@ -817,13 +818,13 @@ char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp)
 EXPORT_SYMBOL_GPL(devm_kstrdup);
 
 /**
- * devm_kvasprintf - Allocate resource managed space
- *			for the formatted string.
+ * devm_kvasprintf - Allocate resource managed space and format a string
+ *		     into that.
  * @dev: Device to allocate memory for
  * @gfp: the GFP mask used in the devm_kmalloc() call when
  *       allocating memory
- * @fmt: the formatted string to duplicate
- * @ap: the list of tokens to be placed in the formatted string
+ * @fmt: The printf()-style format string
+ * @ap: Arguments for the format string
  * RETURNS:
  * Pointer to allocated string on success, NULL on failure.
  */
@@ -849,12 +850,13 @@ char *devm_kvasprintf(struct device *dev, gfp_t gfp, const char *fmt,
 EXPORT_SYMBOL(devm_kvasprintf);
 
 /**
- * devm_kasprintf - Allocate resource managed space
- *		and copy an existing formatted string into that
+ * devm_kasprintf - Allocate resource managed space and format a string
+ *		    into that.
  * @dev: Device to allocate memory for
  * @gfp: the GFP mask used in the devm_kmalloc() call when
  *       allocating memory
- * @fmt: the string to duplicate
+ * @fmt: The printf()-style format string
+ * @...: Arguments for the format string
  * RETURNS:
  * Pointer to allocated string on success, NULL on failure.
  */

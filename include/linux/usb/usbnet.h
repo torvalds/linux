@@ -78,6 +78,7 @@ struct usbnet {
 #		define EVENT_NO_RUNTIME_PM	9
 #		define EVENT_RX_KILL	10
 #		define EVENT_LINK_CHANGE	11
+#		define EVENT_SET_RX_MODE	12
 };
 
 static inline struct usb_driver *driver_of(struct usb_interface *intf)
@@ -159,6 +160,9 @@ struct driver_info {
 	/* called by minidriver when receiving indication */
 	void	(*indication)(struct usbnet *dev, void *ind, int indlen);
 
+	/* rx mode change (device changes address list filtering) */
+	void	(*set_rx_mode)(struct usbnet *dev);
+
 	/* for new devices, use the descriptor-reading code instead */
 	int		in;		/* rx endpoint */
 	int		out;		/* tx endpoint */
@@ -223,8 +227,22 @@ struct skb_data {	/* skb->cb is one of these */
 	struct urb		*urb;
 	struct usbnet		*dev;
 	enum skb_state		state;
-	size_t			length;
+	long			length;
+	unsigned long		packets;
 };
+
+/* Drivers that set FLAG_MULTI_PACKET must call this in their
+ * tx_fixup method before returning an skb.
+ */
+static inline void
+usbnet_set_skb_tx_stats(struct sk_buff *skb,
+			unsigned long packets, long bytes_delta)
+{
+	struct skb_data *entry = (struct skb_data *) skb->cb;
+
+	entry->packets = packets;
+	entry->length = bytes_delta;
+}
 
 extern int usbnet_open(struct net_device *net);
 extern int usbnet_stop(struct net_device *net);

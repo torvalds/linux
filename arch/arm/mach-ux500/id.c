@@ -72,7 +72,7 @@ static unsigned int partnumber(unsigned int asicid)
  * DB9540	0x413fc090	0xFFFFDBF4		0x009540xx
  */
 
-void __init ux500_map_io(void)
+void __init ux500_setup_id(void)
 {
 	unsigned int cpuid = read_cpuid_id();
 	unsigned int asicid = 0;

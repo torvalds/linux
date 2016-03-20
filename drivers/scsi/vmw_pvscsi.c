@@ -349,9 +349,9 @@ static void pvscsi_create_sg(struct pvscsi_ctx *ctx,
  * Map all data buffers for a command into PCI space and
  * setup the scatter/gather list if needed.
  */
-static void pvscsi_map_buffers(struct pvscsi_adapter *adapter,
-			       struct pvscsi_ctx *ctx, struct scsi_cmnd *cmd,
-			       struct PVSCSIRingReqDesc *e)
+static int pvscsi_map_buffers(struct pvscsi_adapter *adapter,
+			      struct pvscsi_ctx *ctx, struct scsi_cmnd *cmd,
+			      struct PVSCSIRingReqDesc *e)
 {
 	unsigned count;
 	unsigned bufflen = scsi_bufflen(cmd);
@@ -360,18 +360,30 @@ static void pvscsi_map_buffers(struct pvscsi_adapter *adapter,
 	e->dataLen = bufflen;
 	e->dataAddr = 0;
 	if (bufflen == 0)
-		return;
+		return 0;
 
 	sg = scsi_sglist(cmd);
 	count = scsi_sg_count(cmd);
 	if (count != 0) {
 		int segs = scsi_dma_map(cmd);
-		if (segs > 1) {
+
+		if (segs == -ENOMEM) {
+			scmd_printk(KERN_ERR, cmd,
+				    "vmw_pvscsi: Failed to map cmd sglist for DMA.\n");
+			return -ENOMEM;
+		} else if (segs > 1) {
 			pvscsi_create_sg(ctx, sg, segs);
 
 			e->flags |= PVSCSI_FLAG_CMD_WITH_SG_LIST;
 			ctx->sglPA = pci_map_single(adapter->dev, ctx->sgl,
 						    SGL_SIZE, PCI_DMA_TODEVICE);
+			if (pci_dma_mapping_error(adapter->dev, ctx->sglPA)) {
+				scmd_printk(KERN_ERR, cmd,
+					    "vmw_pvscsi: Failed to map ctx sglist for DMA.\n");
+				scsi_dma_unmap(cmd);
+				ctx->sglPA = 0;
+				return -ENOMEM;
+			}
 			e->dataAddr = ctx->sglPA;
 		} else
 			e->dataAddr = sg_dma_address(sg);
@@ -382,8 +394,15 @@ static void pvscsi_map_buffers(struct pvscsi_adapter *adapter,
 		 */
 		ctx->dataPA = pci_map_single(adapter->dev, sg, bufflen,
 					     cmd->sc_data_direction);
+		if (pci_dma_mapping_error(adapter->dev, ctx->dataPA)) {
+			scmd_printk(KERN_ERR, cmd,
+				    "vmw_pvscsi: Failed to map direct data buffer for DMA.\n");
+			return -ENOMEM;
+		}
 		e->dataAddr = ctx->dataPA;
 	}
+
+	return 0;
 }
 
 static void pvscsi_unmap_buffers(const struct pvscsi_adapter *adapter,
@@ -504,33 +523,11 @@ static void pvscsi_setup_all_rings(const struct pvscsi_adapter *adapter)
 	}
 }
 
-static int pvscsi_change_queue_depth(struct scsi_device *sdev,
-				     int qdepth,
-				     int reason)
+static int pvscsi_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
-	int max_depth;
-	struct Scsi_Host *shost = sdev->host;
-
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		/*
-		 * We support only changing default.
-		 */
-		return -EOPNOTSUPP;
-
-	max_depth = shost->can_queue;
 	if (!sdev->tagged_supported)
-		max_depth = 1;
-	if (qdepth > max_depth)
-		qdepth = max_depth;
-	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
-
-	if (sdev->inquiry_len > 7)
-		sdev_printk(KERN_INFO, sdev,
-			    "qdepth(%d), tagged(%d), simple(%d), ordered(%d), scsi_level(%d), cmd_que(%d)\n",
-			    sdev->queue_depth, sdev->tagged_supported,
-			    sdev->simple_tags, sdev->ordered_tags,
-			    sdev->scsi_level, (sdev->inquiry[7] & 2) >> 1);
-	return sdev->queue_depth;
+		qdepth = 1;
+	return scsi_change_queue_depth(sdev, qdepth);
 }
 
 /*
@@ -712,6 +709,12 @@ static int pvscsi_queue_ring(struct pvscsi_adapter *adapter,
 		ctx->sensePA = pci_map_single(adapter->dev, cmd->sense_buffer,
 					      SCSI_SENSE_BUFFERSIZE,
 					      PCI_DMA_FROMDEVICE);
+		if (pci_dma_mapping_error(adapter->dev, ctx->sensePA)) {
+			scmd_printk(KERN_ERR, cmd,
+				    "vmw_pvscsi: Failed to map sense buffer for DMA.\n");
+			ctx->sensePA = 0;
+			return -ENOMEM;
+		}
 		e->senseAddr = ctx->sensePA;
 		e->senseLen = SCSI_SENSE_BUFFERSIZE;
 	} else {
@@ -723,10 +726,6 @@ static int pvscsi_queue_ring(struct pvscsi_adapter *adapter,
 	memcpy(e->cdb, cmd->cmnd, e->cdbLen);
 
 	e->tag = SIMPLE_QUEUE_TAG;
-	if (sdev->tagged_supported &&
-	    (cmd->tag == HEAD_OF_QUEUE_TAG ||
-	     cmd->tag == ORDERED_QUEUE_TAG))
-		e->tag = cmd->tag;
 
 	if (cmd->sc_data_direction == DMA_FROM_DEVICE)
 		e->flags = PVSCSI_FLAG_CMD_DIR_TOHOST;
@@ -737,7 +736,15 @@ static int pvscsi_queue_ring(struct pvscsi_adapter *adapter,
 	else
 		e->flags = 0;
 
-	pvscsi_map_buffers(adapter, ctx, cmd, e);
+	if (pvscsi_map_buffers(adapter, ctx, cmd, e) != 0) {
+		if (cmd->sense_buffer) {
+			pci_unmap_single(adapter->dev, ctx->sensePA,
+					 SCSI_SENSE_BUFFERSIZE,
+					 PCI_DMA_FROMDEVICE);
+			ctx->sensePA = 0;
+		}
+		return -ENOMEM;
+	}
 
 	e->context = pvscsi_map_context(adapter, ctx);
 

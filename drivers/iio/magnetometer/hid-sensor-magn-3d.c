@@ -157,20 +157,12 @@ static int magn_3d_read_raw(struct iio_dev *indio_dev,
 	int report_id = -1;
 	u32 address;
 	int ret_type;
-	s32 poll_value;
 
 	*val = 0;
 	*val2 = 0;
 	switch (mask) {
 	case 0:
-		poll_value = hid_sensor_read_poll_value(
-					&magn_state->common_attributes);
-		if (poll_value < 0)
-				return -EINVAL;
-
 		hid_sensor_power_state(&magn_state->common_attributes, true);
-		msleep_interruptible(poll_value * 2);
-
 		report_id =
 			magn_state->magn[chan->address].report_id;
 		address = magn_3d_addresses[chan->address];
@@ -178,7 +170,8 @@ static int magn_3d_read_raw(struct iio_dev *indio_dev,
 			*val = sensor_hub_input_attr_get_raw_value(
 				magn_state->common_attributes.hsdev,
 				HID_USAGE_SENSOR_COMPASS_3D, address,
-				report_id);
+				report_id,
+				SENSOR_HUB_SYNC);
 		else {
 			*val = 0;
 			hid_sensor_power_state(&magn_state->common_attributes,
@@ -246,8 +239,7 @@ static const struct iio_info magn_3d_info = {
 };
 
 /* Function to push data to buffer */
-static void hid_sensor_push_data(struct iio_dev *indio_dev, const void *data,
-	int len)
+static void hid_sensor_push_data(struct iio_dev *indio_dev, const void *data)
 {
 	dev_dbg(&indio_dev->dev, "hid_sensor_push_data\n");
 	iio_push_to_buffers(indio_dev, data);
@@ -263,9 +255,7 @@ static int magn_3d_proc_event(struct hid_sensor_hub_device *hsdev,
 
 	dev_dbg(&indio_dev->dev, "magn_3d_proc_event\n");
 	if (atomic_read(&magn_state->common_attributes.data_ready))
-		hid_sensor_push_data(indio_dev,
-				magn_state->iio_vals,
-				sizeof(magn_state->iio_vals));
+		hid_sensor_push_data(indio_dev, magn_state->iio_vals);
 
 	return 0;
 }
@@ -520,7 +510,7 @@ static int hid_magn_3d_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id hid_magn_3d_ids[] = {
+static const struct platform_device_id hid_magn_3d_ids[] = {
 	{
 		/* Format: HID-SENSOR-usage_id_in_hex_lowercase */
 		.name = "HID-SENSOR-200083",
@@ -533,7 +523,7 @@ static struct platform_driver hid_magn_3d_platform_driver = {
 	.id_table = hid_magn_3d_ids,
 	.driver = {
 		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
+		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_magn_3d_probe,
 	.remove		= hid_magn_3d_remove,

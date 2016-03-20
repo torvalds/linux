@@ -145,6 +145,7 @@
 				};
 
 				ssi2: ssi@50014000 {
+					#sound-dai-cells = <0>;
 					compatible = "fsl,imx50-ssi",
 							"fsl,imx51-ssi",
 							"fsl,imx21-ssi";
@@ -196,6 +197,7 @@
 				reg = <0x53f80200 0x0200>;
 				interrupts = <14>;
 				clocks = <&clks IMX5_CLK_USB_PHY2_GATE>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
@@ -204,6 +206,7 @@
 				reg = <0x53f80400 0x0200>;
 				interrupts = <16>;
 				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
@@ -212,6 +215,7 @@
 				reg = <0x53f80600 0x0200>;
 				interrupts = <17>;
 				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
@@ -454,6 +458,7 @@
 			};
 
 			ssi1: ssi@63fcc000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx50-ssi", "fsl,imx51-ssi",
 							"fsl,imx21-ssi";
 				reg = <0x63fcc000 0x4000>;

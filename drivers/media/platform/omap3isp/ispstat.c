@@ -13,16 +13,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/dma-mapping.h>
@@ -31,7 +21,7 @@
 
 #include "isp.h"
 
-#define ISP_STAT_USES_DMAENGINE(stat)	((stat)->dma_ch >= 0)
+#define ISP_STAT_USES_DMAENGINE(stat)	((stat)->dma_ch != NULL)
 
 /*
  * MAGIC_SIZE must always be the greatest common divisor of
@@ -245,7 +235,7 @@ static int isp_stat_buf_queue(struct ispstat *stat)
 	if (!stat->active_buf)
 		return STAT_NO_BUF;
 
-	ktime_get_ts(&stat->active_buf->ts);
+	v4l2_get_timestamp(&stat->active_buf->ts);
 
 	stat->active_buf->buf_size = stat->buf_size;
 	if (isp_stat_buf_check_magic(stat, stat->active_buf)) {
@@ -506,8 +496,7 @@ int omap3isp_stat_request_statistics(struct ispstat *stat,
 		return PTR_ERR(buf);
 	}
 
-	data->ts.tv_sec = buf->ts.tv_sec;
-	data->ts.tv_usec = buf->ts.tv_nsec / NSEC_PER_USEC;
+	data->ts = buf->ts;
 	data->config_counter = buf->config_counter;
 	data->frame_number = buf->frame_number;
 	data->buf_size = buf->buf_size;
@@ -1039,7 +1028,7 @@ static int isp_stat_init_entities(struct ispstat *stat, const char *name,
 	stat->pad.flags = MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_MUST_CONNECT;
 	me->ops = NULL;
 
-	return media_entity_init(me, 1, &stat->pad, 0);
+	return media_entity_pads_init(me, 1, &stat->pad);
 }
 
 int omap3isp_stat_init(struct ispstat *stat, const char *name,

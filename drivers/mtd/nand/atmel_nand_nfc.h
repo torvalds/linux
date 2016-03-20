@@ -35,6 +35,7 @@
 #define		NFC_CTRL_DISABLE	(1 << 1)
 
 #define ATMEL_HSMC_NFC_SR	0x08		/* NFC Status Register */
+#define		NFC_SR_BUSY		(1 << 8)
 #define		NFC_SR_XFR_DONE		(1 << 16)
 #define		NFC_SR_CMD_DONE		(1 << 17)
 #define		NFC_SR_DTOE		(1 << 20)

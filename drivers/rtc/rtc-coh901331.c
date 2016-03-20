@@ -263,11 +263,11 @@ static const struct of_device_id coh901331_dt_match[] = {
 	{ .compatible = "stericsson,coh901331" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, coh901331_dt_match);
 
 static struct platform_driver coh901331_driver = {
 	.driver = {
 		.name = "rtc-coh901331",
-		.owner = THIS_MODULE,
 		.pm = &coh901331_pm_ops,
 		.of_match_table = coh901331_dt_match,
 	},

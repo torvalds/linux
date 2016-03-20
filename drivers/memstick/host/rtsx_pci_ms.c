@@ -645,7 +645,6 @@ static struct platform_driver rtsx_pci_ms_driver = {
 	.suspend	= rtsx_pci_ms_suspend,
 	.resume		= rtsx_pci_ms_resume,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= DRV_NAME_RTSX_PCI_MS,
 	},
 };

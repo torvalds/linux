@@ -3,14 +3,14 @@ Linux IOMMU Support
 
 The architecture spec can be obtained from the below location.
 
-http://www.intel.com/technology/virtualization/
+http://www.intel.com/content/dam/www/public/us/en/documents/product-specifications/vt-directed-io-spec.pdf
 
 This guide gives a quick cheat sheet for some basic understanding.
 
 Some Keywords
 
 DMAR - DMA remapping
-DRHD - DMA Engine Reporting Structure
+DRHD - DMA Remapping Hardware Unit Definition
 RMRR - Reserved memory Region Reporting Structure
 ZLR  - Zero length reads from PCI devices
 IOVA - IO Virtual address.

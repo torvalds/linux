@@ -2,6 +2,9 @@
 # General architecture dependent options
 #
 
+config KEXEC_CORE
+	bool
+
 config OPROFILE
 	tristate "OProfile system profiling"
 	depends on PROFILING
@@ -32,7 +35,7 @@ config HAVE_OPROFILE
 
 config OPROFILE_NMI_TIMER
 	def_bool y
-	depends on PERF_EVENTS && HAVE_PERF_EVENTS_NMI
+	depends on PERF_EVENTS && HAVE_PERF_EVENTS_NMI && !PPC64
 
 config KPROBES
 	bool "Kprobes"
@@ -71,6 +74,12 @@ config JUMP_LABEL
 	 ( On 32-bit x86, the necessary options added to the compiler
 	   flags may increase the size of the kernel slightly. )
 
+config STATIC_KEYS_SELFTEST
+	bool "Static key selftest"
+	depends on JUMP_LABEL
+	help
+	  Boot time self-test of the branch patching code.
+
 config OPTPROBES
 	def_bool y
 	depends on KPROBES && HAVE_OPTPROBES
@@ -87,7 +96,6 @@ config KPROBES_ON_FTRACE
 
 config UPROBES
 	def_bool n
-	select PERCPU_RWSEM
 	help
 	  Uprobes is the user-space counterpart to kprobes: they
 	  enable instrumentation applications (such as 'perf probe')
@@ -197,9 +205,6 @@ config HAVE_NMI_WATCHDOG
 config HAVE_ARCH_TRACEHOOK
 	bool
 
-config HAVE_DMA_ATTRS
-	bool
-
 config HAVE_DMA_CONTIGUOUS
 	bool
 
@@ -219,6 +224,10 @@ config ARCH_TASK_STRUCT_ALLOCATOR
 
 # Select if arch has its private alloc_thread_info() function
 config ARCH_THREAD_INFO_ALLOCATOR
+	bool
+
+# Select if arch wants to size task_struct dynamically via arch_task_struct_size:
+config ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	bool
 
 config HAVE_REGS_AND_STACK_ACCESS_API
@@ -322,6 +331,17 @@ config HAVE_ARCH_SECCOMP_FILTER
 	  - secure_computing return value is checked and a return value of -1
 	    results in the system call being skipped immediately.
 	  - seccomp syscall wired up
+
+	  For best performance, an arch should use seccomp_phase1 and
+	  seccomp_phase2 directly.  It should call seccomp_phase1 for all
+	  syscalls if TIF_SECCOMP is set, but seccomp_phase1 does not
+	  need to be called from a ptrace-safe context.  It must then
+	  call seccomp_phase2 if seccomp_phase1 returns anything other
+	  than SECCOMP_PHASE1_OK or SECCOMP_PHASE1_SKIP.
+
+	  As an additional optimization, an arch may provide seccomp_data
+	  directly to seccomp_phase1; this avoids multiple calls
+	  to the syscall_xyz helpers for every syscall.
 
 config SECCOMP_FILTER
 	def_bool y
@@ -435,6 +455,9 @@ config HAVE_IRQ_TIME_ACCOUNTING
 config HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	bool
 
+config HAVE_ARCH_HUGE_VMAP
+	bool
+
 config HAVE_ARCH_SOFT_DIRTY
 	bool
 
@@ -472,6 +495,93 @@ config HAVE_IRQ_EXIT_ON_IRQ_STACK
 	  in the end of an hardirq.
 	  This spares a stack switch and improves cache usage on softirq
 	  processing.
+
+config PGTABLE_LEVELS
+	int
+	default 2
+
+config ARCH_HAS_ELF_RANDOMIZE
+	bool
+	help
+	  An architecture supports choosing randomized locations for
+	  stack, mmap, brk, and ET_DYN. Defined functions:
+	  - arch_mmap_rnd()
+	  - arch_randomize_brk()
+
+config HAVE_ARCH_MMAP_RND_BITS
+	bool
+	help
+	  An arch should select this symbol if it supports setting a variable
+	  number of bits for use in establishing the base address for mmap
+	  allocations, has MMU enabled and provides values for both:
+	  - ARCH_MMAP_RND_BITS_MIN
+	  - ARCH_MMAP_RND_BITS_MAX
+
+config ARCH_MMAP_RND_BITS_MIN
+	int
+
+config ARCH_MMAP_RND_BITS_MAX
+	int
+
+config ARCH_MMAP_RND_BITS_DEFAULT
+	int
+
+config ARCH_MMAP_RND_BITS
+	int "Number of bits to use for ASLR of mmap base address" if EXPERT
+	range ARCH_MMAP_RND_BITS_MIN ARCH_MMAP_RND_BITS_MAX
+	default ARCH_MMAP_RND_BITS_DEFAULT if ARCH_MMAP_RND_BITS_DEFAULT
+	default ARCH_MMAP_RND_BITS_MIN
+	depends on HAVE_ARCH_MMAP_RND_BITS
+	help
+	  This value can be used to select the number of bits to use to
+	  determine the random offset to the base address of vma regions
+	  resulting from mmap allocations. This value will be bounded
+	  by the architecture's minimum and maximum supported values.
+
+	  This value can be changed after boot using the
+	  /proc/sys/vm/mmap_rnd_bits tunable
+
+config HAVE_ARCH_MMAP_RND_COMPAT_BITS
+	bool
+	help
+	  An arch should select this symbol if it supports running applications
+	  in compatibility mode, supports setting a variable number of bits for
+	  use in establishing the base address for mmap allocations, has MMU
+	  enabled and provides values for both:
+	  - ARCH_MMAP_RND_COMPAT_BITS_MIN
+	  - ARCH_MMAP_RND_COMPAT_BITS_MAX
+
+config ARCH_MMAP_RND_COMPAT_BITS_MIN
+	int
+
+config ARCH_MMAP_RND_COMPAT_BITS_MAX
+	int
+
+config ARCH_MMAP_RND_COMPAT_BITS_DEFAULT
+	int
+
+config ARCH_MMAP_RND_COMPAT_BITS
+	int "Number of bits to use for ASLR of mmap base address for compatible applications" if EXPERT
+	range ARCH_MMAP_RND_COMPAT_BITS_MIN ARCH_MMAP_RND_COMPAT_BITS_MAX
+	default ARCH_MMAP_RND_COMPAT_BITS_DEFAULT if ARCH_MMAP_RND_COMPAT_BITS_DEFAULT
+	default ARCH_MMAP_RND_COMPAT_BITS_MIN
+	depends on HAVE_ARCH_MMAP_RND_COMPAT_BITS
+	help
+	  This value can be used to select the number of bits to use to
+	  determine the random offset to the base address of vma regions
+	  resulting from mmap allocations for compatible applications This
+	  value will be bounded by the architecture's minimum and maximum
+	  supported values.
+
+	  This value can be changed after boot using the
+	  /proc/sys/vm/mmap_rnd_compat_bits tunable
+
+config HAVE_COPY_THREAD_TLS
+	bool
+	help
+	  Architecture provides copy_thread_tls to accept tls argument via
+	  normal C parameter passing, rather than extracting the syscall
+	  argument from pt_regs.
 
 #
 # ABI hall of shame
@@ -517,6 +627,9 @@ config OLD_SIGACTION
 	  compatibility...
 
 config COMPAT_OLD_SIGACTION
+	bool
+
+config ARCH_NO_COHERENT_DMA_MMAP
 	bool
 
 source "kernel/gcov/Kconfig"

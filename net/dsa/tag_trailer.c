@@ -10,19 +10,15 @@
 
 #include <linux/etherdevice.h>
 #include <linux/list.h>
-#include <linux/netdevice.h>
 #include <linux/slab.h>
 #include "dsa_priv.h"
 
-netdev_tx_t trailer_xmit(struct sk_buff *skb, struct net_device *dev)
+static struct sk_buff *trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct sk_buff *nskb;
 	int padlen;
 	u8 *trailer;
-
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
 
 	/*
 	 * We have to make sure that the trailer ends up as the very
@@ -37,7 +33,7 @@ netdev_tx_t trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 	nskb = alloc_skb(NET_IP_ALIGN + skb->len + padlen + 4, GFP_ATOMIC);
 	if (nskb == NULL) {
 		kfree_skb(skb);
-		return NETDEV_TX_OK;
+		return NULL;
 	}
 	skb_reserve(nskb, NET_IP_ALIGN);
 
@@ -58,12 +54,7 @@ netdev_tx_t trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 	trailer[2] = 0x10;
 	trailer[3] = 0x00;
 
-	nskb->protocol = htons(ETH_P_TRAILER);
-
-	nskb->dev = p->parent->dst->master_netdev;
-	dev_queue_xmit(nskb);
-
-	return NETDEV_TX_OK;
+	return nskb;
 }
 
 static int trailer_rcv(struct sk_buff *skb, struct net_device *dev,
@@ -87,7 +78,7 @@ static int trailer_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	trailer = skb_tail_pointer(skb) - 4;
 	if (trailer[0] != 0x80 || (trailer[1] & 0xf8) != 0x00 ||
-	    (trailer[3] & 0xef) != 0x00 || trailer[3] != 0x00)
+	    (trailer[2] & 0xef) != 0x00 || trailer[3] != 0x00)
 		goto out_drop;
 
 	source_port = trailer[1] & 7;
@@ -114,7 +105,7 @@ out:
 	return 0;
 }
 
-struct packet_type trailer_packet_type __read_mostly = {
-	.type	= cpu_to_be16(ETH_P_TRAILER),
-	.func	= trailer_rcv,
+const struct dsa_device_ops trailer_netdev_ops = {
+	.xmit	= trailer_xmit,
+	.rcv	= trailer_rcv,
 };

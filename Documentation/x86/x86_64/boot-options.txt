@@ -31,6 +31,9 @@ Machine check
 		(e.g. BIOS or hardware monitoring applications), conflicting
 		with OS's error handling, and you cannot deactivate the agent,
 		then this option will be a help.
+   mce=no_lmce
+		Do not opt-in to Local MCE delivery. Use legacy method
+		to broadcast MCEs.
    mce=bootlog
 		Enable logging of machine checks left over from booting.
 		Disabled by default on AMD because some BIOS leave bogus ones.
@@ -57,6 +60,8 @@ Machine check
 		threshold to 1. Enabling this may make memory predictive failure
 		analysis less effective if the bios sets thresholds for memory
 		errors since we will not see details for all errors.
+   mce=recovery
+		Force-enable recoverable machine check code paths
 
    nomce (for compatibility with i386): same as mce=off
 

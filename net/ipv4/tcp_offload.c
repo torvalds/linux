@@ -29,6 +29,28 @@ static void tcp_gso_tstamp(struct sk_buff *skb, unsigned int ts_seq,
 	}
 }
 
+static struct sk_buff *tcp4_gso_segment(struct sk_buff *skb,
+					netdev_features_t features)
+{
+	if (!pskb_may_pull(skb, sizeof(struct tcphdr)))
+		return ERR_PTR(-EINVAL);
+
+	if (unlikely(skb->ip_summed != CHECKSUM_PARTIAL)) {
+		const struct iphdr *iph = ip_hdr(skb);
+		struct tcphdr *th = tcp_hdr(skb);
+
+		/* Set up checksum pseudo header, usually expect stack to
+		 * have done this already.
+		 */
+
+		th->check = 0;
+		skb->ip_summed = CHECKSUM_PARTIAL;
+		__tcp_v4_send_check(skb, iph->saddr, iph->daddr);
+	}
+
+	return tcp_gso_segment(skb, features);
+}
+
 struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 				netdev_features_t features)
 {
@@ -44,9 +66,6 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 	__sum16 newcheck;
 	bool ooo_okay, copy_destructor;
 
-	if (!pskb_may_pull(skb, sizeof(*th)))
-		goto out;
-
 	th = tcp_hdr(skb);
 	thlen = th->doff * 4;
 	if (thlen < sizeof(*th))
@@ -58,7 +77,7 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 	oldlen = (u16)~skb->len;
 	__skb_pull(skb, thlen);
 
-	mss = tcp_skb_mss(skb);
+	mss = skb_shinfo(skb)->gso_size;
 	if (unlikely(skb->len <= mss))
 		goto out;
 
@@ -75,9 +94,9 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 			       SKB_GSO_GRE_CSUM |
 			       SKB_GSO_IPIP |
 			       SKB_GSO_SIT |
-			       SKB_GSO_MPLS |
 			       SKB_GSO_UDP_TUNNEL |
 			       SKB_GSO_UDP_TUNNEL_CSUM |
+			       SKB_GSO_TUNNEL_REMCSUM |
 			       0) ||
 			     !(type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))))
 			goto out;
@@ -116,7 +135,9 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 		th->fin = th->psh = 0;
 		th->check = newcheck;
 
-		if (skb->ip_summed != CHECKSUM_PARTIAL)
+		if (skb->ip_summed == CHECKSUM_PARTIAL)
+			gso_reset_checksum(skb, ~th->check);
+		else
 			th->check = gso_make_checksum(skb, ~th->check);
 
 		seq += mss;
@@ -150,7 +171,9 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 		      skb->data_len);
 	th->check = ~csum_fold((__force __wsum)((__force u32)th->check +
 				(__force u32)delta));
-	if (skb->ip_summed != CHECKSUM_PARTIAL)
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		gso_reset_checksum(skb, ~th->check);
+	else
 		th->check = gso_make_checksum(skb, ~th->check);
 out:
 	return segs;
@@ -223,7 +246,7 @@ found:
 		flush |= *(u32 *)((u8 *)th + i) ^
 			 *(u32 *)((u8 *)th2 + i);
 
-	mss = tcp_skb_mss(p);
+	mss = skb_shinfo(p)->gso_size;
 
 	flush |= (len - 1) >= mss;
 	flush |= (ntohl(th2->seq) + skb_gro_len(p)) ^ ntohl(th->seq);
@@ -269,54 +292,16 @@ int tcp_gro_complete(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(tcp_gro_complete);
 
-static int tcp_v4_gso_send_check(struct sk_buff *skb)
-{
-	const struct iphdr *iph;
-	struct tcphdr *th;
-
-	if (!pskb_may_pull(skb, sizeof(*th)))
-		return -EINVAL;
-
-	iph = ip_hdr(skb);
-	th = tcp_hdr(skb);
-
-	th->check = 0;
-	skb->ip_summed = CHECKSUM_PARTIAL;
-	__tcp_v4_send_check(skb, iph->saddr, iph->daddr);
-	return 0;
-}
-
 static struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
-	/* Use the IP hdr immediately proceeding for this transport */
-	const struct iphdr *iph = skb_gro_network_header(skb);
-	__wsum wsum;
-
 	/* Don't bother verifying checksum if we're going to flush anyway. */
-	if (NAPI_GRO_CB(skb)->flush)
-		goto skip_csum;
-
-	wsum = NAPI_GRO_CB(skb)->csum;
-
-	switch (skb->ip_summed) {
-	case CHECKSUM_NONE:
-		wsum = skb_checksum(skb, skb_gro_offset(skb), skb_gro_len(skb),
-				    0);
-
-		/* fall through */
-
-	case CHECKSUM_COMPLETE:
-		if (!tcp_v4_check(skb_gro_len(skb), iph->saddr, iph->daddr,
-				  wsum)) {
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
-			break;
-		}
-
+	if (!NAPI_GRO_CB(skb)->flush &&
+	    skb_gro_checksum_validate(skb, IPPROTO_TCP,
+				      inet_gro_compute_pseudo)) {
 		NAPI_GRO_CB(skb)->flush = 1;
 		return NULL;
 	}
 
-skip_csum:
 	return tcp_gro_receive(head, skb);
 }
 
@@ -334,8 +319,7 @@ static int tcp4_gro_complete(struct sk_buff *skb, int thoff)
 
 static const struct net_offload tcpv4_offload = {
 	.callbacks = {
-		.gso_send_check	=	tcp_v4_gso_send_check,
-		.gso_segment	=	tcp_gso_segment,
+		.gso_segment	=	tcp4_gso_segment,
 		.gro_receive	=	tcp4_gro_receive,
 		.gro_complete	=	tcp4_gro_complete,
 	},

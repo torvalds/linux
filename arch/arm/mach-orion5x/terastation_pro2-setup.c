@@ -22,9 +22,9 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
+#include "orion5x.h"
 
 /*****************************************************************************
  * Terastation Pro 2/Live Info
@@ -349,7 +349,7 @@ static void __init tsp2_init(void)
 			gpio_free(TSP2_RTC_GPIO);
 	}
 	if (tsp2_i2c_rtc.irq == 0)
-		pr_warning("tsp2_init: failed to get RTC IRQ\n");
+		pr_warn("tsp2_init: failed to get RTC IRQ\n");
 	i2c_register_board_info(0, &tsp2_i2c_rtc, 1);
 
 	/* register Terastation Pro II specific power-off method */
@@ -359,6 +359,7 @@ static void __init tsp2_init(void)
 MACHINE_START(TERASTATION_PRO2, "Buffalo Terastation Pro II/Live")
 	/* Maintainer:  Sylver Bruneau <sylver.bruneau@googlemail.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= ORION5X_NR_IRQS,
 	.init_machine	= tsp2_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,

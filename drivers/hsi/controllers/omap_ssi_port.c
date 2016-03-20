@@ -1111,15 +1111,14 @@ static int __init ssi_port_probe(struct platform_device *pd)
 	struct omap_ssi_port *omap_port;
 	struct hsi_controller *ssi = dev_get_drvdata(pd->dev.parent);
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
-	u32 cawake_gpio = 0;
+	int cawake_gpio = 0;
 	u32 port_id;
 	int err;
 
 	dev_dbg(&pd->dev, "init ssi port...\n");
 
 	if (!try_module_get(ssi->owner)) {
-		dev_err(&pd->dev, "could not increment parent module refcount (err=%d)\n",
-			err);
+		dev_err(&pd->dev, "could not increment parent module refcount\n");
 		return -ENODEV;
 	}
 
@@ -1148,13 +1147,13 @@ static int __init ssi_port_probe(struct platform_device *pd)
 		goto error;
 	}
 
-	cawake_gpio = of_get_named_gpio(np, "ti,ssi-cawake-gpio", 0);
-	if (cawake_gpio < 0) {
+	err = of_get_named_gpio(np, "ti,ssi-cawake-gpio", 0);
+	if (err < 0) {
 		dev_err(&pd->dev, "DT data is missing cawake gpio (err=%d)\n",
-			cawake_gpio);
-		err = -ENODEV;
+			err);
 		goto error;
 	}
+	cawake_gpio = err;
 
 	err = devm_gpio_request_one(&port->device, cawake_gpio, GPIOF_DIR_IN,
 		"cawake");
@@ -1260,7 +1259,7 @@ static int __exit ssi_port_remove(struct platform_device *pd)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int ssi_save_port_ctx(struct omap_ssi_port *omap_port)
 {
 	struct hsi_port *port = to_hsi_port(omap_port->dev);
@@ -1385,7 +1384,6 @@ static struct platform_driver ssi_port_pdriver = {
 	.remove	= __exit_p(ssi_port_remove),
 	.driver	= {
 		.name	= "omap_ssi_port",
-		.owner	= THIS_MODULE,
 		.of_match_table = omap_ssi_port_of_match,
 		.pm	= DEV_PM_OPS,
 	},

@@ -32,11 +32,7 @@ the PCMCIA interface.
 */
 
 #include <linux/module.h>
-#include "../comedidev.h"
-
-#include <pcmcia/cistpl.h>
-#include <pcmcia/cisreg.h>
-#include <pcmcia/ds.h>
+#include "../comedi_pcmcia.h"
 
 #include "8255.h"
 
@@ -59,11 +55,7 @@ static int dio24_auto_attach(struct comedi_device *dev,
 
 	/* 8255 dio */
 	s = &dev->subdevices[0];
-	ret = subdev_8255_init(dev, s, NULL, dev->iobase);
-	if (ret)
-		return ret;
-
-	return 0;
+	return subdev_8255_init(dev, s, NULL, 0x00);
 }
 
 static struct comedi_driver driver_dio24 = {

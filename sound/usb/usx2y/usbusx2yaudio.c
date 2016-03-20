@@ -166,7 +166,7 @@ static int usX2Y_urb_play_prepare(struct snd_usX2Y_substream *subs,
 			/* set the buffer pointer */
 			urb->transfer_buffer = runtime->dma_area + subs->hwptr * usX2Y->stride;
 			if ((subs->hwptr += count) >= runtime->buffer_size)
-			subs->hwptr -= runtime->buffer_size;			
+				subs->hwptr -= runtime->buffer_size;
 		}
 	else
 		urb->transfer_buffer = subs->tmpbuf;
@@ -272,13 +272,8 @@ static void usX2Y_clients_stop(struct usX2Ydev *usX2Y)
 	for (s = 0; s < 4; s++) {
 		struct snd_usX2Y_substream *subs = usX2Y->subs[s];
 		if (subs) {
-			if (atomic_read(&subs->state) >= state_PRERUNNING) {
-				unsigned long flags;
-
-				snd_pcm_stream_lock_irqsave(subs->pcm_substream, flags);
-				snd_pcm_stop(subs->pcm_substream, SNDRV_PCM_STATE_XRUN);
-				snd_pcm_stream_unlock_irqrestore(subs->pcm_substream, flags);
-			}
+			if (atomic_read(&subs->state) >= state_PRERUNNING)
+				snd_pcm_stop_xrun(subs->pcm_substream);
 			for (u = 0; u < NRURBS; u++) {
 				struct urb *urb = subs->urb[u];
 				if (NULL != urb)

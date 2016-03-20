@@ -1273,7 +1273,6 @@ MODULE_DEVICE_TABLE(of, bigmac_sbus_match);
 static struct platform_driver bigmac_sbus_driver = {
 	.driver = {
 		.name = "sunbmac",
-		.owner = THIS_MODULE,
 		.of_match_table = bigmac_sbus_match,
 	},
 	.probe		= bigmac_sbus_probe,

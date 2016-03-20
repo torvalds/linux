@@ -295,6 +295,9 @@ struct wusbhc {
 	} __attribute__((packed)) gtk;
 	u8 gtk_index;
 	u32 gtk_tkid;
+
+	/* workqueue for WUSB security related tasks. */
+	struct workqueue_struct *wq_security;
 	struct work_struct gtk_rekey_work;
 
 	struct usb_encryption_descriptor *ccm1_etd;
@@ -333,7 +336,7 @@ static inline
 struct usb_hcd *usb_hcd_get_by_usb_dev(struct usb_device *usb_dev)
 {
 	struct usb_hcd *usb_hcd;
-	usb_hcd = container_of(usb_dev->bus, struct usb_hcd, self);
+	usb_hcd = bus_to_hcd(usb_dev->bus);
 	return usb_get_hcd(usb_hcd);
 }
 

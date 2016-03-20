@@ -54,6 +54,7 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/irq_work.h>
+#include <linux/clk-provider.h>
 #include <asm/trace.h>
 
 #include <asm/io.h>
@@ -98,16 +99,17 @@ static struct clocksource clocksource_timebase = {
 
 static int decrementer_set_next_event(unsigned long evt,
 				      struct clock_event_device *dev);
-static void decrementer_set_mode(enum clock_event_mode mode,
-				 struct clock_event_device *dev);
+static int decrementer_shutdown(struct clock_event_device *evt);
 
 struct clock_event_device decrementer_clockevent = {
-	.name           = "decrementer",
-	.rating         = 200,
-	.irq            = 0,
-	.set_next_event = decrementer_set_next_event,
-	.set_mode       = decrementer_set_mode,
-	.features       = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_C3STOP,
+	.name			= "decrementer",
+	.rating			= 200,
+	.irq			= 0,
+	.set_next_event		= decrementer_set_next_event,
+	.set_state_shutdown	= decrementer_shutdown,
+	.tick_resume		= decrementer_shutdown,
+	.features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_C3STOP,
 };
 EXPORT_SYMBOL(decrementer_clockevent);
 
@@ -458,9 +460,9 @@ static inline void clear_irq_work_pending(void)
 
 DEFINE_PER_CPU(u8, irq_work_pending);
 
-#define set_irq_work_pending_flag()	__get_cpu_var(irq_work_pending) = 1
-#define test_irq_work_pending()		__get_cpu_var(irq_work_pending)
-#define clear_irq_work_pending()	__get_cpu_var(irq_work_pending) = 0
+#define set_irq_work_pending_flag()	__this_cpu_write(irq_work_pending, 1)
+#define test_irq_work_pending()		__this_cpu_read(irq_work_pending)
+#define clear_irq_work_pending()	__this_cpu_write(irq_work_pending, 0)
 
 #endif /* 32 vs 64 bit */
 
@@ -479,11 +481,11 @@ void arch_irq_work_raise(void)
 
 #endif /* CONFIG_IRQ_WORK */
 
-void __timer_interrupt(void)
+static void __timer_interrupt(void)
 {
 	struct pt_regs *regs = get_irq_regs();
-	u64 *next_tb = &__get_cpu_var(decrementers_next_tb);
-	struct clock_event_device *evt = &__get_cpu_var(decrementers);
+	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
+	struct clock_event_device *evt = this_cpu_ptr(&decrementers);
 	u64 now;
 
 	trace_timer_interrupt_entry(regs);
@@ -498,7 +500,7 @@ void __timer_interrupt(void)
 		*next_tb = ~(u64)0;
 		if (evt->event_handler)
 			evt->event_handler(evt);
-		__get_cpu_var(irq_stat).timer_irqs_event++;
+		__this_cpu_inc(irq_stat.timer_irqs_event);
 	} else {
 		now = *next_tb - now;
 		if (now <= DECREMENTER_MAX)
@@ -506,13 +508,13 @@ void __timer_interrupt(void)
 		/* We may have raced with new irq work */
 		if (test_irq_work_pending())
 			set_dec(1);
-		__get_cpu_var(irq_stat).timer_irqs_others++;
+		__this_cpu_inc(irq_stat.timer_irqs_others);
 	}
 
 #ifdef CONFIG_PPC64
 	/* collect purr register values often, for accurate calculations */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
-		struct cpu_usage *cu = &__get_cpu_var(cpu_usage_array);
+		struct cpu_usage *cu = this_cpu_ptr(&cpu_usage_array);
 		cu->current_tb = mfspr(SPRN_PURR);
 	}
 #endif
@@ -527,7 +529,7 @@ void __timer_interrupt(void)
 void timer_interrupt(struct pt_regs * regs)
 {
 	struct pt_regs *old_regs;
-	u64 *next_tb = &__get_cpu_var(decrementers_next_tb);
+	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
 
 	/* Ensure a positive value is written to the decrementer, or else
 	 * some CPUs will continue to take decrementer exceptions.
@@ -607,6 +609,12 @@ void arch_suspend_enable_irqs(void)
 }
 #endif
 
+unsigned long long tb_to_ns(unsigned long long ticks)
+{
+	return mulhdu(ticks, tb_to_ns_scale) << tb_to_ns_shift;
+}
+EXPORT_SYMBOL_GPL(tb_to_ns);
+
 /*
  * Scheduler clock - returns current time in nanosec units.
  *
@@ -620,6 +628,38 @@ unsigned long long sched_clock(void)
 		return get_rtc();
 	return mulhdu(get_tb() - boot_tb, tb_to_ns_scale) << tb_to_ns_shift;
 }
+
+
+#ifdef CONFIG_PPC_PSERIES
+
+/*
+ * Running clock - attempts to give a view of time passing for a virtualised
+ * kernels.
+ * Uses the VTB register if available otherwise a next best guess.
+ */
+unsigned long long running_clock(void)
+{
+	/*
+	 * Don't read the VTB as a host since KVM does not switch in host
+	 * timebase into the VTB when it takes a guest off the CPU, reading the
+	 * VTB would result in reading 'last switched out' guest VTB.
+	 *
+	 * Host kernels are often compiled with CONFIG_PPC_PSERIES checked, it
+	 * would be unsafe to rely only on the #ifdef above.
+	 */
+	if (firmware_has_feature(FW_FEATURE_LPAR) &&
+	    cpu_has_feature(CPU_FTR_ARCH_207S))
+		return mulhdu(get_vtb() - boot_tb, tb_to_ns_scale) << tb_to_ns_shift;
+
+	/*
+	 * This is a next best approximation without a VTB.
+	 * On a host which is running bare metal there should never be any stolen
+	 * time and on a host which doesn't do any virtualisation TB *should* equal
+	 * VTB so it makes no difference anyway.
+	 */
+	return local_clock() - cputime_to_nsecs(kcpustat_this_cpu->cpustat[CPUTIME_STEAL]);
+}
+#endif
 
 static int __init get_freq(char *name, int cells, unsigned long *val)
 {
@@ -643,7 +683,7 @@ static int __init get_freq(char *name, int cells, unsigned long *val)
 	return found;
 }
 
-void start_cpu_decrementer(void)
+static void start_cpu_decrementer(void)
 {
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 	/* Clear any pending timer interrupts */
@@ -813,7 +853,7 @@ static void __init clocksource_init(void)
 static int decrementer_set_next_event(unsigned long evt,
 				      struct clock_event_device *dev)
 {
-	__get_cpu_var(decrementers_next_tb) = get_tb_or_rtc() + evt;
+	__this_cpu_write(decrementers_next_tb, get_tb_or_rtc() + evt);
 	set_dec(evt);
 
 	/* We may have raced with new irq work */
@@ -823,17 +863,16 @@ static int decrementer_set_next_event(unsigned long evt,
 	return 0;
 }
 
-static void decrementer_set_mode(enum clock_event_mode mode,
-				 struct clock_event_device *dev)
+static int decrementer_shutdown(struct clock_event_device *dev)
 {
-	if (mode != CLOCK_EVT_MODE_ONESHOT)
-		decrementer_set_next_event(DECREMENTER_MAX, dev);
+	decrementer_set_next_event(DECREMENTER_MAX, dev);
+	return 0;
 }
 
 /* Interrupt handler for the timer broadcast IPI */
 void tick_broadcast_ipi_handler(void)
 {
-	u64 *next_tb = &__get_cpu_var(decrementers_next_tb);
+	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
 
 	*next_tb = get_tb_or_rtc();
 	__timer_interrupt();
@@ -943,6 +982,10 @@ void __init time_init(void)
 
 	init_decrementer_clockevent();
 	tick_setup_hrtimer_broadcast();
+
+#ifdef CONFIG_COMMON_CLK
+	of_clk_init(NULL);
+#endif
 }
 
 
@@ -958,37 +1001,6 @@ void __init time_init(void)
 static int month_days[12] = {
 	31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 };
-
-/*
- * This only works for the Gregorian calendar - i.e. after 1752 (in the UK)
- */
-void GregorianDay(struct rtc_time * tm)
-{
-	int leapsToDate;
-	int lastYear;
-	int day;
-	int MonthOffset[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
-
-	lastYear = tm->tm_year - 1;
-
-	/*
-	 * Number of leap corrections to apply up to end of last year
-	 */
-	leapsToDate = lastYear / 4 - lastYear / 100 + lastYear / 400;
-
-	/*
-	 * This year is a leap year if it is divisible by 4 except when it is
-	 * divisible by 100 unless it is divisible by 400
-	 *
-	 * e.g. 1904 was a leap year, 1900 was not, 1996 is, and 2000 was
-	 */
-	day = tm->tm_mon > 2 && leapyear(tm->tm_year);
-
-	day += lastYear*365 + leapsToDate + MonthOffset[tm->tm_mon-1] +
-		   tm->tm_mday;
-
-	tm->tm_wday = day % 7;
-}
 
 void to_tm(int tim, struct rtc_time * tm)
 {
@@ -1020,10 +1032,11 @@ void to_tm(int tim, struct rtc_time * tm)
 	tm->tm_mday = day + 1;
 
 	/*
-	 * Determine the day of week
+	 * No-one uses the day of the week.
 	 */
-	GregorianDay(tm);
+	tm->tm_wday = -1;
 }
+EXPORT_SYMBOL(to_tm);
 
 /*
  * Divide a 128-bit dividend by a 32-bit divisor, leaving a 128 bit
@@ -1079,4 +1092,4 @@ static int __init rtc_init(void)
 	return PTR_ERR_OR_ZERO(pdev);
 }
 
-module_init(rtc_init);
+device_initcall(rtc_init);

@@ -1105,8 +1105,7 @@ static int s3c_fb_alloc_memory(struct s3c_fb *sfb, struct s3c_fb_win *win)
 
 	dev_dbg(sfb->dev, "want %u bytes for window\n", size);
 
-	fbi->screen_base = dma_alloc_writecombine(sfb->dev, size,
-						  &map_dma, GFP_KERNEL);
+	fbi->screen_base = dma_alloc_wc(sfb->dev, size, &map_dma, GFP_KERNEL);
 	if (!fbi->screen_base)
 		return -ENOMEM;
 
@@ -1131,8 +1130,8 @@ static void s3c_fb_free_memory(struct s3c_fb *sfb, struct s3c_fb_win *win)
 	struct fb_info *fbi = win->fbinfo;
 
 	if (fbi->screen_base)
-		dma_free_writecombine(sfb->dev, PAGE_ALIGN(fbi->fix.smem_len),
-			      fbi->screen_base, fbi->fix.smem_start);
+		dma_free_wc(sfb->dev, PAGE_ALIGN(fbi->fix.smem_len),
+		            fbi->screen_base, fbi->fix.smem_start);
 }
 
 /**
@@ -1630,7 +1629,7 @@ static int s3c_fb_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int s3c_fb_runtime_suspend(struct device *dev)
 {
 	struct s3c_fb *sfb = dev_get_drvdata(dev);
@@ -1938,7 +1937,7 @@ static struct s3c_fb_driverdata s3c_fb_data_s3c2443 = {
 	},
 };
 
-static struct platform_device_id s3c_fb_driver_ids[] = {
+static const struct platform_device_id s3c_fb_driver_ids[] = {
 	{
 		.name		= "s3c-fb",
 		.driver_data	= (unsigned long)&s3c_fb_data_64xx,
@@ -1971,7 +1970,6 @@ static struct platform_driver s3c_fb_driver = {
 	.id_table	= s3c_fb_driver_ids,
 	.driver		= {
 		.name	= "s3c-fb",
-		.owner	= THIS_MODULE,
 		.pm	= &s3cfb_pm_ops,
 	},
 };

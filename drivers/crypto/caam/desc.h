@@ -8,12 +8,29 @@
 #ifndef DESC_H
 #define DESC_H
 
+/*
+ * 16-byte hardware scatter/gather table
+ * An 8-byte table exists in the hardware spec, but has never been
+ * implemented to date. The 8/16 option is selected at RTL-compile-time.
+ * and this selection is visible in the Compile Time Parameters Register
+ */
+
+#define SEC4_SG_LEN_EXT		0x80000000	/* Entry points to table */
+#define SEC4_SG_LEN_FIN		0x40000000	/* Last ent in table */
+#define SEC4_SG_BPID_MASK	0x000000ff
+#define SEC4_SG_BPID_SHIFT	16
+#define SEC4_SG_LEN_MASK	0x3fffffff	/* Excludes EXT and FINAL */
+#define SEC4_SG_OFFS_MASK	0x00001fff
+
 struct sec4_sg_entry {
+#ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_IMX
+	u32 rsvd1;
+	dma_addr_t ptr;
+#else
 	u64 ptr;
-#define SEC4_SG_LEN_FIN 0x40000000
-#define SEC4_SG_LEN_EXT 0x80000000
+#endif /* CONFIG_CRYPTO_DEV_FSL_CAAM_IMX */
 	u32 len;
-	u8 reserved;
+	u8 rsvd2;
 	u8 buf_pool_id;
 	u16 offset;
 };
@@ -1475,7 +1492,6 @@ struct sec4_sg_entry {
 #define JUMP_JSL		(1 << JUMP_JSL_SHIFT)
 
 #define JUMP_TYPE_SHIFT		22
-#define JUMP_TYPE_MASK		(0x03 << JUMP_TYPE_SHIFT)
 #define JUMP_TYPE_LOCAL		(0x00 << JUMP_TYPE_SHIFT)
 #define JUMP_TYPE_NONLOCAL	(0x01 << JUMP_TYPE_SHIFT)
 #define JUMP_TYPE_HALT		(0x02 << JUMP_TYPE_SHIFT)

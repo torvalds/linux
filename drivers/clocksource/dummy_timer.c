@@ -16,26 +16,16 @@
 
 static DEFINE_PER_CPU(struct clock_event_device, dummy_timer_evt);
 
-static void dummy_timer_set_mode(enum clock_event_mode mode,
-			   struct clock_event_device *evt)
-{
-	/*
-	 * Core clockevents code will call this when exchanging timer devices.
-	 * We don't need to do anything here.
-	 */
-}
-
 static void dummy_timer_setup(void)
 {
 	int cpu = smp_processor_id();
-	struct clock_event_device *evt = __this_cpu_ptr(&dummy_timer_evt);
+	struct clock_event_device *evt = raw_cpu_ptr(&dummy_timer_evt);
 
 	evt->name	= "dummy_timer";
 	evt->features	= CLOCK_EVT_FEAT_PERIODIC |
 			  CLOCK_EVT_FEAT_ONESHOT |
 			  CLOCK_EVT_FEAT_DUMMY;
 	evt->rating	= 100;
-	evt->set_mode	= dummy_timer_set_mode;
 	evt->cpumask	= cpumask_of(cpu);
 
 	clockevents_register_device(evt);

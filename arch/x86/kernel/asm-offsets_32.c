@@ -1,9 +1,13 @@
+#ifndef __LINUX_KBUILD_H
+# error "Please do not build this file directly, build asm-offsets.c instead"
+#endif
+
 #include <asm/ucontext.h>
 
 #include <linux/lguest.h>
 #include "../../../drivers/lguest/lg.h"
 
-#define __SYSCALL_I386(nr, sym, compat) [nr] = 1,
+#define __SYSCALL_I386(nr, sym, qual) [nr] = 1,
 static char syscalls[] = {
 #include <asm/syscalls_32.h>
 };
@@ -13,17 +17,6 @@ void foo(void);
 
 void foo(void)
 {
-	OFFSET(IA32_SIGCONTEXT_ax, sigcontext, ax);
-	OFFSET(IA32_SIGCONTEXT_bx, sigcontext, bx);
-	OFFSET(IA32_SIGCONTEXT_cx, sigcontext, cx);
-	OFFSET(IA32_SIGCONTEXT_dx, sigcontext, dx);
-	OFFSET(IA32_SIGCONTEXT_si, sigcontext, si);
-	OFFSET(IA32_SIGCONTEXT_di, sigcontext, di);
-	OFFSET(IA32_SIGCONTEXT_bp, sigcontext, bp);
-	OFFSET(IA32_SIGCONTEXT_sp, sigcontext, sp);
-	OFFSET(IA32_SIGCONTEXT_ip, sigcontext, ip);
-	BLANK();
-
 	OFFSET(CPUINFO_x86, cpuinfo_x86, x86);
 	OFFSET(CPUINFO_x86_vendor, cpuinfo_x86, x86_vendor);
 	OFFSET(CPUINFO_x86_model, cpuinfo_x86, x86_model);
@@ -31,10 +24,6 @@ void foo(void)
 	OFFSET(CPUINFO_cpuid_level, cpuinfo_x86, cpuid_level);
 	OFFSET(CPUINFO_x86_capability, cpuinfo_x86, x86_capability);
 	OFFSET(CPUINFO_x86_vendor_id, cpuinfo_x86, x86_vendor_id);
-	BLANK();
-
-	OFFSET(TI_sysenter_return, thread_info, sysenter_return);
-	OFFSET(TI_cpu, thread_info, cpu);
 	BLANK();
 
 	OFFSET(PT_EBX, pt_regs, bx);
@@ -56,15 +45,17 @@ void foo(void)
 	OFFSET(PT_OLDSS,  pt_regs, ss);
 	BLANK();
 
-	OFFSET(IA32_RT_SIGFRAME_sigcontext, rt_sigframe, uc.uc_mcontext);
-	BLANK();
-
 	OFFSET(saved_context_gdt_desc, saved_context, gdt_desc);
 	BLANK();
 
 	/* Offset from the sysenter stack to tss.sp0 */
 	DEFINE(TSS_sysenter_sp0, offsetof(struct tss_struct, x86_tss.sp0) -
-		 sizeof(struct tss_struct));
+	       offsetofend(struct tss_struct, SYSENTER_stack));
+
+	/* Offset from cpu_tss to SYSENTER_stack */
+	OFFSET(CPU_TSS_SYSENTER_stack, tss_struct, SYSENTER_stack);
+	/* Size of SYSENTER_stack */
+	DEFINE(SIZEOF_SYSENTER_stack, sizeof(((struct tss_struct *)0)->SYSENTER_stack));
 
 #if defined(CONFIG_LGUEST) || defined(CONFIG_LGUEST_GUEST) || defined(CONFIG_LGUEST_MODULE)
 	BLANK();

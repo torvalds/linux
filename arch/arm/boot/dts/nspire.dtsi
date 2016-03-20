@@ -16,7 +16,7 @@
 
 	cpus {
 		cpu@0 {
-			compatible = "arm,arm926ejs";
+			compatible = "arm,arm926ej-s";
 		};
 	};
 
@@ -54,6 +54,20 @@
 		clocks = <&ahb_clk>;
 	};
 
+	usb_phy: usb_phy {
+		compatible = "usb-nop-xceiv";
+	};
+
+	vbus_reg: vbus_reg {
+		compatible = "regulator-fixed";
+
+		regulator-name = "USB VBUS output";
+		regulator-type = "voltage";
+
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
 	ahb {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -65,8 +79,12 @@
 		};
 
 		usb0: usb@B0000000 {
+			compatible = "lsi,zevio-usb";
 			reg = <0xB0000000 0x1000>;
 			interrupts = <8>;
+
+			usb-phy = <&usb_phy>;
+			vbus-supply = <&vbus_reg>;
 		};
 
 		usb1: usb@B4000000 {
@@ -105,8 +123,11 @@
 			ranges;
 
 			gpio: gpio@90000000 {
+				compatible = "lsi,zevio-gpio";
 				reg = <0x90000000 0x1000>;
 				interrupts = <7>;
+				gpio-controller;
+				#gpio-cells = <2>;
 			};
 
 			fast_timer: timer@90010000 {

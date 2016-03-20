@@ -93,6 +93,7 @@
 #define CLK_SCLK_FIMG2D		177
 
 /* gate clocks */
+#define CLK_SSS			255
 #define CLK_FIMC0		256
 #define CLK_FIMC1		257
 #define CLK_FIMC2		258
@@ -115,11 +116,11 @@
 #define CLK_SMMU_MFCR		275
 #define CLK_G3D			276
 #define CLK_G2D			277
-#define CLK_ROTATOR		278 /* Exynos4210 only */
-#define CLK_MDMA		279 /* Exynos4210 only */
-#define CLK_SMMU_G2D		280 /* Exynos4210 only */
-#define CLK_SMMU_ROTATOR	281 /* Exynos4210 only */
-#define CLK_SMMU_MDMA		282 /* Exynos4210 only */
+#define CLK_ROTATOR		278
+#define CLK_MDMA		279
+#define CLK_SMMU_G2D		280
+#define CLK_SMMU_ROTATOR	281
+#define CLK_SMMU_MDMA		282
 #define CLK_FIMD0		283
 #define CLK_MIE0		284
 #define CLK_MDNIE0		285 /* Exynos4412 only */
@@ -234,6 +235,8 @@
 #define CLK_MOUT_G3D1		393
 #define CLK_MOUT_G3D		394
 #define CLK_ACLK400_MCUISP	395 /* Exynos4x12 only */
+#define CLK_MOUT_HDMI		396
+#define CLK_MOUT_MIXER		397
 
 /* gate clocks - ppmu */
 #define CLK_PPMULEFT		400
@@ -260,8 +263,13 @@
 #define CLK_DIV_MCUISP1		453 /* Exynos4x12 only */
 #define CLK_DIV_ACLK200		454 /* Exynos4x12 only */
 #define CLK_DIV_ACLK400_MCUISP	455 /* Exynos4x12 only */
+#define CLK_DIV_ACP		456
+#define CLK_DIV_DMC		457
+#define CLK_DIV_C2C		458 /* Exynos4x12 only */
+#define CLK_DIV_GDL		459
+#define CLK_DIV_GDR		460
 
 /* must be greater than maximal clock id */
-#define CLK_NR_CLKS		456
+#define CLK_NR_CLKS		461
 
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS_4_H */

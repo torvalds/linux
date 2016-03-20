@@ -636,7 +636,7 @@ static int broadsheet_spiflash_rewrite_sector(struct broadsheetfb_par *par,
 		err = broadsheet_spiflash_read_range(par, start_sector_addr,
 						data_start_addr, sector_buffer);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	/* now we copy our data into the right place in the sector buffer */
@@ -657,7 +657,7 @@ static int broadsheet_spiflash_rewrite_sector(struct broadsheetfb_par *par,
 		err = broadsheet_spiflash_read_range(par, tail_start_addr,
 			tail_len, sector_buffer + tail_start_addr);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	/* if we got here we have the full sector that we want to rewrite. */
@@ -665,11 +665,13 @@ static int broadsheet_spiflash_rewrite_sector(struct broadsheetfb_par *par,
 	/* first erase the sector */
 	err = broadsheet_spiflash_erase_sector(par, start_sector_addr);
 	if (err)
-		return err;
+		goto out;
 
 	/* now write it */
 	err = broadsheet_spiflash_write_sector(par, start_sector_addr,
 					sector_buffer, sector_size);
+out:
+	kfree(sector_buffer);
 	return err;
 }
 
@@ -750,7 +752,7 @@ static ssize_t broadsheet_loadstore_waveform(struct device *dev,
 	if ((fw_entry->size < 8*1024) || (fw_entry->size > 64*1024)) {
 		dev_err(dev, "Invalid waveform\n");
 		err = -EINVAL;
-		goto err_failed;
+		goto err_fw;
 	}
 
 	mutex_lock(&(par->io_lock));
@@ -760,13 +762,15 @@ static ssize_t broadsheet_loadstore_waveform(struct device *dev,
 	mutex_unlock(&(par->io_lock));
 	if (err < 0) {
 		dev_err(dev, "Failed to store broadsheet waveform\n");
-		goto err_failed;
+		goto err_fw;
 	}
 
 	dev_info(dev, "Stored broadsheet waveform, size %zd\n", fw_entry->size);
 
-	return len;
+	err = len;
 
+err_fw:
+	release_firmware(fw_entry);
 err_failed:
 	return err;
 }
@@ -1212,7 +1216,6 @@ static struct platform_driver broadsheetfb_driver = {
 	.probe	= broadsheetfb_probe,
 	.remove = broadsheetfb_remove,
 	.driver	= {
-		.owner	= THIS_MODULE,
 		.name	= "broadsheetfb",
 	},
 };

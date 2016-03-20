@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2013, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -53,6 +53,8 @@
 #include "../include/lustre_mdc.h"
 #include "fid_internal.h"
 
+static struct dentry *seq_debugfs_dir;
+
 static int seq_client_rpc(struct lu_client_seq *seq,
 			  struct lu_seq_range *output, __u32 opc,
 			  const char *opcname)
@@ -66,7 +68,7 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp), &RQF_SEQ_QUERY,
 					LUSTRE_MDS_VERSION, SEQ_QUERY);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	/* Init operation code */
@@ -93,7 +95,8 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 		 * precreating objects on this OST), and it will send the
 		 * request to MDT0 here, so we can not keep resending the
 		 * request here, otherwise if MDT0 is failed(umounted),
-		 * it can not release the export of MDT0 */
+		 * it can not release the export of MDT0
+		 */
 		if (seq->lcs_type == LUSTRE_SEQ_DATA)
 			req->rq_no_delay = req->rq_no_resend = 1;
 		debug_mask = D_CONSOLE;
@@ -113,7 +116,7 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 	if (seq->lcs_type == LUSTRE_SEQ_METADATA)
 		mdc_put_rpc_lock(exp->exp_obd->u.cli.cl_rpc_lock, NULL);
 	if (rc)
-		GOTO(out_req, rc);
+		goto out_req;
 
 	out = req_capsule_server_get(&req->rq_pill, &RMF_SEQ_RANGE);
 	*output = *out;
@@ -121,13 +124,15 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 	if (!range_is_sane(output)) {
 		CERROR("%s: Invalid range received from server: "
 		       DRANGE"\n", seq->lcs_name, PRANGE(output));
-		GOTO(out_req, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out_req;
 	}
 
 	if (range_is_exhausted(output)) {
 		CERROR("%s: Range received from server is exhausted: "
 		       DRANGE"]\n", seq->lcs_name, PRANGE(output));
-		GOTO(out_req, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out_req;
 	}
 
 	CDEBUG_LIMIT(debug_mask, "%s: Allocated %s-sequence "DRANGE"]\n",
@@ -138,56 +143,28 @@ out_req:
 	return rc;
 }
 
-/* Request sequence-controller node to allocate new super-sequence. */
-int seq_client_alloc_super(struct lu_client_seq *seq,
-			   const struct lu_env *env)
-{
-	int rc;
-
-	mutex_lock(&seq->lcs_mutex);
-
-	if (seq->lcs_srv) {
-		rc = 0;
-	} else {
-		/* Check whether the connection to seq controller has been
-		 * setup (lcs_exp != NULL) */
-		if (seq->lcs_exp == NULL) {
-			mutex_unlock(&seq->lcs_mutex);
-			return -EINPROGRESS;
-		}
-
-		rc = seq_client_rpc(seq, &seq->lcs_space,
-				    SEQ_ALLOC_SUPER, "super");
-	}
-	mutex_unlock(&seq->lcs_mutex);
-	return rc;
-}
-
 /* Request sequence-controller node to allocate new meta-sequence. */
 static int seq_client_alloc_meta(const struct lu_env *env,
 				 struct lu_client_seq *seq)
 {
 	int rc;
 
-	if (seq->lcs_srv) {
-		rc = 0;
-	} else {
-		do {
-			/* If meta server return -EINPROGRESS or EAGAIN,
-			 * it means meta server might not be ready to
-			 * allocate super sequence from sequence controller
-			 * (MDT0)yet */
-			rc = seq_client_rpc(seq, &seq->lcs_space,
-					    SEQ_ALLOC_META, "meta");
-		} while (rc == -EINPROGRESS || rc == -EAGAIN);
-	}
+	do {
+		/* If meta server return -EINPROGRESS or EAGAIN,
+		 * it means meta server might not be ready to
+		 * allocate super sequence from sequence controller
+		 * (MDT0)yet
+		 */
+		rc = seq_client_rpc(seq, &seq->lcs_space,
+				    SEQ_ALLOC_META, "meta");
+	} while (rc == -EINPROGRESS || rc == -EAGAIN);
 
 	return rc;
 }
 
 /* Allocate new sequence for client. */
 static int seq_client_alloc_seq(const struct lu_env *env,
-				struct lu_client_seq *seq, seqno_t *seqnr)
+				struct lu_client_seq *seq, u64 *seqnr)
 {
 	int rc;
 
@@ -199,10 +176,9 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 			CERROR("%s: Can't allocate new meta-sequence, rc %d\n",
 			       seq->lcs_name, rc);
 			return rc;
-		} else {
-			CDEBUG(D_INFO, "%s: New range - "DRANGE"\n",
-			       seq->lcs_name, PRANGE(&seq->lcs_space));
 		}
+		CDEBUG(D_INFO, "%s: New range - "DRANGE"\n",
+		       seq->lcs_name, PRANGE(&seq->lcs_space));
 	} else {
 		rc = 0;
 	}
@@ -245,57 +221,6 @@ static void seq_fid_alloc_fini(struct lu_client_seq *seq)
 	wake_up(&seq->lcs_waitq);
 }
 
-/**
- * Allocate the whole seq to the caller.
- **/
-int seq_client_get_seq(const struct lu_env *env,
-		       struct lu_client_seq *seq, seqno_t *seqnr)
-{
-	wait_queue_t link;
-	int rc;
-
-	LASSERT(seqnr != NULL);
-	mutex_lock(&seq->lcs_mutex);
-	init_waitqueue_entry(&link, current);
-
-	while (1) {
-		rc = seq_fid_alloc_prep(seq, &link);
-		if (rc == 0)
-			break;
-	}
-
-	rc = seq_client_alloc_seq(env, seq, seqnr);
-	if (rc) {
-		CERROR("%s: Can't allocate new sequence, rc %d\n",
-		       seq->lcs_name, rc);
-		seq_fid_alloc_fini(seq);
-		mutex_unlock(&seq->lcs_mutex);
-		return rc;
-	}
-
-	CDEBUG(D_INFO, "%s: allocate sequence [0x%16.16Lx]\n",
-	       seq->lcs_name, *seqnr);
-
-	/* Since the caller require the whole seq,
-	 * so marked this seq to be used */
-	if (seq->lcs_type == LUSTRE_SEQ_METADATA)
-		seq->lcs_fid.f_oid = LUSTRE_METADATA_SEQ_MAX_WIDTH;
-	else
-		seq->lcs_fid.f_oid = LUSTRE_DATA_SEQ_MAX_WIDTH;
-
-	seq->lcs_fid.f_seq = *seqnr;
-	seq->lcs_fid.f_ver = 0;
-	/*
-	 * Inform caller that sequence switch is performed to allow it
-	 * to setup FLD for it.
-	 */
-	seq_fid_alloc_fini(seq);
-	mutex_unlock(&seq->lcs_mutex);
-
-	return rc;
-}
-EXPORT_SYMBOL(seq_client_get_seq);
-
 /* Allocate new fid on passed client @seq and save it to @fid. */
 int seq_client_alloc_fid(const struct lu_env *env,
 			 struct lu_client_seq *seq, struct lu_fid *fid)
@@ -303,8 +228,8 @@ int seq_client_alloc_fid(const struct lu_env *env,
 	wait_queue_t link;
 	int rc;
 
-	LASSERT(seq != NULL);
-	LASSERT(fid != NULL);
+	LASSERT(seq);
+	LASSERT(fid);
 
 	init_waitqueue_entry(&link, current);
 	mutex_lock(&seq->lcs_mutex);
@@ -313,7 +238,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 		seq->lcs_fid.f_oid = seq->lcs_width;
 
 	while (1) {
-		seqno_t seqnr;
+		u64 seqnr;
 
 		if (!fid_is_zero(&seq->lcs_fid) &&
 		    fid_oid(&seq->lcs_fid) < seq->lcs_width) {
@@ -369,7 +294,7 @@ void seq_client_flush(struct lu_client_seq *seq)
 {
 	wait_queue_t link;
 
-	LASSERT(seq != NULL);
+	LASSERT(seq);
 	init_waitqueue_entry(&link, current);
 	mutex_lock(&seq->lcs_mutex);
 
@@ -398,64 +323,63 @@ void seq_client_flush(struct lu_client_seq *seq)
 }
 EXPORT_SYMBOL(seq_client_flush);
 
-static void seq_client_proc_fini(struct lu_client_seq *seq)
+static void seq_client_debugfs_fini(struct lu_client_seq *seq)
 {
-#if defined (CONFIG_PROC_FS)
-	if (seq->lcs_proc_dir) {
-		if (!IS_ERR(seq->lcs_proc_dir))
-			lprocfs_remove(&seq->lcs_proc_dir);
-		seq->lcs_proc_dir = NULL;
-	}
-#endif /* CONFIG_PROC_FS */
+	if (!IS_ERR_OR_NULL(seq->lcs_debugfs_entry))
+		ldebugfs_remove(&seq->lcs_debugfs_entry);
 }
 
-static int seq_client_proc_init(struct lu_client_seq *seq)
+static int seq_client_debugfs_init(struct lu_client_seq *seq)
 {
-#if defined (CONFIG_PROC_FS)
 	int rc;
 
-	seq->lcs_proc_dir = lprocfs_register(seq->lcs_name,
-					     seq_type_proc_dir,
-					     NULL, NULL);
+	seq->lcs_debugfs_entry = ldebugfs_register(seq->lcs_name,
+						   seq_debugfs_dir,
+						   NULL, NULL);
 
-	if (IS_ERR(seq->lcs_proc_dir)) {
-		CERROR("%s: LProcFS failed in seq-init\n",
-		       seq->lcs_name);
-		rc = PTR_ERR(seq->lcs_proc_dir);
+	if (IS_ERR_OR_NULL(seq->lcs_debugfs_entry)) {
+		CERROR("%s: LdebugFS failed in seq-init\n", seq->lcs_name);
+		rc = seq->lcs_debugfs_entry ? PTR_ERR(seq->lcs_debugfs_entry)
+					    : -ENOMEM;
+		seq->lcs_debugfs_entry = NULL;
 		return rc;
 	}
 
-	rc = lprocfs_add_vars(seq->lcs_proc_dir,
-			      seq_client_proc_list, seq);
+	rc = ldebugfs_add_vars(seq->lcs_debugfs_entry,
+			       seq_client_debugfs_list, seq);
 	if (rc) {
-		CERROR("%s: Can't init sequence manager proc, rc %d\n",
+		CERROR("%s: Can't init sequence manager debugfs, rc %d\n",
 		       seq->lcs_name, rc);
-		GOTO(out_cleanup, rc);
+		goto out_cleanup;
 	}
 
 	return 0;
 
 out_cleanup:
-	seq_client_proc_fini(seq);
+	seq_client_debugfs_fini(seq);
 	return rc;
-
-#else /* CONFIG_PROC_FS */
-	return 0;
-#endif
 }
 
-int seq_client_init(struct lu_client_seq *seq,
-		    struct obd_export *exp,
-		    enum lu_cli_type type,
-		    const char *prefix,
-		    struct lu_server_seq *srv)
+static void seq_client_fini(struct lu_client_seq *seq)
+{
+	seq_client_debugfs_fini(seq);
+
+	if (seq->lcs_exp) {
+		class_export_put(seq->lcs_exp);
+		seq->lcs_exp = NULL;
+	}
+}
+
+static int seq_client_init(struct lu_client_seq *seq,
+			   struct obd_export *exp,
+			   enum lu_cli_type type,
+			   const char *prefix)
 {
 	int rc;
 
-	LASSERT(seq != NULL);
-	LASSERT(prefix != NULL);
+	LASSERT(seq);
+	LASSERT(prefix);
 
-	seq->lcs_srv = srv;
 	seq->lcs_type = type;
 
 	mutex_init(&seq->lcs_mutex);
@@ -468,33 +392,16 @@ int seq_client_init(struct lu_client_seq *seq,
 	/* Make sure that things are clear before work is started. */
 	seq_client_flush(seq);
 
-	if (exp != NULL)
-		seq->lcs_exp = class_export_get(exp);
-	else if (type == LUSTRE_SEQ_METADATA)
-		LASSERT(seq->lcs_srv != NULL);
+	seq->lcs_exp = class_export_get(exp);
 
 	snprintf(seq->lcs_name, sizeof(seq->lcs_name),
 		 "cli-%s", prefix);
 
-	rc = seq_client_proc_init(seq);
+	rc = seq_client_debugfs_init(seq);
 	if (rc)
 		seq_client_fini(seq);
 	return rc;
 }
-EXPORT_SYMBOL(seq_client_init);
-
-void seq_client_fini(struct lu_client_seq *seq)
-{
-	seq_client_proc_fini(seq);
-
-	if (seq->lcs_exp != NULL) {
-		class_export_put(seq->lcs_exp);
-		seq->lcs_exp = NULL;
-	}
-
-	seq->lcs_srv = NULL;
-}
-EXPORT_SYMBOL(seq_client_fini);
 
 int client_fid_init(struct obd_device *obd,
 		    struct obd_export *exp, enum lu_cli_type type)
@@ -503,25 +410,27 @@ int client_fid_init(struct obd_device *obd,
 	char *prefix;
 	int rc;
 
-	OBD_ALLOC_PTR(cli->cl_seq);
-	if (cli->cl_seq == NULL)
+	cli->cl_seq = kzalloc(sizeof(*cli->cl_seq), GFP_NOFS);
+	if (!cli->cl_seq)
 		return -ENOMEM;
 
-	OBD_ALLOC(prefix, MAX_OBD_NAME + 5);
-	if (prefix == NULL)
-		GOTO(out_free_seq, rc = -ENOMEM);
+	prefix = kzalloc(MAX_OBD_NAME + 5, GFP_NOFS);
+	if (!prefix) {
+		rc = -ENOMEM;
+		goto out_free_seq;
+	}
 
 	snprintf(prefix, MAX_OBD_NAME + 5, "cli-%s", obd->obd_name);
 
 	/* Init client side sequence-manager */
-	rc = seq_client_init(cli->cl_seq, exp, type, prefix, NULL);
-	OBD_FREE(prefix, MAX_OBD_NAME + 5);
+	rc = seq_client_init(cli->cl_seq, exp, type, prefix);
+	kfree(prefix);
 	if (rc)
-		GOTO(out_free_seq, rc);
+		goto out_free_seq;
 
 	return rc;
 out_free_seq:
-	OBD_FREE_PTR(cli->cl_seq);
+	kfree(cli->cl_seq);
 	cli->cl_seq = NULL;
 	return rc;
 }
@@ -531,9 +440,9 @@ int client_fid_fini(struct obd_device *obd)
 {
 	struct client_obd *cli = &obd->u.cli;
 
-	if (cli->cl_seq != NULL) {
+	if (cli->cl_seq) {
 		seq_client_fini(cli->cl_seq);
-		OBD_FREE_PTR(cli->cl_seq);
+		kfree(cli->cl_seq);
 		cli->cl_seq = NULL;
 	}
 
@@ -541,28 +450,24 @@ int client_fid_fini(struct obd_device *obd)
 }
 EXPORT_SYMBOL(client_fid_fini);
 
-struct proc_dir_entry *seq_type_proc_dir;
-
-static int __init fid_mod_init(void)
+static int __init fid_init(void)
 {
-	seq_type_proc_dir = lprocfs_register(LUSTRE_SEQ_NAME,
-					     proc_lustre_root,
-					     NULL, NULL);
-	return PTR_ERR_OR_ZERO(seq_type_proc_dir);
+	seq_debugfs_dir = ldebugfs_register(LUSTRE_SEQ_NAME,
+					    debugfs_lustre_root,
+					    NULL, NULL);
+	return PTR_ERR_OR_ZERO(seq_debugfs_dir);
 }
 
-static void __exit fid_mod_exit(void)
+static void __exit fid_exit(void)
 {
-	if (seq_type_proc_dir != NULL && !IS_ERR(seq_type_proc_dir)) {
-		lprocfs_remove(&seq_type_proc_dir);
-		seq_type_proc_dir = NULL;
-	}
+	if (!IS_ERR_OR_NULL(seq_debugfs_dir))
+		ldebugfs_remove(&seq_debugfs_dir);
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
-MODULE_DESCRIPTION("Lustre FID Module");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
+MODULE_DESCRIPTION("Lustre File IDentifier");
+MODULE_VERSION(LUSTRE_VERSION_STRING);
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.1.0");
 
-module_init(fid_mod_init);
-module_exit(fid_mod_exit);
+module_init(fid_init);
+module_exit(fid_exit);

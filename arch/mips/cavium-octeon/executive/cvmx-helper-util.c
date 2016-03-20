@@ -95,9 +95,9 @@ int cvmx_helper_dump_packet(cvmx_wqe_t *work)
 	uint8_t *data_address;
 	uint8_t *end_of_data;
 
-	cvmx_dprintf("Packet Length:   %u\n", work->len);
-	cvmx_dprintf("	  Input Port:  %u\n", work->ipprt);
-	cvmx_dprintf("	  QoS:	       %u\n", work->qos);
+	cvmx_dprintf("Packet Length:   %u\n", work->word1.len);
+	cvmx_dprintf("	  Input Port:  %u\n", cvmx_wqe_get_port(work));
+	cvmx_dprintf("	  QoS:	       %u\n", cvmx_wqe_get_qos(work));
 	cvmx_dprintf("	  Buffers:     %u\n", work->word2.s.bufs);
 
 	if (work->word2.s.bufs == 0) {
@@ -127,7 +127,7 @@ int cvmx_helper_dump_packet(cvmx_wqe_t *work)
 		}
 	} else
 		buffer_ptr = work->packet_ptr;
-	remaining_bytes = work->len;
+	remaining_bytes = work->word1.len;
 
 	while (remaining_bytes) {
 		start_of_buffer =
@@ -382,6 +382,10 @@ int cvmx_helper_get_ipd_port(int interface, int port)
 		return port + 32;
 	case 3:
 		return port + 36;
+	case 4:
+		return port + 40;
+	case 5:
+		return port + 44;
 	}
 	return -1;
 }
@@ -404,6 +408,10 @@ int cvmx_helper_get_interface_num(int ipd_port)
 		return 2;
 	else if (ipd_port < 40)
 		return 3;
+	else if (ipd_port < 44)
+		return 4;
+	else if (ipd_port < 48)
+		return 5;
 	else
 		cvmx_dprintf("cvmx_helper_get_interface_num: Illegal IPD "
 			     "port number\n");
@@ -427,6 +435,10 @@ int cvmx_helper_get_interface_index_num(int ipd_port)
 	else if (ipd_port < 36)
 		return ipd_port & 3;
 	else if (ipd_port < 40)
+		return ipd_port & 3;
+	else if (ipd_port < 44)
+		return ipd_port & 3;
+	else if (ipd_port < 48)
 		return ipd_port & 3;
 	else
 		cvmx_dprintf("cvmx_helper_get_interface_index_num: "

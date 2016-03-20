@@ -79,6 +79,11 @@ static void firmware_load(const struct firmware *fw, void *context)
 	u32 jedec_id;
 	u32 status;
 
+	if (fw == NULL) {
+		dev_err(&spi->dev, "Cannot load firmware, aborting\n");
+		return;
+	}
+
 	if (fw->size == 0) {
 		dev_err(&spi->dev, "Error: Firmware size is 0!\n");
 		return;
@@ -230,7 +235,6 @@ MODULE_DEVICE_TABLE(spi, lattice_ecp3_id);
 static struct spi_driver lattice_ecp3_driver = {
 	.driver = {
 		.name = "lattice-ecp3",
-		.owner = THIS_MODULE,
 	},
 	.probe = lattice_ecp3_probe,
 	.remove = lattice_ecp3_remove,
@@ -242,3 +246,4 @@ module_spi_driver(lattice_ecp3_driver);
 MODULE_AUTHOR("Stefan Roese <sr@denx.de>");
 MODULE_DESCRIPTION("Lattice ECP3 FPGA configuration via SPI");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(FIRMWARE_NAME);

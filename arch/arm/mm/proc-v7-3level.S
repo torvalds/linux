@@ -126,11 +126,10 @@ ENDPROC(cpu_v7_set_pte_ext)
 	 * Macro for setting up the TTBRx and TTBCR registers.
 	 * - \ttbr1 updated.
 	 */
-	.macro	v7_ttb_setup, zero, ttbr0, ttbr1, tmp
+	.macro	v7_ttb_setup, zero, ttbr0l, ttbr0h, ttbr1, tmp
 	ldr	\tmp, =swapper_pg_dir		@ swapper_pg_dir virtual address
-	mov	\tmp, \tmp, lsr #ARCH_PGD_SHIFT
-	cmp	\ttbr1, \tmp			@ PHYS_OFFSET > PAGE_OFFSET?
-	mrc	p15, 0, \tmp, c2, c0, 2		@ TTB control register
+	cmp	\ttbr1, \tmp, lsr #12		@ PHYS_OFFSET > PAGE_OFFSET?
+	mrc	p15, 0, \tmp, c2, c0, 2		@ TTB control egister
 	orr	\tmp, \tmp, #TTB_EAE
 	ALT_SMP(orr	\tmp, \tmp, #TTB_FLAGS_SMP)
 	ALT_UP(orr	\tmp, \tmp, #TTB_FLAGS_UP)
@@ -143,14 +142,10 @@ ENDPROC(cpu_v7_set_pte_ext)
 	 */
 	orrls	\tmp, \tmp, #TTBR1_SIZE				@ TTBCR.T1SZ
 	mcr	p15, 0, \tmp, c2, c0, 2				@ TTBCR
-	mov	\tmp, \ttbr1, lsr #(32 - ARCH_PGD_SHIFT)	@ upper bits
-	mov	\ttbr1, \ttbr1, lsl #ARCH_PGD_SHIFT		@ lower bits
+	mov	\tmp, \ttbr1, lsr #20
+	mov	\ttbr1, \ttbr1, lsl #12
 	addls	\ttbr1, \ttbr1, #TTBR1_OFFSET
-	adcls	\tmp, \tmp, #0
 	mcrr	p15, 1, \ttbr1, \tmp, c2			@ load TTBR1
-	mov	\tmp, \ttbr0, lsr #(32 - ARCH_PGD_SHIFT)	@ upper bits
-	mov	\ttbr0, \ttbr0, lsl #ARCH_PGD_SHIFT		@ lower bits
-	mcrr	p15, 0, \ttbr0, \tmp, c2			@ load TTBR0
 	.endm
 
 	/*
@@ -158,9 +153,9 @@ ENDPROC(cpu_v7_set_pte_ext)
 	 *  TFR   EV X F   IHD LR    S
 	 * .EEE ..EE PUI. .TAT 4RVI ZWRS BLDP WCAM
 	 * rxxx rrxx xxx0 0101 xxxx xxxx x111 xxxx < forced
-	 *   11    0 110    1  0011 1100 .111 1101 < we want
+	 *   11    0 110    0  0011 1100 .111 1101 < we want
 	 */
 	.align	2
 	.type	v7_crval, #object
 v7_crval:
-	crval	clear=0x0120c302, mmuset=0x30c23c7d, ucset=0x00c01c7c
+	crval	clear=0x0122c302, mmuset=0x30c03c7d, ucset=0x00c01c7c

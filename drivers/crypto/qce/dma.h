@@ -14,6 +14,8 @@
 #ifndef _DMA_H_
 #define _DMA_H_
 
+#include <linux/dmaengine.h>
+
 /* maximum data transfer block size between BAM and CE */
 #define QCE_BAM_BURST_SIZE		64
 
@@ -47,11 +49,6 @@ int qce_dma_prep_sgs(struct qce_dma_data *dma, struct scatterlist *sg_in,
 		     dma_async_tx_callback cb, void *cb_param);
 void qce_dma_issue_pending(struct qce_dma_data *dma);
 int qce_dma_terminate_all(struct qce_dma_data *dma);
-int qce_countsg(struct scatterlist *sg_list, int nbytes, bool *chained);
-void qce_unmapsg(struct device *dev, struct scatterlist *sg, int nents,
-		 enum dma_data_direction dir, bool chained);
-int qce_mapsg(struct device *dev, struct scatterlist *sg, int nents,
-	      enum dma_data_direction dir, bool chained);
 struct scatterlist *
 qce_sgtable_add(struct sg_table *sgt, struct scatterlist *sg_add);
 

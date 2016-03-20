@@ -27,7 +27,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/sys_soc.h>
 #include <linux/sched_clock.h>
 
 #include <asm/setup.h>
@@ -274,10 +273,6 @@ static const struct of_device_id intcp_syscon_match[] = {
 static void __init intcp_init_of(void)
 {
 	struct device_node *cpcon;
-	struct device *parent;
-	struct soc_device *soc_dev;
-	struct soc_device_attribute *soc_dev_attr;
-	u32 intcp_sc_id;
 
 	cpcon = of_find_matching_node(NULL, intcp_syscon_match);
 	if (!cpcon)
@@ -289,28 +284,6 @@ static void __init intcp_init_of(void)
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     intcp_auxdata_lookup, NULL);
-
-	intcp_sc_id = readl(intcp_con_base);
-
-	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
-	if (!soc_dev_attr)
-		return;
-
-	soc_dev_attr->soc_id = "XCV";
-	soc_dev_attr->machine = "Integrator/CP";
-	soc_dev_attr->family = "Integrator";
-	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%c",
-					   'A' + (intcp_sc_id & 0x0f));
-
-	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR(soc_dev)) {
-		kfree(soc_dev_attr->revision);
-		kfree(soc_dev_attr);
-		return;
-	}
-
-	parent = soc_device_to_device(soc_dev);
-	integrator_init_sysfs(parent, intcp_sc_id);
 }
 
 static const char * intcp_dt_board_compat[] = {
@@ -324,6 +297,5 @@ DT_MACHINE_START(INTEGRATOR_CP_DT, "ARM Integrator/CP (Device Tree)")
 	.init_early	= intcp_init_early,
 	.init_irq	= intcp_init_irq_of,
 	.init_machine	= intcp_init_of,
-	.restart	= integrator_restart,
 	.dt_compat      = intcp_dt_board_compat,
 MACHINE_END

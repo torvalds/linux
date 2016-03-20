@@ -214,14 +214,10 @@ DEBUGFS_DECLARE_RO_FILE(name, _read_bufsize)
 static char *carl9170_debugfs_mem_usage_read(struct ar9170 *ar, char *buf,
 					     size_t bufsize, ssize_t *len)
 {
-	ADD(buf, *len, bufsize, "jar: [");
-
 	spin_lock_bh(&ar->mem_lock);
 
-	*len += bitmap_scnprintf(&buf[*len], bufsize - *len,
-				  ar->mem_bitmap, ar->fw.mem_blocks);
-
-	ADD(buf, *len, bufsize, "]\n");
+	ADD(buf, *len, bufsize, "jar: [%*pb]\n",
+	    ar->fw.mem_blocks, ar->mem_bitmap);
 
 	ADD(buf, *len, bufsize, "cookies: used:%3d / total:%3d, allocs:%d\n",
 	    bitmap_weight(ar->mem_bitmap, ar->fw.mem_blocks),
@@ -316,16 +312,12 @@ static char *carl9170_debugfs_ampdu_state_read(struct ar9170 *ar, char *buf,
 		    cnt, iter->tid, iter->bsn, iter->snx, iter->hsn,
 		    iter->max, iter->state, iter->counter);
 
-		ADD(buf, *len, bufsize, "\tWindow:  [");
-
-		*len += bitmap_scnprintf(&buf[*len], bufsize - *len,
-			iter->bitmap, CARL9170_BAW_BITS);
+		ADD(buf, *len, bufsize, "\tWindow:  [%*pb,W]\n",
+		    CARL9170_BAW_BITS, iter->bitmap);
 
 #define BM_STR_OFF(offset)					\
 	((CARL9170_BAW_BITS - (offset) - 1) / 4 +		\
 	 (CARL9170_BAW_BITS - (offset) - 1) / 32 + 1)
-
-		ADD(buf, *len, bufsize, ",W]\n");
 
 		offset = BM_STR_OFF(0);
 		ADD(buf, *len, bufsize, "\tBase Seq: %*s\n", offset, "T");
@@ -448,12 +440,8 @@ static char *carl9170_debugfs_vif_dump_read(struct ar9170 *ar, char *buf,
 	ADD(buf, *len, bufsize, "registered VIFs:%d \\ %d\n",
 	    ar->vifs, ar->fw.vif_num);
 
-	ADD(buf, *len, bufsize, "VIF bitmap: [");
-
-	*len += bitmap_scnprintf(&buf[*len], bufsize - *len,
-				 &ar->vif_bitmap, ar->fw.vif_num);
-
-	ADD(buf, *len, bufsize, "]\n");
+	ADD(buf, *len, bufsize, "VIF bitmap: [%*pb]\n",
+	    ar->fw.vif_num, &ar->vif_bitmap);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(iter, &ar->vif_list, list) {

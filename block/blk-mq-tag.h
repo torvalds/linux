@@ -42,10 +42,13 @@ struct blk_mq_tags {
 
 	struct request **rqs;
 	struct list_head page_list;
+
+	int alloc_policy;
+	cpumask_var_t cpumask;
 };
 
 
-extern struct blk_mq_tags *blk_mq_init_tags(unsigned int nr_tags, unsigned int reserved_tags, int node);
+extern struct blk_mq_tags *blk_mq_init_tags(unsigned int nr_tags, unsigned int reserved_tags, int node, int alloc_policy);
 extern void blk_mq_free_tags(struct blk_mq_tags *tags);
 
 extern unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data);
@@ -54,6 +57,9 @@ extern bool blk_mq_has_free_tags(struct blk_mq_tags *tags);
 extern ssize_t blk_mq_tag_sysfs_show(struct blk_mq_tags *tags, char *page);
 extern void blk_mq_tag_init_last_tag(struct blk_mq_tags *tags, unsigned int *last_tag);
 extern int blk_mq_tag_update_depth(struct blk_mq_tags *tags, unsigned int depth);
+extern void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags, bool);
+void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
+		void *priv);
 
 enum {
 	BLK_MQ_TAG_CACHE_MIN	= 1,
@@ -83,6 +89,18 @@ static inline void blk_mq_tag_idle(struct blk_mq_hw_ctx *hctx)
 		return;
 
 	__blk_mq_tag_idle(hctx);
+}
+
+/*
+ * This helper should only be used for flush request to share tag
+ * with the request cloned from, and both the two requests can't be
+ * in flight at the same time. The caller has to make sure the tag
+ * can't be freed.
+ */
+static inline void blk_mq_tag_set_rq(struct blk_mq_hw_ctx *hctx,
+		unsigned int tag, struct request *rq)
+{
+	hctx->tags->rqs[tag] = rq;
 }
 
 #endif

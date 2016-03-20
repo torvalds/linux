@@ -322,6 +322,7 @@ static int util_probe(struct hv_device *dev,
 	srv->recv_buffer = kmalloc(PAGE_SIZE * 4, GFP_KERNEL);
 	if (!srv->recv_buffer)
 		return -ENOMEM;
+	srv->channel = dev->channel;
 	if (srv->util_init) {
 		ret = srv->util_init(srv);
 		if (ret) {
@@ -340,12 +341,8 @@ static int util_probe(struct hv_device *dev,
 
 	set_channel_read_state(dev->channel, false);
 
-	ret = vmbus_open(dev->channel, 4 * PAGE_SIZE, 4 * PAGE_SIZE, NULL, 0,
-			srv->util_cb, dev->channel);
-	if (ret)
-		goto error;
-
 	hv_set_drvdata(dev, srv);
+
 	/*
 	 * Based on the host; initialize the framework and
 	 * service version numbers we will negotiate.
@@ -365,6 +362,11 @@ static int util_probe(struct hv_device *dev,
 		hb_srv_version = HB_VERSION;
 	}
 
+	ret = vmbus_open(dev->channel, 4 * PAGE_SIZE, 4 * PAGE_SIZE, NULL, 0,
+			srv->util_cb, dev->channel);
+	if (ret)
+		goto error;
+
 	return 0;
 
 error:
@@ -379,9 +381,9 @@ static int util_remove(struct hv_device *dev)
 {
 	struct hv_util_service *srv = hv_get_drvdata(dev);
 
-	vmbus_close(dev->channel);
 	if (srv->util_deinit)
 		srv->util_deinit();
+	vmbus_close(dev->channel);
 	kfree(srv->recv_buffer);
 
 	return 0;

@@ -23,6 +23,7 @@
 #include <linux/clk-provider.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/samsung/s2mps11.h>
+#include <linux/mfd/samsung/s2mps13.h>
 #include <linux/mfd/samsung/s2mps14.h>
 #include <linux/mfd/samsung/s5m8767.h>
 #include <linux/mfd/samsung/core.h>
@@ -57,21 +58,17 @@ static struct s2mps11_clk *to_s2mps11_clk(struct clk_hw *hw)
 static int s2mps11_clk_prepare(struct clk_hw *hw)
 {
 	struct s2mps11_clk *s2mps11 = to_s2mps11_clk(hw);
-	int ret;
 
-	ret = regmap_update_bits(s2mps11->iodev->regmap_pmic,
+	return regmap_update_bits(s2mps11->iodev->regmap_pmic,
 				 s2mps11->reg,
 				 s2mps11->mask, s2mps11->mask);
-
-	return ret;
 }
 
 static void s2mps11_clk_unprepare(struct clk_hw *hw)
 {
 	struct s2mps11_clk *s2mps11 = to_s2mps11_clk(hw);
-	int ret;
 
-	ret = regmap_update_bits(s2mps11->iodev->regmap_pmic, s2mps11->reg,
+	regmap_update_bits(s2mps11->iodev->regmap_pmic, s2mps11->reg,
 			   s2mps11->mask, ~s2mps11->mask);
 }
 
@@ -115,6 +112,24 @@ static struct clk_init_data s2mps11_clks_init[S2MPS11_CLKS_NUM] = {
 	},
 	[S2MPS11_CLK_BT] = {
 		.name = "s2mps11_bt",
+		.ops = &s2mps11_clk_ops,
+		.flags = CLK_IS_ROOT,
+	},
+};
+
+static struct clk_init_data s2mps13_clks_init[S2MPS11_CLKS_NUM] = {
+	[S2MPS11_CLK_AP] = {
+		.name = "s2mps13_ap",
+		.ops = &s2mps11_clk_ops,
+		.flags = CLK_IS_ROOT,
+	},
+	[S2MPS11_CLK_CP] = {
+		.name = "s2mps13_cp",
+		.ops = &s2mps11_clk_ops,
+		.flags = CLK_IS_ROOT,
+	},
+	[S2MPS11_CLK_BT] = {
+		.name = "s2mps13_bt",
 		.ops = &s2mps11_clk_ops,
 		.flags = CLK_IS_ROOT,
 	},
@@ -167,15 +182,15 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	struct clk_init_data *clks_init;
 	int i, ret = 0;
 
-	s2mps11_clks = devm_kzalloc(&pdev->dev, sizeof(*s2mps11_clk) *
-					S2MPS11_CLKS_NUM, GFP_KERNEL);
+	s2mps11_clks = devm_kcalloc(&pdev->dev, S2MPS11_CLKS_NUM,
+				sizeof(*s2mps11_clk), GFP_KERNEL);
 	if (!s2mps11_clks)
 		return -ENOMEM;
 
 	s2mps11_clk = s2mps11_clks;
 
-	clk_table = devm_kzalloc(&pdev->dev, sizeof(struct clk *) *
-				 S2MPS11_CLKS_NUM, GFP_KERNEL);
+	clk_table = devm_kcalloc(&pdev->dev, S2MPS11_CLKS_NUM,
+				sizeof(struct clk *), GFP_KERNEL);
 	if (!clk_table)
 		return -ENOMEM;
 
@@ -183,6 +198,10 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	case S2MPS11X:
 		s2mps11_reg = S2MPS11_REG_RTC_CTRL;
 		clks_init = s2mps11_clks_init;
+		break;
+	case S2MPS13X:
+		s2mps11_reg = S2MPS13_REG_RTCCTRL;
+		clks_init = s2mps13_clks_init;
 		break;
 	case S2MPS14X:
 		s2mps11_reg = S2MPS14_REG_RTCCTRL;
@@ -195,7 +214,7 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	default:
 		dev_err(&pdev->dev, "Invalid device type\n");
 		return -EINVAL;
-	};
+	}
 
 	/* Store clocks of_node in first element of s2mps11_clks array */
 	s2mps11_clks->clk_np = s2mps11_clk_parse_dt(pdev, clks_init);
@@ -219,14 +238,12 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 			goto err_reg;
 		}
 
-		s2mps11_clk->lookup = clkdev_alloc(s2mps11_clk->clk,
+		s2mps11_clk->lookup = clkdev_create(s2mps11_clk->clk,
 					s2mps11_name(s2mps11_clk), NULL);
 		if (!s2mps11_clk->lookup) {
 			ret = -ENOMEM;
-			goto err_lup;
+			goto err_reg;
 		}
-
-		clkdev_add(s2mps11_clk->lookup);
 	}
 
 	for (i = 0; i < S2MPS11_CLKS_NUM; i++) {
@@ -244,16 +261,10 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, s2mps11_clks);
 
 	return ret;
-err_lup:
-	devm_clk_unregister(&pdev->dev, s2mps11_clk->clk);
+
 err_reg:
-	while (s2mps11_clk > s2mps11_clks) {
-		if (s2mps11_clk->lookup) {
-			clkdev_drop(s2mps11_clk->lookup);
-			devm_clk_unregister(&pdev->dev, s2mps11_clk->clk);
-		}
-		s2mps11_clk--;
-	}
+	while (--i >= 0)
+		clkdev_drop(s2mps11_clks[i].lookup);
 
 	return ret;
 }
@@ -279,6 +290,7 @@ static int s2mps11_clk_remove(struct platform_device *pdev)
 
 static const struct platform_device_id s2mps11_clk_id[] = {
 	{ "s2mps11-clk", S2MPS11X},
+	{ "s2mps13-clk", S2MPS13X},
 	{ "s2mps14-clk", S2MPS14X},
 	{ "s5m8767-clk", S5M8767X},
 	{ },
@@ -288,7 +300,6 @@ MODULE_DEVICE_TABLE(platform, s2mps11_clk_id);
 static struct platform_driver s2mps11_clk_driver = {
 	.driver = {
 		.name  = "s2mps11-clk",
-		.owner = THIS_MODULE,
 	},
 	.probe = s2mps11_clk_probe,
 	.remove = s2mps11_clk_remove,
@@ -301,7 +312,7 @@ static int __init s2mps11_clk_init(void)
 }
 subsys_initcall(s2mps11_clk_init);
 
-static void __init s2mps11_clk_cleanup(void)
+static void __exit s2mps11_clk_cleanup(void)
 {
 	platform_driver_unregister(&s2mps11_clk_driver);
 }

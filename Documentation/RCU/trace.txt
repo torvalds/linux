@@ -8,7 +8,7 @@ The following sections describe the debugfs files and formats, first
 for rcutree and next for rcutiny.
 
 
-CONFIG_TREE_RCU and CONFIG_TREE_PREEMPT_RCU debugfs Files and Formats
+CONFIG_TREE_RCU and CONFIG_PREEMPT_RCU debugfs Files and Formats
 
 These implementations of RCU provide several debugfs directories under the
 top-level directory "rcu":
@@ -18,7 +18,7 @@ rcu/rcu_preempt
 rcu/rcu_sched
 
 Each directory contains files for the corresponding flavor of RCU.
-Note that rcu/rcu_preempt is only present for CONFIG_TREE_PREEMPT_RCU.
+Note that rcu/rcu_preempt is only present for CONFIG_PREEMPT_RCU.
 For CONFIG_TREE_RCU, the RCU flavor maps onto the RCU-sched flavor,
 so that activity for both appears in rcu/rcu_sched.
 
@@ -56,14 +56,14 @@ rcuboost:
 
 The output of "cat rcu/rcu_preempt/rcudata" looks as follows:
 
-  0!c=30455 g=30456 pq=1 qp=1 dt=126535/140000000000000/0 df=2002 of=4 ql=0/0 qs=N... b=10 ci=74572 nci=0 co=1131 ca=716
-  1!c=30719 g=30720 pq=1 qp=0 dt=132007/140000000000000/0 df=1874 of=10 ql=0/0 qs=N... b=10 ci=123209 nci=0 co=685 ca=982
-  2!c=30150 g=30151 pq=1 qp=1 dt=138537/140000000000000/0 df=1707 of=8 ql=0/0 qs=N... b=10 ci=80132 nci=0 co=1328 ca=1458
-  3 c=31249 g=31250 pq=1 qp=0 dt=107255/140000000000000/0 df=1749 of=6 ql=0/450 qs=NRW. b=10 ci=151700 nci=0 co=509 ca=622
-  4!c=29502 g=29503 pq=1 qp=1 dt=83647/140000000000000/0 df=965 of=5 ql=0/0 qs=N... b=10 ci=65643 nci=0 co=1373 ca=1521
-  5 c=31201 g=31202 pq=1 qp=1 dt=70422/0/0 df=535 of=7 ql=0/0 qs=.... b=10 ci=58500 nci=0 co=764 ca=698
-  6!c=30253 g=30254 pq=1 qp=1 dt=95363/140000000000000/0 df=780 of=5 ql=0/0 qs=N... b=10 ci=100607 nci=0 co=1414 ca=1353
-  7 c=31178 g=31178 pq=1 qp=0 dt=91536/0/0 df=547 of=4 ql=0/0 qs=.... b=10 ci=109819 nci=0 co=1115 ca=969
+  0!c=30455 g=30456 cnq=1/0:1 dt=126535/140000000000000/0 df=2002 of=4 ql=0/0 qs=N... b=10 ci=74572 nci=0 co=1131 ca=716
+  1!c=30719 g=30720 cnq=1/0:0 dt=132007/140000000000000/0 df=1874 of=10 ql=0/0 qs=N... b=10 ci=123209 nci=0 co=685 ca=982
+  2!c=30150 g=30151 cnq=1/1:1 dt=138537/140000000000000/0 df=1707 of=8 ql=0/0 qs=N... b=10 ci=80132 nci=0 co=1328 ca=1458
+  3 c=31249 g=31250 cnq=1/1:0 dt=107255/140000000000000/0 df=1749 of=6 ql=0/450 qs=NRW. b=10 ci=151700 nci=0 co=509 ca=622
+  4!c=29502 g=29503 cnq=1/0:1 dt=83647/140000000000000/0 df=965 of=5 ql=0/0 qs=N... b=10 ci=65643 nci=0 co=1373 ca=1521
+  5 c=31201 g=31202 cnq=1/0:1 dt=70422/0/0 df=535 of=7 ql=0/0 qs=.... b=10 ci=58500 nci=0 co=764 ca=698
+  6!c=30253 g=30254 cnq=1/0:1 dt=95363/140000000000000/0 df=780 of=5 ql=0/0 qs=N... b=10 ci=100607 nci=0 co=1414 ca=1353
+  7 c=31178 g=31178 cnq=1/0:0 dt=91536/0/0 df=547 of=4 ql=0/0 qs=.... b=10 ci=109819 nci=0 co=1115 ca=969
 
 This file has one line per CPU, or eight for this 8-CPU system.
 The fields are as follows:
@@ -188,14 +188,14 @@ o	"ca" is the number of RCU callbacks that have been adopted by this
 Kernels compiled with CONFIG_RCU_BOOST=y display the following from
 /debug/rcu/rcu_preempt/rcudata:
 
-  0!c=12865 g=12866 pq=1 qp=1 dt=83113/140000000000000/0 df=288 of=11 ql=0/0 qs=N... kt=0/O ktl=944 b=10 ci=60709 nci=0 co=748 ca=871
-  1 c=14407 g=14408 pq=1 qp=0 dt=100679/140000000000000/0 df=378 of=7 ql=0/119 qs=NRW. kt=0/W ktl=9b6 b=10 ci=109740 nci=0 co=589 ca=485
-  2 c=14407 g=14408 pq=1 qp=0 dt=105486/0/0 df=90 of=9 ql=0/89 qs=NRW. kt=0/W ktl=c0c b=10 ci=83113 nci=0 co=533 ca=490
-  3 c=14407 g=14408 pq=1 qp=0 dt=107138/0/0 df=142 of=8 ql=0/188 qs=NRW. kt=0/W ktl=b96 b=10 ci=121114 nci=0 co=426 ca=290
-  4 c=14405 g=14406 pq=1 qp=1 dt=50238/0/0 df=706 of=7 ql=0/0 qs=.... kt=0/W ktl=812 b=10 ci=34929 nci=0 co=643 ca=114
-  5!c=14168 g=14169 pq=1 qp=0 dt=45465/140000000000000/0 df=161 of=11 ql=0/0 qs=N... kt=0/O ktl=b4d b=10 ci=47712 nci=0 co=677 ca=722
-  6 c=14404 g=14405 pq=1 qp=0 dt=59454/0/0 df=94 of=6 ql=0/0 qs=.... kt=0/W ktl=e57 b=10 ci=55597 nci=0 co=701 ca=811
-  7 c=14407 g=14408 pq=1 qp=1 dt=68850/0/0 df=31 of=8 ql=0/0 qs=.... kt=0/W ktl=14bd b=10 ci=77475 nci=0 co=508 ca=1042
+  0!c=12865 g=12866 cnq=1/0:1 dt=83113/140000000000000/0 df=288 of=11 ql=0/0 qs=N... kt=0/O ktl=944 b=10 ci=60709 nci=0 co=748 ca=871
+  1 c=14407 g=14408 cnq=1/0:0 dt=100679/140000000000000/0 df=378 of=7 ql=0/119 qs=NRW. kt=0/W ktl=9b6 b=10 ci=109740 nci=0 co=589 ca=485
+  2 c=14407 g=14408 cnq=1/0:0 dt=105486/0/0 df=90 of=9 ql=0/89 qs=NRW. kt=0/W ktl=c0c b=10 ci=83113 nci=0 co=533 ca=490
+  3 c=14407 g=14408 cnq=1/0:0 dt=107138/0/0 df=142 of=8 ql=0/188 qs=NRW. kt=0/W ktl=b96 b=10 ci=121114 nci=0 co=426 ca=290
+  4 c=14405 g=14406 cnq=1/0:1 dt=50238/0/0 df=706 of=7 ql=0/0 qs=.... kt=0/W ktl=812 b=10 ci=34929 nci=0 co=643 ca=114
+  5!c=14168 g=14169 cnq=1/0:0 dt=45465/140000000000000/0 df=161 of=11 ql=0/0 qs=N... kt=0/O ktl=b4d b=10 ci=47712 nci=0 co=677 ca=722
+  6 c=14404 g=14405 cnq=1/0:0 dt=59454/0/0 df=94 of=6 ql=0/0 qs=.... kt=0/W ktl=e57 b=10 ci=55597 nci=0 co=701 ca=811
+  7 c=14407 g=14408 cnq=1/0:1 dt=68850/0/0 df=31 of=8 ql=0/0 qs=.... kt=0/W ktl=14bd b=10 ci=77475 nci=0 co=508 ca=1042
 
 This is similar to the output discussed above, but contains the following
 additional fields:
@@ -237,41 +237,25 @@ o	"ktl" is the low-order 16 bits (in hexadecimal) of the count of
 
 The output of "cat rcu/rcu_preempt/rcuexp" looks as follows:
 
-s=21872 d=21872 w=0 tf=0 wd1=0 wd2=0 n=0 sc=21872 dt=21872 dl=0 dx=21872
+s=21872 wd0=0 wd1=0 wd2=0 wd3=5 n=0 enq=0 sc=21872
 
 These fields are as follows:
 
-o	"s" is the starting sequence number.
+o	"s" is the sequence number, with an odd number indicating that
+	an expedited grace period is in progress.
 
-o	"d" is the ending sequence number.  When the starting and ending
-	numbers differ, there is an expedited grace period in progress.
-
-o	"w" is the number of times that the sequence numbers have been
-	in danger of wrapping.
-
-o	"tf" is the number of times that contention has resulted in a
-	failure to begin an expedited grace period.
-
-o	"wd1" and "wd2" are the number of times that an attempt to
-	start an expedited grace period found that someone else had
-	completed an expedited grace period that satisfies the
+o	"wd0", "wd1", "wd2", and "wd3" are the number of times that an
+	attempt to start an expedited grace period found that someone
+	else had completed an expedited grace period that satisfies the
 	attempted request.  "Our work is done."
 
-o	"n" is number of times that contention was so great that
-	the request was demoted from an expedited grace period to
-	a normal grace period.
+o	"n" is number of times that a concurrent CPU-hotplug operation
+	forced a fallback to a normal grace period.
+
+o	"enq" is the number of quiescent states still outstanding.
 
 o	"sc" is the number of times that the attempt to start a
 	new expedited grace period succeeded.
-
-o	"dt" is the number of times that we attempted to update
-	the "d" counter.
-
-o	"dl" is the number of times that we failed to update the "d"
-	counter.
-
-o	"dx" is the number of times that we succeeded in updating
-	the "d" counter.
 
 
 The output of "cat rcu/rcu_preempt/rcugp" looks as follows:

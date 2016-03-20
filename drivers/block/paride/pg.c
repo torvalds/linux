@@ -137,7 +137,7 @@
 
 */
 
-static bool verbose = 0;
+static int verbose;
 static int major = PG_MAJOR;
 static char *name = PG_NAME;
 static int disable = 0;
@@ -168,7 +168,7 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 
 #include <asm/uaccess.h>
 
-module_param(verbose, bool, 0644);
+module_param(verbose, int, 0644);
 module_param(major, int, 0);
 module_param(name, charp, 0);
 module_param_array(drive0, int, NULL, 0);
@@ -227,6 +227,7 @@ static int pg_identify(struct pg *dev, int log);
 static char pg_scratch[512];	/* scratch block buffer */
 
 static struct class *pg_class;
+static void *par_drv;		/* reference of parport driver */
 
 /* kernel glue structures */
 
@@ -481,6 +482,12 @@ static int pg_detect(void)
 
 	printk("%s: %s version %s, major %d\n", name, name, PG_VERSION, major);
 
+	par_drv = pi_register_driver(name);
+	if (!par_drv) {
+		pr_err("failed to register %s driver\n", name);
+		return -1;
+	}
+
 	k = 0;
 	if (pg_drive_count == 0) {
 		if (pi_init(dev->pi, 1, -1, -1, -1, -1, -1, pg_scratch,
@@ -511,6 +518,7 @@ static int pg_detect(void)
 	if (k)
 		return 0;
 
+	pi_unregister_driver(par_drv);
 	printk("%s: No ATAPI device detected\n", name);
 	return -1;
 }

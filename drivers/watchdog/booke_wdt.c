@@ -30,8 +30,6 @@
  * occur, and the final time the board will reset.
  */
 
-u32 booke_wdt_enabled;
-u32 booke_wdt_period = CONFIG_BOOKE_WDT_DEFAULT_TIMEOUT;
 
 #ifdef	CONFIG_PPC_FSL_BOOK3E
 #define WDTP(x)		((((x)&0x3)<<30)|(((x)&0x3c)<<15))
@@ -41,27 +39,10 @@ u32 booke_wdt_period = CONFIG_BOOKE_WDT_DEFAULT_TIMEOUT;
 #define WDTP_MASK	(TCR_WP_MASK)
 #endif
 
-/* Checks wdt=x and wdt_period=xx command-line option */
-notrace int __init early_parse_wdt(char *p)
-{
-	if (p && strncmp(p, "0", 1) != 0)
-		booke_wdt_enabled = 1;
-
-	return 0;
-}
-early_param("wdt", early_parse_wdt);
-
-int __init early_parse_wdt_period(char *p)
-{
-	unsigned long ret;
-	if (p) {
-		if (!kstrtol(p, 0, &ret))
-			booke_wdt_period = ret;
-	}
-
-	return 0;
-}
-early_param("wdt_period", early_parse_wdt_period);
+static bool booke_wdt_enabled;
+module_param(booke_wdt_enabled, bool, 0);
+static int  booke_wdt_period = CONFIG_BOOKE_WDT_DEFAULT_TIMEOUT;
+module_param(booke_wdt_period, int, 0);
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
 
@@ -205,8 +186,6 @@ static int booke_wdt_stop(struct watchdog_device *wdog)
 static int booke_wdt_set_timeout(struct watchdog_device *wdt_dev,
 				 unsigned int timeout)
 {
-	if (timeout > MAX_WDT_TIMEOUT)
-		return -EINVAL;
 	wdt_dev->timeout = timeout;
 	booke_wdt_set(wdt_dev);
 
@@ -230,7 +209,6 @@ static struct watchdog_device booke_wdt_dev = {
 	.info = &booke_wdt_info,
 	.ops = &booke_wdt_ops,
 	.min_timeout = 1,
-	.max_timeout = 0xFFFF
 };
 
 static void __exit booke_wdt_exit(void)
@@ -248,6 +226,7 @@ static int __init booke_wdt_init(void)
 	booke_wdt_set_timeout(&booke_wdt_dev,
 			      period_to_sec(booke_wdt_period));
 	watchdog_set_nowayout(&booke_wdt_dev, nowayout);
+	booke_wdt_dev.max_timeout = MAX_WDT_TIMEOUT;
 	if (booke_wdt_enabled)
 		booke_wdt_start(&booke_wdt_dev);
 
@@ -259,5 +238,6 @@ static int __init booke_wdt_init(void)
 module_init(booke_wdt_init);
 module_exit(booke_wdt_exit);
 
+MODULE_ALIAS("booke_wdt");
 MODULE_DESCRIPTION("PowerPC Book-E watchdog driver");
 MODULE_LICENSE("GPL");

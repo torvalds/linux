@@ -543,7 +543,6 @@ MODULE_DEVICE_TABLE(of, mpc52xx_spi_match);
 static struct platform_driver mpc52xx_spi_of_driver = {
 	.driver = {
 		.name = "mpc52xx-spi",
-		.owner = THIS_MODULE,
 		.of_match_table = mpc52xx_spi_match,
 	},
 	.probe = mpc52xx_spi_probe,

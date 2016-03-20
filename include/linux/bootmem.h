@@ -19,6 +19,10 @@ extern unsigned long min_low_pfn;
  * highest page
  */
 extern unsigned long max_pfn;
+/*
+ * highest possible page
+ */
+extern unsigned long long max_possible_pfn;
 
 #ifndef CONFIG_NO_BOOTMEM
 /*
@@ -46,6 +50,7 @@ extern unsigned long init_bootmem_node(pg_data_t *pgdat,
 extern unsigned long init_bootmem(unsigned long addr, unsigned long memend);
 
 extern unsigned long free_all_bootmem(void);
+extern void reset_node_managed_pages(pg_data_t *pgdat);
 extern void reset_all_zones_managed_pages(void);
 
 extern void free_bootmem_node(pg_data_t *pgdat,
@@ -356,12 +361,12 @@ extern void *alloc_large_system_hash(const char *tablename,
 /* Only NUMA needs hash distribution. 64bit NUMA architectures have
  * sufficient vmalloc space.
  */
-#if defined(CONFIG_NUMA) && defined(CONFIG_64BIT)
-#define HASHDIST_DEFAULT 1
-#else
-#define HASHDIST_DEFAULT 0
-#endif
+#ifdef CONFIG_NUMA
+#define HASHDIST_DEFAULT IS_ENABLED(CONFIG_64BIT)
 extern int hashdist;		/* Distribute hashes across NUMA nodes? */
+#else
+#define hashdist (0)
+#endif
 
 
 #endif /* _LINUX_BOOTMEM_H */

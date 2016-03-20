@@ -47,7 +47,7 @@ static int clk_utmi_prepare(struct clk_hw *hw)
 {
 	struct clk_utmi *utmi = to_clk_utmi(hw);
 	struct at91_pmc *pmc = utmi->pmc;
-	u32 tmp = at91_pmc_read(AT91_CKGR_UCKR) | AT91_PMC_UPLLEN |
+	u32 tmp = pmc_read(pmc, AT91_CKGR_UCKR) | AT91_PMC_UPLLEN |
 		  AT91_PMC_UPLLCOUNT | AT91_PMC_BIASEN;
 
 	pmc_write(pmc, AT91_CKGR_UCKR, tmp);
@@ -73,7 +73,7 @@ static void clk_utmi_unprepare(struct clk_hw *hw)
 {
 	struct clk_utmi *utmi = to_clk_utmi(hw);
 	struct at91_pmc *pmc = utmi->pmc;
-	u32 tmp = at91_pmc_read(AT91_CKGR_UCKR) & ~AT91_PMC_UPLLEN;
+	u32 tmp = pmc_read(pmc, AT91_CKGR_UCKR) & ~AT91_PMC_UPLLEN;
 
 	pmc_write(pmc, AT91_CKGR_UCKR, tmp);
 }
@@ -118,12 +118,16 @@ at91_clk_register_utmi(struct at91_pmc *pmc, unsigned int irq,
 	irq_set_status_flags(utmi->irq, IRQ_NOAUTOEN);
 	ret = request_irq(utmi->irq, clk_utmi_irq_handler,
 			  IRQF_TRIGGER_HIGH, "clk-utmi", utmi);
-	if (ret)
+	if (ret) {
+		kfree(utmi);
 		return ERR_PTR(ret);
+	}
 
 	clk = clk_register(NULL, &utmi->hw);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
+		free_irq(utmi->irq, utmi);
 		kfree(utmi);
+	}
 
 	return clk;
 }

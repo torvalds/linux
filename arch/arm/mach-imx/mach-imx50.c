@@ -16,13 +16,6 @@
 
 #include "common.h"
 
-static void __init imx50_dt_init(void)
-{
-	mxc_arch_reset_init_dt();
-
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
-
 static const char * const imx50_dt_board_compat[] __initconst = {
 	"fsl,imx50",
 	NULL
@@ -30,7 +23,5 @@ static const char * const imx50_dt_board_compat[] __initconst = {
 
 DT_MACHINE_START(IMX50_DT, "Freescale i.MX50 (Device Tree Support)")
 	.init_irq	= tzic_init_irq,
-	.init_machine	= imx50_dt_init,
 	.dt_compat	= imx50_dt_board_compat,
-	.restart	= mxc_restart,
 MACHINE_END

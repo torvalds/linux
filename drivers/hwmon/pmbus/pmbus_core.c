@@ -29,6 +29,8 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/jiffies.h>
 #include <linux/i2c/pmbus.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/machine.h>
 #include "pmbus.h"
 
 /*
@@ -252,6 +254,37 @@ int pmbus_read_byte_data(struct i2c_client *client, int page, u8 reg)
 	return i2c_smbus_read_byte_data(client, reg);
 }
 EXPORT_SYMBOL_GPL(pmbus_read_byte_data);
+
+int pmbus_write_byte_data(struct i2c_client *client, int page, u8 reg, u8 value)
+{
+	int rv;
+
+	rv = pmbus_set_page(client, page);
+	if (rv < 0)
+		return rv;
+
+	return i2c_smbus_write_byte_data(client, reg, value);
+}
+EXPORT_SYMBOL_GPL(pmbus_write_byte_data);
+
+int pmbus_update_byte_data(struct i2c_client *client, int page, u8 reg,
+			   u8 mask, u8 value)
+{
+	unsigned int tmp;
+	int rv;
+
+	rv = pmbus_read_byte_data(client, page, reg);
+	if (rv < 0)
+		return rv;
+
+	tmp = (rv & ~mask) | (value & mask);
+
+	if (tmp != rv)
+		rv = pmbus_write_byte_data(client, page, reg, tmp);
+
+	return rv;
+}
+EXPORT_SYMBOL_GPL(pmbus_update_byte_data);
 
 /*
  * _pmbus_read_byte_data() is similar to pmbus_read_byte_data(), but checks if
@@ -482,16 +515,24 @@ static long pmbus_reg2data_direct(struct pmbus_data *data,
 /*
  * Convert VID sensor values to milli- or micro-units
  * depending on sensor type.
- * We currently only support VR11.
  */
 static long pmbus_reg2data_vid(struct pmbus_data *data,
 			       struct pmbus_sensor *sensor)
 {
 	long val = sensor->data;
+	long rv = 0;
 
-	if (val < 0x02 || val > 0xb2)
-		return 0;
-	return DIV_ROUND_CLOSEST(160000 - (val - 2) * 625, 100);
+	switch (data->info->vrm_version) {
+	case vr11:
+		if (val >= 0x02 && val <= 0xb2)
+			rv = DIV_ROUND_CLOSEST(160000 - (val - 2) * 625, 100);
+		break;
+	case vr12:
+		if (val >= 0x01)
+			rv = 250 + (val - 1) * 5;
+		break;
+	}
+	return rv;
 }
 
 static long pmbus_reg2data(struct pmbus_data *data, struct pmbus_sensor *sensor)
@@ -1296,6 +1337,10 @@ static const struct pmbus_limit_attr pin_limit_attrs[] = {
 		.update = true,
 		.attr = "average",
 	}, {
+		.reg = PMBUS_VIRT_READ_PIN_MIN,
+		.update = true,
+		.attr = "input_lowest",
+	}, {
 		.reg = PMBUS_VIRT_READ_PIN_MAX,
 		.update = true,
 		.attr = "input_highest",
@@ -1325,6 +1370,10 @@ static const struct pmbus_limit_attr pout_limit_attrs[] = {
 		.reg = PMBUS_VIRT_READ_POUT_AVG,
 		.update = true,
 		.attr = "average",
+	}, {
+		.reg = PMBUS_VIRT_READ_POUT_MIN,
+		.update = true,
+		.attr = "input_lowest",
 	}, {
 		.reg = PMBUS_VIRT_READ_POUT_MAX,
 		.update = true,
@@ -1702,6 +1751,11 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 		}
 	}
 
+	/* Enable PEC if the controller supports it */
+	ret = i2c_smbus_read_byte_data(client, PMBUS_CAPABILITY);
+	if (ret >= 0 && (ret & PB_CAPABILITY_ERROR_CHECK))
+		client->flags |= I2C_CLIENT_PEC;
+
 	pmbus_clear_faults(client);
 
 	if (info->identify) {
@@ -1726,6 +1780,84 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 	}
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_REGULATOR)
+static int pmbus_regulator_is_enabled(struct regulator_dev *rdev)
+{
+	struct device *dev = rdev_get_dev(rdev);
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	u8 page = rdev_get_id(rdev);
+	int ret;
+
+	ret = pmbus_read_byte_data(client, page, PMBUS_OPERATION);
+	if (ret < 0)
+		return ret;
+
+	return !!(ret & PB_OPERATION_CONTROL_ON);
+}
+
+static int _pmbus_regulator_on_off(struct regulator_dev *rdev, bool enable)
+{
+	struct device *dev = rdev_get_dev(rdev);
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	u8 page = rdev_get_id(rdev);
+
+	return pmbus_update_byte_data(client, page, PMBUS_OPERATION,
+				      PB_OPERATION_CONTROL_ON,
+				      enable ? PB_OPERATION_CONTROL_ON : 0);
+}
+
+static int pmbus_regulator_enable(struct regulator_dev *rdev)
+{
+	return _pmbus_regulator_on_off(rdev, 1);
+}
+
+static int pmbus_regulator_disable(struct regulator_dev *rdev)
+{
+	return _pmbus_regulator_on_off(rdev, 0);
+}
+
+const struct regulator_ops pmbus_regulator_ops = {
+	.enable = pmbus_regulator_enable,
+	.disable = pmbus_regulator_disable,
+	.is_enabled = pmbus_regulator_is_enabled,
+};
+EXPORT_SYMBOL_GPL(pmbus_regulator_ops);
+
+static int pmbus_regulator_register(struct pmbus_data *data)
+{
+	struct device *dev = data->dev;
+	const struct pmbus_driver_info *info = data->info;
+	const struct pmbus_platform_data *pdata = dev_get_platdata(dev);
+	struct regulator_dev *rdev;
+	int i;
+
+	for (i = 0; i < info->num_regulators; i++) {
+		struct regulator_config config = { };
+
+		config.dev = dev;
+		config.driver_data = data;
+
+		if (pdata && pdata->reg_init_data)
+			config.init_data = &pdata->reg_init_data[i];
+
+		rdev = devm_regulator_register(dev, &info->reg_desc[i],
+					       &config);
+		if (IS_ERR(rdev)) {
+			dev_err(dev, "Failed to register %s regulator\n",
+				info->reg_desc[i].name);
+			return PTR_ERR(rdev);
+		}
+	}
+
+	return 0;
+}
+#else
+static int pmbus_regulator_register(struct pmbus_data *data)
+{
+	return 0;
+}
+#endif
 
 int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 		   struct pmbus_driver_info *info)
@@ -1781,8 +1913,15 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 		dev_err(dev, "Failed to register hwmon device\n");
 		goto out_kfree;
 	}
+
+	ret = pmbus_regulator_register(data);
+	if (ret)
+		goto out_unregister;
+
 	return 0;
 
+out_unregister:
+	hwmon_device_unregister(data->hwmon_dev);
 out_kfree:
 	kfree(data->group.attrs);
 	return ret;

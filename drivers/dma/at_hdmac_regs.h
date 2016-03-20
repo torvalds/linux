@@ -112,6 +112,7 @@
 #define		ATC_SRC_WIDTH_BYTE	(0x0 << 24)
 #define		ATC_SRC_WIDTH_HALFWORD	(0x1 << 24)
 #define		ATC_SRC_WIDTH_WORD	(0x2 << 24)
+#define		ATC_REG_TO_SRC_WIDTH(r)	(((r) >> 24) & 0x3)
 #define	ATC_DST_WIDTH_MASK	(0x3 << 28)	/* Destination Single Transfer Size */
 #define		ATC_DST_WIDTH(x)	((x) << 28)
 #define		ATC_DST_WIDTH_BYTE	(0x0 << 28)
@@ -181,8 +182,8 @@ struct at_lli {
  * @at_lli: hardware lli structure
  * @txd: support for the async_tx api
  * @desc_node: node on the channed descriptors list
- * @len: total transaction bytecount
- * @tx_width: transfer width
+ * @len: descriptor byte count
+ * @total_len: total transaction byte count
  */
 struct at_desc {
 	/* FIRST values the hardware uses */
@@ -193,7 +194,17 @@ struct at_desc {
 	struct dma_async_tx_descriptor	txd;
 	struct list_head		desc_node;
 	size_t				len;
-	u32				tx_width;
+	size_t				total_len;
+
+	/* Interleaved data */
+	size_t				boundary;
+	size_t				dst_hole;
+	size_t				src_hole;
+
+	/* Memset temporary buffer */
+	bool				memset_buffer;
+	dma_addr_t			memset_paddr;
+	int				*memset_vaddr;
 };
 
 static inline struct at_desc *
@@ -213,7 +224,6 @@ txd_to_at_desc(struct dma_async_tx_descriptor *txd)
 enum atc_status {
 	ATC_IS_ERROR = 0,
 	ATC_IS_PAUSED = 1,
-	ATC_IS_BTC = 2,
 	ATC_IS_CYCLIC = 24,
 };
 
@@ -231,8 +241,8 @@ enum atc_status {
  * @save_cfg: configuration register that is saved on suspend/resume cycle
  * @save_dscr: for cyclic operations, preserve next descriptor address in
  *             the cyclic list on suspend/resume cycle
- * @remain_desc: to save remain desc length
- * @dma_sconfig: configuration for slave transfers, passed via DMA_SLAVE_CONFIG
+ * @dma_sconfig: configuration for slave transfers, passed via
+ * .device_config
  * @lock: serializes enqueue/dequeue operations to descriptors lists
  * @active_list: list of descriptors dmaengine is being running on
  * @queue: list of descriptors ready to be submitted to engine
@@ -250,7 +260,6 @@ struct at_dma_chan {
 	struct tasklet_struct	tasklet;
 	u32			save_cfg;
 	u32			save_dscr;
-	u32			remain_desc;
 	struct dma_slave_config dma_sconfig;
 
 	spinlock_t		lock;
@@ -326,6 +335,7 @@ struct at_dma {
 	u8			all_chan_mask;
 
 	struct dma_pool		*dma_desc_pool;
+	struct dma_pool		*memset_pool;
 	/* AT THE END channels table */
 	struct at_dma_chan	chan[0];
 };
@@ -375,9 +385,9 @@ static void vdbg_dump_regs(struct at_dma_chan *atchan) {}
 static void atc_dump_lli(struct at_dma_chan *atchan, struct at_lli *lli)
 {
 	dev_crit(chan2dev(&atchan->chan_common),
-		 "  desc: s0x%x d0x%x ctrl0x%x:0x%x l0x%x\n",
-		 lli->saddr, lli->daddr,
-		 lli->ctrla, lli->ctrlb, lli->dscr);
+		 "  desc: s%pad d%pad ctrl0x%x:0x%x l0x%pad\n",
+		 &lli->saddr, &lli->daddr,
+		 lli->ctrla, lli->ctrlb, &lli->dscr);
 }
 
 

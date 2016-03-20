@@ -572,7 +572,7 @@ intvec_\vecname:
 	}
 	wh64    r52
 
-#ifdef CONFIG_TRACE_IRQFLAGS
+#if defined(CONFIG_TRACE_IRQFLAGS) || defined(CONFIG_CONTEXT_TRACKING)
 	.ifnc \function,handle_nmi
 	/*
 	 * We finally have enough state set up to notify the irq
@@ -588,6 +588,9 @@ intvec_\vecname:
 	{ move r32, r2; move r33, r3 }
 	.endif
 	TRACE_IRQS_OFF
+#ifdef CONFIG_CONTEXT_TRACKING
+	jal     context_tracking_user_exit
+#endif
 	.ifnc \function,handle_syscall
 	{ move r0, r30; move r1, r31 }
 	{ move r2, r32; move r3, r33 }
@@ -846,18 +849,6 @@ STD_ENTRY(interrupt_return)
 	FEEDBACK_REENTER(interrupt_return)
 
 	/*
-	 * Use r33 to hold whether we have already loaded the callee-saves
-	 * into ptregs.  We don't want to do it twice in this loop, since
-	 * then we'd clobber whatever changes are made by ptrace, etc.
-	 * Get base of stack in r32.
-	 */
-	{
-	 GET_THREAD_INFO(r32)
-	 movei  r33, 0
-	}
-
-.Lretry_work_pending:
-	/*
 	 * Disable interrupts so as to make sure we don't
 	 * miss an interrupt that sets any of the thread flags (like
 	 * need_resched or sigpending) between sampling and the iret.
@@ -867,33 +858,27 @@ STD_ENTRY(interrupt_return)
 	IRQ_DISABLE(r20, r21)
 	TRACE_IRQS_OFF  /* Note: clobbers registers r0-r29 */
 
-
-	/* Check to see if there is any work to do before returning to user. */
-	{
-	 addi   r29, r32, THREAD_INFO_FLAGS_OFFSET
-	 moveli r1, lo16(_TIF_ALLWORK_MASK)
-	}
-	{
-	 lw     r29, r29
-	 auli   r1, r1, ha16(_TIF_ALLWORK_MASK)
-	}
-	and     r1, r29, r1
-	bzt     r1, .Lrestore_all
-
 	/*
-	 * Make sure we have all the registers saved for signal
-	 * handling, notify-resume, or single-step.  Call out to C
-	 * code to figure out exactly what we need to do for each flag bit,
-	 * then if necessary, reload the flags and recheck.
+	 * See if there are any work items (including single-shot items)
+	 * to do.  If so, save the callee-save registers to pt_regs
+	 * and then dispatch to C code.
 	 */
+	GET_THREAD_INFO(r21)
+	{
+	 addi   r22, r21, THREAD_INFO_FLAGS_OFFSET
+	 moveli r20, lo16(_TIF_ALLWORK_MASK)
+	}
+	{
+	 lw     r22, r22
+	 auli   r20, r20, ha16(_TIF_ALLWORK_MASK)
+	}
+	and     r1, r22, r20
 	{
 	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
-	 bnz    r33, 1f
+	 bzt    r1, .Lrestore_all
 	}
 	push_extra_callee_saves r0
-	movei   r33, 1
-1:	jal     do_work_pending
-	bnz     r0, .Lretry_work_pending
+	jal     prepare_exit_to_usermode
 
 	/*
 	 * In the NMI case we
@@ -1224,6 +1209,7 @@ handle_syscall:
 	 jal    do_syscall_trace_enter
 	}
 	FEEDBACK_REENTER(handle_syscall)
+	blz     r0, .Lsyscall_sigreturn_skip
 
 	/*
 	 * We always reload our registers from the stack at this
@@ -1326,7 +1312,7 @@ STD_ENTRY(ret_from_kernel_thread)
 	FEEDBACK_REENTER(ret_from_kernel_thread)
 	{
 	 movei  r30, 0               /* not an NMI */
-	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	 j      interrupt_return
 	}
 	STD_ENDPROC(ret_from_kernel_thread)
 

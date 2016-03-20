@@ -11,32 +11,28 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x017d       | 0x004b,0x0141	|
- * |                              |                    | 0x0144,0x0146	|
+ * | Module Init and Probe        |       0x018f       | 0x0146         |
  * |                              |                    | 0x015b-0x0160	|
- * |                              |                    | 0x016e-0x0170	|
- * | Mailbox commands             |       0x118d       | 0x1018-0x1019	|
- * |                              |                    | 0x10ca         |
- * |                              |                    | 0x1115-0x1116  |
- * |                              |                    | 0x111a-0x111b	|
- * |                              |                    | 0x1155-0x1158  |
- * | Device Discovery             |       0x2095       | 0x2020-0x2022, |
+ * |                              |                    | 0x016e-0x0170  |
+ * | Mailbox commands             |       0x1192       |		|
+ * |                              |                    |		|
+ * | Device Discovery             |       0x2016       | 0x2020-0x2022, |
  * |                              |                    | 0x2011-0x2012, |
- * |                              |                    | 0x2016         |
- * | Queue Command and IO tracing |       0x3059       | 0x3006-0x300b  |
+ * |                              |                    | 0x2099-0x20a4  |
+ * | Queue Command and IO tracing |       0x3074       | 0x300b         |
  * |                              |                    | 0x3027-0x3028  |
  * |                              |                    | 0x303d-0x3041  |
  * |                              |                    | 0x302d,0x3033  |
  * |                              |                    | 0x3036,0x3038  |
  * |                              |                    | 0x303a		|
  * | DPC Thread                   |       0x4023       | 0x4002,0x4013  |
- * | Async Events                 |       0x5087       | 0x502b-0x502f  |
- * |                              |                    | 0x5047,0x5052  |
+ * | Async Events                 |       0x5089       | 0x502b-0x502f  |
+ * |                              |                    | 0x505e         |
  * |                              |                    | 0x5084,0x5075	|
  * |                              |                    | 0x503d,0x5044  |
- * |                              |                    | 0x507b		|
+ * |                              |                    | 0x507b,0x505f	|
  * | Timer Routines               |       0x6012       |                |
- * | User Space Interactions      |       0x70e2       | 0x7018,0x702e  |
+ * | User Space Interactions      |       0x70e3       | 0x7018,0x702e  |
  * |				  |		       | 0x7020,0x7024  |
  * |                              |                    | 0x7039,0x7045  |
  * |                              |                    | 0x7073-0x7075  |
@@ -64,15 +60,13 @@
  * |                              |                    | 0xb13c-0xb140  |
  * |                              |                    | 0xb149		|
  * | MultiQ                       |       0xc00c       |		|
- * | Misc                         |       0xd212       | 0xd017-0xd019	|
- * |                              |                    | 0xd020		|
- * |                              |                    | 0xd030-0xd0ff	|
+ * | Misc                         |       0xd301       | 0xd031-0xd0ff	|
  * |                              |                    | 0xd101-0xd1fe	|
- * |                              |                    | 0xd213-0xd2fe	|
- * | Target Mode		  |	  0xe078       |		|
- * | Target Mode Management	  |	  0xf072       | 0xf002-0xf003	|
+ * |                              |                    | 0xd214-0xd2fe	|
+ * | Target Mode		  |	  0xe080       |		|
+ * | Target Mode Management	  |	  0xf09b       | 0xf002		|
  * |                              |                    | 0xf046-0xf049  |
- * | Target Mode Task Management  |	  0x1000b      |		|
+ * | Target Mode Task Management  |	  0x1000d      |		|
  * ----------------------------------------------------------------------
  */
 
@@ -119,7 +113,7 @@ qla27xx_dump_mpi_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 {
 	int rval;
 	uint32_t cnt, stat, timer, dwords, idx;
-	uint16_t mb0, mb1;
+	uint16_t mb0;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	dma_addr_t dump_dma = ha->gid_list_dma;
 	uint32_t *dump = (uint32_t *)ha->gid_list;
@@ -163,7 +157,7 @@ qla27xx_dump_mpi_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 					    &ha->mbx_cmd_flags);
 
 					mb0 = RD_REG_WORD(&reg->mailbox0);
-					mb1 = RD_REG_WORD(&reg->mailbox1);
+					RD_REG_WORD(&reg->mailbox1);
 
 					WRT_REG_DWORD(&reg->hccr,
 					    HCCRX_CLR_RISC_INT);
@@ -300,8 +294,8 @@ qla24xx_read_window(struct device_reg_24xx __iomem *reg, uint32_t iobase,
 
 	WRT_REG_DWORD(&reg->iobase_addr, iobase);
 	dmp_reg = &reg->iobase_window;
-	while (count--)
-		*buf++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for ( ; count--; dmp_reg++)
+		*buf++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	return buf;
 }
@@ -463,8 +457,8 @@ qla2xxx_read_window(struct device_reg_2xxx __iomem *reg, uint32_t count,
 {
 	uint16_t __iomem *dmp_reg = &reg->u.isp2300.fb_cmd;
 
-	while (count--)
-		*buf++ = htons(RD_REG_WORD(dmp_reg++));
+	for ( ; count--; dmp_reg++)
+		*buf++ = htons(RD_REG_WORD(dmp_reg));
 }
 
 static inline void *
@@ -488,7 +482,7 @@ qla25xx_copy_fce(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 		return ptr;
 
 	*last_chain = &fcec->type;
-	fcec->type = __constant_htonl(DUMP_CHAIN_FCE);
+	fcec->type = htonl(DUMP_CHAIN_FCE);
 	fcec->chain_size = htonl(sizeof(struct qla2xxx_fce_chain) +
 	    fce_calc_size(ha->fce_bufs));
 	fcec->size = htonl(fce_calc_size(ha->fce_bufs));
@@ -529,7 +523,7 @@ qla2xxx_copy_atioqueues(struct qla_hw_data *ha, void *ptr,
 		/* aqp = ha->atio_q_map[que]; */
 		q = ptr;
 		*last_chain = &q->type;
-		q->type = __constant_htonl(DUMP_CHAIN_QUEUE);
+		q->type = htonl(DUMP_CHAIN_QUEUE);
 		q->chain_size = htonl(
 		    sizeof(struct qla2xxx_mqueue_chain) +
 		    sizeof(struct qla2xxx_mqueue_header) +
@@ -538,7 +532,7 @@ qla2xxx_copy_atioqueues(struct qla_hw_data *ha, void *ptr,
 
 		/* Add header. */
 		qh = ptr;
-		qh->queue = __constant_htonl(TYPE_ATIO_QUEUE);
+		qh->queue = htonl(TYPE_ATIO_QUEUE);
 		qh->number = htonl(que);
 		qh->size = htonl(aqp->length * sizeof(request_t));
 		ptr += sizeof(struct qla2xxx_mqueue_header);
@@ -573,7 +567,7 @@ qla25xx_copy_mqueues(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 		/* Add chain. */
 		q = ptr;
 		*last_chain = &q->type;
-		q->type = __constant_htonl(DUMP_CHAIN_QUEUE);
+		q->type = htonl(DUMP_CHAIN_QUEUE);
 		q->chain_size = htonl(
 		    sizeof(struct qla2xxx_mqueue_chain) +
 		    sizeof(struct qla2xxx_mqueue_header) +
@@ -582,7 +576,7 @@ qla25xx_copy_mqueues(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 
 		/* Add header. */
 		qh = ptr;
-		qh->queue = __constant_htonl(TYPE_REQUEST_QUEUE);
+		qh->queue = htonl(TYPE_REQUEST_QUEUE);
 		qh->number = htonl(que);
 		qh->size = htonl(req->length * sizeof(request_t));
 		ptr += sizeof(struct qla2xxx_mqueue_header);
@@ -601,7 +595,7 @@ qla25xx_copy_mqueues(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 		/* Add chain. */
 		q = ptr;
 		*last_chain = &q->type;
-		q->type = __constant_htonl(DUMP_CHAIN_QUEUE);
+		q->type = htonl(DUMP_CHAIN_QUEUE);
 		q->chain_size = htonl(
 		    sizeof(struct qla2xxx_mqueue_chain) +
 		    sizeof(struct qla2xxx_mqueue_header) +
@@ -610,7 +604,7 @@ qla25xx_copy_mqueues(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 
 		/* Add header. */
 		qh = ptr;
-		qh->queue = __constant_htonl(TYPE_RESPONSE_QUEUE);
+		qh->queue = htonl(TYPE_RESPONSE_QUEUE);
 		qh->number = htonl(que);
 		qh->size = htonl(rsp->length * sizeof(response_t));
 		ptr += sizeof(struct qla2xxx_mqueue_header);
@@ -629,15 +623,15 @@ qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 	uint32_t cnt, que_idx;
 	uint8_t que_cnt;
 	struct qla2xxx_mq_chain *mq = ptr;
-	device_reg_t __iomem *reg;
+	device_reg_t *reg;
 
 	if (!ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha))
 		return ptr;
 
 	mq = ptr;
 	*last_chain = &mq->type;
-	mq->type = __constant_htonl(DUMP_CHAIN_MQ);
-	mq->chain_size = __constant_htonl(sizeof(struct qla2xxx_mq_chain));
+	mq->type = htonl(DUMP_CHAIN_MQ);
+	mq->chain_size = htonl(sizeof(struct qla2xxx_mq_chain));
 
 	que_cnt = ha->max_req_queues > ha->max_rsp_queues ?
 		ha->max_req_queues : ha->max_rsp_queues;
@@ -697,8 +691,10 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	flags = 0;
 
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
+#endif
 
 	if (!ha->fw_dump) {
 		ql_log(ql_log_warn, vha, 0xd002,
@@ -737,16 +733,18 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	if (rval == QLA_SUCCESS) {
 		dmp_reg = &reg->flash_address;
-		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++)
-			fw->pbiu_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++, dmp_reg++)
+			fw->pbiu_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		dmp_reg = &reg->u.isp2300.req_q_in;
-		for (cnt = 0; cnt < sizeof(fw->risc_host_reg) / 2; cnt++)
-			fw->risc_host_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+		for (cnt = 0; cnt < sizeof(fw->risc_host_reg) / 2;
+		    cnt++, dmp_reg++)
+			fw->risc_host_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		dmp_reg = &reg->u.isp2300.mailbox0;
-		for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
-			fw->mailbox_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+		for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2;
+		    cnt++, dmp_reg++)
+			fw->mailbox_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x40);
 		qla2xxx_read_window(reg, 32, fw->resp_dma_reg);
@@ -756,8 +754,9 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x00);
 		dmp_reg = &reg->risc_hw;
-		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2; cnt++)
-			fw->risc_hdw_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2;
+		    cnt++, dmp_reg++)
+			fw->risc_hdw_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		WRT_REG_WORD(&reg->pcr, 0x2000);
 		qla2xxx_read_window(reg, 16, fw->risc_gp0_reg);
@@ -834,8 +833,12 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	qla2xxx_dump_post_process(base_vha, rval);
 
 qla2300_fw_dump_failed:
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+#else
+	;
+#endif
 }
 
 /**
@@ -861,8 +864,10 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	mb0 = mb2 = 0;
 	flags = 0;
 
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
+#endif
 
 	if (!ha->fw_dump) {
 		ql_log(ql_log_warn, vha, 0xd004,
@@ -894,25 +899,25 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	}
 	if (rval == QLA_SUCCESS) {
 		dmp_reg = &reg->flash_address;
-		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++)
-			fw->pbiu_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++, dmp_reg++)
+			fw->pbiu_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		dmp_reg = &reg->u.isp2100.mailbox0;
-		for (cnt = 0; cnt < ha->mbx_count; cnt++) {
+		for (cnt = 0; cnt < ha->mbx_count; cnt++, dmp_reg++) {
 			if (cnt == 8)
 				dmp_reg = &reg->u_end.isp2200.mailbox8;
 
-			fw->mailbox_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+			fw->mailbox_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 		}
 
 		dmp_reg = &reg->u.isp2100.unused_2[0];
-		for (cnt = 0; cnt < sizeof(fw->dma_reg) / 2; cnt++)
-			fw->dma_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+		for (cnt = 0; cnt < sizeof(fw->dma_reg) / 2; cnt++, dmp_reg++)
+			fw->dma_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x00);
 		dmp_reg = &reg->risc_hw;
-		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2; cnt++)
-			fw->risc_hdw_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
+		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2; cnt++, dmp_reg++)
+			fw->risc_hdw_reg[cnt] = htons(RD_REG_WORD(dmp_reg));
 
 		WRT_REG_WORD(&reg->pcr, 0x2000);
 		qla2xxx_read_window(reg, 16, fw->risc_gp0_reg);
@@ -1032,8 +1037,12 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	qla2xxx_dump_post_process(base_vha, rval);
 
 qla2100_fw_dump_failed:
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+#else
+	;
+#endif
 }
 
 void
@@ -1041,7 +1050,6 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 {
 	int		rval;
 	uint32_t	cnt;
-	uint32_t	risc_address;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	uint32_t __iomem *dmp_reg;
@@ -1049,7 +1057,6 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	uint16_t __iomem *mbx_reg;
 	unsigned long	flags;
 	struct qla24xx_fw_dump *fw;
-	uint32_t	ext_mem_cnt;
 	void		*nxt;
 	void		*nxt_chain;
 	uint32_t	*last_chain = NULL;
@@ -1058,12 +1065,13 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	if (IS_P3P_TYPE(ha))
 		return;
 
-	risc_address = ext_mem_cnt = 0;
 	flags = 0;
 	ha->fw_dump_cap_flags = 0;
 
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
+#endif
 
 	if (!ha->fw_dump) {
 		ql_log(ql_log_warn, vha, 0xd006,
@@ -1091,8 +1099,8 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Host interface registers. */
 	dmp_reg = &reg->flash_addr;
-	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++)
-		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++, dmp_reg++)
+		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Disable interrupts. */
 	WRT_REG_DWORD(&reg->ictrl, 0);
@@ -1124,8 +1132,8 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Mailbox registers. */
 	mbx_reg = &reg->mailbox0;
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
-		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg++));
+	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, dmp_reg++)
+		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg));
 
 	/* Transfer sequence registers. */
 	iter_reg = fw->xseq_gp_reg;
@@ -1163,20 +1171,20 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	iter_reg = fw->req0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7200, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->resp0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7300, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->req1_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7400, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Transmit DMA registers. */
 	iter_reg = fw->xmt0_dma_reg;
@@ -1276,8 +1284,8 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	nxt_chain = (void *)ha->fw_dump + ha->chain_offset;
 	nxt_chain = qla2xxx_copy_atioqueues(ha, nxt_chain, &last_chain);
 	if (last_chain) {
-		ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
-		*last_chain |= __constant_htonl(DUMP_CHAIN_LAST);
+		ha->fw_dump->version |= htonl(DUMP_CHAIN_VARIANT);
+		*last_chain |= htonl(DUMP_CHAIN_LAST);
 	}
 
 	/* Adjust valid length. */
@@ -1287,8 +1295,12 @@ qla24xx_fw_dump_failed_0:
 	qla2xxx_dump_post_process(base_vha, rval);
 
 qla24xx_fw_dump_failed:
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+#else
+	;
+#endif
 }
 
 void
@@ -1296,7 +1308,6 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 {
 	int		rval;
 	uint32_t	cnt;
-	uint32_t	risc_address;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	uint32_t __iomem *dmp_reg;
@@ -1304,17 +1315,17 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	uint16_t __iomem *mbx_reg;
 	unsigned long	flags;
 	struct qla25xx_fw_dump *fw;
-	uint32_t	ext_mem_cnt;
 	void		*nxt, *nxt_chain;
 	uint32_t	*last_chain = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
-	risc_address = ext_mem_cnt = 0;
 	flags = 0;
 	ha->fw_dump_cap_flags = 0;
 
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
+#endif
 
 	if (!ha->fw_dump) {
 		ql_log(ql_log_warn, vha, 0xd008,
@@ -1331,7 +1342,7 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	}
 	fw = &ha->fw_dump->isp.isp25;
 	qla2xxx_prep_dump(ha, ha->fw_dump);
-	ha->fw_dump->version = __constant_htonl(2);
+	ha->fw_dump->version = htonl(2);
 
 	fw->host_status = htonl(RD_REG_DWORD(&reg->host_status));
 
@@ -1351,8 +1362,10 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	RD_REG_DWORD(&reg->iobase_addr);
 	WRT_REG_DWORD(&reg->iobase_window, 0x01);
 	dmp_reg = &reg->iobase_c4;
-	fw->pcie_regs[0] = htonl(RD_REG_DWORD(dmp_reg++));
-	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg++));
+	fw->pcie_regs[0] = htonl(RD_REG_DWORD(dmp_reg));
+	dmp_reg++;
+	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg));
+	dmp_reg++;
 	fw->pcie_regs[2] = htonl(RD_REG_DWORD(dmp_reg));
 	fw->pcie_regs[3] = htonl(RD_REG_DWORD(&reg->iobase_window));
 
@@ -1361,8 +1374,8 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Host interface registers. */
 	dmp_reg = &reg->flash_addr;
-	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++)
-		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++, dmp_reg++)
+		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Disable interrupts. */
 	WRT_REG_DWORD(&reg->ictrl, 0);
@@ -1410,8 +1423,8 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Mailbox registers. */
 	mbx_reg = &reg->mailbox0;
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
-		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg++));
+	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, mbx_reg++)
+		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg));
 
 	/* Transfer sequence registers. */
 	iter_reg = fw->xseq_gp_reg;
@@ -1474,20 +1487,20 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	iter_reg = fw->req0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7200, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->resp0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7300, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->req1_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7400, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Transmit DMA registers. */
 	iter_reg = fw->xmt0_dma_reg;
@@ -1595,8 +1608,8 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	nxt_chain = qla25xx_copy_mqueues(ha, nxt_chain, &last_chain);
 	nxt_chain = qla2xxx_copy_atioqueues(ha, nxt_chain, &last_chain);
 	if (last_chain) {
-		ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
-		*last_chain |= __constant_htonl(DUMP_CHAIN_LAST);
+		ha->fw_dump->version |= htonl(DUMP_CHAIN_VARIANT);
+		*last_chain |= htonl(DUMP_CHAIN_LAST);
 	}
 
 	/* Adjust valid length. */
@@ -1606,8 +1619,12 @@ qla25xx_fw_dump_failed_0:
 	qla2xxx_dump_post_process(base_vha, rval);
 
 qla25xx_fw_dump_failed:
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+#else
+	;
+#endif
 }
 
 void
@@ -1615,7 +1632,6 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 {
 	int		rval;
 	uint32_t	cnt;
-	uint32_t	risc_address;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	uint32_t __iomem *dmp_reg;
@@ -1623,17 +1639,17 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	uint16_t __iomem *mbx_reg;
 	unsigned long	flags;
 	struct qla81xx_fw_dump *fw;
-	uint32_t	ext_mem_cnt;
 	void		*nxt, *nxt_chain;
 	uint32_t	*last_chain = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
-	risc_address = ext_mem_cnt = 0;
 	flags = 0;
 	ha->fw_dump_cap_flags = 0;
 
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
+#endif
 
 	if (!ha->fw_dump) {
 		ql_log(ql_log_warn, vha, 0xd00a,
@@ -1669,8 +1685,10 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	RD_REG_DWORD(&reg->iobase_addr);
 	WRT_REG_DWORD(&reg->iobase_window, 0x01);
 	dmp_reg = &reg->iobase_c4;
-	fw->pcie_regs[0] = htonl(RD_REG_DWORD(dmp_reg++));
-	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg++));
+	fw->pcie_regs[0] = htonl(RD_REG_DWORD(dmp_reg));
+	dmp_reg++;
+	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg));
+	dmp_reg++;
 	fw->pcie_regs[2] = htonl(RD_REG_DWORD(dmp_reg));
 	fw->pcie_regs[3] = htonl(RD_REG_DWORD(&reg->iobase_window));
 
@@ -1679,8 +1697,8 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Host interface registers. */
 	dmp_reg = &reg->flash_addr;
-	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++)
-		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++, dmp_reg++)
+		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Disable interrupts. */
 	WRT_REG_DWORD(&reg->ictrl, 0);
@@ -1728,8 +1746,8 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Mailbox registers. */
 	mbx_reg = &reg->mailbox0;
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
-		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg++));
+	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, mbx_reg++)
+		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg));
 
 	/* Transfer sequence registers. */
 	iter_reg = fw->xseq_gp_reg;
@@ -1792,20 +1810,20 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	iter_reg = fw->req0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7200, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->resp0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7300, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->req1_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7400, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Transmit DMA registers. */
 	iter_reg = fw->xmt0_dma_reg;
@@ -1916,8 +1934,8 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	nxt_chain = qla25xx_copy_mqueues(ha, nxt_chain, &last_chain);
 	nxt_chain = qla2xxx_copy_atioqueues(ha, nxt_chain, &last_chain);
 	if (last_chain) {
-		ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
-		*last_chain |= __constant_htonl(DUMP_CHAIN_LAST);
+		ha->fw_dump->version |= htonl(DUMP_CHAIN_VARIANT);
+		*last_chain |= htonl(DUMP_CHAIN_LAST);
 	}
 
 	/* Adjust valid length. */
@@ -1927,16 +1945,19 @@ qla81xx_fw_dump_failed_0:
 	qla2xxx_dump_post_process(base_vha, rval);
 
 qla81xx_fw_dump_failed:
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+#else
+	;
+#endif
 }
 
 void
 qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 {
 	int		rval;
-	uint32_t	cnt, reg_data;
-	uint32_t	risc_address;
+	uint32_t	cnt;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	uint32_t __iomem *dmp_reg;
@@ -1944,17 +1965,17 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	uint16_t __iomem *mbx_reg;
 	unsigned long	flags;
 	struct qla83xx_fw_dump *fw;
-	uint32_t	ext_mem_cnt;
 	void		*nxt, *nxt_chain;
 	uint32_t	*last_chain = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
-	risc_address = ext_mem_cnt = 0;
 	flags = 0;
 	ha->fw_dump_cap_flags = 0;
 
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
+#endif
 
 	if (!ha->fw_dump) {
 		ql_log(ql_log_warn, vha, 0xd00c,
@@ -1981,16 +2002,16 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	WRT_REG_DWORD(&reg->iobase_addr, 0x6000);
 	dmp_reg = &reg->iobase_window;
-	reg_data = RD_REG_DWORD(dmp_reg);
+	RD_REG_DWORD(dmp_reg);
 	WRT_REG_DWORD(dmp_reg, 0);
 
 	dmp_reg = &reg->unused_4_1[0];
-	reg_data = RD_REG_DWORD(dmp_reg);
+	RD_REG_DWORD(dmp_reg);
 	WRT_REG_DWORD(dmp_reg, 0);
 
 	WRT_REG_DWORD(&reg->iobase_addr, 0x6010);
 	dmp_reg = &reg->unused_4_1[2];
-	reg_data = RD_REG_DWORD(dmp_reg);
+	RD_REG_DWORD(dmp_reg);
 	WRT_REG_DWORD(dmp_reg, 0);
 
 	/* select PCR and disable ecc checking and correction */
@@ -2009,8 +2030,10 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	RD_REG_DWORD(&reg->iobase_addr);
 	WRT_REG_DWORD(&reg->iobase_window, 0x01);
 	dmp_reg = &reg->iobase_c4;
-	fw->pcie_regs[0] = htonl(RD_REG_DWORD(dmp_reg++));
-	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg++));
+	fw->pcie_regs[0] = htonl(RD_REG_DWORD(dmp_reg));
+	dmp_reg++;
+	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg));
+	dmp_reg++;
 	fw->pcie_regs[2] = htonl(RD_REG_DWORD(dmp_reg));
 	fw->pcie_regs[3] = htonl(RD_REG_DWORD(&reg->iobase_window));
 
@@ -2019,8 +2042,8 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Host interface registers. */
 	dmp_reg = &reg->flash_addr;
-	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++)
-		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++, dmp_reg++)
+		fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Disable interrupts. */
 	WRT_REG_DWORD(&reg->ictrl, 0);
@@ -2068,8 +2091,8 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Mailbox registers. */
 	mbx_reg = &reg->mailbox0;
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
-		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg++));
+	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, dmp_reg++)
+		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg));
 
 	/* Transfer sequence registers. */
 	iter_reg = fw->xseq_gp_reg;
@@ -2164,20 +2187,20 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	iter_reg = fw->req0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7200, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->resp0_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7300, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	iter_reg = fw->req1_dma_reg;
 	iter_reg = qla24xx_read_window(reg, 0x7400, 8, iter_reg);
 	dmp_reg = &reg->iobase_q;
-	for (cnt = 0; cnt < 7; cnt++)
-		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
+	for (cnt = 0; cnt < 7; cnt++, dmp_reg++)
+		*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg));
 
 	/* Transmit DMA registers. */
 	iter_reg = fw->xmt0_dma_reg;
@@ -2422,8 +2445,8 @@ copy_queue:
 	nxt_chain = qla25xx_copy_mqueues(ha, nxt_chain, &last_chain);
 	nxt_chain = qla2xxx_copy_atioqueues(ha, nxt_chain, &last_chain);
 	if (last_chain) {
-		ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
-		*last_chain |= __constant_htonl(DUMP_CHAIN_LAST);
+		ha->fw_dump->version |= htonl(DUMP_CHAIN_VARIANT);
+		*last_chain |= htonl(DUMP_CHAIN_LAST);
 	}
 
 	/* Adjust valid length. */
@@ -2433,8 +2456,12 @@ qla83xx_fw_dump_failed_0:
 	qla2xxx_dump_post_process(base_vha, rval);
 
 qla83xx_fw_dump_failed:
+#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+#else
+	;
+#endif
 }
 
 /****************************************************************************/

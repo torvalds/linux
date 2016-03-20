@@ -1,0 +1,53 @@
+* ARM Secure world bindings
+
+ARM CPUs with TrustZone support have two distinct address spaces,
+"Normal" and "Secure". Most devicetree consumers (including the Linux
+kernel) are not TrustZone aware and run entirely in either the Normal
+world or the Secure world. However some devicetree consumers are
+TrustZone aware and need to be able to determine whether devices are
+visible only in the Secure address space, only in the Normal address
+space, or visible in both. (One example of that situation would be a
+virtual machine which boots Secure firmware and wants to tell the
+firmware about the layout of the machine via devicetree.)
+
+The general principle of the naming scheme for Secure world bindings
+is that any property that needs a different value in the Secure world
+can be supported by prefixing the property name with "secure-". So for
+instance "secure-foo" would override "foo". For property names with
+a vendor prefix, the Secure variant of "vendor,foo" would be
+"vendor,secure-foo". If there is no "secure-" property then the Secure
+world value is the same as specified for the Normal world by the
+non-prefixed property. However, only the properties listed below may
+validly have "secure-" versions; this list will be enlarged on a
+case-by-case basis.
+
+Defining the bindings in this way means that a device tree which has
+been annotated to indicate the presence of Secure-only devices can
+still be processed unmodified by existing Non-secure software (and in
+particular by the kernel).
+
+Note that it is still valid for bindings intended for purely Secure
+world consumers (like kernels that run entirely in Secure) to simply
+describe the view of Secure world using the standard bindings. These
+secure- bindings only need to be used where both the Secure and Normal
+world views need to be described in a single device tree.
+
+Valid Secure world properties:
+
+- secure-status : specifies whether the device is present and usable
+  in the secure world. The combination of this with "status" allows
+  the various possible combinations of device visibility to be
+  specified. If "secure-status" is not specified it defaults to the
+  same value as "status"; if "status" is not specified either then
+  both default to "okay". This means the following combinations are
+  possible:
+
+   /* Neither specified: default to visible in both S and NS */
+   secure-status = "okay";                          /* visible in both */
+   status = "okay";                                 /* visible in both */
+   status = "okay"; secure-status = "okay";         /* visible in both */
+   secure-status = "disabled";                      /* NS-only */
+   status = "okay"; secure-status = "disabled";     /* NS-only */
+   status = "disabled"; secure-status = "okay";     /* S-only */
+   status = "disabled";                             /* disabled in both */
+   status = "disabled"; secure-status = "disabled"; /* disabled in both */

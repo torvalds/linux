@@ -215,7 +215,7 @@ static inline void play_dead(void)
 	unsigned int this_cpu = smp_processor_id();
 
 	/* Ack it */
-	__get_cpu_var(cpu_state) = CPU_DEAD;
+	__this_cpu_write(cpu_state, CPU_DEAD);
 
 	max_xtp();
 	local_irq_disable();
@@ -273,7 +273,7 @@ ia64_save_extra (struct task_struct *task)
 	if ((task->thread.flags & IA64_THREAD_PM_VALID) != 0)
 		pfm_save_regs(task);
 
-	info = __get_cpu_var(pfm_syst_info);
+	info = __this_cpu_read(pfm_syst_info);
 	if (info & PFM_CPUINFO_SYST_WIDE)
 		pfm_syst_wide_update_task(task, info, 0);
 #endif
@@ -293,7 +293,7 @@ ia64_load_extra (struct task_struct *task)
 	if ((task->thread.flags & IA64_THREAD_PM_VALID) != 0)
 		pfm_load_regs(task);
 
-	info = __get_cpu_var(pfm_syst_info);
+	info = __this_cpu_read(pfm_syst_info);
 	if (info & PFM_CPUINFO_SYST_WIDE) 
 		pfm_syst_wide_update_task(task, info, 1);
 #endif

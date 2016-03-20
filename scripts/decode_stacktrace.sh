@@ -14,11 +14,14 @@ declare -A cache
 
 parse_symbol() {
 	# The structure of symbol at this point is:
-	#   [name]+[offset]/[total length]
+	#   ([name]+[offset]/[total length])
 	#
 	# For example:
 	#   do_basic_setup+0x9c/0xbf
 
+	# Remove the englobing parenthesis
+	symbol=${symbol#\(}
+	symbol=${symbol%\)}
 
 	# Strip the symbol name so that we could look it up
 	local name=${symbol%+*}

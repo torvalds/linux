@@ -81,10 +81,7 @@ static struct page **relay_alloc_page_array(unsigned int n_pages)
  */
 static void relay_free_page_array(struct page **array)
 {
-	if (is_vmalloc_addr(array))
-		vfree(array);
-	else
-		kfree(array);
+	kvfree(array);
 }
 
 /**
@@ -407,7 +404,7 @@ static inline void relay_set_buf_dentry(struct rchan_buf *buf,
 					struct dentry *dentry)
 {
 	buf->dentry = dentry;
-	buf->dentry->d_inode->i_size = buf->early_bytes;
+	d_inode(buf->dentry)->i_size = buf->early_bytes;
 }
 
 static struct dentry *relay_create_buf_file(struct rchan *chan,
@@ -733,7 +730,7 @@ size_t relay_switch_subbuf(struct rchan_buf *buf, size_t length)
 		buf->padding[old_subbuf] = buf->prev_padding;
 		buf->subbufs_produced++;
 		if (buf->dentry)
-			buf->dentry->d_inode->i_size +=
+			d_inode(buf->dentry)->i_size +=
 				buf->chan->subbuf_size -
 				buf->padding[old_subbuf];
 		else
@@ -1136,7 +1133,7 @@ static ssize_t relay_file_read_subbufs(struct file *filp, loff_t *ppos,
 	if (!desc->count)
 		return 0;
 
-	mutex_lock(&file_inode(filp)->i_mutex);
+	inode_lock(file_inode(filp));
 	do {
 		if (!relay_file_read_avail(buf, *ppos))
 			break;
@@ -1156,7 +1153,7 @@ static ssize_t relay_file_read_subbufs(struct file *filp, loff_t *ppos,
 			*ppos = relay_file_read_end_pos(buf, read_start, ret);
 		}
 	} while (desc->count && ret);
-	mutex_unlock(&file_inode(filp)->i_mutex);
+	inode_unlock(file_inode(filp));
 
 	return desc->written;
 }

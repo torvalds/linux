@@ -1,18 +1,18 @@
-sh-pfc-objs			= core.o pinctrl.o
-ifeq ($(CONFIG_GPIO_SH_PFC),y)
-sh-pfc-objs			+= gpio.o
-endif
-obj-$(CONFIG_PINCTRL_SH_PFC)	+= sh-pfc.o
+obj-$(CONFIG_PINCTRL_SH_PFC)	+= core.o pinctrl.o
+obj-$(CONFIG_PINCTRL_SH_PFC_GPIO)	+= gpio.o
+obj-$(CONFIG_PINCTRL_PFC_EMEV2)	+= pfc-emev2.o
 obj-$(CONFIG_PINCTRL_PFC_R8A73A4)	+= pfc-r8a73a4.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7740)	+= pfc-r8a7740.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7778)	+= pfc-r8a7778.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7779)	+= pfc-r8a7779.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7790)	+= pfc-r8a7790.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7791)	+= pfc-r8a7791.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7793)	+= pfc-r8a7791.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7794)	+= pfc-r8a7794.o
+obj-$(CONFIG_PINCTRL_PFC_R8A7795)	+= pfc-r8a7795.o
 obj-$(CONFIG_PINCTRL_PFC_SH7203)	+= pfc-sh7203.o
 obj-$(CONFIG_PINCTRL_PFC_SH7264)	+= pfc-sh7264.o
 obj-$(CONFIG_PINCTRL_PFC_SH7269)	+= pfc-sh7269.o
-obj-$(CONFIG_PINCTRL_PFC_SH7372)	+= pfc-sh7372.o
 obj-$(CONFIG_PINCTRL_PFC_SH73A0)	+= pfc-sh73a0.o
 obj-$(CONFIG_PINCTRL_PFC_SH7720)	+= pfc-sh7720.o
 obj-$(CONFIG_PINCTRL_PFC_SH7722)	+= pfc-sh7722.o

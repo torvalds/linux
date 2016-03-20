@@ -56,8 +56,8 @@
     </note>
 
     <para>To enumerate media bus formats available at a given sub-device pad
-    applications initialize the <structfield>pad</structfield> and
-    <structfield>index</structfield> fields of &v4l2-subdev-mbus-code-enum; and
+    applications initialize the <structfield>pad</structfield>, <structfield>which</structfield>
+    and <structfield>index</structfield> fields of &v4l2-subdev-mbus-code-enum; and
     call the <constant>VIDIOC_SUBDEV_ENUM_MBUS_CODE</constant> ioctl with a
     pointer to this structure. Drivers fill the rest of the structure or return
     an &EINVAL; if either the <structfield>pad</structfield> or
@@ -93,7 +93,12 @@
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
-	    <entry><structfield>reserved</structfield>[9]</entry>
+	    <entry><structfield>which</structfield></entry>
+	    <entry>Media bus format codes to be enumerated, from &v4l2-subdev-format-whence;.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[8]</entry>
 	    <entry>Reserved for future extensions. Applications and drivers must
 	    set the array to zero.</entry>
 	  </row>

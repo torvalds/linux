@@ -108,6 +108,7 @@ config SERIAL_8250_PCI
 	tristate "8250/16550 PCI device support" if EXPERT
 	depends on SERIAL_8250 && PCI
 	default SERIAL_8250
+	select RATIONAL
 	help
 	  This builds standard PCI serial support. You may be able to
 	  disable this feature if you only need legacy serial support.
@@ -261,7 +262,12 @@ config SERIAL_8250_RSA
 	bool "Support RSA serial ports"
 	depends on SERIAL_8250_EXTENDED
 	help
-	  ::: To be written :::
+	  Say Y here if you have a IODATA RSA-DV II/S ISA card and
+	  would like to use its >115kbps speeds.
+	  You will need to provide module parameter "probe_rsa", or boot-time
+	  parameter 8250.probe_rsa with I/O addresses of this card then.
+
+	  If you don't have such card, or if unsure, say N.
 
 config SERIAL_8250_ACORN
 	tristate "Acorn expansion card serial port support"
@@ -271,10 +277,34 @@ config SERIAL_8250_ACORN
 	  system, say Y to this option.  The driver can handle 1, 2, or 3 port
 	  cards.  If unsure, say N.
 
+config SERIAL_8250_BCM2835AUX
+	tristate "BCM2835 auxiliar mini UART support"
+	depends on ARCH_BCM2835 || COMPILE_TEST
+	depends on SERIAL_8250 && SERIAL_8250_SHARE_IRQ
+	help
+	  Support for the BCM2835 auxiliar mini UART.
+
+	  Features and limitations of the UART are
+	    Registers are similar to 16650 registers,
+              set bits in the control registers that are unsupported
+	      are ignored and read back as 0
+	    7/8 bit operation with 1 start and 1 stop bit
+	    8 symbols deep fifo for rx and tx
+	    SW controlled RTS and SW readable CTS
+	    Clock rate derived from system clock
+	    Uses 8 times oversampling (compared to 16 times for 16650)
+	    Missing break detection (but break generation)
+	    Missing framing error detection
+	    Missing parity bit
+	    Missing receive time-out interrupt
+	    Missing DCD, DSR, DTR and RI signals
+
+	  If unsure, say N.
+
 config SERIAL_8250_FSL
 	bool
-	depends on SERIAL_8250_CONSOLE && PPC_UDBG_16550
-	default PPC
+	depends on SERIAL_8250_CONSOLE
+	default PPC || ARM || ARM64
 
 config SERIAL_8250_DW
 	tristate "Support for Synopsys DesignWare 8250 quirks"
@@ -293,8 +323,107 @@ config SERIAL_8250_EM
 
 config SERIAL_8250_RT288X
 	bool "Ralink RT288x/RT305x/RT3662/RT3883 serial port support"
-	depends on SERIAL_8250 && (SOC_RT288X || SOC_RT305X || SOC_RT3883)
+	depends on SERIAL_8250
+	depends on MIPS || COMPILE_TEST
+	default y if MIPS_ALCHEMY || SOC_RT288X || SOC_RT305X || SOC_RT3883 || SOC_MT7620
 	help
-	  If you have a Ralink RT288x/RT305x SoC based board and want to use the
-	  serial port, say Y to this option. The driver can handle up to 2 serial
-	  ports. If unsure, say N.
+	  Selecting this option will add support for the alternate register
+	  layout used by Ralink RT288x/RT305x, Alchemy Au1xxx, and some others.
+	  If unsure, say N.
+
+config SERIAL_8250_OMAP
+	tristate "Support for OMAP internal UART (8250 based driver)"
+	depends on SERIAL_8250 && ARCH_OMAP2PLUS
+	help
+	  If you have a machine based on an Texas Instruments OMAP CPU you
+	  can enable its onboard serial ports by enabling this option.
+
+	  This driver uses ttyS instead of ttyO.
+
+config SERIAL_8250_OMAP_TTYO_FIXUP
+	bool "Replace ttyO with ttyS"
+	depends on SERIAL_8250_OMAP=y && SERIAL_8250_CONSOLE
+	default y
+	help
+	  This option replaces the "console=ttyO" argument with the matching
+	  ttyS argument if the user did not specified it on the command line.
+	  This ensures that the user can see the kernel output during boot
+	  which he wouldn't see otherwise. The getty has still to be configured
+	  for ttyS instead of ttyO regardless of this option.
+	  This option is intended for people who "automatically" enable this
+	  driver without knowing that this driver requires a different console=
+	  argument. If you read this, please keep this option disabled and
+	  instead update your kernel command line. If you prepare a kernel for a
+	  distribution or other kind of larger user base then you probably want
+	  to keep this option enabled. Otherwise people might complain about a
+	  not booting kernel because the serial console remains silent in case
+	  they forgot to update the command line.
+
+config SERIAL_8250_FINTEK
+	tristate "Support for Fintek F81216A LPC to 4 UART"
+	depends on SERIAL_8250 && PNP
+	help
+	  Selecting this option will add support for the Fintek F81216A
+	  LPC to 4 UART. This device has some RS485 functionality not available
+	  through the PNP driver. If unsure, say N.
+
+config SERIAL_8250_LPC18XX
+	tristate "NXP LPC18xx/43xx serial port support"
+	depends on SERIAL_8250 && OF && (ARCH_LPC18XX || COMPILE_TEST)
+	default ARCH_LPC18XX
+	help
+	  If you have a LPC18xx/43xx based board and want to use the
+	  serial port, say Y to this option. If unsure, say Y.
+
+config SERIAL_8250_MT6577
+	tristate "Mediatek serial port support"
+	depends on SERIAL_8250 && ARCH_MEDIATEK
+	help
+	  If you have a Mediatek based board and want to use the
+	  serial port, say Y to this option. If unsure, say N.
+
+config SERIAL_8250_UNIPHIER
+	tristate "Support for UniPhier on-chip UART"
+	depends on SERIAL_8250 && ARCH_UNIPHIER
+	help
+	  If you have a UniPhier based board and want to use the on-chip
+	  serial ports, say Y to this option. If unsure, say N.
+
+config SERIAL_8250_INGENIC
+	tristate "Support for Ingenic SoC serial ports"
+	depends on SERIAL_8250
+	depends on (OF_FLATTREE && SERIAL_8250_CONSOLE) || !SERIAL_EARLYCON
+	depends on MIPS || COMPILE_TEST
+	help
+	  If you have a system using an Ingenic SoC and wish to make use of
+	  its UARTs, say Y to this option. If unsure, say N.
+
+config SERIAL_8250_MID
+	tristate "Support for serial ports on Intel MID platforms"
+	depends on SERIAL_8250 && PCI
+	select HSU_DMA if SERIAL_8250_DMA
+	select HSU_DMA_PCI if (HSU_DMA && X86_INTEL_MID)
+	select RATIONAL
+	help
+	  Selecting this option will enable handling of the extra features
+	  present on the UART found on Intel Medfield SOC and various other
+	  Intel platforms.
+
+config SERIAL_8250_MOXA
+	tristate "MOXA SmartIO MUE support"
+	depends on SERIAL_8250 && PCI
+	help
+	  Say Y here if you have a Moxa SmartIO MUE multiport serial card.
+	  If unsure, say N.
+
+	  This driver can also be built as a module. The module will be called
+	  8250_moxa. If you want to do that, say M here.
+
+config SERIAL_OF_PLATFORM
+	tristate "Devicetree based probing for 8250 ports"
+	depends on SERIAL_8250 && OF
+	help
+	  This option is used for all 8250 compatible serial ports that
+	  are probed through devicetree, including Open Firmware based
+	  PowerPC systems and embedded systems on architectures using the
+	  flattened device tree format.

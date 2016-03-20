@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -299,11 +299,13 @@ acpi_rs_set_resource_length(acpi_rsdesc_size total_length,
 			    union aml_resource *aml);
 
 /*
- * rsdump
+ * rsdump - Debugger support
  */
+#ifdef ACPI_DEBUGGER
 void acpi_rs_dump_resource_list(struct acpi_resource *resource);
 
-void acpi_rs_dump_irq_list(u8 * route_table);
+void acpi_rs_dump_irq_list(u8 *route_table);
+#endif
 
 /*
  * Resource conversion tables

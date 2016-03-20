@@ -2,6 +2,7 @@
 #define __DMI_H__
 
 #include <linux/list.h>
+#include <linux/kobject.h>
 #include <linux/mod_devicetable.h>
 
 /* enum dmi_field is in mod_devicetable.h */
@@ -21,6 +22,7 @@ enum dmi_device_type {
 	DMI_DEV_TYPE_IPMI = -1,
 	DMI_DEV_TYPE_OEM_STRING = -2,
 	DMI_DEV_TYPE_DEV_ONBOARD = -3,
+	DMI_DEV_TYPE_DEV_SLOT = -4,
 };
 
 enum dmi_entry_type {
@@ -74,7 +76,7 @@ struct dmi_header {
 	u8 type;
 	u8 length;
 	u16 handle;
-};
+} __packed;
 
 struct dmi_device {
 	struct list_head list;
@@ -93,6 +95,7 @@ struct dmi_dev_onboard {
 	int devfn;
 };
 
+extern struct kobject *dmi_kobj;
 extern int dmi_check_system(const struct dmi_system_id *list);
 const struct dmi_system_id *dmi_first_match(const struct dmi_system_id *list);
 extern const char * dmi_get_system_info(int field);

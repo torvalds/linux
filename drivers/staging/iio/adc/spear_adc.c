@@ -29,11 +29,11 @@
 #define SPEAR_ADC_CLK_HIGH(x)		(((x) & 0xf) << 4)
 
 /* Bit definitions for SPEAR_ADC_STATUS */
-#define SPEAR_ADC_STATUS_START_CONVERSION	(1 << 0)
+#define SPEAR_ADC_STATUS_START_CONVERSION	BIT(0)
 #define SPEAR_ADC_STATUS_CHANNEL_NUM(x)		((x) << 1)
-#define SPEAR_ADC_STATUS_ADC_ENABLE		(1 << 4)
+#define SPEAR_ADC_STATUS_ADC_ENABLE		BIT(4)
 #define SPEAR_ADC_STATUS_AVG_SAMPLE(x)		((x) << 5)
-#define SPEAR_ADC_STATUS_VREF_INTERNAL		(1 << 9)
+#define SPEAR_ADC_STATUS_VREF_INTERNAL		BIT(9)
 
 #define SPEAR_ADC_DATA_MASK		0x03ff
 #define SPEAR_ADC_DATA_BITS		10
@@ -98,7 +98,7 @@ static void spear_adc_set_clk(struct spear_adc_state *st, u32 val)
 	u32 clk_high, clk_low, count;
 	u32 apb_clk = clk_get_rate(st->clk);
 
-	count = (apb_clk + val - 1) / val;
+	count = DIV_ROUND_UP(apb_clk, val);
 	clk_low = count / 2;
 	clk_high = count - clk_low;
 	st->current_clk = apb_clk / count;
@@ -191,8 +191,8 @@ static int spear_adc_write_raw(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 
 	if ((val < SPEAR_ADC_CLK_MIN) ||
-		(val > SPEAR_ADC_CLK_MAX) ||
-		(val2 != 0)) {
+	    (val > SPEAR_ADC_CLK_MAX) ||
+	    (val2 != 0)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -226,7 +226,7 @@ static const struct iio_chan_spec spear_adc_iio_channels[] = {
 
 static irqreturn_t spear_adc_isr(int irq, void *dev_id)
 {
-	struct spear_adc_state *st = (struct spear_adc_state *)dev_id;
+	struct spear_adc_state *st = dev_id;
 
 	/* Read value to clear IRQ */
 	st->value = spear_adc_get_average(st);
@@ -262,6 +262,7 @@ static int spear_adc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct spear_adc_state *st;
+	struct resource *res;
 	struct iio_dev *indio_dev = NULL;
 	int ret = -ENODEV;
 	int irq;
@@ -280,45 +281,45 @@ static int spear_adc_probe(struct platform_device *pdev)
 	 * (e.g. SPEAr3xx). Let's provide two register base addresses
 	 * to support multi-arch kernels.
 	 */
-	st->adc_base_spear6xx = of_iomap(np, 0);
-	if (!st->adc_base_spear6xx) {
-		dev_err(dev, "failed mapping memory\n");
-		return -ENOMEM;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	st->adc_base_spear6xx = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(st->adc_base_spear6xx))
+		return PTR_ERR(st->adc_base_spear6xx);
+
 	st->adc_base_spear3xx =
 		(struct adc_regs_spear3xx __iomem *)st->adc_base_spear6xx;
 
-	st->clk = clk_get(dev, NULL);
+	st->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(st->clk)) {
 		dev_err(dev, "failed getting clock\n");
-		goto errout1;
+		return PTR_ERR(st->clk);
 	}
 
 	ret = clk_prepare_enable(st->clk);
 	if (ret) {
 		dev_err(dev, "failed enabling clock\n");
-		goto errout2;
+		return ret;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_err(dev, "failed getting interrupt resource\n");
 		ret = -EINVAL;
-		goto errout3;
+		goto errout2;
 	}
 
 	ret = devm_request_irq(dev, irq, spear_adc_isr, 0, SPEAR_ADC_MOD_NAME,
 			       st);
 	if (ret < 0) {
 		dev_err(dev, "failed requesting interrupt\n");
-		goto errout3;
+		goto errout2;
 	}
 
 	if (of_property_read_u32(np, "sampling-frequency",
 				 &st->sampling_freq)) {
 		dev_err(dev, "sampling-frequency missing in DT\n");
 		ret = -EINVAL;
-		goto errout3;
+		goto errout2;
 	}
 
 	/*
@@ -348,18 +349,14 @@ static int spear_adc_probe(struct platform_device *pdev)
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto errout3;
+		goto errout2;
 
 	dev_info(dev, "SPEAR ADC driver loaded, IRQ %d\n", irq);
 
 	return 0;
 
-errout3:
-	clk_disable_unprepare(st->clk);
 errout2:
-	clk_put(st->clk);
-errout1:
-	iounmap(st->adc_base_spear6xx);
+	clk_disable_unprepare(st->clk);
 	return ret;
 }
 
@@ -370,8 +367,6 @@ static int spear_adc_remove(struct platform_device *pdev)
 
 	iio_device_unregister(indio_dev);
 	clk_disable_unprepare(st->clk);
-	clk_put(st->clk);
-	iounmap(st->adc_base_spear6xx);
 
 	return 0;
 }
@@ -389,7 +384,6 @@ static struct platform_driver spear_adc_driver = {
 	.remove		= spear_adc_remove,
 	.driver		= {
 		.name	= SPEAR_ADC_MOD_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(spear_adc_dt_ids),
 	},
 };

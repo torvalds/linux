@@ -80,7 +80,7 @@ ENTRY(__get_user_8)
 ENDPROC(__get_user_8)
 
 #ifdef __ARMEB__
-ENTRY(__get_user_lo8)
+ENTRY(__get_user_32t_8)
 	check_uaccess r0, 8, r1, r2, __get_user_bad
 #ifdef CONFIG_CPU_USE_DOMAINS
 	add	r0, r0, #4
@@ -90,7 +90,37 @@ ENTRY(__get_user_lo8)
 #endif
 	mov	r0, #0
 	ret	lr
-ENDPROC(__get_user_lo8)
+ENDPROC(__get_user_32t_8)
+
+ENTRY(__get_user_64t_1)
+	check_uaccess r0, 1, r1, r2, __get_user_bad8
+8: TUSER(ldrb)	r3, [r0]
+	mov	r0, #0
+	ret	lr
+ENDPROC(__get_user_64t_1)
+
+ENTRY(__get_user_64t_2)
+	check_uaccess r0, 2, r1, r2, __get_user_bad8
+#ifdef CONFIG_CPU_USE_DOMAINS
+rb	.req	ip
+9:	ldrbt	r3, [r0], #1
+10:	ldrbt	rb, [r0], #0
+#else
+rb	.req	r0
+9:	ldrb	r3, [r0]
+10:	ldrb	rb, [r0, #1]
+#endif
+	orr	r3, rb, r3, lsl #8
+	mov	r0, #0
+	ret	lr
+ENDPROC(__get_user_64t_2)
+
+ENTRY(__get_user_64t_4)
+	check_uaccess r0, 4, r1, r2, __get_user_bad8
+11: TUSER(ldr)	r3, [r0]
+	mov	r0, #0
+	ret	lr
+ENDPROC(__get_user_64t_4)
 #endif
 
 __get_user_bad8:
@@ -111,5 +141,9 @@ ENDPROC(__get_user_bad8)
 	.long	6b, __get_user_bad8
 #ifdef __ARMEB__
 	.long   7b, __get_user_bad
+	.long	8b, __get_user_bad8
+	.long	9b, __get_user_bad8
+	.long	10b, __get_user_bad8
+	.long	11b, __get_user_bad8
 #endif
 .popsection

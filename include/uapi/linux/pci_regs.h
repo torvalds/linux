@@ -216,7 +216,8 @@
 #define  PCI_CAP_ID_MSIX	0x11	/* MSI-X */
 #define  PCI_CAP_ID_SATA	0x12	/* SATA Data/Index Conf. */
 #define  PCI_CAP_ID_AF		0x13	/* PCI Advanced Features */
-#define  PCI_CAP_ID_MAX		PCI_CAP_ID_AF
+#define  PCI_CAP_ID_EA		0x14	/* PCI Enhanced Allocation */
+#define  PCI_CAP_ID_MAX		PCI_CAP_ID_EA
 #define PCI_CAP_LIST_NEXT	1	/* Next capability in the list */
 #define PCI_CAP_FLAGS		2	/* Capability defined flags (16 bits) */
 #define PCI_CAP_SIZEOF		4
@@ -319,6 +320,7 @@
 #define PCI_MSIX_PBA		8	/* Pending Bit Array offset */
 #define  PCI_MSIX_PBA_BIR	0x00000007 /* BAR index */
 #define  PCI_MSIX_PBA_OFFSET	0xfffffff8 /* Offset into specified BAR */
+#define PCI_MSIX_FLAGS_BIRMASK	PCI_MSIX_PBA_BIR /* deprecated */
 #define PCI_CAP_MSIX_SIZEOF	12	/* size of MSIX registers */
 
 /* MSI-X Table entry format */
@@ -351,6 +353,46 @@
 #define PCI_AF_STATUS		5
 #define  PCI_AF_STATUS_TP	0x01
 #define PCI_CAP_AF_SIZEOF	6	/* size of AF registers */
+
+/* PCI Enhanced Allocation registers */
+
+#define PCI_EA_NUM_ENT		2	/* Number of Capability Entries */
+#define  PCI_EA_NUM_ENT_MASK	0x3f	/* Num Entries Mask */
+#define PCI_EA_FIRST_ENT	4	/* First EA Entry in List */
+#define PCI_EA_FIRST_ENT_BRIDGE	8	/* First EA Entry for Bridges */
+#define  PCI_EA_ES		0x00000007 /* Entry Size */
+#define  PCI_EA_BEI		0x000000f0 /* BAR Equivalent Indicator */
+/* 0-5 map to BARs 0-5 respectively */
+#define   PCI_EA_BEI_BAR0		0
+#define   PCI_EA_BEI_BAR5		5
+#define   PCI_EA_BEI_BRIDGE		6	/* Resource behind bridge */
+#define   PCI_EA_BEI_ENI		7	/* Equivalent Not Indicated */
+#define   PCI_EA_BEI_ROM		8	/* Expansion ROM */
+/* 9-14 map to VF BARs 0-5 respectively */
+#define   PCI_EA_BEI_VF_BAR0		9
+#define   PCI_EA_BEI_VF_BAR5		14
+#define   PCI_EA_BEI_RESERVED		15	/* Reserved - Treat like ENI */
+#define  PCI_EA_PP		0x0000ff00	/* Primary Properties */
+#define  PCI_EA_SP		0x00ff0000	/* Secondary Properties */
+#define   PCI_EA_P_MEM			0x00	/* Non-Prefetch Memory */
+#define   PCI_EA_P_MEM_PREFETCH		0x01	/* Prefetchable Memory */
+#define   PCI_EA_P_IO			0x02	/* I/O Space */
+#define   PCI_EA_P_VF_MEM_PREFETCH	0x03	/* VF Prefetchable Memory */
+#define   PCI_EA_P_VF_MEM		0x04	/* VF Non-Prefetch Memory */
+#define   PCI_EA_P_BRIDGE_MEM		0x05	/* Bridge Non-Prefetch Memory */
+#define   PCI_EA_P_BRIDGE_MEM_PREFETCH	0x06	/* Bridge Prefetchable Memory */
+#define   PCI_EA_P_BRIDGE_IO		0x07	/* Bridge I/O Space */
+/* 0x08-0xfc reserved */
+#define   PCI_EA_P_MEM_RESERVED		0xfd	/* Reserved Memory */
+#define   PCI_EA_P_IO_RESERVED		0xfe	/* Reserved I/O Space */
+#define   PCI_EA_P_UNAVAILABLE		0xff	/* Entry Unavailable */
+#define  PCI_EA_WRITABLE	0x40000000	/* Writable: 1 = RW, 0 = HwInit */
+#define  PCI_EA_ENABLE		0x80000000	/* Enable for this entry */
+#define PCI_EA_BASE		4		/* Base Address Offset */
+#define PCI_EA_MAX_OFFSET	8		/* MaxOffset (resource length) */
+/* bit 0 is reserved */
+#define  PCI_EA_IS_64		0x00000002	/* 64-bit field flag */
+#define  PCI_EA_FIELD_MASK	0xfffffffc	/* For Base & Max Offset */
 
 /* PCI-X registers (Type 0 (non-bridge) devices) */
 
@@ -451,6 +493,10 @@
 #define  PCI_EXP_DEVCTL_AUX_PME	0x0400	/* Auxiliary Power PM Enable */
 #define  PCI_EXP_DEVCTL_NOSNOOP_EN 0x0800  /* Enable No Snoop */
 #define  PCI_EXP_DEVCTL_READRQ	0x7000	/* Max_Read_Request_Size */
+#define  PCI_EXP_DEVCTL_READRQ_128B  0x0000 /* 128 Bytes */
+#define  PCI_EXP_DEVCTL_READRQ_256B  0x1000 /* 256 Bytes */
+#define  PCI_EXP_DEVCTL_READRQ_512B  0x2000 /* 512 Bytes */
+#define  PCI_EXP_DEVCTL_READRQ_1024B 0x3000 /* 1024 Bytes */
 #define  PCI_EXP_DEVCTL_BCR_FLR 0x8000  /* Bridge Configuration Retry / FLR */
 #define PCI_EXP_DEVSTA		10	/* Device Status */
 #define  PCI_EXP_DEVSTA_CED	0x0001	/* Correctable Error Detected */
@@ -552,6 +598,7 @@
 #define  PCI_EXP_RTCTL_PMEIE	0x0008	/* PME Interrupt Enable */
 #define  PCI_EXP_RTCTL_CRSSVE	0x0010	/* CRS Software Visibility Enable */
 #define PCI_EXP_RTCAP		30	/* Root Capabilities */
+#define  PCI_EXP_RTCAP_CRSVIS	0x0001	/* CRS Software Visibility capability */
 #define PCI_EXP_RTSTA		32	/* Root Status */
 #define PCI_EXP_RTSTA_PME	0x00010000 /* PME status */
 #define PCI_EXP_RTSTA_PENDING	0x00020000 /* PME pending */
@@ -630,7 +677,7 @@
 
 /* Advanced Error Reporting */
 #define PCI_ERR_UNCOR_STATUS	4	/* Uncorrectable Error Status */
-#define  PCI_ERR_UNC_TRAIN	0x00000001	/* Training */
+#define  PCI_ERR_UNC_UND	0x00000001	/* Undefined */
 #define  PCI_ERR_UNC_DLP	0x00000010	/* Data Link Protocol */
 #define  PCI_ERR_UNC_SURPDN	0x00000020	/* Surprise Down */
 #define  PCI_ERR_UNC_POISON_TLP	0x00001000	/* Poisoned TLP */

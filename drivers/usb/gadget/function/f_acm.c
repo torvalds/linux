@@ -21,7 +21,6 @@
 #include <linux/err.h>
 
 #include "u_serial.h"
-#include "gadget_chips.h"
 
 
 /*
@@ -313,15 +312,15 @@ static void acm_complete_set_line_coding(struct usb_ep *ep,
 	struct usb_composite_dev *cdev = acm->port.func.config->cdev;
 
 	if (req->status != 0) {
-		DBG(cdev, "acm ttyGS%d completion, err %d\n",
-				acm->port_num, req->status);
+		dev_dbg(&cdev->gadget->dev, "acm ttyGS%d completion, err %d\n",
+			acm->port_num, req->status);
 		return;
 	}
 
 	/* normal completion */
 	if (req->actual != sizeof(acm->port_line_coding)) {
-		DBG(cdev, "acm ttyGS%d short resp, len %d\n",
-				acm->port_num, req->actual);
+		dev_dbg(&cdev->gadget->dev, "acm ttyGS%d short resp, len %d\n",
+			acm->port_num, req->actual);
 		usb_ep_set_halt(ep);
 	} else {
 		struct usb_cdc_line_coding	*value = req->buf;
@@ -397,14 +396,16 @@ static int acm_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 
 	default:
 invalid:
-		VDBG(cdev, "invalid control req%02x.%02x v%04x i%04x l%d\n",
-			ctrl->bRequestType, ctrl->bRequest,
-			w_value, w_index, w_length);
+		dev_vdbg(&cdev->gadget->dev,
+			 "invalid control req%02x.%02x v%04x i%04x l%d\n",
+			 ctrl->bRequestType, ctrl->bRequest,
+			 w_value, w_index, w_length);
 	}
 
 	/* respond with data transfer or status phase? */
 	if (value >= 0) {
-		DBG(cdev, "acm ttyGS%d req%02x.%02x v%04x i%04x l%d\n",
+		dev_dbg(&cdev->gadget->dev,
+			"acm ttyGS%d req%02x.%02x v%04x i%04x l%d\n",
 			acm->port_num, ctrl->bRequestType, ctrl->bRequest,
 			w_value, w_index, w_length);
 		req->zero = 0;
@@ -427,24 +428,25 @@ static int acm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	/* we know alt == 0, so this is an activation or a reset */
 
 	if (intf == acm->ctrl_id) {
-		if (acm->notify->driver_data) {
-			VDBG(cdev, "reset acm control interface %d\n", intf);
-			usb_ep_disable(acm->notify);
-		} else {
-			VDBG(cdev, "init acm ctrl interface %d\n", intf);
+		dev_vdbg(&cdev->gadget->dev,
+				"reset acm control interface %d\n", intf);
+		usb_ep_disable(acm->notify);
+
+		if (!acm->notify->desc)
 			if (config_ep_by_speed(cdev->gadget, f, acm->notify))
 				return -EINVAL;
-		}
+
 		usb_ep_enable(acm->notify);
-		acm->notify->driver_data = acm;
 
 	} else if (intf == acm->data_id) {
-		if (acm->port.in->driver_data) {
-			DBG(cdev, "reset acm ttyGS%d\n", acm->port_num);
+		if (acm->notify->enabled) {
+			dev_dbg(&cdev->gadget->dev,
+				"reset acm ttyGS%d\n", acm->port_num);
 			gserial_disconnect(&acm->port);
 		}
 		if (!acm->port.in->desc || !acm->port.out->desc) {
-			DBG(cdev, "activate acm ttyGS%d\n", acm->port_num);
+			dev_dbg(&cdev->gadget->dev,
+				"activate acm ttyGS%d\n", acm->port_num);
 			if (config_ep_by_speed(cdev->gadget, f,
 					       acm->port.in) ||
 			    config_ep_by_speed(cdev->gadget, f,
@@ -467,10 +469,9 @@ static void acm_disable(struct usb_function *f)
 	struct f_acm	*acm = func_to_acm(f);
 	struct usb_composite_dev *cdev = f->config->cdev;
 
-	DBG(cdev, "acm ttyGS%d deactivated\n", acm->port_num);
+	dev_dbg(&cdev->gadget->dev, "acm ttyGS%d deactivated\n", acm->port_num);
 	gserial_disconnect(&acm->port);
 	usb_ep_disable(acm->notify);
-	acm->notify->driver_data = NULL;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -537,8 +538,8 @@ static int acm_notify_serial_state(struct f_acm *acm)
 
 	spin_lock(&acm->lock);
 	if (acm->notify_req) {
-		DBG(cdev, "acm ttyGS%d serial state %04x\n",
-				acm->port_num, acm->serial_state);
+		dev_dbg(&cdev->gadget->dev, "acm ttyGS%d serial state %04x\n",
+			acm->port_num, acm->serial_state);
 		status = acm_cdc_notify(acm, USB_CDC_NOTIFY_SERIAL_STATE,
 				0, &acm->serial_state, sizeof(acm->serial_state));
 	} else {
@@ -650,19 +651,16 @@ acm_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!ep)
 		goto fail;
 	acm->port.in = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	ep = usb_ep_autoconfig(cdev->gadget, &acm_fs_out_desc);
 	if (!ep)
 		goto fail;
 	acm->port.out = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	ep = usb_ep_autoconfig(cdev->gadget, &acm_fs_notify_desc);
 	if (!ep)
 		goto fail;
 	acm->notify = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	/* allocate notification */
 	acm->notify_req = gs_alloc_req(ep,
@@ -687,29 +685,22 @@ acm_bind(struct usb_configuration *c, struct usb_function *f)
 	acm_ss_out_desc.bEndpointAddress = acm_fs_out_desc.bEndpointAddress;
 
 	status = usb_assign_descriptors(f, acm_fs_function, acm_hs_function,
-			acm_ss_function);
+			acm_ss_function, NULL);
 	if (status)
 		goto fail;
 
-	DBG(cdev, "acm ttyGS%d: %s speed IN/%s OUT/%s NOTIFY/%s\n",
-			acm->port_num,
-			gadget_is_superspeed(c->cdev->gadget) ? "super" :
-			gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
-			acm->port.in->name, acm->port.out->name,
-			acm->notify->name);
+	dev_dbg(&cdev->gadget->dev,
+		"acm ttyGS%d: %s speed IN/%s OUT/%s NOTIFY/%s\n",
+		acm->port_num,
+		gadget_is_superspeed(c->cdev->gadget) ? "super" :
+		gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
+		acm->port.in->name, acm->port.out->name,
+		acm->notify->name);
 	return 0;
 
 fail:
 	if (acm->notify_req)
 		gs_free_req(acm->notify, acm->notify_req);
-
-	/* we might as well release our claims on endpoints */
-	if (acm->notify)
-		acm->notify->driver_data = NULL;
-	if (acm->port.out)
-		acm->port.out->driver_data = NULL;
-	if (acm->port.in)
-		acm->port.in->driver_data = NULL;
 
 	ERROR(cdev, "%s/%p: can't bind, err %d\n", f->name, f, status);
 
@@ -770,21 +761,6 @@ static inline struct f_serial_opts *to_f_serial_opts(struct config_item *item)
 			func_inst.group);
 }
 
-CONFIGFS_ATTR_STRUCT(f_serial_opts);
-static ssize_t f_acm_attr_show(struct config_item *item,
-				 struct configfs_attribute *attr,
-				 char *page)
-{
-	struct f_serial_opts *opts = to_f_serial_opts(item);
-	struct f_serial_opts_attribute *f_serial_opts_attr =
-		container_of(attr, struct f_serial_opts_attribute, attr);
-	ssize_t ret = 0;
-
-	if (f_serial_opts_attr->show)
-		ret = f_serial_opts_attr->show(opts, page);
-	return ret;
-}
-
 static void acm_attr_release(struct config_item *item)
 {
 	struct f_serial_opts *opts = to_f_serial_opts(item);
@@ -794,20 +770,17 @@ static void acm_attr_release(struct config_item *item)
 
 static struct configfs_item_operations acm_item_ops = {
 	.release                = acm_attr_release,
-	.show_attribute		= f_acm_attr_show,
 };
 
-static ssize_t f_acm_port_num_show(struct f_serial_opts *opts, char *page)
+static ssize_t f_acm_port_num_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%u\n", opts->port_num);
+	return sprintf(page, "%u\n", to_f_serial_opts(item)->port_num);
 }
 
-static struct f_serial_opts_attribute f_acm_port_num =
-	__CONFIGFS_ATTR_RO(port_num, f_acm_port_num_show);
-
+CONFIGFS_ATTR_RO(f_acm_, port_num);
 
 static struct configfs_attribute *acm_attrs[] = {
-	&f_acm_port_num.attr,
+	&f_acm_attr_port_num,
 	NULL,
 };
 

@@ -58,6 +58,10 @@ static inline int is_pci_memory(u32 addr)
 #define writew(v, p)			__indirect_writew(v, p)
 #define writel(v, p)			__indirect_writel(v, p)
 
+#define writeb_relaxed(v, p)		__indirect_writeb(v, p)
+#define writew_relaxed(v, p)		__indirect_writew(v, p)
+#define writel_relaxed(v, p)		__indirect_writel(v, p)
+
 #define writesb(p, v, l)		__indirect_writesb(p, v, l)
 #define writesw(p, v, l)		__indirect_writesw(p, v, l)
 #define writesl(p, v, l)		__indirect_writesl(p, v, l)
@@ -65,6 +69,10 @@ static inline int is_pci_memory(u32 addr)
 #define readb(p)			__indirect_readb(p)
 #define readw(p)			__indirect_readw(p)
 #define readl(p)			__indirect_readl(p)
+
+#define readb_relaxed(p)		__indirect_readb(p)
+#define readw_relaxed(p)		__indirect_readw(p)
+#define readl_relaxed(p)		__indirect_readl(p)
 
 #define readsb(p, v, l)			__indirect_readsb(p, v, l)
 #define readsw(p, v, l)			__indirect_readsw(p, v, l)
@@ -76,7 +84,7 @@ static inline void __indirect_writeb(u8 value, volatile void __iomem *p)
 	u32 n, byte_enables, data;
 
 	if (!is_pci_memory(addr)) {
-		__raw_writeb(value, addr);
+		__raw_writeb(value, p);
 		return;
 	}
 
@@ -99,7 +107,7 @@ static inline void __indirect_writew(u16 value, volatile void __iomem *p)
 	u32 n, byte_enables, data;
 
 	if (!is_pci_memory(addr)) {
-		__raw_writew(value, addr);
+		__raw_writew(value, p);
 		return;
 	}
 
@@ -135,13 +143,13 @@ static inline void __indirect_writesl(volatile void __iomem *bus_addr,
 		writel(*vaddr++, bus_addr);
 }
 
-static inline unsigned char __indirect_readb(const volatile void __iomem *p)
+static inline u8 __indirect_readb(const volatile void __iomem *p)
 {
 	u32 addr = (u32)p;
 	u32 n, byte_enables, data;
 
 	if (!is_pci_memory(addr))
-		return __raw_readb(addr);
+		return __raw_readb(p);
 
 	n = addr % 4;
 	byte_enables = (0xf & ~BIT(n)) << IXP4XX_PCI_NP_CBE_BESL;
@@ -158,13 +166,13 @@ static inline void __indirect_readsb(const volatile void __iomem *bus_addr,
 		*vaddr++ = readb(bus_addr);
 }
 
-static inline unsigned short __indirect_readw(const volatile void __iomem *p)
+static inline u16 __indirect_readw(const volatile void __iomem *p)
 {
 	u32 addr = (u32)p;
 	u32 n, byte_enables, data;
 
 	if (!is_pci_memory(addr))
-		return __raw_readw(addr);
+		return __raw_readw(p);
 
 	n = addr % 4;
 	byte_enables = (0xf & ~(BIT(n) | BIT(n+1))) << IXP4XX_PCI_NP_CBE_BESL;
@@ -181,7 +189,7 @@ static inline void __indirect_readsw(const volatile void __iomem *bus_addr,
 		*vaddr++ = readw(bus_addr);
 }
 
-static inline unsigned long __indirect_readl(const volatile void __iomem *p)
+static inline u32 __indirect_readl(const volatile void __iomem *p)
 {
 	u32 addr = (__force u32)p;
 	u32 data;
@@ -226,6 +234,7 @@ static inline void __indirect_readsl(const volatile void __iomem *bus_addr,
  * I/O functions.
  */
 
+#define outb outb
 static inline void outb(u8 value, u32 addr)
 {
 	u32 n, byte_enables, data;
@@ -235,12 +244,16 @@ static inline void outb(u8 value, u32 addr)
 	ixp4xx_pci_write(addr, byte_enables | NP_CMD_IOWRITE, data);
 }
 
-static inline void outsb(u32 io_addr, const u8 *vaddr, u32 count)
+#define outsb outsb
+static inline void outsb(u32 io_addr, const void *p, u32 count)
 {
+	const u8 *vaddr = p;
+
 	while (count--)
 		outb(*vaddr++, io_addr);
 }
 
+#define outw outw
 static inline void outw(u16 value, u32 addr)
 {
 	u32 n, byte_enables, data;
@@ -250,23 +263,29 @@ static inline void outw(u16 value, u32 addr)
 	ixp4xx_pci_write(addr, byte_enables | NP_CMD_IOWRITE, data);
 }
 
-static inline void outsw(u32 io_addr, const u16 *vaddr, u32 count)
+#define outsw outsw
+static inline void outsw(u32 io_addr, const void *p, u32 count)
 {
+	const u16 *vaddr = p;
 	while (count--)
 		outw(cpu_to_le16(*vaddr++), io_addr);
 }
 
+#define outl outl
 static inline void outl(u32 value, u32 addr)
 {
 	ixp4xx_pci_write(addr, NP_CMD_IOWRITE, value);
 }
 
-static inline void outsl(u32 io_addr, const u32 *vaddr, u32 count)
+#define outsl outsl
+static inline void outsl(u32 io_addr, const void *p, u32 count)
 {
+	const u32 *vaddr = p;
 	while (count--)
 		outl(cpu_to_le32(*vaddr++), io_addr);
 }
 
+#define inb inb
 static inline u8 inb(u32 addr)
 {
 	u32 n, byte_enables, data;
@@ -278,12 +297,15 @@ static inline u8 inb(u32 addr)
 	return data >> (8*n);
 }
 
-static inline void insb(u32 io_addr, u8 *vaddr, u32 count)
+#define insb insb
+static inline void insb(u32 io_addr, void *p, u32 count)
 {
+	u8 *vaddr = p;
 	while (count--)
 		*vaddr++ = inb(io_addr);
 }
 
+#define inw inw
 static inline u16 inw(u32 addr)
 {
 	u32 n, byte_enables, data;
@@ -295,12 +317,15 @@ static inline u16 inw(u32 addr)
 	return data>>(8*n);
 }
 
-static inline void insw(u32 io_addr, u16 *vaddr, u32 count)
+#define insw insw
+static inline void insw(u32 io_addr, void *p, u32 count)
 {
+	u16 *vaddr = p;
 	while (count--)
 		*vaddr++ = le16_to_cpu(inw(io_addr));
 }
 
+#define inl inl
 static inline u32 inl(u32 addr)
 {
 	u32 data;
@@ -310,8 +335,10 @@ static inline u32 inl(u32 addr)
 	return data;
 }
 
-static inline void insl(u32 io_addr, u32 *vaddr, u32 count)
+#define insl insl
+static inline void insl(u32 io_addr, void *p, u32 count)
 {
+	u32 *vaddr = p;
 	while (count--)
 		*vaddr++ = le32_to_cpu(inl(io_addr));
 }
@@ -323,7 +350,7 @@ static inline void insl(u32 io_addr, u32 *vaddr, u32 count)
 					((unsigned long)p <= (PIO_MASK + PIO_OFFSET)))
 
 #define	ioread8(p)			ioread8(p)
-static inline unsigned int ioread8(const void __iomem *addr)
+static inline u8 ioread8(const void __iomem *addr)
 {
 	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
@@ -351,7 +378,7 @@ static inline void ioread8_rep(const void __iomem *addr, void *vaddr, u32 count)
 }
 
 #define	ioread16(p)			ioread16(p)
-static inline unsigned int ioread16(const void __iomem *addr)
+static inline u16 ioread16(const void __iomem *addr)
 {
 	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))
@@ -380,7 +407,7 @@ static inline void ioread16_rep(const void __iomem *addr, void *vaddr,
 }
 
 #define	ioread32(p)			ioread32(p)
-static inline unsigned int ioread32(const void __iomem *addr)
+static inline u32 ioread32(const void __iomem *addr)
 {
 	unsigned long port = (unsigned long __force)addr;
 	if (__is_io_address(port))

@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <asm/unaligned.h>
+#include <sound/hda_chmap.h>
 #include "hda_codec.h"
 #include "hda_local.h"
 
@@ -42,21 +43,7 @@ enum cea_edid_versions {
 	CEA_EDID_VER_RESERVED	= 4,
 };
 
-static char *cea_speaker_allocation_names[] = {
-	/*  0 */ "FL/FR",
-	/*  1 */ "LFE",
-	/*  2 */ "FC",
-	/*  3 */ "RL/RR",
-	/*  4 */ "RC",
-	/*  5 */ "FLC/FRC",
-	/*  6 */ "RLC/RRC",
-	/*  7 */ "FLW/FRW",
-	/*  8 */ "FLH/FRH",
-	/*  9 */ "TC",
-	/* 10 */ "FCH",
-};
-
-static char *eld_connection_type_names[4] = {
+static const char * const eld_connection_type_names[4] = {
 	"HDMI",
 	"DisplayPort",
 	"2-reserved",
@@ -94,7 +81,7 @@ enum cea_audio_coding_xtypes {
 	AUDIO_CODING_XTYPE_FIRST_RESERVED	= 4,
 };
 
-static char *cea_audio_coding_type_names[] = {
+static const char * const cea_audio_coding_type_names[] = {
 	/*  0 */ "undefined",
 	/*  1 */ "LPCM",
 	/*  2 */ "AC-3",
@@ -253,6 +240,7 @@ int snd_hdmi_parse_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e,
 	int mnl;
 	int i;
 
+	memset(e, 0, sizeof(*e));
 	e->eld_ver = GRAB_BITS(buf, 0, 3, 5);
 	if (e->eld_ver != ELD_VER_CEA_861D &&
 	    e->eld_ver != ELD_VER_PARTIAL) {
@@ -371,7 +359,7 @@ error:
 	return ret;
 }
 
-/**
+/*
  * SNDRV_PCM_RATE_* and AC_PAR_PCM values don't match, print correct rates with
  * hdmi-specific routine.
  */
@@ -418,18 +406,6 @@ static void hdmi_show_short_audio_desc(struct hda_codec *codec,
 		  a->channels, buf, buf2);
 }
 
-void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen)
-{
-	int i, j;
-
-	for (i = 0, j = 0; i < ARRAY_SIZE(cea_speaker_allocation_names); i++) {
-		if (spk_alloc & (1 << i))
-			j += snprintf(buf + j, buflen - j,  " %s",
-					cea_speaker_allocation_names[i]);
-	}
-	buf[j] = '\0';	/* necessary when j == 0 */
-}
-
 void snd_hdmi_show_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e)
 {
 	int i;
@@ -440,7 +416,7 @@ void snd_hdmi_show_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e)
 
 	if (e->spk_alloc) {
 		char buf[SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
-		snd_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
+		snd_hdac_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
 		codec_dbg(codec, "HDMI: available speakers:%s\n", buf);
 	}
 
@@ -448,7 +424,7 @@ void snd_hdmi_show_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e)
 		hdmi_show_short_audio_desc(codec, e->sad + i);
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 
 static void hdmi_print_sad_info(int i, struct cea_sad *a,
 				struct snd_info_buffer *buffer)
@@ -482,14 +458,14 @@ void snd_hdmi_print_eld_info(struct hdmi_eld *eld,
 	struct parsed_hdmi_eld *e = &eld->info;
 	char buf[SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
 	int i;
-	static char *eld_version_names[32] = {
+	static const char * const eld_version_names[32] = {
 		"reserved",
 		"reserved",
 		"CEA-861D or below",
 		[3 ... 30] = "reserved",
 		[31] = "partial"
 	};
-	static char *cea_edid_version_names[8] = {
+	static const char * const cea_edid_version_names[8] = {
 		"no CEA EDID Timing Extension block present",
 		"CEA-861",
 		"CEA-861-A",
@@ -515,7 +491,7 @@ void snd_hdmi_print_eld_info(struct hdmi_eld *eld,
 	snd_iprintf(buffer, "support_ai\t\t%d\n", e->support_ai);
 	snd_iprintf(buffer, "audio_sync_delay\t%d\n", e->aud_synch_delay);
 
-	snd_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
+	snd_hdac_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
 	snd_iprintf(buffer, "speakers\t\t[0x%x]%s\n", e->spk_alloc, buf);
 
 	snd_iprintf(buffer, "sad_count\t\t%d\n", e->sad_count);
@@ -586,7 +562,7 @@ void snd_hdmi_write_eld_info(struct hdmi_eld *eld,
 		}
 	}
 }
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SND_PROC_FS */
 
 /* update PCM info based on ELD */
 void snd_hdmi_eld_update_pcm_info(struct parsed_hdmi_eld *e,

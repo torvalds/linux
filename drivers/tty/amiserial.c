@@ -32,7 +32,6 @@
 #include <linux/delay.h>
 
 #undef SERIAL_PARANOIA_CHECK
-#define SERIAL_DO_RESTART
 
 /* Set of debugging defines */
 
@@ -640,7 +639,7 @@ static void shutdown(struct tty_struct *tty, struct serial_state *info)
 	custom.adkcon = AC_UARTBRK;
 	mb();
 
-	if (tty->termios.c_cflag & HUPCL)
+	if (C_HUPCL(tty))
 		info->MCR &= ~(SER_DTR|SER_RTS);
 	rtsdtr_ctrl(info->MCR);
 
@@ -931,7 +930,7 @@ static void rs_send_xchar(struct tty_struct *tty, char ch)
 	struct serial_state *info = tty->driver_data;
         unsigned long flags;
 
-	if (serial_paranoia_check(info, tty->name, "rs_send_char"))
+	if (serial_paranoia_check(info, tty->name, "rs_send_xchar"))
 		return;
 
 	info->x_char = ch;
@@ -966,10 +965,7 @@ static void rs_throttle(struct tty_struct * tty)
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
 #ifdef SERIAL_DEBUG_THROTTLE
-	char	buf[64];
-
-	printk("throttle %s: %d....\n", tty_name(tty, buf),
-	       tty->ldisc.chars_in_buffer(tty));
+	printk("throttle %s ....\n", tty_name(tty));
 #endif
 
 	if (serial_paranoia_check(info, tty->name, "rs_throttle"))
@@ -978,7 +974,7 @@ static void rs_throttle(struct tty_struct * tty)
 	if (I_IXOFF(tty))
 		rs_send_xchar(tty, STOP_CHAR(tty));
 
-	if (tty->termios.c_cflag & CRTSCTS)
+	if (C_CRTSCTS(tty))
 		info->MCR &= ~SER_RTS;
 
 	local_irq_save(flags);
@@ -991,10 +987,7 @@ static void rs_unthrottle(struct tty_struct * tty)
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
 #ifdef SERIAL_DEBUG_THROTTLE
-	char	buf[64];
-
-	printk("unthrottle %s: %d....\n", tty_name(tty, buf),
-	       tty->ldisc.chars_in_buffer(tty));
+	printk("unthrottle %s ....\n", tty_name(tty));
 #endif
 
 	if (serial_paranoia_check(info, tty->name, "rs_unthrottle"))
@@ -1006,7 +999,7 @@ static void rs_unthrottle(struct tty_struct * tty)
 		else
 			rs_send_xchar(tty, START_CHAR(tty));
 	}
-	if (tty->termios.c_cflag & CRTSCTS)
+	if (C_CRTSCTS(tty))
 		info->MCR |= SER_RTS;
 	local_irq_save(flags);
 	rtsdtr_ctrl(info->MCR);
@@ -1339,8 +1332,7 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	change_speed(tty, info, old_termios);
 
 	/* Handle transition to B0 status */
-	if ((old_termios->c_cflag & CBAUD) &&
-	    !(cflag & CBAUD)) {
+	if ((old_termios->c_cflag & CBAUD) && !(cflag & CBAUD)) {
 		info->MCR &= ~(SER_DTR|SER_RTS);
 		local_irq_save(flags);
 		rtsdtr_ctrl(info->MCR);
@@ -1348,21 +1340,17 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	}
 
 	/* Handle transition away from B0 status */
-	if (!(old_termios->c_cflag & CBAUD) &&
-	    (cflag & CBAUD)) {
+	if (!(old_termios->c_cflag & CBAUD) && (cflag & CBAUD)) {
 		info->MCR |= SER_DTR;
-		if (!(tty->termios.c_cflag & CRTSCTS) || 
-		    !test_bit(TTY_THROTTLED, &tty->flags)) {
+		if (!C_CRTSCTS(tty) || !test_bit(TTY_THROTTLED, &tty->flags))
 			info->MCR |= SER_RTS;
-		}
 		local_irq_save(flags);
 		rtsdtr_ctrl(info->MCR);
 		local_irq_restore(flags);
 	}
 
 	/* Handle turning off CRTSCTS */
-	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios.c_cflag & CRTSCTS)) {
+	if ((old_termios->c_cflag & CRTSCTS) && !C_CRTSCTS(tty)) {
 		tty->hw_stopped = 0;
 		rs_start(tty);
 	}
@@ -1374,8 +1362,7 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	 * XXX  It's not clear whether the current behavior is correct
 	 * or not.  Hence, this may change.....
 	 */
-	if (!(old_termios->c_cflag & CLOCAL) &&
-	    (tty->termios.c_cflag & CLOCAL))
+	if (!(old_termios->c_cflag & CLOCAL) && C_CLOCAL(tty))
 		wake_up_interruptible(&info->open_wait);
 #endif
 }
@@ -1786,7 +1773,8 @@ static int __exit amiga_serial_remove(struct platform_device *pdev)
 	struct serial_state *state = platform_get_drvdata(pdev);
 
 	/* printk("Unloading %s: version %s\n", serial_name, serial_version); */
-	if ((error = tty_unregister_driver(serial_driver)))
+	error = tty_unregister_driver(serial_driver);
+	if (error)
 		printk("SERIAL: failed to unregister serial driver (%d)\n",
 		       error);
 	put_tty_driver(serial_driver);
@@ -1802,7 +1790,6 @@ static struct platform_driver amiga_serial_driver = {
 	.remove = __exit_p(amiga_serial_remove),
 	.driver   = {
 		.name	= "amiga-serial",
-		.owner	= THIS_MODULE,
 	},
 };
 

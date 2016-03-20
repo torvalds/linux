@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2016  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -15,9 +15,87 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
 #include "gateway_common.h"
+#include "main.h"
+
+#include <linux/atomic.h>
+#include <linux/errno.h>
+#include <linux/byteorder/generic.h>
+#include <linux/kernel.h>
+#include <linux/math64.h>
+#include <linux/netdevice.h>
+#include <linux/stddef.h>
+#include <linux/string.h>
+
 #include "gateway_client.h"
+#include "packet.h"
+
+/**
+ * batadv_parse_throughput - parse supplied string buffer to extract throughput
+ *  information
+ * @net_dev: the soft interface net device
+ * @buff: string buffer to parse
+ * @description: text shown when throughput string cannot be parsed
+ * @throughput: pointer holding the returned throughput information
+ *
+ * Return: false on parse error and true otherwise.
+ */
+bool batadv_parse_throughput(struct net_device *net_dev, char *buff,
+			     const char *description, u32 *throughput)
+{
+	enum batadv_bandwidth_units bw_unit_type = BATADV_BW_UNIT_KBIT;
+	u64 lthroughput;
+	char *tmp_ptr;
+	int ret;
+
+	if (strlen(buff) > 4) {
+		tmp_ptr = buff + strlen(buff) - 4;
+
+		if (strncasecmp(tmp_ptr, "mbit", 4) == 0)
+			bw_unit_type = BATADV_BW_UNIT_MBIT;
+
+		if ((strncasecmp(tmp_ptr, "kbit", 4) == 0) ||
+		    (bw_unit_type == BATADV_BW_UNIT_MBIT))
+			*tmp_ptr = '\0';
+	}
+
+	ret = kstrtou64(buff, 10, &lthroughput);
+	if (ret) {
+		batadv_err(net_dev,
+			   "Invalid throughput speed for %s: %s\n",
+			   description, buff);
+		return false;
+	}
+
+	switch (bw_unit_type) {
+	case BATADV_BW_UNIT_MBIT:
+		/* prevent overflow */
+		if (U64_MAX / 10 < lthroughput) {
+			batadv_err(net_dev,
+				   "Throughput speed for %s too large: %s\n",
+				   description, buff);
+			return false;
+		}
+
+		lthroughput *= 10;
+		break;
+	case BATADV_BW_UNIT_KBIT:
+	default:
+		lthroughput = div_u64(lthroughput, 100);
+		break;
+	}
+
+	if (lthroughput > U32_MAX) {
+		batadv_err(net_dev,
+			   "Throughput speed for %s too large: %s\n",
+			   description, buff);
+		return false;
+	}
+
+	*throughput = lthroughput;
+
+	return true;
+}
 
 /**
  * batadv_parse_gw_bandwidth - parse supplied string buffer to extract download
@@ -27,81 +105,29 @@
  * @down: pointer holding the returned download bandwidth information
  * @up: pointer holding the returned upload bandwidth information
  *
- * Returns false on parse error and true otherwise.
+ * Return: false on parse error and true otherwise.
  */
 static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
-				      uint32_t *down, uint32_t *up)
+				      u32 *down, u32 *up)
 {
-	enum batadv_bandwidth_units bw_unit_type = BATADV_BW_UNIT_KBIT;
-	char *slash_ptr, *tmp_ptr;
-	long ldown, lup;
-	int ret;
+	char *slash_ptr;
+	bool ret;
 
 	slash_ptr = strchr(buff, '/');
 	if (slash_ptr)
 		*slash_ptr = 0;
 
-	if (strlen(buff) > 4) {
-		tmp_ptr = buff + strlen(buff) - 4;
-
-		if (strnicmp(tmp_ptr, "mbit", 4) == 0)
-			bw_unit_type = BATADV_BW_UNIT_MBIT;
-
-		if ((strnicmp(tmp_ptr, "kbit", 4) == 0) ||
-		    (bw_unit_type == BATADV_BW_UNIT_MBIT))
-			*tmp_ptr = '\0';
-	}
-
-	ret = kstrtol(buff, 10, &ldown);
-	if (ret) {
-		batadv_err(net_dev,
-			   "Download speed of gateway mode invalid: %s\n",
-			   buff);
+	ret = batadv_parse_throughput(net_dev, buff, "download gateway speed",
+				      down);
+	if (!ret)
 		return false;
-	}
-
-	switch (bw_unit_type) {
-	case BATADV_BW_UNIT_MBIT:
-		*down = ldown * 10;
-		break;
-	case BATADV_BW_UNIT_KBIT:
-	default:
-		*down = ldown / 100;
-		break;
-	}
 
 	/* we also got some upload info */
 	if (slash_ptr) {
-		bw_unit_type = BATADV_BW_UNIT_KBIT;
-
-		if (strlen(slash_ptr + 1) > 4) {
-			tmp_ptr = slash_ptr + 1 - 4 + strlen(slash_ptr + 1);
-
-			if (strnicmp(tmp_ptr, "mbit", 4) == 0)
-				bw_unit_type = BATADV_BW_UNIT_MBIT;
-
-			if ((strnicmp(tmp_ptr, "kbit", 4) == 0) ||
-			    (bw_unit_type == BATADV_BW_UNIT_MBIT))
-				*tmp_ptr = '\0';
-		}
-
-		ret = kstrtol(slash_ptr + 1, 10, &lup);
-		if (ret) {
-			batadv_err(net_dev,
-				   "Upload speed of gateway mode invalid: %s\n",
-				   slash_ptr + 1);
+		ret = batadv_parse_throughput(net_dev, slash_ptr + 1,
+					      "upload gateway speed", up);
+		if (!ret)
 			return false;
-		}
-
-		switch (bw_unit_type) {
-		case BATADV_BW_UNIT_MBIT:
-			*up = lup * 10;
-			break;
-		case BATADV_BW_UNIT_KBIT:
-		default:
-			*up = lup / 100;
-			break;
-		}
 	}
 
 	return true;
@@ -115,7 +141,7 @@ static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv)
 {
 	struct batadv_tvlv_gateway_data gw;
-	uint32_t down, up;
+	u32 down, up;
 	char gw_mode;
 
 	gw_mode = atomic_read(&bat_priv->gw_mode);
@@ -140,7 +166,10 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 				size_t count)
 {
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	uint32_t down_curr, up_curr, down_new = 0, up_new = 0;
+	u32 down_curr;
+	u32 up_curr;
+	u32 down_new = 0;
+	u32 up_new = 0;
 	bool ret;
 
 	down_curr = (unsigned int)atomic_read(&bat_priv->gw.bandwidth_down);
@@ -148,7 +177,7 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 
 	ret = batadv_parse_gw_bandwidth(net_dev, buff, &down_new, &up_new);
 	if (!ret)
-		goto end;
+		return -EINVAL;
 
 	if (!down_new)
 		down_new = 1;
@@ -172,7 +201,6 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 	atomic_set(&bat_priv->gw.bandwidth_up, up_new);
 	batadv_gw_tvlv_container_update(bat_priv);
 
-end:
 	return count;
 }
 
@@ -186,9 +214,8 @@ end:
  */
 static void batadv_gw_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 					  struct batadv_orig_node *orig,
-					  uint8_t flags,
-					  void *tvlv_value,
-					  uint16_t tvlv_value_len)
+					  u8 flags,
+					  void *tvlv_value, u16 tvlv_value_len)
 {
 	struct batadv_tvlv_gateway_data gateway, *gateway_ptr;
 

@@ -28,7 +28,7 @@ static struct cpuidle_governor * __cpuidle_find_governor(const char *str)
 	struct cpuidle_governor *gov;
 
 	list_for_each_entry(gov, &cpuidle_governors, governor_list)
-		if (!strnicmp(str, gov->name, CPUIDLE_NAME_LEN))
+		if (!strncasecmp(str, gov->name, CPUIDLE_NAME_LEN))
 			return gov;
 
 	return NULL;

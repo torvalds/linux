@@ -85,8 +85,9 @@ typedef unsigned int u32;
 #define MOVE_MEDIUM			0xa5
 #define EXCHANGE_MEDIUM			0xa6
 #define READ_12				0xa8
+#define SERVICE_ACTION_OUT_12		0xa9
 #define WRITE_12			0xaa
-#define READ_MEDIA_SERIAL_NUMBER	0xab
+#define SERVICE_ACTION_IN_12		0xab
 #define WRITE_VERIFY_12			0xae
 #define VERIFY_12			0xaf
 #define SEARCH_HIGH_12			0xb0
@@ -107,7 +108,9 @@ typedef unsigned int u32;
 #define VERIFY_16			0x8f
 #define SYNCHRONIZE_CACHE_16		0x91
 #define WRITE_SAME_16			0x93
-#define SERVICE_ACTION_IN		0x9e
+#define SERVICE_ACTION_BIDIRECTIONAL	0x9d
+#define SERVICE_ACTION_IN_16		0x9e
+#define SERVICE_ACTION_OUT_16		0x9f
 /* values for service action in */
 #define	SAI_READ_CAPACITY_16		0x10
 #define SAI_GET_LBA_STATUS		0x12
@@ -393,7 +396,7 @@ scsi_trace_parse_cdb(struct trace_seq *p, unsigned char *cdb, int len)
 		return scsi_trace_rw16(p, cdb, len);
 	case UNMAP:
 		return scsi_trace_unmap(p, cdb, len);
-	case SERVICE_ACTION_IN:
+	case SERVICE_ACTION_IN_16:
 		return scsi_trace_service_action_in(p, cdb, len);
 	case VARIABLE_LENGTH_CMD:
 		return scsi_trace_varlen(p, cdb, len);

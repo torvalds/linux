@@ -57,7 +57,7 @@
 #include "ivtv-gpio.h"
 #include <linux/dma-mapping.h>
 #include <media/tveeprom.h>
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 #include "tuner-xc2028.h"
 
 /* If you have already X v4l cards, then set this to X. This way
@@ -826,7 +826,7 @@ static void ivtv_init_struct2(struct ivtv *itv)
 				IVTV_CARD_INPUT_VID_TUNER)
 			break;
 	}
-	if (i == itv->nof_inputs)
+	if (i >= itv->nof_inputs)
 		i = 0;
 	itv->active_input = i;
 	itv->audio_input = itv->card->video_inputs[i].audio_index;
@@ -1284,7 +1284,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	return 0;
 
 free_streams:
-	ivtv_streams_cleanup(itv, 1);
+	ivtv_streams_cleanup(itv);
 free_irq:
 	free_irq(itv->pdev->irq, (void *)itv);
 free_i2c:
@@ -1444,7 +1444,7 @@ static void ivtv_remove(struct pci_dev *pdev)
 	flush_kthread_worker(&itv->irq_worker);
 	kthread_stop(itv->irq_worker_task);
 
-	ivtv_streams_cleanup(itv, 1);
+	ivtv_streams_cleanup(itv);
 	ivtv_udma_free(itv);
 
 	v4l2_ctrl_handler_free(&itv->cxhdl.hdl);

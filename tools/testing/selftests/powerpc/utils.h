@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <linux/auxvec.h>
 
 /* Avoid headaches with PRI?64 - just use %ll? always */
 typedef unsigned long long u64;
@@ -15,11 +16,18 @@ typedef   signed long long s64;
 
 /* Just for familiarity */
 typedef uint32_t u32;
+typedef uint16_t u16;
 typedef uint8_t u8;
 
 
 int test_harness(int (test_function)(void), char *name);
+extern void *get_auxv_entry(int type);
+int pick_online_cpu(void);
 
+static inline bool have_hwcap2(unsigned long ftr2)
+{
+	return ((unsigned long)get_auxv_entry(AT_HWCAP2) & ftr2) == ftr2;
+}
 
 /* Yes, this is evil */
 #define FAIL_IF(x)						\

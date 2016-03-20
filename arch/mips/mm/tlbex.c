@@ -35,6 +35,17 @@
 #include <asm/uasm.h>
 #include <asm/setup.h>
 
+static int mips_xpa_disabled;
+
+static int __init xpa_disable(char *s)
+{
+	mips_xpa_disabled = 1;
+
+	return 1;
+}
+
+__setup("noxpa", xpa_disable);
+
 /*
  * TLB load/store/modify handlers.
  *
@@ -229,16 +240,15 @@ static void output_pgtable_bits_defines(void)
 	pr_define("_PAGE_MODIFIED_SHIFT %d\n", _PAGE_MODIFIED_SHIFT);
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	pr_define("_PAGE_HUGE_SHIFT %d\n", _PAGE_HUGE_SHIFT);
-	pr_define("_PAGE_SPLITTING_SHIFT %d\n", _PAGE_SPLITTING_SHIFT);
 #endif
+#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
 	if (cpu_has_rixi) {
 #ifdef _PAGE_NO_EXEC_SHIFT
 		pr_define("_PAGE_NO_EXEC_SHIFT %d\n", _PAGE_NO_EXEC_SHIFT);
-#endif
-#ifdef _PAGE_NO_READ_SHIFT
 		pr_define("_PAGE_NO_READ_SHIFT %d\n", _PAGE_NO_READ_SHIFT);
 #endif
 	}
+#endif
 	pr_define("_PAGE_GLOBAL_SHIFT %d\n", _PAGE_GLOBAL_SHIFT);
 	pr_define("_PAGE_VALID_SHIFT %d\n", _PAGE_VALID_SHIFT);
 	pr_define("_PAGE_DIRTY_SHIFT %d\n", _PAGE_DIRTY_SHIFT);
@@ -300,6 +310,7 @@ static struct uasm_label labels[128];
 static struct uasm_reloc relocs[128];
 
 static int check_for_high_segbits;
+static bool fill_includes_sw_bits;
 
 static unsigned int kscratch_used_mask;
 
@@ -501,25 +512,9 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case tlb_indexed: tlbw = uasm_i_tlbwi; break;
 	}
 
-	if (cpu_has_mips_r2) {
-		/*
-		 * The architecture spec says an ehb is required here,
-		 * but a number of cores do not have the hazard and
-		 * using an ehb causes an expensive pipeline stall.
-		 */
-		switch (current_cpu_type()) {
-		case CPU_M14KC:
-		case CPU_74K:
-		case CPU_1074K:
-		case CPU_PROAPTIV:
-		case CPU_P5600:
-		case CPU_M5150:
-			break;
-
-		default:
+	if (cpu_has_mips_r2_r6) {
+		if (cpu_has_mips_r2_exec_hazard)
 			uasm_i_ehb(p);
-			break;
-		}
 		tlbw(p);
 		return;
 	}
@@ -568,6 +563,7 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case CPU_R10000:
 	case CPU_R12000:
 	case CPU_R14000:
+	case CPU_R16000:
 	case CPU_4KC:
 	case CPU_4KEC:
 	case CPU_M14KC:
@@ -634,10 +630,16 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 static __maybe_unused void build_convert_pte_to_entrylo(u32 **p,
 							unsigned int reg)
 {
-	if (cpu_has_rixi) {
-		UASM_i_ROTR(p, reg, reg, ilog2(_PAGE_GLOBAL));
+	if (cpu_has_rixi && _PAGE_NO_EXEC) {
+		if (fill_includes_sw_bits) {
+			UASM_i_ROTR(p, reg, reg, ilog2(_PAGE_GLOBAL));
+		} else {
+			UASM_i_SRL(p, reg, reg, ilog2(_PAGE_NO_EXEC));
+			UASM_i_ROTR(p, reg, reg,
+				    ilog2(_PAGE_GLOBAL) - ilog2(_PAGE_NO_EXEC));
+		}
 	} else {
-#ifdef CONFIG_64BIT_PHYS_ADDR
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
 		uasm_i_dsrl_safe(p, reg, reg, ilog2(_PAGE_GLOBAL));
 #else
 		UASM_i_SRL(p, reg, reg, ilog2(_PAGE_GLOBAL));
@@ -1009,59 +1011,53 @@ static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 	 * 64bit address support (36bit on a 32bit CPU) in a 32bit
 	 * Kernel is a special case. Only a few CPUs use it.
 	 */
-#ifdef CONFIG_64BIT_PHYS_ADDR
-	if (cpu_has_64bits) {
-		uasm_i_ld(p, tmp, 0, ptep); /* get even pte */
-		uasm_i_ld(p, ptep, sizeof(pte_t), ptep); /* get odd pte */
-		if (cpu_has_rixi) {
-			UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL));
-			UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-			UASM_i_ROTR(p, ptep, ptep, ilog2(_PAGE_GLOBAL));
-		} else {
-			uasm_i_dsrl_safe(p, tmp, tmp, ilog2(_PAGE_GLOBAL)); /* convert to entrylo0 */
-			UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-			uasm_i_dsrl_safe(p, ptep, ptep, ilog2(_PAGE_GLOBAL)); /* convert to entrylo1 */
-		}
-		UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
-	} else {
+	if (config_enabled(CONFIG_PHYS_ADDR_T_64BIT) && !cpu_has_64bits) {
 		int pte_off_even = sizeof(pte_t) / 2;
 		int pte_off_odd = pte_off_even + sizeof(pte_t);
+#ifdef CONFIG_XPA
+		const int scratch = 1; /* Our extra working register */
 
-		/* The pte entries are pre-shifted */
-		uasm_i_lw(p, tmp, pte_off_even, ptep); /* get even pte */
-		UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-		uasm_i_lw(p, ptep, pte_off_odd, ptep); /* get odd pte */
-		UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
+		uasm_i_addu(p, scratch, 0, ptep);
+#endif
+		uasm_i_lw(p, tmp, pte_off_even, ptep); /* even pte */
+		uasm_i_lw(p, ptep, pte_off_odd, ptep); /* odd pte */
+		UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL));
+		UASM_i_ROTR(p, ptep, ptep, ilog2(_PAGE_GLOBAL));
+		UASM_i_MTC0(p, tmp, C0_ENTRYLO0);
+		UASM_i_MTC0(p, ptep, C0_ENTRYLO1);
+#ifdef CONFIG_XPA
+		uasm_i_lw(p, tmp, 0, scratch);
+		uasm_i_lw(p, ptep, sizeof(pte_t), scratch);
+		uasm_i_lui(p, scratch, 0xff);
+		uasm_i_ori(p, scratch, scratch, 0xffff);
+		uasm_i_and(p, tmp, scratch, tmp);
+		uasm_i_and(p, ptep, scratch, ptep);
+		uasm_i_mthc0(p, tmp, C0_ENTRYLO0);
+		uasm_i_mthc0(p, ptep, C0_ENTRYLO1);
+#endif
+		return;
 	}
-#else
+
 	UASM_i_LW(p, tmp, 0, ptep); /* get even pte */
 	UASM_i_LW(p, ptep, sizeof(pte_t), ptep); /* get odd pte */
 	if (r45k_bvahwbug())
 		build_tlb_probe_entry(p);
-	if (cpu_has_rixi) {
-		UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL));
-		if (r4k_250MHZhwbug())
-			UASM_i_MTC0(p, 0, C0_ENTRYLO0);
-		UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-		UASM_i_ROTR(p, ptep, ptep, ilog2(_PAGE_GLOBAL));
-	} else {
-		UASM_i_SRL(p, tmp, tmp, ilog2(_PAGE_GLOBAL)); /* convert to entrylo0 */
-		if (r4k_250MHZhwbug())
-			UASM_i_MTC0(p, 0, C0_ENTRYLO0);
-		UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-		UASM_i_SRL(p, ptep, ptep, ilog2(_PAGE_GLOBAL)); /* convert to entrylo1 */
-		if (r45k_bvahwbug())
-			uasm_i_mfc0(p, tmp, C0_INDEX);
-	}
+	build_convert_pte_to_entrylo(p, tmp);
+	if (r4k_250MHZhwbug())
+		UASM_i_MTC0(p, 0, C0_ENTRYLO0);
+	UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
+	build_convert_pte_to_entrylo(p, ptep);
+	if (r45k_bvahwbug())
+		uasm_i_mfc0(p, tmp, C0_INDEX);
 	if (r4k_250MHZhwbug())
 		UASM_i_MTC0(p, 0, C0_ENTRYLO1);
 	UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
-#endif
 }
 
 struct mips_huge_tlb_info {
 	int huge_pte;
 	int restore_scratch;
+	bool need_reload_pte;
 };
 
 static struct mips_huge_tlb_info
@@ -1076,6 +1072,7 @@ build_fast_tlb_refill_handler (u32 **p, struct uasm_label **l,
 
 	rv.huge_pte = scratch;
 	rv.restore_scratch = 0;
+	rv.need_reload_pte = false;
 
 	if (check_for_high_segbits) {
 		UASM_i_MFC0(p, tmp, C0_BADVADDR);
@@ -1264,6 +1261,7 @@ static void build_r4000_tlb_refill_handler(void)
 	} else {
 		htlb_info.huge_pte = K0;
 		htlb_info.restore_scratch = 0;
+		htlb_info.need_reload_pte = true;
 		vmalloc_mode = refill_noscratch;
 		/*
 		 * create the plain linear handler
@@ -1300,7 +1298,8 @@ static void build_r4000_tlb_refill_handler(void)
 	}
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	uasm_l_tlb_huge_update(&l, p);
-	UASM_i_LW(&p, K0, 0, K1);
+	if (htlb_info.need_reload_pte)
+		UASM_i_LW(&p, htlb_info.huge_pte, 0, K1);
 	build_huge_update_entries(&p, htlb_info.huge_pte, K1);
 	build_huge_tlb_write_entry(&p, &l, &r, K0, tlb_random,
 				   htlb_info.restore_scratch);
@@ -1506,14 +1505,14 @@ static void
 iPTE_LW(u32 **p, unsigned int pte, unsigned int ptr)
 {
 #ifdef CONFIG_SMP
-# ifdef CONFIG_64BIT_PHYS_ADDR
+# ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (cpu_has_64bits)
 		uasm_i_lld(p, pte, 0, ptr);
 	else
 # endif
 		UASM_i_LL(p, pte, 0, ptr);
 #else
-# ifdef CONFIG_64BIT_PHYS_ADDR
+# ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (cpu_has_64bits)
 		uasm_i_ld(p, pte, 0, ptr);
 	else
@@ -1526,13 +1525,19 @@ static void
 iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 	unsigned int mode)
 {
-#ifdef CONFIG_64BIT_PHYS_ADDR
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
 	unsigned int hwmode = mode & (_PAGE_VALID | _PAGE_DIRTY);
-#endif
 
+	if (!cpu_has_64bits) {
+		const int scratch = 1; /* Our extra working register */
+
+		uasm_i_lui(p, scratch, (mode >> 16));
+		uasm_i_or(p, pte, pte, scratch);
+	} else
+#endif
 	uasm_i_ori(p, pte, pte, mode);
 #ifdef CONFIG_SMP
-# ifdef CONFIG_64BIT_PHYS_ADDR
+# ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (cpu_has_64bits)
 		uasm_i_scd(p, pte, 0, ptr);
 	else
@@ -1544,7 +1549,7 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 	else
 		uasm_il_beqz(p, r, pte, label_smp_pgtable_change);
 
-# ifdef CONFIG_64BIT_PHYS_ADDR
+# ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (!cpu_has_64bits) {
 		/* no uasm_i_nop needed */
 		uasm_i_ll(p, pte, sizeof(pte_t) / 2, ptr);
@@ -1559,14 +1564,14 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 	uasm_i_nop(p);
 # endif
 #else
-# ifdef CONFIG_64BIT_PHYS_ADDR
+# ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (cpu_has_64bits)
 		uasm_i_sd(p, pte, 0, ptr);
 	else
 # endif
 		UASM_i_SW(p, pte, 0, ptr);
 
-# ifdef CONFIG_64BIT_PHYS_ADDR
+# ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (!cpu_has_64bits) {
 		uasm_i_lw(p, pte, sizeof(pte_t) / 2, ptr);
 		uasm_i_ori(p, pte, pte, hwmode);
@@ -1587,21 +1592,32 @@ build_pte_present(u32 **p, struct uasm_reloc **r,
 		  int pte, int ptr, int scratch, enum label_id lid)
 {
 	int t = scratch >= 0 ? scratch : pte;
+	int cur = pte;
 
 	if (cpu_has_rixi) {
 		if (use_bbit_insns()) {
 			uasm_il_bbit0(p, r, pte, ilog2(_PAGE_PRESENT), lid);
 			uasm_i_nop(p);
 		} else {
-			uasm_i_andi(p, t, pte, _PAGE_PRESENT);
+			if (_PAGE_PRESENT_SHIFT) {
+				uasm_i_srl(p, t, cur, _PAGE_PRESENT_SHIFT);
+				cur = t;
+			}
+			uasm_i_andi(p, t, cur, 1);
 			uasm_il_beqz(p, r, t, lid);
 			if (pte == t)
 				/* You lose the SMP race :-(*/
 				iPTE_LW(p, pte, ptr);
 		}
 	} else {
-		uasm_i_andi(p, t, pte, _PAGE_PRESENT | _PAGE_READ);
-		uasm_i_xori(p, t, t, _PAGE_PRESENT | _PAGE_READ);
+		if (_PAGE_PRESENT_SHIFT) {
+			uasm_i_srl(p, t, cur, _PAGE_PRESENT_SHIFT);
+			cur = t;
+		}
+		uasm_i_andi(p, t, cur,
+			(_PAGE_PRESENT | _PAGE_READ) >> _PAGE_PRESENT_SHIFT);
+		uasm_i_xori(p, t, t,
+			(_PAGE_PRESENT | _PAGE_READ) >> _PAGE_PRESENT_SHIFT);
 		uasm_il_bnez(p, r, t, lid);
 		if (pte == t)
 			/* You lose the SMP race :-(*/
@@ -1629,9 +1645,16 @@ build_pte_writable(u32 **p, struct uasm_reloc **r,
 		   enum label_id lid)
 {
 	int t = scratch >= 0 ? scratch : pte;
+	int cur = pte;
 
-	uasm_i_andi(p, t, pte, _PAGE_PRESENT | _PAGE_WRITE);
-	uasm_i_xori(p, t, t, _PAGE_PRESENT | _PAGE_WRITE);
+	if (_PAGE_PRESENT_SHIFT) {
+		uasm_i_srl(p, t, cur, _PAGE_PRESENT_SHIFT);
+		cur = t;
+	}
+	uasm_i_andi(p, t, cur,
+		    (_PAGE_PRESENT | _PAGE_WRITE) >> _PAGE_PRESENT_SHIFT);
+	uasm_i_xori(p, t, t,
+		    (_PAGE_PRESENT | _PAGE_WRITE) >> _PAGE_PRESENT_SHIFT);
 	uasm_il_bnez(p, r, t, lid);
 	if (pte == t)
 		/* You lose the SMP race :-(*/
@@ -1667,7 +1690,8 @@ build_pte_modifiable(u32 **p, struct uasm_reloc **r,
 		uasm_i_nop(p);
 	} else {
 		int t = scratch >= 0 ? scratch : pte;
-		uasm_i_andi(p, t, pte, _PAGE_WRITE);
+		uasm_i_srl(p, t, pte, _PAGE_WRITE_SHIFT);
+		uasm_i_andi(p, t, t, 1);
 		uasm_il_beqz(p, r, t, lid);
 		if (pte == t)
 			/* You lose the SMP race :-(*/
@@ -1868,8 +1892,16 @@ build_r4000_tlbchange_handler_head(u32 **p, struct uasm_label **l,
 	uasm_l_smp_pgtable_change(l, *p);
 #endif
 	iPTE_LW(p, wr.r1, wr.r2); /* get even pte */
-	if (!m4kc_tlbp_war())
+	if (!m4kc_tlbp_war()) {
 		build_tlb_probe_entry(p);
+		if (cpu_has_htw) {
+			/* race condition happens, leaving */
+			uasm_i_ehb(p);
+			uasm_i_mfc0(p, wr.r3, C0_INDEX);
+			uasm_il_bltz(p, r, wr.r3, label_leave);
+			uasm_i_nop(p);
+		}
+	}
 	return wr;
 }
 
@@ -1940,7 +1972,7 @@ static void build_r4000_tlb_load_handler(void)
 
 		switch (current_cpu_type()) {
 		default:
-			if (cpu_has_mips_r2) {
+			if (cpu_has_mips_r2_exec_hazard) {
 				uasm_i_ehb(&p);
 
 		case CPU_CAVIUM_OCTEON:
@@ -2007,7 +2039,7 @@ static void build_r4000_tlb_load_handler(void)
 
 		switch (current_cpu_type()) {
 		default:
-			if (cpu_has_mips_r2) {
+			if (cpu_has_mips_r2_exec_hazard) {
 				uasm_i_ehb(&p);
 
 		case CPU_CAVIUM_OCTEON:
@@ -2251,6 +2283,10 @@ static void config_htw_params(void)
 	/* re-initialize the PTI field including the even/odd bit */
 	pwfield &= ~MIPS_PWFIELD_PTI_MASK;
 	pwfield |= PAGE_SHIFT << MIPS_PWFIELD_PTI_SHIFT;
+	if (CONFIG_PGTABLE_LEVELS >= 3) {
+		pwfield &= ~MIPS_PWFIELD_MDI_MASK;
+		pwfield |= PMD_SHIFT << MIPS_PWFIELD_MDI_SHIFT;
+	}
 	/* Set the PTEI right shift */
 	ptei = _PAGE_GLOBAL_SHIFT << MIPS_PWFIELD_PTEI_SHIFT;
 	pwfield |= ptei;
@@ -2272,6 +2308,13 @@ static void config_htw_params(void)
 
 	pwsize = ilog2(PTRS_PER_PGD) << MIPS_PWSIZE_GDW_SHIFT;
 	pwsize |= ilog2(PTRS_PER_PTE) << MIPS_PWSIZE_PTW_SHIFT;
+	if (CONFIG_PGTABLE_LEVELS >= 3)
+		pwsize |= ilog2(PTRS_PER_PMD) << MIPS_PWSIZE_MDW_SHIFT;
+
+	/* If XPA has been enabled, PTEs are 64-bit in size. */
+	if (config_enabled(CONFIG_64BITS) || (read_c0_pagegrain() & PG_ELPA))
+		pwsize |= 1;
+
 	write_c0_pwsize(pwsize);
 
 	/* Make sure everything is set before we enable the HTW */
@@ -2285,6 +2328,63 @@ static void config_htw_params(void)
 	print_htw_config();
 }
 
+static void config_xpa_params(void)
+{
+#ifdef CONFIG_XPA
+	unsigned int pagegrain;
+
+	if (mips_xpa_disabled) {
+		pr_info("Extended Physical Addressing (XPA) disabled\n");
+		return;
+	}
+
+	pagegrain = read_c0_pagegrain();
+	write_c0_pagegrain(pagegrain | PG_ELPA);
+	back_to_back_c0_hazard();
+	pagegrain = read_c0_pagegrain();
+
+	if (pagegrain & PG_ELPA)
+		pr_info("Extended Physical Addressing (XPA) enabled\n");
+	else
+		panic("Extended Physical Addressing (XPA) disabled");
+#endif
+}
+
+static void check_pabits(void)
+{
+	unsigned long entry;
+	unsigned pabits, fillbits;
+
+	if (!cpu_has_rixi || !_PAGE_NO_EXEC) {
+		/*
+		 * We'll only be making use of the fact that we can rotate bits
+		 * into the fill if the CPU supports RIXI, so don't bother
+		 * probing this for CPUs which don't.
+		 */
+		return;
+	}
+
+	write_c0_entrylo0(~0ul);
+	back_to_back_c0_hazard();
+	entry = read_c0_entrylo0();
+
+	/* clear all non-PFN bits */
+	entry &= ~((1 << MIPS_ENTRYLO_PFN_SHIFT) - 1);
+	entry &= ~(MIPS_ENTRYLO_RI | MIPS_ENTRYLO_XI);
+
+	/* find a lower bound on PABITS, and upper bound on fill bits */
+	pabits = fls_long(entry) + 6;
+	fillbits = max_t(int, (int)BITS_PER_LONG - pabits, 0);
+
+	/* minus the RI & XI bits */
+	fillbits -= min_t(unsigned, fillbits, 2);
+
+	if (fillbits >= ilog2(_PAGE_NO_EXEC))
+		fill_includes_sw_bits = true;
+
+	pr_debug("Entry* registers contain %u fill bits\n", fillbits);
+}
+
 void build_tlb_refill_handler(void)
 {
 	/*
@@ -2295,6 +2395,7 @@ void build_tlb_refill_handler(void)
 	static int run_once = 0;
 
 	output_pgtable_bits_defines();
+	check_pabits();
 
 #ifdef CONFIG_64BIT
 	check_for_high_segbits = current_cpu_data.vmbits > (PGDIR_SHIFT + PGD_ORDER + PAGE_SHIFT - 3);
@@ -2349,8 +2450,9 @@ void build_tlb_refill_handler(void)
 		}
 		if (cpu_has_local_ebase)
 			build_r4000_tlb_refill_handler();
+		if (cpu_has_xpa)
+			config_xpa_params();
 		if (cpu_has_htw)
 			config_htw_params();
-
 	}
 }

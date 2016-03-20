@@ -252,26 +252,36 @@ GPIO
   devm_gpiod_get_index_optional()
   devm_gpiod_get_optional()
   devm_gpiod_put()
+  devm_gpiochip_add_data()
+  devm_gpiochip_remove()
+  devm_gpio_request()
+  devm_gpio_request_one()
+  devm_gpio_free()
 
 IIO
   devm_iio_device_alloc()
   devm_iio_device_free()
   devm_iio_device_register()
   devm_iio_device_unregister()
+  devm_iio_kfifo_allocate()
+  devm_iio_kfifo_free()
   devm_iio_trigger_alloc()
   devm_iio_trigger_free()
 
 IO region
   devm_release_mem_region()
   devm_release_region()
+  devm_release_resource()
   devm_request_mem_region()
   devm_request_region()
+  devm_request_resource()
 
 IOMAP
   devm_ioport_map()
   devm_ioport_unmap()
   devm_ioremap()
   devm_ioremap_nocache()
+  devm_ioremap_wc()
   devm_ioremap_resource() : checks resource, requests memory region, ioremaps
   devm_iounmap()
   pcim_iomap()
@@ -281,7 +291,13 @@ IOMAP
 
 IRQ
   devm_free_irq()
+  devm_request_any_context_irq()
   devm_request_irq()
+  devm_request_threaded_irq()
+
+LED
+  devm_led_classdev_register()
+  devm_led_classdev_unregister()
 
 MDIO
   devm_mdiobus_alloc()
@@ -291,11 +307,14 @@ MDIO
 MEM
   devm_free_pages()
   devm_get_free_pages()
+  devm_kasprintf()
   devm_kcalloc()
   devm_kfree()
   devm_kmalloc()
   devm_kmalloc_array()
   devm_kmemdup()
+  devm_kstrdup()
+  devm_kvasprintf()
   devm_kzalloc()
 
 PCI

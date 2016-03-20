@@ -14,12 +14,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 #define SMIAPP_REG_MK_U8(r) ((SMIAPP_REG_8BIT << 16) | (r))
 #define SMIAPP_REG_MK_U16(r) ((SMIAPP_REG_16BIT << 16) | (r))

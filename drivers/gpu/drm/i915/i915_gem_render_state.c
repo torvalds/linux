@@ -28,13 +28,6 @@
 #include "i915_drv.h"
 #include "intel_renderstate.h"
 
-struct render_state {
-	const struct intel_renderstate_rodata *rodata;
-	struct drm_i915_gem_object *obj;
-	u64 ggtt_offset;
-	int gen;
-};
-
 static const struct intel_renderstate_rodata *
 render_state_get_rodata(struct drm_device *dev, const int gen)
 {
@@ -45,6 +38,8 @@ render_state_get_rodata(struct drm_device *dev, const int gen)
 		return &gen7_null_state;
 	case 8:
 		return &gen8_null_state;
+	case 9:
+		return &gen9_null_state;
 	}
 
 	return NULL;
@@ -78,6 +73,24 @@ free_gem:
 	return ret;
 }
 
+/*
+ * Macro to add commands to auxiliary batch.
+ * This macro only checks for page overflow before inserting the commands,
+ * this is sufficient as the null state generator makes the final batch
+ * with two passes to build command and state separately. At this point
+ * the size of both are known and it compacts them by relocating the state
+ * right after the commands taking care of aligment so we should sufficient
+ * space below them for adding new commands.
+ */
+#define OUT_BATCH(batch, i, val)				\
+	do {							\
+		if (WARN_ON((i) >= PAGE_SIZE / sizeof(u32))) {	\
+			ret = -ENOSPC;				\
+			goto err_out;				\
+		}						\
+		(batch)[(i)++] = (val);				\
+	} while(0)
+
 static int render_state_setup(struct render_state *so)
 {
 	const struct intel_renderstate_rodata *rodata = so->rodata;
@@ -90,7 +103,7 @@ static int render_state_setup(struct render_state *so)
 	if (ret)
 		return ret;
 
-	page = sg_page(so->obj->pages->sgl);
+	page = i915_gem_object_get_dirty_page(so->obj, 0);
 	d = kmap(page);
 
 	while (i < rodata->batch_items) {
@@ -101,8 +114,10 @@ static int render_state_setup(struct render_state *so)
 			s = lower_32_bits(r);
 			if (so->gen >= 8) {
 				if (i + 1 >= rodata->batch_items ||
-				    rodata->batch[i + 1] != 0)
-					return -EINVAL;
+				    rodata->batch[i + 1] != 0) {
+					ret = -EINVAL;
+					goto err_out;
+				}
 
 				d[i++] = s;
 				s = upper_32_bits(r);
@@ -113,6 +128,21 @@ static int render_state_setup(struct render_state *so)
 
 		d[i++] = s;
 	}
+
+	while (i % CACHELINE_DWORDS)
+		OUT_BATCH(d, i, MI_NOOP);
+
+	so->aux_batch_offset = i * sizeof(u32);
+
+	OUT_BATCH(d, i, MI_BATCH_BUFFER_END);
+	so->aux_batch_size = (i * sizeof(u32)) - so->aux_batch_offset;
+
+	/*
+	 * Since we are sending length, we need to strictly conform to
+	 * all requirements. For Gen2 this must be a multiple of 8.
+	 */
+	so->aux_batch_size = ALIGN(so->aux_batch_size, 8);
+
 	kunmap(page);
 
 	ret = i915_gem_object_set_to_gtt_domain(so->obj, false);
@@ -125,45 +155,75 @@ static int render_state_setup(struct render_state *so)
 	}
 
 	return 0;
+
+err_out:
+	kunmap(page);
+	return ret;
 }
 
-static void render_state_fini(struct render_state *so)
+#undef OUT_BATCH
+
+void i915_gem_render_state_fini(struct render_state *so)
 {
 	i915_gem_object_ggtt_unpin(so->obj);
 	drm_gem_object_unreference(&so->obj->base);
 }
 
-int i915_gem_render_state_init(struct intel_engine_cs *ring)
+int i915_gem_render_state_prepare(struct intel_engine_cs *ring,
+				  struct render_state *so)
 {
-	struct render_state so;
 	int ret;
 
 	if (WARN_ON(ring->id != RCS))
 		return -ENOENT;
 
-	ret = render_state_init(&so, ring->dev);
+	ret = render_state_init(so, ring->dev);
+	if (ret)
+		return ret;
+
+	if (so->rodata == NULL)
+		return 0;
+
+	ret = render_state_setup(so);
+	if (ret) {
+		i915_gem_render_state_fini(so);
+		return ret;
+	}
+
+	return 0;
+}
+
+int i915_gem_render_state_init(struct drm_i915_gem_request *req)
+{
+	struct render_state so;
+	int ret;
+
+	ret = i915_gem_render_state_prepare(req->ring, &so);
 	if (ret)
 		return ret;
 
 	if (so.rodata == NULL)
 		return 0;
 
-	ret = render_state_setup(&so);
+	ret = req->ring->dispatch_execbuffer(req, so.ggtt_offset,
+					     so.rodata->batch_items * 4,
+					     I915_DISPATCH_SECURE);
 	if (ret)
 		goto out;
 
-	ret = ring->dispatch_execbuffer(ring,
-					so.ggtt_offset,
-					so.rodata->batch_items * 4,
-					I915_DISPATCH_SECURE);
-	if (ret)
-		goto out;
+	if (so.aux_batch_size > 8) {
+		ret = req->ring->dispatch_execbuffer(req,
+						     (so.ggtt_offset +
+						      so.aux_batch_offset),
+						     so.aux_batch_size,
+						     I915_DISPATCH_SECURE);
+		if (ret)
+			goto out;
+	}
 
-	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), ring);
+	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), req);
 
-	ret = __i915_add_request(ring, NULL, so.obj, NULL);
-	/* __i915_add_request moves object to inactive if it fails */
 out:
-	render_state_fini(&so);
+	i915_gem_render_state_fini(&so);
 	return ret;
 }

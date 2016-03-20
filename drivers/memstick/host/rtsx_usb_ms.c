@@ -827,7 +827,6 @@ static struct platform_driver rtsx_usb_ms_driver = {
 	.remove		= rtsx_usb_ms_drv_remove,
 	.id_table       = rtsx_usb_ms_ids,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "rtsx_usb_ms",
 		.pm	= &rtsx_usb_ms_pm_ops,
 	},

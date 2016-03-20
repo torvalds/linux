@@ -37,6 +37,7 @@
 #include <linux/moduleparam.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -44,7 +45,6 @@
 #include <sound/control.h>
 #include <sound/initval.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
 
@@ -956,6 +956,7 @@ static int snd_amd7930_create(struct snd_card *card,
 	if (!amd->regs) {
 		snd_printk(KERN_ERR
 			   "amd7930-%d: Unable to map chip registers.\n", dev);
+		kfree(amd);
 		return -EIO;
 	}
 
@@ -1063,11 +1064,11 @@ static const struct of_device_id amd7930_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, amd7930_match);
 
 static struct platform_driver amd7930_sbus_driver = {
 	.driver = {
 		.name = "audio",
-		.owner = THIS_MODULE,
 		.of_match_table = amd7930_match,
 	},
 	.probe		= amd7930_sbus_probe,

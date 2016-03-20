@@ -38,7 +38,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
-#include <asm/qe.h>
+#include <soc/fsl/qe/qe.h>
 #include <asm/cpm.h>
 #include <asm/dma.h>
 #include <asm/reg.h>
@@ -118,10 +118,7 @@ static void done(struct qe_ep *ep, struct qe_req *req, int status)
 	ep->stopped = 1;
 	spin_unlock(&udc->lock);
 
-	/* this complete() should a func implemented by gadget layer,
-	 * eg fsg->bulk_in_complete() */
-	if (req->req.complete)
-		req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 
 	spin_lock(&udc->lock);
 
@@ -1890,8 +1887,7 @@ static int qe_get_frame(struct usb_gadget *gadget)
 
 static int fsl_qe_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver);
-static int fsl_qe_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver);
+static int fsl_qe_stop(struct usb_gadget *gadget);
 
 /* defined in usb_gadget.h */
 static const struct usb_gadget_ops qe_gadget_ops = {
@@ -1921,7 +1917,7 @@ static int reset_queues(struct qe_udc *udc)
 
 	/* report disconnect; the driver is already quiesced */
 	spin_unlock(&udc->lock);
-	udc->driver->disconnect(&udc->gadget);
+	usb_gadget_udc_reset(&udc->gadget, udc->driver);
 	spin_lock(&udc->lock);
 
 	return 0;
@@ -2308,13 +2304,10 @@ static int fsl_qe_start(struct usb_gadget *gadget,
 	udc->ep0_dir = USB_DIR_OUT;
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	dev_info(udc->dev, "%s bind to driver %s\n", udc->gadget.name,
-			driver->driver.name);
 	return 0;
 }
 
-static int fsl_qe_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static int fsl_qe_stop(struct usb_gadget *gadget)
 {
 	struct qe_udc *udc;
 	struct qe_ep *loop_ep;
@@ -2339,8 +2332,6 @@ static int fsl_qe_stop(struct usb_gadget *gadget,
 
 	udc->driver = NULL;
 
-	dev_info(udc->dev, "unregistered gadget driver '%s'\r\n",
-			driver->driver.name);
 	return 0;
 }
 
@@ -2349,7 +2340,7 @@ static struct qe_udc *qe_udc_config(struct platform_device *ofdev)
 {
 	struct qe_udc *udc;
 	struct device_node *np = ofdev->dev.of_node;
-	unsigned int tmp_addr = 0;
+	unsigned long tmp_addr = 0;
 	struct usb_device_para __iomem *usbpram;
 	unsigned int i;
 	u64 size;
@@ -2425,6 +2416,17 @@ static int qe_ep_config(struct qe_udc *udc, unsigned char pipe_num)
 	ep->udc = udc;
 	strcpy(ep->name, ep_name[pipe_num]);
 	ep->ep.name = ep_name[pipe_num];
+
+	if (pipe_num == 0) {
+		ep->ep.caps.type_control = true;
+	} else {
+		ep->ep.caps.type_iso = true;
+		ep->ep.caps.type_bulk = true;
+		ep->ep.caps.type_int = true;
+	}
+
+	ep->ep.caps.dir_in = true;
+	ep->ep.caps.dir_out = true;
 
 	ep->ep.ops = &qe_ep_ops;
 	ep->stopped = 1;
@@ -2541,7 +2543,6 @@ static int qe_udc_probe(struct platform_device *ofdev)
 	/* create a buf for ZLP send, need to remain zeroed */
 	udc->nullbuf = devm_kzalloc(&ofdev->dev, 256, GFP_KERNEL);
 	if (udc->nullbuf == NULL) {
-		dev_err(udc->dev, "cannot alloc nullbuf\n");
 		ret = -ENOMEM;
 		goto err3;
 	}
@@ -2640,7 +2641,7 @@ static int qe_udc_remove(struct platform_device *ofdev)
 	struct qe_udc *udc = platform_get_drvdata(ofdev);
 	struct qe_ep *ep;
 	unsigned int size;
-	DECLARE_COMPLETION(done);
+	DECLARE_COMPLETION_ONSTACK(done);
 
 	usb_del_gadget_udc(&udc->gadget);
 
@@ -2712,7 +2713,6 @@ MODULE_DEVICE_TABLE(of, qe_udc_match);
 static struct platform_driver udc_driver = {
 	.driver = {
 		.name = driver_name,
-		.owner = THIS_MODULE,
 		.of_match_table = qe_udc_match,
 	},
 	.probe          = qe_udc_probe,
@@ -2728,4 +2728,3 @@ module_platform_driver(udc_driver);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_LICENSE("GPL");
-

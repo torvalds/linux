@@ -24,6 +24,12 @@
 
 #include <sound/dmaengine_pcm.h>
 
+/*
+ * The platforms dmaengine driver does not support reporting the amount of
+ * bytes that are still left to transfer.
+ */
+#define SND_DMAENGINE_PCM_FLAG_NO_RESIDUE BIT(31)
+
 struct dmaengine_pcm {
 	struct dma_chan *chan[SNDRV_PCM_STREAM_LAST + 1];
 	const struct snd_dmaengine_pcm_config *config;
@@ -151,7 +157,7 @@ static int dmaengine_pcm_set_runtime_hwparams(struct snd_pcm_substream *substrea
 			hw.info |= SNDRV_PCM_INFO_BATCH;
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			addr_widths = dma_caps.dstn_addr_widths;
+			addr_widths = dma_caps.dst_addr_widths;
 		else
 			addr_widths = dma_caps.src_addr_widths;
 	}
@@ -200,11 +206,6 @@ static int dmaengine_pcm_open(struct snd_pcm_substream *substream)
 	return snd_dmaengine_pcm_open(substream, chan);
 }
 
-static void dmaengine_pcm_free(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static struct dma_chan *dmaengine_pcm_compat_request_channel(
 	struct snd_soc_pcm_runtime *rtd,
 	struct snd_pcm_substream *substream)
@@ -227,14 +228,18 @@ static struct dma_chan *dmaengine_pcm_compat_request_channel(
 	return snd_dmaengine_pcm_request_channel(fn, dma_data->filter_data);
 }
 
-static bool dmaengine_pcm_can_report_residue(struct dma_chan *chan)
+static bool dmaengine_pcm_can_report_residue(struct device *dev,
+	struct dma_chan *chan)
 {
 	struct dma_slave_caps dma_caps;
 	int ret;
 
 	ret = dma_get_slave_caps(chan, &dma_caps);
-	if (ret != 0)
-		return true;
+	if (ret != 0) {
+		dev_warn(dev, "Failed to get DMA channel capabilities, falling back to period counting: %d\n",
+			 ret);
+		return false;
+	}
 
 	if (dma_caps.residue_granularity == DMA_RESIDUE_GRANULARITY_DESCRIPTOR)
 		return false;
@@ -283,8 +288,7 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		if (!pcm->chan[i]) {
 			dev_err(rtd->platform->dev,
 				"Missing dma channel for stream: %d\n", i);
-			ret = -EINVAL;
-			goto err_free;
+			return -EINVAL;
 		}
 
 		ret = snd_pcm_lib_preallocate_pages(substream,
@@ -293,24 +297,13 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 				prealloc_buffer_size,
 				max_buffer_size);
 		if (ret)
-			goto err_free;
+			return ret;
 
-		/*
-		 * This will only return false if we know for sure that at least
-		 * one channel does not support residue reporting. If the DMA
-		 * driver does not implement the slave_caps API we rely having
-		 * the NO_RESIDUE flag set manually in case residue reporting is
-		 * not supported.
-		 */
-		if (!dmaengine_pcm_can_report_residue(pcm->chan[i]))
+		if (!dmaengine_pcm_can_report_residue(dev, pcm->chan[i]))
 			pcm->flags |= SND_DMAENGINE_PCM_FLAG_NO_RESIDUE;
 	}
 
 	return 0;
-
-err_free:
-	dmaengine_pcm_free(rtd->pcm);
-	return ret;
 }
 
 static snd_pcm_uframes_t dmaengine_pcm_pointer(
@@ -336,10 +329,11 @@ static const struct snd_pcm_ops dmaengine_pcm_ops = {
 };
 
 static const struct snd_soc_platform_driver dmaengine_pcm_platform = {
+	.component_driver = {
+		.probe_order = SND_SOC_COMP_ORDER_LATE,
+	},
 	.ops		= &dmaengine_pcm_ops,
 	.pcm_new	= dmaengine_pcm_new,
-	.pcm_free	= dmaengine_pcm_free,
-	.probe_order	= SND_SOC_COMP_ORDER_LATE,
 };
 
 static const char * const dmaengine_pcm_dma_channel_names[] = {

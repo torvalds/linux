@@ -168,7 +168,6 @@ skip_ibchange:
 	ppd->lastibcstat = ibcs;
 	if (ev)
 		signal_ib_event(ppd, ev);
-	return;
 }
 
 void qib_clear_symerror_on_linkup(unsigned long opaque)

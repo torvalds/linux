@@ -43,7 +43,7 @@ config USB_DYNAMIC_MINORS
 
 config USB_OTG
 	bool "OTG support"
-	depends on PM_RUNTIME
+	depends on PM
 	default n
 	help
 	  The most notable feature of USB OTG is support for a
@@ -56,21 +56,15 @@ config USB_OTG
 	  connector.
 
 config USB_OTG_WHITELIST
-	bool "Rely on OTG Targeted Peripherals List"
-	depends on USB_OTG || EXPERT
-	default y if USB_OTG
+	bool "Rely on OTG and EH Targeted Peripherals List"
+	depends on USB
 	help
 	  If you say Y here, the "otg_whitelist.h" file will be used as a
 	  product whitelist, so USB peripherals not listed there will be
 	  rejected during enumeration.  This behavior is required by the
-	  USB OTG specification for all devices not on your product's
+	  USB OTG and EH specification for all devices not on your product's
 	  "Targeted Peripherals List".  "Embedded Hosts" are likewise
 	  allowed to support only a limited number of peripherals.
-
-	  Otherwise, peripherals not listed there will only generate a
-	  warning and enumeration will continue.  That's more like what
-	  normal Linux-USB hosts do (other than the warning), and is
-	  convenient for many stages of product development.
 
 config USB_OTG_BLACKLIST_HUB
 	bool "Disable external hubs"
@@ -83,10 +77,29 @@ config USB_OTG_BLACKLIST_HUB
 
 config USB_OTG_FSM
 	tristate "USB 2.0 OTG FSM implementation"
-	depends on USB
-	select USB_OTG
+	depends on USB && USB_OTG
 	select USB_PHY
 	help
 	  Implements OTG Finite State Machine as specified in On-The-Go
 	  and Embedded Host Supplement to the USB Revision 2.0 Specification.
 
+config USB_ULPI_BUS
+	tristate "USB ULPI PHY interface support"
+	depends on USB_SUPPORT
+	help
+	  UTMI+ Low Pin Interface (ULPI) is specification for a commonly used
+	  USB 2.0 PHY interface. The ULPI specification defines a standard set
+	  of registers that can be used to detect the vendor and product which
+	  allows ULPI to be handled as a bus. This module is the driver for that
+	  bus.
+
+	  The ULPI interfaces (the buses) are registered by the drivers for USB
+	  controllers which support ULPI register access and have ULPI PHY
+	  attached to them. The ULPI PHY drivers themselves are normal PHY
+	  drivers.
+
+	  ULPI PHYs provide often functions such as ADP sensing/probing (OTG
+	  protocol) and USB charger detection.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called ulpi.

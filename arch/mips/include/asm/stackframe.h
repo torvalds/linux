@@ -40,7 +40,7 @@
 		LONG_S	v1, PT_HI(sp)
 		mflhxu	v1
 		LONG_S	v1, PT_ACX(sp)
-#else
+#elif !defined(CONFIG_CPU_MIPSR6)
 		mfhi	v1
 #endif
 #ifdef CONFIG_32BIT
@@ -50,7 +50,7 @@
 		LONG_S	$10, PT_R10(sp)
 		LONG_S	$11, PT_R11(sp)
 		LONG_S	$12, PT_R12(sp)
-#ifndef CONFIG_CPU_HAS_SMARTMIPS
+#if !defined(CONFIG_CPU_HAS_SMARTMIPS) && !defined(CONFIG_CPU_MIPSR6)
 		LONG_S	v1, PT_HI(sp)
 		mflo	v1
 #endif
@@ -58,7 +58,7 @@
 		LONG_S	$14, PT_R14(sp)
 		LONG_S	$15, PT_R15(sp)
 		LONG_S	$24, PT_R24(sp)
-#ifndef CONFIG_CPU_HAS_SMARTMIPS
+#if !defined(CONFIG_CPU_HAS_SMARTMIPS) && !defined(CONFIG_CPU_MIPSR6)
 		LONG_S	v1, PT_LO(sp)
 #endif
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
@@ -152,6 +152,31 @@
 		.set	noreorder
 		bltz	k0, 8f
 		 move	k1, sp
+#ifdef CONFIG_EVA
+		/*
+		 * Flush interAptiv's Return Prediction Stack (RPS) by writing
+		 * EntryHi. Toggling Config7.RPS is slower and less portable.
+		 *
+		 * The RPS isn't automatically flushed when exceptions are
+		 * taken, which can result in kernel mode speculative accesses
+		 * to user addresses if the RPS mispredicts. That's harmless
+		 * when user and kernel share the same address space, but with
+		 * EVA the same user segments may be unmapped to kernel mode,
+		 * even containing sensitive MMIO regions or invalid memory.
+		 *
+		 * This can happen when the kernel sets the return address to
+		 * ret_from_* and jr's to the exception handler, which looks
+		 * more like a tail call than a function call. If nested calls
+		 * don't evict the last user address in the RPS, it will
+		 * mispredict the return and fetch from a user controlled
+		 * address into the icache.
+		 *
+		 * More recent EVA-capable cores with MAAR to restrict
+		 * speculative accesses aren't affected.
+		 */
+		MFC0	k0, CP0_ENTRYHI
+		MTC0	k0, CP0_ENTRYHI
+#endif
 		.set	reorder
 		/* Called from user mode, new stack. */
 		get_saved_sp
@@ -226,7 +251,7 @@
 		mtlhx	$24
 		LONG_L	$24, PT_LO(sp)
 		mtlhx	$24
-#else
+#elif !defined(CONFIG_CPU_MIPSR6)
 		LONG_L	$24, PT_LO(sp)
 		mtlo	$24
 		LONG_L	$24, PT_HI(sp)
@@ -264,7 +289,7 @@
 		.set	reorder
 		.set	noat
 		mfc0	a0, CP0_STATUS
-		li	v1, 0xff00
+		li	v1, ST0_CU1 | ST0_IM
 		ori	a0, STATMASK
 		xori	a0, STATMASK
 		mtc0	a0, CP0_STATUS
@@ -305,7 +330,7 @@
 		ori	a0, STATMASK
 		xori	a0, STATMASK
 		mtc0	a0, CP0_STATUS
-		li	v1, 0xff00
+		li	v1, ST0_CU1 | ST0_FR | ST0_IM
 		and	a0, v1
 		LONG_L	v0, PT_STATUS(sp)
 		nor	v1, $0, v1

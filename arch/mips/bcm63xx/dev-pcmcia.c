@@ -139,6 +139,6 @@ int __init bcm63xx_pcmcia_register(void)
 	return platform_device_register(&bcm63xx_pcmcia_device);
 
 out_err:
-	printk(KERN_ERR "unable to set pcmcia chip select\n");
+	pr_err("unable to set pcmcia chip select\n");
 	return ret;
 }

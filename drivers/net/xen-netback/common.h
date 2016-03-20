@@ -44,6 +44,7 @@
 #include <xen/interface/grant_table.h>
 #include <xen/grant_table.h>
 #include <xen/xenbus.h>
+#include <xen/page.h>
 #include <linux/debugfs.h>
 
 typedef unsigned int pending_ring_idx_t;
@@ -51,6 +52,7 @@ typedef unsigned int pending_ring_idx_t;
 
 struct pending_tx_info {
 	struct xen_netif_tx_request req; /* tx request */
+	unsigned int extra_count;
 	/* Callback data for released SKBs. The callback is always
 	 * xenvif_zerocopy_callback, desc contains the pending_idx, which is
 	 * also an index in pending_tx_info array. It is initialized in
@@ -64,8 +66,8 @@ struct pending_tx_info {
 	struct ubuf_info callback_struct;
 };
 
-#define XEN_NETIF_TX_RING_SIZE __CONST_RING_SIZE(xen_netif_tx, PAGE_SIZE)
-#define XEN_NETIF_RX_RING_SIZE __CONST_RING_SIZE(xen_netif_rx, PAGE_SIZE)
+#define XEN_NETIF_TX_RING_SIZE __CONST_RING_SIZE(xen_netif_tx, XEN_PAGE_SIZE)
+#define XEN_NETIF_RX_RING_SIZE __CONST_RING_SIZE(xen_netif_rx, XEN_PAGE_SIZE)
 
 struct xenvif_rx_meta {
 	int id;
@@ -80,16 +82,21 @@ struct xenvif_rx_meta {
 /* Discriminate from any valid pending_idx value. */
 #define INVALID_PENDING_IDX 0xFFFF
 
-#define MAX_BUFFER_OFFSET PAGE_SIZE
+#define MAX_BUFFER_OFFSET XEN_PAGE_SIZE
 
 #define MAX_PENDING_REQS XEN_NETIF_TX_RING_SIZE
 
+/* The maximum number of frags is derived from the size of a grant (same
+ * as a Xen page size for now).
+ */
+#define MAX_XEN_SKB_FRAGS (65536 / XEN_PAGE_SIZE + 1)
+
 /* It's possible for an skb to have a maximal number of frags
  * but still be less than MAX_BUFFER_OFFSET in size. Thus the
- * worst-case number of copy operations is MAX_SKB_FRAGS per
+ * worst-case number of copy operations is MAX_XEN_SKB_FRAGS per
  * ring slot.
  */
-#define MAX_GRANT_COPY_OPS (MAX_SKB_FRAGS * XEN_NETIF_RX_RING_SIZE)
+#define MAX_GRANT_COPY_OPS (MAX_XEN_SKB_FRAGS * XEN_NETIF_RX_RING_SIZE)
 
 #define NETBACK_INVALID_HANDLE -1
 
@@ -176,10 +183,11 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	char rx_irq_name[IRQ_NAME_SIZE]; /* DEVNAME-qN-rx */
 	struct xen_netif_rx_back_ring rx;
 	struct sk_buff_head rx_queue;
-	RING_IDX rx_last_skb_slots;
-	unsigned long status;
 
-	struct timer_list rx_stalled;
+	unsigned int rx_queue_max;
+	unsigned int rx_queue_len;
+	unsigned long last_rx_time;
+	bool stalled;
 
 	struct gnttab_copy grant_copy_op[MAX_GRANT_COPY_OPS];
 
@@ -202,16 +210,15 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 enum state_bit_shift {
 	/* This bit marks that the vif is connected */
 	VIF_STATUS_CONNECTED,
-	/* This bit signals the RX thread that queuing was stopped (in
-	 * start_xmit), and either the timer fired or an RX interrupt came
-	 */
-	QUEUE_STATUS_RX_PURGE_EVENT,
-	/* This bit tells the interrupt handler that this queue was the reason
-	 * for the carrier off, so it should kick the thread. Only queues which
-	 * brought it down can turn on the carrier.
-	 */
-	QUEUE_STATUS_RX_STALLED
 };
+
+struct xenvif_mcast_addr {
+	struct list_head entry;
+	struct rcu_head rcu;
+	u8 addr[6];
+};
+
+#define XEN_NETBK_MCAST_MAX 64
 
 struct xenvif {
 	/* Unique identifier for this interface. */
@@ -219,6 +226,8 @@ struct xenvif {
 	unsigned int     handle;
 
 	u8               fe_dev_addr[6];
+	struct list_head fe_mcast_addr;
+	unsigned int     fe_mcast_count;
 
 	/* Frontend feature information. */
 	int gso_mask;
@@ -227,19 +236,25 @@ struct xenvif {
 	u8 can_sg:1;
 	u8 ip_csum:1;
 	u8 ipv6_csum:1;
-
-	/* Internal feature information. */
-	u8 can_queue:1;	    /* can queue packets for receiver? */
+	u8 multicast_control:1;
 
 	/* Is this interface disabled? True when backend discovers
 	 * frontend is rogue.
 	 */
 	bool disabled;
 	unsigned long status;
+	unsigned long drain_timeout;
+	unsigned long stall_timeout;
 
 	/* Queues */
 	struct xenvif_queue *queues;
 	unsigned int num_queues; /* active queues, resource allocated */
+	unsigned int stalled_queues;
+
+	struct xenbus_watch credit_watch;
+	struct xenbus_watch mcast_ctrl_watch;
+
+	spinlock_t lock;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *xenvif_dbg_root;
@@ -249,10 +264,19 @@ struct xenvif {
 	struct net_device *dev;
 };
 
+struct xenvif_rx_cb {
+	unsigned long expires;
+	int meta_slots_used;
+};
+
+#define XENVIF_RX_CB(skb) ((struct xenvif_rx_cb *)(skb)->cb)
+
 static inline struct xenbus_device *xenvif_to_xenbus_device(struct xenvif *vif)
 {
 	return to_xenbus_device(vif->dev->dev.parent);
 }
+
+void xenvif_tx_credit_callback(unsigned long data);
 
 struct xenvif *xenvif_alloc(struct device *parent,
 			    domid_t domid,
@@ -271,8 +295,6 @@ int xenvif_xenbus_init(void);
 void xenvif_xenbus_fini(void);
 
 int xenvif_schedulable(struct xenvif *vif);
-
-int xenvif_must_stop_queue(struct xenvif_queue *queue);
 
 int xenvif_queue_stopped(struct xenvif_queue *queue);
 void xenvif_wake_queue(struct xenvif_queue *queue);
@@ -296,10 +318,7 @@ void xenvif_kick_thread(struct xenvif_queue *queue);
 
 int xenvif_dealloc_kthread(void *data);
 
-/* Determine whether the needed number of slots (req) are available,
- * and set req_event if not.
- */
-bool xenvif_rx_ring_slots_available(struct xenvif_queue *queue, int needed);
+void xenvif_rx_queue_tail(struct xenvif_queue *queue, struct sk_buff *skb);
 
 void xenvif_carrier_on(struct xenvif *vif);
 
@@ -315,15 +334,12 @@ static inline pending_ring_idx_t nr_pending_reqs(struct xenvif_queue *queue)
 		queue->pending_prod + queue->pending_cons;
 }
 
-/* Callback from stack when TX packet can be released */
-void xenvif_zerocopy_callback(struct ubuf_info *ubuf, bool zerocopy_success);
-
 irqreturn_t xenvif_interrupt(int irq, void *dev_id);
 
 extern bool separate_tx_rx_irq;
 
 extern unsigned int rx_drain_timeout_msecs;
-extern unsigned int rx_drain_timeout_jiffies;
+extern unsigned int rx_stall_timeout_msecs;
 extern unsigned int xenvif_max_queues;
 
 #ifdef CONFIG_DEBUG_FS
@@ -333,5 +349,9 @@ extern struct dentry *xen_netback_dbg_root;
 void xenvif_skb_zerocopy_prepare(struct xenvif_queue *queue,
 				 struct sk_buff *skb);
 void xenvif_skb_zerocopy_complete(struct xenvif_queue *queue);
+
+/* Multicast control */
+bool xenvif_mcast_match(struct xenvif *vif, const u8 *addr);
+void xenvif_mcast_addr_list_free(struct xenvif *vif);
 
 #endif /* __XEN_NETBACK__COMMON_H__ */

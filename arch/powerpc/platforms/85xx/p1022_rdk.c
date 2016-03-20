@@ -12,6 +12,7 @@
  * kind, whether express or implied.
  */
 
+#include <linux/fsl/guts.h>
 #include <linux/pci.h>
 #include <linux/of_platform.h>
 #include <asm/div64.h>
@@ -21,7 +22,6 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 #include <asm/udbg.h>
-#include <asm/fsl_guts.h>
 #include "smp.h"
 
 #include "mpc85xx.h"
@@ -50,14 +50,14 @@ void p1022rdk_set_pixel_clock(unsigned int pixclock)
 	/* Map the global utilities registers. */
 	guts_np = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
 	if (!guts_np) {
-		pr_err("p1022rdk: missing global utilties device node\n");
+		pr_err("p1022rdk: missing global utilities device node\n");
 		return;
 	}
 
 	guts = of_iomap(guts_np, 0);
 	of_node_put(guts_np);
 	if (!guts) {
-		pr_err("p1022rdk: could not map global utilties device\n");
+		pr_err("p1022rdk: could not map global utilities device\n");
 		return;
 	}
 

@@ -19,6 +19,19 @@
 #include <linux/regulator/machine.h>
 
 enum {
+	ACT8600_ID_DCDC1,
+	ACT8600_ID_DCDC2,
+	ACT8600_ID_DCDC3,
+	ACT8600_ID_SUDCDC4,
+	ACT8600_ID_LDO5,
+	ACT8600_ID_LDO6,
+	ACT8600_ID_LDO7,
+	ACT8600_ID_LDO8,
+	ACT8600_ID_LDO9,
+	ACT8600_ID_LDO10,
+};
+
+enum {
 	ACT8865_ID_DCDC1,
 	ACT8865_ID_DCDC2,
 	ACT8865_ID_DCDC3,
@@ -46,6 +59,7 @@ enum {
 };
 
 enum {
+	ACT8600,
 	ACT8865,
 	ACT8846,
 };
@@ -54,12 +68,12 @@ enum {
  * act8865_regulator_data - regulator data
  * @id: regulator id
  * @name: regulator name
- * @platform_data: regulator init data
+ * @init_data: regulator init data
  */
 struct act8865_regulator_data {
 	int id;
 	const char *name;
-	struct regulator_init_data *platform_data;
+	struct regulator_init_data *init_data;
 };
 
 /**

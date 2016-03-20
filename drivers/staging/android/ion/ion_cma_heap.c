@@ -39,24 +39,6 @@ struct ion_cma_buffer_info {
 	struct sg_table *table;
 };
 
-/*
- * Create scatter-list for the already allocated DMA buffer.
- * This function could be replaced by dma_common_get_sgtable
- * as soon as it will avalaible.
- */
-static int ion_cma_get_sgtable(struct device *dev, struct sg_table *sgt,
-			       void *cpu_addr, dma_addr_t handle, size_t size)
-{
-	struct page *page = virt_to_page(cpu_addr);
-	int ret;
-
-	ret = sg_alloc_table(sgt, 1, GFP_KERNEL);
-	if (unlikely(ret))
-		return ret;
-
-	sg_set_page(sgt->sgl, page, PAGE_ALIGN(size), 0);
-	return 0;
-}
 
 /* ION CMA heap operations functions */
 static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
@@ -91,8 +73,8 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	if (!info->table)
 		goto free_mem;
 
-	if (ion_cma_get_sgtable
-	    (dev, info->table, info->cpu_addr, info->handle, len))
+	if (dma_get_sgtable(dev, info->table, info->cpu_addr, info->handle,
+			    len))
 		goto free_table;
 	/* keep this for memory release */
 	buffer->priv_virt = info;
@@ -198,8 +180,10 @@ struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data)
 		return ERR_PTR(-ENOMEM);
 
 	cma_heap->heap.ops = &ion_cma_ops;
-	/* get device from private heaps data, later it will be
-	 * used to make the link with reserved CMA memory */
+	/*
+	 * get device from private heaps data, later it will be
+	 * used to make the link with reserved CMA memory
+	 */
 	cma_heap->dev = data->priv;
 	cma_heap->heap.type = ION_HEAP_TYPE_DMA;
 	return &cma_heap->heap;

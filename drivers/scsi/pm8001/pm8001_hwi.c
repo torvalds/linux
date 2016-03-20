@@ -2642,6 +2642,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
+		break;
 	default:
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("Unknown status 0x%x\n", status));
@@ -3132,6 +3133,7 @@ void pm8001_mpi_set_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 void
 pm8001_mpi_get_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 {
+	struct fw_control_ex    *fw_control_context;
 	struct get_nvm_data_resp *pPayload =
 		(struct get_nvm_data_resp *)(piomb + 4);
 	u32 tag = le32_to_cpu(pPayload->tag);
@@ -3140,6 +3142,7 @@ pm8001_mpi_get_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	u32 ir_tds_bn_dps_das_nvm =
 		le32_to_cpu(pPayload->ir_tda_bn_dps_das_nvm);
 	void *virt_addr = pm8001_ha->memoryMap.region[NVMD].virt_ptr;
+	fw_control_context = ccb->fw_control_context;
 
 	PM8001_MSG_DBG(pm8001_ha, pm8001_printk("Get nvm data complete!\n"));
 	if ((dlen_status & NVMD_STAT) != 0) {
@@ -3180,6 +3183,12 @@ pm8001_mpi_get_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			pm8001_printk("Get NVMD success, IR=0, dataLen=%d\n",
 			(dlen_status & NVMD_LEN) >> 24));
 	}
+	/* Though fw_control_context is freed below, usrAddr still needs
+	 * to be updated as this holds the response to the request function
+	 */
+	memcpy(fw_control_context->usrAddr,
+		pm8001_ha->memoryMap.region[NVMD].virt_ptr,
+		fw_control_context->len);
 	kfree(ccb->fw_control_context);
 	ccb->task = NULL;
 	ccb->ccb_tag = 0xFFFFFFFF;
@@ -3255,6 +3264,10 @@ void pm8001_get_lrate_mode(struct pm8001_phy *phy, u8 link_rate)
 	struct sas_phy *sas_phy = phy->sas_phy.phy;
 
 	switch (link_rate) {
+	case PHY_SPEED_120:
+		phy->sas_phy.linkrate = SAS_LINK_RATE_12_0_GBPS;
+		phy->sas_phy.phy->negotiated_linkrate = SAS_LINK_RATE_12_0_GBPS;
+		break;
 	case PHY_SPEED_60:
 		phy->sas_phy.linkrate = SAS_LINK_RATE_6_0_GBPS;
 		phy->sas_phy.phy->negotiated_linkrate = SAS_LINK_RATE_6_0_GBPS;
@@ -4359,7 +4372,7 @@ static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 			PM8001_IO_DBG(pm8001_ha, pm8001_printk("PIO\n"));
 		}
 		if (task->ata_task.use_ncq &&
-			dev->sata_dev.command_set != ATAPI_COMMAND_SET) {
+			dev->sata_dev.class != ATA_DEV_ATAPI) {
 			ATAP = 0x07; /* FPDMA */
 			PM8001_IO_DBG(pm8001_ha, pm8001_printk("FPDMA\n"));
 		}

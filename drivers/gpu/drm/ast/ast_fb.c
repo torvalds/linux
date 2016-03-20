@@ -125,7 +125,7 @@ static void ast_fillrect(struct fb_info *info,
 			 const struct fb_fillrect *rect)
 {
 	struct ast_fbdev *afbdev = info->par;
-	sys_fillrect(info, rect);
+	drm_fb_helper_sys_fillrect(info, rect);
 	ast_dirty_update(afbdev, rect->dx, rect->dy, rect->width,
 			 rect->height);
 }
@@ -134,7 +134,7 @@ static void ast_copyarea(struct fb_info *info,
 			 const struct fb_copyarea *area)
 {
 	struct ast_fbdev *afbdev = info->par;
-	sys_copyarea(info, area);
+	drm_fb_helper_sys_copyarea(info, area);
 	ast_dirty_update(afbdev, area->dx, area->dy, area->width,
 			 area->height);
 }
@@ -143,7 +143,7 @@ static void ast_imageblit(struct fb_info *info,
 			  const struct fb_image *image)
 {
 	struct ast_fbdev *afbdev = info->par;
-	sys_imageblit(info, image);
+	drm_fb_helper_sys_imageblit(info, image);
 	ast_dirty_update(afbdev, image->dx, image->dy, image->width,
 			 image->height);
 }
@@ -163,7 +163,7 @@ static struct fb_ops astfb_ops = {
 };
 
 static int astfb_create_object(struct ast_fbdev *afbdev,
-			       struct drm_mode_fb_cmd2 *mode_cmd,
+			       const struct drm_mode_fb_cmd2 *mode_cmd,
 			       struct drm_gem_object **gobj_p)
 {
 	struct drm_device *dev = afbdev->helper.dev;
@@ -186,13 +186,13 @@ static int astfb_create_object(struct ast_fbdev *afbdev,
 static int astfb_create(struct drm_fb_helper *helper,
 			struct drm_fb_helper_surface_size *sizes)
 {
-	struct ast_fbdev *afbdev = (struct ast_fbdev *)helper;
+	struct ast_fbdev *afbdev =
+		container_of(helper, struct ast_fbdev, helper);
 	struct drm_device *dev = afbdev->helper.dev;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_framebuffer *fb;
 	struct fb_info *info;
 	int size, ret;
-	struct device *device = &dev->pdev->dev;
 	void *sysram;
 	struct drm_gem_object *gobj = NULL;
 	struct ast_bo *bo = NULL;
@@ -216,40 +216,28 @@ static int astfb_create(struct drm_fb_helper *helper,
 	if (!sysram)
 		return -ENOMEM;
 
-	info = framebuffer_alloc(0, device);
-	if (!info) {
-		ret = -ENOMEM;
-		goto out;
+	info = drm_fb_helper_alloc_fbi(helper);
+	if (IS_ERR(info)) {
+		ret = PTR_ERR(info);
+		goto err_free_vram;
 	}
 	info->par = afbdev;
 
 	ret = ast_framebuffer_init(dev, &afbdev->afb, &mode_cmd, gobj);
 	if (ret)
-		goto out;
+		goto err_release_fbi;
 
 	afbdev->sysram = sysram;
 	afbdev->size = size;
 
 	fb = &afbdev->afb.base;
 	afbdev->helper.fb = fb;
-	afbdev->helper.fbdev = info;
 
 	strcpy(info->fix.id, "astdrmfb");
 
 	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &astfb_ops;
 
-	ret = fb_alloc_cmap(&info->cmap, 256, 0);
-	if (ret) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		ret = -ENOMEM;
-		goto out;
-	}
 	info->apertures->ranges[0].base = pci_resource_start(dev->pdev, 0);
 	info->apertures->ranges[0].size = pci_resource_len(dev->pdev, 0);
 
@@ -265,7 +253,11 @@ static int astfb_create(struct drm_fb_helper *helper,
 		      fb->width, fb->height);
 
 	return 0;
-out:
+
+err_release_fbi:
+	drm_fb_helper_release_fbi(helper);
+err_free_vram:
+	vfree(afbdev->sysram);
 	return ret;
 }
 
@@ -296,15 +288,10 @@ static const struct drm_fb_helper_funcs ast_fb_helper_funcs = {
 static void ast_fbdev_destroy(struct drm_device *dev,
 			      struct ast_fbdev *afbdev)
 {
-	struct fb_info *info;
 	struct ast_framebuffer *afb = &afbdev->afb;
-	if (afbdev->helper.fbdev) {
-		info = afbdev->helper.fbdev;
-		unregister_framebuffer(info);
-		if (info->cmap.len)
-			fb_dealloc_cmap(&info->cmap);
-		framebuffer_release(info);
-	}
+
+	drm_fb_helper_unregister_fbi(&afbdev->helper);
+	drm_fb_helper_release_fbi(&afbdev->helper);
 
 	if (afb->obj) {
 		drm_gem_object_unreference_unlocked(afb->obj);
@@ -334,18 +321,27 @@ int ast_fbdev_init(struct drm_device *dev)
 
 	ret = drm_fb_helper_init(dev, &afbdev->helper,
 				 1, 1);
-	if (ret) {
-		kfree(afbdev);
-		return ret;
-	}
+	if (ret)
+		goto free;
 
-	drm_fb_helper_single_add_all_connectors(&afbdev->helper);
+	ret = drm_fb_helper_single_add_all_connectors(&afbdev->helper);
+	if (ret)
+		goto fini;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(dev);
 
-	drm_fb_helper_initial_config(&afbdev->helper, 32);
+	ret = drm_fb_helper_initial_config(&afbdev->helper, 32);
+	if (ret)
+		goto fini;
+
 	return 0;
+
+fini:
+	drm_fb_helper_fini(&afbdev->helper);
+free:
+	kfree(afbdev);
+	return ret;
 }
 
 void ast_fbdev_fini(struct drm_device *dev)
@@ -367,5 +363,12 @@ void ast_fbdev_set_suspend(struct drm_device *dev, int state)
 	if (!ast->fbdev)
 		return;
 
-	fb_set_suspend(ast->fbdev->helper.fbdev, state);
+	drm_fb_helper_set_suspend(&ast->fbdev->helper, state);
+}
+
+void ast_fbdev_set_base(struct ast_private *ast, unsigned long gpu_addr)
+{
+	ast->fbdev->helper.fbdev->fix.smem_start =
+		ast->fbdev->helper.fbdev->apertures->ranges[0].base + gpu_addr;
+	ast->fbdev->helper.fbdev->fix.smem_len = ast->vram_size - gpu_addr;
 }

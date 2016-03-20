@@ -51,7 +51,7 @@ EXPORT_SYMBOL(generic_fillattr);
  */
 int vfs_getattr_nosec(struct path *path, struct kstat *stat)
 {
-	struct inode *inode = path->dentry->d_inode;
+	struct inode *inode = d_backing_inode(path->dentry);
 
 	if (inode->i_op->getattr)
 		return inode->i_op->getattr(path->mnt, path->dentry, stat);
@@ -66,7 +66,7 @@ int vfs_getattr(struct path *path, struct kstat *stat)
 {
 	int retval;
 
-	retval = security_inode_getattr(path->mnt, path->dentry);
+	retval = security_inode_getattr(path);
 	if (retval)
 		return retval;
 	return vfs_getattr_nosec(path, stat);
@@ -219,7 +219,7 @@ SYSCALL_DEFINE2(fstat, unsigned int, fd, struct __old_kernel_stat __user *, stat
 #  define choose_32_64(a,b) b
 #endif
 
-#define valid_dev(x)  choose_32_64(old_valid_dev,new_valid_dev)(x)
+#define valid_dev(x)  choose_32_64(old_valid_dev(x),true)
 #define encode_dev(x) choose_32_64(old_encode_dev,new_encode_dev)(x)
 
 #ifndef INIT_STRUCT_STAT_PADDING
@@ -326,7 +326,7 @@ SYSCALL_DEFINE4(readlinkat, int, dfd, const char __user *, pathname,
 retry:
 	error = user_path_at_empty(dfd, pathname, lookup_flags, &path, &empty);
 	if (!error) {
-		struct inode *inode = path.dentry->d_inode;
+		struct inode *inode = d_backing_inode(path.dentry);
 
 		error = empty ? -ENOENT : -EINVAL;
 		if (inode->i_op->readlink) {
@@ -367,8 +367,6 @@ static long cp_new_stat64(struct kstat *stat, struct stat64 __user *statbuf)
 	INIT_STRUCT_STAT64_PADDING(tmp);
 #ifdef CONFIG_MIPS
 	/* mips has weird padding, so we don't get 64 bits there */
-	if (!new_valid_dev(stat->dev) || !new_valid_dev(stat->rdev))
-		return -EOVERFLOW;
 	tmp.st_dev = new_encode_dev(stat->dev);
 	tmp.st_rdev = new_encode_dev(stat->rdev);
 #else

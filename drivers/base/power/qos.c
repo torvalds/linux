@@ -64,6 +64,8 @@ enum pm_qos_flags_status __dev_pm_qos_flags(struct device *dev, s32 mask)
 	struct pm_qos_flags *pqf;
 	s32 val;
 
+	lockdep_assert_held(&dev->power.lock);
+
 	if (IS_ERR_OR_NULL(qos))
 		return PM_QOS_FLAGS_UNDEFINED;
 
@@ -104,6 +106,8 @@ EXPORT_SYMBOL_GPL(dev_pm_qos_flags);
  */
 s32 __dev_pm_qos_read_value(struct device *dev)
 {
+	lockdep_assert_held(&dev->power.lock);
+
 	return IS_ERR_OR_NULL(dev->power.qos) ?
 		0 : pm_qos_read_value(&dev->power.qos->resume_latency);
 }
@@ -599,7 +603,6 @@ int dev_pm_qos_add_ancestor_request(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_add_ancestor_request);
 
-#ifdef CONFIG_PM_RUNTIME
 static void __dev_pm_qos_drop_user_request(struct device *dev,
 					   enum dev_pm_qos_req_type type)
 {
@@ -880,7 +883,40 @@ int dev_pm_qos_update_user_latency_tolerance(struct device *dev, s32 val)
 	mutex_unlock(&dev_pm_qos_mtx);
 	return ret;
 }
-#else /* !CONFIG_PM_RUNTIME */
-static void __dev_pm_qos_hide_latency_limit(struct device *dev) {}
-static void __dev_pm_qos_hide_flags(struct device *dev) {}
-#endif /* CONFIG_PM_RUNTIME */
+
+/**
+ * dev_pm_qos_expose_latency_tolerance - Expose latency tolerance to userspace
+ * @dev: Device whose latency tolerance to expose
+ */
+int dev_pm_qos_expose_latency_tolerance(struct device *dev)
+{
+	int ret;
+
+	if (!dev->power.set_latency_tolerance)
+		return -EINVAL;
+
+	mutex_lock(&dev_pm_qos_sysfs_mtx);
+	ret = pm_qos_sysfs_add_latency_tolerance(dev);
+	mutex_unlock(&dev_pm_qos_sysfs_mtx);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dev_pm_qos_expose_latency_tolerance);
+
+/**
+ * dev_pm_qos_hide_latency_tolerance - Hide latency tolerance from userspace
+ * @dev: Device whose latency tolerance to hide
+ */
+void dev_pm_qos_hide_latency_tolerance(struct device *dev)
+{
+	mutex_lock(&dev_pm_qos_sysfs_mtx);
+	pm_qos_sysfs_remove_latency_tolerance(dev);
+	mutex_unlock(&dev_pm_qos_sysfs_mtx);
+
+	/* Remove the request from user space now */
+	pm_runtime_get_sync(dev);
+	dev_pm_qos_update_user_latency_tolerance(dev,
+		PM_QOS_LATENCY_TOLERANCE_NO_CONSTRAINT);
+	pm_runtime_put(dev);
+}
+EXPORT_SYMBOL_GPL(dev_pm_qos_hide_latency_tolerance);

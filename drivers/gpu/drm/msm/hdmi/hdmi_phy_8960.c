@@ -15,19 +15,25 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef CONFIG_COMMON_CLK
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#endif
 
 #include "hdmi.h"
 
 struct hdmi_phy_8960 {
 	struct hdmi_phy base;
 	struct hdmi *hdmi;
+#ifdef CONFIG_COMMON_CLK
 	struct clk_hw pll_hw;
 	struct clk *pll;
 	unsigned long pixclk;
+#endif
 };
 #define to_hdmi_phy_8960(x) container_of(x, struct hdmi_phy_8960, base)
+
+#ifdef CONFIG_COMMON_CLK
 #define clk_to_phy(x) container_of(x, struct hdmi_phy_8960, pll_hw)
 
 /*
@@ -47,6 +53,23 @@ struct pll_rate {
 
 /* NOTE: keep sorted highest freq to lowest: */
 static const struct pll_rate freqtbl[] = {
+	{ 154000000, {
+		{ 0x08, REG_HDMI_8960_PHY_PLL_REFCLK_CFG    },
+		{ 0x20, REG_HDMI_8960_PHY_PLL_LOOP_FLT_CFG0 },
+		{ 0xf9, REG_HDMI_8960_PHY_PLL_LOOP_FLT_CFG1 },
+		{ 0x02, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG0   },
+		{ 0x03, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG1   },
+		{ 0x3b, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG2   },
+		{ 0x00, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG3   },
+		{ 0x86, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG4   },
+		{ 0x00, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG5   },
+		{ 0x0d, REG_HDMI_8960_PHY_PLL_SDM_CFG0      },
+		{ 0x4d, REG_HDMI_8960_PHY_PLL_SDM_CFG1      },
+		{ 0x5e, REG_HDMI_8960_PHY_PLL_SDM_CFG2      },
+		{ 0x42, REG_HDMI_8960_PHY_PLL_SDM_CFG3      },
+		{ 0x00, REG_HDMI_8960_PHY_PLL_SDM_CFG4      },
+		{ 0, 0 } }
+	},
 	/* 1080p60/1080p50 case */
 	{ 148500000, {
 		{ 0x02, REG_HDMI_8960_PHY_PLL_REFCLK_CFG    },
@@ -104,6 +127,23 @@ static const struct pll_rate freqtbl[] = {
 		{ 0xe6, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG0   },
 		{ 0x02, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG1   },
 		{ 0x3b, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG2   },
+		{ 0, 0 } }
+	},
+	{ 74176000, {
+		{ 0x18, REG_HDMI_8960_PHY_PLL_REFCLK_CFG    },
+		{ 0x20, REG_HDMI_8960_PHY_PLL_LOOP_FLT_CFG0 },
+		{ 0xf9, REG_HDMI_8960_PHY_PLL_LOOP_FLT_CFG1 },
+		{ 0xe5, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG0   },
+		{ 0x02, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG1   },
+		{ 0x3b, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG2   },
+		{ 0x00, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG3   },
+		{ 0x86, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG4   },
+		{ 0x00, REG_HDMI_8960_PHY_PLL_VCOCAL_CFG5   },
+		{ 0x0c, REG_HDMI_8960_PHY_PLL_SDM_CFG0      },
+		{ 0x4c, REG_HDMI_8960_PHY_PLL_SDM_CFG1      },
+		{ 0x7d, REG_HDMI_8960_PHY_PLL_SDM_CFG2      },
+		{ 0xbc, REG_HDMI_8960_PHY_PLL_SDM_CFG3      },
+		{ 0x00, REG_HDMI_8960_PHY_PLL_SDM_CFG4      },
 		{ 0, 0 } }
 	},
 	{ 65000000, {
@@ -374,7 +414,7 @@ static struct clk_init_data pll_init = {
 	.parent_names = hdmi_pll_parents,
 	.num_parents = ARRAY_SIZE(hdmi_pll_parents),
 };
-
+#endif
 
 /*
  * HDMI Phy:
@@ -384,57 +424,6 @@ static void hdmi_phy_8960_destroy(struct hdmi_phy *phy)
 {
 	struct hdmi_phy_8960 *phy_8960 = to_hdmi_phy_8960(phy);
 	kfree(phy_8960);
-}
-
-static void hdmi_phy_8960_reset(struct hdmi_phy *phy)
-{
-	struct hdmi_phy_8960 *phy_8960 = to_hdmi_phy_8960(phy);
-	struct hdmi *hdmi = phy_8960->hdmi;
-	unsigned int val;
-
-	val = hdmi_read(hdmi, REG_HDMI_PHY_CTRL);
-
-	if (val & HDMI_PHY_CTRL_SW_RESET_LOW) {
-		/* pull low */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val & ~HDMI_PHY_CTRL_SW_RESET);
-	} else {
-		/* pull high */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val | HDMI_PHY_CTRL_SW_RESET);
-	}
-
-	if (val & HDMI_PHY_CTRL_SW_RESET_PLL_LOW) {
-		/* pull low */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val & ~HDMI_PHY_CTRL_SW_RESET_PLL);
-	} else {
-		/* pull high */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val | HDMI_PHY_CTRL_SW_RESET_PLL);
-	}
-
-	msleep(100);
-
-	if (val & HDMI_PHY_CTRL_SW_RESET_LOW) {
-		/* pull high */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val | HDMI_PHY_CTRL_SW_RESET);
-	} else {
-		/* pull low */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val & ~HDMI_PHY_CTRL_SW_RESET);
-	}
-
-	if (val & HDMI_PHY_CTRL_SW_RESET_PLL_LOW) {
-		/* pull high */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val | HDMI_PHY_CTRL_SW_RESET_PLL);
-	} else {
-		/* pull low */
-		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
-				val & ~HDMI_PHY_CTRL_SW_RESET_PLL);
-	}
 }
 
 static void hdmi_phy_8960_powerup(struct hdmi_phy *phy,
@@ -471,7 +460,6 @@ static void hdmi_phy_8960_powerdown(struct hdmi_phy *phy)
 
 static const struct hdmi_phy_funcs hdmi_phy_8960_funcs = {
 		.destroy = hdmi_phy_8960_destroy,
-		.reset = hdmi_phy_8960_reset,
 		.powerup = hdmi_phy_8960_powerup,
 		.powerdown = hdmi_phy_8960_powerdown,
 };
@@ -480,12 +468,15 @@ struct hdmi_phy *hdmi_phy_8960_init(struct hdmi *hdmi)
 {
 	struct hdmi_phy_8960 *phy_8960;
 	struct hdmi_phy *phy = NULL;
-	int ret, i;
+	int ret;
+#ifdef CONFIG_COMMON_CLK
+	int i;
 
 	/* sanity check: */
 	for (i = 0; i < (ARRAY_SIZE(freqtbl) - 1); i++)
 		if (WARN_ON(freqtbl[i].rate < freqtbl[i+1].rate))
 			return ERR_PTR(-EINVAL);
+#endif
 
 	phy_8960 = kzalloc(sizeof(*phy_8960), GFP_KERNEL);
 	if (!phy_8960) {
@@ -499,13 +490,15 @@ struct hdmi_phy *hdmi_phy_8960_init(struct hdmi *hdmi)
 
 	phy_8960->hdmi = hdmi;
 
+#ifdef CONFIG_COMMON_CLK
 	phy_8960->pll_hw.init = &pll_init;
-	phy_8960->pll = devm_clk_register(hdmi->dev->dev, &phy_8960->pll_hw);
+	phy_8960->pll = devm_clk_register(&hdmi->pdev->dev, &phy_8960->pll_hw);
 	if (IS_ERR(phy_8960->pll)) {
 		ret = PTR_ERR(phy_8960->pll);
 		phy_8960->pll = NULL;
 		goto fail;
 	}
+#endif
 
 	return phy;
 

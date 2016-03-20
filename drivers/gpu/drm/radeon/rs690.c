@@ -28,6 +28,7 @@
 #include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "radeon_audio.h"
 #include "atom.h"
 #include "rs690d.h"
 
@@ -206,6 +207,9 @@ void rs690_line_buffer_adjust(struct radeon_device *rdev,
 {
 	u32 tmp;
 
+	/* Guess line buffer size to be 8192 pixels */
+	u32 lb_size = 8192;
+
 	/*
 	 * Line Buffer Setup
 	 * There is a single line buffer shared by both display controllers.
@@ -242,6 +246,13 @@ void rs690_line_buffer_adjust(struct radeon_device *rdev,
 		tmp |= V_006520_DC_LB_MEMORY_SPLIT_D1_1Q_D2_3Q;
 	}
 	WREG32(R_006520_DC_LB_MEMORY_SPLIT, tmp);
+
+	/* Save number of lines the linebuffer leads before the scanout */
+	if (mode1)
+		rdev->mode_info.crtcs[0]->lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode1->crtc_hdisplay);
+
+	if (mode2)
+		rdev->mode_info.crtcs[1]->lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode2->crtc_hdisplay);
 }
 
 struct rs690_watermark {
@@ -579,6 +590,9 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 	u32 d1mode_priority_a_cnt, d1mode_priority_b_cnt;
 	u32 d2mode_priority_a_cnt, d2mode_priority_b_cnt;
 
+	if (!rdev->mode_info.mode_config_initialized)
+		return;
+
 	radeon_update_display_priority(rdev);
 
 	if (rdev->mode_info.crtcs[0]->base.enabled)
@@ -726,7 +740,7 @@ static int rs690_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = r600_audio_init(rdev);
+	r = radeon_audio_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "failed initializing audio\n");
 		return r;
@@ -767,7 +781,7 @@ int rs690_resume(struct radeon_device *rdev)
 int rs690_suspend(struct radeon_device *rdev)
 {
 	radeon_pm_suspend(rdev);
-	r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
 	rs600_irq_disable(rdev);
@@ -778,7 +792,7 @@ int rs690_suspend(struct radeon_device *rdev)
 void rs690_fini(struct radeon_device *rdev)
 {
 	radeon_pm_fini(rdev);
-	r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_ib_pool_fini(rdev);

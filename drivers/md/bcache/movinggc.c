@@ -60,20 +60,20 @@ static void write_moving_finish(struct closure *cl)
 	closure_return_with_destructor(cl, moving_io_destructor);
 }
 
-static void read_moving_endio(struct bio *bio, int error)
+static void read_moving_endio(struct bio *bio)
 {
 	struct bbio *b = container_of(bio, struct bbio, bio);
 	struct moving_io *io = container_of(bio->bi_private,
 					    struct moving_io, cl);
 
-	if (error)
-		io->op.error = error;
+	if (bio->bi_error)
+		io->op.error = bio->bi_error;
 	else if (!KEY_DIRTY(&b->key) &&
 		 ptr_stale(io->op.c, &b->key, 0)) {
 		io->op.error = -EINTR;
 	}
 
-	bch_bbio_endio(io->op.c, bio, error, "reading data to move");
+	bch_bbio_endio(io->op.c, bio, bio->bi_error, "reading data to move");
 }
 
 static void moving_init(struct moving_io *io)

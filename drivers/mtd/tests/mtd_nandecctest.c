@@ -9,6 +9,8 @@
 #include <linux/slab.h>
 #include <linux/mtd/nand_ecc.h>
 
+#include "mtd_test.h"
+
 /*
  * Test the implementation for software ECC
  *
@@ -185,7 +187,7 @@ static int double_bit_error_detect(void *error_data, void *error_ecc,
 	__nand_calculate_ecc(error_data, size, calc_ecc);
 	ret = __nand_correct_data(error_data, error_ecc, calc_ecc, size);
 
-	return (ret == -1) ? 0 : -EINVAL;
+	return (ret == -EBADMSG) ? 0 : -EINVAL;
 }
 
 static const struct nand_ecc_test nand_ecc_test[] = {
@@ -274,6 +276,10 @@ static int nand_ecc_test_run(const size_t size)
 		}
 		pr_info("ok - %s-%zd\n",
 			nand_ecc_test[i].name, size);
+
+		err = mtdtest_relax();
+		if (err)
+			break;
 	}
 error:
 	kfree(error_data);

@@ -42,7 +42,7 @@ cifs_spnego_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 		goto error;
 
 	/* attach the data */
-	key->payload.data = payload;
+	key->payload.data[0] = payload;
 	ret = 0;
 
 error:
@@ -52,7 +52,7 @@ error:
 static void
 cifs_spnego_key_destroy(struct key *key)
 {
-	kfree(key->payload.data);
+	kfree(key->payload.data[0]);
 }
 
 
@@ -62,7 +62,6 @@ cifs_spnego_key_destroy(struct key *key)
 struct key_type cifs_spnego_key_type = {
 	.name		= "cifs.spnego",
 	.instantiate	= cifs_spnego_key_instantiate,
-	.match		= user_match,
 	.destroy	= cifs_spnego_key_destroy,
 	.describe	= user_describe,
 };
@@ -168,7 +167,7 @@ cifs_get_spnego_key(struct cifs_ses *sesInfo)
 
 #ifdef CONFIG_CIFS_DEBUG2
 	if (cifsFYI && !IS_ERR(spnego_key)) {
-		struct cifs_spnego_msg *msg = spnego_key->payload.data;
+		struct cifs_spnego_msg *msg = spnego_key->payload.data[0];
 		cifs_dump_mem("SPNEGO reply blob:", msg->data, min(1024U,
 				msg->secblob_len + msg->sesskey_len));
 	}

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2011  Intel Corporation. All rights reserved.
+ * Copyright (C) 2014 Marvell International Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -933,7 +934,7 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 		sock->ssap = ssap;
 	}
 
-	new_sk = nfc_llcp_sock_alloc(NULL, parent->sk_type, GFP_ATOMIC);
+	new_sk = nfc_llcp_sock_alloc(NULL, parent->sk_type, GFP_ATOMIC, 0);
 	if (new_sk == NULL) {
 		reason = LLCP_DM_REJ;
 		release_sock(&sock->sk);
@@ -1511,8 +1512,10 @@ int nfc_llcp_data_received(struct nfc_dev *dev, struct sk_buff *skb)
 	struct nfc_llcp_local *local;
 
 	local = nfc_llcp_find_local(dev);
-	if (local == NULL)
+	if (local == NULL) {
+		kfree_skb(skb);
 		return -ENODEV;
+	}
 
 	__nfc_llcp_recv(local, skb);
 

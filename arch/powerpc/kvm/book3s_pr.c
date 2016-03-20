@@ -295,7 +295,8 @@ static int kvm_unmap_hva_range_pr(struct kvm *kvm, unsigned long start,
 	return 0;
 }
 
-static int kvm_age_hva_pr(struct kvm *kvm, unsigned long hva)
+static int kvm_age_hva_pr(struct kvm *kvm, unsigned long start,
+			  unsigned long end)
 {
 	/* XXX could be more clever ;) */
 	return 0;
@@ -511,7 +512,7 @@ static void kvmppc_patch_dcbz(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte)
 	put_page(hpage);
 }
 
-static int kvmppc_visible_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
+static bool kvmppc_visible_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
 {
 	ulong mp_pa = vcpu->arch.magic_page_pa;
 
@@ -520,7 +521,7 @@ static int kvmppc_visible_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
 
 	gpa &= ~0xFFFULL;
 	if (unlikely(mp_pa) && unlikely((mp_pa & KVM_PAM) == (gpa & KVM_PAM))) {
-		return 1;
+		return true;
 	}
 
 	return kvm_is_visible_gfn(vcpu->kvm, gpa >> PAGE_SHIFT);
@@ -643,11 +644,6 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return r;
 }
 
-static inline int get_fpr_index(int i)
-{
-	return i * TS_FPRWIDTH;
-}
-
 /* Give up external provider (FPU, Altivec, VSX) */
 void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 {
@@ -755,6 +751,7 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 		preempt_disable();
 		enable_kernel_fp();
 		load_fp_state(&vcpu->arch.fp);
+		disable_kernel_fp();
 		t->fp_save_area = &vcpu->arch.fp;
 		preempt_enable();
 	}
@@ -764,6 +761,7 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 		preempt_disable();
 		enable_kernel_altivec();
 		load_vr_state(&vcpu->arch.vr);
+		disable_kernel_altivec();
 		t->vr_save_area = &vcpu->arch.vr;
 		preempt_enable();
 #endif
@@ -792,6 +790,7 @@ static void kvmppc_handle_lost_ext(struct kvm_vcpu *vcpu)
 		preempt_disable();
 		enable_kernel_fp();
 		load_fp_state(&vcpu->arch.fp);
+		disable_kernel_fp();
 		preempt_enable();
 	}
 #ifdef CONFIG_ALTIVEC
@@ -799,6 +798,7 @@ static void kvmppc_handle_lost_ext(struct kvm_vcpu *vcpu)
 		preempt_disable();
 		enable_kernel_altivec();
 		load_vr_state(&vcpu->arch.vr);
+		disable_kernel_altivec();
 		preempt_enable();
 	}
 #endif
@@ -1319,6 +1319,9 @@ static int kvmppc_get_one_reg_pr(struct kvm_vcpu *vcpu, u64 id,
 	int r = 0;
 
 	switch (id) {
+	case KVM_REG_PPC_DEBUG_INST:
+		*val = get_reg_val(id, KVMPPC_INST_SW_BREAKPOINT);
+		break;
 	case KVM_REG_PPC_HIOR:
 		*val = get_reg_val(id, to_book3s(vcpu)->hior);
 		break;
@@ -1487,21 +1490,8 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		goto out;
 	/* interrupts now hard-disabled */
 
-	/* Save FPU state in thread_struct */
-	if (current->thread.regs->msr & MSR_FP)
-		giveup_fpu(current);
-
-#ifdef CONFIG_ALTIVEC
-	/* Save Altivec state in thread_struct */
-	if (current->thread.regs->msr & MSR_VEC)
-		giveup_altivec(current);
-#endif
-
-#ifdef CONFIG_VSX
-	/* Save VSX state in thread_struct */
-	if (current->thread.regs->msr & MSR_VSX)
-		__giveup_vsx(current);
-#endif
+	/* Save FPU, Altivec and VSX state */
+	giveup_all(current);
 
 	/* Preload FPU if it's enabled */
 	if (kvmppc_get_msr(vcpu) & MSR_FP)
@@ -1531,6 +1521,7 @@ out:
 static int kvm_vm_ioctl_get_dirty_log_pr(struct kvm *kvm,
 					 struct kvm_dirty_log *log)
 {
+	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
 	struct kvm_vcpu *vcpu;
 	ulong ga, ga_end;
@@ -1546,7 +1537,8 @@ static int kvm_vm_ioctl_get_dirty_log_pr(struct kvm *kvm,
 
 	/* If nothing is dirty, don't bother messing with page tables. */
 	if (is_dirty) {
-		memslot = id_to_memslot(kvm->memslots, log->slot);
+		slots = kvm_memslots(kvm);
+		memslot = id_to_memslot(slots, log->slot);
 
 		ga = memslot->base_gfn << PAGE_SHIFT;
 		ga_end = ga + (memslot->npages << PAGE_SHIFT);
@@ -1572,14 +1564,15 @@ static void kvmppc_core_flush_memslot_pr(struct kvm *kvm,
 
 static int kvmppc_core_prepare_memory_region_pr(struct kvm *kvm,
 					struct kvm_memory_slot *memslot,
-					struct kvm_userspace_memory_region *mem)
+					const struct kvm_userspace_memory_region *mem)
 {
 	return 0;
 }
 
 static void kvmppc_core_commit_memory_region_pr(struct kvm *kvm,
-				struct kvm_userspace_memory_region *mem,
-				const struct kvm_memory_slot *old)
+				const struct kvm_userspace_memory_region *mem,
+				const struct kvm_memory_slot *old,
+				const struct kvm_memory_slot *new)
 {
 	return;
 }

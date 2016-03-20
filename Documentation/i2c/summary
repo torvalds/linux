@@ -41,7 +41,3 @@ integrated than Algorithm and Adapter.
 
 For a given configuration, you will need a driver for your I2C bus, and
 drivers for your I2C devices (usually one driver for each device).
-
-At this time, Linux only operates I2C (or SMBus) in master mode; you can't
-use these APIs to make a Linux system behave as a slave/device, either to
-speak a custom protocol or to emulate some other device.

@@ -508,7 +508,6 @@ static struct platform_driver mpc52xx_psc_spi_of_driver = {
 	.remove = mpc52xx_psc_spi_of_remove,
 	.driver = {
 		.name = "mpc52xx-psc-spi",
-		.owner = THIS_MODULE,
 		.of_match_table = mpc52xx_psc_spi_of_match,
 	},
 };

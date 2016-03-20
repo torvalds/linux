@@ -10,7 +10,7 @@
  */
 #include "../perf.h"
 #include "../util/util.h"
-#include "../util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "../builtin.h"
 #include "bench.h"
 
@@ -19,12 +19,12 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/wait.h>
-#include <linux/unistd.h>
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/syscall.h>
 
 #include <pthread.h>
 

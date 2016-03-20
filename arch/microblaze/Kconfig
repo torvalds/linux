@@ -1,5 +1,6 @@
 config MICROBLAZE
 	def_bool y
+	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -18,7 +19,6 @@ config MICROBLAZE
 	select HAVE_ARCH_KGDB
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_API_DEBUG
-	select HAVE_DMA_ATTRS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -64,9 +64,6 @@ config STACKTRACE_SUPPORT
 	def_bool y
 
 config LOCKDEP_SUPPORT
-	def_bool y
-
-config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
 source "init/Kconfig"
@@ -127,7 +124,11 @@ config SECCOMP
 
 endmenu
 
-menu "Advanced setup"
+menu "Kernel features"
+
+config NR_CPUS
+	int
+	default "1"
 
 config ADVANCED_OPTIONS
 	bool "Prompt for advanced kernel configuration options"
@@ -248,9 +249,9 @@ config MICROBLAZE_64K_PAGES
 
 endchoice
 
-endmenu
-
 source "mm/Kconfig"
+
+endmenu
 
 menu "Executable file formats"
 
@@ -265,6 +266,9 @@ config PCI
 
 config PCI_DOMAINS
 	def_bool PCI
+
+config PCI_DOMAINS_GENERIC
+	def_bool PCI_DOMAINS
 
 config PCI_SYSCALL
 	def_bool PCI

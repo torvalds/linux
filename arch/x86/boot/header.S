@@ -154,7 +154,7 @@ extra_header_fields:
 #else
 	.quad	0				# ImageBase
 #endif
-	.long	CONFIG_PHYSICAL_ALIGN		# SectionAlignment
+	.long	0x20				# SectionAlignment
 	.long	0x20				# FileAlignment
 	.word	0				# MajorOperatingSystemVersion
 	.word	0				# MinorOperatingSystemVersion
@@ -414,7 +414,7 @@ xloadflags:
 # define XLF23 0
 #endif
 
-#if defined(CONFIG_X86_64) && defined(CONFIG_EFI) && defined(CONFIG_KEXEC)
+#if defined(CONFIG_X86_64) && defined(CONFIG_EFI) && defined(CONFIG_KEXEC_CORE)
 # define XLF4 XLF_EFI_KEXEC
 #else
 # define XLF4 0

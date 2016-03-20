@@ -566,10 +566,10 @@ static int ld9040_power_on(struct ld9040 *lcd)
 	if (!pd->reset) {
 		dev_err(lcd->dev, "reset is NULL.\n");
 		return -EINVAL;
-	} else {
-		pd->reset(lcd->ld);
-		msleep(pd->reset_delay);
 	}
+
+	pd->reset(lcd->ld);
+	msleep(pd->reset_delay);
 
 	ret = ld9040_ldi_init(lcd);
 	if (ret) {
@@ -797,7 +797,6 @@ static void ld9040_shutdown(struct spi_device *spi)
 static struct spi_driver ld9040_driver = {
 	.driver = {
 		.name	= "ld9040",
-		.owner	= THIS_MODULE,
 		.pm	= &ld9040_pm_ops,
 	},
 	.probe		= ld9040_probe,

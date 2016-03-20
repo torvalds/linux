@@ -139,7 +139,6 @@ struct fs_platform_info {
 	int rx_ring, tx_ring;	/* number of buffers on rx     */
 	__u8 macaddr[ETH_ALEN];	/* mac address                 */
 	int rx_copybreak;	/* limit we copy small frames  */
-	int use_napi;		/* use NAPI                    */
 	int napi_weight;	/* NAPI weight                 */
 
 	int use_rmii;		/* use RMII mode 	       */

@@ -127,24 +127,12 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		reg_usbh1_vbus: regulator@0 {
-			compatible = "regulator-fixed";
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_usbh1reg>;
-			reg = <0>;
-			regulator-name = "usbh1_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio2 5 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
-
-		reg_usbotg_vbus: regulator@1 {
+		reg_hub_reset: regulator@0 {
 			compatible = "regulator-fixed";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usbotgreg>;
-			reg = <1>;
-			regulator-name = "usbotg_vbus";
+			reg = <0>;
+			regulator-name = "hub_reset";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio1 7 GPIO_ACTIVE_HIGH>;
@@ -176,6 +164,7 @@
 			reg = <0>;
 			clocks = <&clks IMX5_CLK_DUMMY>;
 			clock-names = "main_clk";
+			reset-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
@@ -419,7 +408,7 @@
 &usbh1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbh1>;
-	vbus-supply = <&reg_usbh1_vbus>;
+	vbus-supply = <&reg_hub_reset>;
 	fsl,usbphy = <&usbh1phy>;
 	phy_type = "ulpi";
 	status = "okay";
@@ -429,7 +418,6 @@
 	dr_mode = "otg";
 	disable-over-current;
 	phy_type = "utmi_wide";
-	vbus-supply = <&reg_usbotg_vbus>;
 	status = "okay";
 };
 

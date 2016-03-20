@@ -38,51 +38,16 @@
 #include <linux/ratelimit.h>
 #include "rds.h"
 
-#define BIND_HASH_SIZE 1024
-static struct hlist_head bind_hash_table[BIND_HASH_SIZE];
-static DEFINE_SPINLOCK(rds_bind_lock);
+static struct rhashtable bind_hash_table;
 
-static struct hlist_head *hash_to_bucket(__be32 addr, __be16 port)
-{
-	return bind_hash_table + (jhash_2words((u32)addr, (u32)port, 0) &
-				  (BIND_HASH_SIZE - 1));
-}
-
-static struct rds_sock *rds_bind_lookup(__be32 addr, __be16 port,
-					struct rds_sock *insert)
-{
-	struct rds_sock *rs;
-	struct hlist_head *head = hash_to_bucket(addr, port);
-	u64 cmp;
-	u64 needle = ((u64)be32_to_cpu(addr) << 32) | be16_to_cpu(port);
-
-	rcu_read_lock();
-	hlist_for_each_entry_rcu(rs, head, rs_bound_node) {
-		cmp = ((u64)be32_to_cpu(rs->rs_bound_addr) << 32) |
-		      be16_to_cpu(rs->rs_bound_port);
-
-		if (cmp == needle) {
-			rcu_read_unlock();
-			return rs;
-		}
-	}
-	rcu_read_unlock();
-
-	if (insert) {
-		/*
-		 * make sure our addr and port are set before
-		 * we are added to the list, other people
-		 * in rcu will find us as soon as the
-		 * hlist_add_head_rcu is done
-		 */
-		insert->rs_bound_addr = addr;
-		insert->rs_bound_port = port;
-		rds_sock_addref(insert);
-
-		hlist_add_head_rcu(&insert->rs_bound_node, head);
-	}
-	return NULL;
-}
+static struct rhashtable_params ht_parms = {
+	.nelem_hint = 768,
+	.key_len = sizeof(u64),
+	.key_offset = offsetof(struct rds_sock, rs_bound_key),
+	.head_offset = offsetof(struct rds_sock, rs_bound_node),
+	.max_size = 16384,
+	.min_size = 1024,
+};
 
 /*
  * Return the rds_sock bound at the given local address.
@@ -92,10 +57,10 @@ static struct rds_sock *rds_bind_lookup(__be32 addr, __be16 port,
  */
 struct rds_sock *rds_find_bound(__be32 addr, __be16 port)
 {
+	u64 key = ((u64)addr << 32) | port;
 	struct rds_sock *rs;
 
-	rs = rds_bind_lookup(addr, port, NULL);
-
+	rs = rhashtable_lookup_fast(&bind_hash_table, &key, ht_parms);
 	if (rs && !sock_flag(rds_rs_to_sk(rs), SOCK_DEAD))
 		rds_sock_addref(rs);
 	else
@@ -103,15 +68,16 @@ struct rds_sock *rds_find_bound(__be32 addr, __be16 port)
 
 	rdsdebug("returning rs %p for %pI4:%u\n", rs, &addr,
 		ntohs(port));
+
 	return rs;
 }
 
 /* returns -ve errno or +ve port */
 static int rds_add_bound(struct rds_sock *rs, __be32 addr, __be16 *port)
 {
-	unsigned long flags;
 	int ret = -EADDRINUSE;
 	u16 rover, last;
+	u64 key;
 
 	if (*port != 0) {
 		rover = be16_to_cpu(*port);
@@ -121,42 +87,49 @@ static int rds_add_bound(struct rds_sock *rs, __be32 addr, __be16 *port)
 		last = rover - 1;
 	}
 
-	spin_lock_irqsave(&rds_bind_lock, flags);
-
 	do {
 		if (rover == 0)
 			rover++;
-		if (!rds_bind_lookup(addr, cpu_to_be16(rover), rs)) {
+
+		key = ((u64)addr << 32) | cpu_to_be16(rover);
+		if (rhashtable_lookup_fast(&bind_hash_table, &key, ht_parms))
+			continue;
+
+		rs->rs_bound_key = key;
+		rs->rs_bound_addr = addr;
+		rs->rs_bound_port = cpu_to_be16(rover);
+		rs->rs_bound_node.next = NULL;
+		rds_sock_addref(rs);
+		if (!rhashtable_insert_fast(&bind_hash_table,
+					    &rs->rs_bound_node, ht_parms)) {
 			*port = rs->rs_bound_port;
 			ret = 0;
 			rdsdebug("rs %p binding to %pI4:%d\n",
 			  rs, &addr, (int)ntohs(*port));
 			break;
+		} else {
+			rds_sock_put(rs);
+			ret = -ENOMEM;
+			break;
 		}
 	} while (rover++ != last);
-
-	spin_unlock_irqrestore(&rds_bind_lock, flags);
 
 	return ret;
 }
 
 void rds_remove_bound(struct rds_sock *rs)
 {
-	unsigned long flags;
 
-	spin_lock_irqsave(&rds_bind_lock, flags);
+	if (!rs->rs_bound_addr)
+		return;
 
-	if (rs->rs_bound_addr) {
-		rdsdebug("rs %p unbinding from %pI4:%d\n",
-		  rs, &rs->rs_bound_addr,
-		  ntohs(rs->rs_bound_port));
+	rdsdebug("rs %p unbinding from %pI4:%d\n",
+		 rs, &rs->rs_bound_addr,
+		 ntohs(rs->rs_bound_port));
 
-		hlist_del_init_rcu(&rs->rs_bound_node);
-		rds_sock_put(rs);
-		rs->rs_bound_addr = 0;
-	}
-
-	spin_unlock_irqrestore(&rds_bind_lock, flags);
+	rhashtable_remove_fast(&bind_hash_table, &rs->rs_bound_node, ht_parms);
+	rds_sock_put(rs);
+	rs->rs_bound_addr = 0;
 }
 
 int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
@@ -181,7 +154,19 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (ret)
 		goto out;
 
-	trans = rds_trans_get_preferred(sin->sin_addr.s_addr);
+	if (rs->rs_transport) { /* previously bound */
+		trans = rs->rs_transport;
+		if (trans->laddr_check(sock_net(sock->sk),
+				       sin->sin_addr.s_addr) != 0) {
+			ret = -ENOPROTOOPT;
+			rds_remove_bound(rs);
+		} else {
+			ret = 0;
+		}
+		goto out;
+	}
+	trans = rds_trans_get_preferred(sock_net(sock->sk),
+					sin->sin_addr.s_addr);
 	if (!trans) {
 		ret = -EADDRNOTAVAIL;
 		rds_remove_bound(rs);
@@ -195,9 +180,15 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 out:
 	release_sock(sk);
-
-	/* we might have called rds_remove_bound on error */
-	if (ret)
-		synchronize_rcu();
 	return ret;
+}
+
+void rds_bind_lock_destroy(void)
+{
+	rhashtable_destroy(&bind_hash_table);
+}
+
+int rds_bind_lock_init(void)
+{
+	return rhashtable_init(&bind_hash_table, &ht_parms);
 }

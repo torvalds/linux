@@ -80,7 +80,6 @@ static int als_read_raw(struct iio_dev *indio_dev,
 	int report_id = -1;
 	u32 address;
 	int ret_type;
-	s32 poll_value;
 
 	*val = 0;
 	*val2 = 0;
@@ -97,19 +96,13 @@ static int als_read_raw(struct iio_dev *indio_dev,
 			break;
 		}
 		if (report_id >= 0) {
-			poll_value = hid_sensor_read_poll_value(
-						&als_state->common_attributes);
-			if (poll_value < 0)
-				return -EINVAL;
-
 			hid_sensor_power_state(&als_state->common_attributes,
 						true);
-			msleep_interruptible(poll_value * 2);
-
 			*val = sensor_hub_input_attr_get_raw_value(
 					als_state->common_attributes.hsdev,
 					HID_USAGE_SENSOR_ALS, address,
-					report_id);
+					report_id,
+					SENSOR_HUB_SYNC);
 			hid_sensor_power_state(&als_state->common_attributes,
 						false);
 		} else {
@@ -270,7 +263,6 @@ static int hid_als_probe(struct platform_device *pdev)
 	struct iio_dev *indio_dev;
 	struct als_state *als_state;
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
-	struct iio_chan_spec *channels;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(struct als_state));
 	if (!indio_dev)
@@ -288,20 +280,21 @@ static int hid_als_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	channels = kmemdup(als_channels, sizeof(als_channels), GFP_KERNEL);
-	if (!channels) {
+	indio_dev->channels = kmemdup(als_channels,
+				      sizeof(als_channels), GFP_KERNEL);
+	if (!indio_dev->channels) {
 		dev_err(&pdev->dev, "failed to duplicate channels\n");
 		return -ENOMEM;
 	}
 
-	ret = als_parse_report(pdev, hsdev, channels,
-				HID_USAGE_SENSOR_ALS, als_state);
+	ret = als_parse_report(pdev, hsdev,
+			       (struct iio_chan_spec *)indio_dev->channels,
+			       HID_USAGE_SENSOR_ALS, als_state);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup attributes\n");
 		goto error_free_dev_mem;
 	}
 
-	indio_dev->channels = channels;
 	indio_dev->num_channels =
 				ARRAY_SIZE(als_channels);
 	indio_dev->dev.parent = &pdev->dev;
@@ -368,7 +361,7 @@ static int hid_als_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id hid_als_ids[] = {
+static const struct platform_device_id hid_als_ids[] = {
 	{
 		/* Format: HID-SENSOR-usage_id_in_hex_lowercase */
 		.name = "HID-SENSOR-200041",
@@ -381,7 +374,7 @@ static struct platform_driver hid_als_platform_driver = {
 	.id_table = hid_als_ids,
 	.driver = {
 		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
+		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_als_probe,
 	.remove		= hid_als_remove,

@@ -29,8 +29,6 @@
 
 #include <linux/types.h>
 
-#include "ttype.h"
-
 typedef
 struct _version {
 	unsigned char   major;
@@ -67,26 +65,8 @@ struct _version {
 
 #define PKT_BUF_SZ          2390
 
-#define MAX_UINTS           8
-#define OPTION_DEFAULT      { [0 ... MAX_UINTS-1] = -1}
-
 typedef enum  _chip_type {
 	VT3253 = 1
 } CHIP_TYPE, *PCHIP_TYPE;
-
-#ifdef VIAWET_DEBUG
-#define ASSERT(x)							\
-do {									\
-	if (!(x)) {							\
-		pr_err("assertion %s failed: file %s line %d\n", \
-		       #x, __func__, __LINE__);				\
-		*(int *)0 = 0;						\
-	}								\
-} while (0)
-#define DBG_PORT80(value)                   outb(value, 0x80)
-#else
-#define ASSERT(x)
-#define DBG_PORT80(value)
-#endif
 
 #endif

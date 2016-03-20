@@ -17,7 +17,7 @@
 
 #include <mach/hardware.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa25x.h>
+#include "mfp-pxa25x.h"
 #include <mach/reset.h>
 #include <linux/platform_data/irda-pxaficp.h>
 

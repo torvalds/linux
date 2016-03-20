@@ -124,8 +124,9 @@ static void snd_opl4_seq_free_port(void *private_data)
 	snd_midi_channel_free_set(opl4->chset);
 }
 
-static int snd_opl4_seq_new_device(struct snd_seq_device *dev)
+static int snd_opl4_seq_probe(struct device *_dev)
 {
+	struct snd_seq_device *dev = to_seq_dev(_dev);
 	struct snd_opl4 *opl4;
 	int client;
 	struct snd_seq_port_callback pcallbacks;
@@ -180,8 +181,9 @@ static int snd_opl4_seq_new_device(struct snd_seq_device *dev)
 	return 0;
 }
 
-static int snd_opl4_seq_delete_device(struct snd_seq_device *dev)
+static int snd_opl4_seq_remove(struct device *_dev)
 {
+	struct snd_seq_device *dev = to_seq_dev(_dev);
 	struct snd_opl4 *opl4;
 
 	opl4 = *(struct snd_opl4 **)SNDRV_SEQ_DEVICE_ARGPTR(dev);
@@ -195,21 +197,14 @@ static int snd_opl4_seq_delete_device(struct snd_seq_device *dev)
 	return 0;
 }
 
-static int __init alsa_opl4_synth_init(void)
-{
-	static struct snd_seq_dev_ops ops = {
-		snd_opl4_seq_new_device,
-		snd_opl4_seq_delete_device
-	};
+static struct snd_seq_driver opl4_seq_driver = {
+	.driver = {
+		.name = KBUILD_MODNAME,
+		.probe = snd_opl4_seq_probe,
+		.remove = snd_opl4_seq_remove,
+	},
+	.id = SNDRV_SEQ_DEV_ID_OPL4,
+	.argsize = sizeof(struct snd_opl4 *),
+};
 
-	return snd_seq_device_register_driver(SNDRV_SEQ_DEV_ID_OPL4, &ops,
-					      sizeof(struct snd_opl4 *));
-}
-
-static void __exit alsa_opl4_synth_exit(void)
-{
-	snd_seq_device_unregister_driver(SNDRV_SEQ_DEV_ID_OPL4);
-}
-
-module_init(alsa_opl4_synth_init)
-module_exit(alsa_opl4_synth_exit)
+module_snd_seq_driver(opl4_seq_driver);

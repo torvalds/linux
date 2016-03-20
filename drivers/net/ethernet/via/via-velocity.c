@@ -345,13 +345,6 @@ VELOCITY_PARAM(flow_control, "Enable flow control ability");
 */
 VELOCITY_PARAM(speed_duplex, "Setting the speed and duplex mode");
 
-#define VAL_PKT_LEN_DEF     0
-/* ValPktLen[] is used for setting the checksum offload ability of NIC.
-   0: Receive frame with invalid layer 2 length (Default)
-   1: Drop frame with invalid layer 2 length
-*/
-VELOCITY_PARAM(ValPktLen, "Receiving or Drop invalid 802.3 frame");
-
 #define WOL_OPT_DEF     0
 #define WOL_OPT_MIN     0
 #define WOL_OPT_MAX     7
@@ -392,7 +385,7 @@ MODULE_DEVICE_TABLE(pci, velocity_pci_id_table);
  *	Describe the OF device identifiers that we support in this
  *	device driver. Used for devicetree nodes.
  */
-static struct of_device_id velocity_of_ids[] = {
+static const struct of_device_id velocity_of_ids[] = {
 	{ .compatible = "via,velocity-vt6110", .data = &chip_info_table[0] },
 	{ /* Sentinel */ },
 };
@@ -494,7 +487,6 @@ static void velocity_get_options(struct velocity_opt *opts, int index,
 
 	velocity_set_int_opt(&opts->flow_cntl, flow_control[index], FLOW_CNTL_MIN, FLOW_CNTL_MAX, FLOW_CNTL_DEF, "flow_control", devname);
 	velocity_set_bool_opt(&opts->flags, IP_byte_align[index], IP_ALIG_DEF, VELOCITY_FLAGS_IP_ALIGN, "IP_byte_align", devname);
-	velocity_set_bool_opt(&opts->flags, ValPktLen[index], VAL_PKT_LEN_DEF, VELOCITY_FLAGS_VAL_PKT_LEN, "ValPktLen", devname);
 	velocity_set_int_opt((int *) &opts->spd_dpx, speed_duplex[index], MED_LNK_MIN, MED_LNK_MAX, MED_LNK_DEF, "Media link mode", devname);
 	velocity_set_int_opt(&opts->wol_opts, wol_opts[index], WOL_OPT_MIN, WOL_OPT_MAX, WOL_OPT_DEF, "Wake On Lan options", devname);
 	opts->numrx = (opts->numrx & ~3);
@@ -2055,8 +2047,9 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 	int pkt_len = le16_to_cpu(rd->rdesc0.len) & 0x3fff;
 	struct sk_buff *skb;
 
-	if (rd->rdesc0.RSR & (RSR_STP | RSR_EDP)) {
-		VELOCITY_PRT(MSG_LEVEL_VERBOSE, KERN_ERR " %s : the received frame span multple RDs.\n", vptr->netdev->name);
+	if (unlikely(rd->rdesc0.RSR & (RSR_STP | RSR_EDP | RSR_RL))) {
+		if (rd->rdesc0.RSR & (RSR_STP | RSR_EDP))
+			VELOCITY_PRT(MSG_LEVEL_VERBOSE, KERN_ERR " %s : the received frame spans multiple RDs.\n", vptr->netdev->name);
 		stats->rx_length_errors++;
 		return -EINVAL;
 	}
@@ -2068,17 +2061,6 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 
 	dma_sync_single_for_cpu(vptr->dev, rd_info->skb_dma,
 				    vptr->rx.buf_sz, DMA_FROM_DEVICE);
-
-	/*
-	 *	Drop frame not meeting IEEE 802.3
-	 */
-
-	if (vptr->flags & VELOCITY_FLAGS_VAL_PKT_LEN) {
-		if (rd->rdesc0.RSR & RSR_RL) {
-			stats->rx_length_errors++;
-			return -EINVAL;
-		}
-	}
 
 	velocity_rx_csum(rd, skb);
 
@@ -2611,8 +2593,8 @@ static netdev_tx_t velocity_xmit(struct sk_buff *skb,
 
 	td_ptr->tdesc1.cmd = TCPLS_NORMAL + (tdinfo->nskb_dma + 1) * 16;
 
-	if (vlan_tx_tag_present(skb)) {
-		td_ptr->tdesc1.vlan = cpu_to_le16(vlan_tx_tag_get(skb));
+	if (skb_vlan_tag_present(skb)) {
+		td_ptr->tdesc1.vlan = cpu_to_le16(skb_vlan_tag_get(skb));
 		td_ptr->tdesc1.TCR |= TCR0_VETAG;
 	}
 
@@ -3281,7 +3263,6 @@ static struct platform_driver velocity_platform_driver = {
 	.remove		= velocity_platform_remove,
 	.driver = {
 		.name = "via-velocity",
-		.owner = THIS_MODULE,
 		.of_match_table = velocity_of_ids,
 		.pm = &velocity_pm_ops,
 	},

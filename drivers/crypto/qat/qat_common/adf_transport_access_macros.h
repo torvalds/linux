@@ -50,12 +50,14 @@
 #include "adf_accel_devices.h"
 #define ADF_BANK_INT_SRC_SEL_MASK_0 0x4444444CUL
 #define ADF_BANK_INT_SRC_SEL_MASK_X 0x44444444UL
+#define ADF_BANK_INT_FLAG_CLEAR_MASK 0xFFFF
 #define ADF_RING_CSR_RING_CONFIG 0x000
 #define ADF_RING_CSR_RING_LBASE 0x040
 #define ADF_RING_CSR_RING_UBASE 0x080
 #define ADF_RING_CSR_RING_HEAD 0x0C0
 #define ADF_RING_CSR_RING_TAIL 0x100
 #define ADF_RING_CSR_E_STAT 0x14C
+#define ADF_RING_CSR_INT_FLAG	0x170
 #define ADF_RING_CSR_INT_SRCSEL 0x174
 #define ADF_RING_CSR_INT_SRCSEL_2 0x178
 #define ADF_RING_CSR_INT_COL_EN 0x17C
@@ -83,25 +85,29 @@
 #define ADF_MAX_RING_SIZE ADF_RING_SIZE_4M
 #define ADF_DEFAULT_RING_SIZE ADF_RING_SIZE_16K
 
-/* Valid internal msg size values internal */
+/* Valid internal msg size values */
 #define ADF_MSG_SIZE_32 0x01
 #define ADF_MSG_SIZE_64 0x02
 #define ADF_MSG_SIZE_128 0x04
 #define ADF_MIN_MSG_SIZE ADF_MSG_SIZE_32
 #define ADF_MAX_MSG_SIZE ADF_MSG_SIZE_128
 
-/* Size to bytes conversion macros for ring and msg values */
+/* Size to bytes conversion macros for ring and msg size values */
 #define ADF_MSG_SIZE_TO_BYTES(SIZE) (SIZE << 5)
 #define ADF_BYTES_TO_MSG_SIZE(SIZE) (SIZE >> 5)
 #define ADF_SIZE_TO_RING_SIZE_IN_BYTES(SIZE) ((1 << (SIZE - 1)) << 7)
 #define ADF_RING_SIZE_IN_BYTES_TO_SIZE(SIZE) ((1 << (SIZE - 1)) >> 7)
 
 /* Minimum ring bufer size for memory allocation */
-#define ADF_RING_SIZE_BYTES_MIN(SIZE) ((SIZE < ADF_RING_SIZE_4K) ? \
-				ADF_RING_SIZE_4K : SIZE)
+#define ADF_RING_SIZE_BYTES_MIN(SIZE) \
+	((SIZE < ADF_SIZE_TO_RING_SIZE_IN_BYTES(ADF_RING_SIZE_4K)) ? \
+		ADF_SIZE_TO_RING_SIZE_IN_BYTES(ADF_RING_SIZE_4K) : SIZE)
 #define ADF_RING_SIZE_MODULO(SIZE) (SIZE + 0x6)
+#define ADF_SIZE_TO_POW(SIZE) ((((SIZE & 0x4) >> 1) | ((SIZE & 0x4) >> 2) | \
+				SIZE) & ~0x4)
+/* Max outstanding requests */
 #define ADF_MAX_INFLIGHTS(RING_SIZE, MSG_SIZE) \
-	((((1 << (RING_SIZE - 1)) << 4) >> MSG_SIZE) - 1)
+	((((1 << (RING_SIZE - 1)) << 3) >> ADF_SIZE_TO_POW(MSG_SIZE)) - 1)
 #define BUILD_RING_CONFIG(size)	\
 	((ADF_RING_NEAR_WATERMARK_0 << ADF_RING_CONFIG_NEAR_FULL_WM) \
 	| (ADF_RING_NEAR_WATERMARK_0 << ADF_RING_CONFIG_NEAR_EMPTY_WM) \
@@ -140,6 +146,9 @@ do { \
 #define WRITE_CSR_RING_TAIL(csr_base_addr, bank, ring, value) \
 	ADF_CSR_WR(csr_base_addr, (ADF_RING_BUNDLE_SIZE * bank) + \
 		ADF_RING_CSR_RING_TAIL + (ring << 2), value)
+#define WRITE_CSR_INT_FLAG(csr_base_addr, bank, value) \
+	ADF_CSR_WR(csr_base_addr, (ADF_RING_BUNDLE_SIZE * (bank)) + \
+			ADF_RING_CSR_INT_FLAG, value)
 #define WRITE_CSR_INT_SRCSEL(csr_base_addr, bank) \
 do { \
 	ADF_CSR_WR(csr_base_addr, (ADF_RING_BUNDLE_SIZE * bank) + \

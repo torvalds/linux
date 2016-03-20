@@ -7,6 +7,9 @@
 #ifndef _AER_H_
 #define _AER_H_
 
+#include <linux/errno.h>
+#include <linux/types.h>
+
 #define AER_NONFATAL			0
 #define AER_FATAL			1
 #define AER_CORRECTABLE			2
@@ -40,6 +43,7 @@ struct aer_capability_regs {
 int pci_enable_pcie_error_reporting(struct pci_dev *dev);
 int pci_disable_pcie_error_reporting(struct pci_dev *dev);
 int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev);
+int pci_cleanup_aer_error_status_regs(struct pci_dev *dev);
 #else
 static inline int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 {
@@ -50,6 +54,10 @@ static inline int pci_disable_pcie_error_reporting(struct pci_dev *dev)
 	return -EINVAL;
 }
 static inline int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
+{
+	return -EINVAL;
+}
+static inline int pci_cleanup_aer_error_status_regs(struct pci_dev *dev)
 {
 	return -EINVAL;
 }

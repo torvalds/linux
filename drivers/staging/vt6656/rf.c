@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  * File: rf.c
  *
@@ -623,7 +619,6 @@ int vnt_rf_write_embedded(struct vnt_private *priv, u32 data)
 /* Set Tx power by rate and channel number */
 int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel)
 {
-	int ret = true;
 	u8 power = priv->cck_pwr;
 
 	if (channel == 0)
@@ -641,6 +636,7 @@ int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel)
 		break;
 	case RATE_6M:
 	case RATE_9M:
+	case RATE_12M:
 	case RATE_18M:
 	case RATE_24M:
 	case RATE_36M:
@@ -653,9 +649,7 @@ int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel)
 		break;
 	}
 
-	ret = vnt_rf_set_txpower(priv, power, rate);
-
-	return ret;
+	return vnt_rf_set_txpower(priv, power, rate);
 }
 
 static u8 vnt_rf_addpower(struct vnt_private *priv)
@@ -923,8 +917,8 @@ void vnt_rf_table_download(struct vnt_private *priv)
 	if (priv->rf_type == RF_AIROHA7230) {
 		length1 = CB_AL7230_INIT_SEQ * 3;
 		length2 = CB_MAX_CHANNEL * 3;
-		addr1 = &(al7230_init_table_amode[0][0]);
-		addr2 = &(al7230_channel_table2[0][0]);
+		addr1 = &al7230_init_table_amode[0][0];
+		addr2 = &al7230_channel_table2[0][0];
 
 		memcpy(array, addr1, length1);
 

@@ -35,14 +35,23 @@
  * Set clock such that it would read <secs,nsecs> after 00:00:00 UTC,
  * 1 January, 1970 if the current system time was <system_time>.
  */
-#define XENPF_settime             17
-struct xenpf_settime {
+#define XENPF_settime32             17
+struct xenpf_settime32 {
 	/* IN variables. */
 	uint32_t secs;
 	uint32_t nsecs;
 	uint64_t system_time;
 };
-DEFINE_GUEST_HANDLE_STRUCT(xenpf_settime_t);
+DEFINE_GUEST_HANDLE_STRUCT(xenpf_settime32_t);
+#define XENPF_settime64           62
+struct xenpf_settime64 {
+    /* IN variables. */
+    uint64_t secs;
+    uint32_t nsecs;
+    uint32_t mbz;
+    uint64_t system_time;
+};
+DEFINE_GUEST_HANDLE_STRUCT(xenpf_settime64_t);
 
 /*
  * Request memory range (@mfn, @mfn+@nr_mfns-1) to have type @type.
@@ -474,11 +483,29 @@ struct xenpf_core_parking {
 };
 DEFINE_GUEST_HANDLE_STRUCT(xenpf_core_parking);
 
+#define XENPF_get_symbol      63
+struct xenpf_symdata {
+	/* IN/OUT variables */
+	uint32_t	namelen; /* size of 'name' buffer */
+
+	/* IN/OUT variables */
+	uint32_t	symnum; /* IN:  Symbol to read                       */
+				/* OUT: Next available symbol. If same as IN */
+				/* then  we reached the end                  */
+
+	/* OUT variables */
+	GUEST_HANDLE(char) name;
+	uint64_t	address;
+	char            type;
+};
+DEFINE_GUEST_HANDLE_STRUCT(xenpf_symdata);
+
 struct xen_platform_op {
 	uint32_t cmd;
 	uint32_t interface_version; /* XENPF_INTERFACE_VERSION */
 	union {
-		struct xenpf_settime           settime;
+		struct xenpf_settime32         settime32;
+		struct xenpf_settime64         settime64;
 		struct xenpf_add_memtype       add_memtype;
 		struct xenpf_del_memtype       del_memtype;
 		struct xenpf_read_memtype      read_memtype;
@@ -495,6 +522,7 @@ struct xen_platform_op {
 		struct xenpf_cpu_hotadd        cpu_add;
 		struct xenpf_mem_hotadd        mem_add;
 		struct xenpf_core_parking      core_parking;
+		struct xenpf_symdata           symdata;
 		uint8_t                        pad[128];
 	} u;
 };

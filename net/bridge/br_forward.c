@@ -30,36 +30,57 @@ static int deliver_clone(const struct net_bridge_port *prev,
 static inline int should_deliver(const struct net_bridge_port *p,
 				 const struct sk_buff *skb)
 {
+	struct net_bridge_vlan_group *vg;
+
+	vg = nbp_vlan_group_rcu(p);
 	return ((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
-		br_allowed_egress(p->br, nbp_get_vlan_info(p), skb) &&
-		p->state == BR_STATE_FORWARDING;
+		br_allowed_egress(vg, skb) && p->state == BR_STATE_FORWARDING;
 }
 
-int br_dev_queue_push_xmit(struct sk_buff *skb)
+int br_dev_queue_push_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	/* ip_fragment doesn't copy the MAC header */
-	if (nf_bridge_maybe_copy_header(skb) ||
-	    !is_skb_forwardable(skb->dev, skb)) {
-		kfree_skb(skb);
-	} else {
-		skb_push(skb, ETH_HLEN);
-		br_drop_fake_rtable(skb);
-		dev_queue_xmit(skb);
+	if (!is_skb_forwardable(skb->dev, skb))
+		goto drop;
+
+	skb_push(skb, ETH_HLEN);
+	br_drop_fake_rtable(skb);
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    (skb->protocol == htons(ETH_P_8021Q) ||
+	     skb->protocol == htons(ETH_P_8021AD))) {
+		int depth;
+
+		if (!__vlan_get_protocol(skb, skb->protocol, &depth))
+			goto drop;
+
+		skb_set_network_header(skb, depth);
 	}
 
+	dev_queue_xmit(skb);
+
+	return 0;
+
+drop:
+	kfree_skb(skb);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(br_dev_queue_push_xmit);
 
-int br_forward_finish(struct sk_buff *skb)
+int br_forward_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_POST_ROUTING, skb, NULL, skb->dev,
+	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_POST_ROUTING,
+		       net, sk, skb, NULL, skb->dev,
 		       br_dev_queue_push_xmit);
 
 }
+EXPORT_SYMBOL_GPL(br_forward_finish);
 
 static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 {
-	skb = br_handle_vlan(to->br, nbp_get_vlan_info(to), skb);
+	struct net_bridge_vlan_group *vg;
+
+	vg = nbp_vlan_group_rcu(to);
+	skb = br_handle_vlan(to->br, vg, skb);
 	if (!skb)
 		return;
 
@@ -75,12 +96,14 @@ static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 		return;
 	}
 
-	NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT, skb, NULL, skb->dev,
+	NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT,
+		dev_net(skb->dev), NULL, skb,NULL, skb->dev,
 		br_forward_finish);
 }
 
 static void __br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 {
+	struct net_bridge_vlan_group *vg;
 	struct net_device *indev;
 
 	if (skb_warn_if_lro(skb)) {
@@ -88,7 +111,8 @@ static void __br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 		return;
 	}
 
-	skb = br_handle_vlan(to->br, nbp_get_vlan_info(to), skb);
+	vg = nbp_vlan_group_rcu(to);
+	skb = br_handle_vlan(to->br, vg, skb);
 	if (!skb)
 		return;
 
@@ -96,7 +120,8 @@ static void __br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 	skb->dev = to->dev;
 	skb_forward_csum(skb);
 
-	NF_HOOK(NFPROTO_BRIDGE, NF_BR_FORWARD, skb, indev, skb->dev,
+	NF_HOOK(NFPROTO_BRIDGE, NF_BR_FORWARD,
+		dev_net(indev), NULL, skb, indev, skb->dev,
 		br_forward_finish);
 }
 
@@ -110,11 +135,12 @@ void br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 
 	kfree_skb(skb);
 }
+EXPORT_SYMBOL_GPL(br_deliver);
 
 /* called with rcu_read_lock */
 void br_forward(const struct net_bridge_port *to, struct sk_buff *skb, struct sk_buff *skb0)
 {
-	if (should_deliver(to, skb)) {
+	if (to && should_deliver(to, skb)) {
 		if (skb0)
 			deliver_clone(to, skb, __br_forward);
 		else
@@ -181,6 +207,14 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 		/* Do not flood unicast traffic to ports that turn it off */
 		if (unicast && !(p->flags & BR_FLOOD))
 			continue;
+
+		/* Do not flood to ports that enable proxy ARP */
+		if (p->flags & BR_PROXYARP)
+			continue;
+		if ((p->flags & BR_PROXYARP_WIFI) &&
+		    BR_INPUT_SKB_CB(skb)->proxyarp_replied)
+			continue;
+
 		prev = maybe_deliver(prev, p, skb, __packet_hook);
 		if (IS_ERR(prev))
 			goto out;

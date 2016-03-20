@@ -272,13 +272,20 @@ static int posix_get_tai(clockid_t which_clock, struct timespec *tp)
 	return 0;
 }
 
+static int posix_get_hrtimer_res(clockid_t which_clock, struct timespec *tp)
+{
+	tp->tv_sec = 0;
+	tp->tv_nsec = hrtimer_resolution;
+	return 0;
+}
+
 /*
  * Initialize everything, well, just everything in Posix clocks/timers ;)
  */
 static __init int init_posix_timers(void)
 {
 	struct k_clock clock_realtime = {
-		.clock_getres	= hrtimer_get_res,
+		.clock_getres	= posix_get_hrtimer_res,
 		.clock_get	= posix_clock_realtime_get,
 		.clock_set	= posix_clock_realtime_set,
 		.clock_adj	= posix_clock_realtime_adj,
@@ -290,7 +297,7 @@ static __init int init_posix_timers(void)
 		.timer_del	= common_timer_del,
 	};
 	struct k_clock clock_monotonic = {
-		.clock_getres	= hrtimer_get_res,
+		.clock_getres	= posix_get_hrtimer_res,
 		.clock_get	= posix_ktime_get_ts,
 		.nsleep		= common_nsleep,
 		.nsleep_restart	= hrtimer_nanosleep_restart,
@@ -300,7 +307,7 @@ static __init int init_posix_timers(void)
 		.timer_del	= common_timer_del,
 	};
 	struct k_clock clock_monotonic_raw = {
-		.clock_getres	= hrtimer_get_res,
+		.clock_getres	= posix_get_hrtimer_res,
 		.clock_get	= posix_get_monotonic_raw,
 	};
 	struct k_clock clock_realtime_coarse = {
@@ -312,7 +319,7 @@ static __init int init_posix_timers(void)
 		.clock_get	= posix_get_monotonic_coarse,
 	};
 	struct k_clock clock_tai = {
-		.clock_getres	= hrtimer_get_res,
+		.clock_getres	= posix_get_hrtimer_res,
 		.clock_get	= posix_get_tai,
 		.nsleep		= common_nsleep,
 		.nsleep_restart	= hrtimer_nanosleep_restart,
@@ -322,7 +329,7 @@ static __init int init_posix_timers(void)
 		.timer_del	= common_timer_del,
 	};
 	struct k_clock clock_boottime = {
-		.clock_getres	= hrtimer_get_res,
+		.clock_getres	= posix_get_hrtimer_res,
 		.clock_get	= posix_get_boottime,
 		.nsleep		= common_nsleep,
 		.nsleep_restart	= hrtimer_nanosleep_restart,
@@ -636,6 +643,7 @@ SYSCALL_DEFINE3(timer_create, const clockid_t, which_clock,
 			goto out;
 		}
 	} else {
+		memset(&event.sigev_value, 0, sizeof(event.sigev_value));
 		event.sigev_notify = SIGEV_SIGNAL;
 		event.sigev_signo = SIGALRM;
 		event.sigev_value.sival_int = new_timer->it_id;
@@ -752,7 +760,7 @@ common_timer_get(struct k_itimer *timr, struct itimerspec *cur_setting)
 	    (timr->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE))
 		timr->it_overrun += (unsigned int) hrtimer_forward(timer, now, iv);
 
-	remaining = ktime_sub(hrtimer_get_expires(timer), now);
+	remaining = __hrtimer_expires_remaining_adjusted(timer, now);
 	/* Return 0 only, when the timer is expired and not pending */
 	if (remaining.tv64 <= 0) {
 		/*

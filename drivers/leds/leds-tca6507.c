@@ -603,7 +603,7 @@ static int tca6507_blink_set(struct led_classdev *led_cdev,
 static void tca6507_gpio_set_value(struct gpio_chip *gc,
 				   unsigned offset, int val)
 {
-	struct tca6507_chip *tca = container_of(gc, struct tca6507_chip, gpio);
+	struct tca6507_chip *tca = gpiochip_get_data(gc);
 	unsigned long flags;
 
 	spin_lock_irqsave(&tca->lock, flags);
@@ -651,11 +651,11 @@ static int tca6507_probe_gpios(struct i2c_client *client,
 	tca->gpio.owner = THIS_MODULE;
 	tca->gpio.direction_output = tca6507_gpio_direction_output;
 	tca->gpio.set = tca6507_gpio_set_value;
-	tca->gpio.dev = &client->dev;
+	tca->gpio.parent = &client->dev;
 #ifdef CONFIG_OF_GPIO
 	tca->gpio.of_node = of_node_get(client->dev.of_node);
 #endif
-	err = gpiochip_add(&tca->gpio);
+	err = gpiochip_add_data(&tca->gpio, tca);
 	if (err) {
 		tca->gpio.ngpio = 0;
 		return err;
@@ -667,11 +667,8 @@ static int tca6507_probe_gpios(struct i2c_client *client,
 
 static void tca6507_remove_gpio(struct tca6507_chip *tca)
 {
-	if (tca->gpio.ngpio) {
-		int err = gpiochip_remove(&tca->gpio);
-		dev_err(&tca->client->dev, "%s failed, %d\n",
-			"gpiochip_remove()", err);
-	}
+	if (tca->gpio.ngpio)
+		gpiochip_remove(&tca->gpio);
 }
 #else /* CONFIG_GPIOLIB */
 static int tca6507_probe_gpios(struct i2c_client *client,
@@ -738,6 +735,7 @@ static const struct of_device_id of_tca6507_leds_match[] = {
 	{ .compatible = "ti,tca6507", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_tca6507_leds_match);
 
 #else
 static struct tca6507_platform_data *
@@ -833,7 +831,6 @@ static int tca6507_remove(struct i2c_client *client)
 static struct i2c_driver tca6507_driver = {
 	.driver   = {
 		.name    = "leds-tca6507",
-		.owner   = THIS_MODULE,
 		.of_match_table = of_match_ptr(of_tca6507_leds_match),
 	},
 	.probe    = tca6507_probe,

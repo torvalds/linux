@@ -3,7 +3,7 @@ perf-kmem(1)
 
 NAME
 ----
-perf-kmem - Tool to trace/measure kernel memory(slab) properties
+perf-kmem - Tool to trace/measure kernel memory properties
 
 SYNOPSIS
 --------
@@ -25,6 +25,10 @@ OPTIONS
 --input=<file>::
 	Select the input file (default: perf.data unless stdin is a fifo)
 
+-v::
+--verbose::
+        Be more verbose. (show symbol address, etc)
+
 --caller::
 	Show per-callsite statistics
 
@@ -33,7 +37,11 @@ OPTIONS
 
 -s <key[,key2...]>::
 --sort=<key[,key2...]>::
-	Sort the output (default: frag,hit,bytes)
+	Sort the output (default: 'frag,hit,bytes' for slab and 'bytes,hit'
+	for page).  Available sort keys are 'ptr, callsite, bytes, hit,
+	pingpong, frag' for slab and 'page, callsite, bytes, hit, order,
+	migtype, gfp' for page.  This option should be preceded by one of the
+	mode selection options - i.e. --slab, --page, --alloc and/or --caller.
 
 -l <num>::
 --line=<num>::
@@ -41,6 +49,17 @@ OPTIONS
 
 --raw-ip::
 	Print raw ip instead of symbol
+
+--slab::
+	Analyze SLAB allocator events.
+
+--page::
+	Analyze page allocator events
+
+--live::
+	Show live page stat.  The perf kmem shows total allocation stat by
+	default, but this option shows live (currently allocated) pages
+	instead.  (This option works with --page option only)
 
 SEE ALSO
 --------

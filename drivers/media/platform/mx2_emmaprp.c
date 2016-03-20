@@ -27,7 +27,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-dma-contig.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #define EMMAPRP_MODULE_NAME "mem2mem-emmaprp"
 
@@ -351,7 +351,7 @@ static irqreturn_t emmaprp_irq(int irq_emma, void *data)
 {
 	struct emmaprp_dev *pcdev = data;
 	struct emmaprp_ctx *curr_ctx;
-	struct vb2_buffer *src_vb, *dst_vb;
+	struct vb2_v4l2_buffer *src_vb, *dst_vb;
 	unsigned long flags;
 	u32 irqst;
 
@@ -375,13 +375,13 @@ static irqreturn_t emmaprp_irq(int irq_emma, void *data)
 			src_vb = v4l2_m2m_src_buf_remove(curr_ctx->m2m_ctx);
 			dst_vb = v4l2_m2m_dst_buf_remove(curr_ctx->m2m_ctx);
 
-			dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
-			dst_vb->v4l2_buf.flags &=
+			dst_vb->vb2_buf.timestamp = src_vb->vb2_buf.timestamp;
+			dst_vb->flags &=
 				~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-			dst_vb->v4l2_buf.flags |=
-				src_vb->v4l2_buf.flags
+			dst_vb->flags |=
+				src_vb->flags
 				& V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-			dst_vb->v4l2_buf.timecode = src_vb->v4l2_buf.timecode;
+			dst_vb->timecode = src_vb->timecode;
 
 			spin_lock_irqsave(&pcdev->irqlock, flags);
 			v4l2_m2m_buf_done(src_vb, VB2_BUF_STATE_DONE);
@@ -402,13 +402,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	strncpy(cap->driver, MEM2MEM_NAME, sizeof(cap->driver) - 1);
 	strncpy(cap->card, MEM2MEM_NAME, sizeof(cap->card) - 1);
-	/*
-	 * This is only a mem-to-mem video device. The capture and output
-	 * device capability flags are left only for backward compatibility
-	 * and are scheduled for removal.
-	 */
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT |
-			    V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
+	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -694,7 +689,6 @@ static const struct v4l2_ioctl_ops emmaprp_ioctl_ops = {
  * Queue operations
  */
 static int emmaprp_queue_setup(struct vb2_queue *vq,
-				const struct v4l2_format *fmt,
 				unsigned int *nbuffers, unsigned int *nplanes,
 				unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -747,8 +741,9 @@ static int emmaprp_buf_prepare(struct vb2_buffer *vb)
 
 static void emmaprp_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct emmaprp_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
-	v4l2_m2m_buf_queue(ctx->m2m_ctx, vb);
+	v4l2_m2m_buf_queue(ctx->m2m_ctx, vbuf);
 }
 
 static struct vb2_ops emmaprp_qops = {
@@ -1010,7 +1005,6 @@ static struct platform_driver emmaprp_pdrv = {
 	.remove		= emmaprp_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(emmaprp_pdrv);

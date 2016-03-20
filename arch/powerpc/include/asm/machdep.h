@@ -42,7 +42,7 @@ struct machdep_calls {
 					 unsigned long newpp, 
 					 unsigned long vpn,
 					 int bpsize, int apsize,
-					 int ssize, int local);
+					 int ssize, unsigned long flags);
 	void            (*hpte_updateboltedpp)(unsigned long newpp, 
 					       unsigned long ea,
 					       int psize, int ssize);
@@ -54,41 +54,21 @@ struct machdep_calls {
 				       int psize, int apsize,
 				       int ssize);
 	long		(*hpte_remove)(unsigned long hpte_group);
-	void            (*hpte_removebolted)(unsigned long ea,
+	int             (*hpte_removebolted)(unsigned long ea,
 					     int psize, int ssize);
 	void		(*flush_hash_range)(unsigned long number, int local);
 	void		(*hugepage_invalidate)(unsigned long vsid,
 					       unsigned long addr,
 					       unsigned char *hpte_slot_array,
-					       int psize, int ssize);
-	/* special for kexec, to be called in real mode, linear mapping is
-	 * destroyed as well */
+					       int psize, int ssize, int local);
+	/*
+	 * Special for kexec.
+	 * To be called in real mode with interrupts disabled. No locks are
+	 * taken as such, concurrent access on pre POWER5 hardware could result
+	 * in a deadlock.
+	 * The linear mapping is destroyed as well.
+	 */
 	void		(*hpte_clear_all)(void);
-
-	int		(*tce_build)(struct iommu_table *tbl,
-				     long index,
-				     long npages,
-				     unsigned long uaddr,
-				     enum dma_data_direction direction,
-				     struct dma_attrs *attrs);
-	void		(*tce_free)(struct iommu_table *tbl,
-				    long index,
-				    long npages);
-	unsigned long	(*tce_get)(struct iommu_table *tbl,
-				    long index);
-	void		(*tce_flush)(struct iommu_table *tbl);
-
-	/* _rm versions are for real mode use only */
-	int		(*tce_build_rm)(struct iommu_table *tbl,
-				     long index,
-				     long npages,
-				     unsigned long uaddr,
-				     enum dma_data_direction direction,
-				     struct dma_attrs *attrs);
-	void		(*tce_free_rm)(struct iommu_table *tbl,
-				    long index,
-				    long npages);
-	void		(*tce_flush_rm)(struct iommu_table *tbl);
 
 	void __iomem *	(*ioremap)(phys_addr_t addr, unsigned long size,
 				   unsigned long flags, void *caller);
@@ -102,9 +82,6 @@ struct machdep_calls {
 	unsigned long	(*memory_block_size)(void);
 #endif
 #endif /* CONFIG_PPC64 */
-
-	void		(*pci_dma_dev_setup)(struct pci_dev *dev);
-	void		(*pci_dma_bus_setup)(struct pci_bus *bus);
 
 	/* Platform set_dma_mask and dma_get_required_mask overrides */
 	int		(*dma_set_mask)(struct device *dev, u64 dma_mask);
@@ -125,9 +102,8 @@ struct machdep_calls {
 	unsigned int	(*get_irq)(void);
 
 	/* PCI stuff */
-	/* Called after scanning the bus, before allocating resources */
+	/* Called after allocating resources */
 	void		(*pcibios_fixup)(void);
-	int		(*pci_probe_mode)(struct pci_bus *);
 	void		(*pci_irq_fixup)(struct pci_dev *dev);
 	int		(*pcibios_root_bridge_prepare)(struct pci_host_bridge
 				*bridge);
@@ -135,16 +111,7 @@ struct machdep_calls {
 	/* To setup PHBs when using automatic OF platform driver for PCI */
 	int		(*pci_setup_phb)(struct pci_controller *host);
 
-#ifdef CONFIG_PCI_MSI
-	int		(*msi_check_device)(struct pci_dev* dev,
-					    int nvec, int type);
-	int		(*setup_msi_irqs)(struct pci_dev *dev,
-					  int nvec, int type);
-	void		(*teardown_msi_irqs)(struct pci_dev *dev);
-#endif
-
 	void		(*restart)(char *cmd);
-	void		(*power_off)(void);
 	void		(*halt)(void);
 	void		(*panic)(char *str);
 	void		(*cpu_die)(void);
@@ -207,11 +174,11 @@ struct machdep_calls {
 	   platform, called once per cpu. */
 	void		(*enable_pmcs)(void);
 
-	/* Set DABR for this platform, leave empty for default implemenation */
+	/* Set DABR for this platform, leave empty for default implementation */
 	int		(*set_dabr)(unsigned long dabr,
 				    unsigned long dabrx);
 
-	/* Set DAWR for this platform, leave empty for default implemenation */
+	/* Set DAWR for this platform, leave empty for default implementation */
 	int		(*set_dawr)(unsigned long dawr,
 				    unsigned long dawrx);
 
@@ -240,18 +207,13 @@ struct machdep_calls {
 	/* Called for each PCI bus in the system when it's probed */
 	void (*pcibios_fixup_bus)(struct pci_bus *);
 
-	/* Called when pci_enable_device() is called. Returns 0 to
-	 * allow assignment/enabling of the device. */
-	int  (*pcibios_enable_device_hook)(struct pci_dev *);
-
 	/* Called after scan and before resource survey */
 	void (*pcibios_fixup_phb)(struct pci_controller *hose);
 
-	/* Called during PCI resource reassignment */
-	resource_size_t (*pcibios_window_alignment)(struct pci_bus *, unsigned long type);
-
-	/* Reset the secondary bus of bridge */
-	void  (*pcibios_reset_secondary_bus)(struct pci_dev *dev);
+#ifdef CONFIG_PCI_IOV
+	void (*pcibios_fixup_sriov)(struct pci_dev *pdev);
+	resource_size_t (*pcibios_iov_resource_alignment)(struct pci_dev *, int resno);
+#endif /* CONFIG_PCI_IOV */
 
 	/* Called to shutdown machine specific hardware not already controlled
 	 * by other drivers.
@@ -292,11 +254,7 @@ struct machdep_calls {
 #endif
 
 #ifdef CONFIG_ARCH_RANDOM
-	int (*get_random_long)(unsigned long *v);
-#endif
-
-#ifdef CONFIG_MEMORY_HOTREMOVE
-	int (*remove_memory)(u64, u64);
+	int (*get_random_seed)(unsigned long *v);
 #endif
 };
 
@@ -330,8 +288,6 @@ extern struct machdep_calls *machine_id;
 
 extern void probe_machine(void);
 
-extern char cmd_line[COMMAND_LINE_SIZE];
-
 #ifdef CONFIG_PPC_PMAC
 /*
  * Power macintoshes have either a CUDA, PMU or SMU controlling
@@ -346,16 +302,6 @@ typedef enum sys_ctrler_kind {
 extern sys_ctrler_t sys_ctrler;
 
 #endif /* CONFIG_PPC_PMAC */
-
-
-/* Functions to produce codes on the leds.
- * The SRC code should be unique for the message category and should
- * be limited to the lower 24 bits (the upper 8 are set by these funcs),
- * and (for boot & dump) should be sorted numerically in the order
- * the events occur.
- */
-/* Print a boot progress message. */
-void ppc64_boot_msg(unsigned int src, const char *msg);
 
 static inline void log_error(char *buf, unsigned int err_type, int fatal)
 {

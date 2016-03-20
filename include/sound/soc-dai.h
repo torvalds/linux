@@ -48,10 +48,25 @@ struct snd_compr_stream;
 #define SND_SOC_DAIFMT_GATED		(0 << 4) /* clock is gated */
 
 /*
- * DAI hardware signal inversions.
+ * DAI hardware signal polarity.
  *
  * Specifies whether the DAI can also support inverted clocks for the specified
  * format.
+ *
+ * BCLK:
+ * - "normal" polarity means signal is available at rising edge of BCLK
+ * - "inverted" polarity means signal is available at falling edge of BCLK
+ *
+ * FSYNC "normal" polarity depends on the frame format:
+ * - I2S: frame consists of left then right channel data. Left channel starts
+ *      with falling FSYNC edge, right channel starts with rising FSYNC edge.
+ * - Left/Right Justified: frame consists of left then right channel data.
+ *      Left channel starts with rising FSYNC edge, right channel starts with
+ *      falling FSYNC edge.
+ * - DSP A/B: Frame starts with rising FSYNC edge.
+ * - AC97: Frame starts with rising FSYNC edge.
+ *
+ * "Negative" FSYNC polarity is the one opposite of "normal" polarity.
  */
 #define SND_SOC_DAIFMT_NB_NF		(0 << 8) /* normal bit clock + frame */
 #define SND_SOC_DAIFMT_NB_IF		(2 << 8) /* normal BCLK + inv FRM */
@@ -206,8 +221,8 @@ struct snd_soc_dai_driver {
 	/* DAI description */
 	const char *name;
 	unsigned int id;
-	int ac97_control;
 	unsigned int base;
+	struct snd_soc_dobj dobj;
 
 	/* DAI driver callbacks */
 	int (*probe)(struct snd_soc_dai *dai);
@@ -215,7 +230,9 @@ struct snd_soc_dai_driver {
 	int (*suspend)(struct snd_soc_dai *dai);
 	int (*resume)(struct snd_soc_dai *dai);
 	/* compress dai */
-	bool compress_dai;
+	int (*compress_new)(struct snd_soc_pcm_runtime *rtd, int num);
+	/* DAI is also used for the control bus */
+	bool bus_control;
 
 	/* ops */
 	const struct snd_soc_dai_ops *ops;
@@ -241,7 +258,6 @@ struct snd_soc_dai {
 	const char *name;
 	int id;
 	struct device *dev;
-	void *ac97_pdata;	/* platform_data for the ac97 codec */
 
 	/* driver ops */
 	struct snd_soc_dai_driver *driver;
@@ -268,15 +284,12 @@ struct snd_soc_dai {
 	unsigned int sample_bits;
 
 	/* parent platform/codec */
-	struct snd_soc_platform *platform;
 	struct snd_soc_codec *codec;
 	struct snd_soc_component *component;
 
 	/* CODEC TDM slot masks and params (for fixup) */
 	unsigned int tx_mask;
 	unsigned int rx_mask;
-
-	struct snd_soc_card *card;
 
 	struct list_head list;
 };

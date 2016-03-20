@@ -111,12 +111,11 @@ echo 'cp System.map $RPM_BUILD_ROOT'"/boot/System.map-$KERNELRELEASE"
 echo 'cp .config $RPM_BUILD_ROOT'"/boot/config-$KERNELRELEASE"
 
 echo "%ifnarch ppc64"
-echo 'cp vmlinux vmlinux.orig'
-echo 'bzip2 -9 vmlinux'
+echo 'bzip2 -9 --keep vmlinux'
 echo 'mv vmlinux.bz2 $RPM_BUILD_ROOT'"/boot/vmlinux-$KERNELRELEASE.bz2"
-echo 'mv vmlinux.orig vmlinux'
 echo "%endif"
 
+if ! $PREBUILT; then
 echo 'rm -f $RPM_BUILD_ROOT'"/lib/modules/$KERNELRELEASE/{build,source}"
 echo "mkdir -p "'$RPM_BUILD_ROOT'"/usr/src/kernels/$KERNELRELEASE"
 echo "EXCLUDES=\"$RCS_TAR_IGNORE --exclude .tmp_versions --exclude=*vmlinux* --exclude=*.o --exclude=*.ko --exclude=*.cmd --exclude=Documentation --exclude=firmware --exclude .config.old --exclude .missing-syscalls.d\""
@@ -124,6 +123,7 @@ echo "tar "'$EXCLUDES'" -cf- . | (cd "'$RPM_BUILD_ROOT'"/usr/src/kernels/$KERNEL
 echo 'cd $RPM_BUILD_ROOT'"/lib/modules/$KERNELRELEASE"
 echo "ln -sf /usr/src/kernels/$KERNELRELEASE build"
 echo "ln -sf /usr/src/kernels/$KERNELRELEASE source"
+fi
 
 echo ""
 echo "%clean"
@@ -140,7 +140,6 @@ echo "fi"
 echo ""
 echo "%files"
 echo '%defattr (-, root, root)'
-echo "%dir /lib/modules"
 echo "/lib/modules/$KERNELRELEASE"
 echo "%exclude /lib/modules/$KERNELRELEASE/build"
 echo "%exclude /lib/modules/$KERNELRELEASE/source"
@@ -151,9 +150,11 @@ echo "%files headers"
 echo '%defattr (-, root, root)'
 echo "/usr/include"
 echo ""
+if ! $PREBUILT; then
 echo "%files devel"
 echo '%defattr (-, root, root)'
 echo "/usr/src/kernels/$KERNELRELEASE"
 echo "/lib/modules/$KERNELRELEASE/build"
 echo "/lib/modules/$KERNELRELEASE/source"
 echo ""
+fi

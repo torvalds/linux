@@ -41,6 +41,7 @@ extern int i8259A_irq_pending(unsigned int irq);
 extern void make_8259A_irq(unsigned int irq);
 
 extern void init_i8259_irqs(void);
+extern int i8259_of_init(struct device_node *node, struct device_node *parent);
 
 /*
  * Do the traditional i8259 interrupt polling thing.  This is for the few

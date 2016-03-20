@@ -137,7 +137,6 @@ static int m41t94_probe(struct spi_device *spi)
 static struct spi_driver m41t94_driver = {
 	.driver = {
 		.name	= "rtc-m41t94",
-		.owner	= THIS_MODULE,
 	},
 	.probe	= m41t94_probe,
 };

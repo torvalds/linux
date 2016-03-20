@@ -31,6 +31,7 @@ struct netns_sctp {
 	struct list_head addr_waitq;
 	struct timer_list addr_wq_timer;
 	struct list_head auto_asconf_splist;
+	/* Lock that protects both addr_waitq and auto_asconf_splist */
 	spinlock_t addr_wq_lock;
 
 	/* Lock that protects the local_addr_list writers */
@@ -86,6 +87,13 @@ struct netns_sctp {
 	 * http://tools.ietf.org/html/draft-nishida-tsvwg-sctp-failover-05
 	 */
 	int pf_retrans;
+
+	/*
+	 * Disable Potentially-Failed feature, the feature is enabled by default
+	 * pf_enable	-  0  : disable pf
+	 *		- >0  : enable pf
+	 */
+	int pf_enable;
 
 	/*
 	 * Policy for preforming sctp/socket accounting

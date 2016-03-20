@@ -192,6 +192,8 @@ static inline void append_##cmd(u32 *desc, unsigned int len, u32 options) \
 	PRINT_POS; \
 	append_cmd(desc, CMD_##op | len | options); \
 }
+
+APPEND_CMD_LEN(seq_load, SEQ_LOAD)
 APPEND_CMD_LEN(seq_store, SEQ_STORE)
 APPEND_CMD_LEN(seq_fifo_load, SEQ_FIFO_LOAD)
 APPEND_CMD_LEN(seq_fifo_store, SEQ_FIFO_STORE)
@@ -365,7 +367,7 @@ do { \
 	if (upper) \
 		append_u64(desc, data); \
 	else \
-		append_u32(desc, data); \
+		append_u32(desc, lower_32_bits(data)); \
 } while (0)
 
 #define append_math_add_imm_u64(desc, dest, src0, src1, data) \

@@ -423,17 +423,18 @@ exit:
 static int dac33_playback_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
-	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(w->codec);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		if (likely(dac33->substream)) {
-			dac33_calculate_times(dac33->substream, w->codec);
-			dac33_prepare_chip(dac33->substream, w->codec);
+			dac33_calculate_times(dac33->substream, codec);
+			dac33_prepare_chip(dac33->substream, codec);
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		dac33_disable_digital(w->codec);
+		dac33_disable_digital(codec);
 		break;
 	}
 	return 0;
@@ -445,7 +446,7 @@ static int dac33_get_fifo_mode(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 
-	ucontrol->value.integer.value[0] = dac33->fifo_mode;
+	ucontrol->value.enumerated.item[0] = dac33->fifo_mode;
 
 	return 0;
 }
@@ -457,17 +458,16 @@ static int dac33_set_fifo_mode(struct snd_kcontrol *kcontrol,
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
-	if (dac33->fifo_mode == ucontrol->value.integer.value[0])
+	if (dac33->fifo_mode == ucontrol->value.enumerated.item[0])
 		return 0;
 	/* Do not allow changes while stream is running*/
 	if (snd_soc_codec_is_active(codec))
 		return -EPERM;
 
-	if (ucontrol->value.integer.value[0] < 0 ||
-	    ucontrol->value.integer.value[0] >= DAC33_FIFO_LAST_MODE)
+	if (ucontrol->value.enumerated.item[0] >= DAC33_FIFO_LAST_MODE)
 		ret = -EINVAL;
 	else
-		dac33->fifo_mode = ucontrol->value.integer.value[0];
+		dac33->fifo_mode = ucontrol->value.enumerated.item[0];
 
 	return ret;
 }
@@ -632,7 +632,7 @@ static int dac33_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			/* Coming from OFF, switch on the codec */
 			ret = dac33_hard_power(codec, 1);
 			if (ret != 0)
@@ -643,14 +643,13 @@ static int dac33_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	case SND_SOC_BIAS_OFF:
 		/* Do not power off, when the codec is already off */
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			return 0;
 		ret = dac33_hard_power(codec, 0);
 		if (ret != 0)
 			return ret;
 		break;
 	}
-	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -1436,8 +1435,6 @@ static int dac33_soc_remove(struct snd_soc_codec *codec)
 {
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 
-	dac33_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	if (dac33->irq >= 0) {
 		free_irq(dac33->irq, dac33->codec);
 		destroy_workqueue(dac33->dac33_wq);
@@ -1587,7 +1584,6 @@ MODULE_DEVICE_TABLE(i2c, tlv320dac33_i2c_id);
 static struct i2c_driver tlv320dac33_i2c_driver = {
 	.driver = {
 		.name = "tlv320dac33-codec",
-		.owner = THIS_MODULE,
 	},
 	.probe		= dac33_i2c_probe,
 	.remove		= dac33_i2c_remove,

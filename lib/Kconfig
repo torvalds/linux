@@ -13,8 +13,16 @@ config RAID6_PQ
 config BITREVERSE
 	tristate
 
+config HAVE_ARCH_BITREVERSE
+	bool
+	default n
+	depends on BITREVERSE
+	help
+	  This option enables the use of hardware bit-reversal instructions on
+	  architectures which support such operations.
+
 config RATIONAL
-	boolean
+	bool
 
 config GENERIC_STRNCPY_FROM_USER
 	bool
@@ -39,16 +47,16 @@ config GENERIC_IOMAP
 	select GENERIC_PCI_IOMAP
 
 config GENERIC_IO
-	boolean
+	bool
 	default n
 
 config STMP_DEVICE
 	bool
 
-config PERCPU_RWSEM
-	boolean
-
 config ARCH_USE_CMPXCHG_LOCKREF
+	bool
+
+config ARCH_HAS_FAST_MULTIPLIER
 	bool
 
 config CRC_CCITT
@@ -201,11 +209,20 @@ config RANDOM32_SELFTEST
 #
 # compression support is select'ed if needed
 #
+config 842_COMPRESS
+	select CRC32
+	tristate
+
+config 842_DECOMPRESS
+	select CRC32
+	tristate
+
 config ZLIB_INFLATE
 	tristate
 
 config ZLIB_DEFLATE
 	tristate
+	select BITREVERSE
 
 config LZO_COMPRESS
 	tristate
@@ -254,7 +271,7 @@ config DECOMPRESS_LZ4
 # Generic allocator support is selected if needed
 #
 config GENERIC_ALLOCATOR
-	boolean
+	bool
 
 #
 # reed solomon support is select'ed if needed
@@ -263,16 +280,16 @@ config REED_SOLOMON
 	tristate
 	
 config REED_SOLOMON_ENC8
-	boolean
+	bool
 
 config REED_SOLOMON_DEC8
-	boolean
+	bool
 
 config REED_SOLOMON_ENC16
-	boolean
+	bool
 
 config REED_SOLOMON_DEC16
-	boolean
+	bool
 
 #
 # BCH support is selected if needed
@@ -281,7 +298,7 @@ config BCH
 	tristate
 
 config BCH_CONST_PARAMS
-	boolean
+	bool
 	help
 	  Drivers may select this option to force specific constant
 	  values for parameters 'm' (Galois field order) and 't'
@@ -317,7 +334,7 @@ config BCH_CONST_T
 # Textsearch support is select'ed if needed
 #
 config TEXTSEARCH
-	boolean
+	bool
 
 config TEXTSEARCH_KMP
 	tristate
@@ -329,10 +346,10 @@ config TEXTSEARCH_FSM
 	tristate
 
 config BTREE
-	boolean
+	bool
 
 config INTERVAL_TREE
-	boolean
+	bool
 	help
 	  Simple, embeddable, interval-tree. Can find the start of an
 	  overlapping range in log(n) time and then iterate over all
@@ -360,18 +377,18 @@ config ASSOCIATIVE_ARRAY
 	  for more information.
 
 config HAS_IOMEM
-	boolean
+	bool
 	depends on !NO_IOMEM
 	select GENERIC_IO
 	default y
 
 config HAS_IOPORT_MAP
-	boolean
+	bool
 	depends on HAS_IOMEM && !NO_IOPORT_MAP
 	default y
 
 config HAS_DMA
-	boolean
+	bool
 	depends on !NO_DMA
 	default y
 
@@ -384,10 +401,6 @@ config CPUMASK_OFFSTACK
 	  Use dynamic allocation for cpumask_var_t, instead of putting
 	  them on the stack.  This is a bit more expensive, but avoids
 	  stack overflow.
-
-config DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
-       bool "Disable obsolete cpumask functions" if DEBUG_PER_CPU_MAPS
-       depends on BROKEN
 
 config CPU_RMAP
 	bool
@@ -447,16 +460,6 @@ config ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 config LRU_CACHE
 	tristate
 
-config AVERAGE
-	bool "Averaging functions"
-	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require averaging functions, but a module built outside
-	  the kernel tree does. Such modules that use library averaging
-	  functions require Y here.
-
-	  If unsure, say N.
-
 config CLZ_TAB
 	bool
 
@@ -473,6 +476,11 @@ config DDR
 	  particularly the AC timing parameters and addressing
 	  information. This data is useful for drivers handling
 	  DDR SDRAM controllers.
+
+config IRQ_POLL
+	bool "IRQ polling library"
+	help
+	  Helper library to poll interrupt mitigation using polling.
 
 config MPILIB
 	tristate
@@ -508,11 +516,24 @@ config UCS2_STRING
 
 source "lib/fonts/Kconfig"
 
+config SG_SPLIT
+	def_bool n
+	help
+	 Provides a helper to split scatterlists into chunks, each chunk being
+	 a scatterlist. This should be selected by a driver or an API which
+	 whishes to split a scatterlist amongst multiple DMA channels.
+
 #
 # sg chaining option
 #
 
 config ARCH_HAS_SG_CHAIN
 	def_bool n
+
+config ARCH_HAS_PMEM_API
+	bool
+
+config ARCH_HAS_MMIO_FLUSH
+	bool
 
 endmenu

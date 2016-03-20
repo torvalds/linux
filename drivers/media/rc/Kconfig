@@ -101,7 +101,8 @@ config IR_SHARP_DECODER
 
 	---help---
 	   Enable this option if you have an infrared remote control which
-	   uses the Sharp protocol, and you need software decoding support.
+	   uses the Sharp protocol (Sharp, Denon), and you need software
+	   decoding support.
 
 config IR_MCE_KBD_DECODER
 	tristate "Enable IR raw decoder for the MCE keyboard/mouse protocol"
@@ -164,6 +165,16 @@ config IR_ENE
 	   To compile this driver as a module, choose M here: the
 	   module will be called ene_ir.
 
+config IR_HIX5HD2
+	tristate "Hisilicon hix5hd2 IR remote control"
+	depends on RC_CORE
+	help
+	 Say Y here if you want to use hisilicon hix5hd2 remote control.
+	 To compile this driver as a module, choose M here: the module will be
+	 called ir-hix5hd2.
+
+	 If you're not sure, select N here
+
 config IR_IMON
 	tristate "SoundGraph iMON Receiver and Display"
 	depends on USB_ARCH_HAS_HCD
@@ -212,6 +223,17 @@ config IR_FINTEK
 
 	   To compile this driver as a module, choose M here: the
 	   module will be called fintek-cir.
+
+config IR_MESON
+	tristate "Amlogic Meson IR remote receiver"
+	depends on RC_CORE
+	depends on ARCH_MESON || COMPILE_TEST
+	---help---
+	   Say Y if you want to use the IR remote receiver available
+	   on Amlogic Meson SoCs.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called meson-ir.
 
 config IR_NUVOTON
 	tristate "Nuvoton w836x7hg Consumer Infrared Transceiver"
@@ -266,6 +288,21 @@ config IR_WINBOND_CIR
 
 	   To compile this driver as a module, choose M here: the module will
 	   be called winbond_cir.
+
+config IR_IGORPLUGUSB
+	tristate "IgorPlug-USB IR Receiver"
+	depends on USB_ARCH_HAS_HCD
+	depends on RC_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use the IgorPlug-USB IR Receiver by
+	   Igor Cesko. This device is included on the Fit-PC2.
+
+	   Note that this device can only record bursts of 36 IR pulses and
+	   spaces, which is not enough for the NEC, Sanyo and RC-6 protocol.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called igorplugusb.
 
 config IR_IGUANA
 	tristate "IguanaWorks USB IR Transceiver"
@@ -333,22 +370,23 @@ config IR_GPIO_CIR
 
 config RC_ST
 	tristate "ST remote control receiver"
-	depends on ARCH_STI && RC_CORE
-	help
-	 Say Y here if you want support for ST remote control driver
-	 which allows both IR and UHF RX.
-	 The driver passes raw pulse and space information to the LIRC decoder.
+	depends on RC_CORE
+	depends on ARCH_STI || COMPILE_TEST
+	---help---
+	   Say Y here if you want support for ST remote control driver
+	   which allows both IR and UHF RX.
+	   The driver passes raw pulse and space information to the LIRC decoder.
 
-	 If you're not sure, select N here.
+	   If you're not sure, select N here.
 
 config IR_SUNXI
-    tristate "SUNXI IR remote control"
-    depends on RC_CORE
-    depends on ARCH_SUNXI
-    ---help---
-      Say Y if you want to use sunXi internal IR Controller
+	tristate "SUNXI IR remote control"
+	depends on RC_CORE
+	depends on ARCH_SUNXI || COMPILE_TEST
+	---help---
+	   Say Y if you want to use sunXi internal IR Controller
 
-      To compile this driver as a module, choose M here: the module will
-      be called sunxi-ir.
+	   To compile this driver as a module, choose M here: the module will
+	   be called sunxi-ir.
 
 endif #RC_DEVICES

@@ -139,7 +139,7 @@ EXPORT_SYMBOL_GPL(nfs_path);
 struct vfsmount *nfs_d_automount(struct path *path)
 {
 	struct vfsmount *mnt;
-	struct nfs_server *server = NFS_SERVER(path->dentry->d_inode);
+	struct nfs_server *server = NFS_SERVER(d_inode(path->dentry));
 	struct nfs_fh *fh = NULL;
 	struct nfs_fattr *fattr = NULL;
 
@@ -180,16 +180,16 @@ out_nofree:
 static int
 nfs_namespace_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 {
-	if (NFS_FH(dentry->d_inode)->size != 0)
+	if (NFS_FH(d_inode(dentry))->size != 0)
 		return nfs_getattr(mnt, dentry, stat);
-	generic_fillattr(dentry->d_inode, stat);
+	generic_fillattr(d_inode(dentry), stat);
 	return 0;
 }
 
 static int
 nfs_namespace_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	if (NFS_FH(dentry->d_inode)->size != 0)
+	if (NFS_FH(d_inode(dentry))->size != 0)
 		return nfs_setattr(dentry, attr);
 	return -EACCES;
 }
@@ -279,7 +279,7 @@ struct vfsmount *nfs_submount(struct nfs_server *server, struct dentry *dentry,
 	struct dentry *parent = dget_parent(dentry);
 
 	/* Look it up again to get its attributes */
-	err = server->nfs_client->rpc_ops->lookup(parent->d_inode, &dentry->d_name, fh, fattr, NULL);
+	err = server->nfs_client->rpc_ops->lookup(d_inode(parent), &dentry->d_name, fh, fattr, NULL);
 	dput(parent);
 	if (err != 0)
 		return ERR_PTR(err);

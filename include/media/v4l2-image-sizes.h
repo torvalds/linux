@@ -25,10 +25,19 @@
 #define QVGA_WIDTH	320
 #define QVGA_HEIGHT	240
 
+#define SVGA_WIDTH	800
+#define SVGA_HEIGHT	600
+
 #define SXGA_WIDTH	1280
 #define SXGA_HEIGHT	1024
 
 #define VGA_WIDTH	640
 #define VGA_HEIGHT	480
+
+#define UXGA_WIDTH	1600
+#define UXGA_HEIGHT	1200
+
+#define XGA_WIDTH	1024
+#define XGA_HEIGHT	768
 
 #endif /* _IMAGE_SIZES_H */

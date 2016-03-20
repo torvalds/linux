@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -107,10 +107,10 @@ acpi_ut_add_address_range(acpi_adr_space_type space_id,
 	acpi_gbl_address_range_list[space_id] = range_info;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
-			  "\nAdded [%4.4s] address range: 0x%p-0x%p\n",
+			  "\nAdded [%4.4s] address range: 0x%8.8X%8.8X-0x%8.8X%8.8X\n",
 			  acpi_ut_get_node_name(range_info->region_node),
-			  ACPI_CAST_PTR(void, address),
-			  ACPI_CAST_PTR(void, range_info->end_address)));
+			  ACPI_FORMAT_UINT64(address),
+			  ACPI_FORMAT_UINT64(range_info->end_address)));
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(AE_OK);
@@ -160,15 +160,13 @@ acpi_ut_remove_address_range(acpi_adr_space_type space_id,
 			}
 
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
-					  "\nRemoved [%4.4s] address range: 0x%p-0x%p\n",
+					  "\nRemoved [%4.4s] address range: 0x%8.8X%8.8X-0x%8.8X%8.8X\n",
 					  acpi_ut_get_node_name(range_info->
 								region_node),
-					  ACPI_CAST_PTR(void,
-							range_info->
-							start_address),
-					  ACPI_CAST_PTR(void,
-							range_info->
-							end_address)));
+					  ACPI_FORMAT_UINT64(range_info->
+							     start_address),
+					  ACPI_FORMAT_UINT64(range_info->
+							     end_address)));
 
 			ACPI_FREE(range_info);
 			return_VOID;
@@ -241,20 +239,19 @@ acpi_ut_check_address_range(acpi_adr_space_type space_id,
 			overlap_count++;
 			if (warn) {	/* Optional warning message */
 				pathname =
-				    acpi_ns_get_external_pathname(range_info->
-								  region_node);
+				    acpi_ns_get_normalized_pathname(range_info->
+								    region_node,
+								    TRUE);
 
 				ACPI_WARNING((AE_INFO,
-					      "%s range 0x%p-0x%p conflicts with OpRegion 0x%p-0x%p (%s)",
+					      "%s range 0x%8.8X%8.8X-0x%8.8X%8.8X conflicts with OpRegion 0x%8.8X%8.8X-0x%8.8X%8.8X (%s)",
 					      acpi_ut_get_region_name(space_id),
-					      ACPI_CAST_PTR(void, address),
-					      ACPI_CAST_PTR(void, end_address),
-					      ACPI_CAST_PTR(void,
-							    range_info->
-							    start_address),
-					      ACPI_CAST_PTR(void,
-							    range_info->
-							    end_address),
+					      ACPI_FORMAT_UINT64(address),
+					      ACPI_FORMAT_UINT64(end_address),
+					      ACPI_FORMAT_UINT64(range_info->
+								 start_address),
+					      ACPI_FORMAT_UINT64(range_info->
+								 end_address),
 					      pathname));
 				ACPI_FREE(pathname);
 			}

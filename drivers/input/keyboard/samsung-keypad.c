@@ -299,8 +299,10 @@ samsung_keypad_parse_dt(struct device *dev)
 	if (of_get_property(np, "linux,input-no-autorepeat", NULL))
 		pdata->no_autorepeat = true;
 
-	if (of_get_property(np, "linux,input-wakeup", NULL))
-		pdata->wakeup = true;
+	pdata->wakeup = of_property_read_bool(np, "wakeup-source") ||
+			/* legacy name */
+			of_property_read_bool(np, "linux,input-wakeup");
+
 
 	return pdata;
 }
@@ -463,7 +465,7 @@ static int samsung_keypad_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int samsung_keypad_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -585,7 +587,7 @@ static const struct of_device_id samsung_keypad_dt_match[] = {
 MODULE_DEVICE_TABLE(of, samsung_keypad_dt_match);
 #endif
 
-static struct platform_device_id samsung_keypad_driver_ids[] = {
+static const struct platform_device_id samsung_keypad_driver_ids[] = {
 	{
 		.name		= "samsung-keypad",
 		.driver_data	= KEYPAD_TYPE_SAMSUNG,
@@ -602,7 +604,6 @@ static struct platform_driver samsung_keypad_driver = {
 	.remove		= samsung_keypad_remove,
 	.driver		= {
 		.name	= "samsung-keypad",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(samsung_keypad_dt_match),
 		.pm	= &samsung_keypad_pm_ops,
 	},

@@ -21,7 +21,7 @@
 #include "../codecs/wm8731.h"
 #include "psc.h"
 
-static struct platform_device_id db1200_pids[] = {
+static const struct platform_device_id db1200_pids[] = {
 	{
 		.name		= "db1200-ac97",
 		.driver_data	= 0,
@@ -91,27 +91,12 @@ static int db1200_i2s_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	int ret;
 
 	/* WM8731 has its own 12MHz crystal */
 	snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK_XTAL,
 				12000000, SND_SOC_CLOCK_IN);
 
-	/* codec is bitclock and lrclk master */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_LEFT_J |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		goto out;
-
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_LEFT_J |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		goto out;
-
-	ret = 0;
-out:
-	return ret;
+	return 0;
 }
 
 static struct snd_soc_ops db1200_i2s_wm8731_ops = {
@@ -125,6 +110,8 @@ static struct snd_soc_dai_link db1200_i2s_dai = {
 	.cpu_dai_name	= "au1xpsc_i2s.1",
 	.platform_name	= "au1xpsc-pcm.1",
 	.codec_name	= "wm8731.0-001b",
+	.dai_fmt	= SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF |
+			  SND_SOC_DAIFMT_CBM_CFM,
 	.ops		= &db1200_i2s_wm8731_ops,
 };
 
@@ -142,6 +129,8 @@ static struct snd_soc_dai_link db1300_i2s_dai = {
 	.cpu_dai_name	= "au1xpsc_i2s.2",
 	.platform_name	= "au1xpsc-pcm.2",
 	.codec_name	= "wm8731.0-001b",
+	.dai_fmt	= SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF |
+			  SND_SOC_DAIFMT_CBM_CFM,
 	.ops		= &db1200_i2s_wm8731_ops,
 };
 
@@ -159,6 +148,8 @@ static struct snd_soc_dai_link db1550_i2s_dai = {
 	.cpu_dai_name	= "au1xpsc_i2s.3",
 	.platform_name	= "au1xpsc-pcm.3",
 	.codec_name	= "wm8731.0-001b",
+	.dai_fmt	= SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF |
+			  SND_SOC_DAIFMT_CBM_CFM,
 	.ops		= &db1200_i2s_wm8731_ops,
 };
 
@@ -187,25 +178,16 @@ static int db1200_audio_probe(struct platform_device *pdev)
 
 	card = db1200_cards[pid->driver_data];
 	card->dev = &pdev->dev;
-	return snd_soc_register_card(card);
-}
-
-static int db1200_audio_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-	snd_soc_unregister_card(card);
-	return 0;
+	return devm_snd_soc_register_card(&pdev->dev, card);
 }
 
 static struct platform_driver db1200_audio_driver = {
 	.driver	= {
 		.name	= "db1200-ac97",
-		.owner	= THIS_MODULE,
 		.pm	= &snd_soc_pm_ops,
 	},
 	.id_table	= db1200_pids,
 	.probe		= db1200_audio_probe,
-	.remove		= db1200_audio_remove,
 };
 
 module_platform_driver(db1200_audio_driver);

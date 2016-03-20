@@ -52,7 +52,7 @@ static struct ch_freq ch_freq_map[] = {
 	{216, 5080},/* Japan, means J16 */
 };
 
-static int ch_freq_map_num = (sizeof(ch_freq_map) / sizeof(struct ch_freq));
+static int ch_freq_map_num = ARRAY_SIZE(ch_freq_map);
 
 u32 rtw_ch2freq(u32 channel)
 {
@@ -69,21 +69,4 @@ u32 rtw_ch2freq(u32 channel)
 		freq = 2412;
 
 	return freq;
-}
-
-u32 rtw_freq2ch(u32 freq)
-{
-	u8	i;
-	u32	ch = 0;
-
-	for (i = 0; i < ch_freq_map_num; i++) {
-		if (freq == ch_freq_map[i].frequency) {
-			ch = ch_freq_map[i].channel;
-				break;
-		}
-	}
-	if (i == ch_freq_map_num)
-		ch = 1;
-
-	return ch;
 }

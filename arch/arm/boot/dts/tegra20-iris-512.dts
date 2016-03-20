@@ -6,6 +6,11 @@
 	model = "Toradex Colibri T20 512MB on Iris";
 	compatible = "toradex,iris", "toradex,colibri_t20-512", "nvidia,tegra20";
 
+	aliases {
+		serial0 = &uarta;
+		serial1 = &uartd;
+	};
+
 	host1x@50000000 {
 		hdmi@54280000 {
 			status = "okay";

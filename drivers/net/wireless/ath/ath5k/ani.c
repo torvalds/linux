@@ -223,7 +223,7 @@ static void
 ath5k_ani_raise_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as,
 			 bool ofdm_trigger)
 {
-	int rssi = ewma_read(&ah->ah_beacon_rssi_avg);
+	int rssi = ewma_beacon_rssi_read(&ah->ah_beacon_rssi_avg);
 
 	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI, "raise immunity (%s)",
 		ofdm_trigger ? "ODFM" : "CCK");
@@ -309,7 +309,7 @@ ath5k_ani_raise_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as,
 static void
 ath5k_ani_lower_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as)
 {
-	int rssi = ewma_read(&ah->ah_beacon_rssi_avg);
+	int rssi = ewma_beacon_rssi_read(&ah->ah_beacon_rssi_avg);
 
 	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI, "lower immunity");
 

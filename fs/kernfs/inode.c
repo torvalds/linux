@@ -24,12 +24,6 @@ static const struct address_space_operations kernfs_aops = {
 	.write_end	= simple_write_end,
 };
 
-static struct backing_dev_info kernfs_bdi = {
-	.name		= "kernfs",
-	.ra_pages	= 0,	/* No readahead */
-	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
-};
-
 static const struct inode_operations kernfs_iops = {
 	.permission	= kernfs_iop_permission,
 	.setattr	= kernfs_iop_setattr,
@@ -39,12 +33,6 @@ static const struct inode_operations kernfs_iops = {
 	.getxattr	= kernfs_iop_getxattr,
 	.listxattr	= kernfs_iop_listxattr,
 };
-
-void __init kernfs_inode_init(void)
-{
-	if (bdi_init(&kernfs_bdi))
-		panic("failed to init kernfs_bdi");
-}
 
 static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
 {
@@ -123,7 +111,7 @@ int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 
 int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct kernfs_node *kn = dentry->d_fsdata;
 	int error;
 
@@ -184,11 +172,11 @@ int kernfs_iop_setxattr(struct dentry *dentry, const char *name,
 
 	if (!strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN)) {
 		const char *suffix = name + XATTR_SECURITY_PREFIX_LEN;
-		error = security_inode_setsecurity(dentry->d_inode, suffix,
+		error = security_inode_setsecurity(d_inode(dentry), suffix,
 						value, size, flags);
 		if (error)
 			return error;
-		error = security_inode_getsecctx(dentry->d_inode,
+		error = security_inode_getsecctx(d_inode(dentry),
 						&secdata, &secdata_len);
 		if (error)
 			return error;
@@ -217,7 +205,7 @@ int kernfs_iop_removexattr(struct dentry *dentry, const char *name)
 	if (!attrs)
 		return -ENOMEM;
 
-	return simple_xattr_remove(&attrs->xattrs, name);
+	return simple_xattr_set(&attrs->xattrs, name, NULL, 0, XATTR_REPLACE);
 }
 
 ssize_t kernfs_iop_getxattr(struct dentry *dentry, const char *name, void *buf,
@@ -242,7 +230,7 @@ ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size)
 	if (!attrs)
 		return -ENOMEM;
 
-	return simple_xattr_list(&attrs->xattrs, buf, size);
+	return simple_xattr_list(d_inode(dentry), &attrs->xattrs, buf, size);
 }
 
 static inline void set_default_inode_attr(struct inode *inode, umode_t mode)
@@ -283,7 +271,7 @@ int kernfs_iop_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		   struct kstat *stat)
 {
 	struct kernfs_node *kn = dentry->d_fsdata;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	mutex_lock(&kernfs_mutex);
 	kernfs_refresh_inode(kn, inode);
@@ -298,7 +286,6 @@ static void kernfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 	kernfs_get(kn);
 	inode->i_private = kn;
 	inode->i_mapping->a_ops = &kernfs_aops;
-	inode->i_mapping->backing_dev_info = &kernfs_bdi;
 	inode->i_op = &kernfs_iops;
 
 	set_default_inode_attr(inode, kn->mode);
@@ -309,6 +296,8 @@ static void kernfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 	case KERNFS_DIR:
 		inode->i_op = &kernfs_dir_iops;
 		inode->i_fop = &kernfs_dir_fops;
+		if (kn->flags & KERNFS_EMPTY_DIR)
+			make_empty_dir_inode(inode);
 		break;
 	case KERNFS_FILE:
 		inode->i_size = kn->attr.size;

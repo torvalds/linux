@@ -26,6 +26,7 @@
 #define _HYPERV_H
 
 #include <uapi/linux/hyperv.h>
+#include <uapi/asm/hyperv.h>
 
 #include <linux/types.h>
 #include <linux/scatterlist.h>
@@ -55,6 +56,18 @@ struct hv_multipage_buffer {
 	u32 len;
 	u32 offset;
 	u64 pfn_array[MAX_MULTIPAGE_BUFFER_COUNT];
+};
+
+/*
+ * Multiple-page buffer array; the pfn array is variable size:
+ * The number of entries in the PFN array is determined by
+ * "len" and "offset".
+ */
+struct hv_mpb_array {
+	/* Length and Offset determines the # of pfns in the array */
+	u32 len;
+	u32 offset;
+	u64 pfn_array[];
 };
 
 /* 0x18 includes the proprietary packet header */
@@ -128,8 +141,6 @@ hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
 {
 	u32 read_loc, write_loc, dsize;
 
-	smp_read_barrier_depends();
-
 	/* Capture the read/write indices before they changed */
 	read_loc = rbi->ring_buffer->read_index;
 	write_loc = rbi->ring_buffer->write_index;
@@ -148,16 +159,18 @@ hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
  * 1 . 1  (Windows 7)
  * 2 . 4  (Windows 8)
  * 3 . 0  (Windows 8 R2)
+ * 4 . 0  (Windows 10)
  */
 
 #define VERSION_WS2008  ((0 << 16) | (13))
 #define VERSION_WIN7    ((1 << 16) | (1))
 #define VERSION_WIN8    ((2 << 16) | (4))
 #define VERSION_WIN8_1    ((3 << 16) | (0))
+#define VERSION_WIN10	((4 << 16) | (0))
 
 #define VERSION_INVAL -1
 
-#define VERSION_CURRENT VERSION_WIN8_1
+#define VERSION_CURRENT VERSION_WIN10
 
 /* Make maximum size of pipe payload of 16K */
 #define MAX_PIPE_DATA_PAYLOAD		(sizeof(u8) * 16384)
@@ -222,6 +235,7 @@ struct vmbus_channel_offer {
 #define VMBUS_CHANNEL_LOOPBACK_OFFER			0x100
 #define VMBUS_CHANNEL_PARENT_OFFER			0x200
 #define VMBUS_CHANNEL_REQUEST_MONITORED_NOTIFICATION	0x400
+#define VMBUS_CHANNEL_TLNPI_PROVIDER_OFFER		0x2000
 
 struct vmpacket_descriptor {
 	u16 type;
@@ -377,10 +391,11 @@ enum vmbus_channel_message_type {
 	CHANNELMSG_INITIATE_CONTACT		= 14,
 	CHANNELMSG_VERSION_RESPONSE		= 15,
 	CHANNELMSG_UNLOAD			= 16,
-#ifdef VMBUS_FEATURE_PARENT_OR_PEER_MEMORY_MAPPED_INTO_A_CHILD
-	CHANNELMSG_VIEWRANGE_ADD		= 17,
-	CHANNELMSG_VIEWRANGE_REMOVE		= 18,
-#endif
+	CHANNELMSG_UNLOAD_RESPONSE		= 17,
+	CHANNELMSG_18				= 18,
+	CHANNELMSG_19				= 19,
+	CHANNELMSG_20				= 20,
+	CHANNELMSG_TL_CONNECT_REQUEST		= 21,
 	CHANNELMSG_COUNT
 };
 
@@ -537,21 +552,6 @@ struct vmbus_channel_gpadl_torndown {
 	u32 gpadl;
 } __packed;
 
-#ifdef VMBUS_FEATURE_PARENT_OR_PEER_MEMORY_MAPPED_INTO_A_CHILD
-struct vmbus_channel_view_range_add {
-	struct vmbus_channel_message_header header;
-	PHYSICAL_ADDRESS viewrange_base;
-	u64 viewrange_length;
-	u32 child_relid;
-} __packed;
-
-struct vmbus_channel_view_range_remove {
-	struct vmbus_channel_message_header header;
-	PHYSICAL_ADDRESS viewrange_base;
-	u32 child_relid;
-} __packed;
-#endif
-
 struct vmbus_channel_relid_released {
 	struct vmbus_channel_message_header header;
 	u32 child_relid;
@@ -564,6 +564,13 @@ struct vmbus_channel_initiate_contact {
 	u64 interrupt_page;
 	u64 monitor_page1;
 	u64 monitor_page2;
+} __packed;
+
+/* Hyper-V socket: guest's connect()-ing to host */
+struct vmbus_channel_tl_connect_request {
+	struct vmbus_channel_message_header header;
+	uuid_le guest_endpoint_id;
+	uuid_le host_service_id;
 } __packed;
 
 struct vmbus_channel_version_response {
@@ -633,12 +640,44 @@ struct hv_input_signal_event_buffer {
 	struct hv_input_signal_event event;
 };
 
+enum hv_signal_policy {
+	HV_SIGNAL_POLICY_DEFAULT = 0,
+	HV_SIGNAL_POLICY_EXPLICIT,
+};
+
+enum vmbus_device_type {
+	HV_IDE = 0,
+	HV_SCSI,
+	HV_FC,
+	HV_NIC,
+	HV_ND,
+	HV_PCIE,
+	HV_FB,
+	HV_KBD,
+	HV_MOUSE,
+	HV_KVP,
+	HV_TS,
+	HV_HB,
+	HV_SHUTDOWN,
+	HV_FCOPY,
+	HV_BACKUP,
+	HV_DM,
+	HV_UNKOWN,
+};
+
+struct vmbus_device {
+	u16  dev_type;
+	uuid_le guid;
+	bool perf_device;
+};
+
 struct vmbus_channel {
+	/* Unique channel id */
+	int id;
+
 	struct list_head listentry;
 
 	struct hv_device *device_obj;
-
-	struct work_struct work;
 
 	enum vmbus_channel_state state;
 
@@ -650,6 +689,8 @@ struct vmbus_channel {
 	u8 monitor_grp;
 	u8 monitor_bit;
 
+	bool rescind; /* got rescind msg */
+
 	u32 ringbuffer_gpadlhandle;
 
 	/* Allocated memory for ring buffer */
@@ -658,7 +699,6 @@ struct vmbus_channel {
 	struct hv_ring_buffer_info outbound;	/* send to parent */
 	struct hv_ring_buffer_info inbound;	/* receive from parent */
 	spinlock_t inbound_lock;
-	struct workqueue_struct *controlwq;
 
 	struct vmbus_close_msg close_msg;
 
@@ -699,6 +739,11 @@ struct vmbus_channel {
 	/* The corresponding CPUID in the guest */
 	u32 target_cpu;
 	/*
+	 * State to manage the CPU affiliation of channels.
+	 */
+	struct cpumask alloced_cpus_in_node;
+	int numa_node;
+	/*
 	 * Support for sub-channels. For high performance devices,
 	 * it will be useful to have multiple sub-channels to support
 	 * a scalable communication infrastructure with the host.
@@ -720,11 +765,31 @@ struct vmbus_channel {
 	 */
 	void (*sc_creation_callback)(struct vmbus_channel *new_sc);
 
-	spinlock_t sc_lock;
+	/*
+	 * Channel rescind callback. Some channels (the hvsock ones), need to
+	 * register a callback which is invoked in vmbus_onoffer_rescind().
+	 */
+	void (*chn_rescind_callback)(struct vmbus_channel *channel);
+
+	/*
+	 * The spinlock to protect the structure. It is being used to protect
+	 * test-and-set access to various attributes of the structure as well
+	 * as all sc_list operations.
+	 */
+	spinlock_t lock;
 	/*
 	 * All Sub-channels of a primary channel are linked here.
 	 */
 	struct list_head sc_list;
+	/*
+	 * Current number of sub-channels.
+	 */
+	int num_sc;
+	/*
+	 * Number of a sub-channel (position within sc_list) which is supposed
+	 * to be used as the next outgoing channel.
+	 */
+	int next_oc;
 	/*
 	 * The primary channel this sub-channel belongs to.
 	 * This will be NULL for the primary channel.
@@ -739,7 +804,42 @@ struct vmbus_channel {
 	 * link up channels based on their CPU affinity.
 	 */
 	struct list_head percpu_list;
+	/*
+	 * Host signaling policy: The default policy will be
+	 * based on the ring buffer state. We will also support
+	 * a policy where the client driver can have explicit
+	 * signaling control.
+	 */
+	enum hv_signal_policy  signal_policy;
+	/*
+	 * On the channel send side, many of the VMBUS
+	 * device drivers explicity serialize access to the
+	 * outgoing ring buffer. Give more control to the
+	 * VMBUS device drivers in terms how to serialize
+	 * accesss to the outgoing ring buffer.
+	 * The default behavior will be to aquire the
+	 * ring lock to preserve the current behavior.
+	 */
+	bool acquire_ring_lock;
+
 };
+
+static inline void set_channel_lock_state(struct vmbus_channel *c, bool state)
+{
+	c->acquire_ring_lock = state;
+}
+
+static inline bool is_hvsock_channel(const struct vmbus_channel *c)
+{
+	return !!(c->offermsg.offer.chn_flags &
+		  VMBUS_CHANNEL_TLNPI_PROVIDER_OFFER);
+}
+
+static inline void set_channel_signal_state(struct vmbus_channel *c,
+					    enum hv_signal_policy policy)
+{
+	c->signal_policy = policy;
+}
 
 static inline void set_channel_read_state(struct vmbus_channel *c, bool state)
 {
@@ -756,6 +856,12 @@ static inline void *get_per_channel_state(struct vmbus_channel *c)
 	return c->per_channel_state;
 }
 
+static inline void set_channel_pending_send_size(struct vmbus_channel *c,
+						 u32 size)
+{
+	c->outbound.ring_buffer->pending_send_sz = size;
+}
+
 void vmbus_onmessage(void *context);
 
 int vmbus_request_offers(void);
@@ -766,6 +872,9 @@ int vmbus_request_offers(void);
 
 void vmbus_set_sc_create_callback(struct vmbus_channel *primary_channel,
 			void (*sc_cr_cb)(struct vmbus_channel *new_sc));
+
+void vmbus_set_chn_rescind_callback(struct vmbus_channel *channel,
+		void (*chn_rescind_cb)(struct vmbus_channel *));
 
 /*
  * Retrieve the (sub) channel on which to send an outgoing request.
@@ -812,6 +921,18 @@ struct vmbus_channel_packet_multipage_buffer {
 	struct hv_multipage_buffer range;
 } __packed;
 
+/* The format must be the same as struct vmdata_gpa_direct */
+struct vmbus_packet_mpb_array {
+	u16 type;
+	u16 dataoffset8;
+	u16 length8;
+	u16 flags;
+	u64 transactionid;
+	u32 reserved;
+	u32 rangecount;         /* Always 1 in this case */
+	struct hv_mpb_array range;
+} __packed;
+
 
 extern int vmbus_open(struct vmbus_channel *channel,
 			    u32 send_ringbuffersize,
@@ -830,6 +951,14 @@ extern int vmbus_sendpacket(struct vmbus_channel *channel,
 				  enum vmbus_packet_type type,
 				  u32 flags);
 
+extern int vmbus_sendpacket_ctl(struct vmbus_channel *channel,
+				  void *buffer,
+				  u32 bufferLen,
+				  u64 requestid,
+				  enum vmbus_packet_type type,
+				  u32 flags,
+				  bool kick_q);
+
 extern int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 					    struct hv_page_buffer pagebuffers[],
 					    u32 pagecount,
@@ -837,11 +966,27 @@ extern int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 					    u32 bufferlen,
 					    u64 requestid);
 
+extern int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
+					   struct hv_page_buffer pagebuffers[],
+					   u32 pagecount,
+					   void *buffer,
+					   u32 bufferlen,
+					   u64 requestid,
+					   u32 flags,
+					   bool kick_q);
+
 extern int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 					struct hv_multipage_buffer *mpb,
 					void *buffer,
 					u32 bufferlen,
 					u64 requestid);
+
+extern int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
+				     struct vmbus_packet_mpb_array *mpb,
+				     u32 desc_size,
+				     void *buffer,
+				     u32 bufferlen,
+				     u64 requestid);
 
 extern int vmbus_establish_gpadl(struct vmbus_channel *channel,
 				      void *kbuffer,
@@ -870,6 +1015,20 @@ extern void vmbus_ontimer(unsigned long data);
 struct hv_driver {
 	const char *name;
 
+	/*
+	 * A hvsock offer, which has a VMBUS_CHANNEL_TLNPI_PROVIDER_OFFER
+	 * channel flag, actually doesn't mean a synthetic device because the
+	 * offer's if_type/if_instance can change for every new hvsock
+	 * connection.
+	 *
+	 * However, to facilitate the notification of new-offer/rescind-offer
+	 * from vmbus driver to hvsock driver, we can handle hvsock offer as
+	 * a special vmbus device, and hence we need the below flag to
+	 * indicate if the driver is the hvsock driver or not: we need to
+	 * specially treat the hvosck offer & driver in vmbus_match().
+	 */
+	bool hvsock;
+
 	/* the device type supported by this driver */
 	uuid_le dev_type;
 	const struct hv_vmbus_device_id *id_table;
@@ -889,6 +1048,8 @@ struct hv_device {
 
 	/* the device instance id of this device */
 	uuid_le dev_instance;
+	u16 vendor_id;
+	u16 device_id;
 
 	struct device device;
 
@@ -924,16 +1085,15 @@ int __must_check __vmbus_driver_register(struct hv_driver *hv_driver,
 					 const char *mod_name);
 void vmbus_driver_unregister(struct hv_driver *hv_driver);
 
-/**
- * VMBUS_DEVICE - macro used to describe a specific hyperv vmbus device
- *
- * This macro is used to create a struct hv_vmbus_device_id that matches a
- * specific device.
- */
-#define VMBUS_DEVICE(g0, g1, g2, g3, g4, g5, g6, g7,	\
-		     g8, g9, ga, gb, gc, gd, ge, gf)	\
-	.guid = { g0, g1, g2, g3, g4, g5, g6, g7,	\
-		  g8, g9, ga, gb, gc, gd, ge, gf },
+void vmbus_hvsock_device_unregister(struct vmbus_channel *channel);
+
+int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
+			resource_size_t min, resource_size_t max,
+			resource_size_t size, resource_size_t align,
+			bool fb_overlap_ok);
+
+int vmbus_cpu_number_to_vp_number(int cpu_number);
+u64 hv_do_hypercall(u64 control, void *input, void *output);
 
 /*
  * GUID definitions of various offer types - services offered to the guest.
@@ -944,118 +1104,102 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver);
  * {f8615163-df3e-46c5-913f-f2d2f965ed0e}
  */
 #define HV_NIC_GUID \
-	.guid = { \
-			0x63, 0x51, 0x61, 0xf8, 0x3e, 0xdf, 0xc5, 0x46, \
-			0x91, 0x3f, 0xf2, 0xd2, 0xf9, 0x65, 0xed, 0x0e \
-		}
+	.guid = UUID_LE(0xf8615163, 0xdf3e, 0x46c5, 0x91, 0x3f, \
+			0xf2, 0xd2, 0xf9, 0x65, 0xed, 0x0e)
 
 /*
  * IDE GUID
  * {32412632-86cb-44a2-9b5c-50d1417354f5}
  */
 #define HV_IDE_GUID \
-	.guid = { \
-			0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44, \
-			0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5 \
-		}
+	.guid = UUID_LE(0x32412632, 0x86cb, 0x44a2, 0x9b, 0x5c, \
+			0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5)
 
 /*
  * SCSI GUID
  * {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f}
  */
 #define HV_SCSI_GUID \
-	.guid = { \
-			0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d, \
-			0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f \
-		}
+	.guid = UUID_LE(0xba6163d9, 0x04a1, 0x4d29, 0xb6, 0x05, \
+			0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f)
 
 /*
  * Shutdown GUID
  * {0e0b6031-5213-4934-818b-38d90ced39db}
  */
 #define HV_SHUTDOWN_GUID \
-	.guid = { \
-			0x31, 0x60, 0x0b, 0x0e, 0x13, 0x52, 0x34, 0x49, \
-			0x81, 0x8b, 0x38, 0xd9, 0x0c, 0xed, 0x39, 0xdb \
-		}
+	.guid = UUID_LE(0x0e0b6031, 0x5213, 0x4934, 0x81, 0x8b, \
+			0x38, 0xd9, 0x0c, 0xed, 0x39, 0xdb)
 
 /*
  * Time Synch GUID
  * {9527E630-D0AE-497b-ADCE-E80AB0175CAF}
  */
 #define HV_TS_GUID \
-	.guid = { \
-			0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49, \
-			0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf \
-		}
+	.guid = UUID_LE(0x9527e630, 0xd0ae, 0x497b, 0xad, 0xce, \
+			0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf)
 
 /*
  * Heartbeat GUID
  * {57164f39-9115-4e78-ab55-382f3bd5422d}
  */
 #define HV_HEART_BEAT_GUID \
-	.guid = { \
-			0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e, \
-			0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d \
-		}
+	.guid = UUID_LE(0x57164f39, 0x9115, 0x4e78, 0xab, 0x55, \
+			0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d)
 
 /*
  * KVP GUID
  * {a9a0f4e7-5a45-4d96-b827-8a841e8c03e6}
  */
 #define HV_KVP_GUID \
-	.guid = { \
-			0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d, \
-			0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6 \
-		}
+	.guid = UUID_LE(0xa9a0f4e7, 0x5a45, 0x4d96, 0xb8, 0x27, \
+			0x8a, 0x84, 0x1e, 0x8c, 0x03, 0xe6)
 
 /*
  * Dynamic memory GUID
  * {525074dc-8985-46e2-8057-a307dc18a502}
  */
 #define HV_DM_GUID \
-	.guid = { \
-			0xdc, 0x74, 0x50, 0X52, 0x85, 0x89, 0xe2, 0x46, \
-			0x80, 0x57, 0xa3, 0x07, 0xdc, 0x18, 0xa5, 0x02 \
-		}
+	.guid = UUID_LE(0x525074dc, 0x8985, 0x46e2, 0x80, 0x57, \
+			0xa3, 0x07, 0xdc, 0x18, 0xa5, 0x02)
 
 /*
  * Mouse GUID
  * {cfa8b69e-5b4a-4cc0-b98b-8ba1a1f3f95a}
  */
 #define HV_MOUSE_GUID \
-	.guid = { \
-			0x9e, 0xb6, 0xa8, 0xcf, 0x4a, 0x5b, 0xc0, 0x4c, \
-			0xb9, 0x8b, 0x8b, 0xa1, 0xa1, 0xf3, 0xf9, 0x5a \
-		}
+	.guid = UUID_LE(0xcfa8b69e, 0x5b4a, 0x4cc0, 0xb9, 0x8b, \
+			0x8b, 0xa1, 0xa1, 0xf3, 0xf9, 0x5a)
+
+/*
+ * Keyboard GUID
+ * {f912ad6d-2b17-48ea-bd65-f927a61c7684}
+ */
+#define HV_KBD_GUID \
+	.guid = UUID_LE(0xf912ad6d, 0x2b17, 0x48ea, 0xbd, 0x65, \
+			0xf9, 0x27, 0xa6, 0x1c, 0x76, 0x84)
 
 /*
  * VSS (Backup/Restore) GUID
  */
 #define HV_VSS_GUID \
-	.guid = { \
-			0x29, 0x2e, 0xfa, 0x35, 0x23, 0xea, 0x36, 0x42, \
-			0x96, 0xae, 0x3a, 0x6e, 0xba, 0xcb, 0xa4,  0x40 \
-		}
+	.guid = UUID_LE(0x35fa2e29, 0xea23, 0x4236, 0x96, 0xae, \
+			0x3a, 0x6e, 0xba, 0xcb, 0xa4, 0x40)
 /*
  * Synthetic Video GUID
  * {DA0A7802-E377-4aac-8E77-0558EB1073F8}
  */
 #define HV_SYNTHVID_GUID \
-	.guid = { \
-			0x02, 0x78, 0x0a, 0xda, 0x77, 0xe3, 0xac, 0x4a, \
-			0x8e, 0x77, 0x05, 0x58, 0xeb, 0x10, 0x73, 0xf8 \
-		}
+	.guid = UUID_LE(0xda0a7802, 0xe377, 0x4aac, 0x8e, 0x77, \
+			0x05, 0x58, 0xeb, 0x10, 0x73, 0xf8)
 
 /*
  * Synthetic FC GUID
  * {2f9bcc4a-0069-4af3-b76b-6fd0be528cda}
  */
 #define HV_SYNTHFC_GUID \
-	.guid = { \
-			0x4A, 0xCC, 0x9B, 0x2F, 0x69, 0x00, 0xF3, 0x4A, \
-			0xB7, 0x6B, 0x6F, 0xD0, 0xBE, 0x52, 0x8C, 0xDA \
-		}
+	.guid = UUID_LE(0x2f9bcc4a, 0x0069, 0x4af3, 0xb7, 0x6b, \
+			0x6f, 0xd0, 0xbe, 0x52, 0x8c, 0xda)
 
 /*
  * Guest File Copy Service
@@ -1063,10 +1207,25 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver);
  */
 
 #define HV_FCOPY_GUID \
-	.guid = { \
-			0xE3, 0x4B, 0xD1, 0x34, 0xE4, 0xDE, 0xC8, 0x41, \
-			0x9A, 0xE7, 0x6B, 0x17, 0x49, 0x77, 0xC1, 0x92 \
-		}
+	.guid = UUID_LE(0x34d14be3, 0xdee4, 0x41c8, 0x9a, 0xe7, \
+			0x6b, 0x17, 0x49, 0x77, 0xc1, 0x92)
+
+/*
+ * NetworkDirect. This is the guest RDMA service.
+ * {8c2eaf3d-32a7-4b09-ab99-bd1f1c86b501}
+ */
+#define HV_ND_GUID \
+	.guid = UUID_LE(0x8c2eaf3d, 0x32a7, 0x4b09, 0xab, 0x99, \
+			0xbd, 0x1f, 0x1c, 0x86, 0xb5, 0x01)
+
+/*
+ * PCI Express Pass Through
+ * {44C4F61D-4444-4400-9D52-802E27EDE19F}
+ */
+
+#define HV_PCIE_GUID \
+	.guid = UUID_LE(0x44c4f61d, 0x4444, 0x4400, 0x9d, 0x52, \
+			0x80, 0x2e, 0x27, 0xed, 0xe1, 0x9f)
 
 /*
  * Common header for Hyper-V ICs
@@ -1092,6 +1251,7 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver);
 
 struct hv_util_service {
 	u8 *recv_buffer;
+	void *channel;
 	void (*util_cb)(void *);
 	int (*util_init)(struct hv_util_service *);
 	void (*util_deinit)(void);
@@ -1168,15 +1328,7 @@ extern bool vmbus_prep_negotiate_resp(struct icmsg_hdr *,
 					struct icmsg_negotiate *, u8 *, int,
 					int);
 
-int hv_kvp_init(struct hv_util_service *);
-void hv_kvp_deinit(void);
-void hv_kvp_onchannelcallback(void *);
-
-int hv_vss_init(struct hv_util_service *);
-void hv_vss_deinit(void);
-void hv_vss_onchannelcallback(void *);
-
-extern struct resource hyperv_mmio;
+void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid);
 
 /*
  * Negotiated version with the Host.
@@ -1184,4 +1336,6 @@ extern struct resource hyperv_mmio;
 
 extern __u32 vmbus_proto_version;
 
+int vmbus_send_tl_connect_request(const uuid_le *shv_guest_servie_id,
+				  const uuid_le *shv_host_servie_id);
 #endif /* _HYPERV_H */

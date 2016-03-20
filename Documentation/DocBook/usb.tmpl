@@ -593,7 +593,7 @@ for (;;) {
 	    Each device has one control endpoint (endpoint zero)
 	    which supports a limited RPC style RPC access.
 	    Devices are configured
-	    by khubd (in the kernel) setting a device-wide
+	    by hub_wq (in the kernel) setting a device-wide
 	    <emphasis>configuration</emphasis> that affects things
 	    like power consumption and basic functionality.
 	    The endpoints are part of USB <emphasis>interfaces</emphasis>,
@@ -732,6 +732,18 @@ usbdev_ioctl (int fd, int ifno, unsigned request, void *param)
 		    or SET_INTERFACE.
 		    </para></warning></listitem></varlistentry>
 
+		<varlistentry><term>USBDEVFS_DROP_PRIVILEGES</term>
+		    <listitem><para>This is used to relinquish the ability
+		    to do certain operations which are considered to be
+		    privileged on a usbfs file descriptor.
+		    This includes claiming arbitrary interfaces, resetting
+		    a device on which there are currently claimed interfaces
+		    from other users, and issuing USBDEVFS_IOCTL calls.
+		    The ioctl parameter is a 32 bit mask of interfaces
+		    the user is allowed to claim on this file descriptor.
+		    You may issue this ioctl more than one time to narrow
+		    said mask.
+		    </para></listitem></varlistentry>
 		</variablelist>
 
 		</sect2>

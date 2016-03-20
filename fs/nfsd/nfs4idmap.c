@@ -59,9 +59,6 @@ MODULE_PARM_DESC(nfs4_disable_idmapping,
  * that.
  */
 
-#define IDMAP_TYPE_USER  0
-#define IDMAP_TYPE_GROUP 1
-
 struct ent {
 	struct cache_head h;
 	int               type;		       /* User / Group */
@@ -215,7 +212,8 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 	memset(&ent, 0, sizeof(ent));
 
 	/* Authentication name */
-	if (qword_get(&buf, buf1, PAGE_SIZE) <= 0)
+	len = qword_get(&buf, buf1, PAGE_SIZE);
+	if (len <= 0 || len >= IDMAP_NAMESZ)
 		goto out;
 	memcpy(ent.authname, buf1, sizeof(ent.authname));
 
@@ -245,12 +243,10 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 	/* Name */
 	error = -EINVAL;
 	len = qword_get(&buf, buf1, PAGE_SIZE);
-	if (len < 0)
+	if (len < 0 || len >= IDMAP_NAMESZ)
 		goto out;
 	if (len == 0)
 		set_bit(CACHE_NEGATIVE, &ent.h.flags);
-	else if (len >= IDMAP_NAMESZ)
-		goto out;
 	else
 		memcpy(ent.name, buf1, sizeof(ent.name));
 	error = -ENOMEM;
@@ -259,14 +255,11 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 		goto out;
 
 	cache_put(&res->h, cd);
-
 	error = 0;
 out:
 	kfree(buf1);
-
 	return error;
 }
-
 
 static struct ent *
 idtoname_lookup(struct cache_detail *cd, struct ent *item)
@@ -368,7 +361,7 @@ nametoid_parse(struct cache_detail *cd, char *buf, int buflen)
 {
 	struct ent ent, *res;
 	char *buf1;
-	int error = -EINVAL;
+	int len, error = -EINVAL;
 
 	if (buf[buflen - 1] != '\n')
 		return (-EINVAL);
@@ -381,7 +374,8 @@ nametoid_parse(struct cache_detail *cd, char *buf, int buflen)
 	memset(&ent, 0, sizeof(ent));
 
 	/* Authentication name */
-	if (qword_get(&buf, buf1, PAGE_SIZE) <= 0)
+	len = qword_get(&buf, buf1, PAGE_SIZE);
+	if (len <= 0 || len >= IDMAP_NAMESZ)
 		goto out;
 	memcpy(ent.authname, buf1, sizeof(ent.authname));
 
@@ -392,8 +386,8 @@ nametoid_parse(struct cache_detail *cd, char *buf, int buflen)
 		IDMAP_TYPE_USER : IDMAP_TYPE_GROUP;
 
 	/* Name */
-	error = qword_get(&buf, buf1, PAGE_SIZE);
-	if (error <= 0 || error >= IDMAP_NAMESZ)
+	len = qword_get(&buf, buf1, PAGE_SIZE);
+	if (len <= 0 || len >= IDMAP_NAMESZ)
 		goto out;
 	memcpy(ent.name, buf1, sizeof(ent.name));
 
@@ -421,7 +415,6 @@ nametoid_parse(struct cache_detail *cd, char *buf, int buflen)
 	error = 0;
 out:
 	kfree(buf1);
-
 	return (error);
 }
 

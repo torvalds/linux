@@ -263,7 +263,7 @@ struct hfsplus_inode_info {
 
 static inline struct hfsplus_inode_info *HFSPLUS_I(struct inode *inode)
 {
-	return list_entry(inode, struct hfsplus_inode_info, vfs_inode);
+	return container_of(inode, struct hfsplus_inode_info, vfs_inode);
 }
 
 /*
@@ -443,8 +443,10 @@ int hfsplus_cat_case_cmp_key(const hfsplus_btree_key *k1,
 			     const hfsplus_btree_key *k2);
 int hfsplus_cat_bin_cmp_key(const hfsplus_btree_key *k1,
 			    const hfsplus_btree_key *k2);
-void hfsplus_cat_build_key(struct super_block *sb, hfsplus_btree_key *key,
+int hfsplus_cat_build_key(struct super_block *sb, hfsplus_btree_key *key,
 			   u32 parent, struct qstr *str);
+void hfsplus_cat_build_key_with_cnid(struct super_block *sb,
+				     hfsplus_btree_key *key, u32 parent);
 void hfsplus_cat_set_perms(struct inode *inode, struct hfsplus_perm *perms);
 int hfsplus_find_cat(struct super_block *sb, u32 cnid,
 		     struct hfs_find_data *fd);

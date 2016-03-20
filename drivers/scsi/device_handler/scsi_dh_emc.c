@@ -113,14 +113,6 @@ struct clariion_dh_data {
 	int current_sp;
 };
 
-static inline struct clariion_dh_data
-			*get_clariion_data(struct scsi_device *sdev)
-{
-	struct scsi_dh_data *scsi_dh_data = sdev->scsi_dh_data;
-	BUG_ON(scsi_dh_data == NULL);
-	return ((struct clariion_dh_data *) scsi_dh_data->buf);
-}
-
 /*
  * Parse MODE_SELECT cmd reply.
  */
@@ -207,7 +199,12 @@ static int parse_sp_info_reply(struct scsi_device *sdev,
 	csdev->lun_state = csdev->buffer[4];
 	csdev->current_sp = csdev->buffer[8];
 	csdev->port = csdev->buffer[7];
-
+	if (csdev->lun_state == CLARIION_LUN_OWNED)
+		sdev->access_state = SCSI_ACCESS_STATE_OPTIMAL;
+	else
+		sdev->access_state = SCSI_ACCESS_STATE_STANDBY;
+	if (csdev->default_sp == csdev->current_sp)
+		sdev->access_state |= SCSI_ACCESS_STATE_PREFERRED;
 out:
 	return err;
 }
@@ -275,7 +272,7 @@ static struct request *get_req(struct scsi_device *sdev, int cmd,
 
 	rq = blk_get_request(sdev->request_queue,
 			(cmd != INQUIRY) ? WRITE : READ, GFP_NOIO);
-	if (!rq) {
+	if (IS_ERR(rq)) {
 		sdev_printk(KERN_INFO, sdev, "get_req: blk_get_request failed");
 		return NULL;
 	}
@@ -450,7 +447,7 @@ static int clariion_check_sense(struct scsi_device *sdev,
 
 static int clariion_prep_fn(struct scsi_device *sdev, struct request *req)
 {
-	struct clariion_dh_data *h = get_clariion_data(sdev);
+	struct clariion_dh_data *h = sdev->handler_data;
 	int ret = BLKPREP_OK;
 
 	if (h->lun_state != CLARIION_LUN_OWNED) {
@@ -533,7 +530,7 @@ retry:
 static int clariion_activate(struct scsi_device *sdev,
 				activate_complete fn, void *data)
 {
-	struct clariion_dh_data *csdev = get_clariion_data(sdev);
+	struct clariion_dh_data *csdev = sdev->handler_data;
 	int result;
 
 	result = clariion_send_inquiry(sdev, csdev);
@@ -574,7 +571,7 @@ done:
  */
 static int clariion_set_params(struct scsi_device *sdev, const char *params)
 {
-	struct clariion_dh_data *csdev = get_clariion_data(sdev);
+	struct clariion_dh_data *csdev = sdev->handler_data;
 	unsigned int hr = 0, st = 0, argc;
 	const char *p = params;
 	int result = SCSI_DH_OK;
@@ -622,64 +619,14 @@ done:
 	return result;
 }
 
-static const struct scsi_dh_devlist clariion_dev_list[] = {
-	{"DGC", "RAID"},
-	{"DGC", "DISK"},
-	{"DGC", "VRAID"},
-	{NULL, NULL},
-};
-
-static bool clariion_match(struct scsi_device *sdev)
-{
-	int i;
-
-	if (scsi_device_tpgs(sdev))
-		return false;
-
-	for (i = 0; clariion_dev_list[i].vendor; i++) {
-		if (!strncmp(sdev->vendor, clariion_dev_list[i].vendor,
-			strlen(clariion_dev_list[i].vendor)) &&
-		    !strncmp(sdev->model, clariion_dev_list[i].model,
-			strlen(clariion_dev_list[i].model))) {
-			return true;
-		}
-	}
-	return false;
-}
-
-static int clariion_bus_attach(struct scsi_device *sdev);
-static void clariion_bus_detach(struct scsi_device *sdev);
-
-static struct scsi_device_handler clariion_dh = {
-	.name		= CLARIION_NAME,
-	.module		= THIS_MODULE,
-	.devlist	= clariion_dev_list,
-	.attach		= clariion_bus_attach,
-	.detach		= clariion_bus_detach,
-	.check_sense	= clariion_check_sense,
-	.activate	= clariion_activate,
-	.prep_fn	= clariion_prep_fn,
-	.set_params	= clariion_set_params,
-	.match		= clariion_match,
-};
-
 static int clariion_bus_attach(struct scsi_device *sdev)
 {
-	struct scsi_dh_data *scsi_dh_data;
 	struct clariion_dh_data *h;
-	unsigned long flags;
 	int err;
 
-	scsi_dh_data = kzalloc(sizeof(*scsi_dh_data)
-			       + sizeof(*h) , GFP_KERNEL);
-	if (!scsi_dh_data) {
-		sdev_printk(KERN_ERR, sdev, "%s: Attach failed\n",
-			    CLARIION_NAME);
+	h = kzalloc(sizeof(*h) , GFP_KERNEL);
+	if (!h)
 		return -ENOMEM;
-	}
-
-	scsi_dh_data->scsi_dh = &clariion_dh;
-	h = (struct clariion_dh_data *) scsi_dh_data->buf;
 	h->lun_state = CLARIION_LUN_UNINITIALIZED;
 	h->default_sp = CLARIION_UNBOUND_LU;
 	h->current_sp = CLARIION_UNBOUND_LU;
@@ -692,44 +639,36 @@ static int clariion_bus_attach(struct scsi_device *sdev)
 	if (err != SCSI_DH_OK)
 		goto failed;
 
-	if (!try_module_get(THIS_MODULE))
-		goto failed;
-
-	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
-	sdev->scsi_dh_data = scsi_dh_data;
-	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
-
 	sdev_printk(KERN_INFO, sdev,
 		    "%s: connected to SP %c Port %d (%s, default SP %c)\n",
 		    CLARIION_NAME, h->current_sp + 'A',
 		    h->port, lun_state[h->lun_state],
 		    h->default_sp + 'A');
 
+	sdev->handler_data = h;
 	return 0;
 
 failed:
-	kfree(scsi_dh_data);
-	sdev_printk(KERN_ERR, sdev, "%s: not attached\n",
-		    CLARIION_NAME);
+	kfree(h);
 	return -EINVAL;
 }
 
 static void clariion_bus_detach(struct scsi_device *sdev)
 {
-	struct scsi_dh_data *scsi_dh_data;
-	unsigned long flags;
-
-	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
-	scsi_dh_data = sdev->scsi_dh_data;
-	sdev->scsi_dh_data = NULL;
-	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
-
-	sdev_printk(KERN_NOTICE, sdev, "%s: Detached\n",
-		    CLARIION_NAME);
-
-	kfree(scsi_dh_data);
-	module_put(THIS_MODULE);
+	kfree(sdev->handler_data);
+	sdev->handler_data = NULL;
 }
+
+static struct scsi_device_handler clariion_dh = {
+	.name		= CLARIION_NAME,
+	.module		= THIS_MODULE,
+	.attach		= clariion_bus_attach,
+	.detach		= clariion_bus_detach,
+	.check_sense	= clariion_check_sense,
+	.activate	= clariion_activate,
+	.prep_fn	= clariion_prep_fn,
+	.set_params	= clariion_set_params,
+};
 
 static int __init clariion_init(void)
 {

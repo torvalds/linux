@@ -25,7 +25,7 @@ static int sk_diag_dump_vfs(struct sock *sk, struct sk_buff *nlskb)
 
 	if (dentry) {
 		struct unix_diag_vfs uv = {
-			.udiag_vfs_ino = dentry->d_inode->i_ino,
+			.udiag_vfs_ino = d_backing_inode(dentry)->i_ino,
 			.udiag_vfs_dev = dentry->d_sb->s_dev,
 		};
 
@@ -155,7 +155,8 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_r
 	if (nla_put_u8(skb, UNIX_DIAG_SHUTDOWN, sk->sk_shutdown))
 		goto out_nlmsg_trim;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 out_nlmsg_trim:
 	nlmsg_cancel(skb, nlh);
@@ -219,7 +220,7 @@ done:
 	return skb->len;
 }
 
-static struct sock *unix_lookup_by_ino(int ino)
+static struct sock *unix_lookup_by_ino(unsigned int ino)
 {
 	int i;
 	struct sock *sk;

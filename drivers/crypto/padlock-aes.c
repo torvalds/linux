@@ -22,7 +22,7 @@
 #include <asm/cpu_device_id.h>
 #include <asm/byteorder.h>
 #include <asm/processor.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 /*
  * Number of data blocks actually fetched for each xcrypt insn.
@@ -238,7 +238,7 @@ static inline void ecb_crypt(const u8 *in, u8 *out, u32 *key,
 	/* Padlock in ECB mode fetches at least ecb_fetch_bytes of data.
 	 * We could avoid some copying here but it's probably not worth it.
 	 */
-	if (unlikely(((unsigned long)in & ~PAGE_MASK) + ecb_fetch_bytes > PAGE_SIZE)) {
+	if (unlikely(offset_in_page(in) + ecb_fetch_bytes > PAGE_SIZE)) {
 		ecb_crypt_copy(in, out, key, cword, count);
 		return;
 	}
@@ -250,7 +250,7 @@ static inline u8 *cbc_crypt(const u8 *in, u8 *out, u32 *key,
 			    u8 *iv, struct cword *cword, int count)
 {
 	/* Padlock in CBC mode fetches at least cbc_fetch_bytes of data. */
-	if (unlikely(((unsigned long)in & ~PAGE_MASK) + cbc_fetch_bytes > PAGE_SIZE))
+	if (unlikely(offset_in_page(in) + cbc_fetch_bytes > PAGE_SIZE))
 		return cbc_crypt_copy(in, out, key, iv, cword, count);
 
 	return rep_xcrypt_cbc(in, out, key, iv, cword, count);
@@ -515,7 +515,7 @@ static int __init padlock_init(void)
 	if (!x86_match_cpu(padlock_cpu_id))
 		return -ENODEV;
 
-	if (!cpu_has_xcrypt_enabled) {
+	if (!boot_cpu_has(X86_FEATURE_XCRYPT_EN)) {
 		printk(KERN_NOTICE PFX "VIA PadLock detected, but not enabled. Hmm, strange...\n");
 		return -ENODEV;
 	}
@@ -563,4 +563,4 @@ MODULE_DESCRIPTION("VIA PadLock AES algorithm support");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michal Ludvig");
 
-MODULE_ALIAS("aes");
+MODULE_ALIAS_CRYPTO("aes");

@@ -15,6 +15,7 @@
 
 #include <linux/types.h>
 #include <linux/if_ether.h>
+#include <linux/in6.h>
 
 #define SYSFS_BRIDGE_ATTR	"bridge"
 #define SYSFS_BRIDGE_FDB	"brforward"
@@ -104,6 +105,7 @@ struct __fdb_entry {
 
 #define BRIDGE_MODE_VEB		0	/* Default loopback mode */
 #define BRIDGE_MODE_VEPA	1	/* 802.1Qbg defined VEPA mode */
+#define BRIDGE_MODE_UNDEF	0xFFFF  /* mode undefined */
 
 /* Bridge management nested attributes
  * [IFLA_AF_SPEC] = {
@@ -123,6 +125,9 @@ enum {
 #define BRIDGE_VLAN_INFO_MASTER	(1<<0)	/* Operate on Bridge device as well */
 #define BRIDGE_VLAN_INFO_PVID	(1<<1)	/* VLAN is PVID, ingress untagged */
 #define BRIDGE_VLAN_INFO_UNTAGGED	(1<<2)	/* VLAN egresses untagged */
+#define BRIDGE_VLAN_INFO_RANGE_BEGIN	(1<<3) /* VLAN is start of vlan range */
+#define BRIDGE_VLAN_INFO_RANGE_END	(1<<4) /* VLAN is end of vlan range */
+#define BRIDGE_VLAN_INFO_BRENTRY	(1<<5) /* Global bridge VLAN entry */
 
 struct bridge_vlan_info {
 	__u16 flags;
@@ -132,11 +137,17 @@ struct bridge_vlan_info {
 /* Bridge multicast database attributes
  * [MDBA_MDB] = {
  *     [MDBA_MDB_ENTRY] = {
- *         [MDBA_MDB_ENTRY_INFO]
+ *         [MDBA_MDB_ENTRY_INFO] {
+ *		struct br_mdb_entry
+ *		[MDBA_MDB_EATTR attributes]
+ *         }
  *     }
  * }
  * [MDBA_ROUTER] = {
- *    [MDBA_ROUTER_PORT]
+ *    [MDBA_ROUTER_PORT] = {
+ *        u32 ifindex
+ *        [MDBA_ROUTER_PATTR attributes]
+ *    }
  * }
  */
 enum {
@@ -161,12 +172,37 @@ enum {
 };
 #define MDBA_MDB_ENTRY_MAX (__MDBA_MDB_ENTRY_MAX - 1)
 
+/* per mdb entry additional attributes */
+enum {
+	MDBA_MDB_EATTR_UNSPEC,
+	MDBA_MDB_EATTR_TIMER,
+	__MDBA_MDB_EATTR_MAX
+};
+#define MDBA_MDB_EATTR_MAX (__MDBA_MDB_EATTR_MAX - 1)
+
+/* multicast router types */
+enum {
+	MDB_RTR_TYPE_DISABLED,
+	MDB_RTR_TYPE_TEMP_QUERY,
+	MDB_RTR_TYPE_PERM,
+	MDB_RTR_TYPE_TEMP
+};
+
 enum {
 	MDBA_ROUTER_UNSPEC,
 	MDBA_ROUTER_PORT,
 	__MDBA_ROUTER_MAX,
 };
 #define MDBA_ROUTER_MAX (__MDBA_ROUTER_MAX - 1)
+
+/* router port attributes */
+enum {
+	MDBA_ROUTER_PATTR_UNSPEC,
+	MDBA_ROUTER_PATTR_TIMER,
+	MDBA_ROUTER_PATTR_TYPE,
+	__MDBA_ROUTER_PATTR_MAX
+};
+#define MDBA_ROUTER_PATTR_MAX (__MDBA_ROUTER_PATTR_MAX - 1)
 
 struct br_port_msg {
 	__u8  family;
@@ -178,6 +214,9 @@ struct br_mdb_entry {
 #define MDB_TEMPORARY 0
 #define MDB_PERMANENT 1
 	__u8 state;
+#define MDB_FLAGS_OFFLOAD	(1 << 0)
+	__u8 flags;
+	__u16 vid;
 	struct {
 		union {
 			__be32	ip4;

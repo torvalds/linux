@@ -19,6 +19,7 @@
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/string.h>
 
 #include <gxio/iorpc_globals.h>
 #include <gxio/iorpc_mpipe.h>
@@ -430,16 +431,17 @@ int gxio_mpipe_equeue_init(gxio_mpipe_equeue_t *equeue,
 EXPORT_SYMBOL_GPL(gxio_mpipe_equeue_init);
 
 int gxio_mpipe_set_timestamp(gxio_mpipe_context_t *context,
-			     const struct timespec *ts)
+			     const struct timespec64 *ts)
 {
 	cycles_t cycles = get_cycles();
 	return gxio_mpipe_set_timestamp_aux(context, (uint64_t)ts->tv_sec,
 					    (uint64_t)ts->tv_nsec,
 					    (uint64_t)cycles);
 }
+EXPORT_SYMBOL_GPL(gxio_mpipe_set_timestamp);
 
 int gxio_mpipe_get_timestamp(gxio_mpipe_context_t *context,
-			     struct timespec *ts)
+			     struct timespec64 *ts)
 {
 	int ret;
 	cycles_t cycles_prev, cycles_now, clock_rate;
@@ -459,11 +461,13 @@ int gxio_mpipe_get_timestamp(gxio_mpipe_context_t *context,
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(gxio_mpipe_get_timestamp);
 
 int gxio_mpipe_adjust_timestamp(gxio_mpipe_context_t *context, int64_t delta)
 {
 	return gxio_mpipe_adjust_timestamp_aux(context, delta);
 }
+EXPORT_SYMBOL_GPL(gxio_mpipe_adjust_timestamp);
 
 /* Get our internal context used for link name access.  This context is
  *  special in that it is not associated with an mPIPE service domain.
@@ -511,11 +515,12 @@ int gxio_mpipe_link_instance(const char *link_name)
 	if (!context)
 		return GXIO_ERR_NO_DEVICE;
 
-	strncpy(name.name, link_name, sizeof(name.name));
-	name.name[GXIO_MPIPE_LINK_NAME_LEN - 1] = '\0';
+	if (strscpy(name.name, link_name, sizeof(name.name)) < 0)
+		return GXIO_ERR_NO_DEVICE;
 
 	return gxio_mpipe_info_instance_aux(context, name);
 }
+EXPORT_SYMBOL_GPL(gxio_mpipe_link_instance);
 
 int gxio_mpipe_link_enumerate_mac(int idx, char *link_name, uint8_t *link_mac)
 {
@@ -529,7 +534,8 @@ int gxio_mpipe_link_enumerate_mac(int idx, char *link_name, uint8_t *link_mac)
 
 	rv = gxio_mpipe_info_enumerate_aux(context, idx, &name, &mac);
 	if (rv >= 0) {
-		strncpy(link_name, name.name, sizeof(name.name));
+		if (strscpy(link_name, name.name, sizeof(name.name)) < 0)
+			return GXIO_ERR_INVAL_MEMORY_SIZE;
 		memcpy(link_mac, mac.mac, sizeof(mac.mac));
 	}
 
@@ -545,8 +551,8 @@ int gxio_mpipe_link_open(gxio_mpipe_link_t *link,
 	_gxio_mpipe_link_name_t name;
 	int rv;
 
-	strncpy(name.name, link_name, sizeof(name.name));
-	name.name[GXIO_MPIPE_LINK_NAME_LEN - 1] = '\0';
+	if (strscpy(name.name, link_name, sizeof(name.name)) < 0)
+		return GXIO_ERR_NO_DEVICE;
 
 	rv = gxio_mpipe_link_open_aux(context, name, flags);
 	if (rv < 0)

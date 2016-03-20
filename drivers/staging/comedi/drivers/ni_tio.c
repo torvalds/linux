@@ -16,29 +16,28 @@
 */
 
 /*
-Driver: ni_tio
-Description: National Instruments general purpose counters
-Devices:
-Author: J.P. Mellor <jpmellor@rose-hulman.edu>,
-	Herman.Bruyninckx@mech.kuleuven.ac.be,
-	Wim.Meeussen@mech.kuleuven.ac.be,
-	Klaas.Gadeyne@mech.kuleuven.ac.be,
-	Frank Mori Hess <fmhess@users.sourceforge.net>
-Updated: Thu Nov 16 09:50:32 EST 2006
-Status: works
+ * Module: ni_tio
+ * Description: National Instruments general purpose counters
+ * Author: J.P. Mellor <jpmellor@rose-hulman.edu>,
+ *         Herman.Bruyninckx@mech.kuleuven.ac.be,
+ *         Wim.Meeussen@mech.kuleuven.ac.be,
+ *         Klaas.Gadeyne@mech.kuleuven.ac.be,
+ *         Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Updated: Thu Nov 16 09:50:32 EST 2006
+ * Status: works
+ *
+ * This module is not used directly by end-users.  Rather, it
+ * is used by other drivers (for example ni_660x and ni_pcimio)
+ * to provide support for NI's general purpose counters.  It was
+ * originally based on the counter code from ni_660x.c and
+ * ni_mio_common.c.
+ *
+ * References:
+ * DAQ 660x Register-Level Programmer Manual  (NI 370505A-01)
+ * DAQ 6601/6602 User Manual (NI 322137B-01)
+ * 340934b.pdf  DAQ-STC reference manual
+ */
 
-This module is not used directly by end-users.  Rather, it
-is used by other drivers (for example ni_660x and ni_pcimio)
-to provide support for NI's general purpose counters.  It was
-originally based on the counter code from ni_660x.c and
-ni_mio_common.c.
-
-References:
-DAQ 660x Register-Level Programmer Manual  (NI 370505A-01)
-DAQ 6601/6602 User Manual (NI 322137B-01)
-340934b.pdf  DAQ-STC reference manual
-
-*/
 /*
 TODO:
 	Support use of both banks X and Y
@@ -168,15 +167,15 @@ static inline unsigned GI_HW_ARM_SEL_MASK(enum ni_gpct_variant variant)
 	}
 }
 
-static int ni_tio_has_gate2_registers(const struct ni_gpct_device *counter_dev)
+static bool ni_tio_has_gate2_registers(const struct ni_gpct_device *counter_dev)
 {
 	switch (counter_dev->variant) {
 	case ni_gpct_variant_e_series:
 	default:
-		return 0;
+		return false;
 	case ni_gpct_variant_m_series:
 	case ni_gpct_variant_660x:
-		return 1;
+		return true;
 	}
 }
 

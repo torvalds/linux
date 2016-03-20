@@ -202,9 +202,10 @@ static int s5m8767_get_register(struct s5m8767_info *s5m8767, int reg_id,
 		}
 	}
 
-	if (i < s5m8767->num_regulators)
-		*enable_ctrl =
-		s5m8767_opmode_reg[reg_id][mode] << S5M8767_ENCTRL_SHIFT;
+	if (i >= s5m8767->num_regulators)
+		return -EINVAL;
+
+	*enable_ctrl = s5m8767_opmode_reg[reg_id][mode] << S5M8767_ENCTRL_SHIFT;
 
 	return 0;
 }
@@ -581,7 +582,8 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 
 		rdata->id = i;
 		rdata->initdata = of_get_regulator_init_data(
-						&pdev->dev, reg_np);
+						&pdev->dev, reg_np,
+						&regulators[i]);
 		rdata->reg_node = reg_np;
 		rdata++;
 		rmode->id = i;
@@ -936,8 +938,12 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 			else
 				regulators[id].vsel_mask = 0xff;
 
-			s5m8767_get_register(s5m8767, id, &enable_reg,
+			ret = s5m8767_get_register(s5m8767, id, &enable_reg,
 					     &enable_val);
+			if (ret) {
+				dev_err(s5m8767->dev, "error reading registers\n");
+				return ret;
+			}
 			regulators[id].enable_reg = enable_reg;
 			regulators[id].enable_mask = S5M8767_ENCTRL_MASK;
 			regulators[id].enable_val = enable_val;
@@ -950,6 +956,7 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 		config.of_node = pdata->regulators[i].reg_node;
 		config.ena_gpio = -EINVAL;
 		config.ena_gpio_flags = 0;
+		config.ena_gpio_initialized = true;
 		if (gpio_is_valid(pdata->regulators[i].ext_control_gpio))
 			s5m8767_regulator_config_ext_control(s5m8767,
 					&pdata->regulators[i], &config);
@@ -986,7 +993,6 @@ MODULE_DEVICE_TABLE(platform, s5m8767_pmic_id);
 static struct platform_driver s5m8767_pmic_driver = {
 	.driver = {
 		.name = "s5m8767-pmic",
-		.owner = THIS_MODULE,
 	},
 	.probe = s5m8767_pmic_probe,
 	.id_table = s5m8767_pmic_id,

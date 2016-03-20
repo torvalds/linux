@@ -2,6 +2,7 @@
 #define __LINUX_PWM_H
 
 #include <linux/err.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 
 struct pwm_device;
@@ -79,18 +80,37 @@ enum {
 	PWMF_EXPORTED = 1 << 2,
 };
 
+/**
+ * struct pwm_device - PWM channel object
+ * @label: name of the PWM device
+ * @flags: flags associated with the PWM device
+ * @hwpwm: per-chip relative index of the PWM device
+ * @pwm: global index of the PWM device
+ * @chip: PWM chip providing this PWM device
+ * @chip_data: chip-private data associated with the PWM device
+ * @lock: used to serialize accesses to the PWM device where necessary
+ * @period: period of the PWM signal (in nanoseconds)
+ * @duty_cycle: duty cycle of the PWM signal (in nanoseconds)
+ * @polarity: polarity of the PWM signal
+ */
 struct pwm_device {
-	const char		*label;
-	unsigned long		flags;
-	unsigned int		hwpwm;
-	unsigned int		pwm;
-	struct pwm_chip		*chip;
-	void			*chip_data;
+	const char *label;
+	unsigned long flags;
+	unsigned int hwpwm;
+	unsigned int pwm;
+	struct pwm_chip *chip;
+	void *chip_data;
+	struct mutex lock;
 
-	unsigned int		period; 	/* in nanoseconds */
-	unsigned int		duty_cycle;	/* in nanoseconds */
-	enum pwm_polarity	polarity;
+	unsigned int period;
+	unsigned int duty_cycle;
+	enum pwm_polarity polarity;
 };
+
+static inline bool pwm_is_enabled(const struct pwm_device *pwm)
+{
+	return test_bit(PWMF_ENABLED, &pwm->flags);
+}
 
 static inline void pwm_set_period(struct pwm_device *pwm, unsigned int period)
 {
@@ -98,7 +118,7 @@ static inline void pwm_set_period(struct pwm_device *pwm, unsigned int period)
 		pwm->period = period;
 }
 
-static inline unsigned int pwm_get_period(struct pwm_device *pwm)
+static inline unsigned int pwm_get_period(const struct pwm_device *pwm)
 {
 	return pwm ? pwm->period : 0;
 }
@@ -109,7 +129,7 @@ static inline void pwm_set_duty_cycle(struct pwm_device *pwm, unsigned int duty)
 		pwm->duty_cycle = duty;
 }
 
-static inline unsigned int pwm_get_duty_cycle(struct pwm_device *pwm)
+static inline unsigned int pwm_get_duty_cycle(const struct pwm_device *pwm)
 {
 	return pwm ? pwm->duty_cycle : 0;
 }
@@ -118,6 +138,11 @@ static inline unsigned int pwm_get_duty_cycle(struct pwm_device *pwm)
  * pwm_set_polarity - configure the polarity of a PWM signal
  */
 int pwm_set_polarity(struct pwm_device *pwm, enum pwm_polarity polarity);
+
+static inline enum pwm_polarity pwm_get_polarity(const struct pwm_device *pwm)
+{
+	return pwm ? pwm->polarity : PWM_POLARITY_NORMAL;
+}
 
 /**
  * struct pwm_ops - PWM controller operations
@@ -131,25 +156,18 @@ int pwm_set_polarity(struct pwm_device *pwm, enum pwm_polarity polarity);
  * @owner: helps prevent removal of modules exporting active PWMs
  */
 struct pwm_ops {
-	int			(*request)(struct pwm_chip *chip,
-					   struct pwm_device *pwm);
-	void			(*free)(struct pwm_chip *chip,
-					struct pwm_device *pwm);
-	int			(*config)(struct pwm_chip *chip,
-					  struct pwm_device *pwm,
-					  int duty_ns, int period_ns);
-	int			(*set_polarity)(struct pwm_chip *chip,
-					  struct pwm_device *pwm,
-					  enum pwm_polarity polarity);
-	int			(*enable)(struct pwm_chip *chip,
-					  struct pwm_device *pwm);
-	void			(*disable)(struct pwm_chip *chip,
-					   struct pwm_device *pwm);
+	int (*request)(struct pwm_chip *chip, struct pwm_device *pwm);
+	void (*free)(struct pwm_chip *chip, struct pwm_device *pwm);
+	int (*config)(struct pwm_chip *chip, struct pwm_device *pwm,
+		      int duty_ns, int period_ns);
+	int (*set_polarity)(struct pwm_chip *chip, struct pwm_device *pwm,
+			    enum pwm_polarity polarity);
+	int (*enable)(struct pwm_chip *chip, struct pwm_device *pwm);
+	void (*disable)(struct pwm_chip *chip, struct pwm_device *pwm);
 #ifdef CONFIG_DEBUG_FS
-	void			(*dbg_show)(struct pwm_chip *chip,
-					    struct seq_file *s);
+	void (*dbg_show)(struct pwm_chip *chip, struct seq_file *s);
 #endif
-	struct module		*owner;
+	struct module *owner;
 };
 
 /**
@@ -160,28 +178,32 @@ struct pwm_ops {
  * @base: number of first PWM controlled by this chip
  * @npwm: number of PWMs controlled by this chip
  * @pwms: array of PWM devices allocated by the framework
+ * @of_xlate: request a PWM device given a device tree PWM specifier
+ * @of_pwm_n_cells: number of cells expected in the device tree PWM specifier
  * @can_sleep: must be true if the .config(), .enable() or .disable()
  *             operations may sleep
  */
 struct pwm_chip {
-	struct device		*dev;
-	struct list_head	list;
-	const struct pwm_ops	*ops;
-	int			base;
-	unsigned int		npwm;
+	struct device *dev;
+	struct list_head list;
+	const struct pwm_ops *ops;
+	int base;
+	unsigned int npwm;
 
-	struct pwm_device	*pwms;
+	struct pwm_device *pwms;
 
-	struct pwm_device *	(*of_xlate)(struct pwm_chip *pc,
-					    const struct of_phandle_args *args);
-	unsigned int		of_pwm_n_cells;
-	bool			can_sleep;
+	struct pwm_device * (*of_xlate)(struct pwm_chip *pc,
+					const struct of_phandle_args *args);
+	unsigned int of_pwm_n_cells;
+	bool can_sleep;
 };
 
 #if IS_ENABLED(CONFIG_PWM)
 int pwm_set_chip_data(struct pwm_device *pwm, void *data);
 void *pwm_get_chip_data(struct pwm_device *pwm);
 
+int pwmchip_add_with_polarity(struct pwm_chip *chip,
+			      enum pwm_polarity polarity);
 int pwmchip_add(struct pwm_chip *chip);
 int pwmchip_remove(struct pwm_chip *chip);
 struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
@@ -213,6 +235,11 @@ static inline void *pwm_get_chip_data(struct pwm_device *pwm)
 }
 
 static inline int pwmchip_add(struct pwm_chip *chip)
+{
+	return -EINVAL;
+}
+
+static inline int pwmchip_add_inversed(struct pwm_chip *chip)
 {
 	return -EINVAL;
 }
@@ -290,8 +317,13 @@ struct pwm_lookup {
 
 #if IS_ENABLED(CONFIG_PWM)
 void pwm_add_table(struct pwm_lookup *table, size_t num);
+void pwm_remove_table(struct pwm_lookup *table, size_t num);
 #else
 static inline void pwm_add_table(struct pwm_lookup *table, size_t num)
+{
+}
+
+static inline void pwm_remove_table(struct pwm_lookup *table, size_t num)
 {
 }
 #endif

@@ -250,9 +250,10 @@ static void rx1950_disable_charger(void)
 
 static DEFINE_SPINLOCK(rx1950_blink_spin);
 
-static int rx1950_led_blink_set(unsigned gpio, int state,
+static int rx1950_led_blink_set(struct gpio_desc *desc, int state,
 	unsigned long *delay_on, unsigned long *delay_off)
 {
+	int gpio = desc_to_gpio(desc);
 	int blink_gpio, check_gpio;
 
 	switch (gpio) {
@@ -372,6 +373,11 @@ static struct s3c2410fb_mach_info rx1950_lcd_cfg = {
 	.gpdup = 0x0000fcfd,
 	.gpdup_mask = 0xffffffff,
 
+};
+
+static struct pwm_lookup rx1950_pwm_lookup[] = {
+	PWM_LOOKUP("samsung-pwm", 0, "pwm-backlight.0", NULL, 48000,
+		   PWM_POLARITY_NORMAL),
 };
 
 static struct pwm_device *lcd_pwm;
@@ -519,10 +525,8 @@ static int rx1950_backlight_notify(struct device *dev, int brightness)
 }
 
 static struct platform_pwm_backlight_data rx1950_backlight_data = {
-	.pwm_id = 0,
 	.max_brightness = 24,
 	.dft_brightness = 4,
-	.pwm_period_ns = 48000,
 	.enable_gpio = -1,
 	.init = rx1950_backlight_init,
 	.notify = rx1950_backlight_notify,
@@ -791,6 +795,7 @@ static void __init rx1950_init_machine(void)
 	gpio_direction_output(S3C2410_GPA(4), 0);
 	gpio_direction_output(S3C2410_GPJ(6), 0);
 
+	pwm_add_table(rx1950_pwm_lookup, ARRAY_SIZE(rx1950_pwm_lookup));
 	platform_add_devices(rx1950_devices, ARRAY_SIZE(rx1950_devices));
 
 	i2c_register_board_info(0, rx1950_i2c_devices,
@@ -812,5 +817,4 @@ MACHINE_START(RX1950, "HP iPAQ RX1950")
 	.init_irq	= s3c2442_init_irq,
 	.init_machine = rx1950_init_machine,
 	.init_time	= rx1950_init_time,
-	.restart	= s3c244x_restart,
 MACHINE_END

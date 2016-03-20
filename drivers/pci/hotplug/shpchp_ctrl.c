@@ -195,7 +195,8 @@ static int change_bus_speed(struct controller *ctrl, struct slot *p_slot,
 	int rc = 0;
 
 	ctrl_dbg(ctrl, "Change speed to %d\n", speed);
-	if ((rc = p_slot->hpc_ops->set_bus_speed_mode(p_slot, speed))) {
+	rc = p_slot->hpc_ops->set_bus_speed_mode(p_slot, speed);
+	if (rc) {
 		ctrl_err(ctrl, "%s: Issue of set bus speed mode command failed\n",
 			 __func__);
 		return WRONG_BUS_FREQUENCY;
@@ -261,14 +262,16 @@ static int board_added(struct slot *p_slot)
 	}
 
 	if ((ctrl->pci_dev->vendor == 0x8086) && (ctrl->pci_dev->device == 0x0332)) {
-		if ((rc = p_slot->hpc_ops->set_bus_speed_mode(p_slot, PCI_SPEED_33MHz))) {
+		rc = p_slot->hpc_ops->set_bus_speed_mode(p_slot, PCI_SPEED_33MHz);
+		if (rc) {
 			ctrl_err(ctrl, "%s: Issue of set bus speed mode command failed\n",
 				 __func__);
 			return WRONG_BUS_FREQUENCY;
 		}
 
 		/* turn on board, blink green LED, turn off Amber LED */
-		if ((rc = p_slot->hpc_ops->slot_enable(p_slot))) {
+		rc = p_slot->hpc_ops->slot_enable(p_slot);
+		if (rc) {
 			ctrl_err(ctrl, "Issue of Slot Enable command failed\n");
 			return rc;
 		}
@@ -296,7 +299,8 @@ static int board_added(struct slot *p_slot)
 		return rc;
 
 	/* turn on board, blink green LED, turn off Amber LED */
-	if ((rc = p_slot->hpc_ops->slot_enable(p_slot))) {
+	rc = p_slot->hpc_ops->slot_enable(p_slot);
+	if (rc) {
 		ctrl_err(ctrl, "Issue of Slot Enable command failed\n");
 		return rc;
 	}
@@ -595,7 +599,7 @@ static int shpchp_enable_slot (struct slot *p_slot)
 	ctrl_dbg(ctrl, "%s: p_slot->pwr_save %x\n", __func__, p_slot->pwr_save);
 	p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 
-	if(((p_slot->ctrl->pci_dev->vendor == PCI_VENDOR_ID_AMD) ||
+	if (((p_slot->ctrl->pci_dev->vendor == PCI_VENDOR_ID_AMD) ||
 	    (p_slot->ctrl->pci_dev->device == PCI_DEVICE_ID_AMD_POGO_7458))
 	     && p_slot->ctrl->num_slots == 1) {
 		/* handle amd pogo errata; this must be done before enable  */

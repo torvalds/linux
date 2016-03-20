@@ -8,7 +8,7 @@
 
 #include "./bebob.h"
 
-#define CALLBACK_TIMEOUT	1000
+#define CALLBACK_TIMEOUT	2000
 #define FW_ISO_RESOURCE_DELAY	1000
 
 /*
@@ -47,14 +47,16 @@ static const unsigned int bridgeco_freq_table[] = {
 	[6] = 0x07,
 };
 
-static unsigned int
-get_formation_index(unsigned int rate)
+static int
+get_formation_index(unsigned int rate, unsigned int *index)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(snd_bebob_rate_table); i++) {
-		if (snd_bebob_rate_table[i] == rate)
-			return i;
+		if (snd_bebob_rate_table[i] == rate) {
+			*index = i;
+			return 0;
+		}
 	}
 	return -EINVAL;
 }
@@ -116,25 +118,33 @@ end:
 	return err;
 }
 
-int
-snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
+int snd_bebob_stream_get_clock_src(struct snd_bebob *bebob,
+				   enum snd_bebob_clock_type *src)
 {
-	struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
+	const struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
 	u8 addr[AVC_BRIDGECO_ADDR_BYTES], input[7];
 	unsigned int id;
+	enum avc_bridgeco_plug_type type;
 	int err = 0;
-
-	*internal = false;
 
 	/* 1.The device has its own operation to switch source of clock */
 	if (clk_spec) {
 		err = clk_spec->get(bebob, &id);
-		if (err < 0)
+		if (err < 0) {
 			dev_err(&bebob->unit->device,
 				"fail to get clock source: %d\n", err);
-		else if (strncmp(clk_spec->labels[id], SND_BEBOB_CLOCK_INTERNAL,
-				 strlen(SND_BEBOB_CLOCK_INTERNAL)) == 0)
-			*internal = true;
+			goto end;
+		}
+
+		if (id >= clk_spec->num) {
+			dev_err(&bebob->unit->device,
+				"clock source %d out of range 0..%d\n",
+				id, clk_spec->num - 1);
+			err = -EIO;
+			goto end;
+		}
+
+		*src = clk_spec->types[id];
 		goto end;
 	}
 
@@ -143,7 +153,7 @@ snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
 	 *   to use internal clock always
 	 */
 	if (bebob->sync_input_plug < 0) {
-		*internal = true;
+		*src = SND_BEBOB_CLOCK_TYPE_INTERNAL;
 		goto end;
 	}
 
@@ -166,18 +176,79 @@ snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
 	 * Here check the first field. This field is used for direction.
 	 */
 	if (input[0] == 0xff) {
-		*internal = true;
+		*src = SND_BEBOB_CLOCK_TYPE_INTERNAL;
 		goto end;
 	}
 
-	/*
-	 * If source of clock is internal CSR, Music Sub Unit Sync Input is
-	 * a destination of Music Sub Unit Sync Output.
-	 */
-	*internal = ((input[0] == AVC_BRIDGECO_PLUG_DIR_OUT) &&
-		     (input[1] == AVC_BRIDGECO_PLUG_MODE_SUBUNIT) &&
-		     (input[2] == 0x0c) &&
-		     (input[3] == 0x00));
+	/* The source from any output plugs is for one purpose only. */
+	if (input[0] == AVC_BRIDGECO_PLUG_DIR_OUT) {
+		/*
+		 * In BeBoB architecture, the source from music subunit may
+		 * bypass from oPCR[0]. This means that this source gives
+		 * synchronization to IEEE 1394 cycle start packet.
+		 */
+		if (input[1] == AVC_BRIDGECO_PLUG_MODE_SUBUNIT &&
+		    input[2] == 0x0c) {
+			*src = SND_BEBOB_CLOCK_TYPE_INTERNAL;
+			goto end;
+		}
+	/* The source from any input units is for several purposes. */
+	} else if (input[1] == AVC_BRIDGECO_PLUG_MODE_UNIT) {
+		if (input[2] == AVC_BRIDGECO_PLUG_UNIT_ISOC) {
+			if (input[3] == 0x00) {
+				/*
+				 * This source comes from iPCR[0]. This means
+				 * that presentation timestamp calculated by
+				 * SYT series of the received packets. In
+				 * short, this driver is the master of
+				 * synchronization.
+				 */
+				*src = SND_BEBOB_CLOCK_TYPE_SYT;
+				goto end;
+			} else {
+				/*
+				 * This source comes from iPCR[1-29]. This
+				 * means that the synchronization stream is not
+				 * the Audio/MIDI compound stream.
+				 */
+				*src = SND_BEBOB_CLOCK_TYPE_EXTERNAL;
+				goto end;
+			}
+		} else if (input[2] == AVC_BRIDGECO_PLUG_UNIT_EXT) {
+			/* Check type of this plug.  */
+			avc_bridgeco_fill_unit_addr(addr,
+						    AVC_BRIDGECO_PLUG_DIR_IN,
+						    AVC_BRIDGECO_PLUG_UNIT_EXT,
+						    input[3]);
+			err = avc_bridgeco_get_plug_type(bebob->unit, addr,
+							 &type);
+			if (err < 0)
+				goto end;
+
+			if (type == AVC_BRIDGECO_PLUG_TYPE_DIG) {
+				/*
+				 * SPDIF/ADAT or sometimes (not always) word
+				 * clock.
+				 */
+				*src = SND_BEBOB_CLOCK_TYPE_EXTERNAL;
+				goto end;
+			} else if (type == AVC_BRIDGECO_PLUG_TYPE_SYNC) {
+				/* Often word clock. */
+				*src = SND_BEBOB_CLOCK_TYPE_EXTERNAL;
+				goto end;
+			} else if (type == AVC_BRIDGECO_PLUG_TYPE_ADDITION) {
+				/*
+				 * Not standard.
+				 * Mostly, additional internal clock.
+				 */
+				*src = SND_BEBOB_CLOCK_TYPE_INTERNAL;
+				goto end;
+			}
+		}
+	}
+
+	/* Not supported. */
+	err = -EIO;
 end:
 	return err;
 }
@@ -269,7 +340,7 @@ map_data_channels(struct snd_bebob *bebob, struct amdtp_stream *s)
 					err = -ENOSYS;
 					goto end;
 				}
-				s->midi_position = stm_pos;
+				amdtp_am824_set_midi_position(s, stm_pos);
 				midi = stm_pos;
 				break;
 			/* for PCM data channel */
@@ -285,11 +356,12 @@ map_data_channels(struct snd_bebob *bebob, struct amdtp_stream *s)
 			case 0x09:	/* Digital */
 			default:
 				location = pcm + sec_loc;
-				if (location >= AMDTP_MAX_CHANNELS_FOR_PCM) {
+				if (location >= AM824_MAX_CHANNELS_FOR_PCM) {
 					err = -ENOSYS;
 					goto end;
 				}
-				s->pcm_positions[location] = stm_pos;
+				amdtp_am824_set_pcm_position(s, location,
+							     stm_pos);
 				break;
 			}
 		}
@@ -355,15 +427,24 @@ make_both_connections(struct snd_bebob *bebob, unsigned int rate)
 		goto end;
 
 	/* confirm params for both streams */
-	index = get_formation_index(rate);
+	err = get_formation_index(rate, &index);
+	if (err < 0)
+		goto end;
 	pcm_channels = bebob->tx_stream_formations[index].pcm;
 	midi_channels = bebob->tx_stream_formations[index].midi;
-	amdtp_stream_set_parameters(&bebob->tx_stream,
-				    rate, pcm_channels, midi_channels * 8);
+	err = amdtp_am824_set_parameters(&bebob->tx_stream, rate,
+					 pcm_channels, midi_channels * 8,
+					 false);
+	if (err < 0)
+		goto end;
+
 	pcm_channels = bebob->rx_stream_formations[index].pcm;
 	midi_channels = bebob->rx_stream_formations[index].midi;
-	amdtp_stream_set_parameters(&bebob->rx_stream,
-				    rate, pcm_channels, midi_channels * 8);
+	err = amdtp_am824_set_parameters(&bebob->rx_stream, rate,
+					 pcm_channels, midi_channels * 8,
+					 false);
+	if (err < 0)
+		goto end;
 
 	/* establish connections for both streams */
 	err = cmp_connection_establish(&bebob->out_conn,
@@ -398,8 +479,6 @@ break_both_connections(struct snd_bebob *bebob)
 static void
 destroy_both_connections(struct snd_bebob *bebob)
 {
-	break_both_connections(bebob);
-
 	cmp_connection_destroy(&bebob->in_conn);
 	cmp_connection_destroy(&bebob->out_conn);
 }
@@ -407,8 +486,24 @@ destroy_both_connections(struct snd_bebob *bebob)
 static int
 get_sync_mode(struct snd_bebob *bebob, enum cip_flags *sync_mode)
 {
-	/* currently this module doesn't support SYT-Match mode */
-	*sync_mode = CIP_SYNC_TO_DEVICE;
+	enum snd_bebob_clock_type src;
+	int err;
+
+	err = snd_bebob_stream_get_clock_src(bebob, &src);
+	if (err < 0)
+		return err;
+
+	switch (src) {
+	case SND_BEBOB_CLOCK_TYPE_INTERNAL:
+	case SND_BEBOB_CLOCK_TYPE_EXTERNAL:
+		*sync_mode = CIP_SYNC_TO_DEVICE;
+		break;
+	default:
+	case SND_BEBOB_CLOCK_TYPE_SYT:
+		*sync_mode = 0;
+		break;
+	}
+
 	return 0;
 }
 
@@ -447,16 +542,26 @@ int snd_bebob_stream_init_duplex(struct snd_bebob *bebob)
 	if (err < 0)
 		goto end;
 
-	err = amdtp_stream_init(&bebob->tx_stream, bebob->unit,
-				AMDTP_IN_STREAM, CIP_BLOCKING);
+	err = amdtp_am824_init(&bebob->tx_stream, bebob->unit,
+			       AMDTP_IN_STREAM, CIP_BLOCKING);
 	if (err < 0) {
 		amdtp_stream_destroy(&bebob->tx_stream);
 		destroy_both_connections(bebob);
 		goto end;
 	}
-	/* See comments in next function */
-	init_completion(&bebob->bus_reset);
+
 	bebob->tx_stream.flags |= CIP_SKIP_INIT_DBC_CHECK;
+
+	/*
+	 * BeBoB v3 transfers packets with these qurks:
+	 *  - In the beginning of streaming, the value of dbc is incremented
+	 *    even if no data blocks are transferred.
+	 *  - The value of dbc is reset suddenly.
+	 */
+	if (bebob->version > 2)
+		bebob->tx_stream.flags |= CIP_EMPTY_HAS_WRONG_DBC |
+					  CIP_SKIP_DBC_ZERO_CHECK;
+
 	/*
 	 * At high sampling rate, M-Audio special firmware transmits empty
 	 * packet with the value of dbc incremented by 8 but the others are
@@ -465,55 +570,27 @@ int snd_bebob_stream_init_duplex(struct snd_bebob *bebob)
 	if (bebob->maudio_special_quirk)
 		bebob->tx_stream.flags |= CIP_EMPTY_HAS_WRONG_DBC;
 
-	err = amdtp_stream_init(&bebob->rx_stream, bebob->unit,
-				AMDTP_OUT_STREAM, CIP_BLOCKING);
+	err = amdtp_am824_init(&bebob->rx_stream, bebob->unit,
+			       AMDTP_OUT_STREAM, CIP_BLOCKING);
 	if (err < 0) {
 		amdtp_stream_destroy(&bebob->tx_stream);
 		amdtp_stream_destroy(&bebob->rx_stream);
 		destroy_both_connections(bebob);
 	}
-	/*
-	 * The firmware for these devices ignore MIDI messages in more than
-	 * first 8 data blocks of an received AMDTP packet.
-	 */
-	if (bebob->spec == &maudio_fw410_spec ||
-	    bebob->spec == &maudio_special_spec)
-		bebob->rx_stream.rx_blocks_for_midi = 8;
 end:
 	return err;
 }
 
 int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 {
-	struct snd_bebob_rate_spec *rate_spec = bebob->spec->rate;
+	const struct snd_bebob_rate_spec *rate_spec = bebob->spec->rate;
 	struct amdtp_stream *master, *slave;
-	atomic_t *slave_substreams;
 	enum cip_flags sync_mode;
 	unsigned int curr_rate;
-	bool updated = false;
 	int err = 0;
 
-	/*
-	 * Normal BeBoB firmware has a quirk at bus reset to transmits packets
-	 * with discontinuous value in dbc field.
-	 *
-	 * This 'struct completion' is used to call .update() at first to update
-	 * connections/streams. Next following codes handle streaming error.
-	 */
-	if (amdtp_streaming_error(&bebob->tx_stream)) {
-		if (completion_done(&bebob->bus_reset))
-			reinit_completion(&bebob->bus_reset);
-
-		updated = (wait_for_completion_interruptible_timeout(
-				&bebob->bus_reset,
-				msecs_to_jiffies(FW_ISO_RESOURCE_DELAY)) > 0);
-	}
-
-	mutex_lock(&bebob->mutex);
-
 	/* Need no substreams */
-	if (atomic_read(&bebob->playback_substreams) == 0 &&
-	    atomic_read(&bebob->capture_substreams)  == 0)
+	if (bebob->substreams_counter == 0)
 		goto end;
 
 	err = get_sync_mode(bebob, &sync_mode);
@@ -522,11 +599,9 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 	if (sync_mode == CIP_SYNC_TO_DEVICE) {
 		master = &bebob->tx_stream;
 		slave  = &bebob->rx_stream;
-		slave_substreams = &bebob->playback_substreams;
 	} else {
 		master = &bebob->rx_stream;
 		slave  = &bebob->tx_stream;
-		slave_substreams = &bebob->capture_substreams;
 	}
 
 	/*
@@ -547,8 +622,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 		amdtp_stream_stop(master);
 	if (amdtp_streaming_error(slave))
 		amdtp_stream_stop(slave);
-	if (!updated &&
-	    !amdtp_stream_running(master) && !amdtp_stream_running(slave))
+	if (!amdtp_stream_running(master) && !amdtp_stream_running(slave))
 		break_both_connections(bebob);
 
 	/* stop streams if rate is different */
@@ -627,7 +701,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 	}
 
 	/* start slave if needed */
-	if (atomic_read(slave_substreams) > 0 && !amdtp_stream_running(slave)) {
+	if (!amdtp_stream_running(slave)) {
 		err = start_stream(bebob, slave, rate);
 		if (err < 0) {
 			dev_err(&bebob->unit->device,
@@ -646,83 +720,42 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 		}
 	}
 end:
-	mutex_unlock(&bebob->mutex);
 	return err;
 }
 
 void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob)
 {
 	struct amdtp_stream *master, *slave;
-	atomic_t *master_substreams, *slave_substreams;
 
 	if (bebob->master == &bebob->rx_stream) {
 		slave  = &bebob->tx_stream;
 		master = &bebob->rx_stream;
-		slave_substreams  = &bebob->capture_substreams;
-		master_substreams = &bebob->playback_substreams;
 	} else {
 		slave  = &bebob->rx_stream;
 		master = &bebob->tx_stream;
-		slave_substreams  = &bebob->playback_substreams;
-		master_substreams = &bebob->capture_substreams;
 	}
 
-	mutex_lock(&bebob->mutex);
+	if (bebob->substreams_counter == 0) {
+		amdtp_stream_pcm_abort(master);
+		amdtp_stream_stop(master);
 
-	if (atomic_read(slave_substreams) == 0) {
 		amdtp_stream_pcm_abort(slave);
 		amdtp_stream_stop(slave);
 
-		if (atomic_read(master_substreams) == 0) {
-			amdtp_stream_pcm_abort(master);
-			amdtp_stream_stop(master);
-			break_both_connections(bebob);
-		}
-	}
-
-	mutex_unlock(&bebob->mutex);
-}
-
-void snd_bebob_stream_update_duplex(struct snd_bebob *bebob)
-{
-	/* vs. XRUN recovery due to discontinuity at bus reset */
-	mutex_lock(&bebob->mutex);
-
-	if ((cmp_connection_update(&bebob->in_conn) < 0) ||
-	    (cmp_connection_update(&bebob->out_conn) < 0)) {
-		amdtp_stream_pcm_abort(&bebob->rx_stream);
-		amdtp_stream_pcm_abort(&bebob->tx_stream);
-		amdtp_stream_stop(&bebob->rx_stream);
-		amdtp_stream_stop(&bebob->tx_stream);
 		break_both_connections(bebob);
-	} else {
-		amdtp_stream_update(&bebob->rx_stream);
-		amdtp_stream_update(&bebob->tx_stream);
 	}
-
-	/* wake up stream_start_duplex() */
-	if (!completion_done(&bebob->bus_reset))
-		complete_all(&bebob->bus_reset);
-
-	mutex_unlock(&bebob->mutex);
 }
 
+/*
+ * This function should be called before starting streams or after stopping
+ * streams.
+ */
 void snd_bebob_stream_destroy_duplex(struct snd_bebob *bebob)
 {
-	mutex_lock(&bebob->mutex);
-
-	amdtp_stream_pcm_abort(&bebob->rx_stream);
-	amdtp_stream_pcm_abort(&bebob->tx_stream);
-
-	amdtp_stream_stop(&bebob->rx_stream);
-	amdtp_stream_stop(&bebob->tx_stream);
-
 	amdtp_stream_destroy(&bebob->rx_stream);
 	amdtp_stream_destroy(&bebob->tx_stream);
 
 	destroy_both_connections(bebob);
-
-	mutex_unlock(&bebob->mutex);
 }
 
 /*
@@ -793,8 +826,8 @@ parse_stream_formation(u8 *buf, unsigned int len,
 		}
 	}
 
-	if (formation[i].pcm  > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    formation[i].midi > AMDTP_MAX_CHANNELS_FOR_MIDI)
+	if (formation[i].pcm  > AM824_MAX_CHANNELS_FOR_PCM ||
+	    formation[i].midi > AM824_MAX_CHANNELS_FOR_MIDI)
 		return -ENOSYS;
 
 	return 0;
@@ -888,7 +921,7 @@ end:
 
 int snd_bebob_stream_discover(struct snd_bebob *bebob)
 {
-	struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
+	const struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
 	u8 plugs[AVC_PLUG_INFO_BUF_BYTES], addr[AVC_BRIDGECO_ADDR_BYTES];
 	enum avc_bridgeco_plug_type type;
 	unsigned int i;

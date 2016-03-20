@@ -52,7 +52,9 @@ struct tc1100_data {
 	u32 jogdial;
 };
 
+#ifdef CONFIG_PM
 static struct tc1100_data suspend_data;
+#endif
 
 /* --------------------------------------------------------------------------
 				Device Management
@@ -82,7 +84,7 @@ static int get_state(u32 *out, u8 instance)
 		tmp = 0;
 	}
 
-	if (result.length > 0 && result.pointer)
+	if (result.length > 0)
 		kfree(result.pointer);
 
 	switch (instance) {
@@ -234,7 +236,6 @@ static const struct dev_pm_ops tc1100_pm_ops = {
 static struct platform_driver tc1100_driver = {
 	.driver = {
 		.name = "tc1100-wmi",
-		.owner = THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm = &tc1100_pm_ops,
 #endif

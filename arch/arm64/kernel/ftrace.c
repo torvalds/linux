@@ -29,12 +29,11 @@ static int ftrace_modify_code(unsigned long pc, u32 old, u32 new,
 
 	/*
 	 * Note:
-	 * Due to modules and __init, code can disappear and change,
-	 * we need to protect against faulting as well as code changing.
-	 * We do this by aarch64_insn_*() which use the probe_kernel_*().
-	 *
-	 * No lock is held here because all the modifications are run
-	 * through stop_machine().
+	 * We are paranoid about modifying text, as if a bug were to happen, it
+	 * could cause us to read or write to someplace that could cause harm.
+	 * Carefully read and modify the code with aarch64_insn_*() which uses
+	 * probe_kernel_*(), and make sure what we read is what we expected it
+	 * to be before modifying it.
 	 */
 	if (validate) {
 		if (aarch64_insn_read((void *)pc, &replaced))
@@ -58,7 +57,8 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	u32 new;
 
 	pc = (unsigned long)&ftrace_call;
-	new = aarch64_insn_gen_branch_imm(pc, (unsigned long)func, true);
+	new = aarch64_insn_gen_branch_imm(pc, (unsigned long)func,
+					  AARCH64_INSN_BRANCH_LINK);
 
 	return ftrace_modify_code(pc, 0, new, false);
 }
@@ -72,7 +72,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	u32 old, new;
 
 	old = aarch64_insn_gen_nop();
-	new = aarch64_insn_gen_branch_imm(pc, addr, true);
+	new = aarch64_insn_gen_branch_imm(pc, addr, AARCH64_INSN_BRANCH_LINK);
 
 	return ftrace_modify_code(pc, old, new, true);
 }
@@ -86,10 +86,15 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 	unsigned long pc = rec->ip;
 	u32 old, new;
 
-	old = aarch64_insn_gen_branch_imm(pc, addr, true);
+	old = aarch64_insn_gen_branch_imm(pc, addr, AARCH64_INSN_BRANCH_LINK);
 	new = aarch64_insn_gen_nop();
 
 	return ftrace_modify_code(pc, old, new, true);
+}
+
+void arch_ftrace_update_code(int command)
+{
+	ftrace_modify_all_code(command);
 }
 
 int __init ftrace_dyn_arch_init(void)
@@ -124,23 +129,20 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	 * on other archs. It's unlikely on AArch64.
 	 */
 	old = *parent;
-	*parent = return_hooker;
 
 	trace.func = self_addr;
 	trace.depth = current->curr_ret_stack + 1;
 
 	/* Only trace if the calling function expects to */
-	if (!ftrace_graph_entry(&trace)) {
-		*parent = old;
+	if (!ftrace_graph_entry(&trace))
 		return;
-	}
 
 	err = ftrace_push_return_trace(old, self_addr, &trace.depth,
 				       frame_pointer);
-	if (err == -EBUSY) {
-		*parent = old;
+	if (err == -EBUSY)
 		return;
-	}
+	else
+		*parent = return_hooker;
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -154,7 +156,8 @@ static int ftrace_modify_graph_caller(bool enable)
 	u32 branch, nop;
 
 	branch = aarch64_insn_gen_branch_imm(pc,
-			(unsigned long)ftrace_graph_caller, false);
+					     (unsigned long)ftrace_graph_caller,
+					     AARCH64_INSN_BRANCH_NOLINK);
 	nop = aarch64_insn_gen_nop();
 
 	if (enable)

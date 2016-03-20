@@ -306,19 +306,20 @@ struct gru_mm_struct *gru_register_mmu_notifier(void)
 		atomic_inc(&gms->ms_refcnt);
 	} else {
 		gms = kzalloc(sizeof(*gms), GFP_KERNEL);
-		if (gms) {
-			STAT(gms_alloc);
-			spin_lock_init(&gms->ms_asid_lock);
-			gms->ms_notifier.ops = &gru_mmuops;
-			atomic_set(&gms->ms_refcnt, 1);
-			init_waitqueue_head(&gms->ms_wait_queue);
-			err = __mmu_notifier_register(&gms->ms_notifier, current->mm);
-			if (err)
-				goto error;
-		}
+		if (!gms)
+			return ERR_PTR(-ENOMEM);
+		STAT(gms_alloc);
+		spin_lock_init(&gms->ms_asid_lock);
+		gms->ms_notifier.ops = &gru_mmuops;
+		atomic_set(&gms->ms_refcnt, 1);
+		init_waitqueue_head(&gms->ms_wait_queue);
+		err = __mmu_notifier_register(&gms->ms_notifier, current->mm);
+		if (err)
+			goto error;
 	}
-	gru_dbg(grudev, "gms %p, refcnt %d\n", gms,
-		atomic_read(&gms->ms_refcnt));
+	if (gms)
+		gru_dbg(grudev, "gms %p, refcnt %d\n", gms,
+			atomic_read(&gms->ms_refcnt));
 	return gms;
 error:
 	kfree(gms);

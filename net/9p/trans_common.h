@@ -13,5 +13,3 @@
  */
 
 void p9_release_pages(struct page **, int);
-int p9_payload_gup(char *, int *, struct page **, int);
-int p9_nr_pages(char *, int);

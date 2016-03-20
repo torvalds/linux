@@ -28,7 +28,7 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 
-#include <media/adv7343.h>
+#include <media/i2c/adv7343.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
@@ -319,13 +319,6 @@ static const struct v4l2_ctrl_ops adv7343_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops adv7343_core_ops = {
 	.log_status = adv7343_log_status,
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
 };
 
 static int adv7343_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
@@ -506,7 +499,6 @@ static int adv7343_remove(struct i2c_client *client)
 	struct adv7343_state *state = to_state(sd);
 
 	v4l2_async_unregister_subdev(&state->sd);
-	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&state->hdl);
 
 	return 0;
@@ -530,7 +522,6 @@ MODULE_DEVICE_TABLE(of, adv7343_of_match);
 static struct i2c_driver adv7343_driver = {
 	.driver = {
 		.of_match_table = of_match_ptr(adv7343_of_match),
-		.owner	= THIS_MODULE,
 		.name	= "adv7343",
 	},
 	.probe		= adv7343_probe,

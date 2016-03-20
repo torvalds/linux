@@ -111,10 +111,8 @@ static struct snd_seq_queue *queue_new(int owner, int locked)
 	struct snd_seq_queue *q;
 
 	q = kzalloc(sizeof(*q), GFP_KERNEL);
-	if (q == NULL) {
-		pr_debug("ALSA: seq: malloc failed for snd_seq_queue_new()\n");
+	if (!q)
 		return NULL;
-	}
 
 	spin_lock_init(&q->owner_lock);
 	spin_lock_init(&q->check_lock);
@@ -144,8 +142,10 @@ static struct snd_seq_queue *queue_new(int owner, int locked)
 static void queue_delete(struct snd_seq_queue *q)
 {
 	/* stop and release the timer */
+	mutex_lock(&q->timer_mutex);
 	snd_seq_timer_stop(q->timer);
 	snd_seq_timer_close(q);
+	mutex_unlock(&q->timer_mutex);
 	/* wait until access free */
 	snd_use_lock_sync(&q->use_lock);
 	/* release resources... */
@@ -755,7 +755,7 @@ int snd_seq_control_queue(struct snd_seq_event *ev, int atomic, int hop)
 
 /*----------------------------------------------------------------*/
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 /* exported to seq_info.c */
 void snd_seq_info_queues_read(struct snd_info_entry *entry, 
 			      struct snd_info_buffer *buffer)
@@ -789,5 +789,5 @@ void snd_seq_info_queues_read(struct snd_info_entry *entry,
 		queuefree(q);
 	}
 }
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SND_PROC_FS */
 

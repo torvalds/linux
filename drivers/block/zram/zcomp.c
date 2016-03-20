@@ -74,18 +74,18 @@ static void zcomp_strm_free(struct zcomp *comp, struct zcomp_strm *zstrm)
  * allocate new zcomp_strm structure with ->private initialized by
  * backend, return NULL on error
  */
-static struct zcomp_strm *zcomp_strm_alloc(struct zcomp *comp)
+static struct zcomp_strm *zcomp_strm_alloc(struct zcomp *comp, gfp_t flags)
 {
-	struct zcomp_strm *zstrm = kmalloc(sizeof(*zstrm), GFP_KERNEL);
+	struct zcomp_strm *zstrm = kmalloc(sizeof(*zstrm), flags);
 	if (!zstrm)
 		return NULL;
 
-	zstrm->private = comp->backend->create();
+	zstrm->private = comp->backend->create(flags);
 	/*
 	 * allocate 2 pages. 1 for compressed data, plus 1 extra for the
 	 * case when compressed size is larger than the original one
 	 */
-	zstrm->buffer = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
+	zstrm->buffer = (void *)__get_free_pages(flags | __GFP_ZERO, 1);
 	if (!zstrm->private || !zstrm->buffer) {
 		zcomp_strm_free(comp, zstrm);
 		zstrm = NULL;
@@ -120,8 +120,16 @@ static struct zcomp_strm *zcomp_strm_multi_find(struct zcomp *comp)
 		/* allocate new zstrm stream */
 		zs->avail_strm++;
 		spin_unlock(&zs->strm_lock);
-
-		zstrm = zcomp_strm_alloc(comp);
+		/*
+		 * This function can be called in swapout/fs write path
+		 * so we can't use GFP_FS|IO. And it assumes we already
+		 * have at least one stream in zram initialization so we
+		 * don't do best effort to allocate more stream in here.
+		 * A default stream will work well without further multiple
+		 * streams. That's why we use NORETRY | NOWARN.
+		 */
+		zstrm = zcomp_strm_alloc(comp, GFP_NOIO | __GFP_NORETRY |
+					__GFP_NOWARN);
 		if (!zstrm) {
 			spin_lock(&zs->strm_lock);
 			zs->avail_strm--;
@@ -209,7 +217,7 @@ static int zcomp_strm_multi_create(struct zcomp *comp, int max_strm)
 	zs->max_strm = max_strm;
 	zs->avail_strm = 1;
 
-	zstrm = zcomp_strm_alloc(comp);
+	zstrm = zcomp_strm_alloc(comp, GFP_KERNEL);
 	if (!zstrm) {
 		kfree(zs);
 		return -ENOMEM;
@@ -259,7 +267,7 @@ static int zcomp_strm_single_create(struct zcomp *comp)
 
 	comp->stream = zs;
 	mutex_init(&zs->strm_lock);
-	zs->zstrm = zcomp_strm_alloc(comp);
+	zs->zstrm = zcomp_strm_alloc(comp, GFP_KERNEL);
 	if (!zs->zstrm) {
 		kfree(zs);
 		return -ENOMEM;
@@ -274,7 +282,7 @@ ssize_t zcomp_available_show(const char *comp, char *buf)
 	int i = 0;
 
 	while (backends[i]) {
-		if (sysfs_streq(comp, backends[i]->name))
+		if (!strcmp(comp, backends[i]->name))
 			sz += scnprintf(buf + sz, PAGE_SIZE - sz - 2,
 					"[%s] ", backends[i]->name);
 		else
@@ -284,6 +292,11 @@ ssize_t zcomp_available_show(const char *comp, char *buf)
 	}
 	sz += scnprintf(buf + sz, PAGE_SIZE - sz, "\n");
 	return sz;
+}
+
+bool zcomp_available_algorithm(const char *comp)
+{
+	return find_backend(comp) != NULL;
 }
 
 bool zcomp_set_max_streams(struct zcomp *comp, int num_strm)
@@ -325,12 +338,14 @@ void zcomp_destroy(struct zcomp *comp)
  * allocate new zcomp and initialize it. return compressing
  * backend pointer or ERR_PTR if things went bad. ERR_PTR(-EINVAL)
  * if requested algorithm is not supported, ERR_PTR(-ENOMEM) in
- * case of allocation error.
+ * case of allocation error, or any other error potentially
+ * returned by functions zcomp_strm_{multi,single}_create.
  */
 struct zcomp *zcomp_create(const char *compress, int max_strm)
 {
 	struct zcomp *comp;
 	struct zcomp_backend *backend;
+	int error;
 
 	backend = find_backend(compress);
 	if (!backend)
@@ -342,12 +357,12 @@ struct zcomp *zcomp_create(const char *compress, int max_strm)
 
 	comp->backend = backend;
 	if (max_strm > 1)
-		zcomp_strm_multi_create(comp, max_strm);
+		error = zcomp_strm_multi_create(comp, max_strm);
 	else
-		zcomp_strm_single_create(comp);
-	if (!comp->stream) {
+		error = zcomp_strm_single_create(comp);
+	if (error) {
 		kfree(comp);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(error);
 	}
 	return comp;
 }

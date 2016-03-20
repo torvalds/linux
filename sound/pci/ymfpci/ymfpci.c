@@ -283,11 +283,11 @@ static int snd_card_ymfpci_probe(struct pci_dev *pci,
 		card->shortname,
 		chip->reg_area_phys,
 		chip->irq);
-	if ((err = snd_ymfpci_pcm(chip, 0, NULL)) < 0) {
+	if ((err = snd_ymfpci_pcm(chip, 0)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_ymfpci_pcm_spdif(chip, 1, NULL)) < 0) {
+	if ((err = snd_ymfpci_pcm_spdif(chip, 1)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -297,12 +297,12 @@ static int snd_card_ymfpci_probe(struct pci_dev *pci,
 		return err;
 	}
 	if (chip->ac97->ext_id & AC97_EI_SDAC) {
-		err = snd_ymfpci_pcm_4ch(chip, 2, NULL);
+		err = snd_ymfpci_pcm_4ch(chip, 2);
 		if (err < 0) {
 			snd_card_free(card);
 			return err;
 		}
-		err = snd_ymfpci_pcm2(chip, 3, NULL);
+		err = snd_ymfpci_pcm2(chip, 3);
 		if (err < 0) {
 			snd_card_free(card);
 			return err;

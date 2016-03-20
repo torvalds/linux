@@ -64,18 +64,16 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/ac97_codec.h>
 #include <sound/info.h>
 #include <sound/asoundef.h>
-#include <asm/io.h>
 
 #include "ca0106.h"
 
-
-#ifdef CONFIG_PROC_FS
 
 struct snd_ca0106_category_str {
 	int val;
@@ -453,5 +451,3 @@ int snd_ca0106_proc_init(struct snd_ca0106 *emu)
 		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_reg_read2);
 	return 0;
 }
-
-#endif /* CONFIG_PROC_FS */

@@ -88,7 +88,8 @@ static void unmask_cic_irq(struct irq_data *d)
 	* Make sure we have IRQ affinity.  It may have changed while
 	* we were processing the IRQ.
 	*/
-	if (!cpumask_test_cpu(smp_processor_id(), d->affinity))
+	if (!cpumask_test_cpu(smp_processor_id(),
+			      irq_data_get_affinity_mask(d)))
 		return;
 #endif
 
@@ -131,11 +132,11 @@ static int msp_cic_irq_set_affinity(struct irq_data *d,
 	int cpu;
 	unsigned long flags;
 	unsigned int  mtflags;
-	unsigned long imask = (1 << (irq - MSP_CIC_INTBASE));
+	unsigned long imask = (1 << (d->irq - MSP_CIC_INTBASE));
 	volatile u32 *cic_mask = (volatile u32 *)CIC_VPE0_MSK_REG;
 
 	/* timer balancing should be disabled in kernel code */
-	BUG_ON(irq == MSP_INT_VPE0_TIMER || irq == MSP_INT_VPE1_TIMER);
+	BUG_ON(d->irq == MSP_INT_VPE0_TIMER || d->irq == MSP_INT_VPE1_TIMER);
 
 	LOCK_CORE(flags, mtflags);
 	/* enable if any of each VPE's TCs require this IRQ */

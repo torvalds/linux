@@ -45,7 +45,7 @@ static void as3722_time_to_reg(u8 *rbuff, struct rtc_time *tm)
 	rbuff[1] = bin2bcd(tm->tm_min);
 	rbuff[2] = bin2bcd(tm->tm_hour);
 	rbuff[3] = bin2bcd(tm->tm_mday);
-	rbuff[4] = bin2bcd(tm->tm_mon);
+	rbuff[4] = bin2bcd(tm->tm_mon + 1);
 	rbuff[5] = bin2bcd(tm->tm_year - (AS3722_RTC_START_YEAR - 1900));
 }
 
@@ -55,7 +55,7 @@ static void as3722_reg_to_time(u8 *rbuff, struct rtc_time *tm)
 	tm->tm_min = bcd2bin(rbuff[1] & 0x7F);
 	tm->tm_hour = bcd2bin(rbuff[2] & 0x3F);
 	tm->tm_mday = bcd2bin(rbuff[3] & 0x3F);
-	tm->tm_mon = bcd2bin(rbuff[4] & 0x1F);
+	tm->tm_mon = bcd2bin(rbuff[4] & 0x1F) - 1;
 	tm->tm_year = (AS3722_RTC_START_YEAR - 1900) + bcd2bin(rbuff[5] & 0x7F);
 	return;
 }
@@ -210,7 +210,7 @@ static int as3722_rtc_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "RTC interrupt %d\n", as3722_rtc->alarm_irq);
 
 	ret = devm_request_threaded_irq(&pdev->dev, as3722_rtc->alarm_irq, NULL,
-			as3722_alarm_irq, IRQF_ONESHOT | IRQF_EARLY_RESUME,
+			as3722_alarm_irq, IRQF_ONESHOT,
 			"rtc-alarm", as3722_rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to request alarm IRQ %d: %d\n",

@@ -106,7 +106,7 @@ static void __init __fb_init_irq(void)
 
 	for (irq = _DC21285_IRQ(0); irq < _DC21285_IRQ(20); irq++) {
 		irq_set_chip_and_handler(irq, &fb_chip, handle_level_irq);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 }
 

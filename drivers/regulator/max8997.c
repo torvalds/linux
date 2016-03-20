@@ -917,7 +917,7 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 	struct max8997_regulator_data *rdata;
 	unsigned int i, dvs_voltage_nr = 1, ret;
 
-	pmic_np = of_node_get(iodev->dev->of_node);
+	pmic_np = iodev->dev->of_node;
 	if (!pmic_np) {
 		dev_err(&pdev->dev, "could not find pmic sub-node\n");
 		return -ENODEV;
@@ -953,7 +953,8 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 
 		rdata->id = i;
 		rdata->initdata = of_get_regulator_init_data(&pdev->dev,
-							     reg_np);
+							     reg_np,
+							     &regulators[i]);
 		rdata->reg_node = reg_np;
 		rdata++;
 	}
@@ -1218,7 +1219,6 @@ MODULE_DEVICE_TABLE(platform, max8997_pmic_id);
 static struct platform_driver max8997_pmic_driver = {
 	.driver = {
 		.name = "max8997-pmic",
-		.owner = THIS_MODULE,
 	},
 	.probe = max8997_pmic_probe,
 	.id_table = max8997_pmic_id,

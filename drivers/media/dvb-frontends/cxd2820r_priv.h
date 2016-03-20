@@ -48,7 +48,7 @@ struct cxd2820r_priv {
 	struct gpio_chip gpio_chip;
 #endif
 
-	fe_delivery_system_t delivery_system;
+	enum fe_delivery_system delivery_system;
 	bool last_tune_failed; /* for switch between T and T2 tune */
 };
 
@@ -64,8 +64,6 @@ int cxd2820r_wr_reg_mask(struct cxd2820r_priv *priv, u32 reg, u8 val,
 int cxd2820r_wr_regs(struct cxd2820r_priv *priv, u32 reginfo, u8 *val,
 	int len);
 
-u32 cxd2820r_div_u64_round_closest(u64 dividend, u32 divisor);
-
 int cxd2820r_wr_regs(struct cxd2820r_priv *priv, u32 reginfo, u8 *val,
 	int len);
 
@@ -78,11 +76,12 @@ int cxd2820r_rd_reg(struct cxd2820r_priv *priv, u32 reg, u8 *val);
 
 /* cxd2820r_c.c */
 
-int cxd2820r_get_frontend_c(struct dvb_frontend *fe);
+int cxd2820r_get_frontend_c(struct dvb_frontend *fe,
+			    struct dtv_frontend_properties *p);
 
 int cxd2820r_set_frontend_c(struct dvb_frontend *fe);
 
-int cxd2820r_read_status_c(struct dvb_frontend *fe, fe_status_t *status);
+int cxd2820r_read_status_c(struct dvb_frontend *fe, enum fe_status *status);
 
 int cxd2820r_read_ber_c(struct dvb_frontend *fe, u32 *ber);
 
@@ -101,11 +100,12 @@ int cxd2820r_get_tune_settings_c(struct dvb_frontend *fe,
 
 /* cxd2820r_t.c */
 
-int cxd2820r_get_frontend_t(struct dvb_frontend *fe);
+int cxd2820r_get_frontend_t(struct dvb_frontend *fe,
+			    struct dtv_frontend_properties *p);
 
 int cxd2820r_set_frontend_t(struct dvb_frontend *fe);
 
-int cxd2820r_read_status_t(struct dvb_frontend *fe, fe_status_t *status);
+int cxd2820r_read_status_t(struct dvb_frontend *fe, enum fe_status *status);
 
 int cxd2820r_read_ber_t(struct dvb_frontend *fe, u32 *ber);
 
@@ -124,11 +124,12 @@ int cxd2820r_get_tune_settings_t(struct dvb_frontend *fe,
 
 /* cxd2820r_t2.c */
 
-int cxd2820r_get_frontend_t2(struct dvb_frontend *fe);
+int cxd2820r_get_frontend_t2(struct dvb_frontend *fe,
+			     struct dtv_frontend_properties *p);
 
 int cxd2820r_set_frontend_t2(struct dvb_frontend *fe);
 
-int cxd2820r_read_status_t2(struct dvb_frontend *fe, fe_status_t *status);
+int cxd2820r_read_status_t2(struct dvb_frontend *fe, enum fe_status *status);
 
 int cxd2820r_read_ber_t2(struct dvb_frontend *fe, u32 *ber);
 

@@ -195,7 +195,7 @@ static int do_verify_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_dat
 	/* unchecked xdatum is chained with c->xattr_unchecked */
 	list_del_init(&xd->xindex);
 
-	dbg_xattr("success on verfying xdatum (xid=%u, version=%u)\n",
+	dbg_xattr("success on verifying xdatum (xid=%u, version=%u)\n",
 		  xd->xid, xd->version);
 
 	return 0;
@@ -960,14 +960,15 @@ static const struct xattr_handler *xprefix_to_handler(int xprefix) {
 
 ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
 	struct jffs2_inode_cache *ic = f->inocache;
 	struct jffs2_xattr_ref *ref, **pref;
 	struct jffs2_xattr_datum *xd;
 	const struct xattr_handler *xhandle;
-	ssize_t len, rc;
+	const char *prefix;
+	ssize_t prefix_len, len, rc;
 	int retry = 0;
 
 	rc = check_xattr_ref_inode(c, ic);
@@ -998,17 +999,23 @@ ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 			}
 		}
 		xhandle = xprefix_to_handler(xd->xprefix);
-		if (!xhandle)
+		if (!xhandle || (xhandle->list && !xhandle->list(dentry)))
 			continue;
+		prefix = xhandle->prefix ?: xhandle->name;
+		prefix_len = strlen(prefix);
+		rc = prefix_len + xd->name_len + 1;
+
 		if (buffer) {
-			rc = xhandle->list(dentry, buffer+len, size-len,
-					   xd->xname, xd->name_len, xd->flags);
-		} else {
-			rc = xhandle->list(dentry, NULL, 0, xd->xname,
-					   xd->name_len, xd->flags);
+			if (rc > size - len) {
+				rc = -ERANGE;
+				goto out;
+			}
+			memcpy(buffer, prefix, prefix_len);
+			buffer += prefix_len;
+			memcpy(buffer, xd->xname, xd->name_len);
+			buffer += xd->name_len;
+			*buffer++ = 0;
 		}
-		if (rc < 0)
-			goto out;
 		len += rc;
 	}
 	rc = len;
@@ -1266,7 +1273,6 @@ int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_
 	if (rc) {
 		JFFS2_WARNING("%s: jffs2_reserve_space_gc() = %d, request = %u\n",
 			      __func__, rc, totlen);
-		rc = rc ? rc : -EBADFD;
 		goto out;
 	}
 	rc = save_xattr_ref(c, ref);

@@ -120,7 +120,7 @@ static int connbytes_mt_check(const struct xt_mtchk_param *par)
 	 * accounting is enabled, so complain in the hope that someone notices.
 	 */
 	if (!nf_ct_acct_enabled(par->net)) {
-		pr_warning("Forcing CT accounting to be enabled\n");
+		pr_warn("Forcing CT accounting to be enabled\n");
 		nf_ct_set_acct(par->net, true);
 	}
 

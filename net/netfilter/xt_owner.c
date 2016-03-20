@@ -14,6 +14,7 @@
 #include <linux/skbuff.h>
 #include <linux/file.h>
 #include <net/sock.h>
+#include <net/inet_sock.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_owner.h>
 
@@ -33,8 +34,9 @@ owner_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_owner_match_info *info = par->matchinfo;
 	const struct file *filp;
+	struct sock *sk = skb_to_full_sk(skb);
 
-	if (skb->sk == NULL || skb->sk->sk_socket == NULL)
+	if (sk == NULL || sk->sk_socket == NULL)
 		return (info->match ^ info->invert) == 0;
 	else if (info->match & info->invert & XT_OWNER_SOCKET)
 		/*
@@ -43,7 +45,7 @@ owner_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		 */
 		return false;
 
-	filp = skb->sk->sk_socket->file;
+	filp = sk->sk_socket->file;
 	if (filp == NULL)
 		return ((info->match ^ info->invert) &
 		       (XT_OWNER_UID | XT_OWNER_GID)) == 0;

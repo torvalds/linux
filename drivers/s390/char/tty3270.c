@@ -659,6 +659,10 @@ tty3270_irq(struct tty3270 *tp, struct raw3270_request *rq, struct irb *irb)
 		else
 			/* Normal end. Copy residual count. */
 			rq->rescnt = irb->scsw.cmd.count;
+	} else if (irb->scsw.cmd.dstat & DEV_STAT_DEV_END) {
+		/* Interrupt without an outstanding request -> update all */
+		tp->update_flags = TTY_UPDATE_ALL;
+		tty3270_set_timer(tp, 1);
 	}
 	return RAW3270_IO_DONE;
 }

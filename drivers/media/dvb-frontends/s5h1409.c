@@ -38,7 +38,7 @@ struct s5h1409_state {
 	struct dvb_frontend frontend;
 
 	/* previous uncorrected block counter */
-	fe_modulation_t current_modulation;
+	enum fe_modulation current_modulation;
 
 	u32 current_frequency;
 	int if_freq;
@@ -400,7 +400,7 @@ static int s5h1409_set_spectralinversion(struct dvb_frontend *fe, int inverted)
 }
 
 static int s5h1409_enable_modulation(struct dvb_frontend *fe,
-				     fe_modulation_t m)
+				     enum fe_modulation m)
 {
 	struct s5h1409_state *state = fe->demodulator_priv;
 
@@ -755,7 +755,7 @@ static int s5h1409_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int s5h1409_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int s5h1409_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct s5h1409_state *state = fe->demodulator_priv;
 	u16 reg;
@@ -925,9 +925,9 @@ static int s5h1409_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return s5h1409_read_ucblocks(fe, ber);
 }
 
-static int s5h1409_get_frontend(struct dvb_frontend *fe)
+static int s5h1409_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct s5h1409_state *state = fe->demodulator_priv;
 
 	p->frequency = state->current_frequency;
@@ -1021,9 +1021,3 @@ static struct dvb_frontend_ops s5h1409_ops = {
 MODULE_DESCRIPTION("Samsung S5H1409 QAM-B/ATSC Demodulator driver");
 MODULE_AUTHOR("Steven Toth");
 MODULE_LICENSE("GPL");
-
-
-/*
- * Local variables:
- * c-basic-offset: 8
- */

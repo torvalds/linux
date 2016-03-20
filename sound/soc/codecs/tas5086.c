@@ -266,10 +266,14 @@ static int tas5086_set_deemph(struct snd_soc_codec *codec)
 	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
 	int i, val = 0;
 
-	if (priv->deemph)
-		for (i = 0; i < ARRAY_SIZE(tas5086_deemph); i++)
-			if (tas5086_deemph[i] == priv->rate)
+	if (priv->deemph) {
+		for (i = 0; i < ARRAY_SIZE(tas5086_deemph); i++) {
+			if (tas5086_deemph[i] == priv->rate) {
 				val = i;
+				break;
+			}
+		}
+	}
 
 	return regmap_update_bits(priv->regmap, TAS5086_SYS_CONTROL_1,
 				  TAS5086_DEEMPH_MASK, val);
@@ -281,7 +285,7 @@ static int tas5086_get_deemph(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
 
-	ucontrol->value.enumerated.item[0] = priv->deemph;
+	ucontrol->value.integer.value[0] = priv->deemph;
 
 	return 0;
 }
@@ -292,7 +296,7 @@ static int tas5086_put_deemph(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
 
-	priv->deemph = ucontrol->value.enumerated.item[0];
+	priv->deemph = ucontrol->value.integer.value[0];
 
 	return tas5086_set_deemph(codec);
 }
@@ -994,7 +998,6 @@ static int tas5086_i2c_remove(struct i2c_client *i2c)
 static struct i2c_driver tas5086_i2c_driver = {
 	.driver = {
 		.name	= "tas5086",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(tas5086_dt_ids),
 	},
 	.id_table	= tas5086_i2c_id,

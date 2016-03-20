@@ -32,11 +32,12 @@
 
 #ifndef __ASSEMBLY__
 #include <linux/psci.h>
-#include <asm/types.h>
+#include <linux/types.h>
 #include <asm/ptrace.h>
 
 #define __KVM_HAVE_GUEST_DEBUG
 #define __KVM_HAVE_IRQ_LINE
+#define __KVM_HAVE_READONLY_MEM
 
 #define KVM_REG_SIZE(id)						\
 	(1U << (((id) & KVM_REG_SIZE_MASK) >> KVM_REG_SIZE_SHIFT))
@@ -52,14 +53,20 @@ struct kvm_regs {
 	struct user_fpsimd_state fp_regs;
 };
 
-/* Supported Processor Types */
+/*
+ * Supported CPU Targets - Adding a new target type is not recommended,
+ * unless there are some special registers not supported by the
+ * genericv8 syreg table.
+ */
 #define KVM_ARM_TARGET_AEM_V8		0
 #define KVM_ARM_TARGET_FOUNDATION_V8	1
 #define KVM_ARM_TARGET_CORTEX_A57	2
 #define KVM_ARM_TARGET_XGENE_POTENZA	3
 #define KVM_ARM_TARGET_CORTEX_A53	4
+/* Generic ARM v8 target */
+#define KVM_ARM_TARGET_GENERIC_V8	5
 
-#define KVM_ARM_NUM_TARGETS		5
+#define KVM_ARM_NUM_TARGETS		6
 
 /* KVM_ARM_SET_DEVICE_ADDR ioctl id encoding */
 #define KVM_ARM_DEVICE_TYPE_SHIFT	0
@@ -77,9 +84,17 @@ struct kvm_regs {
 #define KVM_VGIC_V2_DIST_SIZE		0x1000
 #define KVM_VGIC_V2_CPU_SIZE		0x2000
 
+/* Supported VGICv3 address types  */
+#define KVM_VGIC_V3_ADDR_TYPE_DIST	2
+#define KVM_VGIC_V3_ADDR_TYPE_REDIST	3
+
+#define KVM_VGIC_V3_DIST_SIZE		SZ_64K
+#define KVM_VGIC_V3_REDIST_SIZE		(2 * SZ_64K)
+
 #define KVM_ARM_VCPU_POWER_OFF		0 /* CPU is started in OFF state */
 #define KVM_ARM_VCPU_EL1_32BIT		1 /* CPU running a 32bit VM */
 #define KVM_ARM_VCPU_PSCI_0_2		2 /* CPU uses PSCI v0.2 */
+#define KVM_ARM_VCPU_PMU_V3		3 /* Support guest PMUv3 */
 
 struct kvm_vcpu_init {
 	__u32 target;
@@ -92,11 +107,38 @@ struct kvm_sregs {
 struct kvm_fpu {
 };
 
+/*
+ * See v8 ARM ARM D7.3: Debug Registers
+ *
+ * The architectural limit is 16 debug registers of each type although
+ * in practice there are usually less (see ID_AA64DFR0_EL1).
+ *
+ * Although the control registers are architecturally defined as 32
+ * bits wide we use a 64 bit structure here to keep parity with
+ * KVM_GET/SET_ONE_REG behaviour which treats all system registers as
+ * 64 bit values. It also allows for the possibility of the
+ * architecture expanding the control registers without having to
+ * change the userspace ABI.
+ */
+#define KVM_ARM_MAX_DBG_REGS 16
 struct kvm_guest_debug_arch {
+	__u64 dbg_bcr[KVM_ARM_MAX_DBG_REGS];
+	__u64 dbg_bvr[KVM_ARM_MAX_DBG_REGS];
+	__u64 dbg_wcr[KVM_ARM_MAX_DBG_REGS];
+	__u64 dbg_wvr[KVM_ARM_MAX_DBG_REGS];
 };
 
 struct kvm_debug_exit_arch {
+	__u32 hsr;
+	__u64 far;	/* used for watchpoints */
 };
+
+/*
+ * Architecture specific defines for kvm_guest_debug->control
+ */
+
+#define KVM_GUESTDBG_USE_SW_BP		(1 << 16)
+#define KVM_GUESTDBG_USE_HW		(1 << 17)
 
 struct kvm_sync_regs {
 };
@@ -159,6 +201,14 @@ struct kvm_arch_memory_slot {
 #define   KVM_DEV_ARM_VGIC_CPUID_MASK	(0xffULL << KVM_DEV_ARM_VGIC_CPUID_SHIFT)
 #define   KVM_DEV_ARM_VGIC_OFFSET_SHIFT	0
 #define   KVM_DEV_ARM_VGIC_OFFSET_MASK	(0xffffffffULL << KVM_DEV_ARM_VGIC_OFFSET_SHIFT)
+#define KVM_DEV_ARM_VGIC_GRP_NR_IRQS	3
+#define KVM_DEV_ARM_VGIC_GRP_CTRL	4
+#define   KVM_DEV_ARM_VGIC_CTRL_INIT	0
+
+/* Device Control API on vcpu fd */
+#define KVM_ARM_VCPU_PMU_V3_CTRL	0
+#define   KVM_ARM_VCPU_PMU_V3_IRQ	0
+#define   KVM_ARM_VCPU_PMU_V3_INIT	1
 
 /* KVM_IRQ_LINE irq field index values */
 #define KVM_ARM_IRQ_TYPE_SHIFT		24
@@ -177,8 +227,17 @@ struct kvm_arch_memory_slot {
 #define KVM_ARM_IRQ_CPU_IRQ		0
 #define KVM_ARM_IRQ_CPU_FIQ		1
 
-/* Highest supported SPI, from VGIC_NR_IRQS */
+/*
+ * This used to hold the highest supported SPI, but it is now obsolete
+ * and only here to provide source code level compatibility with older
+ * userland. The highest SPI number can be set via KVM_DEV_ARM_VGIC_GRP_NR_IRQS.
+ */
+#ifndef __KERNEL__
 #define KVM_ARM_IRQ_GIC_MAX		127
+#endif
+
+/* One single KVM irqchip, ie. the VGIC */
+#define KVM_NR_IRQCHIPS          1
 
 /* PSCI interface */
 #define KVM_PSCI_FN_BASE		0x95c1ba5e

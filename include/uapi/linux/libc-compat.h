@@ -56,6 +56,13 @@
 
 /* GLIBC headers included first so don't define anything
  * that would already be defined. */
+#define __UAPI_DEF_IN_ADDR		0
+#define __UAPI_DEF_IN_IPPROTO		0
+#define __UAPI_DEF_IN_PKTINFO		0
+#define __UAPI_DEF_IP_MREQ		0
+#define __UAPI_DEF_SOCKADDR_IN		0
+#define __UAPI_DEF_IN_CLASS		0
+
 #define __UAPI_DEF_IN6_ADDR		0
 /* The exception is the in6_addr macros which must be defined
  * if the glibc code didn't define them. This guard matches
@@ -69,12 +76,22 @@
 #define __UAPI_DEF_SOCKADDR_IN6		0
 #define __UAPI_DEF_IPV6_MREQ		0
 #define __UAPI_DEF_IPPROTO_V6		0
+#define __UAPI_DEF_IPV6_OPTIONS		0
+#define __UAPI_DEF_IN6_PKTINFO		0
+#define __UAPI_DEF_IP6_MTUINFO		0
 
 #else
 
 /* Linux headers included first, and we must define everything
  * we need. The expectation is that glibc will check the
  * __UAPI_DEF_* defines and adjust appropriately. */
+#define __UAPI_DEF_IN_ADDR		1
+#define __UAPI_DEF_IN_IPPROTO		1
+#define __UAPI_DEF_IN_PKTINFO		1
+#define __UAPI_DEF_IP_MREQ		1
+#define __UAPI_DEF_SOCKADDR_IN		1
+#define __UAPI_DEF_IN_CLASS		1
+
 #define __UAPI_DEF_IN6_ADDR		1
 /* We unconditionally define the in6_addr macros and glibc must
  * coordinate. */
@@ -82,6 +99,9 @@
 #define __UAPI_DEF_SOCKADDR_IN6		1
 #define __UAPI_DEF_IPV6_MREQ		1
 #define __UAPI_DEF_IPPROTO_V6		1
+#define __UAPI_DEF_IPV6_OPTIONS		1
+#define __UAPI_DEF_IN6_PKTINFO		1
+#define __UAPI_DEF_IP6_MTUINFO		1
 
 #endif /* _NETINET_IN_H */
 
@@ -97,12 +117,23 @@
  * that we need. */
 #else /* !defined(__GLIBC__) */
 
+/* Definitions for in.h */
+#define __UAPI_DEF_IN_ADDR		1
+#define __UAPI_DEF_IN_IPPROTO		1
+#define __UAPI_DEF_IN_PKTINFO		1
+#define __UAPI_DEF_IP_MREQ		1
+#define __UAPI_DEF_SOCKADDR_IN		1
+#define __UAPI_DEF_IN_CLASS		1
+
 /* Definitions for in6.h */
 #define __UAPI_DEF_IN6_ADDR		1
 #define __UAPI_DEF_IN6_ADDR_ALT		1
 #define __UAPI_DEF_SOCKADDR_IN6		1
 #define __UAPI_DEF_IPV6_MREQ		1
 #define __UAPI_DEF_IPPROTO_V6		1
+#define __UAPI_DEF_IPV6_OPTIONS		1
+#define __UAPI_DEF_IN6_PKTINFO		1
+#define __UAPI_DEF_IP6_MTUINFO		1
 
 /* Definitions for xattr.h */
 #define __UAPI_DEF_XATTR		1

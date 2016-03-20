@@ -466,7 +466,8 @@ static int hpc_get_adapter_speed(struct slot *slot, enum pci_bus_speed *value)
 	u8 m66_cap  = !!(slot_reg & MHZ66_CAP);
 	u8 pi, pcix_cap;
 
-	if ((retval = hpc_get_prog_int(slot, &pi)))
+	retval = hpc_get_prog_int(slot, &pi);
+	if (retval)
 		return retval;
 
 	switch (pi) {
@@ -541,7 +542,7 @@ static int hpc_set_attention_status(struct slot *slot, u8 value)
 	u8 slot_cmd = 0;
 
 	switch (value) {
-		case 0 :
+		case 0:
 			slot_cmd = SET_ATTN_OFF;	/* OFF */
 			break;
 		case 1:
@@ -798,7 +799,7 @@ static irqreturn_t shpc_isr(int irq, void *dev_id)
 
 	ctrl_dbg(ctrl, "%s: intr_loc = %x\n", __func__, intr_loc);
 
-	if(!shpchp_poll_mode) {
+	if (!shpchp_poll_mode) {
 		/*
 		 * Mask Global Interrupt Mask - see implementation
 		 * note on p. 139 of SHPC spec rev 1.0
@@ -909,7 +910,7 @@ static int shpc_get_max_bus_speed(struct controller *ctrl)
 	return retval;
 }
 
-static struct hpc_ops shpchp_hpc_ops = {
+static const struct hpc_ops shpchp_hpc_ops = {
 	.power_on_slot			= hpc_power_on_slot,
 	.slot_enable			= hpc_slot_enable,
 	.slot_disable			= hpc_slot_disable,

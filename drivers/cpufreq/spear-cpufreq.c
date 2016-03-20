@@ -236,7 +236,6 @@ out_put_node:
 static struct platform_driver spear_cpufreq_platdrv = {
 	.driver = {
 		.name	= "spear-cpufreq",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= spear_cpufreq_probe,
 };

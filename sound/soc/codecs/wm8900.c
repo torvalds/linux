@@ -224,7 +224,7 @@ static void wm8900_reset(struct snd_soc_codec *codec)
 static int wm8900_hp_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	u16 hpctl1 = snd_soc_read(codec, WM8900_REG_HPCTL1);
 
 	switch (event) {
@@ -998,8 +998,8 @@ static int wm8900_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 		      SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
 #define WM8900_PCM_FORMATS \
-	(SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S20_3LE | \
-	 SNDRV_PCM_FORMAT_S24_LE)
+	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
+	 SNDRV_PCM_FMTBIT_S24_LE)
 
 static const struct snd_soc_dai_ops wm8900_dai_ops = {
 	.hw_params	= wm8900_hw_params,
@@ -1049,7 +1049,7 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		/* Charge capacitors if initial power up */
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			/* STARTUP_BIAS_ENA on */
 			snd_soc_write(codec, WM8900_REG_POWER1,
 				     WM8900_REG_POWER1_STARTUP_BIAS_ENA);
@@ -1117,7 +1117,6 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 			     WM8900_REG_POWER2_SYSCLK_ENA);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -1138,7 +1137,7 @@ static int wm8900_suspend(struct snd_soc_codec *codec)
 	wm8900->fll_out = fll_out;
 	wm8900->fll_in = fll_in;
 
-	wm8900_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -1156,7 +1155,7 @@ static int wm8900_resume(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	wm8900_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Restart the FLL? */
 	if (wm8900->fll_out) {
@@ -1189,7 +1188,7 @@ static int wm8900_probe(struct snd_soc_codec *codec)
 	wm8900_reset(codec);
 
 	/* Turn the chip on */
-	wm8900_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Latch the volume update bits */
 	snd_soc_update_bits(codec, WM8900_REG_LINVOL, 0x100, 0x100);
@@ -1209,16 +1208,8 @@ static int wm8900_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-/* power down chip */
-static int wm8900_remove(struct snd_soc_codec *codec)
-{
-	wm8900_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8900 = {
 	.probe =	wm8900_probe,
-	.remove =	wm8900_remove,
 	.suspend =	wm8900_suspend,
 	.resume =	wm8900_resume,
 	.set_bias_level = wm8900_set_bias_level,
@@ -1275,7 +1266,6 @@ static int wm8900_spi_remove(struct spi_device *spi)
 static struct spi_driver wm8900_spi_driver = {
 	.driver = {
 		.name	= "wm8900",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= wm8900_spi_probe,
 	.remove		= wm8900_spi_remove,
@@ -1321,7 +1311,6 @@ MODULE_DEVICE_TABLE(i2c, wm8900_i2c_id);
 static struct i2c_driver wm8900_i2c_driver = {
 	.driver = {
 		.name = "wm8900",
-		.owner = THIS_MODULE,
 	},
 	.probe =    wm8900_i2c_probe,
 	.remove =   wm8900_i2c_remove,

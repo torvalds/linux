@@ -30,6 +30,8 @@
 #define CIK_RB_BITMAP_WIDTH_PER_SH     2
 #define HAWAII_RB_BITMAP_WIDTH_PER_SH  4
 
+#define RADEON_NUM_OF_VMIDS	8
+
 /* DIDT IND registers */
 #define DIDT_SQ_CTRL0                                     0x0
 #       define DIDT_CTRL_EN                               (1 << 0)
@@ -184,7 +186,10 @@
 #define		DIG_THERM_DPM(x)			((x) << 14)
 #define		DIG_THERM_DPM_MASK			0x003FC000
 #define		DIG_THERM_DPM_SHIFT			14
-
+#define	CG_THERMAL_STATUS				0xC0300008
+#define		FDO_PWM_DUTY(x)				((x) << 9)
+#define		FDO_PWM_DUTY_MASK			(0xff << 9)
+#define		FDO_PWM_DUTY_SHIFT			9
 #define	CG_THERMAL_INT					0xC030000C
 #define		CI_DIG_THERM_INTH(x)			((x) << 8)
 #define		CI_DIG_THERM_INTH_MASK			0x0000FF00
@@ -194,7 +199,10 @@
 #define		CI_DIG_THERM_INTL_SHIFT			16
 #define 	THERM_INT_MASK_HIGH			(1 << 24)
 #define 	THERM_INT_MASK_LOW			(1 << 25)
-
+#define	CG_MULT_THERMAL_CTRL				0xC0300010
+#define		TEMP_SEL(x)				((x) << 20)
+#define		TEMP_SEL_MASK				(0xff << 20)
+#define		TEMP_SEL_SHIFT				20
 #define	CG_MULT_THERMAL_STATUS				0xC0300014
 #define		ASIC_MAX_TEMP(x)			((x) << 0)
 #define		ASIC_MAX_TEMP_MASK			0x000001ff
@@ -202,6 +210,36 @@
 #define		CTF_TEMP(x)				((x) << 9)
 #define		CTF_TEMP_MASK				0x0003fe00
 #define		CTF_TEMP_SHIFT				9
+
+#define	CG_FDO_CTRL0					0xC0300064
+#define		FDO_STATIC_DUTY(x)			((x) << 0)
+#define		FDO_STATIC_DUTY_MASK			0x000000FF
+#define		FDO_STATIC_DUTY_SHIFT			0
+#define	CG_FDO_CTRL1					0xC0300068
+#define		FMAX_DUTY100(x)				((x) << 0)
+#define		FMAX_DUTY100_MASK			0x000000FF
+#define		FMAX_DUTY100_SHIFT			0
+#define	CG_FDO_CTRL2					0xC030006C
+#define		TMIN(x)					((x) << 0)
+#define		TMIN_MASK				0x000000FF
+#define		TMIN_SHIFT				0
+#define		FDO_PWM_MODE(x)				((x) << 11)
+#define		FDO_PWM_MODE_MASK			(7 << 11)
+#define		FDO_PWM_MODE_SHIFT			11
+#define		TACH_PWM_RESP_RATE(x)			((x) << 25)
+#define		TACH_PWM_RESP_RATE_MASK			(0x7f << 25)
+#define		TACH_PWM_RESP_RATE_SHIFT		25
+#define CG_TACH_CTRL                                    0xC0300070
+#       define EDGE_PER_REV(x)                          ((x) << 0)
+#       define EDGE_PER_REV_MASK                        (0x7 << 0)
+#       define EDGE_PER_REV_SHIFT                       0
+#       define TARGET_PERIOD(x)                         ((x) << 3)
+#       define TARGET_PERIOD_MASK                       0xfffffff8
+#       define TARGET_PERIOD_SHIFT                      3
+#define CG_TACH_STATUS                                  0xC0300074
+#       define TACH_PERIOD(x)                           ((x) << 0)
+#       define TACH_PERIOD_MASK                         0xffffffff
+#       define TACH_PERIOD_SHIFT                        0
 
 #define CG_ECLK_CNTL                                    0xC05000AC
 #       define ECLK_DIVIDER_MASK                        0x7f
@@ -443,6 +481,10 @@
 #define		SOFT_RESET_REGBB		       	(1 << 22)
 #define		SOFT_RESET_ORB				(1 << 23)
 #define		SOFT_RESET_VCE				(1 << 24)
+
+#define SRBM_READ_ERROR					0xE98
+#define SRBM_INT_CNTL					0xEA0
+#define SRBM_INT_ACK					0xEA8
 
 #define VM_L2_CNTL					0x1400
 #define		ENABLE_L2_CACHE					(1 << 0)
@@ -1137,6 +1179,9 @@
 #define			SH_MEM_ALIGNMENT_MODE_UNALIGNED			3
 #define		DEFAULT_MTYPE(x)				((x) << 4)
 #define		APE1_MTYPE(x)					((x) << 7)
+/* valid for both DEFAULT_MTYPE and APE1_MTYPE */
+#define	MTYPE_CACHED					0
+#define	MTYPE_NONCACHED					3
 
 #define	SX_DEBUG_1					0x9060
 
@@ -1290,6 +1335,7 @@
 #       define CNTX_EMPTY_INT_ENABLE                    (1 << 20)
 #       define PRIV_INSTR_INT_ENABLE                    (1 << 22)
 #       define PRIV_REG_INT_ENABLE                      (1 << 23)
+#       define OPCODE_ERROR_INT_ENABLE                  (1 << 24)
 #       define TIME_STAMP_INT_ENABLE                    (1 << 26)
 #       define CP_RINGID2_INT_ENABLE                    (1 << 29)
 #       define CP_RINGID1_INT_ENABLE                    (1 << 30)
@@ -1447,6 +1493,16 @@
 #define CP_HQD_ACTIVE                                     0xC91C
 #define CP_HQD_VMID                                       0xC920
 
+#define CP_HQD_PERSISTENT_STATE				0xC924u
+#define	DEFAULT_CP_HQD_PERSISTENT_STATE			(0x33U << 8)
+
+#define CP_HQD_PIPE_PRIORITY				0xC928u
+#define CP_HQD_QUEUE_PRIORITY				0xC92Cu
+#define CP_HQD_QUANTUM					0xC930u
+#define	QUANTUM_EN					1U
+#define	QUANTUM_SCALE_1MS				(1U << 4)
+#define	QUANTUM_DURATION(x)				((x) << 8)
+
 #define CP_HQD_PQ_BASE                                    0xC934
 #define CP_HQD_PQ_BASE_HI                                 0xC938
 #define CP_HQD_PQ_RPTR                                    0xC93C
@@ -1474,11 +1530,31 @@
 #define		PRIV_STATE      			(1 << 30)
 #define		KMD_QUEUE      				(1 << 31)
 
-#define CP_HQD_DEQUEUE_REQUEST                          0xC974
+#define CP_HQD_IB_BASE_ADDR				0xC95Cu
+#define CP_HQD_IB_BASE_ADDR_HI			0xC960u
+#define CP_HQD_IB_RPTR					0xC964u
+#define CP_HQD_IB_CONTROL				0xC968u
+#define	IB_ATC_EN					(1U << 23)
+#define	DEFAULT_MIN_IB_AVAIL_SIZE			(3U << 20)
+
+#define CP_HQD_DEQUEUE_REQUEST			0xC974
+#define	DEQUEUE_REQUEST_DRAIN				1
+#define DEQUEUE_REQUEST_RESET				2
 
 #define CP_MQD_CONTROL                                  0xC99C
 #define		MQD_VMID(x)				((x) << 0)
 #define		MQD_VMID_MASK      			(0xf << 0)
+
+#define CP_HQD_SEMA_CMD					0xC97Cu
+#define CP_HQD_MSG_TYPE					0xC980u
+#define CP_HQD_ATOMIC0_PREOP_LO			0xC984u
+#define CP_HQD_ATOMIC0_PREOP_HI			0xC988u
+#define CP_HQD_ATOMIC1_PREOP_LO			0xC98Cu
+#define CP_HQD_ATOMIC1_PREOP_HI			0xC990u
+#define CP_HQD_HQ_SCHEDULER0			0xC994u
+#define CP_HQD_HQ_SCHEDULER1			0xC998u
+
+#define SH_STATIC_MEM_CONFIG			0x9604u
 
 #define DB_RENDER_CONTROL                               0x28000
 
@@ -2013,6 +2089,8 @@
 #	define CLK_OD(x)				((x) << 6)
 #	define CLK_OD_MASK				(0x1f << 6)
 
+#define UVD_STATUS					0xf6bc
+
 /* UVD clocks */
 
 #define CG_DCLK_CNTL			0xC050009C
@@ -2054,6 +2132,7 @@
 #define VCE_UENC_REG_CLOCK_GATING	0x207c0
 #define VCE_SYS_INT_EN			0x21300
 #	define VCE_SYS_INT_TRAP_INTERRUPT_EN	(1 << 3)
+#define VCE_LMI_VCPU_CACHE_40BIT_BAR	0x2145c
 #define VCE_LMI_CTRL2			0x21474
 #define VCE_LMI_CTRL			0x21498
 #define VCE_LMI_VM_CTRL			0x214a0
@@ -2068,5 +2147,26 @@
 #define VCE_CMD_TRAP		0x00000004
 #define VCE_CMD_IB_AUTO		0x00000005
 #define VCE_CMD_SEMAPHORE	0x00000006
+
+#define ATC_VMID_PASID_MAPPING_UPDATE_STATUS		0x3398u
+#define ATC_VMID0_PASID_MAPPING				0x339Cu
+#define ATC_VMID_PASID_MAPPING_PASID_MASK		(0xFFFF)
+#define ATC_VMID_PASID_MAPPING_PASID_SHIFT		0
+#define ATC_VMID_PASID_MAPPING_VALID_MASK		(0x1 << 31)
+#define ATC_VMID_PASID_MAPPING_VALID_SHIFT		31
+
+#define ATC_VM_APERTURE0_CNTL					0x3310u
+#define	ATS_ACCESS_MODE_NEVER						0
+#define	ATS_ACCESS_MODE_ALWAYS						1
+
+#define ATC_VM_APERTURE0_CNTL2					0x3318u
+#define ATC_VM_APERTURE0_HIGH_ADDR				0x3308u
+#define ATC_VM_APERTURE0_LOW_ADDR				0x3300u
+#define ATC_VM_APERTURE1_CNTL					0x3314u
+#define ATC_VM_APERTURE1_CNTL2					0x331Cu
+#define ATC_VM_APERTURE1_HIGH_ADDR				0x330Cu
+#define ATC_VM_APERTURE1_LOW_ADDR				0x3304u
+
+#define IH_VMID_0_LUT						0x3D40u
 
 #endif

@@ -2,10 +2,7 @@
 #define __VIDEO_EP93XX_H
 
 struct platform_device;
-struct fb_videomode;
 struct fb_info;
-
-#define EP93XXFB_USE_MODEDB		0
 
 /* VideoAttributes flags */
 #define EP93XXFB_STATE_MACHINE_ENABLE	(1 << 0)
@@ -38,12 +35,7 @@ struct fb_info;
 					 EP93XXFB_PIXEL_DATA_ENABLE)
 
 struct ep93xxfb_mach_info {
-	unsigned int			num_modes;
-	const struct fb_videomode	*modes;
-	const struct fb_videomode	*default_mode;
-	int				bpp;
 	unsigned int			flags;
-
 	int	(*setup)(struct platform_device *pdev);
 	void	(*teardown)(struct platform_device *pdev);
 	void	(*blank)(int blank_mode, struct fb_info *info);

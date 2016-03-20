@@ -18,6 +18,7 @@
 #include <linux/efi.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/kexec.h>
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
 #include <asm/hyperv.h>
@@ -28,25 +29,26 @@
 #include <asm/i8259.h>
 #include <asm/apic.h>
 #include <asm/timer.h>
+#include <asm/reboot.h>
 
 struct ms_hyperv_info ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
 
 #if IS_ENABLED(CONFIG_HYPERV)
 static void (*vmbus_handler)(void);
+static void (*hv_kexec_handler)(void);
+static void (*hv_crash_handler)(struct pt_regs *regs);
 
 void hyperv_vector_handler(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
-	irq_enter();
-	exit_idle();
-
+	entering_irq();
 	inc_irq_stat(irq_hv_callback_count);
 	if (vmbus_handler)
 		vmbus_handler();
 
-	irq_exit();
+	exiting_irq();
 	set_irq_regs(old_regs);
 }
 
@@ -69,7 +71,47 @@ void hv_remove_vmbus_irq(void)
 }
 EXPORT_SYMBOL_GPL(hv_setup_vmbus_irq);
 EXPORT_SYMBOL_GPL(hv_remove_vmbus_irq);
-#endif
+
+void hv_setup_kexec_handler(void (*handler)(void))
+{
+	hv_kexec_handler = handler;
+}
+EXPORT_SYMBOL_GPL(hv_setup_kexec_handler);
+
+void hv_remove_kexec_handler(void)
+{
+	hv_kexec_handler = NULL;
+}
+EXPORT_SYMBOL_GPL(hv_remove_kexec_handler);
+
+void hv_setup_crash_handler(void (*handler)(struct pt_regs *regs))
+{
+	hv_crash_handler = handler;
+}
+EXPORT_SYMBOL_GPL(hv_setup_crash_handler);
+
+void hv_remove_crash_handler(void)
+{
+	hv_crash_handler = NULL;
+}
+EXPORT_SYMBOL_GPL(hv_remove_crash_handler);
+
+#ifdef CONFIG_KEXEC_CORE
+static void hv_machine_shutdown(void)
+{
+	if (kexec_in_progress && hv_kexec_handler)
+		hv_kexec_handler();
+	native_machine_shutdown();
+}
+
+static void hv_machine_crash_shutdown(struct pt_regs *regs)
+{
+	if (hv_crash_handler)
+		hv_crash_handler(regs);
+	native_machine_crash_shutdown(regs);
+}
+#endif /* CONFIG_KEXEC_CORE */
+#endif /* CONFIG_HYPERV */
 
 static uint32_t  __init ms_hyperv_platform(void)
 {
@@ -107,6 +149,7 @@ static struct clocksource hyperv_cs = {
 	.rating		= 400, /* use this when running on Hyperv*/
 	.read		= read_hv_clock,
 	.mask		= CLOCKSOURCE_MASK(64),
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 static void __init ms_hyperv_init_platform(void)
@@ -115,10 +158,11 @@ static void __init ms_hyperv_init_platform(void)
 	 * Extract the features and hints
 	 */
 	ms_hyperv.features = cpuid_eax(HYPERV_CPUID_FEATURES);
+	ms_hyperv.misc_features = cpuid_edx(HYPERV_CPUID_FEATURES);
 	ms_hyperv.hints    = cpuid_eax(HYPERV_CPUID_ENLIGHTMENT_INFO);
 
-	printk(KERN_INFO "HyperV: features 0x%x, hints 0x%x\n",
-	       ms_hyperv.features, ms_hyperv.hints);
+	pr_info("HyperV: features 0x%x, hints 0x%x\n",
+		ms_hyperv.features, ms_hyperv.hints);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	if (ms_hyperv.features & HV_X64_MSR_APIC_FREQUENCY_AVAILABLE) {
@@ -130,8 +174,8 @@ static void __init ms_hyperv_init_platform(void)
 		rdmsrl(HV_X64_MSR_APIC_FREQUENCY, hv_lapic_frequency);
 		hv_lapic_frequency = div_u64(hv_lapic_frequency, HZ);
 		lapic_timer_frequency = hv_lapic_frequency;
-		printk(KERN_INFO "HyperV: LAPIC Timer Frequency: %#x\n",
-				lapic_timer_frequency);
+		pr_info("HyperV: LAPIC Timer Frequency: %#x\n",
+			lapic_timer_frequency);
 	}
 #endif
 
@@ -142,6 +186,11 @@ static void __init ms_hyperv_init_platform(void)
 	no_timer_check = 1;
 #endif
 
+#if IS_ENABLED(CONFIG_HYPERV) && defined(CONFIG_KEXEC_CORE)
+	machine_ops.shutdown = hv_machine_shutdown;
+	machine_ops.crash_shutdown = hv_machine_crash_shutdown;
+#endif
+	mark_tsc_unstable("running on Hyper-V");
 }
 
 const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {

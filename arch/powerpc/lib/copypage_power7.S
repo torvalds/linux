@@ -83,23 +83,23 @@ _GLOBAL(copypage_power7)
 	li	r12,112
 
 	.align	5
-1:	lvx	vr7,r0,r4
-	lvx	vr6,r4,r6
-	lvx	vr5,r4,r7
-	lvx	vr4,r4,r8
-	lvx	vr3,r4,r9
-	lvx	vr2,r4,r10
-	lvx	vr1,r4,r11
-	lvx	vr0,r4,r12
+1:	lvx	v7,r0,r4
+	lvx	v6,r4,r6
+	lvx	v5,r4,r7
+	lvx	v4,r4,r8
+	lvx	v3,r4,r9
+	lvx	v2,r4,r10
+	lvx	v1,r4,r11
+	lvx	v0,r4,r12
 	addi	r4,r4,128
-	stvx	vr7,r0,r3
-	stvx	vr6,r3,r6
-	stvx	vr5,r3,r7
-	stvx	vr4,r3,r8
-	stvx	vr3,r3,r9
-	stvx	vr2,r3,r10
-	stvx	vr1,r3,r11
-	stvx	vr0,r3,r12
+	stvx	v7,r0,r3
+	stvx	v6,r3,r6
+	stvx	v5,r3,r7
+	stvx	v4,r3,r8
+	stvx	v3,r3,r9
+	stvx	v2,r3,r10
+	stvx	v1,r3,r11
+	stvx	v0,r3,r12
 	addi	r3,r3,128
 	bdnz	1b
 

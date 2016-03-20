@@ -27,8 +27,8 @@ DEFINE_SPINLOCK(key_serial_lock);
 struct rb_root	key_user_tree; /* tree of quota records indexed by UID */
 DEFINE_SPINLOCK(key_user_lock);
 
-unsigned int key_quota_root_maxkeys = 200;	/* root's key count quota */
-unsigned int key_quota_root_maxbytes = 20000;	/* root's key space quota */
+unsigned int key_quota_root_maxkeys = 1000000;	/* root's key count quota */
+unsigned int key_quota_root_maxbytes = 25000000; /* root's key space quota */
 unsigned int key_quota_maxkeys = 200;		/* general key count quota */
 unsigned int key_quota_maxbytes = 20000;	/* general key space quota */
 
@@ -276,12 +276,10 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	if (!key)
 		goto no_memory_2;
 
-	if (desc) {
-		key->index_key.desc_len = desclen;
-		key->index_key.description = kmemdup(desc, desclen + 1, GFP_KERNEL);
-		if (!key->description)
-			goto no_memory_3;
-	}
+	key->index_key.desc_len = desclen;
+	key->index_key.description = kmemdup(desc, desclen + 1, GFP_KERNEL);
+	if (!key->index_key.description)
+		goto no_memory_3;
 
 	atomic_set(&key->usage, 1);
 	init_rwsem(&key->sem);
@@ -298,6 +296,8 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 		key->flags |= 1 << KEY_FLAG_IN_QUOTA;
 	if (flags & KEY_ALLOC_TRUSTED)
 		key->flags |= 1 << KEY_FLAG_TRUSTED;
+	if (flags & KEY_ALLOC_BUILT_IN)
+		key->flags |= 1 << KEY_FLAG_BUILTIN;
 
 #ifdef KEY_DEBUGGING
 	key->magic = KEY_DEBUG_MAGIC;
@@ -431,8 +431,12 @@ static int __key_instantiate_and_link(struct key *key,
 				awaken = 1;
 
 			/* and link it into the destination keyring */
-			if (keyring)
+			if (keyring) {
+				if (test_bit(KEY_FLAG_KEEP, &keyring->flags))
+					set_bit(KEY_FLAG_KEEP, &key->flags);
+
 				__key_link(key, _edit);
+			}
 
 			/* disable the authorisation key */
 			if (authkey)
@@ -556,7 +560,7 @@ int key_reject_and_link(struct key *key,
 	if (!test_bit(KEY_FLAG_INSTANTIATED, &key->flags)) {
 		/* mark the key as being negatively instantiated */
 		atomic_inc(&key->user->nikeys);
-		key->type_data.reject_error = -error;
+		key->reject_error = -error;
 		smp_wmb();
 		set_bit(KEY_FLAG_NEGATIVE, &key->flags);
 		set_bit(KEY_FLAG_INSTANTIATED, &key->flags);
@@ -799,7 +803,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	}
 
 	key_ref = ERR_PTR(-EINVAL);
-	if (!index_key.type->match || !index_key.type->instantiate ||
+	if (!index_key.type->instantiate ||
 	    (!index_key.description && !index_key.type->preparse))
 		goto error_put_type;
 
@@ -1048,14 +1052,14 @@ int generic_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 
 	ret = key_payload_reserve(key, prep->quotalen);
 	if (ret == 0) {
-		key->type_data.p[0] = prep->type_data[0];
-		key->type_data.p[1] = prep->type_data[1];
-		rcu_assign_keypointer(key, prep->payload[0]);
-		key->payload.data2[1] = prep->payload[1];
-		prep->type_data[0] = NULL;
-		prep->type_data[1] = NULL;
-		prep->payload[0] = NULL;
-		prep->payload[1] = NULL;
+		rcu_assign_keypointer(key, prep->payload.data[0]);
+		key->payload.data[1] = prep->payload.data[1];
+		key->payload.data[2] = prep->payload.data[2];
+		key->payload.data[3] = prep->payload.data[3];
+		prep->payload.data[0] = NULL;
+		prep->payload.data[1] = NULL;
+		prep->payload.data[2] = NULL;
+		prep->payload.data[3] = NULL;
 	}
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;

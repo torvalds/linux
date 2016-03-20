@@ -51,7 +51,6 @@
 	wl = __wl;					\
 })
 
-#ifdef CONFIG_64BIT
 #define udiv_qrnnd(q, r, n1, n0, d)			\
   do { unsigned long __n;				\
        unsigned int __r, __d;				\
@@ -60,15 +59,6 @@
     (q) = __n / __d;					\
     (r) = __n % __d;					\
   } while (0)
-#else
-#define udiv_qrnnd(q, r, n1, n0, d)			\
-  do { unsigned int __r;				\
-    (q) = __udiv_qrnnd (&__r, (n1), (n0), (d));		\
-    (r) = __r;						\
-  } while (0)
-extern unsigned long __udiv_qrnnd (unsigned int *, unsigned int,
-				   unsigned int , unsigned int);
-#endif
 
 #define UDIV_NEEDS_NORMALIZATION 0
 

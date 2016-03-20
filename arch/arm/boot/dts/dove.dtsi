@@ -1,5 +1,8 @@
 /include/ "skeleton.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
 #define MBUS_ID(target,attributes) (((target) << 24) | ((attributes) << 16))
 
 / {
@@ -28,6 +31,48 @@
 	l2: l2-cache {
 		compatible = "marvell,tauros2-cache";
 		marvell,tauros2-cache-features = <0>;
+	};
+
+	gpu-subsystem {
+		compatible = "marvell,dove-gpu-subsystem";
+		cores = <&gpu>;
+		status = "disabled";
+	};
+
+	i2c-mux {
+		compatible = "i2c-mux-pinctrl";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c-parent = <&i2c>;
+
+		pinctrl-names = "i2c0", "i2c1", "i2c2";
+		pinctrl-0 = <&pmx_i2cmux_0>;
+		pinctrl-1 = <&pmx_i2cmux_1>;
+		pinctrl-2 = <&pmx_i2cmux_2>;
+
+		i2c0: i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+		};
+
+		i2c1: i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			/* Requires pmx_i2c1 on i2c controller node */
+			status = "disabled";
+		};
+
+		i2c2: i2c@2 {
+			reg = <2>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			/* Requires pmx_i2c2 on i2c controller node */
+			status = "disabled";
+		};
 	};
 
 	mbus {
@@ -61,7 +106,7 @@
 				  0x82000000 0x2 0x0 MBUS_ID(0x08, 0xe8) 0 1 0   /* Port 1.0 Mem */
 				  0x81000000 0x2 0x0 MBUS_ID(0x08, 0xe0) 0 1 0>; /* Port 1.0 I/O */
 
-			pcie-port@0 {
+			pcie0: pcie-port@0 {
 				device_type = "pci";
 				status = "disabled";
 				assigned-addresses = <0x82000800 0 0x40000 0 0x2000>;
@@ -79,7 +124,7 @@
 				interrupt-map = <0 0 0 0 &intc 16>;
 			};
 
-			pcie-port@1 {
+			pcie1: pcie-port@1 {
 				device_type = "pci";
 				status = "disabled";
 				assigned-addresses = <0x82002800 0 0x80000 0 0x2000>;
@@ -120,7 +165,7 @@
 				status = "disabled";
 			};
 
-			i2c0: i2c-ctrl@11000 {
+			i2c: i2c-ctrl@11000 {
 				compatible = "marvell,mv64xxx-i2c";
 				reg = <0x11000 0x20>;
 				#address-cells = <1>;
@@ -129,7 +174,7 @@
 				clock-frequency = <400000>;
 				timeout-ms = <1000>;
 				clocks = <&core_clk 0>;
-				status = "disabled";
+				status = "okay";
 			};
 
 			uart0: serial@12000 {
@@ -154,7 +199,7 @@
 
 			uart2: serial@12200 {
 				compatible = "ns16550a";
-				reg = <0x12000 0x100>;
+				reg = <0x12200 0x100>;
 				reg-shift = <2>;
 				interrupts = <9>;
 				clocks = <&core_clk 0>;
@@ -163,7 +208,7 @@
 
 			uart3: serial@12300 {
 				compatible = "ns16550a";
-				reg = <0x12100 0x100>;
+				reg = <0x12300 0x100>;
 				reg-shift = <2>;
 				interrupts = <10>;
 				clocks = <&core_clk 0>;
@@ -224,12 +269,13 @@
 			};
 
 			crypto: crypto-engine@30000 {
-				compatible = "marvell,orion-crypto";
-				reg = <0x30000 0x10000>,
-				      <0xffffe000 0x800>;
-				reg-names = "regs", "sram";
+				compatible = "marvell,dove-crypto";
+				reg = <0x30000 0x10000>;
+				reg-names = "regs";
 				interrupts = <31>;
 				clocks = <&gate_clk 15>;
+				marvell,crypto-srams = <&crypto_sram>;
+				marvell,crypto-sram-size = <0x800>;
 				status = "okay";
 			};
 
@@ -380,241 +426,331 @@
 				status = "disabled";
 			};
 
-			thermal: thermal-diode@d001c {
-				compatible = "marvell,dove-thermal";
-				reg = <0xd001c 0x0c>, <0xd005c 0x08>;
-			};
-
-			gate_clk: clock-gating-ctrl@d0038 {
-				compatible = "marvell,dove-gating-clock";
-				reg = <0xd0038 0x4>;
-				clocks = <&core_clk 0>;
-				#clock-cells = <1>;
-			};
-
-			pinctrl: pin-ctrl@d0200 {
-				compatible = "marvell,dove-pinctrl";
-				reg = <0xd0200 0x14>,
-				      <0xd0440 0x04>;
-				clocks = <&gate_clk 22>;
-
-				pmx_gpio_0: pmx-gpio-0 {
-					marvell,pins = "mpp0";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_1: pmx-gpio-1 {
-					marvell,pins = "mpp1";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_2: pmx-gpio-2 {
-					marvell,pins = "mpp2";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_3: pmx-gpio-3 {
-					marvell,pins = "mpp3";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_4: pmx-gpio-4 {
-					marvell,pins = "mpp4";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_5: pmx-gpio-5 {
-					marvell,pins = "mpp5";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_6: pmx-gpio-6 {
-					marvell,pins = "mpp6";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_7: pmx-gpio-7 {
-					marvell,pins = "mpp7";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_8: pmx-gpio-8 {
-					marvell,pins = "mpp8";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_9: pmx-gpio-9 {
-					marvell,pins = "mpp9";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_10: pmx-gpio-10 {
-					marvell,pins = "mpp10";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_11: pmx-gpio-11 {
-					marvell,pins = "mpp11";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_12: pmx-gpio-12 {
-					marvell,pins = "mpp12";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_13: pmx-gpio-13 {
-					marvell,pins = "mpp13";
-					marvell,function = "gpio";
-				};
-
-				pmx_audio1_extclk: pmx-audio1-extclk {
-					marvell,pins = "mpp13";
-					marvell,function = "audio1";
-				};
-
-				pmx_gpio_14: pmx-gpio-14 {
-					marvell,pins = "mpp14";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_15: pmx-gpio-15 {
-					marvell,pins = "mpp15";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_16: pmx-gpio-16 {
-					marvell,pins = "mpp16";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_17: pmx-gpio-17 {
-					marvell,pins = "mpp17";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_18: pmx-gpio-18 {
-					marvell,pins = "mpp18";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_19: pmx-gpio-19 {
-					marvell,pins = "mpp19";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_20: pmx-gpio-20 {
-					marvell,pins = "mpp20";
-					marvell,function = "gpio";
-				};
-
-				pmx_gpio_21: pmx-gpio-21 {
-					marvell,pins = "mpp21";
-					marvell,function = "gpio";
-				};
-
-				pmx_camera: pmx-camera {
-					marvell,pins = "mpp_camera";
-					marvell,function = "camera";
-				};
-
-				pmx_camera_gpio: pmx-camera-gpio {
-					marvell,pins = "mpp_camera";
-					marvell,function = "gpio";
-				};
-
-				pmx_sdio0: pmx-sdio0 {
-					marvell,pins = "mpp_sdio0";
-					marvell,function = "sdio0";
-				};
-
-				pmx_sdio0_gpio: pmx-sdio0-gpio {
-					marvell,pins = "mpp_sdio0";
-					marvell,function = "gpio";
-				};
-
-				pmx_sdio1: pmx-sdio1 {
-					marvell,pins = "mpp_sdio1";
-					marvell,function = "sdio1";
-				};
-
-				pmx_sdio1_gpio: pmx-sdio1-gpio {
-					marvell,pins = "mpp_sdio1";
-					marvell,function = "gpio";
-				};
-
-				pmx_audio1_gpio: pmx-audio1-gpio {
-					marvell,pins = "mpp_audio1";
-					marvell,function = "gpio";
-				};
-
-				pmx_audio1_i2s1_spdifo: pmx-audio1-i2s1-spdifo {
-					marvell,pins = "mpp_audio1";
-					marvell,function = "i2s1/spdifo";
-				};
-
-				pmx_spi0: pmx-spi0 {
-					marvell,pins = "mpp_spi0";
-					marvell,function = "spi0";
-				};
-
-				pmx_spi0_gpio: pmx-spi0-gpio {
-					marvell,pins = "mpp_spi0";
-					marvell,function = "gpio";
-				};
-
-				pmx_uart1: pmx-uart1 {
-					marvell,pins = "mpp_uart1";
-					marvell,function = "uart1";
-				};
-
-				pmx_uart1_gpio: pmx-uart1-gpio {
-					marvell,pins = "mpp_uart1";
-					marvell,function = "gpio";
-				};
-
-				pmx_nand: pmx-nand {
-					marvell,pins = "mpp_nand";
-					marvell,function = "nand";
-				};
-
-				pmx_nand_gpo: pmx-nand-gpo {
-					marvell,pins = "mpp_nand";
-					marvell,function = "gpo";
-				};
-			};
-
-			core_clk: core-clocks@d0214 {
-				compatible = "marvell,dove-core-clock";
-				reg = <0xd0214 0x4>;
-				#clock-cells = <1>;
-			};
-
-			gpio0: gpio-ctrl@d0400 {
-				compatible = "marvell,orion-gpio";
-				#gpio-cells = <2>;
-				gpio-controller;
-				reg = <0xd0400 0x20>;
-				ngpios = <32>;
+			pmu: power-management@d0000 {
+				compatible = "marvell,dove-pmu", "simple-bus";
+				reg = <0xd0000 0x8000>, <0xd8000 0x8000>;
+				ranges = <0x00000000 0x000d0000 0x8000
+					  0x00008000 0x000d8000 0x8000>;
+				interrupts = <33>;
 				interrupt-controller;
-				#interrupt-cells = <2>;
-				interrupts = <12>, <13>, <14>, <60>;
-			};
+				#address-cells = <1>;
+				#size-cells = <1>;
+				#interrupt-cells = <1>;
+				#reset-cells = <1>;
 
-			gpio1: gpio-ctrl@d0420 {
-				compatible = "marvell,orion-gpio";
-				#gpio-cells = <2>;
-				gpio-controller;
-				reg = <0xd0420 0x20>;
-				ngpios = <32>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-				interrupts = <61>;
-			};
+				domains {
+					vpu_domain: vpu-domain {
+						#power-domain-cells = <0>;
+						marvell,pmu_pwr_mask = <0x00000008>;
+						marvell,pmu_iso_mask = <0x00000001>;
+						resets = <&pmu 16>;
+					};
 
-			rtc: real-time-clock@d8500 {
-				compatible = "marvell,orion-rtc";
-				reg = <0xd8500 0x20>;
+					gpu_domain: gpu-domain {
+						#power-domain-cells = <0>;
+						marvell,pmu_pwr_mask = <0x00000004>;
+						marvell,pmu_iso_mask = <0x00000002>;
+						resets = <&pmu 18>;
+					};
+				};
+
+				thermal: thermal-diode@001c {
+					compatible = "marvell,dove-thermal";
+					reg = <0x001c 0x0c>, <0x005c 0x08>;
+				};
+
+				gate_clk: clock-gating-ctrl@0038 {
+					compatible = "marvell,dove-gating-clock";
+					reg = <0x0038 0x4>;
+					clocks = <&core_clk 0>;
+					#clock-cells = <1>;
+				};
+
+				divider_clk: core-clock@0064 {
+					compatible = "marvell,dove-divider-clock";
+					reg = <0x0064 0x8>;
+					#clock-cells = <1>;
+				};
+
+				pinctrl: pin-ctrl@0200 {
+					compatible = "marvell,dove-pinctrl";
+					reg = <0x0200 0x14>,
+					      <0x0440 0x04>;
+					clocks = <&gate_clk 22>;
+
+					pmx_gpio_0: pmx-gpio-0 {
+						marvell,pins = "mpp0";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_1: pmx-gpio-1 {
+						marvell,pins = "mpp1";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_2: pmx-gpio-2 {
+						marvell,pins = "mpp2";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_3: pmx-gpio-3 {
+						marvell,pins = "mpp3";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_4: pmx-gpio-4 {
+						marvell,pins = "mpp4";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_5: pmx-gpio-5 {
+						marvell,pins = "mpp5";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_6: pmx-gpio-6 {
+						marvell,pins = "mpp6";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_7: pmx-gpio-7 {
+						marvell,pins = "mpp7";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_8: pmx-gpio-8 {
+						marvell,pins = "mpp8";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_9: pmx-gpio-9 {
+						marvell,pins = "mpp9";
+						marvell,function = "gpio";
+					};
+
+					pmx_pcie1_clkreq: pmx-pcie1-clkreq {
+						marvell,pins = "mpp9";
+						marvell,function = "pex1";
+					};
+
+					pmx_gpio_10: pmx-gpio-10 {
+						marvell,pins = "mpp10";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_11: pmx-gpio-11 {
+						marvell,pins = "mpp11";
+						marvell,function = "gpio";
+					};
+
+					pmx_pcie0_clkreq: pmx-pcie0-clkreq {
+						marvell,pins = "mpp11";
+						marvell,function = "pex0";
+					};
+
+					pmx_gpio_12: pmx-gpio-12 {
+						marvell,pins = "mpp12";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_13: pmx-gpio-13 {
+						marvell,pins = "mpp13";
+						marvell,function = "gpio";
+					};
+
+					pmx_audio1_extclk: pmx-audio1-extclk {
+						marvell,pins = "mpp13";
+						marvell,function = "audio1";
+					};
+
+					pmx_gpio_14: pmx-gpio-14 {
+						marvell,pins = "mpp14";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_15: pmx-gpio-15 {
+						marvell,pins = "mpp15";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_16: pmx-gpio-16 {
+						marvell,pins = "mpp16";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_17: pmx-gpio-17 {
+						marvell,pins = "mpp17";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_18: pmx-gpio-18 {
+						marvell,pins = "mpp18";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_19: pmx-gpio-19 {
+						marvell,pins = "mpp19";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_20: pmx-gpio-20 {
+						marvell,pins = "mpp20";
+						marvell,function = "gpio";
+					};
+
+					pmx_gpio_21: pmx-gpio-21 {
+						marvell,pins = "mpp21";
+						marvell,function = "gpio";
+					};
+
+					pmx_camera: pmx-camera {
+						marvell,pins = "mpp_camera";
+						marvell,function = "camera";
+					};
+
+					pmx_camera_gpio: pmx-camera-gpio {
+						marvell,pins = "mpp_camera";
+						marvell,function = "gpio";
+					};
+
+					pmx_sdio0: pmx-sdio0 {
+						marvell,pins = "mpp_sdio0";
+						marvell,function = "sdio0";
+					};
+
+					pmx_sdio0_gpio: pmx-sdio0-gpio {
+						marvell,pins = "mpp_sdio0";
+						marvell,function = "gpio";
+					};
+
+					pmx_sdio1: pmx-sdio1 {
+						marvell,pins = "mpp_sdio1";
+						marvell,function = "sdio1";
+					};
+
+					pmx_sdio1_gpio: pmx-sdio1-gpio {
+						marvell,pins = "mpp_sdio1";
+						marvell,function = "gpio";
+					};
+
+					pmx_audio1_gpio: pmx-audio1-gpio {
+						marvell,pins = "mpp_audio1";
+						marvell,function = "gpio";
+					};
+
+					pmx_audio1_i2s1_spdifo: pmx-audio1-i2s1-spdifo {
+						marvell,pins = "mpp_audio1";
+						marvell,function = "i2s1/spdifo";
+					};
+
+					pmx_spi0: pmx-spi0 {
+						marvell,pins = "mpp_spi0";
+						marvell,function = "spi0";
+					};
+
+					pmx_spi0_gpio: pmx-spi0-gpio {
+						marvell,pins = "mpp_spi0";
+						marvell,function = "gpio";
+					};
+
+					pmx_spi1_4_7: pmx-spi1-4-7 {
+						marvell,pins = "mpp4", "mpp5",
+							"mpp6", "mpp7";
+						marvell,function = "spi1";
+					};
+
+					pmx_spi1_20_23: pmx-spi1-20-23 {
+						marvell,pins = "mpp20", "mpp21",
+							"mpp22", "mpp23";
+						marvell,function = "spi1";
+					};
+
+					pmx_uart1: pmx-uart1 {
+						marvell,pins = "mpp_uart1";
+						marvell,function = "uart1";
+					};
+
+					pmx_uart1_gpio: pmx-uart1-gpio {
+						marvell,pins = "mpp_uart1";
+						marvell,function = "gpio";
+					};
+
+					pmx_nand: pmx-nand {
+						marvell,pins = "mpp_nand";
+						marvell,function = "nand";
+					};
+
+					pmx_nand_gpo: pmx-nand-gpo {
+						marvell,pins = "mpp_nand";
+						marvell,function = "gpo";
+					};
+
+					pmx_i2c1: pmx-i2c1 {
+						marvell,pins = "mpp17", "mpp19";
+						marvell,function = "twsi";
+					};
+
+					pmx_i2c2: pmx-i2c2 {
+						marvell,pins = "mpp_audio1";
+						marvell,function = "twsi";
+					};
+
+					pmx_ssp_i2c2: pmx-ssp-i2c2 {
+						marvell,pins = "mpp_audio1";
+						marvell,function = "ssp/twsi";
+					};
+
+					pmx_i2cmux_0: pmx-i2cmux-0 {
+						marvell,pins = "twsi";
+						marvell,function = "twsi-opt1";
+					};
+
+					pmx_i2cmux_1: pmx-i2cmux-1 {
+						marvell,pins = "twsi";
+						marvell,function = "twsi-opt2";
+					};
+
+					pmx_i2cmux_2: pmx-i2cmux-2 {
+						marvell,pins = "twsi";
+						marvell,function = "twsi-opt3";
+					};
+				};
+
+				core_clk: core-clocks@0214 {
+					compatible = "marvell,dove-core-clock";
+					reg = <0x0214 0x4>;
+					#clock-cells = <1>;
+				};
+
+				gpio0: gpio-ctrl@0400 {
+					compatible = "marvell,orion-gpio";
+					#gpio-cells = <2>;
+					gpio-controller;
+					reg = <0x0400 0x20>;
+					ngpios = <32>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					interrupt-parent = <&intc>;
+					interrupts = <12>, <13>, <14>, <60>;
+				};
+
+				gpio1: gpio-ctrl@0420 {
+					compatible = "marvell,orion-gpio";
+					#gpio-cells = <2>;
+					gpio-controller;
+					reg = <0x0420 0x20>;
+					ngpios = <32>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					interrupt-parent = <&intc>;
+					interrupts = <61>;
+				};
+
+				rtc: real-time-clock@8500 {
+					compatible = "marvell,orion-rtc";
+					reg = <0x8500 0x20>;
+					interrupts = <5>;
+				};
 			};
 
 			gconf: global-config@e802c {
@@ -642,6 +778,24 @@
 				compatible = "marvell,dove-lcd";
 				reg = <0x820000 0x1000>;
 				interrupts = <47>;
+				status = "disabled";
+			};
+
+			crypto_sram: sa-sram@ffffe000 {
+				compatible = "mmio-sram";
+				reg = <0xffffe000 0x800>;
+				clocks = <&gate_clk 15>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+			};
+
+			gpu: gpu@840000 {
+				clocks = <&divider_clk 1>;
+				clock-names = "core";
+				compatible = "vivante,gc";
+				interrupts = <48>;
+				power-domains = <&gpu_domain>;
+				reg = <0x840000 0x4000>;
 				status = "disabled";
 			};
 		};

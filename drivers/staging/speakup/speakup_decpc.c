@@ -24,10 +24,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/jiffies.h>
 #include <linux/sched.h>
@@ -88,8 +84,9 @@
 #define	CTRL_last_index		0x0b00	/*   get last index spoken */
 #define	CTRL_io_priority	0x0c00	/*   change i/o priority */
 #define	CTRL_free_mem		0x0d00	/*   get free paragraphs on module */
-#define	CTRL_get_lang		0x0e00	/*   return bit mask of loaded
-					 *   languages */
+#define	CTRL_get_lang		0x0e00	/* return bit mask of loaded
+						 * languages
+						 */
 #define	CMD_test			0x2000		/* self-test request */
 #define	TEST_mask		0x0F00	/* isolate test field */
 #define	TEST_null		0x0000	/* no test requested */
@@ -260,6 +257,7 @@ static void dt_sendcmd(u_int cmd)
 static int dt_waitbit(int bit)
 {
 	int timeout = 100;
+
 	while (--timeout > 0) {
 		if ((dt_getstatus() & bit) == bit)
 			return 1;
@@ -271,6 +269,7 @@ static int dt_waitbit(int bit)
 static int dt_wait_dma(void)
 {
 	int timeout = 100, state = dma_state;
+
 	if (!dt_waitbit(STAT_dma_ready))
 		return 0;
 	while (--timeout > 0) {
@@ -285,6 +284,7 @@ static int dt_wait_dma(void)
 static int dt_ctrl(u_int cmd)
 {
 	int timeout = 10;
+
 	if (!dt_waitbit(STAT_cmd_ready))
 		return -1;
 	outb_p(0, speakup_info.port_tts+2);
@@ -304,6 +304,7 @@ static int dt_ctrl(u_int cmd)
 static void synth_flush(struct spk_synth *synth)
 {
 	int timeout = 10;
+
 	if (is_flushing)
 		return;
 	is_flushing = 4;
@@ -346,6 +347,7 @@ static int dt_sendchar(char ch)
 static int testkernel(void)
 {
 	int status = 0;
+
 	if (dt_getstatus() == 0xffff) {
 		status = -1;
 		goto oops;
@@ -415,13 +417,15 @@ static void do_catch_up(struct spk_synth *synth)
 		else if (ch <= SPACE) {
 			if (!in_escape && strchr(",.!?;:", last))
 				dt_sendchar(PROCSPEECH);
-			if (jiffies >= jiff_max) {
+			if (time_after_eq(jiffies, jiff_max)) {
 				if (!in_escape)
 					dt_sendchar(PROCSPEECH);
-				spin_lock_irqsave(&speakup_info.spinlock, flags);
+				spin_lock_irqsave(&speakup_info.spinlock,
+							flags);
 				jiffy_delta_val = jiffy_delta->u.n.value;
 				delay_time_val = delay_time->u.n.value;
-				spin_unlock_irqrestore(&speakup_info.spinlock, flags);
+				spin_unlock_irqrestore(&speakup_info.spinlock,
+							flags);
 				schedule_timeout(msecs_to_jiffies
 						 (delay_time_val));
 				jiff_max = jiffies + jiffy_delta_val;
@@ -437,6 +441,7 @@ static void do_catch_up(struct spk_synth *synth)
 static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 {
 	u_char ch;
+
 	while ((ch = *buf)) {
 		if (ch == '\n')
 			ch = PROCSPEECH;
@@ -450,6 +455,7 @@ static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 static int synth_probe(struct spk_synth *synth)
 {
 	int i = 0, failed = 0;
+
 	pr_info("Probing for %s.\n", synth->long_name);
 	for (i = 0; synth_portlist[i]; i++) {
 		if (synth_request_region(synth_portlist[i], SYNTH_IO_EXTENT)) {
@@ -484,21 +490,10 @@ module_param_named(start, synth_dec_pc.startup, short, S_IRUGO);
 
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
-static int __init decpc_init(void)
-{
-	return synth_add(&synth_dec_pc);
-}
+module_spk_synth(synth_dec_pc);
 
-static void __exit decpc_exit(void)
-{
-	synth_remove(&synth_dec_pc);
-}
-
-module_init(decpc_init);
-module_exit(decpc_exit);
 MODULE_AUTHOR("Kirk Reiser <kirk@braille.uwo.ca>");
 MODULE_AUTHOR("David Borowski");
 MODULE_DESCRIPTION("Speakup support for DECtalk PC synthesizers");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-

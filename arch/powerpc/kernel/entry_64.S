@@ -19,6 +19,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <asm/unistd.h>
 #include <asm/processor.h>
 #include <asm/page.h>
@@ -34,6 +35,7 @@
 #include <asm/ftrace.h>
 #include <asm/hw_irq.h>
 #include <asm/context_tracking.h>
+#include <asm/tm.h>
 
 /*
  * System calls.
@@ -49,10 +51,14 @@ exception_marker:
 	.section	".text"
 	.align 7
 
-#undef SHOW_SYSCALLS
-
 	.globl system_call_common
 system_call_common:
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+BEGIN_FTR_SECTION
+	extrdi.	r10, r12, 1, (63-MSR_TS_T_LG) /* transaction active? */
+	bne	tabort_syscall
+END_FTR_SECTION_IFSET(CPU_FTR_TM)
+#endif
 	andi.	r10,r12,MSR_PR
 	mr	r10,r1
 	addi	r1,r1,-INT_FRAME_SIZE
@@ -142,18 +148,10 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	li	r10,1
 	std	r10,SOFTE(r1)
 
-#ifdef SHOW_SYSCALLS
-	bl	do_show_syscall
-	REST_GPR(0,r1)
-	REST_4GPRS(3,r1)
-	REST_2GPRS(7,r1)
-	addi	r9,r1,STACK_FRAME_OVERHEAD
-#endif
 	CURRENT_THREAD_INFO(r11, r1)
 	ld	r10,TI_FLAGS(r11)
-	andi.	r11,r10,_TIF_SYSCALL_T_OR_A
-	bne	syscall_dotrace
-.Lsyscall_dotrace_cont:
+	andi.	r11,r10,_TIF_SYSCALL_DOTRACE
+	bne	syscall_dotrace		/* does not return */
 	cmpldi	0,r0,NR_syscalls
 	bge-	syscall_enosys
 
@@ -178,12 +176,8 @@ system_call:			/* label this so stack traces look sane */
 	mtctr   r12
 	bctrl			/* Call handler */
 
-syscall_exit:
+.Lsyscall_exit:
 	std	r3,RESULT(r1)
-#ifdef SHOW_SYSCALLS
-	bl	do_show_syscall_exit
-	ld	r3,RESULT(r1)
-#endif
 	CURRENT_THREAD_INFO(r12, r1)
 
 	ld	r8,_MSR(r1)
@@ -213,10 +207,32 @@ syscall_exit:
 #endif /* CONFIG_PPC_BOOK3E */
 
 	ld	r9,TI_FLAGS(r12)
-	li	r11,-_LAST_ERRNO
-	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
+	li	r11,-MAX_ERRNO
+	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
 	bne-	syscall_exit_work
-	cmpld	r3,r11
+
+	andi.	r0,r8,MSR_FP
+	beq 2f
+#ifdef CONFIG_ALTIVEC
+	andis.	r0,r8,MSR_VEC@h
+	bne	3f
+#endif
+2:	addi    r3,r1,STACK_FRAME_OVERHEAD
+#ifdef CONFIG_PPC_BOOK3S
+	mtmsrd	r10,1		/* Restore RI */
+#endif
+	bl	restore_math
+#ifdef CONFIG_PPC_BOOK3S
+	ld	r10,PACAKMSR(r13)
+	li	r9,MSR_RI
+	andc	r11,r10,r9 /* Re-clear RI */
+	mtmsrd	r11,1
+#endif
+	ld	r8,_MSR(r1)
+	ld	r3,RESULT(r1)
+	li	r11,-MAX_ERRNO
+
+3:	cmpld	r3,r11
 	ld	r5,_CCR(r1)
 	bge-	syscall_error
 .Lsyscall_error_cont:
@@ -229,7 +245,11 @@ END_FTR_SECTION_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 
 	beq-	1f
 	ACCOUNT_CPU_USER_EXIT(r11, r12)
-	HMT_MEDIUM_LOW_HAS_PPR
+
+BEGIN_FTR_SECTION
+	HMT_MEDIUM_LOW
+END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
+
 	ld	r13,GPR13(r1)	/* only restore r13 if returning to usermode */
 1:	ld	r2,GPR2(r1)
 	ld	r1,GPR1(r1)
@@ -251,26 +271,38 @@ syscall_dotrace:
 	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_syscall_trace_enter
+
 	/*
-	 * Restore argument registers possibly just changed.
-	 * We use the return value of do_syscall_trace_enter
-	 * for the call number to look up in the table (r0).
+	 * We use the return value of do_syscall_trace_enter() as the syscall
+	 * number. If the syscall was rejected for any reason do_syscall_trace_enter()
+	 * returns an invalid syscall number and the test below against
+	 * NR_syscalls will fail.
 	 */
 	mr	r0,r3
+
+	/* Restore argument registers just clobbered and/or possibly changed. */
 	ld	r3,GPR3(r1)
 	ld	r4,GPR4(r1)
 	ld	r5,GPR5(r1)
 	ld	r6,GPR6(r1)
 	ld	r7,GPR7(r1)
 	ld	r8,GPR8(r1)
+
+	/* Repopulate r9 and r10 for the system_call path */
 	addi	r9,r1,STACK_FRAME_OVERHEAD
 	CURRENT_THREAD_INFO(r10, r1)
 	ld	r10,TI_FLAGS(r10)
-	b	.Lsyscall_dotrace_cont
+
+	cmpldi	r0,NR_syscalls
+	blt+	system_call
+
+	/* Return code is already in r3 thanks to do_syscall_trace_enter() */
+	b	.Lsyscall_exit
+
 
 syscall_enosys:
 	li	r3,-ENOSYS
-	b	syscall_exit
+	b	.Lsyscall_exit
 	
 syscall_exit_work:
 #ifdef CONFIG_PPC_BOOK3S
@@ -283,7 +315,7 @@ syscall_exit_work:
 	beq+	0f
 	REST_NVGPRS(r1)
 	b	2f
-0:	cmpld	r3,r11		/* r10 is -LAST_ERRNO */
+0:	cmpld	r3,r11		/* r11 is -MAX_ERRNO */
 	blt+	1f
 	andi.	r0,r9,_TIF_NOERROR
 	bne-	1f
@@ -306,8 +338,14 @@ syscall_exit_work:
 	subi	r12,r12,TI_FLAGS
 
 4:	/* Anything else left to do? */
-	SET_DEFAULT_THREAD_PPR(r3, r10)		/* Set thread.ppr = 3 */
-	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP)
+BEGIN_FTR_SECTION
+	lis	r3,INIT_PPR@highest	/* Set thread.ppr = 3 */
+	ld	r10,PACACURRENT(r13)
+	sldi	r3,r3,32	/* bits 11-13 are used for ppr */
+	std	r3,TASKTHREADPPR(r10)
+END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
+
+	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP)
 	beq	ret_from_except_lite
 
 	/* Re-enable interrupts */
@@ -323,6 +361,34 @@ syscall_exit_work:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_syscall_trace_leave
 	b	ret_from_except
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+tabort_syscall:
+	/* Firstly we need to enable TM in the kernel */
+	mfmsr	r10
+	li	r13, 1
+	rldimi	r10, r13, MSR_TM_LG, 63-MSR_TM_LG
+	mtmsrd	r10, 0
+
+	/* tabort, this dooms the transaction, nothing else */
+	li	r13, (TM_CAUSE_SYSCALL|TM_CAUSE_PERSISTENT)
+	TABORT(R13)
+
+	/*
+	 * Return directly to userspace. We have corrupted user register state,
+	 * but userspace will never see that register state. Execution will
+	 * resume after the tbegin of the aborted transaction with the
+	 * checkpointed register state.
+	 */
+	li	r13, MSR_RI
+	andc	r10, r10, r13
+	mtmsrd	r10, 1
+	mtspr	SPRN_SRR0, r11
+	mtspr	SPRN_SRR1, r12
+
+	rfid
+	b	.	/* prevent speculative execution */
+#endif
 
 /* Save non-volatile GPRs, if not already saved. */
 _GLOBAL(save_nvgprs)
@@ -347,33 +413,38 @@ _GLOBAL(save_nvgprs)
 _GLOBAL(ppc_fork)
 	bl	save_nvgprs
 	bl	sys_fork
-	b	syscall_exit
+	b	.Lsyscall_exit
 
 _GLOBAL(ppc_vfork)
 	bl	save_nvgprs
 	bl	sys_vfork
-	b	syscall_exit
+	b	.Lsyscall_exit
 
 _GLOBAL(ppc_clone)
 	bl	save_nvgprs
 	bl	sys_clone
-	b	syscall_exit
+	b	.Lsyscall_exit
 
 _GLOBAL(ppc32_swapcontext)
 	bl	save_nvgprs
 	bl	compat_sys_swapcontext
-	b	syscall_exit
+	b	.Lsyscall_exit
 
 _GLOBAL(ppc64_swapcontext)
 	bl	save_nvgprs
 	bl	sys_swapcontext
-	b	syscall_exit
+	b	.Lsyscall_exit
+
+_GLOBAL(ppc_switch_endian)
+	bl	save_nvgprs
+	bl	sys_switch_endian
+	b	.Lsyscall_exit
 
 _GLOBAL(ret_from_fork)
 	bl	schedule_tail
 	REST_NVGPRS(r1)
 	li	r3,0
-	b	syscall_exit
+	b	.Lsyscall_exit
 
 _GLOBAL(ret_from_kernel_thread)
 	bl	schedule_tail
@@ -385,7 +456,7 @@ _GLOBAL(ret_from_kernel_thread)
 #endif
 	blrl
 	li	r3,0
-	b	syscall_exit
+	b	.Lsyscall_exit
 
 /*
  * This routine switches between two different tasks.  The process
@@ -413,42 +484,10 @@ _GLOBAL(_switch)
 	/* r3-r13 are caller saved -- Cort */
 	SAVE_8GPRS(14, r1)
 	SAVE_10GPRS(22, r1)
-	mflr	r20		/* Return to switch caller */
-	mfmsr	r22
-	li	r0, MSR_FP
-#ifdef CONFIG_VSX
-BEGIN_FTR_SECTION
-	oris	r0,r0,MSR_VSX@h	/* Disable VSX */
-END_FTR_SECTION_IFSET(CPU_FTR_VSX)
-#endif /* CONFIG_VSX */
-#ifdef CONFIG_ALTIVEC
-BEGIN_FTR_SECTION
-	oris	r0,r0,MSR_VEC@h	/* Disable altivec */
-	mfspr	r24,SPRN_VRSAVE	/* save vrsave register value */
-	std	r24,THREAD_VRSAVE(r3)
-END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
-#endif /* CONFIG_ALTIVEC */
-	and.	r0,r0,r22
-	beq+	1f
-	andc	r22,r22,r0
-	MTMSRD(r22)
-	isync
-1:	std	r20,_NIP(r1)
+	std	r0,_NIP(r1)	/* Return to switch caller */
 	mfcr	r23
 	std	r23,_CCR(r1)
 	std	r1,KSP(r3)	/* Set old stack pointer */
-
-#ifdef CONFIG_PPC_BOOK3S_64
-BEGIN_FTR_SECTION
-	/* Event based branch registers */
-	mfspr	r0, SPRN_BESCR
-	std	r0, THREAD_BESCR(r3)
-	mfspr	r0, SPRN_EBBHR
-	std	r0, THREAD_EBBHR(r3)
-	mfspr	r0, SPRN_EBBRR
-	std	r0, THREAD_EBBRR(r3)
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
-#endif
 
 #ifdef CONFIG_SMP
 	/* We need a sync somewhere here to make sure that if the
@@ -537,47 +576,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	mr	r1,r8		/* start using new stack pointer */
 	std	r7,PACAKSAVE(r13)
 
-#ifdef CONFIG_PPC_BOOK3S_64
-BEGIN_FTR_SECTION
-	/* Event based branch registers */
-	ld	r0, THREAD_BESCR(r4)
-	mtspr	SPRN_BESCR, r0
-	ld	r0, THREAD_EBBHR(r4)
-	mtspr	SPRN_EBBHR, r0
-	ld	r0, THREAD_EBBRR(r4)
-	mtspr	SPRN_EBBRR, r0
-
-	ld	r0,THREAD_TAR(r4)
-	mtspr	SPRN_TAR,r0
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
-#endif
-
-#ifdef CONFIG_ALTIVEC
-BEGIN_FTR_SECTION
-	ld	r0,THREAD_VRSAVE(r4)
-	mtspr	SPRN_VRSAVE,r0		/* if G4, restore VRSAVE reg */
-END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
-#endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_PPC64
-BEGIN_FTR_SECTION
-	lwz	r6,THREAD_DSCR_INHERIT(r4)
-	ld	r0,THREAD_DSCR(r4)
-	cmpwi	r6,0
-	bne	1f
-	ld	r0,PACA_DSCR(r13)
-1:
-BEGIN_FTR_SECTION_NESTED(70)
-	mfspr	r8, SPRN_FSCR
-	rldimi	r8, r6, FSCR_DSCR_LG, (63 - FSCR_DSCR_LG)
-	mtspr	SPRN_FSCR, r8
-END_FTR_SECTION_NESTED(CPU_FTR_ARCH_207S, CPU_FTR_ARCH_207S, 70)
-	cmpd	r0,r25
-	beq	2f
-	mtspr	SPRN_DSCR,r0
-2:
-END_FTR_SECTION_IFSET(CPU_FTR_DSCR)
-#endif
-
 	ld	r6,_CCR(r1)
 	mtcrf	0xFF,r6
 
@@ -626,8 +624,8 @@ _GLOBAL(ret_from_except_lite)
 
 	/* Check current_thread_info()->flags */
 	andi.	r0,r4,_TIF_USER_WORK_MASK
-#ifdef CONFIG_PPC_BOOK3E
 	bne	1f
+#ifdef CONFIG_PPC_BOOK3E
 	/*
 	 * Check to see if the dbcr0 register is set up to debug.
 	 * Use the internal debug mode bit to do this.
@@ -642,7 +640,9 @@ _GLOBAL(ret_from_except_lite)
 	mtspr	SPRN_DBSR,r10
 	b	restore
 #else
-	beq	restore
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	restore_math
+	b	restore
 #endif
 1:	andi.	r0,r4,_TIF_NEED_RESCHED
 	beq	2f
@@ -659,7 +659,13 @@ _GLOBAL(ret_from_except_lite)
 3:
 #endif
 	bl	save_nvgprs
+	/*
+	 * Use a non volatile GPR to save and restore our thread_info flags
+	 * across the call to restore_interrupts.
+	 */
+	mr	r30,r4
 	bl	restore_interrupts
+	mr	r4,r30
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_notify_resume
 	b	ret_from_except
@@ -1161,8 +1167,12 @@ _GLOBAL(enter_prom)
 #ifdef CONFIG_DYNAMIC_FTRACE
 _GLOBAL(mcount)
 _GLOBAL(_mcount)
-	blr
+	mflr	r12
+	mtctr	r12
+	mtlr	r0
+	bctr
 
+#ifndef CC_USING_MPROFILE_KERNEL
 _GLOBAL_TOC(ftrace_caller)
 	/* Taken from output of objdump from lib64/glibc */
 	mflr	r3
@@ -1184,6 +1194,115 @@ _GLOBAL(ftrace_graph_stub)
 	ld	r0, 128(r1)
 	mtlr	r0
 	addi	r1, r1, 112
+
+#else /* CC_USING_MPROFILE_KERNEL */
+/*
+ *
+ * ftrace_caller() is the function that replaces _mcount() when ftrace is
+ * active.
+ *
+ * We arrive here after a function A calls function B, and we are the trace
+ * function for B. When we enter r1 points to A's stack frame, B has not yet
+ * had a chance to allocate one yet.
+ *
+ * Additionally r2 may point either to the TOC for A, or B, depending on
+ * whether B did a TOC setup sequence before calling us.
+ *
+ * On entry the LR points back to the _mcount() call site, and r0 holds the
+ * saved LR as it was on entry to B, ie. the original return address at the
+ * call site in A.
+ *
+ * Our job is to save the register state into a struct pt_regs (on the stack)
+ * and then arrange for the ftrace function to be called.
+ */
+_GLOBAL(ftrace_caller)
+	/* Save the original return address in A's stack frame */
+	std	r0,LRSAVE(r1)
+
+	/* Create our stack frame + pt_regs */
+	stdu	r1,-SWITCH_FRAME_SIZE(r1)
+
+	/* Save all gprs to pt_regs */
+	SAVE_8GPRS(0,r1)
+	SAVE_8GPRS(8,r1)
+	SAVE_8GPRS(16,r1)
+	SAVE_8GPRS(24,r1)
+
+	/* Load special regs for save below */
+	mfmsr   r8
+	mfctr   r9
+	mfxer   r10
+	mfcr	r11
+
+	/* Get the _mcount() call site out of LR */
+	mflr	r7
+	/* Save it as pt_regs->nip & pt_regs->link */
+	std     r7, _NIP(r1)
+	std     r7, _LINK(r1)
+
+	/* Save callee's TOC in the ABI compliant location */
+	std	r2, 24(r1)
+	ld	r2,PACATOC(r13)	/* get kernel TOC in r2 */
+
+	addis	r3,r2,function_trace_op@toc@ha
+	addi	r3,r3,function_trace_op@toc@l
+	ld	r5,0(r3)
+
+	/* Calculate ip from nip-4 into r3 for call below */
+	subi    r3, r7, MCOUNT_INSN_SIZE
+
+	/* Put the original return address in r4 as parent_ip */
+	mr	r4, r0
+
+	/* Save special regs */
+	std     r8, _MSR(r1)
+	std     r9, _CTR(r1)
+	std     r10, _XER(r1)
+	std     r11, _CCR(r1)
+
+	/* Load &pt_regs in r6 for call below */
+	addi    r6, r1 ,STACK_FRAME_OVERHEAD
+
+	/* ftrace_call(r3, r4, r5, r6) */
+.globl ftrace_call
+ftrace_call:
+	bl	ftrace_stub
+	nop
+
+	/* Load ctr with the possibly modified NIP */
+	ld	r3, _NIP(r1)
+	mtctr	r3
+
+	/* Restore gprs */
+	REST_8GPRS(0,r1)
+	REST_8GPRS(8,r1)
+	REST_8GPRS(16,r1)
+	REST_8GPRS(24,r1)
+
+	/* Restore callee's TOC */
+	ld	r2, 24(r1)
+
+	/* Pop our stack frame */
+	addi r1, r1, SWITCH_FRAME_SIZE
+
+	/* Restore original LR for return to B */
+	ld	r0, LRSAVE(r1)
+	mtlr	r0
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	stdu	r1, -112(r1)
+.globl ftrace_graph_call
+ftrace_graph_call:
+	b	ftrace_graph_stub
+_GLOBAL(ftrace_graph_stub)
+	addi	r1, r1, 112
+#endif
+
+	ld	r0,LRSAVE(r1)	/* restore callee's lr at _mcount site */
+	mtlr	r0
+	bctr			/* jump after _mcount site */
+#endif /* CC_USING_MPROFILE_KERNEL */
+
 _GLOBAL(ftrace_stub)
 	blr
 #else
@@ -1216,46 +1335,82 @@ _GLOBAL(ftrace_stub)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+#ifndef CC_USING_MPROFILE_KERNEL
 _GLOBAL(ftrace_graph_caller)
 	/* load r4 with local address */
 	ld	r4, 128(r1)
 	subi	r4, r4, MCOUNT_INSN_SIZE
 
-	/* get the parent address */
+	/* Grab the LR out of the caller stack frame */
 	ld	r11, 112(r1)
-	addi	r3, r11, 16
+	ld	r3, 16(r11)
 
 	bl	prepare_ftrace_return
 	nop
+
+	/*
+	 * prepare_ftrace_return gives us the address we divert to.
+	 * Change the LR in the callers stack frame to this.
+	 */
+	ld	r11, 112(r1)
+	std	r3, 16(r11)
 
 	ld	r0, 128(r1)
 	mtlr	r0
 	addi	r1, r1, 112
 	blr
 
-_GLOBAL(return_to_handler)
-	/* need to save return values */
-	std	r4,  -24(r1)
-	std	r3,  -16(r1)
-	std	r31, -8(r1)
-	mr	r31, r1
-	stdu	r1, -112(r1)
+#else /* CC_USING_MPROFILE_KERNEL */
+_GLOBAL(ftrace_graph_caller)
+	/* with -mprofile-kernel, parameter regs are still alive at _mcount */
+	std	r10, 104(r1)
+	std	r9, 96(r1)
+	std	r8, 88(r1)
+	std	r7, 80(r1)
+	std	r6, 72(r1)
+	std	r5, 64(r1)
+	std	r4, 56(r1)
+	std	r3, 48(r1)
 
-	bl	ftrace_return_to_handler
+	/* Save callee's TOC in the ABI compliant location */
+	std	r2, 24(r1)
+	ld	r2, PACATOC(r13)	/* get kernel TOC in r2 */
+
+	mfctr	r4		/* ftrace_caller has moved local addr here */
+	std	r4, 40(r1)
+	mflr	r3		/* ftrace_caller has restored LR from stack */
+	subi	r4, r4, MCOUNT_INSN_SIZE
+
+	bl	prepare_ftrace_return
 	nop
 
-	/* return value has real return address */
+	/*
+	 * prepare_ftrace_return gives us the address we divert to.
+	 * Change the LR to this.
+	 */
 	mtlr	r3
 
-	ld	r1, 0(r1)
-	ld	r4,  -24(r1)
-	ld	r3,  -16(r1)
-	ld	r31, -8(r1)
+	ld	r0, 40(r1)
+	mtctr	r0
+	ld	r10, 104(r1)
+	ld	r9, 96(r1)
+	ld	r8, 88(r1)
+	ld	r7, 80(r1)
+	ld	r6, 72(r1)
+	ld	r5, 64(r1)
+	ld	r4, 56(r1)
+	ld	r3, 48(r1)
 
-	/* Jump back to real return address */
-	blr
+	/* Restore callee's TOC */
+	ld	r2, 24(r1)
 
-_GLOBAL(mod_return_to_handler)
+	addi	r1, r1, 112
+	mflr	r0
+	std	r0, LRSAVE(r1)
+	bctr
+#endif /* CC_USING_MPROFILE_KERNEL */
+
+_GLOBAL(return_to_handler)
 	/* need to save return values */
 	std	r4,  -32(r1)
 	std	r3,  -24(r1)
@@ -1266,7 +1421,7 @@ _GLOBAL(mod_return_to_handler)
 	stdu	r1, -112(r1)
 
 	/*
-	 * We are in a module using the module's TOC.
+	 * We might be called from a module.
 	 * Switch to our TOC to run inside the core kernel.
 	 */
 	ld	r2, PACATOC(r13)

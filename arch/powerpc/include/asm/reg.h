@@ -75,6 +75,14 @@
 #define MSR_HV		0
 #endif
 
+/*
+ * To be used in shared book E/book S, this avoids needing to worry about
+ * book S/book E in shared code
+ */
+#ifndef MSR_SPE
+#define MSR_SPE 	0
+#endif
+
 #define MSR_VEC		__MASK(MSR_VEC_LG)	/* Enable AltiVec */
 #define MSR_VSX		__MASK(MSR_VSX_LG)	/* Enable VSX */
 #define MSR_POW		__MASK(MSR_POW_LG)	/* Enable Power Management */
@@ -108,6 +116,7 @@
 #define MSR_TS_T	__MASK(MSR_TS_T_LG)	/*  Transaction Transactional */
 #define MSR_TS_MASK	(MSR_TS_T | MSR_TS_S)   /* Transaction State bits */
 #define MSR_TM_ACTIVE(x) (((x) & MSR_TS_MASK) != 0) /* Transaction active? */
+#define MSR_TM_RESV(x) (((x) & MSR_TS_MASK) == MSR_TS_MASK) /* Reserved */
 #define MSR_TM_TRANSACTIONAL(x)	(((x) & MSR_TS_MASK) == MSR_TS_T)
 #define MSR_TM_SUSPENDED(x)	(((x) & MSR_TS_MASK) == MSR_TS_S)
 
@@ -118,8 +127,10 @@
 #define __MSR		(MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_ISF |MSR_HV)
 #ifdef __BIG_ENDIAN__
 #define MSR_		__MSR
+#define MSR_IDLE	(MSR_ME | MSR_SF | MSR_HV)
 #else
 #define MSR_		(__MSR | MSR_LE)
+#define MSR_IDLE	(MSR_ME | MSR_SF | MSR_HV | MSR_LE)
 #endif
 #define MSR_KERNEL	(MSR_ | MSR_64BIT)
 #define MSR_USER32	(MSR_ | MSR_PR | MSR_EE)
@@ -224,7 +235,6 @@
 #define   CTRL_TE	0x00c00000	/* thread enable */
 #define   CTRL_RUNLATCH	0x1
 #define SPRN_DAWR	0xB4
-#define SPRN_MPPR	0xB8	/* Micro Partition Prefetch Register */
 #define SPRN_RPR	0xBA	/* Relative Priority Register */
 #define SPRN_CIABR	0xBB
 #define   CIABR_PRIV		0x3
@@ -371,9 +381,10 @@
 #define SPRN_DBAT7L	0x23F	/* Data BAT 7 Lower Register */
 #define SPRN_DBAT7U	0x23E	/* Data BAT 7 Upper Register */
 #define SPRN_PPR	0x380	/* SMT Thread status Register */
+#define SPRN_TSCR	0x399	/* Thread Switch Control Register */
 
 #define SPRN_DEC	0x016		/* Decrement Register */
-#define SPRN_DER	0x095		/* Debug Enable Regsiter */
+#define SPRN_DER	0x095		/* Debug Enable Register */
 #define DER_RSTE	0x40000000	/* Reset Interrupt */
 #define DER_CHSTPE	0x20000000	/* Check Stop */
 #define DER_MCIE	0x10000000	/* Machine Check Interrupt */
@@ -398,7 +409,7 @@
 #define SPRN_DPDES	0x0B0		/* Directed Priv. Doorbell Exc. State */
 #define SPRN_EAR	0x11A		/* External Address Register */
 #define SPRN_HASH1	0x3D2		/* Primary Hash Address Register */
-#define SPRN_HASH2	0x3D3		/* Secondary Hash Address Resgister */
+#define SPRN_HASH2	0x3D3		/* Secondary Hash Address Register */
 #define SPRN_HID0	0x3F0		/* Hardware Implementation Register 0 */
 #define HID0_HDICE_SH	(63 - 23)	/* 970 HDEC interrupt enable */
 #define HID0_EMCP	(1<<31)		/* Enable Machine Check pin */
@@ -511,7 +522,7 @@
 #define ICTRL_EICP	0x00000100	/* enable icache par. check */
 #define SPRN_IMISS	0x3D4		/* Instruction TLB Miss Register */
 #define SPRN_IMMR	0x27E		/* Internal Memory Map Register */
-#define SPRN_L2CR	0x3F9		/* Level 2 Cache Control Regsiter */
+#define SPRN_L2CR	0x3F9		/* Level 2 Cache Control Register */
 #define SPRN_L2CR2	0x3f8
 #define L2CR_L2E		0x80000000	/* L2 enable */
 #define L2CR_L2PE		0x40000000	/* L2 parity enable */
@@ -546,7 +557,7 @@
 #define L2CR_L2DO_745x		0x00010000	/* L2 data only (745x) */
 #define L2CR_L2REP_745x		0x00001000	/* L2 repl. algorithm (745x) */
 #define L2CR_L2HWF_745x		0x00000800	/* L2 hardware flush (745x) */
-#define SPRN_L3CR		0x3FA	/* Level 3 Cache Control Regsiter */
+#define SPRN_L3CR		0x3FA	/* Level 3 Cache Control Register */
 #define L3CR_L3E		0x80000000	/* L3 enable */
 #define L3CR_L3PE		0x40000000	/* L3 data parity enable */
 #define L3CR_L3APE		0x20000000	/* L3 addr parity enable */
@@ -605,13 +616,16 @@
 #define   SRR1_ISI_N_OR_G	0x10000000 /* ISI: Access is no-exec or G */
 #define   SRR1_ISI_PROT		0x08000000 /* ISI: Other protection fault */
 #define   SRR1_WAKEMASK		0x00380000 /* reason for wakeup */
+#define   SRR1_WAKEMASK_P8	0x003c0000 /* reason for wakeup on POWER8 */
 #define   SRR1_WAKESYSERR	0x00300000 /* System error */
 #define   SRR1_WAKEEE		0x00200000 /* External interrupt */
 #define   SRR1_WAKEMT		0x00280000 /* mtctrl */
 #define	  SRR1_WAKEHMI		0x00280000 /* Hypervisor maintenance */
 #define   SRR1_WAKEDEC		0x00180000 /* Decrementer interrupt */
+#define   SRR1_WAKEDBELL	0x00140000 /* Privileged doorbell on P8 */
 #define   SRR1_WAKETHERM	0x00100000 /* Thermal management interrupt */
 #define	  SRR1_WAKERESET	0x00100000 /* System reset */
+#define   SRR1_WAKEHDBELL	0x000c0000 /* Hypervisor doorbell on P8 */
 #define	  SRR1_WAKESTATE	0x00030000 /* Powersave exit mask [46:47] */
 #define	  SRR1_WS_DEEPEST	0x00030000 /* Some resources not maintained,
 					  * may not be recoverable */
@@ -728,6 +742,7 @@
 #define SPRN_BESCR	806	/* Branch event status and control register */
 #define   BESCR_GE	0x8000000000000000ULL /* Global Enable */
 #define SPRN_WORT	895	/* Workload optimization register - thread */
+#define SPRN_WORC	863	/* Workload optimization register - core */
 
 #define SPRN_PMC1	787
 #define SPRN_PMC2	788
@@ -947,7 +962,7 @@
  * 32-bit 8xx:
  *	- SPRG0 scratch for exception vectors
  *	- SPRG1 scratch for exception vectors
- *	- SPRG2 apparently unused but initialized
+ *	- SPRG2 scratch for exception vectors
  *
  */
 #ifdef CONFIG_PPC64
@@ -1057,6 +1072,7 @@
 #ifdef CONFIG_8xx
 #define SPRN_SPRG_SCRATCH0	SPRN_SPRG0
 #define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
+#define SPRN_SPRG_SCRATCH2	SPRN_SPRG2
 #endif
 
 
@@ -1185,20 +1201,38 @@
 #ifdef CONFIG_PPC_BOOK3S_64
 #define __mtmsrd(v, l)	asm volatile("mtmsrd %0," __stringify(l) \
 				     : : "r" (v) : "memory")
-#define mtmsrd(v)	__mtmsrd((v), 0)
-#define mtmsr(v)	mtmsrd(v)
+#define mtmsr(v)	__mtmsrd((v), 0)
+#define __MTMSR		"mtmsrd"
 #else
 #define mtmsr(v)	asm volatile("mtmsr %0" : \
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
+#define __MTMSR		"mtmsr"
 #endif
+
+static inline void mtmsr_isync(unsigned long val)
+{
+	asm volatile(__MTMSR " %0; " ASM_FTR_IFCLR("isync", "nop", %1) : :
+			"r" (val), "i" (CPU_FTR_ARCH_206) : "memory");
+}
 
 #define mfspr(rn)	({unsigned long rval; \
 			asm volatile("mfspr %0," __stringify(rn) \
 				: "=r" (rval)); rval;})
+#ifndef mtspr
 #define mtspr(rn, v)	asm volatile("mtspr " __stringify(rn) ",%0" : \
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
+#endif
+
+extern void msr_check_and_set(unsigned long bits);
+extern bool strict_msr_control;
+extern void __msr_check_and_clear(unsigned long bits);
+static inline void msr_check_and_clear(unsigned long bits)
+{
+	if (strict_msr_control)
+		__msr_check_and_clear(bits);
+}
 
 static inline unsigned long mfvtb (void)
 {
@@ -1264,8 +1298,7 @@ static inline unsigned long mfvtb (void)
 
 #define proc_trap()	asm volatile("trap")
 
-#define __get_SP()	({unsigned long sp; \
-			asm volatile("mr %0,1": "=r" (sp)); sp;})
+extern unsigned long current_stack_pointer(void);
 
 extern unsigned long scom970_read(unsigned int address);
 extern void scom970_write(unsigned int address, unsigned long value);
@@ -1274,6 +1307,15 @@ struct pt_regs;
 
 extern void ppc_save_regs(struct pt_regs *regs);
 
+static inline void update_power8_hid0(unsigned long hid0)
+{
+	/*
+	 *  The HID0 update on Power8 should at the very least be
+	 *  preceded by a a SYNC instruction followed by an ISYNC
+	 *  instruction
+	 */
+	asm volatile("sync; mtspr %0,%1; isync":: "i"(SPRN_HID0), "r"(hid0));
+}
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_REG_H */

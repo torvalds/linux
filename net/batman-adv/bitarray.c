@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2006-2016  B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -15,13 +15,13 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
 #include "bitarray.h"
+#include "main.h"
 
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 
 /* shift the packet array by n places. */
-static void batadv_bitmap_shift_left(unsigned long *seq_bits, int32_t n)
+static void batadv_bitmap_shift_left(unsigned long *seq_bits, s32 n)
 {
 	if (n <= 0 || n >= BATADV_TQ_LOCAL_WINDOW_SIZE)
 		return;
@@ -29,15 +29,20 @@ static void batadv_bitmap_shift_left(unsigned long *seq_bits, int32_t n)
 	bitmap_shift_left(seq_bits, seq_bits, n, BATADV_TQ_LOCAL_WINDOW_SIZE);
 }
 
-
-/* receive and process one packet within the sequence number window.
+/**
+ * batadv_bit_get_packet - receive and process one packet within the sequence
+ *  number window
+ * @priv: the bat priv with all the soft interface information
+ * @seq_bits: pointer to the sequence number receive packet
+ * @seq_num_diff: difference between the current/received sequence number and
+ *  the last sequence number
+ * @set_mark: whether this packet should be marked in seq_bits
  *
- * returns:
- *  1 if the window was moved (either new or very old)
+ * Return: 1 if the window was moved (either new or very old),
  *  0 if the window was not moved/shifted.
  */
-int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
-			  int32_t seq_num_diff, int set_mark)
+int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
+			  int set_mark)
 {
 	struct batadv_priv *bat_priv = priv;
 

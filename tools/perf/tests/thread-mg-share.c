@@ -4,7 +4,7 @@
 #include "map.h"
 #include "debug.h"
 
-int test__thread_mg_share(void)
+int test__thread_mg_share(int subtest __maybe_unused)
 {
 	struct machines machines;
 	struct machine *machine;
@@ -43,7 +43,7 @@ int test__thread_mg_share(void)
 			leader && t1 && t2 && t3 && other);
 
 	mg = leader->mg;
-	TEST_ASSERT_VAL("wrong refcnt", mg->refcnt == 4);
+	TEST_ASSERT_EQUAL("wrong refcnt", atomic_read(&mg->refcnt), 4);
 
 	/* test the map groups pointer is shared */
 	TEST_ASSERT_VAL("map groups don't match", mg == t1->mg);
@@ -58,33 +58,40 @@ int test__thread_mg_share(void)
 	other_leader = machine__find_thread(machine, 4, 4);
 	TEST_ASSERT_VAL("failed to find other leader", other_leader);
 
+	/*
+	 * Ok, now that all the rbtree related operations were done,
+	 * lets remove all of them from there so that we can do the
+	 * refcounting tests.
+	 */
+	machine__remove_thread(machine, leader);
+	machine__remove_thread(machine, t1);
+	machine__remove_thread(machine, t2);
+	machine__remove_thread(machine, t3);
+	machine__remove_thread(machine, other);
+	machine__remove_thread(machine, other_leader);
+
 	other_mg = other->mg;
-	TEST_ASSERT_VAL("wrong refcnt", other_mg->refcnt == 2);
+	TEST_ASSERT_EQUAL("wrong refcnt", atomic_read(&other_mg->refcnt), 2);
 
 	TEST_ASSERT_VAL("map groups don't match", other_mg == other_leader->mg);
 
 	/* release thread group */
-	thread__delete(leader);
-	TEST_ASSERT_VAL("wrong refcnt", mg->refcnt == 3);
+	thread__put(leader);
+	TEST_ASSERT_EQUAL("wrong refcnt", atomic_read(&mg->refcnt), 3);
 
-	thread__delete(t1);
-	TEST_ASSERT_VAL("wrong refcnt", mg->refcnt == 2);
+	thread__put(t1);
+	TEST_ASSERT_EQUAL("wrong refcnt", atomic_read(&mg->refcnt), 2);
 
-	thread__delete(t2);
-	TEST_ASSERT_VAL("wrong refcnt", mg->refcnt == 1);
+	thread__put(t2);
+	TEST_ASSERT_EQUAL("wrong refcnt", atomic_read(&mg->refcnt), 1);
 
-	thread__delete(t3);
+	thread__put(t3);
 
 	/* release other group  */
-	thread__delete(other_leader);
-	TEST_ASSERT_VAL("wrong refcnt", other_mg->refcnt == 1);
+	thread__put(other_leader);
+	TEST_ASSERT_EQUAL("wrong refcnt", atomic_read(&other_mg->refcnt), 1);
 
-	thread__delete(other);
-
-	/*
-	 * Cannot call machine__delete_threads(machine) now,
-	 * because we've already released all the threads.
-	 */
+	thread__put(other);
 
 	machines__exit(&machines);
 	return 0;

@@ -312,14 +312,12 @@ static void exynos_pcie_assert_reset(struct pcie_port *pp)
 	if (exynos_pcie->reset_gpio >= 0)
 		devm_gpio_request_one(pp->dev, exynos_pcie->reset_gpio,
 				GPIOF_OUT_INIT_HIGH, "RESET");
-	return;
 }
 
 static int exynos_pcie_establish_link(struct pcie_port *pp)
 {
-	u32 val;
-	int count = 0;
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pp);
+	u32 val;
 
 	if (dw_pcie_link_up(pp)) {
 		dev_err(pp->dev, "Link already up\n");
@@ -358,27 +356,17 @@ static int exynos_pcie_establish_link(struct pcie_port *pp)
 			  PCIE_APP_LTSSM_ENABLE);
 
 	/* check if the link is up or not */
-	while (!dw_pcie_link_up(pp)) {
-		mdelay(100);
-		count++;
-		if (count == 10) {
-			while (exynos_phy_readl(exynos_pcie,
-						PCIE_PHY_PLL_LOCKED) == 0) {
-				val = exynos_blk_readl(exynos_pcie,
-						       PCIE_PHY_PLL_LOCKED);
-				dev_info(pp->dev, "PLL Locked: 0x%x\n", val);
-			}
-			/* power off phy */
-			exynos_pcie_power_off_phy(pp);
+	if (!dw_pcie_wait_for_link(pp))
+		return 0;
 
-			dev_err(pp->dev, "PCIe Link Fail\n");
-			return -EINVAL;
-		}
+	while (exynos_phy_readl(exynos_pcie, PCIE_PHY_PLL_LOCKED) == 0) {
+		val = exynos_blk_readl(exynos_pcie, PCIE_PHY_PLL_LOCKED);
+		dev_info(pp->dev, "PLL Locked: 0x%x\n", val);
 	}
+	/* power off phy */
+	exynos_pcie_power_off_phy(pp);
 
-	dev_info(pp->dev, "Link up\n");
-
-	return 0;
+	return -ETIMEDOUT;
 }
 
 static void exynos_pcie_clear_irq_pulse(struct pcie_port *pp)
@@ -388,7 +376,6 @@ static void exynos_pcie_clear_irq_pulse(struct pcie_port *pp)
 
 	val = exynos_elb_readl(exynos_pcie, PCIE_IRQ_PULSE);
 	exynos_elb_writel(exynos_pcie, val, PCIE_IRQ_PULSE);
-	return;
 }
 
 static void exynos_pcie_enable_irq_pulse(struct pcie_port *pp)
@@ -398,9 +385,8 @@ static void exynos_pcie_enable_irq_pulse(struct pcie_port *pp)
 
 	/* enable INTX interrupt */
 	val = IRQ_INTA_ASSERT | IRQ_INTB_ASSERT |
-		IRQ_INTC_ASSERT | IRQ_INTD_ASSERT,
+		IRQ_INTC_ASSERT | IRQ_INTD_ASSERT;
 	exynos_elb_writel(exynos_pcie, val, PCIE_IRQ_EN_PULSE);
-	return;
 }
 
 static irqreturn_t exynos_pcie_irq_handler(int irq, void *arg)
@@ -429,7 +415,6 @@ static void exynos_pcie_msi_init(struct pcie_port *pp)
 	val = exynos_elb_readl(exynos_pcie, PCIE_IRQ_EN_LEVEL);
 	val |= IRQ_MSI_ENABLE;
 	exynos_elb_writel(exynos_pcie, val, PCIE_IRQ_EN_LEVEL);
-	return;
 }
 
 static void exynos_pcie_enable_interrupts(struct pcie_port *pp)
@@ -438,8 +423,6 @@ static void exynos_pcie_enable_interrupts(struct pcie_port *pp)
 
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		exynos_pcie_msi_init(pp);
-
-	return;
 }
 
 static inline void exynos_pcie_readl_rc(struct pcie_port *pp,
@@ -448,7 +431,6 @@ static inline void exynos_pcie_readl_rc(struct pcie_port *pp,
 	exynos_pcie_sideband_dbi_r_mode(pp, true);
 	*val = readl(dbi_base);
 	exynos_pcie_sideband_dbi_r_mode(pp, false);
-	return;
 }
 
 static inline void exynos_pcie_writel_rc(struct pcie_port *pp,
@@ -457,7 +439,6 @@ static inline void exynos_pcie_writel_rc(struct pcie_port *pp,
 	exynos_pcie_sideband_dbi_w_mode(pp, true);
 	writel(val, dbi_base);
 	exynos_pcie_sideband_dbi_w_mode(pp, false);
-	return;
 }
 
 static int exynos_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
@@ -466,7 +447,7 @@ static int exynos_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 	int ret;
 
 	exynos_pcie_sideband_dbi_r_mode(pp, true);
-	ret = dw_pcie_cfg_read(pp->dbi_base + (where & ~0x3), where, size, val);
+	ret = dw_pcie_cfg_read(pp->dbi_base + where, size, val);
 	exynos_pcie_sideband_dbi_r_mode(pp, false);
 	return ret;
 }
@@ -477,8 +458,7 @@ static int exynos_pcie_wr_own_conf(struct pcie_port *pp, int where, int size,
 	int ret;
 
 	exynos_pcie_sideband_dbi_w_mode(pp, true);
-	ret = dw_pcie_cfg_write(pp->dbi_base + (where & ~0x3),
-			where, size, val);
+	ret = dw_pcie_cfg_write(pp->dbi_base + where, size, val);
 	exynos_pcie_sideband_dbi_w_mode(pp, false);
 	return ret;
 }
@@ -509,8 +489,8 @@ static struct pcie_host_ops exynos_pcie_host_ops = {
 	.host_init = exynos_pcie_host_init,
 };
 
-static int __init add_pcie_port(struct pcie_port *pp,
-				struct platform_device *pdev)
+static int __init exynos_add_pcie_port(struct pcie_port *pp,
+				       struct platform_device *pdev)
 {
 	int ret;
 
@@ -535,7 +515,8 @@ static int __init add_pcie_port(struct pcie_port *pp,
 
 		ret = devm_request_irq(&pdev->dev, pp->msi_irq,
 					exynos_pcie_msi_irq_handler,
-					IRQF_SHARED, "exynos-pcie", pp);
+					IRQF_SHARED | IRQF_NO_THREAD,
+					"exynos-pcie", pp);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to request msi irq\n");
 			return ret;
@@ -615,7 +596,7 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 		goto fail_bus_clk;
 	}
 
-	ret = add_pcie_port(pp, pdev);
+	ret = exynos_add_pcie_port(pp, pdev);
 	if (ret < 0)
 		goto fail_bus_clk;
 
@@ -649,18 +630,17 @@ static struct platform_driver exynos_pcie_driver = {
 	.remove		= __exit_p(exynos_pcie_remove),
 	.driver = {
 		.name	= "exynos-pcie",
-		.owner	= THIS_MODULE,
 		.of_match_table = exynos_pcie_of_match,
 	},
 };
 
 /* Exynos PCIe driver does not allow module unload */
 
-static int __init pcie_init(void)
+static int __init exynos_pcie_init(void)
 {
 	return platform_driver_probe(&exynos_pcie_driver, exynos_pcie_probe);
 }
-subsys_initcall(pcie_init);
+subsys_initcall(exynos_pcie_init);
 
 MODULE_AUTHOR("Jingoo Han <jg1.han@samsung.com>");
 MODULE_DESCRIPTION("Samsung PCIe host controller driver");

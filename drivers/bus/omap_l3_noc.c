@@ -1,7 +1,7 @@
 /*
  * OMAP L3 Interconnect error handling driver
  *
- * Copyright (C) 2011-2014 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011-2015 Texas Instruments Incorporated - http://www.ti.com/
  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
  *	Sricharan <r.sricharan@ti.com>
  *
@@ -222,14 +222,19 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 			}
 
 			/* Error found so break the for loop */
-			break;
+			return IRQ_HANDLED;
 		}
 	}
-	return IRQ_HANDLED;
+
+	dev_err(l3->dev, "L3 %s IRQ not handled!!\n",
+		inttype ? "debug" : "application");
+
+	return IRQ_NONE;
 }
 
 static const struct of_device_id l3_noc_match[] = {
-	{.compatible = "ti,omap4-l3-noc", .data = &omap_l3_data},
+	{.compatible = "ti,omap4-l3-noc", .data = &omap4_l3_data},
+	{.compatible = "ti,omap5-l3-noc", .data = &omap5_l3_data},
 	{.compatible = "ti,dra7-l3-noc", .data = &dra_l3_data},
 	{.compatible = "ti,am4372-l3-noc", .data = &am4372_l3_data},
 	{},
@@ -280,7 +285,7 @@ static int omap_l3_probe(struct platform_device *pdev)
 	 */
 	l3->debug_irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(l3->dev, l3->debug_irq, l3_interrupt_handler,
-			       IRQF_DISABLED, "l3-dbg-irq", l3);
+			       0x0, "l3-dbg-irq", l3);
 	if (ret) {
 		dev_err(l3->dev, "request_irq failed for %d\n",
 			l3->debug_irq);
@@ -289,18 +294,72 @@ static int omap_l3_probe(struct platform_device *pdev)
 
 	l3->app_irq = platform_get_irq(pdev, 1);
 	ret = devm_request_irq(l3->dev, l3->app_irq, l3_interrupt_handler,
-			       IRQF_DISABLED, "l3-app-irq", l3);
+			       0x0, "l3-app-irq", l3);
 	if (ret)
 		dev_err(l3->dev, "request_irq failed for %d\n", l3->app_irq);
 
 	return ret;
 }
 
+#ifdef	CONFIG_PM_SLEEP
+
+/**
+ * l3_resume_noirq() - resume function for l3_noc
+ * @dev:	pointer to l3_noc device structure
+ *
+ * We only have the resume handler only since we
+ * have already maintained the delta register
+ * configuration as part of configuring the system
+ */
+static int l3_resume_noirq(struct device *dev)
+{
+	struct omap_l3 *l3 = dev_get_drvdata(dev);
+	int i;
+	struct l3_flagmux_data *flag_mux;
+	void __iomem *base, *mask_regx = NULL;
+	u32 mask_val;
+
+	for (i = 0; i < l3->num_modules; i++) {
+		base = l3->l3_base[i];
+		flag_mux = l3->l3_flagmux[i];
+		if (!flag_mux->mask_app_bits && !flag_mux->mask_dbg_bits)
+			continue;
+
+		mask_regx = base + flag_mux->offset + L3_FLAGMUX_MASK0 +
+			   (L3_APPLICATION_ERROR << 3);
+		mask_val = readl_relaxed(mask_regx);
+		mask_val &= ~(flag_mux->mask_app_bits);
+
+		writel_relaxed(mask_val, mask_regx);
+		mask_regx = base + flag_mux->offset + L3_FLAGMUX_MASK0 +
+			   (L3_DEBUG_ERROR << 3);
+		mask_val = readl_relaxed(mask_regx);
+		mask_val &= ~(flag_mux->mask_dbg_bits);
+
+		writel_relaxed(mask_val, mask_regx);
+	}
+
+	/* Dummy read to force OCP barrier */
+	if (mask_regx)
+		(void)readl(mask_regx);
+
+	return 0;
+}
+
+static const struct dev_pm_ops l3_dev_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, l3_resume_noirq)
+};
+
+#define L3_DEV_PM_OPS (&l3_dev_pm_ops)
+#else
+#define L3_DEV_PM_OPS NULL
+#endif
+
 static struct platform_driver omap_l3_driver = {
 	.probe		= omap_l3_probe,
 	.driver		= {
 		.name		= "omap_l3_noc",
-		.owner		= THIS_MODULE,
+		.pm		= L3_DEV_PM_OPS,
 		.of_match_table = of_match_ptr(l3_noc_match),
 	},
 };

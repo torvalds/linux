@@ -88,12 +88,15 @@ struct mld2_query {
 #define MLDV2_QQIC_EXP(value)	(((value) >> 4) & 0x07)
 #define MLDV2_QQIC_MAN(value)	((value) & 0x0f)
 
+#define MLD_EXP_MIN_LIMIT	32768UL
+#define MLDV1_MRD_MAX_COMPAT	(MLD_EXP_MIN_LIMIT - 1)
+
 static inline unsigned long mldv2_mrc(const struct mld2_query *mlh2)
 {
 	/* RFC3810, 5.1.3. Maximum Response Code */
 	unsigned long ret, mc_mrc = ntohs(mlh2->mld2q_mrc);
 
-	if (mc_mrc < 32768) {
+	if (mc_mrc < MLD_EXP_MIN_LIMIT) {
 		ret = mc_mrc;
 	} else {
 		unsigned long mc_man, mc_exp;

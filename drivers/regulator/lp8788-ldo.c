@@ -170,7 +170,7 @@ static int lp8788_ldo_enable_time(struct regulator_dev *rdev)
 	return ENABLE_TIME_USEC * val;
 }
 
-static struct regulator_ops lp8788_ldo_voltage_table_ops = {
+static const struct regulator_ops lp8788_ldo_voltage_table_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
@@ -180,7 +180,7 @@ static struct regulator_ops lp8788_ldo_voltage_table_ops = {
 	.enable_time = lp8788_ldo_enable_time,
 };
 
-static struct regulator_ops lp8788_ldo_voltage_fixed_ops = {
+static const struct regulator_ops lp8788_ldo_voltage_fixed_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -561,7 +561,6 @@ static struct platform_driver lp8788_dldo_driver = {
 	.probe = lp8788_dldo_probe,
 	.driver = {
 		.name = LP8788_DEV_DLDO,
-		.owner = THIS_MODULE,
 	},
 };
 
@@ -611,26 +610,23 @@ static struct platform_driver lp8788_aldo_driver = {
 	.probe = lp8788_aldo_probe,
 	.driver = {
 		.name = LP8788_DEV_ALDO,
-		.owner = THIS_MODULE,
 	},
+};
+
+static struct platform_driver * const drivers[] = {
+	&lp8788_dldo_driver,
+	&lp8788_aldo_driver,
 };
 
 static int __init lp8788_ldo_init(void)
 {
-	int ret;
-
-	ret = platform_driver_register(&lp8788_dldo_driver);
-	if (ret)
-		return ret;
-
-	return platform_driver_register(&lp8788_aldo_driver);
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 subsys_initcall(lp8788_ldo_init);
 
 static void __exit lp8788_ldo_exit(void)
 {
-	platform_driver_unregister(&lp8788_aldo_driver);
-	platform_driver_unregister(&lp8788_dldo_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_exit(lp8788_ldo_exit);
 

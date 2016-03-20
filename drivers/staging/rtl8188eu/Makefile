@@ -17,25 +17,23 @@ r8188eu-y :=				\
 		core/rtw_sta_mgt.o	\
 		core/rtw_wlan_util.o	\
 		core/rtw_xmit.o		\
-		hal/HalHWImg8188E_MAC.o	\
-		hal/HalHWImg8188E_BB.o	\
-		hal/HalHWImg8188E_RF.o	\
-		hal/HalPhyRf_8188e.o	\
-		hal/HalPwrSeqCmd.o	\
-		hal/Hal8188EPwrSeq.o	\
+		hal/fw.o	\
+		hal/mac_cfg.o \
+		hal/bb_cfg.o \
+		hal/rf_cfg.o \
+		hal/pwrseqcmd.o \
+		hal/pwrseq.o \
 		hal/Hal8188ERateAdaptive.o\
 		hal/hal_intf.o		\
 		hal/hal_com.o		\
 		hal/odm.o		\
-		hal/odm_debug.o		\
 		hal/odm_HWConfig.o	\
-		hal/odm_RegConfig8188E.o\
 		hal/odm_RTL8188E.o	\
 		hal/rtl8188e_cmd.o	\
 		hal/rtl8188e_dm.o	\
 		hal/rtl8188e_hal_init.o	\
-		hal/rtl8188e_phycfg.o	\
-		hal/rtl8188e_rf6052.o	\
+		hal/phy.o \
+		hal/rf.o \
 		hal/rtl8188e_rxdesc.o	\
 		hal/rtl8188e_xmit.o	\
 		hal/rtl8188eu_led.o	\
@@ -44,6 +42,7 @@ r8188eu-y :=				\
 		hal/usb_halinit.o	\
 		os_dep/ioctl_linux.o	\
 		os_dep/mlme_linux.o	\
+		os_dep/mon.o		\
 		os_dep/os_intfs.o	\
 		os_dep/osdep_service.o	\
 		os_dep/recv_linux.o	\
@@ -54,4 +53,4 @@ r8188eu-y :=				\
 
 obj-$(CONFIG_R8188EU)	:= r8188eu.o
 
-ccflags-y += -D__CHECK_ENDIAN__ -I$(src)/include
+ccflags-y += -D__CHECK_ENDIAN__ -I$(srctree)/$(src)/include

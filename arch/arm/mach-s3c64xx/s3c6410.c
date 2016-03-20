@@ -41,12 +41,12 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/sdhci.h>
-#include <plat/ata-core.h>
 #include <plat/adc-core.h>
 #include <plat/iic-core.h>
-#include <plat/onenand-core.h>
 
+#include "ata-core.h"
 #include "common.h"
+#include "onenand-core.h"
 
 void __init s3c6410_map_io(void)
 {
@@ -84,7 +84,7 @@ static struct device s3c6410_dev = {
 static int __init s3c6410_core_init(void)
 {
 	/* Not applicable when using DT. */
-	if (of_have_populated_dt())
+	if (of_have_populated_dt() || !soc_is_s3c64xx())
 		return 0;
 
 	return subsys_system_register(&s3c6410_subsys, NULL);

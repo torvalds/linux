@@ -2,12 +2,12 @@ Linux Digital Video Broadcast (DVB) subsystem
 =============================================
 
 The main development site and CVS repository for these
-drivers is http://linuxtv.org/.
+drivers is https://linuxtv.org.
 
 The developer mailing list linux-dvb is also hosted there,
-see http://linuxtv.org/lists.php. Please check
-the archive http://linuxtv.org/pipermail/linux-dvb/
-and the Wiki http://linuxtv.org/wiki/
+see https://linuxtv.org/lists.php. Please check
+the archive https://linuxtv.org/pipermail/linux-dvb/
+and the Wiki https://linuxtv.org/wiki/
 before asking newbie questions on the list.
 
 API documentation, utilities and test/example programs
@@ -16,7 +16,7 @@ are available as part of the old driver package for Linux 2.4
 We plan to split this into separate packages, but it's not
 been done yet.
 
-http://linuxtv.org/downloads/
+https://linuxtv.org/downloads/
 
 What's inside this directory:
 

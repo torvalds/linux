@@ -69,7 +69,8 @@ static inline u32 e500_shadow_mas3_attrib(u32 mas3, int usermode)
  * writing shadow tlb entry to host TLB
  */
 static inline void __write_host_tlbe(struct kvm_book3e_206_tlb_entry *stlbe,
-				     uint32_t mas0)
+				     uint32_t mas0,
+				     uint32_t lpid)
 {
 	unsigned long flags;
 
@@ -80,7 +81,7 @@ static inline void __write_host_tlbe(struct kvm_book3e_206_tlb_entry *stlbe,
 	mtspr(SPRN_MAS3, (u32)stlbe->mas7_3);
 	mtspr(SPRN_MAS7, (u32)(stlbe->mas7_3 >> 32));
 #ifdef CONFIG_KVM_BOOKE_HV
-	mtspr(SPRN_MAS8, stlbe->mas8);
+	mtspr(SPRN_MAS8, MAS8_TGS | get_thread_specific_lpid(lpid));
 #endif
 	asm volatile("isync; tlbwe" : : : "memory");
 
@@ -129,11 +130,12 @@ static inline void write_host_tlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 	if (tlbsel == 0) {
 		mas0 = get_host_mas0(stlbe->mas2);
-		__write_host_tlbe(stlbe, mas0);
+		__write_host_tlbe(stlbe, mas0, vcpu_e500->vcpu.kvm->arch.lpid);
 	} else {
 		__write_host_tlbe(stlbe,
 				  MAS0_TLBSEL(1) |
-				  MAS0_ESEL(to_htlb1_esel(sesel)));
+				  MAS0_ESEL(to_htlb1_esel(sesel)),
+				  vcpu_e500->vcpu.kvm->arch.lpid);
 	}
 }
 
@@ -161,9 +163,9 @@ void kvmppc_map_magic(struct kvm_vcpu *vcpu)
 	struct kvm_book3e_206_tlb_entry magic;
 	ulong shared_page = ((ulong)vcpu->arch.shared) & PAGE_MASK;
 	unsigned int stid;
-	pfn_t pfn;
+	kvm_pfn_t pfn;
 
-	pfn = (pfn_t)virt_to_phys((void *)shared_page) >> PAGE_SHIFT;
+	pfn = (kvm_pfn_t)virt_to_phys((void *)shared_page) >> PAGE_SHIFT;
 	get_page(pfn_to_page(pfn));
 
 	preempt_disable();
@@ -176,7 +178,7 @@ void kvmppc_map_magic(struct kvm_vcpu *vcpu)
 		       MAS3_SW | MAS3_SR | MAS3_UW | MAS3_UR;
 	magic.mas8 = 0;
 
-	__write_host_tlbe(&magic, MAS0_TLBSEL(1) | MAS0_ESEL(tlbcam_index));
+	__write_host_tlbe(&magic, MAS0_TLBSEL(1) | MAS0_ESEL(tlbcam_index), 0);
 	preempt_enable();
 }
 #endif
@@ -244,7 +246,7 @@ static inline int tlbe_is_writable(struct kvm_book3e_206_tlb_entry *tlbe)
 
 static inline void kvmppc_e500_ref_setup(struct tlbe_ref *ref,
 					 struct kvm_book3e_206_tlb_entry *gtlbe,
-					 pfn_t pfn, unsigned int wimg)
+					 kvm_pfn_t pfn, unsigned int wimg)
 {
 	ref->pfn = pfn;
 	ref->flags = E500_TLB_VALID;
@@ -307,7 +309,7 @@ static void kvmppc_e500_setup_stlbe(
 	int tsize, struct tlbe_ref *ref, u64 gvaddr,
 	struct kvm_book3e_206_tlb_entry *stlbe)
 {
-	pfn_t pfn = ref->pfn;
+	kvm_pfn_t pfn = ref->pfn;
 	u32 pr = vcpu->arch.shared->msr & MSR_PR;
 
 	BUG_ON(!(ref->flags & E500_TLB_VALID));
@@ -317,10 +319,6 @@ static void kvmppc_e500_setup_stlbe(
 	stlbe->mas2 = (gvaddr & MAS2_EPN) | (ref->flags & E500_TLB_MAS2_ATTR);
 	stlbe->mas7_3 = ((u64)pfn << PAGE_SHIFT) |
 			e500_shadow_mas3_attrib(gtlbe->mas7_3, pr);
-
-#ifdef CONFIG_KVM_BOOKE_HV
-	stlbe->mas8 = MAS8_TGS | vcpu->kvm->arch.lpid;
-#endif
 }
 
 static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
@@ -340,6 +338,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	pte_t *ptep;
 	unsigned int wimg = 0;
 	pgd_t *pgdir;
+	unsigned long flags;
 
 	/* used to check for invalidations in progress */
 	mmu_seq = kvm->mmu_notifier_seq;
@@ -407,7 +406,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 			for (; tsize > BOOK3E_PAGESZ_4K; tsize -= 2) {
 				unsigned long gfn_start, gfn_end;
-				tsize_pages = 1 << (tsize - 2);
+				tsize_pages = 1UL << (tsize - 2);
 
 				gfn_start = gfn & ~(tsize_pages - 1);
 				gfn_end = gfn_start + tsize_pages;
@@ -448,7 +447,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	}
 
 	if (likely(!pfnmap)) {
-		tsize_pages = 1 << (tsize + 10 - PAGE_SHIFT);
+		tsize_pages = 1UL << (tsize + 10 - PAGE_SHIFT);
 		pfn = gfn_to_pfn_memslot(slot, gfn);
 		if (is_error_noslot_pfn(pfn)) {
 			if (printk_ratelimit())
@@ -470,15 +469,28 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 
 	pgdir = vcpu_e500->vcpu.arch.pgdir;
-	ptep = lookup_linux_ptep(pgdir, hva, &tsize_pages);
-	if (pte_present(*ptep))
-		wimg = (*ptep >> PTE_WIMGE_SHIFT) & MAS2_WIMGE_MASK;
-	else {
-		if (printk_ratelimit())
-			pr_err("%s: pte not present: gfn %lx, pfn %lx\n",
-				__func__, (long)gfn, pfn);
-		ret = -EINVAL;
-		goto out;
+	/*
+	 * We are just looking at the wimg bits, so we don't
+	 * care much about the trans splitting bit.
+	 * We are holding kvm->mmu_lock so a notifier invalidate
+	 * can't run hence pfn won't change.
+	 */
+	local_irq_save(flags);
+	ptep = find_linux_pte_or_hugepte(pgdir, hva, NULL, NULL);
+	if (ptep) {
+		pte_t pte = READ_ONCE(*ptep);
+
+		if (pte_present(pte)) {
+			wimg = (pte_val(pte) >> PTE_WIMGE_SHIFT) &
+				MAS2_WIMGE_MASK;
+			local_irq_restore(flags);
+		} else {
+			local_irq_restore(flags);
+			pr_err_ratelimited("%s: pte not present: gfn %lx,pfn %lx\n",
+					   __func__, (long)gfn, pfn);
+			ret = -EINVAL;
+			goto out;
+		}
 	}
 	kvmppc_e500_ref_setup(ref, gtlbe, pfn, wimg);
 
@@ -633,7 +645,7 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
 
 	local_irq_save(flags);
 	mtspr(SPRN_MAS6, (vcpu->arch.pid << MAS6_SPID_SHIFT) | addr_space);
-	mtspr(SPRN_MAS5, MAS5_SGS | vcpu->kvm->arch.lpid);
+	mtspr(SPRN_MAS5, MAS5_SGS | get_lpid(vcpu));
 	asm volatile("tlbsx 0, %[geaddr]\n" : :
 		     [geaddr] "r" (geaddr));
 	mtspr(SPRN_MAS5, 0);
@@ -663,7 +675,7 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
 	if (unlikely((pr && !(mas3 & MAS3_UX)) ||
 		     (!pr && !(mas3 & MAS3_SX)))) {
 		pr_err_ratelimited(
-			"%s: Instuction emulation from guest addres %08lx without execute permission\n",
+			"%s: Instruction emulation from guest address %08lx without execute permission\n",
 			__func__, geaddr);
 		return EMULATE_AGAIN;
 	}
@@ -675,7 +687,7 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
 	if (has_feature(vcpu, VCPU_FTR_MMU_V2) &&
 	    unlikely((mas2 & MAS2_I) || (mas2 & MAS2_W) || !(mas2 & MAS2_M))) {
 		pr_err_ratelimited(
-			"%s: Instuction emulation from guest addres %08lx mismatches storage attributes\n",
+			"%s: Instruction emulation from guest address %08lx mismatches storage attributes\n",
 			__func__, geaddr);
 		return EMULATE_AGAIN;
 	}
@@ -688,7 +700,7 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
 
 	/* Guard against emulation from devices area */
 	if (unlikely(!page_is_ram(pfn))) {
-		pr_err_ratelimited("%s: Instruction emulation from non-RAM host addres %08llx is not supported\n",
+		pr_err_ratelimited("%s: Instruction emulation from non-RAM host address %08llx is not supported\n",
 			 __func__, addr);
 		return EMULATE_AGAIN;
 	}
@@ -732,7 +744,7 @@ int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
 	return 0;
 }
 
-int kvm_age_hva(struct kvm *kvm, unsigned long hva)
+int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end)
 {
 	/* XXX could be more clever ;) */
 	return 0;

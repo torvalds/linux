@@ -25,7 +25,7 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org/ 
+ * the project's page is at https://linuxtv.org
  */
 
 #include <linux/types.h>
@@ -102,7 +102,7 @@ int av7110_record_cb(struct dvb_filter_pes2ts *p2t, u8 *buf, size_t len)
 		buf[4] = buf[5] = 0;
 	if (dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY)
 		return dvbdmxfeed->cb.ts(buf, len, NULL, 0,
-					 &dvbdmxfeed->feed.ts, DMX_OK);
+					 &dvbdmxfeed->feed.ts);
 	else
 		return dvb_filter_pes2ts(p2t, buf, len, 1);
 }
@@ -112,7 +112,7 @@ static int dvb_filter_pes2ts_cb(void *priv, unsigned char *data)
 	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *) priv;
 
 	dvbdmxfeed->cb.ts(data, 188, NULL, 0,
-			  &dvbdmxfeed->feed.ts, DMX_OK);
+			  &dvbdmxfeed->feed.ts);
 	return 0;
 }
 
@@ -280,9 +280,11 @@ int av7110_pes_play(void *dest, struct dvb_ringbuffer *buf, int dlen)
 }
 
 
-int av7110_set_volume(struct av7110 *av7110, int volleft, int volright)
+int av7110_set_volume(struct av7110 *av7110, unsigned int volleft,
+		      unsigned int volright)
 {
-	int err, vol, val, balance = 0;
+	unsigned int vol, val, balance = 0;
+	int err;
 
 	dprintk(2, "av7110:%p, \n", av7110);
 
@@ -815,7 +817,7 @@ static void p_to_t(u8 const *buf, long int length, u16 pid, u8 *counter,
 			memcpy(obuf + l, buf + c, TS_SIZE - l);
 			c = length;
 		}
-		feed->cb.ts(obuf, 188, NULL, 0, &feed->feed.ts, DMX_OK);
+		feed->cb.ts(obuf, 188, NULL, 0, &feed->feed.ts);
 		pes_start = 0;
 	}
 }
@@ -1042,6 +1044,9 @@ static int play_iframe(struct av7110 *av7110, char __user *buf, unsigned int len
 	int match = 0;
 
 	dprintk(2, "av7110:%p, \n", av7110);
+
+	if (len == 0)
+		return 0;
 
 	if (!(av7110->playing & RP_VIDEO)) {
 		if (av7110_av_start_play(av7110, RP_VIDEO) < 0)
@@ -1589,10 +1594,10 @@ int av7110_av_register(struct av7110 *av7110)
 	memset(&av7110->video_size, 0, sizeof (video_size_t));
 
 	dvb_register_device(&av7110->dvb_adapter, &av7110->video_dev,
-			    &dvbdev_video, av7110, DVB_DEVICE_VIDEO);
+			    &dvbdev_video, av7110, DVB_DEVICE_VIDEO, 0);
 
 	dvb_register_device(&av7110->dvb_adapter, &av7110->audio_dev,
-			    &dvbdev_audio, av7110, DVB_DEVICE_AUDIO);
+			    &dvbdev_audio, av7110, DVB_DEVICE_AUDIO, 0);
 
 	return 0;
 }

@@ -536,7 +536,7 @@ ohci_hub_descriptor (
 	u32		rh = roothub_a (ohci);
 	u16		temp;
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bPwrOn2PwrGood = (rh & RH_A_POTPGT) >> 24;
 	desc->bHubContrCurrent = 0;
 
@@ -544,15 +544,15 @@ ohci_hub_descriptor (
 	temp = 1 + (ohci->num_ports / 8);
 	desc->bDescLength = 7 + 2 * temp;
 
-	temp = 0;
+	temp = HUB_CHAR_COMMON_LPSM | HUB_CHAR_COMMON_OCPM;
 	if (rh & RH_A_NPS)		/* no power switching? */
-	    temp |= 0x0002;
+		temp |= HUB_CHAR_NO_LPSM;
 	if (rh & RH_A_PSM)		/* per-port power switching? */
-	    temp |= 0x0001;
+		temp |= HUB_CHAR_INDV_PORT_LPSM;
 	if (rh & RH_A_NOCP)		/* no overcurrent reporting? */
-	    temp |= 0x0010;
+		temp |= HUB_CHAR_NO_OCPM;
 	else if (rh & RH_A_OCPM)	/* per-port overcurrent reporting? */
-	    temp |= 0x0008;
+		temp |= HUB_CHAR_INDV_PORT_OCPM;
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 
 	/* ports removable, and usb 1.0 legacy PortPwrCtrlMask */
@@ -585,7 +585,7 @@ static int ohci_start_port_reset (struct usb_hcd *hcd, unsigned port)
 	if (!(status & RH_PS_CCS))
 		return -ENODEV;
 
-	/* khubd will finish the reset later */
+	/* hub_wq will finish the reset later */
 	ohci_writel(ohci, RH_PS_PRS, &ohci->regs->roothub.portstatus [port]);
 	return 0;
 }
@@ -610,7 +610,7 @@ static int ohci_start_port_reset (struct usb_hcd *hcd, unsigned port)
 /* wrap-aware logic morphed from <linux/jiffies.h> */
 #define tick_before(t1,t2) ((s16)(((s16)(t1))-((s16)(t2))) < 0)
 
-/* called from some task, normally khubd */
+/* called from some task, normally hub_wq */
 static inline int root_port_reset (struct ohci_hcd *ohci, unsigned port)
 {
 	__hc32 __iomem *portstat = &ohci->regs->roothub.portstatus [port];

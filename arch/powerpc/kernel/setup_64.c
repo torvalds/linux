@@ -37,6 +37,7 @@
 #include <linux/memblock.h>
 #include <linux/hugetlb.h>
 #include <linux/memory.h>
+#include <linux/nmi.h>
 
 #include <asm/io.h>
 #include <asm/kdump.h>
@@ -106,6 +107,14 @@ static void setup_tlb_core_data(void)
 
 	for_each_possible_cpu(cpu) {
 		int first = cpu_first_thread_sibling(cpu);
+
+		/*
+		 * If we boot via kdump on a non-primary thread,
+		 * make sure we point at the thread that actually
+		 * set up this TLB.
+		 */
+		if (cpu_first_thread_sibling(boot_cpuid) == first)
+			first = boot_cpuid;
 
 		paca[cpu].tcd_ptr = &paca[first].tcd;
 
@@ -246,9 +255,6 @@ void __init early_setup(unsigned long dt_ptr)
 	setup_paca(&boot_paca);
 	fixup_boot_paca();
 
-	/* Initialize lockdep early or else spinlocks will blow */
-	lockdep_init();
-
 	/* -------- printk is now safe to use ------- */
 
 	/* Enable early debugging if any specified (see udbg.h) */
@@ -331,10 +337,25 @@ void early_setup_secondary(void)
 #endif /* CONFIG_SMP */
 
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
+static bool use_spinloop(void)
+{
+	if (!IS_ENABLED(CONFIG_PPC_BOOK3E))
+		return true;
+
+	/*
+	 * When book3e boots from kexec, the ePAPR spin table does
+	 * not get used.
+	 */
+	return of_property_read_bool(of_chosen, "linux,booted-from-kexec");
+}
+
 void smp_release_cpus(void)
 {
 	unsigned long *ptr;
 	int i;
+
+	if (!use_spinloop())
+		return;
 
 	DBG(" -> smp_release_cpus()\n");
 
@@ -515,33 +536,44 @@ void __init setup_system(void)
 	 * Freescale Book3e parts spin in a loop provided by firmware,
 	 * so smp_release_cpus() does nothing for them
 	 */
-#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_FSL_BOOK3E)
+#if defined(CONFIG_SMP)
 	/* Release secondary cpus out of their spinloops at 0x60 now that
 	 * we can map physical -> logical CPU ids
 	 */
 	smp_release_cpus();
 #endif
 
-	printk("Starting Linux PPC64 %s\n", init_utsname()->version);
+	pr_info("Starting Linux %s %s\n", init_utsname()->machine,
+		 init_utsname()->version);
 
-	printk("-----------------------------------------------------\n");
-	printk("ppc64_pft_size                = 0x%llx\n", ppc64_pft_size);
-	printk("physicalMemorySize            = 0x%llx\n", memblock_phys_mem_size());
+	pr_info("-----------------------------------------------------\n");
+	pr_info("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
+	pr_info("phys_mem_size     = 0x%llx\n", memblock_phys_mem_size());
+
 	if (ppc64_caches.dline_size != 0x80)
-		printk("ppc64_caches.dcache_line_size = 0x%x\n",
-		       ppc64_caches.dline_size);
+		pr_info("dcache_line_size  = 0x%x\n", ppc64_caches.dline_size);
 	if (ppc64_caches.iline_size != 0x80)
-		printk("ppc64_caches.icache_line_size = 0x%x\n",
-		       ppc64_caches.iline_size);
+		pr_info("icache_line_size  = 0x%x\n", ppc64_caches.iline_size);
+
+	pr_info("cpu_features      = 0x%016lx\n", cur_cpu_spec->cpu_features);
+	pr_info("  possible        = 0x%016lx\n", CPU_FTRS_POSSIBLE);
+	pr_info("  always          = 0x%016lx\n", CPU_FTRS_ALWAYS);
+	pr_info("cpu_user_features = 0x%08x 0x%08x\n", cur_cpu_spec->cpu_user_features,
+		cur_cpu_spec->cpu_user_features2);
+	pr_info("mmu_features      = 0x%08x\n", cur_cpu_spec->mmu_features);
+	pr_info("firmware_features = 0x%016lx\n", powerpc_firmware_features);
+
 #ifdef CONFIG_PPC_STD_MMU_64
 	if (htab_address)
-		printk("htab_address                  = 0x%p\n", htab_address);
-	printk("htab_hash_mask                = 0x%lx\n", htab_hash_mask);
-#endif /* CONFIG_PPC_STD_MMU_64 */
+		pr_info("htab_address      = 0x%p\n", htab_address);
+
+	pr_info("htab_hash_mask    = 0x%lx\n", htab_hash_mask);
+#endif
+
 	if (PHYSICAL_START > 0)
-		printk("physical_start                = 0x%llx\n",
+		pr_info("physical_start    = 0x%llx\n",
 		       (unsigned long long)PHYSICAL_START);
-	printk("-----------------------------------------------------\n");
+	pr_info("-----------------------------------------------------\n");
 
 	DBG(" <- setup_system()\n");
 }
@@ -650,14 +682,12 @@ static void __init emergency_stack_init(void)
 }
 
 /*
- * Called into from start_kernel this initializes bootmem, which is used
+ * Called into from start_kernel this initializes memblock, which is used
  * to manage page allocation until mem_init is called.
  */
 void __init setup_arch(char **cmdline_p)
 {
-	ppc64_boot_msg(0x12, "Setup Arch");
-
-	*cmdline_p = cmd_line;
+	*cmdline_p = boot_command_line;
 
 	/*
 	 * Set cache line size based on type of cpu as a default.
@@ -677,13 +707,14 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_PPC_64K_PAGES
 	init_mm.context.pte_frag = NULL;
 #endif
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+	mm_iommu_init(&init_mm.context);
+#endif
 	irqstack_early_init();
 	exc_lvl_early_init();
 	emergency_stack_init();
 
-	/* set up the bootmem stuff with available memory */
-	do_init_bootmem();
-	sparse_init();
+	initmem_init();
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
@@ -701,33 +732,6 @@ void __init setup_arch(char **cmdline_p)
 	if ((unsigned long)_stext & 0xffff)
 		panic("Kernelbase not 64K-aligned (0x%lx)!\n",
 		      (unsigned long)_stext);
-
-	ppc64_boot_msg(0x15, "Setup Done");
-}
-
-
-/* ToDo: do something useful if ppc_md is not yet setup. */
-#define PPC64_LINUX_FUNCTION 0x0f000000
-#define PPC64_IPL_MESSAGE 0xc0000000
-#define PPC64_TERM_MESSAGE 0xb0000000
-
-static void ppc64_do_msg(unsigned int src, const char *msg)
-{
-	if (ppc_md.progress) {
-		char buf[128];
-
-		sprintf(buf, "%08X\n", src);
-		ppc_md.progress(buf, 0);
-		snprintf(buf, 128, "%s", msg);
-		ppc_md.progress(buf, 0);
-	}
-}
-
-/* Print a boot progress message. */
-void ppc64_boot_msg(unsigned int src, const char *msg)
-{
-	ppc64_do_msg(PPC64_LINUX_FUNCTION|PPC64_IPL_MESSAGE|src, msg);
-	printk("[boot]%04x %s\n", src, msg);
 }
 
 #ifdef CONFIG_SMP
@@ -799,4 +803,23 @@ unsigned long memory_block_size_bytes(void)
 #if defined(CONFIG_PPC_INDIRECT_PIO) || defined(CONFIG_PPC_INDIRECT_MMIO)
 struct ppc_pci_io ppc_pci_io;
 EXPORT_SYMBOL(ppc_pci_io);
+#endif
+
+#ifdef CONFIG_HARDLOCKUP_DETECTOR
+u64 hw_nmi_get_sample_period(int watchdog_thresh)
+{
+	return ppc_proc_freq * watchdog_thresh;
+}
+
+/*
+ * The hardlockup detector breaks PMU event based branches and is likely
+ * to get false positives in KVM guests, so disable it by default.
+ */
+static int __init disable_hardlockup_detector(void)
+{
+	hardlockup_detector_disable();
+
+	return 0;
+}
+early_initcall(disable_hardlockup_detector);
 #endif

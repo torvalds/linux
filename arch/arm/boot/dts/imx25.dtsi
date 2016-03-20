@@ -24,6 +24,10 @@
 		i2c2 = &i2c3;
 		mmc0 = &esdhc1;
 		mmc1 = &esdhc2;
+		pwm0 = &pwm1;
+		pwm1 = &pwm2;
+		pwm2 = &pwm3;
+		pwm3 = &pwm4;
 		serial0 = &uart1;
 		serial1 = &uart2;
 		serial2 = &uart3;
@@ -162,7 +166,7 @@
 				#size-cells = <0>;
 				compatible = "fsl,imx25-cspi", "fsl,imx35-cspi";
 				reg = <0x43fa4000 0x4000>;
-				clocks = <&clks 62>, <&clks 62>;
+				clocks = <&clks 78>, <&clks 78>;
 				clock-names = "ipg", "per";
 				interrupts = <14>;
 				status = "disabled";
@@ -239,6 +243,7 @@
 			};
 
 			ssi2: ssi@50014000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx25-ssi", "fsl,imx21-ssi";
 				reg = <0x50014000 0x4000>;
 				interrupts = <11>;
@@ -274,6 +279,7 @@
 			};
 
 			ssi1: ssi@50034000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx25-ssi", "fsl,imx21-ssi";
 				reg = <0x50034000 0x4000>;
 				interrupts = <12>;
@@ -367,7 +373,7 @@
 				compatible = "fsl,imx25-pwm", "fsl,imx27-pwm";
 				#pwm-cells = <2>;
 				reg = <0x53fa0000 0x4000>;
-				clocks = <&clks 106>, <&clks 36>;
+				clocks = <&clks 106>, <&clks 52>;
 				clock-names = "ipg", "per";
 				interrupts = <36>;
 			};
@@ -386,7 +392,7 @@
 				compatible = "fsl,imx25-pwm", "fsl,imx27-pwm";
 				#pwm-cells = <2>;
 				reg = <0x53fa8000 0x4000>;
-				clocks = <&clks 107>, <&clks 36>;
+				clocks = <&clks 107>, <&clks 52>;
 				clock-names = "ipg", "per";
 				interrupts = <41>;
 			};
@@ -426,8 +432,9 @@
 
 			pwm4: pwm@53fc8000 {
 				compatible = "fsl,imx25-pwm", "fsl,imx27-pwm";
+				#pwm-cells = <2>;
 				reg = <0x53fc8000 0x4000>;
-				clocks = <&clks 108>, <&clks 36>;
+				clocks = <&clks 108>, <&clks 52>;
 				clock-names = "ipg", "per";
 				interrupts = <42>;
 			};
@@ -453,7 +460,7 @@
 			};
 
 			sdma: sdma@53fd4000 {
-				compatible = "fsl,imx25-sdma", "fsl,imx35-sdma";
+				compatible = "fsl,imx25-sdma";
 				reg = <0x53fd4000 0x4000>;
 				clocks = <&clks 112>, <&clks 68>;
 				clock-names = "ipg", "ahb";
@@ -474,7 +481,7 @@
 				compatible = "fsl,imx25-pwm", "fsl,imx27-pwm";
 				#pwm-cells = <2>;
 				reg = <0x53fe0000 0x4000>;
-				clocks = <&clks 105>, <&clks 36>;
+				clocks = <&clks 105>, <&clks 52>;
 				clock-names = "ipg", "per";
 				interrupts = <26>;
 			};

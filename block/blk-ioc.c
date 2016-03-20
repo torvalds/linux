@@ -289,7 +289,7 @@ struct io_context *get_task_io_context(struct task_struct *task,
 {
 	struct io_context *ioc;
 
-	might_sleep_if(gfp_flags & __GFP_WAIT);
+	might_sleep_if(gfpflags_allow_blocking(gfp_flags));
 
 	do {
 		task_lock(task);

@@ -1,0 +1,43 @@
+What:		/sys/bus/vmbus/devices/vmbus_*/id
+Date:		Jul 2009
+KernelVersion:	2.6.31
+Contact:	K. Y. Srinivasan <kys@microsoft.com>
+Description:	The VMBus child_relid of the device's primary channel
+Users:		tools/hv/lsvmbus
+
+What:		/sys/bus/vmbus/devices/vmbus_*/class_id
+Date:		Jul 2009
+KernelVersion:	2.6.31
+Contact:	K. Y. Srinivasan <kys@microsoft.com>
+Description:	The VMBus interface type GUID of the device
+Users:		tools/hv/lsvmbus
+
+What:		/sys/bus/vmbus/devices/vmbus_*/device_id
+Date:		Jul 2009
+KernelVersion:	2.6.31
+Contact:	K. Y. Srinivasan <kys@microsoft.com>
+Description:	The VMBus interface instance GUID of the device
+Users:		tools/hv/lsvmbus
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channel_vp_mapping
+Date:		Jul 2015
+KernelVersion:	4.2.0
+Contact:	K. Y. Srinivasan <kys@microsoft.com>
+Description:	The mapping of which primary/sub channels are bound to which
+		Virtual Processors.
+		Format: <channel's child_relid:the bound cpu's number>
+Users:		tools/hv/lsvmbus
+
+What:		/sys/bus/vmbus/devices/vmbus_*/device
+Date:		Dec. 2015
+KernelVersion:	4.5
+Contact:	K. Y. Srinivasan <kys@microsoft.com>
+Description:	The 16 bit device ID of the device
+Users:		tools/hv/lsvmbus and user level RDMA libraries
+
+What:		/sys/bus/vmbus/devices/vmbus_*/vendor
+Date:		Dec. 2015
+KernelVersion:	4.5
+Contact:	K. Y. Srinivasan <kys@microsoft.com>
+Description:	The 16 bit vendor ID of the device
+Users:		tools/hv/lsvmbus and user level RDMA libraries

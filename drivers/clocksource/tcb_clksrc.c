@@ -91,55 +91,63 @@ static struct tc_clkevt_device *to_tc_clkevt(struct clock_event_device *clkevt)
  */
 static u32 timer_clock;
 
-static void tc_mode(enum clock_event_mode m, struct clock_event_device *d)
+static int tc_shutdown(struct clock_event_device *d)
 {
 	struct tc_clkevt_device *tcd = to_tc_clkevt(d);
 	void __iomem		*regs = tcd->regs;
 
-	if (tcd->clkevt.mode == CLOCK_EVT_MODE_PERIODIC
-			|| tcd->clkevt.mode == CLOCK_EVT_MODE_ONESHOT) {
-		__raw_writel(0xff, regs + ATMEL_TC_REG(2, IDR));
-		__raw_writel(ATMEL_TC_CLKDIS, regs + ATMEL_TC_REG(2, CCR));
+	__raw_writel(0xff, regs + ATMEL_TC_REG(2, IDR));
+	__raw_writel(ATMEL_TC_CLKDIS, regs + ATMEL_TC_REG(2, CCR));
+	if (!clockevent_state_detached(d))
 		clk_disable(tcd->clk);
-	}
 
-	switch (m) {
+	return 0;
+}
+
+static int tc_set_oneshot(struct clock_event_device *d)
+{
+	struct tc_clkevt_device *tcd = to_tc_clkevt(d);
+	void __iomem		*regs = tcd->regs;
+
+	if (clockevent_state_oneshot(d) || clockevent_state_periodic(d))
+		tc_shutdown(d);
+
+	clk_enable(tcd->clk);
+
+	/* slow clock, count up to RC, then irq and stop */
+	__raw_writel(timer_clock | ATMEL_TC_CPCSTOP | ATMEL_TC_WAVE |
+		     ATMEL_TC_WAVESEL_UP_AUTO, regs + ATMEL_TC_REG(2, CMR));
+	__raw_writel(ATMEL_TC_CPCS, regs + ATMEL_TC_REG(2, IER));
+
+	/* set_next_event() configures and starts the timer */
+	return 0;
+}
+
+static int tc_set_periodic(struct clock_event_device *d)
+{
+	struct tc_clkevt_device *tcd = to_tc_clkevt(d);
+	void __iomem		*regs = tcd->regs;
+
+	if (clockevent_state_oneshot(d) || clockevent_state_periodic(d))
+		tc_shutdown(d);
 
 	/* By not making the gentime core emulate periodic mode on top
 	 * of oneshot, we get lower overhead and improved accuracy.
 	 */
-	case CLOCK_EVT_MODE_PERIODIC:
-		clk_enable(tcd->clk);
+	clk_enable(tcd->clk);
 
-		/* slow clock, count up to RC, then irq and restart */
-		__raw_writel(timer_clock
-				| ATMEL_TC_WAVE | ATMEL_TC_WAVESEL_UP_AUTO,
-				regs + ATMEL_TC_REG(2, CMR));
-		__raw_writel((32768 + HZ/2) / HZ, tcaddr + ATMEL_TC_REG(2, RC));
+	/* slow clock, count up to RC, then irq and restart */
+	__raw_writel(timer_clock | ATMEL_TC_WAVE | ATMEL_TC_WAVESEL_UP_AUTO,
+		     regs + ATMEL_TC_REG(2, CMR));
+	__raw_writel((32768 + HZ / 2) / HZ, tcaddr + ATMEL_TC_REG(2, RC));
 
-		/* Enable clock and interrupts on RC compare */
-		__raw_writel(ATMEL_TC_CPCS, regs + ATMEL_TC_REG(2, IER));
+	/* Enable clock and interrupts on RC compare */
+	__raw_writel(ATMEL_TC_CPCS, regs + ATMEL_TC_REG(2, IER));
 
-		/* go go gadget! */
-		__raw_writel(ATMEL_TC_CLKEN | ATMEL_TC_SWTRG,
-				regs + ATMEL_TC_REG(2, CCR));
-		break;
-
-	case CLOCK_EVT_MODE_ONESHOT:
-		clk_enable(tcd->clk);
-
-		/* slow clock, count up to RC, then irq and stop */
-		__raw_writel(timer_clock | ATMEL_TC_CPCSTOP
-				| ATMEL_TC_WAVE | ATMEL_TC_WAVESEL_UP_AUTO,
-				regs + ATMEL_TC_REG(2, CMR));
-		__raw_writel(ATMEL_TC_CPCS, regs + ATMEL_TC_REG(2, IER));
-
-		/* set_next_event() configures and starts the timer */
-		break;
-
-	default:
-		break;
-	}
+	/* go go gadget! */
+	__raw_writel(ATMEL_TC_CLKEN | ATMEL_TC_SWTRG, regs +
+		     ATMEL_TC_REG(2, CCR));
+	return 0;
 }
 
 static int tc_next_event(unsigned long delta, struct clock_event_device *d)
@@ -154,13 +162,15 @@ static int tc_next_event(unsigned long delta, struct clock_event_device *d)
 
 static struct tc_clkevt_device clkevt = {
 	.clkevt	= {
-		.name		= "tc_clkevt",
-		.features	= CLOCK_EVT_FEAT_PERIODIC
-					| CLOCK_EVT_FEAT_ONESHOT,
+		.name			= "tc_clkevt",
+		.features		= CLOCK_EVT_FEAT_PERIODIC |
+					  CLOCK_EVT_FEAT_ONESHOT,
 		/* Should be lower than at91rm9200's system timer */
-		.rating		= 125,
-		.set_next_event	= tc_next_event,
-		.set_mode	= tc_mode,
+		.rating			= 125,
+		.set_next_event		= tc_next_event,
+		.set_state_shutdown	= tc_shutdown,
+		.set_state_periodic	= tc_set_periodic,
+		.set_state_oneshot	= tc_set_oneshot,
 	},
 };
 
@@ -178,35 +188,38 @@ static irqreturn_t ch2_irq(int irq, void *handle)
 	return IRQ_NONE;
 }
 
-static struct irqaction tc_irqaction = {
-	.name		= "tc_clkevt",
-	.flags		= IRQF_TIMER,
-	.handler	= ch2_irq,
-};
-
 static int __init setup_clkevents(struct atmel_tc *tc, int clk32k_divisor_idx)
 {
 	int ret;
 	struct clk *t2_clk = tc->clk[2];
 	int irq = tc->irq[2];
 
-	/* try to enable t2 clk to avoid future errors in mode change */
-	ret = clk_prepare_enable(t2_clk);
+	ret = clk_prepare_enable(tc->slow_clk);
 	if (ret)
 		return ret;
+
+	/* try to enable t2 clk to avoid future errors in mode change */
+	ret = clk_prepare_enable(t2_clk);
+	if (ret) {
+		clk_disable_unprepare(tc->slow_clk);
+		return ret;
+	}
+
 	clk_disable(t2_clk);
 
 	clkevt.regs = tc->regs;
 	clkevt.clk = t2_clk;
-	tc_irqaction.dev_id = &clkevt;
 
 	timer_clock = clk32k_divisor_idx;
 
 	clkevt.clkevt.cpumask = cpumask_of(0);
 
-	ret = setup_irq(irq, &tc_irqaction);
-	if (ret)
+	ret = request_irq(irq, ch2_irq, IRQF_TIMER, "tc_clkevt", &clkevt);
+	if (ret) {
+		clk_unprepare(t2_clk);
+		clk_disable_unprepare(tc->slow_clk);
 		return ret;
+	}
 
 	clockevents_config_and_register(&clkevt.clkevt, 32768, 1, 0xffff);
 
@@ -279,7 +292,7 @@ static int __init tcb_clksrc_init(void)
 	int i;
 	int ret;
 
-	tc = atmel_tc_alloc(CONFIG_ATMEL_TCB_CLKSRC_BLOCK, clksrc.name);
+	tc = atmel_tc_alloc(CONFIG_ATMEL_TCB_CLKSRC_BLOCK);
 	if (!tc) {
 		pr_debug("can't alloc TC for clocksource\n");
 		return -ENODEV;

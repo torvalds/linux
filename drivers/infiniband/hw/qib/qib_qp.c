@@ -100,9 +100,10 @@ static u32 credit_table[31] = {
 	32768                   /* 1E */
 };
 
-static void get_map_page(struct qib_qpn_table *qpt, struct qpn_map *map)
+static void get_map_page(struct qib_qpn_table *qpt, struct qpn_map *map,
+			 gfp_t gfp)
 {
-	unsigned long page = get_zeroed_page(GFP_KERNEL);
+	unsigned long page = get_zeroed_page(gfp);
 
 	/*
 	 * Free the page if someone raced with us installing it.
@@ -121,7 +122,7 @@ static void get_map_page(struct qib_qpn_table *qpt, struct qpn_map *map)
  * zero/one for QP type IB_QPT_SMI/IB_QPT_GSI.
  */
 static int alloc_qpn(struct qib_devdata *dd, struct qib_qpn_table *qpt,
-		     enum ib_qp_type type, u8 port)
+		     enum ib_qp_type type, u8 port, gfp_t gfp)
 {
 	u32 i, offset, max_scan, qpn;
 	struct qpn_map *map;
@@ -151,7 +152,7 @@ static int alloc_qpn(struct qib_devdata *dd, struct qib_qpn_table *qpt,
 	max_scan = qpt->nmaps - !offset;
 	for (i = 0;;) {
 		if (unlikely(!map->page)) {
-			get_map_page(qpt, map);
+			get_map_page(qpt, map, gfp);
 			if (unlikely(!map->page))
 				break;
 		}
@@ -255,10 +256,10 @@ static void remove_qp(struct qib_ibdev *dev, struct qib_qp *qp)
 
 	if (rcu_dereference_protected(ibp->qp0,
 			lockdep_is_held(&dev->qpt_lock)) == qp) {
-		rcu_assign_pointer(ibp->qp0, NULL);
+		RCU_INIT_POINTER(ibp->qp0, NULL);
 	} else if (rcu_dereference_protected(ibp->qp1,
 			lockdep_is_held(&dev->qpt_lock)) == qp) {
-		rcu_assign_pointer(ibp->qp1, NULL);
+		RCU_INIT_POINTER(ibp->qp1, NULL);
 	} else {
 		struct qib_qp *q;
 		struct qib_qp __rcu **qpp;
@@ -269,7 +270,7 @@ static void remove_qp(struct qib_ibdev *dev, struct qib_qp *qp)
 				lockdep_is_held(&dev->qpt_lock))) != NULL;
 				qpp = &q->next)
 			if (q == qp) {
-				rcu_assign_pointer(*qpp,
+				RCU_INIT_POINTER(*qpp,
 					rcu_dereference_protected(qp->next,
 					 lockdep_is_held(&dev->qpt_lock)));
 				removed = 1;
@@ -315,7 +316,7 @@ unsigned qib_free_all_qps(struct qib_devdata *dd)
 	for (n = 0; n < dev->qp_table_size; n++) {
 		qp = rcu_dereference_protected(dev->qp_table[n],
 			lockdep_is_held(&dev->qpt_lock));
-		rcu_assign_pointer(dev->qp_table[n], NULL);
+		RCU_INIT_POINTER(dev->qp_table[n], NULL);
 
 		for (; qp; qp = rcu_dereference_protected(qp->next,
 					lockdep_is_held(&dev->qpt_lock)))
@@ -436,7 +437,7 @@ static void clear_mr_refs(struct qib_qp *qp, int clr_sends)
 			if (qp->ibqp.qp_type == IB_QPT_UD ||
 			    qp->ibqp.qp_type == IB_QPT_SMI ||
 			    qp->ibqp.qp_type == IB_QPT_GSI)
-				atomic_dec(&to_iah(wqe->wr.wr.ud.ah)->refcount);
+				atomic_dec(&to_iah(wqe->ud_wr.ah)->refcount);
 			if (++qp->s_last >= qp->s_size)
 				qp->s_last = 0;
 		}
@@ -983,13 +984,21 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 	size_t sz;
 	size_t sg_list_sz;
 	struct ib_qp *ret;
+	gfp_t gfp;
+
 
 	if (init_attr->cap.max_send_sge > ib_qib_max_sges ||
 	    init_attr->cap.max_send_wr > ib_qib_max_qp_wrs ||
-	    init_attr->create_flags) {
-		ret = ERR_PTR(-EINVAL);
-		goto bail;
-	}
+	    init_attr->create_flags & ~(IB_QP_CREATE_USE_GFP_NOIO))
+		return ERR_PTR(-EINVAL);
+
+	/* GFP_NOIO is applicable in RC QPs only */
+	if (init_attr->create_flags & IB_QP_CREATE_USE_GFP_NOIO &&
+	    init_attr->qp_type != IB_QPT_RC)
+		return ERR_PTR(-EINVAL);
+
+	gfp = init_attr->create_flags & IB_QP_CREATE_USE_GFP_NOIO ?
+			GFP_NOIO : GFP_KERNEL;
 
 	/* Check receive queue parameters if no SRQ is specified. */
 	if (!init_attr->srq) {
@@ -1021,7 +1030,8 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 		sz = sizeof(struct qib_sge) *
 			init_attr->cap.max_send_sge +
 			sizeof(struct qib_swqe);
-		swq = vmalloc((init_attr->cap.max_send_wr + 1) * sz);
+		swq = __vmalloc((init_attr->cap.max_send_wr + 1) * sz,
+				gfp, PAGE_KERNEL);
 		if (swq == NULL) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail;
@@ -1037,13 +1047,13 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 		} else if (init_attr->cap.max_recv_sge > 1)
 			sg_list_sz = sizeof(*qp->r_sg_list) *
 				(init_attr->cap.max_recv_sge - 1);
-		qp = kzalloc(sz + sg_list_sz, GFP_KERNEL);
+		qp = kzalloc(sz + sg_list_sz, gfp);
 		if (!qp) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail_swq;
 		}
 		RCU_INIT_POINTER(qp->next, NULL);
-		qp->s_hdr = kzalloc(sizeof(*qp->s_hdr), GFP_KERNEL);
+		qp->s_hdr = kzalloc(sizeof(*qp->s_hdr), gfp);
 		if (!qp->s_hdr) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail_qp;
@@ -1058,8 +1068,16 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 			qp->r_rq.max_sge = init_attr->cap.max_recv_sge;
 			sz = (sizeof(struct ib_sge) * qp->r_rq.max_sge) +
 				sizeof(struct qib_rwqe);
-			qp->r_rq.wq = vmalloc_user(sizeof(struct qib_rwq) +
-						   qp->r_rq.size * sz);
+			if (gfp != GFP_NOIO)
+				qp->r_rq.wq = vmalloc_user(
+						sizeof(struct qib_rwq) +
+						qp->r_rq.size * sz);
+			else
+				qp->r_rq.wq = __vmalloc(
+						sizeof(struct qib_rwq) +
+						qp->r_rq.size * sz,
+						gfp, PAGE_KERNEL);
+
 			if (!qp->r_rq.wq) {
 				ret = ERR_PTR(-ENOMEM);
 				goto bail_qp;
@@ -1090,7 +1108,7 @@ struct ib_qp *qib_create_qp(struct ib_pd *ibpd,
 		dev = to_idev(ibpd->device);
 		dd = dd_from_dev(dev);
 		err = alloc_qpn(dd, &dev->qpn_table, init_attr->qp_type,
-				init_attr->port_num);
+				init_attr->port_num, gfp);
 		if (err < 0) {
 			ret = ERR_PTR(err);
 			vfree(qp->r_rq.wq);
@@ -1325,7 +1343,6 @@ int qib_qp_iter_next(struct qib_qp_iter *iter)
 	struct qib_qp *pqp = iter->qp;
 	struct qib_qp *qp;
 
-	rcu_read_lock();
 	for (; n < dev->qp_table_size; n++) {
 		if (pqp)
 			qp = rcu_dereference(pqp->next);
@@ -1333,18 +1350,11 @@ int qib_qp_iter_next(struct qib_qp_iter *iter)
 			qp = rcu_dereference(dev->qp_table[n]);
 		pqp = qp;
 		if (qp) {
-			if (iter->qp)
-				atomic_dec(&iter->qp->refcount);
-			atomic_inc(&qp->refcount);
-			rcu_read_unlock();
 			iter->qp = qp;
 			iter->n = n;
 			return 0;
 		}
 	}
-	rcu_read_unlock();
-	if (iter->qp)
-		atomic_dec(&iter->qp->refcount);
 	return ret;
 }
 

@@ -14,6 +14,7 @@
  *
  */
 
+#include <crypto/aead.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
 #include <linux/errno.h>
@@ -325,12 +326,12 @@ static int blkcipher_walk_first(struct blkcipher_desc *desc,
 	if (WARN_ON_ONCE(in_irq()))
 		return -EDEADLK;
 
+	walk->iv = desc->info;
 	walk->nbytes = walk->total;
 	if (unlikely(!walk->total))
 		return 0;
 
 	walk->buffer = NULL;
-	walk->iv = desc->info;
 	if (unlikely(((unsigned long)walk->iv & walk->alignmask))) {
 		int err = blkcipher_copy_iv(walk);
 		if (err)

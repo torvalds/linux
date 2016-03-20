@@ -5,24 +5,24 @@
 #
 # Licensed under GPLv2
 
-obj-y				:=
-obj-m				:=
-obj-n				:=
-obj-				:=
+ccflags-$(CONFIG_ARCH_MULTIPLATFORM) := -I$(srctree)/$(src)/include -I$(srctree)/arch/arm/plat-samsung/include
+asflags-$(CONFIG_ARCH_MULTIPLATFORM) := -I$(srctree)/$(src)/include -I$(srctree)/arch/arm/plat-samsung/include
+
+# PM
+
+obj-$(CONFIG_PM)		+= pm.o
+obj-$(CONFIG_PM_SLEEP)		+= sleep.o
+obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
+
+ifdef CONFIG_SAMSUNG_ATAGS
+
+obj-$(CONFIG_PM_SLEEP)          += irq-pm.o
 
 # Core
 
 obj-y				+= common.o
-
-# Core support
-
 obj-$(CONFIG_CPU_S3C6400)	+= s3c6400.o
 obj-$(CONFIG_CPU_S3C6410)	+= s3c6410.o
-
-# PM
-
-obj-$(CONFIG_PM)		+= pm.o irq-pm.o sleep.o
-obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
 
 # DMA support
 
@@ -44,6 +44,8 @@ obj-$(CONFIG_S3C64XX_SETUP_SDHCI_GPIO)	+= setup-sdhci-gpio.o
 obj-$(CONFIG_S3C64XX_SETUP_SPI)		+= setup-spi.o
 obj-$(CONFIG_S3C64XX_SETUP_USB_PHY) += setup-usb-phy.o
 
+obj-$(CONFIG_SAMSUNG_DEV_BACKLIGHT)	+= dev-backlight.o
+
 # Machine support
 
 obj-$(CONFIG_MACH_ANW6410)		+= mach-anw6410.o
@@ -57,4 +59,6 @@ obj-$(CONFIG_MACH_SMARTQ7)		+= mach-smartq7.o
 obj-$(CONFIG_MACH_SMDK6400)		+= mach-smdk6400.o
 obj-$(CONFIG_MACH_SMDK6410)		+= mach-smdk6410.o
 obj-$(CONFIG_MACH_WLF_CRAGG_6410)	+= mach-crag6410.o mach-crag6410-module.o
+endif
+
 obj-$(CONFIG_MACH_S3C64XX_DT)		+= mach-s3c64xx-dt.o

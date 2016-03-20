@@ -37,6 +37,7 @@
 #define SSDR		(0x10)  /* SSP Data Write/Data Read Register */
 
 #define SSTO		(0x28)  /* SSP Time Out Register */
+#define DDS_RATE	(0x28)  /* SSP DDS Clock Rate Register (Intel Quark) */
 #define SSPSP		(0x2C)  /* SSP Programmable Serial Protocol */
 #define SSTSA		(0x30)  /* SSP Tx Timeslot Active */
 #define SSRSA		(0x34)  /* SSP Rx Timeslot Active */
@@ -108,6 +109,25 @@
 #define SSCR1_RxTresh(x) (((x) - 1) << 10) /* level [1..4] */
 #endif
 
+/* QUARK_X1000 SSCR0 bit definition */
+#define QUARK_X1000_SSCR0_DSS	(0x1F)		/* Data Size Select (mask) */
+#define QUARK_X1000_SSCR0_DataSize(x)  ((x) - 1)	/* Data Size Select [4..32] */
+#define QUARK_X1000_SSCR0_FRF	(0x3 << 5)	/* FRame Format (mask) */
+#define QUARK_X1000_SSCR0_Motorola	(0x0 << 5)	/* Motorola's Serial Peripheral Interface (SPI) */
+
+#define RX_THRESH_QUARK_X1000_DFLT	1
+#define TX_THRESH_QUARK_X1000_DFLT	16
+
+#define QUARK_X1000_SSSR_TFL_MASK	(0x1F << 8)	/* Transmit FIFO Level mask */
+#define QUARK_X1000_SSSR_RFL_MASK	(0x1F << 13)	/* Receive FIFO Level mask */
+
+#define QUARK_X1000_SSCR1_TFT	(0x1F << 6)	/* Transmit FIFO Threshold (mask) */
+#define QUARK_X1000_SSCR1_TxTresh(x) (((x) - 1) << 6)	/* level [1..32] */
+#define QUARK_X1000_SSCR1_RFT	(0x1F << 11)	/* Receive FIFO Threshold (mask) */
+#define QUARK_X1000_SSCR1_RxTresh(x) (((x) - 1) << 11)	/* level [1..32] */
+#define QUARK_X1000_SSCR1_STRF       (1 << 17)		/* Select FIFO or EFWR */
+#define QUARK_X1000_SSCR1_EFWR	(1 << 16)		/* Enable FIFO Write/Read */
+
 /* extra bits in PXA255, PXA26x and PXA27x SSP ports */
 #define SSCR0_TISSP		(1 << 4)	/* TI Sync Serial Protocol */
 #define SSCR0_PSP		(3 << 4)	/* PSP - Programmable Serial Protocol */
@@ -174,7 +194,12 @@ enum pxa_ssp_type {
 	PXA168_SSP,
 	PXA910_SSP,
 	CE4100_SSP,
-	LPSS_SSP,
+	QUARK_X1000_SSP,
+	LPSS_LPT_SSP, /* Keep LPSS types sorted with lpss_platforms[] */
+	LPSS_BYT_SSP,
+	LPSS_BSW_SSP,
+	LPSS_SPT_SSP,
+	LPSS_BXT_SSP,
 };
 
 struct ssp_device {

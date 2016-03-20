@@ -570,7 +570,7 @@ int fsl_rio_port_write_init(struct fsl_rio_pw *pw)
 	out_be32(&pw->pw_regs->pwsr,
 		 (RIO_IPWSR_TE | RIO_IPWSR_QFI | RIO_IPWSR_PWD));
 
-	/* Configure port write contoller for snooping enable all reporting,
+	/* Configure port write controller for snooping enable all reporting,
 	   clear queue full */
 	out_be32(&pw->pw_regs->pwmr,
 		 RIO_IPWMR_SEN | RIO_IPWMR_QFIE | RIO_IPWMR_EIE | RIO_IPWMR_CQ);

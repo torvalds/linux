@@ -8,15 +8,16 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    364 bytes, from 2013-11-30 14:47:15)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1453 bytes, from 2013-03-31 16:51:27)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  32901 bytes, from 2014-06-02 15:21:30)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (   9859 bytes, from 2014-06-02 15:21:30)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  14477 bytes, from 2014-05-16 11:51:57)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  58020 bytes, from 2014-06-25 12:57:16)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          (  26602 bytes, from 2014-06-25 12:57:16)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    398 bytes, from 2015-09-24 17:25:31)
+- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1453 bytes, from 2015-05-20 20:03:07)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  32901 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (  10755 bytes, from 2015-09-14 20:46:55)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  14968 bytes, from 2015-05-20 20:12:27)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  67771 bytes, from 2015-09-14 20:46:55)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          (  63970 bytes, from 2015-09-14 20:50:12)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2015-09-24 17:30:00)
 
-Copyright (C) 2013-2014 by the following authors:
+Copyright (C) 2013-2015 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -67,7 +68,7 @@ enum vgt_event_type {
 
 enum pc_di_primtype {
 	DI_PT_NONE = 0,
-	DI_PT_POINTLIST_A2XX = 1,
+	DI_PT_POINTLIST_PSIZE = 1,
 	DI_PT_LINELIST = 2,
 	DI_PT_LINESTRIP = 3,
 	DI_PT_TRILIST = 4,
@@ -75,17 +76,12 @@ enum pc_di_primtype {
 	DI_PT_TRISTRIP = 6,
 	DI_PT_LINELOOP = 7,
 	DI_PT_RECTLIST = 8,
-	DI_PT_POINTLIST_A3XX = 9,
-	DI_PT_QUADLIST = 13,
-	DI_PT_QUADSTRIP = 14,
-	DI_PT_POLYGON = 15,
-	DI_PT_2D_COPY_RECT_LIST_V0 = 16,
-	DI_PT_2D_COPY_RECT_LIST_V1 = 17,
-	DI_PT_2D_COPY_RECT_LIST_V2 = 18,
-	DI_PT_2D_COPY_RECT_LIST_V3 = 19,
-	DI_PT_2D_FILL_RECT_LIST = 20,
-	DI_PT_2D_LINE_STRIP = 21,
-	DI_PT_2D_TRI_STRIP = 22,
+	DI_PT_POINTLIST = 9,
+	DI_PT_LINE_ADJ = 10,
+	DI_PT_LINESTRIP_ADJ = 11,
+	DI_PT_TRI_ADJ = 12,
+	DI_PT_TRISTRIP_ADJ = 13,
+	DI_PT_PATCHES = 34,
 };
 
 enum pc_di_src_sel {
@@ -157,18 +153,25 @@ enum adreno_pm4_type3_packets {
 	CP_IM_STORE = 44,
 	CP_SET_DRAW_INIT_FLAGS = 75,
 	CP_SET_PROTECTED_MODE = 95,
+	CP_BOOTSTRAP_UCODE = 111,
 	CP_LOAD_STATE = 48,
 	CP_COND_INDIRECT_BUFFER_PFE = 58,
 	CP_COND_INDIRECT_BUFFER_PFD = 50,
 	CP_INDIRECT_BUFFER_PFE = 63,
 	CP_SET_BIN = 76,
 	CP_TEST_TWO_MEMS = 113,
+	CP_REG_WR_NO_CTXT = 120,
+	CP_RECORD_PFP_TIMESTAMP = 17,
 	CP_WAIT_FOR_ME = 19,
 	CP_SET_DRAW_STATE = 67,
 	CP_DRAW_INDX_OFFSET = 56,
 	CP_DRAW_INDIRECT = 40,
 	CP_DRAW_INDX_INDIRECT = 41,
 	CP_DRAW_AUTO = 36,
+	CP_UNKNOWN_19 = 25,
+	CP_UNKNOWN_1A = 26,
+	CP_UNKNOWN_4E = 78,
+	CP_WIDE_REG_WRITE = 116,
 	IN_IB_PREFETCH_END = 23,
 	IN_SUBBLK_PREFETCH = 31,
 	IN_INSTR_PREFETCH = 32,
@@ -185,6 +188,7 @@ enum adreno_state_block {
 	SB_FRAG_TEX = 2,
 	SB_FRAG_MIPADDR = 3,
 	SB_VERT_SHADER = 4,
+	SB_GEOM_SHADER = 5,
 	SB_FRAG_SHADER = 6,
 };
 
@@ -196,6 +200,12 @@ enum adreno_state_type {
 enum adreno_state_src {
 	SS_DIRECT = 0,
 	SS_INDIRECT = 4,
+};
+
+enum a4xx_index_size {
+	INDEX4_SIZE_8_BIT = 0,
+	INDEX4_SIZE_16_BIT = 1,
+	INDEX4_SIZE_32_BIT = 2,
 };
 
 #define REG_CP_LOAD_STATE_0					0x00000000
@@ -274,11 +284,11 @@ static inline uint32_t CP_DRAW_INDX_1_INDEX_SIZE(enum pc_di_index_size val)
 #define CP_DRAW_INDX_1_NOT_EOP					0x00001000
 #define CP_DRAW_INDX_1_SMALL_INDEX				0x00002000
 #define CP_DRAW_INDX_1_PRE_DRAW_INITIATOR_ENABLE		0x00004000
-#define CP_DRAW_INDX_1_NUM_INDICES__MASK			0xffff0000
-#define CP_DRAW_INDX_1_NUM_INDICES__SHIFT			16
-static inline uint32_t CP_DRAW_INDX_1_NUM_INDICES(uint32_t val)
+#define CP_DRAW_INDX_1_NUM_INSTANCES__MASK			0xff000000
+#define CP_DRAW_INDX_1_NUM_INSTANCES__SHIFT			24
+static inline uint32_t CP_DRAW_INDX_1_NUM_INSTANCES(uint32_t val)
 {
-	return ((val) << CP_DRAW_INDX_1_NUM_INDICES__SHIFT) & CP_DRAW_INDX_1_NUM_INDICES__MASK;
+	return ((val) << CP_DRAW_INDX_1_NUM_INSTANCES__SHIFT) & CP_DRAW_INDX_1_NUM_INSTANCES__MASK;
 }
 
 #define REG_CP_DRAW_INDX_2					0x00000002
@@ -289,20 +299,20 @@ static inline uint32_t CP_DRAW_INDX_2_NUM_INDICES(uint32_t val)
 	return ((val) << CP_DRAW_INDX_2_NUM_INDICES__SHIFT) & CP_DRAW_INDX_2_NUM_INDICES__MASK;
 }
 
-#define REG_CP_DRAW_INDX_2					0x00000002
-#define CP_DRAW_INDX_2_INDX_BASE__MASK				0xffffffff
-#define CP_DRAW_INDX_2_INDX_BASE__SHIFT				0
-static inline uint32_t CP_DRAW_INDX_2_INDX_BASE(uint32_t val)
+#define REG_CP_DRAW_INDX_3					0x00000003
+#define CP_DRAW_INDX_3_INDX_BASE__MASK				0xffffffff
+#define CP_DRAW_INDX_3_INDX_BASE__SHIFT				0
+static inline uint32_t CP_DRAW_INDX_3_INDX_BASE(uint32_t val)
 {
-	return ((val) << CP_DRAW_INDX_2_INDX_BASE__SHIFT) & CP_DRAW_INDX_2_INDX_BASE__MASK;
+	return ((val) << CP_DRAW_INDX_3_INDX_BASE__SHIFT) & CP_DRAW_INDX_3_INDX_BASE__MASK;
 }
 
-#define REG_CP_DRAW_INDX_2					0x00000002
-#define CP_DRAW_INDX_2_INDX_SIZE__MASK				0xffffffff
-#define CP_DRAW_INDX_2_INDX_SIZE__SHIFT				0
-static inline uint32_t CP_DRAW_INDX_2_INDX_SIZE(uint32_t val)
+#define REG_CP_DRAW_INDX_4					0x00000004
+#define CP_DRAW_INDX_4_INDX_SIZE__MASK				0xffffffff
+#define CP_DRAW_INDX_4_INDX_SIZE__SHIFT				0
+static inline uint32_t CP_DRAW_INDX_4_INDX_SIZE(uint32_t val)
 {
-	return ((val) << CP_DRAW_INDX_2_INDX_SIZE__SHIFT) & CP_DRAW_INDX_2_INDX_SIZE__MASK;
+	return ((val) << CP_DRAW_INDX_4_INDX_SIZE__SHIFT) & CP_DRAW_INDX_4_INDX_SIZE__MASK;
 }
 
 #define REG_CP_DRAW_INDX_2_0					0x00000000
@@ -341,11 +351,11 @@ static inline uint32_t CP_DRAW_INDX_2_1_INDEX_SIZE(enum pc_di_index_size val)
 #define CP_DRAW_INDX_2_1_NOT_EOP				0x00001000
 #define CP_DRAW_INDX_2_1_SMALL_INDEX				0x00002000
 #define CP_DRAW_INDX_2_1_PRE_DRAW_INITIATOR_ENABLE		0x00004000
-#define CP_DRAW_INDX_2_1_NUM_INDICES__MASK			0xffff0000
-#define CP_DRAW_INDX_2_1_NUM_INDICES__SHIFT			16
-static inline uint32_t CP_DRAW_INDX_2_1_NUM_INDICES(uint32_t val)
+#define CP_DRAW_INDX_2_1_NUM_INSTANCES__MASK			0xff000000
+#define CP_DRAW_INDX_2_1_NUM_INSTANCES__SHIFT			24
+static inline uint32_t CP_DRAW_INDX_2_1_NUM_INSTANCES(uint32_t val)
 {
-	return ((val) << CP_DRAW_INDX_2_1_NUM_INDICES__SHIFT) & CP_DRAW_INDX_2_1_NUM_INDICES__MASK;
+	return ((val) << CP_DRAW_INDX_2_1_NUM_INSTANCES__SHIFT) & CP_DRAW_INDX_2_1_NUM_INSTANCES__MASK;
 }
 
 #define REG_CP_DRAW_INDX_2_2					0x00000002
@@ -369,29 +379,27 @@ static inline uint32_t CP_DRAW_INDX_OFFSET_0_SOURCE_SELECT(enum pc_di_src_sel va
 {
 	return ((val) << CP_DRAW_INDX_OFFSET_0_SOURCE_SELECT__SHIFT) & CP_DRAW_INDX_OFFSET_0_SOURCE_SELECT__MASK;
 }
-#define CP_DRAW_INDX_OFFSET_0_VIS_CULL__MASK			0x00000700
-#define CP_DRAW_INDX_OFFSET_0_VIS_CULL__SHIFT			8
-static inline uint32_t CP_DRAW_INDX_OFFSET_0_VIS_CULL(enum pc_di_vis_cull_mode val)
-{
-	return ((val) << CP_DRAW_INDX_OFFSET_0_VIS_CULL__SHIFT) & CP_DRAW_INDX_OFFSET_0_VIS_CULL__MASK;
-}
-#define CP_DRAW_INDX_OFFSET_0_INDEX_SIZE__MASK			0x00000800
-#define CP_DRAW_INDX_OFFSET_0_INDEX_SIZE__SHIFT			11
-static inline uint32_t CP_DRAW_INDX_OFFSET_0_INDEX_SIZE(enum pc_di_index_size val)
+#define CP_DRAW_INDX_OFFSET_0_TESSELLATE			0x00000100
+#define CP_DRAW_INDX_OFFSET_0_INDEX_SIZE__MASK			0x00000c00
+#define CP_DRAW_INDX_OFFSET_0_INDEX_SIZE__SHIFT			10
+static inline uint32_t CP_DRAW_INDX_OFFSET_0_INDEX_SIZE(enum a4xx_index_size val)
 {
 	return ((val) << CP_DRAW_INDX_OFFSET_0_INDEX_SIZE__SHIFT) & CP_DRAW_INDX_OFFSET_0_INDEX_SIZE__MASK;
 }
-#define CP_DRAW_INDX_OFFSET_0_NOT_EOP				0x00001000
-#define CP_DRAW_INDX_OFFSET_0_SMALL_INDEX			0x00002000
-#define CP_DRAW_INDX_OFFSET_0_PRE_DRAW_INITIATOR_ENABLE		0x00004000
-#define CP_DRAW_INDX_OFFSET_0_NUM_INDICES__MASK			0xffff0000
-#define CP_DRAW_INDX_OFFSET_0_NUM_INDICES__SHIFT		16
-static inline uint32_t CP_DRAW_INDX_OFFSET_0_NUM_INDICES(uint32_t val)
+#define CP_DRAW_INDX_OFFSET_0_TESS_MODE__MASK			0x01f00000
+#define CP_DRAW_INDX_OFFSET_0_TESS_MODE__SHIFT			20
+static inline uint32_t CP_DRAW_INDX_OFFSET_0_TESS_MODE(uint32_t val)
 {
-	return ((val) << CP_DRAW_INDX_OFFSET_0_NUM_INDICES__SHIFT) & CP_DRAW_INDX_OFFSET_0_NUM_INDICES__MASK;
+	return ((val) << CP_DRAW_INDX_OFFSET_0_TESS_MODE__SHIFT) & CP_DRAW_INDX_OFFSET_0_TESS_MODE__MASK;
 }
 
 #define REG_CP_DRAW_INDX_OFFSET_1				0x00000001
+#define CP_DRAW_INDX_OFFSET_1_NUM_INSTANCES__MASK		0xffffffff
+#define CP_DRAW_INDX_OFFSET_1_NUM_INSTANCES__SHIFT		0
+static inline uint32_t CP_DRAW_INDX_OFFSET_1_NUM_INSTANCES(uint32_t val)
+{
+	return ((val) << CP_DRAW_INDX_OFFSET_1_NUM_INSTANCES__SHIFT) & CP_DRAW_INDX_OFFSET_1_NUM_INSTANCES__MASK;
+}
 
 #define REG_CP_DRAW_INDX_OFFSET_2				0x00000002
 #define CP_DRAW_INDX_OFFSET_2_NUM_INDICES__MASK			0xffffffff
@@ -401,20 +409,22 @@ static inline uint32_t CP_DRAW_INDX_OFFSET_2_NUM_INDICES(uint32_t val)
 	return ((val) << CP_DRAW_INDX_OFFSET_2_NUM_INDICES__SHIFT) & CP_DRAW_INDX_OFFSET_2_NUM_INDICES__MASK;
 }
 
-#define REG_CP_DRAW_INDX_OFFSET_2				0x00000002
-#define CP_DRAW_INDX_OFFSET_2_INDX_BASE__MASK			0xffffffff
-#define CP_DRAW_INDX_OFFSET_2_INDX_BASE__SHIFT			0
-static inline uint32_t CP_DRAW_INDX_OFFSET_2_INDX_BASE(uint32_t val)
+#define REG_CP_DRAW_INDX_OFFSET_3				0x00000003
+
+#define REG_CP_DRAW_INDX_OFFSET_4				0x00000004
+#define CP_DRAW_INDX_OFFSET_4_INDX_BASE__MASK			0xffffffff
+#define CP_DRAW_INDX_OFFSET_4_INDX_BASE__SHIFT			0
+static inline uint32_t CP_DRAW_INDX_OFFSET_4_INDX_BASE(uint32_t val)
 {
-	return ((val) << CP_DRAW_INDX_OFFSET_2_INDX_BASE__SHIFT) & CP_DRAW_INDX_OFFSET_2_INDX_BASE__MASK;
+	return ((val) << CP_DRAW_INDX_OFFSET_4_INDX_BASE__SHIFT) & CP_DRAW_INDX_OFFSET_4_INDX_BASE__MASK;
 }
 
-#define REG_CP_DRAW_INDX_OFFSET_2				0x00000002
-#define CP_DRAW_INDX_OFFSET_2_INDX_SIZE__MASK			0xffffffff
-#define CP_DRAW_INDX_OFFSET_2_INDX_SIZE__SHIFT			0
-static inline uint32_t CP_DRAW_INDX_OFFSET_2_INDX_SIZE(uint32_t val)
+#define REG_CP_DRAW_INDX_OFFSET_5				0x00000005
+#define CP_DRAW_INDX_OFFSET_5_INDX_SIZE__MASK			0xffffffff
+#define CP_DRAW_INDX_OFFSET_5_INDX_SIZE__SHIFT			0
+static inline uint32_t CP_DRAW_INDX_OFFSET_5_INDX_SIZE(uint32_t val)
 {
-	return ((val) << CP_DRAW_INDX_OFFSET_2_INDX_SIZE__SHIFT) & CP_DRAW_INDX_OFFSET_2_INDX_SIZE__MASK;
+	return ((val) << CP_DRAW_INDX_OFFSET_5_INDX_SIZE__SHIFT) & CP_DRAW_INDX_OFFSET_5_INDX_SIZE__MASK;
 }
 
 #define REG_CP_SET_DRAW_STATE_0					0x00000000

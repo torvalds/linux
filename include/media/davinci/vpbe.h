@@ -63,7 +63,7 @@ struct vpbe_output {
 	 * output basis. If per mode is needed, we may have to move this to
 	 * mode_info structure
 	 */
-	enum v4l2_mbus_pixelcode if_params;
+	u32 if_params;
 };
 
 /* encoder configuration info */

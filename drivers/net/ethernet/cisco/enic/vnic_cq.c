@@ -24,6 +24,7 @@
 
 #include "vnic_dev.h"
 #include "vnic_cq.h"
+#include "enic.h"
 
 void vnic_cq_free(struct vnic_cq *cq)
 {
@@ -42,7 +43,7 @@ int vnic_cq_alloc(struct vnic_dev *vdev, struct vnic_cq *cq, unsigned int index,
 
 	cq->ctrl = vnic_dev_get_res(vdev, RES_TYPE_CQ, index);
 	if (!cq->ctrl) {
-		pr_err("Failed to hook CQ[%d] resource\n", index);
+		vdev_err(vdev, "Failed to hook CQ[%d] resource\n", index);
 		return -EINVAL;
 	}
 

@@ -19,12 +19,13 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/skbuff.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/of_gpio.h>
+#include <linux/ieee802154.h>
+#include <linux/crc-ccitt.h>
+#include <asm/unaligned.h>
 
 #include <net/mac802154.h>
-#include <net/wpan-phy.h>
-#include <net/ieee802154.h>
+#include <net/cfg802154.h>
 
 #define	SPI_COMMAND_BUFFER	3
 #define	HIGH			1
@@ -45,9 +46,9 @@
 #define	CC2520_FREG_MASK	0x3F
 
 /* status byte values */
-#define	CC2520_STATUS_XOSC32M_STABLE	(1 << 7)
-#define	CC2520_STATUS_RSSI_VALID	(1 << 6)
-#define	CC2520_STATUS_TX_UNDERFLOW	(1 << 3)
+#define	CC2520_STATUS_XOSC32M_STABLE	BIT(7)
+#define	CC2520_STATUS_RSSI_VALID	BIT(6)
+#define	CC2520_STATUS_TX_UNDERFLOW	BIT(3)
 
 /* IEEE-802.15.4 defined constants (2.4 GHz logical channels) */
 #define	CC2520_MINCHANNEL		11
@@ -190,17 +191,31 @@
 #define	CC2520_RXFIFOCNT		0x3E
 #define	CC2520_TXFIFOCNT		0x3F
 
+/* CC2520_FRMFILT0 */
+#define FRMFILT0_FRAME_FILTER_EN	BIT(0)
+#define FRMFILT0_PAN_COORDINATOR	BIT(1)
+
+/* CC2520_FRMCTRL0 */
+#define FRMCTRL0_AUTOACK		BIT(5)
+#define FRMCTRL0_AUTOCRC		BIT(6)
+
+/* CC2520_FRMCTRL1 */
+#define FRMCTRL1_SET_RXENMASK_ON_TX	BIT(0)
+#define FRMCTRL1_IGNORE_TX_UNDERF	BIT(1)
+
 /* Driver private information */
 struct cc2520_private {
 	struct spi_device *spi;		/* SPI device structure */
-	struct ieee802154_dev *dev;	/* IEEE-802.15.4 device */
+	struct ieee802154_hw *hw;	/* IEEE-802.15.4 device */
 	u8 *buf;			/* SPI TX/Rx data buffer */
 	struct mutex buffer_mutex;	/* SPI buffer mutex */
 	bool is_tx;			/* Flag for sync b/w Tx and Rx */
+	bool amplified;			/* Flag for CC2591 */
 	int fifo_pin;			/* FIFO GPIO pin number */
 	struct work_struct fifop_irqwork;/* Workqueue for FIFOP */
 	spinlock_t lock;		/* Lock for is_tx*/
 	struct completion tx_complete;	/* Work completion for Tx */
+	bool promiscuous;               /* Flag for promiscuous mode */
 };
 
 /* Generic Functions */
@@ -367,14 +382,14 @@ cc2520_read_register(struct cc2520_private *priv, u8 reg, u8 *data)
 }
 
 static int
-cc2520_write_txfifo(struct cc2520_private *priv, u8 *data, u8 len)
+cc2520_write_txfifo(struct cc2520_private *priv, u8 pkt_len, u8 *data, u8 len)
 {
 	int status;
 
 	/* length byte must include FCS even
 	 * if it is calculated in the hardware
 	 */
-	int len_byte = len + 2;
+	int len_byte = pkt_len;
 
 	struct spi_message msg;
 
@@ -414,7 +429,7 @@ cc2520_write_txfifo(struct cc2520_private *priv, u8 *data, u8 len)
 }
 
 static int
-cc2520_read_rxfifo(struct cc2520_private *priv, u8 *data, u8 len, u8 *lqi)
+cc2520_read_rxfifo(struct cc2520_private *priv, u8 *data, u8 len)
 {
 	int status;
 	struct spi_message msg;
@@ -453,29 +468,42 @@ cc2520_read_rxfifo(struct cc2520_private *priv, u8 *data, u8 len, u8 *lqi)
 	return status;
 }
 
-static int cc2520_start(struct ieee802154_dev *dev)
+static int cc2520_start(struct ieee802154_hw *hw)
 {
-	return cc2520_cmd_strobe(dev->priv, CC2520_CMD_SRXON);
+	return cc2520_cmd_strobe(hw->priv, CC2520_CMD_SRXON);
 }
 
-static void cc2520_stop(struct ieee802154_dev *dev)
+static void cc2520_stop(struct ieee802154_hw *hw)
 {
-	cc2520_cmd_strobe(dev->priv, CC2520_CMD_SRFOFF);
+	cc2520_cmd_strobe(hw->priv, CC2520_CMD_SRFOFF);
 }
 
 static int
-cc2520_tx(struct ieee802154_dev *dev, struct sk_buff *skb)
+cc2520_tx(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
-	struct cc2520_private *priv = dev->priv;
+	struct cc2520_private *priv = hw->priv;
 	unsigned long flags;
 	int rc;
 	u8 status = 0;
+	u8 pkt_len;
+
+	/* In promiscuous mode we disable AUTOCRC so we can get the raw CRC
+	 * values on RX. This means we need to manually add the CRC on TX.
+	 */
+	if (priv->promiscuous) {
+		u16 crc = crc_ccitt(0, skb->data, skb->len);
+
+		put_unaligned_le16(crc, skb_put(skb, 2));
+		pkt_len = skb->len;
+	} else {
+		pkt_len = skb->len + 2;
+	}
 
 	rc = cc2520_cmd_strobe(priv, CC2520_CMD_SFLUSHTX);
 	if (rc)
 		goto err_tx;
 
-	rc = cc2520_write_txfifo(priv, skb->data, skb->len);
+	rc = cc2520_write_txfifo(priv, pkt_len, skb->data, skb->len);
 	if (rc)
 		goto err_tx;
 
@@ -513,30 +541,69 @@ err_tx:
 	return rc;
 }
 
-
 static int cc2520_rx(struct cc2520_private *priv)
 {
 	u8 len = 0, lqi = 0, bytes = 1;
 	struct sk_buff *skb;
 
-	cc2520_read_rxfifo(priv, &len, bytes, &lqi);
+	/* Read single length byte from the radio. */
+	cc2520_read_rxfifo(priv, &len, bytes);
 
-	if (len < 2 || len > IEEE802154_MTU)
-		return -EINVAL;
+	if (!ieee802154_is_valid_psdu_len(len)) {
+		/* Corrupted frame received, clear frame buffer by
+		 * reading entire buffer.
+		 */
+		dev_dbg(&priv->spi->dev, "corrupted frame received\n");
+		len = IEEE802154_MTU;
+	}
 
-	skb = alloc_skb(len, GFP_KERNEL);
+	skb = dev_alloc_skb(len);
 	if (!skb)
 		return -ENOMEM;
 
-	if (cc2520_read_rxfifo(priv, skb_put(skb, len), len, &lqi)) {
+	if (cc2520_read_rxfifo(priv, skb_put(skb, len), len)) {
 		dev_dbg(&priv->spi->dev, "frame reception failed\n");
 		kfree_skb(skb);
 		return -EINVAL;
 	}
 
-	skb_trim(skb, skb->len - 2);
+	/* In promiscuous mode, we configure the radio to include the
+	 * CRC (AUTOCRC==0) and we pass on the packet unconditionally. If not
+	 * in promiscuous mode, we check the CRC here, but leave the
+	 * RSSI/LQI/CRC_OK bytes as they will get removed in the mac layer.
+	 */
+	if (!priv->promiscuous) {
+		bool crc_ok;
 
-	ieee802154_rx_irqsafe(priv->dev, skb, lqi);
+		/* Check if the CRC is valid. With AUTOCRC set, the most
+		 * significant bit of the last byte returned from the CC2520
+		 * is CRC_OK flag. See section 20.3.4 of the datasheet.
+		 */
+		crc_ok = skb->data[len - 1] & BIT(7);
+
+		/* If we failed CRC drop the packet in the driver layer. */
+		if (!crc_ok) {
+			dev_dbg(&priv->spi->dev, "CRC check failed\n");
+			kfree_skb(skb);
+			return -EINVAL;
+		}
+
+		/* To calculate LQI, the lower 7 bits of the last byte (the
+		 * correlation value provided by the radio) must be scaled to
+		 * the range 0-255. According to section 20.6, the correlation
+		 * value ranges from 50-110. Ideally this would be calibrated
+		 * per hardware design, but we use roughly the datasheet values
+		 * to get close enough while avoiding floating point.
+		 */
+		lqi = skb->data[len - 1] & 0x7f;
+		if (lqi < 50)
+			lqi = 50;
+		else if (lqi > 113)
+			lqi = 113;
+		lqi = (lqi - 50) * 4;
+	}
+
+	ieee802154_rx_irqsafe(priv->hw, skb, lqi);
 
 	dev_vdbg(&priv->spi->dev, "RXFIFO: %x %x\n", len, lqi);
 
@@ -544,21 +611,21 @@ static int cc2520_rx(struct cc2520_private *priv)
 }
 
 static int
-cc2520_ed(struct ieee802154_dev *dev, u8 *level)
+cc2520_ed(struct ieee802154_hw *hw, u8 *level)
 {
-	struct cc2520_private *priv = dev->priv;
+	struct cc2520_private *priv = hw->priv;
 	u8 status = 0xff;
 	u8 rssi;
 	int ret;
 
-	ret = cc2520_read_register(priv , CC2520_RSSISTAT, &status);
+	ret = cc2520_read_register(priv, CC2520_RSSISTAT, &status);
 	if (ret)
 		return ret;
 
 	if (status != RSSI_VALID)
 		return -EINVAL;
 
-	ret = cc2520_read_register(priv , CC2520_RSSI, &rssi);
+	ret = cc2520_read_register(priv, CC2520_RSSI, &rssi);
 	if (ret)
 		return ret;
 
@@ -569,12 +636,11 @@ cc2520_ed(struct ieee802154_dev *dev, u8 *level)
 }
 
 static int
-cc2520_set_channel(struct ieee802154_dev *dev, int page, int channel)
+cc2520_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 {
-	struct cc2520_private *priv = dev->priv;
+	struct cc2520_private *priv = hw->priv;
 	int ret;
 
-	might_sleep();
 	dev_dbg(&priv->spi->dev, "trying to set channel\n");
 
 	BUG_ON(page != 0);
@@ -588,84 +654,225 @@ cc2520_set_channel(struct ieee802154_dev *dev, int page, int channel)
 }
 
 static int
-cc2520_filter(struct ieee802154_dev *dev,
+cc2520_filter(struct ieee802154_hw *hw,
 	      struct ieee802154_hw_addr_filt *filt, unsigned long changed)
 {
-	struct cc2520_private *priv = dev->priv;
+	struct cc2520_private *priv = hw->priv;
+	int ret = 0;
 
-	if (changed & IEEE802515_AFILT_PANID_CHANGED) {
+	if (changed & IEEE802154_AFILT_PANID_CHANGED) {
 		u16 panid = le16_to_cpu(filt->pan_id);
 
 		dev_vdbg(&priv->spi->dev,
 			 "cc2520_filter called for pan id\n");
-		cc2520_write_ram(priv, CC2520RAM_PANID,
-				 sizeof(panid), (u8 *)&panid);
+		ret = cc2520_write_ram(priv, CC2520RAM_PANID,
+				       sizeof(panid), (u8 *)&panid);
 	}
 
-	if (changed & IEEE802515_AFILT_IEEEADDR_CHANGED) {
+	if (changed & IEEE802154_AFILT_IEEEADDR_CHANGED) {
 		dev_vdbg(&priv->spi->dev,
 			 "cc2520_filter called for IEEE addr\n");
-		cc2520_write_ram(priv, CC2520RAM_IEEEADDR,
-				 sizeof(filt->ieee_addr),
-				 (u8 *)&filt->ieee_addr);
+		ret = cc2520_write_ram(priv, CC2520RAM_IEEEADDR,
+				       sizeof(filt->ieee_addr),
+				       (u8 *)&filt->ieee_addr);
 	}
 
-	if (changed & IEEE802515_AFILT_SADDR_CHANGED) {
+	if (changed & IEEE802154_AFILT_SADDR_CHANGED) {
 		u16 addr = le16_to_cpu(filt->short_addr);
 
 		dev_vdbg(&priv->spi->dev,
 			 "cc2520_filter called for saddr\n");
-		cc2520_write_ram(priv, CC2520RAM_SHORTADDR,
-				 sizeof(addr), (u8 *)&addr);
+		ret = cc2520_write_ram(priv, CC2520RAM_SHORTADDR,
+				       sizeof(addr), (u8 *)&addr);
 	}
 
-	if (changed & IEEE802515_AFILT_PANC_CHANGED) {
+	if (changed & IEEE802154_AFILT_PANC_CHANGED) {
+		u8 frmfilt0;
+
 		dev_vdbg(&priv->spi->dev,
 			 "cc2520_filter called for panc change\n");
+
+		cc2520_read_register(priv, CC2520_FRMFILT0, &frmfilt0);
+
 		if (filt->pan_coord)
-			cc2520_write_register(priv, CC2520_FRMFILT0, 0x02);
+			frmfilt0 |= FRMFILT0_PAN_COORDINATOR;
 		else
-			cc2520_write_register(priv, CC2520_FRMFILT0, 0x00);
+			frmfilt0 &= ~FRMFILT0_PAN_COORDINATOR;
+
+		ret = cc2520_write_register(priv, CC2520_FRMFILT0, frmfilt0);
 	}
 
-	return 0;
+	return ret;
 }
 
-static struct ieee802154_ops cc2520_ops = {
+static inline int cc2520_set_tx_power(struct cc2520_private *priv, s32 mbm)
+{
+	u8 power;
+
+	switch (mbm) {
+	case 500:
+		power = 0xF7;
+		break;
+	case 300:
+		power = 0xF2;
+		break;
+	case 200:
+		power = 0xAB;
+		break;
+	case 100:
+		power = 0x13;
+		break;
+	case 0:
+		power = 0x32;
+		break;
+	case -200:
+		power = 0x81;
+		break;
+	case -400:
+		power = 0x88;
+		break;
+	case -700:
+		power = 0x2C;
+		break;
+	case -1800:
+		power = 0x03;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return cc2520_write_register(priv, CC2520_TXPOWER, power);
+}
+
+static inline int cc2520_cc2591_set_tx_power(struct cc2520_private *priv,
+					     s32 mbm)
+{
+	u8 power;
+
+	switch (mbm) {
+	case 1700:
+		power = 0xF9;
+		break;
+	case 1600:
+		power = 0xF0;
+		break;
+	case 1400:
+		power = 0xA0;
+		break;
+	case 1100:
+		power = 0x2C;
+		break;
+	case -100:
+		power = 0x03;
+		break;
+	case -800:
+		power = 0x01;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return cc2520_write_register(priv, CC2520_TXPOWER, power);
+}
+
+#define CC2520_MAX_TX_POWERS 0x8
+static const s32 cc2520_powers[CC2520_MAX_TX_POWERS + 1] = {
+	500, 300, 200, 100, 0, -200, -400, -700, -1800,
+};
+
+#define CC2520_CC2591_MAX_TX_POWERS 0x5
+static const s32 cc2520_cc2591_powers[CC2520_CC2591_MAX_TX_POWERS + 1] = {
+	1700, 1600, 1400, 1100, -100, -800,
+};
+
+static int
+cc2520_set_txpower(struct ieee802154_hw *hw, s32 mbm)
+{
+	struct cc2520_private *priv = hw->priv;
+
+	if (!priv->amplified)
+		return cc2520_set_tx_power(priv, mbm);
+
+	return cc2520_cc2591_set_tx_power(priv, mbm);
+}
+
+static int
+cc2520_set_promiscuous_mode(struct ieee802154_hw *hw, bool on)
+{
+	struct cc2520_private *priv = hw->priv;
+	u8 frmfilt0;
+
+	dev_dbg(&priv->spi->dev, "%s : mode %d\n", __func__, on);
+
+	priv->promiscuous = on;
+
+	cc2520_read_register(priv, CC2520_FRMFILT0, &frmfilt0);
+
+	if (on) {
+		/* Disable automatic ACK, automatic CRC, and frame filtering. */
+		cc2520_write_register(priv, CC2520_FRMCTRL0, 0);
+		frmfilt0 &= ~FRMFILT0_FRAME_FILTER_EN;
+	} else {
+		cc2520_write_register(priv, CC2520_FRMCTRL0, FRMCTRL0_AUTOACK |
+							     FRMCTRL0_AUTOCRC);
+		frmfilt0 |= FRMFILT0_FRAME_FILTER_EN;
+	}
+	return cc2520_write_register(priv, CC2520_FRMFILT0, frmfilt0);
+}
+
+static const struct ieee802154_ops cc2520_ops = {
 	.owner = THIS_MODULE,
 	.start = cc2520_start,
 	.stop = cc2520_stop,
-	.xmit = cc2520_tx,
+	.xmit_sync = cc2520_tx,
 	.ed = cc2520_ed,
 	.set_channel = cc2520_set_channel,
 	.set_hw_addr_filt = cc2520_filter,
+	.set_txpower = cc2520_set_txpower,
+	.set_promiscuous_mode = cc2520_set_promiscuous_mode,
 };
 
 static int cc2520_register(struct cc2520_private *priv)
 {
 	int ret = -ENOMEM;
 
-	priv->dev = ieee802154_alloc_device(sizeof(*priv), &cc2520_ops);
-	if (!priv->dev)
+	priv->hw = ieee802154_alloc_hw(sizeof(*priv), &cc2520_ops);
+	if (!priv->hw)
 		goto err_ret;
 
-	priv->dev->priv = priv;
-	priv->dev->parent = &priv->spi->dev;
-	priv->dev->extra_tx_headroom = 0;
+	priv->hw->priv = priv;
+	priv->hw->parent = &priv->spi->dev;
+	priv->hw->extra_tx_headroom = 0;
+	ieee802154_random_extended_addr(&priv->hw->phy->perm_extended_addr);
 
 	/* We do support only 2.4 Ghz */
-	priv->dev->phy->channels_supported[0] = 0x7FFF800;
-	priv->dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK;
+	priv->hw->phy->supported.channels[0] = 0x7FFF800;
+	priv->hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AFILT |
+			  IEEE802154_HW_PROMISCUOUS;
+
+	priv->hw->phy->flags = WPAN_PHY_FLAG_TXPOWER;
+
+	if (!priv->amplified) {
+		priv->hw->phy->supported.tx_powers = cc2520_powers;
+		priv->hw->phy->supported.tx_powers_size = ARRAY_SIZE(cc2520_powers);
+		priv->hw->phy->transmit_power = priv->hw->phy->supported.tx_powers[4];
+	} else {
+		priv->hw->phy->supported.tx_powers = cc2520_cc2591_powers;
+		priv->hw->phy->supported.tx_powers_size = ARRAY_SIZE(cc2520_cc2591_powers);
+		priv->hw->phy->transmit_power = priv->hw->phy->supported.tx_powers[0];
+	}
+
+	priv->hw->phy->current_channel = 11;
 
 	dev_vdbg(&priv->spi->dev, "registered cc2520\n");
-	ret = ieee802154_register_device(priv->dev);
+	ret = ieee802154_register_hw(priv->hw);
 	if (ret)
 		goto err_free_device;
 
 	return 0;
 
 err_free_device:
-	ieee802154_free_device(priv->dev);
+	ieee802154_free_hw(priv->hw);
 err_ret:
 	return ret;
 }
@@ -714,11 +921,48 @@ static irqreturn_t cc2520_sfd_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int cc2520_get_platform_data(struct spi_device *spi,
+				    struct cc2520_platform_data *pdata)
+{
+	struct device_node *np = spi->dev.of_node;
+	struct cc2520_private *priv = spi_get_drvdata(spi);
+
+	if (!np) {
+		struct cc2520_platform_data *spi_pdata = spi->dev.platform_data;
+		if (!spi_pdata)
+			return -ENOENT;
+		*pdata = *spi_pdata;
+		priv->fifo_pin = pdata->fifo;
+		return 0;
+	}
+
+	pdata->fifo = of_get_named_gpio(np, "fifo-gpio", 0);
+	priv->fifo_pin = pdata->fifo;
+
+	pdata->fifop = of_get_named_gpio(np, "fifop-gpio", 0);
+
+	pdata->sfd = of_get_named_gpio(np, "sfd-gpio", 0);
+	pdata->cca = of_get_named_gpio(np, "cca-gpio", 0);
+	pdata->vreg = of_get_named_gpio(np, "vreg-gpio", 0);
+	pdata->reset = of_get_named_gpio(np, "reset-gpio", 0);
+
+	/* CC2591 front end for CC2520 */
+	if (of_property_read_bool(np, "amplified"))
+		priv->amplified = true;
+
+	return 0;
+}
+
 static int cc2520_hw_init(struct cc2520_private *priv)
 {
 	u8 status = 0, state = 0xff;
 	int ret;
 	int timeout = 100;
+	struct cc2520_platform_data pdata;
+
+	ret = cc2520_get_platform_data(priv->spi, &pdata);
+	if (ret)
+		goto err_ret;
 
 	ret = cc2520_read_register(priv, CC2520_FSMSTAT1, &state);
 	if (ret)
@@ -741,11 +985,44 @@ static int cc2520_hw_init(struct cc2520_private *priv)
 
 	dev_vdbg(&priv->spi->dev, "oscillator brought up\n");
 
-	/* Registers default value: section 28.1 in Datasheet */
-	ret = cc2520_write_register(priv, CC2520_TXPOWER, 0xF7);
-	if (ret)
-		goto err_ret;
+	/* If the CC2520 is connected to a CC2591 amplifier, we must both
+	 * configure GPIOs on the CC2520 to correctly configure the CC2591
+	 * and change a couple settings of the CC2520 to work with the
+	 * amplifier. See section 8 page 17 of TI application note AN065.
+	 * http://www.ti.com/lit/an/swra229a/swra229a.pdf
+	 */
+	if (priv->amplified) {
+		ret = cc2520_write_register(priv, CC2520_AGCCTRL1, 0x16);
+		if (ret)
+			goto err_ret;
 
+		ret = cc2520_write_register(priv, CC2520_GPIOCTRL0, 0x46);
+		if (ret)
+			goto err_ret;
+
+		ret = cc2520_write_register(priv, CC2520_GPIOCTRL5, 0x47);
+		if (ret)
+			goto err_ret;
+
+		ret = cc2520_write_register(priv, CC2520_GPIOPOLARITY, 0x1e);
+		if (ret)
+			goto err_ret;
+
+		ret = cc2520_write_register(priv, CC2520_TXCTRL, 0xc1);
+		if (ret)
+			goto err_ret;
+	} else {
+		ret = cc2520_write_register(priv, CC2520_AGCCTRL1, 0x11);
+		if (ret)
+			goto err_ret;
+	}
+
+	/* Registers default value: section 28.1 in Datasheet */
+
+	/* Set the CCA threshold to -50 dBm. This seems to have been copied
+	 * from the TinyOS CC2520 driver and is much higher than the -84 dBm
+	 * threshold suggested in the datasheet.
+	 */
 	ret = cc2520_write_register(priv, CC2520_CCACTRL0, 0x1A);
 	if (ret)
 		goto err_ret;
@@ -770,10 +1047,6 @@ static int cc2520_hw_init(struct cc2520_private *priv)
 	if (ret)
 		goto err_ret;
 
-	ret = cc2520_write_register(priv, CC2520_AGCCTRL1, 0x11);
-	if (ret)
-		goto err_ret;
-
 	ret = cc2520_write_register(priv, CC2520_ADCTEST0, 0x10);
 	if (ret)
 		goto err_ret;
@@ -786,15 +1059,10 @@ static int cc2520_hw_init(struct cc2520_private *priv)
 	if (ret)
 		goto err_ret;
 
-	ret = cc2520_write_register(priv, CC2520_FRMCTRL0, 0x60);
-	if (ret)
-		goto err_ret;
-
-	ret = cc2520_write_register(priv, CC2520_FRMCTRL1, 0x03);
-	if (ret)
-		goto err_ret;
-
-	ret = cc2520_write_register(priv, CC2520_FRMFILT0, 0x00);
+	/* Configure registers correctly for this driver. */
+	ret = cc2520_write_register(priv, CC2520_FRMCTRL1,
+				    FRMCTRL1_SET_RXENMASK_ON_TX |
+				    FRMCTRL1_IGNORE_TX_UNDERF);
 	if (ret)
 		goto err_ret;
 
@@ -808,59 +1076,20 @@ err_ret:
 	return ret;
 }
 
-static struct cc2520_platform_data *
-cc2520_get_platform_data(struct spi_device *spi)
-{
-	struct cc2520_platform_data *pdata;
-	struct device_node *np = spi->dev.of_node;
-	struct cc2520_private *priv = spi_get_drvdata(spi);
-
-	if (!np)
-		return spi->dev.platform_data;
-
-	pdata = devm_kzalloc(&spi->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		goto done;
-
-	pdata->fifo = of_get_named_gpio(np, "fifo-gpio", 0);
-	priv->fifo_pin = pdata->fifo;
-
-	pdata->fifop = of_get_named_gpio(np, "fifop-gpio", 0);
-
-	pdata->sfd = of_get_named_gpio(np, "sfd-gpio", 0);
-	pdata->cca = of_get_named_gpio(np, "cca-gpio", 0);
-	pdata->vreg = of_get_named_gpio(np, "vreg-gpio", 0);
-	pdata->reset = of_get_named_gpio(np, "reset-gpio", 0);
-
-	spi->dev.platform_data = pdata;
-
-done:
-	return pdata;
-}
-
 static int cc2520_probe(struct spi_device *spi)
 {
 	struct cc2520_private *priv;
-	struct pinctrl *pinctrl;
-	struct cc2520_platform_data *pdata;
+	struct cc2520_platform_data pdata;
 	int ret;
 
-	priv = devm_kzalloc(&spi->dev,
-			    sizeof(struct cc2520_private), GFP_KERNEL);
-	if (!priv) {
-		ret = -ENOMEM;
-		goto err_ret;
-	}
+	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
 	spi_set_drvdata(spi, priv);
 
-	pinctrl = devm_pinctrl_get_select_default(&spi->dev);
-	if (IS_ERR(pinctrl))
-		dev_warn(&spi->dev,
-			 "pinctrl pins are not configured");
-
-	pdata = cc2520_get_platform_data(spi);
-	if (!pdata) {
+	ret = cc2520_get_platform_data(spi, &pdata);
+	if (ret < 0) {
 		dev_err(&spi->dev, "no platform data\n");
 		return -EINVAL;
 	}
@@ -869,88 +1098,88 @@ static int cc2520_probe(struct spi_device *spi)
 
 	priv->buf = devm_kzalloc(&spi->dev,
 				 SPI_COMMAND_BUFFER, GFP_KERNEL);
-	if (!priv->buf) {
-		ret = -ENOMEM;
-		goto err_ret;
-	}
+	if (!priv->buf)
+		return -ENOMEM;
 
 	mutex_init(&priv->buffer_mutex);
 	INIT_WORK(&priv->fifop_irqwork, cc2520_fifop_irqwork);
 	spin_lock_init(&priv->lock);
 	init_completion(&priv->tx_complete);
 
+	/* Assumption that CC2591 is not connected */
+	priv->amplified = false;
+
 	/* Request all the gpio's */
-	if (!gpio_is_valid(pdata->fifo)) {
+	if (!gpio_is_valid(pdata.fifo)) {
 		dev_err(&spi->dev, "fifo gpio is not valid\n");
 		ret = -EINVAL;
 		goto err_hw_init;
 	}
 
-	ret = devm_gpio_request_one(&spi->dev, pdata->fifo,
+	ret = devm_gpio_request_one(&spi->dev, pdata.fifo,
 				    GPIOF_IN, "fifo");
 	if (ret)
 		goto err_hw_init;
 
-	if (!gpio_is_valid(pdata->cca)) {
+	if (!gpio_is_valid(pdata.cca)) {
 		dev_err(&spi->dev, "cca gpio is not valid\n");
 		ret = -EINVAL;
 		goto err_hw_init;
 	}
 
-	ret = devm_gpio_request_one(&spi->dev, pdata->cca,
+	ret = devm_gpio_request_one(&spi->dev, pdata.cca,
 				    GPIOF_IN, "cca");
 	if (ret)
 		goto err_hw_init;
 
-	if (!gpio_is_valid(pdata->fifop)) {
+	if (!gpio_is_valid(pdata.fifop)) {
 		dev_err(&spi->dev, "fifop gpio is not valid\n");
 		ret = -EINVAL;
 		goto err_hw_init;
 	}
 
-	ret = devm_gpio_request_one(&spi->dev, pdata->fifop,
+	ret = devm_gpio_request_one(&spi->dev, pdata.fifop,
 				    GPIOF_IN, "fifop");
 	if (ret)
 		goto err_hw_init;
 
-	if (!gpio_is_valid(pdata->sfd)) {
+	if (!gpio_is_valid(pdata.sfd)) {
 		dev_err(&spi->dev, "sfd gpio is not valid\n");
 		ret = -EINVAL;
 		goto err_hw_init;
 	}
 
-	ret = devm_gpio_request_one(&spi->dev, pdata->sfd,
+	ret = devm_gpio_request_one(&spi->dev, pdata.sfd,
 				    GPIOF_IN, "sfd");
 	if (ret)
 		goto err_hw_init;
 
-	if (!gpio_is_valid(pdata->reset)) {
+	if (!gpio_is_valid(pdata.reset)) {
 		dev_err(&spi->dev, "reset gpio is not valid\n");
 		ret = -EINVAL;
 		goto err_hw_init;
 	}
 
-	ret = devm_gpio_request_one(&spi->dev, pdata->reset,
+	ret = devm_gpio_request_one(&spi->dev, pdata.reset,
 				    GPIOF_OUT_INIT_LOW, "reset");
 	if (ret)
 		goto err_hw_init;
 
-	if (!gpio_is_valid(pdata->vreg)) {
+	if (!gpio_is_valid(pdata.vreg)) {
 		dev_err(&spi->dev, "vreg gpio is not valid\n");
 		ret = -EINVAL;
 		goto err_hw_init;
 	}
 
-	ret = devm_gpio_request_one(&spi->dev, pdata->vreg,
+	ret = devm_gpio_request_one(&spi->dev, pdata.vreg,
 				    GPIOF_OUT_INIT_LOW, "vreg");
 	if (ret)
 		goto err_hw_init;
 
-
-	gpio_set_value(pdata->vreg, HIGH);
+	gpio_set_value(pdata.vreg, HIGH);
 	usleep_range(100, 150);
 
-	gpio_set_value(pdata->reset, HIGH);
+	gpio_set_value(pdata.reset, HIGH);
 	usleep_range(200, 250);
 
 	ret = cc2520_hw_init(priv);
@@ -959,7 +1188,7 @@ static int cc2520_probe(struct spi_device *spi)
 
 	/* Set up fifop interrupt */
 	ret = devm_request_irq(&spi->dev,
-			       gpio_to_irq(pdata->fifop),
+			       gpio_to_irq(pdata.fifop),
 			       cc2520_fifop_isr,
 			       IRQF_TRIGGER_RISING,
 			       dev_name(&spi->dev),
@@ -971,7 +1200,7 @@ static int cc2520_probe(struct spi_device *spi)
 
 	/* Set up sfd interrupt */
 	ret = devm_request_irq(&spi->dev,
-			       gpio_to_irq(pdata->sfd),
+			       gpio_to_irq(pdata.sfd),
 			       cc2520_sfd_isr,
 			       IRQF_TRIGGER_FALLING,
 			       dev_name(&spi->dev),
@@ -990,8 +1219,6 @@ static int cc2520_probe(struct spi_device *spi)
 err_hw_init:
 	mutex_destroy(&priv->buffer_mutex);
 	flush_work(&priv->fifop_irqwork);
-
-err_ret:
 	return ret;
 }
 
@@ -1002,8 +1229,8 @@ static int cc2520_remove(struct spi_device *spi)
 	mutex_destroy(&priv->buffer_mutex);
 	flush_work(&priv->fifop_irqwork);
 
-	ieee802154_unregister_device(priv->dev);
-	ieee802154_free_device(priv->dev);
+	ieee802154_unregister_hw(priv->hw);
+	ieee802154_free_hw(priv->hw);
 
 	return 0;
 }
@@ -1024,8 +1251,6 @@ MODULE_DEVICE_TABLE(of, cc2520_of_ids);
 static struct spi_driver cc2520_driver = {
 	.driver = {
 		.name = "cc2520",
-		.bus = &spi_bus_type,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(cc2520_of_ids),
 	},
 	.id_table = cc2520_ids,

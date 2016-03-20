@@ -87,6 +87,7 @@ enum omap_channel {
 	OMAP_DSS_CHANNEL_DIGIT	= 1,
 	OMAP_DSS_CHANNEL_LCD2	= 2,
 	OMAP_DSS_CHANNEL_LCD3	= 3,
+	OMAP_DSS_CHANNEL_WB	= 4,
 };
 
 enum omap_color_mode {
@@ -129,14 +130,13 @@ enum omap_rfbi_te_mode {
 };
 
 enum omap_dss_signal_level {
-	OMAPDSS_SIG_ACTIVE_HIGH	= 0,
-	OMAPDSS_SIG_ACTIVE_LOW	= 1,
+	OMAPDSS_SIG_ACTIVE_LOW,
+	OMAPDSS_SIG_ACTIVE_HIGH,
 };
 
 enum omap_dss_signal_edge {
-	OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
-	OMAPDSS_DRIVE_SIG_RISING_EDGE,
 	OMAPDSS_DRIVE_SIG_FALLING_EDGE,
+	OMAPDSS_DRIVE_SIG_RISING_EDGE,
 };
 
 enum omap_dss_venc_type {
@@ -164,13 +164,6 @@ enum omap_display_caps {
 enum omap_dss_display_state {
 	OMAP_DSS_DISPLAY_DISABLED = 0,
 	OMAP_DSS_DISPLAY_ACTIVE,
-};
-
-enum omap_dss_audio_state {
-	OMAP_DSS_AUDIO_DISABLED = 0,
-	OMAP_DSS_AUDIO_ENABLED,
-	OMAP_DSS_AUDIO_CONFIGURED,
-	OMAP_DSS_AUDIO_PLAYING,
 };
 
 struct omap_dss_audio {
@@ -321,6 +314,7 @@ enum omapdss_version {
 	OMAPDSS_VER_OMAP4,		/* All other OMAP4s */
 	OMAPDSS_VER_OMAP5,
 	OMAPDSS_VER_AM43xx,
+	OMAPDSS_VER_DRA7xx,
 };
 
 /* Board specific data */
@@ -374,14 +368,12 @@ struct omap_video_timings {
 	enum omap_dss_signal_edge sync_pclk_edge;
 };
 
-#ifdef CONFIG_OMAP2_DSS_VENC
 /* Hardcoded timings for tv modes. Venc only uses these to
  * identify the mode, and does not actually use the configs
  * itself. However, the configs should be something that
  * a normal monitor can also show */
 extern const struct omap_video_timings omap_dss_pal_timings;
 extern const struct omap_video_timings omap_dss_ntsc_timings;
-#endif
 
 struct omap_dss_cpr_coefs {
 	s16 rr, rg, rb;
@@ -635,19 +627,6 @@ struct omapdss_hdmi_ops {
 	int (*set_hdmi_mode)(struct omap_dss_device *dssdev, bool hdmi_mode);
 	int (*set_infoframe)(struct omap_dss_device *dssdev,
 		const struct hdmi_avi_infoframe *avi);
-
-	/*
-	 * Note: These functions might sleep. Do not call while
-	 * holding a spinlock/readlock.
-	 */
-	int (*audio_enable)(struct omap_dss_device *dssdev);
-	void (*audio_disable)(struct omap_dss_device *dssdev);
-	bool (*audio_supported)(struct omap_dss_device *dssdev);
-	int (*audio_config)(struct omap_dss_device *dssdev,
-		struct omap_dss_audio *audio);
-	/* Note: These functions may not sleep */
-	int (*audio_start)(struct omap_dss_device *dssdev);
-	void (*audio_stop)(struct omap_dss_device *dssdev);
 };
 
 struct omapdss_dsi_ops {
@@ -708,6 +687,7 @@ struct omapdss_dsi_ops {
 };
 
 struct omap_dss_device {
+	struct kobject kobj;
 	struct device *dev;
 
 	struct module *owner;
@@ -783,8 +763,6 @@ struct omap_dss_device {
 
 	enum omap_dss_display_state state;
 
-	enum omap_dss_audio_state audio_state;
-
 	/* OMAP DSS output specific fields */
 
 	struct list_head list;
@@ -794,6 +772,9 @@ struct omap_dss_device {
 
 	/* output instance */
 	enum omap_dss_output_id id;
+
+	/* the port number in the DT node */
+	int port_num;
 
 	/* dynamic fields */
 	struct omap_overlay_manager *manager;
@@ -858,24 +839,6 @@ struct omap_dss_driver {
 	int (*set_hdmi_mode)(struct omap_dss_device *dssdev, bool hdmi_mode);
 	int (*set_hdmi_infoframe)(struct omap_dss_device *dssdev,
 		const struct hdmi_avi_infoframe *avi);
-
-	/*
-	 * For display drivers that support audio. This encompasses
-	 * HDMI and DisplayPort at the moment.
-	 */
-	/*
-	 * Note: These functions might sleep. Do not call while
-	 * holding a spinlock/readlock.
-	 */
-	int (*audio_enable)(struct omap_dss_device *dssdev);
-	void (*audio_disable)(struct omap_dss_device *dssdev);
-	bool (*audio_supported)(struct omap_dss_device *dssdev);
-	int (*audio_config)(struct omap_dss_device *dssdev,
-		struct omap_dss_audio *audio);
-	/* Note: These functions may not sleep */
-	int (*audio_start)(struct omap_dss_device *dssdev);
-	void (*audio_stop)(struct omap_dss_device *dssdev);
-
 };
 
 enum omapdss_version omapdss_get_version(void);
@@ -902,8 +865,6 @@ void omap_video_timings_to_videomode(const struct omap_video_timings *ovt,
 
 int dss_feat_get_num_mgrs(void);
 int dss_feat_get_num_ovls(void);
-enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel);
-enum omap_dss_output_id dss_feat_get_supported_outputs(enum omap_channel channel);
 enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane);
 
 
@@ -918,7 +879,7 @@ int omapdss_register_output(struct omap_dss_device *output);
 void omapdss_unregister_output(struct omap_dss_device *output);
 struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id);
 struct omap_dss_device *omap_dss_find_output(const char *name);
-struct omap_dss_device *omap_dss_find_output_by_node(struct device_node *node);
+struct omap_dss_device *omap_dss_find_output_by_port_node(struct device_node *port);
 int omapdss_output_set_device(struct omap_dss_device *out,
 		struct omap_dss_device *dssdev);
 int omapdss_output_unset_device(struct omap_dss_device *out);

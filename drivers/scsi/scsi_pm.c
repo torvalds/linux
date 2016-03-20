@@ -139,6 +139,16 @@ static int scsi_bus_resume_common(struct device *dev,
 	else
 		fn = NULL;
 
+	/*
+	 * Forcibly set runtime PM status of request queue to "active" to
+	 * make sure we can again get requests from the queue (see also
+	 * blk_pm_peek_request()).
+	 *
+	 * The resume hook will correct runtime PM status of the disk.
+	 */
+	if (scsi_is_sdev_device(dev) && pm_runtime_suspended(dev))
+		blk_set_runtime_active(to_scsi_device(dev)->request_queue);
+
 	if (fn) {
 		async_schedule_domain(fn, dev, &scsi_sd_pm_domain);
 
@@ -213,13 +223,11 @@ static int scsi_bus_restore(struct device *dev)
 
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM_RUNTIME
-
 static int sdev_runtime_suspend(struct device *dev)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	struct scsi_device *sdev = to_scsi_device(dev);
-	int err;
+	int err = 0;
 
 	err = blk_pre_runtime_suspend(sdev->request_queue);
 	if (err)
@@ -331,14 +339,6 @@ void scsi_autopm_put_host(struct Scsi_Host *shost)
 {
 	pm_runtime_put_sync(&shost->shost_gendev);
 }
-
-#else
-
-#define scsi_runtime_suspend	NULL
-#define scsi_runtime_resume	NULL
-#define scsi_runtime_idle	NULL
-
-#endif /* CONFIG_PM_RUNTIME */
 
 const struct dev_pm_ops scsi_bus_pm_ops = {
 	.prepare =		scsi_bus_prepare,

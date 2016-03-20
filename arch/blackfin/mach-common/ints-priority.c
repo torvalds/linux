@@ -17,13 +17,13 @@
 #include <linux/irq.h>
 #include <linux/sched.h>
 #include <linux/syscore_ops.h>
+#include <linux/gpio.h>
 #include <asm/delay.h>
 #ifdef CONFIG_IPIPE
 #include <linux/ipipe.h>
 #endif
 #include <asm/traps.h>
 #include <asm/blackfin.h>
-#include <asm/gpio.h>
 #include <asm/irq_handler.h>
 #include <asm/dpmc.h>
 #include <asm/traps.h>
@@ -194,7 +194,8 @@ void bfin_internal_unmask_irq(unsigned int irq)
 #ifdef CONFIG_SMP
 static void bfin_internal_unmask_irq_chip(struct irq_data *d)
 {
-	bfin_internal_unmask_irq_affinity(d->irq, d->affinity);
+	bfin_internal_unmask_irq_affinity(d->irq,
+					  irq_data_get_affinity_mask(d));
 }
 
 static int bfin_internal_set_affinity(struct irq_data *d,
@@ -429,14 +430,6 @@ static void init_software_driven_irq(void)
 	bfin_sec_enable_ssi(37);
 }
 
-void bfin_sec_resume(void)
-{
-	bfin_write_SEC_SCI(0, SEC_CCTL, SEC_CCTL_RESET);
-	udelay(100);
-	bfin_write_SEC_GCTL(SEC_GCTL_EN);
-	bfin_write_SEC_SCI(0, SEC_CCTL, SEC_CCTL_EN | SEC_CCTL_NMI_EN);
-}
-
 void handle_sec_sfi_fault(uint32_t gstat)
 {
 
@@ -455,7 +448,7 @@ void handle_sec_sci_fault(uint32_t gstat)
 			printk(KERN_DEBUG "sec ack err\n");
 			break;
 		default:
-			printk(KERN_DEBUG "sec sci unknow err\n");
+			printk(KERN_DEBUG "sec sci unknown err\n");
 		}
 	}
 
@@ -663,8 +656,7 @@ static struct irq_chip bfin_mac_status_irqchip = {
 	.irq_set_wake = bfin_mac_status_set_wake,
 };
 
-void bfin_demux_mac_status_irq(unsigned int int_err_irq,
-			       struct irq_desc *inta_desc)
+void bfin_demux_mac_status_irq(struct irq_desc *inta_desc)
 {
 	int i, irq = 0;
 	u32 status = bfin_read_EMAC_SYSTAT();
@@ -693,12 +685,12 @@ void bfin_demux_mac_status_irq(unsigned int int_err_irq,
 }
 #endif
 
-static inline void bfin_set_irq_handler(unsigned irq, irq_flow_handler_t handle)
+static inline void bfin_set_irq_handler(struct irq_data *d, irq_flow_handler_t handle)
 {
 #ifdef CONFIG_IPIPE
 	handle = handle_level_irq;
 #endif
-	__irq_set_handler_locked(irq, handle);
+	irq_set_handler_locked(d, handle);
 }
 
 #ifdef CONFIG_GPIO_ADI
@@ -810,9 +802,9 @@ static int bfin_gpio_irq_type(struct irq_data *d, unsigned int type)
 	}
 
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-		bfin_set_irq_handler(irq, handle_edge_irq);
+		bfin_set_irq_handler(d, handle_edge_irq);
 	else
-		bfin_set_irq_handler(irq, handle_level_irq);
+		bfin_set_irq_handler(d, handle_level_irq);
 
 	return 0;
 }
@@ -832,9 +824,9 @@ static void bfin_demux_gpio_block(unsigned int irq)
 	}
 }
 
-void bfin_demux_gpio_irq(unsigned int inta_irq,
-			struct irq_desc *desc)
+void bfin_demux_gpio_irq(struct irq_desc *desc)
 {
+	unsigned int inta_irq = irq_desc_get_irq(desc);
 	unsigned int irq;
 
 	switch (inta_irq) {
@@ -1309,12 +1301,12 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 		bfin_write_TIMER_STATUS(1); /* Latch TIMIL0 */
 #endif
 		/* This is basically what we need from the register frame. */
-		__raw_get_cpu_var(__ipipe_tick_regs).ipend = regs->ipend;
-		__raw_get_cpu_var(__ipipe_tick_regs).pc = regs->pc;
+		__this_cpu_write(__ipipe_tick_regs.ipend, regs->ipend);
+		__this_cpu_write(__ipipe_tick_regs.pc, regs->pc);
 		if (this_domain != ipipe_root_domain)
-			__raw_get_cpu_var(__ipipe_tick_regs).ipend &= ~0x10;
+			__this_cpu_and(__ipipe_tick_regs.ipend, ~0x10);
 		else
-			__raw_get_cpu_var(__ipipe_tick_regs).ipend |= 0x10;
+			__this_cpu_or(__ipipe_tick_regs.ipend, 0x10);
 	}
 
 	/*

@@ -215,7 +215,10 @@
  * DAVINCI_MCASP_XRSRCTL_BASE_REG -  Serializer Control Register Bits
  */
 #define MODE(val)	(val)
-#define DISMOD		(val)(val<<2)
+#define DISMOD_3STATE	(0x0)
+#define DISMOD_LOW	(0x2 << 2)
+#define DISMOD_HIGH	(0x3 << 2)
+#define DISMOD_MASK	DISMOD_HIGH
 #define TXSTATE		BIT(4)
 #define RXSTATE		BIT(5)
 #define SRMOD_MASK	3
@@ -253,6 +256,13 @@
 #define TXFSRST		BIT(12)	/* Frame Sync Generator Reset */
 
 /*
+ * DAVINCI_MCASP_TXSTAT_REG - Transmitter Status Register Bits
+ * DAVINCI_MCASP_RXSTAT_REG - Receiver Status Register Bits
+ */
+#define XRERR		BIT(8) /* Transmit/Receive error */
+#define XRDATA		BIT(5) /* Transmit/Receive data ready */
+
+/*
  * DAVINCI_MCASP_AMUTE_REG -  Mute Control Register Bits
  */
 #define MUTENA(val)	(val)
@@ -277,6 +287,16 @@
  * DAVINCI_MCASP_XEVTCTL_REG - Transmitter DMA Event Control Register bits
  */
 #define TXDATADMADIS	BIT(0)
+
+/*
+ * DAVINCI_MCASP_EVTCTLR_REG - Receiver Interrupt Control Register Bits
+ */
+#define ROVRN		BIT(0)
+
+/*
+ * DAVINCI_MCASP_EVTCTLX_REG - Transmitter Interrupt Control Register Bits
+ */
+#define XUNDRN		BIT(0)
 
 /*
  * DAVINCI_MCASP_W[R]FIFOCTL - Write/Read FIFO Control Register bits

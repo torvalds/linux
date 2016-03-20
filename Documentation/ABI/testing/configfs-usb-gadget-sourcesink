@@ -9,4 +9,6 @@ Description:
 		isoc_maxpacket	- 0 - 1023 (fs), 0 - 1024 (hs/ss)
 		isoc_mult	- 0..2 (hs/ss only)
 		isoc_maxburst	- 0..15 (ss only)
-		qlen		- buffer length
+		buflen		- buffer length
+		bulk_qlen	- depth of queue for bulk
+		iso_qlen	- depth of queue for iso

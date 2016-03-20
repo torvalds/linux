@@ -44,6 +44,7 @@ struct cs42xx8_priv {
 
 	bool slave_mode;
 	unsigned long sysclk;
+	u32 tx_channels;
 };
 
 /* -127.5dB to 0dB with step of 0.5dB */
@@ -257,6 +258,9 @@ static int cs42xx8_hw_params(struct snd_pcm_substream *substream,
 	u32 ratio = cs42xx8->sysclk / params_rate(params);
 	u32 i, fm, val, mask;
 
+	if (tx)
+		cs42xx8->tx_channels = params_channels(params);
+
 	for (i = 0; i < ARRAY_SIZE(cs42xx8_ratios); i++) {
 		if (cs42xx8_ratios[i].ratio == ratio)
 			break;
@@ -283,9 +287,11 @@ static int cs42xx8_digital_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs42xx8_priv *cs42xx8 = snd_soc_codec_get_drvdata(codec);
+	u8 dac_unmute = cs42xx8->tx_channels ?
+		        ~((0x1 << cs42xx8->tx_channels) - 1) : 0;
 
-	regmap_update_bits(cs42xx8->regmap, CS42XX8_DACMUTE,
-			   CS42XX8_DACMUTE_ALL, mute ? CS42XX8_DACMUTE_ALL : 0);
+	regmap_write(cs42xx8->regmap, CS42XX8_DACMUTE,
+		     mute ? CS42XX8_DACMUTE_ALL : dac_unmute);
 
 	return 0;
 }
@@ -380,7 +386,7 @@ EXPORT_SYMBOL_GPL(cs42xx8_regmap_config);
 static int cs42xx8_codec_probe(struct snd_soc_codec *codec)
 {
 	struct cs42xx8_priv *cs42xx8 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	switch (cs42xx8->drvdata->num_adcs) {
 	case 3:
@@ -425,7 +431,7 @@ const struct cs42xx8_driver_data cs42888_data = {
 };
 EXPORT_SYMBOL_GPL(cs42888_data);
 
-static const struct of_device_id cs42xx8_of_match[] = {
+const struct of_device_id cs42xx8_of_match[] = {
 	{ .compatible = "cirrus,cs42448", .data = &cs42448_data, },
 	{ .compatible = "cirrus,cs42888", .data = &cs42888_data, },
 	{ /* sentinel */ }
@@ -435,16 +441,24 @@ EXPORT_SYMBOL_GPL(cs42xx8_of_match);
 
 int cs42xx8_probe(struct device *dev, struct regmap *regmap)
 {
-	const struct of_device_id *of_id = of_match_device(cs42xx8_of_match, dev);
+	const struct of_device_id *of_id;
 	struct cs42xx8_priv *cs42xx8;
 	int ret, val, i;
+
+	if (IS_ERR(regmap)) {
+		ret = PTR_ERR(regmap);
+		dev_err(dev, "failed to allocate regmap: %d\n", ret);
+		return ret;
+	}
 
 	cs42xx8 = devm_kzalloc(dev, sizeof(*cs42xx8), GFP_KERNEL);
 	if (cs42xx8 == NULL)
 		return -ENOMEM;
 
+	cs42xx8->regmap = regmap;
 	dev_set_drvdata(dev, cs42xx8);
 
+	of_id = of_match_device(cs42xx8_of_match, dev);
 	if (of_id)
 		cs42xx8->drvdata = of_id->data;
 
@@ -481,13 +495,6 @@ int cs42xx8_probe(struct device *dev, struct regmap *regmap)
 
 	/* Make sure hardware reset done */
 	msleep(5);
-
-	cs42xx8->regmap = regmap;
-	if (IS_ERR(cs42xx8->regmap)) {
-		ret = PTR_ERR(cs42xx8->regmap);
-		dev_err(dev, "failed to allocate regmap: %d\n", ret);
-		goto err_enable;
-	}
 
 	/*
 	 * We haven't marked the chip revision as volatile due to
@@ -537,7 +544,7 @@ err_enable:
 }
 EXPORT_SYMBOL_GPL(cs42xx8_probe);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int cs42xx8_runtime_resume(struct device *dev)
 {
 	struct cs42xx8_priv *cs42xx8 = dev_get_drvdata(dev);

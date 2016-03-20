@@ -379,7 +379,7 @@ static int prism2mib_bytearea2pstr(struct mibrec *mib,
 				   void *data)
 {
 	int result;
-	p80211pstrd_t *pstr = (p80211pstrd_t *) data;
+	p80211pstrd_t *pstr = data;
 	u8 bytebuf[MIB_TMP_MAXLEN];
 
 	if (isget) {
@@ -388,7 +388,7 @@ static int prism2mib_bytearea2pstr(struct mibrec *mib,
 		prism2mgmt_bytearea2pstr(bytebuf, pstr, mib->parm2);
 	} else {
 		memset(bytebuf, 0, mib->parm2);
-		prism2mgmt_pstr2bytearea(bytebuf, pstr);
+		memcpy(bytebuf, pstr->data, pstr->len);
 		result =
 		    hfa384x_drvr_setconfig(hw, mib->parm1, bytebuf, mib->parm2);
 	}
@@ -428,7 +428,7 @@ static int prism2mib_uint32(struct mibrec *mib,
 			    struct p80211msg_dot11req_mibset *msg, void *data)
 {
 	int result;
-	u32 *uint32 = (u32 *) data;
+	u32 *uint32 = data;
 	u8 bytebuf[MIB_TMP_MAXLEN];
 	u16 *wordbuf = (u16 *) bytebuf;
 
@@ -475,7 +475,7 @@ static int prism2mib_flag(struct mibrec *mib,
 			  struct p80211msg_dot11req_mibset *msg, void *data)
 {
 	int result;
-	u32 *uint32 = (u32 *) data;
+	u32 *uint32 = data;
 	u8 bytebuf[MIB_TMP_MAXLEN];
 	u16 *wordbuf = (u16 *) bytebuf;
 	u32 flags;
@@ -533,7 +533,7 @@ static int prism2mib_wepdefaultkey(struct mibrec *mib,
 				   void *data)
 {
 	int result;
-	p80211pstrd_t *pstr = (p80211pstrd_t *) data;
+	p80211pstrd_t *pstr = data;
 	u8 bytebuf[MIB_TMP_MAXLEN];
 	u16 len;
 
@@ -543,7 +543,7 @@ static int prism2mib_wepdefaultkey(struct mibrec *mib,
 		len = (pstr->len > 5) ? HFA384x_RID_CNFWEP128DEFAULTKEY_LEN :
 		    HFA384x_RID_CNFWEPDEFAULTKEY_LEN;
 		memset(bytebuf, 0, len);
-		prism2mgmt_pstr2bytearea(bytebuf, pstr);
+		memcpy(bytebuf, pstr->data, pstr->len);
 		result = hfa384x_drvr_setconfig(hw, mib->parm1, bytebuf, len);
 	}
 
@@ -582,8 +582,6 @@ static int prism2mib_privacyinvoked(struct mibrec *mib,
 				    struct p80211msg_dot11req_mibset *msg,
 				    void *data)
 {
-	int result;
-
 	if (wlandev->hostwep & HOSTWEP_DECRYPT) {
 		if (wlandev->hostwep & HOSTWEP_DECRYPT)
 			mib->parm2 |= HFA384x_WEPFLAGS_DISABLE_RXCRYPT;
@@ -591,9 +589,7 @@ static int prism2mib_privacyinvoked(struct mibrec *mib,
 			mib->parm2 |= HFA384x_WEPFLAGS_DISABLE_TXCRYPT;
 	}
 
-	result = prism2mib_flag(mib, isget, wlandev, hw, msg, data);
-
-	return result;
+	return prism2mib_flag(mib, isget, wlandev, hw, msg, data);
 }
 
 /*----------------------------------------------------------------
@@ -628,11 +624,8 @@ static int prism2mib_excludeunencrypted(struct mibrec *mib,
 					struct p80211msg_dot11req_mibset *msg,
 					void *data)
 {
-	int result;
 
-	result = prism2mib_flag(mib, isget, wlandev, hw, msg, data);
-
-	return result;
+	return prism2mib_flag(mib, isget, wlandev, hw, msg, data);
 }
 
 /*----------------------------------------------------------------
@@ -667,8 +660,7 @@ static int prism2mib_fragmentationthreshold(struct mibrec *mib,
 					    struct p80211msg_dot11req_mibset *msg,
 					    void *data)
 {
-	int result;
-	u32 *uint32 = (u32 *) data;
+	u32 *uint32 = data;
 
 	if (!isget)
 		if ((*uint32) % 2) {
@@ -679,9 +671,7 @@ static int prism2mib_fragmentationthreshold(struct mibrec *mib,
 			return 0;
 		}
 
-	result = prism2mib_uint32(mib, isget, wlandev, hw, msg, data);
-
-	return result;
+	return prism2mib_uint32(mib, isget, wlandev, hw, msg, data);
 }
 
 /*----------------------------------------------------------------
@@ -715,9 +705,7 @@ static int prism2mib_priv(struct mibrec *mib,
 			  hfa384x_t *hw,
 			  struct p80211msg_dot11req_mibset *msg, void *data)
 {
-	p80211pstrd_t *pstr = (p80211pstrd_t *) data;
-
-	int result;
+	p80211pstrd_t *pstr = data;
 
 	switch (mib->did) {
 	case DIDmib_lnx_lnxConfigTable_lnxRSNAIE:{
@@ -734,11 +722,10 @@ static int prism2mib_priv(struct mibrec *mib,
 				wpa.datalen = cpu_to_le16(pstr->len);
 				memcpy(wpa.data, pstr->data, pstr->len);
 
-				result =
-				    hfa384x_drvr_setconfig(hw,
-						   HFA384x_RID_CNFWPADATA,
-						   (u8 *) &wpa,
-						   sizeof(wpa));
+				hfa384x_drvr_setconfig(hw,
+						       HFA384x_RID_CNFWPADATA,
+						       (u8 *) &wpa,
+						       sizeof(wpa));
 			}
 			break;
 		}
@@ -769,26 +756,6 @@ void prism2mgmt_pstr2bytestr(struct hfa384x_bytestr *bytestr,
 {
 	bytestr->len = cpu_to_le16((u16) (pstr->len));
 	memcpy(bytestr->data, pstr->data, pstr->len);
-}
-
-/*----------------------------------------------------------------
-* prism2mgmt_pstr2bytearea
-*
-* Convert the pstr data in the WLAN message structure into an hfa384x
-* byte area format.
-*
-* Arguments:
-*	bytearea	hfa384x byte area data type
-*	pstr		wlan message data
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
-
-void prism2mgmt_pstr2bytearea(u8 *bytearea, p80211pstrd_t *pstr)
-{
-	memcpy(bytearea, pstr->data, pstr->len);
 }
 
 /*----------------------------------------------------------------

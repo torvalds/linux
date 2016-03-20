@@ -71,12 +71,13 @@ int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid)
 	struct ixgbe_fcoe *fcoe;
 	struct ixgbe_adapter *adapter;
 	struct ixgbe_fcoe_ddp *ddp;
+	struct ixgbe_hw *hw;
 	u32 fcbuff;
 
 	if (!netdev)
 		return 0;
 
-	if (xid >= IXGBE_FCOE_DDP_MAX)
+	if (xid >= netdev->fcoe_ddp_xid)
 		return 0;
 
 	adapter = netdev_priv(netdev);
@@ -85,25 +86,51 @@ int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid)
 	if (!ddp->udl)
 		return 0;
 
+	hw = &adapter->hw;
 	len = ddp->len;
-	/* if there an error, force to invalidate ddp context */
-	if (ddp->err) {
-		spin_lock_bh(&fcoe->lock);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCFLT, 0);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCFLTRW,
+	/* if no error then skip ddp context invalidation */
+	if (!ddp->err)
+		goto skip_ddpinv;
+
+	if (hw->mac.type == ixgbe_mac_X550) {
+		/* X550 does not require DDP FCoE lock */
+
+		IXGBE_WRITE_REG(hw, IXGBE_FCDFC(0, xid), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_FCDFC(3, xid),
 				(xid | IXGBE_FCFLTRW_WE));
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCBUFF, 0);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCDMARW,
+
+		/* program FCBUFF */
+		IXGBE_WRITE_REG(hw, IXGBE_FCDDC(2, xid), 0);
+
+		/* program FCDMARW */
+		IXGBE_WRITE_REG(hw, IXGBE_FCDDC(3, xid),
+				(xid | IXGBE_FCDMARW_WE));
+
+		/* read FCBUFF to check context invalidated */
+		IXGBE_WRITE_REG(hw, IXGBE_FCDDC(3, xid),
+				(xid | IXGBE_FCDMARW_RE));
+		fcbuff = IXGBE_READ_REG(hw, IXGBE_FCDDC(2, xid));
+	} else {
+		/* other hardware requires DDP FCoE lock */
+		spin_lock_bh(&fcoe->lock);
+		IXGBE_WRITE_REG(hw, IXGBE_FCFLT, 0);
+		IXGBE_WRITE_REG(hw, IXGBE_FCFLTRW,
+				(xid | IXGBE_FCFLTRW_WE));
+		IXGBE_WRITE_REG(hw, IXGBE_FCBUFF, 0);
+		IXGBE_WRITE_REG(hw, IXGBE_FCDMARW,
 				(xid | IXGBE_FCDMARW_WE));
 
 		/* guaranteed to be invalidated after 100us */
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCDMARW,
+		IXGBE_WRITE_REG(hw, IXGBE_FCDMARW,
 				(xid | IXGBE_FCDMARW_RE));
-		fcbuff = IXGBE_READ_REG(&adapter->hw, IXGBE_FCBUFF);
+		fcbuff = IXGBE_READ_REG(hw, IXGBE_FCBUFF);
 		spin_unlock_bh(&fcoe->lock);
-		if (fcbuff & IXGBE_FCBUFF_VALID)
-			udelay(100);
-	}
+		}
+
+	if (fcbuff & IXGBE_FCBUFF_VALID)
+		usleep_range(100, 150);
+
+skip_ddpinv:
 	if (ddp->sgl)
 		dma_unmap_sg(&adapter->pdev->dev, ddp->sgl, ddp->sgc,
 			     DMA_FROM_DEVICE);
@@ -150,7 +177,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 		return 0;
 
 	adapter = netdev_priv(netdev);
-	if (xid >= IXGBE_FCOE_DDP_MAX) {
+	if (xid >= netdev->fcoe_ddp_xid) {
 		e_warn(drv, "xid=0x%x out-of-range\n", xid);
 		return 0;
 	}
@@ -272,7 +299,6 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 
 	/* program DMA context */
 	hw = &adapter->hw;
-	spin_lock_bh(&fcoe->lock);
 
 	/* turn on last frame indication for target mode as FCP_RSPtarget is
 	 * supposed to send FCP_RSP when it is done. */
@@ -283,16 +309,33 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 		IXGBE_WRITE_REG(hw, IXGBE_FCRXCTRL, fcrxctl);
 	}
 
-	IXGBE_WRITE_REG(hw, IXGBE_FCPTRL, ddp->udp & DMA_BIT_MASK(32));
-	IXGBE_WRITE_REG(hw, IXGBE_FCPTRH, (u64)ddp->udp >> 32);
-	IXGBE_WRITE_REG(hw, IXGBE_FCBUFF, fcbuff);
-	IXGBE_WRITE_REG(hw, IXGBE_FCDMARW, fcdmarw);
-	/* program filter context */
-	IXGBE_WRITE_REG(hw, IXGBE_FCPARAM, 0);
-	IXGBE_WRITE_REG(hw, IXGBE_FCFLT, IXGBE_FCFLT_VALID);
-	IXGBE_WRITE_REG(hw, IXGBE_FCFLTRW, fcfltrw);
+	if (hw->mac.type == ixgbe_mac_X550) {
+		/* X550 does not require DDP lock */
 
-	spin_unlock_bh(&fcoe->lock);
+		IXGBE_WRITE_REG(hw, IXGBE_FCDDC(0, xid),
+				ddp->udp & DMA_BIT_MASK(32));
+		IXGBE_WRITE_REG(hw, IXGBE_FCDDC(1, xid), (u64)ddp->udp >> 32);
+		IXGBE_WRITE_REG(hw, IXGBE_FCDDC(2, xid), fcbuff);
+		IXGBE_WRITE_REG(hw, IXGBE_FCDDC(3, xid), fcdmarw);
+		/* program filter context */
+		IXGBE_WRITE_REG(hw, IXGBE_FCDFC(0, xid), IXGBE_FCFLT_VALID);
+		IXGBE_WRITE_REG(hw, IXGBE_FCDFC(1, xid), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_FCDFC(3, xid), fcfltrw);
+	} else {
+		/* DDP lock for indirect DDP context access */
+		spin_lock_bh(&fcoe->lock);
+
+		IXGBE_WRITE_REG(hw, IXGBE_FCPTRL, ddp->udp & DMA_BIT_MASK(32));
+		IXGBE_WRITE_REG(hw, IXGBE_FCPTRH, (u64)ddp->udp >> 32);
+		IXGBE_WRITE_REG(hw, IXGBE_FCBUFF, fcbuff);
+		IXGBE_WRITE_REG(hw, IXGBE_FCDMARW, fcdmarw);
+		/* program filter context */
+		IXGBE_WRITE_REG(hw, IXGBE_FCPARAM, 0);
+		IXGBE_WRITE_REG(hw, IXGBE_FCFLT, IXGBE_FCFLT_VALID);
+		IXGBE_WRITE_REG(hw, IXGBE_FCFLTRW, fcfltrw);
+
+		spin_unlock_bh(&fcoe->lock);
+	}
 
 	return 1;
 
@@ -371,6 +414,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	struct fcoe_crc_eof *crc;
 	__le32 fcerr = ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_ERR_FCERR);
 	__le32 ddp_err;
+	int ddp_max;
 	u32 fctl;
 	u16 xid;
 
@@ -392,7 +436,11 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	else
 		xid =  be16_to_cpu(fh->fh_rx_id);
 
-	if (xid >= IXGBE_FCOE_DDP_MAX)
+	ddp_max = IXGBE_FCOE_DDP_MAX;
+	/* X550 has different DDP Max limit */
+	if (adapter->hw.mac.type == ixgbe_mac_X550)
+		ddp_max = IXGBE_FCOE_DDP_MAX_X550;
+	if (xid >= ddp_max)
 		return -EINVAL;
 
 	fcoe = &adapter->fcoe;
@@ -469,6 +517,7 @@ int ixgbe_fso(struct ixgbe_ring *tx_ring,
 	u32 vlan_macip_lens;
 	u32 fcoe_sof_eof = 0;
 	u32 mss_l4len_idx;
+	u32 type_tucmd = IXGBE_ADVTXT_TUCMD_FCOE;
 	u8 sof, eof;
 
 	if (skb_is_gso(skb) && (skb_shinfo(skb)->gso_type != SKB_GSO_FCOE)) {
@@ -545,6 +594,8 @@ int ixgbe_fso(struct ixgbe_ring *tx_ring,
 					       skb_shinfo(skb)->gso_size);
 		first->bytecount += (first->gso_segs - 1) * *hdr_len;
 		first->tx_flags |= IXGBE_TX_FLAGS_TSO;
+		/* Hardware expects L4T to be RSV for FCoE TSO */
+		type_tucmd |= IXGBE_ADVTXD_TUCMD_L4T_RSV;
 	}
 
 	/* set flag indicating FCOE to ixgbe_tx_map call */
@@ -562,7 +613,7 @@ int ixgbe_fso(struct ixgbe_ring *tx_ring,
 
 	/* write context desc */
 	ixgbe_tx_ctxtdesc(tx_ring, vlan_macip_lens, fcoe_sof_eof,
-			  IXGBE_ADVTXT_TUCMD_FCOE, mss_l4len_idx);
+			  type_tucmd, mss_l4len_idx);
 
 	return 0;
 }
@@ -572,8 +623,7 @@ static void ixgbe_fcoe_dma_pool_free(struct ixgbe_fcoe *fcoe, unsigned int cpu)
 	struct ixgbe_fcoe_ddp_pool *ddp_pool;
 
 	ddp_pool = per_cpu_ptr(fcoe->ddp_pool, cpu);
-	if (ddp_pool->pool)
-		dma_pool_destroy(ddp_pool->pool);
+	dma_pool_destroy(ddp_pool->pool);
 	ddp_pool->pool = NULL;
 }
 
@@ -612,7 +662,8 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_ring_feature *fcoe = &adapter->ring_feature[RING_F_FCOE];
 	struct ixgbe_hw *hw = &adapter->hw;
-	int i, fcoe_q, fcoe_i;
+	int i, fcoe_q, fcoe_i, fcoe_q_h = 0;
+	int fcreta_size;
 	u32 etqf;
 
 	/* Minimal functionality for FCoE requires at least CRC offloads */
@@ -633,10 +684,23 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 		return;
 
 	/* Use one or more Rx queues for FCoE by redirection table */
-	for (i = 0; i < IXGBE_FCRETA_SIZE; i++) {
+	fcreta_size = IXGBE_FCRETA_SIZE;
+	if (adapter->hw.mac.type == ixgbe_mac_X550)
+		fcreta_size = IXGBE_FCRETA_SIZE_X550;
+
+	for (i = 0; i < fcreta_size; i++) {
+		if (adapter->hw.mac.type == ixgbe_mac_X550) {
+			int fcoe_i_h = fcoe->offset + ((i + fcreta_size) %
+							fcoe->indices);
+			fcoe_q_h = adapter->rx_ring[fcoe_i_h]->reg_idx;
+			fcoe_q_h = (fcoe_q_h << IXGBE_FCRETA_ENTRY_HIGH_SHIFT) &
+				   IXGBE_FCRETA_ENTRY_HIGH_MASK;
+		}
+
 		fcoe_i = fcoe->offset + (i % fcoe->indices);
 		fcoe_i &= IXGBE_FCRETA_ENTRY_MASK;
 		fcoe_q = adapter->rx_ring[fcoe_i]->reg_idx;
+		fcoe_q |= fcoe_q_h;
 		IXGBE_WRITE_REG(hw, IXGBE_FCRETA(i), fcoe_q);
 	}
 	IXGBE_WRITE_REG(hw, IXGBE_FCRECTL, IXGBE_FCRECTL_ENA);
@@ -672,13 +736,18 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 void ixgbe_free_fcoe_ddp_resources(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_fcoe *fcoe = &adapter->fcoe;
-	int cpu, i;
+	int cpu, i, ddp_max;
 
 	/* do nothing if no DDP pools were allocated */
 	if (!fcoe->ddp_pool)
 		return;
 
-	for (i = 0; i < IXGBE_FCOE_DDP_MAX; i++)
+	ddp_max = IXGBE_FCOE_DDP_MAX;
+	/* X550 has different DDP Max limit */
+	if (adapter->hw.mac.type == ixgbe_mac_X550)
+		ddp_max = IXGBE_FCOE_DDP_MAX_X550;
+
+	for (i = 0; i < ddp_max; i++)
 		ixgbe_fcoe_ddp_put(adapter->netdev, i);
 
 	for_each_possible_cpu(cpu)
@@ -758,6 +827,9 @@ static int ixgbe_fcoe_ddp_enable(struct ixgbe_adapter *adapter)
 	}
 
 	adapter->netdev->fcoe_ddp_xid = IXGBE_FCOE_DDP_MAX - 1;
+	/* X550 has different DDP Max limit */
+	if (adapter->hw.mac.type == ixgbe_mac_X550)
+		adapter->netdev->fcoe_ddp_xid = IXGBE_FCOE_DDP_MAX_X550 - 1;
 
 	return 0;
 }
@@ -927,8 +999,7 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 		return -EINVAL;
 
 	/* Don't return information on unsupported devices */
-	if (hw->mac.type != ixgbe_mac_82599EB &&
-	    hw->mac.type != ixgbe_mac_X540)
+	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
 		return -EINVAL;
 
 	/* Manufacturer */
@@ -974,6 +1045,10 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 		snprintf(info->model,
 			 sizeof(info->model),
 			 "Intel 82599");
+	} else if (hw->mac.type == ixgbe_mac_X550) {
+		snprintf(info->model,
+			 sizeof(info->model),
+			 "Intel X550");
 	} else {
 		snprintf(info->model,
 			 sizeof(info->model),

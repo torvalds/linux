@@ -267,8 +267,13 @@ handle_it:
 
 #ifdef CONFIG_32BIT
 fpu:
+		lw	t0,fpu_kstat_irq
+		nop
+		lw	t1,(t0)
+		nop
+		addu	t1,1
 		j	handle_fpe_int
-		 nop
+		 sw	t1,(t0)
 #endif
 
 spurious:

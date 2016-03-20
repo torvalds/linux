@@ -21,7 +21,7 @@
 #include <linux/syscore_ops.h>
 
 #include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa2xx.h>
+#include "mfp-pxa2xx.h"
 
 #include "generic.h"
 
@@ -93,8 +93,8 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 		break;
 	default:
 		/* warning and fall through, treat as MFP_LPM_DEFAULT */
-		pr_warning("%s: GPIO%d: unsupported low power mode\n",
-				__func__, gpio);
+		pr_warn("%s: GPIO%d: unsupported low power mode\n",
+			__func__, gpio);
 		break;
 	}
 
@@ -107,14 +107,12 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 	 * configurations of those pins not able to wakeup
 	 */
 	if ((c & MFP_LPM_CAN_WAKEUP) && !gpio_desc[gpio].can_wakeup) {
-		pr_warning("%s: GPIO%d unable to wakeup\n",
-				__func__, gpio);
+		pr_warn("%s: GPIO%d unable to wakeup\n", __func__, gpio);
 		return -EINVAL;
 	}
 
 	if ((c & MFP_LPM_CAN_WAKEUP) && is_out) {
-		pr_warning("%s: output GPIO%d unable to wakeup\n",
-				__func__, gpio);
+		pr_warn("%s: output GPIO%d unable to wakeup\n", __func__, gpio);
 		return -EINVAL;
 	}
 
@@ -126,7 +124,7 @@ static inline int __mfp_validate(int mfp)
 	int gpio = mfp_to_gpio(mfp);
 
 	if ((mfp > MFP_PIN_GPIO127) || !gpio_desc[gpio].valid) {
-		pr_warning("%s: GPIO%d is invalid pin\n", __func__, gpio);
+		pr_warn("%s: GPIO%d is invalid pin\n", __func__, gpio);
 		return -1;
 	}
 

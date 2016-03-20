@@ -114,7 +114,6 @@
  * @phy_dev:		pointer to the PHY device
  * @phy_node:		pointer to the PHY device node
  * @mii_bus:		pointer to the MII bus
- * @mdio_irqs:		IRQs table for MDIO bus
  * @last_link:		last link status
  * @has_mdio:		indicates whether MDIO is included in the HW
  */
@@ -135,7 +134,6 @@ struct net_local {
 	struct device_node *phy_node;
 
 	struct mii_bus *mii_bus;
-	int mdio_irqs[PHY_MAX_ADDR];
 
 	int last_link;
 	bool has_mdio;
@@ -828,6 +826,8 @@ static int xemaclite_mdio_setup(struct net_local *lp, struct device *dev)
 		if (!phydev)
 			dev_info(dev,
 				 "MDIO of the phy is not registered yet\n");
+		else
+			put_device(&phydev->mdio.dev);
 		return 0;
 	}
 
@@ -850,7 +850,6 @@ static int xemaclite_mdio_setup(struct net_local *lp, struct device *dev)
 	bus->read = xemaclite_mdio_read;
 	bus->write = xemaclite_mdio_write;
 	bus->parent = dev;
-	bus->irq = lp->mdio_irqs; /* preallocated IRQ table */
 
 	lp->mii_bus = bus;
 
@@ -1062,7 +1061,7 @@ static bool get_bool(struct platform_device *ofdev, const char *s)
 	} else {
 		dev_warn(&ofdev->dev, "Parameter %s not found,"
 			"defaulting to false\n", s);
-		return 0;
+		return false;
 	}
 }
 
@@ -1109,6 +1108,7 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	res = platform_get_resource(ofdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(dev, "no IRQ found\n");
+		rc = -ENXIO;
 		goto error;
 	}
 
@@ -1193,15 +1193,13 @@ static int xemaclite_of_remove(struct platform_device *of_dev)
 	/* Un-register the mii_bus, if configured */
 	if (lp->has_mdio) {
 		mdiobus_unregister(lp->mii_bus);
-		kfree(lp->mii_bus->irq);
 		mdiobus_free(lp->mii_bus);
 		lp->mii_bus = NULL;
 	}
 
 	unregister_netdev(ndev);
 
-	if (lp->phy_node)
-		of_node_put(lp->phy_node);
+	of_node_put(lp->phy_node);
 	lp->phy_node = NULL;
 
 	xemaclite_remove_ndev(ndev);
@@ -1231,7 +1229,7 @@ static struct net_device_ops xemaclite_netdev_ops = {
 };
 
 /* Match table for OF platform binding */
-static struct of_device_id xemaclite_of_match[] = {
+static const struct of_device_id xemaclite_of_match[] = {
 	{ .compatible = "xlnx,opb-ethernetlite-1.01.a", },
 	{ .compatible = "xlnx,opb-ethernetlite-1.01.b", },
 	{ .compatible = "xlnx,xps-ethernetlite-1.00.a", },

@@ -38,31 +38,21 @@
 #define DEBUGP(fmt , ...)
 #endif
 
-#ifndef CONFIG_64BIT
-#define PLT_ENTRY_SIZE 12
-#else /* CONFIG_64BIT */
 #define PLT_ENTRY_SIZE 20
-#endif /* CONFIG_64BIT */
 
-#ifdef CONFIG_64BIT
 void *module_alloc(unsigned long size)
 {
 	if (PAGE_ALIGN(size) > MODULES_LEN)
 		return NULL;
 	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
-				    GFP_KERNEL, PAGE_KERNEL, NUMA_NO_NODE,
+				    GFP_KERNEL, PAGE_KERNEL, 0, NUMA_NO_NODE,
 				    __builtin_return_address(0));
 }
-#endif
 
-/* Free memory returned from module_alloc */
-void module_free(struct module *mod, void *module_region)
+void module_arch_freeing_init(struct module *mod)
 {
-	if (mod) {
-		vfree(mod->arch.syminfo);
-		mod->arch.syminfo = NULL;
-	}
-	vfree(module_region);
+	vfree(mod->arch.syminfo);
+	mod->arch.syminfo = NULL;
 }
 
 static void check_rela(Elf_Rela *rela, struct module *me)
@@ -169,11 +159,11 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 
 	/* Increase core size by size of got & plt and set start
 	   offsets for got and plt. */
-	me->core_size = ALIGN(me->core_size, 4);
-	me->arch.got_offset = me->core_size;
-	me->core_size += me->arch.got_size;
-	me->arch.plt_offset = me->core_size;
-	me->core_size += me->arch.plt_size;
+	me->core_layout.size = ALIGN(me->core_layout.size, 4);
+	me->arch.got_offset = me->core_layout.size;
+	me->core_layout.size += me->arch.got_size;
+	me->arch.plt_offset = me->core_layout.size;
+	me->core_layout.size += me->arch.plt_size;
 	return 0;
 }
 
@@ -289,7 +279,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 		if (info->got_initialized == 0) {
 			Elf_Addr *gotent;
 
-			gotent = me->module_core + me->arch.got_offset +
+			gotent = me->core_layout.base + me->arch.got_offset +
 				info->got_offset;
 			*gotent = val;
 			info->got_initialized = 1;
@@ -312,7 +302,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 			rc = apply_rela_bits(loc, val, 0, 64, 0);
 		else if (r_type == R_390_GOTENT ||
 			 r_type == R_390_GOTPLTENT) {
-			val += (Elf_Addr) me->module_core - loc;
+			val += (Elf_Addr) me->core_layout.base - loc;
 			rc = apply_rela_bits(loc, val, 1, 32, 1);
 		}
 		break;
@@ -325,19 +315,13 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 	case R_390_PLTOFF64:	/* 16 bit offset from GOT to PLT. */
 		if (info->plt_initialized == 0) {
 			unsigned int *ip;
-			ip = me->module_core + me->arch.plt_offset +
+			ip = me->core_layout.base + me->arch.plt_offset +
 				info->plt_offset;
-#ifndef CONFIG_64BIT
-			ip[0] = 0x0d105810; /* basr 1,0; l 1,6(1); br 1 */
-			ip[1] = 0x100607f1;
-			ip[2] = val;
-#else /* CONFIG_64BIT */
 			ip[0] = 0x0d10e310; /* basr 1,0; lg 1,10(1); br 1 */
 			ip[1] = 0x100a0004;
 			ip[2] = 0x07f10000;
 			ip[3] = (unsigned int) (val >> 32);
 			ip[4] = (unsigned int) val;
-#endif /* CONFIG_64BIT */
 			info->plt_initialized = 1;
 		}
 		if (r_type == R_390_PLTOFF16 ||
@@ -350,7 +334,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 			       val - loc + 0xffffUL < 0x1ffffeUL) ||
 			      (r_type == R_390_PLT32DBL &&
 			       val - loc + 0xffffffffULL < 0x1fffffffeULL)))
-				val = (Elf_Addr) me->module_core +
+				val = (Elf_Addr) me->core_layout.base +
 					me->arch.plt_offset +
 					info->plt_offset;
 			val += rela->r_addend - loc;
@@ -372,7 +356,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 	case R_390_GOTOFF32:	/* 32 bit offset to GOT.  */
 	case R_390_GOTOFF64:	/* 64 bit offset to GOT. */
 		val = val + rela->r_addend -
-			((Elf_Addr) me->module_core + me->arch.got_offset);
+			((Elf_Addr) me->core_layout.base + me->arch.got_offset);
 		if (r_type == R_390_GOTOFF16)
 			rc = apply_rela_bits(loc, val, 0, 16, 0);
 		else if (r_type == R_390_GOTOFF32)
@@ -382,7 +366,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 		break;
 	case R_390_GOTPC:	/* 32 bit PC relative offset to GOT. */
 	case R_390_GOTPCDBL:	/* 32 bit PC rel. off. to GOT shifted by 1. */
-		val = (Elf_Addr) me->module_core + me->arch.got_offset +
+		val = (Elf_Addr) me->core_layout.base + me->arch.got_offset +
 			rela->r_addend - loc;
 		if (r_type == R_390_GOTPC)
 			rc = apply_rela_bits(loc, val, 1, 32, 0);
@@ -440,6 +424,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs,
 		    struct module *me)
 {
+	jump_label_apply_nops(me);
 	vfree(me->arch.syminfo);
 	me->arch.syminfo = NULL;
 	return 0;

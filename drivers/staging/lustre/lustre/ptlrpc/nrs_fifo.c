@@ -13,10 +13,6 @@
  * GNU General Public License version 2 for more details.  A copy is
  * included in the COPYING file that accompanied this code.
 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  * GPL HEADER END
  */
 /*
@@ -80,8 +76,10 @@ static int nrs_fifo_start(struct ptlrpc_nrs_policy *policy)
 {
 	struct nrs_fifo_head *head;
 
-	OBD_CPT_ALLOC_PTR(head, nrs_pol2cptab(policy), nrs_pol2cptid(policy));
-	if (head == NULL)
+	head = kzalloc_node(sizeof(*head), GFP_NOFS,
+			    cfs_cpt_spread_node(nrs_pol2cptab(policy),
+						nrs_pol2cptid(policy)));
+	if (!head)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&head->fh_list);
@@ -102,10 +100,10 @@ static void nrs_fifo_stop(struct ptlrpc_nrs_policy *policy)
 {
 	struct nrs_fifo_head *head = policy->pol_private;
 
-	LASSERT(head != NULL);
+	LASSERT(head);
 	LASSERT(list_empty(&head->fh_list));
 
-	OBD_FREE_PTR(head);
+	kfree(head);
 }
 
 /**
@@ -157,17 +155,17 @@ static int nrs_fifo_res_get(struct ptlrpc_nrs_policy *policy,
  * \see nrs_request_get()
  */
 static
-struct ptlrpc_nrs_request * nrs_fifo_req_get(struct ptlrpc_nrs_policy *policy,
-					     bool peek, bool force)
+struct ptlrpc_nrs_request *nrs_fifo_req_get(struct ptlrpc_nrs_policy *policy,
+					    bool peek, bool force)
 {
-	struct nrs_fifo_head	  *head = policy->pol_private;
+	struct nrs_fifo_head *head = policy->pol_private;
 	struct ptlrpc_nrs_request *nrq;
 
 	nrq = unlikely(list_empty(&head->fh_list)) ? NULL :
 	      list_entry(head->fh_list.next, struct ptlrpc_nrs_request,
-			     nr_u.fifo.fr_list);
+			 nr_u.fifo.fr_list);
 
-	if (likely(!peek && nrq != NULL)) {
+	if (likely(!peek && nrq)) {
 		struct ptlrpc_request *req = container_of(nrq,
 							  struct ptlrpc_request,
 							  rq_nrq);

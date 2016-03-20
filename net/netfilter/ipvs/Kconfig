@@ -152,6 +152,27 @@ config	IP_VS_WLC
 	  If you want to compile it in kernel, say Y. To compile it as a
 	  module, choose M here. If unsure, say N.
 
+config  IP_VS_FO
+		tristate "weighted failover scheduling"
+	---help---
+	  The weighted failover scheduling algorithm directs network
+	  connections to the server with the highest weight that is
+	  currently available.
+
+	  If you want to compile it in kernel, say Y. To compile it as a
+	  module, choose M here. If unsure, say N.
+
+config  IP_VS_OVF
+	tristate "weighted overflow scheduling"
+	---help---
+	  The weighted overflow scheduling algorithm directs network
+	  connections to the server with the highest weight that is
+	  currently available and overflows to the next when active
+	  connections exceed the node's weight.
+
+	  If you want to compile it in kernel, say Y. To compile it as a
+	  module, choose M here. If unsure, say N.
+
 config	IP_VS_LBLC
 	tristate "locality-based least-connection scheduling"
 	---help---

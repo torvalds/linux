@@ -275,22 +275,23 @@ EXPORT_SYMBOL(drm_rect_calc_vscale_relaxed);
 
 /**
  * drm_rect_debug_print - print the rectangle information
+ * @prefix: prefix string
  * @r: rectangle to print
  * @fixed_point: rectangle is in 16.16 fixed point format
  */
-void drm_rect_debug_print(const struct drm_rect *r, bool fixed_point)
+void drm_rect_debug_print(const char *prefix, const struct drm_rect *r, bool fixed_point)
 {
 	int w = drm_rect_width(r);
 	int h = drm_rect_height(r);
 
 	if (fixed_point)
-		DRM_DEBUG_KMS("%d.%06ux%d.%06u%+d.%06u%+d.%06u\n",
+		DRM_DEBUG_KMS("%s%d.%06ux%d.%06u%+d.%06u%+d.%06u\n", prefix,
 			      w >> 16, ((w & 0xffff) * 15625) >> 10,
 			      h >> 16, ((h & 0xffff) * 15625) >> 10,
 			      r->x1 >> 16, ((r->x1 & 0xffff) * 15625) >> 10,
 			      r->y1 >> 16, ((r->y1 & 0xffff) * 15625) >> 10);
 	else
-		DRM_DEBUG_KMS("%dx%d%+d%+d\n", w, h, r->x1, r->y1);
+		DRM_DEBUG_KMS("%s%dx%d%+d%+d\n", prefix, w, h, r->x1, r->y1);
 }
 EXPORT_SYMBOL(drm_rect_debug_print);
 
@@ -330,7 +331,7 @@ void drm_rect_rotate(struct drm_rect *r,
 		}
 	}
 
-	switch (rotation & 0xf) {
+	switch (rotation & DRM_ROTATE_MASK) {
 	case BIT(DRM_ROTATE_0):
 		break;
 	case BIT(DRM_ROTATE_90):
@@ -390,7 +391,7 @@ void drm_rect_rotate_inv(struct drm_rect *r,
 {
 	struct drm_rect tmp;
 
-	switch (rotation & 0xf) {
+	switch (rotation & DRM_ROTATE_MASK) {
 	case BIT(DRM_ROTATE_0):
 		break;
 	case BIT(DRM_ROTATE_90):

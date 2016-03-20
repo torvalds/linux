@@ -318,6 +318,12 @@ struct ti_temp_sensor {
  * TI_BANDGAP_FEATURE_HISTORY_BUFFER - used when the bandgap device features
  *	a history buffer of temperatures.
  *
+ * TI_BANDGAP_FEATURE_ERRATA_814 - used to workaorund when the bandgap device
+ *	has Errata 814
+ * TI_BANDGAP_FEATURE_ERRATA_813 - used to workaorund when the bandgap device
+ *	has Errata 813
+ * TI_BANDGAP_FEATURE_UNRELIABLE - used when the sensor readings are too
+ *	inaccurate.
  * TI_BANDGAP_HAS(b, f) - macro to check if a bandgap device is capable of a
  *      specific feature (above) or not. Return non-zero, if yes.
  */
@@ -331,6 +337,9 @@ struct ti_temp_sensor {
 #define TI_BANDGAP_FEATURE_FREEZE_BIT		BIT(7)
 #define TI_BANDGAP_FEATURE_COUNTER_DELAY	BIT(8)
 #define TI_BANDGAP_FEATURE_HISTORY_BUFFER	BIT(9)
+#define TI_BANDGAP_FEATURE_ERRATA_814		BIT(10)
+#define TI_BANDGAP_FEATURE_ERRATA_813		BIT(11)
+#define TI_BANDGAP_FEATURE_UNRELIABLE		BIT(12)
 #define TI_BANDGAP_HAS(b, f)			\
 			((b)->conf->features & TI_BANDGAP_FEATURE_ ## f)
 
@@ -383,6 +392,14 @@ int ti_bandgap_read_temperature(struct ti_bandgap *bgp, int id,
 int ti_bandgap_set_sensor_data(struct ti_bandgap *bgp, int id, void *data);
 void *ti_bandgap_get_sensor_data(struct ti_bandgap *bgp, int id);
 int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend);
+
+#ifdef CONFIG_OMAP3_THERMAL
+extern const struct ti_bandgap_data omap34xx_data;
+extern const struct ti_bandgap_data omap36xx_data;
+#else
+#define omap34xx_data					NULL
+#define omap36xx_data					NULL
+#endif
 
 #ifdef CONFIG_OMAP4_THERMAL
 extern const struct ti_bandgap_data omap4430_data;

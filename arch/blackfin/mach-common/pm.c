@@ -14,9 +14,10 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/delay.h>
+#include <linux/gpio.h>
 
 #include <asm/cplb.h>
-#include <asm/gpio.h>
 #include <asm/dma.h>
 #include <asm/dpmc.h>
 #include <asm/pm.h>
@@ -180,6 +181,7 @@ int bfin_pm_suspend_mem_enter(void)
 
 #if defined(CONFIG_BFIN_EXTMEM_WRITEBACK) || defined(CONFIG_BFIN_L2_WRITEBACK)
 	flushinv_all_dcache();
+	udelay(1);
 #endif
 	_disable_dcplb();
 	_disable_icplb();

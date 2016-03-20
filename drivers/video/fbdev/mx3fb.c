@@ -334,8 +334,7 @@ static void mx3fb_init_backlight(struct mx3fb_data *fbd)
 
 static void mx3fb_exit_backlight(struct mx3fb_data *fbd)
 {
-	if (fbd->bl)
-		backlight_device_unregister(fbd->bl);
+	backlight_device_unregister(fbd->bl);
 }
 
 static void mx3fb_dma_done(void *);
@@ -461,8 +460,7 @@ static void sdc_disable_channel(struct mx3fb_info *mx3_fbi)
 
 	spin_unlock_irqrestore(&mx3fb->lock, flags);
 
-	mx3_fbi->txd->chan->device->device_control(mx3_fbi->txd->chan,
-						   DMA_TERMINATE_ALL, 0);
+	dmaengine_terminate_all(mx3_fbi->txd->chan);
 	mx3_fbi->txd = NULL;
 	mx3_fbi->cookie = -EINVAL;
 }
@@ -1179,7 +1177,7 @@ static int mx3fb_pan_display(struct fb_var_screeninfo *var,
 
 	/*
 	 * We enable the End of Frame interrupt, which will free a tx-descriptor,
-	 * which we will need for the next device_prep_slave_sg(). The
+	 * which we will need for the next dmaengine_prep_slave_sg(). The
 	 * IRQ-handler will disable the IRQ again.
 	 */
 	init_completion(&mx3_fbi->flip_cmpl);
@@ -1338,9 +1336,8 @@ static int mx3fb_map_video_memory(struct fb_info *fbi, unsigned int mem_len,
 	int retval = 0;
 	dma_addr_t addr;
 
-	fbi->screen_base = dma_alloc_writecombine(fbi->device,
-						  mem_len,
-						  &addr, GFP_DMA | GFP_KERNEL);
+	fbi->screen_base = dma_alloc_wc(fbi->device, mem_len, &addr,
+					GFP_DMA | GFP_KERNEL);
 
 	if (!fbi->screen_base) {
 		dev_err(fbi->device, "Cannot allocate %u bytes framebuffer memory\n",
@@ -1380,8 +1377,8 @@ err0:
  */
 static int mx3fb_unmap_video_memory(struct fb_info *fbi)
 {
-	dma_free_writecombine(fbi->device, fbi->fix.smem_len,
-			      fbi->screen_base, fbi->fix.smem_start);
+	dma_free_wc(fbi->device, fbi->fix.smem_len, fbi->screen_base,
+		    fbi->fix.smem_start);
 
 	fbi->screen_base = NULL;
 	mutex_lock(&fbi->mm_lock);
@@ -1647,7 +1644,6 @@ static int mx3fb_remove(struct platform_device *dev)
 static struct platform_driver mx3fb_driver = {
 	.driver = {
 		.name = MX3FB_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = mx3fb_probe,
 	.remove = mx3fb_remove,

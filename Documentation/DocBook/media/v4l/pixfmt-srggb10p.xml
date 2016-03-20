@@ -1,0 +1,99 @@
+    <refentry id="pixfmt-srggb10p">
+      <refmeta>
+	<refentrytitle>V4L2_PIX_FMT_SRGGB10P ('pRAA'),
+	 V4L2_PIX_FMT_SGRBG10P ('pgAA'),
+	 V4L2_PIX_FMT_SGBRG10P ('pGAA'),
+	 V4L2_PIX_FMT_SBGGR10P ('pBAA'),
+	 </refentrytitle>
+	&manvol;
+      </refmeta>
+      <refnamediv>
+	<refname id="V4L2-PIX-FMT-SRGGB10P"><constant>V4L2_PIX_FMT_SRGGB10P</constant></refname>
+	<refname id="V4L2-PIX-FMT-SGRBG10P"><constant>V4L2_PIX_FMT_SGRBG10P</constant></refname>
+	<refname id="V4L2-PIX-FMT-SGBRG10P"><constant>V4L2_PIX_FMT_SGBRG10P</constant></refname>
+	<refname id="V4L2-PIX-FMT-SBGGR10P"><constant>V4L2_PIX_FMT_SBGGR10P</constant></refname>
+	<refpurpose>10-bit packed Bayer formats</refpurpose>
+      </refnamediv>
+      <refsect1>
+	<title>Description</title>
+
+	<para>These four pixel formats are packed raw sRGB /
+	Bayer formats with 10 bits per colour. Every four consecutive
+	colour components are packed into 5 bytes. Each of the first 4
+	bytes contain the 8 high order bits of the pixels, and the
+	fifth byte contains the two least significants bits of each
+	pixel, in the same order.</para>
+
+	<para>Each n-pixel row contains n/2 green samples and n/2 blue
+	or red samples, with alternating green-red and green-blue
+	rows. They are conventionally described as GRGR... BGBG...,
+	RGRG... GBGB..., etc. Below is an example of one of these
+	formats:</para>
+
+    <example>
+      <title><constant>V4L2_PIX_FMT_SBGGR10P</constant> 4 &times; 4
+      pixel image</title>
+
+      <formalpara>
+	<title>Byte Order.</title>
+	<para>Each cell is one byte.
+	  <informaltable frame="topbot" colsep="1" rowsep="1">
+	    <tgroup cols="5" align="center">
+	      <colspec align="left" colwidth="2*" />
+	      <tbody valign="top">
+		<row>
+		  <entry>start&nbsp;+&nbsp;0:</entry>
+		  <entry>B<subscript>00high</subscript></entry>
+		  <entry>G<subscript>01high</subscript></entry>
+		  <entry>B<subscript>02high</subscript></entry>
+		  <entry>G<subscript>03high</subscript></entry>
+		  <entry>B<subscript>00low</subscript>(bits 7--6)
+			 G<subscript>01low</subscript>(bits 5--4)
+			 B<subscript>02low</subscript>(bits 3--2)
+			 G<subscript>03low</subscript>(bits 1--0)
+		  </entry>
+		</row>
+		<row>
+		  <entry>start&nbsp;+&nbsp;5:</entry>
+		  <entry>G<subscript>10high</subscript></entry>
+		  <entry>R<subscript>11high</subscript></entry>
+		  <entry>G<subscript>12high</subscript></entry>
+		  <entry>R<subscript>13high</subscript></entry>
+		  <entry>G<subscript>10low</subscript>(bits 7--6)
+			 R<subscript>11low</subscript>(bits 5--4)
+			 G<subscript>12low</subscript>(bits 3--2)
+			 R<subscript>13low</subscript>(bits 1--0)
+		  </entry>
+		</row>
+		<row>
+		  <entry>start&nbsp;+&nbsp;10:</entry>
+		  <entry>B<subscript>20high</subscript></entry>
+		  <entry>G<subscript>21high</subscript></entry>
+		  <entry>B<subscript>22high</subscript></entry>
+		  <entry>G<subscript>23high</subscript></entry>
+		  <entry>B<subscript>20low</subscript>(bits 7--6)
+			 G<subscript>21low</subscript>(bits 5--4)
+			 B<subscript>22low</subscript>(bits 3--2)
+			 G<subscript>23low</subscript>(bits 1--0)
+		  </entry>
+		</row>
+		<row>
+		  <entry>start&nbsp;+&nbsp;15:</entry>
+		  <entry>G<subscript>30high</subscript></entry>
+		  <entry>R<subscript>31high</subscript></entry>
+		  <entry>G<subscript>32high</subscript></entry>
+		  <entry>R<subscript>33high</subscript></entry>
+		  <entry>G<subscript>30low</subscript>(bits 7--6)
+			 R<subscript>31low</subscript>(bits 5--4)
+			 G<subscript>32low</subscript>(bits 3--2)
+			 R<subscript>33low</subscript>(bits 1--0)
+		  </entry>
+		</row>
+	      </tbody>
+	    </tgroup>
+	  </informaltable>
+	</para>
+      </formalpara>
+    </example>
+  </refsect1>
+</refentry>

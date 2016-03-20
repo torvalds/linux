@@ -42,6 +42,7 @@ static int handle_hvc(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 	trace_kvm_hvc(*vcpu_pc(vcpu), *vcpu_reg(vcpu, 0),
 		      kvm_vcpu_hvc_get_imm(vcpu));
+	vcpu->stat.hvc_exit_stat++;
 
 	ret = kvm_psci_call(vcpu);
 	if (ret < 0) {
@@ -87,11 +88,17 @@ static int handle_dabt_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
  */
 static int kvm_handle_wfx(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	trace_kvm_wfi(*vcpu_pc(vcpu));
-	if (kvm_vcpu_get_hsr(vcpu) & HSR_WFI_IS_WFE)
+	if (kvm_vcpu_get_hsr(vcpu) & HSR_WFI_IS_WFE) {
+		trace_kvm_wfx(*vcpu_pc(vcpu), true);
+		vcpu->stat.wfe_exit_stat++;
 		kvm_vcpu_on_spin(vcpu);
-	else
+	} else {
+		trace_kvm_wfx(*vcpu_pc(vcpu), false);
+		vcpu->stat.wfi_exit_stat++;
 		kvm_vcpu_block(vcpu);
+	}
+
+	kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
 
 	return 1;
 }
@@ -140,13 +147,6 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	switch (exception_index) {
 	case ARM_EXCEPTION_IRQ:
 		return 1;
-	case ARM_EXCEPTION_UNDEFINED:
-		kvm_err("Undefined exception in Hyp mode at: %#08lx\n",
-			kvm_vcpu_get_hyp_pc(vcpu));
-		BUG();
-		panic("KVM: Hypervisor undefined exception!\n");
-	case ARM_EXCEPTION_DATA_ABORT:
-	case ARM_EXCEPTION_PREF_ABORT:
 	case ARM_EXCEPTION_HVC:
 		/*
 		 * See ARM ARM B1.14.1: "Hyp traps on instructions

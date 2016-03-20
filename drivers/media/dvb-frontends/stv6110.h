@@ -46,7 +46,7 @@ struct stv6110_config {
 	u8 clk_div;	/* divisor value for the output clock */
 };
 
-#if IS_ENABLED(CONFIG_DVB_STV6110)
+#if IS_REACHABLE(CONFIG_DVB_STV6110)
 extern struct dvb_frontend *stv6110_attach(struct dvb_frontend *fe,
 					const struct stv6110_config *config,
 					struct i2c_adapter *i2c);

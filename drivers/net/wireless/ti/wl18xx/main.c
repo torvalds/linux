@@ -24,6 +24,7 @@
 #include <linux/ip.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
+#include <linux/irq.h>
 
 #include "../wlcore/wlcore.h"
 #include "../wlcore/debug.h"
@@ -176,69 +177,80 @@ enum wl18xx_hw_rates {
 static struct wlcore_conf wl18xx_conf = {
 	.sg = {
 		.params = {
-			[CONF_SG_ACL_BT_MASTER_MIN_BR] = 10,
-			[CONF_SG_ACL_BT_MASTER_MAX_BR] = 180,
-			[CONF_SG_ACL_BT_SLAVE_MIN_BR] = 10,
-			[CONF_SG_ACL_BT_SLAVE_MAX_BR] = 180,
-			[CONF_SG_ACL_BT_MASTER_MIN_EDR] = 10,
-			[CONF_SG_ACL_BT_MASTER_MAX_EDR] = 80,
-			[CONF_SG_ACL_BT_SLAVE_MIN_EDR] = 10,
-			[CONF_SG_ACL_BT_SLAVE_MAX_EDR] = 80,
-			[CONF_SG_ACL_WLAN_PS_MASTER_BR] = 8,
-			[CONF_SG_ACL_WLAN_PS_SLAVE_BR] = 8,
-			[CONF_SG_ACL_WLAN_PS_MASTER_EDR] = 20,
-			[CONF_SG_ACL_WLAN_PS_SLAVE_EDR] = 20,
-			[CONF_SG_ACL_WLAN_ACTIVE_MASTER_MIN_BR] = 20,
-			[CONF_SG_ACL_WLAN_ACTIVE_MASTER_MAX_BR] = 35,
-			[CONF_SG_ACL_WLAN_ACTIVE_SLAVE_MIN_BR] = 16,
-			[CONF_SG_ACL_WLAN_ACTIVE_SLAVE_MAX_BR] = 35,
-			[CONF_SG_ACL_WLAN_ACTIVE_MASTER_MIN_EDR] = 32,
-			[CONF_SG_ACL_WLAN_ACTIVE_MASTER_MAX_EDR] = 50,
-			[CONF_SG_ACL_WLAN_ACTIVE_SLAVE_MIN_EDR] = 28,
-			[CONF_SG_ACL_WLAN_ACTIVE_SLAVE_MAX_EDR] = 50,
-			[CONF_SG_ACL_ACTIVE_SCAN_WLAN_BR] = 10,
-			[CONF_SG_ACL_ACTIVE_SCAN_WLAN_EDR] = 20,
-			[CONF_SG_ACL_PASSIVE_SCAN_BT_BR] = 75,
-			[CONF_SG_ACL_PASSIVE_SCAN_WLAN_BR] = 15,
-			[CONF_SG_ACL_PASSIVE_SCAN_BT_EDR] = 27,
-			[CONF_SG_ACL_PASSIVE_SCAN_WLAN_EDR] = 17,
-			/* active scan params */
-			[CONF_SG_AUTO_SCAN_PROBE_REQ] = 170,
-			[CONF_SG_ACTIVE_SCAN_DURATION_FACTOR_HV3] = 50,
-			[CONF_SG_ACTIVE_SCAN_DURATION_FACTOR_A2DP] = 100,
-			/* passive scan params */
-			[CONF_SG_PASSIVE_SCAN_DURATION_FACTOR_A2DP_BR] = 800,
-			[CONF_SG_PASSIVE_SCAN_DURATION_FACTOR_A2DP_EDR] = 200,
-			[CONF_SG_PASSIVE_SCAN_DURATION_FACTOR_HV3] = 200,
-			/* passive scan in dual antenna params */
-			[CONF_SG_CONSECUTIVE_HV3_IN_PASSIVE_SCAN] = 0,
-			[CONF_SG_BCN_HV3_COLLISION_THRESH_IN_PASSIVE_SCAN] = 0,
-			[CONF_SG_TX_RX_PROTECTION_BWIDTH_IN_PASSIVE_SCAN] = 0,
-			/* general params */
-			[CONF_SG_STA_FORCE_PS_IN_BT_SCO] = 1,
-			[CONF_SG_ANTENNA_CONFIGURATION] = 0,
-			[CONF_SG_BEACON_MISS_PERCENT] = 60,
-			[CONF_SG_DHCP_TIME] = 5000,
-			[CONF_SG_RXT] = 1200,
-			[CONF_SG_TXT] = 1000,
-			[CONF_SG_ADAPTIVE_RXT_TXT] = 1,
-			[CONF_SG_GENERAL_USAGE_BIT_MAP] = 3,
-			[CONF_SG_HV3_MAX_SERVED] = 6,
-			[CONF_SG_PS_POLL_TIMEOUT] = 10,
-			[CONF_SG_UPSD_TIMEOUT] = 10,
-			[CONF_SG_CONSECUTIVE_CTS_THRESHOLD] = 2,
-			[CONF_SG_STA_RX_WINDOW_AFTER_DTIM] = 5,
-			[CONF_SG_STA_CONNECTION_PROTECTION_TIME] = 30,
-			/* AP params */
-			[CONF_AP_BEACON_MISS_TX] = 3,
-			[CONF_AP_RX_WINDOW_AFTER_BEACON] = 10,
-			[CONF_AP_BEACON_WINDOW_INTERVAL] = 2,
-			[CONF_AP_CONNECTION_PROTECTION_TIME] = 0,
-			[CONF_AP_BT_ACL_VAL_BT_SERVE_TIME] = 25,
-			[CONF_AP_BT_ACL_VAL_WL_SERVE_TIME] = 25,
-			/* CTS Diluting params */
-			[CONF_SG_CTS_DILUTED_BAD_RX_PACKETS_TH] = 0,
-			[CONF_SG_CTS_CHOP_IN_DUAL_ANT_SCO_MASTER] = 0,
+			[WL18XX_CONF_SG_PARAM_0] = 0,
+			/* Configuartion Parameters */
+			[WL18XX_CONF_SG_ANTENNA_CONFIGURATION] = 0,
+			[WL18XX_CONF_SG_ZIGBEE_COEX] = 0,
+			[WL18XX_CONF_SG_TIME_SYNC] = 0,
+			[WL18XX_CONF_SG_PARAM_4] = 0,
+			[WL18XX_CONF_SG_PARAM_5] = 0,
+			[WL18XX_CONF_SG_PARAM_6] = 0,
+			[WL18XX_CONF_SG_PARAM_7] = 0,
+			[WL18XX_CONF_SG_PARAM_8] = 0,
+			[WL18XX_CONF_SG_PARAM_9] = 0,
+			[WL18XX_CONF_SG_PARAM_10] = 0,
+			[WL18XX_CONF_SG_PARAM_11] = 0,
+			[WL18XX_CONF_SG_PARAM_12] = 0,
+			[WL18XX_CONF_SG_PARAM_13] = 0,
+			[WL18XX_CONF_SG_PARAM_14] = 0,
+			[WL18XX_CONF_SG_PARAM_15] = 0,
+			[WL18XX_CONF_SG_PARAM_16] = 0,
+			[WL18XX_CONF_SG_PARAM_17] = 0,
+			[WL18XX_CONF_SG_PARAM_18] = 0,
+			[WL18XX_CONF_SG_PARAM_19] = 0,
+			[WL18XX_CONF_SG_PARAM_20] = 0,
+			[WL18XX_CONF_SG_PARAM_21] = 0,
+			[WL18XX_CONF_SG_PARAM_22] = 0,
+			[WL18XX_CONF_SG_PARAM_23] = 0,
+			[WL18XX_CONF_SG_PARAM_24] = 0,
+			[WL18XX_CONF_SG_PARAM_25] = 0,
+			/* Active Scan Parameters */
+			[WL18XX_CONF_SG_AUTO_SCAN_PROBE_REQ] = 170,
+			[WL18XX_CONF_SG_ACTIVE_SCAN_DURATION_FACTOR_HV3] = 50,
+			[WL18XX_CONF_SG_PARAM_28] = 0,
+			/* Passive Scan Parameters */
+			[WL18XX_CONF_SG_PARAM_29] = 0,
+			[WL18XX_CONF_SG_PARAM_30] = 0,
+			[WL18XX_CONF_SG_PASSIVE_SCAN_DURATION_FACTOR_HV3] = 200,
+			/* Passive Scan in Dual Antenna Parameters */
+			[WL18XX_CONF_SG_CONSECUTIVE_HV3_IN_PASSIVE_SCAN] = 0,
+			[WL18XX_CONF_SG_BEACON_HV3_COLL_TH_IN_PASSIVE_SCAN] = 0,
+			[WL18XX_CONF_SG_TX_RX_PROTECT_BW_IN_PASSIVE_SCAN] = 0,
+			/* General Parameters */
+			[WL18XX_CONF_SG_STA_FORCE_PS_IN_BT_SCO] = 1,
+			[WL18XX_CONF_SG_PARAM_36] = 0,
+			[WL18XX_CONF_SG_BEACON_MISS_PERCENT] = 60,
+			[WL18XX_CONF_SG_PARAM_38] = 0,
+			[WL18XX_CONF_SG_RXT] = 1200,
+			[WL18XX_CONF_SG_UNUSED] = 0,
+			[WL18XX_CONF_SG_ADAPTIVE_RXT_TXT] = 1,
+			[WL18XX_CONF_SG_GENERAL_USAGE_BIT_MAP] = 3,
+			[WL18XX_CONF_SG_HV3_MAX_SERVED] = 6,
+			[WL18XX_CONF_SG_PARAM_44] = 0,
+			[WL18XX_CONF_SG_PARAM_45] = 0,
+			[WL18XX_CONF_SG_CONSECUTIVE_CTS_THRESHOLD] = 2,
+			[WL18XX_CONF_SG_GEMINI_PARAM_47] = 0,
+			[WL18XX_CONF_SG_STA_CONNECTION_PROTECTION_TIME] = 0,
+			/* AP Parameters */
+			[WL18XX_CONF_SG_AP_BEACON_MISS_TX] = 3,
+			[WL18XX_CONF_SG_PARAM_50] = 0,
+			[WL18XX_CONF_SG_AP_BEACON_WINDOW_INTERVAL] = 2,
+			[WL18XX_CONF_SG_AP_CONNECTION_PROTECTION_TIME] = 30,
+			[WL18XX_CONF_SG_PARAM_53] = 0,
+			[WL18XX_CONF_SG_PARAM_54] = 0,
+			/* CTS Diluting Parameters */
+			[WL18XX_CONF_SG_CTS_DILUTED_BAD_RX_PACKETS_TH] = 0,
+			[WL18XX_CONF_SG_CTS_CHOP_IN_DUAL_ANT_SCO_MASTER] = 0,
+			[WL18XX_CONF_SG_TEMP_PARAM_1] = 0,
+			[WL18XX_CONF_SG_TEMP_PARAM_2] = 0,
+			[WL18XX_CONF_SG_TEMP_PARAM_3] = 0,
+			[WL18XX_CONF_SG_TEMP_PARAM_4] = 0,
+			[WL18XX_CONF_SG_TEMP_PARAM_5] = 0,
+			[WL18XX_CONF_SG_TEMP_PARAM_6] = 0,
+			[WL18XX_CONF_SG_TEMP_PARAM_7] = 0,
+			[WL18XX_CONF_SG_TEMP_PARAM_8] = 0,
+			[WL18XX_CONF_SG_TEMP_PARAM_9] = 0,
+			[WL18XX_CONF_SG_TEMP_PARAM_10] = 0,
 		},
 		.state = CONF_SG_PROTECTIVE,
 	},
@@ -378,6 +390,7 @@ static struct wlcore_conf wl18xx_conf = {
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
 		.sta_sleep_auth              = WL1271_PSM_ILLEGAL,
+		.suspend_rx_ba_activity      = 0,
 	},
 	.itrim = {
 		.enable = false,
@@ -420,6 +433,8 @@ static struct wlcore_conf wl18xx_conf = {
 		.num_probe_reqs			= 2,
 		.rssi_threshold			= -90,
 		.snr_threshold			= 0,
+		.num_short_intervals		= SCAN_MAX_SHORT_INTERVALS,
+		.long_interval			= 30000,
 	},
 	.ht = {
 		.rx_ba_win_size = 32,
@@ -457,7 +472,7 @@ static struct wlcore_conf wl18xx_conf = {
 	},
 	.fwlog = {
 		.mode                         = WL12XX_FWLOG_CONTINUOUS,
-		.mem_blocks                   = 2,
+		.mem_blocks                   = 0,
 		.severity                     = 0,
 		.timestamp                    = WL12XX_FWLOG_TIMESTAMP_DISABLED,
 		.output                       = WL12XX_FWLOG_OUTPUT_DBG_PINS,
@@ -567,14 +582,20 @@ static struct wl18xx_priv_conf wl18xx_default_priv_conf = {
 		.high_power_val_2nd		= 0xff,
 		.tx_rf_margin			= 1,
 	},
+	.ap_sleep = {               /* disabled by default */
+		.idle_duty_cycle        = 0,
+		.connected_duty_cycle   = 0,
+		.max_stations_thresh    = 0,
+		.idle_conn_thresh       = 0,
+	},
 };
 
 static const struct wlcore_partition_set wl18xx_ptable[PART_TABLE_LEN] = {
 	[PART_TOP_PRCM_ELP_SOC] = {
-		.mem  = { .start = 0x00A02000, .size  = 0x00010000 },
+		.mem  = { .start = 0x00A00000, .size  = 0x00012000 },
 		.reg  = { .start = 0x00807000, .size  = 0x00005000 },
 		.mem2 = { .start = 0x00800000, .size  = 0x0000B000 },
-		.mem3 = { .start = 0x00000000, .size  = 0x00000000 },
+		.mem3 = { .start = 0x00401594, .size  = 0x00001020 },
 	},
 	[PART_DOWN] = {
 		.mem  = { .start = 0x00000000, .size  = 0x00014000 },
@@ -592,7 +613,7 @@ static const struct wlcore_partition_set wl18xx_ptable[PART_TABLE_LEN] = {
 		.mem  = { .start = 0x00800000, .size  = 0x000050FC },
 		.reg  = { .start = 0x00B00404, .size  = 0x00001000 },
 		.mem2 = { .start = 0x00C00000, .size  = 0x00000400 },
-		.mem3 = { .start = 0x00000000, .size  = 0x00000000 },
+		.mem3 = { .start = 0x00401594, .size  = 0x00001020 },
 	},
 	[PART_PHY_INIT] = {
 		.mem  = { .start = WL18XX_PHY_INIT_MEM_ADDR,
@@ -648,7 +669,7 @@ static const struct wl18xx_clk_cfg wl18xx_clk_table[NUM_CLOCK_CONFIGS] = {
 };
 
 /* TODO: maybe move to a new header file? */
-#define WL18XX_FW_NAME "ti-connectivity/wl18xx-fw-3.bin"
+#define WL18XX_FW_NAME "ti-connectivity/wl18xx-fw-4.bin"
 
 static int wl18xx_identify_chip(struct wl1271 *wl)
 {
@@ -855,6 +876,7 @@ static int wl18xx_pre_upload(struct wl1271 *wl)
 {
 	u32 tmp;
 	int ret;
+	u16 irq_invert;
 
 	BUILD_BUG_ON(sizeof(struct wl18xx_mac_and_phy_params) >
 		WL18XX_PHY_INIT_MEM_SIZE);
@@ -904,6 +926,28 @@ static int wl18xx_pre_upload(struct wl1271 *wl)
 	/* re-enable FDSP clock */
 	ret = wlcore_write32(wl, WL18XX_PHY_FPGA_SPARE_1,
 			     MEM_FDSP_CLK_120_ENABLE);
+	if (ret < 0)
+		goto out;
+
+	ret = irq_get_trigger_type(wl->irq);
+	if ((ret == IRQ_TYPE_LEVEL_LOW) || (ret == IRQ_TYPE_EDGE_FALLING)) {
+		wl1271_info("using inverted interrupt logic: %d", ret);
+		ret = wlcore_set_partition(wl,
+					   &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+		if (ret < 0)
+			goto out;
+
+		ret = wl18xx_top_reg_read(wl, TOP_FN0_CCCR_REG_32, &irq_invert);
+		if (ret < 0)
+			goto out;
+
+		irq_invert |= BIT(1);
+		ret = wl18xx_top_reg_write(wl, TOP_FN0_CCCR_REG_32, irq_invert);
+		if (ret < 0)
+			goto out;
+
+		ret = wlcore_set_partition(wl, &wl->ptable[PART_PHY_INIT]);
+	}
 
 out:
 	return ret;
@@ -983,6 +1027,7 @@ static int wl18xx_boot(struct wl1271 *wl)
 
 	wl->event_mask = BSS_LOSS_EVENT_ID |
 		SCAN_COMPLETE_EVENT_ID |
+		RADAR_DETECTED_EVENT_ID |
 		RSSI_SNR_TRIGGER_0_EVENT_ID |
 		PERIODIC_SCAN_COMPLETE_EVENT_ID |
 		PERIODIC_SCAN_REPORT_EVENT_ID |
@@ -994,8 +1039,9 @@ static int wl18xx_boot(struct wl1271 *wl)
 		CHANNEL_SWITCH_COMPLETE_EVENT_ID |
 		DFS_CHANNELS_CONFIG_COMPLETE_EVENT |
 		SMART_CONFIG_SYNC_EVENT_ID |
-		SMART_CONFIG_DECODE_EVENT_ID;
-;
+		SMART_CONFIG_DECODE_EVENT_ID |
+		TIME_SYNC_EVENT_ID |
+		FW_LOGGER_INDICATION;
 
 	wl->ap_event_mask = MAX_TX_FAILURE_EVENT_ID;
 
@@ -1124,6 +1170,11 @@ static int wl18xx_hw_init(struct wl1271 *wl)
 
 	/* set the default amount of spare blocks in the bitmap */
 	ret = wl18xx_set_host_cfg_bitmap(wl, WL18XX_TX_HW_BLOCK_SPARE);
+	if (ret < 0)
+		return ret;
+
+	/* set the dynamic fw traces bitmap */
+	ret = wl18xx_acx_dynamic_fw_traces(wl);
 	if (ret < 0)
 		return ret;
 
@@ -1343,9 +1394,10 @@ out:
 }
 
 #define WL18XX_CONF_FILE_NAME "ti-connectivity/wl18xx-conf.bin"
-static int wl18xx_conf_init(struct wl1271 *wl, struct device *dev)
+
+static int wl18xx_load_conf_file(struct device *dev, struct wlcore_conf *conf,
+				 struct wl18xx_priv_conf *priv_conf)
 {
-	struct wl18xx_priv *priv = wl->priv;
 	struct wlcore_conf_file *conf_file;
 	const struct firmware *fw;
 	int ret;
@@ -1354,14 +1406,14 @@ static int wl18xx_conf_init(struct wl1271 *wl, struct device *dev)
 	if (ret < 0) {
 		wl1271_error("could not get configuration binary %s: %d",
 			     WL18XX_CONF_FILE_NAME, ret);
-		goto out_fallback;
+		return ret;
 	}
 
 	if (fw->size != WL18XX_CONF_SIZE) {
 		wl1271_error("configuration binary file size is wrong, expected %zu got %zu",
 			     WL18XX_CONF_SIZE, fw->size);
 		ret = -EINVAL;
-		goto out;
+		goto out_release;
 	}
 
 	conf_file = (struct wlcore_conf_file *) fw->data;
@@ -1371,7 +1423,7 @@ static int wl18xx_conf_init(struct wl1271 *wl, struct device *dev)
 			     "expected 0x%0x got 0x%0x", WL18XX_CONF_MAGIC,
 			     conf_file->header.magic);
 		ret = -EINVAL;
-		goto out;
+		goto out_release;
 	}
 
 	if (conf_file->header.version != cpu_to_le32(WL18XX_CONF_VERSION)) {
@@ -1379,28 +1431,32 @@ static int wl18xx_conf_init(struct wl1271 *wl, struct device *dev)
 			     "expected 0x%08x got 0x%08x",
 			     WL18XX_CONF_VERSION, conf_file->header.version);
 		ret = -EINVAL;
-		goto out;
+		goto out_release;
 	}
 
-	memcpy(&wl->conf, &conf_file->core, sizeof(wl18xx_conf));
-	memcpy(&priv->conf, &conf_file->priv, sizeof(priv->conf));
+	memcpy(conf, &conf_file->core, sizeof(*conf));
+	memcpy(priv_conf, &conf_file->priv, sizeof(*priv_conf));
 
-	goto out;
-
-out_fallback:
-	wl1271_warning("falling back to default config");
-
-	/* apply driver default configuration */
-	memcpy(&wl->conf, &wl18xx_conf, sizeof(wl18xx_conf));
-	/* apply default private configuration */
-	memcpy(&priv->conf, &wl18xx_default_priv_conf, sizeof(priv->conf));
-
-	/* For now we just fallback */
-	return 0;
-
-out:
+out_release:
 	release_firmware(fw);
 	return ret;
+}
+
+static int wl18xx_conf_init(struct wl1271 *wl, struct device *dev)
+{
+	struct wl18xx_priv *priv = wl->priv;
+
+	if (wl18xx_load_conf_file(dev, &wl->conf, &priv->conf) < 0) {
+		wl1271_warning("falling back to default config");
+
+		/* apply driver default configuration */
+		memcpy(&wl->conf, &wl18xx_conf, sizeof(wl->conf));
+		/* apply default private configuration */
+		memcpy(&priv->conf, &wl18xx_default_priv_conf,
+		       sizeof(priv->conf));
+	}
+
+	return 0;
 }
 
 static int wl18xx_plt_init(struct wl1271 *wl)
@@ -1559,26 +1615,19 @@ static u32 wl18xx_pre_pkt_send(struct wl1271 *wl,
 }
 
 static void wl18xx_sta_rc_update(struct wl1271 *wl,
-				 struct wl12xx_vif *wlvif,
-				 struct ieee80211_sta *sta,
-				 u32 changed)
+				 struct wl12xx_vif *wlvif)
 {
-	bool wide = sta->bandwidth >= IEEE80211_STA_RX_BW_40;
+	bool wide = wlvif->rc_update_bw >= IEEE80211_STA_RX_BW_40;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 sta_rc_update wide %d", wide);
 
-	if (!(changed & IEEE80211_RC_BW_CHANGED))
-		return;
-
-	mutex_lock(&wl->mutex);
-
 	/* sanity */
 	if (WARN_ON(wlvif->bss_type != BSS_TYPE_STA_BSS))
-		goto out;
+		return;
 
 	/* ignore the change before association */
 	if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
-		goto out;
+		return;
 
 	/*
 	 * If we started out as wide, we can change the operation mode. If we
@@ -1589,9 +1638,6 @@ static void wl18xx_sta_rc_update(struct wl1271 *wl,
 		wl18xx_acx_peer_ht_operation_mode(wl, wlvif->sta.hlid, wide);
 	else
 		ieee80211_connection_loss(wl12xx_wlvif_to_vif(wlvif));
-
-out:
-	mutex_unlock(&wl->mutex);
 }
 
 static int wl18xx_set_peer_cap(struct wl1271 *wl,
@@ -1703,6 +1749,11 @@ static struct wlcore_ops wl18xx_ops = {
 	.smart_config_start = wl18xx_cmd_smart_config_start,
 	.smart_config_stop  = wl18xx_cmd_smart_config_stop,
 	.smart_config_set_group_key = wl18xx_cmd_smart_config_set_group_key,
+	.interrupt_notify = wl18xx_acx_interrupt_notify_config,
+	.rx_ba_filter	= wl18xx_acx_rx_ba_filter,
+	.ap_sleep	= wl18xx_acx_ap_sleep,
+	.set_cac	= wl18xx_cmd_set_cac,
+	.dfs_master_restart	= wl18xx_cmd_dfs_master_restart,
 };
 
 /* HT cap appropriate for wide channels in 2Ghz */
@@ -1765,7 +1816,7 @@ static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap_2ghz = {
 
 static const struct ieee80211_iface_limit wl18xx_iface_limits[] = {
 	{
-		.max = 3,
+		.max = 2,
 		.types = BIT(NL80211_IFTYPE_STATION),
 	},
 	{
@@ -1774,12 +1825,58 @@ static const struct ieee80211_iface_limit wl18xx_iface_limits[] = {
 			 BIT(NL80211_IFTYPE_P2P_GO) |
 			 BIT(NL80211_IFTYPE_P2P_CLIENT),
 	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_DEVICE),
+	},
 };
 
 static const struct ieee80211_iface_limit wl18xx_iface_ap_limits[] = {
 	{
 		.max = 2,
 		.types = BIT(NL80211_IFTYPE_AP),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_DEVICE),
+	},
+};
+
+static const struct ieee80211_iface_limit wl18xx_iface_ap_cl_limits[] = {
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_AP),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_CLIENT),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_DEVICE),
+	},
+};
+
+static const struct ieee80211_iface_limit wl18xx_iface_ap_go_limits[] = {
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_AP),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_GO),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_DEVICE),
 	},
 };
 
@@ -1796,6 +1893,10 @@ wl18xx_iface_combinations[] = {
 		.limits = wl18xx_iface_ap_limits,
 		.n_limits = ARRAY_SIZE(wl18xx_iface_ap_limits),
 		.num_different_channels = 1,
+		.radar_detect_widths =	BIT(NL80211_CHAN_NO_HT) |
+					BIT(NL80211_CHAN_HT20) |
+					BIT(NL80211_CHAN_HT40MINUS) |
+					BIT(NL80211_CHAN_HT40PLUS),
 	}
 };
 
@@ -1806,6 +1907,7 @@ static int wl18xx_setup(struct wl1271 *wl)
 
 	BUILD_BUG_ON(WL18XX_MAX_LINKS > WLCORE_MAX_LINKS);
 	BUILD_BUG_ON(WL18XX_MAX_AP_STATIONS > WL18XX_MAX_LINKS);
+	BUILD_BUG_ON(WL18XX_CONF_SG_PARAMS_MAX > WLCORE_CONF_SG_PARAMS_MAX);
 
 	wl->rtable = wl18xx_rtable;
 	wl->num_tx_desc = WL18XX_NUM_TX_DESCRIPTORS;
@@ -1968,7 +2070,6 @@ static struct platform_driver wl18xx_driver = {
 	.id_table	= wl18xx_id_table,
 	.driver = {
 		.name	= "wl18xx_driver",
-		.owner	= THIS_MODULE,
 	}
 };
 
@@ -2027,3 +2128,4 @@ MODULE_PARM_DESC(num_rx_desc_param,
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
 MODULE_FIRMWARE(WL18XX_FW_NAME);
+MODULE_FIRMWARE(WL18XX_CONF_FILE_NAME);

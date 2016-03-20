@@ -20,11 +20,7 @@ int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 static inline unsigned long
 __cls_set_class(unsigned long *clp, unsigned long cl)
 {
-	unsigned long old_cl;
- 
-	old_cl = *clp;
-	*clp = cl;
-	return old_cl;
+	return xchg(clp, cl);
 }
 
 static inline unsigned long
@@ -137,7 +133,7 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
 		      struct nlattr **tb, struct nlattr *rate_tlv,
 		      struct tcf_exts *exts, bool ovr);
-void tcf_exts_destroy(struct tcf_proto *tp, struct tcf_exts *exts);
+void tcf_exts_destroy(struct tcf_exts *exts);
 void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 		     struct tcf_exts *src);
 int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts);
@@ -170,6 +166,7 @@ struct tcf_ematch {
 	unsigned int		datalen;
 	u16			matchid;
 	u16			flags;
+	struct net		*net;
 };
 
 static inline int tcf_em_is_container(struct tcf_ematch *em)
@@ -233,12 +230,11 @@ struct tcf_ematch_tree {
 struct tcf_ematch_ops {
 	int			kind;
 	int			datalen;
-	int			(*change)(struct tcf_proto *, void *,
+	int			(*change)(struct net *net, void *,
 					  int, struct tcf_ematch *);
 	int			(*match)(struct sk_buff *, struct tcf_ematch *,
 					 struct tcf_pkt_info *);
-	void			(*destroy)(struct tcf_proto *,
-					   struct tcf_ematch *);
+	void			(*destroy)(struct tcf_ematch *);
 	int			(*dump)(struct sk_buff *, struct tcf_ematch *);
 	struct module		*owner;
 	struct list_head	link;
@@ -248,7 +244,7 @@ int tcf_em_register(struct tcf_ematch_ops *);
 void tcf_em_unregister(struct tcf_ematch_ops *);
 int tcf_em_tree_validate(struct tcf_proto *, struct nlattr *,
 			 struct tcf_ematch_tree *);
-void tcf_em_tree_destroy(struct tcf_proto *, struct tcf_ematch_tree *);
+void tcf_em_tree_destroy(struct tcf_ematch_tree *);
 int tcf_em_tree_dump(struct sk_buff *, struct tcf_ematch_tree *, int);
 int __tcf_em_tree_match(struct sk_buff *, struct tcf_ematch_tree *,
 			struct tcf_pkt_info *);
@@ -305,7 +301,7 @@ struct tcf_ematch_tree {
 };
 
 #define tcf_em_tree_validate(tp, tb, t) ((void)(t), 0)
-#define tcf_em_tree_destroy(tp, t) do { (void)(t); } while(0)
+#define tcf_em_tree_destroy(t) do { (void)(t); } while(0)
 #define tcf_em_tree_dump(skb, t, tlv) (0)
 #define tcf_em_tree_change(tp, dst, src) do { } while(0)
 #define tcf_em_tree_match(skb, t, info) ((void)(info), 1)
@@ -361,5 +357,70 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 	return ifindex == skb->skb_iif;
 }
 #endif /* CONFIG_NET_CLS_IND */
+
+struct tc_cls_u32_knode {
+	struct tcf_exts *exts;
+	struct tc_u32_sel *sel;
+	u32 handle;
+	u32 val;
+	u32 mask;
+	u32 link_handle;
+	u8 fshift;
+};
+
+struct tc_cls_u32_hnode {
+	u32 handle;
+	u32 prio;
+	unsigned int divisor;
+};
+
+enum tc_clsu32_command {
+	TC_CLSU32_NEW_KNODE,
+	TC_CLSU32_REPLACE_KNODE,
+	TC_CLSU32_DELETE_KNODE,
+	TC_CLSU32_NEW_HNODE,
+	TC_CLSU32_REPLACE_HNODE,
+	TC_CLSU32_DELETE_HNODE,
+};
+
+struct tc_cls_u32_offload {
+	/* knode values */
+	enum tc_clsu32_command command;
+	union {
+		struct tc_cls_u32_knode knode;
+		struct tc_cls_u32_hnode hnode;
+	};
+};
+
+/* tca flags definitions */
+#define TCA_CLS_FLAGS_SKIP_HW 1
+
+static inline bool tc_should_offload(struct net_device *dev, u32 flags)
+{
+	if (!(dev->features & NETIF_F_HW_TC))
+		return false;
+
+	if (flags & TCA_CLS_FLAGS_SKIP_HW)
+		return false;
+
+	if (!dev->netdev_ops->ndo_setup_tc)
+		return false;
+
+	return true;
+}
+
+enum tc_fl_command {
+	TC_CLSFLOWER_REPLACE,
+	TC_CLSFLOWER_DESTROY,
+};
+
+struct tc_cls_flower_offload {
+	enum tc_fl_command command;
+	unsigned long cookie;
+	struct flow_dissector *dissector;
+	struct fl_flow_key *mask;
+	struct fl_flow_key *key;
+	struct tcf_exts *exts;
+};
 
 #endif

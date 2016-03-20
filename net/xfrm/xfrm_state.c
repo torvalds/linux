@@ -97,8 +97,6 @@ static unsigned long xfrm_hash_new_size(unsigned int state_hmask)
 	return ((state_hmask + 1) << 1) * sizeof(struct hlist_head);
 }
 
-static DEFINE_MUTEX(hash_resize_mutex);
-
 static void xfrm_hash_resize(struct work_struct *work)
 {
 	struct net *net = container_of(work, struct net, xfrm.state_hash_work);
@@ -107,22 +105,20 @@ static void xfrm_hash_resize(struct work_struct *work)
 	unsigned int nhashmask, ohashmask;
 	int i;
 
-	mutex_lock(&hash_resize_mutex);
-
 	nsize = xfrm_hash_new_size(net->xfrm.state_hmask);
 	ndst = xfrm_hash_alloc(nsize);
 	if (!ndst)
-		goto out_unlock;
+		return;
 	nsrc = xfrm_hash_alloc(nsize);
 	if (!nsrc) {
 		xfrm_hash_free(ndst, nsize);
-		goto out_unlock;
+		return;
 	}
 	nspi = xfrm_hash_alloc(nsize);
 	if (!nspi) {
 		xfrm_hash_free(ndst, nsize);
 		xfrm_hash_free(nsrc, nsize);
-		goto out_unlock;
+		return;
 	}
 
 	spin_lock_bh(&net->xfrm.xfrm_state_lock);
@@ -148,9 +144,6 @@ static void xfrm_hash_resize(struct work_struct *work)
 	xfrm_hash_free(odst, osize);
 	xfrm_hash_free(osrc, osize);
 	xfrm_hash_free(ospi, osize);
-
-out_unlock:
-	mutex_unlock(&hash_resize_mutex);
 }
 
 static DEFINE_SPINLOCK(xfrm_state_afinfo_lock);
@@ -934,8 +927,8 @@ struct xfrm_state *xfrm_state_lookup_byspi(struct net *net, __be32 spi,
 			x->id.spi != spi)
 			continue;
 
-		spin_unlock_bh(&net->xfrm.xfrm_state_lock);
 		xfrm_state_hold(x);
+		spin_unlock_bh(&net->xfrm.xfrm_state_lock);
 		return x;
 	}
 	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
@@ -1050,12 +1043,12 @@ static struct xfrm_state *__find_acq_core(struct net *net,
 			break;
 
 		case AF_INET6:
-			*(struct in6_addr *)x->sel.daddr.a6 = *(struct in6_addr *)daddr;
-			*(struct in6_addr *)x->sel.saddr.a6 = *(struct in6_addr *)saddr;
+			x->sel.daddr.in6 = daddr->in6;
+			x->sel.saddr.in6 = saddr->in6;
 			x->sel.prefixlen_d = 128;
 			x->sel.prefixlen_s = 128;
-			*(struct in6_addr *)x->props.saddr.a6 = *(struct in6_addr *)saddr;
-			*(struct in6_addr *)x->id.daddr.a6 = *(struct in6_addr *)daddr;
+			x->props.saddr.in6 = saddr->in6;
+			x->id.daddr.in6 = daddr->in6;
 			break;
 		}
 
@@ -1633,7 +1626,7 @@ int xfrm_state_walk(struct net *net, struct xfrm_state_walk *walk,
 	if (list_empty(&walk->all))
 		x = list_first_entry(&net->xfrm.state_all, struct xfrm_state_walk, all);
 	else
-		x = list_entry(&walk->all, struct xfrm_state_walk, all);
+		x = list_first_entry(&walk->all, struct xfrm_state_walk, all);
 	list_for_each_entry_from(x, &net->xfrm.state_all, all) {
 		if (x->state == XFRM_STATE_DEAD)
 			continue;
@@ -1915,7 +1908,7 @@ int xfrm_state_register_afinfo(struct xfrm_state_afinfo *afinfo)
 		return -EAFNOSUPPORT;
 	spin_lock_bh(&xfrm_state_afinfo_lock);
 	if (unlikely(xfrm_state_afinfo[afinfo->family] != NULL))
-		err = -ENOBUFS;
+		err = -EEXIST;
 	else
 		rcu_assign_pointer(xfrm_state_afinfo[afinfo->family], afinfo);
 	spin_unlock_bh(&xfrm_state_afinfo_lock);

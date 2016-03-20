@@ -1,9 +1,9 @@
-/* bnx2fc_tgt.c: QLogic NetXtreme II Linux FCoE offload driver.
+/* bnx2fc_tgt.c: QLogic Linux FCoE offload driver.
  * Handles operations such as session offload/upload etc, and manages
  * session resources such as connection id and qp resources.
  *
- * Copyright (c) 2008 - 2013 Broadcom Corporation
- * Copyright (c) 2014, QLogic Corporation
+ * Copyright (c) 2008-2013 Broadcom Corporation
+ * Copyright (c) 2014-2015 QLogic Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -559,12 +559,6 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 		if ((hba->wait_for_link_down) &&
 		    (hba->num_ofld_sess == 0)) {
 			wake_up_interruptible(&hba->shutdown_wait);
-		}
-		if (test_bit(BNX2FC_FLAG_EXPL_LOGO, &tgt->flags)) {
-			printk(KERN_ERR PFX "Relogin to the tgt\n");
-			mutex_lock(&lport->disc.disc_mutex);
-			lport->tt.rport_login(rdata);
-			mutex_unlock(&lport->disc.disc_mutex);
 		}
 		mutex_unlock(&hba->hba_mutex);
 

@@ -9,7 +9,7 @@ struct zbud_ops {
 	int (*evict)(struct zbud_pool *pool, unsigned long handle);
 };
 
-struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops);
+struct zbud_pool *zbud_create_pool(gfp_t gfp, const struct zbud_ops *ops);
 void zbud_destroy_pool(struct zbud_pool *pool);
 int zbud_alloc(struct zbud_pool *pool, size_t size, gfp_t gfp,
 	unsigned long *handle);

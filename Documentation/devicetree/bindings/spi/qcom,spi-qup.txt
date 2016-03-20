@@ -33,6 +33,11 @@ Optional properties:
 		nodes.  If unspecified, a single SPI device without a chip
 		select can be used.
 
+- dmas:         Two DMA channel specifiers following the convention outlined
+                in bindings/dma/dma.txt
+- dma-names:    Names for the dma channels, if present. There must be at
+                least one channel named "tx" for transmit and named "rx" for
+                receive.
 
 SPI slave nodes must be children of the SPI master node and can contain
 properties described in Documentation/devicetree/bindings/spi/spi-bus.txt
@@ -50,6 +55,9 @@ Example:
 
 		clocks = <&gcc GCC_BLSP2_QUP2_SPI_APPS_CLK>, <&gcc GCC_BLSP2_AHB_CLK>;
 		clock-names = "core", "iface";
+
+		dmas = <&blsp1_bam 13>, <&blsp1_bam 12>;
+		dma-names = "rx", "tx";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi8_default>;

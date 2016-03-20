@@ -1,0 +1,112 @@
+Freescale Reference Board Bindings
+
+This document describes device tree bindings for various devices that
+exist on some Freescale reference boards.
+
+* Board Control and Status (BCSR)
+
+Required properties:
+
+ - compatible : Should be "fsl,<board>-bcsr"
+ - reg : Offset and length of the register set for the device
+
+Example:
+
+	bcsr@f8000000 {
+		compatible = "fsl,mpc8360mds-bcsr";
+		reg = <f8000000 8000>;
+	};
+
+* Freescale on-board FPGA
+
+This is the memory-mapped registers for on board FPGA.
+
+Required properties:
+- compatible: should be a board-specific string followed by a string
+  indicating the type of FPGA.  Example:
+	"fsl,<board>-fpga", "fsl,fpga-pixis", or
+	"fsl,<board>-fpga", "fsl,fpga-qixis"
+- reg: should contain the address and the length of the FPGA register set.
+
+Optional properties:
+- interrupt-parent: should specify phandle for the interrupt controller.
+- interrupts: should specify event (wakeup) IRQ.
+
+Example (P1022DS):
+
+	 board-control@3,0 {
+		 compatible = "fsl,p1022ds-fpga", "fsl,fpga-ngpixis";
+		 reg = <3 0 0x30>;
+		 interrupt-parent = <&mpic>;
+		 interrupts = <8 8 0 0>;
+	 };
+
+Example (LS2080A-RDB):
+
+        cpld@3,0 {
+                compatible = "fsl,ls2080ardb-fpga", "fsl,fpga-qixis";
+                reg = <0x3 0 0x10000>;
+        };
+
+* Freescale BCSR GPIO banks
+
+Some BCSR registers act as simple GPIO controllers, each such
+register can be represented by the gpio-controller node.
+
+Required properities:
+- compatible : Should be "fsl,<board>-bcsr-gpio".
+- reg : Should contain the address and the length of the GPIO bank
+  register.
+- #gpio-cells : Should be two. The first cell is the pin number and the
+  second cell is used to specify optional parameters (currently unused).
+- gpio-controller : Marks the port as GPIO controller.
+
+Example:
+
+	bcsr@1,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8360mds-bcsr";
+		reg = <1 0 0x8000>;
+		ranges = <0 1 0 0x8000>;
+
+		bcsr13: gpio-controller@d {
+			#gpio-cells = <2>;
+			compatible = "fsl,mpc8360mds-bcsr-gpio";
+			reg = <0xd 1>;
+			gpio-controller;
+		};
+	};
+
+* Freescale on-board FPGA connected on I2C bus
+
+Some Freescale boards like BSC9132QDS have on board FPGA connected on
+the i2c bus.
+
+Required properties:
+- compatible: Should be a board-specific string followed by a string
+  indicating the type of FPGA.  Example:
+	"fsl,<board>-fpga", "fsl,fpga-qixis-i2c"
+- reg: Should contain the address of the FPGA
+
+Example:
+	fpga: fpga@66 {
+		compatible = "fsl,bsc9132qds-fpga", "fsl,fpga-qixis-i2c";
+		reg = <0x66>;
+	};
+
+* Freescale on-board CPLD
+
+Some Freescale boards like T1040RDB have an on board CPLD connected.
+
+Required properties:
+- compatible: Should be a board-specific string like "fsl,<board>-cpld"
+  Example:
+	"fsl,t1040rdb-cpld", "fsl,t1042rdb-cpld", "fsl,t1042rdb_pi-cpld"
+- reg: should describe CPLD registers
+
+Example:
+	cpld@3,0 {
+		compatible = "fsl,t1040rdb-cpld";
+		reg = <3 0 0x300>;
+	};

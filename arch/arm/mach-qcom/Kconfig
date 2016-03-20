@@ -1,9 +1,9 @@
 menuconfig ARCH_QCOM
-	bool "Qualcomm Support" if ARCH_MULTI_V7
-	select ARCH_REQUIRE_GPIOLIB
+	bool "Qualcomm Support"
+	depends on ARCH_MULTI_V7
+	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARM_GIC
 	select ARM_AMBA
-	select CLKSRC_OF
 	select PINCTRL
 	select QCOM_SCM if SMP
 	help
@@ -22,8 +22,5 @@ config ARCH_MSM8960
 config ARCH_MSM8974
 	bool "Enable support for MSM8974"
 	select HAVE_ARM_ARCH_TIMER
-
-config QCOM_SCM
-	bool
 
 endif

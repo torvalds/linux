@@ -84,6 +84,10 @@ struct ch341_private {
 	u8 line_status; /* active status of modem control inputs */
 };
 
+static void ch341_set_termios(struct tty_struct *tty,
+			      struct usb_serial_port *port,
+			      struct ktermios *old_termios);
+
 static int ch341_control_out(struct usb_device *dev, u8 request,
 			     u16 value, u16 index)
 {
@@ -309,26 +313,18 @@ static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct ch341_private *priv = usb_get_serial_port_data(port);
 	int r;
 
-	priv->baud_rate = DEFAULT_BAUD_RATE;
-
 	r = ch341_configure(serial->dev, priv);
 	if (r)
 		goto out;
 
-	r = ch341_set_handshake(serial->dev, priv->line_control);
-	if (r)
-		goto out;
-
-	r = ch341_set_baudrate(serial->dev, priv);
-	if (r)
-		goto out;
+	if (tty)
+		ch341_set_termios(tty, port, NULL);
 
 	dev_dbg(&port->dev, "%s - submitting interrupt urb\n", __func__);
 	r = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (r) {
 		dev_err(&port->dev, "%s - failed to submit interrupt urb: %d\n",
 			__func__, r);
-		ch341_close(port);
 		goto out;
 	}
 
@@ -374,7 +370,7 @@ static void ch341_set_termios(struct tty_struct *tty,
 static void ch341_break_ctl(struct tty_struct *tty, int break_state)
 {
 	const uint16_t ch341_break_reg =
-		CH341_REG_BREAK1 | ((uint16_t) CH341_REG_BREAK2 << 8);
+			((uint16_t) CH341_REG_BREAK2 << 8) | CH341_REG_BREAK1;
 	struct usb_serial_port *port = tty->driver_data;
 	int r;
 	uint16_t reg_contents;

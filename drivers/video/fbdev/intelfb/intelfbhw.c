@@ -1191,7 +1191,6 @@ int intelfbhw_mode_to_hw(struct intelfb_info *dinfo,
 	vsync_end = vsync_start + var->vsync_len;
 	vtotal = vsync_end + var->upper_margin;
 	vblank_start = vactive;
-	vblank_end = vtotal;
 	vblank_end = vsync_end + 1;
 
 	DBG_MSG("V: act %d, ss %d, se %d, tot %d bs %d, be %d\n",
@@ -1859,7 +1858,7 @@ void intelfbhw_cursor_init(struct intelfb_info *dinfo)
 		tmp = INREG(CURSOR_CONTROL);
 		tmp &= ~(CURSOR_FORMAT_MASK | CURSOR_GAMMA_ENABLE |
 			 CURSOR_ENABLE | CURSOR_STRIDE_MASK);
-		tmp = CURSOR_FORMAT_3C;
+		tmp |= CURSOR_FORMAT_3C;
 		OUTREG(CURSOR_CONTROL, tmp);
 		OUTREG(CURSOR_A_BASEADDR, dinfo->cursor.offset << 12);
 		tmp = (64 << CURSOR_SIZE_H_SHIFT) |

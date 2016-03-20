@@ -27,9 +27,9 @@
 #include <linux/usb/r8a66597.h>
 #include <linux/videodev2.h>
 #include <linux/sh_intc.h>
-#include <media/rj54n1cb0c.h>
+#include <media/i2c/rj54n1cb0c.h>
 #include <media/soc_camera.h>
-#include <media/sh_mobile_ceu.h>
+#include <media/drv-intf/sh_mobile_ceu.h>
 #include <video/sh_mobile_lcdc.h>
 #include <asm/suspend.h>
 #include <asm/clock.h>
@@ -373,11 +373,11 @@ static struct resource kfr2r09_sh_sdhi0_resources[] = {
 	},
 };
 
-static struct sh_mobile_sdhi_info sh7724_sdhi0_data = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
-	.tmio_flags	= TMIO_MMC_WRPROTECT_DISABLE,
-	.tmio_caps      = MMC_CAP_SDIO_IRQ,
+static struct tmio_mmc_data sh7724_sdhi0_data = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI0_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI0_RX,
+	.flags		= TMIO_MMC_WRPROTECT_DISABLE,
+	.capabilities	= MMC_CAP_SDIO_IRQ,
 };
 
 static struct platform_device kfr2r09_sh_sdhi0_device = {

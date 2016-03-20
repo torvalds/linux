@@ -13,6 +13,7 @@
 	dev_dbg(&(bgmac)->core->dev, fmt, ##__VA_ARGS__)
 
 #include <linux/bcma/bcma.h>
+#include <linux/brcmphy.h>
 #include <linux/netdevice.h>
 
 #define BGMAC_DEV_CTL				0x000
@@ -345,23 +346,27 @@
 
 #define BGMAC_DESC_CTL0_EOT			0x10000000	/* End of ring */
 #define BGMAC_DESC_CTL0_IOC			0x20000000	/* IRQ on complete */
-#define BGMAC_DESC_CTL0_SOF			0x40000000	/* Start of frame */
-#define BGMAC_DESC_CTL0_EOF			0x80000000	/* End of frame */
+#define BGMAC_DESC_CTL0_EOF			0x40000000	/* End of frame */
+#define BGMAC_DESC_CTL0_SOF			0x80000000	/* Start of frame */
 #define BGMAC_DESC_CTL1_LEN			0x00001FFF
 
-#define BGMAC_PHY_NOREGS			0x1E
+#define BGMAC_PHY_NOREGS			BRCM_PSEUDO_PHY_ADDR
 #define BGMAC_PHY_MASK				0x1F
 
 #define BGMAC_MAX_TX_RINGS			4
 #define BGMAC_MAX_RX_RINGS			1
 
 #define BGMAC_TX_RING_SLOTS			128
-#define BGMAC_RX_RING_SLOTS			512 - 1		/* Why -1? Well, Broadcom does that... */
+#define BGMAC_RX_RING_SLOTS			512
 
 #define BGMAC_RX_HEADER_LEN			28		/* Last 24 bytes are unused. Well... */
 #define BGMAC_RX_FRAME_OFFSET			30		/* There are 2 unused bytes between header and real data */
+#define BGMAC_RX_BUF_OFFSET			(NET_SKB_PAD + NET_IP_ALIGN - \
+						 BGMAC_RX_FRAME_OFFSET)
 #define BGMAC_RX_MAX_FRAME_SIZE			1536		/* Copied from b44/tg3 */
 #define BGMAC_RX_BUF_SIZE			(BGMAC_RX_FRAME_OFFSET + BGMAC_RX_MAX_FRAME_SIZE)
+#define BGMAC_RX_ALLOC_SIZE			(SKB_DATA_ALIGN(BGMAC_RX_BUF_SIZE + BGMAC_RX_BUF_OFFSET) + \
+						 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 #define BGMAC_BFL_ENETROBO			0x0010		/* has ephy roboswitch spi */
 #define BGMAC_BFL_ENETADM			0x0080		/* has ADMtek switch */
@@ -383,7 +388,10 @@
 #define ETHER_MAX_LEN   1518
 
 struct bgmac_slot_info {
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		void *buf;
+	};
 	dma_addr_t dma_addr;
 };
 
@@ -409,14 +417,13 @@ enum bgmac_dma_ring_type {
  * empty.
  */
 struct bgmac_dma_ring {
-	u16 num_slots;
-	u16 start;
-	u16 end;
+	u32 start;
+	u32 end;
 
-	u16 mmio_base;
 	struct bgmac_dma_desc *cpu_base;
 	dma_addr_t dma_base;
 	u32 index_base; /* Used for unaligned rings only, otherwise 0 */
+	u16 mmio_base;
 	bool unaligned;
 
 	struct bgmac_slot_info slots[BGMAC_RX_RING_SLOTS];
@@ -447,7 +454,6 @@ struct bgmac {
 
 	/* Int */
 	u32 int_mask;
-	u32 int_status;
 
 	/* Current MAC state */
 	int mac_speed;

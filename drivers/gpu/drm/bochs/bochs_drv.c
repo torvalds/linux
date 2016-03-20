@@ -82,6 +82,7 @@ static struct drm_driver bochs_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET,
 	.load			= bochs_load,
 	.unload			= bochs_unload,
+	.set_busid		= drm_pci_set_busid,
 	.fops			= &bochs_fops,
 	.name			= "bochs-drm",
 	.desc			= "bochs dispi vga interface (qemu stdvga)",
@@ -108,7 +109,7 @@ static int bochs_pm_suspend(struct device *dev)
 
 	if (bochs->fb.initialized) {
 		console_lock();
-		fb_set_suspend(bochs->fb.helper.fbdev, 1);
+		drm_fb_helper_set_suspend(&bochs->fb.helper, 1);
 		console_unlock();
 	}
 
@@ -125,7 +126,7 @@ static int bochs_pm_resume(struct device *dev)
 
 	if (bochs->fb.initialized) {
 		console_lock();
-		fb_set_suspend(bochs->fb.helper.fbdev, 0);
+		drm_fb_helper_set_suspend(&bochs->fb.helper, 0);
 		console_unlock();
 	}
 
@@ -181,8 +182,8 @@ static const struct pci_device_id bochs_pci_tbl[] = {
 	{
 		.vendor      = 0x1234,
 		.device      = 0x1111,
-		.subvendor   = 0x1af4,
-		.subdevice   = 0x1100,
+		.subvendor   = PCI_SUBVENDOR_ID_REDHAT_QUMRANET,
+		.subdevice   = PCI_SUBDEVICE_ID_QEMU,
 		.driver_data = BOCHS_QEMU_STDVGA,
 	},
 	{

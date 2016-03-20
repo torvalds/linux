@@ -401,17 +401,17 @@ static int mpc5121_rtc_remove(struct platform_device *op)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id mpc5121_rtc_match[] = {
+static const struct of_device_id mpc5121_rtc_match[] = {
 	{ .compatible = "fsl,mpc5121-rtc", },
 	{ .compatible = "fsl,mpc5200-rtc", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mpc5121_rtc_match);
 #endif
 
 static struct platform_driver mpc5121_rtc_driver = {
 	.driver = {
 		.name = "mpc5121-rtc",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(mpc5121_rtc_match),
 	},
 	.probe = mpc5121_rtc_probe,

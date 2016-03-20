@@ -1,10 +1,10 @@
 /*
- * bnx2fc_els.c: QLogic NetXtreme II Linux FCoE offload driver.
+ * bnx2fc_els.c: QLogic Linux FCoE offload driver.
  * This file contains helper routines that handle ELS requests
  * and responses.
  *
- * Copyright (c) 2008 - 2013 Broadcom Corporation
- * Copyright (c) 2014, QLogic Corporation
+ * Copyright (c) 2008-2013 Broadcom Corporation
+ * Copyright (c) 2014-2015 QLogic Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -480,9 +480,7 @@ void bnx2fc_rec_compl(struct bnx2fc_els_cb_arg *cb_arg)
 			bnx2fc_initiate_cleanup(orig_io_req);
 			/* Post a new IO req with the same sc_cmd */
 			BNX2FC_IO_DBG(rec_req, "Post IO request again\n");
-			spin_unlock_bh(&tgt->tgt_lock);
 			rc = bnx2fc_post_io_req(tgt, new_io_req);
-			spin_lock_bh(&tgt->tgt_lock);
 			if (!rc)
 				goto free_frame;
 			BNX2FC_IO_DBG(rec_req, "REC: io post err\n");
@@ -691,8 +689,7 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 		rc = -EINVAL;
 		goto els_err;
 	}
-	if (!(test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags)) ||
-	     (test_bit(BNX2FC_FLAG_EXPL_LOGO, &tgt->flags))) {
+	if (!(test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags))) {
 		printk(KERN_ERR PFX "els 0x%x: tgt not ready\n", op);
 		rc = -EINVAL;
 		goto els_err;
@@ -709,6 +706,7 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 	els_req->cb_func = cb_func;
 	cb_arg->io_req = els_req;
 	els_req->cb_arg = cb_arg;
+	els_req->data_xfer_len = data_len;
 
 	mp_req = (struct bnx2fc_mp_req *)&(els_req->mp_req);
 	rc = bnx2fc_init_mp_req(els_req);

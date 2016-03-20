@@ -358,7 +358,7 @@ static int yurex_fasync(int fd, struct file *file, int on)
 {
 	struct usb_yurex *dev;
 
-	dev = (struct usb_yurex *)file->private_data;
+	dev = file->private_data;
 	return fasync_helper(fd, file, on, &dev->async_queue);
 }
 
@@ -401,7 +401,7 @@ static int yurex_release(struct inode *inode, struct file *file)
 {
 	struct usb_yurex *dev;
 
-	dev = (struct usb_yurex *)file->private_data;
+	dev = file->private_data;
 	if (dev == NULL)
 		return -ENODEV;
 
@@ -410,7 +410,8 @@ static int yurex_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t yurex_read(struct file *file, char *buffer, size_t count, loff_t *ppos)
+static ssize_t yurex_read(struct file *file, char __user *buffer, size_t count,
+			  loff_t *ppos)
 {
 	struct usb_yurex *dev;
 	int retval = 0;
@@ -418,7 +419,7 @@ static ssize_t yurex_read(struct file *file, char *buffer, size_t count, loff_t 
 	char in_buffer[20];
 	unsigned long flags;
 
-	dev = (struct usb_yurex *)file->private_data;
+	dev = file->private_data;
 
 	mutex_lock(&dev->io_mutex);
 	if (!dev->interface) {		/* already disconnected */
@@ -444,7 +445,8 @@ exit:
 	return retval;
 }
 
-static ssize_t yurex_write(struct file *file, const char *user_buffer, size_t count, loff_t *ppos)
+static ssize_t yurex_write(struct file *file, const char __user *user_buffer,
+			   size_t count, loff_t *ppos)
 {
 	struct usb_yurex *dev;
 	int i, set = 0, retval = 0;
@@ -455,7 +457,7 @@ static ssize_t yurex_write(struct file *file, const char *user_buffer, size_t co
 	DEFINE_WAIT(wait);
 
 	count = min(sizeof(buffer), count);
-	dev = (struct usb_yurex *)file->private_data;
+	dev = file->private_data;
 
 	/* verify that we actually have some data to write */
 	if (count == 0)

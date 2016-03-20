@@ -244,7 +244,7 @@ static int kcopyd_get_pages(struct dm_kcopyd_client *kc,
 	*pages = NULL;
 
 	do {
-		pl = alloc_pl(__GFP_NOWARN | __GFP_NORETRY);
+		pl = alloc_pl(__GFP_NOWARN | __GFP_NORETRY | __GFP_KSWAPD_RECLAIM);
 		if (unlikely(!pl)) {
 			/* Use reserved pages */
 			pl = kc->pages;

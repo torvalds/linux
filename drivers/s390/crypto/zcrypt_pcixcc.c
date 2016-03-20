@@ -182,7 +182,7 @@ static int zcrypt_pcixcc_mcl(struct ap_device *ap_dev)
 
 	/* Wait for the test message to complete. */
 	for (i = 0; i < 6; i++) {
-		mdelay(300);
+		msleep(300);
 		rc = ap_recv(ap_dev->qid, &psmid, reply, 4096);
 		if (rc == 0 && psmid == 0x0102030405060708ULL)
 			break;

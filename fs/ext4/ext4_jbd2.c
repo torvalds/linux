@@ -87,8 +87,14 @@ int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)
 		ext4_put_nojournal(handle);
 		return 0;
 	}
-	sb = handle->h_transaction->t_journal->j_private;
+
 	err = handle->h_err;
+	if (!handle->h_transaction) {
+		rc = jbd2_journal_stop(handle);
+		return err ? err : rc;
+	}
+
+	sb = handle->h_transaction->t_journal->j_private;
 	rc = jbd2_journal_stop(handle);
 
 	if (!err)
@@ -256,8 +262,8 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 	set_buffer_prio(bh);
 	if (ext4_handle_valid(handle)) {
 		err = jbd2_journal_dirty_metadata(handle, bh);
-		/* Errors can only happen if there is a bug */
-		if (WARN_ON_ONCE(err)) {
+		/* Errors can only happen due to aborted journal or a nasty bug */
+		if (!is_handle_aborted(handle) && WARN_ON_ONCE(err)) {
 			ext4_journal_abort_handle(where, line, __func__, bh,
 						  handle, err);
 			if (inode == NULL) {

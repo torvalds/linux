@@ -35,25 +35,7 @@
 #define SDIO_DEVICE_ID_MARVELL_8797_F0	0x9128
 #endif
 
-/*
- * This hook just adds a quirk for all sdio devices
- */
-static void add_quirk_for_sdio_devices(struct mmc_card *card, int data)
-{
-	if (mmc_card_sdio(card))
-		card->quirks |= data;
-}
-
 static const struct mmc_fixup mmc_fixup_methods[] = {
-	/* by default sdio devices are considered CLK_GATING broken */
-	/* good cards will be whitelisted as they are tested */
-	SDIO_FIXUP(SDIO_ANY_ID, SDIO_ANY_ID,
-		   add_quirk_for_sdio_devices,
-		   MMC_QUIRK_BROKEN_CLK_GATING),
-
-	SDIO_FIXUP(SDIO_VENDOR_ID_TI, SDIO_DEVICE_ID_TI_WL1271,
-		   remove_quirk, MMC_QUIRK_BROKEN_CLK_GATING),
-
 	SDIO_FIXUP(SDIO_VENDOR_ID_TI, SDIO_DEVICE_ID_TI_WL1271,
 		   add_quirk, MMC_QUIRK_NONSTD_FUNC_IF),
 

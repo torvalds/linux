@@ -340,6 +340,12 @@ asmlinkage ssize_t compat_sys_preadv(compat_ulong_t fd,
 asmlinkage ssize_t compat_sys_pwritev(compat_ulong_t fd,
 		const struct compat_iovec __user *vec,
 		compat_ulong_t vlen, u32 pos_low, u32 pos_high);
+asmlinkage ssize_t compat_sys_preadv2(compat_ulong_t fd,
+		const struct compat_iovec __user *vec,
+		compat_ulong_t vlen, u32 pos_low, u32 pos_high, int flags);
+asmlinkage ssize_t compat_sys_pwritev2(compat_ulong_t fd,
+		const struct compat_iovec __user *vec,
+		compat_ulong_t vlen, u32 pos_low, u32 pos_high, int flags);
 
 #ifdef __ARCH_WANT_COMPAT_SYS_PREADV64
 asmlinkage long compat_sys_preadv64(unsigned long fd,
@@ -357,6 +363,9 @@ asmlinkage long compat_sys_lseek(unsigned int, compat_off_t, unsigned int);
 
 asmlinkage long compat_sys_execve(const char __user *filename, const compat_uptr_t __user *argv,
 		     const compat_uptr_t __user *envp);
+asmlinkage long compat_sys_execveat(int dfd, const char __user *filename,
+		     const compat_uptr_t __user *argv,
+		     const compat_uptr_t __user *envp, int flags);
 
 asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 		compat_ulong_t __user *outp, compat_ulong_t __user *exp,
@@ -421,7 +430,7 @@ asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
 
 asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp);
 
-extern int compat_printk(const char *fmt, ...);
+extern __printf(1, 2) int compat_printk(const char *fmt, ...);
 extern void sigset_from_compat(sigset_t *set, const compat_sigset_t *compat);
 extern void sigset_to_compat(compat_sigset_t *compat, const sigset_t *set);
 
@@ -685,6 +694,15 @@ asmlinkage long compat_sys_sendfile64(int out_fd, int in_fd,
 				    compat_loff_t __user *offset, compat_size_t count);
 asmlinkage long compat_sys_sigaltstack(const compat_stack_t __user *uss_ptr,
 				       compat_stack_t __user *uoss_ptr);
+
+#ifdef __ARCH_WANT_SYS_SIGPENDING
+asmlinkage long compat_sys_sigpending(compat_old_sigset_t __user *set);
+#endif
+
+#ifdef __ARCH_WANT_SYS_SIGPROCMASK
+asmlinkage long compat_sys_sigprocmask(int how, compat_old_sigset_t __user *nset,
+				       compat_old_sigset_t __user *oset);
+#endif
 
 int compat_restore_altstack(const compat_stack_t __user *uss);
 int __compat_save_altstack(compat_stack_t __user *, unsigned long);

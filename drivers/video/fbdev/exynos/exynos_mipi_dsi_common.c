@@ -876,5 +876,5 @@ int exynos_mipi_dsi_fifo_clear(struct mipi_dsim_device *dsim,
 }
 
 MODULE_AUTHOR("InKi Dae <inki.dae@samsung.com>");
-MODULE_DESCRIPTION("Samusung SoC MIPI-DSI common driver");
+MODULE_DESCRIPTION("Samsung SoC MIPI-DSI common driver");
 MODULE_LICENSE("GPL");

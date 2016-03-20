@@ -158,7 +158,7 @@ static int stv6110_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static u32 carrier_width(u32 symbol_rate, fe_rolloff_t rolloff)
+static u32 carrier_width(u32 symbol_rate, enum fe_rolloff rolloff)
 {
 	u32 rlf;
 

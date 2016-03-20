@@ -1,7 +1,7 @@
 /*
  * net/tipc/discover.c
  *
- * Copyright (c) 2003-2006, 2014, Ericsson AB
+ * Copyright (c) 2003-2006, 2014-2015, Ericsson AB
  * Copyright (c) 2005-2006, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -35,18 +35,22 @@
  */
 
 #include "core.h"
-#include "link.h"
+#include "node.h"
 #include "discover.h"
 
-#define TIPC_LINK_REQ_INIT	125	/* min delay during bearer start up */
-#define TIPC_LINK_REQ_FAST	1000	/* max delay if bearer has no links */
-#define TIPC_LINK_REQ_SLOW	60000	/* max delay if bearer has links */
-#define TIPC_LINK_REQ_INACTIVE	0xffffffff /* indicates no timer in use */
-
+/* min delay during bearer start up */
+#define TIPC_LINK_REQ_INIT	msecs_to_jiffies(125)
+/* max delay if bearer has no links */
+#define TIPC_LINK_REQ_FAST	msecs_to_jiffies(1000)
+/* max delay if bearer has links */
+#define TIPC_LINK_REQ_SLOW	msecs_to_jiffies(60000)
+/* indicates no timer in use */
+#define TIPC_LINK_REQ_INACTIVE	0xffffffff
 
 /**
  * struct tipc_link_req - information about an ongoing link setup request
  * @bearer_id: identity of bearer issuing requests
+ * @net: network namespace instance
  * @dest: destination address for request messages
  * @domain: network domain to which links can be established
  * @num_nodes: number of nodes currently discovered (i.e. with an active link)
@@ -58,41 +62,46 @@
 struct tipc_link_req {
 	u32 bearer_id;
 	struct tipc_media_addr dest;
+	struct net *net;
 	u32 domain;
 	int num_nodes;
 	spinlock_t lock;
 	struct sk_buff *buf;
 	struct timer_list timer;
-	unsigned int timer_intv;
+	unsigned long timer_intv;
 };
 
 /**
  * tipc_disc_init_msg - initialize a link setup message
+ * @net: the applicable net namespace
  * @type: message type (request or response)
- * @b_ptr: ptr to bearer issuing message
+ * @b: ptr to bearer issuing message
  */
-static void tipc_disc_init_msg(struct sk_buff *buf, u32 type,
-			       struct tipc_bearer *b_ptr)
+static void tipc_disc_init_msg(struct net *net, struct sk_buff *buf, u32 type,
+			       struct tipc_bearer *b)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_msg *msg;
-	u32 dest_domain = b_ptr->domain;
+	u32 dest_domain = b->domain;
 
 	msg = buf_msg(buf);
-	tipc_msg_init(msg, LINK_CONFIG, type, INT_H_SIZE, dest_domain);
+	tipc_msg_init(tn->own_addr, msg, LINK_CONFIG, type,
+		      MAX_H_SIZE, dest_domain);
 	msg_set_non_seq(msg, 1);
-	msg_set_node_sig(msg, tipc_random);
+	msg_set_node_sig(msg, tn->random);
+	msg_set_node_capabilities(msg, TIPC_NODE_CAPABILITIES);
 	msg_set_dest_domain(msg, dest_domain);
-	msg_set_bc_netid(msg, tipc_net_id);
-	b_ptr->media->addr2msg(msg_media_addr(msg), &b_ptr->addr);
+	msg_set_bc_netid(msg, tn->net_id);
+	b->media->addr2msg(msg_media_addr(msg), &b->addr);
 }
 
 /**
  * disc_dupl_alert - issue node address duplication alert
- * @b_ptr: pointer to bearer detecting duplication
+ * @b: pointer to bearer detecting duplication
  * @node_addr: duplicated node address
  * @media_addr: media address advertised by duplicated node
  */
-static void disc_dupl_alert(struct tipc_bearer *b_ptr, u32 node_addr,
+static void disc_dupl_alert(struct tipc_bearer *b, u32 node_addr,
 			    struct tipc_media_addr *media_addr)
 {
 	char node_addr_str[16];
@@ -102,38 +111,36 @@ static void disc_dupl_alert(struct tipc_bearer *b_ptr, u32 node_addr,
 	tipc_media_addr_printf(media_addr_str, sizeof(media_addr_str),
 			       media_addr);
 	pr_warn("Duplicate %s using %s seen on <%s>\n", node_addr_str,
-		media_addr_str, b_ptr->name);
+		media_addr_str, b->name);
 }
 
 /**
  * tipc_disc_rcv - handle incoming discovery message (request or response)
+ * @net: the applicable net namespace
  * @buf: buffer containing message
  * @bearer: bearer that message arrived on
  */
-void tipc_disc_rcv(struct sk_buff *buf, struct tipc_bearer *bearer)
+void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
+		   struct tipc_bearer *bearer)
 {
-	struct tipc_node *node;
-	struct tipc_link *link;
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_media_addr maddr;
-	struct sk_buff *rbuf;
-	struct tipc_msg *msg = buf_msg(buf);
-	u32 ddom = msg_dest_domain(msg);
-	u32 onode = msg_prevnode(msg);
-	u32 net_id = msg_bc_netid(msg);
-	u32 mtyp = msg_type(msg);
-	u32 signature = msg_node_sig(msg);
-	bool addr_match = false;
-	bool sign_match = false;
-	bool link_up = false;
-	bool accept_addr = false;
-	bool accept_sign = false;
+	struct sk_buff *rskb;
+	struct tipc_msg *hdr = buf_msg(skb);
+	u32 ddom = msg_dest_domain(hdr);
+	u32 onode = msg_prevnode(hdr);
+	u32 net_id = msg_bc_netid(hdr);
+	u32 mtyp = msg_type(hdr);
+	u32 signature = msg_node_sig(hdr);
+	u16 caps = msg_node_capabilities(hdr);
 	bool respond = false;
+	bool dupl_addr = false;
 
-	bearer->media->msg2addr(bearer, &maddr, msg_media_addr(msg));
-	kfree_skb(buf);
+	bearer->media->msg2addr(bearer, &maddr, msg_media_addr(hdr));
+	kfree_skb(skb);
 
 	/* Ensure message from node is valid and communication is permitted */
-	if (net_id != tipc_net_id)
+	if (net_id != tn->net_id)
 		return;
 	if (maddr.broadcast)
 		return;
@@ -142,114 +149,29 @@ void tipc_disc_rcv(struct sk_buff *buf, struct tipc_bearer *bearer)
 	if (!tipc_addr_node_valid(onode))
 		return;
 
-	if (in_own_node(onode)) {
+	if (in_own_node(net, onode)) {
 		if (memcmp(&maddr, &bearer->addr, sizeof(maddr)))
-			disc_dupl_alert(bearer, tipc_own_addr, &maddr);
+			disc_dupl_alert(bearer, tn->own_addr, &maddr);
 		return;
 	}
-	if (!tipc_in_scope(ddom, tipc_own_addr))
+	if (!tipc_in_scope(ddom, tn->own_addr))
 		return;
 	if (!tipc_in_scope(bearer->domain, onode))
 		return;
 
-	/* Locate, or if necessary, create, node: */
-	node = tipc_node_find(onode);
-	if (!node)
-		node = tipc_node_create(onode);
-	if (!node)
-		return;
-
-	tipc_node_lock(node);
-	link = node->links[bearer->identity];
-
-	/* Prepare to validate requesting node's signature and media address */
-	sign_match = (signature == node->signature);
-	addr_match = link && !memcmp(&link->media_addr, &maddr, sizeof(maddr));
-	link_up = link && tipc_link_is_up(link);
-
-
-	/* These three flags give us eight permutations: */
-
-	if (sign_match && addr_match && link_up) {
-		/* All is fine. Do nothing. */
-	} else if (sign_match && addr_match && !link_up) {
-		/* Respond. The link will come up in due time */
-		respond = true;
-	} else if (sign_match && !addr_match && link_up) {
-		/* Peer has changed i/f address without rebooting.
-		 * If so, the link will reset soon, and the next
-		 * discovery will be accepted. So we can ignore it.
-		 * It may also be an cloned or malicious peer having
-		 * chosen the same node address and signature as an
-		 * existing one.
-		 * Ignore requests until the link goes down, if ever.
-		 */
+	tipc_node_check_dest(net, onode, bearer, caps, signature,
+			     &maddr, &respond, &dupl_addr);
+	if (dupl_addr)
 		disc_dupl_alert(bearer, onode, &maddr);
-	} else if (sign_match && !addr_match && !link_up) {
-		/* Peer link has changed i/f address without rebooting.
-		 * It may also be a cloned or malicious peer; we can't
-		 * distinguish between the two.
-		 * The signature is correct, so we must accept.
-		 */
-		accept_addr = true;
-		respond = true;
-	} else if (!sign_match && addr_match && link_up) {
-		/* Peer node rebooted. Two possibilities:
-		 *  - Delayed re-discovery; this link endpoint has already
-		 *    reset and re-established contact with the peer, before
-		 *    receiving a discovery message from that node.
-		 *    (The peer happened to receive one from this node first).
-		 *  - The peer came back so fast that our side has not
-		 *    discovered it yet. Probing from this side will soon
-		 *    reset the link, since there can be no working link
-		 *    endpoint at the peer end, and the link will re-establish.
-		 *  Accept the signature, since it comes from a known peer.
-		 */
-		accept_sign = true;
-	} else if (!sign_match && addr_match && !link_up) {
-		/*  The peer node has rebooted.
-		 *  Accept signature, since it is a known peer.
-		 */
-		accept_sign = true;
-		respond = true;
-	} else if (!sign_match && !addr_match && link_up) {
-		/* Peer rebooted with new address, or a new/duplicate peer.
-		 * Ignore until the link goes down, if ever.
-		 */
-		disc_dupl_alert(bearer, onode, &maddr);
-	} else if (!sign_match && !addr_match && !link_up) {
-		/* Peer rebooted with new address, or it is a new peer.
-		 * Accept signature and address.
-		*/
-		accept_sign = true;
-		accept_addr = true;
-		respond = true;
-	}
-
-	if (accept_sign)
-		node->signature = signature;
-
-	if (accept_addr) {
-		if (!link)
-			link = tipc_link_create(node, bearer, &maddr);
-		if (link) {
-			memcpy(&link->media_addr, &maddr, sizeof(maddr));
-			tipc_link_reset(link);
-		} else {
-			respond = false;
-		}
-	}
 
 	/* Send response, if necessary */
 	if (respond && (mtyp == DSC_REQ_MSG)) {
-		rbuf = tipc_buf_acquire(INT_H_SIZE);
-		if (rbuf) {
-			tipc_disc_init_msg(rbuf, DSC_RESP_MSG, bearer);
-			tipc_bearer_send(bearer->identity, rbuf, &maddr);
-			kfree_skb(rbuf);
-		}
+		rskb = tipc_buf_acquire(MAX_H_SIZE);
+		if (!rskb)
+			return;
+		tipc_disc_init_msg(net, rskb, DSC_RESP_MSG, bearer);
+		tipc_bearer_xmit_skb(net, bearer->identity, rskb, &maddr);
 	}
-	tipc_node_unlock(node);
 }
 
 /**
@@ -265,7 +187,7 @@ static void disc_update(struct tipc_link_req *req)
 		if ((req->timer_intv == TIPC_LINK_REQ_INACTIVE) ||
 		    (req->timer_intv > TIPC_LINK_REQ_FAST)) {
 			req->timer_intv = TIPC_LINK_REQ_INIT;
-			k_start_timer(&req->timer, req->timer_intv);
+			mod_timer(&req->timer, jiffies + req->timer_intv);
 		}
 	}
 }
@@ -295,12 +217,14 @@ void tipc_disc_remove_dest(struct tipc_link_req *req)
 
 /**
  * disc_timeout - send a periodic link setup request
- * @req: ptr to link request structure
+ * @data: ptr to link request structure
  *
  * Called whenever a link setup request timer associated with a bearer expires.
  */
-static void disc_timeout(struct tipc_link_req *req)
+static void disc_timeout(unsigned long data)
 {
+	struct tipc_link_req *req = (struct tipc_link_req *)data;
+	struct sk_buff *skb;
 	int max_delay;
 
 	spin_lock_bh(&req->lock);
@@ -318,9 +242,9 @@ static void disc_timeout(struct tipc_link_req *req)
 	 * hold at fast polling rate if don't have any associated nodes,
 	 * otherwise hold at slow polling rate
 	 */
-	tipc_bearer_send(req->bearer_id, req->buf, &req->dest);
-
-
+	skb = skb_clone(req->buf, GFP_ATOMIC);
+	if (skb)
+		tipc_bearer_xmit_skb(req->net, req->bearer_id, skb, &req->dest);
 	req->timer_intv *= 2;
 	if (req->num_nodes)
 		max_delay = TIPC_LINK_REQ_SLOW;
@@ -329,44 +253,49 @@ static void disc_timeout(struct tipc_link_req *req)
 	if (req->timer_intv > max_delay)
 		req->timer_intv = max_delay;
 
-	k_start_timer(&req->timer, req->timer_intv);
+	mod_timer(&req->timer, jiffies + req->timer_intv);
 exit:
 	spin_unlock_bh(&req->lock);
 }
 
 /**
  * tipc_disc_create - create object to send periodic link setup requests
- * @b_ptr: ptr to bearer issuing requests
+ * @net: the applicable net namespace
+ * @b: ptr to bearer issuing requests
  * @dest: destination address for request messages
  * @dest_domain: network domain to which links can be established
  *
  * Returns 0 if successful, otherwise -errno.
  */
-int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest)
+int tipc_disc_create(struct net *net, struct tipc_bearer *b,
+		     struct tipc_media_addr *dest)
 {
 	struct tipc_link_req *req;
+	struct sk_buff *skb;
 
 	req = kmalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req)
 		return -ENOMEM;
-
-	req->buf = tipc_buf_acquire(INT_H_SIZE);
+	req->buf = tipc_buf_acquire(MAX_H_SIZE);
 	if (!req->buf) {
 		kfree(req);
 		return -ENOMEM;
 	}
 
-	tipc_disc_init_msg(req->buf, DSC_REQ_MSG, b_ptr);
+	tipc_disc_init_msg(net, req->buf, DSC_REQ_MSG, b);
 	memcpy(&req->dest, dest, sizeof(*dest));
-	req->bearer_id = b_ptr->identity;
-	req->domain = b_ptr->domain;
+	req->net = net;
+	req->bearer_id = b->identity;
+	req->domain = b->domain;
 	req->num_nodes = 0;
 	req->timer_intv = TIPC_LINK_REQ_INIT;
 	spin_lock_init(&req->lock);
-	k_init_timer(&req->timer, (Handler)disc_timeout, (unsigned long)req);
-	k_start_timer(&req->timer, req->timer_intv);
-	b_ptr->link_req = req;
-	tipc_bearer_send(req->bearer_id, req->buf, &req->dest);
+	setup_timer(&req->timer, disc_timeout, (unsigned long)req);
+	mod_timer(&req->timer, jiffies + req->timer_intv);
+	b->link_req = req;
+	skb = skb_clone(req->buf, GFP_ATOMIC);
+	if (skb)
+		tipc_bearer_xmit_skb(net, req->bearer_id, skb, &req->dest);
 	return 0;
 }
 
@@ -376,28 +305,32 @@ int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest)
  */
 void tipc_disc_delete(struct tipc_link_req *req)
 {
-	k_cancel_timer(&req->timer);
-	k_term_timer(&req->timer);
+	del_timer_sync(&req->timer);
 	kfree_skb(req->buf);
 	kfree(req);
 }
 
 /**
  * tipc_disc_reset - reset object to send periodic link setup requests
- * @b_ptr: ptr to bearer issuing requests
+ * @net: the applicable net namespace
+ * @b: ptr to bearer issuing requests
  * @dest_domain: network domain to which links can be established
  */
-void tipc_disc_reset(struct tipc_bearer *b_ptr)
+void tipc_disc_reset(struct net *net, struct tipc_bearer *b)
 {
-	struct tipc_link_req *req = b_ptr->link_req;
+	struct tipc_link_req *req = b->link_req;
+	struct sk_buff *skb;
 
 	spin_lock_bh(&req->lock);
-	tipc_disc_init_msg(req->buf, DSC_REQ_MSG, b_ptr);
-	req->bearer_id = b_ptr->identity;
-	req->domain = b_ptr->domain;
+	tipc_disc_init_msg(net, req->buf, DSC_REQ_MSG, b);
+	req->net = net;
+	req->bearer_id = b->identity;
+	req->domain = b->domain;
 	req->num_nodes = 0;
 	req->timer_intv = TIPC_LINK_REQ_INIT;
-	k_start_timer(&req->timer, req->timer_intv);
-	tipc_bearer_send(req->bearer_id, req->buf, &req->dest);
+	mod_timer(&req->timer, jiffies + req->timer_intv);
+	skb = skb_clone(req->buf, GFP_ATOMIC);
+	if (skb)
+		tipc_bearer_xmit_skb(net, req->bearer_id, skb, &req->dest);
 	spin_unlock_bh(&req->lock);
 }

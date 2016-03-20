@@ -34,6 +34,7 @@
 #include <linux/of_device.h>
 #include <linux/phy.h>
 #include <linux/memblock.h>
+#include <linux/fsl/guts.h>
 
 #include <linux/atomic.h>
 #include <asm/time.h>
@@ -47,11 +48,10 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 #include <sysdev/simple_gpio.h>
-#include <asm/qe.h>
-#include <asm/qe_ic.h>
+#include <soc/fsl/qe/qe.h>
+#include <soc/fsl/qe/qe_ic.h>
 #include <asm/mpic.h>
 #include <asm/swiotlb.h>
-#include <asm/fsl_guts.h>
 #include "smp.h"
 
 #include "mpc85xx.h"

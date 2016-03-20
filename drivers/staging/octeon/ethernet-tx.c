@@ -1,29 +1,13 @@
-/*********************************************************************
- * Author: Cavium Networks
- *
- * Contact: support@caviumnetworks.com
- * This file is part of the OCTEON SDK
+/*
+ * This file is based on code from OCTEON SDK by Cavium Networks.
  *
  * Copyright (c) 2003-2010 Cavium Networks
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
  * published by the Free Software Foundation.
- *
- * This file is distributed in the hope that it will be useful, but
- * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
- * or visit http://www.gnu.org/licenses/.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium Networks for more information
-*********************************************************************/
+ */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -77,6 +61,7 @@ static DECLARE_TASKLET(cvm_oct_tx_cleanup_tasklet, cvm_oct_tx_do_cleanup, 0);
 static inline int32_t cvm_oct_adjust_skb_to_free(int32_t skb_to_free, int fau)
 {
 	int32_t undo;
+
 	undo = skb_to_free > 0 ? MAX_SKB_TO_FREE : skb_to_free +
 						   MAX_SKB_TO_FREE;
 	if (undo > 0)
@@ -89,6 +74,7 @@ static inline int32_t cvm_oct_adjust_skb_to_free(int32_t skb_to_free, int fau)
 static void cvm_oct_kick_tx_poll_watchdog(void)
 {
 	union cvmx_ciu_timx ciu_timx;
+
 	ciu_timx.u64 = 0;
 	ciu_timx.s.one_shot = 1;
 	ciu_timx.s.len = cvm_oct_tx_poll_interval;
@@ -109,18 +95,18 @@ static void cvm_oct_free_tx_skbs(struct net_device *dev)
 	for (qos = 0; qos < queues_per_port; qos++) {
 		if (skb_queue_len(&priv->tx_free_list[qos]) == 0)
 			continue;
-		skb_to_free = cvmx_fau_fetch_and_add32(priv->fau+qos*4,
+		skb_to_free = cvmx_fau_fetch_and_add32(priv->fau + qos * 4,
 						       MAX_SKB_TO_FREE);
 		skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free,
-							 priv->fau+qos*4);
-
-
+							 priv->fau + qos * 4);
 		total_freed += skb_to_free;
 		if (skb_to_free > 0) {
 			struct sk_buff *to_free_list = NULL;
+
 			spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
 			while (skb_to_free > 0) {
 				struct sk_buff *t;
+
 				t = __skb_dequeue(&priv->tx_free_list[qos]);
 				t->next = to_free_list;
 				to_free_list = t;
@@ -131,13 +117,14 @@ static void cvm_oct_free_tx_skbs(struct net_device *dev)
 			/* Do the actual freeing outside of the lock. */
 			while (to_free_list) {
 				struct sk_buff *t = to_free_list;
+
 				to_free_list = to_free_list->next;
 				dev_kfree_skb_any(t);
 			}
 		}
 		total_remaining += skb_queue_len(&priv->tx_free_list[qos]);
 	}
-	if (total_freed >= 0 && netif_queue_stopped(dev))
+	if (total_remaining < MAX_OUT_QUEUE_DEPTH && netif_queue_stopped(dev))
 		netif_wake_queue(dev);
 	if (total_remaining)
 		cvm_oct_kick_tx_poll_watchdog();
@@ -154,8 +141,8 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	cvmx_pko_command_word0_t pko_command;
 	union cvmx_buf_ptr hw_buffer;
-	uint64_t old_scratch;
-	uint64_t old_scratch2;
+	u64 old_scratch;
+	u64 old_scratch2;
 	int qos;
 	int i;
 	enum {QUEUE_CORE, QUEUE_HW, QUEUE_DROP} queue_type;
@@ -187,8 +174,9 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 			qos = 0;
 		else if (qos >= cvmx_pko_get_num_queues(priv->port))
 			qos = 0;
-	} else
+	} else {
 		qos = 0;
+	}
 
 	if (USE_ASYNC_IOBDMA) {
 		/* Save scratch in case userspace is using it */
@@ -258,6 +246,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 			    cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
 			if (gmx_prt_cfg.s.duplex == 0) {
 				int add_bytes = 64 - skb->len;
+
 				if ((skb_tail_pointer(skb) + add_bytes) <=
 				    skb_end_pointer(skb))
 					memset(__skb_put(skb, add_bytes), 0,
@@ -268,6 +257,9 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Build the PKO command */
 	pko_command.u64 = 0;
+#ifdef __LITTLE_ENDIAN
+	pko_command.s.le = 1;
+#endif
 	pko_command.s.n2 = 1;	/* Don't pollute L2 with the outgoing packet */
 	pko_command.s.segs = 1;
 	pko_command.s.total_bytes = skb->len;
@@ -289,6 +281,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 		CVM_OCT_SKB_CB(skb)[0] = hw_buffer.u64;
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			struct skb_frag_struct *fs = skb_shinfo(skb)->frags + i;
+
 			hw_buffer.s.addr = XKPHYS_TO_PHYS(
 				(u64)(page_address(fs->page.p) +
 				fs->page_offset));
@@ -315,55 +308,38 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 #if REUSE_SKBUFFS_WITHOUT_FREE
 	fpa_head = skb->head + 256 - ((unsigned long)skb->head & 0x7f);
 	if (unlikely(skb->data < fpa_head)) {
-		/*
-		 * printk("TX buffer beginning can't meet FPA
-		 * alignment constraints\n");
-		 */
+		/* TX buffer beginning can't meet FPA alignment constraints */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely
 	    ((skb_end_pointer(skb) - fpa_head) < CVMX_FPA_PACKET_POOL_SIZE)) {
-		/*
-		   printk("TX buffer isn't large enough for the FPA\n");
-		 */
+		/* TX buffer isn't large enough for the FPA */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb_shared(skb))) {
-		/*
-		   printk("TX buffer sharing data with someone else\n");
-		 */
+		/* TX buffer sharing data with someone else */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb_cloned(skb))) {
-		/*
-		   printk("TX buffer has been cloned\n");
-		 */
+		/* TX buffer has been cloned */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb_header_cloned(skb))) {
-		/*
-		   printk("TX buffer header has been cloned\n");
-		 */
+		/* TX buffer header has been cloned */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb->destructor)) {
-		/*
-		   printk("TX buffer has a destructor\n");
-		 */
+		/* TX buffer has a destructor */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb_shinfo(skb)->nr_frags)) {
-		/*
-		   printk("TX buffer has fragments\n");
-		 */
+		/* TX buffer has fragments */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely
 	    (skb->truesize !=
 	     sizeof(*skb) + skb_end_offset(skb))) {
-		/*
-		   printk("TX buffer truesize has been changed\n");
-		 */
+		/* TX buffer truesize has been changed */
 		goto dont_put_skbuff_in_hw;
 	}
 
@@ -401,13 +377,15 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 dont_put_skbuff_in_hw:
 
 	/* Check if we can use the hardware checksumming */
-	if (USE_HW_TCPUDP_CHECKSUM && (skb->protocol == htons(ETH_P_IP)) &&
-	    (ip_hdr(skb)->version == 4) && (ip_hdr(skb)->ihl == 5) &&
-	    ((ip_hdr(skb)->frag_off == 0) || (ip_hdr(skb)->frag_off == 1 << 14))
-	    && ((ip_hdr(skb)->protocol == IPPROTO_TCP)
-		|| (ip_hdr(skb)->protocol == IPPROTO_UDP))) {
+	if ((skb->protocol == htons(ETH_P_IP)) &&
+	    (ip_hdr(skb)->version == 4) &&
+	    (ip_hdr(skb)->ihl == 5) &&
+	    ((ip_hdr(skb)->frag_off == 0) ||
+	     (ip_hdr(skb)->frag_off == htons(1 << 14))) &&
+	    ((ip_hdr(skb)->protocol == IPPROTO_TCP) ||
+	     (ip_hdr(skb)->protocol == IPPROTO_UDP))) {
 		/* Use hardware checksum calc */
-		pko_command.s.ipoffp1 = sizeof(struct ethhdr) + 1;
+		pko_command.s.ipoffp1 = skb_network_offset(skb) + 1;
 	}
 
 	if (USE_ASYNC_IOBDMA) {
@@ -423,7 +401,8 @@ dont_put_skbuff_in_hw:
 		    cvmx_fau_fetch_and_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
 	}
 
-	skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free, priv->fau+qos*4);
+	skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free,
+						priv->fau + qos * 4);
 
 	/*
 	 * If we're sending faster than the receive can free them then
@@ -434,7 +413,7 @@ dont_put_skbuff_in_hw:
 
 	if (pko_command.s.dontfree) {
 		queue_type = QUEUE_CORE;
-		pko_command.s.reg0 = priv->fau+qos*4;
+		pko_command.s.reg0 = priv->fau + qos * 4;
 	} else {
 		queue_type = QUEUE_HW;
 	}
@@ -447,7 +426,6 @@ dont_put_skbuff_in_hw:
 	/* Drop this packet if we have too many already queued to the HW */
 	if (unlikely(skb_queue_len(&priv->tx_free_list[qos]) >=
 		     MAX_OUT_QUEUE_DEPTH)) {
-
 		if (dev->tx_queue_len != 0) {
 			/* Drop the lock when notifying the core.  */
 			spin_unlock_irqrestore(&priv->tx_free_list[qos].lock,
@@ -495,6 +473,7 @@ skip_xmit:
 
 	while (skb_to_free > 0) {
 		struct sk_buff *t = __skb_dequeue(&priv->tx_free_list[qos]);
+
 		t->next = to_free_list;
 		to_free_list = t;
 		skb_to_free--;
@@ -505,6 +484,7 @@ skip_xmit:
 	/* Do the actual freeing outside of the lock. */
 	while (to_free_list) {
 		struct sk_buff *t = to_free_list;
+
 		to_free_list = to_free_list->next;
 		dev_kfree_skb_any(t);
 	}
@@ -550,7 +530,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 
 	/* Get a work queue entry */
 	cvmx_wqe_t *work = cvmx_fpa_alloc(CVMX_FPA_WQE_POOL);
-	if (unlikely(work == NULL)) {
+
+	if (unlikely(!work)) {
 		printk_ratelimited("%s: Failed to allocate a work queue entry\n",
 				   dev->name);
 		priv->stats.tx_dropped++;
@@ -560,10 +541,10 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 
 	/* Get a packet buffer */
 	packet_buffer = cvmx_fpa_alloc(CVMX_FPA_PACKET_POOL);
-	if (unlikely(packet_buffer == NULL)) {
+	if (unlikely(!packet_buffer)) {
 		printk_ratelimited("%s: Failed to allocate a packet buffer\n",
 				   dev->name);
-		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, DONT_WRITEBACK(1));
+		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, 1);
 		priv->stats.tx_dropped++;
 		dev_kfree_skb_any(skb);
 		return 0;
@@ -577,7 +558,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	 * calculation may add a little extra, but that doesn't
 	 * hurt.
 	 */
-	copy_location = packet_buffer + sizeof(uint64_t);
+	copy_location = packet_buffer + sizeof(u64);
 	copy_location += ((CVMX_HELPER_FIRST_MBUFF_SKIP + 7) & 0xfff8) + 6;
 
 	/*
@@ -592,13 +573,14 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	 * Fill in some of the work queue fields. We may need to add
 	 * more if the software at the other end needs them.
 	 */
-	work->hw_chksum = skb->csum;
-	work->len = skb->len;
-	work->ipprt = priv->port;
-	work->qos = priv->port & 0x7;
-	work->grp = pow_send_group;
-	work->tag_type = CVMX_HELPER_INPUT_TAG_TYPE;
-	work->tag = pow_send_group;	/* FIXME */
+	if (!OCTEON_IS_MODEL(OCTEON_CN68XX))
+		work->word0.pip.cn38xx.hw_chksum = skb->csum;
+	work->word1.len = skb->len;
+	cvmx_wqe_set_port(work, priv->port);
+	cvmx_wqe_set_qos(work, priv->port & 0x7);
+	cvmx_wqe_set_grp(work, pow_send_group);
+	work->word1.tag_type = CVMX_HELPER_INPUT_TAG_TYPE;
+	work->word1.tag = pow_send_group;	/* FIXME */
 	/* Default to zero. Sets of zero later are commented out */
 	work->word2.u64 = 0;
 	work->word2.s.bufs = 1;
@@ -617,8 +599,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		work->word2.s.dec_ipcomp = 0;	/* FIXME */
 #endif
 		work->word2.s.tcp_or_udp =
-		    (ip_hdr(skb)->protocol == IPPROTO_TCP)
-		    || (ip_hdr(skb)->protocol == IPPROTO_UDP);
+		    (ip_hdr(skb)->protocol == IPPROTO_TCP) ||
+		    (ip_hdr(skb)->protocol == IPPROTO_UDP);
 #if 0
 		/* FIXME */
 		work->word2.s.dec_ipsec = 0;
@@ -629,8 +611,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		/* No error, packet is internal */
 		work->word2.s.L4_error = 0;
 #endif
-		work->word2.s.is_frag = !((ip_hdr(skb)->frag_off == 0)
-					  || (ip_hdr(skb)->frag_off ==
+		work->word2.s.is_frag = !((ip_hdr(skb)->frag_off == 0) ||
+					  (ip_hdr(skb)->frag_off ==
 					      1 << 14));
 #if 0
 		/* Assume Linux is sending a good packet */
@@ -678,8 +660,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Submit the packet to the POW */
-	cvmx_pow_work_submit(work, work->tag, work->tag_type, work->qos,
-			     work->grp);
+	cvmx_pow_work_submit(work, work->word1.tag, work->word1.tag_type,
+			     cvmx_wqe_get_qos(work), cvmx_wqe_get_grp(work));
 	priv->stats.tx_packets++;
 	priv->stats.tx_bytes += skb->len;
 	dev_consume_skb_any(skb);
@@ -713,6 +695,7 @@ static void cvm_oct_tx_do_cleanup(unsigned long arg)
 	for (port = 0; port < TOTAL_NUMBER_OF_PORTS; port++) {
 		if (cvm_oct_device[port]) {
 			struct net_device *dev = cvm_oct_device[port];
+
 			cvm_oct_free_tx_skbs(dev);
 		}
 	}

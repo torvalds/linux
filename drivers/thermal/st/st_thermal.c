@@ -25,7 +25,7 @@
  * Function to allocate regfields which are common
  * between syscfg and memory mapped based sensors
  */
-int st_thermal_alloc_regfields(struct st_thermal_sensor *sensor)
+static int st_thermal_alloc_regfields(struct st_thermal_sensor *sensor)
 {
 	struct device *dev = sensor->dev;
 	struct regmap *regmap = sensor->regmap;
@@ -111,8 +111,7 @@ static int st_thermal_calibration(struct st_thermal_sensor *sensor)
 }
 
 /* Callback to get temperature from HW*/
-static int st_thermal_get_temp(struct thermal_zone_device *th,
-		unsigned long *temperature)
+static int st_thermal_get_temp(struct thermal_zone_device *th, int *temperature)
 {
 	struct st_thermal_sensor *sensor = th->devdata;
 	struct device *dev = sensor->dev;
@@ -159,7 +158,7 @@ static int st_thermal_get_trip_type(struct thermal_zone_device *th,
 }
 
 static int st_thermal_get_trip_temp(struct thermal_zone_device *th,
-				    int trip, unsigned long *temp)
+				    int trip, int *temp)
 {
 	struct st_thermal_sensor *sensor = th->devdata;
 	struct device *dev = sensor->dev;
@@ -214,7 +213,7 @@ int st_thermal_register(struct platform_device *pdev,
 
 	sensor->ops = sensor->cdata->ops;
 
-	ret = sensor->ops->regmap_init(sensor);
+	ret = (sensor->ops->regmap_init)(sensor);
 	if (ret)
 		return ret;
 
@@ -275,6 +274,7 @@ int st_thermal_unregister(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(st_thermal_unregister);
 
+#ifdef CONFIG_PM_SLEEP
 static int st_thermal_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -305,6 +305,8 @@ static int st_thermal_resume(struct device *dev)
 
 	return 0;
 }
+#endif
+
 SIMPLE_DEV_PM_OPS(st_thermal_pm_ops, st_thermal_suspend, st_thermal_resume);
 EXPORT_SYMBOL_GPL(st_thermal_pm_ops);
 

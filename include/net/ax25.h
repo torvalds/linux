@@ -12,6 +12,8 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
+#include <net/neighbour.h>
+#include <net/sock.h>
 
 #define	AX25_T1CLAMPLO  		1
 #define	AX25_T1CLAMPHI 			(30 * HZ)
@@ -245,7 +247,20 @@ typedef struct ax25_cb {
 	atomic_t		refcount;
 } ax25_cb;
 
-#define ax25_sk(__sk) ((ax25_cb *)(__sk)->sk_protinfo)
+struct ax25_sock {
+	struct sock		sk;
+	struct ax25_cb		*cb;
+};
+
+static inline struct ax25_sock *ax25_sk(const struct sock *sk)
+{
+	return (struct ax25_sock *) sk;
+}
+
+static inline struct ax25_cb *sk_to_ax25(const struct sock *sk)
+{
+	return ax25_sk(sk)->cb;
+}
 
 #define ax25_for_each(__ax25, list) \
 	hlist_for_each_entry(__ax25, list, ax25_node)
@@ -366,9 +381,7 @@ int ax25_kiss_rcv(struct sk_buff *, struct net_device *, struct packet_type *,
 		  struct net_device *);
 
 /* ax25_ip.c */
-int ax25_hard_header(struct sk_buff *, struct net_device *, unsigned short,
-		     const void *, const void *, unsigned int);
-int ax25_rebuild_header(struct sk_buff *);
+netdev_tx_t ax25_ip_xmit(struct sk_buff *skb);
 extern const struct header_ops ax25_header_ops;
 
 /* ax25_out.c */

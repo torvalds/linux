@@ -324,6 +324,7 @@ static const struct of_device_id aemif_of_match[] = {
 	{ .compatible = "ti,da850-aemif", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, aemif_of_match);
 
 static int aemif_probe(struct platform_device *pdev)
 {
@@ -413,7 +414,6 @@ static struct platform_driver aemif_driver = {
 	.remove = aemif_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(aemif_of_match),
 	},
 };

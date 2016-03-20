@@ -163,7 +163,7 @@ static const struct snd_kcontrol_new ak4671_snd_controls[] = {
 static int ak4671_out2_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -343,25 +343,25 @@ static const struct snd_soc_dapm_widget ak4671_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route ak4671_intercon[] = {
-	{"DAC Left", "NULL", "PMPLL"},
-	{"DAC Right", "NULL", "PMPLL"},
-	{"ADC Left", "NULL", "PMPLL"},
-	{"ADC Right", "NULL", "PMPLL"},
+	{"DAC Left", NULL, "PMPLL"},
+	{"DAC Right", NULL, "PMPLL"},
+	{"ADC Left", NULL, "PMPLL"},
+	{"ADC Right", NULL, "PMPLL"},
 
 	/* Outputs */
-	{"LOUT1", "NULL", "LOUT1 Mixer"},
-	{"ROUT1", "NULL", "ROUT1 Mixer"},
-	{"LOUT2", "NULL", "LOUT2 Mix Amp"},
-	{"ROUT2", "NULL", "ROUT2 Mix Amp"},
-	{"LOUT3", "NULL", "LOUT3 Mixer"},
-	{"ROUT3", "NULL", "ROUT3 Mixer"},
+	{"LOUT1", NULL, "LOUT1 Mixer"},
+	{"ROUT1", NULL, "ROUT1 Mixer"},
+	{"LOUT2", NULL, "LOUT2 Mix Amp"},
+	{"ROUT2", NULL, "ROUT2 Mix Amp"},
+	{"LOUT3", NULL, "LOUT3 Mixer"},
+	{"ROUT3", NULL, "ROUT3 Mixer"},
 
 	{"LOUT1 Mixer", "DACL", "DAC Left"},
 	{"ROUT1 Mixer", "DACR", "DAC Right"},
 	{"LOUT2 Mixer", "DACHL", "DAC Left"},
 	{"ROUT2 Mixer", "DACHR", "DAC Right"},
-	{"LOUT2 Mix Amp", "NULL", "LOUT2 Mixer"},
-	{"ROUT2 Mix Amp", "NULL", "ROUT2 Mixer"},
+	{"LOUT2 Mix Amp", NULL, "LOUT2 Mixer"},
+	{"ROUT2 Mix Amp", NULL, "ROUT2 Mixer"},
 	{"LOUT3 Mixer", "DACSL", "DAC Left"},
 	{"ROUT3 Mixer", "DACSR", "DAC Right"},
 
@@ -381,18 +381,18 @@ static const struct snd_soc_dapm_route ak4671_intercon[] = {
 	{"LIN2", NULL, "Mic Bias"},
 	{"RIN2", NULL, "Mic Bias"},
 
-	{"ADC Left", "NULL", "LIN MUX"},
-	{"ADC Right", "NULL", "RIN MUX"},
+	{"ADC Left", NULL, "LIN MUX"},
+	{"ADC Right", NULL, "RIN MUX"},
 
 	/* Analog Loops */
-	{"LIN1 Mixing Circuit", "NULL", "LIN1"},
-	{"RIN1 Mixing Circuit", "NULL", "RIN1"},
-	{"LIN2 Mixing Circuit", "NULL", "LIN2"},
-	{"RIN2 Mixing Circuit", "NULL", "RIN2"},
-	{"LIN3 Mixing Circuit", "NULL", "LIN3"},
-	{"RIN3 Mixing Circuit", "NULL", "RIN3"},
-	{"LIN4 Mixing Circuit", "NULL", "LIN4"},
-	{"RIN4 Mixing Circuit", "NULL", "RIN4"},
+	{"LIN1 Mixing Circuit", NULL, "LIN1"},
+	{"RIN1 Mixing Circuit", NULL, "RIN1"},
+	{"LIN2 Mixing Circuit", NULL, "LIN2"},
+	{"RIN2 Mixing Circuit", NULL, "RIN2"},
+	{"LIN3 Mixing Circuit", NULL, "LIN3"},
+	{"RIN3 Mixing Circuit", NULL, "RIN3"},
+	{"LIN4 Mixing Circuit", NULL, "LIN4"},
+	{"RIN4 Mixing Circuit", NULL, "RIN4"},
 
 	{"LOUT1 Mixer", "LINL1", "LIN1 Mixing Circuit"},
 	{"ROUT1 Mixer", "RINR1", "RIN1 Mixing Circuit"},
@@ -577,7 +577,6 @@ static int ak4671_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, AK4671_AD_DA_POWER_MANAGEMENT, 0x00);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -611,20 +610,7 @@ static struct snd_soc_dai_driver ak4671_dai = {
 	.ops = &ak4671_dai_ops,
 };
 
-static int ak4671_probe(struct snd_soc_codec *codec)
-{
-	return ak4671_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-}
-
-static int ak4671_remove(struct snd_soc_codec *codec)
-{
-	ak4671_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_ak4671 = {
-	.probe = ak4671_probe,
-	.remove = ak4671_remove,
 	.set_bias_level = ak4671_set_bias_level,
 	.controls = ak4671_snd_controls,
 	.num_controls = ARRAY_SIZE(ak4671_snd_controls),
@@ -677,7 +663,6 @@ MODULE_DEVICE_TABLE(i2c, ak4671_i2c_id);
 static struct i2c_driver ak4671_i2c_driver = {
 	.driver = {
 		.name = "ak4671-codec",
-		.owner = THIS_MODULE,
 	},
 	.probe = ak4671_i2c_probe,
 	.remove = ak4671_i2c_remove,

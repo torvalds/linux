@@ -12,12 +12,20 @@
  */
 
 #include <linux/init.h>
+#include <linux/irqchip.h>
 #include <linux/of_platform.h>
+#include <linux/soc/brcmstb/brcmstb.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-static const char *brcmstb_match[] __initconst = {
+static void __init brcmstb_init_irq(void)
+{
+	irqchip_init();
+	brcmstb_biuctrl_init();
+}
+
+static const char *const brcmstb_match[] __initconst = {
 	"brcm,bcm7445",
 	"brcm,brcmstb",
 	NULL
@@ -25,4 +33,5 @@ static const char *brcmstb_match[] __initconst = {
 
 DT_MACHINE_START(BRCMSTB, "Broadcom STB (Flattened Device Tree)")
 	.dt_compat	= brcmstb_match,
+	.init_irq	= brcmstb_init_irq,
 MACHINE_END

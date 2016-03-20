@@ -65,13 +65,12 @@ struct pause_patch_entry {
 extern struct pause_patch_entry __pause_3insn_patch,
 	__pause_3insn_patch_end;
 
-void __init per_cpu_patch(void);
 void sun4v_patch_1insn_range(struct sun4v_1insn_patch_entry *,
 			     struct sun4v_1insn_patch_entry *);
 void sun4v_patch_2insn_range(struct sun4v_2insn_patch_entry *,
 			     struct sun4v_2insn_patch_entry *);
-void __init sun4v_patch(void);
-void __init boot_cpu_id_too_large(int cpu);
+void sun_m7_patch_2insn_range(struct sun4v_2insn_patch_entry *,
+			     struct sun4v_2insn_patch_entry *);
 extern unsigned int dcache_parity_tl1_occurred;
 extern unsigned int icache_parity_tl1_occurred;
 
@@ -101,11 +100,7 @@ void sun4v_do_mna(struct pt_regs *regs,
 void do_privop(struct pt_regs *regs);
 void do_privact(struct pt_regs *regs);
 void do_cee(struct pt_regs *regs);
-void do_cee_tl1(struct pt_regs *regs);
-void do_dae_tl1(struct pt_regs *regs);
-void do_iae_tl1(struct pt_regs *regs);
 void do_div0_tl1(struct pt_regs *regs);
-void do_fpdis_tl1(struct pt_regs *regs);
 void do_fpieee_tl1(struct pt_regs *regs);
 void do_fpother_tl1(struct pt_regs *regs);
 void do_ill_tl1(struct pt_regs *regs);

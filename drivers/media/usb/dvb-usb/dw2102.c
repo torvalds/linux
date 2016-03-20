@@ -1,8 +1,10 @@
 /* DVB USB framework compliant Linux driver for the
  *	DVBWorld DVB-S 2101, 2102, DVB-S2 2104, DVB-C 3101,
- *	TeVii S600, S630, S650, S660, S480, S421, S632
+ *	TeVii S421, S480, S482, S600, S630, S632, S650, S660, S662,
  *	Prof 1100, 7500,
- *	Geniatech SU3000, T220 Cards
+ *	Geniatech SU3000, T220,
+ *	TechnoTrend S2-4600,
+ *	Terratec Cinergy S2 cards
  * Copyright (C) 2008-2012 Igor M. Liplianin (liplianin@me.by)
  *
  *	This program is free software; you can redistribute it and/or modify it
@@ -31,6 +33,7 @@
 #include "m88rs2000.h"
 #include "tda18271.h"
 #include "cxd2820r.h"
+#include "m88ds3103.h"
 
 /* Max transfer size done by I2C transfer functions */
 #define MAX_XFER_SIZE  64
@@ -61,6 +64,10 @@
 
 #ifndef USB_PID_TEVII_S660
 #define USB_PID_TEVII_S660 0xd660
+#endif
+
+#ifndef USB_PID_TEVII_S662
+#define USB_PID_TEVII_S662 0xd662
 #endif
 
 #ifndef USB_PID_TEVII_S480_1
@@ -112,12 +119,16 @@
 		"Please see linux/Documentation/dvb/ for more details " \
 		"on firmware-problems."
 
-struct su3000_state {
+struct dw2102_state {
 	u8 initialized;
-};
+	u8 last_lock;
+	struct i2c_client *i2c_client_demod;
+	struct i2c_client *i2c_client_tuner;
 
-struct s6x0_state {
-	int (*old_set_voltage)(struct dvb_frontend *f, fe_sec_voltage_t v);
+	/* fe hook functions*/
+	int (*old_set_voltage)(struct dvb_frontend *f, enum fe_sec_voltage v);
+	int (*fe_read_status)(struct dvb_frontend *fe,
+			      enum fe_status *status);
 };
 
 /* debug */
@@ -436,7 +447,7 @@ static int dw2104_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[], i
 						ibuf, msg[j].len + 2,
 						DW210X_READ_MSG);
 				memcpy(msg[j].buf, ibuf + 2, msg[j].len);
-			mdelay(10);
+				mdelay(10);
 			} else if (((msg[j].buf[0] == 0xb0) &&
 						(msg[j].addr == 0x68)) ||
 						((msg[j].buf[0] == 0xf7) &&
@@ -667,7 +678,7 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				obuf[1] = (msg[j].addr << 1);
 				memcpy(obuf + 2, msg[j].buf, msg[j].len);
 				dw210x_op_rw(d->udev,
-						udev->descriptor.idProduct ==
+						le16_to_cpu(udev->descriptor.idProduct) ==
 						0x7500 ? 0x92 : 0x90, 0, 0,
 						obuf, msg[j].len + 2,
 						DW210X_WRITE_MSG);
@@ -887,7 +898,7 @@ static int su3000_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 static int su3000_power_ctrl(struct dvb_usb_device *d, int i)
 {
-	struct su3000_state *state = (struct su3000_state *)d->priv;
+	struct dw2102_state *state = (struct dw2102_state *)d->priv;
 	u8 obuf[] = {0xde, 0};
 
 	info("%s: %d, initialized %d\n", __func__, i, state->initialized);
@@ -927,8 +938,6 @@ static int su3000_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 			break;
 		else
 			mac[i] = ibuf[0];
-
-		debug_dump(mac, 6, printk);
 	}
 
 	return 0;
@@ -945,7 +954,8 @@ static int su3000_identify_state(struct usb_device *udev,
 	return 0;
 }
 
-static int dw210x_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int dw210x_set_voltage(struct dvb_frontend *fe,
+			      enum fe_sec_voltage voltage)
 {
 	static u8 command_13v[] = {0x00, 0x01};
 	static u8 command_18v[] = {0x01, 0x01};
@@ -969,11 +979,12 @@ static int dw210x_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 	return 0;
 }
 
-static int s660_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int s660_set_voltage(struct dvb_frontend *fe,
+			    enum fe_sec_voltage voltage)
 {
 	struct dvb_usb_adapter *d =
 		(struct dvb_usb_adapter *)(fe->dvb->priv);
-	struct s6x0_state *st = (struct s6x0_state *)d->dev->priv;
+	struct dw2102_state *st = (struct dw2102_state *)d->dev->priv;
 
 	dw210x_set_voltage(fe, voltage);
 	if (st->old_set_voltage)
@@ -998,6 +1009,24 @@ static void dw210x_led_ctrl(struct dvb_frontend *fe, int offon)
 	if (offon)
 		msg.buf = led_on;
 	i2c_transfer(&udev_adap->dev->i2c_adap, &msg, 1);
+}
+
+static int tt_s2_4600_read_status(struct dvb_frontend *fe,
+				  enum fe_status *status)
+{
+	struct dvb_usb_adapter *d =
+		(struct dvb_usb_adapter *)(fe->dvb->priv);
+	struct dw2102_state *st = (struct dw2102_state *)d->dev->priv;
+	int ret;
+
+	ret = st->fe_read_status(fe, status);
+
+	/* resync slave fifo when signal change from unlock to lock */
+	if ((*status & FE_HAS_LOCK) && (!st->last_lock))
+		su3000_streaming_ctrl(d, 1);
+
+	st->last_lock = (*status & FE_HAS_LOCK) ? 1 : 0;
+	return ret;
 }
 
 static struct stv0299_config sharp_z0194a_config = {
@@ -1295,7 +1324,7 @@ static int stv0288_frontend_attach(struct dvb_usb_adapter *d)
 
 static int ds3000_frontend_attach(struct dvb_usb_adapter *d)
 {
-	struct s6x0_state *st = (struct s6x0_state *)d->dev->priv;
+	struct dw2102_state *st = d->dev->priv;
 	u8 obuf[] = {7, 1};
 
 	d->fe_adap[0].fe = dvb_attach(ds3000_attach, &s660_ds3000_config,
@@ -1461,6 +1490,113 @@ static int m88rs2000_frontend_attach(struct dvb_usb_adapter *d)
 	return -EIO;
 }
 
+static int tt_s2_4600_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	struct dvb_usb_device *d = adap->dev;
+	struct dw2102_state *state = d->priv;
+	u8 obuf[3] = { 0xe, 0x80, 0 };
+	u8 ibuf[] = { 0 };
+	struct i2c_adapter *i2c_adapter;
+	struct i2c_client *client;
+	struct i2c_board_info board_info;
+	struct m88ds3103_platform_data m88ds3103_pdata = {};
+	struct ts2020_config ts2020_config = {};
+
+	if (dvb_usb_generic_rw(d, obuf, 3, ibuf, 1, 0) < 0)
+		err("command 0x0e transfer failed.");
+
+	obuf[0] = 0xe;
+	obuf[1] = 0x02;
+	obuf[2] = 1;
+
+	if (dvb_usb_generic_rw(d, obuf, 3, ibuf, 1, 0) < 0)
+		err("command 0x0e transfer failed.");
+	msleep(300);
+
+	obuf[0] = 0xe;
+	obuf[1] = 0x83;
+	obuf[2] = 0;
+
+	if (dvb_usb_generic_rw(d, obuf, 3, ibuf, 1, 0) < 0)
+		err("command 0x0e transfer failed.");
+
+	obuf[0] = 0xe;
+	obuf[1] = 0x83;
+	obuf[2] = 1;
+
+	if (dvb_usb_generic_rw(d, obuf, 3, ibuf, 1, 0) < 0)
+		err("command 0x0e transfer failed.");
+
+	obuf[0] = 0x51;
+
+	if (dvb_usb_generic_rw(d, obuf, 1, ibuf, 1, 0) < 0)
+		err("command 0x51 transfer failed.");
+
+	/* attach demod */
+	m88ds3103_pdata.clk = 27000000;
+	m88ds3103_pdata.i2c_wr_max = 33;
+	m88ds3103_pdata.ts_mode = M88DS3103_TS_CI;
+	m88ds3103_pdata.ts_clk = 16000;
+	m88ds3103_pdata.ts_clk_pol = 0;
+	m88ds3103_pdata.spec_inv = 0;
+	m88ds3103_pdata.agc = 0x99;
+	m88ds3103_pdata.agc_inv = 0;
+	m88ds3103_pdata.clk_out = M88DS3103_CLOCK_OUT_ENABLED;
+	m88ds3103_pdata.envelope_mode = 0;
+	m88ds3103_pdata.lnb_hv_pol = 1;
+	m88ds3103_pdata.lnb_en_pol = 0;
+	memset(&board_info, 0, sizeof(board_info));
+	strlcpy(board_info.type, "m88ds3103", I2C_NAME_SIZE);
+	board_info.addr = 0x68;
+	board_info.platform_data = &m88ds3103_pdata;
+	request_module("m88ds3103");
+	client = i2c_new_device(&d->i2c_adap, &board_info);
+	if (client == NULL || client->dev.driver == NULL)
+		return -ENODEV;
+	if (!try_module_get(client->dev.driver->owner)) {
+		i2c_unregister_device(client);
+		return -ENODEV;
+	}
+	adap->fe_adap[0].fe = m88ds3103_pdata.get_dvb_frontend(client);
+	i2c_adapter = m88ds3103_pdata.get_i2c_adapter(client);
+
+	state->i2c_client_demod = client;
+
+	/* attach tuner */
+	ts2020_config.fe = adap->fe_adap[0].fe;
+	memset(&board_info, 0, sizeof(board_info));
+	strlcpy(board_info.type, "ts2022", I2C_NAME_SIZE);
+	board_info.addr = 0x60;
+	board_info.platform_data = &ts2020_config;
+	request_module("ts2020");
+	client = i2c_new_device(i2c_adapter, &board_info);
+
+	if (client == NULL || client->dev.driver == NULL) {
+		dvb_frontend_detach(adap->fe_adap[0].fe);
+		return -ENODEV;
+	}
+
+	if (!try_module_get(client->dev.driver->owner)) {
+		i2c_unregister_device(client);
+		dvb_frontend_detach(adap->fe_adap[0].fe);
+		return -ENODEV;
+	}
+
+	/* delegate signal strength measurement to tuner */
+	adap->fe_adap[0].fe->ops.read_signal_strength =
+			adap->fe_adap[0].fe->ops.tuner_ops.get_rf_strength;
+
+	state->i2c_client_tuner = client;
+
+	/* hook fe: need to resync the slave fifo when signal locks */
+	state->fe_read_status = adap->fe_adap[0].fe->ops.read_status;
+	adap->fe_adap[0].fe->ops.read_status = tt_s2_4600_read_status;
+
+	state->last_lock = 0;
+
+	return 0;
+}
+
 static int dw2102_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	dvb_attach(dvb_pll_attach, adap->fe_adap[0].fe, 0x60,
@@ -1561,6 +1697,11 @@ enum dw2102_table_entry {
 	TERRATEC_CINERGY_S2_R2,
 	GOTVIEW_SAT_HD,
 	GENIATECH_T220,
+	TECHNOTREND_S2_4600,
+	TEVII_S482_1,
+	TEVII_S482_2,
+	TERRATEC_CINERGY_S2_BOX,
+	TEVII_S662
 };
 
 static struct usb_device_id dw2102_table[] = {
@@ -1575,15 +1716,21 @@ static struct usb_device_id dw2102_table[] = {
 	[TEVII_S660] = {USB_DEVICE(0x9022, USB_PID_TEVII_S660)},
 	[PROF_7500] = {USB_DEVICE(0x3034, 0x7500)},
 	[GENIATECH_SU3000] = {USB_DEVICE(0x1f4d, 0x3000)},
-	[TERRATEC_CINERGY_S2] = {USB_DEVICE(USB_VID_TERRATEC, 0x00a8)},
+	[TERRATEC_CINERGY_S2] = {USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_S2_R1)},
 	[TEVII_S480_1] = {USB_DEVICE(0x9022, USB_PID_TEVII_S480_1)},
 	[TEVII_S480_2] = {USB_DEVICE(0x9022, USB_PID_TEVII_S480_2)},
 	[X3M_SPC1400HD] = {USB_DEVICE(0x1f4d, 0x3100)},
 	[TEVII_S421] = {USB_DEVICE(0x9022, USB_PID_TEVII_S421)},
 	[TEVII_S632] = {USB_DEVICE(0x9022, USB_PID_TEVII_S632)},
-	[TERRATEC_CINERGY_S2_R2] = {USB_DEVICE(USB_VID_TERRATEC, 0x00b0)},
+	[TERRATEC_CINERGY_S2_R2] = {USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_S2_R2)},
 	[GOTVIEW_SAT_HD] = {USB_DEVICE(0x1FE1, USB_PID_GOTVIEW_SAT_HD)},
 	[GENIATECH_T220] = {USB_DEVICE(0x1f4d, 0xD220)},
+	[TECHNOTREND_S2_4600] = {USB_DEVICE(USB_VID_TECHNOTREND,
+		USB_PID_TECHNOTREND_CONNECT_S2_4600)},
+	[TEVII_S482_1] = {USB_DEVICE(0x9022, 0xd483)},
+	[TEVII_S482_2] = {USB_DEVICE(0x9022, 0xd484)},
+	[TERRATEC_CINERGY_S2_BOX] = {USB_DEVICE(USB_VID_TERRATEC, 0x0105)},
+	[TEVII_S662] = {USB_DEVICE(0x9022, USB_PID_TEVII_S662)},
 	{ }
 };
 
@@ -1598,7 +1745,7 @@ static int dw2102_load_firmware(struct usb_device *dev,
 	u8 reset16[] = {0, 0, 0, 0, 0, 0, 0};
 	const struct firmware *fw;
 
-	switch (dev->descriptor.idProduct) {
+	switch (le16_to_cpu(dev->descriptor.idProduct)) {
 	case 0x2101:
 		ret = request_firmware(&fw, DW2101_FIRMWARE, &dev->dev);
 		if (ret != 0) {
@@ -1641,7 +1788,7 @@ static int dw2102_load_firmware(struct usb_device *dev,
 			ret = -EINVAL;
 		}
 		/* init registers */
-		switch (dev->descriptor.idProduct) {
+		switch (le16_to_cpu(dev->descriptor.idProduct)) {
 		case USB_PID_TEVII_S650:
 			dw2104_properties.rc.core.rc_codes = RC_MAP_TEVII_NEC;
 		case USB_PID_DW2104:
@@ -1857,7 +2004,7 @@ static struct dvb_usb_device_properties dw3101_properties = {
 static struct dvb_usb_device_properties s6x0_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
-	.size_of_priv = sizeof(struct s6x0_state),
+	.size_of_priv = sizeof(struct dw2102_state),
 	.firmware = S630_FIRMWARE,
 	.no_reconnect = 1,
 
@@ -1901,14 +2048,14 @@ static struct dvb_usb_device_properties s6x0_properties = {
 	}
 };
 
-struct dvb_usb_device_properties *p1100;
+static struct dvb_usb_device_properties *p1100;
 static struct dvb_usb_device_description d1100 = {
 	"Prof 1100 USB ",
 	{&dw2102_table[PROF_1100], NULL},
 	{NULL},
 };
 
-struct dvb_usb_device_properties *s660;
+static struct dvb_usb_device_properties *s660;
 static struct dvb_usb_device_description d660 = {
 	"TeVii S660 USB",
 	{&dw2102_table[TEVII_S660], NULL},
@@ -1927,14 +2074,14 @@ static struct dvb_usb_device_description d480_2 = {
 	{NULL},
 };
 
-struct dvb_usb_device_properties *p7500;
+static struct dvb_usb_device_properties *p7500;
 static struct dvb_usb_device_description d7500 = {
 	"Prof 7500 USB DVB-S2",
 	{&dw2102_table[PROF_7500], NULL},
 	{NULL},
 };
 
-struct dvb_usb_device_properties *s421;
+static struct dvb_usb_device_properties *s421;
 static struct dvb_usb_device_description d421 = {
 	"TeVii S421 PCI",
 	{&dw2102_table[TEVII_S421], NULL},
@@ -1950,7 +2097,7 @@ static struct dvb_usb_device_description d632 = {
 static struct dvb_usb_device_properties su3000_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
-	.size_of_priv = sizeof(struct su3000_state),
+	.size_of_priv = sizeof(struct dw2102_state),
 	.power_ctrl = su3000_power_ctrl,
 	.num_adapters = 1,
 	.identify_state	= su3000_identify_state,
@@ -2015,7 +2162,7 @@ static struct dvb_usb_device_properties su3000_properties = {
 static struct dvb_usb_device_properties t220_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
-	.size_of_priv = sizeof(struct su3000_state),
+	.size_of_priv = sizeof(struct dw2102_state),
 	.power_ctrl = su3000_power_ctrl,
 	.num_adapters = 1,
 	.identify_state	= su3000_identify_state,
@@ -2056,6 +2203,71 @@ static struct dvb_usb_device_properties t220_properties = {
 	.devices = {
 		{ "Geniatech T220 DVB-T/T2 USB2.0",
 			{ &dw2102_table[GENIATECH_T220], NULL },
+			{ NULL },
+		},
+	}
+};
+
+static struct dvb_usb_device_properties tt_s2_4600_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+	.usb_ctrl = DEVICE_SPECIFIC,
+	.size_of_priv = sizeof(struct dw2102_state),
+	.power_ctrl = su3000_power_ctrl,
+	.num_adapters = 1,
+	.identify_state	= su3000_identify_state,
+	.i2c_algo = &su3000_i2c_algo,
+
+	.rc.core = {
+		.rc_interval = 250,
+		.rc_codes = RC_MAP_TT_1500,
+		.module_name = "dw2102",
+		.allowed_protos   = RC_BIT_RC5,
+		.rc_query = su3000_rc_query,
+	},
+
+	.read_mac_address = su3000_read_mac_address,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
+
+	.adapter = {
+		{
+		.num_frontends = 1,
+		.fe = {{
+			.streaming_ctrl   = su3000_streaming_ctrl,
+			.frontend_attach  = tt_s2_4600_frontend_attach,
+			.stream = {
+				.type = USB_BULK,
+				.count = 8,
+				.endpoint = 0x82,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			}
+		} },
+		}
+	},
+	.num_device_descs = 5,
+	.devices = {
+		{ "TechnoTrend TT-connect S2-4600",
+			{ &dw2102_table[TECHNOTREND_S2_4600], NULL },
+			{ NULL },
+		},
+		{ "TeVii S482 (tuner 1)",
+			{ &dw2102_table[TEVII_S482_1], NULL },
+			{ NULL },
+		},
+		{ "TeVii S482 (tuner 2)",
+			{ &dw2102_table[TEVII_S482_2], NULL },
+			{ NULL },
+		},
+		{ "Terratec Cinergy S2 USB BOX",
+			{ &dw2102_table[TERRATEC_CINERGY_S2_BOX], NULL },
+			{ NULL },
+		},
+		{ "TeVii S662",
+			{ &dw2102_table[TEVII_S662], NULL },
 			{ NULL },
 		},
 	}
@@ -2135,16 +2347,41 @@ static int dw2102_probe(struct usb_interface *intf,
 	    0 == dvb_usb_device_init(intf, &su3000_properties,
 			 THIS_MODULE, NULL, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &t220_properties,
+			 THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &tt_s2_4600_properties,
 			 THIS_MODULE, NULL, adapter_nr))
 		return 0;
 
 	return -ENODEV;
 }
 
+static void dw2102_disconnect(struct usb_interface *intf)
+{
+	struct dvb_usb_device *d = usb_get_intfdata(intf);
+	struct dw2102_state *st = (struct dw2102_state *)d->priv;
+	struct i2c_client *client;
+
+	/* remove I2C client for tuner */
+	client = st->i2c_client_tuner;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
+	/* remove I2C client for demodulator */
+	client = st->i2c_client_demod;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
+	dvb_usb_device_exit(intf);
+}
+
 static struct usb_driver dw2102_driver = {
 	.name = "dw2102",
 	.probe = dw2102_probe,
-	.disconnect = dvb_usb_device_exit,
+	.disconnect = dw2102_disconnect,
 	.id_table = dw2102_table,
 };
 
@@ -2153,9 +2390,10 @@ module_usb_driver(dw2102_driver);
 MODULE_AUTHOR("Igor M. Liplianin (c) liplianin@me.by");
 MODULE_DESCRIPTION("Driver for DVBWorld DVB-S 2101, 2102, DVB-S2 2104,"
 			" DVB-C 3101 USB2.0,"
-			" TeVii S600, S630, S650, S660, S480, S421, S632"
-			" Prof 1100, 7500 USB2.0,"
-			" Geniatech SU3000, T220 devices");
+			" TeVii S421, S480, S482, S600, S630, S632, S650,"
+			" TeVii S660, S662, Prof 1100, 7500 USB2.0,"
+			" Geniatech SU3000, T220,"
+			" TechnoTrend S2-4600, Terratec Cinergy S2 devices");
 MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(DW2101_FIRMWARE);

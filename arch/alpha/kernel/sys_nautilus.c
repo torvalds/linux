@@ -39,7 +39,6 @@
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/io.h>
-#include <asm/pci.h>
 #include <asm/pgtable.h>
 #include <asm/core_irongate.h>
 #include <asm/hwrpb.h>
@@ -207,6 +206,9 @@ nautilus_init_pci(void)
 
 	/* Scan our single hose.  */
 	bus = pci_scan_bus(0, alpha_mv.pci_ops, hose);
+	if (!bus)
+		return;
+
 	hose->bus = bus;
 	pcibios_claim_one_bus(bus);
 
@@ -253,6 +255,7 @@ nautilus_init_pci(void)
 	   for the root bus, so just clear it. */
 	bus->self = NULL;
 	pci_fixup_irqs(alpha_mv.pci_swizzle, alpha_mv.pci_map_irq);
+	pci_bus_add_devices(bus);
 }
 
 /*

@@ -155,19 +155,28 @@ int read_guest_lc(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
 	return kvm_read_guest(vcpu->kvm, gpa, data, len);
 }
 
-int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
-			    unsigned long *gpa, int write);
+enum gacc_mode {
+	GACC_FETCH,
+	GACC_STORE,
+	GACC_IFETCH,
+};
 
-int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
-		 unsigned long len, int write);
+int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
+			    ar_t ar, unsigned long *gpa, enum gacc_mode mode);
+int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, ar_t ar,
+		    unsigned long length, enum gacc_mode mode);
+
+int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
+		 unsigned long len, enum gacc_mode mode);
 
 int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
-		      void *data, unsigned long len, int write);
+		      void *data, unsigned long len, enum gacc_mode mode);
 
 /**
  * write_guest - copy data from kernel space to guest space
  * @vcpu: virtual cpu
  * @ga: guest address
+ * @ar: access register
  * @data: source address in kernel space
  * @len: number of bytes to copy
  *
@@ -176,8 +185,7 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  * If DAT is off data will be copied to guest real or absolute memory.
  * If DAT is on data will be copied to the address space as specified by
  * the address space bits of the PSW:
- * Primary, secondory or home space (access register mode is currently not
- * implemented).
+ * Primary, secondary, home space or access register mode.
  * The addressing mode of the PSW is also inspected, so that address wrap
  * around is taken into account for 24-, 31- and 64-bit addressing mode,
  * if the to be copied data crosses page boundaries in guest address space.
@@ -210,16 +218,17 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  *	 if data has been changed in guest space in case of an exception.
  */
 static inline __must_check
-int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
+int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
 		unsigned long len)
 {
-	return access_guest(vcpu, ga, data, len, 1);
+	return access_guest(vcpu, ga, ar, data, len, GACC_STORE);
 }
 
 /**
  * read_guest - copy data from guest space to kernel space
  * @vcpu: virtual cpu
  * @ga: guest address
+ * @ar: access register
  * @data: destination address in kernel space
  * @len: number of bytes to copy
  *
@@ -229,10 +238,30 @@ int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
  * data will be copied from guest space to kernel space.
  */
 static inline __must_check
-int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
+int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
 	       unsigned long len)
 {
-	return access_guest(vcpu, ga, data, len, 0);
+	return access_guest(vcpu, ga, ar, data, len, GACC_FETCH);
+}
+
+/**
+ * read_guest_instr - copy instruction data from guest space to kernel space
+ * @vcpu: virtual cpu
+ * @data: destination address in kernel space
+ * @len: number of bytes to copy
+ *
+ * Copy @len bytes from the current psw address (guest space) to @data (kernel
+ * space).
+ *
+ * The behaviour of read_guest_instr is identical to read_guest, except that
+ * instruction data will be read from primary space when in home-space or
+ * address-space mode.
+ */
+static inline __must_check
+int read_guest_instr(struct kvm_vcpu *vcpu, void *data, unsigned long len)
+{
+	return access_guest(vcpu, vcpu->arch.sie_block->gpsw.addr, 0, data, len,
+			    GACC_IFETCH);
 }
 
 /**
@@ -330,6 +359,6 @@ int read_guest_real(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
 void ipte_lock(struct kvm_vcpu *vcpu);
 void ipte_unlock(struct kvm_vcpu *vcpu);
 int ipte_lock_held(struct kvm_vcpu *vcpu);
-int kvm_s390_check_low_addr_protection(struct kvm_vcpu *vcpu, unsigned long ga);
+int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra);
 
 #endif /* __KVM_S390_GACCESS_H */

@@ -42,7 +42,7 @@
 static phys_addr_t pci_membase;
 static u_char *restart;
 
-static void mvme5100_8259_cascade(unsigned int irq, struct irq_desc *desc)
+static void mvme5100_8259_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = i8259_irq();
@@ -149,7 +149,7 @@ static int __init mvme5100_add_bridge(struct device_node *dev)
 	return 0;
 }
 
-static struct of_device_id mvme5100_of_bus_ids[] __initdata = {
+static const struct of_device_id mvme5100_of_bus_ids[] __initconst = {
 	{ .compatible = "hawk-bridge", },
 	{},
 };

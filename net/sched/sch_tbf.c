@@ -160,6 +160,7 @@ static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch)
 	struct tbf_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *segs, *nskb;
 	netdev_features_t features = netif_skb_features(skb);
+	unsigned int len = 0, prev_len = qdisc_pkt_len(skb);
 	int ret, nb;
 
 	segs = skb_gso_segment(skb, features & ~NETIF_F_GSO_MASK);
@@ -172,10 +173,11 @@ static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch)
 		nskb = segs->next;
 		segs->next = NULL;
 		qdisc_skb_cb(segs)->pkt_len = segs->len;
+		len += segs->len;
 		ret = qdisc_enqueue(segs, q->qdisc);
 		if (ret != NET_XMIT_SUCCESS) {
 			if (net_xmit_drop_count(ret))
-				sch->qstats.drops++;
+				qdisc_qstats_drop(sch);
 		} else {
 			nb++;
 		}
@@ -183,7 +185,7 @@ static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch)
 	}
 	sch->q.qlen += nb;
 	if (nb > 1)
-		qdisc_tree_decrease_qlen(sch, 1 - nb);
+		qdisc_tree_reduce_backlog(sch, 1 - nb, prev_len - len);
 	consume_skb(skb);
 	return nb > 0 ? NET_XMIT_SUCCESS : NET_XMIT_DROP;
 }
@@ -201,7 +203,7 @@ static int tbf_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	ret = qdisc_enqueue(skb, q->qdisc);
 	if (ret != NET_XMIT_SUCCESS) {
 		if (net_xmit_drop_count(ret))
-			sch->qstats.drops++;
+			qdisc_qstats_drop(sch);
 		return ret;
 	}
 
@@ -216,7 +218,7 @@ static unsigned int tbf_drop(struct Qdisc *sch)
 
 	if (q->qdisc->ops->drop && (len = q->qdisc->ops->drop(q->qdisc)) != 0) {
 		sch->q.qlen--;
-		sch->qstats.drops++;
+		qdisc_qstats_drop(sch);
 	}
 	return len;
 }
@@ -239,7 +241,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc *sch)
 		s64 ptoks = 0;
 		unsigned int len = qdisc_pkt_len(skb);
 
-		now = ktime_to_ns(ktime_get());
+		now = ktime_get_ns();
 		toks = min_t(s64, now - q->t_c, q->buffer);
 
 		if (tbf_peak_present(q)) {
@@ -268,7 +270,8 @@ static struct sk_buff *tbf_dequeue(struct Qdisc *sch)
 		}
 
 		qdisc_watchdog_schedule_ns(&q->watchdog,
-					   now + max_t(long, -toks, -ptoks));
+					   now + max_t(long, -toks, -ptoks),
+					   true);
 
 		/* Maybe we have a shorter packet in the queue,
 		   which can be sent now. It sounds cool,
@@ -281,7 +284,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc *sch)
 		   (cf. CSZ, HPFQ, HFSC)
 		 */
 
-		sch->qstats.overlimits++;
+		qdisc_qstats_overlimit(sch);
 	}
 	return NULL;
 }
@@ -292,7 +295,7 @@ static void tbf_reset(struct Qdisc *sch)
 
 	qdisc_reset(q->qdisc);
 	sch->q.qlen = 0;
-	q->t_c = ktime_to_ns(ktime_get());
+	q->t_c = ktime_get_ns();
 	q->tokens = q->buffer;
 	q->ptokens = q->mtu;
 	qdisc_watchdog_cancel(&q->watchdog);
@@ -398,7 +401,8 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 
 	sch_tree_lock(sch);
 	if (child) {
-		qdisc_tree_decrease_qlen(q->qdisc, q->qdisc->q.qlen);
+		qdisc_tree_reduce_backlog(q->qdisc, q->qdisc->q.qlen,
+					  q->qdisc->qstats.backlog);
 		qdisc_destroy(q->qdisc);
 		q->qdisc = child;
 	}
@@ -431,7 +435,7 @@ static int tbf_init(struct Qdisc *sch, struct nlattr *opt)
 	if (opt == NULL)
 		return -EINVAL;
 
-	q->t_c = ktime_to_ns(ktime_get());
+	q->t_c = ktime_get_ns();
 	qdisc_watchdog_init(&q->watchdog, sch);
 	q->qdisc = &noop_qdisc;
 
@@ -501,13 +505,7 @@ static int tbf_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	if (new == NULL)
 		new = &noop_qdisc;
 
-	sch_tree_lock(sch);
-	*old = q->qdisc;
-	q->qdisc = new;
-	qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
-	qdisc_reset(*old);
-	sch_tree_unlock(sch);
-
+	*old = qdisc_replace(sch, new, &q->qdisc);
 	return 0;
 }
 

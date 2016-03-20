@@ -70,20 +70,27 @@ static const struct hv_ops hvc_dcc_get_put_ops = {
 
 static int __init hvc_dcc_console_init(void)
 {
+	int ret;
+
 	if (!hvc_dcc_check())
 		return -ENODEV;
 
-	hvc_instantiate(0, 0, &hvc_dcc_get_put_ops);
-	return 0;
+	/* Returns -1 if error */
+	ret = hvc_instantiate(0, 0, &hvc_dcc_get_put_ops);
+
+	return ret < 0 ? -ENODEV : 0;
 }
 console_initcall(hvc_dcc_console_init);
 
 static int __init hvc_dcc_init(void)
 {
+	struct hvc_struct *p;
+
 	if (!hvc_dcc_check())
 		return -ENODEV;
 
-	hvc_alloc(0, 0, &hvc_dcc_get_put_ops, 128);
-	return 0;
+	p = hvc_alloc(0, 0, &hvc_dcc_get_put_ops, 128);
+
+	return PTR_ERR_OR_ZERO(p);
 }
 device_initcall(hvc_dcc_init);

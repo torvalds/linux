@@ -65,8 +65,7 @@ struct dm_io_client *dm_io_client_create(void)
 	return client;
 
    bad:
-	if (client->pool)
-		mempool_destroy(client->pool);
+	mempool_destroy(client->pool);
 	kfree(client);
 	return ERR_PTR(-ENOMEM);
 }
@@ -134,12 +133,13 @@ static void dec_count(struct io *io, unsigned int region, int error)
 		complete_io(io);
 }
 
-static void endio(struct bio *bio, int error)
+static void endio(struct bio *bio)
 {
 	struct io *io;
 	unsigned region;
+	int error;
 
-	if (error && bio_data_dir(bio) == READ)
+	if (bio->bi_error && bio_data_dir(bio) == READ)
 		zero_fill_bio(bio);
 
 	/*
@@ -147,6 +147,7 @@ static void endio(struct bio *bio, int error)
 	 */
 	retrieve_io_and_region_from_bio(bio, &io, &region);
 
+	error = bio->bi_error;
 	bio_put(bio);
 
 	dec_count(io, region, error);
@@ -245,7 +246,7 @@ static void vm_dp_init(struct dpages *dp, void *data)
 {
 	dp->get_page = vm_get_page;
 	dp->next_page = vm_next_page;
-	dp->context_u = ((unsigned long) data) & (PAGE_SIZE - 1);
+	dp->context_u = offset_in_page(data);
 	dp->context_ptr = data;
 }
 
@@ -270,7 +271,7 @@ static void km_dp_init(struct dpages *dp, void *data)
 {
 	dp->get_page = km_get_page;
 	dp->next_page = km_next_page;
-	dp->context_u = ((unsigned long) data) & (PAGE_SIZE - 1);
+	dp->context_u = offset_in_page(data);
 	dp->context_ptr = data;
 }
 
@@ -289,6 +290,19 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 	struct request_queue *q = bdev_get_queue(where->bdev);
 	unsigned short logical_block_size = queue_logical_block_size(q);
 	sector_t num_sectors;
+	unsigned int uninitialized_var(special_cmd_max_sectors);
+
+	/*
+	 * Reject unsupported discard and write same requests.
+	 */
+	if (rw & REQ_DISCARD)
+		special_cmd_max_sectors = q->limits.max_discard_sectors;
+	else if (rw & REQ_WRITE_SAME)
+		special_cmd_max_sectors = q->limits.max_write_same_sectors;
+	if ((rw & (REQ_DISCARD | REQ_WRITE_SAME)) && special_cmd_max_sectors == 0) {
+		dec_count(io, region, -EOPNOTSUPP);
+		return;
+	}
 
 	/*
 	 * where->count may be zero if rw holds a flush and we need to
@@ -301,7 +315,7 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 		if ((rw & REQ_DISCARD) || (rw & REQ_WRITE_SAME))
 			num_bvecs = 1;
 		else
-			num_bvecs = min_t(int, bio_get_nr_vecs(where->bdev),
+			num_bvecs = min_t(int, BIO_MAX_PAGES,
 					  dm_sector_div_up(remaining, (PAGE_SIZE >> SECTOR_SHIFT)));
 
 		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, io->client->bios);
@@ -311,7 +325,7 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 		store_io_and_region_in_bio(bio, io, region);
 
 		if (rw & REQ_DISCARD) {
-			num_sectors = min_t(sector_t, q->limits.max_discard_sectors, remaining);
+			num_sectors = min_t(sector_t, special_cmd_max_sectors, remaining);
 			bio->bi_iter.bi_size = num_sectors << SECTOR_SHIFT;
 			remaining -= num_sectors;
 		} else if (rw & REQ_WRITE_SAME) {
@@ -320,7 +334,7 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 			 */
 			dp->get_page(dp, &page, &len, &offset);
 			bio_add_page(bio, page, logical_block_size, offset);
-			num_sectors = min_t(sector_t, q->limits.max_write_same_sectors, remaining);
+			num_sectors = min_t(sector_t, special_cmd_max_sectors, remaining);
 			bio->bi_iter.bi_size = num_sectors << SECTOR_SHIFT;
 
 			offset = 0;

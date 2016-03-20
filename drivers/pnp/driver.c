@@ -58,23 +58,22 @@ static const struct pnp_device_id *match_device(struct pnp_driver *drv,
 
 int pnp_device_attach(struct pnp_dev *pnp_dev)
 {
-	spin_lock(&pnp_lock);
+	mutex_lock(&pnp_lock);
 	if (pnp_dev->status != PNP_READY) {
-		spin_unlock(&pnp_lock);
+		mutex_unlock(&pnp_lock);
 		return -EBUSY;
 	}
 	pnp_dev->status = PNP_ATTACHED;
-	spin_unlock(&pnp_lock);
+	mutex_unlock(&pnp_lock);
 	return 0;
 }
 
 void pnp_device_detach(struct pnp_dev *pnp_dev)
 {
-	spin_lock(&pnp_lock);
+	mutex_lock(&pnp_lock);
 	if (pnp_dev->status == PNP_ATTACHED)
 		pnp_dev->status = PNP_READY;
-	spin_unlock(&pnp_lock);
-	pnp_disable_dev(pnp_dev);
+	mutex_unlock(&pnp_lock);
 }
 
 static int pnp_device_probe(struct device *dev)
@@ -131,6 +130,11 @@ static int pnp_device_remove(struct device *dev)
 			drv->remove(pnp_dev);
 		pnp_dev->driver = NULL;
 	}
+
+	if (pnp_dev->active &&
+	    (!drv || !(drv->flags & PNP_DRIVER_RES_DO_NOT_CHANGE)))
+		pnp_disable_dev(pnp_dev);
+
 	pnp_device_detach(pnp_dev);
 	return 0;
 }
@@ -182,7 +186,7 @@ static int __pnp_bus_suspend(struct device *dev, pm_message_t state)
 			return error;
 	}
 
-	if (pnp_dev->protocol->suspend)
+	if (pnp_can_suspend(pnp_dev))
 		pnp_dev->protocol->suspend(pnp_dev, state);
 	return 0;
 }

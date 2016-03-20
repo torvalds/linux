@@ -3,7 +3,6 @@
 #
 config USB_WUSB
 	tristate "Enable Wireless USB extensions"
-	depends on PCI
 	depends on UWB
         select CRYPTO
         select CRYPTO_BLKCIPHER
@@ -18,6 +17,7 @@ config USB_WUSB
 
 config USB_WUSB_CBAF
 	tristate "Support WUSB Cable Based Association (CBA)"
+	depends on USB
 	help
 	  Some WUSB devices support Cable Based Association. It's used to
 	  enable the secure communication between the host and the

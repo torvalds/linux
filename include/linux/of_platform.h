@@ -72,6 +72,9 @@ extern int of_platform_populate(struct device_node *root,
 				const struct of_device_id *matches,
 				const struct of_dev_auxdata *lookup,
 				struct device *parent);
+extern int of_platform_default_populate(struct device_node *root,
+					const struct of_dev_auxdata *lookup,
+					struct device *parent);
 extern void of_platform_depopulate(struct device *parent);
 #else
 static inline int of_platform_populate(struct device_node *root,
@@ -81,7 +84,19 @@ static inline int of_platform_populate(struct device_node *root,
 {
 	return -ENODEV;
 }
+static inline int of_platform_default_populate(struct device_node *root,
+					       const struct of_dev_auxdata *lookup,
+					       struct device *parent)
+{
+	return -ENODEV;
+}
 static inline void of_platform_depopulate(struct device *parent) { }
+#endif
+
+#if defined(CONFIG_OF_DYNAMIC) && defined(CONFIG_OF_ADDRESS)
+extern void of_platform_register_reconfig_notifier(void);
+#else
+static inline void of_platform_register_reconfig_notifier(void) { }
 #endif
 
 #endif	/* _LINUX_OF_PLATFORM_H */

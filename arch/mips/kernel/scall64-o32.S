@@ -69,16 +69,17 @@ NESTED(handle_sys, PT_SIZE, sp)
 	daddu	t1, t0, 32
 	bltz	t1, bad_stack
 
-1:	lw	a4, 16(t0)		# argument #5 from usp
-2:	lw	a5, 20(t0)		# argument #6 from usp
-3:	lw	a6, 24(t0)		# argument #7 from usp
-4:	lw	a7, 28(t0)		# argument #8 from usp (for indirect syscalls)
+load_a4: lw	a4, 16(t0)		# argument #5 from usp
+load_a5: lw	a5, 20(t0)		# argument #6 from usp
+load_a6: lw	a6, 24(t0)		# argument #7 from usp
+load_a7: lw	a7, 28(t0)		# argument #8 from usp
+loads_done:
 
 	.section __ex_table,"a"
-	PTR	1b, bad_stack
-	PTR	2b, bad_stack
-	PTR	3b, bad_stack
-	PTR	4b, bad_stack
+	PTR	load_a4, bad_stack_a4
+	PTR	load_a5, bad_stack_a5
+	PTR	load_a6, bad_stack_a6
+	PTR	load_a7, bad_stack_a7
 	.previous
 
 	li	t1, _TIF_WORK_SYSCALL_ENTRY
@@ -86,6 +87,7 @@ NESTED(handle_sys, PT_SIZE, sp)
 	and	t0, t1, t0
 	bnez	t0, trace_a_syscall
 
+syscall_common:
 	jalr	t2			# Do The Real Thing (TM)
 
 	li	t0, -EMAXERRNO - 1	# error?
@@ -113,21 +115,25 @@ trace_a_syscall:
 	move	s0, t2			# Save syscall pointer
 	move	a0, sp
 	/*
-	 * syscall number is in v0 unless we called syscall(__NR_###)
+	 * absolute syscall number is in v0 unless we called syscall(__NR_###)
 	 * where the real syscall number is in a0
 	 * note: NR_syscall is the first O32 syscall but the macro is
 	 * only defined when compiling with -mabi=32 (CONFIG_32BIT)
 	 * therefore __NR_O32_Linux is used (4000)
 	 */
-	addiu	a1, v0,  __NR_O32_Linux
-	bnez	v0, 1f /* __NR_syscall at offset 0 */
-	lw	a1, PT_R4(sp)
+	.set	push
+	.set	reorder
+	subu	t1, v0,  __NR_O32_Linux
+	move	a1, v0
+	bnez	t1, 1f /* __NR_syscall at offset 0 */
+	lw	a1, PT_R4(sp) /* Arg1 for __NR_syscall case */
+	.set	pop
 
 1:	jal	syscall_trace_enter
 
-	bltz	v0, 2f			# seccomp failed? Skip syscall
+	bltz	v0, 1f			# seccomp failed? Skip syscall
 
-	move	t0, s0
+	move	t2, s0
 	RESTORE_STATIC
 	ld	a0, PT_R4(sp)		# Restore argument registers
 	ld	a1, PT_R5(sp)
@@ -137,19 +143,9 @@ trace_a_syscall:
 	ld	a5, PT_R9(sp)
 	ld	a6, PT_R10(sp)
 	ld	a7, PT_R11(sp)		# For indirect syscalls
-	jalr	t0
+	j	syscall_common
 
-	li	t0, -EMAXERRNO - 1	# error?
-	sltu	t0, t0, v0
-	sd	t0, PT_R7(sp)		# set error flag
-	beqz	t0, 1f
-
-	ld	t1, PT_R2(sp)		# syscall number
-	dnegu	v0			# error
-	sd	t1, PT_R0(sp)		# save it for syscall restarting
-1:	sd	v0, PT_R2(sp)		# result
-
-2:	j	syscall_exit
+1:	j	syscall_exit
 
 /* ------------------------------------------------------------------------ */
 
@@ -162,6 +158,22 @@ bad_stack:
 	li	t0, 1			# set error flag
 	sd	t0, PT_R7(sp)
 	j	o32_syscall_exit
+
+bad_stack_a4:
+	li	a4, 0
+	b	load_a5
+
+bad_stack_a5:
+	li	a5, 0
+	b	load_a6
+
+bad_stack_a6:
+	li	a6, 0
+	b	load_a7
+
+bad_stack_a7:
+	li	a7, 0
+	b	loads_done
 
 not_o32_scall:
 	/*
@@ -182,6 +194,7 @@ LEAF(sys32_syscall)
 	dsll	t1, t0, 3
 	beqz	v0, einval
 	ld	t2, sys32_call_table(t1)		# syscall routine
+	sd	a0, PT_R2(sp)		# call routine directly on restart
 
 	move	a0, a1			# shift argument registers
 	move	a1, a2
@@ -378,7 +391,7 @@ EXPORT(sys32_call_table)
 	PTR	sys_connect			/* 4170 */
 	PTR	sys_getpeername
 	PTR	sys_getsockname
-	PTR	sys_getsockopt
+	PTR	compat_sys_getsockopt
 	PTR	sys_listen
 	PTR	compat_sys_recv			/* 4175 */
 	PTR	compat_sys_recvfrom
@@ -558,4 +571,12 @@ EXPORT(sys32_call_table)
 	PTR	sys_sched_getattr		/* 4350 */
 	PTR	sys_renameat2
 	PTR	sys_seccomp
+	PTR	sys_getrandom
+	PTR	sys_memfd_create
+	PTR	sys_bpf				/* 4355 */
+	PTR	compat_sys_execveat
+	PTR	sys_userfaultfd
+	PTR	sys_membarrier
+	PTR	sys_mlock2
+	PTR	sys_copy_file_range		/* 4360 */
 	.size	sys32_call_table,.-sys32_call_table

@@ -30,9 +30,11 @@
 #include <linux/highmem.h>
 #include <linux/perf_event.h>
 
+#include <asm/cpufeature.h>
 #include <asm/exception.h>
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
+#include <asm/sysreg.h>
 #include <asm/system_misc.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -115,8 +117,7 @@ static void __do_user_fault(struct task_struct *tsk, unsigned long addr,
 {
 	struct siginfo si;
 
-	if (show_unhandled_signals && unhandled_signal(tsk, sig) &&
-	    printk_ratelimit()) {
+	if (unhandled_signal(tsk, sig) && show_unhandled_signals_ratelimited()) {
 		pr_info("%s[%d]: unhandled %s (%d) at 0x%08lx, esr 0x%03x\n",
 			tsk->comm, task_pid_nr(tsk), fault_name(esr), sig,
 			addr, esr);
@@ -191,6 +192,14 @@ out:
 	return fault;
 }
 
+static inline int permission_fault(unsigned int esr)
+{
+	unsigned int ec       = (esr & ESR_ELx_EC_MASK) >> ESR_ELx_EC_SHIFT;
+	unsigned int fsc_type = esr & ESR_ELx_FSC_TYPE;
+
+	return (ec == ESR_ELx_EC_DABT_CUR && fsc_type == ESR_ELx_FSC_PERM);
+}
+
 static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 				   struct pt_regs *regs)
 {
@@ -211,7 +220,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	 * If we're in an interrupt or have no user context, we must not take
 	 * the fault.
 	 */
-	if (in_atomic() || !mm)
+	if (faulthandler_disabled() || !mm)
 		goto no_context;
 
 	if (user_mode(regs))
@@ -219,9 +228,17 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 
 	if (esr & ESR_LNX_EXEC) {
 		vm_flags = VM_EXEC;
-	} else if ((esr & ESR_EL1_WRITE) && !(esr & ESR_EL1_CM)) {
+	} else if ((esr & ESR_ELx_WNR) && !(esr & ESR_ELx_CM)) {
 		vm_flags = VM_WRITE;
 		mm_flags |= FAULT_FLAG_WRITE;
+	}
+
+	if (permission_fault(esr) && (addr < USER_DS)) {
+		if (get_fs() == KERNEL_DS)
+			die("Accessing user space memory with fs=KERNEL_DS", regs, esr);
+
+		if (!search_exception_tables(regs->pc))
+			die("Accessing user space memory outside uaccess.h routines", regs, esr);
 	}
 
 	/*
@@ -279,6 +296,7 @@ retry:
 			 * starvation.
 			 */
 			mm_flags &= ~FAULT_FLAG_ALLOW_RETRY;
+			mm_flags |= FAULT_FLAG_TRIED;
 			goto retry;
 		}
 	}
@@ -286,7 +304,7 @@ retry:
 	up_read(&mm->mmap_sem);
 
 	/*
-	 * Handle the "normal" case first - VM_FAULT_MAJOR / VM_FAULT_MINOR
+	 * Handle the "normal" case first - VM_FAULT_MAJOR
 	 */
 	if (likely(!(fault & (VM_FAULT_ERROR | VM_FAULT_BADMAP |
 			      VM_FAULT_BADACCESS))))
@@ -362,6 +380,13 @@ static int __kprobes do_translation_fault(unsigned long addr,
 	return 0;
 }
 
+static int do_alignment_fault(unsigned long addr, unsigned int esr,
+			      struct pt_regs *regs)
+{
+	do_bad_area(addr, esr, regs);
+	return 0;
+}
+
 /*
  * This abort handler always returns "fault".
  */
@@ -380,20 +405,20 @@ static struct fault_info {
 	{ do_bad,		SIGBUS,  0,		"level 1 address size fault"	},
 	{ do_bad,		SIGBUS,  0,		"level 2 address size fault"	},
 	{ do_bad,		SIGBUS,  0,		"level 3 address size fault"	},
-	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"input address range fault"	},
+	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 0 translation fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 1 translation fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 2 translation fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_MAPERR,	"level 3 translation fault"	},
-	{ do_bad,		SIGBUS,  0,		"reserved access flag fault"	},
+	{ do_bad,		SIGBUS,  0,		"unknown 8"			},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 1 access flag fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 2 access flag fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 3 access flag fault"	},
-	{ do_bad,		SIGBUS,  0,		"reserved permission fault"	},
+	{ do_bad,		SIGBUS,  0,		"unknown 12"			},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 1 permission fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 2 permission fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 3 permission fault"	},
 	{ do_bad,		SIGBUS,  0,		"synchronous external abort"	},
-	{ do_bad,		SIGBUS,  0,		"asynchronous external abort"	},
+	{ do_bad,		SIGBUS,  0,		"unknown 17"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 18"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 19"			},
 	{ do_bad,		SIGBUS,  0,		"synchronous abort (translation table walk)" },
@@ -401,16 +426,16 @@ static struct fault_info {
 	{ do_bad,		SIGBUS,  0,		"synchronous abort (translation table walk)" },
 	{ do_bad,		SIGBUS,  0,		"synchronous abort (translation table walk)" },
 	{ do_bad,		SIGBUS,  0,		"synchronous parity error"	},
-	{ do_bad,		SIGBUS,  0,		"asynchronous parity error"	},
+	{ do_bad,		SIGBUS,  0,		"unknown 25"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 26"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 27"			},
-	{ do_bad,		SIGBUS,  0,		"synchronous parity error (translation table walk" },
-	{ do_bad,		SIGBUS,  0,		"synchronous parity error (translation table walk" },
-	{ do_bad,		SIGBUS,  0,		"synchronous parity error (translation table walk" },
-	{ do_bad,		SIGBUS,  0,		"synchronous parity error (translation table walk" },
+	{ do_bad,		SIGBUS,  0,		"synchronous parity error (translation table walk)" },
+	{ do_bad,		SIGBUS,  0,		"synchronous parity error (translation table walk)" },
+	{ do_bad,		SIGBUS,  0,		"synchronous parity error (translation table walk)" },
+	{ do_bad,		SIGBUS,  0,		"synchronous parity error (translation table walk)" },
 	{ do_bad,		SIGBUS,  0,		"unknown 32"			},
-	{ do_bad,		SIGBUS,  BUS_ADRALN,	"alignment fault"		},
-	{ do_bad,		SIGBUS,  0,		"debug event"			},
+	{ do_alignment_fault,	SIGBUS,  BUS_ADRALN,	"alignment fault"		},
+	{ do_bad,		SIGBUS,  0,		"unknown 34"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 35"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 36"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 37"			},
@@ -424,21 +449,21 @@ static struct fault_info {
 	{ do_bad,		SIGBUS,  0,		"unknown 45"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 46"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 47"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 48"			},
+	{ do_bad,		SIGBUS,  0,		"TLB conflict abort"		},
 	{ do_bad,		SIGBUS,  0,		"unknown 49"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 50"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 51"			},
 	{ do_bad,		SIGBUS,  0,		"implementation fault (lockdown abort)" },
-	{ do_bad,		SIGBUS,  0,		"unknown 53"			},
+	{ do_bad,		SIGBUS,  0,		"implementation fault (unsupported exclusive)" },
 	{ do_bad,		SIGBUS,  0,		"unknown 54"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 55"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 56"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 57"			},
-	{ do_bad,		SIGBUS,  0,		"implementation fault (coprocessor abort)" },
+	{ do_bad,		SIGBUS,  0,		"unknown 58" 			},
 	{ do_bad,		SIGBUS,  0,		"unknown 59"			},
 	{ do_bad,		SIGBUS,  0,		"unknown 60"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 61"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 62"			},
+	{ do_bad,		SIGBUS,  0,		"section domain fault"		},
+	{ do_bad,		SIGBUS,  0,		"page domain fault"		},
 	{ do_bad,		SIGBUS,  0,		"unknown 63"			},
 };
 
@@ -478,22 +503,37 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
 					   struct pt_regs *regs)
 {
 	struct siginfo info;
+	struct task_struct *tsk = current;
+
+	if (show_unhandled_signals && unhandled_signal(tsk, SIGBUS))
+		pr_info_ratelimited("%s[%d]: %s exception: pc=%p sp=%p\n",
+				    tsk->comm, task_pid_nr(tsk),
+				    esr_get_class_string(esr), (void *)regs->pc,
+				    (void *)regs->sp);
 
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code  = BUS_ADRALN;
 	info.si_addr  = (void __user *)addr;
-	arm64_notify_die("", regs, &info, esr);
+	arm64_notify_die("Oops - SP/PC alignment exception", regs, &info, esr);
 }
 
-static struct fault_info debug_fault_info[] = {
+int __init early_brk64(unsigned long addr, unsigned int esr,
+		       struct pt_regs *regs);
+
+/*
+ * __refdata because early_brk64 is __init, but the reference to it is
+ * clobbered at arch_initcall time.
+ * See traps.c and debug-monitors.c:debug_traps_init().
+ */
+static struct fault_info __refdata debug_fault_info[] = {
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware breakpoint"	},
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware single-step"	},
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware watchpoint"	},
 	{ do_bad,	SIGBUS,		0,		"unknown 3"		},
 	{ do_bad,	SIGTRAP,	TRAP_BRKPT,	"aarch32 BKPT"		},
 	{ do_bad,	SIGTRAP,	0,		"aarch32 vector catch"	},
-	{ do_bad,	SIGTRAP,	TRAP_BRKPT,	"aarch64 BRK"		},
+	{ early_brk64,	SIGTRAP,	TRAP_BRKPT,	"aarch64 BRK"		},
 	{ do_bad,	SIGBUS,		0,		"unknown 7"		},
 };
 
@@ -530,3 +570,23 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 
 	return 0;
 }
+
+#ifdef CONFIG_ARM64_PAN
+void cpu_enable_pan(void *__unused)
+{
+	config_sctlr_el1(SCTLR_EL1_SPAN, 0);
+}
+#endif /* CONFIG_ARM64_PAN */
+
+#ifdef CONFIG_ARM64_UAO
+/*
+ * Kernel threads have fs=KERNEL_DS by default, and don't need to call
+ * set_fs(), devtmpfs in particular relies on this behaviour.
+ * We need to enable the feature at runtime (instead of adding it to
+ * PSR_MODE_EL1h) as the feature may not be implemented by the cpu.
+ */
+void cpu_enable_uao(void *__unused)
+{
+	asm(SET_PSTATE_UAO(1));
+}
+#endif /* CONFIG_ARM64_UAO */

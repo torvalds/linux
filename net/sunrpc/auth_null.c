@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/sunrpc/clnt.h>
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
@@ -138,7 +138,7 @@ struct rpc_cred null_cred = {
 	.cr_ops		= &null_credops,
 	.cr_count	= ATOMIC_INIT(1),
 	.cr_flags	= 1UL << RPCAUTH_CRED_UPTODATE,
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	.cr_magic	= RPCAUTH_CRED_MAGIC,
 #endif
 };

@@ -63,6 +63,23 @@ usage() {
     exit 1
 }
 
+run_cmd() {
+    if [ "$V" = 1 ]; then
+        $* 2>&1
+    else
+        local msg
+
+        set +e
+        msg=$($* 2>&1)
+
+        if [ $? -ne "0" ]; then
+                echo $msg
+                exit 1
+        fi
+        set -e
+    fi
+}
+
 while [ "$#" -gt 0 ]; do
     case "$1" in
     -o)
@@ -137,7 +154,7 @@ if [ -z "$kernel" ]; then
     kernel=vmlinux
 fi
 
-elfformat="`${CROSS}objdump -p "$kernel" | grep 'file format' | awk '{print $4}'`"
+LANG=C elfformat="`${CROSS}objdump -p "$kernel" | grep 'file format' | awk '{print $4}'`"
 case "$elfformat" in
     elf64-powerpcle)	format=elf64lppc	;;
     elf64-powerpc)	format=elf32ppc	;;
@@ -277,7 +294,7 @@ treeboot-iss4xx-mpic)
     platformo="$object/treeboot-iss4xx.o"
     ;;
 epapr)
-    platformo="$object/epapr.o $object/epapr-wrapper.o"
+    platformo="$object/pseries-head.o $object/epapr.o $object/epapr-wrapper.o"
     link_address='0x20000000'
     pie=-pie
     ;;
@@ -456,12 +473,12 @@ ps3)
 
     ${CROSS}objcopy -O binary "$ofile" "$ofile.bin"
 
-    dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
-        skip=$overlay_dest seek=$system_reset_kernel  \
+    run_cmd dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
+        skip=$overlay_dest seek=$system_reset_kernel          \
         count=$overlay_size bs=1
 
-    dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
-        skip=$system_reset_overlay seek=$overlay_dest \
+    run_cmd dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
+        skip=$system_reset_overlay seek=$overlay_dest         \
         count=$overlay_size bs=1
 
     odir="$(dirname "$ofile.bin")"

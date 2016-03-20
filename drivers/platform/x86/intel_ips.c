@@ -33,7 +33,7 @@
  * performance by allocating more power or thermal budget to the CPU or GPU
  * based on available headroom and activity.
  *
- * The basic algorithm is driven by a 5s moving average of tempurature.  If
+ * The basic algorithm is driven by a 5s moving average of temperature.  If
  * thermal headroom is available, the CPU and/or GPU power clamps may be
  * adjusted upwards.  If we hit the thermal ceiling or a thermal trigger,
  * we scale back the clamp.  Aside from trigger events (when we're critically
@@ -78,7 +78,7 @@
 #include <asm/processor.h>
 #include "intel_ips.h"
 
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #define PCI_DEVICE_ID_INTEL_THERMAL_SENSOR 0x3b32
 
@@ -593,7 +593,7 @@ static void ips_disable_gpu_turbo(struct ips_driver *ips)
 		return;
 
 	if (!ips->gpu_turbo_disable())
-		dev_err(&ips->dev->dev, "failed to disable graphis turbo\n");
+		dev_err(&ips->dev->dev, "failed to disable graphics turbo\n");
 	else
 		ips->__gpu_turbo_on = false;
 }

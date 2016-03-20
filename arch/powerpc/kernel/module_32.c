@@ -15,6 +15,9 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleloader.h>
 #include <linux/elf.h>
@@ -27,12 +30,6 @@
 #include <linux/bug.h>
 #include <linux/sort.h>
 #include <asm/setup.h>
-
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(fmt , ...)
-#endif
 
 /* Count how many different relocations (different symbol, different
    addend) */
@@ -121,8 +118,8 @@ static unsigned long get_plt_size(const Elf32_Ehdr *hdr,
 			continue;
 
 		if (sechdrs[i].sh_type == SHT_RELA) {
-			DEBUGP("Found relocations in section %u\n", i);
-			DEBUGP("Ptr: %p.  Number: %u\n",
+			pr_debug("Found relocations in section %u\n", i);
+			pr_debug("Ptr: %p.  Number: %u\n",
 			       (void *)hdr + sechdrs[i].sh_offset,
 			       sechdrs[i].sh_size / sizeof(Elf32_Rela));
 
@@ -161,7 +158,7 @@ int module_frob_arch_sections(Elf32_Ehdr *hdr,
 			me->arch.core_plt_section = i;
 	}
 	if (!me->arch.core_plt_section || !me->arch.init_plt_section) {
-		printk("Module doesn't contain .plt or .init.plt sections.\n");
+		pr_err("Module doesn't contain .plt or .init.plt sections.\n");
 		return -ENOEXEC;
 	}
 
@@ -184,15 +181,15 @@ static inline int entry_matches(struct ppc_plt_entry *entry, Elf32_Addr val)
 /* Set up a trampoline in the PLT to bounce us to the distant function */
 static uint32_t do_plt_call(void *location,
 			    Elf32_Addr val,
-			    Elf32_Shdr *sechdrs,
+			    const Elf32_Shdr *sechdrs,
 			    struct module *mod)
 {
 	struct ppc_plt_entry *entry;
 
-	DEBUGP("Doing plt for call to 0x%x at 0x%x\n", val, (unsigned int)location);
+	pr_debug("Doing plt for call to 0x%x at 0x%x\n", val, (unsigned int)location);
 	/* Init, or core PLT? */
-	if (location >= mod->module_core
-	    && location < mod->module_core + mod->core_size)
+	if (location >= mod->core_layout.base
+	    && location < mod->core_layout.base + mod->core_layout.size)
 		entry = (void *)sechdrs[mod->arch.core_plt_section].sh_addr;
 	else
 		entry = (void *)sechdrs[mod->arch.init_plt_section].sh_addr;
@@ -208,7 +205,7 @@ static uint32_t do_plt_call(void *location,
 	entry->jump[2] = 0x7d8903a6;                    /* mtctr r12 */
 	entry->jump[3] = 0x4e800420;			/* bctr */
 
-	DEBUGP("Initialized plt for 0x%x at %p\n", val, entry);
+	pr_debug("Initialized plt for 0x%x at %p\n", val, entry);
 	return (uint32_t)entry;
 }
 
@@ -224,7 +221,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 	uint32_t *location;
 	uint32_t value;
 
-	DEBUGP("Applying ADD relocate section %u to %u\n", relsec,
+	pr_debug("Applying ADD relocate section %u to %u\n", relsec,
 	       sechdrs[relsec].sh_info);
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rela); i++) {
 		/* This is where to make the change */
@@ -268,17 +265,17 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 						    sechdrs, module);
 
 			/* Only replace bits 2 through 26 */
-			DEBUGP("REL24 value = %08X. location = %08X\n",
+			pr_debug("REL24 value = %08X. location = %08X\n",
 			       value, (uint32_t)location);
-			DEBUGP("Location before: %08X.\n",
+			pr_debug("Location before: %08X.\n",
 			       *(uint32_t *)location);
 			*(uint32_t *)location
 				= (*(uint32_t *)location & ~0x03fffffc)
 				| ((value - (uint32_t)location)
 				   & 0x03fffffc);
-			DEBUGP("Location after: %08X.\n",
+			pr_debug("Location after: %08X.\n",
 			       *(uint32_t *)location);
-			DEBUGP("ie. jump to %08X+%08X = %08X\n",
+			pr_debug("ie. jump to %08X+%08X = %08X\n",
 			       *(uint32_t *)location & 0x03fffffc,
 			       (uint32_t)location,
 			       (*(uint32_t *)location & 0x03fffffc)
@@ -291,17 +288,25 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			break;
 
 		default:
-			printk("%s: unknown ADD relocation: %u\n",
+			pr_err("%s: unknown ADD relocation: %u\n",
 			       module->name,
 			       ELF32_R_TYPE(rela[i].r_info));
 			return -ENOEXEC;
 		}
 	}
-#ifdef CONFIG_DYNAMIC_FTRACE
-	module->arch.tramp =
-		do_plt_call(module->module_core,
-			    (unsigned long)ftrace_caller,
-			    sechdrs, module);
-#endif
+
 	return 0;
 }
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+int module_finalize_ftrace(struct module *module, const Elf_Shdr *sechdrs)
+{
+	module->arch.tramp = do_plt_call(module->core_layout.base,
+					 (unsigned long)ftrace_caller,
+					 sechdrs, module);
+	if (!module->arch.tramp)
+		return -ENOENT;
+
+	return 0;
+}
+#endif

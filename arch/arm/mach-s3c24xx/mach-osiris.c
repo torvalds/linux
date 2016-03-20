@@ -412,5 +412,4 @@ MACHINE_START(OSIRIS, "Simtec-OSIRIS")
 	.init_irq	= s3c2440_init_irq,
 	.init_machine	= osiris_init,
 	.init_time	= osiris_init_time,
-	.restart	= s3c244x_restart,
 MACHINE_END

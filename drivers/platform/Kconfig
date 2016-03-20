@@ -1,8 +1,10 @@
 if X86
 source "drivers/platform/x86/Kconfig"
 endif
-if GOLDFISH
-source "drivers/platform/goldfish/Kconfig"
+if MIPS
+source "drivers/platform/mips/Kconfig"
 endif
+
+source "drivers/platform/goldfish/Kconfig"
 
 source "drivers/platform/chrome/Kconfig"

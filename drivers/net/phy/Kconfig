@@ -14,6 +14,11 @@ if PHYLIB
 
 comment "MII PHY device drivers"
 
+config AQUANTIA_PHY
+        tristate "Drivers for the Aquantia PHYs"
+        ---help---
+          Currently supports the Aquantia AQ1202, AQ2104, AQR105, AQR405
+
 config AT803X_PHY
 	tristate "Drivers for Atheros AT803X PHYs"
 	---help---
@@ -23,12 +28,6 @@ config AMD_PHY
 	tristate "Drivers for the AMD PHYs"
 	---help---
 	  Currently supports the am79c874
-
-config AMD_XGBE_PHY
-	tristate "Driver for the AMD 10GbE (amd-xgbe) PHYs"
-	depends on OF
-	---help---
-	  Currently supports the AMD 10GbE PHY
 
 config MARVELL_PHY
 	tristate "Drivers for Marvell PHYs"
@@ -60,25 +59,49 @@ config VITESSE_PHY
         ---help---
           Currently supports the vsc8244
 
+config TERANETICS_PHY
+        tristate "Drivers for the Teranetics PHYs"
+        ---help---
+          Currently supports the Teranetics TN2020
+
 config SMSC_PHY
 	tristate "Drivers for SMSC PHYs"
 	---help---
 	  Currently supports the LAN83C185, LAN8187 and LAN8700 PHYs
 
+config BCM_NET_PHYLIB
+	tristate
+
 config BROADCOM_PHY
 	tristate "Drivers for Broadcom PHYs"
+	select BCM_NET_PHYLIB
 	---help---
-	  Currently supports the BCM5411, BCM5421, BCM5461, BCM5464, BCM5481
-	  and BCM5482 PHYs.
+	  Currently supports the BCM5411, BCM5421, BCM5461, BCM54616S, BCM5464,
+	  BCM5481 and BCM5482 PHYs.
+
+config BCM_CYGNUS_PHY
+	tristate "Drivers for Broadcom Cygnus SoC internal PHY"
+	depends on ARCH_BCM_CYGNUS || COMPILE_TEST
+	depends on MDIO_BCM_IPROC
+	select BCM_NET_PHYLIB
+	---help---
+	  This PHY driver is for the 1G internal PHYs of the Broadcom
+	  Cygnus Family SoC.
+
+	  Currently supports internal PHY's used in the BCM11300,
+	  BCM11320, BCM11350, BCM11360, BCM58300, BCM58302,
+	  BCM58303 & BCM58305 Broadcom Cygnus SoCs.
 
 config BCM63XX_PHY
 	tristate "Drivers for Broadcom 63xx SOCs internal PHY"
 	depends on BCM63XX
+	select BCM_NET_PHYLIB
 	---help---
 	  Currently supports the 6348 and 6358 PHYs.
 
 config BCM7XXX_PHY
 	tristate "Drivers for Broadcom 7xxx SOCs internal PHYs"
+	select BCM_NET_PHYLIB
 	---help---
 	  Currently supports the BCM7366, BCM7439, BCM7445, and
 	  40nm and 65nm generation of BCM7xxx Set Top Box SoCs.
@@ -118,9 +141,24 @@ config MICREL_PHY
 	---help---
 	  Supports the KSZ9021, VSC8201, KS8001 PHYs.
 
+config DP83848_PHY
+	tristate "Driver for Texas Instruments DP83848 PHY"
+	---help---
+	  Supports the DP83848 PHY.
+
+config DP83867_PHY
+	tristate "Drivers for Texas Instruments DP83867 Gigabit PHY"
+	---help---
+	  Currently supports the DP83867 PHY.
+
+config MICROCHIP_PHY
+	tristate "Drivers for Microchip PHYs"
+	help
+	  Supports the LAN88XX PHYs.
+
 config FIXED_PHY
-	bool "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
-	depends on PHYLIB=y
+	tristate "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
+	depends on PHYLIB
 	---help---
 	  Adds the platform "fixed" MDIO Bus to cover the boards that use
 	  PHYs that are not connected to the real MDIO bus.
@@ -145,22 +183,33 @@ config MDIO_GPIO
 	  To compile this driver as a module, choose M here: the module
 	  will be called mdio-gpio.
 
+config MDIO_CAVIUM
+	tristate
+
 config MDIO_OCTEON
-	tristate "Support for MDIO buses on Octeon SOCs"
-	depends on CAVIUM_OCTEON_SOC
-	default y
+	tristate "Support for MDIO buses on Octeon and some ThunderX SOCs"
+	depends on 64BIT
+	depends on HAS_IOMEM
+	select MDIO_CAVIUM
 	help
+	  This module provides a driver for the Octeon and ThunderX MDIO
+	  buses. It is required by the Octeon and ThunderX ethernet device
+	  drivers on some systems.
 
-	  This module provides a driver for the Octeon MDIO busses.
-	  It is required by the Octeon Ethernet device drivers.
+config MDIO_THUNDER
+	tristate "Support for MDIO buses on ThunderX SOCs"
+	depends on 64BIT
+	depends on PCI
+	select MDIO_CAVIUM
+	help
+	  This driver supports the MDIO interfaces found on Cavium
+	  ThunderX SoCs when the MDIO bus device appears as a PCI
+	  device.
 
-	  If in doubt, say Y.
 
 config MDIO_SUN4I
 	tristate "Allwinner sun4i MDIO interface support"
 	depends on ARCH_SUNXI
-	select REGULATOR
-	select REGULATOR_FIXED_VOLTAGE
 	help
 	  This driver supports the MDIO interface found in the network
 	  interface units of the Allwinner SoC that have an EMAC (A10,
@@ -194,7 +243,7 @@ config MDIO_BUS_MUX_GPIO
 
 config MDIO_BUS_MUX_MMIOREG
 	tristate "Support for MMIO device-controlled MDIO bus multiplexers"
-	depends on OF_MDIO
+	depends on OF_MDIO && HAS_IOMEM
 	select MDIO_BUS_MUX
 	help
 	  This module provides a driver for MDIO bus multiplexers that
@@ -204,6 +253,23 @@ config MDIO_BUS_MUX_MMIOREG
 	  the FPGA's registers.
 
 	  Currently, only 8-bit registers are supported.
+
+config MDIO_BCM_UNIMAC
+	tristate "Broadcom UniMAC MDIO bus controller"
+	depends on HAS_IOMEM
+	help
+	  This module provides a driver for the Broadcom UniMAC MDIO busses.
+	  This hardware can be found in the Broadcom GENET Ethernet MAC
+	  controllers as well as some Broadcom Ethernet switches such as the
+	  Starfighter 2 switches.
+
+config MDIO_BCM_IPROC
+	tristate "Broadcom iProc MDIO bus controller"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on HAS_IOMEM && OF_MDIO
+	help
+	  This module provides a driver for the MDIO busses found in the
+	  Broadcom iProc SoC's.
 
 endif # PHYLIB
 

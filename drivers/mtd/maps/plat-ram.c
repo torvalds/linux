@@ -210,7 +210,6 @@ static int platram_probe(struct platform_device *pdev)
 		goto exit_free;
 	}
 
-	info->mtd->owner = THIS_MODULE;
 	info->mtd->dev.parent = &pdev->dev;
 
 	platram_setrw(info, PLATRAM_RW);
@@ -251,7 +250,6 @@ static struct platform_driver platram_driver = {
 	.remove		= platram_remove,
 	.driver		= {
 		.name	= "mtd-ram",
-		.owner	= THIS_MODULE,
 	},
 };
 

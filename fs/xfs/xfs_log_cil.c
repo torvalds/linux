@@ -17,11 +17,10 @@
 
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_shared.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_error.h"
 #include "xfs_alloc.h"
@@ -308,7 +307,13 @@ xlog_cil_insert_items(
 		if (!(lidp->lid_flags & XFS_LID_DIRTY))
 			continue;
 
-		list_move_tail(&lip->li_cil, &cil->xc_cil);
+		/*
+		 * Only move the item if it isn't already at the tail. This is
+		 * to prevent a transient list_empty() state when reinserting
+		 * an item that is already the only item in the CIL.
+		 */
+		if (!list_is_last(&lip->li_cil, &cil->xc_cil))
+			list_move_tail(&lip->li_cil, &cil->xc_cil);
 	}
 
 	/* account for space used by new iovec headers  */
@@ -463,12 +468,40 @@ xlog_cil_push(
 		spin_unlock(&cil->xc_push_lock);
 		goto out_skip;
 	}
-	spin_unlock(&cil->xc_push_lock);
 
 
 	/* check for a previously pushed seqeunce */
-	if (push_seq < cil->xc_ctx->sequence)
+	if (push_seq < cil->xc_ctx->sequence) {
+		spin_unlock(&cil->xc_push_lock);
 		goto out_skip;
+	}
+
+	/*
+	 * We are now going to push this context, so add it to the committing
+	 * list before we do anything else. This ensures that anyone waiting on
+	 * this push can easily detect the difference between a "push in
+	 * progress" and "CIL is empty, nothing to do".
+	 *
+	 * IOWs, a wait loop can now check for:
+	 *	the current sequence not being found on the committing list;
+	 *	an empty CIL; and
+	 *	an unchanged sequence number
+	 * to detect a push that had nothing to do and therefore does not need
+	 * waiting on. If the CIL is not empty, we get put on the committing
+	 * list before emptying the CIL and bumping the sequence number. Hence
+	 * an empty CIL and an unchanged sequence number means we jumped out
+	 * above after doing nothing.
+	 *
+	 * Hence the waiter will either find the commit sequence on the
+	 * committing list or the sequence number will be unchanged and the CIL
+	 * still dirty. In that latter case, the push has not yet started, and
+	 * so the waiter will have to continue trying to check the CIL
+	 * committing list until it is found. In extreme cases of delay, the
+	 * sequence may fully commit between the attempts the wait makes to wait
+	 * on the commit sequence.
+	 */
+	list_add(&ctx->committing, &cil->xc_committing);
+	spin_unlock(&cil->xc_push_lock);
 
 	/*
 	 * pull all the log vectors off the items in the CIL, and
@@ -532,7 +565,6 @@ xlog_cil_push(
 	 */
 	spin_lock(&cil->xc_push_lock);
 	cil->xc_current_sequence = new_ctx->sequence;
-	list_add(&ctx->committing, &cil->xc_committing);
 	spin_unlock(&cil->xc_push_lock);
 	up_write(&cil->xc_ctx_lock);
 
@@ -598,7 +630,7 @@ restart:
 	spin_unlock(&cil->xc_push_lock);
 
 	/* xfs_log_done always frees the ticket on error. */
-	commit_lsn = xfs_log_done(log->l_mp, tic, &commit_iclog, 0);
+	commit_lsn = xfs_log_done(log->l_mp, tic, &commit_iclog, false);
 	if (commit_lsn == -1)
 		goto out_abort;
 
@@ -747,14 +779,10 @@ xfs_log_commit_cil(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	xfs_lsn_t		*commit_lsn,
-	int			flags)
+	bool			regrant)
 {
 	struct xlog		*log = mp->m_log;
 	struct xfs_cil		*cil = log->l_cilp;
-	int			log_flags = 0;
-
-	if (flags & XFS_TRANS_RELEASE_LOG_RES)
-		log_flags = XFS_LOG_REL_PERM_RESERV;
 
 	/* lock out background commit */
 	down_read(&cil->xc_ctx_lock);
@@ -769,7 +797,7 @@ xfs_log_commit_cil(
 	if (commit_lsn)
 		*commit_lsn = tp->t_commit_lsn;
 
-	xfs_log_done(mp, tp->t_ticket, NULL, log_flags);
+	xfs_log_done(mp, tp->t_ticket, NULL, regrant);
 	xfs_trans_unreserve_and_mod_sb(tp);
 
 	/*
@@ -783,7 +811,7 @@ xfs_log_commit_cil(
 	 * the log items. This affects (at least) processing of stale buffers,
 	 * inodes and EFIs.
 	 */
-	xfs_trans_free_items(tp, tp->t_commit_lsn, 0);
+	xfs_trans_free_items(tp, tp->t_commit_lsn, false);
 
 	xlog_cil_push_background(log);
 
@@ -855,13 +883,15 @@ restart:
 	 * Hence by the time we have got here it our sequence may not have been
 	 * pushed yet. This is true if the current sequence still matches the
 	 * push sequence after the above wait loop and the CIL still contains
-	 * dirty objects.
+	 * dirty objects. This is guaranteed by the push code first adding the
+	 * context to the committing list before emptying the CIL.
 	 *
-	 * When the push occurs, it will empty the CIL and atomically increment
-	 * the currect sequence past the push sequence and move it into the
-	 * committing list. Of course, if the CIL is clean at the time of the
-	 * push, it won't have pushed the CIL at all, so in that case we should
-	 * try the push for this sequence again from the start just in case.
+	 * Hence if we don't find the context in the committing list and the
+	 * current sequence number is unchanged then the CIL contents are
+	 * significant.  If the CIL is empty, if means there was nothing to push
+	 * and that means there is nothing to wait for. If the CIL is not empty,
+	 * it means we haven't yet started the push, because if it had started
+	 * we would have found the context on the committing list.
 	 */
 	if (sequence == cil->xc_current_sequence &&
 	    !list_empty(&cil->xc_cil)) {

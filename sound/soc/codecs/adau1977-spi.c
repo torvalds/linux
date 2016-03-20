@@ -63,7 +63,6 @@ MODULE_DEVICE_TABLE(spi, adau1977_spi_ids);
 static struct spi_driver adau1977_spi_driver = {
 	.driver = {
 		.name = "adau1977",
-		.owner = THIS_MODULE,
 	},
 	.probe = adau1977_spi_probe,
 	.remove = adau1977_spi_remove,

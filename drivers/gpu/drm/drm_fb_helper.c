@@ -38,6 +38,13 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+
+static bool drm_fbdev_emulation = true;
+module_param_named(fbdev_emulation, drm_fbdev_emulation, bool, 0600);
+MODULE_PARM_DESC(fbdev_emulation,
+		 "Enable legacy fbdev emulation [default=true]");
 
 static LIST_HEAD(kernel_fb_helper_list);
 
@@ -56,8 +63,8 @@ static LIST_HEAD(kernel_fb_helper_list);
  * Teardown is done with drm_fb_helper_fini().
  *
  * At runtime drivers should restore the fbdev console by calling
- * drm_fb_helper_restore_fbdev_mode() from their ->lastclose callback. They
- * should also notify the fb helper code from updates to the output
+ * drm_fb_helper_restore_fbdev_mode_unlocked() from their ->lastclose callback.
+ * They should also notify the fb helper code from updates to the output
  * configuration by calling drm_fb_helper_hotplug_event(). For easier
  * integration with the output polling code in drm_crtc_helper.c the modeset
  * code provides a ->output_poll_changed callback.
@@ -89,8 +96,9 @@ static LIST_HEAD(kernel_fb_helper_list);
  * connectors to the fbdev, e.g. if some are reserved for special purposes or
  * not adequate to be used for the fbcon.
  *
- * Since this is part of the initial setup before the fbdev is published, no
- * locking is required.
+ * This function is protected against concurrent connector hotadds/removals
+ * using drm_fb_helper_add_one_connector() and
+ * drm_fb_helper_remove_one_connector().
  */
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 {
@@ -98,7 +106,11 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 	struct drm_connector *connector;
 	int i;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	if (!drm_fbdev_emulation)
+		return 0;
+
+	mutex_lock(&dev->mode_config.mutex);
+	drm_for_each_connector(connector, dev) {
 		struct drm_fb_helper_connector *fb_helper_connector;
 
 		fb_helper_connector = kzalloc(sizeof(struct drm_fb_helper_connector), GFP_KERNEL);
@@ -108,6 +120,7 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 		fb_helper_connector->connector = connector;
 		fb_helper->connector_info[fb_helper->connector_count++] = fb_helper_connector;
 	}
+	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
 fail:
 	for (i = 0; i < fb_helper->connector_count; i++) {
@@ -115,6 +128,8 @@ fail:
 		fb_helper->connector_info[i] = NULL;
 	}
 	fb_helper->connector_count = 0;
+	mutex_unlock(&dev->mode_config.mutex);
+
 	return -ENOMEM;
 }
 EXPORT_SYMBOL(drm_fb_helper_single_add_all_connectors);
@@ -124,9 +139,12 @@ int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_
 	struct drm_fb_helper_connector **temp;
 	struct drm_fb_helper_connector *fb_helper_connector;
 
+	if (!drm_fbdev_emulation)
+		return 0;
+
 	WARN_ON(!mutex_is_locked(&fb_helper->dev->mode_config.mutex));
 	if (fb_helper->connector_count + 1 > fb_helper->connector_info_alloc_count) {
-		temp = krealloc(fb_helper->connector_info, sizeof(struct drm_fb_helper_connector) * (fb_helper->connector_count + 1), GFP_KERNEL);
+		temp = krealloc(fb_helper->connector_info, sizeof(struct drm_fb_helper_connector *) * (fb_helper->connector_count + 1), GFP_KERNEL);
 		if (!temp)
 			return -ENOMEM;
 
@@ -145,11 +163,42 @@ int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_
 }
 EXPORT_SYMBOL(drm_fb_helper_add_one_connector);
 
+static void remove_from_modeset(struct drm_mode_set *set,
+		struct drm_connector *connector)
+{
+	int i, j;
+
+	for (i = 0; i < set->num_connectors; i++) {
+		if (set->connectors[i] == connector)
+			break;
+	}
+
+	if (i == set->num_connectors)
+		return;
+
+	for (j = i + 1; j < set->num_connectors; j++) {
+		set->connectors[j - 1] = set->connectors[j];
+	}
+	set->num_connectors--;
+
+	/*
+	 * TODO maybe need to makes sure we set it back to !=NULL somewhere?
+	 */
+	if (set->num_connectors == 0) {
+		set->fb = NULL;
+		drm_mode_destroy(connector->dev, set->mode);
+		set->mode = NULL;
+	}
+}
+
 int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				       struct drm_connector *connector)
 {
 	struct drm_fb_helper_connector *fb_helper_connector;
 	int i, j;
+
+	if (!drm_fbdev_emulation)
+		return 0;
 
 	WARN_ON(!mutex_is_locked(&fb_helper->dev->mode_config.mutex));
 
@@ -167,63 +216,14 @@ int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 	}
 	fb_helper->connector_count--;
 	kfree(fb_helper_connector);
+
+	/* also cleanup dangling references to the connector: */
+	for (i = 0; i < fb_helper->crtc_count; i++)
+		remove_from_modeset(&fb_helper->crtc_info[i].mode_set, connector);
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_remove_one_connector);
-
-static int drm_fb_helper_parse_command_line(struct drm_fb_helper *fb_helper)
-{
-	struct drm_fb_helper_connector *fb_helper_conn;
-	int i;
-
-	for (i = 0; i < fb_helper->connector_count; i++) {
-		struct drm_cmdline_mode *mode;
-		struct drm_connector *connector;
-		char *option = NULL;
-
-		fb_helper_conn = fb_helper->connector_info[i];
-		connector = fb_helper_conn->connector;
-		mode = &fb_helper_conn->cmdline_mode;
-
-		/* do something on return - turn off connector maybe */
-		if (fb_get_options(connector->name, &option))
-			continue;
-
-		if (drm_mode_parse_command_line_for_connector(option,
-							      connector,
-							      mode)) {
-			if (mode->force) {
-				const char *s;
-				switch (mode->force) {
-				case DRM_FORCE_OFF:
-					s = "OFF";
-					break;
-				case DRM_FORCE_ON_DIGITAL:
-					s = "ON - dig";
-					break;
-				default:
-				case DRM_FORCE_ON:
-					s = "ON";
-					break;
-				}
-
-				DRM_INFO("forcing %s connector %s\n",
-					 connector->name, s);
-				connector->force = mode->force;
-			}
-
-			DRM_DEBUG_KMS("cmdline mode for connector %s %dx%d@%dHz%s%s%s\n",
-				      connector->name,
-				      mode->xres, mode->yres,
-				      mode->refresh_specified ? mode->refresh : 60,
-				      mode->rb ? " reduced blanking" : "",
-				      mode->margins ? " with margins" : "",
-				      mode->interlace ?  " interlaced" : "");
-		}
-
-	}
-	return 0;
-}
 
 static void drm_fb_helper_save_lut_atomic(struct drm_crtc *crtc, struct drm_fb_helper *helper)
 {
@@ -262,7 +262,7 @@ static void drm_fb_helper_restore_lut_atomic(struct drm_crtc *crtc)
 int drm_fb_helper_debug_enter(struct fb_info *info)
 {
 	struct drm_fb_helper *helper = info->par;
-	struct drm_crtc_helper_funcs *funcs;
+	const struct drm_crtc_helper_funcs *funcs;
 	int i;
 
 	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
@@ -293,7 +293,7 @@ static struct drm_framebuffer *drm_mode_config_fb(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_crtc *c;
 
-	list_for_each_entry(c, &dev->mode_config.crtc_list, head) {
+	drm_for_each_crtc(c, dev) {
 		if (crtc->base.id == c->base.id)
 			return c->primary->fb;
 	}
@@ -309,7 +309,7 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 {
 	struct drm_fb_helper *helper = info->par;
 	struct drm_crtc *crtc;
-	struct drm_crtc_helper_funcs *funcs;
+	const struct drm_crtc_helper_funcs *funcs;
 	struct drm_framebuffer *fb;
 	int i;
 
@@ -336,50 +336,115 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 }
 EXPORT_SYMBOL(drm_fb_helper_debug_leave);
 
-static bool restore_fbdev_mode(struct drm_fb_helper *fb_helper)
+static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_plane *plane;
-	bool error = false;
+	struct drm_atomic_state *state;
+	int i, ret;
+	unsigned plane_mask;
+
+	state = drm_atomic_state_alloc(dev);
+	if (!state)
+		return -ENOMEM;
+
+	state->acquire_ctx = dev->mode_config.acquire_ctx;
+retry:
+	plane_mask = 0;
+	drm_for_each_plane(plane, dev) {
+		struct drm_plane_state *plane_state;
+
+		plane_state = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(plane_state)) {
+			ret = PTR_ERR(plane_state);
+			goto fail;
+		}
+
+		plane_state->rotation = BIT(DRM_ROTATE_0);
+
+		plane->old_fb = plane->fb;
+		plane_mask |= 1 << drm_plane_index(plane);
+
+		/* disable non-primary: */
+		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
+			continue;
+
+		ret = __drm_atomic_helper_disable_plane(plane, plane_state);
+		if (ret != 0)
+			goto fail;
+	}
+
+	for(i = 0; i < fb_helper->crtc_count; i++) {
+		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
+
+		ret = __drm_atomic_helper_set_config(mode_set, state);
+		if (ret != 0)
+			goto fail;
+	}
+
+	ret = drm_atomic_commit(state);
+
+fail:
+	drm_atomic_clean_old_fb(dev, plane_mask, ret);
+
+	if (ret == -EDEADLK)
+		goto backoff;
+
+	if (ret != 0)
+		drm_atomic_state_free(state);
+
+	return ret;
+
+backoff:
+	drm_atomic_state_clear(state);
+	drm_atomic_legacy_backoff(state);
+
+	goto retry;
+}
+
+static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
+{
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_plane *plane;
 	int i;
 
 	drm_warn_on_modeset_not_all_locked(dev);
 
-	list_for_each_entry(plane, &dev->mode_config.plane_list, head)
+	if (fb_helper->atomic)
+		return restore_fbdev_mode_atomic(fb_helper);
+
+	drm_for_each_plane(plane, dev) {
 		if (plane->type != DRM_PLANE_TYPE_PRIMARY)
 			drm_plane_force_disable(plane);
+
+		if (dev->mode_config.rotation_property) {
+			drm_mode_plane_set_obj_prop(plane,
+						    dev->mode_config.rotation_property,
+						    BIT(DRM_ROTATE_0));
+		}
+	}
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
 		struct drm_crtc *crtc = mode_set->crtc;
 		int ret;
 
-		if (crtc->funcs->cursor_set) {
+		if (crtc->funcs->cursor_set2) {
+			ret = crtc->funcs->cursor_set2(crtc, NULL, 0, 0, 0, 0, 0);
+			if (ret)
+				return ret;
+		} else if (crtc->funcs->cursor_set) {
 			ret = crtc->funcs->cursor_set(crtc, NULL, 0, 0, 0);
 			if (ret)
-				error = true;
+				return ret;
 		}
 
 		ret = drm_mode_set_config_internal(mode_set);
 		if (ret)
-			error = true;
+			return ret;
 	}
-	return error;
-}
-/**
- * drm_fb_helper_restore_fbdev_mode - restore fbdev configuration
- * @fb_helper: fbcon to restore
- *
- * This should be called from driver's drm ->lastclose callback
- * when implementing an fbcon on top of kms using this helper. This ensures that
- * the user isn't greeted with a black screen when e.g. X dies.
- *
- * Use this variant if you need to bypass locking (panic), or already
- * hold all modeset locks.  Otherwise use drm_fb_helper_restore_fbdev_mode_unlocked()
- */
-static bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
-{
-	return restore_fbdev_mode(fb_helper);
+
+	return 0;
 }
 
 /**
@@ -389,18 +454,58 @@ static bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
  * This should be called from driver's drm ->lastclose callback
  * when implementing an fbcon on top of kms using this helper. This ensures that
  * the user isn't greeted with a black screen when e.g. X dies.
+ *
+ * RETURNS:
+ * Zero if everything went ok, negative error code otherwise.
  */
-bool drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
+int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
-	bool ret;
+	bool do_delayed;
+	int ret;
+
+	if (!drm_fbdev_emulation)
+		return -ENODEV;
+
 	drm_modeset_lock_all(dev);
 	ret = restore_fbdev_mode(fb_helper);
+
+	do_delayed = fb_helper->delayed_hotplug;
+	if (do_delayed)
+		fb_helper->delayed_hotplug = false;
 	drm_modeset_unlock_all(dev);
+
+	if (do_delayed)
+		drm_fb_helper_hotplug_event(fb_helper);
 	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_restore_fbdev_mode_unlocked);
 
+static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
+{
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_crtc *crtc;
+	int bound = 0, crtcs_bound = 0;
+
+	/* Sometimes user space wants everything disabled, so don't steal the
+	 * display if there's a master. */
+	if (dev->primary->master)
+		return false;
+
+	drm_for_each_crtc(crtc, dev) {
+		if (crtc->primary->fb)
+			crtcs_bound++;
+		if (crtc->primary->fb == fb_helper->fb)
+			bound++;
+	}
+
+	if (bound < crtcs_bound)
+		return false;
+
+	return true;
+}
+
+#ifdef CONFIG_MAGIC_SYSRQ
 /*
  * restore fbcon display for all kms driver's using this helper, used for sysrq
  * and panic handling.
@@ -419,67 +524,15 @@ static bool drm_fb_helper_force_kernel_mode(void)
 		if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 			continue;
 
-		/* NOTE: we use lockless flag below to avoid grabbing other
-		 * modeset locks.  So just trylock the underlying mutex
-		 * directly:
-		 */
-		if (!mutex_trylock(&dev->mode_config.mutex)) {
-			error = true;
-			continue;
-		}
-
-		ret = drm_fb_helper_restore_fbdev_mode(helper);
+		drm_modeset_lock_all(dev);
+		ret = restore_fbdev_mode(helper);
 		if (ret)
 			error = true;
-
-		mutex_unlock(&dev->mode_config.mutex);
+		drm_modeset_unlock_all(dev);
 	}
 	return error;
 }
 
-static int drm_fb_helper_panic(struct notifier_block *n, unsigned long ununsed,
-			void *panic_str)
-{
-	/*
-	 * It's a waste of time and effort to switch back to text console
-	 * if the kernel should reboot before panic messages can be seen.
-	 */
-	if (panic_timeout < 0)
-		return 0;
-
-	pr_err("panic occurred, switching back to text console\n");
-	return drm_fb_helper_force_kernel_mode();
-}
-
-static struct notifier_block paniced = {
-	.notifier_call = drm_fb_helper_panic,
-};
-
-static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
-{
-	struct drm_device *dev = fb_helper->dev;
-	struct drm_crtc *crtc;
-	int bound = 0, crtcs_bound = 0;
-
-	/* Sometimes user space wants everything disabled, so don't steal the
-	 * display if there's a master. */
-	if (dev->primary->master)
-		return false;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (crtc->primary->fb)
-			crtcs_bound++;
-		if (crtc->primary->fb == fb_helper->fb)
-			bound++;
-	}
-
-	if (bound < crtcs_bound)
-		return false;
-
-	return true;
-}
-
-#ifdef CONFIG_MAGIC_SYSRQ
 static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
 {
 	bool ret;
@@ -510,14 +563,6 @@ static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
 	int i, j;
-
-	/*
-	 * fbdev->blank can be called from irq context in case of a panic.
-	 * Since we already have our own special panic handler which will
-	 * restore the fbdev console mode completely, just bail out early.
-	 */
-	if (oops_in_progress)
-		return;
 
 	/*
 	 * For each CRTC in this fb, turn the connectors on/off.
@@ -552,6 +597,9 @@ static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
  */
 int drm_fb_helper_blank(int blank, struct fb_info *info)
 {
+	if (oops_in_progress)
+		return -EBUSY;
+
 	switch (blank) {
 	/* Display: On; HSync: On, VSync: On */
 	case FB_BLANK_UNBLANK:
@@ -635,6 +683,9 @@ int drm_fb_helper_init(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int i;
 
+	if (!drm_fbdev_emulation)
+		return 0;
+
 	if (!max_conn_count)
 		return -EINVAL;
 
@@ -663,10 +714,12 @@ int drm_fb_helper_init(struct drm_device *dev,
 	}
 
 	i = 0;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+	drm_for_each_crtc(crtc, dev) {
 		fb_helper->crtc_info[i].mode_set.crtc = crtc;
 		i++;
 	}
+
+	fb_helper->atomic = !!drm_core_check_feature(dev, DRIVER_ATOMIC);
 
 	return 0;
 out_free:
@@ -675,14 +728,94 @@ out_free:
 }
 EXPORT_SYMBOL(drm_fb_helper_init);
 
+/**
+ * drm_fb_helper_alloc_fbi - allocate fb_info and some of its members
+ * @fb_helper: driver-allocated fbdev helper
+ *
+ * A helper to alloc fb_info and the members cmap and apertures. Called
+ * by the driver within the fb_probe fb_helper callback function.
+ *
+ * RETURNS:
+ * fb_info pointer if things went okay, pointer containing error code
+ * otherwise
+ */
+struct fb_info *drm_fb_helper_alloc_fbi(struct drm_fb_helper *fb_helper)
+{
+	struct device *dev = fb_helper->dev->dev;
+	struct fb_info *info;
+	int ret;
+
+	info = framebuffer_alloc(0, dev);
+	if (!info)
+		return ERR_PTR(-ENOMEM);
+
+	ret = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (ret)
+		goto err_release;
+
+	info->apertures = alloc_apertures(1);
+	if (!info->apertures) {
+		ret = -ENOMEM;
+		goto err_free_cmap;
+	}
+
+	fb_helper->fbdev = info;
+
+	return info;
+
+err_free_cmap:
+	fb_dealloc_cmap(&info->cmap);
+err_release:
+	framebuffer_release(info);
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL(drm_fb_helper_alloc_fbi);
+
+/**
+ * drm_fb_helper_unregister_fbi - unregister fb_info framebuffer device
+ * @fb_helper: driver-allocated fbdev helper
+ *
+ * A wrapper around unregister_framebuffer, to release the fb_info
+ * framebuffer device
+ */
+void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper)
+{
+	if (fb_helper && fb_helper->fbdev)
+		unregister_framebuffer(fb_helper->fbdev);
+}
+EXPORT_SYMBOL(drm_fb_helper_unregister_fbi);
+
+/**
+ * drm_fb_helper_release_fbi - dealloc fb_info and its members
+ * @fb_helper: driver-allocated fbdev helper
+ *
+ * A helper to free memory taken by fb_info and the members cmap and
+ * apertures
+ */
+void drm_fb_helper_release_fbi(struct drm_fb_helper *fb_helper)
+{
+	if (fb_helper) {
+		struct fb_info *info = fb_helper->fbdev;
+
+		if (info) {
+			if (info->cmap.len)
+				fb_dealloc_cmap(&info->cmap);
+			framebuffer_release(info);
+		}
+
+		fb_helper->fbdev = NULL;
+	}
+}
+EXPORT_SYMBOL(drm_fb_helper_release_fbi);
+
 void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 {
+	if (!drm_fbdev_emulation)
+		return;
+
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
 		list_del(&fb_helper->kernel_fb_list);
 		if (list_empty(&kernel_fb_helper_list)) {
-			pr_info("drm: unregistered panic notifier\n");
-			atomic_notifier_chain_unregister(&panic_notifier_list,
-							 &paniced);
 			unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 		}
 	}
@@ -691,6 +824,149 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 
 }
 EXPORT_SYMBOL(drm_fb_helper_fini);
+
+/**
+ * drm_fb_helper_unlink_fbi - wrapper around unlink_framebuffer
+ * @fb_helper: driver-allocated fbdev helper
+ *
+ * A wrapper around unlink_framebuffer implemented by fbdev core
+ */
+void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper)
+{
+	if (fb_helper && fb_helper->fbdev)
+		unlink_framebuffer(fb_helper->fbdev);
+}
+EXPORT_SYMBOL(drm_fb_helper_unlink_fbi);
+
+/**
+ * drm_fb_helper_sys_read - wrapper around fb_sys_read
+ * @info: fb_info struct pointer
+ * @buf: userspace buffer to read from framebuffer memory
+ * @count: number of bytes to read from framebuffer memory
+ * @ppos: read offset within framebuffer memory
+ *
+ * A wrapper around fb_sys_read implemented by fbdev core
+ */
+ssize_t drm_fb_helper_sys_read(struct fb_info *info, char __user *buf,
+			       size_t count, loff_t *ppos)
+{
+	return fb_sys_read(info, buf, count, ppos);
+}
+EXPORT_SYMBOL(drm_fb_helper_sys_read);
+
+/**
+ * drm_fb_helper_sys_write - wrapper around fb_sys_write
+ * @info: fb_info struct pointer
+ * @buf: userspace buffer to write to framebuffer memory
+ * @count: number of bytes to write to framebuffer memory
+ * @ppos: write offset within framebuffer memory
+ *
+ * A wrapper around fb_sys_write implemented by fbdev core
+ */
+ssize_t drm_fb_helper_sys_write(struct fb_info *info, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	return fb_sys_write(info, buf, count, ppos);
+}
+EXPORT_SYMBOL(drm_fb_helper_sys_write);
+
+/**
+ * drm_fb_helper_sys_fillrect - wrapper around sys_fillrect
+ * @info: fbdev registered by the helper
+ * @rect: info about rectangle to fill
+ *
+ * A wrapper around sys_fillrect implemented by fbdev core
+ */
+void drm_fb_helper_sys_fillrect(struct fb_info *info,
+				const struct fb_fillrect *rect)
+{
+	sys_fillrect(info, rect);
+}
+EXPORT_SYMBOL(drm_fb_helper_sys_fillrect);
+
+/**
+ * drm_fb_helper_sys_copyarea - wrapper around sys_copyarea
+ * @info: fbdev registered by the helper
+ * @area: info about area to copy
+ *
+ * A wrapper around sys_copyarea implemented by fbdev core
+ */
+void drm_fb_helper_sys_copyarea(struct fb_info *info,
+				const struct fb_copyarea *area)
+{
+	sys_copyarea(info, area);
+}
+EXPORT_SYMBOL(drm_fb_helper_sys_copyarea);
+
+/**
+ * drm_fb_helper_sys_imageblit - wrapper around sys_imageblit
+ * @info: fbdev registered by the helper
+ * @image: info about image to blit
+ *
+ * A wrapper around sys_imageblit implemented by fbdev core
+ */
+void drm_fb_helper_sys_imageblit(struct fb_info *info,
+				 const struct fb_image *image)
+{
+	sys_imageblit(info, image);
+}
+EXPORT_SYMBOL(drm_fb_helper_sys_imageblit);
+
+/**
+ * drm_fb_helper_cfb_fillrect - wrapper around cfb_fillrect
+ * @info: fbdev registered by the helper
+ * @rect: info about rectangle to fill
+ *
+ * A wrapper around cfb_imageblit implemented by fbdev core
+ */
+void drm_fb_helper_cfb_fillrect(struct fb_info *info,
+				const struct fb_fillrect *rect)
+{
+	cfb_fillrect(info, rect);
+}
+EXPORT_SYMBOL(drm_fb_helper_cfb_fillrect);
+
+/**
+ * drm_fb_helper_cfb_copyarea - wrapper around cfb_copyarea
+ * @info: fbdev registered by the helper
+ * @area: info about area to copy
+ *
+ * A wrapper around cfb_copyarea implemented by fbdev core
+ */
+void drm_fb_helper_cfb_copyarea(struct fb_info *info,
+				const struct fb_copyarea *area)
+{
+	cfb_copyarea(info, area);
+}
+EXPORT_SYMBOL(drm_fb_helper_cfb_copyarea);
+
+/**
+ * drm_fb_helper_cfb_imageblit - wrapper around cfb_imageblit
+ * @info: fbdev registered by the helper
+ * @image: info about image to blit
+ *
+ * A wrapper around cfb_imageblit implemented by fbdev core
+ */
+void drm_fb_helper_cfb_imageblit(struct fb_info *info,
+				 const struct fb_image *image)
+{
+	cfb_imageblit(info, image);
+}
+EXPORT_SYMBOL(drm_fb_helper_cfb_imageblit);
+
+/**
+ * drm_fb_helper_set_suspend - wrapper around fb_set_suspend
+ * @fb_helper: driver-allocated fbdev helper
+ * @state: desired state, zero to resume, non-zero to suspend
+ *
+ * A wrapper around fb_set_suspend implemented by fbdev core
+ */
+void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, int state)
+{
+	if (fb_helper && fb_helper->fbdev)
+		fb_set_suspend(fb_helper->fbdev, state);
+}
+EXPORT_SYMBOL(drm_fb_helper_set_suspend);
 
 static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		     u16 blue, u16 regno, struct fb_info *info)
@@ -773,11 +1049,14 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_device *dev = fb_helper->dev;
-	struct drm_crtc_helper_funcs *crtc_funcs;
+	const struct drm_crtc_helper_funcs *crtc_funcs;
 	u16 *red, *green, *blue, *transp;
 	struct drm_crtc *crtc;
 	int i, j, rc = 0;
 	int start;
+
+	if (oops_in_progress)
+		return -EBUSY;
 
 	drm_modeset_lock_all(dev);
 	if (!drm_fb_helper_is_bound(fb_helper)) {
@@ -928,6 +1207,9 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	struct drm_fb_helper *fb_helper = info->par;
 	struct fb_var_screeninfo *var = &info->var;
 
+	if (oops_in_progress)
+		return -EBUSY;
+
 	if (var->pixclock != 0) {
 		DRM_ERROR("PIXEL CLOCK SET\n");
 		return -EINVAL;
@@ -935,13 +1217,69 @@ int drm_fb_helper_set_par(struct fb_info *info)
 
 	drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
 
-	if (fb_helper->delayed_hotplug) {
-		fb_helper->delayed_hotplug = false;
-		drm_fb_helper_hotplug_event(fb_helper);
-	}
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_set_par);
+
+static int pan_display_atomic(struct fb_var_screeninfo *var,
+			      struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_atomic_state *state;
+	struct drm_plane *plane;
+	int i, ret;
+	unsigned plane_mask;
+
+	state = drm_atomic_state_alloc(dev);
+	if (!state)
+		return -ENOMEM;
+
+	state->acquire_ctx = dev->mode_config.acquire_ctx;
+retry:
+	plane_mask = 0;
+	for(i = 0; i < fb_helper->crtc_count; i++) {
+		struct drm_mode_set *mode_set;
+
+		mode_set = &fb_helper->crtc_info[i].mode_set;
+
+		mode_set->x = var->xoffset;
+		mode_set->y = var->yoffset;
+
+		ret = __drm_atomic_helper_set_config(mode_set, state);
+		if (ret != 0)
+			goto fail;
+
+		plane = mode_set->crtc->primary;
+		plane_mask |= (1 << drm_plane_index(plane));
+		plane->old_fb = plane->fb;
+	}
+
+	ret = drm_atomic_commit(state);
+	if (ret != 0)
+		goto fail;
+
+	info->var.xoffset = var->xoffset;
+	info->var.yoffset = var->yoffset;
+
+
+fail:
+	drm_atomic_clean_old_fb(dev, plane_mask, ret);
+
+	if (ret == -EDEADLK)
+		goto backoff;
+
+	if (ret != 0)
+		drm_atomic_state_free(state);
+
+	return ret;
+
+backoff:
+	drm_atomic_state_clear(state);
+	drm_atomic_legacy_backoff(state);
+
+	goto retry;
+}
 
 /**
  * drm_fb_helper_pan_display - implementation for ->fb_pan_display
@@ -957,10 +1295,18 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 	int ret = 0;
 	int i;
 
+	if (oops_in_progress)
+		return -EBUSY;
+
 	drm_modeset_lock_all(dev);
 	if (!drm_fb_helper_is_bound(fb_helper)) {
 		drm_modeset_unlock_all(dev);
 		return -EBUSY;
+	}
+
+	if (fb_helper->atomic) {
+		ret = pan_display_atomic(var, info);
+		goto unlock;
 	}
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {
@@ -977,6 +1323,7 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 			}
 		}
 	}
+unlock:
 	drm_modeset_unlock_all(dev);
 	return ret;
 }
@@ -1013,7 +1360,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		struct drm_fb_helper_connector *fb_helper_conn = fb_helper->connector_info[i];
 		struct drm_cmdline_mode *cmdline_mode;
 
-		cmdline_mode = &fb_helper_conn->cmdline_mode;
+		cmdline_mode = &fb_helper_conn->connector->cmdline_mode;
 
 		if (cmdline_mode->bpp_specified) {
 			switch (cmdline_mode->bpp) {
@@ -1042,21 +1389,45 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	crtc_count = 0;
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_display_mode *desired_mode;
-		desired_mode = fb_helper->crtc_info[i].desired_mode;
+		struct drm_mode_set *mode_set;
+		int x, y, j;
+		/* in case of tile group, are we the last tile vert or horiz?
+		 * If no tile group you are always the last one both vertically
+		 * and horizontally
+		 */
+		bool lastv = true, lasth = true;
 
-		if (desired_mode) {
-			if (gamma_size == 0)
-				gamma_size = fb_helper->crtc_info[i].mode_set.crtc->gamma_size;
-			if (desired_mode->hdisplay < sizes.fb_width)
-				sizes.fb_width = desired_mode->hdisplay;
-			if (desired_mode->vdisplay < sizes.fb_height)
-				sizes.fb_height = desired_mode->vdisplay;
-			if (desired_mode->hdisplay > sizes.surface_width)
-				sizes.surface_width = desired_mode->hdisplay;
-			if (desired_mode->vdisplay > sizes.surface_height)
-				sizes.surface_height = desired_mode->vdisplay;
-			crtc_count++;
+		desired_mode = fb_helper->crtc_info[i].desired_mode;
+		mode_set = &fb_helper->crtc_info[i].mode_set;
+
+		if (!desired_mode)
+			continue;
+
+		crtc_count++;
+
+		x = fb_helper->crtc_info[i].x;
+		y = fb_helper->crtc_info[i].y;
+
+		if (gamma_size == 0)
+			gamma_size = fb_helper->crtc_info[i].mode_set.crtc->gamma_size;
+
+		sizes.surface_width  = max_t(u32, desired_mode->hdisplay + x, sizes.surface_width);
+		sizes.surface_height = max_t(u32, desired_mode->vdisplay + y, sizes.surface_height);
+
+		for (j = 0; j < mode_set->num_connectors; j++) {
+			struct drm_connector *connector = mode_set->connectors[j];
+			if (connector->has_tile) {
+				lasth = (connector->tile_h_loc == (connector->num_h_tile - 1));
+				lastv = (connector->tile_v_loc == (connector->num_v_tile - 1));
+				/* cloning to multiple tiles is just crazy-talk, so: */
+				break;
+			}
 		}
+
+		if (lasth)
+			sizes.fb_width  = min_t(u32, desired_mode->hdisplay + x, sizes.fb_width);
+		if (lastv)
+			sizes.fb_height = min_t(u32, desired_mode->vdisplay + y, sizes.fb_height);
 	}
 
 	if (crtc_count == 0 || sizes.fb_width == -1 || sizes.fb_height == -1) {
@@ -1093,12 +1464,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	dev_info(fb_helper->dev->dev, "fb%d: %s frame buffer device\n",
 			info->node, info->fix.id);
 
-	/* Switch back to kernel console on panic */
-	/* multi card linked list maybe */
 	if (list_empty(&kernel_fb_helper_list)) {
-		dev_info(fb_helper->dev->dev, "registered panic notifier\n");
-		atomic_notifier_chain_register(&panic_notifier_list,
-					       &paniced);
 		register_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 	}
 
@@ -1260,21 +1626,19 @@ EXPORT_SYMBOL(drm_has_preferred_mode);
 
 static bool drm_has_cmdline_mode(struct drm_fb_helper_connector *fb_connector)
 {
-	struct drm_cmdline_mode *cmdline_mode;
-	cmdline_mode = &fb_connector->cmdline_mode;
-	return cmdline_mode->specified;
+	return fb_connector->connector->cmdline_mode.specified;
 }
 
 struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn,
 						      int width, int height)
 {
 	struct drm_cmdline_mode *cmdline_mode;
-	struct drm_display_mode *mode = NULL;
+	struct drm_display_mode *mode;
 	bool prefer_non_interlace;
 
-	cmdline_mode = &fb_helper_conn->cmdline_mode;
+	cmdline_mode = &fb_helper_conn->connector->cmdline_mode;
 	if (cmdline_mode->specified == false)
-		return mode;
+		return NULL;
 
 	/* attempt to find a matching mode in the list of modes
 	 *  we have gotten so far, if not add a CVT mode that conforms
@@ -1283,7 +1647,7 @@ struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_connector *f
 		goto create_mode;
 
 	prefer_non_interlace = !cmdline_mode->interlace;
- again:
+again:
 	list_for_each_entry(mode, &fb_helper_conn->connector->modes, head) {
 		/* check width/height */
 		if (mode->hdisplay != cmdline_mode->xres ||
@@ -1356,6 +1720,7 @@ static void drm_enable_connectors(struct drm_fb_helper *fb_helper,
 
 static bool drm_target_cloned(struct drm_fb_helper *fb_helper,
 			      struct drm_display_mode **modes,
+			      struct drm_fb_offset *offsets,
 			      bool *enabled, int width, int height)
 {
 	int count, i, j;
@@ -1427,27 +1792,88 @@ static bool drm_target_cloned(struct drm_fb_helper *fb_helper,
 	return false;
 }
 
+static int drm_get_tile_offsets(struct drm_fb_helper *fb_helper,
+				struct drm_display_mode **modes,
+				struct drm_fb_offset *offsets,
+				int idx,
+				int h_idx, int v_idx)
+{
+	struct drm_fb_helper_connector *fb_helper_conn;
+	int i;
+	int hoffset = 0, voffset = 0;
+
+	for (i = 0; i < fb_helper->connector_count; i++) {
+		fb_helper_conn = fb_helper->connector_info[i];
+		if (!fb_helper_conn->connector->has_tile)
+			continue;
+
+		if (!modes[i] && (h_idx || v_idx)) {
+			DRM_DEBUG_KMS("no modes for connector tiled %d %d\n", i,
+				      fb_helper_conn->connector->base.id);
+			continue;
+		}
+		if (fb_helper_conn->connector->tile_h_loc < h_idx)
+			hoffset += modes[i]->hdisplay;
+
+		if (fb_helper_conn->connector->tile_v_loc < v_idx)
+			voffset += modes[i]->vdisplay;
+	}
+	offsets[idx].x = hoffset;
+	offsets[idx].y = voffset;
+	DRM_DEBUG_KMS("returned %d %d for %d %d\n", hoffset, voffset, h_idx, v_idx);
+	return 0;
+}
+
 static bool drm_target_preferred(struct drm_fb_helper *fb_helper,
 				 struct drm_display_mode **modes,
+				 struct drm_fb_offset *offsets,
 				 bool *enabled, int width, int height)
 {
 	struct drm_fb_helper_connector *fb_helper_conn;
 	int i;
-
+	uint64_t conn_configured = 0, mask;
+	int tile_pass = 0;
+	mask = (1 << fb_helper->connector_count) - 1;
+retry:
 	for (i = 0; i < fb_helper->connector_count; i++) {
 		fb_helper_conn = fb_helper->connector_info[i];
 
-		if (enabled[i] == false)
+		if (conn_configured & (1 << i))
 			continue;
 
+		if (enabled[i] == false) {
+			conn_configured |= (1 << i);
+			continue;
+		}
+
+		/* first pass over all the untiled connectors */
+		if (tile_pass == 0 && fb_helper_conn->connector->has_tile)
+			continue;
+
+		if (tile_pass == 1) {
+			if (fb_helper_conn->connector->tile_h_loc != 0 ||
+			    fb_helper_conn->connector->tile_v_loc != 0)
+				continue;
+
+		} else {
+			if (fb_helper_conn->connector->tile_h_loc != tile_pass -1 &&
+			    fb_helper_conn->connector->tile_v_loc != tile_pass - 1)
+			/* if this tile_pass doesn't cover any of the tiles - keep going */
+				continue;
+
+			/* find the tile offsets for this pass - need
+			   to find all tiles left and above */
+			drm_get_tile_offsets(fb_helper, modes, offsets,
+					     i, fb_helper_conn->connector->tile_h_loc, fb_helper_conn->connector->tile_v_loc);
+		}
 		DRM_DEBUG_KMS("looking for cmdline mode on connector %d\n",
 			      fb_helper_conn->connector->base.id);
 
 		/* got for command line mode first */
 		modes[i] = drm_pick_cmdline_mode(fb_helper_conn, width, height);
 		if (!modes[i]) {
-			DRM_DEBUG_KMS("looking for preferred mode on connector %d\n",
-				      fb_helper_conn->connector->base.id);
+			DRM_DEBUG_KMS("looking for preferred mode on connector %d %d\n",
+				      fb_helper_conn->connector->base.id, fb_helper_conn->connector->tile_group ? fb_helper_conn->connector->tile_group->id : 0);
 			modes[i] = drm_has_preferred_mode(fb_helper_conn, width, height);
 		}
 		/* No preferred modes, pick one off the list */
@@ -1457,6 +1883,12 @@ static bool drm_target_preferred(struct drm_fb_helper *fb_helper,
 		}
 		DRM_DEBUG_KMS("found mode %s\n", modes[i] ? modes[i]->name :
 			  "none");
+		conn_configured |= (1 << i);
+	}
+
+	if ((conn_configured & mask) != mask) {
+		tile_pass++;
+		goto retry;
 	}
 	return true;
 }
@@ -1469,7 +1901,7 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	int c, o;
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_connector *connector;
-	struct drm_connector_helper_funcs *connector_funcs;
+	const struct drm_connector_helper_funcs *connector_funcs;
 	struct drm_encoder *encoder;
 	int my_score, best_score, score;
 	struct drm_fb_helper_crtc **crtcs, *crtc;
@@ -1546,6 +1978,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_fb_helper_crtc **crtcs;
 	struct drm_display_mode **modes;
+	struct drm_fb_offset *offsets;
 	struct drm_mode_set *modeset;
 	bool *enabled;
 	int width, height;
@@ -1560,9 +1993,11 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 			sizeof(struct drm_fb_helper_crtc *), GFP_KERNEL);
 	modes = kcalloc(dev->mode_config.num_connector,
 			sizeof(struct drm_display_mode *), GFP_KERNEL);
+	offsets = kcalloc(dev->mode_config.num_connector,
+			  sizeof(struct drm_fb_offset), GFP_KERNEL);
 	enabled = kcalloc(dev->mode_config.num_connector,
 			  sizeof(bool), GFP_KERNEL);
-	if (!crtcs || !modes || !enabled) {
+	if (!crtcs || !modes || !enabled || !offsets) {
 		DRM_ERROR("Memory allocation failed\n");
 		goto out;
 	}
@@ -1572,14 +2007,16 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 
 	if (!(fb_helper->funcs->initial_config &&
 	      fb_helper->funcs->initial_config(fb_helper, crtcs, modes,
+					       offsets,
 					       enabled, width, height))) {
 		memset(modes, 0, dev->mode_config.num_connector*sizeof(modes[0]));
 		memset(crtcs, 0, dev->mode_config.num_connector*sizeof(crtcs[0]));
+		memset(offsets, 0, dev->mode_config.num_connector*sizeof(offsets[0]));
 
-		if (!drm_target_cloned(fb_helper,
-				       modes, enabled, width, height) &&
-		    !drm_target_preferred(fb_helper,
-					  modes, enabled, width, height))
+		if (!drm_target_cloned(fb_helper, modes, offsets,
+				       enabled, width, height) &&
+		    !drm_target_preferred(fb_helper, modes, offsets,
+					  enabled, width, height))
 			DRM_ERROR("Unable to find initial modes\n");
 
 		DRM_DEBUG_KMS("picking CRTCs for %dx%d config\n",
@@ -1599,18 +2036,23 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 	for (i = 0; i < fb_helper->connector_count; i++) {
 		struct drm_display_mode *mode = modes[i];
 		struct drm_fb_helper_crtc *fb_crtc = crtcs[i];
+		struct drm_fb_offset *offset = &offsets[i];
 		modeset = &fb_crtc->mode_set;
 
 		if (mode && fb_crtc) {
-			DRM_DEBUG_KMS("desired mode %s set on crtc %d\n",
-				      mode->name, fb_crtc->mode_set.crtc->base.id);
+			DRM_DEBUG_KMS("desired mode %s set on crtc %d (%d,%d)\n",
+				      mode->name, fb_crtc->mode_set.crtc->base.id, offset->x, offset->y);
 			fb_crtc->desired_mode = mode;
+			fb_crtc->x = offset->x;
+			fb_crtc->y = offset->y;
 			if (modeset->mode)
 				drm_mode_destroy(dev, modeset->mode);
 			modeset->mode = drm_mode_duplicate(dev,
 							   fb_crtc->desired_mode);
 			modeset->connectors[modeset->num_connectors++] = fb_helper->connector_info[i]->connector;
 			modeset->fb = fb_helper->fb;
+			modeset->x = offset->x;
+			modeset->y = offset->y;
 		}
 	}
 
@@ -1619,7 +2061,6 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 		modeset = &fb_helper->crtc_info[i].mode_set;
 		if (modeset->num_connectors == 0) {
 			BUG_ON(modeset->fb);
-			BUG_ON(modeset->num_connectors);
 			if (modeset->mode)
 				drm_mode_destroy(dev, modeset->mode);
 			modeset->mode = NULL;
@@ -1628,6 +2069,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 out:
 	kfree(crtcs);
 	kfree(modes);
+	kfree(offsets);
 	kfree(enabled);
 }
 
@@ -1652,12 +2094,13 @@ out:
  * RETURNS:
  * Zero if everything went ok, nonzero otherwise.
  */
-bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
+int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 {
 	struct drm_device *dev = fb_helper->dev;
 	int count = 0;
 
-	drm_fb_helper_parse_command_line(fb_helper);
+	if (!drm_fbdev_emulation)
+		return 0;
 
 	mutex_lock(&dev->mode_config.mutex);
 	count = drm_fb_helper_probe_connector_modes(fb_helper,
@@ -1701,6 +2144,9 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
 	u32 max_width, max_height;
+
+	if (!drm_fbdev_emulation)
+		return 0;
 
 	mutex_lock(&fb_helper->dev->mode_config.mutex);
 	if (!fb_helper->fb || !drm_fb_helper_is_bound(fb_helper)) {

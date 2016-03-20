@@ -104,7 +104,6 @@ struct s3c2410_nand_info;
  * @scan_res: The result from calling nand_scan_ident().
 */
 struct s3c2410_nand_mtd {
-	struct mtd_info			mtd;
 	struct nand_chip		chip;
 	struct s3c2410_nand_set		*set;
 	struct s3c2410_nand_info	*info;
@@ -168,7 +167,8 @@ struct s3c2410_nand_info {
 
 static struct s3c2410_nand_mtd *s3c2410_nand_mtd_toours(struct mtd_info *mtd)
 {
-	return container_of(mtd, struct s3c2410_nand_mtd, mtd);
+	return container_of(mtd_to_nand(mtd), struct s3c2410_nand_mtd,
+			    chip);
 }
 
 static struct s3c2410_nand_info *s3c2410_nand_mtd_toinfo(struct mtd_info *mtd)
@@ -382,10 +382,10 @@ static void s3c2410_nand_select_chip(struct mtd_info *mtd, int chip)
 {
 	struct s3c2410_nand_info *info;
 	struct s3c2410_nand_mtd *nmtd;
-	struct nand_chip *this = mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 	unsigned long cur;
 
-	nmtd = this->priv;
+	nmtd = nand_get_controller_data(this);
 	info = nmtd->info;
 
 	if (chip != -1)
@@ -634,7 +634,7 @@ static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
 
 static void s3c2410_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 {
-	struct nand_chip *this = mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 	readsb(this->IO_ADDR_R, buf, len);
 }
 
@@ -656,7 +656,7 @@ static void s3c2440_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 static void s3c2410_nand_write_buf(struct mtd_info *mtd, const u_char *buf,
 				   int len)
 {
-	struct nand_chip *this = mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 	writesb(this->IO_ADDR_W, buf, len);
 }
 
@@ -745,7 +745,7 @@ static int s3c24xx_nand_remove(struct platform_device *pdev)
 
 		for (mtdno = 0; mtdno < info->mtd_count; mtdno++, ptr++) {
 			pr_debug("releasing mtd %d (%p)\n", mtdno, ptr);
-			nand_release(&ptr->mtd);
+			nand_release(nand_to_mtd(&ptr->chip));
 		}
 	}
 
@@ -762,9 +762,11 @@ static int s3c2410_nand_add_partition(struct s3c2410_nand_info *info,
 				      struct s3c2410_nand_set *set)
 {
 	if (set) {
-		mtd->mtd.name = set->name;
+		struct mtd_info *mtdinfo = nand_to_mtd(&mtd->chip);
 
-		return mtd_device_parse_register(&mtd->mtd, NULL, NULL,
+		mtdinfo->name = set->name;
+
+		return mtd_device_parse_register(mtdinfo, NULL, NULL,
 					 set->partitions, set->nr_partitions);
 	}
 
@@ -792,7 +794,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	chip->read_buf     = s3c2410_nand_read_buf;
 	chip->select_chip  = s3c2410_nand_select_chip;
 	chip->chip_delay   = 50;
-	chip->priv	   = nmtd;
+	nand_set_controller_data(chip, nmtd);
 	chip->options	   = set->options;
 	chip->controller   = &info->controller;
 
@@ -831,8 +833,6 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	chip->IO_ADDR_R = chip->IO_ADDR_W;
 
 	nmtd->info	   = info;
-	nmtd->mtd.priv	   = chip;
-	nmtd->mtd.owner    = THIS_MODULE;
 	nmtd->set	   = set;
 
 #ifdef CONFIG_MTD_NAND_S3C2410_HWECC
@@ -948,8 +948,6 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	cpu_type = platform_get_device_id(pdev)->driver_data;
 
-	pr_debug("s3c2410_nand_probe(%p)\n", pdev);
-
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
 		err = -ENOMEM;
@@ -1015,18 +1013,21 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 	nmtd = info->mtds;
 
 	for (setno = 0; setno < nr_sets; setno++, nmtd++) {
+		struct mtd_info *mtd = nand_to_mtd(&nmtd->chip);
+
 		pr_debug("initialising set %d (%p, info %p)\n",
 			 setno, nmtd, info);
 
+		mtd->dev.parent = &pdev->dev;
 		s3c2410_nand_init_chip(info, nmtd, sets);
 
-		nmtd->scan_res = nand_scan_ident(&nmtd->mtd,
+		nmtd->scan_res = nand_scan_ident(mtd,
 						 (sets) ? sets->nr_chips : 1,
 						 NULL);
 
 		if (nmtd->scan_res == 0) {
 			s3c2410_nand_update_chip(info, nmtd);
-			nand_scan_tail(&nmtd->mtd);
+			nand_scan_tail(mtd);
 			s3c2410_nand_add_partition(info, nmtd, sets);
 		}
 
@@ -1045,7 +1046,6 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 		s3c2410_nand_clk_set_state(info, CLOCK_SUSPEND);
 	}
 
-	pr_debug("initialised ok\n");
 	return 0;
 
  exit_error:
@@ -1108,7 +1108,7 @@ static int s3c24xx_nand_resume(struct platform_device *dev)
 
 /* driver device registration */
 
-static struct platform_device_id s3c24xx_driver_ids[] = {
+static const struct platform_device_id s3c24xx_driver_ids[] = {
 	{
 		.name		= "s3c2410-nand",
 		.driver_data	= TYPE_S3C2410,
@@ -1135,7 +1135,6 @@ static struct platform_driver s3c24xx_nand_driver = {
 	.id_table	= s3c24xx_driver_ids,
 	.driver		= {
 		.name	= "s3c24xx-nand",
-		.owner	= THIS_MODULE,
 	},
 };
 

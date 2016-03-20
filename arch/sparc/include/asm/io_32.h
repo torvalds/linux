@@ -4,10 +4,6 @@
 #include <linux/kernel.h>
 #include <linux/ioport.h>  /* struct resource */
 
-#define readb_relaxed(__addr)	readb(__addr)
-#define readw_relaxed(__addr)	readw(__addr)
-#define readl_relaxed(__addr)	readl(__addr)
-
 #define IO_SPACE_LIMIT 0xffffffff
 
 #define memset_io(d,c,sz)     _memset_io(d,c,sz)
@@ -133,6 +129,7 @@ static inline void sbus_memcpy_toio(volatile void __iomem *dst,
 void __iomem *ioremap(unsigned long offset, unsigned long size);
 #define ioremap_nocache(X,Y)	ioremap((X),(Y))
 #define ioremap_wc(X,Y)		ioremap((X),(Y))
+#define ioremap_wt(X,Y)		ioremap((X),(Y))
 void iounmap(volatile void __iomem *addr);
 
 /* Create a virtual mapping cookie for an IO port range */

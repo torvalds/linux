@@ -26,16 +26,18 @@ LED sub-node properties:
 
 Examples:
 
+#include <dt-bindings/gpio/gpio.h>
+
 leds {
 	compatible = "gpio-leds";
 	hdd {
 		label = "IDE Activity";
-		gpios = <&mcu_pio 0 1>; /* Active low */
+		gpios = <&mcu_pio 0 GPIO_ACTIVE_LOW>;
 		linux,default-trigger = "ide-disk";
 	};
 
 	fault {
-		gpios = <&mcu_pio 1 0>;
+		gpios = <&mcu_pio 1 GPIO_ACTIVE_HIGH>;
 		/* Keep LED on if BIOS detected hardware fault */
 		default-state = "keep";
 	};
@@ -44,11 +46,11 @@ leds {
 run-control {
 	compatible = "gpio-leds";
 	red {
-		gpios = <&mpc8572 6 0>;
+		gpios = <&mpc8572 6 GPIO_ACTIVE_HIGH>;
 		default-state = "off";
 	};
 	green {
-		gpios = <&mpc8572 7 0>;
+		gpios = <&mpc8572 7 GPIO_ACTIVE_HIGH>;
 		default-state = "on";
 	};
 };
@@ -57,7 +59,7 @@ leds {
 	compatible = "gpio-leds";
 
 	charger-led {
-		gpios = <&gpio1 2 0>;
+		gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 		linux,default-trigger = "max8903-charger-charging";
 		retain-state-suspended;
 	};

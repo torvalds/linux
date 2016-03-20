@@ -1,0 +1,22 @@
+/dts-v1/;
+
+/include/ "bcm6328.dtsi"
+
+/ {
+	compatible = "brcm,bcm9ejtagprb", "brcm,bcm6328";
+	model = "Broadcom BCM9EJTAGPRB";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+		stdout-path = &uart0;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

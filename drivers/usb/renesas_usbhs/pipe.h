@@ -36,8 +36,9 @@ struct usbhs_pipe {
 #define USBHS_PIPE_FLAGS_IS_USED		(1 << 0)
 #define USBHS_PIPE_FLAGS_IS_DIR_IN		(1 << 1)
 #define USBHS_PIPE_FLAGS_IS_DIR_HOST		(1 << 2)
+#define USBHS_PIPE_FLAGS_IS_RUNNING		(1 << 3)
 
-	struct usbhs_pkt_handle *handler;
+	const struct usbhs_pkt_handle *handler;
 
 	void *mod_private;
 };
@@ -45,7 +46,6 @@ struct usbhs_pipe {
 struct usbhs_pipe_info {
 	struct usbhs_pipe *pipe;
 	int size;	/* array size of "pipe" */
-	int bufnmb_last;	/* FIXME : driver needs good allocator */
 
 	int (*dma_map_ctrl)(struct usbhs_pkt *pkt, int map);
 };
@@ -80,6 +80,9 @@ int usbhs_pipe_probe(struct usbhs_priv *priv);
 void usbhs_pipe_remove(struct usbhs_priv *priv);
 int usbhs_pipe_is_dir_in(struct usbhs_pipe *pipe);
 int usbhs_pipe_is_dir_host(struct usbhs_pipe *pipe);
+int usbhs_pipe_is_running(struct usbhs_pipe *pipe);
+void usbhs_pipe_running(struct usbhs_pipe *pipe, int running);
+
 void usbhs_pipe_init(struct usbhs_priv *priv,
 		     int (*dma_map_ctrl)(struct usbhs_pkt *pkt, int map));
 int usbhs_pipe_get_maxpacket(struct usbhs_pipe *pipe);
@@ -93,6 +96,7 @@ void usbhs_pipe_set_trans_count_if_bulk(struct usbhs_pipe *pipe, int len);
 void usbhs_pipe_select_fifo(struct usbhs_pipe *pipe, struct usbhs_fifo *fifo);
 void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 devsel,
 			      u16 epnum, u16 maxp);
+void usbhs_pipe_config_change_bfre(struct usbhs_pipe *pipe, int enable);
 
 #define usbhs_pipe_sequence_data0(pipe)	usbhs_pipe_data_sequence(pipe, 0)
 #define usbhs_pipe_sequence_data1(pipe)	usbhs_pipe_data_sequence(pipe, 1)

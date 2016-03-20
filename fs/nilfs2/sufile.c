@@ -30,6 +30,8 @@
 #include "mdt.h"
 #include "sufile.h"
 
+#include <trace/events/nilfs2.h>
+
 /**
  * struct nilfs_sufile_info - on-memory private data of sufile
  * @mi: on-memory private data of metadata file
@@ -317,7 +319,7 @@ int nilfs_sufile_alloc(struct inode *sufile, __u64 *segnump)
 	size_t susz = NILFS_MDT(sufile)->mi_entry_size;
 	__u64 segnum, maxsegnum, last_alloc;
 	void *kaddr;
-	unsigned long nsegments, ncleansegs, nsus, cnt;
+	unsigned long nsegments, nsus, cnt;
 	int ret, j;
 
 	down_write(&NILFS_MDT(sufile)->mi_sem);
@@ -327,7 +329,6 @@ int nilfs_sufile_alloc(struct inode *sufile, __u64 *segnump)
 		goto out_sem;
 	kaddr = kmap_atomic(header_bh->b_page);
 	header = kaddr + bh_offset(header_bh);
-	ncleansegs = le64_to_cpu(header->sh_ncleansegs);
 	last_alloc = le64_to_cpu(header->sh_last_alloc);
 	kunmap_atomic(kaddr);
 
@@ -358,6 +359,7 @@ int nilfs_sufile_alloc(struct inode *sufile, __u64 *segnump)
 				break; /* never happens */
 			}
 		}
+		trace_nilfs2_segment_usage_check(sufile, segnum, cnt);
 		ret = nilfs_sufile_get_segment_usage_block(sufile, segnum, 1,
 							   &su_bh);
 		if (ret < 0)
@@ -388,6 +390,9 @@ int nilfs_sufile_alloc(struct inode *sufile, __u64 *segnump)
 			nilfs_mdt_mark_dirty(sufile);
 			brelse(su_bh);
 			*segnump = segnum;
+
+			trace_nilfs2_segment_usage_allocated(sufile, segnum);
+
 			goto out_header;
 		}
 
@@ -490,6 +495,8 @@ void nilfs_sufile_do_free(struct inode *sufile, __u64 segnum,
 	NILFS_SUI(sufile)->ncleansegs++;
 
 	nilfs_mdt_mark_dirty(sufile);
+
+	trace_nilfs2_segment_usage_freed(sufile, segnum);
 }
 
 /**

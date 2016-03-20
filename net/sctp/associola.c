@@ -383,6 +383,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
 		transport = list_entry(pos, struct sctp_transport, transports);
 		list_del_rcu(pos);
+		sctp_unhash_transport(transport);
 		sctp_transport_free(transport);
 	}
 
@@ -391,8 +392,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	sctp_asconf_queue_teardown(asoc);
 
 	/* Free pending address space being deleted */
-	if (asoc->asconf_addr_del_pending != NULL)
-		kfree(asoc->asconf_addr_del_pending);
+	kfree(asoc->asconf_addr_del_pending);
 
 	/* AUTH - Free the endpoint shared keys */
 	sctp_auth_destroy_keys(&asoc->endpoint_shared_keys);
@@ -501,6 +501,8 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 
 	/* Remove this peer from the list. */
 	list_del_rcu(&peer->transports);
+	/* Remove this peer from the transport hashtable */
+	sctp_unhash_transport(peer);
 
 	/* Get the first transport of asoc. */
 	pos = asoc->peer.transport_addr_list.next;
@@ -700,6 +702,8 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	/* Attach the remote transport to our asoc.  */
 	list_add_tail_rcu(&peer->transports, &asoc->peer.transport_addr_list);
 	asoc->peer.transport_count++;
+	/* Add this peer into the transport hashtable */
+	sctp_hash_transport(peer);
 
 	/* If we do not yet have a primary path, set one.  */
 	if (!asoc->peer.primary_path) {
@@ -1182,7 +1186,6 @@ void sctp_assoc_update(struct sctp_association *asoc,
 	asoc->peer.peer_hmacs = new->peer.peer_hmacs;
 	new->peer.peer_hmacs = NULL;
 
-	sctp_auth_key_put(asoc->asoc_shared_key);
 	sctp_auth_asoc_init_active_key(asoc, GFP_ATOMIC);
 }
 
@@ -1210,20 +1213,22 @@ void sctp_assoc_update(struct sctp_association *asoc,
  *   within this document.
  *
  * Our basic strategy is to round-robin transports in priorities
- * according to sctp_state_prio_map[] e.g., if no such
+ * according to sctp_trans_score() e.g., if no such
  * transport with state SCTP_ACTIVE exists, round-robin through
  * SCTP_UNKNOWN, etc. You get the picture.
  */
-static const u8 sctp_trans_state_to_prio_map[] = {
-	[SCTP_ACTIVE]	= 3,	/* best case */
-	[SCTP_UNKNOWN]	= 2,
-	[SCTP_PF]	= 1,
-	[SCTP_INACTIVE] = 0,	/* worst case */
-};
-
 static u8 sctp_trans_score(const struct sctp_transport *trans)
 {
-	return sctp_trans_state_to_prio_map[trans->state];
+	switch (trans->state) {
+	case SCTP_ACTIVE:
+		return 3;	/* best case */
+	case SCTP_UNKNOWN:
+		return 2;
+	case SCTP_PF:
+		return 1;
+	default: /* case SCTP_INACTIVE */
+		return 0;	/* worst case */
+	}
 }
 
 static struct sctp_transport *sctp_trans_elect_tie(struct sctp_transport *trans1,
@@ -1258,7 +1263,7 @@ static struct sctp_transport *sctp_trans_elect_best(struct sctp_transport *curr,
 	if (score_curr > score_best)
 		return curr;
 	else if (score_curr == score_best)
-		return sctp_trans_elect_tie(curr, best);
+		return sctp_trans_elect_tie(best, curr);
 	else
 		return best;
 }
@@ -1488,7 +1493,7 @@ void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned int len)
 
 		asoc->peer.sack_needed = 0;
 
-		sctp_outq_tail(&asoc->outqueue, sack);
+		sctp_outq_tail(&asoc->outqueue, sack, GFP_ATOMIC);
 
 		/* Stop the SACK timer.  */
 		timer = &asoc->timers[SCTP_EVENT_TIMEOUT_SACK];
@@ -1590,7 +1595,7 @@ int sctp_assoc_lookup_laddr(struct sctp_association *asoc,
 /* Set an association id for a given association */
 int sctp_assoc_set_id(struct sctp_association *asoc, gfp_t gfp)
 {
-	bool preload = !!(gfp & __GFP_WAIT);
+	bool preload = gfpflags_allow_blocking(gfp);
 	int ret;
 
 	/* If the id is already assigned, keep it. */
@@ -1668,6 +1673,8 @@ struct sctp_chunk *sctp_assoc_lookup_asconf_ack(
 	 * ack chunk whose serial number matches that of the request.
 	 */
 	list_for_each_entry(ack, &asoc->asconf_ack_list, transmitted_list) {
+		if (sctp_chunk_pending(ack))
+			continue;
 		if (ack->subh.addip_hdr->serial == serial) {
 			sctp_chunk_hold(ack);
 			return ack;

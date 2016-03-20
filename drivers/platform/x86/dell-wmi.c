@@ -2,6 +2,7 @@
  * Dell WMI hotkeys
  *
  * Copyright (C) 2008 Red Hat <mjg@redhat.com>
+ * Copyright (C) 2014-2015 Pali Rohár <pali.rohar@gmail.com>
  *
  * Portions based on wistron_btns.c:
  * Copyright (C) 2005 Miloslav Trmac <mitr@volny.cz>
@@ -35,16 +36,20 @@
 #include <linux/acpi.h>
 #include <linux/string.h>
 #include <linux/dmi.h>
+#include <acpi/video.h>
 
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
+MODULE_AUTHOR("Pali Rohár <pali.rohar@gmail.com>");
 MODULE_DESCRIPTION("Dell laptop WMI hotkeys driver");
 MODULE_LICENSE("GPL");
 
 #define DELL_EVENT_GUID "9DBB5994-A997-11DA-B012-B622A1EF5492"
+#define DELL_DESCRIPTOR_GUID "8D9DDCBC-A997-11DA-B012-B622A1EF5492"
 
-static int acpi_video;
+static u32 dell_wmi_interface_version;
 
 MODULE_ALIAS("wmi:"DELL_EVENT_GUID);
+MODULE_ALIAS("wmi:"DELL_DESCRIPTOR_GUID);
 
 /*
  * Certain keys are flagged as KE_IGNORE. All of these are either
@@ -65,10 +70,8 @@ static const struct key_entry dell_wmi_legacy_keymap[] __initconst = {
 	/* Battery health status button */
 	{ KE_KEY, 0xe007, { KEY_BATTERY } },
 
-	/* This is actually for all radios. Although physically a
-	 * switch, the notification does not provide an indication of
-	 * state and so it should be reported as a key */
-	{ KE_KEY, 0xe008, { KEY_WLAN } },
+	/* Radio devices state change */
+	{ KE_IGNORE, 0xe008, { KEY_RFKILL } },
 
 	/* The next device is at offset 6, the active devices are at
 	   offset 8 and the attached devices at offset 10 */
@@ -119,77 +122,218 @@ struct dell_bios_hotkey_table {
 
 static const struct dell_bios_hotkey_table *dell_bios_hotkey_table;
 
+/* Uninitialized entries here are KEY_RESERVED == 0. */
 static const u16 bios_to_linux_keycode[256] __initconst = {
-
-	KEY_MEDIA,	KEY_NEXTSONG,	KEY_PLAYPAUSE, KEY_PREVIOUSSONG,
-	KEY_STOPCD,	KEY_UNKNOWN,	KEY_UNKNOWN,	KEY_UNKNOWN,
-	KEY_WWW,	KEY_UNKNOWN,	KEY_VOLUMEDOWN, KEY_MUTE,
-	KEY_VOLUMEUP,	KEY_UNKNOWN,	KEY_BATTERY,	KEY_EJECTCD,
-	KEY_UNKNOWN,	KEY_SLEEP,	KEY_PROG1, KEY_BRIGHTNESSDOWN,
-	KEY_BRIGHTNESSUP,	KEY_UNKNOWN,	KEY_KBDILLUMTOGGLE,
-	KEY_UNKNOWN,	KEY_SWITCHVIDEOMODE,	KEY_UNKNOWN, KEY_UNKNOWN,
-	KEY_SWITCHVIDEOMODE,	KEY_UNKNOWN,	KEY_UNKNOWN, KEY_PROG2,
-	KEY_UNKNOWN,	KEY_UNKNOWN,	KEY_UNKNOWN,	KEY_UNKNOWN,
-	KEY_UNKNOWN,	KEY_UNKNOWN,	KEY_UNKNOWN,	KEY_MICMUTE,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, KEY_PROG3
+	[0]	= KEY_MEDIA,
+	[1]	= KEY_NEXTSONG,
+	[2]	= KEY_PLAYPAUSE,
+	[3]	= KEY_PREVIOUSSONG,
+	[4]	= KEY_STOPCD,
+	[5]	= KEY_UNKNOWN,
+	[6]	= KEY_UNKNOWN,
+	[7]	= KEY_UNKNOWN,
+	[8]	= KEY_WWW,
+	[9]	= KEY_UNKNOWN,
+	[10]	= KEY_VOLUMEDOWN,
+	[11]	= KEY_MUTE,
+	[12]	= KEY_VOLUMEUP,
+	[13]	= KEY_UNKNOWN,
+	[14]	= KEY_BATTERY,
+	[15]	= KEY_EJECTCD,
+	[16]	= KEY_UNKNOWN,
+	[17]	= KEY_SLEEP,
+	[18]	= KEY_PROG1,
+	[19]	= KEY_BRIGHTNESSDOWN,
+	[20]	= KEY_BRIGHTNESSUP,
+	[21]	= KEY_UNKNOWN,
+	[22]	= KEY_KBDILLUMTOGGLE,
+	[23]	= KEY_UNKNOWN,
+	[24]	= KEY_SWITCHVIDEOMODE,
+	[25]	= KEY_UNKNOWN,
+	[26]	= KEY_UNKNOWN,
+	[27]	= KEY_SWITCHVIDEOMODE,
+	[28]	= KEY_UNKNOWN,
+	[29]	= KEY_UNKNOWN,
+	[30]	= KEY_PROG2,
+	[31]	= KEY_UNKNOWN,
+	[32]	= KEY_UNKNOWN,
+	[33]	= KEY_UNKNOWN,
+	[34]	= KEY_UNKNOWN,
+	[35]	= KEY_UNKNOWN,
+	[36]	= KEY_UNKNOWN,
+	[37]	= KEY_UNKNOWN,
+	[38]	= KEY_MICMUTE,
+	[255]	= KEY_PROG3,
 };
 
 static struct input_dev *dell_wmi_input_dev;
+
+static void dell_wmi_process_key(int reported_key)
+{
+	const struct key_entry *key;
+
+	key = sparse_keymap_entry_from_scancode(dell_wmi_input_dev,
+						reported_key);
+	if (!key) {
+		pr_info("Unknown key with scancode 0x%x pressed\n",
+			reported_key);
+		return;
+	}
+
+	pr_debug("Key %x pressed\n", reported_key);
+
+	/* Don't report brightness notifications that will also come via ACPI */
+	if ((key->keycode == KEY_BRIGHTNESSUP ||
+	     key->keycode == KEY_BRIGHTNESSDOWN) &&
+	    acpi_video_handles_brightness_key_presses())
+		return;
+
+	sparse_keymap_report_entry(dell_wmi_input_dev, key, 1, true);
+}
 
 static void dell_wmi_notify(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
 	acpi_status status;
+	acpi_size buffer_size;
+	u16 *buffer_entry, *buffer_end;
+	int len, i;
 
 	status = wmi_get_event_data(value, &response);
 	if (status != AE_OK) {
-		pr_info("bad event status 0x%x\n", status);
+		pr_warn("bad event status 0x%x\n", status);
 		return;
 	}
 
 	obj = (union acpi_object *)response.pointer;
-
-	if (obj && obj->type == ACPI_TYPE_BUFFER) {
-		const struct key_entry *key;
-		int reported_key;
-		u16 *buffer_entry = (u16 *)obj->buffer.pointer;
-
-		if (dell_new_hk_type && (buffer_entry[1] != 0x10)) {
-			pr_info("Received unknown WMI event (0x%x)\n",
-				buffer_entry[1]);
-			kfree(obj);
-			return;
-		}
-
-		if (dell_new_hk_type || buffer_entry[1] == 0x0)
-			reported_key = (int)buffer_entry[2];
-		else
-			reported_key = (int)buffer_entry[1] & 0xffff;
-
-		key = sparse_keymap_entry_from_scancode(dell_wmi_input_dev,
-							reported_key);
-		if (!key) {
-			pr_info("Unknown key %x pressed\n", reported_key);
-		} else if ((key->keycode == KEY_BRIGHTNESSUP ||
-			    key->keycode == KEY_BRIGHTNESSDOWN) && acpi_video) {
-			/* Don't report brightness notifications that will also
-			 * come via ACPI */
-			;
-		} else {
-			sparse_keymap_report_entry(dell_wmi_input_dev, key,
-						   1, true);
-		}
+	if (!obj) {
+		pr_warn("no response\n");
+		return;
 	}
+
+	if (obj->type != ACPI_TYPE_BUFFER) {
+		pr_warn("bad response type %x\n", obj->type);
+		kfree(obj);
+		return;
+	}
+
+	pr_debug("Received WMI event (%*ph)\n",
+		obj->buffer.length, obj->buffer.pointer);
+
+	buffer_entry = (u16 *)obj->buffer.pointer;
+	buffer_size = obj->buffer.length/2;
+
+	if (!dell_new_hk_type) {
+		if (buffer_size >= 3 && buffer_entry[1] == 0x0)
+			dell_wmi_process_key(buffer_entry[2]);
+		else if (buffer_size >= 2)
+			dell_wmi_process_key(buffer_entry[1]);
+		else
+			pr_info("Received unknown WMI event\n");
+		kfree(obj);
+		return;
+	}
+
+	buffer_end = buffer_entry + buffer_size;
+
+	/*
+	 * BIOS/ACPI on devices with WMI interface version 0 does not clear
+	 * buffer before filling it. So next time when BIOS/ACPI send WMI event
+	 * which is smaller as previous then it contains garbage in buffer from
+	 * previous event.
+	 *
+	 * BIOS/ACPI on devices with WMI interface version 1 clears buffer and
+	 * sometimes send more events in buffer at one call.
+	 *
+	 * So to prevent reading garbage from buffer we will process only first
+	 * one event on devices with WMI interface version 0.
+	 */
+	if (dell_wmi_interface_version == 0 && buffer_entry < buffer_end)
+		if (buffer_end > buffer_entry + buffer_entry[0] + 1)
+			buffer_end = buffer_entry + buffer_entry[0] + 1;
+
+	while (buffer_entry < buffer_end) {
+
+		len = buffer_entry[0];
+		if (len == 0)
+			break;
+
+		len++;
+
+		if (buffer_entry + len > buffer_end) {
+			pr_warn("Invalid length of WMI event\n");
+			break;
+		}
+
+		pr_debug("Process buffer (%*ph)\n", len*2, buffer_entry);
+
+		switch (buffer_entry[1]) {
+		case 0x00:
+			for (i = 2; i < len; ++i) {
+				switch (buffer_entry[i]) {
+				case 0xe043:
+					/* NIC Link is Up */
+					pr_debug("NIC Link is Up\n");
+					break;
+				case 0xe044:
+					/* NIC Link is Down */
+					pr_debug("NIC Link is Down\n");
+					break;
+				case 0xe045:
+					/* Unknown event but defined in DSDT */
+				default:
+					/* Unknown event */
+					pr_info("Unknown WMI event type 0x00: "
+						"0x%x\n", (int)buffer_entry[i]);
+					break;
+				}
+			}
+			break;
+		case 0x10:
+			/* Keys pressed */
+			for (i = 2; i < len; ++i)
+				dell_wmi_process_key(buffer_entry[i]);
+			break;
+		case 0x11:
+			for (i = 2; i < len; ++i) {
+				switch (buffer_entry[i]) {
+				case 0xfff0:
+					/* Battery unplugged */
+					pr_debug("Battery unplugged\n");
+					break;
+				case 0xfff1:
+					/* Battery inserted */
+					pr_debug("Battery inserted\n");
+					break;
+				case 0x01e1:
+				case 0x02ea:
+				case 0x02eb:
+				case 0x02ec:
+				case 0x02f6:
+					/* Keyboard backlight level changed */
+					pr_debug("Keyboard backlight level "
+						 "changed\n");
+					break;
+				default:
+					/* Unknown event */
+					pr_info("Unknown WMI event type 0x11: "
+						"0x%x\n", (int)buffer_entry[i]);
+					break;
+				}
+			}
+			break;
+		default:
+			/* Unknown event */
+			pr_info("Unknown WMI event type 0x%x\n",
+				(int)buffer_entry[1]);
+			break;
+		}
+
+		buffer_entry += len;
+
+	}
+
 	kfree(obj);
 }
 
@@ -207,11 +351,30 @@ static const struct key_entry * __init dell_wmi_prepare_new_keymap(void)
 	for (i = 0; i < hotkey_num; i++) {
 		const struct dell_bios_keymap_entry *bios_entry =
 					&dell_bios_hotkey_table->keymap[i];
-		keymap[i].type = KE_KEY;
+
+		/* Uninitialized entries are 0 aka KEY_RESERVED. */
+		u16 keycode = (bios_entry->keycode <
+			       ARRAY_SIZE(bios_to_linux_keycode)) ?
+			bios_to_linux_keycode[bios_entry->keycode] :
+			KEY_RESERVED;
+
+		/*
+		 * Log if we find an entry in the DMI table that we don't
+		 * understand.  If this happens, we should figure out what
+		 * the entry means and add it to bios_to_linux_keycode.
+		 */
+		if (keycode == KEY_RESERVED) {
+			pr_info("firmware scancode 0x%x maps to unrecognized keycode 0x%x\n",
+				bios_entry->scancode, bios_entry->keycode);
+			continue;
+		}
+
+		if (keycode == KEY_KBDILLUMTOGGLE)
+			keymap[i].type = KE_IGNORE;
+		else
+			keymap[i].type = KE_KEY;
 		keymap[i].code = bios_entry->scancode;
-		keymap[i].keycode = bios_entry->keycode < 256 ?
-				    bios_to_linux_keycode[bios_entry->keycode] :
-				    KEY_RESERVED;
+		keymap[i].keycode = keycode;
 	}
 
 	keymap[hotkey_num].type = KE_END;
@@ -280,18 +443,88 @@ static void __init find_hk_type(const struct dmi_header *dm, void *dummy)
 	}
 }
 
+/*
+ * Descriptor buffer is 128 byte long and contains:
+ *
+ *       Name             Offset  Length  Value
+ * Vendor Signature          0       4    "DELL"
+ * Object Signature          4       4    " WMI"
+ * WMI Interface Version     8       4    <version>
+ * WMI buffer length        12       4    4096
+ */
+static int __init dell_wmi_check_descriptor_buffer(void)
+{
+	struct acpi_buffer out = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	acpi_status status;
+	u32 *buffer;
+
+	status = wmi_query_block(DELL_DESCRIPTOR_GUID, 0, &out);
+	if (ACPI_FAILURE(status)) {
+		pr_err("Cannot read Dell descriptor buffer - %d\n", status);
+		return status;
+	}
+
+	obj = (union acpi_object *)out.pointer;
+	if (!obj) {
+		pr_err("Dell descriptor buffer is empty\n");
+		return -EINVAL;
+	}
+
+	if (obj->type != ACPI_TYPE_BUFFER) {
+		pr_err("Cannot read Dell descriptor buffer\n");
+		kfree(obj);
+		return -EINVAL;
+	}
+
+	if (obj->buffer.length != 128) {
+		pr_err("Dell descriptor buffer has invalid length (%d)\n",
+			obj->buffer.length);
+		if (obj->buffer.length < 16) {
+			kfree(obj);
+			return -EINVAL;
+		}
+	}
+
+	buffer = (u32 *)obj->buffer.pointer;
+
+	if (buffer[0] != 0x4C4C4544 && buffer[1] != 0x494D5720)
+		pr_warn("Dell descriptor buffer has invalid signature (%*ph)\n",
+			8, buffer);
+
+	if (buffer[2] != 0 && buffer[2] != 1)
+		pr_warn("Dell descriptor buffer has unknown version (%d)\n",
+			buffer[2]);
+
+	if (buffer[3] != 4096)
+		pr_warn("Dell descriptor buffer has invalid buffer length (%d)\n",
+			buffer[3]);
+
+	dell_wmi_interface_version = buffer[2];
+
+	pr_info("Detected Dell WMI interface version %u\n",
+		dell_wmi_interface_version);
+
+	kfree(obj);
+	return 0;
+}
+
 static int __init dell_wmi_init(void)
 {
 	int err;
 	acpi_status status;
 
-	if (!wmi_has_guid(DELL_EVENT_GUID)) {
-		pr_warn("No known WMI GUID found\n");
+	if (!wmi_has_guid(DELL_EVENT_GUID) ||
+	    !wmi_has_guid(DELL_DESCRIPTOR_GUID)) {
+		pr_warn("Dell WMI GUID were not found\n");
 		return -ENODEV;
 	}
 
+	err = dell_wmi_check_descriptor_buffer();
+	if (err)
+		return err;
+
 	dmi_walk(find_hk_type, NULL);
-	acpi_video = acpi_video_backlight_support();
 
 	err = dell_wmi_input_setup();
 	if (err)

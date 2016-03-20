@@ -42,7 +42,7 @@ struct nxt200x_config
 	int (*set_ts_params)(struct dvb_frontend* fe, int is_punctured);
 };
 
-#if IS_ENABLED(CONFIG_DVB_NXT200X)
+#if IS_REACHABLE(CONFIG_DVB_NXT200X)
 extern struct dvb_frontend* nxt200x_attach(const struct nxt200x_config* config,
 					   struct i2c_adapter* i2c);
 #else
@@ -55,9 +55,3 @@ static inline struct dvb_frontend* nxt200x_attach(const struct nxt200x_config* c
 #endif // CONFIG_DVB_NXT200X
 
 #endif /* NXT200X_H */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

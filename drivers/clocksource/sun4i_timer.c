@@ -81,25 +81,25 @@ static void sun4i_clkevt_time_start(u8 timer, bool periodic)
 	       timer_base + TIMER_CTL_REG(timer));
 }
 
-static void sun4i_clkevt_mode(enum clock_event_mode mode,
-			      struct clock_event_device *clk)
+static int sun4i_clkevt_shutdown(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		sun4i_clkevt_time_stop(0);
-		sun4i_clkevt_time_setup(0, ticks_per_jiffy);
-		sun4i_clkevt_time_start(0, true);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		sun4i_clkevt_time_stop(0);
-		sun4i_clkevt_time_start(0, false);
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	default:
-		sun4i_clkevt_time_stop(0);
-		break;
-	}
+	sun4i_clkevt_time_stop(0);
+	return 0;
+}
+
+static int sun4i_clkevt_set_oneshot(struct clock_event_device *evt)
+{
+	sun4i_clkevt_time_stop(0);
+	sun4i_clkevt_time_start(0, false);
+	return 0;
+}
+
+static int sun4i_clkevt_set_periodic(struct clock_event_device *evt)
+{
+	sun4i_clkevt_time_stop(0);
+	sun4i_clkevt_time_setup(0, ticks_per_jiffy);
+	sun4i_clkevt_time_start(0, true);
+	return 0;
 }
 
 static int sun4i_clkevt_next_event(unsigned long evt,
@@ -116,7 +116,10 @@ static struct clock_event_device sun4i_clockevent = {
 	.name = "sun4i_tick",
 	.rating = 350,
 	.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode = sun4i_clkevt_mode,
+	.set_state_shutdown = sun4i_clkevt_shutdown,
+	.set_state_periodic = sun4i_clkevt_set_periodic,
+	.set_state_oneshot = sun4i_clkevt_set_oneshot,
+	.tick_resume = sun4i_clkevt_shutdown,
 	.set_next_event = sun4i_clkevt_next_event,
 };
 
@@ -170,7 +173,15 @@ static void __init sun4i_timer_init(struct device_node *node)
 	       TIMER_CTL_CLK_SRC(TIMER_CTL_CLK_SRC_OSC24M),
 	       timer_base + TIMER_CTL_REG(1));
 
-	sched_clock_register(sun4i_timer_sched_read, 32, rate);
+	/*
+	 * sched_clock_register does not have priorities, and on sun6i and
+	 * later there is a better sched_clock registered by arm_arch_timer.c
+	 */
+	if (of_machine_is_compatible("allwinner,sun4i-a10") ||
+	    of_machine_is_compatible("allwinner,sun5i-a13") ||
+	    of_machine_is_compatible("allwinner,sun5i-a10s"))
+		sched_clock_register(sun4i_timer_sched_read, 32, rate);
+
 	clocksource_mmio_init(timer_base + TIMER_CNTVAL_REG(1), node->name,
 			      rate, 350, 32, clocksource_mmio_readl_down);
 
@@ -182,6 +193,12 @@ static void __init sun4i_timer_init(struct device_node *node)
 	/* Make sure timer is stopped before playing with interrupts */
 	sun4i_clkevt_time_stop(0);
 
+	sun4i_clockevent.cpumask = cpu_possible_mask;
+	sun4i_clockevent.irq = irq;
+
+	clockevents_config_and_register(&sun4i_clockevent, rate,
+					TIMER_SYNC_TICKS, 0xffffffff);
+
 	ret = setup_irq(irq, &sun4i_timer_irq);
 	if (ret)
 		pr_warn("failed to setup irq %d\n", irq);
@@ -189,12 +206,6 @@ static void __init sun4i_timer_init(struct device_node *node)
 	/* Enable timer0 interrupt */
 	val = readl(timer_base + TIMER_IRQ_EN_REG);
 	writel(val | TIMER_IRQ_EN(0), timer_base + TIMER_IRQ_EN_REG);
-
-	sun4i_clockevent.cpumask = cpu_possible_mask;
-	sun4i_clockevent.irq = irq;
-
-	clockevents_config_and_register(&sun4i_clockevent, rate,
-					TIMER_SYNC_TICKS, 0xffffffff);
 }
 CLOCKSOURCE_OF_DECLARE(sun4i, "allwinner,sun4i-a10-timer",
 		       sun4i_timer_init);

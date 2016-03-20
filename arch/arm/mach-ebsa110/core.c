@@ -65,7 +65,7 @@ static void __init ebsa110_init_irq(void)
 	for (irq = 0; irq < NR_IRQS; irq++) {
 		irq_set_chip_and_handler(irq, &ebsa110_irq_chip,
 					 handle_level_irq);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 }
 

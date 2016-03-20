@@ -93,10 +93,11 @@ static struct irq_chip megamod_chip = {
 	.irq_unmask	= unmask_megamod,
 };
 
-static void megamod_irq_cascade(unsigned int irq, struct irq_desc *desc)
+static void megamod_irq_cascade(struct irq_desc *desc)
 {
 	struct megamod_cascade_data *cascade;
 	struct megamod_pic *pic;
+	unsigned int irq;
 	u32 events;
 	int n, idx;
 
@@ -177,7 +178,7 @@ static void __init set_megamod_mux(struct megamod_pic *pic, int src, int output)
 static void __init parse_priority_map(struct megamod_pic *pic,
 				      int *mapping, int size)
 {
-	struct device_node *np = pic->irqhost->of_node;
+	struct device_node *np = irq_domain_get_of_node(pic->irqhost);
 	const __be32 *map;
 	int i, maplen;
 	u32 val;
@@ -282,8 +283,8 @@ static struct megamod_pic * __init init_megamod_pic(struct device_node *np)
 		soc_writel(~0, &pic->regs->evtmask[i]);
 		soc_writel(~0, &pic->regs->evtclr[i]);
 
-		irq_set_handler_data(irq, &cascade_data[i]);
-		irq_set_chained_handler(irq, megamod_irq_cascade);
+		irq_set_chained_handler_and_data(irq, megamod_irq_cascade,
+						 &cascade_data[i]);
 	}
 
 	/* Finally, set up the MUX registers */

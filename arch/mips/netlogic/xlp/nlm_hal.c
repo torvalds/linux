@@ -71,16 +71,28 @@ static int xlp9xx_irq_to_irt(int irq)
 	switch (irq) {
 	case PIC_GPIO_IRQ:
 		return 12;
+	case PIC_I2C_0_IRQ:
+		return 125;
+	case PIC_I2C_1_IRQ:
+		return 126;
+	case PIC_I2C_2_IRQ:
+		return 127;
+	case PIC_I2C_3_IRQ:
+		return 128;
 	case PIC_9XX_XHCI_0_IRQ:
 		return 114;
 	case PIC_9XX_XHCI_1_IRQ:
 		return 115;
+	case PIC_9XX_XHCI_2_IRQ:
+		return 116;
 	case PIC_UART_0_IRQ:
 		return 133;
 	case PIC_UART_1_IRQ:
 		return 134;
 	case PIC_SATA_IRQ:
 		return 143;
+	case PIC_NAND_IRQ:
+		return 151;
 	case PIC_SPI_IRQ:
 		return 152;
 	case PIC_MMC_IRQ:
@@ -170,16 +182,23 @@ static int xlp_irq_to_irt(int irq)
 	}
 
 	if (devoff != 0) {
+		uint32_t val;
+
 		pcibase = nlm_pcicfg_base(devoff);
-		irt = nlm_read_reg(pcibase, XLP_PCI_IRTINFO_REG) & 0xffff;
-		/* HW weirdness, I2C IRT entry has to be fixed up */
-		switch (irq) {
-		case PIC_I2C_1_IRQ:
-			irt = irt + 1; break;
-		case PIC_I2C_2_IRQ:
-			irt = irt + 2; break;
-		case PIC_I2C_3_IRQ:
-			irt = irt + 3; break;
+		val = nlm_read_reg(pcibase, XLP_PCI_IRTINFO_REG);
+		if (val == 0xffffffff) {
+			irt = -1;
+		} else {
+			irt = val & 0xffff;
+			/* HW weirdness, I2C IRT entry has to be fixed up */
+			switch (irq) {
+			case PIC_I2C_1_IRQ:
+				irt = irt + 1; break;
+			case PIC_I2C_2_IRQ:
+				irt = irt + 2; break;
+			case PIC_I2C_3_IRQ:
+				irt = irt + 3; break;
+			}
 		}
 	} else if (irq >= PIC_PCIE_LINK_LEGACY_IRQ(0) &&
 			irq <= PIC_PCIE_LINK_LEGACY_IRQ(3)) {
@@ -325,7 +344,7 @@ static unsigned int nlm_xlp2_get_pic_frequency(int node)
 	/* Find the clock source PLL device for PIC */
 	if (cpu_xlp9xx) {
 		reg_select = nlm_read_sys_reg(clockbase,
-				SYS_9XX_CLK_DEV_SEL) & 0x3;
+				SYS_9XX_CLK_DEV_SEL_REG) & 0x3;
 		switch (reg_select) {
 		case 0:
 			ctrl_val0 = nlm_read_sys_reg(clockbase,
@@ -354,7 +373,7 @@ static unsigned int nlm_xlp2_get_pic_frequency(int node)
 		}
 	} else {
 		reg_select = (nlm_read_sys_reg(sysbase,
-					SYS_CLK_DEV_SEL) >> 22) & 0x3;
+					SYS_CLK_DEV_SEL_REG) >> 22) & 0x3;
 		switch (reg_select) {
 		case 0:
 			ctrl_val0 = nlm_read_sys_reg(sysbase,
@@ -410,7 +429,7 @@ static unsigned int nlm_xlp2_get_pic_frequency(int node)
 
 	fdiv = fdiv/(1 << 13);
 	pll_out_freq_num = ((ref_clk >> 1) * (6 + mdiv)) + fdiv;
-	pll_out_freq_den = (1 << vco_post_div) * pll_post_div * 3;
+	pll_out_freq_den = (1 << vco_post_div) * pll_post_div * ref_div;
 
 	if (pll_out_freq_den > 0)
 		do_div(pll_out_freq_num, pll_out_freq_den);
@@ -418,10 +437,10 @@ static unsigned int nlm_xlp2_get_pic_frequency(int node)
 	/* PIC post divider, which happens after PLL */
 	if (cpu_xlp9xx)
 		pic_div = nlm_read_sys_reg(clockbase,
-				SYS_9XX_CLK_DEV_DIV) & 0x3;
+				SYS_9XX_CLK_DEV_DIV_REG) & 0x3;
 	else
 		pic_div = (nlm_read_sys_reg(sysbase,
-					SYS_CLK_DEV_DIV) >> 22) & 0x3;
+					SYS_CLK_DEV_DIV_REG) >> 22) & 0x3;
 	do_div(pll_out_freq_num, 1 << pic_div);
 
 	return pll_out_freq_num;
@@ -442,19 +461,21 @@ unsigned int nlm_get_cpu_frequency(void)
 
 /*
  * Fills upto 8 pairs of entries containing the DRAM map of a node
- * if n < 0, get dram map for all nodes
+ * if node < 0, get dram map for all nodes
  */
-int xlp_get_dram_map(int n, uint64_t *dram_map)
+int nlm_get_dram_map(int node, uint64_t *dram_map, int nentries)
 {
 	uint64_t bridgebase, base, lim;
 	uint32_t val;
 	unsigned int barreg, limreg, xlatreg;
-	int i, node, rv;
+	int i, n, rv;
 
 	/* Look only at mapping on Node 0, we don't handle crazy configs */
 	bridgebase = nlm_get_bridge_regbase(0);
 	rv = 0;
 	for (i = 0; i < 8; i++) {
+		if (rv + 1 >= nentries)
+			break;
 		if (cpu_is_xlp9xx()) {
 			barreg = BRIDGE_9XX_DRAM_BAR(i);
 			limreg = BRIDGE_9XX_DRAM_LIMIT(i);
@@ -464,10 +485,10 @@ int xlp_get_dram_map(int n, uint64_t *dram_map)
 			limreg = BRIDGE_DRAM_LIMIT(i);
 			xlatreg = BRIDGE_DRAM_NODE_TRANSLN(i);
 		}
-		if (n >= 0) {
+		if (node >= 0) {
 			/* node specified, get node mapping of BAR */
 			val = nlm_read_bridge_reg(bridgebase, xlatreg);
-			node = (val >> 1) & 0x3;
+			n = (val >> 1) & 0x3;
 			if (n != node)
 				continue;
 		}

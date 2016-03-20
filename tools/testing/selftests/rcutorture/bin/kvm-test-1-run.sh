@@ -6,11 +6,11 @@
 # Execute this in the source tree.  Do not run it as a background task
 # because qemu does not seem to like that much.
 #
-# Usage: sh kvm-test-1-run.sh config builddir resdir minutes qemu-args boot_args
+# Usage: kvm-test-1-run.sh config builddir resdir minutes qemu-args boot_args
 #
-# qemu-args defaults to "-nographic", along with arguments specifying the
-#			number of CPUs and other options generated from
-#			the underlying CPU architecture.
+# qemu-args defaults to "-enable-kvm -soundhw pcspk -nographic", along with
+#			arguments specifying the number of CPUs and other
+#			options generated from the underlying CPU architecture.
 # boot_args defaults to value returned by the per_version_boot_params
 #			shell function.
 #
@@ -38,14 +38,12 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-grace=120
-
 T=/tmp/kvm-test-1-run.sh.$$
 trap 'rm -rf $T' 0
 touch $T
 
 . $KVM/bin/functions.sh
-. $KVPATH/ver_functions.sh
+. $CONFIGFRAG/ver_functions.sh
 
 config_template=${1}
 config_dir=`echo $config_template | sed -e 's,/[^/]*$,,'`
@@ -138,8 +136,9 @@ then
 fi
 
 # Generate -smp qemu argument.
-qemu_args="-nographic $qemu_args"
+qemu_args="-enable-kvm -soundhw pcspk -nographic $qemu_args"
 cpu_count=`configNR_CPUS.sh $config_template`
+cpu_count=`configfrag_boot_cpus "$boot_args" "$config_template" "$cpu_count"`
 vcpus=`identify_qemu_vcpus`
 if test $cpu_count -gt $vcpus
 then
@@ -151,7 +150,7 @@ fi
 qemu_args="`specify_qemu_cpus "$QEMU" "$qemu_args" "$cpu_count"`"
 
 # Generate architecture-specific and interaction-specific qemu arguments
-qemu_args="$qemu_args `identify_qemu_args "$QEMU" "$builddir/console.log"`"
+qemu_args="$qemu_args `identify_qemu_args "$QEMU" "$resdir/console.log"`"
 
 # Generate qemu -append arguments
 qemu_append="`identify_qemu_append "$QEMU"`"
@@ -167,8 +166,9 @@ then
 	touch $resdir/buildonly
 	exit 0
 fi
-echo $QEMU $qemu_args -m 512 -kernel $builddir/$BOOT_IMAGE -append \"$qemu_append $boot_args\" > $resdir/qemu-cmd
-( $QEMU $qemu_args -m 512 -kernel $builddir/$BOOT_IMAGE -append "$qemu_append $boot_args"; echo $? > $resdir/qemu-retval ) &
+echo "NOTE: $QEMU either did not run or was interactive" > $resdir/console.log
+echo $QEMU $qemu_args -m 512 -kernel $resdir/bzImage -append \"$qemu_append $boot_args\" > $resdir/qemu-cmd
+( $QEMU $qemu_args -m 512 -kernel $resdir/bzImage -append "$qemu_append $boot_args"; echo $? > $resdir/qemu-retval ) &
 qemu_pid=$!
 commandcompleted=0
 echo Monitoring qemu job at pid $qemu_pid
@@ -212,9 +212,9 @@ then
 		else
 			break
 		fi
-		if test $kruntime -ge $((seconds + grace))
+		if test $kruntime -ge $((seconds + $TORTURE_SHUTDOWN_GRACE))
 		then
-			echo "!!! Hang at $kruntime vs. $seconds seconds" >> $resdir/Warnings 2>&1
+			echo "!!! PID $qemu_pid hung at $kruntime vs. $seconds seconds" >> $resdir/Warnings 2>&1
 			kill -KILL $qemu_pid
 			break
 		fi
@@ -222,6 +222,5 @@ then
 	done
 fi
 
-cp $builddir/console.log $resdir
 parse-torture.sh $resdir/console.log $title
 parse-console.sh $resdir/console.log $title

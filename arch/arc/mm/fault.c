@@ -14,10 +14,18 @@
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
+#include <linux/perf_event.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu.h>
 
-static int handle_vmalloc_fault(unsigned long address)
+/*
+ * kernel virtual address is required to implement vmalloc/pkmap/fixmap
+ * Refer to asm/processor.h for System Memory Map
+ *
+ * It simply copies the PMD entry (pointer to 2nd level page table or hugepage)
+ * from swapper pgdir to task pgdir. The 2nd level table/page is thus shared
+ */
+noinline static int handle_kernel_vaddr_fault(unsigned long address)
 {
 	/*
 	 * Synchronize this task's top level page-table
@@ -71,8 +79,8 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
 	 * only copy the information from the master page table,
 	 * nothing more.
 	 */
-	if (address >= VMALLOC_START && address <= VMALLOC_END) {
-		ret = handle_vmalloc_fault(address);
+	if (address >= VMALLOC_START) {
+		ret = handle_kernel_vaddr_fault(address);
 		if (unlikely(ret))
 			goto bad_area_nosemaphore;
 		else
@@ -85,7 +93,7 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
 	 */
-	if (in_atomic() || !mm)
+	if (faulthandler_disabled() || !mm)
 		goto no_context;
 
 	if (user_mode(regs))
@@ -139,13 +147,20 @@ good_area:
 			return;
 	}
 
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
+
 	if (likely(!(fault & VM_FAULT_ERROR))) {
 		if (flags & FAULT_FLAG_ALLOW_RETRY) {
 			/* To avoid updating stats twice for retry case */
-			if (fault & VM_FAULT_MAJOR)
+			if (fault & VM_FAULT_MAJOR) {
 				tsk->maj_flt++;
-			else
+				perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
+					      regs, address);
+			} else {
 				tsk->min_flt++;
+				perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
+					      regs, address);
+			}
 
 			if (fault & VM_FAULT_RETRY) {
 				flags &= ~FAULT_FLAG_ALLOW_RETRY;
@@ -161,6 +176,8 @@ good_area:
 
 	if (fault & VM_FAULT_OOM)
 		goto out_of_memory;
+	else if (fault & VM_FAULT_SIGSEGV)
+		goto bad_area;
 	else if (fault & VM_FAULT_SIGBUS)
 		goto do_sigbus;
 

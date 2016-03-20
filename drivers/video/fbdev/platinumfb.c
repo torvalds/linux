@@ -168,7 +168,7 @@ static int platinumfb_blank(int blank,  struct fb_info *fb)
 	struct fb_info_platinum *info = (struct fb_info_platinum *) fb;
 	int	ctrl;
 
-	ctrl = ld_le32(&info->platinum_regs->ctrl.r) | 0x33;
+	ctrl = le32_to_cpup(&info->platinum_regs->ctrl.r) | 0x33;
 	if (blank)
 		--blank_mode;
 	if (blank & VESA_VSYNC_SUSPEND)
@@ -679,7 +679,6 @@ static struct platform_driver platinum_driver =
 {
 	.driver = {
 		.name = "platinumfb",
-		.owner = THIS_MODULE,
 		.of_match_table = platinumfb_match,
 	},
 	.probe		= platinumfb_probe,

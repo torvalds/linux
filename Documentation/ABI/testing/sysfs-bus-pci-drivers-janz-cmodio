@@ -1,0 +1,8 @@
+What:		/sys/bus/pci/drivers/janz-cmodio/.../modulbus_number
+Date:		May 2010
+KernelVersion:	2.6.35
+Contact:	Ira W. Snyder <ira.snyder@gmail.com>
+Description:
+		Value representing the HEX switch S2 of the janz carrier board CMOD-IO or CAN-PCI2
+
+		Read-only: value of the configuration switch (0..15)

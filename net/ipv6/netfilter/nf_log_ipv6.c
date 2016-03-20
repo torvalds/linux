@@ -6,6 +6,9 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
@@ -26,7 +29,7 @@ static struct nf_loginfo default_loginfo = {
 	.type	= NF_LOG_TYPE_LOG,
 	.u = {
 		.log = {
-			.level	  = 5,
+			.level	  = LOGLEVEL_NOTICE,
 			.logflags = NF_LOG_MASK,
 		},
 	},
@@ -398,8 +401,17 @@ static int __init nf_log_ipv6_init(void)
 	if (ret < 0)
 		return ret;
 
-	nf_log_register(NFPROTO_IPV6, &nf_ip6_logger);
+	ret = nf_log_register(NFPROTO_IPV6, &nf_ip6_logger);
+	if (ret < 0) {
+		pr_err("failed to register logger\n");
+		goto err1;
+	}
+
 	return 0;
+
+err1:
+	unregister_pernet_subsys(&nf_log_ipv6_net_ops);
+	return ret;
 }
 
 static void __exit nf_log_ipv6_exit(void)
@@ -412,6 +424,6 @@ module_init(nf_log_ipv6_init);
 module_exit(nf_log_ipv6_exit);
 
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
-MODULE_DESCRIPTION("Netfilter IPv4 packet logging");
+MODULE_DESCRIPTION("Netfilter IPv6 packet logging");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NF_LOGGER(AF_INET6, 0);

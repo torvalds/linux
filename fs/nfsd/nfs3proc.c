@@ -166,7 +166,7 @@ nfsd3_proc_read(struct svc_rqst *rqstp, struct nfsd3_readargs *argp,
 			   	  rqstp->rq_vec, argp->vlen,
 				  &resp->count);
 	if (nfserr == 0) {
-		struct inode	*inode = resp->fh.fh_dentry->d_inode;
+		struct inode	*inode = d_inode(resp->fh.fh_dentry);
 
 		resp->eof = (argp->offset + resp->count) >= inode->i_size;
 	}
@@ -222,11 +222,6 @@ nfsd3_proc_create(struct svc_rqst *rqstp, struct nfsd3_createargs *argp,
 	dirfhp = fh_copy(&resp->dirfh, &argp->fh);
 	newfhp = fh_init(&resp->fh, NFS3_FHSIZE);
 	attr   = &argp->attrs;
-
-	/* Get the directory inode */
-	nfserr = fh_verify(rqstp, dirfhp, S_IFDIR, NFSD_MAY_CREATE);
-	if (nfserr)
-		RETURN_STATUS(nfserr);
 
 	/* Unfudge the mode bits */
 	attr->ia_mode &= ~S_IFMT;
@@ -471,6 +466,14 @@ nfsd3_proc_readdirplus(struct svc_rqst *rqstp, struct nfsd3_readdirargs *argp,
 	resp->buflen = resp->count;
 	resp->rqstp = rqstp;
 	offset = argp->cookie;
+
+	nfserr = fh_verify(rqstp, &resp->fh, S_IFDIR, NFSD_MAY_NOP);
+	if (nfserr)
+		RETURN_STATUS(nfserr);
+
+	if (resp->fh.fh_export->ex_flags & NFSEXP_NOREADDIRPLUS)
+		RETURN_STATUS(nfserr_notsupp);
+
 	nfserr = nfsd_readdir(rqstp, &resp->fh,
 				     &offset,
 				     &resp->common,
@@ -548,7 +551,7 @@ nfsd3_proc_fsinfo(struct svc_rqst * rqstp, struct nfsd_fhandle    *argp,
 	 * different read/write sizes for file systems known to have
 	 * problems with large blocks */
 	if (nfserr == 0) {
-		struct super_block *sb = argp->fh.fh_dentry->d_inode->i_sb;
+		struct super_block *sb = d_inode(argp->fh.fh_dentry)->i_sb;
 
 		/* Note that we don't care for remote fs's here */
 		if (sb->s_magic == MSDOS_SUPER_MAGIC) {
@@ -584,7 +587,7 @@ nfsd3_proc_pathconf(struct svc_rqst * rqstp, struct nfsd_fhandle      *argp,
 	nfserr = fh_verify(rqstp, &argp->fh, 0, NFSD_MAY_NOP);
 
 	if (nfserr == 0) {
-		struct super_block *sb = argp->fh.fh_dentry->d_inode->i_sb;
+		struct super_block *sb = d_inode(argp->fh.fh_dentry)->i_sb;
 
 		/* Note that we don't care for remote fs's here */
 		switch (sb->s_magic) {

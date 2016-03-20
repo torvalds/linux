@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -281,7 +281,7 @@ void acpi_ev_update_gpes(acpi_owner_id table_owner_id)
 	}
 
 	if (walk_info.count) {
-		ACPI_INFO((AE_INFO, "Enabled %u new GPEs", walk_info.count));
+		ACPI_INFO(("Enabled %u new GPEs", walk_info.count));
 	}
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
@@ -377,7 +377,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 
 	/* 4) The last two characters of the name are the hex GPE Number */
 
-	gpe_number = ACPI_STRTOUL(&name[2], NULL, 16);
+	gpe_number = strtoul(&name[2], NULL, 16);
 	if (gpe_number == ACPI_UINT32_MAX) {
 
 		/* Conversion failed; invalid method, just ignore it */
@@ -401,15 +401,17 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
-	    ACPI_GPE_DISPATCH_HANDLER) {
+	if ((ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
+	     ACPI_GPE_DISPATCH_HANDLER) ||
+	    (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
+	     ACPI_GPE_DISPATCH_RAW_HANDLER)) {
 
 		/* If there is already a handler, ignore this GPE method */
 
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
+	if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
 	    ACPI_GPE_DISPATCH_METHOD) {
 		/*
 		 * If there is already a method, ignore this method. But check
@@ -424,6 +426,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	}
 
 	/* Disable the GPE in case it's been enabled already. */
+
 	(void)acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_DISABLE);
 
 	/*

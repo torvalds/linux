@@ -24,8 +24,13 @@ static int pcm512x_i2c_probe(struct i2c_client *i2c,
 			     const struct i2c_device_id *id)
 {
 	struct regmap *regmap;
+	struct regmap_config config = pcm512x_regmap;
 
-	regmap = devm_regmap_init_i2c(i2c, &pcm512x_regmap);
+	/* msb needs to be set to enable auto-increment of addresses */
+	config.read_flag_mask = 0x80;
+	config.write_flag_mask = 0x80;
+
+	regmap = devm_regmap_init_i2c(i2c, &config);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
@@ -41,6 +46,8 @@ static int pcm512x_i2c_remove(struct i2c_client *i2c)
 static const struct i2c_device_id pcm512x_i2c_id[] = {
 	{ "pcm5121", },
 	{ "pcm5122", },
+	{ "pcm5141", },
+	{ "pcm5142", },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcm512x_i2c_id);
@@ -48,6 +55,8 @@ MODULE_DEVICE_TABLE(i2c, pcm512x_i2c_id);
 static const struct of_device_id pcm512x_of_match[] = {
 	{ .compatible = "ti,pcm5121", },
 	{ .compatible = "ti,pcm5122", },
+	{ .compatible = "ti,pcm5141", },
+	{ .compatible = "ti,pcm5142", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pcm512x_of_match);
@@ -58,7 +67,6 @@ static struct i2c_driver pcm512x_i2c_driver = {
 	.id_table	= pcm512x_i2c_id,
 	.driver		= {
 		.name	= "pcm512x",
-		.owner	= THIS_MODULE,
 		.of_match_table = pcm512x_of_match,
 		.pm     = &pcm512x_pm_ops,
 	},

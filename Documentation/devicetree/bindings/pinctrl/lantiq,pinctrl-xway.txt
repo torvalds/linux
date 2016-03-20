@@ -1,0 +1,191 @@
+Lantiq XWAY pinmux controller
+
+Required properties:
+- compatible: "lantiq,pinctrl-xway", (DEPRECATED: Use "lantiq,pinctrl-danube")
+	      "lantiq,pinctrl-xr9", (DEPRECATED: Use "lantiq,xrx100-pinctrl" or
+					"lantiq,xrx200-pinctrl")
+	      "lantiq,pinctrl-ase", (DEPRECATED: Use "lantiq,ase-pinctrl")
+	      "lantiq,<chip>-pinctrl", where <chip> is:
+		"ase" (XWAY AMAZON Family)
+		"danube" (XWAY DANUBE Family)
+		"xrx100" (XWAY xRX100 Family)
+		"xrx200" (XWAY xRX200 Family)
+		"xrx300" (XWAY xRX300 Family)
+- reg: Should contain the physical address and length of the gpio/pinmux
+  register range
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices, including the meaning of the
+phrase "pin configuration node".
+
+Lantiq's pin configuration nodes act as a container for an arbitrary number of
+subnodes. Each of these subnodes represents some desired configuration for a
+pin, a group, or a list of pins or groups. This configuration can include the
+mux function to select on those group(s), and two pin configuration parameters:
+pull-up and open-drain
+
+The name of each subnode is not important as long as it is unique; all subnodes
+should be enumerated and processed purely based on their content.
+
+Each subnode only affects those parameters that are explicitly listed. In
+other words, a subnode that lists a mux function but no pin configuration
+parameters implies no information about any pin configuration parameters.
+Similarly, a pin subnode that describes a pullup parameter implies no
+information about e.g. the mux function.
+
+We support 2 types of nodes.
+
+Definition of mux function groups:
+
+Required subnode-properties:
+- lantiq,groups : An array of strings. Each string contains the name of a group.
+  Valid values for these names are listed below.
+- lantiq,function: A string containing the name of the function to mux to the
+  group. Valid values for function names are listed below.
+
+Valid values for group and function names:
+
+XWAY: (DEPRECATED: Use DANUBE)
+  mux groups:
+    exin0, exin1, exin2, jtag, ebu a23, ebu a24, ebu a25, ebu clk, ebu cs1,
+    ebu wait, nand ale, nand cs1, nand cle, spi, spi_cs1, spi_cs2, spi_cs3,
+    spi_cs4, spi_cs5, spi_cs6, asc0, asc0 cts rts, stp, nmi, gpt1, gpt2,
+    gpt3, clkout0, clkout1, clkout2, clkout3, gnt1, gnt2, gnt3, req1, req2,
+    req3
+
+  functions:
+    spi, asc, cgu, jtag, exin, stp, gpt, nmi, pci, ebu
+
+XR9: ( DEPRECATED: Use xRX100/xRX200)
+  mux groups:
+    exin0, exin1, exin2, exin3, exin4, jtag, ebu a23, ebu a24, ebu a25,
+    ebu clk, ebu cs1, ebu wait, nand ale, nand cs1, nand cle, nand rdy,
+    nand rd, spi, spi_cs1, spi_cs2, spi_cs3, spi_cs4, spi_cs5, spi_cs6,
+    asc0, asc0 cts rts, stp, nmi, gpt1, gpt2, gpt3, clkout0, clkout1,
+    clkout2, clkout3, gnt1, gnt2, gnt3, gnt4, req1, req2, req3, req4, mdio,
+    gphy0 led0, gphy0 led1, gphy0 led2, gphy1 led0, gphy1 led1, gphy1 led2
+
+  functions:
+    spi, asc, cgu, jtag, exin, stp, gpt, nmi, pci, ebu, mdio, gphy
+
+AMAZON:
+  mux groups:
+    exin0, exin1, exin2, jtag, spi_di, spi_do, spi_clk, spi_cs1, spi_cs2,
+    spi_cs3, spi_cs4, spi_cs5, spi_cs6, asc, stp, gpt1, gpt2, gpt3, clkout0,
+    clkout1, clkout2, mdio, dfe led0, dfe led1, ephy led0, ephy led1, ephy led2
+
+  functions:
+    spi, asc, cgu, jtag, exin, stp, gpt, mdio, ephy, dfe
+
+DANUBE:
+  mux groups:
+    exin0, exin1, exin2, jtag, ebu a23, ebu a24, ebu a25, ebu clk, ebu cs1,
+    ebu wait, nand ale, nand cs1, nand cle, spi_di, spi_do, spi_clk, spi_cs1,
+    spi_cs2, spi_cs3, spi_cs4, spi_cs5, spi_cs6, asc0, asc0 cts rts, stp, nmi,
+    gpt1, gpt2, gpt3, clkout0, clkout1, clkout2, clkout3, gnt1, gnt2, gnt3,
+    req1, req2, req3, dfe led0, dfe led1
+
+  functions:
+    spi, asc, cgu, jtag, exin, stp, gpt, nmi, pci, ebu, dfe
+
+xRX100:
+  mux groups:
+    exin0, exin1, exin2, exin3, exin4, ebu a23, ebu a24, ebu a25, ebu clk,
+    ebu cs1, ebu wait, nand ale, nand cs1, nand cle, nand rdy, nand rd,
+    spi_di, spi_do, spi_clk, spi_cs1, spi_cs2, spi_cs3, spi_cs4, spi_cs5,
+    spi_cs6, asc0, asc0 cts rts, stp, nmi, gpt1, gpt2, gpt3, clkout0, clkout1,
+    clkout2, clkout3, gnt1, gnt2, gnt3, gnt4, req1, req2, req3, req4, mdio,
+    dfe led0, dfe led1
+
+  functions:
+    spi, asc, cgu, exin, stp, gpt, nmi, pci, ebu, mdio, dfe
+
+xRX200:
+  mux groups:
+    exin0, exin1, exin2, exin3, exin4, ebu a23, ebu a24, ebu a25, ebu clk,
+    ebu cs1, ebu wait, nand ale, nand cs1, nand cle, nand rdy, nand rd,
+    spi_di, spi_do, spi_clk, spi_cs1, spi_cs2, spi_cs3, spi_cs4, spi_cs5,
+    spi_cs6, usif uart_rx, usif uart_tx, usif uart_rts, usif uart_cts,
+    usif uart_dtr, usif uart_dsr, usif uart_dcd, usif uart_ri, usif spi_di,
+    usif spi_do, usif spi_clk, usif spi_cs0, usif spi_cs1, usif spi_cs2,
+    stp, nmi, gpt1, gpt2, gpt3, clkout0, clkout1, clkout2, clkout3, gnt1,
+    gnt2, gnt3, gnt4, req1, req2, req3, req4, mdio, dfe led0, dfe led1,
+    gphy0 led0, gphy0 led1, gphy0 led2, gphy1 led0, gphy1 led1, gphy1 led2
+
+  functions:
+    spi, usif, cgu, exin, stp, gpt, nmi, pci, ebu, mdio, dfe, gphy
+
+xRX300:
+  mux groups:
+    exin0, exin1, exin2, exin4, nand ale, nand cs0, nand cs1, nand cle,
+    nand rdy, nand rd, nand_d0, nand_d1, nand_d2, nand_d3, nand_d4, nand_d5,
+    nand_d6, nand_d7, nand_d1, nand wr, nand wp, nand se, spi_di, spi_do,
+    spi_clk, spi_cs1, spi_cs4, spi_cs6, usif uart_rx, usif uart_tx,
+    usif spi_di, usif spi_do, usif spi_clk, usif spi_cs0, stp, clkout2,
+    mdio, dfe led0, dfe led1, ephy0 led0, ephy0 led1, ephy1 led0, ephy1 led1
+
+  functions:
+    spi, usif, cgu, exin, stp, ebu, mdio, dfe, ephy
+
+
+Definition of pin configurations:
+
+Required subnode-properties:
+- lantiq,pins : An array of strings. Each string contains the name of a pin.
+  Valid values for these names are listed below.
+
+Optional subnode-properties:
+- lantiq,pull: Integer, representing the pull-down/up to apply to the pin.
+    0: none, 1: down, 2: up.
+- lantiq,open-drain: Boolean, enables open-drain on the defined pin.
+
+Valid values for XWAY pin names: (DEPRECATED: Use DANUBE)
+  Pinconf pins can be referenced via the names io0-io31.
+
+Valid values for XR9 pin names: (DEPRECATED: Use xrX100/xRX200)
+  Pinconf pins can be referenced via the names io0-io55.
+
+Valid values for AMAZON pin names:
+  Pinconf pins can be referenced via the names io0-io31.
+
+Valid values for DANUBE pin names:
+  Pinconf pins can be referenced via the names io0-io31.
+
+Valid values for xRX100 pin names:
+  Pinconf pins can be referenced via the names io0-io55.
+
+Valid values for xRX200 pin names:
+  Pinconf pins can be referenced via the names io0-io49.
+
+Valid values for xRX300 pin names:
+  Pinconf pins can be referenced via the names io0-io1,io3-io6,io8-io11,
+						io13-io19,io23-io27,io34-io36,
+						io42-io43,io48-io61.
+
+Example:
+	gpio: pinmux@E100B10 {
+		compatible = "lantiq,danube-pinctrl";
+		pinctrl-names = "default";
+		pinctrl-0 = <&state_default>;
+
+		#gpio-cells = <2>;
+		gpio-controller;
+		reg = <0xE100B10 0xA0>;
+
+		state_default: pinmux {
+			stp {
+				lantiq,groups = "stp";
+				lantiq,function = "stp";
+			};
+			pci {
+				lantiq,groups = "gnt1";
+				lantiq,function = "pci";
+			};
+			conf_out {
+				lantiq,pins = "io4", "io5", "io6"; /* stp */
+				lantiq,open-drain;
+				lantiq,pull = <0>;
+			};
+		};
+	};
+

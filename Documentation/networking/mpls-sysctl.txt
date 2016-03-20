@@ -1,0 +1,29 @@
+/proc/sys/net/mpls/* Variables:
+
+platform_labels - INTEGER
+	Number of entries in the platform label table.  It is not
+	possible to configure forwarding for label values equal to or
+	greater than the number of platform labels.
+
+	A dense utliziation of the entries in the platform label table
+	is possible and expected aas the platform labels are locally
+	allocated.
+
+	If the number of platform label table entries is set to 0 no
+	label will be recognized by the kernel and mpls forwarding
+	will be disabled.
+
+	Reducing this value will remove all label routing entries that
+	no longer fit in the table.
+
+	Possible values: 0 - 1048575
+	Default: 0
+
+conf/<interface>/input - BOOL
+	Control whether packets can be input on this interface.
+
+	If disabled, packets will be discarded without further
+	processing.
+
+	0 - disabled (default)
+	not 0 - enabled

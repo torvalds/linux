@@ -152,9 +152,9 @@ _GLOBAL(tm_reclaim)
 
 	addi	r7, r3, THREAD_TRANSACT_VRSTATE
 	SAVE_32VRS(0, r6, r7)	/* r6 scratch, r7 transact vr state */
-	mfvscr	vr0
+	mfvscr	v0
 	li	r6, VRSTATE_VSCR
-	stvx	vr0, r7, r6
+	stvx	v0, r7, r6
 dont_backup_vec:
 	mfspr	r0, SPRN_VRSAVE
 	std	r0, THREAD_TRANSACT_VRSAVE(r3)
@@ -293,7 +293,7 @@ dont_backup_fp:
 	ld	r2, STK_GOT(r1)
 
 	/* Load CPU's default DSCR */
-	ld	r0, PACA_DSCR(r13)
+	ld	r0, PACA_DSCR_DEFAULT(r13)
 	mtspr	SPRN_DSCR, r0
 
 	blr
@@ -359,8 +359,8 @@ _GLOBAL(__tm_recheckpoint)
 
 	addi	r8, r3, THREAD_VRSTATE
 	li	r5, VRSTATE_VSCR
-	lvx	vr0, r8, r5
-	mtvscr	vr0
+	lvx	v0, r8, r5
+	mtvscr	v0
 	REST_32VRS(0, r5, r8)			/* r5 scratch, r8 ptr */
 dont_restore_vec:
 	ld	r5, THREAD_VRSAVE(r3)
@@ -473,7 +473,7 @@ restore_gprs:
 	ld	r2, STK_GOT(r1)
 
 	/* Load CPU's default DSCR */
-	ld	r0, PACA_DSCR(r13)
+	ld	r0, PACA_DSCR_DEFAULT(r13)
 	mtspr	SPRN_DSCR, r0
 
 	blr

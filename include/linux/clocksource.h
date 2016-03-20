@@ -18,114 +18,12 @@
 #include <asm/div64.h>
 #include <asm/io.h>
 
-/* clocksource cycle base type */
-typedef u64 cycle_t;
 struct clocksource;
 struct module;
 
 #ifdef CONFIG_ARCH_CLOCKSOURCE_DATA
 #include <asm/clocksource.h>
 #endif
-
-/**
- * struct cyclecounter - hardware abstraction for a free running counter
- *	Provides completely state-free accessors to the underlying hardware.
- *	Depending on which hardware it reads, the cycle counter may wrap
- *	around quickly. Locking rules (if necessary) have to be defined
- *	by the implementor and user of specific instances of this API.
- *
- * @read:		returns the current cycle value
- * @mask:		bitmask for two's complement
- *			subtraction of non 64 bit counters,
- *			see CLOCKSOURCE_MASK() helper macro
- * @mult:		cycle to nanosecond multiplier
- * @shift:		cycle to nanosecond divisor (power of two)
- */
-struct cyclecounter {
-	cycle_t (*read)(const struct cyclecounter *cc);
-	cycle_t mask;
-	u32 mult;
-	u32 shift;
-};
-
-/**
- * struct timecounter - layer above a %struct cyclecounter which counts nanoseconds
- *	Contains the state needed by timecounter_read() to detect
- *	cycle counter wrap around. Initialize with
- *	timecounter_init(). Also used to convert cycle counts into the
- *	corresponding nanosecond counts with timecounter_cyc2time(). Users
- *	of this code are responsible for initializing the underlying
- *	cycle counter hardware, locking issues and reading the time
- *	more often than the cycle counter wraps around. The nanosecond
- *	counter will only wrap around after ~585 years.
- *
- * @cc:			the cycle counter used by this instance
- * @cycle_last:		most recent cycle counter value seen by
- *			timecounter_read()
- * @nsec:		continuously increasing count
- */
-struct timecounter {
-	const struct cyclecounter *cc;
-	cycle_t cycle_last;
-	u64 nsec;
-};
-
-/**
- * cyclecounter_cyc2ns - converts cycle counter cycles to nanoseconds
- * @cc:		Pointer to cycle counter.
- * @cycles:	Cycles
- *
- * XXX - This could use some mult_lxl_ll() asm optimization. Same code
- * as in cyc2ns, but with unsigned result.
- */
-static inline u64 cyclecounter_cyc2ns(const struct cyclecounter *cc,
-				      cycle_t cycles)
-{
-	u64 ret = (u64)cycles;
-	ret = (ret * cc->mult) >> cc->shift;
-	return ret;
-}
-
-/**
- * timecounter_init - initialize a time counter
- * @tc:			Pointer to time counter which is to be initialized/reset
- * @cc:			A cycle counter, ready to be used.
- * @start_tstamp:	Arbitrary initial time stamp.
- *
- * After this call the current cycle register (roughly) corresponds to
- * the initial time stamp. Every call to timecounter_read() increments
- * the time stamp counter by the number of elapsed nanoseconds.
- */
-extern void timecounter_init(struct timecounter *tc,
-			     const struct cyclecounter *cc,
-			     u64 start_tstamp);
-
-/**
- * timecounter_read - return nanoseconds elapsed since timecounter_init()
- *                    plus the initial time stamp
- * @tc:          Pointer to time counter.
- *
- * In other words, keeps track of time since the same epoch as
- * the function which generated the initial time stamp.
- */
-extern u64 timecounter_read(struct timecounter *tc);
-
-/**
- * timecounter_cyc2time - convert a cycle counter to same
- *                        time base as values returned by
- *                        timecounter_read()
- * @tc:		Pointer to time counter.
- * @cycle_tstamp:	a value returned by tc->cc->read()
- *
- * Cycle counts that are converted correctly as long as they
- * fall into the interval [-1/2 max cycle count, +1/2 max cycle count],
- * with "max cycle count" == cs->mask+1.
- *
- * This allows conversion of cycle counter values which were generated
- * in the past.
- */
-extern u64 timecounter_cyc2time(struct timecounter *tc,
-				cycle_t cycle_tstamp);
 
 /**
  * struct clocksource - hardware abstraction for a free running counter
@@ -158,17 +56,24 @@ extern u64 timecounter_cyc2time(struct timecounter *tc,
  * @shift:		cycle to nanosecond divisor (power of two)
  * @max_idle_ns:	max idle time permitted by the clocksource (nsecs)
  * @maxadj:		maximum adjustment value to mult (~11%)
+ * @max_cycles:		maximum safe cycle value which won't overflow on multiplication
  * @flags:		flags describing special properties
  * @archdata:		arch-specific data
  * @suspend:		suspend function for the clocksource, if necessary
  * @resume:		resume function for the clocksource, if necessary
  * @owner:		module reference, must be set by clocksource in modules
+ *
+ * Note: This struct is not used in hotpathes of the timekeeping code
+ * because the timekeeper caches the hot path fields in its own data
+ * structure, so no line cache alignment is required,
+ *
+ * The pointer to the clocksource itself is handed to the read
+ * callback. If you need extra information there you can wrap struct
+ * clocksource into your own struct. Depending on the amount of
+ * information you need you should consider to cache line align that
+ * structure.
  */
 struct clocksource {
-	/*
-	 * Hotpath data, fits in a single cache line when the
-	 * clocksource itself is cacheline aligned.
-	 */
 	cycle_t (*read)(struct clocksource *cs);
 	cycle_t mask;
 	u32 mult;
@@ -178,7 +83,7 @@ struct clocksource {
 #ifdef CONFIG_ARCH_CLOCKSOURCE_DATA
 	struct arch_clocksource_data archdata;
 #endif
-
+	u64 max_cycles;
 	const char *name;
 	struct list_head list;
 	int rating;
@@ -196,7 +101,7 @@ struct clocksource {
 	cycle_t wd_last;
 #endif
 	struct module *owner;
-} ____cacheline_aligned;
+};
 
 /*
  * Clock source flags bits::
@@ -213,6 +118,23 @@ struct clocksource {
 /* simplify initialization of mask field */
 #define CLOCKSOURCE_MASK(bits) (cycle_t)((bits) < 64 ? ((1ULL<<(bits))-1) : -1)
 
+static inline u32 clocksource_freq2mult(u32 freq, u32 shift_constant, u64 from)
+{
+	/*  freq = cyc/from
+	 *  mult/2^shift  = ns/cyc
+	 *  mult = ns/cyc * 2^shift
+	 *  mult = from/freq * 2^shift
+	 *  mult = from * 2^shift / freq
+	 *  mult = (from<<shift) / freq
+	 */
+	u64 tmp = ((u64)from) << shift_constant;
+
+	tmp += freq/2; /* round for do_div */
+	do_div(tmp, freq);
+
+	return (u32)tmp;
+}
+
 /**
  * clocksource_khz2mult - calculates mult from khz and shift
  * @khz:		Clocksource frequency in KHz
@@ -223,19 +145,7 @@ struct clocksource {
  */
 static inline u32 clocksource_khz2mult(u32 khz, u32 shift_constant)
 {
-	/*  khz = cyc/(Million ns)
-	 *  mult/2^shift  = ns/cyc
-	 *  mult = ns/cyc * 2^shift
-	 *  mult = 1Million/khz * 2^shift
-	 *  mult = 1000000 * 2^shift / khz
-	 *  mult = (1000000<<shift) / khz
-	 */
-	u64 tmp = ((u64)1000000) << shift_constant;
-
-	tmp += khz/2; /* round for do_div */
-	do_div(tmp, khz);
-
-	return (u32)tmp;
+	return clocksource_freq2mult(khz, shift_constant, NSEC_PER_MSEC);
 }
 
 /**
@@ -249,19 +159,7 @@ static inline u32 clocksource_khz2mult(u32 khz, u32 shift_constant)
  */
 static inline u32 clocksource_hz2mult(u32 hz, u32 shift_constant)
 {
-	/*  hz = cyc/(Billion ns)
-	 *  mult/2^shift  = ns/cyc
-	 *  mult = ns/cyc * 2^shift
-	 *  mult = 1Billion/hz * 2^shift
-	 *  mult = 1000000000 * 2^shift / hz
-	 *  mult = (1000000000<<shift) / hz
-	 */
-	u64 tmp = ((u64)1000000000) << shift_constant;
-
-	tmp += hz/2; /* round for do_div */
-	do_div(tmp, hz);
-
-	return (u32)tmp;
+	return clocksource_freq2mult(hz, shift_constant, NSEC_PER_SEC);
 }
 
 /**
@@ -280,18 +178,16 @@ static inline s64 clocksource_cyc2ns(cycle_t cycles, u32 mult, u32 shift)
 }
 
 
-extern int clocksource_register(struct clocksource*);
 extern int clocksource_unregister(struct clocksource*);
 extern void clocksource_touch_watchdog(void);
-extern struct clocksource* clocksource_get_next(void);
 extern void clocksource_change_rating(struct clocksource *cs, int rating);
 extern void clocksource_suspend(void);
 extern void clocksource_resume(void);
-extern struct clocksource * __init __weak clocksource_default_clock(void);
+extern struct clocksource * __init clocksource_default_clock(void);
 extern void clocksource_mark_unstable(struct clocksource *cs);
 
 extern u64
-clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask);
+clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask, u64 *max_cycles);
 extern void
 clocks_calc_mult_shift(u32 *mult, u32 *shift, u32 from, u32 to, u32 minsec);
 
@@ -302,7 +198,16 @@ clocks_calc_mult_shift(u32 *mult, u32 *shift, u32 from, u32 to, u32 minsec);
 extern int
 __clocksource_register_scale(struct clocksource *cs, u32 scale, u32 freq);
 extern void
-__clocksource_updatefreq_scale(struct clocksource *cs, u32 scale, u32 freq);
+__clocksource_update_freq_scale(struct clocksource *cs, u32 scale, u32 freq);
+
+/*
+ * Don't call this unless you are a default clocksource
+ * (AKA: jiffies) and absolutely have to.
+ */
+static inline int __clocksource_register(struct clocksource *cs)
+{
+	return __clocksource_register_scale(cs, 1, 0);
+}
 
 static inline int clocksource_register_hz(struct clocksource *cs, u32 hz)
 {
@@ -314,14 +219,14 @@ static inline int clocksource_register_khz(struct clocksource *cs, u32 khz)
 	return __clocksource_register_scale(cs, 1000, khz);
 }
 
-static inline void __clocksource_updatefreq_hz(struct clocksource *cs, u32 hz)
+static inline void __clocksource_update_freq_hz(struct clocksource *cs, u32 hz)
 {
-	__clocksource_updatefreq_scale(cs, 1, hz);
+	__clocksource_update_freq_scale(cs, 1, hz);
 }
 
-static inline void __clocksource_updatefreq_khz(struct clocksource *cs, u32 khz)
+static inline void __clocksource_update_freq_khz(struct clocksource *cs, u32 khz)
 {
-	__clocksource_updatefreq_scale(cs, 1000, khz);
+	__clocksource_update_freq_scale(cs, 1000, khz);
 }
 
 
@@ -340,10 +245,13 @@ extern int clocksource_i8253_init(void);
 #define CLOCKSOURCE_OF_DECLARE(name, compat, fn) \
 	OF_DECLARE_1(clksrc, name, compat, fn)
 
-#ifdef CONFIG_CLKSRC_OF
-extern void clocksource_of_init(void);
+#ifdef CONFIG_CLKSRC_PROBE
+extern void clocksource_probe(void);
 #else
-static inline void clocksource_of_init(void) {}
+static inline void clocksource_probe(void) {}
 #endif
+
+#define CLOCKSOURCE_ACPI_DECLARE(name, table_id, fn)		\
+	ACPI_DECLARE_PROBE_ENTRY(clksrc, name, table_id, 0, NULL, 0, fn)
 
 #endif /* _LINUX_CLOCKSOURCE_H */

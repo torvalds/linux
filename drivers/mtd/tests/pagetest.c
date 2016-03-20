@@ -52,7 +52,7 @@ static struct rnd_state rnd_state;
 
 static int write_eraseblock(int ebnum)
 {
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	prandom_bytes_state(&rnd_state, writebuf, mtd->erasesize);
 	cond_resched();
@@ -64,7 +64,7 @@ static int verify_eraseblock(int ebnum)
 	uint32_t j;
 	int err = 0, i;
 	loff_t addr0, addrn;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	addr0 = 0;
 	for (i = 0; i < ebcnt && bbt[i]; ++i)
@@ -127,13 +127,12 @@ static int crosstest(void)
 	unsigned char *pp1, *pp2, *pp3, *pp4;
 
 	pr_info("crosstest\n");
-	pp1 = kmalloc(pgsize * 4, GFP_KERNEL);
+	pp1 = kzalloc(pgsize * 4, GFP_KERNEL);
 	if (!pp1)
 		return -ENOMEM;
 	pp2 = pp1 + pgsize;
 	pp3 = pp2 + pgsize;
 	pp4 = pp3 + pgsize;
-	memset(pp1, 0, pgsize * 4);
 
 	addr0 = 0;
 	for (i = 0; i < ebcnt && bbt[i]; ++i)
@@ -407,7 +406,10 @@ static int __init mtd_pagetest_init(void)
 			goto out;
 		if (i % 256 == 0)
 			pr_info("written up to eraseblock %u\n", i);
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			goto out;
 	}
 	pr_info("written %u eraseblocks\n", i);
 
@@ -422,7 +424,10 @@ static int __init mtd_pagetest_init(void)
 			goto out;
 		if (i % 256 == 0)
 			pr_info("verified up to eraseblock %u\n", i);
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			goto out;
 	}
 	pr_info("verified %u eraseblocks\n", i);
 

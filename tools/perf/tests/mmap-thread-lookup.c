@@ -129,7 +129,7 @@ static int synth_all(struct machine *machine)
 {
 	return perf_event__synthesize_threads(NULL,
 					      perf_event__process,
-					      machine, 0);
+					      machine, 0, 500);
 }
 
 static int synth_process(struct machine *machine)
@@ -141,15 +141,14 @@ static int synth_process(struct machine *machine)
 
 	err = perf_event__synthesize_thread_map(NULL, map,
 						perf_event__process,
-						machine, 0);
+						machine, 0, 500);
 
-	thread_map__delete(map);
+	thread_map__put(map);
 	return err;
 }
 
 static int mmap_events(synth_cb synth)
 {
-	struct machines machines;
 	struct machine *machine;
 	int err, i;
 
@@ -162,8 +161,7 @@ static int mmap_events(synth_cb synth)
 	 */
 	TEST_ASSERT_VAL("failed to create threads", !threads_create());
 
-	machines__init(&machines);
-	machine = &machines.host;
+	machine = machine__new_host();
 
 	dump_trace = verbose > 1 ? 1 : 0;
 
@@ -187,9 +185,11 @@ static int mmap_events(synth_cb synth)
 
 		pr_debug("looking for map %p\n", td->map);
 
-		thread__find_addr_map(thread, machine,
+		thread__find_addr_map(thread,
 				      PERF_RECORD_MISC_USER, MAP__FUNCTION,
 				      (unsigned long) (td->map + 1), &al);
+
+		thread__put(thread);
 
 		if (!al.map) {
 			pr_debug("failed, couldn't find map\n");
@@ -201,7 +201,7 @@ static int mmap_events(synth_cb synth)
 	}
 
 	machine__delete_threads(machine);
-	machines__exit(&machines);
+	machine__delete(machine);
 	return err;
 }
 
@@ -219,7 +219,7 @@ static int mmap_events(synth_cb synth)
  *
  * by using all thread objects.
  */
-int test__mmap_thread_lookup(void)
+int test__mmap_thread_lookup(int subtest __maybe_unused)
 {
 	/* perf_event__synthesize_threads synthesize */
 	TEST_ASSERT_VAL("failed with sythesizing all",

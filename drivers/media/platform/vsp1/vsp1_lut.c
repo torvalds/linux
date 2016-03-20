@@ -27,11 +27,6 @@
  * Device Access
  */
 
-static inline u32 vsp1_lut_read(struct vsp1_lut *lut, u32 reg)
-{
-	return vsp1_read(lut->entity.vsp1, reg);
-}
-
 static inline void vsp1_lut_write(struct vsp1_lut *lut, u32 reg, u32 data)
 {
 	vsp1_write(lut->entity.vsp1, reg, data);
@@ -82,14 +77,15 @@ static int lut_s_stream(struct v4l2_subdev *subdev, int enable)
  */
 
 static int lut_enum_mbus_code(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_fh *fh,
+			      struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
 	static const unsigned int codes[] = {
-		V4L2_MBUS_FMT_ARGB8888_1X32,
-		V4L2_MBUS_FMT_AHSV8888_1X32,
-		V4L2_MBUS_FMT_AYUV8_1X32,
+		MEDIA_BUS_FMT_ARGB8888_1X32,
+		MEDIA_BUS_FMT_AHSV8888_1X32,
+		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
+	struct vsp1_lut *lut = to_lut(subdev);
 	struct v4l2_mbus_framefmt *format;
 
 	if (code->pad == LUT_PAD_SINK) {
@@ -104,7 +100,8 @@ static int lut_enum_mbus_code(struct v4l2_subdev *subdev,
 		if (code->index)
 			return -EINVAL;
 
-		format = v4l2_subdev_get_try_format(fh, LUT_PAD_SINK);
+		format = vsp1_entity_get_pad_format(&lut->entity, cfg,
+						    LUT_PAD_SINK, code->which);
 		code->code = format->code;
 	}
 
@@ -112,12 +109,14 @@ static int lut_enum_mbus_code(struct v4l2_subdev *subdev,
 }
 
 static int lut_enum_frame_size(struct v4l2_subdev *subdev,
-			       struct v4l2_subdev_fh *fh,
+			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
+	struct vsp1_lut *lut = to_lut(subdev);
 	struct v4l2_mbus_framefmt *format;
 
-	format = v4l2_subdev_get_try_format(fh, fse->pad);
+	format = vsp1_entity_get_pad_format(&lut->entity, cfg,
+					    fse->pad, fse->which);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;
@@ -140,30 +139,30 @@ static int lut_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int lut_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
+static int lut_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_lut *lut = to_lut(subdev);
 
-	fmt->format = *vsp1_entity_get_pad_format(&lut->entity, fh, fmt->pad,
+	fmt->format = *vsp1_entity_get_pad_format(&lut->entity, cfg, fmt->pad,
 						  fmt->which);
 
 	return 0;
 }
 
-static int lut_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
+static int lut_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_lut *lut = to_lut(subdev);
 	struct v4l2_mbus_framefmt *format;
 
 	/* Default to YUV if the requested format is not supported. */
-	if (fmt->format.code != V4L2_MBUS_FMT_ARGB8888_1X32 &&
-	    fmt->format.code != V4L2_MBUS_FMT_AHSV8888_1X32 &&
-	    fmt->format.code != V4L2_MBUS_FMT_AYUV8_1X32)
-		fmt->format.code = V4L2_MBUS_FMT_AYUV8_1X32;
+	if (fmt->format.code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
+	    fmt->format.code != MEDIA_BUS_FMT_AHSV8888_1X32 &&
+	    fmt->format.code != MEDIA_BUS_FMT_AYUV8_1X32)
+		fmt->format.code = MEDIA_BUS_FMT_AYUV8_1X32;
 
-	format = vsp1_entity_get_pad_format(&lut->entity, fh, fmt->pad,
+	format = vsp1_entity_get_pad_format(&lut->entity, cfg, fmt->pad,
 					    fmt->which);
 
 	if (fmt->pad == LUT_PAD_SOURCE) {
@@ -182,7 +181,7 @@ static int lut_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
 	fmt->format = *format;
 
 	/* Propagate the format to the source pad. */
-	format = vsp1_entity_get_pad_format(&lut->entity, fh, LUT_PAD_SOURCE,
+	format = vsp1_entity_get_pad_format(&lut->entity, cfg, LUT_PAD_SOURCE,
 					    fmt->which);
 	*format = fmt->format;
 
@@ -238,7 +237,7 @@ struct vsp1_lut *vsp1_lut_create(struct vsp1_device *vsp1)
 	subdev = &lut->entity.subdev;
 	v4l2_subdev_init(subdev, &lut_ops);
 
-	subdev->entity.ops = &vsp1_media_ops;
+	subdev->entity.ops = &vsp1->media_ops;
 	subdev->internal_ops = &vsp1_subdev_internal_ops;
 	snprintf(subdev->name, sizeof(subdev->name), "%s lut",
 		 dev_name(vsp1->dev));

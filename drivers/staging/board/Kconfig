@@ -1,7 +1,6 @@
 config STAGING_BOARD
-	boolean "Staging Board Support"
-	depends on OF_ADDRESS
-	depends on BROKEN
+	bool "Staging Board Support"
+	depends on OF_ADDRESS && OF_IRQ && CLKDEV_LOOKUP
 	help
 	  Select to enable per-board staging support code.
 

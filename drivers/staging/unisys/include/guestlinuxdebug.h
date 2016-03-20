@@ -17,14 +17,13 @@
 #define __GUESTLINUXDEBUG_H__
 
 /*
-* This file contains supporting interface for "vmcallinterface.h", particularly
-* regarding adding additional structure and functionality to linux
-* ISSUE_IO_VMCALL_POSTCODE_SEVERITY */
-
+ * This file contains supporting interface for "vmcallinterface.h", particularly
+ * regarding adding additional structure and functionality to linux
+ * ISSUE_IO_VMCALL_POSTCODE_SEVERITY
+ */
 
 /******* INFO ON ISSUE_POSTCODE_LINUX() BELOW *******/
-#include "vmcallinterface.h"
-typedef enum {		/* POSTCODE driver identifier tuples */
+enum driver_pc {		/* POSTCODE driver identifier tuples */
 	/* visorchipset driver files */
 	VISOR_CHIPSET_PC = 0xA0,
 	VISOR_CHIPSET_PC_controlvm_c = 0xA1,
@@ -59,9 +58,9 @@ typedef enum {		/* POSTCODE driver identifier tuples */
 	UISLIB_PC_uisqueue_c = 0xD2,
 	UISLIB_PC_uisthread_c = 0xD3,
 	UISLIB_PC_uisutils_c = 0xD4,
-} DRIVER_PC;
+};
 
-typedef enum {			/* POSTCODE event identifier tuples */
+enum event_pc {			/* POSTCODE event identifier tuples */
 	ATTACH_PORT_ENTRY_PC = 0x001,
 	ATTACH_PORT_FAILURE_PC = 0x002,
 	ATTACH_PORT_SUCCESS_PC = 0x003,
@@ -129,15 +128,15 @@ typedef enum {			/* POSTCODE event identifier tuples */
 	SAVE_MSG_BUS_FAILURE_PC = 0x0D9,
 	SAVE_MSG_DEV_FAILURE_PC = 0x0DA,
 	CALLHOME_INIT_FAILURE_PC = 0x0DB
-} EVENT_PC;
+};
 
 #ifdef __GNUC__
 
 #define POSTCODE_SEVERITY_ERR DIAG_SEVERITY_ERR
 #define POSTCODE_SEVERITY_WARNING DIAG_SEVERITY_WARNING
-#define POSTCODE_SEVERITY_INFO DIAG_SEVERITY_PRINT	/* TODO-> Info currently
-							 * doesnt show, so we
-							 * set info=warning */
+/* TODO-> Info currently doesn't show, so we set info=warning */
+#define POSTCODE_SEVERITY_INFO DIAG_SEVERITY_PRINT
+
 /* example call of POSTCODE_LINUX_2(VISOR_CHIPSET_PC, POSTCODE_SEVERITY_ERR);
  * Please also note that the resulting postcode is in hex, so if you are
  * searching for the __LINE__ number, convert it first to decimal.  The line
@@ -172,7 +171,6 @@ do {									\
 
 #define POSTCODE_LINUX_3(EVENT_PC, pc32bit, severity)			\
 	POSTCODE_LINUX_A(CURRENT_FILE_PC, EVENT_PC, pc32bit, severity)
-
 
 #define POSTCODE_LINUX_4(EVENT_PC, pc16bit1, pc16bit2, severity)	\
 	POSTCODE_LINUX_B(CURRENT_FILE_PC, EVENT_PC, pc16bit1,		\

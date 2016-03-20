@@ -75,11 +75,10 @@ static const struct soc_enum ssm2602_enum[] = {
 			ssm2602_deemph),
 };
 
-static const unsigned int ssm260x_outmix_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(ssm260x_outmix_tlv,
 	0, 47, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 0),
-	48, 127, TLV_DB_SCALE_ITEM(-7400, 100, 0),
-};
+	48, 127, TLV_DB_SCALE_ITEM(-7400, 100, 0)
+);
 
 static const DECLARE_TLV_DB_SCALE(ssm260x_inpga_tlv, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(ssm260x_sidetone_tlv, -1500, 300, 0);
@@ -192,7 +191,7 @@ static const struct snd_pcm_hw_constraint_list ssm2602_constraints_12288000 = {
 };
 
 static const unsigned int ssm2602_rates_11289600[] = {
-	8000, 44100, 88200,
+	8000, 11025, 22050, 44100, 88200,
 };
 
 static const struct snd_pcm_hw_constraint_list ssm2602_constraints_11289600 = {
@@ -236,6 +235,16 @@ static const struct ssm2602_coeff ssm2602_coeff_table[] = {
 	{12288000, 96000, SSM2602_COEFF_SRATE(0x7, 0x0, 0x0)},
 	{18432000, 96000, SSM2602_COEFF_SRATE(0x7, 0x1, 0x0)},
 	{12000000, 96000, SSM2602_COEFF_SRATE(0x7, 0x0, 0x1)},
+
+	/* 11.025k */
+	{11289600, 11025, SSM2602_COEFF_SRATE(0xc, 0x0, 0x0)},
+	{16934400, 11025, SSM2602_COEFF_SRATE(0xc, 0x1, 0x0)},
+	{12000000, 11025, SSM2602_COEFF_SRATE(0xc, 0x1, 0x1)},
+
+	/* 22.05k */
+	{11289600, 22050, SSM2602_COEFF_SRATE(0xd, 0x0, 0x0)},
+	{16934400, 22050, SSM2602_COEFF_SRATE(0xd, 0x1, 0x0)},
+	{12000000, 22050, SSM2602_COEFF_SRATE(0xd, 0x1, 0x1)},
 
 	/* 44.1k */
 	{11289600, 44100, SSM2602_COEFF_SRATE(0x8, 0x0, 0x0)},
@@ -463,11 +472,11 @@ static int ssm2602_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
-#define SSM2602_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
+#define SSM2602_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
+		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
 		SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
 		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |\
 		SNDRV_PCM_RATE_96000)
@@ -502,26 +511,19 @@ static struct snd_soc_dai_driver ssm2602_dai = {
 	.symmetric_samplebits = 1,
 };
 
-static int ssm2602_suspend(struct snd_soc_codec *codec)
-{
-	ssm2602_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int ssm2602_resume(struct snd_soc_codec *codec)
 {
 	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
 
 	regcache_sync(ssm2602->regmap);
-	ssm2602_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
 }
 
 static int ssm2602_codec_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	regmap_update_bits(ssm2602->regmap, SSM2602_LOUT1V,
@@ -545,7 +547,7 @@ static int ssm2602_codec_probe(struct snd_soc_codec *codec)
 
 static int ssm2604_codec_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	int ret;
 
 	ret = snd_soc_dapm_new_controls(dapm, ssm2604_dapm_widgets,
@@ -586,27 +588,14 @@ static int ssm260x_codec_probe(struct snd_soc_codec *codec)
 		break;
 	}
 
-	if (ret)
-		return ret;
-
-	ssm2602_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-
-/* remove everything here */
-static int ssm2602_remove(struct snd_soc_codec *codec)
-{
-	ssm2602_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
+	return ret;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_ssm2602 = {
 	.probe =	ssm260x_codec_probe,
-	.remove =	ssm2602_remove,
-	.suspend =	ssm2602_suspend,
 	.resume =	ssm2602_resume,
 	.set_bias_level = ssm2602_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = ssm260x_snd_controls,
 	.num_controls = ARRAY_SIZE(ssm260x_snd_controls),
@@ -647,7 +636,7 @@ int ssm2602_probe(struct device *dev, enum ssm2602_type type,
 		return -ENOMEM;
 
 	dev_set_drvdata(dev, ssm2602);
-	ssm2602->type = SSM2602;
+	ssm2602->type = type;
 	ssm2602->regmap = regmap;
 
 	return snd_soc_register_codec(dev, &soc_codec_dev_ssm2602,

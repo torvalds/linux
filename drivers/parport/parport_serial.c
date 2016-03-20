@@ -64,6 +64,7 @@ enum parport_pc_pci_cards {
 	timedia_9079c,
 	wch_ch353_1s1p,
 	wch_ch353_2s1p,
+	wch_ch382_2s1p,
 	sunix_2s1p,
 };
 
@@ -151,6 +152,7 @@ static struct parport_pc_pci cards[] = {
 	/* timedia_9079c */             { 1, { { 2, 3 }, } },
 	/* wch_ch353_1s1p*/             { 1, { { 1, -1}, } },
 	/* wch_ch353_2s1p*/             { 1, { { 2, -1}, } },
+	/* wch_ch382_2s1p*/             { 1, { { 2, -1}, } },
 	/* sunix_2s1p */                { 1, { { 3, -1 }, } },
 };
 
@@ -257,6 +259,7 @@ static struct pci_device_id parport_serial_pci_tbl[] = {
 	/* WCH CARDS */
 	{ 0x4348, 0x5053, PCI_ANY_ID, PCI_ANY_ID, 0, 0, wch_ch353_1s1p},
 	{ 0x4348, 0x7053, 0x4348, 0x3253, 0, 0, wch_ch353_2s1p},
+	{ 0x1c00, 0x3250, 0x1c00, 0x3250, 0, 0, wch_ch382_2s1p},
 
 	/*
 	 * More SUNIX variations. At least one of these has part number
@@ -493,6 +496,13 @@ static struct pciserial_board pci_parport_serial_boards[] = {
 		.num_ports      = 2,
 		.base_baud      = 115200,
 		.uart_offset    = 8,
+	},
+	[wch_ch382_2s1p] = {
+		.flags          = FL_BASE0,
+		.num_ports      = 2,
+		.base_baud      = 115200,
+		.uart_offset    = 8,
+		.first_offset   = 0xC0,
 	},
 	[sunix_2s1p] = {
 		.flags		= FL_BASE0|FL_BASE_BARS,

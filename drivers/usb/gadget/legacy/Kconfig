@@ -40,7 +40,7 @@ config USB_ZERO
 	  dynamically linked module called "g_zero".
 
 config USB_ZERO_HNPTEST
-	boolean "HNP Test Device"
+	bool "HNP Test Device"
 	depends on USB_ZERO && USB_OTG
 	help
 	  You can configure this device to enumerate using the device
@@ -54,6 +54,8 @@ config USB_AUDIO
 	depends on SND
 	select USB_LIBCOMPOSITE
 	select SND_PCM
+	select USB_F_UAC1 if GADGET_UAC1
+	select USB_F_UAC2 if !GADGET_UAC1
 	help
 	  This Gadget Audio driver is compatible with USB Audio Class
 	  specification 2.0. It implements 1 AudioControl interface,
@@ -101,8 +103,7 @@ config USB_ETH
 	   - CDC Ethernet Emulation Model (EEM) is a newer standard that has
 	     a simpler interface that can be used by more USB hardware.
 
-	  RNDIS support is an additional option, more demanding than than
-	  subset.
+	  RNDIS support is an additional option, more demanding than subset.
 
 	  Within the USB device, this gadget driver exposes a network device
 	  "usbX", where X depends on what other networking devices you have.
@@ -248,6 +249,7 @@ config USB_GADGET_TARGET
 	tristate "USB Gadget Target Fabric Module"
 	depends on TARGET_CORE
 	select USB_LIBCOMPOSITE
+	select USB_F_TCM
 	help
 	  This fabric is an USB gadget. Two USB protocols are supported that is
 	  BBB or BOT (Bulk Only Transport) and UAS (USB Attached SCSI). BOT is
@@ -285,6 +287,7 @@ config USB_MIDI_GADGET
 	depends on SND
 	select USB_LIBCOMPOSITE
 	select SND_RAWMIDI
+	select USB_F_MIDI
 	help
 	  The MIDI Gadget acts as a USB Audio device, with one MIDI
 	  input and one MIDI output. These MIDI jacks appear as
@@ -298,6 +301,7 @@ config USB_MIDI_GADGET
 config USB_G_PRINTER
 	tristate "Printer Gadget"
 	select USB_LIBCOMPOSITE
+	select USB_F_PRINTER
 	help
 	  The Printer Gadget channels data between the USB host and a
 	  userspace program driving the print engine. The user space
@@ -335,6 +339,7 @@ config USB_CDC_COMPOSITE
 config USB_G_NOKIA
 	tristate "Nokia composite gadget"
 	depends on PHONET
+	depends on BLOCK
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
 	select USB_U_ETHER
@@ -342,6 +347,7 @@ config USB_G_NOKIA
 	select USB_F_OBEX
 	select USB_F_PHONET
 	select USB_F_ECM
+	select USB_F_MASS_STORAGE
 	help
 	  The Nokia composite gadget provides support for acm, obex
 	  and phonet in only one composite gadget driver.
@@ -417,6 +423,7 @@ endif # TTY
 config USB_G_HID
 	tristate "HID Gadget"
 	select USB_LIBCOMPOSITE
+	select USB_F_HID
 	help
 	  The HID gadget driver provides generic emulation of USB
 	  Human Interface Devices (HID).
@@ -466,6 +473,7 @@ config USB_G_WEBCAM
 	depends on VIDEO_DEV
 	select USB_LIBCOMPOSITE
 	select VIDEOBUF2_VMALLOC
+	select USB_F_UVC
 	help
 	  The Webcam Gadget acts as a composite USB Audio and Video Class
 	  device. It provides a userspace API to process UVC control requests

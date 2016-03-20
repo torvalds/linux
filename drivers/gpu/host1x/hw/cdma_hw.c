@@ -26,11 +26,11 @@
 #include "../debug.h"
 
 /*
- * Put the restart at the end of pushbuffer memor
+ * Put the restart at the end of pushbuffer memory
  */
 static void push_buffer_init(struct push_buffer *pb)
 {
-	*(pb->mapped + (pb->size_bytes >> 2)) = host1x_opcode_restart(0);
+	*(u32 *)(pb->mapped + pb->size_bytes) = host1x_opcode_restart(0);
 }
 
 /*
@@ -51,11 +51,11 @@ static void cdma_timeout_cpu_incr(struct host1x_cdma *cdma, u32 getptr,
 
 	/* NOP all the PB slots */
 	while (nr_slots--) {
-		u32 *p = (u32 *)((u32)pb->mapped + getptr);
+		u32 *p = (u32 *)(pb->mapped + getptr);
 		*(p++) = HOST1X_OPCODE_NOP;
 		*(p++) = HOST1X_OPCODE_NOP;
-		dev_dbg(host1x->dev, "%s: NOP at %#llx\n", __func__,
-			(u64)pb->phys + getptr);
+		dev_dbg(host1x->dev, "%s: NOP at %pad+%#x\n", __func__,
+			&pb->phys, getptr);
 		getptr = (getptr + 8) & (pb->size_bytes - 1);
 	}
 	wmb();

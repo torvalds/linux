@@ -9,11 +9,10 @@
  */
 
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
-
-#include "irqchip.h"
 
 /* OR1K PIC implementation */
 
@@ -113,7 +112,7 @@ static inline int pic_get_irq(int first)
 	else
 		hwirq = hwirq + first - 1;
 
-	return irq_find_mapping(root_domain, hwirq);
+	return hwirq;
 }
 
 static void or1k_pic_handle_irq(struct pt_regs *regs)
@@ -121,7 +120,7 @@ static void or1k_pic_handle_irq(struct pt_regs *regs)
 	int irq = -1;
 
 	while ((irq = pic_get_irq(irq + 1)) != NO_IRQ)
-		handle_IRQ(irq, regs);
+		handle_domain_irq(root_domain, irq, regs);
 }
 
 static int or1k_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)

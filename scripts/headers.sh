@@ -19,8 +19,6 @@ for arch in ${archs}; do
 	case ${arch} in
 	um)        # no userspace export
 		;;
-	cris)      # headers export are known broken
-		;;
 	*)
 		if [ -d ${srctree}/arch/${arch} ]; then
 			do_command $1 ${arch}

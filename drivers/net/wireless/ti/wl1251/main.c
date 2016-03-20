@@ -468,7 +468,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	wl1251_tx_flush(wl);
 	wl1251_power_off(wl);
 
-	memset(wl->bssid, 0, ETH_ALEN);
+	eth_zero_addr(wl->bssid);
 	wl->listen_int = 1;
 	wl->bss_type = MAX_BSS_TYPE;
 
@@ -500,6 +500,7 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 	int ret = 0;
 
 	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
+			     IEEE80211_VIF_SUPPORTS_UAPSD |
 			     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %pM",
@@ -546,7 +547,7 @@ static void wl1251_op_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&wl->mutex);
 	wl1251_debug(DEBUG_MAC80211, "mac80211 remove interface");
 	wl->vif = NULL;
-	memset(wl->bssid, 0, ETH_ALEN);
+	eth_zero_addr(wl->bssid);
 	mutex_unlock(&wl->mutex);
 }
 
@@ -762,8 +763,7 @@ static u64 wl1251_op_prepare_multicast(struct ieee80211_hw *hw,
 	return (u64)(unsigned long)fp;
 }
 
-#define WL1251_SUPPORTED_FILTERS (FIF_PROMISC_IN_BSS | \
-				  FIF_ALLMULTI | \
+#define WL1251_SUPPORTED_FILTERS (FIF_ALLMULTI | \
 				  FIF_FCSFAIL | \
 				  FIF_BCN_PRBRESP_PROMISC | \
 				  FIF_CONTROL | \
@@ -794,10 +794,6 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 	wl->rx_config = WL1251_DEFAULT_RX_CONFIG;
 	wl->rx_filter = WL1251_DEFAULT_RX_FILTER;
 
-	if (*total & FIF_PROMISC_IN_BSS) {
-		wl->rx_config |= CFG_BSSID_FILTER_EN;
-		wl->rx_config |= CFG_RX_ALL_GOOD;
-	}
 	if (*total & FIF_ALLMULTI)
 		/*
 		 * CFG_MC_FILTER_EN in rx_config needs to be 0 to receive
@@ -824,7 +820,7 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	if (*total & FIF_ALLMULTI || *total & FIF_PROMISC_IN_BSS)
+	if (*total & FIF_ALLMULTI)
 		ret = wl1251_acx_group_address_tbl(wl, false, NULL, 0);
 	else if (fp)
 		ret = wl1251_acx_group_address_tbl(wl, fp->enabled,
@@ -1029,7 +1025,7 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 			goto out_sleep;
 	}
 
-	skb = ieee80211_probereq_get(wl->hw, wl->vif, ssid, ssid_len,
+	skb = ieee80211_probereq_get(wl->hw, wl->vif->addr, ssid, ssid_len,
 				     req->ie_len);
 	if (!skb) {
 		ret = -ENOMEM;
@@ -1480,9 +1476,8 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	/* unit us */
 	/* FIXME: find a proper value */
 
-	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_SUPPORTS_PS |
-		IEEE80211_HW_SUPPORTS_UAPSD;
+	ieee80211_hw_set(wl->hw, SIGNAL_DBM);
+	ieee80211_hw_set(wl->hw, SUPPORTS_PS);
 
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					 BIT(NL80211_IFTYPE_ADHOC);
@@ -1609,7 +1604,7 @@ int wl1251_free_hw(struct wl1251 *wl)
 }
 EXPORT_SYMBOL_GPL(wl1251_free_hw);
 
-MODULE_DESCRIPTION("TI wl1251 Wireles LAN Driver Core");
+MODULE_DESCRIPTION("TI wl1251 Wireless LAN Driver Core");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kalle Valo <kvalo@adurom.com>");
 MODULE_FIRMWARE(WL1251_FW_NAME);

@@ -1,0 +1,13 @@
+GTM601 UMTS modem audio interface CODEC
+
+This device has no configuration interface. Sample rate is fixed - 8kHz.
+
+Required properties:
+
+  - compatible : "option,gtm601"
+
+Example:
+
+codec: gtm601_codec {
+	compatible = "option,gtm601";
+};

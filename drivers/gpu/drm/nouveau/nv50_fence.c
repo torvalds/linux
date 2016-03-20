@@ -24,6 +24,7 @@
 
 #include <nvif/os.h>
 #include <nvif/class.h>
+#include <nvif/cl0002.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
@@ -46,12 +47,12 @@ nv50_fence_context_new(struct nouveau_channel *chan)
 	if (!fctx)
 		return -ENOMEM;
 
-	nouveau_fence_context_new(&fctx->base);
+	nouveau_fence_context_new(chan, &fctx->base);
 	fctx->base.emit = nv10_fence_emit;
 	fctx->base.read = nv10_fence_read;
 	fctx->base.sync = nv17_fence_sync;
 
-	ret = nvif_object_init(chan->object, NULL, NvSema, NV_DMA_IN_MEMORY,
+	ret = nvif_object_init(&chan->user, NvSema, NV_DMA_IN_MEMORY,
 			       &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
@@ -66,7 +67,7 @@ nv50_fence_context_new(struct nouveau_channel *chan)
 		u32 start = bo->bo.mem.start * PAGE_SIZE;
 		u32 limit = start + bo->bo.mem.size - 1;
 
-		ret = nvif_object_init(chan->object, NULL, NvEvoSema0 + i,
+		ret = nvif_object_init(&chan->user, NvEvoSema0 + i,
 				       NV_DMA_IN_MEMORY, &(struct nv_dma_v0) {
 						.target = NV_DMA_V0_TARGET_VRAM,
 						.access = NV_DMA_V0_ACCESS_RDWR,
@@ -95,12 +96,14 @@ nv50_fence_create(struct nouveau_drm *drm)
 	priv->base.resume = nv17_fence_resume;
 	priv->base.context_new = nv50_fence_context_new;
 	priv->base.context_del = nv10_fence_context_del;
+	priv->base.contexts = 127;
+	priv->base.context_base = fence_context_alloc(priv->base.contexts);
 	spin_lock_init(&priv->lock);
 
 	ret = nouveau_bo_new(drm->dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, NULL, &priv->bo);
+			     0, 0x0000, NULL, NULL, &priv->bo);
 	if (!ret) {
-		ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM, false);
 		if (!ret) {
 			ret = nouveau_bo_map(priv->bo);
 			if (ret)

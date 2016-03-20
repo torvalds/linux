@@ -10,6 +10,13 @@
 #define TRACE_INCLUDE_FILE trace-s390
 
 /*
+ * The TRACE_SYSTEM_VAR defaults to TRACE_SYSTEM, but must be a
+ * legitimate C variable. It is not exported to user space.
+ */
+#undef TRACE_SYSTEM_VAR
+#define TRACE_SYSTEM_VAR kvm_s390
+
+/*
  * Trace point for the creation of the kvm instance.
  */
 TRACE_EVENT(kvm_s390_create_vm,
@@ -48,8 +55,8 @@ TRACE_EVENT(kvm_s390_create_vcpu,
 		    __entry->sie_block = sie_block;
 		    ),
 
-	    TP_printk("create cpu %d at %p, sie block at %p", __entry->id,
-		      __entry->vcpu, __entry->sie_block)
+	    TP_printk("create cpu %d at 0x%pK, sie block at 0x%pK",
+		      __entry->id, __entry->vcpu, __entry->sie_block)
 	);
 
 TRACE_EVENT(kvm_s390_destroy_vcpu,
@@ -98,10 +105,21 @@ TRACE_EVENT(kvm_s390_vcpu_start_stop,
 	{KVM_S390_PROGRAM_INT, "program interrupt"},			\
 	{KVM_S390_SIGP_SET_PREFIX, "sigp set prefix"},			\
 	{KVM_S390_RESTART, "sigp restart"},				\
+	{KVM_S390_INT_PFAULT_INIT, "pfault init"},			\
+	{KVM_S390_INT_PFAULT_DONE, "pfault done"},			\
+	{KVM_S390_MCHK, "machine check"},				\
+	{KVM_S390_INT_CLOCK_COMP, "clock comparator"},			\
+	{KVM_S390_INT_CPU_TIMER, "cpu timer"},				\
 	{KVM_S390_INT_VIRTIO, "virtio interrupt"},			\
 	{KVM_S390_INT_SERVICE, "sclp interrupt"},			\
 	{KVM_S390_INT_EMERGENCY, "sigp emergency"},			\
 	{KVM_S390_INT_EXTERNAL_CALL, "sigp ext call"}
+
+#define get_irq_name(__type) \
+	(__type > KVM_S390_INT_IO_MAX ? \
+	__print_symbolic(__type, kvm_s390_int_type) : \
+		(__type & KVM_S390_INT_IO_AI_MASK ? \
+		 "adapter I/O interrupt" : "subchannel I/O interrupt"))
 
 TRACE_EVENT(kvm_s390_inject_vm,
 	    TP_PROTO(__u64 type, __u32 parm, __u64 parm64, int who),
@@ -124,22 +142,19 @@ TRACE_EVENT(kvm_s390_inject_vm,
 	    TP_printk("inject%s: type:%x (%s) parm:%x parm64:%llx",
 		      (__entry->who == 1) ? " (from kernel)" :
 		      (__entry->who == 2) ? " (from user)" : "",
-		      __entry->inttype,
-		      __print_symbolic(__entry->inttype, kvm_s390_int_type),
+		      __entry->inttype, get_irq_name(__entry->inttype),
 		      __entry->parm, __entry->parm64)
 	);
 
 TRACE_EVENT(kvm_s390_inject_vcpu,
-	    TP_PROTO(unsigned int id, __u64 type, __u32 parm, __u64 parm64, \
-		     int who),
-	    TP_ARGS(id, type, parm, parm64, who),
+	    TP_PROTO(unsigned int id, __u64 type, __u32 parm, __u64 parm64),
+	    TP_ARGS(id, type, parm, parm64),
 
 	    TP_STRUCT__entry(
 		    __field(int, id)
 		    __field(__u32, inttype)
 		    __field(__u32, parm)
 		    __field(__u64, parm64)
-		    __field(int, who)
 		    ),
 
 	    TP_fast_assign(
@@ -147,15 +162,12 @@ TRACE_EVENT(kvm_s390_inject_vcpu,
 		    __entry->inttype = type & 0x00000000ffffffff;
 		    __entry->parm = parm;
 		    __entry->parm64 = parm64;
-		    __entry->who = who;
 		    ),
 
-	    TP_printk("inject%s (vcpu %d): type:%x (%s) parm:%x parm64:%llx",
-		      (__entry->who == 1) ? " (from kernel)" :
-		      (__entry->who == 2) ? " (from user)" : "",
+	    TP_printk("inject (vcpu %d): type:%x (%s) parm:%x parm64:%llx",
 		      __entry->id, __entry->inttype,
-		      __print_symbolic(__entry->inttype, kvm_s390_int_type),
-		      __entry->parm, __entry->parm64)
+		      get_irq_name(__entry->inttype), __entry->parm,
+		      __entry->parm64)
 	);
 
 /*
@@ -182,8 +194,8 @@ TRACE_EVENT(kvm_s390_deliver_interrupt,
 	    TP_printk("deliver interrupt (vcpu %d): type:%x (%s) "	\
 		      "data:%08llx %016llx",
 		      __entry->id, __entry->inttype,
-		      __print_symbolic(__entry->inttype, kvm_s390_int_type),
-		      __entry->data0, __entry->data1)
+		      get_irq_name(__entry->inttype), __entry->data0,
+		      __entry->data1)
 	);
 
 /*
@@ -209,19 +221,21 @@ TRACE_EVENT(kvm_s390_request_resets,
  * Trace point for a vcpu's stop requests.
  */
 TRACE_EVENT(kvm_s390_stop_request,
-	    TP_PROTO(unsigned int action_bits),
-	    TP_ARGS(action_bits),
+	    TP_PROTO(unsigned char stop_irq, unsigned char flags),
+	    TP_ARGS(stop_irq, flags),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int, action_bits)
+		    __field(unsigned char, stop_irq)
+		    __field(unsigned char, flags)
 		    ),
 
 	    TP_fast_assign(
-		    __entry->action_bits = action_bits;
+		    __entry->stop_irq = stop_irq;
+		    __entry->flags = flags;
 		    ),
 
-	    TP_printk("stop request, action_bits = %08x",
-		      __entry->action_bits)
+	    TP_printk("stop request, stop irq = %u, flags = %08x",
+		      __entry->stop_irq, __entry->flags)
 	);
 
 
@@ -240,7 +254,7 @@ TRACE_EVENT(kvm_s390_enable_css,
 		    __entry->kvm = kvm;
 		    ),
 
-	    TP_printk("enabling channel I/O support (kvm @ %p)\n",
+	    TP_printk("enabling channel I/O support (kvm @ %pK)\n",
 		      __entry->kvm)
 	);
 

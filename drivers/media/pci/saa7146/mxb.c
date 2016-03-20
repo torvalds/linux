@@ -25,10 +25,10 @@
 
 #define DEBUG_VARIABLE debug
 
-#include <media/saa7146_vv.h>
+#include <media/drv-intf/saa7146_vv.h>
 #include <media/tuner.h>
 #include <media/v4l2-common.h>
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 #include <linux/module.h>
 
 #include "tea6415c.h"
@@ -151,8 +151,8 @@ static struct mxb_routing TEA6420_line[MXB_AUDIOS + 1][2] = {
 
 struct mxb
 {
-	struct video_device	*video_dev;
-	struct video_device	*vbi_dev;
+	struct video_device	video_dev;
+	struct video_device	vbi_dev;
 
 	struct i2c_adapter	i2c_adapter;
 

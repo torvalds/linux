@@ -427,10 +427,10 @@ static int adi_gpio_irq_type(struct irq_data *d, unsigned int type)
 
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
 		writel(pintmask, &pint_regs->edge_set);
-		__irq_set_handler_locked(irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 	} else {
 		writel(pintmask, &pint_regs->edge_clear);
-		__irq_set_handler_locked(irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 	}
 
 out:
@@ -530,8 +530,7 @@ static inline void preflow_handler(struct irq_desc *desc)
 static inline void preflow_handler(struct irq_desc *desc) { }
 #endif
 
-static void adi_gpio_handle_pint_irq(unsigned int inta_irq,
-			struct irq_desc *desc)
+static void adi_gpio_handle_pint_irq(struct irq_desc *desc)
 {
 	u32 request;
 	u32 level_mask, hwirq;
@@ -619,8 +618,8 @@ static struct pinctrl_ops adi_pctrl_ops = {
 	.get_group_pins = adi_get_group_pins,
 };
 
-static int adi_pinmux_enable(struct pinctrl_dev *pctldev, unsigned func_id,
-	unsigned group_id)
+static int adi_pinmux_set(struct pinctrl_dev *pctldev, unsigned func_id,
+			  unsigned group_id)
 {
 	struct adi_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
 	struct gpio_port *port;
@@ -637,7 +636,7 @@ static int adi_pinmux_enable(struct pinctrl_dev *pctldev, unsigned func_id,
 		if (range == NULL) /* should not happen */
 			return -ENODEV;
 
-		port = container_of(range->gc, struct gpio_port, chip);
+		port = gpiochip_get_data(range->gc);
 
 		spin_lock_irqsave(&port->lock, flags);
 
@@ -685,7 +684,7 @@ static int adi_pinmux_request_gpio(struct pinctrl_dev *pctldev,
 	unsigned long flags;
 	u8 offset;
 
-	port = container_of(range->gc, struct gpio_port, chip);
+	port = gpiochip_get_data(range->gc);
 	offset = pin_to_offset(range, pin);
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -698,11 +697,12 @@ static int adi_pinmux_request_gpio(struct pinctrl_dev *pctldev,
 }
 
 static struct pinmux_ops adi_pinmux_ops = {
-	.enable = adi_pinmux_enable,
+	.set_mux = adi_pinmux_set,
 	.get_functions_count = adi_pinmux_get_funcs_count,
 	.get_function_name = adi_pinmux_get_func_name,
 	.get_function_groups = adi_pinmux_get_groups,
 	.gpio_request_enable = adi_pinmux_request_gpio,
+	.strict = true,
 };
 
 
@@ -713,22 +713,12 @@ static struct pinctrl_desc adi_pinmux_desc = {
 	.owner = THIS_MODULE,
 };
 
-static int adi_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void adi_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
-
 static int adi_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct gpio_port *port;
 	unsigned long flags;
 
-	port = container_of(chip, struct gpio_port, chip);
+	port = gpiochip_get_data(chip);
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -743,7 +733,7 @@ static int adi_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static void adi_gpio_set_value(struct gpio_chip *chip, unsigned offset,
 	int value)
 {
-	struct gpio_port *port = container_of(chip, struct gpio_port, chip);
+	struct gpio_port *port = gpiochip_get_data(chip);
 	struct gpio_port_t *regs = port->regs;
 	unsigned long flags;
 
@@ -760,7 +750,7 @@ static void adi_gpio_set_value(struct gpio_chip *chip, unsigned offset,
 static int adi_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	int value)
 {
-	struct gpio_port *port = container_of(chip, struct gpio_port, chip);
+	struct gpio_port *port = gpiochip_get_data(chip);
 	struct gpio_port_t *regs = port->regs;
 	unsigned long flags;
 
@@ -780,7 +770,7 @@ static int adi_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 
 static int adi_gpio_get_value(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_port *port = container_of(chip, struct gpio_port, chip);
+	struct gpio_port *port = gpiochip_get_data(chip);
 	struct gpio_port_t *regs = port->regs;
 	unsigned long flags;
 	int ret;
@@ -796,7 +786,7 @@ static int adi_gpio_get_value(struct gpio_chip *chip, unsigned offset)
 
 static int adi_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_port *port = container_of(chip, struct gpio_port, chip);
+	struct gpio_port *port = gpiochip_get_data(chip);
 
 	if (port->irq_base >= 0)
 		return irq_find_mapping(port->domain, offset);
@@ -864,8 +854,8 @@ static int adi_gpio_pint_probe(struct platform_device *pdev)
 	pint->pint_map_port = adi_pint_map_port;
 	platform_set_drvdata(pdev, pint);
 
-	irq_set_chained_handler(pint->irq, adi_gpio_handle_pint_irq);
-	irq_set_handler_data(pint->irq, pint);
+	irq_set_chained_handler_and_data(pint->irq, adi_gpio_handle_pint_irq,
+					 pint);
 
 	list_add_tail(&pint->node, &adi_pint_list);
 
@@ -994,8 +984,8 @@ static int adi_gpio_probe(struct platform_device *pdev)
 	port->chip.get			= adi_gpio_get_value;
 	port->chip.direction_output	= adi_gpio_direction_output;
 	port->chip.set			= adi_gpio_set_value;
-	port->chip.request		= adi_gpio_request;
-	port->chip.free			= adi_gpio_free;
+	port->chip.request		= gpiochip_generic_request,
+	port->chip.free			= gpiochip_generic_free,
 	port->chip.to_irq		= adi_gpio_to_irq;
 	if (pdata->port_gpio_base > 0)
 		port->chip.base		= pdata->port_gpio_base;
@@ -1004,7 +994,7 @@ static int adi_gpio_probe(struct platform_device *pdev)
 	port->chip.ngpio		= port->width;
 	gpio = port->chip.base + port->width;
 
-	ret = gpiochip_add(&port->chip);
+	ret = gpiochip_add_data(&port->chip, port);
 	if (ret) {
 		dev_err(&pdev->dev, "Fail to add GPIO chip.\n");
 		goto out_remove_domain;
@@ -1041,7 +1031,6 @@ static int adi_gpio_remove(struct platform_device *pdev)
 	u8 offset;
 
 	list_del(&port->node);
-	gpiochip_remove_pin_ranges(&port->chip);
 	gpiochip_remove(&port->chip);
 	if (port->pint) {
 		for (offset = 0; offset < port->width; offset++)
@@ -1070,9 +1059,9 @@ static int adi_pinctrl_probe(struct platform_device *pdev)
 
 	/* Now register the pin controller and all pins it handles */
 	pinctrl->pctl = pinctrl_register(&adi_pinmux_desc, &pdev->dev, pinctrl);
-	if (!pinctrl->pctl) {
+	if (IS_ERR(pinctrl->pctl)) {
 		dev_err(&pdev->dev, "could not register pinctrl ADI2 driver\n");
-		return -EINVAL;
+		return PTR_ERR(pinctrl->pctl);
 	}
 
 	platform_set_drvdata(pdev, pinctrl);
@@ -1113,32 +1102,24 @@ static struct platform_driver adi_gpio_driver = {
 	},
 };
 
+static struct platform_driver * const drivers[] = {
+	&adi_pinctrl_driver,
+	&adi_gpio_pint_driver,
+	&adi_gpio_driver,
+};
+
 static int __init adi_pinctrl_setup(void)
 {
 	int ret;
 
-	ret = platform_driver_register(&adi_pinctrl_driver);
+	ret = platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 	if (ret)
 		return ret;
-
-	ret = platform_driver_register(&adi_gpio_pint_driver);
-	if (ret)
-		goto pint_error;
-
-	ret = platform_driver_register(&adi_gpio_driver);
-	if (ret)
-		goto gpio_error;
 
 #ifdef CONFIG_PM
 	register_syscore_ops(&gpio_pm_syscore_ops);
 #endif
-	return ret;
-gpio_error:
-	platform_driver_unregister(&adi_gpio_pint_driver);
-pint_error:
-	platform_driver_unregister(&adi_pinctrl_driver);
-
-	return ret;
+	return 0;
 }
 arch_initcall(adi_pinctrl_setup);
 

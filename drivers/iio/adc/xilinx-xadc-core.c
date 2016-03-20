@@ -273,33 +273,13 @@ static void xadc_zynq_unmask_worker(struct work_struct *work)
 		schedule_delayed_work(&xadc->zynq_unmask_work,
 				msecs_to_jiffies(XADC_ZYNQ_UNMASK_TIMEOUT));
 	}
-}
 
-static irqreturn_t xadc_zynq_threaded_interrupt_handler(int irq, void *devid)
-{
-	struct iio_dev *indio_dev = devid;
-	struct xadc *xadc = iio_priv(indio_dev);
-	unsigned int alarm;
-
-	spin_lock_irq(&xadc->lock);
-	alarm = xadc->zynq_alarm;
-	xadc->zynq_alarm = 0;
-	spin_unlock_irq(&xadc->lock);
-
-	xadc_handle_events(indio_dev, xadc_zynq_transform_alarm(alarm));
-
-	/* unmask the required interrupts in timer. */
-	schedule_delayed_work(&xadc->zynq_unmask_work,
-			msecs_to_jiffies(XADC_ZYNQ_UNMASK_TIMEOUT));
-
-	return IRQ_HANDLED;
 }
 
 static irqreturn_t xadc_zynq_interrupt_handler(int irq, void *devid)
 {
 	struct iio_dev *indio_dev = devid;
 	struct xadc *xadc = iio_priv(indio_dev);
-	irqreturn_t ret = IRQ_HANDLED;
 	uint32_t status;
 
 	xadc_read_reg(xadc, XADC_ZYNQ_REG_INTSTS, &status);
@@ -321,18 +301,23 @@ static irqreturn_t xadc_zynq_interrupt_handler(int irq, void *devid)
 
 	status &= XADC_ZYNQ_INT_ALARM_MASK;
 	if (status) {
-		xadc->zynq_alarm |= status;
 		xadc->zynq_masked_alarm |= status;
 		/*
 		 * mask the current event interrupt,
 		 * unmask it when the interrupt is no more active.
 		 */
 		xadc_zynq_update_intmsk(xadc, 0, 0);
-		ret = IRQ_WAKE_THREAD;
+
+		xadc_handle_events(indio_dev,
+				xadc_zynq_transform_alarm(status));
+
+		/* unmask the required interrupts in timer. */
+		schedule_delayed_work(&xadc->zynq_unmask_work,
+				msecs_to_jiffies(XADC_ZYNQ_UNMASK_TIMEOUT));
 	}
 	spin_unlock(&xadc->lock);
 
-	return ret;
+	return IRQ_HANDLED;
 }
 
 #define XADC_ZYNQ_TCK_RATE_MAX 50000000
@@ -437,7 +422,6 @@ static const struct xadc_ops xadc_zynq_ops = {
 	.setup = xadc_zynq_setup,
 	.get_dclk_rate = xadc_zynq_get_dclk_rate,
 	.interrupt_handler = xadc_zynq_interrupt_handler,
-	.threaded_interrupt_handler = xadc_zynq_threaded_interrupt_handler,
 	.update_alarm = xadc_zynq_update_alarm,
 };
 
@@ -819,7 +803,7 @@ err:
 	return ret;
 }
 
-static struct iio_buffer_setup_ops xadc_buffer_ops = {
+static const struct iio_buffer_setup_ops xadc_buffer_ops = {
 	.preenable = &xadc_preenable,
 	.postenable = &iio_triggered_buffer_postenable,
 	.predisable = &iio_triggered_buffer_predisable,
@@ -856,6 +840,8 @@ static int xadc_read_raw(struct iio_dev *indio_dev,
 			switch (chan->address) {
 			case XADC_REG_VCCINT:
 			case XADC_REG_VCCAUX:
+			case XADC_REG_VREFP:
+			case XADC_REG_VREFN:
 			case XADC_REG_VCCBRAM:
 			case XADC_REG_VCCPINT:
 			case XADC_REG_VCCPAUX:
@@ -996,7 +982,7 @@ static const struct iio_event_spec xadc_voltage_events[] = {
 	.num_event_specs = (_alarm) ? ARRAY_SIZE(xadc_voltage_events) : 0, \
 	.scan_index = (_scan_index), \
 	.scan_type = { \
-		.sign = 'u', \
+		.sign = ((_addr) == XADC_REG_VREFN) ? 's' : 'u', \
 		.realbits = 12, \
 		.storagebits = 16, \
 		.shift = 4, \
@@ -1008,7 +994,7 @@ static const struct iio_event_spec xadc_voltage_events[] = {
 static const struct iio_chan_spec xadc_channels[] = {
 	XADC_CHAN_TEMP(0, 8, XADC_REG_TEMP),
 	XADC_CHAN_VOLTAGE(0, 9, XADC_REG_VCCINT, "vccint", true),
-	XADC_CHAN_VOLTAGE(1, 10, XADC_REG_VCCINT, "vccaux", true),
+	XADC_CHAN_VOLTAGE(1, 10, XADC_REG_VCCAUX, "vccaux", true),
 	XADC_CHAN_VOLTAGE(2, 14, XADC_REG_VCCBRAM, "vccbram", true),
 	XADC_CHAN_VOLTAGE(3, 5, XADC_REG_VCCPINT, "vccpint", true),
 	XADC_CHAN_VOLTAGE(4, 6, XADC_REG_VCCPAUX, "vccpaux", true),
@@ -1126,7 +1112,7 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 				chan->address = XADC_REG_VPVN;
 			} else {
 				chan->scan_index = 15 + reg;
-				chan->scan_index = XADC_REG_VAUX(reg - 1);
+				chan->address = XADC_REG_VAUX(reg - 1);
 			}
 			num_channels++;
 			chan++;
@@ -1201,12 +1187,16 @@ static int xadc_probe(struct platform_device *pdev)
 			goto err_device_free;
 
 		xadc->convst_trigger = xadc_alloc_trigger(indio_dev, "convst");
-		if (IS_ERR(xadc->convst_trigger))
+		if (IS_ERR(xadc->convst_trigger)) {
+			ret = PTR_ERR(xadc->convst_trigger);
 			goto err_triggered_buffer_cleanup;
+		}
 		xadc->samplerate_trigger = xadc_alloc_trigger(indio_dev,
 			"samplerate");
-		if (IS_ERR(xadc->samplerate_trigger))
+		if (IS_ERR(xadc->samplerate_trigger)) {
+			ret = PTR_ERR(xadc->samplerate_trigger);
 			goto err_free_convst_trigger;
+		}
 	}
 
 	xadc->clk = devm_clk_get(&pdev->dev, NULL);
@@ -1220,9 +1210,8 @@ static int xadc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_free_samplerate_trigger;
 
-	ret = request_threaded_irq(irq, xadc->ops->interrupt_handler,
-				xadc->ops->threaded_interrupt_handler,
-				0, dev_name(&pdev->dev), indio_dev);
+	ret = request_irq(irq, xadc->ops->interrupt_handler, 0,
+			dev_name(&pdev->dev), indio_dev);
 	if (ret)
 		goto err_clk_disable_unprepare;
 
@@ -1322,7 +1311,6 @@ static struct platform_driver xadc_driver = {
 	.remove = xadc_remove,
 	.driver = {
 		.name = "xadc",
-		.owner = THIS_MODULE,
 		.of_match_table = xadc_of_match_table,
 	},
 };

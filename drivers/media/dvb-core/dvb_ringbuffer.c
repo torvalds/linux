@@ -166,6 +166,31 @@ ssize_t dvb_ringbuffer_write(struct dvb_ringbuffer *rbuf, const u8 *buf, size_t 
 	return len;
 }
 
+ssize_t dvb_ringbuffer_write_user(struct dvb_ringbuffer *rbuf,
+				  const u8 __user *buf, size_t len)
+{
+	int status;
+	size_t todo = len;
+	size_t split;
+
+	split = (rbuf->pwrite + len > rbuf->size) ? rbuf->size - rbuf->pwrite : 0;
+
+	if (split > 0) {
+		status = copy_from_user(rbuf->data+rbuf->pwrite, buf, split);
+		if (status)
+			return len - todo;
+		buf += split;
+		todo -= split;
+		rbuf->pwrite = 0;
+	}
+	status = copy_from_user(rbuf->data+rbuf->pwrite, buf, todo);
+	if (status)
+		return len - todo;
+	rbuf->pwrite = (rbuf->pwrite + todo) % rbuf->size;
+
+	return len;
+}
+
 ssize_t dvb_ringbuffer_pkt_write(struct dvb_ringbuffer *rbuf, u8* buf, size_t len)
 {
 	int status;
@@ -297,3 +322,4 @@ EXPORT_SYMBOL(dvb_ringbuffer_flush_spinlock_wakeup);
 EXPORT_SYMBOL(dvb_ringbuffer_read_user);
 EXPORT_SYMBOL(dvb_ringbuffer_read);
 EXPORT_SYMBOL(dvb_ringbuffer_write);
+EXPORT_SYMBOL(dvb_ringbuffer_write_user);

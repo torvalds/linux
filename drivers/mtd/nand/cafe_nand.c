@@ -101,7 +101,8 @@ static const char *part_probes[] = { "cmdlinepart", "RedBoot", NULL };
 
 static int cafe_device_ready(struct mtd_info *mtd)
 {
-	struct cafe_priv *cafe = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct cafe_priv *cafe = nand_get_controller_data(chip);
 	int result = !!(cafe_readl(cafe, NAND_STATUS) & 0x40000000);
 	uint32_t irqs = cafe_readl(cafe, NAND_IRQ);
 
@@ -117,7 +118,8 @@ static int cafe_device_ready(struct mtd_info *mtd)
 
 static void cafe_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
-	struct cafe_priv *cafe = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
 	if (usedma)
 		memcpy(cafe->dmabuf + cafe->datalen, buf, len);
@@ -132,7 +134,8 @@ static void cafe_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 
 static void cafe_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
-	struct cafe_priv *cafe = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
 	if (usedma)
 		memcpy(buf, cafe->dmabuf + cafe->datalen, len);
@@ -146,7 +149,8 @@ static void cafe_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 
 static uint8_t cafe_read_byte(struct mtd_info *mtd)
 {
-	struct cafe_priv *cafe = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct cafe_priv *cafe = nand_get_controller_data(chip);
 	uint8_t d;
 
 	cafe_read_buf(mtd, &d, 1);
@@ -158,7 +162,8 @@ static uint8_t cafe_read_byte(struct mtd_info *mtd)
 static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 			      int column, int page_addr)
 {
-	struct cafe_priv *cafe = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct cafe_priv *cafe = nand_get_controller_data(chip);
 	int adrbytes = 0;
 	uint32_t ctl1;
 	uint32_t doneint = 0x80000000;
@@ -313,7 +318,8 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 
 static void cafe_select_chip(struct mtd_info *mtd, int chipnr)
 {
-	struct cafe_priv *cafe = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
 	cafe_dev_dbg(&cafe->pdev->dev, "select_chip %d\n", chipnr);
 
@@ -328,7 +334,8 @@ static void cafe_select_chip(struct mtd_info *mtd, int chipnr)
 static irqreturn_t cafe_nand_interrupt(int irq, void *id)
 {
 	struct mtd_info *mtd = id;
-	struct cafe_priv *cafe = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct cafe_priv *cafe = nand_get_controller_data(chip);
 	uint32_t irqs = cafe_readl(cafe, NAND_IRQ);
 	cafe_writel(cafe, irqs & ~0x90000000, NAND_IRQ);
 	if (!irqs)
@@ -377,7 +384,7 @@ static int cafe_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			       uint8_t *buf, int oob_required, int page)
 {
-	struct cafe_priv *cafe = mtd->priv;
+	struct cafe_priv *cafe = nand_get_controller_data(chip);
 	unsigned int max_bitflips = 0;
 
 	cafe_dev_dbg(&cafe->pdev->dev, "ECC result %08x SYN1,2 %08x\n",
@@ -516,59 +523,16 @@ static struct nand_bbt_descr cafe_bbt_mirror_descr_512 = {
 
 static int cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 					  struct nand_chip *chip,
-					  const uint8_t *buf, int oob_required)
+					  const uint8_t *buf, int oob_required,
+					  int page)
 {
-	struct cafe_priv *cafe = mtd->priv;
+	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
 	chip->write_buf(mtd, buf, mtd->writesize);
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
 
 	/* Set up ECC autogeneration */
 	cafe->ctl2 |= (1<<30);
-
-	return 0;
-}
-
-static int cafe_nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-			uint32_t offset, int data_len, const uint8_t *buf,
-			int oob_required, int page, int cached, int raw)
-{
-	int status;
-
-	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, page);
-
-	if (unlikely(raw))
-		status = chip->ecc.write_page_raw(mtd, chip, buf, oob_required);
-	else
-		status = chip->ecc.write_page(mtd, chip, buf, oob_required);
-
-	if (status < 0)
-		return status;
-
-	/*
-	 * Cached progamming disabled for now, Not sure if its worth the
-	 * trouble. The speed gain is not very impressive. (2.3->2.6Mib/s)
-	 */
-	cached = 0;
-
-	if (!cached || !(chip->options & NAND_CACHEPRG)) {
-
-		chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
-		status = chip->waitfunc(mtd, chip);
-		/*
-		 * See if operation failed and additional status checks are
-		 * available
-		 */
-		if ((status & NAND_STATUS_FAIL) && (chip->errstat))
-			status = chip->errstat(mtd, chip, FL_WRITING, status,
-					       page);
-
-		if (status & NAND_STATUS_FAIL)
-			return -EIO;
-	} else {
-		chip->cmdfunc(mtd, NAND_CMD_CACHEDPROG, -1, -1);
-		status = chip->waitfunc(mtd, chip);
-	}
 
 	return 0;
 }
@@ -641,14 +605,13 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	mtd = kzalloc(sizeof(*mtd) + sizeof(struct cafe_priv), GFP_KERNEL);
-	if (!mtd)
+	cafe = kzalloc(sizeof(*cafe), GFP_KERNEL);
+	if (!cafe)
 		return  -ENOMEM;
-	cafe = (void *)(&mtd[1]);
 
+	mtd = nand_to_mtd(&cafe->nand);
 	mtd->dev.parent = &pdev->dev;
-	mtd->priv = cafe;
-	mtd->owner = THIS_MODULE;
+	nand_set_controller_data(&cafe->nand, cafe);
 
 	cafe->pdev = pdev;
 	cafe->mmio = pci_iomap(pdev, 0, 0);
@@ -800,7 +763,6 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	cafe->nand.ecc.hwctl  = (void *)cafe_nand_bug;
 	cafe->nand.ecc.calculate = (void *)cafe_nand_bug;
 	cafe->nand.ecc.correct  = (void *)cafe_nand_bug;
-	cafe->nand.write_page = cafe_nand_write_page;
 	cafe->nand.ecc.write_page = cafe_nand_write_page_lowlevel;
 	cafe->nand.ecc.write_oob = cafe_nand_write_oob;
 	cafe->nand.ecc.read_page = cafe_nand_read_page;
@@ -829,7 +791,7 @@ static int cafe_nand_probe(struct pci_dev *pdev,
  out_ior:
 	pci_iounmap(pdev, cafe->mmio);
  out_free_mtd:
-	kfree(mtd);
+	kfree(cafe);
  out:
 	return err;
 }
@@ -837,7 +799,8 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 static void cafe_nand_remove(struct pci_dev *pdev)
 {
 	struct mtd_info *mtd = pci_get_drvdata(pdev);
-	struct cafe_priv *cafe = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
 	/* Disable NAND IRQ in global IRQ mask register */
 	cafe_writel(cafe, ~1 & cafe_readl(cafe, GLOBAL_IRQ_MASK), GLOBAL_IRQ_MASK);
@@ -849,7 +812,7 @@ static void cafe_nand_remove(struct pci_dev *pdev)
 			2112 + sizeof(struct nand_buffers) +
 			mtd->writesize + mtd->oobsize,
 			cafe->dmabuf, cafe->dmaaddr);
-	kfree(mtd);
+	kfree(cafe);
 }
 
 static const struct pci_device_id cafe_nand_tbl[] = {
@@ -864,7 +827,8 @@ static int cafe_nand_resume(struct pci_dev *pdev)
 {
 	uint32_t ctrl;
 	struct mtd_info *mtd = pci_get_drvdata(pdev);
-	struct cafe_priv *cafe = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
        /* Start off by resetting the NAND controller completely */
 	cafe_writel(cafe, 1, NAND_RESET);

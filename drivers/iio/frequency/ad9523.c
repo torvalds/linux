@@ -445,7 +445,7 @@ static int ad9523_store_eeprom(struct iio_dev *indio_dev)
 
 	tmp = 4;
 	do {
-		msleep(16);
+		msleep(20);
 		ret = ad9523_read(indio_dev,
 				  AD9523_EEPROM_DATA_XFER_STATUS);
 		if (ret < 0)
@@ -1027,7 +1027,6 @@ MODULE_DEVICE_TABLE(spi, ad9523_id);
 static struct spi_driver ad9523_driver = {
 	.driver = {
 		.name	= "ad9523",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ad9523_probe,
 	.remove		= ad9523_remove,

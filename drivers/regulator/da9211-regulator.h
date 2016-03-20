@@ -1,16 +1,16 @@
 /*
- * da9211-regulator.h - Regulator definitions for DA9211
- * Copyright (C) 2014  Dialog Semiconductor Ltd.
+ * da9211-regulator.h - Regulator definitions for DA9211/DA9213/DA9215
+ * Copyright (C) 2015  Dialog Semiconductor Ltd.
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Library General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  *
- * This library is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
 #ifndef __DA9211_REGISTERS_H__
@@ -53,12 +53,15 @@
 /* BUCK Phase Selection*/
 #define DA9211_REG_CONFIG_E			0x147
 
+/* Device ID */
+#define	DA9211_REG_DEVICE_ID			0x201
+
 /*
  * Registers bits
  */
 /* DA9211_REG_PAGE_CON (addr=0x00) */
 #define	DA9211_REG_PAGE_SHIFT			1
-#define	DA9211_REG_PAGE_MASK			0x02
+#define	DA9211_REG_PAGE_MASK			0x06
 /* On I2C registers 0x00 - 0xFF */
 #define	DA9211_REG_PAGE0			0
 /* On I2C registers 0x100 - 0x1FF */

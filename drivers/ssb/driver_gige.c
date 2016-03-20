@@ -24,7 +24,7 @@ MODULE_LICENSE("GPL");
 
 static const struct ssb_device_id ssb_gige_tbl[] = {
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_ETHERNET_GBIT, SSB_ANY_REV),
-	SSB_DEVTABLE_END
+	{},
 };
 /* MODULE_DEVICE_TABLE(ssb, ssb_gige_tbl); */
 

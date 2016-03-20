@@ -16,7 +16,7 @@ struct ceph_x_ticket_handler {
 	unsigned int service;
 
 	struct ceph_crypto_key session_key;
-	struct ceph_timespec validity;
+	bool have_key;
 
 	u64 secret_id;
 	struct ceph_buffer *ticket_blob;
@@ -26,6 +26,7 @@ struct ceph_x_ticket_handler {
 
 
 struct ceph_x_authorizer {
+	struct ceph_crypto_key session_key;
 	struct ceph_buffer *buf;
 	unsigned int service;
 	u64 nonce;

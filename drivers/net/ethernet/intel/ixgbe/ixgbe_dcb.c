@@ -139,6 +139,11 @@ s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *hw,
 		/* Calculate credit refill ratio using multiplier */
 		credit_refill = min(link_percentage * min_multiplier,
 				    MAX_CREDIT_REFILL);
+
+		/* Refill at least minimum credit */
+		if (credit_refill < min_credit)
+			credit_refill = min_credit;
+
 		p->data_credits_refill = (u16)credit_refill;
 
 		/* Calculate maximum credit for the TC */
@@ -149,7 +154,7 @@ s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *hw,
 		 * of a TC is too small, the maximum credit may not be
 		 * enough to send out a jumbo frame in data plane arbitration.
 		 */
-		if (credit_max && (credit_max < min_credit))
+		if (credit_max < min_credit)
 			credit_max = min_credit;
 
 		if (direction == DCB_TX_CONFIG) {
@@ -286,6 +291,8 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
 						 bwgid, ptype);
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
 		return ixgbe_dcb_hw_config_82599(hw, pfc_en, refill, max,
 						 bwgid, ptype, prio_tc);
 	default:
@@ -302,6 +309,8 @@ s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en, u8 *prio_tc)
 		return ixgbe_dcb_config_pfc_82598(hw, pfc_en);
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
 		return ixgbe_dcb_config_pfc_82599(hw, pfc_en, prio_tc);
 	default:
 		break;
@@ -357,6 +366,8 @@ s32 ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw,
 		break;
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
 		ixgbe_dcb_config_rx_arbiter_82599(hw, refill, max,
 						  bwg_id, prio_type, prio_tc);
 		ixgbe_dcb_config_tx_desc_arbiter_82599(hw, refill, max,
@@ -385,6 +396,8 @@ void ixgbe_dcb_read_rtrup2tc(struct ixgbe_hw *hw, u8 *map)
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
 		ixgbe_dcb_read_rtrup2tc_82599(hw, map);
 		break;
 	default:

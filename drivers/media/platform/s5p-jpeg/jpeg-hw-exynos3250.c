@@ -20,7 +20,7 @@
 
 void exynos3250_jpeg_reset(void __iomem *regs)
 {
-	u32 reg = 0;
+	u32 reg = 1;
 	int count = 1000;
 
 	writel(1, regs + EXYNOS3250_SW_RESET);
@@ -233,6 +233,7 @@ void exynos3250_jpeg_set_x(void __iomem *regs, unsigned int x)
 	writel(reg, regs + EXYNOS3250_JPGX);
 }
 
+#if 0	/* Currently unused */
 unsigned int exynos3250_jpeg_get_y(void __iomem *regs)
 {
 	return readl(regs + EXYNOS3250_JPGY);
@@ -242,6 +243,7 @@ unsigned int exynos3250_jpeg_get_x(void __iomem *regs)
 {
 	return readl(regs + EXYNOS3250_JPGX);
 }
+#endif
 
 void exynos3250_jpeg_interrupts_enable(void __iomem *regs)
 {

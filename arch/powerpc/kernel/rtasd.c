@@ -49,7 +49,7 @@ static unsigned int rtas_error_log_buffer_max;
 static unsigned int event_scan;
 static unsigned int rtas_event_scan_rate;
 
-static int full_rtas_msgs = 0;
+static bool full_rtas_msgs;
 
 /* Stop logging to nvram after first fatal error */
 static int logging_enabled; /* Until we initialize everything,
@@ -286,7 +286,7 @@ static void prrn_work_fn(struct work_struct *work)
 
 static DECLARE_WORK(prrn_work, prrn_work_fn);
 
-void prrn_schedule_update(u32 scope)
+static void prrn_schedule_update(u32 scope)
 {
 	flush_work(&prrn_work);
 	prrn_update_scope = scope;
@@ -592,11 +592,6 @@ __setup("surveillance=", surveillance_setup);
 
 static int __init rtasmsgs_setup(char *str)
 {
-	if (strcmp(str, "on") == 0)
-		full_rtas_msgs = 1;
-	else if (strcmp(str, "off") == 0)
-		full_rtas_msgs = 0;
-
-	return 1;
+	return (kstrtobool(str, &full_rtas_msgs) == 0);
 }
 __setup("rtasmsgs=", rtasmsgs_setup);

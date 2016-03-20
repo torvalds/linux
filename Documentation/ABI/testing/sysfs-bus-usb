@@ -1,3 +1,23 @@
+What:		/sys/bus/usb/devices/INTERFACE/authorized
+Date:		August 2015
+Description:
+		This allows to authorize (1) or deauthorize (0)
+		individual interfaces instead a whole device
+		in contrast to the device authorization.
+		If a deauthorized interface will be authorized
+		so the driver probing must be triggered manually
+		by writing INTERFACE to /sys/bus/usb/drivers_probe
+		This allows to avoid side-effects with drivers
+		that need multiple interfaces.
+		A deauthorized interface cannot be probed or claimed.
+
+What:		/sys/bus/usb/devices/usbX/interface_authorized_default
+Date:		August 2015
+Description:
+		This is used as value that determines if interfaces
+		would be authorized by default.
+		The value can be 1 or 0. It's by default 1.
+
 What:		/sys/bus/usb/device/.../authorized
 Date:		July 2008
 KernelVersion:	2.6.26
@@ -104,16 +124,31 @@ What:		/sys/bus/usb/devices/.../power/usb2_hardware_lpm
 Date:		September 2011
 Contact:	Andiry Xu <andiry.xu@amd.com>
 Description:
-		If CONFIG_PM_RUNTIME is set and a USB 2.0 lpm-capable device
-		is plugged in to a xHCI host which support link PM, it will
-		perform a LPM test; if the test is passed and host supports
-		USB2 hardware LPM (xHCI 1.0 feature), USB2 hardware LPM will
-		be enabled for the device and the USB device directory will
-		contain a file named power/usb2_hardware_lpm.  The file holds
-		a string value (enable or disable) indicating whether or not
-		USB2 hardware LPM is enabled for the device. Developer can
-		write y/Y/1 or n/N/0 to the file to enable/disable the
-		feature.
+		If CONFIG_PM is set and a USB 2.0 lpm-capable device is plugged
+		in to a xHCI host which support link PM, it will perform a LPM
+		test; if the test is passed and host supports USB2 hardware LPM
+		(xHCI 1.0 feature), USB2 hardware LPM will be enabled for the
+		device and the USB device directory will contain a file named
+		power/usb2_hardware_lpm.  The file holds a string value (enable
+		or disable) indicating whether or not USB2 hardware LPM is
+		enabled for the device. Developer can write y/Y/1 or n/N/0 to
+		the file to enable/disable the feature.
+
+What:		/sys/bus/usb/devices/.../power/usb3_hardware_lpm_u1
+		/sys/bus/usb/devices/.../power/usb3_hardware_lpm_u2
+Date:		November 2015
+Contact:	Kevin Strasser <kevin.strasser@linux.intel.com>
+		Lu Baolu <baolu.lu@linux.intel.com>
+Description:
+		If CONFIG_PM is set and a USB 3.0 lpm-capable device is plugged
+		in to a xHCI host which supports link PM, it will check if U1
+		and U2 exit latencies have been set in the BOS descriptor; if
+		the check is passed and the host supports USB3 hardware LPM,
+		USB3 hardware LPM will be enabled for the device and the USB
+		device directory will contain two files named
+		power/usb3_hardware_lpm_u1 and power/usb3_hardware_lpm_u2. These
+		files hold a string value (enable or disable) indicating whether
+		or not USB3 hardware LPM U1 or U2 is enabled for the device.
 
 What:		/sys/bus/usb/devices/.../removable
 Date:		February 2012
@@ -153,6 +188,17 @@ Description:
 		This attribute is to expose these information to user space.
 		The file will read "hotplug", "wired" and "not used" if the
 		information is available, and "unknown" otherwise.
+
+What:		/sys/bus/usb/devices/.../(hub interface)/portX/usb3_lpm_permit
+Date:		November 2015
+Contact:	Lu Baolu <baolu.lu@linux.intel.com>
+Description:
+		Some USB3.0 devices are not friendly to USB3 LPM.  usb3_lpm_permit
+		attribute allows enabling/disabling usb3 lpm of a port. It takes
+		effect both before and after a usb device is enumerated. Supported
+		values are "0" if both u1 and u2 are NOT permitted, "u1" if only u1
+		is permitted, "u2" if only u2 is permitted, "u1_u2" if both u1 and
+		u2 are permitted.
 
 What:		/sys/bus/usb/devices/.../power/usb2_lpm_l1_timeout
 Date:		May 2013

@@ -16,14 +16,12 @@
 
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 
 #include <asm/exception.h>
-#include <asm/mach/irq.h>
-
-#include "irqchip.h"
 
 #define SUN4I_IRQ_VECTOR_REG		0x00
 #define SUN4I_IRQ_PROTECTION_REG	0x08
@@ -84,12 +82,12 @@ static int sun4i_irq_map(struct irq_domain *d, unsigned int virq,
 			 irq_hw_number_t hw)
 {
 	irq_set_chip_and_handler(virq, &sun4i_irq_chip, handle_fasteoi_irq);
-	set_irq_flags(virq, IRQF_VALID | IRQF_PROBE);
+	irq_set_probe(virq);
 
 	return 0;
 }
 
-static struct irq_domain_ops sun4i_irq_ops = {
+static const struct irq_domain_ops sun4i_irq_ops = {
 	.map = sun4i_irq_map,
 	.xlate = irq_domain_xlate_onecell,
 };
@@ -136,7 +134,7 @@ IRQCHIP_DECLARE(allwinner_sun4i_ic, "allwinner,sun4i-a10-ic", sun4i_of_init);
 
 static void __exception_irq_entry sun4i_handle_irq(struct pt_regs *regs)
 {
-	u32 irq, hwirq;
+	u32 hwirq;
 
 	/*
 	 * hwirq == 0 can mean one of 3 things:
@@ -154,8 +152,7 @@ static void __exception_irq_entry sun4i_handle_irq(struct pt_regs *regs)
 		return;
 
 	do {
-		irq = irq_find_mapping(sun4i_irq_domain, hwirq);
-		handle_IRQ(irq, regs);
+		handle_domain_irq(sun4i_irq_domain, hwirq, regs);
 		hwirq = readl(sun4i_irq_base + SUN4I_IRQ_VECTOR_REG) >> 2;
 	} while (hwirq != 0);
 }

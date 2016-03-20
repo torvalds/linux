@@ -16,7 +16,7 @@ struct nouveau_channel {
 
 	struct {
 		struct nouveau_bo *buffer;
-		struct nouveau_vma vma;
+		struct nvkm_vma vma;
 		struct nvif_object ctxdma;
 	} push;
 
@@ -37,14 +37,15 @@ struct nouveau_channel {
 	u32 user_get;
 	u32 user_put;
 
-	struct nvif_object *object;
+	struct nvif_object user;
 };
 
 
 int  nouveau_channel_new(struct nouveau_drm *, struct nvif_device *,
-			 u32 handle, u32 arg0, u32 arg1,
-			 struct nouveau_channel **);
+			 u32 arg0, u32 arg1, struct nouveau_channel **);
 void nouveau_channel_del(struct nouveau_channel **);
 int  nouveau_channel_idle(struct nouveau_channel *);
+
+extern int nouveau_vram_pushbuf;
 
 #endif

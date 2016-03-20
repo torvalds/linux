@@ -472,11 +472,7 @@ static int lm3533_device_setup(struct lm3533 *lm3533,
 	if (ret)
 		return ret;
 
-	ret = lm3533_set_boost_ovp(lm3533, pdata->boost_ovp);
-	if (ret)
-		return ret;
-
-	return 0;
+	return lm3533_set_boost_ovp(lm3533, pdata->boost_ovp);
 }
 
 static int lm3533_device_init(struct lm3533 *lm3533)
@@ -583,7 +579,7 @@ static bool lm3533_precious_register(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config regmap_config = {
+static const struct regmap_config regmap_config = {
 	.reg_bits	= 8,
 	.val_bits	= 8,
 	.max_register	= LM3533_REG_MAX,
@@ -596,7 +592,6 @@ static int lm3533_i2c_probe(struct i2c_client *i2c,
 					const struct i2c_device_id *id)
 {
 	struct lm3533 *lm3533;
-	int ret;
 
 	dev_dbg(&i2c->dev, "%s\n", __func__);
 
@@ -613,11 +608,7 @@ static int lm3533_i2c_probe(struct i2c_client *i2c,
 	lm3533->dev = &i2c->dev;
 	lm3533->irq = i2c->irq;
 
-	ret = lm3533_device_init(lm3533);
-	if (ret)
-		return ret;
-
-	return 0;
+	return lm3533_device_init(lm3533);
 }
 
 static int lm3533_i2c_remove(struct i2c_client *i2c)
@@ -640,7 +631,6 @@ MODULE_DEVICE_TABLE(i2c, lm3533_i2c_ids);
 static struct i2c_driver lm3533_i2c_driver = {
 	.driver = {
 		   .name = "lm3533",
-		   .owner = THIS_MODULE,
 	},
 	.id_table	= lm3533_i2c_ids,
 	.probe		= lm3533_i2c_probe,

@@ -89,7 +89,7 @@ MODULE_PARM_DESC(dma_tx_num, "Number of descriptors in the TX list");
 
 #define TXQUEUESTOP_THRESHHOLD	2
 
-static struct of_device_id altera_tse_ids[];
+static const struct of_device_id altera_tse_ids[];
 
 static inline u32 tse_tx_avail(struct altera_tse_private *priv)
 {
@@ -105,11 +105,11 @@ static int altera_tse_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 
 	/* set MDIO address */
 	csrwr32((mii_id & 0x1f), priv->mac_dev,
-		tse_csroffs(mdio_phy0_addr));
+		tse_csroffs(mdio_phy1_addr));
 
 	/* get the data */
 	return csrrd32(priv->mac_dev,
-		       tse_csroffs(mdio_phy0) + regnum * 4) & 0xffff;
+		       tse_csroffs(mdio_phy1) + regnum * 4) & 0xffff;
 }
 
 static int altera_tse_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
@@ -120,10 +120,10 @@ static int altera_tse_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 
 	/* set MDIO address */
 	csrwr32((mii_id & 0x1f), priv->mac_dev,
-		tse_csroffs(mdio_phy0_addr));
+		tse_csroffs(mdio_phy1_addr));
 
 	/* write the data */
-	csrwr32(value, priv->mac_dev, tse_csroffs(mdio_phy0) + regnum * 4);
+	csrwr32(value, priv->mac_dev, tse_csroffs(mdio_phy1) + regnum * 4);
 	return 0;
 }
 
@@ -131,7 +131,6 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
 	int ret;
-	int i;
 	struct device_node *mdio_node = NULL;
 	struct mii_bus *mdio = NULL;
 	struct device_node *child_node = NULL;
@@ -161,14 +160,6 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 	mdio->write = &altera_tse_mdio_write;
 	snprintf(mdio->id, MII_BUS_ID_SIZE, "%s-%u", mdio->name, id);
 
-	mdio->irq = kcalloc(PHY_MAX_ADDR, sizeof(int), GFP_KERNEL);
-	if (mdio->irq == NULL) {
-		ret = -ENOMEM;
-		goto out_free_mdio;
-	}
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		mdio->irq[i] = PHY_POLL;
-
 	mdio->priv = dev;
 	mdio->parent = priv->device;
 
@@ -176,7 +167,7 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 	if (ret != 0) {
 		netdev_err(dev, "Cannot register MDIO bus %s\n",
 			   mdio->id);
-		goto out_free_mdio_irq;
+		goto out_free_mdio;
 	}
 
 	if (netif_msg_drv(priv))
@@ -184,8 +175,6 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 
 	priv->mdio = mdio;
 	return 0;
-out_free_mdio_irq:
-	kfree(mdio->irq);
 out_free_mdio:
 	mdiobus_free(mdio);
 	mdio = NULL;
@@ -204,7 +193,6 @@ static void altera_tse_mdio_destroy(struct net_device *dev)
 			    priv->mdio->id);
 
 	mdiobus_unregister(priv->mdio);
-	kfree(priv->mdio->irq);
 	mdiobus_free(priv->mdio);
 	priv->mdio = NULL;
 }
@@ -376,7 +364,13 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 	u16 pktlength;
 	u16 pktstatus;
 
-	while ((rxstatus = priv->dmaops->get_rx_status(priv)) != 0) {
+	/* Check for count < limit first as get_rx_status is changing
+	* the response-fifo so we must process the next packet
+	* after calling get_rx_status if a response is pending.
+	* (reading the last byte of the response pops the value from the fifo.)
+	*/
+	while ((count < limit) &&
+	       ((rxstatus = priv->dmaops->get_rx_status(priv)) != 0)) {
 		pktstatus = rxstatus >> 16;
 		pktlength = rxstatus & 0xffff;
 
@@ -384,6 +378,12 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 			netdev_err(priv->dev,
 				   "RCV pktstatus %08X pktlength %08X\n",
 				   pktstatus, pktlength);
+
+		/* DMA trasfer from TSE starts with 2 aditional bytes for
+		 * IP payload alignment. Status returned by get_rx_status()
+		 * contains DMA transfer length. Packet is 2 bytes shorter.
+		 */
+		pktlength -= 2;
 
 		count++;
 		next_entry = (++priv->rx_cons) % priv->rx_ring_size;
@@ -491,28 +491,26 @@ static int tse_poll(struct napi_struct *napi, int budget)
 	struct altera_tse_private *priv =
 			container_of(napi, struct altera_tse_private, napi);
 	int rxcomplete = 0;
-	int txcomplete = 0;
 	unsigned long int flags;
 
-	txcomplete = tse_tx_complete(priv);
+	tse_tx_complete(priv);
 
 	rxcomplete = tse_rx(priv, budget);
 
-	if (rxcomplete >= budget || txcomplete > 0)
-		return rxcomplete;
+	if (rxcomplete < budget) {
 
-	napi_gro_flush(napi, false);
-	__napi_complete(napi);
+		napi_complete(napi);
 
-	netdev_dbg(priv->dev,
-		   "NAPI Complete, did %d packets with budget %d\n",
-		   txcomplete+rxcomplete, budget);
+		netdev_dbg(priv->dev,
+			   "NAPI Complete, did %d packets with budget %d\n",
+			   rxcomplete, budget);
 
-	spin_lock_irqsave(&priv->rxdma_irq_lock, flags);
-	priv->dmaops->enable_rxirq(priv);
-	priv->dmaops->enable_txirq(priv);
-	spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
-	return rxcomplete + txcomplete;
+		spin_lock_irqsave(&priv->rxdma_irq_lock, flags);
+		priv->dmaops->enable_rxirq(priv);
+		priv->dmaops->enable_txirq(priv);
+		spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
+	}
+	return rxcomplete;
 }
 
 /* DMA TX & RX FIFO interrupt routing
@@ -521,7 +519,6 @@ static irqreturn_t altera_isr(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct altera_tse_private *priv;
-	unsigned long int flags;
 
 	if (unlikely(!dev)) {
 		pr_err("%s: invalid dev pointer\n", __func__);
@@ -529,20 +526,20 @@ static irqreturn_t altera_isr(int irq, void *dev_id)
 	}
 	priv = netdev_priv(dev);
 
-	/* turn off desc irqs and enable napi rx */
-	spin_lock_irqsave(&priv->rxdma_irq_lock, flags);
-
-	if (likely(napi_schedule_prep(&priv->napi))) {
-		priv->dmaops->disable_rxirq(priv);
-		priv->dmaops->disable_txirq(priv);
-		__napi_schedule(&priv->napi);
-	}
-
+	spin_lock(&priv->rxdma_irq_lock);
 	/* reset IRQs */
 	priv->dmaops->clear_rxirq(priv);
 	priv->dmaops->clear_txirq(priv);
+	spin_unlock(&priv->rxdma_irq_lock);
 
-	spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
+	if (likely(napi_schedule_prep(&priv->napi))) {
+		spin_lock(&priv->rxdma_irq_lock);
+		priv->dmaops->disable_rxirq(priv);
+		priv->dmaops->disable_txirq(priv);
+		spin_unlock(&priv->rxdma_irq_lock);
+		__napi_schedule(&priv->napi);
+	}
+
 
 	return IRQ_HANDLED;
 }
@@ -728,6 +725,44 @@ static struct phy_device *connect_local_phy(struct net_device *dev)
 	return phydev;
 }
 
+static int altera_tse_phy_get_addr_mdio_create(struct net_device *dev)
+{
+	struct altera_tse_private *priv = netdev_priv(dev);
+	struct device_node *np = priv->device->of_node;
+	int ret = 0;
+
+	priv->phy_iface = of_get_phy_mode(np);
+
+	/* Avoid get phy addr and create mdio if no phy is present */
+	if (!priv->phy_iface)
+		return 0;
+
+	/* try to get PHY address from device tree, use PHY autodetection if
+	 * no valid address is given
+	 */
+
+	if (of_property_read_u32(priv->device->of_node, "phy-addr",
+			 &priv->phy_addr)) {
+		priv->phy_addr = POLL_PHY;
+	}
+
+	if (!((priv->phy_addr == POLL_PHY) ||
+		  ((priv->phy_addr >= 0) && (priv->phy_addr < PHY_MAX_ADDR)))) {
+		netdev_err(dev, "invalid phy-addr specified %d\n",
+			priv->phy_addr);
+		return -ENODEV;
+	}
+
+	/* Create/attach to MDIO bus */
+	ret = altera_tse_mdio_create(dev,
+					 atomic_add_return(1, &instance_count));
+
+	if (ret)
+		return -ENODEV;
+
+	return 0;
+}
+
 /* Initialize driver's PHY state, and attach to the PHY
  */
 static int init_phy(struct net_device *dev)
@@ -735,6 +770,12 @@ static int init_phy(struct net_device *dev)
 	struct altera_tse_private *priv = netdev_priv(dev);
 	struct phy_device *phydev;
 	struct device_node *phynode;
+	bool fixed_link = false;
+	int rc = 0;
+
+	/* Avoid init phy in case of no phy present */
+	if (!priv->phy_iface)
+		return 0;
 
 	priv->oldlink = 0;
 	priv->oldspeed = 0;
@@ -743,13 +784,32 @@ static int init_phy(struct net_device *dev)
 	phynode = of_parse_phandle(priv->device->of_node, "phy-handle", 0);
 
 	if (!phynode) {
-		netdev_dbg(dev, "no phy-handle found\n");
-		if (!priv->mdio) {
-			netdev_err(dev,
-				   "No phy-handle nor local mdio specified\n");
-			return -ENODEV;
+		/* check if a fixed-link is defined in device-tree */
+		if (of_phy_is_fixed_link(priv->device->of_node)) {
+			rc = of_phy_register_fixed_link(priv->device->of_node);
+			if (rc < 0) {
+				netdev_err(dev, "cannot register fixed PHY\n");
+				return rc;
+			}
+
+			/* In the case of a fixed PHY, the DT node associated
+			 * to the PHY is the Ethernet MAC DT node.
+			 */
+			phynode = of_node_get(priv->device->of_node);
+			fixed_link = true;
+
+			netdev_dbg(dev, "fixed-link detected\n");
+			phydev = of_phy_connect(dev, phynode,
+						&altera_tse_adjust_link,
+						0, priv->phy_iface);
+		} else {
+			netdev_dbg(dev, "no phy-handle found\n");
+			if (!priv->mdio) {
+				netdev_err(dev, "No phy-handle nor local mdio specified\n");
+				return -ENODEV;
+			}
+			phydev = connect_local_phy(dev);
 		}
-		phydev = connect_local_phy(dev);
 	} else {
 		netdev_dbg(dev, "phy-handle found\n");
 		phydev = of_phy_connect(dev, phynode,
@@ -773,17 +833,17 @@ static int init_phy(struct net_device *dev)
 	/* Broken HW is sometimes missing the pull-up resistor on the
 	 * MDIO line, which results in reads to non-existent devices returning
 	 * 0 rather than 0xffff. Catch this here and treat 0 as a non-existent
-	 * device as well.
+	 * device as well. If a fixed-link is used the phy_id is always 0.
 	 * Note: phydev->phy_id is the result of reading the UID PHY registers.
 	 */
-	if (phydev->phy_id == 0) {
+	if ((phydev->phy_id == 0) && !fixed_link) {
 		netdev_err(dev, "Bad PHY UID 0x%08x\n", phydev->phy_id);
 		phy_disconnect(phydev);
 		return -ENODEV;
 	}
 
 	netdev_dbg(dev, "attached to PHY %d UID 0x%08x Link = %d\n",
-		   phydev->addr, phydev->phy_id, phydev->link);
+		   phydev->mdio.addr, phydev->phy_id, phydev->link);
 
 	priv->phydev = phydev;
 	return 0;
@@ -1057,8 +1117,12 @@ static int tse_open(struct net_device *dev)
 
 	spin_lock(&priv->mac_cfg_lock);
 	ret = reset_mac(priv);
+	/* Note that reset_mac will fail if the clocks are gated by the PHY
+	 * due to the PHY being put into isolation or power down mode.
+	 * This is not an error if reset fails due to no clock.
+	 */
 	if (ret)
-		netdev_err(dev, "Cannot reset MAC core (error: %d)\n", ret);
+		netdev_dbg(dev, "Cannot reset MAC core (error: %d)\n", ret);
 
 	ret = init_mac(priv);
 	spin_unlock(&priv->mac_cfg_lock);
@@ -1128,10 +1192,6 @@ tx_request_irq_error:
 init_error:
 	free_skbufs(dev);
 alloc_skbuf_error:
-	if (priv->phydev) {
-		phy_disconnect(priv->phydev);
-		priv->phydev = NULL;
-	}
 phy_error:
 	return ret;
 }
@@ -1144,12 +1204,9 @@ static int tse_shutdown(struct net_device *dev)
 	int ret;
 	unsigned long int flags;
 
-	/* Stop and disconnect the PHY */
-	if (priv->phydev) {
+	/* Stop the PHY */
+	if (priv->phydev)
 		phy_stop(priv->phydev);
-		phy_disconnect(priv->phydev);
-		priv->phydev = NULL;
-	}
 
 	netif_stop_queue(dev);
 	napi_disable(&priv->napi);
@@ -1169,8 +1226,12 @@ static int tse_shutdown(struct net_device *dev)
 	spin_lock(&priv->tx_lock);
 
 	ret = reset_mac(priv);
+	/* Note that reset_mac will fail if the clocks are gated by the PHY
+	 * due to the PHY being put into isolation or power down mode.
+	 * This is not an error if reset fails due to no clock.
+	 */
 	if (ret)
-		netdev_err(dev, "Cannot reset MAC core (error: %d)\n", ret);
+		netdev_dbg(dev, "Cannot reset MAC core (error: %d)\n", ret);
 	priv->dmaops->reset_dma(priv);
 	free_skbufs(dev);
 
@@ -1231,7 +1292,6 @@ static int altera_tse_probe(struct platform_device *pdev)
 	struct resource *dma_res;
 	struct altera_tse_private *priv;
 	const unsigned char *macaddr;
-	struct device_node *np = pdev->dev.of_node;
 	void __iomem *descmap;
 	const struct of_device_id *of_id = NULL;
 
@@ -1365,7 +1425,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	}
 
 	if (of_property_read_u32(pdev->dev.of_node, "tx-fifo-depth",
-				 &priv->rx_fifo_depth)) {
+				 &priv->tx_fifo_depth)) {
 		dev_err(&pdev->dev, "cannot obtain tx-fifo-depth\n");
 		ret = -ENXIO;
 		goto err_free_netdev;
@@ -1408,32 +1468,13 @@ static int altera_tse_probe(struct platform_device *pdev)
 	else
 		eth_hw_addr_random(ndev);
 
-	priv->phy_iface = of_get_phy_mode(np);
-
-	/* try to get PHY address from device tree, use PHY autodetection if
-	 * no valid address is given
-	 */
-	if (of_property_read_u32(pdev->dev.of_node, "phy-addr",
-				 &priv->phy_addr)) {
-		priv->phy_addr = POLL_PHY;
-	}
-
-	if (!((priv->phy_addr == POLL_PHY) ||
-	      ((priv->phy_addr >= 0) && (priv->phy_addr < PHY_MAX_ADDR)))) {
-		dev_err(&pdev->dev, "invalid phy-addr specified %d\n",
-			priv->phy_addr);
-		goto err_free_netdev;
-	}
-
-	/* Create/attach to MDIO bus */
-	ret = altera_tse_mdio_create(ndev,
-				     atomic_add_return(1, &instance_count));
+	/* get phy addr and create mdio */
+	ret = altera_tse_phy_get_addr_mdio_create(ndev);
 
 	if (ret)
 		goto err_free_netdev;
 
 	/* initialize netdev */
-	ether_setup(ndev);
 	ndev->mem_start = control_port->start;
 	ndev->mem_end = control_port->end;
 	ndev->netdev_ops = &altera_tse_netdev_ops;
@@ -1464,6 +1505,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->tx_lock);
 	spin_lock_init(&priv->rxdma_irq_lock);
 
+	netif_carrier_off(ndev);
 	ret = register_netdev(ndev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register TSE net device\n");
@@ -1503,6 +1545,10 @@ err_free_netdev:
 static int altera_tse_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct altera_tse_private *priv = netdev_priv(ndev);
+
+	if (priv->phydev)
+		phy_disconnect(priv->phydev);
 
 	platform_set_drvdata(pdev, NULL);
 	altera_tse_mdio_destroy(ndev);
@@ -1550,7 +1596,7 @@ static const struct altera_dmaops altera_dtype_msgdma = {
 	.start_rxdma = msgdma_start_rxdma,
 };
 
-static struct of_device_id altera_tse_ids[] = {
+static const struct of_device_id altera_tse_ids[] = {
 	{ .compatible = "altr,tse-msgdma-1.0", .data = &altera_dtype_msgdma, },
 	{ .compatible = "altr,tse-1.0", .data = &altera_dtype_sgdma, },
 	{ .compatible = "ALTR,tse-1.0", .data = &altera_dtype_sgdma, },
@@ -1565,7 +1611,6 @@ static struct platform_driver altera_tse_driver = {
 	.resume		= NULL,
 	.driver		= {
 		.name	= ALTERA_TSE_RESOURCE_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = altera_tse_ids,
 	},
 };

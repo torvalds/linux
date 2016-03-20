@@ -323,7 +323,7 @@ static const struct snd_soc_dapm_widget wm8750_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("ROUT2"),
 	SND_SOC_DAPM_OUTPUT("MONO1"),
 	SND_SOC_DAPM_OUTPUT("OUT3"),
-	SND_SOC_DAPM_OUTPUT("VREF"),
+	SND_SOC_DAPM_VMID("VREF"),
 
 	SND_SOC_DAPM_INPUT("LINPUT1"),
 	SND_SOC_DAPM_INPUT("LINPUT2"),
@@ -634,7 +634,7 @@ static int wm8750_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			snd_soc_cache_sync(codec);
 
 			/* Set VMID to 5k */
@@ -651,7 +651,6 @@ static int wm8750_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, WM8750_PWR1, 0x0001);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -686,18 +685,6 @@ static struct snd_soc_dai_driver wm8750_dai = {
 	.ops = &wm8750_dai_ops,
 };
 
-static int wm8750_suspend(struct snd_soc_codec *codec)
-{
-	wm8750_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8750_resume(struct snd_soc_codec *codec)
-{
-	wm8750_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int wm8750_probe(struct snd_soc_codec *codec)
 {
 	int ret;
@@ -707,9 +694,6 @@ static int wm8750_probe(struct snd_soc_codec *codec)
 		printk(KERN_ERR "wm8750: failed to reset: %d\n", ret);
 		return ret;
 	}
-
-	/* charge output caps */
-	wm8750_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* set the update bits */
 	snd_soc_update_bits(codec, WM8750_LDAC, 0x0100, 0x0100);
@@ -724,18 +708,10 @@ static int wm8750_probe(struct snd_soc_codec *codec)
 	return ret;
 }
 
-static int wm8750_remove(struct snd_soc_codec *codec)
-{
-	wm8750_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8750 = {
 	.probe =	wm8750_probe,
-	.remove =	wm8750_remove,
-	.suspend =	wm8750_suspend,
-	.resume =	wm8750_resume,
 	.set_bias_level = wm8750_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = wm8750_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8750_snd_controls),
@@ -801,7 +777,6 @@ MODULE_DEVICE_TABLE(spi, wm8750_spi_ids);
 static struct spi_driver wm8750_spi_driver = {
 	.driver = {
 		.name	= "wm8750",
-		.owner	= THIS_MODULE,
 		.of_match_table = wm8750_of_match,
 	},
 	.id_table	= wm8750_spi_ids,
@@ -850,7 +825,6 @@ MODULE_DEVICE_TABLE(i2c, wm8750_i2c_id);
 static struct i2c_driver wm8750_i2c_driver = {
 	.driver = {
 		.name = "wm8750",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8750_of_match,
 	},
 	.probe =    wm8750_i2c_probe,

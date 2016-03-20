@@ -47,7 +47,7 @@ void *kmap_atomic(struct page *page)
 	unsigned long vaddr;
 	int idx, type;
 
-	/* even !CONFIG_PREEMPT needs this, for in_atomic in do_page_fault */
+	preempt_disable();
 	pagefault_disable();
 	if (!PageHighMem(page))
 		return page_address(page);
@@ -72,6 +72,7 @@ void __kunmap_atomic(void *kvaddr)
 
 	if (vaddr < FIXADDR_START) { // FIXME
 		pagefault_enable();
+		preempt_enable();
 		return;
 	}
 
@@ -92,6 +93,7 @@ void __kunmap_atomic(void *kvaddr)
 #endif
 	kmap_atomic_idx_pop();
 	pagefault_enable();
+	preempt_enable();
 }
 EXPORT_SYMBOL(__kunmap_atomic);
 
@@ -104,6 +106,7 @@ void *kmap_atomic_pfn(unsigned long pfn)
 	unsigned long vaddr;
 	int idx, type;
 
+	preempt_disable();
 	pagefault_disable();
 
 	type = kmap_atomic_idx_push();
@@ -113,19 +116,6 @@ void *kmap_atomic_pfn(unsigned long pfn)
 	flush_tlb_one(vaddr);
 
 	return (void*) vaddr;
-}
-
-struct page *kmap_atomic_to_page(void *ptr)
-{
-	unsigned long idx, vaddr = (unsigned long)ptr;
-	pte_t *pte;
-
-	if (vaddr < FIXADDR_START)
-		return virt_to_page(ptr);
-
-	idx = virt_to_fix(vaddr);
-	pte = kmap_pte - (idx - FIX_KMAP_BEGIN);
-	return pte_page(*pte);
 }
 
 void __init kmap_init(void)

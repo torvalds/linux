@@ -464,7 +464,7 @@ void rv730_stop_dpm(struct radeon_device *rdev)
 	result = rv770_send_msg_to_smc(rdev, PPSMC_MSG_TwoLevelsDisabled);
 
 	if (result != PPSMC_Result_OK)
-		DRM_ERROR("Could not force DPM to low\n");
+		DRM_DEBUG("Could not force DPM to low\n");
 
 	WREG32_P(GENERAL_PWRMGT, 0, ~GLOBAL_PWRMGT_EN);
 

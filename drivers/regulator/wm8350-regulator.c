@@ -941,7 +941,7 @@ static unsigned int wm8350_dcdc_get_optimum_mode(struct regulator_dev *rdev,
 	return mode;
 }
 
-static struct regulator_ops wm8350_dcdc_ops = {
+static const struct regulator_ops wm8350_dcdc_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage = regulator_list_voltage_linear,
@@ -958,7 +958,7 @@ static struct regulator_ops wm8350_dcdc_ops = {
 	.set_suspend_mode = wm8350_dcdc_set_suspend_mode,
 };
 
-static struct regulator_ops wm8350_dcdc2_5_ops = {
+static const struct regulator_ops wm8350_dcdc2_5_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -966,7 +966,7 @@ static struct regulator_ops wm8350_dcdc2_5_ops = {
 	.set_suspend_disable = wm8350_dcdc25_set_suspend_disable,
 };
 
-static struct regulator_ops wm8350_ldo_ops = {
+static const struct regulator_ops wm8350_ldo_ops = {
 	.map_voltage = regulator_map_voltage_linear_range,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
@@ -980,7 +980,7 @@ static struct regulator_ops wm8350_ldo_ops = {
 	.set_suspend_disable = wm8350_ldo_set_suspend_disable,
 };
 
-static struct regulator_ops wm8350_isink_ops = {
+static const struct regulator_ops wm8350_isink_ops = {
 	.set_current_limit = wm8350_isink_set_current,
 	.get_current_limit = wm8350_isink_get_current,
 	.enable = wm8350_isink_enable,
@@ -1151,17 +1151,16 @@ static const struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 static irqreturn_t pmic_uv_handler(int irq, void *data)
 {
 	struct regulator_dev *rdev = (struct regulator_dev *)data;
-	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 
 	mutex_lock(&rdev->mutex);
 	if (irq == WM8350_IRQ_CS1 || irq == WM8350_IRQ_CS2)
 		regulator_notifier_call_chain(rdev,
 					      REGULATOR_EVENT_REGULATION_OUT,
-					      wm8350);
+					      NULL);
 	else
 		regulator_notifier_call_chain(rdev,
 					      REGULATOR_EVENT_UNDER_VOLTAGE,
-					      wm8350);
+					      NULL);
 	mutex_unlock(&rdev->mutex);
 
 	return IRQ_HANDLED;

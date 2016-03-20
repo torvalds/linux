@@ -20,7 +20,7 @@ comment "Non-8250 serial port support"
 
 config SERIAL_AMBA_PL010
 	tristate "ARM AMBA PL010 serial port support"
-	depends on ARM_AMBA && (BROKEN || !ARCH_VERSATILE)
+	depends on ARM_AMBA
 	select SERIAL_CORE
 	help
 	  This selects the ARM(R) AMBA(R) PrimeCell PL010 UART.  If you have
@@ -115,9 +115,10 @@ config SERIAL_SB1250_DUART_CONSOLE
 
 config SERIAL_ATMEL
 	bool "AT91 / AT32 on-chip serial port support"
-	depends on ARCH_AT91 || AVR32
+	depends on HAS_DMA
+	depends on ARCH_AT91 || AVR32 || COMPILE_TEST
 	select SERIAL_CORE
-	select SERIAL_MCTRL_GPIO
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  This enables the driver for the on-chip UARTs of the Atmel
 	  AT91 and AT32 processors.
@@ -200,10 +201,29 @@ config SERIAL_KS8695_CONSOLE
 	  receives all kernel messages and warnings and which allows
 	  logins in single user mode).
 
+config SERIAL_MESON
+	tristate "Meson serial port support"
+	depends on ARCH_MESON
+	select SERIAL_CORE
+	help
+	  This enables the driver for the on-chip UARTs of the Amlogic
+	  MesonX processors.
+
+config SERIAL_MESON_CONSOLE
+	bool "Support for console on meson"
+	depends on SERIAL_MESON=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you wish to use a Amlogic MesonX UART as the
+	  system console (the system console is the device which
+	  receives all kernel messages and warnings and which allows
+	  logins in single user mode) as /dev/ttyAMLx.
+
 config SERIAL_CLPS711X
 	tristate "CLPS711X serial port support"
 	depends on ARCH_CLPS711X || COMPILE_TEST
 	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  This enables the driver for the on-chip UARTs of the Cirrus
 	  Logic EP711x/EP721x/EP731x processors.
@@ -220,7 +240,7 @@ config SERIAL_CLPS711X_CONSOLE
 
 config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
-	depends on PLAT_SAMSUNG
+	depends on PLAT_SAMSUNG || ARCH_EXYNOS
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
@@ -230,14 +250,14 @@ config SERIAL_SAMSUNG
 
 config SERIAL_SAMSUNG_UARTS_4
 	bool
-	depends on PLAT_SAMSUNG
+	depends on SERIAL_SAMSUNG
 	default y if !(CPU_S3C2410 || CPU_S3C2412 || CPU_S3C2440 || CPU_S3C2442)
 	help
 	  Internal node for the common case of 4 Samsung compatible UARTs
 
 config SERIAL_SAMSUNG_UARTS
 	int
-	depends on PLAT_SAMSUNG
+	depends on SERIAL_SAMSUNG
 	default 4 if SERIAL_SAMSUNG_UARTS_4 || CPU_S3C2416
 	default 3
 	help
@@ -257,6 +277,7 @@ config SERIAL_SAMSUNG_CONSOLE
 	bool "Support for console on Samsung SoC serial port"
 	depends on SERIAL_SAMSUNG=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Allow selection of the S3C24XX on-board serial ports for use as
 	  an virtual console.
@@ -463,26 +484,6 @@ config SERIAL_SA1100_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
-config SERIAL_MRST_MAX3110
-	tristate "SPI UART driver for Max3110"
-	depends on SPI_DW_PCI
-	select SERIAL_CORE
-	select SERIAL_CORE_CONSOLE
-	help
-	  This is the UART protocol driver for the MAX3110 device on
-	  the Intel Moorestown platform. On other systems use the max3100
-	  driver.
-
-config SERIAL_MFD_HSU
-	tristate "Medfield High Speed UART support"
-	depends on PCI
-	select SERIAL_CORE
-
-config SERIAL_MFD_HSU_CONSOLE
-	boolean "Medfile HSU serial console support"
-	depends on SERIAL_MFD_HSU=y
-	select SERIAL_CORE_CONSOLE
-
 config SERIAL_BFIN
 	tristate "Blackfin serial port support"
 	depends on BLACKFIN
@@ -571,9 +572,11 @@ config BFIN_UART3_CTSRTS
 
 config SERIAL_IMX
 	tristate "IMX serial port support"
-	depends on ARCH_MXC
+	depends on HAS_DMA
+	depends on ARCH_MXC || COMPILE_TEST
 	select SERIAL_CORE
 	select RATIONAL
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  If you have a machine based on a Motorola IMX CPU you
 	  can enable its onboard serial port by enabling this option.
@@ -582,6 +585,7 @@ config SERIAL_IMX_CONSOLE
 	bool "Console on IMX serial port"
 	depends on SERIAL_IMX=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON if OF
 	help
 	  If you have enabled the serial port on the Freescale IMX
 	  CPU you can make it the console by answering Y to this option.
@@ -594,7 +598,7 @@ config SERIAL_IMX_CONSOLE
 
 config SERIAL_UARTLITE
 	tristate "Xilinx uartlite serial port support"
-	depends on PPC32 || MICROBLAZE || MFD_TIMBERDALE || ARCH_ZYNQ
+	depends on HAS_IOMEM
 	select SERIAL_CORE
 	help
 	  Say Y here if you want to use the Xilinx uartlite serial controller.
@@ -606,6 +610,7 @@ config SERIAL_UARTLITE_CONSOLE
 	bool "Support for console on Xilinx uartlite serial port"
 	depends on SERIAL_UARTLITE=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Say Y here if you wish to use a Xilinx uartlite as the system
 	  console (the system console is the device which receives all kernel
@@ -682,7 +687,7 @@ config PDC_CONSOLE
 	  Saying Y here will enable the software based PDC console to be 
 	  used as the system console.  This is useful for machines in 
 	  which the hardware based console has not been written yet.  The
-	  following steps must be competed to use the PDC console:
+	  following steps must be completed to use the PDC console:
 
 	    1. create the device entry (mknod /dev/ttyB0 c 11 0)
 	    2. Edit the /etc/inittab to start a getty listening on /dev/ttyB0
@@ -728,7 +733,7 @@ config SERIAL_IP22_ZILOG_CONSOLE
 
 config SERIAL_SH_SCI
 	tristate "SuperH SCI(F) serial port support"
-	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	depends on SUPERH || ARCH_RENESAS || H8300 || COMPILE_TEST
 	select SERIAL_CORE
 
 config SERIAL_SH_SCI_NR_UARTS
@@ -741,9 +746,15 @@ config SERIAL_SH_SCI_CONSOLE
 	depends on SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
 
+config SERIAL_SH_SCI_EARLYCON
+	bool "Support for early console on SuperH SCI(F)"
+	depends on SERIAL_SH_SCI=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+
 config SERIAL_SH_SCI_DMA
 	bool "DMA support"
-	depends on SERIAL_SH_SCI && SH_DMAE
+	depends on SERIAL_SH_SCI && DMA_ENGINE
 
 config SERIAL_PNX8XXX
 	bool "Enable PNX8XXX SoCs' UART Support"
@@ -789,17 +800,6 @@ config SERIAL_CORE_CONSOLE
 config CONSOLE_POLL
 	bool
 
-config SERIAL_68328
-	bool "68328 serial support"
-	depends on M68328 || M68EZ328 || M68VZ328
-	help
-	  This driver supports the built-in serial port of the Motorola 68328
-	  (standard, EZ and VZ varieties).
-
-config SERIAL_68328_RTS_CTS
-	bool "Support RTS/CTS on 68328 serial port"
-	depends on SERIAL_68328
-
 config SERIAL_MCF
 	bool "Coldfire serial support"
 	depends on COLDFIRE
@@ -825,7 +825,7 @@ config SERIAL_MCF_CONSOLE
 
 config SERIAL_PMACZILOG
 	tristate "Mac or PowerMac z85c30 ESCC support"
-	depends on (M68K && MAC) || (PPC_OF && PPC_PMAC)
+	depends on (M68K && MAC) || PPC_PMAC
 	select SERIAL_CORE
 	help
 	  This driver supports the Zilog z85C30 serial ports found on
@@ -868,7 +868,7 @@ config SERIAL_PMACZILOG_CONSOLE
 
 config SERIAL_CPM
 	tristate "CPM SCC/SMC serial port support"
-	depends on CPM2 || 8xx
+	depends on CPM2 || CPM1
 	select SERIAL_CORE
 	help
 	  This driver supports the SCC and SMC serial ports on Motorola 
@@ -1010,11 +1010,11 @@ config SERIAL_VR41XX_CONSOLE
 	  a console on a serial port, say Y.  Otherwise, say N.
 
 config SERIAL_JSM
-	tristate "Digi International NEO PCI Support"
+	tristate "Digi International NEO and Classic PCI Support"
 	depends on PCI
 	select SERIAL_CORE
 	help
-	  This is a driver for Digi International's Neo series
+	  This is a driver for Digi International's Neo and Classic series
 	  of cards which provide multiple serial ports. You would need
 	  something like this to connect more than two modems to your Linux
 	  box, for instance in order to become a dial-in server. This driver
@@ -1043,26 +1043,15 @@ config SERIAL_SGI_IOC3
 	  say Y or M.  Otherwise, say N.
 
 config SERIAL_MSM
-	bool "MSM on-chip serial port support"
-	depends on ARCH_MSM || ARCH_QCOM
+	tristate "MSM on-chip serial port support"
+	depends on ARCH_QCOM
 	select SERIAL_CORE
 
 config SERIAL_MSM_CONSOLE
 	bool "MSM serial console support"
 	depends on SERIAL_MSM=y
 	select SERIAL_CORE_CONSOLE
-
-config SERIAL_MSM_HS
-	tristate "MSM UART High Speed: Serial Driver"
-	depends on ARCH_MSM7X00A || ARCH_MSM7X30 || ARCH_QSD8X50
-	select SERIAL_CORE
-	help
-	  If you have a machine based on MSM family of SoCs, you
-	  can enable its onboard high speed serial port by enabling
-	  this option.
-
-	  Choose M here to compile it as a module. The module will be
-	  called msm_serial_hs.
+	select SERIAL_EARLYCON
 
 config SERIAL_VT8500
 	bool "VIA VT8500 on-chip serial port support"
@@ -1072,6 +1061,17 @@ config SERIAL_VT8500
 config SERIAL_VT8500_CONSOLE
 	bool "VIA VT8500 serial console support"
 	depends on SERIAL_VT8500=y
+	select SERIAL_CORE_CONSOLE
+
+config SERIAL_ETRAXFS
+	bool "ETRAX FS serial port support"
+	depends on ETRAX_ARCH_V32 && OF
+	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO if GPIOLIB
+
+config SERIAL_ETRAXFS_CONSOLE
+	bool "ETRAX FS serial console support"
+	depends on SERIAL_ETRAXFS
 	select SERIAL_CORE_CONSOLE
 
 config SERIAL_NETX
@@ -1092,16 +1092,6 @@ config SERIAL_NETX_CONSOLE
 	help
 	  If you have enabled the serial port on the Hilscher NetX SoC
 	  you can make it the console by answering Y to this option.
-
-config SERIAL_OF_PLATFORM
-	tristate "Serial port on Open Firmware platform bus"
-	depends on OF
-	depends on SERIAL_8250 || SERIAL_OF_PLATFORM_NWPSERIAL
-	help
-	  If you have a PowerPC based system that has serial ports
-	  on a platform specific bus, you should enable this option.
-	  Currently, only 8250 compatible ports are supported, but
-	  others can easily be added.
 
 config SERIAL_OMAP
 	tristate "OMAP serial port support"
@@ -1129,23 +1119,6 @@ config SERIAL_OMAP_CONSOLE
 	  "console=ttyOx". (Try "man bootparam" or see the documentation of
 	  your boot loader about how to pass options to the kernel at
 	  boot time.)
-
-config SERIAL_OF_PLATFORM_NWPSERIAL
-	tristate "NWP serial port driver"
-	depends on PPC_OF && PPC_DCR
-	select SERIAL_OF_PLATFORM
-	select SERIAL_CORE_CONSOLE
-	select SERIAL_CORE
-	help
-	  This driver supports the cell network processor nwp serial
-	  device.
-
-config SERIAL_OF_PLATFORM_NWPSERIAL_CONSOLE
-	bool "Console on NWP serial port"
-	depends on SERIAL_OF_PLATFORM_NWPSERIAL=y
-	select SERIAL_CORE_CONSOLE
-	help
-	  Support for Console on the NWP serial ports.
 
 config SERIAL_LANTIQ
 	bool "Lantiq serial driver"
@@ -1180,15 +1153,42 @@ config SERIAL_SCCNXP_CONSOLE
 	help
 	  Support for console on SCCNXP serial ports.
 
+config SERIAL_SC16IS7XX_CORE
+        tristate
+
 config SERIAL_SC16IS7XX
-	tristate "SC16IS7xx serial support"
-	depends on I2C
-	select SERIAL_CORE
-	select REGMAP_I2C if I2C
-	help
-	  This selects support for SC16IS7xx serial ports.
-	  Supported ICs are SC16IS740, SC16IS741, SC16IS750, SC16IS752,
-	  SC16IS760 and SC16IS762.
+        tristate "SC16IS7xx serial support"
+        select SERIAL_CORE
+        depends on (SPI_MASTER && !I2C) || I2C
+        help
+          This selects support for SC16IS7xx serial ports.
+          Supported ICs are SC16IS740, SC16IS741, SC16IS750, SC16IS752,
+          SC16IS760 and SC16IS762. Select supported buses using options below.
+
+config SERIAL_SC16IS7XX_I2C
+        bool "SC16IS7xx for I2C interface"
+        depends on SERIAL_SC16IS7XX
+        depends on I2C
+        select SERIAL_SC16IS7XX_CORE if SERIAL_SC16IS7XX
+        select REGMAP_I2C if I2C
+        default y
+        help
+          Enable SC16IS7xx driver on I2C bus,
+          If required say y, and say n to i2c if not required,
+          Enabled by default to support oldconfig.
+          You must select at least one bus for the driver to be built.
+
+config SERIAL_SC16IS7XX_SPI
+        bool "SC16IS7xx for spi interface"
+        depends on SERIAL_SC16IS7XX
+        depends on SPI_MASTER
+        select SERIAL_SC16IS7XX_CORE if SERIAL_SC16IS7XX
+        select REGMAP_SPI if SPI_MASTER
+        help
+          Enable SC16IS7xx driver on SPI bus,
+          If required say y, and say n to spi if not required,
+          This is additional support to exsisting driver.
+          You must select at least one bus for the driver to be built.
 
 config SERIAL_BFIN_SPORT
 	tristate "Blackfin SPORT emulate UART"
@@ -1261,22 +1261,25 @@ config SERIAL_TIMBERDALE
 	Add support for UART controller on timberdale.
 
 config SERIAL_BCM63XX
-	tristate "bcm63xx serial port support"
+	tristate "Broadcom BCM63xx/BCM33xx UART support"
 	select SERIAL_CORE
-	depends on BCM63XX
+	depends on MIPS || ARM || COMPILE_TEST
 	help
-	  If you have a bcm63xx CPU, you can enable its onboard
-	  serial port by enabling this options.
+	  This enables the driver for the onchip UART core found on
+	  the following chipsets:
 
-          To compile this driver as a module, choose M here: the
-          module will be called bcm963xx_uart.
+	    BCM33xx (cable modem)
+	    BCM63xx/BCM63xxx (DSL)
+	    BCM68xx (PON)
+	    BCM7xxx (STB) - DOCSIS console
 
 config SERIAL_BCM63XX_CONSOLE
-	bool "Console on bcm63xx serial port"
+	bool "Console on BCM63xx serial port"
 	depends on SERIAL_BCM63XX=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
-	  If you have enabled the serial port on the bcm63xx CPU
+	  If you have enabled the serial port on the BCM63xx CPU
 	  you can make it the console by answering Y to this option.
 
 config SERIAL_GRLIB_GAISLER_APBUART
@@ -1347,7 +1350,8 @@ config SERIAL_ALTERA_UART_CONSOLE
 
 config SERIAL_IFX6X60
         tristate "SPI protocol driver for Infineon 6x60 modem (EXPERIMENTAL)"
-	depends on GPIOLIB && SPI
+	depends on GPIOLIB || COMPILE_TEST
+	depends on SPI && HAS_DMA
 	help
 	  Support for the IFX6x60 modem devices on Intel MID platforms.
 
@@ -1376,18 +1380,12 @@ config SERIAL_PCH_UART_CONSOLE
 	  (the system  console is the device which receives all kernel messages and
 	  warnings and which allows logins in single user mode).
 
-config SERIAL_MSM_SMD
-	bool "Enable tty device interface for some SMD ports"
-	default n
-	depends on MSM_SMD
-	help
-	  Enables userspace clients to read and write to some streaming SMD
-	  ports via tty device interface for MSM chipset.
-
 config SERIAL_MXS_AUART
-	depends on ARCH_MXS
 	tristate "MXS AUART support"
+	depends on HAS_DMA
+	depends on ARCH_MXS || COMPILE_TEST
 	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  This driver supports the MXS Application UART (AUART) port.
 
@@ -1410,6 +1408,7 @@ config SERIAL_XILINX_PS_UART_CONSOLE
 	bool "Cadence UART console support"
 	depends on SERIAL_XILINX_PS_UART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Enable a Cadence UART port to be the system console.
 
@@ -1520,9 +1519,25 @@ config SERIAL_FSL_LPUART_CONSOLE
 	bool "Console on Freescale lpuart serial port"
 	depends on SERIAL_FSL_LPUART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  If you have enabled the lpuart serial port on the Freescale SoCs,
 	  you can make it the console by answering Y to this option.
+
+config SERIAL_CONEXANT_DIGICOLOR
+	tristate "Conexant Digicolor CX92xxx USART serial port support"
+	depends on OF
+	select SERIAL_CORE
+	help
+	  Support for the on-chip USART on Conexant Digicolor SoCs.
+
+config SERIAL_CONEXANT_DIGICOLOR_CONSOLE
+	bool "Console on Conexant Digicolor serial port"
+	depends on SERIAL_CONEXANT_DIGICOLOR=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have enabled the USART serial port on Conexant Digicolor
+	  SoCs, you can make it the console by answering Y to this option.
 
 config SERIAL_ST_ASC
 	tristate "ST ASC serial port support"
@@ -1551,6 +1566,63 @@ config SERIAL_MEN_Z135
 
 	  This driver can also be build as a module. If so, the module will be called
 	  men_z135_uart.ko
+
+config SERIAL_SPRD
+	tristate "Support for Spreadtrum serial"
+	depends on ARCH_SPRD
+	select SERIAL_CORE
+	help
+	  This enables the driver for the Spreadtrum's serial.
+
+config SERIAL_SPRD_CONSOLE
+	bool "Spreadtrum UART console support"
+	depends on SERIAL_SPRD=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	help
+	  Support for early debug console using Spreadtrum's serial. This enables
+	  the console before standard serial driver is probed. This is enabled
+	  with "earlycon" on the kernel command line. The console is
+	  enabled when early_param is processed.
+
+config SERIAL_STM32
+	tristate "STMicroelectronics STM32 serial port support"
+	select SERIAL_CORE
+	depends on ARM || COMPILE_TEST
+	help
+	  This driver is for the on-chip Serial Controller on
+	  STMicroelectronics STM32 MCUs.
+	  USART supports Rx & Tx functionality.
+	  It support all industry standard baud rates.
+
+	  If unsure, say N.
+
+config SERIAL_STM32_CONSOLE
+	bool "Support for console on STM32"
+	depends on SERIAL_STM32=y
+	select SERIAL_CORE_CONSOLE
+
+config SERIAL_MVEBU_UART
+	bool "Marvell EBU serial port support"
+	select SERIAL_CORE
+	help
+	  This driver is for Marvell EBU SoC's UART. If you have a machine
+	  based on the Armada-3700 SoC and wish to use the on-board serial
+	  port,
+	  say 'Y' here.
+	  Otherwise, say 'N'.
+
+config SERIAL_MVEBU_CONSOLE
+	bool "Console on Marvell EBU serial port"
+	depends on SERIAL_MVEBU_UART
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	default y
+	help
+	  Say 'Y' here if you wish to use Armada-3700 UART as the system console.
+	  (the system console is the device which receives all kernel messages
+	  and warnings and which allows logins in single user mode)
+	  Otherwise, say 'N'.
 
 endmenu
 

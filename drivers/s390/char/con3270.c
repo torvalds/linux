@@ -413,6 +413,10 @@ con3270_irq(struct con3270 *cp, struct raw3270_request *rq, struct irb *irb)
 		else
 			/* Normal end. Copy residual count. */
 			rq->rescnt = irb->scsw.cmd.count;
+	} else if (irb->scsw.cmd.dstat & DEV_STAT_DEV_END) {
+		/* Interrupt without an outstanding request -> update all */
+		cp->update_flags = CON_UPDATE_ALL;
+		con3270_set_timer(cp, 1);
 	}
 	return RAW3270_IO_DONE;
 }
@@ -602,6 +606,8 @@ con3270_init(void)
 		return PTR_ERR(rp);
 
 	condev = kzalloc(sizeof(struct con3270), GFP_KERNEL | GFP_DMA);
+	if (!condev)
+		return -ENOMEM;
 	condev->view.dev = rp;
 
 	condev->read = raw3270_request_alloc(0);

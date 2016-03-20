@@ -37,15 +37,20 @@ void rxrpc_UDP_error_report(struct sock *sk)
 
 	_enter("%p{%d}", sk, local->debug_id);
 
-	skb = skb_dequeue(&sk->sk_error_queue);
+	skb = sock_dequeue_err_skb(sk);
 	if (!skb) {
 		_leave("UDP socket errqueue empty");
+		return;
+	}
+	serr = SKB_EXT_ERR(skb);
+	if (!skb->len && serr->ee.ee_origin == SO_EE_ORIGIN_TIMESTAMPING) {
+		_leave("UDP empty message");
+		kfree_skb(skb);
 		return;
 	}
 
 	rxrpc_new_skb(skb);
 
-	serr = SKB_EXT_ERR(skb);
 	addr = *(__be32 *)(skb_network_header(skb) + serr->addr_offset);
 	port = serr->port;
 
@@ -110,19 +115,6 @@ void rxrpc_UDP_error_report(struct sock *sk)
 	/* pass the transport ref to error_handler to release */
 	skb_queue_tail(&trans->error_queue, skb);
 	rxrpc_queue_work(&trans->error_handler);
-
-	/* reset and regenerate socket error */
-	spin_lock_bh(&sk->sk_error_queue.lock);
-	sk->sk_err = 0;
-	skb = skb_peek(&sk->sk_error_queue);
-	if (skb) {
-		sk->sk_err = SKB_EXT_ERR(skb)->ee.ee_errno;
-		spin_unlock_bh(&sk->sk_error_queue.lock);
-		sk->sk_error_report(sk);
-	} else {
-		spin_unlock_bh(&sk->sk_error_queue.lock);
-	}
-
 	_leave("");
 }
 
@@ -159,28 +151,18 @@ void rxrpc_UDP_error_handler(struct work_struct *work)
 			switch (ee->ee_code) {
 			case ICMP_NET_UNREACH:
 				_net("Rx Received ICMP Network Unreachable");
-				err = ENETUNREACH;
 				break;
 			case ICMP_HOST_UNREACH:
 				_net("Rx Received ICMP Host Unreachable");
-				err = EHOSTUNREACH;
 				break;
 			case ICMP_PORT_UNREACH:
 				_net("Rx Received ICMP Port Unreachable");
-				err = ECONNREFUSED;
-				break;
-			case ICMP_FRAG_NEEDED:
-				_net("Rx Received ICMP Fragmentation Needed (%d)",
-				     ee->ee_info);
-				err = 0; /* dealt with elsewhere */
 				break;
 			case ICMP_NET_UNKNOWN:
 				_net("Rx Received ICMP Unknown Network");
-				err = ENETUNREACH;
 				break;
 			case ICMP_HOST_UNKNOWN:
 				_net("Rx Received ICMP Unknown Host");
-				err = EHOSTUNREACH;
 				break;
 			default:
 				_net("Rx Received ICMP DestUnreach code=%u",
@@ -229,7 +211,7 @@ void rxrpc_UDP_error_handler(struct work_struct *work)
 			if (call->state != RXRPC_CALL_COMPLETE &&
 			    call->state < RXRPC_CALL_NETWORK_ERROR) {
 				call->state = RXRPC_CALL_NETWORK_ERROR;
-				set_bit(RXRPC_CALL_RCVD_ERROR, &call->events);
+				set_bit(RXRPC_CALL_EV_RCVD_ERROR, &call->events);
 				rxrpc_queue_call(call);
 			}
 			write_unlock(&call->state_lock);

@@ -101,6 +101,12 @@ UNUSUAL_DEV(  0x03f0, 0x4002, 0x0001, 0x0001,
 		"PhotoSmart R707",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL, US_FL_FIX_CAPACITY),
 
+UNUSUAL_DEV(  0x03f3, 0x0001, 0x0000, 0x9999,
+		"Adaptec",
+		"USBConnect 2000",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
+		US_FL_SCM_MULT_TARG ),
+
 /* Reported by Sebastian Kapfer <sebastian_kapfer@gmx.net>
  * and Olaf Hering <olh@suse.de> (different bcd's, same vendor/product)
  * for USB floppies that need the SINGLE_LUN enforcement.
@@ -486,15 +492,21 @@ UNUSUAL_DEV(  0x04e6, 0x000a, 0x0200, 0x0200,
 		"eUSB CompactFlash Adapter",
 		USB_SC_8020, USB_PR_CB, NULL, 0),
 
-UNUSUAL_DEV(  0x04e6, 0x000B, 0x0100, 0x0100,
+UNUSUAL_DEV(  0x04e6, 0x000b, 0x0100, 0x0100,
 		"Shuttle",
 		"eUSCSI Bridge",
 		USB_SC_SCSI, USB_PR_BULK, usb_stor_euscsi_init,
 		US_FL_SCM_MULT_TARG ), 
 
-UNUSUAL_DEV(  0x04e6, 0x000C, 0x0100, 0x0100,
+UNUSUAL_DEV(  0x04e6, 0x000c, 0x0100, 0x0100,
 		"Shuttle",
 		"eUSCSI Bridge",
+		USB_SC_SCSI, USB_PR_BULK, usb_stor_euscsi_init,
+		US_FL_SCM_MULT_TARG ),
+
+UNUSUAL_DEV(  0x04e6, 0x000f, 0x0000, 0x9999,
+		"SCM Microsystems",
+		"eUSB SCSI Adapter (Bus Powered)",
 		USB_SC_SCSI, USB_PR_BULK, usb_stor_euscsi_init,
 		US_FL_SCM_MULT_TARG ),
 
@@ -741,12 +753,25 @@ UNUSUAL_DEV(  0x059b, 0x0001, 0x0100, 0x0100,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
 
+UNUSUAL_DEV(  0x059b, 0x0040, 0x0100, 0x0100,
+		"Iomega",
+		"Jaz USB Adapter",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
+
 /* Reported by <Hendryk.Pfeiffer@gmx.de> */
 UNUSUAL_DEV(  0x059f, 0x0643, 0x0000, 0x0000,
 		"LaCie",
 		"DVD+-RW",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_GO_SLOW ),
+
+/* Reported by Christian Schaller <cschalle@redhat.com> */
+UNUSUAL_DEV(  0x059f, 0x0651, 0x0000, 0x0000,
+		"LaCie",
+		"External HDD",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_WP_DETECT ),
 
 /* Submitted by Joel Bourquard <numlock@freesurf.ch>
  * Some versions of this device need the SubClass and Protocol overrides
@@ -922,6 +947,12 @@ UNUSUAL_DEV(  0x069b, 0x3004, 0x0001, 0x0001,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+UNUSUAL_DEV(  0x06ca, 0x2003, 0x0100, 0x0100,
+		"Newer Technology",
+		"uSCSI",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
+		US_FL_SCM_MULT_TARG ),
+
 /* Reported by Adrian Pilchowiec <adi1981@epf.pl> */
 UNUSUAL_DEV(  0x071b, 0x3203, 0x0000, 0x0000,
 		"RockChip",
@@ -1081,6 +1112,13 @@ UNUSUAL_DEV( 0x0840, 0x0085, 0x0001, 0x0001,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
+/* Supplied with some Castlewood ORB removable drives */
+UNUSUAL_DEV(  0x084b, 0xa001, 0x0000, 0x9999,
+		"Castlewood Systems",
+		"USB to SCSI cable",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
+		US_FL_SCM_MULT_TARG ),
+
 /* Entry and supporting patch by Theodore Kilgore <kilgota@auburn.edu>.
  * Flag will support Bulk devices which use a standards-violating 32-byte
  * Command Block Wrapper. Here, the "DC2MEGA" cameras (several brands) with
@@ -1112,6 +1150,18 @@ UNUSUAL_DEV(  0x0851, 0x1543, 0x0200, 0x0200,
 		"Photo Frame",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_NOT_LOCKABLE),
+
+UNUSUAL_DEV(  0x085a, 0x0026, 0x0100, 0x0133,
+		"Xircom",
+		"PortGear USB-SCSI (Mac USB Dock)",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
+		US_FL_SCM_MULT_TARG ),
+
+UNUSUAL_DEV(  0x085a, 0x0028, 0x0100, 0x0133,
+		"Xircom",
+		"PortGear USB to SCSI Converter",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
+		US_FL_SCM_MULT_TARG ),
 
 /* Submitted by Jan De Luyck <lkml@kcore.org> */
 UNUSUAL_DEV(  0x08bd, 0x1100, 0x0000, 0x0000,
@@ -1937,7 +1987,7 @@ UNUSUAL_DEV(  0x14cd, 0x6600, 0x0201, 0x0201,
 		US_FL_IGNORE_RESIDUE ),
 
 /* Reported by Michael Büsch <m@bues.ch> */
-UNUSUAL_DEV(  0x152d, 0x0567, 0x0114, 0x0114,
+UNUSUAL_DEV(  0x152d, 0x0567, 0x0114, 0x0116,
 		"JMicron",
 		"USB to ATA/ATAPI Bridge",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
@@ -1951,6 +2001,21 @@ UNUSUAL_DEV(  0x152d, 0x2329, 0x0100, 0x0100,
 		"USB to ATA/ATAPI Bridge",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE | US_FL_SANE_SENSE ),
+
+/* Reported by Dmitry Nezhevenko <dion@dion.org.ua> */
+UNUSUAL_DEV(  0x152d, 0x2566, 0x0114, 0x0114,
+		"JMicron",
+		"USB to ATA/ATAPI Bridge",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_BROKEN_FUA ),
+
+/* Entrega Technologies U1-SC25 (later Xircom PortGear PGSCSI)
+ * and Mac USB Dock USB-SCSI */
+UNUSUAL_DEV(  0x1645, 0x0007, 0x0100, 0x0133,
+		"Entrega Technologies",
+		"USB to SCSI Converter",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
+		US_FL_SCM_MULT_TARG ),
 
 /* Reported by Robert Schedel <r.schedel@yahoo.de>
  * Note: this is a 'super top' device like the above 14cd/6600 device */
@@ -1974,6 +2039,12 @@ UNUSUAL_DEV(  0x177f, 0x0400, 0x0000, 0x0000,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_BULK_IGNORE_TAG | US_FL_MAX_SECTORS_64 ),
 
+UNUSUAL_DEV(  0x1822, 0x0001, 0x0000, 0x9999,
+		"Ariston Technologies",
+		"iConnect USB to SCSI adapter",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
+		US_FL_SCM_MULT_TARG ),
+
 /* Reported by Hans de Goede <hdegoede@redhat.com>
  * These Appotech controllers are found in Picture Frames, they provide a
  * (buggy) emulation of a cdrom drive which contains the windows software
@@ -1994,6 +2065,18 @@ UNUSUAL_DEV( 0x1908, 0x3335, 0x0200, 0x0200,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_NO_READ_DISC_INFO ),
 
+/* Reported by Oliver Neukum <oneukum@suse.com>
+ * This device morphes spontaneously into another device if the access
+ * pattern of Windows isn't followed. Thus writable media would be dirty
+ * if the initial instance is used. So the device is limited to its
+ * virtual CD.
+ * And yes, the concept that BCD goes up to 9 is not heeded */
+UNUSUAL_DEV( 0x19d2, 0x1225, 0x0000, 0xffff,
+		"ZTE,Incorporated",
+		"ZTE WCDMA Technologies MSM",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
+
 /* Reported by Sven Geggus <sven-usbst@geggus.net>
  * This encrypted pen drive returns bogus data for the initial READ(10).
  */
@@ -2002,6 +2085,17 @@ UNUSUAL_DEV(  0x1b1c, 0x1ab5, 0x0200, 0x0200,
 		"Padlock v2",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_INITIAL_READ10 ),
+
+/* Reported by Hans de Goede <hdegoede@redhat.com>
+ * These are mini projectors using USB for both power and video data transport
+ * The usb-storage interface is a virtual windows driver CD, which the gm12u320
+ * driver automatically converts into framebuffer & kms dri device nodes.
+ */
+UNUSUAL_DEV( 0x1de1, 0xc102, 0x0000, 0xffff,
+		"Grain-media Technology Corp.",
+		"USB3.0 Device GM12U320",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_IGNORE_DEVICE ),
 
 /* Patch by Richard Schütz <r.schtz@t-online.de>
  * This external hard drive enclosure uses a JMicron chip which
@@ -2018,6 +2112,13 @@ UNUSUAL_DEV( 0x1e74, 0x4621, 0x0000, 0x0000,
 		"MP3 Player",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_BULK_IGNORE_TAG | US_FL_MAX_SECTORS_64 ),
+
+/* Supplied with some Castlewood ORB removable drives */
+UNUSUAL_DEV(  0x2027, 0xa001, 0x0000, 0x9999,
+		"Double-H Technology",
+		"USB to SCSI Intelligent Cable",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
+		US_FL_SCM_MULT_TARG ),
 
 UNUSUAL_DEV( 0x2116, 0x0320, 0x0001, 0x0001,
 		"ST",

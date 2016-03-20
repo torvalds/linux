@@ -188,10 +188,9 @@ static int __init ab3100_otp_probe(struct platform_device *pdev)
 	int i;
 
 	otp = devm_kzalloc(&pdev->dev, sizeof(struct ab3100_otp), GFP_KERNEL);
-	if (!otp) {
-		dev_err(&pdev->dev, "could not allocate AB3100 OTP device\n");
+	if (!otp)
 		return -ENOMEM;
-	}
+
 	otp->dev = &pdev->dev;
 
 	/* Replace platform data coming in with a local struct */
@@ -239,7 +238,6 @@ static int __exit ab3100_otp_remove(struct platform_device *pdev)
 static struct platform_driver ab3100_otp_driver = {
 	.driver = {
 		.name = "ab3100-otp",
-		.owner = THIS_MODULE,
 	},
 	.remove	 = __exit_p(ab3100_otp_remove),
 };

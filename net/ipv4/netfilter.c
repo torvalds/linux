@@ -17,9 +17,8 @@
 #include <net/netfilter/nf_queue.h>
 
 /* route_me_harder function, used by iptable_nat, iptable_mangle + ip_queue */
-int ip_route_me_harder(struct sk_buff *skb, unsigned int addr_type)
+int ip_route_me_harder(struct net *net, struct sk_buff *skb, unsigned int addr_type)
 {
-	struct net *net = dev_net(skb_dst(skb)->dev);
 	const struct iphdr *iph = ip_hdr(skb);
 	struct rtable *rt;
 	struct flowi4 fl4 = {};
@@ -94,7 +93,7 @@ static void nf_ip_saveroute(const struct sk_buff *skb,
 {
 	struct ip_rt_info *rt_info = nf_queue_entry_reroute(entry);
 
-	if (entry->hook == NF_INET_LOCAL_OUT) {
+	if (entry->state.hook == NF_INET_LOCAL_OUT) {
 		const struct iphdr *iph = ip_hdr(skb);
 
 		rt_info->tos = iph->tos;
@@ -104,19 +103,19 @@ static void nf_ip_saveroute(const struct sk_buff *skb,
 	}
 }
 
-static int nf_ip_reroute(struct sk_buff *skb,
+static int nf_ip_reroute(struct net *net, struct sk_buff *skb,
 			 const struct nf_queue_entry *entry)
 {
 	const struct ip_rt_info *rt_info = nf_queue_entry_reroute(entry);
 
-	if (entry->hook == NF_INET_LOCAL_OUT) {
+	if (entry->state.hook == NF_INET_LOCAL_OUT) {
 		const struct iphdr *iph = ip_hdr(skb);
 
 		if (!(iph->tos == rt_info->tos &&
 		      skb->mark == rt_info->mark &&
 		      iph->daddr == rt_info->daddr &&
 		      iph->saddr == rt_info->saddr))
-			return ip_route_me_harder(skb, RTN_UNSPEC);
+			return ip_route_me_harder(net, skb, RTN_UNSPEC);
 	}
 	return 0;
 }
@@ -197,11 +196,4 @@ static int __init ipv4_netfilter_init(void)
 {
 	return nf_register_afinfo(&nf_ip_afinfo);
 }
-
-static void __exit ipv4_netfilter_fini(void)
-{
-	nf_unregister_afinfo(&nf_ip_afinfo);
-}
-
-module_init(ipv4_netfilter_init);
-module_exit(ipv4_netfilter_fini);
+subsys_initcall(ipv4_netfilter_init);

@@ -17,6 +17,7 @@
 #include <linux/binfmts.h>
 #include <linux/compat.h>
 #include <linux/mman.h>
+#include <linux/file.h>
 #include <linux/elf.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -39,30 +40,34 @@ static void sim_notify_exec(const char *binary_name)
 
 static int notify_exec(struct mm_struct *mm)
 {
+	int ret = 0;
 	char *buf, *path;
 	struct vm_area_struct *vma;
+	struct file *exe_file;
 
 	if (!sim_is_simulator())
 		return 1;
-
-	if (mm->exe_file == NULL)
-		return 0;
-
-	for (vma = current->mm->mmap; ; vma = vma->vm_next) {
-		if (vma == NULL)
-			return 0;
-		if (vma->vm_file == mm->exe_file)
-			break;
-	}
 
 	buf = (char *) __get_free_page(GFP_KERNEL);
 	if (buf == NULL)
 		return 0;
 
-	path = d_path(&mm->exe_file->f_path, buf, PAGE_SIZE);
-	if (IS_ERR(path)) {
-		free_page((unsigned long)buf);
-		return 0;
+	exe_file = get_mm_exe_file(mm);
+	if (exe_file == NULL)
+		goto done_free;
+
+	path = file_path(exe_file, buf, PAGE_SIZE);
+	if (IS_ERR(path))
+		goto done_put;
+
+	down_read(&mm->mmap_sem);
+	for (vma = current->mm->mmap; ; vma = vma->vm_next) {
+		if (vma == NULL) {
+			up_read(&mm->mmap_sem);
+			goto done_put;
+		}
+		if (vma->vm_file == exe_file)
+			break;
 	}
 
 	/*
@@ -80,14 +85,20 @@ static int notify_exec(struct mm_struct *mm)
 			__insn_mtspr(SPR_SIM_CONTROL,
 				     (SIM_CONTROL_DLOPEN
 				      | (c << _SIM_CONTROL_OPERATOR_BITS)));
-			if (c == '\0')
+			if (c == '\0') {
+				ret = 1; /* success */
 				break;
+			}
 		}
 	}
+	up_read(&mm->mmap_sem);
 
 	sim_notify_exec(path);
+done_put:
+	fput(exe_file);
+done_free:
 	free_page((unsigned long)buf);
-	return 1;
+	return ret;
 }
 
 /* Notify a running simulator, if any, that we loaded an interpreter. */
@@ -109,8 +120,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	struct mm_struct *mm = current->mm;
 	int retval = 0;
 
-	down_write(&mm->mmap_sem);
-
 	/*
 	 * Notify the simulator that an exec just occurred.
 	 * If we can't find the filename of the mapping, just use
@@ -118,6 +127,8 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	 */
 	if (!notify_exec(mm))
 		sim_notify_exec(bprm->filename);
+
+	down_write(&mm->mmap_sem);
 
 	retval = setup_vdso_pages();
 

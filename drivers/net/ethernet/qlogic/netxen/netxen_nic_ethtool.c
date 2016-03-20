@@ -93,8 +93,6 @@ netxen_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
-	drvinfo->regdump_len = NETXEN_NIC_REGS_LEN;
-	drvinfo->eedump_len = netxen_nic_get_eeprom_len(dev);
 }
 
 static int

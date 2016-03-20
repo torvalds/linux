@@ -989,6 +989,9 @@
 			 ((n) & 0x3FFF) << 16)
 
 /* UVD */
+#define UVD_SEMA_ADDR_LOW				0xef00
+#define UVD_SEMA_ADDR_HIGH				0xef04
+#define UVD_SEMA_CMD					0xef08
 #define UVD_GPCOM_VCPU_CMD				0xef0c
 #define UVD_GPCOM_VCPU_DATA0				0xef10
 #define UVD_GPCOM_VCPU_DATA1				0xef14

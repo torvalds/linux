@@ -26,7 +26,7 @@
 #define ECHOCARD_HAS_VMIXER
 #define ECHOCARD_HAS_DIGITAL_IO
 #define ECHOCARD_HAS_EXTERNAL_CLOCK
-#define ECHOCARD_HAS_ADAT	FALSE
+#define ECHOCARD_HAS_ADAT	false
 #define ECHOCARD_HAS_STEREO_BIG_ENDIAN32
 #define ECHOCARD_HAS_MIDI
 #define ECHOCARD_HAS_LINE_OUT_GAIN
@@ -53,6 +53,7 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/control.h>
@@ -62,7 +63,6 @@
 #include <sound/asoundef.h>
 #include <sound/initval.h>
 #include <sound/rawmidi.h>
-#include <asm/io.h>
 #include <linux/atomic.h>
 #include "echoaudio.h"
 

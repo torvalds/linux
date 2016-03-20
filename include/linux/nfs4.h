@@ -16,6 +16,13 @@
 #include <linux/uidgid.h>
 #include <uapi/linux/nfs4.h>
 
+enum nfs4_acl_whotype {
+	NFS4_ACL_WHO_NAMED = 0,
+	NFS4_ACL_WHO_OWNER,
+	NFS4_ACL_WHO_GROUP,
+	NFS4_ACL_WHO_EVERYONE,
+};
+
 struct nfs4_ace {
 	uint32_t	type;
 	uint32_t	flag;
@@ -110,6 +117,21 @@ enum nfs_opnum4 {
 	OP_DESTROY_CLIENTID = 57,
 	OP_RECLAIM_COMPLETE = 58,
 
+	/* nfs42 */
+	OP_ALLOCATE = 59,
+	OP_COPY = 60,
+	OP_COPY_NOTIFY = 61,
+	OP_DEALLOCATE = 62,
+	OP_IO_ADVISE = 63,
+	OP_LAYOUTERROR = 64,
+	OP_LAYOUTSTATS = 65,
+	OP_OFFLOAD_CANCEL = 66,
+	OP_OFFLOAD_STATUS = 67,
+	OP_READ_PLUS = 68,
+	OP_SEEK = 69,
+	OP_WRITE_SAME = 70,
+	OP_CLONE = 71,
+
 	OP_ILLEGAL = 10044,
 };
 
@@ -117,10 +139,10 @@ enum nfs_opnum4 {
 Needs to be updated if more operations are defined in future.*/
 
 #define FIRST_NFS4_OP	OP_ACCESS
-#define LAST_NFS4_OP 	OP_RECLAIM_COMPLETE
 #define LAST_NFS40_OP	OP_RELEASE_LOCKOWNER
 #define LAST_NFS41_OP	OP_RECLAIM_COMPLETE
-#define LAST_NFS42_OP	OP_RECLAIM_COMPLETE
+#define LAST_NFS42_OP	OP_CLONE
+#define LAST_NFS4_OP	LAST_NFS42_OP
 
 enum nfsstat4 {
 	NFS4_OK = 0,
@@ -235,10 +257,11 @@ enum nfsstat4 {
 	/* nfs42 */
 	NFS4ERR_PARTNER_NOTSUPP	= 10088,
 	NFS4ERR_PARTNER_NO_AUTH	= 10089,
-	NFS4ERR_METADATA_NOTSUPP = 10090,
+	NFS4ERR_UNION_NOTSUPP = 10090,
 	NFS4ERR_OFFLOAD_DENIED = 10091,
 	NFS4ERR_WRONG_LFS = 10092,
 	NFS4ERR_BADLABEL = 10093,
+	NFS4ERR_OFFLOAD_NO_REQS = 10094,
 };
 
 static inline bool seqid_mutating_err(u32 err)
@@ -396,8 +419,10 @@ enum lock_type4 {
 #define FATTR4_WORD1_TIME_MODIFY_SET    (1UL << 22)
 #define FATTR4_WORD1_MOUNTED_ON_FILEID  (1UL << 23)
 #define FATTR4_WORD1_FS_LAYOUT_TYPES    (1UL << 30)
+#define FATTR4_WORD2_LAYOUT_TYPES       (1UL << 0)
 #define FATTR4_WORD2_LAYOUT_BLKSIZE     (1UL << 1)
 #define FATTR4_WORD2_MDSTHRESHOLD       (1UL << 4)
+#define FATTR4_WORD2_CLONE_BLKSIZE	(1UL << 13)
 #define FATTR4_WORD2_SECURITY_LABEL     (1UL << 16)
 
 /* MDS threshold bitmap bits */
@@ -472,6 +497,13 @@ enum {
 	NFSPROC4_CLNT_GETDEVICELIST,
 	NFSPROC4_CLNT_BIND_CONN_TO_SESSION,
 	NFSPROC4_CLNT_DESTROY_CLIENTID,
+
+	/* nfs42 */
+	NFSPROC4_CLNT_SEEK,
+	NFSPROC4_CLNT_ALLOCATE,
+	NFSPROC4_CLNT_DEALLOCATE,
+	NFSPROC4_CLNT_LAYOUTSTATS,
+	NFSPROC4_CLNT_CLONE,
 };
 
 /* nfs41 types */
@@ -496,6 +528,8 @@ enum pnfs_layouttype {
 	LAYOUT_NFSV4_1_FILES  = 1,
 	LAYOUT_OSD2_OBJECTS = 2,
 	LAYOUT_BLOCK_VOLUME = 3,
+	LAYOUT_FLEX_FILES = 4,
+	LAYOUT_TYPE_MAX
 };
 
 /* used for both layout return and recall */
@@ -516,6 +550,24 @@ enum pnfs_notify_deviceid_type4 {
 	NOTIFY_DEVICEID4_DELETE = 1 << 2,
 };
 
+enum pnfs_block_volume_type {
+	PNFS_BLOCK_VOLUME_SIMPLE	= 0,
+	PNFS_BLOCK_VOLUME_SLICE		= 1,
+	PNFS_BLOCK_VOLUME_CONCAT	= 2,
+	PNFS_BLOCK_VOLUME_STRIPE	= 3,
+};
+
+enum pnfs_block_extent_state {
+	PNFS_BLOCK_READWRITE_DATA	= 0,
+	PNFS_BLOCK_READ_DATA		= 1,
+	PNFS_BLOCK_INVALID_DATA		= 2,
+	PNFS_BLOCK_NONE_DATA		= 3,
+};
+
+/* on the wire size of a block layout extent */
+#define PNFS_BLOCK_EXTENT_SIZE \
+	(7 * sizeof(__be32) + NFS4_DEVICEID4_SIZE)
+
 #define NFL4_UFLG_MASK			0x0000003F
 #define NFL4_UFLG_DENSE			0x00000001
 #define NFL4_UFLG_COMMIT_THRU_MDS	0x00000002
@@ -533,6 +585,25 @@ enum filelayout_hint_care4 {
 
 struct nfs4_deviceid {
 	char data[NFS4_DEVICEID4_SIZE];
+};
+
+enum data_content4 {
+	NFS4_CONTENT_DATA		= 0,
+	NFS4_CONTENT_HOLE		= 1,
+};
+
+enum pnfs_update_layout_reason {
+	PNFS_UPDATE_LAYOUT_UNKNOWN = 0,
+	PNFS_UPDATE_LAYOUT_NO_PNFS,
+	PNFS_UPDATE_LAYOUT_RD_ZEROLEN,
+	PNFS_UPDATE_LAYOUT_MDSTHRESH,
+	PNFS_UPDATE_LAYOUT_NOMEM,
+	PNFS_UPDATE_LAYOUT_BULK_RECALL,
+	PNFS_UPDATE_LAYOUT_IO_TEST_FAIL,
+	PNFS_UPDATE_LAYOUT_FOUND_CACHED,
+	PNFS_UPDATE_LAYOUT_RETURN,
+	PNFS_UPDATE_LAYOUT_BLOCKED,
+	PNFS_UPDATE_LAYOUT_SEND_LAYOUTGET,
 };
 
 #endif

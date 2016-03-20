@@ -102,7 +102,7 @@ EXPORT_SYMBOL(__readb);
 EXPORT_SYMBOL(__readw);
 EXPORT_SYMBOL(__readl);
 
-void readsw(const void __iomem *addr, void *data, int len)
+void readsw(const volatile void __iomem *addr, void *data, int len)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
@@ -112,7 +112,7 @@ void readsw(const void __iomem *addr, void *data, int len)
 }
 EXPORT_SYMBOL(readsw);
 
-void readsl(const void __iomem *addr, void *data, int len)
+void readsl(const volatile void __iomem *addr, void *data, int len)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
@@ -122,7 +122,7 @@ void readsl(const void __iomem *addr, void *data, int len)
 }
 EXPORT_SYMBOL(readsl);
 
-void __writeb(u8 val, void __iomem *addr)
+void __writeb(u8 val, volatile void __iomem *addr)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
@@ -132,7 +132,7 @@ void __writeb(u8 val, void __iomem *addr)
 		__raw_writeb(val, a);
 }
 
-void __writew(u16 val, void __iomem *addr)
+void __writew(u16 val, volatile void __iomem *addr)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
@@ -142,7 +142,7 @@ void __writew(u16 val, void __iomem *addr)
 	__raw_writew(val, a);
 }
 
-void __writel(u32 val, void __iomem *addr)
+void __writel(u32 val, volatile void __iomem *addr)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
@@ -157,7 +157,7 @@ EXPORT_SYMBOL(__writeb);
 EXPORT_SYMBOL(__writew);
 EXPORT_SYMBOL(__writel);
 
-void writesw(void __iomem *addr, const void *data, int len)
+void writesw(volatile void __iomem *addr, const void *data, int len)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 
@@ -167,7 +167,7 @@ void writesw(void __iomem *addr, const void *data, int len)
 }
 EXPORT_SYMBOL(writesw);
 
-void writesl(void __iomem *addr, const void *data, int len)
+void writesl(volatile void __iomem *addr, const void *data, int len)
 {
 	void __iomem *a = __isamem_convert_addr(addr);
 

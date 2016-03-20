@@ -33,7 +33,7 @@
 #include <drm/drm_dp_helper.h>
 #include "nouveau_crtc.h"
 
-struct nouveau_i2c_port;
+struct nvkm_i2c_port;
 
 enum nouveau_underscan_type {
 	UNDERSCAN_OFF,
@@ -72,6 +72,7 @@ struct nouveau_connector {
 	int dithering_mode;
 	int dithering_depth;
 	int scaling_mode;
+	bool scaling_full;
 	enum nouveau_underscan_type underscan;
 	u32 underscan_hborder;
 	u32 underscan_vborder;
@@ -104,5 +105,9 @@ nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
 
 struct drm_connector *
 nouveau_connector_create(struct drm_device *, int index);
+
+extern int nouveau_tv_disable;
+extern int nouveau_ignorelid;
+extern int nouveau_duallink;
 
 #endif /* __NOUVEAU_CONNECTOR_H__ */

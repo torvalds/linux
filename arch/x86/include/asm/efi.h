@@ -1,7 +1,9 @@
 #ifndef _ASM_X86_EFI_H
 #define _ASM_X86_EFI_H
 
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
+#include <asm/pgtable.h>
+
 /*
  * We map the EFI regions needed for runtime services non-contiguously,
  * with preserved alignment on virtual addresses starting from -4G down
@@ -22,6 +24,8 @@
 
 #define EFI32_LOADER_SIGNATURE	"EL32"
 #define EFI64_LOADER_SIGNATURE	"EL64"
+
+#define MAX_CMDLINE_ADDRESS	UINT_MAX
 
 #ifdef CONFIG_X86_32
 
@@ -81,24 +85,36 @@ extern u64 asmlinkage efi_call(void *fp, ...);
  */
 #define __efi_call_virt(f, args...) efi_call_virt(f, args)
 
-extern void __iomem *efi_ioremap(unsigned long addr, unsigned long size,
-				 u32 type, u64 attribute);
+extern void __iomem *__init efi_ioremap(unsigned long addr, unsigned long size,
+					u32 type, u64 attribute);
+
+#ifdef CONFIG_KASAN
+/*
+ * CONFIG_KASAN may redefine memset to __memset.  __memset function is present
+ * only in kernel binary.  Since the EFI stub linked into a separate binary it
+ * doesn't have __memset().  So we should use standard memset from
+ * arch/x86/boot/compressed/string.c.  The same applies to memcpy and memmove.
+ */
+#undef memcpy
+#undef memset
+#undef memmove
+#endif
 
 #endif /* CONFIG_X86_32 */
 
-extern int add_efi_memmap;
 extern struct efi_scratch efi_scratch;
-extern void efi_set_executable(efi_memory_desc_t *md, bool executable);
-extern int efi_memblock_x86_reserve_range(void);
-extern void efi_call_phys_prelog(void);
-extern void efi_call_phys_epilog(void);
-extern void efi_unmap_memmap(void);
-extern void efi_memory_uc(u64 addr, unsigned long size);
+extern void __init efi_set_executable(efi_memory_desc_t *md, bool executable);
+extern int __init efi_memblock_x86_reserve_range(void);
+extern pgd_t * __init efi_call_phys_prolog(void);
+extern void __init efi_call_phys_epilog(pgd_t *save_pgd);
+extern void __init efi_print_memmap(void);
+extern void __init efi_unmap_memmap(void);
+extern void __init efi_memory_uc(u64 addr, unsigned long size);
 extern void __init efi_map_region(efi_memory_desc_t *md);
 extern void __init efi_map_region_fixed(efi_memory_desc_t *md);
 extern void efi_sync_low_kernel_mappings(void);
-extern int efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages);
-extern void efi_cleanup_page_tables(unsigned long pa_memmap, unsigned num_pages);
+extern int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages);
+extern void __init efi_cleanup_page_tables(unsigned long pa_memmap, unsigned num_pages);
 extern void __init old_map_region(efi_memory_desc_t *md);
 extern void __init runtime_code_page_mkexec(void);
 extern void __init efi_runtime_mkexec(void);
@@ -178,24 +194,14 @@ struct efi_config {
 	bool is64;
 } __packed;
 
-extern struct efi_config *efi_early;
+__pure const struct efi_config *__efi_early(void);
 
 #define efi_call_early(f, ...)						\
-	efi_early->call(efi_early->f, __VA_ARGS__);
+	__efi_early()->call(__efi_early()->f, __VA_ARGS__);
 
 extern bool efi_reboot_required(void);
 
 #else
-/*
- * IF EFI is not configured, have the EFI calls return -ENOSYS.
- */
-#define efi_call0(_f)					(-ENOSYS)
-#define efi_call1(_f, _a1)				(-ENOSYS)
-#define efi_call2(_f, _a1, _a2)				(-ENOSYS)
-#define efi_call3(_f, _a1, _a2, _a3)			(-ENOSYS)
-#define efi_call4(_f, _a1, _a2, _a3, _a4)		(-ENOSYS)
-#define efi_call5(_f, _a1, _a2, _a3, _a4, _a5)		(-ENOSYS)
-#define efi_call6(_f, _a1, _a2, _a3, _a4, _a5, _a6)	(-ENOSYS)
 static inline void parse_efi_setup(u64 phys_addr, u32 data_len) {}
 static inline bool efi_reboot_required(void)
 {

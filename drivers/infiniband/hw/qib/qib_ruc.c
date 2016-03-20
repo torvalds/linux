@@ -32,6 +32,7 @@
  */
 
 #include <linux/spinlock.h>
+#include <rdma/ib_smi.h>
 
 #include "qib.h"
 #include "qib_mad.h"
@@ -247,8 +248,8 @@ static __be64 get_sguid(struct qib_ibport *ibp, unsigned index)
 		struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 
 		return ppd->guid;
-	} else
-		return ibp->guids[index - 1];
+	}
+	return ibp->guids[index - 1];
 }
 
 static int gid_ok(union ib_gid *gid, __be64 gid_prefix, __be64 id)
@@ -420,7 +421,7 @@ again:
 		goto serr;
 	}
 
-	memset(&wc, 0, sizeof wc);
+	memset(&wc, 0, sizeof(wc));
 	send_status = IB_WC_SUCCESS;
 
 	release = 1;
@@ -458,8 +459,8 @@ again:
 		if (wqe->length == 0)
 			break;
 		if (unlikely(!qib_rkey_ok(qp, &qp->r_sge.sge, wqe->length,
-					  wqe->wr.wr.rdma.remote_addr,
-					  wqe->wr.wr.rdma.rkey,
+					  wqe->rdma_wr.remote_addr,
+					  wqe->rdma_wr.rkey,
 					  IB_ACCESS_REMOTE_WRITE)))
 			goto acc_err;
 		qp->r_sge.sg_list = NULL;
@@ -471,8 +472,8 @@ again:
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_READ)))
 			goto inv_err;
 		if (unlikely(!qib_rkey_ok(qp, &sqp->s_sge.sge, wqe->length,
-					  wqe->wr.wr.rdma.remote_addr,
-					  wqe->wr.wr.rdma.rkey,
+					  wqe->rdma_wr.remote_addr,
+					  wqe->rdma_wr.rkey,
 					  IB_ACCESS_REMOTE_READ)))
 			goto acc_err;
 		release = 0;
@@ -489,18 +490,18 @@ again:
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_ATOMIC)))
 			goto inv_err;
 		if (unlikely(!qib_rkey_ok(qp, &qp->r_sge.sge, sizeof(u64),
-					  wqe->wr.wr.atomic.remote_addr,
-					  wqe->wr.wr.atomic.rkey,
+					  wqe->atomic_wr.remote_addr,
+					  wqe->atomic_wr.rkey,
 					  IB_ACCESS_REMOTE_ATOMIC)))
 			goto acc_err;
 		/* Perform atomic OP and save result. */
 		maddr = (atomic64_t *) qp->r_sge.sge.vaddr;
-		sdata = wqe->wr.wr.atomic.compare_add;
+		sdata = wqe->atomic_wr.compare_add;
 		*(u64 *) sqp->s_sge.sge.vaddr =
-			(wqe->wr.opcode == IB_WR_ATOMIC_FETCH_AND_ADD) ?
+			(wqe->atomic_wr.wr.opcode == IB_WR_ATOMIC_FETCH_AND_ADD) ?
 			(u64) atomic64_add_return(sdata, maddr) - sdata :
 			(u64) cmpxchg((u64 *) qp->r_sge.sge.vaddr,
-				      sdata, wqe->wr.wr.atomic.swap);
+				      sdata, wqe->atomic_wr.swap);
 		qib_put_mr(qp->r_sge.sge.mr);
 		qp->r_sge.num_sge = 0;
 		goto send_comp;
@@ -784,7 +785,7 @@ void qib_send_complete(struct qib_qp *qp, struct qib_swqe *wqe,
 	if (qp->ibqp.qp_type == IB_QPT_UD ||
 	    qp->ibqp.qp_type == IB_QPT_SMI ||
 	    qp->ibqp.qp_type == IB_QPT_GSI)
-		atomic_dec(&to_iah(wqe->wr.wr.ud.ah)->refcount);
+		atomic_dec(&to_iah(wqe->ud_wr.ah)->refcount);
 
 	/* See ch. 11.2.4.1 and 10.7.3.1 */
 	if (!(qp->s_flags & QIB_S_SIGNAL_REQ_WR) ||
@@ -792,7 +793,7 @@ void qib_send_complete(struct qib_qp *qp, struct qib_swqe *wqe,
 	    status != IB_WC_SUCCESS) {
 		struct ib_wc wc;
 
-		memset(&wc, 0, sizeof wc);
+		memset(&wc, 0, sizeof(wc));
 		wc.wr_id = wqe->wr.wr_id;
 		wc.status = status;
 		wc.opcode = ib_qib_wc_opcode[wqe->wr.opcode];

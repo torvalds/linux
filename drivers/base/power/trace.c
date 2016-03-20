@@ -7,7 +7,7 @@
  * devices may be working.
  */
 
-#include <linux/resume-trace.h>
+#include <linux/pm-trace.h>
 #include <linux/export.h>
 #include <linux/rtc.h>
 
@@ -154,7 +154,7 @@ EXPORT_SYMBOL(set_trace_device);
  * it's not any guarantee, but it's a high _likelihood_ that
  * the match is valid).
  */
-void generate_resume_trace(const void *tracedata, unsigned int user)
+void generate_pm_trace(const void *tracedata, unsigned int user)
 {
 	unsigned short lineno = *(unsigned short *)tracedata;
 	const char *file = *(const char **)(tracedata + 2);
@@ -164,16 +164,16 @@ void generate_resume_trace(const void *tracedata, unsigned int user)
 	file_hash_value = hash_string(lineno, file, FILEHASH);
 	set_magic_time(user_hash_value, file_hash_value, dev_hash_value);
 }
-EXPORT_SYMBOL(generate_resume_trace);
+EXPORT_SYMBOL(generate_pm_trace);
 
-extern char __tracedata_start, __tracedata_end;
+extern char __tracedata_start[], __tracedata_end[];
 static int show_file_hash(unsigned int value)
 {
 	int match;
 	char *tracedata;
 
 	match = 0;
-	for (tracedata = &__tracedata_start ; tracedata < &__tracedata_end ;
+	for (tracedata = __tracedata_start ; tracedata < __tracedata_end ;
 			tracedata += 2 + sizeof(unsigned long)) {
 		unsigned short lineno = *(unsigned short *)tracedata;
 		const char *file = *(const char **)(tracedata + 2);

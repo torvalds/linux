@@ -23,6 +23,7 @@
 
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "nid.h"
 #include "r600_dpm.h"
 #include "ni_dpm.h"
@@ -789,7 +790,6 @@ static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 	bool disable_mclk_switching;
 	u32 mclk;
 	u16 vddci;
-	u32 max_sclk_vddc, max_mclk_vddci, max_mclk_vddc;
 	int i;
 
 	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
@@ -813,29 +813,6 @@ static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 				ps->performance_levels[i].vddc = max_limits->vddc;
 			if (ps->performance_levels[i].vddci > max_limits->vddci)
 				ps->performance_levels[i].vddci = max_limits->vddci;
-		}
-	}
-
-	/* limit clocks to max supported clocks based on voltage dependency tables */
-	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk,
-							&max_sclk_vddc);
-	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk,
-							&max_mclk_vddci);
-	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk,
-							&max_mclk_vddc);
-
-	for (i = 0; i < ps->performance_level_count; i++) {
-		if (max_sclk_vddc) {
-			if (ps->performance_levels[i].sclk > max_sclk_vddc)
-				ps->performance_levels[i].sclk = max_sclk_vddc;
-		}
-		if (max_mclk_vddci) {
-			if (ps->performance_levels[i].mclk > max_mclk_vddci)
-				ps->performance_levels[i].mclk = max_mclk_vddci;
-		}
-		if (max_mclk_vddc) {
-			if (ps->performance_levels[i].mclk > max_mclk_vddc)
-				ps->performance_levels[i].mclk = max_mclk_vddc;
 		}
 	}
 
@@ -3885,11 +3862,13 @@ void ni_dpm_post_set_power_state(struct radeon_device *rdev)
 	ni_update_current_ps(rdev, new_ps);
 }
 
+#if 0
 void ni_dpm_reset_asic(struct radeon_device *rdev)
 {
 	ni_restrict_performance_levels_before_switch(rdev);
 	rv770_set_boot_state(rdev);
 }
+#endif
 
 union power_info {
 	struct _ATOM_POWERPLAY_INFO info;
@@ -4337,6 +4316,42 @@ void ni_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
 		seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u vddci: %u\n",
 			   current_index, pl->sclk, pl->mclk, pl->vddc, pl->vddci);
+	}
+}
+
+u32 ni_dpm_get_current_sclk(struct radeon_device *rdev)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *rps = &eg_pi->current_rps;
+	struct ni_ps *ps = ni_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_STATE_INDEX_MASK) >>
+		CURRENT_STATE_INDEX_SHIFT;
+
+	if (current_index >= ps->performance_level_count) {
+		return 0;
+	} else {
+		pl = &ps->performance_levels[current_index];
+		return pl->sclk;
+	}
+}
+
+u32 ni_dpm_get_current_mclk(struct radeon_device *rdev)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *rps = &eg_pi->current_rps;
+	struct ni_ps *ps = ni_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_STATE_INDEX_MASK) >>
+		CURRENT_STATE_INDEX_SHIFT;
+
+	if (current_index >= ps->performance_level_count) {
+		return 0;
+	} else {
+		pl = &ps->performance_levels[current_index];
+		return pl->mclk;
 	}
 }
 

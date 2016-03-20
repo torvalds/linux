@@ -7,7 +7,7 @@
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/dw_dmac.h>
+#include <linux/platform_data/dma-dw.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -17,7 +17,6 @@
 #include <linux/spi/spi.h>
 #include <linux/usb/atmel_usba_udc.h>
 
-#include <mach/atmel-mci.h>
 #include <linux/atmel-mci.h>
 
 #include <asm/io.h>
@@ -603,18 +602,11 @@ static void __init genclk_init_parent(struct clk *clk)
 	clk->parent = parent;
 }
 
-static struct dw_dma_platform_data dw_dmac0_data = {
-	.nr_channels	= 3,
-	.block_size	= 4095U,
-	.nr_masters	= 2,
-	.data_width	= { 2, 2, 0, 0 },
-};
-
 static struct resource dw_dmac0_resource[] = {
 	PBMEM(0xff200000),
 	IRQ(2),
 };
-DEFINE_DEV_DATA(dw_dmac, 0);
+DEFINE_DEV(dw_dmac, 0);
 DEV_CLK(hclk, dw_dmac0, hsb, 10);
 
 /* --------------------------------------------------------------------
@@ -1328,11 +1320,26 @@ static struct clk atmel_mci0_pclk = {
 	.index		= 9,
 };
 
+static bool at32_mci_dma_filter(struct dma_chan *chan, void *pdata)
+{
+	struct dw_dma_slave *sl = pdata;
+
+	if (!sl)
+		return false;
+
+	if (sl->dma_dev == chan->device->dev) {
+		chan->private = sl;
+		return true;
+	}
+
+	return false;
+}
+
 struct platform_device *__init
 at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 {
 	struct platform_device		*pdev;
-	struct mci_dma_data	        *slave;
+	struct dw_dma_slave	        *slave;
 	u32				pioa_mask;
 	u32				piob_mask;
 
@@ -1351,17 +1358,18 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 				ARRAY_SIZE(atmel_mci0_resource)))
 		goto fail;
 
-	slave = kzalloc(sizeof(struct mci_dma_data), GFP_KERNEL);
+	slave = kzalloc(sizeof(*slave), GFP_KERNEL);
 	if (!slave)
 		goto fail;
 
-	slave->sdata.dma_dev = &dw_dmac0_device.dev;
-	slave->sdata.cfg_hi = (DWC_CFGH_SRC_PER(0)
-				| DWC_CFGH_DST_PER(1));
-	slave->sdata.cfg_lo &= ~(DWC_CFGL_HS_DST_POL
-				| DWC_CFGL_HS_SRC_POL);
+	slave->dma_dev = &dw_dmac0_device.dev;
+	slave->src_id = 0;
+	slave->dst_id = 1;
+	slave->src_master = 1;
+	slave->dst_master = 0;
 
 	data->dma_slave = slave;
+	data->dma_filter = at32_mci_dma_filter;
 
 	if (platform_device_add_data(pdev, data,
 				sizeof(struct mci_platform_data)))
@@ -2052,8 +2060,7 @@ at32_add_device_ac97c(unsigned int id, struct ac97c_platform_data *data,
 	/* Check if DMA slave interface for capture should be configured. */
 	if (flags & AC97C_CAPTURE) {
 		rx_dws->dma_dev = &dw_dmac0_device.dev;
-		rx_dws->cfg_hi = DWC_CFGH_SRC_PER(3);
-		rx_dws->cfg_lo &= ~(DWC_CFGL_HS_DST_POL | DWC_CFGL_HS_SRC_POL);
+		rx_dws->src_id = 3;
 		rx_dws->src_master = 0;
 		rx_dws->dst_master = 1;
 	}
@@ -2061,8 +2068,7 @@ at32_add_device_ac97c(unsigned int id, struct ac97c_platform_data *data,
 	/* Check if DMA slave interface for playback should be configured. */
 	if (flags & AC97C_PLAYBACK) {
 		tx_dws->dma_dev = &dw_dmac0_device.dev;
-		tx_dws->cfg_hi = DWC_CFGH_DST_PER(4);
-		tx_dws->cfg_lo &= ~(DWC_CFGL_HS_DST_POL | DWC_CFGL_HS_SRC_POL);
+		tx_dws->dst_id = 4;
 		tx_dws->src_master = 0;
 		tx_dws->dst_master = 1;
 	}
@@ -2134,8 +2140,7 @@ at32_add_device_abdac(unsigned int id, struct atmel_abdac_pdata *data)
 	dws = &data->dws;
 
 	dws->dma_dev = &dw_dmac0_device.dev;
-	dws->cfg_hi = DWC_CFGH_DST_PER(2);
-	dws->cfg_lo &= ~(DWC_CFGL_HS_DST_POL | DWC_CFGL_HS_SRC_POL);
+	dws->dst_id = 2;
 	dws->src_master = 0;
 	dws->dst_master = 1;
 

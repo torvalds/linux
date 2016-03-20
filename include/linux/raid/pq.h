@@ -72,6 +72,7 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 /* Routine choices */
 struct raid6_calls {
 	void (*gen_syndrome)(int, size_t, void **);
+	void (*xor_syndrome)(int, int, int, size_t, void **);
 	int  (*valid)(void);	/* Returns 1 if this routine set is usable */
 	const char *name;	/* Name of this routine set */
 	int prefer;		/* Has special performance attribute */
@@ -151,6 +152,8 @@ void raid6_dual_recov(int disks, size_t bytes, int faila, int failb,
 
 # define jiffies	raid6_jiffies()
 # define printk 	printf
+# define pr_err(format, ...) fprintf(stderr, format, ## __VA_ARGS__)
+# define pr_info(format, ...) fprintf(stdout, format, ## __VA_ARGS__)
 # define GFP_KERNEL	0
 # define __get_free_pages(x, y)	((unsigned long)mmap(NULL, PAGE_SIZE << (y), \
 						     PROT_READ|PROT_WRITE,   \

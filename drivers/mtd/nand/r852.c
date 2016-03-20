@@ -64,8 +64,8 @@ static inline void r852_write_reg_dword(struct r852_device *dev,
 /* returns pointer to our private structure */
 static inline struct r852_device *r852_get_dev(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
-	return chip->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	return nand_get_controller_data(chip);
 }
 
 
@@ -361,7 +361,7 @@ static void r852_cmdctl(struct mtd_info *mtd, int dat, unsigned int ctrl)
  */
 static int r852_wait(struct mtd_info *mtd, struct nand_chip *chip)
 {
-	struct r852_device *dev = chip->priv;
+	struct r852_device *dev = nand_get_controller_data(chip);
 
 	unsigned long timeout;
 	int status;
@@ -466,7 +466,7 @@ static int r852_ecc_calculate(struct mtd_info *mtd, const uint8_t *dat,
 static int r852_ecc_correct(struct mtd_info *mtd, uint8_t *dat,
 				uint8_t *read_ecc, uint8_t *calc_ecc)
 {
-	uint16_t ecc_reg;
+	uint32_t ecc_reg;
 	uint8_t ecc_status, err_byte;
 	int i, error = 0;
 
@@ -477,7 +477,7 @@ static int r852_ecc_correct(struct mtd_info *mtd, uint8_t *dat,
 
 	if (dev->dma_error) {
 		dev->dma_error = 0;
-		return -1;
+		return -EIO;
 	}
 
 	r852_write_reg(dev, R852_CTL, dev->ctlreg | R852_CTL_ECC_ACCESS);
@@ -491,7 +491,7 @@ static int r852_ecc_correct(struct mtd_info *mtd, uint8_t *dat,
 		/* ecc uncorrectable error */
 		if (ecc_status & R852_ECC_FAIL) {
 			dbg("ecc: unrecoverable error, in half %d", i);
-			error = -1;
+			error = -EBADMSG;
 			goto exit;
 		}
 
@@ -634,32 +634,29 @@ static void r852_update_media_status(struct r852_device *dev)
  */
 static int r852_register_nand_device(struct r852_device *dev)
 {
-	dev->mtd = kzalloc(sizeof(struct mtd_info), GFP_KERNEL);
-
-	if (!dev->mtd)
-		goto error1;
+	struct mtd_info *mtd = nand_to_mtd(dev->chip);
 
 	WARN_ON(dev->card_registred);
 
-	dev->mtd->owner = THIS_MODULE;
-	dev->mtd->priv = dev->chip;
-	dev->mtd->dev.parent = &dev->pci_dev->dev;
+	mtd->dev.parent = &dev->pci_dev->dev;
 
 	if (dev->readonly)
 		dev->chip->options |= NAND_ROM;
 
 	r852_engine_enable(dev);
 
-	if (sm_register_device(dev->mtd, dev->sm))
-		goto error2;
+	if (sm_register_device(mtd, dev->sm))
+		goto error1;
 
-	if (device_create_file(&dev->mtd->dev, &dev_attr_media_type))
+	if (device_create_file(&mtd->dev, &dev_attr_media_type)) {
 		message("can't create media type sysfs attribute");
+		goto error3;
+	}
 
 	dev->card_registred = 1;
 	return 0;
-error2:
-	kfree(dev->mtd);
+error3:
+	nand_release(mtd);
 error1:
 	/* Force card redetect */
 	dev->card_detected = 0;
@@ -672,15 +669,15 @@ error1:
 
 static void r852_unregister_nand_device(struct r852_device *dev)
 {
+	struct mtd_info *mtd = nand_to_mtd(dev->chip);
+
 	if (!dev->card_registred)
 		return;
 
-	device_remove_file(&dev->mtd->dev, &dev_attr_media_type);
-	nand_release(dev->mtd);
+	device_remove_file(&mtd->dev, &dev_attr_media_type);
+	nand_release(mtd);
 	r852_engine_disable(dev);
 	dev->card_registred = 0;
-	kfree(dev->mtd);
-	dev->mtd = NULL;
 }
 
 /* Card state updater */
@@ -882,7 +879,7 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	if (!dev)
 		goto error5;
 
-	chip->priv = dev;
+	nand_set_controller_data(chip, dev);
 	dev->chip = chip;
 	dev->pci_dev = pci_dev;
 	pci_set_drvdata(pci_dev, dev);
@@ -977,7 +974,6 @@ static void r852_remove(struct pci_dev *pci_dev)
 
 	/* Stop interrupts */
 	r852_disable_irqs(dev);
-	synchronize_irq(dev->irq);
 	free_irq(dev->irq, dev);
 
 	/* Cleanup */
@@ -1029,6 +1025,7 @@ static int r852_suspend(struct device *device)
 static int r852_resume(struct device *device)
 {
 	struct r852_device *dev = pci_get_drvdata(to_pci_dev(device));
+	struct mtd_info *mtd = nand_to_mtd(dev->chip);
 
 	r852_disable_irqs(dev);
 	r852_card_update_present(dev);
@@ -1048,9 +1045,9 @@ static int r852_resume(struct device *device)
 	/* Otherwise, initialize the card */
 	if (dev->card_registred) {
 		r852_engine_enable(dev);
-		dev->chip->select_chip(dev->mtd, 0);
-		dev->chip->cmdfunc(dev->mtd, NAND_CMD_RESET, -1, -1);
-		dev->chip->select_chip(dev->mtd, -1);
+		dev->chip->select_chip(mtd, 0);
+		dev->chip->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
+		dev->chip->select_chip(mtd, -1);
 	}
 
 	/* Program card detection IRQ */

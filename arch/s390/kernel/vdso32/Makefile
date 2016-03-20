@@ -1,6 +1,6 @@
 # List of files in the vdso, has to be asm only for now
 
-obj-vdso32 = gettimeofday.o clock_getres.o clock_gettime.o note.o
+obj-vdso32 = gettimeofday.o clock_getres.o clock_gettime.o note.o getcpu.o
 
 # Build rules
 
@@ -13,7 +13,7 @@ KBUILD_AFLAGS_31 += -m31 -s
 KBUILD_CFLAGS_31 := $(filter-out -m64,$(KBUILD_CFLAGS))
 KBUILD_CFLAGS_31 += -m31 -fPIC -shared -fno-common -fno-builtin
 KBUILD_CFLAGS_31 += -nostdlib -Wl,-soname=linux-vdso32.so.1 \
-			$(call cc-ldoption, -Wl$(comma)--hash-style=sysv)
+			$(call cc-ldoption, -Wl$(comma)--hash-style=both)
 
 $(targets:%=$(obj)/%.dbg): KBUILD_CFLAGS = $(KBUILD_CFLAGS_31)
 $(targets:%=$(obj)/%.dbg): KBUILD_AFLAGS = $(KBUILD_AFLAGS_31)

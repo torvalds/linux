@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -167,8 +167,8 @@ u8 acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
 	if ((acpi_gbl_integer_byte_width == 4) &&
 	    (obj_desc->integer.value > (u64)ACPI_UINT32_MAX)) {
 		/*
-		 * We are executing in a 32-bit ACPI table.
-		 * Truncate the value to 32 bits by zeroing out the upper 32-bit field
+		 * We are executing in a 32-bit ACPI table. Truncate
+		 * the value to 32 bits by zeroing out the upper 32-bit field
 		 */
 		obj_desc->integer.value &= (u64)ACPI_UINT32_MAX;
 		return (TRUE);
@@ -323,7 +323,8 @@ void acpi_ex_eisa_id_to_string(char *out_string, u64 compressed_id)
 
 	if (compressed_id > ACPI_UINT32_MAX) {
 		ACPI_WARNING((AE_INFO,
-			      "Expected EISAID is larger than 32 bits: 0x%8.8X%8.8X, truncating",
+			      "Expected EISAID is larger than 32 bits: "
+			      "0x%8.8X%8.8X, truncating",
 			      ACPI_FORMAT_UINT64(compressed_id)));
 	}
 
@@ -376,6 +377,38 @@ void acpi_ex_integer_to_string(char *out_string, u64 value)
 		(void)acpi_ut_short_divide(value, 10, &value, &remainder);
 		out_string[count - 1] = (char)('0' + remainder);
 	}
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ex_pci_cls_to_string
+ *
+ * PARAMETERS:  out_string      - Where to put the converted string (7 bytes)
+ * PARAMETERS:  class_code      - PCI class code to be converted (3 bytes)
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Convert 3-bytes PCI class code to string representation.
+ *              Return buffer must be large enough to hold the string. The
+ *              string returned is always exactly of length
+ *              ACPI_PCICLS_STRING_SIZE (includes null terminator).
+ *
+ ******************************************************************************/
+
+void acpi_ex_pci_cls_to_string(char *out_string, u8 class_code[3])
+{
+
+	ACPI_FUNCTION_ENTRY();
+
+	/* All 3 bytes are hexadecimal */
+
+	out_string[0] = acpi_ut_hex_to_ascii_char((u64)class_code[0], 4);
+	out_string[1] = acpi_ut_hex_to_ascii_char((u64)class_code[0], 0);
+	out_string[2] = acpi_ut_hex_to_ascii_char((u64)class_code[1], 4);
+	out_string[3] = acpi_ut_hex_to_ascii_char((u64)class_code[1], 0);
+	out_string[4] = acpi_ut_hex_to_ascii_char((u64)class_code[2], 4);
+	out_string[5] = acpi_ut_hex_to_ascii_char((u64)class_code[2], 0);
+	out_string[6] = 0;
 }
 
 /*******************************************************************************

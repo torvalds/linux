@@ -72,27 +72,19 @@ static inline void store_runtime_instr_cb(struct runtime_instr_cb *cb)
 
 static inline void save_ri_cb(struct runtime_instr_cb *cb_prev)
 {
-#ifdef CONFIG_64BIT
 	if (cb_prev)
 		store_runtime_instr_cb(cb_prev);
-#endif
 }
 
 static inline void restore_ri_cb(struct runtime_instr_cb *cb_next,
 				 struct runtime_instr_cb *cb_prev)
 {
-#ifdef CONFIG_64BIT
 	if (cb_next)
 		load_runtime_instr_cb(cb_next);
 	else if (cb_prev)
 		load_runtime_instr_cb(&runtime_instr_empty_cb);
-#endif
 }
 
-#ifdef CONFIG_64BIT
-extern void exit_thread_runtime_instr(void);
-#else
-static inline void exit_thread_runtime_instr(void) { }
-#endif
+void exit_thread_runtime_instr(void);
 
 #endif /* _RUNTIME_INSTR_H */

@@ -29,6 +29,7 @@ struct acpi_smb_hc {
 	u8 query_bit;
 	smbus_alarm_callback callback;
 	void *context;
+	bool done;
 };
 
 static int acpi_smbus_hc_add(struct acpi_device *device);
@@ -97,27 +98,11 @@ static inline int smb_hc_write(struct acpi_smb_hc *hc, u8 address, u8 data)
 	return ec_write(hc->offset + address, data);
 }
 
-static inline int smb_check_done(struct acpi_smb_hc *hc)
-{
-	union acpi_smb_status status = {.raw = 0};
-	smb_hc_read(hc, ACPI_SMB_STATUS, &status.raw);
-	return status.fields.done && (status.fields.status == SMBUS_OK);
-}
-
 static int wait_transaction_complete(struct acpi_smb_hc *hc, int timeout)
 {
-	if (wait_event_timeout(hc->wait, smb_check_done(hc),
-			       msecs_to_jiffies(timeout)))
+	if (wait_event_timeout(hc->wait, hc->done, msecs_to_jiffies(timeout)))
 		return 0;
-	/*
-	 * After the timeout happens, OS will try to check the status of SMbus.
-	 * If the status is what OS expected, it will be regarded as the bogus
-	 * timeout.
-	 */
-	if (smb_check_done(hc))
-		return 0;
-	else
-		return -ETIME;
+	return -ETIME;
 }
 
 static int acpi_smbus_transaction(struct acpi_smb_hc *hc, u8 protocol,
@@ -132,6 +117,7 @@ static int acpi_smbus_transaction(struct acpi_smb_hc *hc, u8 protocol,
 	}
 
 	mutex_lock(&hc->lock);
+	hc->done = false;
 	if (smb_hc_read(hc, ACPI_SMB_PROTOCOL, &temp))
 		goto end;
 	if (temp) {
@@ -230,8 +216,10 @@ static int smbus_alarm(void *context)
 	if (smb_hc_read(hc, ACPI_SMB_STATUS, &status.raw))
 		return 0;
 	/* Check if it is only a completion notify */
-	if (status.fields.done)
+	if (status.fields.done && status.fields.status == SMBUS_OK) {
+		hc->done = true;
 		wake_up(&hc->wait);
+	}
 	if (!status.fields.alarm)
 		return 0;
 	mutex_lock(&hc->lock);

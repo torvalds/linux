@@ -54,7 +54,7 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 		if (!new_pmd)
 			goto no_pmd;
 
-		new_pte = pte_alloc_map(mm, NULL, new_pmd, 0);
+		new_pte = pte_alloc_map(mm, new_pmd, 0);
 		if (!new_pte)
 			goto no_pte;
 
@@ -69,6 +69,7 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 
 no_pte:
 	pmd_free(mm, new_pmd);
+	mm_dec_nr_pmds(mm);
 no_pmd:
 	free_pages((unsigned long)new_pgd, 0);
 no_pgd:
@@ -96,7 +97,9 @@ void free_pgd_slow(struct mm_struct *mm, pgd_t *pgd)
 	pte = pmd_pgtable(*pmd);
 	pmd_clear(pmd);
 	pte_free(mm, pte);
+	atomic_long_dec(&mm->nr_ptes);
 	pmd_free(mm, pmd);
+	mm_dec_nr_pmds(mm);
 free:
 	free_pages((unsigned long) pgd, 0);
 }

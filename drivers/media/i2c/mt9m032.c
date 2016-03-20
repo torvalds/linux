@@ -31,7 +31,7 @@
 #include <linux/v4l2-mediabus.h>
 
 #include <media/media-entity.h>
-#include <media/mt9m032.h>
+#include <media/i2c/mt9m032.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
@@ -317,21 +317,21 @@ static int mt9m032_setup_pll(struct mt9m032 *sensor)
  */
 
 static int mt9m032_enum_mbus_code(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index != 0)
 		return -EINVAL;
 
-	code->code = V4L2_MBUS_FMT_Y8_1X8;
+	code->code = MEDIA_BUS_FMT_Y8_1X8;
 	return 0;
 }
 
 static int mt9m032_enum_frame_size(struct v4l2_subdev *subdev,
-				   struct v4l2_subdev_fh *fh,
+				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->index != 0 || fse->code != V4L2_MBUS_FMT_Y8_1X8)
+	if (fse->index != 0 || fse->code != MEDIA_BUS_FMT_Y8_1X8)
 		return -EINVAL;
 
 	fse->min_width = MT9M032_COLUMN_SIZE_DEF;
@@ -345,18 +345,18 @@ static int mt9m032_enum_frame_size(struct v4l2_subdev *subdev,
 /**
  * __mt9m032_get_pad_crop() - get crop rect
  * @sensor: pointer to the sensor struct
- * @fh: file handle for getting the try crop rect from
+ * @cfg: v4l2_subdev_pad_config for getting the try crop rect from
  * @which: select try or active crop rect
  *
  * Returns a pointer the current active or fh relative try crop rect
  */
 static struct v4l2_rect *
-__mt9m032_get_pad_crop(struct mt9m032 *sensor, struct v4l2_subdev_fh *fh,
+__mt9m032_get_pad_crop(struct mt9m032 *sensor, struct v4l2_subdev_pad_config *cfg,
 		       enum v4l2_subdev_format_whence which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(fh, 0);
+		return v4l2_subdev_get_try_crop(&sensor->subdev, cfg, 0);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &sensor->crop;
 	default:
@@ -367,18 +367,18 @@ __mt9m032_get_pad_crop(struct mt9m032 *sensor, struct v4l2_subdev_fh *fh,
 /**
  * __mt9m032_get_pad_format() - get format
  * @sensor: pointer to the sensor struct
- * @fh: file handle for getting the try format from
+ * @cfg: v4l2_subdev_pad_config for getting the try format from
  * @which: select try or active format
  *
  * Returns a pointer the current active or fh relative try format
  */
 static struct v4l2_mbus_framefmt *
-__mt9m032_get_pad_format(struct mt9m032 *sensor, struct v4l2_subdev_fh *fh,
+__mt9m032_get_pad_format(struct mt9m032 *sensor, struct v4l2_subdev_pad_config *cfg,
 			 enum v4l2_subdev_format_whence which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(fh, 0);
+		return v4l2_subdev_get_try_format(&sensor->subdev, cfg, 0);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &sensor->format;
 	default:
@@ -387,20 +387,20 @@ __mt9m032_get_pad_format(struct mt9m032 *sensor, struct v4l2_subdev_fh *fh,
 }
 
 static int mt9m032_get_pad_format(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_format *fmt)
 {
 	struct mt9m032 *sensor = to_mt9m032(subdev);
 
 	mutex_lock(&sensor->lock);
-	fmt->format = *__mt9m032_get_pad_format(sensor, fh, fmt->which);
+	fmt->format = *__mt9m032_get_pad_format(sensor, cfg, fmt->which);
 	mutex_unlock(&sensor->lock);
 
 	return 0;
 }
 
 static int mt9m032_set_pad_format(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_format *fmt)
 {
 	struct mt9m032 *sensor = to_mt9m032(subdev);
@@ -414,7 +414,7 @@ static int mt9m032_set_pad_format(struct v4l2_subdev *subdev,
 	}
 
 	/* Scaling is not supported, the format is thus fixed. */
-	fmt->format = *__mt9m032_get_pad_format(sensor, fh, fmt->which);
+	fmt->format = *__mt9m032_get_pad_format(sensor, cfg, fmt->which);
 	ret = 0;
 
 done:
@@ -422,22 +422,25 @@ done:
 	return ret;
 }
 
-static int mt9m032_get_pad_crop(struct v4l2_subdev *subdev,
-				struct v4l2_subdev_fh *fh,
-				struct v4l2_subdev_crop *crop)
+static int mt9m032_get_pad_selection(struct v4l2_subdev *subdev,
+				     struct v4l2_subdev_pad_config *cfg,
+				     struct v4l2_subdev_selection *sel)
 {
 	struct mt9m032 *sensor = to_mt9m032(subdev);
 
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
+
 	mutex_lock(&sensor->lock);
-	crop->rect = *__mt9m032_get_pad_crop(sensor, fh, crop->which);
+	sel->r = *__mt9m032_get_pad_crop(sensor, cfg, sel->which);
 	mutex_unlock(&sensor->lock);
 
 	return 0;
 }
 
-static int mt9m032_set_pad_crop(struct v4l2_subdev *subdev,
-				struct v4l2_subdev_fh *fh,
-				struct v4l2_subdev_crop *crop)
+static int mt9m032_set_pad_selection(struct v4l2_subdev *subdev,
+				     struct v4l2_subdev_pad_config *cfg,
+				     struct v4l2_subdev_selection *sel)
 {
 	struct mt9m032 *sensor = to_mt9m032(subdev);
 	struct v4l2_mbus_framefmt *format;
@@ -445,9 +448,12 @@ static int mt9m032_set_pad_crop(struct v4l2_subdev *subdev,
 	struct v4l2_rect rect;
 	int ret = 0;
 
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
+
 	mutex_lock(&sensor->lock);
 
-	if (sensor->streaming && crop->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+	if (sensor->streaming && sel->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		ret = -EBUSY;
 		goto done;
 	}
@@ -455,13 +461,13 @@ static int mt9m032_set_pad_crop(struct v4l2_subdev *subdev,
 	/* Clamp the crop rectangle boundaries and align them to a multiple of 2
 	 * pixels to ensure a GRBG Bayer pattern.
 	 */
-	rect.left = clamp(ALIGN(crop->rect.left, 2), MT9M032_COLUMN_START_MIN,
+	rect.left = clamp(ALIGN(sel->r.left, 2), MT9M032_COLUMN_START_MIN,
 			  MT9M032_COLUMN_START_MAX);
-	rect.top = clamp(ALIGN(crop->rect.top, 2), MT9M032_ROW_START_MIN,
+	rect.top = clamp(ALIGN(sel->r.top, 2), MT9M032_ROW_START_MIN,
 			 MT9M032_ROW_START_MAX);
-	rect.width = clamp_t(unsigned int, ALIGN(crop->rect.width, 2),
+	rect.width = clamp_t(unsigned int, ALIGN(sel->r.width, 2),
 			     MT9M032_COLUMN_SIZE_MIN, MT9M032_COLUMN_SIZE_MAX);
-	rect.height = clamp_t(unsigned int, ALIGN(crop->rect.height, 2),
+	rect.height = clamp_t(unsigned int, ALIGN(sel->r.height, 2),
 			      MT9M032_ROW_SIZE_MIN, MT9M032_ROW_SIZE_MAX);
 
 	rect.width = min_t(unsigned int, rect.width,
@@ -469,21 +475,21 @@ static int mt9m032_set_pad_crop(struct v4l2_subdev *subdev,
 	rect.height = min_t(unsigned int, rect.height,
 			    MT9M032_PIXEL_ARRAY_HEIGHT - rect.top);
 
-	__crop = __mt9m032_get_pad_crop(sensor, fh, crop->which);
+	__crop = __mt9m032_get_pad_crop(sensor, cfg, sel->which);
 
 	if (rect.width != __crop->width || rect.height != __crop->height) {
 		/* Reset the output image size if the crop rectangle size has
 		 * been modified.
 		 */
-		format = __mt9m032_get_pad_format(sensor, fh, crop->which);
+		format = __mt9m032_get_pad_format(sensor, cfg, sel->which);
 		format->width = rect.width;
 		format->height = rect.height;
 	}
 
 	*__crop = rect;
-	crop->rect = rect;
+	sel->r = rect;
 
-	if (crop->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		ret = mt9m032_update_geom_timing(sensor);
 
 done:
@@ -665,7 +671,7 @@ static int mt9m032_set_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static struct v4l2_ctrl_ops mt9m032_ctrl_ops = {
+static const struct v4l2_ctrl_ops mt9m032_ctrl_ops = {
 	.s_ctrl = mt9m032_set_ctrl,
 	.try_ctrl = mt9m032_try_ctrl,
 };
@@ -690,8 +696,8 @@ static const struct v4l2_subdev_pad_ops mt9m032_pad_ops = {
 	.enum_frame_size = mt9m032_enum_frame_size,
 	.get_fmt = mt9m032_get_pad_format,
 	.set_fmt = mt9m032_set_pad_format,
-	.set_crop = mt9m032_set_pad_crop,
-	.get_crop = mt9m032_get_pad_crop,
+	.set_selection = mt9m032_set_pad_selection,
+	.get_selection = mt9m032_get_pad_selection,
 };
 
 static const struct v4l2_subdev_ops mt9m032_ops = {
@@ -759,7 +765,7 @@ static int mt9m032_probe(struct i2c_client *client,
 
 	sensor->format.width = sensor->crop.width;
 	sensor->format.height = sensor->crop.height;
-	sensor->format.code = V4L2_MBUS_FMT_Y8_1X8;
+	sensor->format.code = MEDIA_BUS_FMT_Y8_1X8;
 	sensor->format.field = V4L2_FIELD_NONE;
 	sensor->format.colorspace = V4L2_COLORSPACE_SRGB;
 
@@ -793,7 +799,7 @@ static int mt9m032_probe(struct i2c_client *client,
 
 	sensor->subdev.ctrl_handler = &sensor->ctrls;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&sensor->subdev.entity, 1, &sensor->pad, 0);
+	ret = media_entity_pads_init(&sensor->subdev.entity, 1, &sensor->pad);
 	if (ret < 0)
 		goto error_ctrl;
 

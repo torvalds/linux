@@ -12,10 +12,8 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
-#include <linux/reboot.h>
 #include <linux/watchdog.h>
 
 #define SOFT_TIMEOUT_MIN	1
@@ -31,10 +29,11 @@ struct gpio_wdt_priv {
 	int			gpio;
 	bool			active_low;
 	bool			state;
+	bool			always_running;
+	bool			armed;
 	unsigned int		hw_algo;
 	unsigned int		hw_margin;
 	unsigned long		last_jiffies;
-	struct notifier_block	notifier;
 	struct timer_list	timer;
 	struct watchdog_device	wdd;
 };
@@ -48,52 +47,15 @@ static void gpio_wdt_disable(struct gpio_wdt_priv *priv)
 		gpio_direction_input(priv->gpio);
 }
 
-static int gpio_wdt_start(struct watchdog_device *wdd)
-{
-	struct gpio_wdt_priv *priv = watchdog_get_drvdata(wdd);
-
-	priv->state = priv->active_low;
-	gpio_direction_output(priv->gpio, priv->state);
-	priv->last_jiffies = jiffies;
-	mod_timer(&priv->timer, priv->last_jiffies + priv->hw_margin);
-
-	return 0;
-}
-
-static int gpio_wdt_stop(struct watchdog_device *wdd)
-{
-	struct gpio_wdt_priv *priv = watchdog_get_drvdata(wdd);
-
-	mod_timer(&priv->timer, 0);
-	gpio_wdt_disable(priv);
-
-	return 0;
-}
-
-static int gpio_wdt_ping(struct watchdog_device *wdd)
-{
-	struct gpio_wdt_priv *priv = watchdog_get_drvdata(wdd);
-
-	priv->last_jiffies = jiffies;
-
-	return 0;
-}
-
-static int gpio_wdt_set_timeout(struct watchdog_device *wdd, unsigned int t)
-{
-	wdd->timeout = t;
-
-	return gpio_wdt_ping(wdd);
-}
-
 static void gpio_wdt_hwping(unsigned long data)
 {
 	struct watchdog_device *wdd = (struct watchdog_device *)data;
 	struct gpio_wdt_priv *priv = watchdog_get_drvdata(wdd);
 
-	if (time_after(jiffies, priv->last_jiffies +
-		       msecs_to_jiffies(wdd->timeout * 1000))) {
-		dev_crit(wdd->dev, "Timer expired. System will reboot soon!\n");
+	if (priv->armed && time_after(jiffies, priv->last_jiffies +
+				      msecs_to_jiffies(wdd->timeout * 1000))) {
+		dev_crit(wdd->parent,
+			 "Timer expired. System will reboot soon!\n");
 		return;
 	}
 
@@ -115,24 +77,51 @@ static void gpio_wdt_hwping(unsigned long data)
 	}
 }
 
-static int gpio_wdt_notify_sys(struct notifier_block *nb, unsigned long code,
-			       void *unused)
+static void gpio_wdt_start_impl(struct gpio_wdt_priv *priv)
 {
-	struct gpio_wdt_priv *priv = container_of(nb, struct gpio_wdt_priv,
-						  notifier);
+	priv->state = priv->active_low;
+	gpio_direction_output(priv->gpio, priv->state);
+	priv->last_jiffies = jiffies;
+	gpio_wdt_hwping((unsigned long)&priv->wdd);
+}
 
-	mod_timer(&priv->timer, 0);
+static int gpio_wdt_start(struct watchdog_device *wdd)
+{
+	struct gpio_wdt_priv *priv = watchdog_get_drvdata(wdd);
 
-	switch (code) {
-	case SYS_HALT:
-	case SYS_POWER_OFF:
+	gpio_wdt_start_impl(priv);
+	priv->armed = true;
+
+	return 0;
+}
+
+static int gpio_wdt_stop(struct watchdog_device *wdd)
+{
+	struct gpio_wdt_priv *priv = watchdog_get_drvdata(wdd);
+
+	priv->armed = false;
+	if (!priv->always_running) {
+		mod_timer(&priv->timer, 0);
 		gpio_wdt_disable(priv);
-		break;
-	default:
-		break;
 	}
 
-	return NOTIFY_DONE;
+	return 0;
+}
+
+static int gpio_wdt_ping(struct watchdog_device *wdd)
+{
+	struct gpio_wdt_priv *priv = watchdog_get_drvdata(wdd);
+
+	priv->last_jiffies = jiffies;
+
+	return 0;
+}
+
+static int gpio_wdt_set_timeout(struct watchdog_device *wdd, unsigned int t)
+{
+	wdd->timeout = t;
+
+	return gpio_wdt_ping(wdd);
 }
 
 static const struct watchdog_info gpio_wdt_ident = {
@@ -171,10 +160,10 @@ static int gpio_wdt_probe(struct platform_device *pdev)
 	ret = of_property_read_string(pdev->dev.of_node, "hw_algo", &algo);
 	if (ret)
 		return ret;
-	if (!strncmp(algo, "toggle", 6)) {
+	if (!strcmp(algo, "toggle")) {
 		priv->hw_algo = HW_ALGO_TOGGLE;
 		f = GPIOF_IN;
-	} else if (!strncmp(algo, "level", 5)) {
+	} else if (!strcmp(algo, "level")) {
 		priv->hw_algo = HW_ALGO_LEVEL;
 		f = priv->active_low ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
 	} else {
@@ -197,28 +186,32 @@ static int gpio_wdt_probe(struct platform_device *pdev)
 	/* Use safe value (1/2 of real timeout) */
 	priv->hw_margin = msecs_to_jiffies(hw_margin / 2);
 
+	priv->always_running = of_property_read_bool(pdev->dev.of_node,
+						     "always-running");
+
 	watchdog_set_drvdata(&priv->wdd, priv);
 
 	priv->wdd.info		= &gpio_wdt_ident;
 	priv->wdd.ops		= &gpio_wdt_ops;
 	priv->wdd.min_timeout	= SOFT_TIMEOUT_MIN;
 	priv->wdd.max_timeout	= SOFT_TIMEOUT_MAX;
+	priv->wdd.parent	= &pdev->dev;
 
 	if (watchdog_init_timeout(&priv->wdd, 0, &pdev->dev) < 0)
 		priv->wdd.timeout = SOFT_TIMEOUT_DEF;
 
 	setup_timer(&priv->timer, gpio_wdt_hwping, (unsigned long)&priv->wdd);
 
+	watchdog_stop_on_reboot(&priv->wdd);
+
 	ret = watchdog_register_device(&priv->wdd);
 	if (ret)
 		return ret;
 
-	priv->notifier.notifier_call = gpio_wdt_notify_sys;
-	ret = register_reboot_notifier(&priv->notifier);
-	if (ret)
-		watchdog_unregister_device(&priv->wdd);
+	if (priv->always_running)
+		gpio_wdt_start_impl(priv);
 
-	return ret;
+	return 0;
 }
 
 static int gpio_wdt_remove(struct platform_device *pdev)
@@ -226,7 +219,6 @@ static int gpio_wdt_remove(struct platform_device *pdev)
 	struct gpio_wdt_priv *priv = platform_get_drvdata(pdev);
 
 	del_timer_sync(&priv->timer);
-	unregister_reboot_notifier(&priv->notifier);
 	watchdog_unregister_device(&priv->wdd);
 
 	return 0;
@@ -241,13 +233,21 @@ MODULE_DEVICE_TABLE(of, gpio_wdt_dt_ids);
 static struct platform_driver gpio_wdt_driver = {
 	.driver	= {
 		.name		= "gpio-wdt",
-		.owner		= THIS_MODULE,
 		.of_match_table	= gpio_wdt_dt_ids,
 	},
 	.probe	= gpio_wdt_probe,
 	.remove	= gpio_wdt_remove,
 };
+
+#ifdef CONFIG_GPIO_WATCHDOG_ARCH_INITCALL
+static int __init gpio_wdt_init(void)
+{
+	return platform_driver_register(&gpio_wdt_driver);
+}
+arch_initcall(gpio_wdt_init);
+#else
 module_platform_driver(gpio_wdt_driver);
+#endif
 
 MODULE_AUTHOR("Alexander Shiyan <shc_work@mail.ru>");
 MODULE_DESCRIPTION("GPIO Watchdog");

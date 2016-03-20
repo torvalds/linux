@@ -1,23 +1,54 @@
+#include <sched.h>
 #include "util.h"
 #include "../perf.h"
 #include "cloexec.h"
 #include "asm/bug.h"
+#include "debug.h"
 
 static unsigned long flag = PERF_FLAG_FD_CLOEXEC;
+
+#ifdef __GLIBC_PREREQ
+#if !__GLIBC_PREREQ(2, 6)
+int __weak sched_getcpu(void)
+{
+	errno = ENOSYS;
+	return -1;
+}
+#endif
+#endif
 
 static int perf_flag_probe(void)
 {
 	/* use 'safest' configuration as used in perf_evsel__fallback() */
 	struct perf_event_attr attr = {
-		.type = PERF_COUNT_SW_CPU_CLOCK,
+		.type = PERF_TYPE_SOFTWARE,
 		.config = PERF_COUNT_SW_CPU_CLOCK,
+		.exclude_kernel = 1,
 	};
 	int fd;
 	int err;
+	int cpu;
+	pid_t pid = -1;
+	char sbuf[STRERR_BUFSIZE];
 
-	/* check cloexec flag */
-	fd = sys_perf_event_open(&attr, 0, -1, -1,
-				 PERF_FLAG_FD_CLOEXEC);
+	cpu = sched_getcpu();
+	if (cpu < 0)
+		cpu = 0;
+
+	/*
+	 * Using -1 for the pid is a workaround to avoid gratuitous jump label
+	 * changes.
+	 */
+	while (1) {
+		/* check cloexec flag */
+		fd = sys_perf_event_open(&attr, pid, cpu, -1,
+					 PERF_FLAG_FD_CLOEXEC);
+		if (fd < 0 && pid == -1 && errno == EACCES) {
+			pid = 0;
+			continue;
+		}
+		break;
+	}
 	err = errno;
 
 	if (fd >= 0) {
@@ -25,20 +56,28 @@ static int perf_flag_probe(void)
 		return 1;
 	}
 
-	WARN_ONCE(err != EINVAL,
+	WARN_ONCE(err != EINVAL && err != EBUSY,
 		  "perf_event_open(..., PERF_FLAG_FD_CLOEXEC) failed with unexpected error %d (%s)\n",
-		  err, strerror(err));
+		  err, strerror_r(err, sbuf, sizeof(sbuf)));
 
 	/* not supported, confirm error related to PERF_FLAG_FD_CLOEXEC */
-	fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
+	while (1) {
+		fd = sys_perf_event_open(&attr, pid, cpu, -1, 0);
+		if (fd < 0 && pid == -1 && errno == EACCES) {
+			pid = 0;
+			continue;
+		}
+		break;
+	}
 	err = errno;
 
-	if (WARN_ONCE(fd < 0,
-		      "perf_event_open(..., 0) failed unexpectedly with error %d (%s)\n",
-		      err, strerror(err)))
-		return -1;
+	if (fd >= 0)
+		close(fd);
 
-	close(fd);
+	if (WARN_ONCE(fd < 0 && err != EBUSY,
+		      "perf_event_open(..., 0) failed unexpectedly with error %d (%s)\n",
+		      err, strerror_r(err, sbuf, sizeof(sbuf))))
+		return -1;
 
 	return 0;
 }

@@ -198,6 +198,7 @@ static struct i2c_device_id ds1672_id[] = {
 	{ "ds1672", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, ds1672_id);
 
 static struct i2c_driver ds1672_driver = {
 	.driver = {

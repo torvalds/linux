@@ -6,7 +6,7 @@
  *
  * License 1: GPLv2
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  *
  * This file is free software; you may copy, redistribute and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@
  *
  * License 2: Modified BSD
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -125,9 +125,6 @@
 #define DMA_AXIAWCR			0x3018
 #define DMA_DSR0			0x3020
 #define DMA_DSR1			0x3024
-#define DMA_DSR2			0x3028
-#define DMA_DSR3			0x302c
-#define DMA_DSR4			0x3030
 
 /* DMA register entry bit positions and sizes */
 #define DMA_AXIARCR_DRC_INDEX		0
@@ -158,10 +155,6 @@
 #define DMA_AXIAWCR_TDC_WIDTH		4
 #define DMA_AXIAWCR_TDD_INDEX		28
 #define DMA_AXIAWCR_TDD_WIDTH		2
-#define DMA_DSR0_RPS_INDEX		8
-#define DMA_DSR0_RPS_WIDTH		4
-#define DMA_DSR0_TPS_INDEX		12
-#define DMA_DSR0_TPS_WIDTH		4
 #define DMA_ISR_MACIS_INDEX		17
 #define DMA_ISR_MACIS_WIDTH		1
 #define DMA_ISR_MTLIS_INDEX		16
@@ -174,6 +167,20 @@
 #define DMA_SBMR_BLEN_256_WIDTH		1
 #define DMA_SBMR_UNDEF_INDEX		0
 #define DMA_SBMR_UNDEF_WIDTH		1
+
+/* DMA register values */
+#define DMA_DSR_RPS_WIDTH		4
+#define DMA_DSR_TPS_WIDTH		4
+#define DMA_DSR_Q_WIDTH			(DMA_DSR_RPS_WIDTH + DMA_DSR_TPS_WIDTH)
+#define DMA_DSR0_RPS_START		8
+#define DMA_DSR0_TPS_START		12
+#define DMA_DSRX_FIRST_QUEUE		3
+#define DMA_DSRX_INC			4
+#define DMA_DSRX_QPR			4
+#define DMA_DSRX_RPS_START		0
+#define DMA_DSRX_TPS_START		4
+#define DMA_TPS_STOPPED			0x00
+#define DMA_TPS_SUSPENDED		0x06
 
 /* DMA channel register offsets
  *   Multiple channels can be active.  The first channel has registers
@@ -207,6 +214,8 @@
 /* DMA channel register entry bit positions and sizes */
 #define DMA_CH_CR_PBLX8_INDEX		16
 #define DMA_CH_CR_PBLX8_WIDTH		1
+#define DMA_CH_CR_SPH_INDEX		24
+#define DMA_CH_CR_SPH_WIDTH		1
 #define DMA_CH_IER_AIE_INDEX		15
 #define DMA_CH_IER_AIE_WIDTH		1
 #define DMA_CH_IER_FBEE_INDEX		12
@@ -271,7 +280,6 @@
 #define DMA_PBL_X8_DISABLE		0x00
 #define DMA_PBL_X8_ENABLE		0x01
 
-
 /* MAC register offsets */
 #define MAC_TCR				0x0000
 #define MAC_RCR				0x0004
@@ -307,6 +315,9 @@
 #define MAC_MACA0LR			0x0304
 #define MAC_MACA1HR			0x0308
 #define MAC_MACA1LR			0x030c
+#define MAC_RSSCR			0x0c80
+#define MAC_RSSAR			0x0c88
+#define MAC_RSSDR			0x0c8c
 #define MAC_TSCR			0x0d00
 #define MAC_SSIR			0x0d04
 #define MAC_STSR			0x0d08
@@ -354,6 +365,8 @@
 #define MAC_HWF0R_TXCOESEL_WIDTH	1
 #define MAC_HWF0R_VLHASH_INDEX		4
 #define MAC_HWF0R_VLHASH_WIDTH		1
+#define MAC_HWF1R_ADDR64_INDEX		14
+#define MAC_HWF1R_ADDR64_WIDTH		2
 #define MAC_HWF1R_ADVTHWORD_INDEX	13
 #define MAC_HWF1R_ADVTHWORD_WIDTH	1
 #define MAC_HWF1R_DBGMEMA_INDEX		19
@@ -430,6 +443,8 @@
 #define MAC_RCR_CST_WIDTH		1
 #define MAC_RCR_DCRCC_INDEX		3
 #define MAC_RCR_DCRCC_WIDTH		1
+#define MAC_RCR_HDSMS_INDEX		12
+#define MAC_RCR_HDSMS_WIDTH		3
 #define MAC_RCR_IPC_INDEX		9
 #define MAC_RCR_IPC_WIDTH		1
 #define MAC_RCR_JE_INDEX		8
@@ -446,6 +461,24 @@
 #define MAC_RFCR_UP_WIDTH		1
 #define MAC_RQC0R_RXQ0EN_INDEX		0
 #define MAC_RQC0R_RXQ0EN_WIDTH		2
+#define MAC_RSSAR_ADDRT_INDEX		2
+#define MAC_RSSAR_ADDRT_WIDTH		1
+#define MAC_RSSAR_CT_INDEX		1
+#define MAC_RSSAR_CT_WIDTH		1
+#define MAC_RSSAR_OB_INDEX		0
+#define MAC_RSSAR_OB_WIDTH		1
+#define MAC_RSSAR_RSSIA_INDEX		8
+#define MAC_RSSAR_RSSIA_WIDTH		8
+#define MAC_RSSCR_IP2TE_INDEX		1
+#define MAC_RSSCR_IP2TE_WIDTH		1
+#define MAC_RSSCR_RSSE_INDEX		0
+#define MAC_RSSCR_RSSE_WIDTH		1
+#define MAC_RSSCR_TCP4TE_INDEX		2
+#define MAC_RSSCR_TCP4TE_WIDTH		1
+#define MAC_RSSCR_UDP4TE_INDEX		3
+#define MAC_RSSCR_UDP4TE_WIDTH		1
+#define MAC_RSSDR_DMCH_INDEX		0
+#define MAC_RSSDR_DMCH_WIDTH		4
 #define MAC_SSIR_SNSINC_INDEX		8
 #define MAC_SSIR_SNSINC_WIDTH		8
 #define MAC_SSIR_SSINC_INDEX		16
@@ -735,17 +768,22 @@
 #define MTL_Q_TQDR			0x08
 #define MTL_Q_RQOMR			0x40
 #define MTL_Q_RQMPOCR			0x44
-#define MTL_Q_RQDR			0x4c
+#define MTL_Q_RQDR			0x48
+#define MTL_Q_RQFCR			0x50
 #define MTL_Q_IER			0x70
 #define MTL_Q_ISR			0x74
 
 /* MTL queue register entry bit positions and sizes */
+#define MTL_Q_RQDR_PRXQ_INDEX		16
+#define MTL_Q_RQDR_PRXQ_WIDTH		14
+#define MTL_Q_RQDR_RXQSTS_INDEX		4
+#define MTL_Q_RQDR_RXQSTS_WIDTH		2
+#define MTL_Q_RQFCR_RFA_INDEX		1
+#define MTL_Q_RQFCR_RFA_WIDTH		6
+#define MTL_Q_RQFCR_RFD_INDEX		17
+#define MTL_Q_RQFCR_RFD_WIDTH		6
 #define MTL_Q_RQOMR_EHFC_INDEX		7
 #define MTL_Q_RQOMR_EHFC_WIDTH		1
-#define MTL_Q_RQOMR_RFA_INDEX		8
-#define MTL_Q_RQOMR_RFA_WIDTH		3
-#define MTL_Q_RQOMR_RFD_INDEX		13
-#define MTL_Q_RQOMR_RFD_WIDTH		3
 #define MTL_Q_RQOMR_RQS_INDEX		16
 #define MTL_Q_RQOMR_RQS_WIDTH		9
 #define MTL_Q_RQOMR_RSF_INDEX		5
@@ -792,7 +830,6 @@
 #define MTL_Q_DISABLED			0x00
 #define MTL_Q_ENABLED			0x02
 
-
 /* MTL traffic class register offsets
  *   Multiple traffic classes can be active.  The first class has registers
  *   that begin at 0x1100.  Each subsequent queue has registers that
@@ -815,7 +852,6 @@
 #define MTL_TSA_SP			0x00
 #define MTL_TSA_ETS			0x02
 
-
 /* PCS MMD select register offset
  *  The MMD select register is used for accessing PCS registers
  *  when the underlying APB3 interface is using indirect addressing.
@@ -825,6 +861,47 @@
  */
 #define PCS_MMD_SELECT			0xff
 
+/* SerDes integration register offsets */
+#define SIR0_KR_RT_1			0x002c
+#define SIR0_STATUS			0x0040
+#define SIR1_SPEED			0x0000
+
+/* SerDes integration register entry bit positions and sizes */
+#define SIR0_KR_RT_1_RESET_INDEX	11
+#define SIR0_KR_RT_1_RESET_WIDTH	1
+#define SIR0_STATUS_RX_READY_INDEX	0
+#define SIR0_STATUS_RX_READY_WIDTH	1
+#define SIR0_STATUS_TX_READY_INDEX	8
+#define SIR0_STATUS_TX_READY_WIDTH	1
+#define SIR1_SPEED_CDR_RATE_INDEX	12
+#define SIR1_SPEED_CDR_RATE_WIDTH	4
+#define SIR1_SPEED_DATARATE_INDEX	4
+#define SIR1_SPEED_DATARATE_WIDTH	2
+#define SIR1_SPEED_PLLSEL_INDEX		3
+#define SIR1_SPEED_PLLSEL_WIDTH		1
+#define SIR1_SPEED_RATECHANGE_INDEX	6
+#define SIR1_SPEED_RATECHANGE_WIDTH	1
+#define SIR1_SPEED_TXAMP_INDEX		8
+#define SIR1_SPEED_TXAMP_WIDTH		4
+#define SIR1_SPEED_WORDMODE_INDEX	0
+#define SIR1_SPEED_WORDMODE_WIDTH	3
+
+/* SerDes RxTx register offsets */
+#define RXTX_REG6			0x0018
+#define RXTX_REG20			0x0050
+#define RXTX_REG22			0x0058
+#define RXTX_REG114			0x01c8
+#define RXTX_REG129			0x0204
+
+/* SerDes RxTx register entry bit positions and sizes */
+#define RXTX_REG6_RESETB_RXD_INDEX	8
+#define RXTX_REG6_RESETB_RXD_WIDTH	1
+#define RXTX_REG20_BLWC_ENA_INDEX	2
+#define RXTX_REG20_BLWC_ENA_WIDTH	1
+#define RXTX_REG114_PQ_REG_INDEX	9
+#define RXTX_REG114_PQ_REG_WIDTH	7
+#define RXTX_REG129_RXDFE_CONFIG_INDEX	14
+#define RXTX_REG129_RXDFE_CONFIG_WIDTH	2
 
 /* Descriptor/Packet entry bit positions and sizes */
 #define RX_PACKET_ERRORS_CRC_INDEX		2
@@ -848,9 +925,13 @@
 #define RX_PACKET_ATTRIBUTES_CONTEXT_WIDTH	1
 #define RX_PACKET_ATTRIBUTES_RX_TSTAMP_INDEX	5
 #define RX_PACKET_ATTRIBUTES_RX_TSTAMP_WIDTH	1
+#define RX_PACKET_ATTRIBUTES_RSS_HASH_INDEX	6
+#define RX_PACKET_ATTRIBUTES_RSS_HASH_WIDTH	1
 
 #define RX_NORMAL_DESC0_OVT_INDEX		0
 #define RX_NORMAL_DESC0_OVT_WIDTH		16
+#define RX_NORMAL_DESC2_HL_INDEX		0
+#define RX_NORMAL_DESC2_HL_WIDTH		10
 #define RX_NORMAL_DESC3_CDA_INDEX		27
 #define RX_NORMAL_DESC3_CDA_WIDTH		1
 #define RX_NORMAL_DESC3_CTXT_INDEX		30
@@ -859,14 +940,27 @@
 #define RX_NORMAL_DESC3_ES_WIDTH		1
 #define RX_NORMAL_DESC3_ETLT_INDEX		16
 #define RX_NORMAL_DESC3_ETLT_WIDTH		4
+#define RX_NORMAL_DESC3_FD_INDEX		29
+#define RX_NORMAL_DESC3_FD_WIDTH		1
 #define RX_NORMAL_DESC3_INTE_INDEX		30
 #define RX_NORMAL_DESC3_INTE_WIDTH		1
+#define RX_NORMAL_DESC3_L34T_INDEX		20
+#define RX_NORMAL_DESC3_L34T_WIDTH		4
 #define RX_NORMAL_DESC3_LD_INDEX		28
 #define RX_NORMAL_DESC3_LD_WIDTH		1
 #define RX_NORMAL_DESC3_OWN_INDEX		31
 #define RX_NORMAL_DESC3_OWN_WIDTH		1
 #define RX_NORMAL_DESC3_PL_INDEX		0
 #define RX_NORMAL_DESC3_PL_WIDTH		14
+#define RX_NORMAL_DESC3_RSV_INDEX		26
+#define RX_NORMAL_DESC3_RSV_WIDTH		1
+
+#define RX_DESC3_L34T_IPV4_TCP			1
+#define RX_DESC3_L34T_IPV4_UDP			2
+#define RX_DESC3_L34T_IPV4_ICMP			3
+#define RX_DESC3_L34T_IPV6_TCP			9
+#define RX_DESC3_L34T_IPV6_UDP			10
+#define RX_DESC3_L34T_IPV6_ICMP			11
 
 #define RX_CONTEXT_DESC3_TSA_INDEX		4
 #define RX_CONTEXT_DESC3_TSA_WIDTH		1
@@ -925,10 +1019,46 @@
 #define TX_NORMAL_DESC2_VLAN_INSERT		0x2
 
 /* MDIO undefined or vendor specific registers */
+#ifndef MDIO_PMA_10GBR_PMD_CTRL
+#define MDIO_PMA_10GBR_PMD_CTRL		0x0096
+#endif
+
+#ifndef MDIO_PMA_10GBR_FECCTRL
+#define MDIO_PMA_10GBR_FECCTRL		0x00ab
+#endif
+
+#ifndef MDIO_AN_XNP
+#define MDIO_AN_XNP			0x0016
+#endif
+
+#ifndef MDIO_AN_LPX
+#define MDIO_AN_LPX			0x0019
+#endif
+
 #ifndef MDIO_AN_COMP_STAT
 #define MDIO_AN_COMP_STAT		0x0030
 #endif
 
+#ifndef MDIO_AN_INTMASK
+#define MDIO_AN_INTMASK			0x8001
+#endif
+
+#ifndef MDIO_AN_INT
+#define MDIO_AN_INT			0x8002
+#endif
+
+#ifndef MDIO_CTRL1_SPEED1G
+#define MDIO_CTRL1_SPEED1G		(MDIO_CTRL1_SPEED10G & ~BMCR_SPEED100)
+#endif
+
+/* MDIO mask values */
+#define XGBE_XNP_MCF_NULL_MESSAGE	0x001
+#define XGBE_XNP_ACK_PROCESSED		BIT(12)
+#define XGBE_XNP_MP_FORMATTED		BIT(13)
+#define XGBE_XNP_NP_EXCHANGE		BIT(15)
+
+#define XGBE_KR_TRAINING_START		BIT(0)
+#define XGBE_KR_TRAINING_ENABLE		BIT(1)
 
 /* Bit setting and getting macros
  *  The get macro will extract the current bit field value from within
@@ -956,7 +1086,6 @@ do {									\
 	(_var) |= cpu_to_le32((((_val) &				\
 			      ((0x1 << (_width)) - 1)) << (_index)));	\
 } while (0)
-
 
 /* Bit setting and getting macros based on register fields
  *  The get macro uses the bit field definitions formed using the input
@@ -986,7 +1115,6 @@ do {									\
 		 _prefix##_##_field##_INDEX,				\
 		 _prefix##_##_field##_WIDTH, (_val))
 
-
 /* Macros for reading or writing registers
  *  The ioread macros will get bit fields or full values using the
  *  register definitions formed using the input names
@@ -1014,7 +1142,6 @@ do {									\
 	XGMAC_IOWRITE((_pdata), _reg, reg_val);				\
 } while (0)
 
-
 /* Macros for reading or writing MTL queue or traffic class registers
  *  Similar to the standard read and write macros except that the
  *  base register value is calculated by the queue or traffic class number
@@ -1041,7 +1168,6 @@ do {									\
 	XGMAC_MTL_IOWRITE((_pdata), (_n), _reg, reg_val);		\
 } while (0)
 
-
 /* Macros for reading or writing DMA channel registers
  *  Similar to the standard read and write macros except that the
  *  base register value is obtained from the ring
@@ -1066,7 +1192,6 @@ do {									\
 	XGMAC_DMA_IOWRITE((_channel), _reg, reg_val);			\
 } while (0)
 
-
 /* Macros for building, reading or writing register values or bits
  * within the register values of XPCS registers.
  */
@@ -1076,6 +1201,81 @@ do {									\
 #define XPCS_IOREAD(_pdata, _off)					\
 	ioread32((_pdata)->xpcs_regs + (_off))
 
+/* Macros for building, reading or writing register values or bits
+ * within the register values of SerDes integration registers.
+ */
+#define XSIR_GET_BITS(_var, _prefix, _field)                            \
+	GET_BITS((_var),                                                \
+		 _prefix##_##_field##_INDEX,                            \
+		 _prefix##_##_field##_WIDTH)
+
+#define XSIR_SET_BITS(_var, _prefix, _field, _val)                      \
+	SET_BITS((_var),                                                \
+		 _prefix##_##_field##_INDEX,                            \
+		 _prefix##_##_field##_WIDTH, (_val))
+
+#define XSIR0_IOREAD(_pdata, _reg)					\
+	ioread16((_pdata)->sir0_regs + _reg)
+
+#define XSIR0_IOREAD_BITS(_pdata, _reg, _field)				\
+	GET_BITS(XSIR0_IOREAD((_pdata), _reg),				\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH)
+
+#define XSIR0_IOWRITE(_pdata, _reg, _val)				\
+	iowrite16((_val), (_pdata)->sir0_regs + _reg)
+
+#define XSIR0_IOWRITE_BITS(_pdata, _reg, _field, _val)			\
+do {									\
+	u16 reg_val = XSIR0_IOREAD((_pdata), _reg);			\
+	SET_BITS(reg_val,						\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH, (_val));			\
+	XSIR0_IOWRITE((_pdata), _reg, reg_val);				\
+} while (0)
+
+#define XSIR1_IOREAD(_pdata, _reg)					\
+	ioread16((_pdata)->sir1_regs + _reg)
+
+#define XSIR1_IOREAD_BITS(_pdata, _reg, _field)				\
+	GET_BITS(XSIR1_IOREAD((_pdata), _reg),				\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH)
+
+#define XSIR1_IOWRITE(_pdata, _reg, _val)				\
+	iowrite16((_val), (_pdata)->sir1_regs + _reg)
+
+#define XSIR1_IOWRITE_BITS(_pdata, _reg, _field, _val)			\
+do {									\
+	u16 reg_val = XSIR1_IOREAD((_pdata), _reg);			\
+	SET_BITS(reg_val,						\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH, (_val));			\
+	XSIR1_IOWRITE((_pdata), _reg, reg_val);				\
+} while (0)
+
+/* Macros for building, reading or writing register values or bits
+ * within the register values of SerDes RxTx registers.
+ */
+#define XRXTX_IOREAD(_pdata, _reg)					\
+	ioread16((_pdata)->rxtx_regs + _reg)
+
+#define XRXTX_IOREAD_BITS(_pdata, _reg, _field)				\
+	GET_BITS(XRXTX_IOREAD((_pdata), _reg),				\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH)
+
+#define XRXTX_IOWRITE(_pdata, _reg, _val)				\
+	iowrite16((_val), (_pdata)->rxtx_regs + _reg)
+
+#define XRXTX_IOWRITE_BITS(_pdata, _reg, _field, _val)			\
+do {									\
+	u16 reg_val = XRXTX_IOREAD((_pdata), _reg);			\
+	SET_BITS(reg_val,						\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH, (_val));			\
+	XRXTX_IOWRITE((_pdata), _reg, reg_val);				\
+} while (0)
 
 /* Macros for building, reading or writing register values or bits
  * using MDIO.  Different from above because of the use of standardized

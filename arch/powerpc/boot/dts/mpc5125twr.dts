@@ -246,6 +246,14 @@
 			status = "disabled";
 		};
 
+		sclpc@10100 {
+			compatible = "fsl,mpc512x-lpbfifo";
+			reg = <0x10100 0x50>;
+			interrupts = <7 0x8>;
+			dmas = <&dma0 26>;
+			dma-names = "rx-tx";
+		};
+
 		// 5125 PSCs are not 52xx or 5121 PSC compatible
 		// PSC1 uart0 aka ttyPSC0
 		serial@11100 {
@@ -279,10 +287,11 @@
 			clock-names = "ipg";
 		};
 
-		dma@14000 {
+		dma0: dma@14000 {
 			compatible = "fsl,mpc5121-dma"; // BSP name: "mpc512x-dma2"
 			reg = <0x14000 0x1800>;
 			interrupts = <65 0x8>;
+			#dma-cells = <1>;
 		};
 	};
 };

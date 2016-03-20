@@ -73,20 +73,24 @@ int bcmgenet_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & ~(WAKE_MAGIC | WAKE_MAGICSECURE))
 		return -EINVAL;
 
+	reg = bcmgenet_umac_readl(priv, UMAC_MPD_CTRL);
 	if (wol->wolopts & WAKE_MAGICSECURE) {
 		bcmgenet_umac_writel(priv, get_unaligned_be16(&wol->sopass[0]),
 				     UMAC_MPD_PW_MS);
 		bcmgenet_umac_writel(priv, get_unaligned_be32(&wol->sopass[2]),
 				     UMAC_MPD_PW_LS);
-		reg = bcmgenet_umac_readl(priv, UMAC_MPD_CTRL);
 		reg |= MPD_PW_EN;
-		bcmgenet_umac_writel(priv, reg, UMAC_MPD_CTRL);
+	} else {
+		reg &= ~MPD_PW_EN;
 	}
+	bcmgenet_umac_writel(priv, reg, UMAC_MPD_CTRL);
 
 	/* Flag the device and relevant IRQ as wakeup capable */
 	if (wol->wolopts) {
 		device_set_wakeup_enable(kdev, 1);
-		enable_irq_wake(priv->wol_irq);
+		/* Avoid unbalanced enable_irq_wake calls */
+		if (priv->wol_irq_disabled)
+			enable_irq_wake(priv->wol_irq);
 		priv->wol_irq_disabled = false;
 	} else {
 		device_set_wakeup_enable(kdev, 0);

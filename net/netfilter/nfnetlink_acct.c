@@ -27,8 +27,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
 MODULE_DESCRIPTION("nfacct: Extended Netfilter accounting infrastructure");
 
-static LIST_HEAD(nfnl_acct_list);
-
 struct nf_acct {
 	atomic64_t		pkts;
 	atomic64_t		bytes;
@@ -40,12 +38,17 @@ struct nf_acct {
 	char			data[0];
 };
 
+struct nfacct_filter {
+	u32 value;
+	u32 mask;
+};
+
 #define NFACCT_F_QUOTA (NFACCT_F_QUOTA_PKTS | NFACCT_F_QUOTA_BYTES)
 #define NFACCT_OVERQUOTA_BIT	2	/* NFACCT_F_OVERQUOTA */
 
-static int
-nfnl_acct_new(struct sock *nfnl, struct sk_buff *skb,
-	     const struct nlmsghdr *nlh, const struct nlattr * const tb[])
+static int nfnl_acct_new(struct net *net, struct sock *nfnl,
+			 struct sk_buff *skb, const struct nlmsghdr *nlh,
+			 const struct nlattr * const tb[])
 {
 	struct nf_acct *nfacct, *matching = NULL;
 	char *acct_name;
@@ -59,7 +62,7 @@ nfnl_acct_new(struct sock *nfnl, struct sk_buff *skb,
 	if (strlen(acct_name) == 0)
 		return -EINVAL;
 
-	list_for_each_entry(nfacct, &nfnl_acct_list, head) {
+	list_for_each_entry(nfacct, &net->nfnl_acct_list, head) {
 		if (strncmp(nfacct->name, acct_name, NFACCT_NAME_MAX) != 0)
 			continue;
 
@@ -119,7 +122,7 @@ nfnl_acct_new(struct sock *nfnl, struct sk_buff *skb,
 			     be64_to_cpu(nla_get_be64(tb[NFACCT_PKTS])));
 	}
 	atomic_set(&nfacct->refcnt, 1);
-	list_add_tail_rcu(&nfacct->head, &nfnl_acct_list);
+	list_add_tail_rcu(&nfacct->head, &net->nfnl_acct_list);
 	return 0;
 }
 
@@ -180,7 +183,9 @@ nla_put_failure:
 static int
 nfnl_acct_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = sock_net(skb->sk);
 	struct nf_acct *cur, *last;
+	const struct nfacct_filter *filter = cb->data;
 
 	if (cb->args[2])
 		return 0;
@@ -190,13 +195,17 @@ nfnl_acct_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		cb->args[1] = 0;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(cur, &nfnl_acct_list, head) {
+	list_for_each_entry_rcu(cur, &net->nfnl_acct_list, head) {
 		if (last) {
 			if (cur != last)
 				continue;
 
 			last = NULL;
 		}
+
+		if (filter && (cur->flags & filter->mask) != filter->value)
+			continue;
+
 		if (nfnl_acct_fill_info(skb, NETLINK_CB(cb->skb).portid,
 				       cb->nlh->nlmsg_seq,
 				       NFNL_MSG_TYPE(cb->nlh->nlmsg_type),
@@ -211,9 +220,44 @@ nfnl_acct_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-static int
-nfnl_acct_get(struct sock *nfnl, struct sk_buff *skb,
-	     const struct nlmsghdr *nlh, const struct nlattr * const tb[])
+static int nfnl_acct_done(struct netlink_callback *cb)
+{
+	kfree(cb->data);
+	return 0;
+}
+
+static const struct nla_policy filter_policy[NFACCT_FILTER_MAX + 1] = {
+	[NFACCT_FILTER_MASK]	= { .type = NLA_U32 },
+	[NFACCT_FILTER_VALUE]	= { .type = NLA_U32 },
+};
+
+static struct nfacct_filter *
+nfacct_filter_alloc(const struct nlattr * const attr)
+{
+	struct nfacct_filter *filter;
+	struct nlattr *tb[NFACCT_FILTER_MAX + 1];
+	int err;
+
+	err = nla_parse_nested(tb, NFACCT_FILTER_MAX, attr, filter_policy);
+	if (err < 0)
+		return ERR_PTR(err);
+
+	if (!tb[NFACCT_FILTER_MASK] || !tb[NFACCT_FILTER_VALUE])
+		return ERR_PTR(-EINVAL);
+
+	filter = kzalloc(sizeof(struct nfacct_filter), GFP_KERNEL);
+	if (!filter)
+		return ERR_PTR(-ENOMEM);
+
+	filter->mask = ntohl(nla_get_be32(tb[NFACCT_FILTER_MASK]));
+	filter->value = ntohl(nla_get_be32(tb[NFACCT_FILTER_VALUE]));
+
+	return filter;
+}
+
+static int nfnl_acct_get(struct net *net, struct sock *nfnl,
+			 struct sk_buff *skb, const struct nlmsghdr *nlh,
+			 const struct nlattr * const tb[])
 {
 	int ret = -ENOENT;
 	struct nf_acct *cur;
@@ -222,7 +266,18 @@ nfnl_acct_get(struct sock *nfnl, struct sk_buff *skb,
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
 			.dump = nfnl_acct_dump,
+			.done = nfnl_acct_done,
 		};
+
+		if (tb[NFACCT_FILTER]) {
+			struct nfacct_filter *filter;
+
+			filter = nfacct_filter_alloc(tb[NFACCT_FILTER]);
+			if (IS_ERR(filter))
+				return PTR_ERR(filter);
+
+			c.data = filter;
+		}
 		return netlink_dump_start(nfnl, skb, nlh, &c);
 	}
 
@@ -230,7 +285,7 @@ nfnl_acct_get(struct sock *nfnl, struct sk_buff *skb,
 		return -EINVAL;
 	acct_name = nla_data(tb[NFACCT_NAME]);
 
-	list_for_each_entry(cur, &nfnl_acct_list, head) {
+	list_for_each_entry(cur, &net->nfnl_acct_list, head) {
 		struct sk_buff *skb2;
 
 		if (strncmp(cur->name, acct_name, NFACCT_NAME_MAX)!= 0)
@@ -279,23 +334,23 @@ static int nfnl_acct_try_del(struct nf_acct *cur)
 	return ret;
 }
 
-static int
-nfnl_acct_del(struct sock *nfnl, struct sk_buff *skb,
-	     const struct nlmsghdr *nlh, const struct nlattr * const tb[])
+static int nfnl_acct_del(struct net *net, struct sock *nfnl,
+			 struct sk_buff *skb, const struct nlmsghdr *nlh,
+			 const struct nlattr * const tb[])
 {
 	char *acct_name;
 	struct nf_acct *cur;
 	int ret = -ENOENT;
 
 	if (!tb[NFACCT_NAME]) {
-		list_for_each_entry(cur, &nfnl_acct_list, head)
+		list_for_each_entry(cur, &net->nfnl_acct_list, head)
 			nfnl_acct_try_del(cur);
 
 		return 0;
 	}
 	acct_name = nla_data(tb[NFACCT_NAME]);
 
-	list_for_each_entry(cur, &nfnl_acct_list, head) {
+	list_for_each_entry(cur, &net->nfnl_acct_list, head) {
 		if (strncmp(cur->name, acct_name, NFACCT_NAME_MAX) != 0)
 			continue;
 
@@ -314,6 +369,7 @@ static const struct nla_policy nfnl_acct_policy[NFACCT_MAX+1] = {
 	[NFACCT_PKTS] = { .type = NLA_U64 },
 	[NFACCT_FLAGS] = { .type = NLA_U32 },
 	[NFACCT_QUOTA] = { .type = NLA_U64 },
+	[NFACCT_FILTER] = {.type = NLA_NESTED },
 };
 
 static const struct nfnl_callback nfnl_acct_cb[NFNL_MSG_ACCT_MAX] = {
@@ -340,12 +396,12 @@ static const struct nfnetlink_subsystem nfnl_acct_subsys = {
 
 MODULE_ALIAS_NFNL_SUBSYS(NFNL_SUBSYS_ACCT);
 
-struct nf_acct *nfnl_acct_find_get(const char *acct_name)
+struct nf_acct *nfnl_acct_find_get(struct net *net, const char *acct_name)
 {
 	struct nf_acct *cur, *acct = NULL;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(cur, &nfnl_acct_list, head) {
+	list_for_each_entry_rcu(cur, &net->nfnl_acct_list, head) {
 		if (strncmp(cur->name, acct_name, NFACCT_NAME_MAX)!= 0)
 			continue;
 
@@ -368,7 +424,9 @@ EXPORT_SYMBOL_GPL(nfnl_acct_find_get);
 
 void nfnl_acct_put(struct nf_acct *acct)
 {
-	atomic_dec(&acct->refcnt);
+	if (atomic_dec_and_test(&acct->refcnt))
+		kfree_rcu(acct, rcu_head);
+
 	module_put(THIS_MODULE);
 }
 EXPORT_SYMBOL_GPL(nfnl_acct_put);
@@ -424,34 +482,59 @@ int nfnl_acct_overquota(const struct sk_buff *skb, struct nf_acct *nfacct)
 }
 EXPORT_SYMBOL_GPL(nfnl_acct_overquota);
 
+static int __net_init nfnl_acct_net_init(struct net *net)
+{
+	INIT_LIST_HEAD(&net->nfnl_acct_list);
+
+	return 0;
+}
+
+static void __net_exit nfnl_acct_net_exit(struct net *net)
+{
+	struct nf_acct *cur, *tmp;
+
+	list_for_each_entry_safe(cur, tmp, &net->nfnl_acct_list, head) {
+		list_del_rcu(&cur->head);
+
+		if (atomic_dec_and_test(&cur->refcnt))
+			kfree_rcu(cur, rcu_head);
+	}
+}
+
+static struct pernet_operations nfnl_acct_ops = {
+        .init   = nfnl_acct_net_init,
+        .exit   = nfnl_acct_net_exit,
+};
+
 static int __init nfnl_acct_init(void)
 {
 	int ret;
+
+	ret = register_pernet_subsys(&nfnl_acct_ops);
+	if (ret < 0) {
+		pr_err("nfnl_acct_init: failed to register pernet ops\n");
+		goto err_out;
+	}
 
 	pr_info("nfnl_acct: registering with nfnetlink.\n");
 	ret = nfnetlink_subsys_register(&nfnl_acct_subsys);
 	if (ret < 0) {
 		pr_err("nfnl_acct_init: cannot register with nfnetlink.\n");
-		goto err_out;
+		goto cleanup_pernet;
 	}
 	return 0;
+
+cleanup_pernet:
+	unregister_pernet_subsys(&nfnl_acct_ops);
 err_out:
 	return ret;
 }
 
 static void __exit nfnl_acct_exit(void)
 {
-	struct nf_acct *cur, *tmp;
-
 	pr_info("nfnl_acct: unregistering from nfnetlink.\n");
 	nfnetlink_subsys_unregister(&nfnl_acct_subsys);
-
-	list_for_each_entry_safe(cur, tmp, &nfnl_acct_list, head) {
-		list_del_rcu(&cur->head);
-		/* We are sure that our objects have no clients at this point,
-		 * it's safe to release them all without checking refcnt. */
-		kfree_rcu(cur, rcu_head);
-	}
+	unregister_pernet_subsys(&nfnl_acct_ops);
 }
 
 module_init(nfnl_acct_init);

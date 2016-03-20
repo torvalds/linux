@@ -199,7 +199,7 @@ int main(int argc, const char *argv[])
 	}
 
 	get_cpu_info(0, &cpupower_cpu_info);
-	run_as_root = !getuid();
+	run_as_root = !geteuid();
 	if (run_as_root) {
 		ret = uname(&uts);
 		if (!ret && !strcmp(uts.machine, "x86_64") &&

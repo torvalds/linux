@@ -13,7 +13,7 @@
 #include "k2hk.dtsi"
 
 / {
-	compatible =  "ti,k2hk-evm","ti,keystone";
+	compatible =  "ti,k2hk-evm", "ti,k2hk", "ti,keystone";
 	model = "Texas Instruments Keystone 2 Kepler/Hawking EVM";
 
 	soc {
@@ -169,6 +169,7 @@
 };
 
 &mdio {
+	status = "ok";
 	ethphy0: ethernet-phy@0 {
 		compatible = "marvell,88E1111", "ethernet-phy-ieee802.3-c22";
 		reg = <0>;

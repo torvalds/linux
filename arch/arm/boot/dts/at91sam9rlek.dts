@@ -13,7 +13,8 @@
 	compatible = "atmel,at91sam9rlek", "atmel,at91sam9rl", "atmel,at91sam9";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 rootfstype=ubifs root=ubi0:rootfs ubi.mtd=5 rw";
+		bootargs = "rootfstype=ubifs root=ubi0:rootfs ubi.mtd=5 rw";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -21,15 +22,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		main_clock: clock {
-			compatible = "atmel,osc", "fixed-clock";
-			clock-frequency = <12000000>;
-		};
-
 		slow_xtal {
 			clock-frequency = <32768>;
 		};
@@ -181,13 +173,11 @@
 				};
 			};
 
-			pmc: pmc@fffffc00 {
-				main: mainck {
-					clock-frequency = <12000000>;
-				};
+			watchdog@fffffd40 {
+				status = "okay";
 			};
 
-			watchdog@fffffd40 {
+			rtc@fffffe00 {
 				status = "okay";
 			};
 		};
@@ -226,14 +216,14 @@
 			label = "right_click";
 			gpios = <&pioB 0 GPIO_ACTIVE_LOW>;
 			linux,code = <273>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		left_click {
 			label = "left_click";
 			gpios = <&pioB 1 GPIO_ACTIVE_LOW>;
 			linux,code = <272>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

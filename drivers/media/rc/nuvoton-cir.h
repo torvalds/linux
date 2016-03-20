@@ -35,9 +35,6 @@
 static int debug;
 
 
-#define nvt_pr(level, text, ...) \
-	printk(level KBUILD_MODNAME ": " text, ## __VA_ARGS__)
-
 #define nvt_dbg(text, ...) \
 	if (debug) \
 		printk(KERN_DEBUG \
@@ -63,6 +60,22 @@ static int debug;
  */
 #define TX_BUF_LEN 256
 #define RX_BUF_LEN 32
+
+#define SIO_ID_MASK 0xfff0
+
+enum nvt_chip_ver {
+	NVT_UNKNOWN	= 0,
+	NVT_W83667HG	= 0xa510,
+	NVT_6775F	= 0xb470,
+	NVT_6776F	= 0xc330,
+	NVT_6779D	= 0xc560,
+	NVT_INVALID	= 0xffff,
+};
+
+struct nvt_chip {
+	const char *name;
+	enum nvt_chip_ver chip_ver;
+};
 
 struct nvt_dev {
 	struct pnp_dev *pdev;
@@ -93,6 +106,7 @@ struct nvt_dev {
 	int cir_irq;
 	int cir_wake_irq;
 
+	enum nvt_chip_ver chip_ver;
 	/* hardware id */
 	u8 chip_major;
 	u8 chip_minor;
@@ -144,8 +158,8 @@ struct nvt_dev {
 /* total length of CIR and CIR WAKE */
 #define CIR_IOREG_LENGTH	0x0f
 
-/* RX limit length, 8 high bits for SLCH, 8 low bits for SLCL (0x7d0 = 2000) */
-#define CIR_RX_LIMIT_COUNT	0x7d0
+/* RX limit length, 8 high bits for SLCH, 8 low bits for SLCL */
+#define CIR_RX_LIMIT_COUNT  (IR_DEFAULT_TIMEOUT / US_TO_NS(SAMPLE_PERIOD))
 
 /* CIR Regs */
 #define CIR_IRCON	0x00
@@ -279,10 +293,7 @@ struct nvt_dev {
 #define CIR_WAKE_IREN_RTR		0x40
 #define CIR_WAKE_IREN_PE		0x20
 #define CIR_WAKE_IREN_RFO		0x10
-#define CIR_WAKE_IREN_TE		0x08
-#define CIR_WAKE_IREN_TTR		0x04
-#define CIR_WAKE_IREN_TFU		0x02
-#define CIR_WAKE_IREN_GH		0x01
+#define CIR_WAKE_IREN_GH		0x08
 
 /* CIR WAKE FIFOCON settings */
 #define CIR_WAKE_FIFOCON_RXFIFOCLR	0x08
@@ -325,15 +336,6 @@ struct nvt_dev {
 /* Extended Function Mode enable/disable magic values */
 #define EFER_EFM_ENABLE		0x87
 #define EFER_EFM_DISABLE	0xaa
-
-/* Chip IDs found in CR_CHIP_ID_{HI,LO} */
-#define CHIP_ID_HIGH_667	0xa5
-#define CHIP_ID_HIGH_677B	0xb4
-#define CHIP_ID_HIGH_677C	0xc3
-#define CHIP_ID_LOW_667		0x13
-#define CHIP_ID_LOW_677B2	0x72
-#define CHIP_ID_LOW_677B3	0x73
-#define CHIP_ID_LOW_677C	0x33
 
 /* Config regs we need to care about */
 #define CR_SOFTWARE_RESET	0x02
@@ -415,3 +417,6 @@ struct nvt_dev {
 /* as VISTA MCE definition, valid carrier value */
 #define MAX_CARRIER 60000
 #define MIN_CARRIER 30000
+
+/* max wakeup sequence length */
+#define WAKEUP_MAX_SIZE 65

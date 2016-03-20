@@ -295,7 +295,6 @@ static void ltv350qv_shutdown(struct spi_device *spi)
 static struct spi_driver ltv350qv_driver = {
 	.driver = {
 		.name		= "ltv350qv",
-		.owner		= THIS_MODULE,
 		.pm		= &ltv350qv_pm_ops,
 	},
 

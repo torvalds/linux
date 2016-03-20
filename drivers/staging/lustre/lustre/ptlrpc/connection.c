@@ -41,8 +41,8 @@
 
 #include "ptlrpc_internal.h"
 
-static struct cfs_hash *conn_hash = NULL;
-static cfs_hash_ops_t conn_hash_ops;
+static struct cfs_hash *conn_hash;
+static struct cfs_hash_ops conn_hash_ops;
 
 struct ptlrpc_connection *
 ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
@@ -52,9 +52,9 @@ ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
 
 	conn = cfs_hash_lookup(conn_hash, &peer);
 	if (conn)
-		GOTO(out, conn);
+		goto out;
 
-	OBD_ALLOC_PTR(conn);
+	conn = kzalloc(sizeof(*conn), GFP_NOFS);
 	if (!conn)
 		return NULL;
 
@@ -72,11 +72,12 @@ ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
 	 * returned and may be compared against out object.
 	 */
 	/* In the function below, .hs_keycmp resolves to
-	 * conn_keycmp() */
+	 * conn_keycmp()
+	 */
 	/* coverity[overrun-buffer-val] */
 	conn2 = cfs_hash_findadd_unique(conn_hash, &peer, &conn->c_hash);
 	if (conn != conn2) {
-		OBD_FREE_PTR(conn);
+		kfree(conn);
 		conn = conn2;
 	}
 out:
@@ -172,8 +173,8 @@ conn_keycmp(const void *key, struct hlist_node *hnode)
 	struct ptlrpc_connection *conn;
 	const lnet_process_id_t *conn_key;
 
-	LASSERT(key != NULL);
-	conn_key = (lnet_process_id_t*)key;
+	LASSERT(key);
+	conn_key = key;
 	conn = hlist_entry(hnode, struct ptlrpc_connection, c_hash);
 
 	return conn_key->nid == conn->c_peer.nid &&
@@ -184,6 +185,7 @@ static void *
 conn_key(struct hlist_node *hnode)
 {
 	struct ptlrpc_connection *conn;
+
 	conn = hlist_entry(hnode, struct ptlrpc_connection, c_hash);
 	return &conn->c_peer;
 }
@@ -226,15 +228,15 @@ conn_exit(struct cfs_hash *hs, struct hlist_node *hnode)
 	LASSERTF(atomic_read(&conn->c_refcount) == 0,
 		 "Busy connection with %d refs\n",
 		 atomic_read(&conn->c_refcount));
-	OBD_FREE_PTR(conn);
+	kfree(conn);
 }
 
-static cfs_hash_ops_t conn_hash_ops = {
+static struct cfs_hash_ops conn_hash_ops = {
 	.hs_hash	= conn_hashfn,
 	.hs_keycmp      = conn_keycmp,
-	.hs_key	 = conn_key,
+	.hs_key		= conn_key,
 	.hs_object      = conn_object,
-	.hs_get	 = conn_get,
+	.hs_get		= conn_get,
 	.hs_put_locked  = conn_put_locked,
 	.hs_exit	= conn_exit,
 };

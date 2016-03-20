@@ -316,7 +316,6 @@ static struct platform_driver lp8788_rtc_driver = {
 	.probe = lp8788_rtc_probe,
 	.driver = {
 		.name = LP8788_DEV_RTC,
-		.owner = THIS_MODULE,
 	},
 };
 module_platform_driver(lp8788_rtc_driver);

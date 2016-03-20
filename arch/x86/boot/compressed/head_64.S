@@ -31,6 +31,7 @@
 #include <asm/msr.h>
 #include <asm/processor-flags.h>
 #include <asm/asm-offsets.h>
+#include <asm/bootparam.h>
 
 	__HEAD
 	.code32
@@ -46,7 +47,7 @@ ENTRY(startup_32)
 	 * Test KEEP_SEGMENTS flag to see if the bootloader is asking
 	 * us to not reload segments
 	 */
-	testb $(1<<6), BP_loadflags(%esi)
+	testb $KEEP_SEGMENTS, BP_loadflags(%esi)
 	jnz 1f
 
 	cli
@@ -164,7 +165,7 @@ ENTRY(startup_32)
 	/* After gdt is loaded */
 	xorl	%eax, %eax
 	lldt	%ax
-	movl    $0x20, %eax
+	movl    $__BOOT_TSS, %eax
 	ltr	%ax
 
 	/*
@@ -402,13 +403,16 @@ relocated:
  * Do the decompression, and jump to the new kernel..
  */
 	pushq	%rsi			/* Save the real mode argument */
+	movq	$z_run_size, %r9	/* size of kernel with .bss and .brk */
+	pushq	%r9
 	movq	%rsi, %rdi		/* real mode address */
 	leaq	boot_heap(%rip), %rsi	/* malloc area for uncompression */
 	leaq	input_data(%rip), %rdx  /* input_data */
 	movl	$z_input_len, %ecx	/* input_len */
 	movq	%rbp, %r8		/* output target address */
-	movq	$z_output_len, %r9	/* decompressed length */
+	movq	$z_output_len, %r9	/* decompressed length, end of relocs */
 	call	decompress_kernel	/* returns kernel location in %rax */
+	popq	%r9
 	popq	%rsi
 
 /*

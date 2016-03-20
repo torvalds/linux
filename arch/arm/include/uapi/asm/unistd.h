@@ -412,6 +412,12 @@
 #define __NR_seccomp			(__NR_SYSCALL_BASE+383)
 #define __NR_getrandom			(__NR_SYSCALL_BASE+384)
 #define __NR_memfd_create		(__NR_SYSCALL_BASE+385)
+#define __NR_bpf			(__NR_SYSCALL_BASE+386)
+#define __NR_execveat			(__NR_SYSCALL_BASE+387)
+#define __NR_userfaultfd		(__NR_SYSCALL_BASE+388)
+#define __NR_membarrier			(__NR_SYSCALL_BASE+389)
+#define __NR_mlock2			(__NR_SYSCALL_BASE+390)
+#define __NR_copy_file_range		(__NR_SYSCALL_BASE+391)
 
 /*
  * The following SWIs are ARM private.

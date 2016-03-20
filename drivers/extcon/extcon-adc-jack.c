@@ -29,7 +29,6 @@
  * struct adc_jack_data - internal data for adc_jack device driver
  * @edev:		extcon device.
  * @cable_names:	list of supported cables.
- * @num_cables:		size of cable_names.
  * @adc_conditions:	list of adc value conditions.
  * @num_conditions:	size of adc_conditions.
  * @irq:		irq number of attach/detach event (0 if not exist).
@@ -41,8 +40,7 @@
 struct adc_jack_data {
 	struct extcon_dev *edev;
 
-	const char **cable_names;
-	int num_cables;
+	const unsigned int **cable_names;
 	struct adc_jack_cond *adc_conditions;
 	int num_conditions;
 
@@ -112,17 +110,6 @@ static int adc_jack_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to allocate extcon device\n");
 		return -ENOMEM;
 	}
-	data->edev->name = pdata->name;
-
-	/* Check the length of array and set num_cables */
-	for (i = 0; data->edev->supported_cable[i]; i++)
-		;
-	if (i == 0 || i > SUPPORTED_CABLE_MAX) {
-		dev_err(&pdev->dev, "error: pdata->cable_names size = %d\n",
-				i - 1);
-		return -EINVAL;
-	}
-	data->num_cables = i;
 
 	if (!pdata->adc_conditions ||
 			!pdata->adc_conditions[0].state) {
@@ -173,6 +160,7 @@ static int adc_jack_remove(struct platform_device *pdev)
 
 	free_irq(data->irq, data);
 	cancel_work_sync(&data->handler.work);
+	iio_channel_release(data->chan);
 
 	return 0;
 }
@@ -182,7 +170,6 @@ static struct platform_driver adc_jack_driver = {
 	.remove         = adc_jack_remove,
 	.driver         = {
 		.name   = "adc-jack",
-		.owner  = THIS_MODULE,
 	},
 };
 

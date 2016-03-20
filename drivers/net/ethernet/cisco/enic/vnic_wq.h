@@ -62,6 +62,7 @@ struct vnic_wq_buf {
 	uint8_t cq_entry; /* Gets completion event from hw */
 	uint8_t desc_skip_cnt; /* Num descs to occupy */
 	uint8_t compressed_send; /* Both hdr and payload in one desc */
+	struct vnic_wq_buf *prev;
 };
 
 /* Break the vnic_wq_buf allocations into blocks of 32/64 entries */
@@ -87,6 +88,18 @@ struct vnic_wq {
 	unsigned int pkts_outstanding;
 };
 
+struct devcmd2_controller {
+	struct vnic_wq_ctrl __iomem *wq_ctrl;
+	struct vnic_devcmd2 *cmd_ring;
+	struct devcmd2_result *result;
+	u16 next_result;
+	u16 result_size;
+	int color;
+	struct vnic_dev_ring results_ring;
+	struct vnic_wq wq;
+	u32 posted;
+};
+
 static inline unsigned int vnic_wq_desc_avail(struct vnic_wq *wq)
 {
 	/* how many does SW own? */
@@ -102,6 +115,17 @@ static inline unsigned int vnic_wq_desc_used(struct vnic_wq *wq)
 static inline void *vnic_wq_next_desc(struct vnic_wq *wq)
 {
 	return wq->to_use->desc;
+}
+
+static inline void vnic_wq_doorbell(struct vnic_wq *wq)
+{
+	/* Adding write memory barrier prevents compiler and/or CPU
+	 * reordering, thus avoiding descriptor posting before
+	 * descriptor is initialized. Otherwise, hardware can read
+	 * stale descriptor fields.
+	 */
+	wmb();
+	iowrite32(wq->to_use->index, &wq->ctrl->posted_index);
 }
 
 static inline void vnic_wq_post(struct vnic_wq *wq,
@@ -122,15 +146,6 @@ static inline void vnic_wq_post(struct vnic_wq *wq,
 	buf->wr_id = wrid;
 
 	buf = buf->next;
-	if (eop) {
-		/* Adding write memory barrier prevents compiler and/or CPU
-		 * reordering, thus avoiding descriptor posting before
-		 * descriptor is initialized. Otherwise, hardware can read
-		 * stale descriptor fields.
-		 */
-		wmb();
-		iowrite32(buf->index, &wq->ctrl->posted_index);
-	}
 	wq->to_use = buf;
 
 	wq->ring.desc_avail -= desc_skip_cnt;
@@ -171,5 +186,11 @@ void vnic_wq_enable(struct vnic_wq *wq);
 int vnic_wq_disable(struct vnic_wq *wq);
 void vnic_wq_clean(struct vnic_wq *wq,
 	void (*buf_clean)(struct vnic_wq *wq, struct vnic_wq_buf *buf));
+int enic_wq_devcmd2_alloc(struct vnic_dev *vdev, struct vnic_wq *wq,
+			  unsigned int desc_count, unsigned int desc_size);
+void enic_wq_init_start(struct vnic_wq *wq, unsigned int cq_index,
+			unsigned int fetch_index, unsigned int posted_index,
+			unsigned int error_interrupt_enable,
+			unsigned int error_interrupt_offset);
 
 #endif /* _VNIC_WQ_H_ */

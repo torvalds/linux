@@ -153,7 +153,7 @@ struct cfi_ident {
 	uint16_t MaxBufWriteSize;
 	uint8_t  NumEraseRegions;
 	uint32_t EraseRegionInfo[0]; /* Not host ordered */
-} __attribute__((packed));
+} __packed;
 
 /* Extended Query Structure for both PRI and ALT */
 
@@ -161,7 +161,7 @@ struct cfi_extquery {
 	uint8_t  pri[3];
 	uint8_t  MajorVersion;
 	uint8_t  MinorVersion;
-} __attribute__((packed));
+} __packed;
 
 /* Vendor-Specific PRI for Intel/Sharp Extended Command Set (0x0001) */
 
@@ -180,7 +180,7 @@ struct cfi_pri_intelext {
 	uint8_t  FactProtRegSize;
 	uint8_t  UserProtRegSize;
 	uint8_t  extra[0];
-} __attribute__((packed));
+} __packed;
 
 struct cfi_intelext_otpinfo {
 	uint32_t ProtRegAddr;
@@ -188,7 +188,7 @@ struct cfi_intelext_otpinfo {
 	uint8_t  FactProtRegSize;
 	uint16_t UserGroups;
 	uint8_t  UserProtRegSize;
-} __attribute__((packed));
+} __packed;
 
 struct cfi_intelext_blockinfo {
 	uint16_t NumIdentBlocks;
@@ -196,7 +196,7 @@ struct cfi_intelext_blockinfo {
 	uint16_t MinBlockEraseCycles;
 	uint8_t  BitsPerCell;
 	uint8_t  BlockCap;
-} __attribute__((packed));
+} __packed;
 
 struct cfi_intelext_regioninfo {
 	uint16_t NumIdentPartitions;
@@ -205,7 +205,7 @@ struct cfi_intelext_regioninfo {
 	uint8_t  NumOpAllowedSimEraMode;
 	uint8_t  NumBlockTypes;
 	struct cfi_intelext_blockinfo BlockTypes[1];
-} __attribute__((packed));
+} __packed;
 
 struct cfi_intelext_programming_regioninfo {
 	uint8_t  ProgRegShift;
@@ -214,7 +214,7 @@ struct cfi_intelext_programming_regioninfo {
 	uint8_t  Reserved2;
 	uint8_t  ControlInvalid;
 	uint8_t  Reserved3;
-} __attribute__((packed));
+} __packed;
 
 /* Vendor-Specific PRI for AMD/Fujitsu Extended Command Set (0x0002) */
 
@@ -233,7 +233,7 @@ struct cfi_pri_amdstd {
 	uint8_t  VppMin;
 	uint8_t  VppMax;
 	uint8_t  TopBottom;
-} __attribute__((packed));
+} __packed;
 
 /* Vendor-Specific PRI for Atmel chips (command set 0x0002) */
 
@@ -245,18 +245,18 @@ struct cfi_pri_atmel {
 	uint8_t BottomBoot;
 	uint8_t BurstMode;
 	uint8_t PageMode;
-} __attribute__((packed));
+} __packed;
 
 struct cfi_pri_query {
 	uint8_t  NumFields;
 	uint32_t ProtField[1]; /* Not host ordered */
-} __attribute__((packed));
+} __packed;
 
 struct cfi_bri_query {
 	uint8_t  PageModeReadCap;
 	uint8_t  NumFields;
 	uint32_t ConfField[1]; /* Not host ordered */
-} __attribute__((packed));
+} __packed;
 
 #define P_ID_NONE               0x0000
 #define P_ID_INTEL_EXT          0x0001
@@ -296,183 +296,19 @@ struct cfi_private {
 	struct flchip chips[0];  /* per-chip data structure for each chip */
 };
 
-/*
- * Returns the command address according to the given geometry.
- */
-static inline uint32_t cfi_build_cmd_addr(uint32_t cmd_ofs,
-				struct map_info *map, struct cfi_private *cfi)
-{
-	unsigned bankwidth = map_bankwidth(map);
-	unsigned interleave = cfi_interleave(cfi);
-	unsigned type = cfi->device_type;
-	uint32_t addr;
-	
-	addr = (cmd_ofs * type) * interleave;
+uint32_t cfi_build_cmd_addr(uint32_t cmd_ofs,
+				struct map_info *map, struct cfi_private *cfi);
 
-	/* Modify the unlock address if we are in compatibility mode.
-	 * For 16bit devices on 8 bit busses
-	 * and 32bit devices on 16 bit busses
-	 * set the low bit of the alternating bit sequence of the address.
-	 */
-	if (((type * interleave) > bankwidth) && ((cmd_ofs & 0xff) == 0xaa))
-		addr |= (type >> 1)*interleave;
-
-	return  addr;
-}
-
-/*
- * Transforms the CFI command for the given geometry (bus width & interleave).
- * It looks too long to be inline, but in the common case it should almost all
- * get optimised away.
- */
-static inline map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cfi_private *cfi)
-{
-	map_word val = { {0} };
-	int wordwidth, words_per_bus, chip_mode, chips_per_word;
-	unsigned long onecmd;
-	int i;
-
-	/* We do it this way to give the compiler a fighting chance
-	   of optimising away all the crap for 'bankwidth' larger than
-	   an unsigned long, in the common case where that support is
-	   disabled */
-	if (map_bankwidth_is_large(map)) {
-		wordwidth = sizeof(unsigned long);
-		words_per_bus = (map_bankwidth(map)) / wordwidth; // i.e. normally 1
-	} else {
-		wordwidth = map_bankwidth(map);
-		words_per_bus = 1;
-	}
-
-	chip_mode = map_bankwidth(map) / cfi_interleave(cfi);
-	chips_per_word = wordwidth * cfi_interleave(cfi) / map_bankwidth(map);
-
-	/* First, determine what the bit-pattern should be for a single
-	   device, according to chip mode and endianness... */
-	switch (chip_mode) {
-	default: BUG();
-	case 1:
-		onecmd = cmd;
-		break;
-	case 2:
-		onecmd = cpu_to_cfi16(map, cmd);
-		break;
-	case 4:
-		onecmd = cpu_to_cfi32(map, cmd);
-		break;
-	}
-
-	/* Now replicate it across the size of an unsigned long, or
-	   just to the bus width as appropriate */
-	switch (chips_per_word) {
-	default: BUG();
-#if BITS_PER_LONG >= 64
-	case 8:
-		onecmd |= (onecmd << (chip_mode * 32));
-#endif
-	case 4:
-		onecmd |= (onecmd << (chip_mode * 16));
-	case 2:
-		onecmd |= (onecmd << (chip_mode * 8));
-	case 1:
-		;
-	}
-
-	/* And finally, for the multi-word case, replicate it
-	   in all words in the structure */
-	for (i=0; i < words_per_bus; i++) {
-		val.x[i] = onecmd;
-	}
-
-	return val;
-}
+map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cfi_private *cfi);
 #define CMD(x)  cfi_build_cmd((x), map, cfi)
 
-
-static inline unsigned long cfi_merge_status(map_word val, struct map_info *map,
-					   struct cfi_private *cfi)
-{
-	int wordwidth, words_per_bus, chip_mode, chips_per_word;
-	unsigned long onestat, res = 0;
-	int i;
-
-	/* We do it this way to give the compiler a fighting chance
-	   of optimising away all the crap for 'bankwidth' larger than
-	   an unsigned long, in the common case where that support is
-	   disabled */
-	if (map_bankwidth_is_large(map)) {
-		wordwidth = sizeof(unsigned long);
-		words_per_bus = (map_bankwidth(map)) / wordwidth; // i.e. normally 1
-	} else {
-		wordwidth = map_bankwidth(map);
-		words_per_bus = 1;
-	}
-
-	chip_mode = map_bankwidth(map) / cfi_interleave(cfi);
-	chips_per_word = wordwidth * cfi_interleave(cfi) / map_bankwidth(map);
-
-	onestat = val.x[0];
-	/* Or all status words together */
-	for (i=1; i < words_per_bus; i++) {
-		onestat |= val.x[i];
-	}
-
-	res = onestat;
-	switch(chips_per_word) {
-	default: BUG();
-#if BITS_PER_LONG >= 64
-	case 8:
-		res |= (onestat >> (chip_mode * 32));
-#endif
-	case 4:
-		res |= (onestat >> (chip_mode * 16));
-	case 2:
-		res |= (onestat >> (chip_mode * 8));
-	case 1:
-		;
-	}
-
-	/* Last, determine what the bit-pattern should be for a single
-	   device, according to chip mode and endianness... */
-	switch (chip_mode) {
-	case 1:
-		break;
-	case 2:
-		res = cfi16_to_cpu(map, res);
-		break;
-	case 4:
-		res = cfi32_to_cpu(map, res);
-		break;
-	default: BUG();
-	}
-	return res;
-}
-
+unsigned long cfi_merge_status(map_word val, struct map_info *map,
+					   struct cfi_private *cfi);
 #define MERGESTATUS(x) cfi_merge_status((x), map, cfi)
 
-
-/*
- * Sends a CFI command to a bank of flash for the given geometry.
- *
- * Returns the offset in flash where the command was written.
- * If prev_val is non-null, it will be set to the value at the command address,
- * before the command was written.
- */
-static inline uint32_t cfi_send_gen_cmd(u_char cmd, uint32_t cmd_addr, uint32_t base,
+uint32_t cfi_send_gen_cmd(u_char cmd, uint32_t cmd_addr, uint32_t base,
 				struct map_info *map, struct cfi_private *cfi,
-				int type, map_word *prev_val)
-{
-	map_word val;
-	uint32_t addr = base + cfi_build_cmd_addr(cmd_addr, map, cfi);
-	val = cfi_build_cmd(cmd, map, cfi);
-
-	if (prev_val)
-		*prev_val = map_read(map, addr);
-
-	map_write(map, val, addr);
-
-	return addr - base;
-}
+				int type, map_word *prev_val);
 
 static inline uint8_t cfi_read_query(struct map_info *map, uint32_t addr)
 {
@@ -506,15 +342,7 @@ static inline uint16_t cfi_read_query16(struct map_info *map, uint32_t addr)
 	}
 }
 
-static inline void cfi_udelay(int us)
-{
-	if (us >= 1000) {
-		msleep((us+999)/1000);
-	} else {
-		udelay(us);
-		cond_resched();
-	}
-}
+void cfi_udelay(int us);
 
 int __xipram cfi_qry_present(struct map_info *map, __u32 base,
 			     struct cfi_private *cfi);

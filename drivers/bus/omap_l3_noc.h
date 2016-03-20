@@ -1,7 +1,7 @@
 /*
  * OMAP L3 Interconnect  error handling driver header
  *
- * Copyright (C) 2011-2014 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011-2015 Texas Instruments Incorporated - http://www.ti.com/
  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
  *	sricharan <r.sricharan@ti.com>
  *
@@ -175,59 +175,85 @@ static struct l3_flagmux_data omap_l3_flagmux_clk2 = {
 };
 
 
-static struct l3_target_data omap_l3_target_data_clk3[] = {
-	{0x0100, "EMUSS",},
-	{0x0300, "DEBUG SOURCE",},
-	{0x0,	"HOST CLK3",},
+static struct l3_target_data omap4_l3_target_data_clk3[] = {
+	{0x0100, "DEBUGSS",},
 };
 
-static struct l3_flagmux_data omap_l3_flagmux_clk3 = {
+static struct l3_flagmux_data omap4_l3_flagmux_clk3 = {
 	.offset = 0x0200,
-	.l3_targ = omap_l3_target_data_clk3,
-	.num_targ_data = ARRAY_SIZE(omap_l3_target_data_clk3),
+	.l3_targ = omap4_l3_target_data_clk3,
+	.num_targ_data = ARRAY_SIZE(omap4_l3_target_data_clk3),
 };
 
 static struct l3_masters_data omap_l3_masters[] = {
-	{ 0x0 , "MPU"},
-	{ 0x10, "CS_ADP"},
-	{ 0x14, "xxx"},
-	{ 0x20, "DSP"},
-	{ 0x30, "IVAHD"},
-	{ 0x40, "ISS"},
-	{ 0x44, "DucatiM3"},
-	{ 0x48, "FaceDetect"},
-	{ 0x50, "SDMA_Rd"},
-	{ 0x54, "SDMA_Wr"},
-	{ 0x58, "xxx"},
-	{ 0x5C, "xxx"},
-	{ 0x60, "SGX"},
-	{ 0x70, "DSS"},
-	{ 0x80, "C2C"},
-	{ 0x88, "xxx"},
-	{ 0x8C, "xxx"},
-	{ 0x90, "HSI"},
-	{ 0xA0, "MMC1"},
-	{ 0xA4, "MMC2"},
-	{ 0xA8, "MMC6"},
-	{ 0xB0, "UNIPRO1"},
-	{ 0xC0, "USBHOSTHS"},
-	{ 0xC4, "USBOTGHS"},
-	{ 0xC8, "USBHOSTFS"}
+	{ 0x00, "MPU"},
+	{ 0x04, "CS_ADP"},
+	{ 0x05, "xxx"},
+	{ 0x08, "DSP"},
+	{ 0x0C, "IVAHD"},
+	{ 0x10, "ISS"},
+	{ 0x11, "DucatiM3"},
+	{ 0x12, "FaceDetect"},
+	{ 0x14, "SDMA_Rd"},
+	{ 0x15, "SDMA_Wr"},
+	{ 0x16, "xxx"},
+	{ 0x17, "xxx"},
+	{ 0x18, "SGX"},
+	{ 0x1C, "DSS"},
+	{ 0x20, "C2C"},
+	{ 0x22, "xxx"},
+	{ 0x23, "xxx"},
+	{ 0x24, "HSI"},
+	{ 0x28, "MMC1"},
+	{ 0x29, "MMC2"},
+	{ 0x2A, "MMC6"},
+	{ 0x2C, "UNIPRO1"},
+	{ 0x30, "USBHOSTHS"},
+	{ 0x31, "USBOTGHS"},
+	{ 0x32, "USBHOSTFS"}
 };
 
-static struct l3_flagmux_data *omap_l3_flagmux[] = {
+static struct l3_flagmux_data *omap4_l3_flagmux[] = {
 	&omap_l3_flagmux_clk1,
 	&omap_l3_flagmux_clk2,
-	&omap_l3_flagmux_clk3,
+	&omap4_l3_flagmux_clk3,
 };
 
-static const struct omap_l3 omap_l3_data = {
-	.l3_flagmux = omap_l3_flagmux,
-	.num_modules = ARRAY_SIZE(omap_l3_flagmux),
+static const struct omap_l3 omap4_l3_data = {
+	.l3_flagmux = omap4_l3_flagmux,
+	.num_modules = ARRAY_SIZE(omap4_l3_flagmux),
 	.l3_masters = omap_l3_masters,
 	.num_masters = ARRAY_SIZE(omap_l3_masters),
 	/* The 6 MSBs of register field used to distinguish initiator */
 	.mst_addr_mask = 0xFC,
+};
+
+/* OMAP5 data */
+static struct l3_target_data omap5_l3_target_data_clk3[] = {
+	{0x0100, "L3INSTR",},
+	{0x0300, "DEBUGSS",},
+	{0x0,	 "HOSTCLK3",},
+};
+
+static struct l3_flagmux_data omap5_l3_flagmux_clk3 = {
+	.offset = 0x0200,
+	.l3_targ = omap5_l3_target_data_clk3,
+	.num_targ_data = ARRAY_SIZE(omap5_l3_target_data_clk3),
+};
+
+static struct l3_flagmux_data *omap5_l3_flagmux[] = {
+	&omap_l3_flagmux_clk1,
+	&omap_l3_flagmux_clk2,
+	&omap5_l3_flagmux_clk3,
+};
+
+static const struct omap_l3 omap5_l3_data = {
+	.l3_flagmux = omap5_l3_flagmux,
+	.num_modules = ARRAY_SIZE(omap5_l3_flagmux),
+	.l3_masters = omap_l3_masters,
+	.num_masters = ARRAY_SIZE(omap_l3_masters),
+	/* The 6 MSBs of register field used to distinguish initiator */
+	.mst_addr_mask = 0x7E0,
 };
 
 /* DRA7 data */
@@ -274,7 +300,7 @@ static struct l3_flagmux_data dra_l3_flagmux_clk1 = {
 
 static struct l3_target_data dra_l3_target_data_clk2[] = {
 	{0x0,	"HOST CLK1",},
-	{0x0,	"HOST CLK2",},
+	{0x800000, "HOST CLK2",},
 	{0xdead, L3_TARGET_NOT_SUPPORTED,},
 	{0x3400, "SHA2_2",},
 	{0x0900, "BB2D",},

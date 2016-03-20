@@ -18,6 +18,25 @@
 
 #include "vxge-ethtool.h"
 
+static const char ethtool_driver_stats_keys[][ETH_GSTRING_LEN] = {
+	{"\n DRIVER STATISTICS"},
+	{"vpaths_opened"},
+	{"vpath_open_fail_cnt"},
+	{"link_up_cnt"},
+	{"link_down_cnt"},
+	{"tx_frms"},
+	{"tx_errors"},
+	{"tx_bytes"},
+	{"txd_not_free"},
+	{"txd_out_of_desc"},
+	{"rx_frms"},
+	{"rx_errors"},
+	{"rx_bytes"},
+	{"rx_mcast"},
+	{"pci_map_fail_cnt"},
+	{"skb_alloc_fail_cnt"}
+};
+
 /**
  * vxge_ethtool_sset - Sets different link parameters.
  * @dev: device pointer.
@@ -86,10 +105,6 @@ static void vxge_ethtool_gdrvinfo(struct net_device *dev,
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->fw_version, vdev->fw_version, sizeof(info->fw_version));
 	strlcpy(info->bus_info, pci_name(vdev->pdev), sizeof(info->bus_info));
-	info->regdump_len = sizeof(struct vxge_hw_vpath_reg)
-				* vdev->no_of_vpath;
-
-	info->n_stats = STAT_LEN;
 }
 
 /**

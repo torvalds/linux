@@ -1,14 +1,10 @@
-
 #ifdef __KERNEL__
 # include <linux/slab.h>
+# include <linux/crush/crush.h>
 #else
-# include <stdlib.h>
-# include <assert.h>
-# define kfree(x) do { if (x) free(x); } while (0)
-# define BUG_ON(x) assert(!(x))
+# include "crush_compat.h"
+# include "crush.h"
 #endif
-
-#include <linux/crush/crush.h>
 
 const char *crush_bucket_alg_name(int alg)
 {
@@ -17,6 +13,7 @@ const char *crush_bucket_alg_name(int alg)
 	case CRUSH_BUCKET_LIST: return "list";
 	case CRUSH_BUCKET_TREE: return "tree";
 	case CRUSH_BUCKET_STRAW: return "straw";
+	case CRUSH_BUCKET_STRAW2: return "straw2";
 	default: return "unknown";
 	}
 }
@@ -40,6 +37,8 @@ int crush_get_bucket_item_weight(const struct crush_bucket *b, int p)
 		return ((struct crush_bucket_tree *)b)->node_weights[crush_calc_tree_node(p)];
 	case CRUSH_BUCKET_STRAW:
 		return ((struct crush_bucket_straw *)b)->item_weights[p];
+	case CRUSH_BUCKET_STRAW2:
+		return ((struct crush_bucket_straw2 *)b)->item_weights[p];
 	}
 	return 0;
 }
@@ -77,6 +76,14 @@ void crush_destroy_bucket_straw(struct crush_bucket_straw *b)
 	kfree(b);
 }
 
+void crush_destroy_bucket_straw2(struct crush_bucket_straw2 *b)
+{
+	kfree(b->item_weights);
+	kfree(b->h.perm);
+	kfree(b->h.items);
+	kfree(b);
+}
+
 void crush_destroy_bucket(struct crush_bucket *b)
 {
 	switch (b->alg) {
@@ -91,6 +98,9 @@ void crush_destroy_bucket(struct crush_bucket *b)
 		break;
 	case CRUSH_BUCKET_STRAW:
 		crush_destroy_bucket_straw((struct crush_bucket_straw *)b);
+		break;
+	case CRUSH_BUCKET_STRAW2:
+		crush_destroy_bucket_straw2((struct crush_bucket_straw2 *)b);
 		break;
 	}
 }
@@ -120,6 +130,9 @@ void crush_destroy(struct crush_map *map)
 		kfree(map->rules);
 	}
 
+#ifndef __KERNEL__
+	kfree(map->choose_tries);
+#endif
 	kfree(map);
 }
 

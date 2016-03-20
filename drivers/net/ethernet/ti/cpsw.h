@@ -15,6 +15,7 @@
 #define __CPSW_H__
 
 #include <linux/if_ether.h>
+#include <linux/phy.h>
 
 struct cpsw_slave_data {
 	char		phy_id[MII_BUS_ID_SIZE];
@@ -40,5 +41,6 @@ struct cpsw_platform_data {
 };
 
 void cpsw_phy_sel(struct device *dev, phy_interface_t phy_mode, int slave);
+int ti_cm_get_macid(struct device *dev, int slave, u8 *mac_addr);
 
 #endif /* __CPSW_H__ */

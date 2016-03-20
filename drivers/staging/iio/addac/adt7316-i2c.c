@@ -21,7 +21,7 @@
 static int adt7316_i2c_read(void *client, u8 reg, u8 *data)
 {
 	struct i2c_client *cl = client;
-	int ret = 0;
+	int ret;
 
 	ret = i2c_smbus_write_byte(cl, reg);
 	if (ret < 0) {
@@ -124,7 +124,6 @@ static struct i2c_driver adt7316_driver = {
 	.driver = {
 		.name = "adt7316",
 		.pm = ADT7316_PM_OPS,
-		.owner  = THIS_MODULE,
 	},
 	.probe = adt7316_i2c_probe,
 	.id_table = adt7316_i2c_id,

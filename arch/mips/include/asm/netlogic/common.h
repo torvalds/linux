@@ -57,8 +57,8 @@
 #include <asm/mach-netlogic/multi-node.h>
 
 struct irq_desc;
-void nlm_smp_function_ipi_handler(unsigned int irq, struct irq_desc *desc);
-void nlm_smp_resched_ipi_handler(unsigned int irq, struct irq_desc *desc);
+void nlm_smp_function_ipi_handler(struct irq_desc *desc);
+void nlm_smp_resched_ipi_handler(struct irq_desc *desc);
 void nlm_smp_irq_init(int hwcpuid);
 void nlm_boot_secondary_cpus(void);
 int nlm_wakeup_secondary_cpus(void);
@@ -111,6 +111,25 @@ static inline int nlm_irq_to_xirq(int node, int irq)
 	return node * NR_IRQS / NLM_NR_NODES + irq;
 }
 
-extern int nlm_cpu_ready[];
+#ifdef CONFIG_CPU_XLR
+#define nlm_cores_per_node()	8
+#else
+static inline int nlm_cores_per_node(void)
+{
+	return ((read_c0_prid() & PRID_IMP_MASK)
+				== PRID_IMP_NETLOGIC_XLP9XX) ? 32 : 8;
+}
 #endif
+static inline int nlm_threads_per_node(void)
+{
+	return nlm_cores_per_node() * NLM_THREADS_PER_CORE;
+}
+
+static inline int nlm_hwtid_to_node(int hwtid)
+{
+	return hwtid / nlm_threads_per_node();
+}
+
+extern int nlm_cpu_ready[];
+#endif /* __ASSEMBLY__ */
 #endif /* _NETLOGIC_COMMON_H_ */

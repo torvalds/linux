@@ -207,8 +207,7 @@ static void emu8k_pcm_timer_func(unsigned long data)
 	rec->last_ptr = ptr;
 
 	/* reprogram timer */
-	rec->timer.expires = jiffies + 1;
-	add_timer(&rec->timer);
+	mod_timer(&rec->timer, jiffies + 1);
 
 	/* update period */
 	if (rec->period_pos >= (int)rec->period_size) {
@@ -240,9 +239,7 @@ static int emu8k_pcm_open(struct snd_pcm_substream *subs)
 	runtime->private_data = rec;
 
 	spin_lock_init(&rec->timer_lock);
-	init_timer(&rec->timer);
-	rec->timer.function = emu8k_pcm_timer_func;
-	rec->timer.data = (unsigned long)rec;
+	setup_timer(&rec->timer, emu8k_pcm_timer_func, (unsigned long)rec);
 
 	runtime->hw = emu8k_pcm_hw;
 	runtime->hw.buffer_bytes_max = emu->mem_size - LOOP_BLANK_SIZE * 3;
@@ -359,8 +356,7 @@ static void start_voice(struct snd_emu8k_pcm *rec, int ch)
 	/* start timer */
 	spin_lock_irqsave(&rec->timer_lock, flags);
 	if (! rec->timer_running) {
-		rec->timer.expires = jiffies + 1;
-		add_timer(&rec->timer);
+		mod_timer(&rec->timer, jiffies + 1);
 		rec->timer_running = 1;
 	}
 	spin_unlock_irqrestore(&rec->timer_lock, flags);

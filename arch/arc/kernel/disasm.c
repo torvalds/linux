@@ -15,7 +15,7 @@
 #include <linux/uaccess.h>
 #include <asm/disasm.h>
 
-#if defined(CONFIG_KGDB) || defined(CONFIG_ARC_MISALIGN_ACCESS) || \
+#if defined(CONFIG_KGDB) || defined(CONFIG_ARC_EMUL_UNALIGNED) || \
 	defined(CONFIG_KPROBES)
 
 /* disasm_instr: Analyses instruction at addr, stores
@@ -535,4 +535,4 @@ int __kprobes disasm_next_pc(unsigned long pc, struct pt_regs *regs,
 	return instr.is_branch;
 }
 
-#endif /* CONFIG_KGDB || CONFIG_ARC_MISALIGN_ACCESS || CONFIG_KPROBES */
+#endif /* CONFIG_KGDB || CONFIG_ARC_EMUL_UNALIGNED || CONFIG_KPROBES */

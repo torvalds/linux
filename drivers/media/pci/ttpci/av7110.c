@@ -26,7 +26,7 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org/ 
+ * the project's page is at https://linuxtv.org
  */
 
 
@@ -235,7 +235,7 @@ static void recover_arm(struct av7110 *av7110)
 
 	restart_feeds(av7110);
 
-#if IS_ENABLED(CONFIG_INPUT_EVDEV)
+#if IS_ENABLED(CONFIG_DVB_AV7110_IR)
 	av7110_check_ir_config(av7110, true);
 #endif
 }
@@ -268,7 +268,7 @@ static int arm_thread(void *data)
 		if (!av7110->arm_ready)
 			continue;
 
-#if IS_ENABLED(CONFIG_INPUT_EVDEV)
+#if IS_ENABLED(CONFIG_DVB_AV7110_IR)
 		av7110_check_ir_config(av7110, false);
 #endif
 
@@ -303,7 +303,6 @@ static int arm_thread(void *data)
 static int DvbDmxFilterCallback(u8 *buffer1, size_t buffer1_len,
 				u8 *buffer2, size_t buffer2_len,
 				struct dvb_demux_filter *dvbdmxfilter,
-				enum dmx_success success,
 				struct av7110 *av7110)
 {
 	if (!dvbdmxfilter->feed->demux->dmx.frontend)
@@ -329,16 +328,14 @@ static int DvbDmxFilterCallback(u8 *buffer1, size_t buffer1_len,
 		}
 		return dvbdmxfilter->feed->cb.sec(buffer1, buffer1_len,
 						  buffer2, buffer2_len,
-						  &dvbdmxfilter->filter,
-						  DMX_OK);
+						  &dvbdmxfilter->filter);
 	case DMX_TYPE_TS:
 		if (!(dvbdmxfilter->feed->ts_type & TS_PACKET))
 			return 0;
 		if (dvbdmxfilter->feed->ts_type & TS_PAYLOAD_ONLY)
 			return dvbdmxfilter->feed->cb.ts(buffer1, buffer1_len,
 							 buffer2, buffer2_len,
-							 &dvbdmxfilter->feed->feed.ts,
-							 DMX_OK);
+							 &dvbdmxfilter->feed->feed.ts);
 		else
 			av7110_p2t_write(buffer1, buffer1_len,
 					 dvbdmxfilter->feed->pid,
@@ -422,7 +419,7 @@ static void debiirq(unsigned long cookie)
 			DvbDmxFilterCallback((u8 *)av7110->debi_virt,
 					     av7110->debilen, NULL, 0,
 					     av7110->handle2filter[handle],
-					     DMX_OK, av7110);
+					     av7110);
 		xfer = RX_BUFF;
 		break;
 
@@ -1172,7 +1169,7 @@ static int dvb_get_stc(struct dmx_demux *demux, unsigned int num,
  ******************************************************************************/
 
 
-static int av7110_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
+static int av7110_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 {
 	struct av7110* av7110 = fe->dvb->priv;
 
@@ -1197,7 +1194,7 @@ static int av7110_diseqc_send_master_cmd(struct dvb_frontend* fe,
 }
 
 static int av7110_diseqc_send_burst(struct dvb_frontend* fe,
-				    fe_sec_mini_cmd_t minicmd)
+				    enum fe_sec_mini_cmd minicmd)
 {
 	struct av7110* av7110 = fe->dvb->priv;
 
@@ -1219,11 +1216,14 @@ static int stop_ts_capture(struct av7110 *budget)
 
 static int start_ts_capture(struct av7110 *budget)
 {
+	unsigned y;
+
 	dprintk(2, "budget: %p\n", budget);
 
 	if (budget->feeding1)
 		return ++budget->feeding1;
-	memset(budget->grabbing, 0x00, TS_BUFLEN);
+	for (y = 0; y < TS_HEIGHT; y++)
+		memset(budget->grabbing + y * TS_WIDTH, 0x00, TS_WIDTH);
 	budget->ttbp = 0;
 	SAA7146_ISR_CLEAR(budget->dev, MASK_10);  /* VPE */
 	SAA7146_IER_ENABLE(budget->dev, MASK_10); /* VPE */
@@ -1358,7 +1358,7 @@ static int av7110_register(struct av7110 *av7110)
 
 #ifdef CONFIG_DVB_AV7110_OSD
 	dvb_register_device(&av7110->dvb_adapter, &av7110->osd_dev,
-			    &dvbdev_osd, av7110, DVB_DEVICE_OSD);
+			    &dvbdev_osd, av7110, DVB_DEVICE_OSD, 0);
 #endif
 
 	dvb_net_init(&av7110->dvb_adapter, &av7110->dvb_net, &dvbdemux->dmx);
@@ -1537,7 +1537,7 @@ static int get_firmware(struct av7110* av7110)
 			printk(KERN_ERR "dvb-ttpci: usually this should be in "
 			       "/usr/lib/hotplug/firmware or /lib/firmware\n");
 			printk(KERN_ERR "dvb-ttpci: and can be downloaded from"
-			       " http://www.linuxtv.org/download/dvb/firmware/\n");
+			       " https://linuxtv.org/download/dvb/firmware/\n");
 		} else
 			printk(KERN_ERR "dvb-ttpci: cannot request firmware"
 			       " (error %i)\n", ret);
@@ -1739,7 +1739,7 @@ static int alps_tdlb7_request_firmware(struct dvb_frontend* fe, const struct fir
 #endif
 }
 
-static struct sp8870_config alps_tdlb7_config = {
+static const struct sp8870_config alps_tdlb7_config = {
 
 	.demod_address = 0x71,
 	.request_firmware = alps_tdlb7_request_firmware,
@@ -1943,7 +1943,7 @@ static struct l64781_config grundig_29504_401_config = {
 
 
 
-static int av7110_fe_lock_fix(struct av7110* av7110, fe_status_t status)
+static int av7110_fe_lock_fix(struct av7110 *av7110, enum fe_status status)
 {
 	int ret = 0;
 	int synced = (status & FE_HAS_LOCK) ? 1 : 0;
@@ -2005,7 +2005,8 @@ static int av7110_fe_init(struct dvb_frontend* fe)
 	return ret;
 }
 
-static int av7110_fe_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int av7110_fe_read_status(struct dvb_frontend *fe,
+				 enum fe_status *status)
 {
 	struct av7110* av7110 = fe->dvb->priv;
 
@@ -2040,7 +2041,8 @@ static int av7110_fe_diseqc_send_master_cmd(struct dvb_frontend* fe,
 	return ret;
 }
 
-static int av7110_fe_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t minicmd)
+static int av7110_fe_diseqc_send_burst(struct dvb_frontend *fe,
+				       enum fe_sec_mini_cmd minicmd)
 {
 	struct av7110* av7110 = fe->dvb->priv;
 
@@ -2052,7 +2054,8 @@ static int av7110_fe_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_
 	return ret;
 }
 
-static int av7110_fe_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
+static int av7110_fe_set_tone(struct dvb_frontend *fe,
+			      enum fe_sec_tone_mode tone)
 {
 	struct av7110* av7110 = fe->dvb->priv;
 
@@ -2064,7 +2067,8 @@ static int av7110_fe_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 	return ret;
 }
 
-static int av7110_fe_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
+static int av7110_fe_set_voltage(struct dvb_frontend *fe,
+				 enum fe_sec_voltage voltage)
 {
 	struct av7110* av7110 = fe->dvb->priv;
 
@@ -2194,13 +2198,18 @@ static int frontend_init(struct av7110 *av7110)
 			break;
 
 		case 0x0001: // Hauppauge/TT Nexus-T premium rev1.X
+		{
+			struct dvb_frontend *fe;
+
 			// try ALPS TDLB7 first, then Grundig 29504-401
-			av7110->fe = dvb_attach(sp8870_attach, &alps_tdlb7_config, &av7110->i2c_adap);
-			if (av7110->fe) {
-				av7110->fe->ops.tuner_ops.set_params = alps_tdlb7_tuner_set_params;
+			fe = dvb_attach(sp8870_attach, &alps_tdlb7_config, &av7110->i2c_adap);
+			if (fe) {
+				fe->ops.tuner_ops.set_params = alps_tdlb7_tuner_set_params;
+				av7110->fe = fe;
 				break;
 			}
-			/* fall-thru */
+		}
+		/* fall-thru */
 
 		case 0x0008: // Hauppauge/TT DVB-T
 			// Grundig 29504-401
@@ -2310,7 +2319,7 @@ static int frontend_init(struct av7110 *av7110)
 /* Budgetpatch note:
  * Original hardware design by Roberto Deza:
  * There is a DVB_Wiki at
- * http://www.linuxtv.org/
+ * https://linuxtv.org
  *
  * New software triggering design by Emard that works on
  * original Roberto Deza's hardware:
@@ -2725,7 +2734,7 @@ static int av7110_attach(struct saa7146_dev* dev,
 
 	mutex_init(&av7110->ioctl_mutex);
 
-#if IS_ENABLED(CONFIG_INPUT_EVDEV)
+#if IS_ENABLED(CONFIG_DVB_AV7110_IR)
 	av7110_ir_init(av7110);
 #endif
 	printk(KERN_INFO "dvb-ttpci: found av7110-%d.\n", av7110_num);
@@ -2768,7 +2777,7 @@ static int av7110_detach(struct saa7146_dev* saa)
 	struct av7110 *av7110 = saa->ext_priv;
 	dprintk(4, "%p\n", av7110);
 
-#if IS_ENABLED(CONFIG_INPUT_EVDEV)
+#if IS_ENABLED(CONFIG_DVB_AV7110_IR)
 	av7110_ir_exit(av7110);
 #endif
 	if (budgetpatch || av7110->full_ts) {

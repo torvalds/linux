@@ -2159,7 +2159,7 @@ static void gdth_next(gdth_ha_str *ha)
               case VERIFY:
               case START_STOP:
               case MODE_SENSE:
-              case SERVICE_ACTION_IN:
+              case SERVICE_ACTION_IN_16:
                 TRACE(("cache cmd %x/%x/%x/%x/%x/%x\n",nscp->cmnd[0],
                        nscp->cmnd[1],nscp->cmnd[2],nscp->cmnd[3],
                        nscp->cmnd[4],nscp->cmnd[5]));
@@ -2391,7 +2391,7 @@ static int gdth_internal_cache_cmd(gdth_ha_str *ha, Scsi_Cmnd *scp)
         gdth_copy_internal_data(ha, scp, (char*)&rdc, sizeof(gdth_rdcap_data));
         break;
 
-      case SERVICE_ACTION_IN:
+      case SERVICE_ACTION_IN_16:
         if ((scp->cmnd[1] & 0x1f) == SAI_READ_CAPACITY_16 &&
             (ha->cache_feat & GDT_64BIT)) {
             gdth_rdcap16_data rdc16;
@@ -2838,7 +2838,6 @@ static gdth_evt_str *gdth_store_event(gdth_ha_str *ha, u16 source,
                                       u16 idx, gdth_evt_data *evt)
 {
     gdth_evt_str *e;
-    struct timeval tv;
 
     /* no GDTH_LOCK_HA() ! */
     TRACE2(("gdth_store_event() source %d idx %d\n", source, idx));
@@ -2854,8 +2853,7 @@ static gdth_evt_str *gdth_store_event(gdth_ha_str *ha, u16 source,
             !strcmp((char *)&ebuffer[elastidx].event_data.event_string,
             (char *)&evt->event_string)))) { 
         e = &ebuffer[elastidx];
-        do_gettimeofday(&tv);
-        e->last_stamp = tv.tv_sec;
+	e->last_stamp = (u32)ktime_get_real_seconds();
         ++e->same_count;
     } else {
         if (ebuffer[elastidx].event_source != 0) {  /* entry not free ? */
@@ -2871,8 +2869,7 @@ static gdth_evt_str *gdth_store_event(gdth_ha_str *ha, u16 source,
         e = &ebuffer[elastidx];
         e->event_source = source;
         e->event_idx = idx;
-        do_gettimeofday(&tv);
-        e->first_stamp = e->last_stamp = tv.tv_sec;
+	e->first_stamp = e->last_stamp = (u32)ktime_get_real_seconds();
         e->same_count = 1;
         e->event_data = *evt;
         e->application = 0;
@@ -4661,7 +4658,6 @@ static void gdth_flush(gdth_ha_str *ha)
 /* configure lun */
 static int gdth_slave_configure(struct scsi_device *sdev)
 {
-    scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
     sdev->skip_ms_page_3f = 1;
     sdev->skip_ms_page_8 = 1;
     return 0;

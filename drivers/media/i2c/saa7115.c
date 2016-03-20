@@ -46,7 +46,8 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/saa7115.h>
+#include <media/v4l2-mc.h>
+#include <media/i2c/saa7115.h>
 #include <asm/div64.h>
 
 #define VRES_60HZ	(480+16)
@@ -74,6 +75,9 @@ enum saa711x_model {
 
 struct saa711x_state {
 	struct v4l2_subdev sd;
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_pad pads[DEMOD_NUM_PADS];
+#endif
 	struct v4l2_ctrl_handler hdl;
 
 	struct {
@@ -1170,12 +1174,18 @@ static int saa711x_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 	return 0;
 }
 
-static int saa711x_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
+static int saa711x_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
-	if (fmt->code != V4L2_MBUS_FMT_FIXED)
+	struct v4l2_mbus_framefmt *fmt = &format->format;
+
+	if (format->pad || fmt->code != MEDIA_BUS_FMT_FIXED)
 		return -EINVAL;
 	fmt->field = V4L2_FIELD_INTERLACED;
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
+		return 0;
 	return saa711x_set_size(sd, fmt->width, fmt->height);
 }
 
@@ -1603,7 +1613,6 @@ static const struct v4l2_subdev_video_ops saa711x_video_ops = {
 	.s_std = saa711x_s_std,
 	.s_routing = saa711x_s_routing,
 	.s_crystal_freq = saa711x_s_crystal_freq,
-	.s_mbus_fmt = saa711x_s_mbus_fmt,
 	.s_stream = saa711x_s_stream,
 	.querystd = saa711x_querystd,
 	.g_input_status = saa711x_g_input_status,
@@ -1617,12 +1626,17 @@ static const struct v4l2_subdev_vbi_ops saa711x_vbi_ops = {
 	.s_raw_fmt = saa711x_s_raw_fmt,
 };
 
+static const struct v4l2_subdev_pad_ops saa711x_pad_ops = {
+	.set_fmt = saa711x_set_fmt,
+};
+
 static const struct v4l2_subdev_ops saa711x_ops = {
 	.core = &saa711x_core_ops,
 	.tuner = &saa711x_tuner_ops,
 	.audio = &saa711x_audio_ops,
 	.video = &saa711x_video_ops,
 	.vbi = &saa711x_vbi_ops,
+	.pad = &saa711x_pad_ops,
 };
 
 #define CHIP_VER_SIZE	16
@@ -1799,6 +1813,9 @@ static int saa711x_probe(struct i2c_client *client,
 	struct saa7115_platform_data *pdata;
 	int ident;
 	char name[CHIP_VER_SIZE + 1];
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	int ret;
+#endif
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -1821,6 +1838,18 @@ static int saa711x_probe(struct i2c_client *client,
 		return -ENOMEM;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &saa711x_ops);
+
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	state->pads[DEMOD_PAD_IF_INPUT].flags = MEDIA_PAD_FL_SINK;
+	state->pads[DEMOD_PAD_VID_OUT].flags = MEDIA_PAD_FL_SOURCE;
+	state->pads[DEMOD_PAD_VBI_OUT].flags = MEDIA_PAD_FL_SOURCE;
+
+	sd->entity.function = MEDIA_ENT_F_ATV_DECODER;
+
+	ret = media_entity_pads_init(&sd->entity, DEMOD_NUM_PADS, state->pads);
+	if (ret < 0)
+		return ret;
+#endif
 
 	v4l_info(client, "%s found @ 0x%x (%s)\n", name,
 		 client->addr << 1, client->adapter->name);
@@ -1919,7 +1948,6 @@ MODULE_DEVICE_TABLE(i2c, saa711x_id);
 
 static struct i2c_driver saa711x_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "saa7115",
 	},
 	.probe		= saa711x_probe,

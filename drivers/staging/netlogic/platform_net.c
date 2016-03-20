@@ -58,7 +58,6 @@
 #define MAX_NUM_XLS_GMAC	8
 #define MAX_NUM_XLR_GMAC	4
 
-
 static u32 xlr_gmac_offsets[] = {
 	NETLOGIC_IO_GMAC_0_OFFSET, NETLOGIC_IO_GMAC_1_OFFSET,
 	NETLOGIC_IO_GMAC_2_OFFSET, NETLOGIC_IO_GMAC_3_OFFSET,
@@ -72,116 +71,126 @@ static u32 xlr_gmac_irqs[] = { PIC_GMAC_0_IRQ, PIC_GMAC_1_IRQ,
 	PIC_GMAC_6_IRQ, PIC_GMAC_7_IRQ
 };
 
-static struct xlr_net_data ndata[MAX_NUM_GMAC];
-static struct resource xlr_net_res[8][2];
-static struct platform_device xlr_net_dev[8];
-static u32 __iomem *gmac0_addr;
+static struct resource xlr_net0_res[8];
+static struct resource xlr_net1_res[8];
 static u32 __iomem *gmac4_addr;
 static u32 __iomem *gpio_addr;
 
-static void config_mac(struct xlr_net_data *nd, int phy, u32 __iomem *serdes,
-		u32 __iomem *pcs, int rfr, int tx, int *bkt_size,
-		struct xlr_fmn_info *gmac_fmn_info, int phy_addr)
+static void xlr_resource_init(struct resource *res, int offset, int irq)
 {
-	nd->cpu_mask = nlm_current_node()->coremask;
-	nd->phy_interface = phy;
-	nd->rfr_station = rfr;
-	nd->tx_stnid = tx;
-	nd->mii_addr = gmac0_addr;
-	nd->serdes_addr = serdes;
-	nd->pcs_addr = pcs;
-	nd->gpio_addr = gpio_addr;
+	res->name = "gmac";
 
-	nd->bucket_size = bkt_size;
-	nd->gmac_fmn_info = gmac_fmn_info;
-	nd->phy_addr = phy_addr;
+	res->start = CPHYSADDR(nlm_mmio_base(offset));
+	res->end = res->start + 0xfff;
+	res->flags = IORESOURCE_MEM;
+
+	res++;
+	res->name = "gmac";
+	res->start = irq;
+	res->end = irq;
+	res->flags = IORESOURCE_IRQ;
 }
 
-static void net_device_init(int id, struct resource *res, int offset, int irq)
+static struct platform_device *gmac_controller2_init(void *gmac0_addr)
 {
-	res[0].name = "gmac";
-	res[0].start = CPHYSADDR(nlm_mmio_base(offset));
-	res[0].end = res[0].start + 0xfff;
-	res[0].flags = IORESOURCE_MEM;
+	int mac;
+	static struct xlr_net_data ndata1 = {
+		.phy_interface	= PHY_INTERFACE_MODE_SGMII,
+		.rfr_station	= FMN_STNID_GMAC1_FR_0,
+		.bucket_size	= xlr_board_fmn_config.bucket_size,
+		.gmac_fmn_info	= &xlr_board_fmn_config.gmac[1],
+	};
 
-	res[1].name = "gmac";
-	res[1].start = irq;
-	res[1].end = irq;
-	res[1].flags = IORESOURCE_IRQ;
+	static struct platform_device xlr_net_dev1 = {
+		.name		= "xlr-net",
+		.id		= 1,
+		.dev.platform_data = &ndata1,
+	};
 
-	xlr_net_dev[id].name = "xlr-net";
-	xlr_net_dev[id].id = id;
-	xlr_net_dev[id].num_resources = 2;
-	xlr_net_dev[id].resource = res;
-	xlr_net_dev[id].dev.platform_data = &ndata[id];
+	gmac4_addr = ioremap(CPHYSADDR(
+		nlm_mmio_base(NETLOGIC_IO_GMAC_4_OFFSET)), 0xfff);
+	ndata1.serdes_addr = gmac4_addr;
+	ndata1.pcs_addr	= gmac4_addr;
+	ndata1.mii_addr	= gmac0_addr;
+	ndata1.gpio_addr = gpio_addr;
+	ndata1.cpu_mask = nlm_current_node()->coremask;
+
+	xlr_net_dev1.resource = xlr_net1_res;
+
+	for (mac = 0; mac < 4; mac++) {
+		ndata1.tx_stnid[mac] = FMN_STNID_GMAC1_TX0 + mac;
+		ndata1.phy_addr[mac] = mac + 4 + 0x10;
+
+		xlr_resource_init(&xlr_net1_res[mac * 2],
+				  xlr_gmac_offsets[mac + 4],
+				  xlr_gmac_irqs[mac + 4]);
+	}
+	xlr_net_dev1.num_resources = 8;
+
+	return &xlr_net_dev1;
 }
 
 static void xls_gmac_init(void)
 {
 	int mac;
+	struct platform_device *xlr_net_dev1;
+	void __iomem *gmac0_addr = ioremap(CPHYSADDR(
+		nlm_mmio_base(NETLOGIC_IO_GMAC_0_OFFSET)), 0xfff);
 
-	gmac4_addr = ioremap(CPHYSADDR(
-		nlm_mmio_base(NETLOGIC_IO_GMAC_4_OFFSET)), 0xfff);
-	/* Passing GPIO base for serdes init. Only needed on sgmii ports*/
+	static struct xlr_net_data ndata0 = {
+		.rfr_station	= FMN_STNID_GMACRFR_0,
+		.bucket_size	= xlr_board_fmn_config.bucket_size,
+		.gmac_fmn_info	= &xlr_board_fmn_config.gmac[0],
+	};
+
+	static struct platform_device xlr_net_dev0 = {
+		.name		= "xlr-net",
+		.id		= 0,
+	};
+	xlr_net_dev0.dev.platform_data = &ndata0;
+	ndata0.serdes_addr = gmac0_addr;
+	ndata0.pcs_addr	= gmac0_addr;
+	ndata0.mii_addr	= gmac0_addr;
+
+	/* Passing GPIO base for serdes init. Only needed on sgmii ports */
 	gpio_addr = ioremap(CPHYSADDR(
 		nlm_mmio_base(NETLOGIC_IO_GPIO_OFFSET)), 0xfff);
+	ndata0.gpio_addr = gpio_addr;
+	ndata0.cpu_mask = nlm_current_node()->coremask;
+
+	xlr_net_dev0.resource = xlr_net0_res;
 
 	switch (nlm_prom_info.board_major_version) {
 	case 12:
 		/* first block RGMII or XAUI, use RGMII */
-		config_mac(&ndata[0],
-			PHY_INTERFACE_MODE_RGMII,
-			gmac0_addr,	/* serdes */
-			gmac0_addr,	/* pcs */
-			FMN_STNID_GMACRFR_0,
-			FMN_STNID_GMAC0_TX0,
-			xlr_board_fmn_config.bucket_size,
-			&xlr_board_fmn_config.gmac[0],
-			0);
+		ndata0.phy_interface = PHY_INTERFACE_MODE_RGMII;
+		ndata0.tx_stnid[0] = FMN_STNID_GMAC0_TX0;
+		ndata0.phy_addr[0] = 0;
 
-		net_device_init(0, xlr_net_res[0], xlr_gmac_offsets[0],
-				xlr_gmac_irqs[0]);
-		platform_device_register(&xlr_net_dev[0]);
+		xlr_net_dev0.num_resources = 2;
+
+		xlr_resource_init(&xlr_net0_res[0], xlr_gmac_offsets[0],
+				  xlr_gmac_irqs[0]);
+		platform_device_register(&xlr_net_dev0);
 
 		/* second block is XAUI, not supported yet */
 		break;
 	default:
 		/* default XLS config, all ports SGMII */
+		ndata0.phy_interface = PHY_INTERFACE_MODE_SGMII;
 		for (mac = 0; mac < 4; mac++) {
-			config_mac(&ndata[mac],
-				PHY_INTERFACE_MODE_SGMII,
-				gmac0_addr,	/* serdes */
-				gmac0_addr,	/* pcs */
-				FMN_STNID_GMACRFR_0,
-				FMN_STNID_GMAC0_TX0 + mac,
-				xlr_board_fmn_config.bucket_size,
-				&xlr_board_fmn_config.gmac[0],
-				/* PHY address according to chip/board */
-				mac + 0x10);
+			ndata0.tx_stnid[mac] = FMN_STNID_GMAC0_TX0 + mac;
+			ndata0.phy_addr[mac] = mac + 0x10;
 
-			net_device_init(mac, xlr_net_res[mac],
-					xlr_gmac_offsets[mac],
+			xlr_resource_init(&xlr_net0_res[mac * 2],
+					  xlr_gmac_offsets[mac],
 					xlr_gmac_irqs[mac]);
-			platform_device_register(&xlr_net_dev[mac]);
 		}
+		xlr_net_dev0.num_resources = 8;
+		platform_device_register(&xlr_net_dev0);
 
-		for (mac = 4; mac < MAX_NUM_XLS_GMAC; mac++) {
-			config_mac(&ndata[mac],
-				PHY_INTERFACE_MODE_SGMII,
-				gmac4_addr,	/* serdes */
-				gmac4_addr,	/* pcs */
-				FMN_STNID_GMAC1_FR_0,
-				FMN_STNID_GMAC1_TX0 + mac - 4,
-				xlr_board_fmn_config.bucket_size,
-				&xlr_board_fmn_config.gmac[1],
-				/* PHY address according to chip/board */
-				mac + 0x10);
-
-			net_device_init(mac, xlr_net_res[mac],
-					xlr_gmac_offsets[mac],
-					xlr_gmac_irqs[mac]);
-			platform_device_register(&xlr_net_dev[mac]);
-		}
+		xlr_net_dev1 = gmac_controller2_init(gmac0_addr);
+		platform_device_register(xlr_net_dev1);
 	}
 }
 
@@ -190,28 +199,40 @@ static void xlr_gmac_init(void)
 	int mac;
 
 	/* assume all GMACs for now */
-	for (mac = 0; mac < MAX_NUM_XLR_GMAC; mac++) {
-		config_mac(&ndata[mac],
-			PHY_INTERFACE_MODE_RGMII,
-			0,
-			0,
-			FMN_STNID_GMACRFR_0,
-			FMN_STNID_GMAC0_TX0,
-			xlr_board_fmn_config.bucket_size,
-			&xlr_board_fmn_config.gmac[0],
-			mac);
+	static struct xlr_net_data ndata0 = {
+		.phy_interface	= PHY_INTERFACE_MODE_RGMII,
+		.serdes_addr	= NULL,
+		.pcs_addr	= NULL,
+		.rfr_station	= FMN_STNID_GMACRFR_0,
+		.bucket_size	= xlr_board_fmn_config.bucket_size,
+		.gmac_fmn_info	= &xlr_board_fmn_config.gmac[0],
+		.gpio_addr	= NULL,
+	};
 
-		net_device_init(mac, xlr_net_res[mac], xlr_gmac_offsets[mac],
-				xlr_gmac_irqs[mac]);
-		platform_device_register(&xlr_net_dev[mac]);
+	static struct platform_device xlr_net_dev0 = {
+		.name		= "xlr-net",
+		.id		= 0,
+		.dev.platform_data = &ndata0,
+	};
+	ndata0.mii_addr = ioremap(CPHYSADDR(
+		nlm_mmio_base(NETLOGIC_IO_GMAC_0_OFFSET)), 0xfff);
+
+	ndata0.cpu_mask = nlm_current_node()->coremask;
+
+	for (mac = 0; mac < MAX_NUM_XLR_GMAC; mac++) {
+		ndata0.tx_stnid[mac] = FMN_STNID_GMAC0_TX0 + mac;
+		ndata0.phy_addr[mac] = mac;
+		xlr_resource_init(&xlr_net0_res[mac * 2], xlr_gmac_offsets[mac],
+				  xlr_gmac_irqs[mac]);
 	}
+	xlr_net_dev0.num_resources = 8;
+	xlr_net_dev0.resource = xlr_net0_res;
+
+	platform_device_register(&xlr_net_dev0);
 }
 
 static int __init xlr_net_init(void)
 {
-	gmac0_addr = ioremap(CPHYSADDR(
-		nlm_mmio_base(NETLOGIC_IO_GMAC_0_OFFSET)), 0xfff);
-
 	if (nlm_chip_is_xls())
 		xls_gmac_init();
 	else

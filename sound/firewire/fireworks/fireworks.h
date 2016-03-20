@@ -29,7 +29,7 @@
 
 #include "../packets-buffer.h"
 #include "../iso-resources.h"
-#include "../amdtp.h"
+#include "../amdtp-am824.h"
 #include "../cmp.h"
 #include "../lib.h"
 
@@ -71,6 +71,7 @@ struct snd_efw {
 
 	/* for quirks */
 	bool is_af9;
+	bool is_fireworks3;
 	u32 firmware_version;
 
 	unsigned int midi_in_ports;
@@ -85,8 +86,8 @@ struct snd_efw {
 	struct amdtp_stream rx_stream;
 	struct cmp_connection out_conn;
 	struct cmp_connection in_conn;
-	atomic_t capture_substreams;
-	atomic_t playback_substreams;
+	unsigned int capture_substreams;
+	unsigned int playback_substreams;
 
 	/* hardware metering parameters */
 	unsigned int phys_out;

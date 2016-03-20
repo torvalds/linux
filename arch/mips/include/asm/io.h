@@ -167,7 +167,7 @@ static inline void * isa_bus_to_virt(unsigned long address)
  */
 #define page_to_phys(page)	((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
 
-extern void __iomem * __ioremap(phys_t offset, phys_t size, unsigned long flags);
+extern void __iomem * __ioremap(phys_addr_t offset, phys_addr_t size, unsigned long flags);
 extern void __iounmap(const volatile void __iomem *addr);
 
 #ifndef CONFIG_PCI
@@ -175,7 +175,7 @@ struct pci_dev;
 static inline void pci_iounmap(struct pci_dev *dev, void __iomem *addr) {}
 #endif
 
-static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
+static inline void __iomem * __ioremap_mode(phys_addr_t offset, unsigned long size,
 	unsigned long flags)
 {
 	void __iomem *addr = plat_ioremap(offset, size, flags);
@@ -183,7 +183,7 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 	if (addr)
 		return addr;
 
-#define __IS_LOW512(addr) (!((phys_t)(addr) & (phys_t) ~0x1fffffffULL))
+#define __IS_LOW512(addr) (!((phys_addr_t)(addr) & (phys_addr_t) ~0x1fffffffULL))
 
 	if (cpu_has_64bit_addresses) {
 		u64 base = UNCAC_BASE;
@@ -197,7 +197,7 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 		return (void __iomem *) (unsigned long) (base + offset);
 	} else if (__builtin_constant_p(offset) &&
 		   __builtin_constant_p(size) && __builtin_constant_p(flags)) {
-		phys_t phys_addr, last_addr;
+		phys_addr_t phys_addr, last_addr;
 
 		phys_addr = fixup_bigphys_addr(offset, size);
 
@@ -256,6 +256,7 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
  */
 #define ioremap_nocache(offset, size)					\
 	__ioremap_mode((offset), (size), _CACHE_UNCACHED)
+#define ioremap_uc ioremap_nocache
 
 /*
  * ioremap_cachable -	map bus memory into CPU space
@@ -274,6 +275,7 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
  */
 #define ioremap_cachable(offset, size)					\
 	__ioremap_mode((offset), (size), _page_cachable_default)
+#define ioremap_cache ioremap_cachable
 
 /*
  * These two are MIPS specific ioremap variant.	 ioremap_cacheable_cow

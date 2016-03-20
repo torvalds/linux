@@ -37,12 +37,12 @@
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
 MODULE_DESCRIPTION("V4L2 PCI Skeleton Driver");
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(pci, skeleton_pci_tbl);
 
 /**
  * struct skeleton - All internal data for one instance of device
@@ -95,6 +95,7 @@ static const struct pci_device_id skeleton_pci_tbl[] = {
 	/* { PCI_DEVICE(PCI_VENDOR_ID_, PCI_DEVICE_ID_) }, */
 	{ 0, }
 };
+MODULE_DEVICE_TABLE(pci, skeleton_pci_tbl);
 
 /*
  * HDTV: this structure has the capabilities of the HDTV receiver.
@@ -162,7 +163,7 @@ static irqreturn_t skeleton_irq(int irq, void *dev_id)
  * minimum number: many DMA engines need a minimum of 2 buffers in the
  * queue and you need to have another available for userspace processing.
  */
-static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *nbuffers, unsigned int *nplanes,
 		       unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -181,12 +182,12 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 
 	if (vq->num_buffers + *nbuffers < 3)
 		*nbuffers = 3 - vq->num_buffers;
-
-	if (fmt && fmt->fmt.pix.sizeimage < skel->format.sizeimage)
-		return -EINVAL;
-	*nplanes = 1;
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : skel->format.sizeimage;
 	alloc_ctxs[0] = skel->alloc_ctx;
+
+	if (*nplanes)
+		return sizes[0] < skel->format.sizeimage ? -EINVAL : 0;
+	*nplanes = 1;
+	sizes[0] = skel->format.sizeimage;
 	return 0;
 }
 
@@ -406,9 +407,7 @@ static int skeleton_enum_fmt_vid_cap(struct file *file, void *priv,
 	if (f->index != 0)
 		return -EINVAL;
 
-	strlcpy(f->description, "4:2:2, packed, YUYV", sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_YUYV;
-	f->flags = 0;
 	return 0;
 }
 
@@ -509,7 +508,7 @@ static int skeleton_s_dv_timings(struct file *file, void *_fh,
 		return -EINVAL;
 
 	/* Return 0 if the new timings are the same as the current timings. */
-	if (v4l2_match_dv_timings(timings, &skel->timings, 0))
+	if (v4l2_match_dv_timings(timings, &skel->timings, 0, false))
 		return 0;
 
 	/*

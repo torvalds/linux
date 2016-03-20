@@ -42,7 +42,13 @@ The driver interface depends on your hardware.  If your system
 properly provides the SMBIOS info for IPMI, the driver will detect it
 and just work.  If you have a board with a standard interface (These
 will generally be either "KCS", "SMIC", or "BT", consult your hardware
-manual), choose the 'IPMI SI handler' option.
+manual), choose the 'IPMI SI handler' option.  A driver also exists
+for direct I2C access to the IPMI management controller.  Some boards
+support this, but it is unknown if it will work on every board.  For
+this, choose 'IPMI SMBus handler', but be ready to try to do some
+figuring to see if it will work on your system if the SMBIOS/APCI
+information is wrong or not present.  It is fairly safe to have both
+these enabled and let the drivers auto-detect what is present.
 
 You should generally enable ACPI on your system, as systems with IPMI
 can have ACPI tables describing them.
@@ -52,7 +58,8 @@ their job correctly, the IPMI controller should be automatically
 detected (via ACPI or SMBIOS tables) and should just work.  Sadly,
 many boards do not have this information.  The driver attempts
 standard defaults, but they may not work.  If you fall into this
-situation, you need to read the section below named 'The SI Driver'.
+situation, you need to read the section below named 'The SI Driver' or
+"The SMBus Driver" on how to hand-configure your system.
 
 IPMI defines a standard watchdog timer.  You can enable this with the
 'IPMI Watchdog Timer' config option.  If you compile the driver into
@@ -97,7 +104,12 @@ driver, each open file for this device ties in to the message handler
 as an IPMI user.
 
 ipmi_si - A driver for various system interfaces.  This supports KCS,
-SMIC, and BT interfaces.
+SMIC, and BT interfaces.  Unless you have an SMBus interface or your
+own custom interface, you probably need to use this.
+
+ipmi_ssif - A driver for accessing BMCs on the SMBus. It uses the
+I2C kernel driver's SMBus interfaces to send and receive IPMI messages
+over the SMBus.
 
 ipmi_watchdog - IPMI requires systems to have a very capable watchdog
 timer.  This driver implements the standard Linux watchdog timer
@@ -476,6 +488,65 @@ for specifying an interface.  Note that when removing an interface,
 only the first three parameters (si type, address type, and address)
 are used for the comparison.  Any options are ignored for removing.
 
+The SMBus Driver (SSIF)
+-----------------------
+
+The SMBus driver allows up to 4 SMBus devices to be configured in the
+system.  By default, the driver will only register with something it
+finds in DMI or ACPI tables.  You can change this
+at module load time (for a module) with:
+
+  modprobe ipmi_ssif.o
+	addr=<i2caddr1>[,<i2caddr2>[,...]]
+	adapter=<adapter1>[,<adapter2>[...]]
+	dbg=<flags1>,<flags2>...
+        slave_addrs=<addr1>,<addr2>,...
+	[dbg_probe=1]
+
+The addresses are normal I2C addresses.  The adapter is the string
+name of the adapter, as shown in /sys/class/i2c-adapter/i2c-<n>/name.
+It is *NOT* i2c-<n> itself.  Also, the comparison is done ignoring
+spaces, so if the name is "This is an I2C chip" you can say
+adapter_name=ThisisanI2cchip.  This is because it's hard to pass in
+spaces in kernel parameters.
+
+The debug flags are bit flags for each BMC found, they are:
+IPMI messages: 1, driver state: 2, timing: 4, I2C probe: 8
+
+Setting dbg_probe to 1 will enable debugging of the probing and
+detection process for BMCs on the SMBusses.
+
+The slave_addrs specifies the IPMI address of the local BMC.  This is
+usually 0x20 and the driver defaults to that, but in case it's not, it
+can be specified when the driver starts up.
+
+Discovering the IPMI compliant BMC on the SMBus can cause devices on
+the I2C bus to fail. The SMBus driver writes a "Get Device ID" IPMI
+message as a block write to the I2C bus and waits for a response.
+This action can be detrimental to some I2C devices. It is highly
+recommended that the known I2C address be given to the SMBus driver in
+the smb_addr parameter unless you have DMI or ACPI data to tell the
+driver what to use.
+
+When compiled into the kernel, the addresses can be specified on the
+kernel command line as:
+
+  ipmb_ssif.addr=<i2caddr1>[,<i2caddr2>[...]]
+	ipmi_ssif.adapter=<adapter1>[,<adapter2>[...]]
+	ipmi_ssif.dbg=<flags1>[,<flags2>[...]]
+	ipmi_ssif.dbg_probe=1
+        ipmi_ssif.slave_addrs=<addr1>[,<addr2>[...]]
+
+These are the same options as on the module command line.
+
+The I2C driver does not support non-blocking access or polling, so
+this driver cannod to IPMI panic events, extend the watchdog at panic
+time, or other panic-related IPMI functions without special kernel
+patches and driver modifications.  You can get those at the openipmi
+web page.
+
+The driver supports a hot add and remove of interfaces through the I2C
+sysfs interface.
 
 Other Pieces
 ------------
@@ -516,7 +587,7 @@ used to control it:
 
   modprobe ipmi_watchdog timeout=<t> pretimeout=<t> action=<action type>
       preaction=<preaction type> preop=<preop type> start_now=x
-      nowayout=x ifnum_to_use=n
+      nowayout=x ifnum_to_use=n panic_wdt_timeout=<t>
 
 ifnum_to_use specifies which interface the watchdog timer should use.
 The default is -1, which means to pick the first one registered.
@@ -526,7 +597,9 @@ is the amount of seconds before the reset that the pre-timeout panic will
 occur (if pretimeout is zero, then pretimeout will not be enabled).  Note
 that the pretimeout is the time before the final timeout.  So if the
 timeout is 50 seconds and the pretimeout is 10 seconds, then the pretimeout
-will occur in 40 second (10 seconds before the timeout).
+will occur in 40 second (10 seconds before the timeout). The panic_wdt_timeout
+is the value of timeout which is set on kernel panic, in order to let actions
+such as kdump to occur during panic.
 
 The action may be "reset", "power_cycle", or "power_off", and
 specifies what to do when the timer times out, and defaults to
@@ -563,6 +636,7 @@ for configuring the watchdog:
 	ipmi_watchdog.preop=<preop type>
 	ipmi_watchdog.start_now=x
 	ipmi_watchdog.nowayout=x
+	ipmi_watchdog.panic_wdt_timeout=<t>
 
 The options are the same as the module parameter options.
 

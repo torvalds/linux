@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 #include "gcov.h"
 
 static int gcov_events_enabled;
@@ -91,6 +92,12 @@ void __gcov_merge_time_profile(gcov_type *counters, unsigned int n_counters)
 }
 EXPORT_SYMBOL(__gcov_merge_time_profile);
 
+void __gcov_merge_icall_topn(gcov_type *counters, unsigned int n_counters)
+{
+	/* Unused. */
+}
+EXPORT_SYMBOL(__gcov_merge_icall_topn);
+
 /**
  * gcov_enable_events - enable event reporting through gcov_event()
  *
@@ -107,18 +114,15 @@ void gcov_enable_events(void)
 	gcov_events_enabled = 1;
 
 	/* Perform event callback for previously registered entries. */
-	while ((info = gcov_info_next(info)))
+	while ((info = gcov_info_next(info))) {
 		gcov_event(GCOV_ADD, info);
+		cond_resched();
+	}
 
 	mutex_unlock(&gcov_lock);
 }
 
 #ifdef CONFIG_MODULES
-static inline int within(void *addr, void *start, unsigned long size)
-{
-	return ((addr >= start) && (addr < start + size));
-}
-
 /* Update list and generate events when modules are unloaded. */
 static int gcov_module_notifier(struct notifier_block *nb, unsigned long event,
 				void *data)
@@ -133,7 +137,7 @@ static int gcov_module_notifier(struct notifier_block *nb, unsigned long event,
 
 	/* Remove entries located in module from linked list. */
 	while ((info = gcov_info_next(info))) {
-		if (within(info, mod->module_core, mod->core_size)) {
+		if (within_module((unsigned long)info, mod)) {
 			gcov_info_unlink(prev, info);
 			if (gcov_events_enabled)
 				gcov_event(GCOV_REMOVE, info);

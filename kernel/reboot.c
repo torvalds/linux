@@ -104,6 +104,87 @@ int unregister_reboot_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL(unregister_reboot_notifier);
 
+/*
+ *	Notifier list for kernel code which wants to be called
+ *	to restart the system.
+ */
+static ATOMIC_NOTIFIER_HEAD(restart_handler_list);
+
+/**
+ *	register_restart_handler - Register function to be called to reset
+ *				   the system
+ *	@nb: Info about handler function to be called
+ *	@nb->priority:	Handler priority. Handlers should follow the
+ *			following guidelines for setting priorities.
+ *			0:	Restart handler of last resort,
+ *				with limited restart capabilities
+ *			128:	Default restart handler; use if no other
+ *				restart handler is expected to be available,
+ *				and/or if restart functionality is
+ *				sufficient to restart the entire system
+ *			255:	Highest priority restart handler, will
+ *				preempt all other restart handlers
+ *
+ *	Registers a function with code to be called to restart the
+ *	system.
+ *
+ *	Registered functions will be called from machine_restart as last
+ *	step of the restart sequence (if the architecture specific
+ *	machine_restart function calls do_kernel_restart - see below
+ *	for details).
+ *	Registered functions are expected to restart the system immediately.
+ *	If more than one function is registered, the restart handler priority
+ *	selects which function will be called first.
+ *
+ *	Restart handlers are expected to be registered from non-architecture
+ *	code, typically from drivers. A typical use case would be a system
+ *	where restart functionality is provided through a watchdog. Multiple
+ *	restart handlers may exist; for example, one restart handler might
+ *	restart the entire system, while another only restarts the CPU.
+ *	In such cases, the restart handler which only restarts part of the
+ *	hardware is expected to register with low priority to ensure that
+ *	it only runs if no other means to restart the system is available.
+ *
+ *	Currently always returns zero, as atomic_notifier_chain_register()
+ *	always returns zero.
+ */
+int register_restart_handler(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&restart_handler_list, nb);
+}
+EXPORT_SYMBOL(register_restart_handler);
+
+/**
+ *	unregister_restart_handler - Unregister previously registered
+ *				     restart handler
+ *	@nb: Hook to be unregistered
+ *
+ *	Unregisters a previously registered restart handler function.
+ *
+ *	Returns zero on success, or %-ENOENT on failure.
+ */
+int unregister_restart_handler(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&restart_handler_list, nb);
+}
+EXPORT_SYMBOL(unregister_restart_handler);
+
+/**
+ *	do_kernel_restart - Execute kernel restart handler call chain
+ *
+ *	Calls functions registered with register_restart_handler.
+ *
+ *	Expected to be called from machine_restart as last step of the restart
+ *	sequence.
+ *
+ *	Restarts the system immediately if a restart handler function has been
+ *	registered. Otherwise does nothing.
+ */
+void do_kernel_restart(char *cmd)
+{
+	atomic_notifier_call_chain(&restart_handler_list, reboot_mode, cmd);
+}
+
 void migrate_to_reboot_cpu(void)
 {
 	/* The boot cpu is always logical cpu 0 */
@@ -265,7 +346,7 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		kernel_restart(buffer);
 		break;
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	case LINUX_REBOOT_CMD_KEXEC:
 		ret = kernel_kexec();
 		break;
@@ -306,8 +387,9 @@ void ctrl_alt_del(void)
 }
 
 char poweroff_cmd[POWEROFF_CMD_PATH_LEN] = "/sbin/poweroff";
+static const char reboot_cmd[] = "/sbin/reboot";
 
-static int __orderly_poweroff(bool force)
+static int run_cmd(const char *cmd)
 {
 	char **argv;
 	static char *envp[] = {
@@ -316,8 +398,7 @@ static int __orderly_poweroff(bool force)
 		NULL
 	};
 	int ret;
-
-	argv = argv_split(GFP_KERNEL, poweroff_cmd, NULL);
+	argv = argv_split(GFP_KERNEL, cmd, NULL);
 	if (argv) {
 		ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
 		argv_free(argv);
@@ -325,8 +406,33 @@ static int __orderly_poweroff(bool force)
 		ret = -ENOMEM;
 	}
 
+	return ret;
+}
+
+static int __orderly_reboot(void)
+{
+	int ret;
+
+	ret = run_cmd(reboot_cmd);
+
+	if (ret) {
+		pr_warn("Failed to start orderly reboot: forcing the issue\n");
+		emergency_sync();
+		kernel_restart(NULL);
+	}
+
+	return ret;
+}
+
+static int __orderly_poweroff(bool force)
+{
+	int ret;
+
+	ret = run_cmd(poweroff_cmd);
+
 	if (ret && force) {
 		pr_warn("Failed to start orderly shutdown: forcing the issue\n");
+
 		/*
 		 * I guess this should try to kick off some daemon to sync and
 		 * poweroff asap.  Or not even bother syncing if we're doing an
@@ -355,14 +461,32 @@ static DECLARE_WORK(poweroff_work, poweroff_work_func);
  * This may be called from any context to trigger a system shutdown.
  * If the orderly shutdown fails, it will force an immediate shutdown.
  */
-int orderly_poweroff(bool force)
+void orderly_poweroff(bool force)
 {
 	if (force) /* do not override the pending "true" */
 		poweroff_force = true;
 	schedule_work(&poweroff_work);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(orderly_poweroff);
+
+static void reboot_work_func(struct work_struct *work)
+{
+	__orderly_reboot();
+}
+
+static DECLARE_WORK(reboot_work, reboot_work_func);
+
+/**
+ * orderly_reboot - Trigger an orderly system reboot
+ *
+ * This may be called from any context to trigger a system reboot.
+ * If the orderly reboot fails, it will force an immediate reboot.
+ */
+void orderly_reboot(void)
+{
+	schedule_work(&reboot_work);
+}
+EXPORT_SYMBOL_GPL(orderly_reboot);
 
 static int __init reboot_setup(char *str)
 {

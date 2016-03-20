@@ -28,7 +28,6 @@
 #ifdef CONFIG_PPC_PMAC
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
-#include <asm/pci-bridge.h>
 #include <asm/prom.h>
 #endif
 
@@ -197,7 +196,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	 * The xHCI driver has its own irq management
 	 * make sure irq setup is not touched for xhci in generic hcd code
 	 */
-	if ((driver->flags & HCD_MASK) != HCD_USB3) {
+	if ((driver->flags & HCD_MASK) < HCD_USB3) {
 		if (!dev->irq) {
 			dev_err(&dev->dev,
 			"Found HC with no IRQ. Check BIOS/PCI %s setup!\n",
@@ -429,7 +428,6 @@ static int check_root_hub_suspended(struct device *dev)
 	return 0;
 }
 
-#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_RUNTIME)
 static int suspend_common(struct device *dev, bool do_wakeup)
 {
 	struct pci_dev		*pci_dev = to_pci_dev(dev);
@@ -528,7 +526,6 @@ static int resume_common(struct device *dev, int event)
 	}
 	return retval;
 }
-#endif	/* SLEEP || RUNTIME */
 
 #ifdef	CONFIG_PM_SLEEP
 
@@ -607,8 +604,6 @@ static int hcd_pci_restore(struct device *dev)
 
 #endif	/* CONFIG_PM_SLEEP */
 
-#ifdef	CONFIG_PM_RUNTIME
-
 static int hcd_pci_runtime_suspend(struct device *dev)
 {
 	int	retval;
@@ -629,13 +624,6 @@ static int hcd_pci_runtime_resume(struct device *dev)
 	dev_dbg(dev, "hcd_pci_runtime_resume: %d\n", retval);
 	return retval;
 }
-
-#else
-
-#define hcd_pci_runtime_suspend	NULL
-#define hcd_pci_runtime_resume	NULL
-
-#endif	/* CONFIG_PM_RUNTIME */
 
 const struct dev_pm_ops usb_hcd_pci_pm_ops = {
 	.suspend	= hcd_pci_suspend,

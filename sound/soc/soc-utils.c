@@ -101,6 +101,15 @@ static struct snd_soc_codec_driver dummy_codec;
 			SNDRV_PCM_FMTBIT_S32_LE | \
 			SNDRV_PCM_FMTBIT_U32_LE | \
 			SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE)
+/*
+ * The dummy CODEC is only meant to be used in situations where there is no
+ * actual hardware.
+ *
+ * If there is actual hardware even if it does not have a control bus
+ * the hardware will still have constraints like supported samplerates, etc.
+ * which should be modelled. And the data flow graph also should be modelled
+ * using DAPM.
+ */
 static struct snd_soc_dai_driver dummy_dai = {
 	.name = "snd-soc-dummy-dai",
 	.playback = {
@@ -154,7 +163,6 @@ static int snd_soc_dummy_remove(struct platform_device *pdev)
 static struct platform_driver soc_dummy_driver = {
 	.driver = {
 		.name = "snd-soc-dummy",
-		.owner = THIS_MODULE,
 	},
 	.probe = snd_soc_dummy_probe,
 	.remove = snd_soc_dummy_remove,

@@ -47,7 +47,7 @@
 #include <net/xfrm.h>
 #endif
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  *	Parsing tlv encoded headers.
@@ -142,7 +142,7 @@ static bool ip6_parse_tlv(const struct tlvtype_proc *procs, struct sk_buff *skb)
 		default: /* Other TLV code so scan list */
 			if (optlen > len)
 				goto bad;
-			for (curr=procs; curr->type >= 0; curr++) {
+			for (curr = procs; curr->type >= 0; curr++) {
 				if (curr->type == nh[off]) {
 					/* type specific length/alignment
 					   checks will be performed in the
@@ -184,7 +184,7 @@ static bool ipv6_dest_hao(struct sk_buff *skb, int optoff)
 	int ret;
 
 	if (opt->dsthao) {
-		LIMIT_NETDEBUG(KERN_DEBUG "hao duplicated\n");
+		net_dbg_ratelimited("hao duplicated\n");
 		goto discard;
 	}
 	opt->dsthao = opt->dst1;
@@ -193,14 +193,14 @@ static bool ipv6_dest_hao(struct sk_buff *skb, int optoff)
 	hao = (struct ipv6_destopt_hao *)(skb_network_header(skb) + optoff);
 
 	if (hao->length != 16) {
-		LIMIT_NETDEBUG(
-			KERN_DEBUG "hao invalid option length = %d\n", hao->length);
+		net_dbg_ratelimited("hao invalid option length = %d\n",
+				    hao->length);
 		goto discard;
 	}
 
 	if (!(ipv6_addr_type(&hao->addr) & IPV6_ADDR_UNICAST)) {
-		LIMIT_NETDEBUG(
-			KERN_DEBUG "hao is not an unicast addr: %pI6\n", &hao->addr);
+		net_dbg_ratelimited("hao is not an unicast addr: %pI6\n",
+				    &hao->addr);
 		goto discard;
 	}
 
@@ -551,8 +551,8 @@ static bool ipv6_hop_ra(struct sk_buff *skb, int optoff)
 		memcpy(&IP6CB(skb)->ra, nh + optoff + 2, sizeof(IP6CB(skb)->ra));
 		return true;
 	}
-	LIMIT_NETDEBUG(KERN_DEBUG "ipv6_hop_ra: wrong RA length %d\n",
-		       nh[optoff + 1]);
+	net_dbg_ratelimited("ipv6_hop_ra: wrong RA length %d\n",
+			    nh[optoff + 1]);
 	kfree_skb(skb);
 	return false;
 }
@@ -566,8 +566,8 @@ static bool ipv6_hop_jumbo(struct sk_buff *skb, int optoff)
 	u32 pkt_len;
 
 	if (nh[optoff + 1] != 4 || (optoff & 3) != 2) {
-		LIMIT_NETDEBUG(KERN_DEBUG "ipv6_hop_jumbo: wrong jumbo opt length/alignment %d\n",
-			       nh[optoff+1]);
+		net_dbg_ratelimited("ipv6_hop_jumbo: wrong jumbo opt length/alignment %d\n",
+				    nh[optoff+1]);
 		IP6_INC_STATS_BH(net, ipv6_skb_idev(skb),
 				 IPSTATS_MIB_INHDRERRORS);
 		goto drop;
@@ -632,7 +632,7 @@ int ipv6_parse_hopopts(struct sk_buff *skb)
 		return -1;
 	}
 
-	opt->hop = sizeof(struct ipv6hdr);
+	opt->flags |= IP6SKB_HOPBYHOP;
 	if (ip6_parse_tlv(tlvprochopopt_lst, skb)) {
 		skb->transport_header += (skb_transport_header(skb)[1] + 1) << 3;
 		opt = IP6CB(skb);
@@ -727,6 +727,7 @@ ipv6_dup_options(struct sock *sk, struct ipv6_txoptions *opt)
 			*((char **)&opt2->dst1opt) += dif;
 		if (opt2->srcrt)
 			*((char **)&opt2->srcrt) += dif;
+		atomic_set(&opt2->refcnt, 1);
 	}
 	return opt2;
 }
@@ -790,7 +791,7 @@ ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
 		return ERR_PTR(-ENOBUFS);
 
 	memset(opt2, 0, tot_len);
-
+	atomic_set(&opt2->refcnt, 1);
 	opt2->tot_len = tot_len;
 	p = (char *)(opt2 + 1);
 

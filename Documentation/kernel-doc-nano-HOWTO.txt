@@ -128,7 +128,7 @@ are:
   special place-holders for where the extracted documentation should
   go.
 
-- scripts/basic/docproc.c
+- scripts/docproc.c
 
   This is a program for converting SGML template files into SGML
   files. When a file is referenced it is searched for symbols

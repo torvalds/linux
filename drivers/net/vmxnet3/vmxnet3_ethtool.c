@@ -104,7 +104,7 @@ vmxnet3_rq_driver_stats[] = {
 					  rx_buf_alloc_failure) },
 };
 
-/* gloabl stats maintained by the driver */
+/* global stats maintained by the driver */
 static const struct vmxnet3_stat_desc
 vmxnet3_global_stats[] = {
 	/* description,         offset */
@@ -183,16 +183,22 @@ vmxnet3_get_sset_count(struct net_device *netdev, int sset)
 }
 
 
-/* Should be multiple of 4 */
-#define NUM_TX_REGS	8
-#define NUM_RX_REGS	12
-
+/* This is a version 2 of the vmxnet3 ethtool_regs which goes hand in hand with
+ * the version 2 of the vmxnet3 support for ethtool(8) --register-dump.
+ * Therefore, if any registers are added, removed or modified, then a version
+ * bump and a corresponding change in the vmxnet3 support for ethtool(8)
+ * --register-dump would be required.
+ */
 static int
 vmxnet3_get_regs_len(struct net_device *netdev)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
-	return (adapter->num_tx_queues * NUM_TX_REGS * sizeof(u32) +
-		adapter->num_rx_queues * NUM_RX_REGS * sizeof(u32));
+
+	return ((9 /* BAR1 registers */ +
+		(1 + adapter->intr.num_intrs) +
+		(1 + adapter->num_tx_queues * 17 /* Tx queue registers */) +
+		(1 + adapter->num_rx_queues * 23 /* Rx queue registers */)) *
+		sizeof(u32));
 }
 
 
@@ -208,10 +214,6 @@ vmxnet3_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
-	drvinfo->n_stats = vmxnet3_get_sset_count(netdev, ETH_SS_STATS);
-	drvinfo->testinfo_len = 0;
-	drvinfo->eedump_len   = 0;
-	drvinfo->regdump_len  = vmxnet3_get_regs_len(netdev);
 }
 
 
@@ -272,7 +274,7 @@ int vmxnet3_set_features(struct net_device *netdev, netdev_features_t features)
 			adapter->shared->devRead.misc.uptFeatures &=
 			~UPT1_F_RXCSUM;
 
-		/* update harware LRO capability accordingly */
+		/* update hardware LRO capability accordingly */
 		if (features & NETIF_F_LRO)
 			adapter->shared->devRead.misc.uptFeatures |=
 							UPT1_F_LRO;
@@ -323,7 +325,7 @@ vmxnet3_get_ethtool_stats(struct net_device *netdev,
 					  vmxnet3_tq_driver_stats[i].offset);
 	}
 
-	for (j = 0; j < adapter->num_tx_queues; j++) {
+	for (j = 0; j < adapter->num_rx_queues; j++) {
 		base = (u8 *)&adapter->rqd_start[j].stats;
 		*buf++ = (u64) j;
 		for (i = 1; i < ARRAY_SIZE(vmxnet3_rq_dev_stats); i++)
@@ -342,6 +344,12 @@ vmxnet3_get_ethtool_stats(struct net_device *netdev,
 }
 
 
+/* This is a version 2 of the vmxnet3 ethtool_regs which goes hand in hand with
+ * the version 2 of the vmxnet3 support for ethtool(8) --register-dump.
+ * Therefore, if any registers are added, removed or modified, then a version
+ * bump and a corresponding change in the vmxnet3 support for ethtool(8)
+ * --register-dump would be required.
+ */
 static void
 vmxnet3_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 {
@@ -351,40 +359,90 @@ vmxnet3_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 
 	memset(p, 0, vmxnet3_get_regs_len(netdev));
 
-	regs->version = 1;
+	regs->version = 2;
 
 	/* Update vmxnet3_get_regs_len if we want to dump more registers */
 
-	/* make each ring use multiple of 16 bytes */
+	buf[j++] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_VRRS);
+	buf[j++] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_UVRS);
+	buf[j++] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_DSAL);
+	buf[j++] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_DSAH);
+	buf[j++] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
+	buf[j++] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_MACL);
+	buf[j++] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_MACH);
+	buf[j++] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_ICR);
+	buf[j++] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_ECR);
+
+	buf[j++] = adapter->intr.num_intrs;
+	for (i = 0; i < adapter->intr.num_intrs; i++) {
+		buf[j++] = VMXNET3_READ_BAR0_REG(adapter, VMXNET3_REG_IMR
+						 + i * VMXNET3_REG_ALIGN);
+	}
+
+	buf[j++] = adapter->num_tx_queues;
 	for (i = 0; i < adapter->num_tx_queues; i++) {
-		buf[j++] = adapter->tx_queue[i].tx_ring.next2fill;
-		buf[j++] = adapter->tx_queue[i].tx_ring.next2comp;
-		buf[j++] = adapter->tx_queue[i].tx_ring.gen;
-		buf[j++] = 0;
+		struct vmxnet3_tx_queue *tq = &adapter->tx_queue[i];
 
-		buf[j++] = adapter->tx_queue[i].comp_ring.next2proc;
-		buf[j++] = adapter->tx_queue[i].comp_ring.gen;
-		buf[j++] = adapter->tx_queue[i].stopped;
-		buf[j++] = 0;
+		buf[j++] = VMXNET3_READ_BAR0_REG(adapter, VMXNET3_REG_TXPROD +
+						 i * VMXNET3_REG_ALIGN);
+
+		buf[j++] = VMXNET3_GET_ADDR_LO(tq->tx_ring.basePA);
+		buf[j++] = VMXNET3_GET_ADDR_HI(tq->tx_ring.basePA);
+		buf[j++] = tq->tx_ring.size;
+		buf[j++] = tq->tx_ring.next2fill;
+		buf[j++] = tq->tx_ring.next2comp;
+		buf[j++] = tq->tx_ring.gen;
+
+		buf[j++] = VMXNET3_GET_ADDR_LO(tq->data_ring.basePA);
+		buf[j++] = VMXNET3_GET_ADDR_HI(tq->data_ring.basePA);
+		buf[j++] = tq->data_ring.size;
+		/* transmit data ring buffer size */
+		buf[j++] = VMXNET3_HDR_COPY_SIZE;
+
+		buf[j++] = VMXNET3_GET_ADDR_LO(tq->comp_ring.basePA);
+		buf[j++] = VMXNET3_GET_ADDR_HI(tq->comp_ring.basePA);
+		buf[j++] = tq->comp_ring.size;
+		buf[j++] = tq->comp_ring.next2proc;
+		buf[j++] = tq->comp_ring.gen;
+
+		buf[j++] = tq->stopped;
 	}
 
+	buf[j++] = adapter->num_rx_queues;
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		buf[j++] = adapter->rx_queue[i].rx_ring[0].next2fill;
-		buf[j++] = adapter->rx_queue[i].rx_ring[0].next2comp;
-		buf[j++] = adapter->rx_queue[i].rx_ring[0].gen;
+		struct vmxnet3_rx_queue *rq = &adapter->rx_queue[i];
+
+		buf[j++] =  VMXNET3_READ_BAR0_REG(adapter, VMXNET3_REG_RXPROD +
+						  i * VMXNET3_REG_ALIGN);
+		buf[j++] =  VMXNET3_READ_BAR0_REG(adapter, VMXNET3_REG_RXPROD2 +
+						  i * VMXNET3_REG_ALIGN);
+
+		buf[j++] = VMXNET3_GET_ADDR_LO(rq->rx_ring[0].basePA);
+		buf[j++] = VMXNET3_GET_ADDR_HI(rq->rx_ring[0].basePA);
+		buf[j++] = rq->rx_ring[0].size;
+		buf[j++] = rq->rx_ring[0].next2fill;
+		buf[j++] = rq->rx_ring[0].next2comp;
+		buf[j++] = rq->rx_ring[0].gen;
+
+		buf[j++] = VMXNET3_GET_ADDR_LO(rq->rx_ring[1].basePA);
+		buf[j++] = VMXNET3_GET_ADDR_HI(rq->rx_ring[1].basePA);
+		buf[j++] = rq->rx_ring[1].size;
+		buf[j++] = rq->rx_ring[1].next2fill;
+		buf[j++] = rq->rx_ring[1].next2comp;
+		buf[j++] = rq->rx_ring[1].gen;
+
+		/* receive data ring */
+		buf[j++] = 0;
+		buf[j++] = 0;
+		buf[j++] = 0;
 		buf[j++] = 0;
 
-		buf[j++] = adapter->rx_queue[i].rx_ring[1].next2fill;
-		buf[j++] = adapter->rx_queue[i].rx_ring[1].next2comp;
-		buf[j++] = adapter->rx_queue[i].rx_ring[1].gen;
-		buf[j++] = 0;
-
-		buf[j++] = adapter->rx_queue[i].comp_ring.next2proc;
-		buf[j++] = adapter->rx_queue[i].comp_ring.gen;
-		buf[j++] = 0;
-		buf[j++] = 0;
+		buf[j++] = VMXNET3_GET_ADDR_LO(rq->comp_ring.basePA);
+		buf[j++] = VMXNET3_GET_ADDR_HI(rq->comp_ring.basePA);
+		buf[j++] = rq->comp_ring.size;
+		buf[j++] = rq->comp_ring.next2proc;
+		buf[j++] = rq->comp_ring.gen;
 	}
-
 }
 
 
@@ -447,12 +505,12 @@ vmxnet3_get_ringparam(struct net_device *netdev,
 	param->rx_max_pending = VMXNET3_RX_RING_MAX_SIZE;
 	param->tx_max_pending = VMXNET3_TX_RING_MAX_SIZE;
 	param->rx_mini_max_pending = 0;
-	param->rx_jumbo_max_pending = 0;
+	param->rx_jumbo_max_pending = VMXNET3_RX_RING2_MAX_SIZE;
 
 	param->rx_pending = adapter->rx_ring_size;
 	param->tx_pending = adapter->tx_ring_size;
 	param->rx_mini_pending = 0;
-	param->rx_jumbo_pending = 0;
+	param->rx_jumbo_pending = adapter->rx_ring2_size;
 }
 
 
@@ -461,7 +519,7 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 		      struct ethtool_ringparam *param)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
-	u32 new_tx_ring_size, new_rx_ring_size;
+	u32 new_tx_ring_size, new_rx_ring_size, new_rx_ring2_size;
 	u32 sz;
 	int err = 0;
 
@@ -471,6 +529,10 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 
 	if (param->rx_pending == 0 || param->rx_pending >
 						VMXNET3_RX_RING_MAX_SIZE)
+		return -EINVAL;
+
+	if (param->rx_jumbo_pending == 0 ||
+	    param->rx_jumbo_pending > VMXNET3_RX_RING2_MAX_SIZE)
 		return -EINVAL;
 
 	/* if adapter not yet initialized, do nothing */
@@ -500,8 +562,15 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 							   sz) != 0)
 		return -EINVAL;
 
-	if (new_tx_ring_size == adapter->tx_queue[0].tx_ring.size &&
-	    new_rx_ring_size == adapter->rx_queue[0].rx_ring[0].size) {
+	/* ring2 has to be a multiple of VMXNET3_RING_SIZE_ALIGN */
+	new_rx_ring2_size = (param->rx_jumbo_pending + VMXNET3_RING_SIZE_MASK) &
+				~VMXNET3_RING_SIZE_MASK;
+	new_rx_ring2_size = min_t(u32, new_rx_ring2_size,
+				  VMXNET3_RX_RING2_MAX_SIZE);
+
+	if (new_tx_ring_size == adapter->tx_ring_size &&
+	    new_rx_ring_size == adapter->rx_ring_size &&
+	    new_rx_ring2_size == adapter->rx_ring2_size) {
 		return 0;
 	}
 
@@ -522,7 +591,7 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 		vmxnet3_rq_destroy_all(adapter);
 
 		err = vmxnet3_create_queues(adapter, new_tx_ring_size,
-			new_rx_ring_size, VMXNET3_DEF_RX_RING_SIZE);
+			new_rx_ring_size, new_rx_ring2_size);
 
 		if (err) {
 			/* failed, most likely because of OOM, try default
@@ -530,11 +599,12 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 			netdev_err(netdev, "failed to apply new sizes, "
 				   "try the default ones\n");
 			new_rx_ring_size = VMXNET3_DEF_RX_RING_SIZE;
+			new_rx_ring2_size = VMXNET3_DEF_RX_RING2_SIZE;
 			new_tx_ring_size = VMXNET3_DEF_TX_RING_SIZE;
 			err = vmxnet3_create_queues(adapter,
 						    new_tx_ring_size,
 						    new_rx_ring_size,
-						    VMXNET3_DEF_RX_RING_SIZE);
+						    new_rx_ring2_size);
 			if (err) {
 				netdev_err(netdev, "failed to create queues "
 					   "with default sizes. Closing it\n");
@@ -549,6 +619,7 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 	}
 	adapter->tx_ring_size = new_tx_ring_size;
 	adapter->rx_ring_size = new_rx_ring_size;
+	adapter->rx_ring2_size = new_rx_ring2_size;
 
 out:
 	clear_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state);
@@ -583,12 +654,16 @@ vmxnet3_get_rss_indir_size(struct net_device *netdev)
 }
 
 static int
-vmxnet3_get_rss(struct net_device *netdev, u32 *p, u8 *key)
+vmxnet3_get_rss(struct net_device *netdev, u32 *p, u8 *key, u8 *hfunc)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
 	unsigned int n = rssConf->indTableSize;
 
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+	if (!p)
+		return 0;
 	while (n--)
 		p[n] = rssConf->indTable[n];
 	return 0;
@@ -596,13 +671,20 @@ vmxnet3_get_rss(struct net_device *netdev, u32 *p, u8 *key)
 }
 
 static int
-vmxnet3_set_rss(struct net_device *netdev, const u32 *p, const u8 *key)
+vmxnet3_set_rss(struct net_device *netdev, const u32 *p, const u8 *key,
+		const u8 hfunc)
 {
 	unsigned int i;
 	unsigned long flags;
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
 
+	/* We do not allow change in unsupported parameters */
+	if (key ||
+	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+		return -EOPNOTSUPP;
+	if (!p)
+		return 0;
 	for (i = 0; i < rssConf->indTableSize; i++)
 		rssConf->indTable[i] = p[i];
 

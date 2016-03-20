@@ -1,0 +1,50 @@
+* Texas Instruments - drv260x Haptics driver family
+
+Required properties:
+	- compatible - One of:
+		"ti,drv2604" - DRV2604
+		"ti,drv2605" - DRV2605
+		"ti,drv2605l" - DRV2605L
+	- reg -  I2C slave address
+	- vbat-supply - Required supply regulator
+	- mode - Power up mode of the chip (defined in include/dt-bindings/input/ti-drv260x.h)
+		DRV260X_LRA_MODE - Linear Resonance Actuator mode (Piezoelectric)
+		DRV260X_LRA_NO_CAL_MODE - This is a LRA Mode but there is no calibration
+				sequence during init.  And the device is configured for real
+				time playback mode (RTP mode).
+		DRV260X_ERM_MODE - Eccentric Rotating Mass mode (Rotary vibrator)
+	- library-sel - These are ROM based waveforms pre-programmed into the IC.
+				This should be set to set the library to use at power up.
+				(defined in include/dt-bindings/input/ti-drv260x.h)
+		DRV260X_LIB_EMPTY - Do not use a pre-programmed library
+		DRV260X_ERM_LIB_A - Pre-programmed Library
+		DRV260X_ERM_LIB_B - Pre-programmed Library
+		DRV260X_ERM_LIB_C - Pre-programmed Library
+		DRV260X_ERM_LIB_D - Pre-programmed Library
+		DRV260X_ERM_LIB_E - Pre-programmed Library
+		DRV260X_ERM_LIB_F - Pre-programmed Library
+		DRV260X_LIB_LRA - Pre-programmed LRA Library
+
+Optional properties:
+	- enable-gpio - gpio pin to enable/disable the device.
+	- vib-rated-mv - The rated voltage of the actuator in millivolts.
+			  If this is not set then the value will be defaulted to
+			  3.2 v.
+	- vib-overdrive-mv - The overdrive voltage of the actuator in millivolts.
+			  If this is not set then the value will be defaulted to
+			  3.2 v.
+Example:
+
+haptics: haptics@5a {
+	compatible = "ti,drv2605l";
+	reg = <0x5a>;
+	vbat-supply = <&vbat>;
+	enable-gpio = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+	mode = <DRV260X_LRA_MODE>;
+	library-sel = <DRV260X_LIB_LRA>;
+	vib-rated-mv = <3200>;
+	vib-overdriver-mv = <3200>;
+}
+
+For more product information please see the link below:
+http://www.ti.com/product/drv2605

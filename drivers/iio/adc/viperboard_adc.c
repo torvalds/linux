@@ -145,7 +145,6 @@ static int vprbrd_adc_probe(struct platform_device *pdev)
 static struct platform_driver vprbrd_adc_driver = {
 	.driver = {
 		.name	= "viperboard-adc",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= vprbrd_adc_probe,
 };

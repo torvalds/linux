@@ -28,7 +28,7 @@ struct nft_queue {
 };
 
 static void nft_queue_eval(const struct nft_expr *expr,
-			   struct nft_data data[NFT_REG_MAX + 1],
+			   struct nft_regs *regs,
 			   const struct nft_pktinfo *pkt)
 {
 	struct nft_queue *priv = nft_expr_priv(expr);
@@ -42,7 +42,7 @@ static void nft_queue_eval(const struct nft_expr *expr,
 			queue = priv->queuenum + cpu % priv->queues_total;
 		} else {
 			queue = nfqueue_hash(pkt->skb, queue,
-					     priv->queues_total, pkt->ops->pf,
+					     priv->queues_total, pkt->pf,
 					     jhash_initval);
 		}
 	}
@@ -51,7 +51,7 @@ static void nft_queue_eval(const struct nft_expr *expr,
 	if (priv->flags & NFT_QUEUE_FLAG_BYPASS)
 		ret |= NF_VERDICT_FLAG_QUEUE_BYPASS;
 
-	data[NFT_REG_VERDICT].verdict = ret;
+	regs->verdict.code = ret;
 }
 
 static const struct nla_policy nft_queue_policy[NFTA_QUEUE_MAX + 1] = {

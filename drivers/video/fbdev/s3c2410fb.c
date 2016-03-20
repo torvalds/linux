@@ -601,12 +601,12 @@ static int s3c2410fb_debug_store(struct device *dev,
 	if (len < 1)
 		return -EINVAL;
 
-	if (strnicmp(buf, "on", 2) == 0 ||
-	    strnicmp(buf, "1", 1) == 0) {
+	if (strncasecmp(buf, "on", 2) == 0 ||
+	    strncasecmp(buf, "1", 1) == 0) {
 		debug = 1;
 		dev_dbg(dev, "s3c2410fb: Debug On");
-	} else if (strnicmp(buf, "off", 3) == 0 ||
-		   strnicmp(buf, "0", 1) == 0) {
+	} else if (strncasecmp(buf, "off", 3) == 0 ||
+		   strncasecmp(buf, "0", 1) == 0) {
 		debug = 0;
 		dev_dbg(dev, "s3c2410fb: Debug Off");
 	} else {
@@ -645,8 +645,8 @@ static int s3c2410fb_map_video_memory(struct fb_info *info)
 
 	dprintk("map_video_memory(fbi=%p) map_size %u\n", fbi, map_size);
 
-	info->screen_base = dma_alloc_writecombine(fbi->dev, map_size,
-						   &map_dma, GFP_KERNEL);
+	info->screen_base = dma_alloc_wc(fbi->dev, map_size, &map_dma,
+					 GFP_KERNEL);
 
 	if (info->screen_base) {
 		/* prevent initial garbage on screen */
@@ -667,8 +667,8 @@ static inline void s3c2410fb_unmap_video_memory(struct fb_info *info)
 {
 	struct s3c2410fb_info *fbi = info->par;
 
-	dma_free_writecombine(fbi->dev, PAGE_ALIGN(info->fix.smem_len),
-			      info->screen_base, info->fix.smem_start);
+	dma_free_wc(fbi->dev, PAGE_ALIGN(info->fix.smem_len),
+		    info->screen_base, info->fix.smem_start);
 }
 
 static inline void modify_gpio(void __iomem *reg,
@@ -1104,7 +1104,6 @@ static struct platform_driver s3c2410fb_driver = {
 	.resume		= s3c2410fb_resume,
 	.driver		= {
 		.name	= "s3c2410-lcd",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -1115,7 +1114,6 @@ static struct platform_driver s3c2412fb_driver = {
 	.resume		= s3c2410fb_resume,
 	.driver		= {
 		.name	= "s3c2412-lcd",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -2568,11 +2568,7 @@ static int ftdi_elan_close_controller(struct usb_ftdi *ftdi, int fn)
 					    0x00);
 	if (UxxxStatus)
 		return UxxxStatus;
-	UxxxStatus = ftdi_elan_read_config(ftdi, activePCIfn | reg, 0,
-					   &pcidata);
-	if (UxxxStatus)
-		return UxxxStatus;
-	return 0;
+	return ftdi_elan_read_config(ftdi, activePCIfn | reg, 0, &pcidata);
 }
 
 static int ftdi_elan_found_controller(struct usb_ftdi *ftdi, int fn, int quirk)
@@ -2695,11 +2691,7 @@ static int ftdi_elan_setupOHCI(struct usb_ftdi *ftdi)
 		}
 	}
 	if (ftdi->function > 0) {
-		UxxxStatus = ftdi_elan_setup_controller(ftdi,
-							ftdi->function - 1);
-		if (UxxxStatus)
-			return UxxxStatus;
-		return 0;
+		return ftdi_elan_setup_controller(ftdi,	ftdi->function - 1);
 	} else if (controllers > 0) {
 		return -ENXIO;
 	} else if (unrecognized > 0) {

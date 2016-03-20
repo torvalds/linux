@@ -96,11 +96,6 @@ static int bigsmp_phys_pkg_id(int cpuid_apic, int index_msb)
 	return cpuid_apic >> index_msb;
 }
 
-static inline void bigsmp_send_IPI_mask(const struct cpumask *mask, int vector)
-{
-	default_send_IPI_mask_sequence_phys(mask, vector);
-}
-
 static void bigsmp_send_IPI_allbutself(int vector)
 {
 	default_send_IPI_mask_allbutself_phys(cpu_online_mask, vector);
@@ -108,7 +103,7 @@ static void bigsmp_send_IPI_allbutself(int vector)
 
 static void bigsmp_send_IPI_all(int vector)
 {
-	bigsmp_send_IPI_mask(cpu_online_mask, vector);
+	default_send_IPI_mask_sequence_phys(cpu_online_mask, vector);
 }
 
 static int dmi_bigsmp; /* can be set by dmi scanners */
@@ -180,13 +175,13 @@ static struct apic apic_bigsmp = {
 
 	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 
-	.send_IPI_mask			= bigsmp_send_IPI_mask,
+	.send_IPI			= default_send_IPI_single_phys,
+	.send_IPI_mask			= default_send_IPI_mask_sequence_phys,
 	.send_IPI_mask_allbutself	= NULL,
 	.send_IPI_allbutself		= bigsmp_send_IPI_allbutself,
 	.send_IPI_all			= bigsmp_send_IPI_all,
 	.send_IPI_self			= default_send_IPI_self,
 
-	.wait_for_init_deassert		= true,
 	.inquire_remote_apic		= default_inquire_remote_apic,
 
 	.read				= native_apic_mem_read,

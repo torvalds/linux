@@ -263,7 +263,6 @@ MODULE_DEVICE_TABLE(of, d7s_match);
 static struct platform_driver d7s_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = d7s_match,
 	},
 	.probe		= d7s_probe,

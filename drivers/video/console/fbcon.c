@@ -146,9 +146,6 @@ static const struct consw fb_con;
 
 static int fbcon_set_origin(struct vc_data *);
 
-#define CURSOR_DRAW_DELAY		(1)
-
-static int vbl_cursor_cnt;
 static int fbcon_cursor_noblink;
 
 #define divides(a, b)	((!(a) || (b)%(a)) ? 0 : 1)
@@ -405,7 +402,7 @@ static void cursor_timer_handler(unsigned long dev_addr)
 	struct fbcon_ops *ops = info->fbcon_par;
 
 	queue_work(system_power_efficient_wq, &info->queue);
-	mod_timer(&ops->cursor_timer, jiffies + HZ/5);
+	mod_timer(&ops->cursor_timer, jiffies + ops->cur_blink_jiffies);
 }
 
 static void fbcon_add_cursor_timer(struct fb_info *info)
@@ -420,7 +417,7 @@ static void fbcon_add_cursor_timer(struct fb_info *info)
 
 		init_timer(&ops->cursor_timer);
 		ops->cursor_timer.function = cursor_timer_handler;
-		ops->cursor_timer.expires = jiffies + HZ / 5;
+		ops->cursor_timer.expires = jiffies + ops->cur_blink_jiffies;
 		ops->cursor_timer.data = (unsigned long ) info;
 		add_timer(&ops->cursor_timer);
 		ops->flags |= FBCON_FLAGS_CURSOR_TIMER;
@@ -448,8 +445,10 @@ static int __init fb_console_setup(char *this_opt)
 		return 1;
 
 	while ((options = strsep(&this_opt, ",")) != NULL) {
-		if (!strncmp(options, "font:", 5))
+		if (!strncmp(options, "font:", 5)) {
 			strlcpy(fontname, options + 5, sizeof(fontname));
+			continue;
+		}
 		
 		if (!strncmp(options, "scrollback:", 11)) {
 			options += 11;
@@ -457,13 +456,9 @@ static int __init fb_console_setup(char *this_opt)
 				fbcon_softback_size = simple_strtoul(options, &options, 0);
 				if (*options == 'k' || *options == 'K') {
 					fbcon_softback_size *= 1024;
-					options++;
 				}
-				if (*options != ',')
-					return 1;
-				options++;
-			} else
-				return 1;
+			}
+			continue;
 		}
 		
 		if (!strncmp(options, "map:", 4)) {
@@ -478,8 +473,7 @@ static int __init fb_console_setup(char *this_opt)
 
 				fbcon_map_override();
 			}
-
-			return 1;
+			continue;
 		}
 
 		if (!strncmp(options, "vc:", 3)) {
@@ -491,7 +485,8 @@ static int __init fb_console_setup(char *this_opt)
 			if (*options++ == '-')
 				last_fb_vc = simple_strtoul(options, &options, 10) - 1;
 			fbcon_is_default = 0; 
-		}	
+			continue;
+		}
 
 		if (!strncmp(options, "rotate:", 7)) {
 			options += 7;
@@ -499,6 +494,7 @@ static int __init fb_console_setup(char *this_opt)
 				initial_rotation = simple_strtoul(options, &options, 0);
 			if (initial_rotation > 3)
 				initial_rotation = 0;
+			continue;
 		}
 	}
 	return 1;
@@ -713,6 +709,7 @@ static int con2fb_acquire_newinfo(struct vc_data *vc, struct fb_info *info,
 	}
 
 	if (!err) {
+		ops->cur_blink_jiffies = HZ / 5;
 		info->fbcon_par = ops;
 
 		if (vc)
@@ -960,6 +957,7 @@ static const char *fbcon_startup(void)
 	ops->currcon = -1;
 	ops->graphics = 1;
 	ops->cur_rotate = -1;
+	ops->cur_blink_jiffies = HZ / 5;
 	info->fbcon_par = ops;
 	p->con_rotate = initial_rotation;
 	set_blitting_type(vc, info);
@@ -1097,6 +1095,7 @@ static void fbcon_init(struct vc_data *vc, int init)
 		con_copy_unimap(vc, svc);
 
 	ops = info->fbcon_par;
+	ops->cur_blink_jiffies = msecs_to_jiffies(vc->vc_cur_blink_ms);
 	p->con_rotate = initial_rotation;
 	set_blitting_type(vc, info);
 
@@ -1310,6 +1309,8 @@ static void fbcon_cursor(struct vc_data *vc, int mode)
 	int y;
  	int c = scr_readw((u16 *) vc->vc_pos);
 
+	ops->cur_blink_jiffies = msecs_to_jiffies(vc->vc_cur_blink_ms);
+
 	if (fbcon_is_inactive(vc, info) || vc->vc_deccm != 1)
 		return;
 
@@ -1330,7 +1331,6 @@ static void fbcon_cursor(struct vc_data *vc, int mode)
 
 	ops->cursor(vc, info, mode, y, get_color(vc, info, c, 1),
 		    get_color(vc, info, c, 0));
-	vbl_cursor_cnt = CURSOR_DRAW_DELAY;
 }
 
 static int scrollback_phys_max = 0;
@@ -3625,7 +3625,7 @@ static int __init fb_console_init(void)
 	return 0;
 }
 
-module_init(fb_console_init);
+fs_initcall(fb_console_init);
 
 #ifdef MODULE
 

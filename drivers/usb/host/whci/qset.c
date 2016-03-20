@@ -30,10 +30,9 @@ struct whc_qset *qset_alloc(struct whc *whc, gfp_t mem_flags)
 	struct whc_qset *qset;
 	dma_addr_t dma;
 
-	qset = dma_pool_alloc(whc->qset_pool, mem_flags, &dma);
+	qset = dma_pool_zalloc(whc->qset_pool, mem_flags, &dma);
 	if (qset == NULL)
 		return NULL;
-	memset(qset, 0, sizeof(struct whc_qset));
 
 	qset->qset_dma = dma;
 	qset->whc = whc;
@@ -377,6 +376,10 @@ static int qset_fill_page_list(struct whc *whc, struct whc_std *std, gfp_t mem_f
 	if (std->pl_virt == NULL)
 		return -ENOMEM;
 	std->dma_addr = dma_map_single(whc->wusbhc.dev, std->pl_virt, pl_len, DMA_TO_DEVICE);
+	if (dma_mapping_error(whc->wusbhc.dev, std->dma_addr)) {
+		kfree(std->pl_virt);
+		return -EFAULT;
+	}
 
 	for (p = 0; p < std->num_pointers; p++) {
 		std->pl_virt[p].buf_ptr = cpu_to_le64(dma_addr);
@@ -396,7 +399,7 @@ static void urb_dequeue_work(struct work_struct *work)
 	struct whc *whc = qset->whc;
 	unsigned long flags;
 
-	if (wurb->is_async == true)
+	if (wurb->is_async)
 		asl_update(whc, WUSBCMD_ASYNC_UPDATED
 			   | WUSBCMD_ASYNC_SYNCED_DB
 			   | WUSBCMD_ASYNC_QSET_RM);

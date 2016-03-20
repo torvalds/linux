@@ -10,6 +10,9 @@ Required properties:
 	       Should be "ti,omap5-mpu" for OMAP5
 - ti,hwmods: "mpu"
 
+Optional properties:
+- sram:	Phandle to the ocmcram node
+
 Examples:
 
 - For an OMAP5 SMP system:

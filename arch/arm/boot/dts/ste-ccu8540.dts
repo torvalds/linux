@@ -17,6 +17,13 @@
 	model = "ST-Ericsson U8540 platform with Device Tree";
 	compatible = "st-ericsson,ccu8540", "st-ericsson,u8540";
 
+	/* This stablilizes the serial port enumeration */
+	aliases {
+		serial0 = &ux500_serial0;
+		serial1 = &ux500_serial1;
+		serial2 = &ux500_serial2;
+	};
+
 	memory@0 {
 		device_type = "memory";
 		reg = <0x20000000 0x1f000000>, <0xc0000000 0x3f000000>;

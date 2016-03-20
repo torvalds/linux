@@ -22,6 +22,7 @@
 #include <linux/regset.h>
 #include <linux/elf.h>
 #include <linux/tracehook.h>
+#include <linux/context_tracking.h>
 #include <asm/traps.h>
 #include <arch/chip.h>
 
@@ -252,12 +253,17 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 
 int do_syscall_trace_enter(struct pt_regs *regs)
 {
-	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
+	u32 work = ACCESS_ONCE(current_thread_info()->flags);
+
+	if (secure_computing() == -1)
+		return -1;
+
+	if (work & _TIF_SYSCALL_TRACE) {
 		if (tracehook_report_syscall_entry(regs))
 			regs->regs[TREG_SYSCALL_NR] = -1;
 	}
 
-	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
+	if (work & _TIF_SYSCALL_TRACEPOINT)
 		trace_sys_enter(regs, regs->regs[TREG_SYSCALL_NR]);
 
 	return regs->regs[TREG_SYSCALL_NR];

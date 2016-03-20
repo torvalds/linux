@@ -52,6 +52,12 @@
 #define CVMX_POW_WQ_INT_THRX(offset) (CVMX_ADD_IO_SEG(0x0001670000000080ull) + ((offset) & 15) * 8)
 #define CVMX_POW_WS_PCX(offset) (CVMX_ADD_IO_SEG(0x0001670000000280ull) + ((offset) & 15) * 8)
 
+#define CVMX_SSO_WQ_INT (CVMX_ADD_IO_SEG(0x0001670000001000ull))
+#define CVMX_SSO_WQ_IQ_DIS (CVMX_ADD_IO_SEG(0x0001670000001010ull))
+#define CVMX_SSO_WQ_INT_PC (CVMX_ADD_IO_SEG(0x0001670000001020ull))
+#define CVMX_SSO_PPX_GRP_MSK(offset) (CVMX_ADD_IO_SEG(0x0001670000006000ull) + ((offset) & 31) * 8)
+#define CVMX_SSO_WQ_INT_THRX(offset) (CVMX_ADD_IO_SEG(0x0001670000007000ull) + ((offset) & 63) * 8)
+
 union cvmx_pow_bist_stat {
 	uint64_t u64;
 	struct cvmx_pow_bist_stat_s {
@@ -1284,6 +1290,29 @@ union cvmx_pow_ws_pcx {
 	struct cvmx_pow_ws_pcx_s cn63xxp1;
 	struct cvmx_pow_ws_pcx_s cn66xx;
 	struct cvmx_pow_ws_pcx_s cnf71xx;
+};
+
+union cvmx_sso_wq_int_thrx {
+	uint64_t u64;
+	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+		uint64_t reserved_33_63:31;
+		uint64_t tc_en:1;
+		uint64_t tc_thr:4;
+		uint64_t reserved_26_27:2;
+		uint64_t ds_thr:12;
+		uint64_t reserved_12_13:2;
+		uint64_t iq_thr:12;
+#else
+		uint64_t iq_thr:12;
+		uint64_t reserved_12_13:2;
+		uint64_t ds_thr:12;
+		uint64_t reserved_26_27:2;
+		uint64_t tc_thr:4;
+		uint64_t tc_en:1;
+		uint64_t reserved_33_63:31;
+#endif
+	} s;
 };
 
 #endif

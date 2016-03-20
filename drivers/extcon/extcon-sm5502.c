@@ -8,16 +8,10 @@
  * under  the terms of  the GNU General  Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
@@ -26,7 +20,8 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/extcon.h>
-#include <linux/extcon/sm5502.h>
+
+#include "extcon-sm5502.h"
 
 #define	DELAY_MS_DEFAULT		17000	/* unit: millisecond */
 
@@ -97,19 +92,12 @@ static struct reg_data sm5502_reg_data[] = {
 };
 
 /* List of detectable cables */
-enum {
-	EXTCON_CABLE_USB = 0,
-	EXTCON_CABLE_USB_HOST,
-	EXTCON_CABLE_TA,
-
-	EXTCON_CABLE_END,
-};
-
-static const char *sm5502_extcon_cable[] = {
-	[EXTCON_CABLE_USB]	= "USB",
-	[EXTCON_CABLE_USB_HOST]	= "USB-Host",
-	[EXTCON_CABLE_TA]	= "TA",
-	NULL,
+static const unsigned int sm5502_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_CHG_USB_SDP,
+	EXTCON_CHG_USB_DCP,
+	EXTCON_NONE,
 };
 
 /* Define supported accessory type */
@@ -300,7 +288,7 @@ static unsigned int sm5502_muic_get_cable_type(struct sm5502_muic_info *info)
 	 * If ADC is SM5502_MUIC_ADC_GROUND(0x0), external cable hasn't
 	 * connected with to MUIC device.
 	 */
-	cable_type &= SM5502_REG_ADC_MASK;
+	cable_type = adc & SM5502_REG_ADC_MASK;
 	if (cable_type == SM5502_MUIC_ADC_GROUND)
 		return SM5502_MUIC_ADC_GROUND;
 
@@ -364,8 +352,8 @@ static unsigned int sm5502_muic_get_cable_type(struct sm5502_muic_info *info)
 			break;
 		default:
 			dev_dbg(info->dev,
-				"cannot identify the cable type: adc(0x%x) "
-				"dev_type1(0x%x)\n", adc, dev_type1);
+				"cannot identify the cable type: adc(0x%x)\n",
+				adc);
 			return -EINVAL;
 		};
 		break;
@@ -382,36 +370,32 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 				     bool attached)
 {
 	static unsigned int prev_cable_type = SM5502_MUIC_ADC_GROUND;
-	const char **cable_names = info->edev->supported_cable;
 	unsigned int cable_type = SM5502_MUIC_ADC_GROUND;
 	unsigned int con_sw = DM_DP_SWITCH_OPEN;
 	unsigned int vbus_sw = VBUSIN_SWITCH_OPEN;
-	unsigned int idx = 0;
+	unsigned int id;
 	int ret;
-
-	if (!cable_names)
-		return 0;
 
 	/* Get the type of attached or detached cable */
 	if (attached)
 		cable_type = sm5502_muic_get_cable_type(info);
-	else if (!attached)
+	else
 		cable_type = prev_cable_type;
 	prev_cable_type = cable_type;
 
 	switch (cable_type) {
 	case SM5502_MUIC_ADC_OPEN_USB:
-		idx	= EXTCON_CABLE_USB;
+		id	= EXTCON_USB;
 		con_sw	= DM_DP_SWITCH_USB;
 		vbus_sw	= VBUSIN_SWITCH_VBUSOUT_WITH_USB;
 		break;
 	case SM5502_MUIC_ADC_OPEN_TA:
-		idx	= EXTCON_CABLE_TA;
+		id	= EXTCON_CHG_USB_DCP;
 		con_sw	= DM_DP_SWITCH_OPEN;
 		vbus_sw	= VBUSIN_SWITCH_VBUSOUT;
 		break;
 	case SM5502_MUIC_ADC_OPEN_USB_OTG:
-		idx	= EXTCON_CABLE_USB_HOST;
+		id	= EXTCON_USB_HOST;
 		con_sw	= DM_DP_SWITCH_USB;
 		vbus_sw	= VBUSIN_SWITCH_OPEN;
 		break;
@@ -427,7 +411,10 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 		return ret;
 
 	/* Change the state of external accessory */
-	extcon_set_cable_state(info->edev, cable_names[idx], attached);
+	extcon_set_cable_state_(info->edev, id, attached);
+	if (id == EXTCON_USB)
+		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SDP,
+					attached);
 
 	return 0;
 }
@@ -457,8 +444,6 @@ static void sm5502_muic_irq_work(struct work_struct *work)
 		dev_err(info->dev, "failed to handle MUIC interrupt\n");
 
 	mutex_unlock(&info->mutex);
-
-	return;
 }
 
 /*
@@ -605,7 +590,7 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 
 	for (i = 0; i < info->num_muic_irqs; i++) {
 		struct muic_irq *muic_irq = &info->muic_irqs[i];
-		unsigned int virq = 0;
+		int virq = 0;
 
 		virq = regmap_irq_get_virq(info->irq_data, muic_irq->irq);
 		if (virq <= 0)
@@ -617,8 +602,9 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 						IRQF_NO_SUSPEND,
 						muic_irq->name, info);
 		if (ret) {
-			dev_err(info->dev, "failed: irq request (IRQ: %d,"
-				" error :%d)\n", muic_irq->irq, ret);
+			dev_err(info->dev,
+				"failed: irq request (IRQ: %d, error :%d)\n",
+				muic_irq->irq, ret);
 			return ret;
 		}
 	}
@@ -629,7 +615,6 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 		dev_err(info->dev, "failed to allocate memory for extcon\n");
 		return -ENOMEM;
 	}
-	info->edev->name = np->name;
 
 	/* Register extcon device */
 	ret = devm_extcon_dev_register(info->dev, info->edev);
@@ -665,15 +650,16 @@ static int sm5502_muic_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-static struct of_device_id sm5502_dt_match[] = {
+static const struct of_device_id sm5502_dt_match[] = {
 	{ .compatible = "siliconmitus,sm5502-muic" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, sm5502_dt_match);
 
 #ifdef CONFIG_PM_SLEEP
 static int sm5502_muic_suspend(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct sm5502_muic_info *info = i2c_get_clientdata(i2c);
 
 	enable_irq_wake(info->irq);
@@ -683,7 +669,7 @@ static int sm5502_muic_suspend(struct device *dev)
 
 static int sm5502_muic_resume(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct sm5502_muic_info *info = i2c_get_clientdata(i2c);
 
 	disable_irq_wake(info->irq);
@@ -704,7 +690,6 @@ MODULE_DEVICE_TABLE(i2c, sm5502_i2c_id);
 static struct i2c_driver sm5502_muic_i2c_driver = {
 	.driver		= {
 		.name	= "sm5502",
-		.owner	= THIS_MODULE,
 		.pm	= &sm5502_muic_pm_ops,
 		.of_match_table = sm5502_dt_match,
 	},

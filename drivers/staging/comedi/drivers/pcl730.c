@@ -7,19 +7,12 @@
 /*
  * Driver: pcl730
  * Description: Advantech PCL-730 (& compatibles)
- * Devices: (Advantech) PCL-730 [pcl730]
- *	    (ICP) ISO-730 [iso730]
- *	    (Adlink) ACL-7130 [acl7130]
- *	    (Advantech) PCM-3730 [pcm3730]
- *	    (Advantech) PCL-725 [pcl725]
- *	    (ICP) P8R8-DIO [p16r16dio]
- *	    (Adlink) ACL-7225b [acl7225b]
- *	    (ICP) P16R16-DIO [p16r16dio]
- *	    (Advantech) PCL-733 [pcl733]
- *	    (Advantech) PCL-734 [pcl734]
- *	    (Diamond Systems) OPMM-1616-XT [opmm-1616-xt]
- *	    (Diamond Systems) PEARL-MM-P [prearl-mm-p]
- *	    (Diamond Systems) IR104-PBF [ir104-pbf]
+ * Devices: [Advantech] PCL-730 (pcl730), PCM-3730 (pcm3730), PCL-725 (pcl725),
+ *   PCL-733 (pcl733), PCL-734 (pcl734),
+ *   [ADLink] ACL-7130 (acl7130), ACL-7225b (acl7225b),
+ *   [ICP] ISO-730 (iso730), P8R8-DIO (p8r8dio), P16R16-DIO (p16r16dio),
+ *   [Diamond Systems] OPMM-1616-XT (opmm-1616-xt), PEARL-MM-P (pearl-mm-p),
+ *   IR104-PBF (ir104-pbf),
  * Author: José Luis Sánchez (jsanchezv@teleline.es)
  * Status: untested
  *
@@ -270,7 +263,7 @@ static int pcl730_di_insn_bits(struct comedi_device *dev,
 static int pcl730_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it)
 {
-	const struct pcl730_board *board = comedi_board(dev);
+	const struct pcl730_board *board = dev->board_ptr;
 	struct comedi_subdevice *s;
 	int subdev;
 	int ret;

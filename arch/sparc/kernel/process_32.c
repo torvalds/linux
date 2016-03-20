@@ -333,11 +333,11 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	childregs = (struct pt_regs *) (new_stack + STACKFRAME_SZ);
 
 	/*
-	 * A new process must start with interrupts closed in 2.5,
-	 * because this is how Mingo's scheduler works (see schedule_tail
-	 * and finish_arch_switch). If we do not do it, a timer interrupt hits
-	 * before we unlock, attempts to re-take the rq->lock, and then we die.
-	 * Thus, kpsr|=PSR_PIL.
+	 * A new process must start with interrupts disabled, see schedule_tail()
+	 * and finish_task_switch(). (If we do not do it and if a timer interrupt
+	 * hits before we unlock and attempts to take the rq->lock, we deadlock.)
+	 *
+	 * Thus, kpsr |= PSR_PIL.
 	 */
 	ti->ksp = (unsigned long) new_stack;
 	p->thread.kregs = childregs;

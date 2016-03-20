@@ -41,10 +41,9 @@ static inline void ath9k_hw_set_desc_link(struct ath_hw *ah, void *ds,
 	ath9k_hw_ops(ah)->set_desc_link(ds, link);
 }
 
-static inline bool ath9k_hw_calibrate(struct ath_hw *ah,
-				      struct ath9k_channel *chan,
-				      u8 rxchainmask,
-				      bool longcal)
+static inline int ath9k_hw_calibrate(struct ath_hw *ah,
+				     struct ath9k_channel *chan,
+				     u8 rxchainmask, bool longcal)
 {
 	return ath9k_hw_ops(ah)->calibrate(ah, chan, rxchainmask, longcal);
 }
@@ -65,6 +64,12 @@ static inline int ath9k_hw_txprocdesc(struct ath_hw *ah, void *ds,
 				      struct ath_tx_status *ts)
 {
 	return ath9k_hw_ops(ah)->proc_txdesc(ah, ds, ts);
+}
+
+static inline int ath9k_hw_get_duration(struct ath_hw *ah, const void *ds,
+					int index)
+{
+	return ath9k_hw_ops(ah)->get_duration(ah, ds, index);
 }
 
 static inline void ath9k_hw_antdiv_comb_conf_get(struct ath_hw *ah,
@@ -101,6 +106,14 @@ static inline void ath9k_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 {
 	if (ath9k_hw_ops(ah)->set_bt_ant_diversity)
 		ath9k_hw_ops(ah)->set_bt_ant_diversity(ah, enable);
+}
+
+static inline bool ath9k_hw_is_aic_enabled(struct ath_hw *ah)
+{
+	if (ath9k_hw_private_ops(ah)->is_aic_enabled)
+		return ath9k_hw_private_ops(ah)->is_aic_enabled(ah);
+
+	return false;
 }
 
 #endif

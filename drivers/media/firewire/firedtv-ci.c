@@ -241,7 +241,7 @@ int fdtv_ca_register(struct firedtv *fdtv)
 		return -EFAULT;
 
 	err = dvb_register_device(&fdtv->adapter, &fdtv->cadev,
-				  &fdtv_ca, fdtv, DVB_DEVICE_CA);
+				  &fdtv_ca, fdtv, DVB_DEVICE_CA, 0);
 
 	if (stat.ca_application_info == 0)
 		dev_err(fdtv->device, "CaApplicationInfo is not set\n");
@@ -253,6 +253,5 @@ int fdtv_ca_register(struct firedtv *fdtv)
 
 void fdtv_ca_release(struct firedtv *fdtv)
 {
-	if (fdtv->cadev)
-		dvb_unregister_device(fdtv->cadev);
+	dvb_unregister_device(fdtv->cadev);
 }

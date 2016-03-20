@@ -89,6 +89,11 @@ struct keyring_index_key {
 	size_t			desc_len;
 };
 
+union key_payload {
+	void __rcu		*rcu_data0;
+	void			*data[4];
+};
+
 /*****************************************************************************/
 /*
  * key reference with possession attribute handling
@@ -172,6 +177,7 @@ struct key {
 #define KEY_FLAG_TRUSTED_ONLY	9	/* set if keyring only accepts links to trusted keys */
 #define KEY_FLAG_BUILTIN	10	/* set if key is builtin */
 #define KEY_FLAG_ROOT_CAN_INVAL	11	/* set if key can be invalidated by root without permission */
+#define KEY_FLAG_KEEP		12	/* set if key should not be removed */
 
 	/* the key type and key description string
 	 * - the desc is used to match a key against search criteria
@@ -186,28 +192,18 @@ struct key {
 		};
 	};
 
-	/* type specific data
-	 * - this is used by the keyring type to index the name
-	 */
-	union {
-		struct list_head	link;
-		unsigned long		x[2];
-		void			*p[2];
-		int			reject_error;
-	} type_data;
-
 	/* key data
 	 * - this is used to hold the data actually used in cryptography or
 	 *   whatever
 	 */
 	union {
-		union {
-			unsigned long		value;
-			void __rcu		*rcudata;
-			void			*data;
-			void			*data2[2];
-		} payload;
-		struct assoc_array keys;
+		union key_payload payload;
+		struct {
+			/* Keyring bits */
+			struct list_head name_link;
+			struct assoc_array keys;
+		};
+		int reject_error;
 	};
 };
 
@@ -223,6 +219,7 @@ extern struct key *key_alloc(struct key_type *type,
 #define KEY_ALLOC_QUOTA_OVERRUN	0x0001	/* add to quota, permit even if overrun */
 #define KEY_ALLOC_NOT_IN_QUOTA	0x0002	/* not in quota */
 #define KEY_ALLOC_TRUSTED	0x0004	/* Key should be flagged as trusted */
+#define KEY_ALLOC_BUILT_IN	0x0008	/* Key is built into kernel */
 
 extern void key_revoke(struct key *key);
 extern void key_invalidate(struct key *key);
@@ -336,12 +333,12 @@ static inline bool key_is_instantiated(const struct key *key)
 }
 
 #define rcu_dereference_key(KEY)					\
-	(rcu_dereference_protected((KEY)->payload.rcudata,		\
+	(rcu_dereference_protected((KEY)->payload.rcu_data0,		\
 				   rwsem_is_locked(&((struct key *)(KEY))->sem)))
 
 #define rcu_assign_keypointer(KEY, PAYLOAD)				\
 do {									\
-	rcu_assign_pointer((KEY)->payload.rcudata, (PAYLOAD));		\
+	rcu_assign_pointer((KEY)->payload.rcu_data0, (PAYLOAD));	\
 } while (0)
 
 #ifdef CONFIG_SYSCTL

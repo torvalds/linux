@@ -32,6 +32,7 @@
 #include <linux/hugetlb.h>
 #include <linux/start_kernel.h>
 #include <linux/screen_info.h>
+#include <linux/tick.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
@@ -70,7 +71,7 @@ static unsigned long __initdata node_percpu[MAX_NUMNODES];
  * per-CPU stack and boot info.
  */
 DEFINE_PER_CPU(unsigned long, boot_sp) =
-	(unsigned long)init_stack + THREAD_SIZE;
+	(unsigned long)init_stack + THREAD_SIZE - STACK_TOP_DELTA;
 
 #ifdef CONFIG_SMP
 DEFINE_PER_CPU(unsigned long, boot_pc) = (unsigned long)start_kernel;
@@ -130,7 +131,7 @@ static int __init setup_maxmem(char *str)
 
 	maxmem_pfn = (maxmem >> HPAGE_SHIFT) << (HPAGE_SHIFT - PAGE_SHIFT);
 	pr_info("Forcing RAM used to no more than %dMB\n",
-	       maxmem_pfn >> (20 - PAGE_SHIFT));
+		maxmem_pfn >> (20 - PAGE_SHIFT));
 	return 0;
 }
 early_param("maxmem", setup_maxmem);
@@ -149,7 +150,7 @@ static int __init setup_maxnodemem(char *str)
 	maxnodemem_pfn[node] = (maxnodemem >> HPAGE_SHIFT) <<
 		(HPAGE_SHIFT - PAGE_SHIFT);
 	pr_info("Forcing RAM used on node %ld to no more than %dMB\n",
-	       node, maxnodemem_pfn[node] >> (20 - PAGE_SHIFT));
+		node, maxnodemem_pfn[node] >> (20 - PAGE_SHIFT));
 	return 0;
 }
 early_param("maxnodemem", setup_maxnodemem);
@@ -215,12 +216,11 @@ early_param("mem", setup_mem);  /* compatibility with x86 */
 
 static int __init setup_isolnodes(char *str)
 {
-	char buf[MAX_NUMNODES * 5];
 	if (str == NULL || nodelist_parse(str, isolnodes) != 0)
 		return -EINVAL;
 
-	nodelist_scnprintf(buf, sizeof(buf), isolnodes);
-	pr_info("Set isolnodes value to '%s'\n", buf);
+	pr_info("Set isolnodes value to '%*pbl'\n",
+		nodemask_pr_args(&isolnodes));
 	return 0;
 }
 early_param("isolnodes", setup_isolnodes);
@@ -417,8 +417,7 @@ static void __init setup_memory(void)
 			range.start = (start_pa + HPAGE_SIZE - 1) & HPAGE_MASK;
 			range.size -= (range.start - start_pa);
 			range.size &= HPAGE_MASK;
-			pr_err("Range not hugepage-aligned: %#llx..%#llx:"
-			       " now %#llx-%#llx\n",
+			pr_err("Range not hugepage-aligned: %#llx..%#llx: now %#llx-%#llx\n",
 			       start_pa, start_pa + orig_size,
 			       range.start, range.start + range.size);
 		}
@@ -437,8 +436,8 @@ static void __init setup_memory(void)
 		if (PFN_DOWN(range.size) > maxnodemem_pfn[i]) {
 			int max_size = maxnodemem_pfn[i];
 			if (max_size > 0) {
-				pr_err("Maxnodemem reduced node %d to"
-				       " %d pages\n", i, max_size);
+				pr_err("Maxnodemem reduced node %d to %d pages\n",
+				       i, max_size);
 				range.size = PFN_PHYS(max_size);
 			} else {
 				pr_err("Maxnodemem disabled node %d\n", i);
@@ -490,8 +489,8 @@ static void __init setup_memory(void)
 				NR_CPUS * (PFN_UP(per_cpu_size) >> PAGE_SHIFT);
 			if (end < pci_reserve_end_pfn + percpu_pages) {
 				end = pci_reserve_start_pfn;
-				pr_err("PCI mapping region reduced node %d to"
-				       " %ld pages\n", i, end - start);
+				pr_err("PCI mapping region reduced node %d to %ld pages\n",
+				       i, end - start);
 			}
 		}
 #endif
@@ -534,11 +533,10 @@ static void __init setup_memory(void)
 			}
 		}
 		physpages -= dropped_pages;
-		pr_warning("Only using %ldMB memory;"
-		       " ignoring %ldMB.\n",
-		       physpages >> (20 - PAGE_SHIFT),
-		       dropped_pages >> (20 - PAGE_SHIFT));
-		pr_warning("Consider using a larger page size.\n");
+		pr_warn("Only using %ldMB memory - ignoring %ldMB\n",
+			physpages >> (20 - PAGE_SHIFT),
+			dropped_pages >> (20 - PAGE_SHIFT));
+		pr_warn("Consider using a larger page size\n");
 	}
 #endif
 
@@ -556,25 +554,23 @@ static void __init setup_memory(void)
 		MAXMEM_PFN : mappable_physpages;
 	highmem_pages = (long) (physpages - lowmem_pages);
 
-	pr_notice("%ldMB HIGHMEM available.\n",
-	       pages_to_mb(highmem_pages > 0 ? highmem_pages : 0));
-	pr_notice("%ldMB LOWMEM available.\n",
-			pages_to_mb(lowmem_pages));
+	pr_notice("%ldMB HIGHMEM available\n",
+		  pages_to_mb(highmem_pages > 0 ? highmem_pages : 0));
+	pr_notice("%ldMB LOWMEM available\n", pages_to_mb(lowmem_pages));
 #else
 	/* Set max_low_pfn based on what node 0 can directly address. */
 	max_low_pfn = node_end_pfn[0];
 
 #ifndef __tilegx__
 	if (node_end_pfn[0] > MAXMEM_PFN) {
-		pr_warning("Only using %ldMB LOWMEM.\n",
-		       MAXMEM>>20);
-		pr_warning("Use a HIGHMEM enabled kernel.\n");
+		pr_warn("Only using %ldMB LOWMEM\n", MAXMEM >> 20);
+		pr_warn("Use a HIGHMEM enabled kernel\n");
 		max_low_pfn = MAXMEM_PFN;
 		max_pfn = MAXMEM_PFN;
 		node_end_pfn[0] = MAXMEM_PFN;
 	} else {
-		pr_notice("%ldMB memory available.\n",
-		       pages_to_mb(node_end_pfn[0]));
+		pr_notice("%ldMB memory available\n",
+			  pages_to_mb(node_end_pfn[0]));
 	}
 	for (i = 1; i < MAX_NUMNODES; ++i) {
 		node_start_pfn[i] = 0;
@@ -589,8 +585,7 @@ static void __init setup_memory(void)
 		if (pages)
 			high_memory = pfn_to_kaddr(node_end_pfn[i]);
 	}
-	pr_notice("%ldMB memory available.\n",
-	       pages_to_mb(lowmem_pages));
+	pr_notice("%ldMB memory available\n", pages_to_mb(lowmem_pages));
 #endif
 #endif
 }
@@ -779,7 +774,7 @@ static void __init zone_sizes_init(void)
 		 * though, there'll be no lowmem, so we just alloc_bootmem
 		 * the memmap.  There will be no percpu memory either.
 		 */
-		if (i != 0 && cpu_isset(i, isolnodes)) {
+		if (i != 0 && node_isset(i, isolnodes)) {
 			node_memmap_pfn[i] =
 				alloc_bootmem_pfn(0, memmap_size, 0);
 			BUG_ON(node_percpu[i] != 0);
@@ -887,7 +882,7 @@ static int __init node_neighbors(int node, int cpu,
 
 static void __init setup_numa_mapping(void)
 {
-	int distance[MAX_NUMNODES][NR_CPUS];
+	u8 distance[MAX_NUMNODES][NR_CPUS];
 	HV_Coord coord;
 	int cpu, node, cpus, i, x, y;
 	int num_nodes = num_online_nodes();
@@ -1112,8 +1107,8 @@ static void __init load_hv_initrd(void)
 	fd = hv_fs_findfile((HV_VirtAddr) initramfs_file);
 	if (fd == HV_ENOENT) {
 		if (set_initramfs_file) {
-			pr_warning("No such hvfs initramfs file '%s'\n",
-				   initramfs_file);
+			pr_warn("No such hvfs initramfs file '%s'\n",
+				initramfs_file);
 			return;
 		} else {
 			/* Try old backwards-compatible name. */
@@ -1126,8 +1121,8 @@ static void __init load_hv_initrd(void)
 	stat = hv_fs_fstat(fd);
 	BUG_ON(stat.size < 0);
 	if (stat.flags & HV_FS_ISDIR) {
-		pr_warning("Ignoring hvfs file '%s': it's a directory.\n",
-			   initramfs_file);
+		pr_warn("Ignoring hvfs file '%s': it's a directory\n",
+			initramfs_file);
 		return;
 	}
 	initrd = alloc_bootmem_pages(stat.size);
@@ -1144,7 +1139,7 @@ static void __init load_hv_initrd(void)
 
 void __init free_initrd_mem(unsigned long begin, unsigned long end)
 {
-	free_bootmem(__pa(begin), end - begin);
+	free_bootmem_late(__pa(begin), end - begin);
 }
 
 static int __init setup_initrd(char *str)
@@ -1185,9 +1180,8 @@ static void __init validate_hv(void)
 	HV_Topology topology = hv_inquire_topology();
 	BUG_ON(topology.coord.x != 0 || topology.coord.y != 0);
 	if (topology.width != 1 || topology.height != 1) {
-		pr_warning("Warning: booting UP kernel on %dx%d grid;"
-			   " will ignore all but first tile.\n",
-			   topology.width, topology.height);
+		pr_warn("Warning: booting UP kernel on %dx%d grid; will ignore all but first tile\n",
+			topology.width, topology.height);
 	}
 #endif
 
@@ -1208,9 +1202,8 @@ static void __init validate_hv(void)
 	 * We use a struct cpumask for this, so it must be big enough.
 	 */
 	if ((smp_height * smp_width) > nr_cpu_ids)
-		early_panic("Hypervisor %d x %d grid too big for Linux"
-			    " NR_CPUS %d\n", smp_height, smp_width,
-			    nr_cpu_ids);
+		early_panic("Hypervisor %d x %d grid too big for Linux NR_CPUS %d\n",
+			    smp_height, smp_width, nr_cpu_ids);
 #endif
 
 	/*
@@ -1218,7 +1211,8 @@ static void __init validate_hv(void)
 	 * various asid variables to their appropriate initial states.
 	 */
 	asid_range = hv_inquire_asid(0);
-	__get_cpu_var(current_asid) = min_asid = asid_range.start;
+	min_asid = asid_range.start;
+	__this_cpu_write(current_asid, min_asid);
 	max_asid = asid_range.start + asid_range.size - 1;
 
 	if (hv_confstr(HV_CONFSTR_CHIP_MODEL, (HV_VirtAddr)chip_model,
@@ -1264,10 +1258,9 @@ static void __init validate_va(void)
 
 	/* Kernel PCs must have their high bit set; see intvec.S. */
 	if ((long)VMALLOC_START >= 0)
-		early_panic(
-			"Linux VMALLOC region below the 2GB line (%#lx)!\n"
-			"Reconfigure the kernel with smaller VMALLOC_RESERVE.\n",
-			VMALLOC_START);
+		early_panic("Linux VMALLOC region below the 2GB line (%#lx)!\n"
+			    "Reconfigure the kernel with smaller VMALLOC_RESERVE\n",
+			    VMALLOC_START);
 #endif
 }
 
@@ -1322,11 +1315,9 @@ early_param("disabled_cpus", disabled_cpus);
 
 void __init print_disabled_cpus(void)
 {
-	if (!cpumask_empty(&disabled_map)) {
-		char buf[100];
-		cpulist_scnprintf(buf, sizeof(buf), &disabled_map);
-		pr_info("CPUs not available for Linux: %s\n", buf);
-	}
+	if (!cpumask_empty(&disabled_map))
+		pr_info("CPUs not available for Linux: %*pbl\n",
+			cpumask_pr_args(&disabled_map));
 }
 
 static void __init setup_cpu_maps(void)
@@ -1394,11 +1385,33 @@ static void __init setup_cpu_maps(void)
 
 static int __init dataplane(char *str)
 {
-	pr_warning("WARNING: dataplane support disabled in this kernel\n");
+	pr_warn("WARNING: dataplane support disabled in this kernel\n");
 	return 0;
 }
 
 early_param("dataplane", dataplane);
+
+#ifdef CONFIG_NO_HZ_FULL
+/* Warn if hypervisor shared cpus are marked as nohz_full. */
+static int __init check_nohz_full_cpus(void)
+{
+	struct cpumask shared;
+	int cpu;
+
+	if (hv_inquire_tiles(HV_INQ_TILES_SHARED,
+			     (HV_VirtAddr) shared.bits, sizeof(shared)) < 0) {
+		pr_warn("WARNING: No support for inquiring hv shared tiles\n");
+		return 0;
+	}
+	for_each_cpu(cpu, &shared) {
+		if (tick_nohz_full_cpu(cpu))
+			pr_warn("WARNING: nohz_full cpu %d receives hypervisor interrupts!\n",
+			       cpu);
+	}
+	return 0;
+}
+arch_initcall(check_nohz_full_cpus);
+#endif
 
 #ifdef CONFIG_CMDLINE_BOOL
 static char __initdata builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
@@ -1412,8 +1425,8 @@ void __init setup_arch(char **cmdline_p)
 	len = hv_get_command_line((HV_VirtAddr) boot_command_line,
 				  COMMAND_LINE_SIZE);
 	if (boot_command_line[0])
-		pr_warning("WARNING: ignoring dynamic command line \"%s\"\n",
-			   boot_command_line);
+		pr_warn("WARNING: ignoring dynamic command line \"%s\"\n",
+			boot_command_line);
 	strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
 #else
 	char *hv_cmdline;
@@ -1539,8 +1552,7 @@ static void __init pcpu_fc_populate_pte(unsigned long addr)
 
 	BUG_ON(pgd_addr_invalid(addr));
 	if (addr < VMALLOC_START || addr >= VMALLOC_END)
-		panic("PCPU addr %#lx outside vmalloc range %#lx..%#lx;"
-		      " try increasing CONFIG_VMALLOC_RESERVE\n",
+		panic("PCPU addr %#lx outside vmalloc range %#lx..%#lx; try increasing CONFIG_VMALLOC_RESERVE\n",
 		      addr, VMALLOC_START, VMALLOC_END);
 
 	pgd = swapper_pg_dir + pgd_index(addr);
@@ -1595,8 +1607,8 @@ void __init setup_per_cpu_areas(void)
 			lowmem_va = (unsigned long)pfn_to_kaddr(pfn);
 			ptep = virt_to_kpte(lowmem_va);
 			if (pte_huge(*ptep)) {
-				printk(KERN_DEBUG "early shatter of huge page"
-				       " at %#lx\n", lowmem_va);
+				printk(KERN_DEBUG "early shatter of huge page at %#lx\n",
+				       lowmem_va);
 				shatter_pmd((pmd_t *)ptep);
 				ptep = virt_to_kpte(lowmem_va);
 				BUG_ON(pte_huge(*ptep));
@@ -1620,14 +1632,14 @@ static struct resource data_resource = {
 	.name	= "Kernel data",
 	.start	= 0,
 	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
 };
 
 static struct resource code_resource = {
 	.name	= "Kernel code",
 	.start	= 0,
 	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM
 };
 
 /*
@@ -1661,10 +1673,15 @@ insert_ram_resource(u64 start_pfn, u64 end_pfn, bool reserved)
 		kzalloc(sizeof(struct resource), GFP_ATOMIC);
 	if (!res)
 		return NULL;
-	res->name = reserved ? "Reserved" : "System RAM";
 	res->start = start_pfn << PAGE_SHIFT;
 	res->end = (end_pfn << PAGE_SHIFT) - 1;
 	res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
+	if (reserved) {
+		res->name = "Reserved";
+	} else {
+		res->name = "System RAM";
+		res->flags |= IORESOURCE_SYSRAM;
+	}
 	if (insert_resource(&iomem_resource, res)) {
 		kfree(res);
 		return NULL;

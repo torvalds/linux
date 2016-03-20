@@ -42,6 +42,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/usb.h>
+#include <linux/ktime.h>
 
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
@@ -111,7 +112,7 @@ struct sasem_context {
 	} tx;
 
 	/* for dealing with repeat codes (wish there was a toggle bit!) */
-	struct timeval presstime;
+	ktime_t presstime;
 	char lastcode[8];
 	int codesaved;
 };
@@ -170,9 +171,6 @@ static void delete_context(struct sasem_context *context)
 	kfree(context->driver->rbuf);
 	kfree(context->driver);
 	kfree(context);
-
-	if (debug)
-		pr_info("%s: context deleted\n", __func__);
 }
 
 static void deregister_from_lirc(struct sasem_context *context)
@@ -182,10 +180,12 @@ static void deregister_from_lirc(struct sasem_context *context)
 
 	retval = lirc_unregister_driver(minor);
 	if (retval)
-		pr_err("%s: unable to deregister from lirc (%d)\n",
-		       __func__, retval);
+		dev_err(&context->dev->dev,
+			"%s: unable to deregister from lirc (%d)\n",
+			__func__, retval);
 	else
-		pr_info("Deregistered Sasem driver (minor:%d)\n", minor);
+		dev_info(&context->dev->dev,
+			 "Deregistered Sasem driver (minor:%d)\n", minor);
 
 }
 
@@ -214,9 +214,8 @@ static int vfd_open(struct inode *inode, struct file *file)
 	context = usb_get_intfdata(interface);
 
 	if (!context) {
-		dev_err(&interface->dev,
-			"%s: no context found for minor %d\n",
-			__func__, subminor);
+		dev_err(&interface->dev, "no context found for minor %d\n",
+			subminor);
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -246,7 +245,7 @@ exit:
  */
 static long vfd_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
-	struct sasem_context *context = NULL;
+	struct sasem_context *context;
 
 	context = (struct sasem_context *) file->private_data;
 
@@ -332,13 +331,13 @@ static int send_packet(struct sasem_context *context)
 	context->tx_urb->actual_length = 0;
 
 	init_completion(&context->tx.finished);
-	atomic_set(&(context->tx.busy), 1);
+	atomic_set(&context->tx.busy, 1);
 
 	retval =  usb_submit_urb(context->tx_urb, GFP_KERNEL);
 	if (retval) {
-		atomic_set(&(context->tx.busy), 0);
-		dev_err(&context->dev->dev, "%s: error submitting urb (%d)\n",
-			__func__, retval);
+		atomic_set(&context->tx.busy, 0);
+		dev_err(&context->dev->dev, "error submitting urb (%d)\n",
+			retval);
 	} else {
 		/* Wait for transmission to complete (or abort) */
 		mutex_unlock(&context->ctx_lock);
@@ -348,8 +347,7 @@ static int send_packet(struct sasem_context *context)
 		retval = context->tx.status;
 		if (retval)
 			dev_err(&context->dev->dev,
-				"%s: packet tx failed (%d)\n",
-				__func__, retval);
+				"packet tx failed (%d)\n", retval);
 	}
 
 	return retval;
@@ -389,9 +387,10 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 		goto exit;
 	}
 
-	data_buf = memdup_user((void const __user *)buf, n_bytes);
+	data_buf = memdup_user(buf, n_bytes);
 	if (IS_ERR(data_buf)) {
 		retval = PTR_ERR(data_buf);
+		data_buf = NULL;
 		goto exit;
 	}
 
@@ -443,8 +442,7 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 		retval = send_packet(context);
 		if (retval) {
 			dev_err(&context->dev->dev,
-				"%s: send packet failed for packet #%d\n",
-				__func__, i);
+				"send packet failed for packet #%d\n", i);
 			goto exit;
 		}
 	}
@@ -474,8 +472,6 @@ static void usb_tx_callback(struct urb *urb)
 	/* notify waiters that write has finished */
 	atomic_set(&context->tx.busy, 0);
 	complete(&context->tx.finished);
-
-	return;
 }
 
 /**
@@ -489,7 +485,7 @@ static int ir_open(void *data)
 	/* prevent races with disconnect */
 	mutex_lock(&disconnect_lock);
 
-	context = (struct sasem_context *) data;
+	context = data;
 
 	mutex_lock(&context->ctx_lock);
 
@@ -510,8 +506,7 @@ static int ir_open(void *data)
 
 	if (retval)
 		dev_err(&context->dev->dev,
-			"%s: usb_submit_urb failed for ir_open (%d)\n",
-			__func__, retval);
+			"usb_submit_urb failed for ir_open (%d)\n", retval);
 	else {
 		context->ir_isopen = 1;
 		dev_info(&context->dev->dev, "IR port opened\n");
@@ -531,7 +526,7 @@ static void ir_close(void *data)
 {
 	struct sasem_context *context;
 
-	context = (struct sasem_context *)data;
+	context = data;
 	if (!context) {
 		pr_err("%s: no context for device\n", __func__);
 		return;
@@ -562,7 +557,6 @@ static void ir_close(void *data)
 	}
 
 	mutex_unlock(&context->ctx_lock);
-	return;
 }
 
 /**
@@ -573,9 +567,8 @@ static void incoming_packet(struct sasem_context *context,
 {
 	int len = urb->actual_length;
 	unsigned char *buf = urb->transfer_buffer;
-	long ms;
-	struct timeval tv;
-	int i;
+	u64 ns;
+	ktime_t kt;
 
 	if (len != 8) {
 		dev_warn(&context->dev->dev,
@@ -584,22 +577,16 @@ static void incoming_packet(struct sasem_context *context,
 		return;
 	}
 
-	if (debug) {
-		printk(KERN_INFO "Incoming data: ");
-		for (i = 0; i < 8; ++i)
-			printk(KERN_CONT "%02x ", buf[i]);
-		printk(KERN_CONT "\n");
-	}
-
+	if (debug)
+		dev_info(&context->dev->dev, "Incoming data: %*ph\n", len, buf);
 	/*
 	 * Lirc could deal with the repeat code, but we really need to block it
 	 * if it arrives too late.  Otherwise we could repeat the wrong code.
 	 */
 
 	/* get the time since the last button press */
-	do_gettimeofday(&tv);
-	ms = (tv.tv_sec - context->presstime.tv_sec) * 1000 +
-	     (tv.tv_usec - context->presstime.tv_usec) / 1000;
+	kt = ktime_get();
+	ns = ktime_to_ns(ktime_sub(kt, context->presstime));
 
 	if (memcmp(buf, "\x08\0\0\0\0\0\0\0", 8) == 0) {
 		/*
@@ -613,10 +600,9 @@ static void incoming_packet(struct sasem_context *context,
 		 *   in that time and then get a false repeat of the previous
 		 *   press but it is long enough for a genuine repeat
 		 */
-		if ((ms < 250) && (context->codesaved != 0)) {
+		if ((ns < 250 * NSEC_PER_MSEC) && (context->codesaved != 0)) {
 			memcpy(buf, &context->lastcode, 8);
-			context->presstime.tv_sec = tv.tv_sec;
-			context->presstime.tv_usec = tv.tv_usec;
+			context->presstime = kt;
 		}
 	} else {
 		/* save the current valid code for repeats */
@@ -626,8 +612,7 @@ static void incoming_packet(struct sasem_context *context,
 		 * just for safety reasons
 		 */
 		context->codesaved = 1;
-		context->presstime.tv_sec = tv.tv_sec;
-		context->presstime.tv_usec = tv.tv_usec;
+		context->presstime = kt;
 	}
 
 	lirc_buffer_write(context->driver->rbuf, buf);
@@ -664,7 +649,6 @@ static void usb_rx_callback(struct urb *urb)
 	}
 
 	usb_submit_urb(context->rx_urb, GFP_ATOMIC);
-	return;
 }
 
 
@@ -711,15 +695,11 @@ static int sasem_probe(struct usb_interface *interface,
 	for (i = 0; i < num_endpoints && !(ir_ep_found && vfd_ep_found); ++i) {
 
 		struct usb_endpoint_descriptor *ep;
-		int ep_dir;
-		int ep_type;
+
 		ep = &iface_desc->endpoint [i].desc;
-		ep_dir = ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK;
-		ep_type = ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 
 		if (!ir_ep_found &&
-			ep_dir == USB_DIR_IN &&
-			ep_type == USB_ENDPOINT_XFER_INT) {
+			usb_endpoint_is_int_in(ep)) {
 
 			rx_endpoint = ep;
 			ir_ep_found = 1;
@@ -728,8 +708,7 @@ static int sasem_probe(struct usb_interface *interface,
 					"%s: found IR endpoint\n", __func__);
 
 		} else if (!vfd_ep_found &&
-			ep_dir == USB_DIR_OUT &&
-			ep_type == USB_ENDPOINT_XFER_INT) {
+			usb_endpoint_is_int_out(ep)) {
 
 			tx_endpoint = ep;
 			vfd_ep_found = 1;

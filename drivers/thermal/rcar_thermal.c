@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reboot.h>
@@ -63,7 +64,7 @@ struct rcar_thermal_priv {
 	struct mutex lock;
 	struct list_head list;
 	int id;
-	int ctemp;
+	u32 ctemp;
 };
 
 #define rcar_thermal_for_each_priv(pos, common)	\
@@ -75,11 +76,13 @@ struct rcar_thermal_priv {
 #define rcar_has_irq_support(priv)	((priv)->common->base)
 #define rcar_id_to_shift(priv)		((priv)->id * 8)
 
-#ifdef DEBUG
-# define rcar_force_update_temp(priv)	1
-#else
-# define rcar_force_update_temp(priv)	0
-#endif
+#define USE_OF_THERMAL	1
+static const struct of_device_id rcar_thermal_dt_ids[] = {
+	{ .compatible = "renesas,rcar-thermal", },
+	{ .compatible = "renesas,rcar-gen2-thermal", .data = (void *)USE_OF_THERMAL },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rcar_thermal_dt_ids);
 
 /*
  *		basic functions
@@ -145,7 +148,7 @@ static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 {
 	struct device *dev = rcar_priv_to_dev(priv);
 	int i;
-	int ctemp, old, new;
+	u32 ctemp, old, new;
 	int ret = -EINVAL;
 
 	mutex_lock(&priv->lock);
@@ -200,19 +203,44 @@ err_out_unlock:
 	return ret;
 }
 
-static int rcar_thermal_get_temp(struct thermal_zone_device *zone,
-				 unsigned long *temp)
+static int rcar_thermal_get_current_temp(struct rcar_thermal_priv *priv,
+					 int *temp)
+{
+	int tmp;
+	int ret;
+
+	ret = rcar_thermal_update_temp(priv);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&priv->lock);
+	tmp =  MCELSIUS((priv->ctemp * 5) - 65);
+	mutex_unlock(&priv->lock);
+
+	if ((tmp < MCELSIUS(-45)) || (tmp > MCELSIUS(125))) {
+		struct device *dev = rcar_priv_to_dev(priv);
+
+		dev_err(dev, "it couldn't measure temperature correctly\n");
+		return -EIO;
+	}
+
+	*temp = tmp;
+
+	return 0;
+}
+
+static int rcar_thermal_of_get_temp(void *data, int *temp)
+{
+	struct rcar_thermal_priv *priv = data;
+
+	return rcar_thermal_get_current_temp(priv, temp);
+}
+
+static int rcar_thermal_get_temp(struct thermal_zone_device *zone, int *temp)
 {
 	struct rcar_thermal_priv *priv = rcar_zone_to_priv(zone);
 
-	if (!rcar_has_irq_support(priv) || rcar_force_update_temp(priv))
-		rcar_thermal_update_temp(priv);
-
-	mutex_lock(&priv->lock);
-	*temp =  MCELSIUS((priv->ctemp * 5) - 65);
-	mutex_unlock(&priv->lock);
-
-	return 0;
+	return rcar_thermal_get_current_temp(priv, temp);
 }
 
 static int rcar_thermal_get_trip_type(struct thermal_zone_device *zone,
@@ -235,7 +263,7 @@ static int rcar_thermal_get_trip_type(struct thermal_zone_device *zone,
 }
 
 static int rcar_thermal_get_trip_temp(struct thermal_zone_device *zone,
-				      int trip, unsigned long *temp)
+				      int trip, int *temp)
 {
 	struct rcar_thermal_priv *priv = rcar_zone_to_priv(zone);
 	struct device *dev = rcar_priv_to_dev(priv);
@@ -271,6 +299,10 @@ static int rcar_thermal_notify(struct thermal_zone_device *zone,
 	return 0;
 }
 
+static const struct thermal_zone_of_device_ops rcar_thermal_zone_of_ops = {
+	.get_temp	= rcar_thermal_of_get_temp,
+};
+
 static struct thermal_zone_device_ops rcar_thermal_zone_ops = {
 	.get_temp	= rcar_thermal_get_temp,
 	.get_trip_type	= rcar_thermal_get_trip_type,
@@ -289,6 +321,9 @@ static void _rcar_thermal_irq_ctrl(struct rcar_thermal_priv *priv, int enable)
 	unsigned long flags;
 	u32 mask = 0x3 << rcar_id_to_shift(priv); /* enable Rising/Falling */
 
+	if (!rcar_has_irq_support(priv))
+		return;
+
 	spin_lock_irqsave(&common->lock, flags);
 
 	rcar_thermal_common_bset(common, INTMSK, mask, enable ? 0 : mask);
@@ -299,15 +334,25 @@ static void _rcar_thermal_irq_ctrl(struct rcar_thermal_priv *priv, int enable)
 static void rcar_thermal_work(struct work_struct *work)
 {
 	struct rcar_thermal_priv *priv;
-	unsigned long cctemp, nctemp;
+	int cctemp, nctemp;
+	int ret;
 
 	priv = container_of(work, struct rcar_thermal_priv, work.work);
 
-	rcar_thermal_get_temp(priv->zone, &cctemp);
-	rcar_thermal_update_temp(priv);
+	ret = rcar_thermal_get_current_temp(priv, &cctemp);
+	if (ret < 0)
+		return;
+
+	ret = rcar_thermal_update_temp(priv);
+	if (ret < 0)
+		return;
+
 	rcar_thermal_irq_enable(priv);
 
-	rcar_thermal_get_temp(priv->zone, &nctemp);
+	ret = rcar_thermal_get_current_temp(priv, &nctemp);
+	if (ret < 0)
+		return;
+
 	if (nctemp != cctemp)
 		thermal_zone_device_update(priv->zone);
 }
@@ -362,20 +407,42 @@ static irqreturn_t rcar_thermal_irq(int irq, void *data)
 /*
  *		platform functions
  */
+static int rcar_thermal_remove(struct platform_device *pdev)
+{
+	struct rcar_thermal_common *common = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
+	struct rcar_thermal_priv *priv;
+
+	rcar_thermal_for_each_priv(priv, common) {
+		rcar_thermal_irq_disable(priv);
+		thermal_zone_device_unregister(priv->zone);
+	}
+
+	pm_runtime_put(dev);
+	pm_runtime_disable(dev);
+
+	return 0;
+}
+
 static int rcar_thermal_probe(struct platform_device *pdev)
 {
 	struct rcar_thermal_common *common;
 	struct rcar_thermal_priv *priv;
 	struct device *dev = &pdev->dev;
 	struct resource *res, *irq;
+	const struct of_device_id *of_id = of_match_device(rcar_thermal_dt_ids, dev);
+	unsigned long of_data = (unsigned long)of_id->data;
 	int mres = 0;
 	int i;
 	int ret = -ENODEV;
 	int idle = IDLE_INTERVAL;
+	u32 enr_bits = 0;
 
 	common = devm_kzalloc(dev, sizeof(*common), GFP_KERNEL);
 	if (!common)
 		return -ENOMEM;
+
+	platform_set_drvdata(pdev, common);
 
 	INIT_LIST_HEAD(&common->head);
 	spin_lock_init(&common->lock);
@@ -386,30 +453,15 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (irq) {
-		int ret;
-
 		/*
 		 * platform has IRQ support.
-		 * Then, drier use common register
-		 */
-
-		ret = devm_request_irq(dev, irq->start, rcar_thermal_irq, 0,
-				       dev_name(dev), common);
-		if (ret) {
-			dev_err(dev, "irq request failed\n ");
-			return ret;
-		}
-
-		/*
+		 * Then, driver uses common registers
 		 * rcar_has_irq_support() will be enabled
 		 */
 		res = platform_get_resource(pdev, IORESOURCE_MEM, mres++);
 		common->base = devm_ioremap_resource(dev, res);
 		if (IS_ERR(common->base))
 			return PTR_ERR(common->base);
-
-		/* enable temperature comparation */
-		rcar_thermal_common_write(common, ENR, 0x00030303);
 
 		idle = 0; /* polling delay is not needed */
 	}
@@ -436,9 +488,17 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 		mutex_init(&priv->lock);
 		INIT_LIST_HEAD(&priv->list);
 		INIT_DELAYED_WORK(&priv->work, rcar_thermal_work);
-		rcar_thermal_update_temp(priv);
+		ret = rcar_thermal_update_temp(priv);
+		if (ret < 0)
+			goto error_unregister;
 
-		priv->zone = thermal_zone_device_register("rcar_thermal",
+		if (of_data == USE_OF_THERMAL)
+			priv->zone = thermal_zone_of_sensor_register(
+						dev, i, priv,
+						&rcar_thermal_zone_of_ops);
+		else
+			priv->zone = thermal_zone_device_register(
+						"rcar_thermal",
 						1, 0, priv,
 						&rcar_thermal_zone_ops, NULL, 0,
 						idle);
@@ -448,54 +508,35 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 			goto error_unregister;
 		}
 
-		if (rcar_has_irq_support(priv))
-			rcar_thermal_irq_enable(priv);
+		rcar_thermal_irq_enable(priv);
 
 		list_move_tail(&priv->list, &common->head);
+
+		/* update ENR bits */
+		enr_bits |= 3 << (i * 8);
 	}
 
-	platform_set_drvdata(pdev, common);
+	/* enable temperature comparation */
+	if (irq) {
+		ret = devm_request_irq(dev, irq->start, rcar_thermal_irq, 0,
+				       dev_name(dev), common);
+		if (ret) {
+			dev_err(dev, "irq request failed\n ");
+			goto error_unregister;
+		}
+
+		rcar_thermal_common_write(common, ENR, enr_bits);
+	}
 
 	dev_info(dev, "%d sensor probed\n", i);
 
 	return 0;
 
 error_unregister:
-	rcar_thermal_for_each_priv(priv, common) {
-		thermal_zone_device_unregister(priv->zone);
-		if (rcar_has_irq_support(priv))
-			rcar_thermal_irq_disable(priv);
-	}
-
-	pm_runtime_put(dev);
-	pm_runtime_disable(dev);
+	rcar_thermal_remove(pdev);
 
 	return ret;
 }
-
-static int rcar_thermal_remove(struct platform_device *pdev)
-{
-	struct rcar_thermal_common *common = platform_get_drvdata(pdev);
-	struct device *dev = &pdev->dev;
-	struct rcar_thermal_priv *priv;
-
-	rcar_thermal_for_each_priv(priv, common) {
-		thermal_zone_device_unregister(priv->zone);
-		if (rcar_has_irq_support(priv))
-			rcar_thermal_irq_disable(priv);
-	}
-
-	pm_runtime_put(dev);
-	pm_runtime_disable(dev);
-
-	return 0;
-}
-
-static const struct of_device_id rcar_thermal_dt_ids[] = {
-	{ .compatible = "renesas,rcar-thermal", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, rcar_thermal_dt_ids);
 
 static struct platform_driver rcar_thermal_driver = {
 	.driver	= {

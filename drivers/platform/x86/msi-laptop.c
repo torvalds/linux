@@ -64,6 +64,7 @@
 #include <linux/i8042.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <acpi/video.h>
 
 #define MSI_DRIVER_VERSION "0.5"
 
@@ -573,7 +574,6 @@ static struct attribute_group msipf_old_attribute_group = {
 static struct platform_driver msipf_driver = {
 	.driver = {
 		.name = "msi-laptop-pf",
-		.owner = THIS_MODULE,
 		.pm = &msi_laptop_pm,
 	},
 };
@@ -821,7 +821,7 @@ static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str,
 {
 	static bool extended;
 
-	if (str & 0x20)
+	if (str & I8042_STR_AUXDATA)
 		return false;
 
 	/* 0x54 wwan, 0x62 bluetooth, 0x76 wlan, 0xE4 touchpad toggle*/
@@ -1070,9 +1070,8 @@ static int __init msi_init(void)
 
 	/* Register backlight stuff */
 
-	if (!quirks->old_ec_model || acpi_video_backlight_support()) {
-		pr_info("Brightness ignored, must be controlled by ACPI video driver\n");
-	} else {
+	if (quirks->old_ec_model ||
+	    acpi_video_get_backlight_type() == acpi_backlight_vendor) {
 		struct backlight_properties props;
 		memset(&props, 0, sizeof(struct backlight_properties));
 		props.type = BACKLIGHT_PLATFORM;

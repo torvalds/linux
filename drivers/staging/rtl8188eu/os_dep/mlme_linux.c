@@ -29,17 +29,18 @@ void rtw_init_mlme_timer(struct adapter *padapter)
 {
 	struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	_init_timer(&(pmlmepriv->assoc_timer), padapter->pnetdev, _rtw_join_timeout_handler, padapter);
-	_init_timer(&(pmlmepriv->scan_to_timer), padapter->pnetdev, rtw_scan_timeout_handler, padapter);
-	_init_timer(&(pmlmepriv->dynamic_chk_timer), padapter->pnetdev, rtw_dynamic_check_timer_handlder, padapter);
+	setup_timer(&pmlmepriv->assoc_timer, _rtw_join_timeout_handler,
+		    (unsigned long)padapter);
+	setup_timer(&pmlmepriv->scan_to_timer, rtw_scan_timeout_handler,
+		    (unsigned long)padapter);
+	setup_timer(&pmlmepriv->dynamic_chk_timer,
+		    rtw_dynamic_check_timer_handlder, (unsigned long)padapter);
 }
 
 void rtw_os_indicate_connect(struct adapter *adapter)
 {
 	rtw_indicate_wx_assoc_event(adapter);
 	netif_carrier_on(adapter->pnetdev);
-	if (adapter->pid[2] != 0)
-		rtw_signal_process(adapter->pid[2], SIGALRM);
 }
 
 void rtw_os_indicate_scan_done(struct adapter *padapter, bool aborted)
@@ -60,7 +61,6 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 		/*  We have to backup the PMK information for WiFi PMK Caching test item. */
 		/*  Backup the btkip_countermeasure information. */
 		/*  When the countermeasure is trigger, the driver have to disconnect with AP for 60 seconds. */
-		memset(&backup_pmkid[0], 0x00, sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
 		memcpy(&backup_pmkid[0], &adapter->securitypriv.PMKIDList[0], sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
 		backup_index = adapter->securitypriv.PMKIDIndex;
 		backup_counter = adapter->securitypriv.btkip_countermeasure;
@@ -80,7 +80,7 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 		/* reset values in securitypriv */
 		struct security_priv *psec_priv = &adapter->securitypriv;
 
-		psec_priv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;  /* open system */
+		psec_priv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
 		psec_priv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
 		psec_priv->dot11PrivacyKeyIndex = 0;
 		psec_priv->dot118021XGrpPrivacy = _NO_PRIVACY_;
@@ -116,14 +116,13 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 		p = buff;
 		p += sprintf(p, "ASSOCINFO(ReqIEs =");
 		len = sec_ie[1]+2;
-		len =  (len < IW_CUSTOM_MAX) ? len : IW_CUSTOM_MAX;
+		len =  min_t(uint, len, IW_CUSTOM_MAX);
 		for (i = 0; i < len; i++)
 			p += sprintf(p, "%02x", sec_ie[i]);
 		p += sprintf(p, ")");
 		memset(&wrqu, 0, sizeof(wrqu));
 		wrqu.data.length = p-buff;
-		wrqu.data.length = (wrqu.data.length < IW_CUSTOM_MAX) ?
-				   wrqu.data.length : IW_CUSTOM_MAX;
+		wrqu.data.length = min_t(__u16, wrqu.data.length, IW_CUSTOM_MAX);
 		wireless_send_event(adapter->pnetdev, IWEVCUSTOM, &wrqu, buff);
 		kfree(buff);
 	}
@@ -131,15 +130,18 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 
 void init_addba_retry_timer(struct adapter *padapter, struct sta_info *psta)
 {
-	_init_timer(&psta->addba_retry_timer, padapter->pnetdev, addba_timer_hdl, psta);
+	setup_timer(&psta->addba_retry_timer, addba_timer_hdl,
+		    (unsigned long)psta);
 }
 
 void init_mlme_ext_timer(struct adapter *padapter)
 {
 	struct	mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 
-	_init_timer(&pmlmeext->survey_timer, padapter->pnetdev, survey_timer_hdl, padapter);
-	_init_timer(&pmlmeext->link_timer, padapter->pnetdev, link_timer_hdl, padapter);
+	setup_timer(&pmlmeext->survey_timer, survey_timer_hdl,
+		    (unsigned long)padapter);
+	setup_timer(&pmlmeext->link_timer, link_timer_hdl,
+		    (unsigned long)padapter);
 }
 
 #ifdef CONFIG_88EU_AP_MODE
@@ -149,7 +151,7 @@ void rtw_indicate_sta_assoc_event(struct adapter *padapter, struct sta_info *pst
 	union iwreq_data wrqu;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 
-	if (psta == NULL)
+	if (!psta)
 		return;
 
 	if (psta->aid > NUM_STA)
@@ -173,7 +175,7 @@ void rtw_indicate_sta_disassoc_event(struct adapter *padapter, struct sta_info *
 	union iwreq_data wrqu;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 
-	if (psta == NULL)
+	if (!psta)
 		return;
 
 	if (psta->aid > NUM_STA)

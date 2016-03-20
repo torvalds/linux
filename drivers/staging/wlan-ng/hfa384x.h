@@ -879,7 +879,7 @@ typedef struct hfa384x_usb_error {
 /* Unions for packaging all the known packet types together */
 
 typedef union hfa384x_usbout {
-	u16 type;
+	__le16 type;
 	hfa384x_usb_txfrm_t txfrm;
 	hfa384x_usb_cmdreq_t cmdreq;
 	hfa384x_usb_wridreq_t wridreq;
@@ -889,7 +889,7 @@ typedef union hfa384x_usbout {
 } __packed hfa384x_usbout_t;
 
 typedef union hfa384x_usbin {
-	u16 type;
+	__le16 type;
 	hfa384x_usb_rxfrm_t rxfrm;
 	hfa384x_usb_txfrm_t txfrm;
 	hfa384x_usb_infofrm_t infofrm;
@@ -1204,19 +1204,19 @@ typedef struct hfa484x_metacmd {
 #define WLAN_ACCESS_DENY	3   /* Do not authenticate "denied" stations. */
 
 /* XXX These are going away ASAP */
-typedef struct prism2sta_authlist {
+struct prism2sta_authlist {
 	unsigned int cnt;
 	u8 addr[WLAN_AUTH_MAX][ETH_ALEN];
 	u8 assoc[WLAN_AUTH_MAX];
-} prism2sta_authlist_t;
+};
 
-typedef struct prism2sta_accesslist {
+struct prism2sta_accesslist {
 	unsigned int modify;
 	unsigned int cnt;
 	u8 addr[WLAN_ACCESS_MAX][ETH_ALEN];
 	unsigned int cnt1;
 	u8 addr1[WLAN_ACCESS_MAX][ETH_ALEN];
-} prism2sta_accesslist_t;
+};
 
 typedef struct hfa384x {
 	/* USB support data */
@@ -1268,7 +1268,7 @@ typedef struct hfa384x {
 	hfa384x_downloadbuffer_t bufinfo;
 	u16 dltimeout;
 
-	int scanflag;		/* to signal scan comlete */
+	int scanflag;		/* to signal scan complete */
 	int join_ap;		/* are we joined to a specific ap */
 	int join_retries;	/* number of join retries till we fail */
 	hfa384x_JoinRequest_data_t joinreq;	/* join request saved data */
@@ -1348,10 +1348,10 @@ typedef struct hfa384x {
 
 	hfa384x_InfFrame_t *scanresults;
 
-	prism2sta_authlist_t authlist;	/* Authenticated station list. */
-	unsigned int accessmode;	/* Access mode. */
-	prism2sta_accesslist_t allow;	/* Allowed station list. */
-	prism2sta_accesslist_t deny;	/* Denied station list. */
+	struct prism2sta_authlist authlist;	/* Authenticated station list. */
+	unsigned int accessmode;		/* Access mode. */
+	struct prism2sta_accesslist allow;	/* Allowed station list. */
+	struct prism2sta_accesslist deny;	/* Denied station list. */
 
 } hfa384x_t;
 
@@ -1360,7 +1360,6 @@ void hfa384x_destroy(hfa384x_t *hw);
 
 int
 hfa384x_corereset(hfa384x_t *hw, int holdtime, int settletime, int genesis);
-int hfa384x_drvr_commtallies(hfa384x_t *hw);
 int hfa384x_drvr_disable(hfa384x_t *hw, u16 macport);
 int hfa384x_drvr_enable(hfa384x_t *hw, u16 macport);
 int hfa384x_drvr_flashdl_enable(hfa384x_t *hw);
@@ -1376,6 +1375,7 @@ int hfa384x_drvr_setconfig(hfa384x_t *hw, u16 rid, void *buf, u16 len);
 static inline int hfa384x_drvr_getconfig16(hfa384x_t *hw, u16 rid, void *val)
 {
 	int result = 0;
+
 	result = hfa384x_drvr_getconfig(hw, rid, val, sizeof(u16));
 	if (result == 0)
 		*((u16 *) val) = le16_to_cpu(*((u16 *) val));
@@ -1385,12 +1385,9 @@ static inline int hfa384x_drvr_getconfig16(hfa384x_t *hw, u16 rid, void *val)
 static inline int hfa384x_drvr_setconfig16(hfa384x_t *hw, u16 rid, u16 val)
 {
 	u16 value = cpu_to_le16(val);
+
 	return hfa384x_drvr_setconfig(hw, rid, &value, sizeof(value));
 }
-
-int
-hfa384x_drvr_getconfig_async(hfa384x_t *hw,
-			     u16 rid, ctlx_usercb_t usercb, void *usercb_data);
 
 int
 hfa384x_drvr_setconfig_async(hfa384x_t *hw,
@@ -1402,6 +1399,7 @@ static inline int
 hfa384x_drvr_setconfig16_async(hfa384x_t *hw, u16 rid, u16 val)
 {
 	u16 value = cpu_to_le16(val);
+
 	return hfa384x_drvr_setconfig_async(hw, rid, &value, sizeof(value),
 					    NULL, NULL);
 }
@@ -1410,7 +1408,8 @@ int hfa384x_drvr_start(hfa384x_t *hw);
 int hfa384x_drvr_stop(hfa384x_t *hw);
 int
 hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb,
-		     union p80211_hdr *p80211_hdr, struct p80211_metawep *p80211_wep);
+		     union p80211_hdr *p80211_hdr,
+		     struct p80211_metawep *p80211_wep);
 void hfa384x_tx_timeout(wlandevice_t *wlandev);
 
 int hfa384x_cmd_initialize(hfa384x_t *hw);

@@ -34,8 +34,8 @@ static u8 *udl_get_edid(struct udl_device *udl)
 		goto error;
 
 	for (i = 0; i < EDID_LENGTH; i++) {
-		ret = usb_control_msg(udl->ddev->usbdev,
-				      usb_rcvctrlpipe(udl->ddev->usbdev, 0), (0x02),
+		ret = usb_control_msg(udl->udev,
+				      usb_rcvctrlpipe(udl->udev, 0), (0x02),
 				      (0x80 | (0x02 << 5)), i << 8, 0xA1, rbuf, 2,
 				      HZ);
 		if (ret < 1) {
@@ -122,13 +122,13 @@ static void udl_connector_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-static struct drm_connector_helper_funcs udl_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs udl_connector_helper_funcs = {
 	.get_modes = udl_get_modes,
 	.mode_valid = udl_mode_valid,
 	.best_encoder = udl_best_single_encoder,
 };
 
-static struct drm_connector_funcs udl_connector_funcs = {
+static const struct drm_connector_funcs udl_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.detect = udl_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,

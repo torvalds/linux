@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright 2012-2014 Freescale Semiconductor, Inc.
  * Copyright (C) 2012 Marek Vasut <marex@denx.de>
  * on behalf of DENX Software Engineering GmbH
  *
@@ -40,6 +40,7 @@
 
 #define BM_USBPHY_CTRL_SFTRST			BIT(31)
 #define BM_USBPHY_CTRL_CLKGATE			BIT(30)
+#define BM_USBPHY_CTRL_OTG_ID_VALUE		BIT(27)
 #define BM_USBPHY_CTRL_ENAUTOSET_USBCLKS	BIT(26)
 #define BM_USBPHY_CTRL_ENAUTOCLR_USBCLKGATE	BIT(25)
 #define BM_USBPHY_CTRL_ENVBUSCHG_WKUP		BIT(23)
@@ -69,6 +70,9 @@
 #define ANADIG_USB2_LOOPBACK_SET		0x244
 #define ANADIG_USB2_LOOPBACK_CLR		0x248
 
+#define ANADIG_USB1_MISC			0x1f0
+#define ANADIG_USB2_MISC			0x250
+
 #define BM_ANADIG_ANA_MISC0_STOP_MODE_CONFIG	BIT(12)
 #define BM_ANADIG_ANA_MISC0_STOP_MODE_CONFIG_SL BIT(11)
 
@@ -79,6 +83,11 @@
 #define BM_ANADIG_USB1_LOOPBACK_TSTI_TX_EN	BIT(5)
 #define BM_ANADIG_USB2_LOOPBACK_UTMI_DIG_TST1	BIT(2)
 #define BM_ANADIG_USB2_LOOPBACK_TSTI_TX_EN	BIT(5)
+
+#define BM_ANADIG_USB1_MISC_RX_VPIN_FS		BIT(29)
+#define BM_ANADIG_USB1_MISC_RX_VMIN_FS		BIT(28)
+#define BM_ANADIG_USB2_MISC_RX_VPIN_FS		BIT(29)
+#define BM_ANADIG_USB2_MISC_RX_VMIN_FS		BIT(28)
 
 #define to_mxs_phy(p) container_of((p), struct mxs_phy, phy)
 
@@ -125,10 +134,26 @@ static const struct mxs_phy_data imx6sl_phy_data = {
 		MXS_PHY_NEED_IP_FIX,
 };
 
+static const struct mxs_phy_data vf610_phy_data = {
+	.flags = MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS |
+		MXS_PHY_NEED_IP_FIX,
+};
+
+static const struct mxs_phy_data imx6sx_phy_data = {
+	.flags = MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS,
+};
+
+static const struct mxs_phy_data imx6ul_phy_data = {
+	.flags = MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS,
+};
+
 static const struct of_device_id mxs_phy_dt_ids[] = {
+	{ .compatible = "fsl,imx6sx-usbphy", .data = &imx6sx_phy_data, },
 	{ .compatible = "fsl,imx6sl-usbphy", .data = &imx6sl_phy_data, },
 	{ .compatible = "fsl,imx6q-usbphy", .data = &imx6q_phy_data, },
 	{ .compatible = "fsl,imx23-usbphy", .data = &imx23_phy_data, },
+	{ .compatible = "fsl,vf610-usbphy", .data = &vf610_phy_data, },
+	{ .compatible = "fsl,imx6ul-usbphy", .data = &imx6ul_phy_data, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mxs_phy_dt_ids);
@@ -195,7 +220,10 @@ static int mxs_phy_hw_init(struct mxs_phy *mxs_phy)
 /* Return true if the vbus is there */
 static bool mxs_phy_get_vbus_status(struct mxs_phy *mxs_phy)
 {
-	unsigned int vbus_value;
+	unsigned int vbus_value = 0;
+
+	if (!mxs_phy->regmap_anatop)
+		return false;
 
 	if (mxs_phy->port_id == 0)
 		regmap_read(mxs_phy->regmap_anatop,
@@ -244,6 +272,18 @@ static void __mxs_phy_disconnect_line(struct mxs_phy *mxs_phy, bool disconnect)
 		usleep_range(500, 1000);
 }
 
+static bool mxs_phy_is_otg_host(struct mxs_phy *mxs_phy)
+{
+	void __iomem *base = mxs_phy->phy.io_priv;
+	u32 phyctrl = readl(base + HW_USBPHY_CTRL);
+
+	if (IS_ENABLED(CONFIG_USB_OTG) &&
+			!(phyctrl & BM_USBPHY_CTRL_OTG_ID_VALUE))
+		return true;
+
+	return false;
+}
+
 static void mxs_phy_disconnect_line(struct mxs_phy *mxs_phy, bool on)
 {
 	bool vbus_is_on = false;
@@ -258,7 +298,7 @@ static void mxs_phy_disconnect_line(struct mxs_phy *mxs_phy, bool on)
 
 	vbus_is_on = mxs_phy_get_vbus_status(mxs_phy);
 
-	if (on && !vbus_is_on)
+	if (on && !vbus_is_on && !mxs_phy_is_otg_host(mxs_phy))
 		__mxs_phy_disconnect_line(mxs_phy, true);
 	else
 		__mxs_phy_disconnect_line(mxs_phy, false);
@@ -281,6 +321,17 @@ static int mxs_phy_init(struct usb_phy *phy)
 static void mxs_phy_shutdown(struct usb_phy *phy)
 {
 	struct mxs_phy *mxs_phy = to_mxs_phy(phy);
+	u32 value = BM_USBPHY_CTRL_ENVBUSCHG_WKUP |
+			BM_USBPHY_CTRL_ENDPDMCHG_WKUP |
+			BM_USBPHY_CTRL_ENIDCHG_WKUP |
+			BM_USBPHY_CTRL_ENAUTOSET_USBCLKS |
+			BM_USBPHY_CTRL_ENAUTOCLR_USBCLKGATE |
+			BM_USBPHY_CTRL_ENAUTOCLR_PHY_PWD |
+			BM_USBPHY_CTRL_ENAUTOCLR_CLKGATE |
+			BM_USBPHY_CTRL_ENAUTO_PWRON_PLL;
+
+	writel(value, phy->io_priv + HW_USBPHY_CTRL_CLR);
+	writel(0xffffffff, phy->io_priv + HW_USBPHY_PWD);
 
 	writel(BM_USBPHY_CTRL_CLKGATE,
 	       phy->io_priv + HW_USBPHY_CTRL_SET);
@@ -288,13 +339,56 @@ static void mxs_phy_shutdown(struct usb_phy *phy)
 	clk_disable_unprepare(mxs_phy->clk);
 }
 
+static bool mxs_phy_is_low_speed_connection(struct mxs_phy *mxs_phy)
+{
+	unsigned int line_state;
+	/* bit definition is the same for all controllers */
+	unsigned int dp_bit = BM_ANADIG_USB1_MISC_RX_VPIN_FS,
+		     dm_bit = BM_ANADIG_USB1_MISC_RX_VMIN_FS;
+	unsigned int reg = ANADIG_USB1_MISC;
+
+	/* If the SoCs don't have anatop, quit */
+	if (!mxs_phy->regmap_anatop)
+		return false;
+
+	if (mxs_phy->port_id == 0)
+		reg = ANADIG_USB1_MISC;
+	else if (mxs_phy->port_id == 1)
+		reg = ANADIG_USB2_MISC;
+
+	regmap_read(mxs_phy->regmap_anatop, reg, &line_state);
+
+	if ((line_state & (dp_bit | dm_bit)) ==  dm_bit)
+		return true;
+	else
+		return false;
+}
+
 static int mxs_phy_suspend(struct usb_phy *x, int suspend)
 {
 	int ret;
 	struct mxs_phy *mxs_phy = to_mxs_phy(x);
+	bool low_speed_connection, vbus_is_on;
+
+	low_speed_connection = mxs_phy_is_low_speed_connection(mxs_phy);
+	vbus_is_on = mxs_phy_get_vbus_status(mxs_phy);
 
 	if (suspend) {
-		writel(0xffffffff, x->io_priv + HW_USBPHY_PWD);
+		/*
+		 * FIXME: Do not power down RXPWD1PT1 bit for low speed
+		 * connect. The low speed connection will have problem at
+		 * very rare cases during usb suspend and resume process.
+		 */
+		if (low_speed_connection & vbus_is_on) {
+			/*
+			 * If value to be set as pwd value is not 0xffffffff,
+			 * several 32Khz cycles are needed.
+			 */
+			mxs_phy_clock_switch_delay();
+			writel(0xffbfffff, x->io_priv + HW_USBPHY_PWD);
+		} else {
+			writel(0xffffffff, x->io_priv + HW_USBPHY_PWD);
+		}
 		writel(BM_USBPHY_CTRL_CLKGATE,
 		       x->io_priv + HW_USBPHY_CTRL_SET);
 		clk_disable_unprepare(mxs_phy->clk);
@@ -347,7 +441,9 @@ static int mxs_phy_on_disconnect(struct usb_phy *phy,
 	dev_dbg(phy->dev, "%s device has disconnected\n",
 		(speed == USB_SPEED_HIGH) ? "HS" : "FS/LS");
 
-	if (speed == USB_SPEED_HIGH)
+	/* Sometimes, the speed is not high speed when the error occurs */
+	if (readl(phy->io_priv + HW_USBPHY_CTRL) &
+			BM_USBPHY_CTRL_ENHOSTDISCONDETECT)
 		writel(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
 		       phy->io_priv + HW_USBPHY_CTRL_CLR);
 
@@ -361,9 +457,12 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct mxs_phy *mxs_phy;
 	int ret;
-	const struct of_device_id *of_id =
-			of_match_device(mxs_phy_dt_ids, &pdev->dev);
+	const struct of_device_id *of_id;
 	struct device_node *np = pdev->dev.of_node;
+
+	of_id = of_match_device(mxs_phy_dt_ids, &pdev->dev);
+	if (!of_id)
+		return -ENODEV;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
@@ -378,10 +477,8 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	}
 
 	mxs_phy = devm_kzalloc(&pdev->dev, sizeof(*mxs_phy), GFP_KERNEL);
-	if (!mxs_phy) {
-		dev_err(&pdev->dev, "Failed to allocate USB PHY structure!\n");
+	if (!mxs_phy)
 		return -ENOMEM;
-	}
 
 	/* Some SoCs don't have anatop registers */
 	if (of_get_property(np, "fsl,anatop", NULL)) {
@@ -417,11 +514,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 
 	device_set_wakeup_capable(&pdev->dev, true);
 
-	ret = usb_add_phy_dev(&mxs_phy->phy);
-	if (ret)
-		return ret;
-
-	return 0;
+	return usb_add_phy_dev(&mxs_phy->phy);
 }
 
 static int mxs_phy_remove(struct platform_device *pdev)
@@ -479,7 +572,6 @@ static struct platform_driver mxs_phy_driver = {
 	.remove = mxs_phy_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = mxs_phy_dt_ids,
 		.pm = &mxs_phy_pm,
 	 },

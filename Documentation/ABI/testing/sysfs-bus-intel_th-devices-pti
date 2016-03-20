@@ -1,0 +1,24 @@
+What:		/sys/bus/intel_th/devices/<intel_th_id>-pti/mode
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
+Description:	(RW) Configure PTI output width. Currently supported values
+		are 4, 8, 12, 16.
+
+What:		/sys/bus/intel_th/devices/<intel_th_id>-pti/freerunning_clock
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
+Description:	(RW) 0: PTI trace clock acts as a strobe which only toggles
+		when there is trace data to send. 1: PTI trace clock is a
+		free-running clock.
+
+What:		/sys/bus/intel_th/devices/<intel_th_id>-pti/clock_divider
+Date:		June 2015
+KernelVersion:	4.3
+Contact:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
+Description:	(RW) Configure PTI port clock divider:
+		 - 0: Intel TH clock rate,
+		 - 1: 1/2 Intel TH clock rate,
+		 - 2: 1/4 Intel TH clock rate,
+		 - 3: 1/8 Intel TH clock rate.

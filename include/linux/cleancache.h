@@ -5,6 +5,10 @@
 #include <linux/exportfs.h>
 #include <linux/mm.h>
 
+#define CLEANCACHE_NO_POOL		-1
+#define CLEANCACHE_NO_BACKEND		-2
+#define CLEANCACHE_NO_BACKEND_SHARED	-3
+
 #define CLEANCACHE_KEY_MAX 6
 
 /*
@@ -33,10 +37,9 @@ struct cleancache_ops {
 	void (*invalidate_fs)(int);
 };
 
-extern struct cleancache_ops *
-	cleancache_register_ops(struct cleancache_ops *ops);
+extern int cleancache_register_ops(const struct cleancache_ops *ops);
 extern void __cleancache_init_fs(struct super_block *);
-extern void __cleancache_init_shared_fs(char *, struct super_block *);
+extern void __cleancache_init_shared_fs(struct super_block *);
 extern int  __cleancache_get_page(struct page *);
 extern void __cleancache_put_page(struct page *);
 extern void __cleancache_invalidate_page(struct address_space *, struct page *);
@@ -45,13 +48,13 @@ extern void __cleancache_invalidate_fs(struct super_block *);
 
 #ifdef CONFIG_CLEANCACHE
 #define cleancache_enabled (1)
-static inline bool cleancache_fs_enabled(struct page *page)
-{
-	return page->mapping->host->i_sb->cleancache_poolid >= 0;
-}
 static inline bool cleancache_fs_enabled_mapping(struct address_space *mapping)
 {
 	return mapping->host->i_sb->cleancache_poolid >= 0;
+}
+static inline bool cleancache_fs_enabled(struct page *page)
+{
+	return cleancache_fs_enabled_mapping(page->mapping);
 }
 #else
 #define cleancache_enabled (0)
@@ -78,19 +81,17 @@ static inline void cleancache_init_fs(struct super_block *sb)
 		__cleancache_init_fs(sb);
 }
 
-static inline void cleancache_init_shared_fs(char *uuid, struct super_block *sb)
+static inline void cleancache_init_shared_fs(struct super_block *sb)
 {
 	if (cleancache_enabled)
-		__cleancache_init_shared_fs(uuid, sb);
+		__cleancache_init_shared_fs(sb);
 }
 
 static inline int cleancache_get_page(struct page *page)
 {
-	int ret = -1;
-
 	if (cleancache_enabled && cleancache_fs_enabled(page))
-		ret = __cleancache_get_page(page);
-	return ret;
+		return __cleancache_get_page(page);
+	return -1;
 }
 
 static inline void cleancache_put_page(struct page *page)

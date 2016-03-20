@@ -18,6 +18,7 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/backlight.h>
+#include <linux/gpio/consumer.h>
 #include <video/display_timing.h>
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
@@ -29,6 +30,7 @@ struct panel_module {
 	struct tilcdc_panel_info *info;
 	struct display_timings *timings;
 	struct backlight_device *backlight;
+	struct gpio_desc *enable_gpio;
 };
 #define to_panel_module(x) container_of(x, struct panel_module, base)
 
@@ -55,13 +57,17 @@ static void panel_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct panel_encoder *panel_encoder = to_panel_encoder(encoder);
 	struct backlight_device *backlight = panel_encoder->mod->backlight;
+	struct gpio_desc *gpio = panel_encoder->mod->enable_gpio;
 
-	if (!backlight)
-		return;
+	if (backlight) {
+		backlight->props.power = mode == DRM_MODE_DPMS_ON ?
+					 FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
+		backlight_update_status(backlight);
+	}
 
-	backlight->props.power = mode == DRM_MODE_DPMS_ON
-				     ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
-	backlight_update_status(backlight);
+	if (gpio)
+		gpiod_set_value_cansleep(gpio,
+					 mode == DRM_MODE_DPMS_ON ? 1 : 0);
 }
 
 static bool panel_encoder_mode_fixup(struct drm_encoder *encoder,
@@ -122,7 +128,7 @@ static struct drm_encoder *panel_encoder_create(struct drm_device *dev,
 	encoder->possible_crtcs = 1;
 
 	ret = drm_encoder_init(dev, encoder, &panel_encoder_funcs,
-			DRM_MODE_ENCODER_LVDS);
+			DRM_MODE_ENCODER_LVDS, NULL);
 	if (ret < 0)
 		goto fail;
 
@@ -311,6 +317,7 @@ static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
 		pr_err("%s: allocation failed\n", __func__);
+		of_node_put(info_np);
 		return NULL;
 	}
 
@@ -331,22 +338,21 @@ static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
 	if (ret) {
 		pr_err("%s: error reading panel-info properties\n", __func__);
 		kfree(info);
+		of_node_put(info_np);
 		return NULL;
 	}
+	of_node_put(info_np);
 
 	return info;
 }
 
-static struct of_device_id panel_of_match[];
-
 static int panel_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_node *bl_node, *node = pdev->dev.of_node;
 	struct panel_module *panel_mod;
 	struct tilcdc_module *mod;
 	struct pinctrl *pinctrl;
-	int ret = -EINVAL;
-
+	int ret;
 
 	/* bail out early if no DT data: */
 	if (!node) {
@@ -354,9 +360,31 @@ static int panel_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	panel_mod = kzalloc(sizeof(*panel_mod), GFP_KERNEL);
+	panel_mod = devm_kzalloc(&pdev->dev, sizeof(*panel_mod), GFP_KERNEL);
 	if (!panel_mod)
 		return -ENOMEM;
+
+	bl_node = of_parse_phandle(node, "backlight", 0);
+	if (bl_node) {
+		panel_mod->backlight = of_find_backlight_by_node(bl_node);
+		of_node_put(bl_node);
+
+		if (!panel_mod->backlight)
+			return -EPROBE_DEFER;
+
+		dev_info(&pdev->dev, "found backlight\n");
+	}
+
+	panel_mod->enable_gpio = devm_gpiod_get_optional(&pdev->dev, "enable",
+							 GPIOD_OUT_LOW);
+	if (IS_ERR(panel_mod->enable_gpio)) {
+		ret = PTR_ERR(panel_mod->enable_gpio);
+		dev_err(&pdev->dev, "failed to request enable GPIO\n");
+		goto fail_backlight;
+	}
+
+	if (panel_mod->enable_gpio)
+		dev_info(&pdev->dev, "found enable GPIO\n");
 
 	mod = &panel_mod->base;
 	pdev->dev.platform_data = mod;
@@ -370,20 +398,18 @@ static int panel_probe(struct platform_device *pdev)
 	panel_mod->timings = of_get_display_timings(node);
 	if (!panel_mod->timings) {
 		dev_err(&pdev->dev, "could not get panel timings\n");
+		ret = -EINVAL;
 		goto fail_free;
 	}
 
 	panel_mod->info = of_get_panel_info(node);
 	if (!panel_mod->info) {
 		dev_err(&pdev->dev, "could not get panel info\n");
+		ret = -EINVAL;
 		goto fail_timings;
 	}
 
 	mod->preferred_bpp = panel_mod->info->bpp;
-
-	panel_mod->backlight = of_find_backlight_by_node(node);
-	if (panel_mod->backlight)
-		dev_info(&pdev->dev, "found backlight\n");
 
 	return 0;
 
@@ -391,8 +417,11 @@ fail_timings:
 	display_timings_release(panel_mod->timings);
 
 fail_free:
-	kfree(panel_mod);
 	tilcdc_module_cleanup(mod);
+
+fail_backlight:
+	if (panel_mod->backlight)
+		put_device(&panel_mod->backlight->dev);
 	return ret;
 }
 
@@ -400,12 +429,15 @@ static int panel_remove(struct platform_device *pdev)
 {
 	struct tilcdc_module *mod = dev_get_platdata(&pdev->dev);
 	struct panel_module *panel_mod = to_panel_module(mod);
+	struct backlight_device *backlight = panel_mod->backlight;
+
+	if (backlight)
+		put_device(&backlight->dev);
 
 	display_timings_release(panel_mod->timings);
 
 	tilcdc_module_cleanup(mod);
 	kfree(panel_mod->info);
-	kfree(panel_mod);
 
 	return 0;
 }

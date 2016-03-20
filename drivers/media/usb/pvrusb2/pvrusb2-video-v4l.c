@@ -35,7 +35,7 @@
 #include "pvrusb2-debug.h"
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 #include <linux/errno.h>
 
 struct routing_scheme {
@@ -101,14 +101,3 @@ void pvr2_saa7115_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 		sd->ops->video->s_routing(sd, input, 0, 0);
 	}
 }
-
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 70 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

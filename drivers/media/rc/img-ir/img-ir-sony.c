@@ -12,8 +12,8 @@
 #include "img-ir-hw.h"
 
 /* Convert Sony data to a scancode */
-static int img_ir_sony_scancode(int len, u64 raw, enum rc_type *protocol,
-				u32 *scancode, u64 enabled_protocols)
+static int img_ir_sony_scancode(int len, u64 raw, u64 enabled_protocols,
+				struct img_ir_scancode_req *request)
 {
 	unsigned int dev, subdev, func;
 
@@ -25,7 +25,7 @@ static int img_ir_sony_scancode(int len, u64 raw, enum rc_type *protocol,
 		raw    >>= 7;
 		dev    = raw & 0x1f;	/* next 5 bits */
 		subdev = 0;
-		*protocol = RC_TYPE_SONY12;
+		request->protocol = RC_TYPE_SONY12;
 		break;
 	case 15:
 		if (!(enabled_protocols & RC_BIT_SONY15))
@@ -34,7 +34,7 @@ static int img_ir_sony_scancode(int len, u64 raw, enum rc_type *protocol,
 		raw    >>= 7;
 		dev    = raw & 0xff;	/* next 8 bits */
 		subdev = 0;
-		*protocol = RC_TYPE_SONY15;
+		request->protocol = RC_TYPE_SONY15;
 		break;
 	case 20:
 		if (!(enabled_protocols & RC_BIT_SONY20))
@@ -44,12 +44,12 @@ static int img_ir_sony_scancode(int len, u64 raw, enum rc_type *protocol,
 		dev    = raw & 0x1f;	/* next 5 bits */
 		raw    >>= 5;
 		subdev = raw & 0xff;	/* next 8 bits */
-		*protocol = RC_TYPE_SONY20;
+		request->protocol = RC_TYPE_SONY20;
 		break;
 	default:
 		return -EINVAL;
 	}
-	*scancode = dev << 16 | subdev << 8 | func;
+	request->scancode = dev << 16 | subdev << 8 | func;
 	return IMG_IR_SCANCODE;
 }
 

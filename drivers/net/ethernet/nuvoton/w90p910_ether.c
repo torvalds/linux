@@ -943,7 +943,6 @@ static int w90p910_ether_setup(struct net_device *dev)
 {
 	struct w90p910_ether *ether = netdev_priv(dev);
 
-	ether_setup(dev);
 	dev->netdev_ops = &w90p910_ether_netdev_ops;
 	dev->ethtool_ops = &w90p910_ether_ethtool_ops;
 
@@ -1039,7 +1038,7 @@ static int w90p910_ether_probe(struct platform_device *pdev)
 
 	error = register_netdev(dev);
 	if (error != 0) {
-		dev_err(&pdev->dev, "Regiter EMC w90p910 FAILED\n");
+		dev_err(&pdev->dev, "Register EMC w90p910 FAILED\n");
 		error = -ENODEV;
 		goto failed_put_rmiiclk;
 	}
@@ -1082,7 +1081,6 @@ static struct platform_driver w90p910_ether_driver = {
 	.remove		= w90p910_ether_remove,
 	.driver		= {
 		.name	= "nuc900-emc",
-		.owner	= THIS_MODULE,
 	},
 };
 

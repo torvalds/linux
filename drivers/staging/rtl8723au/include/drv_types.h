@@ -51,7 +51,6 @@ enum _NIC_VERSION {
 #include <rtw_debug.h>
 #include <rtw_rf.h>
 #include <rtw_event.h>
-#include <rtw_led.h>
 #include <rtw_mlme_ext.h>
 #include <rtw_ap.h>
 
@@ -228,7 +227,6 @@ struct rtw_adapter {
 	struct	registry_priv	registrypriv;
 	struct	pwrctrl_priv	pwrctrlpriv;
 	struct	eeprom_priv eeprompriv;
-	struct	led_priv	ledpriv;
 
 	u32	setband;
 

@@ -386,10 +386,10 @@ start_error:
  */
 static inline void store_byte(struct go7007_buffer *vb, u8 byte)
 {
-	if (vb && vb->vb.v4l2_planes[0].bytesused < GO7007_BUF_SIZE) {
-		u8 *ptr = vb2_plane_vaddr(&vb->vb, 0);
+	if (vb && vb->vb.vb2_buf.planes[0].bytesused < GO7007_BUF_SIZE) {
+		u8 *ptr = vb2_plane_vaddr(&vb->vb.vb2_buf, 0);
 
-		ptr[vb->vb.v4l2_planes[0].bytesused++] = byte;
+		ptr[vb->vb.vb2_buf.planes[0].bytesused++] = byte;
 	}
 }
 
@@ -401,7 +401,7 @@ static void go7007_set_motion_regions(struct go7007 *go, struct go7007_buffer *v
 			.type = V4L2_EVENT_MOTION_DET,
 			.u.motion_det = {
 				.flags = V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ,
-				.frame_sequence = vb->vb.v4l2_buf.sequence,
+				.frame_sequence = vb->vb.sequence,
 				.region_mask = motion_regions,
 			},
 		};
@@ -417,7 +417,7 @@ static void go7007_set_motion_regions(struct go7007 *go, struct go7007_buffer *v
  */
 static void go7007_motion_regions(struct go7007 *go, struct go7007_buffer *vb)
 {
-	u32 *bytesused = &vb->vb.v4l2_planes[0].bytesused;
+	u32 *bytesused = &vb->vb.vb2_buf.planes[0].bytesused;
 	unsigned motion[4] = { 0, 0, 0, 0 };
 	u32 motion_regions = 0;
 	unsigned stride = (go->width + 7) >> 3;
@@ -446,7 +446,7 @@ static void go7007_motion_regions(struct go7007 *go, struct go7007_buffer *vb)
  */
 static struct go7007_buffer *frame_boundary(struct go7007 *go, struct go7007_buffer *vb)
 {
-	u32 *bytesused = &vb->vb.v4l2_planes[0].bytesused;
+	u32 *bytesused;
 	struct go7007_buffer *vb_tmp = NULL;
 
 	if (vb == NULL) {
@@ -458,24 +458,26 @@ static struct go7007_buffer *frame_boundary(struct go7007 *go, struct go7007_buf
 		go->next_seq++;
 		return vb;
 	}
+	bytesused = &vb->vb.vb2_buf.planes[0].bytesused;
 
-	vb->vb.v4l2_buf.sequence = go->next_seq++;
+	vb->vb.sequence = go->next_seq++;
 	if (vb->modet_active && *bytesused + 216 < GO7007_BUF_SIZE)
 		go7007_motion_regions(go, vb);
 	else
 		go7007_set_motion_regions(go, vb, 0);
 
-	v4l2_get_timestamp(&vb->vb.v4l2_buf.timestamp);
+	vb->vb.vb2_buf.timestamp = ktime_get_ns();
 	vb_tmp = vb;
 	spin_lock(&go->spinlock);
 	list_del(&vb->list);
 	if (list_empty(&go->vidq_active))
 		vb = NULL;
 	else
-		vb = list_first_entry(&go->vidq_active, struct go7007_buffer, list);
+		vb = list_first_entry(&go->vidq_active,
+				struct go7007_buffer, list);
 	go->active_buf = vb;
 	spin_unlock(&go->spinlock);
-	vb2_buffer_done(&vb_tmp->vb, VB2_BUF_STATE_DONE);
+	vb2_buffer_done(&vb_tmp->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	return vb;
 }
 
@@ -518,9 +520,10 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 	}
 
 	for (i = 0; i < length; ++i) {
-		if (vb && vb->vb.v4l2_planes[0].bytesused >= GO7007_BUF_SIZE - 3) {
+		if (vb && vb->vb.vb2_buf.planes[0].bytesused >=
+				GO7007_BUF_SIZE - 3) {
 			v4l2_info(&go->v4l2_dev, "dropping oversized frame\n");
-			vb->vb.v4l2_planes[0].bytesused = 0;
+			vb->vb.vb2_buf.planes[0].bytesused = 0;
 			vb->frame_offset = 0;
 			vb->modet_active = 0;
 			vb = go->active_buf = NULL;
@@ -600,7 +603,8 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 					vb = frame_boundary(go, vb);
 				go->seen_frame = buf[i] == frame_start_code;
 				if (vb && go->seen_frame)
-					vb->frame_offset = vb->vb.v4l2_planes[0].bytesused;
+					vb->frame_offset =
+					vb->vb.vb2_buf.planes[0].bytesused;
 			}
 			/* Handle any special chunk types, or just write the
 			 * start code to the (potentially new) buffer */

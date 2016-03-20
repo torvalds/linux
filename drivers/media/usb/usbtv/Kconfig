@@ -1,6 +1,7 @@
 config VIDEO_USBTV
         tristate "USBTV007 video capture support"
-        depends on VIDEO_V4L2
+        depends on VIDEO_V4L2 && SND
+        select SND_PCM
         select VIDEOBUF2_VMALLOC
 
         ---help---

@@ -99,14 +99,26 @@ EXPORT_SYMBOL(___copy_in_user);
 EXPORT_SYMBOL(__clear_user);
 
 /* Atomic counter implementation. */
-EXPORT_SYMBOL(atomic_add);
-EXPORT_SYMBOL(atomic_add_ret);
-EXPORT_SYMBOL(atomic_sub);
-EXPORT_SYMBOL(atomic_sub_ret);
-EXPORT_SYMBOL(atomic64_add);
-EXPORT_SYMBOL(atomic64_add_ret);
-EXPORT_SYMBOL(atomic64_sub);
-EXPORT_SYMBOL(atomic64_sub_ret);
+#define ATOMIC_OP(op)							\
+EXPORT_SYMBOL(atomic_##op);						\
+EXPORT_SYMBOL(atomic64_##op);
+
+#define ATOMIC_OP_RETURN(op)						\
+EXPORT_SYMBOL(atomic_##op##_return);					\
+EXPORT_SYMBOL(atomic64_##op##_return);
+
+#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_OP_RETURN(op)
+
+ATOMIC_OPS(add)
+ATOMIC_OPS(sub)
+ATOMIC_OP(and)
+ATOMIC_OP(or)
+ATOMIC_OP(xor)
+
+#undef ATOMIC_OPS
+#undef ATOMIC_OP_RETURN
+#undef ATOMIC_OP
+
 EXPORT_SYMBOL(atomic64_dec_if_positive);
 
 /* Atomic bit operations. */
@@ -125,10 +137,6 @@ EXPORT_SYMBOL(copy_user_page);
 /* RAID code needs this */
 void VISenter(void);
 EXPORT_SYMBOL(VISenter);
-
-/* CRYPTO code needs this */
-void VISenterhalf(void);
-EXPORT_SYMBOL(VISenterhalf);
 
 extern void xor_vis_2(unsigned long, unsigned long *, unsigned long *);
 extern void xor_vis_3(unsigned long, unsigned long *, unsigned long *,

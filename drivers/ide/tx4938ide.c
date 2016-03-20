@@ -198,7 +198,6 @@ static int __exit tx4938ide_remove(struct platform_device *pdev)
 static struct platform_driver tx4938ide_driver = {
 	.driver		= {
 		.name	= "tx4938ide",
-		.owner	= THIS_MODULE,
 	},
 	.remove = __exit_p(tx4938ide_remove),
 };

@@ -25,32 +25,26 @@ static struct bus_type node_subsys = {
 };
 
 
-static ssize_t node_read_cpumap(struct device *dev, int type, char *buf)
+static ssize_t node_read_cpumap(struct device *dev, bool list, char *buf)
 {
 	struct node *node_dev = to_node(dev);
 	const struct cpumask *mask = cpumask_of_node(node_dev->dev.id);
-	int len;
 
 	/* 2008/04/07: buf currently PAGE_SIZE, need 9 chars per 32 bits. */
 	BUILD_BUG_ON((NR_CPUS/32 * 9) > (PAGE_SIZE-1));
 
-	len = type?
-		cpulist_scnprintf(buf, PAGE_SIZE-2, mask) :
-		cpumask_scnprintf(buf, PAGE_SIZE-2, mask);
- 	buf[len++] = '\n';
- 	buf[len] = '\0';
-	return len;
+	return cpumap_print_to_pagebuf(list, buf, mask);
 }
 
 static inline ssize_t node_read_cpumask(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return node_read_cpumap(dev, 0, buf);
+	return node_read_cpumap(dev, false, buf);
 }
 static inline ssize_t node_read_cpulist(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return node_read_cpumap(dev, 1, buf);
+	return node_read_cpumap(dev, true, buf);
 }
 
 static DEVICE_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);
@@ -186,7 +180,7 @@ static ssize_t node_read_vmstat(struct device *dev,
 static DEVICE_ATTR(vmstat, S_IRUGO, node_read_vmstat, NULL);
 
 static ssize_t node_read_distance(struct device *dev,
-			struct device_attribute *attr, char * buf)
+			struct device_attribute *attr, char *buf)
 {
 	int nid = dev->id;
 	int len = 0;
@@ -205,6 +199,17 @@ static ssize_t node_read_distance(struct device *dev,
 	return len;
 }
 static DEVICE_ATTR(distance, S_IRUGO, node_read_distance, NULL);
+
+static struct attribute *node_dev_attrs[] = {
+	&dev_attr_cpumap.attr,
+	&dev_attr_cpulist.attr,
+	&dev_attr_meminfo.attr,
+	&dev_attr_numastat.attr,
+	&dev_attr_distance.attr,
+	&dev_attr_vmstat.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(node_dev);
 
 #ifdef CONFIG_HUGETLBFS
 /*
@@ -279,18 +284,10 @@ static int register_node(struct node *node, int num, struct node *parent)
 	node->dev.id = num;
 	node->dev.bus = &node_subsys;
 	node->dev.release = node_device_release;
+	node->dev.groups = node_dev_groups;
 	error = device_register(&node->dev);
 
 	if (!error){
-		device_create_file(&node->dev, &dev_attr_cpumap);
-		device_create_file(&node->dev, &dev_attr_cpulist);
-		device_create_file(&node->dev, &dev_attr_meminfo);
-		device_create_file(&node->dev, &dev_attr_numastat);
-		device_create_file(&node->dev, &dev_attr_distance);
-		device_create_file(&node->dev, &dev_attr_vmstat);
-
-		scan_unevictable_register_node(node);
-
 		hugetlb_register_node(node);
 
 		compaction_register_node(node);
@@ -307,14 +304,6 @@ static int register_node(struct node *node, int num, struct node *parent)
  */
 void unregister_node(struct node *node)
 {
-	device_remove_file(&node->dev, &dev_attr_cpumap);
-	device_remove_file(&node->dev, &dev_attr_cpulist);
-	device_remove_file(&node->dev, &dev_attr_meminfo);
-	device_remove_file(&node->dev, &dev_attr_numastat);
-	device_remove_file(&node->dev, &dev_attr_distance);
-	device_remove_file(&node->dev, &dev_attr_vmstat);
-
-	scan_unevictable_unregister_node(node);
 	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
 
 	device_unregister(&node->dev);
@@ -370,12 +359,16 @@ int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
 #define page_initialized(page)  (page->lru.next)
 
-static int get_nid_for_pfn(unsigned long pfn)
+static int __init_refok get_nid_for_pfn(unsigned long pfn)
 {
 	struct page *page;
 
 	if (!pfn_valid_within(pfn))
 		return -1;
+#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+	if (system_state == SYSTEM_BOOTING)
+		return early_pfn_to_nid(pfn);
+#endif
 	page = pfn_to_page(pfn);
 	if (!page_initialized(page))
 		return -1;
@@ -398,6 +391,16 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, int nid)
 	sect_end_pfn += PAGES_PER_SECTION - 1;
 	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
 		int page_nid;
+
+		/*
+		 * memory block could have several absent sections from start.
+		 * skip pfn range from absent section
+		 */
+		if (!pfn_present(pfn)) {
+			pfn = round_down(pfn + PAGES_PER_SECTION,
+					 PAGES_PER_SECTION) - 1;
+			continue;
+		}
 
 		page_nid = get_nid_for_pfn(pfn);
 		if (page_nid < 0)
@@ -603,7 +606,6 @@ void unregister_one_node(int nid)
 		return;
 
 	unregister_node(node_devices[nid]);
-	kfree(node_devices[nid]);
 	node_devices[nid] = NULL;
 }
 
@@ -615,7 +617,8 @@ static ssize_t print_nodes_state(enum node_states state, char *buf)
 {
 	int n;
 
-	n = nodelist_scnprintf(buf, PAGE_SIZE-2, node_states[state]);
+	n = scnprintf(buf, PAGE_SIZE - 1, "%*pbl",
+		      nodemask_pr_args(&node_states[state]));
 	buf[n++] = '\n';
 	buf[n] = '\0';
 	return n;

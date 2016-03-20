@@ -82,7 +82,6 @@ static int as3722_poweroff_remove(struct platform_device *pdev)
 static struct platform_driver as3722_poweroff_driver = {
 	.driver = {
 		.name = "as3722-power-off",
-		.owner = THIS_MODULE,
 	},
 	.probe = as3722_poweroff_probe,
 	.remove = as3722_poweroff_remove,

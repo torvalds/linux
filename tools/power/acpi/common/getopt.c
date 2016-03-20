@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,7 @@
  * Option strings:
  *    "f"       - Option has no arguments
  *    "f:"      - Option requires an argument
+ *    "f+"      - Option has an optional argument
  *    "f^"      - Option has optional single-char sub-options
  *    "f|"      - Option has required single-char sub-options
  */
@@ -85,6 +86,7 @@ static int current_char_ptr = 1;
 
 int acpi_getopt_argument(int argc, char **argv)
 {
+
 	acpi_gbl_optind--;
 	current_char_ptr++;
 
@@ -127,7 +129,7 @@ int acpi_getopt(int argc, char **argv, char *opts)
 		    argv[acpi_gbl_optind][0] != '-' ||
 		    argv[acpi_gbl_optind][1] == '\0') {
 			return (ACPI_OPT_END);
-		} else if (ACPI_STRCMP(argv[acpi_gbl_optind], "--") == 0) {
+		} else if (strcmp(argv[acpi_gbl_optind], "--") == 0) {
 			acpi_gbl_optind++;
 			return (ACPI_OPT_END);
 		}
@@ -140,7 +142,7 @@ int acpi_getopt(int argc, char **argv, char *opts)
 	/* Make sure that the option is legal */
 
 	if (current_char == ':' ||
-	    (opts_ptr = ACPI_STRCHR(opts, current_char)) == NULL) {
+	    (opts_ptr = strchr(opts, current_char)) == NULL) {
 		ACPI_OPTION_ERROR("Illegal option: -", current_char);
 
 		if (argv[acpi_gbl_optind][++current_char_ptr] == '\0') {

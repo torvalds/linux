@@ -58,7 +58,7 @@
  * About SOFTNET:
  * Most of the changes were pretty obvious and basically done by HE already.
  *
- * One problem of the isdn net device code is that is uses struct net_device
+ * One problem of the isdn net device code is that it uses struct net_device
  * for masters and slaves. However, only master interface are registered to
  * the network layer, and therefore, it only makes sense to call netif_*
  * functions on them.
@@ -1951,38 +1951,6 @@ static int isdn_net_header(struct sk_buff *skb, struct net_device *dev,
 	return len;
 }
 
-/* We don't need to send arp, because we have point-to-point connections. */
-static int
-isdn_net_rebuild_header(struct sk_buff *skb)
-{
-	struct net_device *dev = skb->dev;
-	isdn_net_local *lp = netdev_priv(dev);
-	int ret = 0;
-
-	if (lp->p_encap == ISDN_NET_ENCAP_ETHER) {
-		struct ethhdr *eth = (struct ethhdr *) skb->data;
-
-		/*
-		 *      Only ARP/IP is currently supported
-		 */
-
-		if (eth->h_proto != htons(ETH_P_IP)) {
-			printk(KERN_WARNING
-			       "isdn_net: %s don't know how to resolve type %d addresses?\n",
-			       dev->name, (int) eth->h_proto);
-			memcpy(eth->h_source, dev->dev_addr, dev->addr_len);
-			return 0;
-		}
-		/*
-		 *      Try to get ARP to resolve the header.
-		 */
-#ifdef CONFIG_INET
-		ret = arp_find(eth->h_dest, skb);
-#endif
-	}
-	return ret;
-}
-
 static int isdn_header_cache(const struct neighbour *neigh, struct hh_cache *hh,
 			     __be16 type)
 {
@@ -2005,7 +1973,6 @@ static void isdn_header_cache_update(struct hh_cache *hh,
 
 static const struct header_ops isdn_header_ops = {
 	.create = isdn_net_header,
-	.rebuild = isdn_net_rebuild_header,
 	.cache = isdn_header_cache,
 	.cache_update = isdn_header_cache_update,
 };

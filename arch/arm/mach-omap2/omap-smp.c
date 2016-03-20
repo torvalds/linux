@@ -22,6 +22,7 @@
 #include <linux/irqchip/arm-gic.h>
 
 #include <asm/smp_scu.h>
+#include <asm/virt.h>
 
 #include "omap-secure.h"
 #include "omap-wakeupgen.h"
@@ -142,9 +143,9 @@ static int omap4_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		 * Ensure that CPU power state is set to ON to avoid CPU
 		 * powerdomain transition on wfi
 		 */
-		clkdm_wakeup(cpu1_clkdm);
-		omap_set_pwrdm_state(cpu1_pwrdm, PWRDM_POWER_ON);
-		clkdm_allow_idle(cpu1_clkdm);
+		clkdm_wakeup_nolock(cpu1_clkdm);
+		pwrdm_set_next_pwrst(cpu1_pwrdm, PWRDM_POWER_ON);
+		clkdm_allow_idle_nolock(cpu1_clkdm);
 
 		if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD)) {
 			while (gic_dist_disabled()) {
@@ -227,12 +228,20 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 	if (omap_secure_apis_support())
 		omap_auxcoreboot_addr(virt_to_phys(startup_addr));
 	else
-		writel_relaxed(virt_to_phys(omap5_secondary_startup),
-			       base + OMAP_AUX_CORE_BOOT_1);
+		/*
+		 * If the boot CPU is in HYP mode then start secondary
+		 * CPU in HYP mode as well.
+		 */
+		if ((__boot_cpu_mode & MODE_MASK) == HYP_MODE)
+			writel_relaxed(virt_to_phys(omap5_secondary_hyp_startup),
+				       base + OMAP_AUX_CORE_BOOT_1);
+		else
+			writel_relaxed(virt_to_phys(omap5_secondary_startup),
+				       base + OMAP_AUX_CORE_BOOT_1);
 
 }
 
-struct smp_operations omap4_smp_ops __initdata = {
+const struct smp_operations omap4_smp_ops __initconst = {
 	.smp_init_cpus		= omap4_smp_init_cpus,
 	.smp_prepare_cpus	= omap4_smp_prepare_cpus,
 	.smp_secondary_init	= omap4_secondary_init,

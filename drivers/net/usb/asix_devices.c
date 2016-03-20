@@ -465,19 +465,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		return ret;
 	}
 
-	ret = asix_sw_reset(dev, AX_SWRESET_IPPD | AX_SWRESET_PRL);
-	if (ret < 0)
-		return ret;
-
-	msleep(150);
-
-	ret = asix_sw_reset(dev, AX_SWRESET_CLEAR);
-	if (ret < 0)
-		return ret;
-
-	msleep(150);
-
-	ret = asix_sw_reset(dev, embd_phy ? AX_SWRESET_IPRL : AX_SWRESET_PRTE);
+	ax88772_reset(dev);
 
 	/* Read PHYID register *AFTER* the PHY was reset properly */
 	phyid = asix_get_phyid(dev);
@@ -499,8 +487,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 
 static void ax88772_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
-	if (dev->driver_priv)
-		kfree(dev->driver_priv);
+	kfree(dev->driver_priv);
 }
 
 static const struct ethtool_ops ax88178_ethtool_ops = {
@@ -890,7 +877,7 @@ static const struct driver_info ax88772_info = {
 	.unbind = ax88772_unbind,
 	.status = asix_status,
 	.link_reset = ax88772_link_reset,
-	.reset = ax88772_reset,
+	.reset = ax88772_link_reset,
 	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR | FLAG_MULTI_PACKET,
 	.rx_fixup = asix_rx_fixup_common,
 	.tx_fixup = asix_tx_fixup,
@@ -972,6 +959,10 @@ static const struct usb_device_id	products [] = {
 	USB_DEVICE (0x08dd, 0x90ff),
 	.driver_info =  (unsigned long) &ax8817x_info,
 }, {
+	// Billionton Systems, GUSB2AM-1G-B
+	USB_DEVICE(0x08dd, 0x0114),
+	.driver_info =  (unsigned long) &ax88178_info,
+}, {
 	// ATEN UC210T
 	USB_DEVICE (0x0557, 0x2009),
 	.driver_info =  (unsigned long) &ax8817x_info,
@@ -990,6 +981,10 @@ static const struct usb_device_id	products [] = {
 }, {
 	// Sitecom LN-031 "USB 2.0 10/100/1000 Ethernet adapter"
 	USB_DEVICE (0x0df6, 0x0056),
+	.driver_info =  (unsigned long) &ax88178_info,
+}, {
+	// Sitecom LN-028 "USB 2.0 10/100/1000 Ethernet adapter"
+	USB_DEVICE (0x0df6, 0x061c),
 	.driver_info =  (unsigned long) &ax88178_info,
 }, {
 	// corega FEther USB2-TX

@@ -68,7 +68,7 @@ MODULE_PARM_DESC(default_radio_region, "Region: 0=Europe/US, 1=Japan");
 /* RDS buffer blocks */
 static u32 default_rds_buf = 300;
 module_param(default_rds_buf, uint, 0444);
-MODULE_PARM_DESC(rds_buf, "RDS buffer entries");
+MODULE_PARM_DESC(default_rds_buf, "RDS buffer entries");
 
 /* Radio Nr */
 static u32 radio_nr = -1;
@@ -440,7 +440,7 @@ static int fm_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type,	void *payload,
 		 * command with u16 payload - convert to be16
 		 */
 		if (payload != NULL)
-			*(u16 *)payload = cpu_to_be16(*(u16 *)payload);
+			*(__be16 *)payload = cpu_to_be16(*(u16 *)payload);
 
 	} else if (payload != NULL) {
 		fm_cb(skb)->fm_op = *((u8 *)payload + 2);
@@ -595,7 +595,7 @@ static void fm_irq_handle_flag_getcmd_resp(struct fmdev *fmdev)
 	skb_pull(skb, sizeof(struct fm_event_msg_hdr));
 	memcpy(&fmdev->irq_info.flag, skb->data, fm_evt_hdr->dlen);
 
-	fmdev->irq_info.flag = be16_to_cpu(fmdev->irq_info.flag);
+	fmdev->irq_info.flag = be16_to_cpu((__force __be16)fmdev->irq_info.flag);
 	fmdbg("irq: flag register(0x%x)\n", fmdev->irq_info.flag);
 
 	/* Continue next function in interrupt handler table */
@@ -689,7 +689,6 @@ static void fm_rx_update_af_cache(struct fmdev *fmdev, u8 af)
 static void fm_rdsparse_swapbytes(struct fmdev *fmdev,
 		struct fm_rdsdata_format *rds_format)
 {
-	u8 byte1;
 	u8 index = 0;
 	u8 *rds_buff;
 
@@ -701,9 +700,7 @@ static void fm_rdsparse_swapbytes(struct fmdev *fmdev,
 	if (fmdev->asci_id != 0x6350) {
 		rds_buff = &rds_format->data.groupdatabuff.buff[0];
 		while (index + 1 < FM_RX_RDS_INFO_FIELD_MAX) {
-			byte1 = rds_buff[index];
-			rds_buff[index] = rds_buff[index + 1];
-			rds_buff[index + 1] = byte1;
+			swap(rds_buff[index], rds_buff[index + 1]);
 			index += 2;
 		}
 	}
@@ -764,7 +761,7 @@ static void fm_irq_handle_rdsdata_getcmd_resp(struct fmdev *fmdev)
 			 * Extract PI code and store in local cache.
 			 * We need this during AF switch processing.
 			 */
-			cur_picode = be16_to_cpu(rds_fmt.data.groupgeneral.pidata);
+			cur_picode = be16_to_cpu((__force __be16)rds_fmt.data.groupgeneral.pidata);
 			if (fmdev->rx.stat_info.picode != cur_picode)
 				fmdev->rx.stat_info.picode = cur_picode;
 
@@ -989,7 +986,7 @@ static void fm_irq_afjump_rd_freq_resp(struct fmdev *fmdev)
 	/* Skip header info and copy only response data */
 	skb_pull(skb, sizeof(struct fm_event_msg_hdr));
 	memcpy(&read_freq, skb->data, sizeof(read_freq));
-	read_freq = be16_to_cpu(read_freq);
+	read_freq = be16_to_cpu((__force __be16)read_freq);
 	curr_freq = fmdev->rx.region.bot_freq + ((u32)read_freq * FM_FREQ_MUL);
 
 	jumped_freq = fmdev->rx.stat_info.af_cache[fmdev->rx.afjump_idx];
@@ -1256,7 +1253,7 @@ static int fm_download_firmware(struct fmdev *fmdev, const u8 *fw_name)
 		fmerr("Unable to read firmware(%s) content\n", fw_name);
 		return ret;
 	}
-	fmdbg("Firmware(%s) length : %d bytes\n", fw_name, fw_entry->size);
+	fmdbg("Firmware(%s) length : %zu bytes\n", fw_name, fw_entry->size);
 
 	fw_data = (void *)fw_entry->data;
 	fw_len = fw_entry->size;
@@ -1317,7 +1314,8 @@ static int load_default_rx_configuration(struct fmdev *fmdev)
 /* Does FM power on sequence */
 static int fm_power_up(struct fmdev *fmdev, u8 mode)
 {
-	u16 payload, asic_id, asic_ver;
+	u16 payload;
+	__be16 asic_id, asic_ver;
 	int resp_len, ret;
 	u8 fw_name[50];
 

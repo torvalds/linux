@@ -17,11 +17,10 @@
 #include <asm/assembler.h>
 
 #include <mach/board-ams-delta.h>
-
-#include <mach/irqs.h>
 #include <mach/ams-delta-fiq.h>
 
 #include "iomap.h"
+#include "soc.h"
 
 /*
  * GPIO related definitions, copied from arch/arm/plat-omap/gpio.c.

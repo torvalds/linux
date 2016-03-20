@@ -29,7 +29,7 @@ static const struct drm_framebuffer_funcs cirrus_fb_funcs = {
 
 int cirrus_framebuffer_init(struct drm_device *dev,
 			    struct cirrus_framebuffer *gfb,
-			    struct drm_mode_fb_cmd2 *mode_cmd,
+			    const struct drm_mode_fb_cmd2 *mode_cmd,
 			    struct drm_gem_object *obj)
 {
 	int ret;
@@ -47,16 +47,18 @@ int cirrus_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 cirrus_user_framebuffer_create(struct drm_device *dev,
 			       struct drm_file *filp,
-			       struct drm_mode_fb_cmd2 *mode_cmd)
+			       const struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	struct cirrus_device *cdev = dev->dev_private;
 	struct drm_gem_object *obj;
 	struct cirrus_framebuffer *cirrus_fb;
 	int ret;
 	u32 bpp, depth;
 
 	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
-	/* cirrus can't handle > 24bpp framebuffers at all */
-	if (bpp > 24)
+
+	if (!cirrus_check_framebuffer(cdev, mode_cmd->width, mode_cmd->height,
+				      bpp, mode_cmd->pitches[0]))
 		return ERR_PTR(-EINVAL);
 
 	obj = drm_gem_object_lookup(dev, filp, mode_cmd->handles[0]);
@@ -96,8 +98,7 @@ static int cirrus_vram_init(struct cirrus_device *cdev)
 {
 	/* BAR 0 is VRAM */
 	cdev->mc.vram_base = pci_resource_start(cdev->dev->pdev, 0);
-	/* We have 4MB of VRAM */
-	cdev->mc.vram_size = 4 * 1024 * 1024;
+	cdev->mc.vram_size = pci_resource_len(cdev->dev->pdev, 0);
 
 	if (!request_mem_region(cdev->mc.vram_base, cdev->mc.vram_size,
 				"cirrusdrmfb_vram")) {
@@ -179,17 +180,22 @@ int cirrus_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	r = cirrus_mm_init(cdev);
-	if (r)
+	if (r) {
 		dev_err(&dev->pdev->dev, "fatal err on mm init\n");
+		goto out;
+	}
 
 	r = cirrus_modeset_init(cdev);
-	if (r)
+	if (r) {
 		dev_err(&dev->pdev->dev, "Fatal error during modeset init: %d\n", r);
+		goto out;
+	}
 
 	dev->mode_config.funcs = (void *)&cirrus_mode_funcs;
+
+	return 0;
 out:
-	if (r)
-		cirrus_driver_unload(dev);
+	cirrus_driver_unload(dev);
 	return r;
 }
 
@@ -287,23 +293,36 @@ cirrus_dumb_mmap_offset(struct drm_file *file,
 		     uint64_t *offset)
 {
 	struct drm_gem_object *obj;
-	int ret;
 	struct cirrus_bo *bo;
 
-	mutex_lock(&dev->struct_mutex);
 	obj = drm_gem_object_lookup(dev, file, handle);
-	if (obj == NULL) {
-		ret = -ENOENT;
-		goto out_unlock;
-	}
+	if (obj == NULL)
+		return -ENOENT;
 
 	bo = gem_to_cirrus_bo(obj);
 	*offset = cirrus_bo_mmap_offset(bo);
 
-	drm_gem_object_unreference(obj);
-	ret = 0;
-out_unlock:
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
+	drm_gem_object_unreference_unlocked(obj);
 
+	return 0;
+}
+
+bool cirrus_check_framebuffer(struct cirrus_device *cdev, int width, int height,
+			      int bpp, int pitch)
+{
+	const int max_pitch = 0x1FF << 3; /* (4096 - 1) & ~111b bytes */
+	const int max_size = cdev->mc.vram_size;
+
+	if (bpp > cirrus_bpp)
+		return false;
+	if (bpp > 32)
+		return false;
+
+	if (pitch > max_pitch)
+		return false;
+
+	if (pitch * height > max_size)
+		return false;
+
+	return true;
 }

@@ -920,7 +920,6 @@ static struct platform_driver ne_driver = {
 	.resume		= ne_drv_resume,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

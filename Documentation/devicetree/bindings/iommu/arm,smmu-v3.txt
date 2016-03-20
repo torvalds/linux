@@ -1,0 +1,59 @@
+* ARM SMMUv3 Architecture Implementation
+
+The SMMUv3 architecture is a significant deparature from previous
+revisions, replacing the MMIO register interface with in-memory command
+and event queues and adding support for the ATS and PRI components of
+the PCIe specification.
+
+** SMMUv3 required properties:
+
+- compatible        : Should include:
+
+                      * "arm,smmu-v3" for any SMMUv3 compliant
+                        implementation. This entry should be last in the
+                        compatible list.
+
+- reg               : Base address and size of the SMMU.
+
+- interrupts        : Non-secure interrupt list describing the wired
+                      interrupt sources corresponding to entries in
+                      interrupt-names. If no wired interrupts are
+                      present then this property may be omitted.
+
+- interrupt-names   : When the interrupts property is present, should
+                      include the following:
+                      * "eventq"    - Event Queue not empty
+                      * "priq"      - PRI Queue not empty
+                      * "cmdq-sync" - CMD_SYNC complete
+                      * "gerror"    - Global Error activated
+
+** SMMUv3 optional properties:
+
+- dma-coherent      : Present if DMA operations made by the SMMU (page
+                      table walks, stream table accesses etc) are cache
+                      coherent with the CPU.
+
+                      NOTE: this only applies to the SMMU itself, not
+                      masters connected upstream of the SMMU.
+
+- msi-parent        : See the generic MSI binding described in
+                        devicetree/bindings/interrupt-controller/msi.txt
+                      for a description of the msi-parent property.
+
+- hisilicon,broken-prefetch-cmd
+                    : Avoid sending CMD_PREFETCH_* commands to the SMMU.
+
+** Example
+
+        smmu@2b400000 {
+                compatible = "arm,smmu-v3";
+                reg = <0x0 0x2b400000 0x0 0x20000>;
+                interrupts = <GIC_SPI 74 IRQ_TYPE_EDGE_RISING>,
+                             <GIC_SPI 75 IRQ_TYPE_EDGE_RISING>,
+                             <GIC_SPI 77 IRQ_TYPE_EDGE_RISING>,
+                             <GIC_SPI 79 IRQ_TYPE_EDGE_RISING>;
+                interrupt-names = "eventq", "priq", "cmdq-sync", "gerror";
+                dma-coherent;
+                #iommu-cells = <0>;
+                msi-parent = <&its 0xff0000>;
+        };

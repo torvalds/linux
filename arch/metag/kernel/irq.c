@@ -94,13 +94,11 @@ void do_IRQ(int irq, struct pt_regs *regs)
 			"MOV   D0.5,%0\n"
 			"MOV   D1Ar1,%1\n"
 			"MOV   D1RtP,%2\n"
-			"MOV   D0Ar2,%3\n"
 			"SWAP  A0StP,D0.5\n"
 			"SWAP  PC,D1RtP\n"
 			"MOV   A0StP,D0.5\n"
 			:
-			: "r" (isp), "r" (irq), "r" (desc->handle_irq),
-			  "r" (desc)
+			: "r" (isp), "r" (desc), "r" (desc->handle_irq)
 			: "memory", "cc", "D1Ar1", "D0Ar2", "D1Ar3", "D0Ar4",
 			  "D1Ar5", "D0Ar6", "D0Re0", "D1Re0", "D0.4", "D1RtP",
 			  "D0.5"
@@ -132,7 +130,6 @@ void irq_ctx_init(int cpu)
 
 	irqctx = (union irq_ctx *) &hardirq_stack[cpu * THREAD_SIZE];
 	irqctx->tinfo.task              = NULL;
-	irqctx->tinfo.exec_domain       = NULL;
 	irqctx->tinfo.cpu               = cpu;
 	irqctx->tinfo.preempt_count     = HARDIRQ_OFFSET;
 	irqctx->tinfo.addr_limit        = MAKE_MM_SEG(0);
@@ -141,7 +138,6 @@ void irq_ctx_init(int cpu)
 
 	irqctx = (union irq_ctx *) &softirq_stack[cpu * THREAD_SIZE];
 	irqctx->tinfo.task              = NULL;
-	irqctx->tinfo.exec_domain       = NULL;
 	irqctx->tinfo.cpu               = cpu;
 	irqctx->tinfo.preempt_count     = 0;
 	irqctx->tinfo.addr_limit        = MAKE_MM_SEG(0);
@@ -272,23 +268,25 @@ void migrate_irqs(void)
 
 	for_each_active_irq(i) {
 		struct irq_data *data = irq_get_irq_data(i);
+		struct cpumask *mask;
 		unsigned int newcpu;
 
 		if (irqd_is_per_cpu(data))
 			continue;
 
-		if (!cpumask_test_cpu(cpu, data->affinity))
+		mask = irq_data_get_affinity_mask(data);
+		if (!cpumask_test_cpu(cpu, mask))
 			continue;
 
-		newcpu = cpumask_any_and(data->affinity, cpu_online_mask);
+		newcpu = cpumask_any_and(mask, cpu_online_mask);
 
 		if (newcpu >= nr_cpu_ids) {
 			pr_info_ratelimited("IRQ%u no longer affine to CPU%u\n",
 					    i, cpu);
 
-			cpumask_setall(data->affinity);
+			cpumask_setall(mask);
 		}
-		irq_set_affinity(i, data->affinity);
+		irq_set_affinity(i, mask);
 	}
 }
 #endif /* CONFIG_HOTPLUG_CPU */

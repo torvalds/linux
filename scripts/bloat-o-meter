@@ -20,6 +20,8 @@ def getsizes(file):
         if type in "tTdDbBrR":
             # strip generated symbols
             if name.startswith("__mod_"): continue
+            if name.startswith("SyS_"): continue
+            if name.startswith("compat_SyS_"): continue
             if name == "linux_banner": continue
             # statics and some other optimizations adds random .NUMBER
             name = re.sub(r'\.[0-9]+', '', name)
@@ -56,8 +58,8 @@ for name in common:
 delta.sort()
 delta.reverse()
 
-print "add/remove: %s/%s grow/shrink: %s/%s up/down: %s/%s (%s)" % \
-      (add, remove, grow, shrink, up, -down, up-down)
-print "%-40s %7s %7s %+7s" % ("function", "old", "new", "delta")
+print("add/remove: %s/%s grow/shrink: %s/%s up/down: %s/%s (%s)" % \
+      (add, remove, grow, shrink, up, -down, up-down))
+print("%-40s %7s %7s %+7s" % ("function", "old", "new", "delta"))
 for d, n in delta:
-    if d: print "%-40s %7s %7s %+7d" % (n, old.get(n,"-"), new.get(n,"-"), d)
+    if d: print("%-40s %7s %7s %+7d" % (n, old.get(n,"-"), new.get(n,"-"), d))

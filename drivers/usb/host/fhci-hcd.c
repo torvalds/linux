@@ -31,7 +31,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
-#include <asm/qe.h>
+#include <soc/fsl/qe/qe.h>
 #include <asm/fsl_gtm.h>
 #include "fhci.h"
 
@@ -360,12 +360,12 @@ static int fhci_start(struct usb_hcd *hcd)
 	hcd->state = HC_STATE_RUNNING;
 
 	/*
-	 * From here on, khubd concurrently accesses the root
+	 * From here on, hub_wq concurrently accesses the root
 	 * hub; drivers will be talking to enumerated devices.
-	 * (On restart paths, khubd already knows about the root
+	 * (On restart paths, hub_wq already knows about the root
 	 * hub and could find work as soon as we wrote FLAG_CF.)
 	 *
-	 * Before this point the HC was idle/ready.  After, khubd
+	 * Before this point the HC was idle/ready.  After, hub_wq
 	 * and device drivers may start it running.
 	 */
 	fhci_usb_enable(fhci);
@@ -821,7 +821,6 @@ MODULE_DEVICE_TABLE(of, of_fhci_match);
 static struct platform_driver of_fhci_driver = {
 	.driver = {
 		.name = "fsl,usb-fhci",
-		.owner = THIS_MODULE,
 		.of_match_table = of_fhci_match,
 	},
 	.probe		= of_fhci_probe,

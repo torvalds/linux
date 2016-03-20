@@ -15,10 +15,10 @@
  */
 
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/platform_data/hsmmc-omap.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include "omap_hwmod.h"
 #include "i2c.h"
-#include "mmc.h"
 #include "wd_timer.h"
 #include "cm33xx.h"
 #include "prm33xx.h"
@@ -200,6 +200,19 @@ struct omap_hwmod am33xx_prcm_hwmod = {
 	.name		= "prcm",
 	.class		= &am33xx_prcm_hwmod_class,
 	.clkdm_name	= "l4_wkup_clkdm",
+};
+
+/*
+ * 'emif' class
+ * instance(s): emif
+ */
+static struct omap_hwmod_class_sysconfig am33xx_emif_sysc = {
+	.rev_offs	= 0x0000,
+};
+
+struct omap_hwmod_class am33xx_emif_hwmod_class = {
+	.name		= "emif",
+	.sysc		= &am33xx_emif_sysc,
 };
 
 /*
@@ -668,7 +681,8 @@ struct omap_hwmod am33xx_gpmc_hwmod = {
 	.name		= "gpmc",
 	.class		= &am33xx_gpmc_hwmod_class,
 	.clkdm_name	= "l3s_clkdm",
-	.flags		= (HWMOD_INIT_NO_IDLE | HWMOD_INIT_NO_RESET),
+	/* Skip reset for CONFIG_OMAP_GPMC_DEBUG for bootloader timings */
+	.flags		= DEBUG_OMAP_GPMC_HWMOD_FLAGS,
 	.main_clk	= "l3s_gclk",
 	.prcm		= {
 		.omap4	= {
@@ -836,7 +850,7 @@ static struct omap_hwmod_class am33xx_mmc_hwmod_class = {
 };
 
 /* mmc0 */
-static struct omap_mmc_dev_attr am33xx_mmc0_dev_attr = {
+static struct omap_hsmmc_dev_attr am33xx_mmc0_dev_attr = {
 	.flags		= OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
 };
 
@@ -854,7 +868,7 @@ struct omap_hwmod am33xx_mmc0_hwmod = {
 };
 
 /* mmc1 */
-static struct omap_mmc_dev_attr am33xx_mmc1_dev_attr = {
+static struct omap_hsmmc_dev_attr am33xx_mmc1_dev_attr = {
 	.flags		= OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
 };
 
@@ -872,7 +886,7 @@ struct omap_hwmod am33xx_mmc1_hwmod = {
 };
 
 /* mmc2 */
-static struct omap_mmc_dev_attr am33xx_mmc2_dev_attr = {
+static struct omap_hsmmc_dev_attr am33xx_mmc2_dev_attr = {
 	.flags		= OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
 };
 struct omap_hwmod am33xx_mmc2_hwmod = {

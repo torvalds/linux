@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2013 LSI Corporation.
+ * Copyright 2000-2014 Avago Technologies.  All rights reserved.
  *
  *
  *          Name:  mpi2_tool.h
  *         Title:  MPI diagnostic tool structures and definitions
  * Creation Date:  March 26, 2007
  *
- *   mpi2_tool.h Version:  02.00.10
+ *   mpi2_tool.h Version:  02.00.13
  *
  * Version History
  * ---------------
@@ -32,6 +32,9 @@
  *                     message.
  * 07-26-12  02.00.10  Modified MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST so that
  *                     it uses MPI Chain SGE as well as MPI Simple SGE.
+ * 08-19-13  02.00.11  Added MPI2_TOOLBOX_TEXT_DISPLAY_TOOL and related info.
+ * 01-08-14  02.00.12  Added MPI2_TOOLBOX_CLEAN_BIT26_PRODUCT_SPECIFIC.
+ * 11-18-14  02.00.13  Updated copyright information.
  * --------------------------------------------------------------------------
  */
 
@@ -51,6 +54,7 @@
 #define MPI2_TOOLBOX_ISTWI_READ_WRITE_TOOL          (0x03)
 #define MPI2_TOOLBOX_BEACON_TOOL                    (0x05)
 #define MPI2_TOOLBOX_DIAGNOSTIC_CLI_TOOL            (0x06)
+#define MPI2_TOOLBOX_TEXT_DISPLAY_TOOL              (0x07)
 
 /****************************************************************************
 * Toolbox reply
@@ -98,6 +102,7 @@ typedef struct _MPI2_TOOLBOX_CLEAN_REQUEST {
 #define MPI2_TOOLBOX_CLEAN_OTHER_PERSIST_PAGES      (0x20000000)
 #define MPI2_TOOLBOX_CLEAN_FW_CURRENT               (0x10000000)
 #define MPI2_TOOLBOX_CLEAN_FW_BACKUP                (0x08000000)
+#define MPI2_TOOLBOX_CLEAN_BIT26_PRODUCT_SPECIFIC   (0x04000000)
 #define MPI2_TOOLBOX_CLEAN_MEGARAID                 (0x02000000)
 #define MPI2_TOOLBOX_CLEAN_INITIALIZATION           (0x01000000)
 #define MPI2_TOOLBOX_CLEAN_FLASH                    (0x00000004)
@@ -330,6 +335,45 @@ typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REPLY {
 	*PTR_MPI2_TOOLBOX_DIAG_CLI_REPLY,
 	Mpi2ToolboxDiagnosticCliReply_t,
 	*pMpi2ToolboxDiagnosticCliReply_t;
+
+
+/****************************************************************************
+*  Toolbox Console Text Display Tool
+****************************************************************************/
+
+/* Toolbox Console Text Display Tool request message */
+typedef struct _MPI2_TOOLBOX_TEXT_DISPLAY_REQUEST {
+	U8			Tool;			/* 0x00 */
+	U8			Reserved1;		/* 0x01 */
+	U8			ChainOffset;		/* 0x02 */
+	U8			Function;		/* 0x03 */
+	U16			Reserved2;		/* 0x04 */
+	U8			Reserved3;		/* 0x06 */
+	U8			MsgFlags;		/* 0x07 */
+	U8			VP_ID;			/* 0x08 */
+	U8			VF_ID;			/* 0x09 */
+	U16			Reserved4;		/* 0x0A */
+	U8			Console;		/* 0x0C */
+	U8			Flags;			/* 0x0D */
+	U16			Reserved6;		/* 0x0E */
+	U8			TextToDisplay[4];	/* 0x10 */
+} MPI2_TOOLBOX_TEXT_DISPLAY_REQUEST,
+*PTR_MPI2_TOOLBOX_TEXT_DISPLAY_REQUEST,
+Mpi2ToolboxTextDisplayRequest_t,
+*pMpi2ToolboxTextDisplayRequest_t;
+
+/* defines for the Console field */
+#define MPI2_TOOLBOX_CONSOLE_TYPE_MASK          (0xF0)
+#define MPI2_TOOLBOX_CONSOLE_TYPE_DEFAULT       (0x00)
+#define MPI2_TOOLBOX_CONSOLE_TYPE_UART          (0x10)
+#define MPI2_TOOLBOX_CONSOLE_TYPE_ETHERNET      (0x20)
+
+#define MPI2_TOOLBOX_CONSOLE_NUMBER_MASK        (0x0F)
+
+/* defines for the Flags field */
+#define MPI2_TOOLBOX_CONSOLE_FLAG_TIMESTAMP     (0x01)
+
+
 
 /*****************************************************************************
 *

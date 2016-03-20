@@ -16,7 +16,7 @@
  * the instance number and string from the type 41 record and exports
  * it to sysfs.
  *
- * Please see http://linux.dell.com/wiki/index.php/Oss/libnetdevname for more
+ * Please see http://linux.dell.com/files/biosdevname/ for more
  * information.
  */
 
@@ -30,8 +30,6 @@
 #include <linux/acpi.h>
 #include <linux/pci-acpi.h>
 #include "pci.h"
-
-#define	DEVICE_LABEL_DSM	0x07
 
 #ifdef CONFIG_DMI
 enum smbios_attr_enum {
@@ -79,7 +77,7 @@ static umode_t smbios_instance_string_exist(struct kobject *kobj,
 	struct device *dev;
 	struct pci_dev *pdev;
 
-	dev = container_of(kobj, struct device, kobj);
+	dev = kobj_to_dev(kobj);
 	pdev = to_pci_dev(dev);
 
 	return find_smbios_instance_string(pdev, NULL, SMBIOS_ATTR_NONE) ?
@@ -148,11 +146,6 @@ static inline void pci_remove_smbiosname_file(struct pci_dev *pdev)
 #endif
 
 #ifdef CONFIG_ACPI
-static const char device_label_dsm_uuid[] = {
-	0xD0, 0x37, 0xC9, 0xE5, 0x53, 0x35, 0x7A, 0x4D,
-	0x91, 0x17, 0xEA, 0x4D, 0x19, 0xC3, 0x43, 0x4D
-};
-
 enum acpi_attr_enum {
 	ACPI_ATTR_LABEL_SHOW,
 	ACPI_ATTR_INDEX_SHOW,
@@ -179,7 +172,7 @@ static int dsm_get_label(struct device *dev, char *buf,
 	if (!handle)
 		return -1;
 
-	obj = acpi_evaluate_dsm(handle, device_label_dsm_uuid, 0x2,
+	obj = acpi_evaluate_dsm(handle, pci_acpi_dsm_uuid, 0x2,
 				DEVICE_LABEL_DSM, NULL);
 	if (!obj)
 		return -1;
@@ -219,7 +212,7 @@ static bool device_has_dsm(struct device *dev)
 	if (!handle)
 		return false;
 
-	return !!acpi_check_dsm(handle, device_label_dsm_uuid, 0x2,
+	return !!acpi_check_dsm(handle, pci_acpi_dsm_uuid, 0x2,
 				1 << DEVICE_LABEL_DSM);
 }
 
@@ -228,7 +221,7 @@ static umode_t acpi_index_string_exist(struct kobject *kobj,
 {
 	struct device *dev;
 
-	dev = container_of(kobj, struct device, kobj);
+	dev = kobj_to_dev(kobj);
 
 	if (device_has_dsm(dev))
 		return S_IRUGO;

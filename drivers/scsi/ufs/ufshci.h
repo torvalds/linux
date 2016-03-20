@@ -89,8 +89,9 @@ enum {
 
 /* Controller UFSHCI version */
 enum {
-	UFSHCI_VERSION_10 = 0x00010000,
-	UFSHCI_VERSION_11 = 0x00010100,
+	UFSHCI_VERSION_10 = 0x00010000, /* 1.0 */
+	UFSHCI_VERSION_11 = 0x00010100, /* 1.1 */
+	UFSHCI_VERSION_20 = 0x00000200, /* 2.0 */
 };
 
 /*
@@ -124,8 +125,11 @@ enum {
 #define CONTROLLER_FATAL_ERROR			UFS_BIT(16)
 #define SYSTEM_BUS_FATAL_ERROR			UFS_BIT(17)
 
-#define UFSHCD_UIC_MASK		(UIC_COMMAND_COMPL |\
-				 UIC_POWER_MODE)
+#define UFSHCD_UIC_PWR_MASK	(UIC_HIBERNATE_ENTER |\
+				UIC_HIBERNATE_EXIT |\
+				UIC_POWER_MODE)
+
+#define UFSHCD_UIC_MASK		(UIC_COMMAND_COMPL | UFSHCD_UIC_PWR_MASK)
 
 #define UFSHCD_ERROR_MASK	(UIC_ERROR |\
 				DEVICE_FATAL_ERROR |\
@@ -203,6 +207,9 @@ enum {
 #define CONFIG_RESULT_CODE_MASK		0xFF
 #define GENERIC_ERROR_CODE_MASK		0xFF
 
+/* GenSelectorIndex calculation macros for M-PHY attributes */
+#define UIC_ARG_MPHY_TX_GEN_SEL_INDEX(lane) (lane)
+
 #define UIC_ARG_MIB_SEL(attr, sel)	((((attr) & 0xFFFF) << 16) |\
 					 ((sel) & 0xFFFF))
 #define UIC_ARG_MIB(attr)		UIC_ARG_MIB_SEL(attr, 0)
@@ -210,7 +217,7 @@ enum {
 #define UIC_GET_ATTR_ID(v)		(((v) >> 16) & 0xFFFF)
 
 /* UIC Commands */
-enum {
+enum uic_cmd_dme {
 	UIC_CMD_DME_GET			= 0x01,
 	UIC_CMD_DME_SET			= 0x02,
 	UIC_CMD_DME_PEER_GET		= 0x03,

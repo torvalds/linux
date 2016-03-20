@@ -44,7 +44,7 @@
     <para>To open a media device applications call <function>open()</function>
     with the desired device name. The function has no side effects; the device
     configuration remain unchanged.</para>
-    <para>When the device is opened in read-only mode, attemps to modify its
+    <para>When the device is opened in read-only mode, attempts to modify its
     configuration will result in an error, and <varname>errno</varname> will be
     set to <errorcode>EBADF</errorcode>.</para>
   </refsect1>

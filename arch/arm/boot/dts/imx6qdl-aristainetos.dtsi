@@ -109,7 +109,7 @@
 	flash: m25p80@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q128a11";
+		compatible = "micron,n25q128a11", "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};
@@ -173,7 +173,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	vmmc-supply = <&reg_3p3v>;
-	cd-gpios = <&gpio4 7 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio4 7 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -181,7 +181,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	vmmc-supply = <&reg_3p3v>;
-	cd-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio4 8 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

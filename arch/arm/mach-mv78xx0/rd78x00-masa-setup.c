@@ -14,9 +14,9 @@
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/ethtool.h>
-#include <mach/mv78xx0.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include "mv78xx0.h"
 #include "common.h"
 
 static struct mv643xx_eth_platform_data rd78x00_masa_ge00_data = {
@@ -79,6 +79,7 @@ subsys_initcall(rd78x00_pci_init);
 MACHINE_START(RD78X00_MASA, "Marvell RD-78x00-MASA Development Board")
 	/* Maintainer: Lennert Buytenhek <buytenh@marvell.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= MV78XX0_NR_IRQS,
 	.init_machine	= rd78x00_masa_init,
 	.map_io		= mv78xx0_map_io,
 	.init_early	= mv78xx0_init_early,

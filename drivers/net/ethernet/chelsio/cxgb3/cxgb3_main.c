@@ -701,15 +701,16 @@ static ssize_t attr_store(struct device *d,
 			  ssize_t(*set) (struct net_device *, unsigned int),
 			  unsigned int min_val, unsigned int max_val)
 {
-	char *endp;
 	ssize_t ret;
 	unsigned int val;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	val = simple_strtoul(buf, &endp, 0);
-	if (endp == buf || val < min_val || val > max_val)
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+	if (val < min_val || val > max_val)
 		return -EINVAL;
 
 	rtnl_lock();
@@ -829,14 +830,15 @@ static ssize_t tm_attr_store(struct device *d,
 	struct port_info *pi = netdev_priv(to_net_dev(d));
 	struct adapter *adap = pi->adapter;
 	unsigned int val;
-	char *endp;
 	ssize_t ret;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	val = simple_strtoul(buf, &endp, 0);
-	if (endp == buf || val > 10000000)
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+	if (val > 10000000)
 		return -EINVAL;
 
 	rtnl_lock();
@@ -1025,19 +1027,19 @@ int t3_get_edc_fw(struct cphy *phy, int edc_idx, int size)
 {
 	struct adapter *adapter = phy->adapter;
 	const struct firmware *fw;
-	char buf[64];
+	const char *fw_name;
 	u32 csum;
 	const __be32 *p;
 	u16 *cache = phy->phy_cache;
-	int i, ret;
+	int i, ret = -EINVAL;
 
-	snprintf(buf, sizeof(buf), get_edc_fw_name(edc_idx));
-
-	ret = request_firmware(&fw, buf, &adapter->pdev->dev);
+	fw_name = get_edc_fw_name(edc_idx);
+	if (fw_name)
+		ret = request_firmware(&fw, fw_name, &adapter->pdev->dev);
 	if (ret < 0) {
 		dev_err(&adapter->pdev->dev,
 			"could not upgrade firmware: unable to load %s\n",
-			buf);
+			fw_name);
 		return ret;
 	}
 
@@ -1537,7 +1539,7 @@ static void set_msglevel(struct net_device *dev, u32 val)
 	adapter->msg_enable = val;
 }
 
-static char stats_strings[][ETH_GSTRING_LEN] = {
+static const char stats_strings[][ETH_GSTRING_LEN] = {
 	"TxOctetsOK         ",
 	"TxFramesOK         ",
 	"TxMulticastFramesOK",

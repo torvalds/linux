@@ -4,6 +4,16 @@ menu "Intel PXA2xx/PXA3xx Implementations"
 
 comment "Intel/Marvell Dev Platforms (sorted by hardware release time)"
 
+config MACH_PXA27X_DT
+	bool "Support PXA27x platforms from device tree"
+	select POWER_SUPPLY
+	select PXA27x
+	select USE_OF
+	help
+	  Include support for Marvell PXA27x based platforms using
+	  the device tree. Needn't select any other machine while
+	  MACH_PXA27X_DT is enabled.
+
 config MACH_PXA3XX_DT
 	bool "Support PXA3xx platforms from device tree"
 	select CPU_PXA300
@@ -73,14 +83,12 @@ config ARCH_VIPER
 	select I2C_GPIO if I2C=y
 	select ISA
 	select PXA25x
-	select PXA_HAVE_ISA_IRQS
 
 config MACH_ARCOM_ZEUS
 	bool "Arcom/Eurotech ZEUS SBC"
 	select ARCOM_PCMCIA
 	select ISA
 	select PXA27x
-	select PXA_HAVE_ISA_IRQS
 
 config MACH_BALLOON3
 	bool "Balloon 3 board"
@@ -680,10 +688,16 @@ config SHARPSL_PM_MAX1111
 	select SPI
 	select SPI_MASTER
 
-config PXA_HAVE_ISA_IRQS
-	bool
-
 config PXA310_ULPI
 	bool
+
+config PXA_SYSTEMS_CPLDS
+	tristate "Motherboard cplds"
+	default ARCH_LUBBOCK || MACH_MAINSTONE
+	help
+	  This driver supports the Lubbock and Mainstone multifunction chip
+	  found on the pxa25x development platform system (Lubbock) and pxa27x
+	  development platform system (Mainstone). This IO board supports the
+	  interrupts handling, ethernet controller, flash chips, etc ...
 
 endif

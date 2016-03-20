@@ -208,7 +208,7 @@ out:
 	return err;
 }
 
-static struct snd_soc_dai_ops si476x_dai_ops = {
+static const struct snd_soc_dai_ops si476x_dai_ops = {
 	.hw_params	= si476x_codec_hw_params,
 	.set_fmt	= si476x_codec_set_dai_fmt,
 };
@@ -261,7 +261,6 @@ MODULE_ALIAS("platform:si476x-codec");
 static struct platform_driver si476x_platform_driver = {
 	.driver		= {
 		.name	= "si476x-codec",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= si476x_platform_probe,
 	.remove		= si476x_platform_remove,

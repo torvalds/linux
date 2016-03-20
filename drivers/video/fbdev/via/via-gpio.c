@@ -6,7 +6,7 @@
  */
 
 #include <linux/spinlock.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
 #include <linux/via-core.h>
 #include <linux/via-gpio.h>
@@ -83,9 +83,7 @@ struct viafb_gpio_cfg {
 static void via_gpio_set(struct gpio_chip *chip, unsigned int nr,
 			 int value)
 {
-	struct viafb_gpio_cfg *cfg = container_of(chip,
-						  struct viafb_gpio_cfg,
-						  gpio_chip);
+	struct viafb_gpio_cfg *cfg = gpiochip_get_data(chip);
 	u8 reg;
 	struct viafb_gpio *gpio;
 	unsigned long flags;
@@ -115,9 +113,7 @@ static int via_gpio_dir_out(struct gpio_chip *chip, unsigned int nr,
  */
 static int via_gpio_dir_input(struct gpio_chip *chip, unsigned int nr)
 {
-	struct viafb_gpio_cfg *cfg = container_of(chip,
-						  struct viafb_gpio_cfg,
-						  gpio_chip);
+	struct viafb_gpio_cfg *cfg = gpiochip_get_data(chip);
 	struct viafb_gpio *gpio;
 	unsigned long flags;
 
@@ -131,9 +127,7 @@ static int via_gpio_dir_input(struct gpio_chip *chip, unsigned int nr)
 
 static int via_gpio_get(struct gpio_chip *chip, unsigned int nr)
 {
-	struct viafb_gpio_cfg *cfg = container_of(chip,
-						  struct viafb_gpio_cfg,
-						  gpio_chip);
+	struct viafb_gpio_cfg *cfg = gpiochip_get_data(chip);
 	u8 reg;
 	struct viafb_gpio *gpio;
 	unsigned long flags;
@@ -142,7 +136,7 @@ static int via_gpio_get(struct gpio_chip *chip, unsigned int nr)
 	gpio = cfg->active_gpios[nr];
 	reg = via_read_reg(VIASR, gpio->vg_port_index);
 	spin_unlock_irqrestore(&cfg->vdev->reg_lock, flags);
-	return reg & (0x04 << gpio->vg_mask_shift);
+	return !!(reg & (0x04 << gpio->vg_mask_shift));
 }
 
 
@@ -255,7 +249,8 @@ static int viafb_gpio_probe(struct platform_device *platdev)
 	 * Get registered.
 	 */
 	viafb_gpio_config.gpio_chip.base = -1;  /* Dynamic */
-	ret = gpiochip_add(&viafb_gpio_config.gpio_chip);
+	ret = gpiochip_add_data(&viafb_gpio_config.gpio_chip,
+				&viafb_gpio_config);
 	if (ret) {
 		printk(KERN_ERR "viafb: failed to add gpios (%d)\n", ret);
 		viafb_gpio_config.gpio_chip.ngpio = 0;
@@ -270,7 +265,7 @@ static int viafb_gpio_probe(struct platform_device *platdev)
 static int viafb_gpio_remove(struct platform_device *platdev)
 {
 	unsigned long flags;
-	int ret = 0, i;
+	int i;
 
 #ifdef CONFIG_PM
 	viafb_pm_unregister(&viafb_gpio_pm_hooks);
@@ -280,11 +275,7 @@ static int viafb_gpio_remove(struct platform_device *platdev)
 	 * Get unregistered.
 	 */
 	if (viafb_gpio_config.gpio_chip.ngpio > 0) {
-		ret = gpiochip_remove(&viafb_gpio_config.gpio_chip);
-		if (ret) { /* Somebody still using it? */
-			printk(KERN_ERR "Viafb: GPIO remove failed\n");
-			return ret;
-		}
+		gpiochip_remove(&viafb_gpio_config.gpio_chip);
 	}
 	/*
 	 * Disable the ports.
@@ -294,7 +285,7 @@ static int viafb_gpio_remove(struct platform_device *platdev)
 		viafb_gpio_disable(viafb_gpio_config.active_gpios[i]);
 	viafb_gpio_config.gpio_chip.ngpio = 0;
 	spin_unlock_irqrestore(&viafb_gpio_config.vdev->reg_lock, flags);
-	return ret;
+	return 0;
 }
 
 static struct platform_driver via_gpio_driver = {

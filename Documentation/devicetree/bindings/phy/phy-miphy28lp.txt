@@ -1,0 +1,117 @@
+STMicroelectronics STi MIPHY28LP PHY binding
+============================================
+
+This binding describes a miphy device that is used to control PHY hardware
+for SATA, PCIe or USB3.
+
+Required properties (controller (parent) node):
+- compatible	: Should be "st,miphy28lp-phy".
+- st,syscfg	: Should be a phandle of the system configuration register group
+		  which contain the SATA, PCIe or USB3 mode setting bits.
+
+Required nodes	:  A sub-node is required for each channel the controller
+		   provides. Address range information including the usual
+		   'reg' and 'reg-names' properties are used inside these
+		   nodes to describe the controller's topology. These nodes
+		   are translated by the driver's .xlate() function.
+
+Required properties (port (child) node):
+- #phy-cells	: Should be 1 (See second example)
+		  Cell after port phandle is device type from:
+			- PHY_TYPE_SATA
+			- PHY_TYPE_PCI
+			- PHY_TYPE_USB3
+- reg		: Address and length of the register set for the device.
+- reg-names	: The names of the register addresses corresponding to the registers
+		  filled in "reg". It can also contain the offset of the system configuration
+		  registers used as glue-logic to setup the device for SATA/PCIe or USB3
+		  devices.
+- st,syscfg	: Offset of the parent configuration register.
+- resets	: phandle to the parent reset controller.
+- reset-names	: Associated name must be "miphy-sw-rst".
+
+Optional properties (port (child) node):
+- st,osc-rdy		: to check the MIPHY0_OSC_RDY status in the glue-logic. This
+			  is not available in all the MiPHY. For example, for STiH407, only the
+			  MiPHY0 has this bit.
+- st,osc-force-ext	: to select the external oscillator. This can change from
+			  different MiPHY inside the same SoC.
+- st,sata_gen		: to select which SATA_SPDMODE has to be set in the SATA system config
+			  register.
+- st,px_rx_pol_inv	: to invert polarity of RXn/RXp (respectively negative line and positive
+			  line).
+- st,scc-on		: enable ssc to reduce effects of EMI (only for sata or PCIe).
+- st,tx-impedance-comp	: to compensate tx impedance avoiding out of range values.
+
+example:
+
+		miphy28lp_phy: miphy28lp@9b22000 {
+			compatible = "st,miphy28lp-phy";
+			st,syscfg = <&syscfg_core>;
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			ranges;
+
+			phy_port0: port@9b22000 {
+				reg = <0x9b22000 0xff>,
+				      <0x9b09000 0xff>,
+				      <0x9b04000 0xff>;
+				reg-names = "sata-up",
+					    "pcie-up",
+					    "pipew";
+
+				st,syscfg = <0x114 0x818 0xe0 0xec>;
+				#phy-cells = <1>;
+				st,osc-rdy;
+				reset-names = "miphy-sw-rst";
+				resets = <&softreset STIH407_MIPHY0_SOFTRESET>;
+			};
+
+			phy_port1: port@9b2a000 {
+				reg = <0x9b2a000 0xff>,
+				      <0x9b19000 0xff>,
+				      <0x9b14000 0xff>;
+				reg-names = "sata-up",
+					    "pcie-up",
+					    "pipew";
+
+				st,syscfg = <0x118 0x81c 0xe4 0xf0>;
+
+				#phy-cells = <1>;
+				st,osc-force-ext;
+				reset-names = "miphy-sw-rst";
+				resets = <&softreset STIH407_MIPHY1_SOFTRESET>;
+			};
+
+			phy_port2: port@8f95000 {
+				reg = <0x8f95000 0xff>,
+				      <0x8f90000 0xff>;
+				reg-names = "pipew",
+					    "usb3-up";
+
+				st,syscfg = <0x11c 0x820>;
+
+				#phy-cells = <1>;
+				reset-names = "miphy-sw-rst";
+				resets = <&softreset STIH407_MIPHY2_SOFTRESET>;
+			};
+		};
+
+
+Specifying phy control of devices
+=================================
+
+Device nodes should specify the configuration required in their "phys"
+property, containing a phandle to the miphy device node and an index
+specifying which configuration to use, as described in phy-bindings.txt.
+
+example:
+		sata0: sata@9b20000  {
+			...
+			phys		= <&phy_port0 PHY_TYPE_SATA>;
+			...
+		};
+
+Macro definitions for the supported miphy configuration can be found in:
+
+include/dt-bindings/phy/phy.h

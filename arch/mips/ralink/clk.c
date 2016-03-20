@@ -56,6 +56,12 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(clk_get_rate);
 
+int clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	return -1;
+}
+EXPORT_SYMBOL_GPL(clk_set_rate);
+
 void __init plat_time_init(void)
 {
 	struct clk *clk;
@@ -69,5 +75,5 @@ void __init plat_time_init(void)
 	pr_info("CPU Clock: %ldMHz\n", clk_get_rate(clk) / 1000000);
 	mips_hpt_frequency = clk_get_rate(clk) / 2;
 	clk_put(clk);
-	clocksource_of_init();
+	clocksource_probe();
 }

@@ -15,12 +15,27 @@ The supplying peripheral clock can also be handled, needing a second property
 	Required elements: "baudclk", "apb_pclk"
 
 Optional properties:
+- snps,uart-16550-compatible : reflects the value of UART_16550_COMPATIBLE
+  configuration parameter. Define this if your UART does not implement the busy
+  functionality.
 - resets : phandle to the parent reset controller.
 - reg-shift : quantity to shift the register offsets by.  If this property is
   not present then the register offsets are not shifted.
 - reg-io-width : the size (in bytes) of the IO accesses that should be
   performed on the device.  If this property is not present then single byte
   accesses are used.
+- dcd-override : Override the DCD modem status signal. This signal will always
+  be reported as active instead of being obtained from the modem status
+  register. Define this if your serial port does not use this pin.
+- dsr-override : Override the DTS modem status signal. This signal will always
+  be reported as active instead of being obtained from the modem status
+  register. Define this if your serial port does not use this pin.
+- cts-override : Override the CTS modem status signal. This signal will always
+  be reported as active instead of being obtained from the modem status
+  register. Define this if your serial port does not use this pin.
+- ri-override : Override the RI modem status signal. This signal will always be
+  reported as inactive instead of being obtained from the modem status register.
+  Define this if your serial port does not use this pin.
 
 Example:
 
@@ -31,6 +46,10 @@ Example:
 		interrupts = <10>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		dcd-override;
+		dsr-override;
+		cts-override;
+		ri-override;
 	};
 
 Example with one clock:

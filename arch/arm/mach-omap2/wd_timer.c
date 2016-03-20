@@ -93,8 +93,8 @@ int omap2_wd_timer_reset(struct omap_hwmod *oh)
 		udelay(oh->class->sysc->srst_udelay);
 
 	if (c == MAX_MODULE_SOFTRESET_WAIT)
-		pr_warning("%s: %s: softreset failed (waited %d usec)\n",
-			   __func__, oh->name, MAX_MODULE_SOFTRESET_WAIT);
+		pr_warn("%s: %s: softreset failed (waited %d usec)\n",
+			__func__, oh->name, MAX_MODULE_SOFTRESET_WAIT);
 	else
 		pr_debug("%s: %s: softreset in %d usec\n", __func__,
 			 oh->name, c);

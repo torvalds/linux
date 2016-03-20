@@ -14,6 +14,7 @@ conditions.
                         "arm,smmu-v1"
                         "arm,smmu-v2"
                         "arm,mmu-400"
+                        "arm,mmu-401"
                         "arm,mmu-500"
 
                   depending on the particular implementation and/or the
@@ -41,6 +42,12 @@ conditions.
                   StreamIDs associated with it.
 
 ** System MMU optional properties:
+
+- dma-coherent  : Present if page table walks made by the SMMU are
+                  cache coherent with the CPU.
+
+                  NOTE: this only applies to the SMMU itself, not
+                  masters connected upstream of the SMMU.
 
 - calxeda,smmu-secure-config-access : Enable proper handling of buggy
                   implementations that always use secure access to

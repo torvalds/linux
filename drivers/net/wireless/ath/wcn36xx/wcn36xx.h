@@ -32,6 +32,9 @@
 #define WLAN_NV_FILE               "wlan/prima/WCNSS_qcom_wlan_nv.bin"
 #define WCN36XX_AGGR_BUFFER_SIZE 64
 
+/* How many frames until we start a-mpdu TX session */
+#define WCN36XX_AMPDU_START_THRESH	20
+
 extern unsigned int wcn36xx_dbg_mask;
 
 enum wcn36xx_debug_mask {
@@ -73,6 +76,13 @@ enum wcn36xx_debug_mask {
 			       DUMP_PREFIX_OFFSET, 32, 1,	\
 			       buf, len, false);		\
 } while (0)
+
+enum wcn36xx_ampdu_state {
+	WCN36XX_AMPDU_NONE,
+	WCN36XX_AMPDU_INIT,
+	WCN36XX_AMPDU_START,
+	WCN36XX_AMPDU_OPERATIONAL,
+};
 
 #define WCN36XX_HW_CHANNEL(__wcn) (__wcn->hw->conf.chandef.chan->hw_value)
 #define WCN36XX_BAND(__wcn) (__wcn->hw->conf.chandef.chan->band)
@@ -165,6 +175,10 @@ struct wcn36xx_sta {
 	bool is_data_encrypted;
 	/* Rates */
 	struct wcn36xx_hal_supported_rates supported_rates;
+
+	spinlock_t ampdu_lock;		/* protects next two fields */
+	enum wcn36xx_ampdu_state ampdu_state[16];
+	int non_agg_frame_ct;
 };
 struct wcn36xx_dxe_ch;
 struct wcn36xx {
@@ -242,5 +256,11 @@ static inline bool wcn36xx_is_fw_version(struct wcn36xx *wcn,
 		wcn->fw_revision == revision);
 }
 void wcn36xx_set_default_rates(struct wcn36xx_hal_supported_rates *rates);
+
+static inline
+struct ieee80211_sta *wcn36xx_priv_to_sta(struct wcn36xx_sta *sta_priv)
+{
+	return container_of((void *)sta_priv, struct ieee80211_sta, drv_priv);
+}
 
 #endif	/* _WCN36XX_H_ */

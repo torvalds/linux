@@ -36,7 +36,12 @@ const char *get_system_type(void)
 	return soc_info.sys_type;
 }
 
-void prom_free_prom_memory(void)
+int ltq_soc_type(void)
+{
+	return soc_info.type;
+}
+
+void __init prom_free_prom_memory(void)
 {
 }
 
@@ -97,16 +102,7 @@ void __init prom_init(void)
 
 int __init plat_of_setup(void)
 {
-	static struct of_device_id of_ids[3];
-
-	if (!of_have_populated_dt())
-		panic("device tree not present");
-
-	strlcpy(of_ids[0].compatible, soc_info.compatible,
-		sizeof(of_ids[0].compatible));
-	strncpy(of_ids[1].compatible, "simple-bus",
-		sizeof(of_ids[1].compatible));
-	return of_platform_populate(NULL, of_ids, NULL, NULL);
+	return __dt_register_buses(soc_info.compatible, "simple-bus");
 }
 
 arch_initcall(plat_of_setup);

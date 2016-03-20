@@ -31,47 +31,26 @@ void dump_chip_info(struct HAL_VERSION	chip_vers)
 	uint cnt = 0;
 	char buf[128];
 
-	if (IS_81XXC(chip_vers)) {
-		cnt += sprintf((buf+cnt), "Chip Version Info: %s_",
-			       IS_92C_SERIAL(chip_vers) ?
-			       "CHIP_8192C" : "CHIP_8188C");
-	} else if (IS_92D(chip_vers)) {
-		cnt += sprintf((buf+cnt), "Chip Version Info: CHIP_8192D_");
-	} else if (IS_8723_SERIES(chip_vers)) {
-		cnt += sprintf((buf+cnt), "Chip Version Info: CHIP_8723A_");
-	} else if (IS_8188E(chip_vers)) {
-		cnt += sprintf((buf+cnt), "Chip Version Info: CHIP_8188E_");
-	}
-
-	cnt += sprintf((buf+cnt), "%s_", IS_NORMAL_CHIP(chip_vers) ?
+	cnt += sprintf((buf+cnt), "Chip Version Info: CHIP_8188E_");
+	cnt += sprintf((buf+cnt), "%s_", chip_vers.ChipType == NORMAL_CHIP ?
 		       "Normal_Chip" : "Test_Chip");
-	cnt += sprintf((buf+cnt), "%s_", IS_CHIP_VENDOR_TSMC(chip_vers) ?
+	cnt += sprintf((buf+cnt), "%s_", chip_vers.VendorType == CHIP_VENDOR_TSMC ?
 		       "TSMC" : "UMC");
-	if (IS_A_CUT(chip_vers))
+	if (chip_vers.CUTVersion == A_CUT_VERSION)
 		cnt += sprintf((buf+cnt), "A_CUT_");
-	else if (IS_B_CUT(chip_vers))
+	else if (chip_vers.CUTVersion == B_CUT_VERSION)
 		cnt += sprintf((buf+cnt), "B_CUT_");
-	else if (IS_C_CUT(chip_vers))
+	else if (chip_vers.CUTVersion == C_CUT_VERSION)
 		cnt += sprintf((buf+cnt), "C_CUT_");
-	else if (IS_D_CUT(chip_vers))
+	else if (chip_vers.CUTVersion == D_CUT_VERSION)
 		cnt += sprintf((buf+cnt), "D_CUT_");
-	else if (IS_E_CUT(chip_vers))
+	else if (chip_vers.CUTVersion == E_CUT_VERSION)
 		cnt += sprintf((buf+cnt), "E_CUT_");
 	else
 		cnt += sprintf((buf+cnt), "UNKNOWN_CUT(%d)_",
 			       chip_vers.CUTVersion);
-
-	if (IS_1T1R(chip_vers))
-		cnt += sprintf((buf+cnt), "1T1R_");
-	else if (IS_1T2R(chip_vers))
-		cnt += sprintf((buf+cnt), "1T2R_");
-	else if (IS_2T2R(chip_vers))
-		cnt += sprintf((buf+cnt), "2T2R_");
-	else
-		cnt += sprintf((buf+cnt), "UNKNOWN_RFTYPE(%d)_",
-			       chip_vers.RFType);
-
-	cnt += sprintf((buf+cnt), "RomVer(%d)\n", chip_vers.ROMVer);
+	cnt += sprintf((buf+cnt), "1T1R_");
+	cnt += sprintf((buf+cnt), "RomVer(0)\n");
 
 	pr_info("%s", buf);
 }

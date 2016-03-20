@@ -39,5 +39,7 @@
 #define VIRTIO_ID_9P		9 /* 9p virtio console */
 #define VIRTIO_ID_RPROC_SERIAL 11 /* virtio remoteproc serial link */
 #define VIRTIO_ID_CAIF	       12 /* Virtio caif */
+#define VIRTIO_ID_GPU          16 /* virtio GPU */
+#define VIRTIO_ID_INPUT        18 /* virtio input */
 
 #endif /* _LINUX_VIRTIO_IDS_H */

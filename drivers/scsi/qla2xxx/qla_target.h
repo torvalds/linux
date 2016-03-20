@@ -167,7 +167,24 @@ struct imm_ntfy_from_isp {
 			uint32_t srr_rel_offs;
 			uint16_t srr_ui;
 			uint16_t srr_ox_id;
-			uint8_t  reserved_4[19];
+			union {
+				struct {
+					uint8_t node_name[8];
+				} plogi; /* PLOGI/ADISC/PDISC */
+				struct {
+					/* PRLI word 3 bit 0-15 */
+					uint16_t wd3_lo;
+					uint8_t resv0[6];
+				} prli;
+				struct {
+					uint8_t port_id[3];
+					uint8_t resv1;
+					uint16_t nport_handle;
+					uint16_t resv2;
+				} req_els;
+			} u;
+			uint8_t port_name[8];
+			uint8_t resv3[3];
 			uint8_t  vp_index;
 			uint32_t reserved_5;
 			uint8_t  port_id[3];
@@ -234,6 +251,7 @@ struct nack_to_isp {
 	uint8_t  reserved[2];
 	uint16_t ox_id;
 } __packed;
+#define NOTIFY_ACK_FLAGS_TERMINATE	BIT_3
 #define NOTIFY_ACK_SRR_FLAGS_ACCEPT	0
 #define NOTIFY_ACK_SRR_FLAGS_REJECT	1
 
@@ -769,7 +787,7 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define QLA_TGT_STATE_NEED_DATA		1 /* target needs data to continue */
 #define QLA_TGT_STATE_DATA_IN		2 /* Data arrived + target processing */
 #define QLA_TGT_STATE_PROCESSED		3 /* target done processing */
-#define QLA_TGT_STATE_ABORTED		4 /* Command aborted */
+
 
 /* Special handles */
 #define QLA_TGT_NULL_HANDLE	0
@@ -789,13 +807,6 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define	FC_TM_FCP_DATA_MISMATCH     3
 #define	FC_TM_REJECT                4
 #define FC_TM_FAILED                5
-
-/*
- * Error code of qlt_pre_xmit_response() meaning that cmd's exchange was
- * terminated, so no more actions is needed and success should be returned
- * to target.
- */
-#define QLA_TGT_PRE_XMIT_RESP_CMD_ABORTED	0x1717
 
 #if (BITS_PER_LONG > 32) || defined(CONFIG_HIGHMEM64G)
 #define pci_dma_lo32(a) (a & 0xffffffff)
@@ -824,6 +835,7 @@ struct qla_tgt {
 	 * HW lock.
 	 */
 	int irq_cmd_count;
+	int atio_irq_cmd_count;
 
 	int datasegs_per_cmd, datasegs_per_cont, sg_tablesize;
 
@@ -872,9 +884,32 @@ struct qla_tgt {
 
 struct qla_tgt_sess_op {
 	struct scsi_qla_host *vha;
+	uint32_t chip_reset;
 	struct atio_from_isp atio;
 	struct work_struct work;
+	struct list_head cmd_list;
+	bool aborted;
 };
+
+enum qla_sess_deletion {
+	QLA_SESS_DELETION_NONE		= 0,
+	QLA_SESS_DELETION_PENDING	= 1, /* hopefully we can get rid of
+					      * this one */
+	QLA_SESS_DELETION_IN_PROGRESS	= 2,
+};
+
+typedef enum {
+	QLT_PLOGI_LINK_SAME_WWN,
+	QLT_PLOGI_LINK_CONFLICT,
+	QLT_PLOGI_LINK_MAX
+} qlt_plogi_link_t;
+
+typedef struct {
+	struct list_head		list;
+	struct imm_ntfy_from_isp	iocb;
+	port_id_t			id;
+	int				ref_count;
+} qlt_plogi_ack_t;
 
 /*
  * Equivilant to IT Nexus (Initiator-Target)
@@ -884,8 +919,15 @@ struct qla_tgt_sess {
 	port_id_t s_id;
 
 	unsigned int conf_compl_supported:1;
-	unsigned int deleted:1;
+	unsigned int deleted:2;
 	unsigned int local:1;
+	unsigned int logout_on_delete:1;
+	unsigned int keep_nport_handle:1;
+	unsigned int send_els_logo:1;
+
+	unsigned char logout_completed;
+
+	int generation;
 
 	struct se_session *se_sess;
 	struct scsi_qla_host *vha;
@@ -897,7 +939,39 @@ struct qla_tgt_sess {
 
 	uint8_t port_name[WWN_SIZE];
 	struct work_struct free_work;
+
+	qlt_plogi_ack_t *plogi_link[QLT_PLOGI_LINK_MAX];
 };
+
+typedef enum {
+	/*
+	 * BIT_0 - Atio Arrival / schedule to work
+	 * BIT_1 - qlt_do_work
+	 * BIT_2 - qlt_do work failed
+	 * BIT_3 - xfer rdy/tcm_qla2xxx_write_pending
+	 * BIT_4 - read respond/tcm_qla2xx_queue_data_in
+	 * BIT_5 - status respond / tcm_qla2xx_queue_status
+	 * BIT_6 - tcm request to abort/Term exchange.
+	 *	pre_xmit_response->qlt_send_term_exchange
+	 * BIT_7 - SRR received (qlt_handle_srr->qlt_xmit_response)
+	 * BIT_8 - SRR received (qlt_handle_srr->qlt_rdy_to_xfer)
+	 * BIT_9 - SRR received (qla_handle_srr->qlt_send_term_exchange)
+	 * BIT_10 - Data in - hanlde_data->tcm_qla2xxx_handle_data
+
+	 * BIT_12 - good completion - qlt_ctio_do_completion -->free_cmd
+	 * BIT_13 - Bad completion -
+	 *	qlt_ctio_do_completion --> qlt_term_ctio_exchange
+	 * BIT_14 - Back end data received/sent.
+	 * BIT_15 - SRR prepare ctio
+	 * BIT_16 - complete free
+	 * BIT_17 - flush - qlt_abort_cmd_on_host_reset
+	 * BIT_18 - completion w/abort status
+	 * BIT_19 - completion w/unknown status
+	 * BIT_20 - tcm_qla2xxx_free_cmd
+	 */
+	CMD_FLAG_DATA_WORK = BIT_11,
+	CMD_FLAG_DATA_WORK_FREE = BIT_21,
+} cmd_flags_t;
 
 struct qla_tgt_cmd {
 	struct se_cmd se_cmd;
@@ -908,25 +982,31 @@ struct qla_tgt_cmd {
 	/* Sense buffer that will be mapped into outgoing status */
 	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
 
+	spinlock_t cmd_lock;
 	/* to save extra sess dereferences */
 	unsigned int conf_compl_supported:1;
 	unsigned int sg_mapped:1;
 	unsigned int free_sg:1;
-	unsigned int aborted:1; /* Needed in case of SRR */
 	unsigned int write_data_transferred:1;
 	unsigned int ctx_dsd_alloced:1;
+	unsigned int q_full:1;
+	unsigned int term_exchg:1;
+	unsigned int cmd_sent_to_fw:1;
+	unsigned int cmd_in_wq:1;
+	unsigned int aborted:1;
 
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
 	int sg_cnt;		/* SG segments count */
 	int bufflen;		/* cmd buffer length */
 	int offset;
-	uint32_t tag;
 	uint32_t unpacked_lun;
 	enum dma_data_direction dma_data_direction;
+	uint32_t reset_count;
 
 	uint16_t loop_id;	/* to save extra sess dereferences */
 	struct qla_tgt *tgt;	/* to save extra sess dereferences */
 	struct scsi_qla_host *vha;
+	struct list_head cmd_list;
 
 	struct atio_from_isp atio;
 	/* t10dif */
@@ -935,6 +1015,10 @@ struct qla_tgt_cmd {
 	uint32_t blk_sz;
 	struct crc_context *ctx;
 
+	uint64_t jiffies_at_alloc;
+	uint64_t jiffies_at_free;
+
+	cmd_flags_t cmd_flags;
 };
 
 struct qla_tgt_sess_work_param {
@@ -958,6 +1042,7 @@ struct qla_tgt_mgmt_cmd {
 	struct se_cmd se_cmd;
 	struct work_struct free_work;
 	unsigned int flags;
+	uint32_t reset_count;
 #define QLA24XX_MGMT_SEND_NACK	1
 	union {
 		struct atio_from_isp atio;
@@ -971,11 +1056,11 @@ struct qla_tgt_prm {
 	struct qla_tgt *tgt;
 	void *pkt;
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
+	unsigned char *sense_buffer;
 	int seg_cnt;
 	int req_cnt;
 	uint16_t rq_result;
 	uint16_t scsi_status;
-	unsigned char *sense_buffer;
 	int sense_buffer_len;
 	int residual;
 	int add_status_pkt;
@@ -997,16 +1082,16 @@ struct qla_tgt_srr_ctio {
 	struct qla_tgt_cmd *cmd;
 };
 
+/* Check for Switch reserved address */
+#define IS_SW_RESV_ADDR(_s_id) \
+	((_s_id.b.domain == 0xff) && (_s_id.b.area == 0xfc))
+
 #define QLA_TGT_XMIT_DATA		1
 #define QLA_TGT_XMIT_STATUS		2
 #define QLA_TGT_XMIT_ALL		(QLA_TGT_XMIT_STATUS|QLA_TGT_XMIT_DATA)
 
 
 extern struct qla_tgt_data qla_target;
-/*
- * Internal function prototypes
- */
-void qlt_disable_vha(struct scsi_qla_host *);
 
 /*
  * Function prototypes for qla_target.c logic used by qla2xxx LLD code.
@@ -1018,9 +1103,7 @@ extern int qlt_lport_register(void *, u64, u64, u64,
 extern void qlt_lport_deregister(struct scsi_qla_host *);
 extern void qlt_unreg_sess(struct qla_tgt_sess *);
 extern void qlt_fc_port_added(struct scsi_qla_host *, fc_port_t *);
-extern void qlt_fc_port_deleted(struct scsi_qla_host *, fc_port_t *);
-extern void qlt_set_mode(struct scsi_qla_host *ha);
-extern void qlt_clear_mode(struct scsi_qla_host *ha);
+extern void qlt_fc_port_deleted(struct scsi_qla_host *, fc_port_t *, int);
 extern int __init qlt_init(void);
 extern void qlt_exit(void);
 extern void qlt_update_vp_map(struct scsi_qla_host *, int);
@@ -1050,16 +1133,31 @@ static inline void qla_reverse_ini_mode(struct scsi_qla_host *ha)
 		ha->host->active_mode |= MODE_INITIATOR;
 }
 
+static inline uint32_t sid_to_key(const uint8_t *s_id)
+{
+	uint32_t key;
+
+	key = (((unsigned long)s_id[0] << 16) |
+	       ((unsigned long)s_id[1] << 8) |
+	       (unsigned long)s_id[2]);
+	return key;
+}
+
+static inline void sid_to_portid(const uint8_t *s_id, port_id_t *p)
+{
+	memset(p, 0, sizeof(*p));
+	p->b.domain = s_id[0];
+	p->b.area = s_id[1];
+	p->b.al_pa = s_id[2];
+}
+
 /*
  * Exported symbols from qla_target.c LLD logic used by qla2xxx code..
  */
-extern void qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *,
-	struct atio_from_isp *);
 extern void qlt_response_pkt_all_vps(struct scsi_qla_host *, response_t *);
 extern int qlt_rdy_to_xfer(struct qla_tgt_cmd *);
 extern int qlt_xmit_response(struct qla_tgt_cmd *, int, uint8_t);
-extern int qlt_rdy_to_xfer_dif(struct qla_tgt_cmd *);
-extern int qlt_xmit_response_dif(struct qla_tgt_cmd *, int, uint8_t);
+extern int qlt_abort_cmd(struct qla_tgt_cmd *);
 extern void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *);
 extern void qlt_free_mcmd(struct qla_tgt_mgmt_cmd *);
 extern void qlt_free_cmd(struct qla_tgt_cmd *cmd);
@@ -1068,7 +1166,7 @@ extern void qlt_enable_vha(struct scsi_qla_host *);
 extern void qlt_vport_create(struct scsi_qla_host *, struct qla_hw_data *);
 extern void qlt_rff_id(struct scsi_qla_host *, struct ct_sns_req *);
 extern void qlt_init_atio_q_entries(struct scsi_qla_host *);
-extern void qlt_24xx_process_atio_queue(struct scsi_qla_host *);
+extern void qlt_24xx_process_atio_queue(struct scsi_qla_host *, uint8_t);
 extern void qlt_24xx_config_rings(struct scsi_qla_host *);
 extern void qlt_24xx_config_nvram_stage1(struct scsi_qla_host *,
 	struct nvram_24xx *);
@@ -1089,5 +1187,8 @@ extern int qlt_stop_phase1(struct qla_tgt *);
 extern void qlt_stop_phase2(struct qla_tgt *);
 extern irqreturn_t qla83xx_msix_atio_q(int, void *);
 extern void qlt_83xx_iospace_config(struct qla_hw_data *);
+extern int qlt_free_qfull_cmds(struct scsi_qla_host *);
+extern void qlt_logo_completion_handler(fc_port_t *, int);
+extern void qlt_do_generation_tick(struct scsi_qla_host *, int *);
 
 #endif /* __QLA_TARGET_H */

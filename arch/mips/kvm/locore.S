@@ -36,12 +36,6 @@
 #define PT_HOST_USERLOCAL   PT_EPC
 
 #define CP0_DDATA_LO        $28,3
-#define CP0_EBASE           $15,1
-
-#define CP0_INTCTL          $12,1
-#define CP0_SRSCTL          $12,2
-#define CP0_SRSMAP          $12,3
-#define CP0_HWRENA          $7,0
 
 /* Resume Flags */
 #define RESUME_FLAG_HOST        (1<<1)  /* Resume host? */
@@ -163,9 +157,11 @@ FEXPORT(__kvm_mips_vcpu_run)
 
 FEXPORT(__kvm_mips_load_asid)
 	/* Set the ASID for the Guest Kernel */
-	INT_SLL	t0, t0, 1	/* with kseg0 @ 0x40000000, kernel */
-			        /* addresses shift to 0x80000000 */
-	bltz	t0, 1f		/* If kernel */
+	PTR_L	t0, VCPU_COP0(k1)
+	LONG_L	t0, COP0_STATUS(t0)
+	andi	t0, KSU_USER | ST0_ERL | ST0_EXL
+	xori	t0, KSU_USER
+	bnez	t0, 1f		/* If kernel */
 	 INT_ADDIU t1, k1, VCPU_GUEST_KERNEL_ASID  /* (BD)  */
 	INT_ADDIU t1, k1, VCPU_GUEST_USER_ASID    /* else user */
 1:
@@ -339,7 +335,7 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 
 	/* Now restore the host state just enough to run the handlers */
 
-	/* Swtich EBASE to the one used by Linux */
+	/* Switch EBASE to the one used by Linux */
 	/* load up the host EBASE */
 	mfc0	v0, CP0_STATUS
 
@@ -352,6 +348,42 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 
 	LONG_L	k0, VCPU_HOST_EBASE(k1)
 	mtc0	k0,CP0_EBASE
+
+	/*
+	 * If FPU is enabled, save FCR31 and clear it so that later ctc1's don't
+	 * trigger FPE for pending exceptions.
+	 */
+	.set	at
+	and	v1, v0, ST0_CU1
+	beqz	v1, 1f
+	 nop
+	.set	push
+	SET_HARDFLOAT
+	cfc1	t0, fcr31
+	sw	t0, VCPU_FCR31(k1)
+	ctc1	zero,fcr31
+	.set	pop
+	.set	noat
+1:
+
+#ifdef CONFIG_CPU_HAS_MSA
+	/*
+	 * If MSA is enabled, save MSACSR and clear it so that later
+	 * instructions don't trigger MSAFPE for pending exceptions.
+	 */
+	mfc0	t0, CP0_CONFIG3
+	ext	t0, t0, 28, 1 /* MIPS_CONF3_MSAP */
+	beqz	t0, 1f
+	 nop
+	mfc0	t0, CP0_CONFIG5
+	ext	t0, t0, 27, 1 /* MIPS_CONF5_MSAEN */
+	beqz	t0, 1f
+	 nop
+	_cfcmsa	t0, MSA_CSR
+	sw	t0, VCPU_MSA_CSR(k1)
+	_ctcmsa	MSA_CSR, zero
+1:
+#endif
 
 	/* Now that the new EBASE has been loaded, unset BEV and KSU_USER */
 	.set	at
@@ -434,7 +466,7 @@ __kvm_mips_return_to_guest:
 	/* Setup status register for running guest in UM */
 	.set	at
 	or	v1, v1, (ST0_EXL | KSU_USER | ST0_IE)
-	and	v1, v1, ~ST0_CU0
+	and	v1, v1, ~(ST0_CU0 | ST0_MX)
 	.set	noat
 	mtc0	v1, CP0_STATUS
 	ehb
@@ -444,9 +476,11 @@ __kvm_mips_return_to_guest:
 	mtc0	t0, CP0_EPC
 
 	/* Set the ASID for the Guest Kernel */
-	INT_SLL	t0, t0, 1	/* with kseg0 @ 0x40000000, kernel */
-				/* addresses shift to 0x80000000 */
-	bltz	t0, 1f		/* If kernel */
+	PTR_L	t0, VCPU_COP0(k1)
+	LONG_L	t0, COP0_STATUS(t0)
+	andi	t0, KSU_USER | ST0_ERL | ST0_EXL
+	xori	t0, KSU_USER
+	bnez	t0, 1f		/* If kernel */
 	 INT_ADDIU t1, k1, VCPU_GUEST_KERNEL_ASID  /* (BD)  */
 	INT_ADDIU t1, k1, VCPU_GUEST_USER_ASID    /* else user */
 1:
@@ -456,11 +490,11 @@ __kvm_mips_return_to_guest:
 	REG_ADDU t3, t1, t2
 	LONG_L	k0, (t3)
 	andi	k0, k0, 0xff
-	mtc0	k0,CP0_ENTRYHI
+	mtc0	k0, CP0_ENTRYHI
 	ehb
 
 	/* Disable RDHWR access */
-	mtc0    zero,  CP0_HWRENA
+	mtc0	zero, CP0_HWRENA
 
 	/* load the guest context from VCPU and return */
 	LONG_L	$0, VCPU_R0(k1)
@@ -572,11 +606,11 @@ __kvm_mips_return_to_host:
 
 	/* Restore RDHWR access */
 	PTR_LI	k0, 0x2000000F
-	mtc0	k0,  CP0_HWRENA
+	mtc0	k0, CP0_HWRENA
 
 	/* Restore RA, which is the address we will return to */
-	LONG_L  ra, PT_R31(k1)
-	j       ra
+	LONG_L	ra, PT_R31(k1)
+	j	ra
 	 nop
 
 VECTOR_END(MIPSX(GuestExceptionEnd))

@@ -255,15 +255,9 @@ static int dnet_mii_probe(struct net_device *dev)
 {
 	struct dnet *bp = netdev_priv(dev);
 	struct phy_device *phydev = NULL;
-	int phy_addr;
 
 	/* find the first phy */
-	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
-		if (bp->mii_bus->phy_map[phy_addr]) {
-			phydev = bp->mii_bus->phy_map[phy_addr];
-			break;
-		}
-	}
+	phydev = phy_find_first(bp->mii_bus);
 
 	if (!phydev) {
 		printk(KERN_ERR "%s: no PHY found\n", dev->name);
@@ -274,11 +268,11 @@ static int dnet_mii_probe(struct net_device *dev)
 
 	/* attach the mac to the phy */
 	if (bp->capabilities & DNET_HAS_RMII) {
-		phydev = phy_connect(dev, dev_name(&phydev->dev),
+		phydev = phy_connect(dev, phydev_name(phydev),
 				     &dnet_handle_link_change,
 				     PHY_INTERFACE_MODE_RMII);
 	} else {
-		phydev = phy_connect(dev, dev_name(&phydev->dev),
+		phydev = phy_connect(dev, phydev_name(phydev),
 				     &dnet_handle_link_change,
 				     PHY_INTERFACE_MODE_MII);
 	}
@@ -308,7 +302,7 @@ static int dnet_mii_probe(struct net_device *dev)
 
 static int dnet_mii_init(struct dnet *bp)
 {
-	int err, i;
+	int err;
 
 	bp->mii_bus = mdiobus_alloc();
 	if (bp->mii_bus == NULL)
@@ -322,16 +316,6 @@ static int dnet_mii_init(struct dnet *bp)
 		bp->pdev->name, bp->pdev->id);
 
 	bp->mii_bus->priv = bp;
-
-	bp->mii_bus->irq = devm_kmalloc(&bp->pdev->dev,
-					sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!bp->mii_bus->irq) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		bp->mii_bus->irq[i] = PHY_POLL;
 
 	if (mdiobus_register(bp->mii_bus)) {
 		err = -ENXIO;
@@ -398,13 +382,8 @@ static int dnet_poll(struct napi_struct *napi, int budget)
 		 * break out of while loop if there are no more
 		 * packets waiting
 		 */
-		if (!(dnet_readl(bp, RX_FIFO_WCNT) >> 16)) {
-			napi_complete(napi);
-			int_enable = dnet_readl(bp, INTR_ENB);
-			int_enable |= DNET_INTR_SRC_RX_CMDFIFOAF;
-			dnet_writel(bp, int_enable, INTR_ENB);
-			return 0;
-		}
+		if (!(dnet_readl(bp, RX_FIFO_WCNT) >> 16))
+			break;
 
 		cmd_word = dnet_readl(bp, RX_LEN_FIFO);
 		pkt_len = cmd_word & 0xFFFF;
@@ -433,20 +412,17 @@ static int dnet_poll(struct napi_struct *napi, int budget)
 			       "size %u.\n", dev->name, pkt_len);
 	}
 
-	budget -= npackets;
-
 	if (npackets < budget) {
 		/* We processed all packets available.  Tell NAPI it can
-		 * stop polling then re-enable rx interrupts */
+		 * stop polling then re-enable rx interrupts.
+		 */
 		napi_complete(napi);
 		int_enable = dnet_readl(bp, INTR_ENB);
 		int_enable |= DNET_INTR_SRC_RX_CMDFIFOAF;
 		dnet_writel(bp, int_enable, INTR_ENB);
-		return 0;
 	}
 
-	/* There are still packets waiting */
-	return 1;
+	return npackets;
 }
 
 static irqreturn_t dnet_interrupt(int irq, void *dev_id)
@@ -900,9 +876,7 @@ static int dnet_probe(struct platform_device *pdev)
 	       (bp->capabilities & DNET_HAS_GIGABIT) ? "" : "no ",
 	       (bp->capabilities & DNET_HAS_DMA) ? "" : "no ");
 	phydev = bp->phy_dev;
-	dev_info(&pdev->dev, "attached PHY driver [%s] "
-	       "(mii_bus:phy_addr=%s, irq=%d)\n",
-	       phydev->drv->name, dev_name(&phydev->dev), phydev->irq);
+	phy_attached_info(phydev);
 
 	return 0;
 

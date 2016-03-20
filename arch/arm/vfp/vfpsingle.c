@@ -290,7 +290,7 @@ u32 vfp_estimate_sqrt_significand(u32 exponent, u32 significand)
 	u32 z, a;
 
 	if ((significand & 0xc0000000) != 0x40000000) {
-		printk(KERN_WARNING "VFP: estimate_sqrt: invalid significand\n");
+		pr_warn("VFP: estimate_sqrt: invalid significand\n");
 	}
 
 	a = significand << 1;

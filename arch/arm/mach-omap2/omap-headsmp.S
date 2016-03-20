@@ -22,6 +22,7 @@
 
 /* Physical address needed since MMU not enabled yet on secondary core */
 #define AUX_CORE_BOOT0_PA			0x48281800
+#define API_HYP_ENTRY				0x102
 
 /*
  * OMAP5 specific entry point for secondary CPU to jump from ROM
@@ -40,6 +41,26 @@ wait:	ldr	r2, =AUX_CORE_BOOT0_PA	@ read from AuxCoreBoot0
 	bne	wait
 	b	secondary_startup
 ENDPROC(omap5_secondary_startup)
+/*
+ * Same as omap5_secondary_startup except we call into the ROM to
+ * enable HYP mode first.  This is called instead of
+ * omap5_secondary_startup if the primary CPU was put into HYP mode by
+ * the boot loader.
+ */
+ENTRY(omap5_secondary_hyp_startup)
+wait_2:	ldr	r2, =AUX_CORE_BOOT0_PA	@ read from AuxCoreBoot0
+	ldr	r0, [r2]
+	mov	r0, r0, lsr #5
+	mrc	p15, 0, r4, c0, c0, 5
+	and	r4, r4, #0x0f
+	cmp	r0, r4
+	bne	wait_2
+	ldr	r12, =API_HYP_ENTRY
+	adr	r0, hyp_boot
+	smc	#0
+hyp_boot:
+	b	secondary_startup
+ENDPROC(omap5_secondary_hyp_startup)
 /*
  * OMAP4 specific entry point for secondary CPU to jump from ROM
  * code.  This routine also provides a holding flag into which

@@ -22,7 +22,27 @@
 #ifndef RTL28XXU_H
 #define RTL28XXU_H
 
+#include <linux/platform_device.h>
+
 #include "dvb_usb.h"
+
+#include "rtl2830.h"
+#include "rtl2832.h"
+#include "rtl2832_sdr.h"
+#include "mn88472.h"
+#include "mn88473.h"
+
+#include "qt1010.h"
+#include "mt2060.h"
+#include "mxl5005s.h"
+#include "fc0012.h"
+#include "fc0013.h"
+#include "e4000.h"
+#include "fc2580.h"
+#include "tua9001.h"
+#include "r820t.h"
+#include "si2168.h"
+#include "si2157.h"
 
 /*
  * USB commands
@@ -50,14 +70,28 @@
 #define CMD_I2C_DA_WR    0x0610
 
 
-struct rtl28xxu_priv {
+struct rtl28xxu_dev {
+	u8 buf[128];
 	u8 chip_id;
 	u8 tuner;
 	char *tuner_name;
 	u8 page; /* integrated demod active register page */
 	struct i2c_adapter *demod_i2c_adapter;
 	bool rc_active;
-	struct i2c_client *client;
+	bool new_i2c_write;
+	struct i2c_client *i2c_client_demod;
+	struct i2c_client *i2c_client_tuner;
+	struct i2c_client *i2c_client_slave_demod;
+	struct platform_device *platform_device_sdr;
+	#define SLAVE_DEMOD_NONE           0
+	#define SLAVE_DEMOD_MN88472        1
+	#define SLAVE_DEMOD_MN88473        2
+	#define SLAVE_DEMOD_SI2168         3
+	unsigned int slave_demod:2;
+	union {
+		struct rtl2830_platform_data rtl2830_platform_data;
+		struct rtl2832_platform_data rtl2832_platform_data;
+	};
 };
 
 enum rtl28xxu_chip_id {
@@ -86,6 +120,7 @@ enum rtl28xxu_tuner {
 	TUNER_RTL2832_FC0013,
 	TUNER_RTL2832_R820T,
 	TUNER_RTL2832_R828D,
+	TUNER_RTL2832_SI2157,
 };
 
 struct rtl28xxu_req {

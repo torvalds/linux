@@ -5,6 +5,8 @@
 #include <linux/netdevice.h>
 #include <linux/if_tunnel.h>
 #include <linux/ip6_tunnel.h>
+#include <net/ip_tunnels.h>
+#include <net/dst_cache.h>
 
 #define IP6TUNNEL_ERR_TIMEO (30*HZ)
 
@@ -39,8 +41,7 @@ struct ip6_tnl {
 	struct net *net;	/* netns for packet i/o */
 	struct __ip6_tnl_parm parms;	/* tunnel configuration parameters */
 	struct flowi fl;	/* flowi template for xmit */
-	struct dst_entry *dst_cache;    /* cached dst */
-	u32 dst_cookie;
+	struct dst_cache dst_cache;	/* cached dst */
 
 	int err_count;
 	unsigned long err_time;
@@ -60,33 +61,27 @@ struct ipv6_tlv_tnl_enc_lim {
 	__u8 encap_limit;	/* tunnel encapsulation limit   */
 } __packed;
 
-struct dst_entry *ip6_tnl_dst_check(struct ip6_tnl *t);
-void ip6_tnl_dst_reset(struct ip6_tnl *t);
-void ip6_tnl_dst_store(struct ip6_tnl *t, struct dst_entry *dst);
 int ip6_tnl_rcv_ctl(struct ip6_tnl *t, const struct in6_addr *laddr,
 		const struct in6_addr *raddr);
-int ip6_tnl_xmit_ctl(struct ip6_tnl *t);
+int ip6_tnl_xmit_ctl(struct ip6_tnl *t, const struct in6_addr *laddr,
+		     const struct in6_addr *raddr);
 __u16 ip6_tnl_parse_tlv_enc_lim(struct sk_buff *skb, __u8 *raw);
 __u32 ip6_tnl_get_cap(struct ip6_tnl *t, const struct in6_addr *laddr,
 			     const struct in6_addr *raddr);
+struct net *ip6_tnl_get_link_net(const struct net_device *dev);
+int ip6_tnl_get_iflink(const struct net_device *dev);
 
-static inline void ip6tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
+#ifdef CONFIG_INET
+static inline void ip6tunnel_xmit(struct sock *sk, struct sk_buff *skb,
+				  struct net_device *dev)
 {
-	struct net_device_stats *stats = &dev->stats;
 	int pkt_len, err;
 
-	pkt_len = skb->len;
-	err = ip6_local_out(skb);
-
-	if (net_xmit_eval(err) == 0) {
-		struct pcpu_sw_netstats *tstats = this_cpu_ptr(dev->tstats);
-		u64_stats_update_begin(&tstats->syncp);
-		tstats->tx_bytes += pkt_len;
-		tstats->tx_packets++;
-		u64_stats_update_end(&tstats->syncp);
-	} else {
-		stats->tx_errors++;
-		stats->tx_aborted_errors++;
-	}
+	pkt_len = skb->len - skb_inner_network_offset(skb);
+	err = ip6_local_out(dev_net(skb_dst(skb)->dev), sk, skb);
+	if (unlikely(net_xmit_eval(err)))
+		pkt_len = -1;
+	iptunnel_xmit_stats(dev, pkt_len);
 }
+#endif
 #endif

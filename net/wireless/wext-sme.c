@@ -57,7 +57,7 @@ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 	err = cfg80211_connect(rdev, wdev->netdev,
 			       &wdev->wext.connect, ck, prev_bssid);
 	if (err)
-		kfree(ck);
+		kzfree(ck);
 
 	return err;
 }
@@ -322,7 +322,7 @@ int cfg80211_mgd_wext_giwap(struct net_device *dev,
 	if (wdev->current_bss)
 		memcpy(ap_addr->sa_data, wdev->current_bss->pub.bssid, ETH_ALEN);
 	else
-		memset(ap_addr->sa_data, 0, ETH_ALEN);
+		eth_zero_addr(ap_addr->sa_data);
 	wdev_unlock(wdev);
 
 	return 0;

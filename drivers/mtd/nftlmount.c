@@ -89,9 +89,10 @@ static int find_boot_record(struct NFTLrecord *nftl)
 		}
 
 		/* To be safer with BIOS, also use erase mark as discriminant */
-		if ((ret = nftl_read_oob(mtd, block * nftl->EraseSize +
+		ret = nftl_read_oob(mtd, block * nftl->EraseSize +
 					 SECTORSIZE + 8, 8, &retlen,
-					 (char *)&h1) < 0)) {
+					 (char *)&h1);
+		if (ret < 0) {
 			printk(KERN_WARNING "ANAND header found at 0x%x in mtd%d, but OOB data read failed (err %d)\n",
 			       block * nftl->EraseSize, nftl->mbd.mtd->index, ret);
 			continue;
@@ -109,8 +110,9 @@ static int find_boot_record(struct NFTLrecord *nftl)
 		}
 
 		/* Finally reread to check ECC */
-		if ((ret = mtd->read(mtd, block * nftl->EraseSize, SECTORSIZE,
-				     &retlen, buf) < 0)) {
+		ret = mtd->read(mtd, block * nftl->EraseSize, SECTORSIZE,
+				&retlen, buf);
+		if (ret < 0) {
 			printk(KERN_NOTICE "ANAND header found at 0x%x in mtd%d, but ECC read failed (err %d)\n",
 			       block * nftl->EraseSize, nftl->mbd.mtd->index, ret);
 			continue;
@@ -228,9 +230,11 @@ device is already correct.
 The new DiskOnChip driver already scanned the bad block table.  Just query it.
 			if ((i & (SECTORSIZE - 1)) == 0) {
 				/* read one sector for every SECTORSIZE of blocks */
-				if ((ret = mtd->read(nftl->mbd.mtd, block * nftl->EraseSize +
-						     i + SECTORSIZE, SECTORSIZE, &retlen,
-						     buf)) < 0) {
+				ret = mtd->read(nftl->mbd.mtd,
+						block * nftl->EraseSize + i +
+						SECTORSIZE, SECTORSIZE,
+						&retlen, buf);
+				if (ret < 0) {
 					printk(KERN_NOTICE "Read of bad sector table failed (err %d)\n",
 					       ret);
 					kfree(nftl->ReplUnitTable);

@@ -16,7 +16,7 @@
 #include <linux/rcupdate.h>
 #include <linux/ctype.h>
 #include <linux/inet.h>
-#include "bonding.h"
+#include <net/bonding.h>
 
 static int bond_option_active_slave_set(struct bonding *bond,
 					const struct bond_opt_value *newval);
@@ -70,6 +70,12 @@ static int bond_option_slaves_set(struct bonding *bond,
 				  const struct bond_opt_value *newval);
 static int bond_option_tlb_dynamic_lb_set(struct bonding *bond,
 				  const struct bond_opt_value *newval);
+static int bond_option_ad_actor_sys_prio_set(struct bonding *bond,
+					     const struct bond_opt_value *newval);
+static int bond_option_ad_actor_system_set(struct bonding *bond,
+					   const struct bond_opt_value *newval);
+static int bond_option_ad_user_port_key_set(struct bonding *bond,
+					    const struct bond_opt_value *newval);
 
 
 static const struct bond_opt_value bond_mode_tbl[] = {
@@ -186,7 +192,19 @@ static const struct bond_opt_value bond_tlb_dynamic_lb_tbl[] = {
 	{ NULL,  -1, 0}
 };
 
-static const struct bond_option bond_opts[] = {
+static const struct bond_opt_value bond_ad_actor_sys_prio_tbl[] = {
+	{ "minval",  1,     BOND_VALFLAG_MIN},
+	{ "maxval",  65535, BOND_VALFLAG_MAX | BOND_VALFLAG_DEFAULT},
+	{ NULL,      -1,    0},
+};
+
+static const struct bond_opt_value bond_ad_user_port_key_tbl[] = {
+	{ "minval",  0,     BOND_VALFLAG_MIN | BOND_VALFLAG_DEFAULT},
+	{ "maxval",  1023,  BOND_VALFLAG_MAX},
+	{ NULL,      -1,    0},
+};
+
+static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
 		.name = "mode",
@@ -380,7 +398,35 @@ static const struct bond_option bond_opts[] = {
 		.flags = BOND_OPTFLAG_IFDOWN,
 		.set = bond_option_tlb_dynamic_lb_set,
 	},
-	{ }
+	[BOND_OPT_AD_ACTOR_SYS_PRIO] = {
+		.id = BOND_OPT_AD_ACTOR_SYS_PRIO,
+		.name = "ad_actor_sys_prio",
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_8023AD)),
+		.values = bond_ad_actor_sys_prio_tbl,
+		.set = bond_option_ad_actor_sys_prio_set,
+	},
+	[BOND_OPT_AD_ACTOR_SYSTEM] = {
+		.id = BOND_OPT_AD_ACTOR_SYSTEM,
+		.name = "ad_actor_system",
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_8023AD)),
+		.flags = BOND_OPTFLAG_RAWVAL,
+		.set = bond_option_ad_actor_system_set,
+	},
+	[BOND_OPT_AD_USER_PORT_KEY] = {
+		.id = BOND_OPT_AD_USER_PORT_KEY,
+		.name = "ad_user_port_key",
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_8023AD)),
+		.flags = BOND_OPTFLAG_IFDOWN,
+		.values = bond_ad_user_port_key_tbl,
+		.set = bond_option_ad_user_port_key_set,
+	},
+	[BOND_OPT_NUM_PEER_NOTIF_ALIAS] = {
+		.id = BOND_OPT_NUM_PEER_NOTIF_ALIAS,
+		.name = "num_grat_arp",
+		.desc = "Number of peer notifications to send on failover event",
+		.values = bond_num_peer_notif_tbl,
+		.set = bond_option_num_peer_notif_set
+	}
 };
 
 /* Searches for an option by name */
@@ -625,6 +671,8 @@ int __bond_opt_set(struct bonding *bond,
 out:
 	if (ret)
 		bond_opt_error_interpret(bond, opt, ret, val);
+	else if (bond->dev->reg_state == NETREG_REGISTERED)
+		call_netdevice_notifiers(NETDEV_CHANGEINFODATA, bond->dev);
 
 	return ret;
 }
@@ -688,19 +736,6 @@ static int bond_option_mode_set(struct bonding *bond,
 	return 0;
 }
 
-static struct net_device *__bond_option_active_slave_get(struct bonding *bond,
-							 struct slave *slave)
-{
-	return bond_uses_primary(bond) && slave ? slave->dev : NULL;
-}
-
-struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond)
-{
-	struct slave *slave = rcu_dereference(bond->curr_active_slave);
-
-	return __bond_option_active_slave_get(bond, slave);
-}
-
 static int bond_option_active_slave_set(struct bonding *bond,
 					const struct bond_opt_value *newval)
 {
@@ -732,15 +767,13 @@ static int bond_option_active_slave_set(struct bonding *bond,
 	}
 
 	block_netpoll_tx();
-	write_lock_bh(&bond->curr_slave_lock);
-
 	/* check to see if we are clearing active */
 	if (!slave_dev) {
 		netdev_info(bond->dev, "Clearing current active slave\n");
 		RCU_INIT_POINTER(bond->curr_active_slave, NULL);
 		bond_select_active_slave(bond);
 	} else {
-		struct slave *old_active = bond_deref_active_protected(bond);
+		struct slave *old_active = rtnl_dereference(bond->curr_active_slave);
 		struct slave *new_active = bond_slave_get_rtnl(slave_dev);
 
 		BUG_ON(!new_active);
@@ -763,8 +796,6 @@ static int bond_option_active_slave_set(struct bonding *bond,
 			}
 		}
 	}
-
-	write_unlock_bh(&bond->curr_slave_lock);
 	unblock_netpoll_tx();
 
 	return ret;
@@ -953,14 +984,7 @@ static int _bond_option_arp_ip_target_add(struct bonding *bond, __be32 target)
 
 static int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target)
 {
-	int ret;
-
-	/* not to race with bond_arp_rcv */
-	write_lock_bh(&bond->lock);
-	ret = _bond_option_arp_ip_target_add(bond, target);
-	write_unlock_bh(&bond->lock);
-
-	return ret;
+	return _bond_option_arp_ip_target_add(bond, target);
 }
 
 static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target)
@@ -989,9 +1013,6 @@ static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target)
 
 	netdev_info(bond->dev, "Removing ARP target %pI4\n", &target);
 
-	/* not to race with bond_arp_rcv */
-	write_lock_bh(&bond->lock);
-
 	bond_for_each_slave(bond, slave, iter) {
 		targets_rx = slave->target_last_arp_rx;
 		for (i = ind; (i < BOND_MAX_ARP_TARGETS-1) && targets[i+1]; i++)
@@ -1002,8 +1023,6 @@ static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target)
 		targets[i] = targets[i+1];
 	targets[i] = 0;
 
-	write_unlock_bh(&bond->lock);
-
 	return 0;
 }
 
@@ -1011,11 +1030,8 @@ void bond_option_arp_ip_targets_clear(struct bonding *bond)
 {
 	int i;
 
-	/* not to race with bond_arp_rcv */
-	write_lock_bh(&bond->lock);
 	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++)
 		_bond_options_arp_ip_target_set(bond, i, 0, 0);
-	write_unlock_bh(&bond->lock);
 }
 
 static int bond_option_arp_ip_targets_set(struct bonding *bond,
@@ -1079,8 +1095,6 @@ static int bond_option_primary_set(struct bonding *bond,
 	struct slave *slave;
 
 	block_netpoll_tx();
-	read_lock(&bond->lock);
-	write_lock_bh(&bond->curr_slave_lock);
 
 	p = strchr(primary, '\n');
 	if (p)
@@ -1088,7 +1102,7 @@ static int bond_option_primary_set(struct bonding *bond,
 	/* check to see if we are clearing primary */
 	if (!strlen(primary)) {
 		netdev_info(bond->dev, "Setting primary slave to None\n");
-		bond->primary_slave = NULL;
+		RCU_INIT_POINTER(bond->primary_slave, NULL);
 		memset(bond->params.primary, 0, sizeof(bond->params.primary));
 		bond_select_active_slave(bond);
 		goto out;
@@ -1098,16 +1112,16 @@ static int bond_option_primary_set(struct bonding *bond,
 		if (strncmp(slave->dev->name, primary, IFNAMSIZ) == 0) {
 			netdev_info(bond->dev, "Setting %s as primary slave\n",
 				    slave->dev->name);
-			bond->primary_slave = slave;
+			rcu_assign_pointer(bond->primary_slave, slave);
 			strcpy(bond->params.primary, slave->dev->name);
 			bond_select_active_slave(bond);
 			goto out;
 		}
 	}
 
-	if (bond->primary_slave) {
+	if (rtnl_dereference(bond->primary_slave)) {
 		netdev_info(bond->dev, "Setting primary slave to None\n");
-		bond->primary_slave = NULL;
+		RCU_INIT_POINTER(bond->primary_slave, NULL);
 		bond_select_active_slave(bond);
 	}
 	strncpy(bond->params.primary, primary, IFNAMSIZ);
@@ -1117,8 +1131,6 @@ static int bond_option_primary_set(struct bonding *bond,
 		    primary, bond->dev->name);
 
 out:
-	write_unlock_bh(&bond->curr_slave_lock);
-	read_unlock(&bond->lock);
 	unblock_netpoll_tx();
 
 	return 0;
@@ -1132,9 +1144,7 @@ static int bond_option_primary_reselect_set(struct bonding *bond,
 	bond->params.primary_reselect = newval->value;
 
 	block_netpoll_tx();
-	write_lock_bh(&bond->curr_slave_lock);
 	bond_select_active_slave(bond);
-	write_unlock_bh(&bond->curr_slave_lock);
 	unblock_netpoll_tx();
 
 	return 0;
@@ -1205,6 +1215,7 @@ static int bond_option_min_links_set(struct bonding *bond,
 	netdev_info(bond->dev, "Setting min links value to %llu\n",
 		    newval->value);
 	bond->params.min_links = newval->value;
+	bond_set_carrier(bond);
 
 	return 0;
 }
@@ -1370,5 +1381,59 @@ static int bond_option_tlb_dynamic_lb_set(struct bonding *bond,
 		    newval->string, newval->value);
 	bond->params.tlb_dynamic_lb = newval->value;
 
+	return 0;
+}
+
+static int bond_option_ad_actor_sys_prio_set(struct bonding *bond,
+					     const struct bond_opt_value *newval)
+{
+	netdev_info(bond->dev, "Setting ad_actor_sys_prio to %llu\n",
+		    newval->value);
+
+	bond->params.ad_actor_sys_prio = newval->value;
+	bond_3ad_update_ad_actor_settings(bond);
+
+	return 0;
+}
+
+static int bond_option_ad_actor_system_set(struct bonding *bond,
+					   const struct bond_opt_value *newval)
+{
+	u8 macaddr[ETH_ALEN];
+	u8 *mac;
+	int i;
+
+	if (newval->string) {
+		i = sscanf(newval->string, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+			   &macaddr[0], &macaddr[1], &macaddr[2],
+			   &macaddr[3], &macaddr[4], &macaddr[5]);
+		if (i != ETH_ALEN)
+			goto err;
+		mac = macaddr;
+	} else {
+		mac = (u8 *)&newval->value;
+	}
+
+	if (!is_valid_ether_addr(mac))
+		goto err;
+
+	netdev_info(bond->dev, "Setting ad_actor_system to %pM\n", mac);
+	ether_addr_copy(bond->params.ad_actor_system, mac);
+	bond_3ad_update_ad_actor_settings(bond);
+
+	return 0;
+
+err:
+	netdev_err(bond->dev, "Invalid MAC address.\n");
+	return -EINVAL;
+}
+
+static int bond_option_ad_user_port_key_set(struct bonding *bond,
+					    const struct bond_opt_value *newval)
+{
+	netdev_info(bond->dev, "Setting ad_user_port_key to %llu\n",
+		    newval->value);
+
+	bond->params.ad_user_port_key = newval->value;
 	return 0;
 }

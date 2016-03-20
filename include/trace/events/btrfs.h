@@ -6,7 +6,7 @@
 
 #include <linux/writeback.h>
 #include <linux/tracepoint.h>
-#include <trace/events/gfpflags.h>
+#include <trace/events/mmflags.h>
 
 struct btrfs_root;
 struct btrfs_fs_info;
@@ -23,6 +23,7 @@ struct map_lookup;
 struct extent_buffer;
 struct btrfs_work;
 struct __btrfs_workqueue;
+struct btrfs_qgroup_operation;
 
 #define show_ref_type(type)						\
 	__print_symbolic(type,						\
@@ -44,7 +45,8 @@ struct __btrfs_workqueue;
 		{ BTRFS_TREE_LOG_OBJECTID,	"TREE_LOG"	},	\
 		{ BTRFS_QUOTA_TREE_OBJECTID,	"QUOTA_TREE"	},	\
 		{ BTRFS_TREE_RELOC_OBJECTID,	"TREE_RELOC"	},	\
-		{ BTRFS_UUID_TREE_OBJECTID,	"UUID_RELOC"	},	\
+		{ BTRFS_UUID_TREE_OBJECTID,	"UUID_TREE"	},	\
+		{ BTRFS_FREE_SPACE_TREE_OBJECTID, "FREE_SPACE_TREE" },	\
 		{ BTRFS_DATA_RELOC_TREE_OBJECTID, "DATA_RELOC_TREE" })
 
 #define show_root_type(obj)						\
@@ -157,12 +159,13 @@ DEFINE_EVENT(btrfs__inode, btrfs_inode_evict,
 
 #define show_map_flags(flag)						\
 	__print_flags(flag, "|",					\
-		{ EXTENT_FLAG_PINNED, 		"PINNED" 	},	\
-		{ EXTENT_FLAG_COMPRESSED, 	"COMPRESSED" 	},	\
-		{ EXTENT_FLAG_VACANCY, 		"VACANCY" 	},	\
-		{ EXTENT_FLAG_PREALLOC, 	"PREALLOC" 	},	\
-		{ EXTENT_FLAG_LOGGING,	 	"LOGGING" 	},	\
-		{ EXTENT_FLAG_FILLING,	 	"FILLING" 	})
+		{ (1 << EXTENT_FLAG_PINNED), 		"PINNED" 	},\
+		{ (1 << EXTENT_FLAG_COMPRESSED), 	"COMPRESSED" 	},\
+		{ (1 << EXTENT_FLAG_VACANCY), 		"VACANCY" 	},\
+		{ (1 << EXTENT_FLAG_PREALLOC), 		"PREALLOC" 	},\
+		{ (1 << EXTENT_FLAG_LOGGING),	 	"LOGGING" 	},\
+		{ (1 << EXTENT_FLAG_FILLING),	 	"FILLING" 	},\
+		{ (1 << EXTENT_FLAG_FS_MAPPING),	"FS_MAPPING"	})
 
 TRACE_EVENT_CONDITION(btrfs_get_extent,
 
@@ -405,10 +408,10 @@ TRACE_EVENT(btrfs_sync_file,
 
 	TP_fast_assign(
 		struct dentry *dentry = file->f_path.dentry;
-		struct inode *inode = dentry->d_inode;
+		struct inode *inode = d_inode(dentry);
 
 		__entry->ino		= inode->i_ino;
-		__entry->parent		= dentry->d_parent->d_inode->i_ino;
+		__entry->parent		= d_inode(dentry->d_parent)->i_ino;
 		__entry->datasync	= datasync;
 		__entry->root_objectid	=
 				 BTRFS_I(inode)->root->root_key.objectid;
@@ -960,7 +963,7 @@ TRACE_EVENT(alloc_extent_state,
 		__entry->ip	= IP
 	),
 
-	TP_printk("state=%p; mask = %s; caller = %pF", __entry->state,
+	TP_printk("state=%p; mask = %s; caller = %pS", __entry->state,
 		  show_gfp_flags(__entry->mask), (void *)__entry->ip)
 );
 
@@ -980,7 +983,7 @@ TRACE_EVENT(free_extent_state,
 		__entry->ip = IP
 	),
 
-	TP_printk(" state=%p; caller = %pF", __entry->state,
+	TP_printk(" state=%p; caller = %pS", __entry->state,
 		  (void *)__entry->ip)
 );
 
@@ -996,6 +999,7 @@ DECLARE_EVENT_CLASS(btrfs__work,
 		__field(	void *,	func			)
 		__field(	void *,	ordered_func		)
 		__field(	void *,	ordered_free		)
+		__field(	void *,	normal_work		)
 	),
 
 	TP_fast_assign(
@@ -1004,11 +1008,13 @@ DECLARE_EVENT_CLASS(btrfs__work,
 		__entry->func		= work->func;
 		__entry->ordered_func	= work->ordered_func;
 		__entry->ordered_free	= work->ordered_free;
+		__entry->normal_work	= &work->normal_work;
 	),
 
-	TP_printk("work=%p, wq=%p, func=%p, ordered_func=%p, ordered_free=%p",
-		  __entry->work, __entry->wq, __entry->func,
-		  __entry->ordered_func, __entry->ordered_free)
+	TP_printk("work=%p (normal_work=%p), wq=%p, func=%pf, ordered_func=%p,"
+		  " ordered_free=%p",
+		  __entry->work, __entry->normal_work, __entry->wq,
+		   __entry->func, __entry->ordered_func, __entry->ordered_free)
 );
 
 /* For situiations that the work is freed */
@@ -1037,13 +1043,6 @@ DEFINE_EVENT(btrfs__work, btrfs_work_queued,
 );
 
 DEFINE_EVENT(btrfs__work, btrfs_work_sched,
-
-	TP_PROTO(struct btrfs_work *work),
-
-	TP_ARGS(work)
-);
-
-DEFINE_EVENT(btrfs__work, btrfs_normal_work_done,
 
 	TP_PROTO(struct btrfs_work *work),
 
@@ -1119,6 +1118,119 @@ DEFINE_EVENT(btrfs__workqueue_done, btrfs_workqueue_destroy,
 	TP_ARGS(wq)
 );
 
+DECLARE_EVENT_CLASS(btrfs__qgroup_data_map,
+
+	TP_PROTO(struct inode *inode, u64 free_reserved),
+
+	TP_ARGS(inode, free_reserved),
+
+	TP_STRUCT__entry(
+		__field(	u64,		rootid		)
+		__field(	unsigned long,	ino		)
+		__field(	u64,		free_reserved	)
+	),
+
+	TP_fast_assign(
+		__entry->rootid		=	BTRFS_I(inode)->root->objectid;
+		__entry->ino		=	inode->i_ino;
+		__entry->free_reserved	=	free_reserved;
+	),
+
+	TP_printk("rootid=%llu, ino=%lu, free_reserved=%llu",
+		  __entry->rootid, __entry->ino, __entry->free_reserved)
+);
+
+DEFINE_EVENT(btrfs__qgroup_data_map, btrfs_qgroup_init_data_rsv_map,
+
+	TP_PROTO(struct inode *inode, u64 free_reserved),
+
+	TP_ARGS(inode, free_reserved)
+);
+
+DEFINE_EVENT(btrfs__qgroup_data_map, btrfs_qgroup_free_data_rsv_map,
+
+	TP_PROTO(struct inode *inode, u64 free_reserved),
+
+	TP_ARGS(inode, free_reserved)
+);
+
+#define BTRFS_QGROUP_OPERATIONS				\
+	{ QGROUP_RESERVE,	"reserve"	},	\
+	{ QGROUP_RELEASE,	"release"	},	\
+	{ QGROUP_FREE,		"free"		}
+
+DECLARE_EVENT_CLASS(btrfs__qgroup_rsv_data,
+
+	TP_PROTO(struct inode *inode, u64 start, u64 len, u64 reserved, int op),
+
+	TP_ARGS(inode, start, len, reserved, op),
+
+	TP_STRUCT__entry(
+		__field(	u64,		rootid		)
+		__field(	unsigned long,	ino		)
+		__field(	u64,		start		)
+		__field(	u64,		len		)
+		__field(	u64,		reserved	)
+		__field(	int,		op		)
+	),
+
+	TP_fast_assign(
+		__entry->rootid		= BTRFS_I(inode)->root->objectid;
+		__entry->ino		= inode->i_ino;
+		__entry->start		= start;
+		__entry->len		= len;
+		__entry->reserved	= reserved;
+		__entry->op		= op;
+	),
+
+	TP_printk("root=%llu, ino=%lu, start=%llu, len=%llu, reserved=%llu, op=%s",
+		  __entry->rootid, __entry->ino, __entry->start, __entry->len,
+		  __entry->reserved,
+		  __print_flags((unsigned long)__entry->op, "",
+				BTRFS_QGROUP_OPERATIONS)
+	)
+);
+
+DEFINE_EVENT(btrfs__qgroup_rsv_data, btrfs_qgroup_reserve_data,
+
+	TP_PROTO(struct inode *inode, u64 start, u64 len, u64 reserved, int op),
+
+	TP_ARGS(inode, start, len, reserved, op)
+);
+
+DEFINE_EVENT(btrfs__qgroup_rsv_data, btrfs_qgroup_release_data,
+
+	TP_PROTO(struct inode *inode, u64 start, u64 len, u64 reserved, int op),
+
+	TP_ARGS(inode, start, len, reserved, op)
+);
+
+DECLARE_EVENT_CLASS(btrfs__qgroup_delayed_ref,
+
+	TP_PROTO(u64 ref_root, u64 reserved),
+
+	TP_ARGS(ref_root, reserved),
+
+	TP_STRUCT__entry(
+		__field(	u64,		ref_root	)
+		__field(	u64,		reserved	)
+	),
+
+	TP_fast_assign(
+		__entry->ref_root	= ref_root;
+		__entry->reserved	= reserved;
+	),
+
+	TP_printk("root=%llu, reserved=%llu, op=free",
+		  __entry->ref_root, __entry->reserved)
+);
+
+DEFINE_EVENT(btrfs__qgroup_delayed_ref, btrfs_qgroup_free_delayed_ref,
+
+	TP_PROTO(u64 ref_root, u64 reserved),
+
+	TP_ARGS(ref_root, reserved)
+);
 #endif /* _TRACE_BTRFS_H */
 
 /* This part must be outside protection */

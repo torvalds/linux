@@ -109,7 +109,8 @@ static int nxt6000_set_bandwidth(struct nxt6000_state *state, u32 bandwidth)
 	return nxt6000_writereg(state, OFDM_TRL_NOMINALRATE_2, (nominal_rate >> 8) & 0xFF);
 }
 
-static int nxt6000_set_guard_interval(struct nxt6000_state* state, fe_guard_interval_t guard_interval)
+static int nxt6000_set_guard_interval(struct nxt6000_state *state,
+				      enum fe_guard_interval guard_interval)
 {
 	switch (guard_interval) {
 
@@ -131,7 +132,8 @@ static int nxt6000_set_guard_interval(struct nxt6000_state* state, fe_guard_inte
 	}
 }
 
-static int nxt6000_set_inversion(struct nxt6000_state* state, fe_spectral_inversion_t inversion)
+static int nxt6000_set_inversion(struct nxt6000_state *state,
+				 enum fe_spectral_inversion inversion)
 {
 	switch (inversion) {
 
@@ -147,7 +149,9 @@ static int nxt6000_set_inversion(struct nxt6000_state* state, fe_spectral_invers
 	}
 }
 
-static int nxt6000_set_transmission_mode(struct nxt6000_state* state, fe_transmit_mode_t transmission_mode)
+static int
+nxt6000_set_transmission_mode(struct nxt6000_state *state,
+			      enum fe_transmit_mode transmission_mode)
 {
 	int result;
 
@@ -416,7 +420,7 @@ static void nxt6000_dump_status(struct nxt6000_state *state)
 	printk("\n");
 }
 
-static int nxt6000_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int nxt6000_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	u8 core_status;
 	struct nxt6000_state* state = fe->demodulator_priv;

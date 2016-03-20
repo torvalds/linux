@@ -113,7 +113,7 @@ static int pcm030_fabric_remove(struct platform_device *op)
 	return ret;
 }
 
-static struct of_device_id pcm030_audio_match[] = {
+static const struct of_device_id pcm030_audio_match[] = {
 	{ .compatible = "phytec,pcm030-audio-fabric", },
 	{}
 };
@@ -124,7 +124,6 @@ static struct platform_driver pcm030_fabric_driver = {
 	.remove		= pcm030_fabric_remove,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table    = pcm030_audio_match,
 	},
 };

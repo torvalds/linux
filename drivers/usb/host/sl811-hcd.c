@@ -22,7 +22,7 @@
  * and usb-storage.
  *
  * TODO:
- * - usb suspend/resume triggered by sl811 (with PM_RUNTIME)
+ * - usb suspend/resume triggered by sl811
  * - various issues noted in the code
  * - performance work; use both register banks; ...
  * - use urb->iso_frame_desc[] with ISO transfers
@@ -674,7 +674,7 @@ retry:
 			sl811->next_periodic = sl811->periodic[index];
 	}
 
-	/* khubd manages debouncing and wakeup */
+	/* hub_wq manages debouncing and wakeup */
 	if (irqstat & SL11H_INTMASK_INSRMV) {
 		sl811->stat_insrmv++;
 
@@ -714,7 +714,7 @@ retry:
 #endif
 
 		/* port status seems weird until after reset, so
-		 * force the reset and make khubd clean up later.
+		 * force the reset and make hub_wq clean up later.
 		 */
 		if (irqstat & SL11H_INTMASK_RD)
 			sl811->port1 &= ~USB_PORT_STAT_CONNECTION;
@@ -1079,7 +1079,7 @@ sl811h_hub_status_data(struct usb_hcd *hcd, char *buf)
 	if (!(sl811->port1 & (0xffff << 16)))
 		return 0;
 
-	/* tell khubd port 1 changed */
+	/* tell hub_wq port 1 changed */
 	*buf = (1 << 1);
 	return 1;
 }
@@ -1091,7 +1091,7 @@ sl811h_hub_descriptor (
 ) {
 	u16		temp = 0;
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bHubContrCurrent = 0;
 
 	desc->bNbrPorts = 1;
@@ -1103,12 +1103,12 @@ sl811h_hub_descriptor (
 		desc->bPwrOn2PwrGood = sl811->board->potpg;
 		if (!desc->bPwrOn2PwrGood)
 			desc->bPwrOn2PwrGood = 10;
-		temp = 0x0001;
+		temp = HUB_CHAR_INDV_PORT_LPSM;
 	} else
-		temp = 0x0002;
+		temp = HUB_CHAR_NO_LPSM;
 
 	/* no overcurrent errors detection/handling */
-	temp |= 0x0010;
+	temp |= HUB_CHAR_NO_OCPM;
 
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 
@@ -1196,7 +1196,7 @@ sl811h_timer(unsigned long _sl811)
 		sl811_write(sl811, SL811_EP_A(SL11H_HOSTCTLREG),
 				SL11H_HCTLMASK_ARM);
 
-		/* khubd provides debounce delay */
+		/* hub_wq provides debounce delay */
 	} else {
 		sl811->ctrl1 = 0;
 	}
@@ -1259,7 +1259,7 @@ sl811h_hub_control(
 			sl811_write(sl811, SL11H_CTLREG1, sl811->ctrl1);
 
 			mod_timer(&sl811->timer, jiffies
-					+ msecs_to_jiffies(20));
+					+ msecs_to_jiffies(USB_RESUME_TIMEOUT));
 			break;
 		case USB_PORT_FEAT_POWER:
 			port_power(sl811, 0);
@@ -1691,9 +1691,7 @@ sl811h_probe(struct platform_device *dev)
 	spin_lock_init(&sl811->lock);
 	INIT_LIST_HEAD(&sl811->async);
 	sl811->board = dev_get_platdata(&dev->dev);
-	init_timer(&sl811->timer);
-	sl811->timer.function = sl811h_timer;
-	sl811->timer.data = (unsigned long) sl811;
+	setup_timer(&sl811->timer, sl811h_timer, (unsigned long)sl811);
 	sl811->addr_reg = addr_reg;
 	sl811->data_reg = data_reg;
 
@@ -1752,8 +1750,7 @@ sl811h_probe(struct platform_device *dev)
 #ifdef	CONFIG_PM
 
 /* for this device there's no useful distinction between the controller
- * and its root hub, except that the root hub only gets direct PM calls
- * when CONFIG_PM_RUNTIME is enabled.
+ * and its root hub.
  */
 
 static int
@@ -1812,7 +1809,6 @@ struct platform_driver sl811h_driver = {
 	.resume =	sl811h_resume,
 	.driver = {
 		.name =	(char *) hcd_name,
-		.owner = THIS_MODULE,
 	},
 };
 EXPORT_SYMBOL(sl811h_driver);

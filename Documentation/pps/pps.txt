@@ -125,7 +125,7 @@ The same function may also run the defined echo function
 (pps_ktimer_echo(), passing to it the "ptr" pointer) if the user
 asked for that... etc..
 
-Please see the file drivers/pps/clients/ktimer.c for example code.
+Please see the file drivers/pps/clients/pps-ktimer.c for example code.
 
 
 SYSFS support
@@ -166,7 +166,7 @@ Testing the PPS support
 
 In order to test the PPS support even without specific hardware you can use
 the ktimer driver (see the client subsection in the PPS configuration menu)
-and the userland tools provided into Documentaion/pps/ directory.
+and the userland tools provided in the Documentation/pps/ directory.
 
 Once you have enabled the compilation of ktimer just modprobe it (if
 not statically compiled):

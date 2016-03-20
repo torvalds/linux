@@ -14,8 +14,8 @@
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
+#include <linux/gpio.h>
 
-#include <asm/gpio.h>
 #include <asm/io.h>
 
 #include <mach/portmux.h>
@@ -203,7 +203,7 @@ fail:
 
 static int direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct pio_device *pio = container_of(chip, struct pio_device, chip);
+	struct pio_device *pio = gpiochip_get_data(chip);
 	u32 mask = 1 << offset;
 
 	if (!(pio_readl(pio, PSR) & mask))
@@ -215,7 +215,7 @@ static int direction_input(struct gpio_chip *chip, unsigned offset)
 
 static int gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct pio_device *pio = container_of(chip, struct pio_device, chip);
+	struct pio_device *pio = gpiochip_get_data(chip);
 
 	return (pio_readl(pio, PDSR) >> offset) & 1;
 }
@@ -224,7 +224,7 @@ static void gpio_set(struct gpio_chip *chip, unsigned offset, int value);
 
 static int direction_output(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct pio_device *pio = container_of(chip, struct pio_device, chip);
+	struct pio_device *pio = gpiochip_get_data(chip);
 	u32 mask = 1 << offset;
 
 	if (!(pio_readl(pio, PSR) & mask))
@@ -237,7 +237,7 @@ static int direction_output(struct gpio_chip *chip, unsigned offset, int value)
 
 static void gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct pio_device *pio = container_of(chip, struct pio_device, chip);
+	struct pio_device *pio = gpiochip_get_data(chip);
 	u32 mask = 1 << offset;
 
 	if (value)
@@ -281,12 +281,12 @@ static struct irq_chip gpio_irqchip = {
 	.irq_set_type	= gpio_irq_type,
 };
 
-static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
+static void gpio_irq_handler(struct irq_desc *desc)
 {
 	struct pio_device	*pio = irq_desc_get_chip_data(desc);
 	unsigned		gpio_irq;
 
-	gpio_irq = (unsigned) irq_get_handler_data(irq);
+	gpio_irq = (unsigned) irq_desc_get_handler_data(desc);
 	for (;;) {
 		u32		isr;
 
@@ -312,7 +312,6 @@ gpio_irq_setup(struct pio_device *pio, int irq, int gpio_irq)
 	unsigned	i;
 
 	irq_set_chip_data(irq, pio);
-	irq_set_handler_data(irq, (void *)gpio_irq);
 
 	for (i = 0; i < 32; i++, gpio_irq++) {
 		irq_set_chip_data(gpio_irq, pio);
@@ -320,7 +319,8 @@ gpio_irq_setup(struct pio_device *pio, int irq, int gpio_irq)
 					 handle_simple_irq);
 	}
 
-	irq_set_chained_handler(irq, gpio_irq_handler);
+	irq_set_chained_handler_and_data(irq, gpio_irq_handler,
+					 (void *)gpio_irq);
 }
 
 /*--------------------------------------------------------------------------*/
@@ -335,7 +335,7 @@ gpio_irq_setup(struct pio_device *pio, int irq, int gpio_irq)
  */
 static void pio_bank_show(struct seq_file *s, struct gpio_chip *chip)
 {
-	struct pio_device *pio = container_of(chip, struct pio_device, chip);
+	struct pio_device *pio = gpiochip_get_data(chip);
 	u32			psr, osr, imr, pdsr, pusr, ifsr, mdsr;
 	unsigned		i;
 	u32			mask;
@@ -397,7 +397,7 @@ static int __init pio_probe(struct platform_device *pdev)
 	pio->chip.label = pio->name;
 	pio->chip.base = pdev->id * 32;
 	pio->chip.ngpio = 32;
-	pio->chip.dev = &pdev->dev;
+	pio->chip.parent = &pdev->dev;
 	pio->chip.owner = THIS_MODULE;
 
 	pio->chip.direction_input = direction_input;
@@ -406,7 +406,7 @@ static int __init pio_probe(struct platform_device *pdev)
 	pio->chip.set = gpio_set;
 	pio->chip.dbg_show = pio_bank_show;
 
-	gpiochip_add(&pio->chip);
+	gpiochip_add_data(&pio->chip, pio);
 
 	gpio_irq_setup(pio, irq, gpio_irq_base);
 

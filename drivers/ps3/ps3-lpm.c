@@ -105,7 +105,7 @@ struct ps3_lpm_shadow_regs {
  * @open: An atomic variable indicating the lpm driver has been opened.
  * @rights: The lpm rigths granted by the system policy module.  A logical
  *  OR of enum ps3_lpm_rights.
- * @node_id: The node id of a BE prosessor whose performance monitor this
+ * @node_id: The node id of a BE processor whose performance monitor this
  *  lpar has the right to use.
  * @pu_id: The lv1 id of the logical PU.
  * @lpm_id: The lv1 id of this lpm instance.
@@ -412,7 +412,7 @@ u32 ps3_read_pm(u32 cpu, enum pm_reg_name reg)
 		result = lv1_set_lpm_interval(lpm_priv->lpm_id, 0, 0, &val);
 		if (result) {
 			val = 0;
-			dev_dbg(sbd_core(), "%s:%u: lv1 set_inteval failed: "
+			dev_dbg(sbd_core(), "%s:%u: lv1 set_interval failed: "
 				"reg %u, %s\n", __func__, __LINE__, reg,
 				ps3_result(result));
 		}
@@ -901,7 +901,7 @@ void ps3_disable_pm(u32 cpu)
 	result = lv1_stop_lpm(lpm_priv->lpm_id, &tmp);
 
 	if (result) {
-		if(result != LV1_WRONG_STATE)
+		if (result != LV1_WRONG_STATE)
 			dev_err(sbd_core(), "%s:%u: lv1_stop_lpm failed: %s\n",
 				__func__, __LINE__, ps3_result(result));
 		return;

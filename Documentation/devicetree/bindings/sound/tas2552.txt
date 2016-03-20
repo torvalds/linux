@@ -14,6 +14,12 @@ Required properties:
 Optional properties:
 	- enable-gpio - gpio pin to enable/disable the device
 
+tas2552 can receive it's reference clock via MCLK, BCLK, IVCLKIN pin or use the
+internal 1.8MHz. This CLKIN is used by the PLL. In addition to PLL, the PDM
+reference clock is also selectable: PLL, IVCLKIN, BCLK or MCLK.
+For system integration the dt-bindings/sound/tas2552.h header file provides
+defined values to selct and configure the PLL and PDM reference clocks.
+
 Example:
 
 tas2552: tas2552@41 {

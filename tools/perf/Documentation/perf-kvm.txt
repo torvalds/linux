@@ -100,7 +100,7 @@ OPTIONS
 STAT REPORT OPTIONS
 -------------------
 --vcpu=<value>::
-       analyze events which occures on this vcpu. (default: all vcpus)
+       analyze events which occur on this vcpu. (default: all vcpus)
 
 --event=<value>::
        event to be analyzed. Possible values: vmexit, mmio (x86 only),
@@ -134,7 +134,7 @@ STAT LIVE OPTIONS
     Analyze events only for given process ID(s) (comma separated list).
 
 --vcpu=<value>::
-       analyze events which occures on this vcpu. (default: all vcpus)
+       analyze events which occur on this vcpu. (default: all vcpus)
 
 
 --event=<value>::
@@ -150,6 +150,12 @@ STAT LIVE OPTIONS
 --duration=<value>::
        Show events other than HLT (x86 only) or Wait state (s390 only)
        that take longer than duration usecs.
+
+--proc-map-timeout::
+	When processing pre-existing threads /proc/XXX/mmap, it may take
+	a long time, because the file may be huge. A time out is needed
+	in such cases.
+	This option sets the time out limit. The default value is 500 ms.
 
 SEE ALSO
 --------

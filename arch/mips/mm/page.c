@@ -72,6 +72,20 @@ static struct uasm_reloc relocs[5];
 #define cpu_is_r4600_v1_x()	((read_c0_prid() & 0xfffffff0) == 0x00002010)
 #define cpu_is_r4600_v2_x()	((read_c0_prid() & 0xfffffff0) == 0x00002020)
 
+/*
+ * R6 has a limited offset of the pref instruction.
+ * Skip it if the offset is more than 9 bits.
+ */
+#define _uasm_i_pref(a, b, c, d)		\
+do {						\
+	if (cpu_has_mips_r6) {			\
+		if (c <= 0xff && c >= -0x100)	\
+			uasm_i_pref(a, b, c, d);\
+	} else {				\
+		uasm_i_pref(a, b, c, d);	\
+	}					\
+} while(0)
+
 static int pref_bias_clear_store;
 static int pref_bias_copy_load;
 static int pref_bias_copy_store;
@@ -143,6 +157,7 @@ static void set_prefetch_parameters(void)
 		case CPU_R10000:
 		case CPU_R12000:
 		case CPU_R14000:
+		case CPU_R16000:
 			/*
 			 * Those values have been experimentally tuned for an
 			 * Origin 200.
@@ -178,7 +193,15 @@ static void set_prefetch_parameters(void)
 			pref_bias_copy_load = 256;
 			pref_bias_copy_store = 128;
 			pref_src_mode = Pref_LoadStreamed;
-			pref_dst_mode = Pref_PrepareForStore;
+			if (cpu_has_mips_r6)
+				/*
+				 * Bit 30 (Pref_PrepareForStore) has been
+				 * removed from MIPS R6. Use bit 5
+				 * (Pref_StoreStreamed).
+				 */
+				pref_dst_mode = Pref_StoreStreamed;
+			else
+				pref_dst_mode = Pref_PrepareForStore;
 			break;
 		}
 	} else {
@@ -214,7 +237,7 @@ static inline void build_clear_pref(u32 **buf, int off)
 		return;
 
 	if (pref_bias_clear_store) {
-		uasm_i_pref(buf, pref_dst_mode, pref_bias_clear_store + off,
+		_uasm_i_pref(buf, pref_dst_mode, pref_bias_clear_store + off,
 			    A0);
 	} else if (cache_line_size == (half_clear_loop_size << 1)) {
 		if (cpu_has_cache_cdex_s) {
@@ -357,7 +380,7 @@ static inline void build_copy_load_pref(u32 **buf, int off)
 		return;
 
 	if (pref_bias_copy_load)
-		uasm_i_pref(buf, pref_src_mode, pref_bias_copy_load + off, A1);
+		_uasm_i_pref(buf, pref_src_mode, pref_bias_copy_load + off, A1);
 }
 
 static inline void build_copy_store_pref(u32 **buf, int off)
@@ -366,7 +389,7 @@ static inline void build_copy_store_pref(u32 **buf, int off)
 		return;
 
 	if (pref_bias_copy_store) {
-		uasm_i_pref(buf, pref_dst_mode, pref_bias_copy_store + off,
+		_uasm_i_pref(buf, pref_dst_mode, pref_bias_copy_store + off,
 			    A0);
 	} else if (cache_line_size == (half_copy_loop_size << 1)) {
 		if (cpu_has_cache_cdex_s) {

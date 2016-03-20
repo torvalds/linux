@@ -519,44 +519,89 @@ int cvmx_l2c_unlock_mem_region(uint64_t start, uint64_t len)
 union __cvmx_l2c_tag {
 	uint64_t u64;
 	struct cvmx_l2c_tag_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved:40;
 		uint64_t V:1;		/* Line valid */
 		uint64_t D:1;		/* Line dirty */
 		uint64_t L:1;		/* Line locked */
 		uint64_t U:1;		/* Use, LRU eviction */
 		uint64_t addr:20;	/* Phys mem addr (33..14) */
+#else
+		uint64_t addr:20;	/* Phys mem addr (33..14) */
+		uint64_t U:1;		/* Use, LRU eviction */
+		uint64_t L:1;		/* Line locked */
+		uint64_t D:1;		/* Line dirty */
+		uint64_t V:1;		/* Line valid */
+		uint64_t reserved:40;
+#endif
 	} cn50xx;
 	struct cvmx_l2c_tag_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved:41;
 		uint64_t V:1;		/* Line valid */
 		uint64_t D:1;		/* Line dirty */
 		uint64_t L:1;		/* Line locked */
 		uint64_t U:1;		/* Use, LRU eviction */
 		uint64_t addr:19;	/* Phys mem addr (33..15) */
+#else
+		uint64_t addr:19;	/* Phys mem addr (33..15) */
+		uint64_t U:1;		/* Use, LRU eviction */
+		uint64_t L:1;		/* Line locked */
+		uint64_t D:1;		/* Line dirty */
+		uint64_t V:1;		/* Line valid */
+		uint64_t reserved:41;
+#endif
 	} cn30xx;
 	struct cvmx_l2c_tag_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved:42;
 		uint64_t V:1;		/* Line valid */
 		uint64_t D:1;		/* Line dirty */
 		uint64_t L:1;		/* Line locked */
 		uint64_t U:1;		/* Use, LRU eviction */
 		uint64_t addr:18;	/* Phys mem addr (33..16) */
+#else
+		uint64_t addr:18;	/* Phys mem addr (33..16) */
+		uint64_t U:1;		/* Use, LRU eviction */
+		uint64_t L:1;		/* Line locked */
+		uint64_t D:1;		/* Line dirty */
+		uint64_t V:1;		/* Line valid */
+		uint64_t reserved:42;
+#endif
 	} cn31xx;
 	struct cvmx_l2c_tag_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved:43;
 		uint64_t V:1;		/* Line valid */
 		uint64_t D:1;		/* Line dirty */
 		uint64_t L:1;		/* Line locked */
 		uint64_t U:1;		/* Use, LRU eviction */
 		uint64_t addr:17;	/* Phys mem addr (33..17) */
+#else
+		uint64_t addr:17;	/* Phys mem addr (33..17) */
+		uint64_t U:1;		/* Use, LRU eviction */
+		uint64_t L:1;		/* Line locked */
+		uint64_t D:1;		/* Line dirty */
+		uint64_t V:1;		/* Line valid */
+		uint64_t reserved:43;
+#endif
 	} cn38xx;
 	struct cvmx_l2c_tag_cn58xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved:44;
 		uint64_t V:1;		/* Line valid */
 		uint64_t D:1;		/* Line dirty */
 		uint64_t L:1;		/* Line locked */
 		uint64_t U:1;		/* Use, LRU eviction */
 		uint64_t addr:16;	/* Phys mem addr (33..18) */
+#else
+		uint64_t addr:16;	/* Phys mem addr (33..18) */
+		uint64_t U:1;		/* Use, LRU eviction */
+		uint64_t L:1;		/* Line locked */
+		uint64_t D:1;		/* Line dirty */
+		uint64_t V:1;		/* Line valid */
+		uint64_t reserved:44;
+#endif
 	} cn58xx;
 	struct cvmx_l2c_tag_cn58xx cn56xx;	/* 2048 sets */
 	struct cvmx_l2c_tag_cn31xx cn52xx;	/* 512 sets */

@@ -15,12 +15,34 @@ config GENERIC_PHY
 	  phy users can obtain reference to the PHY. All the users of this
 	  framework should select this config.
 
+config PHY_BERLIN_USB
+	tristate "Marvell Berlin USB PHY Driver"
+	depends on ARCH_BERLIN && RESET_CONTROLLER && HAS_IOMEM && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the USB PHY on Marvell Berlin SoCs.
+
 config PHY_BERLIN_SATA
 	tristate "Marvell Berlin SATA PHY driver"
 	depends on ARCH_BERLIN && HAS_IOMEM && OF
 	select GENERIC_PHY
 	help
 	  Enable this to support the SATA PHY on Marvell Berlin SoCs.
+
+config ARMADA375_USBCLUSTER_PHY
+	def_bool y
+	depends on MACH_ARMADA_375 || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	select GENERIC_PHY
+
+config PHY_DM816X_USB
+	tristate "TI dm816x USB PHY driver"
+	depends on ARCH_OMAP2PLUS
+	depends on USB_SUPPORT
+	select GENERIC_PHY
+	select USB_PHY
+	help
+	  Enable this for dm816x USB to work.
 
 config PHY_EXYNOS_MIPI_VIDEO
 	tristate "S5P/EXYNOS SoC series MIPI CSI-2/DSI PHY driver"
@@ -32,21 +54,76 @@ config PHY_EXYNOS_MIPI_VIDEO
 	  Support for MIPI CSI-2 and MIPI DSI DPHY found on Samsung S5P
 	  and EXYNOS SoCs.
 
+config PHY_LPC18XX_USB_OTG
+	tristate "NXP LPC18xx/43xx SoC USB OTG PHY driver"
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	depends on MFD_SYSCON
+	select GENERIC_PHY
+	help
+	  Enable this to support NXP LPC18xx/43xx internal USB OTG PHY.
+
+	  This driver is need for USB0 support on LPC18xx/43xx and takes
+	  care of enabling and clock setup.
+
+config PHY_PXA_28NM_HSIC
+	tristate "Marvell USB HSIC 28nm PHY Driver"
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	help
+	  Enable this to support Marvell USB HSIC PHY driver for Marvell
+	  SoC. This driver will do the PHY initialization and shutdown.
+	  The PHY driver will be used by Marvell ehci driver.
+
+	  To compile this driver as a module, choose M here.
+
+config PHY_PXA_28NM_USB2
+	tristate "Marvell USB 2.0 28nm PHY Driver"
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	help
+	  Enable this to support Marvell USB 2.0 PHY driver for Marvell
+	  SoC. This driver will do the PHY initialization and shutdown.
+	  The PHY driver will be used by Marvell udc/ehci/otg driver.
+
+	  To compile this driver as a module, choose M here.
+
 config PHY_MVEBU_SATA
 	def_bool y
 	depends on ARCH_DOVE || MACH_DOVE || MACH_KIRKWOOD
 	depends on OF
 	select GENERIC_PHY
 
+config PHY_MIPHY28LP
+	tristate "STMicroelectronics MIPHY28LP PHY driver for STiH407"
+	depends on ARCH_STI
+	select GENERIC_PHY
+	help
+	  Enable this to support the miphy transceiver (for SATA/PCIE/USB3)
+	  that is part of STMicroelectronics STiH407 SoC.
+
 config PHY_MIPHY365X
 	tristate "STMicroelectronics MIPHY365X PHY driver for STiH41x series"
 	depends on ARCH_STI
-	depends on GENERIC_PHY
 	depends on HAS_IOMEM
 	depends on OF
+	select GENERIC_PHY
 	help
 	  Enable this to support the miphy transceiver (for SATA/PCIE)
 	  that is part of STMicroelectronics STiH41x SoC series.
+
+config PHY_RCAR_GEN2
+	tristate "Renesas R-Car generation 2 USB PHY driver"
+	depends on ARCH_SHMOBILE
+	depends on GENERIC_PHY
+	help
+	  Support for USB PHY found on Renesas R-Car generation 2 SoCs.
+
+config PHY_RCAR_GEN3_USB2
+	tristate "Renesas R-Car generation 3 USB 2.0 PHY driver"
+	depends on OF && ARCH_SHMOBILE
+	select GENERIC_PHY
+	help
+	  Support for USB 2.0 PHY found on Renesas R-Car generation 3 SoCs.
 
 config OMAP_CONTROL_PHY
 	tristate "OMAP CONTROL PHY Driver"
@@ -62,8 +139,9 @@ config OMAP_CONTROL_PHY
 config OMAP_USB2
 	tristate "OMAP USB2 PHY Driver"
 	depends on ARCH_OMAP2PLUS
-	depends on USB_PHY
+	depends on USB_SUPPORT
 	select GENERIC_PHY
+	select USB_PHY
 	select OMAP_CONTROL_PHY
 	depends on OMAP_OCP2SCP
 	help
@@ -87,8 +165,9 @@ config TI_PIPE3
 config TWL4030_USB
 	tristate "TWL4030 USB Transceiver Driver"
 	depends on TWL4030_CORE && REGULATOR_TWL4030 && USB_MUSB_OMAP2PLUS
-	depends on USB_PHY
+	depends on USB_SUPPORT
 	select GENERIC_PHY
+	select USB_PHY
 	help
 	  Enable this to support the USB OTG transceiver on TWL4030
 	  family chips (including the TWL5030 and TPS659x0 devices).
@@ -134,10 +213,31 @@ config PHY_HIX5HD2_SATA
 	help
 	  Support for SATA PHY on Hisilicon hix5hd2 Soc.
 
+config PHY_MT65XX_USB3
+	tristate "Mediatek USB3.0 PHY Driver"
+	depends on ARCH_MEDIATEK && OF
+	select GENERIC_PHY
+	help
+	  Say 'Y' here to add support for Mediatek USB3.0 PHY driver
+	  for mt65xx SoCs. it supports two usb2.0 ports and
+	  one usb3.0 port.
+
+config PHY_HI6220_USB
+	tristate "hi6220 USB PHY support"
+	depends on (ARCH_HISI && ARM64) || COMPILE_TEST
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable this to support the HISILICON HI6220 USB PHY.
+
+	  To compile this driver as a module, choose M here.
+
 config PHY_SUN4I_USB
 	tristate "Allwinner sunxi SoC USB PHY driver"
 	depends on ARCH_SUNXI && HAS_IOMEM && OF
 	depends on RESET_CONTROLLER
+	depends on EXTCON
+	depends on POWER_SUPPLY
 	select GENERIC_PHY
 	help
 	  Enable this to support the transceiver that is part of Allwinner
@@ -145,6 +245,18 @@ config PHY_SUN4I_USB
 
 	  This driver controls the entire USB PHY block, both the USB OTG
 	  parts, as well as the 2 regular USB 2 host PHYs.
+
+config PHY_SUN9I_USB
+	tristate "Allwinner sun9i SoC USB PHY driver"
+	depends on ARCH_SUNXI && HAS_IOMEM && OF
+	depends on RESET_CONTROLLER
+	depends on USB_COMMON
+	select GENERIC_PHY
+	help
+	  Enable this to support the transceiver that is part of Allwinner
+	  sun9i SoCs.
+
+	  This driver controls each individual USB 2 host PHY.
 
 config PHY_SAMSUNG_USB2
 	tristate "Samsung USB 2.0 PHY driver"
@@ -186,7 +298,7 @@ config PHY_EXYNOS5250_USB2
 
 config PHY_EXYNOS5_USBDRD
 	tristate "Exynos5 SoC series USB DRD PHY driver"
-	depends on ARCH_EXYNOS5 && OF
+	depends on ARCH_EXYNOS && OF
 	depends on HAS_IOMEM
 	depends on USB_DWC3_EXYNOS
 	select GENERIC_PHY
@@ -196,6 +308,13 @@ config PHY_EXYNOS5_USBDRD
 	  Enable USB DRD PHY support for Exynos 5 SoC series.
 	  This driver provides PHY interface for USB 3.0 DRD controller
 	  present on Exynos5 SoC series.
+
+config PHY_PISTACHIO_USB
+	tristate "IMG Pistachio USB2.0 PHY driver"
+	depends on MACH_PISTACHIO
+	select GENERIC_PHY
+	help
+	  Enable this to support the USB2.0 PHY on the IMG Pistachio SoC.
 
 config PHY_QCOM_APQ8064_SATA
 	tristate "Qualcomm APQ8064 SATA SerDes/PHY driver"
@@ -211,15 +330,38 @@ config PHY_QCOM_IPQ806X_SATA
 	depends on OF
 	select GENERIC_PHY
 
+config PHY_ROCKCHIP_USB
+	tristate "Rockchip USB2 PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip USB 2.0 PHY.
+
+config PHY_ROCKCHIP_EMMC
+	tristate "Rockchip EMMC PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip EMMC PHY.
+
+config PHY_ROCKCHIP_DP
+	tristate "Rockchip Display Port PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip Display Port PHY.
+
 config PHY_ST_SPEAR1310_MIPHY
 	tristate "ST SPEAR1310-MIPHY driver"
 	select GENERIC_PHY
+	depends on MACH_SPEAR1310 || COMPILE_TEST
 	help
 	  Support for ST SPEAr1310 MIPHY which can be used for PCIe and SATA.
 
 config PHY_ST_SPEAR1340_MIPHY
 	tristate "ST SPEAR1340-MIPHY driver"
 	select GENERIC_PHY
+	depends on MACH_SPEAR1340 || COMPILE_TEST
 	help
 	  Support for ST SPEAr1340 MIPHY which can be used for PCIe and SATA.
 
@@ -229,5 +371,54 @@ config PHY_XGENE
 	select GENERIC_PHY
 	help
 	  This option enables support for APM X-Gene SoC multi-purpose PHY.
+
+config PHY_STIH407_USB
+	tristate "STMicroelectronics USB2 picoPHY driver for STiH407 family"
+	depends on RESET_CONTROLLER
+	depends on ARCH_STI || COMPILE_TEST
+	select GENERIC_PHY
+	help
+	  Enable this support to enable the picoPHY device used by USB2
+	  and USB3 controllers on STMicroelectronics STiH407 SoC families.
+
+config PHY_STIH41X_USB
+	tristate "STMicroelectronics USB2 PHY driver for STiH41x series"
+	depends on ARCH_STI
+	select GENERIC_PHY
+	help
+	  Enable this to support the USB transceiver that is part of
+	  STMicroelectronics STiH41x SoC series.
+
+config PHY_QCOM_UFS
+	tristate "Qualcomm UFS PHY driver"
+	depends on OF && ARCH_QCOM
+	select GENERIC_PHY
+	help
+	  Support for UFS PHY on QCOM chipsets.
+
+config PHY_TUSB1210
+	tristate "TI TUSB1210 ULPI PHY module"
+	depends on USB_ULPI_BUS
+	select GENERIC_PHY
+	help
+	  Support for TI TUSB1210 USB ULPI PHY.
+
+config PHY_BRCMSTB_SATA
+	tristate "Broadcom STB SATA PHY driver"
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC
+	depends on OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the SATA3 PHY on 28nm or 40nm Broadcom STB SoCs.
+	  Likely useful only with CONFIG_SATA_BRCMSTB enabled.
+
+config PHY_CYGNUS_PCIE
+	tristate "Broadcom Cygnus PCIe PHY driver"
+	depends on OF && (ARCH_BCM_CYGNUS || COMPILE_TEST)
+	select GENERIC_PHY
+	default ARCH_BCM_CYGNUS
+	help
+	  Enable this to support the Broadcom Cygnus PCIe PHY.
+	  If unsure, say N.
 
 endmenu

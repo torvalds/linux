@@ -28,12 +28,10 @@ struct device;
 extern int edac_op_state;
 extern int edac_err_assert;
 extern atomic_t edac_handlers;
-extern struct bus_type edac_subsys;
 
 extern int edac_handler_set(void);
 extern void edac_atomic_assert_error(void);
 extern struct bus_type *edac_get_sysfs_subsys(void);
-extern void edac_put_sysfs_subsys(void);
 
 enum {
 	EDAC_REPORTING_ENABLED,
@@ -194,7 +192,8 @@ static inline char *mc_event_error_type(const unsigned int err_type)
  * @MEM_DDR3:		DDR3 RAM
  * @MEM_RDDR3:		Registered DDR3 RAM
  *			This is a variant of the DDR3 memories.
- * @MEM_DDR4:		DDR4 RAM
+ * @MEM_LRDDR3		Load-Reduced DDR3 memory.
+ * @MEM_DDR4:		Unbuffered DDR4 RAM
  * @MEM_RDDR4:		Registered DDR4 RAM
  *			This is a variant of the DDR4 memories.
  */
@@ -216,6 +215,7 @@ enum mem_type {
 	MEM_XDR,
 	MEM_DDR3,
 	MEM_RDDR3,
+	MEM_LRDDR3,
 	MEM_DDR4,
 	MEM_RDDR4,
 };
@@ -235,8 +235,10 @@ enum mem_type {
 #define MEM_FLAG_FB_DDR2        BIT(MEM_FB_DDR2)
 #define MEM_FLAG_RDDR2          BIT(MEM_RDDR2)
 #define MEM_FLAG_XDR            BIT(MEM_XDR)
-#define MEM_FLAG_DDR3		 BIT(MEM_DDR3)
-#define MEM_FLAG_RDDR3		 BIT(MEM_RDDR3)
+#define MEM_FLAG_DDR3           BIT(MEM_DDR3)
+#define MEM_FLAG_RDDR3          BIT(MEM_RDDR3)
+#define MEM_FLAG_DDR4           BIT(MEM_DDR4)
+#define MEM_FLAG_RDDR4          BIT(MEM_RDDR4)
 
 /**
  * enum edac-type - Error Detection and Correction capabilities and mode
@@ -767,12 +769,10 @@ struct mem_ctl_info {
 	/* the internal state of this controller instance */
 	int op_state;
 
-#ifdef CONFIG_EDAC_DEBUG
 	struct dentry *debugfs;
 	u8 fake_inject_layer[EDAC_MAX_LAYERS];
-	u32 fake_inject_ue;
+	bool fake_inject_ue;
 	u16 fake_inject_count;
-#endif
 };
 
 /*

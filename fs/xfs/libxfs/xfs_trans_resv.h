@@ -56,7 +56,6 @@ struct xfs_trans_resv {
 	struct xfs_trans_res	tr_growrtalloc;	/* grow realtime allocations */
 	struct xfs_trans_res	tr_growrtzero;	/* grow realtime zeroing */
 	struct xfs_trans_res	tr_growrtfree;	/* grow realtime freeing */
-	struct xfs_trans_res	tr_qm_sbchange;	/* change quota flags */
 	struct xfs_trans_res	tr_qm_setqlim;	/* adjust quota limits */
 	struct xfs_trans_res	tr_qm_dqalloc;	/* allocate quota on disk */
 	struct xfs_trans_res	tr_qm_quotaoff;	/* turn quota off */
@@ -74,9 +73,9 @@ struct xfs_trans_resv {
  * 2 trees * (2 blocks/level * max depth - 1) * block size
  */
 #define	XFS_ALLOCFREE_LOG_RES(mp,nx) \
-	((nx) * (2 * XFS_FSB_TO_B((mp), 2 * XFS_AG_MAXLEVELS(mp) - 1)))
+	((nx) * (2 * XFS_FSB_TO_B((mp), 2 * (mp)->m_ag_maxlevels - 1)))
 #define	XFS_ALLOCFREE_LOG_COUNT(mp,nx) \
-	((nx) * (2 * (2 * XFS_AG_MAXLEVELS(mp) - 1)))
+	((nx) * (2 * (2 * (mp)->m_ag_maxlevels - 1)))
 
 /*
  * Per-directory log reservation for any directory change.

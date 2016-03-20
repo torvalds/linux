@@ -39,6 +39,7 @@
  */
 
 #include <assert.h>
+#include <stdarg.h>
 
 extern char strbuf_slopbuf[];
 struct strbuf {
@@ -76,8 +77,6 @@ static inline void strbuf_addch(struct strbuf *sb, int c) {
 	sb->buf[sb->len] = '\0';
 }
 
-extern void strbuf_remove(struct strbuf *, size_t pos, size_t len);
-
 extern void strbuf_add(struct strbuf *, const void *, size_t);
 static inline void strbuf_addstr(struct strbuf *sb, const char *s) {
 	strbuf_add(sb, s, strlen(s));
@@ -85,6 +84,7 @@ static inline void strbuf_addstr(struct strbuf *sb, const char *s) {
 
 __attribute__((format(printf,2,3)))
 extern void strbuf_addf(struct strbuf *sb, const char *fmt, ...);
+extern void strbuf_addv(struct strbuf *sb, const char *fmt, va_list ap);
 
 /* XXX: if read fails, any partial read is undone */
 extern ssize_t strbuf_read(struct strbuf *, int fd, ssize_t hint);

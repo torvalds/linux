@@ -1,7 +1,7 @@
 /*
  * sched_clock for unstable cpu clocks
  *
- *  Copyright (C) 2008 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+ *  Copyright (C) 2008 Red Hat, Inc., Peter Zijlstra
  *
  *  Updates and enhancements:
  *    Copyright (C) 2008 Red Hat, Inc. Steven Rostedt <srostedt@redhat.com>
@@ -61,6 +61,7 @@
 #include <linux/static_key.h>
 #include <linux/workqueue.h>
 #include <linux/compiler.h>
+#include <linux/tick.h>
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -89,6 +90,8 @@ static void __set_sched_clock_stable(void)
 {
 	if (!sched_clock_stable())
 		static_key_slow_inc(&__sched_clock_stable);
+
+	tick_dep_clear(TICK_DEP_BIT_CLOCK_UNSTABLE);
 }
 
 void set_sched_clock_stable(void)
@@ -108,6 +111,8 @@ static void __clear_sched_clock_stable(struct work_struct *work)
 	/* XXX worry about clock continuity */
 	if (sched_clock_stable())
 		static_key_slow_dec(&__sched_clock_stable);
+
+	tick_dep_set(TICK_DEP_BIT_CLOCK_UNSTABLE);
 }
 
 static DECLARE_WORK(sched_clock_work, __clear_sched_clock_stable);
@@ -134,7 +139,7 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(struct sched_clock_data, sched_clock_data);
 
 static inline struct sched_clock_data *this_scd(void)
 {
-	return &__get_cpu_var(sched_clock_data);
+	return this_cpu_ptr(&sched_clock_data);
 }
 
 static inline struct sched_clock_data *cpu_sdc(int cpu)
@@ -354,7 +359,7 @@ void sched_clock_idle_wakeup_event(u64 delta_ns)
 		return;
 
 	sched_clock_tick();
-	touch_softlockup_watchdog();
+	touch_softlockup_watchdog_sched();
 }
 EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
 
@@ -420,3 +425,16 @@ u64 local_clock(void)
 
 EXPORT_SYMBOL_GPL(cpu_clock);
 EXPORT_SYMBOL_GPL(local_clock);
+
+/*
+ * Running clock - returns the time that has elapsed while a guest has been
+ * running.
+ * On a guest this value should be local_clock minus the time the guest was
+ * suspended by the hypervisor (for any reason).
+ * On bare metal this function should return the same as local_clock.
+ * Architectures and sub-architectures can override this.
+ */
+u64 __weak running_clock(void)
+{
+	return local_clock();
+}

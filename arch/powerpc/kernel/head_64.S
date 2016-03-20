@@ -40,6 +40,8 @@
 #include <asm/kvm_book3s_asm.h>
 #include <asm/ptrace.h>
 #include <asm/hw_irq.h>
+#include <asm/cputhreads.h>
+#include <asm/ppc-opcode.h>
 
 /* The physical memory is laid out such that the secondary processor
  * spin code sits at 0x0000...0x00ff. On server, the vectors follow
@@ -181,7 +183,67 @@ exception_marker:
 #endif
 
 #ifdef CONFIG_PPC_BOOK3E
+/*
+ * The booting_thread_hwid holds the thread id we want to boot in cpu
+ * hotplug case. It is set by cpu hotplug code, and is invalid by default.
+ * The thread id is the same as the initial value of SPRN_PIR[THREAD_ID]
+ * bit field.
+ */
+	.globl	booting_thread_hwid
+booting_thread_hwid:
+	.long  INVALID_THREAD_HWID
+	.align 3
+/*
+ * start a thread in the same core
+ * input parameters:
+ * r3 = the thread physical id
+ * r4 = the entry point where thread starts
+ */
+_GLOBAL(book3e_start_thread)
+	LOAD_REG_IMMEDIATE(r5, MSR_KERNEL)
+	cmpi	0, r3, 0
+	beq	10f
+	cmpi	0, r3, 1
+	beq	11f
+	/* If the thread id is invalid, just exit. */
+	b	13f
+10:
+	MTTMR(TMRN_IMSR0, 5)
+	MTTMR(TMRN_INIA0, 4)
+	b	12f
+11:
+	MTTMR(TMRN_IMSR1, 5)
+	MTTMR(TMRN_INIA1, 4)
+12:
+	isync
+	li	r6, 1
+	sld	r6, r6, r3
+	mtspr	SPRN_TENS, r6
+13:
+	blr
+
+/*
+ * stop a thread in the same core
+ * input parameter:
+ * r3 = the thread physical id
+ */
+_GLOBAL(book3e_stop_thread)
+	cmpi	0, r3, 0
+	beq	10f
+	cmpi	0, r3, 1
+	beq	10f
+	/* If the thread id is invalid, just exit. */
+	b	13f
+10:
+	li	r4, 1
+	sld	r4, r4, r3
+	mtspr	SPRN_TENC, r4
+13:
+	blr
+
 _GLOBAL(fsl_secondary_thread_init)
+	mfspr	r4,SPRN_BUCSR
+
 	/* Enable branch prediction */
 	lis     r3,BUCSR_INIT@h
 	ori     r3,r3,BUCSR_INIT@l
@@ -196,10 +258,24 @@ _GLOBAL(fsl_secondary_thread_init)
 	 * number.  There are two threads per core, so shift everything
 	 * but the low bit right by two bits so that the cpu numbering is
 	 * continuous.
+	 *
+	 * If the old value of BUCSR is non-zero, this thread has run
+	 * before.  Thus, we assume we are coming from kexec or a similar
+	 * scenario, and PIR is already set to the correct value.  This
+	 * is a bit of a hack, but there are limited opportunities for
+	 * getting information into the thread and the alternatives
+	 * seemed like they'd be overkill.  We can't tell just by looking
+	 * at the old PIR value which state it's in, since the same value
+	 * could be valid for one thread out of reset and for a different
+	 * thread in Linux.
 	 */
+
 	mfspr	r3, SPRN_PIR
+	cmpwi	r4,0
+	bne	1f
 	rlwimi	r3, r3, 30, 2, 30
 	mtspr	SPRN_PIR, r3
+1:
 #endif
 
 _GLOBAL(generic_secondary_thread_init)
@@ -245,6 +321,44 @@ _GLOBAL(generic_secondary_smp_init)
 	mr	r3,r24
 	mr	r4,r25
 	bl	book3e_secondary_core_init
+
+/*
+ * After common core init has finished, check if the current thread is the
+ * one we wanted to boot. If not, start the specified thread and stop the
+ * current thread.
+ */
+	LOAD_REG_ADDR(r4, booting_thread_hwid)
+	lwz     r3, 0(r4)
+	li	r5, INVALID_THREAD_HWID
+	cmpw	r3, r5
+	beq	20f
+
+	/*
+	 * The value of booting_thread_hwid has been stored in r3,
+	 * so make it invalid.
+	 */
+	stw	r5, 0(r4)
+
+	/*
+	 * Get the current thread id and check if it is the one we wanted.
+	 * If not, start the one specified in booting_thread_hwid and stop
+	 * the current thread.
+	 */
+	mfspr	r8, SPRN_TIR
+	cmpw	r3, r8
+	beq	20f
+
+	/* start the specified thread */
+	LOAD_REG_ADDR(r5, fsl_secondary_thread_init)
+	ld	r4, 0(r5)
+	bl	book3e_start_thread
+
+	/* stop the current thread */
+	mr	r3, r8
+	bl	book3e_stop_thread
+10:
+	b	10b
+20:
 #endif
 
 generic_secondary_common_init:
@@ -441,12 +555,22 @@ __after_prom_start:
 	/* process relocations for the final address of the kernel */
 	lis	r25,PAGE_OFFSET@highest	/* compute virtual base of kernel */
 	sldi	r25,r25,32
+#if defined(CONFIG_PPC_BOOK3E)
+	tovirt(r26,r26)		/* on booke, we already run at PAGE_OFFSET */
+#endif
 	lwz	r7,__run_at_load-_stext(r26)
+#if defined(CONFIG_PPC_BOOK3E)
+	tophys(r26,r26)
+#endif
 	cmplwi	cr0,r7,1	/* flagged to stay where we are ? */
 	bne	1f
 	add	r25,r25,r26
 1:	mr	r3,r25
 	bl	relocate
+#if defined(CONFIG_PPC_BOOK3E)
+	/* IVPR needs to be set after relocation. */
+	bl	init_core_book3e
+#endif
 #endif
 
 /*
@@ -458,15 +582,15 @@ __after_prom_start:
  */
 	li	r3,0			/* target addr */
 #ifdef CONFIG_PPC_BOOK3E
-	tovirt(r3,r3)			/* on booke, we already run at PAGE_OFFSET */
+	tovirt(r3,r3)		/* on booke, we already run at PAGE_OFFSET */
 #endif
 	mr.	r4,r26			/* In some cases the loader may  */
+#if defined(CONFIG_PPC_BOOK3E)
+	tovirt(r4,r4)
+#endif
 	beq	9f			/* have already put us at zero */
 	li	r6,0x100		/* Start offset, the first 0x100 */
 					/* bytes were copied earlier.	 */
-#ifdef CONFIG_PPC_BOOK3E
-	tovirt(r6,r6)			/* on booke, we already run at PAGE_OFFSET */
-#endif
 
 #ifdef CONFIG_RELOCATABLE
 /*
@@ -474,12 +598,21 @@ __after_prom_start:
  * variable __run_at_load, if it is set the kernel is treated as relocatable
  * kernel, otherwise it will be moved to PHYSICAL_START
  */
+#if defined(CONFIG_PPC_BOOK3E)
+	tovirt(r26,r26)		/* on booke, we already run at PAGE_OFFSET */
+#endif
 	lwz	r7,__run_at_load-_stext(r26)
 	cmplwi	cr0,r7,1
 	bne	3f
 
+#ifdef CONFIG_PPC_BOOK3E
+	LOAD_REG_ADDR(r5, __end_interrupts)
+	LOAD_REG_ADDR(r11, _stext)
+	sub	r5,r5,r11
+#else
 	/* just copy interrupts */
 	LOAD_REG_IMMEDIATE(r5, __end_interrupts - _stext)
+#endif
 	b	5f
 3:
 #endif

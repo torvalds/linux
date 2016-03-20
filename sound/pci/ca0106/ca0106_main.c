@@ -1676,8 +1676,8 @@ static int snd_ca0106_create(int dev, struct snd_card *card,
 	err = pci_enable_device(pci);
 	if (err < 0)
 		return err;
-	if (pci_set_dma_mask(pci, DMA_BIT_MASK(32)) < 0 ||
-	    pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(32)) < 0) {
+	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(32)) < 0 ||
+	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(32)) < 0) {
 		dev_err(card->dev, "error to set 32bit mask DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
@@ -1885,7 +1885,7 @@ static int snd_ca0106_probe(struct pci_dev *pci,
 		goto error;
 	dev_dbg(card->dev, " done.\n");
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 	snd_ca0106_proc_init(chip);
 #endif
 
@@ -1910,7 +1910,6 @@ static void snd_ca0106_remove(struct pci_dev *pci)
 #ifdef CONFIG_PM_SLEEP
 static int snd_ca0106_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ca0106 *chip = card->private_data;
 	int i;
@@ -1923,29 +1922,14 @@ static int snd_ca0106_suspend(struct device *dev)
 	snd_ca0106_mixer_suspend(chip);
 
 	ca0106_stop_chip(chip);
-
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
 static int snd_ca0106_resume(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ca0106 *chip = card->private_data;
 	int i;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-
-	if (pci_enable_device(pci) < 0) {
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-
-	pci_set_master(pci);
 
 	ca0106_init_chip(chip, 1);
 

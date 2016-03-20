@@ -170,10 +170,9 @@ extern int snd_ad1816a_create(struct snd_card *card, unsigned long port,
 			      int irq, int dma1, int dma2,
 			      struct snd_ad1816a *chip);
 
-extern int snd_ad1816a_pcm(struct snd_ad1816a *chip, int device, struct snd_pcm **rpcm);
+extern int snd_ad1816a_pcm(struct snd_ad1816a *chip, int device);
 extern int snd_ad1816a_mixer(struct snd_ad1816a *chip);
-extern int snd_ad1816a_timer(struct snd_ad1816a *chip, int device,
-			     struct snd_timer **rtimer);
+extern int snd_ad1816a_timer(struct snd_ad1816a *chip, int device);
 #ifdef CONFIG_PM
 extern void snd_ad1816a_suspend(struct snd_ad1816a *chip);
 extern void snd_ad1816a_resume(struct snd_ad1816a *chip);

@@ -163,8 +163,8 @@ static void show_channel_gathers(struct output *o, struct host1x_cdma *cdma)
 				continue;
 			}
 
-			host1x_debug_output(o, "    GATHER at %#llx+%04x, %d words\n",
-					    (u64)g->base, g->offset, g->words);
+			host1x_debug_output(o, "    GATHER at %pad+%#x, %d words\n",
+					    &g->base, g->offset, g->words);
 
 			show_gather(o, g->base + g->offset, g->words, cdma,
 				    g->base, mapped);
@@ -298,7 +298,7 @@ static void host1x_debug_show_mlocks(struct host1x *host, struct output *o)
 			host1x_sync_readl(host, HOST1X_SYNC_MLOCK_OWNER(i));
 		if (HOST1X_SYNC_MLOCK_OWNER_CH_OWNS_V(owner))
 			host1x_debug_output(o, "%d: locked by channel %d\n",
-				i, HOST1X_SYNC_MLOCK_OWNER_CHID_F(owner));
+				i, HOST1X_SYNC_MLOCK_OWNER_CHID_V(owner));
 		else if (HOST1X_SYNC_MLOCK_OWNER_CPU_OWNS_V(owner))
 			host1x_debug_output(o, "%d: locked by cpu\n", i);
 		else

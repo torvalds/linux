@@ -124,7 +124,7 @@ static int vpx3220_fp_write(struct v4l2_subdev *sd, u8 fpaddr, u16 data)
 	return 0;
 }
 
-static u16 vpx3220_fp_read(struct v4l2_subdev *sd, u16 fpaddr)
+static int vpx3220_fp_read(struct v4l2_subdev *sd, u16 fpaddr)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	s16 data;
@@ -450,13 +450,6 @@ static const struct v4l2_ctrl_ops vpx3220_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops vpx3220_core_ops = {
 	.init = vpx3220_init,
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
 };
 
 static const struct v4l2_subdev_video_ops vpx3220_video_ops = {
@@ -567,7 +560,6 @@ MODULE_DEVICE_TABLE(i2c, vpx3220_id);
 
 static struct i2c_driver vpx3220_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "vpx3220",
 	},
 	.probe		= vpx3220_probe,

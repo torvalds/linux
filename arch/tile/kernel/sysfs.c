@@ -198,16 +198,13 @@ static int hv_stats_device_add(struct device *dev, struct subsys_interface *sif)
 	return err;
 }
 
-static int hv_stats_device_remove(struct device *dev,
-				  struct subsys_interface *sif)
+static void hv_stats_device_remove(struct device *dev,
+				   struct subsys_interface *sif)
 {
 	int cpu = dev->id;
 
-	if (!cpu_online(cpu))
-		return 0;
-
-	sysfs_remove_file(&dev->kobj, &dev_attr_hv_stats.attr);
-	return 0;
+	if (cpu_online(cpu))
+		sysfs_remove_file(&dev->kobj, &dev_attr_hv_stats.attr);
 }
 
 

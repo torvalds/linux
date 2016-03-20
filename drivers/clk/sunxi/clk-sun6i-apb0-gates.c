@@ -34,6 +34,7 @@ static const struct of_device_id sun6i_a31_apb0_gates_clk_dt_ids[] = {
 	{ .compatible = "allwinner,sun8i-a23-apb0-gates-clk", .data = &sun8i_a23_apb0_gates },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, sun6i_a31_apb0_gates_clk_dt_ids);
 
 static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 {
@@ -99,7 +100,6 @@ static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 static struct platform_driver sun6i_a31_apb0_gates_clk_driver = {
 	.driver = {
 		.name = "sun6i-a31-apb0-gates-clk",
-		.owner = THIS_MODULE,
 		.of_match_table = sun6i_a31_apb0_gates_clk_dt_ids,
 	},
 	.probe = sun6i_a31_apb0_gates_clk_probe,

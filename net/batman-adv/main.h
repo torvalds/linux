@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -24,16 +24,20 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2014.4.0"
+#define BATADV_SOURCE_VERSION "2016.1"
 #endif
 
 /* B.A.T.M.A.N. parameters */
 
 #define BATADV_TQ_MAX_VALUE 255
+#define BATADV_THROUGHPUT_MAX_VALUE 0xFFFFFFFF
 #define BATADV_JITTER 20
 
 /* Time To Live of broadcast messages */
 #define BATADV_TTL 50
+
+/* maximum sequence number age of broadcast messages */
+#define BATADV_BCAST_MAX_AGE 64
 
 /* purge originators after time in seconds if no valid packet comes in
  * -> TODO: check influence on BATADV_TQ_LOCAL_WINDOW_SIZE
@@ -44,7 +48,7 @@
 #define BATADV_TT_CLIENT_TEMP_TIMEOUT 600000 /* in milliseconds */
 #define BATADV_TT_WORK_PERIOD 5000 /* 5 seconds */
 #define BATADV_ORIG_WORK_PERIOD 1000 /* 1 second */
-#define BATADV_DAT_ENTRY_TIMEOUT (5*60000) /* 5 mins in milliseconds */
+#define BATADV_DAT_ENTRY_TIMEOUT (5 * 60000) /* 5 mins in milliseconds */
 /* sliding packet range of received originator messages in sequence numbers
  * (should be a multiple of our word size)
  */
@@ -56,6 +60,15 @@
 #define BATADV_TQ_LOCAL_BIDRECT_SEND_MINIMUM 1
 #define BATADV_TQ_LOCAL_BIDRECT_RECV_MINIMUM 1
 #define BATADV_TQ_TOTAL_BIDRECT_LIMIT 1
+
+/* B.A.T.M.A.N. V */
+#define BATADV_THROUGHPUT_DEFAULT_VALUE 10 /* 1 Mbps */
+#define BATADV_ELP_PROBES_PER_NODE 2
+#define BATADV_ELP_MIN_PROBE_SIZE 200 /* bytes */
+#define BATADV_ELP_PROBE_MAX_TX_DIFF 100 /* milliseconds */
+#define BATADV_ELP_MAX_AGE 64
+#define BATADV_OGM_MAX_ORIGDIFF 5
+#define BATADV_OGM_MAX_AGE 64
 
 /* number of OGMs sent with the last tt diff */
 #define BATADV_TT_OGM_APPEND_MAX 3
@@ -92,16 +105,10 @@
 /* numbers of originator to contact for any PUT/GET DHT operation */
 #define BATADV_DAT_CANDIDATES_NUM 3
 
-/**
- * BATADV_TQ_SIMILARITY_THRESHOLD - TQ points that a secondary metric can differ
- *  at most from the primary one in order to be still considered acceptable
+/* BATADV_TQ_SIMILARITY_THRESHOLD - TQ points that a secondary metric can differ
+ * at most from the primary one in order to be still considered acceptable
  */
 #define BATADV_TQ_SIMILARITY_THRESHOLD 50
-
-/* how much worse secondary interfaces may be to be considered as bonding
- * candidates
- */
-#define BATADV_BONDING_TQ_THRESHOLD	50
 
 /* should not be bigger than 512 bytes or change the size of
  * forw_packet->direct_link_flags
@@ -110,7 +117,7 @@
 #define BATADV_MAX_AGGREGATION_MS 100
 
 #define BATADV_BLA_PERIOD_LENGTH	10000	/* 10 seconds */
-#define BATADV_BLA_BACKBONE_TIMEOUT	(BATADV_BLA_PERIOD_LENGTH * 3)
+#define BATADV_BLA_BACKBONE_TIMEOUT	(BATADV_BLA_PERIOD_LENGTH * 6)
 #define BATADV_BLA_CLAIM_TIMEOUT	(BATADV_BLA_PERIOD_LENGTH * 10)
 #define BATADV_BLA_WAIT_PERIODS		3
 
@@ -164,28 +171,26 @@ enum batadv_uev_type {
 
 /* Kernel headers */
 
-#include <linux/mutex.h>	/* mutex */
-#include <linux/module.h>	/* needed by all modules */
-#include <linux/netdevice.h>	/* netdevice */
-#include <linux/etherdevice.h>  /* ethernet address classification */
-#include <linux/if_ether.h>	/* ethernet header */
-#include <linux/poll.h>		/* poll_table */
-#include <linux/kthread.h>	/* kernel threads */
-#include <linux/pkt_sched.h>	/* schedule types */
-#include <linux/workqueue.h>	/* workqueue */
+#include <linux/atomic.h>
+#include <linux/bitops.h> /* for packet.h */
+#include <linux/compiler.h>
+#include <linux/cpumask.h>
+#include <linux/etherdevice.h>
+#include <linux/if_ether.h> /* for packet.h */
+#include <linux/netdevice.h>
+#include <linux/printk.h>
+#include <linux/types.h>
 #include <linux/percpu.h>
-#include <linux/slab.h>
-#include <net/sock.h>		/* struct sock */
-#include <net/addrconf.h>	/* ipv6 address stuff */
-#include <linux/ip.h>
-#include <net/rtnetlink.h>
 #include <linux/jiffies.h>
-#include <linux/seq_file.h>
 #include <linux/if_vlan.h>
 
 #include "types.h"
 
-#define BATADV_PRINT_VID(vid) (vid & BATADV_VLAN_HAS_TAG ? \
+struct batadv_ogm_packet;
+struct seq_file;
+struct sk_buff;
+
+#define BATADV_PRINT_VID(vid) ((vid & BATADV_VLAN_HAS_TAG) ? \
 			       (int)(vid & VLAN_VID_MASK) : -1)
 
 extern char batadv_routing_algo[];
@@ -196,7 +201,7 @@ extern struct workqueue_struct *batadv_event_workqueue;
 
 int batadv_mesh_init(struct net_device *soft_iface);
 void batadv_mesh_free(struct net_device *soft_iface);
-int batadv_is_my_mac(struct batadv_priv *bat_priv, const uint8_t *addr);
+bool batadv_is_my_mac(struct batadv_priv *bat_priv, const u8 *addr);
 struct batadv_hard_iface *
 batadv_seq_print_text_primary_if_get(struct seq_file *seq);
 int batadv_max_header_len(void);
@@ -205,10 +210,10 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 			   struct packet_type *ptype,
 			   struct net_device *orig_dev);
 int
-batadv_recv_handler_register(uint8_t packet_type,
+batadv_recv_handler_register(u8 packet_type,
 			     int (*recv_handler)(struct sk_buff *,
 						 struct batadv_hard_iface *));
-void batadv_recv_handler_unregister(uint8_t packet_type);
+void batadv_recv_handler_unregister(u8 packet_type);
 int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops);
 int batadv_algo_select(struct batadv_priv *bat_priv, char *name);
 int batadv_algo_seq_print_text(struct seq_file *seq, void *offset);
@@ -276,11 +281,16 @@ static inline void _batadv_dbg(int type __always_unused,
 		pr_err("%s: " fmt, _netdev->name, ## arg);		\
 	} while (0)
 
-/* returns 1 if they are the same ethernet addr
+/**
+ * batadv_compare_eth - Compare two not u16 aligned Ethernet addresses
+ * @data1: Pointer to a six-byte array containing the Ethernet address
+ * @data2: Pointer other six-byte array containing the Ethernet address
  *
  * note: can't use ether_addr_equal() as it requires aligned memory
+ *
+ * Return: 1 if they are the same ethernet addr
  */
-static inline int batadv_compare_eth(const void *data1, const void *data2)
+static inline bool batadv_compare_eth(const void *data1, const void *data2)
 {
 	return ether_addr_equal_unaligned(data1, data2);
 }
@@ -290,7 +300,7 @@ static inline int batadv_compare_eth(const void *data1, const void *data2)
  * @timestamp:		base value to compare with (in jiffies)
  * @timeout:		added to base value before comparing (in milliseconds)
  *
- * Returns true if current time is after timestamp + timeout
+ * Return: true if current time is after timestamp + timeout
  */
 static inline bool batadv_has_timed_out(unsigned long timestamp,
 					unsigned int timeout)
@@ -307,16 +317,16 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
  * they handle overflows/underflows and can correctly check for a
  * predecessor/successor unless the variable sequence number has grown by
  * more then 2**(bitwidth(x)-1)-1.
- * This means that for a uint8_t with the maximum value 255, it would think:
+ * This means that for a u8 with the maximum value 255, it would think:
  *  - when adding nothing - it is neither a predecessor nor a successor
  *  - before adding more than 127 to the starting value - it is a predecessor,
  *  - when adding 128 - it is neither a predecessor nor a successor,
  *  - after adding more than 127 to the starting value - it is a successor
  */
-#define batadv_seq_before(x, y) ({typeof(x) _d1 = (x); \
-				 typeof(y) _d2 = (y); \
-				 typeof(x) _dummy = (_d1 - _d2); \
-				 (void) (&_d1 == &_d2); \
+#define batadv_seq_before(x, y) ({typeof(x)_d1 = (x); \
+				 typeof(y)_d2 = (y); \
+				 typeof(x)_dummy = (_d1 - _d2); \
+				 (void)(&_d1 == &_d2); \
 				 _dummy > batadv_smallest_signed_int(_dummy); })
 #define batadv_seq_after(x, y) batadv_seq_before(y, x)
 
@@ -329,11 +339,16 @@ static inline void batadv_add_counter(struct batadv_priv *bat_priv, size_t idx,
 
 #define batadv_inc_counter(b, i) batadv_add_counter(b, i, 1)
 
-/* Sum and return the cpu-local counters for index 'idx' */
-static inline uint64_t batadv_sum_counter(struct batadv_priv *bat_priv,
-					  size_t idx)
+/**
+ * batadv_sum_counter - Sum the cpu-local counters for index 'idx'
+ * @bat_priv: the bat priv with all the soft interface information
+ * @idx: index of counter to sum up
+ *
+ * Return: sum of all cpu-local counters
+ */
+static inline u64 batadv_sum_counter(struct batadv_priv *bat_priv,  size_t idx)
 {
-	uint64_t *counters, sum = 0;
+	u64 *counters, sum = 0;
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
@@ -351,39 +366,38 @@ static inline uint64_t batadv_sum_counter(struct batadv_priv *bat_priv,
 #define BATADV_SKB_CB(__skb)       ((struct batadv_skb_cb *)&((__skb)->cb[0]))
 
 void batadv_tvlv_container_register(struct batadv_priv *bat_priv,
-				    uint8_t type, uint8_t version,
-				    void *tvlv_value, uint16_t tvlv_value_len);
-uint16_t batadv_tvlv_container_ogm_append(struct batadv_priv *bat_priv,
-					  unsigned char **packet_buff,
-					  int *packet_buff_len,
-					  int packet_min_len);
+				    u8 type, u8 version,
+				    void *tvlv_value, u16 tvlv_value_len);
+u16 batadv_tvlv_container_ogm_append(struct batadv_priv *bat_priv,
+				     unsigned char **packet_buff,
+				     int *packet_buff_len, int packet_min_len);
 void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
 			     struct batadv_ogm_packet *batadv_ogm_packet,
 			     struct batadv_orig_node *orig_node);
 void batadv_tvlv_container_unregister(struct batadv_priv *bat_priv,
-				      uint8_t type, uint8_t version);
+				      u8 type, u8 version);
 
 void batadv_tvlv_handler_register(struct batadv_priv *bat_priv,
 				  void (*optr)(struct batadv_priv *bat_priv,
 					       struct batadv_orig_node *orig,
-					       uint8_t flags,
+					       u8 flags,
 					       void *tvlv_value,
-					       uint16_t tvlv_value_len),
+					       u16 tvlv_value_len),
 				  int (*uptr)(struct batadv_priv *bat_priv,
-					      uint8_t *src, uint8_t *dst,
+					      u8 *src, u8 *dst,
 					      void *tvlv_value,
-					      uint16_t tvlv_value_len),
-				  uint8_t type, uint8_t version, uint8_t flags);
+					      u16 tvlv_value_len),
+				  u8 type, u8 version, u8 flags);
 void batadv_tvlv_handler_unregister(struct batadv_priv *bat_priv,
-				    uint8_t type, uint8_t version);
+				    u8 type, u8 version);
 int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
 				   bool ogm_source,
 				   struct batadv_orig_node *orig_node,
-				   uint8_t *src, uint8_t *dst,
-				   void *tvlv_buff, uint16_t tvlv_buff_len);
-void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, uint8_t *src,
-			      uint8_t *dst, uint8_t type, uint8_t version,
-			      void *tvlv_value, uint16_t tvlv_value_len);
+				   u8 *src, u8 *dst,
+				   void *tvlv_buff, u16 tvlv_buff_len);
+void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, u8 *src,
+			      u8 *dst, u8 type, u8 version,
+			      void *tvlv_value, u16 tvlv_value_len);
 unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len);
 bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid);
 

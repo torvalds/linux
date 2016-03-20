@@ -31,8 +31,11 @@ struct ath9k_platform_data {
 	u32 gpio_mask;
 	u32 gpio_val;
 
+	bool endian_check;
 	bool is_clk_25mhz;
 	bool tx_gain_buffalo;
+	bool disable_2ghz;
+	bool disable_5ghz;
 
 	int (*get_mac_revision)(void);
 	int (*external_reset)(void);

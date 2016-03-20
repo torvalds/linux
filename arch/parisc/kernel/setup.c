@@ -130,7 +130,16 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "The 32-bit Kernel has started...\n");
 #endif
 
-	printk(KERN_INFO "Default page size is %dKB.\n", (int)(PAGE_SIZE / 1024));
+	printk(KERN_INFO "Kernel default page size is %d KB. Huge pages ",
+		(int)(PAGE_SIZE / 1024));
+#ifdef CONFIG_HUGETLB_PAGE
+	printk(KERN_CONT "enabled with %d MB physical and %d MB virtual size",
+		 1 << (REAL_HPAGE_SHIFT - 20), 1 << (HPAGE_SHIFT - 20));
+#else
+	printk(KERN_CONT "disabled");
+#endif
+	printk(KERN_CONT ".\n");
+
 
 	pdc_console_init();
 
@@ -377,6 +386,7 @@ arch_initcall(parisc_init);
 void start_parisc(void)
 {
 	extern void start_kernel(void);
+	extern void early_trap_init(void);
 
 	int ret, cpunum;
 	struct pdc_coproc_cfg coproc_cfg;
@@ -396,6 +406,8 @@ void start_parisc(void)
 	} else {
 		panic("must have an fpu to boot linux");
 	}
+
+	early_trap_init(); /* initialize checksum of fault_vector */
 
 	start_kernel();
 	// not reached

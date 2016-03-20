@@ -29,13 +29,7 @@
 static inline long syscall_get_nr(struct task_struct *task,
 				  struct pt_regs *regs)
 {
-	/* O32 ABI syscall() - Either 64-bit with O32 or 32-bit */
-	if ((config_enabled(CONFIG_32BIT) ||
-	    test_tsk_thread_flag(task, TIF_32BIT_REGS)) &&
-	    (regs->regs[2] == __NR_syscall))
-		return regs->regs[4];
-	else
-		return regs->regs[2];
+	return current_thread_info()->syscall;
 }
 
 static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
@@ -107,10 +101,8 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	/* O32 ABI syscall() - Either 64-bit with O32 or 32-bit */
 	if ((config_enabled(CONFIG_32BIT) ||
 	    test_tsk_thread_flag(task, TIF_32BIT_REGS)) &&
-	    (regs->regs[2] == __NR_syscall)) {
+	    (regs->regs[2] == __NR_syscall))
 		i++;
-		n++;
-	}
 
 	while (n--)
 		ret |= mips_get_syscall_arg(args++, task, regs, i++);
@@ -129,12 +121,14 @@ extern const unsigned long sysn32_call_table[];
 
 static inline int syscall_get_arch(void)
 {
-	int arch = EM_MIPS;
+	int arch = AUDIT_ARCH_MIPS;
 #ifdef CONFIG_64BIT
-	if (!test_thread_flag(TIF_32BIT_REGS))
+	if (!test_thread_flag(TIF_32BIT_REGS)) {
 		arch |= __AUDIT_ARCH_64BIT;
-	if (test_thread_flag(TIF_32BIT_ADDR))
-		arch |= __AUDIT_ARCH_CONVENTION_MIPS64_N32;
+		/* N32 sets only TIF_32BIT_ADDR */
+		if (test_thread_flag(TIF_32BIT_ADDR))
+			arch |= __AUDIT_ARCH_CONVENTION_MIPS64_N32;
+	}
 #endif
 #if defined(__LITTLE_ENDIAN)
 	arch |=  __AUDIT_ARCH_LE;

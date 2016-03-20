@@ -94,7 +94,7 @@ static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
 				r = &dev->resource[idx];
 				if (!r->start)
 					continue;
-				pci_claim_resource(dev, idx);
+				pci_claim_bridge_resource(dev, idx);
 			}
 		}
 		pcibios_allocate_bus_resources(&bus->children);
@@ -174,14 +174,6 @@ static void __init pcibios_assign_resources(void)
 			 */
 			if (!r->start && r->end)
 				pci_assign_resource(dev, idx);
-		}
-
-		if (pci_probe & PCI_ASSIGN_ROMS) {
-			r = &dev->resource[PCI_ROM_RESOURCE];
-			r->end -= r->start;
-			r->start = 0;
-			if (r->end)
-				pci_assign_resource(dev, PCI_ROM_RESOURCE);
 		}
 	}
 }

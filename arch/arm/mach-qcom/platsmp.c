@@ -17,10 +17,10 @@
 #include <linux/of_address.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/qcom_scm.h>
 
 #include <asm/smp_plat.h>
 
-#include "scm-boot.h"
 
 #define VDD_SC1_ARRAY_CLAMP_GFS_CTL	0x35a0
 #define SCSS_CPU1CORE_RESET		0x2d80
@@ -44,12 +44,12 @@
 #define APCS_SAW2_VCTL		0x14
 #define APCS_SAW2_2_VCTL	0x1c
 
-extern void secondary_startup(void);
+extern void secondary_startup_arm(void);
 
 static DEFINE_SPINLOCK(boot_lock);
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void __ref qcom_cpu_die(unsigned int cpu)
+static void qcom_cpu_die(unsigned int cpu)
 {
 	wfi();
 }
@@ -319,25 +319,10 @@ static int kpssv2_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init qcom_smp_prepare_cpus(unsigned int max_cpus)
 {
-	int cpu, map;
-	unsigned int flags = 0;
-	static const int cold_boot_flags[] = {
-		0,
-		SCM_FLAG_COLDBOOT_CPU1,
-		SCM_FLAG_COLDBOOT_CPU2,
-		SCM_FLAG_COLDBOOT_CPU3,
-	};
+	int cpu;
 
-	for_each_present_cpu(cpu) {
-		map = cpu_logical_map(cpu);
-		if (WARN_ON(map >= ARRAY_SIZE(cold_boot_flags))) {
-			set_cpu_present(cpu, false);
-			continue;
-		}
-		flags |= cold_boot_flags[map];
-	}
-
-	if (scm_set_boot_addr(virt_to_phys(secondary_startup), flags)) {
+	if (qcom_scm_set_cold_boot_addr(secondary_startup_arm,
+					cpu_present_mask)) {
 		for_each_present_cpu(cpu) {
 			if (cpu == smp_processor_id())
 				continue;
@@ -347,7 +332,7 @@ static void __init qcom_smp_prepare_cpus(unsigned int max_cpus)
 	}
 }
 
-static struct smp_operations smp_msm8660_ops __initdata = {
+static const struct smp_operations smp_msm8660_ops __initconst = {
 	.smp_prepare_cpus	= qcom_smp_prepare_cpus,
 	.smp_secondary_init	= qcom_secondary_init,
 	.smp_boot_secondary	= msm8660_boot_secondary,
@@ -357,7 +342,7 @@ static struct smp_operations smp_msm8660_ops __initdata = {
 };
 CPU_METHOD_OF_DECLARE(qcom_smp, "qcom,gcc-msm8660", &smp_msm8660_ops);
 
-static struct smp_operations qcom_smp_kpssv1_ops __initdata = {
+static const struct smp_operations qcom_smp_kpssv1_ops __initconst = {
 	.smp_prepare_cpus	= qcom_smp_prepare_cpus,
 	.smp_secondary_init	= qcom_secondary_init,
 	.smp_boot_secondary	= kpssv1_boot_secondary,
@@ -367,7 +352,7 @@ static struct smp_operations qcom_smp_kpssv1_ops __initdata = {
 };
 CPU_METHOD_OF_DECLARE(qcom_smp_kpssv1, "qcom,kpss-acc-v1", &qcom_smp_kpssv1_ops);
 
-static struct smp_operations qcom_smp_kpssv2_ops __initdata = {
+static const struct smp_operations qcom_smp_kpssv2_ops __initconst = {
 	.smp_prepare_cpus	= qcom_smp_prepare_cpus,
 	.smp_secondary_init	= qcom_secondary_init,
 	.smp_boot_secondary	= kpssv2_boot_secondary,

@@ -56,13 +56,17 @@ struct rpc_clnt {
 	struct rpc_rtt *	cl_rtt;		/* RTO estimator data */
 	const struct rpc_timeout *cl_timeout;	/* Timeout strategy */
 
+	atomic_t		cl_swapper;	/* swapfile count */
 	int			cl_nodelen;	/* nodename length */
-	char 			cl_nodename[UNX_MAXNODENAME];
+	char 			cl_nodename[UNX_MAXNODENAME+1];
 	struct rpc_pipe_dir_head cl_pipedir_objects;
 	struct rpc_clnt *	cl_parent;	/* Points to parent of clones */
 	struct rpc_rtt		cl_rtt_default;
 	struct rpc_timeout	cl_timeout_default;
 	const struct rpc_program *cl_program;
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+	struct dentry		*cl_debugfs;	/* debugfs directory */
+#endif
 };
 
 /*
@@ -109,6 +113,7 @@ struct rpc_create_args {
 	struct sockaddr		*saddress;
 	const struct rpc_timeout *timeout;
 	const char		*servername;
+	const char		*nodename;
 	const struct rpc_program *program;
 	u32			prognumber;	/* overrides program->number */
 	u32			version;
@@ -176,5 +181,6 @@ size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
 const char	*rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
 int		rpc_localaddr(struct rpc_clnt *, struct sockaddr *, size_t);
 
+const char *rpc_proc_name(const struct rpc_task *task);
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_CLNT_H */

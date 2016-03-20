@@ -29,7 +29,7 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/major.h>
 #include <linux/atomic.h>
 #include <linux/sysrq.h>
@@ -319,7 +319,8 @@ static int hvc_install(struct tty_driver *driver, struct tty_struct *tty)
 	int rc;
 
 	/* Auto increments kref reference if found. */
-	if (!(hp = hvc_get_by_index(tty->index)))
+	hp = hvc_get_by_index(tty->index);
+	if (!hp)
 		return -ENODEV;
 
 	tty->driver_data = hp;
@@ -417,7 +418,7 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 		 * there is no buffered data otherwise sleeps on a wait queue
 		 * waking periodically to check chars_in_buffer().
 		 */
-		tty_wait_until_sent_from_close(tty, HVC_CLOSE_WAIT);
+		tty_wait_until_sent(tty, HVC_CLOSE_WAIT);
 	} else {
 		if (hp->port.count < 0)
 			printk(KERN_ERR "hvc_close %X: oops, count is %d\n",
@@ -1004,19 +1005,3 @@ put_tty:
 out:
 	return err;
 }
-
-/* This isn't particularly necessary due to this being a console driver
- * but it is nice to be thorough.
- */
-static void __exit hvc_exit(void)
-{
-	if (hvc_driver) {
-		kthread_stop(hvc_task);
-
-		tty_unregister_driver(hvc_driver);
-		/* return tty_struct instances allocated in hvc_init(). */
-		put_tty_driver(hvc_driver);
-		unregister_console(&hvc_console);
-	}
-}
-module_exit(hvc_exit);

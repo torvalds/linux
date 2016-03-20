@@ -23,17 +23,15 @@ struct page **ceph_get_direct_page_vector(const void __user *data,
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 
-	down_read(&current->mm->mmap_sem);
 	while (got < num_pages) {
-		rc = get_user_pages(current, current->mm,
+		rc = get_user_pages_unlocked(current, current->mm,
 		    (unsigned long)data + ((unsigned long)got * PAGE_SIZE),
-		    num_pages - got, write_page, 0, pages + got, NULL);
+		    num_pages - got, write_page, 0, pages + got);
 		if (rc < 0)
 			break;
 		BUG_ON(rc == 0);
 		got += rc;
 	}
-	up_read(&current->mm->mmap_sem);
 	if (rc < 0)
 		goto fail;
 	return pages;
@@ -53,10 +51,7 @@ void ceph_put_page_vector(struct page **pages, int num_pages, bool dirty)
 			set_page_dirty_lock(pages[i]);
 		put_page(pages[i]);
 	}
-	if (is_vmalloc_addr(pages))
-		vfree(pages);
-	else
-		kfree(pages);
+	kvfree(pages);
 }
 EXPORT_SYMBOL(ceph_put_page_vector);
 

@@ -1,6 +1,8 @@
 /*
  * Copyright 2012 Xyratex Technology Limited
  *
+ * Copyright (c) 2013, 2015, Intel Corporation.
+ *
  * Author: Andrew Perepechko <Andrew_Perepechko@xyratex.com>
  *
  */
@@ -21,7 +23,8 @@
  */
 struct ll_xattr_entry {
 	struct list_head	xe_list;    /* protected with
-					     * lli_xattrs_list_rwsem */
+					     * lli_xattrs_list_rwsem
+					     */
 	char			*xe_name;   /* xattr name, \0-terminated */
 	char			*xe_value;  /* xattr value */
 	unsigned		xe_namelen; /* strlen(xe_name) + 1 */
@@ -57,10 +60,6 @@ void ll_xattr_fini(void)
  */
 static void ll_xattr_cache_init(struct ll_inode_info *lli)
 {
-
-
-	LASSERT(lli != NULL);
-
 	INIT_LIST_HEAD(&lli->lli_xattrs);
 	lli->lli_flags |= LLIF_XATTR_CACHE;
 }
@@ -80,12 +79,9 @@ static int ll_xattr_cache_find(struct list_head *cache,
 {
 	struct ll_xattr_entry *entry;
 
-
-
 	list_for_each_entry(entry, cache, xe_list) {
 		/* xattr_name == NULL means look for any entry */
-		if (xattr_name == NULL ||
-		    strcmp(xattr_name, entry->xe_name) == 0) {
+		if (!xattr_name || strcmp(xattr_name, entry->xe_name) == 0) {
 			*xattr = entry;
 			CDEBUG(D_CACHE, "find: [%s]=%.*s\n",
 			       entry->xe_name, entry->xe_vallen,
@@ -113,47 +109,38 @@ static int ll_xattr_cache_add(struct list_head *cache,
 {
 	struct ll_xattr_entry *xattr;
 
-
-
 	if (ll_xattr_cache_find(cache, xattr_name, &xattr) == 0) {
 		CDEBUG(D_CACHE, "duplicate xattr: [%s]\n", xattr_name);
 		return -EPROTO;
 	}
 
-	OBD_SLAB_ALLOC_PTR_GFP(xattr, xattr_kmem, GFP_NOFS);
-	if (xattr == NULL) {
+	xattr = kmem_cache_zalloc(xattr_kmem, GFP_NOFS);
+	if (!xattr) {
 		CDEBUG(D_CACHE, "failed to allocate xattr\n");
 		return -ENOMEM;
 	}
 
-	xattr->xe_namelen = strlen(xattr_name) + 1;
-
-	OBD_ALLOC(xattr->xe_name, xattr->xe_namelen);
+	xattr->xe_name = kstrdup(xattr_name, GFP_NOFS);
 	if (!xattr->xe_name) {
 		CDEBUG(D_CACHE, "failed to alloc xattr name %u\n",
 		       xattr->xe_namelen);
 		goto err_name;
 	}
-	OBD_ALLOC(xattr->xe_value, xattr_val_len);
-	if (!xattr->xe_value) {
-		CDEBUG(D_CACHE, "failed to alloc xattr value %d\n",
-		       xattr_val_len);
+	xattr->xe_value = kmemdup(xattr_val, xattr_val_len, GFP_NOFS);
+	if (!xattr->xe_value)
 		goto err_value;
-	}
 
-	memcpy(xattr->xe_name, xattr_name, xattr->xe_namelen);
-	memcpy(xattr->xe_value, xattr_val, xattr_val_len);
 	xattr->xe_vallen = xattr_val_len;
 	list_add(&xattr->xe_list, cache);
 
-	CDEBUG(D_CACHE, "set: [%s]=%.*s\n", xattr_name,
-		xattr_val_len, xattr_val);
+	CDEBUG(D_CACHE, "set: [%s]=%.*s\n", xattr_name, xattr_val_len,
+	       xattr_val);
 
 	return 0;
 err_value:
-	OBD_FREE(xattr->xe_name, xattr->xe_namelen);
+	kfree(xattr->xe_name);
 err_name:
-	OBD_SLAB_FREE_PTR(xattr, xattr_kmem);
+	kmem_cache_free(xattr_kmem, xattr);
 
 	return -ENOMEM;
 }
@@ -171,15 +158,13 @@ static int ll_xattr_cache_del(struct list_head *cache,
 {
 	struct ll_xattr_entry *xattr;
 
-
-
 	CDEBUG(D_CACHE, "del xattr: %s\n", xattr_name);
 
 	if (ll_xattr_cache_find(cache, xattr_name, &xattr) == 0) {
 		list_del(&xattr->xe_list);
-		OBD_FREE(xattr->xe_name, xattr->xe_namelen);
-		OBD_FREE(xattr->xe_value, xattr->xe_vallen);
-		OBD_SLAB_FREE_PTR(xattr, xattr_kmem);
+		kfree(xattr->xe_name);
+		kfree(xattr->xe_value);
+		kmem_cache_free(xattr_kmem, xattr);
 
 		return 0;
 	}
@@ -204,11 +189,9 @@ static int ll_xattr_cache_list(struct list_head *cache,
 	struct ll_xattr_entry *xattr, *tmp;
 	int xld_tail = 0;
 
-
-
 	list_for_each_entry_safe(xattr, tmp, cache, xe_list) {
 		CDEBUG(D_CACHE, "list: buffer=%p[%d] name=%s\n",
-			xld_buffer, xld_tail, xattr->xe_name);
+		       xld_buffer, xld_tail, xattr->xe_name);
 
 		if (xld_buffer) {
 			xld_size -= xattr->xe_namelen;
@@ -247,7 +230,6 @@ static int ll_xattr_cache_valid(struct ll_inode_info *lli)
 static int ll_xattr_cache_destroy_locked(struct ll_inode_info *lli)
 {
 
-
 	if (!ll_xattr_cache_valid(lli))
 		return 0;
 
@@ -262,8 +244,6 @@ int ll_xattr_cache_destroy(struct inode *inode)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 	int rc;
-
-
 
 	down_write(&lli->lli_xattrs_list_rwsem);
 	rc = ll_xattr_cache_destroy_locked(lli);
@@ -287,7 +267,7 @@ static int ll_xattr_find_get_lock(struct inode *inode,
 				  struct lookup_intent *oit,
 				  struct ptlrpc_request **req)
 {
-	ldlm_mode_t mode;
+	enum ldlm_mode mode;
 	struct lustre_handle lockh = { 0 };
 	struct md_op_data *op_data;
 	struct ll_inode_info *lli = ll_i2info(inode);
@@ -299,16 +279,20 @@ static int ll_xattr_find_get_lock(struct inode *inode,
 	struct obd_export *exp = sbi->ll_md_exp;
 	int rc;
 
-
-
 	mutex_lock(&lli->lli_xattrs_enq_lock);
-	/* Try matching first. */
-	mode = ll_take_md_lock(inode, MDS_INODELOCK_XATTR, &lockh, 0, LCK_PR);
-	if (mode != 0) {
-		/* fake oit in mdc_revalidate_lock() manner */
-		oit->d.lustre.it_lock_handle = lockh.cookie;
-		oit->d.lustre.it_lock_mode = mode;
-		goto out;
+	/* inode may have been shrunk and recreated, so data is gone, match lock
+	 * only when data exists.
+	 */
+	if (ll_xattr_cache_valid(lli)) {
+		/* Try matching first. */
+		mode = ll_take_md_lock(inode, MDS_INODELOCK_XATTR, &lockh, 0,
+				       LCK_PR);
+		if (mode != 0) {
+			/* fake oit in mdc_revalidate_lock() manner */
+			oit->d.lustre.it_lock_handle = lockh.cookie;
+			oit->d.lustre.it_lock_mode = mode;
+			goto out;
+		}
 	}
 
 	/* Enqueue if the lock isn't cached locally. */
@@ -359,24 +343,24 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct mdt_body *body;
 	__u32 *xsizes;
-	int rc = 0, i;
-
-
+	int rc, i;
 
 	rc = ll_xattr_find_get_lock(inode, oit, &req);
 	if (rc)
-		GOTO(out_no_unlock, rc);
+		goto out_no_unlock;
 
 	/* Do we have the data at this point? */
 	if (ll_xattr_cache_valid(lli)) {
 		ll_stats_ops_tally(sbi, LPROC_LL_GETXATTR_HITS, 1);
-		GOTO(out_maybe_drop, rc = 0);
+		rc = 0;
+		goto out_maybe_drop;
 	}
 
 	/* Matched but no cache? Cancelled on error by a parallel refill. */
-	if (unlikely(req == NULL)) {
+	if (unlikely(!req)) {
 		CDEBUG(D_CACHE, "cancelled by a parallel getxattr\n");
-		GOTO(out_maybe_drop, rc = -EIO);
+		rc = -EIO;
+		goto out_maybe_drop;
 	}
 
 	if (oit->d.lustre.it_status < 0) {
@@ -386,24 +370,26 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 		/* xattr data is so large that we don't want to cache it */
 		if (rc == -ERANGE)
 			rc = -EAGAIN;
-		GOTO(out_destroy, rc);
+		goto out_destroy;
 	}
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-	if (body == NULL) {
+	if (!body) {
 		CERROR("no MDT BODY in the refill xattr reply\n");
-		GOTO(out_destroy, rc = -EPROTO);
+		rc = -EPROTO;
+		goto out_destroy;
 	}
 	/* do not need swab xattr data */
 	xdata = req_capsule_server_sized_get(&req->rq_pill, &RMF_EADATA,
-						body->eadatasize);
+					     body->eadatasize);
 	xval = req_capsule_server_sized_get(&req->rq_pill, &RMF_EAVALS,
-						body->aclsize);
+					    body->aclsize);
 	xsizes = req_capsule_server_sized_get(&req->rq_pill, &RMF_EAVALS_LENS,
 					      body->max_mdsize * sizeof(__u32));
-	if (xdata == NULL || xval == NULL || xsizes == NULL) {
+	if (!xdata || !xval || !xsizes) {
 		CERROR("wrong setxattr reply\n");
-		GOTO(out_destroy, rc = -EPROTO);
+		rc = -EPROTO;
+		goto out_destroy;
 	}
 
 	xtail = xdata + body->eadatasize;
@@ -416,7 +402,7 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 	for (i = 0; i < body->max_mdsize; i++) {
 		CDEBUG(D_CACHE, "caching [%s]=%.*s\n", xdata, *xsizes, xval);
 		/* Perform consistency checks: attr names and vals in pill */
-		if (memchr(xdata, 0, xtail - xdata) == NULL) {
+		if (!memchr(xdata, 0, xtail - xdata)) {
 			CERROR("xattr protocol violation (names are broken)\n");
 			rc = -EPROTO;
 		} else if (xval + *xsizes > xvtail) {
@@ -435,7 +421,7 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 		}
 		if (rc < 0) {
 			ll_xattr_cache_destroy_locked(lli);
-			GOTO(out_destroy, rc);
+			goto out_destroy;
 		}
 		xdata += strlen(xdata) + 1;
 		xval  += *xsizes;
@@ -447,7 +433,7 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 
 	ll_set_lock_data(sbi->ll_md_exp, inode, oit, NULL);
 
-	GOTO(out_maybe_drop, rc);
+	goto out_maybe_drop;
 out_maybe_drop:
 
 		ll_intent_drop_lock(oit);
@@ -483,17 +469,12 @@ out_destroy:
  * \retval -ERANGE  the buffer is not large enough
  * \retval -ENODATA no such attr or the list is empty
  */
-int ll_xattr_cache_get(struct inode *inode,
-			const char *name,
-			char *buffer,
-			size_t size,
-			__u64 valid)
+int ll_xattr_cache_get(struct inode *inode, const char *name, char *buffer,
+		       size_t size, __u64 valid)
 {
 	struct lookup_intent oit = { .it_op = IT_GETXATTR };
 	struct ll_inode_info *lli = ll_i2info(inode);
 	int rc = 0;
-
-
 
 	LASSERT(!!(valid & OBD_MD_FLXATTR) ^ !!(valid & OBD_MD_FLXATTRLS));
 
@@ -518,7 +499,7 @@ int ll_xattr_cache_get(struct inode *inode,
 			if (size != 0) {
 				if (size >= xattr->xe_vallen)
 					memcpy(buffer, xattr->xe_value,
-						xattr->xe_vallen);
+					       xattr->xe_vallen);
 				else
 					rc = -ERANGE;
 			}
@@ -528,7 +509,7 @@ int ll_xattr_cache_get(struct inode *inode,
 					 size ? buffer : NULL, size);
 	}
 
-	GOTO(out, rc);
+	goto out;
 out:
 	up_read(&lli->lli_xattrs_list_rwsem);
 

@@ -9,6 +9,7 @@ Required properties:
 	      "renesas,ether-r8a7779"  if the device is a part of R8A7779 SoC.
 	      "renesas,ether-r8a7790"  if the device is a part of R8A7790 SoC.
 	      "renesas,ether-r8a7791"  if the device is a part of R8A7791 SoC.
+	      "renesas,ether-r8a7793"  if the device is a part of R8A7793 SoC.
 	      "renesas,ether-r8a7794"  if the device is a part of R8A7794 SoC.
 	      "renesas,ether-r7s72100" if the device is a part of R7S72100 SoC.
 - reg: offset and length of (1) the E-DMAC/feLic register block (required),

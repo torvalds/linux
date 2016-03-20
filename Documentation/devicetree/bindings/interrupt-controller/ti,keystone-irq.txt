@@ -1,0 +1,36 @@
+Keystone 2 IRQ controller IP
+
+On Keystone SOCs, DSP cores can send interrupts to ARM
+host using the IRQ controller IP. It provides 28 IRQ signals to ARM.
+The IRQ handler running on HOST OS can identify DSP signal source by
+analyzing SRCCx bits in IPCARx registers. This is one of the component
+used by the IPC mechanism used on Keystone SOCs.
+
+Required Properties:
+- compatible: should be "ti,keystone-irq"
+- ti,syscon-dev : phandle and offset pair. The phandle to syscon used to
+			access device control registers and the offset inside
+			device control registers range.
+- interrupt-controller : Identifies the node as an interrupt controller
+- #interrupt-cells : Specifies the number of cells needed to encode interrupt
+					 source should be 1.
+- interrupts: interrupt reference to primary interrupt controller
+
+Please refer to interrupts.txt in this directory for details of the common
+Interrupt Controllers bindings used by client devices.
+
+Example:
+	kirq0: keystone_irq0@026202a0 {
+		compatible = "ti,keystone-irq";
+		ti,syscon-dev = <&devctrl 0x2a0>;
+		interrupts = <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+	};
+
+	dsp0: dsp0 {
+		compatible = "linux,rproc-user";
+		...
+		interrupt-parent = <&kirq0>;
+		interrupts = <10 2>;
+	};

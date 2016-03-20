@@ -6,7 +6,7 @@ Introduction
 
 Kmemleak provides a way of detecting possible kernel memory leaks in a
 way similar to a tracing garbage collector
-(http://en.wikipedia.org/wiki/Garbage_collection_%28computer_science%29#Tracing_garbage_collectors),
+(https://en.wikipedia.org/wiki/Garbage_collection_%28computer_science%29#Tracing_garbage_collectors),
 with the difference that the orphan objects are not freed but only
 reported via /sys/kernel/debug/kmemleak. A similar method is used by the
 Valgrind tool (memcheck --leak-check) to detect the memory leaks in
@@ -61,6 +61,10 @@ the kernel command line.
 Memory may be allocated or freed before kmemleak is initialised and
 these actions are stored in an early log buffer. The size of this buffer
 is configured via the CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE option.
+
+If CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF are enabled, the kmemleak is
+disabled by default. Passing "kmemleak=on" on the kernel command
+line enables the function. 
 
 Basic Algorithm
 ---------------
@@ -122,7 +126,7 @@ Then as usual to get your report with:
 Freeing kmemleak internal objects
 ---------------------------------
 
-To allow access to previosuly found memory leaks after kmemleak has been
+To allow access to previously found memory leaks after kmemleak has been
 disabled by the user or due to an fatal error, internal kmemleak objects
 won't be freed when kmemleak is disabled, and those objects may occupy
 a large part of physical memory.

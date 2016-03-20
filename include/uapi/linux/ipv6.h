@@ -1,6 +1,7 @@
 #ifndef _UAPI_IPV6_H
 #define _UAPI_IPV6_H
 
+#include <linux/libc-compat.h>
 #include <linux/types.h>
 #include <linux/in6.h>
 #include <asm/byteorder.h>
@@ -15,16 +16,19 @@
  *	*under construction*
  */
 
-
+#if __UAPI_DEF_IN6_PKTINFO
 struct in6_pktinfo {
 	struct in6_addr	ipi6_addr;
 	int		ipi6_ifindex;
 };
+#endif
 
+#if __UAPI_DEF_IP6_MTUINFO
 struct ip6_mtuinfo {
 	struct sockaddr_in6	ip6m_addr;
 	__u32			ip6m_mtu;
 };
+#endif
 
 struct in6_ifreq {
 	struct in6_addr	ifr6_addr;
@@ -164,6 +168,15 @@ enum {
 	DEVCONF_MLDV2_UNSOLICITED_REPORT_INTERVAL,
 	DEVCONF_SUPPRESS_FRAG_NDISC,
 	DEVCONF_ACCEPT_RA_FROM_LOCAL,
+	DEVCONF_USE_OPTIMISTIC,
+	DEVCONF_ACCEPT_RA_MTU,
+	DEVCONF_STABLE_SECRET,
+	DEVCONF_USE_OIF_ADDRS_ONLY,
+	DEVCONF_ACCEPT_RA_MIN_HOP_LIMIT,
+	DEVCONF_IGNORE_ROUTES_WITH_LINKDOWN,
+	DEVCONF_DROP_UNICAST_IN_L2_MULTICAST,
+	DEVCONF_DROP_UNSOLICITED_NA,
+	DEVCONF_KEEP_ADDR_ON_DOWN,
 	DEVCONF_MAX
 };
 

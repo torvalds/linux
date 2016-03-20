@@ -34,7 +34,6 @@ struct mdio_mux_child_bus {
 	struct mdio_mux_parent_bus *parent;
 	struct mdio_mux_child_bus *next;
 	int bus_number;
-	int phy_irq[PHY_MAX_ADDR];
 };
 
 /*
@@ -113,15 +112,15 @@ int mdio_mux_init(struct device *dev,
 	if (!parent_bus_node)
 		return -ENODEV;
 
-	parent_bus = of_mdio_find_bus(parent_bus_node);
-	if (parent_bus == NULL) {
-		ret_val = -EPROBE_DEFER;
-		goto err_parent_bus;
-	}
-
 	pb = devm_kzalloc(dev, sizeof(*pb), GFP_KERNEL);
 	if (pb == NULL) {
 		ret_val = -ENOMEM;
+		goto err_parent_bus;
+	}
+
+	parent_bus = of_mdio_find_bus(parent_bus_node);
+	if (parent_bus == NULL) {
+		ret_val = -EPROBE_DEFER;
 		goto err_parent_bus;
 	}
 
@@ -144,14 +143,20 @@ int mdio_mux_init(struct device *dev,
 			dev_err(dev,
 				"Error: Failed to allocate memory for child\n");
 			ret_val = -ENOMEM;
+			of_node_put(child_bus_node);
 			break;
 		}
 		cb->bus_number = v;
 		cb->parent = pb;
+
 		cb->mii_bus = mdiobus_alloc();
+		if (!cb->mii_bus) {
+			ret_val = -ENOMEM;
+			of_node_put(child_bus_node);
+			break;
+		}
 		cb->mii_bus->priv = cb;
 
-		cb->mii_bus->irq = cb->phy_irq;
 		cb->mii_bus->name = "mdio_mux";
 		snprintf(cb->mii_bus->id, MII_BUS_ID_SIZE, "%x.%x",
 			 pb->parent_id, v);
@@ -173,6 +178,10 @@ int mdio_mux_init(struct device *dev,
 		dev_info(dev, "Version " DRV_VERSION "\n");
 		return 0;
 	}
+
+	/* balance the reference of_mdio_find_bus() took */
+	put_device(&pb->mii_bus->dev);
+
 err_parent_bus:
 	of_node_put(parent_bus_node);
 	return ret_val;
@@ -189,6 +198,9 @@ void mdio_mux_uninit(void *mux_handle)
 		mdiobus_free(cb->mii_bus);
 		cb = cb->next;
 	}
+
+	/* balance the reference of_mdio_find_bus() in mdio_mux_init() took */
+	put_device(&pb->mii_bus->dev);
 }
 EXPORT_SYMBOL_GPL(mdio_mux_uninit);
 

@@ -57,7 +57,7 @@ static int tuner_attach_stv6110(struct ngene_channel *chan)
 		chan->dev->card_info->fe_config[chan->number];
 	struct stv6110x_config *tunerconf = (struct stv6110x_config *)
 		chan->dev->card_info->tuner_config[chan->number];
-	struct stv6110x_devctl *ctl;
+	const struct stv6110x_devctl *ctl;
 
 	/* tuner 1+2: i2c adapter #0, tuner 3+4: i2c adapter #1 */
 	if (chan->number < 2)
@@ -696,7 +696,7 @@ static struct ngene_info ngene_info_m780 = {
 	.demod_attach   = { NULL, demod_attach_lg330x },
 
 	/* Ensure these are NULL else the frame will call them (as funcs) */
-	.tuner_attach   = { 0, 0, 0, 0 },
+	.tuner_attach   = { NULL, NULL, NULL, NULL },
 	.fe_config      = { NULL, &aver_m780 },
 	.avf            = { 0 },
 

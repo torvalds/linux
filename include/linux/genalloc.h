@@ -30,10 +30,12 @@
 #ifndef __GENALLOC_H__
 #define __GENALLOC_H__
 
+#include <linux/types.h>
 #include <linux/spinlock_types.h>
 
 struct device;
 struct device_node;
+struct gen_pool;
 
 /**
  * Allocation callback function type definition
@@ -47,7 +49,7 @@ typedef unsigned long (*genpool_algo_t)(unsigned long *map,
 			unsigned long size,
 			unsigned long start,
 			unsigned int nr,
-			void *data);
+			void *data, struct gen_pool *pool);
 
 /*
  *  General purpose special memory pool descriptor.
@@ -59,6 +61,8 @@ struct gen_pool {
 
 	genpool_algo_t algo;		/* allocation function */
 	void *data;
+
+	const char *name;
 };
 
 /*
@@ -71,6 +75,20 @@ struct gen_pool_chunk {
 	unsigned long start_addr;	/* start address of memory chunk */
 	unsigned long end_addr;		/* end address of memory chunk (inclusive) */
 	unsigned long bits[0];		/* bitmap for allocating memory chunk */
+};
+
+/*
+ *  gen_pool data descriptor for gen_pool_first_fit_align.
+ */
+struct genpool_data_align {
+	int align;		/* alignment by bytes for starting address */
+};
+
+/*
+ *  gen_pool data descriptor for gen_pool_fixed_alloc.
+ */
+struct genpool_data_fixed {
+	unsigned long offset;		/* The offset of the specific region */
 };
 
 extern struct gen_pool *gen_pool_create(int, int);
@@ -96,6 +114,8 @@ static inline int gen_pool_add(struct gen_pool *pool, unsigned long addr,
 }
 extern void gen_pool_destroy(struct gen_pool *);
 extern unsigned long gen_pool_alloc(struct gen_pool *, size_t);
+extern unsigned long gen_pool_alloc_algo(struct gen_pool *, size_t,
+		genpool_algo_t algo, void *data);
 extern void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size,
 		dma_addr_t *dma);
 extern void gen_pool_free(struct gen_pool *, unsigned long, size_t);
@@ -108,20 +128,39 @@ extern void gen_pool_set_algo(struct gen_pool *pool, genpool_algo_t algo,
 		void *data);
 
 extern unsigned long gen_pool_first_fit(unsigned long *map, unsigned long size,
-		unsigned long start, unsigned int nr, void *data);
+		unsigned long start, unsigned int nr, void *data,
+		struct gen_pool *pool);
+
+extern unsigned long gen_pool_fixed_alloc(unsigned long *map,
+		unsigned long size, unsigned long start, unsigned int nr,
+		void *data, struct gen_pool *pool);
+
+extern unsigned long gen_pool_first_fit_align(unsigned long *map,
+		unsigned long size, unsigned long start, unsigned int nr,
+		void *data, struct gen_pool *pool);
+
+
+extern unsigned long gen_pool_first_fit_order_align(unsigned long *map,
+		unsigned long size, unsigned long start, unsigned int nr,
+		void *data, struct gen_pool *pool);
 
 extern unsigned long gen_pool_best_fit(unsigned long *map, unsigned long size,
-		unsigned long start, unsigned int nr, void *data);
+		unsigned long start, unsigned int nr, void *data,
+		struct gen_pool *pool);
+
 
 extern struct gen_pool *devm_gen_pool_create(struct device *dev,
-		int min_alloc_order, int nid);
-extern struct gen_pool *dev_get_gen_pool(struct device *dev);
+		int min_alloc_order, int nid, const char *name);
+extern struct gen_pool *gen_pool_get(struct device *dev, const char *name);
+
+bool addr_in_gen_pool(struct gen_pool *pool, unsigned long start,
+			size_t size);
 
 #ifdef CONFIG_OF
-extern struct gen_pool *of_get_named_gen_pool(struct device_node *np,
+extern struct gen_pool *of_gen_pool_get(struct device_node *np,
 	const char *propname, int index);
 #else
-static inline struct gen_pool *of_get_named_gen_pool(struct device_node *np,
+static inline struct gen_pool *of_gen_pool_get(struct device_node *np,
 	const char *propname, int index)
 {
 	return NULL;

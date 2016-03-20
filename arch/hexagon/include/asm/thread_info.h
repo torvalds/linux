@@ -47,7 +47,6 @@ typedef struct {
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
-	struct exec_domain      *exec_domain;   /* execution domain */
 	unsigned long		flags;          /* low level flags */
 	__u32                   cpu;            /* current cpu */
 	int                     preempt_count;  /* 0=>preemptible,<0=>BUG */
@@ -56,7 +55,6 @@ struct thread_info {
 	 * used for syscalls somehow;
 	 * seems to have a function pointer and four arguments
 	 */
-	struct restart_block    restart_block;
 	/* Points to the current pt_regs frame  */
 	struct pt_regs		*regs;
 	/*
@@ -78,14 +76,10 @@ struct thread_info {
 #define INIT_THREAD_INFO(tsk)                   \
 {                                               \
 	.task           = &tsk,                 \
-	.exec_domain    = &default_exec_domain, \
 	.flags          = 0,                    \
 	.cpu            = 0,                    \
 	.preempt_count  = 1,                    \
 	.addr_limit     = KERNEL_DS,            \
-	.restart_block = {                      \
-		.fn = do_no_restart_syscall,    \
-	},                                      \
 	.sp = 0,				\
 	.regs = NULL,			\
 }

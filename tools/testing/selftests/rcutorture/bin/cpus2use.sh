@@ -24,7 +24,7 @@
 
 ncpus=`grep '^processor' /proc/cpuinfo | wc -l`
 idlecpus=`mpstat | tail -1 | \
-	awk -v ncpus=$ncpus '{ print ncpus * ($7 + $12) / 100 }'`
+	awk -v ncpus=$ncpus '{ print ncpus * ($7 + $NF) / 100 }'`
 awk -v ncpus=$ncpus -v idlecpus=$idlecpus < /dev/null '
 BEGIN {
 	cpus2use = idlecpus;

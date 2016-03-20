@@ -164,14 +164,6 @@ struct false_alarm_stats {
 	u32	Cnt_BW_LSC;	/* Gary */
 };
 
-struct dyn_primary_cca {
-	u8		PriCCA_flag;
-	u8		intf_flag;
-	u8		intf_type;
-	u8		DupRTS_flag;
-	u8		Monitor_flag;
-};
-
 struct rx_hpc {
 	u8		RXHP_flag;
 	u8		PSD_func_trigger;
@@ -356,7 +348,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_MP_TEST_CHIP,
 	ODM_CMNINFO_IC_TYPE,		/* ODM_IC_TYPE_E */
 	ODM_CMNINFO_CUT_VER,		/* ODM_CUT_VERSION_E */
-	ODM_CMNINFO_FAB_VER,		/* ODM_FAB_E */
 	ODM_CMNINFO_RF_TYPE,		/* ODM_RF_PATH_E or ODM_RF_TYPE_E? */
 	ODM_CMNINFO_BOARD_TYPE,		/* ODM_BOARD_TYPE_E */
 	ODM_CMNINFO_EXT_LNA,		/* true */
@@ -422,31 +413,31 @@ enum odm_common_info_def {
 
 enum odm_ability_def {
 	/*  BB ODM section BIT 0-15 */
-	ODM_BB_DIG			= BIT0,
-	ODM_BB_RA_MASK			= BIT1,
-	ODM_BB_DYNAMIC_TXPWR		= BIT2,
-	ODM_BB_FA_CNT			= BIT3,
-	ODM_BB_RSSI_MONITOR		= BIT4,
-	ODM_BB_CCK_PD			= BIT5,
-	ODM_BB_ANT_DIV			= BIT6,
-	ODM_BB_PWR_SAVE			= BIT7,
-	ODM_BB_PWR_TRA			= BIT8,
-	ODM_BB_RATE_ADAPTIVE		= BIT9,
-	ODM_BB_PATH_DIV			= BIT10,
-	ODM_BB_PSD			= BIT11,
-	ODM_BB_RXHP			= BIT12,
+	ODM_BB_DIG			= BIT(0),
+	ODM_BB_RA_MASK			= BIT(1),
+	ODM_BB_DYNAMIC_TXPWR		= BIT(2),
+	ODM_BB_FA_CNT			= BIT(3),
+	ODM_BB_RSSI_MONITOR		= BIT(4),
+	ODM_BB_CCK_PD			= BIT(5),
+	ODM_BB_ANT_DIV			= BIT(6),
+	ODM_BB_PWR_SAVE			= BIT(7),
+	ODM_BB_PWR_TRA			= BIT(8),
+	ODM_BB_RATE_ADAPTIVE		= BIT(9),
+	ODM_BB_PATH_DIV			= BIT(10),
+	ODM_BB_PSD			= BIT(11),
+	ODM_BB_RXHP			= BIT(12),
 
 	/*  MAC DM section BIT 16-23 */
-	ODM_MAC_EDCA_TURBO		= BIT16,
-	ODM_MAC_EARLY_MODE		= BIT17,
+	ODM_MAC_EDCA_TURBO		= BIT(16),
+	ODM_MAC_EARLY_MODE		= BIT(17),
 
 	/*  RF ODM section BIT 24-31 */
-	ODM_RF_TX_PWR_TRACK		= BIT24,
-	ODM_RF_RX_GAIN_TRACK		= BIT25,
-	ODM_RF_CALIBRATION		= BIT26,
+	ODM_RF_TX_PWR_TRACK		= BIT(24),
+	ODM_RF_RX_GAIN_TRACK		= BIT(25),
+	ODM_RF_CALIBRATION		= BIT(26),
 };
 
-#define ODM_RTL8188E		BIT4
+#define ODM_RTL8188E		BIT(4)
 
 /* ODM_CMNINFO_CUT_VER */
 enum odm_cut_version {
@@ -459,23 +450,17 @@ enum odm_cut_version {
 	ODM_CUT_TEST	=	7,
 };
 
-/*  ODM_CMNINFO_FAB_VER */
-enum odm_fab_Version {
-	ODM_TSMC	=	0,
-	ODM_UMC		=	1,
-};
-
 /*  ODM_CMNINFO_RF_TYPE */
 /*  For example 1T2R (A+AB = BIT0|BIT4|BIT5) */
 enum odm_rf_path {
-	ODM_RF_TX_A	=	BIT0,
-	ODM_RF_TX_B	=	BIT1,
-	ODM_RF_TX_C	=	BIT2,
-	ODM_RF_TX_D	=	BIT3,
-	ODM_RF_RX_A	=	BIT4,
-	ODM_RF_RX_B	=	BIT5,
-	ODM_RF_RX_C	=	BIT6,
-	ODM_RF_RX_D	=	BIT7,
+	ODM_RF_TX_A	=	BIT(0),
+	ODM_RF_TX_B	=	BIT(1),
+	ODM_RF_TX_C	=	BIT(2),
+	ODM_RF_TX_D	=	BIT(3),
+	ODM_RF_RX_A	=	BIT(4),
+	ODM_RF_RX_B	=	BIT(5),
+	ODM_RF_RX_C	=	BIT(6),
+	ODM_RF_RX_D	=	BIT(7),
 };
 
 enum odm_rf_type {
@@ -506,33 +491,33 @@ enum odm_bt_coexist {
 
 /*  ODM_CMNINFO_OP_MODE */
 enum odm_operation_mode {
-	ODM_NO_LINK		= BIT0,
-	ODM_LINK		= BIT1,
-	ODM_SCAN		= BIT2,
-	ODM_POWERSAVE		= BIT3,
-	ODM_AP_MODE		= BIT4,
-	ODM_CLIENT_MODE		= BIT5,
-	ODM_AD_HOC		= BIT6,
-	ODM_WIFI_DIRECT		= BIT7,
-	ODM_WIFI_DISPLAY	= BIT8,
+	ODM_NO_LINK		= BIT(0),
+	ODM_LINK		= BIT(1),
+	ODM_SCAN		= BIT(2),
+	ODM_POWERSAVE		= BIT(3),
+	ODM_AP_MODE		= BIT(4),
+	ODM_CLIENT_MODE		= BIT(5),
+	ODM_AD_HOC		= BIT(6),
+	ODM_WIFI_DIRECT		= BIT(7),
+	ODM_WIFI_DISPLAY	= BIT(8),
 };
 
 /*  ODM_CMNINFO_WM_MODE */
 enum odm_wireless_mode {
 	ODM_WM_UNKNOW	= 0x0,
-	ODM_WM_B	= BIT0,
-	ODM_WM_G	= BIT1,
-	ODM_WM_A	= BIT2,
-	ODM_WM_N24G	= BIT3,
-	ODM_WM_N5G	= BIT4,
-	ODM_WM_AUTO	= BIT5,
-	ODM_WM_AC	= BIT6,
+	ODM_WM_B	= BIT(0),
+	ODM_WM_G	= BIT(1),
+	ODM_WM_A	= BIT(2),
+	ODM_WM_N24G	= BIT(3),
+	ODM_WM_N5G	= BIT(4),
+	ODM_WM_AUTO	= BIT(5),
+	ODM_WM_AC	= BIT(6),
 };
 
 /*  ODM_CMNINFO_BAND */
 enum odm_band_type {
-	ODM_BAND_2_4G	= BIT0,
-	ODM_BAND_5G	= BIT1,
+	ODM_BAND_2_4G	= BIT(0),
+	ODM_BAND_5G	= BIT(1),
 };
 
 /*  ODM_CMNINFO_SEC_CHNL_OFFSET */
@@ -760,8 +745,6 @@ struct odm_dm_struct {
 	u32	SupportICType;
 	/*  Cut Version TestChip/A-cut/B-cut... = 0/1/2/3/... */
 	u8	CutVersion;
-	/*  Fab Version TSMC/UMC = 0/1 */
-	u8	FabVersion;
 	/*  RF Type 4T4R/3T3R/2T2R/1T2R/1T1R/... */
 	u8	RFType;
 	/*  Board Type Normal/HighPower/MiniCard/SLIM/Combo/. = 0/1/2/3/4/. */
@@ -867,7 +850,6 @@ struct odm_dm_struct {
 	struct fast_ant_train DM_FatTable;
 	struct rtw_dig	DM_DigTable;
 	struct rtl_ps	DM_PSTable;
-	struct dyn_primary_cca DM_PriCCA;
 	struct rx_hpc	DM_RXHP_Table;
 	struct false_alarm_stats FalseAlmCnt;
 	struct false_alarm_stats FlaseAlmCntBuddyAdapter;
@@ -925,14 +907,6 @@ enum ODM_RF_CONTENT {
 	odm_radiob_txt = 0x1001,
 	odm_radioc_txt = 0x1002,
 	odm_radiod_txt = 0x1003
-};
-
-enum odm_bb_config_type {
-    CONFIG_BB_PHY_REG,
-    CONFIG_BB_AGC_TAB,
-    CONFIG_BB_AGC_TAB_2G,
-    CONFIG_BB_AGC_TAB_5G,
-    CONFIG_BB_PHY_REG_PG,
 };
 
 /*  Status code */
@@ -1077,7 +1051,7 @@ enum dm_swas {
 
 extern	u32 OFDMSwingTable[OFDM_TABLE_SIZE_92D];
 extern	u8 CCKSwingTable_Ch1_Ch13[CCK_TABLE_SIZE][8];
-extern	u8 CCKSwingTable_Ch14 [CCK_TABLE_SIZE][8];
+extern	u8 CCKSwingTable_Ch14[CCK_TABLE_SIZE][8];
 
 /*  check Sta pointer valid or not */
 #define IS_STA_VALID(pSta)		(pSta)

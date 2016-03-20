@@ -23,12 +23,6 @@ struct v4l2_ioctl_ops {
 	/* VIDIOC_QUERYCAP handler */
 	int (*vidioc_querycap)(struct file *file, void *fh, struct v4l2_capability *cap);
 
-	/* Priority handling */
-	int (*vidioc_g_priority)   (struct file *file, void *fh,
-				    enum v4l2_priority *p);
-	int (*vidioc_s_priority)   (struct file *file, void *fh,
-				    enum v4l2_priority p);
-
 	/* VIDIOC_ENUM_FMT handlers */
 	int (*vidioc_enum_fmt_vid_cap)     (struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
@@ -41,6 +35,8 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_enum_fmt_vid_out_mplane)(struct file *file, void *fh,
 					      struct v4l2_fmtdesc *f);
 	int (*vidioc_enum_fmt_sdr_cap)     (struct file *file, void *fh,
+					    struct v4l2_fmtdesc *f);
+	int (*vidioc_enum_fmt_sdr_out)     (struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
 
 	/* VIDIOC_G_FMT handlers */
@@ -66,6 +62,8 @@ struct v4l2_ioctl_ops {
 					   struct v4l2_format *f);
 	int (*vidioc_g_fmt_sdr_cap)    (struct file *file, void *fh,
 					struct v4l2_format *f);
+	int (*vidioc_g_fmt_sdr_out)    (struct file *file, void *fh,
+					struct v4l2_format *f);
 
 	/* VIDIOC_S_FMT handlers */
 	int (*vidioc_s_fmt_vid_cap)    (struct file *file, void *fh,
@@ -90,6 +88,8 @@ struct v4l2_ioctl_ops {
 					   struct v4l2_format *f);
 	int (*vidioc_s_fmt_sdr_cap)    (struct file *file, void *fh,
 					struct v4l2_format *f);
+	int (*vidioc_s_fmt_sdr_out)    (struct file *file, void *fh,
+					struct v4l2_format *f);
 
 	/* VIDIOC_TRY_FMT handlers */
 	int (*vidioc_try_fmt_vid_cap)    (struct file *file, void *fh,
@@ -113,6 +113,8 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_try_fmt_vid_out_mplane)(struct file *file, void *fh,
 					     struct v4l2_format *f);
 	int (*vidioc_try_fmt_sdr_cap)    (struct file *file, void *fh,
+					  struct v4l2_format *f);
+	int (*vidioc_try_fmt_sdr_out)    (struct file *file, void *fh,
 					  struct v4l2_format *f);
 
 	/* Buffer handlers */
@@ -291,9 +293,18 @@ struct v4l2_ioctl_ops {
 
 /* v4l debugging and diagnostics */
 
-/* Debug bitmask flags to be used on V4L2 */
-#define V4L2_DEBUG_IOCTL     0x01
-#define V4L2_DEBUG_IOCTL_ARG 0x02
+/* Device debug flags to be used with the video device debug attribute */
+
+/* Just log the ioctl name + error code */
+#define V4L2_DEV_DEBUG_IOCTL		0x01
+/* Log the ioctl name arguments + error code */
+#define V4L2_DEV_DEBUG_IOCTL_ARG	0x02
+/* Log the file operations open, release, mmap and get_unmapped_area */
+#define V4L2_DEV_DEBUG_FOP		0x04
+/* Log the read and write file operations and the VIDIOC_(D)QBUF ioctls */
+#define V4L2_DEV_DEBUG_STREAMING	0x08
+/* Log poll() */
+#define V4L2_DEV_DEBUG_POLL		0x10
 
 /*  Video standard functions  */
 extern const char *v4l2_norm_to_name(v4l2_std_id id);

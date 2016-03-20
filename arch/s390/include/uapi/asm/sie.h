@@ -7,6 +7,7 @@
 	{ 0x9c, "DIAG (0x9c) time slice end directed" },	\
 	{ 0x204, "DIAG (0x204) logical-cpu utilization" },	\
 	{ 0x258, "DIAG (0x258) page-reference services" },	\
+	{ 0x288, "DIAG (0x288) watchdog functions" },		\
 	{ 0x308, "DIAG (0x308) ipl functions" },		\
 	{ 0x500, "DIAG (0x500) KVM virtio functions" },		\
 	{ 0x501, "DIAG (0x501) KVM breakpoint" }
@@ -230,7 +231,7 @@
  * and returns a key, which can be used to find a mnemonic name
  * of the instruction in the icpt_insn_codes table.
  */
-#define icpt_insn_decoder(insn)			\
+#define icpt_insn_decoder(insn) (		\
 	INSN_DECODE_IPA0(0x01, insn, 48, 0xff)	\
 	INSN_DECODE_IPA0(0xaa, insn, 48, 0x0f)	\
 	INSN_DECODE_IPA0(0xb2, insn, 48, 0xff)	\
@@ -239,6 +240,6 @@
 	INSN_DECODE_IPA0(0xe5, insn, 48, 0xff)	\
 	INSN_DECODE_IPA0(0xeb, insn, 16, 0xff)	\
 	INSN_DECODE_IPA0(0xc8, insn, 48, 0x0f)	\
-	INSN_DECODE(insn)
+	INSN_DECODE(insn))
 
 #endif /* _UAPI_ASM_S390_SIE_H */

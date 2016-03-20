@@ -1,5 +1,3 @@
-#ifdef CONFIG_SCHED_AUTOGROUP
-
 #include "sched.h"
 
 #include <linux/proc_fs.h>
@@ -87,8 +85,7 @@ static inline struct autogroup *autogroup_create(void)
 	 * so we don't have to move tasks around upon policy change,
 	 * or flail around trying to allocate bandwidth on the fly.
 	 * A bandwidth exception in __sched_setscheduler() allows
-	 * the policy change to proceed.  Thereafter, task_group()
-	 * returns &root_task_group, so zero bandwidth is required.
+	 * the policy change to proceed.
 	 */
 	free_rt_sched_group(tg);
 	tg->rt_se = root_task_group.rt_se;
@@ -113,9 +110,6 @@ out_fail:
 bool task_wants_autogroup(struct task_struct *p, struct task_group *tg)
 {
 	if (tg != &root_task_group)
-		return false;
-
-	if (p->sched_class != &fair_sched_class)
 		return false;
 
 	/*
@@ -145,14 +139,11 @@ autogroup_move_group(struct task_struct *p, struct autogroup *ag)
 
 	p->signal->autogroup = autogroup_kref_get(ag);
 
-	if (!ACCESS_ONCE(sysctl_sched_autogroup_enabled))
+	if (!READ_ONCE(sysctl_sched_autogroup_enabled))
 		goto out;
 
-	t = p;
-	do {
+	for_each_thread(p, t)
 		sched_move_task(t);
-	} while_each_thread(p, t);
-
 out:
 	unlock_task_sighand(p, &flags);
 	autogroup_kref_put(prev);
@@ -221,7 +212,7 @@ int proc_sched_autogroup_set_nice(struct task_struct *p, int nice)
 	ag = autogroup_task_get(p);
 
 	down_write(&ag->lock);
-	err = sched_group_set_shares(ag->tg, prio_to_weight[nice + 20]);
+	err = sched_group_set_shares(ag->tg, sched_prio_to_weight[nice + 20]);
 	if (!err)
 		ag->nice = nice;
 	up_write(&ag->lock);
@@ -256,5 +247,3 @@ int autogroup_path(struct task_group *tg, char *buf, int buflen)
 	return snprintf(buf, buflen, "%s-%ld", "/autogroup", tg->autogroup->id);
 }
 #endif /* CONFIG_SCHED_DEBUG */
-
-#endif /* CONFIG_SCHED_AUTOGROUP */

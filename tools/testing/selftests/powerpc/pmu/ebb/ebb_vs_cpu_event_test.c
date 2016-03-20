@@ -41,6 +41,8 @@ int ebb_vs_cpu_event(void)
 	int cpu, rc;
 	pid_t pid;
 
+	SKIP_IF(!ebb_is_supported());
+
 	cpu = pick_online_cpu();
 	FAIL_IF(cpu < 0);
 	FAIL_IF(bind_to_cpu(cpu));

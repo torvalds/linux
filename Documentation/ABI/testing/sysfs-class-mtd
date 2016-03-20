@@ -222,3 +222,13 @@ Description:
 		The number of blocks that are marked as reserved, if any, in
 		this partition. These are typically used to store the in-flash
 		bad block table (BBT).
+
+What:		/sys/class/mtd/mtdX/offset
+Date:		March 2015
+KernelVersion:	4.1
+Contact:	linux-mtd@lists.infradead.org
+Description:
+		For a partition, the offset of that partition from the start
+		of the master device in bytes. This attribute is absent on
+		main devices, so it can be used to distinguish between
+		partitions and devices that aren't partitions.

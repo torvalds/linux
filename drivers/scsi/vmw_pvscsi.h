@@ -26,13 +26,12 @@
 
 #include <linux/types.h>
 
-#define PVSCSI_DRIVER_VERSION_STRING   "1.0.5.0-k"
+#define PVSCSI_DRIVER_VERSION_STRING   "1.0.6.0-k"
 
 #define PVSCSI_MAX_NUM_SG_ENTRIES_PER_SEGMENT 128
 
 #define MASK(n)        ((1 << (n)) - 1)        /* make an n-bit mask */
 
-#define PCI_VENDOR_ID_VMWARE		0x15AD
 #define PCI_DEVICE_ID_VMWARE_PVSCSI	0x07C0
 
 /*

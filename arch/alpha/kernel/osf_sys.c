@@ -104,11 +104,12 @@ struct osf_dirent_callback {
 };
 
 static int
-osf_filldir(void *__buf, const char *name, int namlen, loff_t offset,
-	    u64 ino, unsigned int d_type)
+osf_filldir(struct dir_context *ctx, const char *name, int namlen,
+	    loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct osf_dirent __user *dirent;
-	struct osf_dirent_callback *buf = (struct osf_dirent_callback *) __buf;
+	struct osf_dirent_callback *buf =
+		container_of(ctx, struct osf_dirent_callback, ctx);
 	unsigned int reclen = ALIGN(NAME_OFFSET + namlen + 1, sizeof(u32));
 	unsigned int d_ino;
 
@@ -446,7 +447,8 @@ struct procfs_args {
  * unhappy with OSF UFS. [CHECKME]
  */
 static int
-osf_ufs_mount(const char *dirname, struct ufs_args __user *args, int flags)
+osf_ufs_mount(const char __user *dirname,
+	      struct ufs_args __user *args, int flags)
 {
 	int retval;
 	struct cdfs_args tmp;
@@ -466,7 +468,8 @@ osf_ufs_mount(const char *dirname, struct ufs_args __user *args, int flags)
 }
 
 static int
-osf_cdfs_mount(const char *dirname, struct cdfs_args __user *args, int flags)
+osf_cdfs_mount(const char __user *dirname,
+	       struct cdfs_args __user *args, int flags)
 {
 	int retval;
 	struct cdfs_args tmp;
@@ -486,7 +489,8 @@ osf_cdfs_mount(const char *dirname, struct cdfs_args __user *args, int flags)
 }
 
 static int
-osf_procfs_mount(const char *dirname, struct procfs_args __user *args, int flags)
+osf_procfs_mount(const char __user *dirname,
+		 struct procfs_args __user *args, int flags)
 {
 	struct procfs_args tmp;
 
@@ -500,28 +504,22 @@ SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, const char __user *, path,
 		int, flag, void __user *, data)
 {
 	int retval;
-	struct filename *name;
 
-	name = getname(path);
-	retval = PTR_ERR(name);
-	if (IS_ERR(name))
-		goto out;
 	switch (typenr) {
 	case 1:
-		retval = osf_ufs_mount(name->name, data, flag);
+		retval = osf_ufs_mount(path, data, flag);
 		break;
 	case 6:
-		retval = osf_cdfs_mount(name->name, data, flag);
+		retval = osf_cdfs_mount(path, data, flag);
 		break;
 	case 9:
-		retval = osf_procfs_mount(name->name, data, flag);
+		retval = osf_procfs_mount(path, data, flag);
 		break;
 	default:
 		retval = -EINVAL;
 		printk("osf_mount(%ld, %x)\n", typenr, flag);
 	}
-	putname(name);
- out:
+
 	return retval;
 }
 
@@ -1021,13 +1019,12 @@ SYSCALL_DEFINE2(osf_settimeofday, struct timeval32 __user *, tv,
  	if (tv) {
 		if (get_tv32((struct timeval *)&kts, tv))
 			return -EFAULT;
+		kts.tv_nsec *= 1000;
 	}
 	if (tz) {
 		if (copy_from_user(&ktz, tz, sizeof(*tz)))
 			return -EFAULT;
 	}
-
-	kts.tv_nsec *= 1000;
 
 	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
 }
@@ -1141,6 +1138,7 @@ SYSCALL_DEFINE2(osf_getrusage, int, who, struct rusage32 __user *, ru)
 {
 	struct rusage32 r;
 	cputime_t utime, stime;
+	unsigned long utime_jiffies, stime_jiffies;
 
 	if (who != RUSAGE_SELF && who != RUSAGE_CHILDREN)
 		return -EINVAL;
@@ -1149,14 +1147,18 @@ SYSCALL_DEFINE2(osf_getrusage, int, who, struct rusage32 __user *, ru)
 	switch (who) {
 	case RUSAGE_SELF:
 		task_cputime(current, &utime, &stime);
-		jiffies_to_timeval32(utime, &r.ru_utime);
-		jiffies_to_timeval32(stime, &r.ru_stime);
+		utime_jiffies = cputime_to_jiffies(utime);
+		stime_jiffies = cputime_to_jiffies(stime);
+		jiffies_to_timeval32(utime_jiffies, &r.ru_utime);
+		jiffies_to_timeval32(stime_jiffies, &r.ru_stime);
 		r.ru_minflt = current->min_flt;
 		r.ru_majflt = current->maj_flt;
 		break;
 	case RUSAGE_CHILDREN:
-		jiffies_to_timeval32(current->signal->cutime, &r.ru_utime);
-		jiffies_to_timeval32(current->signal->cstime, &r.ru_stime);
+		utime_jiffies = cputime_to_jiffies(current->signal->cutime);
+		stime_jiffies = cputime_to_jiffies(current->signal->cstime);
+		jiffies_to_timeval32(utime_jiffies, &r.ru_utime);
+		jiffies_to_timeval32(stime_jiffies, &r.ru_stime);
 		r.ru_minflt = current->signal->cmin_flt;
 		r.ru_majflt = current->signal->cmaj_flt;
 		break;

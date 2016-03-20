@@ -14,10 +14,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
  *
@@ -71,7 +67,7 @@
 #include <linux/acpi.h>
 #include <linux/interrupt.h>
 
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 /* PCI Address Constants */
 #define SMBBAR		0
@@ -81,7 +77,7 @@
 #define PCI_DEVICE_ID_INTEL_S1200_SMT1	0x0c5a
 #define PCI_DEVICE_ID_INTEL_AVOTON_SMT	0x1f15
 
-#define ISMT_DESC_ENTRIES	32	/* number of descriptor entries */
+#define ISMT_DESC_ENTRIES	2	/* number of descriptor entries */
 #define ISMT_MAX_RETRIES	3	/* number of SMBus retries to attempt */
 
 /* Hardware Descriptor Constants - Control Field */
@@ -169,14 +165,13 @@ struct ismt_desc {
 
 struct ismt_priv {
 	struct i2c_adapter adapter;
-	void *smba;				/* PCI BAR */
+	void __iomem *smba;			/* PCI BAR */
 	struct pci_dev *pci_dev;
 	struct ismt_desc *hw;			/* descriptor virt base addr */
 	dma_addr_t io_rng_dma;			/* descriptor HW base addr */
 	u8 head;				/* ring buffer head pointer */
 	struct completion cmp;			/* interrupt completion */
 	u8 dma_buffer[I2C_SMBUS_BLOCK_MAX + 1];	/* temp R/W data buffer */
-	bool using_msi;				/* type of interrupt flag */
 };
 
 /**
@@ -384,6 +379,7 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 		       int size, union i2c_smbus_data *data)
 {
 	int ret;
+	unsigned long time_left;
 	dma_addr_t dma_addr = 0; /* address of the data buffer */
 	u8 dma_size = 0;
 	enum dma_data_direction dma_direction = 0;
@@ -401,7 +397,7 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 	desc->tgtaddr_rw = ISMT_DESC_ADDR_RW(addr, read_write);
 
 	/* Initialize common control bits */
-	if (likely(priv->using_msi))
+	if (likely(pci_dev_msi_enabled(priv->pci_dev)))
 		desc->control = ISMT_DESC_INT | ISMT_DESC_FAIR;
 	else
 		desc->control = ISMT_DESC_FAIR;
@@ -497,7 +493,7 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 			desc->wr_len_cmd = dma_size;
 			desc->control |= ISMT_DESC_BLK;
 			priv->dma_buffer[0] = command;
-			memcpy(&priv->dma_buffer[1], &data->block[1], dma_size);
+			memcpy(&priv->dma_buffer[1], &data->block[1], dma_size - 1);
 		} else {
 			/* Block Read */
 			dev_dbg(dev, "I2C_SMBUS_BLOCK_DATA:  READ\n");
@@ -525,7 +521,7 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 			desc->wr_len_cmd = dma_size;
 			desc->control |= ISMT_DESC_I2C;
 			priv->dma_buffer[0] = command;
-			memcpy(&priv->dma_buffer[1], &data->block[1], dma_size);
+			memcpy(&priv->dma_buffer[1], &data->block[1], dma_size - 1);
 		} else {
 			/* i2c Block Read */
 			dev_dbg(dev, "I2C_SMBUS_I2C_BLOCK_DATA:  READ\n");
@@ -582,13 +578,13 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 	ismt_submit_desc(priv);
 
 	/* Now we wait for interrupt completion, 1s */
-	ret = wait_for_completion_timeout(&priv->cmp, HZ*1);
+	time_left = wait_for_completion_timeout(&priv->cmp, HZ*1);
 
 	/* unmap the data buffer */
 	if (dma_size != 0)
 		dma_unmap_single(&adap->dev, dma_addr, dma_size, dma_direction);
 
-	if (unlikely(!ret)) {
+	if (unlikely(!time_left)) {
 		dev_err(dev, "completion wait timed out\n");
 		ret = -ETIMEDOUT;
 		goto out;
@@ -792,11 +788,8 @@ static int ismt_int_init(struct ismt_priv *priv)
 
 	/* Try using MSI interrupts */
 	err = pci_enable_msi(priv->pci_dev);
-	if (err) {
-		dev_warn(&priv->pci_dev->dev,
-			 "Unable to use MSI interrupts, falling back to legacy\n");
+	if (err)
 		goto intx;
-	}
 
 	err = devm_request_irq(&priv->pci_dev->dev,
 			       priv->pci_dev->irq,
@@ -809,11 +802,13 @@ static int ismt_int_init(struct ismt_priv *priv)
 		goto intx;
 	}
 
-	priv->using_msi = true;
-	goto done;
+	return 0;
 
 	/* Try using legacy interrupts */
 intx:
+	dev_warn(&priv->pci_dev->dev,
+		 "Unable to use MSI interrupts, falling back to legacy\n");
+
 	err = devm_request_irq(&priv->pci_dev->dev,
 			       priv->pci_dev->irq,
 			       ismt_do_interrupt,
@@ -822,12 +817,9 @@ intx:
 			       priv);
 	if (err) {
 		dev_err(&priv->pci_dev->dev, "no usable interrupts\n");
-		return -ENODEV;
+		return err;
 	}
 
-	priv->using_msi = false;
-
-done:
 	return 0;
 }
 
@@ -850,17 +842,13 @@ ismt_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENOMEM;
 
 	pci_set_drvdata(pdev, priv);
+
 	i2c_set_adapdata(&priv->adapter, priv);
 	priv->adapter.owner = THIS_MODULE;
-
 	priv->adapter.class = I2C_CLASS_HWMON;
-
 	priv->adapter.algo = &smbus_algorithm;
-
-	/* set up the sysfs linkage to our parent device */
 	priv->adapter.dev.parent = &pdev->dev;
-
-	/* number of retries on lost arbitration */
+	ACPI_COMPANION_SET(&priv->adapter.dev, ACPI_COMPANION(&pdev->dev));
 	priv->adapter.retries = ISMT_MAX_RETRIES;
 
 	priv->pci_dev = pdev;
@@ -907,8 +895,7 @@ ismt_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	priv->smba = pcim_iomap(pdev, SMBBAR, len);
 	if (!priv->smba) {
 		dev_err(&pdev->dev, "Unable to ioremap SMBus BAR\n");
-		err = -ENODEV;
-		goto fail;
+		return -ENODEV;
 	}
 
 	if ((pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) != 0) ||
@@ -918,32 +905,26 @@ ismt_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 						 DMA_BIT_MASK(32)) != 0)) {
 			dev_err(&pdev->dev, "pci_set_dma_mask fail %p\n",
 				pdev);
-			err = -ENODEV;
-			goto fail;
+			return -ENODEV;
 		}
 	}
 
 	err = ismt_dev_init(priv);
 	if (err)
-		goto fail;
+		return err;
 
 	ismt_hw_init(priv);
 
 	err = ismt_int_init(priv);
 	if (err)
-		goto fail;
+		return err;
 
 	err = i2c_add_adapter(&priv->adapter);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to add SMBus iSMT adapter\n");
-		err = -ENODEV;
-		goto fail;
+		return -ENODEV;
 	}
 	return 0;
-
-fail:
-	pci_release_region(pdev, SMBBAR);
-	return err;
 }
 
 /**
@@ -955,47 +936,13 @@ static void ismt_remove(struct pci_dev *pdev)
 	struct ismt_priv *priv = pci_get_drvdata(pdev);
 
 	i2c_del_adapter(&priv->adapter);
-	pci_release_region(pdev, SMBBAR);
 }
-
-/**
- * ismt_suspend() - place the device in suspend
- * @pdev: PCI-Express device
- * @mesg: PM message
- */
-#ifdef CONFIG_PM
-static int ismt_suspend(struct pci_dev *pdev, pm_message_t mesg)
-{
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, mesg));
-	return 0;
-}
-
-/**
- * ismt_resume() - PCI resume code
- * @pdev: PCI-Express device
- */
-static int ismt_resume(struct pci_dev *pdev)
-{
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	return pci_enable_device(pdev);
-}
-
-#else
-
-#define ismt_suspend NULL
-#define ismt_resume NULL
-
-#endif
 
 static struct pci_driver ismt_driver = {
 	.name = "ismt_smbus",
 	.id_table = ismt_ids,
 	.probe = ismt_probe,
 	.remove = ismt_remove,
-	.suspend = ismt_suspend,
-	.resume = ismt_resume,
 };
 
 module_pci_driver(ismt_driver);

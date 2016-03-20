@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014- QLogic Corporation.
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  *
- * Linux driver for Brocade Fibre Channel Host Bus Adapter.
+ * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -130,13 +131,9 @@ MODULE_PARM_DESC(bfa_linkup_delay, "Link up delay, default=30 secs for "
 			"boot port. Otherwise 10 secs in RHEL4 & 0 for "
 			"[RHEL5, SLES10, ESX40] Range[>0]");
 module_param(msix_disable_cb, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(msix_disable_cb, "Disable Message Signaled Interrupts "
-			"for Brocade-415/425/815/825 cards, default=0, "
-			" Range[false:0|true:1]");
+MODULE_PARM_DESC(msix_disable_cb, "Disable Message Signaled Interrupts for QLogic-415/425/815/825 cards, default=0 Range[false:0|true:1]");
 module_param(msix_disable_ct, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(msix_disable_ct, "Disable Message Signaled Interrupts "
-			"if possible for Brocade-1010/1020/804/1007/902/1741 "
-			"cards, default=0, Range[false:0|true:1]");
+MODULE_PARM_DESC(msix_disable_ct, "Disable Message Signaled Interrupts if possible for QLogic-1010/1020/804/1007/902/1741 cards, default=0, Range[false:0|true:1]");
 module_param(fdmi_enable, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(fdmi_enable, "Enables fdmi registration, default=1, "
 				"Range[false:0|true:1]");
@@ -838,8 +835,7 @@ bfad_drv_init(struct bfad_s *bfad)
 		printk(KERN_WARNING "bfad%d bfad_hal_mem_alloc failure\n",
 		       bfad->inst_no);
 		printk(KERN_WARNING
-			"Not enough memory to attach all Brocade HBA ports, %s",
-			"System may need more memory.\n");
+			"Not enough memory to attach all QLogic BR-series HBA ports. System may need more memory.\n");
 		return BFA_STATUS_FAILED;
 	}
 
@@ -1079,22 +1075,18 @@ bfad_start_ops(struct bfad_s *bfad) {
 int
 bfad_worker(void *ptr)
 {
-	struct bfad_s *bfad;
-	unsigned long   flags;
+	struct bfad_s *bfad = ptr;
+	unsigned long flags;
 
-	bfad = (struct bfad_s *)ptr;
+	if (kthread_should_stop())
+		return 0;
 
-	while (!kthread_should_stop()) {
+	/* Send event BFAD_E_INIT_SUCCESS */
+	bfa_sm_send_event(bfad, BFAD_E_INIT_SUCCESS);
 
-		/* Send event BFAD_E_INIT_SUCCESS */
-		bfa_sm_send_event(bfad, BFAD_E_INIT_SUCCESS);
-
-		spin_lock_irqsave(&bfad->bfad_lock, flags);
-		bfad->bfad_tsk = NULL;
-		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-
-		break;
-	}
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	bfad->bfad_tsk = NULL;
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	return 0;
 }
@@ -1714,7 +1706,7 @@ bfad_init(void)
 {
 	int		error = 0;
 
-	printk(KERN_INFO "Brocade BFA FC/FCOE SCSI driver - version: %s\n",
+	pr_info("QLogic BR-series BFA FC/FCOE SCSI driver - version: %s\n",
 			BFAD_DRIVER_VERSION);
 
 	if (num_sgpgs > 0)
@@ -1821,6 +1813,6 @@ bfad_free_fwimg(void)
 module_init(bfad_init);
 module_exit(bfad_exit);
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Brocade Fibre Channel HBA Driver" BFAD_PROTO_NAME);
-MODULE_AUTHOR("Brocade Communications Systems, Inc.");
+MODULE_DESCRIPTION("QLogic BR-series Fibre Channel HBA Driver" BFAD_PROTO_NAME);
+MODULE_AUTHOR("QLogic Corporation");
 MODULE_VERSION(BFAD_DRIVER_VERSION);

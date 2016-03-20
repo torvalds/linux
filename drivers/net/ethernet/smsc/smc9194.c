@@ -1031,36 +1031,8 @@ err_out:
 static void print_packet( byte * buf, int length )
 {
 #if 0
-	int i;
-	int remainder;
-	int lines;
-
-	pr_dbg("Packet of length %d\n", length);
-	lines = length / 16;
-	remainder = length % 16;
-
-	for ( i = 0; i < lines ; i ++ ) {
-		int cur;
-
-		printk(KERN_DEBUG);
-		for ( cur = 0; cur < 8; cur ++ ) {
-			byte a, b;
-
-			a = *(buf ++ );
-			b = *(buf ++ );
-			pr_cont("%02x%02x ", a, b);
-		}
-		pr_cont("\n");
-	}
-	printk(KERN_DEBUG);
-	for ( i = 0; i < remainder/2 ; i++ ) {
-		byte a, b;
-
-		a = *(buf ++ );
-		b = *(buf ++ );
-		pr_cont("%02x%02x ", a, b);
-	}
-	pr_cont("\n");
+	print_hex_dump_debug(DRV_NAME, DUMP_PREFIX_OFFSET, 16, 1,
+			     buf, length, true);
 #endif
 }
 #endif

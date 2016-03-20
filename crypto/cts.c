@@ -202,7 +202,8 @@ static int cts_cbc_decrypt(struct crypto_cts_ctx *ctx,
 	/* 5. Append the tail (BB - Ln) bytes of Xn (tmp) to Cn to create En */
 	memcpy(s + bsize + lastn, tmp + lastn, bsize - lastn);
 	/* 6. Decrypt En to create Pn-1 */
-	memset(iv, 0, sizeof(iv));
+	memzero_explicit(iv, sizeof(iv));
+
 	sg_set_buf(&sgsrc[0], s + bsize, bsize);
 	sg_set_buf(&sgdst[0], d, bsize);
 	err = crypto_blkcipher_decrypt_iv(&lcldesc, sgdst, sgsrc, bsize);
@@ -289,6 +290,9 @@ static struct crypto_instance *crypto_cts_alloc(struct rtattr **tb)
 	if (!is_power_of_2(alg->cra_blocksize))
 		goto out_put_alg;
 
+	if (strncmp(alg->cra_name, "cbc(", 4))
+		goto out_put_alg;
+
 	inst = crypto_alloc_instance("cts", alg);
 	if (IS_ERR(inst))
 		goto out_put_alg;
@@ -305,8 +309,6 @@ static struct crypto_instance *crypto_cts_alloc(struct rtattr **tb)
 	inst->alg.cra_blkcipher.ivsize = alg->cra_blocksize;
 	inst->alg.cra_blkcipher.min_keysize = alg->cra_blkcipher.min_keysize;
 	inst->alg.cra_blkcipher.max_keysize = alg->cra_blkcipher.max_keysize;
-
-	inst->alg.cra_blkcipher.geniv = "seqiv";
 
 	inst->alg.cra_ctxsize = sizeof(struct crypto_cts_ctx);
 
@@ -350,3 +352,4 @@ module_exit(crypto_cts_module_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("CTS-CBC CipherText Stealing for CBC");
+MODULE_ALIAS_CRYPTO("cts");

@@ -23,6 +23,9 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include <linux/filter.h>
 
 #include "bpf_exp.yacc.h"
 
@@ -79,20 +82,71 @@ extern void yyerror(const char *str);
 "txa"		{ return OP_TXA; }
 
 "#"?("len")	{ return K_PKT_LEN; }
-"#"?("proto")	{ return K_PROTO; }
-"#"?("type")	{ return K_TYPE; }
-"#"?("poff")	{ return K_POFF; }
-"#"?("ifidx")	{ return K_IFIDX; }
-"#"?("nla")	{ return K_NLATTR; }
-"#"?("nlan")	{ return K_NLATTR_NEST; }
-"#"?("mark")	{ return K_MARK; }
-"#"?("queue")	{ return K_QUEUE; }
-"#"?("hatype")	{ return K_HATYPE; }
-"#"?("rxhash")	{ return K_RXHASH; }
-"#"?("cpu")	{ return K_CPU; }
-"#"?("vlan_tci") { return K_VLANT; }
-"#"?("vlan_pr")	{ return K_VLANP; }
-"#"?("rand")	{ return K_RAND; }
+
+"#"?("proto")	{
+		yylval.number = SKF_AD_PROTOCOL;
+		return extension;
+	}
+"#"?("type")	{
+		yylval.number = SKF_AD_PKTTYPE;
+		return extension;
+	}
+"#"?("poff")	{
+		yylval.number = SKF_AD_PAY_OFFSET;
+		return extension;
+	}
+"#"?("ifidx")	{
+		yylval.number = SKF_AD_IFINDEX;
+		return extension;
+	}
+"#"?("nla")	{
+		yylval.number = SKF_AD_NLATTR;
+		return extension;
+	}
+"#"?("nlan")	{
+		yylval.number = SKF_AD_NLATTR_NEST;
+		return extension;
+	}
+"#"?("mark")	{
+		yylval.number = SKF_AD_MARK;
+		return extension;
+	}
+"#"?("queue")	{
+		yylval.number = SKF_AD_QUEUE;
+		return extension;
+	}
+"#"?("hatype")	{
+		yylval.number = SKF_AD_HATYPE;
+		return extension;
+	}
+"#"?("rxhash")	{
+		yylval.number = SKF_AD_RXHASH;
+		return extension;
+	}
+"#"?("cpu")	{
+		yylval.number = SKF_AD_CPU;
+		return extension;
+	}
+"#"?("vlan_tci") {
+		yylval.number = SKF_AD_VLAN_TAG;
+		return extension;
+	}
+"#"?("vlan_pr")	{
+		yylval.number = SKF_AD_VLAN_TAG_PRESENT;
+		return extension;
+	}
+"#"?("vlan_avail") {
+		yylval.number = SKF_AD_VLAN_TAG_PRESENT;
+		return extension;
+	}
+"#"?("vlan_tpid") {
+		yylval.number = SKF_AD_VLAN_TPID;
+		return extension;
+	}
+"#"?("rand")	{
+		yylval.number = SKF_AD_RANDOM;
+		return extension;
+	}
 
 ":"		{ return ':'; }
 ","		{ return ','; }

@@ -64,3 +64,23 @@ MTHCA
     fw_ver   - Firmware version
     hca_type - HCA type: "MT23108", "MT25208 (MT23108 compat mode)",
                or "MT25208"
+
+HFI1
+
+  The hfi1 driver also creates these additional files:
+
+   hw_rev - hardware revision
+   board_id - manufacturing board id
+   tempsense - thermal sense information
+   serial - board serial number
+   nfreectxts - number of free user contexts
+   nctxts - number of allowed contexts (PSM2)
+   chip_reset - diagnostic (root only)
+   boardversion - board version
+   ports/1/
+          CMgtA/
+               cc_settings_bin - CCA tables used by PSM2
+               cc_table_bin
+          sc2v/ - 32 files (0 - 31) used to translate sl->vl
+          sl2sc/ - 32 files (0 - 31) used to translate sl->sc
+          vl2mtu/ - 16 (0 - 15) files used to determine MTU for vl

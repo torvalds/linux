@@ -118,7 +118,7 @@ static struct plat_sci_port scif0_platform_data = {
 };
 
 static struct resource scif0_resources[] = {
-	DEFINE_RES_MEM(0xfffffe80, 0x100),
+	DEFINE_RES_MEM(0xfffffe80, 0x10),
 	DEFINE_RES_IRQ(evt2irq(0x4e0)),
 };
 
@@ -143,7 +143,7 @@ static struct plat_sci_port scif1_platform_data = {
 };
 
 static struct resource scif1_resources[] = {
-	DEFINE_RES_MEM(0xa4000150, 0x100),
+	DEFINE_RES_MEM(0xa4000150, 0x10),
 	DEFINE_RES_IRQ(evt2irq(0x900)),
 };
 
@@ -169,7 +169,7 @@ static struct plat_sci_port scif2_platform_data = {
 };
 
 static struct resource scif2_resources[] = {
-	DEFINE_RES_MEM(0xa4000140, 0x100),
+	DEFINE_RES_MEM(0xa4000140, 0x10),
 	DEFINE_RES_IRQ(evt2irq(0x880)),
 };
 

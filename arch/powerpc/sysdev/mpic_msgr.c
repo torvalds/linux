@@ -270,7 +270,6 @@ static const struct of_device_id mpic_msgr_ids[] = {
 static struct platform_driver mpic_msgr_driver = {
 	.driver = {
 		.name = "mpic-msgr",
-		.owner = THIS_MODULE,
 		.of_match_table = mpic_msgr_ids,
 	},
 	.probe = mpic_msgr_probe,

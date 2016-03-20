@@ -85,12 +85,14 @@ struct hsi_client *hsi_new_client(struct hsi_port *port,
 
 	cl = kzalloc(sizeof(*cl), GFP_KERNEL);
 	if (!cl)
-		return NULL;
+		goto err;
 
 	cl->tx_cfg = info->tx_cfg;
 	if (cl->tx_cfg.channels) {
 		size = cl->tx_cfg.num_channels * sizeof(*cl->tx_cfg.channels);
 		cl->tx_cfg.channels = kzalloc(size , GFP_KERNEL);
+		if (!cl->tx_cfg.channels)
+			goto err_tx;
 		memcpy(cl->tx_cfg.channels, info->tx_cfg.channels, size);
 	}
 
@@ -98,6 +100,8 @@ struct hsi_client *hsi_new_client(struct hsi_port *port,
 	if (cl->rx_cfg.channels) {
 		size = cl->rx_cfg.num_channels * sizeof(*cl->rx_cfg.channels);
 		cl->rx_cfg.channels = kzalloc(size , GFP_KERNEL);
+		if (!cl->rx_cfg.channels)
+			goto err_rx;
 		memcpy(cl->rx_cfg.channels, info->rx_cfg.channels, size);
 	}
 
@@ -114,6 +118,12 @@ struct hsi_client *hsi_new_client(struct hsi_port *port,
 	}
 
 	return cl;
+err_rx:
+	kfree(cl->tx_cfg.channels);
+err_tx:
+	kfree(cl);
+err:
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(hsi_new_client);
 
@@ -300,7 +310,6 @@ static void hsi_add_client_from_dt(struct hsi_port *port,
 	if (device_register(&cl->device) < 0) {
 		pr_err("hsi: failed to register client: %s\n", name);
 		put_device(&cl->device);
-		goto err3;
 	}
 
 	return;

@@ -792,7 +792,7 @@ static int tda10048_init(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int tda10048_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int tda10048_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct tda10048_state *state = fe->demodulator_priv;
 	u8 reg;
@@ -1028,9 +1028,9 @@ static int tda10048_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
-static int tda10048_get_frontend(struct dvb_frontend *fe)
+static int tda10048_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct tda10048_state *state = fe->demodulator_priv;
 
 	dprintk(1, "%s()\n", __func__);

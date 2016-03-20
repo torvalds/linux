@@ -37,7 +37,7 @@ static inline int max8925_read_device(struct i2c_client *i2c,
 static inline int max8925_write_device(struct i2c_client *i2c,
 				       int reg, int bytes, void *src)
 {
-	unsigned char buf[bytes + 1];
+	unsigned char buf[9];
 	int ret;
 
 	buf[0] = (unsigned char)reg;
@@ -215,7 +215,7 @@ static int max8925_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int max8925_suspend(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct max8925_chip *chip = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(dev) && chip->wakeup_flag)
@@ -225,7 +225,7 @@ static int max8925_suspend(struct device *dev)
 
 static int max8925_resume(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct max8925_chip *chip = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(dev) && chip->wakeup_flag)
@@ -245,7 +245,6 @@ MODULE_DEVICE_TABLE(of, max8925_dt_ids);
 static struct i2c_driver max8925_driver = {
 	.driver	= {
 		.name	= "max8925",
-		.owner	= THIS_MODULE,
 		.pm     = &max8925_pm_ops,
 		.of_match_table = max8925_dt_ids,
 	},

@@ -197,6 +197,12 @@ look_for_VFP_exceptions:
 	tst	r5, #FPSCR_IXE
 	bne	process_exception
 
+	tst	r5, #FPSCR_LENGTH_MASK
+	beq	skip
+	orr	r1, r1, #FPEXC_DEX
+	b	process_exception
+skip:
+
 	@ Fall into hand on to next handler - appropriate coproc instr
 	@ not recognised by VFP
 

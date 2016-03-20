@@ -33,6 +33,7 @@
 
 #include "t4_hw.h"
 #include "t4_regs.h"
+#include "t4_values.h"
 #include "t4_msg.h"
 #include "t4fw_ri_api.h"
 
@@ -41,7 +42,7 @@
 #define T4_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
 #define T4_STAG_UNSET 0xffffffff
 #define T4_FW_MAJ 0
-#define A_PCIE_MA_SYNC 0x30b4
+#define PCIE_MA_SYNC_A 0x30b4
 
 struct t4_status_page {
 	__be32 rsvd1;	/* flit 0 - hw owns */
@@ -184,44 +185,44 @@ struct t4_cqe {
 
 /* macros for flit 0 of the cqe */
 
-#define S_CQE_QPID        12
-#define M_CQE_QPID        0xFFFFF
-#define G_CQE_QPID(x)     ((((x) >> S_CQE_QPID)) & M_CQE_QPID)
-#define V_CQE_QPID(x)	  ((x)<<S_CQE_QPID)
+#define CQE_QPID_S        12
+#define CQE_QPID_M        0xFFFFF
+#define CQE_QPID_G(x)     ((((x) >> CQE_QPID_S)) & CQE_QPID_M)
+#define CQE_QPID_V(x)	  ((x)<<CQE_QPID_S)
 
-#define S_CQE_SWCQE       11
-#define M_CQE_SWCQE       0x1
-#define G_CQE_SWCQE(x)    ((((x) >> S_CQE_SWCQE)) & M_CQE_SWCQE)
-#define V_CQE_SWCQE(x)	  ((x)<<S_CQE_SWCQE)
+#define CQE_SWCQE_S       11
+#define CQE_SWCQE_M       0x1
+#define CQE_SWCQE_G(x)    ((((x) >> CQE_SWCQE_S)) & CQE_SWCQE_M)
+#define CQE_SWCQE_V(x)	  ((x)<<CQE_SWCQE_S)
 
-#define S_CQE_STATUS      5
-#define M_CQE_STATUS      0x1F
-#define G_CQE_STATUS(x)   ((((x) >> S_CQE_STATUS)) & M_CQE_STATUS)
-#define V_CQE_STATUS(x)   ((x)<<S_CQE_STATUS)
+#define CQE_STATUS_S      5
+#define CQE_STATUS_M      0x1F
+#define CQE_STATUS_G(x)   ((((x) >> CQE_STATUS_S)) & CQE_STATUS_M)
+#define CQE_STATUS_V(x)   ((x)<<CQE_STATUS_S)
 
-#define S_CQE_TYPE        4
-#define M_CQE_TYPE        0x1
-#define G_CQE_TYPE(x)     ((((x) >> S_CQE_TYPE)) & M_CQE_TYPE)
-#define V_CQE_TYPE(x)     ((x)<<S_CQE_TYPE)
+#define CQE_TYPE_S        4
+#define CQE_TYPE_M        0x1
+#define CQE_TYPE_G(x)     ((((x) >> CQE_TYPE_S)) & CQE_TYPE_M)
+#define CQE_TYPE_V(x)     ((x)<<CQE_TYPE_S)
 
-#define S_CQE_OPCODE      0
-#define M_CQE_OPCODE      0xF
-#define G_CQE_OPCODE(x)   ((((x) >> S_CQE_OPCODE)) & M_CQE_OPCODE)
-#define V_CQE_OPCODE(x)   ((x)<<S_CQE_OPCODE)
+#define CQE_OPCODE_S      0
+#define CQE_OPCODE_M      0xF
+#define CQE_OPCODE_G(x)   ((((x) >> CQE_OPCODE_S)) & CQE_OPCODE_M)
+#define CQE_OPCODE_V(x)   ((x)<<CQE_OPCODE_S)
 
-#define SW_CQE(x)         (G_CQE_SWCQE(be32_to_cpu((x)->header)))
-#define CQE_QPID(x)       (G_CQE_QPID(be32_to_cpu((x)->header)))
-#define CQE_TYPE(x)       (G_CQE_TYPE(be32_to_cpu((x)->header)))
+#define SW_CQE(x)         (CQE_SWCQE_G(be32_to_cpu((x)->header)))
+#define CQE_QPID(x)       (CQE_QPID_G(be32_to_cpu((x)->header)))
+#define CQE_TYPE(x)       (CQE_TYPE_G(be32_to_cpu((x)->header)))
 #define SQ_TYPE(x)	  (CQE_TYPE((x)))
 #define RQ_TYPE(x)	  (!CQE_TYPE((x)))
-#define CQE_STATUS(x)     (G_CQE_STATUS(be32_to_cpu((x)->header)))
-#define CQE_OPCODE(x)     (G_CQE_OPCODE(be32_to_cpu((x)->header)))
+#define CQE_STATUS(x)     (CQE_STATUS_G(be32_to_cpu((x)->header)))
+#define CQE_OPCODE(x)     (CQE_OPCODE_G(be32_to_cpu((x)->header)))
 
 #define CQE_SEND_OPCODE(x)( \
-	(G_CQE_OPCODE(be32_to_cpu((x)->header)) == FW_RI_SEND) || \
-	(G_CQE_OPCODE(be32_to_cpu((x)->header)) == FW_RI_SEND_WITH_SE) || \
-	(G_CQE_OPCODE(be32_to_cpu((x)->header)) == FW_RI_SEND_WITH_INV) || \
-	(G_CQE_OPCODE(be32_to_cpu((x)->header)) == FW_RI_SEND_WITH_SE_INV))
+	(CQE_OPCODE_G(be32_to_cpu((x)->header)) == FW_RI_SEND) || \
+	(CQE_OPCODE_G(be32_to_cpu((x)->header)) == FW_RI_SEND_WITH_SE) || \
+	(CQE_OPCODE_G(be32_to_cpu((x)->header)) == FW_RI_SEND_WITH_INV) || \
+	(CQE_OPCODE_G(be32_to_cpu((x)->header)) == FW_RI_SEND_WITH_SE_INV))
 
 #define CQE_LEN(x)        (be32_to_cpu((x)->len))
 
@@ -237,25 +238,25 @@ struct t4_cqe {
 #define CQE_WRID_LOW(x)		(be32_to_cpu((x)->u.gen.wrid_low))
 
 /* macros for flit 3 of the cqe */
-#define S_CQE_GENBIT	63
-#define M_CQE_GENBIT	0x1
-#define G_CQE_GENBIT(x)	(((x) >> S_CQE_GENBIT) & M_CQE_GENBIT)
-#define V_CQE_GENBIT(x) ((x)<<S_CQE_GENBIT)
+#define CQE_GENBIT_S	63
+#define CQE_GENBIT_M	0x1
+#define CQE_GENBIT_G(x)	(((x) >> CQE_GENBIT_S) & CQE_GENBIT_M)
+#define CQE_GENBIT_V(x) ((x)<<CQE_GENBIT_S)
 
-#define S_CQE_OVFBIT	62
-#define M_CQE_OVFBIT	0x1
-#define G_CQE_OVFBIT(x)	((((x) >> S_CQE_OVFBIT)) & M_CQE_OVFBIT)
+#define CQE_OVFBIT_S	62
+#define CQE_OVFBIT_M	0x1
+#define CQE_OVFBIT_G(x)	((((x) >> CQE_OVFBIT_S)) & CQE_OVFBIT_M)
 
-#define S_CQE_IQTYPE	60
-#define M_CQE_IQTYPE	0x3
-#define G_CQE_IQTYPE(x)	((((x) >> S_CQE_IQTYPE)) & M_CQE_IQTYPE)
+#define CQE_IQTYPE_S	60
+#define CQE_IQTYPE_M	0x3
+#define CQE_IQTYPE_G(x)	((((x) >> CQE_IQTYPE_S)) & CQE_IQTYPE_M)
 
-#define M_CQE_TS	0x0fffffffffffffffULL
-#define G_CQE_TS(x)	((x) & M_CQE_TS)
+#define CQE_TS_M	0x0fffffffffffffffULL
+#define CQE_TS_G(x)	((x) & CQE_TS_M)
 
-#define CQE_OVFBIT(x)	((unsigned)G_CQE_OVFBIT(be64_to_cpu((x)->bits_type_ts)))
-#define CQE_GENBIT(x)	((unsigned)G_CQE_GENBIT(be64_to_cpu((x)->bits_type_ts)))
-#define CQE_TS(x)	(G_CQE_TS(be64_to_cpu((x)->bits_type_ts)))
+#define CQE_OVFBIT(x)	((unsigned)CQE_OVFBIT_G(be64_to_cpu((x)->bits_type_ts)))
+#define CQE_GENBIT(x)	((unsigned)CQE_GENBIT_G(be64_to_cpu((x)->bits_type_ts)))
+#define CQE_TS(x)	(CQE_TS_G(be64_to_cpu((x)->bits_type_ts)))
 
 struct t4_swsqe {
 	u64			wr_id;
@@ -290,8 +291,10 @@ struct t4_sq {
 	unsigned long phys_addr;
 	struct t4_swsqe *sw_sq;
 	struct t4_swsqe *oldest_read;
-	u64 __iomem *udb;
+	void __iomem *bar2_va;
+	u64 bar2_pa;
 	size_t memsize;
+	u32 bar2_qid;
 	u32 qid;
 	u16 in_use;
 	u16 size;
@@ -314,8 +317,10 @@ struct t4_rq {
 	dma_addr_t dma_addr;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	struct t4_swrqe *sw_rq;
-	u64 __iomem *udb;
+	void __iomem *bar2_va;
+	u64 bar2_pa;
 	size_t memsize;
+	u32 bar2_qid;
 	u32 qid;
 	u32 msn;
 	u32 rqt_hwaddr;
@@ -332,7 +337,6 @@ struct t4_wq {
 	struct t4_sq sq;
 	struct t4_rq rq;
 	void __iomem *db;
-	void __iomem *gts;
 	struct c4iw_rdev *rdev;
 	int flushed;
 };
@@ -451,52 +455,57 @@ static inline void pio_copy(u64 __iomem *dst, u64 *src)
 	}
 }
 
-static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, u8 t5,
-				 union t4_wr *wqe)
+static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, union t4_wr *wqe)
 {
 
 	/* Flush host queue memory writes. */
 	wmb();
-	if (t5) {
-		if (inc == 1 && wqe) {
+	if (wq->sq.bar2_va) {
+		if (inc == 1 && wq->sq.bar2_qid == 0 && wqe) {
 			PDBG("%s: WC wq->sq.pidx = %d\n",
 			     __func__, wq->sq.pidx);
-			pio_copy(wq->sq.udb + 7, (void *)wqe);
+			pio_copy((u64 __iomem *)
+				 (wq->sq.bar2_va + SGE_UDB_WCDOORBELL),
+				 (u64 *)wqe);
 		} else {
 			PDBG("%s: DB wq->sq.pidx = %d\n",
 			     __func__, wq->sq.pidx);
-			writel(PIDX_T5(inc), wq->sq.udb);
+			writel(PIDX_T5_V(inc) | QID_V(wq->sq.bar2_qid),
+			       wq->sq.bar2_va + SGE_UDB_KDOORBELL);
 		}
 
 		/* Flush user doorbell area writes. */
 		wmb();
 		return;
 	}
-	writel(QID(wq->sq.qid) | PIDX(inc), wq->db);
+	writel(QID_V(wq->sq.qid) | PIDX_V(inc), wq->db);
 }
 
-static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc, u8 t5,
+static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc,
 				 union t4_recv_wr *wqe)
 {
 
 	/* Flush host queue memory writes. */
 	wmb();
-	if (t5) {
-		if (inc == 1 && wqe) {
+	if (wq->rq.bar2_va) {
+		if (inc == 1 && wq->rq.bar2_qid == 0 && wqe) {
 			PDBG("%s: WC wq->rq.pidx = %d\n",
 			     __func__, wq->rq.pidx);
-			pio_copy(wq->rq.udb + 7, (void *)wqe);
+			pio_copy((u64 __iomem *)
+				 (wq->rq.bar2_va + SGE_UDB_WCDOORBELL),
+				 (void *)wqe);
 		} else {
 			PDBG("%s: DB wq->rq.pidx = %d\n",
 			     __func__, wq->rq.pidx);
-			writel(PIDX_T5(inc), wq->rq.udb);
+			writel(PIDX_T5_V(inc) | QID_V(wq->rq.bar2_qid),
+			       wq->rq.bar2_va + SGE_UDB_KDOORBELL);
 		}
 
 		/* Flush user doorbell area writes. */
 		wmb();
 		return;
 	}
-	writel(QID(wq->rq.qid) | PIDX(inc), wq->db);
+	writel(QID_V(wq->rq.qid) | PIDX_V(inc), wq->db);
 }
 
 static inline int t4_wq_in_error(struct t4_wq *wq)
@@ -534,11 +543,14 @@ struct t4_cq {
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	struct t4_cqe *sw_queue;
 	void __iomem *gts;
+	void __iomem *bar2_va;
+	u64 bar2_pa;
+	u32 bar2_qid;
 	struct c4iw_rdev *rdev;
-	u64 ugts;
 	size_t memsize;
 	__be64 bits_type_ts;
 	u32 cqid;
+	u32 qid_mask;
 	int vector;
 	u16 size; /* including status page */
 	u16 cidx;
@@ -551,6 +563,15 @@ struct t4_cq {
 	unsigned long flags;
 };
 
+static inline void write_gts(struct t4_cq *cq, u32 val)
+{
+	if (cq->bar2_va)
+		writel(val | INGRESSQID_V(cq->bar2_qid),
+		       cq->bar2_va + SGE_UDB_GTS);
+	else
+		writel(val | INGRESSQID_V(cq->cqid), cq->gts);
+}
+
 static inline int t4_clear_cq_armed(struct t4_cq *cq)
 {
 	return test_and_clear_bit(CQ_ARMED, &cq->flags);
@@ -561,15 +582,13 @@ static inline int t4_arm_cq(struct t4_cq *cq, int se)
 	u32 val;
 
 	set_bit(CQ_ARMED, &cq->flags);
-	while (cq->cidx_inc > CIDXINC_MASK) {
-		val = SEINTARM(0) | CIDXINC(CIDXINC_MASK) | TIMERREG(7) |
-		      INGRESSQID(cq->cqid);
-		writel(val, cq->gts);
-		cq->cidx_inc -= CIDXINC_MASK;
+	while (cq->cidx_inc > CIDXINC_M) {
+		val = SEINTARM_V(0) | CIDXINC_V(CIDXINC_M) | TIMERREG_V(7);
+		write_gts(cq, val);
+		cq->cidx_inc -= CIDXINC_M;
 	}
-	val = SEINTARM(se) | CIDXINC(cq->cidx_inc) | TIMERREG(6) |
-	      INGRESSQID(cq->cqid);
-	writel(val, cq->gts);
+	val = SEINTARM_V(se) | CIDXINC_V(cq->cidx_inc) | TIMERREG_V(6);
+	write_gts(cq, val);
 	cq->cidx_inc = 0;
 	return 0;
 }
@@ -597,12 +616,11 @@ static inline void t4_swcq_consume(struct t4_cq *cq)
 static inline void t4_hwcq_consume(struct t4_cq *cq)
 {
 	cq->bits_type_ts = cq->queue[cq->cidx].bits_type_ts;
-	if (++cq->cidx_inc == (cq->size >> 4) || cq->cidx_inc == CIDXINC_MASK) {
+	if (++cq->cidx_inc == (cq->size >> 4) || cq->cidx_inc == CIDXINC_M) {
 		u32 val;
 
-		val = SEINTARM(0) | CIDXINC(cq->cidx_inc) | TIMERREG(7) |
-		      INGRESSQID(cq->cqid);
-		writel(val, cq->gts);
+		val = SEINTARM_V(0) | CIDXINC_V(cq->cidx_inc) | TIMERREG_V(7);
+		write_gts(cq, val);
 		cq->cidx_inc = 0;
 	}
 	if (++cq->cidx == cq->size) {
@@ -681,4 +699,11 @@ static inline void t4_set_cq_in_error(struct t4_cq *cq)
 
 struct t4_dev_status_page {
 	u8 db_off;
+	u8 pad1;
+	u16 pad2;
+	u32 pad3;
+	u64 qp_start;
+	u64 qp_size;
+	u64 cq_start;
+	u64 cq_size;
 };

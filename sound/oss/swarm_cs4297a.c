@@ -1654,7 +1654,7 @@ static int drain_dac(struct cs4297a_state *s, int nonblock)
         s->dma_dac.hwptr = s->dma_dac.swptr = hwptr;
         spin_unlock_irqrestore(&s->lock, flags);
 	remove_wait_queue(&s->dma_dac.wait, &wait);
-	current->state = TASK_RUNNING;
+	__set_current_state(TASK_RUNNING);
 	return 0;
 }
 

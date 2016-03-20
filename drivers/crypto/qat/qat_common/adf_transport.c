@@ -122,7 +122,7 @@ int adf_send_message(struct adf_etr_ring_data *ring, uint32_t *msg)
 		return -EAGAIN;
 	}
 	spin_lock_bh(&ring->lock);
-	memcpy(ring->base_addr + ring->tail, msg,
+	memcpy((void *)((uintptr_t)ring->base_addr + ring->tail), msg,
 	       ADF_MSG_SIZE_TO_BYTES(ring->msg_size));
 
 	ring->tail = adf_modulo(ring->tail +
@@ -137,23 +137,22 @@ int adf_send_message(struct adf_etr_ring_data *ring, uint32_t *msg)
 static int adf_handle_response(struct adf_etr_ring_data *ring)
 {
 	uint32_t msg_counter = 0;
-	uint32_t *msg = (uint32_t *)(ring->base_addr + ring->head);
+	uint32_t *msg = (uint32_t *)((uintptr_t)ring->base_addr + ring->head);
 
 	while (*msg != ADF_RING_EMPTY_SIG) {
 		ring->callback((uint32_t *)msg);
+		atomic_dec(ring->inflights);
 		*msg = ADF_RING_EMPTY_SIG;
 		ring->head = adf_modulo(ring->head +
 					ADF_MSG_SIZE_TO_BYTES(ring->msg_size),
 					ADF_RING_SIZE_MODULO(ring->ring_size));
 		msg_counter++;
-		msg = (uint32_t *)(ring->base_addr + ring->head);
+		msg = (uint32_t *)((uintptr_t)ring->base_addr + ring->head);
 	}
-	if (msg_counter > 0) {
+	if (msg_counter > 0)
 		WRITE_CSR_RING_HEAD(ring->bank->csr_addr,
 				    ring->bank->bank_number,
 				    ring->ring_number, ring->head);
-		atomic_sub(msg_counter, ring->inflights);
-	}
 	return 0;
 }
 
@@ -195,7 +194,7 @@ static int adf_init_ring(struct adf_etr_ring_data *ring)
 	memset(ring->base_addr, 0x7F, ring_size_bytes);
 	/* The base_addr has to be aligned to the size of the buffer */
 	if (adf_check_ring_alignment(ring->dma_addr, ring_size_bytes)) {
-		pr_err("QAT: Ring address not aligned\n");
+		dev_err(&GET_DEV(accel_dev), "Ring address not aligned\n");
 		dma_free_coherent(&GET_DEV(accel_dev), ring_size_bytes,
 				  ring->base_addr, ring->dma_addr);
 		return -EFAULT;
@@ -242,32 +241,37 @@ int adf_create_ring(struct adf_accel_dev *accel_dev, const char *section,
 	int ret;
 
 	if (bank_num >= GET_MAX_BANKS(accel_dev)) {
-		pr_err("QAT: Invalid bank number\n");
+		dev_err(&GET_DEV(accel_dev), "Invalid bank number\n");
 		return -EFAULT;
 	}
 	if (msg_size > ADF_MSG_SIZE_TO_BYTES(ADF_MAX_MSG_SIZE)) {
-		pr_err("QAT: Invalid msg size\n");
+		dev_err(&GET_DEV(accel_dev), "Invalid msg size\n");
 		return -EFAULT;
 	}
 	if (ADF_MAX_INFLIGHTS(adf_verify_ring_size(msg_size, num_msgs),
 			      ADF_BYTES_TO_MSG_SIZE(msg_size)) < 2) {
-		pr_err("QAT: Invalid ring size for given msg size\n");
+		dev_err(&GET_DEV(accel_dev),
+			"Invalid ring size for given msg size\n");
 		return -EFAULT;
 	}
 	if (adf_cfg_get_param_value(accel_dev, section, ring_name, val)) {
-		pr_err("QAT: Section %s, no such entry : %s\n",
-		       section, ring_name);
+		dev_err(&GET_DEV(accel_dev), "Section %s, no such entry : %s\n",
+			section, ring_name);
 		return -EFAULT;
 	}
 	if (kstrtouint(val, 10, &ring_num)) {
-		pr_err("QAT: Can't get ring number\n");
+		dev_err(&GET_DEV(accel_dev), "Can't get ring number\n");
+		return -EFAULT;
+	}
+	if (ring_num >= ADF_ETR_MAX_RINGS_PER_BANK) {
+		dev_err(&GET_DEV(accel_dev), "Invalid ring number\n");
 		return -EFAULT;
 	}
 
 	bank = &transport_data->banks[bank_num];
 	if (adf_reserve_ring(bank, ring_num)) {
-		pr_err("QAT: Ring %d, %s already exists.\n",
-		       ring_num, ring_name);
+		dev_err(&GET_DEV(accel_dev), "Ring %d, %s already exists.\n",
+			ring_num, ring_name);
 		return -EFAULT;
 	}
 	ring = &bank->rings[ring_num];
@@ -284,10 +288,11 @@ int adf_create_ring(struct adf_accel_dev *accel_dev, const char *section,
 		goto err;
 
 	/* Enable HW arbitration for the given ring */
-	accel_dev->hw_device->hw_arb_ring_enable(ring);
+	adf_update_ring_arb(ring);
 
 	if (adf_ring_debugfs_add(ring, ring_name)) {
-		pr_err("QAT: Couldn't add ring debugfs entry\n");
+		dev_err(&GET_DEV(accel_dev),
+			"Couldn't add ring debugfs entry\n");
 		ret = -EFAULT;
 		goto err;
 	}
@@ -300,14 +305,13 @@ int adf_create_ring(struct adf_accel_dev *accel_dev, const char *section,
 err:
 	adf_cleanup_ring(ring);
 	adf_unreserve_ring(bank, ring_num);
-	accel_dev->hw_device->hw_arb_ring_disable(ring);
+	adf_update_ring_arb(ring);
 	return ret;
 }
 
 void adf_remove_ring(struct adf_etr_ring_data *ring)
 {
 	struct adf_etr_bank_data *bank = ring->bank;
-	struct adf_accel_dev *accel_dev = bank->accel_dev;
 
 	/* Disable interrupts for the given ring */
 	adf_disable_ring_irq(bank, ring->ring_number);
@@ -320,7 +324,7 @@ void adf_remove_ring(struct adf_etr_ring_data *ring)
 	adf_ring_debugfs_rm(ring);
 	adf_unreserve_ring(bank, ring->ring_number);
 	/* Disable HW arbitration for the given ring */
-	accel_dev->hw_device->hw_arb_ring_disable(ring);
+	adf_update_ring_arb(ring);
 	adf_cleanup_ring(ring);
 }
 
@@ -337,27 +341,15 @@ static void adf_ring_response_handler(struct adf_etr_bank_data *bank)
 	}
 }
 
-/**
- * adf_response_handler() - Bottom half handler response handler
- * @bank_addr:  Address of a ring bank for with the BH was scheduled.
- *
- * Function is the bottom half handler for the response from acceleration
- * device. There is one handler for every ring bank. Function checks all
- * communication rings in the bank.
- * To be used by QAT device specific drivers.
- *
- * Return: void
- */
-void adf_response_handler(unsigned long bank_addr)
+void adf_response_handler(uintptr_t bank_addr)
 {
 	struct adf_etr_bank_data *bank = (void *)bank_addr;
 
-	/* Handle all the responses nad reenable IRQs */
+	/* Handle all the responses and reenable IRQs */
 	adf_ring_response_handler(bank);
 	WRITE_CSR_INT_FLAG_AND_COL(bank->csr_addr, bank->bank_number,
 				   bank->irq_mask);
 }
-EXPORT_SYMBOL_GPL(adf_response_handler);
 
 static inline int adf_get_cfg_int(struct adf_accel_dev *accel_dev,
 				  const char *section, const char *format,
@@ -376,8 +368,9 @@ static inline int adf_get_cfg_int(struct adf_accel_dev *accel_dev,
 	return 0;
 }
 
-static void adf_enable_coalesc(struct adf_etr_bank_data *bank,
-			       const char *section, uint32_t bank_num_in_accel)
+static void adf_get_coalesc_timer(struct adf_etr_bank_data *bank,
+				  const char *section,
+				  uint32_t bank_num_in_accel)
 {
 	if (adf_get_cfg_int(bank->accel_dev, section,
 			    ADF_ETRMGR_COALESCE_TIMER_FORMAT,
@@ -396,7 +389,7 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct adf_etr_ring_data *ring;
 	struct adf_etr_ring_data *tx_ring;
-	uint32_t i, coalesc_enabled;
+	uint32_t i, coalesc_enabled = 0;
 
 	memset(bank, 0, sizeof(*bank));
 	bank->bank_number = bank_num;
@@ -407,10 +400,10 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 	/* Enable IRQ coalescing always. This will allow to use
 	 * the optimised flag and coalesc register.
 	 * If it is disabled in the config file just use min time value */
-	if (adf_get_cfg_int(accel_dev, "Accelerator0",
-			    ADF_ETRMGR_COALESCING_ENABLED_FORMAT,
-			    bank_num, &coalesc_enabled) && coalesc_enabled)
-		adf_enable_coalesc(bank, "Accelerator0", bank_num);
+	if ((adf_get_cfg_int(accel_dev, "Accelerator0",
+			     ADF_ETRMGR_COALESCING_ENABLED_FORMAT, bank_num,
+			     &coalesc_enabled) == 0) && coalesc_enabled)
+		adf_get_coalesc_timer(bank, "Accelerator0", bank_num);
 	else
 		bank->irq_coalesc_timer = ADF_COALESCING_MIN_TIME;
 
@@ -419,14 +412,16 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 		WRITE_CSR_RING_BASE(csr_addr, bank_num, i, 0);
 		ring = &bank->rings[i];
 		if (hw_data->tx_rings_mask & (1 << i)) {
-			ring->inflights = kzalloc_node(sizeof(atomic_t),
-						       GFP_KERNEL,
-						       accel_dev->numa_node);
+			ring->inflights =
+				kzalloc_node(sizeof(atomic_t),
+					     GFP_KERNEL,
+					     dev_to_node(&GET_DEV(accel_dev)));
 			if (!ring->inflights)
 				goto err;
 		} else {
 			if (i < hw_data->tx_rx_gap) {
-				pr_err("QAT: Invalid tx rings mask config\n");
+				dev_err(&GET_DEV(accel_dev),
+					"Invalid tx rings mask config\n");
 				goto err;
 			}
 			tx_ring = &bank->rings[i - hw_data->tx_rx_gap];
@@ -434,16 +429,18 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 		}
 	}
 	if (adf_bank_debugfs_add(bank)) {
-		pr_err("QAT: Failed to add bank debugfs entry\n");
+		dev_err(&GET_DEV(accel_dev),
+			"Failed to add bank debugfs entry\n");
 		goto err;
 	}
 
+	WRITE_CSR_INT_FLAG(csr_addr, bank_num, ADF_BANK_INT_FLAG_CLEAR_MASK);
 	WRITE_CSR_INT_SRCSEL(csr_addr, bank_num);
 	return 0;
 err:
 	for (i = 0; i < ADF_ETR_MAX_RINGS_PER_BANK; i++) {
 		ring = &bank->rings[i];
-		if (hw_data->tx_rings_mask & (1 << i) && ring->inflights)
+		if (hw_data->tx_rings_mask & (1 << i))
 			kfree(ring->inflights);
 	}
 	return -ENOMEM;
@@ -457,7 +454,7 @@ err:
  * acceleration device accel_dev.
  * To be used by QAT device specific drivers.
  *
- * Return: 0 on success, error code othewise.
+ * Return: 0 on success, error code otherwise.
  */
 int adf_init_etr_data(struct adf_accel_dev *accel_dev)
 {
@@ -469,13 +466,14 @@ int adf_init_etr_data(struct adf_accel_dev *accel_dev)
 	int i, ret;
 
 	etr_data = kzalloc_node(sizeof(*etr_data), GFP_KERNEL,
-				accel_dev->numa_node);
+				dev_to_node(&GET_DEV(accel_dev)));
 	if (!etr_data)
 		return -ENOMEM;
 
 	num_banks = GET_MAX_BANKS(accel_dev);
 	size = num_banks * sizeof(struct adf_etr_bank_data);
-	etr_data->banks = kzalloc_node(size, GFP_KERNEL, accel_dev->numa_node);
+	etr_data->banks = kzalloc_node(size, GFP_KERNEL,
+				       dev_to_node(&GET_DEV(accel_dev)));
 	if (!etr_data->banks) {
 		ret = -ENOMEM;
 		goto err_bank;
@@ -489,7 +487,8 @@ int adf_init_etr_data(struct adf_accel_dev *accel_dev)
 	etr_data->debug = debugfs_create_dir("transport",
 					     accel_dev->debugfs_dir);
 	if (!etr_data->debug) {
-		pr_err("QAT: Unable to create transport debugfs entry\n");
+		dev_err(&GET_DEV(accel_dev),
+			"Unable to create transport debugfs entry\n");
 		ret = -ENOENT;
 		goto err_bank_debug;
 	}

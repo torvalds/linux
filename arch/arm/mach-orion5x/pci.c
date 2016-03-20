@@ -19,8 +19,8 @@
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
 #include <plat/addr-map.h>
-#include <mach/orion5x.h>
 #include "common.h"
+#include "orion5x.h"
 
 /*****************************************************************************
  * Orion has one PCIe controller and one PCI controller.
@@ -540,37 +540,33 @@ void __init orion5x_pci_set_cardbus_mode(void)
 
 int __init orion5x_pci_sys_setup(int nr, struct pci_sys_data *sys)
 {
-	int ret = 0;
-
 	vga_base = ORION5X_PCIE_MEM_PHYS_BASE;
 
 	if (nr == 0) {
 		orion_pcie_set_local_bus_nr(PCIE_BASE, sys->busnr);
-		ret = pcie_setup(sys);
-	} else if (nr == 1 && !orion5x_pci_disabled) {
-		orion5x_pci_set_bus_nr(sys->busnr);
-		ret = pci_setup(sys);
+		return pcie_setup(sys);
 	}
 
-	return ret;
+	if (nr == 1 && !orion5x_pci_disabled) {
+		orion5x_pci_set_bus_nr(sys->busnr);
+		return pci_setup(sys);
+	}
+
+	return 0;
 }
 
 struct pci_bus __init *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys)
 {
-	struct pci_bus *bus;
+	if (nr == 0)
+		return pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
+					 &sys->resources);
 
-	if (nr == 0) {
-		bus = pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
-					&sys->resources);
-	} else if (nr == 1 && !orion5x_pci_disabled) {
-		bus = pci_scan_root_bus(NULL, sys->busnr, &pci_ops, sys,
-					&sys->resources);
-	} else {
-		bus = NULL;
-		BUG();
-	}
+	if (nr == 1 && !orion5x_pci_disabled)
+		return pci_scan_root_bus(NULL, sys->busnr, &pci_ops, sys,
+					 &sys->resources);
 
-	return bus;
+	BUG();
+	return NULL;
 }
 
 int __init orion5x_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)

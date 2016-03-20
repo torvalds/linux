@@ -34,10 +34,6 @@
 #include <linux/percpu.h>
 #include <asm/topology.h>
 
-#ifndef node_has_online_mem
-#define node_has_online_mem(nid) (1)
-#endif
-
 #ifndef nr_cpus_node
 #define nr_cpus_node(node) cpumask_weight(cpumask_of_node(node))
 #endif
@@ -119,11 +115,20 @@ static inline int numa_node_id(void)
  * Use the accessor functions set_numa_mem(), numa_mem_id() and cpu_to_mem().
  */
 DECLARE_PER_CPU(int, _numa_mem_);
+extern int _node_numa_mem_[MAX_NUMNODES];
 
 #ifndef set_numa_mem
 static inline void set_numa_mem(int node)
 {
 	this_cpu_write(_numa_mem_, node);
+	_node_numa_mem_[numa_node_id()] = node;
+}
+#endif
+
+#ifndef node_to_mem_node
+static inline int node_to_mem_node(int node)
+{
+	return _node_numa_mem_[node];
 }
 #endif
 
@@ -146,6 +151,7 @@ static inline int cpu_to_mem(int cpu)
 static inline void set_cpu_numa_mem(int cpu, int node)
 {
 	per_cpu(_numa_mem_, cpu) = node;
+	_node_numa_mem_[cpu_to_node(cpu)] = node;
 }
 #endif
 
@@ -156,6 +162,13 @@ static inline void set_cpu_numa_mem(int cpu, int node)
 static inline int numa_mem_id(void)
 {
 	return numa_node_id();
+}
+#endif
+
+#ifndef node_to_mem_node
+static inline int node_to_mem_node(int node)
+{
+	return node;
 }
 #endif
 
@@ -174,8 +187,8 @@ static inline int cpu_to_mem(int cpu)
 #ifndef topology_core_id
 #define topology_core_id(cpu)			((void)(cpu), 0)
 #endif
-#ifndef topology_thread_cpumask
-#define topology_thread_cpumask(cpu)		cpumask_of(cpu)
+#ifndef topology_sibling_cpumask
+#define topology_sibling_cpumask(cpu)		cpumask_of(cpu)
 #endif
 #ifndef topology_core_cpumask
 #define topology_core_cpumask(cpu)		cpumask_of(cpu)
@@ -184,7 +197,7 @@ static inline int cpu_to_mem(int cpu)
 #ifdef CONFIG_SCHED_SMT
 static inline const struct cpumask *cpu_smt_mask(int cpu)
 {
-	return topology_thread_cpumask(cpu);
+	return topology_sibling_cpumask(cpu);
 }
 #endif
 

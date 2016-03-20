@@ -22,7 +22,8 @@
 	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
+		bootargs = "earlyprintk";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -36,6 +37,13 @@
 		 * to be added to the gmac1 device tree blob.
 		 */
 		ethernet0 = &gmac1;
+	};
+
+	regulator_3_3v: 3-3-v-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 };
 
@@ -53,6 +61,10 @@
 	rxc-skew-ps = <2000>;
 };
 
+&gpio1 {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -66,6 +78,13 @@
 		compatible = "dallas,ds1339";
 		reg = <0x68>;
 	};
+};
+
+&mmc0 {
+	cd-gpios = <&portb 18 0>;
+	vmmc-supply = <&regulator_3_3v>;
+	vqmmc-supply = <&regulator_3_3v>;
+	status = "okay";
 };
 
 &usb1 {

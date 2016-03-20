@@ -57,10 +57,46 @@ struct kvm_s390_io_adapter_req {
 
 /* kvm attr_group  on vm fd */
 #define KVM_S390_VM_MEM_CTRL		0
+#define KVM_S390_VM_TOD			1
+#define KVM_S390_VM_CRYPTO		2
+#define KVM_S390_VM_CPU_MODEL		3
 
 /* kvm attributes for mem_ctrl */
 #define KVM_S390_VM_MEM_ENABLE_CMMA	0
 #define KVM_S390_VM_MEM_CLR_CMMA	1
+#define KVM_S390_VM_MEM_LIMIT_SIZE	2
+
+#define KVM_S390_NO_MEM_LIMIT		U64_MAX
+
+/* kvm attributes for KVM_S390_VM_TOD */
+#define KVM_S390_VM_TOD_LOW		0
+#define KVM_S390_VM_TOD_HIGH		1
+
+/* kvm attributes for KVM_S390_VM_CPU_MODEL */
+/* processor related attributes are r/w */
+#define KVM_S390_VM_CPU_PROCESSOR	0
+struct kvm_s390_vm_cpu_processor {
+	__u64 cpuid;
+	__u16 ibc;
+	__u8  pad[6];
+	__u64 fac_list[256];
+};
+
+/* machine related attributes are r/o */
+#define KVM_S390_VM_CPU_MACHINE		1
+struct kvm_s390_vm_cpu_machine {
+	__u64 cpuid;
+	__u32 ibc;
+	__u8  pad[4];
+	__u64 fac_mask[256];
+	__u64 fac_list[256];
+};
+
+/* kvm attributes for crypto */
+#define KVM_S390_VM_CRYPTO_ENABLE_AES_KW	0
+#define KVM_S390_VM_CRYPTO_ENABLE_DEA_KW	1
+#define KVM_S390_VM_CRYPTO_DISABLE_AES_KW	2
+#define KVM_S390_VM_CRYPTO_DISABLE_DEA_KW	3
 
 /* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {
@@ -107,16 +143,40 @@ struct kvm_guest_debug_arch {
 	struct kvm_hw_breakpoint __user *hw_bp;
 };
 
+/* for KVM_SYNC_PFAULT and KVM_REG_S390_PFTOKEN */
+#define KVM_S390_PFAULT_TOKEN_INVALID	0xffffffffffffffffULL
+
 #define KVM_SYNC_PREFIX (1UL << 0)
 #define KVM_SYNC_GPRS   (1UL << 1)
 #define KVM_SYNC_ACRS   (1UL << 2)
 #define KVM_SYNC_CRS    (1UL << 3)
+#define KVM_SYNC_ARCH0  (1UL << 4)
+#define KVM_SYNC_PFAULT (1UL << 5)
+#define KVM_SYNC_VRS    (1UL << 6)
+#define KVM_SYNC_RICCB  (1UL << 7)
+#define KVM_SYNC_FPRS   (1UL << 8)
 /* definition of registers in kvm_run */
 struct kvm_sync_regs {
 	__u64 prefix;	/* prefix register */
 	__u64 gprs[16];	/* general purpose registers */
 	__u32 acrs[16];	/* access registers */
 	__u64 crs[16];	/* control registers */
+	__u64 todpr;	/* tod programmable register [ARCH0] */
+	__u64 cputm;	/* cpu timer [ARCH0] */
+	__u64 ckc;	/* clock comparator [ARCH0] */
+	__u64 pp;	/* program parameter [ARCH0] */
+	__u64 gbea;	/* guest breaking-event address [ARCH0] */
+	__u64 pft;	/* pfault token [PFAULT] */
+	__u64 pfs;	/* pfault select [PFAULT] */
+	__u64 pfc;	/* pfault compare [PFAULT] */
+	union {
+		__u64 vrs[32][2];	/* vector registers (KVM_SYNC_VRS) */
+		__u64 fprs[16];		/* fp registers (KVM_SYNC_FPRS) */
+	};
+	__u8  reserved[512];	/* for future vector expansion */
+	__u32 fpc;		/* valid on KVM_SYNC_VRS or KVM_SYNC_FPRS */
+	__u8 padding[52];	/* riccb needs to be 64byte aligned */
+	__u8 riccb[64];		/* runtime instrumentation controls block */
 };
 
 #define KVM_REG_S390_TODPR	(KVM_REG_S390 | KVM_REG_SIZE_U32 | 0x1)

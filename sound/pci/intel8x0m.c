@@ -23,7 +23,7 @@
  *
  */      
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -1023,7 +1023,6 @@ static int snd_intel8x0m_free(struct intel8x0m *chip)
  */
 static int intel8x0m_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct intel8x0m *chip = card->private_data;
 	int i;
@@ -1036,9 +1035,6 @@ static int intel8x0m_suspend(struct device *dev)
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
 	}
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
@@ -1048,14 +1044,6 @@ static int intel8x0m_resume(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct intel8x0m *chip = card->private_data;
 
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "pci_enable_device failed, disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 	if (request_irq(pci->irq, snd_intel8x0m_interrupt,
 			IRQF_SHARED, KBUILD_MODNAME, chip)) {
 		dev_err(dev, "unable to grab IRQ %d, disabling device\n",
@@ -1077,7 +1065,6 @@ static SIMPLE_DEV_PM_OPS(intel8x0m_pm, intel8x0m_suspend, intel8x0m_resume);
 #define INTEL8X0M_PM_OPS	NULL
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PROC_FS
 static void snd_intel8x0m_proc_read(struct snd_info_entry * entry,
 				   struct snd_info_buffer *buffer)
 {
@@ -1105,10 +1092,6 @@ static void snd_intel8x0m_proc_init(struct intel8x0m *chip)
 	if (! snd_card_proc_new(chip->card, "intel8x0m", &entry))
 		snd_info_set_text_ops(entry, chip, snd_intel8x0m_proc_read);
 }
-#else /* !CONFIG_PROC_FS */
-#define snd_intel8x0m_proc_init(chip)
-#endif /* CONFIG_PROC_FS */
-
 
 static int snd_intel8x0m_dev_free(struct snd_device *device)
 {

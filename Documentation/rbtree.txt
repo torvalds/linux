@@ -203,7 +203,7 @@ functions with the user provided augmentation callback when inserting
 and erasing nodes.
 
 C files implementing augmented rbtree manipulation must include
-<linux/rbtree_augmented.h> instead of <linus/rbtree.h>. Note that
+<linux/rbtree_augmented.h> instead of <linux/rbtree.h>. Note that
 linux/rbtree_augmented.h exposes some rbtree implementations details
 you are not expected to rely on; please stick to the documented APIs
 there and do not include <linux/rbtree_augmented.h> from header files

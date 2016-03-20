@@ -22,13 +22,13 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/pxa25x.h>
+#include "pxa25x.h"
 #include "generic.h"
 
 static void isp116x_pfm_delay(struct device *dev, int delay)
 {
 
-	/* 400Mhz PXA2 = 2.5ns / instruction */
+	/* 400MHz PXA2 = 2.5ns / instruction */
 
 	int cyc = delay / 10;
 

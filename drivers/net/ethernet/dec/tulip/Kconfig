@@ -21,8 +21,7 @@ config DE2104X
 	  of this type.  (If your card is NOT SMC EtherPower 10/100 PCI
 	  (smc9332dst), you can also try the driver for "Generic DECchip"
 	  cards, below.  However, most people with a network card of this type
-	  will say Y here.) Do read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  will say Y here.)
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called de2104x.
@@ -50,8 +49,7 @@ config TULIP
 	  of this type.  (If your card is NOT SMC EtherPower 10/100 PCI
 	  (smc9332dst), you can also try the driver for "Generic DECchip"
 	  cards, above.  However, most people with a network card of this type
-	  will say Y here.) Do read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  will say Y here.)
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called tulip.
@@ -113,9 +111,7 @@ config DE4X5
 	---help---
 	  This is support for the DIGITAL series of PCI/EISA Ethernet cards.
 	  These include the DE425, DE434, DE435, DE450 and DE500 models.  If
-	  you have a network card of this type, say Y and read the
-	  Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>. More specific
+	  you have a network card of this type, say Y.  More specific
 	  information is contained in
 	  <file:Documentation/networking/de4x5.txt>.
 

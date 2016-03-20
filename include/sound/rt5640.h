@@ -12,9 +12,10 @@
 #define __LINUX_SND_RT5640_H
 
 struct rt5640_platform_data {
-	/* IN1 & IN2 can optionally be differential */
+	/* IN1 & IN2 & IN3 can optionally be differential */
 	bool in1_diff;
 	bool in2_diff;
+	bool in3_diff;
 
 	bool dmic_en;
 	bool dmic1_data_pin; /* 0 = IN1P; 1 = GPIO3 */

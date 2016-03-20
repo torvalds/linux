@@ -14,12 +14,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * this code is specificly written as a driver for the speakup screenreview
- * package and is not a general device driver.  */
+ * package and is not a general device driver.
+ */
 
 #include <linux/unistd.h>
 #include <linux/miscdevice.h> /* for misc_register, and SYNTH_MINOR */
@@ -192,6 +190,7 @@ static int softsynth_open(struct inode *inode, struct file *fp)
 static int softsynth_close(struct inode *inode, struct file *fp)
 {
 	unsigned long flags;
+
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	synth_soft.alive = 0;
 	init_pos = 0;
@@ -283,6 +282,7 @@ static unsigned int softsynth_poll(struct file *fp,
 {
 	unsigned long flags;
 	int ret = 0;
+
 	poll_wait(fp, &speakup_event, wait);
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
@@ -295,6 +295,7 @@ static unsigned int softsynth_poll(struct file *fp,
 static unsigned char get_index(void)
 {
 	int rv;
+
 	rv = last_index;
 	last_index = 0;
 	return rv;
@@ -347,21 +348,9 @@ module_param_named(start, synth_soft.startup, short, S_IRUGO);
 
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
+module_spk_synth(synth_soft);
 
-static int __init soft_init(void)
-{
-	return synth_add(&synth_soft);
-}
-
-static void __exit soft_exit(void)
-{
-	synth_remove(&synth_soft);
-}
-
-module_init(soft_init);
-module_exit(soft_exit);
 MODULE_AUTHOR("Kirk Reiser <kirk@braille.uwo.ca>");
 MODULE_DESCRIPTION("Speakup userspace software synthesizer support");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-

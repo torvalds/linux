@@ -21,6 +21,7 @@
 #include <linux/i2c.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_plane_helper.h>
 #include "framebuffer.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
@@ -107,7 +108,7 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	int refclk;
@@ -438,8 +439,6 @@ const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 };
 
 const struct drm_crtc_funcs psb_intel_crtc_funcs = {
-	.save = gma_crtc_save,
-	.restore = gma_crtc_restore,
 	.cursor_set = gma_crtc_cursor_set,
 	.cursor_move = gma_crtc_cursor_move,
 	.gamma_set = gma_crtc_gamma_set,

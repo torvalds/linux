@@ -72,28 +72,9 @@ void inet_peer_base_init(struct inet_peer_base *bp)
 {
 	bp->root = peer_avl_empty_rcu;
 	seqlock_init(&bp->lock);
-	bp->flush_seq = ~0U;
 	bp->total = 0;
 }
 EXPORT_SYMBOL_GPL(inet_peer_base_init);
-
-static atomic_t v4_seq = ATOMIC_INIT(0);
-static atomic_t v6_seq = ATOMIC_INIT(0);
-
-static atomic_t *inetpeer_seq_ptr(int family)
-{
-	return (family == AF_INET ? &v4_seq : &v6_seq);
-}
-
-static inline void flush_check(struct inet_peer_base *base, int family)
-{
-	atomic_t *fp = inetpeer_seq_ptr(family);
-
-	if (unlikely(base->flush_seq != atomic_read(fp))) {
-		inetpeer_invalidate_tree(base);
-		base->flush_seq = atomic_read(fp);
-	}
-}
 
 #define PEER_MAXDEPTH 40 /* sufficient for about 2^27 nodes */
 
@@ -176,22 +157,6 @@ void __init inet_initpeers(void)
 	INIT_DEFERRABLE_WORK(&gc_work, inetpeer_gc_worker);
 }
 
-static int addr_compare(const struct inetpeer_addr *a,
-			const struct inetpeer_addr *b)
-{
-	int i, n = (a->family == AF_INET ? 1 : 4);
-
-	for (i = 0; i < n; i++) {
-		if (a->addr.a6[i] == b->addr.a6[i])
-			continue;
-		if ((__force u32)a->addr.a6[i] < (__force u32)b->addr.a6[i])
-			return -1;
-		return 1;
-	}
-
-	return 0;
-}
-
 #define rcu_deref_locked(X, BASE)				\
 	rcu_dereference_protected(X, lockdep_is_held(&(BASE)->lock.lock))
 
@@ -207,7 +172,7 @@ static int addr_compare(const struct inetpeer_addr *a,
 	*stackptr++ = &_base->root;				\
 	for (u = rcu_deref_locked(_base->root, _base);		\
 	     u != peer_avl_empty;) {				\
-		int cmp = addr_compare(_daddr, &u->daddr);	\
+		int cmp = inetpeer_addr_cmp(_daddr, &u->daddr);	\
 		if (cmp == 0)					\
 			break;					\
 		if (cmp == -1)					\
@@ -234,7 +199,7 @@ static struct inet_peer *lookup_rcu(const struct inetpeer_addr *daddr,
 	int count = 0;
 
 	while (u != peer_avl_empty) {
-		int cmp = addr_compare(daddr, &u->daddr);
+		int cmp = inetpeer_addr_cmp(daddr, &u->daddr);
 		if (cmp == 0) {
 			/* Before taking a reference, check if this entry was
 			 * deleted (refcnt=-1)
@@ -443,8 +408,6 @@ struct inet_peer *inet_getpeer(struct inet_peer_base *base,
 	struct inet_peer *p;
 	unsigned int sequence;
 	int invalidated, gccnt = 0;
-
-	flush_check(base, daddr->family);
 
 	/* Attempt a lockless lookup first.
 	 * Because of a concurrent writer, we might not find an existing entry.

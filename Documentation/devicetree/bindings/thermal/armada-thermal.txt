@@ -5,16 +5,8 @@ Required properties:
 - compatible:	Should be set to one of the following:
 		marvell,armada370-thermal
 		marvell,armada375-thermal
-		marvell,armada375-z1-thermal
 		marvell,armada380-thermal
 		marvell,armadaxp-thermal
-
-		Note: As the name suggests, "marvell,armada375-z1-thermal"
-		applies for the SoC Z1 stepping only. On such stepping
-		some quirks need to be done and the register offset differs
-		from the one in the A0 stepping.
-		The operating system may auto-detect the SoC stepping and
-		update the compatible and register offsets at runtime.
 
 - reg:		Device's register space.
 		Two entries are expected, see the examples below.

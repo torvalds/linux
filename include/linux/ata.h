@@ -45,6 +45,7 @@ enum {
 	ATA_SECT_SIZE		= 512,
 	ATA_MAX_SECTORS_128	= 128,
 	ATA_MAX_SECTORS		= 256,
+	ATA_MAX_SECTORS_1024    = 1024,
 	ATA_MAX_SECTORS_LBA48	= 65535,/* TODO: 65536? */
 	ATA_MAX_SECTORS_TAPE	= 65535,
 
@@ -94,6 +95,8 @@ enum {
 	ATA_ID_SECTOR_SIZE	= 106,
 	ATA_ID_WWN		= 108,
 	ATA_ID_LOGICAL_SECTOR_SIZE	= 117,	/* and 118 */
+	ATA_ID_COMMAND_SET_3	= 119,
+	ATA_ID_COMMAND_SET_4	= 120,
 	ATA_ID_LAST_LUN		= 126,
 	ATA_ID_DLF		= 128,
 	ATA_ID_CSFO		= 129,
@@ -177,7 +180,7 @@ enum {
 	ATA_DSC			= (1 << 4),	/* drive seek complete */
 	ATA_DRQ			= (1 << 3),	/* data request i/o */
 	ATA_CORR		= (1 << 2),	/* corrected data error */
-	ATA_IDX			= (1 << 1),	/* index */
+	ATA_SENSE		= (1 << 1),	/* sense code available */
 	ATA_ERR			= (1 << 0),	/* have an error */
 	ATA_SRST		= (1 << 2),	/* software reset */
 	ATA_ICRC		= (1 << 7),	/* interface CRC error */
@@ -484,8 +487,8 @@ enum ata_tf_protocols {
 };
 
 enum ata_ioctls {
-	ATA_IOC_GET_IO32	= 0x309,
-	ATA_IOC_SET_IO32	= 0x324,
+	ATA_IOC_GET_IO32	= 0x309, /* HDIO_GET_32BIT */
+	ATA_IOC_SET_IO32	= 0x324, /* HDIO_SET_32BIT */
 };
 
 /* core structures */
@@ -503,7 +506,7 @@ struct ata_bmdma_prd {
 #define ata_id_has_dma(id)	((id)[ATA_ID_CAPABILITY] & (1 << 8))
 #define ata_id_has_ncq(id)	((id)[ATA_ID_SATA_CAPABILITY] & (1 << 8))
 #define ata_id_queue_depth(id)	(((id)[ATA_ID_QUEUE_DEPTH] & 0x1f) + 1)
-#define ata_id_removeable(id)	((id)[ATA_ID_CONFIG] & (1 << 7))
+#define ata_id_removable(id)	((id)[ATA_ID_CONFIG] & (1 << 7))
 #define ata_id_has_atapi_AN(id)	\
 	((((id)[ATA_ID_SATA_CAPABILITY] != 0x0000) && \
 	  ((id)[ATA_ID_SATA_CAPABILITY] != 0xffff)) && \
@@ -694,6 +697,23 @@ static inline bool ata_id_wcache_enabled(const u16 *id)
 	if ((id[ATA_ID_CSF_DEFAULT] & 0xC000) != 0x4000)
 		return false;
 	return id[ATA_ID_CFS_ENABLE_1] & (1 << 5);
+}
+
+static inline bool ata_id_has_read_log_dma_ext(const u16 *id)
+{
+	/* Word 86 must have bit 15 set */
+	if (!(id[ATA_ID_CFS_ENABLE_2] & (1 << 15)))
+		return false;
+
+	/* READ LOG DMA EXT support can be signaled either from word 119
+	 * or from word 120. The format is the same for both words: Bit
+	 * 15 must be cleared, bit 14 set and bit 3 set.
+	 */
+	if ((id[ATA_ID_COMMAND_SET_3] & 0xC008) == 0x4008 ||
+	    (id[ATA_ID_COMMAND_SET_4] & 0xC008) == 0x4008)
+		return true;
+
+	return false;
 }
 
 /**

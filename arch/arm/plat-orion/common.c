@@ -21,18 +21,13 @@
 #include <net/dsa.h>
 #include <linux/platform_data/dma-mv_xor.h>
 #include <linux/platform_data/usb-ehci-orion.h>
-#include <mach/bridge-regs.h>
 #include <plat/common.h>
 
 /* Create a clkdev entry for a given device/clk */
 void __init orion_clkdev_add(const char *con_id, const char *dev_id,
 			     struct clk *clk)
 {
-	struct clk_lookup *cl;
-
-	cl = clkdev_alloc(clk, con_id, dev_id);
-	if (cl)
-		clkdev_add(cl);
+	clkdev_create(clk, con_id, "%s", dev_id);
 }
 
 /* Create clkdev entries for all orion platforms except kirkwood.
@@ -499,7 +494,7 @@ void __init orion_ge00_switch_init(struct dsa_platform_data *d, int irq)
 
 	d->netdev = &orion_ge00.dev;
 	for (i = 0; i < d->nr_chips; i++)
-		d->chip[i].mii_bus = &orion_ge00_shared.dev;
+		d->chip[i].host_dev = &orion_ge_mvmdio.dev;
 	orion_switch_device.dev.platform_data = d;
 
 	platform_device_register(&orion_switch_device);
@@ -590,26 +585,6 @@ void __init orion_spi_1_init(unsigned long mapbase)
 	fill_resources(&orion_spi_1, &orion_spi_1_resources,
 		       mapbase, SZ_512 - 1, NO_IRQ);
 	platform_device_register(&orion_spi_1);
-}
-
-/*****************************************************************************
- * Watchdog
- ****************************************************************************/
-static struct resource orion_wdt_resource[] = {
-		DEFINE_RES_MEM(TIMER_PHYS_BASE, 0x04),
-		DEFINE_RES_MEM(RSTOUTn_MASK_PHYS, 0x04),
-};
-
-static struct platform_device orion_wdt_device = {
-	.name		= "orion_wdt",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(orion_wdt_resource),
-	.resource	= orion_wdt_resource,
-};
-
-void __init orion_wdt_init(void)
-{
-	platform_device_register(&orion_wdt_device);
 }
 
 /*****************************************************************************

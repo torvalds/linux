@@ -53,7 +53,7 @@ static DECLARE_COMPLETION(sclp_request_queue_flushed);
 /* Number of console pages to allocate, used by sclp_con.c and sclp_vt220.c */
 int sclp_console_pages = SCLP_CONSOLE_PAGES;
 /* Flag to indicate if buffer pages are dropped on buffer full condition */
-int sclp_console_drop = 0;
+int sclp_console_drop = 1;
 /* Number of times the console dropped buffer pages */
 unsigned long sclp_console_full;
 
@@ -79,8 +79,8 @@ static int __init sclp_setup_console_drop(char *str)
 	int drop, rc;
 
 	rc = kstrtoint(str, 0, &drop);
-	if (!rc && drop)
-		sclp_console_drop = 1;
+	if (!rc)
+		sclp_console_drop = drop;
 	return 1;
 }
 
@@ -579,9 +579,8 @@ sclp_sync_wait(void)
 	old_tick = local_tick_disable();
 	trace_hardirqs_on();
 	__ctl_store(cr0, 0, 0);
-	cr0_sync = cr0;
-	cr0_sync &= 0xffff00a0;
-	cr0_sync |= 0x00000200;
+	cr0_sync = cr0 & ~CR0_IRQ_SUBCLASS_MASK;
+	cr0_sync |= 1UL << (63 - 54);
 	__ctl_load(cr0_sync, 0, 0);
 	__arch_local_irq_stosm(0x01);
 	/* Loop until driver state indicates finished request */
@@ -665,7 +664,7 @@ sclp_state_change_cb(struct evbuf_header *evbuf)
 		sclp_send_mask = scbuf->sclp_send_mask;
 	spin_unlock_irqrestore(&sclp_lock, flags);
 	if (scbuf->validity_sclp_active_facility_mask)
-		sclp_facilities = scbuf->sclp_active_facility_mask;
+		sclp.facilities = scbuf->sclp_active_facility_mask;
 	sclp_dispatch_state_change();
 }
 
@@ -1167,7 +1166,6 @@ static const struct attribute_group *sclp_drv_attr_groups[] = {
 static struct platform_driver sclp_pdrv = {
 	.driver = {
 		.name	= "sclp",
-		.owner	= THIS_MODULE,
 		.pm	= &sclp_pm_ops,
 		.groups = sclp_drv_attr_groups,
 	},

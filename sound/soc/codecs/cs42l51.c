@@ -60,15 +60,15 @@ static int cs42l51_get_chan_mix(struct snd_kcontrol *kcontrol,
 	switch (value) {
 	default:
 	case 0:
-		ucontrol->value.integer.value[0] = 0;
+		ucontrol->value.enumerated.item[0] = 0;
 		break;
 	/* same value : (L+R)/2 and (R+L)/2 */
 	case 1:
 	case 2:
-		ucontrol->value.integer.value[0] = 1;
+		ucontrol->value.enumerated.item[0] = 1;
 		break;
 	case 3:
-		ucontrol->value.integer.value[0] = 2;
+		ucontrol->value.enumerated.item[0] = 2;
 		break;
 	}
 
@@ -85,7 +85,7 @@ static int cs42l51_set_chan_mix(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	unsigned char val;
 
-	switch (ucontrol->value.integer.value[0]) {
+	switch (ucontrol->value.enumerated.item[0]) {
 	default:
 	case 0:
 		val = CHAN_MIX_NORMAL;
@@ -153,15 +153,17 @@ static const struct snd_kcontrol_new cs42l51_snd_controls[] = {
 static int cs42l51_pdn_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(w->codec, CS42L51_POWER_CTL1,
+		snd_soc_update_bits(codec, CS42L51_POWER_CTL1,
 				    CS42L51_POWER_CTL1_PDN,
 				    CS42L51_POWER_CTL1_PDN);
 		break;
 	default:
 	case SND_SOC_DAPM_POST_PMD:
-		snd_soc_update_bits(w->codec, CS42L51_POWER_CTL1,
+		snd_soc_update_bits(codec, CS42L51_POWER_CTL1,
 				    CS42L51_POWER_CTL1_PDN, 0);
 		break;
 	}
@@ -558,11 +560,13 @@ error:
 }
 EXPORT_SYMBOL_GPL(cs42l51_probe);
 
-static const struct of_device_id cs42l51_of_match[] = {
+const struct of_device_id cs42l51_of_match[] = {
 	{ .compatible = "cirrus,cs42l51", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, cs42l51_of_match);
+EXPORT_SYMBOL_GPL(cs42l51_of_match);
+
 MODULE_AUTHOR("Arnaud Patard <arnaud.patard@rtp-net.org>");
 MODULE_DESCRIPTION("Cirrus Logic CS42L51 ALSA SoC Codec Driver");
 MODULE_LICENSE("GPL");

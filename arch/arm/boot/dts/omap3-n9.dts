@@ -16,3 +16,40 @@
 	model = "Nokia N9";
 	compatible = "nokia,omap3-n9", "ti,omap36xx", "ti,omap3";
 };
+
+&i2c2 {
+	smia_1: camera@10 {
+		compatible = "nokia,smia";
+		reg = <0x10>;
+		/* No reset gpio */
+		vana-supply = <&vaux3>;
+		clocks = <&isp 0>;
+		clock-frequency = <9600000>;
+		nokia,nvm-size = <(16 * 64)>;
+		port {
+			smia_1_1: endpoint {
+				link-frequencies = /bits/ 64 <199200000 210000000 499200000>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				remote-endpoint = <&csi2a_ep>;
+			};
+		};
+	};
+};
+
+&isp {
+	vdd-csiphy1-supply = <&vaux2>;
+	vdd-csiphy2-supply = <&vaux2>;
+	ports {
+		port@2 {
+			reg = <2>;
+			csi2a_ep: endpoint {
+				remote-endpoint = <&smia_1_1>;
+				clock-lanes = <2>;
+				data-lanes = <1 3>;
+				crc = <1>;
+				lane-polarities = <1 1 1>;
+			};
+		};
+	};
+};

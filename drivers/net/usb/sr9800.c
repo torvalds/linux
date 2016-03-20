@@ -144,6 +144,7 @@ static struct sk_buff *sr_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 		skb_put(skb, sizeof(padbytes));
 	}
 
+	usbnet_set_skb_tx_stats(skb, 1, 0);
 	return skb;
 }
 
@@ -469,14 +470,10 @@ static int sr_get_eeprom(struct net_device *net,
 static void sr_get_drvinfo(struct net_device *net,
 				 struct ethtool_drvinfo *info)
 {
-	struct usbnet *dev = netdev_priv(net);
-	struct sr_data *data = (struct sr_data *)&dev->data;
-
 	/* Inherit standard device info */
 	usbnet_get_drvinfo(net, info);
 	strncpy(info->driver, DRIVER_NAME, sizeof(info->driver));
 	strncpy(info->version, DRIVER_VERSION, sizeof(info->version));
-	info->eedump_len = data->eeprom_len;
 }
 
 static u32 sr_get_link(struct net_device *net)

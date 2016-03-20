@@ -18,6 +18,8 @@
 
 /* ValleyView Power Control Unit PCI Device ID */
 #define	PCI_DEVICE_ID_VLV_PMC	0x0F1C
+/* CherryTrail Power Control Unit PCI Device ID */
+#define	PCI_DEVICE_ID_CHT_PMC	0x229C
 
 /* PMC Memory mapped IO registers */
 #define	PMC_BASE_ADDR_OFFSET	0x44
@@ -28,6 +30,10 @@
 /* BIOS uses FUNC_DIS to disable specific function */
 #define	PMC_FUNC_DIS		0x34
 #define	PMC_FUNC_DIS_2		0x38
+
+/* CHT specific bits in FUNC_DIS2 register */
+#define	BIT_FD_GMM		BIT(3)
+#define	BIT_FD_ISH		BIT(4)
 
 /* S0ix wake event control */
 #define	PMC_S0IX_WAKE_EN	0x3C
@@ -52,6 +58,43 @@
 #define	PMC_S0_TMR		0x90
 /* Sleep state counter is in units of of 32us */
 #define	PMC_TMR_SHIFT		5
+
+/* Power status of power islands */
+#define	PMC_PSS			0x98
+
+#define PMC_PSS_BIT_GBE			BIT(0)
+#define PMC_PSS_BIT_SATA		BIT(1)
+#define PMC_PSS_BIT_HDA			BIT(2)
+#define PMC_PSS_BIT_SEC			BIT(3)
+#define PMC_PSS_BIT_PCIE		BIT(4)
+#define PMC_PSS_BIT_LPSS		BIT(5)
+#define PMC_PSS_BIT_LPE			BIT(6)
+#define PMC_PSS_BIT_DFX			BIT(7)
+#define PMC_PSS_BIT_USH_CTRL		BIT(8)
+#define PMC_PSS_BIT_USH_SUS		BIT(9)
+#define PMC_PSS_BIT_USH_VCCS		BIT(10)
+#define PMC_PSS_BIT_USH_VCCA		BIT(11)
+#define PMC_PSS_BIT_OTG_CTRL		BIT(12)
+#define PMC_PSS_BIT_OTG_VCCS		BIT(13)
+#define PMC_PSS_BIT_OTG_VCCA_CLK	BIT(14)
+#define PMC_PSS_BIT_OTG_VCCA		BIT(15)
+#define PMC_PSS_BIT_USB			BIT(16)
+#define PMC_PSS_BIT_USB_SUS		BIT(17)
+
+/* CHT specific bits in PSS register */
+#define	PMC_PSS_BIT_CHT_UFS		BIT(7)
+#define	PMC_PSS_BIT_CHT_UXD		BIT(11)
+#define	PMC_PSS_BIT_CHT_UXD_FD		BIT(12)
+#define	PMC_PSS_BIT_CHT_UX_ENG		BIT(15)
+#define	PMC_PSS_BIT_CHT_USB_SUS		BIT(16)
+#define	PMC_PSS_BIT_CHT_GMM		BIT(17)
+#define	PMC_PSS_BIT_CHT_ISH		BIT(18)
+#define	PMC_PSS_BIT_CHT_DFX_MASTER	BIT(26)
+#define	PMC_PSS_BIT_CHT_DFX_CLUSTER1	BIT(27)
+#define	PMC_PSS_BIT_CHT_DFX_CLUSTER2	BIT(28)
+#define	PMC_PSS_BIT_CHT_DFX_CLUSTER3	BIT(29)
+#define	PMC_PSS_BIT_CHT_DFX_CLUSTER4	BIT(30)
+#define	PMC_PSS_BIT_CHT_DFX_CLUSTER5	BIT(31)
 
 /* These registers reflect D3 status of functions */
 #define	PMC_D3_STS_0		0xA0
@@ -95,6 +138,10 @@
 #define	BIT_USH_SS_PHY		BIT(2)
 #define	BIT_DFX			BIT(3)
 
+/* CHT specific bits in PMC_D3_STS_1 register */
+#define	BIT_STS_GMM		BIT(1)
+#define	BIT_STS_ISH		BIT(2)
+
 /* PMC I/O Registers */
 #define	ACPI_BASE_ADDR_OFFSET	0x40
 #define	ACPI_BASE_ADDR_MASK	0xFFFFFE00
@@ -104,4 +151,8 @@
 #define	SLEEP_TYPE_MASK		0xFFFFECFF
 #define	SLEEP_TYPE_S5		0x1C00
 #define	SLEEP_ENABLE		0x2000
+
+extern int pmc_atom_read(int offset, u32 *value);
+extern int pmc_atom_write(int offset, u32 value);
+
 #endif /* PMC_ATOM_H */

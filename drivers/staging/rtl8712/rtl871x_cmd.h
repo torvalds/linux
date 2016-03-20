@@ -123,30 +123,12 @@ struct usb_suspend_parm {
 };
 
 /*
- * Caller Mode: Infra, Ad-Hoc
- * Notes: To join the specified bss
- * Command Event Mode
- */
-struct joinbss_parm {
-	struct ndis_wlan_bssid_ex network;
-};
-
-/*
  * Caller Mode: Infra, Ad-HoC(C)
  * Notes: To disconnect the current associated BSS
  * Command Mode
  */
 struct disconnect_parm {
 	u32 rsvd;
-};
-
-/*
- * Caller Mode: AP, Ad-HoC(M)
- * Notes: To create a BSS
- * Command Mode
- */
-struct createbss_parm {
-	struct ndis_wlan_bssid_ex network;
 };
 
 /*
@@ -754,8 +736,6 @@ u8 r8712_setrfintfs_cmd(struct _adapter *padapter, u8 mode);
 u8 r8712_setrfreg_cmd(struct _adapter  *padapter, u8 offset, u32 val);
 u8 r8712_setrttbl_cmd(struct _adapter  *padapter,
 		      struct setratable_parm *prate_table);
-u8 r8712_gettssi_cmd(struct _adapter  *padapter, u8 offset, u8 *pval);
-u8 r8712_setptm_cmd(struct _adapter *padapter, u8 type);
 u8 r8712_setfwdig_cmd(struct _adapter *padapter, u8 type);
 u8 r8712_setfwra_cmd(struct _adapter *padapter, u8 type);
 u8 r8712_addbareq_cmd(struct _adapter *padapter, u8 tid);

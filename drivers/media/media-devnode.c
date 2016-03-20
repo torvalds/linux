@@ -181,6 +181,7 @@ static int media_open(struct inode *inode, struct file *filp)
 		ret = mdev->fops->open(filp);
 		if (ret) {
 			put_device(&mdev->dev);
+			filp->private_data = NULL;
 			return ret;
 		}
 	}
@@ -192,7 +193,6 @@ static int media_open(struct inode *inode, struct file *filp)
 static int media_release(struct inode *inode, struct file *filp)
 {
 	struct media_devnode *mdev = media_devnode_data(filp);
-	int ret = 0;
 
 	if (mdev->fops->release)
 		mdev->fops->release(filp);
@@ -201,7 +201,7 @@ static int media_release(struct inode *inode, struct file *filp)
 	   return value is ignored. */
 	put_device(&mdev->dev);
 	filp->private_data = NULL;
-	return ret;
+	return 0;
 }
 
 static const struct file_operations media_devnode_fops = {
@@ -218,20 +218,6 @@ static const struct file_operations media_devnode_fops = {
 	.llseek = no_llseek,
 };
 
-/**
- * media_devnode_register - register a media device node
- * @mdev: media device node structure we want to register
- *
- * The registration code assigns minor numbers and registers the new device node
- * with the kernel. An error is returned if no free minor number can be found,
- * or if the registration of the device node fails.
- *
- * Zero is returned on success.
- *
- * Note that if the media_devnode_register call fails, the release() callback of
- * the media_devnode structure is *not* called, so the caller is responsible for
- * freeing any data.
- */
 int __must_check media_devnode_register(struct media_devnode *mdev,
 					struct module *owner)
 {
@@ -286,16 +272,6 @@ error:
 	return ret;
 }
 
-/**
- * media_devnode_unregister - unregister a media device node
- * @mdev: the device node to unregister
- *
- * This unregisters the passed device. Future open calls will be met with
- * errors.
- *
- * This function can safely be called if the device node has never been
- * registered or has already been unregistered.
- */
 void media_devnode_unregister(struct media_devnode *mdev)
 {
 	/* Check if mdev was ever registered at all */

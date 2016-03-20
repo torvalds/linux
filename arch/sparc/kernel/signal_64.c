@@ -52,7 +52,7 @@ asmlinkage void sparc64_set_context(struct pt_regs *regs)
 	unsigned char fenab;
 	int err;
 
-	flush_user_windows();
+	synchronize_user_stack();
 	if (get_thread_wsaved()					||
 	    (((unsigned long)ucp) & (sizeof(unsigned long)-1))	||
 	    (!__access_ok(ucp, sizeof(*ucp))))
@@ -254,7 +254,7 @@ void do_rt_sigreturn(struct pt_regs *regs)
 	int err;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	synchronize_user_stack ();
 	sf = (struct rt_signal_frame __user *)

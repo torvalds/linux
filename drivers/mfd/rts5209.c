@@ -38,7 +38,7 @@ static void rts5209_fetch_vendor_settings(struct rtsx_pcr *pcr)
 	u32 reg;
 
 	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG1, &reg);
-	dev_dbg(&(pcr->pci->dev), "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg);
+	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG1, reg);
 
 	if (rts5209_vendor_setting1_valid(reg)) {
 		if (rts5209_reg_check_ms_pmos(reg))
@@ -47,7 +47,7 @@ static void rts5209_fetch_vendor_settings(struct rtsx_pcr *pcr)
 	}
 
 	rtsx_pci_read_config_dword(pcr, PCR_SETTING_REG2, &reg);
-	dev_dbg(&(pcr->pci->dev), "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG2, reg);
+	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG2, reg);
 
 	if (rts5209_vendor_setting2_valid(reg)) {
 		pcr->sd30_drive_sel_1v8 =
@@ -138,11 +138,7 @@ static int rts5209_card_power_on(struct rtsx_pcr *pcr, int card)
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_PWR_CTL, pwr_mask, pwr_on);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PWR_GATE_CTRL,
 			LDO3318_PWR_MASK, 0x00);
-	err = rtsx_pci_send_cmd(pcr, 100);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return rtsx_pci_send_cmd(pcr, 100);
 }
 
 static int rts5209_card_power_off(struct rtsx_pcr *pcr, int card)

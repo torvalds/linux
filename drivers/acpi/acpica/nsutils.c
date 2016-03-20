@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,7 +83,7 @@ acpi_ns_print_node_pathname(struct acpi_namespace_node *node,
 
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 
-	status = acpi_ns_handle_to_pathname(node, &buffer);
+	status = acpi_ns_handle_to_pathname(node, &buffer, TRUE);
 	if (ACPI_SUCCESS(status)) {
 		if (message) {
 			acpi_os_printf("%s ", message);
@@ -173,9 +173,10 @@ void acpi_ns_get_internal_name_length(struct acpi_namestring_info *info)
 	info->fully_qualified = FALSE;
 
 	/*
-	 * For the internal name, the required length is 4 bytes per segment, plus
-	 * 1 each for root_prefix, multi_name_prefix_op, segment count, trailing null
-	 * (which is not really needed, but no there's harm in putting it there)
+	 * For the internal name, the required length is 4 bytes per segment,
+	 * plus 1 each for root_prefix, multi_name_prefix_op, segment count,
+	 * trailing null (which is not really needed, but no there's harm in
+	 * putting it there)
 	 *
 	 * strlen() + 1 covers the first name_seg, which has no path separator
 	 */
@@ -292,8 +293,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 			} else {
 				/* Convert the character to uppercase and save it */
 
-				result[i] =
-				    (char)ACPI_TOUPPER((int)*external_name);
+				result[i] = (char)toupper((int)*external_name);
 				external_name++;
 			}
 		}
@@ -597,6 +597,23 @@ void acpi_ns_terminate(void)
 
 	ACPI_FUNCTION_TRACE(ns_terminate);
 
+#ifdef ACPI_EXEC_APP
+	{
+		union acpi_operand_object *prev;
+		union acpi_operand_object *next;
+
+		/* Delete any module-level code blocks */
+
+		next = acpi_gbl_module_code_list;
+		while (next) {
+			prev = next;
+			next = next->method.mutex;
+			prev->method.mutex = NULL;	/* Clear the Mutex (cheated) field */
+			acpi_ut_remove_reference(prev);
+		}
+	}
+#endif
+
 	/*
 	 * Free the entire namespace -- all nodes and all objects
 	 * attached to the nodes
@@ -683,6 +700,7 @@ acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
 		if (!prefix_node) {
 			*return_node = acpi_gbl_root_node;
 		}
+
 		return_ACPI_STATUS(AE_OK);
 	}
 

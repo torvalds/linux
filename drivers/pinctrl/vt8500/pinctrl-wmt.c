@@ -14,7 +14,7 @@
  */
 
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -131,9 +131,9 @@ static int wmt_set_pinmux(struct wmt_pinctrl_data *data, unsigned func,
 	return 0;
 }
 
-static int wmt_pmx_enable(struct pinctrl_dev *pctldev,
-			  unsigned func_selector,
-			  unsigned group_selector)
+static int wmt_pmx_set_mux(struct pinctrl_dev *pctldev,
+			   unsigned func_selector,
+			   unsigned group_selector)
 {
 	struct wmt_pinctrl_data *data = pinctrl_dev_get_drvdata(pctldev);
 	u32 pinnum = data->pins[group_selector].number;
@@ -168,7 +168,7 @@ static struct pinmux_ops wmt_pinmux_ops = {
 	.get_functions_count = wmt_pmx_get_functions_count,
 	.get_function_name = wmt_pmx_get_function_name,
 	.get_function_groups = wmt_pmx_get_function_groups,
-	.enable = wmt_pmx_enable,
+	.set_mux = wmt_pmx_set_mux,
 	.gpio_disable_free = wmt_pmx_gpio_disable_free,
 	.gpio_set_direction = wmt_pmx_gpio_set_direction,
 };
@@ -486,19 +486,9 @@ static struct pinctrl_desc wmt_desc = {
 	.confops = &wmt_pinconf_ops,
 };
 
-static int wmt_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void wmt_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
-
 static int wmt_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
-	struct wmt_pinctrl_data *data = dev_get_drvdata(chip->dev);
+	struct wmt_pinctrl_data *data = gpiochip_get_data(chip);
 	u32 bank = WMT_BANK_FROM_PIN(offset);
 	u32 bit = WMT_BIT_FROM_PIN(offset);
 	u32 reg_dir = data->banks[bank].reg_dir;
@@ -513,7 +503,7 @@ static int wmt_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 
 static int wmt_gpio_get_value(struct gpio_chip *chip, unsigned offset)
 {
-	struct wmt_pinctrl_data *data = dev_get_drvdata(chip->dev);
+	struct wmt_pinctrl_data *data = gpiochip_get_data(chip);
 	u32 bank = WMT_BANK_FROM_PIN(offset);
 	u32 bit = WMT_BIT_FROM_PIN(offset);
 	u32 reg_data_in = data->banks[bank].reg_data_in;
@@ -529,7 +519,7 @@ static int wmt_gpio_get_value(struct gpio_chip *chip, unsigned offset)
 static void wmt_gpio_set_value(struct gpio_chip *chip, unsigned offset,
 			       int val)
 {
-	struct wmt_pinctrl_data *data = dev_get_drvdata(chip->dev);
+	struct wmt_pinctrl_data *data = gpiochip_get_data(chip);
 	u32 bank = WMT_BANK_FROM_PIN(offset);
 	u32 bit = WMT_BIT_FROM_PIN(offset);
 	u32 reg_data_out = data->banks[bank].reg_data_out;
@@ -560,8 +550,8 @@ static int wmt_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 static struct gpio_chip wmt_gpio_chip = {
 	.label = "gpio-wmt",
 	.owner = THIS_MODULE,
-	.request = wmt_gpio_request,
-	.free = wmt_gpio_free,
+	.request = gpiochip_generic_request,
+	.free = gpiochip_generic_free,
 	.get_direction = wmt_gpio_get_direction,
 	.direction_input = wmt_gpio_direction_input,
 	.direction_output = wmt_gpio_direction_output,
@@ -585,7 +575,7 @@ int wmt_pinctrl_probe(struct platform_device *pdev,
 	wmt_desc.npins = data->npins;
 
 	data->gpio_chip = wmt_gpio_chip;
-	data->gpio_chip.dev = &pdev->dev;
+	data->gpio_chip.parent = &pdev->dev;
 	data->gpio_chip.of_node = pdev->dev.of_node;
 	data->gpio_chip.ngpio = data->nbanks * 32;
 
@@ -594,12 +584,12 @@ int wmt_pinctrl_probe(struct platform_device *pdev,
 	data->dev = &pdev->dev;
 
 	data->pctl_dev = pinctrl_register(&wmt_desc, &pdev->dev, data);
-	if (!data->pctl_dev) {
+	if (IS_ERR(data->pctl_dev)) {
 		dev_err(&pdev->dev, "Failed to register pinctrl\n");
-		return -EINVAL;
+		return PTR_ERR(data->pctl_dev);
 	}
 
-	err = gpiochip_add(&data->gpio_chip);
+	err = gpiochip_add_data(&data->gpio_chip, data);
 	if (err) {
 		dev_err(&pdev->dev, "could not add GPIO chip\n");
 		goto fail_gpio;

@@ -36,8 +36,8 @@ static int __init uart8250_init_ssb(void)
 		struct plat_serial8250_port *p = &(uart8250_data[i]);
 		struct ssb_serial_port *ssb_port = &(mcore->serial_ports[i]);
 
-		p->mapbase = (unsigned int) ssb_port->regs;
-		p->membase = (void *) ssb_port->regs;
+		p->mapbase = (unsigned int)ssb_port->regs;
+		p->membase = (void *)ssb_port->regs;
 		p->irq = ssb_port->irq + 2;
 		p->uartclk = ssb_port->baud_base;
 		p->regshift = ssb_port->reg_shift;
@@ -62,8 +62,8 @@ static int __init uart8250_init_bcma(void)
 		struct bcma_serial_port *bcma_port;
 		bcma_port = &(cc->serial_ports[i]);
 
-		p->mapbase = (unsigned int) bcma_port->regs;
-		p->membase = (void *) bcma_port->regs;
+		p->mapbase = (unsigned int)bcma_port->regs;
+		p->membase = (void *)bcma_port->regs;
 		p->irq = bcma_port->irq;
 		p->uartclk = bcma_port->baud_base;
 		p->regshift = bcma_port->reg_shift;

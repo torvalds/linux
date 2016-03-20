@@ -2,7 +2,7 @@
  * SPEAr platform shared irq layer source file
  *
  * Copyright (C) 2009-2012 ST Microelectronics
- * Viresh Kumar <viresh.linux@gmail.com>
+ * Viresh Kumar <vireshk@kernel.org>
  *
  * Copyright (C) 2012 ST Microelectronics
  * Shiraz Hashim <shiraz.linux.kernel@gmail.com>
@@ -18,13 +18,12 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/spinlock.h>
-
-#include "irqchip.h"
 
 /*
  * struct spear_shirq: shared irq structure
@@ -183,9 +182,9 @@ static struct spear_shirq *spear320_shirq_blocks[] = {
 	&spear320_shirq_intrcomm_ras,
 };
 
-static void shirq_handler(unsigned irq, struct irq_desc *desc)
+static void shirq_handler(struct irq_desc *desc)
 {
-	struct spear_shirq *shirq = irq_get_handler_data(irq);
+	struct spear_shirq *shirq = irq_desc_get_handler_data(desc);
 	u32 pend;
 
 	pend = readl(shirq->base + shirq->status_reg) & shirq->mask;
@@ -207,13 +206,11 @@ static void __init spear_shirq_register(struct spear_shirq *shirq,
 	if (!shirq->irq_chip)
 		return;
 
-	irq_set_chained_handler(parent_irq, shirq_handler);
-	irq_set_handler_data(parent_irq, shirq);
+	irq_set_chained_handler_and_data(parent_irq, shirq_handler, shirq);
 
 	for (i = 0; i < shirq->nr_irqs; i++) {
 		irq_set_chip_and_handler(shirq->virq_base + i,
 					 shirq->irq_chip, handle_simple_irq);
-		set_irq_flags(shirq->virq_base + i, IRQF_VALID);
 		irq_set_chip_data(shirq->virq_base + i, shirq);
 	}
 }

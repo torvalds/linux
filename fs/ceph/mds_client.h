@@ -41,6 +41,10 @@ struct ceph_mds_reply_info_in {
 	char *symlink;
 	u32 xattr_len;
 	char *xattr_data;
+	u64 inline_version;
+	u32 inline_len;
+	char *inline_data;
+	u32 pool_ns_len;
 };
 
 /*
@@ -134,8 +138,8 @@ struct ceph_mds_session {
 	int               s_nr_caps, s_trim_caps;
 	int               s_num_cap_releases;
 	int		  s_cap_reconnect;
+	int		  s_readonly;
 	struct list_head  s_cap_releases; /* waiting cap_release messages */
-	struct list_head  s_cap_releases_done; /* ready to send */
 	struct ceph_cap  *s_cap_iterator;
 
 	/* protected by mutex */
@@ -166,6 +170,11 @@ struct ceph_mds_client;
  */
 typedef void (*ceph_mds_request_callback_t) (struct ceph_mds_client *mdsc,
 					     struct ceph_mds_request *req);
+/*
+ * wait for request completion callback
+ */
+typedef int (*ceph_mds_request_wait_callback_t) (struct ceph_mds_client *mdsc,
+						 struct ceph_mds_request *req);
 
 /*
  * an in-flight mds request
@@ -202,9 +211,7 @@ struct ceph_mds_request {
 	bool r_direct_is_hash;  /* true if r_direct_hash is valid */
 
 	/* data payload is used for xattr ops */
-	struct page **r_pages;
-	int r_num_pages;
-	int r_data_len;
+	struct ceph_pagelist *r_pagelist;
 
 	/* what caps shall we drop? */
 	int r_inode_drop, r_inode_unless;
@@ -217,10 +224,11 @@ struct ceph_mds_request {
 	int r_request_release_offset;
 	struct ceph_msg  *r_reply;
 	struct ceph_mds_reply_info_parsed r_reply_info;
+	struct page *r_locked_page;
 	int r_err;
 	bool r_aborted;
 
-	unsigned long r_timeout;  /* optional.  jiffies */
+	unsigned long r_timeout;  /* optional.  jiffies, 0 is "wait forever" */
 	unsigned long r_started;  /* start time to measure timeout against */
 	unsigned long r_request_started; /* start time for mds request only,
 					    used to measure lease durations */
@@ -228,6 +236,9 @@ struct ceph_mds_request {
 	/* link unsafe requests to parent directory, for fsync */
 	struct inode	*r_unsafe_dir;
 	struct list_head r_unsafe_dir_item;
+
+	/* unsafe requests that modify the target inode */
+	struct list_head r_unsafe_target_item;
 
 	struct ceph_mds_session *r_session;
 
@@ -241,14 +252,24 @@ struct ceph_mds_request {
 	struct completion r_completion;
 	struct completion r_safe_completion;
 	ceph_mds_request_callback_t r_callback;
+	ceph_mds_request_wait_callback_t r_wait_for_completion;
 	struct list_head  r_unsafe_item;  /* per-session unsafe list item */
 	bool		  r_got_unsafe, r_got_safe, r_got_result;
 
 	bool              r_did_prepopulate;
+	long long	  r_dir_release_cnt;
+	long long	  r_dir_ordered_cnt;
+	int		  r_readdir_cache_idx;
 	u32               r_readdir_offset;
 
 	struct ceph_cap_reservation r_caps_reservation;
 	int r_num_caps;
+};
+
+struct ceph_pool_perm {
+	struct rb_node node;
+	u32 pool;
+	int perm;
 };
 
 /*
@@ -264,6 +285,7 @@ struct ceph_mds_client {
 	struct list_head        waiting_for_map;
 
 	struct ceph_mds_session **sessions;    /* NULL for mds if no session */
+	atomic_t		num_sessions;
 	int                     max_sessions;  /* len of s_mds_sessions */
 	int                     stopping;      /* true if shutting down */
 
@@ -274,12 +296,15 @@ struct ceph_mds_client {
 	 * references (implying they contain no inodes with caps) that
 	 * should be destroyed.
 	 */
+	u64			last_snap_seq;
 	struct rw_semaphore     snap_rwsem;
 	struct rb_root          snap_realms;
 	struct list_head        snap_empty;
 	spinlock_t              snap_empty_lock;  /* protect snap_empty */
 
 	u64                    last_tid;      /* most recent mds request */
+	u64                    oldest_tid;    /* oldest incomplete mds request,
+						 excluding setfilelock requests */
 	struct rb_root         request_tree;  /* pending mds requests */
 	struct delayed_work    delayed_work;  /* delayed work */
 	unsigned long    last_renew_caps;  /* last time we renewed our caps */
@@ -288,7 +313,8 @@ struct ceph_mds_client {
 	struct list_head snap_flush_list;  /* cap_snaps ready to flush */
 	spinlock_t       snap_flush_lock;
 
-	u64               cap_flush_seq;
+	u64               last_cap_flush_tid;
+	struct rb_root    cap_flush_tree;
 	struct list_head  cap_dirty;        /* inodes with dirty caps */
 	struct list_head  cap_dirty_migrating; /* ...that are migration... */
 	int               num_cap_flushing; /* # caps we are flushing */
@@ -318,6 +344,9 @@ struct ceph_mds_client {
 	spinlock_t	  dentry_lru_lock;
 	struct list_head  dentry_lru;
 	int		  num_dentry;
+
+	struct rw_semaphore     pool_perm_rwsem;
+	struct rb_root		pool_perm_tree;
 };
 
 extern const char *ceph_mds_op_name(int op);
@@ -332,6 +361,8 @@ ceph_get_mds_session(struct ceph_mds_session *s)
 	return s;
 }
 
+extern const char *ceph_session_state_name(int s);
+
 extern void ceph_put_mds_session(struct ceph_mds_session *s);
 
 extern int ceph_send_msg_mds(struct ceph_mds_client *mdsc,
@@ -339,6 +370,7 @@ extern int ceph_send_msg_mds(struct ceph_mds_client *mdsc,
 
 extern int ceph_mdsc_init(struct ceph_fs_client *fsc);
 extern void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc);
+extern void ceph_mdsc_force_umount(struct ceph_mds_client *mdsc);
 extern void ceph_mdsc_destroy(struct ceph_fs_client *fsc);
 
 extern void ceph_mdsc_sync(struct ceph_mds_client *mdsc);
@@ -367,8 +399,6 @@ static inline void ceph_mdsc_put_request(struct ceph_mds_request *req)
 	kref_put(&req->r_kref, ceph_mdsc_release_request);
 }
 
-extern int ceph_add_cap_releases(struct ceph_mds_client *mdsc,
-				 struct ceph_mds_session *session);
 extern void ceph_send_cap_releases(struct ceph_mds_client *mdsc,
 				   struct ceph_mds_session *session);
 

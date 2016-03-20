@@ -18,6 +18,7 @@
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/delay.h>
 #include <linux/of.h>
+#include <linux/pm_wakeirq.h>
 
 #define AB8500_RTC_SOFF_STAT_REG	0x00
 #define AB8500_RTC_CC_CONF_REG		0x01
@@ -442,10 +443,12 @@ static const struct rtc_class_ops ab8540_rtc_ops = {
 	.alarm_irq_enable	= ab8500_rtc_irq_enable,
 };
 
-static struct platform_device_id ab85xx_rtc_ids[] = {
+static const struct platform_device_id ab85xx_rtc_ids[] = {
 	{ "ab8500-rtc", (kernel_ulong_t)&ab8500_rtc_ops, },
 	{ "ab8540-rtc", (kernel_ulong_t)&ab8540_rtc_ops, },
+	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(platform, ab85xx_rtc_ids);
 
 static int ab8500_rtc_probe(struct platform_device *pdev)
 {
@@ -491,11 +494,12 @@ static int ab8500_rtc_probe(struct platform_device *pdev)
 	}
 
 	err = devm_request_threaded_irq(&pdev->dev, irq, NULL,
-			rtc_alarm_handler, IRQF_NO_SUSPEND | IRQF_ONESHOT,
+			rtc_alarm_handler, IRQF_ONESHOT,
 			"ab8500-rtc", rtc);
 	if (err < 0)
 		return err;
 
+	dev_pm_set_wake_irq(&pdev->dev, irq);
 	platform_set_drvdata(pdev, rtc);
 
 	err = ab8500_sysfs_rtc_register(&pdev->dev);
@@ -504,11 +508,15 @@ static int ab8500_rtc_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	rtc->uie_unsupported = 1;
+
 	return 0;
 }
 
 static int ab8500_rtc_remove(struct platform_device *pdev)
 {
+	dev_pm_clear_wake_irq(&pdev->dev);
+	device_init_wakeup(&pdev->dev, false);
 	ab8500_sysfs_rtc_unregister(&pdev->dev);
 
 	return 0;
@@ -517,7 +525,6 @@ static int ab8500_rtc_remove(struct platform_device *pdev)
 static struct platform_driver ab8500_rtc_driver = {
 	.driver = {
 		.name = "ab8500-rtc",
-		.owner = THIS_MODULE,
 	},
 	.probe	= ab8500_rtc_probe,
 	.remove = ab8500_rtc_remove,

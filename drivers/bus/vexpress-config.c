@@ -107,7 +107,7 @@ struct regmap *devm_regmap_init_vexpress_config(struct device *dev)
 	if (!res)
 		return ERR_PTR(-ENOMEM);
 
-	regmap = bridge->ops->regmap_init(dev, bridge->context);
+	regmap = (bridge->ops->regmap_init)(dev, bridge->context);
 	if (IS_ERR(regmap)) {
 		devres_free(res);
 		return regmap;
@@ -192,8 +192,10 @@ static int __init vexpress_config_init(void)
 	/* Need the config devices early, before the "normal" devices... */
 	for_each_compatible_node(node, NULL, "arm,vexpress,config-bus") {
 		err = vexpress_config_populate(node);
-		if (err)
+		if (err) {
+			of_node_put(node);
 			break;
+		}
 	}
 
 	return err;

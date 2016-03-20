@@ -82,6 +82,16 @@ enum bmi_cmd_id {
 
 #define BMI_NVRAM_SEG_NAME_SZ 16
 
+#define BMI_PARAM_GET_EEPROM_BOARD_ID 0x10
+
+#define ATH10K_BMI_BOARD_ID_FROM_OTP_MASK   0x7c00
+#define ATH10K_BMI_BOARD_ID_FROM_OTP_LSB    10
+
+#define ATH10K_BMI_CHIP_ID_FROM_OTP_MASK    0x18000
+#define ATH10K_BMI_CHIP_ID_FROM_OTP_LSB     15
+
+#define ATH10K_BMI_BOARD_ID_STATUS_MASK 0xff
+
 struct bmi_cmd {
 	__le32 id; /* enum bmi_cmd_id */
 	union {
@@ -177,9 +187,8 @@ struct bmi_target_info {
 	u32 type;
 };
 
-
 /* in msec */
-#define BMI_COMMUNICATION_TIMEOUT_HZ (1*HZ)
+#define BMI_COMMUNICATION_TIMEOUT_HZ (2 * HZ)
 
 #define BMI_CE_NUM_TO_TARG 0
 #define BMI_CE_NUM_TO_HOST 1

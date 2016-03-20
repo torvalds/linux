@@ -21,7 +21,7 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org
+ * the project's page is at https://linuxtv.org
  */
 
 #ifndef _LNBP21_H
@@ -57,7 +57,7 @@
 
 #include <linux/dvb/frontend.h>
 
-#if IS_ENABLED(CONFIG_DVB_LNBP21)
+#if IS_REACHABLE(CONFIG_DVB_LNBP21)
 /* override_set and override_clear control which
  system register bits (above) to always set & clear */
 extern struct dvb_frontend *lnbp21_attach(struct dvb_frontend *fe,

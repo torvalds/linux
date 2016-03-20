@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -119,9 +119,9 @@ acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
 	} else {
 		/* Root Table Array has been statically allocated by the host */
 
-		ACPI_MEMSET(initial_table_array, 0,
-			    (acpi_size) initial_table_count *
-			    sizeof(struct acpi_table_desc));
+		memset(initial_table_array, 0,
+		       (acpi_size) initial_table_count *
+		       sizeof(struct acpi_table_desc));
 
 		acpi_gbl_root_table_list.tables = initial_table_array;
 		acpi_gbl_root_table_list.max_table_count = initial_table_count;
@@ -242,8 +242,9 @@ acpi_get_table_header(char *signature,
 				if (!header) {
 					return (AE_NO_MEMORY);
 				}
-				ACPI_MEMCPY(out_table_header, header,
-					    sizeof(struct acpi_table_header));
+
+				memcpy(out_table_header, header,
+				       sizeof(struct acpi_table_header));
 				acpi_os_unmap_memory(header,
 						     sizeof(struct
 							    acpi_table_header));
@@ -251,9 +252,9 @@ acpi_get_table_header(char *signature,
 				return (AE_NOT_FOUND);
 			}
 		} else {
-			ACPI_MEMCPY(out_table_header,
-				    acpi_gbl_root_table_list.tables[i].pointer,
-				    sizeof(struct acpi_table_header));
+			memcpy(out_table_header,
+			       acpi_gbl_root_table_list.tables[i].pointer,
+			       sizeof(struct acpi_table_header));
 		}
 		return (AE_OK);
 	}
@@ -262,45 +263,6 @@ acpi_get_table_header(char *signature,
 }
 
 ACPI_EXPORT_SYMBOL(acpi_get_table_header)
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_unload_table_id
- *
- * PARAMETERS:  id            - Owner ID of the table to be removed.
- *
- * RETURN:      Status
- *
- * DESCRIPTION: This routine is used to force the unload of a table (by id)
- *
- ******************************************************************************/
-acpi_status acpi_unload_table_id(acpi_owner_id id)
-{
-	int i;
-	acpi_status status = AE_NOT_EXIST;
-
-	ACPI_FUNCTION_TRACE(acpi_unload_table_id);
-
-	/* Find table in the global table list */
-	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
-		if (id != acpi_gbl_root_table_list.tables[i].owner_id) {
-			continue;
-		}
-		/*
-		 * Delete all namespace objects owned by this table. Note that these
-		 * objects can appear anywhere in the namespace by virtue of the AML
-		 * "Scope" operator. Thus, we need to track ownership by an ID, not
-		 * simply a position within the hierarchy
-		 */
-		acpi_tb_delete_namespace_by_owner(i);
-		status = acpi_tb_release_owner_id(i);
-		acpi_tb_set_table_loaded_flag(i, FALSE);
-		break;
-	}
-	return_ACPI_STATUS(status);
-}
-
-ACPI_EXPORT_SYMBOL(acpi_unload_table_id)
 
 /*******************************************************************************
  *

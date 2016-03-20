@@ -8,6 +8,11 @@ Required properties:
 - touchscreen-size-x: horizontal resolution of touchscreen (in pixels)
 - touchscreen-size-y: vertical resolution of touchscreen (in pixels)
 
+Optional properties:
+- reset-gpios: GPIO connected to the RESET line of the chip
+- enable-gpios: GPIO connected to the ENABLE line of the chip
+- wake-gpios: GPIO connected to the WAKE line of the chip
+
 Example:
 
 	i2c@00000000 {

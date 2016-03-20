@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -28,7 +24,7 @@
 #define PRESSED 1
 #define RELEASED 0
 
-static DEFINE_PER_CPU(bool, reporting_keystroke);
+static DEFINE_PER_CPU(int, reporting_keystroke);
 
 static struct input_dev *virt_keyboard;
 
@@ -81,6 +77,7 @@ void speakup_fake_down_arrow(void)
 	__this_cpu_write(reporting_keystroke, true);
 	input_report_key(virt_keyboard, KEY_DOWN, PRESSED);
 	input_report_key(virt_keyboard, KEY_DOWN, RELEASED);
+	input_sync(virt_keyboard);
 	__this_cpu_write(reporting_keystroke, false);
 
 	/* reenable preemption */

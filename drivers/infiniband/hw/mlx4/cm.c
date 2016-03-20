@@ -372,7 +372,7 @@ int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
 		*slave = mlx4_ib_find_real_gid(ibdev, port, gid.global.interface_id);
 		if (*slave < 0) {
 			mlx4_ib_warn(ibdev, "failed matching slave_id by gid (0x%llx)\n",
-					gid.global.interface_id);
+				     be64_to_cpu(gid.global.interface_id));
 			return -ENOENT;
 		}
 		return 0;

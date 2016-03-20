@@ -1,10 +1,10 @@
-/* bnx2fc_fcoe.c: QLogic NetXtreme II Linux FCoE offload driver.
+/* bnx2fc_fcoe.c: QLogic Linux FCoE offload driver.
  * This file contains the code that interacts with libfc, libfcoe,
  * cnic modules to create FCoE instances, send/receive non-offloaded
  * FIP/FCoE packets, listen to link events etc.
  *
- * Copyright (c) 2008 - 2013 Broadcom Corporation
- * Copyright (c) 2014, QLogic Corporation
+ * Copyright (c) 2008-2013 Broadcom Corporation
+ * Copyright (c) 2014-2015 QLogic Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,16 +23,16 @@ DEFINE_PER_CPU(struct bnx2fc_percpu_s, bnx2fc_percpu);
 
 #define DRV_MODULE_NAME		"bnx2fc"
 #define DRV_MODULE_VERSION	BNX2FC_VERSION
-#define DRV_MODULE_RELDATE	"Dec 11, 2013"
+#define DRV_MODULE_RELDATE	"October 15, 2015"
 
 
 static char version[] =
-		"QLogic NetXtreme II FCoE Driver " DRV_MODULE_NAME \
+		"QLogic FCoE Driver " DRV_MODULE_NAME \
 		" v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 
 MODULE_AUTHOR("Bhanu Prakash Gollapudi <bprakash@broadcom.com>");
-MODULE_DESCRIPTION("QLogic NetXtreme II BCM57710 FCoE Driver");
+MODULE_DESCRIPTION("QLogic FCoE Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
@@ -97,6 +97,15 @@ static void __exit bnx2fc_mod_exit(void);
 
 unsigned int bnx2fc_debug_level;
 module_param_named(debug_logging, bnx2fc_debug_level, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(debug_logging,
+		"Option to enable extended logging,\n"
+		"\t\tDefault is 0 - no logging.\n"
+		"\t\t0x01 - SCSI cmd error, cleanup.\n"
+		"\t\t0x02 - Session setup, cleanup, etc.\n"
+		"\t\t0x04 - lport events, link, mtu, etc.\n"
+		"\t\t0x08 - ELS logs.\n"
+		"\t\t0x10 - fcoe L2 fame related logs.\n"
+		"\t\t0xff - LOG all messages.");
 
 static int bnx2fc_cpu_callback(struct notifier_block *nfb,
 			     unsigned long action, void *hcpu);
@@ -412,6 +421,7 @@ static int bnx2fc_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct fc_frame_header *fh;
 	struct fcoe_rcv_info *fr;
 	struct fcoe_percpu_s *bg;
+	struct sk_buff *tmp_skb;
 	unsigned short oxid;
 
 	interface = container_of(ptype, struct bnx2fc_interface,
@@ -423,6 +433,12 @@ static int bnx2fc_rcv(struct sk_buff *skb, struct net_device *dev,
 		printk(KERN_ERR PFX "bnx2fc_rcv: lport is NULL\n");
 		goto err;
 	}
+
+	tmp_skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!tmp_skb)
+		goto err;
+
+	skb = tmp_skb;
 
 	if (unlikely(eth_hdr(skb)->h_proto != htons(ETH_P_FCOE))) {
 		printk(KERN_ERR PFX "bnx2fc_rcv: Wrong FC type frame\n");
@@ -849,7 +865,6 @@ static void bnx2fc_indicate_netevent(void *context, unsigned long event,
 		return;
 
 	default:
-		printk(KERN_ERR PFX "Unknown netevent %ld", event);
 		return;
 	}
 
@@ -1081,7 +1096,7 @@ static int bnx2fc_vport_create(struct fc_vport *vport, bool disabled)
 	mutex_unlock(&bnx2fc_dev_lock);
 	rtnl_unlock();
 
-	if (IS_ERR(vn_port)) {
+	if (!vn_port) {
 		printk(KERN_ERR PFX "bnx2fc_vport_create (%s) failed\n",
 			netdev->name);
 		return -EIO;
@@ -2044,9 +2059,49 @@ static int bnx2fc_disable(struct net_device *netdev)
 	return rc;
 }
 
+static uint bnx2fc_npiv_create_vports(struct fc_lport *lport,
+				      struct cnic_fc_npiv_tbl *npiv_tbl)
+{
+	struct fc_vport_identifiers vpid;
+	uint i, created = 0;
+
+	if (npiv_tbl->count > MAX_NPIV_ENTRIES) {
+		BNX2FC_HBA_DBG(lport, "Exceeded count max of npiv table\n");
+		goto done;
+	}
+
+	/* Sanity check the first entry to make sure it's not 0 */
+	if (wwn_to_u64(npiv_tbl->wwnn[0]) == 0 &&
+	    wwn_to_u64(npiv_tbl->wwpn[0]) == 0) {
+		BNX2FC_HBA_DBG(lport, "First NPIV table entries invalid.\n");
+		goto done;
+	}
+
+	vpid.roles = FC_PORT_ROLE_FCP_INITIATOR;
+	vpid.vport_type = FC_PORTTYPE_NPIV;
+	vpid.disable = false;
+
+	for (i = 0; i < npiv_tbl->count; i++) {
+		vpid.node_name = wwn_to_u64(npiv_tbl->wwnn[i]);
+		vpid.port_name = wwn_to_u64(npiv_tbl->wwpn[i]);
+		scnprintf(vpid.symbolic_name, sizeof(vpid.symbolic_name),
+		    "NPIV[%u]:%016llx-%016llx",
+		    created, vpid.port_name, vpid.node_name);
+		if (fc_vport_create(lport->host, 0, &vpid))
+			created++;
+		else
+			BNX2FC_HBA_DBG(lport, "Failed to create vport\n");
+	}
+done:
+	return created;
+}
+
 static int __bnx2fc_enable(struct fcoe_ctlr *ctlr)
 {
 	struct bnx2fc_interface *interface = fcoe_ctlr_priv(ctlr);
+	struct bnx2fc_hba *hba;
+	struct cnic_fc_npiv_tbl *npiv_tbl;
+	struct fc_lport *lport;
 
 	if (interface->enabled == false) {
 		if (!ctlr->lp) {
@@ -2057,6 +2112,37 @@ static int __bnx2fc_enable(struct fcoe_ctlr *ctlr)
 			interface->enabled = true;
 		}
 	}
+
+	/* Create static NPIV ports if any are contained in NVRAM */
+	hba = interface->hba;
+	lport = ctlr->lp;
+
+	if (!hba)
+		goto done;
+
+	if (!hba->cnic)
+		goto done;
+
+	if (!lport)
+		goto done;
+
+	if (!lport->host)
+		goto done;
+
+	if (!hba->cnic->get_fc_npiv_tbl)
+		goto done;
+
+	npiv_tbl = kzalloc(sizeof(struct cnic_fc_npiv_tbl), GFP_KERNEL);
+	if (!npiv_tbl)
+		goto done;
+
+	if (hba->cnic->get_fc_npiv_tbl(hba->cnic, npiv_tbl))
+		goto done_free;
+
+	bnx2fc_npiv_create_vports(lport, npiv_tbl);
+done_free:
+	kfree(npiv_tbl);
+done:
 	return 0;
 }
 
@@ -2195,6 +2281,7 @@ static int _bnx2fc_create(struct net_device *netdev,
 	interface = bnx2fc_interface_create(hba, netdev, fip_mode);
 	if (!interface) {
 		printk(KERN_ERR PFX "bnx2fc_interface_create failed\n");
+		rc = -ENOMEM;
 		goto ifput_err;
 	}
 
@@ -2783,13 +2870,13 @@ static struct scsi_host_template bnx2fc_shost_template = {
 	.eh_target_reset_handler = bnx2fc_eh_target_reset, /* tgt reset */
 	.eh_host_reset_handler	= fc_eh_host_reset,
 	.slave_alloc		= fc_slave_alloc,
-	.change_queue_depth	= fc_change_queue_depth,
-	.change_queue_type	= fc_change_queue_type,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.sg_tablesize		= BNX2FC_MAX_BDS_PER_CMD,
 	.max_sectors		= 1024,
+	.track_queue_depth	= 1,
 };
 
 static struct libfc_function_template bnx2fc_libfc_fcn_templ = {

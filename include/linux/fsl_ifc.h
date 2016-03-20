@@ -29,7 +29,16 @@
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
 
-#define FSL_IFC_BANK_COUNT 4
+/*
+ * The actual number of banks implemented depends on the IFC version
+ *    - IFC version 1.0 implements 4 banks.
+ *    - IFC version 1.1 onward implements 8 banks.
+ */
+#define FSL_IFC_BANK_COUNT 8
+
+#define FSL_IFC_VERSION_MASK	0x0F0F0000
+#define FSL_IFC_VERSION_1_0_0	0x01000000
+#define FSL_IFC_VERSION_1_1_0	0x01010000
 
 /*
  * CSPR - Chip Select Property Register
@@ -776,23 +785,23 @@ struct fsl_ifc_regs {
 		__be32 cspr;
 		u32 res2;
 	} cspr_cs[FSL_IFC_BANK_COUNT];
-	u32 res3[0x19];
+	u32 res3[0xd];
 	struct {
 		__be32 amask;
 		u32 res4[0x2];
 	} amask_cs[FSL_IFC_BANK_COUNT];
-	u32 res5[0x17];
+	u32 res5[0xc];
 	struct {
-		__be32 csor_ext;
 		__be32 csor;
+		__be32 csor_ext;
 		u32 res6;
 	} csor_cs[FSL_IFC_BANK_COUNT];
-	u32 res7[0x19];
+	u32 res7[0xc];
 	struct {
 		__be32 ftim[4];
 		u32 res8[0x8];
 	} ftim_cs[FSL_IFC_BANK_COUNT];
-	u32 res9[0x60];
+	u32 res9[0x30];
 	__be32 rb_stat;
 	u32 res10[0x2];
 	__be32 ifc_gcr;
@@ -827,12 +836,64 @@ struct fsl_ifc_ctrl {
 	int				nand_irq;
 	spinlock_t			lock;
 	void				*nand;
+	int				version;
+	int				banks;
 
 	u32 nand_stat;
 	wait_queue_head_t nand_wait;
+	bool little_endian;
 };
 
 extern struct fsl_ifc_ctrl *fsl_ifc_ctrl_dev;
 
+static inline u32 ifc_in32(void __iomem *addr)
+{
+	u32 val;
+
+	if (fsl_ifc_ctrl_dev->little_endian)
+		val = ioread32(addr);
+	else
+		val = ioread32be(addr);
+
+	return val;
+}
+
+static inline u16 ifc_in16(void __iomem *addr)
+{
+	u16 val;
+
+	if (fsl_ifc_ctrl_dev->little_endian)
+		val = ioread16(addr);
+	else
+		val = ioread16be(addr);
+
+	return val;
+}
+
+static inline u8 ifc_in8(void __iomem *addr)
+{
+	return ioread8(addr);
+}
+
+static inline void ifc_out32(u32 val, void __iomem *addr)
+{
+	if (fsl_ifc_ctrl_dev->little_endian)
+		iowrite32(val, addr);
+	else
+		iowrite32be(val, addr);
+}
+
+static inline void ifc_out16(u16 val, void __iomem *addr)
+{
+	if (fsl_ifc_ctrl_dev->little_endian)
+		iowrite16(val, addr);
+	else
+		iowrite16be(val, addr);
+}
+
+static inline void ifc_out8(u8 val, void __iomem *addr)
+{
+	iowrite8(val, addr);
+}
 
 #endif /* __ASM_FSL_IFC_H */

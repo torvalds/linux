@@ -15,6 +15,11 @@
 	set_personality(PER_LINUX | (current->personality & (~PER_MASK)))
 #endif
 
+#ifndef SET_PERSONALITY2
+#define SET_PERSONALITY2(ex, state) \
+	SET_PERSONALITY(ex)
+#endif
+
 #if ELF_CLASS == ELFCLASS32
 
 extern Elf32_Dyn _DYNAMIC [];

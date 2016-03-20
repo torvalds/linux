@@ -29,8 +29,8 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <asm/i387.h>
-#include <asm/cpufeature.h>
+#include <asm/fpu/api.h>
+#include <asm/cpufeatures.h>
 #include <asm/cpu_device_id.h>
 
 asmlinkage __u16 crc_t10dif_pcl(__u16 crc, const unsigned char *buf,
@@ -147,5 +147,5 @@ MODULE_AUTHOR("Tim Chen <tim.c.chen@linux.intel.com>");
 MODULE_DESCRIPTION("T10 DIF CRC calculation accelerated with PCLMULQDQ.");
 MODULE_LICENSE("GPL");
 
-MODULE_ALIAS("crct10dif");
-MODULE_ALIAS("crct10dif-pclmul");
+MODULE_ALIAS_CRYPTO("crct10dif");
+MODULE_ALIAS_CRYPTO("crct10dif-pclmul");

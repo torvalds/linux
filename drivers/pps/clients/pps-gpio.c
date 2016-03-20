@@ -200,7 +200,6 @@ static struct platform_driver pps_gpio_driver = {
 	.remove		= pps_gpio_remove,
 	.driver		= {
 		.name	= PPS_GPIO_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table	= pps_gpio_dt_ids,
 	},
 };

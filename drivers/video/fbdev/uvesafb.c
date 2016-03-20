@@ -1219,8 +1219,7 @@ static int uvesafb_release(struct fb_info *info, int user)
 	uvesafb_vbe_state_restore(par, par->vbe_state_orig);
 out:
 	atomic_dec(&par->ref_count);
-	if (task)
-		uvesafb_free(task);
+	uvesafb_free(task);
 	return 0;
 }
 
@@ -1923,8 +1922,7 @@ static int uvesafb_init(void)
 			err = -ENOMEM;
 
 		if (err) {
-			if (uvesafb_device)
-				platform_device_put(uvesafb_device);
+			platform_device_put(uvesafb_device);
 			platform_driver_unregister(&uvesafb_driver);
 			cn_del_callback(&uvesafb_cn_id);
 			return err;
@@ -1979,7 +1977,7 @@ static int param_set_scroll(const char *val, const struct kernel_param *kp)
 
 	return 0;
 }
-static struct kernel_param_ops param_ops_scroll = {
+static const struct kernel_param_ops param_ops_scroll = {
 	.set = param_set_scroll,
 };
 #define param_check_scroll(name, p) __param_check(name, p, void)

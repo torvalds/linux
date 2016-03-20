@@ -217,12 +217,12 @@ static int snd_imx_pcm_mmap(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int ret;
 
-	ret = dma_mmap_writecombine(substream->pcm->card->dev, vma,
-		runtime->dma_area, runtime->dma_addr, runtime->dma_bytes);
+	ret = dma_mmap_wc(substream->pcm->card->dev, vma, runtime->dma_area,
+			  runtime->dma_addr, runtime->dma_bytes);
 
-	pr_debug("%s: ret: %d %p 0x%08x 0x%08x\n", __func__, ret,
+	pr_debug("%s: ret: %d %p %pad 0x%08x\n", __func__, ret,
 			runtime->dma_area,
-			runtime->dma_addr,
+			&runtime->dma_addr,
 			runtime->dma_bytes);
 	return ret;
 }
@@ -247,8 +247,7 @@ static int imx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	buf->dev.type = SNDRV_DMA_TYPE_DEV;
 	buf->dev.dev = pcm->card->dev;
 	buf->private_data = NULL;
-	buf->area = dma_alloc_writecombine(pcm->card->dev, size,
-					   &buf->addr, GFP_KERNEL);
+	buf->area = dma_alloc_wc(pcm->card->dev, size, &buf->addr, GFP_KERNEL);
 	if (!buf->area)
 		return -ENOMEM;
 	buf->bytes = size;
@@ -330,8 +329,7 @@ static void imx_pcm_free(struct snd_pcm *pcm)
 		if (!buf->area)
 			continue;
 
-		dma_free_writecombine(pcm->card->dev, buf->bytes,
-				      buf->area, buf->addr);
+		dma_free_wc(pcm->card->dev, buf->bytes, buf->area, buf->addr);
 		buf->area = NULL;
 	}
 }

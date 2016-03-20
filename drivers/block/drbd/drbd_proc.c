@@ -142,9 +142,11 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 			    (unsigned long) Bit2KB(rs_left >> 10),
 			    (unsigned long) Bit2KB(rs_total >> 10));
 	else
-		seq_printf(seq, "(%lu/%lu)K\n\t",
+		seq_printf(seq, "(%lu/%lu)K",
 			    (unsigned long) Bit2KB(rs_left),
 			    (unsigned long) Bit2KB(rs_total));
+
+	seq_printf(seq, "\n\t");
 
 	/* see drivers/md/md.c
 	 * We do not want to overflow, so the order of operands and
@@ -243,9 +245,9 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 	char wp;
 
 	static char write_ordering_chars[] = {
-		[WO_none] = 'n',
-		[WO_drain_io] = 'd',
-		[WO_bdev_flush] = 'f',
+		[WO_NONE] = 'n',
+		[WO_DRAIN_IO] = 'd',
+		[WO_BDEV_FLUSH] = 'f',
 	};
 
 	seq_printf(seq, "version: " REL_VERSION " (api:%d/proto:%d-%d)\n%s\n",

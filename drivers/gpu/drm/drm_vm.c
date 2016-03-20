@@ -35,10 +35,20 @@
 
 #include <drm/drmP.h>
 #include <linux/export.h>
+#include <linux/seq_file.h>
 #if defined(__ia64__)
 #include <linux/efi.h>
 #include <linux/slab.h>
 #endif
+#include <asm/pgtable.h>
+#include "drm_internal.h"
+#include "drm_legacy.h"
+
+struct drm_vma_entry {
+	struct list_head head;
+	struct vm_area_struct *vma;
+	pid_t pid;
+};
 
 static void drm_vm_open(struct vm_area_struct *vma);
 static void drm_vm_close(struct vm_area_struct *vma);
@@ -48,15 +58,11 @@ static pgprot_t drm_io_prot(struct drm_local_map *map,
 {
 	pgprot_t tmp = vm_get_page_prot(vma->vm_flags);
 
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__powerpc__)
 	if (map->type == _DRM_REGISTERS && !(map->flags & _DRM_WRITE_COMBINING))
 		tmp = pgprot_noncached(tmp);
 	else
 		tmp = pgprot_writecombine(tmp);
-#elif defined(__powerpc__)
-	pgprot_val(tmp) |= _PAGE_NO_CACHE;
-	if (map->type == _DRM_REGISTERS)
-		pgprot_val(tmp) |= _PAGE_GUARDED;
 #elif defined(__ia64__)
 	if (efi_range_is_wc(vma->vm_start, vma->vm_end -
 				    vma->vm_start))
@@ -89,7 +95,7 @@ static pgprot_t drm_dma_prot(uint32_t map_type, struct vm_area_struct *vma)
  * Find the right map and if it's AGP memory find the real physical page to
  * map, get the page, increment the use count and return it.
  */
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 static int drm_do_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct drm_file *priv = vma->vm_file->private_data;
@@ -162,12 +168,12 @@ static int drm_do_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 vm_fault_error:
 	return VM_FAULT_SIGBUS;	/* Disallow mremap */
 }
-#else				/* __OS_HAS_AGP */
+#else
 static int drm_do_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	return VM_FAULT_SIGBUS;
 }
-#endif				/* __OS_HAS_AGP */
+#endif
 
 /**
  * \c nopage method for shared virtual memory.
@@ -263,7 +269,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 				dmah.vaddr = map->handle;
 				dmah.busaddr = map->offset;
 				dmah.size = map->size;
-				__drm_pci_free(dev, &dmah);
+				__drm_legacy_pci_free(dev, &dmah);
 				break;
 			}
 			kfree(map);
@@ -412,7 +418,6 @@ void drm_vm_open_locked(struct drm_device *dev,
 		list_add(&vma_entry->head, &dev->vmalist);
 	}
 }
-EXPORT_SYMBOL_GPL(drm_vm_open_locked);
 
 static void drm_vm_open(struct vm_area_struct *vma)
 {
@@ -532,7 +537,7 @@ static resource_size_t drm_core_get_reg_ofs(struct drm_device *dev)
  * according to the mapping type and remaps the pages. Finally sets the file
  * pointer and calls vm_open().
  */
-int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
+static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
@@ -551,7 +556,7 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 	 * --BenH.
 	 */
 	if (!vma->vm_pgoff
-#if __OS_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	    && (!dev->agp
 		|| dev->agp->agp_info.device->vendor != PCI_VENDOR_ID_APPLE)
 #endif
@@ -646,7 +651,7 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-int drm_mmap(struct file *filp, struct vm_area_struct *vma)
+int drm_legacy_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
@@ -661,4 +666,69 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	return ret;
 }
-EXPORT_SYMBOL(drm_mmap);
+EXPORT_SYMBOL(drm_legacy_mmap);
+
+void drm_legacy_vma_flush(struct drm_device *dev)
+{
+	struct drm_vma_entry *vma, *vma_temp;
+
+	/* Clear vma list (only needed for legacy drivers) */
+	list_for_each_entry_safe(vma, vma_temp, &dev->vmalist, head) {
+		list_del(&vma->head);
+		kfree(vma);
+	}
+}
+
+int drm_vma_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_vma_entry *pt;
+	struct vm_area_struct *vma;
+	unsigned long vma_count = 0;
+#if defined(__i386__)
+	unsigned int pgprot;
+#endif
+
+	mutex_lock(&dev->struct_mutex);
+	list_for_each_entry(pt, &dev->vmalist, head)
+		vma_count++;
+
+	seq_printf(m, "vma use count: %lu, high_memory = %pK, 0x%pK\n",
+		   vma_count, high_memory,
+		   (void *)(unsigned long)virt_to_phys(high_memory));
+
+	list_for_each_entry(pt, &dev->vmalist, head) {
+		vma = pt->vma;
+		if (!vma)
+			continue;
+		seq_printf(m,
+			   "\n%5d 0x%pK-0x%pK %c%c%c%c%c%c 0x%08lx000",
+			   pt->pid,
+			   (void *)vma->vm_start, (void *)vma->vm_end,
+			   vma->vm_flags & VM_READ ? 'r' : '-',
+			   vma->vm_flags & VM_WRITE ? 'w' : '-',
+			   vma->vm_flags & VM_EXEC ? 'x' : '-',
+			   vma->vm_flags & VM_MAYSHARE ? 's' : 'p',
+			   vma->vm_flags & VM_LOCKED ? 'l' : '-',
+			   vma->vm_flags & VM_IO ? 'i' : '-',
+			   vma->vm_pgoff);
+
+#if defined(__i386__)
+		pgprot = pgprot_val(vma->vm_page_prot);
+		seq_printf(m, " %c%c%c%c%c%c%c%c%c",
+			   pgprot & _PAGE_PRESENT ? 'p' : '-',
+			   pgprot & _PAGE_RW ? 'w' : 'r',
+			   pgprot & _PAGE_USER ? 'u' : 's',
+			   pgprot & _PAGE_PWT ? 't' : 'b',
+			   pgprot & _PAGE_PCD ? 'u' : 'c',
+			   pgprot & _PAGE_ACCESSED ? 'a' : '-',
+			   pgprot & _PAGE_DIRTY ? 'd' : '-',
+			   pgprot & _PAGE_PSE ? 'm' : 'k',
+			   pgprot & _PAGE_GLOBAL ? 'g' : 'l');
+#endif
+		seq_printf(m, "\n");
+	}
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}

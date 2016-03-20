@@ -99,7 +99,7 @@ SNAPSHOT_S2RAM - suspend to RAM; using this call causes the kernel to
 The device's read() operation can be used to transfer the snapshot image from
 the kernel.  It has the following limitations:
 - you cannot read() more than one virtual memory page at a time
-- read()s across page boundaries are impossible (ie. if ypu read() 1/2 of
+- read()s across page boundaries are impossible (ie. if you read() 1/2 of
 	a page in the previous call, you will only be able to read()
 	_at_ _most_ 1/2 of the page in the next call)
 

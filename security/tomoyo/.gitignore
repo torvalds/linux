@@ -1,2 +1,2 @@
 builtin-policy.h
-policy/
+policy/*.conf

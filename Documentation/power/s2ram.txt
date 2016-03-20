@@ -69,6 +69,10 @@ Reason for this is that the RTC is the only reliably available piece of
 hardware during resume operations where a value can be set that will
 survive a reboot.
 
+pm_trace is not compatible with asynchronous suspend, so it turns
+asynchronous suspend off (which may work around timing or
+ordering-sensitive bugs).
+
 Consequence is that after a resume (even if it is successful) your system
 clock will have a value corresponding to the magic number instead of the
 correct date/time! It is therefore advisable to use a program like ntp-date

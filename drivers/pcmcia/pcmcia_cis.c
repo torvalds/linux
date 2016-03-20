@@ -44,7 +44,7 @@ int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function,
 
 	buf = kmalloc(256, GFP_KERNEL);
 	if (buf == NULL) {
-		dev_printk(KERN_WARNING, &s->dev, "no memory to read tuple\n");
+		dev_warn(&s->dev, "no memory to read tuple\n");
 		return -ENOMEM;
 	}
 	tuple.DesiredTuple = code;
@@ -94,7 +94,7 @@ int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
 
 	buf = kzalloc(256, GFP_KERNEL);
 	if (buf == NULL) {
-		dev_printk(KERN_WARNING, &s->dev, "no memory to read tuple\n");
+		dev_warn(&s->dev, "no memory to read tuple\n");
 		return -ENOMEM;
 	}
 

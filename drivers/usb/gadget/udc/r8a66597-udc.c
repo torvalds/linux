@@ -430,7 +430,7 @@ static void r8a66597_ep_setting(struct r8a66597 *r8a66597,
 	ep->pipenum = pipenum;
 	ep->ep.maxpacket = usb_endpoint_maxp(desc);
 	r8a66597->pipenum2ep[pipenum] = ep;
-	r8a66597->epaddr2ep[desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK]
+	r8a66597->epaddr2ep[usb_endpoint_num(desc)]
 		= ep;
 	INIT_LIST_HEAD(&ep->queue);
 }
@@ -464,7 +464,7 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 	if (ep->pipenum)	/* already allocated pipe  */
 		return 0;
 
-	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
+	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_BULK:
 		if (r8a66597->bulk >= R8A66597_MAX_NUM_BULK) {
 			if (r8a66597->isochronous >= R8A66597_MAX_NUM_ISOC) {
@@ -509,7 +509,7 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 	}
 	ep->type = info.type;
 
-	info.epnum = desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
+	info.epnum = usb_endpoint_num(desc);
 	info.maxpacket = usb_endpoint_maxp(desc);
 	info.interval = desc->bInterval;
 	if (desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
@@ -925,7 +925,7 @@ __acquires(r8a66597->lock)
 		sudmac_free_channel(ep->r8a66597, ep, req);
 
 	spin_unlock(&ep->r8a66597->lock);
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&ep->r8a66597->lock);
 
 	if (restart) {
@@ -1345,7 +1345,7 @@ static void irq_device_state(struct r8a66597 *r8a66597)
 	if (dvsq == DS_DFLT) {
 		/* bus reset */
 		spin_unlock(&r8a66597->lock);
-		r8a66597->driver->disconnect(&r8a66597->gadget);
+		usb_gadget_udc_reset(&r8a66597->gadget, r8a66597->driver);
 		spin_lock(&r8a66597->lock);
 		r8a66597_update_usb_speed(r8a66597);
 	}
@@ -1763,8 +1763,7 @@ static int r8a66597_start(struct usb_gadget *gadget,
 	return 0;
 }
 
-static int r8a66597_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static int r8a66597_stop(struct usb_gadget *gadget)
 {
 	struct r8a66597 *r8a66597 = gadget_to_r8a66597(gadget);
 	unsigned long flags;
@@ -1804,6 +1803,7 @@ static int r8a66597_set_selfpowered(struct usb_gadget *gadget, int is_self)
 {
 	struct r8a66597 *r8a66597 = gadget_to_r8a66597(gadget);
 
+	gadget->is_selfpowered = (is_self != 0);
 	if (is_self)
 		r8a66597->device_status |= 1 << USB_DEVICE_SELF_POWERED;
 	else
@@ -1820,7 +1820,7 @@ static const struct usb_gadget_ops r8a66597_gadget_ops = {
 	.set_selfpowered	= r8a66597_set_selfpowered,
 };
 
-static int __exit r8a66597_remove(struct platform_device *pdev)
+static int r8a66597_remove(struct platform_device *pdev)
 {
 	struct r8a66597		*r8a66597 = platform_get_drvdata(pdev);
 
@@ -1846,12 +1846,7 @@ static int r8a66597_sudmac_ioremap(struct r8a66597 *r8a66597,
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sudmac");
 	r8a66597->sudmac_reg = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(r8a66597->sudmac_reg)) {
-		dev_err(&pdev->dev, "ioremap error(sudmac).\n");
-		return PTR_ERR(r8a66597->sudmac_reg);
-	}
-
-	return 0;
+	return PTR_ERR_OR_ZERO(r8a66597->sudmac_reg);
 }
 
 static int r8a66597_probe(struct platform_device *pdev)
@@ -1868,8 +1863,8 @@ static int r8a66597_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg = devm_ioremap_resource(&pdev->dev, res);
-	if (!reg)
-		return -ENODEV;
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
 
 	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	irq = ires->start;
@@ -1940,6 +1935,16 @@ static int r8a66597_probe(struct platform_device *pdev)
 		ep->ep.name = r8a66597_ep_name[i];
 		ep->ep.ops = &r8a66597_ep_ops;
 		usb_ep_set_maxpacket_limit(&ep->ep, 512);
+
+		if (i == 0) {
+			ep->ep.caps.type_control = true;
+		} else {
+			ep->ep.caps.type_iso = true;
+			ep->ep.caps.type_bulk = true;
+			ep->ep.caps.type_int = true;
+		}
+		ep->ep.caps.dir_in = true;
+		ep->ep.caps.dir_out = true;
 	}
 	usb_ep_set_maxpacket_limit(&r8a66597->ep[0].ep, 64);
 	r8a66597->ep[0].pipenum = 0;
@@ -1979,7 +1984,7 @@ clean_up2:
 
 /*-------------------------------------------------------------------------*/
 static struct platform_driver r8a66597_driver = {
-	.remove =	__exit_p(r8a66597_remove),
+	.remove =	r8a66597_remove,
 	.driver		= {
 		.name =	(char *) udc_name,
 	},

@@ -342,12 +342,11 @@ SPI protocol drivers somewhat resemble platform device drivers:
 		.driver = {
 			.name		= "CHIP",
 			.owner		= THIS_MODULE,
+			.pm		= &CHIP_pm_ops,
 		},
 
 		.probe		= CHIP_probe,
 		.remove		= CHIP_remove,
-		.suspend	= CHIP_suspend,
-		.resume		= CHIP_resume,
 	};
 
 The driver core will automatically attempt to bind this driver to any SPI
@@ -601,13 +600,13 @@ THANKS TO
 Contributors to Linux-SPI discussions include (in alphabetical order,
 by last name):
 
+Mark Brown
 David Brownell
 Russell King
+Grant Likely
 Dmitry Pervushin
 Stephen Street
 Mark Underwood
 Andrew Victor
-Vitaly Wool
-Grant Likely
-Mark Brown
 Linus Walleij
+Vitaly Wool

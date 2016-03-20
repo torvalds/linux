@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 
 #include "internal.h"
@@ -42,9 +43,8 @@ static const struct acpi_device_id forbidden_id_list[] = {
 struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 {
 	struct platform_device *pdev = NULL;
-	struct acpi_device *acpi_parent;
 	struct platform_device_info pdevinfo;
-	struct resource_list_entry *rentry;
+	struct resource_entry *rentry;
 	struct list_head resource_list;
 	struct resource *resources = NULL;
 	int count;
@@ -61,7 +61,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 	if (count < 0) {
 		return NULL;
 	} else if (count > 0) {
-		resources = kmalloc(count * sizeof(struct resource),
+		resources = kzalloc(count * sizeof(struct resource),
 				    GFP_KERNEL);
 		if (!resources) {
 			dev_err(&adev->dev, "No memory for resources\n");
@@ -70,7 +70,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 		}
 		count = 0;
 		list_for_each_entry(rentry, &resource_list, node)
-			resources[count++] = rentry->res;
+			resources[count++] = *rentry->res;
 
 		acpi_dev_free_resource_list(&resource_list);
 	}
@@ -81,27 +81,19 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 	 * attached to it, that physical device should be the parent of the
 	 * platform device we are about to create.
 	 */
-	pdevinfo.parent = NULL;
-	acpi_parent = adev->parent;
-	if (acpi_parent) {
-		struct acpi_device_physical_node *entry;
-		struct list_head *list;
-
-		mutex_lock(&acpi_parent->physical_node_lock);
-		list = &acpi_parent->physical_node_list;
-		if (!list_empty(list)) {
-			entry = list_first_entry(list,
-					struct acpi_device_physical_node,
-					node);
-			pdevinfo.parent = entry->dev;
-		}
-		mutex_unlock(&acpi_parent->physical_node_lock);
-	}
+	pdevinfo.parent = adev->parent ?
+		acpi_get_first_physical_node(adev->parent) : NULL;
 	pdevinfo.name = dev_name(&adev->dev);
 	pdevinfo.id = -1;
 	pdevinfo.res = resources;
 	pdevinfo.num_res = count;
-	pdevinfo.acpi_node.companion = adev;
+	pdevinfo.fwnode = acpi_fwnode_handle(adev);
+
+	if (acpi_dma_supported(adev))
+		pdevinfo.dma_mask = DMA_BIT_MASK(32);
+	else
+		pdevinfo.dma_mask = 0;
+
 	pdev = platform_device_register_full(&pdevinfo);
 	if (IS_ERR(pdev))
 		dev_err(&adev->dev, "platform device creation failed: %ld\n",
@@ -113,3 +105,4 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 	kfree(resources);
 	return pdev;
 }
+EXPORT_SYMBOL_GPL(acpi_create_platform_device);

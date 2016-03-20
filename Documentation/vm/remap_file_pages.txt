@@ -18,10 +18,9 @@ on 32-bit systems to map files bigger than can linearly fit into 32-bit
 virtual address space. This use-case is not critical anymore since 64-bit
 systems are widely available.
 
-The plan is to deprecate the syscall and replace it with an emulation.
-The emulation will create new VMAs instead of nonlinear mappings. It's
-going to work slower for rare users of remap_file_pages() but ABI is
-preserved.
+The syscall is deprecated and replaced it with an emulation now. The
+emulation creates new VMAs instead of nonlinear mappings. It's going to
+work slower for rare users of remap_file_pages() but ABI is preserved.
 
 One side effect of emulation (apart from performance) is that user can hit
 vm.max_map_count limit more easily due to additional VMAs. See comment for

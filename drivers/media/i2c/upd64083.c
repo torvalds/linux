@@ -27,7 +27,7 @@
 #include <linux/videodev2.h>
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
-#include <media/upd64083.h>
+#include <media/i2c/upd64083.h>
 
 MODULE_DESCRIPTION("uPD64083 driver");
 MODULE_AUTHOR("T. Adachi, Takeru KOMORIYA, Hans Verkuil");
@@ -213,7 +213,6 @@ MODULE_DEVICE_TABLE(i2c, upd64083_id);
 
 static struct i2c_driver upd64083_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "upd64083",
 	},
 	.probe		= upd64083_probe,

@@ -143,6 +143,7 @@ static void lcdtg_i2c_send_byte(struct corgi_lcd *lcd,
 				uint8_t base, uint8_t data)
 {
 	int i;
+
 	for (i = 0; i < 8; i++) {
 		if (data & 0x80)
 			lcdtg_i2c_send_bit(lcd, base | POWER0_COM_DOUT);
@@ -597,7 +598,6 @@ static int corgi_lcd_remove(struct spi_device *spi)
 static struct spi_driver corgi_lcd_driver = {
 	.driver		= {
 		.name	= "corgi-lcd",
-		.owner	= THIS_MODULE,
 		.pm	= &corgi_lcd_pm_ops,
 	},
 	.probe		= corgi_lcd_probe,

@@ -166,16 +166,23 @@ err_buf:
 	return err;
 }
 
-struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector,
+#define CQ_CREATE_FLAGS_SUPPORTED IB_CQ_FLAGS_TIMESTAMP_COMPLETION
+struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
+				const struct ib_cq_init_attr *attr,
 				struct ib_ucontext *context,
 				struct ib_udata *udata)
 {
+	int entries = attr->cqe;
+	int vector = attr->comp_vector;
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	struct mlx4_ib_cq *cq;
 	struct mlx4_uar *uar;
 	int err;
 
 	if (entries < 1 || entries > dev->dev->caps.max_cqes)
+		return ERR_PTR(-EINVAL);
+
+	if (attr->flags & ~CQ_CREATE_FLAGS_SUPPORTED)
 		return ERR_PTR(-EINVAL);
 
 	cq = kmalloc(sizeof *cq, GFP_KERNEL);
@@ -188,6 +195,9 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector
 	spin_lock_init(&cq->lock);
 	cq->resize_buf = NULL;
 	cq->resize_umem = NULL;
+	cq->create_flags = attr->flags;
+	INIT_LIST_HEAD(&cq->send_qp_list);
+	INIT_LIST_HEAD(&cq->recv_qp_list);
 
 	if (context) {
 		struct mlx4_ib_create_cq ucmd;
@@ -229,11 +239,15 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector
 		vector = dev->eq_table[vector % ibdev->num_comp_vectors];
 
 	err = mlx4_cq_alloc(dev->dev, entries, &cq->buf.mtt, uar,
-			    cq->db.dma, &cq->mcq, vector, 0, 0);
+			    cq->db.dma, &cq->mcq, vector, 0,
+			    !!(cq->create_flags & IB_CQ_FLAGS_TIMESTAMP_COMPLETION));
 	if (err)
 		goto err_dbmap;
 
-	cq->mcq.comp  = mlx4_ib_cq_comp;
+	if (context)
+		cq->mcq.tasklet_ctx.comp = mlx4_ib_cq_comp;
+	else
+		cq->mcq.comp = mlx4_ib_cq_comp;
 	cq->mcq.event = mlx4_ib_cq_event;
 
 	if (context)
@@ -364,8 +378,7 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	int err;
 
 	mutex_lock(&cq->resize_mutex);
-
-	if (entries < 1) {
+	if (entries < 1 || entries > dev->dev->caps.max_cqes) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -376,7 +389,7 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		goto out;
 	}
 
-	if (entries > dev->dev->caps.max_cqes) {
+	if (entries > dev->dev->caps.max_cqes + 1) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -389,7 +402,7 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		/* Can't be smaller than the number of outstanding CQEs */
 		outst_cqe = mlx4_ib_get_outstanding_cqes(cq);
 		if (entries < outst_cqe + 1) {
-			err = 0;
+			err = -EINVAL;
 			goto out;
 		}
 
@@ -591,6 +604,55 @@ static int use_tunnel_data(struct mlx4_ib_qp *qp, struct mlx4_ib_cq *cq, struct 
 	return 0;
 }
 
+static void mlx4_ib_qp_sw_comp(struct mlx4_ib_qp *qp, int num_entries,
+			       struct ib_wc *wc, int *npolled, int is_send)
+{
+	struct mlx4_ib_wq *wq;
+	unsigned cur;
+	int i;
+
+	wq = is_send ? &qp->sq : &qp->rq;
+	cur = wq->head - wq->tail;
+
+	if (cur == 0)
+		return;
+
+	for (i = 0;  i < cur && *npolled < num_entries; i++) {
+		wc->wr_id = wq->wrid[wq->tail & (wq->wqe_cnt - 1)];
+		wc->status = IB_WC_WR_FLUSH_ERR;
+		wc->vendor_err = MLX4_CQE_SYNDROME_WR_FLUSH_ERR;
+		wq->tail++;
+		(*npolled)++;
+		wc->qp = &qp->ibqp;
+		wc++;
+	}
+}
+
+static void mlx4_ib_poll_sw_comp(struct mlx4_ib_cq *cq, int num_entries,
+				 struct ib_wc *wc, int *npolled)
+{
+	struct mlx4_ib_qp *qp;
+
+	*npolled = 0;
+	/* Find uncompleted WQEs belonging to that cq and retrun
+	 * simulated FLUSH_ERR completions
+	 */
+	list_for_each_entry(qp, &cq->send_qp_list, cq_send_list) {
+		mlx4_ib_qp_sw_comp(qp, num_entries, wc + *npolled, npolled, 1);
+		if (*npolled >= num_entries)
+			goto out;
+	}
+
+	list_for_each_entry(qp, &cq->recv_qp_list, cq_recv_list) {
+		mlx4_ib_qp_sw_comp(qp, num_entries, wc + *npolled, npolled, 0);
+		if (*npolled >= num_entries)
+			goto out;
+	}
+
+out:
+	return;
+}
+
 static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 			    struct mlx4_ib_qp **cur_qp,
 			    struct ib_wc *wc)
@@ -749,14 +811,11 @@ repoll:
 			wc->opcode    = IB_WC_MASKED_FETCH_ADD;
 			wc->byte_len  = 8;
 			break;
-		case MLX4_OPCODE_BIND_MW:
-			wc->opcode    = IB_WC_BIND_MW;
-			break;
 		case MLX4_OPCODE_LSO:
 			wc->opcode    = IB_WC_LSO;
 			break;
 		case MLX4_OPCODE_FMR:
-			wc->opcode    = IB_WC_FAST_REG_MR;
+			wc->opcode    = IB_WC_REG_MR;
 			break;
 		case MLX4_OPCODE_LOCAL_INVAL:
 			wc->opcode    = IB_WC_LOCAL_INV;
@@ -809,7 +868,7 @@ repoll:
 		if (is_eth) {
 			wc->sl  = be16_to_cpu(cqe->sl_vid) >> 13;
 			if (be32_to_cpu(cqe->vlan_my_qpn) &
-					MLX4_CQE_VLAN_PRESENT_MASK) {
+					MLX4_CQE_CVLAN_PRESENT_MASK) {
 				wc->vlan_id = be16_to_cpu(cqe->sl_vid) &
 					MLX4_CQE_VID_MASK;
 			} else {
@@ -833,8 +892,13 @@ int mlx4_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	unsigned long flags;
 	int npolled;
 	int err = 0;
+	struct mlx4_ib_dev *mdev = to_mdev(cq->ibcq.device);
 
 	spin_lock_irqsave(&cq->lock, flags);
+	if (mdev->dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR) {
+		mlx4_ib_poll_sw_comp(cq, num_entries, wc, &npolled);
+		goto out;
+	}
 
 	for (npolled = 0; npolled < num_entries; ++npolled) {
 		err = mlx4_ib_poll_one(cq, &cur_qp, wc + npolled);
@@ -844,6 +908,7 @@ int mlx4_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 
 	mlx4_cq_set_ci(&cq->mcq);
 
+out:
 	spin_unlock_irqrestore(&cq->lock, flags);
 
 	if (err == 0 || err == -EAGAIN)

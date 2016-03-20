@@ -46,9 +46,9 @@ static int __init setup_unaligned_fixup(char *str)
 		return 0;
 
 	pr_info("Fixups for unaligned data accesses are %s\n",
-	       unaligned_fixup >= 0 ?
-	       (unaligned_fixup ? "enabled" : "disabled") :
-	       "completely disabled");
+		unaligned_fixup >= 0 ?
+		(unaligned_fixup ? "enabled" : "disabled") :
+		"completely disabled");
 	return 1;
 }
 __setup("unaligned_fixup=", setup_unaligned_fixup);
@@ -277,7 +277,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 		if (fixup_exception(regs))  /* ILL_TRANS or UNALIGN_DATA */
 			return;
 		if (fault_num >= 0 &&
-		    fault_num < sizeof(int_name)/sizeof(int_name[0]) &&
+		    fault_num < ARRAY_SIZE(int_name) &&
 		    int_name[fault_num] != NULL)
 			name = int_name[fault_num];
 		else
@@ -294,7 +294,6 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 			 fault_num, name, regs->pc, buf);
 		show_regs(regs);
 		do_exit(SIGKILL);  /* FIXME: implement i386 die() */
-		return;
 	}
 
 	switch (fault_num) {
@@ -305,10 +304,9 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 	case INT_ILL:
 		if (copy_from_user(&instr, (void __user *)regs->pc,
 				   sizeof(instr))) {
-			pr_err("Unreadable instruction for INT_ILL:"
-			       " %#lx\n", regs->pc);
+			pr_err("Unreadable instruction for INT_ILL: %#lx\n",
+			       regs->pc);
 			do_exit(SIGKILL);
-			return;
 		}
 		if (!special_ill(instr, &signo, &code)) {
 			signo = SIGILL;
@@ -380,7 +378,6 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 #endif
 	default:
 		panic("Unexpected do_trap interrupt number %d", fault_num);
-		return;
 	}
 
 	info.si_signo = signo;
@@ -392,6 +389,21 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 		trace_unhandled_signal("trap", regs, address, signo);
 	force_sig_info(signo, &info, current);
 }
+
+void do_nmi(struct pt_regs *regs, int fault_num, unsigned long reason)
+{
+	switch (reason) {
+	case TILE_NMI_DUMP_STACK:
+		do_nmi_dump_stack(regs);
+		break;
+	default:
+		panic("Unexpected do_nmi type %ld", reason);
+		return;
+	}
+}
+
+/* Deprecated function currently only used here. */
+extern void _dump_stack(int dummy, ulong pc, ulong lr, ulong sp, ulong r52);
 
 void kernel_double_fault(int dummy, ulong pc, ulong lr, ulong sp, ulong r52)
 {

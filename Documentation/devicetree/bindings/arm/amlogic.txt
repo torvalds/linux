@@ -1,0 +1,20 @@
+Amlogic MesonX device tree bindings
+-------------------------------------------
+
+Boards with the Amlogic Meson6 SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,meson6"
+
+Boards with the Amlogic Meson8 SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,meson8";
+
+Boards with the Amlogic Meson8b SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,meson8b";
+
+Board compatible values:
+  - "geniatech,atv1200" (Meson6)
+  - "minix,neo-x8" (Meson8)
+  - "tronfy,mxq" (Meson8b)
+  - "hardkernel,odroid-c1" (Meson8b)

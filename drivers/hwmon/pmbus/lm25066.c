@@ -19,6 +19,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -42,15 +43,15 @@ enum chips { lm25056, lm25063, lm25066, lm5064, lm5066 };
 #define LM25066_READ_AVG_IIN		0xde
 #define LM25066_READ_AVG_PIN		0xdf
 
-#define LM25066_DEV_SETUP_CL		(1 << 4)	/* Current limit */
+#define LM25066_DEV_SETUP_CL		BIT(4)	/* Current limit */
 
 /* LM25056 only */
 
 #define LM25056_VAUX_OV_WARN_LIMIT	0xe3
 #define LM25056_VAUX_UV_WARN_LIMIT	0xe4
 
-#define LM25056_MFR_STS_VAUX_OV_WARN	(1 << 1)
-#define LM25056_MFR_STS_VAUX_UV_WARN	(1 << 0)
+#define LM25056_MFR_STS_VAUX_OV_WARN	BIT(1)
+#define LM25056_MFR_STS_VAUX_UV_WARN	BIT(0)
 
 /* LM25063 only */
 

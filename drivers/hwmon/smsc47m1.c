@@ -849,7 +849,6 @@ static int __exit smsc47m1_remove(struct platform_device *pdev)
 
 static struct platform_driver smsc47m1_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 	},
 	.remove		= __exit_p(smsc47m1_remove),

@@ -50,7 +50,7 @@
 
 static int max7301_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct max7301 *ts = container_of(chip, struct max7301, chip);
+	struct max7301 *ts = gpiochip_get_data(chip);
 	u8 *config;
 	u8 offset_bits, pin_config;
 	int ret;
@@ -92,7 +92,7 @@ static int __max7301_set(struct max7301 *ts, unsigned offset, int value)
 static int max7301_direction_output(struct gpio_chip *chip, unsigned offset,
 				    int value)
 {
-	struct max7301 *ts = container_of(chip, struct max7301, chip);
+	struct max7301 *ts = gpiochip_get_data(chip);
 	u8 *config;
 	u8 offset_bits;
 	int ret;
@@ -120,7 +120,7 @@ static int max7301_direction_output(struct gpio_chip *chip, unsigned offset,
 
 static int max7301_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct max7301 *ts = container_of(chip, struct max7301, chip);
+	struct max7301 *ts = gpiochip_get_data(chip);
 	int config, level = -EINVAL;
 
 	/* First 4 pins are unused in the controller */
@@ -148,7 +148,7 @@ static int max7301_get(struct gpio_chip *chip, unsigned offset)
 
 static void max7301_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct max7301 *ts = container_of(chip, struct max7301, chip);
+	struct max7301 *ts = gpiochip_get_data(chip);
 
 	/* First 4 pins are unused in the controller */
 	offset += 4;
@@ -189,7 +189,7 @@ int __max730x_probe(struct max7301 *ts)
 
 	ts->chip.ngpio = PIN_NUMBER;
 	ts->chip.can_sleep = true;
-	ts->chip.dev = dev;
+	ts->chip.parent = dev;
 	ts->chip.owner = THIS_MODULE;
 
 	/*
@@ -213,7 +213,7 @@ int __max730x_probe(struct max7301 *ts)
 		}
 	}
 
-	ret = gpiochip_add(&ts->chip);
+	ret = gpiochip_add_data(&ts->chip, ts);
 	if (ret)
 		goto exit_destroy;
 
@@ -236,7 +236,6 @@ int __max730x_remove(struct device *dev)
 	ts->write(dev, 0x04, 0x00);
 	gpiochip_remove(&ts->chip);
 	mutex_destroy(&ts->lock);
-	kfree(ts);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__max730x_remove);

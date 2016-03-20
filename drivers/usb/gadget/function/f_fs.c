@@ -23,6 +23,7 @@
 #include <linux/export.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/uio.h>
 #include <asm/unaligned.h>
 
 #include <linux/usb/composite.h>
@@ -31,6 +32,7 @@
 #include <linux/aio.h>
 #include <linux/mmu_context.h>
 #include <linux/poll.h>
+#include <linux/eventfd.h>
 
 #include "u_fs.h"
 #include "u_f.h"
@@ -143,25 +145,31 @@ struct ffs_io_data {
 	bool read;
 
 	struct kiocb *kiocb;
-	const struct iovec *iovec;
-	unsigned long nr_segs;
-	char __user *buf;
-	size_t len;
+	struct iov_iter data;
+	const void *to_free;
+	char *buf;
 
 	struct mm_struct *mm;
 	struct work_struct work;
 
 	struct usb_ep *ep;
 	struct usb_request *req;
+
+	struct ffs_data *ffs;
+};
+
+struct ffs_desc_helper {
+	struct ffs_data *ffs;
+	unsigned interfaces_count;
+	unsigned eps_count;
 };
 
 static int  __must_check ffs_epfiles_create(struct ffs_data *ffs);
 static void ffs_epfiles_destroy(struct ffs_epfile *epfiles, unsigned count);
 
-static struct inode *__must_check
+static struct dentry *
 ffs_sb_create_file(struct super_block *sb, const char *name, void *data,
-		   const struct file_operations *fops,
-		   struct dentry **dentry_p);
+		   const struct file_operations *fops);
 
 /* Devices management *******************************************************/
 
@@ -307,7 +315,6 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 				return ret;
 			}
 
-			set_bit(FFS_FL_CALL_CLOSED_CALLBACK, &ffs->flags);
 			return len;
 		}
 		break;
@@ -385,17 +392,20 @@ done_spin:
 	return ret;
 }
 
+/* Called with ffs->ev.waitq.lock and ffs->mutex held, both released on exit. */
 static ssize_t __ffs_ep0_read_events(struct ffs_data *ffs, char __user *buf,
 				     size_t n)
 {
 	/*
-	 * We are holding ffs->ev.waitq.lock and ffs->mutex and we need
-	 * to release them.
+	 * n cannot be bigger than ffs->ev.count, which cannot be bigger than
+	 * size of ffs->ev.types array (which is four) so that's how much space
+	 * we reserve.
 	 */
-	struct usb_functionfs_event events[n];
+	struct usb_functionfs_event events[ARRAY_SIZE(ffs->ev.types)];
+	const size_t size = n * sizeof *events;
 	unsigned i = 0;
 
-	memset(events, 0, sizeof events);
+	memset(events, 0, size);
 
 	do {
 		events[i].type = ffs->ev.types[i];
@@ -405,19 +415,15 @@ static ssize_t __ffs_ep0_read_events(struct ffs_data *ffs, char __user *buf,
 		}
 	} while (++i < n);
 
-	if (n < ffs->ev.count) {
-		ffs->ev.count -= n;
+	ffs->ev.count -= n;
+	if (ffs->ev.count)
 		memmove(ffs->ev.types, ffs->ev.types + n,
 			ffs->ev.count * sizeof *ffs->ev.types);
-	} else {
-		ffs->ev.count = 0;
-	}
 
 	spin_unlock_irq(&ffs->ev.waitq.lock);
 	mutex_unlock(&ffs->mutex);
 
-	return unlikely(__copy_to_user(buf, events, sizeof events))
-		? -EFAULT : sizeof events;
+	return unlikely(copy_to_user(buf, events, size)) ? -EFAULT : size;
 }
 
 static ssize_t ffs_ep0_read(struct file *file, char __user *buf,
@@ -507,7 +513,7 @@ static ssize_t ffs_ep0_read(struct file *file, char __user *buf,
 
 		/* unlocks spinlock */
 		ret = __ffs_ep0_queue_wait(ffs, data, len);
-		if (likely(ret > 0) && unlikely(__copy_to_user(buf, data, len)))
+		if (likely(ret > 0) && unlikely(copy_to_user(buf, data, len)))
 			ret = -EFAULT;
 		goto done_mutex;
 
@@ -601,6 +607,8 @@ static unsigned int ffs_ep0_poll(struct file *file, poll_table *wait)
 		}
 	case FFS_CLOSING:
 		break;
+	case FFS_DEACTIVATED:
+		break;
 	}
 
 	mutex_unlock(&ffs->mutex);
@@ -640,28 +648,24 @@ static void ffs_user_copy_worker(struct work_struct *work)
 					 io_data->req->actual;
 
 	if (io_data->read && ret > 0) {
-		int i;
-		size_t pos = 0;
 		use_mm(io_data->mm);
-		for (i = 0; i < io_data->nr_segs; i++) {
-			if (unlikely(copy_to_user(io_data->iovec[i].iov_base,
-						 &io_data->buf[pos],
-						 io_data->iovec[i].iov_len))) {
-				ret = -EFAULT;
-				break;
-			}
-			pos += io_data->iovec[i].iov_len;
-		}
+		ret = copy_to_iter(io_data->buf, ret, &io_data->data);
+		if (iov_iter_count(&io_data->data))
+			ret = -EFAULT;
 		unuse_mm(io_data->mm);
 	}
 
-	aio_complete(io_data->kiocb, ret, ret);
+	io_data->kiocb->ki_complete(io_data->kiocb, ret, ret);
+
+	if (io_data->ffs->ffs_eventfd &&
+	    !(io_data->kiocb->ki_flags & IOCB_EVENTFD))
+		eventfd_signal(io_data->ffs->ffs_eventfd, 1);
 
 	usb_ep_free_request(io_data->ep, io_data->req);
 
 	io_data->kiocb->private = NULL;
 	if (io_data->read)
-		kfree(io_data->iovec);
+		kfree(io_data->to_free);
 	kfree(io_data->buf);
 	kfree(io_data);
 }
@@ -680,46 +684,41 @@ static void ffs_epfile_async_io_complete(struct usb_ep *_ep,
 static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 {
 	struct ffs_epfile *epfile = file->private_data;
+	struct usb_request *req;
 	struct ffs_ep *ep;
 	char *data = NULL;
-	ssize_t ret, data_len;
+	ssize_t ret, data_len = -EINVAL;
 	int halt;
 
 	/* Are we still active? */
-	if (WARN_ON(epfile->ffs->state != FFS_ACTIVE)) {
-		ret = -ENODEV;
-		goto error;
-	}
+	if (WARN_ON(epfile->ffs->state != FFS_ACTIVE))
+		return -ENODEV;
 
 	/* Wait for endpoint to be enabled */
 	ep = epfile->ep;
 	if (!ep) {
-		if (file->f_flags & O_NONBLOCK) {
-			ret = -EAGAIN;
-			goto error;
-		}
+		if (file->f_flags & O_NONBLOCK)
+			return -EAGAIN;
 
 		ret = wait_event_interruptible(epfile->wait, (ep = epfile->ep));
-		if (ret) {
-			ret = -EINTR;
-			goto error;
-		}
+		if (ret)
+			return -EINTR;
 	}
 
 	/* Do we halt? */
 	halt = (!io_data->read == !epfile->in);
-	if (halt && epfile->isoc) {
-		ret = -EINVAL;
-		goto error;
-	}
+	if (halt && epfile->isoc)
+		return -EINVAL;
 
 	/* Allocate & copy */
 	if (!halt) {
 		/*
 		 * if we _do_ wait above, the epfile->ffs->gadget might be NULL
-		 * before the waiting completes, so do not assign to 'gadget' earlier
+		 * before the waiting completes, so do not assign to 'gadget'
+		 * earlier
 		 */
 		struct usb_gadget *gadget = epfile->ffs->gadget;
+		size_t copied;
 
 		spin_lock_irq(&epfile->ffs->eps_lock);
 		/* In the meantime, endpoint got disabled or changed. */
@@ -727,34 +726,21 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 			spin_unlock_irq(&epfile->ffs->eps_lock);
 			return -ESHUTDOWN;
 		}
+		data_len = iov_iter_count(&io_data->data);
 		/*
 		 * Controller may require buffer size to be aligned to
 		 * maxpacketsize of an out endpoint.
 		 */
-		data_len = io_data->read ?
-			   usb_ep_align_maybe(gadget, ep->ep, io_data->len) :
-			   io_data->len;
+		if (io_data->read)
+			data_len = usb_ep_align_maybe(gadget, ep->ep, data_len);
 		spin_unlock_irq(&epfile->ffs->eps_lock);
 
 		data = kmalloc(data_len, GFP_KERNEL);
 		if (unlikely(!data))
 			return -ENOMEM;
-		if (io_data->aio && !io_data->read) {
-			int i;
-			size_t pos = 0;
-			for (i = 0; i < io_data->nr_segs; i++) {
-				if (unlikely(copy_from_user(&data[pos],
-					     io_data->iovec[i].iov_base,
-					     io_data->iovec[i].iov_len))) {
-					ret = -EFAULT;
-					goto error;
-				}
-				pos += io_data->iovec[i].iov_len;
-			}
-		} else {
-			if (!io_data->read &&
-			    unlikely(__copy_from_user(data, io_data->buf,
-						      io_data->len))) {
+		if (!io_data->read) {
+			copied = copy_from_iter(data, data_len, &io_data->data);
+			if (copied != data_len) {
 				ret = -EFAULT;
 				goto error;
 			}
@@ -771,121 +757,101 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 	if (epfile->ep != ep) {
 		/* In the meantime, endpoint got disabled or changed. */
 		ret = -ESHUTDOWN;
-		spin_unlock_irq(&epfile->ffs->eps_lock);
 	} else if (halt) {
 		/* Halt */
 		if (likely(epfile->ep == ep) && !WARN_ON(!ep->ep))
 			usb_ep_set_halt(ep->ep);
-		spin_unlock_irq(&epfile->ffs->eps_lock);
 		ret = -EBADMSG;
-	} else {
-		/* Fire the request */
-		struct usb_request *req;
+	} else if (unlikely(data_len == -EINVAL)) {
+		/*
+		 * Sanity Check: even though data_len can't be used
+		 * uninitialized at the time I write this comment, some
+		 * compilers complain about this situation.
+		 * In order to keep the code clean from warnings, data_len is
+		 * being initialized to -EINVAL during its declaration, which
+		 * means we can't rely on compiler anymore to warn no future
+		 * changes won't result in data_len being used uninitialized.
+		 * For such reason, we're adding this redundant sanity check
+		 * here.
+		 */
+		WARN(1, "%s: data_len == -EINVAL\n", __func__);
+		ret = -EINVAL;
+	} else if (!io_data->aio) {
+		DECLARE_COMPLETION_ONSTACK(done);
+		bool interrupted = false;
 
-		if (io_data->aio) {
-			req = usb_ep_alloc_request(ep->ep, GFP_KERNEL);
-			if (unlikely(!req))
-				goto error_lock;
+		req = ep->req;
+		req->buf      = data;
+		req->length   = data_len;
 
-			req->buf      = data;
-			req->length   = io_data->len;
+		req->context  = &done;
+		req->complete = ffs_epfile_io_complete;
 
-			io_data->buf = data;
-			io_data->ep = ep->ep;
-			io_data->req = req;
+		ret = usb_ep_queue(ep->ep, req, GFP_ATOMIC);
+		if (unlikely(ret < 0))
+			goto error_lock;
 
-			req->context  = io_data;
-			req->complete = ffs_epfile_async_io_complete;
+		spin_unlock_irq(&epfile->ffs->eps_lock);
 
-			ret = usb_ep_queue(ep->ep, req, GFP_ATOMIC);
-			if (unlikely(ret)) {
-				usb_ep_free_request(ep->ep, req);
-				goto error_lock;
-			}
-			ret = -EIOCBQUEUED;
-
-			spin_unlock_irq(&epfile->ffs->eps_lock);
-		} else {
-			DECLARE_COMPLETION_ONSTACK(done);
-
-			req = ep->req;
-			req->buf      = data;
-			req->length   = io_data->len;
-
-			req->context  = &done;
-			req->complete = ffs_epfile_io_complete;
-
-			ret = usb_ep_queue(ep->ep, req, GFP_ATOMIC);
-
-			spin_unlock_irq(&epfile->ffs->eps_lock);
-
-			if (unlikely(ret < 0)) {
-				/* nop */
-			} else if (unlikely(
-				   wait_for_completion_interruptible(&done))) {
-				ret = -EINTR;
-				usb_ep_dequeue(ep->ep, req);
-			} else {
-				/*
-				 * XXX We may end up silently droping data
-				 * here.  Since data_len (i.e. req->length) may
-				 * be bigger than len (after being rounded up
-				 * to maxpacketsize), we may end up with more
-				 * data then user space has space for.
-				 */
-				ret = ep->status;
-				if (io_data->read && ret > 0) {
-					ret = min_t(size_t, ret, io_data->len);
-
-					if (unlikely(copy_to_user(io_data->buf,
-						data, ret)))
-						ret = -EFAULT;
-				}
-			}
-			kfree(data);
+		if (unlikely(wait_for_completion_interruptible(&done))) {
+			/*
+			 * To avoid race condition with ffs_epfile_io_complete,
+			 * dequeue the request first then check
+			 * status. usb_ep_dequeue API should guarantee no race
+			 * condition with req->complete callback.
+			 */
+			usb_ep_dequeue(ep->ep, req);
+			interrupted = ep->status < 0;
 		}
-	}
 
-	mutex_unlock(&epfile->mutex);
-	return ret;
+		/*
+		 * XXX We may end up silently droping data here.  Since data_len
+		 * (i.e. req->length) may be bigger than len (after being
+		 * rounded up to maxpacketsize), we may end up with more data
+		 * then user space has space for.
+		 */
+		ret = interrupted ? -EINTR : ep->status;
+		if (io_data->read && ret > 0) {
+			ret = copy_to_iter(data, ret, &io_data->data);
+			if (!ret)
+				ret = -EFAULT;
+		}
+		goto error_mutex;
+	} else if (!(req = usb_ep_alloc_request(ep->ep, GFP_KERNEL))) {
+		ret = -ENOMEM;
+	} else {
+		req->buf      = data;
+		req->length   = data_len;
+
+		io_data->buf = data;
+		io_data->ep = ep->ep;
+		io_data->req = req;
+		io_data->ffs = epfile->ffs;
+
+		req->context  = io_data;
+		req->complete = ffs_epfile_async_io_complete;
+
+		ret = usb_ep_queue(ep->ep, req, GFP_ATOMIC);
+		if (unlikely(ret)) {
+			usb_ep_free_request(ep->ep, req);
+			goto error_lock;
+		}
+
+		ret = -EIOCBQUEUED;
+		/*
+		 * Do not kfree the buffer in this function.  It will be freed
+		 * by ffs_user_copy_worker.
+		 */
+		data = NULL;
+	}
 
 error_lock:
 	spin_unlock_irq(&epfile->ffs->eps_lock);
+error_mutex:
 	mutex_unlock(&epfile->mutex);
 error:
 	kfree(data);
 	return ret;
-}
-
-static ssize_t
-ffs_epfile_write(struct file *file, const char __user *buf, size_t len,
-		 loff_t *ptr)
-{
-	struct ffs_io_data io_data;
-
-	ENTER();
-
-	io_data.aio = false;
-	io_data.read = false;
-	io_data.buf = (char * __user)buf;
-	io_data.len = len;
-
-	return ffs_epfile_io(file, &io_data);
-}
-
-static ssize_t
-ffs_epfile_read(struct file *file, char __user *buf, size_t len, loff_t *ptr)
-{
-	struct ffs_io_data io_data;
-
-	ENTER();
-
-	io_data.aio = false;
-	io_data.read = true;
-	io_data.buf = buf;
-	io_data.len = len;
-
-	return ffs_epfile_io(file, &io_data);
 }
 
 static int
@@ -924,67 +890,88 @@ static int ffs_aio_cancel(struct kiocb *kiocb)
 	return value;
 }
 
-static ssize_t ffs_epfile_aio_write(struct kiocb *kiocb,
-				    const struct iovec *iovec,
-				    unsigned long nr_segs, loff_t loff)
+static ssize_t ffs_epfile_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 {
-	struct ffs_io_data *io_data;
+	struct ffs_io_data io_data, *p = &io_data;
+	ssize_t res;
 
 	ENTER();
 
-	io_data = kmalloc(sizeof(*io_data), GFP_KERNEL);
-	if (unlikely(!io_data))
-		return -ENOMEM;
-
-	io_data->aio = true;
-	io_data->read = false;
-	io_data->kiocb = kiocb;
-	io_data->iovec = iovec;
-	io_data->nr_segs = nr_segs;
-	io_data->len = kiocb->ki_nbytes;
-	io_data->mm = current->mm;
-
-	kiocb->private = io_data;
-
-	kiocb_set_cancel_fn(kiocb, ffs_aio_cancel);
-
-	return ffs_epfile_io(kiocb->ki_filp, io_data);
-}
-
-static ssize_t ffs_epfile_aio_read(struct kiocb *kiocb,
-				   const struct iovec *iovec,
-				   unsigned long nr_segs, loff_t loff)
-{
-	struct ffs_io_data *io_data;
-	struct iovec *iovec_copy;
-
-	ENTER();
-
-	iovec_copy = kmalloc_array(nr_segs, sizeof(*iovec_copy), GFP_KERNEL);
-	if (unlikely(!iovec_copy))
-		return -ENOMEM;
-
-	memcpy(iovec_copy, iovec, sizeof(struct iovec)*nr_segs);
-
-	io_data = kmalloc(sizeof(*io_data), GFP_KERNEL);
-	if (unlikely(!io_data)) {
-		kfree(iovec_copy);
-		return -ENOMEM;
+	if (!is_sync_kiocb(kiocb)) {
+		p = kmalloc(sizeof(io_data), GFP_KERNEL);
+		if (unlikely(!p))
+			return -ENOMEM;
+		p->aio = true;
+	} else {
+		p->aio = false;
 	}
 
-	io_data->aio = true;
-	io_data->read = true;
-	io_data->kiocb = kiocb;
-	io_data->iovec = iovec_copy;
-	io_data->nr_segs = nr_segs;
-	io_data->len = kiocb->ki_nbytes;
-	io_data->mm = current->mm;
+	p->read = false;
+	p->kiocb = kiocb;
+	p->data = *from;
+	p->mm = current->mm;
 
-	kiocb->private = io_data;
+	kiocb->private = p;
 
-	kiocb_set_cancel_fn(kiocb, ffs_aio_cancel);
+	if (p->aio)
+		kiocb_set_cancel_fn(kiocb, ffs_aio_cancel);
 
-	return ffs_epfile_io(kiocb->ki_filp, io_data);
+	res = ffs_epfile_io(kiocb->ki_filp, p);
+	if (res == -EIOCBQUEUED)
+		return res;
+	if (p->aio)
+		kfree(p);
+	else
+		*from = p->data;
+	return res;
+}
+
+static ssize_t ffs_epfile_read_iter(struct kiocb *kiocb, struct iov_iter *to)
+{
+	struct ffs_io_data io_data, *p = &io_data;
+	ssize_t res;
+
+	ENTER();
+
+	if (!is_sync_kiocb(kiocb)) {
+		p = kmalloc(sizeof(io_data), GFP_KERNEL);
+		if (unlikely(!p))
+			return -ENOMEM;
+		p->aio = true;
+	} else {
+		p->aio = false;
+	}
+
+	p->read = true;
+	p->kiocb = kiocb;
+	if (p->aio) {
+		p->to_free = dup_iter(&p->data, to, GFP_KERNEL);
+		if (!p->to_free) {
+			kfree(p);
+			return -ENOMEM;
+		}
+	} else {
+		p->data = *to;
+		p->to_free = NULL;
+	}
+	p->mm = current->mm;
+
+	kiocb->private = p;
+
+	if (p->aio)
+		kiocb_set_cancel_fn(kiocb, ffs_aio_cancel);
+
+	res = ffs_epfile_io(kiocb->ki_filp, p);
+	if (res == -EIOCBQUEUED)
+		return res;
+
+	if (p->aio) {
+		kfree(p->to_free);
+		kfree(p);
+	} else {
+		*to = p->data;
+	}
+	return res;
 }
 
 static int
@@ -1026,6 +1013,29 @@ static long ffs_epfile_ioctl(struct file *file, unsigned code,
 		case FUNCTIONFS_ENDPOINT_REVMAP:
 			ret = epfile->ep->num;
 			break;
+		case FUNCTIONFS_ENDPOINT_DESC:
+		{
+			int desc_idx;
+			struct usb_endpoint_descriptor *desc;
+
+			switch (epfile->ffs->gadget->speed) {
+			case USB_SPEED_SUPER:
+				desc_idx = 2;
+				break;
+			case USB_SPEED_HIGH:
+				desc_idx = 1;
+				break;
+			default:
+				desc_idx = 0;
+			}
+			desc = epfile->ep->descs[desc_idx];
+
+			spin_unlock_irq(&epfile->ffs->eps_lock);
+			ret = copy_to_user((void *)value, desc, sizeof(*desc));
+			if (ret)
+				ret = -EFAULT;
+			return ret;
+		}
 		default:
 			ret = -ENOTTY;
 		}
@@ -1041,10 +1051,8 @@ static const struct file_operations ffs_epfile_operations = {
 	.llseek =	no_llseek,
 
 	.open =		ffs_epfile_open,
-	.write =	ffs_epfile_write,
-	.read =		ffs_epfile_read,
-	.aio_write =	ffs_epfile_aio_write,
-	.aio_read =	ffs_epfile_aio_read,
+	.write_iter =	ffs_epfile_write_iter,
+	.read_iter =	ffs_epfile_read_iter,
 	.release =	ffs_epfile_release,
 	.unlocked_ioctl =	ffs_epfile_ioctl,
 };
@@ -1090,10 +1098,9 @@ ffs_sb_make_inode(struct super_block *sb, void *data,
 }
 
 /* Create "regular" file */
-static struct inode *ffs_sb_create_file(struct super_block *sb,
+static struct dentry *ffs_sb_create_file(struct super_block *sb,
 					const char *name, void *data,
-					const struct file_operations *fops,
-					struct dentry **dentry_p)
+					const struct file_operations *fops)
 {
 	struct ffs_data	*ffs = sb->s_fs_info;
 	struct dentry	*dentry;
@@ -1112,10 +1119,7 @@ static struct inode *ffs_sb_create_file(struct super_block *sb,
 	}
 
 	d_add(dentry, inode);
-	if (dentry_p)
-		*dentry_p = dentry;
-
-	return inode;
+	return dentry;
 }
 
 /* Super block */
@@ -1128,6 +1132,7 @@ struct ffs_sb_fill_data {
 	struct ffs_file_perms perms;
 	umode_t root_mode;
 	const char *dev_name;
+	bool no_disconnect;
 	struct ffs_data *ffs_data;
 };
 
@@ -1160,7 +1165,7 @@ static int ffs_sb_fill(struct super_block *sb, void *_data, int silent)
 
 	/* EP0 file */
 	if (unlikely(!ffs_sb_create_file(sb, "ep0", ffs,
-					 &ffs_ep0_operations, NULL)))
+					 &ffs_ep0_operations)))
 		return -ENOMEM;
 
 	return 0;
@@ -1198,6 +1203,12 @@ static int ffs_fs_parse_opts(struct ffs_sb_fill_data *data, char *opts)
 
 		/* Interpret option */
 		switch (eq - opts) {
+		case 13:
+			if (!memcmp(opts, "no_disconnect", 13))
+				data->no_disconnect = !!value;
+			else
+				goto invalid;
+			break;
 		case 5:
 			if (!memcmp(opts, "rmode", 5))
 				data->root_mode  = (value & 0555) | S_IFDIR;
@@ -1262,6 +1273,7 @@ ffs_fs_mount(struct file_system_type *t, int flags,
 			.gid = GLOBAL_ROOT_GID,
 		},
 		.root_mode = S_IFDIR | 0500,
+		.no_disconnect = false,
 	};
 	struct dentry *rv;
 	int ret;
@@ -1278,6 +1290,7 @@ ffs_fs_mount(struct file_system_type *t, int flags,
 	if (unlikely(!ffs))
 		return ERR_PTR(-ENOMEM);
 	ffs->file_perms = data.perms;
+	ffs->no_disconnect = data.no_disconnect;
 
 	ffs->dev_name = kstrdup(dev_name, GFP_KERNEL);
 	if (unlikely(!ffs->dev_name)) {
@@ -1309,6 +1322,7 @@ ffs_fs_kill_sb(struct super_block *sb)
 	kill_litter_super(sb);
 	if (sb->s_fs_info) {
 		ffs_release_dev(sb->s_fs_info);
+		ffs_data_closed(sb->s_fs_info);
 		ffs_data_put(sb->s_fs_info);
 	}
 }
@@ -1365,7 +1379,11 @@ static void ffs_data_opened(struct ffs_data *ffs)
 	ENTER();
 
 	atomic_inc(&ffs->ref);
-	atomic_inc(&ffs->opened);
+	if (atomic_add_return(1, &ffs->opened) == 1 &&
+			ffs->state == FFS_DEACTIVATED) {
+		ffs->state = FFS_CLOSING;
+		ffs_data_reset(ffs);
+	}
 }
 
 static void ffs_data_put(struct ffs_data *ffs)
@@ -1387,6 +1405,21 @@ static void ffs_data_closed(struct ffs_data *ffs)
 	ENTER();
 
 	if (atomic_dec_and_test(&ffs->opened)) {
+		if (ffs->no_disconnect) {
+			ffs->state = FFS_DEACTIVATED;
+			if (ffs->epfiles) {
+				ffs_epfiles_destroy(ffs->epfiles,
+						   ffs->eps_count);
+				ffs->epfiles = NULL;
+			}
+			if (ffs->setup_state == FFS_SETUP_PENDING)
+				__ffs_ep0_stall(ffs);
+		} else {
+			ffs->state = FFS_CLOSING;
+			ffs_data_reset(ffs);
+		}
+	}
+	if (atomic_read(&ffs->opened) < 0) {
 		ffs->state = FFS_CLOSING;
 		ffs_data_reset(ffs);
 	}
@@ -1420,13 +1453,15 @@ static void ffs_data_clear(struct ffs_data *ffs)
 {
 	ENTER();
 
-	if (test_and_clear_bit(FFS_FL_CALL_CLOSED_CALLBACK, &ffs->flags))
-		ffs_closed(ffs);
+	ffs_closed(ffs);
 
 	BUG_ON(ffs->gadget);
 
 	if (ffs->epfiles)
 		ffs_epfiles_destroy(ffs->epfiles, ffs->eps_count);
+
+	if (ffs->ffs_eventfd)
+		eventfd_ctx_put(ffs->ffs_eventfd);
 
 	kfree(ffs->raw_descs_data);
 	kfree(ffs->raw_strings);
@@ -1528,10 +1563,14 @@ static int ffs_epfiles_create(struct ffs_data *ffs)
 		epfile->ffs = ffs;
 		mutex_init(&epfile->mutex);
 		init_waitqueue_head(&epfile->wait);
-		sprintf(epfiles->name, "ep%u",  i);
-		if (!unlikely(ffs_sb_create_file(ffs->sb, epfiles->name, epfile,
-						 &ffs_epfile_operations,
-						 &epfile->dentry))) {
+		if (ffs->user_flags & FUNCTIONFS_VIRTUAL_ADDR)
+			sprintf(epfile->name, "ep%02x", ffs->eps_addrmap[i]);
+		else
+			sprintf(epfile->name, "ep%u", i);
+		epfile->dentry = ffs_sb_create_file(ffs->sb, epfile->name,
+						 epfile,
+						 &ffs_epfile_operations);
+		if (unlikely(!epfile->dentry)) {
 			ffs_epfiles_destroy(epfiles, i - 1);
 			return -ENOMEM;
 		}
@@ -1560,7 +1599,6 @@ static void ffs_epfiles_destroy(struct ffs_epfile *epfiles, unsigned count)
 	kfree(epfiles);
 }
 
-
 static void ffs_func_eps_disable(struct ffs_function *func)
 {
 	struct ffs_ep *ep         = func->eps;
@@ -1573,10 +1611,12 @@ static void ffs_func_eps_disable(struct ffs_function *func)
 		/* pending requests get nuked */
 		if (likely(ep->ep))
 			usb_ep_disable(ep->ep);
-		epfile->ep = NULL;
-
 		++ep;
-		++epfile;
+
+		if (epfile) {
+			epfile->ep = NULL;
+			++epfile;
+		}
 	} while (--count);
 	spin_unlock_irqrestore(&func->ffs->eps_lock, flags);
 }
@@ -1830,7 +1870,8 @@ static int __ffs_data_do_entity(enum ffs_entity_type type,
 				u8 *valuep, struct usb_descriptor_header *desc,
 				void *priv)
 {
-	struct ffs_data *ffs = priv;
+	struct ffs_desc_helper *helper = priv;
+	struct usb_endpoint_descriptor *d;
 
 	ENTER();
 
@@ -1844,8 +1885,8 @@ static int __ffs_data_do_entity(enum ffs_entity_type type,
 		 * encountered interface "n" then there are at least
 		 * "n+1" interfaces.
 		 */
-		if (*valuep >= ffs->interfaces_count)
-			ffs->interfaces_count = *valuep + 1;
+		if (*valuep >= helper->interfaces_count)
+			helper->interfaces_count = *valuep + 1;
 		break;
 
 	case FFS_STRING:
@@ -1853,14 +1894,22 @@ static int __ffs_data_do_entity(enum ffs_entity_type type,
 		 * Strings are indexed from 1 (0 is magic ;) reserved
 		 * for languages list or some such)
 		 */
-		if (*valuep > ffs->strings_count)
-			ffs->strings_count = *valuep;
+		if (*valuep > helper->ffs->strings_count)
+			helper->ffs->strings_count = *valuep;
 		break;
 
 	case FFS_ENDPOINT:
-		/* Endpoints are indexed from 1 as well. */
-		if ((*valuep & USB_ENDPOINT_NUMBER_MASK) > ffs->eps_count)
-			ffs->eps_count = (*valuep & USB_ENDPOINT_NUMBER_MASK);
+		d = (void *)desc;
+		helper->eps_count++;
+		if (helper->eps_count >= 15)
+			return -EINVAL;
+		/* Check if descriptors for any speed were already parsed */
+		if (!helper->ffs->eps_count && !helper->ffs->interfaces_count)
+			helper->ffs->eps_addrmap[helper->eps_count] =
+				d->bEndpointAddress;
+		else if (helper->ffs->eps_addrmap[helper->eps_count] !=
+				d->bEndpointAddress)
+			return -EINVAL;
 		break;
 	}
 
@@ -2053,6 +2102,7 @@ static int __ffs_data_got_descs(struct ffs_data *ffs,
 	char *data = _data, *raw_descs;
 	unsigned os_descs_count = 0, counts[3], flags;
 	int ret = -EINVAL, i;
+	struct ffs_desc_helper helper;
 
 	ENTER();
 
@@ -2067,10 +2117,13 @@ static int __ffs_data_got_descs(struct ffs_data *ffs,
 		break;
 	case FUNCTIONFS_DESCRIPTORS_MAGIC_V2:
 		flags = get_unaligned_le32(data + 8);
+		ffs->user_flags = flags;
 		if (flags & ~(FUNCTIONFS_HAS_FS_DESC |
 			      FUNCTIONFS_HAS_HS_DESC |
 			      FUNCTIONFS_HAS_SS_DESC |
-			      FUNCTIONFS_HAS_MS_OS_DESC)) {
+			      FUNCTIONFS_HAS_MS_OS_DESC |
+			      FUNCTIONFS_VIRTUAL_ADDR |
+			      FUNCTIONFS_EVENTFD)) {
 			ret = -ENOSYS;
 			goto error;
 		}
@@ -2079,6 +2132,20 @@ static int __ffs_data_got_descs(struct ffs_data *ffs,
 		break;
 	default:
 		goto error;
+	}
+
+	if (flags & FUNCTIONFS_EVENTFD) {
+		if (len < 4)
+			goto error;
+		ffs->ffs_eventfd =
+			eventfd_ctx_fdget((int)get_unaligned_le32(data));
+		if (IS_ERR(ffs->ffs_eventfd)) {
+			ret = PTR_ERR(ffs->ffs_eventfd);
+			ffs->ffs_eventfd = NULL;
+			goto error;
+		}
+		data += 4;
+		len  -= 4;
 	}
 
 	/* Read fs_count, hs_count and ss_count (if present) */
@@ -2101,13 +2168,29 @@ static int __ffs_data_got_descs(struct ffs_data *ffs,
 
 	/* Read descriptors */
 	raw_descs = data;
+	helper.ffs = ffs;
 	for (i = 0; i < 3; ++i) {
 		if (!counts[i])
 			continue;
+		helper.interfaces_count = 0;
+		helper.eps_count = 0;
 		ret = ffs_do_descs(counts[i], data, len,
-				   __ffs_data_do_entity, ffs);
+				   __ffs_data_do_entity, &helper);
 		if (ret < 0)
 			goto error;
+		if (!ffs->eps_count && !ffs->interfaces_count) {
+			ffs->eps_count = helper.eps_count;
+			ffs->interfaces_count = helper.interfaces_count;
+		} else {
+			if (ffs->eps_count != helper.eps_count) {
+				ret = -EINVAL;
+				goto error;
+			}
+			if (ffs->interfaces_count != helper.interfaces_count) {
+				ret = -EINVAL;
+				goto error;
+			}
+		}
 		data += ret;
 		len  -= ret;
 	}
@@ -2293,6 +2376,13 @@ static void __ffs_event_add(struct ffs_data *ffs,
 	if (ffs->setup_state == FFS_SETUP_PENDING)
 		ffs->setup_state = FFS_SETUP_CANCELLED;
 
+	/*
+	 * Logic of this function guarantees that there are at most four pending
+	 * evens on ffs->ev.types queue.  This is important because the queue
+	 * has space for four elements only and __ffs_ep0_read_events function
+	 * depends on that limit as well.  If more event types are added, those
+	 * limits have to be revisited or guaranteed to still hold.
+	 */
 	switch (type) {
 	case FUNCTIONFS_RESUME:
 		rem_type2 = FUNCTIONFS_SUSPEND;
@@ -2314,7 +2404,8 @@ static void __ffs_event_add(struct ffs_data *ffs,
 		break;
 
 	default:
-		BUG();
+		WARN(1, "%d: unknown event, this should not happen\n", type);
+		return;
 	}
 
 	{
@@ -2331,6 +2422,8 @@ static void __ffs_event_add(struct ffs_data *ffs,
 	pr_vdebug("adding event %d\n", type);
 	ffs->ev.types[ffs->ev.count++] = type;
 	wake_up_locked(&ffs->ev.waitq);
+	if (ffs->ffs_eventfd)
+		eventfd_signal(ffs->ffs_eventfd, 1);
 }
 
 static void ffs_event_add(struct ffs_data *ffs,
@@ -2342,8 +2435,17 @@ static void ffs_event_add(struct ffs_data *ffs,
 	spin_unlock_irqrestore(&ffs->ev.waitq.lock, flags);
 }
 
-
 /* Bind/unbind USB function hooks *******************************************/
+
+static int ffs_ep_addr2idx(struct ffs_data *ffs, u8 endpoint_address)
+{
+	int i;
+
+	for (i = 1; i < ARRAY_SIZE(ffs->eps_addrmap); ++i)
+		if (ffs->eps_addrmap[i] == endpoint_address)
+			return i;
+	return -ENOENT;
+}
 
 static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 				    struct usb_descriptor_header *desc,
@@ -2352,7 +2454,8 @@ static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 	struct usb_endpoint_descriptor *ds = (void *)desc;
 	struct ffs_function *func = priv;
 	struct ffs_ep *ffs_ep;
-	unsigned ep_desc_id, idx;
+	unsigned ep_desc_id;
+	int idx;
 	static const char *speed_names[] = { "full", "high", "super" };
 
 	if (type != FFS_DESCRIPTOR)
@@ -2378,7 +2481,10 @@ static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 	if (!desc || desc->bDescriptorType != USB_DT_ENDPOINT)
 		return 0;
 
-	idx = (ds->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK) - 1;
+	idx = ffs_ep_addr2idx(func->ffs, ds->bEndpointAddress) - 1;
+	if (idx < 0)
+		return idx;
+
 	ffs_ep = func->eps + idx;
 
 	if (unlikely(ffs_ep->descs[ep_desc_id])) {
@@ -2397,7 +2503,13 @@ static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 	} else {
 		struct usb_request *req;
 		struct usb_ep *ep;
+		u8 bEndpointAddress;
 
+		/*
+		 * We back up bEndpointAddress because autoconfig overwrites
+		 * it with physical endpoint address.
+		 */
+		bEndpointAddress = ds->bEndpointAddress;
 		pr_vdebug("autoconfig\n");
 		ep = usb_ep_autoconfig(func->gadget, ds);
 		if (unlikely(!ep))
@@ -2412,6 +2524,12 @@ static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 		ffs_ep->req = req;
 		func->eps_revmap[ds->bEndpointAddress &
 				 USB_ENDPOINT_NUMBER_MASK] = idx + 1;
+		/*
+		 * If we use virtual address mapping, we restore
+		 * original bEndpointAddress value.
+		 */
+		if (func->ffs->user_flags & FUNCTIONFS_VIRTUAL_ADDR)
+			ds->bEndpointAddress = bEndpointAddress;
 	}
 	ffs_dump_mem(": Rewritten ep desc", ds, ds->bLength);
 
@@ -2580,8 +2698,6 @@ static inline struct f_fs_opts *ffs_do_functionfs_bind(struct usb_function *f,
 
 	func->conf = c;
 	func->gadget = c->cdev->gadget;
-
-	ffs_data_get(func->ffs);
 
 	/*
 	 * in drivers/usb/gadget/configfs.c:configfs_composite_bind()
@@ -2770,15 +2886,28 @@ static int ffs_func_bind(struct usb_configuration *c,
 			 struct usb_function *f)
 {
 	struct f_fs_opts *ffs_opts = ffs_do_functionfs_bind(f, c);
+	struct ffs_function *func = ffs_func_from_usb(f);
+	int ret;
 
 	if (IS_ERR(ffs_opts))
 		return PTR_ERR(ffs_opts);
 
-	return _ffs_func_bind(c, f);
+	ret = _ffs_func_bind(c, f);
+	if (ret && !--ffs_opts->refcnt)
+		functionfs_unbind(func->ffs);
+
+	return ret;
 }
 
 
 /* Other USB function hooks *************************************************/
+
+static void ffs_reset_work(struct work_struct *work)
+{
+	struct ffs_data *ffs = container_of(work,
+		struct ffs_data, reset_work);
+	ffs_data_reset(ffs);
+}
 
 static int ffs_func_set_alt(struct usb_function *f,
 			    unsigned interface, unsigned alt)
@@ -2795,6 +2924,13 @@ static int ffs_func_set_alt(struct usb_function *f,
 
 	if (ffs->func)
 		ffs_func_eps_disable(ffs->func);
+
+	if (ffs->state == FFS_DEACTIVATED) {
+		ffs->state = FFS_CLOSING;
+		INIT_WORK(&ffs->reset_work, ffs_reset_work);
+		schedule_work(&ffs->reset_work);
+		return -ENODEV;
+	}
 
 	if (ffs->state != FFS_ACTIVE)
 		return -ENODEV;
@@ -2856,6 +2992,8 @@ static int ffs_func_setup(struct usb_function *f,
 		ret = ffs_func_revmap_ep(func, le16_to_cpu(creq->wIndex));
 		if (unlikely(ret < 0))
 			return ret;
+		if (func->ffs->user_flags & FUNCTIONFS_VIRTUAL_ADDR)
+			ret = func->ffs->eps_addrmap[ret];
 		break;
 
 	default:
@@ -3279,9 +3417,13 @@ static int ffs_ready(struct ffs_data *ffs)
 	ffs_obj->desc_ready = true;
 	ffs_obj->ffs_data = ffs;
 
-	if (ffs_obj->ffs_ready_callback)
+	if (ffs_obj->ffs_ready_callback) {
 		ret = ffs_obj->ffs_ready_callback(ffs);
+		if (ret)
+			goto done;
+	}
 
+	set_bit(FFS_FL_CALL_CLOSED_CALLBACK, &ffs->flags);
 done:
 	ffs_dev_unlock();
 	return ret;
@@ -3290,6 +3432,7 @@ done:
 static void ffs_closed(struct ffs_data *ffs)
 {
 	struct ffs_dev *ffs_obj;
+	struct f_fs_opts *opts;
 
 	ENTER();
 	ffs_dev_lock();
@@ -3300,11 +3443,17 @@ static void ffs_closed(struct ffs_data *ffs)
 
 	ffs_obj->desc_ready = false;
 
-	if (ffs_obj->ffs_closed_callback)
+	if (test_and_clear_bit(FFS_FL_CALL_CLOSED_CALLBACK, &ffs->flags) &&
+	    ffs_obj->ffs_closed_callback)
 		ffs_obj->ffs_closed_callback(ffs);
 
-	if (!ffs_obj->opts || ffs_obj->opts->no_configfs
-	    || !ffs_obj->opts->func_inst.group.cg_item.ci_parent)
+	if (ffs_obj->opts)
+		opts = ffs_obj->opts;
+	else
+		goto done;
+
+	if (opts->no_configfs || !opts->func_inst.group.cg_item.ci_parent
+	    || !atomic_read(&opts->func_inst.group.cg_item.ci_kref.refcount))
 		goto done;
 
 	unregister_gadget_item(ffs_obj->opts->
@@ -3333,7 +3482,7 @@ static char *ffs_prepare_buffer(const char __user *buf, size_t len)
 	if (unlikely(!data))
 		return ERR_PTR(-ENOMEM);
 
-	if (unlikely(__copy_from_user(data, buf, len))) {
+	if (unlikely(copy_from_user(data, buf, len))) {
 		kfree(data);
 		return ERR_PTR(-EFAULT);
 	}

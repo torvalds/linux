@@ -22,7 +22,6 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -40,7 +39,6 @@
 #include "xfs_rtalloc.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
-#include "xfs_dinode.h"
 #include "xfs_filestream.h"
 
 /*
@@ -103,7 +101,9 @@ xfs_fs_geometry(
 			(xfs_sb_version_hasftype(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_FTYPE : 0) |
 			(xfs_sb_version_hasfinobt(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_FINOBT : 0);
+				XFS_FSOP_GEOM_FLAGS_FINOBT : 0) |
+			(xfs_sb_version_hassparseinodes(&mp->m_sb) ?
+				XFS_FSOP_GEOM_FLAGS_SPINODES : 0);
 		geo->logsectsize = xfs_sb_version_hassector(&mp->m_sb) ?
 				mp->m_sb.sb_logsectsize : BBSIZE;
 		geo->rtsectsize = mp->m_sb.sb_blocksize;
@@ -172,16 +172,11 @@ xfs_growfs_data_private(
 	if ((error = xfs_sb_validate_fsb_count(&mp->m_sb, nb)))
 		return error;
 	dpct = pct - mp->m_sb.sb_imax_pct;
-	bp = xfs_buf_read_uncached(mp->m_ddev_targp,
+	error = xfs_buf_read_uncached(mp->m_ddev_targp,
 				XFS_FSB_TO_BB(mp, nb) - XFS_FSS_TO_BB(mp, 1),
-				XFS_FSS_TO_BB(mp, 1), 0, NULL);
-	if (!bp)
-		return -EIO;
-	if (bp->b_error) {
-		error = bp->b_error;
-		xfs_buf_relse(bp);
+				XFS_FSS_TO_BB(mp, 1), 0, &bp, NULL);
+	if (error)
 		return error;
-	}
 	xfs_buf_relse(bp);
 
 	new = nb;	/* use new as a temporary here */
@@ -208,7 +203,7 @@ xfs_growfs_data_private(
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_growdata,
 				  XFS_GROWFS_SPACE_RES(mp), 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 
@@ -255,7 +250,7 @@ xfs_growfs_data_private(
 		agf->agf_freeblks = cpu_to_be32(tmpsize);
 		agf->agf_longest = cpu_to_be32(tmpsize);
 		if (xfs_sb_version_hascrc(&mp->m_sb))
-			uuid_copy(&agf->agf_uuid, &mp->m_sb.sb_uuid);
+			uuid_copy(&agf->agf_uuid, &mp->m_sb.sb_meta_uuid);
 
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);
@@ -278,7 +273,7 @@ xfs_growfs_data_private(
 		if (xfs_sb_version_hascrc(&mp->m_sb)) {
 			agfl->agfl_magicnum = cpu_to_be32(XFS_AGFL_MAGIC);
 			agfl->agfl_seqno = cpu_to_be32(agno);
-			uuid_copy(&agfl->agfl_uuid, &mp->m_sb.sb_uuid);
+			uuid_copy(&agfl->agfl_uuid, &mp->m_sb.sb_meta_uuid);
 		}
 
 		agfl_bno = XFS_BUF_TO_AGFL_BNO(mp, bp);
@@ -314,7 +309,7 @@ xfs_growfs_data_private(
 		agi->agi_newino = cpu_to_be32(NULLAGINO);
 		agi->agi_dirino = cpu_to_be32(NULLAGINO);
 		if (xfs_sb_version_hascrc(&mp->m_sb))
-			uuid_copy(&agi->agi_uuid, &mp->m_sb.sb_uuid);
+			uuid_copy(&agi->agi_uuid, &mp->m_sb.sb_meta_uuid);
 		if (xfs_sb_version_hasfinobt(&mp->m_sb)) {
 			agi->agi_free_root = cpu_to_be32(XFS_FIBT_BLOCK(mp));
 			agi->agi_free_level = cpu_to_be32(1);
@@ -495,7 +490,8 @@ xfs_growfs_data_private(
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_FDBLOCKS, nfree);
 	if (dpct)
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_IMAXPCT, dpct);
-	error = xfs_trans_commit(tp, 0);
+	xfs_trans_set_sync(tp);
+	error = xfs_trans_commit(tp);
 	if (error)
 		return error;
 
@@ -548,7 +544,7 @@ xfs_growfs_data_private(
 			saved_error = error;
 			continue;
 		}
-		xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb, XFS_SB_ALL_BITS);
+		xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb);
 
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);
@@ -563,7 +559,7 @@ xfs_growfs_data_private(
 	return saved_error ? saved_error : error;
 
  error0:
-	xfs_trans_cancel(tp, XFS_TRANS_ABORT);
+	xfs_trans_cancel(tp);
 	return error;
 }
 
@@ -608,6 +604,12 @@ xfs_growfs_data(
 	if (!mutex_trylock(&mp->m_growlock))
 		return -EWOULDBLOCK;
 	error = xfs_growfs_data_private(mp, in);
+	/*
+	 * Increment the generation unconditionally, the error could be from
+	 * updating the secondary superblocks, in which case the new size
+	 * is live already.
+	 */
+	mp->m_generation++;
 	mutex_unlock(&mp->m_growlock);
 	return error;
 }
@@ -637,12 +639,13 @@ xfs_fs_counts(
 	xfs_mount_t		*mp,
 	xfs_fsop_counts_t	*cnt)
 {
-	xfs_icsb_sync_counters(mp, XFS_ICSB_LAZY_COUNT);
+	cnt->allocino = percpu_counter_read_positive(&mp->m_icount);
+	cnt->freeino = percpu_counter_read_positive(&mp->m_ifree);
+	cnt->freedata = percpu_counter_read_positive(&mp->m_fdblocks) -
+							XFS_ALLOC_SET_ASIDE(mp);
+
 	spin_lock(&mp->m_sb_lock);
-	cnt->freedata = mp->m_sb.sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
 	cnt->freertx = mp->m_sb.sb_frextents;
-	cnt->freeino = mp->m_sb.sb_ifree;
-	cnt->allocino = mp->m_sb.sb_icount;
 	spin_unlock(&mp->m_sb_lock);
 	return 0;
 }
@@ -692,14 +695,9 @@ xfs_reserve_blocks(
 	 * what to do. This means that the amount of free space can
 	 * change while we do this, so we need to retry if we end up
 	 * trying to reserve more space than is available.
-	 *
-	 * We also use the xfs_mod_incore_sb() interface so that we
-	 * don't have to care about whether per cpu counter are
-	 * enabled, disabled or even compiled in....
 	 */
 retry:
 	spin_lock(&mp->m_sb_lock);
-	xfs_icsb_sync_counters_locked(mp, 0);
 
 	/*
 	 * If our previous reservation was larger than the current value,
@@ -716,7 +714,8 @@ retry:
 	} else {
 		__int64_t	free;
 
-		free =  mp->m_sb.sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
+		free = percpu_counter_sum(&mp->m_fdblocks) -
+							XFS_ALLOC_SET_ASIDE(mp);
 		if (!free)
 			goto out; /* ENOSPC and fdblks_delta = 0 */
 
@@ -755,43 +754,11 @@ out:
 		 * the extra reserve blocks from the reserve.....
 		 */
 		int error;
-		error = xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS,
-						 fdblks_delta, 0);
+		error = xfs_mod_fdblocks(mp, fdblks_delta, 0);
 		if (error == -ENOSPC)
 			goto retry;
 	}
 	return 0;
-}
-
-/*
- * Dump a transaction into the log that contains no real change. This is needed
- * to be able to make the log dirty or stamp the current tail LSN into the log
- * during the covering operation.
- *
- * We cannot use an inode here for this - that will push dirty state back up
- * into the VFS and then periodic inode flushing will prevent log covering from
- * making progress. Hence we log a field in the superblock instead and use a
- * synchronous transaction to ensure the superblock is immediately unpinned
- * and can be written back.
- */
-int
-xfs_fs_log_dummy(
-	xfs_mount_t	*mp)
-{
-	xfs_trans_t	*tp;
-	int		error;
-
-	tp = _xfs_trans_alloc(mp, XFS_TRANS_DUMMY1, KM_SLEEP);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_sb, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp, 0);
-		return error;
-	}
-
-	/* log the UUID because it is an unchanging field */
-	xfs_mod_sb(tp, XFS_SB_UUID);
-	xfs_trans_set_sync(tp);
-	return xfs_trans_commit(tp, 0);
 }
 
 int

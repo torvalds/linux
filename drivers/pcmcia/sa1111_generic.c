@@ -135,7 +135,12 @@ int sa1111_pcmcia_add(struct sa1111_dev *dev, struct pcmcia_low_level *ops,
 	int (*add)(struct soc_pcmcia_socket *))
 {
 	struct sa1111_pcmcia_socket *s;
+	struct clk *clk;
 	int i, ret = 0;
+
+	clk = devm_clk_get(&dev->dev, NULL);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 
 	ops->socket_state = sa1111_pcmcia_socket_state;
 
@@ -145,6 +150,8 @@ int sa1111_pcmcia_add(struct sa1111_dev *dev, struct pcmcia_low_level *ops,
 			return -ENOMEM;
 
 		s->soc.nr = ops->first + i;
+		s->soc.clk = clk;
+
 		soc_pcmcia_init_one(&s->soc, ops, &dev->dev);
 		s->dev = dev;
 		if (s->soc.nr) {
@@ -197,10 +204,10 @@ static int pcmcia_probe(struct sa1111_dev *dev)
 	sa1111_writel(PCCR_S0_FLT | PCCR_S1_FLT, base + PCCR);
 
 #ifdef CONFIG_SA1100_BADGE4
-	pcmcia_badge4_init(&dev->dev);
+	pcmcia_badge4_init(dev);
 #endif
 #ifdef CONFIG_SA1100_JORNADA720
-	pcmcia_jornada720_init(&dev->dev);
+	pcmcia_jornada720_init(dev);
 #endif
 #ifdef CONFIG_ARCH_LUBBOCK
 	pcmcia_lubbock_init(dev);

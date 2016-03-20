@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2014 Marvell International Ltd.
  *
  * Authors:
  *    Lauro Ramos Venancio <lauro.venancio@openbossa.org>
@@ -67,7 +68,7 @@ struct nfc_ops {
 	int (*activate_target)(struct nfc_dev *dev, struct nfc_target *target,
 			       u32 protocol);
 	void (*deactivate_target)(struct nfc_dev *dev,
-				  struct nfc_target *target);
+				  struct nfc_target *target, u8 mode);
 	int (*im_transceive)(struct nfc_dev *dev, struct nfc_target *target,
 			     struct sk_buff *skb, data_exchange_cb_t cb,
 			     void *cb_context);
@@ -87,6 +88,7 @@ struct nfc_ops {
 #define NFC_TARGET_IDX_ANY -1
 #define NFC_MAX_GT_LEN 48
 #define NFC_ATR_RES_GT_OFFSET 15
+#define NFC_ATR_REQ_GT_OFFSET 14
 
 /**
  * struct nfc_target - NFC target descriptiom
@@ -133,9 +135,40 @@ struct nfc_se {
 	u16 state;
 };
 
+/**
+ * nfc_evt_transaction - A struct for NFC secure element event transaction.
+ *
+ * @aid: The application identifier triggering the event
+ *
+ * @aid_len: The application identifier length [5:16]
+ *
+ * @params: The application parameters transmitted during the transaction
+ *
+ * @params_len: The applications parameters length [0:255]
+ *
+ */
+#define NFC_MIN_AID_LENGTH	5
+#define	NFC_MAX_AID_LENGTH	16
+#define NFC_MAX_PARAMS_LENGTH	255
+
+#define NFC_EVT_TRANSACTION_AID_TAG	0x81
+#define NFC_EVT_TRANSACTION_PARAMS_TAG	0x82
+struct nfc_evt_transaction {
+	u32 aid_len;
+	u8 aid[NFC_MAX_AID_LENGTH];
+	u8 params_len;
+	u8 params[0];
+} __packed;
+
 struct nfc_genl_data {
 	u32 poll_req_portid;
 	struct mutex genl_data_mutex;
+};
+
+struct nfc_vendor_cmd {
+	__u32 vendor_id;
+	__u32 subcmd;
+	int (*doit)(struct nfc_dev *dev, void *data, size_t data_len);
 };
 
 struct nfc_dev {
@@ -166,7 +199,11 @@ struct nfc_dev {
 
 	struct rfkill *rfkill;
 
+	struct nfc_vendor_cmd *vendor_cmds;
+	int n_vendor_cmds;
+
 	struct nfc_ops *ops;
+	struct genl_info *cur_cmd_info;
 };
 #define to_nfc_dev(_dev) container_of(_dev, struct nfc_dev, dev)
 
@@ -260,11 +297,67 @@ int nfc_tm_data_received(struct nfc_dev *dev, struct sk_buff *skb);
 
 void nfc_driver_failure(struct nfc_dev *dev, int err);
 
+int nfc_se_transaction(struct nfc_dev *dev, u8 se_idx,
+		       struct nfc_evt_transaction *evt_transaction);
+int nfc_se_connectivity(struct nfc_dev *dev, u8 se_idx);
 int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type);
 int nfc_remove_se(struct nfc_dev *dev, u32 se_idx);
 struct nfc_se *nfc_find_se(struct nfc_dev *dev, u32 se_idx);
 
 void nfc_send_to_raw_sock(struct nfc_dev *dev, struct sk_buff *skb,
 			  u8 payload_type, u8 direction);
+
+static inline int nfc_set_vendor_cmds(struct nfc_dev *dev,
+				      struct nfc_vendor_cmd *cmds,
+				      int n_cmds)
+{
+	if (dev->vendor_cmds || dev->n_vendor_cmds)
+		return -EINVAL;
+
+	dev->vendor_cmds = cmds;
+	dev->n_vendor_cmds = n_cmds;
+
+	return 0;
+}
+
+struct sk_buff *__nfc_alloc_vendor_cmd_reply_skb(struct nfc_dev *dev,
+						 enum nfc_attrs attr,
+						 u32 oui, u32 subcmd,
+						 int approxlen);
+int nfc_vendor_cmd_reply(struct sk_buff *skb);
+
+/**
+ * nfc_vendor_cmd_alloc_reply_skb - allocate vendor command reply
+ * @dev: nfc device
+ * @oui: vendor oui
+ * @approxlen: an upper bound of the length of the data that will
+ *      be put into the skb
+ *
+ * This function allocates and pre-fills an skb for a reply to
+ * a vendor command. Since it is intended for a reply, calling
+ * it outside of a vendor command's doit() operation is invalid.
+ *
+ * The returned skb is pre-filled with some identifying data in
+ * a way that any data that is put into the skb (with skb_put(),
+ * nla_put() or similar) will end up being within the
+ * %NFC_ATTR_VENDOR_DATA attribute, so all that needs to be done
+ * with the skb is adding data for the corresponding userspace tool
+ * which can then read that data out of the vendor data attribute.
+ * You must not modify the skb in any other way.
+ *
+ * When done, call nfc_vendor_cmd_reply() with the skb and return
+ * its error code as the result of the doit() operation.
+ *
+ * Return: An allocated and pre-filled skb. %NULL if any errors happen.
+ */
+static inline struct sk_buff *
+nfc_vendor_cmd_alloc_reply_skb(struct nfc_dev *dev,
+				u32 oui, u32 subcmd, int approxlen)
+{
+	return __nfc_alloc_vendor_cmd_reply_skb(dev,
+						NFC_ATTR_VENDOR_DATA,
+						oui,
+						subcmd, approxlen);
+}
 
 #endif /* __NET_NFC_H */

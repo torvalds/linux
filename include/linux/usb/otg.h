@@ -9,14 +9,19 @@
 #ifndef __LINUX_USB_OTG_H
 #define __LINUX_USB_OTG_H
 
+#include <linux/phy/phy.h>
 #include <linux/usb/phy.h>
 
 struct usb_otg {
 	u8			default_a;
 
-	struct usb_phy		*phy;
+	struct phy		*phy;
+	/* old usb_phy interface */
+	struct usb_phy		*usb_phy;
 	struct usb_bus		*host;
 	struct usb_gadget	*gadget;
+
+	enum usb_otg_state	state;
 
 	/* bind/unbind the host controller */
 	int	(*set_host)(struct usb_otg *otg, struct usb_bus *host);
@@ -34,6 +39,21 @@ struct usb_otg {
 	/* start or continue HNP role switch */
 	int	(*start_hnp)(struct usb_otg *otg);
 
+};
+
+/**
+ * struct usb_otg_caps - describes the otg capabilities of the device
+ * @otg_rev: The OTG revision number the device is compliant with, it's
+ *		in binary-coded decimal (i.e. 2.0 is 0200H).
+ * @hnp_support: Indicates if the device supports HNP.
+ * @srp_support: Indicates if the device supports SRP.
+ * @adp_support: Indicates if the device supports ADP.
+ */
+struct usb_otg_caps {
+	u16 otg_rev;
+	bool hnp_support;
+	bool srp_support;
+	bool adp_support;
 };
 
 extern const char *usb_otg_state_string(enum usb_otg_state state);
@@ -98,5 +118,14 @@ enum usb_dr_mode {
 	USB_DR_MODE_PERIPHERAL,
 	USB_DR_MODE_OTG,
 };
+
+/**
+ * usb_get_dr_mode - Get dual role mode for given device
+ * @dev: Pointer to the given device
+ *
+ * The function gets phy interface string from property 'dr_mode',
+ * and returns the correspondig enum usb_dr_mode
+ */
+extern enum usb_dr_mode usb_get_dr_mode(struct device *dev);
 
 #endif /* __LINUX_USB_OTG_H */

@@ -6,7 +6,7 @@
 
 #define PRISM_DEV(vid, pid, name)		\
 	{ USB_DEVICE(vid, pid),			\
-	.driver_info = (unsigned long) name }
+	.driver_info = (unsigned long)name }
 
 static struct usb_device_id usb_prism_tbl[] = {
 	PRISM_DEV(0x04bb, 0x0922, "IOData AirPort WN-B11/USBS"),
@@ -67,7 +67,7 @@ static int prism2sta_probe_usb(struct usb_interface *interface,
 
 	dev = interface_to_usbdev(interface);
 	wlandev = create_wlan();
-	if (wlandev == NULL) {
+	if (!wlandev) {
 		dev_err(&interface->dev, "Memory allocation failure.\n");
 		result = -EIO;
 		goto failed;
@@ -136,11 +136,10 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 {
 	wlandevice_t *wlandev;
 
-	wlandev = (wlandevice_t *) usb_get_intfdata(interface);
+	wlandev = (wlandevice_t *)usb_get_intfdata(interface);
 	if (wlandev != NULL) {
 		LIST_HEAD(cleanlist);
-		struct list_head *entry;
-		struct list_head *temp;
+		hfa384x_usbctlx_t *ctlx, *temp;
 		unsigned long flags;
 
 		hfa384x_t *hw = wlandev->priv;
@@ -178,18 +177,15 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 		tasklet_kill(&hw->completion_bh);
 		tasklet_kill(&hw->reaper_bh);
 
-		flush_scheduled_work();
+		cancel_work_sync(&hw->link_bh);
+		cancel_work_sync(&hw->commsqual_bh);
 
 		/* Now we complete any outstanding commands
 		 * and tell everyone who is waiting for their
 		 * responses that we have shut down.
 		 */
-		list_for_each(entry, &cleanlist) {
-			hfa384x_usbctlx_t *ctlx;
-
-			ctlx = list_entry(entry, hfa384x_usbctlx_t, list);
+		list_for_each_entry(ctlx, &cleanlist, list)
 			complete(&ctlx->done);
-		}
 
 		/* Give any outstanding synchronous commands
 		 * a chance to complete. All they need to do
@@ -199,12 +195,8 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 		msleep(100);
 
 		/* Now delete the CTLXs, because no-one else can now. */
-		list_for_each_safe(entry, temp, &cleanlist) {
-			hfa384x_usbctlx_t *ctlx;
-
-			ctlx = list_entry(entry, hfa384x_usbctlx_t, list);
+		list_for_each_entry_safe(ctlx, temp, &cleanlist, list)
 			kfree(ctlx);
-		}
 
 		/* Unhook the wlandev */
 		unregister_wlandev(wlandev);
@@ -229,7 +221,7 @@ static int prism2sta_suspend(struct usb_interface *interface,
 	hfa384x_t *hw = NULL;
 	wlandevice_t *wlandev;
 
-	wlandev = (wlandevice_t *) usb_get_intfdata(interface);
+	wlandev = (wlandevice_t *)usb_get_intfdata(interface);
 	if (!wlandev)
 		return -ENODEV;
 
@@ -252,7 +244,7 @@ static int prism2sta_resume(struct usb_interface *interface)
 	hfa384x_t *hw = NULL;
 	wlandevice_t *wlandev;
 
-	wlandev = (wlandevice_t *) usb_get_intfdata(interface);
+	wlandev = (wlandevice_t *)usb_get_intfdata(interface);
 	if (!wlandev)
 		return -ENODEV;
 

@@ -689,8 +689,7 @@ static void ar_context_release(struct ar_context *ctx)
 {
 	unsigned int i;
 
-	if (ctx->buffer)
-		vm_unmap_ram(ctx->buffer, AR_BUFFERS + AR_WRAPAROUND_PAGES);
+	vunmap(ctx->buffer);
 
 	for (i = 0; i < AR_BUFFERS; i++)
 		if (ctx->pages[i]) {
@@ -717,11 +716,6 @@ static void ar_context_abort(struct ar_context *ctx, const char *error_msg)
 static inline unsigned int ar_next_buffer_index(unsigned int index)
 {
 	return (index + 1) % AR_BUFFERS;
-}
-
-static inline unsigned int ar_prev_buffer_index(unsigned int index)
-{
-	return (index - 1 + AR_BUFFERS) % AR_BUFFERS;
 }
 
 static inline unsigned int ar_first_buffer_index(struct ar_context *ctx)
@@ -1018,8 +1012,7 @@ static int ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci,
 		pages[i]              = ctx->pages[i];
 	for (i = 0; i < AR_WRAPAROUND_PAGES; i++)
 		pages[AR_BUFFERS + i] = ctx->pages[i];
-	ctx->buffer = vm_map_ram(pages, AR_BUFFERS + AR_WRAPAROUND_PAGES,
-				 -1, PAGE_KERNEL);
+	ctx->buffer = vmap(pages, ARRAY_SIZE(pages), VM_MAP, PAGE_KERNEL);
 	if (!ctx->buffer)
 		goto out_of_memory;
 
@@ -2285,9 +2278,10 @@ static int ohci_enable(struct fw_card *card,
 	u32 lps, version, irqs;
 	int i, ret;
 
-	if (software_reset(ohci)) {
+	ret = software_reset(ohci);
+	if (ret < 0) {
 		ohci_err(ohci, "failed to reset ohci card\n");
-		return -EBUSY;
+		return ret;
 	}
 
 	/*
@@ -3682,6 +3676,11 @@ static int pci_probe(struct pci_dev *dev,
 
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, ~0);
 	ohci->it_context_support = reg_read(ohci, OHCI1394_IsoXmitIntMaskSet);
+	/* JMicron JMB38x often shows 0 at first read, just ignore it */
+	if (!ohci->it_context_support) {
+		ohci_notice(ohci, "overriding IsoXmitIntMask\n");
+		ohci->it_context_support = 0xf;
+	}
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, ~0);
 	ohci->it_context_mask = ohci->it_context_support;
 	ohci->n_it = hweight32(ohci->it_context_mask);

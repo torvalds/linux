@@ -36,6 +36,13 @@ struct cfg80211_registered_device {
 	 * the country on the country IE changed. */
 	char country_ie_alpha2[2];
 
+	/*
+	 * the driver requests the regulatory core to set this regulatory
+	 * domain as the wiphy's. Only used for %REGULATORY_WIPHY_SELF_MANAGED
+	 * devices using the regulatory_set_wiphy_regd() API
+	 */
+	const struct ieee80211_regdomain *requested_regd;
+
 	/* If a Country IE has been received this tells us the environment
 	 * which its telling us its in. This defaults to ENVIRON_ANY */
 	enum environment_cap env;
@@ -52,6 +59,10 @@ struct cfg80211_registered_device {
 	struct list_head beacon_registrations;
 	spinlock_t beacon_registrations_lock;
 
+	struct list_head mlme_unreg;
+	spinlock_t mlme_unreg_lock;
+	struct work_struct mlme_unreg_wk;
+
 	/* protected by RTNL only */
 	int num_running_ifaces;
 	int num_running_monitor_ifaces;
@@ -63,7 +74,7 @@ struct cfg80211_registered_device {
 	u32 bss_generation;
 	struct cfg80211_scan_request *scan_req; /* protected by RTNL */
 	struct sk_buff *scan_msg;
-	struct cfg80211_sched_scan_request *sched_scan_req;
+	struct cfg80211_sched_scan_request __rcu *sched_scan_req;
 	unsigned long suspend_at;
 	struct work_struct scan_done_wk;
 	struct work_struct sched_scan_results_wk;
@@ -83,6 +94,8 @@ struct cfg80211_registered_device {
 	spinlock_t destroy_list_lock;
 	struct list_head destroy_list;
 	struct work_struct destroy_work;
+
+	struct work_struct sched_scan_stop_wk;
 
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
@@ -111,6 +124,7 @@ cfg80211_rdev_free_wowlan(struct cfg80211_registered_device *rdev)
 	    rdev->wiphy.wowlan_config->tcp->sock)
 		sock_release(rdev->wiphy.wowlan_config->tcp->sock);
 	kfree(rdev->wiphy.wowlan_config->tcp);
+	kfree(rdev->wiphy.wowlan_config->nd_config);
 	kfree(rdev->wiphy.wowlan_config);
 #endif
 }
@@ -123,6 +137,7 @@ struct cfg80211_internal_bss {
 	struct list_head list;
 	struct list_head hidden_list;
 	struct rb_node rbn;
+	u64 ts_boottime;
 	unsigned long ts;
 	unsigned long refcount;
 	atomic_t hold;
@@ -212,6 +227,7 @@ struct cfg80211_event {
 			const u8 *ie;
 			size_t ie_len;
 			u16 reason;
+			bool locally_generated;
 		} dc;
 		struct {
 			u8 bssid[ETH_ALEN];
@@ -290,6 +306,18 @@ int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
 			      struct wireless_dev *wdev,
 			      struct cfg80211_chan_def *chandef);
 
+/* OCB */
+int __cfg80211_join_ocb(struct cfg80211_registered_device *rdev,
+			struct net_device *dev,
+			struct ocb_setup *setup);
+int cfg80211_join_ocb(struct cfg80211_registered_device *rdev,
+		      struct net_device *dev,
+		      struct ocb_setup *setup);
+int __cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
+			 struct net_device *dev);
+int cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
+		       struct net_device *dev);
+
 /* AP */
 int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev, bool notify);
@@ -325,6 +353,7 @@ void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
 int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
 				u16 frame_type, const u8 *match_data,
 				int match_len);
+void cfg80211_mlme_unreg_wk(struct work_struct *wk);
 void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid);
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev);
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
@@ -386,13 +415,6 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 			  u32 *flags, struct vif_params *params);
 void cfg80211_process_rdev_events(struct cfg80211_registered_device *rdev);
 void cfg80211_process_wdev_events(struct wireless_dev *wdev);
-
-int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
-				 struct wireless_dev *wdev,
-				 enum nl80211_iftype iftype,
-				 struct ieee80211_channel *chan,
-				 enum cfg80211_chan_mode chanmode,
-				 u8 radar_detect);
 
 /**
  * cfg80211_chandef_dfs_usable - checks if chandef is DFS usable

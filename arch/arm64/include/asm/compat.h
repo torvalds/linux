@@ -23,7 +23,6 @@
  */
 #include <linux/types.h>
 #include <linux/sched.h>
-#include <linux/ptrace.h>
 
 #define COMPAT_USER_HZ		100
 #ifdef __AARCH64EB__
@@ -37,8 +36,8 @@ typedef s32		compat_ssize_t;
 typedef s32		compat_time_t;
 typedef s32		compat_clock_t;
 typedef s32		compat_pid_t;
-typedef u32		__compat_uid_t;
-typedef u32		__compat_gid_t;
+typedef u16		__compat_uid_t;
+typedef u16		__compat_gid_t;
 typedef u16		__compat_uid16_t;
 typedef u16		__compat_gid16_t;
 typedef u32		__compat_uid32_t;
@@ -161,7 +160,6 @@ typedef struct compat_siginfo {
 	int si_code;
 
 	union {
-		/* The padding is the same size as AArch64. */
 		int _pad[128/sizeof(int) - 3];
 
 		/* kill() */
@@ -205,6 +203,13 @@ typedef struct compat_siginfo {
 			compat_long_t _band;	/* POLL_IN, POLL_OUT, POLL_MSG */
 			int _fd;
 		} _sigpoll;
+
+		/* SIGSYS */
+		struct {
+			compat_uptr_t _call_addr; /* calling user insn */
+			int _syscall;	/* triggering system call number */
+			compat_uint_t _arch;	/* AUDIT_ARCH_* of syscall */
+		} _sigsys;
 	} _sifields;
 } compat_siginfo_t;
 
@@ -228,7 +233,7 @@ static inline compat_uptr_t ptr_to_compat(void __user *uptr)
 	return (u32)(unsigned long)uptr;
 }
 
-#define compat_user_stack_pointer() (user_stack_pointer(current_pt_regs()))
+#define compat_user_stack_pointer() (user_stack_pointer(task_pt_regs(current)))
 
 static inline void __user *arch_compat_alloc_user_space(long len)
 {

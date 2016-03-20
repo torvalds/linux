@@ -36,9 +36,6 @@ config STACKTRACE_SUPPORT
 config LOCKDEP_SUPPORT
 	def_bool y
 
-config HAVE_LATENCYTOP_SUPPORT
-	def_bool y
-
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 

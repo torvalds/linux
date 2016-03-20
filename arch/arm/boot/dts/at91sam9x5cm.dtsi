@@ -13,17 +13,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		main_clock: clock@0 {
-			compatible = "atmel,osc", "fixed-clock";
-			clock-frequency = <12000000>;
-		};
-	};
-
-	clocks {
 		slow_xtal {
 			clock-frequency = <32768>;
 		};
@@ -41,6 +30,10 @@
 						atmel,pins = <AT91_PIOB 18 AT91_PERIPH_GPIO AT91_PINCTRL_MULTI_DRIVE>; /* PB18 multidrive, conflicts with led */
 					};
 				};
+			};
+
+			rtc@fffffeb0 {
+				status = "okay";
 			};
 		};
 

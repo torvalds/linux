@@ -39,9 +39,8 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 /*
  * Wrappers to pass the pt_regs argument.
  */
+asmlinkage long sys_rt_sigreturn_wrapper(void);
 #define sys_rt_sigreturn	sys_rt_sigreturn_wrapper
-
-#include <asm/syscalls.h>
 
 #undef __SYSCALL
 #define __SYSCALL(nr, sym)	[nr] = sym,
@@ -50,7 +49,7 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
  * The sys_call_table array must be 4K aligned to be accessible from
  * kernel/entry.S.
  */
-void *sys_call_table[__NR_syscalls] __aligned(4096) = {
+void * const sys_call_table[__NR_syscalls] __aligned(4096) = {
 	[0 ... __NR_syscalls - 1] = sys_ni_syscall,
 #include <asm/unistd.h>
 };

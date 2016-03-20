@@ -5,6 +5,7 @@
 #include <linux/fb.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
+#include <linux/mmc/card.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
@@ -83,6 +84,22 @@
  */
 #define TMIO_MMC_HAVE_HIGH_REG		(1 << 6)
 
+/*
+ * Some controllers have CMD12 automatically
+ * issue/non-issue register
+ */
+#define TMIO_MMC_HAVE_CMD12_CTRL	(1 << 7)
+
+/*
+ * Some controllers needs to set 1 on SDIO status reserved bits
+ */
+#define TMIO_MMC_SDIO_STATUS_QUIRK	(1 << 8)
+
+/*
+ * Some controllers allows to set SDx actual clock
+ */
+#define TMIO_MMC_CLK_ACTUAL		(1 << 10)
+
 int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
 int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);
 void tmio_core_mmc_pwr(void __iomem *cnf, int shift, int state);
@@ -90,36 +107,22 @@ void tmio_core_mmc_clk_div(void __iomem *cnf, int shift, int state);
 
 struct dma_chan;
 
-struct tmio_mmc_dma {
-	void *chan_priv_tx;
-	void *chan_priv_rx;
-	int slave_id_tx;
-	int slave_id_rx;
-	int alignment_shift;
-	bool (*filter)(struct dma_chan *chan, void *arg);
-};
-
-struct tmio_mmc_host;
-
 /*
  * data for the MMC controller
  */
 struct tmio_mmc_data {
+	void				*chan_priv_tx;
+	void				*chan_priv_rx;
 	unsigned int			hclk;
 	unsigned long			capabilities;
 	unsigned long			capabilities2;
 	unsigned long			flags;
-	unsigned long			bus_shift;
 	u32				ocr_mask;	/* available voltages */
-	struct tmio_mmc_dma		*dma;
-	struct device			*dev;
 	unsigned int			cd_gpio;
+	int				alignment_shift;
+	dma_addr_t			dma_rx_offset;
 	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);
-	int (*write16_hook)(struct tmio_mmc_host *host, int addr);
-	/* clock management callbacks */
-	int (*clk_enable)(struct platform_device *pdev, unsigned int *f);
-	void (*clk_disable)(struct platform_device *pdev);
 };
 
 /*

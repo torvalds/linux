@@ -4,7 +4,8 @@
 #include <linux/of.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-#include "am35x-phy-control.h"
+#include <linux/usb/otg.h>
+#include "phy-am335x-control.h"
 
 struct am335x_control_usb {
 	struct device *dev;
@@ -58,7 +59,8 @@ static void am335x_phy_wkup(struct  phy_control *phy_ctrl, u32 id, bool on)
 	spin_unlock(&usb_ctrl->lock);
 }
 
-static void am335x_phy_power(struct phy_control *phy_ctrl, u32 id, bool on)
+static void am335x_phy_power(struct phy_control *phy_ctrl, u32 id,
+				enum usb_dr_mode dr_mode, bool on)
 {
 	struct am335x_control_usb *usb_ctrl;
 	u32 val;
@@ -80,8 +82,14 @@ static void am335x_phy_power(struct phy_control *phy_ctrl, u32 id, bool on)
 
 	val = readl(usb_ctrl->phy_reg + reg);
 	if (on) {
-		val &= ~(USBPHY_CM_PWRDN | USBPHY_OTG_PWRDN);
-		val |= USBPHY_OTGVDET_EN | USBPHY_OTGSESSEND_EN;
+		if (dr_mode == USB_DR_MODE_HOST) {
+			val &= ~(USBPHY_CM_PWRDN | USBPHY_OTG_PWRDN |
+					USBPHY_OTGVDET_EN);
+			val |= USBPHY_OTGSESSEND_EN;
+		} else {
+			val &= ~(USBPHY_CM_PWRDN | USBPHY_OTG_PWRDN);
+			val |= USBPHY_OTGVDET_EN | USBPHY_OTGSESSEND_EN;
+		}
 	} else {
 		val |= USBPHY_CM_PWRDN | USBPHY_OTG_PWRDN;
 	}
@@ -126,6 +134,9 @@ struct phy_control *am335x_get_phy_control(struct device *dev)
 		return NULL;
 
 	dev = bus_find_device(&platform_bus_type, NULL, node, match);
+	if (!dev)
+		return NULL;
+
 	ctrl_usb = dev_get_drvdata(dev);
 	if (!ctrl_usb)
 		return NULL;
@@ -147,10 +158,8 @@ static int am335x_control_usb_probe(struct platform_device *pdev)
 	phy_ctrl = of_id->data;
 
 	ctrl_usb = devm_kzalloc(&pdev->dev, sizeof(*ctrl_usb), GFP_KERNEL);
-	if (!ctrl_usb) {
-		dev_err(&pdev->dev, "unable to alloc memory for control usb\n");
+	if (!ctrl_usb)
 		return -ENOMEM;
-	}
 
 	ctrl_usb->dev = &pdev->dev;
 
@@ -175,7 +184,6 @@ static struct platform_driver am335x_control_driver = {
 	.probe		= am335x_control_usb_probe,
 	.driver		= {
 		.name	= "am335x-control-usb",
-		.owner	= THIS_MODULE,
 		.of_match_table = omap_control_usb_id_table,
 	},
 };

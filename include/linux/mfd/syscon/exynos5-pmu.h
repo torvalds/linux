@@ -36,6 +36,9 @@
 #define EXYNOS5420_MTCADC_PHY_CONTROL		(0x724)
 #define EXYNOS5420_DPTX_PHY_CONTROL		(0x728)
 
+/* Exynos5433 specific register definitions */
+#define EXYNOS5433_USBHOST30_PHY_CONTROL	(0x728)
+
 #define EXYNOS5_PHY_ENABLE			BIT(0)
 
 #define EXYNOS5_MIPI_PHY_S_RESETN		BIT(1)

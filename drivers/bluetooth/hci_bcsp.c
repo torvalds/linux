@@ -47,10 +47,8 @@
 
 #include "hci_uart.h"
 
-#define VERSION "0.3"
-
-static bool txcrc = 1;
-static bool hciextn = 1;
+static bool txcrc = true;
+static bool hciextn = true;
 
 #define BCSP_TXWINSIZE	4
 
@@ -157,7 +155,7 @@ static int bcsp_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		return 0;
 	}
 
-	switch (bt_cb(skb)->pkt_type) {
+	switch (hci_skb_pkt_type(skb)) {
 	case HCI_ACLDATA_PKT:
 	case HCI_COMMAND_PKT:
 		skb_queue_tail(&bcsp->rel, skb);
@@ -233,7 +231,7 @@ static struct sk_buff *bcsp_prepare_pkt(struct bcsp_struct *bcsp, u8 *data,
 	if (!nskb)
 		return NULL;
 
-	bt_cb(nskb)->pkt_type = pkt_type;
+	hci_skb_pkt_type(nskb) = pkt_type;
 
 	bcsp_slip_msgdelim(nskb);
 
@@ -293,7 +291,10 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 
 	skb = skb_dequeue(&bcsp->unrel);
 	if (skb != NULL) {
-		struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len, bt_cb(skb)->pkt_type);
+		struct sk_buff *nskb;
+
+		nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len,
+					hci_skb_pkt_type(skb));
 		if (nskb) {
 			kfree_skb(skb);
 			return nskb;
@@ -312,8 +313,10 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 	if (bcsp->unack.qlen < BCSP_TXWINSIZE) {
 		skb = skb_dequeue(&bcsp->rel);
 		if (skb != NULL) {
-			struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len,
-								bt_cb(skb)->pkt_type);
+			struct sk_buff *nskb;
+
+			nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len,
+						hci_skb_pkt_type(skb));
 			if (nskb) {
 				__skb_queue_tail(&bcsp->unack, skb);
 				mod_timer(&bcsp->tbcsp, jiffies + HZ / 4);
@@ -414,7 +417,7 @@ static void bcsp_handle_le_pkt(struct hci_uart *hu)
 		if (!nskb)
 			return;
 		memcpy(skb_put(nskb, 4), conf_rsp_pkt, 4);
-		bt_cb(nskb)->pkt_type = BCSP_LE_PKT;
+		hci_skb_pkt_type(nskb) = BCSP_LE_PKT;
 
 		skb_queue_head(&bcsp->unrel, nskb);
 		hci_uart_tx_wakeup(hu);
@@ -438,7 +441,7 @@ static inline void bcsp_unslip_one_byte(struct bcsp_struct *bcsp, unsigned char 
 			break;
 		default:
 			memcpy(skb_put(bcsp->rx_skb, 1), &byte, 1);
-			if ((bcsp->rx_skb-> data[0] & 0x40) != 0 && 
+			if ((bcsp->rx_skb->data[0] & 0x40) != 0 &&
 					bcsp->rx_state != BCSP_W4_CRC)
 				bcsp_crc_update(&bcsp->message_crc, byte);
 			bcsp->rx_count--;
@@ -449,24 +452,24 @@ static inline void bcsp_unslip_one_byte(struct bcsp_struct *bcsp, unsigned char 
 		switch (byte) {
 		case 0xdc:
 			memcpy(skb_put(bcsp->rx_skb, 1), &c0, 1);
-			if ((bcsp->rx_skb-> data[0] & 0x40) != 0 && 
+			if ((bcsp->rx_skb->data[0] & 0x40) != 0 &&
 					bcsp->rx_state != BCSP_W4_CRC)
-				bcsp_crc_update(&bcsp-> message_crc, 0xc0);
+				bcsp_crc_update(&bcsp->message_crc, 0xc0);
 			bcsp->rx_esc_state = BCSP_ESCSTATE_NOESC;
 			bcsp->rx_count--;
 			break;
 
 		case 0xdd:
 			memcpy(skb_put(bcsp->rx_skb, 1), &db, 1);
-			if ((bcsp->rx_skb-> data[0] & 0x40) != 0 && 
+			if ((bcsp->rx_skb->data[0] & 0x40) != 0 &&
 					bcsp->rx_state != BCSP_W4_CRC) 
-				bcsp_crc_update(&bcsp-> message_crc, 0xdb);
+				bcsp_crc_update(&bcsp->message_crc, 0xdb);
 			bcsp->rx_esc_state = BCSP_ESCSTATE_NOESC;
 			bcsp->rx_count--;
 			break;
 
 		default:
-			BT_ERR ("Invalid byte %02x after esc byte", byte);
+			BT_ERR("Invalid byte %02x after esc byte", byte);
 			kfree_skb(bcsp->rx_skb);
 			bcsp->rx_skb = NULL;
 			bcsp->rx_state = BCSP_W4_PKT_DELIMITER;
@@ -496,14 +499,14 @@ static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 	bcsp_pkt_cull(bcsp);
 	if ((bcsp->rx_skb->data[1] & 0x0f) == 6 &&
 			bcsp->rx_skb->data[0] & 0x80) {
-		bt_cb(bcsp->rx_skb)->pkt_type = HCI_ACLDATA_PKT;
+		hci_skb_pkt_type(bcsp->rx_skb) = HCI_ACLDATA_PKT;
 		pass_up = 1;
 	} else if ((bcsp->rx_skb->data[1] & 0x0f) == 5 &&
 			bcsp->rx_skb->data[0] & 0x80) {
-		bt_cb(bcsp->rx_skb)->pkt_type = HCI_EVENT_PKT;
+		hci_skb_pkt_type(bcsp->rx_skb) = HCI_EVENT_PKT;
 		pass_up = 1;
 	} else if ((bcsp->rx_skb->data[1] & 0x0f) == 7) {
-		bt_cb(bcsp->rx_skb)->pkt_type = HCI_SCODATA_PKT;
+		hci_skb_pkt_type(bcsp->rx_skb) = HCI_SCODATA_PKT;
 		pass_up = 1;
 	} else if ((bcsp->rx_skb->data[1] & 0x0f) == 1 &&
 			!(bcsp->rx_skb->data[0] & 0x80)) {
@@ -525,11 +528,11 @@ static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 				hdr.evt = 0xff;
 				hdr.plen = bcsp->rx_skb->len;
 				memcpy(skb_push(bcsp->rx_skb, HCI_EVENT_HDR_SIZE), &hdr, HCI_EVENT_HDR_SIZE);
-				bt_cb(bcsp->rx_skb)->pkt_type = HCI_EVENT_PKT;
+				hci_skb_pkt_type(bcsp->rx_skb) = HCI_EVENT_PKT;
 
 				hci_recv_frame(hu->hdev, bcsp->rx_skb);
 			} else {
-				BT_ERR ("Packet for unknown channel (%u %s)",
+				BT_ERR("Packet for unknown channel (%u %s)",
 					bcsp->rx_skb->data[1] & 0x0f,
 					bcsp->rx_skb->data[0] & 0x80 ? 
 					"reliable" : "unreliable");
@@ -554,10 +557,10 @@ static u16 bscp_get_crc(struct bcsp_struct *bcsp)
 }
 
 /* Recv data */
-static int bcsp_recv(struct hci_uart *hu, void *data, int count)
+static int bcsp_recv(struct hci_uart *hu, const void *data, int count)
 {
 	struct bcsp_struct *bcsp = hu->priv;
-	unsigned char *ptr;
+	const unsigned char *ptr;
 
 	BT_DBG("hu %p count %d rx_state %d rx_count %ld", 
 		hu, count, bcsp->rx_state, bcsp->rx_count);
@@ -589,7 +592,7 @@ static int bcsp_recv(struct hci_uart *hu, void *data, int count)
 			}
 			if (bcsp->rx_skb->data[0] & 0x80	/* reliable pkt */
 			    		&& (bcsp->rx_skb->data[0] & 0x07) != bcsp->rxseq_txack) {
-				BT_ERR ("Out-of-order packet arrived, got %u expected %u",
+				BT_ERR("Out-of-order packet arrived, got %u expected %u",
 					bcsp->rx_skb->data[0] & 0x07, bcsp->rxseq_txack);
 
 				kfree_skb(bcsp->rx_skb);
@@ -735,8 +738,9 @@ static int bcsp_close(struct hci_uart *hu)
 	return 0;
 }
 
-static struct hci_uart_proto bcsp = {
+static const struct hci_uart_proto bcsp = {
 	.id		= HCI_UART_BCSP,
+	.name		= "BCSP",
 	.open		= bcsp_open,
 	.close		= bcsp_close,
 	.enqueue	= bcsp_enqueue,
@@ -747,14 +751,7 @@ static struct hci_uart_proto bcsp = {
 
 int __init bcsp_init(void)
 {
-	int err = hci_uart_register_proto(&bcsp);
-
-	if (!err)
-		BT_INFO("HCI BCSP protocol initialized");
-	else
-		BT_ERR("HCI BCSP protocol registration failed");
-
-	return err;
+	return hci_uart_register_proto(&bcsp);
 }
 
 int __exit bcsp_deinit(void)

@@ -267,33 +267,29 @@ enum clk_src {
  *
  * Reserved area are considered as "mute".
  */
-static const unsigned int hp_out_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(hp_out_tlv,
 	0x0, 0x10, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
 	/* -54 dB to +15 dB */
-	0x11, 0x3f, TLV_DB_SCALE_ITEM(-5400, 150, 0),
-};
+	0x11, 0x3f, TLV_DB_SCALE_ITEM(-5400, 150, 0)
+);
 
-static const unsigned int lineout_vol_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(lineout_vol_tlv,
 	0x0, 0x10, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
 	/* -54dB to 15dB */
 	0x11, 0x3f, TLV_DB_SCALE_ITEM(-5400, 150, 0)
-};
+);
 
-static const unsigned int mono_vol_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(mono_vol_tlv,
 	0x0, 0x2, TLV_DB_SCALE_ITEM(-1800, 0, 1),
 	/* -18dB to 6dB */
 	0x3, 0x7, TLV_DB_SCALE_ITEM(-1800, 600, 0)
-};
+);
 
-static const unsigned int aux1_vol_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(aux1_vol_tlv,
 	0x0, 0x10, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
 	/* -48dB to 21dB */
 	0x11, 0x3f, TLV_DB_SCALE_ITEM(-4800, 150, 0)
-};
+);
 
 static const DECLARE_TLV_DB_SCALE(eq_gain_tlv, -1050, 150, 0);
 static const DECLARE_TLV_DB_SCALE(adc_eq_master_gain_tlv, -1800, 600, 1);
@@ -680,7 +676,7 @@ struct da7210_priv {
 	int master;
 };
 
-static struct reg_default da7210_reg_defaults[] = {
+static const struct reg_default da7210_reg_defaults[] = {
 	{ 0x00, 0x00 },
 	{ 0x01, 0x11 },
 	{ 0x03, 0x00 },
@@ -1182,7 +1178,7 @@ static struct snd_soc_codec_driver soc_codec_dev_da7210 = {
 
 #if IS_ENABLED(CONFIG_I2C)
 
-static struct reg_default da7210_regmap_i2c_patch[] = {
+static const struct reg_sequence da7210_regmap_i2c_patch[] = {
 
 	/* System controller master disable */
 	{ DA7210_STARTUP1, 0x00 },
@@ -1259,7 +1255,6 @@ MODULE_DEVICE_TABLE(i2c, da7210_i2c_id);
 static struct i2c_driver da7210_i2c_driver = {
 	.driver = {
 		.name = "da7210",
-		.owner = THIS_MODULE,
 	},
 	.probe		= da7210_i2c_probe,
 	.remove		= da7210_i2c_remove,
@@ -1269,7 +1264,7 @@ static struct i2c_driver da7210_i2c_driver = {
 
 #if defined(CONFIG_SPI_MASTER)
 
-static struct reg_default da7210_regmap_spi_patch[] = {
+static const struct reg_sequence da7210_regmap_spi_patch[] = {
 	/* Dummy read to give two pulses over nCS for SPI */
 	{ DA7210_AUX2, 0x00 },
 	{ DA7210_AUX2, 0x00 },
@@ -1344,7 +1339,6 @@ static int da7210_spi_remove(struct spi_device *spi)
 static struct spi_driver da7210_spi_driver = {
 	.driver = {
 		.name = "da7210",
-		.owner = THIS_MODULE,
 	},
 	.probe = da7210_spi_probe,
 	.remove = da7210_spi_remove

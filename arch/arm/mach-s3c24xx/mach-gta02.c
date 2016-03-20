@@ -597,5 +597,4 @@ MACHINE_START(NEO1973_GTA02, "GTA02")
 	.init_irq	= s3c2442_init_irq,
 	.init_machine	= gta02_machine_init,
 	.init_time	= gta02_init_time,
-	.restart	= s3c244x_restart,
 MACHINE_END

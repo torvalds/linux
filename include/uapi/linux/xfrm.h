@@ -1,6 +1,7 @@
 #ifndef _LINUX_XFRM_H
 #define _LINUX_XFRM_H
 
+#include <linux/in6.h>
 #include <linux/types.h>
 
 /* All of the structures in this file may not change size as they are
@@ -13,6 +14,7 @@
 typedef union {
 	__be32		a4;
 	__be32		a6[4];
+	struct in6_addr	in6;
 } xfrm_address_t;
 
 /* Ident of a specific xfrm_state. It is used on input to lookup
@@ -328,6 +330,8 @@ enum xfrm_spdattr_type_t {
 	XFRMA_SPD_UNSPEC,
 	XFRMA_SPD_INFO,
 	XFRMA_SPD_HINFO,
+	XFRMA_SPD_IPV4_HTHRESH,
+	XFRMA_SPD_IPV6_HTHRESH,
 	__XFRMA_SPD_MAX
 
 #define XFRMA_SPD_MAX (__XFRMA_SPD_MAX - 1)
@@ -345,6 +349,11 @@ struct xfrmu_spdinfo {
 struct xfrmu_spdhinfo {
 	__u32 spdhcnt;
 	__u32 spdhmcnt;
+};
+
+struct xfrmu_spdhthresh {
+	__u8 lbits;
+	__u8 rbits;
 };
 
 struct xfrm_usersa_info {

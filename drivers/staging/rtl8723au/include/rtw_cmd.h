@@ -17,7 +17,6 @@
 
 #include <wlan_bssdef.h>
 #include <rtw_rf.h>
-#include <rtw_led.h>
 
 #define C2H_MEM_SZ (16*1024)
 
@@ -100,7 +99,6 @@ int rtw_init_cmd_priv23a(struct cmd_priv *pcmdpriv);
 
 u32 rtw_init_evt_priv23a (struct evt_priv *pevtpriv);
 void rtw_free_evt_priv23a (struct evt_priv *pevtpriv);
-void rtw_cmd_clr_isr23a(struct cmd_priv *pcmdpriv);
 void rtw_evt_notify_isr(struct evt_priv *pevtpriv);
 
 enum rtw_drvextra_cmd_id
@@ -450,8 +448,7 @@ struct getrfintfs_parm {
 	u8	rfintfs;
 };
 
-struct Tx_Beacon_param
-{
+struct Tx_Beacon_param {
 	struct wlan_bssid_ex network;
 };
 
@@ -547,14 +544,14 @@ struct setratable_parm {
 };
 
 struct getratable_parm {
-                uint rsvd;
+	uint rsvd;
 };
 
 struct getratable_rsp {
-        u8 ss_ForceUp[NumRates];
-        u8 ss_ULevel[NumRates];
-        u8 ss_DLevel[NumRates];
-        u8 count_judge[NumRates];
+	u8 ss_ForceUp[NumRates];
+	u8 ss_ULevel[NumRates];
+	u8 ss_DLevel[NumRates];
+	u8 count_judge[NumRates];
 };
 
 /* to get TX,RX retry count */
@@ -660,7 +657,7 @@ struct TDLSoption_param {
 
 Result:
 0x00: success
-0x01: sucess, and check Response.
+0x01: success, and check Response.
 0x02: cmd ignored due to duplicated sequcne number
 0x03: cmd dropped due to invalid cmd code
 0x04: reserved.
@@ -691,15 +688,15 @@ int rtw_disassoc_cmd23a(struct rtw_adapter *padapter, u32 deauth_timeout_ms, boo
 int rtw_setopmode_cmd23a(struct rtw_adapter *padapter, enum nl80211_iftype ifmode);
 int rtw_setdatarate_cmd(struct rtw_adapter  *padapter, u8 *rateset);
 int rtw_setbasicrate_cmd(struct rtw_adapter  *padapter, u8 *rateset);
-int rtw_setbbreg_cmd(struct rtw_adapter * padapter, u8 offset, u8 val);
-int rtw_setrfreg_cmd(struct rtw_adapter * padapter, u8 offset, u32 val);
-int rtw_getbbreg_cmd(struct rtw_adapter * padapter, u8 offset, u8 * pval);
-int rtw_getrfreg_cmd(struct rtw_adapter * padapter, u8 offset, u8 * pval);
+int rtw_setbbreg_cmd(struct rtw_adapter *padapter, u8 offset, u8 val);
+int rtw_setrfreg_cmd(struct rtw_adapter *padapter, u8 offset, u32 val);
+int rtw_getbbreg_cmd(struct rtw_adapter *padapter, u8 offset, u8 *pval);
+int rtw_getrfreg_cmd(struct rtw_adapter *padapter, u8 offset, u8 *pval);
 int rtw_setrfintfs_cmd(struct rtw_adapter  *padapter, u8 mode);
 int rtw_setrttbl_cmd(struct rtw_adapter  *padapter, struct setratable_parm *prate_table);
 int rtw_getrttbl_cmd(struct rtw_adapter  *padapter, struct getratable_rsp *pval);
 
-int rtw_gettssi_cmd(struct rtw_adapter  *padapter, u8 offset,u8 *pval);
+int rtw_gettssi_cmd(struct rtw_adapter  *padapter, u8 offset, u8 *pval);
 int rtw_setfwdig_cmd(struct rtw_adapter*padapter, u8 type);
 int rtw_setfwra_cmd(struct rtw_adapter*padapter, u8 type);
 
@@ -715,7 +712,6 @@ int rtw_ps_cmd23a(struct rtw_adapter*padapter);
 int rtw_chk_hi_queue_cmd23a(struct rtw_adapter*padapter);
 #endif
 
-int rtw_set_ch_cmd23a(struct rtw_adapter*padapter, u8 ch, u8 bw, u8 ch_offset, u8 enqueue);
 int rtw_set_chplan_cmd(struct rtw_adapter*padapter, u8 chplan, u8 enqueue);
 int rtw_led_blink_cmd(struct rtw_adapter*padapter, struct led_8723a *pLed);
 int rtw_set_csa_cmd(struct rtw_adapter*padapter, u8 new_ch_no);
@@ -729,11 +725,9 @@ void rtw_disassoc_cmd23a_callback(struct rtw_adapter  *padapter, struct cmd_obj 
 void rtw_joinbss_cmd23a_callback(struct rtw_adapter  *padapter, struct cmd_obj *pcmd);
 void rtw_createbss_cmd23a_callback(struct rtw_adapter  *padapter, struct cmd_obj *pcmd);
 void rtw_getbbrfreg_cmdrsp_callback23a(struct rtw_adapter  *padapter, struct cmd_obj *pcmd);
-void rtw_readtssi_cmdrsp_callback(struct rtw_adapter*	padapter,  struct cmd_obj *pcmd);
 
 void rtw_setstaKey_cmdrsp_callback23a(struct rtw_adapter  *padapter,  struct cmd_obj *pcmd);
 void rtw_setassocsta_cmdrsp_callback23a(struct rtw_adapter  *padapter,  struct cmd_obj *pcmd);
-void rtw_getrttbl_cmdrsp_callback(struct rtw_adapter  *padapter,  struct cmd_obj *pcmd);
 
 struct _cmd_callback {
 	u32	cmd_code;

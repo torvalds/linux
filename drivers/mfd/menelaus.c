@@ -42,10 +42,10 @@
 #include <linux/bcd.h>
 #include <linux/slab.h>
 #include <linux/mfd/menelaus.h>
+#include <linux/gpio.h>
 
 #include <asm/mach/irq.h>
 
-#include <asm/gpio.h>
 
 #define DRIVER_NAME			"menelaus"
 
@@ -466,8 +466,6 @@ static int menelaus_set_voltage(const struct menelaus_vtg *vtg, int mV,
 	struct i2c_client *c = the_menelaus->client;
 
 	mutex_lock(&the_menelaus->lock);
-	if (!vtg)
-		goto set_voltage;
 
 	ret = menelaus_read_reg(vtg->vtg_reg);
 	if (ret < 0)
@@ -482,7 +480,6 @@ static int menelaus_set_voltage(const struct menelaus_vtg *vtg, int mV,
 	ret = menelaus_write_reg(vtg->vtg_reg, val);
 	if (ret < 0)
 		goto out;
-set_voltage:
 	ret = menelaus_write_reg(vtg->mode_reg, mode);
 out:
 	mutex_unlock(&the_menelaus->lock);
@@ -534,29 +531,6 @@ static const struct menelaus_vtg_value vcore_values[] = {
 	{ 1425, 17 },
 	{ 1450, 18 },
 };
-
-int menelaus_set_vcore_sw(unsigned int mV)
-{
-	int val, ret;
-	struct i2c_client *c = the_menelaus->client;
-
-	val = menelaus_get_vtg_value(mV, vcore_values,
-				     ARRAY_SIZE(vcore_values));
-	if (val < 0)
-		return -EINVAL;
-
-	dev_dbg(&c->dev, "Setting VCORE to %d mV (val 0x%02x)\n", mV, val);
-
-	/* Set SW mode and the voltage in one go. */
-	mutex_lock(&the_menelaus->lock);
-	ret = menelaus_write_reg(MENELAUS_VCORE_CTRL1, val);
-	if (ret == 0)
-		the_menelaus->vcore_hw_mode = 0;
-	mutex_unlock(&the_menelaus->lock);
-	msleep(1);
-
-	return ret;
-}
 
 int menelaus_set_vcore_hw(unsigned int roof_mV, unsigned int floor_mV)
 {
@@ -1186,7 +1160,7 @@ static int menelaus_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	struct menelaus_chip	*menelaus;
-	int			rev = 0, val;
+	int			rev = 0;
 	int			err = 0;
 	struct menelaus_platform_data *menelaus_pdata =
 					dev_get_platdata(&client->dev);
@@ -1239,10 +1213,10 @@ static int menelaus_probe(struct i2c_client *client,
 
 	pr_info("Menelaus rev %d.%d\n", rev >> 4, rev & 0x0f);
 
-	val = menelaus_read_reg(MENELAUS_VCORE_CTRL1);
-	if (val < 0)
+	err = menelaus_read_reg(MENELAUS_VCORE_CTRL1);
+	if (err < 0)
 		goto fail;
-	if (val & (1 << 7))
+	if (err & VCORE_CTRL1_HW_NSW)
 		menelaus->vcore_hw_mode = 1;
 	else
 		menelaus->vcore_hw_mode = 0;
@@ -1262,7 +1236,7 @@ fail:
 	return err;
 }
 
-static int __exit menelaus_remove(struct i2c_client *client)
+static int menelaus_remove(struct i2c_client *client)
 {
 	struct menelaus_chip	*menelaus = i2c_get_clientdata(client);
 
@@ -1283,7 +1257,7 @@ static struct i2c_driver menelaus_i2c_driver = {
 		.name		= DRIVER_NAME,
 	},
 	.probe		= menelaus_probe,
-	.remove		= __exit_p(menelaus_remove),
+	.remove		= menelaus_remove,
 	.id_table	= menelaus_id,
 };
 

@@ -20,8 +20,12 @@ And in addition, the compatible shall be extended with the specific
 board. Currently known boards are:
 
 "buffalo,lschlv2"
+"buffalo,lswvl"
+"buffalo,lswxl"
 "buffalo,lsxhl"
 "buffalo,lsxl"
+"cloudengines,pogo02"
+"cloudengines,pogoplugv4"
 "dlink,dns-320"
 "dlink,dns-320-a1"
 "dlink,dns-325"
@@ -42,6 +46,7 @@ board. Currently known boards are:
 "lacie,cloudbox"
 "lacie,inetspace_v2"
 "lacie,laplug"
+"lacie,nas2big"
 "lacie,netspace_lite_v2"
 "lacie,netspace_max_v2"
 "lacie,netspace_mini_v2"

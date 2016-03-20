@@ -98,9 +98,8 @@ static struct max8998_irq_data max8998_irqs[] = {
 };
 
 static inline struct max8998_irq_data *
-irq_to_max8998_irq(struct max8998_dev *max8998, int irq)
+irq_to_max8998_irq(struct max8998_dev *max8998, struct irq_data *data)
 {
-	struct irq_data *data = irq_get_irq_data(irq);
 	return &max8998_irqs[data->hwirq];
 }
 
@@ -134,8 +133,7 @@ static void max8998_irq_sync_unlock(struct irq_data *data)
 static void max8998_irq_unmask(struct irq_data *data)
 {
 	struct max8998_dev *max8998 = irq_data_get_irq_chip_data(data);
-	struct max8998_irq_data *irq_data = irq_to_max8998_irq(max8998,
-							       data->irq);
+	struct max8998_irq_data *irq_data = irq_to_max8998_irq(max8998, data);
 
 	max8998->irq_masks_cur[irq_data->reg - 1] &= ~irq_data->mask;
 }
@@ -143,8 +141,7 @@ static void max8998_irq_unmask(struct irq_data *data)
 static void max8998_irq_mask(struct irq_data *data)
 {
 	struct max8998_dev *max8998 = irq_data_get_irq_chip_data(data);
-	struct max8998_irq_data *irq_data = irq_to_max8998_irq(max8998,
-							       data->irq);
+	struct max8998_irq_data *irq_data = irq_to_max8998_irq(max8998, data);
 
 	max8998->irq_masks_cur[irq_data->reg - 1] |= irq_data->mask;
 }
@@ -206,15 +203,12 @@ static int max8998_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, max8998);
 	irq_set_chip_and_handler(irq, &max8998_irq_chip, handle_edge_irq);
 	irq_set_nested_thread(irq, 1);
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID);
-#else
 	irq_set_noprobe(irq);
-#endif
+
 	return 0;
 }
 
-static struct irq_domain_ops max8998_irq_domain_ops = {
+static const struct irq_domain_ops max8998_irq_domain_ops = {
 	.map = max8998_irq_domain_map,
 };
 

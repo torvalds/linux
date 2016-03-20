@@ -22,6 +22,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/bitops.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -38,6 +39,7 @@
  * @row_shift: log2 or number of rows, rounded up
  * @keymap_data: Matrix keymap data used to convert to keyscan values
  * @ghost_filter: true to enable the matrix key-ghosting filter
+ * @valid_keys: bitmap of existing keys for each matrix column
  * @old_kb_state: bitmap of keys pressed last scan
  * @dev: Device pointer
  * @idev: Input device
@@ -49,6 +51,7 @@ struct cros_ec_keyb {
 	int row_shift;
 	const struct matrix_keymap_data *keymap_data;
 	bool ghost_filter;
+	uint8_t *valid_keys;
 	uint8_t *old_kb_state;
 
 	struct device *dev;
@@ -57,39 +60,15 @@ struct cros_ec_keyb {
 };
 
 
-static bool cros_ec_keyb_row_has_ghosting(struct cros_ec_keyb *ckdev,
-					  uint8_t *buf, int row)
-{
-	int pressed_in_row = 0;
-	int row_has_teeth = 0;
-	int col, mask;
-
-	mask = 1 << row;
-	for (col = 0; col < ckdev->cols; col++) {
-		if (buf[col] & mask) {
-			pressed_in_row++;
-			row_has_teeth |= buf[col] & ~mask;
-			if (pressed_in_row > 1 && row_has_teeth) {
-				/* ghosting */
-				dev_dbg(ckdev->dev,
-					"ghost found at: r%d c%d, pressed %d, teeth 0x%x\n",
-					row, col, pressed_in_row,
-					row_has_teeth);
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
 /*
  * Returns true when there is at least one combination of pressed keys that
  * results in ghosting.
  */
 static bool cros_ec_keyb_has_ghosting(struct cros_ec_keyb *ckdev, uint8_t *buf)
 {
-	int row;
+	int col1, col2, buf1, buf2;
+	struct device *dev = ckdev->dev;
+	uint8_t *valid_keys = ckdev->valid_keys;
 
 	/*
 	 * Ghosting happens if for any pressed key X there are other keys
@@ -103,26 +82,22 @@ static bool cros_ec_keyb_has_ghosting(struct cros_ec_keyb *ckdev, uint8_t *buf)
 	 *
 	 * In this case only X, Y, and Z are pressed, but g appears to be
 	 * pressed too (see Wikipedia).
-	 *
-	 * We can detect ghosting in a single pass (*) over the keyboard state
-	 * by maintaining two arrays.  pressed_in_row counts how many pressed
-	 * keys we have found in a row.  row_has_teeth is true if any of the
-	 * pressed keys for this row has other pressed keys in its column.  If
-	 * at any point of the scan we find that a row has multiple pressed
-	 * keys, and at least one of them is at the intersection with a column
-	 * with multiple pressed keys, we're sure there is ghosting.
-	 * Conversely, if there is ghosting, we will detect such situation for
-	 * at least one key during the pass.
-	 *
-	 * (*) This looks linear in the number of keys, but it's not.  We can
-	 * cheat because the number of rows is small.
 	 */
-	for (row = 0; row < ckdev->rows; row++)
-		if (cros_ec_keyb_row_has_ghosting(ckdev, buf, row))
-			return true;
+	for (col1 = 0; col1 < ckdev->cols; col1++) {
+		buf1 = buf[col1] & valid_keys[col1];
+		for (col2 = col1 + 1; col2 < ckdev->cols; col2++) {
+			buf2 = buf[col2] & valid_keys[col2];
+			if (hweight8(buf1 & buf2) > 1) {
+				dev_dbg(dev, "ghost found at: B[%02d]:0x%02x & B[%02d]:0x%02x",
+					col1, buf1, col2, buf2);
+				return true;
+			}
+		}
+	}
 
 	return false;
 }
+
 
 /*
  * Compares the new keyboard state to the old one and produces key
@@ -173,16 +148,28 @@ static void cros_ec_keyb_process(struct cros_ec_keyb *ckdev,
 
 static int cros_ec_keyb_get_state(struct cros_ec_keyb *ckdev, uint8_t *kb_state)
 {
-	struct cros_ec_command msg = {
-		.version = 0,
-		.command = EC_CMD_MKBP_STATE,
-		.outdata = NULL,
-		.outsize = 0,
-		.indata = kb_state,
-		.insize = ckdev->cols,
-	};
+	int ret = 0;
+	struct cros_ec_command *msg;
 
-	return ckdev->ec->cmd_xfer(ckdev->ec, &msg);
+	msg = kmalloc(sizeof(*msg) + ckdev->cols, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	msg->version = 0;
+	msg->command = EC_CMD_MKBP_STATE;
+	msg->insize = ckdev->cols;
+	msg->outsize = 0;
+
+	ret = cros_ec_cmd_xfer(ckdev->ec, msg);
+	if (ret < 0) {
+		dev_err(ckdev->dev, "Error transferring EC message %d\n", ret);
+		goto exit;
+	}
+
+	memcpy(kb_state, msg->data, ckdev->cols);
+exit:
+	kfree(msg);
+	return ret;
 }
 
 static irqreturn_t cros_ec_keyb_irq(int irq, void *data)
@@ -222,6 +209,30 @@ static void cros_ec_keyb_close(struct input_dev *dev)
 	free_irq(ec->irq, ckdev);
 }
 
+/*
+ * Walks keycodes flipping bit in buffer COLUMNS deep where bit is ROW.  Used by
+ * ghosting logic to ignore NULL or virtual keys.
+ */
+static void cros_ec_keyb_compute_valid_keys(struct cros_ec_keyb *ckdev)
+{
+	int row, col;
+	int row_shift = ckdev->row_shift;
+	unsigned short *keymap = ckdev->idev->keycode;
+	unsigned short code;
+
+	BUG_ON(ckdev->idev->keycodesize != sizeof(*keymap));
+
+	for (col = 0; col < ckdev->cols; col++) {
+		for (row = 0; row < ckdev->rows; row++) {
+			code = keymap[MATRIX_SCAN_CODE(row, col, row_shift)];
+			if (code && (code != KEY_BATTERY))
+				ckdev->valid_keys[col] |= 1 << row;
+		}
+		dev_dbg(ckdev->dev, "valid_keys[%02d] = 0x%02x\n",
+			col, ckdev->valid_keys[col]);
+	}
+}
+
 static int cros_ec_keyb_probe(struct platform_device *pdev)
 {
 	struct cros_ec_device *ec = dev_get_drvdata(pdev->dev.parent);
@@ -242,6 +253,11 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 					    &ckdev->cols);
 	if (err)
 		return err;
+
+	ckdev->valid_keys = devm_kzalloc(&pdev->dev, ckdev->cols, GFP_KERNEL);
+	if (!ckdev->valid_keys)
+		return -ENOMEM;
+
 	ckdev->old_kb_state = devm_kzalloc(&pdev->dev, ckdev->cols, GFP_KERNEL);
 	if (!ckdev->old_kb_state)
 		return -ENOMEM;
@@ -259,7 +275,7 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	ckdev->dev = dev;
 	dev_set_drvdata(&pdev->dev, ckdev);
 
-	idev->name = ec->ec_name;
+	idev->name = CROS_EC_DEV_NAME;
 	idev->phys = ec->phys_name;
 	__set_bit(EV_REP, idev->evbit);
 
@@ -285,6 +301,8 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	input_set_capability(idev, EV_MSC, MSC_SCAN);
 	input_set_drvdata(idev, ckdev);
 	ckdev->idev = idev;
+	cros_ec_keyb_compute_valid_keys(ckdev);
+
 	err = input_register_device(ckdev->idev);
 	if (err) {
 		dev_err(dev, "cannot register input device\n");
@@ -332,7 +350,7 @@ static int cros_ec_keyb_resume(struct device *dev)
 	 * wake source (e.g. the lid is open and the user might press a key to
 	 * wake) then the key scan buffer should be preserved.
 	 */
-	if (ckdev->ec->was_wake_device)
+	if (!ckdev->ec->was_wake_device)
 		cros_ec_keyb_clear_keyboard(ckdev);
 
 	return 0;
@@ -342,10 +360,19 @@ static int cros_ec_keyb_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(cros_ec_keyb_pm_ops, NULL, cros_ec_keyb_resume);
 
+#ifdef CONFIG_OF
+static const struct of_device_id cros_ec_keyb_of_match[] = {
+	{ .compatible = "google,cros-ec-keyb" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, cros_ec_keyb_of_match);
+#endif
+
 static struct platform_driver cros_ec_keyb_driver = {
 	.probe = cros_ec_keyb_probe,
 	.driver = {
 		.name = "cros-ec-keyb",
+		.of_match_table = of_match_ptr(cros_ec_keyb_of_match),
 		.pm	= &cros_ec_keyb_pm_ops,
 	},
 };

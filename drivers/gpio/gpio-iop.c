@@ -114,13 +114,12 @@ static int iop3xx_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	return gpiochip_add(&iop3xx_chip);
+	return devm_gpiochip_add_data(&pdev->dev, &iop3xx_chip, NULL);
 }
 
 static struct platform_driver iop3xx_gpio_driver = {
 	.driver = {
 		.name = "gpio-iop",
-		.owner = THIS_MODULE,
 	},
 	.probe = iop3xx_gpio_probe,
 };

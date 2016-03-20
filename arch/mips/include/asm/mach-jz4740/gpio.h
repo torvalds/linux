@@ -73,8 +73,6 @@ int jz_gpio_port_direction_output(int port, uint32_t mask);
 void jz_gpio_port_set_value(int port, uint32_t value, uint32_t mask);
 uint32_t jz_gpio_port_get_value(int port, uint32_t mask);
 
-#include <asm/mach-generic/gpio.h>
-
 #define JZ_GPIO_PORTA(x) ((x) + 32 * 0)
 #define JZ_GPIO_PORTB(x) ((x) + 32 * 1)
 #define JZ_GPIO_PORTC(x) ((x) + 32 * 2)

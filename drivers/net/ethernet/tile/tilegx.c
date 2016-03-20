@@ -40,6 +40,7 @@
 #include <linux/tcp.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
+#include <linux/tick.h>
 
 #include <asm/checksum.h>
 #include <asm/homecache.h>
@@ -292,7 +293,6 @@ static inline int mpipe_instance(struct net_device *dev)
  */
 static bool network_cpus_init(void)
 {
-	char buf[1024];
 	int rc;
 
 	if (network_cpus_string == NULL)
@@ -314,8 +314,8 @@ static bool network_cpus_init(void)
 		return false;
 	}
 
-	cpulist_scnprintf(buf, sizeof(buf), &network_cpus_map);
-	pr_info("Linux network CPUs: %s\n", buf);
+	pr_info("Linux network CPUs: %*pbl\n",
+		cpumask_pr_args(&network_cpus_map));
 	return true;
 }
 
@@ -423,7 +423,7 @@ static void tile_net_pop_all_buffers(int instance, int stack)
 /* Provide linux buffers to mPIPE. */
 static void tile_net_provide_needed_buffers(void)
 {
-	struct tile_net_info *info = &__get_cpu_var(per_cpu_info);
+	struct tile_net_info *info = this_cpu_ptr(&per_cpu_info);
 	int instance, kind;
 	for (instance = 0; instance < NR_MPIPE_MAX &&
 		     info->mpipe[instance].has_iqueue; instance++)	{
@@ -551,7 +551,7 @@ static inline bool filter_packet(struct net_device *dev, void *buf)
 static void tile_net_receive_skb(struct net_device *dev, struct sk_buff *skb,
 				 gxio_mpipe_idesc_t *idesc, unsigned long len)
 {
-	struct tile_net_info *info = &__get_cpu_var(per_cpu_info);
+	struct tile_net_info *info = this_cpu_ptr(&per_cpu_info);
 	struct tile_net_priv *priv = netdev_priv(dev);
 	int instance = priv->instance;
 
@@ -585,7 +585,7 @@ static void tile_net_receive_skb(struct net_device *dev, struct sk_buff *skb,
 /* Handle a packet.  Return true if "processed", false if "filtered". */
 static bool tile_net_handle_packet(int instance, gxio_mpipe_idesc_t *idesc)
 {
-	struct tile_net_info *info = &__get_cpu_var(per_cpu_info);
+	struct tile_net_info *info = this_cpu_ptr(&per_cpu_info);
 	struct mpipe_data *md = &mpipe_data[instance];
 	struct net_device *dev = md->tile_net_devs_for_channel[idesc->channel];
 	uint8_t l2_offset;
@@ -651,7 +651,7 @@ drop:
  */
 static int tile_net_poll(struct napi_struct *napi, int budget)
 {
-	struct tile_net_info *info = &__get_cpu_var(per_cpu_info);
+	struct tile_net_info *info = this_cpu_ptr(&per_cpu_info);
 	unsigned int work = 0;
 	gxio_mpipe_idesc_t *idesc;
 	int instance, i, n;
@@ -700,7 +700,7 @@ done:
 /* Handle an ingress interrupt from an instance on the current cpu. */
 static irqreturn_t tile_net_handle_ingress_irq(int irq, void *id)
 {
-	struct tile_net_info *info = &__get_cpu_var(per_cpu_info);
+	struct tile_net_info *info = this_cpu_ptr(&per_cpu_info);
 	napi_schedule(&info->mpipe[(uint64_t)id].napi);
 	return IRQ_HANDLED;
 }
@@ -763,7 +763,7 @@ static enum hrtimer_restart tile_net_handle_tx_wake_timer(struct hrtimer *t)
 /* Make sure the egress timer is scheduled. */
 static void tile_net_schedule_egress_timer(void)
 {
-	struct tile_net_info *info = &__get_cpu_var(per_cpu_info);
+	struct tile_net_info *info = this_cpu_ptr(&per_cpu_info);
 
 	if (!info->egress_timer_scheduled) {
 		hrtimer_start(&info->egress_timer,
@@ -780,7 +780,7 @@ static void tile_net_schedule_egress_timer(void)
  */
 static enum hrtimer_restart tile_net_handle_egress_timer(struct hrtimer *t)
 {
-	struct tile_net_info *info = &__get_cpu_var(per_cpu_info);
+	struct tile_net_info *info = this_cpu_ptr(&per_cpu_info);
 	unsigned long irqflags;
 	bool pending = false;
 	int i, instance;
@@ -839,7 +839,8 @@ static int ptp_mpipe_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return ret;
 }
 
-static int ptp_mpipe_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int ptp_mpipe_gettime(struct ptp_clock_info *ptp,
+			     struct timespec64 *ts)
 {
 	int ret = 0;
 	struct mpipe_data *md = container_of(ptp, struct mpipe_data, caps);
@@ -851,7 +852,7 @@ static int ptp_mpipe_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
 }
 
 static int ptp_mpipe_settime(struct ptp_clock_info *ptp,
-			     const struct timespec *ts)
+			     const struct timespec64 *ts)
 {
 	int ret = 0;
 	struct mpipe_data *md = container_of(ptp, struct mpipe_data, caps);
@@ -877,8 +878,8 @@ static struct ptp_clock_info ptp_mpipe_caps = {
 	.pps		= 0,
 	.adjfreq	= ptp_mpipe_adjfreq,
 	.adjtime	= ptp_mpipe_adjtime,
-	.gettime	= ptp_mpipe_gettime,
-	.settime	= ptp_mpipe_settime,
+	.gettime64	= ptp_mpipe_gettime,
+	.settime64	= ptp_mpipe_settime,
 	.enable		= ptp_mpipe_enable,
 };
 
@@ -1123,7 +1124,7 @@ static int alloc_percpu_mpipe_resources(struct net_device *dev,
 			addr + i * sizeof(struct tile_net_comps);
 
 	/* If this is a network cpu, create an iqueue. */
-	if (cpu_isset(cpu, network_cpus_map)) {
+	if (cpumask_test_cpu(cpu, &network_cpus_map)) {
 		order = get_order(NOTIF_RING_SIZE);
 		page = homecache_alloc_pages(GFP_KERNEL, order, cpu);
 		if (page == NULL) {
@@ -1299,7 +1300,7 @@ static int tile_net_init_mpipe(struct net_device *dev)
 	int first_ring, ring;
 	int instance = mpipe_instance(dev);
 	struct mpipe_data *md = &mpipe_data[instance];
-	int network_cpus_count = cpus_weight(network_cpus_map);
+	int network_cpus_count = cpumask_weight(&network_cpus_map);
 
 	if (!hash_default) {
 		netdev_err(dev, "Networking requires hash_default!\n");
@@ -1927,7 +1928,7 @@ static void tso_egress(struct net_device *dev, gxio_mpipe_equeue_t *equeue,
  */
 static int tile_net_tx_tso(struct sk_buff *skb, struct net_device *dev)
 {
-	struct tile_net_info *info = &__get_cpu_var(per_cpu_info);
+	struct tile_net_info *info = this_cpu_ptr(&per_cpu_info);
 	struct tile_net_priv *priv = netdev_priv(dev);
 	int channel = priv->echannel;
 	int instance = priv->instance;
@@ -1996,7 +1997,7 @@ static unsigned int tile_net_tx_frags(struct frag *frags,
 /* Help the kernel transmit a packet. */
 static int tile_net_tx(struct sk_buff *skb, struct net_device *dev)
 {
-	struct tile_net_info *info = &__get_cpu_var(per_cpu_info);
+	struct tile_net_info *info = this_cpu_ptr(&per_cpu_info);
 	struct tile_net_priv *priv = netdev_priv(dev);
 	int instance = priv->instance;
 	struct mpipe_data *md = &mpipe_data[instance];
@@ -2138,7 +2139,7 @@ static int tile_net_set_mac_address(struct net_device *dev, void *p)
 static void tile_net_netpoll(struct net_device *dev)
 {
 	int instance = mpipe_instance(dev);
-	struct tile_net_info *info = &__get_cpu_var(per_cpu_info);
+	struct tile_net_info *info = this_cpu_ptr(&per_cpu_info);
 	struct mpipe_data *md = &mpipe_data[instance];
 
 	disable_percpu_irq(md->ingress_irq);
@@ -2237,7 +2238,7 @@ static void tile_net_dev_init(const char *name, const uint8_t *mac)
 /* Per-cpu module initialization. */
 static void tile_net_init_module_percpu(void *unused)
 {
-	struct tile_net_info *info = &__get_cpu_var(per_cpu_info);
+	struct tile_net_info *info = this_cpu_ptr(&per_cpu_info);
 	int my_cpu = smp_processor_id();
 	int instance;
 
@@ -2273,7 +2274,8 @@ static int __init tile_net_init_module(void)
 		tile_net_dev_init(name, mac);
 
 	if (!network_cpus_init())
-		network_cpus_map = *cpu_online_mask;
+		cpumask_and(&network_cpus_map, housekeeping_cpumask(),
+			    cpu_online_mask);
 
 	return 0;
 }

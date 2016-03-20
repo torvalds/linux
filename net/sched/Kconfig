@@ -22,8 +22,9 @@ menuconfig NET_SCHED
 	  This code is considered to be experimental.
 
 	  To administer these schedulers, you'll need the user-level utilities
-	  from the package iproute2+tc at <ftp://ftp.tux.org/pub/net/ip-routing/>.
-	  That package also contains some documentation; for more, check out
+	  from the package iproute2+tc at
+	  <https://www.kernel.org/pub/linux/utils/net/iproute2/>.  That package
+	  also contains some documentation; for more, check out
 	  <http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2>.
 
 	  This Quality of Service (QoS) support will enable you to use
@@ -309,14 +310,21 @@ config NET_SCH_PIE
 	  If unsure, say N.
 
 config NET_SCH_INGRESS
-	tristate "Ingress Qdisc"
+	tristate "Ingress/classifier-action Qdisc"
 	depends on NET_CLS_ACT
+	select NET_INGRESS
+	select NET_EGRESS
 	---help---
-	  Say Y here if you want to use classifiers for incoming packets.
+	  Say Y here if you want to use classifiers for incoming and/or outgoing
+	  packets. This qdisc doesn't do anything else besides running classifiers,
+	  which can also have actions attached to them. In case of outgoing packets,
+	  classifiers that this qdisc holds are executed in the transmit path
+	  before real enqueuing to an egress qdisc happens.
+
 	  If unsure, say Y.
 
-	  To compile this code as a module, choose M here: the
-	  module will be called sch_ingress.
+	  To compile this code as a module, choose M here: the module will be
+	  called sch_ingress with alias of sch_clsact.
 
 config NET_SCH_PLUG
 	tristate "Plug network traffic until release (PLUG)"
@@ -336,7 +344,7 @@ config NET_SCH_PLUG
 	  of virtual machines by allowing the generated network output to be rolled
 	  back if needed.
 
-	  For more information, please refer to http://wiki.xensource.com/xenwiki/Remus
+	  For more information, please refer to <http://wiki.xenproject.org/wiki/Remus>
 
 	  Say Y here if you are using this kernel for Xen dom0 and
 	  want to protect Xen guests with Remus.
@@ -347,7 +355,7 @@ config NET_SCH_PLUG
 comment "Classification"
 
 config NET_CLS
-	boolean
+	bool
 
 config NET_CLS_BASIC
 	tristate "Elementary classification (BASIC)"
@@ -475,6 +483,16 @@ config NET_CLS_BPF
 
 	  To compile this code as a module, choose M here: the module will
 	  be called cls_bpf.
+
+config NET_CLS_FLOWER
+	tristate "Flower classifier"
+	select NET_CLS
+	---help---
+	  If you say Y here, you will be able to classify packets based on
+	  a configurable combination of packet keys and masks.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called cls_flower.
 
 config NET_EMATCH
 	bool "Extended Matches"
@@ -685,6 +703,63 @@ config NET_ACT_CSUM
 
 	  To compile this code as a module, choose M here: the
 	  module will be called act_csum.
+
+config NET_ACT_VLAN
+        tristate "Vlan manipulation"
+        depends on NET_CLS_ACT
+        ---help---
+	  Say Y here to push or pop vlan headers.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_vlan.
+
+config NET_ACT_BPF
+        tristate "BPF based action"
+        depends on NET_CLS_ACT
+        ---help---
+	  Say Y here to execute BPF code on packets. The BPF code will decide
+	  if the packet should be dropped or not.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_bpf.
+
+config NET_ACT_CONNMARK
+        tristate "Netfilter Connection Mark Retriever"
+        depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
+        depends on NF_CONNTRACK && NF_CONNTRACK_MARK
+        ---help---
+	  Say Y here to allow retrieving of conn mark
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_connmark.
+
+config NET_ACT_IFE
+        tristate "Inter-FE action based on IETF ForCES InterFE LFB"
+        depends on NET_CLS_ACT
+        ---help---
+	  Say Y here to allow for sourcing and terminating metadata
+	  For details refer to netdev01 paper:
+	  "Distributing Linux Traffic Control Classifier-Action Subsystem"
+	   Authors: Jamal Hadi Salim and Damascene M. Joachimpillai
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_ife.
+
+config NET_IFE_SKBMARK
+        tristate "Support to encoding decoding skb mark on IFE action"
+        depends on NET_ACT_IFE
+        ---help---
+
+config NET_IFE_SKBPRIO
+        tristate "Support to encoding decoding skb prio on IFE action"
+        depends on NET_ACT_IFE
+        ---help---
 
 config NET_CLS_IND
 	bool "Incoming device classification"

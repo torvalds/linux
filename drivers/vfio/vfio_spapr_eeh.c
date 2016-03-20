@@ -85,6 +85,16 @@ long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group,
 		case VFIO_EEH_PE_CONFIGURE:
 			ret = eeh_pe_configure(pe);
 			break;
+		case VFIO_EEH_PE_INJECT_ERR:
+			minsz = offsetofend(struct vfio_eeh_pe_op, err.mask);
+			if (op.argsz < minsz)
+				return -EINVAL;
+			if (copy_from_user(&op, (void __user *)arg, minsz))
+				return -EFAULT;
+
+			ret = eeh_pe_inject_err(pe, op.err.type, op.err.func,
+						op.err.addr, op.err.mask);
+			break;
 		default:
 			ret = -EINVAL;
 		}
@@ -92,7 +102,7 @@ long vfio_spapr_iommu_eeh_ioctl(struct iommu_group *group,
 
 	return ret;
 }
-EXPORT_SYMBOL(vfio_spapr_iommu_eeh_ioctl);
+EXPORT_SYMBOL_GPL(vfio_spapr_iommu_eeh_ioctl);
 
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL v2");

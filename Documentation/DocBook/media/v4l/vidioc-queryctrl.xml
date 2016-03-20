@@ -101,8 +101,9 @@ prematurely end the enumeration).</para></footnote></para>
 next supported non-compound control, or <errorcode>EINVAL</errorcode>
 if there is none. In addition, the <constant>V4L2_CTRL_FLAG_NEXT_COMPOUND</constant>
 flag can be specified to enumerate all compound controls (i.e. controls
-with type &ge; <constant>V4L2_CTRL_COMPOUND_TYPES</constant>). Specify both
-<constant>V4L2_CTRL_FLAG_NEXT_CTRL</constant> and
+with type &ge; <constant>V4L2_CTRL_COMPOUND_TYPES</constant> and/or array
+control, in other words controls that contain more than one value).
+Specify both <constant>V4L2_CTRL_FLAG_NEXT_CTRL</constant> and
 <constant>V4L2_CTRL_FLAG_NEXT_COMPOUND</constant> in order to enumerate
 all controls, compound or not. Drivers which do not support these flags yet
 always return <errorcode>EINVAL</errorcode>.</para>
@@ -422,7 +423,7 @@ the array to zero.</entry>
 	    <entry>any</entry>
 	    <entry>An integer-valued control ranging from minimum to
 maximum inclusive. The step value indicates the increment between
-values which are actually different on the hardware.</entry>
+values.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CTRL_TYPE_BOOLEAN</constant></entry>
@@ -518,7 +519,7 @@ Older drivers which do not support this feature return an
 	    <entry>any</entry>
 	    <entry>An unsigned 8-bit valued control ranging from minimum to
 maximum inclusive. The step value indicates the increment between
-values which are actually different on the hardware.
+values.
 </entry>
 	  </row>
 	  <row>
@@ -528,7 +529,17 @@ values which are actually different on the hardware.
 	    <entry>any</entry>
 	    <entry>An unsigned 16-bit valued control ranging from minimum to
 maximum inclusive. The step value indicates the increment between
-values which are actually different on the hardware.
+values.
+</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_TYPE_U32</constant></entry>
+	    <entry>any</entry>
+	    <entry>any</entry>
+	    <entry>any</entry>
+	    <entry>An unsigned 32-bit valued control ranging from minimum to
+maximum inclusive. The step value indicates the increment between
+values.
 </entry>
 	  </row>
 	</tbody>
@@ -600,7 +611,9 @@ writing a value will cause the device to carry out a given action
 changes continuously. A typical example would be the current gain value if the device
 is in auto-gain mode. In such a case the hardware calculates the gain value based on
 the lighting conditions which can change over time. Note that setting a new value for
-a volatile control will have no effect. The new value will just be ignored.</entry>
+a volatile control will have no effect and no <constant>V4L2_EVENT_CTRL_CH_VALUE</constant>
+will be sent, unless the <constant>V4L2_CTRL_FLAG_EXECUTE_ON_WRITE</constant> flag
+(see below) is also set. Otherwise the new value will just be ignored.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CTRL_FLAG_HAS_PAYLOAD</constant></entry>
@@ -609,6 +622,14 @@ a volatile control will have no effect. The new value will just be ignored.</ent
 using one of the pointer fields of &v4l2-ext-control;. This flag is set for controls
 that are an array, string, or have a compound type. In all cases you have to set a
 pointer to memory containing the payload of the control.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_FLAG_EXECUTE_ON_WRITE</constant></entry>
+	    <entry>0x0200</entry>
+	    <entry>The value provided to the control will be propagated to the driver
+even if it remains constant. This is required when the control represents an action
+on the hardware. For example: clearing an error flag or triggering the flash. All the
+controls of the type <constant>V4L2_CTRL_TYPE_BUTTON</constant> have this flag set.</entry>
 	  </row>
 	</tbody>
       </tgroup>

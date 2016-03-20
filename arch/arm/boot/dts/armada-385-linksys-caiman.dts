@@ -1,0 +1,114 @@
+/*
+ * Device Tree include for the Linksys WRT1200AC (Caiman)
+ *
+ * Copyright (C) 2015 Imre Kaloz <kaloz@openwrt.org>
+ *
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is licensed under the terms of the GNU General Public
+ *     License version 2.  This program is licensed "as is" without
+ *     any warranty of any kind, whether express or implied.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+#include "armada-385-linksys.dtsi"
+
+/ {
+	model = "Linksys WRT1200AC";
+	compatible = "linksys,caiman", "linksys,armada385", "marvell,armada385",
+		     "marvell,armada380";
+
+	soc {
+		internal-regs{
+			i2c@11000 {
+
+				pca9635@68 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+					wan_amber@0 {
+						label = "caiman:amber:wan";
+						reg = <0x0>;
+					};
+
+					wan_white@1 {
+						label = "caiman:white:wan";
+						reg = <0x1>;
+					};
+
+					wlan_2g@2 {
+						label = "caiman:white:wlan_2g";
+						reg = <0x2>;
+					};
+
+					wlan_5g@3 {
+						label = "caiman:white:wlan_5g";
+						reg = <0x3>;
+					};
+
+					usb2@5 {
+						label = "caiman:white:usb2";
+						reg = <0x5>;
+					};
+
+					usb3_1@6 {
+						label = "caiman:white:usb3_1";
+						reg = <0x6>;
+					};
+
+					usb3_2@7 {
+						label = "caiman:white:usb3_2";
+						reg = <0x7>;
+					};
+
+					wps_white@8 {
+						label = "caiman:white:wps";
+						reg = <0x8>;
+					};
+
+					wps_amber@9 {
+						label = "caiman:amber:wps";
+						reg = <0x9>;
+					};
+				};
+			};
+		};
+	};
+
+	gpio-leds {
+		power {
+			label = "caiman:white:power";
+		};
+
+		sata {
+			label = "caiman:white:sata";
+		};
+	};
+};

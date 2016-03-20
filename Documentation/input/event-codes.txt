@@ -229,7 +229,7 @@ such device to feedback.
 EV_PWR:
 ----------
 EV_PWR events are a special type of event used specifically for power
-mangement. Its usage is not well defined. To be addressed later.
+management. Its usage is not well defined. To be addressed later.
 
 Device properties:
 =================
@@ -293,6 +293,12 @@ If INPUT_PROP_TOPBUTTONPAD is set, userspace should emulate buttons
 accordingly. This property does not affect kernel behavior.
 The kernel does not provide button emulation for such devices but treats
 them as any other INPUT_PROP_BUTTONPAD device.
+
+INPUT_PROP_ACCELEROMETER
+-------------------------
+Directional axes on this device (absolute and/or relative x, y, z) represent
+accelerometer data. All other axes retain their meaning. A device must not mix
+regular directional axes and accelerometer axes on the same event node.
 
 Guidelines:
 ==========

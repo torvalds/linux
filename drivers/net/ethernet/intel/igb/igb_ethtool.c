@@ -127,10 +127,20 @@ static const struct igb_stats igb_gstrings_net_stats[] = {
 #define IGB_STATS_LEN \
 	(IGB_GLOBAL_STATS_LEN + IGB_NETDEV_STATS_LEN + IGB_QUEUE_STATS_LEN)
 
+enum igb_diagnostics_results {
+	TEST_REG = 0,
+	TEST_EEP,
+	TEST_IRQ,
+	TEST_LOOP,
+	TEST_LINK
+};
+
 static const char igb_gstrings_test[][ETH_GSTRING_LEN] = {
-	"Register test  (offline)", "Eeprom test    (offline)",
-	"Interrupt test (offline)", "Loopback test  (offline)",
-	"Link test   (on/offline)"
+	[TEST_REG]  = "Register test  (offline)",
+	[TEST_EEP]  = "Eeprom test    (offline)",
+	[TEST_IRQ]  = "Interrupt test (offline)",
+	[TEST_LOOP] = "Loopback test  (offline)",
+	[TEST_LINK] = "Link test   (on/offline)"
 };
 #define IGB_TEST_LEN (sizeof(igb_gstrings_test) / ETH_GSTRING_LEN)
 
@@ -842,10 +852,6 @@ static void igb_get_drvinfo(struct net_device *netdev,
 		sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
-	drvinfo->n_stats = IGB_STATS_LEN;
-	drvinfo->testinfo_len = IGB_TEST_LEN;
-	drvinfo->regdump_len = igb_get_regs_len(netdev);
-	drvinfo->eedump_len = igb_get_eeprom_len(netdev);
 }
 
 static void igb_get_ringparam(struct net_device *netdev,
@@ -2006,30 +2012,30 @@ static void igb_diag_test(struct net_device *netdev,
 		/* Link test performed before hardware reset so autoneg doesn't
 		 * interfere with test result
 		 */
-		if (igb_link_test(adapter, &data[4]))
+		if (igb_link_test(adapter, &data[TEST_LINK]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		if (if_running)
 			/* indicate we're in test mode */
-			dev_close(netdev);
+			igb_close(netdev);
 		else
 			igb_reset(adapter);
 
-		if (igb_reg_test(adapter, &data[0]))
+		if (igb_reg_test(adapter, &data[TEST_REG]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		igb_reset(adapter);
-		if (igb_eeprom_test(adapter, &data[1]))
+		if (igb_eeprom_test(adapter, &data[TEST_EEP]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		igb_reset(adapter);
-		if (igb_intr_test(adapter, &data[2]))
+		if (igb_intr_test(adapter, &data[TEST_IRQ]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		igb_reset(adapter);
 		/* power up link for loopback test */
 		igb_power_up_link(adapter);
-		if (igb_loopback_test(adapter, &data[3]))
+		if (igb_loopback_test(adapter, &data[TEST_LOOP]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		/* restore speed, duplex, autoneg settings */
@@ -2044,21 +2050,21 @@ static void igb_diag_test(struct net_device *netdev,
 
 		clear_bit(__IGB_TESTING, &adapter->state);
 		if (if_running)
-			dev_open(netdev);
+			igb_open(netdev);
 	} else {
 		dev_info(&adapter->pdev->dev, "online testing starting\n");
 
 		/* PHY is powered down when interface is down */
-		if (if_running && igb_link_test(adapter, &data[4]))
+		if (if_running && igb_link_test(adapter, &data[TEST_LINK]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 		else
-			data[4] = 0;
+			data[TEST_LINK] = 0;
 
 		/* Online tests aren't run; pass by default */
-		data[0] = 0;
-		data[1] = 0;
-		data[2] = 0;
-		data[3] = 0;
+		data[TEST_REG] = 0;
+		data[TEST_EEP] = 0;
+		data[TEST_IRQ] = 0;
+		data[TEST_LOOP] = 0;
 
 		clear_bit(__IGB_TESTING, &adapter->state);
 	}
@@ -2158,6 +2164,27 @@ static int igb_set_coalesce(struct net_device *netdev,
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	int i;
+
+	if (ec->rx_max_coalesced_frames ||
+	    ec->rx_coalesce_usecs_irq ||
+	    ec->rx_max_coalesced_frames_irq ||
+	    ec->tx_max_coalesced_frames ||
+	    ec->tx_coalesce_usecs_irq ||
+	    ec->stats_block_coalesce_usecs ||
+	    ec->use_adaptive_rx_coalesce ||
+	    ec->use_adaptive_tx_coalesce ||
+	    ec->pkt_rate_low ||
+	    ec->rx_coalesce_usecs_low ||
+	    ec->rx_max_coalesced_frames_low ||
+	    ec->tx_coalesce_usecs_low ||
+	    ec->tx_max_coalesced_frames_low ||
+	    ec->pkt_rate_high ||
+	    ec->rx_coalesce_usecs_high ||
+	    ec->rx_max_coalesced_frames_high ||
+	    ec->tx_coalesce_usecs_high ||
+	    ec->tx_max_coalesced_frames_high ||
+	    ec->rate_sample_interval)
+		return -ENOTSUPP;
 
 	if ((ec->rx_coalesce_usecs > IGB_MAX_ITR_USECS) ||
 	    ((ec->rx_coalesce_usecs > 3) &&
@@ -2396,10 +2423,6 @@ static int igb_get_ts_info(struct net_device *dev,
 			info->rx_filters |=
 				(1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
 				(1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
-				(1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
-				(1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
-				(1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
-				(1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
 				(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
 
 		return 0;
@@ -2675,6 +2698,7 @@ static int igb_set_eee(struct net_device *netdev,
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	struct ethtool_eee eee_curr;
+	bool adv1g_eee = true, adv100m_eee = true;
 	s32 ret_val;
 
 	if ((hw->mac.type < e1000_i350) ||
@@ -2701,12 +2725,14 @@ static int igb_set_eee(struct net_device *netdev,
 			return -EINVAL;
 		}
 
-		if (edata->advertised &
-		    ~(ADVERTISE_100_FULL | ADVERTISE_1000_FULL)) {
+		if (!edata->advertised || (edata->advertised &
+		    ~(ADVERTISE_100_FULL | ADVERTISE_1000_FULL))) {
 			dev_err(&adapter->pdev->dev,
-				"EEE Advertisement supports only 100Tx and or 100T full duplex\n");
+				"EEE Advertisement supports only 100Tx and/or 100T full duplex\n");
 			return -EINVAL;
 		}
+		adv100m_eee = !!(edata->advertised & ADVERTISE_100_FULL);
+		adv1g_eee = !!(edata->advertised & ADVERTISE_1000_FULL);
 
 	} else if (!edata->eee_enabled) {
 		dev_err(&adapter->pdev->dev,
@@ -2718,16 +2744,23 @@ static int igb_set_eee(struct net_device *netdev,
 	if (hw->dev_spec._82575.eee_disable != !edata->eee_enabled) {
 		hw->dev_spec._82575.eee_disable = !edata->eee_enabled;
 		adapter->flags |= IGB_FLAG_EEE;
-		if (hw->mac.type == e1000_i350)
-			igb_set_eee_i350(hw);
-		else
-			igb_set_eee_i354(hw);
 
 		/* reset link */
 		if (netif_running(netdev))
 			igb_reinit_locked(adapter);
 		else
 			igb_reset(adapter);
+	}
+
+	if (hw->mac.type == e1000_i354)
+		ret_val = igb_set_eee_i354(hw, adv1g_eee, adv100m_eee);
+	else
+		ret_val = igb_set_eee_i350(hw, adv1g_eee, adv100m_eee);
+
+	if (ret_val) {
+		dev_err(&adapter->pdev->dev,
+			"Problem setting EEE advertisement options\n");
+		return -EINVAL;
 	}
 
 	return 0;
@@ -2832,11 +2865,16 @@ static u32 igb_get_rxfh_indir_size(struct net_device *netdev)
 	return IGB_RETA_SIZE;
 }
 
-static int igb_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
+static int igb_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
+			u8 *hfunc)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	int i;
 
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+	if (!indir)
+		return 0;
 	for (i = 0; i < IGB_RETA_SIZE; i++)
 		indir[i] = adapter->rss_indir_tbl[i];
 
@@ -2879,12 +2917,19 @@ void igb_write_rss_indir_tbl(struct igb_adapter *adapter)
 }
 
 static int igb_set_rxfh(struct net_device *netdev, const u32 *indir,
-			const u8 *key)
+			const u8 *key, const u8 hfunc)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	int i;
 	u32 num_queues;
+
+	/* We do not allow change in unsupported parameters */
+	if (key ||
+	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+		return -EOPNOTSUPP;
+	if (!indir)
+		return 0;
 
 	num_queues = adapter->rss_queues;
 
@@ -2969,6 +3014,7 @@ static int igb_set_channels(struct net_device *netdev,
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	unsigned int count = ch->combined_count;
+	unsigned int max_combined = 0;
 
 	/* Verify they are not requesting separate vectors */
 	if (!count || ch->rx_count || ch->tx_count)
@@ -2979,11 +3025,13 @@ static int igb_set_channels(struct net_device *netdev,
 		return -EINVAL;
 
 	/* Verify the number of channels doesn't exceed hw limits */
-	if (count > igb_max_channels(adapter))
+	max_combined = igb_max_channels(adapter);
+	if (count > max_combined)
 		return -EINVAL;
 
 	if (count != adapter->rss_queues) {
 		adapter->rss_queues = count;
+		igb_set_flag_queue_pairs(adapter, max_combined);
 
 		/* Hardware has to reinitialize queues and interrupts to
 		 * match the new configuration.

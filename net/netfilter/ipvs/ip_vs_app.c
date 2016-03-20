@@ -75,7 +75,7 @@ static void ip_vs_app_inc_rcu_free(struct rcu_head *head)
  *	Allocate/initialize app incarnation and register it in proto apps.
  */
 static int
-ip_vs_app_inc_new(struct net *net, struct ip_vs_app *app, __u16 proto,
+ip_vs_app_inc_new(struct netns_ipvs *ipvs, struct ip_vs_app *app, __u16 proto,
 		  __u16 port)
 {
 	struct ip_vs_protocol *pp;
@@ -107,7 +107,7 @@ ip_vs_app_inc_new(struct net *net, struct ip_vs_app *app, __u16 proto,
 		}
 	}
 
-	ret = pp->register_app(net, inc);
+	ret = pp->register_app(ipvs, inc);
 	if (ret)
 		goto out;
 
@@ -127,7 +127,7 @@ ip_vs_app_inc_new(struct net *net, struct ip_vs_app *app, __u16 proto,
  *	Release app incarnation
  */
 static void
-ip_vs_app_inc_release(struct net *net, struct ip_vs_app *inc)
+ip_vs_app_inc_release(struct netns_ipvs *ipvs, struct ip_vs_app *inc)
 {
 	struct ip_vs_protocol *pp;
 
@@ -135,7 +135,7 @@ ip_vs_app_inc_release(struct net *net, struct ip_vs_app *inc)
 		return;
 
 	if (pp->unregister_app)
-		pp->unregister_app(net, inc);
+		pp->unregister_app(ipvs, inc);
 
 	IP_VS_DBG(9, "%s App %s:%u unregistered\n",
 		  pp->name, inc->name, ntohs(inc->port));
@@ -175,14 +175,14 @@ void ip_vs_app_inc_put(struct ip_vs_app *inc)
  *	Register an application incarnation in protocol applications
  */
 int
-register_ip_vs_app_inc(struct net *net, struct ip_vs_app *app, __u16 proto,
+register_ip_vs_app_inc(struct netns_ipvs *ipvs, struct ip_vs_app *app, __u16 proto,
 		       __u16 port)
 {
 	int result;
 
 	mutex_lock(&__ip_vs_app_mutex);
 
-	result = ip_vs_app_inc_new(net, app, proto, port);
+	result = ip_vs_app_inc_new(ipvs, app, proto, port);
 
 	mutex_unlock(&__ip_vs_app_mutex);
 
@@ -191,14 +191,10 @@ register_ip_vs_app_inc(struct net *net, struct ip_vs_app *app, __u16 proto,
 
 
 /* Register application for netns */
-struct ip_vs_app *register_ip_vs_app(struct net *net, struct ip_vs_app *app)
+struct ip_vs_app *register_ip_vs_app(struct netns_ipvs *ipvs, struct ip_vs_app *app)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_app *a;
 	int err = 0;
-
-	if (!ipvs)
-		return ERR_PTR(-ENOENT);
 
 	mutex_lock(&__ip_vs_app_mutex);
 
@@ -230,13 +226,9 @@ out_unlock:
  *	We are sure there are no app incarnations attached to services
  *	Caller should use synchronize_rcu() or rcu_barrier()
  */
-void unregister_ip_vs_app(struct net *net, struct ip_vs_app *app)
+void unregister_ip_vs_app(struct netns_ipvs *ipvs, struct ip_vs_app *app)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_app *a, *anxt, *inc, *nxt;
-
-	if (!ipvs)
-		return;
 
 	mutex_lock(&__ip_vs_app_mutex);
 
@@ -244,7 +236,7 @@ void unregister_ip_vs_app(struct net *net, struct ip_vs_app *app)
 		if (app && strcmp(app->name, a->name))
 			continue;
 		list_for_each_entry_safe(inc, nxt, &a->incs_list, a_list) {
-			ip_vs_app_inc_release(net, inc);
+			ip_vs_app_inc_release(ipvs, inc);
 		}
 
 		list_del(&a->a_list);
@@ -611,17 +603,15 @@ static const struct file_operations ip_vs_app_fops = {
 };
 #endif
 
-int __net_init ip_vs_app_net_init(struct net *net)
+int __net_init ip_vs_app_net_init(struct netns_ipvs *ipvs)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
-
 	INIT_LIST_HEAD(&ipvs->app_list);
-	proc_create("ip_vs_app", 0, net->proc_net, &ip_vs_app_fops);
+	proc_create("ip_vs_app", 0, ipvs->net->proc_net, &ip_vs_app_fops);
 	return 0;
 }
 
-void __net_exit ip_vs_app_net_cleanup(struct net *net)
+void __net_exit ip_vs_app_net_cleanup(struct netns_ipvs *ipvs)
 {
-	unregister_ip_vs_app(net, NULL /* all */);
-	remove_proc_entry("ip_vs_app", net->proc_net);
+	unregister_ip_vs_app(ipvs, NULL /* all */);
+	remove_proc_entry("ip_vs_app", ipvs->net->proc_net);
 }

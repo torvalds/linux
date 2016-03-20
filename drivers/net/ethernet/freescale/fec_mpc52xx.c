@@ -1057,7 +1057,7 @@ static int mpc52xx_fec_of_resume(struct platform_device *op)
 }
 #endif
 
-static struct of_device_id mpc52xx_fec_match[] = {
+static const struct of_device_id mpc52xx_fec_match[] = {
 	{ .compatible = "fsl,mpc5200b-fec", },
 	{ .compatible = "fsl,mpc5200-fec", },
 	{ .compatible = "mpc5200-fec", },
@@ -1069,7 +1069,6 @@ MODULE_DEVICE_TABLE(of, mpc52xx_fec_match);
 static struct platform_driver mpc52xx_fec_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = mpc52xx_fec_match,
 	},
 	.probe		= mpc52xx_fec_probe,
@@ -1085,27 +1084,23 @@ static struct platform_driver mpc52xx_fec_driver = {
 /* Module                                                                   */
 /* ======================================================================== */
 
+static struct platform_driver * const drivers[] = {
+#ifdef CONFIG_FEC_MPC52xx_MDIO
+	&mpc52xx_fec_mdio_driver,
+#endif
+	&mpc52xx_fec_driver,
+};
+
 static int __init
 mpc52xx_fec_init(void)
 {
-#ifdef CONFIG_FEC_MPC52xx_MDIO
-	int ret;
-	ret = platform_driver_register(&mpc52xx_fec_mdio_driver);
-	if (ret) {
-		pr_err("failed to register mdio driver\n");
-		return ret;
-	}
-#endif
-	return platform_driver_register(&mpc52xx_fec_driver);
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 static void __exit
 mpc52xx_fec_exit(void)
 {
-	platform_driver_unregister(&mpc52xx_fec_driver);
-#ifdef CONFIG_FEC_MPC52xx_MDIO
-	platform_driver_unregister(&mpc52xx_fec_mdio_driver);
-#endif
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 

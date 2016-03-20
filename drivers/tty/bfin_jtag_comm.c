@@ -77,7 +77,6 @@ bfin_jc_emudat_manager(void *arg)
 			pr_debug("waiting for readers\n");
 			__set_current_state(TASK_UNINTERRUPTIBLE);
 			schedule();
-			__set_current_state(TASK_RUNNING);
 			continue;
 		}
 
@@ -211,18 +210,6 @@ bfin_jc_chars_in_buffer(struct tty_struct *tty)
 	return circ_cnt(&bfin_jc_write_buf);
 }
 
-static void
-bfin_jc_wait_until_sent(struct tty_struct *tty, int timeout)
-{
-	unsigned long expire = jiffies + timeout;
-	while (!circ_empty(&bfin_jc_write_buf)) {
-		if (signal_pending(current))
-			break;
-		if (time_after(jiffies, expire))
-			break;
-	}
-}
-
 static const struct tty_operations bfin_jc_ops = {
 	.open            = bfin_jc_open,
 	.close           = bfin_jc_close,
@@ -231,7 +218,6 @@ static const struct tty_operations bfin_jc_ops = {
 	.flush_chars     = bfin_jc_flush_chars,
 	.write_room      = bfin_jc_write_room,
 	.chars_in_buffer = bfin_jc_chars_in_buffer,
-	.wait_until_sent = bfin_jc_wait_until_sent,
 };
 
 static int __init bfin_jc_init(void)

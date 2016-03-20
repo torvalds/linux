@@ -18,30 +18,16 @@
 
 #define FUDGE 2
 
-/* Calculate the modulo of a 64 bit TSF snapshot with a TU divisor */
-static u32 ath9k_mod_tsf64_tu(u64 tsf, u32 div_tu)
-{
-	u32 tsf_mod, tsf_hi, tsf_lo, mod_hi, mod_lo;
-
-	tsf_mod = tsf & (BIT(10) - 1);
-	tsf_hi = tsf >> 32;
-	tsf_lo = ((u32) tsf) >> 10;
-
-	mod_hi = tsf_hi % div_tu;
-	mod_lo = ((mod_hi << 22) + tsf_lo) % div_tu;
-
-	return (mod_lo << 10) | tsf_mod;
-}
-
 static u32 ath9k_get_next_tbtt(struct ath_hw *ah, u64 tsf,
 			       unsigned int interval)
 {
-	unsigned int offset;
+	unsigned int offset, divisor;
 
 	tsf += TU_TO_USEC(FUDGE + ah->config.sw_beacon_response_time);
-	offset = ath9k_mod_tsf64_tu(tsf, interval);
+	divisor = TU_TO_USEC(interval);
+	div_u64_rem(tsf, divisor, &offset);
 
-	return (u32) tsf + TU_TO_USEC(interval) - offset;
+	return (u32) tsf + divisor - offset;
 }
 
 /*
@@ -57,7 +43,7 @@ int ath9k_cmn_beacon_config_sta(struct ath_hw *ah,
 				 struct ath9k_beacon_state *bs)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	int dtim_intval, sleepduration;
+	int dtim_intval;
 	u64 tsf;
 
 	/* No need to configure beacon if we are not associated */
@@ -75,7 +61,6 @@ int ath9k_cmn_beacon_config_sta(struct ath_hw *ah,
 	 * last beacon we received (which may be none).
 	 */
 	dtim_intval = conf->intval * conf->dtim_period;
-	sleepduration = ah->hw->conf.listen_interval * conf->intval;
 
 	/*
 	 * Pull nexttbtt forward to reflect the current
@@ -113,7 +98,7 @@ int ath9k_cmn_beacon_config_sta(struct ath_hw *ah,
 	 */
 
 	bs->bs_sleepduration = TU_TO_USEC(roundup(IEEE80211_MS_TO_TU(100),
-						  sleepduration));
+						  conf->intval));
 	if (bs->bs_sleepduration > bs->bs_dtimperiod)
 		bs->bs_sleepduration = bs->bs_dtimperiod;
 

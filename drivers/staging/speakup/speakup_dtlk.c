@@ -15,10 +15,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  * specificly written as a driver for the speakup screenreview
  * package it's not a general device driver.
  * This driver is for the RC Systems DoubleTalk PC internal synthesizer.
@@ -174,6 +170,7 @@ static inline bool synth_full(void)
 static void spk_out(const char ch)
 {
 	int timeout = SPK_XMITR_TIMEOUT;
+
 	while (!synth_writable()) {
 		if (!--timeout)
 			break;
@@ -230,7 +227,7 @@ static void do_catch_up(struct spk_synth *synth)
 		if (ch == '\n')
 			ch = PROCSPEECH;
 		spk_out(ch);
-		if ((jiffies >= jiff_max) && (ch == SPACE)) {
+		if (time_after_eq(jiffies, jiff_max) && (ch == SPACE)) {
 			spk_out(PROCSPEECH);
 			spin_lock_irqsave(&speakup_info.spinlock, flags);
 			delay_time_val = delay_time->u.n.value;
@@ -246,6 +243,7 @@ static void do_catch_up(struct spk_synth *synth)
 static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 {
 	u_char ch;
+
 	while ((ch = (u_char)*buf)) {
 		if (synth_full())
 			return buf;
@@ -267,6 +265,7 @@ static void synth_flush(struct spk_synth *synth)
 static char synth_read_tts(void)
 {
 	u_char ch;
+
 	while (!synth_readable())
 		cpu_relax();
 	ch = synth_status & 0x7f;
@@ -283,6 +282,7 @@ static struct synth_settings *synth_interrogate(struct spk_synth *synth)
 	static char buf[sizeof(struct synth_settings) + 1];
 	int total, i;
 	static struct synth_settings status;
+
 	synth_immediate(synth, "\x18\x01?");
 	for (total = 0, i = 0; i < 50; i++) {
 		buf[total] = synth_read_tts();
@@ -321,9 +321,10 @@ static struct synth_settings *synth_interrogate(struct spk_synth *synth)
 
 static int synth_probe(struct spk_synth *synth)
 {
-		unsigned int port_val = 0;
+	unsigned int port_val = 0;
 	int i = 0;
 	struct synth_settings *sp;
+
 	pr_info("Probing for DoubleTalk.\n");
 	if (port_forced) {
 		speakup_info.port_tts = port_forced;
@@ -356,7 +357,8 @@ static int synth_probe(struct spk_synth *synth)
 	port_val &= 0xfbff;
 	if (port_val != 0x107f) {
 		pr_info("DoubleTalk PC: not found\n");
-		synth_release_region(synth_lpc, SYNTH_IO_EXTENT);
+		if (synth_lpc)
+			synth_release_region(synth_lpc, SYNTH_IO_EXTENT);
 		return -ENODEV;
 	}
 	while (inw_p(synth_lpc) != 0x147f)
@@ -364,7 +366,7 @@ static int synth_probe(struct spk_synth *synth)
 	sp = synth_interrogate(synth);
 	pr_info("%s: %03x-%03x, ROM ver %s, s/n %u, driver: %s\n",
 		synth->long_name, synth_lpc, synth_lpc+SYNTH_IO_EXTENT - 1,
-	 sp->rom_version, sp->serial_number, synth->version);
+		sp->rom_version, sp->serial_number, synth->version);
 	synth->alive = 1;
 	return 0;
 }
@@ -382,18 +384,8 @@ module_param_named(start, synth_dtlk.startup, short, S_IRUGO);
 MODULE_PARM_DESC(port, "Set the port for the synthesizer (override probing).");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
-static int __init dtlk_init(void)
-{
-	return synth_add(&synth_dtlk);
-}
+module_spk_synth(synth_dtlk);
 
-static void __exit dtlk_exit(void)
-{
-	synth_remove(&synth_dtlk);
-}
-
-module_init(dtlk_init);
-module_exit(dtlk_exit);
 MODULE_AUTHOR("Kirk Reiser <kirk@braille.uwo.ca>");
 MODULE_AUTHOR("David Borowski");
 MODULE_DESCRIPTION("Speakup support for DoubleTalk PC synthesizers");

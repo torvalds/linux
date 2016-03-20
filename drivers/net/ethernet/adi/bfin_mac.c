@@ -380,9 +380,8 @@ static void bfin_mac_adjust_link(struct net_device *dev)
 static int mii_probe(struct net_device *dev, int phy_mode)
 {
 	struct bfin_mac_local *lp = netdev_priv(dev);
-	struct phy_device *phydev = NULL;
+	struct phy_device *phydev;
 	unsigned short sysctl;
-	int i;
 	u32 sclk, mdc_div;
 
 	/* Enable PHY output early */
@@ -396,18 +395,7 @@ static int mii_probe(struct net_device *dev, int phy_mode)
 	sysctl = (sysctl & ~MDCDIV) | SET_MDCDIV(mdc_div);
 	bfin_write_EMAC_SYSCTL(sysctl);
 
-	/* search for connected PHY device */
-	for (i = 0; i < PHY_MAX_ADDR; ++i) {
-		struct phy_device *const tmp_phydev = lp->mii_bus->phy_map[i];
-
-		if (!tmp_phydev)
-			continue; /* no PHY here... */
-
-		phydev = tmp_phydev;
-		break; /* found it */
-	}
-
-	/* now we are supposed to have a proper phydev, to attach to... */
+	phydev = phy_find_first(lp->mii_bus);
 	if (!phydev) {
 		netdev_err(dev, "no phy device found\n");
 		return -ENODEV;
@@ -419,7 +407,7 @@ static int mii_probe(struct net_device *dev, int phy_mode)
 		return -EINVAL;
 	}
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev),
+	phydev = phy_connect(dev, phydev_name(phydev),
 			     &bfin_mac_adjust_link, phy_mode);
 
 	if (IS_ERR(phydev)) {
@@ -444,10 +432,8 @@ static int mii_probe(struct net_device *dev, int phy_mode)
 	lp->old_duplex = -1;
 	lp->phydev = phydev;
 
-	pr_info("attached PHY driver [%s] "
-	        "(mii_bus:phy_addr=%s, irq=%d, mdc_clk=%dHz(mdc_div=%d)@sclk=%dMHz)\n",
-	        phydev->drv->name, dev_name(&phydev->dev), phydev->irq,
-	        MDC_CLK, mdc_div, sclk/1000000);
+	phy_attached_print(phydev, "mdc_clk=%dHz(mdc_div=%d)@sclk=%dMHz)\n",
+			   MDC_CLK, mdc_div, sclk / 1000000);
 
 	return 0;
 }
@@ -983,10 +969,9 @@ static int bfin_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
-static int bfin_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int bfin_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	u64 ns;
-	u32 remainder;
 	unsigned long flags;
 	struct bfin_mac_local *lp =
 		container_of(ptp, struct bfin_mac_local, caps);
@@ -997,21 +982,20 @@ static int bfin_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
 
 	spin_unlock_irqrestore(&lp->phc_lock, flags);
 
-	ts->tv_sec = div_u64_rem(ns, 1000000000, &remainder);
-	ts->tv_nsec = remainder;
+	*ts = ns_to_timespec64(ns);
+
 	return 0;
 }
 
 static int bfin_ptp_settime(struct ptp_clock_info *ptp,
-			   const struct timespec *ts)
+			   const struct timespec64 *ts)
 {
 	u64 ns;
 	unsigned long flags;
 	struct bfin_mac_local *lp =
 		container_of(ptp, struct bfin_mac_local, caps);
 
-	ns = ts->tv_sec * 1000000000ULL;
-	ns += ts->tv_nsec;
+	ns = timespec64_to_ns(ts);
 
 	spin_lock_irqsave(&lp->phc_lock, flags);
 
@@ -1039,8 +1023,8 @@ static struct ptp_clock_info bfin_ptp_caps = {
 	.pps		= 0,
 	.adjfreq	= bfin_ptp_adjfreq,
 	.adjtime	= bfin_ptp_adjtime,
-	.gettime	= bfin_ptp_gettime,
-	.settime	= bfin_ptp_settime,
+	.gettime64	= bfin_ptp_gettime,
+	.settime64	= bfin_ptp_settime,
 	.enable		= bfin_ptp_enable,
 };
 
@@ -1692,9 +1676,6 @@ static int bfin_mac_probe(struct platform_device *pdev)
 	lp->vlan1_mask = ETH_P_8021Q | mii_bus_data->vlan1_mask;
 	lp->vlan2_mask = ETH_P_8021Q | mii_bus_data->vlan2_mask;
 
-	/* Fill in the fields of the device structure with ethernet values. */
-	ether_setup(ndev);
-
 	ndev->netdev_ops = &bfin_mac_netdev_ops;
 	ndev->ethtool_ops = &bfin_mac_ethtool_ops;
 
@@ -1845,12 +1826,6 @@ static int bfin_mii_bus_probe(struct platform_device *pdev)
 
 	snprintf(miibus->id, MII_BUS_ID_SIZE, "%s-%x",
 		pdev->name, pdev->id);
-	miibus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
-	if (!miibus->irq)
-		goto out_err_irq_alloc;
-
-	for (i = rc; i < PHY_MAX_ADDR; ++i)
-		miibus->irq[i] = PHY_POLL;
 
 	rc = clamp(mii_bus_pd->phydev_number, 0, PHY_MAX_ADDR);
 	if (rc != mii_bus_pd->phydev_number)
@@ -1869,14 +1844,12 @@ static int bfin_mii_bus_probe(struct platform_device *pdev)
 	rc = mdiobus_register(miibus);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot register MDIO bus!\n");
-		goto out_err_mdiobus_register;
+		goto out_err_irq_alloc;
 	}
 
 	platform_set_drvdata(pdev, miibus);
 	return 0;
 
-out_err_mdiobus_register:
-	kfree(miibus->irq);
 out_err_irq_alloc:
 	mdiobus_free(miibus);
 out_err_alloc:
@@ -1892,7 +1865,6 @@ static int bfin_mii_bus_remove(struct platform_device *pdev)
 		dev_get_platdata(&pdev->dev);
 
 	mdiobus_unregister(miibus);
-	kfree(miibus->irq);
 	mdiobus_free(miibus);
 	peripheral_free_list(mii_bus_pd->mac_peripherals);
 
@@ -1904,7 +1876,6 @@ static struct platform_driver bfin_mii_bus_driver = {
 	.remove = bfin_mii_bus_remove,
 	.driver = {
 		.name = "bfin_mii_bus",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -1915,25 +1886,24 @@ static struct platform_driver bfin_mac_driver = {
 	.suspend = bfin_mac_suspend,
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
 	},
+};
+
+static struct platform_driver * const drivers[] = {
+	&bfin_mii_bus_driver,
+	&bfin_mac_driver,
 };
 
 static int __init bfin_mac_init(void)
 {
-	int ret;
-	ret = platform_driver_register(&bfin_mii_bus_driver);
-	if (!ret)
-		return platform_driver_register(&bfin_mac_driver);
-	return -ENODEV;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 module_init(bfin_mac_init);
 
 static void __exit bfin_mac_cleanup(void)
 {
-	platform_driver_unregister(&bfin_mac_driver);
-	platform_driver_unregister(&bfin_mii_bus_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 module_exit(bfin_mac_cleanup);

@@ -15,12 +15,14 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/bitops.h>
 #include <linux/efi.h>
 #include <linux/init.h>
 #include <linux/string.h>
 
 #include <xen/xen-ops.h>
 
+#include <asm/page.h>
 #include <asm/setup.h>
 
 void __init xen_efi_init(void)

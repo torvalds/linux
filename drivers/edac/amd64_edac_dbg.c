@@ -40,34 +40,15 @@ static DEVICE_ATTR(topmem, S_IRUGO, amd64_top_mem_show, NULL);
 static DEVICE_ATTR(topmem2, S_IRUGO, amd64_top_mem2_show, NULL);
 static DEVICE_ATTR(dram_hole, S_IRUGO, amd64_hole_show, NULL);
 
-int amd64_create_sysfs_dbg_files(struct mem_ctl_info *mci)
-{
-	int rc;
+static struct attribute *amd64_edac_dbg_attrs[] = {
+	&dev_attr_dhar.attr,
+	&dev_attr_dbam.attr,
+	&dev_attr_topmem.attr,
+	&dev_attr_topmem2.attr,
+	&dev_attr_dram_hole.attr,
+	NULL
+};
 
-	rc = device_create_file(&mci->dev, &dev_attr_dhar);
-	if (rc < 0)
-		return rc;
-	rc = device_create_file(&mci->dev, &dev_attr_dbam);
-	if (rc < 0)
-		return rc;
-	rc = device_create_file(&mci->dev, &dev_attr_topmem);
-	if (rc < 0)
-		return rc;
-	rc = device_create_file(&mci->dev, &dev_attr_topmem2);
-	if (rc < 0)
-		return rc;
-	rc = device_create_file(&mci->dev, &dev_attr_dram_hole);
-	if (rc < 0)
-		return rc;
-
-	return 0;
-}
-
-void amd64_remove_sysfs_dbg_files(struct mem_ctl_info *mci)
-{
-	device_remove_file(&mci->dev, &dev_attr_dhar);
-	device_remove_file(&mci->dev, &dev_attr_dbam);
-	device_remove_file(&mci->dev, &dev_attr_topmem);
-	device_remove_file(&mci->dev, &dev_attr_topmem2);
-	device_remove_file(&mci->dev, &dev_attr_dram_hole);
-}
+const struct attribute_group amd64_edac_dbg_group = {
+	.attrs = amd64_edac_dbg_attrs,
+};

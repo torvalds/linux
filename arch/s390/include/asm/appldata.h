@@ -7,29 +7,8 @@
 #ifndef _ASM_S390_APPLDATA_H
 #define _ASM_S390_APPLDATA_H
 
+#include <asm/diag.h>
 #include <asm/io.h>
-
-#ifndef CONFIG_64BIT
-
-#define APPLDATA_START_INTERVAL_REC	0x00	/* Function codes for */
-#define APPLDATA_STOP_REC		0x01	/* DIAG 0xDC	      */
-#define APPLDATA_GEN_EVENT_REC		0x02
-#define APPLDATA_START_CONFIG_REC	0x03
-
-/*
- * Parameter list for DIAGNOSE X'DC'
- */
-struct appldata_parameter_list {
-	u16 diag;		/* The DIAGNOSE code X'00DC'	      */
-	u8  function;		/* The function code for the DIAGNOSE */
-	u8  parlist_length;	/* Length of the parameter list       */
-	u32 product_id_addr;	/* Address of the 16-byte product ID  */
-	u16 reserved;
-	u16 buffer_length;	/* Length of the application data buffer  */
-	u32 buffer_addr;	/* Address of the application data buffer */
-} __attribute__ ((packed));
-
-#else /* CONFIG_64BIT */
 
 #define APPLDATA_START_INTERVAL_REC	0x80
 #define APPLDATA_STOP_REC		0x81
@@ -50,8 +29,6 @@ struct appldata_parameter_list {
 	u64 product_id_addr;
 	u64 buffer_addr;
 } __attribute__ ((packed));
-
-#endif /* CONFIG_64BIT */
 
 struct appldata_product_id {
 	char prod_nr[7];	/* product number */
@@ -77,6 +54,7 @@ static inline int appldata_asm(struct appldata_product_id *id,
 	parm_list.buffer_length = length;
 	parm_list.product_id_addr = (unsigned long) id;
 	parm_list.buffer_addr = virt_to_phys(buffer);
+	diag_stat_inc(DIAG_STAT_X0DC);
 	asm volatile(
 		"	diag	%1,%0,0xdc"
 		: "=d" (ry)

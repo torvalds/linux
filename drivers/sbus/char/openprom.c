@@ -390,16 +390,9 @@ static int copyin_string(char __user *user, size_t len, char **ptr)
 	if ((ssize_t)len < 0 || (ssize_t)(len + 1) < 0)
 		return -EINVAL;
 
-	tmp = kmalloc(len + 1, GFP_KERNEL);
-	if (!tmp)
-		return -ENOMEM;
-
-	if (copy_from_user(tmp, user, len)) {
-		kfree(tmp);
-		return -EFAULT;
-	}
-
-	tmp[len] = '\0';
+	tmp = memdup_user_nul(user, len);
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
 
 	*ptr = tmp;
 

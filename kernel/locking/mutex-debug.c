@@ -80,13 +80,13 @@ void debug_mutex_unlock(struct mutex *lock)
 			DEBUG_LOCKS_WARN_ON(lock->owner != current);
 
 		DEBUG_LOCKS_WARN_ON(!lock->wait_list.prev && !lock->wait_list.next);
-		mutex_clear_owner(lock);
 	}
 
 	/*
 	 * __mutex_slowpath_needs_to_unlock() is explicitly 0 for debug
 	 * mutexes so that we can do it here after we've verified state.
 	 */
+	mutex_clear_owner(lock);
 	atomic_set(&lock->count, 1);
 }
 

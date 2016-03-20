@@ -41,6 +41,19 @@ config STE_MODEM_RPROC
 	  This can be either built-in or a loadable module.
 	  If unsure say N.
 
+config WKUP_M3_RPROC
+	tristate "AMx3xx Wakeup M3 remoteproc support"
+	depends on SOC_AM33XX || SOC_AM43XX
+	select REMOTEPROC
+	help
+	  Say y here to support Wakeup M3 remote processor on TI AM33xx
+	  and AM43xx family of SoCs.
+
+	  Required for Suspend-to-RAM on AM33xx and AM43xx SoCs. Also needed
+	  for deep CPUIdle states on AM33xx SoCs. Allows for loading of the
+	  firmware onto these remote processors.
+	  If unsure say N.
+
 config DA8XX_REMOTEPROC
 	tristate "DA8xx/OMAP-L13x remoteproc support"
 	depends on ARCH_DAVINCI_DA8XX
@@ -63,5 +76,14 @@ config DA8XX_REMOTEPROC
 
 	  It's safe to say n here if you're not interested in multimedia
 	  offloading.
+
+config ST_REMOTEPROC
+	tristate "ST remoteproc support"
+	depends on ARCH_STI
+	select REMOTEPROC
+	help
+	  Say y here to support ST's adjunct processors via the remote
+	  processor framework.
+	  This can be either built-in or a loadable module.
 
 endmenu

@@ -116,12 +116,12 @@ static unsigned int max_task_bp_pinned(int cpu, enum bp_type_idx type)
  */
 static int task_bp_pinned(int cpu, struct perf_event *bp, enum bp_type_idx type)
 {
-	struct task_struct *tsk = bp->hw.bp_target;
+	struct task_struct *tsk = bp->hw.target;
 	struct perf_event *iter;
 	int count = 0;
 
 	list_for_each_entry(iter, &bp_task_head, hw.bp_list) {
-		if (iter->hw.bp_target == tsk &&
+		if (iter->hw.target == tsk &&
 		    find_slot_idx(iter) == type &&
 		    (iter->cpu < 0 || cpu == iter->cpu))
 			count += hw_breakpoint_weight(iter);
@@ -153,7 +153,7 @@ fetch_bp_busy_slots(struct bp_busy_slots *slots, struct perf_event *bp,
 		int nr;
 
 		nr = info->cpu_pinned;
-		if (!bp->hw.bp_target)
+		if (!bp->hw.target)
 			nr += max_task_bp_pinned(cpu, type);
 		else
 			nr += task_bp_pinned(cpu, bp, type);
@@ -210,7 +210,7 @@ toggle_bp_slot(struct perf_event *bp, bool enable, enum bp_type_idx type,
 		weight = -weight;
 
 	/* Pinned counter cpu profiling */
-	if (!bp->hw.bp_target) {
+	if (!bp->hw.target) {
 		get_bp_info(bp->cpu, type)->cpu_pinned += weight;
 		return;
 	}
@@ -444,7 +444,7 @@ int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *att
 	 * current task.
 	 */
 	if (irqs_disabled() && bp->ctx && bp->ctx->task == current)
-		__perf_event_disable(bp);
+		perf_event_disable_local(bp);
 	else
 		perf_event_disable(bp);
 
@@ -605,11 +605,6 @@ static void hw_breakpoint_stop(struct perf_event *bp, int flags)
 	bp->hw.state = PERF_HES_STOPPED;
 }
 
-static int hw_breakpoint_event_idx(struct perf_event *bp)
-{
-	return 0;
-}
-
 static struct pmu perf_breakpoint = {
 	.task_ctx_nr	= perf_sw_context, /* could eventually get its own */
 
@@ -619,8 +614,6 @@ static struct pmu perf_breakpoint = {
 	.start		= hw_breakpoint_start,
 	.stop		= hw_breakpoint_stop,
 	.read		= hw_breakpoint_pmu_read,
-
-	.event_idx	= hw_breakpoint_event_idx,
 };
 
 int __init init_hw_breakpoint(void)

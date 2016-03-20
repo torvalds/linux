@@ -202,10 +202,9 @@ static int ca91cx42_irq_init(struct vme_bridge *ca91cx42_bridge)
 	bridge = ca91cx42_bridge->driver_priv;
 
 	/* Need pdev */
-	pdev = container_of(ca91cx42_bridge->parent, struct pci_dev, dev);
+	pdev = to_pci_dev(ca91cx42_bridge->parent);
 
-	/* Initialise list for VME bus errors */
-	INIT_LIST_HEAD(&ca91cx42_bridge->vme_errors);
+	INIT_LIST_HEAD(&ca91cx42_bridge->vme_error_handlers);
 
 	mutex_init(&ca91cx42_bridge->irq_mtx);
 
@@ -294,8 +293,7 @@ static void ca91cx42_irq_set(struct vme_bridge *ca91cx42_bridge, int level,
 	iowrite32(tmp, bridge->base + LINT_EN);
 
 	if ((state == 0) && (sync != 0)) {
-		pdev = container_of(ca91cx42_bridge->parent, struct pci_dev,
-			dev);
+		pdev = to_pci_dev(ca91cx42_bridge->parent);
 
 		synchronize_irq(pdev->irq);
 	}
@@ -519,7 +517,7 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 		dev_err(ca91cx42_bridge->parent, "Dev entry NULL\n");
 		return -EINVAL;
 	}
-	pdev = container_of(ca91cx42_bridge->parent, struct pci_dev, dev);
+	pdev = to_pci_dev(ca91cx42_bridge->parent);
 
 	existing_size = (unsigned long long)(image->bus_resource.end -
 		image->bus_resource.start);
@@ -554,7 +552,7 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 	image->bus_resource.flags = IORESOURCE_MEM;
 
 	retval = pci_bus_alloc_resource(pdev->bus,
-		&image->bus_resource, size, size, PCIBIOS_MIN_MEM,
+		&image->bus_resource, size, 0x10000, PCIBIOS_MIN_MEM,
 		0, NULL, NULL);
 	if (retval) {
 		dev_err(ca91cx42_bridge->parent, "Failed to allocate mem "
@@ -1192,7 +1190,7 @@ static int ca91cx42_dma_list_exec(struct vme_dma_list *list)
 {
 	struct vme_dma_resource *ctrlr;
 	struct ca91cx42_dma_entry *entry;
-	int retval = 0;
+	int retval;
 	dma_addr_t bus_addr;
 	u32 val;
 	struct device *dev;
@@ -1245,8 +1243,18 @@ static int ca91cx42_dma_list_exec(struct vme_dma_list *list)
 
 	iowrite32(val, bridge->base + DGCS);
 
-	wait_event_interruptible(bridge->dma_queue,
-		ca91cx42_dma_busy(ctrlr->parent));
+	retval = wait_event_interruptible(bridge->dma_queue,
+					  ca91cx42_dma_busy(ctrlr->parent));
+
+	if (retval) {
+		val = ioread32(bridge->base + DGCS);
+		iowrite32(val | CA91CX42_DGCS_STOP_REQ, bridge->base + DGCS);
+		/* Wait for the operation to abort */
+		wait_event(bridge->dma_queue,
+			   ca91cx42_dma_busy(ctrlr->parent));
+		retval = -EINTR;
+		goto exit;
+	}
 
 	/*
 	 * Read status register, this register is valid until we kick off a
@@ -1259,8 +1267,10 @@ static int ca91cx42_dma_list_exec(struct vme_dma_list *list)
 
 		dev_err(dev, "ca91c042: DMA Error. DGCS=%08X\n", val);
 		val = ioread32(bridge->base + DCTL);
+		retval = -EIO;
 	}
 
+exit:
 	/* Remove list from running list */
 	mutex_lock(&ctrlr->mtx);
 	list_del(&list->list);
@@ -1508,7 +1518,7 @@ static void *ca91cx42_alloc_consistent(struct device *parent, size_t size,
 	struct pci_dev *pdev;
 
 	/* Find pci_dev container of dev */
-	pdev = container_of(parent, struct pci_dev, dev);
+	pdev = to_pci_dev(parent);
 
 	return pci_alloc_consistent(pdev, size, dma);
 }
@@ -1519,7 +1529,7 @@ static void ca91cx42_free_consistent(struct device *parent, size_t size,
 	struct pci_dev *pdev;
 
 	/* Find pci_dev container of dev */
-	pdev = container_of(parent, struct pci_dev, dev);
+	pdev = to_pci_dev(parent);
 
 	pci_free_consistent(pdev, size, vaddr, dma);
 }

@@ -150,7 +150,7 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 
 		veno->diff = (tp->snd_cwnd << V_PARAM_SHIFT) - target_cwnd;
 
-		if (tp->snd_cwnd <= tp->snd_ssthresh) {
+		if (tcp_in_slow_start(tp)) {
 			/* Slow start.  */
 			tcp_slow_start(tp, acked);
 		} else {
@@ -159,7 +159,7 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 				/* In the "non-congestive state", increase cwnd
 				 *  every rtt.
 				 */
-				tcp_cong_avoid_ai(tp, tp->snd_cwnd);
+				tcp_cong_avoid_ai(tp, tp->snd_cwnd, 1);
 			} else {
 				/* In the "congestive state", increase cwnd
 				 * every other rtt.
@@ -175,7 +175,6 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 				} else
 					tp->snd_cwnd_cnt++;
 			}
-
 		}
 		if (tp->snd_cwnd < 2)
 			tp->snd_cwnd = 2;

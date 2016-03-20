@@ -12,7 +12,6 @@
 #include <linux/dmi.h>
 #include <linux/slab.h>
 
-#include <asm-generic/pci-bridge.h>
 #include <asm/acpi.h>
 #include <asm/segment.h>
 #include <asm/io.h>
@@ -81,14 +80,14 @@ struct pci_ops pci_root_ops = {
  */
 DEFINE_RAW_SPINLOCK(pci_config_lock);
 
-static int can_skip_ioresource_align(const struct dmi_system_id *d)
+static int __init can_skip_ioresource_align(const struct dmi_system_id *d)
 {
 	pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
 	printk(KERN_INFO "PCI: %s detected, can skip ISA alignment\n", d->ident);
 	return 0;
 }
 
-static const struct dmi_system_id can_skip_pciprobe_dmi_table[] = {
+static const struct dmi_system_id can_skip_pciprobe_dmi_table[] __initconst = {
 /*
  * Systems where PCI IO resource ISA alignment can be skipped
  * when the ISA enable bit in the bridge control is not set
@@ -186,7 +185,7 @@ void pcibios_remove_bus(struct pci_bus *bus)
  * on the kernel command line (which was parsed earlier).
  */
 
-static int set_bf_sort(const struct dmi_system_id *d)
+static int __init set_bf_sort(const struct dmi_system_id *d)
 {
 	if (pci_bf_sort == pci_bf_sort_default) {
 		pci_bf_sort = pci_dmi_bf;
@@ -195,8 +194,8 @@ static int set_bf_sort(const struct dmi_system_id *d)
 	return 0;
 }
 
-static void read_dmi_type_b1(const struct dmi_header *dm,
-				       void *private_data)
+static void __init read_dmi_type_b1(const struct dmi_header *dm,
+				    void *private_data)
 {
 	u8 *d = (u8 *)dm + 4;
 
@@ -217,7 +216,7 @@ static void read_dmi_type_b1(const struct dmi_header *dm,
 	}
 }
 
-static int find_sort_method(const struct dmi_system_id *d)
+static int __init find_sort_method(const struct dmi_system_id *d)
 {
 	dmi_walk(read_dmi_type_b1, NULL);
 
@@ -232,7 +231,7 @@ static int find_sort_method(const struct dmi_system_id *d)
  * Enable renumbering of PCI bus# ranges to reach all PCI busses (Cardbus)
  */
 #ifdef __i386__
-static int assign_all_busses(const struct dmi_system_id *d)
+static int __init assign_all_busses(const struct dmi_system_id *d)
 {
 	pci_probe |= PCI_ASSIGN_ALL_BUSSES;
 	printk(KERN_INFO "%s detected: enabling PCI bus# renumbering"
@@ -241,7 +240,7 @@ static int assign_all_busses(const struct dmi_system_id *d)
 }
 #endif
 
-static int set_scan_all(const struct dmi_system_id *d)
+static int __init set_scan_all(const struct dmi_system_id *d)
 {
 	printk(KERN_INFO "PCI: %s detected, enabling pci=pcie_scan_all\n",
 	       d->ident);
@@ -249,7 +248,7 @@ static int set_scan_all(const struct dmi_system_id *d)
 	return 0;
 }
 
-static const struct dmi_system_id pciprobe_dmi_table[] = {
+static const struct dmi_system_id pciprobe_dmi_table[] __initconst = {
 #ifdef __i386__
 /*
  * Laptops which need pci=assign-busses to see Cardbus cards
@@ -448,6 +447,22 @@ static const struct dmi_system_id pciprobe_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ftServer"),
 		},
 	},
+        {
+                .callback = set_scan_all,
+                .ident = "Stratus/NEC ftServer",
+                .matches = {
+                        DMI_MATCH(DMI_SYS_VENDOR, "NEC"),
+                        DMI_MATCH(DMI_PRODUCT_NAME, "Express5800/R32"),
+                },
+        },
+        {
+                .callback = set_scan_all,
+                .ident = "Stratus/NEC ftServer",
+                .matches = {
+                        DMI_MATCH(DMI_SYS_VENDOR, "NEC"),
+                        DMI_MATCH(DMI_PRODUCT_NAME, "Express5800/R31"),
+                },
+        },
 	{}
 };
 
@@ -474,7 +489,9 @@ void pcibios_scan_root(int busnum)
 	if (!bus) {
 		pci_free_resource_list(&resources);
 		kfree(sd);
+		return;
 	}
+	pci_bus_add_devices(bus);
 }
 
 void __init pcibios_set_cache_line_size(void)
@@ -512,7 +529,7 @@ int __init pcibios_init(void)
 	return 0;
 }
 
-char * __init pcibios_setup(char *str)
+char *__init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "off")) {
 		pci_probe = 0;
@@ -623,6 +640,43 @@ unsigned int pcibios_assign_all_busses(void)
 	return (pci_probe & PCI_ASSIGN_ALL_BUSSES) ? 1 : 0;
 }
 
+#if defined(CONFIG_X86_DEV_DMA_OPS) && defined(CONFIG_PCI_DOMAINS)
+static LIST_HEAD(dma_domain_list);
+static DEFINE_SPINLOCK(dma_domain_list_lock);
+
+void add_dma_domain(struct dma_domain *domain)
+{
+	spin_lock(&dma_domain_list_lock);
+	list_add(&domain->node, &dma_domain_list);
+	spin_unlock(&dma_domain_list_lock);
+}
+EXPORT_SYMBOL_GPL(add_dma_domain);
+
+void del_dma_domain(struct dma_domain *domain)
+{
+	spin_lock(&dma_domain_list_lock);
+	list_del(&domain->node);
+	spin_unlock(&dma_domain_list_lock);
+}
+EXPORT_SYMBOL_GPL(del_dma_domain);
+
+static void set_dma_domain_ops(struct pci_dev *pdev)
+{
+	struct dma_domain *domain;
+
+	spin_lock(&dma_domain_list_lock);
+	list_for_each_entry(domain, &dma_domain_list, node) {
+		if (pci_domain_nr(pdev->bus) == domain->domain_nr) {
+			pdev->dev.archdata.dma_ops = domain->dma_ops;
+			break;
+		}
+	}
+	spin_unlock(&dma_domain_list_lock);
+}
+#else
+static void set_dma_domain_ops(struct pci_dev *pdev) {}
+#endif
+
 int pcibios_add_device(struct pci_dev *dev)
 {
 	struct setup_data *data;
@@ -652,6 +706,7 @@ int pcibios_add_device(struct pci_dev *dev)
 		pa_data = data->next;
 		iounmap(data);
 	}
+	set_dma_domain_ops(dev);
 	return 0;
 }
 

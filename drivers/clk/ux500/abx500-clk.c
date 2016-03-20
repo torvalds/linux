@@ -13,7 +13,6 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/mfd/abx500/ab8500-sysctrl.h>
-#include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/mfd/dbx500-prcmu.h>
@@ -121,7 +120,6 @@ static int abx500_clk_probe(struct platform_device *pdev)
 static struct platform_driver abx500_clk_driver = {
 	.driver = {
 		.name = "abx500-clk",
-		.owner = THIS_MODULE,
 	},
 	.probe	= abx500_clk_probe,
 };

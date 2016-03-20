@@ -78,11 +78,23 @@
 #define MD_DISK_ACTIVE		1 /* disk is running or spare disk */
 #define MD_DISK_SYNC		2 /* disk is in sync with the raid set */
 #define MD_DISK_REMOVED		3 /* disk is in sync with the raid set */
+#define MD_DISK_CLUSTER_ADD     4 /* Initiate a disk add across the cluster
+				   * For clustered enviroments only.
+				   */
+#define MD_DISK_CANDIDATE	5 /* disk is added as spare (local) until confirmed
+				   * For clustered enviroments only.
+				   */
 
 #define	MD_DISK_WRITEMOSTLY	9 /* disk is "write-mostly" is RAID1 config.
 				   * read requests will only be sent here in
 				   * dire need
 				   */
+#define MD_DISK_JOURNAL		18 /* disk is used as the write journal in RAID-5/6 */
+
+#define MD_DISK_ROLE_SPARE	0xffff
+#define MD_DISK_ROLE_FAULTY	0xfffe
+#define MD_DISK_ROLE_JOURNAL	0xfffd
+#define MD_DISK_ROLE_MAX	0xff00 /* max value of regular disk role */
 
 typedef struct mdp_device_descriptor_s {
 	__u32 number;		/* 0 Device number in the entire set	      */
@@ -101,6 +113,7 @@ typedef struct mdp_device_descriptor_s {
 #define MD_SB_CLEAN		0
 #define MD_SB_ERRORS		1
 
+#define	MD_SB_CLUSTERED		5 /* MD is clustered */
 #define	MD_SB_BITMAP_PRESENT	8 /* bitmap may be present nearby */
 
 /*
@@ -245,7 +258,10 @@ struct mdp_superblock_1 {
 	__le64	data_offset;	/* sector start of data, often 0 */
 	__le64	data_size;	/* sectors in this device that can be used for data */
 	__le64	super_offset;	/* sector start of this superblock */
-	__le64	recovery_offset;/* sectors before this offset (from data_offset) have been recovered */
+	union {
+		__le64	recovery_offset;/* sectors before this offset (from data_offset) have been recovered */
+		__le64	journal_tail;/* journal tail of journal device (from data_offset) */
+	};
 	__le32	dev_number;	/* permanent identifier of this  device - not role in raid */
 	__le32	cnt_corrected_read; /* number of read errors that were corrected by re-writing */
 	__u8	device_uuid[16]; /* user-space setable, ignored by kernel */
@@ -295,6 +311,8 @@ struct mdp_superblock_1 {
 #define	MD_FEATURE_RECOVERY_BITMAP	128 /* recovery that is happening
 					     * is guided by bitmap.
 					     */
+#define MD_FEATURE_CLUSTERED		256 /* clustered MD */
+#define	MD_FEATURE_JOURNAL		512 /* support write cache */
 #define	MD_FEATURE_ALL			(MD_FEATURE_BITMAP_OFFSET	\
 					|MD_FEATURE_RECOVERY_OFFSET	\
 					|MD_FEATURE_RESHAPE_ACTIVE	\
@@ -303,6 +321,66 @@ struct mdp_superblock_1 {
 					|MD_FEATURE_RESHAPE_BACKWARDS	\
 					|MD_FEATURE_NEW_OFFSET		\
 					|MD_FEATURE_RECOVERY_BITMAP	\
+					|MD_FEATURE_CLUSTERED		\
+					|MD_FEATURE_JOURNAL		\
 					)
 
+struct r5l_payload_header {
+	__le16 type;
+	__le16 flags;
+} __attribute__ ((__packed__));
+
+enum r5l_payload_type {
+	R5LOG_PAYLOAD_DATA = 0,
+	R5LOG_PAYLOAD_PARITY = 1,
+	R5LOG_PAYLOAD_FLUSH = 2,
+};
+
+struct r5l_payload_data_parity {
+	struct r5l_payload_header header;
+	__le32 size;		/* sector. data/parity size. each 4k
+				 * has a checksum */
+	__le64 location;	/* sector. For data, it's raid sector. For
+				 * parity, it's stripe sector */
+	__le32 checksum[];
+} __attribute__ ((__packed__));
+
+enum r5l_payload_data_parity_flag {
+	R5LOG_PAYLOAD_FLAG_DISCARD = 1, /* payload is discard */
+	/*
+	 * RESHAPED/RESHAPING is only set when there is reshape activity. Note,
+	 * both data/parity of a stripe should have the same flag set
+	 *
+	 * RESHAPED: reshape is running, and this stripe finished reshape
+	 * RESHAPING: reshape is running, and this stripe isn't reshaped
+	 */
+	R5LOG_PAYLOAD_FLAG_RESHAPED = 2,
+	R5LOG_PAYLOAD_FLAG_RESHAPING = 3,
+};
+
+struct r5l_payload_flush {
+	struct r5l_payload_header header;
+	__le32 size; /* flush_stripes size, bytes */
+	__le64 flush_stripes[];
+} __attribute__ ((__packed__));
+
+enum r5l_payload_flush_flag {
+	R5LOG_PAYLOAD_FLAG_FLUSH_STRIPE = 1, /* data represents whole stripe */
+};
+
+struct r5l_meta_block {
+	__le32 magic;
+	__le32 checksum;
+	__u8 version;
+	__u8 __zero_pading_1;
+	__le16 __zero_pading_2;
+	__le32 meta_size; /* whole size of the block */
+
+	__le64 seq;
+	__le64 position; /* sector, start from rdev->data_offset, current position */
+	struct r5l_payload_header payloads[];
+} __attribute__ ((__packed__));
+
+#define R5LOG_VERSION 0x1
+#define R5LOG_MAGIC 0x6433c509
 #endif

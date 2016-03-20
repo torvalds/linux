@@ -135,6 +135,7 @@ struct host1x_syncpt *host1x_syncpt_get(struct host1x *host, u32 id);
 u32 host1x_syncpt_id(struct host1x_syncpt *sp);
 u32 host1x_syncpt_read_min(struct host1x_syncpt *sp);
 u32 host1x_syncpt_read_max(struct host1x_syncpt *sp);
+u32 host1x_syncpt_read(struct host1x_syncpt *sp);
 int host1x_syncpt_incr(struct host1x_syncpt *sp);
 u32 host1x_syncpt_incr_max(struct host1x_syncpt *sp, u32 incrs);
 int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,
@@ -250,16 +251,28 @@ void host1x_job_unpin(struct host1x_job *job);
 struct host1x_device;
 
 struct host1x_driver {
+	struct device_driver driver;
+
 	const struct of_device_id *subdevs;
 	struct list_head list;
-	const char *name;
 
 	int (*probe)(struct host1x_device *device);
 	int (*remove)(struct host1x_device *device);
+	void (*shutdown)(struct host1x_device *device);
 };
 
-int host1x_driver_register(struct host1x_driver *driver);
+static inline struct host1x_driver *
+to_host1x_driver(struct device_driver *driver)
+{
+	return container_of(driver, struct host1x_driver, driver);
+}
+
+int host1x_driver_register_full(struct host1x_driver *driver,
+				struct module *owner);
 void host1x_driver_unregister(struct host1x_driver *driver);
+
+#define host1x_driver_register(driver) \
+	host1x_driver_register_full(driver, THIS_MODULE)
 
 struct host1x_device {
 	struct host1x_driver *driver;
@@ -272,6 +285,8 @@ struct host1x_device {
 
 	struct mutex clients_lock;
 	struct list_head clients;
+
+	bool registered;
 };
 
 static inline struct host1x_device *to_host1x_device(struct device *dev)

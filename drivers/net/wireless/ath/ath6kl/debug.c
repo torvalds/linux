@@ -37,78 +37,93 @@ struct ath6kl_fwlog_slot {
 
 #define ATH6KL_FWLOG_VALID_MASK 0x1ffff
 
-int ath6kl_printk(const char *level, const char *fmt, ...)
+void ath6kl_printk(const char *level, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
-	int rtn;
 
 	va_start(args, fmt);
 
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	rtn = printk("%sath6kl: %pV", level, &vaf);
+	printk("%sath6kl: %pV", level, &vaf);
 
 	va_end(args);
-
-	return rtn;
 }
 EXPORT_SYMBOL(ath6kl_printk);
 
-int ath6kl_info(const char *fmt, ...)
+void ath6kl_info(const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
 	};
 	va_list args;
-	int ret;
 
 	va_start(args, fmt);
 	vaf.va = &args;
-	ret = ath6kl_printk(KERN_INFO, "%pV", &vaf);
+	ath6kl_printk(KERN_INFO, "%pV", &vaf);
 	trace_ath6kl_log_info(&vaf);
 	va_end(args);
-
-	return ret;
 }
 EXPORT_SYMBOL(ath6kl_info);
 
-int ath6kl_err(const char *fmt, ...)
+void ath6kl_err(const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
 	};
 	va_list args;
-	int ret;
 
 	va_start(args, fmt);
 	vaf.va = &args;
-	ret = ath6kl_printk(KERN_ERR, "%pV", &vaf);
+	ath6kl_printk(KERN_ERR, "%pV", &vaf);
 	trace_ath6kl_log_err(&vaf);
 	va_end(args);
-
-	return ret;
 }
 EXPORT_SYMBOL(ath6kl_err);
 
-int ath6kl_warn(const char *fmt, ...)
+void ath6kl_warn(const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
 	};
 	va_list args;
-	int ret;
 
 	va_start(args, fmt);
 	vaf.va = &args;
-	ret = ath6kl_printk(KERN_WARNING, "%pV", &vaf);
+	ath6kl_printk(KERN_WARNING, "%pV", &vaf);
 	trace_ath6kl_log_warn(&vaf);
 	va_end(args);
-
-	return ret;
 }
 EXPORT_SYMBOL(ath6kl_warn);
+
+int ath6kl_read_tgt_stats(struct ath6kl *ar, struct ath6kl_vif *vif)
+{
+	long left;
+
+	if (down_interruptible(&ar->sem))
+		return -EBUSY;
+
+	set_bit(STATS_UPDATE_PEND, &vif->flags);
+
+	if (ath6kl_wmi_get_stats_cmd(ar->wmi, 0)) {
+		up(&ar->sem);
+		return -EIO;
+	}
+
+	left = wait_event_interruptible_timeout(ar->event_wq,
+						!test_bit(STATS_UPDATE_PEND,
+						&vif->flags), WMI_TIMEOUT);
+
+	up(&ar->sem);
+
+	if (left <= 0)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+EXPORT_SYMBOL(ath6kl_read_tgt_stats);
 
 #ifdef CONFIG_ATH6KL_DEBUG
 
@@ -556,42 +571,24 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 	char *buf;
 	unsigned int len = 0, buf_len = 1500;
 	int i;
-	long left;
 	ssize_t ret_cnt;
+	int rv;
 
 	vif = ath6kl_vif_first(ar);
 	if (!vif)
 		return -EIO;
 
-	tgt_stats = &vif->target_stats;
-
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	if (down_interruptible(&ar->sem)) {
+	rv = ath6kl_read_tgt_stats(ar, vif);
+	if (rv < 0) {
 		kfree(buf);
-		return -EBUSY;
+		return rv;
 	}
 
-	set_bit(STATS_UPDATE_PEND, &vif->flags);
-
-	if (ath6kl_wmi_get_stats_cmd(ar->wmi, 0)) {
-		up(&ar->sem);
-		kfree(buf);
-		return -EIO;
-	}
-
-	left = wait_event_interruptible_timeout(ar->event_wq,
-						!test_bit(STATS_UPDATE_PEND,
-						&vif->flags), WMI_TIMEOUT);
-
-	up(&ar->sem);
-
-	if (left <= 0) {
-		kfree(buf);
-		return -ETIMEDOUT;
-	}
+	tgt_stats = &vif->target_stats;
 
 	len += scnprintf(buf + len, buf_len - len, "\n");
 	len += scnprintf(buf + len, buf_len - len, "%25s\n",

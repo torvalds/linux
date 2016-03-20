@@ -704,8 +704,6 @@ ccio_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
  * ccio_dma_supported - Verify the IOMMU supports the DMA address range.
  * @dev: The PCI device.
  * @mask: A bit mask describing the DMA address range of the device.
- *
- * This function implements the pci_dma_supported function.
  */
 static int 
 ccio_dma_supported(struct device *dev, u64 mask)
@@ -788,18 +786,27 @@ ccio_map_single(struct device *dev, void *addr, size_t size,
 	return CCIO_IOVA(iovp, offset);
 }
 
+
+static dma_addr_t
+ccio_map_page(struct device *dev, struct page *page, unsigned long offset,
+		size_t size, enum dma_data_direction direction,
+		struct dma_attrs *attrs)
+{
+	return ccio_map_single(dev, page_address(page) + offset, size,
+			direction);
+}
+
+
 /**
- * ccio_unmap_single - Unmap an address range from the IOMMU.
+ * ccio_unmap_page - Unmap an address range from the IOMMU.
  * @dev: The PCI device.
  * @addr: The start address of the DMA region.
  * @size: The length of the DMA region.
  * @direction: The direction of the DMA transaction (to/from device).
- *
- * This function implements the pci_unmap_single function.
  */
 static void 
-ccio_unmap_single(struct device *dev, dma_addr_t iova, size_t size, 
-		  enum dma_data_direction direction)
+ccio_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
+		enum dma_data_direction direction, struct dma_attrs *attrs)
 {
 	struct ioc *ioc;
 	unsigned long flags; 
@@ -828,7 +835,7 @@ ccio_unmap_single(struct device *dev, dma_addr_t iova, size_t size,
 }
 
 /**
- * ccio_alloc_consistent - Allocate a consistent DMA mapping.
+ * ccio_alloc - Allocate a consistent DMA mapping.
  * @dev: The PCI device.
  * @size: The length of the DMA region.
  * @dma_handle: The DMA address handed back to the device (not the cpu).
@@ -836,7 +843,8 @@ ccio_unmap_single(struct device *dev, dma_addr_t iova, size_t size,
  * This function implements the pci_alloc_consistent function.
  */
 static void * 
-ccio_alloc_consistent(struct device *dev, size_t size, dma_addr_t *dma_handle, gfp_t flag)
+ccio_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle, gfp_t flag,
+		struct dma_attrs *attrs)
 {
       void *ret;
 #if 0
@@ -860,7 +868,7 @@ ccio_alloc_consistent(struct device *dev, size_t size, dma_addr_t *dma_handle, g
 }
 
 /**
- * ccio_free_consistent - Free a consistent DMA mapping.
+ * ccio_free - Free a consistent DMA mapping.
  * @dev: The PCI device.
  * @size: The length of the DMA region.
  * @cpu_addr: The cpu address returned from the ccio_alloc_consistent.
@@ -869,10 +877,10 @@ ccio_alloc_consistent(struct device *dev, size_t size, dma_addr_t *dma_handle, g
  * This function implements the pci_free_consistent function.
  */
 static void 
-ccio_free_consistent(struct device *dev, size_t size, void *cpu_addr, 
-		     dma_addr_t dma_handle)
+ccio_free(struct device *dev, size_t size, void *cpu_addr,
+		dma_addr_t dma_handle, struct dma_attrs *attrs)
 {
-	ccio_unmap_single(dev, dma_handle, size, 0);
+	ccio_unmap_page(dev, dma_handle, size, 0, NULL);
 	free_pages((unsigned long)cpu_addr, get_order(size));
 }
 
@@ -899,7 +907,7 @@ ccio_free_consistent(struct device *dev, size_t size, void *cpu_addr,
  */
 static int
 ccio_map_sg(struct device *dev, struct scatterlist *sglist, int nents, 
-	    enum dma_data_direction direction)
+	    enum dma_data_direction direction, struct dma_attrs *attrs)
 {
 	struct ioc *ioc;
 	int coalesced, filled = 0;
@@ -916,7 +924,7 @@ ccio_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	/* Fast path single entry scatterlists. */
 	if (nents == 1) {
 		sg_dma_address(sglist) = ccio_map_single(dev,
-				(void *)sg_virt_addr(sglist), sglist->length,
+				sg_virt(sglist), sglist->length,
 				direction);
 		sg_dma_len(sglist) = sglist->length;
 		return 1;
@@ -976,15 +984,15 @@ ccio_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
  */
 static void 
 ccio_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents, 
-	      enum dma_data_direction direction)
+	      enum dma_data_direction direction, struct dma_attrs *attrs)
 {
 	struct ioc *ioc;
 
 	BUG_ON(!dev);
 	ioc = GET_IOC(dev);
 
-	DBG_RUN_SG("%s() START %d entries,  %08lx,%x\n",
-		__func__, nents, sg_virt_addr(sglist), sglist->length);
+	DBG_RUN_SG("%s() START %d entries, %p,%x\n",
+		__func__, nents, sg_virt(sglist), sglist->length);
 
 #ifdef CCIO_COLLECT_STATS
 	ioc->usg_calls++;
@@ -995,33 +1003,27 @@ ccio_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 #ifdef CCIO_COLLECT_STATS
 		ioc->usg_pages += sg_dma_len(sglist) >> PAGE_SHIFT;
 #endif
-		ccio_unmap_single(dev, sg_dma_address(sglist),
-				  sg_dma_len(sglist), direction);
+		ccio_unmap_page(dev, sg_dma_address(sglist),
+				  sg_dma_len(sglist), direction, NULL);
 		++sglist;
 	}
 
 	DBG_RUN_SG("%s() DONE (nents %d)\n", __func__, nents);
 }
 
-static struct hppa_dma_ops ccio_ops = {
+static struct dma_map_ops ccio_ops = {
 	.dma_supported =	ccio_dma_supported,
-	.alloc_consistent =	ccio_alloc_consistent,
-	.alloc_noncoherent =	ccio_alloc_consistent,
-	.free_consistent =	ccio_free_consistent,
-	.map_single =		ccio_map_single,
-	.unmap_single =		ccio_unmap_single,
+	.alloc =		ccio_alloc,
+	.free =			ccio_free,
+	.map_page =		ccio_map_page,
+	.unmap_page =		ccio_unmap_page,
 	.map_sg = 		ccio_map_sg,
 	.unmap_sg = 		ccio_unmap_sg,
-	.dma_sync_single_for_cpu =	NULL,	/* NOP for U2/Uturn */
-	.dma_sync_single_for_device =	NULL,	/* NOP for U2/Uturn */
-	.dma_sync_sg_for_cpu =		NULL,	/* ditto */
-	.dma_sync_sg_for_device =		NULL,	/* ditto */
 };
 
 #ifdef CONFIG_PROC_FS
 static int ccio_proc_info(struct seq_file *m, void *p)
 {
-	int len = 0;
 	struct ioc *ioc = ioc_list;
 
 	while (ioc != NULL) {
@@ -1031,22 +1033,22 @@ static int ccio_proc_info(struct seq_file *m, void *p)
 		int j;
 #endif
 
-		len += seq_printf(m, "%s\n", ioc->name);
+		seq_printf(m, "%s\n", ioc->name);
 		
-		len += seq_printf(m, "Cujo 2.0 bug    : %s\n",
-				  (ioc->cujo20_bug ? "yes" : "no"));
+		seq_printf(m, "Cujo 2.0 bug    : %s\n",
+			   (ioc->cujo20_bug ? "yes" : "no"));
 		
-		len += seq_printf(m, "IO PDIR size    : %d bytes (%d entries)\n",
-			       total_pages * 8, total_pages);
+		seq_printf(m, "IO PDIR size    : %d bytes (%d entries)\n",
+			   total_pages * 8, total_pages);
 
 #ifdef CCIO_COLLECT_STATS
-		len += seq_printf(m, "IO PDIR entries : %ld free  %ld used (%d%%)\n",
-				  total_pages - ioc->used_pages, ioc->used_pages,
-				  (int)(ioc->used_pages * 100 / total_pages));
+		seq_printf(m, "IO PDIR entries : %ld free  %ld used (%d%%)\n",
+			   total_pages - ioc->used_pages, ioc->used_pages,
+			   (int)(ioc->used_pages * 100 / total_pages));
 #endif
 
-		len += seq_printf(m, "Resource bitmap : %d bytes (%d pages)\n", 
-				  ioc->res_size, total_pages);
+		seq_printf(m, "Resource bitmap : %d bytes (%d pages)\n",
+			   ioc->res_size, total_pages);
 
 #ifdef CCIO_COLLECT_STATS
 		min = max = ioc->avg_search[0];
@@ -1058,26 +1060,26 @@ static int ccio_proc_info(struct seq_file *m, void *p)
 				min = ioc->avg_search[j];
 		}
 		avg /= CCIO_SEARCH_SAMPLE;
-		len += seq_printf(m, "  Bitmap search : %ld/%ld/%ld (min/avg/max CPU Cycles)\n",
-				  min, avg, max);
+		seq_printf(m, "  Bitmap search : %ld/%ld/%ld (min/avg/max CPU Cycles)\n",
+			   min, avg, max);
 
-		len += seq_printf(m, "pci_map_single(): %8ld calls  %8ld pages (avg %d/1000)\n",
-				  ioc->msingle_calls, ioc->msingle_pages,
-				  (int)((ioc->msingle_pages * 1000)/ioc->msingle_calls));
+		seq_printf(m, "pci_map_single(): %8ld calls  %8ld pages (avg %d/1000)\n",
+			   ioc->msingle_calls, ioc->msingle_pages,
+			   (int)((ioc->msingle_pages * 1000)/ioc->msingle_calls));
 
-		/* KLUGE - unmap_sg calls unmap_single for each mapped page */
+		/* KLUGE - unmap_sg calls unmap_page for each mapped page */
 		min = ioc->usingle_calls - ioc->usg_calls;
 		max = ioc->usingle_pages - ioc->usg_pages;
-		len += seq_printf(m, "pci_unmap_single: %8ld calls  %8ld pages (avg %d/1000)\n",
-				  min, max, (int)((max * 1000)/min));
+		seq_printf(m, "pci_unmap_single: %8ld calls  %8ld pages (avg %d/1000)\n",
+			   min, max, (int)((max * 1000)/min));
  
-		len += seq_printf(m, "pci_map_sg()    : %8ld calls  %8ld pages (avg %d/1000)\n",
-				  ioc->msg_calls, ioc->msg_pages,
-				  (int)((ioc->msg_pages * 1000)/ioc->msg_calls));
+		seq_printf(m, "pci_map_sg()    : %8ld calls  %8ld pages (avg %d/1000)\n",
+			   ioc->msg_calls, ioc->msg_pages,
+			   (int)((ioc->msg_pages * 1000)/ioc->msg_calls));
 
-		len += seq_printf(m, "pci_unmap_sg()  : %8ld calls  %8ld pages (avg %d/1000)\n\n\n",
-				  ioc->usg_calls, ioc->usg_pages,
-				  (int)((ioc->usg_pages * 1000)/ioc->usg_calls));
+		seq_printf(m, "pci_unmap_sg()  : %8ld calls  %8ld pages (avg %d/1000)\n\n\n",
+			   ioc->usg_calls, ioc->usg_pages,
+			   (int)((ioc->usg_pages * 1000)/ioc->usg_calls));
 #endif	/* CCIO_COLLECT_STATS */
 
 		ioc = ioc->next;
@@ -1101,20 +1103,12 @@ static const struct file_operations ccio_proc_info_fops = {
 
 static int ccio_proc_bitmap_info(struct seq_file *m, void *p)
 {
-	int len = 0;
 	struct ioc *ioc = ioc_list;
 
 	while (ioc != NULL) {
-		u32 *res_ptr = (u32 *)ioc->res_map;
-		int j;
-
-		for (j = 0; j < (ioc->res_size / sizeof(u32)); j++) {
-			if ((j & 7) == 0)
-				len += seq_puts(m, "\n   ");
-			len += seq_printf(m, "%08x", *res_ptr);
-			res_ptr++;
-		}
-		len += seq_puts(m, "\n\n");
+		seq_hex_dump(m, "   ", DUMP_PREFIX_NONE, 32, 4, ioc->res_map,
+			     ioc->res_size, false);
+		seq_putc(m, '\n');
 		ioc = ioc->next;
 		break; /* XXX - remove me */
 	}

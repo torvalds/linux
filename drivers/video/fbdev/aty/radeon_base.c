@@ -74,20 +74,15 @@
 #include <asm/io.h>
 #include <linux/uaccess.h>
 
-#ifdef CONFIG_PPC_OF
+#ifdef CONFIG_PPC
 
-#include <asm/pci-bridge.h>
 #include "../macmodes.h"
 
 #ifdef CONFIG_BOOTX_TEXT
 #include <asm/btext.h>
 #endif
 
-#endif /* CONFIG_PPC_OF */
-
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
+#endif /* CONFIG_PPC */
 
 #include <video/radeon.h>
 #include <linux/radeonfb.h>
@@ -271,9 +266,7 @@ static bool mirror = 0;
 static int panel_yres = 0;
 static bool force_dfp = 0;
 static bool force_measure_pll = 0;
-#ifdef CONFIG_MTRR
 static bool nomtrr = 0;
-#endif
 static bool force_sleep;
 static bool ignore_devlist;
 #ifdef CONFIG_PMAC_BACKLIGHT
@@ -282,9 +275,138 @@ static int backlight = 1;
 static int backlight = 0;
 #endif
 
-/*
- * prototypes
+/* Note about this function: we have some rare cases where we must not schedule,
+ * this typically happen with our special "wake up early" hook which allows us to
+ * wake up the graphic chip (and thus get the console back) before everything else
+ * on some machines that support that mechanism. At this point, interrupts are off
+ * and scheduling is not permitted
  */
+void _radeon_msleep(struct radeonfb_info *rinfo, unsigned long ms)
+{
+	if (rinfo->no_schedule || oops_in_progress)
+		mdelay(ms);
+	else
+		msleep(ms);
+}
+
+void radeon_pll_errata_after_index_slow(struct radeonfb_info *rinfo)
+{
+	/* Called if (rinfo->errata & CHIP_ERRATA_PLL_DUMMYREADS) is set */
+	(void)INREG(CLOCK_CNTL_DATA);
+	(void)INREG(CRTC_GEN_CNTL);
+}
+
+void radeon_pll_errata_after_data_slow(struct radeonfb_info *rinfo)
+{
+	if (rinfo->errata & CHIP_ERRATA_PLL_DELAY) {
+		/* we can't deal with posted writes here ... */
+		_radeon_msleep(rinfo, 5);
+	}
+	if (rinfo->errata & CHIP_ERRATA_R300_CG) {
+		u32 save, tmp;
+		save = INREG(CLOCK_CNTL_INDEX);
+		tmp = save & ~(0x3f | PLL_WR_EN);
+		OUTREG(CLOCK_CNTL_INDEX, tmp);
+		tmp = INREG(CLOCK_CNTL_DATA);
+		OUTREG(CLOCK_CNTL_INDEX, save);
+	}
+}
+
+void _OUTREGP(struct radeonfb_info *rinfo, u32 addr, u32 val, u32 mask)
+{
+	unsigned long flags;
+	unsigned int tmp;
+
+	spin_lock_irqsave(&rinfo->reg_lock, flags);
+	tmp = INREG(addr);
+	tmp &= (mask);
+	tmp |= (val);
+	OUTREG(addr, tmp);
+	spin_unlock_irqrestore(&rinfo->reg_lock, flags);
+}
+
+u32 __INPLL(struct radeonfb_info *rinfo, u32 addr)
+{
+	u32 data;
+
+	OUTREG8(CLOCK_CNTL_INDEX, addr & 0x0000003f);
+	radeon_pll_errata_after_index(rinfo);
+	data = INREG(CLOCK_CNTL_DATA);
+	radeon_pll_errata_after_data(rinfo);
+	return data;
+}
+
+void __OUTPLL(struct radeonfb_info *rinfo, unsigned int index, u32 val)
+{
+	OUTREG8(CLOCK_CNTL_INDEX, (index & 0x0000003f) | 0x00000080);
+	radeon_pll_errata_after_index(rinfo);
+	OUTREG(CLOCK_CNTL_DATA, val);
+	radeon_pll_errata_after_data(rinfo);
+}
+
+void __OUTPLLP(struct radeonfb_info *rinfo, unsigned int index,
+			     u32 val, u32 mask)
+{
+	unsigned int tmp;
+
+	tmp  = __INPLL(rinfo, index);
+	tmp &= (mask);
+	tmp |= (val);
+	__OUTPLL(rinfo, index, tmp);
+}
+
+void _radeon_fifo_wait(struct radeonfb_info *rinfo, int entries)
+{
+	int i;
+
+	for (i=0; i<2000000; i++) {
+		if ((INREG(RBBM_STATUS) & 0x7f) >= entries)
+			return;
+		udelay(1);
+	}
+	printk(KERN_ERR "radeonfb: FIFO Timeout !\n");
+}
+
+void radeon_engine_flush(struct radeonfb_info *rinfo)
+{
+	int i;
+
+	/* Initiate flush */
+	OUTREGP(DSTCACHE_CTLSTAT, RB2D_DC_FLUSH_ALL,
+	        ~RB2D_DC_FLUSH_ALL);
+
+	/* Ensure FIFO is empty, ie, make sure the flush commands
+	 * has reached the cache
+	 */
+	_radeon_fifo_wait(rinfo, 64);
+
+	/* Wait for the flush to complete */
+	for (i=0; i < 2000000; i++) {
+		if (!(INREG(DSTCACHE_CTLSTAT) & RB2D_DC_BUSY))
+			return;
+		udelay(1);
+	}
+	printk(KERN_ERR "radeonfb: Flush Timeout !\n");
+}
+
+void _radeon_engine_idle(struct radeonfb_info *rinfo)
+{
+	int i;
+
+	/* ensure FIFO is empty before waiting for idle */
+	_radeon_fifo_wait(rinfo, 64);
+
+	for (i=0; i<2000000; i++) {
+		if (((INREG(RBBM_STATUS) & GUI_ACTIVE)) == 0) {
+			radeon_engine_flush(rinfo);
+			return;
+		}
+		udelay(1);
+	}
+	printk(KERN_ERR "radeonfb: Idle Timeout !\n");
+}
+
+
 
 static void radeon_unmap_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 {
@@ -418,7 +540,7 @@ static int  radeon_find_mem_vbios(struct radeonfb_info *rinfo)
 }
 #endif
 
-#if defined(CONFIG_PPC_OF) || defined(CONFIG_SPARC)
+#if defined(CONFIG_PPC) || defined(CONFIG_SPARC)
 /*
  * Read XTAL (ref clock), SCLK and MCLK from Open Firmware device
  * tree. Hopefully, ATI OF driver is kind enough to fill these
@@ -448,7 +570,7 @@ static int radeon_read_xtal_OF(struct radeonfb_info *rinfo)
 
        	return 0;
 }
-#endif /* CONFIG_PPC_OF || CONFIG_SPARC */
+#endif /* CONFIG_PPC || CONFIG_SPARC */
 
 /*
  * Read PLL infos from chip registers
@@ -653,7 +775,7 @@ static void radeon_get_pllinfo(struct radeonfb_info *rinfo)
 	rinfo->pll.ref_div = INPLL(PPLL_REF_DIV) & PPLL_REF_DIV_MASK;
 
 
-#if defined(CONFIG_PPC_OF) || defined(CONFIG_SPARC)
+#if defined(CONFIG_PPC) || defined(CONFIG_SPARC)
 	/*
 	 * Retrieve PLL infos from Open Firmware first
 	 */
@@ -661,7 +783,7 @@ static void radeon_get_pllinfo(struct radeonfb_info *rinfo)
        		printk(KERN_INFO "radeonfb: Retrieved PLL infos from Open Firmware\n");
 		goto found;
 	}
-#endif /* CONFIG_PPC_OF || CONFIG_SPARC */
+#endif /* CONFIG_PPC || CONFIG_SPARC */
 
 	/*
 	 * Check out if we have an X86 which gave us some PLL informations
@@ -1910,7 +2032,7 @@ static int radeon_set_fbinfo(struct radeonfb_info *rinfo)
  * I put the card's memory at 0 in card space and AGP at some random high
  * local (0xe0000000 for now) that will be changed by XFree/DRI anyway
  */
-#ifdef CONFIG_PPC_OF
+#ifdef CONFIG_PPC
 #undef SET_MC_FB_FROM_APERTURE
 static void fixup_memory_mappings(struct radeonfb_info *rinfo)
 {
@@ -1984,7 +2106,7 @@ static void fixup_memory_mappings(struct radeonfb_info *rinfo)
 		((aper_base + aper_size - 1) & 0xffff0000) | (aper_base >> 16),
 		0xffff0000 | (agp_base >> 16));
 }
-#endif /* CONFIG_PPC_OF */
+#endif /* CONFIG_PPC */
 
 
 static void radeon_identify_vram(struct radeonfb_info *rinfo)
@@ -2236,7 +2358,7 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 	    rinfo->family == CHIP_FAMILY_RS200)
 		rinfo->errata |= CHIP_ERRATA_PLL_DELAY;
 
-#if defined(CONFIG_PPC_OF) || defined(CONFIG_SPARC)
+#if defined(CONFIG_PPC) || defined(CONFIG_SPARC)
 	/* On PPC, we obtain the OF device-node pointer to the firmware
 	 * data for this chip
 	 */
@@ -2245,14 +2367,14 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 		printk(KERN_WARNING "radeonfb (%s): Cannot match card to OF node !\n",
 		       pci_name(rinfo->pdev));
 
-#endif /* CONFIG_PPC_OF || CONFIG_SPARC */
-#ifdef CONFIG_PPC_OF
+#endif /* CONFIG_PPC || CONFIG_SPARC */
+#ifdef CONFIG_PPC
 	/* On PPC, the firmware sets up a memory mapping that tends
 	 * to cause lockups when enabling the engine. We reconfigure
 	 * the card internal memory mappings properly
 	 */
 	fixup_memory_mappings(rinfo);
-#endif /* CONFIG_PPC_OF */
+#endif /* CONFIG_PPC */
 
 	/* Get VRAM size and type */
 	radeon_identify_vram(rinfo);
@@ -2260,8 +2382,8 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 	rinfo->mapped_vram = min_t(unsigned long, MAX_MAPPED_VRAM, rinfo->video_ram);
 
 	do {
-		rinfo->fb_base = ioremap (rinfo->fb_base_phys,
-					  rinfo->mapped_vram);
+		rinfo->fb_base = ioremap_wc(rinfo->fb_base_phys,
+					    rinfo->mapped_vram);
 	} while (rinfo->fb_base == NULL &&
 		 ((rinfo->mapped_vram /= 2) >= MIN_MAPPED_VRAM));
 
@@ -2359,11 +2481,9 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 		goto err_unmap_fb;
 	}
 
-#ifdef CONFIG_MTRR
-	rinfo->mtrr_hdl = nomtrr ? -1 : mtrr_add(rinfo->fb_base_phys,
-						 rinfo->video_ram,
-						 MTRR_TYPE_WRCOMB, 1);
-#endif
+	if (!nomtrr)
+		rinfo->wc_cookie = arch_phys_wc_add(rinfo->fb_base_phys,
+						    rinfo->video_ram);
 
 	if (backlight)
 		radeonfb_bl_init(rinfo);
@@ -2428,12 +2548,7 @@ static void radeonfb_pci_unregister(struct pci_dev *pdev)
  #endif
 
 	del_timer_sync(&rinfo->lvds_timer);
-
-#ifdef CONFIG_MTRR
-	if (rinfo->mtrr_hdl >= 0)
-		mtrr_del(rinfo->mtrr_hdl, 0, 0);
-#endif
-
+	arch_phys_wc_del(rinfo->wc_cookie);
         unregister_framebuffer(info);
 
         radeonfb_bl_exit(rinfo);
@@ -2489,10 +2604,8 @@ static int __init radeonfb_setup (char *options)
 			panel_yres = simple_strtoul((this_opt+11), NULL, 0);
 		} else if (!strncmp(this_opt, "backlight:", 10)) {
 			backlight = simple_strtoul(this_opt+10, NULL, 0);
-#ifdef CONFIG_MTRR
 		} else if (!strncmp(this_opt, "nomtrr", 6)) {
 			nomtrr = 1;
-#endif
 		} else if (!strncmp(this_opt, "nomodeset", 9)) {
 			nomodeset = 1;
 		} else if (!strncmp(this_opt, "force_measure_pll", 17)) {
@@ -2552,10 +2665,8 @@ module_param(monitor_layout, charp, 0);
 MODULE_PARM_DESC(monitor_layout, "Specify monitor mapping (like XFree86)");
 module_param(force_measure_pll, bool, 0);
 MODULE_PARM_DESC(force_measure_pll, "Force measurement of PLL (debug)");
-#ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "bool: disable use of MTRR registers");
-#endif
 module_param(panel_yres, int, 0);
 MODULE_PARM_DESC(panel_yres, "int: set panel yres");
 module_param(mode_option, charp, 0);

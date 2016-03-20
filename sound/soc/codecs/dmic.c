@@ -74,7 +74,6 @@ MODULE_ALIAS("platform:dmic-codec");
 static struct platform_driver dmic_driver = {
 	.driver = {
 		.name = "dmic-codec",
-		.owner = THIS_MODULE,
 	},
 	.probe = dmic_dev_probe,
 	.remove = dmic_dev_remove,

@@ -20,6 +20,9 @@
 #error "Only include this from assembly code"
 #endif
 
+#ifndef __ASM_ASSEMBLER_H
+#define __ASM_ASSEMBLER_H
+
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 
@@ -44,18 +47,6 @@
 
 	.macro	enable_irq
 	msr	daifclr, #2
-	.endm
-
-/*
- * Save/disable and restore interrupts.
- */
-	.macro	save_and_disable_irqs, olddaif
-	mrs	\olddaif, daif
-	disable_irq
-	.endm
-
-	.macro	restore_irqs, olddaif
-	msr	daif, \olddaif
 	.endm
 
 /*
@@ -100,17 +91,22 @@
  * SMP data memory barrier
  */
 	.macro	smp_dmb, opt
-#ifdef CONFIG_SMP
 	dmb	\opt
-#endif
+	.endm
+
+/*
+ * Emit an entry into the exception table
+ */
+	.macro		_asm_extable, from, to
+	.pushsection	__ex_table, "a"
+	.align		3
+	.long		(\from - .), (\to - .)
+	.popsection
 	.endm
 
 #define USER(l, x...)				\
 9999:	x;					\
-	.section __ex_table,"a";		\
-	.align	3;				\
-	.quad	9999b,l;			\
-	.previous
+	_asm_extable	9999b, l
 
 /*
  * Register aliases.
@@ -155,3 +151,86 @@ lr	.req	x30		// link register
 #endif
 	orr	\rd, \lbits, \hbits, lsl #32
 	.endm
+
+/*
+ * Pseudo-ops for PC-relative adr/ldr/str <reg>, <symbol> where
+ * <symbol> is within the range +/- 4 GB of the PC.
+ */
+	/*
+	 * @dst: destination register (64 bit wide)
+	 * @sym: name of the symbol
+	 * @tmp: optional scratch register to be used if <dst> == sp, which
+	 *       is not allowed in an adrp instruction
+	 */
+	.macro	adr_l, dst, sym, tmp=
+	.ifb	\tmp
+	adrp	\dst, \sym
+	add	\dst, \dst, :lo12:\sym
+	.else
+	adrp	\tmp, \sym
+	add	\dst, \tmp, :lo12:\sym
+	.endif
+	.endm
+
+	/*
+	 * @dst: destination register (32 or 64 bit wide)
+	 * @sym: name of the symbol
+	 * @tmp: optional 64-bit scratch register to be used if <dst> is a
+	 *       32-bit wide register, in which case it cannot be used to hold
+	 *       the address
+	 */
+	.macro	ldr_l, dst, sym, tmp=
+	.ifb	\tmp
+	adrp	\dst, \sym
+	ldr	\dst, [\dst, :lo12:\sym]
+	.else
+	adrp	\tmp, \sym
+	ldr	\dst, [\tmp, :lo12:\sym]
+	.endif
+	.endm
+
+	/*
+	 * @src: source register (32 or 64 bit wide)
+	 * @sym: name of the symbol
+	 * @tmp: mandatory 64-bit scratch register to calculate the address
+	 *       while <src> needs to be preserved.
+	 */
+	.macro	str_l, src, sym, tmp
+	adrp	\tmp, \sym
+	str	\src, [\tmp, :lo12:\sym]
+	.endm
+
+	/*
+	 * @sym: The name of the per-cpu variable
+	 * @reg: Result of per_cpu(sym, smp_processor_id())
+	 * @tmp: scratch register
+	 */
+	.macro this_cpu_ptr, sym, reg, tmp
+	adr_l	\reg, \sym
+	mrs	\tmp, tpidr_el1
+	add	\reg, \reg, \tmp
+	.endm
+
+/*
+ * Annotate a function as position independent, i.e., safe to be called before
+ * the kernel virtual mapping is activated.
+ */
+#define ENDPIPROC(x)			\
+	.globl	__pi_##x;		\
+	.type 	__pi_##x, %function;	\
+	.set	__pi_##x, x;		\
+	.size	__pi_##x, . - x;	\
+	ENDPROC(x)
+
+	/*
+	 * Emit a 64-bit absolute little endian symbol reference in a way that
+	 * ensures that it will be resolved at build time, even when building a
+	 * PIE binary. This requires cooperation from the linker script, which
+	 * must emit the lo32/hi32 halves individually.
+	 */
+	.macro	le64sym, sym
+	.long	\sym\()_lo32
+	.long	\sym\()_hi32
+	.endm
+
+#endif	/* __ASM_ASSEMBLER_H */

@@ -12,9 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * File: device.h
  *
@@ -160,7 +157,7 @@
 #define MESSAGE_TYPE_CLRKEYENTRY	0x9
 #define MESSAGE_TYPE_WRITE_MISCFF	0xa
 #define MESSAGE_TYPE_SET_ANTMD		0xb
-#define MESSAGE_TYPE_SELECT_CHANNLE	0xc
+#define MESSAGE_TYPE_SELECT_CHANNEL	0xc
 #define MESSAGE_TYPE_SET_TSFTBTT	0xd
 #define MESSAGE_TYPE_SET_SSTIFS		0xe
 #define MESSAGE_TYPE_CHANGE_BBTYPE	0xf
@@ -262,8 +259,8 @@ enum {
 };
 
 /* flags for options */
-#define DEVICE_FLAGS_UNPLUG		BIT(0)
-#define DEVICE_FLAGS_DISCONNECTED	BIT(1)
+#define DEVICE_FLAGS_UNPLUG		0
+#define DEVICE_FLAGS_DISCONNECTED	1
 
 struct vnt_private {
 	/* mac80211 */
@@ -307,8 +304,8 @@ struct vnt_private {
 
 	struct vnt_cmd_card_init init_command;
 	struct vnt_rsp_card_init init_response;
-	u8 current_net_addr[ETH_ALEN];
-	u8 permanent_net_addr[ETH_ALEN];
+	u8 current_net_addr[ETH_ALEN] __aligned(2);
+	u8 permanent_net_addr[ETH_ALEN] __aligned(2);
 
 	u8 exist_sw_net_addr;
 
@@ -364,7 +361,7 @@ struct vnt_private {
 	/* Power save */
 	u16 current_aid;
 
-	/* Beacon releated */
+	/* Beacon related */
 	u16 seq_counter;
 
 	enum vnt_cmd_state command_state;
@@ -388,6 +385,8 @@ struct vnt_private {
 
 	u8 bb_pre_ed_rssi;
 	u8 bb_pre_ed_index;
+
+	u16 wake_up_count;
 
 	/* command timer */
 	struct delayed_work run_command_work;

@@ -1,0 +1,35 @@
+* FocalTech FT6236 I2C touchscreen controller
+
+Required properties:
+ - compatible		  : "focaltech,ft6236"
+ - reg			  : I2C slave address of the chip (0x38)
+ - interrupt-parent	  : a phandle pointing to the interrupt controller
+			    serving the interrupt for this chip
+ - interrupts		  : interrupt specification for the touch controller
+			    interrupt
+ - reset-gpios		  : GPIO specification for the RSTN input
+ - touchscreen-size-x	  : horizontal resolution of touchscreen (in pixels)
+ - touchscreen-size-y	  : vertical resolution of touchscreen (in pixels)
+
+Optional properties:
+ - touchscreen-fuzz-x	  : horizontal noise value of the absolute input
+			    device (in pixels)
+ - touchscreen-fuzz-y	  : vertical noise value of the absolute input
+			    device (in pixels)
+ - touchscreen-inverted-x : X axis is inverted (boolean)
+ - touchscreen-inverted-y : Y axis is inverted (boolean)
+ - touchscreen-swapped-x-y: X and Y axis are swapped (boolean)
+			    Swapping is done after inverting the axis
+
+Example:
+
+	ft6x06@38 {
+		compatible = "focaltech,ft6236";
+		reg = <0x38>;
+		interrupt-parent = <&gpio>;
+		interrupts = <23 2>;
+		touchscreen-size-x = <320>;
+		touchscreen-size-y = <480>;
+		touchscreen-inverted-x;
+		touchscreen-swapped-x-y;
+	};

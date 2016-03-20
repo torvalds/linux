@@ -377,7 +377,7 @@ int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, gva_t ea)
 			| MAS0_NV(vcpu_e500->gtlb_nv[tlbsel]);
 		vcpu->arch.shared->mas1 =
 			  (vcpu->arch.shared->mas6 & MAS6_SPID0)
-			| (vcpu->arch.shared->mas6 & (MAS6_SAS ? MAS1_TS : 0))
+			| ((vcpu->arch.shared->mas6 & MAS6_SAS) ? MAS1_TS : 0)
 			| (vcpu->arch.shared->mas4 & MAS4_TSIZED(~0));
 		vcpu->arch.shared->mas2 &= MAS2_EPN;
 		vcpu->arch.shared->mas2 |= vcpu->arch.shared->mas4 &

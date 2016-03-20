@@ -1,6 +1,8 @@
-/* bnx2x_cmn.h: Broadcom Everest network driver.
+/* bnx2x_cmn.h: QLogic Everest network driver.
  *
  * Copyright (c) 2007-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -484,6 +486,8 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
 /* setup_tc callback */
 int bnx2x_setup_tc(struct net_device *dev, u8 num_tc);
+int __bnx2x_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
+		     struct tc_to_netdev *tc);
 
 int bnx2x_get_vf_config(struct net_device *dev, int vf,
 			struct ifla_vf_info *ivi);
@@ -568,13 +572,6 @@ int bnx2x_enable_msix(struct bnx2x *bp);
 int bnx2x_enable_msi(struct bnx2x *bp);
 
 /**
- * bnx2x_low_latency_recv - LL callback
- *
- * @napi:	napi structure
- */
-int bnx2x_low_latency_recv(struct napi_struct *napi);
-
-/**
  * bnx2x_alloc_mem_bp - allocate memories outsize main driver structure
  *
  * @bp:		driver handle
@@ -619,6 +616,14 @@ int bnx2x_set_features(struct net_device *dev, netdev_features_t features);
  * @dev:	net device
  */
 void bnx2x_tx_timeout(struct net_device *dev);
+
+/** bnx2x_get_c2s_mapping - read inner-to-outer vlan configuration
+ * c2s_map should have BNX2X_MAX_PRIORITY entries.
+ * @bp:			driver handle
+ * @c2s_map:		should have BNX2X_MAX_PRIORITY entries for mapping
+ * @c2s_default:	entry for non-tagged configuration
+ */
+void bnx2x_get_c2s_mapping(struct bnx2x *bp, u8 *c2s_map, u8 *c2s_default);
 
 /*********************** Inlines **********************************/
 /*********************** Fast path ********************************/
@@ -804,9 +809,13 @@ static inline void bnx2x_free_rx_sge(struct bnx2x *bp,
 	if (!page)
 		return;
 
+	/* Since many fragments can share the same page, make sure to
+	 * only unmap and free the page once.
+	 */
 	dma_unmap_page(&bp->pdev->dev, dma_unmap_addr(sw_buf, mapping),
-		       SGE_PAGES, DMA_FROM_DEVICE);
-	__free_pages(page, PAGES_PER_SGE_SHIFT);
+		       SGE_PAGE_SIZE, DMA_FROM_DEVICE);
+
+	put_page(page);
 
 	sw_buf->page = NULL;
 	sge->addr_hi = 0;
@@ -916,6 +925,7 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 	struct bnx2x_func_state_params func_params = {NULL};
 	struct bnx2x_func_start_params *start_params =
 		&func_params.params.start;
+	u16 port;
 
 	/* Prepare parameters for function state transitions */
 	__set_bit(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
@@ -927,13 +937,47 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 	start_params->mf_mode = bp->mf_mode;
 	start_params->sd_vlan_tag = bp->mf_ov;
 
+	/* Configure Ethertype for BD mode */
+	if (IS_MF_BD(bp)) {
+		DP(NETIF_MSG_IFUP, "Configuring ethertype 0x88a8 for BD\n");
+		start_params->sd_vlan_eth_type = ETH_P_8021AD;
+		REG_WR(bp, PRS_REG_VLAN_TYPE_0, ETH_P_8021AD);
+		REG_WR(bp, PBF_REG_VLAN_TYPE_0, ETH_P_8021AD);
+		REG_WR(bp, NIG_REG_LLH_E1HOV_TYPE_1, ETH_P_8021AD);
+
+		bnx2x_get_c2s_mapping(bp, start_params->c2s_pri,
+				      &start_params->c2s_pri_default);
+		start_params->c2s_pri_valid = 1;
+
+		DP(NETIF_MSG_IFUP,
+		   "Inner-to-Outer priority: %02x %02x %02x %02x %02x %02x %02x %02x [Default %02x]\n",
+		   start_params->c2s_pri[0], start_params->c2s_pri[1],
+		   start_params->c2s_pri[2], start_params->c2s_pri[3],
+		   start_params->c2s_pri[4], start_params->c2s_pri[5],
+		   start_params->c2s_pri[6], start_params->c2s_pri[7],
+		   start_params->c2s_pri_default);
+	}
+
 	if (CHIP_IS_E2(bp) || CHIP_IS_E3(bp))
 		start_params->network_cos_mode = STATIC_COS;
 	else /* CHIP_IS_E1X */
 		start_params->network_cos_mode = FW_WRR;
+	if (bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN].count) {
+		port = bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN].dst_port;
+		start_params->vxlan_dst_port = port;
+	}
+	if (bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE].count) {
+		port = bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE].dst_port;
+		start_params->geneve_dst_port = port;
+	}
 
-	start_params->gre_tunnel_mode = L2GRE_TUNNEL;
-	start_params->gre_tunnel_rss = GRE_INNER_HEADERS_RSS;
+	start_params->inner_rss = 1;
+
+	if (IS_MF_UFP(bp) && BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp)) {
+		start_params->class_fail_ethtype = ETH_P_FIP;
+		start_params->class_fail = 1;
+		start_params->no_added_tags = 1;
+	}
 
 	return bnx2x_func_state_change(bp, &func_params);
 }
@@ -957,16 +1001,29 @@ static inline void bnx2x_set_fw_mac_addr(__le16 *fw_hi, __le16 *fw_mid,
 	((u8 *)fw_lo)[1]  = mac[4];
 }
 
+static inline void bnx2x_free_rx_mem_pool(struct bnx2x *bp,
+					  struct bnx2x_alloc_pool *pool)
+{
+	if (!pool->page)
+		return;
+
+	put_page(pool->page);
+
+	pool->page = NULL;
+}
+
 static inline void bnx2x_free_rx_sge_range(struct bnx2x *bp,
 					   struct bnx2x_fastpath *fp, int last)
 {
 	int i;
 
-	if (fp->disable_tpa)
+	if (fp->mode == TPA_MODE_DISABLED)
 		return;
 
 	for (i = 0; i < last; i++)
 		bnx2x_free_rx_sge(bp, fp, i);
+
+	bnx2x_free_rx_mem_pool(bp, &fp->page_pool);
 }
 
 static inline void bnx2x_set_next_page_rx_bd(struct bnx2x_fastpath *fp)
@@ -1013,6 +1070,15 @@ static inline void bnx2x_init_vlan_mac_fp_objs(struct bnx2x_fastpath *fp,
 			   BNX2X_FILTER_MAC_PENDING,
 			   &bp->sp_state, obj_type,
 			   &bp->macs_pool);
+
+	if (!CHIP_IS_E1x(bp))
+		bnx2x_init_vlan_obj(bp, &bnx2x_sp_obj(bp, fp).vlan_obj,
+				    fp->cl_id, fp->cid, BP_FUNC(bp),
+				    bnx2x_sp(bp, vlan_rdata),
+				    bnx2x_sp_mapping(bp, vlan_rdata),
+				    BNX2X_FILTER_VLAN_PENDING,
+				    &bp->sp_state, obj_type,
+				    &bp->vlans_pool);
 }
 
 /**
@@ -1072,7 +1138,7 @@ static inline void bnx2x_init_bp_objs(struct bnx2x *bp)
 	bnx2x_init_mac_credit_pool(bp, &bp->macs_pool, BP_FUNC(bp),
 				   bnx2x_get_path_func_num(bp));
 
-	bnx2x_init_vlan_credit_pool(bp, &bp->vlans_pool, BP_ABS_FUNC(bp)>>1,
+	bnx2x_init_vlan_credit_pool(bp, &bp->vlans_pool, BP_FUNC(bp),
 				    bnx2x_get_path_func_num(bp));
 
 	/* RSS configuration object */
@@ -1082,6 +1148,8 @@ static inline void bnx2x_init_bp_objs(struct bnx2x *bp)
 				  bnx2x_sp_mapping(bp, rss_rdata),
 				  BNX2X_FILTER_RSS_CONF_PENDING, &bp->sp_state,
 				  BNX2X_OBJ_TYPE_RX);
+
+	bp->vlan_credit = PF_VLAN_CREDIT_E2(bp, bnx2x_get_path_func_num(bp));
 }
 
 static inline u8 bnx2x_fp_qzone_id(struct bnx2x_fastpath *fp)
@@ -1297,15 +1365,7 @@ static inline void bnx2x_update_drv_flags(struct bnx2x *bp, u32 flags, u32 set)
 	}
 }
 
-static inline bool bnx2x_is_valid_ether_addr(struct bnx2x *bp, u8 *addr)
-{
-	if (is_valid_ether_addr(addr) ||
-	    (is_zero_ether_addr(addr) &&
-	     (IS_MF_STORAGE_SD(bp) || IS_MF_FCOE_AFEX(bp))))
-		return true;
 
-	return false;
-}
 
 /**
  * bnx2x_fill_fw_str - Fill buffer with FW version string
@@ -1322,5 +1382,24 @@ void bnx2x_squeeze_objects(struct bnx2x *bp);
 
 void bnx2x_schedule_sp_rtnl(struct bnx2x*, enum sp_rtnl_flag,
 			    u32 verbose);
+
+/**
+ * bnx2x_set_os_driver_state - write driver state for management FW usage
+ *
+ * @bp:		driver handle
+ * @state:	OS_DRIVER_STATE_* value reflecting current driver state
+ */
+void bnx2x_set_os_driver_state(struct bnx2x *bp, u32 state);
+
+/**
+ * bnx2x_nvram_read - reads data from nvram [might sleep]
+ *
+ * @bp:		driver handle
+ * @offset:	byte offset in nvram
+ * @ret_buf:	pointer to buffer where data is to be stored
+ * @buf_size:   Length of 'ret_buf' in bytes
+ */
+int bnx2x_nvram_read(struct bnx2x *bp, u32 offset, u8 *ret_buf,
+		     int buf_size);
 
 #endif /* BNX2X_CMN_H */

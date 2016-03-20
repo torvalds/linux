@@ -19,6 +19,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -393,7 +394,7 @@ static bool si570_regmap_is_writeable(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config si570_regmap_config = {
+static const struct regmap_config si570_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.cache_type = REGCACHE_RBTREE,

@@ -43,6 +43,7 @@
 #include <linux/types.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/pfn_t.h>
 
 #include <asm/page.h>
 #include <asm/prom.h>
@@ -103,7 +104,7 @@ axon_ram_irq_handler(int irq, void *dev)
  * axon_ram_make_request - make_request() method for block device
  * @queue, @bio: see blk_queue_make_request()
  */
-static void
+static blk_qc_t
 axon_ram_make_request(struct request_queue *queue, struct bio *bio)
 {
 	struct axon_ram_bank *bank = bio->bi_bdev->bd_disk->private_data;
@@ -120,7 +121,7 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
 	bio_for_each_segment(vec, bio, iter) {
 		if (unlikely(phys_mem + vec.bv_len > phys_end)) {
 			bio_io_error(bio);
-			return;
+			return BLK_QC_T_NONE;
 		}
 
 		user_mem = page_address(vec.bv_page) + vec.bv_offset;
@@ -132,33 +133,24 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
 		phys_mem += vec.bv_len;
 		transfered += vec.bv_len;
 	}
-	bio_endio(bio, 0);
+	bio_endio(bio);
+	return BLK_QC_T_NONE;
 }
 
 /**
  * axon_ram_direct_access - direct_access() method for block device
  * @device, @sector, @data: see block_device_operations method
  */
-static int
+static long
 axon_ram_direct_access(struct block_device *device, sector_t sector,
-		       void **kaddr, unsigned long *pfn)
+		       void __pmem **kaddr, pfn_t *pfn)
 {
 	struct axon_ram_bank *bank = device->bd_disk->private_data;
-	loff_t offset;
+	loff_t offset = (loff_t)sector << AXON_RAM_SECTOR_SHIFT;
 
-	offset = sector;
-	if (device->bd_part != NULL)
-		offset += device->bd_part->start_sect;
-	offset <<= AXON_RAM_SECTOR_SHIFT;
-	if (offset >= bank->size) {
-		dev_err(&bank->device->dev, "Access outside of address space\n");
-		return -ERANGE;
-	}
-
-	*kaddr = (void *)(bank->ph_addr + offset);
-	*pfn = virt_to_phys(kaddr) >> PAGE_SHIFT;
-
-	return 0;
+	*kaddr = (void __pmem __force *) bank->io_addr + offset;
+	*pfn = phys_to_pfn_t(bank->ph_addr + offset, PFN_DEV);
+	return bank->size - offset;
 }
 
 static const struct block_device_operations axon_ram_devops = {
@@ -314,19 +306,19 @@ axon_ram_remove(struct platform_device *device)
 	return 0;
 }
 
-static struct of_device_id axon_ram_device_id[] = {
+static const struct of_device_id axon_ram_device_id[] = {
 	{
 		.type	= "dma-memory"
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, axon_ram_device_id);
 
 static struct platform_driver axon_ram_driver = {
 	.probe		= axon_ram_probe,
 	.remove		= axon_ram_remove,
 	.driver = {
 		.name = AXON_RAM_MODULE_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = axon_ram_device_id,
 	},
 };

@@ -9,10 +9,10 @@
  *
  * Derived from da903x:
  * Copyright (C) 2008 Compulab, Ltd.
- * 	Mike Rapoport <mike@compulab.co.il>
+ *	Mike Rapoport <mike@compulab.co.il>
  *
  * Copyright (C) 2006-2008 Marvell International Ltd.
- * 	Eric Miao <eric.miao@marvell.com>
+ *	Eric Miao <eric.miao@marvell.com>
  *
  * Licensed under the GPL-2 or later.
  */
@@ -351,12 +351,11 @@ MODULE_DEVICE_TABLE(i2c, adp5520_id);
 static struct i2c_driver adp5520_driver = {
 	.driver = {
 		.name	= "adp5520",
-		.owner	= THIS_MODULE,
 		.pm	= &adp5520_pm,
 	},
 	.probe		= adp5520_probe,
 	.remove		= adp5520_remove,
-	.id_table 	= adp5520_id,
+	.id_table	= adp5520_id,
 };
 
 module_i2c_driver(adp5520_driver);

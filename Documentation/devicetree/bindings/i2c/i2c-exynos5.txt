@@ -12,6 +12,8 @@ Required properties:
 				on Exynos5250 and Exynos5420 SoCs.
 	-> "samsung,exynos5260-hsi2c", for i2c compatible with HSI2C available
 				on Exynos5260 SoCs.
+	-> "samsung,exynos7-hsi2c", for i2c compatible with HSI2C available
+				on Exynos7 SoCs.
 
   - reg: physical base address of the controller and length of memory mapped
     region.

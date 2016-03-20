@@ -44,9 +44,29 @@
 #define DRV_MODULE_NAME		"bcm63xx_udc"
 
 static const char bcm63xx_ep0name[] = "ep0";
-static const char *const bcm63xx_ep_name[] = {
-	bcm63xx_ep0name,
-	"ep1in-bulk", "ep2out-bulk", "ep3in-int", "ep4out-int",
+
+static const struct {
+	const char *name;
+	const struct usb_ep_caps caps;
+} bcm63xx_ep_info[] = {
+#define EP_INFO(_name, _caps) \
+	{ \
+		.name = _name, \
+		.caps = _caps, \
+	}
+
+	EP_INFO(bcm63xx_ep0name,
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_CONTROL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep1in-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep2out-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep3in-int",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_INT, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep4out-int",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_INT, USB_EP_CAPS_DIR_OUT)),
+
+#undef EP_INFO
 };
 
 static bool use_fullspeed;
@@ -943,7 +963,8 @@ static int bcm63xx_init_udc_hw(struct bcm63xx_udc *udc)
 	for (i = 0; i < BCM63XX_NUM_EP; i++) {
 		struct bcm63xx_ep *bep = &udc->bep[i];
 
-		bep->ep.name = bcm63xx_ep_name[i];
+		bep->ep.name = bcm63xx_ep_info[i].name;
+		bep->ep.caps = bcm63xx_ep_info[i].caps;
 		bep->ep_num = i;
 		bep->ep.ops = &bcm63xx_udc_ep_ops;
 		list_add_tail(&bep->ep.ep_list, &udc->gadget.ep_list);
@@ -1062,7 +1083,7 @@ static int bcm63xx_ep_disable(struct usb_ep *ep)
 	struct bcm63xx_ep *bep = our_ep(ep);
 	struct bcm63xx_udc *udc = bep->udc;
 	struct iudma_ch *iudma = bep->iudma;
-	struct list_head *pos, *n;
+	struct bcm63xx_req *breq, *n;
 	unsigned long flags;
 
 	if (!ep || !ep->desc)
@@ -1078,17 +1099,14 @@ static int bcm63xx_ep_disable(struct usb_ep *ep)
 	iudma_reset_channel(udc, iudma);
 
 	if (!list_empty(&bep->queue)) {
-		list_for_each_safe(pos, n, &bep->queue) {
-			struct bcm63xx_req *breq =
-				list_entry(pos, struct bcm63xx_req, queue);
-
+		list_for_each_entry_safe(breq, n, &bep->queue, queue) {
 			usb_gadget_unmap_request(&udc->gadget, &breq->req,
 						 iudma->is_tx);
 			list_del(&breq->queue);
 			breq->req.status = -ESHUTDOWN;
 
 			spin_unlock_irqrestore(&udc->lock, flags);
-			breq->req.complete(&iudma->bep->ep, &breq->req);
+			usb_gadget_giveback_request(&iudma->bep->ep, &breq->req);
 			spin_lock_irqsave(&udc->lock, flags);
 		}
 	}
@@ -1836,8 +1854,7 @@ static int bcm63xx_udc_start(struct usb_gadget *gadget,
  * @gadget: USB slave device.
  * @driver: Driver for USB slave devices.
  */
-static int bcm63xx_udc_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static int bcm63xx_udc_stop(struct usb_gadget *gadget)
 {
 	struct bcm63xx_udc *udc = gadget_to_udc(gadget);
 	unsigned long flags;
@@ -1963,7 +1980,7 @@ static irqreturn_t bcm63xx_udc_ctrl_isr(int irq, void *dev_id)
 {
 	struct bcm63xx_udc *udc = dev_id;
 	u32 stat;
-	bool disconnected = false;
+	bool disconnected = false, bus_reset = false;
 
 	stat = usbd_readl(udc, USBD_EVENT_IRQ_STATUS_REG) &
 	       usbd_readl(udc, USBD_EVENT_IRQ_MASK_REG);
@@ -1991,7 +2008,7 @@ static irqreturn_t bcm63xx_udc_ctrl_isr(int irq, void *dev_id)
 
 		udc->ep0_req_reset = 1;
 		schedule_work(&udc->ep0_wq);
-		disconnected = true;
+		bus_reset = true;
 	}
 	if (stat & BIT(USBD_EVENT_IRQ_SETUP)) {
 		if (bcm63xx_update_link_speed(udc)) {
@@ -2014,6 +2031,8 @@ static irqreturn_t bcm63xx_udc_ctrl_isr(int irq, void *dev_id)
 
 	if (disconnected && udc->driver)
 		udc->driver->disconnect(&udc->gadget);
+	else if (bus_reset && udc->driver)
+		usb_gadget_udc_reset(&udc->gadget, udc->driver);
 
 	return IRQ_HANDLED;
 }
@@ -2324,10 +2343,8 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 	int rc = -ENOMEM, i, irq;
 
 	udc = devm_kzalloc(dev, sizeof(*udc), GFP_KERNEL);
-	if (!udc) {
-		dev_err(dev, "cannot allocate memory\n");
+	if (!udc)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, udc);
 	udc->dev = dev;
@@ -2425,7 +2442,6 @@ static struct platform_driver bcm63xx_udc_driver = {
 	.remove		= bcm63xx_udc_remove,
 	.driver		= {
 		.name	= DRV_MODULE_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(bcm63xx_udc_driver);

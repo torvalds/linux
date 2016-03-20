@@ -140,8 +140,8 @@ static int debug;
 #define R_FCR		0x0000	/* Flow Control Register */
 #define R_IER		0x0004	/* Interrupt Enable Register */
 
-#define CONFIG_MAGIC	0xEFEFFEFE
-#define TOGGLE_VALID	0x0000
+#define NOZOMI_CONFIG_MAGIC	0xEFEFFEFE
+#define TOGGLE_VALID		0x0000
 
 /* Definition of interrupt tokens */
 #define MDM_DL1		0x0001
@@ -523,7 +523,7 @@ static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 }
 
 /* Setup pointers to different channels and also setup buffer sizes. */
-static void setup_memory(struct nozomi *dc)
+static void nozomi_setup_memory(struct nozomi *dc)
 {
 	void __iomem *offset = dc->base_addr + dc->config_table.dl_start;
 	/* The length reported is including the length field of 4 bytes,
@@ -660,9 +660,9 @@ static int nozomi_read_config_table(struct nozomi *dc)
 	read_mem32((u32 *) &dc->config_table, dc->base_addr + 0,
 						sizeof(struct config_table));
 
-	if (dc->config_table.signature != CONFIG_MAGIC) {
+	if (dc->config_table.signature != NOZOMI_CONFIG_MAGIC) {
 		dev_err(&dc->pdev->dev, "ConfigTable Bad! 0x%08X != 0x%08X\n",
-			dc->config_table.signature, CONFIG_MAGIC);
+			dc->config_table.signature, NOZOMI_CONFIG_MAGIC);
 		return 0;
 	}
 
@@ -671,7 +671,7 @@ static int nozomi_read_config_table(struct nozomi *dc)
 		int i;
 		DBG1("Second phase, configuring card");
 
-		setup_memory(dc);
+		nozomi_setup_memory(dc);
 
 		dc->port[PORT_MDM].toggle_ul = dc->config_table.toggle.mdm_ul;
 		dc->port[PORT_MDM].toggle_dl = dc->config_table.toggle.mdm_dl;
@@ -705,7 +705,7 @@ static int nozomi_read_config_table(struct nozomi *dc)
 			 dc->config_table.version);
 
 		/* Here we should disable all I/O over F32. */
-		setup_memory(dc);
+		nozomi_setup_memory(dc);
 
 		/*
 		 * We should send ALL channel pair tokens back along
@@ -823,7 +823,7 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 	struct tty_struct *tty = tty_port_tty_get(&port->port);
 	int i, ret;
 
-	read_mem32((u32 *) &size, addr, 4);
+	size = __le32_to_cpu(readl(addr));
 	/*  DBG1( "%d bytes port: %d", size, index); */
 
 	if (tty && test_bit(TTY_THROTTLED, &tty->flags)) {

@@ -310,7 +310,7 @@ static int wm8711_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			regcache_sync(wm8711->regmap);
 
 		snd_soc_write(codec, WM8711_PWR, reg | 0x0040);
@@ -320,7 +320,6 @@ static int wm8711_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, WM8711_PWR, 0xffff);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -350,19 +349,6 @@ static struct snd_soc_dai_driver wm8711_dai = {
 	.ops = &wm8711_ops,
 };
 
-static int wm8711_suspend(struct snd_soc_codec *codec)
-{
-	snd_soc_write(codec, WM8711_ACTIVE, 0x0);
-	wm8711_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8711_resume(struct snd_soc_codec *codec)
-{
-	wm8711_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int wm8711_probe(struct snd_soc_codec *codec)
 {
 	int ret;
@@ -373,8 +359,6 @@ static int wm8711_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	wm8711_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	/* Latch the update bits */
 	snd_soc_update_bits(codec, WM8711_LOUT1V, 0x0100, 0x0100);
 	snd_soc_update_bits(codec, WM8711_ROUT1V, 0x0100, 0x0100);
@@ -383,19 +367,11 @@ static int wm8711_probe(struct snd_soc_codec *codec)
 
 }
 
-/* power down chip */
-static int wm8711_remove(struct snd_soc_codec *codec)
-{
-	wm8711_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8711 = {
 	.probe =	wm8711_probe,
-	.remove =	wm8711_remove,
-	.suspend =	wm8711_suspend,
-	.resume =	wm8711_resume,
 	.set_bias_level = wm8711_set_bias_level,
+	.suspend_bias_off = true,
+
 	.controls = wm8711_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8711_snd_controls),
 	.dapm_widgets = wm8711_dapm_widgets,
@@ -455,7 +431,6 @@ static int wm8711_spi_remove(struct spi_device *spi)
 static struct spi_driver wm8711_spi_driver = {
 	.driver = {
 		.name	= "wm8711",
-		.owner	= THIS_MODULE,
 		.of_match_table = wm8711_of_match,
 	},
 	.probe		= wm8711_spi_probe,
@@ -502,7 +477,6 @@ MODULE_DEVICE_TABLE(i2c, wm8711_i2c_id);
 static struct i2c_driver wm8711_i2c_driver = {
 	.driver = {
 		.name = "wm8711",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8711_of_match,
 	},
 	.probe =    wm8711_i2c_probe,

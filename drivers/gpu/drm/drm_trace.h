@@ -7,7 +7,6 @@
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM drm
-#define TRACE_SYSTEM_STRING __stringify(TRACE_SYSTEM)
 #define TRACE_INCLUDE_FILE drm_trace
 
 TRACE_EVENT(drm_vblank_event,

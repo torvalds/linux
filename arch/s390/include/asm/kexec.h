@@ -26,6 +26,9 @@
 /* Not more than 2GB */
 #define KEXEC_CONTROL_MEMORY_LIMIT (1UL<<31)
 
+/* Allocate control page with GFP_DMA */
+#define KEXEC_CONTROL_MEMORY_GFP GFP_DMA
+
 /* Maximum address we can use for the crash control pages */
 #define KEXEC_CRASH_CONTROL_MEMORY_LIMIT (-1UL)
 

@@ -69,10 +69,10 @@
 /*
  * Version numbers
  */
-#define VMXNET3_DRIVER_VERSION_STRING   "1.2.0.0-k"
+#define VMXNET3_DRIVER_VERSION_STRING   "1.4.6.0-k"
 
 /* a 32-bit int, each byte encode a verion number in VMXNET3_DRIVER_VERSION */
-#define VMXNET3_DRIVER_VERSION_NUM      0x01020000
+#define VMXNET3_DRIVER_VERSION_NUM      0x01040600
 
 #if defined(CONFIG_PCI_MSI)
 	/* RSS only makes sense if MSI-X is supported. */
@@ -117,7 +117,6 @@ enum {
 /*
  * PCI vendor and device IDs.
  */
-#define PCI_VENDOR_ID_VMWARE            0x15AD
 #define PCI_DEVICE_ID_VMWARE_VMXNET3    0x07B0
 #define MAX_ETHERNET_CARDS		10
 #define MAX_PCI_PASSTHRU_DEVICE		6
@@ -212,6 +211,7 @@ struct vmxnet3_tq_driver_stats {
 
 struct vmxnet3_tx_ctx {
 	bool   ipv4;
+	bool   ipv6;
 	u16 mss;
 	u32 eth_ip_hdr_size; /* only valid for pkts requesting tso or csum
 				 * offloading
@@ -328,6 +328,10 @@ struct vmxnet3_adapter {
 
 	u8			__iomem *hw_addr0; /* for BAR 0 */
 	u8			__iomem *hw_addr1; /* for BAR 1 */
+	u8                              version;
+
+	bool				rxcsum;
+	bool				lro;
 
 #ifdef VMXNET3_RSS
 	struct UPT1_RSSConf		*rss_conf;
@@ -353,6 +357,7 @@ struct vmxnet3_adapter {
 	/* Ring sizes */
 	u32 tx_ring_size;
 	u32 rx_ring_size;
+	u32 rx_ring2_size;
 
 	struct work_struct work;
 
@@ -385,6 +390,7 @@ struct vmxnet3_adapter {
 /* must be a multiple of VMXNET3_RING_SIZE_ALIGN */
 #define VMXNET3_DEF_TX_RING_SIZE    512
 #define VMXNET3_DEF_RX_RING_SIZE    256
+#define VMXNET3_DEF_RX_RING2_SIZE   128
 
 #define VMXNET3_MAX_ETH_HDR_SIZE    22
 #define VMXNET3_MAX_SKB_BUF_SIZE    (3*1024)

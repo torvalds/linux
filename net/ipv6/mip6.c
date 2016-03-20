@@ -97,16 +97,17 @@ static int mip6_mh_filter(struct sock *sk, struct sk_buff *skb)
 		return -1;
 
 	if (mh->ip6mh_hdrlen < mip6_mh_len(mh->ip6mh_type)) {
-		LIMIT_NETDEBUG(KERN_DEBUG "mip6: MH message too short: %d vs >=%d\n",
-			       mh->ip6mh_hdrlen, mip6_mh_len(mh->ip6mh_type));
+		net_dbg_ratelimited("mip6: MH message too short: %d vs >=%d\n",
+				    mh->ip6mh_hdrlen,
+				    mip6_mh_len(mh->ip6mh_type));
 		mip6_param_prob(skb, 0, offsetof(struct ip6_mh, ip6mh_hdrlen) +
 				skb_network_header_len(skb));
 		return -1;
 	}
 
 	if (mh->ip6mh_proto != IPPROTO_NONE) {
-		LIMIT_NETDEBUG(KERN_DEBUG "mip6: MH invalid payload proto = %d\n",
-			       mh->ip6mh_proto);
+		net_dbg_ratelimited("mip6: MH invalid payload proto = %d\n",
+				    mh->ip6mh_proto);
 		mip6_param_prob(skb, 0, offsetof(struct ip6_mh, ip6mh_proto) +
 				skb_network_header_len(skb));
 		return -1;
@@ -117,7 +118,7 @@ static int mip6_mh_filter(struct sock *sk, struct sk_buff *skb)
 
 struct mip6_report_rate_limiter {
 	spinlock_t lock;
-	struct timeval stamp;
+	ktime_t stamp;
 	int iif;
 	struct in6_addr src;
 	struct in6_addr dst;
@@ -183,20 +184,18 @@ static int mip6_destopt_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 }
 
-static inline int mip6_report_rl_allow(struct timeval *stamp,
+static inline int mip6_report_rl_allow(ktime_t stamp,
 				       const struct in6_addr *dst,
 				       const struct in6_addr *src, int iif)
 {
 	int allow = 0;
 
 	spin_lock_bh(&mip6_report_rl.lock);
-	if (mip6_report_rl.stamp.tv_sec != stamp->tv_sec ||
-	    mip6_report_rl.stamp.tv_usec != stamp->tv_usec ||
+	if (!ktime_equal(mip6_report_rl.stamp, stamp) ||
 	    mip6_report_rl.iif != iif ||
 	    !ipv6_addr_equal(&mip6_report_rl.src, src) ||
 	    !ipv6_addr_equal(&mip6_report_rl.dst, dst)) {
-		mip6_report_rl.stamp.tv_sec = stamp->tv_sec;
-		mip6_report_rl.stamp.tv_usec = stamp->tv_usec;
+		mip6_report_rl.stamp = stamp;
 		mip6_report_rl.iif = iif;
 		mip6_report_rl.src = *src;
 		mip6_report_rl.dst = *dst;
@@ -215,7 +214,7 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb,
 	struct ipv6_destopt_hao *hao = NULL;
 	struct xfrm_selector sel;
 	int offset;
-	struct timeval stamp;
+	ktime_t stamp;
 	int err = 0;
 
 	if (unlikely(fl6->flowi6_proto == IPPROTO_MH &&
@@ -229,9 +228,9 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb,
 					(skb_network_header(skb) + offset);
 	}
 
-	skb_get_timestamp(skb, &stamp);
+	stamp = skb_get_ktime(skb);
 
-	if (!mip6_report_rl_allow(&stamp, &ipv6_hdr(skb)->daddr,
+	if (!mip6_report_rl_allow(stamp, &ipv6_hdr(skb)->daddr,
 				  hao ? &hao->addr : &ipv6_hdr(skb)->saddr,
 				  opt->iif))
 		goto out;
@@ -288,7 +287,7 @@ static int mip6_destopt_offset(struct xfrm_state *x, struct sk_buff *skb,
 			 * XXX: packet if HAO exists.
 			 */
 			if (ipv6_find_tlv(skb, offset, IPV6_TLV_HAO) >= 0) {
-				LIMIT_NETDEBUG(KERN_WARNING "mip6: hao exists already, override\n");
+				net_dbg_ratelimited("mip6: hao exists already, override\n");
 				return offset;
 			}
 
@@ -336,11 +335,10 @@ static void mip6_destopt_destroy(struct xfrm_state *x)
 {
 }
 
-static const struct xfrm_type mip6_destopt_type =
-{
+static const struct xfrm_type mip6_destopt_type = {
 	.description	= "MIP6DESTOPT",
 	.owner		= THIS_MODULE,
-	.proto	     	= IPPROTO_DSTOPTS,
+	.proto		= IPPROTO_DSTOPTS,
 	.flags		= XFRM_TYPE_NON_FRAGMENT | XFRM_TYPE_LOCAL_COADDR,
 	.init_state	= mip6_destopt_init_state,
 	.destructor	= mip6_destopt_destroy,
@@ -469,11 +467,10 @@ static void mip6_rthdr_destroy(struct xfrm_state *x)
 {
 }
 
-static const struct xfrm_type mip6_rthdr_type =
-{
+static const struct xfrm_type mip6_rthdr_type = {
 	.description	= "MIP6RT",
 	.owner		= THIS_MODULE,
-	.proto	     	= IPPROTO_ROUTING,
+	.proto		= IPPROTO_ROUTING,
 	.flags		= XFRM_TYPE_NON_FRAGMENT | XFRM_TYPE_REMOTE_COADDR,
 	.init_state	= mip6_rthdr_init_state,
 	.destructor	= mip6_rthdr_destroy,

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2013 LSI Corporation.
+ * Copyright 2000-2015 Avago Technologies.  All rights reserved.
  *
  *
  *          Name:  mpi2_sas.h
  *         Title:  MPI Serial Attached SCSI structures and definitions
  * Creation Date:  February 9, 2007
  *
- * mpi2_sas.h Version:  02.00.07
+ * mpi2_sas.h Version:  02.00.10
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -30,6 +30,11 @@
  * 11-18-11  02.00.06  Incorporating additions for MPI v2.5.
  * 07-10-12  02.00.07  Added MPI2_SATA_PT_SGE_UNION for use in the SATA
  *                     Passthrough Request message.
+ * 08-19-13  02.00.08  Made MPI2_SAS_OP_TRANSMIT_PORT_SELECT_SIGNAL obsolete
+ *			for anything newer than MPI v2.0.
+ * 11-18-14  02.00.09  Updated copyright information.
+ * 03-16-15  02.00.10  Updated for MPI v2.6.
+ *                     Added MPI2_SATA_PT_REQ_PT_FLAGS_FPDMA.
  * --------------------------------------------------------------------------
  */
 
@@ -181,6 +186,7 @@ typedef struct _MPI2_SATA_PASSTHROUGH_REQUEST {
 
 /*values for PassthroughFlags field */
 #define MPI2_SATA_PT_REQ_PT_FLAGS_EXECUTE_DIAG      (0x0100)
+#define MPI2_SATA_PT_REQ_PT_FLAGS_FPDMA             (0x0040)
 #define MPI2_SATA_PT_REQ_PT_FLAGS_DMA               (0x0020)
 #define MPI2_SATA_PT_REQ_PT_FLAGS_PIO               (0x0010)
 #define MPI2_SATA_PT_REQ_PT_FLAGS_UNSPECIFIED_VU    (0x0004)
@@ -214,6 +220,8 @@ typedef struct _MPI2_SATA_PASSTHROUGH_REPLY {
 
 /****************************************************************************
 * SAS IO Unit Control messages
+* (MPI v2.5 and earlier only.
+* Replaced by IO Unit Control messages in MPI v2.6 and later.)
 ****************************************************************************/
 
 /*SAS IO Unit Control Request Message */
@@ -251,7 +259,7 @@ typedef struct _MPI2_SAS_IOUNIT_CONTROL_REQUEST {
 #define MPI2_SAS_OP_PHY_CLEAR_ERROR_LOG         (0x08)
 #define MPI2_SAS_OP_SEND_PRIMITIVE              (0x0A)
 #define MPI2_SAS_OP_FORCE_FULL_DISCOVERY        (0x0B)
-#define MPI2_SAS_OP_TRANSMIT_PORT_SELECT_SIGNAL (0x0C)
+#define MPI2_SAS_OP_TRANSMIT_PORT_SELECT_SIGNAL (0x0C) /* MPI v2.0 only */
 #define MPI2_SAS_OP_REMOVE_DEVICE               (0x0D)
 #define MPI2_SAS_OP_LOOKUP_MAPPING              (0x0E)
 #define MPI2_SAS_OP_SET_IOC_PARAMETER           (0x0F)

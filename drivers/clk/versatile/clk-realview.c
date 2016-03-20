@@ -6,16 +6,19 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/clk-provider.h>
 
-#include <mach/hardware.h>
-#include <mach/platform.h>
-
 #include "clk-icst.h"
+
+#define REALVIEW_SYS_OSC0_OFFSET             0x0C
+#define REALVIEW_SYS_OSC1_OFFSET             0x10
+#define REALVIEW_SYS_OSC2_OFFSET             0x14
+#define REALVIEW_SYS_OSC3_OFFSET             0x18
+#define REALVIEW_SYS_OSC4_OFFSET             0x1C	/* OSC1 for RealView/AB */
+#define REALVIEW_SYS_LOCK_OFFSET             0x20
 
 /*
  * Implementation of the ARM RealView clock trees.
@@ -33,13 +36,13 @@ static const struct icst_params realview_oscvco_params = {
 	.idx2s		= icst307_idx2s,
 };
 
-static const struct clk_icst_desc __initdata realview_osc0_desc = {
+static const struct clk_icst_desc realview_osc0_desc __initconst = {
 	.params = &realview_oscvco_params,
 	.vco_offset = REALVIEW_SYS_OSC0_OFFSET,
 	.lock_offset = REALVIEW_SYS_LOCK_OFFSET,
 };
 
-static const struct clk_icst_desc __initdata realview_osc4_desc = {
+static const struct clk_icst_desc realview_osc4_desc __initconst = {
 	.params = &realview_oscvco_params,
 	.vco_offset = REALVIEW_SYS_OSC4_OFFSET,
 	.lock_offset = REALVIEW_SYS_LOCK_OFFSET,

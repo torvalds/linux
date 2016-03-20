@@ -26,7 +26,7 @@
 #include <linux/v4l2-dv-timings.h>
 #include <linux/export.h>
 
-#include <media/tvp514x.h>
+#include <media/i2c/tvp514x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -546,9 +546,7 @@ static int dm6444evm_msp430_get_pins(void)
 	if (status < 0)
 		return status;
 
-	dev_dbg(&dm6446evm_msp->dev,
-		"PINS: %02x %02x %02x %02x\n",
-		buf[0], buf[1], buf[2], buf[3]);
+	dev_dbg(&dm6446evm_msp->dev, "PINS: %4ph\n", buf);
 
 	return (buf[3] << 8) | buf[2];
 }
@@ -767,9 +765,8 @@ static __init void davinci_evm_init(void)
 
 	if (HAS_ATA) {
 		if (HAS_NAND || HAS_NOR)
-			pr_warning("WARNING: both IDE and Flash are "
-				"enabled, but they share AEMIF pins.\n"
-				"\tDisable IDE for NAND/NOR support.\n");
+			pr_warn("WARNING: both IDE and Flash are enabled, but they share AEMIF pins\n"
+				"\tDisable IDE for NAND/NOR support\n");
 		davinci_init_ide();
 	} else if (HAS_NAND || HAS_NOR) {
 		davinci_cfg_reg(DM644X_HPIEN_DISABLE);
@@ -780,13 +777,12 @@ static __init void davinci_evm_init(void)
 			platform_device_register(&davinci_evm_nandflash_device);
 
 			if (davinci_aemif_setup(&davinci_evm_nandflash_device))
-				pr_warn("%s: Cannot configure AEMIF.\n",
+				pr_warn("%s: Cannot configure AEMIF\n",
 					__func__);
 
 			evm_leds[7].default_trigger = "nand-disk";
 			if (HAS_NOR)
-				pr_warning("WARNING: both NAND and NOR flash "
-					"are enabled; disable one of them.\n");
+				pr_warn("WARNING: both NAND and NOR flash are enabled; disable one of them.\n");
 		} else if (HAS_NOR)
 			platform_device_register(&davinci_evm_norflash_device);
 	}

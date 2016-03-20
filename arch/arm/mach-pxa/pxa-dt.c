@@ -15,14 +15,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/irqs.h>
-#include <mach/pxa3xx.h>
 
 #include "generic.h"
 
 #ifdef CONFIG_PXA3xx
-extern void __init pxa3xx_dt_init_irq(void);
-
-static const struct of_dev_auxdata pxa3xx_auxdata_lookup[] __initconst = {
+static const struct of_dev_auxdata const pxa3xx_auxdata_lookup[] __initconst = {
 	OF_DEV_AUXDATA("mrvl,pxa-uart",		0x40100000, "pxa2xx-uart.0", NULL),
 	OF_DEV_AUXDATA("mrvl,pxa-uart",		0x40200000, "pxa2xx-uart.1", NULL),
 	OF_DEV_AUXDATA("mrvl,pxa-uart",		0x40700000, "pxa2xx-uart.2", NULL),
@@ -42,7 +39,7 @@ static void __init pxa3xx_dt_init(void)
 			     pxa3xx_auxdata_lookup, NULL);
 }
 
-static const char *pxa3xx_dt_board_compat[] __initdata = {
+static const char *const pxa3xx_dt_board_compat[] __initconst = {
 	"marvell,pxa300",
 	"marvell,pxa310",
 	"marvell,pxa320",
@@ -59,5 +56,20 @@ DT_MACHINE_START(PXA_DT, "Marvell PXA3xx (Device Tree Support)")
 	.restart	= pxa_restart,
 	.init_machine	= pxa3xx_dt_init,
 	.dt_compat	= pxa3xx_dt_board_compat,
+MACHINE_END
+#endif
+
+#ifdef CONFIG_PXA27x
+static const char * const pxa27x_dt_board_compat[] __initconst = {
+	"marvell,pxa270",
+	NULL,
+};
+
+DT_MACHINE_START(PXA27X_DT, "Marvell PXA2xx (Device Tree Support)")
+	.map_io		= pxa27x_map_io,
+	.init_irq	= pxa27x_dt_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
+	.restart	= pxa_restart,
+	.dt_compat	= pxa27x_dt_board_compat,
 MACHINE_END
 #endif

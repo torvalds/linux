@@ -12,11 +12,11 @@
 #define ASM_EDAC_H
 /*
  * ECC atomic, DMA, SMP and interrupt safe scrub function.
- * Implements the per arch atomic_scrub() that EDAC use for software
+ * Implements the per arch edac_atomic_scrub() that EDAC use for software
  * ECC scrubbing.  It reads memory and then writes back the original
  * value, allowing the hardware to detect and correct memory errors.
  */
-static __inline__ void atomic_scrub(void *va, u32 size)
+static __inline__ void edac_atomic_scrub(void *va, u32 size)
 {
 	unsigned int *virt_addr = va;
 	unsigned int temp;

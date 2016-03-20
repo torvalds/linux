@@ -5,6 +5,15 @@
 
 
 /* We don't want this structure exposed to user space */
+struct ifla_vf_stats {
+	__u64 rx_packets;
+	__u64 tx_packets;
+	__u64 rx_bytes;
+	__u64 tx_bytes;
+	__u64 broadcast;
+	__u64 multicast;
+};
+
 struct ifla_vf_info {
 	__u32 vf;
 	__u8 mac[32];
@@ -14,5 +23,7 @@ struct ifla_vf_info {
 	__u32 linkstate;
 	__u32 min_tx_rate;
 	__u32 max_tx_rate;
+	__u32 rss_query_en;
+	__u32 trusted;
 };
 #endif /* _LINUX_IF_LINK_H */

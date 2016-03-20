@@ -52,7 +52,7 @@ struct nand_bch_control {
 int nand_bch_calculate_ecc(struct mtd_info *mtd, const unsigned char *buf,
 			   unsigned char *code)
 {
-	const struct nand_chip *chip = mtd->priv;
+	const struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nand_bch_control *nbc = chip->ecc.priv;
 	unsigned int i;
 
@@ -79,7 +79,7 @@ EXPORT_SYMBOL(nand_bch_calculate_ecc);
 int nand_bch_correct_data(struct mtd_info *mtd, unsigned char *buf,
 			  unsigned char *read_ecc, unsigned char *calc_ecc)
 {
-	const struct nand_chip *chip = mtd->priv;
+	const struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nand_bch_control *nbc = chip->ecc.priv;
 	unsigned int *errloc = nbc->errloc;
 	int i, count;
@@ -98,7 +98,7 @@ int nand_bch_correct_data(struct mtd_info *mtd, unsigned char *buf,
 		}
 	} else if (count < 0) {
 		printk(KERN_ERR "ecc unrecoverable error\n");
-		count = -1;
+		count = -EBADMSG;
 	}
 	return count;
 }

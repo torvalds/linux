@@ -194,7 +194,6 @@ static const char *hp100_isa_tbl[] = {
 };
 #endif
 
-#ifdef CONFIG_EISA
 static struct eisa_device_id hp100_eisa_tbl[] = {
 	{ "HWPF180" }, /* HP J2577 rev A */
 	{ "HWP1920" }, /* HP 27248B */
@@ -205,9 +204,7 @@ static struct eisa_device_id hp100_eisa_tbl[] = {
 	{ "" }	       /* Mandatory final entry ! */
 };
 MODULE_DEVICE_TABLE(eisa, hp100_eisa_tbl);
-#endif
 
-#ifdef CONFIG_PCI
 static const struct pci_device_id hp100_pci_tbl[] = {
 	{PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_J2585A, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_J2585B, PCI_ANY_ID, PCI_ANY_ID,},
@@ -219,7 +216,6 @@ static const struct pci_device_id hp100_pci_tbl[] = {
 	{}			/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(pci, hp100_pci_tbl);
-#endif
 
 static int hp100_rx_ratio = HP100_DEFAULT_RX_RATIO;
 static int hp100_priority_tx = HP100_DEFAULT_PRIORITY_TX;
@@ -490,7 +486,8 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 
 	eid = hp100_read_id(ioaddr);
 	if (eid == NULL) {	/* bad checksum? */
-		printk(KERN_WARNING "hp100_probe: bad ID checksum at base port 0x%x\n", ioaddr);
+		printk(KERN_WARNING "%s: bad ID checksum at base port 0x%x\n",
+		       __func__, ioaddr);
 		goto out2;
 	}
 
@@ -498,7 +495,9 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 	for (i = uc = 0; i < 7; i++)
 		uc += hp100_inb(LAN_ADDR + i);
 	if (uc != 0xff) {
-		printk(KERN_WARNING "hp100_probe: bad lan address checksum at port 0x%x)\n", ioaddr);
+		printk(KERN_WARNING
+		       "%s: bad lan address checksum at port 0x%x)\n",
+		       __func__, ioaddr);
 		err = -EIO;
 		goto out2;
 	}
@@ -1627,7 +1626,7 @@ static void hp100_clean_txring(struct net_device *dev)
 #endif
 		/* Conversion to new PCI API : NOP */
 		pci_unmap_single(lp->pci_dev, (dma_addr_t) lp->txrhead->pdl[1], lp->txrhead->pdl[2], PCI_DMA_TODEVICE);
-		dev_kfree_skb_any(lp->txrhead->skb);
+		dev_consume_skb_any(lp->txrhead->skb);
 		lp->txrhead->skb = NULL;
 		lp->txrhead = lp->txrhead->next;
 		lp->txrcommit--;
@@ -1745,7 +1744,7 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 	hp100_ints_on();
 	spin_unlock_irqrestore(&lp->lock, flags);
 
-	dev_kfree_skb_any(skb);
+	dev_consume_skb_any(skb);
 
 #ifdef HP100_DEBUG_TX
 	printk("hp100: %s: start_xmit: end\n", dev->name);
@@ -2839,8 +2838,7 @@ static void cleanup_dev(struct net_device *d)
 	free_netdev(d);
 }
 
-#ifdef CONFIG_EISA
-static int __init hp100_eisa_probe (struct device *gendev)
+static int hp100_eisa_probe(struct device *gendev)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct hp100_private));
 	struct eisa_device *edev = to_eisa_device(gendev);
@@ -2881,9 +2879,7 @@ static struct eisa_driver hp100_eisa_driver = {
 		.remove  = hp100_eisa_remove,
         }
 };
-#endif
 
-#ifdef CONFIG_PCI
 static int hp100_pci_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *ent)
 {
@@ -2952,7 +2948,6 @@ static struct pci_driver hp100_pci_driver = {
 	.probe		= hp100_pci_probe,
 	.remove		= hp100_pci_remove,
 };
-#endif
 
 /*
  *  module section
@@ -3029,23 +3024,17 @@ static int __init hp100_module_init(void)
 	err = hp100_isa_init();
 	if (err && err != -ENODEV)
 		goto out;
-#ifdef CONFIG_EISA
 	err = eisa_driver_register(&hp100_eisa_driver);
 	if (err && err != -ENODEV)
 		goto out2;
-#endif
-#ifdef CONFIG_PCI
 	err = pci_register_driver(&hp100_pci_driver);
 	if (err && err != -ENODEV)
 		goto out3;
-#endif
  out:
 	return err;
  out3:
-#ifdef CONFIG_EISA
 	eisa_driver_unregister (&hp100_eisa_driver);
  out2:
-#endif
 	hp100_isa_cleanup();
 	goto out;
 }
@@ -3054,12 +3043,8 @@ static int __init hp100_module_init(void)
 static void __exit hp100_module_exit(void)
 {
 	hp100_isa_cleanup();
-#ifdef CONFIG_EISA
 	eisa_driver_unregister (&hp100_eisa_driver);
-#endif
-#ifdef CONFIG_PCI
 	pci_unregister_driver (&hp100_pci_driver);
-#endif
 }
 
 module_init(hp100_module_init)

@@ -1,0 +1,9 @@
+# DMA engine configuration for hsu
+config HSU_DMA
+	tristate
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+
+config HSU_DMA_PCI
+	tristate
+	depends on HSU_DMA && PCI

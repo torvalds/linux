@@ -17,20 +17,18 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/jiffies.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/printk.h>
 #include <linux/regmap.h>
 #include <linux/smp.h>
 #include <linux/mfd/syscon.h>
-#include <linux/spinlock.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
 #include <asm/mach-types.h>
 #include <asm/smp_plat.h>
-
-#include "brcmstb.h"
 
 enum {
 	ZONE_MAN_CLKEN_MASK		= BIT(0),
@@ -58,6 +56,12 @@ static u32 cpu_rst_cfg_reg;
 static u32 hif_cont_reg;
 
 #ifdef CONFIG_HOTPLUG_CPU
+/*
+ * We must quiesce a dying CPU before it can be killed by the boot CPU. Because
+ * one or more cache may be disabled, we must flush to ensure coherency. We
+ * cannot use traditionl completion structures or spinlocks as they rely on
+ * coherency.
+ */
 static DEFINE_PER_CPU_ALIGNED(int, per_cpu_sw_state);
 
 static int per_cpu_sw_state_rd(u32 cpu)
@@ -68,10 +72,9 @@ static int per_cpu_sw_state_rd(u32 cpu)
 
 static void per_cpu_sw_state_wr(u32 cpu, int val)
 {
-	per_cpu(per_cpu_sw_state, cpu) = val;
 	dmb();
+	per_cpu(per_cpu_sw_state, cpu) = val;
 	sync_cache_w(SHIFT_PERCPU_PTR(&per_cpu_sw_state, per_cpu_offset(cpu)));
-	dsb_sev();
 }
 #else
 static inline void per_cpu_sw_state_wr(u32 cpu, int val) { }
@@ -90,10 +93,35 @@ static u32 pwr_ctrl_rd(u32 cpu)
 	return readl_relaxed(base);
 }
 
-static void pwr_ctrl_wr(u32 cpu, u32 val)
+static void pwr_ctrl_set(unsigned int cpu, u32 val, u32 mask)
 {
 	void __iomem *base = pwr_ctrl_get_base(cpu);
-	writel(val, base);
+	writel((readl(base) & mask) | val, base);
+}
+
+static void pwr_ctrl_clr(unsigned int cpu, u32 val, u32 mask)
+{
+	void __iomem *base = pwr_ctrl_get_base(cpu);
+	writel((readl(base) & mask) & ~val, base);
+}
+
+#define POLL_TMOUT_MS 500
+static int pwr_ctrl_wait_tmout(unsigned int cpu, u32 set, u32 mask)
+{
+	const unsigned long timeo = jiffies + msecs_to_jiffies(POLL_TMOUT_MS);
+	u32 tmp;
+
+	do {
+		tmp = pwr_ctrl_rd(cpu) & mask;
+		if (!set == !tmp)
+			return 0;
+	} while (time_before(jiffies, timeo));
+
+	tmp = pwr_ctrl_rd(cpu) & mask;
+	if (!set == !tmp)
+		return 0;
+
+	return -ETIMEDOUT;
 }
 
 static void cpu_rst_cfg_set(u32 cpu, int set)
@@ -116,15 +144,16 @@ static void cpu_set_boot_addr(u32 cpu, unsigned long boot_addr)
 
 static void brcmstb_cpu_boot(u32 cpu)
 {
-	pr_info("SMP: Booting CPU%d...\n", cpu);
+	/* Mark this CPU as "up" */
+	per_cpu_sw_state_wr(cpu, 1);
 
 	/*
-	 * set the reset vector to point to the secondary_startup
+	 * Set the reset vector to point to the secondary_startup
 	 * routine
 	 */
-	cpu_set_boot_addr(cpu, virt_to_phys(brcmstb_secondary_startup));
+	cpu_set_boot_addr(cpu, virt_to_phys(secondary_startup));
 
-	/* unhalt the cpu */
+	/* Unhalt the cpu */
 	cpu_rst_cfg_set(cpu, 0);
 }
 
@@ -134,19 +163,22 @@ static void brcmstb_cpu_power_on(u32 cpu)
 	 * The secondary cores power was cut, so we must go through
 	 * power-on initialization.
 	 */
-	u32 tmp;
+	pwr_ctrl_set(cpu, ZONE_MAN_ISO_CNTL_MASK, 0xffffff00);
+	pwr_ctrl_set(cpu, ZONE_MANUAL_CONTROL_MASK, -1);
+	pwr_ctrl_set(cpu, ZONE_RESERVED_1_MASK, -1);
 
-	pr_info("SMP: Powering up CPU%d...\n", cpu);
+	pwr_ctrl_set(cpu, ZONE_MAN_MEM_PWR_MASK, -1);
 
-	/* Request zone power up */
-	pwr_ctrl_wr(cpu, ZONE_PWR_UP_REQ_MASK);
+	if (pwr_ctrl_wait_tmout(cpu, 1, ZONE_MEM_PWR_STATE_MASK))
+		panic("ZONE_MEM_PWR_STATE_MASK set timeout");
 
-	/* Wait for the power up FSM to complete */
-	do {
-		tmp = pwr_ctrl_rd(cpu);
-	} while (!(tmp & ZONE_PWR_ON_STATE_MASK));
+	pwr_ctrl_set(cpu, ZONE_MAN_CLKEN_MASK, -1);
 
-	per_cpu_sw_state_wr(cpu, 1);
+	if (pwr_ctrl_wait_tmout(cpu, 1, ZONE_DPG_PWR_STATE_MASK))
+		panic("ZONE_DPG_PWR_STATE_MASK set timeout");
+
+	pwr_ctrl_clr(cpu, ZONE_MAN_ISO_CNTL_MASK, -1);
+	pwr_ctrl_set(cpu, ZONE_MAN_RESET_CNTL_MASK, -1);
 }
 
 static int brcmstb_cpu_get_power_state(u32 cpu)
@@ -161,51 +193,48 @@ static void brcmstb_cpu_die(u32 cpu)
 {
 	v7_exit_coherency_flush(all);
 
-	/* Prevent all interrupts from reaching this CPU. */
-	arch_local_irq_disable();
-
-	/*
-	 * Final full barrier to ensure everything before this instruction has
-	 * quiesced.
-	 */
-	isb();
-	dsb();
-
 	per_cpu_sw_state_wr(cpu, 0);
 
 	/* Sit and wait to die */
 	wfi();
 
 	/* We should never get here... */
-	panic("Spurious interrupt on CPU %d received!\n", cpu);
+	while (1)
+		;
 }
 
 static int brcmstb_cpu_kill(u32 cpu)
 {
-	u32 tmp;
-
-	pr_info("SMP: Powering down CPU%d...\n", cpu);
+	/*
+	 * Ordinarily, the hardware forbids power-down of CPU0 (which is good
+	 * because it is the boot CPU), but this is not true when using BPCM
+	 * manual mode.  Consequently, we must avoid turning off CPU0 here to
+	 * ensure that TI2C master reset will work.
+	 */
+	if (cpu == 0) {
+		pr_warn("SMP: refusing to power off CPU0\n");
+		return 1;
+	}
 
 	while (per_cpu_sw_state_rd(cpu))
 		;
 
-	/* Program zone reset */
-	pwr_ctrl_wr(cpu, ZONE_RESET_STATE_MASK | ZONE_BLK_RST_ASSERT_MASK |
-			      ZONE_PWR_DN_REQ_MASK);
+	pwr_ctrl_set(cpu, ZONE_MANUAL_CONTROL_MASK, -1);
+	pwr_ctrl_clr(cpu, ZONE_MAN_RESET_CNTL_MASK, -1);
+	pwr_ctrl_clr(cpu, ZONE_MAN_CLKEN_MASK, -1);
+	pwr_ctrl_set(cpu, ZONE_MAN_ISO_CNTL_MASK, -1);
+	pwr_ctrl_clr(cpu, ZONE_MAN_MEM_PWR_MASK, -1);
 
-	/* Verify zone reset */
-	tmp = pwr_ctrl_rd(cpu);
-	if (!(tmp & ZONE_RESET_STATE_MASK))
-		pr_err("%s: Zone reset bit for CPU %d not asserted!\n",
-			__func__, cpu);
+	if (pwr_ctrl_wait_tmout(cpu, 0, ZONE_MEM_PWR_STATE_MASK))
+		panic("ZONE_MEM_PWR_STATE_MASK clear timeout");
 
-	/* Wait for power down */
-	do {
-		tmp = pwr_ctrl_rd(cpu);
-	} while (!(tmp & ZONE_PWR_OFF_STATE_MASK));
+	pwr_ctrl_clr(cpu, ZONE_RESERVED_1_MASK, -1);
 
-	/* Settle-time from Broadcom-internal DVT reference code */
-	udelay(7);
+	if (pwr_ctrl_wait_tmout(cpu, 0, ZONE_DPG_PWR_STATE_MASK))
+		panic("ZONE_DPG_PWR_STATE_MASK clear timeout");
+
+	/* Flush pipeline before resetting CPU */
+	mb();
 
 	/* Assert reset on the CPU */
 	cpu_rst_cfg_set(cpu, 1);
@@ -256,9 +285,7 @@ static int __init setup_hifcpubiuctrl_regs(struct device_node *np)
 	}
 
 cleanup:
-	if (syscon_np)
-		of_node_put(syscon_np);
-
+	of_node_put(syscon_np);
 	return rc;
 }
 
@@ -284,13 +311,11 @@ static int __init setup_hifcont_regs(struct device_node *np)
 		goto cleanup;
 	}
 
-	/* offset is at top of hif_cont_block */
+	/* Offset is at top of hif_cont_block */
 	hif_cont_reg = 0;
 
 cleanup:
-	if (syscon_np)
-		of_node_put(syscon_np);
-
+	of_node_put(syscon_np);
 	return rc;
 }
 
@@ -316,24 +341,11 @@ static void __init brcmstb_cpu_ctrl_setup(unsigned int max_cpus)
 		return;
 }
 
-static DEFINE_SPINLOCK(boot_lock);
-
-static void brcmstb_secondary_init(unsigned int cpu)
-{
-	/*
-	 * Synchronise with the boot thread.
-	 */
-	spin_lock(&boot_lock);
-	spin_unlock(&boot_lock);
-}
-
 static int brcmstb_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	/*
-	 * set synchronisation state between this boot processor
-	 * and the secondary one
-	 */
-	spin_lock(&boot_lock);
+	/* Missing the brcm,brcmstb-smpboot DT node? */
+	if (!cpubiuctrl_block || !hif_cont_block)
+		return -ENODEV;
 
 	/* Bring up power to the core if necessary */
 	if (brcmstb_cpu_get_power_state(cpu) == 0)
@@ -341,18 +353,11 @@ static int brcmstb_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 	brcmstb_cpu_boot(cpu);
 
-	/*
-	 * now the secondary core is starting up let it run its
-	 * calibrations, then wait for it to finish
-	 */
-	spin_unlock(&boot_lock);
-
 	return 0;
 }
 
-static struct smp_operations brcmstb_smp_ops __initdata = {
+static const struct smp_operations brcmstb_smp_ops __initconst = {
 	.smp_prepare_cpus	= brcmstb_cpu_ctrl_setup,
-	.smp_secondary_init	= brcmstb_secondary_init,
 	.smp_boot_secondary	= brcmstb_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_kill		= brcmstb_cpu_kill,

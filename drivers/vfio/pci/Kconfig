@@ -1,6 +1,8 @@
 config VFIO_PCI
 	tristate "VFIO support for PCI devices"
 	depends on VFIO && PCI && EVENTFD
+	select VFIO_VIRQFD
+	select IRQ_BYPASS_MANAGER
 	help
 	  Support for the PCI VFIO bus driver.  This is required to make
 	  use of PCI drivers using the VFIO framework.
@@ -16,3 +18,15 @@ config VFIO_PCI_VGA
 	  BIOS and generic video drivers.
 
 	  If you don't know what to do here, say N.
+
+config VFIO_PCI_MMAP
+	depends on VFIO_PCI
+	def_bool y if !S390
+
+config VFIO_PCI_INTX
+	depends on VFIO_PCI
+	def_bool y if !S390
+
+config VFIO_PCI_IGD
+	depends on VFIO_PCI
+	def_bool y if X86

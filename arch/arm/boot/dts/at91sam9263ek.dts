@@ -13,7 +13,8 @@
 	compatible = "atmel,at91sam9263ek", "atmel,at91sam9263", "atmel,at91sam9";
 
 	chosen {
-		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock5 rw rootfstype=ubifs";
+		bootargs = "mem=64M root=/dev/mtdblock5 rw rootfstype=ubifs";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -21,15 +22,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		main_clock: clock@0 {
-			compatible = "atmel,osc", "fixed-clock";
-			clock-frequency = <16367660>;
-		};
-
 		slow_xtal {
 			clock-frequency = <32768>;
 		};
@@ -212,14 +204,14 @@
 			label = "left_click";
 			gpios = <&pioC 5 GPIO_ACTIVE_LOW>;
 			linux,code = <272>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		right_click {
 			label = "right_click";
 			gpios = <&pioC 4 GPIO_ACTIVE_LOW>;
 			linux,code = <273>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

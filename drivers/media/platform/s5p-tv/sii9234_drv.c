@@ -23,7 +23,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/slab.h>
 
-#include <media/sii9234.h>
+#include <linux/platform_data/media/sii9234.h>
 #include <media/v4l2-subdev.h>
 
 MODULE_AUTHOR("Tomasz Stanislawski <t.stanislaws@samsung.com>");
@@ -289,7 +289,7 @@ static int sii9234_s_power(struct v4l2_subdev *sd, int on)
 	else
 		ret = pm_runtime_put(&ctx->client->dev);
 	/* only values < 0 indicate errors */
-	return IS_ERR_VALUE(ret) ? ret : 0;
+	return ret < 0 ? ret : 0;
 }
 
 static int sii9234_s_stream(struct v4l2_subdev *sd, int enable)
@@ -397,7 +397,6 @@ MODULE_DEVICE_TABLE(i2c, sii9234_id);
 static struct i2c_driver sii9234_driver = {
 	.driver = {
 		.name	= "sii9234",
-		.owner	= THIS_MODULE,
 		.pm = &sii9234_pm_ops,
 	},
 	.probe		= sii9234_probe,

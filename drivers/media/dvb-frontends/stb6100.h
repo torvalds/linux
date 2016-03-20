@@ -86,7 +86,6 @@ struct stb6100_state {
 	const struct stb6100_config	*config;
 	struct dvb_tuner_ops		ops;
 	struct dvb_frontend		*frontend;
-	struct tuner_state		status;
 
 	u32 frequency;
 	u32 srate;
@@ -94,7 +93,7 @@ struct stb6100_state {
 	u32 reference;
 };
 
-#if IS_ENABLED(CONFIG_DVB_STB6100)
+#if IS_REACHABLE(CONFIG_DVB_STB6100)
 
 extern struct dvb_frontend *stb6100_attach(struct dvb_frontend *fe,
 					   const struct stb6100_config *config,

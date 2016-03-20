@@ -4,7 +4,8 @@ Required properties:
 
 - compatible	: should be one of:
 		  "samsung,s5pv210-jpeg", "samsung,exynos4210-jpeg",
-		  "samsung,exynos3250-jpeg";
+		  "samsung,exynos3250-jpeg", "samsung,exynos5420-jpeg",
+		  "samsung,exynos5433-jpeg";
 - reg		: address and length of the JPEG codec IP register set;
 - interrupts	: specifies the JPEG codec IP interrupt;
 - clock-names   : should contain:

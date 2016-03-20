@@ -263,6 +263,7 @@ int exynos_mipi_dsi_register_lcd_driver(struct mipi_dsim_lcd_driver *lcd_drv)
 	return 0;
 
 }
+EXPORT_SYMBOL_GPL(exynos_mipi_dsi_register_lcd_driver);
 
 static struct mipi_dsim_ddi *exynos_mipi_dsi_bind_lcd_ddi(
 						struct mipi_dsim_device *dsim,
@@ -402,12 +403,12 @@ static int exynos_mipi_dsi_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	dsim->irq = platform_get_irq(pdev, 0);
-	if (IS_ERR_VALUE(dsim->irq)) {
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request dsim irq resource\n");
-		ret = -EINVAL;
 		goto error;
 	}
+	dsim->irq = ret;
 
 	init_completion(&dsim_wr_comp);
 	init_completion(&dsim_rd_comp);
@@ -562,7 +563,6 @@ static struct platform_driver exynos_mipi_dsi_driver = {
 	.remove = exynos_mipi_dsi_remove,
 	.driver = {
 		   .name = "exynos-mipi-dsim",
-		   .owner = THIS_MODULE,
 		   .pm = &exynos_mipi_dsi_pm_ops,
 	},
 };
@@ -570,5 +570,5 @@ static struct platform_driver exynos_mipi_dsi_driver = {
 module_platform_driver(exynos_mipi_dsi_driver);
 
 MODULE_AUTHOR("InKi Dae <inki.dae@samsung.com>");
-MODULE_DESCRIPTION("Samusung SoC MIPI-DSI driver");
+MODULE_DESCRIPTION("Samsung SoC MIPI-DSI driver");
 MODULE_LICENSE("GPL");

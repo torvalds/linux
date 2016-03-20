@@ -29,9 +29,8 @@
 
 #include <asm/uaccess.h>
 #include <asm/traps.h>
-#include <asm/desc.h>
 #include <asm/user.h>
-#include <asm/i387.h>
+#include <asm/fpu/internal.h>
 
 #include "fpu_system.h"
 #include "fpu_emu.h"
@@ -41,48 +40,32 @@
 
 #define __BAD__ FPU_illegal	/* Illegal on an 80486, causes SIGILL */
 
-#ifndef NO_UNDOC_CODE		/* Un-documented FPU op-codes supported by default. */
+/* fcmovCC and f(u)comi(p) are enabled if CPUID(1).EDX(15) "cmov" is set */
 
-/* WARNING: These codes are not documented by Intel in their 80486 manual
-   and may not work on FPU clones or later Intel FPUs. */
-
-/* Changes to support the un-doc codes provided by Linus Torvalds. */
-
-#define _d9_d8_ fstp_i		/* unofficial code (19) */
-#define _dc_d0_ fcom_st		/* unofficial code (14) */
-#define _dc_d8_ fcompst		/* unofficial code (1c) */
-#define _dd_c8_ fxch_i		/* unofficial code (0d) */
-#define _de_d0_ fcompst		/* unofficial code (16) */
-#define _df_c0_ ffreep		/* unofficial code (07) ffree + pop */
-#define _df_c8_ fxch_i		/* unofficial code (0f) */
-#define _df_d0_ fstp_i		/* unofficial code (17) */
-#define _df_d8_ fstp_i		/* unofficial code (1f) */
+/* WARNING: "u" entries are not documented by Intel in their 80486 manual
+   and may not work on FPU clones or later Intel FPUs.
+   Changes to support them provided by Linus Torvalds. */
 
 static FUNC const st_instr_table[64] = {
-	fadd__, fld_i_, __BAD__, __BAD__, fadd_i, ffree_, faddp_, _df_c0_,
-	fmul__, fxch_i, __BAD__, __BAD__, fmul_i, _dd_c8_, fmulp_, _df_c8_,
-	fcom_st, fp_nop, __BAD__, __BAD__, _dc_d0_, fst_i_, _de_d0_, _df_d0_,
-	fcompst, _d9_d8_, __BAD__, __BAD__, _dc_d8_, fstp_i, fcompp, _df_d8_,
-	fsub__, FPU_etc, __BAD__, finit_, fsubri, fucom_, fsubrp, fstsw_,
-	fsubr_, fconst, fucompp, __BAD__, fsub_i, fucomp, fsubp_, __BAD__,
-	fdiv__, FPU_triga, __BAD__, __BAD__, fdivri, __BAD__, fdivrp, __BAD__,
-	fdivr_, FPU_trigb, __BAD__, __BAD__, fdiv_i, __BAD__, fdivp_, __BAD__,
+/* Opcode:	d8		d9		da		db */
+/*		dc		dd		de		df */
+/* c0..7 */	fadd__,		fld_i_,		fcmovb,		fcmovnb,
+/* c0..7 */	fadd_i,		ffree_,		faddp_,		ffreep,/*u*/
+/* c8..f */	fmul__,		fxch_i,		fcmove,		fcmovne,
+/* c8..f */	fmul_i,		fxch_i,/*u*/	fmulp_,		fxch_i,/*u*/
+/* d0..7 */	fcom_st,	fp_nop,		fcmovbe,	fcmovnbe,
+/* d0..7 */	fcom_st,/*u*/	fst_i_,		fcompst,/*u*/	fstp_i,/*u*/
+/* d8..f */	fcompst,	fstp_i,/*u*/	fcmovu,		fcmovnu,
+/* d8..f */	fcompst,/*u*/	fstp_i,		fcompp,		fstp_i,/*u*/
+/* e0..7 */	fsub__,		FPU_etc,	__BAD__,	finit_,
+/* e0..7 */	fsubri,		fucom_,		fsubrp,		fstsw_,
+/* e8..f */	fsubr_,		fconst,		fucompp,	fucomi_,
+/* e8..f */	fsub_i,		fucomp,		fsubp_,		fucomip,
+/* f0..7 */	fdiv__,		FPU_triga,	__BAD__,	fcomi_,
+/* f0..7 */	fdivri,		__BAD__,	fdivrp,		fcomip,
+/* f8..f */	fdivr_,		FPU_trigb,	__BAD__,	__BAD__,
+/* f8..f */	fdiv_i,		__BAD__,	fdivp_,		__BAD__,
 };
-
-#else /* Support only documented FPU op-codes */
-
-static FUNC const st_instr_table[64] = {
-	fadd__, fld_i_, __BAD__, __BAD__, fadd_i, ffree_, faddp_, __BAD__,
-	fmul__, fxch_i, __BAD__, __BAD__, fmul_i, __BAD__, fmulp_, __BAD__,
-	fcom_st, fp_nop, __BAD__, __BAD__, __BAD__, fst_i_, __BAD__, __BAD__,
-	fcompst, __BAD__, __BAD__, __BAD__, __BAD__, fstp_i, fcompp, __BAD__,
-	fsub__, FPU_etc, __BAD__, finit_, fsubri, fucom_, fsubrp, fstsw_,
-	fsubr_, fconst, fucompp, __BAD__, fsub_i, fucomp, fsubp_, __BAD__,
-	fdiv__, FPU_triga, __BAD__, __BAD__, fdivri, __BAD__, fdivrp, __BAD__,
-	fdivr_, FPU_trigb, __BAD__, __BAD__, fdiv_i, __BAD__, fdivp_, __BAD__,
-};
-
-#endif /* NO_UNDOC_CODE */
 
 #define _NONE_ 0		/* Take no special action */
 #define _REG0_ 1		/* Need to check for not empty st(0) */
@@ -95,35 +78,17 @@ static FUNC const st_instr_table[64] = {
 #define _REGIc 0		/* Compare st(0) and st(rm) */
 #define _REGIn 0		/* Uses st(0) and st(rm), but handle checks later */
 
-#ifndef NO_UNDOC_CODE
-
-/* Un-documented FPU op-codes supported by default. (see above) */
-
 static u_char const type_table[64] = {
-	_REGI_, _NONE_, _null_, _null_, _REGIi, _REGi_, _REGIp, _REGi_,
-	_REGI_, _REGIn, _null_, _null_, _REGIi, _REGI_, _REGIp, _REGI_,
-	_REGIc, _NONE_, _null_, _null_, _REGIc, _REG0_, _REGIc, _REG0_,
-	_REGIc, _REG0_, _null_, _null_, _REGIc, _REG0_, _REGIc, _REG0_,
-	_REGI_, _NONE_, _null_, _NONE_, _REGIi, _REGIc, _REGIp, _NONE_,
-	_REGI_, _NONE_, _REGIc, _null_, _REGIi, _REGIc, _REGIp, _null_,
-	_REGI_, _NONE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_,
-	_REGI_, _NONE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_
+/* Opcode:	d8	d9	da	db	dc	dd	de	df */
+/* c0..7 */	_REGI_, _NONE_, _REGIn, _REGIn, _REGIi, _REGi_, _REGIp, _REGi_,
+/* c8..f */	_REGI_, _REGIn, _REGIn, _REGIn, _REGIi, _REGI_, _REGIp, _REGI_,
+/* d0..7 */	_REGIc, _NONE_, _REGIn, _REGIn, _REGIc, _REG0_, _REGIc, _REG0_,
+/* d8..f */	_REGIc, _REG0_, _REGIn, _REGIn, _REGIc, _REG0_, _REGIc, _REG0_,
+/* e0..7 */	_REGI_, _NONE_, _null_, _NONE_, _REGIi, _REGIc, _REGIp, _NONE_,
+/* e8..f */	_REGI_, _NONE_, _REGIc, _REGIc, _REGIi, _REGIc, _REGIp, _REGIc,
+/* f0..7 */	_REGI_, _NONE_, _null_, _REGIc, _REGIi, _null_, _REGIp, _REGIc,
+/* f8..f */	_REGI_, _NONE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_,
 };
-
-#else /* Support only documented FPU op-codes */
-
-static u_char const type_table[64] = {
-	_REGI_, _NONE_, _null_, _null_, _REGIi, _REGi_, _REGIp, _null_,
-	_REGI_, _REGIn, _null_, _null_, _REGIi, _null_, _REGIp, _null_,
-	_REGIc, _NONE_, _null_, _null_, _null_, _REG0_, _null_, _null_,
-	_REGIc, _null_, _null_, _null_, _null_, _REG0_, _REGIc, _null_,
-	_REGI_, _NONE_, _null_, _NONE_, _REGIi, _REGIc, _REGIp, _NONE_,
-	_REGI_, _NONE_, _REGIc, _null_, _REGIi, _REGIc, _REGIp, _null_,
-	_REGI_, _NONE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_,
-	_REGI_, _NONE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_
-};
-
-#endif /* NO_UNDOC_CODE */
 
 #ifdef RE_ENTRANT_CHECKING
 u_char emulating = 0;
@@ -147,13 +112,9 @@ void math_emulate(struct math_emu_info *info)
 	unsigned long code_base = 0;
 	unsigned long code_limit = 0;	/* Initialized to stop compiler warnings */
 	struct desc_struct code_descriptor;
+	struct fpu *fpu = &current->thread.fpu;
 
-	if (!used_math()) {
-		if (init_fpu(current)) {
-			do_group_exit(SIGKILL);
-			return;
-		}
-	}
+	fpu__activate_curr(fpu);
 
 #ifdef RE_ENTRANT_CHECKING
 	if (emulating) {
@@ -185,7 +146,7 @@ void math_emulate(struct math_emu_info *info)
 			math_abort(FPU_info, SIGILL);
 		}
 
-		code_descriptor = LDT_DESCRIPTOR(FPU_CS);
+		code_descriptor = FPU_get_ldt_descriptor(FPU_CS);
 		if (SEG_D_SIZE(code_descriptor)) {
 			/* The above test may be wrong, the book is not clear */
 			/* Segmented 32 bit protected mode */
@@ -673,7 +634,7 @@ void math_abort(struct math_emu_info *info, unsigned int signal)
 #endif /* PARANOID */
 }
 
-#define S387 ((struct i387_soft_struct *)s387)
+#define S387 ((struct swregs_state *)s387)
 #define sstatus_word() \
   ((S387->swd & ~SW_Top & 0xffff) | ((S387->ftop << SW_Top_Shift) & SW_Top))
 
@@ -682,14 +643,14 @@ int fpregs_soft_set(struct task_struct *target,
 		    unsigned int pos, unsigned int count,
 		    const void *kbuf, const void __user *ubuf)
 {
-	struct i387_soft_struct *s387 = &target->thread.fpu.state->soft;
+	struct swregs_state *s387 = &target->thread.fpu.state.soft;
 	void *space = s387->st_space;
 	int ret;
 	int offset, other, i, tags, regnr, tag, newtop;
 
 	RE_ENTRANT_CHECK_OFF;
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, s387, 0,
-				 offsetof(struct i387_soft_struct, st_space));
+				 offsetof(struct swregs_state, st_space));
 	RE_ENTRANT_CHECK_ON;
 
 	if (ret)
@@ -734,7 +695,7 @@ int fpregs_soft_get(struct task_struct *target,
 		    unsigned int pos, unsigned int count,
 		    void *kbuf, void __user *ubuf)
 {
-	struct i387_soft_struct *s387 = &target->thread.fpu.state->soft;
+	struct swregs_state *s387 = &target->thread.fpu.state.soft;
 	const void *space = s387->st_space;
 	int ret;
 	int offset = (S387->ftop & 7) * 10, other = 80 - offset;
@@ -752,7 +713,7 @@ int fpregs_soft_get(struct task_struct *target,
 #endif /* PECULIAR_486 */
 
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, s387, 0,
-				  offsetof(struct i387_soft_struct, st_space));
+				  offsetof(struct swregs_state, st_space));
 
 	/* Copy all registers in stack order. */
 	if (!ret)

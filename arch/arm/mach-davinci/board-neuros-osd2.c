@@ -183,9 +183,8 @@ static __init void davinci_ntosd2_init(void)
 
 	if (HAS_ATA) {
 		if (HAS_NAND)
-			pr_warning("WARNING: both IDE and Flash are "
-				"enabled, but they share AEMIF pins.\n"
-				"\tDisable IDE for NAND/NOR support.\n");
+			pr_warn("WARNING: both IDE and Flash are enabled, but they share AEMIF pins\n"
+				"\tDisable IDE for NAND/NOR support\n");
 		davinci_init_ide();
 	} else if (HAS_NAND) {
 		davinci_cfg_reg(DM644X_HPIEN_DISABLE);

@@ -21,8 +21,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_inode.h"
@@ -37,13 +35,12 @@
 #include "xfs_icache.h"
 #include "xfs_symlink.h"
 #include "xfs_da_btree.h"
-#include "xfs_dir2_priv.h"
-#include "xfs_dinode.h"
+#include "xfs_dir2.h"
 #include "xfs_trans_space.h"
+#include "xfs_pnfs.h"
 
 #include <linux/capability.h>
 #include <linux/xattr.h>
-#include <linux/namei.h>
 #include <linux/posix_acl.h>
 #include <linux/security.h>
 #include <linux/fiemap.h>
@@ -189,6 +186,8 @@ xfs_generic_create(
 	else
 		d_instantiate(dentry, inode);
 
+	xfs_finish_inode_setup(ip);
+
  out_free_acl:
 	if (default_acl)
 		posix_acl_release(default_acl);
@@ -197,6 +196,7 @@ xfs_generic_create(
 	return error;
 
  out_cleanup_inode:
+	xfs_finish_inode_setup(ip);
 	if (!tmpfile)
 		xfs_cleanup_inode(dir, inode, dentry);
 	iput(inode);
@@ -303,7 +303,7 @@ xfs_vn_link(
 	struct inode	*dir,
 	struct dentry	*dentry)
 {
-	struct inode	*inode = old_dentry->d_inode;
+	struct inode	*inode = d_inode(old_dentry);
 	struct xfs_name	name;
 	int		error;
 
@@ -328,7 +328,7 @@ xfs_vn_unlink(
 
 	xfs_dentry_to_name(&name, dentry, 0);
 
-	error = xfs_remove(XFS_I(dir), &name, XFS_I(dentry->d_inode));
+	error = xfs_remove(XFS_I(dir), &name, XFS_I(d_inode(dentry)));
 	if (error)
 		return error;
 
@@ -369,9 +369,11 @@ xfs_vn_symlink(
 		goto out_cleanup_inode;
 
 	d_instantiate(dentry, inode);
+	xfs_finish_inode_setup(cip);
 	return 0;
 
  out_cleanup_inode:
+	xfs_finish_inode_setup(cip);
 	xfs_cleanup_inode(dir, inode, dentry);
 	iput(inode);
  out:
@@ -383,18 +385,27 @@ xfs_vn_rename(
 	struct inode	*odir,
 	struct dentry	*odentry,
 	struct inode	*ndir,
-	struct dentry	*ndentry)
+	struct dentry	*ndentry,
+	unsigned int	flags)
 {
-	struct inode	*new_inode = ndentry->d_inode;
+	struct inode	*new_inode = d_inode(ndentry);
+	int		omode = 0;
 	struct xfs_name	oname;
 	struct xfs_name	nname;
 
-	xfs_dentry_to_name(&oname, odentry, 0);
-	xfs_dentry_to_name(&nname, ndentry, odentry->d_inode->i_mode);
+	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE | RENAME_WHITEOUT))
+		return -EINVAL;
 
-	return xfs_rename(XFS_I(odir), &oname, XFS_I(odentry->d_inode),
-			  XFS_I(ndir), &nname, new_inode ?
-						XFS_I(new_inode) : NULL);
+	/* if we are exchanging files, we need to set i_mode of both files */
+	if (flags & RENAME_EXCHANGE)
+		omode = d_inode(ndentry)->i_mode;
+
+	xfs_dentry_to_name(&oname, odentry, omode);
+	xfs_dentry_to_name(&nname, ndentry, d_inode(odentry)->i_mode);
+
+	return xfs_rename(XFS_I(odir), &oname, XFS_I(d_inode(odentry)),
+			  XFS_I(ndir), &nname,
+			  new_inode ? XFS_I(new_inode) : NULL, flags);
 }
 
 /*
@@ -402,30 +413,33 @@ xfs_vn_rename(
  * we need to be very careful about how much stack we use.
  * uio is kmalloced for this reason...
  */
-STATIC void *
-xfs_vn_follow_link(
+STATIC const char *
+xfs_vn_get_link(
 	struct dentry		*dentry,
-	struct nameidata	*nd)
+	struct inode		*inode,
+	struct delayed_call	*done)
 {
 	char			*link;
 	int			error = -ENOMEM;
+
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
 
 	link = kmalloc(MAXPATHLEN+1, GFP_KERNEL);
 	if (!link)
 		goto out_err;
 
-	error = xfs_readlink(XFS_I(dentry->d_inode), link);
+	error = xfs_readlink(XFS_I(d_inode(dentry)), link);
 	if (unlikely(error))
 		goto out_kfree;
 
-	nd_set_link(nd, link);
-	return NULL;
+	set_delayed_call(done, kfree_link, link);
+	return link;
 
  out_kfree:
 	kfree(link);
  out_err:
-	nd_set_link(nd, ERR_PTR(error));
-	return NULL;
+	return ERR_PTR(error);
 }
 
 STATIC int
@@ -434,7 +448,7 @@ xfs_vn_getattr(
 	struct dentry		*dentry,
 	struct kstat		*stat)
 {
-	struct inode		*inode = dentry->d_inode;
+	struct inode		*inode = d_inode(dentry);
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 
@@ -499,7 +513,7 @@ xfs_setattr_mode(
 	inode->i_mode |= mode & ~S_IFMT;
 }
 
-static void
+void
 xfs_setattr_time(
 	struct xfs_inode	*ip,
 	struct iattr		*iattr)
@@ -600,7 +614,7 @@ xfs_setattr_nonsize(
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_NOT_SIZE);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ichange, 0, 0);
 	if (error)
-		goto out_dqrele;
+		goto out_trans_cancel;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 
@@ -631,7 +645,7 @@ xfs_setattr_nonsize(
 						NULL, capable(CAP_FOWNER) ?
 						XFS_QMOPT_FORCE_RES : 0);
 			if (error)	/* out of quota */
-				goto out_trans_cancel;
+				goto out_unlock;
 		}
 	}
 
@@ -686,11 +700,11 @@ xfs_setattr_nonsize(
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
-	XFS_STATS_INC(xs_ig_attrchg);
+	XFS_STATS_INC(mp, xs_ig_attrchg);
 
 	if (mp->m_flags & XFS_MOUNT_WSYNC)
 		xfs_trans_set_sync(tp);
-	error = xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp);
 
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
@@ -720,10 +734,10 @@ xfs_setattr_nonsize(
 
 	return 0;
 
-out_trans_cancel:
-	xfs_trans_cancel(tp, 0);
+out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-out_dqrele:
+out_trans_cancel:
+	xfs_trans_cancel(tp);
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(gdqp);
 	return error;
@@ -743,7 +757,7 @@ xfs_setattr_size(
 	struct xfs_trans	*tp;
 	int			error;
 	uint			lock_flags = 0;
-	uint			commit_flags = 0;
+	bool			did_zeroing = false;
 
 	trace_xfs_setattr(ip);
 
@@ -758,6 +772,7 @@ xfs_setattr_size(
 		return error;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
+	ASSERT(xfs_isilocked(ip, XFS_MMAPLOCK_EXCL));
 	ASSERT(S_ISREG(ip->i_d.di_mode));
 	ASSERT((iattr->ia_valid & (ATTR_UID|ATTR_GID|ATTR_ATIME|ATTR_ATIME_SET|
 		ATTR_MTIME_SET|ATTR_KILL_PRIV|ATTR_TIMES_SET)) == 0);
@@ -787,20 +802,16 @@ xfs_setattr_size(
 		return error;
 
 	/*
-	 * Now we can make the changes.  Before we join the inode to the
-	 * transaction, take care of the part of the truncation that must be
-	 * done without the inode lock.  This needs to be done before joining
-	 * the inode to the transaction, because the inode cannot be unlocked
-	 * once it is a part of the transaction.
+	 * File data changes must be complete before we start the transaction to
+	 * modify the inode.  This needs to be done before joining the inode to
+	 * the transaction because the inode cannot be unlocked once it is a
+	 * part of the transaction.
+	 *
+	 * Start with zeroing any data block beyond EOF that we may expose on
+	 * file extension.
 	 */
 	if (newsize > oldsize) {
-		/*
-		 * Do the first part of growing a file: zero any data in the
-		 * last block that is beyond the old EOF.  We need to do this
-		 * before the inode is joined to the transaction to modify
-		 * i_size.
-		 */
-		error = xfs_zero_eof(ip, newsize, oldsize);
+		error = xfs_zero_eof(ip, newsize, oldsize, &did_zeroing);
 		if (error)
 			return error;
 	}
@@ -810,41 +821,42 @@ xfs_setattr_size(
 	 * any previous writes that are beyond the on disk EOF and the new
 	 * EOF that have not been written out need to be written here.  If we
 	 * do not write the data out, we expose ourselves to the null files
-	 * problem.
-	 *
-	 * Only flush from the on disk size to the smaller of the in memory
-	 * file size or the new size as that's the range we really care about
-	 * here and prevents waiting for other data not within the range we
-	 * care about here.
+	 * problem. Note that this includes any block zeroing we did above;
+	 * otherwise those blocks may not be zeroed after a crash.
 	 */
-	if (oldsize != ip->i_d.di_size && newsize > ip->i_d.di_size) {
+	if (newsize > ip->i_d.di_size &&
+	    (oldsize != ip->i_d.di_size || did_zeroing)) {
 		error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
 						      ip->i_d.di_size, newsize);
 		if (error)
 			return error;
 	}
 
-	/*
-	 * Wait for all direct I/O to complete.
-	 */
+	/* Now wait for all direct I/O to complete. */
 	inode_dio_wait(inode);
 
 	/*
-	 * Do all the page cache truncate work outside the transaction context
-	 * as the "lock" order is page lock->log space reservation.  i.e.
-	 * locking pages inside the transaction can ABBA deadlock with
-	 * writeback. We have to do the VFS inode size update before we truncate
-	 * the pagecache, however, to avoid racing with page faults beyond the
-	 * new EOF they are not serialised against truncate operations except by
-	 * page locks and size updates.
+	 * We've already locked out new page faults, so now we can safely remove
+	 * pages from the page cache knowing they won't get refaulted until we
+	 * drop the XFS_MMAP_EXCL lock after the extent manipulations are
+	 * complete. The truncate_setsize() call also cleans partial EOF page
+	 * PTEs on extending truncates and hence ensures sub-page block size
+	 * filesystems are correctly handled, too.
 	 *
-	 * Hence we are in a situation where a truncate can fail with ENOMEM
-	 * from xfs_trans_reserve(), but having already truncated the in-memory
-	 * version of the file (i.e. made user visible changes). There's not
-	 * much we can do about this, except to hope that the caller sees ENOMEM
-	 * and retries the truncate operation.
+	 * We have to do all the page cache truncate work outside the
+	 * transaction context as the "lock" order is page lock->log space
+	 * reservation as defined by extent allocation in the writeback path.
+	 * Hence a truncate can fail with ENOMEM from xfs_trans_reserve(), but
+	 * having already truncated the in-memory version of the file (i.e. made
+	 * user visible changes). There's not much we can do about this, except
+	 * to hope that the caller sees ENOMEM and retries the truncate
+	 * operation.
 	 */
-	error = block_truncate_page(inode->i_mapping, newsize, xfs_get_blocks);
+	if (IS_DAX(inode))
+		error = dax_truncate_page(inode, newsize, xfs_get_blocks_direct);
+	else
+		error = block_truncate_page(inode->i_mapping, newsize,
+					    xfs_get_blocks);
 	if (error)
 		return error;
 	truncate_setsize(inode, newsize);
@@ -854,7 +866,6 @@ xfs_setattr_size(
 	if (error)
 		goto out_trans_cancel;
 
-	commit_flags = XFS_TRANS_RELEASE_LOG_RES;
 	lock_flags |= XFS_ILOCK_EXCL;
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
@@ -894,7 +905,7 @@ xfs_setattr_size(
 	if (newsize <= oldsize) {
 		error = xfs_itruncate_extents(&tp, ip, XFS_DATA_FORK, newsize);
 		if (error)
-			goto out_trans_abort;
+			goto out_trans_cancel;
 
 		/*
 		 * Truncated "down", so we're removing references to old data
@@ -916,21 +927,19 @@ xfs_setattr_size(
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
-	XFS_STATS_INC(xs_ig_attrchg);
+	XFS_STATS_INC(mp, xs_ig_attrchg);
 
 	if (mp->m_flags & XFS_MOUNT_WSYNC)
 		xfs_trans_set_sync(tp);
 
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	error = xfs_trans_commit(tp);
 out_unlock:
 	if (lock_flags)
 		xfs_iunlock(ip, lock_flags);
 	return error;
 
-out_trans_abort:
-	commit_flags |= XFS_TRANS_ABORT;
 out_trans_cancel:
-	xfs_trans_cancel(tp, commit_flags);
+	xfs_trans_cancel(tp);
 	goto out_unlock;
 }
 
@@ -939,13 +948,21 @@ xfs_vn_setattr(
 	struct dentry		*dentry,
 	struct iattr		*iattr)
 {
-	struct xfs_inode	*ip = XFS_I(dentry->d_inode);
+	struct xfs_inode	*ip = XFS_I(d_inode(dentry));
 	int			error;
 
 	if (iattr->ia_valid & ATTR_SIZE) {
-		xfs_ilock(ip, XFS_IOLOCK_EXCL);
-		error = xfs_setattr_size(ip, iattr);
-		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+		uint		iolock = XFS_IOLOCK_EXCL;
+
+		xfs_ilock(ip, iolock);
+		error = xfs_break_layouts(d_inode(dentry), &iolock, true);
+		if (!error) {
+			xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+			iolock |= XFS_MMAPLOCK_EXCL;
+
+			error = xfs_setattr_size(ip, iattr);
+		}
+		xfs_iunlock(ip, iolock);
 	} else {
 		error = xfs_setattr_nonsize(ip, iattr, 0);
 	}
@@ -969,7 +986,7 @@ xfs_vn_update_time(
 	tp = xfs_trans_alloc(mp, XFS_TRANS_FSYNC_TS);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_fsyncts, 0, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 
@@ -991,7 +1008,7 @@ xfs_vn_update_time(
 	}
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_TIMESTAMP);
-	return xfs_trans_commit(tp, 0);
+	return xfs_trans_commit(tp);
 }
 
 #define XFS_FIEMAP_FLAGS	(FIEMAP_FLAG_SYNC|FIEMAP_FLAG_XATTR)
@@ -1117,7 +1134,7 @@ static const struct inode_operations xfs_dir_inode_operations = {
 	 */
 	.rmdir			= xfs_vn_unlink,
 	.mknod			= xfs_vn_mknod,
-	.rename			= xfs_vn_rename,
+	.rename2		= xfs_vn_rename,
 	.get_acl		= xfs_get_acl,
 	.set_acl		= xfs_set_acl,
 	.getattr		= xfs_vn_getattr,
@@ -1145,7 +1162,7 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 	 */
 	.rmdir			= xfs_vn_unlink,
 	.mknod			= xfs_vn_mknod,
-	.rename			= xfs_vn_rename,
+	.rename2		= xfs_vn_rename,
 	.get_acl		= xfs_get_acl,
 	.set_acl		= xfs_set_acl,
 	.getattr		= xfs_vn_getattr,
@@ -1160,8 +1177,7 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 
 static const struct inode_operations xfs_symlink_inode_operations = {
 	.readlink		= generic_readlink,
-	.follow_link		= xfs_vn_follow_link,
-	.put_link		= kfree_put_link,
+	.get_link		= xfs_vn_get_link,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,
@@ -1176,35 +1192,31 @@ xfs_diflags_to_iflags(
 	struct inode		*inode,
 	struct xfs_inode	*ip)
 {
-	if (ip->i_d.di_flags & XFS_DIFLAG_IMMUTABLE)
+	uint16_t		flags = ip->i_d.di_flags;
+
+	inode->i_flags &= ~(S_IMMUTABLE | S_APPEND | S_SYNC |
+			    S_NOATIME | S_DAX);
+
+	if (flags & XFS_DIFLAG_IMMUTABLE)
 		inode->i_flags |= S_IMMUTABLE;
-	else
-		inode->i_flags &= ~S_IMMUTABLE;
-	if (ip->i_d.di_flags & XFS_DIFLAG_APPEND)
+	if (flags & XFS_DIFLAG_APPEND)
 		inode->i_flags |= S_APPEND;
-	else
-		inode->i_flags &= ~S_APPEND;
-	if (ip->i_d.di_flags & XFS_DIFLAG_SYNC)
+	if (flags & XFS_DIFLAG_SYNC)
 		inode->i_flags |= S_SYNC;
-	else
-		inode->i_flags &= ~S_SYNC;
-	if (ip->i_d.di_flags & XFS_DIFLAG_NOATIME)
+	if (flags & XFS_DIFLAG_NOATIME)
 		inode->i_flags |= S_NOATIME;
-	else
-		inode->i_flags &= ~S_NOATIME;
+	if (ip->i_mount->m_flags & XFS_MOUNT_DAX ||
+	    ip->i_d.di_flags2 & XFS_DIFLAG2_DAX)
+		inode->i_flags |= S_DAX;
 }
 
 /*
- * Initialize the Linux inode, set up the operation vectors and
- * unlock the inode.
+ * Initialize the Linux inode and set up the operation vectors.
  *
- * When reading existing inodes from disk this is called directly
- * from xfs_iget, when creating a new inode it is called from
- * xfs_ialloc after setting up the inode.
- *
- * We are always called with an uninitialised linux inode here.
- * We need to initialise the necessary fields and take a reference
- * on it.
+ * When reading existing inodes from disk this is called directly from xfs_iget,
+ * when creating a new inode it is called from xfs_ialloc after setting up the
+ * inode. These callers have different criteria for clearing XFS_INEW, so leave
+ * it up to the caller to deal with unlocking the inode appropriately.
  */
 void
 xfs_setup_inode(
@@ -1291,9 +1303,4 @@ xfs_setup_inode(
 		inode_has_no_xattr(inode);
 		cache_no_acl(inode);
 	}
-
-	xfs_iflags_clear(ip, XFS_INEW);
-	barrier();
-
-	unlock_new_inode(inode);
 }

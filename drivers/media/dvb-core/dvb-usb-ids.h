@@ -1,6 +1,6 @@
 /* dvb-usb-ids.h is part of the DVB USB library.
  *
- * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de) see
+ * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de) see
  * dvb-usb-init.c for copyright information.
  *
  * a header file containing define's for the USB device supported by the
@@ -118,6 +118,7 @@
 #define USB_PID_DIBCOM_STK807XP				0x1f90
 #define USB_PID_DIBCOM_STK807XPVR			0x1f98
 #define USB_PID_DIBCOM_STK8096GP                        0x1fa0
+#define USB_PID_DIBCOM_STK8096PVR                       0x1faa
 #define USB_PID_DIBCOM_NIM8096MD                        0x1fa8
 #define USB_PID_DIBCOM_TFE8096P				0x1f9C
 #define USB_PID_DIBCOM_ANCHOR_2135_COLD			0x2131
@@ -144,6 +145,7 @@
 #define USB_PID_ITETECH_IT9135				0x9135
 #define USB_PID_ITETECH_IT9135_9005			0x9005
 #define USB_PID_ITETECH_IT9135_9006			0x9006
+#define USB_PID_ITETECH_IT9303				0x9306
 #define USB_PID_KWORLD_399U				0xe399
 #define USB_PID_KWORLD_399U_2				0xe400
 #define USB_PID_KWORLD_395U				0xe396
@@ -240,10 +242,14 @@
 #define USB_PID_AVERMEDIA_1867				0x1867
 #define USB_PID_AVERMEDIA_A867				0xa867
 #define USB_PID_AVERMEDIA_H335				0x0335
+#define USB_PID_AVERMEDIA_TD110				0xa110
 #define USB_PID_AVERMEDIA_TWINSTAR			0x0825
 #define USB_PID_TECHNOTREND_CONNECT_S2400               0x3006
 #define USB_PID_TECHNOTREND_CONNECT_S2400_8KEEPROM	0x3009
 #define USB_PID_TECHNOTREND_CONNECT_CT3650		0x300d
+#define USB_PID_TECHNOTREND_CONNECT_S2_4600             0x3011
+#define USB_PID_TECHNOTREND_CONNECT_CT2_4650_CI		0x3012
+#define USB_PID_TECHNOTREND_CONNECT_CT2_4650_CI_2	0x3015
 #define USB_PID_TECHNOTREND_TVSTICK_CT2_4400		0x3014
 #define USB_PID_TERRATEC_CINERGY_DT_XS_DIVERSITY	0x005a
 #define USB_PID_TERRATEC_CINERGY_DT_XS_DIVERSITY_2	0x0081
@@ -252,8 +258,13 @@
 #define USB_PID_TERRATEC_CINERGY_T_EXPRESS		0x0062
 #define USB_PID_TERRATEC_CINERGY_T_XXS			0x0078
 #define USB_PID_TERRATEC_CINERGY_T_XXS_2		0x00ab
+#define USB_PID_TERRATEC_CINERGY_S2_R1			0x00a8
+#define USB_PID_TERRATEC_CINERGY_S2_R2			0x00b0
+#define USB_PID_TERRATEC_CINERGY_S2_R3			0x0102
+#define USB_PID_TERRATEC_CINERGY_S2_R4			0x0105
 #define USB_PID_TERRATEC_H7				0x10b4
 #define USB_PID_TERRATEC_H7_2				0x10a3
+#define USB_PID_TERRATEC_H7_3				0x10a5
 #define USB_PID_TERRATEC_T3				0x10a0
 #define USB_PID_TERRATEC_T5				0x10a1
 #define USB_PID_NOXON_DAB_STICK				0x00b3
@@ -280,6 +291,8 @@
 #define USB_PID_PCTV_400E				0x020f
 #define USB_PID_PCTV_450E				0x0222
 #define USB_PID_PCTV_452E				0x021f
+#define USB_PID_PCTV_78E				0x025a
+#define USB_PID_PCTV_79E				0x0262
 #define USB_PID_REALTEK_RTL2831U			0x2831
 #define USB_PID_REALTEK_RTL2832U			0x2832
 #define USB_PID_TECHNOTREND_CONNECT_S2_3600		0x3007
@@ -314,6 +327,7 @@
 #define USB_PID_GRANDTEC_DVBT_USB2_COLD			0x0bc6
 #define USB_PID_GRANDTEC_DVBT_USB2_WARM			0x0bc7
 #define USB_PID_WINFAST_DTV2000DS			0x6a04
+#define USB_PID_WINFAST_DTV2000DS_PLUS			0x6f12
 #define USB_PID_WINFAST_DTV_DONGLE_COLD			0x6025
 #define USB_PID_WINFAST_DTV_DONGLE_WARM			0x6026
 #define USB_PID_WINFAST_DTV_DONGLE_STK7700P		0x6f00
@@ -352,6 +366,7 @@
 #define USB_PID_MSI_DIGI_VOX_MINI_III                   0x8807
 #define USB_PID_SONY_PLAYTV				0x0003
 #define USB_PID_MYGICA_D689				0xd811
+#define USB_PID_MYGICA_T230				0xc688
 #define USB_PID_ELGATO_EYETV_DIVERSITY			0x0011
 #define USB_PID_ELGATO_EYETV_DTT			0x0021
 #define USB_PID_ELGATO_EYETV_DTT_2			0x003f
@@ -380,4 +395,6 @@
 #define USB_PID_PCTV_2002E                              0x025c
 #define USB_PID_PCTV_2002E_SE                           0x025d
 #define USB_PID_SVEON_STV27                             0xd3af
+#define USB_PID_TURBOX_DTT_2000                         0xd3a4
+#define USB_PID_WINTV_SOLOHD                            0x0264
 #endif

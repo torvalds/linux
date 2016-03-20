@@ -15,6 +15,10 @@
 		linux,initrd-end = <0x82800000>;
 	};
 
+	aliases {
+		serial0 = &uartd;
+	};
+
 	firmware {
 		trusted-foundations {
 			compatible = "tlm,trusted-foundations";
@@ -240,7 +244,6 @@
 	sdhci@78000600 {
 		status = "okay";
 		bus-width = <8>;
-		vmmc-supply = <&vdd_1v8>;
 		non-removable;
 	};
 

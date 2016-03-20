@@ -9,17 +9,103 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <dt-bindings/sound/fsl-imx-audmux.h>
+
 / {
 	chosen {
 		linux,stdout-path = &uart4;
 	};
+
+	regulators {
+		sound_1v8: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "i2s-audio-1v8";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+		};
+
+		sound_3v3: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "i2s-audio-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+	};
+
+	tlv320_mclk: oscillator {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <19200000>;
+		clock-output-names = "tlv320-mclk";
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "OnboardTLV320AIC3007";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&dailink_master>;
+		simple-audio-card,frame-master = <&dailink_master>;
+		simple-audio-card,widgets =
+			"Microphone", "Mic Jack",
+			"Line", "Line In",
+			"Line", "Line Out",
+			"Speaker", "Speaker",
+			"Headphone", "Headphone Jack";
+		simple-audio-card,routing =
+			"Line Out", "LLOUT",
+			"Line Out", "RLOUT",
+			"Speaker", "SPOP",
+			"Speaker", "SPOM",
+			"Headphone Jack", "HPLOUT",
+			"Headphone Jack", "HPROUT",
+			"MIC3L", "Mic Jack",
+			"MIC3R", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"LINE1L", "Line In",
+			"LINE1R", "Line In";
+
+		simple-audio-card,cpu {
+			sound-dai = <&ssi2>;
+		};
+
+		dailink_master: simple-audio-card,codec {
+			sound-dai = <&codec>;
+			clocks = <&tlv320_mclk>;
+		};
+	};
+
 };
 
-&fec {
+&audmux {
+	status = "okay";
+
+	ssi2 {
+		fsl,audmux-port = <1>;
+		fsl,port-config = <
+			(IMX_AUDMUX_V2_PTCR_TFSDIR |
+			IMX_AUDMUX_V2_PTCR_TFSEL(4) |
+			IMX_AUDMUX_V2_PTCR_TCLKDIR |
+			IMX_AUDMUX_V2_PTCR_TCSEL(4))
+			IMX_AUDMUX_V2_PDCR_RXDSEL(4)
+		>;
+	};
+
+	pins5 {
+		fsl,audmux-port = <4>;
+		fsl,port-config = <
+			0x00000000
+			IMX_AUDMUX_V2_PDCR_RXDSEL(1)
+		>;
+	};
+};
+
+&can1 {
 	status = "okay";
 };
 
-&gpmi {
+&fec {
 	status = "okay";
 };
 
@@ -28,14 +114,18 @@
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c2>;
-	clock-frequency = <100000>;
 	status = "okay";
 
-	tlv320@18 {
-		compatible = "ti,tlv320aic3x";
+	codec: tlv320@18 {
+		compatible = "ti,tlv320aic3007";
+		#sound-dai-cells = <0>;
 		reg = <0x18>;
+		ai3x-micbias-vg = <2>;
+
+		AVDD-supply = <&sound_3v3>;
+		IOVDD-supply = <&sound_3v3>;
+		DRVDD-supply = <&sound_3v3>;
+		DVDD-supply = <&sound_1v8>;
 	};
 
 	stmpe@41 {
@@ -55,9 +145,14 @@
 };
 
 &i2c3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c3>;
-	clock-frequency = <100000>;
+	status = "okay";
+};
+
+&pcie {
+	status = "okay";
+};
+
+&ssi2 {
 	status = "okay";
 };
 
@@ -83,20 +178,4 @@
 
 &usdhc3 {
 	status = "okay";
-};
-
-&iomuxc {
-	pinctrl_i2c2: i2c2grp {
-		fsl,pins = <
-			MX6QDL_PAD_EIM_EB2__I2C2_SCL		0x4001b8b1
-			MX6QDL_PAD_EIM_D16__I2C2_SDA		0x4001b8b1
-		>;
-	};
-
-	pinctrl_i2c3: i2c3grp {
-		fsl,pins = <
-			MX6QDL_PAD_EIM_D17__I2C3_SCL		0x4001b8b1
-			MX6QDL_PAD_EIM_D18__I2C3_SDA		0x4001b8b1
-		>;
-	};
 };

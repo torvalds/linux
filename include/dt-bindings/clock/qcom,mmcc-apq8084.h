@@ -60,7 +60,7 @@
 #define ESC1_CLK_SRC			43
 #define HDMI_CLK_SRC			44
 #define VSYNC_CLK_SRC			45
-#define RBCPR_CLK_SRC			46
+#define MMSS_RBCPR_CLK_SRC		46
 #define RBBMTIMER_CLK_SRC		47
 #define MAPLE_CLK_SRC			48
 #define VDP_CLK_SRC			49
@@ -179,5 +179,15 @@
 #define VPU_MAPLE_CLK			162
 #define VPU_SLEEP_CLK			163
 #define VPU_VDP_CLK			164
+
+/* GDSCs */
+#define VENUS0_GDSC			0
+#define VENUS0_CORE0_GDSC		1
+#define VENUS0_CORE1_GDSC		2
+#define MDSS_GDSC			3
+#define CAMSS_JPEG_GDSC			4
+#define CAMSS_VFE_GDSC			5
+#define OXILI_GDSC			6
+#define OXILICX_GDSC			7
 
 #endif

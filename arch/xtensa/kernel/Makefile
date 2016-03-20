@@ -13,8 +13,10 @@ obj-$(CONFIG_PCI) += pci.o
 obj-$(CONFIG_MODULES) += xtensa_ksyms.o module.o
 obj-$(CONFIG_FUNCTION_TRACER) += mcount.o
 obj-$(CONFIG_SMP) += smp.o mxhead.o
+obj-$(CONFIG_XTENSA_VARIANT_HAVE_PERF_EVENTS) += perf_event.o
 
 AFLAGS_head.o += -mtext-section-literals
+AFLAGS_mxhead.o += -mtext-section-literals
 
 # In the Xtensa architecture, assembly generates literals which must always
 # precede the L32R instruction with a relative offset less than 256 kB.
@@ -27,9 +29,11 @@ AFLAGS_head.o += -mtext-section-literals
 #
 # Replicate rules in scripts/Makefile.build
 
-sed-y = -e 's/\*(\(\.[a-z]*it\|\.ref\|\)\.text)/*(\1.literal \1.text)/g' \
-	-e 's/\.text\.unlikely/.literal.unlikely .text.unlikely/g'	 \
-	-e 's/\*(\(\.text\.[a-z]*\))/*(\1.literal \1)/g'
+sed-y = -e ':a; s/\*(\([^)]*\)\.text\.unlikely/*(\1.literal.unlikely .{text}.unlikely/; ta; ' \
+	-e ':b; s/\*(\([^)]*\)\.text\(\.[a-z]*\)/*(\1.{text}\2.literal .{text}\2/; tb; ' \
+	-e ':c; s/\*(\([^)]*\)\(\.[a-z]*it\|\.ref\)\.text/*(\1\2.literal \2.{text}/; tc; ' \
+	-e ':d; s/\*(\([^)]\+ \|\)\.text/*(\1.literal .{text}/; td; ' \
+	-e 's/\.{text}/.text/g'
 
 quiet_cmd__cpp_lds_S = LDS     $@
 cmd__cpp_lds_S = $(CPP) $(cpp_flags) -P -C -Uxtensa -D__ASSEMBLY__ $<    \

@@ -13,6 +13,7 @@
 #include <linux/firmware.h>
 #include <linux/completion.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 
 #include "wm_hubs.h"
 
@@ -156,6 +157,7 @@ struct wm8994_priv {
 	unsigned int aif1clk_disable:1;
 	unsigned int aif2clk_disable:1;
 
+	struct mutex fw_lock;
 	int dsp_active;
 	const struct firmware *cur_fw;
 	const struct firmware *mbc;

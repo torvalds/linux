@@ -54,7 +54,7 @@
  */
 struct ocfs2_extent_tree_operations;
 struct ocfs2_extent_tree {
-	struct ocfs2_extent_tree_operations	*et_ops;
+	const struct ocfs2_extent_tree_operations *et_ops;
 	struct buffer_head			*et_root_bh;
 	struct ocfs2_extent_list		*et_root_el;
 	struct ocfs2_caching_info		*et_ci;
@@ -142,7 +142,7 @@ int ocfs2_remove_btree_range(struct inode *inode,
 			     struct ocfs2_extent_tree *et,
 			     u32 cpos, u32 phys_cpos, u32 len, int flags,
 			     struct ocfs2_cached_dealloc_ctxt *dealloc,
-			     u64 refcount_loc);
+			     u64 refcount_loc, bool refcount_tree_locked);
 
 int ocfs2_num_free_extents(struct ocfs2_super *osb,
 			   struct ocfs2_extent_tree *et);

@@ -40,15 +40,15 @@
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/scoop.h>
 
-#include <mach/pxa27x.h>
-#include <mach/pxa27x-udc.h>
+#include "pxa27x.h"
+#include "pxa27x-udc.h"
 #include <mach/reset.h>
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <mach/spitz.h>
-#include <mach/sharpsl_pm.h>
+#include "sharpsl_pm.h"
 #include <mach/smemc.h>
 
 #include "generic.h"
@@ -924,6 +924,14 @@ static inline void spitz_i2c_init(void) {}
 #endif
 
 /******************************************************************************
+ * Audio devices
+ ******************************************************************************/
+static inline void spitz_audio_init(void)
+{
+	platform_device_register_simple("spitz-audio", -1, NULL, 0);
+}
+
+/******************************************************************************
  * Machine init
  ******************************************************************************/
 static void spitz_poweroff(void)
@@ -970,6 +978,9 @@ static void __init spitz_init(void)
 	spitz_nor_init();
 	spitz_nand_init();
 	spitz_i2c_init();
+	spitz_audio_init();
+
+	regulator_has_full_constraints();
 }
 
 static void __init spitz_fixup(struct tag *tags, char **cmdline)

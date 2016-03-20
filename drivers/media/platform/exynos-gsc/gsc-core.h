@@ -19,7 +19,7 @@
 #include <linux/videodev2.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
@@ -117,7 +117,7 @@ enum gsc_yuv_fmt {
  * @flags: flags indicating which operation mode format applies to
  */
 struct gsc_fmt {
-	enum v4l2_mbus_pixelcode mbus_code;
+	u32 mbus_code;
 	char	*name;
 	u32	pixelformat;
 	u32	color;
@@ -136,7 +136,7 @@ struct gsc_fmt {
  * @idx : index of G-Scaler input buffer
  */
 struct gsc_input_buf {
-	struct vb2_buffer	vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head	list;
 	int			idx;
 };
@@ -464,18 +464,6 @@ static inline void gsc_hw_clear_irq(struct gsc_dev *dev, int irq)
 	else if (irq == GSC_IRQ_DONE)
 		cfg |= GSC_IRQ_STATUS_FRM_DONE_IRQ;
 	writel(cfg, dev->regs + GSC_IRQ);
-}
-
-static inline void gsc_lock(struct vb2_queue *vq)
-{
-	struct gsc_ctx *ctx = vb2_get_drv_priv(vq);
-	mutex_lock(&ctx->gsc_dev->lock);
-}
-
-static inline void gsc_unlock(struct vb2_queue *vq)
-{
-	struct gsc_ctx *ctx = vb2_get_drv_priv(vq);
-	mutex_unlock(&ctx->gsc_dev->lock);
 }
 
 static inline bool gsc_ctx_state_is_set(u32 mask, struct gsc_ctx *ctx)

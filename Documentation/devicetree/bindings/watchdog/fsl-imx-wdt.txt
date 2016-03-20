@@ -7,7 +7,8 @@ Required properties:
 
 Optional property:
 - big-endian: If present the watchdog device's registers are implemented
-  in big endian mode, otherwise in little mode.
+  in big endian mode, otherwise in native mode(same with CPU), for more
+  detail please see: Documentation/devicetree/bindings/regmap/regmap.txt.
 
 Examples:
 

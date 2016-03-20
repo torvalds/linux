@@ -65,7 +65,7 @@ int radeon_sa_bo_manager_init(struct radeon_device *rdev,
 	}
 
 	r = radeon_bo_create(rdev, size, align, true,
-			     domain, flags, NULL, &sa_manager->bo);
+			     domain, flags, NULL, NULL, &sa_manager->bo);
 	if (r) {
 		dev_err(rdev->dev, "(%d) failed to allocate bo for manager\n", r);
 		return r;
@@ -349,8 +349,13 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 			/* see if we can skip over some allocations */
 		} while (radeon_sa_bo_next_hole(sa_manager, fences, tries));
 
+		for (i = 0; i < RADEON_NUM_RINGS; ++i)
+			radeon_fence_ref(fences[i]);
+
 		spin_unlock(&sa_manager->wq.lock);
 		r = radeon_fence_wait_any(rdev, fences, false);
+		for (i = 0; i < RADEON_NUM_RINGS; ++i)
+			radeon_fence_unref(&fences[i]);
 		spin_lock(&sa_manager->wq.lock);
 		/* if we have nothing to wait for block */
 		if (r == -ENOENT) {

@@ -32,54 +32,51 @@
 #include <linux/err.h>
 #include <linux/ioctl.h>
 #include <linux/init.h>
+#include <linux/of.h>
 #include <linux/proc_fs.h>
 #include <linux/idr.h>
 #include <linux/backing-dev.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
+#include <linux/reboot.h>
+#include <linux/kconfig.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
 #include "mtdcore.h"
 
-/*
- * backing device capabilities for non-mappable devices (such as NAND flash)
- * - permits private mappings, copies are taken of the data
- */
-static struct backing_dev_info mtd_bdi_unmappable = {
-	.capabilities	= BDI_CAP_MAP_COPY,
+static struct backing_dev_info mtd_bdi = {
 };
 
-/*
- * backing device capabilities for R/O mappable devices (such as ROM)
- * - permits private mappings, copies are taken of the data
- * - permits non-writable shared mappings
- */
-static struct backing_dev_info mtd_bdi_ro_mappable = {
-	.capabilities	= (BDI_CAP_MAP_COPY | BDI_CAP_MAP_DIRECT |
-			   BDI_CAP_EXEC_MAP | BDI_CAP_READ_MAP),
-};
+#ifdef CONFIG_PM_SLEEP
 
-/*
- * backing device capabilities for writable mappable devices (such as RAM)
- * - permits private mappings, copies are taken of the data
- * - permits non-writable shared mappings
- */
-static struct backing_dev_info mtd_bdi_rw_mappable = {
-	.capabilities	= (BDI_CAP_MAP_COPY | BDI_CAP_MAP_DIRECT |
-			   BDI_CAP_EXEC_MAP | BDI_CAP_READ_MAP |
-			   BDI_CAP_WRITE_MAP),
-};
+static int mtd_cls_suspend(struct device *dev)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-static int mtd_cls_suspend(struct device *dev, pm_message_t state);
-static int mtd_cls_resume(struct device *dev);
+	return mtd ? mtd_suspend(mtd) : 0;
+}
+
+static int mtd_cls_resume(struct device *dev)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+
+	if (mtd)
+		mtd_resume(mtd);
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(mtd_cls_pm_ops, mtd_cls_suspend, mtd_cls_resume);
+#define MTD_CLS_PM_OPS (&mtd_cls_pm_ops)
+#else
+#define MTD_CLS_PM_OPS NULL
+#endif
 
 static struct class mtd_class = {
 	.name = "mtd",
 	.owner = THIS_MODULE,
-	.suspend = mtd_cls_suspend,
-	.resume = mtd_cls_resume,
+	.pm = MTD_CLS_PM_OPS,
 };
 
 static DEFINE_IDR(mtd_idr);
@@ -105,28 +102,11 @@ static LIST_HEAD(mtd_notifiers);
  */
 static void mtd_release(struct device *dev)
 {
-	struct mtd_info __maybe_unused *mtd = dev_get_drvdata(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 	dev_t index = MTD_DEVT(mtd->index);
 
-	/* remove /dev/mtdXro node if needed */
-	if (index)
-		device_destroy(&mtd_class, index + 1);
-}
-
-static int mtd_cls_suspend(struct device *dev, pm_message_t state)
-{
-	struct mtd_info *mtd = dev_get_drvdata(dev);
-
-	return mtd ? mtd_suspend(mtd) : 0;
-}
-
-static int mtd_cls_resume(struct device *dev)
-{
-	struct mtd_info *mtd = dev_get_drvdata(dev);
-
-	if (mtd)
-		mtd_resume(mtd);
-	return 0;
+	/* remove /dev/mtdXro node */
+	device_destroy(&mtd_class, index + 1);
 }
 
 static ssize_t mtd_type_show(struct device *dev,
@@ -366,14 +346,41 @@ static struct device_type mtd_devtype = {
 	.release	= mtd_release,
 };
 
+#ifndef CONFIG_MMU
+unsigned mtd_mmap_capabilities(struct mtd_info *mtd)
+{
+	switch (mtd->type) {
+	case MTD_RAM:
+		return NOMMU_MAP_COPY | NOMMU_MAP_DIRECT | NOMMU_MAP_EXEC |
+			NOMMU_MAP_READ | NOMMU_MAP_WRITE;
+	case MTD_ROM:
+		return NOMMU_MAP_COPY | NOMMU_MAP_DIRECT | NOMMU_MAP_EXEC |
+			NOMMU_MAP_READ;
+	default:
+		return NOMMU_MAP_COPY;
+	}
+}
+EXPORT_SYMBOL_GPL(mtd_mmap_capabilities);
+#endif
+
+static int mtd_reboot_notifier(struct notifier_block *n, unsigned long state,
+			       void *cmd)
+{
+	struct mtd_info *mtd;
+
+	mtd = container_of(n, struct mtd_info, reboot_notifier);
+	mtd->_reboot(mtd);
+
+	return NOTIFY_DONE;
+}
+
 /**
  *	add_mtd_device - register an MTD device
  *	@mtd: pointer to new MTD device info structure
  *
  *	Add a device to the list of MTD devices present in the system, and
  *	notify each currently active MTD 'user' of its arrival. Returns
- *	zero on success or 1 on failure, which currently will only happen
- *	if there is insufficient memory or a sysfs error.
+ *	zero on success or non-zero on failure.
  */
 
 int add_mtd_device(struct mtd_info *mtd)
@@ -381,26 +388,24 @@ int add_mtd_device(struct mtd_info *mtd)
 	struct mtd_notifier *not;
 	int i, error;
 
-	if (!mtd->backing_dev_info) {
-		switch (mtd->type) {
-		case MTD_RAM:
-			mtd->backing_dev_info = &mtd_bdi_rw_mappable;
-			break;
-		case MTD_ROM:
-			mtd->backing_dev_info = &mtd_bdi_ro_mappable;
-			break;
-		default:
-			mtd->backing_dev_info = &mtd_bdi_unmappable;
-			break;
-		}
-	}
+	/*
+	 * May occur, for instance, on buggy drivers which call
+	 * mtd_device_parse_register() multiple times on the same master MTD,
+	 * especially with CONFIG_MTD_PARTITIONED_MASTER=y.
+	 */
+	if (WARN_ONCE(mtd->backing_dev_info, "MTD already registered\n"))
+		return -EEXIST;
+
+	mtd->backing_dev_info = &mtd_bdi;
 
 	BUG_ON(mtd->writesize == 0);
 	mutex_lock(&mtd_table_mutex);
 
 	i = idr_alloc(&mtd_idr, mtd, 0, 0, GFP_KERNEL);
-	if (i < 0)
+	if (i < 0) {
+		error = i;
 		goto fail_locked;
+	}
 
 	mtd->index = i;
 	mtd->usecount = 0;
@@ -429,23 +434,25 @@ int add_mtd_device(struct mtd_info *mtd)
 			printk(KERN_WARNING
 			       "%s: unlock failed, writes may not work\n",
 			       mtd->name);
+		/* Ignore unlock failures? */
+		error = 0;
 	}
 
 	/* Caller should have set dev.parent to match the
-	 * physical device.
+	 * physical device, if appropriate.
 	 */
 	mtd->dev.type = &mtd_devtype;
 	mtd->dev.class = &mtd_class;
 	mtd->dev.devt = MTD_DEVT(i);
 	dev_set_name(&mtd->dev, "mtd%d", i);
 	dev_set_drvdata(&mtd->dev, mtd);
-	if (device_register(&mtd->dev) != 0)
+	of_node_get(mtd_get_of_node(mtd));
+	error = device_register(&mtd->dev);
+	if (error)
 		goto fail_added;
 
-	if (MTD_DEVT(i))
-		device_create(&mtd_class, mtd->dev.parent,
-			      MTD_DEVT(i) + 1,
-			      NULL, "mtd%dro", i);
+	device_create(&mtd_class, mtd->dev.parent, MTD_DEVT(i) + 1, NULL,
+		      "mtd%dro", i);
 
 	pr_debug("mtd: Giving out device %d to %s\n", i, mtd->name);
 	/* No need to get a refcount on the module containing
@@ -462,10 +469,11 @@ int add_mtd_device(struct mtd_info *mtd)
 	return 0;
 
 fail_added:
+	of_node_put(mtd_get_of_node(mtd));
 	idr_remove(&mtd_idr, i);
 fail_locked:
 	mutex_unlock(&mtd_table_mutex);
-	return 1;
+	return error;
 }
 
 /**
@@ -503,6 +511,7 @@ int del_mtd_device(struct mtd_info *mtd)
 		device_unregister(&mtd->dev);
 
 		idr_remove(&mtd_idr, mtd->index);
+		of_node_put(mtd_get_of_node(mtd));
 
 		module_put(THIS_MODULE);
 		ret = 0;
@@ -511,6 +520,45 @@ int del_mtd_device(struct mtd_info *mtd)
 out_error:
 	mutex_unlock(&mtd_table_mutex);
 	return ret;
+}
+
+static int mtd_add_device_partitions(struct mtd_info *mtd,
+				     struct mtd_partitions *parts)
+{
+	const struct mtd_partition *real_parts = parts->parts;
+	int nbparts = parts->nr_parts;
+	int ret;
+
+	if (nbparts == 0 || IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER)) {
+		ret = add_mtd_device(mtd);
+		if (ret)
+			return ret;
+	}
+
+	if (nbparts > 0) {
+		ret = add_mtd_partitions(mtd, real_parts, nbparts);
+		if (ret && IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER))
+			del_mtd_device(mtd);
+		return ret;
+	}
+
+	return 0;
+}
+
+/*
+ * Set a few defaults based on the parent devices, if not provided by the
+ * driver
+ */
+static void mtd_set_dev_defaults(struct mtd_info *mtd)
+{
+	if (mtd->dev.parent) {
+		if (!mtd->owner && mtd->dev.parent->driver)
+			mtd->owner = mtd->dev.parent->driver->owner;
+		if (!mtd->name)
+			mtd->name = dev_name(mtd->dev.parent);
+	} else {
+		pr_debug("mtd device won't show a device symlink in sysfs\n");
+	}
 }
 
 /**
@@ -535,7 +583,8 @@ out_error:
  *   found this functions tries to fallback to information specified in
  *   @parts/@nr_parts.
  * * If any partitioning info was found, this function registers the found
- *   partitions.
+ *   partitions. If the MTD_PARTITIONED_MASTER option is set, then the device
+ *   as a whole is registered first.
  * * If no partitions were found this function just registers the MTD device
  *   @mtd and exits.
  *
@@ -546,29 +595,51 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 			      const struct mtd_partition *parts,
 			      int nr_parts)
 {
-	int err;
-	struct mtd_partition *real_parts;
+	struct mtd_partitions parsed;
+	int ret;
 
-	err = parse_mtd_partitions(mtd, types, &real_parts, parser_data);
-	if (err <= 0 && nr_parts && parts) {
-		real_parts = kmemdup(parts, sizeof(*parts) * nr_parts,
-				     GFP_KERNEL);
-		if (!real_parts)
-			err = -ENOMEM;
-		else
-			err = nr_parts;
+	mtd_set_dev_defaults(mtd);
+
+	memset(&parsed, 0, sizeof(parsed));
+
+	ret = parse_mtd_partitions(mtd, types, &parsed, parser_data);
+	if ((ret < 0 || parsed.nr_parts == 0) && parts && nr_parts) {
+		/* Fall back to driver-provided partitions */
+		parsed = (struct mtd_partitions){
+			.parts		= parts,
+			.nr_parts	= nr_parts,
+		};
+	} else if (ret < 0) {
+		/* Didn't come up with parsed OR fallback partitions */
+		pr_info("mtd: failed to find partitions; one or more parsers reports errors (%d)\n",
+			ret);
+		/* Don't abort on errors; we can still use unpartitioned MTD */
+		memset(&parsed, 0, sizeof(parsed));
 	}
 
-	if (err > 0) {
-		err = add_mtd_partitions(mtd, real_parts, err);
-		kfree(real_parts);
-	} else if (err == 0) {
-		err = add_mtd_device(mtd);
-		if (err == 1)
-			err = -ENODEV;
+	ret = mtd_add_device_partitions(mtd, &parsed);
+	if (ret)
+		goto out;
+
+	/*
+	 * FIXME: some drivers unfortunately call this function more than once.
+	 * So we have to check if we've already assigned the reboot notifier.
+	 *
+	 * Generally, we can make multiple calls work for most cases, but it
+	 * does cause problems with parse_mtd_partitions() above (e.g.,
+	 * cmdlineparts will register partitions more than once).
+	 */
+	WARN_ONCE(mtd->_reboot && mtd->reboot_notifier.notifier_call,
+		  "MTD already registered\n");
+	if (mtd->_reboot && !mtd->reboot_notifier.notifier_call) {
+		mtd->reboot_notifier.notifier_call = mtd_reboot_notifier;
+		register_reboot_notifier(&mtd->reboot_notifier);
 	}
 
-	return err;
+out:
+	/* Cleanup any parsed partitions */
+	mtd_part_parser_cleanup(&parsed);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(mtd_device_parse_register);
 
@@ -581,6 +652,9 @@ EXPORT_SYMBOL_GPL(mtd_device_parse_register);
 int mtd_device_unregister(struct mtd_info *master)
 {
 	int err;
+
+	if (master->_reboot)
+		unregister_reboot_notifier(&master->reboot_notifier);
 
 	err = del_mtd_partitions(master);
 	if (err)
@@ -778,7 +852,7 @@ EXPORT_SYMBOL_GPL(__put_mtd_device);
  */
 int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
-	if (instr->addr > mtd->size || instr->len > mtd->size - instr->addr)
+	if (instr->addr >= mtd->size || instr->len > mtd->size - instr->addr)
 		return -EINVAL;
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
@@ -804,7 +878,7 @@ int mtd_point(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 		*phys = 0;
 	if (!mtd->_point)
 		return -EOPNOTSUPP;
-	if (from < 0 || from > mtd->size || len > mtd->size - from)
+	if (from < 0 || from >= mtd->size || len > mtd->size - from)
 		return -EINVAL;
 	if (!len)
 		return 0;
@@ -817,7 +891,7 @@ int mtd_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
 	if (!mtd->_point)
 		return -EOPNOTSUPP;
-	if (from < 0 || from > mtd->size || len > mtd->size - from)
+	if (from < 0 || from >= mtd->size || len > mtd->size - from)
 		return -EINVAL;
 	if (!len)
 		return 0;
@@ -835,7 +909,7 @@ unsigned long mtd_get_unmapped_area(struct mtd_info *mtd, unsigned long len,
 {
 	if (!mtd->_get_unmapped_area)
 		return -EOPNOTSUPP;
-	if (offset > mtd->size || len > mtd->size - offset)
+	if (offset >= mtd->size || len > mtd->size - offset)
 		return -EINVAL;
 	return mtd->_get_unmapped_area(mtd, len, offset, flags);
 }
@@ -846,7 +920,7 @@ int mtd_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 {
 	int ret_code;
 	*retlen = 0;
-	if (from < 0 || from > mtd->size || len > mtd->size - from)
+	if (from < 0 || from >= mtd->size || len > mtd->size - from)
 		return -EINVAL;
 	if (!len)
 		return 0;
@@ -869,7 +943,7 @@ int mtd_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 	      const u_char *buf)
 {
 	*retlen = 0;
-	if (to < 0 || to > mtd->size || len > mtd->size - to)
+	if (to < 0 || to >= mtd->size || len > mtd->size - to)
 		return -EINVAL;
 	if (!mtd->_write || !(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
@@ -892,7 +966,7 @@ int mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 	*retlen = 0;
 	if (!mtd->_panic_write)
 		return -EOPNOTSUPP;
-	if (to < 0 || to > mtd->size || len > mtd->size - to)
+	if (to < 0 || to >= mtd->size || len > mtd->size - to)
 		return -EINVAL;
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
@@ -1011,7 +1085,7 @@ int mtd_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	if (!mtd->_lock)
 		return -EOPNOTSUPP;
-	if (ofs < 0 || ofs > mtd->size || len > mtd->size - ofs)
+	if (ofs < 0 || ofs >= mtd->size || len > mtd->size - ofs)
 		return -EINVAL;
 	if (!len)
 		return 0;
@@ -1023,7 +1097,7 @@ int mtd_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	if (!mtd->_unlock)
 		return -EOPNOTSUPP;
-	if (ofs < 0 || ofs > mtd->size || len > mtd->size - ofs)
+	if (ofs < 0 || ofs >= mtd->size || len > mtd->size - ofs)
 		return -EINVAL;
 	if (!len)
 		return 0;
@@ -1035,7 +1109,7 @@ int mtd_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	if (!mtd->_is_locked)
 		return -EOPNOTSUPP;
-	if (ofs < 0 || ofs > mtd->size || len > mtd->size - ofs)
+	if (ofs < 0 || ofs >= mtd->size || len > mtd->size - ofs)
 		return -EINVAL;
 	if (!len)
 		return 0;
@@ -1045,7 +1119,7 @@ EXPORT_SYMBOL_GPL(mtd_is_locked);
 
 int mtd_block_isreserved(struct mtd_info *mtd, loff_t ofs)
 {
-	if (ofs < 0 || ofs > mtd->size)
+	if (ofs < 0 || ofs >= mtd->size)
 		return -EINVAL;
 	if (!mtd->_block_isreserved)
 		return 0;
@@ -1055,7 +1129,7 @@ EXPORT_SYMBOL_GPL(mtd_block_isreserved);
 
 int mtd_block_isbad(struct mtd_info *mtd, loff_t ofs)
 {
-	if (ofs < 0 || ofs > mtd->size)
+	if (ofs < 0 || ofs >= mtd->size)
 		return -EINVAL;
 	if (!mtd->_block_isbad)
 		return 0;
@@ -1067,7 +1141,7 @@ int mtd_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	if (!mtd->_block_markbad)
 		return -EOPNOTSUPP;
-	if (ofs < 0 || ofs > mtd->size)
+	if (ofs < 0 || ofs >= mtd->size)
 		return -EINVAL;
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
@@ -1156,8 +1230,7 @@ EXPORT_SYMBOL_GPL(mtd_writev);
  */
 void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size)
 {
-	gfp_t flags = __GFP_NOWARN | __GFP_WAIT |
-		       __GFP_NORETRY | __GFP_NO_KSWAPD;
+	gfp_t flags = __GFP_NOWARN | __GFP_DIRECT_RECLAIM | __GFP_NORETRY;
 	size_t min_alloc = max_t(size_t, mtd->writesize, PAGE_SIZE);
 	void *kbuf;
 
@@ -1240,17 +1313,9 @@ static int __init init_mtd(void)
 	if (ret)
 		goto err_reg;
 
-	ret = mtd_bdi_init(&mtd_bdi_unmappable, "mtd-unmap");
+	ret = mtd_bdi_init(&mtd_bdi, "mtd");
 	if (ret)
-		goto err_bdi1;
-
-	ret = mtd_bdi_init(&mtd_bdi_ro_mappable, "mtd-romap");
-	if (ret)
-		goto err_bdi2;
-
-	ret = mtd_bdi_init(&mtd_bdi_rw_mappable, "mtd-rwmap");
-	if (ret)
-		goto err_bdi3;
+		goto err_bdi;
 
 	proc_mtd = proc_create("mtd", 0, NULL, &mtd_proc_ops);
 
@@ -1263,11 +1328,7 @@ static int __init init_mtd(void)
 out_procfs:
 	if (proc_mtd)
 		remove_proc_entry("mtd", NULL);
-err_bdi3:
-	bdi_destroy(&mtd_bdi_ro_mappable);
-err_bdi2:
-	bdi_destroy(&mtd_bdi_unmappable);
-err_bdi1:
+err_bdi:
 	class_unregister(&mtd_class);
 err_reg:
 	pr_err("Error registering mtd class or bdi: %d\n", ret);
@@ -1280,9 +1341,8 @@ static void __exit cleanup_mtd(void)
 	if (proc_mtd)
 		remove_proc_entry("mtd", NULL);
 	class_unregister(&mtd_class);
-	bdi_destroy(&mtd_bdi_unmappable);
-	bdi_destroy(&mtd_bdi_ro_mappable);
-	bdi_destroy(&mtd_bdi_rw_mappable);
+	bdi_destroy(&mtd_bdi);
+	idr_destroy(&mtd_idr);
 }
 
 module_init(init_mtd);

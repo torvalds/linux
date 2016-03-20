@@ -499,30 +499,24 @@ static int ocfs2_validate_xattr_block(struct super_block *sb,
 	 */
 
 	if (!OCFS2_IS_VALID_XATTR_BLOCK(xb)) {
-		ocfs2_error(sb,
-			    "Extended attribute block #%llu has bad "
-			    "signature %.*s",
-			    (unsigned long long)bh->b_blocknr, 7,
-			    xb->xb_signature);
-		return -EINVAL;
+		return ocfs2_error(sb,
+				   "Extended attribute block #%llu has bad signature %.*s\n",
+				   (unsigned long long)bh->b_blocknr, 7,
+				   xb->xb_signature);
 	}
 
 	if (le64_to_cpu(xb->xb_blkno) != bh->b_blocknr) {
-		ocfs2_error(sb,
-			    "Extended attribute block #%llu has an "
-			    "invalid xb_blkno of %llu",
-			    (unsigned long long)bh->b_blocknr,
-			    (unsigned long long)le64_to_cpu(xb->xb_blkno));
-		return -EINVAL;
+		return ocfs2_error(sb,
+				   "Extended attribute block #%llu has an invalid xb_blkno of %llu\n",
+				   (unsigned long long)bh->b_blocknr,
+				   (unsigned long long)le64_to_cpu(xb->xb_blkno));
 	}
 
 	if (le32_to_cpu(xb->xb_fs_generation) != OCFS2_SB(sb)->fs_generation) {
-		ocfs2_error(sb,
-			    "Extended attribute block #%llu has an invalid "
-			    "xb_fs_generation of #%u",
-			    (unsigned long long)bh->b_blocknr,
-			    le32_to_cpu(xb->xb_fs_generation));
-		return -EINVAL;
+		return ocfs2_error(sb,
+				   "Extended attribute block #%llu has an invalid xb_fs_generation of #%u\n",
+				   (unsigned long long)bh->b_blocknr,
+				   le32_to_cpu(xb->xb_fs_generation));
 	}
 
 	return 0;
@@ -550,8 +544,7 @@ static inline const char *ocfs2_xattr_prefix(int name_index)
 
 	if (name_index > 0 && name_index < OCFS2_XATTR_MAX)
 		handler = ocfs2_xattr_handler_map[name_index];
-
-	return handler ? handler->prefix : NULL;
+	return handler ? xattr_prefix(handler) : NULL;
 }
 
 static u32 ocfs2_xattr_name_hash(struct inode *inode,
@@ -890,14 +883,39 @@ static int ocfs2_xattr_value_truncate(struct inode *inode,
 	return ret;
 }
 
-static int ocfs2_xattr_list_entry(char *buffer, size_t size,
-				  size_t *result, const char *prefix,
+static int ocfs2_xattr_list_entry(struct super_block *sb,
+				  char *buffer, size_t size,
+				  size_t *result, int type,
 				  const char *name, int name_len)
 {
 	char *p = buffer + *result;
-	int prefix_len = strlen(prefix);
-	int total_len = prefix_len + name_len + 1;
+	const char *prefix;
+	int prefix_len;
+	int total_len;
 
+	switch(type) {
+	case OCFS2_XATTR_INDEX_USER:
+		if (OCFS2_SB(sb)->s_mount_opt & OCFS2_MOUNT_NOUSERXATTR)
+			return 0;
+		break;
+
+	case OCFS2_XATTR_INDEX_POSIX_ACL_ACCESS:
+	case OCFS2_XATTR_INDEX_POSIX_ACL_DEFAULT:
+		if (!(sb->s_flags & MS_POSIXACL))
+			return 0;
+		break;
+
+	case OCFS2_XATTR_INDEX_TRUSTED:
+		if (!capable(CAP_SYS_ADMIN))
+			return 0;
+		break;
+	}
+
+	prefix = ocfs2_xattr_prefix(type);
+	if (!prefix)
+		return 0;
+	prefix_len = strlen(prefix);
+	total_len = prefix_len + name_len + 1;
 	*result += total_len;
 
 	/* we are just looking for how big our buffer needs to be */
@@ -920,23 +938,20 @@ static int ocfs2_xattr_list_entries(struct inode *inode,
 {
 	size_t result = 0;
 	int i, type, ret;
-	const char *prefix, *name;
+	const char *name;
 
 	for (i = 0 ; i < le16_to_cpu(header->xh_count); i++) {
 		struct ocfs2_xattr_entry *entry = &header->xh_entries[i];
 		type = ocfs2_xattr_get_type(entry);
-		prefix = ocfs2_xattr_prefix(type);
+		name = (const char *)header +
+			le16_to_cpu(entry->xe_name_offset);
 
-		if (prefix) {
-			name = (const char *)header +
-				le16_to_cpu(entry->xe_name_offset);
-
-			ret = ocfs2_xattr_list_entry(buffer, buffer_size,
-						     &result, prefix, name,
-						     entry->xe_name_len);
-			if (ret)
-				return ret;
-		}
+		ret = ocfs2_xattr_list_entry(inode->i_sb,
+					     buffer, buffer_size,
+					     &result, type, name,
+					     entry->xe_name_len);
+		if (ret)
+			return ret;
 	}
 
 	return result;
@@ -1020,7 +1035,7 @@ ssize_t ocfs2_listxattr(struct dentry *dentry,
 	int ret = 0, i_ret = 0, b_ret = 0;
 	struct buffer_head *di_bh = NULL;
 	struct ocfs2_dinode *di = NULL;
-	struct ocfs2_inode_info *oi = OCFS2_I(dentry->d_inode);
+	struct ocfs2_inode_info *oi = OCFS2_I(d_inode(dentry));
 
 	if (!ocfs2_supports_xattr(OCFS2_SB(dentry->d_sb)))
 		return -EOPNOTSUPP;
@@ -1028,7 +1043,7 @@ ssize_t ocfs2_listxattr(struct dentry *dentry,
 	if (!(oi->ip_dyn_features & OCFS2_HAS_XATTR_FL))
 		return ret;
 
-	ret = ocfs2_inode_lock(dentry->d_inode, &di_bh, 0);
+	ret = ocfs2_inode_lock(d_inode(dentry), &di_bh, 0);
 	if (ret < 0) {
 		mlog_errno(ret);
 		return ret;
@@ -1037,7 +1052,7 @@ ssize_t ocfs2_listxattr(struct dentry *dentry,
 	di = (struct ocfs2_dinode *)di_bh->b_data;
 
 	down_read(&oi->ip_xattr_sem);
-	i_ret = ocfs2_xattr_ibody_list(dentry->d_inode, di, buffer, size);
+	i_ret = ocfs2_xattr_ibody_list(d_inode(dentry), di, buffer, size);
 	if (i_ret < 0)
 		b_ret = 0;
 	else {
@@ -1045,13 +1060,13 @@ ssize_t ocfs2_listxattr(struct dentry *dentry,
 			buffer += i_ret;
 			size -= i_ret;
 		}
-		b_ret = ocfs2_xattr_block_list(dentry->d_inode, di,
+		b_ret = ocfs2_xattr_block_list(d_inode(dentry), di,
 					       buffer, size);
 		if (b_ret < 0)
 			i_ret = 0;
 	}
 	up_read(&oi->ip_xattr_sem);
-	ocfs2_inode_unlock(dentry->d_inode, 0);
+	ocfs2_inode_unlock(d_inode(dentry), 0);
 
 	brelse(di_bh);
 
@@ -1238,6 +1253,10 @@ static int ocfs2_xattr_block_get(struct inode *inode,
 								i,
 								&block_off,
 								&name_offset);
+			if (ret) {
+				mlog_errno(ret);
+				goto cleanup;
+			}
 			xs->base = bucket_block(xs->bucket, block_off);
 		}
 		if (ocfs2_xattr_is_local(xs->here)) {
@@ -1284,7 +1303,7 @@ int ocfs2_xattr_get_nolock(struct inode *inode,
 		return -EOPNOTSUPP;
 
 	if (!(oi->ip_dyn_features & OCFS2_HAS_XATTR_FL))
-		ret = -ENODATA;
+		return -ENODATA;
 
 	xis.inode_bh = xbs.inode_bh = di_bh;
 	di = (struct ocfs2_dinode *)di_bh->b_data;
@@ -2505,7 +2524,7 @@ static int ocfs2_xattr_free_block(struct inode *inode,
 		mlog_errno(ret);
 		goto out;
 	}
-	mutex_lock(&xb_alloc_inode->i_mutex);
+	inode_lock(xb_alloc_inode);
 
 	ret = ocfs2_inode_lock(xb_alloc_inode, &xb_alloc_bh, 1);
 	if (ret < 0) {
@@ -2530,7 +2549,7 @@ out_unlock:
 	ocfs2_inode_unlock(xb_alloc_inode, 1);
 	brelse(xb_alloc_bh);
 out_mutex:
-	mutex_unlock(&xb_alloc_inode->i_mutex);
+	inode_unlock(xb_alloc_inode);
 	iput(xb_alloc_inode);
 out:
 	brelse(blk_bh);
@@ -3600,17 +3619,17 @@ int ocfs2_xattr_set(struct inode *inode,
 		}
 	}
 
-	mutex_lock(&tl_inode->i_mutex);
+	inode_lock(tl_inode);
 
 	if (ocfs2_truncate_log_needs_flush(osb)) {
 		ret = __ocfs2_flush_truncate_log(osb);
 		if (ret < 0) {
-			mutex_unlock(&tl_inode->i_mutex);
+			inode_unlock(tl_inode);
 			mlog_errno(ret);
 			goto cleanup;
 		}
 	}
-	mutex_unlock(&tl_inode->i_mutex);
+	inode_unlock(tl_inode);
 
 	ret = ocfs2_init_xattr_set_ctxt(inode, di, &xi, &xis,
 					&xbs, &ctxt, ref_meta, &credits);
@@ -3690,11 +3709,10 @@ static int ocfs2_xattr_get_rec(struct inode *inode,
 		el = &eb->h_list;
 
 		if (el->l_tree_depth) {
-			ocfs2_error(inode->i_sb,
-				    "Inode %lu has non zero tree depth in "
-				    "xattr tree block %llu\n", inode->i_ino,
-				    (unsigned long long)eb_bh->b_blocknr);
-			ret = -EROFS;
+			ret = ocfs2_error(inode->i_sb,
+					  "Inode %lu has non zero tree depth in xattr tree block %llu\n",
+					  inode->i_ino,
+					  (unsigned long long)eb_bh->b_blocknr);
 			goto out;
 		}
 	}
@@ -3709,11 +3727,10 @@ static int ocfs2_xattr_get_rec(struct inode *inode,
 	}
 
 	if (!e_blkno) {
-		ocfs2_error(inode->i_sb, "Inode %lu has bad extent "
-			    "record (%u, %u, 0) in xattr", inode->i_ino,
-			    le32_to_cpu(rec->e_cpos),
-			    ocfs2_rec_clusters(el, rec));
-		ret = -EROFS;
+		ret = ocfs2_error(inode->i_sb, "Inode %lu has bad extent record (%u, %u, 0) in xattr\n",
+				  inode->i_ino,
+				  le32_to_cpu(rec->e_cpos),
+				  ocfs2_rec_clusters(el, rec));
 		goto out;
 	}
 
@@ -4037,32 +4054,30 @@ static int ocfs2_list_xattr_bucket(struct inode *inode,
 	int ret = 0, type;
 	struct ocfs2_xattr_tree_list *xl = (struct ocfs2_xattr_tree_list *)para;
 	int i, block_off, new_offset;
-	const char *prefix, *name;
+	const char *name;
 
 	for (i = 0 ; i < le16_to_cpu(bucket_xh(bucket)->xh_count); i++) {
 		struct ocfs2_xattr_entry *entry = &bucket_xh(bucket)->xh_entries[i];
 		type = ocfs2_xattr_get_type(entry);
-		prefix = ocfs2_xattr_prefix(type);
 
-		if (prefix) {
-			ret = ocfs2_xattr_bucket_get_name_value(inode->i_sb,
-								bucket_xh(bucket),
-								i,
-								&block_off,
-								&new_offset);
-			if (ret)
-				break;
+		ret = ocfs2_xattr_bucket_get_name_value(inode->i_sb,
+							bucket_xh(bucket),
+							i,
+							&block_off,
+							&new_offset);
+		if (ret)
+			break;
 
-			name = (const char *)bucket_block(bucket, block_off) +
-				new_offset;
-			ret = ocfs2_xattr_list_entry(xl->buffer,
-						     xl->buffer_size,
-						     &xl->result,
-						     prefix, name,
-						     entry->xe_name_len);
-			if (ret)
-				break;
-		}
+		name = (const char *)bucket_block(bucket, block_off) +
+			new_offset;
+		ret = ocfs2_xattr_list_entry(inode->i_sb,
+					     xl->buffer,
+					     xl->buffer_size,
+					     &xl->result,
+					     type, name,
+					     entry->xe_name_len);
+		if (ret)
+			break;
 	}
 
 	return ret;
@@ -5334,16 +5349,6 @@ out:
 	return ret;
 }
 
-static inline char *ocfs2_xattr_bucket_get_val(struct inode *inode,
-					struct ocfs2_xattr_bucket *bucket,
-					int offs)
-{
-	int block_off = offs >> inode->i_sb->s_blocksize_bits;
-
-	offs = offs % inode->i_sb->s_blocksize;
-	return bucket_block(bucket, block_off) + offs;
-}
-
 /*
  * Truncate the specified xe_off entry in xattr bucket.
  * bucket is indicated by header_bh and len is the new length.
@@ -5455,7 +5460,7 @@ static int ocfs2_rm_xattr_cluster(struct inode *inode,
 		return ret;
 	}
 
-	mutex_lock(&tl_inode->i_mutex);
+	inode_lock(tl_inode);
 
 	if (ocfs2_truncate_log_needs_flush(osb)) {
 		ret = __ocfs2_flush_truncate_log(osb);
@@ -5499,7 +5504,7 @@ out_commit:
 out:
 	ocfs2_schedule_truncate_log_flush(osb, 1);
 
-	mutex_unlock(&tl_inode->i_mutex);
+	inode_unlock(tl_inode);
 
 	if (meta_ac)
 		ocfs2_free_alloc_context(meta_ac);
@@ -5675,6 +5680,10 @@ static int ocfs2_delete_xattr_in_bucket(struct inode *inode,
 
 		ret = ocfs2_get_xattr_tree_value_root(inode->i_sb, bucket,
 						      i, &xv, NULL);
+		if (ret) {
+			mlog_errno(ret);
+			break;
+		}
 
 		ret = ocfs2_lock_xattr_remove_allocators(inode, xv,
 							 args->ref_ci,
@@ -7236,44 +7245,27 @@ int ocfs2_init_security_and_acl(struct inode *dir,
 leave:
 	return ret;
 }
+
 /*
  * 'security' attributes support
  */
-static size_t ocfs2_xattr_security_list(struct dentry *dentry, char *list,
-					size_t list_size, const char *name,
-					size_t name_len, int type)
+static int ocfs2_xattr_security_get(const struct xattr_handler *handler,
+				    struct dentry *dentry, const char *name,
+				    void *buffer, size_t size)
 {
-	const size_t prefix_len = XATTR_SECURITY_PREFIX_LEN;
-	const size_t total_len = prefix_len + name_len + 1;
-
-	if (list && total_len <= list_size) {
-		memcpy(list, XATTR_SECURITY_PREFIX, prefix_len);
-		memcpy(list + prefix_len, name, name_len);
-		list[prefix_len + name_len] = '\0';
-	}
-	return total_len;
-}
-
-static int ocfs2_xattr_security_get(struct dentry *dentry, const char *name,
-				    void *buffer, size_t size, int type)
-{
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-	return ocfs2_xattr_get(dentry->d_inode, OCFS2_XATTR_INDEX_SECURITY,
+	return ocfs2_xattr_get(d_inode(dentry), OCFS2_XATTR_INDEX_SECURITY,
 			       name, buffer, size);
 }
 
-static int ocfs2_xattr_security_set(struct dentry *dentry, const char *name,
-		const void *value, size_t size, int flags, int type)
+static int ocfs2_xattr_security_set(const struct xattr_handler *handler,
+				    struct dentry *dentry, const char *name,
+				    const void *value, size_t size, int flags)
 {
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-
-	return ocfs2_xattr_set(dentry->d_inode, OCFS2_XATTR_INDEX_SECURITY,
+	return ocfs2_xattr_set(d_inode(dentry), OCFS2_XATTR_INDEX_SECURITY,
 			       name, value, size, flags);
 }
 
-int ocfs2_initxattrs(struct inode *inode, const struct xattr *xattr_array,
+static int ocfs2_initxattrs(struct inode *inode, const struct xattr *xattr_array,
 		     void *fs_info)
 {
 	const struct xattr *xattr;
@@ -7321,7 +7313,6 @@ int ocfs2_init_security_set(handle_t *handle,
 
 const struct xattr_handler ocfs2_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
-	.list	= ocfs2_xattr_security_list,
 	.get	= ocfs2_xattr_security_get,
 	.set	= ocfs2_xattr_security_set,
 };
@@ -7329,43 +7320,24 @@ const struct xattr_handler ocfs2_xattr_security_handler = {
 /*
  * 'trusted' attributes support
  */
-static size_t ocfs2_xattr_trusted_list(struct dentry *dentry, char *list,
-				       size_t list_size, const char *name,
-				       size_t name_len, int type)
+static int ocfs2_xattr_trusted_get(const struct xattr_handler *handler,
+				   struct dentry *dentry, const char *name,
+				   void *buffer, size_t size)
 {
-	const size_t prefix_len = XATTR_TRUSTED_PREFIX_LEN;
-	const size_t total_len = prefix_len + name_len + 1;
-
-	if (list && total_len <= list_size) {
-		memcpy(list, XATTR_TRUSTED_PREFIX, prefix_len);
-		memcpy(list + prefix_len, name, name_len);
-		list[prefix_len + name_len] = '\0';
-	}
-	return total_len;
-}
-
-static int ocfs2_xattr_trusted_get(struct dentry *dentry, const char *name,
-		void *buffer, size_t size, int type)
-{
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-	return ocfs2_xattr_get(dentry->d_inode, OCFS2_XATTR_INDEX_TRUSTED,
+	return ocfs2_xattr_get(d_inode(dentry), OCFS2_XATTR_INDEX_TRUSTED,
 			       name, buffer, size);
 }
 
-static int ocfs2_xattr_trusted_set(struct dentry *dentry, const char *name,
-		const void *value, size_t size, int flags, int type)
+static int ocfs2_xattr_trusted_set(const struct xattr_handler *handler,
+				   struct dentry *dentry, const char *name,
+				   const void *value, size_t size, int flags)
 {
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-
-	return ocfs2_xattr_set(dentry->d_inode, OCFS2_XATTR_INDEX_TRUSTED,
+	return ocfs2_xattr_set(d_inode(dentry), OCFS2_XATTR_INDEX_TRUSTED,
 			       name, value, size, flags);
 }
 
 const struct xattr_handler ocfs2_xattr_trusted_handler = {
 	.prefix	= XATTR_TRUSTED_PREFIX,
-	.list	= ocfs2_xattr_trusted_list,
 	.get	= ocfs2_xattr_trusted_get,
 	.set	= ocfs2_xattr_trusted_set,
 };
@@ -7373,55 +7345,33 @@ const struct xattr_handler ocfs2_xattr_trusted_handler = {
 /*
  * 'user' attributes support
  */
-static size_t ocfs2_xattr_user_list(struct dentry *dentry, char *list,
-				    size_t list_size, const char *name,
-				    size_t name_len, int type)
-{
-	const size_t prefix_len = XATTR_USER_PREFIX_LEN;
-	const size_t total_len = prefix_len + name_len + 1;
-	struct ocfs2_super *osb = OCFS2_SB(dentry->d_sb);
-
-	if (osb->s_mount_opt & OCFS2_MOUNT_NOUSERXATTR)
-		return 0;
-
-	if (list && total_len <= list_size) {
-		memcpy(list, XATTR_USER_PREFIX, prefix_len);
-		memcpy(list + prefix_len, name, name_len);
-		list[prefix_len + name_len] = '\0';
-	}
-	return total_len;
-}
-
-static int ocfs2_xattr_user_get(struct dentry *dentry, const char *name,
-		void *buffer, size_t size, int type)
+static int ocfs2_xattr_user_get(const struct xattr_handler *handler,
+				struct dentry *dentry, const char *name,
+				void *buffer, size_t size)
 {
 	struct ocfs2_super *osb = OCFS2_SB(dentry->d_sb);
 
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	if (osb->s_mount_opt & OCFS2_MOUNT_NOUSERXATTR)
 		return -EOPNOTSUPP;
-	return ocfs2_xattr_get(dentry->d_inode, OCFS2_XATTR_INDEX_USER, name,
+	return ocfs2_xattr_get(d_inode(dentry), OCFS2_XATTR_INDEX_USER, name,
 			       buffer, size);
 }
 
-static int ocfs2_xattr_user_set(struct dentry *dentry, const char *name,
-		const void *value, size_t size, int flags, int type)
+static int ocfs2_xattr_user_set(const struct xattr_handler *handler,
+				struct dentry *dentry, const char *name,
+				const void *value, size_t size, int flags)
 {
 	struct ocfs2_super *osb = OCFS2_SB(dentry->d_sb);
 
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	if (osb->s_mount_opt & OCFS2_MOUNT_NOUSERXATTR)
 		return -EOPNOTSUPP;
 
-	return ocfs2_xattr_set(dentry->d_inode, OCFS2_XATTR_INDEX_USER,
+	return ocfs2_xattr_set(d_inode(dentry), OCFS2_XATTR_INDEX_USER,
 			       name, value, size, flags);
 }
 
 const struct xattr_handler ocfs2_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
-	.list	= ocfs2_xattr_user_list,
 	.get	= ocfs2_xattr_user_get,
 	.set	= ocfs2_xattr_user_set,
 };

@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 
 /* HDformatter registers */
@@ -508,19 +509,12 @@ static void sti_hda_bridge_nope(struct drm_bridge *bridge)
 	/* do nothing */
 }
 
-static void sti_hda_brigde_destroy(struct drm_bridge *bridge)
-{
-	drm_bridge_cleanup(bridge);
-	kfree(bridge);
-}
-
 static const struct drm_bridge_funcs sti_hda_bridge_funcs = {
 	.pre_enable = sti_hda_pre_enable,
 	.enable = sti_hda_bridge_nope,
 	.disable = sti_hda_disable,
 	.post_disable = sti_hda_bridge_nope,
 	.mode_set = sti_hda_set_mode,
-	.destroy = sti_hda_brigde_destroy,
 };
 
 static int sti_hda_connector_get_modes(struct drm_connector *connector)
@@ -548,8 +542,6 @@ static int sti_hda_connector_get_modes(struct drm_connector *connector)
 		drm_mode_probed_add(connector, mode);
 		count++;
 	}
-
-	drm_mode_sort(&connector->modes);
 
 	return count;
 }
@@ -595,7 +587,8 @@ struct drm_encoder *sti_hda_best_encoder(struct drm_connector *connector)
 	return hda_connector->encoder;
 }
 
-static struct drm_connector_helper_funcs sti_hda_connector_helper_funcs = {
+static const
+struct drm_connector_helper_funcs sti_hda_connector_helper_funcs = {
 	.get_modes = sti_hda_connector_get_modes,
 	.mode_valid = sti_hda_connector_mode_valid,
 	.best_encoder = sti_hda_best_encoder,
@@ -617,11 +610,14 @@ static void sti_hda_connector_destroy(struct drm_connector *connector)
 	kfree(hda_connector);
 }
 
-static struct drm_connector_funcs sti_hda_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+static const struct drm_connector_funcs sti_hda_connector_funcs = {
+	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = sti_hda_connector_detect,
 	.destroy = sti_hda_connector_destroy,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static struct drm_encoder *sti_hda_find_encoder(struct drm_device *dev)
@@ -664,7 +660,8 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 		return -ENOMEM;
 
 	bridge->driver_private = hda;
-	drm_bridge_init(drm_dev, bridge, &sti_hda_bridge_funcs);
+	bridge->funcs = &sti_hda_bridge_funcs;
+	drm_bridge_attach(drm_dev, bridge);
 
 	encoder->bridge = bridge;
 	connector->encoder = encoder;
@@ -693,7 +690,6 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 err_sysfs:
 	drm_connector_unregister(drm_connector);
 err_connector:
-	drm_bridge_cleanup(bridge);
 	drm_connector_cleanup(drm_connector);
 	return -EINVAL;
 }
@@ -730,16 +726,16 @@ static int sti_hda_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	hda->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (IS_ERR(hda->regs))
-		return PTR_ERR(hda->regs);
+	if (!hda->regs)
+		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 			"video-dacs-ctrl");
 	if (res) {
 		hda->video_dacs_ctrl = devm_ioremap_nocache(dev, res->start,
 				resource_size(res));
-		if (IS_ERR(hda->video_dacs_ctrl))
-			return PTR_ERR(hda->video_dacs_ctrl);
+		if (!hda->video_dacs_ctrl)
+			return -ENOMEM;
 	} else {
 		/* If no existing video-dacs-ctrl resource continue the probe */
 		DRM_DEBUG_DRIVER("No video-dacs-ctrl resource\n");
@@ -770,7 +766,7 @@ static int sti_hda_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id hda_of_match[] = {
+static const struct of_device_id hda_of_match[] = {
 	{ .compatible = "st,stih416-hda", },
 	{ .compatible = "st,stih407-hda", },
 	{ /* end node */ }
@@ -786,8 +782,6 @@ struct platform_driver sti_hda_driver = {
 	.probe = sti_hda_probe,
 	.remove = sti_hda_remove,
 };
-
-module_platform_driver(sti_hda_driver);
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics SoC DRM driver");

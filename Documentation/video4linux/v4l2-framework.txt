@@ -295,16 +295,16 @@ module owner. This is done for you if you use the i2c helper functions.
 
 If integration with the media framework is needed, you must initialize the
 media_entity struct embedded in the v4l2_subdev struct (entity field) by
-calling media_entity_init():
+calling media_entity_pads_init(), if the entity has pads:
 
 	struct media_pad *pads = &my_sd->pads;
 	int err;
 
-	err = media_entity_init(&sd->entity, npads, pads, 0);
+	err = media_entity_pads_init(&sd->entity, npads, pads);
 
 The pads array must have been previously initialized. There is no need to
-manually set the struct media_entity type and name fields, but the revision
-field must be initialized if needed.
+manually set the struct media_entity function and name fields, but the
+revision field must be initialized if needed.
 
 A reference to the entity will be automatically acquired/released when the
 subdev device node (if any) is opened/closed.
@@ -695,12 +695,12 @@ difference is that the inode argument is omitted since it is never used.
 
 If integration with the media framework is needed, you must initialize the
 media_entity struct embedded in the video_device struct (entity field) by
-calling media_entity_init():
+calling media_entity_pads_init():
 
 	struct media_pad *pad = &my_vdev->pad;
 	int err;
 
-	err = media_entity_init(&vdev->entity, 1, pad, 0);
+	err = media_entity_pads_init(&vdev->entity, 1, pad);
 
 The pads array must have been previously initialized. There is no need to
 manually set the struct media_entity type and name fields.
@@ -793,8 +793,10 @@ video_register_device_no_warn() instead.
 
 Whenever a device node is created some attributes are also created for you.
 If you look in /sys/class/video4linux you see the devices. Go into e.g.
-video0 and you will see 'name' and 'index' attributes. The 'name' attribute
-is the 'name' field of the video_device struct.
+video0 and you will see 'name', 'dev_debug' and 'index' attributes. The 'name'
+attribute is the 'name' field of the video_device struct. The 'dev_debug' attribute
+can be used to enable core debugging. See the next section for more detailed
+information on this.
 
 The 'index' attribute is the index of the device node: for each call to
 video_register_device() the index is just increased by 1. The first video
@@ -816,6 +818,25 @@ video_device was embedded in it. The vdev->release() callback will never
 be called if the registration failed, nor should you ever attempt to
 unregister the device if the registration failed.
 
+video device debugging
+----------------------
+
+The 'dev_debug' attribute that is created for each video, vbi, radio or swradio
+device in /sys/class/video4linux/<devX>/ allows you to enable logging of
+file operations.
+
+It is a bitmask and the following bits can be set:
+
+0x01: Log the ioctl name and error code. VIDIOC_(D)QBUF ioctls are only logged
+      if bit 0x08 is also set.
+0x02: Log the ioctl name arguments and error code. VIDIOC_(D)QBUF ioctls are
+      only logged if bit 0x08 is also set.
+0x04: Log the file operations open, release, read, write, mmap and
+      get_unmapped_area. The read and write operations are only logged if
+      bit 0x08 is also set.
+0x08: Log the read and write file operations and the VIDIOC_QBUF and
+      VIDIOC_DQBUF ioctls.
+0x10: Log the poll file operation.
 
 video_device cleanup
 --------------------
@@ -1108,6 +1129,10 @@ available event type is 'class base + 1'.
 An example on how the V4L2 events may be used can be found in the OMAP
 3 ISP driver (drivers/media/platform/omap3isp).
 
+A subdev can directly send an event to the v4l2_device notify function with
+V4L2_DEVICE_NOTIFY_EVENT. This allows the bridge to map the subdev that sends
+the event to the video node(s) associated with the subdev that need to be
+informed about such an event.
 
 V4L2 clocks
 -----------

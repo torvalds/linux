@@ -1608,6 +1608,11 @@ static int do_remove_conflicting_framebuffers(struct apertures_struct *a,
 	return 0;
 }
 
+static bool lockless_register_fb;
+module_param_named_unsafe(lockless_register_fb, lockless_register_fb, bool, 0400);
+MODULE_PARM_DESC(lockless_register_fb,
+	"Lockless framebuffer registration for debugging [default=off]");
+
 static int do_register_framebuffer(struct fb_info *fb_info)
 {
 	int i, ret;
@@ -1675,15 +1680,18 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	registered_fb[i] = fb_info;
 
 	event.info = fb_info;
-	console_lock();
+	if (!lockless_register_fb)
+		console_lock();
 	if (!lock_fb_info(fb_info)) {
-		console_unlock();
+		if (!lockless_register_fb)
+			console_unlock();
 		return -ENODEV;
 	}
 
 	fb_notifier_call_chain(FB_EVENT_FB_REGISTERED, &event);
 	unlock_fb_info(fb_info);
-	console_unlock();
+	if (!lockless_register_fb)
+		console_unlock();
 	return 0;
 }
 
@@ -1907,97 +1915,5 @@ int fb_new_modelist(struct fb_info *info)
 
 	return err;
 }
-
-static char *video_options[FB_MAX] __read_mostly;
-static int ofonly __read_mostly;
-
-/**
- * fb_get_options - get kernel boot parameters
- * @name:   framebuffer name as it would appear in
- *          the boot parameter line
- *          (video=<name>:<options>)
- * @option: the option will be stored here
- *
- * NOTE: Needed to maintain backwards compatibility
- */
-int fb_get_options(const char *name, char **option)
-{
-	char *opt, *options = NULL;
-	int retval = 0;
-	int name_len = strlen(name), i;
-
-	if (name_len && ofonly && strncmp(name, "offb", 4))
-		retval = 1;
-
-	if (name_len && !retval) {
-		for (i = 0; i < FB_MAX; i++) {
-			if (video_options[i] == NULL)
-				continue;
-			if (!video_options[i][0])
-				continue;
-			opt = video_options[i];
-			if (!strncmp(name, opt, name_len) &&
-			    opt[name_len] == ':')
-				options = opt + name_len + 1;
-		}
-	}
-	/* No match, pass global option */
-	if (!options && option && fb_mode_option)
-		options = kstrdup(fb_mode_option, GFP_KERNEL);
-	if (options && !strncmp(options, "off", 3))
-		retval = 1;
-
-	if (option)
-		*option = options;
-
-	return retval;
-}
-EXPORT_SYMBOL(fb_get_options);
-
-#ifndef MODULE
-/**
- *	video_setup - process command line options
- *	@options: string of options
- *
- *	Process command line options for frame buffer subsystem.
- *
- *	NOTE: This function is a __setup and __init function.
- *            It only stores the options.  Drivers have to call
- *            fb_get_options() as necessary.
- *
- *	Returns zero.
- *
- */
-static int __init video_setup(char *options)
-{
-	int i, global = 0;
-
-	if (!options || !*options)
- 		global = 1;
-
- 	if (!global && !strncmp(options, "ofonly", 6)) {
- 		ofonly = 1;
- 		global = 1;
- 	}
-
- 	if (!global && !strchr(options, ':')) {
- 		fb_mode_option = options;
- 		global = 1;
- 	}
-
- 	if (!global) {
- 		for (i = 0; i < FB_MAX; i++) {
- 			if (video_options[i] == NULL) {
- 				video_options[i] = options;
- 				break;
- 			}
-
-		}
-	}
-
-	return 1;
-}
-__setup("video=", video_setup);
-#endif
 
 MODULE_LICENSE("GPL");

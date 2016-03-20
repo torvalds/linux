@@ -122,7 +122,7 @@ static void carl9170_led_set_brightness(struct led_classdev *led,
 }
 
 static int carl9170_led_register_led(struct ar9170 *ar, int i, char *name,
-				     char *trigger)
+				     const char *trigger)
 {
 	int err;
 

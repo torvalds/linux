@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 
-#include "bonding.h"
+#include <net/bonding.h>
 
 struct slave_attribute {
 	struct attribute attr;
@@ -36,7 +36,7 @@ static ssize_t state_show(struct slave *slave, char *buf)
 	case BOND_STATE_BACKUP:
 		return sprintf(buf, "backup\n");
 	default:
-		return sprintf(buf, "UNKONWN\n");
+		return sprintf(buf, "UNKNOWN\n");
 	}
 }
 static SLAVE_ATTR_RO(state);
@@ -80,6 +80,36 @@ static ssize_t ad_aggregator_id_show(struct slave *slave, char *buf)
 }
 static SLAVE_ATTR_RO(ad_aggregator_id);
 
+static ssize_t ad_actor_oper_port_state_show(struct slave *slave, char *buf)
+{
+	const struct port *ad_port;
+
+	if (BOND_MODE(slave->bond) == BOND_MODE_8023AD) {
+		ad_port = &SLAVE_AD_INFO(slave)->port;
+		if (ad_port->aggregator)
+			return sprintf(buf, "%u\n",
+				       ad_port->actor_oper_port_state);
+	}
+
+	return sprintf(buf, "N/A\n");
+}
+static SLAVE_ATTR_RO(ad_actor_oper_port_state);
+
+static ssize_t ad_partner_oper_port_state_show(struct slave *slave, char *buf)
+{
+	const struct port *ad_port;
+
+	if (BOND_MODE(slave->bond) == BOND_MODE_8023AD) {
+		ad_port = &SLAVE_AD_INFO(slave)->port;
+		if (ad_port->aggregator)
+			return sprintf(buf, "%u\n",
+				       ad_port->partner_oper.port_state);
+	}
+
+	return sprintf(buf, "N/A\n");
+}
+static SLAVE_ATTR_RO(ad_partner_oper_port_state);
+
 static const struct slave_attribute *slave_attrs[] = {
 	&slave_attr_state,
 	&slave_attr_mii_status,
@@ -87,6 +117,8 @@ static const struct slave_attribute *slave_attrs[] = {
 	&slave_attr_perm_hwaddr,
 	&slave_attr_queue_id,
 	&slave_attr_ad_aggregator_id,
+	&slave_attr_ad_actor_oper_port_state,
+	&slave_attr_ad_partner_oper_port_state,
 	NULL
 };
 

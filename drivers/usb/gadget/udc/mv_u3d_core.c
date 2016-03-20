@@ -222,12 +222,8 @@ void mv_u3d_done(struct mv_u3d_ep *ep, struct mv_u3d_req *req, int status)
 	}
 
 	spin_unlock(&ep->u3d->lock);
-	/*
-	 * complete() is from gadget layer,
-	 * eg fsg->bulk_in_complete()
-	 */
-	if (req->req.complete)
-		req->req.complete(&ep->ep, &req->req);
+
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 
 	spin_lock(&ep->u3d->lock);
 }
@@ -1270,8 +1266,7 @@ static int mv_u3d_start(struct usb_gadget *g,
 	return 0;
 }
 
-static int mv_u3d_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int mv_u3d_stop(struct usb_gadget *g)
 {
 	struct mv_u3d *u3d = container_of(g, struct mv_u3d, gadget);
 	struct mv_usb_platform_data *pdata = dev_get_platdata(u3d->dev);
@@ -1288,7 +1283,7 @@ static int mv_u3d_stop(struct usb_gadget *g,
 	mv_u3d_controller_stop(u3d);
 	/* stop all usb activities */
 	u3d->gadget.speed = USB_SPEED_UNKNOWN;
-	mv_u3d_stop_activity(u3d, driver);
+	mv_u3d_stop_activity(u3d, NULL);
 	mv_u3d_disable(u3d);
 
 	if (pdata->phy_deinit)
@@ -1329,6 +1324,9 @@ static int mv_u3d_eps_init(struct mv_u3d *u3d)
 	ep->ep.ops = &mv_u3d_ep_ops;
 	ep->wedge = 0;
 	usb_ep_set_maxpacket_limit(&ep->ep, MV_U3D_EP0_MAX_PKT_SIZE);
+	ep->ep.caps.type_control = true;
+	ep->ep.caps.dir_in = true;
+	ep->ep.caps.dir_out = true;
 	ep->ep_num = 0;
 	ep->ep.desc = &mv_u3d_ep0_desc;
 	INIT_LIST_HEAD(&ep->queue);
@@ -1344,13 +1342,19 @@ static int mv_u3d_eps_init(struct mv_u3d *u3d)
 		if (i & 1) {
 			snprintf(name, sizeof(name), "ep%din", i >> 1);
 			ep->direction = MV_U3D_EP_DIR_IN;
+			ep->ep.caps.dir_in = true;
 		} else {
 			snprintf(name, sizeof(name), "ep%dout", i >> 1);
 			ep->direction = MV_U3D_EP_DIR_OUT;
+			ep->ep.caps.dir_out = true;
 		}
 		ep->u3d = u3d;
 		strncpy(ep->name, name, sizeof(ep->name));
 		ep->ep.name = ep->name;
+
+		ep->ep.caps.type_iso = true;
+		ep->ep.caps.type_bulk = true;
+		ep->ep.caps.type_int = true;
 
 		ep->ep.ops = &mv_u3d_ep_ops;
 		usb_ep_set_maxpacket_limit(&ep->ep, (unsigned short) ~0);
@@ -1763,8 +1767,7 @@ static int mv_u3d_remove(struct platform_device *dev)
 	usb_del_gadget_udc(&u3d->gadget);
 
 	/* free memory allocated in probe */
-	if (u3d->trb_pool)
-		dma_pool_destroy(u3d->trb_pool);
+	dma_pool_destroy(u3d->trb_pool);
 
 	if (u3d->ep_context)
 		dma_free_coherent(&dev->dev, u3d->ep_context_size,
@@ -2057,7 +2060,6 @@ static struct platform_driver mv_u3d_driver = {
 	.remove		= mv_u3d_remove,
 	.shutdown	= mv_u3d_shutdown,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "mv-u3d",
 		.pm	= &mv_u3d_pm_ops,
 	},

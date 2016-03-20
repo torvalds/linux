@@ -24,7 +24,7 @@
 #include <linux/mfd/smsc.h>
 #include <linux/of_platform.h>
 
-static struct regmap_config smsc_regmap_config = {
+static const struct regmap_config smsc_regmap_config = {
 		.reg_bits = 8,
 		.val_bits = 8,
 		.max_register = SMSC_VEN_ID_H,
@@ -98,7 +98,6 @@ MODULE_DEVICE_TABLE(i2c, smsc_i2c_id);
 static struct i2c_driver smsc_i2c_driver = {
 	.driver = {
 		   .name = "smsc",
-		   .owner = THIS_MODULE,
 	},
 	.probe = smsc_i2c_probe,
 	.remove = smsc_i2c_remove,

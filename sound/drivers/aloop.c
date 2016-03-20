@@ -181,8 +181,7 @@ static void loopback_timer_start(struct loopback_pcm *dpcm)
 	}
 	tick = dpcm->period_size_frac - dpcm->irq_pos;
 	tick = (tick + dpcm->pcm_bps - 1) / dpcm->pcm_bps;
-	dpcm->timer.expires = jiffies + tick;
-	add_timer(&dpcm->timer);
+	mod_timer(&dpcm->timer, jiffies + tick);
 }
 
 /* call in cable->lock */
@@ -1054,8 +1053,6 @@ static int loopback_mixer_new(struct loopback *loopback, int notify)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
-
 static void print_dpcm_info(struct snd_info_buffer *buffer,
 			    struct loopback_pcm *dpcm,
 			    const char *id)
@@ -1128,12 +1125,6 @@ static int loopback_proc_new(struct loopback *loopback, int cidx)
 	snd_info_set_text_ops(entry, loopback, print_cable_info);
 	return 0;
 }
-
-#else /* !CONFIG_PROC_FS */
-
-#define loopback_proc_new(loopback, cidx) do { } while (0)
-
-#endif
 
 static int loopback_probe(struct platform_device *devptr)
 {
@@ -1220,7 +1211,6 @@ static struct platform_driver loopback_driver = {
 	.remove		= loopback_remove,
 	.driver		= {
 		.name	= SND_LOOPBACK_DRIVER,
-		.owner	= THIS_MODULE,
 		.pm	= LOOPBACK_PM_OPS,
 	},
 };

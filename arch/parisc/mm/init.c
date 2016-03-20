@@ -23,6 +23,7 @@
 #include <linux/unistd.h>
 #include <linux/nodemask.h>	/* for node_online_map */
 #include <linux/pagemap.h>	/* for release_pages and page_cache_release */
+#include <linux/compat.h>
 
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
@@ -30,11 +31,12 @@
 #include <asm/pdc_chassis.h>
 #include <asm/mmzone.h>
 #include <asm/sections.h>
+#include <asm/msgbuf.h>
 
 extern int  data_start;
 extern void parisc_kernel_start(void);	/* Kernel entry point in head.S */
 
-#if PT_NLEVELS == 3
+#if CONFIG_PGTABLE_LEVELS == 3
 /* NOTE: This layout exactly conforms to the hybrid L2/L3 page table layout
  * with the first pmd adjacent to the pgd and below it. gcc doesn't actually
  * guarantee that global objects will be laid out in memory in the same order
@@ -53,12 +55,12 @@ signed char pfnnid_map[PFNNID_MAP_MAX] __read_mostly;
 
 static struct resource data_resource = {
 	.name	= "Kernel data",
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
 };
 
 static struct resource code_resource = {
 	.name	= "Kernel code",
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
 };
 
 static struct resource pdcdata_resource = {
@@ -199,7 +201,7 @@ static void __init setup_bootmem(void)
 		res->name = "System RAM";
 		res->start = pmem_ranges[i].start_pfn << PAGE_SHIFT;
 		res->end = res->start + (pmem_ranges[i].pages << PAGE_SHIFT)-1;
-		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+		res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
 		request_resource(&iomem_resource, res);
 	}
 
@@ -407,15 +409,11 @@ static void __init map_pages(unsigned long start_vaddr,
 	unsigned long vaddr;
 	unsigned long ro_start;
 	unsigned long ro_end;
-	unsigned long fv_addr;
-	unsigned long gw_addr;
-	extern const unsigned long fault_vector_20;
-	extern void * const linux_gateway_page;
+	unsigned long kernel_end;
 
 	ro_start = __pa((unsigned long)_text);
 	ro_end   = __pa((unsigned long)&data_start);
-	fv_addr  = __pa((unsigned long)&fault_vector_20) & PAGE_MASK;
-	gw_addr  = __pa((unsigned long)&linux_gateway_page) & PAGE_MASK;
+	kernel_end  = __pa((unsigned long)&_end);
 
 	end_paddr = start_paddr + size;
 
@@ -473,24 +471,25 @@ static void __init map_pages(unsigned long start_vaddr,
 			for (tmp2 = start_pte; tmp2 < PTRS_PER_PTE; tmp2++, pg_table++) {
 				pte_t pte;
 
-				/*
-				 * Map the fault vector writable so we can
-				 * write the HPMC checksum.
-				 */
 				if (force)
 					pte =  __mk_pte(address, pgprot);
-				else if (parisc_text_address(vaddr) &&
-					 address != fv_addr)
+				else if (parisc_text_address(vaddr)) {
 					pte = __mk_pte(address, PAGE_KERNEL_EXEC);
+					if (address >= ro_start && address < kernel_end)
+						pte = pte_mkhuge(pte);
+				}
 				else
 #if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
-				if (address >= ro_start && address < ro_end
-							&& address != fv_addr
-							&& address != gw_addr)
-					pte = __mk_pte(address, PAGE_KERNEL_RO);
-				else
+				if (address >= ro_start && address < ro_end) {
+					pte = __mk_pte(address, PAGE_KERNEL_EXEC);
+					pte = pte_mkhuge(pte);
+				} else
 #endif
+				{
 					pte = __mk_pte(address, pgprot);
+					if (address >= ro_start && address < kernel_end)
+						pte = pte_mkhuge(pte);
+				}
 
 				if (address >= end_paddr) {
 					if (force)
@@ -534,15 +533,12 @@ void free_initmem(void)
 
 	/* force the kernel to see the new TLB entries */
 	__flush_tlb_range(0, init_begin, init_end);
-	/* Attempt to catch anyone trying to execute code here
-	 * by filling the page with BRK insns.
-	 */
-	memset((void *)init_begin, 0x00, init_end - init_begin);
+
 	/* finally dump all the instructions which were cached, since the
 	 * pages are no-longer executable */
 	flush_icache_range(init_begin, init_end);
 	
-	free_initmem_default(-1);
+	free_initmem_default(POISON_FREE_INITMEM);
 
 	/* set up a new led state on systems shipped LED State panel */
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_BCOMPLETE);
@@ -590,6 +586,20 @@ unsigned long pcxl_dma_start __read_mostly;
 
 void __init mem_init(void)
 {
+	/* Do sanity checks on IPC (compat) structures */
+	BUILD_BUG_ON(sizeof(struct ipc64_perm) != 48);
+#ifndef CONFIG_64BIT
+	BUILD_BUG_ON(sizeof(struct semid64_ds) != 80);
+	BUILD_BUG_ON(sizeof(struct msqid64_ds) != 104);
+	BUILD_BUG_ON(sizeof(struct shmid64_ds) != 104);
+#endif
+#ifdef CONFIG_COMPAT
+	BUILD_BUG_ON(sizeof(struct compat_ipc64_perm) != sizeof(struct ipc64_perm));
+	BUILD_BUG_ON(sizeof(struct compat_semid64_ds) != 80);
+	BUILD_BUG_ON(sizeof(struct compat_msqid64_ds) != 104);
+	BUILD_BUG_ON(sizeof(struct compat_shmid64_ds) != 104);
+#endif
+
 	/* Do sanity checks on page table constants */
 	BUILD_BUG_ON(PTE_ENTRY_SIZE != sizeof(pte_t));
 	BUILD_BUG_ON(PMD_ENTRY_SIZE != sizeof(pmd_t));
@@ -712,8 +722,8 @@ static void __init pagetable_init(void)
 		unsigned long size;
 
 		start_paddr = pmem_ranges[range].start_pfn << PAGE_SHIFT;
-		end_paddr = start_paddr + (pmem_ranges[range].pages << PAGE_SHIFT);
 		size = pmem_ranges[range].pages << PAGE_SHIFT;
+		end_paddr = start_paddr + size;
 
 		map_pages((unsigned long)__va(start_paddr), start_paddr,
 			  size, PAGE_KERNEL, 0);
@@ -749,78 +759,6 @@ static void __init gateway_init(void)
 	map_pages(linux_gateway_page_addr, __pa(&linux_gateway_page),
 		  PAGE_SIZE, PAGE_GATEWAY, 1);
 }
-
-#ifdef CONFIG_HPUX
-void
-map_hpux_gateway_page(struct task_struct *tsk, struct mm_struct *mm)
-{
-	pgd_t *pg_dir;
-	pmd_t *pmd;
-	pte_t *pg_table;
-	unsigned long start_pmd;
-	unsigned long start_pte;
-	unsigned long address;
-	unsigned long hpux_gw_page_addr;
-	/* FIXME: This is 'const' in order to trick the compiler
-	   into not treating it as DP-relative data. */
-	extern void * const hpux_gateway_page;
-
-	hpux_gw_page_addr = HPUX_GATEWAY_ADDR & PAGE_MASK;
-
-	/*
-	 * Setup HP-UX Gateway page.
-	 *
-	 * The HP-UX gateway page resides in the user address space,
-	 * so it needs to be aliased into each process.
-	 */
-
-	pg_dir = pgd_offset(mm,hpux_gw_page_addr);
-
-#if PTRS_PER_PMD == 1
-	start_pmd = 0;
-#else
-	start_pmd = ((hpux_gw_page_addr >> PMD_SHIFT) & (PTRS_PER_PMD - 1));
-#endif
-	start_pte = ((hpux_gw_page_addr >> PAGE_SHIFT) & (PTRS_PER_PTE - 1));
-
-	address = __pa(&hpux_gateway_page);
-#if PTRS_PER_PMD == 1
-	pmd = (pmd_t *)__pa(pg_dir);
-#else
-	pmd = (pmd_t *) pgd_address(*pg_dir);
-
-	/*
-	 * pmd is physical at this point
-	 */
-
-	if (!pmd) {
-		pmd = (pmd_t *) get_zeroed_page(GFP_KERNEL);
-		pmd = (pmd_t *) __pa(pmd);
-	}
-
-	__pgd_val_set(*pg_dir, PxD_FLAG_PRESENT | PxD_FLAG_VALID | (unsigned long) pmd);
-#endif
-	/* now change pmd to kernel virtual addresses */
-
-	pmd = (pmd_t *)__va(pmd) + start_pmd;
-
-	/*
-	 * pg_table is physical at this point
-	 */
-
-	pg_table = (pte_t *) pmd_address(*pmd);
-	if (!pg_table)
-		pg_table = (pte_t *) __pa(get_zeroed_page(GFP_KERNEL));
-
-	__pmd_val_set(*pmd, PxD_FLAG_PRESENT | PxD_FLAG_VALID | (unsigned long) pg_table);
-
-	/* now change pg_table to kernel virtual addresses */
-
-	pg_table = (pte_t *) __va(pg_table) + start_pte;
-	set_pte(pg_table, __mk_pte(address, PAGE_GATEWAY));
-}
-EXPORT_SYMBOL(map_hpux_gateway_page);
-#endif
 
 void __init paging_init(void)
 {

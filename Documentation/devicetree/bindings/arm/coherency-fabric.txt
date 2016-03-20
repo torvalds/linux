@@ -27,6 +27,11 @@ Required properties:
  * For "marvell,armada-380-coherency-fabric", only one pair is needed
    for the per-CPU fabric registers.
 
+Optional properties:
+
+- broken-idle: boolean to set when the Idle mode is not supported by the
+  hardware.
+
 Examples:
 
 coherency-fabric@d0020200 {

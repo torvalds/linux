@@ -373,7 +373,6 @@ static int ep93xx_keypad_remove(struct platform_device *pdev)
 static struct platform_driver ep93xx_keypad_driver = {
 	.driver		= {
 		.name	= "ep93xx-keypad",
-		.owner	= THIS_MODULE,
 		.pm	= &ep93xx_keypad_pm_ops,
 	},
 	.probe		= ep93xx_keypad_probe,

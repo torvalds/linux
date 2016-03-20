@@ -73,10 +73,15 @@ CACHELINE_MASK = (L1_CACHE_BYTES-1)
  * Use dcbz on the complete cache lines in the destination
  * to set them to zero.  This requires that the destination
  * area is cacheable.  -- paulus
+ *
+ * During early init, cache might not be active yet, so dcbz cannot be used.
+ * We therefore skip the optimised bloc that uses dcbz. This jump is
+ * replaced by a nop once cache is active. This is done in machine_init()
  */
-_GLOBAL(cacheable_memzero)
-	mr	r5,r4
-	li	r4,0
+_GLOBAL(memset)
+	rlwimi	r4,r4,8,16,23
+	rlwimi	r4,r4,16,0,15
+
 	addi	r6,r3,-4
 	cmplwi	0,r5,4
 	blt	7f
@@ -85,6 +90,11 @@ _GLOBAL(cacheable_memzero)
 	andi.	r0,r6,3
 	add	r5,r0,r5
 	subf	r6,r0,r6
+	cmplwi	0,r4,0
+	bne	2f	/* Use normal procedure if r4 is not zero */
+_GLOBAL(memset_nocache_branch)
+	b	2f	/* Skip optimised bloc until cache is enabled */
+
 	clrlwi	r7,r6,32-LG_CACHELINE_BYTES
 	add	r8,r7,r5
 	srwi	r9,r8,LG_CACHELINE_BYTES
@@ -103,32 +113,8 @@ _GLOBAL(cacheable_memzero)
 	bdnz	10b
 	clrlwi	r5,r8,32-LG_CACHELINE_BYTES
 	addi	r5,r5,4
-2:	srwi	r0,r5,2
-	mtctr	r0
-	bdz	6f
-1:	stwu	r4,4(r6)
-	bdnz	1b
-6:	andi.	r5,r5,3
-7:	cmpwi	0,r5,0
-	beqlr
-	mtctr	r5
-	addi	r6,r6,3
-8:	stbu	r4,1(r6)
-	bdnz	8b
-	blr
 
-_GLOBAL(memset)
-	rlwimi	r4,r4,8,16,23
-	rlwimi	r4,r4,16,0,15
-	addi	r6,r3,-4
-	cmplwi	0,r5,4
-	blt	7f
-	stwu	r4,4(r6)
-	beqlr
-	andi.	r0,r6,3
-	add	r5,r0,r5
-	subf	r6,r0,r6
-	srwi	r0,r5,2
+2:	srwi	r0,r5,2
 	mtctr	r0
 	bdz	6f
 1:	stwu	r4,4(r6)
@@ -148,14 +134,24 @@ _GLOBAL(memset)
  * the destination area is cacheable.
  * We only use this version if the source and dest don't overlap.
  * -- paulus.
+ *
+ * During early init, cache might not be active yet, so dcbz cannot be used.
+ * We therefore jump to generic_memcpy which doesn't use dcbz. This jump is
+ * replaced by a nop once cache is active. This is done in machine_init()
  */
-_GLOBAL(cacheable_memcpy)
+_GLOBAL(memmove)
+	cmplw	0,r3,r4
+	bgt	backwards_memcpy
+	/* fall through */
+
+_GLOBAL(memcpy)
+	b	generic_memcpy
 	add	r7,r3,r5		/* test if the src & dst overlap */
 	add	r8,r4,r5
 	cmplw	0,r4,r7
 	cmplw	1,r3,r8
 	crand	0,0,4			/* cr0.lt &= cr1.lt */
-	blt	memcpy			/* if regions overlap */
+	blt	generic_memcpy		/* if regions overlap */
 
 	addi	r4,r4,-4
 	addi	r6,r3,-4
@@ -170,9 +166,9 @@ _GLOBAL(cacheable_memcpy)
 	mtctr	r8
 	beq+	61f
 70:	lbz	r9,4(r4)		/* do some bytes */
-	stb	r9,4(r6)
 	addi	r4,r4,1
 	addi	r6,r6,1
+	stb	r9,3(r6)
 	bdnz	70b
 61:	srwi.	r0,r0,2
 	mtctr	r0
@@ -214,19 +210,14 @@ _GLOBAL(cacheable_memcpy)
 64:	andi.	r0,r5,3
 	mtctr	r0
 	beq+	65f
-40:	lbz	r0,4(r4)
-	stb	r0,4(r6)
-	addi	r4,r4,1
-	addi	r6,r6,1
+	addi	r4,r4,3
+	addi	r6,r6,3
+40:	lbzu	r0,1(r4)
+	stbu	r0,1(r6)
 	bdnz	40b
 65:	blr
 
-_GLOBAL(memmove)
-	cmplw	0,r3,r4
-	bgt	backwards_memcpy
-	/* fall through */
-
-_GLOBAL(memcpy)
+_GLOBAL(generic_memcpy)
 	srwi.	r7,r5,3
 	addi	r6,r3,-4
 	addi	r4,r4,-4

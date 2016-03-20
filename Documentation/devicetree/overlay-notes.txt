@@ -1,0 +1,133 @@
+Device Tree Overlay Notes
+-------------------------
+
+This document describes the implementation of the in-kernel
+device tree overlay functionality residing in drivers/of/overlay.c and is a
+companion document to Documentation/devicetree/dt-object-internal.txt[1] &
+Documentation/devicetree/dynamic-resolution-notes.txt[2]
+
+How overlays work
+-----------------
+
+A Device Tree's overlay purpose is to modify the kernel's live tree, and
+have the modification affecting the state of the kernel in a way that
+is reflecting the changes.
+Since the kernel mainly deals with devices, any new device node that result
+in an active device should have it created while if the device node is either
+disabled or removed all together, the affected device should be deregistered.
+
+Lets take an example where we have a foo board with the following base tree
+which is taken from [1].
+
+---- foo.dts -----------------------------------------------------------------
+	/* FOO platform */
+	/ {
+		compatible = "corp,foo";
+
+		/* shared resources */
+		res: res {
+		};
+
+		/* On chip peripherals */
+		ocp: ocp {
+			/* peripherals that are always instantiated */
+			peripheral1 { ... };
+		}
+	};
+---- foo.dts -----------------------------------------------------------------
+
+The overlay bar.dts, when loaded (and resolved as described in [2]) should
+
+---- bar.dts -----------------------------------------------------------------
+/plugin/;	/* allow undefined label references and record them */
+/ {
+	....	/* various properties for loader use; i.e. part id etc. */
+	fragment@0 {
+		target = <&ocp>;
+		__overlay__ {
+			/* bar peripheral */
+			bar {
+				compatible = "corp,bar";
+				... /* various properties and child nodes */
+			}
+		};
+	};
+};
+---- bar.dts -----------------------------------------------------------------
+
+result in foo+bar.dts
+
+---- foo+bar.dts -------------------------------------------------------------
+	/* FOO platform + bar peripheral */
+	/ {
+		compatible = "corp,foo";
+
+		/* shared resources */
+		res: res {
+		};
+
+		/* On chip peripherals */
+		ocp: ocp {
+			/* peripherals that are always instantiated */
+			peripheral1 { ... };
+
+			/* bar peripheral */
+			bar {
+				compatible = "corp,bar";
+				... /* various properties and child nodes */
+			}
+		}
+	};
+---- foo+bar.dts -------------------------------------------------------------
+
+As a result of the overlay, a new device node (bar) has been created
+so a bar platform device will be registered and if a matching device driver
+is loaded the device will be created as expected.
+
+Overlay in-kernel API
+--------------------------------
+
+The API is quite easy to use.
+
+1. Call of_overlay_create() to create and apply an overlay. The return value
+is a cookie identifying this overlay.
+
+2. Call of_overlay_destroy() to remove and cleanup the overlay previously
+created via the call to of_overlay_create(). Removal of an overlay that
+is stacked by another will not be permitted.
+
+Finally, if you need to remove all overlays in one-go, just call
+of_overlay_destroy_all() which will remove every single one in the correct
+order.
+
+Overlay DTS Format
+------------------
+
+The DTS of an overlay should have the following format:
+
+{
+	/* ignored properties by the overlay */
+
+	fragment@0 {	/* first child node */
+
+		target=<phandle>;	/* phandle target of the overlay */
+	or
+		target-path="/path";	/* target path of the overlay */
+
+		__overlay__ {
+			property-a;	/* add property-a to the target */
+			node-a {	/* add to an existing, or create a node-a */
+				...
+			};
+		};
+	}
+	fragment@1 {	/* second child node */
+		...
+	};
+	/* more fragments follow */
+}
+
+Using the non-phandle based target method allows one to use a base DT which does
+not contain a __symbols__ node, i.e. it was not compiled with the -@ option.
+The __symbols__ node is only required for the target=<phandle> method, since it
+contains the information required to map from a phandle to a tree location.

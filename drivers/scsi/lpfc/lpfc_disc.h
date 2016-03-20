@@ -78,7 +78,7 @@ struct lpfc_nodelist {
 	struct list_head nlp_listp;
 	struct lpfc_name nlp_portname;
 	struct lpfc_name nlp_nodename;
-	uint32_t         nlp_flag;		/* entry  flags */
+	uint32_t         nlp_flag;		/* entry flags */
 	uint32_t         nlp_DID;		/* FC D_ID of entry */
 	uint32_t         nlp_last_elscmd;	/* Last ELS cmd sent */
 	uint16_t         nlp_type;
@@ -146,6 +146,7 @@ struct lpfc_node_rrq {
 #define NLP_LOGO_ACC       0x00100000	/* Process LOGO after ACC completes */
 #define NLP_TGT_NO_SCSIID  0x00200000	/* good PRLI but no binding for scsid */
 #define NLP_ISSUE_LOGO     0x00400000	/* waiting to issue a LOGO */
+#define NLP_IN_DEV_LOSS    0x00800000	/* devloss in progress */
 #define NLP_ACC_REGLOGIN   0x01000000	/* Issue Reg Login after successful
 					   ACC */
 #define NLP_NPR_ADISC      0x02000000	/* Issue ADISC when dq'ed from
@@ -156,6 +157,7 @@ struct lpfc_node_rrq {
 #define NLP_SC_REQ         0x20000000	/* Target requires authentication */
 #define NLP_FIRSTBURST     0x40000000	/* Target supports FirstBurst */
 #define NLP_RPI_REGISTERED 0x80000000	/* nlp_rpi is valid */
+
 
 /* ndlp usage management macros */
 #define NLP_CHK_NODE_ACT(ndlp)		(((ndlp)->nlp_usg_map \

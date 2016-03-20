@@ -35,6 +35,7 @@
 #include <ttm/ttm_placement.h>
 #include <drm/drm_vma_manager.h>
 #include <linux/mm.h>
+#include <linux/pfn_t.h>
 #include <linux/rbtree.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
@@ -45,10 +46,8 @@ static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 				struct vm_area_struct *vma,
 				struct vm_fault *vmf)
 {
-	struct ttm_bo_device *bdev = bo->bdev;
 	int ret = 0;
 
-	spin_lock(&bdev->fence_lock);
 	if (likely(!test_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags)))
 		goto out_unlock;
 
@@ -82,7 +81,6 @@ static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 			VM_FAULT_NOPAGE;
 
 out_unlock:
-	spin_unlock(&bdev->fence_lock);
 	return ret;
 }
 
@@ -200,9 +198,8 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 						cvma.vm_page_prot);
 	} else {
 		ttm = bo->ttm;
-		if (!(bo->mem.placement & TTM_PL_FLAG_CACHED))
-			cvma.vm_page_prot = ttm_io_prot(bo->mem.placement,
-							cvma.vm_page_prot);
+		cvma.vm_page_prot = ttm_io_prot(bo->mem.placement,
+						cvma.vm_page_prot);
 
 		/* Allocate all page at once, most common usage */
 		if (ttm->bdev->driver->ttm_tt_populate(ttm)) {
@@ -233,7 +230,8 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		}
 
 		if (vma->vm_flags & VM_MIXEDMAP)
-			ret = vm_insert_mixed(&cvma, address, pfn);
+			ret = vm_insert_mixed(&cvma, address,
+					__pfn_to_pfn_t(pfn, PFN_DEV));
 		else
 			ret = vm_insert_pfn(&cvma, address, pfn);
 

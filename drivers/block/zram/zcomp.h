@@ -33,7 +33,7 @@ struct zcomp_backend {
 	int (*decompress)(const unsigned char *src, size_t src_len,
 			unsigned char *dst);
 
-	void *(*create)(void);
+	void *(*create)(gfp_t flags);
 	void (*destroy)(void *private);
 
 	const char *name;
@@ -51,6 +51,7 @@ struct zcomp {
 };
 
 ssize_t zcomp_available_show(const char *comp, char *buf);
+bool zcomp_available_algorithm(const char *comp);
 
 struct zcomp *zcomp_create(const char *comp, int max_strm);
 void zcomp_destroy(struct zcomp *comp);

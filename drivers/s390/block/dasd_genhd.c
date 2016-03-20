@@ -99,15 +99,28 @@ void dasd_gendisk_free(struct dasd_block *block)
 int dasd_scan_partitions(struct dasd_block *block)
 {
 	struct block_device *bdev;
+	int rc;
 
 	bdev = bdget_disk(block->gdp, 0);
-	if (!bdev || blkdev_get(bdev, FMODE_READ, NULL) < 0)
+	if (!bdev) {
+		DBF_DEV_EVENT(DBF_ERR, block->base, "%s",
+			      "scan partitions error, bdget returned NULL");
 		return -ENODEV;
-	/*
-	 * See fs/partition/check.c:register_disk,rescan_partitions
-	 * Can't call rescan_partitions directly. Use ioctl.
-	 */
-	ioctl_by_bdev(bdev, BLKRRPART, 0);
+	}
+
+	rc = blkdev_get(bdev, FMODE_READ, NULL);
+	if (rc < 0) {
+		DBF_DEV_EVENT(DBF_ERR, block->base,
+			      "scan partitions error, blkdev_get returned %d",
+			      rc);
+		return -ENODEV;
+	}
+
+	rc = blkdev_reread_part(bdev);
+	if (rc)
+		DBF_DEV_EVENT(DBF_ERR, block->base,
+				"scan partitions error, rc %d", rc);
+
 	/*
 	 * Since the matching blkdev_put call to the blkdev_get in
 	 * this function is not called before dasd_destroy_partitions
@@ -165,8 +178,8 @@ int dasd_gendisk_init(void)
 	/* Register to static dasd major 94 */
 	rc = register_blkdev(DASD_MAJOR, "dasd");
 	if (rc != 0) {
-		pr_warning("Registering the device driver with major number "
-			   "%d failed\n", DASD_MAJOR);
+		pr_warn("Registering the device driver with major number %d failed\n",
+			DASD_MAJOR);
 		return rc;
 	}
 	return 0;

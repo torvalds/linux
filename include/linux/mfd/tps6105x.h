@@ -10,6 +10,7 @@
 #define MFD_TPS6105X_H
 
 #include <linux/i2c.h>
+#include <linux/regmap.h>
 #include <linux/regulator/machine.h>
 
 /*
@@ -82,20 +83,15 @@ struct tps6105x_platform_data {
 
 /**
  * struct tps6105x - state holder for the TPS6105x drivers
- * @mutex: mutex to serialize I2C accesses
  * @i2c_client: corresponding I2C client
  * @regulator: regulator device if used in voltage mode
+ * @regmap: used for i2c communcation on accessing registers
  */
 struct tps6105x {
 	struct tps6105x_platform_data *pdata;
-	struct mutex		lock;
 	struct i2c_client	*client;
 	struct regulator_dev	*regulator;
+	struct regmap		*regmap;
 };
-
-extern int tps6105x_set(struct tps6105x *tps6105x, u8 reg, u8 value);
-extern int tps6105x_get(struct tps6105x *tps6105x, u8 reg, u8 *buf);
-extern int tps6105x_mask_and_set(struct tps6105x *tps6105x, u8 reg,
-				 u8 bitmask, u8 bitvalues);
 
 #endif

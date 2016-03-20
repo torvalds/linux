@@ -378,7 +378,6 @@ static struct cpuidle_driver apm_idle_driver = {
 		{ /* entry 1 is for APM idle */
 			.name = "APM",
 			.desc = "APM idle",
-			.flags = CPUIDLE_FLAG_TIME_VALID,
 			.exit_latency = 250,	/* WAG */
 			.target_residency = 500,	/* WAG */
 			.enter = &apm_cpu_idle
@@ -920,7 +919,7 @@ recalc:
 	} else if (jiffies_since_last_check > idle_period) {
 		unsigned int idle_percentage;
 
-		idle_percentage = stime - last_stime;
+		idle_percentage = cputime_to_jiffies(stime - last_stime);
 		idle_percentage *= 100;
 		idle_percentage /= jiffies_since_last_check;
 		use_apm_idle = (idle_percentage > idle_threshold);

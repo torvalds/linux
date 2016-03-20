@@ -59,8 +59,7 @@ struct stv0367cab_state {
 	int locked;			/* channel found		*/
 	u32 freq_khz;			/* found frequency (in kHz)	*/
 	u32 symbol_rate;		/* found symbol rate (in Bds)	*/
-	enum stv0367cab_mod modulation;	/* modulation			*/
-	fe_spectral_inversion_t	spect_inv; /* Spectrum Inversion	*/
+	enum fe_spectral_inversion spect_inv; /* Spectrum Inversion	*/
 };
 
 struct stv0367ter_state {
@@ -68,10 +67,10 @@ struct stv0367ter_state {
 	enum stv0367_ter_signal_type state;
 	enum stv0367_ter_if_iq_mode if_iq_mode;
 	enum stv0367_ter_mode mode;/* mode 2K or 8K */
-	fe_guard_interval_t guard;
+	enum fe_guard_interval guard;
 	enum stv0367_ter_hierarchy hierarchy;
 	u32 frequency;
-	fe_spectral_inversion_t  sense; /*  current search spectrum */
+	enum fe_spectral_inversion sense; /*  current search spectrum */
 	u8  force; /* force mode/guard */
 	u8  bw; /* channel width 6, 7 or 8 in MHz */
 	u8  pBW; /* channel width used during previous lock */
@@ -554,7 +553,7 @@ static struct st_register def0367ter[STV0367TER_NBREGS] = {
 #define RF_LOOKUP_TABLE_SIZE  31
 #define RF_LOOKUP_TABLE2_SIZE 16
 /* RF Level (for RF AGC->AGC1) Lookup Table, depends on the board and tuner.*/
-s32 stv0367cab_RF_LookUp1[RF_LOOKUP_TABLE_SIZE][RF_LOOKUP_TABLE_SIZE] = {
+static const s32 stv0367cab_RF_LookUp1[RF_LOOKUP_TABLE_SIZE][RF_LOOKUP_TABLE_SIZE] = {
 	{/*AGC1*/
 		48, 50, 51, 53, 54, 56, 57, 58, 60, 61, 62, 63,
 		64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75,
@@ -566,7 +565,7 @@ s32 stv0367cab_RF_LookUp1[RF_LOOKUP_TABLE_SIZE][RF_LOOKUP_TABLE_SIZE] = {
 	}
 };
 /* RF Level (for IF AGC->AGC2) Lookup Table, depends on the board and tuner.*/
-s32 stv0367cab_RF_LookUp2[RF_LOOKUP_TABLE2_SIZE][RF_LOOKUP_TABLE2_SIZE] = {
+static const s32 stv0367cab_RF_LookUp2[RF_LOOKUP_TABLE2_SIZE][RF_LOOKUP_TABLE2_SIZE] = {
 	{/*AGC2*/
 		28, 29, 31, 32, 34, 35, 36, 37,
 		38, 39, 40, 41, 42, 43, 44, 45,
@@ -792,11 +791,13 @@ int stv0367_writeregs(struct stv0367_state *state, u16 reg, u8 *data, int len)
 	memcpy(buf + 2, data, len);
 
 	if (i2cdebug)
-		printk(KERN_DEBUG "%s: %02x: %02x\n", __func__, reg, buf[2]);
+		printk(KERN_DEBUG "%s: [%02x] %02x: %02x\n", __func__,
+			state->config->demod_address, reg, buf[2]);
 
 	ret = i2c_transfer(state->i2c, &msg, 1);
 	if (ret != 1)
-		printk(KERN_ERR "%s: i2c write error!\n", __func__);
+		printk(KERN_ERR "%s: i2c write error! ([%02x] %02x: %02x)\n",
+			__func__, state->config->demod_address, reg, buf[2]);
 
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
@@ -830,10 +831,12 @@ static u8 stv0367_readreg(struct stv0367_state *state, u16 reg)
 
 	ret = i2c_transfer(state->i2c, msg, 2);
 	if (ret != 2)
-		printk(KERN_ERR "%s: i2c read error\n", __func__);
+		printk(KERN_ERR "%s: i2c read error ([%02x] %02x: %02x)\n",
+			__func__, state->config->demod_address, reg, b1[0]);
 
 	if (i2cdebug)
-		printk(KERN_DEBUG "%s: %02x: %02x\n", __func__, reg, b1[0]);
+		printk(KERN_DEBUG "%s: [%02x] %02x: %02x\n", __func__,
+			state->config->demod_address, reg, b1[0]);
 
 	return b1[0];
 }
@@ -1551,6 +1554,11 @@ static int stv0367ter_init(struct dvb_frontend *fe)
 
 	switch (state->config->xtal) {
 		/*set internal freq to 53.125MHz */
+	case 16000000:
+		stv0367_writereg(state, R367TER_PLLMDIV, 0x2);
+		stv0367_writereg(state, R367TER_PLLNDIV, 0x1b);
+		stv0367_writereg(state, R367TER_PLLSETUP, 0x18);
+		break;
 	case 25000000:
 		stv0367_writereg(state, R367TER_PLLMDIV, 0xa);
 		stv0367_writereg(state, R367TER_PLLNDIV, 0x55);
@@ -1930,13 +1938,11 @@ static int stv0367ter_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
-static int stv0367ter_get_frontend(struct dvb_frontend *fe)
+static int stv0367ter_get_frontend(struct dvb_frontend *fe,
+				   struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stv0367_state *state = fe->demodulator_priv;
 	struct stv0367ter_state *ter_state = state->ter_state;
-
-	int error = 0;
 	enum stv0367_ter_mode mode;
 	int constell = 0,/* snr = 0,*/ Data = 0;
 
@@ -2020,7 +2026,7 @@ static int stv0367ter_get_frontend(struct dvb_frontend *fe)
 
 	p->guard_interval = stv0367_readbits(state, F367TER_SYR_GUARD);
 
-	return error;
+	return 0;
 }
 
 static int stv0367ter_read_snr(struct dvb_frontend *fe, u16 *snr)
@@ -2077,7 +2083,8 @@ static int stv0367ter_status(struct dvb_frontend *fe)
 	return locked;
 }
 #endif
-static int stv0367ter_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int stv0367ter_read_status(struct dvb_frontend *fe,
+				  enum fe_status *status)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
 
@@ -2719,7 +2726,8 @@ static u32 stv0367cab_GetSymbolRate(struct stv0367_state *state, u32 mclk_hz)
 	return regsym;
 }
 
-static int stv0367cab_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int stv0367cab_read_status(struct dvb_frontend *fe,
+				  enum fe_status *status)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
 
@@ -2999,7 +3007,6 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 
 	if (QAMFEC_Lock) {
 		signalType = FE_CAB_DATAOK;
-		cab_state->modulation = p->modulation;
 		cab_state->spect_inv = stv0367_readbits(state,
 							F367CAB_QUAD_INV);
 #if 0
@@ -3139,9 +3146,9 @@ static int stv0367cab_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int stv0367cab_get_frontend(struct dvb_frontend *fe)
+static int stv0367cab_get_frontend(struct dvb_frontend *fe,
+				   struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stv0367_state *state = fe->demodulator_priv;
 	struct stv0367cab_state *cab_state = state->cab_state;
 
@@ -3165,7 +3172,7 @@ static int stv0367cab_get_frontend(struct dvb_frontend *fe)
 	case FE_CAB_MOD_QAM128:
 		p->modulation = QAM_128;
 		break;
-	case QAM_256:
+	case FE_CAB_MOD_QAM256:
 		p->modulation = QAM_256;
 		break;
 	default:

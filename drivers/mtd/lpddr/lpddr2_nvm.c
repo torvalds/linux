@@ -460,6 +460,7 @@ static int lpddr2_nvm_probe(struct platform_device *pdev)
 
 	/* Populate mtd_info data structure */
 	*mtd = (struct mtd_info) {
+		.dev		= { .parent = &pdev->dev },
 		.name		= pdev->dev.init_name,
 		.type		= MTD_RAM,
 		.priv		= map,

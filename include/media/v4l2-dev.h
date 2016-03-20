@@ -65,7 +65,6 @@ struct v4l2_file_operations {
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
-	long (*ioctl) (struct file *, unsigned int, unsigned long);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 #ifdef CONFIG_COMPAT
 	long (*compat_ioctl32) (struct file *, unsigned int, unsigned long);
@@ -87,6 +86,8 @@ struct video_device
 {
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	struct media_entity entity;
+	struct media_intf_devnode *intf_devnode;
+	struct media_pipeline pipe;
 #endif
 	/* device ops */
 	const struct v4l2_file_operations *fops;
@@ -124,7 +125,8 @@ struct video_device
 	spinlock_t		fh_lock; /* Lock for all v4l2_fhs */
 	struct list_head	fh_list; /* List of struct v4l2_fh */
 
-	int debug;			/* Activates debug level*/
+	/* Internal device debug flags, not for use by drivers */
+	int dev_debug;
 
 	/* Video standard vars */
 	v4l2_std_id tvnorms;		/* Supported tv norms */

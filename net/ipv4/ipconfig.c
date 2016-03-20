@@ -65,15 +65,6 @@
 #include <net/checksum.h>
 #include <asm/processor.h>
 
-/* Define this to allow debugging output */
-#undef IPCONFIG_DEBUG
-
-#ifdef IPCONFIG_DEBUG
-#define DBG(x) printk x
-#else
-#define DBG(x) do { } while(0)
-#endif
-
 #if defined(CONFIG_IP_PNP_DHCP)
 #define IPCONFIG_DHCP
 #endif
@@ -94,7 +85,7 @@
 /* Define the timeout for waiting for a DHCP/BOOTP/RARP reply */
 #define CONF_OPEN_RETRIES 	2	/* (Re)open devices twice */
 #define CONF_SEND_RETRIES 	6	/* Send six requests per open */
-#define CONF_INTER_TIMEOUT	(HZ/2)	/* Inter-device timeout: 1/2 second */
+#define CONF_INTER_TIMEOUT	(HZ)	/* Inter-device timeout: 1 second */
 #define CONF_BASE_TIMEOUT	(HZ*2)	/* Initial timeout: 2 seconds */
 #define CONF_TIMEOUT_RANDOM	(HZ)	/* Maximum amount of randomization */
 #define CONF_TIMEOUT_MULT	*7/4	/* Rate of timeout growth */
@@ -115,7 +106,7 @@
  */
 int ic_set_manually __initdata = 0;		/* IPconfig parameters set manually */
 
-static int ic_enable __initdata = 0;		/* IP config enabled? */
+static int ic_enable __initdata;		/* IP config enabled? */
 
 /* Protocol choice */
 int ic_proto_enabled __initdata = 0
@@ -130,7 +121,7 @@ int ic_proto_enabled __initdata = 0
 #endif
 			;
 
-static int ic_host_name_set __initdata = 0;	/* Host name set by us? */
+static int ic_host_name_set __initdata;	/* Host name set by us? */
 
 __be32 ic_myaddr = NONE;		/* My IP address */
 static __be32 ic_netmask = NONE;	/* Netmask for local subnet */
@@ -146,9 +137,17 @@ u8 root_server_path[256] = { 0, };	/* Path to mount as root */
 /* vendor class identifier */
 static char vendor_class_identifier[253] __initdata;
 
+#if defined(CONFIG_IP_PNP_DHCP)
+static char dhcp_client_identifier[253] __initdata;
+#endif
+
 /* Persistent data: */
 
+#ifdef IPCONFIG_DYNAMIC
 static int ic_proto_used;			/* Protocol used, if any */
+#else
+#define ic_proto_used 0
+#endif
 static __be32 ic_nameservers[CONF_NAMESERVERS_MAX]; /* DNS Server IP addresses */
 static u8 ic_domain[64];		/* DNS (not NIS) domain name */
 
@@ -160,17 +159,17 @@ static u8 ic_domain[64];		/* DNS (not NIS) domain name */
 static char user_dev_name[IFNAMSIZ] __initdata = { 0, };
 
 /* Protocols supported by available interfaces */
-static int ic_proto_have_if __initdata = 0;
+static int ic_proto_have_if __initdata;
 
 /* MTU for boot device */
-static int ic_dev_mtu __initdata = 0;
+static int ic_dev_mtu __initdata;
 
 #ifdef IPCONFIG_DYNAMIC
 static DEFINE_SPINLOCK(ic_recv_lock);
-static volatile int ic_got_reply __initdata = 0;    /* Proto(s) that replied */
+static volatile int ic_got_reply __initdata;    /* Proto(s) that replied */
 #endif
 #ifdef IPCONFIG_DHCP
-static int ic_dhcp_msgtype __initdata = 0;	/* DHCP msg type received */
+static int ic_dhcp_msgtype __initdata;	/* DHCP msg type received */
 #endif
 
 
@@ -186,8 +185,8 @@ struct ic_device {
 	__be32 xid;
 };
 
-static struct ic_device *ic_first_dev __initdata = NULL;/* List of open device */
-static struct net_device *ic_dev __initdata = NULL;	/* Selected device */
+static struct ic_device *ic_first_dev __initdata;	/* List of open device */
+static struct net_device *ic_dev __initdata;		/* Selected device */
 
 static bool __init ic_is_init_dev(struct net_device *dev)
 {
@@ -209,9 +208,9 @@ static int __init ic_open_devs(void)
 	last = &ic_first_dev;
 	rtnl_lock();
 
-	/* bring loopback device up first */
+	/* bring loopback and DSA master network devices up first */
 	for_each_netdev(&init_net, dev) {
-		if (!(dev->flags & IFF_LOOPBACK))
+		if (!(dev->flags & IFF_LOOPBACK) && !netdev_uses_dsa(dev))
 			continue;
 		if (dev_change_flags(dev, dev->flags | IFF_UP) < 0)
 			pr_err("IP-Config: Failed to open %s\n", dev->name);
@@ -223,7 +222,7 @@ static int __init ic_open_devs(void)
 			if (dev->mtu >= 364)
 				able |= IC_BOOTP;
 			else
-				pr_warn("DHCP/BOOTP: Ignoring device %s, MTU %d too small",
+				pr_warn("DHCP/BOOTP: Ignoring device %s, MTU %d too small\n",
 					dev->name, dev->mtu);
 			if (!(dev->flags & IFF_NOARP))
 				able |= IC_RARP;
@@ -250,8 +249,8 @@ static int __init ic_open_devs(void)
 			else
 				d->xid = 0;
 			ic_proto_have_if |= able;
-			DBG(("IP-Config: %s UP (able=%d, xid=%08x)\n",
-				dev->name, able, d->xid));
+			pr_debug("IP-Config: %s UP (able=%d, xid=%08x)\n",
+				 dev->name, able, d->xid);
 		}
 	}
 
@@ -262,7 +261,8 @@ static int __init ic_open_devs(void)
 	/* wait for a carrier on at least one device */
 	start = jiffies;
 	next_msg = start + msecs_to_jiffies(CONF_CARRIER_TIMEOUT/12);
-	while (jiffies - start < msecs_to_jiffies(CONF_CARRIER_TIMEOUT)) {
+	while (time_before(jiffies, start +
+			   msecs_to_jiffies(CONF_CARRIER_TIMEOUT))) {
 		int wait, elapsed;
 
 		for_each_netdev(&init_net, dev)
@@ -305,8 +305,8 @@ static void __init ic_close_devs(void)
 	while ((d = next)) {
 		next = d->next;
 		dev = d->dev;
-		if (dev != ic_dev) {
-			DBG(("IP-Config: Downing %s\n", dev->name));
+		if (dev != ic_dev && !netdev_uses_dsa(dev)) {
+			pr_debug("IP-Config: Downing %s\n", dev->name);
 			dev_change_flags(dev, d->flags);
 		}
 		kfree(d);
@@ -459,7 +459,8 @@ static int __init ic_defaults(void)
 			       &ic_myaddr);
 			return -1;
 		}
-		printk("IP-Config: Guessing netmask %pI4\n", &ic_netmask);
+		pr_notice("IP-Config: Guessing netmask %pI4\n",
+			  &ic_netmask);
 	}
 
 	return 0;
@@ -497,13 +498,14 @@ ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	struct arphdr *rarp;
 	unsigned char *rarp_ptr;
 	__be32 sip, tip;
-	unsigned char *sha, *tha;		/* s for "source", t for "target" */
+	unsigned char *tha;		/* t for "target" */
 	struct ic_device *d;
 
 	if (!net_eq(dev_net(dev), &init_net))
 		goto drop;
 
-	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
 		return NET_RX_DROP;
 
 	if (!pskb_may_pull(skb, sizeof(struct arphdr)))
@@ -548,7 +550,6 @@ ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 		goto drop_unlock;	/* should never happen */
 
 	/* Extract variable-width fields */
-	sha = rarp_ptr;
 	rarp_ptr += dev->addr_len;
 	memcpy(&sip, rarp_ptr, 4);
 	rarp_ptr += 4;
@@ -670,9 +671,7 @@ ic_dhcp_init_options(u8 *options)
 	u8 *e = options;
 	int len;
 
-#ifdef IPCONFIG_DEBUG
-	printk("DHCP: Sending message type %d\n", mt);
-#endif
+	pr_debug("DHCP: Sending message type %d\n", mt);
 
 	memcpy(e, ic_bootp_cookie, 4);	/* RFC1048 Magic Cookie */
 	e += 4;
@@ -726,6 +725,16 @@ ic_dhcp_init_options(u8 *options)
 			*e++ = len;
 			memcpy(e, vendor_class_identifier, len);
 			e += len;
+		}
+		len = strlen(dhcp_client_identifier + 1);
+		/* the minimum length of identifier is 2, include 1 byte type,
+		 * and can not be larger than the length of options
+		 */
+		if (len >= 1 && len < 312 - (e - options) - 1) {
+			*e++ = 61;
+			*e++ = len + 1;
+			memcpy(e, dhcp_client_identifier, len + 1);
+			e += len + 1;
 		}
 	}
 
@@ -832,7 +841,8 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 	else if (dev->type == ARPHRD_FDDI)
 		b->htype = ARPHRD_ETHER;
 	else {
-		printk("Unknown ARP type 0x%04x for device %s\n", dev->type, dev->name);
+		pr_warn("Unknown ARP type 0x%04x for device %s\n", dev->type,
+			dev->name);
 		b->htype = dev->type; /* can cause undefined behavior */
 	}
 
@@ -889,14 +899,12 @@ static void __init ic_do_bootp_ext(u8 *ext)
 	int i;
 	__be16 mtu;
 
-#ifdef IPCONFIG_DEBUG
 	u8 *c;
 
-	printk("DHCP/BOOTP: Got extension %d:",*ext);
+	pr_debug("DHCP/BOOTP: Got extension %d:", *ext);
 	for (c=ext+2; c<ext+2+ext[1]; c++)
-		printk(" %02x", *c);
-	printk("\n");
-#endif
+		pr_debug(" %02x", *c);
+	pr_debug("\n");
 
 	switch (*ext++) {
 	case 1:		/* Subnet mask */
@@ -958,7 +966,8 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	if (skb->pkt_type == PACKET_OTHERHOST)
 		goto drop;
 
-	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
 		return NET_RX_DROP;
 
 	if (!pskb_may_pull(skb,
@@ -1064,9 +1073,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 				}
 			}
 
-#ifdef IPCONFIG_DEBUG
-			printk("DHCP: Got message type %d\n", mt);
-#endif
+			pr_debug("DHCP: Got message type %d\n", mt);
 
 			switch (mt) {
 			case DHCPOFFER:
@@ -1079,10 +1086,8 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 				/* Let's accept that offer. */
 				ic_myaddr = b->your_ip;
 				ic_servaddr = server_id;
-#ifdef IPCONFIG_DEBUG
-				printk("DHCP: Offered address %pI4 by server %pI4\n",
-				       &ic_myaddr, &b->iph.saddr);
-#endif
+				pr_debug("DHCP: Offered address %pI4 by server %pI4\n",
+					 &ic_myaddr, &b->iph.saddr);
 				/* The DHCP indicated server address takes
 				 * precedence over the bootp header one if
 				 * they are different.
@@ -1279,11 +1284,10 @@ static int __init ic_dynamic(void)
 		return -1;
 	}
 
-	printk("IP-Config: Got %s answer from %pI4, ",
+	pr_info("IP-Config: Got %s answer from %pI4, my address is %pI4\n",
 		((ic_got_reply & IC_RARP) ? "RARP"
-		 : (ic_proto_enabled & IC_USE_DHCP) ? "DHCP" : "BOOTP"),
-	       &ic_addrservaddr);
-	pr_cont("my address is %pI4\n", &ic_myaddr);
+		: (ic_proto_enabled & IC_USE_DHCP) ? "DHCP" : "BOOTP"),
+		&ic_addrservaddr, &ic_myaddr);
 
 	return 0;
 }
@@ -1410,7 +1414,7 @@ static int __init ip_auto_config(void)
 	if (!ic_enable)
 		return 0;
 
-	DBG(("IP-Config: Entered.\n"));
+	pr_debug("IP-Config: Entered.\n");
 #ifdef IPCONFIG_DYNAMIC
  try_try_again:
 #endif
@@ -1526,7 +1530,7 @@ static int __init ip_auto_config(void)
 		pr_cont(", mtu=%d", ic_dev_mtu);
 	for (i = 0; i < CONF_NAMESERVERS_MAX; i++)
 		if (ic_nameservers[i] != NONE) {
-			pr_info("     nameserver%u=%pI4",
+			pr_cont("     nameserver%u=%pI4",
 				i, &ic_nameservers[i]);
 			break;
 		}
@@ -1555,8 +1559,24 @@ static int __init ic_proto_name(char *name)
 		return 0;
 	}
 #ifdef CONFIG_IP_PNP_DHCP
-	else if (!strcmp(name, "dhcp")) {
+	else if (!strncmp(name, "dhcp", 4)) {
+		char *client_id;
+
 		ic_proto_enabled &= ~IC_RARP;
+		client_id = strstr(name, "dhcp,");
+		if (client_id) {
+			char *v;
+
+			client_id = client_id + 5;
+			v = strchr(client_id, ',');
+			if (!v)
+				return 1;
+			*v = 0;
+			if (kstrtou8(client_id, 0, dhcp_client_identifier))
+				pr_debug("DHCP: Invalid client identifier type\n");
+			strncpy(dhcp_client_identifier + 1, v + 1, 251);
+			*v = ',';
+		}
 		return 1;
 	}
 #endif
@@ -1612,7 +1632,7 @@ static int __init ip_auto_config_setup(char *addrs)
 		if ((cp = strchr(ip, ':')))
 			*cp++ = '\0';
 		if (strlen(ip) > 0) {
-			DBG(("IP-Config: Parameter #%d: `%s'\n", num, ip));
+			pr_debug("IP-Config: Parameter #%d: `%s'\n", num, ip);
 			switch (num) {
 			case 0:
 				if ((ic_myaddr = in_aton(ip)) == ANY)
@@ -1684,7 +1704,7 @@ static int __init vendor_class_identifier_setup(char *addrs)
 	if (strlcpy(vendor_class_identifier, addrs,
 		    sizeof(vendor_class_identifier))
 	    >= sizeof(vendor_class_identifier))
-		pr_warn("DHCP: vendorclass too long, truncated to \"%s\"",
+		pr_warn("DHCP: vendorclass too long, truncated to \"%s\"\n",
 			vendor_class_identifier);
 	return 1;
 }

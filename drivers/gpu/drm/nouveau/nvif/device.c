@@ -22,57 +22,34 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include "device.h"
+#include <nvif/device.h>
+
+u64
+nvif_device_time(struct nvif_device *device)
+{
+	struct nv_device_time_v0 args = {};
+	int ret = nvif_object_mthd(&device->object, NV_DEVICE_V0_TIME,
+				   &args, sizeof(args));
+	WARN_ON_ONCE(ret != 0);
+	return args.time;
+}
 
 void
 nvif_device_fini(struct nvif_device *device)
 {
-	nvif_object_fini(&device->base);
+	nvif_object_fini(&device->object);
 }
 
 int
-nvif_device_init(struct nvif_object *parent, void (*dtor)(struct nvif_device *),
-		 u32 handle, u32 oclass, void *data, u32 size,
-		 struct nvif_device *device)
+nvif_device_init(struct nvif_object *parent, u32 handle, s32 oclass,
+		 void *data, u32 size, struct nvif_device *device)
 {
-	int ret = nvif_object_init(parent, (void *)dtor, handle, oclass,
-				   data, size, &device->base);
+	int ret = nvif_object_init(parent, handle, oclass, data, size,
+				   &device->object);
 	if (ret == 0) {
-		device->object = &device->base;
 		device->info.version = 0;
-		ret = nvif_object_mthd(&device->base, NV_DEVICE_V0_INFO,
+		ret = nvif_object_mthd(&device->object, NV_DEVICE_V0_INFO,
 				       &device->info, sizeof(device->info));
 	}
 	return ret;
-}
-
-static void
-nvif_device_del(struct nvif_device *device)
-{
-	nvif_device_fini(device);
-	kfree(device);
-}
-
-int
-nvif_device_new(struct nvif_object *parent, u32 handle, u32 oclass,
-		void *data, u32 size, struct nvif_device **pdevice)
-{
-	struct nvif_device *device = kzalloc(sizeof(*device), GFP_KERNEL);
-	if (device) {
-		int ret = nvif_device_init(parent, nvif_device_del, handle,
-					   oclass, data, size, device);
-		if (ret) {
-			kfree(device);
-			device = NULL;
-		}
-		*pdevice = device;
-		return ret;
-	}
-	return -ENOMEM;
-}
-
-void
-nvif_device_ref(struct nvif_device *device, struct nvif_device **pdevice)
-{
-	nvif_object_ref(&device->base, (struct nvif_object **)pdevice);
 }

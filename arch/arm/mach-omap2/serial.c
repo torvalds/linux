@@ -203,7 +203,7 @@ static int __init omap_serial_early_init(void)
 		if (cmdline_find_option(uart_name)) {
 			console_uart_id = uart->num;
 
-			if (console_loglevel >= 10) {
+			if (console_loglevel >= CONSOLE_LOGLEVEL_DEBUG) {
 				uart_debug = true;
 				pr_info("%s used as console in debug mode: uart%d clocks will not be gated",
 					uart_name, uart->num);
@@ -213,7 +213,7 @@ static int __init omap_serial_early_init(void)
 
 	return 0;
 }
-omap_core_initcall(omap_serial_early_init);
+omap_postcore_initcall(omap_serial_early_init);
 
 /**
  * omap_serial_init_port() - initialize single serial port
@@ -252,7 +252,7 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 		info = omap_serial_default_info;
 
 	oh = uart->oh;
-	name = DRIVER_NAME;
+	name = OMAP_SERIAL_DRIVER_NAME;
 
 	omap_up.dma_enabled = info->dma_enabled;
 	omap_up.uartclk = OMAP24XX_BASE_BAUD * 16;
@@ -263,9 +263,6 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 	omap_up.dma_rx_timeout = info->dma_rx_timeout;
 	omap_up.dma_rx_poll_rate = info->dma_rx_poll_rate;
 	omap_up.autosuspend_timeout = info->autosuspend_timeout;
-	omap_up.DTR_gpio = info->DTR_gpio;
-	omap_up.DTR_inverted = info->DTR_inverted;
-	omap_up.DTR_present = info->DTR_present;
 
 	pdata = &omap_up;
 	pdata_size = sizeof(struct omap_uart_port_info);

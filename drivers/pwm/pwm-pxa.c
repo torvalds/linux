@@ -225,7 +225,6 @@ static int pwm_remove(struct platform_device *pdev)
 static struct platform_driver pwm_driver = {
 	.driver		= {
 		.name	= "pxa25x-pwm",
-		.owner	= THIS_MODULE,
 		.of_match_table = pwm_of_match,
 	},
 	.probe		= pwm_probe,

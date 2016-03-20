@@ -42,32 +42,19 @@ struct hv_get_perf_counter_info_params {
  */
 #define COUNTER_INFO_VERSION_CURRENT 0x8
 
-/*
- * These determine the counter_value[] layout and the meaning of starting_index
- * and secondary_index.
- *
- * Unless otherwise noted, @secondary_index is unused and ignored.
- */
-enum counter_info_requests {
-
-	/* GENERAL */
-
-	/* @starting_index: must be -1 (to refer to the current partition)
-	 */
-	CIR_SYSTEM_PERFORMANCE_CAPABILITIES = 0X40,
+/* capability mask masks. */
+enum {
+	HV_GPCI_CM_GA = (1 << 7),
+	HV_GPCI_CM_EXPANDED = (1 << 6),
+	HV_GPCI_CM_LAB = (1 << 5)
 };
 
-struct cv_system_performance_capabilities {
-	/* If != 0, allowed to collect data from other partitions */
-	__u8 perf_collect_privileged;
-
-	/* These following are only valid if counter_info_version >= 0x3 */
-#define CV_CM_GA       (1 << 7)
-#define CV_CM_EXPANDED (1 << 6)
-#define CV_CM_LAB      (1 << 5)
-	/* remaining bits are reserved */
-	__u8 capability_mask;
-	__u8 reserved[0xE];
-} __packed;
+#define REQUEST_FILE "../hv-gpci-requests.h"
+#define NAME_LOWER hv_gpci
+#define NAME_UPPER HV_GPCI
+#include "req-gen/perf.h"
+#undef REQUEST_FILE
+#undef NAME_LOWER
+#undef NAME_UPPER
 
 #endif

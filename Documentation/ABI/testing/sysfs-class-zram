@@ -1,0 +1,24 @@
+What:		/sys/class/zram-control/
+Date:		August 2015
+KernelVersion:	4.2
+Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Description:
+		The zram-control/ class sub-directory belongs to zram
+		device class
+
+What:		/sys/class/zram-control/hot_add
+Date:		August 2015
+KernelVersion:	4.2
+Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Description:
+		RO attribute. Read operation will cause zram to add a new
+		device and return its device id back to user (so one can
+		use /dev/zram<id>), or error code.
+
+What:		/sys/class/zram-control/hot_remove
+Date:		August 2015
+KernelVersion:	4.2
+Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Description:
+		WO attribute. Remove a specific /dev/zramX device, where X
+		is a device_id provided by user.

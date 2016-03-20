@@ -74,6 +74,7 @@
 #define ARM_CPU_PART_CORTEX_A12		0x4100c0d0
 #define ARM_CPU_PART_CORTEX_A17		0x4100c0e0
 #define ARM_CPU_PART_CORTEX_A15		0x4100c0f0
+#define ARM_CPU_PART_MASK		0xff00fff0
 
 #define ARM_CPU_XSCALE_ARCH_MASK	0xe000
 #define ARM_CPU_XSCALE_ARCH_V1		0x2000
@@ -179,7 +180,7 @@ static inline unsigned int __attribute_const__ read_cpuid_implementor(void)
  */
 static inline unsigned int __attribute_const__ read_cpuid_part(void)
 {
-	return read_cpuid_id() & 0xff00fff0;
+	return read_cpuid_id() & ARM_CPU_PART_MASK;
 }
 
 static inline unsigned int __attribute_const__ __deprecated read_cpuid_part_number(void)
@@ -227,10 +228,26 @@ static inline int cpu_is_xsc3(void)
 }
 #endif
 
-#if !defined(CONFIG_CPU_XSCALE) && !defined(CONFIG_CPU_XSC3)
-#define	cpu_is_xscale()	0
+#if !defined(CONFIG_CPU_XSCALE) && !defined(CONFIG_CPU_XSC3) && \
+    !defined(CONFIG_CPU_MOHAWK)
+#define	cpu_is_xscale_family() 0
 #else
-#define	cpu_is_xscale()	1
+static inline int cpu_is_xscale_family(void)
+{
+	unsigned int id;
+	id = read_cpuid_id() & 0xffffe000;
+
+	switch (id) {
+	case 0x69052000: /* Intel XScale 1 */
+	case 0x69054000: /* Intel XScale 2 */
+	case 0x69056000: /* Intel XScale 3 */
+	case 0x56056000: /* Marvell XScale 3 */
+	case 0x56158000: /* Marvell Mohawk */
+		return 1;
+	}
+
+	return 0;
+}
 #endif
 
 /*
@@ -252,4 +269,20 @@ static inline int cpu_is_pj4(void)
 #else
 #define cpu_is_pj4()	0
 #endif
+
+static inline int __attribute_const__ cpuid_feature_extract_field(u32 features,
+								  int field)
+{
+	int feature = (features >> field) & 15;
+
+	/* feature registers are signed values */
+	if (feature > 8)
+		feature -= 16;
+
+	return feature;
+}
+
+#define cpuid_feature_extract(reg, field) \
+	cpuid_feature_extract_field(read_cpuid_ext(reg), field)
+
 #endif

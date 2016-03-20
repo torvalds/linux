@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2014 Marvell Technology Group Ltd.
  *
- * Antoine TÃ©nart <antoine.tenart@free-electrons.com>
+ * Antoine Ténart <antoine.tenart@free-electrons.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -11,6 +11,7 @@
  */
 
 #include <linux/io.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -99,30 +100,11 @@ static int berlin_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrl_dev,
 	return 0;
 }
 
-static void berlin_pinctrl_dt_free_map(struct pinctrl_dev *pctrl_dev,
-				       struct pinctrl_map *map,
-				       unsigned nmaps)
-{
-	int i;
-
-	for (i = 0; i < nmaps; i++) {
-		if (map[i].type == PIN_MAP_TYPE_MUX_GROUP) {
-			kfree(map[i].data.mux.group);
-
-			/* a function can be applied to multiple groups */
-			if (i == 0)
-				kfree(map[i].data.mux.function);
-		}
-	}
-
-	kfree(map);
-}
-
 static const struct pinctrl_ops berlin_pinctrl_ops = {
 	.get_groups_count	= &berlin_pinctrl_get_group_count,
 	.get_group_name		= &berlin_pinctrl_get_group_name,
 	.dt_node_to_map		= &berlin_pinctrl_dt_node_to_map,
-	.dt_free_map		= &berlin_pinctrl_dt_free_map,
+	.dt_free_map		= &pinctrl_utils_dt_free_map,
 };
 
 static int berlin_pinmux_get_functions_count(struct pinctrl_dev *pctrl_dev)
@@ -170,9 +152,9 @@ berlin_pinctrl_find_function_by_name(struct berlin_pinctrl *pctrl,
 	return NULL;
 }
 
-static int berlin_pinmux_enable(struct pinctrl_dev *pctrl_dev,
-				unsigned function,
-				unsigned group)
+static int berlin_pinmux_set(struct pinctrl_dev *pctrl_dev,
+			     unsigned function,
+			     unsigned group)
 {
 	struct berlin_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctrl_dev);
 	const struct berlin_desc_group *group_desc = pctrl->desc->groups + group;
@@ -197,7 +179,7 @@ static const struct pinmux_ops berlin_pinmux_ops = {
 	.get_functions_count	= &berlin_pinmux_get_functions_count,
 	.get_function_name	= &berlin_pinmux_get_function_name,
 	.get_function_groups	= &berlin_pinmux_get_function_groups,
-	.enable			= &berlin_pinmux_enable,
+	.set_mux		= &berlin_pinmux_set,
 };
 
 static int berlin_pinctrl_add_function(struct berlin_pinctrl *pctrl,
@@ -310,17 +292,13 @@ static struct pinctrl_desc berlin_pctrl_desc = {
 	.owner		= THIS_MODULE,
 };
 
-int berlin_pinctrl_probe(struct platform_device *pdev,
-			 const struct berlin_pinctrl_desc *desc)
+int berlin_pinctrl_probe_regmap(struct platform_device *pdev,
+				const struct berlin_pinctrl_desc *desc,
+				struct regmap *regmap)
 {
 	struct device *dev = &pdev->dev;
 	struct berlin_pinctrl *pctrl;
-	struct regmap *regmap;
 	int ret;
-
-	regmap = dev_get_regmap(&pdev->dev, NULL);
-	if (!regmap)
-		return -ENODEV;
 
 	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
@@ -339,10 +317,24 @@ int berlin_pinctrl_probe(struct platform_device *pdev,
 	}
 
 	pctrl->pctrl_dev = pinctrl_register(&berlin_pctrl_desc, dev, pctrl);
-	if (!pctrl->pctrl_dev) {
+	if (IS_ERR(pctrl->pctrl_dev)) {
 		dev_err(dev, "failed to register pinctrl driver\n");
-		return -EINVAL;
+		return PTR_ERR(pctrl->pctrl_dev);
 	}
 
 	return 0;
+}
+
+int berlin_pinctrl_probe(struct platform_device *pdev,
+			 const struct berlin_pinctrl_desc *desc)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *parent_np = of_get_parent(dev->of_node);
+	struct regmap *regmap = syscon_node_to_regmap(parent_np);
+
+	of_node_put(parent_np);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	return berlin_pinctrl_probe_regmap(pdev, desc, regmap);
 }

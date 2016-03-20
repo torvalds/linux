@@ -277,13 +277,9 @@ int xts_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
 	u32 *flags = &tfm->crt_flags;
 	int err;
 
-	/* key consists of keys of equal size concatenated, therefore
-	 * the length must be even
-	 */
-	if (keylen % 2) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		return -EINVAL;
-	}
+	err = xts_check_key(tfm, key, keylen);
+	if (err)
+		return err;
 
 	/* first half of xts-key is for crypt */
 	err = __twofish_setkey(&ctx->crypt_ctx, key, keylen / 2, flags);
@@ -495,5 +491,5 @@ module_exit(fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Twofish Cipher Algorithm, 3-way parallel asm optimized");
-MODULE_ALIAS("twofish");
-MODULE_ALIAS("twofish-asm");
+MODULE_ALIAS_CRYPTO("twofish");
+MODULE_ALIAS_CRYPTO("twofish-asm");

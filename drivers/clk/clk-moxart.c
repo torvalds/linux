@@ -10,12 +10,13 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/clkdev.h>
 
-void __init moxart_of_pll_clk_init(struct device_node *node)
+static void __init moxart_of_pll_clk_init(struct device_node *node)
 {
 	static void __iomem *base;
 	struct clk *clk, *ref_clk;
@@ -53,7 +54,7 @@ void __init moxart_of_pll_clk_init(struct device_node *node)
 CLK_OF_DECLARE(moxart_pll_clock, "moxa,moxart-pll-clock",
 	       moxart_of_pll_clk_init);
 
-void __init moxart_of_apb_clk_init(struct device_node *node)
+static void __init moxart_of_apb_clk_init(struct device_node *node)
 {
 	static void __iomem *base;
 	struct clk *clk, *pll_clk;

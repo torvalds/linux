@@ -69,6 +69,6 @@ void __init iop32x_init_irq(void)
 
 	for (i = 0; i < NR_IRQS; i++) {
 		irq_set_chip_and_handler(i, &ext_chip, handle_level_irq);
-		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(i, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 }

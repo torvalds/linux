@@ -36,7 +36,7 @@
 /*
  * Callback function for readdir
  */
-typedef int (*nfsd_dirop_t)(struct inode *, struct dentry *, int, int);
+typedef int (*nfsd_filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
 
 /* nfsd/vfs.c */
 int		nfsd_racache_init(int);
@@ -54,6 +54,10 @@ int nfsd_mountpoint(struct dentry *, struct svc_export *);
 #ifdef CONFIG_NFSD_V4
 __be32          nfsd4_set_nfs4_label(struct svc_rqst *, struct svc_fh *,
 		    struct xdr_netobj *);
+__be32		nfsd4_vfs_fallocate(struct svc_rqst *, struct svc_fh *,
+				    struct file *, loff_t, loff_t, int);
+__be32		nfsd4_clone_file_range(struct file *, u64, struct file *,
+			u64, u64);
 #endif /* CONFIG_NFSD_V4 */
 __be32		nfsd_create(struct svc_rqst *, struct svc_fh *,
 				char *name, int len, struct iattr *attrs,
@@ -69,11 +73,7 @@ __be32		nfsd_commit(struct svc_rqst *, struct svc_fh *,
 #endif /* CONFIG_NFSD_V3 */
 __be32		nfsd_open(struct svc_rqst *, struct svc_fh *, umode_t,
 				int, struct file **);
-void		nfsd_close(struct file *);
 struct raparms;
-__be32		nfsd_get_tmp_read_open(struct svc_rqst *, struct svc_fh *,
-				struct file **, struct raparms **);
-void		nfsd_put_tmp_read_open(struct file *, struct raparms *);
 __be32		nfsd_splice_read(struct svc_rqst *,
 				struct file *, loff_t, unsigned long *);
 __be32		nfsd_readv(struct file *, loff_t, struct kvec *, int,
@@ -82,6 +82,10 @@ __be32 		nfsd_read(struct svc_rqst *, struct svc_fh *,
 				loff_t, struct kvec *, int, unsigned long *);
 __be32 		nfsd_write(struct svc_rqst *, struct svc_fh *,struct file *,
 				loff_t, struct kvec *,int, unsigned long *, int *);
+__be32		nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp,
+				struct file *file, loff_t offset,
+				struct kvec *vec, int vlen, unsigned long *cnt,
+				int *stablep);
 __be32		nfsd_readlink(struct svc_rqst *, struct svc_fh *,
 				char *, int *);
 __be32		nfsd_symlink(struct svc_rqst *, struct svc_fh *,
@@ -95,26 +99,29 @@ __be32		nfsd_rename(struct svc_rqst *,
 __be32		nfsd_unlink(struct svc_rqst *, struct svc_fh *, int type,
 				char *name, int len);
 __be32		nfsd_readdir(struct svc_rqst *, struct svc_fh *,
-			     loff_t *, struct readdir_cd *, filldir_t);
+			     loff_t *, struct readdir_cd *, nfsd_filldir_t);
 __be32		nfsd_statfs(struct svc_rqst *, struct svc_fh *,
 				struct kstatfs *, int access);
 
 __be32		nfsd_permission(struct svc_rqst *, struct svc_export *,
 				struct dentry *, int);
 
+struct raparms *nfsd_init_raparms(struct file *file);
+void		nfsd_put_raparams(struct file *file, struct raparms *ra);
+
 static inline int fh_want_write(struct svc_fh *fh)
 {
 	int ret = mnt_want_write(fh->fh_export->ex_path.mnt);
 
 	if (!ret)
-		fh->fh_want_write = 1;
+		fh->fh_want_write = true;
 	return ret;
 }
 
 static inline void fh_drop_write(struct svc_fh *fh)
 {
 	if (fh->fh_want_write) {
-		fh->fh_want_write = 0;
+		fh->fh_want_write = false;
 		mnt_drop_write(fh->fh_export->ex_path.mnt);
 	}
 }
@@ -124,6 +131,12 @@ static inline __be32 fh_getattr(struct svc_fh *fh, struct kstat *stat)
 	struct path p = {.mnt = fh->fh_export->ex_path.mnt,
 			 .dentry = fh->fh_dentry};
 	return nfserrno(vfs_getattr(&p, stat));
+}
+
+static inline int nfsd_create_is_exclusive(int createmode)
+{
+	return createmode == NFS3_CREATE_EXCLUSIVE
+	       || createmode == NFS4_CREATE_EXCLUSIVE4_1;
 }
 
 #endif /* LINUX_NFSD_VFS_H */

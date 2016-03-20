@@ -396,7 +396,7 @@ static int rionet_close(struct net_device *ndev)
 	return 0;
 }
 
-static int rionet_remove_dev(struct device *dev, struct subsys_interface *sif)
+static void rionet_remove_dev(struct device *dev, struct subsys_interface *sif)
 {
 	struct rio_dev *rdev = to_rio_dev(dev);
 	unsigned char netid = rdev->net->hport->id;
@@ -416,8 +416,6 @@ static int rionet_remove_dev(struct device *dev, struct subsys_interface *sif)
 			}
 		}
 	}
-
-	return 0;
 }
 
 static void rionet_get_drvinfo(struct net_device *ndev,

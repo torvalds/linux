@@ -543,7 +543,7 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 			return -EROFS;
 		}
 		if (!ntfs_stamp_usnjrnl(vol)) {
-			ntfs_error(sb, "Failed to stamp transation log "
+			ntfs_error(sb, "Failed to stamp transaction log "
 					"($UsnJrnl)%s", es);
 			NVolSetErrors(vol);
 			return -EROFS;
@@ -1284,10 +1284,10 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 	 * Find the inode number for the hibernation file by looking up the
 	 * filename hiberfil.sys in the root directory.
 	 */
-	mutex_lock(&vol->root_ino->i_mutex);
+	inode_lock(vol->root_ino);
 	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->root_ino), hiberfil, 12,
 			&name);
-	mutex_unlock(&vol->root_ino->i_mutex);
+	inode_unlock(vol->root_ino);
 	if (IS_ERR_MREF(mref)) {
 		ret = MREF_ERR(mref);
 		/* If the file does not exist, Windows is not hibernated. */
@@ -1377,10 +1377,10 @@ static bool load_and_init_quota(ntfs_volume *vol)
 	 * Find the inode number for the quota file by looking up the filename
 	 * $Quota in the extended system files directory $Extend.
 	 */
-	mutex_lock(&vol->extend_ino->i_mutex);
+	inode_lock(vol->extend_ino);
 	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->extend_ino), Quota, 6,
 			&name);
-	mutex_unlock(&vol->extend_ino->i_mutex);
+	inode_unlock(vol->extend_ino);
 	if (IS_ERR_MREF(mref)) {
 		/*
 		 * If the file does not exist, quotas are disabled and have
@@ -1460,10 +1460,10 @@ static bool load_and_init_usnjrnl(ntfs_volume *vol)
 	 * Find the inode number for the transaction log file by looking up the
 	 * filename $UsnJrnl in the extended system files directory $Extend.
 	 */
-	mutex_lock(&vol->extend_ino->i_mutex);
+	inode_lock(vol->extend_ino);
 	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->extend_ino), UsnJrnl, 8,
 			&name);
-	mutex_unlock(&vol->extend_ino->i_mutex);
+	inode_unlock(vol->extend_ino);
 	if (IS_ERR_MREF(mref)) {
 		/*
 		 * If the file does not exist, transaction logging is disabled,
@@ -2204,17 +2204,12 @@ get_ctx_vol_failed:
 	return true;
 #ifdef NTFS_RW
 iput_usnjrnl_err_out:
-	if (vol->usnjrnl_j_ino)
-		iput(vol->usnjrnl_j_ino);
-	if (vol->usnjrnl_max_ino)
-		iput(vol->usnjrnl_max_ino);
-	if (vol->usnjrnl_ino)
-		iput(vol->usnjrnl_ino);
+	iput(vol->usnjrnl_j_ino);
+	iput(vol->usnjrnl_max_ino);
+	iput(vol->usnjrnl_ino);
 iput_quota_err_out:
-	if (vol->quota_q_ino)
-		iput(vol->quota_q_ino);
-	if (vol->quota_ino)
-		iput(vol->quota_ino);
+	iput(vol->quota_q_ino);
+	iput(vol->quota_ino);
 	iput(vol->extend_ino);
 #endif /* NTFS_RW */
 iput_sec_err_out:
@@ -2223,8 +2218,7 @@ iput_root_err_out:
 	iput(vol->root_ino);
 iput_logfile_err_out:
 #ifdef NTFS_RW
-	if (vol->logfile_ino)
-		iput(vol->logfile_ino);
+	iput(vol->logfile_ino);
 iput_vol_err_out:
 #endif /* NTFS_RW */
 	iput(vol->vol_ino);
@@ -2254,8 +2248,7 @@ iput_mftbmp_err_out:
 	iput(vol->mftbmp_ino);
 iput_mirr_err_out:
 #ifdef NTFS_RW
-	if (vol->mftmirr_ino)
-		iput(vol->mftmirr_ino);
+	iput(vol->mftmirr_ino);
 #endif /* NTFS_RW */
 	return false;
 }
@@ -3146,8 +3139,8 @@ static int __init init_ntfs_fs(void)
 
 	ntfs_big_inode_cache = kmem_cache_create(ntfs_big_inode_cache_name,
 			sizeof(big_ntfs_inode), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
-			ntfs_big_inode_init_once);
+			SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
+			SLAB_ACCOUNT, ntfs_big_inode_init_once);
 	if (!ntfs_big_inode_cache) {
 		pr_crit("Failed to create %s!\n", ntfs_big_inode_cache_name);
 		goto big_inode_err_out;
@@ -3208,7 +3201,7 @@ static void __exit exit_ntfs_fs(void)
 }
 
 MODULE_AUTHOR("Anton Altaparmakov <anton@tuxera.com>");
-MODULE_DESCRIPTION("NTFS 1.2/3.x driver - Copyright (c) 2001-2011 Anton Altaparmakov and Tuxera Inc.");
+MODULE_DESCRIPTION("NTFS 1.2/3.x driver - Copyright (c) 2001-2014 Anton Altaparmakov and Tuxera Inc.");
 MODULE_VERSION(NTFS_VERSION);
 MODULE_LICENSE("GPL");
 #ifdef DEBUG

@@ -71,13 +71,11 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	}
 
 	/* Reset core registers */
-	memcpy(&vcpu->arch.regs, reset_regs, sizeof(vcpu->arch.regs));
+	memcpy(&vcpu->arch.ctxt.gp_regs, reset_regs, sizeof(vcpu->arch.ctxt.gp_regs));
 
 	/* Reset CP15 registers */
 	kvm_reset_coprocs(vcpu);
 
 	/* Reset arch_timer context */
-	kvm_timer_vcpu_reset(vcpu, cpu_vtimer_irq);
-
-	return 0;
+	return kvm_timer_vcpu_reset(vcpu, cpu_vtimer_irq);
 }

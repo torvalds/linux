@@ -64,8 +64,8 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
 #include <media/tuner.h>
-#include <media/cx2341x.h>
-#include <media/ir-kbd-i2c.h>
+#include <media/drv-intf/cx2341x.h>
+#include <media/i2c/ir-kbd-i2c.h>
 
 #include <linux/ivtv.h>
 
@@ -327,7 +327,7 @@ struct ivtv;				/* forward reference */
 struct ivtv_stream {
 	/* These first four fields are always set, even if the stream
 	   is not actually created. */
-	struct video_device *vdev;	/* NULL when stream not created */
+	struct video_device vdev;	/* vdev.v4l2_dev is NULL if there is no device */
 	struct ivtv *itv; 		/* for ease of use */
 	const char *name;		/* name of the stream */
 	int type;			/* stream type */
@@ -830,7 +830,8 @@ static inline int ivtv_raw_vbi(const struct ivtv *itv)
 	do {								\
 		struct v4l2_subdev *__sd;				\
 		__v4l2_device_call_subdevs_p(&(itv)->v4l2_dev, __sd,	\
-			!(hw) || (__sd->grp_id & (hw)), o, f , ##args);	\
+			 !(hw) ? true : (__sd->grp_id & (hw)),		\
+			 o, f, ##args);					\
 	} while (0)
 
 #define ivtv_call_all(itv, o, f, args...) ivtv_call_hw(itv, 0, o, f , ##args)

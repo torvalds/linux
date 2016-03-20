@@ -27,6 +27,7 @@
 
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <sound/core.h>
 #include <sound/compress_offload.h>
 #include <sound/asound.h>
 #include <sound/pcm.h>
@@ -42,12 +43,11 @@ struct snd_compr_ops;
  * @buffer_size: size of the above buffer
  * @fragment_size: size of buffer fragment in bytes
  * @fragments: number of such fragments
- * @hw_pointer: offset of last location in buffer where DSP copied data
- * @app_pointer: offset of last location in buffer where app wrote data
  * @total_bytes_available: cumulative number of bytes made available in
  *	the ring buffer
  * @total_bytes_transferred: cumulative bytes transferred by offload DSP
  * @sleep: poll sleep
+ * @private_data: driver private data pointer
  */
 struct snd_compr_runtime {
 	snd_pcm_state_t state;
@@ -70,7 +70,7 @@ struct snd_compr_runtime {
  * @device: device pointer
  * @direction: stream direction, playback/recording
  * @metadata_set: metadata set flag, true when set
- * @next_track: has userspace signall next track transistion, true when set
+ * @next_track: has userspace signal next track transition, true when set
  * @private_data: pointer to DSP private data
  */
 struct snd_compr_stream {
@@ -94,6 +94,8 @@ struct snd_compr_stream {
  * This can be called in during stream creation only to set codec params
  * and the stream properties
  * @get_params: retrieve the codec parameters, mandatory
+ * @set_metadata: Set the metadata values for a stream
+ * @get_metadata: retrieves the requested metadata values from stream
  * @trigger: Trigger operations like start, pause, resume, drain, stop.
  * This callback is mandatory
  * @pointer: Retrieve current h/w pointer information. Mandatory
@@ -133,7 +135,7 @@ struct snd_compr_ops {
 /**
  * struct snd_compr: Compressed device
  * @name: DSP device name
- * @dev: Device pointer
+ * @dev: associated device instance
  * @ops: pointer to DSP callbacks
  * @private_data: pointer to DSP pvt data
  * @card: sound card pointer
@@ -143,20 +145,25 @@ struct snd_compr_ops {
  */
 struct snd_compr {
 	const char *name;
-	struct device *dev;
+	struct device dev;
 	struct snd_compr_ops *ops;
 	void *private_data;
 	struct snd_card *card;
 	unsigned int direction;
 	struct mutex lock;
 	int device;
+#ifdef CONFIG_SND_VERBOSE_PROCFS
+	char id[64];
+	struct snd_info_entry *proc_root;
+	struct snd_info_entry *proc_info_entry;
+#endif
 };
 
 /* compress device register APIs */
 int snd_compress_register(struct snd_compr *device);
 int snd_compress_deregister(struct snd_compr *device);
 int snd_compress_new(struct snd_card *card, int device,
-			int type, struct snd_compr *compr);
+			int type, const char *id, struct snd_compr *compr);
 
 /* dsp driver callback apis
  * For playback: driver should call snd_compress_fragment_elapsed() to let the

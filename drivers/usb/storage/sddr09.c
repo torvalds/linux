@@ -52,6 +52,9 @@
 #include "transport.h"
 #include "protocol.h"
 #include "debug.h"
+#include "scsiglue.h"
+
+#define DRV_NAME "ums-sddr09"
 
 MODULE_DESCRIPTION("Driver for SanDisk SDDR-09 SmartMedia reader");
 MODULE_AUTHOR("Andries Brouwer <aeb@cwi.nl>, Robert Baruch <autophile@starband.net>");
@@ -1099,24 +1102,24 @@ static int
 sddr09_get_wp(struct us_data *us, struct sddr09_card_info *info) {
 	int result;
 	unsigned char status;
+	const char *wp_fmt;
 
 	result = sddr09_read_status(us, &status);
 	if (result) {
 		usb_stor_dbg(us, "read_status fails\n");
 		return result;
 	}
-	usb_stor_dbg(us, "status 0x%02X", status);
 	if ((status & 0x80) == 0) {
 		info->flags |= SDDR09_WP;	/* write protected */
-		US_DEBUGPX(" WP");
+		wp_fmt = " WP";
+	} else {
+		wp_fmt = "";
 	}
-	if (status & 0x40)
-		US_DEBUGPX(" Ready");
-	if (status & LUNBITS)
-		US_DEBUGPX(" Suspended");
-	if (status & 0x1)
-		US_DEBUGPX(" Error");
-	US_DEBUGPX("\n");
+	usb_stor_dbg(us, "status 0x%02X%s%s%s%s\n", status, wp_fmt,
+		     status & 0x40 ? " Ready" : "",
+		     status & LUNBITS ? " Suspended" : "",
+		     status & 0x01 ? " Error" : "");
+
 	return 0;
 }
 
@@ -1155,8 +1158,7 @@ sddr09_get_cardinfo(struct us_data *us, unsigned char flags) {
 		return NULL;
 	}
 
-	sprintf(blurbtxt, "sddr09: Found Flash card, ID = %02X %02X %02X %02X",
-		deviceID[0], deviceID[1], deviceID[2], deviceID[3]);
+	sprintf(blurbtxt, "sddr09: Found Flash card, ID = %4ph", deviceID);
 
 	/* Byte 0 is the manufacturer */
 	sprintf(blurbtxt + strlen(blurbtxt),
@@ -1739,6 +1741,8 @@ usb_stor_sddr09_init(struct us_data *us) {
 	return sddr09_common_init(us);
 }
 
+static struct scsi_host_template sddr09_host_template;
+
 static int sddr09_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
@@ -1746,7 +1750,8 @@ static int sddr09_probe(struct usb_interface *intf,
 	int result;
 
 	result = usb_stor_probe1(&us, intf, id,
-			(id - sddr09_usb_ids) + sddr09_unusual_dev_list);
+			(id - sddr09_usb_ids) + sddr09_unusual_dev_list,
+			&sddr09_host_template);
 	if (result)
 		return result;
 
@@ -1767,7 +1772,7 @@ static int sddr09_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver sddr09_driver = {
-	.name =		"ums-sddr09",
+	.name =		DRV_NAME,
 	.probe =	sddr09_probe,
 	.disconnect =	usb_stor_disconnect,
 	.suspend =	usb_stor_suspend,
@@ -1780,4 +1785,4 @@ static struct usb_driver sddr09_driver = {
 	.no_dynamic_id = 1,
 };
 
-module_usb_driver(sddr09_driver);
+module_usb_stor_driver(sddr09_driver, sddr09_host_template, DRV_NAME);

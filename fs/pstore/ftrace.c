@@ -104,22 +104,23 @@ static const struct file_operations pstore_knob_fops = {
 	.write	= pstore_ftrace_knob_write,
 };
 
+static struct dentry *pstore_ftrace_dir;
+
 void pstore_register_ftrace(void)
 {
-	struct dentry *dir;
 	struct dentry *file;
 
 	if (!psinfo->write_buf)
 		return;
 
-	dir = debugfs_create_dir("pstore", NULL);
-	if (!dir) {
+	pstore_ftrace_dir = debugfs_create_dir("pstore", NULL);
+	if (!pstore_ftrace_dir) {
 		pr_err("%s: unable to create pstore directory\n", __func__);
 		return;
 	}
 
-	file = debugfs_create_file("record_ftrace", 0600, dir, NULL,
-				   &pstore_knob_fops);
+	file = debugfs_create_file("record_ftrace", 0600, pstore_ftrace_dir,
+				   NULL, &pstore_knob_fops);
 	if (!file) {
 		pr_err("%s: unable to create record_ftrace file\n", __func__);
 		goto err_file;
@@ -127,5 +128,17 @@ void pstore_register_ftrace(void)
 
 	return;
 err_file:
-	debugfs_remove(dir);
+	debugfs_remove(pstore_ftrace_dir);
+}
+
+void pstore_unregister_ftrace(void)
+{
+	mutex_lock(&pstore_ftrace_lock);
+	if (pstore_ftrace_enabled) {
+		unregister_ftrace_function(&pstore_ftrace_ops);
+		pstore_ftrace_enabled = 0;
+	}
+	mutex_unlock(&pstore_ftrace_lock);
+
+	debugfs_remove_recursive(pstore_ftrace_dir);
 }

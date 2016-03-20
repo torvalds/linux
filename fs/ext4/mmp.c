@@ -20,8 +20,7 @@ static __le32 ext4_mmp_csum(struct super_block *sb, struct mmp_struct *mmp)
 
 static int ext4_mmp_csum_verify(struct super_block *sb, struct mmp_struct *mmp)
 {
-	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
-				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
+	if (!ext4_has_metadata_csum(sb))
 		return 1;
 
 	return mmp->mmp_checksum == ext4_mmp_csum(sb, mmp);
@@ -29,8 +28,7 @@ static int ext4_mmp_csum_verify(struct super_block *sb, struct mmp_struct *mmp)
 
 static void ext4_mmp_csum_set(struct super_block *sb, struct mmp_struct *mmp)
 {
-	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
-				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
+	if (!ext4_has_metadata_csum(sb))
 		return;
 
 	mmp->mmp_checksum = ext4_mmp_csum(sb, mmp);
@@ -71,6 +69,7 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 			  ext4_fsblk_t mmp_block)
 {
 	struct mmp_struct *mmp;
+	int ret;
 
 	if (*bh)
 		clear_buffer_uptodate(*bh);
@@ -78,33 +77,39 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 	/* This would be sb_bread(sb, mmp_block), except we need to be sure
 	 * that the MD RAID device cache has been bypassed, and that the read
 	 * is not blocked in the elevator. */
-	if (!*bh)
+	if (!*bh) {
 		*bh = sb_getblk(sb, mmp_block);
-	if (!*bh)
-		return -ENOMEM;
-	if (*bh) {
-		get_bh(*bh);
-		lock_buffer(*bh);
-		(*bh)->b_end_io = end_buffer_read_sync;
-		submit_bh(READ_SYNC | REQ_META | REQ_PRIO, *bh);
-		wait_on_buffer(*bh);
-		if (!buffer_uptodate(*bh)) {
-			brelse(*bh);
-			*bh = NULL;
+		if (!*bh) {
+			ret = -ENOMEM;
+			goto warn_exit;
 		}
 	}
-	if (unlikely(!*bh)) {
-		ext4_warning(sb, "Error while reading MMP block %llu",
-			     mmp_block);
-		return -EIO;
+
+	get_bh(*bh);
+	lock_buffer(*bh);
+	(*bh)->b_end_io = end_buffer_read_sync;
+	submit_bh(READ_SYNC | REQ_META | REQ_PRIO, *bh);
+	wait_on_buffer(*bh);
+	if (!buffer_uptodate(*bh)) {
+		ret = -EIO;
+		goto warn_exit;
 	}
-
 	mmp = (struct mmp_struct *)((*bh)->b_data);
-	if (le32_to_cpu(mmp->mmp_magic) != EXT4_MMP_MAGIC ||
-	    !ext4_mmp_csum_verify(sb, mmp))
-		return -EINVAL;
-
+	if (le32_to_cpu(mmp->mmp_magic) != EXT4_MMP_MAGIC) {
+		ret = -EFSCORRUPTED;
+		goto warn_exit;
+	}
+	if (!ext4_mmp_csum_verify(sb, mmp)) {
+		ret = -EFSBADCRC;
+		goto warn_exit;
+	}
 	return 0;
+warn_exit:
+	brelse(*bh);
+	*bh = NULL;
+	ext4_warning(sb, "Error %d while reading MMP block %llu",
+		     ret, mmp_block);
+	return ret;
 }
 
 /*
@@ -113,7 +118,7 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 void __dump_mmp_msg(struct super_block *sb, struct mmp_struct *mmp,
 		    const char *function, unsigned int line, const char *msg)
 {
-	__ext4_warning(sb, function, line, msg);
+	__ext4_warning(sb, function, line, "%s", msg);
 	__ext4_warning(sb, function, line,
 		       "MMP failure info: last update time: %llu, last update "
 		       "node: %s, last update device: %s\n",
@@ -177,15 +182,13 @@ static int kmmpd(void *data)
 		    EXT4_FEATURE_INCOMPAT_MMP)) {
 			ext4_warning(sb, "kmmpd being stopped since MMP feature"
 				     " has been disabled.");
-			EXT4_SB(sb)->s_mmp_tsk = NULL;
-			goto failed;
+			goto exit_thread;
 		}
 
 		if (sb->s_flags & MS_RDONLY) {
 			ext4_warning(sb, "kmmpd being stopped since filesystem "
 				     "has been remounted as readonly.");
-			EXT4_SB(sb)->s_mmp_tsk = NULL;
-			goto failed;
+			goto exit_thread;
 		}
 
 		diff = jiffies - last_update_time;
@@ -207,9 +210,7 @@ static int kmmpd(void *data)
 			if (retval) {
 				ext4_error(sb, "error reading MMP data: %d",
 					   retval);
-
-				EXT4_SB(sb)->s_mmp_tsk = NULL;
-				goto failed;
+				goto exit_thread;
 			}
 
 			mmp_check = (struct mmp_struct *)(bh_check->b_data);
@@ -221,7 +222,9 @@ static int kmmpd(void *data)
 					     "The filesystem seems to have been"
 					     " multiply mounted.");
 				ext4_error(sb, "abort");
-				goto failed;
+				put_bh(bh_check);
+				retval = -EBUSY;
+				goto exit_thread;
 			}
 			put_bh(bh_check);
 		}
@@ -244,7 +247,8 @@ static int kmmpd(void *data)
 
 	retval = write_mmp_block(sb, bh);
 
-failed:
+exit_thread:
+	EXT4_SB(sb)->s_mmp_tsk = NULL;
 	kfree(data);
 	brelse(bh);
 	return retval;

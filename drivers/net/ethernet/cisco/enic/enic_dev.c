@@ -177,40 +177,6 @@ int enic_dev_intr_coal_timer_info(struct enic *enic)
 	return err;
 }
 
-int enic_vnic_dev_deinit(struct enic *enic)
-{
-	int err;
-
-	spin_lock_bh(&enic->devcmd_lock);
-	err = vnic_dev_deinit(enic->vdev);
-	spin_unlock_bh(&enic->devcmd_lock);
-
-	return err;
-}
-
-int enic_dev_init_prov2(struct enic *enic, struct vic_provinfo *vp)
-{
-	int err;
-
-	spin_lock_bh(&enic->devcmd_lock);
-	err = vnic_dev_init_prov2(enic->vdev,
-		(u8 *)vp, vic_provinfo_size(vp));
-	spin_unlock_bh(&enic->devcmd_lock);
-
-	return err;
-}
-
-int enic_dev_deinit_done(struct enic *enic, int *status)
-{
-	int err;
-
-	spin_lock_bh(&enic->devcmd_lock);
-	err = vnic_dev_deinit_done(enic->vdev, status);
-	spin_unlock_bh(&enic->devcmd_lock);
-
-	return err;
-}
-
 /* rtnl lock is held */
 int enic_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
@@ -232,28 +198,6 @@ int enic_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 
 	spin_lock_bh(&enic->devcmd_lock);
 	err = enic_del_vlan(enic, vid);
-	spin_unlock_bh(&enic->devcmd_lock);
-
-	return err;
-}
-
-int enic_dev_enable2(struct enic *enic, int active)
-{
-	int err;
-
-	spin_lock_bh(&enic->devcmd_lock);
-	err = vnic_dev_enable2(enic->vdev, active);
-	spin_unlock_bh(&enic->devcmd_lock);
-
-	return err;
-}
-
-int enic_dev_enable2_done(struct enic *enic, int *status)
-{
-	int err;
-
-	spin_lock_bh(&enic->devcmd_lock);
-	err = vnic_dev_enable2_done(enic->vdev, status);
 	spin_unlock_bh(&enic->devcmd_lock);
 
 	return err;

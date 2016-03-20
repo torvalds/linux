@@ -279,25 +279,16 @@ extern void pgd_init(unsigned long page);
 extern void pmd_init(unsigned long page, unsigned long pagetable);
 
 /*
- * Non-present pages:  high 24 bits are offset, next 8 bits type,
- * low 32 bits zero.
+ * Non-present pages:  high 40 bits are offset, next 8 bits type,
+ * low 16 bits zero.
  */
 static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
-{ pte_t pte; pte_val(pte) = (type << 32) | (offset << 40); return pte; }
+{ pte_t pte; pte_val(pte) = (type << 16) | (offset << 24); return pte; }
 
-#define __swp_type(x)		(((x).val >> 32) & 0xff)
-#define __swp_offset(x)		((x).val >> 40)
+#define __swp_type(x)		(((x).val >> 16) & 0xff)
+#define __swp_offset(x)		((x).val >> 24)
 #define __swp_entry(type, offset) ((swp_entry_t) { pte_val(mk_swap_pte((type), (offset))) })
 #define __pte_to_swp_entry(pte) ((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
-
-/*
- * Bits 0, 4, 6, and 7 are taken. Let's leave bits 1, 2, 3, and 5 alone to
- * make things easier, and only use the upper 56 bits for the page offset...
- */
-#define PTE_FILE_MAX_BITS	56
-
-#define pte_to_pgoff(_pte)	((_pte).pte >> 8)
-#define pgoff_to_pte(off)	((pte_t) { ((off) << 8) | _PAGE_FILE })
 
 #endif /* _ASM_PGTABLE_64_H */

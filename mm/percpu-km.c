@@ -33,17 +33,14 @@
 
 #include <linux/log2.h>
 
-static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size)
+static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
+			       int page_start, int page_end)
 {
-	unsigned int cpu;
-
-	for_each_possible_cpu(cpu)
-		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
-
 	return 0;
 }
 
-static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, int off, int size)
+static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
+				  int page_start, int page_end)
 {
 	/* nada */
 }
@@ -70,6 +67,11 @@ static struct pcpu_chunk *pcpu_create_chunk(void)
 
 	chunk->data = pages;
 	chunk->base_addr = page_address(pages) - pcpu_group_offsets[0];
+
+	spin_lock_irq(&pcpu_lock);
+	pcpu_chunk_populated(chunk, 0, nr_pages);
+	spin_unlock_irq(&pcpu_lock);
+
 	return chunk;
 }
 
@@ -93,7 +95,7 @@ static int __init pcpu_verify_alloc_info(const struct pcpu_alloc_info *ai)
 
 	/* all units must be in a single group */
 	if (ai->nr_groups != 1) {
-		printk(KERN_CRIT "percpu: can't handle more than one groups\n");
+		pr_crit("can't handle more than one group\n");
 		return -EINVAL;
 	}
 
@@ -101,8 +103,8 @@ static int __init pcpu_verify_alloc_info(const struct pcpu_alloc_info *ai)
 	alloc_pages = roundup_pow_of_two(nr_pages);
 
 	if (alloc_pages > nr_pages)
-		printk(KERN_WARNING "percpu: wasting %zu pages per chunk\n",
-		       alloc_pages - nr_pages);
+		pr_warn("wasting %zu pages per chunk\n",
+			alloc_pages - nr_pages);
 
 	return 0;
 }

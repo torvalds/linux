@@ -11,6 +11,7 @@
 
 #include <linux/time.h>
 #include <crypto/public_key.h>
+#include <keys/asymmetric-type.h>
 
 struct x509_certificate {
 	struct x509_certificate *next;
@@ -19,10 +20,12 @@ struct x509_certificate {
 	struct public_key_signature sig;	/* Signature parameters */
 	char		*issuer;		/* Name of certificate issuer */
 	char		*subject;		/* Name of certificate subject */
-	char		*fingerprint;		/* Key fingerprint as hex */
-	char		*authority;		/* Authority key fingerprint as hex */
-	struct tm	valid_from;
-	struct tm	valid_to;
+	struct asymmetric_key_id *id;		/* Issuer + Serial number */
+	struct asymmetric_key_id *skid;		/* Subject + subjectKeyId (optional) */
+	struct asymmetric_key_id *akid_id;	/* CA AuthKeyId matching ->id (optional) */
+	struct asymmetric_key_id *akid_skid;	/* CA AuthKeyId matching ->skid (optional) */
+	time64_t	valid_from;
+	time64_t	valid_to;
 	const void	*tbs;			/* Signed data */
 	unsigned	tbs_size;		/* Size of signed data */
 	unsigned	raw_sig_size;		/* Size of sigature */
@@ -33,10 +36,13 @@ struct x509_certificate {
 	const void	*raw_issuer;		/* Raw issuer name in ASN.1 */
 	const void	*raw_subject;		/* Raw subject name in ASN.1 */
 	unsigned	raw_subject_size;
+	unsigned	raw_skid_size;
+	const void	*raw_skid;		/* Raw subjectKeyId in ASN.1 */
 	unsigned	index;
 	bool		seen;			/* Infinite recursion prevention */
 	bool		verified;
 	bool		trusted;
+	bool		unsupported_crypto;	/* T if can't be verified due to missing crypto */
 };
 
 /*
@@ -44,6 +50,9 @@ struct x509_certificate {
  */
 extern void x509_free_certificate(struct x509_certificate *cert);
 extern struct x509_certificate *x509_cert_parse(const void *data, size_t datalen);
+extern int x509_decode_time(time64_t *_t,  size_t hdrlen,
+			    unsigned char tag,
+			    const unsigned char *value, size_t vlen);
 
 /*
  * x509_public_key.c

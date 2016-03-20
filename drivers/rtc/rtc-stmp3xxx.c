@@ -32,8 +32,6 @@
 #include <linux/stmp3xxx_rtc_wdt.h>
 
 #define STMP3XXX_RTC_CTRL			0x0
-#define STMP3XXX_RTC_CTRL_SET			0x4
-#define STMP3XXX_RTC_CTRL_CLR			0x8
 #define STMP3XXX_RTC_CTRL_ALARM_IRQ_EN		0x00000001
 #define STMP3XXX_RTC_CTRL_ONEMSEC_IRQ_EN	0x00000002
 #define STMP3XXX_RTC_CTRL_ALARM_IRQ		0x00000004
@@ -42,6 +40,8 @@
 #define STMP3XXX_RTC_STAT			0x10
 #define STMP3XXX_RTC_STAT_STALE_SHIFT		16
 #define STMP3XXX_RTC_STAT_RTC_PRESENT		0x80000000
+#define STMP3XXX_RTC_STAT_XTAL32000_PRESENT	0x10000000
+#define STMP3XXX_RTC_STAT_XTAL32768_PRESENT	0x08000000
 
 #define STMP3XXX_RTC_SECONDS			0x30
 
@@ -50,11 +50,13 @@
 #define STMP3XXX_RTC_WATCHDOG			0x50
 
 #define STMP3XXX_RTC_PERSISTENT0		0x60
-#define STMP3XXX_RTC_PERSISTENT0_SET		0x64
-#define STMP3XXX_RTC_PERSISTENT0_CLR		0x68
-#define STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN	0x00000002
-#define STMP3XXX_RTC_PERSISTENT0_ALARM_EN	0x00000004
-#define STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE	0x00000080
+#define STMP3XXX_RTC_PERSISTENT0_CLOCKSOURCE		(1 << 0)
+#define STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN		(1 << 1)
+#define STMP3XXX_RTC_PERSISTENT0_ALARM_EN		(1 << 2)
+#define STMP3XXX_RTC_PERSISTENT0_XTAL24MHZ_PWRUP	(1 << 4)
+#define STMP3XXX_RTC_PERSISTENT0_XTAL32KHZ_PWRUP	(1 << 5)
+#define STMP3XXX_RTC_PERSISTENT0_XTAL32_FREQ		(1 << 6)
+#define STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE		(1 << 7)
 
 #define STMP3XXX_RTC_PERSISTENT1		0x70
 /* missing bitmask in headers */
@@ -173,7 +175,7 @@ static irqreturn_t stmp3xxx_rtc_interrupt(int irq, void *dev_id)
 
 	if (status & STMP3XXX_RTC_CTRL_ALARM_IRQ) {
 		writel(STMP3XXX_RTC_CTRL_ALARM_IRQ,
-				rtc_data->io + STMP3XXX_RTC_CTRL_CLR);
+			rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_CLR);
 		rtc_update_irq(rtc_data->rtc, 1, RTC_AF | RTC_IRQF);
 		return IRQ_HANDLED;
 	}
@@ -188,15 +190,17 @@ static int stmp3xxx_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	if (enabled) {
 		writel(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
 				STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN,
-				rtc_data->io + STMP3XXX_RTC_PERSISTENT0_SET);
+			rtc_data->io + STMP3XXX_RTC_PERSISTENT0 +
+				STMP_OFFSET_REG_SET);
 		writel(STMP3XXX_RTC_CTRL_ALARM_IRQ_EN,
-				rtc_data->io + STMP3XXX_RTC_CTRL_SET);
+			rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_SET);
 	} else {
 		writel(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
 				STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN,
-				rtc_data->io + STMP3XXX_RTC_PERSISTENT0_CLR);
+			rtc_data->io + STMP3XXX_RTC_PERSISTENT0 +
+				STMP_OFFSET_REG_CLR);
 		writel(STMP3XXX_RTC_CTRL_ALARM_IRQ_EN,
-				rtc_data->io + STMP3XXX_RTC_CTRL_CLR);
+			rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_CLR);
 	}
 	return 0;
 }
@@ -239,7 +243,7 @@ static int stmp3xxx_rtc_remove(struct platform_device *pdev)
 		return 0;
 
 	writel(STMP3XXX_RTC_CTRL_ALARM_IRQ_EN,
-			rtc_data->io + STMP3XXX_RTC_CTRL_CLR);
+		rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_CLR);
 
 	return 0;
 }
@@ -248,6 +252,9 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 {
 	struct stmp3xxx_rtc_data *rtc_data;
 	struct resource *r;
+	u32 rtc_stat;
+	u32 pers0_set, pers0_clr;
+	u32 crystalfreq = 0;
 	int err;
 
 	rtc_data = devm_kzalloc(&pdev->dev, sizeof(*rtc_data), GFP_KERNEL);
@@ -268,8 +275,8 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 
 	rtc_data->irq_alarm = platform_get_irq(pdev, 0);
 
-	if (!(readl(STMP3XXX_RTC_STAT + rtc_data->io) &
-			STMP3XXX_RTC_STAT_RTC_PRESENT)) {
+	rtc_stat = readl(rtc_data->io + STMP3XXX_RTC_STAT);
+	if (!(rtc_stat & STMP3XXX_RTC_STAT_RTC_PRESENT)) {
 		dev_err(&pdev->dev, "no device onboard\n");
 		return -ENODEV;
 	}
@@ -282,14 +289,60 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	/*
+	 * Obviously the rtc needs a clock input to be able to run.
+	 * This clock can be provided by an external 32k crystal. If that one is
+	 * missing XTAL must not be disabled in suspend which consumes a
+	 * lot of power. Normally the presence and exact frequency (supported
+	 * are 32000 Hz and 32768 Hz) is detectable from fuses, but as reality
+	 * proves these fuses are not blown correctly on all machines, so the
+	 * frequency can be overridden in the device tree.
+	 */
+	if (rtc_stat & STMP3XXX_RTC_STAT_XTAL32000_PRESENT)
+		crystalfreq = 32000;
+	else if (rtc_stat & STMP3XXX_RTC_STAT_XTAL32768_PRESENT)
+		crystalfreq = 32768;
+
+	of_property_read_u32(pdev->dev.of_node, "stmp,crystal-freq",
+			     &crystalfreq);
+
+	switch (crystalfreq) {
+	case 32000:
+		/* keep 32kHz crystal running in low-power mode */
+		pers0_set = STMP3XXX_RTC_PERSISTENT0_XTAL32_FREQ |
+			STMP3XXX_RTC_PERSISTENT0_XTAL32KHZ_PWRUP |
+			STMP3XXX_RTC_PERSISTENT0_CLOCKSOURCE;
+		pers0_clr = STMP3XXX_RTC_PERSISTENT0_XTAL24MHZ_PWRUP;
+		break;
+	case 32768:
+		/* keep 32.768kHz crystal running in low-power mode */
+		pers0_set = STMP3XXX_RTC_PERSISTENT0_XTAL32KHZ_PWRUP |
+			STMP3XXX_RTC_PERSISTENT0_CLOCKSOURCE;
+		pers0_clr = STMP3XXX_RTC_PERSISTENT0_XTAL24MHZ_PWRUP |
+			STMP3XXX_RTC_PERSISTENT0_XTAL32_FREQ;
+		break;
+	default:
+		dev_warn(&pdev->dev,
+			 "invalid crystal-freq specified in device-tree. Assuming no crystal\n");
+		/* fall-through */
+	case 0:
+		/* keep XTAL on in low-power mode */
+		pers0_set = STMP3XXX_RTC_PERSISTENT0_XTAL24MHZ_PWRUP;
+		pers0_clr = STMP3XXX_RTC_PERSISTENT0_XTAL32KHZ_PWRUP |
+			STMP3XXX_RTC_PERSISTENT0_CLOCKSOURCE;
+	}
+
+	writel(pers0_set, rtc_data->io + STMP3XXX_RTC_PERSISTENT0 +
+			STMP_OFFSET_REG_SET);
+
 	writel(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN |
-			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE,
-			rtc_data->io + STMP3XXX_RTC_PERSISTENT0_CLR);
+			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE | pers0_clr,
+		rtc_data->io + STMP3XXX_RTC_PERSISTENT0 + STMP_OFFSET_REG_CLR);
 
 	writel(STMP3XXX_RTC_CTRL_ONEMSEC_IRQ_EN |
 			STMP3XXX_RTC_CTRL_ALARM_IRQ_EN,
-			rtc_data->io + STMP3XXX_RTC_CTRL_CLR);
+		rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_CLR);
 
 	rtc_data->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				&stmp3xxx_rtc_ops, THIS_MODULE);
@@ -322,7 +375,7 @@ static int stmp3xxx_rtc_resume(struct device *dev)
 	writel(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE,
-			rtc_data->io + STMP3XXX_RTC_PERSISTENT0_CLR);
+		rtc_data->io + STMP3XXX_RTC_PERSISTENT0 + STMP_OFFSET_REG_CLR);
 	return 0;
 }
 #endif
@@ -341,7 +394,6 @@ static struct platform_driver stmp3xxx_rtcdrv = {
 	.remove		= stmp3xxx_rtc_remove,
 	.driver		= {
 		.name	= "stmp3xxx-rtc",
-		.owner	= THIS_MODULE,
 		.pm	= &stmp3xxx_rtc_pm_ops,
 		.of_match_table = rtc_dt_ids,
 	},

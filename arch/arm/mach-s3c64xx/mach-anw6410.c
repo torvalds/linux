@@ -47,6 +47,7 @@
 
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <mach/irqs.h>
 #include <mach/regs-gpio.h>
 #include <mach/gpio-samsung.h>
 #include <plat/samsung-time.h>
@@ -229,11 +230,10 @@ static void __init anw6410_machine_init(void)
 MACHINE_START(ANW6410, "A&W6410")
 	/* Maintainer: Kwangwoo Lee <kwangwoo.lee@gmail.com> */
 	.atag_offset	= 0x100,
-
+	.nr_irqs	= S3C64XX_NR_IRQS,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= anw6410_map_io,
 	.init_machine	= anw6410_machine_init,
-	.init_late	= s3c64xx_init_late,
 	.init_time	= samsung_timer_init,
 	.restart	= s3c64xx_restart,
 MACHINE_END

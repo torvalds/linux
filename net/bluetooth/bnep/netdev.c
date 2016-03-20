@@ -218,7 +218,7 @@ static const struct net_device_ops bnep_netdev_ops = {
 void bnep_net_setup(struct net_device *dev)
 {
 
-	memset(dev->broadcast, 0xff, ETH_ALEN);
+	eth_broadcast_addr(dev->broadcast);
 	dev->addr_len = ETH_ALEN;
 
 	ether_setup(dev);

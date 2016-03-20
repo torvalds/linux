@@ -23,12 +23,13 @@ static int backtrace_stack(void *data, char *name)
 	return 0;
 }
 
-static void backtrace_address(void *data, unsigned long addr, int reliable)
+static int backtrace_address(void *data, unsigned long addr, int reliable)
 {
 	unsigned int *depth = data;
 
 	if ((*depth)--)
 		oprofile_add_trace(addr);
+	return 0;
 }
 
 static struct stacktrace_ops backtrace_ops = {
@@ -111,7 +112,7 @@ x86_backtrace(struct pt_regs * const regs, unsigned int depth)
 {
 	struct stack_frame *head = (struct stack_frame *)frame_pointer(regs);
 
-	if (!user_mode_vm(regs)) {
+	if (!user_mode(regs)) {
 		unsigned long stack = kernel_stack_pointer(regs);
 		if (depth)
 			dump_trace(NULL, regs, (unsigned long *)stack, 0,

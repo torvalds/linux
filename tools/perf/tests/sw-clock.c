@@ -22,6 +22,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 	volatile int tmp = 0;
 	u64 total_periods = 0;
 	int nr_samples = 0;
+	char sbuf[STRERR_BUFSIZE];
 	union perf_event *event;
 	struct perf_evsel *evsel;
 	struct perf_evlist *evlist;
@@ -33,6 +34,8 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		.disabled = 1,
 		.freq = 1,
 	};
+	struct cpu_map *cpus;
+	struct thread_map *threads;
 
 	attr.sample_freq = 500;
 
@@ -49,27 +52,33 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 	}
 	perf_evlist__add(evlist, evsel);
 
-	evlist->cpus = cpu_map__dummy_new();
-	evlist->threads = thread_map__new_by_tid(getpid());
-	if (!evlist->cpus || !evlist->threads) {
+	cpus = cpu_map__dummy_new();
+	threads = thread_map__new_by_tid(getpid());
+	if (!cpus || !threads) {
 		err = -ENOMEM;
 		pr_debug("Not enough memory to create thread/cpu maps\n");
-		goto out_delete_evlist;
+		goto out_free_maps;
 	}
+
+	perf_evlist__set_maps(evlist, cpus, threads);
+
+	cpus	= NULL;
+	threads = NULL;
 
 	if (perf_evlist__open(evlist)) {
 		const char *knob = "/proc/sys/kernel/perf_event_max_sample_rate";
 
 		err = -errno;
 		pr_debug("Couldn't open evlist: %s\nHint: check %s, using %" PRIu64 " in this test.\n",
-			 strerror(errno), knob, (u64)attr.sample_freq);
+			 strerror_r(errno, sbuf, sizeof(sbuf)),
+			 knob, (u64)attr.sample_freq);
 		goto out_delete_evlist;
 	}
 
 	err = perf_evlist__mmap(evlist, 128, true);
 	if (err < 0) {
 		pr_debug("failed to mmap event: %d (%s)\n", errno,
-			 strerror(errno));
+			 strerror_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -105,12 +114,15 @@ next_event:
 		err = -1;
 	}
 
+out_free_maps:
+	cpu_map__put(cpus);
+	thread_map__put(threads);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 	return err;
 }
 
-int test__sw_clock_freq(void)
+int test__sw_clock_freq(int subtest __maybe_unused)
 {
 	int ret;
 

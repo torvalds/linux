@@ -32,7 +32,7 @@ int mac_partition(struct parsed_partitions *state)
 	Sector sect;
 	unsigned char *data;
 	int slot, blocks_in_map;
-	unsigned secsize;
+	unsigned secsize, datasize, partoffset;
 #ifdef CONFIG_PPC_PMAC
 	int found_root = 0;
 	int found_root_goodness = 0;
@@ -50,10 +50,14 @@ int mac_partition(struct parsed_partitions *state)
 	}
 	secsize = be16_to_cpu(md->block_size);
 	put_dev_sector(sect);
-	data = read_part_sector(state, secsize/512, &sect);
+	datasize = round_down(secsize, 512);
+	data = read_part_sector(state, datasize / 512, &sect);
 	if (!data)
 		return -1;
-	part = (struct mac_partition *) (data + secsize%512);
+	partoffset = secsize % 512;
+	if (partoffset + sizeof(*part) > datasize)
+		return -1;
+	part = (struct mac_partition *) (data + partoffset);
 	if (be16_to_cpu(part->signature) != MAC_PARTITION_MAGIC) {
 		put_dev_sector(sect);
 		return 0;		/* not a MacOS disk */
@@ -81,7 +85,7 @@ int mac_partition(struct parsed_partitions *state)
 			be32_to_cpu(part->start_block) * (secsize/512),
 			be32_to_cpu(part->block_count) * (secsize/512));
 
-		if (!strnicmp(part->type, "Linux_RAID", 10))
+		if (!strncasecmp(part->type, "Linux_RAID", 10))
 			state->parts[slot].flags = ADDPART_FLAG_RAID;
 #ifdef CONFIG_PPC_PMAC
 		/*
@@ -100,7 +104,7 @@ int mac_partition(struct parsed_partitions *state)
 				goodness++;
 
 			if (strcasecmp(part->type, "Apple_UNIX_SVR2") == 0
-			    || (strnicmp(part->type, "Linux", 5) == 0
+			    || (strncasecmp(part->type, "Linux", 5) == 0
 			        && strcasecmp(part->type, "Linux_swap") != 0)) {
 				int i, l;
 
@@ -109,13 +113,13 @@ int mac_partition(struct parsed_partitions *state)
 				if (strcmp(part->name, "/") == 0)
 					goodness++;
 				for (i = 0; i <= l - 4; ++i) {
-					if (strnicmp(part->name + i, "root",
+					if (strncasecmp(part->name + i, "root",
 						     4) == 0) {
 						goodness += 2;
 						break;
 					}
 				}
-				if (strnicmp(part->name, "swap", 4) == 0)
+				if (strncasecmp(part->name, "swap", 4) == 0)
 					goodness--;
 			}
 

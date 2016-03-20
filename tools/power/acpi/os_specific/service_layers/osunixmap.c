@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ ACPI_MODULE_NAME("osunixmap")
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
-#ifdef _free_BSD
+#if defined(_dragon_fly) || defined(_free_BSD)
 #define MMAP_FLAGS          MAP_SHARED
 #else
 #define MMAP_FLAGS          MAP_PRIVATE
@@ -146,6 +146,6 @@ void acpi_os_unmap_memory(void *where, acpi_size length)
 	acpi_size page_size;
 
 	page_size = acpi_os_get_page_size();
-	offset = (acpi_physical_address) where % page_size;
+	offset = ACPI_TO_INTEGER(where) % page_size;
 	munmap((u8 *)where - offset, (length + offset));
 }

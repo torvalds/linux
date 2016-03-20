@@ -34,7 +34,7 @@
 #include <linux/reboot.h>
 #include <linux/memblock.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 #include <asm/pgtable.h>
@@ -45,8 +45,8 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <mach/board-pb1176.h>
-#include <mach/irqs.h>
+#include "board-pb1176.h"
+#include "irqs-pb1176.h"
 
 #include "core.h"
 
@@ -280,7 +280,7 @@ static struct resource pmu_resource = {
 };
 
 static struct platform_device pmu_device = {
-	.name			= "arm-pmu",
+	.name			= "armv6-pmu",
 	.id			= -1,
 	.num_resources		= 1,
 	.resource		= &pmu_resource,

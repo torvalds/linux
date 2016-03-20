@@ -25,16 +25,21 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/platform_device.h>
+#include <linux/psci.h>
+
 #include <asm/cpuidle.h>
 #include <asm/suspend.h>
-#include <asm/psci.h>
+
+#include <uapi/linux/psci.h>
+
+#define CALXEDA_IDLE_PARAM \
+	((0 << PSCI_0_2_POWER_STATE_ID_SHIFT) | \
+	 (0 << PSCI_0_2_POWER_STATE_AFFL_SHIFT) | \
+	 (PSCI_POWER_STATE_TYPE_POWER_DOWN << PSCI_0_2_POWER_STATE_TYPE_SHIFT))
 
 static int calxeda_idle_finish(unsigned long val)
 {
-	const struct psci_power_state ps = {
-		.type = PSCI_POWER_STATE_TYPE_POWER_DOWN,
-	};
-	return psci_ops.cpu_suspend(ps, __pa(cpu_resume));
+	return psci_ops.cpu_suspend(CALXEDA_IDLE_PARAM, __pa(cpu_resume));
 }
 
 static int calxeda_pwrdown_idle(struct cpuidle_device *dev,
@@ -55,7 +60,6 @@ static struct cpuidle_driver calxeda_idle_driver = {
 		{
 			.name = "PG",
 			.desc = "Power Gate",
-			.flags = CPUIDLE_FLAG_TIME_VALID,
 			.exit_latency = 30,
 			.power_usage = 50,
 			.target_residency = 200,
@@ -73,9 +77,7 @@ static int calxeda_cpuidle_probe(struct platform_device *pdev)
 static struct platform_driver calxeda_cpuidle_plat_driver = {
         .driver = {
                 .name = "cpuidle-calxeda",
-                .owner = THIS_MODULE,
         },
         .probe = calxeda_cpuidle_probe,
 };
-
-module_platform_driver(calxeda_cpuidle_plat_driver);
+builtin_platform_driver(calxeda_cpuidle_plat_driver);

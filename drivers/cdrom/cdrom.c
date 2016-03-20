@@ -885,6 +885,7 @@ static int cdrom_is_dvd_rw(struct cdrom_device_info *cdi)
 	switch (cdi->mmc3_profile) {
 	case 0x12:	/* DVD-RAM	*/
 	case 0x1A:	/* DVD+RW	*/
+	case 0x43:	/* BD-RE	*/
 		return 0;
 	default:
 		return 1;
@@ -2180,8 +2181,8 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 		len = nr * CD_FRAMESIZE_RAW;
 
 		rq = blk_get_request(q, READ, GFP_KERNEL);
-		if (!rq) {
-			ret = -ENOMEM;
+		if (IS_ERR(rq)) {
+			ret = PTR_ERR(rq);
 			break;
 		}
 		blk_rq_set_block_pc(rq);
@@ -3185,15 +3186,11 @@ static noinline int mmc_ioctl_dvd_read_struct(struct cdrom_device_info *cdi,
 	if (!CDROM_CAN(CDC_DVD))
 		return -ENOSYS;
 
-	s = kmalloc(size, GFP_KERNEL);
-	if (!s)
-		return -ENOMEM;
+	s = memdup_user(arg, size);
+	if (IS_ERR(s))
+		return PTR_ERR(s);
 
 	cd_dbg(CD_DO_IOCTL, "entering DVD_READ_STRUCT\n");
-	if (copy_from_user(s, arg, size)) {
-		kfree(s);
-		return -EFAULT;
-	}
 
 	ret = dvd_read_struct(cdi, s, cgc);
 	if (ret)

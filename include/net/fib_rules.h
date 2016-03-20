@@ -19,6 +19,7 @@ struct fib_rule {
 	u8			action;
 	/* 3 bytes hole, try to use */
 	u32			target;
+	__be64			tun_id;
 	struct fib_rule __rcu	*ctarget;
 	struct net		*fr_net;
 
@@ -36,7 +37,8 @@ struct fib_lookup_arg {
 	void			*result;
 	struct fib_rule		*rule;
 	int			flags;
-#define FIB_LOOKUP_NOREF	1
+#define FIB_LOOKUP_NOREF		1
+#define FIB_LOOKUP_IGNORE_LINKSTATE	2
 };
 
 struct fib_rules_ops {
@@ -58,13 +60,12 @@ struct fib_rules_ops {
 					     struct sk_buff *,
 					     struct fib_rule_hdr *,
 					     struct nlattr **);
-	void			(*delete)(struct fib_rule *);
+	int			(*delete)(struct fib_rule *);
 	int			(*compare)(struct fib_rule *,
 					   struct fib_rule_hdr *,
 					   struct nlattr **);
 	int			(*fill)(struct fib_rule *, struct sk_buff *,
 					struct fib_rule_hdr *);
-	u32			(*default_pref)(struct fib_rules_ops *ops);
 	size_t			(*nlmsg_payload)(struct fib_rule *);
 
 	/* Called after modifications to the rules set, must flush
@@ -95,17 +96,10 @@ static inline void fib_rule_get(struct fib_rule *rule)
 	atomic_inc(&rule->refcnt);
 }
 
-static inline void fib_rule_put_rcu(struct rcu_head *head)
-{
-	struct fib_rule *rule = container_of(head, struct fib_rule, rcu);
-	release_net(rule->fr_net);
-	kfree(rule);
-}
-
 static inline void fib_rule_put(struct fib_rule *rule)
 {
 	if (atomic_dec_and_test(&rule->refcnt))
-		call_rcu(&rule->rcu, fib_rule_put_rcu);
+		kfree_rcu(rule, rcu);
 }
 
 static inline u32 frh_get_table(struct fib_rule_hdr *frh, struct nlattr **nla)
@@ -123,5 +117,4 @@ int fib_rules_lookup(struct fib_rules_ops *, struct flowi *, int flags,
 		     struct fib_lookup_arg *);
 int fib_default_rule_add(struct fib_rules_ops *, u32 pref, u32 table,
 			 u32 flags);
-u32 fib_default_rule_pref(struct fib_rules_ops *ops);
 #endif

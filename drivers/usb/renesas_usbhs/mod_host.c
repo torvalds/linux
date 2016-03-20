@@ -1229,12 +1229,13 @@ static int __usbhsh_hub_get_status(struct usbhsh_hpriv *hpriv,
 		break;
 
 	case GetHubDescriptor:
-		desc->bDescriptorType		= 0x29;
+		desc->bDescriptorType		= USB_DT_HUB;
 		desc->bHubContrCurrent		= 0;
 		desc->bNbrPorts			= roothub_id;
 		desc->bDescLength		= 9;
 		desc->bPwrOn2PwrGood		= 0;
-		desc->wHubCharacteristics	= cpu_to_le16(0x0011);
+		desc->wHubCharacteristics	=
+			cpu_to_le16(HUB_CHAR_INDV_PORT_LPSM | HUB_CHAR_NO_OCPM);
 		desc->u.hs.DeviceRemovable[0]	= (roothub_id << 1);
 		desc->u.hs.DeviceRemovable[1]	= ~0;
 		dev_dbg(dev, "%s :: GetHubDescriptor\n", __func__);
@@ -1413,7 +1414,8 @@ static void usbhsh_pipe_init_for_host(struct usbhs_priv *priv)
 {
 	struct usbhsh_hpriv *hpriv = usbhsh_priv_to_hpriv(priv);
 	struct usbhs_pipe *pipe;
-	u32 *pipe_type = usbhs_get_dparam(priv, pipe_type);
+	struct renesas_usbhs_driver_pipe_config *pipe_configs =
+					usbhs_get_dparam(priv, pipe_configs);
 	int pipe_size = usbhs_get_dparam(priv, pipe_size);
 	int old_type, dir_in, i;
 
@@ -1441,15 +1443,15 @@ static void usbhsh_pipe_init_for_host(struct usbhs_priv *priv)
 		 * USB_ENDPOINT_XFER_BULK -> dir in
 		 * ...
 		 */
-		dir_in = (pipe_type[i] == old_type);
-		old_type = pipe_type[i];
+		dir_in = (pipe_configs[i].type == old_type);
+		old_type = pipe_configs[i].type;
 
-		if (USB_ENDPOINT_XFER_CONTROL == pipe_type[i]) {
+		if (USB_ENDPOINT_XFER_CONTROL == pipe_configs[i].type) {
 			pipe = usbhs_dcp_malloc(priv);
 			usbhsh_hpriv_to_dcp(hpriv) = pipe;
 		} else {
 			pipe = usbhs_pipe_malloc(priv,
-						 pipe_type[i],
+						 pipe_configs[i].type,
 						 dir_in);
 		}
 
@@ -1474,9 +1476,9 @@ static int usbhsh_start(struct usbhs_priv *priv)
 	/*
 	 * pipe initialize and enable DCP
 	 */
+	usbhs_fifo_init(priv);
 	usbhs_pipe_init(priv,
 			usbhsh_dma_map_ctrl);
-	usbhs_fifo_init(priv);
 	usbhsh_pipe_init_for_host(priv);
 
 	/*

@@ -114,11 +114,10 @@ static struct device_node *find_dlpar_node(char *drc_name, int *node_type)
  */
 static struct slot *find_php_slot(struct device_node *dn)
 {
-	struct list_head *tmp, *n;
-	struct slot *slot;
+	struct slot *slot, *next;
 
-	list_for_each_safe(tmp, n, &rpaphp_slot_head) {
-		slot = list_entry(tmp, struct slot, rpaphp_slot_list);
+	list_for_each_entry_safe(slot, next, &rpaphp_slot_head,
+				 rpaphp_slot_list) {
 		if (slot->dn == dn)
 			return slot;
 	}
@@ -146,7 +145,7 @@ static void dlpar_pci_add_bus(struct device_node *dn)
 	struct pci_controller *phb = pdn->phb;
 	struct pci_dev *dev = NULL;
 
-	eeh_add_device_tree_early(dn);
+	eeh_add_device_tree_early(pdn);
 
 	/* Add EADS device to PHB bus, adding new entry to bus->devices */
 	dev = of_create_pci_dev(dn, phb->bus, pdn->devfn);

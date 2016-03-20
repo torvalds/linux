@@ -675,15 +675,6 @@ bool prcmu_has_arm_maxopp(void)
 }
 
 /**
- * prcmu_get_boot_status - PRCMU boot status checking
- * Returns: the current PRCMU boot status
- */
-int prcmu_get_boot_status(void)
-{
-	return readb(tcdm_base + PRCM_BOOT_STATUS);
-}
-
-/**
  * prcmu_set_rc_a2p - This function is used to run few power state sequences
  * @val: Value to be set, i.e. transition requested
  * Returns: 0 on success, -EINVAL on invalid argument
@@ -748,20 +739,17 @@ int prcmu_config_clkout(u8 clkout, u8 source, u8 div)
 	if (!div && !requests[clkout])
 		return -EINVAL;
 
-	switch (clkout) {
-	case 0:
+	if (clkout == 0) {
 		div_mask = PRCM_CLKOCR_CLKODIV0_MASK;
 		mask = (PRCM_CLKOCR_CLKODIV0_MASK | PRCM_CLKOCR_CLKOSEL0_MASK);
 		bits = ((source << PRCM_CLKOCR_CLKOSEL0_SHIFT) |
 			(div << PRCM_CLKOCR_CLKODIV0_SHIFT));
-		break;
-	case 1:
+	} else {
 		div_mask = PRCM_CLKOCR_CLKODIV1_MASK;
 		mask = (PRCM_CLKOCR_CLKODIV1_MASK | PRCM_CLKOCR_CLKOSEL1_MASK |
 			PRCM_CLKOCR_CLK1TYPE);
 		bits = ((source << PRCM_CLKOCR_CLKOSEL1_SHIFT) |
 			(div << PRCM_CLKOCR_CLKODIV1_SHIFT));
-		break;
 	}
 	bits &= mask;
 
@@ -2057,6 +2045,7 @@ int db8500_prcmu_config_hotmon(u8 low, u8 high)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(db8500_prcmu_config_hotmon);
 
 static int config_hot_period(u16 val)
 {
@@ -2083,11 +2072,13 @@ int db8500_prcmu_start_temp_sense(u16 cycles32k)
 
 	return config_hot_period(cycles32k);
 }
+EXPORT_SYMBOL_GPL(db8500_prcmu_start_temp_sense);
 
 int db8500_prcmu_stop_temp_sense(void)
 {
 	return config_hot_period(0xFFFF);
 }
+EXPORT_SYMBOL_GPL(db8500_prcmu_stop_temp_sense);
 
 static int prcmu_a9wdog(u8 cmd, u8 d0, u8 d1, u8 d2, u8 d3)
 {
@@ -2663,12 +2654,11 @@ static int db8500_irq_map(struct irq_domain *d, unsigned int virq,
 {
 	irq_set_chip_and_handler(virq, &prcmu_irq_chip,
 				handle_simple_irq);
-	set_irq_flags(virq, IRQF_VALID);
 
 	return 0;
 }
 
-static struct irq_domain_ops db8500_irq_ops = {
+static const struct irq_domain_ops db8500_irq_ops = {
 	.map    = db8500_irq_map,
 	.xlate  = irq_domain_xlate_twocell,
 };
@@ -3150,23 +3140,28 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "prcmu");
 	if (!res) {
 		dev_err(&pdev->dev, "no prcmu memory region provided\n");
-		return -ENOENT;
+		return -EINVAL;
 	}
 	prcmu_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!prcmu_base) {
 		dev_err(&pdev->dev,
 			"failed to ioremap prcmu register memory\n");
-		return -ENOENT;
+		return -ENOMEM;
 	}
 	init_prcm_registers();
 	dbx500_fw_version_init(pdev, pdata->version_offset);
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "prcmu-tcdm");
 	if (!res) {
 		dev_err(&pdev->dev, "no prcmu tcdm region provided\n");
-		return -ENOENT;
+		return -EINVAL;
 	}
 	tcdm_base = devm_ioremap(&pdev->dev, res->start,
 			resource_size(res));
+	if (!tcdm_base) {
+		dev_err(&pdev->dev,
+			"failed to ioremap prcmu-tcdm register memory\n");
+		return -ENOMEM;
+	}
 
 	/* Clean up the mailbox interrupts after pre-kernel code. */
 	writel(ALL_MBOX_BITS, PRCM_ARM_IT1_CLR);
@@ -3174,15 +3169,14 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_err(&pdev->dev, "no prcmu irq provided\n");
-		return -ENOENT;
+		return irq;
 	}
 
 	err = request_threaded_irq(irq, prcmu_irq_handler,
 	        prcmu_irq_thread_fn, IRQF_NO_SUSPEND, "prcmu", NULL);
 	if (err < 0) {
 		pr_err("prcmu: Failed to allocate IRQ_DB8500_PRCMU1.\n");
-		err = -EBUSY;
-		goto no_irq_return;
+		return err;
 	}
 
 	db8500_irq_init(np);
@@ -3206,7 +3200,7 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 		if (err) {
 			mfd_remove_devices(&pdev->dev);
 			pr_err("prcmu: Failed to add subdevices\n");
-			goto no_irq_return;
+			return err;
 		}
 	}
 
@@ -3214,12 +3208,10 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 	if (err) {
 		mfd_remove_devices(&pdev->dev);
 		pr_err("prcmu: Failed to add ab8500 subdevice\n");
-		goto no_irq_return;
+		return err;
 	}
 
 	pr_info("DB8500 PRCMU initialized\n");
-
-no_irq_return:
 	return err;
 }
 static const struct of_device_id db8500_prcmu_match[] = {
@@ -3230,7 +3222,6 @@ static const struct of_device_id db8500_prcmu_match[] = {
 static struct platform_driver db8500_prcmu_driver = {
 	.driver = {
 		.name = "db8500-prcmu",
-		.owner = THIS_MODULE,
 		.of_match_table = db8500_prcmu_match,
 	},
 	.probe = db8500_prcmu_probe,

@@ -35,6 +35,7 @@
 #include <linux/pagemap.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/namei.h>
 
 #include "vxfs.h"
 #include "vxfs_inode.h"
@@ -325,10 +326,13 @@ vxfs_iget(struct super_block *sbp, ino_t ino)
 	} else if (S_ISLNK(ip->i_mode)) {
 		if (!VXFS_ISIMMED(vip)) {
 			ip->i_op = &page_symlink_inode_operations;
+			inode_nohighmem(ip);
 			ip->i_mapping->a_ops = &vxfs_aops;
 		} else {
-			ip->i_op = &vxfs_immed_symlink_iops;
-			vip->vii_immed.vi_immed[ip->i_size] = '\0';
+			ip->i_op = &simple_symlink_inode_operations;
+			ip->i_link = vip->vii_immed.vi_immed;
+			nd_terminate_link(ip->i_link, ip->i_size,
+					  sizeof(vip->vii_immed.vi_immed) - 1);
 		}
 	} else
 		init_special_inode(ip, ip->i_mode, old_decode_dev(vip->vii_rdev));

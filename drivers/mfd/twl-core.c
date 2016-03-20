@@ -207,7 +207,7 @@ static struct twl_mapping twl4030_map[] = {
 	{ 2, TWL5031_BASEADD_INTERRUPTS },
 };
 
-static struct reg_default twl4030_49_defaults[] = {
+static const struct reg_default twl4030_49_defaults[] = {
 	/* Audio Registers */
 	{ 0x01, 0x00}, /* CODEC_MODE	*/
 	{ 0x02, 0x00}, /* OPTION	*/
@@ -306,7 +306,7 @@ static const struct regmap_access_table twl4030_49_volatile_table = {
 	.n_yes_ranges = ARRAY_SIZE(twl4030_49_volatile_ranges),
 };
 
-static struct regmap_config twl4030_regmap_config[4] = {
+static const struct regmap_config twl4030_regmap_config[4] = {
 	{
 		/* Address 0x48 */
 		.reg_bits = 8,
@@ -369,7 +369,7 @@ static struct twl_mapping twl6030_map[] = {
 	{ 1, TWL6030_BASEADD_GASGAUGE },
 };
 
-static struct regmap_config twl6030_regmap_config[3] = {
+static const struct regmap_config twl6030_regmap_config[3] = {
 	{
 		/* Address 0x48 */
 		.reg_bits = 8,
@@ -788,9 +788,8 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 		static struct regulator_consumer_supply usb1v8 = {
 			.supply =	"usb1v8",
 		};
-		static struct regulator_consumer_supply usb3v1[] = {
-			{ .supply =	"usb3v1" },
-			{ .supply =	"bci3v1" },
+		static struct regulator_consumer_supply usb3v1 = {
+			.supply =	"usb3v1",
 		};
 
 	/* First add the regulators so that they can be used by transceiver */
@@ -818,7 +817,7 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 				return PTR_ERR(child);
 
 			child = add_regulator_linked(TWL4030_REG_VUSB3V1,
-						      &usb_fixed, usb3v1, 2,
+						      &usb_fixed, &usb3v1, 1,
 						      features);
 			if (IS_ERR(child))
 				return PTR_ERR(child);
@@ -838,7 +837,7 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 		if (IS_ENABLED(CONFIG_REGULATOR_TWL4030) && child) {
 			usb1v5.dev_name = dev_name(child);
 			usb1v8.dev_name = dev_name(child);
-			usb3v1[0].dev_name = dev_name(child);
+			usb3v1.dev_name = dev_name(child);
 		}
 	}
 
@@ -1087,7 +1086,7 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct twl4030_platform_data	*pdata = dev_get_platdata(&client->dev);
 	struct device_node		*node = client->dev.of_node;
 	struct platform_device		*pdev;
-	struct regmap_config		*twl_regmap_config;
+	const struct regmap_config	*twl_regmap_config;
 	int				irq_base = 0;
 	int				status;
 	unsigned			i, num_slaves;

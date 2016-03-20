@@ -18,7 +18,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/gpio_keys.h>
 #include <linux/platform_device.h>
-#include <linux/pnp.h>
 
 /*
  * Definition of buttons on the tablet. The ACPI index of each button
@@ -55,7 +54,7 @@ static int soc_button_lookup_gpio(struct device *dev, int acpi_index)
 	struct gpio_desc *desc;
 	int gpio;
 
-	desc = gpiod_get_index(dev, KBUILD_MODNAME, acpi_index);
+	desc = gpiod_get_index(dev, KBUILD_MODNAME, acpi_index, GPIOD_ASIS);
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
@@ -67,7 +66,7 @@ static int soc_button_lookup_gpio(struct device *dev, int acpi_index)
 }
 
 static struct platform_device *
-soc_button_device_create(struct pnp_dev *pdev,
+soc_button_device_create(struct platform_device *pdev,
 			 const struct soc_button_info *button_info,
 			 bool autorepeat)
 {
@@ -138,30 +137,40 @@ err_free_mem:
 	return ERR_PTR(error);
 }
 
-static void soc_button_remove(struct pnp_dev *pdev)
+static int soc_button_remove(struct platform_device *pdev)
 {
-	struct soc_button_data *priv = pnp_get_drvdata(pdev);
+	struct soc_button_data *priv = platform_get_drvdata(pdev);
+
 	int i;
 
 	for (i = 0; i < BUTTON_TYPES; i++)
 		if (priv->children[i])
 			platform_device_unregister(priv->children[i]);
+
+	return 0;
 }
 
-static int soc_button_pnp_probe(struct pnp_dev *pdev,
-				const struct pnp_device_id *id)
+static int soc_button_probe(struct platform_device *pdev)
 {
-	const struct soc_button_info *button_info = (void *)id->driver_data;
+	struct device *dev = &pdev->dev;
+	const struct acpi_device_id *id;
+	struct soc_button_info *button_info;
 	struct soc_button_data *priv;
 	struct platform_device *pd;
 	int i;
 	int error;
 
+	id = acpi_match_device(dev->driver->acpi_match_table, dev);
+	if (!id)
+		return -ENODEV;
+
+	button_info = (struct soc_button_info *)id->driver_data;
+
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	pnp_set_drvdata(pdev, priv);
+	platform_set_drvdata(pdev, priv);
 
 	for (i = 0; i < BUTTON_TYPES; i++) {
 		pd = soc_button_device_create(pdev, button_info, i == 0);
@@ -185,37 +194,28 @@ static int soc_button_pnp_probe(struct pnp_dev *pdev,
 
 static struct soc_button_info soc_button_PNP0C40[] = {
 	{ "power", 0, EV_KEY, KEY_POWER, false, true },
-	{ "home", 1, EV_KEY, KEY_HOME, false, true },
+	{ "home", 1, EV_KEY, KEY_LEFTMETA, false, true },
 	{ "volume_up", 2, EV_KEY, KEY_VOLUMEUP, true, false },
 	{ "volume_down", 3, EV_KEY, KEY_VOLUMEDOWN, true, false },
 	{ "rotation_lock", 4, EV_SW, SW_ROTATE_LOCK, false, false },
 	{ }
 };
 
-static const struct pnp_device_id soc_button_pnp_match[] = {
-	{ .id = "PNP0C40", .driver_data = (long)soc_button_PNP0C40 },
-	{ .id = "" }
+static const struct acpi_device_id soc_button_acpi_match[] = {
+	{ "PNP0C40", (unsigned long)soc_button_PNP0C40 },
+	{ }
 };
-MODULE_DEVICE_TABLE(pnp, soc_button_pnp_match);
 
-static struct pnp_driver soc_button_pnp_driver = {
-	.name		= KBUILD_MODNAME,
-	.id_table	= soc_button_pnp_match,
-	.probe          = soc_button_pnp_probe,
+MODULE_DEVICE_TABLE(acpi, soc_button_acpi_match);
+
+static struct platform_driver soc_button_driver = {
+	.probe          = soc_button_probe,
 	.remove		= soc_button_remove,
+	.driver		= {
+		.name = KBUILD_MODNAME,
+		.acpi_match_table = ACPI_PTR(soc_button_acpi_match),
+	},
 };
-
-static int __init soc_button_init(void)
-{
-	return pnp_register_driver(&soc_button_pnp_driver);
-}
-
-static void __exit soc_button_exit(void)
-{
-	pnp_unregister_driver(&soc_button_pnp_driver);
-}
-
-module_init(soc_button_init);
-module_exit(soc_button_exit);
+module_platform_driver(soc_button_driver);
 
 MODULE_LICENSE("GPL");

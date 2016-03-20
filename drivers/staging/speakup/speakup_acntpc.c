@@ -14,11 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  * this code is specificly written as a driver for the speakup screenreview
  * package and is not a general device driver.
  * This driver is for the Aicom Acent PC internal synthesizer.
@@ -152,8 +147,10 @@ static inline bool synth_full(void)
 static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 {
 	u_char ch;
+
 	while ((ch = *buf)) {
 		int timeout = SPK_XMITR_TIMEOUT;
+
 		if (ch == '\n')
 			ch = PROCSPEECH;
 		if (synth_full())
@@ -257,6 +254,7 @@ static int synth_probe(struct spk_synth *synth)
 {
 	unsigned int port_val = 0;
 	int i = 0;
+
 	pr_info("Probing for %s.\n", synth->long_name);
 	if (port_forced) {
 		speakup_info.port_tts = port_forced;
@@ -315,18 +313,8 @@ module_param_named(start, synth_acntpc.startup, short, S_IRUGO);
 MODULE_PARM_DESC(port, "Set the port for the synthesizer (override probing).");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
-static int __init acntpc_init(void)
-{
-	return synth_add(&synth_acntpc);
-}
+module_spk_synth(synth_acntpc);
 
-static void __exit acntpc_exit(void)
-{
-	synth_remove(&synth_acntpc);
-}
-
-module_init(acntpc_init);
-module_exit(acntpc_exit);
 MODULE_AUTHOR("Kirk Reiser <kirk@braille.uwo.ca>");
 MODULE_AUTHOR("David Borowski");
 MODULE_DESCRIPTION("Speakup support for Accent PC synthesizer");

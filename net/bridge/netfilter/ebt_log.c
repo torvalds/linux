@@ -36,14 +36,12 @@ static int ebt_log_tg_check(const struct xt_tgchk_param *par)
 	return 0;
 }
 
-struct tcpudphdr
-{
+struct tcpudphdr {
 	__be16 src;
 	__be16 dst;
 };
 
-struct arppayload
-{
+struct arppayload {
 	unsigned char mac_src[ETH_ALEN];
 	unsigned char ip_src[4];
 	unsigned char mac_dst[ETH_ALEN];
@@ -152,7 +150,8 @@ ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
 		       ntohs(ah->ar_op));
 
 		/* If it's for Ethernet and the lengths are OK,
-		 * then log the ARP payload */
+		 * then log the ARP payload
+		 */
 		if (ah->ar_hrd == htons(1) &&
 		    ah->ar_hln == ETH_ALEN &&
 		    ah->ar_pln == sizeof(__be32)) {
@@ -180,7 +179,7 @@ ebt_log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ebt_log_info *info = par->targinfo;
 	struct nf_loginfo li;
-	struct net *net = dev_net(par->in ? par->in : par->out);
+	struct net *net = par->net;
 
 	li.type = NF_LOG_TYPE_LOG;
 	li.u.log.level = info->loglevel;

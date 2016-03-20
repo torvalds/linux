@@ -60,32 +60,6 @@ static inline void flush_cache(void)
 #define flush_cache() do { } while(0)
 #endif 
 
-#ifdef CONFIG_MTRR
-
-#include <asm/mtrr.h>
-
-static inline void set_mtrr(struct i810fb_par *par)
-{
-	par->mtrr_reg = mtrr_add((u32) par->aperture.physical, 
-		 par->aperture.size, MTRR_TYPE_WRCOMB, 1);
-	if (par->mtrr_reg < 0) {
-		printk(KERN_ERR "set_mtrr: unable to set MTRR\n");
-		return;
-	}
-	par->dev_flags |= HAS_MTRR;
-}
-static inline void unset_mtrr(struct i810fb_par *par)
-{
-  	if (par->dev_flags & HAS_MTRR) 
-  		mtrr_del(par->mtrr_reg, (u32) par->aperture.physical, 
-			 par->aperture.size); 
-}
-#else
-#define set_mtrr(x) printk("set_mtrr: MTRR is disabled in the kernel\n")
-
-#define unset_mtrr(x) do { } while (0)
-#endif /* CONFIG_MTRR */
-
 #ifdef CONFIG_FB_I810_GTF
 #define IS_DVT (0)
 #else

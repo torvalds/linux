@@ -16,10 +16,23 @@
 		reg = <0x20000000 0x08000000>;
 	};
 
+	sram0: sram@002ff000 {
+		status = "disabled";
+	};
+
+	sram1: sram@002fc000 {
+		compatible = "mmio-sram";
+		reg = <0x002fc000 0x8000>;
+	};
+
 	ahb {
 		apb {
 			i2c0: i2c@fffac000 {
 				compatible = "atmel,at91sam9g20-i2c";
+			};
+
+			ssc0: ssc@fffbc000 {
+				compatible = "atmel,at91sam9rl-ssc";
 			};
 
 			adc0: adc@fffe0000 {
@@ -40,6 +53,7 @@
 				};
 
 				pllb: pllbck {
+					compatible = "atmel,at91sam9g20-clk-pllb";
 					atmel,clk-input-range = <2000000 32000000>;
 					atmel,pll-clk-output-ranges = <30000000 100000000 0 0>;
 				};

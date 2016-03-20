@@ -17,17 +17,16 @@ obj-y = bug.o bugs_$(BITS).o delay.o fault.o ksyms.o ldt.o \
 ifeq ($(CONFIG_X86_32),y)
 
 obj-y += checksum_32.o
-obj-$(CONFIG_BINFMT_ELF) += elfcore.o
+obj-$(CONFIG_ELF_CORE) += elfcore.o
 
 subarch-y = ../lib/string_32.o ../lib/atomic64_32.o ../lib/atomic64_cx8_32.o
 subarch-$(CONFIG_RWSEM_XCHGADD_ALGORITHM) += ../lib/rwsem.o
-subarch-$(CONFIG_HIGHMEM) += ../mm/highmem_32.o
 
 else
 
 obj-y += syscalls_64.o vdso/
 
-subarch-y = ../lib/csum-partial_64.o ../lib/memcpy_64.o ../lib/thunk_64.o \
+subarch-y = ../lib/csum-partial_64.o ../lib/memcpy_64.o ../entry/thunk_64.o \
 		../lib/rwsem.o
 
 endif

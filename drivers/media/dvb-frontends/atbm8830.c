@@ -297,9 +297,9 @@ static int atbm8830_set_fe(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int atbm8830_get_fe(struct dvb_frontend *fe)
+static int atbm8830_get_fe(struct dvb_frontend *fe,
+			   struct dtv_frontend_properties *c)
 {
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	dprintk("%s\n", __func__);
 
 	/* TODO: get real readings from device */
@@ -335,7 +335,8 @@ static int atbm8830_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int atbm8830_read_status(struct dvb_frontend *fe, fe_status_t *fe_status)
+static int atbm8830_read_status(struct dvb_frontend *fe,
+				enum fe_status *fe_status)
 {
 	struct atbm_state *priv = fe->demodulator_priv;
 	u8 locked = 0;

@@ -15,12 +15,12 @@
 #include <asm/mach/arch.h>
 
 #include <mach/common.h>
-#include <mach/cp_intc.h>
+#include "cp_intc.h"
 #include <mach/da8xx.h>
 
 #define DA8XX_NUM_UARTS	3
 
-static struct of_device_id da8xx_irq_match[] __initdata = {
+static const struct of_device_id const da8xx_irq_match[] __initconst = {
 	{ .compatible = "ti,cp-intc", .data = cp_intc_of_init, },
 	{ }
 };
@@ -46,6 +46,7 @@ static struct of_dev_auxdata da850_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("ti,davinci_mdio", 0x01e24000, "davinci_mdio.0", NULL),
 	OF_DEV_AUXDATA("ti,davinci-dm6467-emac", 0x01e20000, "davinci_emac.1",
 		       NULL),
+	OF_DEV_AUXDATA("ti,da830-mcasp-audio", 0x01d00000, "davinci-mcasp.0", NULL),
 	{}
 };
 
@@ -58,7 +59,7 @@ static void __init da850_init_machine(void)
 
 }
 
-static const char *da850_boards_compat[] __initdata = {
+static const char *const da850_boards_compat[] __initconst = {
 	"enbw,cmc",
 	"ti,da850-evm",
 	"ti,da850",

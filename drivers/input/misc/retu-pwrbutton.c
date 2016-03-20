@@ -63,7 +63,8 @@ static int retu_pwrbutton_probe(struct platform_device *pdev)
 	input_set_drvdata(idev, rdev);
 
 	error = devm_request_threaded_irq(&pdev->dev, irq,
-					  NULL, retu_pwrbutton_irq, 0,
+					  NULL, retu_pwrbutton_irq,
+					  IRQF_ONESHOT,
 					  "retu-pwrbutton", idev);
 	if (error)
 		return error;
@@ -85,7 +86,6 @@ static struct platform_driver retu_pwrbutton_driver = {
 	.remove		= retu_pwrbutton_remove,
 	.driver		= {
 		.name	= "retu-pwrbutton",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(retu_pwrbutton_driver);

@@ -29,7 +29,7 @@
 #include <linux/of_gpio.h>
 #include <linux/hsi/ssi_protocol.h>
 
-static unsigned int pm;
+static unsigned int pm = 1;
 module_param(pm, int, 0400);
 MODULE_PARM_DESC(pm,
 	"Enable power management (0=disabled, 1=userland based [default])");
@@ -46,6 +46,7 @@ struct nokia_modem_device {
 	struct nokia_modem_gpio	*gpios;
 	int			gpio_amount;
 	struct hsi_client	*ssi_protocol;
+	struct hsi_client	*cmt_speech;
 };
 
 static void do_nokia_modem_rst_ind_tasklet(unsigned long data)
@@ -111,7 +112,8 @@ static int nokia_modem_gpio_probe(struct device *dev)
 	modem->gpio_amount = gpio_count;
 
 	for (i = 0; i < gpio_count; i++) {
-		modem->gpios[i].gpio = devm_gpiod_get_index(dev, NULL, i);
+		modem->gpios[i].gpio = devm_gpiod_get_index(dev, NULL, i,
+							    GPIOD_OUT_LOW);
 		if (IS_ERR(modem->gpios[i].gpio)) {
 			dev_err(dev, "Could not get gpio %d\n", i);
 			return PTR_ERR(modem->gpios[i].gpio);
@@ -123,10 +125,6 @@ static int nokia_modem_gpio_probe(struct device *dev)
 			dev_err(dev, "Could not get gpio name %d\n", i);
 			return err;
 		}
-
-		err = gpiod_direction_output(modem->gpios[i].gpio, 0);
-		if (err)
-			return err;
 
 		err = gpiod_export(modem->gpios[i].gpio, 0);
 		if (err)
@@ -149,6 +147,7 @@ static int nokia_modem_probe(struct device *dev)
 	struct hsi_port *port = hsi_get_port(cl);
 	int irq, pflags, err;
 	struct hsi_board_info ssip;
+	struct hsi_board_info cmtspeech;
 
 	np = dev->of_node;
 	if (!np) {
@@ -162,11 +161,12 @@ static int nokia_modem_probe(struct device *dev)
 		return -ENOMEM;
 	}
 	dev_set_drvdata(dev, modem);
+	modem->device = dev;
 
 	irq = irq_of_parse_and_map(np, 0);
-	if (irq < 0) {
+	if (!irq) {
 		dev_err(dev, "Invalid rst_ind interrupt (%d)\n", irq);
-		return irq;
+		return -EINVAL;
 	}
 	modem->nokia_modem_rst_ind_irq = irq;
 	pflags = irq_get_trigger_type(irq);
@@ -174,7 +174,7 @@ static int nokia_modem_probe(struct device *dev)
 	tasklet_init(&modem->nokia_modem_rst_ind_tasklet,
 			do_nokia_modem_rst_ind_tasklet, (unsigned long)modem);
 	err = devm_request_irq(dev, irq, nokia_modem_rst_ind_isr,
-				IRQF_DISABLED | pflags, "modem_rst_ind", modem);
+				pflags, "modem_rst_ind", modem);
 	if (err < 0) {
 		dev_err(dev, "Request rst_ind irq(%d) failed (flags %d)\n",
 								irq, pflags);
@@ -199,12 +199,13 @@ static int nokia_modem_probe(struct device *dev)
 	modem->ssi_protocol = hsi_new_client(port, &ssip);
 	if (!modem->ssi_protocol) {
 		dev_err(dev, "Could not register ssi-protocol device\n");
+		err = -ENOMEM;
 		goto error2;
 	}
 
 	err = device_attach(&modem->ssi_protocol->device);
 	if (err == 0) {
-		dev_err(dev, "Missing ssi-protocol driver\n");
+		dev_dbg(dev, "Missing ssi-protocol driver\n");
 		err = -EPROBE_DEFER;
 		goto error3;
 	} else if (err < 0) {
@@ -212,12 +213,35 @@ static int nokia_modem_probe(struct device *dev)
 		goto error3;
 	}
 
-	/* TODO: register cmt-speech hsi client */
+	cmtspeech.name = "cmt-speech";
+	cmtspeech.tx_cfg = cl->tx_cfg;
+	cmtspeech.rx_cfg = cl->rx_cfg;
+	cmtspeech.platform_data = NULL;
+	cmtspeech.archdata = NULL;
+
+	modem->cmt_speech = hsi_new_client(port, &cmtspeech);
+	if (!modem->cmt_speech) {
+		dev_err(dev, "Could not register cmt-speech device\n");
+		err = -ENOMEM;
+		goto error3;
+	}
+
+	err = device_attach(&modem->cmt_speech->device);
+	if (err == 0) {
+		dev_dbg(dev, "Missing cmt-speech driver\n");
+		err = -EPROBE_DEFER;
+		goto error4;
+	} else if (err < 0) {
+		dev_err(dev, "Could not load cmt-speech driver (%d)\n", err);
+		goto error4;
+	}
 
 	dev_info(dev, "Registered Nokia HSI modem\n");
 
 	return 0;
 
+error4:
+	hsi_remove_client(&modem->cmt_speech->device, NULL);
 error3:
 	hsi_remove_client(&modem->ssi_protocol->device, NULL);
 error2:
@@ -236,6 +260,11 @@ static int nokia_modem_remove(struct device *dev)
 	if (!modem)
 		return 0;
 
+	if (modem->cmt_speech) {
+		hsi_remove_client(&modem->cmt_speech->device, NULL);
+		modem->cmt_speech = NULL;
+	}
+
 	if (modem->ssi_protocol) {
 		hsi_remove_client(&modem->ssi_protocol->device, NULL);
 		modem->ssi_protocol = NULL;
@@ -252,6 +281,8 @@ static int nokia_modem_remove(struct device *dev)
 #ifdef CONFIG_OF
 static const struct of_device_id nokia_modem_of_match[] = {
 	{ .compatible = "nokia,n900-modem", },
+	{ .compatible = "nokia,n950-modem", },
+	{ .compatible = "nokia,n9-modem", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, nokia_modem_of_match);

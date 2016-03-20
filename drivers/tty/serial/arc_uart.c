@@ -576,7 +576,6 @@ static int __init arc_early_console_setup(struct earlycon_device *dev,
 	dev->con->write = arc_early_serial_write;
 	return 0;
 }
-EARLYCON_DECLARE(arc_uart, arc_early_console_setup);
 OF_EARLYCON_DECLARE(arc_uart, "snps,arc-uart", arc_early_console_setup);
 
 #endif	/* CONFIG_SERIAL_ARC_CONSOLE */
@@ -653,7 +652,6 @@ static struct platform_driver arc_platform_driver = {
 	.remove = arc_serial_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table  = arc_uart_dt_ids,
 	 },
 };

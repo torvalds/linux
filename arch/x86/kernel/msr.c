@@ -22,6 +22,8 @@
  * an SMP box will direct the access to CPU %d.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 
 #include <linux/types.h>
@@ -38,32 +40,10 @@
 #include <linux/uaccess.h>
 #include <linux/gfp.h>
 
-#include <asm/processor.h>
+#include <asm/cpufeature.h>
 #include <asm/msr.h>
 
 static struct class *msr_class;
-
-static loff_t msr_seek(struct file *file, loff_t offset, int orig)
-{
-	loff_t ret;
-	struct inode *inode = file_inode(file);
-
-	mutex_lock(&inode->i_mutex);
-	switch (orig) {
-	case 0:
-		file->f_pos = offset;
-		ret = file->f_pos;
-		break;
-	case 1:
-		file->f_pos += offset;
-		ret = file->f_pos;
-		break;
-	default:
-		ret = -EINVAL;
-	}
-	mutex_unlock(&inode->i_mutex);
-	return ret;
-}
 
 static ssize_t msr_read(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos)
@@ -192,7 +172,7 @@ static int msr_open(struct inode *inode, struct file *file)
  */
 static const struct file_operations msr_fops = {
 	.owner = THIS_MODULE,
-	.llseek = msr_seek,
+	.llseek = no_seek_end_llseek,
 	.read = msr_read,
 	.write = msr_write,
 	.open = msr_open,
@@ -206,7 +186,7 @@ static int msr_device_create(int cpu)
 
 	dev = device_create(msr_class, NULL, MKDEV(MSR_MAJOR, cpu), NULL,
 			    "msr%d", cpu);
-	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
+	return PTR_ERR_OR_ZERO(dev);
 }
 
 static void msr_device_destroy(int cpu)
@@ -248,8 +228,7 @@ static int __init msr_init(void)
 	i = 0;
 
 	if (__register_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr", &msr_fops)) {
-		printk(KERN_ERR "msr: unable to get major %d for msr\n",
-		       MSR_MAJOR);
+		pr_err("unable to get major %d for msr\n", MSR_MAJOR);
 		err = -EBUSY;
 		goto out;
 	}

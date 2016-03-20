@@ -17,9 +17,9 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "omap_drv.h"
-
 #include <linux/dma-buf.h>
+
+#include "omap_drv.h"
 
 static struct sg_table *omap_gem_map_dma_buf(
 		struct dma_buf_attachment *attachment,
@@ -140,15 +140,12 @@ static int omap_gem_dmabuf_mmap(struct dma_buf *buffer,
 		struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = buffer->priv;
-	struct drm_device *dev = obj->dev;
 	int ret = 0;
 
 	if (WARN_ON(!obj->filp))
 		return -EINVAL;
 
-	mutex_lock(&dev->struct_mutex);
 	ret = drm_gem_mmap_obj(obj, omap_gem_mmap_size(obj), vma);
-	mutex_unlock(&dev->struct_mutex);
 	if (ret < 0)
 		return ret;
 
@@ -156,22 +153,29 @@ static int omap_gem_dmabuf_mmap(struct dma_buf *buffer,
 }
 
 static struct dma_buf_ops omap_dmabuf_ops = {
-		.map_dma_buf = omap_gem_map_dma_buf,
-		.unmap_dma_buf = omap_gem_unmap_dma_buf,
-		.release = omap_gem_dmabuf_release,
-		.begin_cpu_access = omap_gem_dmabuf_begin_cpu_access,
-		.end_cpu_access = omap_gem_dmabuf_end_cpu_access,
-		.kmap_atomic = omap_gem_dmabuf_kmap_atomic,
-		.kunmap_atomic = omap_gem_dmabuf_kunmap_atomic,
-		.kmap = omap_gem_dmabuf_kmap,
-		.kunmap = omap_gem_dmabuf_kunmap,
-		.mmap = omap_gem_dmabuf_mmap,
+	.map_dma_buf = omap_gem_map_dma_buf,
+	.unmap_dma_buf = omap_gem_unmap_dma_buf,
+	.release = omap_gem_dmabuf_release,
+	.begin_cpu_access = omap_gem_dmabuf_begin_cpu_access,
+	.end_cpu_access = omap_gem_dmabuf_end_cpu_access,
+	.kmap_atomic = omap_gem_dmabuf_kmap_atomic,
+	.kunmap_atomic = omap_gem_dmabuf_kunmap_atomic,
+	.kmap = omap_gem_dmabuf_kmap,
+	.kunmap = omap_gem_dmabuf_kunmap,
+	.mmap = omap_gem_dmabuf_mmap,
 };
 
 struct dma_buf *omap_gem_prime_export(struct drm_device *dev,
 		struct drm_gem_object *obj, int flags)
 {
-	return dma_buf_export(obj, &omap_dmabuf_ops, obj->size, flags, NULL);
+	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
+
+	exp_info.ops = &omap_dmabuf_ops;
+	exp_info.size = obj->size;
+	exp_info.flags = flags;
+	exp_info.priv = obj;
+
+	return dma_buf_export(&exp_info);
 }
 
 struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,

@@ -490,8 +490,8 @@ void cx18_av_std_setup(struct cx18 *cx)
 
 	/* Sets horizontal blanking delay and active lines */
 	cx18_av_write(cx, 0x470, hblank);
-	cx18_av_write(cx, 0x471, 0xff & (((hblank >> 8) & 0x3) |
-						(hactive << 4)));
+	cx18_av_write(cx, 0x471,
+		      (((hblank >> 8) & 0x3) | (hactive << 4)) & 0xff);
 	cx18_av_write(cx, 0x472, hactive >> 4);
 
 	/* Sets burst gate delay */
@@ -499,14 +499,14 @@ void cx18_av_std_setup(struct cx18 *cx)
 
 	/* Sets vertical blanking delay and active duration */
 	cx18_av_write(cx, 0x474, vblank);
-	cx18_av_write(cx, 0x475, 0xff & (((vblank >> 8) & 0x3) |
-						(vactive << 4)));
+	cx18_av_write(cx, 0x475,
+		      (((vblank >> 8) & 0x3) | (vactive << 4)) & 0xff);
 	cx18_av_write(cx, 0x476, vactive >> 4);
 	cx18_av_write(cx, 0x477, vblank656);
 
 	/* Sets src decimation rate */
-	cx18_av_write(cx, 0x478, 0xff & src_decimation);
-	cx18_av_write(cx, 0x479, 0xff & (src_decimation >> 8));
+	cx18_av_write(cx, 0x478, src_decimation & 0xff);
+	cx18_av_write(cx, 0x479, (src_decimation >> 8) & 0xff);
 
 	/* Sets Luma and UV Low pass filters */
 	cx18_av_write(cx, 0x47a, luma_lpf << 6 | ((uv_lpf << 4) & 0x30));
@@ -516,8 +516,8 @@ void cx18_av_std_setup(struct cx18 *cx)
 
 	/* Sets SC Step*/
 	cx18_av_write(cx, 0x47c, sc);
-	cx18_av_write(cx, 0x47d, 0xff & sc >> 8);
-	cx18_av_write(cx, 0x47e, 0xff & sc >> 16);
+	cx18_av_write(cx, 0x47d, (sc >> 8) & 0xff);
+	cx18_av_write(cx, 0x47e, (sc >> 16) & 0xff);
 
 	if (std & V4L2_STD_625_50) {
 		state->slicer_line_delay = 1;
@@ -945,14 +945,17 @@ static int cx18_av_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static int cx18_av_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
+static int cx18_av_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 	int HSC, VSC, Vsrc, Hsrc, filter, Vlines;
 	int is_50Hz = !(state->std & V4L2_STD_525_60);
 
-	if (fmt->code != V4L2_MBUS_FMT_FIXED)
+	if (format->pad || fmt->code != MEDIA_BUS_FMT_FIXED)
 		return -EINVAL;
 
 	fmt->field = V4L2_FIELD_INTERLACED;
@@ -986,6 +989,9 @@ static int cx18_av_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt 
 			     fmt->width, fmt->height);
 		return -ERANGE;
 	}
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
+		return 0;
 
 	HSC = (Hsrc * (1 << 20)) / fmt->width - (1 << 20);
 	VSC = (1 << 16) - (Vsrc * (1 << 9) / Vlines - (1 << 9));
@@ -1285,7 +1291,6 @@ static const struct v4l2_subdev_video_ops cx18_av_video_ops = {
 	.s_std = cx18_av_s_std,
 	.s_routing = cx18_av_s_video_routing,
 	.s_stream = cx18_av_s_stream,
-	.s_mbus_fmt = cx18_av_s_mbus_fmt,
 };
 
 static const struct v4l2_subdev_vbi_ops cx18_av_vbi_ops = {
@@ -1295,12 +1300,17 @@ static const struct v4l2_subdev_vbi_ops cx18_av_vbi_ops = {
 	.s_raw_fmt = cx18_av_s_raw_fmt,
 };
 
+static const struct v4l2_subdev_pad_ops cx18_av_pad_ops = {
+	.set_fmt = cx18_av_set_fmt,
+};
+
 static const struct v4l2_subdev_ops cx18_av_ops = {
 	.core = &cx18_av_general_ops,
 	.tuner = &cx18_av_tuner_ops,
 	.audio = &cx18_av_audio_ops,
 	.video = &cx18_av_video_ops,
 	.vbi = &cx18_av_vbi_ops,
+	.pad = &cx18_av_pad_ops,
 };
 
 int cx18_av_probe(struct cx18 *cx)

@@ -203,9 +203,8 @@ static int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 #ifdef CONFIG_SMP
 	printk("SMP NR_CPUS=%d ", NR_CPUS);
 #endif
-#ifdef CONFIG_DEBUG_PAGEALLOC
-	printk("DEBUG_PAGEALLOC ");
-#endif
+	if (debug_pagealloc_enabled())
+		printk("DEBUG_PAGEALLOC ");
 #ifdef CONFIG_NUMA
 	printk("NUMA ");
 #endif
@@ -295,7 +294,9 @@ long machine_check_early(struct pt_regs *regs)
 {
 	long handled = 0;
 
-	__get_cpu_var(irq_stat).mce_exceptions++;
+	__this_cpu_inc(irq_stat.mce_exceptions);
+
+	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
 
 	if (cur_cpu_spec && cur_cpu_spec->machine_check_early)
 		handled = cur_cpu_spec->machine_check_early(regs);
@@ -304,7 +305,7 @@ long machine_check_early(struct pt_regs *regs)
 
 long hmi_exception_realmode(struct pt_regs *regs)
 {
-	__get_cpu_var(irq_stat).hmi_exceptions++;
+	__this_cpu_inc(irq_stat.hmi_exceptions);
 
 	if (ppc_md.hmi_exception_early)
 		ppc_md.hmi_exception_early(regs);
@@ -700,7 +701,7 @@ void machine_check_exception(struct pt_regs *regs)
 	enum ctx_state prev_state = exception_enter();
 	int recover = 0;
 
-	__get_cpu_var(irq_stat).mce_exceptions++;
+	__this_cpu_inc(irq_stat.mce_exceptions);
 
 	/* See if any machine dependent calls. In theory, we would want
 	 * to call the CPU first, and call the ppc_md. one if the CPU
@@ -1146,6 +1147,7 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 		goto bail;
 	}
 	if (reason & REASON_TRAP) {
+		unsigned long bugaddr;
 		/* Debugger is first in line to stop recursive faults in
 		 * rcu_lock, notify_die, or atomic_notifier_call_chain */
 		if (debugger_bpt(regs))
@@ -1156,8 +1158,15 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 				== NOTIFY_STOP)
 			goto bail;
 
+		bugaddr = regs->nip;
+		/*
+		 * Fixup bugaddr for BUG_ON() in real mode
+		 */
+		if (!is_kernel_addr(bugaddr) && !(regs->msr & MSR_IR))
+			bugaddr += PAGE_OFFSET;
+
 		if (!(regs->msr & MSR_PR) &&  /* not user-mode */
-		    report_bug(regs->nip, regs) == BUG_TRAP_TYPE_WARN) {
+		    report_bug(bugaddr, regs) == BUG_TRAP_TYPE_WARN) {
 			regs->nip += 4;
 			goto bail;
 		}
@@ -1311,13 +1320,6 @@ void nonrecoverable_exception(struct pt_regs *regs)
 	die("nonrecoverable exception", regs, SIGKILL);
 }
 
-void trace_syscall(struct pt_regs *regs)
-{
-	printk("Task: %p(%d), PC: %08lX/%08lX, Syscall: %3ld, Result: %s%ld    %s\n",
-	       current, task_pid_nr(current), regs->nip, regs->link, regs->gpr[0],
-	       regs->ccr&0x10000000?"Error=":"", regs->gpr[3], print_tainted());
-}
-
 void kernel_fp_unavailable_exception(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
@@ -1377,6 +1379,7 @@ void facility_unavailable_exception(struct pt_regs *regs)
 	};
 	char *facility = "unknown";
 	u64 value;
+	u32 instword, rd;
 	u8 status;
 	bool hv;
 
@@ -1388,12 +1391,46 @@ void facility_unavailable_exception(struct pt_regs *regs)
 
 	status = value >> 56;
 	if (status == FSCR_DSCR_LG) {
-		/* User is acessing the DSCR.  Set the inherit bit and allow
-		 * the user to set it directly in future by setting via the
-		 * FSCR DSCR bit.  We always leave HFSCR DSCR set.
+		/*
+		 * User is accessing the DSCR register using the problem
+		 * state only SPR number (0x03) either through a mfspr or
+		 * a mtspr instruction. If it is a write attempt through
+		 * a mtspr, then we set the inherit bit. This also allows
+		 * the user to write or read the register directly in the
+		 * future by setting via the FSCR DSCR bit. But in case it
+		 * is a read DSCR attempt through a mfspr instruction, we
+		 * just emulate the instruction instead. This code path will
+		 * always emulate all the mfspr instructions till the user
+		 * has attempted at least one mtspr instruction. This way it
+		 * preserves the same behaviour when the user is accessing
+		 * the DSCR through privilege level only SPR number (0x11)
+		 * which is emulated through illegal instruction exception.
+		 * We always leave HFSCR DSCR set.
 		 */
-		current->thread.dscr_inherit = 1;
-		mtspr(SPRN_FSCR, value | FSCR_DSCR);
+		if (get_user(instword, (u32 __user *)(regs->nip))) {
+			pr_err("Failed to fetch the user instruction\n");
+			return;
+		}
+
+		/* Write into DSCR (mtspr 0x03, RS) */
+		if ((instword & PPC_INST_MTSPR_DSCR_USER_MASK)
+				== PPC_INST_MTSPR_DSCR_USER) {
+			rd = (instword >> 21) & 0x1f;
+			current->thread.dscr = regs->gpr[rd];
+			current->thread.dscr_inherit = 1;
+			mtspr(SPRN_FSCR, value | FSCR_DSCR);
+		}
+
+		/* Read from DSCR (mfspr RT, 0x03) */
+		if ((instword & PPC_INST_MFSPR_DSCR_USER_MASK)
+				== PPC_INST_MFSPR_DSCR_USER) {
+			if (emulate_instruction(regs)) {
+				pr_err("DSCR based mfspr emulation failed\n");
+				return;
+			}
+			regs->nip += 4;
+			emulate_single_step(regs);
+		}
 		return;
 	}
 
@@ -1519,7 +1556,7 @@ void vsx_unavailable_tm(struct pt_regs *regs)
 
 void performance_monitor_exception(struct pt_regs *regs)
 {
-	__get_cpu_var(irq_stat).pmu_irqs++;
+	__this_cpu_inc(irq_stat.pmu_irqs);
 
 	perf_irq(regs);
 }
@@ -1706,21 +1743,6 @@ void altivec_assist_exception(struct pt_regs *regs)
 	}
 }
 #endif /* CONFIG_ALTIVEC */
-
-#ifdef CONFIG_VSX
-void vsx_assist_exception(struct pt_regs *regs)
-{
-	if (!user_mode(regs)) {
-		printk(KERN_EMERG "VSX assist exception in kernel mode"
-		       " at %lx\n", regs->nip);
-		die("Kernel VSX assist exception", regs, SIGILL);
-	}
-
-	flush_vsx_to_thread(current);
-	printk(KERN_INFO "VSX assist not supported at %lx\n", regs->nip);
-	_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
-}
-#endif /* CONFIG_VSX */
 
 #ifdef CONFIG_FSL_BOOKE
 void CacheLockingException(struct pt_regs *regs, unsigned long address,

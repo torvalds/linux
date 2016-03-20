@@ -159,13 +159,6 @@ extern void flush_icache_range(unsigned long start, unsigned long end);
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 	memcpy(dst, src, len)
 
-/*
- * Internal debugging function
- */
-#ifdef CONFIG_DEBUG_PAGEALLOC
-extern void kernel_map_pages(struct page *page, int numpages, int enable);
-#endif
-
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_CACHEFLUSH_H */

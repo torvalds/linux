@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
+#include <linux/mfd/tmio.h>
 #include <linux/mtd/physmap.h>
 #include <linux/delay.h>
 #include <linux/regulator/fixed.h>
@@ -29,7 +30,7 @@
 #include <linux/sh_intc.h>
 #include <linux/videodev2.h>
 #include <video/sh_mobile_lcdc.h>
-#include <media/sh_mobile_ceu.h>
+#include <media/drv-intf/sh_mobile_ceu.h>
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
 #include <asm/io.h>
@@ -468,10 +469,10 @@ static struct resource sdhi0_cn7_resources[] = {
 	},
 };
 
-static struct sh_mobile_sdhi_info sh7724_sdhi0_data = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
-	.tmio_caps      = MMC_CAP_SDIO_IRQ,
+static struct tmio_mmc_data sh7724_sdhi0_data = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI0_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI0_RX,
+	.capabilities	= MMC_CAP_SDIO_IRQ,
 };
 
 static struct platform_device sdhi0_cn7_device = {
@@ -497,10 +498,10 @@ static struct resource sdhi1_cn8_resources[] = {
 	},
 };
 
-static struct sh_mobile_sdhi_info sh7724_sdhi1_data = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI1_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI1_RX,
-	.tmio_caps      = MMC_CAP_SDIO_IRQ,
+static struct tmio_mmc_data sh7724_sdhi1_data = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI1_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI1_RX,
+	.capabilities	= MMC_CAP_SDIO_IRQ,
 };
 
 static struct platform_device sdhi1_cn8_device = {
@@ -533,8 +534,8 @@ static struct platform_device irda_device = {
 	.resource       = irda_resources,
 };
 
-#include <media/ak881x.h>
-#include <media/sh_vou.h>
+#include <media/i2c/ak881x.h>
+#include <media/drv-intf/sh_vou.h>
 
 static struct ak881x_pdata ak881x_pdata = {
 	.flags = AK881X_IF_MODE_SLAVE,

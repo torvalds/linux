@@ -28,7 +28,7 @@
 #define AT91_AIC_IRQ_MIN_PRIORITY	0
 #define AT91_AIC_IRQ_MAX_PRIORITY	7
 
-#define AT91_AIC_SRCTYPE		GENMASK(7, 6)
+#define AT91_AIC_SRCTYPE		GENMASK(6, 5)
 #define AT91_AIC_SRCTYPE_LOW		(0 << 5)
 #define AT91_AIC_SRCTYPE_FALLING	(1 << 5)
 #define AT91_AIC_SRCTYPE_HIGH		(2 << 5)
@@ -74,22 +74,16 @@ int aic_common_set_type(struct irq_data *d, unsigned type, unsigned *val)
 		return -EINVAL;
 	}
 
-	*val &= AT91_AIC_SRCTYPE;
+	*val &= ~AT91_AIC_SRCTYPE;
 	*val |= aic_type;
 
 	return 0;
 }
 
-int aic_common_set_priority(int priority, unsigned *val)
+void aic_common_set_priority(int priority, unsigned *val)
 {
-	if (priority < AT91_AIC_IRQ_MIN_PRIORITY ||
-	    priority > AT91_AIC_IRQ_MAX_PRIORITY)
-		return -EINVAL;
-
-	*val &= AT91_AIC_PRIOR;
+	*val &= ~AT91_AIC_PRIOR;
 	*val |= priority;
-
-	return 0;
 }
 
 int aic_common_irq_domain_xlate(struct irq_domain *d,
@@ -114,7 +108,7 @@ int aic_common_irq_domain_xlate(struct irq_domain *d,
 
 static void __init aic_common_ext_irq_of_init(struct irq_domain *domain)
 {
-	struct device_node *node = domain->of_node;
+	struct device_node *node = irq_domain_get_of_node(domain);
 	struct irq_chip_generic *gc;
 	struct aic_chip_data *aic;
 	struct property *prop;
@@ -167,7 +161,33 @@ void __init aic_common_rtc_irq_fixup(struct device_node *root)
 	iounmap(regs);
 }
 
-void __init aic_common_irq_fixup(const struct of_device_id *matches)
+#define AT91_RTT_MR		0x00			/* Real-time Mode Register */
+#define AT91_RTT_ALMIEN		(1 << 16)		/* Alarm Interrupt Enable */
+#define AT91_RTT_RTTINCIEN	(1 << 17)		/* Real Time Timer Increment Interrupt Enable */
+
+void __init aic_common_rtt_irq_fixup(struct device_node *root)
+{
+	struct device_node *np;
+	void __iomem *regs;
+
+	/*
+	 * The at91sam9263 SoC has 2 instances of the RTT block, hence we
+	 * iterate over the DT to find each occurrence.
+	 */
+	for_each_compatible_node(np, NULL, "atmel,at91sam9260-rtt") {
+		regs = of_iomap(np, 0);
+		if (!regs)
+			continue;
+
+		writel(readl(regs + AT91_RTT_MR) &
+		       ~(AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN),
+		       regs + AT91_RTT_MR);
+
+		iounmap(regs);
+	}
+}
+
+static void __init aic_common_irq_fixup(const struct of_device_id *matches)
 {
 	struct device_node *root = of_find_node_by_path("/");
 	const struct of_device_id *match;
@@ -188,7 +208,8 @@ void __init aic_common_irq_fixup(const struct of_device_id *matches)
 
 struct irq_domain *__init aic_common_of_init(struct device_node *node,
 					     const struct irq_domain_ops *ops,
-					     const char *name, int nirqs)
+					     const char *name, int nirqs,
+					     const struct of_device_id *matches)
 {
 	struct irq_chip_generic *gc;
 	struct irq_domain *domain;
@@ -217,8 +238,9 @@ struct irq_domain *__init aic_common_of_init(struct device_node *node,
 	}
 
 	ret = irq_alloc_domain_generic_chips(domain, 32, 1, name,
-					     handle_level_irq, 0, 0,
-					     IRQCHIP_SKIP_SET_WAKE);
+					     handle_fasteoi_irq,
+					     IRQ_NOREQUEST | IRQ_NOPROBE |
+					     IRQ_NOAUTOEN, 0, 0);
 	if (ret)
 		goto err_domain_remove;
 
@@ -230,7 +252,6 @@ struct irq_domain *__init aic_common_of_init(struct device_node *node,
 		gc->unused = 0;
 		gc->wake_enabled = ~0;
 		gc->chip_types[0].type = IRQ_TYPE_SENSE_MASK;
-		gc->chip_types[0].handler = handle_fasteoi_irq;
 		gc->chip_types[0].chip.irq_eoi = irq_gc_eoi;
 		gc->chip_types[0].chip.irq_set_wake = irq_gc_set_wake;
 		gc->chip_types[0].chip.irq_shutdown = aic_common_shutdown;
@@ -238,6 +259,7 @@ struct irq_domain *__init aic_common_of_init(struct device_node *node,
 	}
 
 	aic_common_ext_irq_of_init(domain);
+	aic_common_irq_fixup(matches);
 
 	return domain;
 

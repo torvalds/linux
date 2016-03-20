@@ -145,7 +145,7 @@ struct icp_qat_hw_auth_setup {
 };
 
 #define QAT_HW_DEFAULT_ALIGNMENT 8
-#define QAT_HW_ROUND_UP(val, n) (((val) + ((n)-1)) & (~(n-1)))
+#define QAT_HW_ROUND_UP(val, n) (((val) + ((n) - 1)) & (~(n - 1)))
 #define ICP_QAT_HW_NULL_STATE1_SZ 32
 #define ICP_QAT_HW_MD5_STATE1_SZ 16
 #define ICP_QAT_HW_SHA1_STATE1_SZ 20
@@ -301,5 +301,5 @@ struct icp_qat_hw_cipher_aes256_f8 {
 
 struct icp_qat_hw_cipher_algo_blk {
 	struct icp_qat_hw_cipher_aes256_f8 aes;
-};
+} __aligned(64);
 #endif

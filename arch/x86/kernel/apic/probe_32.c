@@ -105,13 +105,13 @@ static struct apic apic_default = {
 
 	.cpu_mask_to_apicid_and		= flat_cpu_mask_to_apicid_and,
 
+	.send_IPI			= default_send_IPI_single,
 	.send_IPI_mask			= default_send_IPI_mask_logical,
 	.send_IPI_mask_allbutself	= default_send_IPI_mask_allbutself_logical,
 	.send_IPI_allbutself		= default_send_IPI_allbutself,
 	.send_IPI_all			= default_send_IPI_all,
 	.send_IPI_self			= default_send_IPI_self,
 
-	.wait_for_init_deassert		= true,
 	.inquire_remote_apic		= default_inquire_remote_apic,
 
 	.read				= native_apic_mem_read,

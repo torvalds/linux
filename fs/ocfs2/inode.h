@@ -80,6 +80,8 @@ struct ocfs2_inode_info
 	 */
 	tid_t i_sync_tid;
 	tid_t i_datasync_tid;
+
+	struct dquot *i_dquot[MAXQUOTAS];
 };
 
 /*
@@ -110,6 +112,8 @@ struct ocfs2_inode_info
 #define OCFS2_INODE_OPEN_DIRECT		0x00000020
 /* Tell the inode wipe code it's not in orphan dir */
 #define OCFS2_INODE_SKIP_ORPHAN_DIR     0x00000040
+/* Entry in orphan dir with 'dio-' prefix */
+#define OCFS2_INODE_DIO_ORPHAN_ENTRY	0x00000080
 
 static inline struct ocfs2_inode_info *OCFS2_I(struct inode *inode)
 {
@@ -162,7 +166,7 @@ static inline blkcnt_t ocfs2_inode_sector_count(struct inode *inode)
 {
 	int c_to_s_bits = OCFS2_SB(inode->i_sb)->s_clustersize_bits - 9;
 
-	return (blkcnt_t)(OCFS2_I(inode)->ip_clusters << c_to_s_bits);
+	return (blkcnt_t)OCFS2_I(inode)->ip_clusters << c_to_s_bits;
 }
 
 /* Validate that a bh contains a valid inode */

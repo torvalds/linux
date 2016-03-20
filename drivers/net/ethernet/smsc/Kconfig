@@ -5,12 +5,11 @@
 config NET_VENDOR_SMSC
 	bool "SMC (SMSC)/Western Digital devices"
 	default y
-	depends on ARM || ISA || MAC || ARM64 || MIPS || M32R || SUPERH || \
-		BLACKFIN || MN10300 || COLDFIRE || XTENSA || PCI || PCMCIA
+	depends on ARM || ARM64 || ATARI_ETHERNAT || BLACKFIN || COLDFIRE || \
+		   ISA || M32R || MAC || MIPS || MN10300 || NIOS2 || PCI || \
+		   PCMCIA || SUPERH || XTENSA || H8300
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -28,8 +27,7 @@ config SMC9194
 	  option if you have a DELL laptop with the docking station, or
 	  another SMC9192/9194 based chipset.  Say Y if you want it compiled
 	  into the kernel, and read the file
-	  <file:Documentation/networking/smc9.txt> and the Ethernet-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>.
+	  <file:Documentation/networking/smc9.txt>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called smc9194.
@@ -38,14 +36,14 @@ config SMC91X
 	tristate "SMC 91C9x/91C1xxx support"
 	select CRC32
 	select MII
-	depends on (ARM || M32R || SUPERH || MIPS || BLACKFIN || \
-		    MN10300 || COLDFIRE || ARM64 || XTENSA)
+	depends on !OF || GPIOLIB
+	depends on ARM || ARM64 || ATARI_ETHERNAT || BLACKFIN || COLDFIRE || \
+		   M32R || MIPS || MN10300 || NIOS2 || SUPERH || XTENSA || H8300
 	---help---
 	  This is a driver for SMC's 91x series of Ethernet chipsets,
 	  including the SMC91C94 and the SMC91C111. Say Y if you want it
 	  compiled into the kernel, and read the file
-	  <file:Documentation/networking/smc9.txt>  and the Ethernet-HOWTO,
-	  available from  <http://www.tldp.org/docs.html#howto>.
+	  <file:Documentation/networking/smc9.txt>.
 
 	  This driver is also available as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).
@@ -83,9 +81,7 @@ config SMC911X
 	---help---
 	  This is a driver for SMSC's LAN911x series of Ethernet chipsets
 	  including the new LAN9115, LAN9116, LAN9117, and LAN9118.
-	  Say Y if you want it compiled into the kernel,
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  Say Y here if you want it compiled into the kernel.
 
 	  This driver is also available as a module. The module will be
 	  called smc911x.  If you want to compile it as a module, say M
@@ -120,9 +116,7 @@ config SMSC9420
 	select SMSC_PHY
 	---help---
 	  This is a driver for SMSC's LAN9420 PCI ethernet adapter.
-	  Say Y if you want it compiled into the kernel,
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  Say Y here if you want it compiled into the kernel.
 
 	  This driver is also available as a module. The module will be
 	  called smsc9420.  If you want to compile it as a module, say M

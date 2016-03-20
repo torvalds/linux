@@ -86,6 +86,8 @@ struct clk *tegra_clk_register_divider(const char *name,
 		const char *parent_name, void __iomem *reg,
 		unsigned long flags, u8 clk_divider_flags, u8 shift, u8 width,
 		u8 frac_width, spinlock_t *lock);
+struct clk *tegra_clk_register_mc(const char *name, const char *parent_name,
+				  void __iomem *reg, spinlock_t *lock);
 
 /*
  * Tegra PLL:
@@ -108,14 +110,16 @@ struct clk *tegra_clk_register_divider(const char *name,
  * @m:			input divider
  * @p:			post divider
  * @cpcon:		charge pump current
+ * @sdm_data:		fraction divider setting (0 = disabled)
  */
 struct tegra_clk_pll_freq_table {
 	unsigned long	input_rate;
 	unsigned long	output_rate;
-	u16		n;
+	u32		n;
 	u16		m;
 	u8		p;
 	u8		cpcon;
+	u16		sdm_data;
 };
 
 /**
@@ -154,8 +158,12 @@ struct div_nmp {
 	u8		override_divp_shift;
 };
 
+#define MAX_PLL_MISC_REG_COUNT	6
+
+struct tegra_clk_pll;
+
 /**
- * struct clk_pll_params - PLL parameters
+ * struct tegra_clk_pll_params - PLL parameters
  *
  * @input_min:			Minimum input frequency
  * @input_max:			Maximum input frequency
@@ -166,52 +174,49 @@ struct div_nmp {
  * @base_reg:			PLL base reg offset
  * @misc_reg:			PLL misc reg offset
  * @lock_reg:			PLL lock reg offset
- * @lock_bit_idx:		Bit index for PLL lock status
+ * @lock_mask:			Bitmask for PLL lock status
  * @lock_enable_bit_idx:	Bit index to enable PLL lock
+ * @iddq_reg:			PLL IDDQ register offset
+ * @iddq_bit_idx:		Bit index to enable PLL IDDQ
+ * @reset_reg:			Register offset of where RESET bit is
+ * @reset_bit_idx:		Shift of reset bit in reset_reg
+ * @sdm_din_reg:		Register offset where SDM settings are
+ * @sdm_din_mask:		Mask of SDM divider bits
+ * @sdm_ctrl_reg:		Register offset where SDM enable is
+ * @sdm_ctrl_en_mask:		Mask of SDM enable bit
+ * @ssc_ctrl_reg:		Register offset where SSC settings are
+ * @ssc_ctrl_en_mask:		Mask of SSC enable bit
+ * @aux_reg:			AUX register offset
+ * @dyn_ramp_reg:		Dynamic ramp control register offset
+ * @ext_misc_reg:		Miscellaneous control register offsets
+ * @pmc_divnm_reg:		n, m divider PMC override register offset (PLLM)
+ * @pmc_divp_reg:		p divider PMC override register offset (PLLM)
+ * @flags:			PLL flags
+ * @stepa_shift:		Dynamic ramp step A field shift
+ * @stepb_shift:		Dynamic ramp step B field shift
  * @lock_delay:			Delay in us if PLL lock is not used
- */
-struct tegra_clk_pll_params {
-	unsigned long	input_min;
-	unsigned long	input_max;
-	unsigned long	cf_min;
-	unsigned long	cf_max;
-	unsigned long	vco_min;
-	unsigned long	vco_max;
-
-	u32		base_reg;
-	u32		misc_reg;
-	u32		lock_reg;
-	u32		lock_mask;
-	u32		lock_enable_bit_idx;
-	u32		iddq_reg;
-	u32		iddq_bit_idx;
-	u32		aux_reg;
-	u32		dyn_ramp_reg;
-	u32		ext_misc_reg[3];
-	u32		pmc_divnm_reg;
-	u32		pmc_divp_reg;
-	u32		flags;
-	int		stepa_shift;
-	int		stepb_shift;
-	int		lock_delay;
-	int		max_p;
-	struct pdiv_map *pdiv_tohw;
-	struct div_nmp	*div_nmp;
-	struct tegra_clk_pll_freq_table	*freq_table;
-	unsigned long	fixed_rate;
-};
-
-/**
- * struct tegra_clk_pll - Tegra PLL clock
- *
- * @hw:		handle between common and hardware-specifix interfaces
- * @clk_base:	address of CAR controller
- * @pmc:	address of PMC, required to read override bits
- * @freq_table:	array of frequencies supported by PLL
- * @params:	PLL parameters
- * @flags:	PLL flags
- * @fixed_rate:	PLL rate if it is fixed
- * @lock:	register lock
+ * @max_p:			maximum value for the p divider
+ * @defaults_set:		Boolean signaling all reg defaults for PLL set.
+ * @pdiv_tohw:			mapping of p divider to register values
+ * @div_nmp:			offsets and widths on n, m and p fields
+ * @freq_table:			array of frequencies supported by PLL
+ * @fixed_rate:			PLL rate if it is fixed
+ * @mdiv_default:		Default value for fixed mdiv for this PLL
+ * @round_p_to_pdiv:		Callback used to round p to the closed pdiv
+ * @set_gain:			Callback to adjust N div for SDM enabled
+ *				PLL's based on fractional divider value.
+ * @calc_rate:			Callback used to change how out of table
+ *				rates (dividers and multipler) are calculated.
+ * @adjust_vco:			Callback to adjust the programming range of the
+ *				divider range (if SDM is present)
+ * @set_defaults:		Callback which will try to initialize PLL
+ *				registers to sane default values. This is first
+ *				tried during PLL registration, but if the PLL
+ *				is already enabled, it will be done the first
+ *				time the rate is changed while the PLL is
+ *				disabled.
+ * @dyn_ramp:			Callback which can be used to define a custom
+ *				dynamic ramp function for a given PLL.
  *
  * Flags:
  * TEGRA_PLL_USE_LOCK - This flag indicated to use lock bits for
@@ -233,16 +238,62 @@ struct tegra_clk_pll_params {
  *     base register.
  * TEGRA_PLL_BYPASS - PLL has bypass bit
  * TEGRA_PLL_HAS_LOCK_ENABLE - PLL has bit to enable lock monitoring
+ * TEGRA_MDIV_NEW - Switch to new method for calculating fixed mdiv
+ *     it may be more accurate (especially if SDM present)
+ * TEGRA_PLLMB - PLLMB has should be treated similar to PLLM. This
+ *     flag indicated that it is PLLMB.
+ * TEGRA_PLL_VCO_OUT - Used to indicate that the PLL has a VCO output
  */
-struct tegra_clk_pll {
-	struct clk_hw	hw;
-	void __iomem	*clk_base;
-	void __iomem	*pmc;
-	spinlock_t	*lock;
-	struct tegra_clk_pll_params	*params;
-};
+struct tegra_clk_pll_params {
+	unsigned long	input_min;
+	unsigned long	input_max;
+	unsigned long	cf_min;
+	unsigned long	cf_max;
+	unsigned long	vco_min;
+	unsigned long	vco_max;
 
-#define to_clk_pll(_hw) container_of(_hw, struct tegra_clk_pll, hw)
+	u32		base_reg;
+	u32		misc_reg;
+	u32		lock_reg;
+	u32		lock_mask;
+	u32		lock_enable_bit_idx;
+	u32		iddq_reg;
+	u32		iddq_bit_idx;
+	u32		reset_reg;
+	u32		reset_bit_idx;
+	u32		sdm_din_reg;
+	u32		sdm_din_mask;
+	u32		sdm_ctrl_reg;
+	u32		sdm_ctrl_en_mask;
+	u32		ssc_ctrl_reg;
+	u32		ssc_ctrl_en_mask;
+	u32		aux_reg;
+	u32		dyn_ramp_reg;
+	u32		ext_misc_reg[MAX_PLL_MISC_REG_COUNT];
+	u32		pmc_divnm_reg;
+	u32		pmc_divp_reg;
+	u32		flags;
+	int		stepa_shift;
+	int		stepb_shift;
+	int		lock_delay;
+	int		max_p;
+	bool		defaults_set;
+	const struct pdiv_map *pdiv_tohw;
+	struct div_nmp	*div_nmp;
+	struct tegra_clk_pll_freq_table	*freq_table;
+	unsigned long	fixed_rate;
+	u16		mdiv_default;
+	u32	(*round_p_to_pdiv)(u32 p, u32 *pdiv);
+	void	(*set_gain)(struct tegra_clk_pll_freq_table *cfg);
+	int	(*calc_rate)(struct clk_hw *hw,
+			struct tegra_clk_pll_freq_table *cfg,
+			unsigned long rate, unsigned long parent_rate);
+	unsigned long	(*adjust_vco)(struct tegra_clk_pll_params *pll_params,
+				unsigned long parent_rate);
+	void	(*set_defaults)(struct tegra_clk_pll *pll);
+	int	(*dyn_ramp)(struct tegra_clk_pll *pll,
+			struct tegra_clk_pll_freq_table *cfg);
+};
 
 #define TEGRA_PLL_USE_LOCK BIT(0)
 #define TEGRA_PLL_HAS_CPCON BIT(1)
@@ -255,6 +306,43 @@ struct tegra_clk_pll {
 #define TEGRA_PLL_LOCK_MISC BIT(8)
 #define TEGRA_PLL_BYPASS BIT(9)
 #define TEGRA_PLL_HAS_LOCK_ENABLE BIT(10)
+#define TEGRA_MDIV_NEW BIT(11)
+#define TEGRA_PLLMB BIT(12)
+#define TEGRA_PLL_VCO_OUT BIT(13)
+
+/**
+ * struct tegra_clk_pll - Tegra PLL clock
+ *
+ * @hw:		handle between common and hardware-specifix interfaces
+ * @clk_base:	address of CAR controller
+ * @pmc:	address of PMC, required to read override bits
+ * @lock:	register lock
+ * @params:	PLL parameters
+ */
+struct tegra_clk_pll {
+	struct clk_hw	hw;
+	void __iomem	*clk_base;
+	void __iomem	*pmc;
+	spinlock_t	*lock;
+	struct tegra_clk_pll_params	*params;
+};
+
+#define to_clk_pll(_hw) container_of(_hw, struct tegra_clk_pll, hw)
+
+/**
+ * struct tegra_audio_clk_info - Tegra Audio Clk Information
+ *
+ * @name:	name for the audio pll
+ * @pll_params:	pll_params for audio pll
+ * @clk_id:	clk_ids for the audio pll
+ * @parent:	name of the parent of the audio pll
+ */
+struct tegra_audio_clk_info {
+	char *name;
+	struct tegra_clk_pll_params *pll_params;
+	int clk_id;
+	char *parent;
+};
 
 extern const struct clk_ops tegra_clk_pll_ops;
 extern const struct clk_ops tegra_clk_plle_ops;
@@ -273,6 +361,12 @@ struct clk *tegra_clk_register_pllxc(const char *name, const char *parent_name,
 			    unsigned long flags,
 			    struct tegra_clk_pll_params *pll_params,
 			    spinlock_t *lock);
+
+struct clk *tegra_clk_register_pllxc_tegra210(const char *name,
+			const char *parent_name, void __iomem *clk_base,
+			void __iomem *pmc, unsigned long flags,
+			struct tegra_clk_pll_params *pll_params,
+			spinlock_t *lock);
 
 struct clk *tegra_clk_register_pllm(const char *name, const char *parent_name,
 			   void __iomem *clk_base, void __iomem *pmc,
@@ -298,8 +392,32 @@ struct clk *tegra_clk_register_plle_tegra114(const char *name,
 				struct tegra_clk_pll_params *pll_params,
 				spinlock_t *lock);
 
+struct clk *tegra_clk_register_plle_tegra210(const char *name,
+				const char *parent_name,
+				void __iomem *clk_base, unsigned long flags,
+				struct tegra_clk_pll_params *pll_params,
+				spinlock_t *lock);
+
+struct clk *tegra_clk_register_pllc_tegra210(const char *name,
+				const char *parent_name, void __iomem *clk_base,
+				void __iomem *pmc, unsigned long flags,
+				struct tegra_clk_pll_params *pll_params,
+				spinlock_t *lock);
+
+struct clk *tegra_clk_register_pllss_tegra210(const char *name,
+				const char *parent_name, void __iomem *clk_base,
+				unsigned long flags,
+				struct tegra_clk_pll_params *pll_params,
+				spinlock_t *lock);
+
 struct clk *tegra_clk_register_pllss(const char *name, const char *parent_name,
 			   void __iomem *clk_base, unsigned long flags,
+			   struct tegra_clk_pll_params *pll_params,
+			   spinlock_t *lock);
+
+struct clk *tegra_clk_register_pllmb(const char *name, const char *parent_name,
+			   void __iomem *clk_base, void __iomem *pmc,
+			   unsigned long flags,
 			   struct tegra_clk_pll_params *pll_params,
 			   spinlock_t *lock);
 
@@ -546,7 +664,7 @@ struct clk *tegra_clk_register_super_mux(const char *name,
 		u8 width, u8 pllx_index, u8 div2_index, spinlock_t *lock);
 
 /**
- * struct clk_init_tabel - clock initialization table
+ * struct clk_init_table - clock initialization table
  * @clk_id:	clock id as mentioned in device tree bindings
  * @parent_id:	parent clock id as mentioned in device tree bindings
  * @rate:	rate to set
@@ -589,6 +707,9 @@ struct tegra_devclk {
 	char		*con_id;
 };
 
+void tegra_init_special_resets(unsigned int num, int (*assert)(unsigned long),
+			       int (*deassert)(unsigned long));
+
 void tegra_init_from_table(struct tegra_clk_init_table *tbl,
 		struct clk *clks[], int clk_max);
 
@@ -605,7 +726,8 @@ void tegra_register_devclks(struct tegra_devclk *dev_clks, int num);
 
 void tegra_audio_clk_init(void __iomem *clk_base,
 			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
-			struct tegra_clk_pll_params *pll_params);
+			struct tegra_audio_clk_info *audio_info,
+			unsigned int num_plls);
 
 void tegra_periph_clk_init(void __iomem *clk_base, void __iomem *pmc_base,
 			struct tegra_clk *tegra_clks,
@@ -613,13 +735,28 @@ void tegra_periph_clk_init(void __iomem *clk_base, void __iomem *pmc_base,
 
 void tegra_pmc_clk_init(void __iomem *pmc_base, struct tegra_clk *tegra_clks);
 void tegra_fixed_clk_init(struct tegra_clk *tegra_clks);
-int tegra_osc_clk_init(void __iomem *clk_base, struct tegra_clk *tegra_clks,
-				unsigned long *input_freqs, int num,
-				unsigned long *osc_freq,
-				unsigned long *pll_ref_freq);
+int tegra_osc_clk_init(void __iomem *clk_base, struct tegra_clk *clks,
+		       unsigned long *input_freqs, unsigned int num,
+		       unsigned int clk_m_div, unsigned long *osc_freq,
+		       unsigned long *pll_ref_freq);
 void tegra_super_clk_gen4_init(void __iomem *clk_base,
 			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
 			struct tegra_clk_pll_params *pll_params);
+void tegra_super_clk_gen5_init(void __iomem *clk_base,
+			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
+			struct tegra_clk_pll_params *pll_params);
+
+#ifdef CONFIG_TEGRA_CLK_EMC
+struct clk *tegra_clk_register_emc(void __iomem *base, struct device_node *np,
+				   spinlock_t *lock);
+#else
+static inline struct clk *tegra_clk_register_emc(void __iomem *base,
+						 struct device_node *np,
+						 spinlock_t *lock)
+{
+	return NULL;
+}
+#endif
 
 void tegra114_clock_tune_cpu_trimmers_high(void);
 void tegra114_clock_tune_cpu_trimmers_low(void);
@@ -629,5 +766,8 @@ void tegra114_clock_deassert_dfll_dvco_reset(void);
 
 typedef void (*tegra_clk_apply_init_table_func)(void);
 extern tegra_clk_apply_init_table_func tegra_clk_apply_init_table;
+int tegra_pll_wait_for_lock(struct tegra_clk_pll *pll);
+u16 tegra_pll_get_fixed_mdiv(struct clk_hw *hw, unsigned long input_rate);
+int tegra_pll_p_div_to_hw(struct tegra_clk_pll *pll, u8 p_div);
 
 #endif /* TEGRA_CLK_H */

@@ -35,6 +35,8 @@ static struct class *pyra_class;
 static void profile_activated(struct pyra_device *pyra,
 		unsigned int new_profile)
 {
+	if (new_profile >= ARRAY_SIZE(pyra->profile_settings))
+		return;
 	pyra->actual_profile = new_profile;
 	pyra->actual_cpi = pyra->profile_settings[pyra->actual_profile].y_cpi;
 }
@@ -88,8 +90,7 @@ static ssize_t pyra_sysfs_read(struct file *fp, struct kobject *kobj,
 		char *buf, loff_t off, size_t count,
 		size_t real_size, uint command)
 {
-	struct device *dev =
-			container_of(kobj, struct device, kobj)->parent->parent;
+	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct pyra_device *pyra = hid_get_drvdata(dev_get_drvdata(dev));
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
 	int retval;
@@ -114,8 +115,7 @@ static ssize_t pyra_sysfs_write(struct file *fp, struct kobject *kobj,
 		void const *buf, loff_t off, size_t count,
 		size_t real_size, uint command)
 {
-	struct device *dev =
-			container_of(kobj, struct device, kobj)->parent->parent;
+	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct pyra_device *pyra = hid_get_drvdata(dev_get_drvdata(dev));
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
 	int retval;
@@ -189,8 +189,7 @@ static ssize_t pyra_sysfs_read_profilex_settings(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
 {
-	struct device *dev =
-			container_of(kobj, struct device, kobj)->parent->parent;
+	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
 	ssize_t retval;
 
@@ -208,8 +207,7 @@ static ssize_t pyra_sysfs_read_profilex_buttons(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
 {
-	struct device *dev =
-			container_of(kobj, struct device, kobj)->parent->parent;
+	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
 	ssize_t retval;
 
@@ -246,8 +244,7 @@ static ssize_t pyra_sysfs_write_settings(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
 {
-	struct device *dev =
-			container_of(kobj, struct device, kobj)->parent->parent;
+	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct pyra_device *pyra = hid_get_drvdata(dev_get_drvdata(dev));
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
 	int retval = 0;
@@ -257,9 +254,11 @@ static ssize_t pyra_sysfs_write_settings(struct file *fp,
 	if (off != 0 || count != PYRA_SIZE_SETTINGS)
 		return -EINVAL;
 
-	mutex_lock(&pyra->pyra_lock);
-
 	settings = (struct pyra_settings const *)buf;
+	if (settings->startup_profile >= ARRAY_SIZE(pyra->profile_settings))
+		return -EINVAL;
+
+	mutex_lock(&pyra->pyra_lock);
 
 	retval = pyra_set_settings(usb_dev, settings);
 	if (retval) {

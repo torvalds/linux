@@ -27,6 +27,7 @@
 #include <asm/bios_ebda.h>
 #include <asm/bootparam_utils.h>
 #include <asm/microcode.h>
+#include <asm/kasan.h>
 
 /*
  * Manage page tables very early on.
@@ -39,27 +40,21 @@ pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE & ~(_PAGE_GLOBAL | _PAGE_NX);
 /* Wipe all early page tables except for the kernel symbol map */
 static void __init reset_early_page_tables(void)
 {
-	unsigned long i;
-
-	for (i = 0; i < PTRS_PER_PGD-1; i++)
-		early_level4_pgt[i].pgd = 0;
-
+	memset(early_level4_pgt, 0, sizeof(pgd_t)*(PTRS_PER_PGD-1));
 	next_early_pgt = 0;
-
-	write_cr3(__pa(early_level4_pgt));
+	write_cr3(__pa_nodebug(early_level4_pgt));
 }
 
 /* Create a new PMD entry */
 int __init early_make_pgtable(unsigned long address)
 {
 	unsigned long physaddr = address - __PAGE_OFFSET;
-	unsigned long i;
 	pgdval_t pgd, *pgd_p;
 	pudval_t pud, *pud_p;
 	pmdval_t pmd, *pmd_p;
 
 	/* Invalid address or early pgt is done ?  */
-	if (physaddr >= MAXMEM || read_cr3() != __pa(early_level4_pgt))
+	if (physaddr >= MAXMEM || read_cr3() != __pa_nodebug(early_level4_pgt))
 		return -1;
 
 again:
@@ -80,8 +75,7 @@ again:
 		}
 
 		pud_p = (pudval_t *)early_dynamic_pgts[next_early_pgt++];
-		for (i = 0; i < PTRS_PER_PUD; i++)
-			pud_p[i] = 0;
+		memset(pud_p, 0, sizeof(*pud_p) * PTRS_PER_PUD);
 		*pgd_p = (pgdval_t)pud_p - __START_KERNEL_map + phys_base + _KERNPG_TABLE;
 	}
 	pud_p += pud_index(address);
@@ -96,8 +90,7 @@ again:
 		}
 
 		pmd_p = (pmdval_t *)early_dynamic_pgts[next_early_pgt++];
-		for (i = 0; i < PTRS_PER_PMD; i++)
-			pmd_p[i] = 0;
+		memset(pmd_p, 0, sizeof(*pmd_p) * PTRS_PER_PMD);
 		*pud_p = (pudval_t)pmd_p - __START_KERNEL_map + phys_base + _KERNPG_TABLE;
 	}
 	pmd = (physaddr & PMD_MASK) + early_pmd_flags;
@@ -155,14 +148,19 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
 				(__START_KERNEL & PGDIR_MASK)));
 	BUILD_BUG_ON(__fix_to_virt(__end_of_fixed_addresses) <= MODULES_END);
 
+	cr4_init_shadow();
+
 	/* Kill off the identity-map trampoline */
 	reset_early_page_tables();
 
-	/* clear bss before set_intr_gate with early_idt_handler */
 	clear_bss();
 
+	clear_page(init_level4_pgt);
+
+	kasan_early_init();
+
 	for (i = 0; i < NUM_EXCEPTION_VECTORS; i++)
-		set_intr_gate(i, early_idt_handlers[i]);
+		set_intr_gate(i, early_idt_handler_array[i]);
 	load_idt((const struct desc_ptr *)&idt_descr);
 
 	copy_bootdata(__va(real_mode_data));
@@ -172,10 +170,6 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
 	 */
 	load_ucode_bsp();
 
-	if (console_loglevel >= CONSOLE_LOGLEVEL_DEBUG)
-		early_printk("Kernel alive\n");
-
-	clear_page(init_level4_pgt);
 	/* set init_level4_pgt kernel high mapping*/
 	init_level4_pgt[511] = early_level4_pgt[511];
 
@@ -189,6 +183,14 @@ void __init x86_64_start_reservations(char *real_mode_data)
 		copy_bootdata(__va(real_mode_data));
 
 	reserve_ebda_region();
+
+	switch (boot_params.hdr.hardware_subarch) {
+	case X86_SUBARCH_INTEL_MID:
+		x86_intel_mid_early_setup();
+		break;
+	default:
+		break;
+	}
 
 	start_kernel();
 }

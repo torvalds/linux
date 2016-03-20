@@ -19,7 +19,7 @@
 /*
  * Driver: pcmda12
  * Description: A driver for the Winsystems PCM-D/A-12
- * Devices: (Winsystems) PCM-D/A-12 [pcmda12]
+ * Devices: [Winsystems] PCM-D/A-12 (pcmda12)
  * Author: Calin Culianu <calin@ajvar.org>
  * Updated: Fri, 13 Jan 2006 12:01:01 -0500
  * Status: works
@@ -61,7 +61,6 @@ static const struct comedi_lrange pcmda12_ranges = {
 };
 
 struct pcmda12_private {
-	unsigned int ao_readback[8];
 	int simultaneous_xfer_mode;
 };
 
@@ -72,7 +71,7 @@ static int pcmda12_ao_insn_write(struct comedi_device *dev,
 {
 	struct pcmda12_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val = devpriv->ao_readback[chan];
+	unsigned int val = s->readback[chan];
 	unsigned long ioreg = dev->iobase + (chan * 2);
 	int i;
 
@@ -88,7 +87,7 @@ static int pcmda12_ao_insn_write(struct comedi_device *dev,
 		if (!devpriv->simultaneous_xfer_mode)
 			inb(ioreg);
 	}
-	devpriv->ao_readback[chan] = val;
+	s->readback[chan] = val;
 
 	return insn->n;
 }
@@ -99,8 +98,6 @@ static int pcmda12_ao_insn_read(struct comedi_device *dev,
 				unsigned int *data)
 {
 	struct pcmda12_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
 
 	/*
 	 * Initiate simultaneaous xfer mode by reading one of the
@@ -109,10 +106,7 @@ static int pcmda12_ao_insn_read(struct comedi_device *dev,
 	if (devpriv->simultaneous_xfer_mode)
 		inb(dev->iobase);
 
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return insn->n;
+	return comedi_readback_insn_read(dev, s, insn, data);
 }
 
 static void pcmda12_ao_reset(struct comedi_device *dev,
@@ -157,6 +151,10 @@ static int pcmda12_attach(struct comedi_device *dev,
 	s->range_table	= &pcmda12_ranges;
 	s->insn_write	= pcmda12_ao_insn_write;
 	s->insn_read	= pcmda12_ao_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	pcmda12_ao_reset(dev, s);
 

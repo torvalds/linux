@@ -9,8 +9,9 @@
  * Common Clock Framework support for Audio Subsystem Clock Controller.
 */
 
-#include <linux/clkdev.h>
+#include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/of_address.h>
 #include <linux/syscore_ops.h>
@@ -29,6 +30,13 @@ static DEFINE_SPINLOCK(lock);
 static struct clk **clk_table;
 static void __iomem *reg_base;
 static struct clk_onecell_data clk_data;
+/*
+ * On Exynos5420 this will be a clock which has to be enabled before any
+ * access to audss registers. Typically a child of EPLL.
+ *
+ * On other platforms this will be -ENODEV.
+ */
+static struct clk *epll;
 
 #define ASS_CLK_SRC 0x0
 #define ASS_CLK_DIV 0x4
@@ -75,6 +83,26 @@ static const struct of_device_id exynos_audss_clk_of_match[] = {
 	{},
 };
 
+static void exynos_audss_clk_teardown(void)
+{
+	int i;
+
+	for (i = EXYNOS_MOUT_AUDSS; i < EXYNOS_DOUT_SRP; i++) {
+		if (!IS_ERR(clk_table[i]))
+			clk_unregister_mux(clk_table[i]);
+	}
+
+	for (; i < EXYNOS_SRP_CLK; i++) {
+		if (!IS_ERR(clk_table[i]))
+			clk_unregister_divider(clk_table[i]);
+	}
+
+	for (; i < clk_data.clk_num; i++) {
+		if (!IS_ERR(clk_table[i]))
+			clk_unregister_gate(clk_table[i]);
+	}
+}
+
 /* register exynos_audss clocks */
 static int exynos_audss_clk_probe(struct platform_device *pdev)
 {
@@ -98,6 +126,8 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to map audss registers\n");
 		return PTR_ERR(reg_base);
 	}
+	/* EPLL don't have to be enabled for boards other than Exynos5420 */
+	epll = ERR_PTR(-ENODEV);
 
 	clk_table = devm_kzalloc(&pdev->dev,
 				sizeof(struct clk *) * EXYNOS_AUDSS_MAX_CLKS,
@@ -115,8 +145,20 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 	pll_in = devm_clk_get(&pdev->dev, "pll_in");
 	if (!IS_ERR(pll_ref))
 		mout_audss_p[0] = __clk_get_name(pll_ref);
-	if (!IS_ERR(pll_in))
+	if (!IS_ERR(pll_in)) {
 		mout_audss_p[1] = __clk_get_name(pll_in);
+
+		if (variant == TYPE_EXYNOS5420) {
+			epll = pll_in;
+
+			ret = clk_prepare_enable(epll);
+			if (ret) {
+				dev_err(&pdev->dev,
+						"failed to prepare the epll clock\n");
+				return ret;
+			}
+		}
+	}
 	clk_table[EXYNOS_MOUT_AUDSS] = clk_register_mux(NULL, "mout_audss",
 				mout_audss_p, ARRAY_SIZE(mout_audss_p),
 				CLK_SET_RATE_NO_REPARENT,
@@ -198,24 +240,26 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 	return 0;
 
 unregister:
-	for (i = 0; i < clk_data.clk_num; i++) {
-		if (!IS_ERR(clk_table[i]))
-			clk_unregister(clk_table[i]);
-	}
+	exynos_audss_clk_teardown();
+
+	if (!IS_ERR(epll))
+		clk_disable_unprepare(epll);
 
 	return ret;
 }
 
 static int exynos_audss_clk_remove(struct platform_device *pdev)
 {
-	int i;
+#ifdef CONFIG_PM_SLEEP
+	unregister_syscore_ops(&exynos_audss_clk_syscore_ops);
+#endif
 
 	of_clk_del_provider(pdev->dev.of_node);
 
-	for (i = 0; i < clk_data.clk_num; i++) {
-		if (!IS_ERR(clk_table[i]))
-			clk_unregister(clk_table[i]);
-	}
+	exynos_audss_clk_teardown();
+
+	if (!IS_ERR(epll))
+		clk_disable_unprepare(epll);
 
 	return 0;
 }
@@ -223,7 +267,6 @@ static int exynos_audss_clk_remove(struct platform_device *pdev)
 static struct platform_driver exynos_audss_clk_driver = {
 	.driver	= {
 		.name = "exynos-audss-clk",
-		.owner = THIS_MODULE,
 		.of_match_table = exynos_audss_clk_of_match,
 	},
 	.probe = exynos_audss_clk_probe,

@@ -37,6 +37,25 @@ TRACE_EVENT(kvm_userspace_exit,
 		  __entry->errno < 0 ? -__entry->errno : __entry->reason)
 );
 
+TRACE_EVENT(kvm_vcpu_wakeup,
+	    TP_PROTO(__u64 ns, bool waited),
+	    TP_ARGS(ns, waited),
+
+	TP_STRUCT__entry(
+		__field(	__u64,		ns		)
+		__field(	bool,		waited		)
+	),
+
+	TP_fast_assign(
+		__entry->ns		= ns;
+		__entry->waited		= waited;
+	),
+
+	TP_printk("%s time %lld ns",
+		  __entry->waited ? "wait" : "poll",
+		  __entry->ns)
+);
+
 #if defined(CONFIG_HAVE_KVM_IRQFD)
 TRACE_EVENT(kvm_set_irq,
 	TP_PROTO(unsigned int gsi, int level, int irq_source_id),
@@ -95,6 +114,26 @@ TRACE_EVENT(kvm_ioapic_set_irq,
 		  __entry->coalesced ? " (coalesced)" : "")
 );
 
+TRACE_EVENT(kvm_ioapic_delayed_eoi_inj,
+	    TP_PROTO(__u64 e),
+	    TP_ARGS(e),
+
+	TP_STRUCT__entry(
+		__field(	__u64,		e		)
+	),
+
+	TP_fast_assign(
+		__entry->e		= e;
+	),
+
+	TP_printk("dst %x vec=%u (%s|%s|%s%s)",
+		  (u8)(__entry->e >> 56), (u8)__entry->e,
+		  __print_symbolic((__entry->e >> 8 & 0x7), kvm_deliver_mode),
+		  (__entry->e & (1<<11)) ? "logical" : "physical",
+		  (__entry->e & (1<<15)) ? "level" : "edge",
+		  (__entry->e & (1<<16)) ? "|masked" : "")
+);
+
 TRACE_EVENT(kvm_msi_set_irq,
 	    TP_PROTO(__u64 address, __u64 data),
 	    TP_ARGS(address, data),
@@ -126,6 +165,14 @@ TRACE_EVENT(kvm_msi_set_irq,
 
 #if defined(CONFIG_HAVE_KVM_IRQFD)
 
+#ifdef kvm_irqchips
+#define kvm_ack_irq_string "irqchip %s pin %u"
+#define kvm_ack_irq_parm  __print_symbolic(__entry->irqchip, kvm_irqchips), __entry->pin
+#else
+#define kvm_ack_irq_string "irqchip %d pin %u"
+#define kvm_ack_irq_parm  __entry->irqchip, __entry->pin
+#endif
+
 TRACE_EVENT(kvm_ack_irq,
 	TP_PROTO(unsigned int irqchip, unsigned int pin),
 	TP_ARGS(irqchip, pin),
@@ -140,13 +187,7 @@ TRACE_EVENT(kvm_ack_irq,
 		__entry->pin		= pin;
 	),
 
-#ifdef kvm_irqchips
-	TP_printk("irqchip %s pin %u",
-		  __print_symbolic(__entry->irqchip, kvm_irqchips),
-		 __entry->pin)
-#else
-	TP_printk("irqchip %d pin %u", __entry->irqchip, __entry->pin)
-#endif
+	TP_printk(kvm_ack_irq_string, kvm_ack_irq_parm)
 );
 
 #endif /* defined(CONFIG_HAVE_KVM_IRQFD) */
@@ -205,24 +246,26 @@ TRACE_EVENT(kvm_fpu,
 );
 
 TRACE_EVENT(kvm_age_page,
-	TP_PROTO(ulong hva, struct kvm_memory_slot *slot, int ref),
-	TP_ARGS(hva, slot, ref),
+	TP_PROTO(ulong gfn, int level, struct kvm_memory_slot *slot, int ref),
+	TP_ARGS(gfn, level, slot, ref),
 
 	TP_STRUCT__entry(
 		__field(	u64,	hva		)
 		__field(	u64,	gfn		)
+		__field(	u8,	level		)
 		__field(	u8,	referenced	)
 	),
 
 	TP_fast_assign(
-		__entry->hva		= hva;
-		__entry->gfn		=
-		  slot->base_gfn + ((hva - slot->userspace_addr) >> PAGE_SHIFT);
+		__entry->gfn		= gfn;
+		__entry->level		= level;
+		__entry->hva		= ((gfn - slot->base_gfn) <<
+					    PAGE_SHIFT) + slot->userspace_addr;
 		__entry->referenced	= ref;
 	),
 
-	TP_printk("hva %llx gfn %llx %s",
-		  __entry->hva, __entry->gfn,
+	TP_printk("hva %llx gfn %llx level %u %s",
+		  __entry->hva, __entry->gfn, __entry->level,
 		  __entry->referenced ? "YOUNG" : "OLD")
 );
 
@@ -314,6 +357,37 @@ TRACE_EVENT(
 );
 
 #endif
+
+TRACE_EVENT(kvm_halt_poll_ns,
+	TP_PROTO(bool grow, unsigned int vcpu_id, unsigned int new,
+		 unsigned int old),
+	TP_ARGS(grow, vcpu_id, new, old),
+
+	TP_STRUCT__entry(
+		__field(bool, grow)
+		__field(unsigned int, vcpu_id)
+		__field(unsigned int, new)
+		__field(unsigned int, old)
+	),
+
+	TP_fast_assign(
+		__entry->grow           = grow;
+		__entry->vcpu_id        = vcpu_id;
+		__entry->new            = new;
+		__entry->old            = old;
+	),
+
+	TP_printk("vcpu %u: halt_poll_ns %u (%s %u)",
+			__entry->vcpu_id,
+			__entry->new,
+			__entry->grow ? "grow" : "shrink",
+			__entry->old)
+);
+
+#define trace_kvm_halt_poll_ns_grow(vcpu_id, new, old) \
+	trace_kvm_halt_poll_ns(true, vcpu_id, new, old)
+#define trace_kvm_halt_poll_ns_shrink(vcpu_id, new, old) \
+	trace_kvm_halt_poll_ns(false, vcpu_id, new, old)
 
 #endif /* _TRACE_KVM_MAIN_H */
 

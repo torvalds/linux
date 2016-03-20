@@ -26,9 +26,9 @@
 #include <linux/console.h>
 #include <linux/bug.h>
 #include <linux/ratelimit.h>
+#include <linux/uaccess.h>
 
 #include <asm/assembly.h>
-#include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/traps.h>
@@ -42,10 +42,6 @@
 #include <asm/cacheflush.h>
 
 #include "../math-emu/math-emu.h"	/* for handle_fpe() */
-
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
-DEFINE_SPINLOCK(pa_dbit_lock);
-#endif
 
 static void parisc_show_stack(struct task_struct *task, unsigned long *sp,
 	struct pt_regs *regs);
@@ -800,7 +796,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	     * unless pagefault_disable() was called before.
 	     */
 
-	    if (fault_space == 0 && !in_atomic())
+	    if (fault_space == 0 && !faulthandler_disabled())
 	    {
 		pdc_chassis_send_status(PDC_CHASSIS_DIRECT_PANIC);
 		parisc_terminate("Kernel Fault", regs, code, fault_address);
@@ -811,7 +807,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 }
 
 
-int __init check_ivt(void *iva)
+void __init initialize_ivt(const void *iva)
 {
 	extern u32 os_hpmc_size;
 	extern const u32 os_hpmc[];
@@ -822,8 +818,8 @@ int __init check_ivt(void *iva)
 	u32 *hpmcp;
 	u32 length;
 
-	if (strcmp((char *)iva, "cows can fly"))
-		return -1;
+	if (strcmp((const char *)iva, "cows can fly"))
+		panic("IVT invalid");
 
 	ivap = (u32 *)iva;
 
@@ -843,28 +839,23 @@ int __init check_ivt(void *iva)
 	    check += ivap[i];
 
 	ivap[5] = -check;
-
-	return 0;
 }
 	
+
+/* early_trap_init() is called before we set up kernel mappings and
+ * write-protect the kernel */
+void  __init early_trap_init(void)
+{
+	extern const void fault_vector_20;
+
 #ifndef CONFIG_64BIT
-extern const void fault_vector_11;
+	extern const void fault_vector_11;
+	initialize_ivt(&fault_vector_11);
 #endif
-extern const void fault_vector_20;
+
+	initialize_ivt(&fault_vector_20);
+}
 
 void __init trap_init(void)
 {
-	void *iva;
-
-	if (boot_cpu_data.cpu_type >= pcxu)
-		iva = (void *) &fault_vector_20;
-	else
-#ifdef CONFIG_64BIT
-		panic("Can't boot 64-bit OS on PA1.1 processor!");
-#else
-		iva = (void *) &fault_vector_11;
-#endif
-
-	if (check_ivt(iva))
-		panic("IVT invalid");
 }

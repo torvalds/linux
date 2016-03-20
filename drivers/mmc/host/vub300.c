@@ -563,7 +563,7 @@ static void add_offloaded_reg(struct vub300_mmc_host *vub300,
 			i += 1;
 			continue;
 		}
-	};
+	}
 	__add_offloaded_reg_to_fifo(vub300, register_access, func);
 }
 
@@ -659,7 +659,7 @@ static void __vub300_irqpoll_response(struct vub300_mmc_host *vub300)
 static void __do_poll(struct vub300_mmc_host *vub300)
 {
 	/* cmd_mutex is held by vub300_pollwork_thread */
-	long commretval;
+	unsigned long commretval;
 	mod_timer(&vub300->inactivity_timer, jiffies + HZ);
 	init_completion(&vub300->irqpoll_complete);
 	send_irqpoll(vub300);
@@ -671,8 +671,6 @@ static void __do_poll(struct vub300_mmc_host *vub300)
 		vub300->usb_timed_out = 1;
 		usb_kill_urb(vub300->command_out_urb);
 		usb_kill_urb(vub300->command_res_urb);
-	} else if (commretval < 0) {
-		vub300_queue_poll_work(vub300, 1);
 	} else { /* commretval > 0 */
 		__vub300_irqpoll_response(vub300);
 	}
@@ -1374,7 +1372,7 @@ static void download_offload_pseudocode(struct vub300_mmc_host *vub300)
 		l += snprintf(vub300->vub_name + l,
 			      sizeof(vub300->vub_name) - l, "_%04X%04X",
 			      sf->vendor, sf->device);
-	};
+	}
 	snprintf(vub300->vub_name + l, sizeof(vub300->vub_name) - l, ".bin");
 	dev_info(&vub300->udev->dev, "requesting offload firmware %s\n",
 		 vub300->vub_name);
@@ -1895,7 +1893,7 @@ static int satisfy_request_from_offloaded_data(struct vub300_mmc_host *vub300,
 			i += 1;
 			continue;
 		}
-	};
+	}
 	if (vub300->total_offload_count == 0)
 		return 0;
 	else if (vub300->fn[func].offload_count == 0)

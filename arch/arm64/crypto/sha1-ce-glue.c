@@ -12,144 +12,84 @@
 #include <asm/unaligned.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha.h>
+#include <crypto/sha1_base.h>
 #include <linux/cpufeature.h>
 #include <linux/crypto.h>
 #include <linux/module.h>
+
+#define ASM_EXPORT(sym, val) \
+	asm(".globl " #sym "; .set " #sym ", %0" :: "I"(val));
 
 MODULE_DESCRIPTION("SHA1 secure hash using ARMv8 Crypto Extensions");
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_LICENSE("GPL v2");
 
-asmlinkage void sha1_ce_transform(int blocks, u8 const *src, u32 *state,
-				  u8 *head, long bytes);
+struct sha1_ce_state {
+	struct sha1_state	sst;
+	u32			finalize;
+};
 
-static int sha1_init(struct shash_desc *desc)
+asmlinkage void sha1_ce_transform(struct sha1_ce_state *sst, u8 const *src,
+				  int blocks);
+
+static int sha1_ce_update(struct shash_desc *desc, const u8 *data,
+			  unsigned int len)
 {
-	struct sha1_state *sctx = shash_desc_ctx(desc);
+	struct sha1_ce_state *sctx = shash_desc_ctx(desc);
 
-	*sctx = (struct sha1_state){
-		.state = { SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4 },
-	};
-	return 0;
-}
-
-static int sha1_update(struct shash_desc *desc, const u8 *data,
-		       unsigned int len)
-{
-	struct sha1_state *sctx = shash_desc_ctx(desc);
-	unsigned int partial = sctx->count % SHA1_BLOCK_SIZE;
-
-	sctx->count += len;
-
-	if ((partial + len) >= SHA1_BLOCK_SIZE) {
-		int blocks;
-
-		if (partial) {
-			int p = SHA1_BLOCK_SIZE - partial;
-
-			memcpy(sctx->buffer + partial, data, p);
-			data += p;
-			len -= p;
-		}
-
-		blocks = len / SHA1_BLOCK_SIZE;
-		len %= SHA1_BLOCK_SIZE;
-
-		kernel_neon_begin_partial(16);
-		sha1_ce_transform(blocks, data, sctx->state,
-				  partial ? sctx->buffer : NULL, 0);
-		kernel_neon_end();
-
-		data += blocks * SHA1_BLOCK_SIZE;
-		partial = 0;
-	}
-	if (len)
-		memcpy(sctx->buffer + partial, data, len);
-	return 0;
-}
-
-static int sha1_final(struct shash_desc *desc, u8 *out)
-{
-	static const u8 padding[SHA1_BLOCK_SIZE] = { 0x80, };
-
-	struct sha1_state *sctx = shash_desc_ctx(desc);
-	__be64 bits = cpu_to_be64(sctx->count << 3);
-	__be32 *dst = (__be32 *)out;
-	int i;
-
-	u32 padlen = SHA1_BLOCK_SIZE
-		     - ((sctx->count + sizeof(bits)) % SHA1_BLOCK_SIZE);
-
-	sha1_update(desc, padding, padlen);
-	sha1_update(desc, (const u8 *)&bits, sizeof(bits));
-
-	for (i = 0; i < SHA1_DIGEST_SIZE / sizeof(__be32); i++)
-		put_unaligned_be32(sctx->state[i], dst++);
-
-	*sctx = (struct sha1_state){};
-	return 0;
-}
-
-static int sha1_finup(struct shash_desc *desc, const u8 *data,
-		      unsigned int len, u8 *out)
-{
-	struct sha1_state *sctx = shash_desc_ctx(desc);
-	__be32 *dst = (__be32 *)out;
-	int blocks;
-	int i;
-
-	if (sctx->count || !len || (len % SHA1_BLOCK_SIZE)) {
-		sha1_update(desc, data, len);
-		return sha1_final(desc, out);
-	}
-
-	/*
-	 * Use a fast path if the input is a multiple of 64 bytes. In
-	 * this case, there is no need to copy data around, and we can
-	 * perform the entire digest calculation in a single invocation
-	 * of sha1_ce_transform()
-	 */
-	blocks = len / SHA1_BLOCK_SIZE;
-
+	sctx->finalize = 0;
 	kernel_neon_begin_partial(16);
-	sha1_ce_transform(blocks, data, sctx->state, NULL, len);
+	sha1_base_do_update(desc, data, len,
+			    (sha1_block_fn *)sha1_ce_transform);
 	kernel_neon_end();
 
-	for (i = 0; i < SHA1_DIGEST_SIZE / sizeof(__be32); i++)
-		put_unaligned_be32(sctx->state[i], dst++);
-
-	*sctx = (struct sha1_state){};
 	return 0;
 }
 
-static int sha1_export(struct shash_desc *desc, void *out)
+static int sha1_ce_finup(struct shash_desc *desc, const u8 *data,
+			 unsigned int len, u8 *out)
 {
-	struct sha1_state *sctx = shash_desc_ctx(desc);
-	struct sha1_state *dst = out;
+	struct sha1_ce_state *sctx = shash_desc_ctx(desc);
+	bool finalize = !sctx->sst.count && !(len % SHA1_BLOCK_SIZE);
 
-	*dst = *sctx;
-	return 0;
+	ASM_EXPORT(sha1_ce_offsetof_count,
+		   offsetof(struct sha1_ce_state, sst.count));
+	ASM_EXPORT(sha1_ce_offsetof_finalize,
+		   offsetof(struct sha1_ce_state, finalize));
+
+	/*
+	 * Allow the asm code to perform the finalization if there is no
+	 * partial data and the input is a round multiple of the block size.
+	 */
+	sctx->finalize = finalize;
+
+	kernel_neon_begin_partial(16);
+	sha1_base_do_update(desc, data, len,
+			    (sha1_block_fn *)sha1_ce_transform);
+	if (!finalize)
+		sha1_base_do_finalize(desc, (sha1_block_fn *)sha1_ce_transform);
+	kernel_neon_end();
+	return sha1_base_finish(desc, out);
 }
 
-static int sha1_import(struct shash_desc *desc, const void *in)
+static int sha1_ce_final(struct shash_desc *desc, u8 *out)
 {
-	struct sha1_state *sctx = shash_desc_ctx(desc);
-	struct sha1_state const *src = in;
+	struct sha1_ce_state *sctx = shash_desc_ctx(desc);
 
-	*sctx = *src;
-	return 0;
+	sctx->finalize = 0;
+	kernel_neon_begin_partial(16);
+	sha1_base_do_finalize(desc, (sha1_block_fn *)sha1_ce_transform);
+	kernel_neon_end();
+	return sha1_base_finish(desc, out);
 }
 
 static struct shash_alg alg = {
-	.init			= sha1_init,
-	.update			= sha1_update,
-	.final			= sha1_final,
-	.finup			= sha1_finup,
-	.export			= sha1_export,
-	.import			= sha1_import,
-	.descsize		= sizeof(struct sha1_state),
+	.init			= sha1_base_init,
+	.update			= sha1_ce_update,
+	.final			= sha1_ce_final,
+	.finup			= sha1_ce_finup,
+	.descsize		= sizeof(struct sha1_ce_state),
 	.digestsize		= SHA1_DIGEST_SIZE,
-	.statesize		= sizeof(struct sha1_state),
 	.base			= {
 		.cra_name		= "sha1",
 		.cra_driver_name	= "sha1-ce",

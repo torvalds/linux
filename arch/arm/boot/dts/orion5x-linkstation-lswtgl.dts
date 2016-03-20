@@ -1,0 +1,304 @@
+/*
+ * Device Tree file for Buffalo Linkstation LS-WTGL
+ *
+ * Copyright (C) 2015, 2016
+ * Roger Shimizu <rogershimizu@gmail.com>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include "orion5x-mv88f5182.dtsi"
+
+/ {
+	model = "Buffalo Linkstation LS-WTGL";
+	compatible = "buffalo,lswtgl", "marvell,orion5x-88f5182", "marvell,orion5x";
+
+	memory { /* 64 MB */
+		device_type = "memory";
+		reg = <0x00000000 0x4000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		linux,stdout-path = &uart0;
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>,
+		         <MBUS_ID(0x09, 0x00) 0 0xf2200000 0x800>,
+			 <MBUS_ID(0x01, 0x0f) 0 0xf4000000 0x40000>;
+
+		internal-regs {
+			pinctrl: pinctrl@10000 {
+				pinctrl-names = "default";
+
+				pmx_led_power: pmx-leds {
+					marvell,pins = "mpp0";
+					marvell,function = "gpio";
+				};
+
+				pmx_led_alarm: pmx-leds {
+					marvell,pins = "mpp2";
+					marvell,function = "gpio";
+				};
+
+				pmx_led_info: pmx-leds {
+					marvell,pins = "mpp3";
+					marvell,function = "gpio";
+				};
+
+				pmx_power_hdd: pmx-power-hdd {
+					marvell,pins = "mpp1";
+					marvell,function = "gpio";
+				};
+
+				pmx_usb_power: pmx-usb-power {
+					marvell,pins = "mpp9";
+					marvell,function = "gpio";
+				};
+
+				pmx_sata0: pmx-sata0 {
+					marvell,pins = "mpp12";
+					marvell,function = "sata0";
+				};
+
+				pmx_sata1: pmx-sata1 {
+					marvell,pins = "mpp13";
+					marvell,function = "sata1";
+				};
+
+				pmx_fan_high: pmx-fan-high {
+					marvell,pins = "mpp14";
+					marvell,function = "gpio";
+				};
+
+				pmx_fan_low: pmx-fan-low {
+					marvell,pins = "mpp17";
+					marvell,function = "gpio";
+				};
+
+				pmx_fan_lock: pmx-fan-lock {
+					marvell,pins = "mpp6";
+					marvell,function = "gpio";
+				};
+
+				pmx_power_switch: pmx-power-switch {
+					marvell,pins = "mpp8", "mpp10";
+					marvell,function = "gpio";
+				};
+			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_power_switch>;
+		pinctrl-names = "default";
+
+		button@1 {
+			label = "Power-on Switch";
+			linux,code = <KEY_RESERVED>;
+			linux,input-type = <5>;
+			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
+		};
+
+		button@2 {
+			label = "Power-auto Switch";
+			linux,code = <KEY_ESC>;
+			linux,input-type = <5>;
+			gpios = <&gpio0 10 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio_leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_led_power &pmx_led_alarm
+			     &pmx_led_info>;
+		pinctrl-names = "default";
+
+		led@1 {
+			label = "lswtgl:blue:power";
+			gpios = <&gpio0 0 GPIO_ACTIVE_LOW>;
+			default-state = "keep";
+		};
+
+		led@2 {
+			label = "lswtgl:red:alarm";
+			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
+		};
+
+		led@3 {
+			label = "lswtgl:amber:info";
+			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio_fan {
+		compatible = "gpio-fan";
+		pinctrl-0 = <&pmx_fan_low &pmx_fan_high &pmx_fan_lock>;
+		pinctrl-names = "default";
+
+		gpios = <&gpio0 14 GPIO_ACTIVE_LOW
+			 &gpio0 17 GPIO_ACTIVE_LOW>;
+
+		gpio-fan,speed-map = <0 3
+				1500 2
+				3250 1
+				5000 0>;
+
+		alarm-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+	};
+
+	restart_poweroff {
+		compatible = "restart-poweroff";
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_power_hdd &pmx_usb_power>;
+		pinctrl-names = "default";
+
+		usb_power: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "USB Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpios = <&gpio0 9 GPIO_ACTIVE_HIGH>;
+		};
+
+		hdd_power: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "HDD Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&devbus_bootcs {
+	status = "okay";
+	devbus,keep-config;
+
+	flash@0 {
+		compatible = "jedec-flash";
+		reg = <0 0x40000>;
+		bank-width = <1>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			header@0 {
+				reg = <0 0x30000>;
+				read-only;
+			};
+
+			uboot@30000 {
+				reg = <0x30000 0xF000>;
+				read-only;
+			};
+
+			uboot_env@3F000 {
+				reg = <0x3F000 0x1000>;
+			};
+		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy: ethernet-phy {
+		reg = <8>;
+	};
+};
+
+&eth {
+	status = "okay";
+
+	ethernet-port@0 {
+		phy-handle = <&ethphy>;
+	};
+};
+
+&ehci0 {
+	status = "okay";
+};
+
+&i2c {
+	status = "okay";
+
+	rtc {
+		compatible = "ricoh,rs5c372a";
+		reg = <0x32>;
+	};
+};
+
+&wdt {
+	status = "disabled";
+};
+
+&sata {
+	pinctrl-0 = <&pmx_sata0 &pmx_sata1>;
+	pinctrl-names = "default";
+	status = "okay";
+	nr-ports = <2>;
+};
+
+&uart0 {
+	status = "okay";
+};

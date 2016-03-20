@@ -5,6 +5,7 @@
 <param name="funcsynopsis.tabular.threshold">80</param>
 <param name="callout.graphics">0</param>
 <!-- <param name="paper.type">A4</param> -->
+<param name="generate.consistent.ids">1</param>
 <param name="generate.section.toc.level">2</param>
 <param name="use.id.as.filename">1</param>
 </stylesheet>

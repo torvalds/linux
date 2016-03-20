@@ -391,7 +391,6 @@ static struct platform_driver cobalt_lcdfb_driver = {
 	.remove	= cobalt_lcdfb_remove,
 	.driver	= {
 		.name	= "cobalt-lcd",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(cobalt_lcdfb_driver);

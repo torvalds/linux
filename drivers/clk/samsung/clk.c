@@ -11,8 +11,16 @@
  * clock framework for Samsung platforms.
 */
 
+#include <linux/slab.h>
+#include <linux/clkdev.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
+#include <linux/of_address.h>
 #include <linux/syscore_ops.h>
+
 #include "clk.h"
+
+static LIST_HEAD(clock_reg_cache_list);
 
 void samsung_clk_save(void __iomem *base,
 				    struct samsung_clk_reg_dump *rd,
@@ -94,7 +102,7 @@ void samsung_clk_add_lookup(struct samsung_clk_provider *ctx, struct clk *clk,
 
 /* register a list of aliases */
 void __init samsung_clk_register_alias(struct samsung_clk_provider *ctx,
-				struct samsung_clock_alias *list,
+				const struct samsung_clock_alias *list,
 				unsigned int nr_clk)
 {
 	struct clk *clk;
@@ -128,7 +136,8 @@ void __init samsung_clk_register_alias(struct samsung_clk_provider *ctx,
 
 /* register a list of fixed clocks */
 void __init samsung_clk_register_fixed_rate(struct samsung_clk_provider *ctx,
-		struct samsung_fixed_rate_clock *list, unsigned int nr_clk)
+		const struct samsung_fixed_rate_clock *list,
+		unsigned int nr_clk)
 {
 	struct clk *clk;
 	unsigned int idx, ret;
@@ -157,7 +166,7 @@ void __init samsung_clk_register_fixed_rate(struct samsung_clk_provider *ctx,
 
 /* register a list of fixed factor clocks */
 void __init samsung_clk_register_fixed_factor(struct samsung_clk_provider *ctx,
-		struct samsung_fixed_factor_clock *list, unsigned int nr_clk)
+		const struct samsung_fixed_factor_clock *list, unsigned int nr_clk)
 {
 	struct clk *clk;
 	unsigned int idx;
@@ -177,7 +186,7 @@ void __init samsung_clk_register_fixed_factor(struct samsung_clk_provider *ctx,
 
 /* register a list of mux clocks */
 void __init samsung_clk_register_mux(struct samsung_clk_provider *ctx,
-				struct samsung_mux_clock *list,
+				const struct samsung_mux_clock *list,
 				unsigned int nr_clk)
 {
 	struct clk *clk;
@@ -209,7 +218,7 @@ void __init samsung_clk_register_mux(struct samsung_clk_provider *ctx,
 
 /* register a list of div clocks */
 void __init samsung_clk_register_div(struct samsung_clk_provider *ctx,
-				struct samsung_div_clock *list,
+				const struct samsung_div_clock *list,
 				unsigned int nr_clk)
 {
 	struct clk *clk;
@@ -248,7 +257,7 @@ void __init samsung_clk_register_div(struct samsung_clk_provider *ctx,
 
 /* register a list of gate clocks */
 void __init samsung_clk_register_gate(struct samsung_clk_provider *ctx,
-				struct samsung_gate_clock *list,
+				const struct samsung_gate_clock *list,
 				unsigned int nr_clk)
 {
 	struct clk *clk;
@@ -281,7 +290,6 @@ void __init samsung_clk_register_gate(struct samsung_clk_provider *ctx,
  * obtain the clock speed of all external fixed clock sources from device
  * tree and register it
  */
-#ifdef CONFIG_OF
 void __init samsung_clk_of_register_fixed_ext(struct samsung_clk_provider *ctx,
 			struct samsung_fixed_rate_clock *fixed_rate_clk,
 			unsigned int nr_fixed_rate_clk,
@@ -298,7 +306,6 @@ void __init samsung_clk_of_register_fixed_ext(struct samsung_clk_provider *ctx,
 	}
 	samsung_clk_register_fixed_rate(ctx, fixed_rate_clk, nr_fixed_rate_clk);
 }
-#endif
 
 /* utility function to get the rate of a specified clock */
 unsigned long _get_rate(const char *clk_name)
@@ -312,4 +319,107 @@ unsigned long _get_rate(const char *clk_name)
 	}
 
 	return clk_get_rate(clk);
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int samsung_clk_suspend(void)
+{
+	struct samsung_clock_reg_cache *reg_cache;
+
+	list_for_each_entry(reg_cache, &clock_reg_cache_list, node)
+		samsung_clk_save(reg_cache->reg_base, reg_cache->rdump,
+				reg_cache->rd_num);
+	return 0;
+}
+
+static void samsung_clk_resume(void)
+{
+	struct samsung_clock_reg_cache *reg_cache;
+
+	list_for_each_entry(reg_cache, &clock_reg_cache_list, node)
+		samsung_clk_restore(reg_cache->reg_base, reg_cache->rdump,
+				reg_cache->rd_num);
+}
+
+static struct syscore_ops samsung_clk_syscore_ops = {
+	.suspend = samsung_clk_suspend,
+	.resume = samsung_clk_resume,
+};
+
+static void samsung_clk_sleep_init(void __iomem *reg_base,
+		const unsigned long *rdump,
+		unsigned long nr_rdump)
+{
+	struct samsung_clock_reg_cache *reg_cache;
+
+	reg_cache = kzalloc(sizeof(struct samsung_clock_reg_cache),
+			GFP_KERNEL);
+	if (!reg_cache)
+		panic("could not allocate register reg_cache.\n");
+	reg_cache->rdump = samsung_clk_alloc_reg_dump(rdump, nr_rdump);
+
+	if (!reg_cache->rdump)
+		panic("could not allocate register dump storage.\n");
+
+	if (list_empty(&clock_reg_cache_list))
+		register_syscore_ops(&samsung_clk_syscore_ops);
+
+	reg_cache->reg_base = reg_base;
+	reg_cache->rd_num = nr_rdump;
+	list_add_tail(&reg_cache->node, &clock_reg_cache_list);
+}
+
+#else
+static void samsung_clk_sleep_init(void __iomem *reg_base,
+		const unsigned long *rdump,
+		unsigned long nr_rdump) {}
+#endif
+
+/*
+ * Common function which registers plls, muxes, dividers and gates
+ * for each CMU. It also add CMU register list to register cache.
+ */
+struct samsung_clk_provider * __init samsung_cmu_register_one(
+			struct device_node *np,
+			struct samsung_cmu_info *cmu)
+{
+	void __iomem *reg_base;
+	struct samsung_clk_provider *ctx;
+
+	reg_base = of_iomap(np, 0);
+	if (!reg_base) {
+		panic("%s: failed to map registers\n", __func__);
+		return NULL;
+	}
+
+	ctx = samsung_clk_init(np, reg_base, cmu->nr_clk_ids);
+	if (!ctx) {
+		panic("%s: unable to allocate ctx\n", __func__);
+		return ctx;
+	}
+
+	if (cmu->pll_clks)
+		samsung_clk_register_pll(ctx, cmu->pll_clks, cmu->nr_pll_clks,
+			reg_base);
+	if (cmu->mux_clks)
+		samsung_clk_register_mux(ctx, cmu->mux_clks,
+			cmu->nr_mux_clks);
+	if (cmu->div_clks)
+		samsung_clk_register_div(ctx, cmu->div_clks, cmu->nr_div_clks);
+	if (cmu->gate_clks)
+		samsung_clk_register_gate(ctx, cmu->gate_clks,
+			cmu->nr_gate_clks);
+	if (cmu->fixed_clks)
+		samsung_clk_register_fixed_rate(ctx, cmu->fixed_clks,
+			cmu->nr_fixed_clks);
+	if (cmu->fixed_factor_clks)
+		samsung_clk_register_fixed_factor(ctx, cmu->fixed_factor_clks,
+			cmu->nr_fixed_factor_clks);
+	if (cmu->clk_regs)
+		samsung_clk_sleep_init(reg_base, cmu->clk_regs,
+			cmu->nr_clk_regs);
+
+	samsung_clk_of_add_provider(np, ctx);
+
+	return ctx;
 }

@@ -45,7 +45,7 @@ int proc_get_write_reg(char *page, char **start,
 int proc_set_write_reg(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	char tmp[32];
 	u32 addr, val, len;
@@ -149,7 +149,7 @@ int proc_get_fwstate(char *page, char **start,
 {
 	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	int len = 0;
 
@@ -184,7 +184,7 @@ int proc_get_mlmext_state(char *page, char **start,
 	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 
 	int len = 0;
 
@@ -200,7 +200,7 @@ int proc_get_qos_option(char *page, char **start,
 {
 	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	int len = 0;
 
@@ -216,9 +216,10 @@ int proc_get_ht_option(char *page, char **start,
 {
 	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	int len = 0;
+
 	len += snprintf(page + len, count - len, "ht_option=%d\n", pmlmepriv->htpriv.ht_option);
 	*eof = 1;
 	return len;
@@ -246,9 +247,9 @@ int proc_get_ap_info(char *page, char **start,
 	struct sta_info *psta;
 	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	struct wlan_network *cur_network = &(pmlmepriv->cur_network);
+	struct wlan_network *cur_network = &pmlmepriv->cur_network;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	int len = 0;
 
@@ -577,7 +578,7 @@ int proc_get_rx_signal(char *page, char **start,
 int proc_set_rx_signal(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	char tmp[32];
 	u32 is_signal_dbg;
@@ -588,12 +589,12 @@ int proc_set_rx_signal(struct file *file, const char __user *buffer,
 
 	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
 		int num = sscanf(tmp, "%u %u", &is_signal_dbg, &signal_strength);
+
 		is_signal_dbg = is_signal_dbg == 0 ? 0 : 1;
 		if (is_signal_dbg && num != 2)
 			return count;
 
-		signal_strength = signal_strength > 100 ? 100 : signal_strength;
-		signal_strength = signal_strength < 0 ? 0 : signal_strength;
+		signal_strength = clamp(signal_strength, 0, 100);
 
 		padapter->recvpriv.is_signal_dbg = is_signal_dbg;
 		padapter->recvpriv.signal_strength_dbg = signal_strength;
@@ -627,7 +628,7 @@ int proc_get_ht_enable(char *page, char **start,
 int proc_set_ht_enable(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	char tmp[32];
@@ -669,7 +670,7 @@ int proc_get_cbw40_enable(char *page, char **start,
 int proc_set_cbw40_enable(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	char tmp[32];
@@ -710,7 +711,7 @@ int proc_get_ampdu_enable(char *page, char **start,
 int proc_set_ampdu_enable(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	char tmp[32];
@@ -771,7 +772,7 @@ int proc_get_rx_stbc(char *page, char **start,
 int proc_set_rx_stbc(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	char tmp[32];
@@ -800,7 +801,7 @@ int proc_get_rssi_disp(char *page, char **start,
 int proc_set_rssi_disp(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	char tmp[32];
 	u32 enable = 0;
@@ -850,7 +851,7 @@ int proc_get_all_sta_info(char *page, char **start,
 	spin_lock_bh(&pstapriv->sta_hash_lock);
 
 	for (i = 0; i < NUM_STA; i++) {
-		phead = &(pstapriv->sta_hash[i]);
+		phead = &pstapriv->sta_hash[i];
 		plist = phead->next;
 
 		while (phead != plist) {
@@ -917,7 +918,7 @@ int proc_get_best_channel(char *page, char **start,
 		/*  5G */
 		if (pmlmeext->channel_set[i].ChannelNum >= 36 &&
 		    pmlmeext->channel_set[i].ChannelNum < 140) {
-			 /*  Find primary channel */
+			/*  Find primary channel */
 			if (((pmlmeext->channel_set[i].ChannelNum - 36) % 8 == 0) &&
 			    (pmlmeext->channel_set[i].rx_count < pmlmeext->channel_set[index_5G].rx_count)) {
 				index_5G = i;
@@ -927,7 +928,7 @@ int proc_get_best_channel(char *page, char **start,
 
 		if (pmlmeext->channel_set[i].ChannelNum >= 149 &&
 		    pmlmeext->channel_set[i].ChannelNum < 165) {
-			 /*  find primary channel */
+			/*  find primary channel */
 			if (((pmlmeext->channel_set[i].ChannelNum - 149) % 8 == 0) &&
 			    (pmlmeext->channel_set[i].rx_count < pmlmeext->channel_set[index_5G].rx_count)) {
 				index_5G = i;

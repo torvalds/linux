@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <net/sock.h>
 #include <linux/if_vlan.h>
+#include <net/switchdev.h>
 
 #include "br_private.h"
 
@@ -35,10 +36,10 @@
  */
 static int port_cost(struct net_device *dev)
 {
-	struct ethtool_cmd ecmd;
+	struct ethtool_link_ksettings ecmd;
 
-	if (!__ethtool_get_settings(dev, &ecmd)) {
-		switch (ethtool_cmd_speed(&ecmd)) {
+	if (!__ethtool_get_link_ksettings(dev, &ecmd)) {
+		switch (ecmd.base.speed) {
 		case SPEED_10000:
 			return 2;
 		case SPEED_1000:
@@ -222,6 +223,31 @@ static void destroy_nbp_rcu(struct rcu_head *head)
 	destroy_nbp(p);
 }
 
+static unsigned get_max_headroom(struct net_bridge *br)
+{
+	unsigned max_headroom = 0;
+	struct net_bridge_port *p;
+
+	list_for_each_entry(p, &br->port_list, list) {
+		unsigned dev_headroom = netdev_get_fwd_headroom(p->dev);
+
+		if (dev_headroom > max_headroom)
+			max_headroom = dev_headroom;
+	}
+
+	return max_headroom;
+}
+
+static void update_headroom(struct net_bridge *br, int new_hr)
+{
+	struct net_bridge_port *p;
+
+	list_for_each_entry(p, &br->port_list, list)
+		netdev_set_rx_headroom(p->dev, new_hr);
+
+	br->dev->needed_headroom = new_hr;
+}
+
 /* Delete port(interface) from bridge is done in two steps.
  * via RCU. First step, marks device as down. That deletes
  * all the timers and stops new packets from flowing through.
@@ -247,16 +273,21 @@ static void del_nbp(struct net_bridge_port *p)
 	br_ifinfo_notify(RTM_DELLINK, p);
 
 	list_del_rcu(&p->list);
+	if (netdev_get_fwd_headroom(dev) == br->dev->needed_headroom)
+		update_headroom(br, get_max_headroom(br));
+	netdev_reset_rx_headroom(dev);
 
 	nbp_vlan_flush(p);
-	br_fdb_delete_by_port(br, p, 1);
+	br_fdb_delete_by_port(br, p, 0, 1);
+	switchdev_deferred_process();
+
 	nbp_update_port_count(br);
+
+	netdev_upper_dev_unlink(dev, br->dev);
 
 	dev->priv_flags &= ~IFF_BRIDGE_PORT;
 
 	netdev_rx_handler_unregister(dev);
-
-	netdev_upper_dev_unlink(dev, br->dev);
 
 	br_multicast_del_port(p);
 
@@ -278,9 +309,10 @@ void br_dev_delete(struct net_device *dev, struct list_head *head)
 		del_nbp(p);
 	}
 
-	br_fdb_delete_by_port(br, NULL, 1);
+	br_fdb_delete_by_port(br, NULL, 0, 1);
 
 	br_vlan_flush(br);
+	br_multicast_dev_del(br);
 	del_timer_sync(&br->gc_timer);
 
 	br_sysfs_delbr(br->dev);
@@ -332,7 +364,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	p->port_no = index;
 	p->flags = BR_LEARNING | BR_FLOOD;
 	br_init_port(p);
-	p->state = BR_STATE_DISABLED;
+	br_set_state(p, BR_STATE_DISABLED);
 	br_stp_port_timer_init(p);
 	br_multicast_add_port(p);
 
@@ -424,6 +456,7 @@ netdev_features_t br_features_recompute(struct net_bridge *br,
 		features = netdev_increment_features(features,
 						     p->dev->features, mask);
 	}
+	features = netdev_add_tso_features(features, mask);
 
 	return features;
 }
@@ -433,12 +466,19 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 {
 	struct net_bridge_port *p;
 	int err = 0;
+	unsigned br_hr, dev_hr;
 	bool changed_addr;
 
-	/* Don't allow bridging non-ethernet like devices */
+	/* Don't allow bridging non-ethernet like devices, or DSA-enabled
+	 * master network devices since the bridge layer rx_handler prevents
+	 * the DSA fake ethertype handler to be invoked, so we do not strip off
+	 * the DSA switch tag protocol header and the bridge layer just return
+	 * RX_HANDLER_CONSUMED, stopping RX processing for these frames.
+	 */
 	if ((dev->flags & IFF_LOOPBACK) ||
 	    dev->type != ARPHRD_ETHER || dev->addr_len != ETH_ALEN ||
-	    !is_valid_ether_addr(dev->dev_addr))
+	    !is_valid_ether_addr(dev->dev_addr) ||
+	    netdev_uses_dsa(dev))
 		return -EINVAL;
 
 	/* No bridging of bridges */
@@ -476,15 +516,15 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (err)
 		goto err3;
 
-	err = netdev_master_upper_dev_link(dev, br->dev);
+	err = netdev_rx_handler_register(dev, br_handle_frame, p);
 	if (err)
 		goto err4;
 
-	err = netdev_rx_handler_register(dev, br_handle_frame, p);
+	dev->priv_flags |= IFF_BRIDGE_PORT;
+
+	err = netdev_master_upper_dev_link(dev, br->dev, NULL, NULL);
 	if (err)
 		goto err5;
-
-	dev->priv_flags |= IFF_BRIDGE_PORT;
 
 	dev_disable_lro(dev);
 
@@ -494,11 +534,21 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	netdev_update_features(br->dev);
 
-	if (br->dev->needed_headroom < dev->needed_headroom)
-		br->dev->needed_headroom = dev->needed_headroom;
+	br_hr = br->dev->needed_headroom;
+	dev_hr = netdev_get_fwd_headroom(dev);
+	if (br_hr < dev_hr)
+		update_headroom(br, dev_hr);
+	else
+		netdev_set_rx_headroom(dev, br_hr);
 
 	if (br_fdb_insert(br, p, dev->dev_addr, 0))
 		netdev_err(dev, "failed insert local address bridge forwarding table\n");
+
+	err = nbp_vlan_init(p);
+	if (err) {
+		netdev_err(dev, "failed to initialize vlan filtering on this port\n");
+		goto err6;
+	}
 
 	spin_lock_bh(&br->lock);
 	changed_addr = br_stp_recalculate_bridge_id(br);
@@ -519,8 +569,15 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	return 0;
 
-err5:
+err6:
+	list_del_rcu(&p->list);
+	br_fdb_delete_by_port(br, p, 0, 1);
+	nbp_update_port_count(br);
 	netdev_upper_dev_unlink(dev, br->dev);
+
+err5:
+	dev->priv_flags &= ~IFF_BRIDGE_PORT;
+	netdev_rx_handler_unregister(dev);
 err4:
 	br_netpoll_disable(p);
 err3:
@@ -551,6 +608,8 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	 * therefore there is no reason for a NETDEV_RELEASE event.
 	 */
 	del_nbp(p);
+
+	dev_set_mtu(br->dev, br_min_mtu(br));
 
 	spin_lock_bh(&br->lock);
 	changed_addr = br_stp_recalculate_bridge_id(br);

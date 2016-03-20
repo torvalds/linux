@@ -62,11 +62,13 @@
 enum {
 	DYNMEM_PROTOCOL_VERSION_1 = DYNMEM_MAKE_VERSION(0, 3),
 	DYNMEM_PROTOCOL_VERSION_2 = DYNMEM_MAKE_VERSION(1, 0),
+	DYNMEM_PROTOCOL_VERSION_3 = DYNMEM_MAKE_VERSION(2, 0),
 
 	DYNMEM_PROTOCOL_VERSION_WIN7 = DYNMEM_PROTOCOL_VERSION_1,
 	DYNMEM_PROTOCOL_VERSION_WIN8 = DYNMEM_PROTOCOL_VERSION_2,
+	DYNMEM_PROTOCOL_VERSION_WIN10 = DYNMEM_PROTOCOL_VERSION_3,
 
-	DYNMEM_PROTOCOL_VERSION_CURRENT = DYNMEM_PROTOCOL_VERSION_WIN8
+	DYNMEM_PROTOCOL_VERSION_CURRENT = DYNMEM_PROTOCOL_VERSION_WIN10
 };
 
 
@@ -428,14 +430,13 @@ struct dm_info_msg {
  * currently hot added. We hot add in multiples of 128M
  * chunks; it is possible that we may not be able to bring
  * online all the pages in the region. The range
- * covered_start_pfn : covered_end_pfn defines the pages that can
+ * covered_end_pfn defines the pages that can
  * be brough online.
  */
 
 struct hv_hotadd_state {
 	struct list_head list;
 	unsigned long start_pfn;
-	unsigned long covered_start_pfn;
 	unsigned long covered_end_pfn;
 	unsigned long ha_end_pfn;
 	unsigned long end_pfn;
@@ -503,6 +504,8 @@ struct hv_dynmem_device {
 	 * Number of pages we have currently ballooned out.
 	 */
 	unsigned int num_pages_ballooned;
+	unsigned int num_pages_onlined;
+	unsigned int num_pages_added;
 
 	/*
 	 * State to manage the ballooning (up) operation.
@@ -533,6 +536,8 @@ struct hv_dynmem_device {
 	 */
 	struct task_struct *thread;
 
+	struct mutex ha_region_mutex;
+
 	/*
 	 * A list of hot-add regions.
 	 */
@@ -549,7 +554,47 @@ struct hv_dynmem_device {
 static struct hv_dynmem_device dm_device;
 
 static void post_status(struct hv_dynmem_device *dm);
+
 #ifdef CONFIG_MEMORY_HOTPLUG
+static int hv_memory_notifier(struct notifier_block *nb, unsigned long val,
+			      void *v)
+{
+	struct memory_notify *mem = (struct memory_notify *)v;
+
+	switch (val) {
+	case MEM_GOING_ONLINE:
+		mutex_lock(&dm_device.ha_region_mutex);
+		break;
+
+	case MEM_ONLINE:
+		dm_device.num_pages_onlined += mem->nr_pages;
+	case MEM_CANCEL_ONLINE:
+		if (val == MEM_ONLINE ||
+		    mutex_is_locked(&dm_device.ha_region_mutex))
+			mutex_unlock(&dm_device.ha_region_mutex);
+		if (dm_device.ha_waiting) {
+			dm_device.ha_waiting = false;
+			complete(&dm_device.ol_waitevent);
+		}
+		break;
+
+	case MEM_OFFLINE:
+		mutex_lock(&dm_device.ha_region_mutex);
+		dm_device.num_pages_onlined -= mem->nr_pages;
+		mutex_unlock(&dm_device.ha_region_mutex);
+		break;
+	case MEM_GOING_OFFLINE:
+	case MEM_CANCEL_OFFLINE:
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block hv_memory_nb = {
+	.notifier_call = hv_memory_notifier,
+	.priority = 0
+};
+
 
 static void hv_bring_pgs_online(unsigned long start_pfn, unsigned long size)
 {
@@ -591,6 +636,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 		init_completion(&dm_device.ol_waitevent);
 		dm_device.ha_waiting = true;
 
+		mutex_unlock(&dm_device.ha_region_mutex);
 		nid = memory_add_physaddr_to_nid(PFN_PHYS(start_pfn));
 		ret = add_memory(nid, PFN_PHYS((start_pfn)),
 				(HA_CHUNK << PAGE_SHIFT));
@@ -609,6 +655,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 			}
 			has->ha_end_pfn -= HA_CHUNK;
 			has->covered_end_pfn -=  processed_pfn;
+			mutex_lock(&dm_device.ha_region_mutex);
 			break;
 		}
 
@@ -619,6 +666,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 		 * have not been "onlined" within the allowed time.
 		 */
 		wait_for_completion_timeout(&dm_device.ol_waitevent, 5*HZ);
+		mutex_lock(&dm_device.ha_region_mutex);
 		post_status(&dm_device);
 	}
 
@@ -632,15 +680,9 @@ static void hv_online_page(struct page *pg)
 	unsigned long cur_start_pgp;
 	unsigned long cur_end_pgp;
 
-	if (dm_device.ha_waiting) {
-		dm_device.ha_waiting = false;
-		complete(&dm_device.ol_waitevent);
-	}
-
 	list_for_each(cur, &dm_device.ha_region_list) {
 		has = list_entry(cur, struct hv_hotadd_state, list);
-		cur_start_pgp = (unsigned long)
-				pfn_to_page(has->covered_start_pfn);
+		cur_start_pgp = (unsigned long)pfn_to_page(has->start_pfn);
 		cur_end_pgp = (unsigned long)pfn_to_page(has->covered_end_pfn);
 
 		if (((unsigned long)pg >= cur_start_pgp) &&
@@ -652,7 +694,6 @@ static void hv_online_page(struct page *pg)
 			__online_page_set_limits(pg);
 			__online_page_increment_counters(pg);
 			__online_page_free(pg);
-			has->covered_start_pfn++;
 		}
 	}
 }
@@ -696,10 +737,9 @@ static bool pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
 		 * is, update it.
 		 */
 
-		if (has->covered_end_pfn != start_pfn) {
+		if (has->covered_end_pfn != start_pfn)
 			has->covered_end_pfn = start_pfn;
-			has->covered_start_pfn = start_pfn;
-		}
+
 		return true;
 
 	}
@@ -742,9 +782,18 @@ static unsigned long handle_pg_range(unsigned long pg_start,
 			pgs_ol = has->ha_end_pfn - start_pfn;
 			if (pgs_ol > pfn_cnt)
 				pgs_ol = pfn_cnt;
-			hv_bring_pgs_online(start_pfn, pgs_ol);
+
+			/*
+			 * Check if the corresponding memory block is already
+			 * online by checking its last previously backed page.
+			 * In case it is we need to bring rest (which was not
+			 * backed previously) online too.
+			 */
+			if (start_pfn > has->start_pfn &&
+			    !PageReserved(pfn_to_page(start_pfn - 1)))
+				hv_bring_pgs_online(start_pfn, pgs_ol);
+
 			has->covered_end_pfn +=  pgs_ol;
-			has->covered_start_pfn +=  pgs_ol;
 			pfn_cnt -= pgs_ol;
 		}
 
@@ -805,7 +854,6 @@ static unsigned long process_hot_add(unsigned long pg_start,
 		list_add_tail(&ha_region->list, &dm_device.ha_region_list);
 		ha_region->start_pfn = rg_start;
 		ha_region->ha_end_pfn = rg_start;
-		ha_region->covered_start_pfn = pg_start;
 		ha_region->covered_end_pfn = pg_start;
 		ha_region->end_pfn = rg_start + rg_size;
 	}
@@ -834,6 +882,7 @@ static void hot_add_req(struct work_struct *dummy)
 	resp.hdr.size = sizeof(struct dm_hot_add_response);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
+	mutex_lock(&dm_device.ha_region_mutex);
 	pg_start = dm->ha_wrk.ha_page_range.finfo.start_page;
 	pfn_cnt = dm->ha_wrk.ha_page_range.finfo.page_cnt;
 
@@ -865,6 +914,9 @@ static void hot_add_req(struct work_struct *dummy)
 	if (do_hot_add)
 		resp.page_count = process_hot_add(pg_start, pfn_cnt,
 						rg_start, rg_sz);
+
+	dm->num_pages_added += resp.page_count;
+	mutex_unlock(&dm_device.ha_region_mutex);
 #endif
 	/*
 	 * The result field of the response structure has the
@@ -928,9 +980,8 @@ static unsigned long compute_balloon_floor(void)
 	 *     128        72    (1/2)
 	 *     512       168    (1/4)
 	 *    2048       360    (1/8)
-	 *    8192       552    (1/32)
-	 *   32768      1320
-	 *  131072      4392
+	 *    8192       744    (1/16)
+	 *   32768      1512	(1/32)
 	 */
 	if (totalram_pages < MB2PAGES(128))
 		min_pages = MB2PAGES(8) + (totalram_pages >> 1);
@@ -938,8 +989,10 @@ static unsigned long compute_balloon_floor(void)
 		min_pages = MB2PAGES(40) + (totalram_pages >> 2);
 	else if (totalram_pages < MB2PAGES(2048))
 		min_pages = MB2PAGES(104) + (totalram_pages >> 3);
+	else if (totalram_pages < MB2PAGES(8192))
+		min_pages = MB2PAGES(232) + (totalram_pages >> 4);
 	else
-		min_pages = MB2PAGES(296) + (totalram_pages >> 5);
+		min_pages = MB2PAGES(488) + (totalram_pages >> 5);
 #undef MB2PAGES
 	return min_pages;
 }
@@ -976,17 +1029,21 @@ static void post_status(struct hv_dynmem_device *dm)
 	status.hdr.trans_id = atomic_inc_return(&trans_id);
 
 	/*
-	 * The host expects the guest to report free memory.
-	 * Further, the host expects the pressure information to
-	 * include the ballooned out pages.
-	 * For a given amount of memory that we are managing, we
-	 * need to compute a floor below which we should not balloon.
-	 * Compute this and add it to the pressure report.
+	 * The host expects the guest to report free and committed memory.
+	 * Furthermore, the host expects the pressure information to include
+	 * the ballooned out pages. For a given amount of memory that we are
+	 * managing we need to compute a floor below which we should not
+	 * balloon. Compute this and add it to the pressure report.
+	 * We also need to report all offline pages (num_pages_added -
+	 * num_pages_onlined) as committed to the host, otherwise it can try
+	 * asking us to balloon them out.
 	 */
 	status.num_avail = val.freeram;
 	status.num_committed = vm_memory_committed() +
-				dm->num_pages_ballooned +
-				compute_balloon_floor();
+		dm->num_pages_ballooned +
+		(dm->num_pages_added > dm->num_pages_onlined ?
+		 dm->num_pages_added - dm->num_pages_onlined : 0) +
+		compute_balloon_floor();
 
 	/*
 	 * If our transaction ID is no longer current, just don't
@@ -1028,11 +1085,12 @@ static void free_balloon_pages(struct hv_dynmem_device *dm,
 
 
 
-static int  alloc_balloon_pages(struct hv_dynmem_device *dm, int num_pages,
-			 struct dm_balloon_response *bl_resp, int alloc_unit,
-			 bool *alloc_error)
+static unsigned int alloc_balloon_pages(struct hv_dynmem_device *dm,
+					unsigned int num_pages,
+					struct dm_balloon_response *bl_resp,
+					int alloc_unit)
 {
-	int i = 0;
+	unsigned int i = 0;
 	struct page *pg;
 
 	if (num_pages < alloc_unit)
@@ -1051,11 +1109,8 @@ static int  alloc_balloon_pages(struct hv_dynmem_device *dm, int num_pages,
 				__GFP_NOMEMALLOC | __GFP_NOWARN,
 				get_order(alloc_unit << PAGE_SHIFT));
 
-		if (!pg) {
-			*alloc_error = true;
+		if (!pg)
 			return i * alloc_unit;
-		}
-
 
 		dm->num_pages_ballooned += alloc_unit;
 
@@ -1082,21 +1137,33 @@ static int  alloc_balloon_pages(struct hv_dynmem_device *dm, int num_pages,
 
 static void balloon_up(struct work_struct *dummy)
 {
-	int num_pages = dm_device.balloon_wrk.num_pages;
-	int num_ballooned = 0;
+	unsigned int num_pages = dm_device.balloon_wrk.num_pages;
+	unsigned int num_ballooned = 0;
 	struct dm_balloon_response *bl_resp;
 	int alloc_unit;
 	int ret;
-	bool alloc_error = false;
 	bool done = false;
 	int i;
+	struct sysinfo val;
+	unsigned long floor;
 
+	/* The host balloons pages in 2M granularity. */
+	WARN_ON_ONCE(num_pages % PAGES_IN_2M != 0);
 
 	/*
 	 * We will attempt 2M allocations. However, if we fail to
 	 * allocate 2M chunks, we will go back to 4k allocations.
 	 */
 	alloc_unit = 512;
+
+	si_meminfo(&val);
+	floor = compute_balloon_floor();
+
+	/* Refuse to balloon below the floor, keep the 2M granularity. */
+	if (val.freeram < num_pages || val.freeram - num_pages < floor) {
+		num_pages = val.freeram > floor ? (val.freeram - floor) : 0;
+		num_pages -= num_pages % PAGES_IN_2M;
+	}
 
 	while (!done) {
 		bl_resp = (struct dm_balloon_response *)send_buffer;
@@ -1108,15 +1175,14 @@ static void balloon_up(struct work_struct *dummy)
 
 		num_pages -= num_ballooned;
 		num_ballooned = alloc_balloon_pages(&dm_device, num_pages,
-						bl_resp, alloc_unit,
-						 &alloc_error);
+						    bl_resp, alloc_unit);
 
-		if ((alloc_error) && (alloc_unit != 1)) {
+		if (alloc_unit != 1 && num_ballooned == 0) {
 			alloc_unit = 1;
 			continue;
 		}
 
-		if ((alloc_error) || (num_ballooned == num_pages)) {
+		if (num_ballooned == 0 || num_ballooned == num_pages) {
 			bl_resp->more_pages = 0;
 			done = true;
 			dm_device.state = DM_INITIALIZED;
@@ -1167,7 +1233,7 @@ static void balloon_down(struct hv_dynmem_device *dm,
 
 	for (i = 0; i < range_count; i++) {
 		free_balloon_pages(dm, &range_array[i]);
-		post_status(&dm_device);
+		complete(&dm_device.config_event);
 	}
 
 	if (req->more_pages == 1)
@@ -1191,19 +1257,16 @@ static void balloon_onchannelcallback(void *context);
 static int dm_thread_func(void *dm_dev)
 {
 	struct hv_dynmem_device *dm = dm_dev;
-	int t;
 
 	while (!kthread_should_stop()) {
-		t = wait_for_completion_interruptible_timeout(
+		wait_for_completion_interruptible_timeout(
 						&dm_device.config_event, 1*HZ);
 		/*
 		 * The host expects us to post information on the memory
 		 * pressure every second.
 		 */
-
-		if (t == 0)
-			post_status(dm);
-
+		reinit_completion(&dm_device.config_event);
+		post_status(dm);
 	}
 
 	return 0;
@@ -1235,13 +1298,25 @@ static void version_resp(struct hv_dynmem_device *dm,
 	if (dm->next_version == 0)
 		goto version_error;
 
-	dm->next_version = 0;
 	memset(&version_req, 0, sizeof(struct dm_version_request));
 	version_req.hdr.type = DM_VERSION_REQUEST;
 	version_req.hdr.size = sizeof(struct dm_version_request);
 	version_req.hdr.trans_id = atomic_inc_return(&trans_id);
-	version_req.version.version = DYNMEM_PROTOCOL_VERSION_WIN7;
-	version_req.is_last_attempt = 1;
+	version_req.version.version = dm->next_version;
+
+	/*
+	 * Set the next version to try in case current version fails.
+	 * Win7 protocol ought to be the last one to try.
+	 */
+	switch (version_req.version.version) {
+	case DYNMEM_PROTOCOL_VERSION_WIN8:
+		dm->next_version = DYNMEM_PROTOCOL_VERSION_WIN7;
+		version_req.is_last_attempt = 0;
+		break;
+	default:
+		dm->next_version = 0;
+		version_req.is_last_attempt = 1;
+	}
 
 	ret = vmbus_sendpacket(dm->dev->channel, &version_req,
 				sizeof(struct dm_version_request),
@@ -1358,7 +1433,8 @@ static void balloon_onchannelcallback(void *context)
 static int balloon_probe(struct hv_device *dev,
 			const struct hv_vmbus_device_id *dev_id)
 {
-	int ret, t;
+	int ret;
+	unsigned long t;
 	struct dm_version_request version_req;
 	struct dm_capabilities cap_msg;
 
@@ -1380,10 +1456,11 @@ static int balloon_probe(struct hv_device *dev,
 
 	dm_device.dev = dev;
 	dm_device.state = DM_INITIALIZING;
-	dm_device.next_version = DYNMEM_PROTOCOL_VERSION_WIN7;
+	dm_device.next_version = DYNMEM_PROTOCOL_VERSION_WIN8;
 	init_completion(&dm_device.host_event);
 	init_completion(&dm_device.config_event);
 	INIT_LIST_HEAD(&dm_device.ha_region_list);
+	mutex_init(&dm_device.ha_region_mutex);
 	INIT_WORK(&dm_device.balloon_wrk.wrk, balloon_up);
 	INIT_WORK(&dm_device.ha_wrk.wrk, hot_add_req);
 	dm_device.host_specified_ha_region = false;
@@ -1397,6 +1474,7 @@ static int balloon_probe(struct hv_device *dev,
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 	set_online_page_callback(&hv_online_page);
+	register_memory_notifier(&hv_memory_nb);
 #endif
 
 	hv_set_drvdata(dev, &dm_device);
@@ -1410,7 +1488,7 @@ static int balloon_probe(struct hv_device *dev,
 	version_req.hdr.type = DM_VERSION_REQUEST;
 	version_req.hdr.size = sizeof(struct dm_version_request);
 	version_req.hdr.trans_id = atomic_inc_return(&trans_id);
-	version_req.version.version = DYNMEM_PROTOCOL_VERSION_WIN8;
+	version_req.version.version = DYNMEM_PROTOCOL_VERSION_WIN10;
 	version_req.is_last_attempt = 0;
 
 	ret = vmbus_sendpacket(dev->channel, &version_req,
@@ -1515,6 +1593,7 @@ static int balloon_remove(struct hv_device *dev)
 	kfree(send_buffer);
 #ifdef CONFIG_MEMORY_HOTPLUG
 	restore_online_page_callback(&hv_online_page);
+	unregister_memory_notifier(&hv_memory_nb);
 #endif
 	list_for_each_safe(cur, tmp, &dm->ha_region_list) {
 		has = list_entry(cur, struct hv_hotadd_state, list);

@@ -31,21 +31,21 @@
 	dev_dbg(&asrc_priv->pdev->dev, "Pair %c: " fmt, 'A' + index, ##__VA_ARGS__)
 
 /* Sample rates are aligned with that defined in pcm.h file */
-static const u8 process_option[][8][2] = {
-	/* 32kHz 44.1kHz 48kHz   64kHz   88.2kHz 96kHz   176kHz  192kHz */
-	{{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},},	/* 5512Hz */
-	{{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},},	/* 8kHz */
-	{{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},},	/* 11025Hz */
-	{{0, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},},	/* 16kHz */
-	{{0, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},},	/* 22050Hz */
-	{{0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0}, {0, 0},},	/* 32kHz */
-	{{0, 2}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0},},	/* 44.1kHz */
-	{{0, 2}, {0, 2}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0},},	/* 48kHz */
-	{{1, 2}, {0, 2}, {0, 2}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 0},},	/* 64kHz */
-	{{1, 2}, {1, 2}, {1, 2}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1},},	/* 88.2kHz */
-	{{1, 2}, {1, 2}, {1, 2}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1},},	/* 96kHz */
-	{{2, 2}, {2, 2}, {2, 2}, {2, 1}, {2, 1}, {2, 1}, {2, 1}, {2, 1},},	/* 176kHz */
-	{{2, 2}, {2, 2}, {2, 2}, {2, 1}, {2, 1}, {2, 1}, {2, 1}, {2, 1},},	/* 192kHz */
+static const u8 process_option[][12][2] = {
+	/* 8kHz 11.025kHz 16kHz 22.05kHz 32kHz 44.1kHz 48kHz   64kHz   88.2kHz 96kHz   176kHz  192kHz */
+	{{0, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},},	/* 5512Hz */
+	{{0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},},	/* 8kHz */
+	{{0, 2}, {0, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},},	/* 11025Hz */
+	{{1, 2}, {0, 2}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},},	/* 16kHz */
+	{{1, 2}, {1, 2}, {0, 2}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},},	/* 22050Hz */
+	{{1, 2}, {2, 1}, {2, 1}, {0, 2}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0}, {0, 0},},	/* 32kHz */
+	{{2, 2}, {2, 2}, {2, 1}, {2, 1}, {0, 2}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0},},	/* 44.1kHz */
+	{{2, 2}, {2, 2}, {2, 1}, {2, 1}, {0, 2}, {0, 2}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0},},	/* 48kHz */
+	{{2, 2}, {2, 2}, {2, 2}, {2, 1}, {1, 2}, {0, 2}, {0, 2}, {0, 1}, {0, 1}, {0, 1}, {0, 1}, {0, 0},},	/* 64kHz */
+	{{2, 2}, {2, 2}, {2, 2}, {2, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1},},	/* 88.2kHz */
+	{{2, 2}, {2, 2}, {2, 2}, {2, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1},},	/* 96kHz */
+	{{2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 1}, {2, 1}, {2, 1}, {2, 1}, {2, 1},},	/* 176kHz */
+	{{2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 1}, {2, 1}, {2, 1}, {2, 1}, {2, 1},},	/* 192kHz */
 };
 
 /* Corresponding to process_option */
@@ -55,7 +55,7 @@ static int supported_input_rate[] = {
 };
 
 static int supported_asrc_rate[] = {
-	32000, 44100, 48000, 64000, 88200, 96000, 176400, 192000,
+	8000, 11025, 16000, 22050, 32000, 44100, 48000, 64000, 88200, 96000, 176400, 192000,
 };
 
 /**
@@ -286,6 +286,13 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair)
 		return -EINVAL;
 	}
 
+	if ((outrate > 8000 && outrate < 30000) &&
+	    (outrate/inrate > 24 || inrate/outrate > 8)) {
+		pair_err("exceed supported ratio range [1/24, 8] for \
+				inrate/outrate: %d/%d\n", inrate, outrate);
+		return -EINVAL;
+	}
+
 	/* Validate input and output clock sources */
 	clk_index[IN] = clk_map[IN][config->inclk];
 	clk_index[OUT] = clk_map[OUT][config->outclk];
@@ -447,7 +454,7 @@ static int fsl_asrc_dai_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
 	struct fsl_asrc *asrc_priv = snd_soc_dai_get_drvdata(dai);
-	int width = snd_pcm_format_width(params_format(params));
+	int width = params_width(params);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_asrc_pair *pair = runtime->private_data;
 	unsigned int channels = params_channels(params);
@@ -684,12 +691,38 @@ static bool fsl_asrc_writeable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config fsl_asrc_regmap_config = {
+static struct reg_default fsl_asrc_reg[] = {
+	{ REG_ASRCTR, 0x0000 }, { REG_ASRIER, 0x0000 },
+	{ REG_ASRCNCR, 0x0000 }, { REG_ASRCFG, 0x0000 },
+	{ REG_ASRCSR, 0x0000 }, { REG_ASRCDR1, 0x0000 },
+	{ REG_ASRCDR2, 0x0000 }, { REG_ASRSTR, 0x0000 },
+	{ REG_ASRRA, 0x0000 }, { REG_ASRRB, 0x0000 },
+	{ REG_ASRRC, 0x0000 }, { REG_ASRPM1, 0x0000 },
+	{ REG_ASRPM2, 0x0000 }, { REG_ASRPM3, 0x0000 },
+	{ REG_ASRPM4, 0x0000 }, { REG_ASRPM5, 0x0000 },
+	{ REG_ASRTFR1, 0x0000 }, { REG_ASRCCR, 0x0000 },
+	{ REG_ASRDIA, 0x0000 }, { REG_ASRDOA, 0x0000 },
+	{ REG_ASRDIB, 0x0000 }, { REG_ASRDOB, 0x0000 },
+	{ REG_ASRDIC, 0x0000 }, { REG_ASRDOC, 0x0000 },
+	{ REG_ASRIDRHA, 0x0000 }, { REG_ASRIDRLA, 0x0000 },
+	{ REG_ASRIDRHB, 0x0000 }, { REG_ASRIDRLB, 0x0000 },
+	{ REG_ASRIDRHC, 0x0000 }, { REG_ASRIDRLC, 0x0000 },
+	{ REG_ASR76K, 0x0A47 }, { REG_ASR56K, 0x0DF3 },
+	{ REG_ASRMCRA, 0x0000 }, { REG_ASRFSTA, 0x0000 },
+	{ REG_ASRMCRB, 0x0000 }, { REG_ASRFSTB, 0x0000 },
+	{ REG_ASRMCRC, 0x0000 }, { REG_ASRFSTC, 0x0000 },
+	{ REG_ASRMCR1A, 0x0000 }, { REG_ASRMCR1B, 0x0000 },
+	{ REG_ASRMCR1C, 0x0000 },
+};
+
+static const struct regmap_config fsl_asrc_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
 
 	.max_register = REG_ASRMCR1C,
+	.reg_defaults = fsl_asrc_reg,
+	.num_reg_defaults = ARRAY_SIZE(fsl_asrc_reg),
 	.readable_reg = fsl_asrc_readable_reg,
 	.volatile_reg = fsl_asrc_volatile_reg,
 	.writeable_reg = fsl_asrc_writeable_reg,
@@ -792,7 +825,6 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	asrc_priv->pdev = pdev;
-	strcpy(asrc_priv->name, np->name);
 
 	/* Get the addresses and IRQ */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -801,10 +833,6 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 		return PTR_ERR(regs);
 
 	asrc_priv->paddr = res->start;
-
-	/* Register regmap and let it prepare core clock */
-	if (of_property_read_bool(np, "big-endian"))
-		fsl_asrc_regmap_config.val_format_endian = REGMAP_ENDIAN_BIG;
 
 	asrc_priv->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "mem", regs,
 						      &fsl_asrc_regmap_config);
@@ -815,12 +843,12 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "no irq for node %s\n", np->full_name);
+		dev_err(&pdev->dev, "no irq for node %s\n", pdev->name);
 		return irq;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, fsl_asrc_isr, 0,
-			       asrc_priv->name, asrc_priv);
+			       dev_name(&pdev->dev), asrc_priv);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to claim irq %u: %d\n", irq, ret);
 		return ret;
@@ -837,6 +865,10 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get ipg clock\n");
 		return PTR_ERR(asrc_priv->ipg_clk);
 	}
+
+	asrc_priv->spba_clk = devm_clk_get(&pdev->dev, "spba");
+	if (IS_ERR(asrc_priv->spba_clk))
+		dev_warn(&pdev->dev, "failed to get spba clock\n");
 
 	for (i = 0; i < ASRC_CLK_MAX_NUM; i++) {
 		sprintf(tmp, "asrck_%x", i);
@@ -906,18 +938,41 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int fsl_asrc_runtime_resume(struct device *dev)
 {
 	struct fsl_asrc *asrc_priv = dev_get_drvdata(dev);
-	int i;
+	int i, ret;
 
-	clk_prepare_enable(asrc_priv->mem_clk);
-	clk_prepare_enable(asrc_priv->ipg_clk);
-	for (i = 0; i < ASRC_CLK_MAX_NUM; i++)
-		clk_prepare_enable(asrc_priv->asrck_clk[i]);
+	ret = clk_prepare_enable(asrc_priv->mem_clk);
+	if (ret)
+		return ret;
+	ret = clk_prepare_enable(asrc_priv->ipg_clk);
+	if (ret)
+		goto disable_mem_clk;
+	if (!IS_ERR(asrc_priv->spba_clk)) {
+		ret = clk_prepare_enable(asrc_priv->spba_clk);
+		if (ret)
+			goto disable_ipg_clk;
+	}
+	for (i = 0; i < ASRC_CLK_MAX_NUM; i++) {
+		ret = clk_prepare_enable(asrc_priv->asrck_clk[i]);
+		if (ret)
+			goto disable_asrck_clk;
+	}
 
 	return 0;
+
+disable_asrck_clk:
+	for (i--; i >= 0; i--)
+		clk_disable_unprepare(asrc_priv->asrck_clk[i]);
+	if (!IS_ERR(asrc_priv->spba_clk))
+		clk_disable_unprepare(asrc_priv->spba_clk);
+disable_ipg_clk:
+	clk_disable_unprepare(asrc_priv->ipg_clk);
+disable_mem_clk:
+	clk_disable_unprepare(asrc_priv->mem_clk);
+	return ret;
 }
 
 static int fsl_asrc_runtime_suspend(struct device *dev)
@@ -927,17 +982,22 @@ static int fsl_asrc_runtime_suspend(struct device *dev)
 
 	for (i = 0; i < ASRC_CLK_MAX_NUM; i++)
 		clk_disable_unprepare(asrc_priv->asrck_clk[i]);
+	if (!IS_ERR(asrc_priv->spba_clk))
+		clk_disable_unprepare(asrc_priv->spba_clk);
 	clk_disable_unprepare(asrc_priv->ipg_clk);
 	clk_disable_unprepare(asrc_priv->mem_clk);
 
 	return 0;
 }
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM_SLEEP
 static int fsl_asrc_suspend(struct device *dev)
 {
 	struct fsl_asrc *asrc_priv = dev_get_drvdata(dev);
+
+	regmap_read(asrc_priv->regmap, REG_ASRCFG,
+		    &asrc_priv->regcache_cfg);
 
 	regcache_cache_only(asrc_priv->regmap, true);
 	regcache_mark_dirty(asrc_priv->regmap);
@@ -958,6 +1018,10 @@ static int fsl_asrc_resume(struct device *dev)
 	/* Restore all registers */
 	regcache_cache_only(asrc_priv->regmap, false);
 	regcache_sync(asrc_priv->regmap);
+
+	regmap_update_bits(asrc_priv->regmap, REG_ASRCFG,
+			   ASRCFG_NDPRi_ALL_MASK | ASRCFG_POSTMODi_ALL_MASK |
+			   ASRCFG_PREMODi_ALL_MASK, asrc_priv->regcache_cfg);
 
 	/* Restart enabled pairs */
 	regmap_update_bits(asrc_priv->regmap, REG_ASRCTR,

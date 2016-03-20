@@ -814,7 +814,7 @@ int __init omap_mux_late_init(void)
 			"hwmod_io", omap_mux_late_init);
 
 	if (ret)
-		pr_warning("mux: Failed to setup hwmod io irq %d\n", ret);
+		pr_warn("mux: Failed to setup hwmod io irq %d\n", ret);
 
 	return 0;
 }
@@ -1053,7 +1053,7 @@ static void __init omap_mux_init_list(struct omap_mux_partition *partition,
 		struct omap_mux *entry;
 
 #ifdef CONFIG_OMAP_MUX
-		if (!superset->muxnames || !superset->muxnames[0]) {
+		if (!superset->muxnames[0]) {
 			superset++;
 			continue;
 		}

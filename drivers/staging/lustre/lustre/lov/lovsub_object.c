@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2012, Intel Corporation.
+ * Copyright (c) 2012, 2015 Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -63,7 +63,7 @@ int lovsub_object_init(const struct lu_env *env, struct lu_object *obj,
 
 	under = &dev->acid_next->cd_lu_dev;
 	below = under->ld_ops->ldo_object_alloc(env, obj->lo_header, under);
-	if (below != NULL) {
+	if (below) {
 		lu_object_add(obj, below);
 		cl_object_page_init(lu2cl(obj), sizeof(struct lovsub_page));
 		result = 0;
@@ -91,7 +91,7 @@ static void lovsub_object_free(const struct lu_env *env, struct lu_object *obj)
 
 	lu_object_fini(obj);
 	lu_object_header_fini(&los->lso_header.coh_lu);
-	OBD_SLAB_FREE_PTR(los, lovsub_object_kmem);
+	kmem_cache_free(lovsub_object_kmem, los);
 }
 
 static int lovsub_object_print(const struct lu_env *env, void *cookie,
@@ -120,8 +120,6 @@ static int lovsub_object_glimpse(const struct lu_env *env,
 	return cl_object_glimpse(env, &los->lso_super->lo_cl, lvb);
 }
 
-
-
 static const struct cl_object_operations lovsub_ops = {
 	.coo_page_init = lovsub_page_init,
 	.coo_lock_init = lovsub_lock_init,
@@ -145,8 +143,8 @@ struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 	struct lovsub_object *los;
 	struct lu_object     *obj;
 
-	OBD_SLAB_ALLOC_PTR_GFP(los, lovsub_object_kmem, GFP_NOFS);
-	if (los != NULL) {
+	los = kmem_cache_zalloc(lovsub_object_kmem, GFP_NOFS);
+	if (los) {
 		struct cl_object_header *hdr;
 
 		obj = lovsub2lu(los);

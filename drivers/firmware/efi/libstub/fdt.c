@@ -14,6 +14,8 @@
 #include <linux/libfdt.h>
 #include <asm/efi.h>
 
+#include "efistub.h"
+
 efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 			unsigned long orig_fdt_size,
 			void *fdt, int new_fdt_size, char *cmdline_ptr,
@@ -22,7 +24,7 @@ efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 			unsigned long map_size, unsigned long desc_size,
 			u32 desc_ver)
 {
-	int node, prev;
+	int node, prev, num_rsv;
 	int status;
 	u32 fdt_val32;
 	u64 fdt_val64;
@@ -72,6 +74,14 @@ efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 
 		prev = node;
 	}
+
+	/*
+	 * Delete all memory reserve map entries. When booting via UEFI,
+	 * kernel will use the UEFI memory map to find reserved regions.
+	 */
+	num_rsv = fdt_num_mem_rsv(fdt);
+	while (num_rsv-- > 0)
+		fdt_del_mem_rsv(fdt, num_rsv);
 
 	node = fdt_subnode_offset(fdt, 0, "chosen");
 	if (node < 0) {
@@ -137,15 +147,20 @@ efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 	if (status)
 		goto fdt_set_fail;
 
-	/*
-	 * Add kernel version banner so stub/kernel match can be
-	 * verified.
-	 */
-	status = fdt_setprop_string(fdt, node, "linux,uefi-stub-kern-ver",
-			     linux_banner);
-	if (status)
-		goto fdt_set_fail;
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
+		efi_status_t efi_status;
 
+		efi_status = efi_get_random_bytes(sys_table, sizeof(fdt_val64),
+						  (u8 *)&fdt_val64);
+		if (efi_status == EFI_SUCCESS) {
+			status = fdt_setprop(fdt, node, "kaslr-seed",
+					     &fdt_val64, sizeof(fdt_val64));
+			if (status)
+				goto fdt_set_fail;
+		} else if (efi_status != EFI_NOT_FOUND) {
+			return efi_status;
+		}
+	}
 	return EFI_SUCCESS;
 
 fdt_set_fail:
@@ -185,9 +200,26 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 	unsigned long map_size, desc_size;
 	u32 desc_ver;
 	unsigned long mmap_key;
-	efi_memory_desc_t *memory_map;
+	efi_memory_desc_t *memory_map, *runtime_map;
 	unsigned long new_fdt_size;
 	efi_status_t status;
+	int runtime_entry_count = 0;
+
+	/*
+	 * Get a copy of the current memory map that we will use to prepare
+	 * the input for SetVirtualAddressMap(). We don't have to worry about
+	 * subsequent allocations adding entries, since they could not affect
+	 * the number of EFI_MEMORY_RUNTIME regions.
+	 */
+	status = efi_get_memory_map(sys_table, &runtime_map, &map_size,
+				    &desc_size, &desc_ver, &mmap_key);
+	if (status != EFI_SUCCESS) {
+		pr_efi_err(sys_table, "Unable to retrieve UEFI memory map.\n");
+		return status;
+	}
+
+	pr_efi(sys_table,
+	       "Exiting boot services and installing virtual address map...\n");
 
 	/*
 	 * Estimate size of new FDT, and allocate memory for it. We
@@ -235,17 +267,53 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 			sys_table->boottime->free_pool(memory_map);
 			new_fdt_size += EFI_PAGE_SIZE;
 		} else {
-			pr_efi_err(sys_table, "Unable to constuct new device tree.\n");
+			pr_efi_err(sys_table, "Unable to construct new device tree.\n");
 			goto fail_free_mmap;
 		}
 	}
 
+	/*
+	 * Update the memory map with virtual addresses. The function will also
+	 * populate @runtime_map with copies of just the EFI_MEMORY_RUNTIME
+	 * entries so that we can pass it straight into SetVirtualAddressMap()
+	 */
+	efi_get_virtmap(memory_map, map_size, desc_size, runtime_map,
+			&runtime_entry_count);
+
 	/* Now we are ready to exit_boot_services.*/
 	status = sys_table->boottime->exit_boot_services(handle, mmap_key);
 
+	if (status == EFI_SUCCESS) {
+		efi_set_virtual_address_map_t *svam;
 
-	if (status == EFI_SUCCESS)
-		return status;
+		/* Install the new virtual address map */
+		svam = sys_table->runtime->set_virtual_address_map;
+		status = svam(runtime_entry_count * desc_size, desc_size,
+			      desc_ver, runtime_map);
+
+		/*
+		 * We are beyond the point of no return here, so if the call to
+		 * SetVirtualAddressMap() failed, we need to signal that to the
+		 * incoming kernel but proceed normally otherwise.
+		 */
+		if (status != EFI_SUCCESS) {
+			int l;
+
+			/*
+			 * Set the virtual address field of all
+			 * EFI_MEMORY_RUNTIME entries to 0. This will signal
+			 * the incoming kernel that no virtual translation has
+			 * been installed.
+			 */
+			for (l = 0; l < map_size; l += desc_size) {
+				efi_memory_desc_t *p = (void *)memory_map + l;
+
+				if (p->attribute & EFI_MEMORY_RUNTIME)
+					p->virt_addr = 0;
+			}
+		}
+		return EFI_SUCCESS;
+	}
 
 	pr_efi_err(sys_table, "Exit boot services failed.\n");
 
@@ -256,10 +324,11 @@ fail_free_new_fdt:
 	efi_free(sys_table, new_fdt_size, *new_fdt_addr);
 
 fail:
+	sys_table->boottime->free_pool(runtime_map);
 	return EFI_LOAD_ERROR;
 }
 
-void *get_fdt(efi_system_table_t *sys_table)
+void *get_fdt(efi_system_table_t *sys_table, unsigned long *fdt_size)
 {
 	efi_guid_t fdt_guid = DEVICE_TREE_GUID;
 	efi_config_table_t *tables;
@@ -272,6 +341,11 @@ void *get_fdt(efi_system_table_t *sys_table)
 	for (i = 0; i < sys_table->nr_tables; i++)
 		if (efi_guidcmp(tables[i].guid, fdt_guid) == 0) {
 			fdt = (void *) tables[i].table;
+			if (fdt_check_header(fdt) != 0) {
+				pr_efi_err(sys_table, "Invalid header detected on UEFI supplied FDT, ignoring ...\n");
+				return NULL;
+			}
+			*fdt_size = fdt_totalsize(fdt);
 			break;
 	 }
 

@@ -30,7 +30,6 @@
 #include <linux/page-flags.h>
 #include <linux/mount.h>
 #include <linux/file.h>
-#include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
@@ -299,7 +298,7 @@ static int ecryptfs_write_begin(struct file *file,
 			rc = ecryptfs_read_lower_page_segment(
 				page, index, 0, PAGE_CACHE_SIZE, mapping->host);
 			if (rc) {
-				printk(KERN_ERR "%s: Error attemping to read "
+				printk(KERN_ERR "%s: Error attempting to read "
 				       "lower page segment; rc = [%d]\n",
 				       __func__, rc);
 				ClearPageUptodate(page);
@@ -419,8 +418,8 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
 	ssize_t size;
 	void *xattr_virt;
 	struct dentry *lower_dentry =
-		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_dentry;
-	struct inode *lower_inode = lower_dentry->d_inode;
+		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_path.dentry;
+	struct inode *lower_inode = d_inode(lower_dentry);
 	int rc;
 
 	if (!lower_inode->i_op->getxattr || !lower_inode->i_op->setxattr) {
@@ -436,7 +435,7 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
 		rc = -ENOMEM;
 		goto out;
 	}
-	mutex_lock(&lower_inode->i_mutex);
+	inode_lock(lower_inode);
 	size = lower_inode->i_op->getxattr(lower_dentry, ECRYPTFS_XATTR_NAME,
 					   xattr_virt, PAGE_CACHE_SIZE);
 	if (size < 0)
@@ -444,7 +443,7 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
 	put_unaligned_be64(i_size_read(ecryptfs_inode), xattr_virt);
 	rc = lower_inode->i_op->setxattr(lower_dentry, ECRYPTFS_XATTR_NAME,
 					 xattr_virt, size, 0);
-	mutex_unlock(&lower_inode->i_mutex);
+	inode_unlock(lower_inode);
 	if (rc)
 		printk(KERN_ERR "Error whilst attempting to write inode size "
 		       "to lower file xattr; rc = [%d]\n", rc);

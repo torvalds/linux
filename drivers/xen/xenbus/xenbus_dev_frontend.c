@@ -188,6 +188,8 @@ static int queue_reply(struct list_head *queue, const void *data, size_t len)
 
 	if (len == 0)
 		return 0;
+	if (len > XENSTORE_PAYLOAD_MAX)
+		return -EINVAL;
 
 	rb = kmalloc(sizeof(*rb) + len, GFP_KERNEL);
 	if (rb == NULL)
@@ -326,10 +328,13 @@ static int xenbus_write_transaction(unsigned msg_type,
 	}
 
 	if (msg_type == XS_TRANSACTION_START) {
-		trans->handle.id = simple_strtoul(reply, NULL, 0);
-
-		list_add(&trans->list, &u->transactions);
-	} else if (msg_type == XS_TRANSACTION_END) {
+		if (u->u.msg.type == XS_ERROR)
+			kfree(trans);
+		else {
+			trans->handle.id = simple_strtoul(reply, NULL, 0);
+			list_add(&trans->list, &u->transactions);
+		}
+	} else if (u->u.msg.type == XS_TRANSACTION_END) {
 		list_for_each_entry(trans, &u->transactions, list)
 			if (trans->handle.id == u->u.msg.tx_id)
 				break;

@@ -1,0 +1,51 @@
+/*
+ * Hisilicon Ltd. HiP01 SoC
+ *
+ * Copyright (C) 2014 Hisilicon Ltd.
+ * Copyright (C) 2014 Huawei Ltd.
+ *
+ * Author: Wang Long <long.wanglong@huawei.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+/* First 8KB reserved for secondary core boot */
+/memreserve/ 0x80000000 0x00002000;
+
+#include "hip01.dtsi"
+
+/ {
+	model = "Hisilicon HIP01 Development Board";
+	compatible = "hisilicon,hip01-ca9x2", "hisilicon,hip01";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-method = "hisilicon,hip01-smp";
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0>;
+		};
+
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <1>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x80000000>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

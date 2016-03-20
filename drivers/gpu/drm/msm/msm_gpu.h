@@ -100,10 +100,10 @@ struct msm_gpu {
 
 	/* Power Control: */
 	struct regulator *gpu_reg, *gpu_cx;
-	struct clk *ebi1_clk, *grp_clks[5];
+	struct clk *ebi1_clk, *grp_clks[6];
 	uint32_t fast_rate, slow_rate, bus_freq;
 
-#ifdef CONFIG_MSM_BUS_SCALING
+#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 	struct msm_bus_scale_pdata *bus_scale_table;
 	uint32_t bsc;
 #endif
@@ -119,6 +119,8 @@ struct msm_gpu {
 	struct timer_list hangcheck_timer;
 	uint32_t hangcheck_fence;
 	struct work_struct recover_work;
+
+	struct list_head submit_list;
 };
 
 static inline bool msm_gpu_active(struct msm_gpu *gpu)
@@ -166,8 +168,8 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		const char *name, const char *ioname, const char *irqname, int ringsz);
 void msm_gpu_cleanup(struct msm_gpu *gpu);
 
-struct msm_gpu *a3xx_gpu_init(struct drm_device *dev);
-void __init a3xx_register(void);
-void __exit a3xx_unregister(void);
+struct msm_gpu *adreno_load_gpu(struct drm_device *dev);
+void __init adreno_register(void);
+void __exit adreno_unregister(void);
 
 #endif /* __MSM_GPU_H__ */

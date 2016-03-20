@@ -615,7 +615,8 @@ static inline void rd_set_addr_status(struct ring_descr *rd, dma_addr_t a, u8 s)
 	 */
 
 	if ((a & ~DMA_MASK_MSTRPAGE)>>24 != MSTRPAGE_VALUE) {
-		IRDA_ERROR("%s: pci busaddr inconsistency!\n", __func__);
+		net_err_ratelimited("%s: pci busaddr inconsistency!\n",
+				    __func__);
 		dump_stack();
 		return;
 	}
@@ -722,7 +723,7 @@ typedef struct vlsi_irda_dev {
 	void			*virtaddr;
 	struct vlsi_ring	*tx_ring, *rx_ring;
 
-	struct timeval		last_rx;
+	ktime_t			last_rx;
 
 	spinlock_t		lock;
 	struct mutex		mtx;

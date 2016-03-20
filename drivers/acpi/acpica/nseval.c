@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,15 +59,14 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
  *
  * FUNCTION:    acpi_ns_evaluate
  *
- * PARAMETERS:  info            - Evaluation info block, contains:
+ * PARAMETERS:  info            - Evaluation info block, contains these fields
+ *                                and more:
  *                  prefix_node     - Prefix or Method/Object Node to execute
  *                  relative_path   - Name of method to execute, If NULL, the
  *                                    Node is the object to execute
  *                  parameters      - List of parameters to pass to the method,
  *                                    terminated by NULL. Params itself may be
  *                                    NULL if no parameters are being passed.
- *                  return_object   - Where to put method's return value (if
- *                                    any). If NULL, no value is returned.
  *                  parameter_type  - Type of Parameter list
  *                  return_object   - Where to put method's return value (if
  *                                    any). If NULL, no value is returned.
@@ -136,7 +135,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 
 	/* Get the full pathname to the object, for use in warning messages */
 
-	info->full_pathname = acpi_ns_get_external_pathname(info->node);
+	info->full_pathname = acpi_ns_get_normalized_pathname(info->node, TRUE);
 	if (!info->full_pathname) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -275,6 +274,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 		acpi_ex_exit_interpreter();
 
 		if (ACPI_FAILURE(status)) {
+			info->return_object = NULL;
 			goto cleanup;
 		}
 
@@ -378,8 +378,7 @@ void acpi_ns_exec_module_code_list(void)
 		acpi_ut_remove_reference(prev);
 	}
 
-	ACPI_INFO((AE_INFO,
-		   "Executed %u blocks of module-level executable AML code",
+	ACPI_INFO(("Executed %u blocks of module-level executable AML code",
 		   method_count));
 
 	ACPI_FREE(info);
@@ -418,7 +417,8 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 	 * Get the parent node. We cheat by using the next_object field
 	 * of the method object descriptor.
 	 */
-	parent_node = ACPI_CAST_PTR(struct acpi_namespace_node,
+	parent_node =
+	    ACPI_CAST_PTR(struct acpi_namespace_node,
 				    method_obj->method.next_object);
 	type = acpi_ns_get_type(parent_node);
 
@@ -440,13 +440,13 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 
 	/* Initialize the evaluation information block */
 
-	ACPI_MEMSET(info, 0, sizeof(struct acpi_evaluate_info));
+	memset(info, 0, sizeof(struct acpi_evaluate_info));
 	info->prefix_node = parent_node;
 
 	/*
-	 * Get the currently attached parent object. Add a reference, because the
-	 * ref count will be decreased when the method object is installed to
-	 * the parent node.
+	 * Get the currently attached parent object. Add a reference,
+	 * because the ref count will be decreased when the method object
+	 * is installed to the parent node.
 	 */
 	parent_obj = acpi_ns_get_attached_object(parent_node);
 	if (parent_obj) {
@@ -455,8 +455,8 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 
 	/* Install the method (module-level code) in the parent node */
 
-	status = acpi_ns_attach_object(parent_node, method_obj,
-				       ACPI_TYPE_METHOD);
+	status =
+	    acpi_ns_attach_object(parent_node, method_obj, ACPI_TYPE_METHOD);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
 	}
@@ -465,7 +465,8 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 
 	status = acpi_ns_evaluate(info);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INIT, "Executed module-level code at %p\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_INIT_NAMES,
+			  "Executed module-level code at %p\n",
 			  method_obj->method.aml_start));
 
 	/* Delete a possible implicit return value (in slack mode) */

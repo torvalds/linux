@@ -135,7 +135,7 @@ static int si7005_probe(struct i2c_client *client,
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -170,6 +170,7 @@ static int si7005_probe(struct i2c_client *client,
 
 static const struct i2c_device_id si7005_id[] = {
 	{ "si7005", 0 },
+	{ "th02", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si7005_id);
@@ -177,7 +178,6 @@ MODULE_DEVICE_TABLE(i2c, si7005_id);
 static struct i2c_driver si7005_driver = {
 	.driver = {
 		.name	= "si7005",
-		.owner	= THIS_MODULE,
 	},
 	.probe = si7005_probe,
 	.id_table = si7005_id,

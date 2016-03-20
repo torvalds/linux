@@ -211,10 +211,8 @@ struct clk *clk_register_zynq_pll(const char *name, const char *parent,
 	};
 
 	pll = kmalloc(sizeof(*pll), GFP_KERNEL);
-	if (!pll) {
-		pr_err("%s: Could not allocate Zynq PLL clk.\n", __func__);
+	if (!pll)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	/* Populate the struct */
 	pll->hw.init = &initd;

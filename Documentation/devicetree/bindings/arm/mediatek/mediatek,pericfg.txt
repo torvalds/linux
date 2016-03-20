@@ -1,0 +1,30 @@
+Mediatek pericfg controller
+===========================
+
+The Mediatek pericfg controller provides various clocks and reset
+outputs to the system.
+
+Required Properties:
+
+- compatible: Should be:
+	- "mediatek,mt8135-pericfg", "syscon"
+	- "mediatek,mt8173-pericfg", "syscon"
+- #clock-cells: Must be 1
+- #reset-cells: Must be 1
+
+The pericfg controller uses the common clk binding from
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+The available clocks are defined in dt-bindings/clock/mt*-clk.h.
+Also it uses the common reset controller binding from
+Documentation/devicetree/bindings/reset/reset.txt.
+The available reset outputs are defined in
+dt-bindings/reset/mt*-resets.h
+
+Example:
+
+pericfg: power-controller@10003000 {
+	compatible = "mediatek,mt8173-pericfg", "syscon";
+	reg = <0 0x10003000 0 0x1000>;
+	#clock-cells = <1>;
+	#reset-cells = <1>;
+};

@@ -287,7 +287,7 @@ static void mxr_mplane_fill(struct v4l2_plane_pix_format *planes,
 		u32 bl_width = divup(width, blk->width);
 		u32 bl_height = divup(height, blk->height);
 		u32 sizeimage = bl_width * bl_height * blk->size;
-		u16 bytesperline = bl_width * blk->size / blk->height;
+		u32 bytesperline = bl_width * blk->size / blk->height;
 
 		plane->sizeimage += sizeimage;
 		plane->bytesperline = max(plane->bytesperline, bytesperline);
@@ -881,7 +881,7 @@ static const struct v4l2_file_operations mxr_fops = {
 	.unlocked_ioctl = video_ioctl2,
 };
 
-static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
+static int queue_setup(struct vb2_queue *vq,
 	unsigned int *nbuffers, unsigned int *nplanes, unsigned int sizes[],
 	void *alloc_ctxs[])
 {
@@ -914,7 +914,8 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
 
 static void buf_queue(struct vb2_buffer *vb)
 {
-	struct mxr_buffer *buffer = container_of(vb, struct mxr_buffer, vb);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct mxr_buffer *buffer = container_of(vbuf, struct mxr_buffer, vb);
 	struct mxr_layer *layer = vb2_get_drv_priv(vb->vb2_queue);
 	struct mxr_device *mdev = layer->mdev;
 	unsigned long flags;
@@ -924,22 +925,6 @@ static void buf_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&layer->enq_slock, flags);
 
 	mxr_dbg(mdev, "queuing buffer\n");
-}
-
-static void wait_lock(struct vb2_queue *vq)
-{
-	struct mxr_layer *layer = vb2_get_drv_priv(vq);
-
-	mxr_dbg(layer->mdev, "%s\n", __func__);
-	mutex_lock(&layer->mutex);
-}
-
-static void wait_unlock(struct vb2_queue *vq)
-{
-	struct mxr_layer *layer = vb2_get_drv_priv(vq);
-
-	mxr_dbg(layer->mdev, "%s\n", __func__);
-	mutex_unlock(&layer->mutex);
 }
 
 static int start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -979,11 +964,13 @@ static void mxr_watchdog(unsigned long arg)
 	if (layer->update_buf == layer->shadow_buf)
 		layer->update_buf = NULL;
 	if (layer->update_buf) {
-		vb2_buffer_done(&layer->update_buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&layer->update_buf->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
 		layer->update_buf = NULL;
 	}
 	if (layer->shadow_buf) {
-		vb2_buffer_done(&layer->shadow_buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&layer->shadow_buf->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
 		layer->shadow_buf = NULL;
 	}
 	spin_unlock_irqrestore(&layer->enq_slock, flags);
@@ -1007,7 +994,7 @@ static void stop_streaming(struct vb2_queue *vq)
 	/* set all buffer to be done */
 	list_for_each_entry_safe(buf, buf_tmp, &layer->enq_list, list) {
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 
 	spin_unlock_irqrestore(&layer->enq_slock, flags);
@@ -1040,8 +1027,8 @@ static void stop_streaming(struct vb2_queue *vq)
 static struct vb2_ops mxr_video_qops = {
 	.queue_setup = queue_setup,
 	.buf_queue = buf_queue,
-	.wait_prepare = wait_unlock,
-	.wait_finish = wait_lock,
+	.wait_prepare = vb2_ops_wait_prepare,
+	.wait_finish = vb2_ops_wait_finish,
 	.start_streaming = start_streaming,
 	.stop_streaming = stop_streaming,
 };
@@ -1122,6 +1109,7 @@ struct mxr_layer *mxr_base_layer_create(struct mxr_device *mdev,
 		.ops = &mxr_video_qops,
 		.min_buffers_needed = 1,
 		.mem_ops = &vb2_dma_contig_memops,
+		.lock = &layer->mutex,
 	};
 
 	return layer;

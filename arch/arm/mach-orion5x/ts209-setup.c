@@ -25,9 +25,9 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
+#include "orion5x.h"
 #include "tsx09-common.h"
 
 #define QNAP_TS209_NOR_BOOT_BASE 0xf4000000
@@ -314,7 +314,7 @@ static void __init qnap_ts209_init(void)
 			gpio_free(TS209_RTC_GPIO);
 	}
 	if (qnap_ts209_i2c_rtc.irq == 0)
-		pr_warning("qnap_ts209_init: failed to get RTC IRQ\n");
+		pr_warn("qnap_ts209_init: failed to get RTC IRQ\n");
 	i2c_register_board_info(0, &qnap_ts209_i2c_rtc, 1);
 
 	/* register tsx09 specific power-off method */
@@ -324,6 +324,7 @@ static void __init qnap_ts209_init(void)
 MACHINE_START(TS209, "QNAP TS-109/TS-209")
 	/* Maintainer: Byron Bradley <byron.bbradley@gmail.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= ORION5X_NR_IRQS,
 	.init_machine	= qnap_ts209_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,

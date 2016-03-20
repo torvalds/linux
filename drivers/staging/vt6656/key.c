@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  * File: key.c
  *
@@ -37,17 +33,14 @@
 
 int vnt_key_init_table(struct vnt_private *priv)
 {
-	int ret;
 	u8 i;
 	u8 data[MAX_KEY_TABLE];
 
 	for (i = 0; i < MAX_KEY_TABLE; i++)
 		data[i] = i;
 
-	ret = vnt_control_out(priv, MESSAGE_TYPE_CLRKEYENTRY,
+	return vnt_control_out(priv, MESSAGE_TYPE_CLRKEYENTRY,
 			0, 0, ARRAY_SIZE(data), data);
-
-	return ret;
 }
 
 static int vnt_set_keymode(struct ieee80211_hw *hw, u8 *mac_addr,
@@ -165,7 +158,6 @@ int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 	}
-
 
 	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
 		vnt_set_keymode(hw, mac_addr, key, VNT_KEY_PAIRWISE,

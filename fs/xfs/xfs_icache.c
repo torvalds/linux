@@ -20,9 +20,7 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_inum.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_error.h"
@@ -33,7 +31,6 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_bmap_util.h"
-#include "xfs_quota.h"
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
 
@@ -66,6 +63,7 @@ xfs_inode_alloc(
 		return NULL;
 	}
 
+	XFS_STATS_INC(mp, vn_active);
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(!spin_is_locked(&ip->i_flags_lock));
 	ASSERT(!xfs_isiflocked(ip));
@@ -131,6 +129,7 @@ xfs_inode_free(
 	/* asserts to verify all state is correct here */
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(!xfs_isiflocked(ip));
+	XFS_STATS_DEC(ip->i_mount, vn_active);
 
 	call_rcu(&VFS_I(ip)->i_rcu, xfs_inode_free_callback);
 }
@@ -160,7 +159,7 @@ xfs_iget_cache_hit(
 	spin_lock(&ip->i_flags_lock);
 	if (ip->i_ino != ino) {
 		trace_xfs_iget_skip(ip);
-		XFS_STATS_INC(xs_ig_frecycle);
+		XFS_STATS_INC(mp, xs_ig_frecycle);
 		error = -EAGAIN;
 		goto out_error;
 	}
@@ -178,7 +177,7 @@ xfs_iget_cache_hit(
 	 */
 	if (ip->i_flags & (XFS_INEW|XFS_IRECLAIM)) {
 		trace_xfs_iget_skip(ip);
-		XFS_STATS_INC(xs_ig_frecycle);
+		XFS_STATS_INC(mp, xs_ig_frecycle);
 		error = -EAGAIN;
 		goto out_error;
 	}
@@ -260,7 +259,7 @@ xfs_iget_cache_hit(
 		xfs_ilock(ip, lock_flags);
 
 	xfs_iflags_clear(ip, XFS_ISTALE | XFS_IDONTCACHE);
-	XFS_STATS_INC(xs_ig_found);
+	XFS_STATS_INC(mp, xs_ig_found);
 
 	return 0;
 
@@ -343,7 +342,7 @@ xfs_iget_cache_miss(
 	error = radix_tree_insert(&pag->pag_ici_root, agino, ip);
 	if (unlikely(error)) {
 		WARN_ON(error != -EEXIST);
-		XFS_STATS_INC(xs_ig_dup);
+		XFS_STATS_INC(mp, xs_ig_dup);
 		error = -EAGAIN;
 		goto out_preload_end;
 	}
@@ -413,6 +412,8 @@ xfs_iget(
 	if (!ino || XFS_INO_TO_AGNO(mp, ino) >= mp->m_sb.sb_agcount)
 		return -EINVAL;
 
+	XFS_STATS_INC(mp, xs_ig_attempts);
+
 	/* get the perag structure and ensure that it's inode capable */
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ino));
 	agino = XFS_INO_TO_AGINO(mp, ino);
@@ -428,7 +429,7 @@ again:
 			goto out_error_or_again;
 	} else {
 		rcu_read_unlock();
-		XFS_STATS_INC(xs_ig_missed);
+		XFS_STATS_INC(mp, xs_ig_missed);
 
 		error = xfs_iget_cache_miss(mp, pag, tp, ino, &ip,
 							flags, lock_flags);
@@ -440,11 +441,11 @@ again:
 	*ipp = ip;
 
 	/*
-	 * If we have a real type for an on-disk inode, we can set ops(&unlock)
+	 * If we have a real type for an on-disk inode, we can setup the inode
 	 * now.	 If it's a new inode being created, xfs_ialloc will handle it.
 	 */
 	if (xfs_iflags_test(ip, XFS_INEW) && ip->i_d.di_mode != 0)
-		xfs_setup_inode(ip);
+		xfs_setup_existing_inode(ip);
 	return 0;
 
 out_error_or_again:
@@ -964,7 +965,7 @@ reclaim:
 	xfs_ifunlock(ip);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
-	XFS_STATS_INC(xs_ig_reclaims);
+	XFS_STATS_INC(ip->i_mount, xs_ig_reclaims);
 	/*
 	 * Remove the inode from the per-AG radix tree.
 	 *

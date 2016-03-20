@@ -19,12 +19,10 @@
 #include <linux/moduleloader.h>
 #include <linux/vmalloc.h>
 
-void module_free(struct module *mod, void *module_region)
+void module_arch_freeing_init(struct module *mod)
 {
 	vfree(mod->arch.syminfo);
 	mod->arch.syminfo = NULL;
-
-	vfree(module_region);
 }
 
 static inline int check_rela(Elf32_Rela *rela, struct module *module,
@@ -120,9 +118,9 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 	 * Increase core size to make room for GOT and set start
 	 * offset for GOT.
 	 */
-	module->core_size = ALIGN(module->core_size, 4);
-	module->arch.got_offset = module->core_size;
-	module->core_size += module->arch.got_size;
+	module->core_layout.size = ALIGN(module->core_layout.size, 4);
+	module->arch.got_offset = module->core_layout.size;
+	module->core_layout.size += module->arch.got_size;
 
 	return 0;
 
@@ -179,7 +177,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			if (!info->got_initialized) {
 				Elf32_Addr *gotent;
 
-				gotent = (module->module_core
+				gotent = (module->core_layout.base
 					  + module->arch.got_offset
 					  + info->got_offset);
 				*gotent = relocation;
@@ -257,8 +255,8 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			 */
 			pr_debug("GOTPC: PC=0x%x, got_offset=0x%lx, core=0x%p\n",
 				 relocation, module->arch.got_offset,
-				 module->module_core);
-			relocation -= ((unsigned long)module->module_core
+				 module->core_layout.base);
+			relocation -= ((unsigned long)module->core_layout.base
 				       + module->arch.got_offset);
 			*location = relocation;
 			break;
@@ -290,13 +288,4 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 	}
 
 	return ret;
-}
-
-int module_finalize(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
-		    struct module *module)
-{
-	vfree(module->arch.syminfo);
-	module->arch.syminfo = NULL;
-
-	return 0;
 }

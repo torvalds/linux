@@ -18,20 +18,6 @@
  *
  * Added ISAPNP support for DTC436 adapters,
  * Thomas Sailer, sailer@ife.ee.ethz.ch
- *
- * ALPHA RELEASE 1. 
- *
- * For more information, please consult 
- *
- * NCR 5380 Family
- * SCSI Protocol Controller
- * Databook
- *
- * NCR Microelectronics
- * 1635 Aeroplaza Drive
- * Colorado Springs, CO 80916
- * 1+ (719) 578-3400
- * 1+ (800) 334-5454
  */
 
 /* 
@@ -40,14 +26,6 @@
  */
 
 /*
- * Options :
- *
- * PARITY - enable parity checking.  Not supported.
- *
- * SCSI2 - enable support for SCSI-II tagged queueing.  Untested.
- *
- * USLEEP - enable support for devices that don't disconnect.  Untested.
- *
  * The card is detected and initialized in one of several ways : 
  * 1.  With command line overrides - NCR5380=port,irq may be 
  *     used on the LILO command line to override the defaults.
@@ -78,46 +56,31 @@
  *     
  */
 
-/* settings for DTC3181E card with only Mustek scanner attached */
-#define USLEEP
-#define USLEEP_POLL	1
-#define USLEEP_SLEEP	20
-#define USLEEP_WAITLONG	500
-
 #define AUTOPROBE_IRQ
-#define AUTOSENSE
-
 
 #ifdef CONFIG_SCSI_GENERIC_NCR53C400
-#define NCR53C400_PSEUDO_DMA 1
 #define PSEUDO_DMA
-#define NCR53C400
-#define NCR5380_STATS
-#undef NCR5380_STAT_LIMIT
 #endif
 
 #include <asm/io.h>
-#include <linux/signal.h>
 #include <linux/blkdev.h>
-#include "scsi.h"
+#include <linux/module.h>
 #include <scsi/scsi_host.h>
 #include "g_NCR5380.h"
 #include "NCR5380.h"
-#include <linux/stat.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/isapnp.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#define NCR_NOT_SET 0
-static int ncr_irq = NCR_NOT_SET;
-static int ncr_dma = NCR_NOT_SET;
-static int ncr_addr = NCR_NOT_SET;
-static int ncr_5380 = NCR_NOT_SET;
-static int ncr_53c400 = NCR_NOT_SET;
-static int ncr_53c400a = NCR_NOT_SET;
-static int dtc_3181e = NCR_NOT_SET;
+static int ncr_irq;
+static int ncr_dma;
+static int ncr_addr;
+static int ncr_5380;
+static int ncr_53c400;
+static int ncr_53c400a;
+static int dtc_3181e;
+static int hp_c2502;
 
 static struct override {
 	NCR5380_map_type NCR5380_map_name;
@@ -149,7 +112,7 @@ static struct override {
 
 static void __init internal_setup(int board, char *str, int *ints)
 {
-	static int commandline_current = 0;
+	static int commandline_current;
 	switch (board) {
 	case BOARD_NCR5380:
 		if (ints[0] != 2 && ints[0] != 3) {
@@ -263,6 +226,30 @@ static int __init do_DTC3181E_setup(char *str)
 
 #endif
 
+#ifndef SCSI_G_NCR5380_MEM
+/*
+ * Configure I/O address of 53C400A or DTC436 by writing magic numbers
+ * to ports 0x779 and 0x379.
+ */
+static void magic_configure(int idx, u8 irq, u8 magic[])
+{
+	u8 cfg = 0;
+
+	outb(magic[0], 0x779);
+	outb(magic[1], 0x379);
+	outb(magic[2], 0x379);
+	outb(magic[3], 0x379);
+	outb(magic[4], 0x379);
+
+	/* allowed IRQs for HP C2502 */
+	if (irq != 2 && irq != 3 && irq != 4 && irq != 5 && irq != 7)
+		irq = 0;
+	if (idx >= 0 && idx <= 7)
+		cfg = 0x80 | idx | (irq << 4);
+	outb(cfg, 0x379);
+}
+#endif
+
 /**
  * 	generic_NCR5380_detect	-	look for NCR5380 controllers
  *	@tpnt: the scsi template
@@ -271,19 +258,18 @@ static int __init do_DTC3181E_setup(char *str)
  *	and DTC436(ISAPnP) controllers. If overrides have been set we use
  *	them.
  *
- *	The caller supplied NCR5380_init function is invoked from here, before
- *	the interrupt line is taken.
- *
  *	Locks: none
  */
 
-int __init generic_NCR5380_detect(struct scsi_host_template * tpnt)
+static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 {
-	static int current_override = 0;
+	static int current_override;
 	int count;
 	unsigned int *ports;
+	u8 *magic = NULL;
 #ifndef SCSI_G_NCR5380_MEM
 	int i;
+	int port_idx = -1;
 	unsigned long region_size = 16;
 #endif
 	static unsigned int __initdata ncr_53c400a_ports[] = {
@@ -292,27 +278,36 @@ int __init generic_NCR5380_detect(struct scsi_host_template * tpnt)
 	static unsigned int __initdata dtc_3181e_ports[] = {
 		0x220, 0x240, 0x280, 0x2a0, 0x2c0, 0x300, 0x320, 0x340, 0
 	};
-	int flags = 0;
+	static u8 ncr_53c400a_magic[] __initdata = {	/* 53C400A & DTC436 */
+		0x59, 0xb9, 0xc5, 0xae, 0xa6
+	};
+	static u8 hp_c2502_magic[] __initdata = {	/* HP C2502 */
+		0x0f, 0x22, 0xf0, 0x20, 0x80
+	};
+	int flags;
 	struct Scsi_Host *instance;
+	struct NCR5380_hostdata *hostdata;
 #ifdef SCSI_G_NCR5380_MEM
 	unsigned long base;
 	void __iomem *iomem;
 #endif
 
-	if (ncr_irq != NCR_NOT_SET)
+	if (ncr_irq)
 		overrides[0].irq = ncr_irq;
-	if (ncr_dma != NCR_NOT_SET)
+	if (ncr_dma)
 		overrides[0].dma = ncr_dma;
-	if (ncr_addr != NCR_NOT_SET)
+	if (ncr_addr)
 		overrides[0].NCR5380_map_name = (NCR5380_map_type) ncr_addr;
-	if (ncr_5380 != NCR_NOT_SET)
+	if (ncr_5380)
 		overrides[0].board = BOARD_NCR5380;
-	else if (ncr_53c400 != NCR_NOT_SET)
+	else if (ncr_53c400)
 		overrides[0].board = BOARD_NCR53C400;
-	else if (ncr_53c400a != NCR_NOT_SET)
+	else if (ncr_53c400a)
 		overrides[0].board = BOARD_NCR53C400A;
-	else if (dtc_3181e != NCR_NOT_SET)
+	else if (dtc_3181e)
 		overrides[0].board = BOARD_DTC3181E;
+	else if (hp_c2502)
+		overrides[0].board = BOARD_HP_C2502;
 #ifndef SCSI_G_NCR5380_MEM
 	if (!current_override && isapnp_present()) {
 		struct pnp_dev *dev = NULL;
@@ -335,7 +330,7 @@ int __init generic_NCR5380_detect(struct scsi_host_template * tpnt)
 			if (pnp_irq_valid(dev, 0))
 				overrides[count].irq = pnp_irq(dev, 0);
 			else
-				overrides[count].irq = SCSI_IRQ_NONE;
+				overrides[count].irq = NO_IRQ;
 			if (pnp_dma_valid(dev, 0))
 				overrides[count].dma = pnp_dma(dev, 0);
 			else
@@ -346,41 +341,45 @@ int __init generic_NCR5380_detect(struct scsi_host_template * tpnt)
 		}
 	}
 #endif
-	tpnt->proc_name = "g_NCR5380";
 
 	for (count = 0; current_override < NO_OVERRIDES; ++current_override) {
 		if (!(overrides[current_override].NCR5380_map_name))
 			continue;
 
 		ports = NULL;
+		flags = 0;
 		switch (overrides[current_override].board) {
 		case BOARD_NCR5380:
 			flags = FLAG_NO_PSEUDO_DMA;
 			break;
 		case BOARD_NCR53C400:
-			flags = FLAG_NCR53C400;
+#ifdef PSEUDO_DMA
+			flags = FLAG_NO_DMA_FIXUP;
+#endif
 			break;
 		case BOARD_NCR53C400A:
-			flags = FLAG_NO_PSEUDO_DMA;
+			flags = FLAG_NO_DMA_FIXUP;
 			ports = ncr_53c400a_ports;
+			magic = ncr_53c400a_magic;
+			break;
+		case BOARD_HP_C2502:
+			flags = FLAG_NO_DMA_FIXUP;
+			ports = ncr_53c400a_ports;
+			magic = hp_c2502_magic;
 			break;
 		case BOARD_DTC3181E:
-			flags = FLAG_NO_PSEUDO_DMA | FLAG_DTC3181E;
+			flags = FLAG_NO_DMA_FIXUP;
 			ports = dtc_3181e_ports;
+			magic = ncr_53c400a_magic;
 			break;
 		}
 
 #ifndef SCSI_G_NCR5380_MEM
-		if (ports) {
+		if (ports && magic) {
 			/* wakeup sequence for the NCR53C400A and DTC3181E */
 
 			/* Disable the adapter and look for a free io port */
-			outb(0x59, 0x779);
-			outb(0xb9, 0x379);
-			outb(0xc5, 0x379);
-			outb(0xae, 0x379);
-			outb(0xa6, 0x379);
-			outb(0x00, 0x379);
+			magic_configure(-1, 0, magic);
 
 			if (overrides[current_override].NCR5380_map_name != PORT_AUTO)
 				for (i = 0; ports[i]; i++) {
@@ -399,17 +398,12 @@ int __init generic_NCR5380_detect(struct scsi_host_template * tpnt)
 				}
 			if (ports[i]) {
 				/* At this point we have our region reserved */
-				outb(0x59, 0x779);
-				outb(0xb9, 0x379);
-				outb(0xc5, 0x379);
-				outb(0xae, 0x379);
-				outb(0xa6, 0x379);
-				outb(0x80 | i, 0x379);	/* set io port to be used */
+				magic_configure(i, 0, magic); /* no IRQ yet */
 				outb(0xc0, ports[i] + 9);
 				if (inb(ports[i] + 9) != 0x80)
 					continue;
-				else
-					overrides[current_override].NCR5380_map_name = ports[i];
+				overrides[current_override].NCR5380_map_name = ports[i];
+				port_idx = i;
 			} else
 				continue;
 		}
@@ -431,68 +425,108 @@ int __init generic_NCR5380_detect(struct scsi_host_template * tpnt)
 		}
 #endif
 		instance = scsi_register(tpnt, sizeof(struct NCR5380_hostdata));
-		if (instance == NULL) {
+		if (instance == NULL)
+			goto out_release;
+		hostdata = shost_priv(instance);
+
 #ifndef SCSI_G_NCR5380_MEM
-			release_region(overrides[current_override].NCR5380_map_name, region_size);
+		instance->io_port = overrides[current_override].NCR5380_map_name;
+		instance->n_io_port = region_size;
+		hostdata->io_width = 1; /* 8-bit PDMA by default */
+
+		/*
+		 * On NCR53C400 boards, NCR5380 registers are mapped 8 past
+		 * the base address.
+		 */
+		switch (overrides[current_override].board) {
+		case BOARD_NCR53C400:
+			instance->io_port += 8;
+			hostdata->c400_ctl_status = 0;
+			hostdata->c400_blk_cnt = 1;
+			hostdata->c400_host_buf = 4;
+			break;
+		case BOARD_DTC3181E:
+			hostdata->io_width = 2;	/* 16-bit PDMA */
+			/* fall through */
+		case BOARD_NCR53C400A:
+		case BOARD_HP_C2502:
+			hostdata->c400_ctl_status = 9;
+			hostdata->c400_blk_cnt = 10;
+			hostdata->c400_host_buf = 8;
+			break;
+		}
 #else
-			iounmap(iomem);
-			release_mem_region(base, NCR5380_region_size);
+		instance->base = overrides[current_override].NCR5380_map_name;
+		hostdata->iomem = iomem;
+		switch (overrides[current_override].board) {
+		case BOARD_NCR53C400:
+			hostdata->c400_ctl_status = 0x100;
+			hostdata->c400_blk_cnt = 0x101;
+			hostdata->c400_host_buf = 0x104;
+			break;
+		case BOARD_DTC3181E:
+		case BOARD_NCR53C400A:
+		case BOARD_HP_C2502:
+			pr_err(DRV_MODULE_NAME ": unknown register offsets\n");
+			goto out_unregister;
+		}
 #endif
-			continue;
+
+		if (NCR5380_init(instance, flags))
+			goto out_unregister;
+
+		switch (overrides[current_override].board) {
+		case BOARD_NCR53C400:
+		case BOARD_DTC3181E:
+		case BOARD_NCR53C400A:
+		case BOARD_HP_C2502:
+			NCR5380_write(hostdata->c400_ctl_status, CSR_BASE);
 		}
 
-		instance->NCR5380_instance_name = overrides[current_override].NCR5380_map_name;
-#ifndef SCSI_G_NCR5380_MEM
-		instance->n_io_port = region_size;
-#else
-		((struct NCR5380_hostdata *)instance->hostdata)->iomem = iomem;
-#endif
-
-		NCR5380_init(instance, flags);
+		NCR5380_maybe_reset_bus(instance);
 
 		if (overrides[current_override].irq != IRQ_AUTO)
 			instance->irq = overrides[current_override].irq;
 		else
 			instance->irq = NCR5380_probe_irq(instance, 0xffff);
 
-		if (instance->irq != SCSI_IRQ_NONE)
+		/* Compatibility with documented NCR5380 kernel parameters */
+		if (instance->irq == 255)
+			instance->irq = NO_IRQ;
+
+		if (instance->irq != NO_IRQ) {
+#ifndef SCSI_G_NCR5380_MEM
+			/* set IRQ for HP C2502 */
+			if (overrides[current_override].board == BOARD_HP_C2502)
+				magic_configure(port_idx, instance->irq, magic);
+#endif
 			if (request_irq(instance->irq, generic_NCR5380_intr,
 					0, "NCR5380", instance)) {
 				printk(KERN_WARNING "scsi%d : IRQ%d not free, interrupts disabled\n", instance->host_no, instance->irq);
-				instance->irq = SCSI_IRQ_NONE;
+				instance->irq = NO_IRQ;
 			}
+		}
 
-		if (instance->irq == SCSI_IRQ_NONE) {
+		if (instance->irq == NO_IRQ) {
 			printk(KERN_INFO "scsi%d : interrupts not enabled. for better interactive performance,\n", instance->host_no);
 			printk(KERN_INFO "scsi%d : please jumper the board for a free IRQ.\n", instance->host_no);
 		}
-
-		printk(KERN_INFO "scsi%d : at " STRVAL(NCR5380_map_name) " 0x%x", instance->host_no, (unsigned int) instance->NCR5380_instance_name);
-		if (instance->irq == SCSI_IRQ_NONE)
-			printk(" interrupts disabled");
-		else
-			printk(" irq %d", instance->irq);
-		printk(" options CAN_QUEUE=%d  CMD_PER_LUN=%d release=%d", CAN_QUEUE, CMD_PER_LUN, GENERIC_NCR5380_PUBLIC_RELEASE);
-		NCR5380_print_options(instance);
-		printk("\n");
 
 		++current_override;
 		++count;
 	}
 	return count;
-}
 
-/**
- *	generic_NCR5380_info	-	reporting string
- *	@host: NCR5380 to report on
- *
- *	Report driver information for the NCR5380
- */
- 	
-const char *generic_NCR5380_info(struct Scsi_Host *host)
-{
-	static const char string[] = "Generic NCR5380/53C400 Driver";
-	return string;
+out_unregister:
+	scsi_unregister(instance);
+out_release:
+#ifndef SCSI_G_NCR5380_MEM
+	release_region(overrides[current_override].NCR5380_map_name, region_size);
+#else
+	iounmap(iomem);
+	release_mem_region(base, NCR5380_region_size);
+#endif
+	return count;
 }
 
 /**
@@ -504,23 +538,17 @@ const char *generic_NCR5380_info(struct Scsi_Host *host)
  *	Locks: none
  */
  
-int generic_NCR5380_release_resources(struct Scsi_Host *instance)
+static int generic_NCR5380_release_resources(struct Scsi_Host *instance)
 {
-	NCR5380_local_declare();
-	NCR5380_setup(instance);
-	
-	if (instance->irq != SCSI_IRQ_NONE)
+	if (instance->irq != NO_IRQ)
 		free_irq(instance->irq, instance);
 	NCR5380_exit(instance);
-
 #ifndef SCSI_G_NCR5380_MEM
-	release_region(instance->NCR5380_instance_name, instance->n_io_port);
+	release_region(instance->io_port, instance->n_io_port);
 #else
 	iounmap(((struct NCR5380_hostdata *)instance->hostdata)->iomem);
-	release_mem_region(instance->NCR5380_instance_name, NCR5380_region_size);
+	release_mem_region(instance->base, NCR5380_region_size);
 #endif
-
-
 	return 0;
 }
 
@@ -553,7 +581,7 @@ generic_NCR5380_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 }
 #endif
 
-#ifdef NCR53C400_PSEUDO_DMA
+#ifdef PSEUDO_DMA
 
 /**
  *	NCR5380_pread		-	pseudo DMA read
@@ -567,75 +595,68 @@ generic_NCR5380_biosparam(struct scsi_device *sdev, struct block_device *bdev,
  
 static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, int len)
 {
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int blocks = len / 128;
 	int start = 0;
-	int bl;
 
-	NCR5380_local_declare();
-	NCR5380_setup(instance);
-
-	NCR5380_write(C400_CONTROL_STATUS_REG, CSR_BASE | CSR_TRANS_DIR);
-	NCR5380_write(C400_BLOCK_COUNTER_REG, blocks);
+	NCR5380_write(hostdata->c400_ctl_status, CSR_BASE | CSR_TRANS_DIR);
+	NCR5380_write(hostdata->c400_blk_cnt, blocks);
 	while (1) {
-		if ((bl = NCR5380_read(C400_BLOCK_COUNTER_REG)) == 0) {
+		if (NCR5380_read(hostdata->c400_blk_cnt) == 0)
 			break;
-		}
-		if (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_GATED_53C80_IRQ) {
+		if (NCR5380_read(hostdata->c400_ctl_status) & CSR_GATED_53C80_IRQ) {
 			printk(KERN_ERR "53C400r: Got 53C80_IRQ start=%d, blocks=%d\n", start, blocks);
 			return -1;
 		}
-		while (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_HOST_BUF_NOT_RDY);
+		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
+			; /* FIXME - no timeout */
 
 #ifndef SCSI_G_NCR5380_MEM
-		{
-			int i;
-			for (i = 0; i < 128; i++)
-				dst[start + i] = NCR5380_read(C400_HOST_BUFFER);
-		}
+		if (hostdata->io_width == 2)
+			insw(instance->io_port + hostdata->c400_host_buf,
+							dst + start, 64);
+		else
+			insb(instance->io_port + hostdata->c400_host_buf,
+							dst + start, 128);
 #else
 		/* implies SCSI_G_NCR5380_MEM */
-		memcpy_fromio(dst + start, iomem + NCR53C400_host_buffer, 128);
+		memcpy_fromio(dst + start,
+		              hostdata->iomem + NCR53C400_host_buffer, 128);
 #endif
 		start += 128;
 		blocks--;
 	}
 
 	if (blocks) {
-		while (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_HOST_BUF_NOT_RDY)
-		{
-			// FIXME - no timeout
-		}
+		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
+			; /* FIXME - no timeout */
 
 #ifndef SCSI_G_NCR5380_MEM
-		{
-			int i;	
-			for (i = 0; i < 128; i++)
-				dst[start + i] = NCR5380_read(C400_HOST_BUFFER);
-		}
+		if (hostdata->io_width == 2)
+			insw(instance->io_port + hostdata->c400_host_buf,
+							dst + start, 64);
+		else
+			insb(instance->io_port + hostdata->c400_host_buf,
+							dst + start, 128);
 #else
 		/* implies SCSI_G_NCR5380_MEM */
-		memcpy_fromio(dst + start, iomem + NCR53C400_host_buffer, 128);
+		memcpy_fromio(dst + start,
+		              hostdata->iomem + NCR53C400_host_buffer, 128);
 #endif
 		start += 128;
 		blocks--;
 	}
 
-	if (!(NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_GATED_53C80_IRQ))
+	if (!(NCR5380_read(hostdata->c400_ctl_status) & CSR_GATED_53C80_IRQ))
 		printk("53C400r: no 53C80 gated irq after transfer");
 
-#if 0
-	/*
-	 *	DON'T DO THIS - THEY NEVER ARRIVE!
-	 */
-	printk("53C400r: Waiting for 53C80 registers\n");
-	while (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_53C80_REG)
+	/* wait for 53C80 registers to be available */
+	while (!(NCR5380_read(hostdata->c400_ctl_status) & CSR_53C80_REG))
 		;
-#endif
+
 	if (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_END_DMA_TRANSFER))
 		printk(KERN_ERR "53C400r: no end dma signal\n");
 		
-	NCR5380_write(MODE_REG, MR_BASE);
-	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
 	return 0;
 }
 
@@ -651,89 +672,91 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 
 static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src, int len)
 {
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int blocks = len / 128;
 	int start = 0;
-	int bl;
-	int i;
 
-	NCR5380_local_declare();
-	NCR5380_setup(instance);
-
-	NCR5380_write(C400_CONTROL_STATUS_REG, CSR_BASE);
-	NCR5380_write(C400_BLOCK_COUNTER_REG, blocks);
+	NCR5380_write(hostdata->c400_ctl_status, CSR_BASE);
+	NCR5380_write(hostdata->c400_blk_cnt, blocks);
 	while (1) {
-		if (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_GATED_53C80_IRQ) {
+		if (NCR5380_read(hostdata->c400_ctl_status) & CSR_GATED_53C80_IRQ) {
 			printk(KERN_ERR "53C400w: Got 53C80_IRQ start=%d, blocks=%d\n", start, blocks);
 			return -1;
 		}
 
-		if ((bl = NCR5380_read(C400_BLOCK_COUNTER_REG)) == 0) {
+		if (NCR5380_read(hostdata->c400_blk_cnt) == 0)
 			break;
-		}
-		while (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_HOST_BUF_NOT_RDY)
+		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
 			; // FIXME - timeout
 #ifndef SCSI_G_NCR5380_MEM
-		{
-			for (i = 0; i < 128; i++)
-				NCR5380_write(C400_HOST_BUFFER, src[start + i]);
-		}
+		if (hostdata->io_width == 2)
+			outsw(instance->io_port + hostdata->c400_host_buf,
+							src + start, 64);
+		else
+			outsb(instance->io_port + hostdata->c400_host_buf,
+							src + start, 128);
 #else
 		/* implies SCSI_G_NCR5380_MEM */
-		memcpy_toio(iomem + NCR53C400_host_buffer, src + start, 128);
+		memcpy_toio(hostdata->iomem + NCR53C400_host_buffer,
+		            src + start, 128);
 #endif
 		start += 128;
 		blocks--;
 	}
 	if (blocks) {
-		while (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_HOST_BUF_NOT_RDY)
+		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
 			; // FIXME - no timeout
 
 #ifndef SCSI_G_NCR5380_MEM
-		{
-			for (i = 0; i < 128; i++)
-				NCR5380_write(C400_HOST_BUFFER, src[start + i]);
-		}
+		if (hostdata->io_width == 2)
+			outsw(instance->io_port + hostdata->c400_host_buf,
+							src + start, 64);
+		else
+			outsb(instance->io_port + hostdata->c400_host_buf,
+							src + start, 128);
 #else
 		/* implies SCSI_G_NCR5380_MEM */
-		memcpy_toio(iomem + NCR53C400_host_buffer, src + start, 128);
+		memcpy_toio(hostdata->iomem + NCR53C400_host_buffer,
+		            src + start, 128);
 #endif
 		start += 128;
 		blocks--;
 	}
 
-#if 0
-	printk("53C400w: waiting for registers to be available\n");
-	THEY NEVER DO ! while (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_53C80_REG);
-	printk("53C400w: Got em\n");
-#endif
+	/* wait for 53C80 registers to be available */
+	while (!(NCR5380_read(hostdata->c400_ctl_status) & CSR_53C80_REG)) {
+		udelay(4); /* DTC436 chip hangs without this */
+		/* FIXME - no timeout */
+	}
 
-	/* Let's wait for this instead - could be ugly */
-	/* All documentation says to check for this. Maybe my hardware is too
-	 * fast. Waiting for it seems to work fine! KLL
-	 */
-	while (!(i = NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_GATED_53C80_IRQ))
-		;	// FIXME - no timeout
-
-	/*
-	 * I know. i is certainly != 0 here but the loop is new. See previous
-	 * comment.
-	 */
-	if (i) {
-		if (!((i = NCR5380_read(BUS_AND_STATUS_REG)) & BASR_END_DMA_TRANSFER))
-			printk(KERN_ERR "53C400w: No END OF DMA bit - WHOOPS! BASR=%0x\n", i);
-	} else
-		printk(KERN_ERR "53C400w: no 53C80 gated irq after transfer (last block)\n");
-
-#if 0
 	if (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_END_DMA_TRANSFER)) {
 		printk(KERN_ERR "53C400w: no end dma signal\n");
 	}
-#endif
+
 	while (!(NCR5380_read(TARGET_COMMAND_REG) & TCR_LAST_BYTE_SENT))
 		; 	// TIMEOUT
 	return 0;
 }
-#endif				/* PSEUDO_DMA */
+
+static int generic_NCR5380_dma_xfer_len(struct scsi_cmnd *cmd)
+{
+	int transfersize = cmd->transfersize;
+
+	/* Limit transfers to 32K, for xx400 & xx406
+	 * pseudoDMA that transfers in 128 bytes blocks.
+	 */
+	if (transfersize > 32 * 1024 && cmd->SCp.this_residual &&
+	    !(cmd->SCp.this_residual % transfersize))
+		transfersize = 32 * 1024;
+
+	/* 53C400 datasheet: non-modulo-128-byte transfers should use PIO */
+	if (transfersize % 128)
+		transfersize = 0;
+
+	return transfersize;
+}
+
+#endif /* PSEUDO_DMA */
 
 /*
  *	Include the NCR5380 core code that we build our driver around	
@@ -741,177 +764,25 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
  
 #include "NCR5380.c"
 
-#define PRINTP(x) seq_printf(m, x)
-#define ANDP ,
-
-static void sprint_opcode(struct seq_file *m, int opcode)
-{
-	PRINTP("0x%02x " ANDP opcode);
-}
-
-static void sprint_command(struct seq_file *m, unsigned char *command)
-{
-	int i, s;
-	sprint_opcode(m, command[0]);
-	for (i = 1, s = COMMAND_SIZE(command[0]); i < s; ++i)
-		PRINTP("%02x " ANDP command[i]);
-	PRINTP("\n");
-}
-
-/**
- *	sprintf_Scsi_Cmnd	-	print a scsi command
- *	@m: seq_fil to print into
- *	@cmd: SCSI command block
- *	
- *	Print out the target and command data in hex
- */
-
-static void sprint_Scsi_Cmnd(struct seq_file *m, Scsi_Cmnd * cmd)
-{
-	PRINTP("host number %d destination target %d, lun %llu\n" ANDP cmd->device->host->host_no ANDP cmd->device->id ANDP cmd->device->lun);
-	PRINTP("        command = ");
-	sprint_command(m, cmd->cmnd);
-}
-
-/**
- *	generic_NCR5380_proc_info	-	/proc for NCR5380 driver
- *	@buffer: buffer to print into
- *	@start: start position
- *	@offset: offset into buffer
- *	@len: length
- *	@hostno: instance to affect
- *	@inout: read/write
- *
- *	Provide the procfs information for the 5380 controller. We fill
- *	this with useful debugging information including the commands
- *	being executed, disconnected command queue and the statistical
- *	data
- *
- *	Locks: global cli/lock for queue walk
- */
- 
-static int generic_NCR5380_show_info(struct seq_file *m, struct Scsi_Host *scsi_ptr)
-{
-	NCR5380_local_declare();
-	unsigned long flags;
-	unsigned char status;
-	int i;
-	Scsi_Cmnd *ptr;
-	struct NCR5380_hostdata *hostdata;
-#ifdef NCR5380_STATS
-	struct scsi_device *dev;
-#endif
-
-	NCR5380_setup(scsi_ptr);
-	hostdata = (struct NCR5380_hostdata *) scsi_ptr->hostdata;
-
-	spin_lock_irqsave(scsi_ptr->host_lock, flags);
-	PRINTP("SCSI host number %d : %s\n" ANDP scsi_ptr->host_no ANDP scsi_ptr->hostt->name);
-	PRINTP("Generic NCR5380 driver version %d\n" ANDP GENERIC_NCR5380_PUBLIC_RELEASE);
-	PRINTP("NCR5380 core version %d\n" ANDP NCR5380_PUBLIC_RELEASE);
-#ifdef NCR53C400
-	PRINTP("NCR53C400 extension version %d\n" ANDP NCR53C400_PUBLIC_RELEASE);
-	PRINTP("NCR53C400 card%s detected\n" ANDP(((struct NCR5380_hostdata *) scsi_ptr->hostdata)->flags & FLAG_NCR53C400) ? "" : " not");
-# if NCR53C400_PSEUDO_DMA
-	PRINTP("NCR53C400 pseudo DMA used\n");
-# endif
-#else
-	PRINTP("NO NCR53C400 driver extensions\n");
-#endif
-	PRINTP("Using %s mapping at %s 0x%lx, " ANDP STRVAL(NCR5380_map_config) ANDP STRVAL(NCR5380_map_name) ANDP scsi_ptr->NCR5380_instance_name);
-	if (scsi_ptr->irq == SCSI_IRQ_NONE)
-		PRINTP("no interrupt\n");
-	else
-		PRINTP("on interrupt %d\n" ANDP scsi_ptr->irq);
-
-#ifdef NCR5380_STATS
-	if (hostdata->connected || hostdata->issue_queue || hostdata->disconnected_queue)
-		PRINTP("There are commands pending, transfer rates may be crud\n");
-	if (hostdata->pendingr)
-		PRINTP("  %d pending reads" ANDP hostdata->pendingr);
-	if (hostdata->pendingw)
-		PRINTP("  %d pending writes" ANDP hostdata->pendingw);
-	if (hostdata->pendingr || hostdata->pendingw)
-		PRINTP("\n");
-	shost_for_each_device(dev, scsi_ptr) {
-		unsigned long br = hostdata->bytes_read[dev->id];
-		unsigned long bw = hostdata->bytes_write[dev->id];
-		long tr = hostdata->time_read[dev->id] / HZ;
-		long tw = hostdata->time_write[dev->id] / HZ;
-
-		PRINTP("  T:%d %s " ANDP dev->id ANDP scsi_device_type(dev->type));
-		for (i = 0; i < 8; i++)
-			if (dev->vendor[i] >= 0x20)
-				seq_putc(m, dev->vendor[i]);
-		seq_putc(m, ' ');
-		for (i = 0; i < 16; i++)
-			if (dev->model[i] >= 0x20)
-				seq_putc(m, dev->model[i]);
-		seq_putc(m, ' ');
-		for (i = 0; i < 4; i++)
-			if (dev->rev[i] >= 0x20)
-				seq_putc(m, dev->rev[i]);
-		seq_putc(m, ' ');
-
-		PRINTP("\n%10ld kb read    in %5ld secs" ANDP br / 1024 ANDP tr);
-		if (tr)
-			PRINTP(" @ %5ld bps" ANDP br / tr);
-
-		PRINTP("\n%10ld kb written in %5ld secs" ANDP bw / 1024 ANDP tw);
-		if (tw)
-			PRINTP(" @ %5ld bps" ANDP bw / tw);
-		PRINTP("\n");
-	}
-#endif
-
-	status = NCR5380_read(STATUS_REG);
-	if (!(status & SR_REQ))
-		PRINTP("REQ not asserted, phase unknown.\n");
-	else {
-		for (i = 0; (phases[i].value != PHASE_UNKNOWN) && (phases[i].value != (status & PHASE_MASK)); ++i);
-		PRINTP("Phase %s\n" ANDP phases[i].name);
-	}
-
-	if (!hostdata->connected) {
-		PRINTP("No currently connected command\n");
-	} else {
-		sprint_Scsi_Cmnd(m, (Scsi_Cmnd *) hostdata->connected);
-	}
-
-	PRINTP("issue_queue\n");
-
-	for (ptr = (Scsi_Cmnd *) hostdata->issue_queue; ptr; ptr = (Scsi_Cmnd *) ptr->host_scribble)
-		sprint_Scsi_Cmnd(m, ptr);
-
-	PRINTP("disconnected_queue\n");
-
-	for (ptr = (Scsi_Cmnd *) hostdata->disconnected_queue; ptr; ptr = (Scsi_Cmnd *) ptr->host_scribble)
-		sprint_Scsi_Cmnd(m, ptr);
-
-	spin_unlock_irqrestore(scsi_ptr->host_lock, flags);
-	return 0;
-}
-
-#undef PRINTP
-#undef ANDP
-
 static struct scsi_host_template driver_template = {
-	.show_info      	= generic_NCR5380_show_info,
-	.name           	= "Generic NCR5380/NCR53C400 Scsi Driver",
-	.detect         	= generic_NCR5380_detect,
-	.release        	= generic_NCR5380_release_resources,
-	.info           	= generic_NCR5380_info,
-	.queuecommand   	= generic_NCR5380_queue_command,
+	.proc_name		= DRV_MODULE_NAME,
+	.name			= "Generic NCR5380/NCR53C400 SCSI",
+	.detect			= generic_NCR5380_detect,
+	.release		= generic_NCR5380_release_resources,
+	.info			= generic_NCR5380_info,
+	.queuecommand		= generic_NCR5380_queue_command,
 	.eh_abort_handler	= generic_NCR5380_abort,
 	.eh_bus_reset_handler	= generic_NCR5380_bus_reset,
-	.bios_param     	= NCR5380_BIOSPARAM,
-	.can_queue      	= CAN_QUEUE,
-        .this_id        	= 7,
-        .sg_tablesize   	= SG_ALL,
-	.cmd_per_lun    	= CMD_PER_LUN,
-        .use_clustering		= DISABLE_CLUSTERING,
+	.bios_param		= NCR5380_BIOSPARAM,
+	.can_queue		= 16,
+	.this_id		= 7,
+	.sg_tablesize		= SG_ALL,
+	.cmd_per_lun		= 2,
+	.use_clustering		= DISABLE_CLUSTERING,
+	.cmd_size		= NCR5380_CMD_SIZE,
+	.max_sectors		= 128,
 };
-#include <linux/module.h>
+
 #include "scsi_module.c"
 
 module_param(ncr_irq, int, 0);
@@ -921,9 +792,10 @@ module_param(ncr_5380, int, 0);
 module_param(ncr_53c400, int, 0);
 module_param(ncr_53c400a, int, 0);
 module_param(dtc_3181e, int, 0);
+module_param(hp_c2502, int, 0);
 MODULE_LICENSE("GPL");
 
-#ifndef SCSI_G_NCR5380_MEM
+#if !defined(SCSI_G_NCR5380_MEM) && defined(MODULE)
 static struct isapnp_device_id id_table[] = {
 	{
 	 ISAPNP_ANY_ID, ISAPNP_ANY_ID,

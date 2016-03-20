@@ -26,7 +26,8 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PXI-6040E, PCI-6030E, PCI-6031E, PCI-6032E, PCI-6033E, PCI-6071E, PCI-6023E,
   PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E, PCI-6035E, PCI-6052E,
   PCI-6110, PCI-6111, PCI-6220, PCI-6221, PCI-6224, PXI-6224,
-  PCI-6225, PXI-6225, PCI-6229, PCI-6250, PCI-6251, PCIe-6251, PXIe-6251,
+  PCI-6225, PXI-6225, PCI-6229, PCI-6250,
+  PCI-6251, PXI-6251, PCIe-6251, PXIe-6251,
   PCI-6254, PCI-6259, PCIe-6259,
   PCI-6280, PCI-6281, PXI-6281, PCI-6284, PCI-6289,
   PCI-6711, PXI-6711, PCI-6713, PXI-6713,
@@ -109,7 +110,7 @@ Bugs:
 #include <linux/module.h>
 #include <linux/delay.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include <asm/byteorder.h>
 
@@ -193,6 +194,7 @@ enum ni_pcimio_boardid {
 	BOARD_PCI6229,
 	BOARD_PCI6250,
 	BOARD_PCI6251,
+	BOARD_PXI6251,
 	BOARD_PCIE6251,
 	BOARD_PXIE6251,
 	BOARD_PCI6254,
@@ -811,6 +813,21 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_speed	= 350,
 		.caldac		= { caldac_none },
 	},
+	[BOARD_PXI6251] = {
+		.name		= "pxi-6251",
+		.n_adchan	= 16,
+		.ai_maxdata	= 0xffff,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 800,
+		.n_aochan	= 2,
+		.ao_maxdata	= 0xffff,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_ni_M_625x_ao,
+		.reg_type	= ni_reg_625x,
+		.ao_speed	= 350,
+		.caldac		= { caldac_none },
+	},
 	[BOARD_PCIE6251] = {
 		.name		= "pcie-6251",
 		.n_adchan	= 16,
@@ -1041,7 +1058,6 @@ static int pcimio_dio_change(struct comedi_device *dev,
 	return 0;
 }
 
-
 static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
@@ -1082,30 +1098,29 @@ static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 
 static void init_6143(struct comedi_device *dev)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 
 	/*  Disable interrupts */
-	ni_stc_writew(dev, 0, Interrupt_Control_Register);
+	ni_stc_writew(dev, 0, NISTC_INT_CTRL_REG);
 
 	/*  Initialise 6143 AI specific bits */
 
 	/* Set G0,G1 DMA mode to E series version */
-	ni_writeb(dev, 0x00, Magic_6143);
+	ni_writeb(dev, 0x00, NI6143_MAGIC_REG);
 	/* Set EOCMode, ADCMode and pipelinedelay */
-	ni_writeb(dev, 0x80, PipelineDelay_6143);
+	ni_writeb(dev, 0x80, NI6143_PIPELINE_DELAY_REG);
 	/* Set EOC Delay */
-	ni_writeb(dev, 0x00, EOC_Set_6143);
+	ni_writeb(dev, 0x00, NI6143_EOC_SET_REG);
 
 	/* Set the FIFO half full level */
-	ni_writel(dev, board->ai_fifo_depth / 2, AIFIFO_Flag_6143);
+	ni_writel(dev, board->ai_fifo_depth / 2, NI6143_AI_FIFO_FLAG_REG);
 
 	/*  Strobe Relay disable bit */
 	devpriv->ai_calib_source_enabled = 0;
-	ni_writew(dev, devpriv->ai_calib_source |
-		       Calibration_Channel_6143_RelayOff,
-		  Calibration_Channel_6143);
-	ni_writew(dev, devpriv->ai_calib_source, Calibration_Channel_6143);
+	ni_writew(dev, devpriv->ai_calib_source | NI6143_CALIB_CHAN_RELAY_OFF,
+		  NI6143_CALIB_CHAN_REG);
+	ni_writew(dev, devpriv->ai_calib_source, NI6143_CALIB_CHAN_REG);
 }
 
 static void pcimio_detach(struct comedi_device *dev)
@@ -1183,19 +1198,19 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	devpriv->ai_mite_ring = mite_alloc_ring(devpriv->mite);
-	if (devpriv->ai_mite_ring == NULL)
+	if (!devpriv->ai_mite_ring)
 		return -ENOMEM;
 	devpriv->ao_mite_ring = mite_alloc_ring(devpriv->mite);
-	if (devpriv->ao_mite_ring == NULL)
+	if (!devpriv->ao_mite_ring)
 		return -ENOMEM;
 	devpriv->cdo_mite_ring = mite_alloc_ring(devpriv->mite);
-	if (devpriv->cdo_mite_ring == NULL)
+	if (!devpriv->cdo_mite_ring)
 		return -ENOMEM;
 	devpriv->gpct_mite_ring[0] = mite_alloc_ring(devpriv->mite);
-	if (devpriv->gpct_mite_ring[0] == NULL)
+	if (!devpriv->gpct_mite_ring[0])
 		return -ENOMEM;
 	devpriv->gpct_mite_ring[1] = mite_alloc_ring(devpriv->mite);
-	if (devpriv->gpct_mite_ring[1] == NULL)
+	if (!devpriv->gpct_mite_ring[1])
 		return -ENOMEM;
 
 	if (devpriv->is_m_series)
@@ -1292,6 +1307,7 @@ static const struct pci_device_id ni_pcimio_pci_table[] = {
 	{ PCI_VDEVICE(NI, 0x71bc), BOARD_PCI6221_37PIN },
 	{ PCI_VDEVICE(NI, 0x717d), BOARD_PCIE6251 },
 	{ PCI_VDEVICE(NI, 0x72e8), BOARD_PXIE6251 },
+	{ PCI_VDEVICE(NI, 0x70ad), BOARD_PXI6251 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_pcimio_pci_table);

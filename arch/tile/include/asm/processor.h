@@ -111,8 +111,6 @@ struct thread_struct {
 	unsigned long long interrupt_mask;
 	/* User interrupt-control 0 state */
 	unsigned long intctrl_0;
-	/* Is this task currently doing a backtrace? */
-	bool in_backtrace;
 	/* Any other miscellaneous processor state bits */
 	unsigned long proc_status;
 #if !CHIP_HAS_FIXED_INTVEC_BASE()
@@ -214,7 +212,7 @@ static inline void release_thread(struct task_struct *dead_task)
 	/* Nothing for now */
 }
 
-extern int do_work_pending(struct pt_regs *regs, u32 flags);
+extern void prepare_exit_to_usermode(struct pt_regs *regs, u32 flags);
 
 
 /*

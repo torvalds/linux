@@ -36,11 +36,6 @@ struct driver_data {
 	/* PXA hookup */
 	struct pxa2xx_spi_master *master_info;
 
-	/* PXA private DMA setup stuff */
-	int rx_channel;
-	int tx_channel;
-	u32 *null_dma_buf;
-
 	/* SSP register addresses */
 	void __iomem *ioaddr;
 	u32 ssdr_physical;
@@ -50,9 +45,6 @@ struct driver_data {
 	u32 int_cr1;
 	u32 clear_sr;
 	u32 mask_sr;
-
-	/* Maximun clock rate */
-	unsigned long max_clk_rate;
 
 	/* Message Transfer pump */
 	struct tasklet_struct pump_transfers;
@@ -77,8 +69,6 @@ struct driver_data {
 	void *rx;
 	void *rx_end;
 	int dma_mapped;
-	dma_addr_t rx_dma;
-	dma_addr_t tx_dma;
 	size_t rx_map_len;
 	size_t tx_map_len;
 	u8 n_bytes;
@@ -91,9 +81,8 @@ struct driver_data {
 };
 
 struct chip_data {
-	u32 cr0;
 	u32 cr1;
-	u32 psp;
+	u32 dds_rate;
 	u32 timeout;
 	u8 n_bytes;
 	u32 dma_burst_size;
@@ -102,8 +91,6 @@ struct chip_data {
 	u16 lpss_rx_threshold;
 	u16 lpss_tx_threshold;
 	u8 enable_dma;
-	u8 bits_per_word;
-	u32 speed_hz;
 	union {
 		int gpio_cs;
 		unsigned int frm;
@@ -114,22 +101,17 @@ struct chip_data {
 	void (*cs_control)(u32 command);
 };
 
-#define DEFINE_SSP_REG(reg, off) \
-static inline u32 read_##reg(void const __iomem *p) \
-{ return __raw_readl(p + (off)); } \
-\
-static inline void write_##reg(u32 v, void __iomem *p) \
-{ __raw_writel(v, p + (off)); }
+static inline u32 pxa2xx_spi_read(const struct driver_data *drv_data,
+				  unsigned reg)
+{
+	return __raw_readl(drv_data->ioaddr + reg);
+}
 
-DEFINE_SSP_REG(SSCR0, 0x00)
-DEFINE_SSP_REG(SSCR1, 0x04)
-DEFINE_SSP_REG(SSSR, 0x08)
-DEFINE_SSP_REG(SSITR, 0x0c)
-DEFINE_SSP_REG(SSDR, 0x10)
-DEFINE_SSP_REG(SSTO, 0x28)
-DEFINE_SSP_REG(SSPSP, 0x2c)
-DEFINE_SSP_REG(SSITF, SSITF)
-DEFINE_SSP_REG(SSIRF, SSIRF)
+static  inline void pxa2xx_spi_write(const struct driver_data *drv_data,
+				     unsigned reg, u32 val)
+{
+	__raw_writel(val, drv_data->ioaddr + reg);
+}
 
 #define START_STATE ((void *)0)
 #define RUNNING_STATE ((void *)1)
@@ -141,44 +123,31 @@ DEFINE_SSP_REG(SSIRF, SSIRF)
 
 static inline int pxa25x_ssp_comp(struct driver_data *drv_data)
 {
-	if (drv_data->ssp_type == PXA25x_SSP)
+	switch (drv_data->ssp_type) {
+	case PXA25x_SSP:
+	case CE4100_SSP:
+	case QUARK_X1000_SSP:
 		return 1;
-	if (drv_data->ssp_type == CE4100_SSP)
-		return 1;
-	return 0;
+	default:
+		return 0;
+	}
 }
 
 static inline void write_SSSR_CS(struct driver_data *drv_data, u32 val)
 {
-	void __iomem *reg = drv_data->ioaddr;
+	if (drv_data->ssp_type == CE4100_SSP ||
+	    drv_data->ssp_type == QUARK_X1000_SSP)
+		val |= pxa2xx_spi_read(drv_data, SSSR) & SSSR_ALT_FRM_MASK;
 
-	if (drv_data->ssp_type == CE4100_SSP)
-		val |= read_SSSR(reg) & SSSR_ALT_FRM_MASK;
-
-	write_SSSR(val, reg);
+	pxa2xx_spi_write(drv_data, SSSR, val);
 }
 
 extern int pxa2xx_spi_flush(struct driver_data *drv_data);
 extern void *pxa2xx_spi_next_transfer(struct driver_data *drv_data);
 
-/*
- * Select the right DMA implementation.
- */
-#if defined(CONFIG_SPI_PXA2XX_PXADMA)
-#define SPI_PXA2XX_USE_DMA	1
-#define MAX_DMA_LEN		8191
-#define DEFAULT_DMA_CR1		(SSCR1_TSRE | SSCR1_RSRE | SSCR1_TINTE)
-#elif defined(CONFIG_SPI_PXA2XX_DMA)
-#define SPI_PXA2XX_USE_DMA	1
 #define MAX_DMA_LEN		SZ_64K
 #define DEFAULT_DMA_CR1		(SSCR1_TSRE | SSCR1_RSRE | SSCR1_TRAIL)
-#else
-#undef SPI_PXA2XX_USE_DMA
-#define MAX_DMA_LEN		0
-#define DEFAULT_DMA_CR1		0
-#endif
 
-#ifdef SPI_PXA2XX_USE_DMA
 extern bool pxa2xx_spi_dma_is_possible(size_t len);
 extern int pxa2xx_spi_map_dma_buffers(struct driver_data *drv_data);
 extern irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data);
@@ -186,36 +155,10 @@ extern int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst);
 extern void pxa2xx_spi_dma_start(struct driver_data *drv_data);
 extern int pxa2xx_spi_dma_setup(struct driver_data *drv_data);
 extern void pxa2xx_spi_dma_release(struct driver_data *drv_data);
-extern void pxa2xx_spi_dma_resume(struct driver_data *drv_data);
 extern int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,
 						  struct spi_device *spi,
 						  u8 bits_per_word,
 						  u32 *burst_code,
 						  u32 *threshold);
-#else
-static inline bool pxa2xx_spi_dma_is_possible(size_t len) { return false; }
-static inline int pxa2xx_spi_map_dma_buffers(struct driver_data *drv_data)
-{
-	return 0;
-}
-#define pxa2xx_spi_dma_transfer NULL
-static inline void pxa2xx_spi_dma_prepare(struct driver_data *drv_data,
-					  u32 dma_burst) {}
-static inline void pxa2xx_spi_dma_start(struct driver_data *drv_data) {}
-static inline int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
-{
-	return 0;
-}
-static inline void pxa2xx_spi_dma_release(struct driver_data *drv_data) {}
-static inline void pxa2xx_spi_dma_resume(struct driver_data *drv_data) {}
-static inline int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,
-							 struct spi_device *spi,
-							 u8 bits_per_word,
-							 u32 *burst_code,
-							 u32 *threshold)
-{
-	return -ENODEV;
-}
-#endif
 
 #endif /* SPI_PXA2XX_H */

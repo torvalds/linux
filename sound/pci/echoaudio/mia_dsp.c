@@ -41,32 +41,31 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 {
 	int err;
 
-	DE_INIT(("init_hw() - Mia\n"));
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != MIA))
 		return -ENODEV;
 
 	if ((err = init_dsp_comm_page(chip))) {
-		DE_INIT(("init_hw - could not initialize DSP comm page\n"));
+		dev_err(chip->card->dev,
+			"init_hw - could not initialize DSP comm page\n");
 		return err;
 	}
 
 	chip->device_id = device_id;
 	chip->subdevice_id = subdevice_id;
-	chip->bad_board = TRUE;
+	chip->bad_board = true;
 	chip->dsp_code_to_load = FW_MIA_DSP;
 	/* Since this card has no ASIC, mark it as loaded so everything
 	   works OK */
-	chip->asic_loaded = TRUE;
+	chip->asic_loaded = true;
 	if ((subdevice_id & 0x0000f) == MIA_MIDI_REV)
-		chip->has_midi = TRUE;
+		chip->has_midi = true;
 	chip->input_clock_types = ECHO_CLOCK_BIT_INTERNAL |
 		ECHO_CLOCK_BIT_SPDIF;
 
 	if ((err = load_firmware(chip)) < 0)
 		return err;
-	chip->bad_board = FALSE;
+	chip->bad_board = false;
 
-	DE_INIT(("init_hw done\n"));
 	return err;
 }
 
@@ -126,7 +125,8 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 		control_reg = MIA_32000;
 		break;
 	default:
-		DE_ACT(("set_sample_rate: %d invalid!\n", rate));
+		dev_err(chip->card->dev,
+			"set_sample_rate: %d invalid!\n", rate);
 		return -EINVAL;
 	}
 
@@ -153,7 +153,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 
 static int set_input_clock(struct echoaudio *chip, u16 clock)
 {
-	DE_ACT(("set_input_clock(%d)\n", clock));
+	dev_dbg(chip->card->dev, "set_input_clock(%d)\n", clock);
 	if (snd_BUG_ON(clock != ECHO_CLOCK_INTERNAL &&
 		       clock != ECHO_CLOCK_SPDIF))
 		return -EINVAL;
@@ -181,7 +181,8 @@ static int set_vmixer_gain(struct echoaudio *chip, u16 output, u16 pipe,
 	index = output * num_pipes_out(chip) + pipe;
 	chip->comm_page->vmixer[index] = gain;
 
-	DE_ACT(("set_vmixer_gain: pipe %d, out %d = %d\n", pipe, output, gain));
+	dev_dbg(chip->card->dev,
+		"set_vmixer_gain: pipe %d, out %d = %d\n", pipe, output, gain);
 	return 0;
 }
 
@@ -211,7 +212,7 @@ static int update_flags(struct echoaudio *chip)
 
 static int set_professional_spdif(struct echoaudio *chip, char prof)
 {
-	DE_ACT(("set_professional_spdif %d\n", prof));
+	dev_dbg(chip->card->dev, "set_professional_spdif %d\n", prof);
 	if (prof)
 		chip->comm_page->flags |=
 			cpu_to_le32(DSP_FLAG_PROFESSIONAL_SPDIF);

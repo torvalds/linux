@@ -68,7 +68,6 @@ struct soc_pcmcia_socket {
 
 struct skt_dev_info {
 	int nskt;
-	struct clk *clk;
 	struct soc_pcmcia_socket skt[0];
 };
 

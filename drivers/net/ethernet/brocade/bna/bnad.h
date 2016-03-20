@@ -1,5 +1,5 @@
 /*
- * Linux network driver for Brocade Converged Network Adapter.
+ * Linux network driver for QLogic BR-series Converged Network Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -11,9 +11,10 @@
  * General Public License for more details.
  */
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014-2015 QLogic Corporation
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  */
 #ifndef __BNAD_H__
 #define __BNAD_H__
@@ -71,7 +72,7 @@ struct bnad_rx_ctrl {
 #define BNAD_NAME			"bna"
 #define BNAD_NAME_LEN			64
 
-#define BNAD_VERSION			"3.2.23.0"
+#define BNAD_VERSION			"3.2.25.1"
 
 #define BNAD_MAILBOX_MSIX_INDEX		0
 #define BNAD_MAILBOX_MSIX_VECTORS	1
@@ -174,6 +175,7 @@ struct bnad_drv_stats {
 	u64		tx_skb_headlen_zero;
 	u64		tx_skb_frag_zero;
 	u64		tx_skb_len_mismatch;
+	u64		tx_skb_map_failed;
 
 	u64		hw_stats_updates;
 	u64		netif_rx_dropped;
@@ -188,6 +190,7 @@ struct bnad_drv_stats {
 	u64		rx_unmap_q_alloc_failed;
 
 	u64		rxbuf_alloc_failed;
+	u64		rxbuf_map_failed;
 };
 
 /* Complete driver stats */
@@ -343,7 +346,7 @@ struct bnad {
 	struct bnad_completion bnad_completions;
 
 	/* Burnt in MAC address */
-	mac_t			perm_addr;
+	u8			perm_addr[ETH_ALEN];
 
 	struct workqueue_struct *work_q;
 
@@ -384,7 +387,7 @@ u32 *cna_get_firmware_buf(struct pci_dev *pdev);
 /* Netdev entry point prototypes */
 void bnad_set_rx_mode(struct net_device *netdev);
 struct net_device_stats *bnad_get_netdev_stats(struct net_device *netdev);
-int bnad_mac_addr_set_locked(struct bnad *bnad, u8 *mac_addr);
+int bnad_mac_addr_set_locked(struct bnad *bnad, const u8 *mac_addr);
 int bnad_enable_default_bcast(struct bnad *bnad);
 void bnad_restore_vlans(struct bnad *bnad, u32 rx_id);
 void bnad_set_ethtool_ops(struct net_device *netdev);

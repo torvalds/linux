@@ -16,6 +16,7 @@
 
 #include <linux/i2c/tps65010.h>
 
+#include "common.h"
 #include "board-h3.h"
 #include "mmc.h"
 

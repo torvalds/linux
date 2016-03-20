@@ -14,24 +14,28 @@
 #include <drm/drmP.h>
 
 #include "sti_compositor.h"
-#include "sti_drm_crtc.h"
-#include "sti_drm_drv.h"
-#include "sti_drm_plane.h"
+#include "sti_crtc.h"
+#include "sti_cursor.h"
+#include "sti_drv.h"
 #include "sti_gdp.h"
+#include "sti_plane.h"
+#include "sti_vid.h"
 #include "sti_vtg.h"
 
 /*
  * stiH407 compositor properties
  */
 struct sti_compositor_data stih407_compositor_data = {
-	.nb_subdev = 6,
+	.nb_subdev = 8,
 	.subdev_desc = {
+			{STI_CURSOR_SUBDEV, (int)STI_CURSOR, 0x000},
 			{STI_GPD_SUBDEV, (int)STI_GDP_0, 0x100},
 			{STI_GPD_SUBDEV, (int)STI_GDP_1, 0x200},
 			{STI_GPD_SUBDEV, (int)STI_GDP_2, 0x300},
 			{STI_GPD_SUBDEV, (int)STI_GDP_3, 0x400},
-			{STI_VID_SUBDEV, (int)STI_VID_0, 0x700},
-			{STI_MIXER_MAIN_SUBDEV, STI_MIXER_MAIN, 0xC00}
+			{STI_VID_SUBDEV, (int)STI_HQVDP_0, 0x700},
+			{STI_MIXER_MAIN_SUBDEV, STI_MIXER_MAIN, 0xC00},
+			{STI_MIXER_AUX_SUBDEV, STI_MIXER_AUX, 0xD00},
 	},
 };
 
@@ -51,14 +55,29 @@ struct sti_compositor_data stih416_compositor_data = {
 	},
 };
 
-static int sti_compositor_init_subdev(struct sti_compositor *compo,
-		struct sti_compositor_subdev_descriptor *desc,
-		unsigned int array_size)
+static int sti_compositor_bind(struct device *dev,
+			       struct device *master,
+			       void *data)
 {
-	unsigned int i, mixer_id = 0, layer_id = 0;
+	struct sti_compositor *compo = dev_get_drvdata(dev);
+	struct drm_device *drm_dev = data;
+	unsigned int i, mixer_id = 0, vid_id = 0, crtc_id = 0;
+	struct sti_private *dev_priv = drm_dev->dev_private;
+	struct drm_plane *cursor = NULL;
+	struct drm_plane *primary = NULL;
+	struct sti_compositor_subdev_descriptor *desc = compo->data.subdev_desc;
+	unsigned int array_size = compo->data.nb_subdev;
 
+	dev_priv->compo = compo;
+
+	/* Register mixer subdev and video subdev first */
 	for (i = 0; i < array_size; i++) {
 		switch (desc[i].type) {
+		case STI_VID_SUBDEV:
+			compo->vid[vid_id++] =
+			    sti_vid_create(compo->dev, desc[i].id,
+					   compo->regs + desc[i].offset);
+			break;
 		case STI_MIXER_MAIN_SUBDEV:
 		case STI_MIXER_AUX_SUBDEV:
 			compo->mixer[mixer_id++] =
@@ -66,80 +85,67 @@ static int sti_compositor_init_subdev(struct sti_compositor *compo,
 					     compo->regs + desc[i].offset);
 			break;
 		case STI_GPD_SUBDEV:
-		case STI_VID_SUBDEV:
-			compo->layer[layer_id++] =
-			    sti_layer_create(compo->dev, desc[i].id,
-					     compo->regs + desc[i].offset);
+		case STI_CURSOR_SUBDEV:
+			/* Nothing to do, wait for the second round */
 			break;
-			/* case STI_CURSOR_SUBDEV : TODO */
 		default:
 			DRM_ERROR("Unknow subdev compoment type\n");
 			return 1;
 		}
-
 	}
-	compo->nb_mixers = mixer_id;
-	compo->nb_layers = layer_id;
 
-	return 0;
-}
+	/* Register the other subdevs, create crtc and planes */
+	for (i = 0; i < array_size; i++) {
+		enum drm_plane_type plane_type = DRM_PLANE_TYPE_OVERLAY;
 
-static int sti_compositor_bind(struct device *dev, struct device *master,
-	void *data)
-{
-	struct sti_compositor *compo = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
-	unsigned int i, crtc = 0, plane = 0;
-	struct sti_drm_private *dev_priv = drm_dev->dev_private;
-	struct drm_plane *cursor = NULL;
-	struct drm_plane *primary = NULL;
+		if (crtc_id < mixer_id)
+			plane_type = DRM_PLANE_TYPE_PRIMARY;
 
-	dev_priv->compo = compo;
-
-	for (i = 0; i < compo->nb_layers; i++) {
-		if (compo->layer[i]) {
-			enum sti_layer_desc desc = compo->layer[i]->desc;
-			enum sti_layer_type type = desc & STI_LAYER_TYPE_MASK;
-			enum drm_plane_type plane_type = DRM_PLANE_TYPE_OVERLAY;
-
-			if (compo->mixer[crtc])
-				plane_type = DRM_PLANE_TYPE_PRIMARY;
-
-			switch (type) {
-			case STI_CUR:
-				cursor = sti_drm_plane_init(drm_dev,
-						compo->layer[i],
-						(1 << crtc) - 1,
-						DRM_PLANE_TYPE_CURSOR);
-				break;
-			case STI_GDP:
-			case STI_VID:
-				primary = sti_drm_plane_init(drm_dev,
-						compo->layer[i],
-						(1 << crtc) - 1, plane_type);
-				plane++;
-				break;
-			case STI_BCK:
+		switch (desc[i].type) {
+		case STI_MIXER_MAIN_SUBDEV:
+		case STI_MIXER_AUX_SUBDEV:
+		case STI_VID_SUBDEV:
+			/* Nothing to do, already done at the first round */
+			break;
+		case STI_CURSOR_SUBDEV:
+			cursor = sti_cursor_create(drm_dev, compo->dev,
+						   desc[i].id,
+						   compo->regs + desc[i].offset,
+						   1);
+			if (!cursor) {
+				DRM_ERROR("Can't create CURSOR plane\n");
 				break;
 			}
-
-			/* The first planes are reserved for primary planes*/
-			if (compo->mixer[crtc]) {
-				sti_drm_crtc_init(drm_dev, compo->mixer[crtc],
-						primary, cursor);
-				crtc++;
-				cursor = NULL;
+			break;
+		case STI_GPD_SUBDEV:
+			primary = sti_gdp_create(drm_dev, compo->dev,
+						 desc[i].id,
+						 compo->regs + desc[i].offset,
+						 (1 << mixer_id) - 1,
+						 plane_type);
+			if (!primary) {
+				DRM_ERROR("Can't create GDP plane\n");
+				break;
 			}
+			break;
+		default:
+			DRM_ERROR("Unknown subdev compoment type\n");
+			return 1;
+		}
+
+		/* The first planes are reserved for primary planes*/
+		if (crtc_id < mixer_id && primary) {
+			sti_crtc_init(drm_dev, compo->mixer[crtc_id],
+				      primary, cursor);
+			crtc_id++;
+			cursor = NULL;
+			primary = NULL;
 		}
 	}
 
-	drm_vblank_init(drm_dev, crtc);
+	drm_vblank_init(drm_dev, crtc_id);
 	/* Allow usage of vblank without having to call drm_irq_install */
 	drm_dev->irq_enabled = 1;
-
-	DRM_DEBUG_DRIVER("Initialized %d DRM CRTC(s) and %d DRM plane(s)\n",
-			 crtc, plane);
-	DRM_DEBUG_DRIVER("DRM plane(s) for VID/VDP not created yet\n");
 
 	return 0;
 }
@@ -175,7 +181,6 @@ static int sti_compositor_probe(struct platform_device *pdev)
 	struct device_node *vtg_np;
 	struct sti_compositor *compo;
 	struct resource *res;
-	int err;
 
 	compo = devm_kzalloc(dev, sizeof(*compo), GFP_KERNEL);
 	if (!compo) {
@@ -183,7 +188,7 @@ static int sti_compositor_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	compo->dev = dev;
-	compo->vtg_vblank_nb.notifier_call = sti_drm_crtc_vblank_cb;
+	compo->vtg_vblank_nb.notifier_call = sti_crtc_vblank_cb;
 
 	/* populate data structure depending on compatibility */
 	BUG_ON(!of_match_node(compositor_of_match, np)->data);
@@ -247,12 +252,6 @@ static int sti_compositor_probe(struct platform_device *pdev)
 	if (vtg_np)
 		compo->vtg_aux = of_vtg_find(vtg_np);
 
-	/* Initialize compositor subdevices */
-	err = sti_compositor_init_subdev(compo, compo->data.subdev_desc,
-					 compo->data.nb_subdev);
-	if (err)
-		return err;
-
 	platform_set_drvdata(pdev, compo);
 
 	return component_add(&pdev->dev, &sti_compositor_ops);
@@ -264,17 +263,14 @@ static int sti_compositor_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver sti_compositor_driver = {
+struct platform_driver sti_compositor_driver = {
 	.driver = {
 		.name = "sti-compositor",
-		.owner = THIS_MODULE,
 		.of_match_table = compositor_of_match,
 	},
 	.probe = sti_compositor_probe,
 	.remove = sti_compositor_remove,
 };
-
-module_platform_driver(sti_compositor_driver);
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics SoC DRM driver");

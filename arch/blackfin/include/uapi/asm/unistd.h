@@ -401,8 +401,18 @@
 #define __NR_sendmmsg		380
 #define __NR_process_vm_readv	381
 #define __NR_process_vm_writev	382
+#define __NR_kcmp		383
+#define __NR_finit_module	384
+#define __NR_sched_setattr	385
+#define __NR_sched_getattr	386
+#define __NR_renameat2		387
+#define __NR_seccomp		388
+#define __NR_getrandom		389
+#define __NR_memfd_create	390
+#define __NR_bpf		391
+#define __NR_execveat		392
 
-#define __NR_syscall		383
+#define __NR_syscall		393  /* For internal using, not implemented */
 #define NR_syscalls		__NR_syscall
 
 /* Old optional stuff no one actually uses */

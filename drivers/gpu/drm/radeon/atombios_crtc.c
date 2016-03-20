@@ -25,6 +25,7 @@
  */
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/radeon_drm.h>
 #include <drm/drm_fixed.h>
 #include "radeon.h"
@@ -330,8 +331,10 @@ atombios_set_crtc_dtd_timing(struct drm_crtc *crtc,
 		misc |= ATOM_COMPOSITESYNC;
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		misc |= ATOM_INTERLACE;
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		misc |= ATOM_DOUBLE_CLOCK_MODE;
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		misc |= ATOM_H_REPLICATIONBY2 | ATOM_V_REPLICATIONBY2;
 
 	args.susModeMiscInfo.usAccess = cpu_to_le16(misc);
 	args.ucCRTC = radeon_crtc->crtc_id;
@@ -374,8 +377,10 @@ static void atombios_crtc_set_timing(struct drm_crtc *crtc,
 		misc |= ATOM_COMPOSITESYNC;
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		misc |= ATOM_INTERLACE;
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		misc |= ATOM_DOUBLE_CLOCK_MODE;
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		misc |= ATOM_H_REPLICATIONBY2 | ATOM_V_REPLICATIONBY2;
 
 	args.susModeMiscInfo.usAccess = cpu_to_le16(misc);
 	args.ucCRTC = radeon_crtc->crtc_id;
@@ -604,6 +609,13 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 
 			dp_clock = dig_connector->dp_clock;
 		}
+	}
+
+	if (radeon_encoder->is_mst_encoder) {
+		struct radeon_encoder_mst *mst_enc = radeon_encoder->enc_priv;
+		struct radeon_connector_atom_dig *dig_connector = mst_enc->connector->con_priv;
+
+		dp_clock = dig_connector->dp_clock;
 	}
 
 	/* use recommended ref_div for ss */
@@ -952,7 +964,9 @@ static bool atombios_crtc_prepare_pll(struct drm_crtc *crtc, struct drm_display_
 	radeon_crtc->bpc = 8;
 	radeon_crtc->ss_enabled = false;
 
-	if ((radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) ||
+	if (radeon_encoder->is_mst_encoder) {
+		radeon_dp_mst_prepare_pll(crtc, mode);
+	} else if ((radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) ||
 	    (radeon_encoder_get_dp_bridge_encoder_id(radeon_crtc->encoder) != ENCODER_OBJECT_ID_NONE)) {
 		struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 		struct drm_connector *connector =
@@ -1405,6 +1419,9 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	       (x << 16) | y);
 	viewport_w = crtc->mode.hdisplay;
 	viewport_h = (crtc->mode.vdisplay + 1) & ~1;
+	if ((rdev->family >= CHIP_BONAIRE) &&
+	    (crtc->mode.flags & DRM_MODE_FLAG_INTERLACE))
+		viewport_h *= 2;
 	WREG32(EVERGREEN_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
 	       (viewport_w << 16) | viewport_h);
 
@@ -1851,10 +1868,9 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 				return pll;
 		}
 		/* otherwise, pick one of the plls */
-		if ((rdev->family == CHIP_KAVERI) ||
-		    (rdev->family == CHIP_KABINI) ||
+		if ((rdev->family == CHIP_KABINI) ||
 		    (rdev->family == CHIP_MULLINS)) {
-			/* KB/KV/ML has PPLL1 and PPLL2 */
+			/* KB/ML has PPLL1 and PPLL2 */
 			pll_in_use = radeon_get_pll_use_mask(crtc);
 			if (!(pll_in_use & (1 << ATOM_PPLL2)))
 				return ATOM_PPLL2;
@@ -1863,7 +1879,7 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 			DRM_ERROR("unable to allocate a PPLL\n");
 			return ATOM_PPLL_INVALID;
 		} else {
-			/* CI has PPLL0, PPLL1, and PPLL2 */
+			/* CI/KV has PPLL0, PPLL1, and PPLL2 */
 			pll_in_use = radeon_get_pll_use_mask(crtc);
 			if (!(pll_in_use & (1 << ATOM_PPLL2)))
 				return ATOM_PPLL2;
@@ -2039,6 +2055,7 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	atombios_crtc_set_base(crtc, x, y, old_fb);
 	atombios_overscan_setup(crtc, mode, adjusted_mode);
 	atombios_scaler_setup(crtc);
+	radeon_cursor_reset(crtc);
 	/* update the hw version fpr dpm */
 	radeon_crtc->hw_mode = *adjusted_mode;
 
@@ -2065,6 +2082,12 @@ static bool atombios_crtc_mode_fixup(struct drm_crtc *crtc,
 		radeon_crtc->encoder = NULL;
 		radeon_crtc->connector = NULL;
 		return false;
+	}
+	if (radeon_crtc->encoder) {
+		struct radeon_encoder *radeon_encoder =
+			to_radeon_encoder(radeon_crtc->encoder);
+
+		radeon_crtc->output_csc = radeon_encoder->output_csc;
 	}
 	if (!radeon_crtc_scaling_mode_fixup(crtc, mode, adjusted_mode))
 		return false;
@@ -2154,6 +2177,7 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 	case ATOM_PPLL0:
 		/* disable the ppll */
 		if ((rdev->family == CHIP_ARUBA) ||
+		    (rdev->family == CHIP_KAVERI) ||
 		    (rdev->family == CHIP_BONAIRE) ||
 		    (rdev->family == CHIP_HAWAII))
 			atombios_crtc_program_pll(crtc, radeon_crtc->crtc_id, radeon_crtc->pll_id,

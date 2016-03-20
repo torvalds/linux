@@ -35,7 +35,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-ctrls.h>
-#include <media/ad9389b.h>
+#include <media/i2c/ad9389b.h>
 
 static int debug;
 module_param(debug, int, 0644);
@@ -239,8 +239,8 @@ static void ad9389b_set_IT_content_AVI_InfoFrame(struct v4l2_subdev *sd)
 {
 	struct ad9389b_state *state = get_ad9389b_state(sd);
 
-	if (state->dv_timings.bt.standards & V4L2_DV_BT_STD_CEA861) {
-		/* CEA format, not IT  */
+	if (state->dv_timings.bt.flags & V4L2_DV_FL_IS_CE_VIDEO) {
+		/* CE format, not IT  */
 		ad9389b_wr_and_or(sd, 0xcd, 0xbf, 0x00);
 	} else {
 		/* IT format */
@@ -255,11 +255,11 @@ static int ad9389b_set_rgb_quantization_mode(struct v4l2_subdev *sd, struct v4l2
 	switch (ctrl->val) {
 	case V4L2_DV_RGB_RANGE_AUTO:
 		/* automatic */
-		if (state->dv_timings.bt.standards & V4L2_DV_BT_STD_CEA861) {
-			/* cea format, RGB limited range (16-235) */
+		if (state->dv_timings.bt.flags & V4L2_DV_FL_IS_CE_VIDEO) {
+			/* CE format, RGB limited range (16-235) */
 			ad9389b_csc_rgb_full2limit(sd, true);
 		} else {
-			/* not cea format, RGB full range (0-255) */
+			/* not CE format, RGB full range (0-255) */
 			ad9389b_csc_rgb_full2limit(sd, false);
 		}
 		break;
@@ -1158,7 +1158,7 @@ static int ad9389b_probe(struct i2c_client *client, const struct i2c_device_id *
 	state->rgb_quantization_range_ctrl->is_private = true;
 
 	state->pad.flags = MEDIA_PAD_FL_SINK;
-	err = media_entity_init(&sd->entity, 1, &state->pad, 0);
+	err = media_entity_pads_init(&sd->entity, 1, &state->pad);
 	if (err)
 		goto err_hdl;
 

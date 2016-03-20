@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/kfifo.h>
 #include <linux/module.h>
-#include <media/cx25840.h>
+#include <media/drv-intf/cx25840.h>
 #include <media/rc-core.h>
 
 #include "cx25840-core.h"
@@ -224,7 +224,7 @@ static inline unsigned int lpf_count_to_us(unsigned int count)
 }
 
 /*
- * FIFO register pulse width count compuations
+ * FIFO register pulse width count computations
  */
 static u32 clock_divider_to_resolution(u16 divider)
 {

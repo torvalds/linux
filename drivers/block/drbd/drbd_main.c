@@ -117,6 +117,7 @@ module_param_string(usermode_helper, usermode_helper, sizeof(usermode_helper), 0
  */
 struct idr drbd_devices;
 struct list_head drbd_resources;
+struct mutex resources_mutex;
 
 struct kmem_cache *drbd_request_cache;
 struct kmem_cache *drbd_ee_cache;	/* peer requests */
@@ -1339,7 +1340,7 @@ void drbd_send_ack_dp(struct drbd_peer_device *peer_device, enum drbd_packet cmd
 		      struct p_data *dp, int data_size)
 {
 	if (peer_device->connection->peer_integrity_tfm)
-		data_size -= crypto_hash_digestsize(peer_device->connection->peer_integrity_tfm);
+		data_size -= crypto_ahash_digestsize(peer_device->connection->peer_integrity_tfm);
 	_drbd_send_ack(peer_device, cmd, dp->sector, cpu_to_be32(data_size),
 		       dp->block_id);
 }
@@ -1435,8 +1436,8 @@ static int we_should_drop_the_connection(struct drbd_connection *connection, str
 	/* long elapsed = (long)(jiffies - device->last_received); */
 
 	drop_it =   connection->meta.socket == sock
-		|| !connection->asender.task
-		|| get_t_state(&connection->asender) != RUNNING
+		|| !connection->ack_receiver.task
+		|| get_t_state(&connection->ack_receiver) != RUNNING
 		|| connection->cstate < C_WF_REPORT_PARAMS;
 
 	if (drop_it)
@@ -1622,13 +1623,13 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
 	struct drbd_socket *sock;
 	struct p_data *p;
 	unsigned int dp_flags = 0;
-	int dgs;
+	int digest_size;
 	int err;
 
 	sock = &peer_device->connection->data;
 	p = drbd_prepare_command(peer_device, sock);
-	dgs = peer_device->connection->integrity_tfm ?
-	      crypto_hash_digestsize(peer_device->connection->integrity_tfm) : 0;
+	digest_size = peer_device->connection->integrity_tfm ?
+		      crypto_ahash_digestsize(peer_device->connection->integrity_tfm) : 0;
 
 	if (!p)
 		return -EIO;
@@ -1659,9 +1660,9 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
 
 	/* our digest is still only over the payload.
 	 * TRIM does not carry any payload. */
-	if (dgs)
+	if (digest_size)
 		drbd_csum_bio(peer_device->connection->integrity_tfm, req->master_bio, p + 1);
-	err = __send_command(peer_device->connection, device->vnr, sock, P_DATA, sizeof(*p) + dgs, NULL, req->i.size);
+	err = __send_command(peer_device->connection, device->vnr, sock, P_DATA, sizeof(*p) + digest_size, NULL, req->i.size);
 	if (!err) {
 		/* For protocol A, we have to memcpy the payload into
 		 * socket buffers, as we may complete right away
@@ -1674,23 +1675,23 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
 		 * out ok after sending on this side, but does not fit on the
 		 * receiving side, we sure have detected corruption elsewhere.
 		 */
-		if (!(req->rq_state & (RQ_EXP_RECEIVE_ACK | RQ_EXP_WRITE_ACK)) || dgs)
+		if (!(req->rq_state & (RQ_EXP_RECEIVE_ACK | RQ_EXP_WRITE_ACK)) || digest_size)
 			err = _drbd_send_bio(peer_device, req->master_bio);
 		else
 			err = _drbd_send_zc_bio(peer_device, req->master_bio);
 
 		/* double check digest, sometimes buffers have been modified in flight. */
-		if (dgs > 0 && dgs <= 64) {
+		if (digest_size > 0 && digest_size <= 64) {
 			/* 64 byte, 512 bit, is the largest digest size
 			 * currently supported in kernel crypto. */
 			unsigned char digest[64];
 			drbd_csum_bio(peer_device->connection->integrity_tfm, req->master_bio, digest);
-			if (memcmp(p + 1, digest, dgs)) {
+			if (memcmp(p + 1, digest, digest_size)) {
 				drbd_warn(device,
 					"Digest mismatch, buffer modified by upper layers during write: %llus +%u\n",
 					(unsigned long long)req->i.sector, req->i.size);
 			}
-		} /* else if (dgs > 64) {
+		} /* else if (digest_size > 64) {
 		     ... Be noisy about digest too large ...
 		} */
 	}
@@ -1711,13 +1712,13 @@ int drbd_send_block(struct drbd_peer_device *peer_device, enum drbd_packet cmd,
 	struct drbd_socket *sock;
 	struct p_data *p;
 	int err;
-	int dgs;
+	int digest_size;
 
 	sock = &peer_device->connection->data;
 	p = drbd_prepare_command(peer_device, sock);
 
-	dgs = peer_device->connection->integrity_tfm ?
-	      crypto_hash_digestsize(peer_device->connection->integrity_tfm) : 0;
+	digest_size = peer_device->connection->integrity_tfm ?
+		      crypto_ahash_digestsize(peer_device->connection->integrity_tfm) : 0;
 
 	if (!p)
 		return -EIO;
@@ -1725,9 +1726,9 @@ int drbd_send_block(struct drbd_peer_device *peer_device, enum drbd_packet cmd,
 	p->block_id = peer_req->block_id;
 	p->seq_num = 0;  /* unused */
 	p->dp_flags = 0;
-	if (dgs)
+	if (digest_size)
 		drbd_csum_ee(peer_device->connection->integrity_tfm, peer_req, p + 1);
-	err = __send_command(peer_device->connection, device->vnr, sock, cmd, sizeof(*p) + dgs, NULL, peer_req->i.size);
+	err = __send_command(peer_device->connection, device->vnr, sock, cmd, sizeof(*p) + digest_size, NULL, peer_req->i.size);
 	if (!err)
 		err = _drbd_send_zc_ee(peer_device, peer_req);
 	mutex_unlock(&sock->mutex);  /* locked by drbd_prepare_command() */
@@ -1793,15 +1794,6 @@ int drbd_send(struct drbd_connection *connection, struct socket *sock,
 		drbd_update_congested(connection);
 	}
 	do {
-		/* STRANGE
-		 * tcp_sendmsg does _not_ use its size parameter at all ?
-		 *
-		 * -EAGAIN on timeout, -EINTR on signal.
-		 */
-/* THINK
- * do we need to block DRBD_SIG if sock == &meta.socket ??
- * otherwise wake_asender() might interrupt some send_*Ack !
- */
 		rv = kernel_sendmsg(sock, &msg, &iov, 1, size);
 		if (rv == -EAGAIN) {
 			if (we_should_drop_the_connection(connection, sock))
@@ -2000,7 +1992,7 @@ void drbd_device_cleanup(struct drbd_device *device)
 		drbd_bm_cleanup(device);
 	}
 
-	drbd_free_ldev(device->ldev);
+	drbd_backing_dev_free(device, device->ldev);
 	device->ldev = NULL;
 
 	clear_bit(AL_SUSPENDED, &device->flags);
@@ -2107,13 +2099,12 @@ static int drbd_create_mempools(void)
 	if (drbd_md_io_page_pool == NULL)
 		goto Enomem;
 
-	drbd_request_mempool = mempool_create(number,
-		mempool_alloc_slab, mempool_free_slab, drbd_request_cache);
+	drbd_request_mempool = mempool_create_slab_pool(number,
+		drbd_request_cache);
 	if (drbd_request_mempool == NULL)
 		goto Enomem;
 
-	drbd_ee_mempool = mempool_create(number,
-		mempool_alloc_slab, mempool_free_slab, drbd_ee_cache);
+	drbd_ee_mempool = mempool_create_slab_pool(number, drbd_ee_cache);
 	if (drbd_ee_mempool == NULL)
 		goto Enomem;
 
@@ -2180,7 +2171,7 @@ void drbd_destroy_device(struct kref *kref)
 	if (device->this_bdev)
 		bdput(device->this_bdev);
 
-	drbd_free_ldev(device->ldev);
+	drbd_backing_dev_free(device, device->ldev);
 	device->ldev = NULL;
 
 	drbd_release_all_peer_reqs(device);
@@ -2360,7 +2351,7 @@ static void drbd_cleanup(void)
  * @congested_data:	User data
  * @bdi_bits:		Bits the BDI flusher thread is currently interested in
  *
- * Returns 1<<BDI_async_congested and/or 1<<BDI_sync_congested if we are congested.
+ * Returns 1<<WB_async_congested and/or 1<<WB_sync_congested if we are congested.
  */
 static int drbd_congested(void *congested_data, int bdi_bits)
 {
@@ -2377,14 +2368,14 @@ static int drbd_congested(void *congested_data, int bdi_bits)
 	}
 
 	if (test_bit(CALLBACK_PENDING, &first_peer_device(device)->connection->flags)) {
-		r |= (1 << BDI_async_congested);
+		r |= (1 << WB_async_congested);
 		/* Without good local data, we would need to read from remote,
 		 * and that would need the worker thread as well, which is
 		 * currently blocked waiting for that usermode helper to
 		 * finish.
 		 */
 		if (!get_ldev_if_state(device, D_UP_TO_DATE))
-			r |= (1 << BDI_sync_congested);
+			r |= (1 << WB_sync_congested);
 		else
 			put_ldev(device);
 		r &= bdi_bits;
@@ -2400,9 +2391,9 @@ static int drbd_congested(void *congested_data, int bdi_bits)
 			reason = 'b';
 	}
 
-	if (bdi_bits & (1 << BDI_async_congested) &&
+	if (bdi_bits & (1 << WB_async_congested) &&
 	    test_bit(NET_CONGESTED, &first_peer_device(device)->connection->flags)) {
-		r |= (1 << BDI_async_congested);
+		r |= (1 << WB_async_congested);
 		reason = reason == 'b' ? 'a' : 'n';
 	}
 
@@ -2507,11 +2498,11 @@ void conn_free_crypto(struct drbd_connection *connection)
 {
 	drbd_free_sock(connection);
 
-	crypto_free_hash(connection->csums_tfm);
-	crypto_free_hash(connection->verify_tfm);
-	crypto_free_hash(connection->cram_hmac_tfm);
-	crypto_free_hash(connection->integrity_tfm);
-	crypto_free_hash(connection->peer_integrity_tfm);
+	crypto_free_ahash(connection->csums_tfm);
+	crypto_free_ahash(connection->verify_tfm);
+	crypto_free_shash(connection->cram_hmac_tfm);
+	crypto_free_ahash(connection->integrity_tfm);
+	crypto_free_ahash(connection->peer_integrity_tfm);
 	kfree(connection->int_dig_in);
 	kfree(connection->int_dig_vv);
 
@@ -2532,10 +2523,6 @@ int set_resource_options(struct drbd_resource *resource, struct res_opts *res_op
 
 	if (!zalloc_cpumask_var(&new_cpu_mask, GFP_KERNEL))
 		return -ENOMEM;
-		/*
-		retcode = ERR_NOMEM;
-		drbd_msg_put_info("unable to allocate cpumask");
-		*/
 
 	/* silently ignore cpu mask on UP kernel */
 	if (nr_cpu_ids > 1 && res_opts->cpu_mask[0] != 0) {
@@ -2568,7 +2555,7 @@ int set_resource_options(struct drbd_resource *resource, struct res_opts *res_op
 		cpumask_copy(resource->cpu_mask, new_cpu_mask);
 		for_each_connection_rcu(connection, resource) {
 			connection->receiver.reset_cpu_mask = 1;
-			connection->asender.reset_cpu_mask = 1;
+			connection->ack_receiver.reset_cpu_mask = 1;
 			connection->worker.reset_cpu_mask = 1;
 		}
 	}
@@ -2595,7 +2582,7 @@ struct drbd_resource *drbd_create_resource(const char *name)
 	kref_init(&resource->kref);
 	idr_init(&resource->devices);
 	INIT_LIST_HEAD(&resource->connections);
-	resource->write_ordering = WO_bdev_flush;
+	resource->write_ordering = WO_BDEV_FLUSH;
 	list_add_tail_rcu(&resource->resources, &drbd_resources);
 	mutex_init(&resource->conf_update);
 	mutex_init(&resource->adm_mutex);
@@ -2657,8 +2644,8 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 	connection->receiver.connection = connection;
 	drbd_thread_init(resource, &connection->worker, drbd_worker, "worker");
 	connection->worker.connection = connection;
-	drbd_thread_init(resource, &connection->asender, drbd_asender, "asender");
-	connection->asender.connection = connection;
+	drbd_thread_init(resource, &connection->ack_receiver, drbd_ack_receiver, "ack_recv");
+	connection->ack_receiver.connection = connection;
 
 	kref_init(&connection->kref);
 
@@ -2707,8 +2694,8 @@ static int init_submitter(struct drbd_device *device)
 {
 	/* opencoded create_singlethread_workqueue(),
 	 * to be able to say "drbd%d", ..., minor */
-	device->submit.wq = alloc_workqueue("drbd%u_submit",
-			WQ_UNBOUND | WQ_MEM_RECLAIM, 1, device->minor);
+	device->submit.wq =
+		alloc_ordered_workqueue("drbd%u_submit", WQ_MEM_RECLAIM, device->minor);
 	if (!device->submit.wq)
 		return -ENOMEM;
 
@@ -2731,7 +2718,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 
 	device = minor_to_device(minor);
 	if (device)
-		return ERR_MINOR_EXISTS;
+		return ERR_MINOR_OR_VOLUME_EXISTS;
 
 	/* GFP_KERNEL, we are outside of all write-out paths */
 	device = kzalloc(sizeof(struct drbd_device), GFP_KERNEL);
@@ -2779,7 +2766,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 	   This triggers a max_bio_size message upon first attach or connect */
 	blk_queue_max_hw_sectors(q, DRBD_MAX_BIO_SIZE_SAFE >> 8);
 	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
-	blk_queue_merge_bvec(q, drbd_merge_bvec);
 	q->queue_lock = &resource->req_lock;
 
 	device->md_io.page = alloc_page(GFP_KERNEL);
@@ -2793,20 +2779,16 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 
 	id = idr_alloc(&drbd_devices, device, minor, minor + 1, GFP_KERNEL);
 	if (id < 0) {
-		if (id == -ENOSPC) {
-			err = ERR_MINOR_EXISTS;
-			drbd_msg_put_info(adm_ctx->reply_skb, "requested minor exists already");
-		}
+		if (id == -ENOSPC)
+			err = ERR_MINOR_OR_VOLUME_EXISTS;
 		goto out_no_minor_idr;
 	}
 	kref_get(&device->kref);
 
 	id = idr_alloc(&resource->devices, device, vnr, vnr + 1, GFP_KERNEL);
 	if (id < 0) {
-		if (id == -ENOSPC) {
-			err = ERR_MINOR_EXISTS;
-			drbd_msg_put_info(adm_ctx->reply_skb, "requested minor exists already");
-		}
+		if (id == -ENOSPC)
+			err = ERR_MINOR_OR_VOLUME_EXISTS;
 		goto out_idr_remove_minor;
 	}
 	kref_get(&device->kref);
@@ -2825,18 +2807,16 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 
 		id = idr_alloc(&connection->peer_devices, peer_device, vnr, vnr + 1, GFP_KERNEL);
 		if (id < 0) {
-			if (id == -ENOSPC) {
+			if (id == -ENOSPC)
 				err = ERR_INVALID_REQUEST;
-				drbd_msg_put_info(adm_ctx->reply_skb, "requested volume exists already");
-			}
 			goto out_idr_remove_from_resource;
 		}
 		kref_get(&connection->kref);
+		INIT_WORK(&peer_device->send_acks_work, drbd_send_acks_wf);
 	}
 
 	if (init_submitter(device)) {
 		err = ERR_NOMEM;
-		drbd_msg_put_info(adm_ctx->reply_skb, "unable to create submit workqueue");
 		goto out_idr_remove_vol;
 	}
 
@@ -2936,7 +2916,7 @@ static int __init drbd_init(void)
 	drbd_proc = NULL; /* play safe for drbd_cleanup */
 	idr_init(&drbd_devices);
 
-	rwlock_init(&global_state_lock);
+	mutex_init(&resources_mutex);
 	INIT_LIST_HEAD(&drbd_resources);
 
 	err = drbd_genl_register();
@@ -2982,18 +2962,6 @@ fail:
 	else
 		pr_err("initialization failure\n");
 	return err;
-}
-
-void drbd_free_ldev(struct drbd_backing_dev *ldev)
-{
-	if (ldev == NULL)
-		return;
-
-	blkdev_put(ldev->backing_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
-	blkdev_put(ldev->md_bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
-
-	kfree(ldev->disk_conf);
-	kfree(ldev);
 }
 
 static void drbd_free_one_sock(struct drbd_socket *ds)
@@ -3290,6 +3258,10 @@ int drbd_md_read(struct drbd_device *device, struct drbd_backing_dev *bdev)
 	 * and read it. */
 	bdev->md.meta_dev_idx = bdev->disk_conf->meta_dev_idx;
 	bdev->md.md_offset = drbd_md_ss(bdev);
+	/* Even for (flexible or indexed) external meta data,
+	 * initially restrict us to the 4k superblock for now.
+	 * Affects the paranoia out-of-range access check in drbd_md_sync_page_io(). */
+	bdev->md.md_size_sect = 8;
 
 	if (drbd_md_sync_page_io(device, bdev, bdev->md.md_offset, READ)) {
 		/* NOTE: can't do normal error processing here as this is
@@ -3591,7 +3563,9 @@ void drbd_queue_bitmap_io(struct drbd_device *device,
 
 	spin_lock_irq(&device->resource->req_lock);
 	set_bit(BITMAP_IO, &device->flags);
-	if (atomic_read(&device->ap_bio_cnt) == 0) {
+	/* don't wait for pending application IO if the caller indicates that
+	 * application IO does not conflict anyways. */
+	if (flags == BM_LOCKED_CHANGE_ALLOWED || atomic_read(&device->ap_bio_cnt) == 0) {
 		if (!test_and_set_bit(BITMAP_IO_QUEUED, &device->flags))
 			drbd_queue_work(&first_peer_device(device)->connection->sender_work,
 					&device->bm_io_work.w);
@@ -3757,6 +3731,27 @@ int drbd_wait_misc(struct drbd_device *device, struct drbd_interval *i)
 	if (signal_pending(current))
 		return -ERESTARTSYS;
 	return 0;
+}
+
+void lock_all_resources(void)
+{
+	struct drbd_resource *resource;
+	int __maybe_unused i = 0;
+
+	mutex_lock(&resources_mutex);
+	local_irq_disable();
+	for_each_resource(resource, &drbd_resources)
+		spin_lock_nested(&resource->req_lock, i++);
+}
+
+void unlock_all_resources(void)
+{
+	struct drbd_resource *resource;
+
+	for_each_resource(resource, &drbd_resources)
+		spin_unlock(&resource->req_lock);
+	local_irq_enable();
+	mutex_unlock(&resources_mutex);
 }
 
 #ifdef CONFIG_DRBD_FAULT_INJECTION

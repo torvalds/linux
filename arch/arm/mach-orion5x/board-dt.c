@@ -16,15 +16,14 @@
 #include <linux/of_platform.h>
 #include <linux/cpu.h>
 #include <linux/mbus.h>
-#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <asm/system_misc.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <mach/orion5x.h>
-#include <mach/bridge-regs.h>
 #include <plat/irq.h>
 #include <plat/time.h>
+#include "orion5x.h"
+#include "bridge-regs.h"
 #include "common.h"
 
 static struct of_dev_auxdata orion5x_auxdata_lookup[] __initdata = {

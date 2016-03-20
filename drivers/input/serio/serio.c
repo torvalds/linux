@@ -49,8 +49,6 @@ static DEFINE_MUTEX(serio_mutex);
 
 static LIST_HEAD(serio_list);
 
-static struct bus_type serio_bus;
-
 static void serio_add_port(struct serio *serio);
 static int serio_reconnect_port(struct serio *serio);
 static void serio_disconnect_port(struct serio *serio);
@@ -136,7 +134,7 @@ static void serio_find_driver(struct serio *serio)
 	int error;
 
 	error = device_attach(&serio->dev);
-	if (error < 0)
+	if (error < 0 && error != -EPROBE_DEFER)
 		dev_warn(&serio->dev,
 			 "device_attach() failed for %s (%s), error: %d\n",
 			 serio->phys, serio->name, error);
@@ -514,7 +512,7 @@ static void serio_release_port(struct device *dev)
  */
 static void serio_init_port(struct serio *serio)
 {
-	static atomic_t serio_no = ATOMIC_INIT(0);
+	static atomic_t serio_no = ATOMIC_INIT(-1);
 
 	__module_get(THIS_MODULE);
 
@@ -524,8 +522,8 @@ static void serio_init_port(struct serio *serio)
 	spin_lock_init(&serio->lock);
 	mutex_init(&serio->drv_mutex);
 	device_initialize(&serio->dev);
-	dev_set_name(&serio->dev, "serio%ld",
-			(long)atomic_inc_return(&serio_no) - 1);
+	dev_set_name(&serio->dev, "serio%lu",
+		     (unsigned long)atomic_inc_return(&serio_no));
 	serio->dev.bus = &serio_bus;
 	serio->dev.release = serio_release_port;
 	serio->dev.groups = serio_device_attr_groups;
@@ -1017,7 +1015,7 @@ irqreturn_t serio_interrupt(struct serio *serio,
 }
 EXPORT_SYMBOL(serio_interrupt);
 
-static struct bus_type serio_bus = {
+struct bus_type serio_bus = {
 	.name		= "serio",
 	.drv_groups	= serio_driver_groups,
 	.match		= serio_bus_match,
@@ -1029,6 +1027,7 @@ static struct bus_type serio_bus = {
 	.pm		= &serio_pm_ops,
 #endif
 };
+EXPORT_SYMBOL(serio_bus);
 
 static int __init serio_init(void)
 {

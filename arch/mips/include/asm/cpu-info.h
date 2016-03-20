@@ -49,6 +49,8 @@ struct cpuinfo_mips {
 	unsigned int		udelay_val;
 	unsigned int		processor_id;
 	unsigned int		fpu_id;
+	unsigned int		fpu_csr31;
+	unsigned int		fpu_msk31;
 	unsigned int		msa_id;
 	unsigned int		cputype;
 	int			isa_level;
@@ -79,6 +81,16 @@ struct cpuinfo_mips {
 #define NUM_WATCH_REGS 4
 	u16			watch_reg_masks[NUM_WATCH_REGS];
 	unsigned int		kscratch_mask; /* Usable KScratch mask. */
+	/*
+	 * Cache Coherency attribute for write-combine memory writes.
+	 * (shifted by _CACHE_SHIFT)
+	 */
+	unsigned int		writecombine;
+	/*
+	 * Simple counter to prevent enabling HTW in nested
+	 * htw_start/htw_stop calls
+	 */
+	unsigned int		htw_seq;
 } __attribute__((aligned(SMP_CACHE_BYTES)));
 
 extern struct cpuinfo_mips cpu_data[];

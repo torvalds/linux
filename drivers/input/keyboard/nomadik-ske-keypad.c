@@ -54,7 +54,7 @@
 /**
  * struct ske_keypad  - data structure used by keypad driver
  * @irq:	irq no
- * @reg_base:	ske regsiters base address
+ * @reg_base:	ske registers base address
  * @input:	pointer to input device object
  * @board:	keypad platform device
  * @keymap:	matrix scan code table for keycodes
@@ -425,7 +425,6 @@ static SIMPLE_DEV_PM_OPS(ske_keypad_dev_pm_ops,
 static struct platform_driver ske_keypad_driver = {
 	.driver = {
 		.name = "nmk-ske-keypad",
-		.owner  = THIS_MODULE,
 		.pm = &ske_keypad_dev_pm_ops,
 	},
 	.remove = ske_keypad_remove,

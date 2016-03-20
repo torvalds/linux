@@ -192,18 +192,15 @@ static ssize_t ec_dbgfs_cmd_write(struct file *file, const char __user *buf,
 	for (i = 0; i <= ec_cmd_bytes; i++)
 		ec_cmd[i] = ec_cmd_int[i];
 
-	pr_debug("olpc-ec: debugfs cmd 0x%02x with %d args %02x %02x %02x %02x %02x, want %d returns\n",
-			ec_cmd[0], ec_cmd_bytes, ec_cmd[1], ec_cmd[2],
-			ec_cmd[3], ec_cmd[4], ec_cmd[5], ec_dbgfs_resp_bytes);
+	pr_debug("olpc-ec: debugfs cmd 0x%02x with %d args %5ph, want %d returns\n",
+			ec_cmd[0], ec_cmd_bytes, ec_cmd + 1,
+			ec_dbgfs_resp_bytes);
 
 	olpc_ec_cmd(ec_cmd[0], (ec_cmd_bytes == 0) ? NULL : &ec_cmd[1],
 			ec_cmd_bytes, ec_dbgfs_resp, ec_dbgfs_resp_bytes);
 
-	pr_debug("olpc-ec: response %02x %02x %02x %02x %02x %02x %02x %02x (%d bytes expected)\n",
-			ec_dbgfs_resp[0], ec_dbgfs_resp[1], ec_dbgfs_resp[2],
-			ec_dbgfs_resp[3], ec_dbgfs_resp[4], ec_dbgfs_resp[5],
-			ec_dbgfs_resp[6], ec_dbgfs_resp[7],
-			ec_dbgfs_resp_bytes);
+	pr_debug("olpc-ec: response %8ph (%d bytes expected)\n",
+			ec_dbgfs_resp, ec_dbgfs_resp_bytes);
 
 out:
 	mutex_unlock(&ec_dbgfs_lock);

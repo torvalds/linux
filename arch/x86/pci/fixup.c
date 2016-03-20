@@ -62,19 +62,6 @@ static void pci_fixup_umc_ide(struct pci_dev *d)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_UMC, PCI_DEVICE_ID_UMC_UM8886BF, pci_fixup_umc_ide);
 
-static void pci_fixup_ncr53c810(struct pci_dev *d)
-{
-	/*
-	 * NCR 53C810 returns class code 0 (at least on some systems).
-	 * Fix class to be PCI_CLASS_STORAGE_SCSI
-	 */
-	if (!d->class) {
-		dev_warn(&d->dev, "Fixing NCR 53C810 class code\n");
-		d->class = PCI_CLASS_STORAGE_SCSI << 8;
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NCR, PCI_DEVICE_ID_NCR_53C810, pci_fixup_ncr53c810);
-
 static void pci_fixup_latency(struct pci_dev *d)
 {
 	/*
@@ -310,14 +297,14 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PC1,	pcie_r
  *
  * The standard boot ROM sequence for an x86 machine uses the BIOS
  * to select an initial video card for boot display. This boot video
- * card will have it's BIOS copied to C0000 in system RAM.
+ * card will have its BIOS copied to 0xC0000 in system RAM.
  * IORESOURCE_ROM_SHADOW is used to associate the boot video
  * card with this copy. On laptops this copy has to be used since
  * the main ROM may be compressed or combined with another image.
  * See pci_map_rom() for use of this flag. Before marking the device
  * with IORESOURCE_ROM_SHADOW check if a vga_default_device is already set
- * by either arch cde or vga-arbitration, if so only apply the fixup to this
- * already determined primary video card.
+ * by either arch code or vga-arbitration; if so only apply the fixup to this
+ * already-determined primary video card.
  */
 
 static void pci_fixup_video(struct pci_dev *pdev)
@@ -325,27 +312,7 @@ static void pci_fixup_video(struct pci_dev *pdev)
 	struct pci_dev *bridge;
 	struct pci_bus *bus;
 	u16 config;
-
-	if (!vga_default_device()) {
-		resource_size_t start, end;
-		int i;
-
-		/* Does firmware framebuffer belong to us? */
-		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-			if (!(pci_resource_flags(pdev, i) & IORESOURCE_MEM))
-				continue;
-
-			start = pci_resource_start(pdev, i);
-			end  = pci_resource_end(pdev, i);
-
-			if (!start || !end)
-				continue;
-
-			if (screen_info.lfb_base >= start &&
-			    (screen_info.lfb_base + screen_info.lfb_size) < end)
-				vga_set_default_device(pdev);
-		}
-	}
+	struct resource *res;
 
 	/* Is VGA routed to us? */
 	bus = pdev->bus;
@@ -370,9 +337,18 @@ static void pci_fixup_video(struct pci_dev *pdev)
 	if (!vga_default_device() || pdev == vga_default_device()) {
 		pci_read_config_word(pdev, PCI_COMMAND, &config);
 		if (config & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) {
-			pdev->resource[PCI_ROM_RESOURCE].flags |= IORESOURCE_ROM_SHADOW;
-			dev_printk(KERN_DEBUG, &pdev->dev, "Boot video device\n");
-			vga_set_default_device(pdev);
+			res = &pdev->resource[PCI_ROM_RESOURCE];
+
+			pci_disable_rom(pdev);
+			if (res->parent)
+				release_resource(res);
+
+			res->start = 0xC0000;
+			res->end = res->start + 0x20000 - 1;
+			res->flags = IORESOURCE_MEM | IORESOURCE_ROM_SHADOW |
+				     IORESOURCE_PCI_FIXED;
+			dev_info(&pdev->dev, "Video device with shadowed ROM at %pR\n",
+				 res);
 		}
 	}
 }
@@ -575,3 +551,10 @@ static void twinhead_reserve_killing_zone(struct pci_dev *dev)
         }
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x27B9, twinhead_reserve_killing_zone);
+
+static void pci_bdwep_bar(struct pci_dev *dev)
+{
+	dev->non_compliant_bars = 1;
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x6fa0, pci_bdwep_bar);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x6fc0, pci_bdwep_bar);

@@ -24,6 +24,12 @@
 #include <linux/cryptohash.h>
 #include <asm/byteorder.h>
 
+const u8 md5_zero_message_hash[MD5_DIGEST_SIZE] = {
+	0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
+	0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e,
+};
+EXPORT_SYMBOL_GPL(md5_zero_message_hash);
+
 /* XXX: this stuff can be optimized */
 static inline void le32_to_cpu_array(u32 *buf, unsigned int words)
 {
@@ -51,10 +57,10 @@ static int md5_init(struct shash_desc *desc)
 {
 	struct md5_state *mctx = shash_desc_ctx(desc);
 
-	mctx->hash[0] = 0x67452301;
-	mctx->hash[1] = 0xefcdab89;
-	mctx->hash[2] = 0x98badcfe;
-	mctx->hash[3] = 0x10325476;
+	mctx->hash[0] = MD5_H0;
+	mctx->hash[1] = MD5_H1;
+	mctx->hash[2] = MD5_H2;
+	mctx->hash[3] = MD5_H3;
 	mctx->byte_count = 0;
 
 	return 0;
@@ -168,3 +174,4 @@ module_exit(md5_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MD5 Message Digest Algorithm");
+MODULE_ALIAS_CRYPTO("md5");

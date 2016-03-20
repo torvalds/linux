@@ -77,7 +77,7 @@ static void gsc_m2m_stop_streaming(struct vb2_queue *q)
 
 void gsc_m2m_job_finish(struct gsc_ctx *ctx, int vb_state)
 {
-	struct vb2_buffer *src_vb, *dst_vb;
+	struct vb2_v4l2_buffer *src_vb, *dst_vb;
 
 	if (!ctx || !ctx->m2m_ctx)
 		return;
@@ -86,11 +86,11 @@ void gsc_m2m_job_finish(struct gsc_ctx *ctx, int vb_state)
 	dst_vb = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
 
 	if (src_vb && dst_vb) {
-		dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
-		dst_vb->v4l2_buf.timecode = src_vb->v4l2_buf.timecode;
-		dst_vb->v4l2_buf.flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-		dst_vb->v4l2_buf.flags |=
-			src_vb->v4l2_buf.flags
+		dst_vb->vb2_buf.timestamp = src_vb->vb2_buf.timestamp;
+		dst_vb->timecode = src_vb->timecode;
+		dst_vb->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+		dst_vb->flags |=
+			src_vb->flags
 			& V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 
 		v4l2_m2m_buf_done(src_vb, vb_state);
@@ -109,23 +109,23 @@ static void gsc_m2m_job_abort(void *priv)
 static int gsc_get_bufs(struct gsc_ctx *ctx)
 {
 	struct gsc_frame *s_frame, *d_frame;
-	struct vb2_buffer *src_vb, *dst_vb;
+	struct vb2_v4l2_buffer *src_vb, *dst_vb;
 	int ret;
 
 	s_frame = &ctx->s_frame;
 	d_frame = &ctx->d_frame;
 
 	src_vb = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
-	ret = gsc_prepare_addr(ctx, src_vb, s_frame, &s_frame->addr);
+	ret = gsc_prepare_addr(ctx, &src_vb->vb2_buf, s_frame, &s_frame->addr);
 	if (ret)
 		return ret;
 
 	dst_vb = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
-	ret = gsc_prepare_addr(ctx, dst_vb, d_frame, &d_frame->addr);
+	ret = gsc_prepare_addr(ctx, &dst_vb->vb2_buf, d_frame, &d_frame->addr);
 	if (ret)
 		return ret;
 
-	dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
+	dst_vb->vb2_buf.timestamp = src_vb->vb2_buf.timestamp;
 
 	return 0;
 }
@@ -212,7 +212,6 @@ put_device:
 }
 
 static int gsc_m2m_queue_setup(struct vb2_queue *vq,
-			const struct v4l2_format *fmt,
 			unsigned int *num_buffers, unsigned int *num_planes,
 			unsigned int sizes[], void *allocators[])
 {
@@ -255,20 +254,21 @@ static int gsc_m2m_buf_prepare(struct vb2_buffer *vb)
 
 static void gsc_m2m_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct gsc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 
 	pr_debug("ctx: %p, ctx->state: 0x%x", ctx, ctx->state);
 
 	if (ctx->m2m_ctx)
-		v4l2_m2m_buf_queue(ctx->m2m_ctx, vb);
+		v4l2_m2m_buf_queue(ctx->m2m_ctx, vbuf);
 }
 
 static struct vb2_ops gsc_m2m_qops = {
 	.queue_setup	 = gsc_m2m_queue_setup,
 	.buf_prepare	 = gsc_m2m_buf_prepare,
 	.buf_queue	 = gsc_m2m_buf_queue,
-	.wait_prepare	 = gsc_unlock,
-	.wait_finish	 = gsc_lock,
+	.wait_prepare	 = vb2_ops_wait_prepare,
+	.wait_finish	 = vb2_ops_wait_finish,
 	.stop_streaming	 = gsc_m2m_stop_streaming,
 	.start_streaming = gsc_m2m_start_streaming,
 };
@@ -362,7 +362,6 @@ static int gsc_m2m_reqbufs(struct file *file, void *fh,
 {
 	struct gsc_ctx *ctx = fh_to_ctx(fh);
 	struct gsc_dev *gsc = ctx->gsc_dev;
-	struct gsc_frame *frame;
 	u32 max_cnt;
 
 	max_cnt = (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) ?
@@ -375,8 +374,6 @@ static int gsc_m2m_reqbufs(struct file *file, void *fh,
 		else
 			gsc_ctx_state_lock_clear(GSC_DST_FMT, ctx);
 	}
-
-	frame = ctx_get_frame(ctx, reqbufs->type);
 
 	return v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
 }
@@ -593,6 +590,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src_vq->lock = &ctx->gsc_dev->lock;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -606,6 +604,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst_vq->lock = &ctx->gsc_dev->lock;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -701,7 +700,7 @@ static unsigned int gsc_m2m_poll(struct file *file,
 {
 	struct gsc_ctx *ctx = fh_to_ctx(file->private_data);
 	struct gsc_dev *gsc = ctx->gsc_dev;
-	int ret;
+	unsigned int ret;
 
 	if (mutex_lock_interruptible(&gsc->lock))
 		return -ERESTARTSYS;

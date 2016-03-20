@@ -16,6 +16,7 @@
 
 #include <linux/scatterlist.h>
 #include <linux/mmc/core.h>
+#include <linux/dmaengine.h>
 
 #define MAX_MCI_SLOTS	2
 
@@ -26,6 +27,8 @@ enum dw_mci_state {
 	STATE_DATA_BUSY,
 	STATE_SENDING_STOP,
 	STATE_DATA_ERROR,
+	STATE_SENDING_CMD11,
+	STATE_WAITING_CMD11_DONE,
 };
 
 enum {
@@ -38,10 +41,22 @@ enum {
 
 struct mmc_data;
 
+enum {
+	TRANS_MODE_PIO = 0,
+	TRANS_MODE_IDMAC,
+	TRANS_MODE_EDMAC
+};
+
+struct dw_mci_dma_slave {
+	struct dma_chan *ch;
+	enum dma_transfer_direction direction;
+};
+
 /**
  * struct dw_mci - MMC controller state shared between all slots
  * @lock: Spinlock protecting the queue and associated data.
  * @regs: Pointer to MMIO registers.
+ * @fifo_reg: Pointer to MMIO registers for data FIFO
  * @sg: Scatterlist entry currently being processed by PIO code, if any.
  * @sg_miter: PIO mapping scatterlist iterator.
  * @cur_slot: The slot which is currently using the controller.
@@ -52,6 +67,7 @@ struct mmc_data;
  *	transfer is in progress.
  * @use_dma: Whether DMA channel is initialized or not.
  * @using_dma: Whether DMA is in use for the current transfer.
+ * @dma_64bit_address: Whether DMA supports 64-bit address mode or not.
  * @sg_dma: Bus address of DMA buffer.
  * @sg_cpu: Virtual address of DMA buffer.
  * @dma_ops: Pointer to platform-specific DMA callbacks.
@@ -76,7 +92,6 @@ struct mmc_data;
  * @current_speed: Configured rate of the controller.
  * @num_slots: Number of slots available.
  * @verid: Denote Version ID.
- * @data_offset: Set the offset of DATA register according to VERID.
  * @dev: Device associated with the MMC controller.
  * @pdata: Platform data associated with the MMC controller.
  * @drv_data: Driver specific data for identified variant of the controller
@@ -94,6 +109,8 @@ struct mmc_data;
  * @quirks: Set of quirks that apply to specific versions of the IP.
  * @irq_flags: The flags to be passed to request_irq.
  * @irq: The irq value to be passed to request_irq.
+ * @sdio_id0: Number of slot0 in the SDIO interrupt registers.
+ * @dto_timer: Timer for broken data transfer over scheme.
  *
  * Locking
  * =======
@@ -101,6 +118,11 @@ struct mmc_data;
  * @lock is a softirq-safe spinlock protecting @queue as well as
  * @cur_slot, @mrq and @state. These must always be updated
  * at the same time while holding @lock.
+ *
+ * @irq_lock is an irq-safe spinlock protecting the INTMASK register
+ * to allow the interrupt handler to modify it directly.  Held for only long
+ * enough to read-modify-write INTMASK and no other locks are grabbed when
+ * holding this one.
  *
  * The @mrq field of struct dw_mci_slot is also protected by @lock,
  * and must always be written at the same time as the slot is added to
@@ -121,7 +143,9 @@ struct mmc_data;
  */
 struct dw_mci {
 	spinlock_t		lock;
+	spinlock_t		irq_lock;
 	void __iomem		*regs;
+	void __iomem		*fifo_reg;
 
 	struct scatterlist	*sg;
 	struct sg_mapping_iter	sg_miter;
@@ -133,26 +157,28 @@ struct dw_mci {
 	struct mmc_command	stop_abort;
 	unsigned int		prev_blksz;
 	unsigned char		timing;
-	struct workqueue_struct	*card_workqueue;
 
 	/* DMA interface members*/
 	int			use_dma;
 	int			using_dma;
+	int			dma_64bit_address;
 
 	dma_addr_t		sg_dma;
 	void			*sg_cpu;
 	const struct dw_mci_dma_ops	*dma_ops;
-#ifdef CONFIG_MMC_DW_IDMAC
+	/* For idmac */
 	unsigned int		ring_size;
-#else
-	struct dw_mci_dma_data	*dma_data;
-#endif
+
+	/* For edmac */
+	struct dw_mci_dma_slave *dms;
+	/* Registers's physical base address */
+	resource_size_t		phy_regs;
+
 	u32			cmd_status;
 	u32			data_status;
 	u32			stop_cmdr;
 	u32			dir_status;
 	struct tasklet_struct	tasklet;
-	struct work_struct	card_work;
 	unsigned long		pending_events;
 	unsigned long		completed_events;
 	enum dw_mci_state	state;
@@ -163,7 +189,6 @@ struct dw_mci {
 	u32			num_slots;
 	u32			fifoth_val;
 	u16			verid;
-	u16			data_offset;
 	struct device		*dev;
 	struct dw_mci_board	*pdata;
 	const struct dw_mci_drv_data	*drv_data;
@@ -188,37 +213,32 @@ struct dw_mci {
 	/* Workaround flags */
 	u32			quirks;
 
-	struct regulator	*vmmc;	/* Power regulator */
+	bool			vqmmc_enabled;
 	unsigned long		irq_flags; /* IRQ flags */
 	int			irq;
+
+	int			sdio_id0;
+
+	struct timer_list       cmd11_timer;
+	struct timer_list       dto_timer;
 };
 
 /* DMA ops for Internal/External DMAC interface */
 struct dw_mci_dma_ops {
 	/* DMA Ops */
 	int (*init)(struct dw_mci *host);
-	void (*start)(struct dw_mci *host, unsigned int sg_len);
-	void (*complete)(struct dw_mci *host);
+	int (*start)(struct dw_mci *host, unsigned int sg_len);
+	void (*complete)(void *host);
 	void (*stop)(struct dw_mci *host);
 	void (*cleanup)(struct dw_mci *host);
 	void (*exit)(struct dw_mci *host);
 };
 
 /* IP Quirks/flags. */
-/* DTO fix for command transmission with IDMAC configured */
-#define DW_MCI_QUIRK_IDMAC_DTO			BIT(0)
-/* delay needed between retries on some 2.11a implementations */
-#define DW_MCI_QUIRK_RETRY_DELAY		BIT(1)
-/* High Speed Capable - Supports HS cards (up to 50MHz) */
-#define DW_MCI_QUIRK_HIGHSPEED			BIT(2)
 /* Unreliable card detection */
-#define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(3)
-/* No write protect */
-#define DW_MCI_QUIRK_NO_WRITE_PROTECT		BIT(4)
-
-/* Slot level quirks */
-/* This slot has no write protect */
-#define DW_MCI_SLOT_QUIRK_NO_WRITE_PROTECT	BIT(0)
+#define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(0)
+/* Timer for broken data transfer over scheme */
+#define DW_MCI_QUIRK_BROKEN_DTO			BIT(1)
 
 struct dma_pdata;
 
@@ -252,7 +272,6 @@ struct dw_mci_board {
 
 	struct dw_mci_dma_ops *dma_ops;
 	struct dma_pdata *data;
-	struct block_settings *blk_settings;
 };
 
 #endif /* LINUX_MMC_DW_MMC_H */

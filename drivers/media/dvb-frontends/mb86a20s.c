@@ -22,10 +22,6 @@
 
 #define NUM_LAYERS 3
 
-static int debug = 1;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
-
 enum mb86a20s_bandwidth {
 	MB86A20S_13SEG = 0,
 	MB86A20S_13SEG_PARTIAL = 1,
@@ -33,7 +29,7 @@ enum mb86a20s_bandwidth {
 	MB86A20S_3SEG = 3,
 };
 
-u8 mb86a20s_subchannel[] = {
+static u8 mb86a20s_subchannel[] = {
 	0xb0, 0xc0, 0xd0, 0xe0,
 	0xf0, 0x00, 0x10, 0x20,
 };
@@ -298,7 +294,7 @@ static int mb86a20s_i2c_readreg(struct mb86a20s_state *state,
  * The functions below assume that gateway lock has already obtained
  */
 
-static int mb86a20s_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int mb86a20s_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
 	int val;
@@ -1228,7 +1224,7 @@ struct linear_segments {
  * All tables below return a dB/1000 measurement
  */
 
-static struct linear_segments cnr_to_db_table[] = {
+static const struct linear_segments cnr_to_db_table[] = {
 	{ 19648,     0},
 	{ 18187,  1000},
 	{ 16534,  2000},
@@ -1262,7 +1258,7 @@ static struct linear_segments cnr_to_db_table[] = {
 	{   788, 30000},
 };
 
-static struct linear_segments cnr_64qam_table[] = {
+static const struct linear_segments cnr_64qam_table[] = {
 	{ 3922688,     0},
 	{ 3920384,  1000},
 	{ 3902720,  2000},
@@ -1296,7 +1292,7 @@ static struct linear_segments cnr_64qam_table[] = {
 	{  388864, 30000},
 };
 
-static struct linear_segments cnr_16qam_table[] = {
+static const struct linear_segments cnr_16qam_table[] = {
 	{ 5314816,     0},
 	{ 5219072,  1000},
 	{ 5118720,  2000},
@@ -1330,7 +1326,7 @@ static struct linear_segments cnr_16qam_table[] = {
 	{   95744, 30000},
 };
 
-struct linear_segments cnr_qpsk_table[] = {
+static const struct linear_segments cnr_qpsk_table[] = {
 	{ 2834176,     0},
 	{ 2683648,  1000},
 	{ 2536960,  2000},
@@ -1364,7 +1360,7 @@ struct linear_segments cnr_qpsk_table[] = {
 	{   11520, 30000},
 };
 
-static u32 interpolate_value(u32 value, struct linear_segments *segments,
+static u32 interpolate_value(u32 value, const struct linear_segments *segments,
 			     unsigned len)
 {
 	u64 tmp64;
@@ -1448,7 +1444,7 @@ static int mb86a20s_get_blk_error_layer_CNR(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 mer, cnr;
 	int rc, val, layer;
-	struct linear_segments *segs;
+	const struct linear_segments *segs;
 	unsigned segs_len;
 
 	dev_dbg(&state->i2c->dev, "%s called.\n", __func__);
@@ -1955,7 +1951,7 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 }
 
 static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
-					  fe_status_t *status)
+					  enum fe_status *status)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
 	int rc, status_nr;
@@ -2032,21 +2028,11 @@ static int mb86a20s_read_signal_strength_from_cache(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int mb86a20s_get_frontend_dummy(struct dvb_frontend *fe)
-{
-	/*
-	 * get_frontend is now handled together with other stats
-	 * retrival, when read_status() is called, as some statistics
-	 * will depend on the layers detection.
-	 */
-	return 0;
-};
-
 static int mb86a20s_tune(struct dvb_frontend *fe,
 			bool re_tune,
 			unsigned int mode_flags,
 			unsigned int *delay,
-			fe_status_t *status)
+			enum fe_status *status)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
 	int rc = 0;
@@ -2140,7 +2126,6 @@ static struct dvb_frontend_ops mb86a20s_ops = {
 
 	.init = mb86a20s_initfe,
 	.set_frontend = mb86a20s_set_frontend,
-	.get_frontend = mb86a20s_get_frontend_dummy,
 	.read_status = mb86a20s_read_status_and_stats,
 	.read_signal_strength = mb86a20s_read_signal_strength_from_cache,
 	.tune = mb86a20s_tune,

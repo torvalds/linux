@@ -13,56 +13,22 @@
 #include "xattr.h"
 #include "acl.h"
 
-static int hfsplus_security_getxattr(struct dentry *dentry, const char *name,
-					void *buffer, size_t size, int type)
+static int hfsplus_security_getxattr(const struct xattr_handler *handler,
+				     struct dentry *dentry, const char *name,
+				     void *buffer, size_t size)
 {
-	char *xattr_name;
-	int res;
-
-	if (!strcmp(name, ""))
-		return -EINVAL;
-
-	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN + 1,
-		GFP_KERNEL);
-	if (!xattr_name)
-		return -ENOMEM;
-	strcpy(xattr_name, XATTR_SECURITY_PREFIX);
-	strcpy(xattr_name + XATTR_SECURITY_PREFIX_LEN, name);
-
-	res = hfsplus_getxattr(dentry, xattr_name, buffer, size);
-	kfree(xattr_name);
-	return res;
+	return hfsplus_getxattr(dentry, name, buffer, size,
+				XATTR_SECURITY_PREFIX,
+				XATTR_SECURITY_PREFIX_LEN);
 }
 
-static int hfsplus_security_setxattr(struct dentry *dentry, const char *name,
-		const void *buffer, size_t size, int flags, int type)
+static int hfsplus_security_setxattr(const struct xattr_handler *handler,
+				     struct dentry *dentry, const char *name,
+				     const void *buffer, size_t size, int flags)
 {
-	char *xattr_name;
-	int res;
-
-	if (!strcmp(name, ""))
-		return -EINVAL;
-
-	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN + 1,
-		GFP_KERNEL);
-	if (!xattr_name)
-		return -ENOMEM;
-	strcpy(xattr_name, XATTR_SECURITY_PREFIX);
-	strcpy(xattr_name + XATTR_SECURITY_PREFIX_LEN, name);
-
-	res = hfsplus_setxattr(dentry, xattr_name, buffer, size, flags);
-	kfree(xattr_name);
-	return res;
-}
-
-static size_t hfsplus_security_listxattr(struct dentry *dentry, char *list,
-		size_t list_size, const char *name, size_t name_len, int type)
-{
-	/*
-	 * This method is not used.
-	 * It is used hfsplus_listxattr() instead of generic_listxattr().
-	 */
-	return -EOPNOTSUPP;
+	return hfsplus_setxattr(dentry, name, buffer, size, flags,
+				XATTR_SECURITY_PREFIX,
+				XATTR_SECURITY_PREFIX_LEN);
 }
 
 static int hfsplus_initxattrs(struct inode *inode,
@@ -118,7 +84,6 @@ int hfsplus_init_inode_security(struct inode *inode,
 
 const struct xattr_handler hfsplus_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
-	.list	= hfsplus_security_listxattr,
 	.get	= hfsplus_security_getxattr,
 	.set	= hfsplus_security_setxattr,
 };

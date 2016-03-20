@@ -57,12 +57,14 @@ static void sort_pins_by_sequence(hda_nid_t *pins, struct auto_out_pin *list,
 
 
 /* add the found input-pin to the cfg->inputs[] table */
-static void add_auto_cfg_input_pin(struct auto_pin_cfg *cfg, hda_nid_t nid,
-				   int type)
+static void add_auto_cfg_input_pin(struct hda_codec *codec, struct auto_pin_cfg *cfg,
+				   hda_nid_t nid, int type)
 {
 	if (cfg->num_inputs < AUTO_CFG_MAX_INS) {
 		cfg->inputs[cfg->num_inputs].pin = nid;
 		cfg->inputs[cfg->num_inputs].type = type;
+		cfg->inputs[cfg->num_inputs].has_boost_on_pin =
+			nid_has_volume(codec, nid, HDA_INPUT);
 		cfg->num_inputs++;
 	}
 }
@@ -71,7 +73,12 @@ static int compare_input_type(const void *ap, const void *bp)
 {
 	const struct auto_pin_cfg_item *a = ap;
 	const struct auto_pin_cfg_item *b = bp;
-	return (int)(a->type - b->type);
+	if (a->type != b->type)
+		return (int)(a->type - b->type);
+
+	/* In case one has boost and the other one has not,
+	   pick the one with boost first. */
+	return (int)(b->has_boost_on_pin - a->has_boost_on_pin);
 }
 
 /* Reorder the surround channels
@@ -165,7 +172,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			     const hda_nid_t *ignore_nids,
 			     unsigned int cond_flags)
 {
-	hda_nid_t nid, end_nid;
+	hda_nid_t nid;
 	short seq, assoc_line_out;
 	struct auto_out_pin line_out[ARRAY_SIZE(cfg->line_out_pins)];
 	struct auto_out_pin speaker_out[ARRAY_SIZE(cfg->speaker_pins)];
@@ -182,8 +189,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 	memset(hp_out, 0, sizeof(hp_out));
 	assoc_line_out = 0;
 
-	end_nid = codec->start_nid + codec->num_nodes;
-	for (nid = codec->start_nid; nid < end_nid; nid++) {
+	for_each_hda_codec_node(nid, codec) {
 		unsigned int wid_caps = get_wcaps(codec, nid);
 		unsigned int wid_type = get_wcaps_type(wid_caps);
 		unsigned int def_conf;
@@ -268,16 +274,16 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			cfg->hp_outs++;
 			break;
 		case AC_JACK_MIC_IN:
-			add_auto_cfg_input_pin(cfg, nid, AUTO_PIN_MIC);
+			add_auto_cfg_input_pin(codec, cfg, nid, AUTO_PIN_MIC);
 			break;
 		case AC_JACK_LINE_IN:
-			add_auto_cfg_input_pin(cfg, nid, AUTO_PIN_LINE_IN);
+			add_auto_cfg_input_pin(codec, cfg, nid, AUTO_PIN_LINE_IN);
 			break;
 		case AC_JACK_CD:
-			add_auto_cfg_input_pin(cfg, nid, AUTO_PIN_CD);
+			add_auto_cfg_input_pin(codec, cfg, nid, AUTO_PIN_CD);
 			break;
 		case AC_JACK_AUX:
-			add_auto_cfg_input_pin(cfg, nid, AUTO_PIN_AUX);
+			add_auto_cfg_input_pin(codec, cfg, nid, AUTO_PIN_AUX);
 			break;
 		case AC_JACK_SPDIF_OUT:
 		case AC_JACK_DIG_OTHER_OUT:
@@ -402,10 +408,10 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 	/*
 	 * debug prints of the parsed results
 	 */
-	codec_info(codec, "autoconfig: line_outs=%d (0x%x/0x%x/0x%x/0x%x/0x%x) type:%s\n",
-		   cfg->line_outs, cfg->line_out_pins[0], cfg->line_out_pins[1],
-		   cfg->line_out_pins[2], cfg->line_out_pins[3],
-		   cfg->line_out_pins[4],
+	codec_info(codec, "autoconfig for %s: line_outs=%d (0x%x/0x%x/0x%x/0x%x/0x%x) type:%s\n",
+		   codec->core.chip_name, cfg->line_outs, cfg->line_out_pins[0],
+		   cfg->line_out_pins[1], cfg->line_out_pins[2],
+		   cfg->line_out_pins[3], cfg->line_out_pins[4],
 		   cfg->line_out_type == AUTO_PIN_HP_OUT ? "hp" :
 		   (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT ?
 		    "speaker" : "line"));
@@ -434,6 +440,13 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_parse_pin_defcfg);
 
+/**
+ * snd_hda_get_input_pin_attr - Get the input pin attribute from pin config
+ * @def_conf: pin configuration value
+ *
+ * Guess the input pin attribute (INPUT_PIN_ATTR_XXX) from the given
+ * default pin configuration value.
+ */
 int snd_hda_get_input_pin_attr(unsigned int def_conf)
 {
 	unsigned int loc = get_defcfg_location(def_conf);
@@ -457,12 +470,15 @@ EXPORT_SYMBOL_GPL(snd_hda_get_input_pin_attr);
 
 /**
  * hda_get_input_pin_label - Give a label for the given input pin
+ * @codec: the HDA codec
+ * @item: ping config item to refer
+ * @pin: the pin NID
+ * @check_location: flag to add the jack location prefix
  *
- * When check_location is true, the function checks the pin location
+ * When @check_location is true, the function checks the pin location
  * for mic and line-in pins, and set an appropriate prefix like "Front",
  * "Rear", "Internal".
  */
-
 static const char *hda_get_input_pin_label(struct hda_codec *codec,
 					   const struct auto_pin_cfg_item *item,
 					   hda_nid_t pin, bool check_location)
@@ -543,6 +559,9 @@ static int check_mic_location_need(struct hda_codec *codec,
 
 /**
  * hda_get_autocfg_input_label - Get a label for the given input
+ * @codec: the HDA codec
+ * @cfg: the parsed pin configuration
+ * @input: the input index number
  *
  * Get a label for the given input pin defined by the autocfg item.
  * Unlike hda_get_input_pin_label(), this function checks all inputs
@@ -670,6 +689,12 @@ static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
 
 /**
  * snd_hda_get_pin_label - Get a label for the given I/O pin
+ * @codec: the HDA codec
+ * @nid: pin NID
+ * @cfg: the parsed pin configuration
+ * @label: the string buffer to store
+ * @maxlen: the max length of string buffer (including termination)
+ * @indexp: the pointer to return the index number (for multiple ctls)
  *
  * Get a label for the given pin.  This function works for both input and
  * output pins.  When @cfg is given as non-NULL, the function tries to get
@@ -741,6 +766,14 @@ int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_GPL(snd_hda_get_pin_label);
 
+/**
+ * snd_hda_add_verbs - Add verbs to the init list
+ * @codec: the HDA codec
+ * @list: zero-terminated verb list to add
+ *
+ * Append the given verb list to the execution list.  The verbs will be
+ * performed at init and resume time via snd_hda_apply_verbs().
+ */
 int snd_hda_add_verbs(struct hda_codec *codec,
 		      const struct hda_verb *list)
 {
@@ -753,6 +786,10 @@ int snd_hda_add_verbs(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_add_verbs);
 
+/**
+ * snd_hda_apply_verbs - Execute the init verb lists
+ * @codec: the HDA codec
+ */
 void snd_hda_apply_verbs(struct hda_codec *codec)
 {
 	int i;
@@ -763,6 +800,11 @@ void snd_hda_apply_verbs(struct hda_codec *codec)
 }
 EXPORT_SYMBOL_GPL(snd_hda_apply_verbs);
 
+/**
+ * snd_hda_apply_pincfgs - Set each pin config in the given list
+ * @codec: the HDA codec
+ * @cfg: NULL-terminated pin config table
+ */
 void snd_hda_apply_pincfgs(struct hda_codec *codec,
 			   const struct hda_pintbl *cfg)
 {
@@ -793,33 +835,33 @@ static void apply_fixup(struct hda_codec *codec, int id, int action, int depth)
 			if (action != HDA_FIXUP_ACT_PRE_PROBE || !fix->v.pins)
 				break;
 			codec_dbg(codec, "%s: Apply pincfg for %s\n",
-				    codec->chip_name, modelname);
+				    codec->core.chip_name, modelname);
 			snd_hda_apply_pincfgs(codec, fix->v.pins);
 			break;
 		case HDA_FIXUP_VERBS:
 			if (action != HDA_FIXUP_ACT_PROBE || !fix->v.verbs)
 				break;
 			codec_dbg(codec, "%s: Apply fix-verbs for %s\n",
-				    codec->chip_name, modelname);
+				    codec->core.chip_name, modelname);
 			snd_hda_add_verbs(codec, fix->v.verbs);
 			break;
 		case HDA_FIXUP_FUNC:
 			if (!fix->v.func)
 				break;
 			codec_dbg(codec, "%s: Apply fix-func for %s\n",
-				    codec->chip_name, modelname);
+				    codec->core.chip_name, modelname);
 			fix->v.func(codec, fix, action);
 			break;
 		case HDA_FIXUP_PINCTLS:
 			if (action != HDA_FIXUP_ACT_PROBE || !fix->v.pins)
 				break;
 			codec_dbg(codec, "%s: Apply pinctl for %s\n",
-				    codec->chip_name, modelname);
+				    codec->core.chip_name, modelname);
 			set_pin_targets(codec, fix->v.pins);
 			break;
 		default:
 			codec_err(codec, "%s: Invalid fixup type %d\n",
-				   codec->chip_name, fix->type);
+				   codec->core.chip_name, fix->type);
 			break;
 		}
 		if (!fix->chained || fix->chained_before)
@@ -830,6 +872,11 @@ static void apply_fixup(struct hda_codec *codec, int id, int action, int depth)
 	}
 }
 
+/**
+ * snd_hda_apply_fixup - Apply the fixup chain with the given action
+ * @codec: the HDA codec
+ * @action: fixup action (HDA_FIXUP_ACT_XXX)
+ */
 void snd_hda_apply_fixup(struct hda_codec *codec, int action)
 {
 	if (codec->fixup_list)
@@ -840,14 +887,41 @@ EXPORT_SYMBOL_GPL(snd_hda_apply_fixup);
 static bool pin_config_match(struct hda_codec *codec,
 			     const struct hda_pintbl *pins)
 {
-	for (; pins->nid; pins++) {
-		u32 def_conf = snd_hda_codec_get_pincfg(codec, pins->nid);
-		if (pins->val != def_conf)
+	int i;
+
+	for (i = 0; i < codec->init_pins.used; i++) {
+		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
+		hda_nid_t nid = pin->nid;
+		u32 cfg = pin->cfg;
+		const struct hda_pintbl *t_pins;
+		int found;
+
+		t_pins = pins;
+		found = 0;
+		for (; t_pins->nid; t_pins++) {
+			if (t_pins->nid == nid) {
+				found = 1;
+				if (t_pins->val == cfg)
+					break;
+				else if ((cfg & 0xf0000000) == 0x40000000 && (t_pins->val & 0xf0000000) == 0x40000000)
+					break;
+				else
+					return false;
+			}
+		}
+		if (!found && (cfg & 0xf0000000) != 0x40000000)
 			return false;
 	}
+
 	return true;
 }
 
+/**
+ * snd_hda_pick_pin_fixup - Pick up a fixup matching with the pin quirk list
+ * @codec: the HDA codec
+ * @pin_quirk: zero-terminated pin quirk list
+ * @fixlist: the fixup list
+ */
 void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 			    const struct snd_hda_pin_quirk *pin_quirk,
 			    const struct hda_fixup *fixlist)
@@ -858,14 +932,16 @@ void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 		return;
 
 	for (pq = pin_quirk; pq->subvendor; pq++) {
-		if ((codec->subsystem_id & 0xffff0000) != (pq->subvendor << 16))
+		if ((codec->core.subsystem_id & 0xffff0000) != (pq->subvendor << 16))
 			continue;
-		if (codec->vendor_id != pq->codec)
+		if (codec->core.vendor_id != pq->codec)
 			continue;
 		if (pin_config_match(codec, pq->pins)) {
 			codec->fixup_id = pq->value;
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 			codec->fixup_name = pq->name;
+			codec_dbg(codec, "%s: picked fixup %s (pin match)\n",
+				  codec->core.chip_name, codec->fixup_name);
 #endif
 			codec->fixup_list = fixlist;
 			return;
@@ -874,6 +950,21 @@ void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_pick_pin_fixup);
 
+/**
+ * snd_hda_pick_fixup - Pick up a fixup matching with PCI/codec SSID or model string
+ * @codec: the HDA codec
+ * @models: NULL-terminated model string list
+ * @quirk: zero-terminated PCI/codec SSID quirk list
+ * @fixlist: the fixup list
+ *
+ * Pick up a fixup entry matching with the given model string or SSID.
+ * If a fixup was already set beforehand, the function doesn't do anything.
+ * When a special model string "nofixup" is given, also no fixup is applied.
+ *
+ * The function tries to find the matching model name at first, if given.
+ * If nothing matched, try to look up the PCI SSID.
+ * If still nothing matched, try to look up the codec SSID.
+ */
 void snd_hda_pick_fixup(struct hda_codec *codec,
 			const struct hda_model_fixup *models,
 			const struct snd_pci_quirk *quirk,
@@ -891,6 +982,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 		codec->fixup_list = NULL;
 		codec->fixup_name = NULL;
 		codec->fixup_id = HDA_FIXUP_ID_NO_FIXUP;
+		codec_dbg(codec, "%s: picked no fixup (nofixup specified)\n",
+			  codec->core.chip_name);
 		return;
 	}
 
@@ -900,6 +993,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 				codec->fixup_id = models->id;
 				codec->fixup_name = models->name;
 				codec->fixup_list = fixlist;
+				codec_dbg(codec, "%s: picked fixup %s (model specified)\n",
+					  codec->core.chip_name, codec->fixup_name);
 				return;
 			}
 			models++;
@@ -911,6 +1006,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 			id = q->value;
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 			name = q->name;
+			codec_dbg(codec, "%s: picked fixup %s (PCI SSID%s)\n",
+				  codec->core.chip_name, name, q->subdevice_mask ? "" : " - vendor generic");
 #endif
 		}
 	}
@@ -919,10 +1016,12 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 			unsigned int vendorid =
 				q->subdevice | (q->subvendor << 16);
 			unsigned int mask = 0xffff0000 | q->subdevice_mask;
-			if ((codec->subsystem_id & mask) == (vendorid & mask)) {
+			if ((codec->core.subsystem_id & mask) == (vendorid & mask)) {
 				id = q->value;
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 				name = q->name;
+				codec_dbg(codec, "%s: picked fixup %s (codec SSID)\n",
+					  codec->core.chip_name, name);
 #endif
 				break;
 			}

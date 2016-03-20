@@ -34,6 +34,9 @@ typedef Elf64_Addr	kernel_ulong_t;
 typedef uint32_t	__u32;
 typedef uint16_t	__u16;
 typedef unsigned char	__u8;
+typedef struct {
+	__u8 b[16];
+} uuid_le;
 
 /* Big exception to the "don't include kernel headers into userspace, which
  * even potentially has different endianness and word sizes, since
@@ -122,13 +125,24 @@ do {                                                            \
                 sprintf(str + strlen(str), "*");                \
 } while(0)
 
-/* Always end in a wildcard, for future extension */
+/* End in a wildcard, for future extension */
 static inline void add_wildcard(char *str)
 {
 	int len = strlen(str);
 
 	if (str[len - 1] != '*')
 		strcat(str + len, "*");
+}
+
+static inline void add_uuid(char *str, uuid_le uuid)
+{
+	int len = strlen(str);
+
+	sprintf(str + len, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+		uuid.b[3], uuid.b[2], uuid.b[1], uuid.b[0],
+		uuid.b[5], uuid.b[4], uuid.b[7], uuid.b[6],
+		uuid.b[8], uuid.b[9], uuid.b[10], uuid.b[11],
+		uuid.b[12], uuid.b[13], uuid.b[14], uuid.b[15]);
 }
 
 /**
@@ -511,12 +525,40 @@ static int do_serio_entry(const char *filename,
 }
 ADD_TO_DEVTABLE("serio", serio_device_id, do_serio_entry);
 
-/* looks like: "acpi:ACPI0003 or acpi:PNP0C0B" or "acpi:LNXVIDEO" */
+/* looks like: "acpi:ACPI0003" or "acpi:PNP0C0B" or "acpi:LNXVIDEO" or
+ *             "acpi:bbsspp" (bb=base-class, ss=sub-class, pp=prog-if)
+ *
+ * NOTE: Each driver should use one of the following : _HID, _CIDs
+ *       or _CLS. Also, bb, ss, and pp can be substituted with ??
+ *       as don't care byte.
+ */
 static int do_acpi_entry(const char *filename,
 			void *symval, char *alias)
 {
 	DEF_FIELD_ADDR(symval, acpi_device_id, id);
-	sprintf(alias, "acpi*:%s:*", *id);
+	DEF_FIELD_ADDR(symval, acpi_device_id, cls);
+	DEF_FIELD_ADDR(symval, acpi_device_id, cls_msk);
+
+	if (id && strlen((const char *)*id))
+		sprintf(alias, "acpi*:%s:*", *id);
+	else if (cls) {
+		int i, byte_shift, cnt = 0;
+		unsigned int msk;
+
+		sprintf(&alias[cnt], "acpi*:");
+		cnt = 6;
+		for (i = 1; i <= 3; i++) {
+			byte_shift = 8 * (3-i);
+			msk = (*cls_msk >> byte_shift) & 0xFF;
+			if (msk)
+				sprintf(&alias[cnt], "%02x",
+					(*cls >> byte_shift) & 0xFF);
+			else
+				sprintf(&alias[cnt], "??");
+			cnt += 2;
+		}
+		sprintf(&alias[cnt], ":*");
+	}
 	return 1;
 }
 ADD_TO_DEVTABLE("acpi", acpi_device_id, do_acpi_entry);
@@ -662,7 +704,6 @@ static int do_of_entry (const char *filename, void *symval, char *alias)
 		if (isspace (*tmp))
 			*tmp = '_';
 
-	add_wildcard(alias);
 	return 1;
 }
 ADD_TO_DEVTABLE("of", of_device_id, do_of_entry);
@@ -875,7 +916,7 @@ static int do_vmbus_entry(const char *filename, void *symval,
 	char guid_name[(sizeof(*guid) + 1) * 2];
 
 	for (i = 0; i < (sizeof(*guid) * 2); i += 2)
-		sprintf(&guid_name[i], "%02x", TO_NATIVE((*guid)[i/2]));
+		sprintf(&guid_name[i], "%02x", TO_NATIVE((guid->b)[i/2]));
 
 	strcpy(alias, "vmbus:");
 	strcat(alias, guid_name);
@@ -1109,6 +1150,22 @@ static int do_amba_entry(const char *filename,
 }
 ADD_TO_DEVTABLE("amba", amba_id, do_amba_entry);
 
+/*
+ * looks like: "mipscdmm:tN"
+ *
+ * N is exactly 2 digits, where each is an upper-case hex digit, or
+ *	a ? or [] pattern matching exactly one digit.
+ */
+static int do_mips_cdmm_entry(const char *filename,
+			      void *symval, char *alias)
+{
+	DEF_FIELD(symval, mips_cdmm_device_id, type);
+
+	sprintf(alias, "mipscdmm:t%02X*", type);
+	return 1;
+}
+ADD_TO_DEVTABLE("mipscdmm", mips_cdmm_device_id, do_mips_cdmm_entry);
+
 /* LOOKS like cpu:type:x86,venVVVVfamFFFFmodMMMM:feature:*,FEAT,*
  * All fields are numbers. It would be nicer to use strings for vendor
  * and feature, but getting those out of the build system here is too
@@ -1144,13 +1201,20 @@ static int do_cpu_entry(const char *filename, void *symval, char *alias)
 }
 ADD_TO_DEVTABLE("cpu", cpu_feature, do_cpu_entry);
 
-/* Looks like: mei:S */
+/* Looks like: mei:S:uuid:N:* */
 static int do_mei_entry(const char *filename, void *symval,
 			char *alias)
 {
 	DEF_FIELD_ADDR(symval, mei_cl_device_id, name);
+	DEF_FIELD_ADDR(symval, mei_cl_device_id, uuid);
+	DEF_FIELD(symval, mei_cl_device_id, version);
 
-	sprintf(alias, MEI_CL_MODULE_PREFIX "%s", *name);
+	sprintf(alias, MEI_CL_MODULE_PREFIX);
+	sprintf(alias + strlen(alias), "%s:",  (*name)[0]  ? *name : "*");
+	add_uuid(alias, *uuid);
+	ADD(alias, ":", version != MEI_CL_VERSION_ANY, version);
+
+	strcat(alias, ":*");
 
 	return 1;
 }
@@ -1175,6 +1239,36 @@ static int do_rio_entry(const char *filename,
 	return 1;
 }
 ADD_TO_DEVTABLE("rapidio", rio_device_id, do_rio_entry);
+
+/* Looks like: ulpi:vNpN */
+static int do_ulpi_entry(const char *filename, void *symval,
+			 char *alias)
+{
+	DEF_FIELD(symval, ulpi_device_id, vendor);
+	DEF_FIELD(symval, ulpi_device_id, product);
+
+	sprintf(alias, "ulpi:v%04xp%04x", vendor, product);
+
+	return 1;
+}
+ADD_TO_DEVTABLE("ulpi", ulpi_device_id, do_ulpi_entry);
+
+/* Looks like: hdaudio:vNrNaN */
+static int do_hda_entry(const char *filename, void *symval, char *alias)
+{
+	DEF_FIELD(symval, hda_device_id, vendor_id);
+	DEF_FIELD(symval, hda_device_id, rev_id);
+	DEF_FIELD(symval, hda_device_id, api_version);
+
+	strcpy(alias, "hdaudio:");
+	ADD(alias, "v", vendor_id != 0, vendor_id);
+	ADD(alias, "r", rev_id != 0, rev_id);
+	ADD(alias, "a", api_version != 0, api_version);
+
+	add_wildcard(alias);
+	return 1;
+}
+ADD_TO_DEVTABLE("hdaudio", hda_device_id, do_hda_entry);
 
 /* Does namelen bytes of name exactly match the symbol? */
 static bool sym_is(const char *name, unsigned namelen, const char *symbol)

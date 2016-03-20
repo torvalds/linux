@@ -4,7 +4,7 @@
  * Test pattern generation for Link Layer Validation System Tests
  *
  * Copyright (C) 2014 ST Microelectronics
- * Pratyush Anand <pratyush.anand@st.com>
+ * Pratyush Anand <pratyush.anand@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -333,13 +333,13 @@ static void lvs_rh_work(struct work_struct *work)
 					USB_PORT_STAT_CONNECTION) {
 				lvs->present = true;
 				lvs->portnum = i;
-				if (hcd->phy)
-					usb_phy_notify_connect(hcd->phy,
+				if (hcd->usb_phy)
+					usb_phy_notify_connect(hcd->usb_phy,
 							USB_SPEED_SUPER);
 			} else {
 				lvs->present = false;
-				if (hcd->phy)
-					usb_phy_notify_disconnect(hcd->phy,
+				if (hcd->usb_phy)
+					usb_phy_notify_disconnect(hcd->usb_phy,
 							USB_SPEED_SUPER);
 			}
 			break;

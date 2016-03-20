@@ -657,7 +657,7 @@ static ALS_HYSTERESIS_ATTR_RO(3);
 #define ILLUMINANCE_ATTR_RO(_name) \
 	DEVICE_ATTR(in_illuminance0_##_name, S_IRUGO, show_##_name, NULL)
 #define ILLUMINANCE_ATTR_RW(_name) \
-	DEVICE_ATTR(in_illuminance0_##_name, S_IRUGO | S_IWUSR , \
+	DEVICE_ATTR(in_illuminance0_##_name, S_IRUGO | S_IWUSR, \
 						show_##_name, store_##_name)
 /*
  * ALS Zone threshold-event enable
@@ -743,8 +743,10 @@ static int lm3533_als_set_resistor(struct lm3533_als *als, u8 val)
 {
 	int ret;
 
-	if (val < LM3533_ALS_RESISTOR_MIN || val > LM3533_ALS_RESISTOR_MAX)
+	if (val < LM3533_ALS_RESISTOR_MIN || val > LM3533_ALS_RESISTOR_MAX) {
+		dev_err(&als->pdev->dev, "invalid resistor value\n");
 		return -EINVAL;
+	};
 
 	ret = lm3533_write(als->lm3533, LM3533_REG_ALS_RESISTOR_SELECT, val);
 	if (ret) {
@@ -915,7 +917,6 @@ static int lm3533_als_remove(struct platform_device *pdev)
 static struct platform_driver lm3533_als_driver = {
 	.driver	= {
 		.name	= "lm3533-als",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= lm3533_als_probe,
 	.remove		= lm3533_als_remove,

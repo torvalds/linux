@@ -1,0 +1,2 @@
+source "drivers/ntb/hw/amd/Kconfig"
+source "drivers/ntb/hw/intel/Kconfig"

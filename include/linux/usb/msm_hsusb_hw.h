@@ -21,6 +21,9 @@
 
 #define USB_AHBBURST         (MSM_USB_BASE + 0x0090)
 #define USB_AHBMODE          (MSM_USB_BASE + 0x0098)
+#define USB_GENCONFIG_2      (MSM_USB_BASE + 0x00a0)
+#define ULPI_TX_PKT_EN_CLR_FIX	BIT(19)
+
 #define USB_CAPLENGTH        (MSM_USB_BASE + 0x0100) /* 8 bit */
 
 #define USB_USBCMD           (MSM_USB_BASE + 0x0140)
@@ -29,6 +32,9 @@
 #define USB_USBMODE          (MSM_USB_BASE + 0x01A8)
 #define USB_PHY_CTRL         (MSM_USB_BASE + 0x0240)
 #define USB_PHY_CTRL2        (MSM_USB_BASE + 0x0278)
+
+#define GENCONFIG_2_SESS_VLD_CTRL_EN	BIT(7)
+#define USBCMD_SESS_VLD_CTRL		BIT(25)
 
 #define USBCMD_RESET   2
 #define USB_USBINTR          (MSM_USB_BASE + 0x0148)
@@ -49,6 +55,10 @@
 /* synopsys 28nm phy registers */
 #define ULPI_PWR_CLK_MNG_REG	0x88
 #define OTG_COMP_DISABLE	BIT(0)
+
+#define ULPI_MISC_A			0x96
+#define ULPI_MISC_A_VBUSVLDEXTSEL	BIT(1)
+#define ULPI_MISC_A_VBUSVLDEXT		BIT(0)
 
 #define ASYNC_INTR_CTRL         (1 << 29) /* Enable async interrupt */
 #define ULPI_STP_CTRL           (1 << 30) /* Block communication with PHY */

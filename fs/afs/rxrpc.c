@@ -85,7 +85,7 @@ int afs_open_socket(void)
 		return -ENOMEM;
 	}
 
-	ret = sock_create_kern(AF_RXRPC, SOCK_DGRAM, PF_INET, &socket);
+	ret = sock_create_kern(&init_net, AF_RXRPC, SOCK_DGRAM, PF_INET, &socket);
 	if (ret < 0) {
 		destroy_workqueue(afs_async_calls);
 		_leave(" = %d [socket]", ret);
@@ -306,8 +306,8 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg,
 
 			_debug("- range %u-%u%s",
 			       offset, to, msg->msg_flags ? " [more]" : "");
-			msg->msg_iov = (struct iovec *) iov;
-			msg->msg_iovlen = 1;
+			iov_iter_kvec(&msg->msg_iter, WRITE | ITER_KVEC,
+				      iov, 1, to - offset);
 
 			/* have to change the state *before* sending the last
 			 * packet as RxRPC might give us the reply before it
@@ -384,8 +384,8 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 
 	msg.msg_name		= NULL;
 	msg.msg_namelen		= 0;
-	msg.msg_iov		= (struct iovec *) iov;
-	msg.msg_iovlen		= 1;
+	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, iov, 1,
+		      call->request_size);
 	msg.msg_control		= NULL;
 	msg.msg_controllen	= 0;
 	msg.msg_flags		= (call->send_pages ? MSG_MORE : 0);
@@ -770,16 +770,12 @@ static int afs_deliver_cm_op_id(struct afs_call *call, struct sk_buff *skb,
 void afs_send_empty_reply(struct afs_call *call)
 {
 	struct msghdr msg;
-	struct iovec iov[1];
 
 	_enter("");
 
-	iov[0].iov_base		= NULL;
-	iov[0].iov_len		= 0;
 	msg.msg_name		= NULL;
 	msg.msg_namelen		= 0;
-	msg.msg_iov		= iov;
-	msg.msg_iovlen		= 0;
+	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, NULL, 0, 0);
 	msg.msg_control		= NULL;
 	msg.msg_controllen	= 0;
 	msg.msg_flags		= 0;
@@ -806,7 +802,7 @@ void afs_send_empty_reply(struct afs_call *call)
 void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 {
 	struct msghdr msg;
-	struct iovec iov[1];
+	struct kvec iov[1];
 	int n;
 
 	_enter("");
@@ -815,8 +811,7 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 	iov[0].iov_len		= len;
 	msg.msg_name		= NULL;
 	msg.msg_namelen		= 0;
-	msg.msg_iov		= iov;
-	msg.msg_iovlen		= 1;
+	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, iov, 1, len);
 	msg.msg_control		= NULL;
 	msg.msg_controllen	= 0;
 	msg.msg_flags		= 0;

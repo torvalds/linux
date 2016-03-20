@@ -57,6 +57,7 @@
 #include <xen/xen.h>
 #include <xen/xenbus.h>
 #include <xen/events.h>
+#include <xen/xen-ops.h>
 #include <xen/page.h>
 
 #include <xen/hvm.h>
@@ -74,7 +75,7 @@ EXPORT_SYMBOL_GPL(xen_store_interface);
 enum xenstore_init xen_store_domain_type;
 EXPORT_SYMBOL_GPL(xen_store_domain_type);
 
-static unsigned long xen_store_mfn;
+static unsigned long xen_store_gfn;
 
 static BLOCKING_NOTIFIER_HEAD(xenstore_chain);
 
@@ -297,9 +298,13 @@ void xenbus_dev_shutdown(struct device *_dev)
 EXPORT_SYMBOL_GPL(xenbus_dev_shutdown);
 
 int xenbus_register_driver_common(struct xenbus_driver *drv,
-				  struct xen_bus_type *bus)
+				  struct xen_bus_type *bus,
+				  struct module *owner, const char *mod_name)
 {
+	drv->driver.name = drv->name ? drv->name : drv->ids[0].devicetype;
 	drv->driver.bus = &bus->bus;
+	drv->driver.owner = owner;
+	drv->driver.mod_name = mod_name;
 
 	return driver_register(&drv->driver);
 }
@@ -706,9 +711,7 @@ static int __init xenstored_local_init(void)
 	if (!page)
 		goto out_err;
 
-	xen_store_mfn = xen_start_info->store_mfn =
-		pfn_to_mfn(virt_to_phys((void *)page) >>
-			   PAGE_SHIFT);
+	xen_store_gfn = xen_start_info->store_mfn = virt_to_gfn((void *)page);
 
 	/* Next allocate a local port which xenstored can bind to */
 	alloc_unbound.dom        = DOMID_SELF;
@@ -730,6 +733,30 @@ static int __init xenstored_local_init(void)
 		free_page(page);
 	return err;
 }
+
+static int xenbus_resume_cb(struct notifier_block *nb,
+			    unsigned long action, void *data)
+{
+	int err = 0;
+
+	if (xen_hvm_domain()) {
+		uint64_t v = 0;
+
+		err = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN, &v);
+		if (!err && v)
+			xen_store_evtchn = v;
+		else
+			pr_warn("Cannot update xenstore event channel: %d\n",
+				err);
+	} else
+		xen_store_evtchn = xen_start_info->store_evtchn;
+
+	return err;
+}
+
+static struct notifier_block xenbus_resume_nb = {
+	.notifier_call = xenbus_resume_cb,
+};
 
 static int __init xenbus_init(void)
 {
@@ -758,12 +785,12 @@ static int __init xenbus_init(void)
 		err = xenstored_local_init();
 		if (err)
 			goto out_error;
-		xen_store_interface = mfn_to_virt(xen_store_mfn);
+		xen_store_interface = gfn_to_virt(xen_store_gfn);
 		break;
 	case XS_PV:
 		xen_store_evtchn = xen_start_info->store_evtchn;
-		xen_store_mfn = xen_start_info->store_mfn;
-		xen_store_interface = mfn_to_virt(xen_store_mfn);
+		xen_store_gfn = xen_start_info->store_mfn;
+		xen_store_interface = gfn_to_virt(xen_store_gfn);
 		break;
 	case XS_HVM:
 		err = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN, &v);
@@ -773,9 +800,10 @@ static int __init xenbus_init(void)
 		err = hvm_get_parameter(HVM_PARAM_STORE_PFN, &v);
 		if (err)
 			goto out_error;
-		xen_store_mfn = (unsigned long)v;
+		xen_store_gfn = (unsigned long)v;
 		xen_store_interface =
-			xen_remap(xen_store_mfn << PAGE_SHIFT, PAGE_SIZE);
+			xen_remap(xen_store_gfn << XEN_PAGE_SHIFT,
+				  XEN_PAGE_SIZE);
 		break;
 	default:
 		pr_warn("Xenstore state unknown\n");
@@ -788,6 +816,10 @@ static int __init xenbus_init(void)
 		pr_warn("Error initializing xenstore comms: %i\n", err);
 		goto out_error;
 	}
+
+	if ((xen_store_domain_type != XS_LOCAL) &&
+	    (xen_store_domain_type != XS_UNKNOWN))
+		xen_resume_notifier_register(&xenbus_resume_nb);
 
 #ifdef CONFIG_XEN_COMPAT_XENFS
 	/*

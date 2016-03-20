@@ -1,7 +1,9 @@
 NVIDIA Tegra114 SPI controller.
 
 Required properties:
-- compatible : should be "nvidia,tegra114-spi".
+- compatible : For Tegra114, must contain "nvidia,tegra114-spi".
+  Otherwise, must contain '"nvidia,<chip>-spi", "nvidia,tegra114-spi"' where
+  <chip> is tegra124, tegra132, or tegra210.
 - reg: Should contain SPI registers location and length.
 - interrupts: Should contain SPI interrupts.
 - clock-names : Must include the following entries:

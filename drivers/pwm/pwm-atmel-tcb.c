@@ -305,7 +305,7 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 */
 	if (i == 5) {
 		i = slowclk;
-		rate = 32768;
+		rate = clk_get_rate(tc->slow_clk);
 		min = div_u64(NSEC_PER_SEC, rate);
 		max = min << tc->tcb_config->counter_width;
 
@@ -347,7 +347,7 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	tcbpwm->duty = duty;
 
 	/* If the PWM is enabled, call enable to apply the new conf */
-	if (test_bit(PWMF_ENABLED, &pwm->flags))
+	if (pwm_is_enabled(pwm))
 		atmel_tcb_pwm_enable(chip, pwm);
 
 	return 0;
@@ -379,7 +379,7 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	tc = atmel_tc_alloc(tcblock, "tcb-pwm");
+	tc = atmel_tc_alloc(tcblock);
 	if (tc == NULL) {
 		dev_err(&pdev->dev, "failed to allocate Timer Counter Block\n");
 		return -ENOMEM;
@@ -387,9 +387,9 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 
 	tcbpwm = devm_kzalloc(&pdev->dev, sizeof(*tcbpwm), GFP_KERNEL);
 	if (tcbpwm == NULL) {
-		atmel_tc_free(tc);
+		err = -ENOMEM;
 		dev_err(&pdev->dev, "failed to allocate memory\n");
-		return -ENOMEM;
+		goto err_free_tc;
 	}
 
 	tcbpwm->chip.dev = &pdev->dev;
@@ -400,23 +400,35 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 	tcbpwm->chip.npwm = NPWM;
 	tcbpwm->tc = tc;
 
+	err = clk_prepare_enable(tc->slow_clk);
+	if (err)
+		goto err_free_tc;
+
 	spin_lock_init(&tcbpwm->lock);
 
 	err = pwmchip_add(&tcbpwm->chip);
-	if (err < 0) {
-		atmel_tc_free(tc);
-		return err;
-	}
+	if (err < 0)
+		goto err_disable_clk;
 
 	platform_set_drvdata(pdev, tcbpwm);
 
 	return 0;
+
+err_disable_clk:
+	clk_disable_unprepare(tcbpwm->tc->slow_clk);
+
+err_free_tc:
+	atmel_tc_free(tc);
+
+	return err;
 }
 
 static int atmel_tcb_pwm_remove(struct platform_device *pdev)
 {
 	struct atmel_tcb_pwm_chip *tcbpwm = platform_get_drvdata(pdev);
 	int err;
+
+	clk_disable_unprepare(tcbpwm->tc->slow_clk);
 
 	err = pwmchip_remove(&tcbpwm->chip);
 	if (err < 0)
@@ -436,7 +448,6 @@ MODULE_DEVICE_TABLE(of, atmel_tcb_pwm_dt_ids);
 static struct platform_driver atmel_tcb_pwm_driver = {
 	.driver = {
 		.name = "atmel-tcb-pwm",
-		.owner = THIS_MODULE,
 		.of_match_table = atmel_tcb_pwm_dt_ids,
 	},
 	.probe = atmel_tcb_pwm_probe,

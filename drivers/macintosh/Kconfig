@@ -166,9 +166,8 @@ config INPUT_ADBHID
 	  Say Y here if you want to have ADB (Apple Desktop Bus) HID devices
 	  such as keyboards, mice, joysticks, trackpads  or graphic tablets
 	  handled by the input layer.  If you say Y here, make sure to say Y to
-	  the corresponding drivers "Keyboard support" (CONFIG_INPUT_KEYBDEV),
-	  "Mouse Support" (CONFIG_INPUT_MOUSEDEV) and "Event interface
-	  support" (CONFIG_INPUT_EVDEV) as well.
+	  the corresponding drivers "Mouse Support" (CONFIG_INPUT_MOUSEDEV) and
+	  "Event interface support" (CONFIG_INPUT_EVDEV) as well.
 
 	  If unsure, say Y.
 
@@ -203,16 +202,6 @@ config THERM_ADT746X
 	  This driver provides some thermostat and fan control for the
           iBook G4, and the ATI based aluminium PowerBooks, allowing slightly
 	  better fan behaviour by default, and some manual control.
-
-config THERM_PM72
-	tristate "Support for thermal management on PowerMac G5 (AGP)"
-	depends on I2C && I2C_POWERMAC && PPC_PMAC64
-	default n
-	help
-	  This driver provides thermostat and fan control for the desktop
-	  G5 machines.
-
-	  This is deprecated, use windfarm instead.
 
 config WINDFARM
 	tristate "New PowerMac thermal control infrastructure"

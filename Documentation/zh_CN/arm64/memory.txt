@@ -15,6 +15,8 @@ Documentation/arm64/memory.txt 的中文翻译
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
 译存在问题，请联系中文版维护者。
 
+本文翻译提交时的 Git 检出点为： bc465aa9d045feb0e13b4a8f32cc33c1943f62d6
+
 英文版维护者： Catalin Marinas <catalin.marinas@arm.com>
 中文版维护者： 傅炜  Fu Wei <wefu@redhat.com>
 中文版翻译者： 傅炜  Fu Wei <wefu@redhat.com>
@@ -26,69 +28,53 @@ Documentation/arm64/memory.txt 的中文翻译
 		     ===========================
 
 作者: Catalin Marinas <catalin.marinas@arm.com>
-日期: 2012 年 02 月 20 日
 
 本文档描述 AArch64 Linux 内核所使用的虚拟内存布局。此构架可以实现
 页大小为 4KB 的 4 级转换表和页大小为 64KB 的 3 级转换表。
 
-AArch64 Linux 使用页大小为 4KB 的 3 级转换表配置，对于用户和内核
-都有 39-bit (512GB) 的虚拟地址空间。对于页大小为 64KB的配置，仅
-使用 2 级转换表，但内存布局相同。
+AArch64 Linux 使用 3 级或 4 级转换表，其页大小配置为 4KB，对于用户和内核
+分别都有 39-bit (512GB) 或 48-bit (256TB) 的虚拟地址空间。
+对于页大小为 64KB的配置，仅使用 2 级转换表，有 42-bit (4TB) 的虚拟地址空间，但内存布局相同。
 
-用户地址空间的 63:39 位为 0，而内核地址空间的相应位为 1。TTBRx 的
+用户地址空间的 63:48 位为 0，而内核地址空间的相应位为 1。TTBRx 的
 选择由虚拟地址的 63 位给出。swapper_pg_dir 仅包含内核（全局）映射，
-而用户 pgd 仅包含用户（非全局）映射。swapper_pgd_dir 地址被写入
+而用户 pgd 仅包含用户（非全局）映射。swapper_pg_dir 地址被写入
 TTBR1 中，且从不写入 TTBR0。
 
 
-AArch64 Linux 在页大小为 4KB 时的内存布局：
+AArch64 Linux 在页大小为 4KB，并使用 3 级转换表时的内存布局：
 
 起始地址			结束地址			大小		用途
 -----------------------------------------------------------------------
 0000000000000000	0000007fffffffff	 512GB		用户空间
-
-ffffff8000000000	ffffffbbfffeffff	~240GB		vmalloc
-
-ffffffbbffff0000	ffffffbbffffffff	  64KB		[防护页]
-
-ffffffbc00000000	ffffffbdffffffff	   8GB		vmemmap
-
-ffffffbe00000000	ffffffbffbbfffff	  ~8GB		[防护页，未来用于 vmmemap]
-
-ffffffbffbc00000	ffffffbffbdfffff	   2MB		earlyprintk 设备
-
-ffffffbffbe00000	ffffffbffbe0ffff	  64KB		PCI I/O 空间
-
-ffffffbffbe10000	ffffffbcffffffff	  ~2MB		[防护页]
-
-ffffffbffc000000	ffffffbfffffffff	  64MB		模块
-
-ffffffc000000000	ffffffffffffffff	 256GB		内核逻辑内存映射
+ffffff8000000000	ffffffffffffffff	 512GB		内核空间
 
 
-AArch64 Linux 在页大小为 64KB 时的内存布局：
+AArch64 Linux 在页大小为 4KB，并使用 4 级转换表时的内存布局：
+
+起始地址			结束地址			大小		用途
+-----------------------------------------------------------------------
+0000000000000000	0000ffffffffffff	 256TB		用户空间
+ffff000000000000	ffffffffffffffff	 256TB		内核空间
+
+
+AArch64 Linux 在页大小为 64KB，并使用 2 级转换表时的内存布局：
 
 起始地址			结束地址			大小		用途
 -----------------------------------------------------------------------
 0000000000000000	000003ffffffffff	   4TB		用户空间
+fffffc0000000000	ffffffffffffffff	   4TB		内核空间
 
-fffffc0000000000	fffffdfbfffeffff	  ~2TB		vmalloc
 
-fffffdfbffff0000	fffffdfbffffffff	  64KB		[防护页]
+AArch64 Linux 在页大小为 64KB，并使用 3 级转换表时的内存布局：
 
-fffffdfc00000000	fffffdfdffffffff	   8GB		vmemmap
+起始地址			结束地址			大小		用途
+-----------------------------------------------------------------------
+0000000000000000	0000ffffffffffff	 256TB		用户空间
+ffff000000000000	ffffffffffffffff	 256TB		内核空间
 
-fffffdfe00000000	fffffdfffbbfffff	  ~8GB		[防护页，未来用于 vmmemap]
 
-fffffdfffbc00000	fffffdfffbdfffff	   2MB		earlyprintk 设备
-
-fffffdfffbe00000	fffffdfffbe0ffff	  64KB		PCI I/O 空间
-
-fffffdfffbe10000	fffffdfffbffffff	  ~2MB		[防护页]
-
-fffffdfffc000000	fffffdffffffffff	  64MB		模块
-
-fffffe0000000000	ffffffffffffffff	   2TB		内核逻辑内存映射
+更详细的内核虚拟内存布局，请参阅内核启动信息。
 
 
 4KB 页大小的转换表查找：
@@ -102,7 +88,7 @@ fffffe0000000000	ffffffffffffffff	   2TB		内核逻辑内存映射
  |                 |         |         |         +-> [20:12] L3 索引
  |                 |         |         +-----------> [29:21] L2 索引
  |                 |         +---------------------> [38:30] L1 索引
- |                 +-------------------------------> [47:39] L0 索引 (未使用)
+ |                 +-------------------------------> [47:39] L0 索引
  +-------------------------------------------------> [63] TTBR0/1
 
 
@@ -115,9 +101,10 @@ fffffe0000000000	ffffffffffffffff	   2TB		内核逻辑内存映射
  |                 |    |               |              v
  |                 |    |               |            [15:0]  页内偏移
  |                 |    |               +----------> [28:16] L3 索引
- |                 |    +--------------------------> [41:29] L2 索引 (仅使用 38:29 )
- |                 +-------------------------------> [47:42] L1 索引 (未使用)
+ |                 |    +--------------------------> [41:29] L2 索引
+ |                 +-------------------------------> [47:42] L1 索引
  +-------------------------------------------------> [63] TTBR0/1
+
 
 当使用 KVM 时, 管理程序（hypervisor）在 EL2 中通过相对内核虚拟地址的
 一个固定偏移来映射内核页（内核虚拟地址的高 24 位设为零）:

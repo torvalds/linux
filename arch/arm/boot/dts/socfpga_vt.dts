@@ -43,13 +43,10 @@
 
 		dwmmc0@ff704000 {
 			num-slots = <1>;
-			supports-highspeed;
 			broken-cd;
-
-			slot@0 {
-				reg = <0>;
-				bus-width = <4>;
-			};
+			bus-width = <4>;
+			cap-mmc-highspeed;
+			cap-sd-highspeed;
 		};
 
 		ethernet@ff700000 {

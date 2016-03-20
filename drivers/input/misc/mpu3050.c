@@ -466,7 +466,6 @@ MODULE_DEVICE_TABLE(of, mpu3050_of_match);
 static struct i2c_driver mpu3050_i2c_driver = {
 	.driver	= {
 		.name	= "mpu3050",
-		.owner	= THIS_MODULE,
 		.pm	= &mpu3050_pm,
 		.of_match_table = mpu3050_of_match,
 	},

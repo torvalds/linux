@@ -21,6 +21,7 @@ Currently, these files are in /proc/sys/vm:
 - admin_reserve_kbytes
 - block_dump
 - compact_memory
+- compact_unevictable_allowed
 - dirty_background_bytes
 - dirty_background_ratio
 - dirty_bytes
@@ -41,6 +42,8 @@ Currently, these files are in /proc/sys/vm:
 - min_slab_ratio
 - min_unmapped_ratio
 - mmap_min_addr
+- mmap_rnd_bits
+- mmap_rnd_compat_bits
 - nr_hugepages
 - nr_overcommit_hugepages
 - nr_trim_pages         (only if CONFIG_MMU=n)
@@ -106,6 +109,16 @@ huge pages although processes will also directly compact memory as required.
 
 ==============================================================
 
+compact_unevictable_allowed
+
+Available only when CONFIG_COMPACTION is set. When set to 1, compaction is
+allowed to examine the unevictable lru (mlocked pages) for pages to compact.
+This should be used on systems where stalls for minor page faults are an
+acceptable trade for large contiguous free memory.  Set to 0 to prevent
+compaction from moving pages that are unevictable.  Default value is 1.
+
+==============================================================
+
 dirty_background_bytes
 
 Contains the amount of dirty memory at which the background kernel
@@ -124,7 +137,7 @@ Contains, as a percentage of total available memory that contains free pages
 and reclaimable pages, the number of pages at which the background kernel
 flusher threads will start writing out dirty data.
 
-The total avaiable memory is not equal to total system memory.
+The total available memory is not equal to total system memory.
 
 ==============================================================
 
@@ -159,7 +172,7 @@ Contains, as a percentage of total available memory that contains free pages
 and reclaimable pages, the number of pages at which a process which is
 generating disk writes will itself start writing out dirty data.
 
-The total avaiable memory is not equal to total system memory.
+The total available memory is not equal to total system memory.
 
 ==============================================================
 
@@ -214,11 +227,11 @@ with your system.  To disable them, echo 4 (bit 3) into drop_caches.
 extfrag_threshold
 
 This parameter affects whether the kernel will compact memory or direct
-reclaim to satisfy a high-order allocation. /proc/extfrag_index shows what
-the fragmentation index for each order is in each zone in the system. Values
-tending towards 0 imply allocations would fail due to lack of memory,
-values towards 1000 imply failures are due to fragmentation and -1 implies
-that the allocation will succeed as long as watermarks are met.
+reclaim to satisfy a high-order allocation. The extfrag/extfrag_index file in
+debugfs shows what the fragmentation index for each order is in each zone in
+the system. Values tending towards 0 imply allocations would fail due to lack
+of memory, values towards 1000 imply failures are due to fragmentation and -1
+implies that the allocation will succeed as long as watermarks are met.
 
 The kernel will not compact memory in a zone if the
 fragmentation index is <= extfrag_threshold. The default value is 500.
@@ -338,7 +351,7 @@ zone[i]'s protection[j] is calculated by following expression.
 
 (i < j):
   zone[i]->protection[j]
-  = (total sums of present_pages from zone[i+1] to zone[j] on the node)
+  = (total sums of managed_pages from zone[i+1] to zone[j] on the node)
     / lowmem_reserve_ratio[i];
 (i = j):
    (should not be protected. = 0;
@@ -349,7 +362,7 @@ The default values of lowmem_reserve_ratio[i] are
     256 (if zone[i] means DMA or DMA32 zone)
     32  (others).
 As above expression, they are reciprocal number of ratio.
-256 means 1/256. # of protection pages becomes about "0.39%" of total present
+256 means 1/256. # of protection pages becomes about "0.39%" of total managed
 pages of higher zones on the node.
 
 If you would like to protect more pages, smaller values are effective.
@@ -474,6 +487,33 @@ against future potential kernel bugs.
 
 ==============================================================
 
+mmap_rnd_bits:
+
+This value can be used to select the number of bits to use to
+determine the random offset to the base address of vma regions
+resulting from mmap allocations on architectures which support
+tuning address space randomization.  This value will be bounded
+by the architecture's minimum and maximum supported values.
+
+This value can be changed after boot using the
+/proc/sys/vm/mmap_rnd_bits tunable
+
+==============================================================
+
+mmap_rnd_compat_bits:
+
+This value can be used to select the number of bits to use to
+determine the random offset to the base address of vma regions
+resulting from mmap allocations for applications run in
+compatibility mode on architectures which support tuning address
+space randomization.  This value will be bounded by the
+architecture's minimum and maximum supported values.
+
+This value can be changed after boot using the
+/proc/sys/vm/mmap_rnd_compat_bits tunable
+
+==============================================================
+
 nr_hugepages
 
 Change the minimum size of the hugepage pool.
@@ -555,12 +595,12 @@ this is causing problems for your system/application.
 
 oom_dump_tasks
 
-Enables a system-wide task dump (excluding kernel threads) to be
-produced when the kernel performs an OOM-killing and includes such
-information as pid, uid, tgid, vm size, rss, nr_ptes, swapents,
-oom_score_adj score, and name.  This is helpful to determine why the
-OOM killer was invoked, to identify the rogue task that caused it,
-and to determine why the OOM killer chose the task it did to kill.
+Enables a system-wide task dump (excluding kernel threads) to be produced
+when the kernel performs an OOM-killing and includes such information as
+pid, uid, tgid, vm size, rss, nr_ptes, nr_pmds, swapents, oom_score_adj
+score, and name.  This is helpful to determine why the OOM killer was
+invoked, to identify the rogue task that caused it, and to determine why
+the OOM killer chose the task it did to kill.
 
 If this is set to zero, this information is suppressed.  On very
 large systems with thousands of tasks it may not be feasible to dump
@@ -628,7 +668,7 @@ and don't use much of it.
 The default value is 0.
 
 See Documentation/vm/overcommit-accounting and
-security/commoncap.c::cap_vm_enough_memory() for more information.
+mm/mmap.c::__vm_enough_memory() for more information.
 
 ==============================================================
 
@@ -728,7 +768,7 @@ The default value is 60.
 
 - user_reserve_kbytes
 
-When overcommit_memory is set to 2, "never overommit" mode, reserve
+When overcommit_memory is set to 2, "never overcommit" mode, reserve
 min(3% of current process size, user_reserve_kbytes) of free memory.
 This is intended to prevent a user from starting a single memory hogging
 process, such that they cannot recover (kill the hog).
@@ -762,6 +802,24 @@ Increasing vfs_cache_pressure significantly beyond 100 may have negative
 performance impact. Reclaim code needs to take various locks to find freeable
 directory and inode objects. With vfs_cache_pressure=1000, it will look for
 ten times more freeable objects than there are.
+
+=============================================================
+
+watermark_scale_factor:
+
+This factor controls the aggressiveness of kswapd. It defines the
+amount of memory left in a node/system before kswapd is woken up and
+how much memory needs to be free before kswapd goes back to sleep.
+
+The unit is in fractions of 10,000. The default value of 10 means the
+distances between watermarks are 0.1% of the available memory in the
+node/system. The maximum value is 1000, or 10% of memory.
+
+A high rate of threads entering direct reclaim (allocstall) or kswapd
+going to sleep prematurely (kswapd_low_wmark_hit_quickly) can indicate
+that the number of free pages kswapd maintains for latency reasons is
+too small for the allocation bursts occurring in the system. This knob
+can then be used to tune kswapd aggressiveness accordingly.
 
 ==============================================================
 

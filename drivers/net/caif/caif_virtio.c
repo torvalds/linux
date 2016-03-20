@@ -257,7 +257,6 @@ static int cfv_rx_poll(struct napi_struct *napi, int quota)
 	struct vringh_kiov *riov = &cfv->ctx.riov;
 	unsigned int skb_len;
 
-again:
 	do {
 		skb = NULL;
 
@@ -322,7 +321,6 @@ exit:
 		    napi_schedule_prep(napi)) {
 			vringh_notify_disable_kern(cfv->vr_rx);
 			__napi_schedule(napi);
-			goto again;
 		}
 		break;
 

@@ -26,6 +26,16 @@ struct freq_tbl {
 };
 
 /**
+ * struct parent_map - map table for PLL source select configuration values
+ * @src: source PLL
+ * @cfg: configuration value
+ */
+struct parent_map {
+	u8 src;
+	u8 cfg;
+};
+
+/**
  * struct mn - M/N:D counter
  * @mnctr_en_bit: bit to enable mn counter
  * @mnctr_reset_bit: bit to assert mn counter reset
@@ -65,7 +75,7 @@ struct pre_div {
 struct src_sel {
 	u8		src_sel_shift;
 #define SRC_SEL_MASK	0x7
-	const u8	*parent_map;
+	const struct parent_map	*parent_map;
 };
 
 /**
@@ -96,6 +106,10 @@ struct clk_rcg {
 
 extern const struct clk_ops clk_rcg_ops;
 extern const struct clk_ops clk_rcg_bypass_ops;
+extern const struct clk_ops clk_rcg_bypass2_ops;
+extern const struct clk_ops clk_rcg_pixel_ops;
+extern const struct clk_ops clk_rcg_esc_ops;
+extern const struct clk_ops clk_rcg_lcc_ops;
 
 #define to_clk_rcg(_hw) container_of(to_clk_regmap(_hw), struct clk_rcg, clkr)
 
@@ -103,8 +117,9 @@ extern const struct clk_ops clk_rcg_bypass_ops;
  * struct clk_dyn_rcg - root clock generator with glitch free mux
  *
  * @mux_sel_bit: bit to switch glitch free mux
- * @ns_reg: NS register
+ * @ns_reg: NS0 and NS1 register
  * @md_reg: MD0 and MD1 register
+ * @bank_reg: register to XOR @mux_sel_bit into to switch glitch free mux
  * @mn: mn counter (banked)
  * @s: source selector (banked)
  * @freq_tbl: frequency table
@@ -113,8 +128,9 @@ extern const struct clk_ops clk_rcg_bypass_ops;
  *
  */
 struct clk_dyn_rcg {
-	u32	ns_reg;
+	u32	ns_reg[2];
 	u32	md_reg[2];
+	u32	bank_reg;
 
 	u8	mux_sel_bit;
 
@@ -140,24 +156,28 @@ extern const struct clk_ops clk_dyn_rcg_ops;
  * @hid_width: number of bits in half integer divider
  * @parent_map: map from software's parent index to hardware's src_sel field
  * @freq_tbl: frequency table
+ * @current_freq: last cached frequency when using branches with shared RCGs
  * @clkr: regmap clock handle
- * @lock: register lock
  *
  */
 struct clk_rcg2 {
 	u32			cmd_rcgr;
 	u8			mnd_width;
 	u8			hid_width;
-	const u8		*parent_map;
+	const struct parent_map	*parent_map;
 	const struct freq_tbl	*freq_tbl;
+	unsigned long		current_freq;
 	struct clk_regmap	clkr;
 };
 
 #define to_clk_rcg2(_hw) container_of(to_clk_regmap(_hw), struct clk_rcg2, clkr)
 
 extern const struct clk_ops clk_rcg2_ops;
+extern const struct clk_ops clk_rcg2_shared_ops;
 extern const struct clk_ops clk_edp_pixel_ops;
 extern const struct clk_ops clk_byte_ops;
+extern const struct clk_ops clk_byte2_ops;
 extern const struct clk_ops clk_pixel_ops;
+extern const struct clk_ops clk_gfx3d_ops;
 
 #endif

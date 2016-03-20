@@ -19,8 +19,6 @@
 #define __XFS_STATS_H__
 
 
-#if defined(CONFIG_PROC_FS) && !defined(XFS_STATS_OFF)
-
 #include <linux/percpu.h>
 
 /*
@@ -215,25 +213,35 @@ struct xfsstats {
 	__uint64_t		xs_read_bytes;
 };
 
-DECLARE_PER_CPU(struct xfsstats, xfsstats);
+int xfs_stats_format(struct xfsstats __percpu *stats, char *buf);
+void xfs_stats_clearall(struct xfsstats __percpu *stats);
+extern struct xstats xfsstats;
 
-/*
- * We don't disable preempt, not too worried about poking the
- * wrong CPU's stat for now (also aggregated before reporting).
- */
-#define XFS_STATS_INC(v)	(per_cpu(xfsstats, current_cpu()).v++)
-#define XFS_STATS_DEC(v)	(per_cpu(xfsstats, current_cpu()).v--)
-#define XFS_STATS_ADD(v, inc)	(per_cpu(xfsstats, current_cpu()).v += (inc))
+#define XFS_STATS_INC(mp, v)					\
+do {								\
+	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->v++;	\
+	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->v++;	\
+} while (0)
+
+#define XFS_STATS_DEC(mp, v)					\
+do {								\
+	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->v--;	\
+	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->v--;	\
+} while (0)
+
+#define XFS_STATS_ADD(mp, v, inc)					\
+do {									\
+	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->v += (inc);	\
+	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->v += (inc);	\
+} while (0)
+
+#if defined(CONFIG_PROC_FS)
 
 extern int xfs_init_procfs(void);
 extern void xfs_cleanup_procfs(void);
 
 
 #else	/* !CONFIG_PROC_FS */
-
-# define XFS_STATS_INC(count)
-# define XFS_STATS_DEC(count)
-# define XFS_STATS_ADD(count, inc)
 
 static inline int xfs_init_procfs(void)
 {

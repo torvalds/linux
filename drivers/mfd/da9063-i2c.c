@@ -25,6 +25,9 @@
 #include <linux/mfd/da9063/pdata.h>
 #include <linux/mfd/da9063/registers.h>
 
+#include <linux/of.h>
+#include <linux/regulator/of_regulator.h>
+
 static const struct regmap_range da9063_ad_readable_ranges[] = {
 	{
 		.range_min = DA9063_REG_PAGE_CON,
@@ -71,17 +74,29 @@ static const struct regmap_range da9063_ad_writeable_ranges[] = {
 
 static const struct regmap_range da9063_ad_volatile_ranges[] = {
 	{
-		.range_min = DA9063_REG_STATUS_A,
+		.range_min = DA9063_REG_PAGE_CON,
 		.range_max = DA9063_REG_EVENT_D,
 	}, {
-		.range_min = DA9063_REG_CONTROL_F,
+		.range_min = DA9063_REG_CONTROL_A,
+		.range_max = DA9063_REG_CONTROL_B,
+	}, {
+		.range_min = DA9063_REG_CONTROL_E,
 		.range_max = DA9063_REG_CONTROL_F,
 	}, {
-		.range_min = DA9063_REG_ADC_MAN,
+		.range_min = DA9063_REG_BCORE2_CONT,
+		.range_max = DA9063_REG_LDO11_CONT,
+	}, {
+		.range_min = DA9063_REG_DVC_1,
 		.range_max = DA9063_REG_ADC_MAN,
 	}, {
 		.range_min = DA9063_REG_ADC_RES_L,
 		.range_max = DA9063_AD_REG_SECOND_D,
+	}, {
+		.range_min = DA9063_REG_SEQ,
+		.range_max = DA9063_REG_SEQ,
+	}, {
+		.range_min = DA9063_REG_EN_32K,
+		.range_max = DA9063_REG_EN_32K,
 	}, {
 		.range_min = DA9063_AD_REG_MON_REG_5,
 		.range_max = DA9063_AD_REG_MON_REG_6,
@@ -149,17 +164,29 @@ static const struct regmap_range da9063_bb_writeable_ranges[] = {
 
 static const struct regmap_range da9063_bb_volatile_ranges[] = {
 	{
-		.range_min = DA9063_REG_STATUS_A,
+		.range_min = DA9063_REG_PAGE_CON,
 		.range_max = DA9063_REG_EVENT_D,
 	}, {
-		.range_min = DA9063_REG_CONTROL_F,
+		.range_min = DA9063_REG_CONTROL_A,
+		.range_max = DA9063_REG_CONTROL_B,
+	}, {
+		.range_min = DA9063_REG_CONTROL_E,
 		.range_max = DA9063_REG_CONTROL_F,
 	}, {
-		.range_min = DA9063_REG_ADC_MAN,
+		.range_min = DA9063_REG_BCORE2_CONT,
+		.range_max = DA9063_REG_LDO11_CONT,
+	}, {
+		.range_min = DA9063_REG_DVC_1,
 		.range_max = DA9063_REG_ADC_MAN,
 	}, {
 		.range_min = DA9063_REG_ADC_RES_L,
 		.range_max = DA9063_BB_REG_SECOND_D,
+	}, {
+		.range_min = DA9063_REG_SEQ,
+		.range_max = DA9063_REG_SEQ,
+	}, {
+		.range_min = DA9063_REG_EN_32K,
+		.range_max = DA9063_REG_EN_32K,
 	}, {
 		.range_min = DA9063_BB_REG_MON_REG_5,
 		.range_max = DA9063_BB_REG_MON_REG_6,
@@ -203,6 +230,11 @@ static struct regmap_config da9063_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+static const struct of_device_id da9063_dt_ids[] = {
+	{ .compatible = "dlg,da9063", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, da9063_dt_ids);
 static int da9063_i2c_probe(struct i2c_client *i2c,
 	const struct i2c_device_id *id)
 {
@@ -256,7 +288,7 @@ MODULE_DEVICE_TABLE(i2c, da9063_i2c_id);
 static struct i2c_driver da9063_i2c_driver = {
 	.driver = {
 		.name = "da9063",
-		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(da9063_dt_ids),
 	},
 	.probe    = da9063_i2c_probe,
 	.remove   = da9063_i2c_remove,

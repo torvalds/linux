@@ -2,8 +2,12 @@
 
 Required properties:
 
-- compatible:	must be "diasemi,da9210"
+- compatible:	must be "dlg,da9210"
 - reg:		the i2c slave address of the regulator. It should be 0x68.
+
+Optional properties:
+
+- interrupts:	a reference to the DA9210 interrupt, if available.
 
 Any standard regulator properties can be used to configure the single da9210
 DCDC.
@@ -11,7 +15,7 @@ DCDC.
 Example:
 
 	da9210@68 {
-		compatible = "diasemi,da9210";
+		compatible = "dlg,da9210";
 		reg = <0x68>;
 
 		regulator-min-microvolt = <900000>;

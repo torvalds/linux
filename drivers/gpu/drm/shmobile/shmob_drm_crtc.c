@@ -1,7 +1,7 @@
 /*
  * shmob_drm_crtc.c  --  SH Mobile DRM CRTCs
  *
- * Copyright (C) 2012 Renesas Corporation
+ * Copyright (C) 2012 Renesas Electronics Corporation
  *
  * Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -19,6 +19,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_plane_helper.h>
 
 #include <video/sh_mobile_meram.h>
 
@@ -247,7 +248,7 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 	lcdc_write(sdev, LDDDSR, value);
 
 	/* Setup planes. */
-	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
+	drm_for_each_legacy_plane(plane, dev) {
 		if (plane->crtc == crtc)
 			shmob_drm_plane_setup(plane);
 	}
@@ -612,7 +613,7 @@ int shmob_drm_encoder_create(struct shmob_drm_device *sdev)
 	encoder->possible_crtcs = 1;
 
 	ret = drm_encoder_init(sdev->ddev, encoder, &encoder_funcs,
-			       DRM_MODE_ENCODER_LVDS);
+			       DRM_MODE_ENCODER_LVDS, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -737,8 +738,6 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 	ret = drm_mode_connector_attach_encoder(connector, encoder);
 	if (ret < 0)
 		goto err_backlight;
-
-	connector->encoder = encoder;
 
 	drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
 	drm_object_property_set_value(&connector->base,

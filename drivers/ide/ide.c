@@ -101,8 +101,7 @@ void ide_device_put(ide_drive_t *drive)
 	struct device *host_dev = drive->hwif->host->dev[0];
 	struct module *module = host_dev ? host_dev->driver->owner : NULL;
 
-	if (module)
-		module_put(module);
+	module_put(module);
 #endif
 	put_device(&drive->gendev);
 }
@@ -179,17 +178,17 @@ MODULE_PARM_DESC(pci_clock, "PCI bus clock frequency (in MHz)");
 
 static int ide_set_dev_param_mask(const char *s, const struct kernel_param *kp)
 {
-	int a, b, i, j = 1;
+	unsigned int a, b, i, j = 1;
 	unsigned int *dev_param_mask = (unsigned int *)kp->arg;
 
 	/* controller . device (0 or 1) [ : 1 (set) | 0 (clear) ] */
-	if (sscanf(s, "%d.%d:%d", &a, &b, &j) != 3 &&
-	    sscanf(s, "%d.%d", &a, &b) != 2)
+	if (sscanf(s, "%u.%u:%u", &a, &b, &j) != 3 &&
+	    sscanf(s, "%u.%u", &a, &b) != 2)
 		return -EINVAL;
 
 	i = a * MAX_DRIVES + b;
 
-	if (i >= MAX_HWIFS * MAX_DRIVES || j < 0 || j > 1)
+	if (i >= MAX_HWIFS * MAX_DRIVES || j > 1)
 		return -EINVAL;
 
 	if (j)
@@ -200,7 +199,7 @@ static int ide_set_dev_param_mask(const char *s, const struct kernel_param *kp)
 	return 0;
 }
 
-static struct kernel_param_ops param_ops_ide_dev_mask = {
+static const struct kernel_param_ops param_ops_ide_dev_mask = {
 	.set = ide_set_dev_param_mask
 };
 
@@ -247,17 +246,17 @@ static struct chs_geom ide_disks_chs[MAX_HWIFS * MAX_DRIVES];
 
 static int ide_set_disk_chs(const char *str, struct kernel_param *kp)
 {
-	int a, b, c = 0, h = 0, s = 0, i, j = 1;
+	unsigned int a, b, c = 0, h = 0, s = 0, i, j = 1;
 
 	/* controller . device (0 or 1) : Cylinders , Heads , Sectors */
 	/* controller . device (0 or 1) : 1 (use CHS) | 0 (ignore CHS) */
-	if (sscanf(str, "%d.%d:%d,%d,%d", &a, &b, &c, &h, &s) != 5 &&
-	    sscanf(str, "%d.%d:%d", &a, &b, &j) != 3)
+	if (sscanf(str, "%u.%u:%u,%u,%u", &a, &b, &c, &h, &s) != 5 &&
+	    sscanf(str, "%u.%u:%u", &a, &b, &j) != 3)
 		return -EINVAL;
 
 	i = a * MAX_DRIVES + b;
 
-	if (i >= MAX_HWIFS * MAX_DRIVES || j < 0 || j > 1)
+	if (i >= MAX_HWIFS * MAX_DRIVES || j > 1)
 		return -EINVAL;
 
 	if (c > INT_MAX || h > 255 || s > 255)

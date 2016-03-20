@@ -7,6 +7,7 @@
 
 #include "dm-exception-store.h"
 
+#include <linux/ctype.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
@@ -200,16 +201,11 @@ err_area:
 
 static void free_area(struct pstore *ps)
 {
-	if (ps->area)
-		vfree(ps->area);
+	vfree(ps->area);
 	ps->area = NULL;
-
-	if (ps->zero_area)
-		vfree(ps->zero_area);
+	vfree(ps->zero_area);
 	ps->zero_area = NULL;
-
-	if (ps->header_area)
-		vfree(ps->header_area);
+	vfree(ps->header_area);
 	ps->header_area = NULL;
 }
 
@@ -326,7 +322,7 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 		    bdev_logical_block_size(dm_snap_cow(ps->store->snap)->
 					    bdev) >> 9);
 		ps->store->chunk_mask = ps->store->chunk_size - 1;
-		ps->store->chunk_shift = ffs(ps->store->chunk_size) - 1;
+		ps->store->chunk_shift = __ffs(ps->store->chunk_size);
 		chunk_size_supplied = 0;
 	}
 
@@ -538,7 +534,7 @@ static int read_exceptions(struct pstore *ps,
 		chunk = area_location(ps, ps->current_area);
 
 		area = dm_bufio_read(client, chunk, &bp);
-		if (unlikely(IS_ERR(area))) {
+		if (IS_ERR(area)) {
 			r = PTR_ERR(area);
 			goto ret_destroy_bufio;
 		}
@@ -605,8 +601,7 @@ static void persistent_dtr(struct dm_exception_store *store)
 	free_area(ps);
 
 	/* Allocated in persistent_read_metadata */
-	if (ps->callbacks)
-		vfree(ps->callbacks);
+	vfree(ps->callbacks);
 
 	kfree(ps);
 }
@@ -700,7 +695,7 @@ static int persistent_prepare_exception(struct dm_exception_store *store,
 }
 
 static void persistent_commit_exception(struct dm_exception_store *store,
-					struct dm_exception *e,
+					struct dm_exception *e, int valid,
 					void (*callback) (void *, int success),
 					void *callback_context)
 {
@@ -708,6 +703,9 @@ static void persistent_commit_exception(struct dm_exception_store *store,
 	struct pstore *ps = get_info(store);
 	struct core_exception ce;
 	struct commit_callback *cb;
+
+	if (!valid)
+		ps->valid = 0;
 
 	ce.old_chunk = e->old_chunk;
 	ce.new_chunk = e->new_chunk;
@@ -849,10 +847,10 @@ static void persistent_drop_snapshot(struct dm_exception_store *store)
 		DMWARN("write header failed");
 }
 
-static int persistent_ctr(struct dm_exception_store *store,
-			  unsigned argc, char **argv)
+static int persistent_ctr(struct dm_exception_store *store, char *options)
 {
 	struct pstore *ps;
+	int r;
 
 	/* allocate the pstore */
 	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
@@ -874,14 +872,32 @@ static int persistent_ctr(struct dm_exception_store *store,
 
 	ps->metadata_wq = alloc_workqueue("ksnaphd", WQ_MEM_RECLAIM, 0);
 	if (!ps->metadata_wq) {
-		kfree(ps);
 		DMERR("couldn't start header metadata update thread");
-		return -ENOMEM;
+		r = -ENOMEM;
+		goto err_workqueue;
+	}
+
+	if (options) {
+		char overflow = toupper(options[0]);
+		if (overflow == 'O')
+			store->userspace_supports_overflow = true;
+		else {
+			DMERR("Unsupported persistent store option: %s", options);
+			r = -EINVAL;
+			goto err_options;
+		}
 	}
 
 	store->context = ps;
 
 	return 0;
+
+err_options:
+	destroy_workqueue(ps->metadata_wq);
+err_workqueue:
+	kfree(ps);
+
+	return r;
 }
 
 static unsigned persistent_status(struct dm_exception_store *store,
@@ -894,7 +910,8 @@ static unsigned persistent_status(struct dm_exception_store *store,
 	case STATUSTYPE_INFO:
 		break;
 	case STATUSTYPE_TABLE:
-		DMEMIT(" P %llu", (unsigned long long)store->chunk_size);
+		DMEMIT(" %s %llu", store->userspace_supports_overflow ? "PO" : "P",
+		       (unsigned long long)store->chunk_size);
 	}
 
 	return sz;

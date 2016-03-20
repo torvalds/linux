@@ -112,37 +112,16 @@ static const struct block_device_operations rsxx_fops = {
 
 static void disk_stats_start(struct rsxx_cardinfo *card, struct bio *bio)
 {
-	struct hd_struct *part0 = &card->gendisk->part0;
-	int rw = bio_data_dir(bio);
-	int cpu;
-
-	cpu = part_stat_lock();
-
-	part_round_stats(cpu, part0);
-	part_inc_in_flight(part0, rw);
-
-	part_stat_unlock();
+	generic_start_io_acct(bio_data_dir(bio), bio_sectors(bio),
+			     &card->gendisk->part0);
 }
 
 static void disk_stats_complete(struct rsxx_cardinfo *card,
 				struct bio *bio,
 				unsigned long start_time)
 {
-	struct hd_struct *part0 = &card->gendisk->part0;
-	unsigned long duration = jiffies - start_time;
-	int rw = bio_data_dir(bio);
-	int cpu;
-
-	cpu = part_stat_lock();
-
-	part_stat_add(cpu, part0, sectors[rw], bio_sectors(bio));
-	part_stat_inc(cpu, part0, ios[rw]);
-	part_stat_add(cpu, part0, ticks[rw], duration);
-
-	part_round_stats(cpu, part0);
-	part_dec_in_flight(part0, rw);
-
-	part_stat_unlock();
+	generic_end_io_acct(bio_data_dir(bio), &card->gendisk->part0,
+			   start_time);
 }
 
 static void bio_dma_done_cb(struct rsxx_cardinfo *card,
@@ -158,16 +137,21 @@ static void bio_dma_done_cb(struct rsxx_cardinfo *card,
 		if (!card->eeh_state && card->gendisk)
 			disk_stats_complete(card, meta->bio, meta->start_time);
 
-		bio_endio(meta->bio, atomic_read(&meta->error) ? -EIO : 0);
+		if (atomic_read(&meta->error))
+			bio_io_error(meta->bio);
+		else
+			bio_endio(meta->bio);
 		kmem_cache_free(bio_meta_pool, meta);
 	}
 }
 
-static void rsxx_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t rsxx_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct rsxx_cardinfo *card = q->queuedata;
 	struct rsxx_bio_meta *bio_meta;
 	int st = -EINVAL;
+
+	blk_queue_split(q, &bio, q->bio_split);
 
 	might_sleep();
 
@@ -215,12 +199,15 @@ static void rsxx_make_request(struct request_queue *q, struct bio *bio)
 	if (st)
 		goto queue_err;
 
-	return;
+	return BLK_QC_T_NONE;
 
 queue_err:
 	kmem_cache_free(bio_meta_pool, bio_meta);
 req_err:
-	bio_endio(bio, st);
+	if (st)
+		bio->bi_error = st;
+	bio_endio(bio);
+	return BLK_QC_T_NONE;
 }
 
 /*----------------- Device Setup -------------------*/
@@ -307,6 +294,7 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
 	blk_queue_physical_block_size(card->queue, RSXX_HW_BLK_SIZE);
 
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, card->queue);
+	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, card->queue);
 	if (rsxx_discard_supported(card)) {
 		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, card->queue);
 		blk_queue_max_discard_sectors(card->queue,

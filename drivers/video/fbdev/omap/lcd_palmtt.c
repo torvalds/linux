@@ -28,8 +28,8 @@ GPIO13 - screen blanking
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 
-#include <asm/gpio.h>
 #include "omapfb.h"
 
 static int palmtt_panel_init(struct lcd_panel *panel,
@@ -109,7 +109,6 @@ static struct platform_driver palmtt_panel_driver = {
 	.resume		= palmtt_panel_resume,
 	.driver		= {
 		.name	= "lcd_palmtt",
-		.owner	= THIS_MODULE,
 	},
 };
 

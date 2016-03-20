@@ -329,30 +329,32 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	version = (vr & SPR_VR_VER) >> 24;
 	revision = vr & SPR_VR_REV;
 
-	return seq_printf(m,
-			  "cpu\t\t: OpenRISC-%x\n"
-			  "revision\t: %d\n"
-			  "frequency\t: %ld\n"
-			  "dcache size\t: %d bytes\n"
-			  "dcache block size\t: %d bytes\n"
-			  "icache size\t: %d bytes\n"
-			  "icache block size\t: %d bytes\n"
-			  "immu\t\t: %d entries, %lu ways\n"
-			  "dmmu\t\t: %d entries, %lu ways\n"
-			  "bogomips\t: %lu.%02lu\n",
-			  version,
-			  revision,
-			  loops_per_jiffy * HZ,
-			  cpuinfo.dcache_size,
-			  cpuinfo.dcache_block_size,
-			  cpuinfo.icache_size,
-			  cpuinfo.icache_block_size,
-			  1 << ((mfspr(SPR_DMMUCFGR) & SPR_DMMUCFGR_NTS) >> 2),
-			  1 + (mfspr(SPR_DMMUCFGR) & SPR_DMMUCFGR_NTW),
-			  1 << ((mfspr(SPR_IMMUCFGR) & SPR_IMMUCFGR_NTS) >> 2),
-			  1 + (mfspr(SPR_IMMUCFGR) & SPR_IMMUCFGR_NTW),
-			  (loops_per_jiffy * HZ) / 500000,
-			  ((loops_per_jiffy * HZ) / 5000) % 100);
+	seq_printf(m,
+		   "cpu\t\t: OpenRISC-%x\n"
+		   "revision\t: %d\n"
+		   "frequency\t: %ld\n"
+		   "dcache size\t: %d bytes\n"
+		   "dcache block size\t: %d bytes\n"
+		   "icache size\t: %d bytes\n"
+		   "icache block size\t: %d bytes\n"
+		   "immu\t\t: %d entries, %lu ways\n"
+		   "dmmu\t\t: %d entries, %lu ways\n"
+		   "bogomips\t: %lu.%02lu\n",
+		   version,
+		   revision,
+		   loops_per_jiffy * HZ,
+		   cpuinfo.dcache_size,
+		   cpuinfo.dcache_block_size,
+		   cpuinfo.icache_size,
+		   cpuinfo.icache_block_size,
+		   1 << ((mfspr(SPR_DMMUCFGR) & SPR_DMMUCFGR_NTS) >> 2),
+		   1 + (mfspr(SPR_DMMUCFGR) & SPR_DMMUCFGR_NTW),
+		   1 << ((mfspr(SPR_IMMUCFGR) & SPR_IMMUCFGR_NTS) >> 2),
+		   1 + (mfspr(SPR_IMMUCFGR) & SPR_IMMUCFGR_NTW),
+		   (loops_per_jiffy * HZ) / 500000,
+		   ((loops_per_jiffy * HZ) / 5000) % 100);
+
+	return 0;
 }
 
 static void *c_start(struct seq_file *m, loff_t * pos)

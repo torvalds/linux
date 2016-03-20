@@ -29,18 +29,13 @@ void drm_iommu_detach_device(struct drm_device *dev_dev,
 
 static inline bool is_drm_iommu_supported(struct drm_device *drm_dev)
 {
-#ifdef CONFIG_ARM_DMA_USE_IOMMU
 	struct device *dev = drm_dev->dev;
 
 	return dev->archdata.mapping ? true : false;
-#else
-	return false;
-#endif
 }
 
 #else
 
-struct dma_iommu_mapping;
 static inline int drm_create_iommu_mapping(struct drm_device *drm_dev)
 {
 	return 0;

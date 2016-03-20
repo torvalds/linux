@@ -1,5 +1,6 @@
 #include <dt-bindings/clock/tegra30-car.h>
 #include <dt-bindings/gpio/tegra-gpio.h>
+#include <dt-bindings/memory/tegra30-mc.h>
 #include <dt-bindings/pinctrl/pinctrl-tegra.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
@@ -7,15 +8,7 @@
 
 / {
 	compatible = "nvidia,tegra30";
-	interrupt-parent = <&intc>;
-
-	aliases {
-		serial0 = &uarta;
-		serial1 = &uartb;
-		serial2 = &uartc;
-		serial3 = &uartd;
-		serial4 = &uarte;
-	};
+	interrupt-parent = <&lic>;
 
 	pcie-controller@00003000 {
 		compatible = "nvidia,tegra30-pcie";
@@ -49,8 +42,8 @@
 			 <&tegra_car TEGRA30_CLK_CML0>;
 		clock-names = "pex", "afi", "pll_e", "cml";
 		resets = <&tegra_car 70>,
-		         <&tegra_car 72>,
-		         <&tegra_car 74>;
+			 <&tegra_car 72>,
+			 <&tegra_car 74>;
 		reset-names = "pex", "afi", "pcie_x";
 		status = "disabled";
 
@@ -160,7 +153,7 @@
 				  &tegra_car TEGRA30_CLK_GR3D2>;
 			clock-names = "3d", "3d2";
 			resets = <&tegra_car 24>,
-			         <&tegra_car 98>;
+				 <&tegra_car 98>;
 			reset-names = "3d", "3d2";
 		};
 
@@ -173,6 +166,8 @@
 			clock-names = "dc", "parent";
 			resets = <&tegra_car 27>;
 			reset-names = "dc";
+
+			iommus = <&mc TEGRA_SWGROUP_DC>;
 
 			nvidia,head = <0>;
 
@@ -190,6 +185,8 @@
 			clock-names = "dc", "parent";
 			resets = <&tegra_car 26>;
 			reset-names = "dc";
+
+			iommus = <&mc TEGRA_SWGROUP_DCB>;
 
 			nvidia,head = <1>;
 
@@ -228,9 +225,10 @@
 		};
 	};
 
-	timer@50004600 {
+	timer@50040600 {
 		compatible = "arm,cortex-a9-twd-timer";
 		reg = <0x50040600 0x20>;
+		interrupt-parent = <&intc>;
 		interrupts = <GIC_PPI 13
 			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		clocks = <&tegra_car TEGRA30_CLK_TWD>;
@@ -242,6 +240,7 @@
 		       0x50040100 0x0100>;
 		interrupt-controller;
 		#interrupt-cells = <3>;
+		interrupt-parent = <&intc>;
 	};
 
 	cache-controller@50043000 {
@@ -251,6 +250,18 @@
 		arm,tag-latency = <5 5 2>;
 		cache-unified;
 		cache-level = <2>;
+	};
+
+	lic: interrupt-controller@60004000 {
+		compatible = "nvidia,tegra30-ictlr";
+		reg = <0x60004000 0x100>,
+		      <0x60004100 0x50>,
+		      <0x60004200 0x50>,
+		      <0x60004300 0x50>,
+		      <0x60004400 0x50>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		interrupt-parent = <&intc>;
 	};
 
 	timer@60005000 {
@@ -270,6 +281,11 @@
 		reg = <0x60006000 0x1000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+	};
+
+	flow-controller@60007000 {
+		compatible = "nvidia,tegra30-flowctrl";
+		reg = <0x60007000 0x1000>;
 	};
 
 	apbdma: dma@6000a000 {
@@ -313,9 +329,9 @@
 		#dma-cells = <1>;
 	};
 
-	ahb: ahb@6000c004 {
+	ahb: ahb@6000c000 {
 		compatible = "nvidia,tegra30-ahb";
-		reg = <0x6000c004 0x14c>; /* AHB Arbitration + Gizmo Controller */
+		reg = <0x6000c000 0x150>; /* AHB Arbitration + Gizmo Controller */
 	};
 
 	gpio: gpio@6000d000 {
@@ -333,6 +349,9 @@
 		gpio-controller;
 		#interrupt-cells = <2>;
 		interrupt-controller;
+		/*
+		gpio-ranges = <&pinmux 0 0 248>;
+		*/
 	};
 
 	apbmisc@70000800 {
@@ -438,7 +457,7 @@
 	};
 
 	i2c@7000c000 {
-		compatible =  "nvidia,tegra30-i2c", "nvidia,tegra20-i2c";
+		compatible = "nvidia,tegra30-i2c", "nvidia,tegra20-i2c";
 		reg = <0x7000c000 0x100>;
 		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -618,23 +637,15 @@
 		clock-names = "pclk", "clk32k_in";
 	};
 
-	memory-controller@7000f000 {
+	mc: memory-controller@7000f000 {
 		compatible = "nvidia,tegra30-mc";
-		reg = <0x7000f000 0x010
-		       0x7000f03c 0x1b4
-		       0x7000f200 0x028
-		       0x7000f284 0x17c>;
-		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
-	};
+		reg = <0x7000f000 0x400>;
+		clocks = <&tegra_car TEGRA30_CLK_MC>;
+		clock-names = "mc";
 
-	iommu@7000f010 {
-		compatible = "nvidia,tegra30-smmu";
-		reg = <0x7000f010 0x02c
-		       0x7000f1f0 0x010
-		       0x7000f228 0x05c>;
-		nvidia,#asids = <4>;		/* # of ASIDs */
-		dma-window = <0 0x40000000>;	/* IOVA start & length */
-		nvidia,ahb = <&ahb>;
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+
+		#iommu-cells = <1>;
 	};
 
 	fuse@7000f800 {
@@ -644,6 +655,21 @@
 		clock-names = "fuse";
 		resets = <&tegra_car 39>;
 		reset-names = "fuse";
+	};
+
+	hda@70030000 {
+		compatible = "nvidia,tegra30-hda";
+		reg = <0x70030000 0x10000>;
+		interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA30_CLK_HDA>,
+			 <&tegra_car TEGRA30_CLK_HDA2HDMI>,
+			 <&tegra_car TEGRA30_CLK_HDA2CODEC_2X>;
+		clock-names = "hda", "hda2hdmi", "hda2codec_2x";
+		resets = <&tegra_car 125>, /* hda */
+			 <&tegra_car 128>, /* hda2hdmi */
+			 <&tegra_car 111>; /* hda2codec_2x */
+		reset-names = "hda", "hda2hdmi", "hda2codec_2x";
+		status = "disabled";
 	};
 
 	ahub@70080000 {

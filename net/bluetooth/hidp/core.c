@@ -70,10 +70,11 @@ static void hidp_session_terminate(struct hidp_session *s);
 
 static void hidp_copy_session(struct hidp_session *session, struct hidp_conninfo *ci)
 {
+	u32 valid_flags = 0;
 	memset(ci, 0, sizeof(*ci));
 	bacpy(&ci->bdaddr, &session->bdaddr);
 
-	ci->flags = session->flags;
+	ci->flags = session->flags & valid_flags;
 	ci->state = BT_CONNECTED;
 
 	if (session->input) {
@@ -399,6 +400,20 @@ static int hidp_raw_request(struct hid_device *hid, unsigned char reportnum,
 static void hidp_idle_timeout(unsigned long arg)
 {
 	struct hidp_session *session = (struct hidp_session *) arg;
+
+	/* The HIDP user-space API only contains calls to add and remove
+	 * devices. There is no way to forward events of any kind. Therefore,
+	 * we have to forcefully disconnect a device on idle-timeouts. This is
+	 * unfortunate and weird API design, but it is spec-compliant and
+	 * required for backwards-compatibility. Hence, on idle-timeout, we
+	 * signal driver-detach events, so poll() will be woken up with an
+	 * error-condition on both sockets.
+	 */
+
+	session->intr_sock->sk->sk_err = EUNATCH;
+	session->ctrl_sock->sk->sk_err = EUNATCH;
+	wake_up_interruptible(sk_sleep(session->intr_sock->sk));
+	wake_up_interruptible(sk_sleep(session->ctrl_sock->sk));
 
 	hidp_session_terminate(session);
 }
@@ -736,14 +751,10 @@ static int hidp_setup_hid(struct hidp_session *session,
 	struct hid_device *hid;
 	int err;
 
-	session->rd_data = kzalloc(req->rd_size, GFP_KERNEL);
-	if (!session->rd_data)
-		return -ENOMEM;
+	session->rd_data = memdup_user(req->rd_data, req->rd_size);
+	if (IS_ERR(session->rd_data))
+		return PTR_ERR(session->rd_data);
 
-	if (copy_from_user(session->rd_data, req->rd_data, req->rd_size)) {
-		err = -EFAULT;
-		goto fault;
-	}
 	session->rd_size = req->rd_size;
 
 	hid = hid_allocate_device();
@@ -911,13 +922,14 @@ static int hidp_session_new(struct hidp_session **out, const bdaddr_t *bdaddr,
 	kref_init(&session->ref);
 	atomic_set(&session->state, HIDP_SESSION_IDLING);
 	init_waitqueue_head(&session->state_queue);
-	session->flags = req->flags & (1 << HIDP_BLUETOOTH_VENDOR_ID);
+	session->flags = req->flags & BIT(HIDP_BLUETOOTH_VENDOR_ID);
 
 	/* connection management */
 	bacpy(&session->bdaddr, bdaddr);
-	session->conn = conn;
+	session->conn = l2cap_conn_get(conn);
 	session->user.probe = hidp_session_probe;
 	session->user.remove = hidp_session_remove;
+	INIT_LIST_HEAD(&session->user.list);
 	session->ctrl_sock = ctrl_sock;
 	session->intr_sock = intr_sock;
 	skb_queue_head_init(&session->ctrl_transmit);
@@ -941,13 +953,13 @@ static int hidp_session_new(struct hidp_session **out, const bdaddr_t *bdaddr,
 	if (ret)
 		goto err_free;
 
-	l2cap_conn_get(session->conn);
 	get_file(session->intr_sock->file);
 	get_file(session->ctrl_sock->file);
 	*out = session;
 	return 0;
 
 err_free:
+	l2cap_conn_put(session->conn);
 	kfree(session);
 	return ret;
 }
@@ -1316,21 +1328,25 @@ int hidp_connection_add(struct hidp_connadd_req *req,
 			struct socket *ctrl_sock,
 			struct socket *intr_sock)
 {
+	u32 valid_flags = BIT(HIDP_VIRTUAL_CABLE_UNPLUG) |
+			  BIT(HIDP_BOOT_PROTOCOL_MODE);
 	struct hidp_session *session;
 	struct l2cap_conn *conn;
-	struct l2cap_chan *chan = l2cap_pi(ctrl_sock->sk)->chan;
+	struct l2cap_chan *chan;
 	int ret;
 
 	ret = hidp_verify_sockets(ctrl_sock, intr_sock);
 	if (ret)
 		return ret;
 
+	if (req->flags & ~valid_flags)
+		return -EINVAL;
+
+	chan = l2cap_pi(ctrl_sock->sk)->chan;
 	conn = NULL;
 	l2cap_chan_lock(chan);
-	if (chan->conn) {
-		l2cap_conn_get(chan->conn);
-		conn = chan->conn;
-	}
+	if (chan->conn)
+		conn = l2cap_conn_get(chan->conn);
 	l2cap_chan_unlock(chan);
 
 	if (!conn)
@@ -1356,13 +1372,17 @@ out_conn:
 
 int hidp_connection_del(struct hidp_conndel_req *req)
 {
+	u32 valid_flags = BIT(HIDP_VIRTUAL_CABLE_UNPLUG);
 	struct hidp_session *session;
+
+	if (req->flags & ~valid_flags)
+		return -EINVAL;
 
 	session = hidp_session_find(&req->bdaddr);
 	if (!session)
 		return -ENOENT;
 
-	if (req->flags & (1 << HIDP_VIRTUAL_CABLE_UNPLUG))
+	if (req->flags & BIT(HIDP_VIRTUAL_CABLE_UNPLUG))
 		hidp_send_ctrl_message(session,
 				       HIDP_TRANS_HID_CONTROL |
 				         HIDP_CTRL_VIRTUAL_CABLE_UNPLUG,

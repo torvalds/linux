@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2009-2014 Emulex.  All rights reserved.           *
+ * Copyright (C) 2009-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -656,7 +656,6 @@ lpfc_bsg_rport_els(struct fc_bsg_job *job)
 	struct lpfc_nodelist *ndlp = rdata->pnode;
 	uint32_t elscmd;
 	uint32_t cmdsize;
-	uint32_t rspsize;
 	struct lpfc_iocbq *cmdiocbq;
 	uint16_t rpi = 0;
 	struct bsg_job_data *dd_data;
@@ -687,7 +686,6 @@ lpfc_bsg_rport_els(struct fc_bsg_job *job)
 
 	elscmd = job->request->rqst_data.r_els.els_code;
 	cmdsize = job->request_payload.payload_len;
-	rspsize = job->reply_payload.payload_len;
 
 	if (!lpfc_nlp_get(ndlp)) {
 		rc = -ENODEV;
@@ -906,7 +904,6 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 {
 	uint32_t evt_req_id = 0;
 	uint32_t cmd;
-	uint32_t len;
 	struct lpfc_dmabuf *dmabuf = NULL;
 	struct lpfc_bsg_event *evt;
 	struct event_data *evt_dat = NULL;
@@ -948,7 +945,6 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	ct_req = (struct lpfc_sli_ct_request *)dmabuf->virt;
 	evt_req_id = ct_req->FsType;
 	cmd = ct_req->CommandResponse.bits.CmdRsp;
-	len = ct_req->CommandResponse.bits.Size;
 	if (!(phba->sli3_options & LPFC_SLI3_HBQ_ENABLED))
 		lpfc_sli_ringpostbuf_put(phba, pring, dmabuf);
 
@@ -2251,7 +2247,6 @@ lpfc_sli4_bsg_diag_mode_end(struct fc_bsg_job *job)
 	i = 0;
 	while (phba->link_state != LPFC_LINK_DOWN) {
 		if (i++ > timeout) {
-			rc = -ETIMEDOUT;
 			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 					"3140 Timeout waiting for link to "
 					"diagnostic mode_end, timeout:%d ms\n",
@@ -2291,7 +2286,6 @@ lpfc_sli4_bsg_link_diag_test(struct fc_bsg_job *job)
 	LPFC_MBOXQ_t *pmboxq;
 	struct sli4_link_diag *link_diag_test_cmd;
 	uint32_t req_len, alloc_len;
-	uint32_t timeout;
 	struct lpfc_mbx_run_link_diag_test *run_link_diag_test;
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint32_t shdr_status, shdr_add_status;
@@ -2342,7 +2336,6 @@ lpfc_sli4_bsg_link_diag_test(struct fc_bsg_job *job)
 
 	link_diag_test_cmd = (struct sli4_link_diag *)
 			 job->request->rqst_data.h_vendor.vendor_cmd;
-	timeout = link_diag_test_cmd->timeout * 100;
 
 	rc = lpfc_sli4_bsg_set_link_diag_state(phba, 1);
 
@@ -2693,14 +2686,13 @@ lpfc_bsg_dma_page_alloc(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&dmabuf->list);
 
 	/* now, allocate dma buffer */
-	dmabuf->virt = dma_alloc_coherent(&pcidev->dev, BSG_MBOX_SIZE,
-					  &(dmabuf->phys), GFP_KERNEL);
+	dmabuf->virt = dma_zalloc_coherent(&pcidev->dev, BSG_MBOX_SIZE,
+					   &(dmabuf->phys), GFP_KERNEL);
 
 	if (!dmabuf->virt) {
 		kfree(dmabuf);
 		return NULL;
 	}
-	memset((uint8_t *)dmabuf->virt, 0, BSG_MBOX_SIZE);
 
 	return dmabuf;
 }
@@ -2828,8 +2820,10 @@ diag_cmd_data_alloc(struct lpfc_hba *phba,
 		size -= cnt;
 	}
 
-	mlist->flag = i;
-	return mlist;
+	if (mlist) {
+		mlist->flag = i;
+		return mlist;
+	}
 out:
 	diag_cmd_data_free(phba, mlist);
 	return NULL;
@@ -2992,7 +2986,6 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *)job->shost->hostdata;
 	struct lpfc_hba *phba = vport->phba;
-	struct diag_mode_test *diag_mode;
 	struct lpfc_bsg_event *evt;
 	struct event_data *evdat;
 	struct lpfc_sli *psli = &phba->sli;
@@ -3035,8 +3028,6 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 		rc = -EINVAL;
 		goto loopback_test_exit;
 	}
-	diag_mode = (struct diag_mode_test *)
-		job->request->rqst_data.h_vendor.vendor_cmd;
 
 	if ((phba->link_state == LPFC_HBA_ERROR) ||
 	    (psli->sli_flag & LPFC_BLOCK_MGMT_IO) ||
@@ -3198,6 +3189,7 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 		cmd->unsli3.rcvsli3.ox_id = 0xffff;
 	}
 	cmdiocbq->iocb_flag |= LPFC_IO_LIBDFC;
+	cmdiocbq->iocb_flag |= LPFC_IO_LOOPBACK;
 	cmdiocbq->vport = phba->pport;
 	cmdiocbq->iocb_cmpl = NULL;
 	iocb_stat = lpfc_sli_issue_iocb_wait(phba, LPFC_ELS_RING, cmdiocbq,
@@ -3296,7 +3288,6 @@ lpfc_bsg_get_dfc_rev(struct fc_bsg_job *job)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *)job->shost->hostdata;
 	struct lpfc_hba *phba = vport->phba;
-	struct get_mgmt_rev *event_req;
 	struct get_mgmt_rev_reply *event_reply;
 	int rc = 0;
 
@@ -3308,9 +3299,6 @@ lpfc_bsg_get_dfc_rev(struct fc_bsg_job *job)
 		rc = -EINVAL;
 		goto job_error;
 	}
-
-	event_req = (struct get_mgmt_rev *)
-		job->request->rqst_data.h_vendor.vendor_cmd;
 
 	event_reply = (struct get_mgmt_rev_reply *)
 		job->reply->reply_data.vendor_reply.vendor_rsp;
@@ -3344,7 +3332,7 @@ job_error:
  * will wake up thread waiting on the wait queue pointed by context1
  * of the mailbox.
  **/
-void
+static void
 lpfc_bsg_issue_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 {
 	struct bsg_job_data *dd_data;
@@ -4183,6 +4171,7 @@ lpfc_bsg_handle_sli_cfg_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 			switch (opcode) {
 			case COMN_OPCODE_GET_CNTL_ADDL_ATTRIBUTES:
 			case COMN_OPCODE_GET_CNTL_ATTRIBUTES:
+			case COMN_OPCODE_GET_PROFILE_CONFIG:
 				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 						"3106 Handled SLI_CONFIG "
 						"subsys_comn, opcode:x%x\n",
@@ -4350,7 +4339,6 @@ static int
 lpfc_bsg_write_ebuf_set(struct lpfc_hba *phba, struct fc_bsg_job *job,
 			struct lpfc_dmabuf *dmabuf)
 {
-	struct lpfc_sli_config_mbox *sli_cfg_mbx;
 	struct bsg_job_data *dd_data = NULL;
 	LPFC_MBOXQ_t *pmboxq = NULL;
 	MAILBOX_t *pmb;
@@ -4363,9 +4351,6 @@ lpfc_bsg_write_ebuf_set(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	index = phba->mbox_ext_buf_ctx.seqNum;
 	phba->mbox_ext_buf_ctx.seqNum++;
 	nemb_tp = phba->mbox_ext_buf_ctx.nembType;
-
-	sli_cfg_mbx = (struct lpfc_sli_config_mbox *)
-			phba->mbox_ext_buf_ctx.mbx_dmabuf->virt;
 
 	dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
 	if (!dd_data) {
@@ -4593,7 +4578,7 @@ sli_cfg_ext_error:
  * being reset) and com-plete the job, otherwise issue the mailbox command and
  * let our completion handler finish the command.
  **/
-static uint32_t
+static int
 lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	struct lpfc_vport *vport)
 {
@@ -4608,7 +4593,6 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	uint32_t transmit_length, receive_length, mode;
 	struct lpfc_mbx_sli4_config *sli4_config;
 	struct lpfc_mbx_nembed_cmd *nembed_sge;
-	struct mbox_header *header;
 	struct ulp_bde64 *bde;
 	uint8_t *ext = NULL;
 	int rc = 0;
@@ -4806,8 +4790,6 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 				/* rebuild the command for sli4 using our
 				 * own buffers like we do for biu diags
 				 */
-				header = (struct mbox_header *)
-						&pmb->un.varWords[0];
 				nembed_sge = (struct lpfc_mbx_nembed_cmd *)
 						&pmb->un.varWords[0];
 				receive_length = nembed_sge->sge[0].length;
@@ -5050,7 +5032,6 @@ lpfc_menlo_cmd(struct fc_bsg_job *job)
 	IOCB_t *cmd;
 	int rc = 0;
 	struct menlo_command *menlo_cmd;
-	struct menlo_response *menlo_resp;
 	struct lpfc_dmabuf *bmp = NULL, *cmp = NULL, *rmp = NULL;
 	int request_nseg;
 	int reply_nseg;
@@ -5089,9 +5070,6 @@ lpfc_menlo_cmd(struct fc_bsg_job *job)
 
 	menlo_cmd = (struct menlo_command *)
 		job->request->rqst_data.h_vendor.vendor_cmd;
-
-	menlo_resp = (struct menlo_response *)
-		job->reply->reply_data.vendor_reply.vendor_rsp;
 
 	/* allocate our bsg tracking structure */
 	dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);

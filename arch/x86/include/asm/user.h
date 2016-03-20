@@ -14,8 +14,8 @@ struct user_ymmh_regs {
 	__u32 ymmh_space[64];
 };
 
-struct user_xsave_hdr {
-	__u64 xstate_bv;
+struct user_xstate_header {
+	__u64 xfeatures;
 	__u64 reserved1[2];
 	__u64 reserved2[5];
 };
@@ -41,11 +41,11 @@ struct user_xsave_hdr {
  * particular process/thread.
  *
  * Also when the user modifies certain state FP/SSE/etc through the
- * ptrace interface, they must ensure that the xsave_hdr.xstate_bv
+ * ptrace interface, they must ensure that the header.xfeatures
  * bytes[512..519] of the memory layout are updated correspondingly.
  * i.e., for example when FP state is modified to a non-init state,
- * xsave_hdr.xstate_bv's bit 0 must be set to '1', when SSE is modified to
- * non-init state, xsave_hdr.xstate_bv's bit 1 must to be set to '1', etc.
+ * header.xfeatures's bit 0 must be set to '1', when SSE is modified to
+ * non-init state, header.xfeatures's bit 1 must to be set to '1', etc.
  */
 #define USER_XSTATE_FX_SW_WORDS 6
 #define USER_XSTATE_XCR0_WORD	0
@@ -55,7 +55,7 @@ struct user_xstateregs {
 		__u64 fpx_space[58];
 		__u64 xstate_fx_sw[USER_XSTATE_FX_SW_WORDS];
 	} i387;
-	struct user_xsave_hdr xsave_hdr;
+	struct user_xstate_header header;
 	struct user_ymmh_regs ymmh;
 	/* further processor state extensions go here */
 };

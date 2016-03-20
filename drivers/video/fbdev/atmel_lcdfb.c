@@ -19,15 +19,12 @@
 #include <linux/backlight.h>
 #include <linux/gfp.h>
 #include <linux/module.h>
-#include <linux/platform_data/atmel.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <video/of_display_timing.h>
+#include <linux/regulator/consumer.h>
 #include <video/videomode.h>
-
-#include <mach/cpu.h>
-#include <asm/gpio.h>
 
 #include <video/atmel_lcdc.h>
 
@@ -60,6 +57,7 @@ struct atmel_lcdfb_info {
 	struct atmel_lcdfb_pdata pdata;
 
 	struct atmel_lcdfb_config *config;
+	struct regulator	*reg_lcd;
 };
 
 struct atmel_lcdfb_power_ctrl_gpio {
@@ -302,10 +300,24 @@ static void init_contrast(struct atmel_lcdfb_info *sinfo)
 
 static inline void atmel_lcdfb_power_control(struct atmel_lcdfb_info *sinfo, int on)
 {
+	int ret;
 	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
 
 	if (pdata->atmel_lcdfb_power_control)
 		pdata->atmel_lcdfb_power_control(pdata, on);
+	else if (sinfo->reg_lcd) {
+		if (on) {
+			ret = regulator_enable(sinfo->reg_lcd);
+			if (ret)
+				dev_err(&sinfo->pdev->dev,
+					"lcd regulator enable failed:	%d\n", ret);
+		} else {
+			ret = regulator_disable(sinfo->reg_lcd);
+			if (ret)
+				dev_err(&sinfo->pdev->dev,
+					"lcd regulator disable failed: %d\n", ret);
+		}
+	}
 }
 
 static struct fb_fix_screeninfo atmel_lcdfb_fix __initdata = {
@@ -400,8 +412,8 @@ static inline void atmel_lcdfb_free_video_memory(struct atmel_lcdfb_info *sinfo)
 {
 	struct fb_info *info = sinfo->info;
 
-	dma_free_writecombine(info->device, info->fix.smem_len,
-				info->screen_base, info->fix.smem_start);
+	dma_free_wc(info->device, info->fix.smem_len, info->screen_base,
+		    info->fix.smem_start);
 }
 
 /**
@@ -421,8 +433,9 @@ static int atmel_lcdfb_alloc_video_memory(struct atmel_lcdfb_info *sinfo)
 		    * ((var->bits_per_pixel + 7) / 8));
 	info->fix.smem_len = max(smem_len, sinfo->smem_len);
 
-	info->screen_base = dma_alloc_writecombine(info->device, info->fix.smem_len,
-					(dma_addr_t *)&info->fix.smem_start, GFP_KERNEL);
+	info->screen_base = dma_alloc_wc(info->device, info->fix.smem_len,
+					 (dma_addr_t *)&info->fix.smem_start,
+					 GFP_KERNEL);
 
 	if (!info->screen_base) {
 		return -ENOMEM;
@@ -984,7 +997,7 @@ static const char *atmel_lcdfb_wiring_modes[] = {
 	[ATMEL_LCDC_WIRING_RGB]	= "RGB",
 };
 
-const int atmel_lcdfb_get_of_wiring_modes(struct device_node *np)
+static int atmel_lcdfb_get_of_wiring_modes(struct device_node *np)
 {
 	const char *mode;
 	int err, i;
@@ -1102,12 +1115,14 @@ static int atmel_lcdfb_of_init(struct atmel_lcdfb_info *sinfo)
 	timings = of_get_display_timings(display_np);
 	if (!timings) {
 		dev_err(dev, "failed to get display timings\n");
+		ret = -EINVAL;
 		goto put_display_node;
 	}
 
 	timings_np = of_find_node_by_name(display_np, "display-timings");
 	if (!timings_np) {
 		dev_err(dev, "failed to find display-timings node\n");
+		ret = -ENODEV;
 		goto put_display_node;
 	}
 
@@ -1193,6 +1208,10 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	if (!sinfo->config)
 		goto free_info;
 
+	sinfo->reg_lcd = devm_regulator_get(&pdev->dev, "lcd");
+	if (IS_ERR(sinfo->reg_lcd))
+		sinfo->reg_lcd = NULL;
+
 	info->flags = ATMEL_LCDFB_FBINFO_DEFAULT;
 	info->pseudo_palette = sinfo->pseudo_palette;
 	info->fbops = &atmel_lcdfb_ops;
@@ -1245,7 +1264,8 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 			goto stop_clk;
 		}
 
-		info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
+		info->screen_base = ioremap_wc(info->fix.smem_start,
+					       info->fix.smem_len);
 		if (!info->screen_base) {
 			ret = -ENOMEM;
 			goto release_intmem;
@@ -1444,7 +1464,6 @@ static struct platform_driver atmel_lcdfb_driver = {
 	.id_table	= atmel_lcdfb_devtypes,
 	.driver		= {
 		.name	= "atmel_lcdfb",
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(atmel_lcdfb_dt_ids),
 	},
 };

@@ -323,8 +323,6 @@ about the status of the key service:
 	U	Under construction by callback to userspace
 	N	Negative key
 
-     This file must be enabled at kernel configuration time as it allows anyone
-     to list the keys database.
 
  (*) /proc/key-users
 
@@ -888,11 +886,11 @@ payload contents" for more information.
 				const char *callout_info);
 
     This is used to request a key or keyring with a description that matches
-    the description specified according to the key type's match function. This
-    permits approximate matching to occur. If callout_string is not NULL, then
-    /sbin/request-key will be invoked in an attempt to obtain the key from
-    userspace. In that case, callout_string will be passed as an argument to
-    the program.
+    the description specified according to the key type's match_preparse()
+    method. This permits approximate matching to occur. If callout_string is
+    not NULL, then /sbin/request-key will be invoked in an attempt to obtain
+    the key from userspace. In that case, callout_string will be passed as an
+    argument to the program.
 
     Should the function fail error ENOKEY, EKEYEXPIRED or EKEYREVOKED will be
     returned.
@@ -1051,12 +1049,12 @@ search a specific keyring, so using keyrings in this way is of limited utility.
 NOTES ON ACCESSING PAYLOAD CONTENTS
 ===================================
 
-The simplest payload is just a number in key->payload.value. In this case,
-there's no need to indulge in RCU or locking when accessing the payload.
+The simplest payload is just data stored in key->payload directly.  In this
+case, there's no need to indulge in RCU or locking when accessing the payload.
 
-More complex payload contents must be allocated and a pointer to them set in
-key->payload.data. One of the following ways must be selected to access the
-data:
+More complex payload contents must be allocated and pointers to them set in the
+key->payload.data[] array.  One of the following ways must be selected to
+access the data:
 
  (1) Unmodifiable key type.
 
@@ -1093,6 +1091,13 @@ data:
      use of call_rcu() and, if the payload is of variable size, the length of
      the payload. key->datalen cannot be relied upon to be consistent with the
      payload just dereferenced if the key's semaphore is not held.
+
+     Note that key->payload.data[0] has a shadow that is marked for __rcu
+     usage.  This is called key->payload.rcu_data0.  The following accessors
+     wrap the RCU calls to this element:
+
+	rcu_assign_keypointer(struct key *key, void *data);
+	void *rcu_dereference_key(struct key *key);
 
 
 ===================
@@ -1145,8 +1150,7 @@ The structure has a number of fields, some of which are mandatory:
 
 	struct key_preparsed_payload {
 		char		*description;
-		void		*type_data[2];
-		void		*payload;
+		union key_payload payload;
 		const void	*data;
 		size_t		datalen;
 		size_t		quotalen;
@@ -1162,23 +1166,21 @@ The structure has a number of fields, some of which are mandatory:
      attached as a string to the description field.  This will be used for the
      key description if the caller of add_key() passes NULL or "".
 
-     The method can attach anything it likes to type_data[] and payload.  These
-     are merely passed along to the instantiate() or update() operations.  If
-     set, the expiry time will be applied to the key if it is instantiated from
-     this data.
+     The method can attach anything it likes to payload.  This is merely passed
+     along to the instantiate() or update() operations.  If set, the expiry
+     time will be applied to the key if it is instantiated from this data.
 
      The method should return 0 if successful or a negative error code
      otherwise.
 
-     
+
  (*) void (*free_preparse)(struct key_preparsed_payload *prep);
 
      This method is only required if the preparse() method is provided,
-     otherwise it is unused.  It cleans up anything attached to the
-     description, type_data and payload fields of the key_preparsed_payload
-     struct as filled in by the preparse() method.  It will always be called
-     after preparse() returns successfully, even if instantiate() or update()
-     succeed.
+     otherwise it is unused.  It cleans up anything attached to the description
+     and payload fields of the key_preparsed_payload struct as filled in by the
+     preparse() method.  It will always be called after preparse() returns
+     successfully, even if instantiate() or update() succeed.
 
 
  (*) int (*instantiate)(struct key *key, struct key_preparsed_payload *prep);
@@ -1198,6 +1200,11 @@ The structure has a number of fields, some of which are mandatory:
      anything else from gaining access to the key.
 
      It is safe to sleep in this method.
+
+     generic_key_instantiate() is provided to simply copy the data from
+     prep->payload.data[] to key->payload.data[], with RCU-safe assignment on
+     the first element.  It will then clear prep->payload.data[] so that the
+     free_preparse method doesn't release the data.
 
 
  (*) int (*update)(struct key *key, const void *data, size_t datalen);
@@ -1225,16 +1232,55 @@ The structure has a number of fields, some of which are mandatory:
      It is safe to sleep in this method.
 
 
- (*) int (*match)(const struct key *key, const void *desc);
+ (*) int (*match_preparse)(struct key_match_data *match_data);
 
-     This method is called to match a key against a description. It should
-     return non-zero if the two match, zero if they don't.
+     This method is optional.  It is called when a key search is about to be
+     performed.  It is given the following structure:
 
-     This method should not need to lock the key in any way. The type and
-     description can be considered invariant, and the payload should not be
-     accessed (the key may not yet be instantiated).
+	struct key_match_data {
+		bool (*cmp)(const struct key *key,
+			    const struct key_match_data *match_data);
+		const void	*raw_data;
+		void		*preparsed;
+		unsigned	lookup_type;
+	};
 
-     It is not safe to sleep in this method; the caller may hold spinlocks.
+     On entry, raw_data will be pointing to the criteria to be used in matching
+     a key by the caller and should not be modified.  (*cmp)() will be pointing
+     to the default matcher function (which does an exact description match
+     against raw_data) and lookup_type will be set to indicate a direct lookup.
+
+     The following lookup_type values are available:
+
+      [*] KEYRING_SEARCH_LOOKUP_DIRECT - A direct lookup hashes the type and
+      	  description to narrow down the search to a small number of keys.
+
+      [*] KEYRING_SEARCH_LOOKUP_ITERATE - An iterative lookup walks all the
+      	  keys in the keyring until one is matched.  This must be used for any
+      	  search that's not doing a simple direct match on the key description.
+
+     The method may set cmp to point to a function of its choice that does some
+     other form of match, may set lookup_type to KEYRING_SEARCH_LOOKUP_ITERATE
+     and may attach something to the preparsed pointer for use by (*cmp)().
+     (*cmp)() should return true if a key matches and false otherwise.
+
+     If preparsed is set, it may be necessary to use the match_free() method to
+     clean it up.
+
+     The method should return 0 if successful or a negative error code
+     otherwise.
+
+     It is permitted to sleep in this method, but (*cmp)() may not sleep as
+     locks will be held over it.
+
+     If match_preparse() is not provided, keys of this type will be matched
+     exactly by their description.
+
+
+ (*) void (*match_free)(struct key_match_data *match_data);
+
+     This method is optional.  If given, it called to clean up
+     match_data->preparsed after a successful call to match_preparse().
 
 
  (*) void (*revoke)(struct key *key);

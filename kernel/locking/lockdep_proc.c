@@ -6,7 +6,7 @@
  * Started by Ingo Molnar:
  *
  *  Copyright (C) 2006,2007 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
- *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+ *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra
  *
  * Code for /proc/lockdep and /proc/lockdep_stats:
  *
@@ -426,10 +426,12 @@ static void seq_lock_time(struct seq_file *m, struct lock_time *lt)
 
 static void seq_stats(struct seq_file *m, struct lock_stat_data *data)
 {
-	char name[39];
-	struct lock_class *class;
+	struct lockdep_subclass_key *ckey;
 	struct lock_class_stats *stats;
+	struct lock_class *class;
+	const char *cname;
 	int i, namelen;
+	char name[39];
 
 	class = data->class;
 	stats = &data->stats;
@@ -440,15 +442,25 @@ static void seq_stats(struct seq_file *m, struct lock_stat_data *data)
 	if (class->subclass)
 		namelen -= 2;
 
-	if (!class->name) {
+	rcu_read_lock_sched();
+	cname = rcu_dereference_sched(class->name);
+	ckey  = rcu_dereference_sched(class->key);
+
+	if (!cname && !ckey) {
+		rcu_read_unlock_sched();
+		return;
+
+	} else if (!cname) {
 		char str[KSYM_NAME_LEN];
 		const char *key_name;
 
-		key_name = __get_key_name(class->key, str);
+		key_name = __get_key_name(ckey, str);
 		snprintf(name, namelen, "%s", key_name);
 	} else {
-		snprintf(name, namelen, "%s", class->name);
+		snprintf(name, namelen, "%s", cname);
 	}
+	rcu_read_unlock_sched();
+
 	namelen = strlen(name);
 	if (class->name_version > 1) {
 		snprintf(name+namelen, 3, "#%d", class->name_version);

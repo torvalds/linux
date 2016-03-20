@@ -17,6 +17,7 @@
 #include <linux/pm_qos.h>
 #include <linux/module.h>
 #include <linux/jiffies.h>
+#include <linux/tick.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -66,7 +67,7 @@ static inline void ladder_do_selection(struct ladder_device *ldev,
 static int ladder_select_state(struct cpuidle_driver *drv,
 				struct cpuidle_device *dev)
 {
-	struct ladder_device *ldev = &__get_cpu_var(ladder_devices);
+	struct ladder_device *ldev = this_cpu_ptr(&ladder_devices);
 	struct ladder_device_state *last_state;
 	int last_residency, last_idx = ldev->last_state_idx;
 	int latency_req = pm_qos_request(PM_QOS_CPU_DMA_LATENCY);
@@ -79,12 +80,7 @@ static int ladder_select_state(struct cpuidle_driver *drv,
 
 	last_state = &ldev->states[last_idx];
 
-	if (drv->states[last_idx].flags & CPUIDLE_FLAG_TIME_VALID) {
-		last_residency = cpuidle_get_last_residency(dev) - \
-					 drv->states[last_idx].exit_latency;
-	}
-	else
-		last_residency = last_state->threshold.promotion_time + 1;
+	last_residency = cpuidle_get_last_residency(dev) - drv->states[last_idx].exit_latency;
 
 	/* consider promotion */
 	if (last_idx < drv->state_count - 1 &&
@@ -170,7 +166,7 @@ static int ladder_enable_device(struct cpuidle_driver *drv,
  */
 static void ladder_reflect(struct cpuidle_device *dev, int index)
 {
-	struct ladder_device *ldev = &__get_cpu_var(ladder_devices);
+	struct ladder_device *ldev = this_cpu_ptr(&ladder_devices);
 	if (index > 0)
 		ldev->last_state_idx = index;
 }
@@ -189,6 +185,14 @@ static struct cpuidle_governor ladder_governor = {
  */
 static int __init init_ladder(void)
 {
+	/*
+	 * When NO_HZ is disabled, or when booting with nohz=off, the ladder
+	 * governor is better so give it a higher rating than the menu
+	 * governor.
+	 */
+	if (!tick_nohz_enabled)
+		ladder_governor.rating = 25;
+
 	return cpuidle_register_governor(&ladder_governor);
 }
 

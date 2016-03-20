@@ -39,7 +39,7 @@ struct reservation_object *nouveau_gem_prime_res_obj(struct drm_gem_object *);
 extern void nouveau_gem_prime_unpin(struct drm_gem_object *);
 extern struct sg_table *nouveau_gem_prime_get_sg_table(struct drm_gem_object *);
 extern struct drm_gem_object *nouveau_gem_prime_import_sg_table(
-	struct drm_device *, size_t size, struct sg_table *);
+	struct drm_device *, struct dma_buf_attachment *, struct sg_table *);
 extern void *nouveau_gem_prime_vmap(struct drm_gem_object *);
 extern void nouveau_gem_prime_vunmap(struct drm_gem_object *, void *);
 

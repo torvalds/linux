@@ -1,6 +1,6 @@
 Qualcomm SPMI Controller (PMIC Arbiter)
 
-The SPMI PMIC Arbiter is found on the Snapdragon 800 Series.  It is an SPMI
+The SPMI PMIC Arbiter is found on Snapdragon chipsets.  It is an SPMI
 controller with wrapping arbitration logic to allow for multiple on-chip
 devices to control a single SPMI master.
 
@@ -19,6 +19,10 @@ Required properties:
      "core" - core registers
      "intr" - interrupt controller registers
      "cnfg" - configuration registers
+   Registers used only for V2 PMIC Arbiter:
+     "chnls"  - tx-channel per virtual slave registers.
+     "obsrvr" - rx-channel (called observer) per virtual slave registers.
+
 - reg : address + size pairs describing the PMIC arb register sets; order must
         correspond with the order of entries in reg-names
 - #address-cells : must be set to 2

@@ -12,6 +12,11 @@ const char *const arm_triplets[] = {
 	NULL
 };
 
+const char *const arm64_triplets[] = {
+	"aarch64-linux-android-",
+	NULL
+};
+
 const char *const powerpc_triplets[] = {
 	"powerpc-unknown-linux-gnu-",
 	"powerpc64-unknown-linux-gnu-",
@@ -56,7 +61,7 @@ const char *const mips_triplets[] = {
 static bool lookup_path(char *name)
 {
 	bool found = false;
-	char *path, *tmp;
+	char *path, *tmp = NULL;
 	char buf[PATH_MAX];
 	char *env = getenv("PATH");
 
@@ -105,6 +110,8 @@ static const char *normalize_arch(char *arch)
 		return "x86";
 	if (!strcmp(arch, "sun4u") || !strncmp(arch, "sparc", 5))
 		return "sparc";
+	if (!strcmp(arch, "aarch64") || !strcmp(arch, "arm64"))
+		return "arm64";
 	if (!strncmp(arch, "arm", 3) || !strcmp(arch, "sa110"))
 		return "arm";
 	if (!strncmp(arch, "s390", 4))
@@ -121,9 +128,8 @@ static const char *normalize_arch(char *arch)
 	return arch;
 }
 
-static int perf_session_env__lookup_binutils_path(struct perf_session_env *env,
-						  const char *name,
-						  const char **path)
+static int perf_env__lookup_binutils_path(struct perf_env *env,
+					  const char *name, const char **path)
 {
 	int idx;
 	const char *arch, *cross_env;
@@ -159,6 +165,8 @@ static int perf_session_env__lookup_binutils_path(struct perf_session_env *env,
 
 	if (!strcmp(arch, "arm"))
 		path_list = arm_triplets;
+	else if (!strcmp(arch, "arm64"))
+		path_list = arm64_triplets;
 	else if (!strcmp(arch, "powerpc"))
 		path_list = powerpc_triplets;
 	else if (!strcmp(arch, "sh"))
@@ -197,7 +205,7 @@ out_error:
 	return -1;
 }
 
-int perf_session_env__lookup_objdump(struct perf_session_env *env)
+int perf_env__lookup_objdump(struct perf_env *env)
 {
 	/*
 	 * For live mode, env->arch will be NULL and we can use
@@ -206,6 +214,5 @@ int perf_session_env__lookup_objdump(struct perf_session_env *env)
 	if (env->arch == NULL)
 		return 0;
 
-	return perf_session_env__lookup_binutils_path(env, "objdump",
-						      &objdump_path);
+	return perf_env__lookup_binutils_path(env, "objdump", &objdump_path);
 }

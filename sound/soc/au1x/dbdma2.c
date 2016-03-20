@@ -315,11 +315,6 @@ static struct snd_pcm_ops au1xpsc_pcm_ops = {
 	.pointer	= au1xpsc_pcm_pointer,
 };
 
-static void au1xpsc_pcm_free_dma_buffers(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int au1xpsc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
@@ -335,7 +330,6 @@ static int au1xpsc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_platform_driver au1xpsc_soc_platform = {
 	.ops		= &au1xpsc_pcm_ops,
 	.pcm_new	= au1xpsc_pcm_new,
-	.pcm_free	= au1xpsc_pcm_free_dma_buffers,
 };
 
 static int au1xpsc_pcm_drvprobe(struct platform_device *pdev)
@@ -350,23 +344,15 @@ static int au1xpsc_pcm_drvprobe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dmadata);
 
-	return snd_soc_register_platform(&pdev->dev, &au1xpsc_soc_platform);
-}
-
-static int au1xpsc_pcm_drvremove(struct platform_device *pdev)
-{
-	snd_soc_unregister_platform(&pdev->dev);
-
-	return 0;
+	return devm_snd_soc_register_platform(&pdev->dev,
+					      &au1xpsc_soc_platform);
 }
 
 static struct platform_driver au1xpsc_pcm_driver = {
 	.driver	= {
 		.name	= "au1xpsc-pcm",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= au1xpsc_pcm_drvprobe,
-	.remove		= au1xpsc_pcm_drvremove,
 };
 
 module_platform_driver(au1xpsc_pcm_driver);

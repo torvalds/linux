@@ -221,7 +221,7 @@ static int t5403_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA |
 	    I2C_FUNC_SMBUS_I2C_BLOCK))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	ret = i2c_smbus_read_byte_data(client, T5403_SLAVE_ADDR);
 	if (ret < 0)

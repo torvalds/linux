@@ -23,11 +23,15 @@ Supported chips:
 	http://www.lineagepower.com/oem/pdf/PDT012A0X.pdf
 	http://www.lineagepower.com/oem/pdf/UDT020A0X.pdf
 	http://www.lineagepower.com/oem/pdf/MDT040A0X.pdf
-  * Texas Instruments TPS40400
-    Prefixes: 'tps40400'
+  * Texas Instruments TPS40400, TPS544B20, TPS544B25, TPS544C20, TPS544C25
+    Prefixes: 'tps40400', 'tps544b20', 'tps544b25', 'tps544c20', 'tps544c25'
     Addresses scanned: -
     Datasheets:
 	http://www.ti.com/lit/gpn/tps40400
+	http://www.ti.com/lit/gpn/tps544b20
+	http://www.ti.com/lit/gpn/tps544b25
+	http://www.ti.com/lit/gpn/tps544c20
+	http://www.ti.com/lit/gpn/tps544c25
   * Generic PMBus devices
     Prefix: 'pmbus'
     Addresses scanned: -
@@ -39,7 +43,7 @@ Author: Guenter Roeck <linux@roeck-us.net>
 Description
 -----------
 
-This driver supports hardware montoring for various PMBus compliant devices.
+This driver supports hardware monitoring for various PMBus compliant devices.
 It supports voltage, current, power, and temperature sensors as supported
 by the device.
 

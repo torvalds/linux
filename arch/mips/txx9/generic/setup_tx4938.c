@@ -31,8 +31,8 @@ static void __init tx4938_wdr_init(void)
 {
 	/* report watchdog reset status */
 	if (____raw_readq(&tx4938_ccfgptr->ccfg) & TX4938_CCFG_WDRST)
-		pr_warning("Watchdog reset detected at 0x%lx\n",
-			   read_c0_errorepc());
+		pr_warn("Watchdog reset detected at 0x%lx\n",
+			read_c0_errorepc());
 	/* clear WatchDogReset (W1C) */
 	tx4938_ccfg_set(TX4938_CCFG_WDRST);
 	/* do reset on watchdog */

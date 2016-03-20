@@ -218,6 +218,9 @@ static void sja1000_start(struct net_device *dev)
 	priv->write_reg(priv, SJA1000_RXERR, 0x0);
 	priv->read_reg(priv, SJA1000_ECC);
 
+	/* clear interrupt flags */
+	priv->read_reg(priv, SJA1000_IR);
+
 	/* leave reset mode */
 	set_normal_mode(dev);
 }
@@ -377,10 +380,9 @@ static void sja1000_rx(struct net_device *dev)
 	/* release receive buffer */
 	sja1000_write_cmdreg(priv, CMD_RRB);
 
-	netif_rx(skb);
-
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	netif_rx(skb);
 
 	can_led_event(dev, CAN_LED_EVENT_RX);
 }
@@ -392,11 +394,19 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 	struct can_frame *cf;
 	struct sk_buff *skb;
 	enum can_state state = priv->can.state;
+	enum can_state rx_state, tx_state;
+	unsigned int rxerr, txerr;
 	uint8_t ecc, alc;
 
 	skb = alloc_can_err_skb(dev, &cf);
 	if (skb == NULL)
 		return -ENOMEM;
+
+	txerr = priv->read_reg(priv, SJA1000_TXERR);
+	rxerr = priv->read_reg(priv, SJA1000_RXERR);
+
+	cf->data[6] = txerr;
+	cf->data[7] = rxerr;
 
 	if (isrc & IRQ_DOI) {
 		/* data overrun interrupt */
@@ -412,13 +422,11 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 		/* error warning interrupt */
 		netdev_dbg(dev, "error warning interrupt\n");
 
-		if (status & SR_BS) {
+		if (status & SR_BS)
 			state = CAN_STATE_BUS_OFF;
-			cf->can_id |= CAN_ERR_BUSOFF;
-			can_bus_off(dev);
-		} else if (status & SR_ES) {
+		else if (status & SR_ES)
 			state = CAN_STATE_ERROR_WARNING;
-		} else
+		else
 			state = CAN_STATE_ERROR_ACTIVE;
 	}
 	if (isrc & IRQ_BEI) {
@@ -441,7 +449,6 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 			cf->data[2] |= CAN_ERR_PROT_STUFF;
 			break;
 		default:
-			cf->data[2] |= CAN_ERR_PROT_UNSPEC;
 			cf->data[3] = ecc & ECC_SEG;
 			break;
 		}
@@ -452,10 +459,11 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 	if (isrc & IRQ_EPI) {
 		/* error passive interrupt */
 		netdev_dbg(dev, "error passive interrupt\n");
-		if (status & SR_ES)
-			state = CAN_STATE_ERROR_PASSIVE;
+
+		if (state == CAN_STATE_ERROR_PASSIVE)
+			state = CAN_STATE_ERROR_WARNING;
 		else
-			state = CAN_STATE_ERROR_ACTIVE;
+			state = CAN_STATE_ERROR_PASSIVE;
 	}
 	if (isrc & IRQ_ALI) {
 		/* arbitration lost interrupt */
@@ -467,32 +475,19 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 		cf->data[0] = alc & 0x1f;
 	}
 
-	if (state != priv->can.state && (state == CAN_STATE_ERROR_WARNING ||
-					 state == CAN_STATE_ERROR_PASSIVE)) {
-		uint8_t rxerr = priv->read_reg(priv, SJA1000_RXERR);
-		uint8_t txerr = priv->read_reg(priv, SJA1000_TXERR);
-		cf->can_id |= CAN_ERR_CRTL;
-		if (state == CAN_STATE_ERROR_WARNING) {
-			priv->can.can_stats.error_warning++;
-			cf->data[1] = (txerr > rxerr) ?
-				CAN_ERR_CRTL_TX_WARNING :
-				CAN_ERR_CRTL_RX_WARNING;
-		} else {
-			priv->can.can_stats.error_passive++;
-			cf->data[1] = (txerr > rxerr) ?
-				CAN_ERR_CRTL_TX_PASSIVE :
-				CAN_ERR_CRTL_RX_PASSIVE;
-		}
-		cf->data[6] = txerr;
-		cf->data[7] = rxerr;
+	if (state != priv->can.state) {
+		tx_state = txerr >= rxerr ? state : 0;
+		rx_state = txerr <= rxerr ? state : 0;
+
+		can_change_state(dev, cf, tx_state, rx_state);
+
+		if(state == CAN_STATE_BUS_OFF)
+			can_bus_off(dev);
 	}
-
-	priv->can.state = state;
-
-	netif_rx(skb);
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	netif_rx(skb);
 
 	return 0;
 }

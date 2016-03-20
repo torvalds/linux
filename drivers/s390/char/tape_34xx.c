@@ -773,13 +773,11 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			"occurred\n");
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x57:
-		if (device->cdev->id.driver_info == tape_3480) {
-			/* Attention intercept. */
-			return tape_34xx_erp_retry(request);
-		} else {
-			/* Global status intercept. */
-			return tape_34xx_erp_retry(request);
-		}
+		/*
+		 * 3480: Attention intercept.
+		 * 3490: Global status intercept.
+		 */
+		return tape_34xx_erp_retry(request);
 	case 0x5a:
 		/*
 		 * Tape length incompatible. The tape inserted is too long,

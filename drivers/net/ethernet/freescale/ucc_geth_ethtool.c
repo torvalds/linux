@@ -351,8 +351,6 @@ uec_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
 	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, "QUICC ENGINE", sizeof(drvinfo->bus_info));
-	drvinfo->eedump_len = 0;
-	drvinfo->regdump_len = uec_get_regs_len(netdev);
 }
 
 #ifdef CONFIG_PM

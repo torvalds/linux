@@ -22,12 +22,12 @@
 #include <linux/sizes.h>
 
 #include <media/media-entity.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-mediabus.h>
-#include <media/exynos-fimc.h>
+#include <media/drv-intf/exynos-fimc.h>
 
 #define dbg(fmt, args...) \
 	pr_debug("%s:%d: " fmt "\n", __func__, __LINE__, ##args)
@@ -224,7 +224,7 @@ struct fimc_addr {
  * @index: buffer index for the output DMA engine
  */
 struct fimc_vid_buffer {
-	struct vb2_buffer	vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head	list;
 	struct fimc_addr	paddr;
 	int			index;
@@ -579,8 +579,8 @@ static inline bool fimc_jpeg_fourcc(u32 pixelformat)
 
 static inline bool fimc_user_defined_mbus_fmt(u32 code)
 {
-	return (code == V4L2_MBUS_FMT_JPEG_1X8 ||
-		code == V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8);
+	return (code == MEDIA_BUS_FMT_JPEG_1X8 ||
+		code == MEDIA_BUS_FMT_S5C_UYVY_JPEG_1X8);
 }
 
 /* Return the alpha component bit mask */

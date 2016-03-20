@@ -23,7 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/scatterlist.h>
 #include <asm/cpu_device_id.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 struct padlock_sha_desc {
 	struct shash_desc fallback;
@@ -540,7 +540,7 @@ static int __init padlock_init(void)
 	struct shash_alg *sha1;
 	struct shash_alg *sha256;
 
-	if (!x86_match_cpu(padlock_sha_ids) || !cpu_has_phe_enabled)
+	if (!x86_match_cpu(padlock_sha_ids) || !boot_cpu_has(X86_FEATURE_PHE_EN))
 		return -ENODEV;
 
 	/* Register the newly added algorithm module if on *
@@ -593,7 +593,7 @@ MODULE_DESCRIPTION("VIA PadLock SHA1/SHA256 algorithms support.");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michal Ludvig");
 
-MODULE_ALIAS("sha1-all");
-MODULE_ALIAS("sha256-all");
-MODULE_ALIAS("sha1-padlock");
-MODULE_ALIAS("sha256-padlock");
+MODULE_ALIAS_CRYPTO("sha1-all");
+MODULE_ALIAS_CRYPTO("sha256-all");
+MODULE_ALIAS_CRYPTO("sha1-padlock");
+MODULE_ALIAS_CRYPTO("sha256-padlock");

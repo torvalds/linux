@@ -44,23 +44,9 @@ config HOSTFS
           If you'd like to be able to work with files stored on the host,
           say Y or M here; otherwise say N.
 
-config HPPFS
-	tristate "HoneyPot ProcFS"
-	depends on PROC_FS
-	help
-	  hppfs (HoneyPot ProcFS) is a filesystem which allows UML /proc
-	  entries to be overridden, removed, or fabricated from the host.
-	  Its purpose is to allow a UML to appear to be a physical machine
-	  by removing or changing anything in /proc which gives away the
-	  identity of a UML.
-
-	  See <http://user-mode-linux.sf.net/old/hppfs.html> for more information.
-
-	  You only need this if you are setting up a UML honeypot.  Otherwise,
-	  it is safe to say 'N' here.
-
 config MCONSOLE
 	bool "Management console"
+	depends on PROC_FS
 	default y
 	help
           The user mode linux management console is a low-level interface to
@@ -95,48 +81,6 @@ config MAGIC_SYSRQ
 	  The keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
 	  unless you really know what this hack does.
 
-config SMP
-	bool "Symmetric multi-processing support"
-	default n
-	depends on BROKEN
-	help
-	  This option enables UML SMP support.
-	  It is NOT related to having a real SMP box. Not directly, at least.
-
-	  UML implements virtual SMP by allowing as many processes to run
-	  simultaneously on the host as there are virtual processors configured.
-
-	  Obviously, if the host is a uniprocessor, those processes will
-	  timeshare, but, inside UML, will appear to be running simultaneously.
-	  If the host is a multiprocessor, then UML processes may run
-	  simultaneously, depending on the host scheduler.
-
-	  This, however, is supported only in TT mode. So, if you use the SKAS
-	  patch on your host, switching to TT mode and enabling SMP usually
-	  gives	you worse performances.
-	  Also, since the support for SMP has been under-developed, there could
-	  be some bugs being exposed by enabling SMP.
-
-	  If you don't know what to do, say N.
-
-config NR_CPUS
-	int "Maximum number of CPUs (2-32)"
-	range 2 32
-	depends on SMP
-	default "32"
-
-config HIGHMEM
-	bool "Highmem support"
-	depends on !64BIT && BROKEN
-	default n
-	help
-	  This was used to allow UML to run with big amounts of memory.
-	  Currently it is unstable, so if unsure say N.
-
-	  To use big amounts of memory, it is recommended enable static
-	  linking (i.e. CONFIG_STATIC_LINK) - this should allow the
-	  guest to use up to 2.75G of memory.
-
 config KERNEL_STACK_ORDER
 	int "Kernel stack size order"
 	default 1 if 64BIT
@@ -155,3 +99,24 @@ config MMAPPER
 
 config NO_DMA
 	def_bool y
+
+config PGTABLE_LEVELS
+	int
+	default 3 if 3_LEVEL_PGTABLES
+	default 2
+
+config SECCOMP
+	def_bool y
+	prompt "Enable seccomp to safely compute untrusted bytecode"
+	---help---
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via prctl(PR_SET_SECCOMP), it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+	  If unsure, say Y.

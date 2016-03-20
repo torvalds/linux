@@ -57,21 +57,10 @@ config SMSGIUCV_EVENT
 
 	  To compile as a module, choose M. The module name is "smsgiucv_app".
 
-config CLAW
-	def_tristate m
-	prompt "CLAW device support"
-	depends on CCW && NETDEVICES
-	help
-	  This driver supports channel attached CLAW devices.
-	  CLAW is Common Link Access for Workstation.  Common devices
-          that use CLAW are RS/6000s, Cisco Routers (CIP) and 3172 devices.
-	  To compile as a module, choose M. The module name is claw.
-	  To compile into the kernel, choose Y.
-
 config QETH
 	def_tristate y
 	prompt "Gigabit Ethernet device support"
-	depends on CCW && NETDEVICES && IP_MULTICAST && QDIO
+	depends on CCW && NETDEVICES && IP_MULTICAST && QDIO && ETHERNET
 	help
 	  This driver supports the IBM System z OSA Express adapters
 	  in QDIO mode (all media types), HiperSockets interfaces and z/VM
@@ -106,6 +95,6 @@ config QETH_IPV6
 
 config CCWGROUP
 	tristate
-	default (LCS || CTCM || QETH || CLAW)
+	default (LCS || CTCM || QETH)
 
 endmenu

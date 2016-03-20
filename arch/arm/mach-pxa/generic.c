@@ -61,8 +61,14 @@ EXPORT_SYMBOL(get_clock_tick_rate);
 /*
  * For non device-tree builds, keep legacy timer init
  */
-void pxa_timer_init(void)
+void __init pxa_timer_init(void)
 {
+	if (cpu_is_pxa25x())
+		pxa25x_clocks_init();
+	if (cpu_is_pxa27x())
+		pxa27x_clocks_init();
+	if (cpu_is_pxa3xx())
+		pxa3xx_clocks_init();
 	pxa_timer_nodt_init(IRQ_OST0, io_p2v(0x40a00000),
 			    get_clock_tick_rate());
 }

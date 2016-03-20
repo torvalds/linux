@@ -292,7 +292,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 
 	/* only run on CPU to be set, or on its sibling */
 #ifdef CONFIG_SMP
-	cpumask_copy(policy->cpus, cpu_sibling_mask(policy->cpu));
+	cpumask_copy(policy->cpus, topology_sibling_cpumask(policy->cpu));
 #endif
 	policy_cpu = cpumask_any_and(policy->cpus, cpu_online_mask);
 
@@ -378,8 +378,7 @@ static void __exit speedstep_exit(void)
 }
 
 
-MODULE_AUTHOR("Dave Jones <davej@redhat.com>, "
-		"Dominik Brodowski <linux@brodo.de>");
+MODULE_AUTHOR("Dave Jones, Dominik Brodowski <linux@brodo.de>");
 MODULE_DESCRIPTION("Speedstep driver for Intel mobile processors on chipsets "
 		"with ICH-M southbridges.");
 MODULE_LICENSE("GPL");

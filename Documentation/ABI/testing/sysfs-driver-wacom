@@ -77,3 +77,22 @@ Description:
 		The format is also scrambled, like in the USB mode, and it can
 		be summarized by converting 76543210 into GECA6420.
 					    HGFEDCBA      HFDB7531
+
+What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_remote/unpair_remote
+Date:		July 2015
+Contact:	linux-input@vger.kernel.org
+Description:
+		Writing the character sequence '*' followed by a newline to
+		this file will delete all of the current pairings on the
+		device. Other character sequences are reserved. This file is
+		write only.
+
+What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_remote/<serial_number>/remote_mode
+Date:		July 2015
+Contact:	linux-input@vger.kernel.org
+Description:
+		Reading from this file reports the mode status of the
+		remote as indicated by the LED lights on the device. If no
+		reports have been received from the paired device, reading
+		from this file will report '-1'. The mode is read-only
+		and cannot be set through the driver.

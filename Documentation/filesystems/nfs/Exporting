@@ -72,24 +72,11 @@ c/ Helper routines to allocate anonymous dentries, and to help attach
         DCACHE_DISCONNECTED) dentry is allocated and attached.
       In the case of a directory, care is taken that only one dentry
       can ever be attached.
-    d_splice_alias(inode, dentry) or d_materialise_unique(dentry, inode)
-      will introduce a new dentry into the tree; either the passed-in
-      dentry or a preexisting alias for the given inode (such as an
-      anonymous one created by d_obtain_alias), if appropriate.  The two
-      functions differ in their handling of directories with preexisting
-      aliases:
-        d_splice_alias will use any existing IS_ROOT dentry, but it will
-	  return -EIO rather than try to move a dentry with a different
-	  parent.  This is appropriate for local filesystems, which
-	  should never see such an alias unless the filesystem is
-	  corrupted somehow (for example, if two on-disk directory
-	  entries refer to the same directory.)
-	d_materialise_unique will attempt to move any dentry.  This is
-	  appropriate for distributed filesystems, where finding a
-	  directory other than where we last cached it may be a normal
-	  consequence of concurrent operations on other hosts.
-      Both functions return NULL when the passed-in dentry is used,
-      following the calling convention of ->lookup.
+    d_splice_alias(inode, dentry) will introduce a new dentry into the tree;
+      either the passed-in dentry or a preexisting alias for the given inode
+      (such as an anonymous one created by d_obtain_alias), if appropriate.
+      It returns NULL when the passed-in dentry is used, following the calling
+      convention of ->lookup.
 
  
 Filesystem Issues

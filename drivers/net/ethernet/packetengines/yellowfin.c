@@ -693,11 +693,11 @@ static void yellowfin_tx_timeout(struct net_device *dev)
 	/* Note: these should be KERN_DEBUG. */
 	if (yellowfin_debug) {
 		int i;
-		pr_warning("  Rx ring %p: ", yp->rx_ring);
+		pr_warn("  Rx ring %p: ", yp->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++)
 			pr_cont(" %08x", yp->rx_ring[i].result_status);
 		pr_cont("\n");
-		pr_warning("  Tx ring %p: ", yp->tx_ring);
+		pr_warn("  Tx ring %p: ", yp->tx_ring);
 		for (i = 0; i < TX_RING_SIZE; i++)
 			pr_cont(" %04x /%08x",
 			       yp->tx_status[i].tx_errs,

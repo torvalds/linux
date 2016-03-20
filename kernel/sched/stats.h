@@ -29,9 +29,10 @@ rq_sched_info_dequeued(struct rq *rq, unsigned long long delta)
 	if (rq)
 		rq->rq_sched_info.run_delay += delta;
 }
-# define schedstat_inc(rq, field)	do { (rq)->field++; } while (0)
-# define schedstat_add(rq, field, amt)	do { (rq)->field += (amt); } while (0)
-# define schedstat_set(var, val)	do { var = (val); } while (0)
+# define schedstat_enabled()		static_branch_unlikely(&sched_schedstats)
+# define schedstat_inc(rq, field)	do { if (schedstat_enabled()) { (rq)->field++; } } while (0)
+# define schedstat_add(rq, field, amt)	do { if (schedstat_enabled()) { (rq)->field += (amt); } } while (0)
+# define schedstat_set(var, val)	do { if (schedstat_enabled()) { var = (val); } } while (0)
 #else /* !CONFIG_SCHEDSTATS */
 static inline void
 rq_sched_info_arrive(struct rq *rq, unsigned long long delta)
@@ -42,12 +43,13 @@ rq_sched_info_dequeued(struct rq *rq, unsigned long long delta)
 static inline void
 rq_sched_info_depart(struct rq *rq, unsigned long long delta)
 {}
+# define schedstat_enabled()		0
 # define schedstat_inc(rq, field)	do { } while (0)
 # define schedstat_add(rq, field, amt)	do { } while (0)
 # define schedstat_set(var, val)	do { } while (0)
 #endif
 
-#if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
+#ifdef CONFIG_SCHED_INFO
 static inline void sched_info_reset_dequeued(struct task_struct *t)
 {
 	t->sched_info.last_queued = 0;
@@ -156,7 +158,7 @@ sched_info_switch(struct rq *rq,
 #define sched_info_depart(rq, t)		do { } while (0)
 #define sched_info_arrive(rq, next)		do { } while (0)
 #define sched_info_switch(rq, t, next)		do { } while (0)
-#endif /* CONFIG_SCHEDSTATS || CONFIG_TASK_DELAY_ACCT */
+#endif /* CONFIG_SCHED_INFO */
 
 /*
  * The following are functions that support scheduler-internal time accounting.
@@ -174,7 +176,8 @@ static inline bool cputimer_running(struct task_struct *tsk)
 {
 	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
 
-	if (!cputimer->running)
+	/* Check if cputimer isn't running. This is accessed without locking. */
+	if (!READ_ONCE(cputimer->running))
 		return false;
 
 	/*
@@ -215,9 +218,7 @@ static inline void account_group_user_time(struct task_struct *tsk,
 	if (!cputimer_running(tsk))
 		return;
 
-	raw_spin_lock(&cputimer->lock);
-	cputimer->cputime.utime += cputime;
-	raw_spin_unlock(&cputimer->lock);
+	atomic64_add(cputime, &cputimer->cputime_atomic.utime);
 }
 
 /**
@@ -238,9 +239,7 @@ static inline void account_group_system_time(struct task_struct *tsk,
 	if (!cputimer_running(tsk))
 		return;
 
-	raw_spin_lock(&cputimer->lock);
-	cputimer->cputime.stime += cputime;
-	raw_spin_unlock(&cputimer->lock);
+	atomic64_add(cputime, &cputimer->cputime_atomic.stime);
 }
 
 /**
@@ -261,7 +260,5 @@ static inline void account_group_exec_runtime(struct task_struct *tsk,
 	if (!cputimer_running(tsk))
 		return;
 
-	raw_spin_lock(&cputimer->lock);
-	cputimer->cputime.sum_exec_runtime += ns;
-	raw_spin_unlock(&cputimer->lock);
+	atomic64_add(ns, &cputimer->cputime_atomic.sum_exec_runtime);
 }

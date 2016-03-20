@@ -1,9 +1,24 @@
 /*
  * Copyright (c) 2013, Cisco Systems, Inc. All rights reserved.
  *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
@@ -222,7 +237,7 @@ usnic_vnic_get_resources(struct usnic_vnic *vnic, enum usnic_vnic_res_type type,
 	struct usnic_vnic_res *res;
 	int i;
 
-	if (usnic_vnic_res_free_cnt(vnic, type) < cnt || cnt < 1 || !owner)
+	if (usnic_vnic_res_free_cnt(vnic, type) < cnt || cnt < 0 || !owner)
 		return ERR_PTR(-EINVAL);
 
 	ret = kzalloc(sizeof(*ret), GFP_ATOMIC);
@@ -232,26 +247,28 @@ usnic_vnic_get_resources(struct usnic_vnic *vnic, enum usnic_vnic_res_type type,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ret->res = kzalloc(sizeof(*(ret->res))*cnt, GFP_ATOMIC);
-	if (!ret->res) {
-		usnic_err("Failed to allocate resources for %s. Out of memory\n",
-				usnic_vnic_pci_name(vnic));
-		kfree(ret);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	spin_lock(&vnic->res_lock);
-	src = &vnic->chunks[type];
-	for (i = 0; i < src->cnt && ret->cnt < cnt; i++) {
-		res = src->res[i];
-		if (!res->owner) {
-			src->free_cnt--;
-			res->owner = owner;
-			ret->res[ret->cnt++] = res;
+	if (cnt > 0) {
+		ret->res = kcalloc(cnt, sizeof(*(ret->res)), GFP_ATOMIC);
+		if (!ret->res) {
+			usnic_err("Failed to allocate resources for %s. Out of memory\n",
+					usnic_vnic_pci_name(vnic));
+			kfree(ret);
+			return ERR_PTR(-ENOMEM);
 		}
-	}
 
-	spin_unlock(&vnic->res_lock);
+		spin_lock(&vnic->res_lock);
+		src = &vnic->chunks[type];
+		for (i = 0; i < src->cnt && ret->cnt < cnt; i++) {
+			res = src->res[i];
+			if (!res->owner) {
+				src->free_cnt--;
+				res->owner = owner;
+				ret->res[ret->cnt++] = res;
+			}
+		}
+
+		spin_unlock(&vnic->res_lock);
+	}
 	ret->type = type;
 	ret->vnic = vnic;
 	WARN_ON(ret->cnt != cnt);
@@ -266,14 +283,16 @@ void usnic_vnic_put_resources(struct usnic_vnic_res_chunk *chunk)
 	int i;
 	struct usnic_vnic *vnic = chunk->vnic;
 
-	spin_lock(&vnic->res_lock);
-	while ((i = --chunk->cnt) >= 0) {
-		res = chunk->res[i];
-		chunk->res[i] = NULL;
-		res->owner = NULL;
-		vnic->chunks[res->type].free_cnt++;
+	if (chunk->cnt > 0) {
+		spin_lock(&vnic->res_lock);
+		while ((i = --chunk->cnt) >= 0) {
+			res = chunk->res[i];
+			chunk->res[i] = NULL;
+			res->owner = NULL;
+			vnic->chunks[res->type].free_cnt++;
+		}
+		spin_unlock(&vnic->res_lock);
 	}
-	spin_unlock(&vnic->res_lock);
 
 	kfree(chunk->res);
 	kfree(chunk);

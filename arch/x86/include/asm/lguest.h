@@ -12,7 +12,9 @@
 #define GUEST_PL 1
 
 /* Page for Switcher text itself, then two pages per cpu */
-#define TOTAL_SWITCHER_PAGES (1 + 2 * nr_cpu_ids)
+#define SWITCHER_TEXT_PAGES (1)
+#define SWITCHER_STACK_PAGES (2 * nr_cpu_ids)
+#define TOTAL_SWITCHER_PAGES (SWITCHER_TEXT_PAGES + SWITCHER_STACK_PAGES)
 
 /* Where we map the Switcher, in both Host and Guest. */
 extern unsigned long switcher_addr;
@@ -20,13 +22,10 @@ extern unsigned long switcher_addr;
 /* Found in switcher.S */
 extern unsigned long default_idt_entries[];
 
-/* Declarations for definitions in lguest_guest.S */
-extern char lguest_noirq_start[], lguest_noirq_end[];
+/* Declarations for definitions in arch/x86/lguest/head_32.S */
+extern char lguest_noirq_iret[];
 extern const char lgstart_cli[], lgend_cli[];
-extern const char lgstart_sti[], lgend_sti[];
-extern const char lgstart_popf[], lgend_popf[];
 extern const char lgstart_pushf[], lgend_pushf[];
-extern const char lgstart_iret[], lgend_iret[];
 
 extern void lguest_iret(void);
 extern void lguest_init(void);

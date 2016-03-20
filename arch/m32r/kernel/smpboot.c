@@ -376,7 +376,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	if (!cpumask_equal(&cpu_callin_map, cpu_online_mask))
 		BUG();
 
-	for (cpu_id = 0 ; cpu_id < num_online_cpus() ; cpu_id++)
+	for_each_online_cpu(cpu_id)
 		show_cpu_info(cpu_id);
 
 	/*
@@ -432,7 +432,7 @@ int __init start_secondary(void *unused)
 	 */
 	local_flush_tlb_all();
 
-	cpu_startup_entry(CPUHP_ONLINE);
+	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 	return 0;
 }
 

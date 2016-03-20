@@ -206,23 +206,23 @@ static struct mtd_info *cfi_staa_setup(struct map_info *map)
 			mtd->eraseregions[(j*cfi->cfiq->NumEraseRegions)+i].numblocks = ernum;
 		}
 		offset += (ersize * ernum);
-		}
+	}
 
-		if (offset != devsize) {
-			/* Argh */
-			printk(KERN_WARNING "Sum of regions (%lx) != total size of set of interleaved chips (%lx)\n", offset, devsize);
-			kfree(mtd->eraseregions);
-			kfree(cfi->cmdset_priv);
-			kfree(mtd);
-			return NULL;
-		}
+	if (offset != devsize) {
+		/* Argh */
+		printk(KERN_WARNING "Sum of regions (%lx) != total size of set of interleaved chips (%lx)\n", offset, devsize);
+		kfree(mtd->eraseregions);
+		kfree(cfi->cmdset_priv);
+		kfree(mtd);
+		return NULL;
+	}
 
-		for (i=0; i<mtd->numeraseregions;i++){
-			printk(KERN_DEBUG "%d: offset=0x%llx,size=0x%x,blocks=%d\n",
-			       i, (unsigned long long)mtd->eraseregions[i].offset,
-			       mtd->eraseregions[i].erasesize,
-			       mtd->eraseregions[i].numblocks);
-		}
+	for (i=0; i<mtd->numeraseregions;i++){
+		printk(KERN_DEBUG "%d: offset=0x%llx,size=0x%x,blocks=%d\n",
+		       i, (unsigned long long)mtd->eraseregions[i].offset,
+		       mtd->eraseregions[i].erasesize,
+		       mtd->eraseregions[i].numblocks);
+	}
 
 	/* Also select the correct geometry setup too */
 	mtd->_erase = cfi_staa_erase_varsize;

@@ -7,7 +7,7 @@
 # Edit the definitions below to set the locations of the various directories,
 # as well as the test duration.
 #
-# Usage: sh kvm.sh [ options ]
+# Usage: kvm.sh [ options ]
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,12 +42,12 @@ TORTURE_DEFCONFIG=defconfig
 TORTURE_BOOT_IMAGE=""
 TORTURE_INITRD="$KVM/initrd"; export TORTURE_INITRD
 TORTURE_KMAKE_ARG=""
+TORTURE_SHUTDOWN_GRACE=180
 TORTURE_SUITE=rcu
 resdir=""
 configs=""
 cpus=0
 ds=`date +%Y.%m.%d-%H:%M:%S`
-kversion=""
 
 . functions.sh
 
@@ -56,7 +56,7 @@ usage () {
 	echo "       --bootargs kernel-boot-arguments"
 	echo "       --bootimage relative-path-to-kernel-boot-image"
 	echo "       --buildonly"
-	echo "       --configs \"config-file list\""
+	echo "       --configs \"config-file list w/ repeat factor (3*TINY01)\""
 	echo "       --cpus N"
 	echo "       --datestamp string"
 	echo "       --defconfig string"
@@ -64,7 +64,6 @@ usage () {
 	echo "       --duration minutes"
 	echo "       --interactive"
 	echo "       --kmake-arg kernel-make-arguments"
-	echo "       --kversion vN.NN"
 	echo "       --mac nn:nn:nn:nn:nn:nn"
 	echo "       --no-initrd"
 	echo "       --qemu-args qemu-system-..."
@@ -77,7 +76,7 @@ usage () {
 while test $# -gt 0
 do
 	case "$1" in
-	--bootargs)
+	--bootargs|--bootarg)
 		checkarg --bootargs "(list of kernel boot arguments)" "$#" "$2" '.*' '^--'
 		TORTURE_BOOTARGS="$2"
 		shift
@@ -90,7 +89,7 @@ do
 	--buildonly)
 		TORTURE_BUILDONLY=1
 		;;
-	--configs)
+	--configs|--config)
 		checkarg --configs "(list of config files)" "$#" "$2" '^[^/]*$' '^--'
 		configs="$2"
 		shift
@@ -128,11 +127,6 @@ do
 		TORTURE_KMAKE_ARG="$2"
 		shift
 		;;
-	--kversion)
-		checkarg --kversion "(kernel version)" $# "$2" '^v[0-9.]*$' '^error'
-		kversion=$2
-		shift
-		;;
 	--mac)
 		checkarg --mac "(MAC address)" $# "$2" '^\([0-9a-fA-F]\{2\}:\)\{5\}[0-9a-fA-F]\{2\}$' error
 		TORTURE_QEMU_MAC=$2
@@ -141,7 +135,7 @@ do
 	--no-initrd)
 		TORTURE_INITRD=""; export TORTURE_INITRD
 		;;
-	--qemu-args)
+	--qemu-args|--qemu-arg)
 		checkarg --qemu-args "-qemu args" $# "$2" '^-' '^error'
 		TORTURE_QEMU_ARG="$2"
 		shift
@@ -154,6 +148,11 @@ do
 	--results)
 		checkarg --results "(absolute pathname)" "$#" "$2" '^/' '^error'
 		resdir=$2
+		shift
+		;;
+	--shutdown-grace)
+		checkarg --shutdown-grace "(seconds)" "$#" "$2" '^[0-9]*$' '^error'
+		TORTURE_SHUTDOWN_GRACE=$2
 		shift
 		;;
 	--torture)
@@ -170,11 +169,10 @@ do
 done
 
 CONFIGFRAG=${KVM}/configs/${TORTURE_SUITE}; export CONFIGFRAG
-KVPATH=${CONFIGFRAG}/$kversion; export KVPATH
 
 if test -z "$configs"
 then
-	configs="`cat $CONFIGFRAG/$kversion/CFLIST`"
+	configs="`cat $CONFIGFRAG/CFLIST`"
 fi
 
 if test -z "$resdir"
@@ -186,11 +184,26 @@ fi
 touch $T/cfgcpu
 for CF in $configs
 do
-	if test -f "$CONFIGFRAG/$kversion/$CF"
+	case $CF in
+	[0-9]\**|[0-9][0-9]\**|[0-9][0-9][0-9]\**)
+		config_reps=`echo $CF | sed -e 's/\*.*$//'`
+		CF1=`echo $CF | sed -e 's/^[^*]*\*//'`
+		;;
+	*)
+		config_reps=1
+		CF1=$CF
+		;;
+	esac
+	if test -f "$CONFIGFRAG/$CF1"
 	then
-		echo $CF `configNR_CPUS.sh $CONFIGFRAG/$kversion/$CF` >> $T/cfgcpu
+		cpu_count=`configNR_CPUS.sh $CONFIGFRAG/$CF1`
+		cpu_count=`configfrag_boot_cpus "$TORTURE_BOOTARGS" "$CONFIGFRAG/$CF1" "$cpu_count"`
+		for ((cur_rep=0;cur_rep<$config_reps;cur_rep++))
+		do
+			echo $CF1 $cpu_count >> $T/cfgcpu
+		done
 	else
-		echo "The --configs file $CF does not exist, terminating."
+		echo "The --configs file $CF1 does not exist, terminating."
 		exit 1
 	fi
 done
@@ -250,7 +263,6 @@ END {
 cat << ___EOF___ > $T/script
 CONFIGFRAG="$CONFIGFRAG"; export CONFIGFRAG
 KVM="$KVM"; export KVM
-KVPATH="$KVPATH"; export KVPATH
 PATH="$PATH"; export PATH
 TORTURE_BOOT_IMAGE="$TORTURE_BOOT_IMAGE"; export TORTURE_BOOT_IMAGE
 TORTURE_BUILDONLY="$TORTURE_BUILDONLY"; export TORTURE_BUILDONLY
@@ -260,6 +272,7 @@ TORTURE_KMAKE_ARG="$TORTURE_KMAKE_ARG"; export TORTURE_KMAKE_ARG
 TORTURE_QEMU_CMD="$TORTURE_QEMU_CMD"; export TORTURE_QEMU_CMD
 TORTURE_QEMU_INTERACTIVE="$TORTURE_QEMU_INTERACTIVE"; export TORTURE_QEMU_INTERACTIVE
 TORTURE_QEMU_MAC="$TORTURE_QEMU_MAC"; export TORTURE_QEMU_MAC
+TORTURE_SHUTDOWN_GRACE="$TORTURE_SHUTDOWN_GRACE"; export TORTURE_SHUTDOWN_GRACE
 TORTURE_SUITE="$TORTURE_SUITE"; export TORTURE_SUITE
 if ! test -e $resdir
 then
@@ -283,7 +296,7 @@ then
 fi
 ___EOF___
 awk < $T/cfgcpu.pack \
-	-v CONFIGDIR="$CONFIGFRAG/$kversion/" \
+	-v CONFIGDIR="$CONFIGFRAG/" \
 	-v KVM="$KVM" \
 	-v ncpus=$cpus \
 	-v rd=$resdir/$ds/ \
@@ -301,10 +314,10 @@ awk < $T/cfgcpu.pack \
 }
 
 # Dump out the scripting required to run one test batch.
-function dump(first, pastlast)
+function dump(first, pastlast, batchnum)
 {
-	print "echo ----Start batch: `date`";
-	print "echo ----Start batch: `date` >> " rd "/log";
+	print "echo ----Start batch " batchnum ": `date`";
+	print "echo ----Start batch " batchnum ": `date` >> " rd "/log";
 	jn=1
 	for (j = first; j < pastlast; j++) {
 		builddir=KVM "/b" jn
@@ -317,7 +330,7 @@ function dump(first, pastlast)
 			cfr[jn] = cf[j] "." cfrep[cf[j]];
 		}
 		if (cpusr[jn] > ncpus && ncpus != 0)
-			ovf = "(!)";
+			ovf = "-ovf";
 		else
 			ovf = "";
 		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date`";
@@ -365,25 +378,28 @@ END {
 	njobs = i;
 	nc = ncpus;
 	first = 0;
+	batchnum = 1;
 
 	# Each pass through the following loop considers one test.
 	for (i = 0; i < njobs; i++) {
 		if (ncpus == 0) {
 			# Sequential test specified, each test its own batch.
-			dump(i, i + 1);
+			dump(i, i + 1, batchnum);
 			first = i;
+			batchnum++;
 		} else if (nc < cpus[i] && i != 0) {
 			# Out of CPUs, dump out a batch.
-			dump(first, i);
+			dump(first, i, batchnum);
 			first = i;
 			nc = ncpus;
+			batchnum++;
 		}
 		# Account for the CPUs needed by the current test.
 		nc -= cpus[i];
 	}
 	# Dump the last batch.
 	if (ncpus != 0)
-		dump(first, i);
+		dump(first, i, batchnum);
 }' >> $T/script
 
 cat << ___EOF___ >> $T/script

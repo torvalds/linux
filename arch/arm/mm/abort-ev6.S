@@ -17,12 +17,6 @@
  */
 	.align	5
 ENTRY(v6_early_abort)
-#ifdef CONFIG_CPU_V6
-	sub	r1, sp, #4			@ Get unused stack location
-	strex	r0, r1, [r1]			@ Clear the exclusive monitor
-#elif defined(CONFIG_CPU_32v6K)
-	clrex
-#endif
 	mrc	p15, 0, r1, c5, c0, 0		@ get FSR
 	mrc	p15, 0, r0, c6, c0, 0		@ get FAR
 /*
@@ -32,16 +26,18 @@ ENTRY(v6_early_abort)
 	ldr	ip, =0x4107b36
 	mrc	p15, 0, r3, c0, c0, 0		@ get processor id
 	teq	ip, r3, lsr #4			@ r0 ARM1136?
-	bne	do_DataAbort
+	bne	1f
 	tst	r5, #PSR_J_BIT			@ Java?
 	tsteq	r5, #PSR_T_BIT			@ Thumb?
-	bne	do_DataAbort
+	bne	1f
 	bic	r1, r1, #1 << 11		@ clear bit 11 of FSR
 	ldr	r3, [r4]			@ read aborted ARM instruction
  ARM_BE8(rev	r3, r3)
 
-	do_ldrd_abort tmp=ip, insn=r3
+	teq_ldrd tmp=ip, insn=r3		@ insn was LDRD?
+	beq	1f				@ yes
 	tst	r3, #1 << 20			@ L = 0 -> write
 	orreq	r1, r1, #1 << 11		@ yes.
 #endif
+1:	uaccess_disable ip			@ disable userspace access
 	b	do_DataAbort

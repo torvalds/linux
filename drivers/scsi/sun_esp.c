@@ -633,7 +633,6 @@ MODULE_DEVICE_TABLE(of, esp_match);
 static struct platform_driver esp_sbus_driver = {
 	.driver = {
 		.name = "esp",
-		.owner = THIS_MODULE,
 		.of_match_table = esp_match,
 	},
 	.probe		= esp_sbus_probe,

@@ -6,15 +6,15 @@
  *
  *  ebtables.c,v 2.0, April, 2002
  *
- *  This code is stongly inspired on the iptables code which is
+ *  This code is strongly inspired by the iptables code which is
  *  Copyright (C) 1999 Paul `Rusty' Russell & Michael J. Neuling
  */
 
 #ifndef _UAPI__LINUX_BRIDGE_EFF_H
 #define _UAPI__LINUX_BRIDGE_EFF_H
+#include <linux/types.h>
 #include <linux/if.h>
 #include <linux/netfilter_bridge.h>
-#include <linux/if_ether.h>
 
 #define EBT_TABLE_MAXNAMELEN 32
 #define EBT_CHAIN_MAXNAMELEN EBT_TABLE_MAXNAMELEN
@@ -35,8 +35,8 @@ struct xt_match;
 struct xt_target;
 
 struct ebt_counter {
-	uint64_t pcnt;
-	uint64_t bcnt;
+	__u64 pcnt;
+	__u64 bcnt;
 };
 
 struct ebt_replace {

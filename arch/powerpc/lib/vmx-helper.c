@@ -27,11 +27,11 @@ int enter_vmx_usercopy(void)
 	if (in_interrupt())
 		return 0;
 
-	/* This acts as preempt_disable() as well and will make
-	 * enable_kernel_altivec(). We need to disable page faults
-	 * as they can call schedule and thus make us lose the VMX
-	 * context. So on page faults, we just fail which will cause
-	 * a fallback to the normal non-vmx copy.
+	preempt_disable();
+	/*
+	 * We need to disable page faults as they can call schedule and
+	 * thus make us lose the VMX context. So on page faults, we just
+	 * fail which will cause a fallback to the normal non-vmx copy.
 	 */
 	pagefault_disable();
 
@@ -46,7 +46,9 @@ int enter_vmx_usercopy(void)
  */
 int exit_vmx_usercopy(void)
 {
+	disable_kernel_altivec();
 	pagefault_enable();
+	preempt_enable();
 	return 0;
 }
 
@@ -69,6 +71,7 @@ int enter_vmx_copy(void)
  */
 void *exit_vmx_copy(void *dest)
 {
+	disable_kernel_altivec();
 	preempt_enable();
 	return dest;
 }

@@ -285,6 +285,8 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
 	unsigned char data[3];
 	int err, crate;
 
+	if (get_iface_desc(alts)->bNumEndpoints < 1)
+		return -EINVAL;
 	ep = get_endpoint(alts, 0)->bEndpointAddress;
 
 	/* if endpoint doesn't have sampling rate control, bail out */
@@ -302,6 +304,11 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
 			iface, fmt->altsetting, rate, ep);
 		return err;
 	}
+
+	/* Don't check the sample rate for devices which we know don't
+	 * support reading */
+	if (snd_usb_get_sample_rate_quirk(chip))
+		return 0;
 
 	if ((err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC_GET_CUR,
 				   USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_IN,

@@ -184,7 +184,7 @@ do {								\
 	 */
 #define emit_alu_K(OPCODE, K)					\
 do {								\
-	if (K) {						\
+	if (K || OPCODE == AND || OPCODE == MUL) {		\
 		unsigned int _insn = OPCODE;			\
 		_insn |= RS1(r_A) | RD(r_A);			\
 		if (is_simm13(K)) {				\
@@ -234,12 +234,18 @@ do {	BUILD_BUG_ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(u8));	\
 	__emit_load8(BASE, STRUCT, FIELD, DEST);			\
 } while (0)
 
-#define emit_ldmem(OFF, DEST)					\
-do {	*prog++ = LD32I | RS1(FP) | S13(-(OFF)) | RD(DEST);	\
+#ifdef CONFIG_SPARC64
+#define BIAS (STACK_BIAS - 4)
+#else
+#define BIAS (-4)
+#endif
+
+#define emit_ldmem(OFF, DEST)						\
+do {	*prog++ = LD32I | RS1(SP) | S13(BIAS - (OFF)) | RD(DEST);	\
 } while (0)
 
-#define emit_stmem(OFF, SRC)					\
-do {	*prog++ = LD32I | RS1(FP) | S13(-(OFF)) | RD(SRC);	\
+#define emit_stmem(OFF, SRC)						\
+do {	*prog++ = ST32I | RS1(SP) | S13(BIAS - (OFF)) | RD(SRC);	\
 } while (0)
 
 #ifdef CONFIG_SMP
@@ -414,22 +420,9 @@ void bpf_jit_compile(struct bpf_prog *fp)
 		}
 		emit_reg_move(O7, r_saved_O7);
 
-		switch (filter[0].code) {
-		case BPF_RET | BPF_K:
-		case BPF_LD | BPF_W | BPF_LEN:
-		case BPF_LD | BPF_W | BPF_ABS:
-		case BPF_LD | BPF_H | BPF_ABS:
-		case BPF_LD | BPF_B | BPF_ABS:
-			/* The first instruction sets the A register (or is
-			 * a "RET 'constant'")
-			 */
-			break;
-		default:
-			/* Make sure we dont leak kernel information to the
-			 * user.
-			 */
+		/* Make sure we dont leak kernel information to the user. */
+		if (bpf_needs_clear_a(&filter[0]))
 			emit_clear(r_A); /* A = 0 */
-		}
 
 		for (i = 0; i < flen; i++) {
 			unsigned int K = filter[i].k;
@@ -579,16 +572,11 @@ void bpf_jit_compile(struct bpf_prog *fp)
 			case BPF_ANC | SKF_AD_PROTOCOL:
 				emit_skb_load16(protocol, r_A);
 				break;
-#if 0
-				/* GCC won't let us take the address of
-				 * a bit field even though we very much
-				 * know what we are doing here.
-				 */
 			case BPF_ANC | SKF_AD_PKTTYPE:
-				__emit_skb_load8(pkt_type, r_A);
+				__emit_skb_load8(__pkt_type_offset, r_A);
+				emit_andi(r_A, PKT_TYPE_MAX, r_A);
 				emit_alu_K(SRL, 5);
 				break;
-#endif
 			case BPF_ANC | SKF_AD_IFINDEX:
 				emit_skb_loadptr(dev, r_A);
 				emit_cmpi(r_A, 0);
@@ -615,14 +603,20 @@ void bpf_jit_compile(struct bpf_prog *fp)
 			case BPF_ANC | SKF_AD_VLAN_TAG:
 			case BPF_ANC | SKF_AD_VLAN_TAG_PRESENT:
 				emit_skb_load16(vlan_tci, r_A);
-				if (code == (BPF_ANC | SKF_AD_VLAN_TAG)) {
-					emit_andi(r_A, VLAN_VID_MASK, r_A);
+				if (code != (BPF_ANC | SKF_AD_VLAN_TAG)) {
+					emit_alu_K(SRL, 12);
+					emit_andi(r_A, 1, r_A);
 				} else {
-					emit_loadimm(VLAN_TAG_PRESENT, r_TMP);
+					emit_loadimm(~VLAN_TAG_PRESENT, r_TMP);
 					emit_and(r_A, r_TMP, r_A);
 				}
 				break;
-
+			case BPF_LD | BPF_W | BPF_LEN:
+				emit_skb_load32(len, r_A);
+				break;
+			case BPF_LDX | BPF_W | BPF_LEN:
+				emit_skb_load32(len, r_X);
+				break;
 			case BPF_LD | BPF_IMM:
 				emit_loadimm(K, r_A);
 				break;
@@ -630,15 +624,19 @@ void bpf_jit_compile(struct bpf_prog *fp)
 				emit_loadimm(K, r_X);
 				break;
 			case BPF_LD | BPF_MEM:
+				seen |= SEEN_MEM;
 				emit_ldmem(K * 4, r_A);
 				break;
 			case BPF_LDX | BPF_MEM:
+				seen |= SEEN_MEM | SEEN_XREG;
 				emit_ldmem(K * 4, r_X);
 				break;
 			case BPF_ST:
+				seen |= SEEN_MEM;
 				emit_stmem(K * 4, r_A);
 				break;
 			case BPF_STX:
+				seen |= SEEN_MEM | SEEN_XREG;
 				emit_stmem(K * 4, r_X);
 				break;
 
@@ -765,7 +763,7 @@ cond_branch:			f_offset = addrs[i + filter[i].jf];
 				if (unlikely(proglen + ilen > oldproglen)) {
 					pr_err("bpb_jit_compile fatal error\n");
 					kfree(addrs);
-					module_free(NULL, image);
+					module_memfree(image);
 					return;
 				}
 				memcpy(image + proglen, temp, ilen);
@@ -796,7 +794,7 @@ cond_branch:			f_offset = addrs[i + filter[i].jf];
 	}
 
 	if (bpf_jit_enable > 1)
-		bpf_jit_dump(flen, proglen, pass, image);
+		bpf_jit_dump(flen, proglen, pass + 1, image);
 
 	if (image) {
 		bpf_flush_icache(image, image + proglen);
@@ -811,6 +809,7 @@ out:
 void bpf_jit_free(struct bpf_prog *fp)
 {
 	if (fp->jited)
-		module_free(NULL, fp->bpf_func);
-	kfree(fp);
+		module_memfree(fp->bpf_func);
+
+	bpf_prog_unlock_free(fp);
 }

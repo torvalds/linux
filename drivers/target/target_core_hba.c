@@ -39,63 +39,83 @@
 
 #include "target_core_internal.h"
 
-static LIST_HEAD(subsystem_list);
-static DEFINE_MUTEX(subsystem_mutex);
+static LIST_HEAD(backend_list);
+static DEFINE_MUTEX(backend_mutex);
 
 static u32 hba_id_counter;
 
 static DEFINE_SPINLOCK(hba_lock);
 static LIST_HEAD(hba_list);
 
-int transport_subsystem_register(struct se_subsystem_api *sub_api)
+
+int transport_backend_register(const struct target_backend_ops *ops)
 {
-	struct se_subsystem_api *s;
+	struct target_backend *tb, *old;
 
-	INIT_LIST_HEAD(&sub_api->sub_api_list);
+	tb = kzalloc(sizeof(*tb), GFP_KERNEL);
+	if (!tb)
+		return -ENOMEM;
+	tb->ops = ops;
 
-	mutex_lock(&subsystem_mutex);
-	list_for_each_entry(s, &subsystem_list, sub_api_list) {
-		if (!strcmp(s->name, sub_api->name)) {
-			pr_err("%p is already registered with"
-				" duplicate name %s, unable to process"
-				" request\n", s, s->name);
-			mutex_unlock(&subsystem_mutex);
+	mutex_lock(&backend_mutex);
+	list_for_each_entry(old, &backend_list, list) {
+		if (!strcmp(old->ops->name, ops->name)) {
+			pr_err("backend %s already registered.\n", ops->name);
+			mutex_unlock(&backend_mutex);
+			kfree(tb);
 			return -EEXIST;
 		}
 	}
-	list_add_tail(&sub_api->sub_api_list, &subsystem_list);
-	mutex_unlock(&subsystem_mutex);
+	target_setup_backend_cits(tb);
+	list_add_tail(&tb->list, &backend_list);
+	mutex_unlock(&backend_mutex);
 
-	pr_debug("TCM: Registered subsystem plugin: %s struct module:"
-			" %p\n", sub_api->name, sub_api->owner);
+	pr_debug("TCM: Registered subsystem plugin: %s struct module: %p\n",
+			ops->name, ops->owner);
 	return 0;
 }
-EXPORT_SYMBOL(transport_subsystem_register);
+EXPORT_SYMBOL(transport_backend_register);
 
-void transport_subsystem_release(struct se_subsystem_api *sub_api)
+void target_backend_unregister(const struct target_backend_ops *ops)
 {
-	mutex_lock(&subsystem_mutex);
-	list_del(&sub_api->sub_api_list);
-	mutex_unlock(&subsystem_mutex);
+	struct target_backend *tb;
+
+	mutex_lock(&backend_mutex);
+	list_for_each_entry(tb, &backend_list, list) {
+		if (tb->ops == ops) {
+			list_del(&tb->list);
+			mutex_unlock(&backend_mutex);
+			/*
+			 * Wait for any outstanding backend driver ->rcu_head
+			 * callbacks to complete post TBO->free_device() ->
+			 * call_rcu(), before allowing backend driver module
+			 * unload of target_backend_ops->owner to proceed.
+			 */
+			rcu_barrier();
+			kfree(tb);
+			return;
+		}
+	}
+	mutex_unlock(&backend_mutex);
 }
-EXPORT_SYMBOL(transport_subsystem_release);
+EXPORT_SYMBOL(target_backend_unregister);
 
-static struct se_subsystem_api *core_get_backend(const char *sub_name)
+static struct target_backend *core_get_backend(const char *name)
 {
-	struct se_subsystem_api *s;
+	struct target_backend *tb;
 
-	mutex_lock(&subsystem_mutex);
-	list_for_each_entry(s, &subsystem_list, sub_api_list) {
-		if (!strcmp(s->name, sub_name))
+	mutex_lock(&backend_mutex);
+	list_for_each_entry(tb, &backend_list, list) {
+		if (!strcmp(tb->ops->name, name))
 			goto found;
 	}
-	mutex_unlock(&subsystem_mutex);
+	mutex_unlock(&backend_mutex);
 	return NULL;
 found:
-	if (s->owner && !try_module_get(s->owner))
-		s = NULL;
-	mutex_unlock(&subsystem_mutex);
-	return s;
+	if (tb->ops->owner && !try_module_get(tb->ops->owner))
+		tb = NULL;
+	mutex_unlock(&backend_mutex);
+	return tb;
 }
 
 struct se_hba *
@@ -116,13 +136,13 @@ core_alloc_hba(const char *plugin_name, u32 plugin_dep_id, u32 hba_flags)
 	hba->hba_index = scsi_get_new_index(SCSI_INST_INDEX);
 	hba->hba_flags |= hba_flags;
 
-	hba->transport = core_get_backend(plugin_name);
-	if (!hba->transport) {
+	hba->backend = core_get_backend(plugin_name);
+	if (!hba->backend) {
 		ret = -EINVAL;
 		goto out_free_hba;
 	}
 
-	ret = hba->transport->attach_hba(hba, plugin_dep_id);
+	ret = hba->backend->ops->attach_hba(hba, plugin_dep_id);
 	if (ret < 0)
 		goto out_module_put;
 
@@ -137,9 +157,8 @@ core_alloc_hba(const char *plugin_name, u32 plugin_dep_id, u32 hba_flags)
 	return hba;
 
 out_module_put:
-	if (hba->transport->owner)
-		module_put(hba->transport->owner);
-	hba->transport = NULL;
+	module_put(hba->backend->ops->owner);
+	hba->backend = NULL;
 out_free_hba:
 	kfree(hba);
 	return ERR_PTR(ret);
@@ -150,7 +169,7 @@ core_delete_hba(struct se_hba *hba)
 {
 	WARN_ON(hba->dev_count);
 
-	hba->transport->detach_hba(hba);
+	hba->backend->ops->detach_hba(hba);
 
 	spin_lock(&hba_lock);
 	list_del(&hba->hba_node);
@@ -159,10 +178,14 @@ core_delete_hba(struct se_hba *hba)
 	pr_debug("CORE_HBA[%d] - Detached HBA from Generic Target"
 			" Core\n", hba->hba_id);
 
-	if (hba->transport->owner)
-		module_put(hba->transport->owner);
+	module_put(hba->backend->ops->owner);
 
-	hba->transport = NULL;
+	hba->backend = NULL;
 	kfree(hba);
 	return 0;
+}
+
+bool target_sense_desc_format(struct se_device *dev)
+{
+	return (dev) ? dev->transport->get_blocks(dev) > U32_MAX : false;
 }

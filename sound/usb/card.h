@@ -105,6 +105,8 @@ struct snd_usb_endpoint {
 	struct list_head list;
 };
 
+struct media_ctl;
+
 struct snd_usb_substream {
 	struct snd_usb_stream *stream;
 	struct usb_device *dev;
@@ -122,6 +124,7 @@ struct snd_usb_substream {
 	unsigned int buffer_periods;	/* current periods per buffer */
 	unsigned int altset_idx;     /* USB data format: index of alternate setting */
 	unsigned int txfr_quirk:1;	/* allow sub-frame alignment */
+	unsigned int tx_length_quirk:1;	/* add length specifier to transfers */
 	unsigned int fmt_type;		/* USB audio format type (1-3) */
 	unsigned int pkt_offset_adj;	/* Bytes to drop from beginning of packets (for non-compliant devices) */
 
@@ -153,6 +156,9 @@ struct snd_usb_substream {
 		int channel;
 		int byte_idx;
 	} dsd_dop;
+
+	bool trigger_tstamp_pending_update; /* trigger timestamp being updated from initial estimate */
+	struct media_ctl *media_ctl;
 };
 
 struct snd_usb_stream {

@@ -321,6 +321,12 @@ static const struct iio_info mag3110_info = {
 
 static const unsigned long mag3110_scan_masks[] = {0x7, 0xf, 0};
 
+static int mag3110_standby(struct mag3110_data *data)
+{
+	return i2c_smbus_write_byte_data(data->client, MAG3110_CTRL_REG1,
+		data->ctrl_reg1 & ~MAG3110_CTRL_AC);
+}
+
 static int mag3110_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -360,12 +366,12 @@ static int mag3110_probe(struct i2c_client *client,
 	ret = i2c_smbus_write_byte_data(client, MAG3110_CTRL_REG2,
 		MAG3110_CTRL_AUTO_MRST_EN);
 	if (ret < 0)
-		return ret;
+		goto standby_on_error;
 
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
 		mag3110_trigger_handler, NULL);
 	if (ret < 0)
-		return ret;
+		goto standby_on_error;
 
 	ret = iio_device_register(indio_dev);
 	if (ret < 0)
@@ -374,13 +380,9 @@ static int mag3110_probe(struct i2c_client *client,
 
 buffer_cleanup:
 	iio_triggered_buffer_cleanup(indio_dev);
+standby_on_error:
+	mag3110_standby(iio_priv(indio_dev));
 	return ret;
-}
-
-static int mag3110_standby(struct mag3110_data *data)
-{
-	return i2c_smbus_write_byte_data(data->client, MAG3110_CTRL_REG1,
-		data->ctrl_reg1 & ~MAG3110_CTRL_AC);
 }
 
 static int mag3110_remove(struct i2c_client *client)

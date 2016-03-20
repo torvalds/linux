@@ -17,6 +17,21 @@
 #ifndef __KVM_TYPES_H__
 #define __KVM_TYPES_H__
 
+struct kvm;
+struct kvm_async_pf;
+struct kvm_device_ops;
+struct kvm_interrupt;
+struct kvm_irq_routing_table;
+struct kvm_memory_slot;
+struct kvm_one_reg;
+struct kvm_run;
+struct kvm_userspace_memory_region;
+struct kvm_vcpu;
+struct kvm_vcpu_init;
+struct kvm_memslots;
+
+enum kvm_mr_change;
+
 #include <asm/types.h>
 
 /*
@@ -38,34 +53,7 @@ typedef unsigned long  hva_t;
 typedef u64            hpa_t;
 typedef u64            hfn_t;
 
-typedef hfn_t pfn_t;
-
-union kvm_ioapic_redirect_entry {
-	u64 bits;
-	struct {
-		u8 vector;
-		u8 delivery_mode:3;
-		u8 dest_mode:1;
-		u8 delivery_status:1;
-		u8 polarity:1;
-		u8 remote_irr:1;
-		u8 trig_mode:1;
-		u8 mask:1;
-		u8 reserve:7;
-		u8 reserved[4];
-		u8 dest_id;
-	} fields;
-};
-
-struct kvm_lapic_irq {
-	u32 vector;
-	u32 delivery_mode;
-	u32 dest_mode;
-	u32 level;
-	u32 trig_mode;
-	u32 shorthand;
-	u32 dest_id;
-};
+typedef hfn_t kvm_pfn_t;
 
 struct gfn_to_hva_cache {
 	u64 generation;

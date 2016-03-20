@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -57,7 +57,7 @@ static int lov_page_invariant(const struct cl_page_slice *slice)
 	const struct cl_page  *page = slice->cpl_page;
 	const struct cl_page  *sub  = lov_sub_page(slice);
 
-	return ergo(sub != NULL,
+	return ergo(sub,
 		    page->cp_child == sub &&
 		    sub->cp_parent == page &&
 		    page->cp_state == sub->cp_state);
@@ -70,7 +70,7 @@ static void lov_page_fini(const struct lu_env *env,
 
 	LINVRNT(lov_page_invariant(slice));
 
-	if (sub != NULL) {
+	if (sub) {
 		LASSERT(sub->cp_state == CPS_FREEING);
 		lu_ref_del(&sub->cp_reference, "lov", sub->cp_parent);
 		sub->cp_parent = NULL;
@@ -151,7 +151,7 @@ static const struct cl_page_operations lov_page_ops = {
 static void lov_empty_page_fini(const struct lu_env *env,
 				struct cl_page_slice *slice)
 {
-	LASSERT(slice->cpl_page->cp_child == NULL);
+	LASSERT(!slice->cpl_page->cp_child);
 }
 
 int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
@@ -165,30 +165,33 @@ int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
 	struct lov_io_sub *sub;
 	struct lov_page   *lpg = cl_object_page_slice(obj, page);
 	loff_t	     offset;
-	obd_off	    suboff;
+	u64	    suboff;
 	int		stripe;
 	int		rc;
 
 	offset = cl_offset(obj, page->cp_index);
 	stripe = lov_stripe_number(loo->lo_lsm, offset);
 	LASSERT(stripe < r0->lo_nr);
-	rc = lov_stripe_offset(loo->lo_lsm, offset, stripe,
-				   &suboff);
+	rc = lov_stripe_offset(loo->lo_lsm, offset, stripe, &suboff);
 	LASSERT(rc == 0);
 
 	lpg->lps_invalid = 1;
 	cl_page_slice_add(page, &lpg->lps_cl, obj, &lov_page_ops);
 
 	sub = lov_sub_get(env, lio, stripe);
-	if (IS_ERR(sub))
-		GOTO(out, rc = PTR_ERR(sub));
+	if (IS_ERR(sub)) {
+		rc = PTR_ERR(sub);
+		goto out;
+	}
 
 	subobj = lovsub2cl(r0->lo_sub[stripe]);
 	subpage = cl_page_find_sub(sub->sub_env, subobj,
 				   cl_index(subobj, suboff), vmpage, page);
 	lov_sub_put(sub);
-	if (IS_ERR(subpage))
-		GOTO(out, rc = PTR_ERR(subpage));
+	if (IS_ERR(subpage)) {
+		rc = PTR_ERR(subpage);
+		goto out;
+	}
 
 	if (likely(subpage->cp_parent == page)) {
 		lu_ref_add(&subpage->cp_reference, "lov", page);
@@ -203,7 +206,6 @@ int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
 out:
 	return rc;
 }
-
 
 static const struct cl_page_operations lov_empty_page_ops = {
 	.cpo_fini   = lov_empty_page_fini,
@@ -223,6 +225,5 @@ int lov_page_init_empty(const struct lu_env *env, struct cl_object *obj,
 	cl_page_export(env, page, 1);
 	return 0;
 }
-
 
 /** @} lov */

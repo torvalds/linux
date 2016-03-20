@@ -71,15 +71,15 @@ struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
 		vaddr = (unsigned long)PCI_FIX_ADDR(addr);
 		if (vaddr < PHB_IO_BASE || vaddr >= PHB_IO_END)
 			return NULL;
-
-		ptep = find_linux_pte_or_hugepte(init_mm.pgd, vaddr,
-						 &hugepage_shift);
+		/*
+		 * We won't find huge pages here (iomem). Also can't hit
+		 * a page table free due to init_mm
+		 */
+		ptep = __find_linux_pte_or_hugepte(init_mm.pgd, vaddr,
+						   NULL, &hugepage_shift);
 		if (ptep == NULL)
 			paddr = 0;
 		else {
-			/*
-			 * we don't have hugepages backing iomem
-			 */
 			WARN_ON(hugepage_shift);
 			paddr = pte_pfn(*ptep) << PAGE_SHIFT;
 		}

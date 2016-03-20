@@ -35,6 +35,7 @@ int ia32_classify_syscall(unsigned syscall)
 	case __NR_socketcall:
 		return 4;
 	case __NR_execve:
+	case __NR_execveat:
 		return 5;
 	default:
 		return 1;

@@ -469,7 +469,7 @@ static int bcm63xx_pcie_can_access(struct pci_bus *bus, int devfn)
 {
 	switch (bus->number) {
 	case PCIE_BUS_BRIDGE:
-		return (PCI_SLOT(devfn) == 0);
+		return PCI_SLOT(devfn) == 0;
 	case PCIE_BUS_DEVICE:
 		if (PCI_SLOT(devfn) == 0)
 			return bcm_pcie_readl(PCIE_DLSTATUS_REG)

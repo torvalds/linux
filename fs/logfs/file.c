@@ -204,12 +204,12 @@ long logfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (err)
 			return err;
 
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		oldflags = li->li_flags;
 		flags &= LOGFS_FL_USER_MODIFIABLE;
 		flags |= oldflags & ~LOGFS_FL_USER_MODIFIABLE;
 		li->li_flags = flags;
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 
 		inode->i_ctime = CURRENT_TIME;
 		mark_inode_dirty_sync(inode);
@@ -230,18 +230,18 @@ int logfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	if (ret)
 		return ret;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	logfs_get_wblocks(sb, NULL, WF_LOCK);
 	logfs_write_anchor(sb);
 	logfs_put_wblocks(sb, NULL, WF_LOCK);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	return 0;
 }
 
 static int logfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int err = 0;
 
 	err = inode_change_ok(inode, attr);
@@ -271,8 +271,6 @@ const struct file_operations logfs_reg_fops = {
 	.llseek		= generic_file_llseek,
 	.mmap		= generic_file_readonly_mmap,
 	.open		= generic_file_open,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
 };
 
 const struct address_space_operations logfs_reg_aops = {

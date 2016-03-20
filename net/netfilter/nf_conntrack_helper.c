@@ -250,7 +250,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(__nf_ct_try_assign_helper);
 
-/* appropiate ct lock protecting must be taken by caller */
+/* appropriate ct lock protecting must be taken by caller */
 static inline int unhelp(struct nf_conntrack_tuple_hash *i,
 			 const struct nf_conntrack_helper *me)
 {
@@ -425,7 +425,7 @@ static void __nf_conntrack_helper_unregister(struct nf_conntrack_helper *me,
 	}
 	local_bh_disable();
 	for (i = 0; i < net->ct.htable_size; i++) {
-		spin_lock(&nf_conntrack_locks[i % CONNTRACK_LOCKS]);
+		nf_conntrack_lock(&nf_conntrack_locks[i % CONNTRACK_LOCKS]);
 		if (i < net->ct.htable_size) {
 			hlist_nulls_for_each_entry(h, nn, &net->ct.hash[i], hnnode)
 				unhelp(h, me);

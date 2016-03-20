@@ -306,19 +306,25 @@ qla2x00_vp_abort_isp(scsi_qla_host_t *vha)
 static int
 qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 {
+	struct qla_hw_data *ha = vha->hw;
+	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
+
 	ql_dbg(ql_dbg_dpc + ql_dbg_verbose, vha, 0x4012,
 	    "Entering %s vp_flags: 0x%lx.\n", __func__, vha->vp_flags);
 
 	qla2x00_do_work(vha);
 
-	if (test_and_clear_bit(VP_IDX_ACQUIRED, &vha->vp_flags)) {
-		/* VP acquired. complete port configuration */
-		ql_dbg(ql_dbg_dpc, vha, 0x4014,
-		    "Configure VP scheduled.\n");
-		qla24xx_configure_vp(vha);
-		ql_dbg(ql_dbg_dpc, vha, 0x4015,
-		    "Configure VP end.\n");
-		return 0;
+	/* Check if Fw is ready to configure VP first */
+	if (test_bit(VP_CONFIG_OK, &base_vha->vp_flags)) {
+		if (test_and_clear_bit(VP_IDX_ACQUIRED, &vha->vp_flags)) {
+			/* VP acquired. complete port configuration */
+			ql_dbg(ql_dbg_dpc, vha, 0x4014,
+			    "Configure VP scheduled.\n");
+			qla24xx_configure_vp(vha);
+			ql_dbg(ql_dbg_dpc, vha, 0x4015,
+			    "Configure VP end.\n");
+			return 0;
+		}
 	}
 
 	if (test_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags)) {
@@ -365,7 +371,6 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 void
 qla2x00_do_dpc_all_vps(scsi_qla_host_t *vha)
 {
-	int ret;
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *vp;
 	unsigned long flags = 0;
@@ -386,7 +391,7 @@ qla2x00_do_dpc_all_vps(scsi_qla_host_t *vha)
 			atomic_inc(&vp->vref_count);
 			spin_unlock_irqrestore(&ha->vport_slock, flags);
 
-			ret = qla2x00_do_dpc_vp(vp);
+			qla2x00_do_dpc_vp(vp);
 
 			spin_lock_irqsave(&ha->vport_slock, flags);
 			atomic_dec(&vp->vref_count);
@@ -595,7 +600,7 @@ qla25xx_delete_queues(struct scsi_qla_host *vha)
 	/* Delete request queues */
 	for (cnt = 1; cnt < ha->max_req_queues; cnt++) {
 		req = ha->req_q_map[cnt];
-		if (req) {
+		if (req && test_bit(cnt, ha->req_qid_map)) {
 			ret = qla25xx_delete_req_que(vha, req);
 			if (ret != QLA_SUCCESS) {
 				ql_log(ql_log_warn, vha, 0x00ea,
@@ -609,7 +614,7 @@ qla25xx_delete_queues(struct scsi_qla_host *vha)
 	/* Delete response queues */
 	for (cnt = 1; cnt < ha->max_rsp_queues; cnt++) {
 		rsp = ha->rsp_q_map[cnt];
-		if (rsp) {
+		if (rsp && test_bit(cnt, ha->rsp_qid_map)) {
 			ret = qla25xx_delete_rsp_que(vha, rsp);
 			if (ret != QLA_SUCCESS) {
 				ql_log(ql_log_warn, vha, 0x00eb,
@@ -702,6 +707,7 @@ qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
 	req->req_q_in = &reg->isp25mq.req_q_in;
 	req->req_q_out = &reg->isp25mq.req_q_out;
 	req->max_q_depth = ha->req_q_map[0]->max_q_depth;
+	req->out_ptr = (void *)(req->ring + req->length);
 	mutex_unlock(&ha->vport_lock);
 	ql_dbg(ql_dbg_multiq, base_vha, 0xc004,
 	    "ring_ptr=%p ring_index=%d, "
@@ -787,7 +793,7 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 		rsp->msix = &ha->msix_entries[que_id + 1];
 	else
 		ql_log(ql_log_warn, base_vha, 0x00e3,
-		    "MSIX not enalbled.\n");
+		    "MSIX not enabled.\n");
 
 	ha->rsp_q_map[que_id] = rsp;
 	rsp->rid = rid;
@@ -811,6 +817,7 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 	reg = ISP_QUE_REG(ha, que_id);
 	rsp->rsp_q_in = &reg->isp25mq.rsp_q_in;
 	rsp->rsp_q_out = &reg->isp25mq.rsp_q_out;
+	rsp->in_ptr = (void *)(rsp->ring + rsp->length);
 	mutex_unlock(&ha->vport_lock);
 	ql_dbg(ql_dbg_multiq, base_vha, 0xc00b,
 	    "options=%x id=%d rsp_q_in=%p rsp_q_out=%p",

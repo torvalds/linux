@@ -38,16 +38,16 @@
 #ifndef __SELFTEST_TIMER_H__
 #define __SELFTEST_TIMER_H__
 
-typedef struct {
-	struct list_head	stt_list;
-	unsigned long	stt_expires;
-	void	    (*stt_func) (void *);
-	void	     *stt_data;
-} stt_timer_t;
+struct stt_timer {
+	struct list_head stt_list;
+	time64_t	 stt_expires;
+	void		 (*stt_func)(void *);
+	void		 *stt_data;
+};
 
-void stt_add_timer (stt_timer_t *timer);
-int stt_del_timer (stt_timer_t *timer);
-int stt_startup (void);
-void stt_shutdown (void);
+void stt_add_timer(struct stt_timer *timer);
+int stt_del_timer(struct stt_timer *timer);
+int stt_startup(void);
+void stt_shutdown(void);
 
 #endif /* __SELFTEST_TIMER_H__ */

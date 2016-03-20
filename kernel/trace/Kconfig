@@ -432,6 +432,14 @@ config UPROBE_EVENT
 	  This option is required if you plan to use perf-probe subcommand
 	  of perf tools on user space applications.
 
+config BPF_EVENTS
+	depends on BPF_SYSCALL
+	depends on (KPROBE_EVENT || UPROBE_EVENT) && PERF_EVENTS
+	bool
+	default y
+	help
+	  This allows the user to attach BPF programs to kprobe events.
+
 config PROBE_EVENTS
 	def_bool n
 
@@ -598,6 +606,41 @@ config RING_BUFFER_STARTUP_TEST
 	 other similar details.
 
 	 If unsure, say N
+
+config TRACE_ENUM_MAP_FILE
+       bool "Show enum mappings for trace events"
+       depends on TRACING
+       help
+        The "print fmt" of the trace events will show the enum names instead
+	of their values. This can cause problems for user space tools that
+	use this string to parse the raw data as user space does not know
+	how to convert the string to its value.
+
+	To fix this, there's a special macro in the kernel that can be used
+	to convert the enum into its value. If this macro is used, then the
+	print fmt strings will have the enums converted to their values.
+
+	If something does not get converted properly, this option can be
+	used to show what enums the kernel tried to convert.
+
+	This option is for debugging the enum conversions. A file is created
+	in the tracing directory called "enum_map" that will show the enum
+	names matched with their values and what trace event system they
+	belong too.
+
+	Normally, the mapping of the strings to values will be freed after
+	boot up or module load. With this option, they will not be freed, as
+	they are needed for the "enum_map" file. Enabling this option will
+	increase the memory footprint of the running kernel.
+
+	If unsure, say N
+
+config TRACING_EVENTS_GPIO
+	bool "Trace gpio events"
+	depends on GPIOLIB
+	default y
+	help
+	  Enable tracing events for gpio subsystem
 
 endif # FTRACE
 

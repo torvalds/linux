@@ -10,13 +10,17 @@
  * 2 as published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt)	"dlpar: " fmt
+
 #include <linux/kernel.h>
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include "offline_states.h"
+
+#include "of_helpers.h"
+#include "pseries.h"
 
 #include <asm/prom.h>
 #include <asm/machdep.h>
@@ -24,11 +28,11 @@
 #include <asm/rtas.h>
 
 struct cc_workarea {
-	u32	drc_index;
-	u32	zero;
-	u32	name_offset;
-	u32	prop_length;
-	u32	prop_offset;
+	__be32	drc_index;
+	__be32	zero;
+	__be32	name_offset;
+	__be32	prop_length;
+	__be32	prop_offset;
 };
 
 void dlpar_free_cc_property(struct property *prop)
@@ -48,11 +52,11 @@ static struct property *dlpar_parse_cc_property(struct cc_workarea *ccwa)
 	if (!prop)
 		return NULL;
 
-	name = (char *)ccwa + ccwa->name_offset;
+	name = (char *)ccwa + be32_to_cpu(ccwa->name_offset);
 	prop->name = kstrdup(name, GFP_KERNEL);
 
-	prop->length = ccwa->prop_length;
-	value = (char *)ccwa + ccwa->prop_offset;
+	prop->length = be32_to_cpu(ccwa->prop_length);
+	value = (char *)ccwa + be32_to_cpu(ccwa->prop_offset);
 	prop->value = kmemdup(value, prop->length, GFP_KERNEL);
 	if (!prop->value) {
 		dlpar_free_cc_property(prop);
@@ -78,7 +82,7 @@ static struct device_node *dlpar_parse_cc_node(struct cc_workarea *ccwa,
 	if (!dn)
 		return NULL;
 
-	name = (char *)ccwa + ccwa->name_offset;
+	name = (char *)ccwa + be32_to_cpu(ccwa->name_offset);
 	dn->full_name = kasprintf(GFP_KERNEL, "%s/%s", path, name);
 	if (!dn->full_name) {
 		kfree(dn);
@@ -125,7 +129,7 @@ void dlpar_free_cc_nodes(struct device_node *dn)
 #define CALL_AGAIN	-2
 #define ERR_CFG_USE     -9003
 
-struct device_node *dlpar_configure_connector(u32 drc_index,
+struct device_node *dlpar_configure_connector(__be32 drc_index,
 					      struct device_node *parent)
 {
 	struct device_node *dn;
@@ -241,36 +245,13 @@ cc_error:
 	return first_dn;
 }
 
-static struct device_node *derive_parent(const char *path)
-{
-	struct device_node *parent;
-	char *last_slash;
-
-	last_slash = strrchr(path, '/');
-	if (last_slash == path) {
-		parent = of_find_node_by_path("/");
-	} else {
-		char *parent_path;
-		int parent_path_len = last_slash - path + 1;
-		parent_path = kmalloc(parent_path_len, GFP_KERNEL);
-		if (!parent_path)
-			return NULL;
-
-		strlcpy(parent_path, path, parent_path_len);
-		parent = of_find_node_by_path(parent_path);
-		kfree(parent_path);
-	}
-
-	return parent;
-}
-
 int dlpar_attach_node(struct device_node *dn)
 {
 	int rc;
 
-	dn->parent = derive_parent(dn->full_name);
-	if (!dn->parent)
-		return -ENOMEM;
+	dn->parent = pseries_of_derive_parent(dn->full_name);
+	if (IS_ERR(dn->parent))
+		return PTR_ERR(dn->parent);
 
 	rc = of_attach_node(dn);
 	if (rc) {
@@ -356,187 +337,120 @@ int dlpar_release_drc(u32 drc_index)
 	return 0;
 }
 
-#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-
-static int dlpar_online_cpu(struct device_node *dn)
+static int handle_dlpar_errorlog(struct pseries_hp_errorlog *hp_elog)
 {
-	int rc = 0;
-	unsigned int cpu;
-	int len, nthreads, i;
-	const u32 *intserv;
-
-	intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s", &len);
-	if (!intserv)
-		return -EINVAL;
-
-	nthreads = len / sizeof(u32);
-
-	cpu_maps_update_begin();
-	for (i = 0; i < nthreads; i++) {
-		for_each_present_cpu(cpu) {
-			if (get_hard_smp_processor_id(cpu) != intserv[i])
-				continue;
-			BUG_ON(get_cpu_current_state(cpu)
-					!= CPU_STATE_OFFLINE);
-			cpu_maps_update_done();
-			rc = cpu_up(cpu);
-			if (rc)
-				goto out;
-			cpu_maps_update_begin();
-
-			break;
-		}
-		if (cpu == num_possible_cpus())
-			printk(KERN_WARNING "Could not find cpu to online "
-			       "with physical id 0x%x\n", intserv[i]);
-	}
-	cpu_maps_update_done();
-
-out:
-	return rc;
-
-}
-
-static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
-{
-	struct device_node *dn, *parent;
-	u32 drc_index;
 	int rc;
 
-	rc = kstrtou32(buf, 0, &drc_index);
-	if (rc)
-		return -EINVAL;
-
-	parent = of_find_node_by_path("/cpus");
-	if (!parent)
-		return -ENODEV;
-
-	dn = dlpar_configure_connector(drc_index, parent);
-	if (!dn)
-		return -EINVAL;
-
-	of_node_put(parent);
-
-	rc = dlpar_acquire_drc(drc_index);
-	if (rc) {
-		dlpar_free_cc_nodes(dn);
-		return -EINVAL;
+	/* pseries error logs are in BE format, convert to cpu type */
+	switch (hp_elog->id_type) {
+	case PSERIES_HP_ELOG_ID_DRC_COUNT:
+		hp_elog->_drc_u.drc_count =
+					be32_to_cpu(hp_elog->_drc_u.drc_count);
+		break;
+	case PSERIES_HP_ELOG_ID_DRC_INDEX:
+		hp_elog->_drc_u.drc_index =
+					be32_to_cpu(hp_elog->_drc_u.drc_index);
 	}
 
-	rc = dlpar_attach_node(dn);
-	if (rc) {
-		dlpar_release_drc(drc_index);
-		dlpar_free_cc_nodes(dn);
-		return rc;
+	switch (hp_elog->resource) {
+	case PSERIES_HP_ELOG_RESOURCE_MEM:
+		rc = dlpar_memory(hp_elog);
+		break;
+	case PSERIES_HP_ELOG_RESOURCE_CPU:
+		rc = dlpar_cpu(hp_elog);
+		break;
+	default:
+		pr_warn_ratelimited("Invalid resource (%d) specified\n",
+				    hp_elog->resource);
+		rc = -EINVAL;
 	}
 
-	rc = dlpar_online_cpu(dn);
-	if (rc)
-		return rc;
-
-	return count;
-}
-
-static int dlpar_offline_cpu(struct device_node *dn)
-{
-	int rc = 0;
-	unsigned int cpu;
-	int len, nthreads, i;
-	const u32 *intserv;
-
-	intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s", &len);
-	if (!intserv)
-		return -EINVAL;
-
-	nthreads = len / sizeof(u32);
-
-	cpu_maps_update_begin();
-	for (i = 0; i < nthreads; i++) {
-		for_each_present_cpu(cpu) {
-			if (get_hard_smp_processor_id(cpu) != intserv[i])
-				continue;
-
-			if (get_cpu_current_state(cpu) == CPU_STATE_OFFLINE)
-				break;
-
-			if (get_cpu_current_state(cpu) == CPU_STATE_ONLINE) {
-				set_preferred_offline_state(cpu, CPU_STATE_OFFLINE);
-				cpu_maps_update_done();
-				rc = cpu_down(cpu);
-				if (rc)
-					goto out;
-				cpu_maps_update_begin();
-				break;
-
-			}
-
-			/*
-			 * The cpu is in CPU_STATE_INACTIVE.
-			 * Upgrade it's state to CPU_STATE_OFFLINE.
-			 */
-			set_preferred_offline_state(cpu, CPU_STATE_OFFLINE);
-			BUG_ON(plpar_hcall_norets(H_PROD, intserv[i])
-								!= H_SUCCESS);
-			__cpu_die(cpu);
-			break;
-		}
-		if (cpu == num_possible_cpus())
-			printk(KERN_WARNING "Could not find cpu to offline "
-			       "with physical id 0x%x\n", intserv[i]);
-	}
-	cpu_maps_update_done();
-
-out:
 	return rc;
-
 }
 
-static ssize_t dlpar_cpu_release(const char *buf, size_t count)
+static ssize_t dlpar_store(struct class *class, struct class_attribute *attr,
+			   const char *buf, size_t count)
 {
-	struct device_node *dn;
-	const u32 *drc_index;
+	struct pseries_hp_errorlog *hp_elog;
+	const char *arg;
 	int rc;
 
-	dn = of_find_node_by_path(buf);
-	if (!dn)
-		return -EINVAL;
-
-	drc_index = of_get_property(dn, "ibm,my-drc-index", NULL);
-	if (!drc_index) {
-		of_node_put(dn);
-		return -EINVAL;
+	hp_elog = kzalloc(sizeof(*hp_elog), GFP_KERNEL);
+	if (!hp_elog) {
+		rc = -ENOMEM;
+		goto dlpar_store_out;
 	}
 
-	rc = dlpar_offline_cpu(dn);
-	if (rc) {
-		of_node_put(dn);
-		return -EINVAL;
+	/* Parse out the request from the user, this will be in the form
+	 * <resource> <action> <id_type> <id>
+	 */
+	arg = buf;
+	if (!strncmp(arg, "memory", 6)) {
+		hp_elog->resource = PSERIES_HP_ELOG_RESOURCE_MEM;
+		arg += strlen("memory ");
+	} else if (!strncmp(arg, "cpu", 3)) {
+		hp_elog->resource = PSERIES_HP_ELOG_RESOURCE_CPU;
+		arg += strlen("cpu ");
+	} else {
+		pr_err("Invalid resource specified: \"%s\"\n", buf);
+		rc = -EINVAL;
+		goto dlpar_store_out;
 	}
 
-	rc = dlpar_release_drc(*drc_index);
-	if (rc) {
-		of_node_put(dn);
-		return rc;
+	if (!strncmp(arg, "add", 3)) {
+		hp_elog->action = PSERIES_HP_ELOG_ACTION_ADD;
+		arg += strlen("add ");
+	} else if (!strncmp(arg, "remove", 6)) {
+		hp_elog->action = PSERIES_HP_ELOG_ACTION_REMOVE;
+		arg += strlen("remove ");
+	} else {
+		pr_err("Invalid action specified: \"%s\"\n", buf);
+		rc = -EINVAL;
+		goto dlpar_store_out;
 	}
 
-	rc = dlpar_detach_node(dn);
-	if (rc) {
-		dlpar_acquire_drc(*drc_index);
-		return rc;
+	if (!strncmp(arg, "index", 5)) {
+		u32 index;
+
+		hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_INDEX;
+		arg += strlen("index ");
+		if (kstrtou32(arg, 0, &index)) {
+			rc = -EINVAL;
+			pr_err("Invalid drc_index specified: \"%s\"\n", buf);
+			goto dlpar_store_out;
+		}
+
+		hp_elog->_drc_u.drc_index = cpu_to_be32(index);
+	} else if (!strncmp(arg, "count", 5)) {
+		u32 count;
+
+		hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_COUNT;
+		arg += strlen("count ");
+		if (kstrtou32(arg, 0, &count)) {
+			rc = -EINVAL;
+			pr_err("Invalid count specified: \"%s\"\n", buf);
+			goto dlpar_store_out;
+		}
+
+		hp_elog->_drc_u.drc_count = cpu_to_be32(count);
+	} else {
+		pr_err("Invalid id_type specified: \"%s\"\n", buf);
+		rc = -EINVAL;
+		goto dlpar_store_out;
 	}
 
-	of_node_put(dn);
+	rc = handle_dlpar_errorlog(hp_elog);
 
-	return count;
+dlpar_store_out:
+	kfree(hp_elog);
+	return rc ? rc : count;
 }
+
+static CLASS_ATTR(dlpar, S_IWUSR, NULL, dlpar_store);
 
 static int __init pseries_dlpar_init(void)
 {
-	ppc_md.cpu_probe = dlpar_cpu_probe;
-	ppc_md.cpu_release = dlpar_cpu_release;
-
-	return 0;
+	return sysfs_create_file(kernel_kobj, &class_attr_dlpar.attr);
 }
 machine_device_initcall(pseries, pseries_dlpar_init);
 
-#endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */

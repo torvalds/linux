@@ -254,11 +254,6 @@ do {									\
 #endif	/* CONFIG_SMP */
 
 #define per_cpu(var, cpu)	(*per_cpu_ptr(&(var), cpu))
-#define __raw_get_cpu_var(var)	(*raw_cpu_ptr(&(var)))
-#define __get_cpu_var(var)	(*this_cpu_ptr(&(var)))
-
-/* keep until we have removed all uses of __this_cpu_ptr */
-#define __this_cpu_ptr(ptr)	raw_cpu_ptr(ptr)
 
 /*
  * Must be an lvalue. Since @var must be a simple identifier,
@@ -493,10 +488,8 @@ do {									\
 #define __this_cpu_dec_return(pcp)	__this_cpu_add_return(pcp, -1)
 
 /*
- * Operations with implied preemption protection.  These operations can be
- * used without worrying about preemption.  Note that interrupts may still
- * occur while an operation is in progress and if the interrupt modifies
- * the variable too then RMW actions may not be reliable.
+ * Operations with implied preemption/interrupt protection.  These
+ * operations can be used without worrying about preemption or interrupt.
  */
 #define this_cpu_read(pcp)		__pcpu_size_call_return(this_cpu_read_, pcp)
 #define this_cpu_write(pcp, val)	__pcpu_size_call(this_cpu_write_, pcp, val)

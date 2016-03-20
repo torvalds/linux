@@ -1157,27 +1157,24 @@ static DEVICE_ATTR(inject_eccmask, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(inject_enable, S_IRUGO | S_IWUSR,
 		   i7core_inject_enable_show, i7core_inject_enable_store);
 
+static struct attribute *i7core_dev_attrs[] = {
+	&dev_attr_inject_section.attr,
+	&dev_attr_inject_type.attr,
+	&dev_attr_inject_eccmask.attr,
+	&dev_attr_inject_enable.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(i7core_dev);
+
 static int i7core_create_sysfs_devices(struct mem_ctl_info *mci)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
 	int rc;
 
-	rc = device_create_file(&mci->dev, &dev_attr_inject_section);
-	if (rc < 0)
-		return rc;
-	rc = device_create_file(&mci->dev, &dev_attr_inject_type);
-	if (rc < 0)
-		return rc;
-	rc = device_create_file(&mci->dev, &dev_attr_inject_eccmask);
-	if (rc < 0)
-		return rc;
-	rc = device_create_file(&mci->dev, &dev_attr_inject_enable);
-	if (rc < 0)
-		return rc;
-
 	pvt->addrmatch_dev = kzalloc(sizeof(*pvt->addrmatch_dev), GFP_KERNEL);
 	if (!pvt->addrmatch_dev)
-		return rc;
+		return -ENOMEM;
 
 	pvt->addrmatch_dev->type = &addrmatch_type;
 	pvt->addrmatch_dev->bus = mci->dev.bus;
@@ -1198,7 +1195,7 @@ static int i7core_create_sysfs_devices(struct mem_ctl_info *mci)
 		if (!pvt->chancounts_dev) {
 			put_device(pvt->addrmatch_dev);
 			device_del(pvt->addrmatch_dev);
-			return rc;
+			return -ENOMEM;
 		}
 
 		pvt->chancounts_dev->type = &all_channel_counts_type;
@@ -1222,11 +1219,6 @@ static void i7core_delete_sysfs_devices(struct mem_ctl_info *mci)
 	struct i7core_pvt *pvt = mci->pvt_info;
 
 	edac_dbg(1, "\n");
-
-	device_remove_file(&mci->dev, &dev_attr_inject_section);
-	device_remove_file(&mci->dev, &dev_attr_inject_type);
-	device_remove_file(&mci->dev, &dev_attr_inject_eccmask);
-	device_remove_file(&mci->dev, &dev_attr_inject_enable);
 
 	if (!pvt->is_registered) {
 		put_device(pvt->chancounts_dev);
@@ -2259,7 +2251,7 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 		enable_sdram_scrub_setting(mci);
 
 	/* add this new MC control structure to EDAC's list of MCs */
-	if (unlikely(edac_mc_add_mc(mci))) {
+	if (unlikely(edac_mc_add_mc_with_groups(mci, i7core_dev_groups))) {
 		edac_dbg(0, "MC: failed edac_mc_add_mc()\n");
 		/* FIXME: perhaps some code should go here that disables error
 		 * reporting if we just enabled it

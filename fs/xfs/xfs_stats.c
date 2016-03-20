@@ -18,20 +18,21 @@
 #include "xfs.h"
 #include <linux/proc_fs.h>
 
-DEFINE_PER_CPU(struct xfsstats, xfsstats);
+struct xstats xfsstats;
 
-static int counter_val(int idx)
+static int counter_val(struct xfsstats __percpu *stats, int idx)
 {
 	int val = 0, cpu;
 
 	for_each_possible_cpu(cpu)
-		val += *(((__u32 *)&per_cpu(xfsstats, cpu) + idx));
+		val += *(((__u32 *)per_cpu_ptr(stats, cpu) + idx));
 	return val;
 }
 
-static int xfs_stat_proc_show(struct seq_file *m, void *v)
+int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 {
 	int		i, j;
+	int		len = 0;
 	__uint64_t	xs_xstrat_bytes = 0;
 	__uint64_t	xs_write_bytes = 0;
 	__uint64_t	xs_read_bytes = 0;
@@ -65,43 +66,50 @@ static int xfs_stat_proc_show(struct seq_file *m, void *v)
 	};
 
 	/* Loop over all stats groups */
+
 	for (i = j = 0; i < ARRAY_SIZE(xstats); i++) {
-		seq_printf(m, "%s", xstats[i].desc);
+		len += snprintf(buf + len, PATH_MAX - len, "%s",
+				xstats[i].desc);
 		/* inner loop does each group */
 		for (; j < xstats[i].endpoint; j++)
-			seq_printf(m, " %u", counter_val(j));
-		seq_putc(m, '\n');
+			len += snprintf(buf + len, PATH_MAX - len, " %u",
+					counter_val(stats, j));
+		len += snprintf(buf + len, PATH_MAX - len, "\n");
 	}
 	/* extra precision counters */
 	for_each_possible_cpu(i) {
-		xs_xstrat_bytes += per_cpu(xfsstats, i).xs_xstrat_bytes;
-		xs_write_bytes += per_cpu(xfsstats, i).xs_write_bytes;
-		xs_read_bytes += per_cpu(xfsstats, i).xs_read_bytes;
+		xs_xstrat_bytes += per_cpu_ptr(stats, i)->xs_xstrat_bytes;
+		xs_write_bytes += per_cpu_ptr(stats, i)->xs_write_bytes;
+		xs_read_bytes += per_cpu_ptr(stats, i)->xs_read_bytes;
 	}
 
-	seq_printf(m, "xpc %Lu %Lu %Lu\n",
+	len += snprintf(buf + len, PATH_MAX-len, "xpc %Lu %Lu %Lu\n",
 			xs_xstrat_bytes, xs_write_bytes, xs_read_bytes);
-	seq_printf(m, "debug %u\n",
+	len += snprintf(buf + len, PATH_MAX-len, "debug %u\n",
 #if defined(DEBUG)
 		1);
 #else
 		0);
 #endif
-	return 0;
+
+	return len;
 }
 
-static int xfs_stat_proc_open(struct inode *inode, struct file *file)
+void xfs_stats_clearall(struct xfsstats __percpu *stats)
 {
-	return single_open(file, xfs_stat_proc_show, NULL);
-}
+	int		c;
+	__uint32_t	vn_active;
 
-static const struct file_operations xfs_stat_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= xfs_stat_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+	xfs_notice(NULL, "Clearing xfsstats");
+	for_each_possible_cpu(c) {
+		preempt_disable();
+		/* save vn_active, it's a universal truth! */
+		vn_active = per_cpu_ptr(stats, c)->vn_active;
+		memset(per_cpu_ptr(stats, c), 0, sizeof(*stats));
+		per_cpu_ptr(stats, c)->vn_active = vn_active;
+		preempt_enable();
+	}
+}
 
 /* legacy quota interfaces */
 #ifdef CONFIG_XFS_QUOTA
@@ -109,10 +117,8 @@ static int xqm_proc_show(struct seq_file *m, void *v)
 {
 	/* maximum; incore; ratio free to inuse; freelist */
 	seq_printf(m, "%d\t%d\t%d\t%u\n",
-			0,
-			counter_val(XFSSTAT_END_XQMSTAT),
-			0,
-			counter_val(XFSSTAT_END_XQMSTAT + 1));
+		   0, counter_val(xfsstats.xs_stats, XFSSTAT_END_XQMSTAT),
+		   0, counter_val(xfsstats.xs_stats, XFSSTAT_END_XQMSTAT + 1));
 	return 0;
 }
 
@@ -136,7 +142,7 @@ static int xqmstat_proc_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "qm");
 	for (j = XFSSTAT_END_IBT_V2; j < XFSSTAT_END_XQMSTAT; j++)
-		seq_printf(m, " %u", counter_val(j));
+		seq_printf(m, " %u", counter_val(xfsstats.xs_stats, j));
 	seq_putc(m, '\n');
 	return 0;
 }
@@ -155,44 +161,35 @@ static const struct file_operations xqmstat_proc_fops = {
 };
 #endif /* CONFIG_XFS_QUOTA */
 
+#ifdef CONFIG_PROC_FS
 int
 xfs_init_procfs(void)
 {
 	if (!proc_mkdir("fs/xfs", NULL))
+		return -ENOMEM;
+
+	if (!proc_symlink("fs/xfs/stat", NULL,
+			  "/sys/fs/xfs/stats/stats"))
 		goto out;
 
-	if (!proc_create("fs/xfs/stat", 0, NULL,
-			 &xfs_stat_proc_fops))
-		goto out_remove_xfs_dir;
 #ifdef CONFIG_XFS_QUOTA
 	if (!proc_create("fs/xfs/xqmstat", 0, NULL,
 			 &xqmstat_proc_fops))
-		goto out_remove_stat_file;
+		goto out;
 	if (!proc_create("fs/xfs/xqm", 0, NULL,
 			 &xqm_proc_fops))
-		goto out_remove_xqmstat_file;
+		goto out;
 #endif
 	return 0;
 
-#ifdef CONFIG_XFS_QUOTA
- out_remove_xqmstat_file:
-	remove_proc_entry("fs/xfs/xqmstat", NULL);
- out_remove_stat_file:
-	remove_proc_entry("fs/xfs/stat", NULL);
-#endif
- out_remove_xfs_dir:
-	remove_proc_entry("fs/xfs", NULL);
- out:
+out:
+	remove_proc_subtree("fs/xfs", NULL);
 	return -ENOMEM;
 }
 
 void
 xfs_cleanup_procfs(void)
 {
-#ifdef CONFIG_XFS_QUOTA
-	remove_proc_entry("fs/xfs/xqm", NULL);
-	remove_proc_entry("fs/xfs/xqmstat", NULL);
-#endif
-	remove_proc_entry("fs/xfs/stat", NULL);
-	remove_proc_entry("fs/xfs", NULL);
+	remove_proc_subtree("fs/xfs", NULL);
 }
+#endif /* CONFIG_PROC_FS */

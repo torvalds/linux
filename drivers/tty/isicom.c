@@ -220,7 +220,7 @@ static struct isi_port  isi_ports[PORT_COUNT];
  *	it wants to talk.
  */
 
-static inline int WaitTillCardIsFree(unsigned long base)
+static int WaitTillCardIsFree(unsigned long base)
 {
 	unsigned int count = 0;
 	unsigned int a = in_atomic(); /* do we run under spinlock? */
@@ -249,7 +249,7 @@ static int lock_card(struct isi_board *card)
 		spin_unlock_irqrestore(&card->card_lock, card->flags);
 		msleep(10);
 	}
-	pr_warning("Failed to lock Card (0x%lx)\n", card->base);
+	pr_warn("Failed to lock Card (0x%lx)\n", card->base);
 
 	return 0;	/* Failed to acquire the card! */
 }
@@ -280,7 +280,7 @@ static void raise_dtr(struct isi_port *port)
 }
 
 /* card->lock HAS to be held */
-static inline void drop_dtr(struct isi_port *port)
+static void drop_dtr(struct isi_port *port)
 {
 	struct isi_board *card = port->card;
 	unsigned long base = card->base;
@@ -378,13 +378,13 @@ static inline int __isicom_paranoia_check(struct isi_port const *port,
 	char *name, const char *routine)
 {
 	if (!port) {
-		pr_warning("Warning: bad isicom magic for dev %s in %s.\n",
-			   name, routine);
+		pr_warn("Warning: bad isicom magic for dev %s in %s\n",
+			name, routine);
 		return 1;
 	}
 	if (port->magic != ISICOM_MAGIC) {
-		pr_warning("Warning: NULL isicom port for dev %s in %s.\n",
-			   name, routine);
+		pr_warn("Warning: NULL isicom port for dev %s in %s\n",
+			name, routine);
 		return 1;
 	}
 
@@ -546,8 +546,8 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 	byte_count = header & 0xff;
 
 	if (channel + 1 > card->port_count) {
-		pr_warning("%s(0x%lx): %d(channel) > port_count.\n",
-			   __func__, base, channel+1);
+		pr_warn("%s(0x%lx): %d(channel) > port_count\n",
+			__func__, base, channel + 1);
 		outw(0x0000, base+0x04); /* enable interrupts */
 		spin_unlock(&card->card_lock);
 		return IRQ_HANDLED;
@@ -1055,7 +1055,7 @@ static int isicom_send_break(struct tty_struct *tty, int length)
 
 	outw(0x8000 | ((port->channel) << (card->shift_count)) | 0x3, base);
 	outw((length & 0xff) << 8 | 0x00, base);
-	outw((length & 0xff00), base);
+	outw((length & 0xff00u), base);
 	InterruptTheCard(base);
 
 	unlock_card(card);
@@ -1204,8 +1204,7 @@ static void isicom_set_termios(struct tty_struct *tty,
 	isicom_config_port(tty);
 	spin_unlock_irqrestore(&port->card->card_lock, flags);
 
-	if ((old_termios->c_cflag & CRTSCTS) &&
-			!(tty->termios.c_cflag & CRTSCTS)) {
+	if ((old_termios->c_cflag & CRTSCTS) && !C_CRTSCTS(tty)) {
 		tty->hw_stopped = 0;
 		isicom_start(tty);
 	}

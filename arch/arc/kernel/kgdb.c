@@ -158,11 +158,6 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 	return -1;
 }
 
-unsigned long kgdb_arch_pc(int exception, struct pt_regs *regs)
-{
-	return instruction_pointer(regs);
-}
-
 int kgdb_arch_init(void)
 {
 	single_step_data.armed = 0;

@@ -119,7 +119,7 @@
 	  </row>
 	  <row>
 	    <entry>&v4l2-rect;</entry>
-	    <entry><structfield>rect</structfield></entry>
+	    <entry><structfield>r</structfield></entry>
 	    <entry>Selection rectangle, in pixels.</entry>
 	  </row>
 	  <row>

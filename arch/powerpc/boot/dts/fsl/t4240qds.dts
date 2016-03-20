@@ -1,0 +1,708 @@
+/*
+ * T4240QDS Device Tree Source
+ *
+ * Copyright 2012 - 2015 Freescale Semiconductor Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of Freescale Semiconductor nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ *
+ * ALTERNATIVELY, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") as published by the Free Software
+ * Foundation, either version 2 of that License or (at your option) any
+ * later version.
+ *
+ * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/include/ "t4240si-pre.dtsi"
+
+/ {
+	model = "fsl,T4240QDS";
+	compatible = "fsl,T4240QDS";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&mpic>;
+
+	aliases{
+		phy_rgmii1 = &phyrgmii1;
+		phy_rgmii2 = &phyrgmii2;
+		phy_sgmii3 = &phy3;
+		phy_sgmii4 = &phy4;
+		phy_sgmii11 = &phy11;
+		phy_sgmii12 = &phy12;
+		sgmii_phy11 = &sgmiiphy11;
+		sgmii_phy12 = &sgmiiphy12;
+		sgmii_phy13 = &sgmiiphy13;
+		sgmii_phy14 = &sgmiiphy14;
+		sgmii_phy21 = &sgmiiphy21;
+		sgmii_phy22 = &sgmiiphy22;
+		sgmii_phy23 = &sgmiiphy23;
+		sgmii_phy24 = &sgmiiphy24;
+		sgmii_phy31 = &sgmiiphy31;
+		sgmii_phy32 = &sgmiiphy32;
+		sgmii_phy33 = &sgmiiphy33;
+		sgmii_phy34 = &sgmiiphy34;
+		sgmii_phy41 = &sgmiiphy41;
+		sgmii_phy42 = &sgmiiphy42;
+		sgmii_phy43 = &sgmiiphy43;
+		sgmii_phy44 = &sgmiiphy44;
+		phy_xfi1 = &xfiphy1;
+		phy_xfi2 = &xfiphy2;
+		phy_xfi3 = &xfiphy3;
+		phy_xfi4 = &xfiphy4;
+		xfi_pcs_mdio1 = &xfimdio0;
+		xfi_pcs_mdio2 = &xfimdio1;
+		xfi_pcs_mdio3 = &xfimdio2;
+		xfi_pcs_mdio4 = &xfimdio3;
+		emi1_rgmii = &t4240mdio0;
+		emi1_slot1 = &t4240mdio1;
+		emi1_slot2 = &t4240mdio2;
+		emi1_slot3 = &t4240mdio3;
+		emi1_slot4 = &t4240mdio4;
+	};
+
+	ifc: localbus@ffe124000 {
+		reg = <0xf 0xfe124000 0 0x2000>;
+		ranges = <0 0 0xf 0xe8000000 0x08000000
+			  2 0 0xf 0xff800000 0x00010000
+			  3 0 0xf 0xffdf0000 0x00008000>;
+
+		nor@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x0 0x0 0x8000000>;
+
+			bank-width = <2>;
+			device-width = <1>;
+		};
+
+		nand@2,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,ifc-nand";
+			reg = <0x2 0x0 0x10000>;
+
+			partition@0 {
+				/* This location must not be altered  */
+				/* 1MB for u-boot Bootloader Image */
+				reg = <0x0 0x00100000>;
+				label = "NAND U-Boot Image";
+				read-only;
+			};
+
+			partition@100000 {
+				/* 1MB for DTB Image */
+				reg = <0x00100000 0x00100000>;
+				label = "NAND DTB Image";
+			};
+
+			partition@200000 {
+				/* 10MB for Linux Kernel Image */
+				reg = <0x00200000 0x00A00000>;
+				label = "NAND Linux Kernel Image";
+			};
+
+			partition@C00000 {
+				/* 500MB for Root file System Image */
+				reg = <0x00c00000 0x1F400000>;
+				label = "NAND RFS Image";
+			};
+		};
+
+		board-control@3,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,t4240qds-fpga", "fsl,fpga-qixis";
+			reg = <3 0 0x300>;
+			ranges = <0 3 0 0x300>;
+
+			mdio-mux-emi1 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "mdio-mux-mmioreg", "mdio-mux";
+				mdio-parent-bus = <&mdio1>;
+				reg = <0x54 1>;
+				mux-mask = <0xe0>;
+
+				t4240mdio0: mdio@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					phyrgmii1: ethernet-phy@1 {
+						reg = <0x1>;
+					};
+
+					phyrgmii2: ethernet-phy@2 {
+						reg = <0x2>;
+					};
+				};
+
+				t4240mdio1: mdio@20 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x20>;
+					status = "disabled";
+
+					phy1: ethernet-phy@0 {
+						reg = <0x0>;
+					};
+
+					phy2: ethernet-phy@1 {
+						reg = <0x1>;
+					};
+
+					phy3: ethernet-phy@2 {
+						reg = <0x2>;
+					};
+
+					phy4: ethernet-phy@3 {
+						reg = <0x3>;
+					};
+
+					sgmiiphy11: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+
+					sgmiiphy12: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+
+					sgmiiphy13: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+
+					sgmiiphy14: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+
+				t4240mdio2: mdio@40 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x40>;
+					status = "disabled";
+
+					phy5: ethernet-phy@4 {
+						reg = <0x4>;
+					};
+
+					phy6: ethernet-phy@5 {
+						reg = <0x5>;
+					};
+
+					phy7: ethernet-phy@6 {
+						reg = <0x6>;
+					};
+
+					phy8: ethernet-phy@7 {
+						reg = <0x7>;
+					};
+
+					sgmiiphy21: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+
+					sgmiiphy22: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+
+					sgmiiphy23: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+
+					sgmiiphy24: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+
+				t4240mdio3: mdio@60 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x60>;
+					status = "disabled";
+
+					phy9: ethernet-phy@8 {
+						reg = <0x8>;
+					};
+
+					phy10: ethernet-phy@9 {
+						reg = <0x9>;
+					};
+
+					phy11: ethernet-phy@a {
+						reg = <0xa>;
+					};
+
+					phy12: ethernet-phy@b {
+						reg = <0xb>;
+					};
+
+					sgmiiphy31: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+
+					sgmiiphy32: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+
+					sgmiiphy33: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+
+					sgmiiphy34: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+
+				t4240mdio4: mdio@80 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x80>;
+					status = "disabled";
+
+					phy13: ethernet-phy@c {
+						reg = <0xc>;
+					};
+
+					phy14: ethernet-phy@d {
+						reg = <0xd>;
+					};
+
+					phy15: ethernet-phy@e {
+						reg = <0xe>;
+					};
+
+					phy16: ethernet-phy@f {
+						reg = <0xf>;
+					};
+
+					sgmiiphy41: ethernet-phy@1c {
+						reg = <0x1c>;
+					};
+
+					sgmiiphy42: ethernet-phy@1d {
+						reg = <0x1d>;
+					};
+
+					sgmiiphy43: ethernet-phy@1e {
+						reg = <0x1e>;
+					};
+
+					sgmiiphy44: ethernet-phy@1f {
+						reg = <0x1f>;
+					};
+				};
+			};
+		};
+	};
+
+	memory {
+		device_type = "memory";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		bman_fbpr: bman-fbpr {
+			size = <0 0x1000000>;
+			alignment = <0 0x1000000>;
+		};
+		qman_fqd: qman-fqd {
+			size = <0 0x400000>;
+			alignment = <0 0x400000>;
+		};
+		qman_pfdr: qman-pfdr {
+			size = <0 0x2000000>;
+			alignment = <0 0x2000000>;
+		};
+	};
+
+	dcsr: dcsr@f00000000 {
+		ranges = <0x00000000 0xf 0x00000000 0x01072000>;
+	};
+
+	bportals: bman-portals@ff4000000 {
+		ranges = <0x0 0xf 0xf4000000 0x2000000>;
+	};
+
+	qportals: qman-portals@ff6000000 {
+		ranges = <0x0 0xf 0xf6000000 0x2000000>;
+	};
+
+	soc: soc@ffe000000 {
+		ranges = <0x00000000 0xf 0xfe000000 0x1000000>;
+		reg = <0xf 0xfe000000 0 0x00001000>;
+		spi@110000 {
+			flash@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "sst,sst25wf040", "jedec,spi-nor";
+				reg = <0>;
+				spi-max-frequency = <40000000>; /* input clock */
+			};
+		};
+
+		i2c@118000 {
+			mux@77 {
+				compatible = "nxp,pca9547";
+				reg = <0x77>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				i2c@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					eeprom@51 {
+						compatible = "at24,24c256";
+						reg = <0x51>;
+					};
+					eeprom@52 {
+						compatible = "at24,24c256";
+						reg = <0x52>;
+					};
+					eeprom@53 {
+						compatible = "at24,24c256";
+						reg = <0x53>;
+					};
+					eeprom@54 {
+						compatible = "at24,24c256";
+						reg = <0x54>;
+					};
+					eeprom@55 {
+						compatible = "at24,24c256";
+						reg = <0x55>;
+					};
+					eeprom@56 {
+						compatible = "at24,24c256";
+						reg = <0x56>;
+					};
+					rtc@68 {
+						compatible = "dallas,ds3232";
+						reg = <0x68>;
+						interrupts = <0x1 0x1 0 0>;
+					};
+				};
+
+				i2c@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x2>;
+
+					ina220@40 {
+						compatible = "ti,ina220";
+						reg = <0x40>;
+						shunt-resistor = <1000>;
+					};
+
+					ina220@41 {
+						compatible = "ti,ina220";
+						reg = <0x41>;
+						shunt-resistor = <1000>;
+					};
+
+					ina220@44 {
+						compatible = "ti,ina220";
+						reg = <0x44>;
+						shunt-resistor = <1000>;
+					};
+
+					ina220@45 {
+						compatible = "ti,ina220";
+						reg = <0x45>;
+						shunt-resistor = <1000>;
+					};
+
+					ina220@46 {
+						compatible = "ti,ina220";
+						reg = <0x46>;
+						shunt-resistor = <1000>;
+					};
+
+					ina220@47 {
+						compatible = "ti,ina220";
+						reg = <0x47>;
+						shunt-resistor = <1000>;
+					};
+				};
+			};
+		};
+
+		sdhc@114000 {
+			voltage-ranges = <1800 1800 3300 3300>;
+		};
+
+		fman@400000 {
+			port@83000 {
+				status = "disabled";
+			};
+
+			port@84000 {
+				status = "disabled";
+			};
+
+			port@85000 {
+				status = "disabled";
+			};
+
+			port@86000 {
+				status = "disabled";
+			};
+
+			port@87000 {
+				status = "disabled";
+			};
+
+			ethernet@e0000 {
+				phy-handle = <&phy5>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e2000 {
+				phy-handle = <&phy6>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e4000 {
+				phy-handle = <&phy7>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e6000 {
+				phy-handle = <&phy8>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e8000 {
+				phy-handle = <&phyrgmii2>;
+				phy-connection-type = "rgmii";
+			};
+
+			ethernet@ea000 {
+				phy-handle = <&phy2>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@f0000 {
+				phy-handle = <&xauiphy1>;
+				phy-connection-type = "xgmii";
+			};
+
+			ethernet@f2000 {
+				phy-handle = <&xauiphy2>;
+				phy-connection-type = "xgmii";
+			};
+
+			xfimdio0: mdio@f1000 {
+				status = "disabled";
+
+				xfiphy1: ethernet-phy@0 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x0>;
+				};
+			};
+
+			xfimdio1: mdio@f3000 {
+				status = "disabled";
+
+				xfiphy2: ethernet-phy@0 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x0>;
+				};
+			};
+		};
+
+		fman@500000 {
+			port@84000 {
+				status = "disabled";
+			};
+
+			port@85000 {
+				status = "disabled";
+			};
+
+			port@86000 {
+				status = "disabled";
+			};
+
+			port@87000 {
+				status = "disabled";
+			};
+
+			ethernet@e0000 {
+				phy-handle = <&phy13>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e2000 {
+				phy-handle = <&phy14>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e4000 {
+				phy-handle = <&phy15>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e6000 {
+				phy-handle = <&phy16>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e8000 {
+				phy-handle = <&phyrgmii1>;
+				phy-connection-type = "rgmii";
+			};
+
+			ethernet@ea000 {
+				phy-handle = <&phy10>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@f0000 {
+				phy-handle = <&xauiphy3>;
+				phy-connection-type = "xgmii";
+			};
+
+			ethernet@f2000 {
+				phy-handle = <&xauiphy4>;
+				phy-connection-type = "xgmii";
+			};
+
+			xfimdio2: mdio@f1000 {
+				status = "disabled";
+
+				xfiphy3: ethernet-phy@0 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x0>;
+				};
+			};
+
+			xfimdio3: mdio@f3000 {
+				status = "disabled";
+
+				xfiphy4: ethernet-phy@0 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x0>;
+				};
+			};
+
+			mdio@fd000 {
+				xauiphy1: ethernet-phy@0 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x0>;
+				};
+
+				xauiphy2: ethernet-phy@1 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x1>;
+				};
+
+				xauiphy3: ethernet-phy@2 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x2>;
+				};
+
+				xauiphy4: ethernet-phy@3 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x3>;
+				};
+			};
+		};
+	};
+
+	pci0: pcie@ffe240000 {
+		reg = <0xf 0xfe240000 0 0x10000>;
+		ranges = <0x02000000 0 0xe0000000 0xc 0x00000000 0x0 0x20000000
+			  0x01000000 0 0x00000000 0xf 0xf8000000 0x0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0xe0000000
+				  0x02000000 0 0xe0000000
+				  0 0x20000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0x00000000
+				  0 0x00010000>;
+		};
+	};
+
+	pci1: pcie@ffe250000 {
+		reg = <0xf 0xfe250000 0 0x10000>;
+		ranges = <0x02000000 0x0 0xe0000000 0xc 0x20000000 0x0 0x20000000
+			  0x01000000 0x0 0x00000000 0xf 0xf8010000 0x0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0xe0000000
+				  0x02000000 0 0xe0000000
+				  0 0x20000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0x00000000
+				  0 0x00010000>;
+		};
+	};
+
+	pci2: pcie@ffe260000 {
+		reg = <0xf 0xfe260000 0 0x1000>;
+		ranges = <0x02000000 0 0xe0000000 0xc 0x40000000 0 0x20000000
+			  0x01000000 0 0x00000000 0xf 0xf8020000 0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0xe0000000
+				  0x02000000 0 0xe0000000
+				  0 0x20000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0x00000000
+				  0 0x00010000>;
+		};
+	};
+
+	pci3: pcie@ffe270000 {
+		reg = <0xf 0xfe270000 0 0x10000>;
+		ranges = <0x02000000 0 0xe0000000 0xc 0x60000000 0 0x20000000
+			  0x01000000 0 0x00000000 0xf 0xf8030000 0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0xe0000000
+				  0x02000000 0 0xe0000000
+				  0 0x20000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0x00000000
+				  0 0x00010000>;
+		};
+	};
+	rio: rapidio@ffe0c0000 {
+		reg = <0xf 0xfe0c0000 0 0x11000>;
+
+		port1 {
+			ranges = <0 0 0xc 0x20000000 0 0x10000000>;
+		};
+		port2 {
+			ranges = <0 0 0xc 0x30000000 0 0x10000000>;
+		};
+	};
+};
+
+/include/ "t4240si-post.dtsi"

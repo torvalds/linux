@@ -10,10 +10,10 @@ extern int iscsit_access_np(struct iscsi_np *, struct iscsi_portal_group *);
 extern void iscsit_login_kref_put(struct kref *);
 extern int iscsit_deaccess_np(struct iscsi_np *, struct iscsi_portal_group *,
 				struct iscsi_tpg_np *);
-extern bool iscsit_check_np_match(struct __kernel_sockaddr_storage *,
+extern bool iscsit_check_np_match(struct sockaddr_storage *,
 				struct iscsi_np *, int);
-extern struct iscsi_np *iscsit_add_np(struct __kernel_sockaddr_storage *,
-				char *, int);
+extern struct iscsi_np *iscsit_add_np(struct sockaddr_storage *,
+				int);
 extern int iscsit_reset_np_thread(struct iscsi_np *, struct iscsi_tpg_np *,
 				struct iscsi_portal_group *, bool);
 extern int iscsit_del_np(struct iscsi_np *);
@@ -35,7 +35,7 @@ extern void iscsit_stop_session(struct iscsi_session *, int, int);
 extern int iscsit_release_sessions_for_tpg(struct iscsi_portal_group *, int);
 
 extern struct iscsit_global *iscsit_global;
-extern struct target_fabric_configfs *lio_target_fabric_configfs;
+extern const struct target_core_fabric_ops iscsi_ops;
 
 extern struct kmem_cache *lio_dr_cache;
 extern struct kmem_cache *lio_ooo_cache;

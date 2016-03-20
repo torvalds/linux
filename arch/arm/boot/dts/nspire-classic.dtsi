@@ -51,6 +51,11 @@
 	compatible = "lsi,nspire-classic-ahb-divider";
 };
 
+
+&vbus_reg {
+	gpio = <&gpio 5 0>;
+};
+
 / {
 	memory {
 		device_type = "memory";

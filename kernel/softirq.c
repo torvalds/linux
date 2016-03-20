@@ -114,8 +114,12 @@ void __local_bh_disable_ip(unsigned long ip, unsigned int cnt)
 		trace_softirqs_off(ip);
 	raw_local_irq_restore(flags);
 
-	if (preempt_count() == cnt)
-		trace_preempt_off(CALLER_ADDR0, get_parent_ip(CALLER_ADDR1));
+	if (preempt_count() == cnt) {
+#ifdef CONFIG_DEBUG_PREEMPT
+		current->preempt_disable_ip = get_lock_parent_ip();
+#endif
+		trace_preempt_off(CALLER_ADDR0, get_lock_parent_ip());
+	}
 }
 EXPORT_SYMBOL(__local_bh_disable_ip);
 #endif /* CONFIG_TRACE_IRQFLAGS */
@@ -278,7 +282,7 @@ restart:
 		pending >>= softirq_bit;
 	}
 
-	rcu_bh_qs(smp_processor_id());
+	rcu_bh_qs();
 	local_irq_disable();
 
 	pending = local_softirq_pending();
@@ -485,7 +489,7 @@ static void tasklet_action(struct softirq_action *a)
 	local_irq_disable();
 	list = __this_cpu_read(tasklet_vec.head);
 	__this_cpu_write(tasklet_vec.head, NULL);
-	__this_cpu_write(tasklet_vec.tail, &__get_cpu_var(tasklet_vec).head);
+	__this_cpu_write(tasklet_vec.tail, this_cpu_ptr(&tasklet_vec.head));
 	local_irq_enable();
 
 	while (list) {
@@ -521,7 +525,7 @@ static void tasklet_hi_action(struct softirq_action *a)
 	local_irq_disable();
 	list = __this_cpu_read(tasklet_hi_vec.head);
 	__this_cpu_write(tasklet_hi_vec.head, NULL);
-	__this_cpu_write(tasklet_hi_vec.tail, &__get_cpu_var(tasklet_hi_vec).head);
+	__this_cpu_write(tasklet_hi_vec.tail, this_cpu_ptr(&tasklet_hi_vec.head));
 	local_irq_enable();
 
 	while (list) {
@@ -656,9 +660,8 @@ static void run_ksoftirqd(unsigned int cpu)
 		 * in the task stack here.
 		 */
 		__do_softirq();
-		rcu_note_context_switch(cpu);
 		local_irq_enable();
-		cond_resched();
+		cond_resched_rcu_qs();
 		return;
 	}
 	local_irq_enable();

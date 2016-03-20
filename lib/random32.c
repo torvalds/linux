@@ -37,6 +37,7 @@
 #include <linux/jiffies.h>
 #include <linux/random.h>
 #include <linux/sched.h>
+#include <asm/unaligned.h>
 
 #ifdef CONFIG_RANDOM32_SELFTEST
 static void __init prandom_state_selftest(void);
@@ -96,27 +97,23 @@ EXPORT_SYMBOL(prandom_u32);
  *	This is used for pseudo-randomness with no outside seeding.
  *	For more random results, use prandom_bytes().
  */
-void prandom_bytes_state(struct rnd_state *state, void *buf, int bytes)
+void prandom_bytes_state(struct rnd_state *state, void *buf, size_t bytes)
 {
-	unsigned char *p = buf;
-	int i;
+	u8 *ptr = buf;
 
-	for (i = 0; i < round_down(bytes, sizeof(u32)); i += sizeof(u32)) {
-		u32 random = prandom_u32_state(state);
-		int j;
-
-		for (j = 0; j < sizeof(u32); j++) {
-			p[i + j] = random;
-			random >>= BITS_PER_BYTE;
-		}
+	while (bytes >= sizeof(u32)) {
+		put_unaligned(prandom_u32_state(state), (u32 *) ptr);
+		ptr += sizeof(u32);
+		bytes -= sizeof(u32);
 	}
-	if (i < bytes) {
-		u32 random = prandom_u32_state(state);
 
-		for (; i < bytes; i++) {
-			p[i] = random;
-			random >>= BITS_PER_BYTE;
-		}
+	if (bytes > 0) {
+		u32 rem = prandom_u32_state(state);
+		do {
+			*ptr++ = (u8) rem;
+			bytes--;
+			rem >>= BITS_PER_BYTE;
+		} while (bytes > 0);
 	}
 }
 EXPORT_SYMBOL(prandom_bytes_state);
@@ -126,7 +123,7 @@ EXPORT_SYMBOL(prandom_bytes_state);
  *	@buf: where to copy the pseudo-random bytes to
  *	@bytes: the requested number of bytes
  */
-void prandom_bytes(void *buf, int bytes)
+void prandom_bytes(void *buf, size_t bytes)
 {
 	struct rnd_state *state = &get_cpu_var(net_rand_state);
 
@@ -137,7 +134,7 @@ EXPORT_SYMBOL(prandom_bytes);
 
 static void prandom_warmup(struct rnd_state *state)
 {
-	/* Calling RNG ten times to satify recurrence condition */
+	/* Calling RNG ten times to satisfy recurrence condition */
 	prandom_u32_state(state);
 	prandom_u32_state(state);
 	prandom_u32_state(state);
@@ -152,7 +149,7 @@ static void prandom_warmup(struct rnd_state *state)
 
 static u32 __extract_hwseed(void)
 {
-	u32 val = 0;
+	unsigned int val = 0;
 
 	(void)(arch_get_random_seed_int(&val) ||
 	       arch_get_random_int(&val));
@@ -184,7 +181,7 @@ void prandom_seed(u32 entropy)
 	 * No locking on the CPUs, but then somewhat random results are, well,
 	 * expected.
 	 */
-	for_each_possible_cpu (i) {
+	for_each_possible_cpu(i) {
 		struct rnd_state *state = &per_cpu(net_rand_state, i);
 
 		state->s1 = __seed(state->s1 ^ entropy, 2U);
@@ -204,7 +201,7 @@ static int __init prandom_init(void)
 	prandom_state_selftest();
 
 	for_each_possible_cpu(i) {
-		struct rnd_state *state = &per_cpu(net_rand_state,i);
+		struct rnd_state *state = &per_cpu(net_rand_state, i);
 		u32 weak_seed = (i + jiffies) ^ random_get_entropy();
 
 		prandom_seed_early(state, weak_seed, true);
@@ -228,7 +225,7 @@ static void __prandom_timer(unsigned long dontcare)
 	prandom_seed(entropy);
 
 	/* reseed every ~60 seconds, in [40 .. 80) interval with slack */
-	expires = 40 + (prandom_u32() % 40);
+	expires = 40 + prandom_u32_max(40);
 	seed_timer.expires = jiffies + msecs_to_jiffies(expires * MSEC_PER_SEC);
 
 	add_timer(&seed_timer);
@@ -241,13 +238,31 @@ static void __init __prandom_start_seed_timer(void)
 	add_timer(&seed_timer);
 }
 
+void prandom_seed_full_state(struct rnd_state __percpu *pcpu_state)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct rnd_state *state = per_cpu_ptr(pcpu_state, i);
+		u32 seeds[4];
+
+		get_random_bytes(&seeds, sizeof(seeds));
+		state->s1 = __seed(seeds[0],   2U);
+		state->s2 = __seed(seeds[1],   8U);
+		state->s3 = __seed(seeds[2],  16U);
+		state->s4 = __seed(seeds[3], 128U);
+
+		prandom_warmup(state);
+	}
+}
+EXPORT_SYMBOL(prandom_seed_full_state);
+
 /*
  *	Generate better values after random number generator
  *	is fully initialized.
  */
 static void __prandom_reseed(bool late)
 {
-	int i;
 	unsigned long flags;
 	static bool latch = false;
 	static DEFINE_SPINLOCK(lock);
@@ -269,19 +284,7 @@ static void __prandom_reseed(bool late)
 		goto out;
 
 	latch = true;
-
-	for_each_possible_cpu(i) {
-		struct rnd_state *state = &per_cpu(net_rand_state,i);
-		u32 seeds[4];
-
-		get_random_bytes(&seeds, sizeof(seeds));
-		state->s1 = __seed(seeds[0],   2U);
-		state->s2 = __seed(seeds[1],   8U);
-		state->s3 = __seed(seeds[2],  16U);
-		state->s4 = __seed(seeds[3], 128U);
-
-		prandom_warmup(state);
-	}
+	prandom_seed_full_state(&net_rand_state);
 out:
 	spin_unlock_irqrestore(&lock, flags);
 }

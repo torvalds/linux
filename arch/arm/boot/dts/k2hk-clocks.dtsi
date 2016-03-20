@@ -22,9 +22,8 @@ clocks {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,main-pll-clock";
 		clocks = <&refclksys>;
-		reg = <0x02620350 4>, <0x02310110 4>;
-		reg-names = "control", "multiplier";
-		fixed-postdiv = <2>;
+		reg = <0x02620350 4>, <0x02310110 4>, <0x02310108 4>;
+		reg-names = "control", "multiplier", "post-divider";
 	};
 
 	papllclk: papllclk@2620358 {

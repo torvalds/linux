@@ -57,9 +57,10 @@ enum scsi_device_event {
 	SDEV_EVT_SOFT_THRESHOLD_REACHED_REPORTED,	/* 38 07  UA reported */
 	SDEV_EVT_MODE_PARAMETER_CHANGE_REPORTED,	/* 2A 01  UA reported */
 	SDEV_EVT_LUN_CHANGE_REPORTED,			/* 3F 0E  UA reported */
+	SDEV_EVT_ALUA_STATE_CHANGE_REPORTED,		/* 2A 06  UA reported */
 
 	SDEV_EVT_FIRST		= SDEV_EVT_MEDIA_CHANGE,
-	SDEV_EVT_LAST		= SDEV_EVT_LUN_CHANGE_REPORTED,
+	SDEV_EVT_LAST		= SDEV_EVT_ALUA_STATE_CHANGE_REPORTED,
 
 	SDEV_EVT_MAXBITS	= SDEV_EVT_LAST + 1
 };
@@ -108,6 +109,7 @@ struct scsi_device {
 	char type;
 	char scsi_level;
 	char inq_periph_qual;	/* PQ from INQUIRY data */	
+	struct mutex inquiry_mutex;
 	unsigned char inquiry_len;	/* valid bytes in 'inquiry' */
 	unsigned char * inquiry;	/* INQUIRY response data */
 	const char * vendor;		/* [back_compat] point into 'inquiry' ... */
@@ -116,9 +118,9 @@ struct scsi_device {
 
 #define SCSI_VPD_PG_LEN                255
 	int vpd_pg83_len;
-	unsigned char *vpd_pg83;
+	unsigned char __rcu *vpd_pg83;
 	int vpd_pg80_len;
-	unsigned char *vpd_pg80;
+	unsigned char __rcu *vpd_pg80;
 	unsigned char current_tag;	/* current tag */
 	struct scsi_target      *sdev_target;   /* used only for single_lun */
 
@@ -141,7 +143,6 @@ struct scsi_device {
 	unsigned ppr:1;		/* Device supports PPR messages */
 	unsigned tagged_supported:1;	/* Supports SCSI-II tagged queuing */
 	unsigned simple_tags:1;	/* simple queue tag messages are enabled */
-	unsigned ordered_tags:1;/* ordered queue tag messages are enabled */
 	unsigned was_reset:1;	/* There was a bus reset on the bus for 
 				 * this device */
 	unsigned expecting_cc_ua:1; /* Expecting a CHECK_CONDITION/UNIT_ATTN
@@ -174,6 +175,8 @@ struct scsi_device {
 	unsigned wce_default_on:1;	/* Cache is ON by default */
 	unsigned no_dif:1;	/* T10 PI (DIF) should be disabled */
 	unsigned broken_fua:1;		/* Don't set FUA bit */
+	unsigned lun_in_cdb:1;		/* Store LUN bits in CDB[1] */
+	unsigned synchronous_alua:1;	/* Synchronous ALUA commands */
 
 	atomic_t disk_events_disable_depth; /* disable depth for disk events */
 
@@ -195,40 +198,13 @@ struct scsi_device {
 	struct execute_work	ew; /* used to get process context on put */
 	struct work_struct	requeue_work;
 
-	struct scsi_dh_data	*scsi_dh_data;
+	struct scsi_device_handler *handler;
+	void			*handler_data;
+
+	unsigned char		access_state;
 	enum scsi_device_state sdev_state;
 	unsigned long		sdev_data[0];
 } __attribute__((aligned(sizeof(unsigned long))));
-
-struct scsi_dh_devlist {
-	char *vendor;
-	char *model;
-};
-
-typedef void (*activate_complete)(void *, int);
-struct scsi_device_handler {
-	/* Used by the infrastructure */
-	struct list_head list; /* list of scsi_device_handlers */
-
-	/* Filled by the hardware handler */
-	struct module *module;
-	const char *name;
-	const struct scsi_dh_devlist *devlist;
-	int (*check_sense)(struct scsi_device *, struct scsi_sense_hdr *);
-	int (*attach)(struct scsi_device *);
-	void (*detach)(struct scsi_device *);
-	int (*activate)(struct scsi_device *, activate_complete, void *);
-	int (*prep_fn)(struct scsi_device *, struct request *);
-	int (*set_params)(struct scsi_device *, const char *);
-	bool (*match)(struct scsi_device *);
-};
-
-struct scsi_dh_data {
-	struct scsi_device_handler *scsi_dh;
-	struct scsi_device *sdev;
-	struct kref kref;
-	char buf[0];
-};
 
 #define	to_scsi_device(d)	\
 	container_of(d, struct scsi_device, sdev_gendev)
@@ -237,17 +213,22 @@ struct scsi_dh_data {
 #define transport_class_to_sdev(class_dev) \
 	to_scsi_device(class_dev->parent)
 
-#define sdev_printk(prefix, sdev, fmt, a...)	\
-	dev_printk(prefix, &(sdev)->sdev_gendev, fmt, ##a)
-
 #define sdev_dbg(sdev, fmt, a...) \
 	dev_dbg(&(sdev)->sdev_gendev, fmt, ##a)
 
-#define scmd_printk(prefix, scmd, fmt, a...)				\
-        (scmd)->request->rq_disk ?					\
-	sdev_printk(prefix, (scmd)->device, "[%s] " fmt,		\
-		    (scmd)->request->rq_disk->disk_name, ##a) :		\
-	sdev_printk(prefix, (scmd)->device, fmt, ##a)
+/*
+ * like scmd_printk, but the device name is passed in
+ * as a string pointer
+ */
+__printf(4, 5) void
+sdev_prefix_printk(const char *, const struct scsi_device *, const char *,
+		const char *, ...);
+
+#define sdev_printk(l, sdev, fmt, a...)				\
+	sdev_prefix_printk(l, sdev, NULL, fmt, ##a)
+
+__printf(3, 4) void
+scmd_printk(const char *, const struct scsi_cmnd *, const char *, ...);
 
 #define scmd_dbg(scmd, fmt, a...)					   \
 	do {								   \
@@ -378,7 +359,7 @@ extern struct scsi_device *__scsi_iterate_devices(struct Scsi_Host *,
 #define __shost_for_each_device(sdev, shost) \
 	list_for_each_entry((sdev), &((shost)->__devices), siblings)
 
-extern void scsi_adjust_queue_depth(struct scsi_device *, int, int);
+extern int scsi_change_queue_depth(struct scsi_device *, int);
 extern int scsi_track_queue_full(struct scsi_device *, int);
 
 extern int scsi_set_medium_removal(struct scsi_device *, char);
@@ -415,11 +396,10 @@ extern void scsi_target_reap(struct scsi_target *);
 extern void scsi_target_block(struct device *);
 extern void scsi_target_unblock(struct device *, enum scsi_device_state);
 extern void scsi_remove_target(struct device *);
-extern void int_to_scsilun(u64, struct scsi_lun *);
-extern u64 scsilun_to_int(struct scsi_lun *);
 extern const char *scsi_device_state_name(enum scsi_device_state);
 extern int scsi_is_sdev_device(const struct device *);
 extern int scsi_is_target_device(const struct device *);
+extern void scsi_sanitize_inquiry_string(unsigned char *s, int len);
 extern int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 			int data_direction, void *buffer, unsigned bufflen,
 			unsigned char *sense, int timeout, int retries,
@@ -438,14 +418,16 @@ static inline int scsi_execute_req(struct scsi_device *sdev,
 }
 extern void sdev_disable_disk_events(struct scsi_device *sdev);
 extern void sdev_enable_disk_events(struct scsi_device *sdev);
+extern int scsi_vpd_lun_id(struct scsi_device *, char *, size_t);
+extern int scsi_vpd_tpg_id(struct scsi_device *, int *);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 extern int scsi_autopm_get_device(struct scsi_device *);
 extern void scsi_autopm_put_device(struct scsi_device *);
 #else
 static inline int scsi_autopm_get_device(struct scsi_device *d) { return 0; }
 static inline void scsi_autopm_put_device(struct scsi_device *d) {}
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 static inline int __must_check scsi_device_reprobe(struct scsi_device *sdev)
 {

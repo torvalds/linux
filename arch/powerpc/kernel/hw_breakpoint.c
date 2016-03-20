@@ -63,7 +63,7 @@ int hw_breakpoint_slots(int type)
 int arch_install_hw_breakpoint(struct perf_event *bp)
 {
 	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
-	struct perf_event **slot = &__get_cpu_var(bp_per_reg);
+	struct perf_event **slot = this_cpu_ptr(&bp_per_reg);
 
 	*slot = bp;
 
@@ -88,7 +88,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
  */
 void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 {
-	struct perf_event **slot = &__get_cpu_var(bp_per_reg);
+	struct perf_event **slot = this_cpu_ptr(&bp_per_reg);
 
 	if (*slot != bp) {
 		WARN_ONCE(1, "Can't find the breakpoint");
@@ -109,8 +109,9 @@ void arch_unregister_hw_breakpoint(struct perf_event *bp)
 	 * If the breakpoint is unregistered between a hw_breakpoint_handler()
 	 * and the single_step_dabr_instruction(), then cleanup the breakpoint
 	 * restoration variables to prevent dangling pointers.
+	 * FIXME, this should not be using bp->ctx at all! Sayeth peterz.
 	 */
-	if (bp->ctx && bp->ctx->task)
+	if (bp->ctx && bp->ctx->task && bp->ctx->task != ((void *)-1L))
 		bp->ctx->task->thread.last_hit_ubp = NULL;
 }
 
@@ -226,7 +227,7 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 	 */
 	rcu_read_lock();
 
-	bp = __get_cpu_var(bp_per_reg);
+	bp = __this_cpu_read(bp_per_reg);
 	if (!bp)
 		goto out;
 	info = counter_arch_bp(bp);
@@ -293,7 +294,7 @@ out:
 /*
  * Handle single-step exceptions following a DABR hit.
  */
-int __kprobes single_step_dabr_instruction(struct die_args *args)
+static int __kprobes single_step_dabr_instruction(struct die_args *args)
 {
 	struct pt_regs *regs = args->regs;
 	struct perf_event *bp = NULL;

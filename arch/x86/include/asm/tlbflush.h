@@ -5,7 +5,56 @@
 #include <linux/sched.h>
 
 #include <asm/processor.h>
+#include <asm/cpufeature.h>
 #include <asm/special_insns.h>
+
+static inline void __invpcid(unsigned long pcid, unsigned long addr,
+			     unsigned long type)
+{
+	struct { u64 d[2]; } desc = { { pcid, addr } };
+
+	/*
+	 * The memory clobber is because the whole point is to invalidate
+	 * stale TLB entries and, especially if we're flushing global
+	 * mappings, we don't want the compiler to reorder any subsequent
+	 * memory accesses before the TLB flush.
+	 *
+	 * The hex opcode is invpcid (%ecx), %eax in 32-bit mode and
+	 * invpcid (%rcx), %rax in long mode.
+	 */
+	asm volatile (".byte 0x66, 0x0f, 0x38, 0x82, 0x01"
+		      : : "m" (desc), "a" (type), "c" (&desc) : "memory");
+}
+
+#define INVPCID_TYPE_INDIV_ADDR		0
+#define INVPCID_TYPE_SINGLE_CTXT	1
+#define INVPCID_TYPE_ALL_INCL_GLOBAL	2
+#define INVPCID_TYPE_ALL_NON_GLOBAL	3
+
+/* Flush all mappings for a given pcid and addr, not including globals. */
+static inline void invpcid_flush_one(unsigned long pcid,
+				     unsigned long addr)
+{
+	__invpcid(pcid, addr, INVPCID_TYPE_INDIV_ADDR);
+}
+
+/* Flush all mappings for a given PCID, not including globals. */
+static inline void invpcid_flush_single_context(unsigned long pcid)
+{
+	__invpcid(pcid, 0, INVPCID_TYPE_SINGLE_CTXT);
+}
+
+/* Flush all mappings, including globals, for all PCIDs. */
+static inline void invpcid_flush_all(void)
+{
+	__invpcid(0, 0, INVPCID_TYPE_ALL_INCL_GLOBAL);
+}
+
+/* Flush all mappings for all PCIDs except globals. */
+static inline void invpcid_flush_all_nonglobals(void)
+{
+	__invpcid(0, 0, INVPCID_TYPE_ALL_NON_GLOBAL);
+}
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
@@ -14,6 +63,75 @@
 #define __flush_tlb_global() __native_flush_tlb_global()
 #define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
 #endif
+
+struct tlb_state {
+#ifdef CONFIG_SMP
+	struct mm_struct *active_mm;
+	int state;
+#endif
+
+	/*
+	 * Access to this CR4 shadow and to H/W CR4 is protected by
+	 * disabling interrupts when modifying either one.
+	 */
+	unsigned long cr4;
+};
+DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
+
+/* Initialize cr4 shadow for this CPU. */
+static inline void cr4_init_shadow(void)
+{
+	this_cpu_write(cpu_tlbstate.cr4, __read_cr4());
+}
+
+/* Set in this cpu's CR4. */
+static inline void cr4_set_bits(unsigned long mask)
+{
+	unsigned long cr4;
+
+	cr4 = this_cpu_read(cpu_tlbstate.cr4);
+	if ((cr4 | mask) != cr4) {
+		cr4 |= mask;
+		this_cpu_write(cpu_tlbstate.cr4, cr4);
+		__write_cr4(cr4);
+	}
+}
+
+/* Clear in this cpu's CR4. */
+static inline void cr4_clear_bits(unsigned long mask)
+{
+	unsigned long cr4;
+
+	cr4 = this_cpu_read(cpu_tlbstate.cr4);
+	if ((cr4 & ~mask) != cr4) {
+		cr4 &= ~mask;
+		this_cpu_write(cpu_tlbstate.cr4, cr4);
+		__write_cr4(cr4);
+	}
+}
+
+/* Read the CR4 shadow. */
+static inline unsigned long cr4_read_shadow(void)
+{
+	return this_cpu_read(cpu_tlbstate.cr4);
+}
+
+/*
+ * Save some of cr4 feature set we're using (e.g.  Pentium 4MB
+ * enable and PPro Global page enable), so that any CPU's that boot
+ * up after us can get the correct flags.  This should only be used
+ * during boot on the boot cpu.
+ */
+extern unsigned long mmu_cr4_features;
+extern u32 *trampoline_cr4_features;
+
+static inline void cr4_set_bits_and_update_boot(unsigned long mask)
+{
+	mmu_cr4_features |= mask;
+	if (trampoline_cr4_features)
+		*trampoline_cr4_features = mmu_cr4_features;
+	cr4_set_bits(mask);
+}
 
 static inline void __native_flush_tlb(void)
 {
@@ -24,7 +142,7 @@ static inline void __native_flush_tlb_global_irq_disabled(void)
 {
 	unsigned long cr4;
 
-	cr4 = native_read_cr4();
+	cr4 = this_cpu_read(cpu_tlbstate.cr4);
 	/* clear PGE */
 	native_write_cr4(cr4 & ~X86_CR4_PGE);
 	/* write old PGE again and flush TLBs */
@@ -34,6 +152,15 @@ static inline void __native_flush_tlb_global_irq_disabled(void)
 static inline void __native_flush_tlb_global(void)
 {
 	unsigned long flags;
+
+	if (static_cpu_has(X86_FEATURE_INVPCID)) {
+		/*
+		 * Using INVPCID is considerably faster than a pair of writes
+		 * to CR4 sandwiched inside an IRQ flag save/restore.
+		 */
+		invpcid_flush_all();
+		return;
+	}
 
 	/*
 	 * Read-modify-write to CR4 - protect it from preemption and
@@ -184,12 +311,6 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 #define TLBSTATE_OK	1
 #define TLBSTATE_LAZY	2
 
-struct tlb_state {
-	struct mm_struct *active_mm;
-	int state;
-};
-DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
-
 static inline void reset_lazy_tlbstate(void)
 {
 	this_cpu_write(cpu_tlbstate.state, 0);
@@ -197,6 +318,12 @@ static inline void reset_lazy_tlbstate(void)
 }
 
 #endif	/* SMP */
+
+/* Not inlined due to inc_irq_stat not being defined yet */
+#define flush_tlb_local() {		\
+	inc_irq_stat(irq_tlb_count);	\
+	local_flush_tlb();		\
+}
 
 #ifndef CONFIG_PARAVIRT
 #define flush_tlb_others(mask, mm, start, end)	\

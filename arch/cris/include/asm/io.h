@@ -2,7 +2,9 @@
 #define _ASM_CRIS_IO_H
 
 #include <asm/page.h>   /* for __va, __pa */
+#ifdef CONFIG_ETRAX_ARCH_V10
 #include <arch/io.h>
+#endif
 #include <asm-generic/iomap.h>
 #include <linux/kernel.h>
 
@@ -112,6 +114,9 @@ static inline void writel(unsigned int b, volatile void __iomem *addr)
 	else
 		*(volatile unsigned int __force *) addr = b;
 }
+#define writeb_relaxed(b, addr) writeb(b, addr)
+#define writew_relaxed(b, addr) writew(b, addr)
+#define writel_relaxed(b, addr) writel(b, addr)
 #define __raw_writeb writeb
 #define __raw_writew writew
 #define __raw_writel writel

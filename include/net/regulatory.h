@@ -136,6 +136,35 @@ struct regulatory_request {
  *      otherwise initiating radiation is not allowed. This will enable the
  *      relaxations enabled under the CFG80211_REG_RELAX_NO_IR configuration
  *      option
+ * @REGULATORY_IGNORE_STALE_KICKOFF: the regulatory core will _not_ make sure
+ *	all interfaces on this wiphy reside on allowed channels. If this flag
+ *	is not set, upon a regdomain change, the interfaces are given a grace
+ *	period (currently 60 seconds) to disconnect or move to an allowed
+ *	channel. Interfaces on forbidden channels are forcibly disconnected.
+ *	Currently these types of interfaces are supported for enforcement:
+ *	NL80211_IFTYPE_ADHOC, NL80211_IFTYPE_STATION, NL80211_IFTYPE_AP,
+ *	NL80211_IFTYPE_AP_VLAN, NL80211_IFTYPE_MONITOR,
+ *	NL80211_IFTYPE_P2P_CLIENT, NL80211_IFTYPE_P2P_GO,
+ *	NL80211_IFTYPE_P2P_DEVICE. The flag will be set by default if a device
+ *	includes any modes unsupported for enforcement checking.
+ * @REGULATORY_WIPHY_SELF_MANAGED: for devices that employ wiphy-specific
+ *	regdom management. These devices will ignore all regdom changes not
+ *	originating from their own wiphy.
+ *	A self-managed wiphys only employs regulatory information obtained from
+ *	the FW and driver and does not use other cfg80211 sources like
+ *	beacon-hints, country-code IEs and hints from other devices on the same
+ *	system. Conversely, a self-managed wiphy does not share its regulatory
+ *	hints with other devices in the system. If a system contains several
+ *	devices, one or more of which are self-managed, there might be
+ *	contradictory regulatory settings between them. Usage of flag is
+ *	generally discouraged. Only use it if the FW/driver is incompatible
+ *	with non-locally originated hints.
+ *	This flag is incompatible with the flags: %REGULATORY_CUSTOM_REG,
+ *	%REGULATORY_STRICT_REG, %REGULATORY_COUNTRY_IE_FOLLOW_POWER,
+ *	%REGULATORY_COUNTRY_IE_IGNORE and %REGULATORY_DISABLE_BEACON_HINTS.
+ *	Mixing any of the above flags with this flag will result in a failure
+ *	to register the wiphy. This flag implies
+ *	%REGULATORY_DISABLE_BEACON_HINTS and %REGULATORY_COUNTRY_IE_IGNORE.
  */
 enum ieee80211_regulatory_flags {
 	REGULATORY_CUSTOM_REG			= BIT(0),
@@ -144,6 +173,8 @@ enum ieee80211_regulatory_flags {
 	REGULATORY_COUNTRY_IE_FOLLOW_POWER	= BIT(3),
 	REGULATORY_COUNTRY_IE_IGNORE		= BIT(4),
 	REGULATORY_ENABLE_RELAX_NO_IR           = BIT(5),
+	REGULATORY_IGNORE_STALE_KICKOFF         = BIT(6),
+	REGULATORY_WIPHY_SELF_MANAGED		= BIT(7),
 };
 
 struct ieee80211_freq_range {
@@ -167,7 +198,7 @@ struct ieee80211_reg_rule {
 struct ieee80211_regdomain {
 	struct rcu_head rcu_head;
 	u32 n_reg_rules;
-	char alpha2[2];
+	char alpha2[3];
 	enum nl80211_dfs_regions dfs_region;
 	struct ieee80211_reg_rule reg_rules[];
 };

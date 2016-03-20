@@ -1,0 +1,44 @@
+#
+# Industrial I/O generic buffer implementations
+#
+# When adding new entries keep the list in alphabetical order
+
+config IIO_BUFFER_CB
+	tristate "IIO callback buffer used for push in-kernel interfaces"
+	help
+	  Should be selected by any drivers that do in-kernel push
+	  usage.  That is, those where the data is pushed to the consumer.
+
+config IIO_BUFFER_DMA
+	tristate
+	help
+	  Provides the generic IIO DMA buffer infrastructure that can be used by
+	  drivers for devices with DMA support to implement the IIO buffer.
+
+	  Should be selected by drivers that want to use the generic DMA buffer
+	  infrastructure.
+
+config IIO_BUFFER_DMAENGINE
+	tristate
+	select IIO_BUFFER_DMA
+	help
+	  Provides a bonding of the generic IIO DMA buffer infrastructure with the
+	  DMAengine framework. This can be used by converter drivers with a DMA port
+	  connected to an external DMA controller which is supported by the
+	  DMAengine framework.
+
+	  Should be selected by drivers that want to use this functionality.
+
+config IIO_KFIFO_BUF
+	tristate "Industrial I/O buffering based on kfifo"
+	help
+	  A simple fifo based on kfifo.  Note that this currently provides
+	  no buffer events so it is up to userspace to work out how
+	  often to read from the buffer.
+
+config IIO_TRIGGERED_BUFFER
+	tristate
+	select IIO_TRIGGER
+	select IIO_KFIFO_BUF
+	help
+	  Provides helper functions for setting up triggered buffers.

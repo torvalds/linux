@@ -61,7 +61,6 @@
 
 struct rt3883_pci_controller {
 	void __iomem *base;
-	spinlock_t lock;
 
 	struct device_node *intc_of_node;
 	struct irq_domain *irq_domain;
@@ -111,10 +110,8 @@ static u32 rt3883_pci_read_cfg32(struct rt3883_pci_controller *rpc,
 
 	address = rt3883_pci_get_cfgaddr(bus, slot, func, reg);
 
-	spin_lock_irqsave(&rpc->lock, flags);
 	rt3883_pci_w32(rpc, address, RT3883_PCI_REG_CFGADDR);
 	ret = rt3883_pci_r32(rpc, RT3883_PCI_REG_CFGDATA);
-	spin_unlock_irqrestore(&rpc->lock, flags);
 
 	return ret;
 }
@@ -128,18 +125,16 @@ static void rt3883_pci_write_cfg32(struct rt3883_pci_controller *rpc,
 
 	address = rt3883_pci_get_cfgaddr(bus, slot, func, reg);
 
-	spin_lock_irqsave(&rpc->lock, flags);
 	rt3883_pci_w32(rpc, address, RT3883_PCI_REG_CFGADDR);
 	rt3883_pci_w32(rpc, val, RT3883_PCI_REG_CFGDATA);
-	spin_unlock_irqrestore(&rpc->lock, flags);
 }
 
-static void rt3883_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void rt3883_pci_irq_handler(struct irq_desc *desc)
 {
 	struct rt3883_pci_controller *rpc;
 	u32 pending;
 
-	rpc = irq_get_handler_data(irq);
+	rpc = irq_desc_get_handler_data(desc);
 
 	pending = rt3883_pci_r32(rpc, RT3883_PCI_REG_PCIINT) &
 		  rt3883_pci_r32(rpc, RT3883_PCI_REG_PCIENA);
@@ -150,7 +145,7 @@ static void rt3883_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
 	}
 
 	while (pending) {
-		unsigned bit = __ffs(pending);
+		unsigned irq, bit = __ffs(pending);
 
 		irq = irq_find_mapping(rpc->irq_domain, bit);
 		generic_handle_irq(irq);
@@ -230,8 +225,7 @@ static int rt3883_pci_irq_init(struct device *dev,
 		return -ENODEV;
 	}
 
-	irq_set_handler_data(irq, rpc);
-	irq_set_chained_handler(irq, rt3883_pci_irq_handler);
+	irq_set_chained_handler_and_data(irq, rt3883_pci_irq_handler, rpc);
 
 	return 0;
 }
@@ -252,10 +246,8 @@ static int rt3883_pci_config_read(struct pci_bus *bus, unsigned int devfn,
 	address = rt3883_pci_get_cfgaddr(bus->number, PCI_SLOT(devfn),
 					 PCI_FUNC(devfn), where);
 
-	spin_lock_irqsave(&rpc->lock, flags);
 	rt3883_pci_w32(rpc, address, RT3883_PCI_REG_CFGADDR);
 	data = rt3883_pci_r32(rpc, RT3883_PCI_REG_CFGDATA);
-	spin_unlock_irqrestore(&rpc->lock, flags);
 
 	switch (size) {
 	case 1:
@@ -288,7 +280,6 @@ static int rt3883_pci_config_write(struct pci_bus *bus, unsigned int devfn,
 	address = rt3883_pci_get_cfgaddr(bus->number, PCI_SLOT(devfn),
 					 PCI_FUNC(devfn), where);
 
-	spin_lock_irqsave(&rpc->lock, flags);
 	rt3883_pci_w32(rpc, address, RT3883_PCI_REG_CFGADDR);
 	data = rt3883_pci_r32(rpc, RT3883_PCI_REG_CFGDATA);
 
@@ -307,7 +298,6 @@ static int rt3883_pci_config_write(struct pci_bus *bus, unsigned int devfn,
 	}
 
 	rt3883_pci_w32(rpc, data, RT3883_PCI_REG_CFGDATA);
-	spin_unlock_irqrestore(&rpc->lock, flags);
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -442,8 +432,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 
 	/* find the interrupt controller child node */
 	for_each_child_of_node(np, child) {
-		if (of_get_property(child, "interrupt-controller", NULL) &&
-		    of_node_get(child)) {
+		if (of_get_property(child, "interrupt-controller", NULL)) {
 			rpc->intc_of_node = child;
 			break;
 		}
@@ -459,8 +448,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 	/* find the PCI host bridge child node */
 	for_each_child_of_node(np, child) {
 		if (child->type &&
-		    of_node_cmp(child->type, "pci") == 0 &&
-		    of_node_get(child)) {
+		    of_node_cmp(child->type, "pci") == 0) {
 			rpc->pci_controller.of_node = child;
 			break;
 		}
@@ -598,7 +586,6 @@ static struct platform_driver rt3883_pci_driver = {
 	.probe = rt3883_pci_probe,
 	.driver = {
 		.name = "rt3883-pci",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(rt3883_pci_ids),
 	},
 };

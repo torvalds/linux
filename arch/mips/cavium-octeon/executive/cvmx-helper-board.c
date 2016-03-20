@@ -195,6 +195,12 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 			return 8;
 		else
 			return -1;
+	case CVMX_BOARD_TYPE_KONTRON_S1901:
+		if (ipd_port == CVMX_HELPER_BOARD_MGMT_IPD_PORT)
+			return 1;
+		else
+			return -1;
+
 	}
 
 	/* Some unknown board. Somebody forgot to update this function... */
@@ -767,7 +773,7 @@ enum cvmx_helper_board_usb_clock_types __cvmx_helper_board_usb_get_clock_type(vo
 		break;
 	}
 	/* Most boards except NIC10e use a 12MHz crystal */
-	if (OCTEON_IS_MODEL(OCTEON_FAM_2))
+	if (OCTEON_IS_OCTEON2())
 		return USB_CLOCK_TYPE_CRYSTAL_12;
 	return USB_CLOCK_TYPE_REF_48;
 }

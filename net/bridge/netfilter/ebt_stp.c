@@ -41,7 +41,7 @@ struct stp_config_pdu {
 #define NR32(p) ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3])
 
 static bool ebt_filter_config(const struct ebt_stp_info *info,
-   const struct stp_config_pdu *stpc)
+			      const struct stp_config_pdu *stpc)
 {
 	const struct ebt_stp_config_info *c;
 	uint16_t v16;
@@ -164,8 +164,10 @@ static int ebt_stp_mt_check(const struct xt_mtchk_param *par)
 	    !(info->bitmask & EBT_STP_MASK))
 		return -EINVAL;
 	/* Make sure the match only receives stp frames */
-	if (!ether_addr_equal(e->destmac, bridge_ula) ||
-	    !ether_addr_equal(e->destmsk, msk) || !(e->bitmask & EBT_DESTMAC))
+	if (!par->nft_compat &&
+	    (!ether_addr_equal(e->destmac, bridge_ula) ||
+	     !ether_addr_equal(e->destmsk, msk) ||
+	     !(e->bitmask & EBT_DESTMAC)))
 		return -EINVAL;
 
 	return 0;

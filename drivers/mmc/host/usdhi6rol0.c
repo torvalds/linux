@@ -1611,7 +1611,7 @@ static irqreturn_t usdhi6_cd(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	/* Ack */
-	usdhi6_write(host, USDHI6_SD_INFO1, !status);
+	usdhi6_write(host, USDHI6_SD_INFO1, ~status);
 
 	if (!work_pending(&mmc->detect.work) &&
 	    (((status & USDHI6_SD_INFO1_CARD_INSERT) &&
@@ -1634,6 +1634,7 @@ static void usdhi6_timeout_work(struct work_struct *work)
 	struct usdhi6_host *host = container_of(d, struct usdhi6_host, timeout_work);
 	struct mmc_request *mrq = host->mrq;
 	struct mmc_data *data = mrq ? mrq->data : NULL;
+	struct scatterlist *sg;
 
 	dev_warn(mmc_dev(host->mmc),
 		 "%s timeout wait %u CMD%d: IRQ 0x%08x:0x%08x, last IRQ 0x%08x\n",
@@ -1665,11 +1666,12 @@ static void usdhi6_timeout_work(struct work_struct *work)
 	case USDHI6_WAIT_FOR_MWRITE:
 	case USDHI6_WAIT_FOR_READ:
 	case USDHI6_WAIT_FOR_WRITE:
+		sg = host->sg ?: data->sg;
 		dev_dbg(mmc_dev(host->mmc),
 			"%c: page #%u @ +0x%zx %ux%u in SG%u. Current SG %u bytes @ %u\n",
 			data->flags & MMC_DATA_READ ? 'R' : 'W', host->page_idx,
 			host->offset, data->blocks, data->blksz, data->sg_len,
-			sg_dma_len(host->sg), host->sg->offset);
+			sg_dma_len(sg), sg->offset);
 		usdhi6_sg_unmap(host, true);
 		/*
 		 * If USDHI6_WAIT_FOR_DATA_END times out, we have already unmapped
@@ -1715,11 +1717,13 @@ static int usdhi6_probe(struct platform_device *pdev)
 	if (!mmc)
 		return -ENOMEM;
 
+	ret = mmc_regulator_get_supply(mmc);
+	if (ret == -EPROBE_DEFER)
+		goto e_free_mmc;
+
 	ret = mmc_of_parse(mmc);
 	if (ret < 0)
 		goto e_free_mmc;
-
-	mmc_regulator_get_supply(mmc);
 
 	host		= mmc_priv(mmc);
 	host->mmc	= mmc;
@@ -1734,8 +1738,10 @@ static int usdhi6_probe(struct platform_device *pdev)
 	}
 
 	host->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(host->clk))
+	if (IS_ERR(host->clk)) {
+		ret = PTR_ERR(host->clk);
 		goto e_free_mmc;
+	}
 
 	host->imclk = clk_get_rate(host->clk);
 
@@ -1834,7 +1840,6 @@ static struct platform_driver usdhi6_driver = {
 	.remove		= usdhi6_remove,
 	.driver		= {
 		.name	= "usdhi6rol0",
-		.owner	= THIS_MODULE,
 		.of_match_table = usdhi6_of_match,
 	},
 };

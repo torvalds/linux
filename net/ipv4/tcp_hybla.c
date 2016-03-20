@@ -29,7 +29,6 @@ static int rtt0 = 25;
 module_param(rtt0, int, 0644);
 MODULE_PARM_DESC(rtt0, "reference rout trip time (ms)");
 
-
 /* This is called to refresh values for hybla parameters */
 static inline void hybla_recalc_param (struct sock *sk)
 {
@@ -113,7 +112,7 @@ static void hybla_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 
 	rho_fractions = ca->rho_3ls - (ca->rho << 3);
 
-	if (tp->snd_cwnd < tp->snd_ssthresh) {
+	if (tcp_in_slow_start(tp)) {
 		/*
 		 * slow start
 		 *      INC = 2^RHO - 1

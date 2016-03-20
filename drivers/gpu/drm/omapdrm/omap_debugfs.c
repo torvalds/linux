@@ -17,11 +17,11 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
+
 #include "omap_drv.h"
 #include "omap_dmm_tiler.h"
-
-#include "drm_fb_helper.h"
-
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -51,6 +51,7 @@ static int mm_show(struct seq_file *m, void *arg)
 	return drm_mm_dump_table(m, &dev->vma_offset_manager->vm_addr_space_mm);
 }
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 static int fb_show(struct seq_file *m, void *arg)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -73,12 +74,15 @@ static int fb_show(struct seq_file *m, void *arg)
 
 	return 0;
 }
+#endif
 
 /* list of debufs files that are applicable to all devices */
 static struct drm_info_list omap_debugfs_list[] = {
 	{"gem", gem_show, 0},
 	{"mm", mm_show, 0},
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	{"fb", fb_show, 0},
+#endif
 };
 
 /* list of debugfs files that are specific to devices with dmm/tiler */

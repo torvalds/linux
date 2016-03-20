@@ -43,13 +43,6 @@ static inline void uwb_mac_addr_init(struct uwb_mac_addr *addr)
 	memset(&addr->data, 0xff, sizeof(addr->data));
 }
 
-/* @returns !0 if a device @addr is a broadcast address */
-static inline int uwb_dev_addr_bcast(const struct uwb_dev_addr *addr)
-{
-	static const struct uwb_dev_addr bcast = { .data = { 0xff, 0xff } };
-	return !uwb_dev_addr_cmp(addr, &bcast);
-}
-
 /*
  * Add callback @new to be called when an event occurs in @rc.
  */
@@ -255,6 +248,12 @@ static struct attribute *uwb_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(uwb_dev);
 
+/* UWB bus type. */
+struct bus_type uwb_bus_type = {
+	.name =		"uwb",
+	.dev_groups =	uwb_dev_groups,
+};
+
 /**
  * Device SYSFS registration
  */
@@ -263,10 +262,6 @@ static int __uwb_dev_sys_add(struct uwb_dev *uwb_dev, struct device *parent_dev)
 	struct device *dev;
 
 	dev = &uwb_dev->dev;
-	/* Device sysfs files are only useful for neighbor devices not
-	   local radio controllers. */
-	if (&uwb_dev->rc->uwb_dev != uwb_dev)
-		dev->groups = uwb_dev_groups;
 	dev->parent = parent_dev;
 	dev_set_drvdata(dev, uwb_dev);
 
@@ -365,8 +360,8 @@ int __uwb_dev_offair(struct uwb_dev *uwb_dev, struct uwb_rc *rc)
 	uwb_dev_addr_print(devbuf, sizeof(devbuf), &uwb_dev->dev_addr);
 	dev_info(dev, "uwb device (mac %s dev %s) disconnected from %s %s\n",
 		 macbuf, devbuf,
-		 rc ? rc->uwb_dev.dev.parent->bus->name : "n/a",
-		 rc ? dev_name(rc->uwb_dev.dev.parent) : "");
+		 uwb_dev->dev.bus->name,
+		 rc ? dev_name(&(rc->uwb_dev.dev)) : "");
 	uwb_dev_rm(uwb_dev);
 	list_del(&uwb_dev->bce->node);
 	uwb_bce_put(uwb_dev->bce);
@@ -428,26 +423,32 @@ void uwbd_dev_onair(struct uwb_rc *rc, struct uwb_beca_e *bce)
 		return;
 	}
 	uwb_dev_init(uwb_dev);		/* This sets refcnt to one, we own it */
+	uwb_dev->dev.bus = &uwb_bus_type;
 	uwb_dev->mac_addr = *bce->mac_addr;
 	uwb_dev->dev_addr = bce->dev_addr;
 	dev_set_name(&uwb_dev->dev, "%s", macbuf);
+
+	/* plug the beacon cache */
+	bce->uwb_dev = uwb_dev;
+	uwb_dev->bce = bce;
+	uwb_bce_get(bce);		/* released in uwb_dev_sys_release() */
+
 	result = uwb_dev_add(uwb_dev, &rc->uwb_dev.dev, rc);
 	if (result < 0) {
 		dev_err(dev, "new device %s: cannot instantiate device\n",
 			macbuf);
 		goto error_dev_add;
 	}
-	/* plug the beacon cache */
-	bce->uwb_dev = uwb_dev;
-	uwb_dev->bce = bce;
-	uwb_bce_get(bce);		/* released in uwb_dev_sys_release() */
+
 	dev_info(dev, "uwb device (mac %s dev %s) connected to %s %s\n",
-		 macbuf, devbuf, rc->uwb_dev.dev.parent->bus->name,
-		 dev_name(rc->uwb_dev.dev.parent));
+		 macbuf, devbuf, uwb_dev->dev.bus->name,
+		 dev_name(&(rc->uwb_dev.dev)));
 	uwb_notify(rc, uwb_dev, UWB_NOTIF_ONAIR);
 	return;
 
 error_dev_add:
+	bce->uwb_dev = NULL;
+	uwb_bce_put(bce);
 	kfree(uwb_dev);
 	return;
 }

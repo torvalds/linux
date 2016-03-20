@@ -493,8 +493,8 @@ static void iucv_declare_cpu(void *data)
 			err = "Paging or storage error";
 			break;
 		}
-		pr_warning("Defining an interrupt buffer on CPU %i"
-			   " failed with 0x%02x (%s)\n", cpu, rc, err);
+		pr_warn("Defining an interrupt buffer on CPU %i failed with 0x%02x (%s)\n",
+			cpu, rc, err);
 		return;
 	}
 
@@ -713,7 +713,7 @@ static struct notifier_block __refdata iucv_cpu_notifier = {
  *
  * Sever an iucv path to free up the pathid. Used internally.
  */
-static int iucv_sever_pathid(u16 pathid, u8 userdata[16])
+static int iucv_sever_pathid(u16 pathid, u8 *userdata)
 {
 	union iucv_param *parm;
 
@@ -876,7 +876,7 @@ static struct notifier_block iucv_reboot_notifier = {
  * Returns the result of the CP IUCV call.
  */
 int iucv_path_accept(struct iucv_path *path, struct iucv_handler *handler,
-		     u8 userdata[16], void *private)
+		     u8 *userdata, void *private)
 {
 	union iucv_param *parm;
 	int rc;
@@ -923,7 +923,7 @@ EXPORT_SYMBOL(iucv_path_accept);
  * Returns the result of the CP IUCV call.
  */
 int iucv_path_connect(struct iucv_path *path, struct iucv_handler *handler,
-		      u8 userid[8], u8 system[8], u8 userdata[16],
+		      u8 *userid, u8 *system, u8 *userdata,
 		      void *private)
 {
 	union iucv_param *parm;
@@ -985,7 +985,7 @@ EXPORT_SYMBOL(iucv_path_connect);
  *
  * Returns the result from the CP IUCV call.
  */
-int iucv_path_quiesce(struct iucv_path *path, u8 userdata[16])
+int iucv_path_quiesce(struct iucv_path *path, u8 *userdata)
 {
 	union iucv_param *parm;
 	int rc;
@@ -1017,7 +1017,7 @@ EXPORT_SYMBOL(iucv_path_quiesce);
  *
  * Returns the result from the CP IUCV call.
  */
-int iucv_path_resume(struct iucv_path *path, u8 userdata[16])
+int iucv_path_resume(struct iucv_path *path, u8 *userdata)
 {
 	union iucv_param *parm;
 	int rc;
@@ -1047,7 +1047,7 @@ out:
  *
  * Returns the result from the CP IUCV call.
  */
-int iucv_path_sever(struct iucv_path *path, u8 userdata[16])
+int iucv_path_sever(struct iucv_path *path, u8 *userdata)
 {
 	int rc;
 
@@ -1831,7 +1831,7 @@ static void iucv_external_interrupt(struct ext_code ext_code,
 	BUG_ON(p->iptype  < 0x01 || p->iptype > 0x09);
 	work = kmalloc(sizeof(struct iucv_irq_list), GFP_ATOMIC);
 	if (!work) {
-		pr_warning("iucv_external_interrupt: out of memory\n");
+		pr_warn("iucv_external_interrupt: out of memory\n");
 		return;
 	}
 	memcpy(&work->data, p, sizeof(work->data));
@@ -1974,8 +1974,7 @@ static int iucv_pm_restore(struct device *dev)
 	printk(KERN_WARNING "iucv_pm_restore %p\n", iucv_path_table);
 #endif
 	if ((iucv_pm_state != IUCV_PM_RESTORING) && iucv_path_table)
-		pr_warning("Suspending Linux did not completely close all IUCV "
-			"connections\n");
+		pr_warn("Suspending Linux did not completely close all IUCV connections\n");
 	iucv_pm_state = IUCV_PM_RESTORING;
 	if (cpumask_empty(&iucv_irq_cpumask)) {
 		rc = iucv_query_maxconn();

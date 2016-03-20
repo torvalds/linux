@@ -203,8 +203,7 @@ static int wiimod_battery_get_property(struct power_supply *psy,
 				       enum power_supply_property psp,
 				       union power_supply_propval *val)
 {
-	struct wiimote_data *wdata = container_of(psy, struct wiimote_data,
-						  battery);
+	struct wiimote_data *wdata = power_supply_get_drvdata(psy);
 	int ret = 0, state;
 	unsigned long flags;
 
@@ -238,42 +237,46 @@ static int wiimod_battery_get_property(struct power_supply *psy,
 static int wiimod_battery_probe(const struct wiimod_ops *ops,
 				struct wiimote_data *wdata)
 {
+	struct power_supply_config psy_cfg = { .drv_data = wdata, };
 	int ret;
 
-	wdata->battery.properties = wiimod_battery_props;
-	wdata->battery.num_properties = ARRAY_SIZE(wiimod_battery_props);
-	wdata->battery.get_property = wiimod_battery_get_property;
-	wdata->battery.type = POWER_SUPPLY_TYPE_BATTERY;
-	wdata->battery.use_for_apm = 0;
-	wdata->battery.name = kasprintf(GFP_KERNEL, "wiimote_battery_%s",
-					wdata->hdev->uniq);
-	if (!wdata->battery.name)
+	wdata->battery_desc.properties = wiimod_battery_props;
+	wdata->battery_desc.num_properties = ARRAY_SIZE(wiimod_battery_props);
+	wdata->battery_desc.get_property = wiimod_battery_get_property;
+	wdata->battery_desc.type = POWER_SUPPLY_TYPE_BATTERY;
+	wdata->battery_desc.use_for_apm = 0;
+	wdata->battery_desc.name = kasprintf(GFP_KERNEL, "wiimote_battery_%s",
+					     wdata->hdev->uniq);
+	if (!wdata->battery_desc.name)
 		return -ENOMEM;
 
-	ret = power_supply_register(&wdata->hdev->dev, &wdata->battery);
-	if (ret) {
+	wdata->battery = power_supply_register(&wdata->hdev->dev,
+					       &wdata->battery_desc,
+					       &psy_cfg);
+	if (IS_ERR(wdata->battery)) {
 		hid_err(wdata->hdev, "cannot register battery device\n");
+		ret = PTR_ERR(wdata->battery);
 		goto err_free;
 	}
 
-	power_supply_powers(&wdata->battery, &wdata->hdev->dev);
+	power_supply_powers(wdata->battery, &wdata->hdev->dev);
 	return 0;
 
 err_free:
-	kfree(wdata->battery.name);
-	wdata->battery.name = NULL;
+	kfree(wdata->battery_desc.name);
+	wdata->battery_desc.name = NULL;
 	return ret;
 }
 
 static void wiimod_battery_remove(const struct wiimod_ops *ops,
 				  struct wiimote_data *wdata)
 {
-	if (!wdata->battery.name)
+	if (!wdata->battery_desc.name)
 		return;
 
-	power_supply_unregister(&wdata->battery);
-	kfree(wdata->battery.name);
-	wdata->battery.name = NULL;
+	power_supply_unregister(wdata->battery);
+	kfree(wdata->battery_desc.name);
+	wdata->battery_desc.name = NULL;
 }
 
 static const struct wiimod_ops wiimod_battery = {
@@ -293,13 +296,11 @@ static const struct wiimod_ops wiimod_battery = {
 
 static enum led_brightness wiimod_led_get(struct led_classdev *led_dev)
 {
-	struct wiimote_data *wdata;
 	struct device *dev = led_dev->dev->parent;
+	struct wiimote_data *wdata = dev_to_wii(dev);
 	int i;
 	unsigned long flags;
 	bool value = false;
-
-	wdata = hid_get_drvdata(container_of(dev, struct hid_device, dev));
 
 	for (i = 0; i < 4; ++i) {
 		if (wdata->leds[i] == led_dev) {
@@ -316,13 +317,11 @@ static enum led_brightness wiimod_led_get(struct led_classdev *led_dev)
 static void wiimod_led_set(struct led_classdev *led_dev,
 			   enum led_brightness value)
 {
-	struct wiimote_data *wdata;
 	struct device *dev = led_dev->dev->parent;
+	struct wiimote_data *wdata = dev_to_wii(dev);
 	int i;
 	unsigned long flags;
 	__u8 state, flag;
-
-	wdata = hid_get_drvdata(container_of(dev, struct hid_device, dev));
 
 	for (i = 0; i < 4; ++i) {
 		if (wdata->leds[i] == led_dev) {

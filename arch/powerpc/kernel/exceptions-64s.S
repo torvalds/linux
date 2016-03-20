@@ -15,6 +15,7 @@
 #include <asm/hw_irq.h>
 #include <asm/exception-64s.h>
 #include <asm/ptrace.h>
+#include <asm/cpuidle.h>
 
 /*
  * We layout physical memory as follows:
@@ -58,14 +59,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 
 #if defined(CONFIG_RELOCATABLE)
 	/*
-	 * We can't branch directly; in the direct case we use LR
-	 * and system_call_entry restores LR.  (We thus need to move
-	 * LR to r10 in the RFID case too.)
+	 * We can't branch directly so we do it via the CTR which
+	 * is volatile across system calls.
 	 */
 #define SYSCALL_PSERIES_2_DIRECT				\
 	mflr	r10 ;						\
 	ld	r12,PACAKBASE(r13) ; 				\
-	LOAD_HANDLER(r12, system_call_entry_direct) ;		\
+	LOAD_HANDLER(r12, system_call_entry) ;			\
 	mtctr	r12 ;						\
 	mfspr	r12,SPRN_SRR1 ;					\
 	/* Re-use of r13... No spare regs to do this */	\
@@ -79,7 +79,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 	mfspr	r12,SPRN_SRR1 ;					\
 	li	r10,MSR_RI ;					\
 	mtmsrd 	r10,1 ;			/* Set RI (EE=0) */	\
-	b	system_call_entry_direct ;
+	b	system_call_common ;
 #endif
 
 /*
@@ -96,28 +96,38 @@ __start_interrupts:
 
 	.globl system_reset_pSeries;
 system_reset_pSeries:
-	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)
 #ifdef CONFIG_PPC_P7_NAP
 BEGIN_FTR_SECTION
 	/* Running native on arch 2.06 or later, check if we are
-	 * waking up from nap. We only handle no state loss and
-	 * supervisor state loss. We do -not- handle hypervisor
-	 * state loss at this time.
+	 * waking up from nap/sleep/winkle.
 	 */
 	mfspr	r13,SPRN_SRR1
 	rlwinm.	r13,r13,47-31,30,31
 	beq	9f
 
-	/* waking up from powersave (nap) state */
-	cmpwi	cr1,r13,2
-	/* Total loss of HV state is fatal, we could try to use the
-	 * PIR to locate a PACA, then use an emergency stack etc...
-	 * OPAL v3 based powernv platforms have new idle states
-	 * which fall in this catagory.
+	cmpwi	cr3,r13,2
+
+	/*
+	 * Check if last bit of HSPGR0 is set. This indicates whether we are
+	 * waking up from winkle.
 	 */
-	bgt	cr1,8f
 	GET_PACA(r13)
+	clrldi	r5,r13,63
+	clrrdi	r13,r13,1
+	cmpwi	cr4,r5,1
+	mtspr	SPRN_HSPRG0,r13
+
+	lbz	r0,PACA_THREAD_IDLE_STATE(r13)
+	cmpwi   cr2,r0,PNV_THREAD_NAP
+	bgt     cr2,8f				/* Either sleep or Winkle */
+
+	/* Waking up from nap should not cause hypervisor state loss */
+	bgt	cr3,.
+
+	/* Waking up from nap */
+	li	r0,PNV_THREAD_RUNNING
+	stb	r0,PACA_THREAD_IDLE_STATE(r13)	/* Clear thread state */
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	li	r0,KVM_HWTHREAD_IN_KERNEL
@@ -131,7 +141,9 @@ BEGIN_FTR_SECTION
 1:
 #endif
 
-	beq	cr1,2f
+	/* Return SRR1 from power7_nap() */
+	mfspr	r3,SPRN_SRR1
+	beq	cr3,2f
 	b	power7_wakeup_noloss
 2:	b	power7_wakeup_loss
 
@@ -151,7 +163,6 @@ machine_check_pSeries_1:
 	 * some code path might still want to branch into the original
 	 * vector
 	 */
-	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)		/* save r13 */
 #ifdef CONFIG_PPC_P7_NAP
 BEGIN_FTR_SECTION
@@ -186,7 +197,6 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
 	. = 0x300
 	.globl data_access_pSeries
 data_access_pSeries:
-	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, data_access_common, EXC_STD,
 				 KVMTEST, 0x300)
@@ -194,7 +204,6 @@ data_access_pSeries:
 	. = 0x380
 	.globl data_access_slb_pSeries
 data_access_slb_pSeries:
-	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXSLB)
 	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST, 0x380)
@@ -221,15 +230,14 @@ data_access_slb_pSeries:
 	bctr
 #endif
 
-	STD_EXCEPTION_PSERIES(0x400, 0x400, instruction_access)
+	STD_EXCEPTION_PSERIES(0x400, instruction_access)
 
 	. = 0x480
 	.globl instruction_access_slb_pSeries
 instruction_access_slb_pSeries:
-	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXSLB)
-	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST_PR, 0x480)
+	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST, 0x480)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
 #ifdef __DISABLED__
@@ -256,25 +264,24 @@ instruction_access_slb_pSeries:
 	.globl hardware_interrupt_hv;
 hardware_interrupt_pSeries:
 hardware_interrupt_hv:
-	HMT_MEDIUM_PPR_DISCARD
 	BEGIN_FTR_SECTION
 		_MASKABLE_EXCEPTION_PSERIES(0x502, hardware_interrupt,
 					    EXC_HV, SOFTEN_TEST_HV)
 		KVM_HANDLER(PACA_EXGEN, EXC_HV, 0x502)
 	FTR_SECTION_ELSE
 		_MASKABLE_EXCEPTION_PSERIES(0x500, hardware_interrupt,
-					    EXC_STD, SOFTEN_TEST_HV_201)
+					    EXC_STD, SOFTEN_TEST_PR)
 		KVM_HANDLER(PACA_EXGEN, EXC_STD, 0x500)
 	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 
-	STD_EXCEPTION_PSERIES(0x600, 0x600, alignment)
-	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0x600)
+	STD_EXCEPTION_PSERIES(0x600, alignment)
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0x600)
 
-	STD_EXCEPTION_PSERIES(0x700, 0x700, program_check)
-	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0x700)
+	STD_EXCEPTION_PSERIES(0x700, program_check)
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0x700)
 
-	STD_EXCEPTION_PSERIES(0x800, 0x800, fp_unavailable)
-	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0x800)
+	STD_EXCEPTION_PSERIES(0x800, fp_unavailable)
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0x800)
 
 	. = 0x900
 	.globl decrementer_pSeries
@@ -284,31 +291,42 @@ decrementer_pSeries:
 	STD_EXCEPTION_HV(0x980, 0x982, hdecrementer)
 
 	MASKABLE_EXCEPTION_PSERIES(0xa00, 0xa00, doorbell_super)
-	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xa00)
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xa00)
 
-	STD_EXCEPTION_PSERIES(0xb00, 0xb00, trap_0b)
-	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xb00)
+	STD_EXCEPTION_PSERIES(0xb00, trap_0b)
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xb00)
 
 	. = 0xc00
 	.globl	system_call_pSeries
 system_call_pSeries:
-	HMT_MEDIUM
+	 /*
+	  * If CONFIG_KVM_BOOK3S_64_HANDLER is set, save the PPR (on systems
+	  * that support it) before changing to HMT_MEDIUM. That allows the KVM
+	  * code to save that value into the guest state (it is the guest's PPR
+	  * value). Otherwise just change to HMT_MEDIUM as userspace has
+	  * already saved the PPR.
+	  */
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 	SET_SCRATCH0(r13)
 	GET_PACA(r13)
 	std	r9,PACA_EXGEN+EX_R9(r13)
+	OPT_GET_SPR(r9, SPRN_PPR, CPU_FTR_HAS_PPR);
+	HMT_MEDIUM;
 	std	r10,PACA_EXGEN+EX_R10(r13)
+	OPT_SAVE_REG_TO_PACA(PACA_EXGEN+EX_PPR, r9, CPU_FTR_HAS_PPR);
 	mfcr	r9
 	KVMTEST(0xc00)
 	GET_SCRATCH0(r13)
+#else
+	HMT_MEDIUM;
 #endif
 	SYSCALL_PSERIES_1
 	SYSCALL_PSERIES_2_RFID
 	SYSCALL_PSERIES_3
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xc00)
 
-	STD_EXCEPTION_PSERIES(0xd00, 0xd00, single_step)
-	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xd00)
+	STD_EXCEPTION_PSERIES(0xd00, single_step)
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xd00)
 
 	/* At 0xe??? we have a bunch of hypervisor exceptions, we branch
 	 * out of line to handle them
@@ -383,13 +401,12 @@ hv_facility_unavailable_trampoline:
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_HV, 0x1202)
 #endif /* CONFIG_CBE_RAS */
 
-	STD_EXCEPTION_PSERIES(0x1300, 0x1300, instruction_breakpoint)
-	KVM_HANDLER_PR_SKIP(PACA_EXGEN, EXC_STD, 0x1300)
+	STD_EXCEPTION_PSERIES(0x1300, instruction_breakpoint)
+	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_STD, 0x1300)
 
 	. = 0x1500
 	.global denorm_exception_hv
 denorm_exception_hv:
-	HMT_MEDIUM_PPR_DISCARD
 	mtspr	SPRN_SPRG_HSCRATCH0,r13
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, 0x1500)
@@ -411,8 +428,8 @@ denorm_exception_hv:
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_HV, 0x1602)
 #endif /* CONFIG_CBE_RAS */
 
-	STD_EXCEPTION_PSERIES(0x1700, 0x1700, altivec_assist)
-	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0x1700)
+	STD_EXCEPTION_PSERIES(0x1700, altivec_assist)
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0x1700)
 
 #ifdef CONFIG_CBE_RAS
 	STD_EXCEPTION_HV(0x1800, 0x1802, cbe_thermal)
@@ -503,7 +520,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 machine_check_pSeries:
 	.globl machine_check_fwnmi
 machine_check_fwnmi:
-	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_0(PACA_EXMC)
 machine_check_pSeries_0:
@@ -512,9 +528,9 @@ machine_check_pSeries_0:
 	KVM_HANDLER_SKIP(PACA_EXMC, EXC_STD, 0x200)
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_STD, 0x300)
 	KVM_HANDLER_SKIP(PACA_EXSLB, EXC_STD, 0x380)
-	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0x400)
-	KVM_HANDLER_PR(PACA_EXSLB, EXC_STD, 0x480)
-	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0x900)
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0x400)
+	KVM_HANDLER(PACA_EXSLB, EXC_STD, 0x480)
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0x900)
 	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0x982)
 
 #ifdef CONFIG_PPC_DENORMALISATION
@@ -597,13 +613,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 
 	/* moved from 0xf00 */
 	STD_EXCEPTION_PSERIES_OOL(0xf00, performance_monitor)
-	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf00)
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xf00)
 	STD_EXCEPTION_PSERIES_OOL(0xf20, altivec_unavailable)
-	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf20)
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xf20)
 	STD_EXCEPTION_PSERIES_OOL(0xf40, vsx_unavailable)
-	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf40)
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xf40)
 	STD_EXCEPTION_PSERIES_OOL(0xf60, facility_unavailable)
-	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf60)
+	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xf60)
 	STD_EXCEPTION_HV_OOL(0xf82, facility_unavailable)
 	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xf82)
 
@@ -687,7 +703,6 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
 	.globl system_reset_fwnmi
       .align 7
 system_reset_fwnmi:
-	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD,
 				 NOTEST, 0x100)
@@ -944,13 +959,6 @@ hv_facility_unavailable_relon_trampoline:
 __end_interrupts:
 
 	.align	7
-system_call_entry_direct:
-#if defined(CONFIG_RELOCATABLE)
-	/* The first level prologue may have used LR to get here, saving
-	 * orig in r10.  To save hacking/ifdeffing common code, restore here.
-	 */
-	mtlr	r10
-#endif
 system_call_entry:
 	b	system_call_common
 
@@ -1270,11 +1278,6 @@ hmi_exception_early:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	hmi_exception_realmode
 	/* Windup the stack. */
-	/* Clear MSR_RI before setting SRR0 and SRR1. */
-	li	r0,MSR_RI
-	mfmsr	r9			/* get MSR value */
-	andc	r9,r9,r0
-	mtmsrd	r9,1			/* Clear MSR_RI */
 	/* Move original HSRR0 and HSRR1 into the respective regs */
 	ld	r9,_MSR(r1)
 	mtspr	SPRN_HSRR1,r9
@@ -1305,23 +1308,6 @@ hmi_exception_after_realmode:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	hmi_exception_hv
-
-#ifdef CONFIG_PPC_POWERNV
-_GLOBAL(opal_mc_secondary_handler)
-	HMT_MEDIUM_PPR_DISCARD
-	SET_SCRATCH0(r13)
-	GET_PACA(r13)
-	clrldi	r3,r3,2
-	tovirt(r3,r3)
-	std	r3,PACA_OPAL_MC_EVT(r13)
-	ld	r13,OPAL_MC_SRR0(r3)
-	mtspr	SPRN_SRR0,r13
-	ld	r13,OPAL_MC_SRR1(r3)
-	mtspr	SPRN_SRR1,r13
-	ld	r3,OPAL_MC_GPR3(r3)
-	GET_SCRATCH0(r13)
-	b	machine_check_pSeries
-#endif /* CONFIG_PPC_POWERNV */
 
 
 #define MACHINE_CHECK_HANDLER_WINDUP			\
@@ -1391,6 +1377,7 @@ machine_check_handle_early:
 	MACHINE_CHECK_HANDLER_WINDUP
 	GET_PACA(r13)
 	ld	r1,PACAR1(r13)
+	li	r3,PNV_THREAD_NAP
 	b	power7_enter_nap_mode
 4:
 #endif
@@ -1404,7 +1391,7 @@ machine_check_handle_early:
 	bne	9f			/* continue in V mode if we are. */
 
 5:
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 	/*
 	 * We are coming from kernel context. Check if we are coming from
 	 * guest. if yes, then we can continue. We will fall through
@@ -1560,27 +1547,19 @@ do_hash_page:
 	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
 	andis.	r0,r0,NMI_MASK@h	/* (i.e. an irq when soft-disabled) */
 	bne	77f			/* then don't call hash_page now */
-	/*
-	 * We need to set the _PAGE_USER bit if MSR_PR is set or if we are
-	 * accessing a userspace segment (even from the kernel). We assume
-	 * kernel addresses always have the high bit set.
-	 */
-	rlwinm	r4,r4,32-25+9,31-9,31-9	/* DSISR_STORE -> _PAGE_RW */
-	rotldi	r0,r3,15		/* Move high bit into MSR_PR posn */
-	orc	r0,r12,r0		/* MSR_PR | ~high_bit */
-	rlwimi	r4,r0,32-13,30,30	/* becomes _PAGE_USER access bit */
-	ori	r4,r4,1			/* add _PAGE_PRESENT */
-	rlwimi	r4,r5,22+2,31-2,31-2	/* Set _PAGE_EXEC if trap is 0x400 */
 
 	/*
 	 * r3 contains the faulting address
-	 * r4 contains the required access permissions
+	 * r4 msr
 	 * r5 contains the trap number
+	 * r6 contains dsisr
 	 *
 	 * at return r3 = 0 for success, 1 for page fault, negative for error
 	 */
-	bl	hash_page		/* build HPTE if possible */
-	cmpdi	r3,0			/* see if hash_page succeeded */
+        mr 	r4,r12
+	ld      r6,_DSISR(r1)
+	bl	__hash_page		/* build HPTE if possible */
+        cmpdi	r3,0			/* see if __hash_page succeeded */
 
 	/* Success */
 	beq	fast_exc_return_irq	/* Return from exception on success */

@@ -1,15 +1,17 @@
-/* bnx2x_dcb.c: Broadcom Everest network driver.
+/* bnx2x_dcb.c: QLogic Everest network driver.
  *
  * Copyright 2009-2013 Broadcom Corporation
+ * Copyright 2014 QLogic Corporation
+ * All rights reserved
  *
- * Unless you and Broadcom execute a separate written software license
+ * Unless you and QLogic execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2, available
  * at http://www.gnu.org/licenses/old-licenses/gpl-2.0.html (the "GPL").
  *
  * Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a
- * license other than the GPL, without Broadcom's express prior written
+ * software in any way with any other QLogic software provided under a
+ * license other than the GPL, without QLogic's express prior written
  * consent.
  *
  * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
@@ -193,6 +195,7 @@ static void bnx2x_dcbx_get_ap_feature(struct bnx2x *bp,
 				   u32 error) {
 	u8 index;
 	u32 *ttp = bp->dcbx_port_params.app.traffic_type_priority;
+	u8 iscsi_pri_found = 0, fcoe_pri_found = 0;
 
 	if (GET_FLAGS(error, DCBX_LOCAL_APP_ERROR))
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_APP_ERROR\n");
@@ -208,29 +211,57 @@ static void bnx2x_dcbx_get_ap_feature(struct bnx2x *bp,
 
 		bp->dcbx_port_params.app.enabled = true;
 
+		/* Use 0 as the default application priority for all. */
 		for (index = 0 ; index < LLFC_DRIVER_TRAFFIC_TYPE_MAX; index++)
 			ttp[index] = 0;
-
-		if (app->default_pri < MAX_PFC_PRIORITIES)
-			ttp[LLFC_TRAFFIC_TYPE_NW] = app->default_pri;
 
 		for (index = 0 ; index < DCBX_MAX_APP_PROTOCOL; index++) {
 			struct dcbx_app_priority_entry *entry =
 							app->app_pri_tbl;
+			enum traffic_type type = MAX_TRAFFIC_TYPE;
 
 			if (GET_FLAGS(entry[index].appBitfield,
-				     DCBX_APP_SF_ETH_TYPE) &&
-			   ETH_TYPE_FCOE == entry[index].app_id)
-				bnx2x_dcbx_get_ap_priority(bp,
-						entry[index].pri_bitmap,
-						LLFC_TRAFFIC_TYPE_FCOE);
+				      DCBX_APP_SF_DEFAULT) &&
+			    GET_FLAGS(entry[index].appBitfield,
+				      DCBX_APP_SF_ETH_TYPE)) {
+				type = LLFC_TRAFFIC_TYPE_NW;
+			} else if (GET_FLAGS(entry[index].appBitfield,
+					     DCBX_APP_SF_PORT) &&
+				   TCP_PORT_ISCSI == entry[index].app_id) {
+				type = LLFC_TRAFFIC_TYPE_ISCSI;
+				iscsi_pri_found = 1;
+			} else if (GET_FLAGS(entry[index].appBitfield,
+					     DCBX_APP_SF_ETH_TYPE) &&
+				   ETH_TYPE_FCOE == entry[index].app_id) {
+				type = LLFC_TRAFFIC_TYPE_FCOE;
+				fcoe_pri_found = 1;
+			}
 
-			if (GET_FLAGS(entry[index].appBitfield,
-				     DCBX_APP_SF_PORT) &&
-			   TCP_PORT_ISCSI == entry[index].app_id)
-				bnx2x_dcbx_get_ap_priority(bp,
-						entry[index].pri_bitmap,
-						LLFC_TRAFFIC_TYPE_ISCSI);
+			if (type == MAX_TRAFFIC_TYPE)
+				continue;
+
+			bnx2x_dcbx_get_ap_priority(bp,
+						   entry[index].pri_bitmap,
+						   type);
+		}
+
+		/* If we have received a non-zero default application
+		 * priority, then use that for applications which are
+		 * not configured with any priority.
+		 */
+		if (ttp[LLFC_TRAFFIC_TYPE_NW] != 0) {
+			if (!iscsi_pri_found) {
+				ttp[LLFC_TRAFFIC_TYPE_ISCSI] =
+					ttp[LLFC_TRAFFIC_TYPE_NW];
+				DP(BNX2X_MSG_DCB,
+				   "ISCSI is using default priority.\n");
+			}
+			if (!fcoe_pri_found) {
+				ttp[LLFC_TRAFFIC_TYPE_FCOE] =
+					ttp[LLFC_TRAFFIC_TYPE_NW];
+				DP(BNX2X_MSG_DCB,
+				   "FCoE is using default priority.\n");
+			}
 		}
 	} else {
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_APP_DISABLED\n");
@@ -1850,6 +1881,8 @@ static void bnx2x_dcbx_fw_struct(struct bnx2x *bp,
 			if (bp->dcbx_port_params.ets.cos_params[cos].
 						pri_bitmask & pri_bit)
 					tt2cos[pri].cos = cos;
+
+		pfc_fw_cfg->dcb_outer_pri[pri]  = ttp[pri];
 	}
 
 	/* we never want the FW to add a 0 vlan tag */
@@ -2092,7 +2125,6 @@ static void bnx2x_dcbnl_get_pfc_cfg(struct net_device *netdev, int prio,
 static u8 bnx2x_dcbnl_set_all(struct net_device *netdev)
 {
 	struct bnx2x *bp = netdev_priv(netdev);
-	int rc = 0;
 
 	DP(BNX2X_MSG_DCB, "SET-ALL\n");
 
@@ -2110,9 +2142,7 @@ static u8 bnx2x_dcbnl_set_all(struct net_device *netdev)
 				       1);
 		bnx2x_dcbx_init(bp, true);
 	}
-	DP(BNX2X_MSG_DCB, "set_dcbx_params done (%d)\n", rc);
-	if (rc)
-		return 1;
+	DP(BNX2X_MSG_DCB, "set_dcbx_params done\n");
 
 	return 0;
 }

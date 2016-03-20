@@ -1,5 +1,5 @@
 /* Intel PRO/1000 Linux driver
- * Copyright(c) 1999 - 2014 Intel Corporation.
+ * Copyright(c) 1999 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -648,8 +648,6 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
-	drvinfo->regdump_len = e1000_get_regs_len(netdev);
-	drvinfo->eedump_len = e1000_get_eeprom_len(netdev);
 }
 
 static void e1000_get_ringparam(struct net_device *netdev,
@@ -896,18 +894,20 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	case e1000_pchlan:
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
+	case e1000_pch_spt:
 		mask |= (1 << 18);
 		break;
 	default:
 		break;
 	}
 
-	if (mac->type == e1000_pch_lpt)
+	if ((mac->type == e1000_pch_lpt) || (mac->type == e1000_pch_spt))
 		wlock_mac = (er32(FWSM) & E1000_FWSM_WLOCK_MAC_MASK) >>
 		    E1000_FWSM_WLOCK_MAC_SHIFT;
 
 	for (i = 0; i < mac->rar_entry_count; i++) {
-		if (mac->type == e1000_pch_lpt) {
+		if ((mac->type == e1000_pch_lpt) ||
+		    (mac->type == e1000_pch_spt)) {
 			/* Cannot test write-protected SHRAL[n] registers */
 			if ((wlock_mac == 1) || (wlock_mac && (i > wlock_mac)))
 				continue;
@@ -1514,8 +1514,19 @@ static int e1000_set_es2lan_mac_loopback(struct e1000_adapter *adapter)
 static int e1000_setup_loopback_test(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 rctl;
+	u32 rctl, fext_nvm11, tarc0;
 
+	if (hw->mac.type == e1000_pch_spt) {
+		fext_nvm11 = er32(FEXTNVM11);
+		fext_nvm11 |= E1000_FEXTNVM11_DISABLE_MULR_FIX;
+		ew32(FEXTNVM11, fext_nvm11);
+		tarc0 = er32(TARC(0));
+		/* clear bits 28 & 29 (control of MULR concurrent requests) */
+		tarc0 &= 0xcfffffff;
+		/* set bit 29 (value of MULR requests is now 2) */
+		tarc0 |= 0x20000000;
+		ew32(TARC(0), tarc0);
+	}
 	if (hw->phy.media_type == e1000_media_type_fiber ||
 	    hw->phy.media_type == e1000_media_type_internal_serdes) {
 		switch (hw->mac.type) {
@@ -1540,7 +1551,7 @@ static int e1000_setup_loopback_test(struct e1000_adapter *adapter)
 static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 rctl;
+	u32 rctl, fext_nvm11, tarc0;
 	u16 phy_reg;
 
 	rctl = er32(RCTL);
@@ -1548,6 +1559,16 @@ static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 	ew32(RCTL, rctl);
 
 	switch (hw->mac.type) {
+	case e1000_pch_spt:
+		fext_nvm11 = er32(FEXTNVM11);
+		fext_nvm11 &= ~E1000_FEXTNVM11_DISABLE_MULR_FIX;
+		ew32(FEXTNVM11, fext_nvm11);
+		tarc0 = er32(TARC(0));
+		/* clear bits 28 & 29 (control of MULR concurrent requests) */
+		/* set bit 29 (value of MULR requests is now 0) */
+		tarc0 &= 0xcfffffff;
+		ew32(TARC(0), tarc0);
+		/* fall through */
 	case e1000_80003es2lan:
 		if (hw->phy.media_type == e1000_media_type_fiber ||
 		    hw->phy.media_type == e1000_media_type_internal_serdes) {

@@ -151,12 +151,20 @@ static inline struct asc_port *to_asc_port(struct uart_port *port)
 
 static inline u32 asc_in(struct uart_port *port, u32 offset)
 {
+#ifdef readl_relaxed
+	return readl_relaxed(port->membase + offset);
+#else
 	return readl(port->membase + offset);
+#endif
 }
 
 static inline void asc_out(struct uart_port *port, u32 offset, u32 value)
 {
+#ifdef writel_relaxed
+	writel_relaxed(value, port->membase + offset);
+#else
 	writel(value, port->membase + offset);
+#endif
 }
 
 /*
@@ -422,7 +430,7 @@ static void asc_break_ctl(struct uart_port *port, int break_state)
  */
 static int asc_startup(struct uart_port *port)
 {
-	if (request_irq(port->irq, asc_interrupt, IRQF_NO_SUSPEND,
+	if (request_irq(port->irq, asc_interrupt, 0,
 			asc_port_name(port), port)) {
 		dev_err(port->dev, "cannot allocate irq.\n");
 		return -ENODEV;
@@ -712,7 +720,7 @@ static struct asc_port *asc_of_get_asc_port(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id asc_match[] = {
+static const struct of_device_id asc_match[] = {
 	{ .compatible = "st,asc", },
 	{},
 };
@@ -887,7 +895,6 @@ static struct platform_driver asc_serial_driver = {
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.pm	= &asc_serial_pm_ops,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(asc_match),
 	},
 };

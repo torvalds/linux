@@ -21,11 +21,13 @@
 #include "xfs_log_format.h"
 #include "xfs_log.h"
 #include "xfs_log_priv.h"
+#include "xfs_stats.h"
 
 struct xfs_sysfs_attr {
 	struct attribute attr;
-	ssize_t (*show)(char *buf, void *data);
-	ssize_t (*store)(const char *buf, size_t count, void *data);
+	ssize_t (*show)(struct kobject *kobject, char *buf);
+	ssize_t (*store)(struct kobject *kobject, const char *buf,
+			 size_t count);
 };
 
 static inline struct xfs_sysfs_attr *
@@ -38,6 +40,8 @@ to_attr(struct attribute *attr)
 	static struct xfs_sysfs_attr xfs_sysfs_attr_##name = __ATTR_RW(name)
 #define XFS_SYSFS_ATTR_RO(name) \
 	static struct xfs_sysfs_attr xfs_sysfs_attr_##name = __ATTR_RO(name)
+#define XFS_SYSFS_ATTR_WO(name) \
+	static struct xfs_sysfs_attr xfs_sysfs_attr_##name = __ATTR_WO(name)
 
 #define ATTR_LIST(name) &xfs_sysfs_attr_##name.attr
 
@@ -51,16 +55,153 @@ struct kobj_type xfs_mp_ktype = {
 	.release = xfs_sysfs_release,
 };
 
+STATIC ssize_t
+xfs_sysfs_object_show(
+	struct kobject		*kobject,
+	struct attribute	*attr,
+	char			*buf)
+{
+	struct xfs_sysfs_attr *xfs_attr = to_attr(attr);
+
+	return xfs_attr->show ? xfs_attr->show(kobject, buf) : 0;
+}
+
+STATIC ssize_t
+xfs_sysfs_object_store(
+	struct kobject		*kobject,
+	struct attribute	*attr,
+	const char		*buf,
+	size_t			count)
+{
+	struct xfs_sysfs_attr *xfs_attr = to_attr(attr);
+
+	return xfs_attr->store ? xfs_attr->store(kobject, buf, count) : 0;
+}
+
+static const struct sysfs_ops xfs_sysfs_ops = {
+	.show = xfs_sysfs_object_show,
+	.store = xfs_sysfs_object_store,
+};
+
+#ifdef DEBUG
+/* debug */
+
+STATIC ssize_t
+log_recovery_delay_store(
+	struct kobject	*kobject,
+	const char	*buf,
+	size_t		count)
+{
+	int		ret;
+	int		val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val < 0 || val > 60)
+		return -EINVAL;
+
+	xfs_globals.log_recovery_delay = val;
+
+	return count;
+}
+
+STATIC ssize_t
+log_recovery_delay_show(
+	struct kobject	*kobject,
+	char		*buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", xfs_globals.log_recovery_delay);
+}
+XFS_SYSFS_ATTR_RW(log_recovery_delay);
+
+static struct attribute *xfs_dbg_attrs[] = {
+	ATTR_LIST(log_recovery_delay),
+	NULL,
+};
+
+struct kobj_type xfs_dbg_ktype = {
+	.release = xfs_sysfs_release,
+	.sysfs_ops = &xfs_sysfs_ops,
+	.default_attrs = xfs_dbg_attrs,
+};
+
+#endif /* DEBUG */
+
+/* stats */
+
+static inline struct xstats *
+to_xstats(struct kobject *kobject)
+{
+	struct xfs_kobj *kobj = to_kobj(kobject);
+
+	return container_of(kobj, struct xstats, xs_kobj);
+}
+
+STATIC ssize_t
+stats_show(
+	struct kobject	*kobject,
+	char		*buf)
+{
+	struct xstats	*stats = to_xstats(kobject);
+
+	return xfs_stats_format(stats->xs_stats, buf);
+}
+XFS_SYSFS_ATTR_RO(stats);
+
+STATIC ssize_t
+stats_clear_store(
+	struct kobject	*kobject,
+	const char	*buf,
+	size_t		count)
+{
+	int		ret;
+	int		val;
+	struct xstats	*stats = to_xstats(kobject);
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val != 1)
+		return -EINVAL;
+
+	xfs_stats_clearall(stats->xs_stats);
+	return count;
+}
+XFS_SYSFS_ATTR_WO(stats_clear);
+
+static struct attribute *xfs_stats_attrs[] = {
+	ATTR_LIST(stats),
+	ATTR_LIST(stats_clear),
+	NULL,
+};
+
+struct kobj_type xfs_stats_ktype = {
+	.release = xfs_sysfs_release,
+	.sysfs_ops = &xfs_sysfs_ops,
+	.default_attrs = xfs_stats_attrs,
+};
+
 /* xlog */
+
+static inline struct xlog *
+to_xlog(struct kobject *kobject)
+{
+	struct xfs_kobj *kobj = to_kobj(kobject);
+
+	return container_of(kobj, struct xlog, l_kobj);
+}
 
 STATIC ssize_t
 log_head_lsn_show(
-	char	*buf,
-	void	*data)
+	struct kobject	*kobject,
+	char		*buf)
 {
-	struct xlog *log = data;
 	int cycle;
 	int block;
+	struct xlog *log = to_xlog(kobject);
 
 	spin_lock(&log->l_icloglock);
 	cycle = log->l_curr_cycle;
@@ -73,12 +214,12 @@ XFS_SYSFS_ATTR_RO(log_head_lsn);
 
 STATIC ssize_t
 log_tail_lsn_show(
-	char	*buf,
-	void	*data)
+	struct kobject	*kobject,
+	char		*buf)
 {
-	struct xlog *log = data;
 	int cycle;
 	int block;
+	struct xlog *log = to_xlog(kobject);
 
 	xlog_crack_atomic_lsn(&log->l_tail_lsn, &cycle, &block);
 	return snprintf(buf, PAGE_SIZE, "%d:%d\n", cycle, block);
@@ -87,12 +228,13 @@ XFS_SYSFS_ATTR_RO(log_tail_lsn);
 
 STATIC ssize_t
 reserve_grant_head_show(
-	char	*buf,
-	void	*data)
+	struct kobject	*kobject,
+	char		*buf)
+
 {
-	struct xlog *log = data;
 	int cycle;
 	int bytes;
+	struct xlog *log = to_xlog(kobject);
 
 	xlog_crack_grant_head(&log->l_reserve_head.grant, &cycle, &bytes);
 	return snprintf(buf, PAGE_SIZE, "%d:%d\n", cycle, bytes);
@@ -101,65 +243,64 @@ XFS_SYSFS_ATTR_RO(reserve_grant_head);
 
 STATIC ssize_t
 write_grant_head_show(
-	char	*buf,
-	void	*data)
+	struct kobject	*kobject,
+	char		*buf)
 {
-	struct xlog *log = data;
 	int cycle;
 	int bytes;
+	struct xlog *log = to_xlog(kobject);
 
 	xlog_crack_grant_head(&log->l_write_head.grant, &cycle, &bytes);
 	return snprintf(buf, PAGE_SIZE, "%d:%d\n", cycle, bytes);
 }
 XFS_SYSFS_ATTR_RO(write_grant_head);
 
+#ifdef DEBUG
+STATIC ssize_t
+log_badcrc_factor_store(
+	struct kobject	*kobject,
+	const char	*buf,
+	size_t		count)
+{
+	struct xlog	*log = to_xlog(kobject);
+	int		ret;
+	uint32_t	val;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	log->l_badcrc_factor = val;
+
+	return count;
+}
+
+STATIC ssize_t
+log_badcrc_factor_show(
+	struct kobject	*kobject,
+	char		*buf)
+{
+	struct xlog	*log = to_xlog(kobject);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", log->l_badcrc_factor);
+}
+
+XFS_SYSFS_ATTR_RW(log_badcrc_factor);
+#endif	/* DEBUG */
+
 static struct attribute *xfs_log_attrs[] = {
 	ATTR_LIST(log_head_lsn),
 	ATTR_LIST(log_tail_lsn),
 	ATTR_LIST(reserve_grant_head),
 	ATTR_LIST(write_grant_head),
+#ifdef DEBUG
+	ATTR_LIST(log_badcrc_factor),
+#endif
 	NULL,
-};
-
-static inline struct xlog *
-to_xlog(struct kobject *kobject)
-{
-	struct xfs_kobj *kobj = to_kobj(kobject);
-	return container_of(kobj, struct xlog, l_kobj);
-}
-
-STATIC ssize_t
-xfs_log_show(
-	struct kobject		*kobject,
-	struct attribute	*attr,
-	char			*buf)
-{
-	struct xlog *log = to_xlog(kobject);
-	struct xfs_sysfs_attr *xfs_attr = to_attr(attr);
-
-	return xfs_attr->show ? xfs_attr->show(buf, log) : 0;
-}
-
-STATIC ssize_t
-xfs_log_store(
-	struct kobject		*kobject,
-	struct attribute	*attr,
-	const char		*buf,
-	size_t			count)
-{
-	struct xlog *log = to_xlog(kobject);
-	struct xfs_sysfs_attr *xfs_attr = to_attr(attr);
-
-	return xfs_attr->store ? xfs_attr->store(buf, count, log) : 0;
-}
-
-static struct sysfs_ops xfs_log_ops = {
-	.show = xfs_log_show,
-	.store = xfs_log_store,
 };
 
 struct kobj_type xfs_log_ktype = {
 	.release = xfs_sysfs_release,
-	.sysfs_ops = &xfs_log_ops,
+	.sysfs_ops = &xfs_sysfs_ops,
 	.default_attrs = xfs_log_attrs,
 };

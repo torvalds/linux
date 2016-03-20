@@ -69,8 +69,8 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
 	if (old_mask == new_mask)
 		return;
 
-	if (fsn_mark->i.inode)
-		fsnotify_recalc_inode_mask(fsn_mark->i.inode);
+	if (fsn_mark->inode)
+		fsnotify_recalc_inode_mask(fsn_mark->inode);
 }
 
 /*
@@ -154,6 +154,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 	struct dnotify_struct *dn;
 	struct dnotify_struct **prev;
 	struct inode *inode;
+	bool free = false;
 
 	inode = file_inode(filp);
 	if (!S_ISDIR(inode->i_mode))
@@ -182,11 +183,15 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 
 	/* nothing else could have found us thanks to the dnotify_groups
 	   mark_mutex */
-	if (dn_mark->dn == NULL)
-		fsnotify_destroy_mark_locked(fsn_mark, dnotify_group);
+	if (dn_mark->dn == NULL) {
+		fsnotify_detach_mark(fsn_mark);
+		free = true;
+	}
 
 	mutex_unlock(&dnotify_group->mark_mutex);
 
+	if (free)
+		fsnotify_free_mark(fsn_mark);
 	fsnotify_put_mark(fsn_mark);
 }
 
@@ -346,13 +351,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		goto out;
 	}
 
-	error = __f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
-	if (error) {
-		/* if we added, we must shoot */
-		if (dn_mark == new_dn_mark)
-			destroy = 1;
-		goto out;
-	}
+	__f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
 
 	error = attach_dn(dn, dn_mark, id, fd, filp, mask);
 	/* !error means that we attached the dn to the dn_mark, so don't free it */
@@ -368,9 +367,10 @@ out:
 	spin_unlock(&fsn_mark->lock);
 
 	if (destroy)
-		fsnotify_destroy_mark_locked(fsn_mark, dnotify_group);
-
+		fsnotify_detach_mark(fsn_mark);
 	mutex_unlock(&dnotify_group->mark_mutex);
+	if (destroy)
+		fsnotify_free_mark(fsn_mark);
 	fsnotify_put_mark(fsn_mark);
 out_err:
 	if (new_fsn_mark)

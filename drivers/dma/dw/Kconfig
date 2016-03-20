@@ -3,8 +3,11 @@
 #
 
 config DW_DMAC_CORE
-	tristate "Synopsys DesignWare AHB DMA support"
+	tristate
 	select DMA_ENGINE
+
+config DW_DMAC_BIG_ENDIAN_IO
+	bool
 
 config DW_DMAC
 	tristate "Synopsys DesignWare AHB DMA platform driver"
@@ -23,6 +26,3 @@ config DW_DMAC_PCI
 	  Support the Synopsys DesignWare AHB DMA controller on the
 	  platfroms that enumerate it as a PCI device. For example,
 	  Intel Medfield has integrated this GPDMA controller.
-
-config DW_DMAC_BIG_ENDIAN_IO
-	bool

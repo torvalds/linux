@@ -19,25 +19,25 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#include <linux/module.h>
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/irq.h>
-#include <linux/spi/spi.h>
-#include <linux/spi/spi_bitbang.h>
-#include <linux/platform_device.h>
-#include <linux/fsl_devices.h>
 #include <linux/dma-mapping.h>
+#include <linux/fsl_devices.h>
+#include <linux/gpio.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/spi_bitbang.h>
+#include <linux/types.h>
 
 #include "spi-fsl-lib.h"
 #include "spi-fsl-cpm.h"
@@ -353,7 +353,8 @@ static int fsl_spi_bufs(struct spi_device *spi, struct spi_transfer *t,
 	return mpc8xxx_spi->count;
 }
 
-static void fsl_spi_do_one_msg(struct spi_message *m)
+static int fsl_spi_do_one_msg(struct spi_master *master,
+			      struct spi_message *m)
 {
 	struct spi_device *spi = m->spi;
 	struct spi_transfer *t, *first;
@@ -367,10 +368,9 @@ static void fsl_spi_do_one_msg(struct spi_message *m)
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		if ((first->bits_per_word != t->bits_per_word) ||
 			(first->speed_hz != t->speed_hz)) {
-			status = -EINVAL;
 			dev_err(&spi->dev,
 				"bits_per_word/speed_hz should be same for the same SPI transfer\n");
-			return;
+			return -EINVAL;
 		}
 	}
 
@@ -408,8 +408,7 @@ static void fsl_spi_do_one_msg(struct spi_message *m)
 	}
 
 	m->status = status;
-	if (m->complete)
-		m->complete(m->context);
+	spi_finalize_current_message(master);
 
 	if (status || !cs_change) {
 		ndelay(nsecs);
@@ -417,6 +416,7 @@ static void fsl_spi_do_one_msg(struct spi_message *m)
 	}
 
 	fsl_spi_setup_transfer(spi, NULL);
+	return 0;
 }
 
 static int fsl_spi_setup(struct spi_device *spi)
@@ -425,16 +425,16 @@ static int fsl_spi_setup(struct spi_device *spi)
 	struct fsl_spi_reg *reg_base;
 	int retval;
 	u32 hw_mode;
-	struct spi_mpc8xxx_cs	*cs = spi->controller_state;
+	struct spi_mpc8xxx_cs *cs = spi_get_ctldata(spi);
 
 	if (!spi->max_speed_hz)
 		return -EINVAL;
 
 	if (!cs) {
-		cs = devm_kzalloc(&spi->dev, sizeof(*cs), GFP_KERNEL);
+		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
 			return -ENOMEM;
-		spi->controller_state = cs;
+		spi_set_ctldata(spi, cs);
 	}
 	mpc8xxx_spi = spi_master_get_devdata(spi->master);
 
@@ -496,9 +496,13 @@ static int fsl_spi_setup(struct spi_device *spi)
 static void fsl_spi_cleanup(struct spi_device *spi)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(spi->master);
+	struct spi_mpc8xxx_cs *cs = spi_get_ctldata(spi);
 
 	if (mpc8xxx_spi->type == TYPE_GRLIB && gpio_is_valid(spi->cs_gpio))
 		gpio_free(spi->cs_gpio);
+
+	kfree(cs);
+	spi_set_ctldata(spi, NULL);
 }
 
 static void fsl_spi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
@@ -553,12 +557,6 @@ static irqreturn_t fsl_spi_irq(s32 irq, void *context_data)
 		fsl_spi_cpu_irq(mspi, events);
 
 	return ret;
-}
-
-static void fsl_spi_remove(struct mpc8xxx_spi *mspi)
-{
-	iounmap(mspi->reg_base);
-	fsl_spi_cpm_free(mspi);
 }
 
 static void fsl_spi_grlib_cs_control(struct spi_device *spi, bool on)
@@ -620,16 +618,13 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 
 	dev_set_drvdata(dev, master);
 
-	ret = mpc8xxx_spi_probe(dev, mem, irq);
-	if (ret)
-		goto err_probe;
+	mpc8xxx_spi_probe(dev, mem, irq);
 
 	master->setup = fsl_spi_setup;
 	master->cleanup = fsl_spi_cleanup;
+	master->transfer_one_message = fsl_spi_do_one_msg;
 
 	mpc8xxx_spi = spi_master_get_devdata(master);
-	mpc8xxx_spi->spi_do_one_msg = fsl_spi_do_one_msg;
-	mpc8xxx_spi->spi_remove = fsl_spi_remove;
 	mpc8xxx_spi->max_bits_per_word = 32;
 	mpc8xxx_spi->type = fsl_spi_get_type(dev);
 
@@ -637,10 +632,10 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 	if (ret)
 		goto err_cpm_init;
 
-	mpc8xxx_spi->reg_base = ioremap(mem->start, resource_size(mem));
-	if (mpc8xxx_spi->reg_base == NULL) {
-		ret = -ENOMEM;
-		goto err_ioremap;
+	mpc8xxx_spi->reg_base = devm_ioremap_resource(dev, mem);
+	if (IS_ERR(mpc8xxx_spi->reg_base)) {
+		ret = PTR_ERR(mpc8xxx_spi->reg_base);
+		goto err_probe;
 	}
 
 	if (mpc8xxx_spi->type == TYPE_GRLIB)
@@ -659,11 +654,11 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 					&mpc8xxx_spi->tx_shift, 8, 1);
 
 	/* Register for SPI Interrupt */
-	ret = request_irq(mpc8xxx_spi->irq, fsl_spi_irq,
-			  0, "fsl_spi", mpc8xxx_spi);
+	ret = devm_request_irq(dev, mpc8xxx_spi->irq, fsl_spi_irq,
+			       0, "fsl_spi", mpc8xxx_spi);
 
 	if (ret != 0)
-		goto free_irq;
+		goto err_probe;
 
 	reg_base = mpc8xxx_spi->reg_base;
 
@@ -684,23 +679,18 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 
 	mpc8xxx_spi_write_reg(&reg_base->mode, regval);
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(dev, master);
 	if (ret < 0)
-		goto unreg_master;
+		goto err_probe;
 
 	dev_info(dev, "at 0x%p (irq = %d), %s mode\n", reg_base,
 		 mpc8xxx_spi->irq, mpc8xxx_spi_strmode(mpc8xxx_spi->flags));
 
 	return master;
 
-unreg_master:
-	free_irq(mpc8xxx_spi->irq, mpc8xxx_spi);
-free_irq:
-	iounmap(mpc8xxx_spi->reg_base);
-err_ioremap:
+err_probe:
 	fsl_spi_cpm_free(mpc8xxx_spi);
 err_cpm_init:
-err_probe:
 	spi_master_put(master);
 err:
 	return ERR_PTR(ret);
@@ -865,11 +855,8 @@ static int of_fsl_spi_remove(struct platform_device *ofdev)
 {
 	struct spi_master *master = platform_get_drvdata(ofdev);
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(master);
-	int ret;
 
-	ret = mpc8xxx_spi_remove(&ofdev->dev);
-	if (ret)
-		return ret;
+	fsl_spi_cpm_free(mpc8xxx_spi);
 	if (mpc8xxx_spi->type == TYPE_FSL)
 		of_fsl_spi_free_chipselects(&ofdev->dev);
 	return 0;
@@ -878,7 +865,6 @@ static int of_fsl_spi_remove(struct platform_device *ofdev)
 static struct platform_driver of_fsl_spi_driver = {
 	.driver = {
 		.name = "fsl_spi",
-		.owner = THIS_MODULE,
 		.of_match_table = of_fsl_spi_match,
 	},
 	.probe		= of_fsl_spi_probe,
@@ -916,7 +902,12 @@ static int plat_mpc8xxx_spi_probe(struct platform_device *pdev)
 
 static int plat_mpc8xxx_spi_remove(struct platform_device *pdev)
 {
-	return mpc8xxx_spi_remove(&pdev->dev);
+	struct spi_master *master = platform_get_drvdata(pdev);
+	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(master);
+
+	fsl_spi_cpm_free(mpc8xxx_spi);
+
+	return 0;
 }
 
 MODULE_ALIAS("platform:mpc8xxx_spi");
@@ -925,7 +916,6 @@ static struct platform_driver mpc8xxx_spi_driver = {
 	.remove = plat_mpc8xxx_spi_remove,
 	.driver = {
 		.name = "mpc8xxx_spi",
-		.owner = THIS_MODULE,
 	},
 };
 

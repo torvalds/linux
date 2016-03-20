@@ -1481,7 +1481,7 @@ static int phy_init(struct net_device *dev)
 	}
 
 	/* phy vendor specific configuration */
-	if ((np->phy_oui == PHY_OUI_CICADA)) {
+	if (np->phy_oui == PHY_OUI_CICADA) {
 		if (init_cicada(dev, np, phyinterface)) {
 			netdev_info(dev, "%s: phy init failed\n",
 				    pci_name(np->pci_dev));
@@ -2462,9 +2462,9 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 			 NV_TX2_CHECKSUM_L3 | NV_TX2_CHECKSUM_L4 : 0;
 
 	/* vlan tag */
-	if (vlan_tx_tag_present(skb))
+	if (skb_vlan_tag_present(skb))
 		start_tx->txvlan = cpu_to_le32(NV_TX3_VLAN_TAG_PRESENT |
-					vlan_tx_tag_get(skb));
+					skb_vlan_tag_get(skb));
 	else
 		start_tx->txvlan = 0;
 
@@ -4076,6 +4076,8 @@ static void nv_do_nic_poll(unsigned long data)
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
 	u32 mask = 0;
+	unsigned long flags;
+	unsigned int irq = 0;
 
 	/*
 	 * First disable irq(s) and then
@@ -4085,25 +4087,27 @@ static void nv_do_nic_poll(unsigned long data)
 
 	if (!using_multi_irqs(dev)) {
 		if (np->msi_flags & NV_MSI_X_ENABLED)
-			disable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
+			irq = np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector;
 		else
-			disable_irq_lockdep(np->pci_dev->irq);
+			irq = np->pci_dev->irq;
 		mask = np->irqmask;
 	} else {
 		if (np->nic_poll_irq & NVREG_IRQ_RX_ALL) {
-			disable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
+			irq = np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector;
 			mask |= NVREG_IRQ_RX_ALL;
 		}
 		if (np->nic_poll_irq & NVREG_IRQ_TX_ALL) {
-			disable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
+			irq = np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector;
 			mask |= NVREG_IRQ_TX_ALL;
 		}
 		if (np->nic_poll_irq & NVREG_IRQ_OTHER) {
-			disable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector);
+			irq = np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector;
 			mask |= NVREG_IRQ_OTHER;
 		}
 	}
-	/* disable_irq() contains synchronize_irq, thus no irq handler can run now */
+
+	disable_irq_nosync_lockdep_irqsave(irq, &flags);
+	synchronize_irq(irq);
 
 	if (np->recover_error) {
 		np->recover_error = 0;
@@ -4156,28 +4160,22 @@ static void nv_do_nic_poll(unsigned long data)
 			nv_nic_irq_optimized(0, dev);
 		else
 			nv_nic_irq(0, dev);
-		if (np->msi_flags & NV_MSI_X_ENABLED)
-			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
-		else
-			enable_irq_lockdep(np->pci_dev->irq);
 	} else {
 		if (np->nic_poll_irq & NVREG_IRQ_RX_ALL) {
 			np->nic_poll_irq &= ~NVREG_IRQ_RX_ALL;
 			nv_nic_irq_rx(0, dev);
-			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
 		}
 		if (np->nic_poll_irq & NVREG_IRQ_TX_ALL) {
 			np->nic_poll_irq &= ~NVREG_IRQ_TX_ALL;
 			nv_nic_irq_tx(0, dev);
-			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
 		}
 		if (np->nic_poll_irq & NVREG_IRQ_OTHER) {
 			np->nic_poll_irq &= ~NVREG_IRQ_OTHER;
 			nv_nic_irq_other(0, dev);
-			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector);
 		}
 	}
 
+	enable_irq_lockdep_irqrestore(irq, &flags);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -5631,12 +5629,8 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	u64_stats_init(&np->swstats_rx_syncp);
 	u64_stats_init(&np->swstats_tx_syncp);
 
-	init_timer(&np->oom_kick);
-	np->oom_kick.data = (unsigned long) dev;
-	np->oom_kick.function = nv_do_rx_refill;	/* timer handler */
-	init_timer(&np->nic_poll);
-	np->nic_poll.data = (unsigned long) dev;
-	np->nic_poll.function = nv_do_nic_poll;	/* timer handler */
+	setup_timer(&np->oom_kick, nv_do_rx_refill, (unsigned long)dev);
+	setup_timer(&np->nic_poll, nv_do_nic_poll, (unsigned long)dev);
 	init_timer_deferrable(&np->stats_poll);
 	np->stats_poll.data = (unsigned long) dev;
 	np->stats_poll.function = nv_do_stats_poll;	/* timer handler */

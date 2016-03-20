@@ -271,13 +271,13 @@ static const struct of_device_id wmt_dt_ids[] = {
 	{ .compatible = "via,vt8500-rtc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, wmt_dt_ids);
 
 static struct platform_driver vt8500_rtc_driver = {
 	.probe		= vt8500_rtc_probe,
 	.remove		= vt8500_rtc_remove,
 	.driver		= {
 		.name	= "vt8500-rtc",
-		.owner	= THIS_MODULE,
 		.of_match_table = wmt_dt_ids,
 	},
 };

@@ -55,7 +55,6 @@ struct xfs_trans;
 typedef struct xfs_dqtrx {
 	struct xfs_dquot *qt_dquot;	  /* the dquot this refers to */
 	ulong		qt_blk_res;	  /* blks reserved on a dquot */
-	ulong		qt_blk_res_used;  /* blks used from the reservation */
 	ulong		qt_ino_res;	  /* inode reserved on a dquot */
 	ulong		qt_ino_res_used;  /* inodes used from the reservation */
 	long		qt_bcount_delta;  /* dquot blk count changes */

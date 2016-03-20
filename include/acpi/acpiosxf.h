@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,8 @@ typedef enum {
 	OSL_GLOBAL_LOCK_HANDLER,
 	OSL_NOTIFY_HANDLER,
 	OSL_GPE_HANDLER,
-	OSL_DEBUGGER_THREAD,
+	OSL_DEBUGGER_MAIN_THREAD,
+	OSL_DEBUGGER_EXEC_THREAD,
 	OSL_EC_POLL_HANDLER,
 	OSL_EC_BURST_HANDLER
 } acpi_execute_type;
@@ -95,7 +96,7 @@ acpi_physical_address acpi_os_get_root_pointer(void);
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_predefined_override
 acpi_status
 acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
-			    acpi_string * new_val);
+			    char **new_val);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_table_override
@@ -348,10 +349,26 @@ void acpi_os_redirect_output(void *destination);
 #endif
 
 /*
- * Debug input
+ * Debug IO
  */
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_line
 acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize_command_signals
+acpi_status acpi_os_initialize_command_signals(void);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate_command_signals
+void acpi_os_terminate_command_signals(void);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_wait_command_ready
+acpi_status acpi_os_wait_command_ready(void);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_notify_command_complete
+acpi_status acpi_os_notify_command_complete(void);
 #endif
 
 /*
@@ -428,6 +445,12 @@ long acpi_os_get_file_offset(ACPI_FILE file);
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_set_file_offset
 acpi_status acpi_os_set_file_offset(ACPI_FILE file, long offset, u8 from);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_trace_point
+void
+acpi_os_trace_point(acpi_trace_event_type type,
+		    u8 begin, u8 *aml, char *pathname);
 #endif
 
 #endif				/* __ACPIOSXF_H__ */

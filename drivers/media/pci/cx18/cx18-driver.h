@@ -49,7 +49,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
 #include <media/tuner.h>
-#include <media/ir-kbd-i2c.h>
+#include <media/i2c/ir-kbd-i2c.h>
 #include "cx18-mailbox.h"
 #include "cx18-av-core.h"
 #include "cx23418.h"
@@ -290,7 +290,7 @@ struct cx18_options {
  * list_entry_is_past_end - check if a previous loop cursor is off list end
  * @pos:	the type * previously used as a loop cursor.
  * @head:	the head for your list.
- * @member:	the name of the list_struct within the struct.
+ * @member:	the name of the list_head within the struct.
  *
  * Check if the entry's list_head is the head of the list, thus it's not a
  * real entry but was the loop cursor that walked past the end
@@ -373,12 +373,13 @@ struct cx18_in_work_order {
 struct cx18_stream {
 	/* These first five fields are always set, even if the stream
 	   is not actually created. */
-	struct video_device *video_dev;	/* NULL when stream not created */
+	struct video_device video_dev;	/* v4l2_dev is NULL when stream not created */
 	struct cx18_dvb *dvb;		/* DVB / Digital Transport */
 	struct cx18 *cx; 		/* for ease of use */
 	const char *name;		/* name of the stream */
 	int type;			/* stream type */
 	u32 handle;			/* task handle */
+	u32 v4l2_dev_caps;		/* device capabilities */
 	unsigned int mdl_base_idx;
 
 	u32 id;
@@ -408,6 +409,7 @@ struct cx18_stream {
 	/* Videobuf for YUV video */
 	u32 pixelformat;
 	u32 vb_bytes_per_frame;
+	u32 vb_bytes_per_line;
 	struct list_head vb_capture;    /* video capture queue */
 	spinlock_t vb_lock;
 	struct timer_list vb_timeout;

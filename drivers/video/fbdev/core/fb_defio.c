@@ -78,14 +78,15 @@ int fb_deferred_io_fsync(struct file *file, loff_t start, loff_t end, int datasy
 	if (!info->fbdefio)
 		return 0;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	/* Kill off the delayed work */
 	cancel_delayed_work_sync(&info->deferred_work);
 
 	/* Run it immediately */
-	err = schedule_delayed_work(&info->deferred_work, 0);
-	mutex_unlock(&inode->i_mutex);
-	return err;
+	schedule_delayed_work(&info->deferred_work, 0);
+	inode_unlock(inode);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(fb_deferred_io_fsync);
 
@@ -241,5 +242,3 @@ void fb_deferred_io_cleanup(struct fb_info *info)
 	mutex_destroy(&fbdefio->lock);
 }
 EXPORT_SYMBOL_GPL(fb_deferred_io_cleanup);
-
-MODULE_LICENSE("GPL");

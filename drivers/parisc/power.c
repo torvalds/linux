@@ -121,7 +121,6 @@ static int kpowerswd(void *param)
 		unsigned long soft_power_reg = (unsigned long) param;
 
 		schedule_timeout_interruptible(pwrsw_enabled ? HZ : HZ/POWERSWITCH_POLL_PER_SEC);
-		__set_current_state(TASK_RUNNING);
 
 		if (unlikely(!pwrsw_enabled))
 			continue;

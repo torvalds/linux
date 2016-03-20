@@ -53,9 +53,9 @@ struct uvc_event
 #ifdef __KERNEL__
 
 #include <linux/usb.h>	/* For usb_endpoint_* */
+#include <linux/usb/composite.h>
 #include <linux/usb/gadget.h>
 #include <linux/videodev2.h>
-#include <linux/version.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-device.h>
 
@@ -96,9 +96,6 @@ extern unsigned int uvc_gadget_trace_param;
  * Driver specific constants
  */
 
-#define DRIVER_VERSION				"0.1.0"
-#define DRIVER_VERSION_NUMBER			KERNEL_VERSION(0, 1, 0)
-
 #define UVC_NUM_REQUESTS			4
 #define UVC_MAX_REQUEST_SIZE			64
 #define UVC_MAX_EVENTS				4
@@ -117,6 +114,7 @@ struct uvc_video
 	unsigned int width;
 	unsigned int height;
 	unsigned int imagesize;
+	struct mutex mutex;	/* protects frame parameters */
 
 	/* Requests */
 	unsigned int req_size;
@@ -145,7 +143,7 @@ enum uvc_state
 
 struct uvc_device
 {
-	struct video_device *vdev;
+	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
 	enum uvc_state state;
 	struct usb_function func;

@@ -25,7 +25,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
-#include <dt-bindings/phy/phy-miphy365x.h>
+#include <dt-bindings/phy/phy.h>
 
 #define HFC_TIMEOUT		100
 
@@ -141,7 +141,7 @@ struct miphy365x_phy {
 	bool pcie_tx_pol_inv;
 	bool sata_tx_pol_inv;
 	u32 sata_gen;
-	u64 ctrlreg;
+	u32 ctrlreg;
 	u8 type;
 };
 
@@ -150,6 +150,7 @@ struct miphy365x_dev {
 	struct regmap *regmap;
 	struct mutex miphy_mutex;
 	struct miphy365x_phy **phys;
+	int nphys;
 };
 
 /*
@@ -163,6 +164,7 @@ enum miphy_sata_gen {
 };
 
 static u8 rx_tx_spd[] = {
+	0, /* GEN0 doesn't exist. */
 	TX_SPDSEL_GEN1_VAL | RX_SPDSEL_GEN1_VAL,
 	TX_SPDSEL_GEN2_VAL | RX_SPDSEL_GEN2_VAL,
 	TX_SPDSEL_GEN3_VAL | RX_SPDSEL_GEN3_VAL
@@ -175,10 +177,10 @@ static u8 rx_tx_spd[] = {
 static int miphy365x_set_path(struct miphy365x_phy *miphy_phy,
 			      struct miphy365x_dev *miphy_dev)
 {
-	bool sata = (miphy_phy->type == MIPHY_TYPE_SATA);
+	bool sata = (miphy_phy->type == PHY_TYPE_SATA);
 
 	return regmap_update_bits(miphy_dev->regmap,
-				  (unsigned int)miphy_phy->ctrlreg,
+				  miphy_phy->ctrlreg,
 				  SYSCFG_SELECT_SATA_MASK,
 				  sata << SYSCFG_SELECT_SATA_POS);
 }
@@ -429,7 +431,7 @@ static int miphy365x_init(struct phy *phy)
 	}
 
 	/* Initialise Miphy for PCIe or SATA */
-	if (miphy_phy->type == MIPHY_TYPE_PCIE)
+	if (miphy_phy->type == PHY_TYPE_PCIE)
 		ret = miphy365x_init_pcie_port(miphy_phy, miphy_dev);
 	else
 		ret = miphy365x_init_sata_port(miphy_phy, miphy_dev);
@@ -439,12 +441,11 @@ static int miphy365x_init(struct phy *phy)
 	return ret;
 }
 
-int miphy365x_get_addr(struct device *dev, struct miphy365x_phy *miphy_phy,
-		       int index)
+static int miphy365x_get_addr(struct device *dev,
+		struct miphy365x_phy *miphy_phy, int index)
 {
 	struct device_node *phynode = miphy_phy->phy->dev.of_node;
 	const char *name;
-	const __be32 *taddr;
 	int type = miphy_phy->type;
 	int ret;
 
@@ -454,24 +455,8 @@ int miphy365x_get_addr(struct device *dev, struct miphy365x_phy *miphy_phy,
 		return ret;
 	}
 
-	if (!strncmp(name, "syscfg", 6)) {
-		taddr = of_get_address(phynode, index, NULL, NULL);
-		if (!taddr) {
-			dev_err(dev, "failed to fetch syscfg address\n");
-			return -EINVAL;
-		}
-
-		miphy_phy->ctrlreg = of_translate_address(phynode, taddr);
-		if (miphy_phy->ctrlreg == OF_BAD_ADDR) {
-			dev_err(dev, "failed to translate syscfg address\n");
-			return -EINVAL;
-		}
-
-		return 0;
-	}
-
-	if (!((!strncmp(name, "sata", 4) && type == MIPHY_TYPE_SATA) ||
-	      (!strncmp(name, "pcie", 4) && type == MIPHY_TYPE_PCIE)))
+	if (!((!strncmp(name, "sata", 4) && type == PHY_TYPE_SATA) ||
+	      (!strncmp(name, "pcie", 4) && type == PHY_TYPE_PCIE)))
 		return 0;
 
 	miphy_phy->base = of_iomap(phynode, index);
@@ -491,17 +476,12 @@ static struct phy *miphy365x_xlate(struct device *dev,
 	struct device_node *phynode = args->np;
 	int ret, index;
 
-	if (!of_device_is_available(phynode)) {
-		dev_warn(dev, "Requested PHY is disabled\n");
-		return ERR_PTR(-ENODEV);
-	}
-
 	if (args->args_count != 1) {
 		dev_err(dev, "Invalid number of cells in 'phy' property\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	for (index = 0; index < of_get_child_count(dev->of_node); index++)
+	for (index = 0; index < miphy_dev->nphys; index++)
 		if (phynode == miphy_dev->phys[index]->phy->dev.of_node) {
 			miphy_phy = miphy_dev->phys[index];
 			break;
@@ -514,8 +494,8 @@ static struct phy *miphy365x_xlate(struct device *dev,
 
 	miphy_phy->type = args->args[0];
 
-	if (!(miphy_phy->type == MIPHY_TYPE_SATA ||
-	      miphy_phy->type == MIPHY_TYPE_PCIE)) {
+	if (!(miphy_phy->type == PHY_TYPE_SATA ||
+	      miphy_phy->type == PHY_TYPE_PCIE)) {
 		dev_err(dev, "Unsupported device type: %d\n", miphy_phy->type);
 		return ERR_PTR(-EINVAL);
 	}
@@ -530,7 +510,7 @@ static struct phy *miphy365x_xlate(struct device *dev,
 	return miphy_phy->phy;
 }
 
-static struct phy_ops miphy365x_ops = {
+static const struct phy_ops miphy365x_ops = {
 	.init		= miphy365x_init,
 	.owner		= THIS_MODULE,
 };
@@ -557,16 +537,15 @@ static int miphy365x_probe(struct platform_device *pdev)
 	struct miphy365x_dev *miphy_dev;
 	struct phy_provider *provider;
 	struct phy *phy;
-	int chancount, port = 0;
-	int ret;
+	int ret, port = 0;
 
 	miphy_dev = devm_kzalloc(&pdev->dev, sizeof(*miphy_dev), GFP_KERNEL);
 	if (!miphy_dev)
 		return -ENOMEM;
 
-	chancount = of_get_child_count(np);
-	miphy_dev->phys = devm_kzalloc(&pdev->dev, sizeof(phy) * chancount,
-				       GFP_KERNEL);
+	miphy_dev->nphys = of_get_child_count(np);
+	miphy_dev->phys = devm_kcalloc(&pdev->dev, miphy_dev->nphys,
+				       sizeof(*miphy_dev->phys), GFP_KERNEL);
 	if (!miphy_dev->phys)
 		return -ENOMEM;
 
@@ -587,32 +566,43 @@ static int miphy365x_probe(struct platform_device *pdev)
 
 		miphy_phy = devm_kzalloc(&pdev->dev, sizeof(*miphy_phy),
 					 GFP_KERNEL);
-		if (!miphy_phy)
-			return -ENOMEM;
+		if (!miphy_phy) {
+			ret = -ENOMEM;
+			goto put_child;
+		}
 
 		miphy_dev->phys[port] = miphy_phy;
 
-		phy = devm_phy_create(&pdev->dev, child, &miphy365x_ops, NULL);
+		phy = devm_phy_create(&pdev->dev, child, &miphy365x_ops);
 		if (IS_ERR(phy)) {
 			dev_err(&pdev->dev, "failed to create PHY\n");
-			return PTR_ERR(phy);
+			ret = PTR_ERR(phy);
+			goto put_child;
 		}
 
 		miphy_dev->phys[port]->phy = phy;
 
 		ret = miphy365x_of_probe(child, miphy_phy);
 		if (ret)
-			return ret;
+			goto put_child;
 
 		phy_set_drvdata(phy, miphy_dev->phys[port]);
+
 		port++;
+		/* sysconfig offsets are indexed from 1 */
+		ret = of_property_read_u32_index(np, "st,syscfg", port,
+					&miphy_phy->ctrlreg);
+		if (ret) {
+			dev_err(&pdev->dev, "No sysconfig offset found\n");
+			goto put_child;
+		}
 	}
 
 	provider = devm_of_phy_provider_register(&pdev->dev, miphy365x_xlate);
-	if (IS_ERR(provider))
-		return PTR_ERR(provider);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(provider);
+put_child:
+	of_node_put(child);
+	return ret;
 }
 
 static const struct of_device_id miphy365x_of_match[] = {
@@ -625,7 +615,6 @@ static struct platform_driver miphy365x_driver = {
 	.probe	= miphy365x_probe,
 	.driver = {
 		.name	= "miphy365x-phy",
-		.owner	= THIS_MODULE,
 		.of_match_table	= miphy365x_of_match,
 	}
 };

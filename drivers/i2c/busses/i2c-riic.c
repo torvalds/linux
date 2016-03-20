@@ -414,7 +414,6 @@ static struct platform_driver riic_i2c_driver = {
 	.remove		= riic_i2c_remove,
 	.driver		= {
 		.name	= "i2c-riic",
-		.owner	= THIS_MODULE,
 		.of_match_table = riic_i2c_dt_ids,
 	},
 };

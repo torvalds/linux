@@ -115,7 +115,9 @@ static inline int soc_is_qca955x(void)
 	return soc_is_qca9556() || soc_is_qca9558();
 }
 
-extern void __iomem *ath79_ddr_base;
+void ath79_ddr_wb_flush(unsigned int reg);
+void ath79_ddr_set_pci_windows(void);
+
 extern void __iomem *ath79_pll_base;
 extern void __iomem *ath79_reset_base;
 
@@ -141,5 +143,9 @@ static inline u32 ath79_reset_rr(unsigned reg)
 
 void ath79_device_reset_set(u32 mask);
 void ath79_device_reset_clear(u32 mask);
+
+void ath79_cpu_irq_init(unsigned irq_wb_chan2, unsigned irq_wb_chan3);
+void ath79_misc_irq_init(void __iomem *regs, int irq,
+			int irq_base, bool is_ar71xx);
 
 #endif /* __ASM_MACH_ATH79_H */

@@ -9,7 +9,7 @@
  */
 
 #include <linux/linkage.h>
-
+#include <asm/assembler.h>
 
 .syntax unified
 .code   32
@@ -61,13 +61,13 @@
 #define RT3 r12
 
 #define W0 q0
-#define W1 q1
+#define W1 q7
 #define W2 q2
 #define W3 q3
 #define W4 q4
-#define W5 q5
-#define W6 q6
-#define W7 q7
+#define W5 q6
+#define W6 q5
+#define W7 q1
 
 #define tmp0 q8
 #define tmp1 q9
@@ -79,6 +79,11 @@
 #define qK3 q14
 #define qK4 q15
 
+#ifdef CONFIG_CPU_BIG_ENDIAN
+#define ARM_LE(code...)
+#else
+#define ARM_LE(code...)		code
+#endif
 
 /* Round function macros. */
 
@@ -150,45 +155,45 @@
 #define W_PRECALC_00_15() \
 	add       RWK, sp, #(WK_offs(0));			\
 	\
-	vld1.32   {tmp0, tmp1}, [RDATA]!;			\
-	vrev32.8  W0, tmp0;		/* big => little */	\
-	vld1.32   {tmp2, tmp3}, [RDATA]!;			\
+	vld1.32   {W0, W7}, [RDATA]!;				\
+ ARM_LE(vrev32.8  W0, W0;	)	/* big => little */	\
+	vld1.32   {W6, W5}, [RDATA]!;				\
 	vadd.u32  tmp0, W0, curK;				\
-	vrev32.8  W7, tmp1;		/* big => little */	\
-	vrev32.8  W6, tmp2;		/* big => little */	\
+ ARM_LE(vrev32.8  W7, W7;	)	/* big => little */	\
+ ARM_LE(vrev32.8  W6, W6;	)	/* big => little */	\
 	vadd.u32  tmp1, W7, curK;				\
-	vrev32.8  W5, tmp3;		/* big => little */	\
+ ARM_LE(vrev32.8  W5, W5;	)	/* big => little */	\
 	vadd.u32  tmp2, W6, curK;				\
 	vst1.32   {tmp0, tmp1}, [RWK]!;				\
 	vadd.u32  tmp3, W5, curK;				\
 	vst1.32   {tmp2, tmp3}, [RWK];				\
 
 #define WPRECALC_00_15_0(i,W,W_m04,W_m08,W_m12,W_m16,W_m20,W_m24,W_m28) \
-	vld1.32   {tmp0, tmp1}, [RDATA]!;			\
+	vld1.32   {W0, W7}, [RDATA]!;				\
 
 #define WPRECALC_00_15_1(i,W,W_m04,W_m08,W_m12,W_m16,W_m20,W_m24,W_m28) \
 	add       RWK, sp, #(WK_offs(0));			\
 
 #define WPRECALC_00_15_2(i,W,W_m04,W_m08,W_m12,W_m16,W_m20,W_m24,W_m28) \
-	vrev32.8  W0, tmp0;		/* big => little */	\
+ ARM_LE(vrev32.8  W0, W0;	)	/* big => little */	\
 
 #define WPRECALC_00_15_3(i,W,W_m04,W_m08,W_m12,W_m16,W_m20,W_m24,W_m28) \
-	vld1.32   {tmp2, tmp3}, [RDATA]!;			\
+	vld1.32   {W6, W5}, [RDATA]!;				\
 
 #define WPRECALC_00_15_4(i,W,W_m04,W_m08,W_m12,W_m16,W_m20,W_m24,W_m28) \
 	vadd.u32  tmp0, W0, curK;				\
 
 #define WPRECALC_00_15_5(i,W,W_m04,W_m08,W_m12,W_m16,W_m20,W_m24,W_m28) \
-	vrev32.8  W7, tmp1;		/* big => little */	\
+ ARM_LE(vrev32.8  W7, W7;	)	/* big => little */	\
 
 #define WPRECALC_00_15_6(i,W,W_m04,W_m08,W_m12,W_m16,W_m20,W_m24,W_m28) \
-	vrev32.8  W6, tmp2;		/* big => little */	\
+ ARM_LE(vrev32.8  W6, W6;	)	/* big => little */	\
 
 #define WPRECALC_00_15_7(i,W,W_m04,W_m08,W_m12,W_m16,W_m20,W_m24,W_m28) \
 	vadd.u32  tmp1, W7, curK;				\
 
 #define WPRECALC_00_15_8(i,W,W_m04,W_m08,W_m12,W_m16,W_m20,W_m24,W_m28) \
-	vrev32.8  W5, tmp3;		/* big => little */	\
+ ARM_LE(vrev32.8  W5, W5;	)	/* big => little */	\
 
 #define WPRECALC_00_15_9(i,W,W_m04,W_m08,W_m12,W_m16,W_m20,W_m24,W_m28) \
 	vadd.u32  tmp2, W6, curK;				\

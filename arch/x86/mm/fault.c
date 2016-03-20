@@ -3,7 +3,6 @@
  *  Copyright (C) 2001, 2002 Andi Kleen, SuSE Labs.
  *  Copyright (C) 2008-2009, Red Hat Inc., Ingo Molnar
  */
-#include <linux/magic.h>		/* STACK_END_MAGIC		*/
 #include <linux/sched.h>		/* test_thread_flag(), ...	*/
 #include <linux/kdebug.h>		/* oops_begin/end, ...		*/
 #include <linux/module.h>		/* search_exception_table	*/
@@ -14,12 +13,14 @@
 #include <linux/hugetlb.h>		/* hstate_index_to_shift	*/
 #include <linux/prefetch.h>		/* prefetchw			*/
 #include <linux/context_tracking.h>	/* exception_enter(), ...	*/
+#include <linux/uaccess.h>		/* faulthandler_disabled()	*/
 
 #include <asm/traps.h>			/* dotraplinkage, ...		*/
 #include <asm/pgalloc.h>		/* pgd_*(), ...			*/
 #include <asm/kmemcheck.h>		/* kmemcheck_*(), ...		*/
 #include <asm/fixmap.h>			/* VSYSCALL_ADDR		*/
 #include <asm/vsyscall.h>		/* emulate_vsyscall		*/
+#include <asm/vm86.h>			/* struct vm86			*/
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/exceptions.h>
@@ -60,7 +61,7 @@ static nokprobe_inline int kprobes_fault(struct pt_regs *regs)
 	int ret = 0;
 
 	/* kprobe_running() needs smp_processor_id() */
-	if (kprobes_built_in() && !user_mode_vm(regs)) {
+	if (kprobes_built_in() && !user_mode(regs)) {
 		preempt_disable();
 		if (kprobe_running() && kprobe_fault_handler(regs, 14))
 			ret = 1;
@@ -149,7 +150,7 @@ is_prefetch(struct pt_regs *regs, unsigned long error_code, unsigned long addr)
 	instr = (void *)convert_ip_to_linear(current, regs);
 	max_instr = instr + 15;
 
-	if (user_mode(regs) && instr >= (unsigned char *)TASK_SIZE)
+	if (user_mode(regs) && instr >= (unsigned char *)TASK_SIZE_MAX)
 		return 0;
 
 	while (instr < max_instr) {
@@ -286,6 +287,9 @@ static noinline int vmalloc_fault(unsigned long address)
 	if (!pmd_k)
 		return -1;
 
+	if (pmd_huge(*pmd_k))
+		return 0;
+
 	pte_k = pte_offset_kernel(pmd_k, address);
 	if (!pte_present(*pte_k))
 		return -1;
@@ -301,14 +305,16 @@ static inline void
 check_v8086_mode(struct pt_regs *regs, unsigned long address,
 		 struct task_struct *tsk)
 {
+#ifdef CONFIG_VM86
 	unsigned long bit;
 
-	if (!v8086_mode(regs))
+	if (!v8086_mode(regs) || !tsk->thread.vm86)
 		return;
 
 	bit = (address - 0xA0000) >> PAGE_SHIFT;
 	if (bit < 32)
-		tsk->thread.screen_bitmap |= 1 << bit;
+		tsk->thread.vm86->screen_bitmap |= 1 << bit;
+#endif
 }
 
 static bool low_pfn(unsigned long pfn)
@@ -350,15 +356,13 @@ out:
 
 void vmalloc_sync_all(void)
 {
-	sync_global_pgds(VMALLOC_START & PGDIR_MASK, VMALLOC_END);
+	sync_global_pgds(VMALLOC_START & PGDIR_MASK, VMALLOC_END, 0);
 }
 
 /*
  * 64-bit:
  *
  *   Handle a fault on the vmalloc area
- *
- * This assumes no large pages in there.
  */
 static noinline int vmalloc_fault(unsigned long address)
 {
@@ -400,16 +404,22 @@ static noinline int vmalloc_fault(unsigned long address)
 	if (pud_none(*pud_ref))
 		return -1;
 
-	if (pud_none(*pud) || pud_page_vaddr(*pud) != pud_page_vaddr(*pud_ref))
+	if (pud_none(*pud) || pud_pfn(*pud) != pud_pfn(*pud_ref))
 		BUG();
+
+	if (pud_huge(*pud))
+		return 0;
 
 	pmd = pmd_offset(pud, address);
 	pmd_ref = pmd_offset(pud_ref, address);
 	if (pmd_none(*pmd_ref))
 		return -1;
 
-	if (pmd_none(*pmd) || pmd_page(*pmd) != pmd_page(*pmd_ref))
+	if (pmd_none(*pmd) || pmd_pfn(*pmd) != pmd_pfn(*pmd_ref))
 		BUG();
+
+	if (pmd_huge(*pmd))
+		return 0;
 
 	pte_ref = pte_offset_kernel(pmd_ref, address);
 	if (!pte_present(*pte_ref))
@@ -601,7 +611,7 @@ show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 			printk(nx_warning, from_kuid(&init_user_ns, current_uid()));
 		if (pte && pte_present(*pte) && pte_exec(*pte) &&
 				(pgd_flags(*pgd) & _PAGE_USER) &&
-				(read_cr4() & X86_CR4_SMEP))
+				(__read_cr4() & X86_CR4_SMEP))
 			printk(smep_warning, from_kuid(&init_user_ns, current_uid()));
 	}
 
@@ -649,12 +659,11 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 	   unsigned long address, int signal, int si_code)
 {
 	struct task_struct *tsk = current;
-	unsigned long *stackend;
 	unsigned long flags;
 	int sig;
 
 	/* Are we prepared to handle this kernel fault? */
-	if (fixup_exception(regs)) {
+	if (fixup_exception(regs, X86_TRAP_PF)) {
 		/*
 		 * Any interrupt that takes a fault gets the fixup. This makes
 		 * the below recursive fault logic only apply to a faults from
@@ -709,8 +718,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 
 	show_fault_oops(regs, error_code, address);
 
-	stackend = end_of_stack(tsk);
-	if (tsk != &init_task && *stackend != STACK_END_MAGIC)
+	if (task_stack_end_corrupted(tsk))
 		printk(KERN_EMERG "Thread overran stack, or stack corrupted\n");
 
 	tsk->thread.cr2		= address;
@@ -847,10 +855,7 @@ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
 	  unsigned int fault)
 {
 	struct task_struct *tsk = current;
-	struct mm_struct *mm = tsk->mm;
 	int code = BUS_ADRERR;
-
-	up_read(&mm->mmap_sem);
 
 	/* Kernel mode? Handle exceptions or die: */
 	if (!(error_code & PF_USER)) {
@@ -882,7 +887,6 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 	       unsigned long address, unsigned int fault)
 {
 	if (fatal_signal_pending(current) && !(error_code & PF_USER)) {
-		up_read(&current->mm->mmap_sem);
 		no_context(regs, error_code, address, 0, 0);
 		return;
 	}
@@ -890,13 +894,10 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 	if (fault & VM_FAULT_OOM) {
 		/* Kernel mode? Handle exceptions or die: */
 		if (!(error_code & PF_USER)) {
-			up_read(&current->mm->mmap_sem);
 			no_context(regs, error_code, address,
 				   SIGSEGV, SEGV_MAPERR);
 			return;
 		}
-
-		up_read(&current->mm->mmap_sem);
 
 		/*
 		 * We ran out of memory, call the OOM killer, and return the
@@ -908,6 +909,8 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
 			     VM_FAULT_HWPOISON_LARGE))
 			do_sigbus(regs, error_code, address, fault);
+		else if (fault & VM_FAULT_SIGSEGV)
+			bad_area_nosemaphore(regs, error_code, address);
 		else
 			BUG();
 	}
@@ -933,8 +936,17 @@ static int spurious_fault_check(unsigned long error_code, pte_t *pte)
  * cross-processor TLB flush, even if no stale TLB entries exist
  * on other processors.
  *
+ * Spurious faults may only occur if the TLB contains an entry with
+ * fewer permission than the page table entry.  Non-present (P = 0)
+ * and reserved bit (R = 1) faults are never spurious.
+ *
  * There are no security implications to leaving a stale TLB when
  * increasing the permissions on a page.
+ *
+ * Returns non-zero if a spurious fault was handled, zero otherwise.
+ *
+ * See Intel Developer's Manual Vol 3 Section 4.10.4.3, bullet 3
+ * (Optional Invalidation).
  */
 static noinline int
 spurious_fault(unsigned long error_code, unsigned long address)
@@ -945,8 +957,17 @@ spurious_fault(unsigned long error_code, unsigned long address)
 	pte_t *pte;
 	int ret;
 
-	/* Reserved-bit violation or user access to kernel space? */
-	if (error_code & (PF_USER | PF_RSVD))
+	/*
+	 * Only writes to RO or instruction fetches from NX may cause
+	 * spurious faults.
+	 *
+	 * These could be from user or supervisor accesses but the TLB
+	 * is only lazily flushed after a kernel mapping protection
+	 * change, so user accesses are not expected to cause spurious
+	 * faults.
+	 */
+	if (error_code != (PF_WRITE | PF_PROT)
+	    && error_code != (PF_INSTR | PF_PROT))
 		return 0;
 
 	pgd = init_mm.pgd + pgd_index(address);
@@ -1025,7 +1046,7 @@ static inline bool smap_violation(int error_code, struct pt_regs *regs)
 	if (error_code & PF_USER)
 		return false;
 
-	if (!user_mode_vm(regs) && (regs->flags & X86_EFLAGS_AC))
+	if (!user_mode(regs) && (regs->flags & X86_EFLAGS_AC))
 		return false;
 
 	return true;
@@ -1047,7 +1068,7 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
 	struct vm_area_struct *vma;
 	struct task_struct *tsk;
 	struct mm_struct *mm;
-	int fault;
+	int fault, major = 0;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
 	tsk = current;
@@ -1116,9 +1137,9 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
 
 	/*
 	 * If we're in an interrupt, have no user context or are running
-	 * in an atomic region then we must not take the fault:
+	 * in a region with pagefaults disabled then we must not take the fault
 	 */
-	if (unlikely(in_atomic() || !mm)) {
+	if (unlikely(faulthandler_disabled() || !mm)) {
 		bad_area_nosemaphore(regs, error_code, address);
 		return;
 	}
@@ -1130,7 +1151,7 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
 	 * User-mode registers count as a user access even for any
 	 * potential system fault or CPU buglet:
 	 */
-	if (user_mode_vm(regs)) {
+	if (user_mode(regs)) {
 		local_irq_enable();
 		error_code |= PF_USER;
 		flags |= FAULT_FLAG_USER;
@@ -1222,47 +1243,50 @@ good_area:
 	 * we get VM_FAULT_RETRY back, the mmap_sem has been unlocked.
 	 */
 	fault = handle_mm_fault(mm, vma, address, flags);
+	major |= fault & VM_FAULT_MAJOR;
 
 	/*
-	 * If we need to retry but a fatal signal is pending, handle the
-	 * signal first. We do not need to release the mmap_sem because it
-	 * would already be released in __lock_page_or_retry in mm/filemap.c.
+	 * If we need to retry the mmap_sem has already been released,
+	 * and if there is a fatal signal pending there is no guarantee
+	 * that we made any progress. Handle this case first.
 	 */
-	if (unlikely((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)))
-		return;
+	if (unlikely(fault & VM_FAULT_RETRY)) {
+		/* Retry at most once */
+		if (flags & FAULT_FLAG_ALLOW_RETRY) {
+			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+			flags |= FAULT_FLAG_TRIED;
+			if (!fatal_signal_pending(tsk))
+				goto retry;
+		}
 
+		/* User mode? Just return to handle the fatal exception */
+		if (flags & FAULT_FLAG_USER)
+			return;
+
+		/* Not returning to user mode? Handle exceptions or die: */
+		no_context(regs, error_code, address, SIGBUS, BUS_ADRERR);
+		return;
+	}
+
+	up_read(&mm->mmap_sem);
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		mm_fault_error(regs, error_code, address, fault);
 		return;
 	}
 
 	/*
-	 * Major/minor page fault accounting is only done on the
-	 * initial attempt. If we go through a retry, it is extremely
-	 * likely that the page will be found in page cache at that point.
+	 * Major/minor page fault accounting. If any of the events
+	 * returned VM_FAULT_MAJOR, we account it as a major fault.
 	 */
-	if (flags & FAULT_FLAG_ALLOW_RETRY) {
-		if (fault & VM_FAULT_MAJOR) {
-			tsk->maj_flt++;
-			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
-				      regs, address);
-		} else {
-			tsk->min_flt++;
-			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
-				      regs, address);
-		}
-		if (fault & VM_FAULT_RETRY) {
-			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
-			 * of starvation. */
-			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-			flags |= FAULT_FLAG_TRIED;
-			goto retry;
-		}
+	if (major) {
+		tsk->maj_flt++;
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, regs, address);
+	} else {
+		tsk->min_flt++;
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, regs, address);
 	}
 
 	check_v8086_mode(regs, address, tsk);
-
-	up_read(&mm->mmap_sem);
 }
 NOKPROBE_SYMBOL(__do_page_fault);
 

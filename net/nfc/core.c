@@ -449,7 +449,7 @@ error:
  * @dev: The nfc device that found the target
  * @target_idx: index of the target that must be deactivated
  */
-int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx)
+int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx, u8 mode)
 {
 	int rc = 0;
 
@@ -476,7 +476,7 @@ int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx)
 	if (dev->ops->check_presence)
 		del_timer_sync(&dev->check_pres_timer);
 
-	dev->ops->deactivate_target(dev, dev->active_target);
+	dev->ops->deactivate_target(dev, dev->active_target, mode);
 	dev->active_target = NULL;
 
 error:
@@ -555,7 +555,6 @@ EXPORT_SYMBOL(nfc_find_se);
 
 int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
 {
-
 	struct nfc_se *se;
 	int rc;
 
@@ -605,7 +604,6 @@ error:
 
 int nfc_disable_se(struct nfc_dev *dev, u32 se_idx)
 {
-
 	struct nfc_se *se;
 	int rc;
 
@@ -933,6 +931,40 @@ int nfc_remove_se(struct nfc_dev *dev, u32 se_idx)
 	return -EINVAL;
 }
 EXPORT_SYMBOL(nfc_remove_se);
+
+int nfc_se_transaction(struct nfc_dev *dev, u8 se_idx,
+		       struct nfc_evt_transaction *evt_transaction)
+{
+	int rc;
+
+	pr_debug("transaction: %x\n", se_idx);
+
+	device_lock(&dev->dev);
+
+	if (!evt_transaction) {
+		rc = -EPROTO;
+		goto out;
+	}
+
+	rc = nfc_genl_se_transaction(dev, se_idx, evt_transaction);
+out:
+	device_unlock(&dev->dev);
+	return rc;
+}
+EXPORT_SYMBOL(nfc_se_transaction);
+
+int nfc_se_connectivity(struct nfc_dev *dev, u8 se_idx)
+{
+	int rc;
+
+	pr_debug("connectivity: %x\n", se_idx);
+
+	device_lock(&dev->dev);
+	rc = nfc_genl_se_connectivity(dev, se_idx);
+	device_unlock(&dev->dev);
+	return rc;
+}
+EXPORT_SYMBOL(nfc_se_connectivity);
 
 static void nfc_release(struct device *d)
 {

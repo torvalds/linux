@@ -8,6 +8,7 @@
 #include <linux/memblock.h>
 #include <linux/bootmem.h>
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <asm/efi.h>
 #include <asm/uv/uv.h>
 
@@ -130,6 +131,27 @@ efi_status_t efi_query_variable_store(u32 attributes, unsigned long size)
 EXPORT_SYMBOL_GPL(efi_query_variable_store);
 
 /*
+ * Helper function for efi_reserve_boot_services() to figure out if we
+ * can free regions in efi_free_boot_services().
+ *
+ * Use this function to ensure we do not free regions owned by somebody
+ * else. We must only reserve (and then free) regions:
+ *
+ * - Not within any part of the kernel
+ * - Not the BIOS reserved area (E820_RESERVED, E820_NVS, etc)
+ */
+static bool can_free_region(u64 start, u64 size)
+{
+	if (start + size > __pa_symbol(_text) && start <= __pa_symbol(_end))
+		return false;
+
+	if (!e820_all_mapped(start, start+size, E820_RAM))
+		return false;
+
+	return true;
+}
+
+/*
  * The UEFI specification makes it clear that the operating system is free to do
  * whatever it wants with boot services code after ExitBootServices() has been
  * called. Ignoring this recommendation a significant bunch of EFI implementations 
@@ -146,26 +168,50 @@ void __init efi_reserve_boot_services(void)
 		efi_memory_desc_t *md = p;
 		u64 start = md->phys_addr;
 		u64 size = md->num_pages << EFI_PAGE_SHIFT;
+		bool already_reserved;
 
 		if (md->type != EFI_BOOT_SERVICES_CODE &&
 		    md->type != EFI_BOOT_SERVICES_DATA)
 			continue;
-		/* Only reserve where possible:
-		 * - Not within any already allocated areas
-		 * - Not over any memory area (really needed, if above?)
-		 * - Not within any part of the kernel
-		 * - Not the bios reserved area
-		*/
-		if ((start + size > __pa_symbol(_text)
-				&& start <= __pa_symbol(_end)) ||
-			!e820_all_mapped(start, start+size, E820_RAM) ||
-			memblock_is_region_reserved(start, size)) {
-			/* Could not reserve, skip it */
-			md->num_pages = 0;
-			memblock_dbg("Could not reserve boot range [0x%010llx-0x%010llx]\n",
-				     start, start+size-1);
-		} else
+
+		already_reserved = memblock_is_region_reserved(start, size);
+
+		/*
+		 * Because the following memblock_reserve() is paired
+		 * with free_bootmem_late() for this region in
+		 * efi_free_boot_services(), we must be extremely
+		 * careful not to reserve, and subsequently free,
+		 * critical regions of memory (like the kernel image) or
+		 * those regions that somebody else has already
+		 * reserved.
+		 *
+		 * A good example of a critical region that must not be
+		 * freed is page zero (first 4Kb of memory), which may
+		 * contain boot services code/data but is marked
+		 * E820_RESERVED by trim_bios_range().
+		 */
+		if (!already_reserved) {
 			memblock_reserve(start, size);
+
+			/*
+			 * If we are the first to reserve the region, no
+			 * one else cares about it. We own it and can
+			 * free it later.
+			 */
+			if (can_free_region(start, size))
+				continue;
+		}
+
+		/*
+		 * We don't own the region. We must not free it.
+		 *
+		 * Setting this bit for a boot services region really
+		 * doesn't make sense as far as the firmware is
+		 * concerned, but it does provide us with a way to tag
+		 * those regions that must not be paired with
+		 * free_bootmem_late().
+		 */
+		md->attribute |= EFI_MEMORY_RUNTIME;
 	}
 }
 
@@ -182,8 +228,8 @@ void __init efi_free_boot_services(void)
 		    md->type != EFI_BOOT_SERVICES_DATA)
 			continue;
 
-		/* Could not reserve boot area */
-		if (!size)
+		/* Do not free, someone else owns it: */
+		if (md->attribute & EFI_MEMORY_RUNTIME)
 			continue;
 
 		free_bootmem_late(start, size);
@@ -248,6 +294,16 @@ out:
 	return ret;
 }
 
+static const struct dmi_system_id sgi_uv1_dmi[] = {
+	{ NULL, "SGI UV1",
+		{	DMI_MATCH(DMI_PRODUCT_NAME,	"Stoutland Platform"),
+			DMI_MATCH(DMI_PRODUCT_VERSION,	"1.0"),
+			DMI_MATCH(DMI_BIOS_VENDOR,	"SGI.COM"),
+		}
+	},
+	{ } /* NULL entry stops DMI scanning */
+};
+
 void __init efi_apply_memmap_quirks(void)
 {
 	/*
@@ -260,10 +316,8 @@ void __init efi_apply_memmap_quirks(void)
 		efi_unmap_memmap();
 	}
 
-	/*
-	 * UV doesn't support the new EFI pagetable mapping yet.
-	 */
-	if (is_uv_system())
+	/* UV2+ BIOS has a fix for this issue.  UV1 still needs the quirk. */
+	if (dmi_check_system(sgi_uv1_dmi))
 		set_bit(EFI_OLD_MEMMAP, &efi.flags);
 }
 

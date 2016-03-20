@@ -70,7 +70,7 @@ static struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 		return ERR_PTR(-ESTALE);
 
 	key.objectid = root_objectid;
-	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
+	key.type = BTRFS_ROOT_ITEM_KEY;
 	key.offset = (u64)-1;
 
 	index = srcu_read_lock(&fs_info->subvol_srcu);
@@ -82,7 +82,7 @@ static struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 	}
 
 	key.objectid = objectid;
-	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
+	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
 
 	inode = btrfs_iget(sb, &key, root, NULL);
@@ -112,11 +112,11 @@ static struct dentry *btrfs_fh_to_parent(struct super_block *sb, struct fid *fh,
 	u32 generation;
 
 	if (fh_type == FILEID_BTRFS_WITH_PARENT) {
-		if (fh_len !=  BTRFS_FID_SIZE_CONNECTABLE)
+		if (fh_len <  BTRFS_FID_SIZE_CONNECTABLE)
 			return NULL;
 		root_objectid = fid->root_objectid;
 	} else if (fh_type == FILEID_BTRFS_WITH_PARENT_ROOT) {
-		if (fh_len != BTRFS_FID_SIZE_CONNECTABLE_ROOT)
+		if (fh_len < BTRFS_FID_SIZE_CONNECTABLE_ROOT)
 			return NULL;
 		root_objectid = fid->parent_root_objectid;
 	} else
@@ -136,11 +136,11 @@ static struct dentry *btrfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 	u32 generation;
 
 	if ((fh_type != FILEID_BTRFS_WITH_PARENT ||
-	     fh_len != BTRFS_FID_SIZE_CONNECTABLE) &&
+	     fh_len < BTRFS_FID_SIZE_CONNECTABLE) &&
 	    (fh_type != FILEID_BTRFS_WITH_PARENT_ROOT ||
-	     fh_len != BTRFS_FID_SIZE_CONNECTABLE_ROOT) &&
+	     fh_len < BTRFS_FID_SIZE_CONNECTABLE_ROOT) &&
 	    (fh_type != FILEID_BTRFS_WITHOUT_PARENT ||
-	     fh_len != BTRFS_FID_SIZE_NON_CONNECTABLE))
+	     fh_len < BTRFS_FID_SIZE_NON_CONNECTABLE))
 		return NULL;
 
 	objectid = fid->objectid;
@@ -152,7 +152,7 @@ static struct dentry *btrfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 
 static struct dentry *btrfs_get_parent(struct dentry *child)
 {
-	struct inode *dir = child->d_inode;
+	struct inode *dir = d_inode(child);
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
@@ -220,8 +220,8 @@ fail:
 static int btrfs_get_name(struct dentry *parent, char *name,
 			  struct dentry *child)
 {
-	struct inode *inode = child->d_inode;
-	struct inode *dir = parent->d_inode;
+	struct inode *inode = d_inode(child);
+	struct inode *dir = d_inode(parent);
 	struct btrfs_path *path;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_inode_ref *iref;

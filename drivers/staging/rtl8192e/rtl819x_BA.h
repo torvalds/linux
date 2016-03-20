@@ -6,10 +6,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -19,11 +15,7 @@
 #ifndef _BATYPE_H_
 #define _BATYPE_H_
 
-#define		TOTAL_TXBA_NUM	16
-#define	TOTAL_RXBA_NUM	16
-
 #define	BA_SETUP_TIMEOUT	200
-#define	BA_INACT_TIMEOUT	60000
 
 #define	BA_POLICY_DELAYED		0
 #define	BA_POLICY_IMMEDIATE	1
@@ -32,7 +24,6 @@
 #define	ADDBA_STATUS_REFUSED		37
 #define	ADDBA_STATUS_INVALID_PARAM	38
 
-#define	DELBA_REASON_QSTA_LEAVING	36
 #define	DELBA_REASON_END_BA			37
 #define	DELBA_REASON_UNKNOWN_BA	38
 #define	DELBA_REASON_TIMEOUT			39

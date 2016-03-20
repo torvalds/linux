@@ -12,17 +12,25 @@
 #ifndef __SOUND_HDA_JACK_H
 #define __SOUND_HDA_JACK_H
 
+#include <linux/err.h>
+
 struct auto_pin_cfg;
 struct hda_jack_tbl;
+struct hda_jack_callback;
 
-typedef void (*hda_jack_callback) (struct hda_codec *, struct hda_jack_tbl *);
+typedef void (*hda_jack_callback_fn) (struct hda_codec *, struct hda_jack_callback *);
+
+struct hda_jack_callback {
+	hda_nid_t nid;
+	hda_jack_callback_fn func;
+	unsigned int private_data;	/* arbitrary data */
+	struct hda_jack_callback *next;
+};
 
 struct hda_jack_tbl {
 	hda_nid_t nid;
-	unsigned char action;		/* event action (0 = none) */
 	unsigned char tag;		/* unsol event tag */
-	unsigned int private_data;	/* arbitrary data */
-	hda_jack_callback callback;
+	struct hda_jack_callback *callback;
 	/* jack-detection stuff */
 	unsigned int pin_sense;		/* cached pin-sense value */
 	unsigned int jack_detect:1;	/* capable of jack-detection? */
@@ -31,11 +39,8 @@ struct hda_jack_tbl {
 	unsigned int block_report:1;    /* in a transitional state - do not report to userspace */
 	hda_nid_t gating_jack;		/* valid when gating jack plugged */
 	hda_nid_t gated_jack;		/* gated is dependent on this jack */
-	struct snd_kcontrol *kctl;	/* assigned kctl for jack-detection */
-#ifdef CONFIG_SND_HDA_INPUT_JACK
 	int type;
 	struct snd_jack *jack;
-#endif
 };
 
 struct hda_jack_tbl *
@@ -43,34 +48,14 @@ snd_hda_jack_tbl_get(struct hda_codec *codec, hda_nid_t nid);
 struct hda_jack_tbl *
 snd_hda_jack_tbl_get_from_tag(struct hda_codec *codec, unsigned char tag);
 
-struct hda_jack_tbl *
-snd_hda_jack_tbl_new(struct hda_codec *codec, hda_nid_t nid);
 void snd_hda_jack_tbl_clear(struct hda_codec *codec);
-
-/**
- * snd_hda_jack_get_action - get jack-tbl entry for the tag
- *
- * Call this from the unsol event handler to get the assigned action for the
- * event.  This will mark the dirty flag for the later reporting, too.
- */
-static inline unsigned char
-snd_hda_jack_get_action(struct hda_codec *codec, unsigned int tag)
-{
-	struct hda_jack_tbl *jack = snd_hda_jack_tbl_get_from_tag(codec, tag);
-	if (jack) {
-		jack->jack_dirty = 1;
-		return jack->action;
-	}
-	return 0;
-}
 
 void snd_hda_jack_set_dirty_all(struct hda_codec *codec);
 
-int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid,
-			       unsigned char action);
-int snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
-					unsigned char action,
-					hda_jack_callback cb);
+int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid);
+struct hda_jack_callback *
+snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
+				    hda_jack_callback_fn cb);
 
 int snd_hda_jack_set_gating_jack(struct hda_codec *codec, hda_nid_t gated_nid,
 				 hda_nid_t gating_nid);
@@ -84,6 +69,11 @@ enum {
 
 int snd_hda_jack_detect_state(struct hda_codec *codec, hda_nid_t nid);
 
+/**
+ * snd_hda_jack_detect - Detect the jack
+ * @codec: the HDA codec
+ * @nid: pin NID to check jack detection
+ */
 static inline bool snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid)
 {
 	return snd_hda_jack_detect_state(codec, nid) != HDA_JACK_NOT_PRESENT;
@@ -92,7 +82,7 @@ static inline bool snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid)
 bool is_jack_detectable(struct hda_codec *codec, hda_nid_t nid);
 
 int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
-			  const char *name, int idx);
+			  const char *name, bool phantom_jack);
 int snd_hda_jack_add_kctls(struct hda_codec *codec,
 			   const struct auto_pin_cfg *cfg);
 

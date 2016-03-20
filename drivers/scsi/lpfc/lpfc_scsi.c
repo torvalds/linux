@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -243,128 +243,6 @@ lpfc_update_stats(struct lpfc_hba *phba, struct  lpfc_scsi_buf *lpfc_cmd)
 }
 
 /**
- * lpfc_send_sdev_queuedepth_change_event - Posts a queuedepth change event
- * @phba: Pointer to HBA context object.
- * @vport: Pointer to vport object.
- * @ndlp: Pointer to FC node associated with the target.
- * @lun: Lun number of the scsi device.
- * @old_val: Old value of the queue depth.
- * @new_val: New value of the queue depth.
- *
- * This function sends an event to the mgmt application indicating
- * there is a change in the scsi device queue depth.
- **/
-static void
-lpfc_send_sdev_queuedepth_change_event(struct lpfc_hba *phba,
-		struct lpfc_vport  *vport,
-		struct lpfc_nodelist *ndlp,
-		uint64_t lun,
-		uint32_t old_val,
-		uint32_t new_val)
-{
-	struct lpfc_fast_path_event *fast_path_evt;
-	unsigned long flags;
-
-	fast_path_evt = lpfc_alloc_fast_evt(phba);
-	if (!fast_path_evt)
-		return;
-
-	fast_path_evt->un.queue_depth_evt.scsi_event.event_type =
-		FC_REG_SCSI_EVENT;
-	fast_path_evt->un.queue_depth_evt.scsi_event.subcategory =
-		LPFC_EVENT_VARQUEDEPTH;
-
-	/* Report all luns with change in queue depth */
-	fast_path_evt->un.queue_depth_evt.scsi_event.lun = lun;
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
-		memcpy(&fast_path_evt->un.queue_depth_evt.scsi_event.wwpn,
-			&ndlp->nlp_portname, sizeof(struct lpfc_name));
-		memcpy(&fast_path_evt->un.queue_depth_evt.scsi_event.wwnn,
-			&ndlp->nlp_nodename, sizeof(struct lpfc_name));
-	}
-
-	fast_path_evt->un.queue_depth_evt.oldval = old_val;
-	fast_path_evt->un.queue_depth_evt.newval = new_val;
-	fast_path_evt->vport = vport;
-
-	fast_path_evt->work_evt.evt = LPFC_EVT_FASTPATH_MGMT_EVT;
-	spin_lock_irqsave(&phba->hbalock, flags);
-	list_add_tail(&fast_path_evt->work_evt.evt_listp, &phba->work_list);
-	spin_unlock_irqrestore(&phba->hbalock, flags);
-	lpfc_worker_wake_up(phba);
-
-	return;
-}
-
-/**
- * lpfc_change_queue_depth - Alter scsi device queue depth
- * @sdev: Pointer the scsi device on which to change the queue depth.
- * @qdepth: New queue depth to set the sdev to.
- * @reason: The reason for the queue depth change.
- *
- * This function is called by the midlayer and the LLD to alter the queue
- * depth for a scsi device. This function sets the queue depth to the new
- * value and sends an event out to log the queue depth change.
- **/
-int
-lpfc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
-{
-	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-	struct lpfc_rport_data *rdata;
-	unsigned long new_queue_depth, old_queue_depth;
-
-	old_queue_depth = sdev->queue_depth;
-
-	switch (reason) {
-	case SCSI_QDEPTH_DEFAULT:
-		/* change request from sysfs, fall through */
-	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
-		break;
-	case SCSI_QDEPTH_QFULL:
-		if (scsi_track_queue_full(sdev, qdepth) == 0)
-			return sdev->queue_depth;
-
-		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
-				 "0711 detected queue full - lun queue "
-				 "depth adjusted to %d.\n", sdev->queue_depth);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	new_queue_depth = sdev->queue_depth;
-	rdata = lpfc_rport_data_from_scsi_device(sdev);
-	if (rdata)
-		lpfc_send_sdev_queuedepth_change_event(phba, vport,
-						       rdata->pnode, sdev->lun,
-						       old_queue_depth,
-						       new_queue_depth);
-	return sdev->queue_depth;
-}
-
-/**
- * lpfc_change_queue_type() - Change a device's scsi tag queuing type
- * @sdev: Pointer the scsi device whose queue depth is to change
- * @tag_type: Identifier for queue tag type
- */
-static int
-lpfc_change_queue_type(struct scsi_device *sdev, int tag_type)
-{
-	if (sdev->tagged_supported) {
-		scsi_set_tag_type(sdev, tag_type);
-		if (tag_type)
-			scsi_activate_tcq(sdev, sdev->queue_depth);
-		else
-			scsi_deactivate_tcq(sdev, sdev->queue_depth);
-	} else
-		tag_type = 0;
-
-	return tag_type;
-}
-
-/**
  * lpfc_rampdown_queue_depth - Post RAMP_DOWN_QUEUE event to worker thread
  * @phba: The Hba for which this call is being executed.
  *
@@ -380,12 +258,14 @@ lpfc_rampdown_queue_depth(struct lpfc_hba *phba)
 {
 	unsigned long flags;
 	uint32_t evt_posted;
+	unsigned long expires;
 
 	spin_lock_irqsave(&phba->hbalock, flags);
 	atomic_inc(&phba->num_rsrc_err);
 	phba->last_rsrc_error_time = jiffies;
 
-	if ((phba->last_ramp_down_time + QUEUE_RAMP_DOWN_INTERVAL) > jiffies) {
+	expires = phba->last_ramp_down_time + QUEUE_RAMP_DOWN_INTERVAL;
+	if (time_after(expires, jiffies)) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		return;
 	}
@@ -447,8 +327,7 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 				else
 					new_queue_depth = sdev->queue_depth -
 								new_queue_depth;
-				lpfc_change_queue_depth(sdev, new_queue_depth,
-							SCSI_QDEPTH_DEFAULT);
+				scsi_change_queue_depth(sdev, new_queue_depth);
 			}
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
@@ -741,7 +620,7 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
  *
  * Returns: 0 = failure, non-zero number of successfully posted buffers.
  **/
-int
+static int
 lpfc_sli4_post_scsi_sgl_list(struct lpfc_hba *phba,
 			     struct list_head *post_sblist, int sb_count)
 {
@@ -1414,7 +1293,6 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		uint32_t *reftag, uint16_t *apptag, uint32_t new_guard)
 {
 	struct scatterlist *sgpe; /* s/g prot entry */
-	struct scatterlist *sgde; /* s/g data entry */
 	struct lpfc_scsi_buf *lpfc_cmd = NULL;
 	struct scsi_dif_tuple *src = NULL;
 	struct lpfc_nodelist *ndlp;
@@ -1430,7 +1308,6 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		return 0;
 
 	sgpe = scsi_prot_sglist(sc);
-	sgde = scsi_sglist(sc);
 	lba = scsi_get_lba(sc);
 
 	/* First check if we need to match the LBA */
@@ -2003,7 +1880,6 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 #endif
 	uint32_t checking = 1;
 	uint32_t reftag;
-	unsigned blksize;
 	uint8_t txop, rxop;
 
 	status  = lpfc_sc_to_bg_opcodes(phba, sc, &txop, &rxop);
@@ -2011,7 +1887,6 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		goto out;
 
 	/* extract some info from the scsi command for pde*/
-	blksize = lpfc_cmd_blksize(sc);
 	reftag = (uint32_t)scsi_get_lba(sc); /* Truncate LBA */
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
@@ -2384,7 +2259,6 @@ lpfc_bg_setup_sgl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	dma_addr_t physaddr;
 	int i = 0, num_sge = 0, status;
 	uint32_t reftag;
-	unsigned blksize;
 	uint8_t txop, rxop;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint32_t rc;
@@ -2398,7 +2272,6 @@ lpfc_bg_setup_sgl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		goto out;
 
 	/* extract some info from the scsi command for pde*/
-	blksize = lpfc_cmd_blksize(sc);
 	reftag = (uint32_t)scsi_get_lba(sc); /* Truncate LBA */
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
@@ -2965,7 +2838,7 @@ err:
  * on the specified data using a CRC algorithmn
  * using crc_t10dif.
  */
-uint16_t
+static uint16_t
 lpfc_bg_crc(uint8_t *data, int count)
 {
 	uint16_t crc = 0;
@@ -2981,7 +2854,7 @@ lpfc_bg_crc(uint8_t *data, int count)
  * on the specified data using a CSUM algorithmn
  * using ip_compute_csum.
  */
-uint16_t
+static uint16_t
 lpfc_bg_csum(uint8_t *data, int count)
 {
 	uint16_t ret;
@@ -2994,7 +2867,7 @@ lpfc_bg_csum(uint8_t *data, int count)
  * This function examines the protection data to try to determine
  * what type of T10-DIF error occurred.
  */
-void
+static void
 lpfc_calc_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 {
 	struct scatterlist *sgpe; /* s/g prot entry */
@@ -3002,7 +2875,7 @@ lpfc_calc_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 	struct scsi_cmnd *cmd = lpfc_cmd->pCmd;
 	struct scsi_dif_tuple *src = NULL;
 	uint8_t *data_src = NULL;
-	uint16_t guard_tag, guard_type;
+	uint16_t guard_tag;
 	uint16_t start_app_tag, app_tag;
 	uint32_t start_ref_tag, ref_tag;
 	int prot, protsegcnt;
@@ -3043,7 +2916,6 @@ lpfc_calc_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 		data_len = sgde->length;
 		if ((data_len & (blksize - 1)) == 0)
 			chk_guard = 1;
-		guard_type = scsi_host_get_guard(cmd->device->host);
 
 		src = (struct scsi_dif_tuple *)sg_virt(sgpe);
 		start_ref_tag = (uint32_t)scsi_get_lba(cmd); /* Truncate LBA */
@@ -3378,7 +3250,7 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 		 */
 
 		nseg = scsi_dma_map(scsi_cmnd);
-		if (unlikely(!nseg))
+		if (unlikely(nseg <= 0))
 			return 1;
 		sgl += 1;
 		/* clear the last flag in the fcp_rsp map entry */
@@ -3464,7 +3336,7 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 	 */
 	if ((phba->cfg_fof) && ((struct lpfc_device_data *)
 		scsi_cmnd->device->hostdata)->oas_enabled)
-		lpfc_cmd->cur_iocbq.iocb_flag |= LPFC_IO_OAS;
+		lpfc_cmd->cur_iocbq.iocb_flag |= (LPFC_IO_OAS | LPFC_IO_FOF);
 	return 0;
 }
 
@@ -3603,6 +3475,14 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 	 * we need to set word 4 of IOCB here
 	 */
 	iocb_cmd->un.fcpi.fcpi_parm = fcpdl;
+
+	/*
+	 * If the OAS driver feature is enabled and the lun is enabled for
+	 * OAS, set the oas iocb related flags.
+	 */
+	if ((phba->cfg_fof) && ((struct lpfc_device_data *)
+		scsi_cmnd->device->hostdata)->oas_enabled)
+		lpfc_cmd->cur_iocbq.iocb_flag |= (LPFC_IO_OAS | LPFC_IO_FOF);
 
 	return 0;
 err:
@@ -3796,6 +3676,7 @@ static void
 lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		    struct lpfc_iocbq *rsp_iocb)
 {
+	struct lpfc_hba *phba = vport->phba;
 	struct scsi_cmnd *cmnd = lpfc_cmd->pCmd;
 	struct fcp_cmnd *fcpcmd = lpfc_cmd->fcp_cmnd;
 	struct fcp_rsp *fcprsp = lpfc_cmd->fcp_rsp;
@@ -3805,6 +3686,7 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	uint32_t *lp;
 	uint32_t host_status = DID_OK;
 	uint32_t rsplen = 0;
+	uint32_t fcpDl;
 	uint32_t logit = LOG_FCP | LOG_FCP_ERROR;
 
 
@@ -3875,13 +3757,14 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 			 fcprsp->rspInfo3);
 
 	scsi_set_resid(cmnd, 0);
+	fcpDl = be32_to_cpu(fcpcmd->fcpDl);
 	if (resp_info & RESID_UNDER) {
 		scsi_set_resid(cmnd, be32_to_cpu(fcprsp->rspResId));
 
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP_UNDER,
 				 "9025 FCP Read Underrun, expected %d, "
 				 "residual %d Data: x%x x%x x%x\n",
-				 be32_to_cpu(fcpcmd->fcpDl),
+				 fcpDl,
 				 scsi_get_resid(cmnd), fcpi_parm, cmnd->cmnd[0],
 				 cmnd->underflow);
 
@@ -3897,7 +3780,7 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 					 LOG_FCP | LOG_FCP_ERROR,
 					 "9026 FCP Read Check Error "
 					 "and Underrun Data: x%x x%x x%x x%x\n",
-					 be32_to_cpu(fcpcmd->fcpDl),
+					 fcpDl,
 					 scsi_get_resid(cmnd), fcpi_parm,
 					 cmnd->cmnd[0]);
 			scsi_set_resid(cmnd, scsi_bufflen(cmnd));
@@ -3932,13 +3815,25 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	 * Check SLI validation that all the transfer was actually done
 	 * (fcpi_parm should be zero). Apply check only to reads.
 	 */
-	} else if (fcpi_parm && (cmnd->sc_data_direction == DMA_FROM_DEVICE)) {
+	} else if (fcpi_parm) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP | LOG_FCP_ERROR,
-				 "9029 FCP Read Check Error Data: "
+				 "9029 FCP %s Check Error xri x%x  Data: "
 				 "x%x x%x x%x x%x x%x\n",
-				 be32_to_cpu(fcpcmd->fcpDl),
-				 be32_to_cpu(fcprsp->rspResId),
+				 ((cmnd->sc_data_direction == DMA_FROM_DEVICE) ?
+				 "Read" : "Write"),
+				 ((phba->sli_rev == LPFC_SLI_REV4) ?
+				 lpfc_cmd->cur_iocbq.sli4_xritag :
+				 rsp_iocb->iocb.ulpContext),
+				 fcpDl, be32_to_cpu(fcprsp->rspResId),
 				 fcpi_parm, cmnd->cmnd[0], scsi_status);
+
+		/* There is some issue with the LPe12000 that causes it
+		 * to miscalculate the fcpi_parm and falsely trip this
+		 * recovery logic.  Detect this case and don't error when true.
+		 */
+		if (fcpi_parm > fcpDl)
+			goto out;
+
 		switch (scsi_status) {
 		case SAM_STAT_GOOD:
 		case SAM_STAT_CHECK_CONDITION:
@@ -3957,6 +3852,49 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	cmnd->result = ScsiResult(host_status, scsi_status);
 	lpfc_send_scsi_error_event(vport->phba, vport, lpfc_cmd, rsp_iocb);
 }
+
+/**
+ * lpfc_sli4_scmd_to_wqidx_distr - scsi command to SLI4 WQ index distribution
+ * @phba: Pointer to HBA context object.
+ *
+ * This routine performs a roundrobin SCSI command to SLI4 FCP WQ index
+ * distribution.  This is called by __lpfc_sli_issue_iocb_s4() with the hbalock
+ * held.
+ * If scsi-mq is enabled, get the default block layer mapping of software queues
+ * to hardware queues. This information is saved in request tag.
+ *
+ * Return: index into SLI4 fast-path FCP queue index.
+ **/
+int lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba,
+				  struct lpfc_scsi_buf *lpfc_cmd)
+{
+	struct scsi_cmnd *cmnd = lpfc_cmd->pCmd;
+	struct lpfc_vector_map_info *cpup;
+	int chann, cpu;
+	uint32_t tag;
+	uint16_t hwq;
+
+	if (shost_use_blk_mq(cmnd->device->host)) {
+		tag = blk_mq_unique_tag(cmnd->request);
+		hwq = blk_mq_unique_tag_to_hwq(tag);
+
+		return hwq;
+	}
+
+	if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_CPU
+	    && phba->cfg_fcp_io_channel > 1) {
+		cpu = smp_processor_id();
+		if (cpu < phba->sli4_hba.num_present_cpu) {
+			cpup = phba->sli4_hba.cpu_map;
+			cpup += cpu;
+			return cpup->channel_id;
+		}
+	}
+	chann = atomic_add_return(1, &phba->fcp_qidx);
+	chann = (chann % phba->cfg_fcp_io_channel);
+	return chann;
+}
+
 
 /**
  * lpfc_scsi_cmd_iocb_cmpl - Scsi cmnd IOCB completion routine
@@ -3978,18 +3916,16 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct lpfc_rport_data *rdata = lpfc_cmd->rdata;
 	struct lpfc_nodelist *pnode = rdata->pnode;
 	struct scsi_cmnd *cmd;
-	int result;
 	int depth;
 	unsigned long flags;
 	struct lpfc_fast_path_event *fast_path_evt;
 	struct Scsi_Host *shost;
-	uint32_t queue_depth, scsi_id;
 	uint32_t logit = LOG_FCP;
 
 	/* Sanity check on return of outstanding command */
-	if (!(lpfc_cmd->pCmd))
-		return;
 	cmd = lpfc_cmd->pCmd;
+	if (!cmd)
+		return;
 	shost = cmd->device->host;
 
 	lpfc_cmd->result = (pIocbOut->iocb.un.ulpWord[4] & IOERR_PARAM_MASK);
@@ -4165,7 +4101,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	}
 
 	lpfc_update_stats(phba, lpfc_cmd);
-	result = cmd->result;
 	if (vport->cfg_max_scsicmpl_time &&
 	   time_after(jiffies, lpfc_cmd->start_time +
 		msecs_to_jiffies(vport->cfg_max_scsicmpl_time))) {
@@ -4202,26 +4137,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 
 	/* The sdev is not guaranteed to be valid post scsi_done upcall. */
-	queue_depth = cmd->device->queue_depth;
-	scsi_id = cmd->device->id;
 	cmd->scsi_done(cmd);
-
-	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
-		spin_lock_irqsave(&phba->hbalock, flags);
-		lpfc_cmd->pCmd = NULL;
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-
-		/*
-		 * If there is a thread waiting for command completion
-		 * wake up the thread.
-		 */
-		spin_lock_irqsave(shost->host_lock, flags);
-		if (lpfc_cmd->waitq)
-			wake_up(lpfc_cmd->waitq);
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		lpfc_release_scsi_buf(phba, lpfc_cmd);
-		return;
-	}
 
 	spin_lock_irqsave(&phba->hbalock, flags);
 	lpfc_cmd->pCmd = NULL;
@@ -4276,7 +4192,6 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	IOCB_t *iocb_cmd = &lpfc_cmd->cur_iocbq.iocb;
 	struct lpfc_iocbq *piocbq = &(lpfc_cmd->cur_iocbq);
 	int datadir = scsi_cmnd->sc_data_direction;
-	char tag[2];
 	uint8_t *ptr;
 	bool sli4;
 	uint32_t fcpdl;
@@ -4298,20 +4213,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		memset(ptr, 0, (LPFC_FCP_CDB_LEN - scsi_cmnd->cmd_len));
 	}
 
-	if (scsi_populate_tag_msg(scsi_cmnd, tag)) {
-		switch (tag[0]) {
-		case HEAD_OF_QUEUE_TAG:
-			fcp_cmnd->fcpCntl1 = HEAD_OF_Q;
-			break;
-		case ORDERED_QUEUE_TAG:
-			fcp_cmnd->fcpCntl1 = ORDERED_Q;
-			break;
-		default:
-			fcp_cmnd->fcpCntl1 = SIMPLE_Q;
-			break;
-		}
-	} else
-		fcp_cmnd->fcpCntl1 = SIMPLE_Q;
+	fcp_cmnd->fcpCntl1 = SIMPLE_Q;
 
 	sli4 = (phba->sli_rev == LPFC_SLI_REV4);
 	piocbq->iocb.un.fcpi.fcpi_XRdy = 0;
@@ -4542,15 +4444,7 @@ lpfc_info(struct Scsi_Host *host)
 				 phba->Port);
 		}
 		len = strlen(lpfcinfobuf);
-		if (phba->sli_rev <= LPFC_SLI_REV3) {
-			link_speed = lpfc_sli_port_speed_get(phba);
-		} else {
-			if (phba->sli4_hba.link_state.logical_speed)
-				link_speed =
-				      phba->sli4_hba.link_state.logical_speed;
-			else
-				link_speed = phba->sli4_hba.link_state.speed;
-		}
+		link_speed = lpfc_sli_port_speed_get(phba);
 		if (link_speed != 0)
 			snprintf(lpfcinfobuf + len, 384-len,
 				 " Logical Link Speed: %d Mbps", link_speed);
@@ -4664,7 +4558,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	if (lpfc_cmd == NULL) {
 		lpfc_rampdown_queue_depth(phba);
 
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_MISC,
 				 "0707 driver's buffer pool is empty, "
 				 "IO busied\n");
 		goto out_host_busy;
@@ -4874,6 +4768,8 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	/* ABTS WQE must go to the same WQ as the WQE to be aborted */
 	abtsiocb->fcp_wqidx = iocb->fcp_wqidx;
 	abtsiocb->iocb_flag |= LPFC_USE_FCPWQIDX;
+	if (iocb->iocb_flag & LPFC_IO_FOF)
+		abtsiocb->iocb_flag |= LPFC_IO_FOF;
 
 	if (lpfc_is_link_up(phba))
 		icmd->ulpCommand = CMD_ABORT_XRI_CN;
@@ -5093,13 +4989,16 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 					  iocbq, iocbqrsp, lpfc_cmd->timeout);
 	if ((status != IOCB_SUCCESS) ||
 	    (iocbqrsp->iocb.ulpStatus != IOSTAT_SUCCESS)) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-			 "0727 TMF %s to TGT %d LUN %llu failed (%d, %d) "
-			 "iocb_flag x%x\n",
-			 lpfc_taskmgmt_name(task_mgmt_cmd),
-			 tgt_id, lun_id, iocbqrsp->iocb.ulpStatus,
-			 iocbqrsp->iocb.un.ulpWord[4],
-			 iocbq->iocb_flag);
+		if (status != IOCB_SUCCESS ||
+		    iocbqrsp->iocb.ulpStatus != IOSTAT_FCP_RSP_ERROR)
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+					 "0727 TMF %s to TGT %d LUN %llu "
+					 "failed (%d, %d) iocb_flag x%x\n",
+					 lpfc_taskmgmt_name(task_mgmt_cmd),
+					 tgt_id, lun_id,
+					 iocbqrsp->iocb.ulpStatus,
+					 iocbqrsp->iocb.un.ulpWord[4],
+					 iocbq->iocb_flag);
 		/* if ulpStatus != IOCB_SUCCESS, then status == IOCB_SUCCESS */
 		if (status == IOCB_SUCCESS) {
 			if (iocbqrsp->iocb.ulpStatus == IOSTAT_FCP_RSP_ERROR)
@@ -5113,7 +5012,6 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 		} else {
 			ret = FAILED;
 		}
-		lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
 	} else
 		ret = SUCCESS;
 
@@ -5243,9 +5141,10 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 	int status;
 
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
-	if (!rdata) {
+	if (!rdata || !rdata->pnode) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-			"0798 Device Reset rport failure: rdata x%p\n", rdata);
+				 "0798 Device Reset rport failure: rdata x%p\n",
+				 rdata);
 		return FAILED;
 	}
 	pnode = rdata->pnode;
@@ -5327,7 +5226,15 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 	if (status == FAILED) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
 			"0722 Target Reset rport failure: rdata x%p\n", rdata);
-		return FAILED;
+		if (pnode) {
+			spin_lock_irq(shost->host_lock);
+			pnode->nlp_flag &= ~NLP_NPR_ADISC;
+			pnode->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
+			spin_unlock_irq(shost->host_lock);
+		}
+		lpfc_reset_flush_io_context(vport, tgt_id, lun_id,
+					  LPFC_CTX_TGT);
+		return FAST_IO_FAIL;
 	}
 
 	scsi_event.event_type = FC_REG_SCSI_EVENT;
@@ -5614,10 +5521,7 @@ lpfc_slave_configure(struct scsi_device *sdev)
 	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 
-	if (sdev->tagged_supported)
-		scsi_activate_tcq(sdev, vport->cfg_lun_queue_depth);
-	else
-		scsi_deactivate_tcq(sdev, vport->cfg_lun_queue_depth);
+	scsi_change_queue_depth(sdev, vport->cfg_lun_queue_depth);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
 		lpfc_sli_handle_fast_ring_event(phba,
@@ -5979,6 +5883,30 @@ lpfc_disable_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 	return false;
 }
 
+struct scsi_host_template lpfc_template_s3 = {
+	.module			= THIS_MODULE,
+	.name			= LPFC_DRIVER_NAME,
+	.info			= lpfc_info,
+	.queuecommand		= lpfc_queuecommand,
+	.eh_abort_handler	= lpfc_abort_handler,
+	.eh_device_reset_handler = lpfc_device_reset_handler,
+	.eh_target_reset_handler = lpfc_target_reset_handler,
+	.eh_bus_reset_handler	= lpfc_bus_reset_handler,
+	.slave_alloc		= lpfc_slave_alloc,
+	.slave_configure	= lpfc_slave_configure,
+	.slave_destroy		= lpfc_slave_destroy,
+	.scan_finished		= lpfc_scan_finished,
+	.this_id		= -1,
+	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
+	.cmd_per_lun		= LPFC_CMD_PER_LUN,
+	.use_clustering		= ENABLE_CLUSTERING,
+	.shost_attrs		= lpfc_hba_attrs,
+	.max_sectors		= 0xFFFF,
+	.vendor_id		= LPFC_NL_VENDOR_ID,
+	.change_queue_depth	= scsi_change_queue_depth,
+	.track_queue_depth	= 1,
+};
+
 struct scsi_host_template lpfc_template = {
 	.module			= THIS_MODULE,
 	.name			= LPFC_DRIVER_NAME,
@@ -6000,8 +5928,8 @@ struct scsi_host_template lpfc_template = {
 	.shost_attrs		= lpfc_hba_attrs,
 	.max_sectors		= 0xFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
-	.change_queue_depth	= lpfc_change_queue_depth,
-	.change_queue_type	= lpfc_change_queue_type,
+	.change_queue_depth	= scsi_change_queue_depth,
+	.track_queue_depth	= 1,
 };
 
 struct scsi_host_template lpfc_vport_template = {
@@ -6023,6 +5951,6 @@ struct scsi_host_template lpfc_vport_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= lpfc_vport_attrs,
 	.max_sectors		= 0xFFFF,
-	.change_queue_depth	= lpfc_change_queue_depth,
-	.change_queue_type	= lpfc_change_queue_type,
+	.change_queue_depth	= scsi_change_queue_depth,
+	.track_queue_depth	= 1,
 };

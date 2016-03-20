@@ -265,7 +265,6 @@ static struct platform_driver ohci_hcd_sm501_driver = {
 	.suspend	= ohci_sm501_suspend,
 	.resume		= ohci_sm501_resume,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "sm501-usb",
 	},
 };

@@ -21,12 +21,6 @@
 
 #include <asm/apic.h>
 
-DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
-EXPORT_PER_CPU_SYMBOL(irq_stat);
-
-DEFINE_PER_CPU(struct pt_regs *, irq_regs);
-EXPORT_PER_CPU_SYMBOL(irq_regs);
-
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 
 int sysctl_panic_on_stackoverflow __read_mostly;
@@ -69,23 +63,15 @@ static void call_on_stack(void *func, void *stack)
 		     : "memory", "cc", "edx", "ecx", "eax");
 }
 
-/* how to get the current stack pointer from C */
-#define current_stack_pointer ({		\
-	unsigned long sp;			\
-	asm("mov %%esp,%0" : "=g" (sp));	\
-	sp;					\
-})
-
 static inline void *current_stack(void)
 {
-	return (void *)(current_stack_pointer & ~(THREAD_SIZE - 1));
+	return (void *)(current_stack_pointer() & ~(THREAD_SIZE - 1));
 }
 
-static inline int
-execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq)
+static inline int execute_on_irq_stack(int overflow, struct irq_desc *desc)
 {
 	struct irq_stack *curstk, *irqstk;
-	u32 *isp, *prev_esp, arg1, arg2;
+	u32 *isp, *prev_esp, arg1;
 
 	curstk = (struct irq_stack *) current_stack();
 	irqstk = __this_cpu_read(hardirq_stack);
@@ -103,7 +89,7 @@ execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq)
 
 	/* Save the next esp at the bottom of the stack */
 	prev_esp = (u32 *)irqstk;
-	*prev_esp = current_stack_pointer;
+	*prev_esp = current_stack_pointer();
 
 	if (unlikely(overflow))
 		call_on_stack(print_stack_overflow, isp);
@@ -111,8 +97,8 @@ execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq)
 	asm volatile("xchgl	%%ebx,%%esp	\n"
 		     "call	*%%edi		\n"
 		     "movl	%%ebx,%%esp	\n"
-		     : "=a" (arg1), "=d" (arg2), "=b" (isp)
-		     :  "0" (irq),   "1" (desc),  "2" (isp),
+		     : "=a" (arg1), "=b" (isp)
+		     :  "0" (desc),   "1" (isp),
 			"D" (desc->handle_irq)
 		     : "memory", "cc", "ecx");
 	return 1;
@@ -156,26 +142,22 @@ void do_softirq_own_stack(void)
 
 	/* Push the previous esp onto the stack */
 	prev_esp = (u32 *)irqstk;
-	*prev_esp = current_stack_pointer;
+	*prev_esp = current_stack_pointer();
 
 	call_on_stack(__do_softirq, isp);
 }
 
-bool handle_irq(unsigned irq, struct pt_regs *regs)
+bool handle_irq(struct irq_desc *desc, struct pt_regs *regs)
 {
-	struct irq_desc *desc;
-	int overflow;
+	int overflow = check_stack_overflow();
 
-	overflow = check_stack_overflow();
-
-	desc = irq_to_desc(irq);
-	if (unlikely(!desc))
+	if (IS_ERR_OR_NULL(desc))
 		return false;
 
-	if (user_mode_vm(regs) || !execute_on_irq_stack(overflow, desc, irq)) {
+	if (user_mode(regs) || !execute_on_irq_stack(overflow, desc)) {
 		if (unlikely(overflow))
 			print_stack_overflow();
-		desc->handle_irq(irq, desc);
+		generic_handle_irq_desc(desc);
 	}
 
 	return true;

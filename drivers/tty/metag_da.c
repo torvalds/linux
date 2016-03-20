@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
+#include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/serial.h>
@@ -69,6 +70,15 @@ static struct tty_driver *channel_driver;
 
 static struct timer_list put_timer;
 static struct task_struct *dashtty_thread;
+
+/*
+ * The console_poll parameter determines whether the console channel should be
+ * polled for input.
+ * By default the console channel isn't polled at all, in order to avoid the
+ * overhead, but that means it isn't possible to have a login on /dev/console.
+ */
+static bool console_poll;
+module_param(console_poll, bool, S_IRUGO);
 
 #define RX_BUF_SIZE 1024
 
@@ -353,7 +363,7 @@ static int dashtty_port_activate(struct tty_port *port, struct tty_struct *tty)
 	 * possible to have a login on /dev/console.
 	 *
 	 */
-	if (dport != &dashtty_ports[CONSOLE_CHANNEL])
+	if (console_poll || dport != &dashtty_ports[CONSOLE_CHANNEL])
 		if (atomic_inc_return(&num_channels_need_poll) == 1)
 			add_poll_timer(&poll_timer);
 
@@ -372,7 +382,7 @@ static void dashtty_port_shutdown(struct tty_port *port)
 	unsigned int count;
 
 	/* stop reading */
-	if (dport != &dashtty_ports[CONSOLE_CHANNEL])
+	if (console_poll || dport != &dashtty_ports[CONSOLE_CHANNEL])
 		if (atomic_dec_and_test(&num_channels_need_poll))
 			del_timer_sync(&poll_timer);
 
@@ -630,25 +640,7 @@ err_destroy_ports:
 	put_tty_driver(channel_driver);
 	return ret;
 }
-
-static void dashtty_exit(void)
-{
-	int nport;
-	struct dashtty_port *dport;
-
-	del_timer_sync(&put_timer);
-	kthread_stop(dashtty_thread);
-	del_timer_sync(&poll_timer);
-	tty_unregister_driver(channel_driver);
-	for (nport = 0; nport < NUM_TTY_CHANNELS; nport++) {
-		dport = &dashtty_ports[nport];
-		tty_port_destroy(&dport->port);
-	}
-	put_tty_driver(channel_driver);
-}
-
-module_init(dashtty_init);
-module_exit(dashtty_exit);
+device_initcall(dashtty_init);
 
 #ifdef CONFIG_DA_CONSOLE
 

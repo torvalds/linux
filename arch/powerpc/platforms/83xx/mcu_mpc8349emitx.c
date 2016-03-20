@@ -141,7 +141,8 @@ static int mcu_gpiochip_add(struct mcu *mcu)
 
 static int mcu_gpiochip_remove(struct mcu *mcu)
 {
-	return gpiochip_remove(&mcu->gc);
+	gpiochip_remove(&mcu->gc);
+	return 0;
 }
 
 static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -166,10 +167,10 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (ret)
 		goto err;
 
-	/* XXX: this is potentially racy, but there is no lock for ppc_md */
-	if (!ppc_md.power_off) {
+	/* XXX: this is potentially racy, but there is no lock for pm_power_off */
+	if (!pm_power_off) {
 		glob_mcu = mcu;
-		ppc_md.power_off = mcu_power_off;
+		pm_power_off = mcu_power_off;
 		dev_info(&client->dev, "will provide power-off service\n");
 	}
 
@@ -196,7 +197,7 @@ static int mcu_remove(struct i2c_client *client)
 	device_remove_file(&client->dev, &dev_attr_status);
 
 	if (glob_mcu == mcu) {
-		ppc_md.power_off = NULL;
+		pm_power_off = NULL;
 		glob_mcu = NULL;
 	}
 
@@ -213,7 +214,7 @@ static const struct i2c_device_id mcu_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mcu_ids);
 
-static struct of_device_id mcu_of_match_table[] = {
+static const struct of_device_id mcu_of_match_table[] = {
 	{ .compatible = "fsl,mcu-mpc8349emitx", },
 	{ },
 };

@@ -39,7 +39,6 @@ config S3C_LOWLEVEL_UART_PORT
 
 config SAMSUNG_ATAGS
 	def_bool n
-	depends on !ARCH_MULTIPLATFORM
 	depends on ATAGS
 	help
 	   This option enables ATAGS based boot support code for
@@ -70,6 +69,7 @@ config S3C_GPIO_TRACK
 
 config S3C_ADC
 	bool "ADC common driver support"
+	depends on !ARCH_MULTIPLATFORM
 	help
 	  Core support for the ADC block found in the Samsung SoC systems
 	  for drivers such as the touchscreen and hwmon to use to share
@@ -217,12 +217,6 @@ config SAMSUNG_DEV_PWM
 	help
 	  Compile in platform device definition for PWM Timer
 
-config SAMSUNG_DEV_BACKLIGHT
-	bool
-	depends on SAMSUNG_DEV_PWM
-	help
-	  Compile in platform device definition LCD backlight with PWM Timer
-
 config S3C24XX_PWM
 	bool "PWM device support"
 	select PWM
@@ -231,17 +225,8 @@ config S3C24XX_PWM
 	  Support for exporting the PWM timer blocks via the pwm device
 	  system
 
-config S3C_SETUP_CAMIF
-	bool
-	help
-	  Compile in common setup code for S3C CAMIF devices
-
-# DMA
-
-config S3C_DMA
-	bool
-	help
-	  Internal configuration for S3C DMA core
+config GPIO_SAMSUNG
+	def_bool y
 
 config SAMSUNG_PM_GPIO
 	bool
@@ -249,27 +234,14 @@ config SAMSUNG_PM_GPIO
 	help
 	  Include legacy GPIO power management code for platforms not using
 	  pinctrl-samsung driver.
-
-config SAMSUNG_DMADEV
-	bool "Use legacy Samsung DMA abstraction"
-	depends on CPU_S5PV210 || ARCH_S3C64XX
-	select DMADEVICES
-	default y
-	help
-	  Use DMA device engine for PL330 DMAC.
-
 endif
-
-config S5P_DEV_MFC
-	bool
-	help
-	  Compile in setup memory (init) code for MFC
 
 comment "Power management"
 
 config SAMSUNG_PM_DEBUG
-	bool "S3C2410 PM Suspend debug"
-	depends on PM && DEBUG_KERNEL && DEBUG_S3C_UART
+	bool "Samsung PM Suspend debug"
+	depends on PM && DEBUG_KERNEL
+	depends on DEBUG_EXYNOS_UART || DEBUG_S3C24XX_UART || DEBUG_S3C2410_UART
 	help
 	  Say Y here if you want verbose debugging from the PM Suspend and
 	  Resume code. See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>

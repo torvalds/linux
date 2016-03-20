@@ -7,8 +7,14 @@ config PPC_MPC512x
 	select PPC_PCI_CHOICE
 	select FSL_PCI if PCI
 	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select USB_EHCI_BIG_ENDIAN_MMIO
-	select USB_EHCI_BIG_ENDIAN_DESC
+	select USB_EHCI_BIG_ENDIAN_MMIO if USB_EHCI_HCD
+	select USB_EHCI_BIG_ENDIAN_DESC if USB_EHCI_HCD
+
+config MPC512x_LPBFIFO
+	tristate "MPC512x LocalPlus Bus FIFO driver"
+	depends on PPC_MPC512x && MPC512X_DMA
+	help
+	  Enable support for Freescale MPC512x LocalPlus Bus FIFO (SCLPC).
 
 config MPC5121_ADS
 	bool "Freescale MPC5121E ADS"

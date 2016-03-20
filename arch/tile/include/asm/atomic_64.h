@@ -24,7 +24,7 @@
 
 /* First, the 32-bit atomic ops that are "real" on our 64-bit platform. */
 
-#define atomic_set(v, i) ((v)->counter = (i))
+#define atomic_set(v, i) WRITE_ONCE((v)->counter, (i))
 
 /*
  * The smp_mb() operations throughout are to support the fact that
@@ -58,12 +58,32 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 	return oldval;
 }
 
+static inline void atomic_and(int i, atomic_t *v)
+{
+	__insn_fetchand4((void *)&v->counter, i);
+}
+
+static inline void atomic_or(int i, atomic_t *v)
+{
+	__insn_fetchor4((void *)&v->counter, i);
+}
+
+static inline void atomic_xor(int i, atomic_t *v)
+{
+	int guess, oldval = v->counter;
+	do {
+		guess = oldval;
+		__insn_mtspr(SPR_CMPEXCH_VALUE, guess);
+		oldval = __insn_cmpexch4(&v->counter, guess ^ i);
+	} while (guess != oldval);
+}
+
 /* Now the true 64-bit operations. */
 
 #define ATOMIC64_INIT(i)	{ (i) }
 
-#define atomic64_read(v)		((v)->counter)
-#define atomic64_set(v, i) ((v)->counter = (i))
+#define atomic64_read(v)	READ_ONCE((v)->counter)
+#define atomic64_set(v, i)	WRITE_ONCE((v)->counter, (i))
 
 static inline void atomic64_add(long i, atomic64_t *v)
 {
@@ -91,6 +111,26 @@ static inline long atomic64_add_unless(atomic64_t *v, long a, long u)
 	return oldval != u;
 }
 
+static inline void atomic64_and(long i, atomic64_t *v)
+{
+	__insn_fetchand((void *)&v->counter, i);
+}
+
+static inline void atomic64_or(long i, atomic64_t *v)
+{
+	__insn_fetchor((void *)&v->counter, i);
+}
+
+static inline void atomic64_xor(long i, atomic64_t *v)
+{
+	long guess, oldval = v->counter;
+	do {
+		guess = oldval;
+		__insn_mtspr(SPR_CMPEXCH_VALUE, guess);
+		oldval = __insn_cmpexch(&v->counter, guess ^ i);
+	} while (guess != oldval);
+}
+
 #define atomic64_sub_return(i, v)	atomic64_add_return(-(i), (v))
 #define atomic64_sub(i, v)		atomic64_add(-(i), (v))
 #define atomic64_inc_return(v)		atomic64_add_return(1, (v))
@@ -104,9 +144,6 @@ static inline long atomic64_add_unless(atomic64_t *v, long a, long u)
 #define atomic64_add_negative(i, v)	(atomic64_add_return((i), (v)) < 0)
 
 #define atomic64_inc_not_zero(v)	atomic64_add_unless((v), 1, 0)
-
-/* Define this to indicate that cmpxchg is an efficient operation. */
-#define __HAVE_ARCH_CMPXCHG
 
 #endif /* !__ASSEMBLY__ */
 

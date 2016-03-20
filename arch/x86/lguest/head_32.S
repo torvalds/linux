@@ -84,7 +84,7 @@ ENTRY(lg_irq_enable)
 	 * set lguest_data.irq_pending to X86_EFLAGS_IF.  If it's not zero, we
 	 * jump to send_interrupts, otherwise we're done.
 	 */
-	testl $0, lguest_data+LGUEST_DATA_irq_pending
+	cmpl $0, lguest_data+LGUEST_DATA_irq_pending
 	jnz send_interrupts
 	/*
 	 * One cool thing about x86 is that you can do many things without using
@@ -133,9 +133,8 @@ ENTRY(lg_restore_fl)
 	ret
 /*:*/
 
-/* These demark the EIP range where host should never deliver interrupts. */
-.global lguest_noirq_start
-.global lguest_noirq_end
+/* These demark the EIP where host should never deliver interrupts. */
+.global lguest_noirq_iret
 
 /*M:004
  * When the Host reflects a trap or injects an interrupt into the Guest, it
@@ -168,29 +167,26 @@ ENTRY(lg_restore_fl)
  * So we have to copy eflags from the stack to lguest_data.irq_enabled before
  * we do the "iret".
  *
- * There are two problems with this: firstly, we need to use a register to do
- * the copy and secondly, the whole thing needs to be atomic.  The first
- * problem is easy to solve: push %eax on the stack so we can use it, and then
- * restore it at the end just before the real "iret".
+ * There are two problems with this: firstly, we can't clobber any registers
+ * and secondly, the whole thing needs to be atomic.  The first problem
+ * is solved by using "push memory"/"pop memory" instruction pair for copying.
  *
  * The second is harder: copying eflags to lguest_data.irq_enabled will turn
  * interrupts on before we're finished, so we could be interrupted before we
- * return to userspace or wherever.  Our solution to this is to surround the
- * code with lguest_noirq_start: and lguest_noirq_end: labels.  We tell the
+ * return to userspace or wherever.  Our solution to this is to tell the
  * Host that it is *never* to interrupt us there, even if interrupts seem to be
- * enabled.
+ * enabled. (It's not necessary to protect pop instruction, since
+ * data gets updated only after it completes, so we only need to protect
+ * one instruction, iret).
  */
 ENTRY(lguest_iret)
-	pushl	%eax
-	movl	12(%esp), %eax
-lguest_noirq_start:
+	pushl	2*4(%esp)
 	/*
 	 * Note the %ss: segment prefix here.  Normal data accesses use the
 	 * "ds" segment, but that will have already been restored for whatever
 	 * we're returning to (such as userspace): we can't trust it.  The %ss:
 	 * prefix makes sure we use the stack segment, which is still valid.
 	 */
-	movl	%eax,%ss:lguest_data+LGUEST_DATA_irq_enabled
-	popl	%eax
+	popl	%ss:lguest_data+LGUEST_DATA_irq_enabled
+lguest_noirq_iret:
 	iret
-lguest_noirq_end:

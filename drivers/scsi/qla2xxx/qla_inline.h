@@ -87,8 +87,8 @@ host_to_adap(uint8_t *src, uint8_t *dst, uint32_t bsize)
 	__le32 *odest = (__le32 *) dst;
 	uint32_t iter = bsize >> 2;
 
-	for (; iter ; iter--)
-		*odest++ = cpu_to_le32(*isrc++);
+	for ( ; iter--; isrc++)
+		*odest++ = cpu_to_le32(*isrc);
 }
 
 static inline void
@@ -258,6 +258,8 @@ qla2x00_init_timer(srb_t *sp, unsigned long tmo)
 	if ((IS_QLAFX00(sp->fcport->vha->hw)) &&
 	    (sp->type == SRB_FXIOCB_DCMD))
 		init_completion(&sp->u.iocb_cmd.u.fxiocb.fxiocb_comp);
+	if (sp->type == SRB_ELS_DCMD)
+		init_completion(&sp->u.iocb_cmd.u.els_logo.comp);
 }
 
 static inline int
@@ -278,4 +280,12 @@ qla2x00_handle_mbx_completion(struct qla_hw_data *ha, int status)
 		clear_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
 		complete(&ha->mbx_intr_comp);
 	}
+}
+
+static inline void
+qla2x00_set_retry_delay_timestamp(fc_port_t *fcport, uint16_t retry_delay)
+{
+	if (retry_delay)
+		fcport->retry_delay_timestamp = jiffies +
+		    (retry_delay * HZ / 10);
 }

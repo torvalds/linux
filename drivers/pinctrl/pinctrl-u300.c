@@ -955,8 +955,8 @@ static void u300_pmx_endisable(struct u300_pmx *upmx, unsigned selector,
 	}
 }
 
-static int u300_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
-			   unsigned group)
+static int u300_pmx_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
+			    unsigned group)
 {
 	struct u300_pmx *upmx;
 
@@ -994,7 +994,7 @@ static const struct pinmux_ops u300_pmx_ops = {
 	.get_functions_count = u300_pmx_get_funcs_count,
 	.get_function_name = u300_pmx_get_func_name,
 	.get_function_groups = u300_pmx_get_groups,
-	.enable = u300_pmx_enable,
+	.set_mux = u300_pmx_set_mux,
 };
 
 static int u300_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,
@@ -1068,9 +1068,9 @@ static int u300_pmx_probe(struct platform_device *pdev)
 		return PTR_ERR(upmx->virtbase);
 
 	upmx->pctl = pinctrl_register(&u300_pmx_desc, &pdev->dev, upmx);
-	if (!upmx->pctl) {
+	if (IS_ERR(upmx->pctl)) {
 		dev_err(&pdev->dev, "could not register U300 pinmux driver\n");
-		return -EINVAL;
+		return PTR_ERR(upmx->pctl);
 	}
 
 	platform_set_drvdata(pdev, upmx);
@@ -1098,7 +1098,6 @@ static const struct of_device_id u300_pinctrl_match[] = {
 static struct platform_driver u300_pmx_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = u300_pinctrl_match,
 	},
 	.probe = u300_pmx_probe,

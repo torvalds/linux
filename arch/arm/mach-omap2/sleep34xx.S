@@ -86,13 +86,18 @@ ENTRY(enable_omap3630_toggle_l2_on_restore)
 	stmfd	sp!, {lr}	@ save registers on stack
 	/* Setup so that we will disable and enable l2 */
 	mov	r1, #0x1
-	adrl	r2, l2dis_3630	@ may be too distant for plain adr
-	str	r1, [r2]
+	adrl	r3, l2dis_3630_offset	@ may be too distant for plain adr
+	ldr	r2, [r3]		@ value for offset
+	str	r1, [r2, r3]		@ write to l2dis_3630
 	ldmfd	sp!, {pc}	@ restore regs and return
 ENDPROC(enable_omap3630_toggle_l2_on_restore)
 
-	.text
-/* Function to call rom code to save secure ram context */
+/*
+ * Function to call rom code to save secure ram context. This gets
+ * relocated to SRAM, so it can be all in .data section. Otherwise
+ * we need to initialize api_params separately.
+ */
+	.data
 	.align	3
 ENTRY(save_secure_ram_context)
 	stmfd	sp!, {r4 - r11, lr}	@ save registers on stack
@@ -125,6 +130,8 @@ api_params:
 ENDPROC(save_secure_ram_context)
 ENTRY(save_secure_ram_context_sz)
 	.word	. - save_secure_ram_context
+
+	.text
 
 /*
  * ======================
@@ -203,23 +210,8 @@ save_context_wfi:
 	 */
 	ldr	r1, kernel_flush
 	blx	r1
-	/*
-	 * The kernel doesn't interwork: v7_flush_dcache_all in particluar will
-	 * always return in Thumb state when CONFIG_THUMB2_KERNEL is enabled.
-	 * This sequence switches back to ARM.  Note that .align may insert a
-	 * nop: bx pc needs to be word-aligned in order to work.
-	 */
- THUMB(	.thumb		)
- THUMB(	.align		)
- THUMB(	bx	pc	)
- THUMB(	nop		)
-	.arm
-
 	b	omap3_do_wfi
-
-/*
- * Local variables
- */
+ENDPROC(omap34xx_cpu_suspend)
 omap3_do_wfi_sram_addr:
 	.word omap3_do_wfi_sram
 kernel_flush:
@@ -304,12 +296,6 @@ wait_sdrc_ready:
 	bic	r5, r5, #0x40
 	str	r5, [r4]
 
-/*
- * PC-relative stores lead to undefined behaviour in Thumb-2: use a r7 as a
- * base instead.
- * Be careful not to clobber r7 when maintaing this code.
- */
-
 is_dll_in_lock_mode:
 	/* Is dll in lock mode? */
 	ldr	r4, sdrc_dlla_ctrl
@@ -317,11 +303,7 @@ is_dll_in_lock_mode:
 	tst	r5, #0x4
 	bne	exit_nonoff_modes	@ Return if locked
 	/* wait till dll locks */
-	adr	r7, kick_counter
 wait_dll_lock_timed:
-	ldr	r4, wait_dll_lock_counter
-	add	r4, r4, #1
-	str	r4, [r7, #wait_dll_lock_counter - kick_counter]
 	ldr	r4, sdrc_dlla_status
 	/* Wait 20uS for lock */
 	mov	r6, #8
@@ -345,9 +327,6 @@ kick_dll:
 	orr	r6, r6, #(1<<3)		@ enable dll
 	str	r6, [r4]
 	dsb
-	ldr	r4, kick_counter
-	add	r4, r4, #1
-	str	r4, [r7]		@ kick_counter
 	b	wait_dll_lock_timed
 
 exit_nonoff_modes:
@@ -364,10 +343,7 @@ exit_nonoff_modes:
  * ===================================
  */
 	ldmfd	sp!, {r4 - r11, pc}	@ restore regs and return
-
-/*
- * Local variables
- */
+ENDPROC(omap3_do_wfi)
 sdrc_power:
 	.word	SDRC_POWER_V
 cm_idlest1_core:
@@ -378,15 +354,6 @@ sdrc_dlla_status:
 	.word	SDRC_DLLA_STATUS_V
 sdrc_dlla_ctrl:
 	.word	SDRC_DLLA_CTRL_V
-	/*
-	 * When exporting to userspace while the counters are in SRAM,
-	 * these 2 words need to be at the end to facilitate retrival!
-	 */
-kick_counter:
-	.word	0
-wait_dll_lock_counter:
-	.word	0
-
 ENTRY(omap3_do_wfi_sz)
 	.word	. - omap3_do_wfi
 
@@ -455,7 +422,9 @@ ENTRY(omap3_restore)
 	cmp	r2, #0x0	@ Check if target power state was OFF or RET
 	bne	logic_l1_restore
 
-	ldr	r0, l2dis_3630
+	adr	r1, l2dis_3630_offset	@ address for offset
+	ldr	r0, [r1]		@ value for offset
+	ldr	r0, [r1, r0]		@ value at l2dis_3630
 	cmp	r0, #0x1	@ should we disable L2 on 3630?
 	bne	skipl2dis
 	mrc	p15, 0, r0, c1, c0, 1
@@ -467,12 +436,14 @@ skipl2dis:
 	and	r1, #0x700
 	cmp	r1, #0x300
 	beq	l2_inv_gp
+	adr	r0, l2_inv_api_params_offset
+	ldr	r3, [r0]
+	add	r3, r3, r0		@ r3 points to dummy parameters
 	mov	r0, #40			@ set service ID for PPA
 	mov	r12, r0			@ copy secure Service ID in r12
 	mov	r1, #0			@ set task id for ROM code in r1
 	mov	r2, #4			@ set some flags in r2, r6
 	mov	r6, #0xff
-	adr	r3, l2_inv_api_params	@ r3 points to dummy parameters
 	dsb				@ data write barrier
 	dmb				@ data memory barrier
 	smc	#1			@ call SMI monitor (smi #1)
@@ -506,8 +477,8 @@ skipl2dis:
 	b	logic_l1_restore
 
 	.align
-l2_inv_api_params:
-	.word	0x1, 0x00
+l2_inv_api_params_offset:
+	.long	l2_inv_api_params - .
 l2_inv_gp:
 	/* Execute smi to invalidate L2 cache */
 	mov r12, #0x1			@ set up to invalidate L2
@@ -524,7 +495,9 @@ l2_inv_gp:
 	mov	r12, #0x2
 	smc	#0			@ Call SMI monitor (smieq)
 logic_l1_restore:
-	ldr	r1, l2dis_3630
+	adr	r0, l2dis_3630_offset	@ adress for offset
+	ldr	r1, [r0]		@ value for offset
+	ldr	r1, [r0, r1]		@ value at l2dis_3630
 	cmp	r1, #0x1		@ Test if L2 re-enable needed on 3630
 	bne	skipl2reen
 	mrc	p15, 0, r1, c1, c0, 1
@@ -553,8 +526,16 @@ control_stat:
 	.word	CONTROL_STAT
 control_mem_rta:
 	.word	CONTROL_MEM_RTA_CTRL
+l2dis_3630_offset:
+	.long	l2dis_3630 - .
+
+	.data
 l2dis_3630:
 	.word	0
+
+	.data
+l2_inv_api_params:
+	.word	0x1, 0x00
 
 /*
  * Internal functions

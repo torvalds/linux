@@ -20,13 +20,14 @@
 #include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
+#include <asm/pgtable.h>
 #include <asm/ppc-pci.h>
 #include <mm/mmu_decl.h>
 #include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/ehv_pic.h>
-#include <asm/qe_ic.h>
+#include <soc/fsl/qe/qe_ic.h>
 
 #include <linux/of_platform.h>
 #include <sysdev/fsl_soc.h>
@@ -67,6 +68,16 @@ void __init corenet_gen_setup_arch(void)
 
 	swiotlb_detect_4g();
 
+#if defined(CONFIG_FSL_PCI) && defined(CONFIG_ZONE_DMA32)
+	/*
+	 * Inbound windows don't cover the full lower 4 GiB
+	 * due to conflicts with PCICSRBAR and outbound windows,
+	 * so limit the DMA32 zone to 2 GiB, to allow consistent
+	 * allocations to succeed.
+	 */
+	limit_zone_pfn(ZONE_DMA32, 1UL << (31 - PAGE_SHIFT));
+#endif
+
 	pr_info("%s board\n", ppc_md.name);
 
 	mpc85xx_qe_init();
@@ -75,6 +86,15 @@ void __init corenet_gen_setup_arch(void)
 static const struct of_device_id of_device_ids[] = {
 	{
 		.compatible	= "simple-bus"
+	},
+	{
+		.compatible	= "mdio-mux-gpio"
+	},
+	{
+		.compatible	= "fsl,fpga-ngpixis"
+	},
+	{
+		.compatible	= "fsl,fpga-qixis"
 	},
 	{
 		.compatible	= "fsl,srio",
@@ -96,6 +116,9 @@ static const struct of_device_id of_device_ids[] = {
 	},
 	{
 		.compatible	= "fsl,qe",
+	},
+	{
+		.compatible    = "fsl,fman",
 	},
 	/* The following two are for the Freescale hypervisor */
 	{
@@ -127,9 +150,18 @@ static const char * const boards[] __initconst = {
 	"fsl,B4860QDS",
 	"fsl,B4420QDS",
 	"fsl,B4220QDS",
+	"fsl,T1023RDB",
+	"fsl,T1024QDS",
+	"fsl,T1024RDB",
+	"fsl,T1040D4RDB",
+	"fsl,T1042D4RDB",
 	"fsl,T1040QDS",
 	"fsl,T1042QDS",
+	"fsl,T1040RDB",
+	"fsl,T1042RDB",
+	"fsl,T1042RDB_PI",
 	"keymile,kmcoge4",
+	"varisys,CYRUS",
 	NULL
 };
 
@@ -156,7 +188,7 @@ static int __init corenet_generic_probe(void)
 
 			ppc_md.get_irq = ehv_pic_get_irq;
 			ppc_md.restart = fsl_hv_restart;
-			ppc_md.power_off = fsl_hv_halt;
+			pm_power_off = fsl_hv_halt;
 			ppc_md.halt = fsl_hv_halt;
 #ifdef CONFIG_SMP
 			/*
@@ -183,7 +215,17 @@ define_machine(corenet_generic) {
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
+/*
+ * Core reset may cause issues if using the proxy mode of MPIC.
+ * So, use the mixed mode of MPIC if enabling CPU hotplug.
+ *
+ * Likewise, problems have been seen with kexec when coreint is enabled.
+ */
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_KEXEC)
+	.get_irq		= mpic_get_irq,
+#else
 	.get_irq		= mpic_get_coreint_irq,
+#endif
 	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,

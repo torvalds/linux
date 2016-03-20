@@ -2,8 +2,8 @@
 #include "tegra30.dtsi"
 
 /*
- * Toradex Colibri T30 Device Tree
- * Compatible for Revisions 1.1B/1.1C/1.1D
+ * Toradex Colibri T30 Module Device Tree
+ * Compatible for Revisions V1.1B, V1.1C, V1.1D, V1.1E; IT: V1.1A
  */
 / {
 	model = "Toradex Colibri T30";
@@ -15,8 +15,8 @@
 
 	host1x@50000000 {
 		hdmi@54280000 {
-			vdd-supply = <&sys_3v3_reg>;
-			pll-supply = <&vio_reg>;
+			vdd-supply = <&avdd_hdmi_3v3_reg>;
+			pll-supply = <&avdd_hdmi_pll_1v8_reg>;
 
 			nvidia,hpd-gpio =
 				<&gpio TEGRA_GPIO(N, 7) GPIO_ACTIVE_HIGH>;
@@ -39,7 +39,7 @@
 
 			/* Colibri Backlight PWM<A> */
 			sdmmc3_dat3_pb4 {
-				nvidia,pins =	"sdmmc3_dat3_pb4";
+				nvidia,pins = "sdmmc3_dat3_pb4";
 				nvidia,function = "pwm0";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
@@ -66,15 +66,6 @@
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 
-			/* Thermal alert, need to be disabled */
-			lcd_dc1_pd2 {
-				nvidia,pins = "lcd_dc1_pd2";
-				nvidia,function = "rsvd3";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
-			};
-
 			/* Colibri MMC */
 			kb_row10_ps2 {
 				nvidia,pins = "kb_row10_ps2";
@@ -83,11 +74,11 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			kb_row11_ps3 {
-				nvidia,pins =	"kb_row11_ps3",
-						"kb_row12_ps4",
-						"kb_row13_ps5",
-						"kb_row14_ps6",
-						"kb_row15_ps7";
+				nvidia,pins = "kb_row11_ps3",
+					      "kb_row12_ps4",
+					      "kb_row13_ps5",
+					      "kb_row14_ps6",
+					      "kb_row15_ps7";
 				nvidia,function = "sdmmc2";
 				nvidia,pull = <TEGRA_PIN_PULL_UP>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
@@ -95,17 +86,17 @@
 
 			/* Colibri SSP */
 			ulpi_clk_py0 {
-				nvidia,pins =   "ulpi_clk_py0",
-						"ulpi_dir_py1",
-						"ulpi_nxt_py2",
-						"ulpi_stp_py3";
+				nvidia,pins = "ulpi_clk_py0",
+					      "ulpi_dir_py1",
+					      "ulpi_nxt_py2",
+					      "ulpi_stp_py3";
 				nvidia,function = "spi1";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			sdmmc3_dat6_pd3 {
-				nvidia,pins =	"sdmmc3_dat6_pd3",
-						"sdmmc3_dat7_pd4";
+				nvidia,pins = "sdmmc3_dat6_pd3",
+					      "sdmmc3_dat7_pd4";
 				nvidia,function = "spdif";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
@@ -113,14 +104,14 @@
 
 			/* Colibri UART_A */
 			ulpi_data0 {
-				nvidia,pins =   "ulpi_data0_po1",
-						"ulpi_data1_po2",
-						"ulpi_data2_po3",
-						"ulpi_data3_po4",
-						"ulpi_data4_po5",
-						"ulpi_data5_po6",
-						"ulpi_data6_po7",
-						"ulpi_data7_po0";
+				nvidia,pins = "ulpi_data0_po1",
+					      "ulpi_data1_po2",
+					      "ulpi_data2_po3",
+					      "ulpi_data3_po4",
+					      "ulpi_data4_po5",
+					      "ulpi_data5_po6",
+					      "ulpi_data6_po7",
+					      "ulpi_data7_po0";
 				nvidia,function = "uarta";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
@@ -128,10 +119,10 @@
 
 			/* Colibri UART_B */
 			gmi_a16_pj7 {
-				nvidia,pins =   "gmi_a16_pj7",
-						"gmi_a17_pb0",
-						"gmi_a18_pb1",
-						"gmi_a19_pk7";
+				nvidia,pins = "gmi_a16_pj7",
+					      "gmi_a17_pb0",
+					      "gmi_a18_pb1",
+					      "gmi_a19_pk7";
 				nvidia,function = "uartd";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
@@ -139,8 +130,8 @@
 
 			/* Colibri UART_C */
 			uart2_rxd {
-				nvidia,pins =   "uart2_rxd_pc3",
-						"uart2_txd_pc2";
+				nvidia,pins = "uart2_rxd_pc3",
+					      "uart2_txd_pc2";
 				nvidia,function = "uartb";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
@@ -148,24 +139,58 @@
 
 			/* eMMC */
 			sdmmc4_clk_pcc4 {
-				nvidia,pins =	"sdmmc4_clk_pcc4",
-						"sdmmc4_rst_n_pcc3";
+				nvidia,pins = "sdmmc4_clk_pcc4",
+					      "sdmmc4_rst_n_pcc3";
 				nvidia,function = "sdmmc4";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 			sdmmc4_dat0_paa0 {
-				nvidia,pins =	"sdmmc4_dat0_paa0",
-						"sdmmc4_dat1_paa1",
-						"sdmmc4_dat2_paa2",
-						"sdmmc4_dat3_paa3",
-						"sdmmc4_dat4_paa4",
-						"sdmmc4_dat5_paa5",
-						"sdmmc4_dat6_paa6",
-						"sdmmc4_dat7_paa7";
+				nvidia,pins = "sdmmc4_dat0_paa0",
+					      "sdmmc4_dat1_paa1",
+					      "sdmmc4_dat2_paa2",
+					      "sdmmc4_dat3_paa3",
+					      "sdmmc4_dat4_paa4",
+					      "sdmmc4_dat5_paa5",
+					      "sdmmc4_dat6_paa6",
+					      "sdmmc4_dat7_paa7";
 				nvidia,function = "sdmmc4";
 				nvidia,pull = <TEGRA_PIN_PULL_UP>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			/* Power I2C (On-module) */
+			pwr_i2c_scl_pz6 {
+				nvidia,pins = "pwr_i2c_scl_pz6",
+					      "pwr_i2c_sda_pz7";
+				nvidia,function = "i2cpwr";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				nvidia,lock = <TEGRA_PIN_DISABLE>;
+				nvidia,open-drain = <TEGRA_PIN_ENABLE>;
+			};
+
+			/*
+			 * THERMD_ALERT#, unlatched I2C address pin of LM95245
+			 * temperature sensor therefore requires disabling for
+			 * now
+			 */
+			lcd_dc1_pd2 {
+				nvidia,pins = "lcd_dc1_pd2";
+				nvidia,function = "rsvd3";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+			};
+
+			/* TOUCH_PEN_INT# */
+			pv0 {
+				nvidia,pins = "pv0";
+				nvidia,function = "rsvd1";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 		};
 	};
@@ -236,7 +261,7 @@
 				/*
 				 * EN_+V3.3 switching via FET:
 				 * +V3.3_AUDIO_AVDD_S, +V3.3 and +V1.8_VDD_LAN
-				 * see also v3_3 fixed supply
+				 * see also 3v3 fixed supply
 				 */
 				ldo2_reg: ldo2 {
 					regulator-name = "en_3v3";
@@ -295,6 +320,46 @@
 			};
 		};
 
+		/* STMPE811 touch screen controller */
+		stmpe811@41 {
+			compatible = "st,stmpe811";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x41>;
+			interrupts = <TEGRA_GPIO(V, 0) IRQ_TYPE_LEVEL_LOW>;
+			interrupt-parent = <&gpio>;
+			interrupt-controller;
+			id = <0>;
+			blocks = <0x5>;
+			irq-trigger = <0x1>;
+
+			stmpe_touchscreen {
+				compatible = "st,stmpe-ts";
+				reg = <0>;
+				/* 3.25 MHz ADC clock speed */
+				st,adc-freq = <1>;
+				/* 8 sample average control */
+				st,ave-ctrl = <3>;
+				/* 7 length fractional part in z */
+				st,fraction-z = <7>;
+				/*
+				 * 50 mA typical 80 mA max touchscreen drivers
+				 * current limit value
+				 */
+				st,i-drive = <1>;
+				/* 12-bit ADC */
+				st,mod-12b = <1>;
+				/* internal ADC reference */
+				st,ref-sel = <0>;
+				/* ADC converstion time: 80 clocks */
+				st,sample-time = <4>;
+				/* 1 ms panel driver settling time */
+				st,settling = <3>;
+				/* 5 ms touch detect interrupt delay */
+				st,touch-det-delay = <5>;
+			};
+		};
+
 		/*
 		 * LM95245 temperature sensor
 		 * Note: OVERT_N directly connected to PMIC PWRDN
@@ -331,7 +396,8 @@
 		nvidia,sys-clock-req-active-high;
 	};
 
-	emmc: sdhci@78000600 {
+	/* eMMC */
+	sdhci@78000600 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;
@@ -365,18 +431,40 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		sys_3v3_reg: regulator@100 {
+		avdd_hdmi_pll_1v8_reg: regulator@100 {
 			compatible = "regulator-fixed";
 			reg = <100>;
+			regulator-name = "+V1.8_AVDD_HDMI_PLL";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			enable-active-high;
+			gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
+			vin-supply = <&vio_reg>;
+		};
+
+		sys_3v3_reg: regulator@101 {
+			compatible = "regulator-fixed";
+			reg = <101>;
 			regulator-name = "3v3";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 		};
 
-		charge_pump_5v0_reg: regulator@101 {
+		avdd_hdmi_3v3_reg: regulator@102 {
 			compatible = "regulator-fixed";
-			reg = <101>;
+			reg = <102>;
+			regulator-name = "+V3.3_AVDD_HDMI";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			enable-active-high;
+			gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
+			vin-supply = <&sys_3v3_reg>;
+		};
+
+		charge_pump_5v0_reg: regulator@103 {
+			compatible = "regulator-fixed";
+			reg = <103>;
 			regulator-name = "5v0";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;

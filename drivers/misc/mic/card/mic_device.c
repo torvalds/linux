@@ -28,78 +28,14 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/reboot.h>
+#include <linux/dmaengine.h>
+#include <linux/kmod.h>
 
 #include <linux/mic_common.h>
 #include "../common/mic_dev.h"
 #include "mic_device.h"
-#include "mic_virtio.h"
 
 static struct mic_driver *g_drv;
-static struct mic_irq *shutdown_cookie;
-
-static void mic_notify_host(u8 state)
-{
-	struct mic_driver *mdrv = g_drv;
-	struct mic_bootparam __iomem *bootparam = mdrv->dp;
-
-	iowrite8(state, &bootparam->shutdown_status);
-	dev_dbg(mdrv->dev, "%s %d system_state %d\n",
-		__func__, __LINE__, state);
-	mic_send_intr(&mdrv->mdev, ioread8(&bootparam->c2h_shutdown_db));
-}
-
-static int mic_panic_event(struct notifier_block *this, unsigned long event,
-		void *ptr)
-{
-	struct mic_driver *mdrv = g_drv;
-	struct mic_bootparam __iomem *bootparam = mdrv->dp;
-
-	iowrite8(-1, &bootparam->h2c_config_db);
-	iowrite8(-1, &bootparam->h2c_shutdown_db);
-	mic_notify_host(MIC_CRASHED);
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block mic_panic = {
-	.notifier_call  = mic_panic_event,
-};
-
-static irqreturn_t mic_shutdown_isr(int irq, void *data)
-{
-	struct mic_driver *mdrv = g_drv;
-	struct mic_bootparam __iomem *bootparam = mdrv->dp;
-
-	mic_ack_interrupt(&g_drv->mdev);
-	if (ioread8(&bootparam->shutdown_card))
-		orderly_poweroff(true);
-	return IRQ_HANDLED;
-}
-
-static int mic_shutdown_init(void)
-{
-	int rc = 0;
-	struct mic_driver *mdrv = g_drv;
-	struct mic_bootparam __iomem *bootparam = mdrv->dp;
-	int shutdown_db;
-
-	shutdown_db = mic_next_card_db();
-	shutdown_cookie = mic_request_card_irq(mic_shutdown_isr, NULL,
-					       "Shutdown", mdrv, shutdown_db);
-	if (IS_ERR(shutdown_cookie))
-		rc = PTR_ERR(shutdown_cookie);
-	else
-		iowrite8(shutdown_db, &bootparam->h2c_shutdown_db);
-	return rc;
-}
-
-static void mic_shutdown_uninit(void)
-{
-	struct mic_driver *mdrv = g_drv;
-	struct mic_bootparam __iomem *bootparam = mdrv->dp;
-
-	iowrite8(-1, &bootparam->h2c_shutdown_db);
-	mic_free_card_irq(shutdown_cookie, mdrv);
-}
 
 static int __init mic_dp_init(void)
 {
@@ -240,6 +176,181 @@ static void mic_uninit_irq(void)
 	kfree(mdrv->irq_info.irq_usage_count);
 }
 
+static inline struct mic_driver *scdev_to_mdrv(struct scif_hw_dev *scdev)
+{
+	return dev_get_drvdata(scdev->dev.parent);
+}
+
+static struct mic_irq *
+___mic_request_irq(struct scif_hw_dev *scdev,
+		   irqreturn_t (*func)(int irq, void *data),
+				       const char *name, void *data,
+				       int db)
+{
+	return mic_request_card_irq(func, NULL, name, data, db);
+}
+
+static void
+___mic_free_irq(struct scif_hw_dev *scdev,
+		struct mic_irq *cookie, void *data)
+{
+	return mic_free_card_irq(cookie, data);
+}
+
+static void ___mic_ack_interrupt(struct scif_hw_dev *scdev, int num)
+{
+	struct mic_driver *mdrv = scdev_to_mdrv(scdev);
+
+	mic_ack_interrupt(&mdrv->mdev);
+}
+
+static int ___mic_next_db(struct scif_hw_dev *scdev)
+{
+	return mic_next_card_db();
+}
+
+static void ___mic_send_intr(struct scif_hw_dev *scdev, int db)
+{
+	struct mic_driver *mdrv = scdev_to_mdrv(scdev);
+
+	mic_send_intr(&mdrv->mdev, db);
+}
+
+static void ___mic_send_p2p_intr(struct scif_hw_dev *scdev, int db,
+				 struct mic_mw *mw)
+{
+	mic_send_p2p_intr(db, mw);
+}
+
+static void __iomem *
+___mic_ioremap(struct scif_hw_dev *scdev,
+	       phys_addr_t pa, size_t len)
+{
+	struct mic_driver *mdrv = scdev_to_mdrv(scdev);
+
+	return mic_card_map(&mdrv->mdev, pa, len);
+}
+
+static void ___mic_iounmap(struct scif_hw_dev *scdev, void __iomem *va)
+{
+	struct mic_driver *mdrv = scdev_to_mdrv(scdev);
+
+	mic_card_unmap(&mdrv->mdev, va);
+}
+
+static struct scif_hw_ops scif_hw_ops = {
+	.request_irq = ___mic_request_irq,
+	.free_irq = ___mic_free_irq,
+	.ack_interrupt = ___mic_ack_interrupt,
+	.next_db = ___mic_next_db,
+	.send_intr = ___mic_send_intr,
+	.send_p2p_intr = ___mic_send_p2p_intr,
+	.ioremap = ___mic_ioremap,
+	.iounmap = ___mic_iounmap,
+};
+
+static inline struct mic_driver *vpdev_to_mdrv(struct vop_device *vpdev)
+{
+	return dev_get_drvdata(vpdev->dev.parent);
+}
+
+static struct mic_irq *
+__mic_request_irq(struct vop_device *vpdev,
+		  irqreturn_t (*func)(int irq, void *data),
+		   const char *name, void *data, int intr_src)
+{
+	return mic_request_card_irq(func, NULL, name, data, intr_src);
+}
+
+static void __mic_free_irq(struct vop_device *vpdev,
+			   struct mic_irq *cookie, void *data)
+{
+	return mic_free_card_irq(cookie, data);
+}
+
+static void __mic_ack_interrupt(struct vop_device *vpdev, int num)
+{
+	struct mic_driver *mdrv = vpdev_to_mdrv(vpdev);
+
+	mic_ack_interrupt(&mdrv->mdev);
+}
+
+static int __mic_next_db(struct vop_device *vpdev)
+{
+	return mic_next_card_db();
+}
+
+static void __iomem *__mic_get_remote_dp(struct vop_device *vpdev)
+{
+	struct mic_driver *mdrv = vpdev_to_mdrv(vpdev);
+
+	return mdrv->dp;
+}
+
+static void __mic_send_intr(struct vop_device *vpdev, int db)
+{
+	struct mic_driver *mdrv = vpdev_to_mdrv(vpdev);
+
+	mic_send_intr(&mdrv->mdev, db);
+}
+
+static void __iomem *__mic_ioremap(struct vop_device *vpdev,
+				   dma_addr_t pa, size_t len)
+{
+	struct mic_driver *mdrv = vpdev_to_mdrv(vpdev);
+
+	return mic_card_map(&mdrv->mdev, pa, len);
+}
+
+static void __mic_iounmap(struct vop_device *vpdev, void __iomem *va)
+{
+	struct mic_driver *mdrv = vpdev_to_mdrv(vpdev);
+
+	mic_card_unmap(&mdrv->mdev, va);
+}
+
+static struct vop_hw_ops vop_hw_ops = {
+	.request_irq = __mic_request_irq,
+	.free_irq = __mic_free_irq,
+	.ack_interrupt = __mic_ack_interrupt,
+	.next_db = __mic_next_db,
+	.get_remote_dp = __mic_get_remote_dp,
+	.send_intr = __mic_send_intr,
+	.ioremap = __mic_ioremap,
+	.iounmap = __mic_iounmap,
+};
+
+static int mic_request_dma_chans(struct mic_driver *mdrv)
+{
+	dma_cap_mask_t mask;
+	struct dma_chan *chan;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_MEMCPY, mask);
+
+	do {
+		chan = dma_request_channel(mask, NULL, NULL);
+		if (chan) {
+			mdrv->dma_ch[mdrv->num_dma_ch++] = chan;
+			if (mdrv->num_dma_ch >= MIC_MAX_DMA_CHAN)
+				break;
+		}
+	} while (chan);
+	dev_info(mdrv->dev, "DMA channels # %d\n", mdrv->num_dma_ch);
+	return mdrv->num_dma_ch;
+}
+
+static void mic_free_dma_chans(struct mic_driver *mdrv)
+{
+	int i = 0;
+
+	for (i = 0; i < mdrv->num_dma_ch; i++) {
+		dma_release_channel(mdrv->dma_ch[i]);
+		mdrv->dma_ch[i] = NULL;
+	}
+	mdrv->num_dma_ch = 0;
+}
+
 /*
  * mic_driver_init - MIC driver initialization tasks.
  *
@@ -248,13 +359,11 @@ static void mic_uninit_irq(void)
 int __init mic_driver_init(struct mic_driver *mdrv)
 {
 	int rc;
+	struct mic_bootparam __iomem *bootparam;
+	u8 node_id;
 
 	g_drv = mdrv;
-	/*
-	 * Unloading the card module is not supported. The MIC card module
-	 * handles fundamental operations like host/card initiated shutdowns
-	 * and informing the host about card crashes and cannot be unloaded.
-	 */
+	/* Unloading the card module is not supported. */
 	if (!try_module_get(mdrv->dev->driver->owner)) {
 		rc = -ENODEV;
 		goto done;
@@ -265,18 +374,35 @@ int __init mic_driver_init(struct mic_driver *mdrv)
 	rc = mic_init_irq();
 	if (rc)
 		goto dp_uninit;
-	rc = mic_shutdown_init();
-	if (rc)
+	if (!mic_request_dma_chans(mdrv)) {
+		rc = -ENODEV;
 		goto irq_uninit;
-	rc = mic_devices_init(mdrv);
-	if (rc)
-		goto shutdown_uninit;
+	}
+	mdrv->vpdev = vop_register_device(mdrv->dev, VOP_DEV_TRNSP,
+					  NULL, &vop_hw_ops, 0,
+					  NULL, mdrv->dma_ch[0]);
+	if (IS_ERR(mdrv->vpdev)) {
+		rc = PTR_ERR(mdrv->vpdev);
+		goto dma_free;
+	}
+	bootparam = mdrv->dp;
+	node_id = ioread8(&bootparam->node_id);
+	mdrv->scdev = scif_register_device(mdrv->dev, MIC_SCIF_DEV,
+					   NULL, &scif_hw_ops,
+					   0, node_id, &mdrv->mdev.mmio, NULL,
+					   NULL, mdrv->dp, mdrv->dma_ch,
+					   mdrv->num_dma_ch, true);
+	if (IS_ERR(mdrv->scdev)) {
+		rc = PTR_ERR(mdrv->scdev);
+		goto vop_remove;
+	}
 	mic_create_card_debug_dir(mdrv);
-	atomic_notifier_chain_register(&panic_notifier_list, &mic_panic);
 done:
 	return rc;
-shutdown_uninit:
-	mic_shutdown_uninit();
+vop_remove:
+	vop_unregister_device(mdrv->vpdev);
+dma_free:
+	mic_free_dma_chans(mdrv);
 irq_uninit:
 	mic_uninit_irq();
 dp_uninit:
@@ -294,14 +420,9 @@ put:
 void mic_driver_uninit(struct mic_driver *mdrv)
 {
 	mic_delete_card_debug_dir(mdrv);
-	mic_devices_uninit(mdrv);
-	/*
-	 * Inform the host about the shutdown status i.e. poweroff/restart etc.
-	 * The module cannot be unloaded so the only code path to call
-	 * mic_devices_uninit(..) is the shutdown callback.
-	 */
-	mic_notify_host(system_state);
-	mic_shutdown_uninit();
+	scif_unregister_device(mdrv->scdev);
+	vop_unregister_device(mdrv->vpdev);
+	mic_free_dma_chans(mdrv);
 	mic_uninit_irq();
 	mic_dp_uninit();
 	module_put(mdrv->dev->driver->owner);

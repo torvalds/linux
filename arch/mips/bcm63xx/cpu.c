@@ -263,7 +263,7 @@ static unsigned int detect_memory_size(void)
 
 	if (BCMCPU_IS_6345()) {
 		val = bcm_sdram_readl(SDRAM_MBASE_REG);
-		return (val * 8 * 1024 * 1024);
+		return val * 8 * 1024 * 1024;
 	}
 
 	if (BCMCPU_IS_6338() || BCMCPU_IS_6348()) {
@@ -376,10 +376,10 @@ void __init bcm63xx_cpu_init(void)
 	bcm63xx_cpu_freq = detect_cpu_clock();
 	bcm63xx_memory_size = detect_memory_size();
 
-	printk(KERN_INFO "Detected Broadcom 0x%04x CPU revision %02x\n",
-	       bcm63xx_cpu_id, bcm63xx_cpu_rev);
-	printk(KERN_INFO "CPU frequency is %u MHz\n",
-	       bcm63xx_cpu_freq / 1000000);
-	printk(KERN_INFO "%uMB of RAM installed\n",
-	       bcm63xx_memory_size >> 20);
+	pr_info("Detected Broadcom 0x%04x CPU revision %02x\n",
+		bcm63xx_cpu_id, bcm63xx_cpu_rev);
+	pr_info("CPU frequency is %u MHz\n",
+		bcm63xx_cpu_freq / 1000000);
+	pr_info("%uMB of RAM installed\n",
+		bcm63xx_memory_size >> 20);
 }

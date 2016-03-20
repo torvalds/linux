@@ -105,7 +105,7 @@ asmlinkage int __sys_rt_sigreturn(struct pt_regs *regs)
 	struct rt_sigframe __user *frame;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	/*
 	 * Since we stacked the signal on a 64-bit boundary,
@@ -254,7 +254,8 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 
 	err |= setup_sigframe(frame, regs, set);
 	if (err == 0)
-		err |= setup_return(regs, &ksig->ka, frame->retcode, frame, usig);
+		err |= setup_return(regs, &ksig->ka, frame->retcode, frame,
+				    ksig->sig);
 
 	return err;
 }
@@ -276,7 +277,8 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	err |= __save_altstack(&frame->sig.uc.uc_stack, regs->UCreg_sp);
 	err |= setup_sigframe(&frame->sig, regs, set);
 	if (err == 0)
-		err |= setup_return(regs, &ksig->ka, frame->sig.retcode, frame, usig);
+		err |= setup_return(regs, &ksig->ka, frame->sig.retcode, frame,
+				    ksig->sig);
 
 	if (err == 0) {
 		/*
@@ -303,7 +305,6 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs,
 			  int syscall)
 {
 	struct thread_info *thread = current_thread_info();
-	struct task_struct *tsk = current;
 	sigset_t *oldset = sigmask_to_save();
 	int usig = ksig->sig;
 	int ret;
@@ -327,13 +328,6 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs,
 			setup_syscall_restart(regs);
 		}
 	}
-
-	/*
-	 * translate the signal
-	 */
-	if (usig < 32 && thread->exec_domain
-			&& thread->exec_domain->signal_invmap)
-		usig = thread->exec_domain->signal_invmap[usig];
 
 	/*
 	 * Set up the stack frame
@@ -373,7 +367,7 @@ static void do_signal(struct pt_regs *regs, int syscall)
 	if (!user_mode(regs))
 		return;
 
-	if (get_signsl(&ksig)) {
+	if (get_signal(&ksig)) {
 		handle_signal(&ksig, regs, syscall);
 		return;
 	}

@@ -28,6 +28,8 @@
 #ifndef _SIS_DRV_H_
 #define _SIS_DRV_H_
 
+#include <drm/drm_legacy.h>
+
 /* General customization:
  */
 
@@ -64,6 +66,10 @@ typedef struct drm_sis_private {
 	/** Mapping of userspace keys to mm objects */
 	struct idr object_idr;
 } drm_sis_private_t;
+
+struct sis_file_private {
+	struct list_head obj_list;
+};
 
 extern int sis_idle(struct drm_device *dev);
 extern void sis_reclaim_buffers_locked(struct drm_device *dev,

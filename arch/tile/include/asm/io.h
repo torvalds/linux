@@ -54,7 +54,8 @@ extern void iounmap(volatile void __iomem *addr);
 
 #define ioremap_nocache(physaddr, size)		ioremap(physaddr, size)
 #define ioremap_wc(physaddr, size)		ioremap(physaddr, size)
-#define ioremap_writethrough(physaddr, size)	ioremap(physaddr, size)
+#define ioremap_wt(physaddr, size)		ioremap(physaddr, size)
+#define ioremap_uc(physaddr, size)		ioremap(physaddr, size)
 #define ioremap_fullcache(physaddr, size)	ioremap(physaddr, size)
 
 #define mmiowb()
@@ -160,14 +161,14 @@ extern void _tile_writew(u16 val, unsigned long addr);
 extern void _tile_writel(u32 val, unsigned long addr);
 extern void _tile_writeq(u64 val, unsigned long addr);
 
-#define __raw_readb(addr) _tile_readb((unsigned long)addr)
-#define __raw_readw(addr) _tile_readw((unsigned long)addr)
-#define __raw_readl(addr) _tile_readl((unsigned long)addr)
-#define __raw_readq(addr) _tile_readq((unsigned long)addr)
-#define __raw_writeb(val, addr) _tile_writeb(val, (unsigned long)addr)
-#define __raw_writew(val, addr) _tile_writew(val, (unsigned long)addr)
-#define __raw_writel(val, addr) _tile_writel(val, (unsigned long)addr)
-#define __raw_writeq(val, addr) _tile_writeq(val, (unsigned long)addr)
+#define __raw_readb(addr) _tile_readb((unsigned long)(addr))
+#define __raw_readw(addr) _tile_readw((unsigned long)(addr))
+#define __raw_readl(addr) _tile_readl((unsigned long)(addr))
+#define __raw_readq(addr) _tile_readq((unsigned long)(addr))
+#define __raw_writeb(val, addr) _tile_writeb(val, (unsigned long)(addr))
+#define __raw_writew(val, addr) _tile_writew(val, (unsigned long)(addr))
+#define __raw_writel(val, addr) _tile_writel(val, (unsigned long)(addr))
+#define __raw_writeq(val, addr) _tile_writeq(val, (unsigned long)(addr))
 
 #else /* CONFIG_PCI */
 
@@ -241,6 +242,10 @@ static inline void writeq(u64 val, unsigned long addr)
 #define readw_relaxed readw
 #define readl_relaxed readl
 #define readq_relaxed readq
+#define writeb_relaxed writeb
+#define writew_relaxed writew
+#define writel_relaxed writel
+#define writeq_relaxed writeq
 
 #define ioread8 readb
 #define ioread16 readw
@@ -392,8 +397,7 @@ extern void ioport_unmap(void __iomem *addr);
 static inline long ioport_panic(void)
 {
 #ifdef __tilegx__
-	panic("PCI IO space support is disabled. Configure the kernel with"
-	      " CONFIG_TILE_PCI_IO to enable it");
+	panic("PCI IO space support is disabled. Configure the kernel with CONFIG_TILE_PCI_IO to enable it");
 #else
 	panic("inb/outb and friends do not exist on tile");
 #endif
@@ -402,7 +406,7 @@ static inline long ioport_panic(void)
 
 static inline void __iomem *ioport_map(unsigned long port, unsigned int len)
 {
-	pr_info("ioport_map: mapping IO resources is unsupported on tile.\n");
+	pr_info("ioport_map: mapping IO resources is unsupported on tile\n");
 	return NULL;
 }
 

@@ -23,8 +23,6 @@
 
 /* #define DEBUG */
 
-#define pr_fmt(fmt) KBUILD_BASENAME ": " fmt
-
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -72,7 +70,7 @@ static int compat_effect(struct ff_device *ff, struct ff_effect *effect)
 			return -EINVAL;
 
 		/*
-		 * calculate manginude of sine wave as average of rumble's
+		 * calculate magnitude of sine wave as average of rumble's
 		 * 2/3 of strong magnitude and 1/3 of weak magnitude
 		 */
 		magnitude = effect->u.rumble.strong_magnitude / 3 +
@@ -116,7 +114,7 @@ int input_ff_upload(struct input_dev *dev, struct ff_effect *effect,
 
 	if (effect->type < FF_EFFECT_MIN || effect->type > FF_EFFECT_MAX ||
 	    !test_bit(effect->type, dev->ffbit)) {
-		pr_debug("invalid or not supported effect type in upload\n");
+		dev_dbg(&dev->dev, "invalid or not supported effect type in upload\n");
 		return -EINVAL;
 	}
 
@@ -124,7 +122,7 @@ int input_ff_upload(struct input_dev *dev, struct ff_effect *effect,
 	    (effect->u.periodic.waveform < FF_WAVEFORM_MIN ||
 	     effect->u.periodic.waveform > FF_WAVEFORM_MAX ||
 	     !test_bit(effect->u.periodic.waveform, dev->ffbit))) {
-		pr_debug("invalid or not supported wave form in upload\n");
+		dev_dbg(&dev->dev, "invalid or not supported wave form in upload\n");
 		return -EINVAL;
 	}
 
@@ -215,7 +213,7 @@ static int erase_effect(struct input_dev *dev, int effect_id,
 /**
  * input_ff_erase - erase a force-feedback effect from device
  * @dev: input device to erase effect from
- * @effect_id: id of the ffect to be erased
+ * @effect_id: id of the effect to be erased
  * @file: purported owner of the request
  *
  * This function erases a force-feedback effect from specified device.
@@ -246,7 +244,7 @@ static int flush_effects(struct input_dev *dev, struct file *file)
 	struct ff_device *ff = dev->ff;
 	int i;
 
-	pr_debug("flushing now\n");
+	dev_dbg(&dev->dev, "flushing now\n");
 
 	mutex_lock(&ff->mutex);
 
@@ -275,14 +273,14 @@ int input_ff_event(struct input_dev *dev, unsigned int type,
 
 	switch (code) {
 	case FF_GAIN:
-		if (!test_bit(FF_GAIN, dev->ffbit) || value > 0xffff)
+		if (!test_bit(FF_GAIN, dev->ffbit) || value > 0xffffU)
 			break;
 
 		ff->set_gain(dev, value);
 		break;
 
 	case FF_AUTOCENTER:
-		if (!test_bit(FF_AUTOCENTER, dev->ffbit) || value > 0xffff)
+		if (!test_bit(FF_AUTOCENTER, dev->ffbit) || value > 0xffffU)
 			break;
 
 		ff->set_autocenter(dev, value);
@@ -316,7 +314,12 @@ int input_ff_create(struct input_dev *dev, unsigned int max_effects)
 	int i;
 
 	if (!max_effects) {
-		pr_err("cannot allocate device without any effects\n");
+		dev_err(&dev->dev, "cannot allocate device without any effects\n");
+		return -EINVAL;
+	}
+
+	if (max_effects > FF_MAX_EFFECTS) {
+		dev_err(&dev->dev, "cannot allocate more than FF_MAX_EFFECTS effects\n");
 		return -EINVAL;
 	}
 
@@ -345,9 +348,8 @@ int input_ff_create(struct input_dev *dev, unsigned int max_effects)
 	__set_bit(EV_FF, dev->evbit);
 
 	/* Copy "true" bits into ff device bitmap */
-	for (i = 0; i <= FF_MAX; i++)
-		if (test_bit(i, dev->ffbit))
-			__set_bit(i, ff->ffbit);
+	for_each_set_bit(i, dev->ffbit, FF_CNT)
+		__set_bit(i, ff->ffbit);
 
 	/* we can emulate RUMBLE with periodic effects */
 	if (test_bit(FF_PERIODIC, ff->ffbit))

@@ -22,6 +22,7 @@
  */
 
 #include <linux/kvm_host.h>
+#include <asm/esr.h>
 #include <asm/kvm_emulate.h>
 
 /*
@@ -55,8 +56,8 @@ static int kvm_vcpu_get_condition(const struct kvm_vcpu *vcpu)
 {
 	u32 esr = kvm_vcpu_get_hsr(vcpu);
 
-	if (esr & ESR_EL2_CV)
-		return (esr & ESR_EL2_COND) >> ESR_EL2_COND_SHIFT;
+	if (esr & ESR_ELx_CV)
+		return (esr & ESR_ELx_COND_MASK) >> ESR_ELx_COND_SHIFT;
 
 	return -1;
 }

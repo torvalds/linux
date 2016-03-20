@@ -6,6 +6,7 @@ menuconfig NET
 	bool "Networking support"
 	select NLATTR
 	select GENERIC_NET_UTILS
+	select BPF
 	---help---
 	  Unless you really know what you are doing, you should say Y here.
 	  The reason is that some programs need kernel networking support even
@@ -43,6 +44,12 @@ config COMPAT_NETLINK_MESSAGES
 
 	  Newly written code should NEVER need this option but do
 	  compat-independent messages instead!
+
+config NET_INGRESS
+	bool
+
+config NET_EGRESS
+	bool
 
 menu "Networking options"
 
@@ -176,10 +183,11 @@ config NETFILTER_ADVANCED
 	  If unsure, say Y.
 
 config BRIDGE_NETFILTER
-	bool "Bridged IP/ARP packets filtering"
-	depends on BRIDGE && NETFILTER && INET
+	tristate "Bridged IP/ARP packets filtering"
+	depends on BRIDGE
+	depends on NETFILTER && INET
 	depends on NETFILTER_ADVANCED
-	default y
+	default m
 	---help---
 	  Enabling this option will let arptables resp. iptables see bridged
 	  ARP resp. IP traffic. If you want a bridging firewall, you probably
@@ -226,43 +234,54 @@ source "net/vmw_vsock/Kconfig"
 source "net/netlink/Kconfig"
 source "net/mpls/Kconfig"
 source "net/hsr/Kconfig"
+source "net/switchdev/Kconfig"
+source "net/l3mdev/Kconfig"
 
 config RPS
-	boolean
+	bool
 	depends on SMP && SYSFS
 	default y
 
 config RFS_ACCEL
-	boolean
+	bool
 	depends on RPS
 	select CPU_RMAP
 	default y
 
 config XPS
-	boolean
+	bool
 	depends on SMP
 	default y
+
+config HWBM
+       bool
+
+config SOCK_CGROUP_DATA
+	bool
+	default n
 
 config CGROUP_NET_PRIO
 	bool "Network priority cgroup"
 	depends on CGROUPS
+	select SOCK_CGROUP_DATA
 	---help---
 	  Cgroup subsystem for use in assigning processes to network priorities on
 	  a per-interface basis.
 
 config CGROUP_NET_CLASSID
-	boolean "Network classid cgroup"
+	bool "Network classid cgroup"
 	depends on CGROUPS
+	select SOCK_CGROUP_DATA
 	---help---
 	  Cgroup subsystem for use as general purpose socket classid marker that is
 	  being used in cls_cgroup and for netfilter matching.
 
 config NET_RX_BUSY_POLL
-	boolean
+	bool
 	default y
 
 config BQL
-	boolean
+	bool
 	depends on SYSFS
 	select DQL
 	default y
@@ -279,7 +298,7 @@ config BPF_JIT
 	  this feature changing /proc/sys/net/core/bpf_jit_enable
 
 config NET_FLOW_LIMIT
-	boolean
+	bool
 	depends on RPS
 	default y
 	---help---
@@ -344,6 +363,7 @@ source "net/can/Kconfig"
 source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
 source "net/rxrpc/Kconfig"
+source "net/kcm/Kconfig"
 
 config FIB_RULES
 	bool
@@ -368,6 +388,33 @@ source "net/caif/Kconfig"
 source "net/ceph/Kconfig"
 source "net/nfc/Kconfig"
 
+config LWTUNNEL
+	bool "Network light weight tunnels"
+	---help---
+	  This feature provides an infrastructure to support light weight
+	  tunnels like mpls. There is no netdevice associated with a light
+	  weight tunnel endpoint. Tunnel encapsulation parameters are stored
+	  with light weight tunnel state associated with fib routes.
+
+config DST_CACHE
+	bool "dst cache"
+	default n
+
+config NET_DEVLINK
+	tristate "Network physical/parent device Netlink interface"
+	help
+	  Network physical/parent device Netlink interface provides
+	  infrastructure to support access to physical chip-wide config and
+	  monitoring.
+
+config MAY_USE_DEVLINK
+	tristate
+	default m if NET_DEVLINK=m
+	default y if NET_DEVLINK=y || NET_DEVLINK=n
+	help
+	  Drivers using the devlink infrastructure should have a dependency
+	  on MAY_USE_DEVLINK to ensure they do not cause link errors when
+	  devlink is a loadable module and the driver using it is built-in.
 
 endif   # if NET
 

@@ -6,13 +6,13 @@
  * Copyright (c) 2006 Trond Myklebust <Trond.Myklebust@netapp.com>
  */
 #include <linux/sysctl.h>
-#include <linux/nfs_idmap.h>
 #include <linux/nfs_fs.h>
 
 #include "nfs4_fs.h"
+#include "nfs4idmap.h"
 #include "callback.h"
 
-static const int nfs_set_port_min = 0;
+static const int nfs_set_port_min;
 static const int nfs_set_port_max = 65535;
 static struct ctl_table_header *nfs4_callback_sysctl_table;
 

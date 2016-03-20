@@ -22,7 +22,7 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 #include <asm/asm.h>
 
 void *_mmx_memcpy(void *to, const void *from, size_t len)

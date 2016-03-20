@@ -381,9 +381,11 @@ static int ab3100_event_registers_startup_state_get(struct device *dev,
 					     u8 *event)
 {
 	struct ab3100 *ab3100 = dev_get_drvdata(dev->parent);
+
 	if (!ab3100->startup_events_read)
 		return -EAGAIN; /* Try again later */
 	memcpy(event, ab3100->startup_events, 3);
+
 	return 0;
 }
 
@@ -858,10 +860,8 @@ static int ab3100_probe(struct i2c_client *client,
 	int i;
 
 	ab3100 = devm_kzalloc(&client->dev, sizeof(struct ab3100), GFP_KERNEL);
-	if (!ab3100) {
-		dev_err(&client->dev, "could not allocate AB3100 device\n");
+	if (!ab3100)
 		return -ENOMEM;
-	}
 
 	/* Initialize data structure */
 	mutex_init(&ab3100->access_mutex);
@@ -883,19 +883,16 @@ static int ab3100_probe(struct i2c_client *client,
 
 	for (i = 0; ids[i].id != 0x0; i++) {
 		if (ids[i].id == ab3100->chip_id) {
-			if (ids[i].name != NULL) {
-				snprintf(&ab3100->chip_name[0],
-					 sizeof(ab3100->chip_name) - 1,
-					 "AB3100 %s",
-					 ids[i].name);
+			if (ids[i].name)
 				break;
-			} else {
-				dev_err(&client->dev,
-					"AB3000 is not supported\n");
-				goto exit_no_detect;
-			}
+
+			dev_err(&client->dev, "AB3000 is not supported\n");
+			goto exit_no_detect;
 		}
 	}
+
+	snprintf(&ab3100->chip_name[0],
+		 sizeof(ab3100->chip_name) - 1, "AB3100 %s", ids[i].name);
 
 	if (ids[i].id == 0x0) {
 		dev_err(&client->dev, "unknown analog baseband chip id: 0x%x\n",
@@ -972,7 +969,6 @@ MODULE_DEVICE_TABLE(i2c, ab3100_id);
 static struct i2c_driver ab3100_driver = {
 	.driver = {
 		.name	= "ab3100",
-		.owner	= THIS_MODULE,
 	},
 	.id_table	= ab3100_id,
 	.probe		= ab3100_probe,

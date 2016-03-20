@@ -58,8 +58,6 @@ __switch_to(struct task_struct *prev_task, struct task_struct *next_task)
 		"st      sp, [r24]       \n\t"
 #endif
 
-		"sync   \n\t"
-
 		/*
 		 * setup _current_task with incoming tsk.
 		 * optionally, set r25 to that as well

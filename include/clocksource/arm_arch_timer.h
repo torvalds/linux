@@ -16,12 +16,18 @@
 #ifndef __CLKSOURCE_ARM_ARCH_TIMER_H
 #define __CLKSOURCE_ARM_ARCH_TIMER_H
 
-#include <linux/clocksource.h>
+#include <linux/timecounter.h>
 #include <linux/types.h>
 
 #define ARCH_TIMER_CTRL_ENABLE		(1 << 0)
 #define ARCH_TIMER_CTRL_IT_MASK		(1 << 1)
 #define ARCH_TIMER_CTRL_IT_STAT		(1 << 2)
+
+#define CNTHCTL_EL1PCTEN		(1 << 0)
+#define CNTHCTL_EL1PCEN			(1 << 1)
+#define CNTHCTL_EVNTEN			(1 << 2)
+#define CNTHCTL_EVNTDIR			(1 << 3)
+#define CNTHCTL_EVNTI			(0xF << 4)
 
 enum arch_timer_reg {
 	ARCH_TIMER_REG_CTRL,

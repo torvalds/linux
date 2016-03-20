@@ -192,25 +192,6 @@ config ETRAX_DEF_GIO_PE_OUT
 	  Configures the initial data for the general port E bits.  Most
 	  products should use 00000 here.
 
-config ETRAX_DEF_GIO_PV_OE
-	hex "GIO_PV_OE"
-	depends on ETRAX_VIRTUAL_GPIO
-	default "0000"
-	help
-	  Configures the direction of virtual general port V bits. 1 is out,
-	  0 is in. This is often totally different depending on the product
-	  used. These bits are used for all kinds of stuff. If you don't know
-	  what to use, it is always safe to put all as inputs, although
-	  floating inputs isn't good.
-
-config ETRAX_DEF_GIO_PV_OUT
-	hex "GIO_PV_OUT"
-	depends on ETRAX_VIRTUAL_GPIO
-	default "0000"
-	help
-	  Configures the initial data for the virtual general port V bits.
-	  Most products should use 0000 here.
-
 endmenu
 
 endif

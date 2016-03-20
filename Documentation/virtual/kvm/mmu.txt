@@ -169,6 +169,16 @@ Shadow pages contain the following information:
     Contains the value of cr4.smep && !cr0.wp for which the page is valid
     (pages for which this is true are different from other pages; see the
     treatment of cr0.wp=0 below).
+  role.smap_andnot_wp:
+    Contains the value of cr4.smap && !cr0.wp for which the page is valid
+    (pages for which this is true are different from other pages; see the
+    treatment of cr0.wp=0 below).
+  role.smm:
+    Is 1 if the page is valid in system management mode.  This field
+    determines which of the kvm_memslots array was used to build this
+    shadow page; it is also used to go back from a struct kvm_mmu_page
+    to a memslot, through the kvm_memslots_for_spte_role macro and
+    __gfn_to_memslot.
   gfn:
     Either the guest page table containing the translations shadowed by this
     page, or the base page frame for linear translations.  See role.direct.
@@ -193,10 +203,10 @@ Shadow pages contain the following information:
     page cannot be destroyed.  See role.invalid.
   parent_ptes:
     The reverse mapping for the pte/ptes pointing at this page's spt. If
-    parent_ptes bit 0 is zero, only one spte points at this pages and
+    parent_ptes bit 0 is zero, only one spte points at this page and
     parent_ptes points at this single spte, otherwise, there exists multiple
     sptes pointing at this page and (parent_ptes & ~0x1) points at a data
-    structure with a list of parent_ptes.
+    structure with a list of parent sptes.
   unsync:
     If true, then the translations in this page may not match the guest's
     translation.  This is equivalent to the state of the tlb when a pte is
@@ -344,10 +354,17 @@ on fault type:
 
 (user write faults generate a #PF)
 
-In the first case there is an additional complication if CR4.SMEP is
-enabled: since we've turned the page into a kernel page, the kernel may now
-execute it.  We handle this by also setting spte.nx.  If we get a user
-fetch or read fault, we'll change spte.u=1 and spte.nx=gpte.nx back.
+In the first case there are two additional complications:
+- if CR4.SMEP is enabled: since we've turned the page into a kernel page,
+  the kernel may now execute it.  We handle this by also setting spte.nx.
+  If we get a user fetch or read fault, we'll change spte.u=1 and
+  spte.nx=gpte.nx back.  For this to work, KVM forces EFER.NX to 1 when
+  shadow paging is in use.
+- if CR4.SMAP is disabled: since the page has been changed to a kernel
+  page, it can not be reused when CR4.SMAP is enabled. We set
+  CR4.SMAP && !CR0.WP into shadow page's role to avoid this case. Note,
+  here we do not care the case that CR4.SMAP is enabled since KVM will
+  directly inject #PF to guest due to failed permission check.
 
 To prevent an spte that was converted into a kernel page with cr0.wp=0
 from being written by the kernel after cr0.wp has changed to 1, we make
@@ -375,11 +392,11 @@ To instantiate a large spte, four constraints must be satisfied:
   write-protected pages
 - the guest page must be wholly contained by a single memory slot
 
-To check the last two conditions, the mmu maintains a ->write_count set of
+To check the last two conditions, the mmu maintains a ->disallow_lpage set of
 arrays for each memory slot and large page size.  Every write protected page
-causes its write_count to be incremented, thus preventing instantiation of
+causes its disallow_lpage to be incremented, thus preventing instantiation of
 a large spte.  The frames at the end of an unaligned memory slot have
-artificially inflated ->write_counts so they can never be instantiated.
+artificially inflated ->disallow_lpages so they can never be instantiated.
 
 Zapping all pages (page generation count)
 =========================================
@@ -424,6 +441,20 @@ fault through the slow path.
 
 Since only 19 bits are used to store generation-number on mmio spte, all
 pages are zapped when there is an overflow.
+
+Unfortunately, a single memory access might access kvm_memslots(kvm) multiple
+times, the last one happening when the generation number is retrieved and
+stored into the MMIO spte.  Thus, the MMIO spte might be created based on
+out-of-date information, but with an up-to-date generation number.
+
+To avoid this, the generation number is incremented again after synchronize_srcu
+returns; thus, the low bit of kvm_memslots(kvm)->generation is only 1 during a
+memslot update, while some SRCU readers might be using the old copy.  We do not
+want to use an MMIO sptes created with an odd generation number, and we can do
+this without losing a bit in the MMIO spte.  The low bit of the generation
+is not stored in MMIO spte, and presumed zero when it is extracted out of the
+spte.  If KVM is unlucky and creates an MMIO spte while the low bit is 1,
+the next access to the spte will always be a cache miss.
 
 
 Further reading

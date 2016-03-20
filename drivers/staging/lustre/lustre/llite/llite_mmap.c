@@ -27,7 +27,7 @@
  * Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -40,7 +40,7 @@
 #include <linux/stat.h>
 #include <linux/errno.h>
 #include <linux/unistd.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/fs.h>
 #include <linux/pagemap.h>
@@ -54,8 +54,8 @@
 static const struct vm_operations_struct ll_file_vm_ops;
 
 void policy_from_vma(ldlm_policy_data_t *policy,
-			    struct vm_area_struct *vma, unsigned long addr,
-			    size_t count)
+		     struct vm_area_struct *vma, unsigned long addr,
+		     size_t count)
 {
 	policy->l_extent.start = ((addr - vma->vm_start) & CFS_PAGE_MASK) +
 				 (vma->vm_pgoff << PAGE_CACHE_SHIFT);
@@ -71,8 +71,8 @@ struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,
 	/* mmap_sem must have been held by caller. */
 	LASSERT(!down_write_trylock(&mm->mmap_sem));
 
-	for(vma = find_vma(mm, addr);
-	    vma != NULL && vma->vm_start < (addr + count); vma = vma->vm_next) {
+	for (vma = find_vma(mm, addr);
+	    vma && vma->vm_start < (addr + count); vma = vma->vm_next) {
 		if (vma->vm_ops && vma->vm_ops == &ll_file_vm_ops &&
 		    vma->vm_flags & VM_SHARED) {
 			ret = vma;
@@ -100,7 +100,7 @@ ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
 		 unsigned long *ra_flags)
 {
 	struct file	       *file = vma->vm_file;
-	struct inode	       *inode = file->f_dentry->d_inode;
+	struct inode	       *inode = file_inode(file);
 	struct cl_io	       *io;
 	struct cl_fault_io     *fio;
 	struct lu_env	       *env;
@@ -119,13 +119,13 @@ ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
 	 */
 	env = cl_env_nested_get(nest);
 	if (IS_ERR(env))
-		 return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EINVAL);
 
 	*env_ret = env;
 
 	io = ccc_env_thread_io(env);
 	io->ci_obj = ll_i2info(inode)->lli_clob;
-	LASSERT(io->ci_obj != NULL);
+	LASSERT(io->ci_obj);
 
 	fio = &io->u.ci_fault;
 	fio->ft_index      = index;
@@ -136,7 +136,7 @@ ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
 	 * the kernel will not read other pages not covered by ldlm in
 	 * filemap_nopage. we do our readahead in ll_readpage.
 	 */
-	if (ra_flags != NULL)
+	if (ra_flags)
 		*ra_flags = vma->vm_flags & (VM_RAND_READ|VM_SEQ_READ);
 	vma->vm_flags &= ~VM_SEQ_READ;
 	vma->vm_flags |= VM_RAND_READ;
@@ -151,8 +151,7 @@ ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
 
 		LASSERT(cio->cui_cl.cis_io == io);
 
-		/* mmap lock must be MANDATORY it has to cache
-		 * pages. */
+		/* mmap lock must be MANDATORY it has to cache pages. */
 		io->ci_lockreq = CILR_MANDATORY;
 		cio->cui_fd = fd;
 	} else {
@@ -178,15 +177,15 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 	struct inode	     *inode;
 	struct ll_inode_info     *lli;
 
-	LASSERT(vmpage != NULL);
-
 	io = ll_fault_io_init(vma, &env,  &nest, vmpage->index, NULL);
-	if (IS_ERR(io))
-		GOTO(out, result = PTR_ERR(io));
+	if (IS_ERR(io)) {
+		result = PTR_ERR(io);
+		goto out;
+	}
 
 	result = io->ci_result;
 	if (result < 0)
-		GOTO(out_io, result);
+		goto out_io;
 
 	io->u.ci_fault.ft_mkwrite = 1;
 	io->u.ci_fault.ft_writable = 1;
@@ -199,7 +198,8 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 
 	/* we grab lli_trunc_sem to exclude truncate case.
 	 * Otherwise, we could add dirty pages into osc cache
-	 * while truncate is on-going. */
+	 * while truncate is on-going.
+	 */
 	inode = ccc_object_inode(io->ci_obj);
 	lli = ll_i2info(inode);
 	down_read(&lli->lli_trunc_sem);
@@ -211,16 +211,17 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 	cfs_restore_sigs(set);
 
 	if (result == 0) {
-		struct inode *inode = vma->vm_file->f_dentry->d_inode;
+		struct inode *inode = file_inode(vma->vm_file);
 		struct ll_inode_info *lli = ll_i2info(inode);
 
 		lock_page(vmpage);
-		if (vmpage->mapping == NULL) {
+		if (!vmpage->mapping) {
 			unlock_page(vmpage);
 
 			/* page was truncated and lock was cancelled, return
 			 * ENODATA so that VM_FAULT_NOPAGE will be returned
-			 * to handle_mm_fault(). */
+			 * to handle_mm_fault().
+			 */
 			if (result == 0)
 				result = -ENODATA;
 		} else if (!PageDirty(vmpage)) {
@@ -232,8 +233,7 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 			 */
 			unlock_page(vmpage);
 
-			CDEBUG(D_MMAP, "Race on page_mkwrite %p/%lu, page has "
-			       "been written out, retry.\n",
+			CDEBUG(D_MMAP, "Race on page_mkwrite %p/%lu, page has been written out, retry.\n",
 			       vmpage, vmpage->index);
 
 			*retry = true;
@@ -257,11 +257,9 @@ out:
 	return result;
 }
 
-
-
 static inline int to_fault_error(int result)
 {
-	switch(result) {
+	switch (result) {
 	case 0:
 		result = VM_FAULT_LOCKED;
 		break;
@@ -310,12 +308,19 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 		vio->u.fault.ft_vma       = vma;
 		vio->u.fault.ft_vmpage    = NULL;
 		vio->u.fault.fault.ft_vmf = vmf;
+		vio->u.fault.fault.ft_flags = 0;
+		vio->u.fault.fault.ft_flags_valid = false;
 
 		result = cl_io_loop(env, io);
 
-		fault_ret = vio->u.fault.fault.ft_flags;
+		/* ft_flags are only valid if we reached
+		 * the call to filemap_fault
+		 */
+		if (vio->u.fault.fault.ft_flags_valid)
+			fault_ret = vio->u.fault.fault.ft_flags;
+
 		vmpage = vio->u.fault.ft_vmpage;
-		if (result != 0 && vmpage != NULL) {
+		if (result != 0 && vmpage) {
 			page_cache_release(vmpage);
 			vmf->page = NULL;
 		}
@@ -339,9 +344,10 @@ static int ll_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	int result;
 	sigset_t set;
 
-	/* Only SIGKILL and SIGTERM is allowed for fault/nopage/mkwrite
+	/* Only SIGKILL and SIGTERM are allowed for fault/nopage/mkwrite
 	 * so that it can be killed by admin but not cause segfault by
-	 * other signals. */
+	 * other signals.
+	 */
 	set = cfs_block_sigsinv(sigmask(SIGKILL) | sigmask(SIGTERM));
 
 restart:
@@ -352,14 +358,13 @@ restart:
 
 		/* check if this page has been truncated */
 		lock_page(vmpage);
-		if (unlikely(vmpage->mapping == NULL)) { /* unlucky */
+		if (unlikely(!vmpage->mapping)) { /* unlucky */
 			unlock_page(vmpage);
 			page_cache_release(vmpage);
 			vmf->page = NULL;
 
 			if (!printed && ++count > 16) {
-				CWARN("the page is under heavy contention,"
-				      "maybe your app(%s) needs revising :-)\n",
+				CWARN("the page is under heavy contention, maybe your app(%s) needs revising :-)\n",
 				      current->comm);
 				printed = true;
 			}
@@ -385,15 +390,14 @@ static int ll_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		result = ll_page_mkwrite0(vma, vmf->page, &retry);
 
 		if (!printed && ++count > 16) {
-			CWARN("app(%s): the page %lu of file %lu is under heavy"
-			      " contention.\n",
+			CWARN("app(%s): the page %lu of file %lu is under heavy contention.\n",
 			      current->comm, vmf->pgoff,
-			      vma->vm_file->f_dentry->d_inode->i_ino);
+			      file_inode(vma->vm_file)->i_ino);
 			printed = true;
 		}
 	} while (retry);
 
-	switch(result) {
+	switch (result) {
 	case 0:
 		LASSERT(PageLocked(vmf->page));
 		result = VM_FAULT_LOCKED;
@@ -420,9 +424,9 @@ static int ll_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
  *  To avoid cancel the locks covering mmapped region for lock cache pressure,
  *  we track the mapped vma count in ccc_object::cob_mmap_cnt.
  */
-static void ll_vm_open(struct vm_area_struct * vma)
+static void ll_vm_open(struct vm_area_struct *vma)
 {
-	struct inode *inode    = vma->vm_file->f_dentry->d_inode;
+	struct inode *inode    = file_inode(vma->vm_file);
 	struct ccc_object *vob = cl_inode2ccc(inode);
 
 	LASSERT(vma->vm_file);
@@ -435,7 +439,7 @@ static void ll_vm_open(struct vm_area_struct * vma)
  */
 static void ll_vm_close(struct vm_area_struct *vma)
 {
-	struct inode      *inode = vma->vm_file->f_dentry->d_inode;
+	struct inode      *inode = file_inode(vma->vm_file);
 	struct ccc_object *vob   = cl_inode2ccc(inode);
 
 	LASSERT(vma->vm_file);
@@ -444,7 +448,8 @@ static void ll_vm_close(struct vm_area_struct *vma)
 }
 
 /* XXX put nice comment here.  talk about __free_pte -> dirty pages and
- * nopage's reference passing to the pte */
+ * nopage's reference passing to the pte
+ */
 int ll_teardown_mmaps(struct address_space *mapping, __u64 first, __u64 last)
 {
 	int rc = -ENOENT;
@@ -466,9 +471,9 @@ static const struct vm_operations_struct ll_file_vm_ops = {
 	.close			= ll_vm_close,
 };
 
-int ll_file_mmap(struct file *file, struct vm_area_struct * vma)
+int ll_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	int rc;
 
 	if (ll_file_nolock(file))

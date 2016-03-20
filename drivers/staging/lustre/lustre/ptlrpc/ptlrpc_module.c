@@ -36,7 +36,6 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-
 #include "../include/obd_support.h"
 #include "../include/obd_class.h"
 #include "../include/lustre_net.h"
@@ -48,10 +47,8 @@ extern spinlock_t ptlrpc_last_xid_lock;
 #if RS_DEBUG
 extern spinlock_t ptlrpc_rs_debug_lock;
 #endif
-extern struct mutex pinger_mutex;
-extern struct mutex ptlrpcd_mutex;
 
-__init int ptlrpc_init(void)
+static int __init ptlrpc_init(void)
 {
 	int rc, cleanup_phase = 0;
 
@@ -75,45 +72,45 @@ __init int ptlrpc_init(void)
 	cleanup_phase = 1;
 	rc = ptlrpc_request_cache_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 2;
 	rc = ptlrpc_init_portals();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 3;
 
 	rc = ptlrpc_connection_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 4;
 	ptlrpc_put_connection_superhack = ptlrpc_connection_put;
 
 	rc = ptlrpc_start_pinger();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 5;
 	rc = ldlm_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 6;
 	rc = sptlrpc_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 7;
 	rc = ptlrpc_nrs_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 8;
 	rc = tgt_mod_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 	return 0;
 
 cleanup:
@@ -143,7 +140,8 @@ cleanup:
 		ptlrpc_hr_fini();
 		req_layout_fini();
 		/* Fall through */
-	default: ;
+	default:
+		;
 	}
 
 	return rc;
@@ -162,10 +160,10 @@ static void __exit ptlrpc_exit(void)
 	ptlrpc_connection_fini();
 }
 
-MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Request Processor and Lock Management");
+MODULE_VERSION(LUSTRE_VERSION_STRING);
 MODULE_LICENSE("GPL");
-MODULE_VERSION("1.0.0");
 
 module_init(ptlrpc_init);
 module_exit(ptlrpc_exit);

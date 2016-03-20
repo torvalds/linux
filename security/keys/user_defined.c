@@ -26,12 +26,10 @@ static int logon_vet_description(const char *desc);
  */
 struct key_type key_type_user = {
 	.name			= "user",
-	.def_lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
 	.preparse		= user_preparse,
 	.free_preparse		= user_free_preparse,
 	.instantiate		= generic_key_instantiate,
 	.update			= user_update,
-	.match			= user_match,
 	.revoke			= user_revoke,
 	.destroy		= user_destroy,
 	.describe		= user_describe,
@@ -48,12 +46,10 @@ EXPORT_SYMBOL_GPL(key_type_user);
  */
 struct key_type key_type_logon = {
 	.name			= "logon",
-	.def_lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
 	.preparse		= user_preparse,
 	.free_preparse		= user_free_preparse,
 	.instantiate		= generic_key_instantiate,
 	.update			= user_update,
-	.match			= user_match,
 	.revoke			= user_revoke,
 	.destroy		= user_destroy,
 	.describe		= user_describe,
@@ -78,7 +74,7 @@ int user_preparse(struct key_preparsed_payload *prep)
 
 	/* attach the data */
 	prep->quotalen = datalen;
-	prep->payload[0] = upayload;
+	prep->payload.data[0] = upayload;
 	upayload->datalen = datalen;
 	memcpy(upayload->data, prep->data, datalen);
 	return 0;
@@ -90,7 +86,7 @@ EXPORT_SYMBOL_GPL(user_preparse);
  */
 void user_free_preparse(struct key_preparsed_payload *prep)
 {
-	kfree(prep->payload[0]);
+	kfree(prep->payload.data[0]);
 }
 EXPORT_SYMBOL_GPL(user_free_preparse);
 
@@ -124,7 +120,10 @@ int user_update(struct key *key, struct key_preparsed_payload *prep)
 
 	if (ret == 0) {
 		/* attach the new data, displacing the old */
-		zap = key->payload.data;
+		if (!test_bit(KEY_FLAG_NEGATIVE, &key->flags))
+			zap = key->payload.data[0];
+		else
+			zap = NULL;
 		rcu_assign_keypointer(key, upayload);
 		key->expiry = 0;
 	}
@@ -139,22 +138,12 @@ error:
 EXPORT_SYMBOL_GPL(user_update);
 
 /*
- * match users on their name
- */
-int user_match(const struct key *key, const void *description)
-{
-	return strcmp(key->description, description) == 0;
-}
-
-EXPORT_SYMBOL_GPL(user_match);
-
-/*
  * dispose of the links from a revoked keyring
  * - called with the key sem write-locked
  */
 void user_revoke(struct key *key)
 {
-	struct user_key_payload *upayload = key->payload.data;
+	struct user_key_payload *upayload = key->payload.data[0];
 
 	/* clear the quota */
 	key_payload_reserve(key, 0);
@@ -172,7 +161,7 @@ EXPORT_SYMBOL(user_revoke);
  */
 void user_destroy(struct key *key)
 {
-	struct user_key_payload *upayload = key->payload.data;
+	struct user_key_payload *upayload = key->payload.data[0];
 
 	kfree(upayload);
 }
@@ -197,10 +186,10 @@ EXPORT_SYMBOL_GPL(user_describe);
  */
 long user_read(const struct key *key, char __user *buffer, size_t buflen)
 {
-	struct user_key_payload *upayload;
+	const struct user_key_payload *upayload;
 	long ret;
 
-	upayload = rcu_dereference_key(key);
+	upayload = user_key_payload(key);
 	ret = upayload->datalen;
 
 	/* we can return the data as is */

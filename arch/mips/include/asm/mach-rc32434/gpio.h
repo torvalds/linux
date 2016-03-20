@@ -13,18 +13,6 @@
 #ifndef _RC32434_GPIO_H_
 #define _RC32434_GPIO_H_
 
-#include <linux/types.h>
-#include <asm-generic/gpio.h>
-
-#define NR_BUILTIN_GPIO		32
-
-#define gpio_get_value	__gpio_get_value
-#define gpio_set_value	__gpio_set_value
-#define gpio_cansleep	__gpio_cansleep
-
-#define gpio_to_irq(gpio)	(8 + 4 * 32 + gpio)
-#define irq_to_gpio(irq)	(irq - (8 + 4 * 32))
-
 struct rb532_gpio_reg {
 	u32   gpiofunc;	  /* GPIO Function Register
 			   * gpiofunc[x]==0 bit = gpio

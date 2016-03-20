@@ -1,0 +1,20 @@
+Broadcom BCM7038 PWM controller (BCM7xxx Set Top Box PWM controller)
+
+Required properties:
+
+- compatible: must be "brcm,bcm7038-pwm"
+- reg: physical base address and length for this controller
+- #pwm-cells: should be 2. See pwm.txt in this directory for a description
+  of the cells format
+- clocks: a phandle to the reference clock for this block which is fed through
+  its internal variable clock frequency generator
+
+
+Example:
+
+	pwm: pwm@f0408000 {
+		compatible = "brcm,bcm7038-pwm";
+		reg = <0xf0408000 0x28>;
+		#pwm-cells = <2>;
+		clocks = <&upg_fixed>;
+	};

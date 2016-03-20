@@ -37,15 +37,15 @@
 
 /* ipipe input format's */
 static const unsigned int ipipe_input_fmts[] = {
-	V4L2_MBUS_FMT_UYVY8_2X8,
-	V4L2_MBUS_FMT_SGRBG12_1X12,
-	V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8,
-	V4L2_MBUS_FMT_SGRBG10_ALAW8_1X8,
+	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_SGRBG12_1X12,
+	MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8,
+	MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8,
 };
 
 /* ipipe output format's */
 static const unsigned int ipipe_output_fmts[] = {
-	V4L2_MBUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_UYVY8_2X8,
 };
 
 static int ipipe_validate_lutdpc_params(struct vpfe_ipipe_lutdpc *lutdpc)
@@ -79,7 +79,7 @@ static int ipipe_set_lutdpc_params(struct vpfe_ipipe_device *ipipe, void *param)
 	}
 
 	dev = ipipe->subdev.v4l2_dev->dev;
-	dpc_param = (struct vpfe_ipipe_lutdpc *)param;
+	dpc_param = param;
 	lutdpc->en = dpc_param->en;
 	lutdpc->repl_white = dpc_param->repl_white;
 	lutdpc->dpc_size = dpc_param->dpc_size;
@@ -96,7 +96,7 @@ success:
 
 static int ipipe_get_lutdpc_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_lutdpc *lut_param = (struct vpfe_ipipe_lutdpc *)param;
+	struct vpfe_ipipe_lutdpc *lut_param = param;
 	struct vpfe_ipipe_lutdpc *lutdpc = &ipipe->config.lutdpc;
 
 	lut_param->en = lutdpc->en;
@@ -171,7 +171,7 @@ static int ipipe_validate_otfdpc_params(struct vpfe_ipipe_otfdpc *dpc_param)
 
 static int ipipe_set_otfdpc_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_otfdpc *dpc_param = (struct vpfe_ipipe_otfdpc *)param;
+	struct vpfe_ipipe_otfdpc *dpc_param = param;
 	struct vpfe_ipipe_otfdpc *otfdpc = &ipipe->config.otfdpc;
 	struct device *dev;
 
@@ -194,7 +194,7 @@ success:
 
 static int ipipe_get_otfdpc_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_otfdpc *dpc_param = (struct vpfe_ipipe_otfdpc *)param;
+	struct vpfe_ipipe_otfdpc *dpc_param = param;
 	struct vpfe_ipipe_otfdpc *otfdpc = &ipipe->config.otfdpc;
 
 	memcpy(dpc_param, otfdpc, sizeof(struct vpfe_ipipe_otfdpc));
@@ -226,7 +226,7 @@ static int ipipe_validate_nf_params(struct vpfe_ipipe_nf *nf_param)
 static int ipipe_set_nf_params(struct vpfe_ipipe_device *ipipe,
 			       unsigned int id, void *param)
 {
-	struct vpfe_ipipe_nf *nf_param = (struct vpfe_ipipe_nf *)param;
+	struct vpfe_ipipe_nf *nf_param = param;
 	struct vpfe_ipipe_nf *nf = &ipipe->config.nf1;
 	struct device *dev;
 
@@ -264,7 +264,7 @@ static int ipipe_set_nf2_params(struct vpfe_ipipe_device *ipipe, void *param)
 static int ipipe_get_nf_params(struct vpfe_ipipe_device *ipipe,
 			       unsigned int id, void *param)
 {
-	struct vpfe_ipipe_nf *nf_param = (struct vpfe_ipipe_nf *)param;
+	struct vpfe_ipipe_nf *nf_param = param;
 	struct vpfe_ipipe_nf *nf = &ipipe->config.nf1;
 
 	if (id == IPIPE_D2F_2ND)
@@ -299,7 +299,7 @@ static int ipipe_validate_gic_params(struct vpfe_ipipe_gic *gic)
 
 static int ipipe_set_gic_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_gic *gic_param = (struct vpfe_ipipe_gic *)param;
+	struct vpfe_ipipe_gic *gic_param = param;
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 	struct vpfe_ipipe_gic *gic = &ipipe->config.gic;
 
@@ -322,7 +322,7 @@ success:
 
 static int ipipe_get_gic_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_gic *gic_param = (struct vpfe_ipipe_gic *)param;
+	struct vpfe_ipipe_gic *gic_param = param;
 	struct vpfe_ipipe_gic *gic = &ipipe->config.gic;
 
 	memcpy(gic_param, gic, sizeof(struct vpfe_ipipe_gic));
@@ -351,7 +351,7 @@ static int ipipe_validate_wb_params(struct vpfe_ipipe_wb *wbal)
 
 static int ipipe_set_wb_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_wb *wb_param = (struct vpfe_ipipe_wb *)param;
+	struct vpfe_ipipe_wb *wb_param = param;
 	struct vpfe_ipipe_wb *wbal = &ipipe->config.wbal;
 
 	if (!wb_param) {
@@ -377,7 +377,7 @@ success:
 
 static int ipipe_get_wb_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_wb *wb_param = (struct vpfe_ipipe_wb *)param;
+	struct vpfe_ipipe_wb *wb_param = param;
 	struct vpfe_ipipe_wb *wbal = &ipipe->config.wbal;
 
 	memcpy(wb_param, wbal, sizeof(struct vpfe_ipipe_wb));
@@ -407,7 +407,7 @@ static int ipipe_validate_cfa_params(struct vpfe_ipipe_cfa *cfa)
 
 static int ipipe_set_cfa_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_cfa *cfa_param = (struct vpfe_ipipe_cfa *)param;
+	struct vpfe_ipipe_cfa *cfa_param = param;
 	struct vpfe_ipipe_cfa *cfa = &ipipe->config.cfa;
 
 	if (!cfa_param) {
@@ -428,7 +428,7 @@ success:
 
 static int ipipe_get_cfa_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_cfa *cfa_param = (struct vpfe_ipipe_cfa *)param;
+	struct vpfe_ipipe_cfa *cfa_param = param;
 	struct vpfe_ipipe_cfa *cfa = &ipipe->config.cfa;
 
 	memcpy(cfa_param, cfa, sizeof(struct vpfe_ipipe_cfa));
@@ -498,7 +498,7 @@ static int ipipe_set_rgb2rgb_params(struct vpfe_ipipe_device *ipipe,
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 	struct vpfe_ipipe_rgb2rgb *rgb2rgb_param;
 
-	rgb2rgb_param = (struct vpfe_ipipe_rgb2rgb *)param;
+	rgb2rgb_param = param;
 
 	if (id == IPIPE_RGB2RGB_2)
 		rgb2rgb = &ipipe->config.rgb2rgb2;
@@ -551,7 +551,7 @@ static int ipipe_get_rgb2rgb_params(struct vpfe_ipipe_device *ipipe,
 	struct vpfe_ipipe_rgb2rgb *rgb2rgb = &ipipe->config.rgb2rgb1;
 	struct vpfe_ipipe_rgb2rgb *rgb2rgb_param;
 
-	rgb2rgb_param = (struct vpfe_ipipe_rgb2rgb *)param;
+	rgb2rgb_param = param;
 
 	if (id == IPIPE_RGB2RGB_2)
 		rgb2rgb = &ipipe->config.rgb2rgb2;
@@ -634,7 +634,7 @@ ipipe_validate_gamma_params(struct vpfe_ipipe_gamma *gamma, struct device *dev)
 static int
 ipipe_set_gamma_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_gamma *gamma_param = (struct vpfe_ipipe_gamma *)param;
+	struct vpfe_ipipe_gamma *gamma_param = param;
 	struct vpfe_ipipe_gamma *gamma = &ipipe->config.gamma;
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 	int table_size;
@@ -678,7 +678,7 @@ success:
 
 static int ipipe_get_gamma_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_gamma *gamma_param = (struct vpfe_ipipe_gamma *)param;
+	struct vpfe_ipipe_gamma *gamma_param = param;
 	struct vpfe_ipipe_gamma *gamma = &ipipe->config.gamma;
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 	int table_size;
@@ -737,7 +737,7 @@ static int ipipe_validate_3d_lut_params(struct vpfe_ipipe_3d_lut *lut)
 
 static int ipipe_get_3d_lut_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_3d_lut *lut_param = (struct vpfe_ipipe_3d_lut *)param;
+	struct vpfe_ipipe_3d_lut *lut_param = param;
 	struct vpfe_ipipe_3d_lut *lut = &ipipe->config.lut;
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 
@@ -757,7 +757,7 @@ static int ipipe_get_3d_lut_params(struct vpfe_ipipe_device *ipipe, void *param)
 static int
 ipipe_set_3d_lut_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_3d_lut *lut_param = (struct vpfe_ipipe_3d_lut *)param;
+	struct vpfe_ipipe_3d_lut *lut_param = param;
 	struct vpfe_ipipe_3d_lut *lut = &ipipe->config.lut;
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 
@@ -831,7 +831,7 @@ ipipe_set_rgb2yuv_params(struct vpfe_ipipe_device *ipipe, void *param)
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 	struct vpfe_ipipe_rgb2yuv *rgb2yuv_param;
 
-	rgb2yuv_param = (struct vpfe_ipipe_rgb2yuv *)param;
+	rgb2yuv_param = param;
 	if (!rgb2yuv_param) {
 		/* Defaults for rgb2yuv conversion */
 		const struct vpfe_ipipe_rgb2yuv rgb2yuv_defaults = {
@@ -871,7 +871,7 @@ ipipe_get_rgb2yuv_params(struct vpfe_ipipe_device *ipipe, void *param)
 	struct vpfe_ipipe_rgb2yuv *rgb2yuv = &ipipe->config.rgb2yuv;
 	struct vpfe_ipipe_rgb2yuv *rgb2yuv_param;
 
-	rgb2yuv_param = (struct vpfe_ipipe_rgb2yuv *)param;
+	rgb2yuv_param = param;
 	memcpy(rgb2yuv_param, rgb2yuv, sizeof(struct vpfe_ipipe_rgb2yuv));
 	return 0;
 }
@@ -896,12 +896,12 @@ static int ipipe_validate_gbce_params(struct vpfe_ipipe_gbce *gbce)
 
 static int ipipe_set_gbce_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_gbce *gbce_param = (struct vpfe_ipipe_gbce *)param;
+	struct vpfe_ipipe_gbce *gbce_param = param;
 	struct vpfe_ipipe_gbce *gbce = &ipipe->config.gbce;
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 
 	if (!gbce_param) {
-		memset(gbce, 0 , sizeof(struct vpfe_ipipe_gbce));
+		memset(gbce, 0, sizeof(struct vpfe_ipipe_gbce));
 	} else {
 		memcpy(gbce, gbce_param, sizeof(struct vpfe_ipipe_gbce));
 		if (ipipe_validate_gbce_params(gbce) < 0) {
@@ -917,7 +917,7 @@ static int ipipe_set_gbce_params(struct vpfe_ipipe_device *ipipe, void *param)
 
 static int ipipe_get_gbce_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_gbce *gbce_param = (struct vpfe_ipipe_gbce *)param;
+	struct vpfe_ipipe_gbce *gbce_param = param;
 	struct vpfe_ipipe_gbce *gbce = &ipipe->config.gbce;
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 
@@ -950,7 +950,7 @@ ipipe_set_yuv422_conv_params(struct vpfe_ipipe_device *ipipe, void *param)
 	struct vpfe_ipipe_yuv422_conv *yuv422_conv_param;
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 
-	yuv422_conv_param = (struct vpfe_ipipe_yuv422_conv *)param;
+	yuv422_conv_param = param;
 	if (!yuv422_conv_param) {
 		memset(yuv422_conv, 0, sizeof(struct vpfe_ipipe_yuv422_conv));
 		yuv422_conv->chrom_pos = VPFE_IPIPE_YUV422_CHR_POS_COSITE;
@@ -974,7 +974,7 @@ ipipe_get_yuv422_conv_params(struct vpfe_ipipe_device *ipipe, void *param)
 	struct vpfe_ipipe_yuv422_conv *yuv422_conv = &ipipe->config.yuv422_conv;
 	struct vpfe_ipipe_yuv422_conv *yuv422_conv_param;
 
-	yuv422_conv_param = (struct vpfe_ipipe_yuv422_conv *)param;
+	yuv422_conv_param = param;
 	memcpy(yuv422_conv_param, yuv422_conv,
 	       sizeof(struct vpfe_ipipe_yuv422_conv));
 
@@ -1018,7 +1018,7 @@ static int ipipe_validate_yee_params(struct vpfe_ipipe_yee *yee)
 
 static int ipipe_set_yee_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_yee *yee_param = (struct vpfe_ipipe_yee *)param;
+	struct vpfe_ipipe_yee *yee_param = param;
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 	struct vpfe_ipipe_yee *yee = &ipipe->config.yee;
 
@@ -1039,7 +1039,7 @@ static int ipipe_set_yee_params(struct vpfe_ipipe_device *ipipe, void *param)
 
 static int ipipe_get_yee_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_yee *yee_param = (struct vpfe_ipipe_yee *)param;
+	struct vpfe_ipipe_yee *yee_param = param;
 	struct vpfe_ipipe_yee *yee = &ipipe->config.yee;
 
 	yee_param->en = yee->en;
@@ -1081,12 +1081,12 @@ static int ipipe_validate_car_params(struct vpfe_ipipe_car *car)
 
 static int ipipe_set_car_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_car *car_param = (struct vpfe_ipipe_car *)param;
+	struct vpfe_ipipe_car *car_param = param;
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 	struct vpfe_ipipe_car *car = &ipipe->config.car;
 
 	if (!car_param) {
-		memset(car , 0, sizeof(struct vpfe_ipipe_car));
+		memset(car, 0, sizeof(struct vpfe_ipipe_car));
 	} else {
 		memcpy(car, car_param, sizeof(struct vpfe_ipipe_car));
 		if (ipipe_validate_car_params(car) < 0) {
@@ -1102,7 +1102,7 @@ static int ipipe_set_car_params(struct vpfe_ipipe_device *ipipe, void *param)
 
 static int ipipe_get_car_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_car *car_param = (struct vpfe_ipipe_car *)param;
+	struct vpfe_ipipe_car *car_param = param;
 	struct vpfe_ipipe_car *car = &ipipe->config.car;
 
 	memcpy(car_param, car, sizeof(struct vpfe_ipipe_car));
@@ -1119,7 +1119,7 @@ static int ipipe_validate_cgs_params(struct vpfe_ipipe_cgs *cgs)
 
 static int ipipe_set_cgs_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_cgs *cgs_param = (struct vpfe_ipipe_cgs *)param;
+	struct vpfe_ipipe_cgs *cgs_param = param;
 	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 	struct vpfe_ipipe_cgs *cgs = &ipipe->config.cgs;
 
@@ -1140,7 +1140,7 @@ static int ipipe_set_cgs_params(struct vpfe_ipipe_device *ipipe, void *param)
 
 static int ipipe_get_cgs_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
-	struct vpfe_ipipe_cgs *cgs_param = (struct vpfe_ipipe_cgs *)param;
+	struct vpfe_ipipe_cgs *cgs_param = param;
 	struct vpfe_ipipe_cgs *cgs = &ipipe->config.cgs;
 
 	memcpy(cgs_param, cgs, sizeof(struct vpfe_ipipe_cgs));
@@ -1350,21 +1350,16 @@ error:
  */
 static long ipipe_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	int ret = 0;
-
 	switch (cmd) {
 	case VIDIOC_VPFE_IPIPE_S_CONFIG:
-		ret = ipipe_s_config(sd, arg);
-		break;
+		return ipipe_s_config(sd, arg);
 
 	case VIDIOC_VPFE_IPIPE_G_CONFIG:
-		ret = ipipe_g_config(sd, arg);
-		break;
+		return ipipe_g_config(sd, arg);
 
 	default:
-		ret = -ENOIOCTLCMD;
+		return -ENOIOCTLCMD;
 	}
-	return ret;
 }
 
 void vpfe_ipipe_enable(struct vpfe_device *vpfe_dev, int en)
@@ -1414,17 +1409,17 @@ static int ipipe_set_stream(struct v4l2_subdev *sd, int enable)
  * __ipipe_get_format() - helper function for getting ipipe format
  * @ipipe: pointer to ipipe private structure.
  * @pad: pad number.
- * @fh: V4L2 subdev file handle.
+ * @cfg: V4L2 subdev pad config
  * @which: wanted subdev format.
  *
  */
 static struct v4l2_mbus_framefmt *
 __ipipe_get_format(struct vpfe_ipipe_device *ipipe,
-		       struct v4l2_subdev_fh *fh, unsigned int pad,
+		       struct v4l2_subdev_pad_config *cfg, unsigned int pad,
 		       enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(fh, pad);
+		return v4l2_subdev_get_try_format(&ipipe->subdev, cfg, pad);
 
 	return &ipipe->formats[pad];
 }
@@ -1432,14 +1427,14 @@ __ipipe_get_format(struct vpfe_ipipe_device *ipipe,
 /*
  * ipipe_try_format() - Handle try format by pad subdev method
  * @ipipe: VPFE ipipe device.
- * @fh: V4L2 subdev file handle.
+ * @cfg: V4L2 subdev pad config
  * @pad: pad num.
  * @fmt: pointer to v4l2 format structure.
  * @which : wanted subdev format
  */
 static void
 ipipe_try_format(struct vpfe_ipipe_device *ipipe,
-		   struct v4l2_subdev_fh *fh, unsigned int pad,
+		   struct v4l2_subdev_pad_config *cfg, unsigned int pad,
 		   struct v4l2_mbus_framefmt *fmt,
 		   enum v4l2_subdev_format_whence which)
 {
@@ -1457,7 +1452,7 @@ ipipe_try_format(struct vpfe_ipipe_device *ipipe,
 
 		/* If not found, use SBGGR10 as default */
 		if (i >= ARRAY_SIZE(ipipe_input_fmts))
-			fmt->code = V4L2_MBUS_FMT_SGRBG12_1X12;
+			fmt->code = MEDIA_BUS_FMT_SGRBG12_1X12;
 	} else if (pad == IPIPE_PAD_SOURCE) {
 		for (i = 0; i < ARRAY_SIZE(ipipe_output_fmts); i++)
 			if (fmt->code == ipipe_output_fmts[i])
@@ -1465,7 +1460,7 @@ ipipe_try_format(struct vpfe_ipipe_device *ipipe,
 
 		/* If not found, use UYVY as default */
 		if (i >= ARRAY_SIZE(ipipe_output_fmts))
-			fmt->code = V4L2_MBUS_FMT_UYVY8_2X8;
+			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	}
 
 	fmt->width = clamp_t(u32, fmt->width, MIN_OUT_HEIGHT, max_out_width);
@@ -1475,22 +1470,22 @@ ipipe_try_format(struct vpfe_ipipe_device *ipipe,
 /*
  * ipipe_set_format() - Handle set format by pads subdev method
  * @sd: pointer to v4l2 subdev structure
- * @fh: V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad config
  * @fmt: pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */
 static int
-ipipe_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+ipipe_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 		     struct v4l2_subdev_format *fmt)
 {
 	struct vpfe_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __ipipe_get_format(ipipe, fh, fmt->pad, fmt->which);
+	format = __ipipe_get_format(ipipe, cfg, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
-	ipipe_try_format(ipipe, fh, fmt->pad, &fmt->format, fmt->which);
+	ipipe_try_format(ipipe, cfg, fmt->pad, &fmt->format, fmt->which);
 	*format = fmt->format;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
@@ -1512,11 +1507,11 @@ ipipe_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * ipipe_get_format() - Handle get format by pads subdev method.
  * @sd: pointer to v4l2 subdev structure.
- * @fh: V4L2 subdev file handle.
+ * @cfg: V4L2 subdev pad config
  * @fmt: pointer to v4l2 subdev format structure.
  */
 static int
-ipipe_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+ipipe_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 		     struct v4l2_subdev_format *fmt)
 {
 	struct vpfe_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
@@ -1524,7 +1519,7 @@ ipipe_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		fmt->format = ipipe->formats[fmt->pad];
 	else
-		fmt->format = *(v4l2_subdev_get_try_format(fh, fmt->pad));
+		fmt->format = *(v4l2_subdev_get_try_format(sd, cfg, fmt->pad));
 
 	return 0;
 }
@@ -1532,12 +1527,13 @@ ipipe_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * ipipe_enum_frame_size() - enum frame sizes on pads
  * @sd: pointer to v4l2 subdev structure.
- * @fh: V4L2 subdev file handle.
+ * @cfg: V4L2 subdev pad config
  * @fse: pointer to v4l2_subdev_frame_size_enum structure.
  */
 static int
-ipipe_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
-			  struct v4l2_subdev_frame_size_enum *fse)
+ipipe_enum_frame_size(struct v4l2_subdev *sd,
+		       struct v4l2_subdev_pad_config *cfg,
+		       struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vpfe_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt format;
@@ -1548,8 +1544,7 @@ ipipe_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	ipipe_try_format(ipipe, fh, fse->pad, &format,
-			   V4L2_SUBDEV_FORMAT_TRY);
+	ipipe_try_format(ipipe, cfg, fse->pad, &format, fse->which);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
 
@@ -1559,8 +1554,7 @@ ipipe_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	ipipe_try_format(ipipe, fh, fse->pad, &format,
-			   V4L2_SUBDEV_FORMAT_TRY);
+	ipipe_try_format(ipipe, cfg, fse->pad, &format, fse->which);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
 
@@ -1570,11 +1564,11 @@ ipipe_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * ipipe_enum_mbus_code() - enum mbus codes for pads
  * @sd: pointer to v4l2 subdev structure.
- * @fh: V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad config
  * @code: pointer to v4l2_subdev_mbus_code_enum structure
  */
 static int
-ipipe_enum_mbus_code(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+ipipe_enum_mbus_code(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 		     struct v4l2_subdev_mbus_code_enum *code)
 {
 	switch (code->pad) {
@@ -1630,9 +1624,8 @@ static int ipipe_s_ctrl(struct v4l2_ctrl *ctrl)
  * @sd: pointer to v4l2 subdev structure.
  * @fh: V4L2 subdev file handle
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
- * formats are initialized on the file handle. Otherwise active formats are
- * initialized on the device.
+ * Initialize all pad formats with default values. Try formats are initialized
+ * on the file handle.
  */
 static int
 ipipe_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
@@ -1641,19 +1634,19 @@ ipipe_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	memset(&format, 0, sizeof(format));
 	format.pad = IPIPE_PAD_SINK;
-	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_SGRBG12_1X12;
+	format.which = V4L2_SUBDEV_FORMAT_TRY;
+	format.format.code = MEDIA_BUS_FMT_SGRBG12_1X12;
 	format.format.width = IPIPE_MAX_OUTPUT_WIDTH_A;
 	format.format.height = IPIPE_MAX_OUTPUT_HEIGHT_A;
-	ipipe_set_format(sd, fh, &format);
+	ipipe_set_format(sd, fh->pad, &format);
 
 	memset(&format, 0, sizeof(format));
 	format.pad = IPIPE_PAD_SOURCE;
-	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_UYVY8_2X8;
+	format.which = V4L2_SUBDEV_FORMAT_TRY;
+	format.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 	format.format.width = IPIPE_MAX_OUTPUT_WIDTH_A;
 	format.format.height = IPIPE_MAX_OUTPUT_HEIGHT_A;
-	ipipe_set_format(sd, fh, &format);
+	ipipe_set_format(sd, fh->pad, &format);
 
 	return 0;
 }
@@ -1714,8 +1707,11 @@ ipipe_link_setup(struct media_entity *entity, const struct media_pad *local,
 	struct vpfe_device *vpfe_dev = to_vpfe_device(ipipe);
 	u16 ipipeif_sink = vpfe_dev->vpfe_ipipeif.input;
 
-	switch (local->index | media_entity_type(remote->entity)) {
-	case IPIPE_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+	if (!is_media_entity_v4l2_subdev(remote->entity))
+		return -EINVAL;
+
+	switch (local->index) {
+	case IPIPE_PAD_SINK:
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 			ipipe->input = IPIPE_INPUT_NONE;
 			break;
@@ -1728,7 +1724,7 @@ ipipe_link_setup(struct media_entity *entity, const struct media_pad *local,
 			ipipe->input = IPIPE_INPUT_CCDC;
 		break;
 
-	case IPIPE_PAD_SOURCE | MEDIA_ENT_T_V4L2_SUBDEV:
+	case IPIPE_PAD_SOURCE:
 		/* out to RESIZER */
 		if (flags & MEDIA_LNK_FL_ENABLED)
 			ipipe->output = IPIPE_OUTPUT_RESIZER;
@@ -1842,7 +1838,7 @@ vpfe_ipipe_init(struct vpfe_ipipe_device *ipipe, struct platform_device *pdev)
 	v4l2_ctrl_handler_setup(&ipipe->ctrls);
 	sd->ctrl_handler = &ipipe->ctrls;
 
-	return media_entity_init(me, IPIPE_PADS_NUM, pads, 0);
+	return media_entity_pads_init(me, IPIPE_PADS_NUM, pads);
 }
 
 /*

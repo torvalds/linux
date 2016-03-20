@@ -45,6 +45,11 @@
 
 #define VSS_OP_REGISTER 128
 
+/*
+  Daemon code with full handshake support.
+ */
+#define VSS_OP_REGISTER1 129
+
 enum hv_vss_op {
 	VSS_OP_CREATE = 0,
 	VSS_OP_DELETE,
@@ -100,7 +105,8 @@ struct hv_vss_msg {
  */
 
 #define FCOPY_VERSION_0 0
-#define FCOPY_CURRENT_VERSION FCOPY_VERSION_0
+#define FCOPY_VERSION_1 1
+#define FCOPY_CURRENT_VERSION FCOPY_VERSION_1
 #define W_MAX_PATH 260
 
 enum hv_fcopy_op {
@@ -134,10 +140,11 @@ struct hv_start_fcopy {
 
 struct hv_do_fcopy {
 	struct hv_fcopy_hdr hdr;
+	__u32   pad;
 	__u64	offset;
 	__u32	size;
 	__u8	data[DATA_FRAGMENT];
-};
+} __attribute__((packed));
 
 /*
  * An implementation of HyperV key value pair (KVP) functionality for Linux.
@@ -306,6 +313,7 @@ enum hv_kvp_exchg_pool {
 #define HV_INVALIDARG			0x80070057
 #define HV_GUID_NOTFOUND		0x80041002
 #define HV_ERROR_ALREADY_EXISTS		0x80070050
+#define HV_ERROR_DISK_FULL		0x80070070
 
 #define ADDR_FAMILY_NONE	0x00
 #define ADDR_FAMILY_IPV4	0x01

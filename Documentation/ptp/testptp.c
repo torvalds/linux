@@ -18,6 +18,7 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #define _GNU_SOURCE
+#define __SANE_USERSPACE_TYPES__        /* For PPC64, to get LL64 types */
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -159,7 +160,8 @@ int main(int argc, char *argv[])
 
 
 	char *progname;
-	int i, c, cnt, fd;
+	unsigned int i;
+	int c, cnt, fd;
 
 	char *device = DEVICE;
 	clockid_t clkid;
@@ -276,13 +278,15 @@ int main(int argc, char *argv[])
 			       "  %d external time stamp channels\n"
 			       "  %d programmable periodic signals\n"
 			       "  %d pulse per second\n"
-			       "  %d programmable pins\n",
+			       "  %d programmable pins\n"
+			       "  %d cross timestamping\n",
 			       caps.max_adj,
 			       caps.n_alarm,
 			       caps.n_ext_ts,
 			       caps.n_per_out,
 			       caps.pps,
-			       caps.n_pins);
+			       caps.n_pins,
+			       caps.cross_timestamping);
 		}
 	}
 
@@ -500,11 +504,11 @@ int main(int argc, char *argv[])
 			interval = t2 - t1;
 			offset = (t2 + t1) / 2 - tp;
 
-			printf("system time: %" PRId64 ".%u\n",
+			printf("system time: %lld.%u\n",
 				(pct+2*i)->sec, (pct+2*i)->nsec);
-			printf("phc    time: %" PRId64 ".%u\n",
+			printf("phc    time: %lld.%u\n",
 				(pct+2*i+1)->sec, (pct+2*i+1)->nsec);
-			printf("system time: %" PRId64 ".%u\n",
+			printf("system time: %lld.%u\n",
 				(pct+2*i+2)->sec, (pct+2*i+2)->nsec);
 			printf("system/phc clock time offset is %" PRId64 " ns\n"
 			       "system     clock time delay  is %" PRId64 " ns\n",

@@ -21,6 +21,21 @@
 
 #include "mm.h"
 
+#ifdef CONFIG_ARM_HEAVY_MB
+void (*soc_mb)(void);
+
+void arm_heavy_mb(void)
+{
+#ifdef CONFIG_OUTER_CACHE_SYNC
+	if (outer_cache.sync)
+		outer_cache.sync();
+#endif
+	if (soc_mb)
+		soc_mb();
+}
+EXPORT_SYMBOL(arm_heavy_mb);
+#endif
+
 #ifdef CONFIG_CPU_CACHE_VIPT
 
 static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
@@ -33,7 +48,7 @@ static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
 	asm(	"mcrr	p15, 0, %1, %0, c14\n"
 	"	mcr	p15, 0, %2, c7, c10, 4"
 	    :
-	    : "r" (to), "r" (to + PAGE_SIZE - L1_CACHE_BYTES), "r" (zero)
+	    : "r" (to), "r" (to + PAGE_SIZE - 1), "r" (zero)
 	    : "cc");
 }
 
@@ -315,7 +330,7 @@ void flush_dcache_page(struct page *page)
 	mapping = page_mapping(page);
 
 	if (!cache_ops_need_broadcast() &&
-	    mapping && !page_mapped(page))
+	    mapping && !page_mapcount(page))
 		clear_bit(PG_dcache_clean, &page->flags);
 	else {
 		__flush_dcache_page(mapping, page);

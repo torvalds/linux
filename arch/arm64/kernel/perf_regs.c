@@ -24,6 +24,12 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 			return regs->compat_lr;
 	}
 
+	if ((u32)idx == PERF_REG_ARM64_SP)
+		return regs->sp;
+
+	if ((u32)idx == PERF_REG_ARM64_PC)
+		return regs->pc;
+
 	return regs->regs[idx];
 }
 
@@ -43,4 +49,12 @@ u64 perf_reg_abi(struct task_struct *task)
 		return PERF_SAMPLE_REGS_ABI_32;
 	else
 		return PERF_SAMPLE_REGS_ABI_64;
+}
+
+void perf_get_regs_user(struct perf_regs *regs_user,
+			struct pt_regs *regs,
+			struct pt_regs *regs_user_copy)
+{
+	regs_user->regs = task_pt_regs(current);
+	regs_user->abi = perf_reg_abi(current);
 }

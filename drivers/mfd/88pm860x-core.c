@@ -558,15 +558,11 @@ static int pm860x_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_data(virq, d->host_data);
 	irq_set_chip_and_handler(virq, &pm860x_irq_chip, handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-#ifdef CONFIG_ARM
-	set_irq_flags(virq, IRQF_VALID);
-#else
 	irq_set_noprobe(virq);
-#endif
 	return 0;
 }
 
-static struct irq_domain_ops pm860x_irq_domain_ops = {
+static const struct irq_domain_ops pm860x_irq_domain_ops = {
 	.map	= pm860x_irq_domain_map,
 	.xlate	= irq_domain_xlate_onetwocell,
 };
@@ -709,10 +705,12 @@ int pm8606_osc_disable(struct pm860x_chip *chip, unsigned short client)
 			chip->osc_status);
 
 	mutex_lock(&chip->osc_lock);
-	/*Update voting status */
+	/* Update voting status */
 	chip->osc_vote &= ~(client);
-	/* If reference group is off and this is the last client to release
-	 * - turn off */
+	/*
+	 * If reference group is off and this is the last client to release
+	 * - turn off
+	 */
 	if ((chip->osc_status != PM8606_REF_GP_OSC_OFF) &&
 			(chip->osc_vote == REF_GP_NO_CLIENTS)) {
 		chip->osc_status = PM8606_REF_GP_OSC_UNKNOWN;
@@ -1111,7 +1109,7 @@ static int verify_addr(struct i2c_client *i2c)
 	return 0;
 }
 
-static struct regmap_config pm860x_regmap_config = {
+static const struct regmap_config pm860x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
@@ -1222,7 +1220,7 @@ static int pm860x_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int pm860x_suspend(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct pm860x_chip *chip = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(dev) && chip->wakeup_flag)
@@ -1232,7 +1230,7 @@ static int pm860x_suspend(struct device *dev)
 
 static int pm860x_resume(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct pm860x_chip *chip = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(dev) && chip->wakeup_flag)
@@ -1258,7 +1256,6 @@ MODULE_DEVICE_TABLE(of, pm860x_dt_ids);
 static struct i2c_driver pm860x_driver = {
 	.driver	= {
 		.name	= "88PM860x",
-		.owner	= THIS_MODULE,
 		.pm     = &pm860x_pm_ops,
 		.of_match_table	= pm860x_dt_ids,
 	},
@@ -1270,6 +1267,7 @@ static struct i2c_driver pm860x_driver = {
 static int __init pm860x_i2c_init(void)
 {
 	int ret;
+
 	ret = i2c_add_driver(&pm860x_driver);
 	if (ret != 0)
 		pr_err("Failed to register 88PM860x I2C driver: %d\n", ret);

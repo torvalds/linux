@@ -56,10 +56,10 @@ s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset, u8 dev_addr,
 #define E1000_SRRCTL_TIMESTAMP                          0x40000000
 
 
-#define E1000_MRQC_ENABLE_RSS_4Q            0x00000002
+#define E1000_MRQC_ENABLE_RSS_MQ            0x00000002
 #define E1000_MRQC_ENABLE_VMDQ              0x00000003
 #define E1000_MRQC_RSS_FIELD_IPV4_UDP       0x00400000
-#define E1000_MRQC_ENABLE_VMDQ_RSS_2Q       0x00000005
+#define E1000_MRQC_ENABLE_VMDQ_RSS_MQ       0x00000005
 #define E1000_MRQC_RSS_FIELD_IPV6_UDP       0x00800000
 #define E1000_MRQC_RSS_FIELD_IPV6_UDP_EX    0x01000000
 
@@ -263,8 +263,8 @@ void igb_vmdq_set_loopback_pf(struct e1000_hw *, bool);
 void igb_vmdq_set_replication_pf(struct e1000_hw *, bool);
 u16 igb_rxpbs_adjust_82580(u32 data);
 s32 igb_read_emi_reg(struct e1000_hw *, u16 addr, u16 *data);
-s32 igb_set_eee_i350(struct e1000_hw *);
-s32 igb_set_eee_i354(struct e1000_hw *);
+s32 igb_set_eee_i350(struct e1000_hw *, bool adv1G, bool adv100M);
+s32 igb_set_eee_i354(struct e1000_hw *, bool adv1G, bool adv100M);
 s32 igb_get_eee_status_i354(struct e1000_hw *hw, bool *status);
 
 #define E1000_I2C_THERMAL_SENSOR_ADDR	0xF8

@@ -72,7 +72,7 @@ static int ctr3686_aes_nx_set_key(struct crypto_tfm *tfm,
 	if (key_len < CTR_RFC3686_NONCE_SIZE)
 		return -EINVAL;
 
-	memcpy(nx_ctx->priv.ctr.iv,
+	memcpy(nx_ctx->priv.ctr.nonce,
 	       in_key + key_len - CTR_RFC3686_NONCE_SIZE,
 	       CTR_RFC3686_NONCE_SIZE);
 
@@ -90,22 +90,14 @@ static int ctr_aes_nx_crypt(struct blkcipher_desc *desc,
 	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
 	unsigned long irq_flags;
 	unsigned int processed = 0, to_process;
-	u32 max_sg_len;
 	int rc;
 
 	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
 
-	max_sg_len = min_t(u32, nx_driver.of.max_sg_len/sizeof(struct nx_sg),
-			   nx_ctx->ap->sglen);
-
 	do {
-		to_process = min_t(u64, nbytes - processed,
-				   nx_ctx->ap->databytelen);
-		to_process = min_t(u64, to_process,
-				   NX_PAGE_SIZE * (max_sg_len - 1));
-		to_process = to_process & ~(AES_BLOCK_SIZE - 1);
+		to_process = nbytes - processed;
 
-		rc = nx_build_sg_lists(nx_ctx, desc, dst, src, to_process,
+		rc = nx_build_sg_lists(nx_ctx, desc, dst, src, &to_process,
 				       processed, csbcpb->cpb.aes_ctr.iv);
 		if (rc)
 			goto out;
@@ -139,37 +131,18 @@ static int ctr3686_aes_nx_crypt(struct blkcipher_desc *desc,
 				unsigned int           nbytes)
 {
 	struct nx_crypto_ctx *nx_ctx = crypto_blkcipher_ctx(desc->tfm);
-	u8 *iv = nx_ctx->priv.ctr.iv;
+	u8 iv[16];
 
+	memcpy(iv, nx_ctx->priv.ctr.nonce, CTR_RFC3686_IV_SIZE);
 	memcpy(iv + CTR_RFC3686_NONCE_SIZE,
 	       desc->info, CTR_RFC3686_IV_SIZE);
+	iv[12] = iv[13] = iv[14] = 0;
 	iv[15] = 1;
 
-	desc->info = nx_ctx->priv.ctr.iv;
+	desc->info = iv;
 
 	return ctr_aes_nx_crypt(desc, dst, src, nbytes);
 }
-
-struct crypto_alg nx_ctr_aes_alg = {
-	.cra_name        = "ctr(aes)",
-	.cra_driver_name = "ctr-aes-nx",
-	.cra_priority    = 300,
-	.cra_flags       = CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize   = 1,
-	.cra_ctxsize     = sizeof(struct nx_crypto_ctx),
-	.cra_type        = &crypto_blkcipher_type,
-	.cra_module      = THIS_MODULE,
-	.cra_init        = nx_crypto_ctx_aes_ctr_init,
-	.cra_exit        = nx_crypto_ctx_exit,
-	.cra_blkcipher = {
-		.min_keysize = AES_MIN_KEY_SIZE,
-		.max_keysize = AES_MAX_KEY_SIZE,
-		.ivsize      = AES_BLOCK_SIZE,
-		.setkey      = ctr_aes_nx_set_key,
-		.encrypt     = ctr_aes_nx_crypt,
-		.decrypt     = ctr_aes_nx_crypt,
-	}
-};
 
 struct crypto_alg nx_ctr3686_aes_alg = {
 	.cra_name        = "rfc3686(ctr(aes))",

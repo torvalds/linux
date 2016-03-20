@@ -27,6 +27,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
 #include <linux/kthread.h>

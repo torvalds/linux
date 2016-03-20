@@ -352,10 +352,7 @@ bfin_sport_spi_pump_transfers(unsigned long data)
 	transfer = drv_data->cur_transfer;
 	chip = drv_data->cur_chip;
 
-	if (transfer->speed_hz)
-		transfer_speed = bfin_sport_hz_to_spi_baud(transfer->speed_hz);
-	else
-		transfer_speed = chip->baud;
+	transfer_speed = bfin_sport_hz_to_spi_baud(transfer->speed_hz);
 	bfin_write(&drv_data->regs->tclkdiv, transfer_speed);
 	SSYNC();
 
@@ -921,7 +918,6 @@ static SIMPLE_DEV_PM_OPS(bfin_sport_spi_pm_ops, bfin_sport_spi_suspend,
 static struct platform_driver bfin_sport_spi_driver = {
 	.driver	= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= BFIN_SPORT_SPI_PM_OPS,
 	},
 	.probe   = bfin_sport_spi_probe,

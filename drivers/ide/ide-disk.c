@@ -477,7 +477,7 @@ static int set_multcount(ide_drive_t *drive, int arg)
 	if (drive->special_flags & IDE_SFLAG_SET_MULTMODE)
 		return -EBUSY;
 
-	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
+	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
 	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 
 	drive->mult_req = arg;
@@ -685,8 +685,10 @@ static void ide_disk_setup(ide_drive_t *drive)
 	printk(KERN_INFO "%s: max request size: %dKiB\n", drive->name,
 	       queue_max_sectors(q) / 2);
 
-	if (ata_id_is_ssd(id))
+	if (ata_id_is_ssd(id)) {
 		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
+		queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, q);
+	}
 
 	/* calculate drive capacity, and select LBA if possible */
 	ide_disk_get_capacity(drive);

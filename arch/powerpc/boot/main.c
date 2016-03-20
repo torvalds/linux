@@ -144,13 +144,24 @@ static char cmdline[BOOT_COMMAND_LINE_SIZE]
 
 static void prep_cmdline(void *chosen)
 {
+	unsigned int getline_timeout = 5000;
+	int v;
+	int n;
+
+	/* Wait-for-input time */
+	n = getprop(chosen, "linux,cmdline-timeout", &v, sizeof(v));
+	if (n == sizeof(v))
+		getline_timeout = v;
+
 	if (cmdline[0] == '\0')
 		getprop(chosen, "bootargs", cmdline, BOOT_COMMAND_LINE_SIZE-1);
 
 	printf("\n\rLinux/PowerPC load: %s", cmdline);
+
 	/* If possible, edit the command line */
-	if (console_ops.edit_cmdline)
-		console_ops.edit_cmdline(cmdline, BOOT_COMMAND_LINE_SIZE);
+	if (console_ops.edit_cmdline && getline_timeout)
+		console_ops.edit_cmdline(cmdline, BOOT_COMMAND_LINE_SIZE, getline_timeout);
+
 	printf("\n\r");
 
 	/* Put the command line back into the devtree for the kernel */

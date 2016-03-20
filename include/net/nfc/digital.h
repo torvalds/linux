@@ -225,6 +225,19 @@ struct nfc_digital_dev {
 	u8 curr_protocol;
 	u8 curr_rf_tech;
 	u8 curr_nfc_dep_pni;
+	u8 did;
+
+	u8 local_payload_max;
+	u8 remote_payload_max;
+
+	struct sk_buff *chaining_skb;
+	struct digital_data_exch *data_exch;
+
+	int atn_count;
+	int nack_count;
+
+	struct sk_buff *saved_skb;
+	unsigned int saved_skb_len;
 
 	u16 target_fsc;
 

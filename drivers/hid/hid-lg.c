@@ -27,6 +27,7 @@
 #include "usbhid/usbhid.h"
 #include "hid-ids.h"
 #include "hid-lg.h"
+#include "hid-lg4ff.h"
 
 #define LG_RDESC		0x001
 #define LG_BAD_RELATIVE_KEYS	0x002
@@ -60,7 +61,7 @@
  */
 static __u8 df_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),                   */
-0x09, 0x04,         /*  Usage (Joystik),                        */
+0x09, 0x04,         /*  Usage (Joystick),                       */
 0xA1, 0x01,         /*  Collection (Application),               */
 0xA1, 0x02,         /*      Collection (Logical),               */
 0x95, 0x01,         /*          Report Count (1),               */
@@ -126,7 +127,7 @@ static __u8 df_rdesc_fixed[] = {
 
 static __u8 dfp_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),                   */
-0x09, 0x04,         /*  Usage (Joystik),                        */
+0x09, 0x04,         /*  Usage (Joystick),                       */
 0xA1, 0x01,         /*  Collection (Application),               */
 0xA1, 0x02,         /*      Collection (Logical),               */
 0x95, 0x01,         /*          Report Count (1),               */
@@ -174,7 +175,7 @@ static __u8 dfp_rdesc_fixed[] = {
 
 static __u8 fv_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),                   */
-0x09, 0x04,         /*  Usage (Joystik),                        */
+0x09, 0x04,         /*  Usage (Joystick),                       */
 0xA1, 0x01,         /*  Collection (Application),               */
 0xA1, 0x02,         /*      Collection (Logical),               */
 0x95, 0x01,         /*          Report Count (1),               */
@@ -241,7 +242,7 @@ static __u8 fv_rdesc_fixed[] = {
 
 static __u8 momo_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),               */
-0x09, 0x04,         /*  Usage (Joystik),                    */
+0x09, 0x04,         /*  Usage (Joystick),                   */
 0xA1, 0x01,         /*  Collection (Application),           */
 0xA1, 0x02,         /*      Collection (Logical),           */
 0x95, 0x01,         /*          Report Count (1),           */
@@ -287,7 +288,7 @@ static __u8 momo_rdesc_fixed[] = {
 
 static __u8 momo2_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop),               */
-0x09, 0x04,         /*  Usage (Joystik),                    */
+0x09, 0x04,         /*  Usage (Joystick),                   */
 0xA1, 0x01,         /*  Collection (Application),           */
 0xA1, 0x02,         /*      Collection (Logical),           */
 0x95, 0x01,         /*          Report Count (1),           */
@@ -619,6 +620,7 @@ static int lg_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 			usage->code == ABS_Y || usage->code == ABS_Z ||
 			usage->code == ABS_RZ)) {
 		switch (hdev->product) {
+		case USB_DEVICE_ID_LOGITECH_G29_WHEEL:
 		case USB_DEVICE_ID_LOGITECH_WHEEL:
 		case USB_DEVICE_ID_LOGITECH_MOMO_WHEEL:
 		case USB_DEVICE_ID_LOGITECH_DFP_WHEEL:
@@ -657,9 +659,18 @@ static int lg_event(struct hid_device *hdev, struct hid_field *field,
 
 static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
+	struct usb_interface *iface = to_usb_interface(hdev->dev.parent);
+	__u8 iface_num = iface->cur_altsetting->desc.bInterfaceNumber;
 	unsigned int connect_mask = HID_CONNECT_DEFAULT;
 	struct lg_drv_data *drv_data;
 	int ret;
+
+	/* G29 only work with the 1st interface */
+	if ((hdev->product == USB_DEVICE_ID_LOGITECH_G29_WHEEL) &&
+	    (iface_num != 0)) {
+		dbg_hid("%s: ignoring ifnum %d\n", __func__, iface_num);
+		return -ENODEV;
+	}
 
 	drv_data = kzalloc(sizeof(struct lg_drv_data), GFP_KERNEL);
 	if (!drv_data) {
@@ -699,7 +710,8 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			/* insert a little delay of 10 jiffies ~ 40ms */
 			wait_queue_head_t wait;
 			init_waitqueue_head (&wait);
-			wait_event_interruptible_timeout(wait, 0, 10);
+			wait_event_interruptible_timeout(wait, 0,
+							 msecs_to_jiffies(40));
 
 			/* Select random Address */
 			buf[1] = 0xB2;
@@ -711,13 +723,16 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	if (drv_data->quirks & LG_FF)
-		lgff_init(hdev);
-	if (drv_data->quirks & LG_FF2)
-		lg2ff_init(hdev);
-	if (drv_data->quirks & LG_FF3)
-		lg3ff_init(hdev);
-	if (drv_data->quirks & LG_FF4)
-		lg4ff_init(hdev);
+		ret = lgff_init(hdev);
+	else if (drv_data->quirks & LG_FF2)
+		ret = lg2ff_init(hdev);
+	else if (drv_data->quirks & LG_FF3)
+		ret = lg3ff_init(hdev);
+	else if (drv_data->quirks & LG_FF4)
+		ret = lg4ff_init(hdev);
+
+	if (ret)
+		goto err_free;
 
 	return 0;
 err_free:
@@ -730,8 +745,8 @@ static void lg_remove(struct hid_device *hdev)
 	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
 	if (drv_data->quirks & LG_FF4)
 		lg4ff_deinit(hdev);
-
-	hid_hw_stop(hdev);
+	else
+		hid_hw_stop(hdev);
 	kfree(drv_data);
 }
 
@@ -771,6 +786,8 @@ static const struct hid_device_id lg_devices[] = {
 		.driver_data = LG_FF },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2_2),
 		.driver_data = LG_FF },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_G29_WHEEL),
+		.driver_data = LG_FF4 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_F3D),
 		.driver_data = LG_FF },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_FORCE3D_PRO),
@@ -817,5 +834,11 @@ static struct hid_driver lg_driver = {
 	.remove = lg_remove,
 };
 module_hid_driver(lg_driver);
+
+#ifdef CONFIG_LOGIWHEELS_FF
+int lg4ff_no_autoswitch = 0;
+module_param_named(lg4ff_no_autoswitch, lg4ff_no_autoswitch, int, S_IRUGO);
+MODULE_PARM_DESC(lg4ff_no_autoswitch, "Do not switch multimode wheels to their native mode automatically");
+#endif
 
 MODULE_LICENSE("GPL");

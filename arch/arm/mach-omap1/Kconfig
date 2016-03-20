@@ -90,13 +90,6 @@ config MACH_OMAP_FSAMPLE
 	  Support for TI OMAP 850 F-Sample board. Say Y here if you have such
 	  a board.
 
-config MACH_VOICEBLUE
-	bool "Voiceblue"
-	depends on ARCH_OMAP1 && ARCH_OMAP15XX
-	help
-	  Support for Voiceblue GSM/VoIP gateway. Say Y here if you have
-	  such a board.
-
 config MACH_OMAP_PALMTE
 	bool "Palm Tungsten E"
 	depends on ARCH_OMAP1 && ARCH_OMAP15XX

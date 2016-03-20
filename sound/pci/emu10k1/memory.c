@@ -34,10 +34,11 @@
  * aligned pages in others
  */
 #define __set_ptb_entry(emu,page,addr) \
-	(((u32 *)(emu)->ptb_pages.area)[page] = cpu_to_le32(((addr) << 1) | (page)))
+	(((u32 *)(emu)->ptb_pages.area)[page] = cpu_to_le32(((addr) << (emu->address_mode)) | (page)))
 
 #define UNIT_PAGES		(PAGE_SIZE / EMUPAGESIZE)
-#define MAX_ALIGN_PAGES		(MAXPAGES / UNIT_PAGES)
+#define MAX_ALIGN_PAGES0		(MAXPAGES0 / UNIT_PAGES)
+#define MAX_ALIGN_PAGES1		(MAXPAGES1 / UNIT_PAGES)
 /* get aligned page from offset address */
 #define get_aligned_page(offset)	((offset) >> PAGE_SHIFT)
 /* get offset address from aligned page */
@@ -124,7 +125,7 @@ static int search_empty_map_area(struct snd_emu10k1 *emu, int npages, struct lis
 		}
 		page = blk->mapped_page + blk->pages;
 	}
-	size = MAX_ALIGN_PAGES - page;
+	size = (emu->address_mode ? MAX_ALIGN_PAGES1 : MAX_ALIGN_PAGES0) - page;
 	if (size >= max_size) {
 		*nextp = pos;
 		return page;
@@ -181,7 +182,7 @@ static int unmap_memblk(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk)
 		q = get_emu10k1_memblk(p, mapped_link);
 		end_page = q->mapped_page;
 	} else
-		end_page = MAX_ALIGN_PAGES;
+		end_page = (emu->address_mode ? MAX_ALIGN_PAGES1 : MAX_ALIGN_PAGES0);
 
 	/* remove links */
 	list_del(&blk->mapped_link);
@@ -307,7 +308,7 @@ snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *subst
 	if (snd_BUG_ON(!emu))
 		return NULL;
 	if (snd_BUG_ON(runtime->dma_bytes <= 0 ||
-		       runtime->dma_bytes >= MAXPAGES * EMUPAGESIZE))
+		       runtime->dma_bytes >= (emu->address_mode ? MAXPAGES1 : MAXPAGES0) * EMUPAGESIZE))
 		return NULL;
 	hdr = emu->memhdr;
 	if (snd_BUG_ON(!hdr))

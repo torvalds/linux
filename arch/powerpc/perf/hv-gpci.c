@@ -31,7 +31,18 @@
 /* u32 */
 EVENT_DEFINE_RANGE_FORMAT(request, config, 0, 31);
 /* u32 */
+/*
+ * Note that starting_index, phys_processor_idx, sibling_part_id,
+ * hw_chip_id, partition_id all refer to the same bit range. They
+ * are basically aliases for the starting_index. The specific alias
+ * used depends on the event. See REQUEST_IDX_KIND in hv-gpci-requests.h
+ */
 EVENT_DEFINE_RANGE_FORMAT(starting_index, config, 32, 63);
+EVENT_DEFINE_RANGE_FORMAT_LITE(phys_processor_idx, config, 32, 63);
+EVENT_DEFINE_RANGE_FORMAT_LITE(sibling_part_id, config, 32, 63);
+EVENT_DEFINE_RANGE_FORMAT_LITE(hw_chip_id, config, 32, 63);
+EVENT_DEFINE_RANGE_FORMAT_LITE(partition_id, config, 32, 63);
+
 /* u16 */
 EVENT_DEFINE_RANGE_FORMAT(secondary_index, config1, 0, 15);
 /* u8 */
@@ -44,6 +55,10 @@ EVENT_DEFINE_RANGE_FORMAT(offset, config1, 32, 63);
 static struct attribute *format_attrs[] = {
 	&format_attr_request.attr,
 	&format_attr_starting_index.attr,
+	&format_attr_phys_processor_idx.attr,
+	&format_attr_sibling_part_id.attr,
+	&format_attr_hw_chip_id.attr,
+	&format_attr_partition_id.attr,
 	&format_attr_secondary_index.attr,
 	&format_attr_counter_info_version.attr,
 
@@ -55,6 +70,11 @@ static struct attribute *format_attrs[] = {
 static struct attribute_group format_group = {
 	.name = "format",
 	.attrs = format_attrs,
+};
+
+static struct attribute_group event_group = {
+	.name  = "events",
+	.attrs = hv_gpci_event_attrs,
 };
 
 #define HV_CAPS_ATTR(_name, _format)				\
@@ -102,12 +122,21 @@ static struct attribute_group interface_group = {
 
 static const struct attribute_group *attr_groups[] = {
 	&format_group,
+	&event_group,
 	&interface_group,
 	NULL,
 };
 
-#define GPCI_MAX_DATA_BYTES \
-	(1024 - sizeof(struct hv_get_perf_counter_info_params))
+#define HGPCI_REQ_BUFFER_SIZE	4096
+#define HGPCI_MAX_DATA_BYTES \
+	(HGPCI_REQ_BUFFER_SIZE - sizeof(struct hv_get_perf_counter_info_params))
+
+DEFINE_PER_CPU(char, hv_gpci_reqb[HGPCI_REQ_BUFFER_SIZE]) __aligned(sizeof(uint64_t));
+
+struct hv_gpci_request_buffer {
+	struct hv_get_perf_counter_info_params params;
+	uint8_t bytes[HGPCI_MAX_DATA_BYTES];
+} __packed;
 
 static unsigned long single_gpci_request(u32 req, u32 starting_index,
 		u16 secondary_index, u8 version_in, u32 offset, u8 length,
@@ -116,24 +145,21 @@ static unsigned long single_gpci_request(u32 req, u32 starting_index,
 	unsigned long ret;
 	size_t i;
 	u64 count;
+	struct hv_gpci_request_buffer *arg;
 
-	struct {
-		struct hv_get_perf_counter_info_params params;
-		uint8_t bytes[GPCI_MAX_DATA_BYTES];
-	} __packed __aligned(sizeof(uint64_t)) arg = {
-		.params = {
-			.counter_request = cpu_to_be32(req),
-			.starting_index = cpu_to_be32(starting_index),
-			.secondary_index = cpu_to_be16(secondary_index),
-			.counter_info_version_in = version_in,
-		}
-	};
+	arg = (void *)get_cpu_var(hv_gpci_reqb);
+	memset(arg, 0, HGPCI_REQ_BUFFER_SIZE);
+
+	arg->params.counter_request = cpu_to_be32(req);
+	arg->params.starting_index = cpu_to_be32(starting_index);
+	arg->params.secondary_index = cpu_to_be16(secondary_index);
+	arg->params.counter_info_version_in = version_in;
 
 	ret = plpar_hcall_norets(H_GET_PERF_COUNTER_INFO,
-			virt_to_phys(&arg), sizeof(arg));
+			virt_to_phys(arg), HGPCI_REQ_BUFFER_SIZE);
 	if (ret) {
 		pr_devel("hcall failed: 0x%lx\n", ret);
-		return ret;
+		goto out;
 	}
 
 	/*
@@ -142,9 +168,11 @@ static unsigned long single_gpci_request(u32 req, u32 starting_index,
 	 */
 	count = 0;
 	for (i = offset; i < offset + length; i++)
-		count |= arg.bytes[i] << (i - offset);
+		count |= arg->bytes[i] << (i - offset);
 
 	*value = count;
+out:
+	put_cpu_var(hv_gpci_reqb);
 	return ret;
 }
 
@@ -224,10 +252,10 @@ static int h_gpci_event_init(struct perf_event *event)
 	}
 
 	/* last byte within the buffer? */
-	if ((event_get_offset(event) + length) > GPCI_MAX_DATA_BYTES) {
+	if ((event_get_offset(event) + length) > HGPCI_MAX_DATA_BYTES) {
 		pr_devel("request outside of buffer: %zu > %zu\n",
 				(size_t)event_get_offset(event) + length,
-				GPCI_MAX_DATA_BYTES);
+				HGPCI_MAX_DATA_BYTES);
 		return -EINVAL;
 	}
 
@@ -246,11 +274,6 @@ static int h_gpci_event_init(struct perf_event *event)
 	return 0;
 }
 
-static int h_gpci_event_idx(struct perf_event *event)
-{
-	return 0;
-}
-
 static struct pmu h_gpci_pmu = {
 	.task_ctx_nr = perf_invalid_context,
 
@@ -262,7 +285,6 @@ static struct pmu h_gpci_pmu = {
 	.start       = h_gpci_event_start,
 	.stop        = h_gpci_event_stop,
 	.read        = h_gpci_event_update,
-	.event_idx   = h_gpci_event_idx,
 };
 
 static int hv_gpci_init(void)
@@ -270,6 +292,8 @@ static int hv_gpci_init(void)
 	int r;
 	unsigned long hret;
 	struct hv_perf_caps caps;
+
+	hv_gpci_assert_offsets_correct();
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 		pr_debug("not a virtualized system, not enabling\n");

@@ -48,7 +48,7 @@ config ATA_VERBOSE_ERROR
 
 config ATA_ACPI
 	bool "ATA ACPI Support"
-	depends on ACPI && PCI
+	depends on ACPI
 	default y
 	help
 	  This option adds support for ATA-related ACPI objects.
@@ -61,7 +61,7 @@ config ATA_ACPI
 
 config SATA_ZPODD
 	bool "SATA Zero Power Optical Disc Drive (ZPODD) support"
-	depends on ATA_ACPI && PM_RUNTIME
+	depends on ATA_ACPI && PM
 	default n
 	help
 	  This option adds support for SATA Zero Power Optical Disc
@@ -98,6 +98,15 @@ config SATA_AHCI_PLATFORM
 
 	  If unsure, say N.
 
+config AHCI_BRCMSTB
+	tristate "Broadcom STB AHCI SATA support"
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC
+	help
+	  This option enables support for the AHCI SATA3 controller found on
+	  STB SoC's.
+
+	  If unsure, say N.
+
 config AHCI_DA850
 	tristate "DaVinci DA850 AHCI SATA support"
 	depends on ARCH_DAVINCI_DA850
@@ -124,12 +133,30 @@ config AHCI_IMX
 
 	  If unsure, say N.
 
+config AHCI_CEVA
+	tristate "CEVA AHCI SATA support"
+	depends on OF
+	help
+	  This option enables support for the CEVA AHCI SATA.
+	  It can be found on the Xilinx Zynq UltraScale+ MPSoC.
+
+	  If unsure, say N.
+
 config AHCI_MVEBU
 	tristate "Marvell EBU AHCI SATA support"
 	depends on ARCH_MVEBU
 	help
 	  This option enables support for the Marvebu EBU SoC's
 	  onboard AHCI SATA.
+
+	  If unsure, say N.
+
+config AHCI_OCTEON
+	tristate "Cavium Octeon Soc Serial ATA"
+	depends on SATA_AHCI_PLATFORM && CAVIUM_OCTEON_SOC
+	default y
+	help
+	  This option enables support for Cavium Octeon SoC Serial ATA.
 
 	  If unsure, say N.
 
@@ -156,6 +183,15 @@ config AHCI_XGENE
 	depends on PHY_XGENE
 	help
 	 This option enables support for APM X-Gene SoC SATA host controller.
+
+config AHCI_QORIQ
+	tristate "Freescale QorIQ AHCI SATA support"
+	depends on OF
+	help
+	  This option enables support for the Freescale QorIQ AHCI SoC's
+	  onboard AHCI SATA.
+
+	  If unsure, say N.
 
 config SATA_FSL
 	tristate "Freescale 3.0Gbps SATA support"
@@ -270,6 +306,7 @@ config ATA_PIIX
 config SATA_DWC
 	tristate "DesignWare Cores SATA support"
 	depends on 460EX
+	select DW_DMAC
 	help
 	  This option enables support for the on-chip SATA controller of the
 	  AppliedMicro processor 460EX.
@@ -299,7 +336,7 @@ config SATA_HIGHBANK
 
 config SATA_MV
 	tristate "Marvell SATA support"
-	depends on PCI || ARCH_DOVE || ARCH_KIRKWOOD || ARCH_MV78XX0 || \
+	depends on PCI || ARCH_DOVE || ARCH_MV78XX0 || \
 		   ARCH_MVEBU || ARCH_ORION5X || COMPILE_TEST
 	select GENERIC_PHY
 	help
@@ -327,7 +364,7 @@ config SATA_PROMISE
 
 config SATA_RCAR
 	tristate "Renesas R-Car SATA support"
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	help
 	  This option enables support for Renesas R-Car Serial ATA.
 
@@ -726,15 +763,6 @@ config PATA_SC1200
 	help
 	  This option enables support for the NatSemi/AMD SC1200 SoC
 	  companion chip used with the Geode processor family.
-
-	  If unsure, say N.
-
-config PATA_SCC
-	tristate "Toshiba's Cell Reference Set IDE support"
-	depends on PCI && PPC_CELLEB
-	help
-	  This option enables support for the built-in IDE controller on
-	  Toshiba Cell Reference Board.
 
 	  If unsure, say N.
 

@@ -1,0 +1,41 @@
+/*
+ * dts file for Hisilicon HiKey Development Board
+ *
+ * Copyright (C) 2015, Hisilicon Ltd.
+ *
+ */
+
+/dts-v1/;
+
+/*Reserved 1MB memory for MCU*/
+/memreserve/ 0x05e00000 0x00100000;
+
+#include "hi6220.dtsi"
+
+/ {
+	model = "HiKey Development Board";
+	compatible = "hisilicon,hi6220-hikey", "hisilicon,hi6220";
+
+	aliases {
+		serial0 = &uart0; /* On board UART0 */
+		serial1 = &uart1; /* BT UART */
+		serial2 = &uart2; /* LS Expansion UART0 */
+		serial3 = &uart3; /* LS Expansion UART1 */
+	};
+
+	chosen {
+		stdout-path = "serial3:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x40000000>;
+	};
+};
+
+&uart2 {
+	label = "LS-UART0";
+};
+&uart3 {
+	label = "LS-UART1";
+};

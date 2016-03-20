@@ -33,7 +33,7 @@ void rxrpc_remove_user_ID(struct rxrpc_sock *rx, struct rxrpc_call *call)
 
 	read_lock_bh(&call->state_lock);
 	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
-	    !test_and_set_bit(RXRPC_CALL_RELEASE, &call->events))
+	    !test_and_set_bit(RXRPC_CALL_EV_RELEASE, &call->events))
 		rxrpc_queue_call(call);
 	read_unlock_bh(&call->state_lock);
 }
@@ -43,8 +43,8 @@ void rxrpc_remove_user_ID(struct rxrpc_sock *rx, struct rxrpc_call *call)
  * - we need to be careful about two or more threads calling recvmsg
  *   simultaneously
  */
-int rxrpc_recvmsg(struct kiocb *iocb, struct socket *sock,
-		  struct msghdr *msg, size_t len, int flags)
+int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+		  int flags)
 {
 	struct rxrpc_skb_priv *sp;
 	struct rxrpc_call *call = NULL, *continue_call = NULL;
@@ -87,7 +87,7 @@ int rxrpc_recvmsg(struct kiocb *iocb, struct socket *sock,
 		if (!skb) {
 			/* nothing remains on the queue */
 			if (copied &&
-			    (msg->msg_flags & MSG_PEEK || timeo == 0))
+			    (flags & MSG_PEEK || timeo == 0))
 				goto out;
 
 			/* wait for a message to turn up */
@@ -150,7 +150,7 @@ int rxrpc_recvmsg(struct kiocb *iocb, struct socket *sock,
 				       &call->conn->trans->peer->srx, len);
 				msg->msg_namelen = len;
 			}
-			sock_recv_ts_and_drops(msg, &rx->sk, skb);
+			sock_recv_timestamp(msg, &rx->sk, skb);
 		}
 
 		/* receive the message */
@@ -158,7 +158,7 @@ int rxrpc_recvmsg(struct kiocb *iocb, struct socket *sock,
 			goto receive_non_data_message;
 
 		_debug("recvmsg DATA #%u { %d, %d }",
-		       ntohl(sp->hdr.seq), skb->len, sp->offset);
+		       sp->hdr.seq, skb->len, sp->offset);
 
 		if (!continue_call) {
 			/* only set the control data once per recvmsg() */
@@ -169,18 +169,18 @@ int rxrpc_recvmsg(struct kiocb *iocb, struct socket *sock,
 			ASSERT(test_bit(RXRPC_CALL_HAS_USERID, &call->flags));
 		}
 
-		ASSERTCMP(ntohl(sp->hdr.seq), >=, call->rx_data_recv);
-		ASSERTCMP(ntohl(sp->hdr.seq), <=, call->rx_data_recv + 1);
-		call->rx_data_recv = ntohl(sp->hdr.seq);
+		ASSERTCMP(sp->hdr.seq, >=, call->rx_data_recv);
+		ASSERTCMP(sp->hdr.seq, <=, call->rx_data_recv + 1);
+		call->rx_data_recv = sp->hdr.seq;
 
-		ASSERTCMP(ntohl(sp->hdr.seq), >, call->rx_data_eaten);
+		ASSERTCMP(sp->hdr.seq, >, call->rx_data_eaten);
 
 		offset = sp->offset;
 		copy = skb->len - offset;
 		if (copy > len - copied)
 			copy = len - copied;
 
-		ret = skb_copy_datagram_iovec(skb, offset, msg->msg_iov, copy);
+		ret = skb_copy_datagram_msg(skb, offset, msg, copy);
 
 		if (ret < 0)
 			goto copy_error;
@@ -364,11 +364,11 @@ void rxrpc_kernel_data_delivered(struct sk_buff *skb)
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_call *call = sp->call;
 
-	ASSERTCMP(ntohl(sp->hdr.seq), >=, call->rx_data_recv);
-	ASSERTCMP(ntohl(sp->hdr.seq), <=, call->rx_data_recv + 1);
-	call->rx_data_recv = ntohl(sp->hdr.seq);
+	ASSERTCMP(sp->hdr.seq, >=, call->rx_data_recv);
+	ASSERTCMP(sp->hdr.seq, <=, call->rx_data_recv + 1);
+	call->rx_data_recv = sp->hdr.seq;
 
-	ASSERTCMP(ntohl(sp->hdr.seq), >, call->rx_data_eaten);
+	ASSERTCMP(sp->hdr.seq, >, call->rx_data_eaten);
 	rxrpc_free_skb(skb);
 }
 

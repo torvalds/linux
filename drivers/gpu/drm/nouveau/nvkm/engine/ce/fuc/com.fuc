@@ -1,0 +1,864 @@
+/* fuc microcode for copy engine on gt215- chipsets
+ *
+ * Copyright 2011 Red Hat Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: Ben Skeggs
+ */
+
+#ifdef GT215
+.section #gt215_ce_data
+#else
+.section #gf100_ce_data
+#endif
+
+ctx_object:                   .b32 0
+#ifdef GT215
+ctx_dma:
+ctx_dma_query:                .b32 0
+ctx_dma_src:                  .b32 0
+ctx_dma_dst:                  .b32 0
+#endif
+.equ #ctx_dma_count 3
+ctx_query_address_high:       .b32 0
+ctx_query_address_low:        .b32 0
+ctx_query_counter:            .b32 0
+ctx_src_address_high:         .b32 0
+ctx_src_address_low:          .b32 0
+ctx_src_pitch:                .b32 0
+ctx_src_tile_mode:            .b32 0
+ctx_src_xsize:                .b32 0
+ctx_src_ysize:                .b32 0
+ctx_src_zsize:                .b32 0
+ctx_src_zoff:                 .b32 0
+ctx_src_xoff:                 .b32 0
+ctx_src_yoff:                 .b32 0
+ctx_src_cpp:                  .b32 0
+ctx_dst_address_high:         .b32 0
+ctx_dst_address_low:          .b32 0
+ctx_dst_pitch:                .b32 0
+ctx_dst_tile_mode:            .b32 0
+ctx_dst_xsize:                .b32 0
+ctx_dst_ysize:                .b32 0
+ctx_dst_zsize:                .b32 0
+ctx_dst_zoff:                 .b32 0
+ctx_dst_xoff:                 .b32 0
+ctx_dst_yoff:                 .b32 0
+ctx_dst_cpp:                  .b32 0
+ctx_format:                   .b32 0
+ctx_swz_const0:               .b32 0
+ctx_swz_const1:               .b32 0
+ctx_xcnt:                     .b32 0
+ctx_ycnt:                     .b32 0
+.align 256
+
+dispatch_table:
+// mthd 0x0000, NAME
+.b16 0x000 1
+.b32 #ctx_object                     ~0xffffffff
+// mthd 0x0100, NOP
+.b16 0x040 1
+.b32 0x00010000 + #cmd_nop           ~0xffffffff
+// mthd 0x0140, PM_TRIGGER
+.b16 0x050 1
+.b32 0x00010000 + #cmd_pm_trigger    ~0xffffffff
+#ifdef GT215
+// mthd 0x0180-0x018c, DMA_
+.b16 0x060 #ctx_dma_count
+dispatch_dma:
+.b32 0x00010000 + #cmd_dma           ~0xffffffff
+.b32 0x00010000 + #cmd_dma           ~0xffffffff
+.b32 0x00010000 + #cmd_dma           ~0xffffffff
+#endif
+// mthd 0x0200-0x0218, SRC_TILE
+.b16 0x80 7
+.b32 #ctx_src_tile_mode              ~0x00000fff
+.b32 #ctx_src_xsize                  ~0x0007ffff
+.b32 #ctx_src_ysize                  ~0x00001fff
+.b32 #ctx_src_zsize                  ~0x000007ff
+.b32 #ctx_src_zoff                   ~0x00000fff
+.b32 #ctx_src_xoff                   ~0x0007ffff
+.b32 #ctx_src_yoff                   ~0x00001fff
+// mthd 0x0220-0x0238, DST_TILE
+.b16 0x88 7
+.b32 #ctx_dst_tile_mode              ~0x00000fff
+.b32 #ctx_dst_xsize                  ~0x0007ffff
+.b32 #ctx_dst_ysize                  ~0x00001fff
+.b32 #ctx_dst_zsize                  ~0x000007ff
+.b32 #ctx_dst_zoff                   ~0x00000fff
+.b32 #ctx_dst_xoff                   ~0x0007ffff
+.b32 #ctx_dst_yoff                   ~0x00001fff
+// mthd 0x0300-0x0304, EXEC, WRCACHE_FLUSH
+.b16 0xc0 2
+.b32 0x00010000 + #cmd_exec          ~0xffffffff
+.b32 0x00010000 + #cmd_wrcache_flush ~0xffffffff
+// mthd 0x030c-0x0340, various stuff
+.b16 0xc3 14
+.b32 #ctx_src_address_high           ~0x000000ff
+.b32 #ctx_src_address_low            ~0xffffffff
+.b32 #ctx_dst_address_high           ~0x000000ff
+.b32 #ctx_dst_address_low            ~0xffffffff
+.b32 #ctx_src_pitch                  ~0x0007ffff
+.b32 #ctx_dst_pitch                  ~0x0007ffff
+.b32 #ctx_xcnt                       ~0x0000ffff
+.b32 #ctx_ycnt                       ~0x00001fff
+.b32 #ctx_format                     ~0x0333ffff
+.b32 #ctx_swz_const0                 ~0xffffffff
+.b32 #ctx_swz_const1                 ~0xffffffff
+.b32 #ctx_query_address_high         ~0x000000ff
+.b32 #ctx_query_address_low          ~0xffffffff
+.b32 #ctx_query_counter              ~0xffffffff
+.b16 0x800 0
+
+#ifdef GT215
+.section #gt215_ce_code
+#else
+.section #gf100_ce_code
+#endif
+
+main:
+   clear b32 $r0
+   mov $sp $r0
+
+   // setup i0 handler and route fifo and ctxswitch to it
+   mov $r1 #ih
+   mov $iv0 $r1
+   mov $r1 0x400
+   movw $r2 0xfff3
+   sethi $r2 0
+   iowr I[$r1 + 0x300] $r2
+
+   // enable interrupts
+   or $r2 0xc
+   iowr I[$r1] $r2
+   bset $flags ie0
+
+   // enable fifo access and context switching
+   mov $r1 0x1200
+   mov $r2 3
+   iowr I[$r1] $r2
+
+   // sleep forever, waking for interrupts
+   bset $flags $p0
+   spin:
+      sleep $p0
+      bra #spin
+
+// i0 handler
+ih:
+   iord $r1 I[$r0 + 0x200]
+
+   and $r2 $r1 0x00000008
+   bra e #ih_no_chsw
+      call #chsw
+   ih_no_chsw:
+   and $r2 $r1 0x00000004
+   bra e #ih_no_cmd
+      call #dispatch
+
+   ih_no_cmd:
+   and $r1 $r1 0x0000000c
+   iowr I[$r0 + 0x100] $r1
+   iret
+
+// $p1 direction (0 = unload, 1 = load)
+// $r3 channel
+swctx:
+   mov $r4 0x7700
+   mov $xtargets $r4
+#ifdef GT215
+   // target 7 hardcoded to ctx dma object
+   mov $xdbase $r0
+#else
+   // read SCRATCH3 to decide if we are PCOPY0 or PCOPY1
+   mov $r4 0x2100
+   iord $r4 I[$r4 + 0]
+   and $r4 1
+   shl b32 $r4 4
+   add b32 $r4 0x30
+
+   // channel is in vram
+   mov $r15 0x61c
+   shl b32 $r15 6
+   mov $r5 0x114
+   iowrs I[$r15] $r5
+
+   // read 16-byte PCOPYn info, containing context pointer, from channel
+   shl b32 $r5 $r3 4
+   add b32 $r5 2
+   mov $xdbase $r5
+   mov $r5 $sp
+   // get a chunk of stack space, aligned to 256 byte boundary
+   sub b32 $r5 0x100
+   mov $r6 0xff
+   not b32 $r6
+   and $r5 $r6
+   sethi $r5 0x00020000
+   xdld $r4 $r5
+   xdwait
+   sethi $r5 0
+
+   // set context pointer, from within channel VM
+   mov $r14 0
+   iowrs I[$r15] $r14
+   ld b32 $r4 D[$r5 + 0]
+   shr b32 $r4 8
+   ld b32 $r6 D[$r5 + 4]
+   shl b32 $r6 24
+   or $r4 $r6
+   mov $xdbase $r4
+#endif
+   // 256-byte context, at start of data segment
+   mov b32 $r4 $r0
+   sethi $r4 0x60000
+
+   // swap!
+   bra $p1 #swctx_load
+      xdst $r0 $r4
+      bra #swctx_done
+   swctx_load:
+      xdld $r0 $r4
+   swctx_done:
+   xdwait
+   ret
+
+chsw:
+   // read current channel
+   mov $r2 0x1400
+   iord $r3 I[$r2]
+
+   // if it's active, unload it and return
+   xbit $r15 $r3 0x1e
+   bra e #chsw_no_unload
+      bclr $flags $p1
+      call #swctx
+      bclr $r3 0x1e
+      iowr I[$r2] $r3
+      mov $r4 1
+      iowr I[$r2 + 0x200] $r4
+      ret
+
+   // read next channel
+   chsw_no_unload:
+   iord $r3 I[$r2 + 0x100]
+
+   // is there a channel waiting to be loaded?
+   xbit $r13 $r3 0x1e
+   bra e #chsw_finish_load
+      bset $flags $p1
+      call #swctx
+#ifdef GT215
+      // load dma objects back into TARGET regs
+      mov $r5 #ctx_dma
+      mov $r6 #ctx_dma_count
+      chsw_load_ctx_dma:
+         ld b32 $r7 D[$r5 + $r6 * 4]
+         add b32 $r8 $r6 0x180
+         shl b32 $r8 8
+         iowr I[$r8] $r7
+         sub b32 $r6 1
+         bra nc #chsw_load_ctx_dma
+#endif
+   chsw_finish_load:
+   mov $r3 2
+   iowr I[$r2 + 0x200] $r3
+   ret
+
+dispatch:
+   // read incoming fifo command
+   mov $r3 0x1900
+   iord $r2 I[$r3 + 0x100]
+   iord $r3 I[$r3 + 0x000]
+   and $r4 $r2 0x7ff
+   // $r2 will be used to store exception data
+   shl b32 $r2 0x10
+
+   // lookup method in the dispatch table, ILLEGAL_MTHD if not found
+   mov $r5 #dispatch_table
+   clear b32 $r6
+   clear b32 $r7
+   dispatch_loop:
+      ld b16 $r6 D[$r5 + 0]
+      ld b16 $r7 D[$r5 + 2]
+      add b32 $r5 4
+      cmpu b32 $r4 $r6
+      bra c #dispatch_illegal_mthd
+      add b32 $r7 $r6
+      cmpu b32 $r4 $r7
+      bra c #dispatch_valid_mthd
+      sub b32 $r7 $r6
+      shl b32 $r7 3
+      add b32 $r5 $r7
+      bra #dispatch_loop
+
+   // ensure no bits set in reserved fields, INVALID_BITFIELD
+   dispatch_valid_mthd:
+   sub b32 $r4 $r6
+   shl b32 $r4 3
+   add b32 $r4 $r5
+   ld b32 $r5 D[$r4 + 4]
+   and $r5 $r3
+   cmpu b32 $r5 0
+   bra ne #dispatch_invalid_bitfield
+
+   // depending on dispatch flags: execute method, or save data as state
+   ld b16 $r5 D[$r4 + 0]
+   ld b16 $r6 D[$r4 + 2]
+   cmpu b32 $r6 0
+   bra ne #dispatch_cmd
+      st b32 D[$r5] $r3
+      bra #dispatch_done
+   dispatch_cmd:
+      bclr $flags $p1
+      call $r5
+      bra $p1 #dispatch_error
+      bra #dispatch_done
+
+   dispatch_invalid_bitfield:
+   or $r2 2
+   dispatch_illegal_mthd:
+   or $r2 1
+
+   // store exception data in SCRATCH0/SCRATCH1, signal hostirq
+   dispatch_error:
+   mov $r4 0x1000
+   iowr I[$r4 + 0x000] $r2
+   iowr I[$r4 + 0x100] $r3
+   mov $r2 0x40
+   iowr I[$r0] $r2
+   hostirq_wait:
+      iord $r2 I[$r0 + 0x200]
+      and $r2 0x40
+      cmpu b32 $r2 0
+      bra ne #hostirq_wait
+
+   dispatch_done:
+   mov $r2 0x1d00
+   mov $r3 1
+   iowr I[$r2] $r3
+   ret
+
+// No-operation
+//
+// Inputs:
+//    $r1: irqh state
+//    $r2: hostirq state
+//    $r3: data
+//    $r4: dispatch table entry
+// Outputs:
+//    $r1: irqh state
+//    $p1: set on error
+//       $r2: hostirq state
+//       $r3: data
+cmd_nop:
+   ret
+
+// PM_TRIGGER
+//
+// Inputs:
+//    $r1: irqh state
+//    $r2: hostirq state
+//    $r3: data
+//    $r4: dispatch table entry
+// Outputs:
+//    $r1: irqh state
+//    $p1: set on error
+//       $r2: hostirq state
+//       $r3: data
+cmd_pm_trigger:
+   mov $r2 0x2200
+   clear b32 $r3
+   sethi $r3 0x20000
+   iowr I[$r2] $r3
+   ret
+
+#ifdef GT215
+// SET_DMA_* method handler
+//
+// Inputs:
+//    $r1: irqh state
+//    $r2: hostirq state
+//    $r3: data
+//    $r4: dispatch table entry
+// Outputs:
+//    $r1: irqh state
+//    $p1: set on error
+//       $r2: hostirq state
+//       $r3: data
+cmd_dma:
+   sub b32 $r4 #dispatch_dma
+   shr b32 $r4 1
+   bset $r3 0x1e
+   st b32 D[$r4 + #ctx_dma] $r3
+   add b32 $r4 0x600
+   shl b32 $r4 6
+   iowr I[$r4] $r3
+   ret
+#endif
+
+// Calculates the hw swizzle mask and adjusts the surface's xcnt to match
+//
+cmd_exec_set_format:
+   // zero out a chunk of the stack to store the swizzle into
+   add $sp -0x10
+   st b32 D[$sp + 0x00] $r0
+   st b32 D[$sp + 0x04] $r0
+   st b32 D[$sp + 0x08] $r0
+   st b32 D[$sp + 0x0c] $r0
+
+   // extract cpp, src_ncomp and dst_ncomp from FORMAT
+   ld b32 $r4 D[$r0 + #ctx_format]
+   extr $r5 $r4 16:17
+   add b32 $r5 1
+   extr $r6 $r4 20:21
+   add b32 $r6 1
+   extr $r7 $r4 24:25
+   add b32 $r7 1
+
+   // convert FORMAT swizzle mask to hw swizzle mask
+   bclr $flags $p2
+   clear b32 $r8
+   clear b32 $r9
+   ncomp_loop:
+      and $r10 $r4 0xf
+      shr b32 $r4 4
+      clear b32 $r11
+      bpc_loop:
+         cmpu b8 $r10 4
+         bra nc #cmp_c0
+            mulu $r12 $r10 $r5
+            add b32 $r12 $r11
+            bset $flags $p2
+            bra #bpc_next
+         cmp_c0:
+         bra ne #cmp_c1
+            mov $r12 0x10
+            add b32 $r12 $r11
+            bra #bpc_next
+         cmp_c1:
+         cmpu b8 $r10 6
+         bra nc #cmp_zero
+            mov $r12 0x14
+            add b32 $r12 $r11
+            bra #bpc_next
+         cmp_zero:
+            mov $r12 0x80
+         bpc_next:
+         st b8 D[$sp + $r8] $r12
+         add b32 $r8 1
+         add b32 $r11 1
+         cmpu b32 $r11 $r5
+         bra c #bpc_loop
+      add b32 $r9 1
+      cmpu b32 $r9 $r7
+      bra c #ncomp_loop
+
+   // SRC_XCNT = (xcnt * src_cpp), or 0 if no src ref in swz (hw will hang)
+   mulu $r6 $r5
+   st b32 D[$r0 + #ctx_src_cpp] $r6
+   ld b32 $r8 D[$r0 + #ctx_xcnt]
+   mulu $r6 $r8
+   bra $p2 #dst_xcnt
+   clear b32 $r6
+
+   dst_xcnt:
+   mulu $r7 $r5
+   st b32 D[$r0 + #ctx_dst_cpp] $r7
+   mulu $r7 $r8
+
+   mov $r5 0x810
+   shl b32 $r5 6
+   iowr I[$r5 + 0x000] $r6
+   iowr I[$r5 + 0x100] $r7
+   add b32 $r5 0x800
+   ld b32 $r6 D[$r0 + #ctx_dst_cpp]
+   sub b32 $r6 1
+   shl b32 $r6 8
+   ld b32 $r7 D[$r0 + #ctx_src_cpp]
+   sub b32 $r7 1
+   or $r6 $r7
+   iowr I[$r5 + 0x000] $r6
+   add b32 $r5 0x100
+   ld b32 $r6 D[$sp + 0x00]
+   iowr I[$r5 + 0x000] $r6
+   ld b32 $r6 D[$sp + 0x04]
+   iowr I[$r5 + 0x100] $r6
+   ld b32 $r6 D[$sp + 0x08]
+   iowr I[$r5 + 0x200] $r6
+   ld b32 $r6 D[$sp + 0x0c]
+   iowr I[$r5 + 0x300] $r6
+   add b32 $r5 0x400
+   ld b32 $r6 D[$r0 + #ctx_swz_const0]
+   iowr I[$r5 + 0x000] $r6
+   ld b32 $r6 D[$r0 + #ctx_swz_const1]
+   iowr I[$r5 + 0x100] $r6
+   add $sp 0x10
+   ret
+
+// Setup to handle a tiled surface
+//
+// Calculates a number of parameters the hardware requires in order
+// to correctly handle tiling.
+//
+// Offset calculation is performed as follows (Tp/Th/Td from TILE_MODE):
+//    nTx = round_up(w * cpp, 1 << Tp) >> Tp
+//    nTy = round_up(h, 1 << Th) >> Th
+//    Txo = (x * cpp) & ((1 << Tp) - 1)
+//     Tx = (x * cpp) >> Tp
+//    Tyo = y & ((1 << Th) - 1)
+//     Ty = y >> Th
+//    Tzo = z & ((1 << Td) - 1)
+//     Tz = z >> Td
+//
+//    off  = (Tzo << Tp << Th) + (Tyo << Tp) + Txo
+//    off += ((Tz * nTy * nTx)) + (Ty * nTx) + Tx) << Td << Th << Tp;
+//
+// Inputs:
+//    $r4: hw command (0x104800)
+//    $r5: ctx offset adjustment for src/dst selection
+//    $p2: set if dst surface
+//
+cmd_exec_set_surface_tiled:
+   // translate TILE_MODE into Tp, Th, Td shift values
+   ld b32 $r7 D[$r5 + #ctx_src_tile_mode]
+   extr $r9 $r7 8:11
+   extr $r8 $r7 4:7
+#ifdef GT215
+   add b32 $r8 2
+#else
+   add b32 $r8 3
+#endif
+   extr $r7 $r7 0:3
+   cmp b32 $r7 0xe
+   bra ne #xtile64
+   mov $r7 4
+   bra #xtileok
+   xtile64:
+   xbit $r7 $flags $p2
+   add b32 $r7 17
+   bset $r4 $r7
+   mov $r7 6
+   xtileok:
+
+   // Op = (x * cpp) & ((1 << Tp) - 1)
+   // Tx = (x * cpp) >> Tp
+   ld b32 $r10 D[$r5 + #ctx_src_xoff]
+   ld b32 $r11 D[$r5 + #ctx_src_cpp]
+   mulu $r10 $r11
+   mov $r11 1
+   shl b32 $r11 $r7
+   sub b32 $r11 1
+   and $r12 $r10 $r11
+   shr b32 $r10 $r7
+
+   // Tyo = y & ((1 << Th) - 1)
+   // Ty  = y >> Th
+   ld b32 $r13 D[$r5 + #ctx_src_yoff]
+   mov $r14 1
+   shl b32 $r14 $r8
+   sub b32 $r14 1
+   and $r11 $r13 $r14
+   shr b32 $r13 $r8
+
+   // YTILE = ((1 << Th) << 12) | ((1 << Th) - Tyo)
+   add b32 $r14 1
+   shl b32 $r15 $r14 12
+   sub b32 $r14 $r11
+   or $r15 $r14
+   xbit $r6 $flags $p2
+   add b32 $r6 0x208
+   shl b32 $r6 8
+   iowr I[$r6 + 0x000] $r15
+
+   // Op += Tyo << Tp
+   shl b32 $r11 $r7
+   add b32 $r12 $r11
+
+   // nTx = ((w * cpp) + ((1 << Tp) - 1) >> Tp)
+   ld b32 $r15 D[$r5 + #ctx_src_xsize]
+   ld b32 $r11 D[$r5 + #ctx_src_cpp]
+   mulu $r15 $r11
+   mov $r11 1
+   shl b32 $r11 $r7
+   sub b32 $r11 1
+   add b32 $r15 $r11
+   shr b32 $r15 $r7
+   push $r15
+
+   // nTy = (h + ((1 << Th) - 1)) >> Th
+   ld b32 $r15 D[$r5 + #ctx_src_ysize]
+   mov $r11 1
+   shl b32 $r11 $r8
+   sub b32 $r11 1
+   add b32 $r15 $r11
+   shr b32 $r15 $r8
+   push $r15
+
+   // Tys = Tp + Th
+   // CFG_YZ_TILE_SIZE = ((1 << Th) >> 2) << Td
+   add b32 $r7 $r8
+   sub b32 $r8 2
+   mov $r11 1
+   shl b32 $r11 $r8
+   shl b32 $r11 $r9
+
+   // Tzo = z & ((1 << Td) - 1)
+   // Tz  = z >> Td
+   // Op += Tzo << Tys
+   // Ts  = Tys + Td
+   ld b32 $r8 D[$r5 + #ctx_src_zoff]
+   mov $r14 1
+   shl b32 $r14 $r9
+   sub b32 $r14 1
+   and $r15 $r8 $r14
+   shl b32 $r15 $r7
+   add b32 $r12 $r15
+   add b32 $r7 $r9
+   shr b32 $r8 $r9
+
+   // Ot = ((Tz * nTy * nTx) + (Ty * nTx) + Tx) << Ts
+   pop $r15
+   pop $r9
+   mulu $r13 $r9
+   add b32 $r10 $r13
+   mulu $r8 $r9
+   mulu $r8 $r15
+   add b32 $r10 $r8
+   shl b32 $r10 $r7
+
+   // PITCH = (nTx - 1) << Ts
+   sub b32 $r9 1
+   shl b32 $r9 $r7
+   iowr I[$r6 + 0x200] $r9
+
+   // SRC_ADDRESS_LOW   = (Ot + Op) & 0xffffffff
+   // CFG_ADDRESS_HIGH |= ((Ot + Op) >> 32) << 16
+   ld b32 $r7 D[$r5 + #ctx_src_address_low]
+   ld b32 $r8 D[$r5 + #ctx_src_address_high]
+   add b32 $r10 $r12
+   add b32 $r7 $r10
+   adc b32 $r8 0
+   shl b32 $r8 16
+   or $r8 $r11
+   sub b32 $r6 0x600
+   iowr I[$r6 + 0x000] $r7
+   add b32 $r6 0x400
+   iowr I[$r6 + 0x000] $r8
+   ret
+
+// Setup to handle a linear surface
+//
+// Nothing to see here.. Sets ADDRESS and PITCH, pretty non-exciting
+//
+cmd_exec_set_surface_linear:
+   xbit $r6 $flags $p2
+   add b32 $r6 0x202
+   shl b32 $r6 8
+   ld b32 $r7 D[$r5 + #ctx_src_address_low]
+   iowr I[$r6 + 0x000] $r7
+   add b32 $r6 0x400
+   ld b32 $r7 D[$r5 + #ctx_src_address_high]
+   shl b32 $r7 16
+   iowr I[$r6 + 0x000] $r7
+   add b32 $r6 0x400
+   ld b32 $r7 D[$r5 + #ctx_src_pitch]
+   iowr I[$r6 + 0x000] $r7
+   ret
+
+// wait for regs to be available for use
+cmd_exec_wait:
+   push $r0
+   push $r1
+   mov $r0 0x800
+   shl b32 $r0 6
+   loop:
+      iord $r1 I[$r0]
+      and $r1 1
+      bra ne #loop
+   pop $r1
+   pop $r0
+   ret
+
+cmd_exec_query:
+   // if QUERY_SHORT not set, write out { -, 0, TIME_LO, TIME_HI }
+   xbit $r4 $r3 13
+   bra ne #query_counter
+      call #cmd_exec_wait
+      mov $r4 0x80c
+      shl b32 $r4 6
+      ld b32 $r5 D[$r0 + #ctx_query_address_low]
+      add b32 $r5 4
+      iowr I[$r4 + 0x000] $r5
+      iowr I[$r4 + 0x100] $r0
+      mov $r5 0xc
+      iowr I[$r4 + 0x200] $r5
+      add b32 $r4 0x400
+      ld b32 $r5 D[$r0 + #ctx_query_address_high]
+      shl b32 $r5 16
+      iowr I[$r4 + 0x000] $r5
+      add b32 $r4 0x500
+      mov $r5 0x00000b00
+      sethi $r5 0x00010000
+      iowr I[$r4 + 0x000] $r5
+      mov $r5 0x00004040
+      shl b32 $r5 1
+      sethi $r5 0x80800000
+      iowr I[$r4 + 0x100] $r5
+      mov $r5 0x00001110
+      sethi $r5 0x13120000
+      iowr I[$r4 + 0x200] $r5
+      mov $r5 0x00001514
+      sethi $r5 0x17160000
+      iowr I[$r4 + 0x300] $r5
+      mov $r5 0x00002601
+      sethi $r5 0x00010000
+      mov $r4 0x800
+      shl b32 $r4 6
+      iowr I[$r4 + 0x000] $r5
+
+   // write COUNTER
+   query_counter:
+   call #cmd_exec_wait
+   mov $r4 0x80c
+   shl b32 $r4 6
+   ld b32 $r5 D[$r0 + #ctx_query_address_low]
+   iowr I[$r4 + 0x000] $r5
+   iowr I[$r4 + 0x100] $r0
+   mov $r5 0x4
+   iowr I[$r4 + 0x200] $r5
+   add b32 $r4 0x400
+   ld b32 $r5 D[$r0 + #ctx_query_address_high]
+   shl b32 $r5 16
+   iowr I[$r4 + 0x000] $r5
+   add b32 $r4 0x500
+   mov $r5 0x00000300
+   iowr I[$r4 + 0x000] $r5
+   mov $r5 0x00001110
+   sethi $r5 0x13120000
+   iowr I[$r4 + 0x100] $r5
+   ld b32 $r5 D[$r0 + #ctx_query_counter]
+   add b32 $r4 0x500
+   iowr I[$r4 + 0x000] $r5
+   mov $r5 0x00002601
+   sethi $r5 0x00010000
+   mov $r4 0x800
+   shl b32 $r4 6
+   iowr I[$r4 + 0x000] $r5
+   ret
+
+// Execute a copy operation
+//
+// Inputs:
+//    $r1: irqh state
+//    $r2: hostirq state
+//    $r3: data
+//       000002000 QUERY_SHORT
+//       000001000 QUERY
+//       000000100 DST_LINEAR
+//       000000010 SRC_LINEAR
+//       000000001 FORMAT
+//    $r4: dispatch table entry
+// Outputs:
+//    $r1: irqh state
+//    $p1: set on error
+//       $r2: hostirq state
+//       $r3: data
+cmd_exec:
+   call #cmd_exec_wait
+
+   // if format requested, call function to calculate it, otherwise
+   // fill in cpp/xcnt for both surfaces as if (cpp == 1)
+   xbit $r15 $r3 0
+   bra e #cmd_exec_no_format
+      call #cmd_exec_set_format
+      mov $r4 0x200
+      bra #cmd_exec_init_src_surface
+   cmd_exec_no_format:
+      mov $r6 0x810
+      shl b32 $r6 6
+      mov $r7 1
+      st b32 D[$r0 + #ctx_src_cpp] $r7
+      st b32 D[$r0 + #ctx_dst_cpp] $r7
+      ld b32 $r7 D[$r0 + #ctx_xcnt]
+      iowr I[$r6 + 0x000] $r7
+      iowr I[$r6 + 0x100] $r7
+      clear b32 $r4
+
+   cmd_exec_init_src_surface:
+   bclr $flags $p2
+   clear b32 $r5
+   xbit $r15 $r3 4
+   bra e #src_tiled
+      call #cmd_exec_set_surface_linear
+      bra #cmd_exec_init_dst_surface
+   src_tiled:
+      call #cmd_exec_set_surface_tiled
+      bset $r4 7
+
+   cmd_exec_init_dst_surface:
+   bset $flags $p2
+   mov $r5 #ctx_dst_address_high - #ctx_src_address_high
+   xbit $r15 $r3 8
+   bra e #dst_tiled
+      call #cmd_exec_set_surface_linear
+      bra #cmd_exec_kick
+   dst_tiled:
+      call #cmd_exec_set_surface_tiled
+      bset $r4 8
+
+   cmd_exec_kick:
+   mov $r5 0x800
+   shl b32 $r5 6
+   ld b32 $r6 D[$r0 + #ctx_ycnt]
+   iowr I[$r5 + 0x100] $r6
+   mov $r6 0x0041
+   // SRC_TARGET = 1, DST_TARGET = 2
+   sethi $r6 0x44000000
+   or $r4 $r6
+   iowr I[$r5] $r4
+
+   // if requested, queue up a QUERY write after the copy has completed
+   xbit $r15 $r3 12
+   bra e #cmd_exec_done
+      call #cmd_exec_query
+
+   cmd_exec_done:
+   ret
+
+// Flush write cache
+//
+// Inputs:
+//    $r1: irqh state
+//    $r2: hostirq state
+//    $r3: data
+//    $r4: dispatch table entry
+// Outputs:
+//    $r1: irqh state
+//    $p1: set on error
+//       $r2: hostirq state
+//       $r3: data
+cmd_wrcache_flush:
+   mov $r2 0x2200
+   clear b32 $r3
+   sethi $r3 0x10000
+   iowr I[$r2] $r3
+   ret
+
+.align 0x100

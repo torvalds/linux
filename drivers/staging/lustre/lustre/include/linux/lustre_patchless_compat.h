@@ -43,7 +43,6 @@
 #include <linux/mm.h>
 #include <linux/hash.h>
 
-
 #define ll_delete_from_page_cache(page) delete_from_page_cache(page)
 
 static inline void
@@ -55,22 +54,10 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 	if (PagePrivate(page))
 		page->mapping->a_ops->invalidatepage(page, 0, PAGE_CACHE_SIZE);
 
-	cancel_dirty_page(page, PAGE_SIZE);
+	cancel_dirty_page(page);
 	ClearPageMappedToDisk(page);
 	ll_delete_from_page_cache(page);
 }
-
-#ifdef ATTR_OPEN
-# define ATTR_FROM_OPEN ATTR_OPEN
-#else
-# ifndef ATTR_FROM_OPEN
-#  define ATTR_FROM_OPEN 0
-# endif
-#endif /* ATTR_OPEN */
-
-#ifndef ATTR_RAW
-#define ATTR_RAW 0
-#endif
 
 #ifndef ATTR_CTIME_SET
 /*

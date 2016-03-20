@@ -38,9 +38,9 @@ static void ieee80211_get_ringparam(struct net_device *dev,
 static const char ieee80211_gstrings_sta_stats[][ETH_GSTRING_LEN] = {
 	"rx_packets", "rx_bytes",
 	"rx_duplicates", "rx_fragments", "rx_dropped",
-	"tx_packets", "tx_bytes", "tx_fragments",
+	"tx_packets", "tx_bytes",
 	"tx_filtered", "tx_retry_failed", "tx_retries",
-	"beacon_loss", "sta_state", "txrate", "rxrate", "signal",
+	"sta_state", "txrate", "rxrate", "signal",
 	"channel", "noise", "ch_time", "ch_time_busy",
 	"ch_time_ext_busy", "ch_time_rx", "ch_time_tx"
 };
@@ -77,21 +77,19 @@ static void ieee80211_get_stats(struct net_device *dev,
 
 	memset(data, 0, sizeof(u64) * STA_STATS_LEN);
 
-#define ADD_STA_STATS(sta)				\
-	do {						\
-		data[i++] += sta->rx_packets;		\
-		data[i++] += sta->rx_bytes;		\
-		data[i++] += sta->num_duplicates;	\
-		data[i++] += sta->rx_fragments;		\
-		data[i++] += sta->rx_dropped;		\
-							\
-		data[i++] += sinfo.tx_packets;		\
-		data[i++] += sinfo.tx_bytes;		\
-		data[i++] += sta->tx_fragments;		\
-		data[i++] += sta->tx_filtered_count;	\
-		data[i++] += sta->tx_retry_failed;	\
-		data[i++] += sta->tx_retry_count;	\
-		data[i++] += sta->beacon_loss_count;	\
+#define ADD_STA_STATS(sta)					\
+	do {							\
+		data[i++] += sta->rx_stats.packets;		\
+		data[i++] += sta->rx_stats.bytes;		\
+		data[i++] += sta->rx_stats.num_duplicates;	\
+		data[i++] += sta->rx_stats.fragments;		\
+		data[i++] += sta->rx_stats.dropped;		\
+								\
+		data[i++] += sinfo.tx_packets;			\
+		data[i++] += sinfo.tx_bytes;			\
+		data[i++] += sta->status_stats.filtered;	\
+		data[i++] += sta->status_stats.retry_failed;	\
+		data[i++] += sta->status_stats.retry_count;	\
 	} while (0)
 
 	/* For Managed stations, find the single station based on BSSID
@@ -117,16 +115,16 @@ static void ieee80211_get_stats(struct net_device *dev,
 		data[i++] = sta->sta_state;
 
 
-		if (sinfo.filled & STATION_INFO_TX_BITRATE)
+		if (sinfo.filled & BIT(NL80211_STA_INFO_TX_BITRATE))
 			data[i] = 100000 *
 				cfg80211_calculate_bitrate(&sinfo.txrate);
 		i++;
-		if (sinfo.filled & STATION_INFO_RX_BITRATE)
+		if (sinfo.filled & BIT(NL80211_STA_INFO_RX_BITRATE))
 			data[i] = 100000 *
 				cfg80211_calculate_bitrate(&sinfo.rxrate);
 		i++;
 
-		if (sinfo.filled & STATION_INFO_SIGNAL_AVG)
+		if (sinfo.filled & BIT(NL80211_STA_INFO_SIGNAL_AVG))
 			data[i] = (u8)sinfo.signal_avg;
 		i++;
 	} else {
@@ -175,24 +173,24 @@ do_survey:
 		data[i++] = (u8)survey.noise;
 	else
 		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME)
-		data[i++] = survey.channel_time;
+	if (survey.filled & SURVEY_INFO_TIME)
+		data[i++] = survey.time;
 	else
 		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME_BUSY)
-		data[i++] = survey.channel_time_busy;
+	if (survey.filled & SURVEY_INFO_TIME_BUSY)
+		data[i++] = survey.time_busy;
 	else
 		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME_EXT_BUSY)
-		data[i++] = survey.channel_time_ext_busy;
+	if (survey.filled & SURVEY_INFO_TIME_EXT_BUSY)
+		data[i++] = survey.time_ext_busy;
 	else
 		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME_RX)
-		data[i++] = survey.channel_time_rx;
+	if (survey.filled & SURVEY_INFO_TIME_RX)
+		data[i++] = survey.time_rx;
 	else
 		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME_TX)
-		data[i++] = survey.channel_time_tx;
+	if (survey.filled & SURVEY_INFO_TIME_TX)
+		data[i++] = survey.time_tx;
 	else
 		data[i++] = -1LL;
 

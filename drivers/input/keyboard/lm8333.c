@@ -1,6 +1,6 @@
 /*
  * LM8333 keypad driver
- * Copyright (C) 2012 Wolfram Sang, Pengutronix <w.sang@pengutronix.de>
+ * Copyright (C) 2012 Wolfram Sang, Pengutronix <kernel@pengutronix.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -223,7 +223,6 @@ MODULE_DEVICE_TABLE(i2c, lm8333_id);
 static struct i2c_driver lm8333_driver = {
 	.driver = {
 		.name		= "lm8333",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= lm8333_probe,
 	.remove		= lm8333_remove,
@@ -231,6 +230,6 @@ static struct i2c_driver lm8333_driver = {
 };
 module_i2c_driver(lm8333_driver);
 
-MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");
+MODULE_AUTHOR("Wolfram Sang <kernel@pengutronix.de>");
 MODULE_DESCRIPTION("LM8333 keyboard driver");
 MODULE_LICENSE("GPL v2");

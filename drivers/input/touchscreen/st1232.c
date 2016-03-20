@@ -243,8 +243,7 @@ static int st1232_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int st1232_ts_suspend(struct device *dev)
+static int __maybe_unused st1232_ts_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct st1232_ts_data *ts = i2c_get_clientdata(client);
@@ -259,7 +258,7 @@ static int st1232_ts_suspend(struct device *dev)
 	return 0;
 }
 
-static int st1232_ts_resume(struct device *dev)
+static int __maybe_unused st1232_ts_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct st1232_ts_data *ts = i2c_get_clientdata(client);
@@ -273,8 +272,6 @@ static int st1232_ts_resume(struct device *dev)
 
 	return 0;
 }
-
-#endif
 
 static SIMPLE_DEV_PM_OPS(st1232_ts_pm_ops,
 			 st1232_ts_suspend, st1232_ts_resume);
@@ -299,7 +296,6 @@ static struct i2c_driver st1232_ts_driver = {
 	.id_table	= st1232_ts_id,
 	.driver = {
 		.name	= ST1232_TS_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(st1232_ts_dt_ids),
 		.pm	= &st1232_ts_pm_ops,
 	},

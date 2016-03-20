@@ -40,43 +40,8 @@
 #define RTL8192U
 #define RTL819xU_MODULE_NAME "rtl819xU"
 /* HW security */
-#define FALSE 0
-#define TRUE 1
 #define MAX_KEY_LEN     61
 #define KEY_BUF_SIZE    5
-
-#define BIT0            0x00000001
-#define BIT1            0x00000002
-#define BIT2            0x00000004
-#define BIT3            0x00000008
-#define BIT4            0x00000010
-#define BIT5            0x00000020
-#define BIT6            0x00000040
-#define BIT7            0x00000080
-#define BIT8            0x00000100
-#define BIT9            0x00000200
-#define BIT10           0x00000400
-#define BIT11           0x00000800
-#define BIT12           0x00001000
-#define BIT13           0x00002000
-#define BIT14           0x00004000
-#define BIT15           0x00008000
-#define BIT16           0x00010000
-#define BIT17           0x00020000
-#define BIT18           0x00040000
-#define BIT19           0x00080000
-#define BIT20           0x00100000
-#define BIT21           0x00200000
-#define BIT22           0x00400000
-#define BIT23           0x00800000
-#define BIT24           0x01000000
-#define BIT25           0x02000000
-#define BIT26           0x04000000
-#define BIT27           0x08000000
-#define BIT28           0x10000000
-#define BIT29           0x20000000
-#define BIT30           0x40000000
-#define BIT31           0x80000000
 
 #define	Rx_Smooth_Factor		20
 #define DMESG(x, a...)
@@ -89,44 +54,44 @@ extern u32 rt_global_debug_component;
 			pr_debug("RTL8192U: " x "\n", ##args);	\
 	} while (0)
 
-#define COMP_TRACE              BIT0  /* Function call tracing. */
-#define COMP_DBG                BIT1
-#define COMP_INIT               BIT2  /* Driver initialization/halt/reset. */
+#define COMP_TRACE              BIT(0)  /* Function call tracing. */
+#define COMP_DBG                BIT(1)
+#define COMP_INIT               BIT(2)  /* Driver initialization/halt/reset. */
 
 
-#define COMP_RECV               BIT3  /* Receive data path. */
-#define COMP_SEND               BIT4  /* Send data path. */
-#define COMP_IO                 BIT5
+#define COMP_RECV               BIT(3)  /* Receive data path. */
+#define COMP_SEND               BIT(4)  /* Send data path. */
+#define COMP_IO                 BIT(5)
 /* 802.11 Power Save mode or System/Device Power state. */
-#define COMP_POWER              BIT6
+#define COMP_POWER              BIT(6)
 /* 802.11 link related: join/start BSS, leave BSS. */
-#define COMP_EPROM              BIT7
-#define COMP_SWBW               BIT8  /* Bandwidth switch. */
-#define COMP_POWER_TRACKING     BIT9  /* 8190 TX Power Tracking */
-#define COMP_TURBO              BIT10 /* Turbo Mode */
-#define COMP_QOS                BIT11
-#define COMP_RATE               BIT12 /* Rate Adaptive mechanism */
-#define COMP_RM                 BIT13 /* Radio Measurement */
-#define COMP_DIG                BIT14
-#define COMP_PHY                BIT15
-#define COMP_CH                 BIT16 /* Channel setting debug */
-#define COMP_TXAGC              BIT17 /* Tx power */
-#define COMP_HIPWR              BIT18 /* High Power Mechanism */
-#define COMP_HALDM              BIT19 /* HW Dynamic Mechanism */
-#define COMP_SEC                BIT20 /* Event handling */
-#define COMP_LED                BIT21
-#define COMP_RF                 BIT22
-#define COMP_RXDESC             BIT23 /* Rx desc information for SD3 debug */
+#define COMP_EPROM              BIT(7)
+#define COMP_SWBW               BIT(8)  /* Bandwidth switch. */
+#define COMP_POWER_TRACKING     BIT(9)  /* 8190 TX Power Tracking */
+#define COMP_TURBO              BIT(10) /* Turbo Mode */
+#define COMP_QOS                BIT(11)
+#define COMP_RATE               BIT(12) /* Rate Adaptive mechanism */
+#define COMP_RM                 BIT(13) /* Radio Measurement */
+#define COMP_DIG                BIT(14)
+#define COMP_PHY                BIT(15)
+#define COMP_CH                 BIT(16) /* Channel setting debug */
+#define COMP_TXAGC              BIT(17) /* Tx power */
+#define COMP_HIPWR              BIT(18) /* High Power Mechanism */
+#define COMP_HALDM              BIT(19) /* HW Dynamic Mechanism */
+#define COMP_SEC                BIT(20) /* Event handling */
+#define COMP_LED                BIT(21)
+#define COMP_RF                 BIT(22)
+#define COMP_RXDESC             BIT(23) /* Rx desc information for SD3 debug */
 
 /* 11n or 8190 specific code */
 
-#define COMP_FIRMWARE           BIT24 /* Firmware downloading */
-#define COMP_HT                 BIT25 /* 802.11n HT related information */
-#define COMP_AMSDU              BIT26 /* A-MSDU Debugging */
-#define COMP_SCAN               BIT27
-#define COMP_DOWN               BIT29 /* rm driver module */
-#define COMP_RESET              BIT30 /* Silent reset */
-#define COMP_ERR                BIT31 /* Error out, always on */
+#define COMP_FIRMWARE           BIT(24) /* Firmware downloading */
+#define COMP_HT                 BIT(25) /* 802.11n HT related information */
+#define COMP_AMSDU              BIT(26) /* A-MSDU Debugging */
+#define COMP_SCAN               BIT(27)
+#define COMP_DOWN               BIT(29) /* rm driver module */
+#define COMP_RESET              BIT(30) /* Silent reset */
+#define COMP_ERR                BIT(31) /* Error out, always on */
 
 #define RTL819x_DEBUG
 #ifdef RTL819x_DEBUG
@@ -337,11 +302,11 @@ typedef struct _tx_fwinfo_819x_usb {
 	u32	PacketID:13;
 } tx_fwinfo_819x_usb, *ptx_fwinfo_819x_usb;
 
-typedef struct rtl8192_rx_info {
+struct rtl8192_rx_info {
 	struct urb *urb;
 	struct net_device *dev;
 	u8 out_pipe;
-} rtl8192_rx_info ;
+};
 
 typedef struct rx_desc_819x_usb {
 	/* DOWRD 0 */
@@ -1189,7 +1154,7 @@ void write_phy_cck(struct net_device *dev, u8 adr, u32 data);
 void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
 void rtl8185_tx_antenna(struct net_device *dev, u8 ant);
 void rtl8192_set_rxconf(struct net_device *dev);
-extern void rtl819xusb_beacon_tx(struct net_device *dev, u16 tx_rate);
+void rtl819xusb_beacon_tx(struct net_device *dev, u16 tx_rate);
 
 void EnableHWSecurityConfig8192(struct net_device *dev);
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);

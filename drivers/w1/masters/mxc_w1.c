@@ -166,7 +166,7 @@ static int mxc_w1_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id mxc_w1_dt_ids[] = {
+static const struct of_device_id mxc_w1_dt_ids[] = {
 	{ .compatible = "fsl,imx21-owire" },
 	{ /* sentinel */ }
 };
@@ -175,7 +175,6 @@ MODULE_DEVICE_TABLE(of, mxc_w1_dt_ids);
 static struct platform_driver mxc_w1_driver = {
 	.driver = {
 		.name = "mxc_w1",
-		.owner = THIS_MODULE,
 		.of_match_table = mxc_w1_dt_ids,
 	},
 	.probe = mxc_w1_probe,

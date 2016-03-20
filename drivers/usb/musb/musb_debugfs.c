@@ -49,33 +49,28 @@ struct musb_register_map {
 };
 
 static const struct musb_register_map musb_regmap[] = {
-	{ "FAddr",		0x00,	8 },
-	{ "Power",		0x01,	8 },
-	{ "Frame",		0x0c,	16 },
-	{ "Index",		0x0e,	8 },
-	{ "Testmode",		0x0f,	8 },
-	{ "TxMaxPp",		0x10,	16 },
-	{ "TxCSRp",		0x12,	16 },
-	{ "RxMaxPp",		0x14,	16 },
-	{ "RxCSR",		0x16,	16 },
-	{ "RxCount",		0x18,	16 },
-	{ "ConfigData",		0x1f,	8 },
-	{ "DevCtl",		0x60,	8 },
-	{ "MISC",		0x61,	8 },
-	{ "TxFIFOsz",		0x62,	8 },
-	{ "RxFIFOsz",		0x63,	8 },
-	{ "TxFIFOadd",		0x64,	16 },
-	{ "RxFIFOadd",		0x66,	16 },
-	{ "VControl",		0x68,	32 },
-	{ "HWVers",		0x6C,	16 },
-	{ "EPInfo",		0x78,	8 },
-	{ "RAMInfo",		0x79,	8 },
-	{ "LinkInfo",		0x7A,	8 },
-	{ "VPLen",		0x7B,	8 },
-	{ "HS_EOF1",		0x7C,	8 },
-	{ "FS_EOF1",		0x7D,	8 },
-	{ "LS_EOF1",		0x7E,	8 },
-	{ "SOFT_RST",		0x7F,	8 },
+	{ "FAddr",	MUSB_FADDR,	8 },
+	{ "Power",	MUSB_POWER,	8 },
+	{ "Frame",	MUSB_FRAME,	16 },
+	{ "Index",	MUSB_INDEX,	8 },
+	{ "Testmode",	MUSB_TESTMODE,	8 },
+	{ "TxMaxPp",	MUSB_TXMAXP,	16 },
+	{ "TxCSRp",	MUSB_TXCSR,	16 },
+	{ "RxMaxPp",	MUSB_RXMAXP,	16 },
+	{ "RxCSR",	MUSB_RXCSR,	16 },
+	{ "RxCount",	MUSB_RXCOUNT,	16 },
+	{ "IntrRxE",	MUSB_INTRRXE,	16 },
+	{ "IntrTxE",	MUSB_INTRTXE,	16 },
+	{ "IntrUsbE",	MUSB_INTRUSBE,	8 },
+	{ "DevCtl",	MUSB_DEVCTL,	8 },
+	{ "VControl",	0x68,		32 },
+	{ "HWVers",	0x69,		16 },
+	{ "LinkInfo",	MUSB_LINKINFO,	8 },
+	{ "VPLen",	MUSB_VPLEN,	8 },
+	{ "HS_EOF1",	MUSB_HS_EOF1,	8 },
+	{ "FS_EOF1",	MUSB_FS_EOF1,	8 },
+	{ "LS_EOF1",	MUSB_LS_EOF1,	8 },
+	{ "SOFT_RST",	0x7F,		8 },
 	{ "DMA_CNTLch0",	0x204,	16 },
 	{ "DMA_ADDRch0",	0x208,	32 },
 	{ "DMA_COUNTch0",	0x20C,	32 },
@@ -100,6 +95,16 @@ static const struct musb_register_map musb_regmap[] = {
 	{ "DMA_CNTLch7",	0x274,	16 },
 	{ "DMA_ADDRch7",	0x278,	32 },
 	{ "DMA_COUNTch7",	0x27C,	32 },
+#ifndef CONFIG_BLACKFIN
+	{ "ConfigData",	MUSB_CONFIGDATA,8 },
+	{ "BabbleCtl",	MUSB_BABBLE_CTL,8 },
+	{ "TxFIFOsz",	MUSB_TXFIFOSZ,	8 },
+	{ "RxFIFOsz",	MUSB_RXFIFOSZ,	8 },
+	{ "TxFIFOadd",	MUSB_TXFIFOADD,	16 },
+	{ "RxFIFOadd",	MUSB_RXFIFOADD,	16 },
+	{ "EPInfo",	MUSB_EPINFO,	8 },
+	{ "RAMInfo",	MUSB_RAMINFO,	8 },
+#endif
 	{  }	/* Terminating Entry */
 };
 
@@ -186,38 +191,45 @@ static ssize_t musb_test_mode_write(struct file *file,
 {
 	struct seq_file		*s = file->private_data;
 	struct musb		*musb = s->private;
-	u8			test = 0;
+	u8			test;
 	char			buf[18];
+
+	test = musb_readb(musb->mregs, MUSB_TESTMODE);
+	if (test) {
+		dev_err(musb->controller, "Error: test mode is already set. "
+			"Please do USB Bus Reset to start a new test.\n");
+		return count;
+	}
 
 	memset(buf, 0x00, sizeof(buf));
 
-	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+	if (copy_from_user(buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
 
-	if (!strncmp(buf, "force host", 9))
+	if (strstarts(buf, "force host"))
 		test = MUSB_TEST_FORCE_HOST;
 
-	if (!strncmp(buf, "fifo access", 11))
+	if (strstarts(buf, "fifo access"))
 		test = MUSB_TEST_FIFO_ACCESS;
 
-	if (!strncmp(buf, "force full-speed", 15))
+	if (strstarts(buf, "force full-speed"))
 		test = MUSB_TEST_FORCE_FS;
 
-	if (!strncmp(buf, "force high-speed", 15))
+	if (strstarts(buf, "force high-speed"))
 		test = MUSB_TEST_FORCE_HS;
 
-	if (!strncmp(buf, "test packet", 10)) {
+	if (strstarts(buf, "test packet")) {
 		test = MUSB_TEST_PACKET;
 		musb_load_testpacket(musb);
 	}
 
-	if (!strncmp(buf, "test K", 6))
+	if (strstarts(buf, "test K"))
 		test = MUSB_TEST_K;
 
-	if (!strncmp(buf, "test J", 6))
+	if (strstarts(buf, "test J"))
 		test = MUSB_TEST_J;
 
-	if (!strncmp(buf, "test SE0 NAK", 12))
+	if (strstarts(buf, "test SE0 NAK"))
 		test = MUSB_TEST_SE0_NAK;
 
 	musb_writeb(musb->mregs, MUSB_TESTMODE, test);
@@ -228,6 +240,90 @@ static ssize_t musb_test_mode_write(struct file *file,
 static const struct file_operations musb_test_mode_fops = {
 	.open			= musb_test_mode_open,
 	.write			= musb_test_mode_write,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+
+static int musb_softconnect_show(struct seq_file *s, void *unused)
+{
+	struct musb	*musb = s->private;
+	u8		reg;
+	int		connect;
+
+	switch (musb->xceiv->otg->state) {
+	case OTG_STATE_A_HOST:
+	case OTG_STATE_A_WAIT_BCON:
+		reg = musb_readb(musb->mregs, MUSB_DEVCTL);
+		connect = reg & MUSB_DEVCTL_SESSION ? 1 : 0;
+		break;
+	default:
+		connect = -1;
+	}
+
+	seq_printf(s, "%d\n", connect);
+
+	return 0;
+}
+
+static int musb_softconnect_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, musb_softconnect_show, inode->i_private);
+}
+
+static ssize_t musb_softconnect_write(struct file *file,
+		const char __user *ubuf, size_t count, loff_t *ppos)
+{
+	struct seq_file		*s = file->private_data;
+	struct musb		*musb = s->private;
+	char			buf[2];
+	u8			reg;
+
+	memset(buf, 0x00, sizeof(buf));
+
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+		return -EFAULT;
+
+	if (!strncmp(buf, "0", 1)) {
+		switch (musb->xceiv->otg->state) {
+		case OTG_STATE_A_HOST:
+			musb_root_disconnect(musb);
+			reg = musb_readb(musb->mregs, MUSB_DEVCTL);
+			reg &= ~MUSB_DEVCTL_SESSION;
+			musb_writeb(musb->mregs, MUSB_DEVCTL, reg);
+			break;
+		default:
+			break;
+		}
+	} else if (!strncmp(buf, "1", 1)) {
+		switch (musb->xceiv->otg->state) {
+		case OTG_STATE_A_WAIT_BCON:
+			/*
+			 * musb_save_context() called in musb_runtime_suspend()
+			 * might cache devctl with SESSION bit cleared during
+			 * soft-disconnect, so specifically set SESSION bit
+			 * here to preserve it for musb_runtime_resume().
+			 */
+			musb->context.devctl |= MUSB_DEVCTL_SESSION;
+			reg = musb_readb(musb->mregs, MUSB_DEVCTL);
+			reg |= MUSB_DEVCTL_SESSION;
+			musb_writeb(musb->mregs, MUSB_DEVCTL, reg);
+			break;
+		default:
+			break;
+		}
+	}
+
+	return count;
+}
+
+/*
+ * In host mode, connect/disconnect the bus without physically
+ * remove the devices.
+ */
+static const struct file_operations musb_softconnect_fops = {
+	.open			= musb_softconnect_open,
+	.write			= musb_softconnect_write,
 	.read			= seq_read,
 	.llseek			= seq_lseek,
 	.release		= single_release,
@@ -254,6 +350,13 @@ int musb_init_debugfs(struct musb *musb)
 
 	file = debugfs_create_file("testmode", S_IRUGO | S_IWUSR,
 			root, musb, &musb_test_mode_fops);
+	if (!file) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+
+	file = debugfs_create_file("softconnect", S_IRUGO | S_IWUSR,
+			root, musb, &musb_softconnect_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;

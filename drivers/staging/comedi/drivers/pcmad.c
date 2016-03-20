@@ -19,8 +19,7 @@
 /*
  * Driver: pcmad
  * Description: Winsystems PCM-A/D12, PCM-A/D16
- * Devices: (Winsystems) PCM-A/D12 [pcmad12]
- *	    (Winsystems) PCM-A/D16 [pcmad16]
+ * Devices: [Winsystems] PCM-A/D12 (pcmad12), PCM-A/D16 (pcmad16)
  * Author: ds
  * Status: untested
  *
@@ -112,7 +111,7 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
 
 static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct pcmad_board_struct *board = comedi_board(dev);
+	const struct pcmad_board_struct *board = dev->board_ptr;
 	struct comedi_subdevice *s;
 	int ret;
 

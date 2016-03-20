@@ -13,6 +13,7 @@ struct netns_frags {
 	int			timeout;
 	int			high_thresh;
 	int			low_thresh;
+	int			max_dist;
 };
 
 /**
@@ -21,13 +22,11 @@ struct netns_frags {
  * @INET_FRAG_FIRST_IN: first fragment has arrived
  * @INET_FRAG_LAST_IN: final fragment has arrived
  * @INET_FRAG_COMPLETE: frag queue has been processed and is due for destruction
- * @INET_FRAG_EVICTED: frag queue is being evicted
  */
 enum {
 	INET_FRAG_FIRST_IN	= BIT(0),
 	INET_FRAG_LAST_IN	= BIT(1),
 	INET_FRAG_COMPLETE	= BIT(2),
-	INET_FRAG_EVICTED	= BIT(3)
 };
 
 /**
@@ -43,8 +42,9 @@ enum {
  * @len: total length of the original datagram
  * @meat: length of received fragments so far
  * @flags: fragment queue flags
- * @max_size: (ipv4 only) maximum received fragment size with IP_DF set
+ * @max_size: maximum received fragment size
  * @net: namespace that this frag belongs to
+ * @list_evictor: list of queues to forcefully evict (e.g. due to low memory)
  */
 struct inet_frag_queue {
 	spinlock_t		lock;
@@ -59,6 +59,7 @@ struct inet_frag_queue {
 	__u8			flags;
 	u16			max_size;
 	struct netns_frags	*net;
+	struct hlist_node	list_evictor;
 };
 
 #define INETFRAGS_HASHSZ	1024
@@ -99,7 +100,6 @@ struct inet_frags {
 	void			(*constructor)(struct inet_frag_queue *q,
 					       const void *arg);
 	void			(*destructor)(struct inet_frag_queue *);
-	void			(*skb_free)(struct sk_buff *);
 	void			(*frag_expire)(unsigned long data);
 	struct kmem_cache	*frags_cachep;
 	const char		*frags_cache_name;
@@ -108,7 +108,15 @@ struct inet_frags {
 int inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
-void inet_frags_init_net(struct netns_frags *nf);
+static inline int inet_frags_init_net(struct netns_frags *nf)
+{
+	return percpu_counter_init(&nf->mem, 0, GFP_KERNEL);
+}
+static inline void inet_frags_uninit_net(struct netns_frags *nf)
+{
+	percpu_counter_destroy(&nf->mem);
+}
+
 void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f);
 
 void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
@@ -125,6 +133,11 @@ static inline void inet_frag_put(struct inet_frag_queue *q, struct inet_frags *f
 		inet_frag_destroy(q, f);
 }
 
+static inline bool inet_frag_evicting(struct inet_frag_queue *q)
+{
+	return !hlist_unhashed(&q->list_evictor);
+}
+
 /* Memory Tracking Functions. */
 
 /* The default percpu_counter batch size is not big enough to scale to
@@ -139,19 +152,14 @@ static inline int frag_mem_limit(struct netns_frags *nf)
 	return percpu_counter_read(&nf->mem);
 }
 
-static inline void sub_frag_mem_limit(struct inet_frag_queue *q, int i)
+static inline void sub_frag_mem_limit(struct netns_frags *nf, int i)
 {
-	__percpu_counter_add(&q->net->mem, -i, frag_percpu_counter_batch);
+	__percpu_counter_add(&nf->mem, -i, frag_percpu_counter_batch);
 }
 
-static inline void add_frag_mem_limit(struct inet_frag_queue *q, int i)
+static inline void add_frag_mem_limit(struct netns_frags *nf, int i)
 {
-	__percpu_counter_add(&q->net->mem, i, frag_percpu_counter_batch);
-}
-
-static inline void init_frag_mem_limit(struct netns_frags *nf)
-{
-	percpu_counter_init(&nf->mem, 0);
+	__percpu_counter_add(&nf->mem, i, frag_percpu_counter_batch);
 }
 
 static inline unsigned int sum_frag_mem_limit(struct netns_frags *nf)

@@ -227,6 +227,7 @@ struct mtd_info {
 	int (*_block_markbad) (struct mtd_info *mtd, loff_t ofs);
 	int (*_suspend) (struct mtd_info *mtd);
 	void (*_resume) (struct mtd_info *mtd);
+	void (*_reboot) (struct mtd_info *mtd);
 	/*
 	 * If the driver is something smart, like UBI, it may need to maintain
 	 * its own reference counting. The below functions are only for driver.
@@ -252,6 +253,17 @@ struct mtd_info {
 	struct device dev;
 	int usecount;
 };
+
+static inline void mtd_set_of_node(struct mtd_info *mtd,
+				   struct device_node *np)
+{
+	mtd->dev.of_node = np;
+}
+
+static inline struct device_node *mtd_get_of_node(struct mtd_info *mtd)
+{
+	return mtd->dev.of_node;
+}
 
 int mtd_erase(struct mtd_info *mtd, struct erase_info *instr);
 int mtd_point(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
@@ -407,5 +419,7 @@ static inline int mtd_is_eccerr(int err) {
 static inline int mtd_is_bitflip_or_eccerr(int err) {
 	return mtd_is_bitflip(err) || mtd_is_eccerr(err);
 }
+
+unsigned mtd_mmap_capabilities(struct mtd_info *mtd);
 
 #endif /* __MTD_MTD_H__ */

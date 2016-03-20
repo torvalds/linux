@@ -56,7 +56,7 @@ void dma_fifo_init(struct dma_fifo *fifo)
  * @size: 'apparent' size, in bytes, of fifo
  * @align: dma alignment to maintain (should be at least cpu cache alignment),
  *         must be power of 2
- * @tx_limit: maximum # of bytes transmissable per dma (rounded down to
+ * @tx_limit: maximum # of bytes transmissible per dma (rounded down to
  *            multiple of alignment, but at least align size)
  * @open_limit: maximum # of outstanding dma transactions allowed
  * @gfp_mask: get_free_pages mask, passed to kmalloc()
@@ -106,7 +106,7 @@ void dma_fifo_free(struct dma_fifo *fifo)
 {
 	struct dma_pending *pending, *next;
 
-	if (fifo->data == NULL)
+	if (!fifo->data)
 		return;
 
 	list_for_each_entry_safe(pending, next, &fifo->pending, link)
@@ -123,7 +123,7 @@ void dma_fifo_reset(struct dma_fifo *fifo)
 {
 	struct dma_pending *pending, *next;
 
-	if (fifo->data == NULL)
+	if (!fifo->data)
 		return;
 
 	list_for_each_entry_safe(pending, next, &fifo->pending, link)
@@ -149,7 +149,7 @@ int dma_fifo_in(struct dma_fifo *fifo, const void *src, int n)
 {
 	int ofs, l;
 
-	if (fifo->data == NULL)
+	if (!fifo->data)
 		return -ENOENT;
 	if (fifo->corrupt)
 		return -ENXIO;
@@ -192,7 +192,7 @@ int dma_fifo_out_pend(struct dma_fifo *fifo, struct dma_pending *pended)
 {
 	unsigned len, n, ofs, l, limit;
 
-	if (fifo->data == NULL)
+	if (!fifo->data)
 		return -ENOENT;
 	if (fifo->corrupt)
 		return -ENXIO;
@@ -252,7 +252,7 @@ int dma_fifo_out_complete(struct dma_fifo *fifo, struct dma_pending *complete)
 {
 	struct dma_pending *pending, *next, *tmp;
 
-	if (fifo->data == NULL)
+	if (!fifo->data)
 		return -ENOENT;
 	if (fifo->corrupt)
 		return -ENXIO;

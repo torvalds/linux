@@ -190,10 +190,11 @@
 #define RXBEID0_OFF 4
 #define RXBDLC_OFF  5
 #define RXBDAT_OFF  6
-#define RXFSIDH(n) ((n) * 4)
-#define RXFSIDL(n) ((n) * 4 + 1)
-#define RXFEID8(n) ((n) * 4 + 2)
-#define RXFEID0(n) ((n) * 4 + 3)
+#define RXFSID(n) ((n < 3) ? 0 : 4)
+#define RXFSIDH(n) ((n) * 4 + RXFSID(n))
+#define RXFSIDL(n) ((n) * 4 + 1 + RXFSID(n))
+#define RXFEID8(n) ((n) * 4 + 2 + RXFSID(n))
+#define RXFEID0(n) ((n) * 4 + 3 + RXFSID(n))
 #define RXMSIDH(n) ((n) * 4 + 0x20)
 #define RXMSIDL(n) ((n) * 4 + 0x21)
 #define RXMEID8(n) ((n) * 4 + 0x22)
@@ -842,7 +843,7 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 		if (clear_intf)
 			mcp251x_write_bits(spi, CANINTF, clear_intf, 0x00);
 
-		if (eflag)
+		if (eflag & (EFLG_RX0OVR | EFLG_RX1OVR))
 			mcp251x_write_bits(spi, EFLG, eflag, 0x00);
 
 		/* Update can state */
@@ -905,6 +906,7 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 		if (priv->can.state == CAN_STATE_BUS_OFF) {
 			if (priv->can.restart_ms == 0) {
 				priv->force_quit = 1;
+				priv->can.can_stats.bus_off++;
 				can_bus_off(net);
 				mcp251x_hw_sleep(spi);
 				break;
@@ -1084,8 +1086,8 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	if (ret)
 		goto out_clk;
 
-	priv->power = devm_regulator_get(&spi->dev, "vdd");
-	priv->transceiver = devm_regulator_get(&spi->dev, "xceiver");
+	priv->power = devm_regulator_get_optional(&spi->dev, "vdd");
+	priv->transceiver = devm_regulator_get_optional(&spi->dev, "xceiver");
 	if ((PTR_ERR(priv->power) == -EPROBE_DEFER) ||
 	    (PTR_ERR(priv->transceiver) == -EPROBE_DEFER)) {
 		ret = -EPROBE_DEFER;
@@ -1107,10 +1109,10 @@ static int mcp251x_can_probe(struct spi_device *spi)
 		 * Minimum coherent DMA allocation is PAGE_SIZE, so allocate
 		 * that much and share it between Tx and Rx DMA buffers.
 		 */
-		priv->spi_tx_buf = dma_alloc_coherent(&spi->dev,
-						      PAGE_SIZE,
-						      &priv->spi_tx_dma,
-						      GFP_DMA);
+		priv->spi_tx_buf = dmam_alloc_coherent(&spi->dev,
+						       PAGE_SIZE,
+						       &priv->spi_tx_dma,
+						       GFP_DMA);
 
 		if (priv->spi_tx_buf) {
 			priv->spi_rx_buf = (priv->spi_tx_buf + (PAGE_SIZE / 2));
@@ -1156,9 +1158,6 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	return 0;
 
 error_probe:
-	if (mcp251x_enable_dma)
-		dma_free_coherent(&spi->dev, PAGE_SIZE,
-				  priv->spi_tx_buf, priv->spi_tx_dma);
 	mcp251x_power_enable(priv->power, 0);
 
 out_clk:
@@ -1177,11 +1176,6 @@ static int mcp251x_can_remove(struct spi_device *spi)
 	struct net_device *net = priv->net;
 
 	unregister_candev(net);
-
-	if (mcp251x_enable_dma) {
-		dma_free_coherent(&spi->dev, PAGE_SIZE,
-				  priv->spi_tx_buf, priv->spi_tx_dma);
-	}
 
 	mcp251x_power_enable(priv->power, 0);
 
@@ -1228,17 +1222,16 @@ static int __maybe_unused mcp251x_can_resume(struct device *dev)
 	struct spi_device *spi = to_spi_device(dev);
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 
-	if (priv->after_suspend & AFTER_SUSPEND_POWER) {
+	if (priv->after_suspend & AFTER_SUSPEND_POWER)
 		mcp251x_power_enable(priv->power, 1);
+
+	if (priv->after_suspend & AFTER_SUSPEND_UP) {
+		mcp251x_power_enable(priv->transceiver, 1);
 		queue_work(priv->wq, &priv->restart_work);
 	} else {
-		if (priv->after_suspend & AFTER_SUSPEND_UP) {
-			mcp251x_power_enable(priv->transceiver, 1);
-			queue_work(priv->wq, &priv->restart_work);
-		} else {
-			priv->after_suspend = 0;
-		}
+		priv->after_suspend = 0;
 	}
+
 	priv->force_quit = 0;
 	enable_irq(spi->irq);
 	return 0;
@@ -1250,7 +1243,6 @@ static SIMPLE_DEV_PM_OPS(mcp251x_can_pm_ops, mcp251x_can_suspend,
 static struct spi_driver mcp251x_can_driver = {
 	.driver = {
 		.name = DEVICE_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = mcp251x_of_match,
 		.pm = &mcp251x_can_pm_ops,
 	},

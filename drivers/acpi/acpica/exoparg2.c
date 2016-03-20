@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -199,6 +199,7 @@ acpi_status acpi_ex_opcode_2A_2T_1R(struct acpi_walk_state *walk_state)
 
 		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
+
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}
@@ -299,8 +300,9 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 	case AML_CONCAT_OP:	/* Concatenate (Data1, Data2, Result) */
 
-		status = acpi_ex_do_concatenate(operand[0], operand[1],
-						&return_desc, walk_state);
+		status =
+		    acpi_ex_do_concatenate(operand[0], operand[1], &return_desc,
+					   walk_state);
 		break;
 
 	case AML_TO_STRING_OP:	/* to_string (Buffer, Length, Result) (ACPI 2.0) */
@@ -337,16 +339,17 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 		 * Copy the raw buffer data with no transform.
 		 * (NULL terminated already)
 		 */
-		ACPI_MEMCPY(return_desc->string.pointer,
-			    operand[0]->buffer.pointer, length);
+		memcpy(return_desc->string.pointer,
+		       operand[0]->buffer.pointer, length);
 		break;
 
 	case AML_CONCAT_RES_OP:
 
 		/* concatenate_res_template (Buffer, Buffer, Result) (ACPI 2.0) */
 
-		status = acpi_ex_concat_template(operand[0], operand[1],
-						 &return_desc, walk_state);
+		status =
+		    acpi_ex_concat_template(operand[0], operand[1],
+					    &return_desc, walk_state);
 		break;
 
 	case AML_INDEX_OP:	/* Index (Source Index Result) */
@@ -380,6 +383,8 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 			return_desc->reference.target_type =
 			    ACPI_TYPE_BUFFER_FIELD;
+			return_desc->reference.index_pointer =
+			    &(operand[0]->buffer.pointer[index]);
 			break;
 
 		case ACPI_TYPE_BUFFER:
@@ -391,6 +396,8 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 			return_desc->reference.target_type =
 			    ACPI_TYPE_BUFFER_FIELD;
+			return_desc->reference.index_pointer =
+			    &(operand[0]->buffer.pointer[index]);
 			break;
 
 		case ACPI_TYPE_PACKAGE:
@@ -549,6 +556,7 @@ acpi_status acpi_ex_opcode_2A_0T_1R(struct acpi_walk_state *walk_state)
 
 		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
+
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}

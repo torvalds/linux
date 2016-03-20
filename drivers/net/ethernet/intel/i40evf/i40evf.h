@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -48,10 +48,6 @@
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
 #define PFX "i40evf: "
-#define DPRINTK(nlevel, klevel, fmt, args...) \
-	((void)((NETIF_MSG_##nlevel & adapter->msg_enable) && \
-	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
-		__func__ , ## args)))
 
 /* dummy struct to make common code less painful */
 struct i40e_vsi {
@@ -70,6 +66,9 @@ struct i40e_vsi {
 	 */
 	u16 rx_itr_setting;
 	u16 tx_itr_setting;
+	u16 qs_handle;
+	u8 *rss_hkey_user; /* User configured hash keys */
+	u8 *rss_lut_user;  /* User configured lookup table entries */
 };
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
@@ -90,7 +89,7 @@ struct i40e_vsi {
 #define I40EVF_MAX_RXBUFFER   16384  /* largest size for single descriptor */
 #define I40EVF_MAX_AQ_BUF_SIZE    4096
 #define I40EVF_AQ_LEN             32
-#define I40EVF_AQ_MAX_ERR         10 /* times to try before resetting AQ */
+#define I40EVF_AQ_MAX_ERR         20 /* times to try before resetting AQ */
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 
@@ -98,8 +97,10 @@ struct i40e_vsi {
 #define I40E_TX_DESC(R, i) (&(((struct i40e_tx_desc *)((R)->desc))[i]))
 #define I40E_TX_CTXTDESC(R, i) \
 	(&(((struct i40e_tx_context_desc *)((R)->desc))[i]))
-#define MAX_RX_QUEUES 8
-#define MAX_TX_QUEUES MAX_RX_QUEUES
+#define MAX_QUEUES 16
+
+#define I40EVF_HKEY_ARRAY_SIZE ((I40E_VFQF_HKEY_MAX_INDEX + 1) * 4)
+#define I40EVF_HLUT_ARRAY_SIZE ((I40E_VFQF_HLUT_MAX_INDEX + 1) * 4)
 
 /* MAX_MSIX_Q_VECTORS of these are allocated,
  * but we only use one per queue-specific vector.
@@ -113,8 +114,11 @@ struct i40e_q_vector {
 	struct i40e_ring_container tx;
 	u32 ring_mask;
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
+#define ITR_COUNTDOWN_START 100
+	u8 itr_countdown;	/* when 0 or 1 update ITR */
 	int v_idx;	  /* vector index in list */
 	char name[IFNAMSIZ + 9];
+	bool arm_wb_state;
 	cpumask_var_t affinity_mask;
 };
 
@@ -139,9 +143,6 @@ struct i40e_q_vector {
 
 #define OTHER_VECTOR 1
 #define NONQ_VECS (OTHER_VECTOR)
-
-#define MAX_MSIX_Q_VECTORS 4
-#define MAX_MSIX_COUNT 5
 
 #define MIN_MSIX_Q_VECTORS 1
 #define MIN_MSIX_COUNT (MIN_MSIX_Q_VECTORS + NONQ_VECS)
@@ -172,6 +173,7 @@ enum i40evf_state_t {
 	__I40EVF_RESETTING,		/* in reset */
 	/* Below here, watchdog is running */
 	__I40EVF_DOWN,			/* ready, can be opened */
+	__I40EVF_DOWN_PENDING,		/* descending, waiting for watchdog */
 	__I40EVF_TESTING,		/* in ethtool self-test */
 	__I40EVF_RUNNING,		/* opened, working */
 };
@@ -188,52 +190,57 @@ struct i40evf_adapter {
 	struct work_struct reset_task;
 	struct work_struct adminq_task;
 	struct delayed_work init_task;
-	struct i40e_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
+	struct i40e_q_vector *q_vectors;
 	struct list_head vlan_filter_list;
 	char misc_vector_name[IFNAMSIZ + 9];
+	int num_active_queues;
 
 	/* TX */
-	struct i40e_ring *tx_rings[I40E_MAX_VSI_QP];
+	struct i40e_ring *tx_rings;
 	u32 tx_timeout_count;
 	struct list_head mac_filter_list;
 	u32 tx_desc_count;
 
 	/* RX */
-	struct i40e_ring *rx_rings[I40E_MAX_VSI_QP];
+	struct i40e_ring *rx_rings;
 	u64 hw_csum_rx_error;
 	u32 rx_desc_count;
 	int num_msix_vectors;
 	struct msix_entry *msix_entries;
 
 	u32 flags;
-#define I40EVF_FLAG_RX_CSUM_ENABLED              (u32)(1)
-#define I40EVF_FLAG_RX_1BUF_CAPABLE              (u32)(1 << 1)
-#define I40EVF_FLAG_RX_PS_CAPABLE                (u32)(1 << 2)
-#define I40EVF_FLAG_RX_PS_ENABLED                (u32)(1 << 3)
-#define I40EVF_FLAG_IN_NETPOLL                   (u32)(1 << 4)
-#define I40EVF_FLAG_IMIR_ENABLED                 (u32)(1 << 5)
-#define I40EVF_FLAG_MQ_CAPABLE                   (u32)(1 << 6)
-#define I40EVF_FLAG_NEED_LINK_UPDATE             (u32)(1 << 7)
-#define I40EVF_FLAG_PF_COMMS_FAILED              (u32)(1 << 8)
-#define I40EVF_FLAG_RESET_PENDING                (u32)(1 << 9)
-#define I40EVF_FLAG_RESET_NEEDED                 (u32)(1 << 10)
-/* duplcates for common code */
+#define I40EVF_FLAG_RX_CSUM_ENABLED              BIT(0)
+#define I40EVF_FLAG_RX_1BUF_CAPABLE              BIT(1)
+#define I40EVF_FLAG_RX_PS_CAPABLE                BIT(2)
+#define I40EVF_FLAG_RX_PS_ENABLED                BIT(3)
+#define I40EVF_FLAG_IMIR_ENABLED                 BIT(5)
+#define I40EVF_FLAG_MQ_CAPABLE                   BIT(6)
+#define I40EVF_FLAG_NEED_LINK_UPDATE             BIT(7)
+#define I40EVF_FLAG_PF_COMMS_FAILED              BIT(8)
+#define I40EVF_FLAG_RESET_PENDING                BIT(9)
+#define I40EVF_FLAG_RESET_NEEDED                 BIT(10)
+#define I40EVF_FLAG_WB_ON_ITR_CAPABLE		BIT(11)
+#define I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE	BIT(12)
+#define I40EVF_FLAG_ADDR_SET_BY_PF		BIT(13)
+/* duplicates for common code */
 #define I40E_FLAG_FDIR_ATR_ENABLED		 0
 #define I40E_FLAG_DCB_ENABLED			 0
-#define I40E_FLAG_IN_NETPOLL			 I40EVF_FLAG_IN_NETPOLL
 #define I40E_FLAG_RX_CSUM_ENABLED                I40EVF_FLAG_RX_CSUM_ENABLED
+#define I40E_FLAG_WB_ON_ITR_CAPABLE		I40EVF_FLAG_WB_ON_ITR_CAPABLE
+#define I40E_FLAG_OUTER_UDP_CSUM_CAPABLE	I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE
 	/* flags for admin queue service task */
 	u32 aq_required;
-	u32 aq_pending;
-#define I40EVF_FLAG_AQ_ENABLE_QUEUES		(u32)(1)
-#define I40EVF_FLAG_AQ_DISABLE_QUEUES		(u32)(1 << 1)
-#define I40EVF_FLAG_AQ_ADD_MAC_FILTER		(u32)(1 << 2)
-#define I40EVF_FLAG_AQ_ADD_VLAN_FILTER		(u32)(1 << 3)
-#define I40EVF_FLAG_AQ_DEL_MAC_FILTER		(u32)(1 << 4)
-#define I40EVF_FLAG_AQ_DEL_VLAN_FILTER		(u32)(1 << 5)
-#define I40EVF_FLAG_AQ_CONFIGURE_QUEUES		(u32)(1 << 6)
-#define I40EVF_FLAG_AQ_MAP_VECTORS		(u32)(1 << 7)
-#define I40EVF_FLAG_AQ_HANDLE_RESET		(u32)(1 << 8)
+#define I40EVF_FLAG_AQ_ENABLE_QUEUES		BIT(0)
+#define I40EVF_FLAG_AQ_DISABLE_QUEUES		BIT(1)
+#define I40EVF_FLAG_AQ_ADD_MAC_FILTER		BIT(2)
+#define I40EVF_FLAG_AQ_ADD_VLAN_FILTER		BIT(3)
+#define I40EVF_FLAG_AQ_DEL_MAC_FILTER		BIT(4)
+#define I40EVF_FLAG_AQ_DEL_VLAN_FILTER		BIT(5)
+#define I40EVF_FLAG_AQ_CONFIGURE_QUEUES		BIT(6)
+#define I40EVF_FLAG_AQ_MAP_VECTORS		BIT(7)
+#define I40EVF_FLAG_AQ_HANDLE_RESET		BIT(8)
+#define I40EVF_FLAG_AQ_CONFIGURE_RSS		BIT(9)
+#define I40EVF_FLAG_AQ_GET_CONFIG		BIT(10)
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -243,14 +250,23 @@ struct i40evf_adapter {
 	struct i40e_hw hw; /* defined in i40e_type.h */
 
 	enum i40evf_state_t state;
-	volatile unsigned long crit_section;
+	unsigned long crit_section;
 
 	struct work_struct watchdog_task;
 	bool netdev_registered;
 	bool link_up;
 	enum i40e_virtchnl_ops current_op;
+#define CLIENT_ENABLED(_a) ((_a)->vf_res->vf_offload_flags & \
+			    I40E_VIRTCHNL_VF_OFFLOAD_IWARP)
+#define RSS_AQ(_a) ((_a)->vf_res->vf_offload_flags & \
+		    I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ)
+#define VLAN_ALLOWED(_a) ((_a)->vf_res->vf_offload_flags & \
+			  I40E_VIRTCHNL_VF_OFFLOAD_VLAN)
 	struct i40e_virtchnl_vf_resource *vf_res; /* incl. all VSIs */
 	struct i40e_virtchnl_vsi_resource *vsi_res; /* our LAN VSI */
+	struct i40e_virtchnl_version_info pf_version;
+#define PF_IS_V11(_a) (((_a)->pf_version.major == 1) && \
+		       ((_a)->pf_version.minor == 1))
 	u16 msg_enable;
 	struct i40e_eth_stats current_stats;
 	struct i40e_vsi vsi;
@@ -258,19 +274,25 @@ struct i40evf_adapter {
 };
 
 
+/* Ethtool Private Flags */
+#define I40EVF_PRIV_FLAGS_PS		BIT(0)
+
 /* needed by i40evf_ethtool.c */
 extern char i40evf_driver_name[];
 extern const char i40evf_driver_version[];
 
 int i40evf_up(struct i40evf_adapter *adapter);
 void i40evf_down(struct i40evf_adapter *adapter);
-void i40evf_reinit_locked(struct i40evf_adapter *adapter);
+int i40evf_process_config(struct i40evf_adapter *adapter);
+void i40evf_schedule_reset(struct i40evf_adapter *adapter);
 void i40evf_reset(struct i40evf_adapter *adapter);
 void i40evf_set_ethtool_ops(struct net_device *netdev);
 void i40evf_update_stats(struct i40evf_adapter *adapter);
 void i40evf_reset_interrupt_capability(struct i40evf_adapter *adapter);
 int i40evf_init_interrupt_scheme(struct i40evf_adapter *adapter);
 void i40evf_irq_enable_queues(struct i40evf_adapter *adapter, u32 mask);
+void i40evf_free_all_tx_resources(struct i40evf_adapter *adapter);
+void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter);
 
 void i40e_napi_add_all(struct i40evf_adapter *adapter);
 void i40e_napi_del_all(struct i40evf_adapter *adapter);
@@ -295,4 +317,8 @@ void i40evf_request_reset(struct i40evf_adapter *adapter);
 void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				enum i40e_virtchnl_ops v_opcode,
 				i40e_status v_retval, u8 *msg, u16 msglen);
+int i40evf_config_rss(struct i40e_vsi *vsi, const u8 *seed, u8 *lut,
+		      u16 lut_size);
+int i40evf_get_rss(struct i40e_vsi *vsi, const u8 *seed, u8 *lut,
+		   u16 lut_size);
 #endif /* _I40EVF_H_ */

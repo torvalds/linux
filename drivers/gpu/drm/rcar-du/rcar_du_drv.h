@@ -1,7 +1,7 @@
 /*
  * rcar_du_drv.h  --  R-Car Display Unit DRM driver
  *
- * Copyright (C) 2013 Renesas Corporation
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -15,7 +15,7 @@
 #define __RCAR_DU_DRV_H__
 
 #include <linux/kernel.h>
-#include <linux/platform_data/rcar-du.h>
+#include <linux/wait.h>
 
 #include "rcar_du_crtc.h"
 #include "rcar_du_group.h"
@@ -28,7 +28,7 @@ struct rcar_du_device;
 struct rcar_du_lvdsenc;
 
 #define RCAR_DU_FEATURE_CRTC_IRQ_CLOCK	(1 << 0)	/* Per-CRTC IRQ and clock */
-#define RCAR_DU_FEATURE_DEFR8		(1 << 1)	/* Has DEFR8 register */
+#define RCAR_DU_FEATURE_EXT_CTRL_REGS	(1 << 1)	/* Has extended control registers */
 
 #define RCAR_DU_QUIRK_ALIGN_128B	(1 << 0)	/* Align pitches to 128 bytes */
 #define RCAR_DU_QUIRK_LVDS_LANES	(1 << 1)	/* LVDS lanes 1 and 3 inverted */
@@ -37,6 +37,7 @@ struct rcar_du_lvdsenc;
  * struct rcar_du_output_routing - Output routing specification
  * @possible_crtcs: bitmask of possible CRTCs for the output
  * @encoder_type: DRM type of the internal encoder associated with the output
+ * @port: device tree port number corresponding to this output route
  *
  * The DU has 5 possible outputs (DPAD0/1, LVDS0/1, TCON). Output routing data
  * specify the valid SoC outputs, which CRTCs can drive the output, and the type
@@ -45,6 +46,7 @@ struct rcar_du_lvdsenc;
 struct rcar_du_output_routing {
 	unsigned int possible_crtcs;
 	unsigned int encoder_type;
+	unsigned int port;
 };
 
 /*
@@ -63,9 +65,12 @@ struct rcar_du_device_info {
 	unsigned int num_lvds;
 };
 
+#define RCAR_DU_MAX_CRTCS		3
+#define RCAR_DU_MAX_GROUPS		DIV_ROUND_UP(RCAR_DU_MAX_CRTCS, 2)
+#define RCAR_DU_MAX_LVDS		2
+
 struct rcar_du_device {
 	struct device *dev;
-	const struct rcar_du_platform_data *pdata;
 	const struct rcar_du_device_info *info;
 
 	void __iomem *mmio;
@@ -73,13 +78,24 @@ struct rcar_du_device {
 	struct drm_device *ddev;
 	struct drm_fbdev_cma *fbdev;
 
-	struct rcar_du_crtc crtcs[3];
+	struct rcar_du_crtc crtcs[RCAR_DU_MAX_CRTCS];
 	unsigned int num_crtcs;
 
-	struct rcar_du_group groups[2];
+	struct rcar_du_group groups[RCAR_DU_MAX_GROUPS];
+
+	struct {
+		struct drm_property *alpha;
+		struct drm_property *colorkey;
+		struct drm_property *zpos;
+	} props;
 
 	unsigned int dpad0_source;
-	struct rcar_du_lvdsenc *lvds[2];
+	struct rcar_du_lvdsenc *lvds[RCAR_DU_MAX_LVDS];
+
+	struct {
+		wait_queue_head_t wait;
+		u32 pending;
+	} commit;
 };
 
 static inline bool rcar_du_has(struct rcar_du_device *rcdu,

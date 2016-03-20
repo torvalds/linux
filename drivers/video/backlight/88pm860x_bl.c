@@ -168,10 +168,7 @@ static int pm860x_backlight_dt_init(struct platform_device *pdev,
 	struct device_node *nproot, *np;
 	int iset = 0;
 
-	nproot = of_node_get(pdev->dev.parent->of_node);
-	if (!nproot)
-		return -ENODEV;
-	nproot = of_find_node_by_name(nproot, "backlights");
+	nproot = of_get_child_by_name(pdev->dev.parent->of_node, "backlights");
 	if (!nproot) {
 		dev_err(&pdev->dev, "failed to find backlights node\n");
 		return -ENODEV;
@@ -183,6 +180,7 @@ static int pm860x_backlight_dt_init(struct platform_device *pdev,
 			data->iset = PM8606_WLED_CURRENT(iset);
 			of_property_read_u32(np, "marvell,88pm860x-pwm",
 					     &data->pwm);
+			of_node_put(np);
 			break;
 		}
 	}
@@ -216,7 +214,7 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	data->reg_duty_cycle = res->start;
 	res = platform_get_resource_byname(pdev, IORESOURCE_REG, "always on");
 	if (!res) {
-		dev_err(&pdev->dev, "No REG resorce for always on\n");
+		dev_err(&pdev->dev, "No REG resource for always on\n");
 		return -ENXIO;
 	}
 	data->reg_always_on = res->start;
@@ -265,7 +263,6 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 static struct platform_driver pm860x_backlight_driver = {
 	.driver		= {
 		.name	= "88pm860x-backlight",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= pm860x_backlight_probe,
 };

@@ -78,7 +78,7 @@ static struct irq_chip pq2ads_pci_ic = {
 	.irq_disable = pq2ads_pci_mask_irq
 };
 
-static void pq2ads_pci_irq_demux(unsigned int irq, struct irq_desc *desc)
+static void pq2ads_pci_irq_demux(struct irq_desc *desc)
 {
 	struct pq2ads_pci_pic *priv = irq_desc_get_handler_data(desc);
 	u32 stat, mask, pend;

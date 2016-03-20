@@ -18,9 +18,9 @@
 #include <asm/system_misc.h>
 
 #include <plat/map-base.h>
-#include <mach/regs-clock.h>
 
 #include "common.h"
+#include "regs-clock.h"
 
 static int __init s5pv210_fdt_map_sys(unsigned long node, const char *uname,
 					int depth, void *data)
@@ -63,7 +63,7 @@ static void __init s5pv210_dt_init_late(void)
 	s5pv210_pm_init();
 }
 
-static char const *s5pv210_dt_compat[] __initconst = {
+static char const *const s5pv210_dt_compat[] __initconst = {
 	"samsung,s5pc110",
 	"samsung,s5pv210",
 	NULL

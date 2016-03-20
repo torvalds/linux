@@ -3,7 +3,9 @@
  */
 
 #include <linux/console.h>
+#include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/string.h>
 #include <hwregs/reg_rdwr.h>
 #include <hwregs/reg_map.h>
 #include <hwregs/ser_defs.h>
@@ -65,6 +67,7 @@ struct dbg_port ports[] =
   },
 #endif
 };
+
 static struct dbg_port *port =
 #if defined(CONFIG_ETRAX_DEBUG_PORT0)
 	&ports[0];
@@ -74,8 +77,6 @@ static struct dbg_port *port =
 	&ports[2];
 #elif defined(CONFIG_ETRAX_DEBUG_PORT3)
 	&ports[3];
-#elif defined(CONFIG_ETRAX_DEBUG_PORT4)
-	&ports[4];
 #else
 	NULL;
 #endif
@@ -97,14 +98,19 @@ static struct dbg_port *kgdb_port =
 #endif
 #endif
 
-static void
-start_port(struct dbg_port* p)
+static void start_port(struct dbg_port *p)
 {
-	if (!p)
+	/* Set up serial port registers */
+	reg_ser_rw_tr_ctrl tr_ctrl = {0};
+	reg_ser_rw_tr_dma_en tr_dma_en = {0};
+
+	reg_ser_rw_rec_ctrl rec_ctrl = {0};
+	reg_ser_rw_tr_baud_div tr_baud_div = {0};
+	reg_ser_rw_rec_baud_div rec_baud_div = {0};
+
+	if (!p || p->started)
 		return;
 
-	if (p->started)
-		return;
 	p->started = 1;
 
 	if (p->nbr == 1)
@@ -118,36 +124,24 @@ start_port(struct dbg_port* p)
 		crisv32_pinmux_alloc_fixed(pinmux_ser4);
 #endif
 
-	/* Set up serial port registers */
-	reg_ser_rw_tr_ctrl tr_ctrl = {0};
-	reg_ser_rw_tr_dma_en tr_dma_en = {0};
-
-	reg_ser_rw_rec_ctrl rec_ctrl = {0};
-	reg_ser_rw_tr_baud_div tr_baud_div = {0};
-	reg_ser_rw_rec_baud_div rec_baud_div = {0};
-
 	tr_ctrl.base_freq = rec_ctrl.base_freq = regk_ser_f29_493;
 	tr_dma_en.en = rec_ctrl.dma_mode = regk_ser_no;
 	tr_baud_div.div = rec_baud_div.div = 29493000 / p->baudrate / 8;
 	tr_ctrl.en = rec_ctrl.en = 1;
 
-	if (p->parity == 'O')
-	{
+	if (p->parity == 'O') {
 		tr_ctrl.par_en = regk_ser_yes;
 		tr_ctrl.par = regk_ser_odd;
 		rec_ctrl.par_en = regk_ser_yes;
 		rec_ctrl.par = regk_ser_odd;
-	}
-	else if (p->parity == 'E')
-	{
+	} else if (p->parity == 'E') {
 		tr_ctrl.par_en = regk_ser_yes;
 		tr_ctrl.par = regk_ser_even;
 		rec_ctrl.par_en = regk_ser_yes;
 		rec_ctrl.par = regk_ser_odd;
 	}
 
-	if (p->bits == 7)
-	{
+	if (p->bits == 7) {
 		tr_ctrl.data_bits = regk_ser_bits7;
 		rec_ctrl.data_bits = regk_ser_bits7;
 	}
@@ -161,8 +155,7 @@ start_port(struct dbg_port* p)
 
 #ifdef CONFIG_ETRAX_KGDB
 /* Use polling to get a single character from the kernel debug port */
-int
-getDebugChar(void)
+int getDebugChar(void)
 {
 	reg_ser_rs_stat_din stat;
 	reg_ser_rw_ack_intr ack_intr = { 0 };
@@ -179,8 +172,7 @@ getDebugChar(void)
 }
 
 /* Use polling to put a single character to the kernel debug port */
-void
-putDebugChar(int val)
+void putDebugChar(int val)
 {
 	reg_ser_r_stat_din stat;
 	do {
@@ -190,11 +182,47 @@ putDebugChar(int val)
 }
 #endif /* CONFIG_ETRAX_KGDB */
 
+static void __init early_putch(int c)
+{
+	reg_ser_r_stat_din stat;
+	/* Wait until transmitter is ready and send. */
+	do
+		stat = REG_RD(ser, port->instance, r_stat_din);
+	while (!stat.tr_rdy);
+	REG_WR_INT(ser, port->instance, rw_dout, c);
+}
+
+static void __init
+early_console_write(struct console *con, const char *s, unsigned n)
+{
+	extern void reset_watchdog(void);
+	int i;
+
+	/* Send data. */
+	for (i = 0; i < n; i++) {
+		/* TODO: the '\n' -> '\n\r' translation should be done at the
+		   receiver. Remove it when the serial driver removes it.   */
+		if (s[i] == '\n')
+			early_putch('\r');
+		early_putch(s[i]);
+		reset_watchdog();
+	}
+}
+
+static struct console early_console_dev __initdata = {
+	.name   = "early",
+	.write  = early_console_write,
+	.flags  = CON_PRINTBUFFER | CON_BOOT,
+	.index  = -1
+};
+
 /* Register console for printk's, etc. */
-int __init
-init_etrax_debug(void)
+int __init init_etrax_debug(void)
 {
         start_port(port);
+
+	/* Register an early console if a debug port was chosen.  */
+	register_console(&early_console_dev);
 
 #ifdef CONFIG_ETRAX_KGDB
 	start_port(kgdb_port);

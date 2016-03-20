@@ -5,7 +5,7 @@
  *
  * Author: Frank Haverkamp <haver@linux.vnet.ibm.com>
  * Author: Joerg-Stephan Vogt <jsvogt@de.ibm.com>
- * Author: Michael Jung <mijung@de.ibm.com>
+ * Author: Michael Jung <mijung@gmx.net>
  * Author: Michael Ruettger <michael@ibmra.de>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -150,6 +150,7 @@ int genwqe_read_app_id(struct genwqe_dev *cd, char *app_name, int len)
 	memset(app_name, 0, len);
 	for (i = 0, j = 0; j < min(len, 4); j++) {
 		char ch = (char)((app_id >> (24 - j*8)) & 0xff);
+
 		if (ch == ' ')
 			continue;
 		app_name[i++] = isprint(ch) ? ch : 'X';
@@ -219,7 +220,8 @@ void *__genwqe_alloc_consistent(struct genwqe_dev *cd, size_t size,
 	if (get_order(size) > MAX_ORDER)
 		return NULL;
 
-	return pci_alloc_consistent(cd->pci_dev, size, dma_handle);
+	return dma_alloc_coherent(&cd->pci_dev->dev, size, dma_handle,
+				  GFP_KERNEL);
 }
 
 void __genwqe_free_consistent(struct genwqe_dev *cd, size_t size,
@@ -228,7 +230,7 @@ void __genwqe_free_consistent(struct genwqe_dev *cd, size_t size,
 	if (vaddr == NULL)
 		return;
 
-	pci_free_consistent(cd->pci_dev, size, vaddr, dma_handle);
+	dma_free_coherent(&cd->pci_dev->dev, size, vaddr, dma_handle);
 }
 
 static void genwqe_unmap_pages(struct genwqe_dev *cd, dma_addr_t *dma_list,
@@ -304,8 +306,7 @@ int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 	sgl->nr_pages = DIV_ROUND_UP(sgl->fpage_offs + user_size, PAGE_SIZE);
 	sgl->lpage_size = (user_size - sgl->fpage_size) % PAGE_SIZE;
 
-	dev_dbg(&pci_dev->dev, "[%s] uaddr=%p usize=%8ld nr_pages=%ld "
-		"fpage_offs=%lx fpage_size=%ld lpage_size=%ld\n",
+	dev_dbg(&pci_dev->dev, "[%s] uaddr=%p usize=%8ld nr_pages=%ld fpage_offs=%lx fpage_size=%ld lpage_size=%ld\n",
 		__func__, user_addr, user_size, sgl->nr_pages,
 		sgl->fpage_offs, sgl->fpage_size, sgl->lpage_size);
 
@@ -590,6 +591,8 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
 				 m->nr_pages,
 				 1,		/* write by caller */
 				 m->page_list);	/* ptrs to pages */
+	if (rc < 0)
+		goto fail_get_user_pages;
 
 	/* assumption: get_user_pages can be killed by signals. */
 	if (rc < m->nr_pages) {
@@ -662,6 +665,7 @@ int genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m,
 u8 genwqe_card_type(struct genwqe_dev *cd)
 {
 	u64 card_type = cd->slu_unitcfg;
+
 	return (u8)((card_type & IO_SLU_UNITCFG_TYPE_MASK) >> 20);
 }
 

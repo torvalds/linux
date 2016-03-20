@@ -38,7 +38,6 @@
 		ti,model = "lilly-a83x";
 
 		ti,mcbsp = <&mcbsp2>;
-		ti,codec = <&twl_audio>;
 	};
 
 	reg_vcc3: vcc3 {
@@ -285,7 +284,7 @@
 };
 
 &mmc1 {
-	cd-gpios = <&gpio4 30 IRQ_TYPE_LEVEL_LOW>;
+	cd-gpios = <&gpio4 30 GPIO_ACTIVE_LOW>;
 	cd-inverted;
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
@@ -315,20 +314,20 @@
 		interrupt-parent = <&gpio1>;
 		interrupts = <8 0>;   /* boot6 / gpio_8 */
 		spi-max-frequency = <1000000>;
-		pendown-gpio = <&gpio1 8 0>;
+		pendown-gpio = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		vcc-supply = <&reg_vcc3>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&tsc2048_pins>;
 
-		ti,x-min = <300>;
-		ti,x-max = <3000>;
-		ti,y-min = <600>;
-		ti,y-max = <3600>;
-		ti,x-plate-ohms = <80>;
-		ti,pressure-max = <255>;
+		ti,x-min = /bits/ 16 <300>;
+		ti,x-max = /bits/ 16 <3000>;
+		ti,y-min = /bits/ 16 <600>;
+		ti,y-max = /bits/ 16 <3600>;
+		ti,x-plate-ohms = /bits/ 16 <80>;
+		ti,pressure-max = /bits/ 16 <255>;
 		ti,swap-xy;
 
-		linux,wakeup;
+		wakeup-source;
 	};
 };
 
@@ -363,7 +362,7 @@
 		<7 0 0x15000000 0x01000000>;
 
 	nand@0,0 {
-		reg = <0 0 0x1000000>;
+		reg = <0 0 4>;	/* CS0, offset 0, IO size 4 */
 		nand-bus-width = <16>;
 		ti,nand-ecc-opt = "bch8";
 		/* no elm on omap3 */

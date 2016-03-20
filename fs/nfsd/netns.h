@@ -92,7 +92,7 @@ struct nfsd_net {
 
 	struct file *rec_file;
 	bool in_grace;
-	struct nfsd4_client_tracking_ops *client_tracking_ops;
+	const struct nfsd4_client_tracking_ops *client_tracking_ops;
 
 	time_t nfsd4_lease;
 	time_t nfsd4_grace;
@@ -110,6 +110,7 @@ struct nfsd_net {
 	unsigned int max_connections;
 
 	u32 clientid_counter;
+	u32 clverifier_counter;
 
 	struct svc_serv *nfsd_serv;
 };

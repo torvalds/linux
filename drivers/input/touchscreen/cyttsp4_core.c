@@ -775,7 +775,6 @@ static void cyttsp4_get_touch(struct cyttsp4_mt_data *md,
 	struct device *dev = &md->input->dev;
 	struct cyttsp4_sysinfo *si = md->si;
 	enum cyttsp4_tch_abs abs;
-	int tmp;
 	bool flipped;
 
 	for (abs = CY_TCH_X; abs < CY_TCH_NUM_ABS; abs++) {
@@ -790,9 +789,7 @@ static void cyttsp4_get_touch(struct cyttsp4_mt_data *md,
 	}
 
 	if (md->pdata->flags & CY_FLAG_FLIP) {
-		tmp = touch->abs[CY_TCH_X];
-		touch->abs[CY_TCH_X] = touch->abs[CY_TCH_Y];
-		touch->abs[CY_TCH_Y] = tmp;
+		swap(touch->abs[CY_TCH_X], touch->abs[CY_TCH_Y]);
 		flipped = true;
 	} else
 		flipped = false;
@@ -1716,7 +1713,7 @@ static void cyttsp4_free_si_ptrs(struct cyttsp4 *cd)
 	kfree(si->btn_rec_data);
 }
 
-#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_RUNTIME)
+#ifdef CONFIG_PM
 static int cyttsp4_core_sleep(struct cyttsp4 *cd)
 {
 	int rc;

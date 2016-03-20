@@ -17,11 +17,16 @@
 #define MCG_EXT_CNT(c)		(((c) & MCG_EXT_CNT_MASK) >> MCG_EXT_CNT_SHIFT)
 #define MCG_SER_P		(1ULL<<24)   /* MCA recovery/new status bits */
 #define MCG_ELOG_P		(1ULL<<26)   /* Extended error log supported */
+#define MCG_LMCE_P		(1ULL<<27)   /* Local machine check supported */
 
 /* MCG_STATUS register defines */
 #define MCG_STATUS_RIPV  (1ULL<<0)   /* restart ip valid */
 #define MCG_STATUS_EIPV  (1ULL<<1)   /* ip points to correct instruction */
 #define MCG_STATUS_MCIP  (1ULL<<2)   /* machine check in progress */
+#define MCG_STATUS_LMCES (1ULL<<3)   /* LMCE signaled */
+
+/* MCG_EXT_CTL register defines */
+#define MCG_EXT_CTL_LMCE_EN (1ULL<<0) /* Enable LMCE */
 
 /* MCi_STATUS register defines */
 #define MCI_STATUS_VAL   (1ULL<<63)  /* valid error */
@@ -33,6 +38,22 @@
 #define MCI_STATUS_PCC   (1ULL<<57)  /* processor context corrupt */
 #define MCI_STATUS_S	 (1ULL<<56)  /* Signaled machine check */
 #define MCI_STATUS_AR	 (1ULL<<55)  /* Action required */
+
+/* AMD-specific bits */
+#define MCI_STATUS_DEFERRED	(1ULL<<44)  /* uncorrected error, deferred exception */
+#define MCI_STATUS_POISON	(1ULL<<43)  /* access poisonous data */
+#define MCI_STATUS_TCC		(1ULL<<55)  /* Task context corrupt */
+
+/*
+ * McaX field if set indicates a given bank supports MCA extensions:
+ *  - Deferred error interrupt type is specifiable by bank.
+ *  - MCx_MISC0[BlkPtr] field indicates presence of extended MISC registers,
+ *    But should not be used to determine MSR numbers.
+ *  - TCC bit is present in MCx_STATUS.
+ */
+#define MCI_CONFIG_MCAX		0x1
+#define MCI_IPID_MCATYPE	0xFFFF0000
+#define MCI_IPID_HWID		0xFFF
 
 /*
  * Note that the full MCACOD field of IA32_MCi_STATUS MSR is
@@ -78,10 +99,19 @@
 /* Software defined banks */
 #define MCE_EXTENDED_BANK	128
 #define MCE_THERMAL_BANK	(MCE_EXTENDED_BANK + 0)
-#define K8_MCE_THRESHOLD_BASE   (MCE_EXTENDED_BANK + 1)
 
 #define MCE_LOG_LEN 32
 #define MCE_LOG_SIGNATURE	"MACHINECHECK"
+
+/* AMD Scalable MCA */
+#define MSR_AMD64_SMCA_MC0_MISC0	0xc0002003
+#define MSR_AMD64_SMCA_MC0_CONFIG	0xc0002004
+#define MSR_AMD64_SMCA_MC0_IPID		0xc0002005
+#define MSR_AMD64_SMCA_MC0_MISC1	0xc000200a
+#define MSR_AMD64_SMCA_MCx_MISC(x)	(MSR_AMD64_SMCA_MC0_MISC0 + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_CONFIG(x)	(MSR_AMD64_SMCA_MC0_CONFIG + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_IPID(x)	(MSR_AMD64_SMCA_MC0_IPID + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_MISCy(x, y)	((MSR_AMD64_SMCA_MC0_MISC1 + y) + (0x10*(x)))
 
 /*
  * This structure contains all data related to the MCE log.  Also
@@ -101,9 +131,11 @@ struct mce_log {
 struct mca_config {
 	bool dont_log_ce;
 	bool cmci_disabled;
+	bool lmce_disabled;
 	bool ignore_ce;
 	bool disabled;
 	bool ser;
+	bool recovery;
 	bool bios_cmci_threshold;
 	u8 banks;
 	s8 bootlog;
@@ -112,6 +144,31 @@ struct mca_config {
 	int panic_timeout;
 	u32 rip_msr;
 };
+
+struct mce_vendor_flags {
+	/*
+	 * Indicates that overflow conditions are not fatal, when set.
+	 */
+	__u64 overflow_recov	: 1,
+
+	/*
+	 * (AMD) SUCCOR stands for S/W UnCorrectable error COntainment and
+	 * Recovery. It indicates support for data poisoning in HW and deferred
+	 * error interrupts.
+	 */
+	      succor		: 1,
+
+	/*
+	 * (AMD) SMCA: This bit indicates support for Scalable MCA which expands
+	 * the register space for each MCA bank and also increases number of
+	 * banks. Also, to accommodate the new banks and registers, the MCA
+	 * register space is moved to a new MSR range.
+	 */
+	      smca		: 1,
+
+	      __reserved_0	: 61;
+};
+extern struct mce_vendor_flags mce_flags;
 
 extern struct mca_config mca_cfg;
 extern void mce_register_decode_chain(struct notifier_block *nb);
@@ -125,9 +182,13 @@ extern int mce_p5_enabled;
 #ifdef CONFIG_X86_MCE
 int mcheck_init(void);
 void mcheck_cpu_init(struct cpuinfo_x86 *c);
+void mcheck_cpu_clear(struct cpuinfo_x86 *c);
+void mcheck_vendor_init_severity(void);
 #else
 static inline int mcheck_init(void) { return 0; }
 static inline void mcheck_cpu_init(struct cpuinfo_x86 *c) {}
+static inline void mcheck_cpu_clear(struct cpuinfo_x86 *c) {}
+static inline void mcheck_vendor_init_severity(void) {}
 #endif
 
 #ifdef CONFIG_X86_ANCIENT_MCE
@@ -153,12 +214,14 @@ DECLARE_PER_CPU(struct device *, mce_device);
 
 #ifdef CONFIG_X86_MCE_INTEL
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
+void mce_intel_feature_clear(struct cpuinfo_x86 *c);
 void cmci_clear(void);
 void cmci_reenable(void);
 void cmci_rediscover(void);
 void cmci_recheck(void);
 #else
 static inline void mce_intel_feature_init(struct cpuinfo_x86 *c) { }
+static inline void mce_intel_feature_clear(struct cpuinfo_x86 *c) { }
 static inline void cmci_clear(void) {}
 static inline void cmci_reenable(void) {}
 static inline void cmci_rediscover(void) {}
@@ -180,14 +243,13 @@ typedef DECLARE_BITMAP(mce_banks_t, MAX_NR_BANKS);
 DECLARE_PER_CPU(mce_banks_t, mce_poll_banks);
 
 enum mcp_flags {
-	MCP_TIMESTAMP = (1 << 0),	/* log time stamp */
-	MCP_UC = (1 << 1),		/* log uncorrected errors */
-	MCP_DONTLOG = (1 << 2),		/* only clear, don't log */
+	MCP_TIMESTAMP	= BIT(0),	/* log time stamp */
+	MCP_UC		= BIT(1),	/* log uncorrected errors */
+	MCP_DONTLOG	= BIT(2),	/* only clear, don't log */
 };
-void machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
+bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
 
 int mce_notify_irq(void);
-void mce_notify_process(void);
 
 DECLARE_PER_CPU(struct mce, injectm);
 
@@ -212,6 +274,9 @@ void do_machine_check(struct pt_regs *, long);
 
 extern void (*mce_threshold_vector)(void);
 extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
+
+/* Deferred error interrupt handler */
+extern void (*deferred_error_int_vector)(void);
 
 /*
  * Thermal handler
@@ -244,5 +309,50 @@ static inline void mcheck_intel_therm_init(void) { }
 struct cper_sec_mem_err;
 extern void apei_mce_report_mem_error(int corrected,
 				      struct cper_sec_mem_err *mem_err);
+
+/*
+ * Enumerate new IP types and HWID values in AMD processors which support
+ * Scalable MCA.
+ */
+#ifdef CONFIG_X86_MCE_AMD
+enum amd_ip_types {
+	SMCA_F17H_CORE = 0,	/* Core errors */
+	SMCA_DF,		/* Data Fabric */
+	SMCA_UMC,		/* Unified Memory Controller */
+	SMCA_PB,		/* Parameter Block */
+	SMCA_PSP,		/* Platform Security Processor */
+	SMCA_SMU,		/* System Management Unit */
+	N_AMD_IP_TYPES
+};
+
+struct amd_hwid {
+	const char *name;
+	unsigned int hwid;
+};
+
+extern struct amd_hwid amd_hwids[N_AMD_IP_TYPES];
+
+enum amd_core_mca_blocks {
+	SMCA_LS = 0,	/* Load Store */
+	SMCA_IF,	/* Instruction Fetch */
+	SMCA_L2_CACHE,	/* L2 cache */
+	SMCA_DE,	/* Decoder unit */
+	RES,		/* Reserved */
+	SMCA_EX,	/* Execution unit */
+	SMCA_FP,	/* Floating Point */
+	SMCA_L3_CACHE,	/* L3 cache */
+	N_CORE_MCA_BLOCKS
+};
+
+extern const char * const amd_core_mcablock_names[N_CORE_MCA_BLOCKS];
+
+enum amd_df_mca_blocks {
+	SMCA_CS = 0,	/* Coherent Slave */
+	SMCA_PIE,	/* Power management, Interrupts, etc */
+	N_DF_BLOCKS
+};
+
+extern const char * const amd_df_mcablock_names[N_DF_BLOCKS];
+#endif
 
 #endif /* _ASM_X86_MCE_H */

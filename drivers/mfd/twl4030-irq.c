@@ -396,13 +396,17 @@ static int twl4030_init_sih_modules(unsigned line)
 			status = twl_i2c_read(sih->module, rxbuf,
 				sih->mask[line].isr_offset, sih->bytes_ixr);
 			if (status < 0)
-				pr_err("twl4030: err %d initializing %s %s\n",
+				pr_warn("twl4030: err %d initializing %s %s\n",
 					status, sih->name, "ISR");
 
-			if (!sih->set_cor)
+			if (!sih->set_cor) {
 				status = twl_i2c_write(sih->module, buf,
 					sih->mask[line].isr_offset,
 					sih->bytes_ixr);
+				if (status < 0)
+					pr_warn("twl4030: write failed: %d\n",
+						status);
+			}
 			/*
 			 * else COR=1 means read sufficed.
 			 * (for most SIH modules...)
@@ -415,16 +419,7 @@ static int twl4030_init_sih_modules(unsigned line)
 
 static inline void activate_irq(int irq)
 {
-#ifdef CONFIG_ARM
-	/*
-	 * ARM requires an extra step to clear IRQ_NOREQUEST, which it
-	 * sets on behalf of every irq_chip.  Also sets IRQ_NOPROBE.
-	 */
-	set_irq_flags(irq, IRQF_VALID);
-#else
-	/* same effect on other architectures */
-	irq_set_noprobe(irq);
-#endif
+	irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 }
 
 /*----------------------------------------------------------------------*/
@@ -670,7 +665,7 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base)
 	irq_set_handler_data(irq, agent);
 	agent->irq_name = kasprintf(GFP_KERNEL, "twl4030_%s", sih->name);
 	status = request_threaded_irq(irq, NULL, handle_twl4030_sih,
-				      IRQF_EARLY_RESUME,
+				      IRQF_EARLY_RESUME | IRQF_ONESHOT,
 				      agent->irq_name ?: sih->name, NULL);
 
 	dev_info(dev, "%s (irq %d) chaining IRQs %d..%d\n", sih->name,

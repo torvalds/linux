@@ -1,0 +1,21 @@
+Binding for Freescale QorIQ AHCI SATA Controller
+
+Required properties:
+  - reg: Physical base address and size of the controller's register area.
+  - compatible: Compatibility string. Must be 'fsl,<chip>-ahci', where
+    chip could be ls1021a, ls2080a, ls1043a etc.
+  - clocks: Input clock specifier. Refer to common clock bindings.
+  - interrupts: Interrupt specifier. Refer to interrupt binding.
+
+Optional properties:
+  - dma-coherent: Enable AHCI coherent DMA operation.
+  - reg-names: register area names when there are more than 1 register area.
+
+Examples:
+	sata@3200000 {
+		compatible = "fsl,ls1021a-ahci";
+		reg = <0x0 0x3200000 0x0 0x10000>;
+		interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&platform_clk 1>;
+		dma-coherent;
+	};

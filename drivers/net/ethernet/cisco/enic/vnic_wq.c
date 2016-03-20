@@ -26,6 +26,7 @@
 
 #include "vnic_dev.h"
 #include "vnic_wq.h"
+#include "enic.h"
 
 static int vnic_wq_alloc_bufs(struct vnic_wq *wq)
 {
@@ -47,11 +48,14 @@ static int vnic_wq_alloc_bufs(struct vnic_wq *wq)
 				wq->ring.desc_size * buf->index;
 			if (buf->index + 1 == count) {
 				buf->next = wq->bufs[0];
+				buf->next->prev = buf;
 				break;
 			} else if (j + 1 == VNIC_WQ_BUF_BLK_ENTRIES(count)) {
 				buf->next = wq->bufs[i + 1];
+				buf->next->prev = buf;
 			} else {
 				buf->next = buf + 1;
+				buf->next->prev = buf;
 				buf++;
 			}
 		}
@@ -91,7 +95,7 @@ int vnic_wq_alloc(struct vnic_dev *vdev, struct vnic_wq *wq, unsigned int index,
 
 	wq->ctrl = vnic_dev_get_res(vdev, RES_TYPE_WQ, index);
 	if (!wq->ctrl) {
-		pr_err("Failed to hook WQ[%d] resource\n", index);
+		vdev_err(vdev, "Failed to hook WQ[%d] resource\n", index);
 		return -EINVAL;
 	}
 
@@ -110,10 +114,27 @@ int vnic_wq_alloc(struct vnic_dev *vdev, struct vnic_wq *wq, unsigned int index,
 	return 0;
 }
 
-static void vnic_wq_init_start(struct vnic_wq *wq, unsigned int cq_index,
-	unsigned int fetch_index, unsigned int posted_index,
-	unsigned int error_interrupt_enable,
-	unsigned int error_interrupt_offset)
+int enic_wq_devcmd2_alloc(struct vnic_dev *vdev, struct vnic_wq *wq,
+			  unsigned int desc_count, unsigned int desc_size)
+{
+	int err;
+
+	wq->index = 0;
+	wq->vdev = vdev;
+
+	wq->ctrl = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD2, 0);
+	if (!wq->ctrl)
+		return -EINVAL;
+	vnic_wq_disable(wq);
+	err = vnic_dev_alloc_desc_ring(vdev, &wq->ring, desc_count, desc_size);
+
+	return err;
+}
+
+void enic_wq_init_start(struct vnic_wq *wq, unsigned int cq_index,
+			unsigned int fetch_index, unsigned int posted_index,
+			unsigned int error_interrupt_enable,
+			unsigned int error_interrupt_offset)
 {
 	u64 paddr;
 	unsigned int count = wq->ring.desc_count;
@@ -137,7 +158,7 @@ void vnic_wq_init(struct vnic_wq *wq, unsigned int cq_index,
 	unsigned int error_interrupt_enable,
 	unsigned int error_interrupt_offset)
 {
-	vnic_wq_init_start(wq, cq_index, 0, 0,
+	enic_wq_init_start(wq, cq_index, 0, 0,
 		error_interrupt_enable,
 		error_interrupt_offset);
 }
@@ -155,6 +176,7 @@ void vnic_wq_enable(struct vnic_wq *wq)
 int vnic_wq_disable(struct vnic_wq *wq)
 {
 	unsigned int wait;
+	struct vnic_dev *vdev = wq->vdev;
 
 	iowrite32(0, &wq->ctrl->enable);
 
@@ -165,7 +187,7 @@ int vnic_wq_disable(struct vnic_wq *wq)
 		udelay(10);
 	}
 
-	pr_err("Failed to disable WQ[%d]\n", wq->index);
+	vdev_neterr(vdev, "Failed to disable WQ[%d]\n", wq->index);
 
 	return -ETIMEDOUT;
 }

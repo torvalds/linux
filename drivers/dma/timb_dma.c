@@ -10,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /* Supports:
@@ -561,17 +557,13 @@ static struct dma_async_tx_descriptor *td_prep_slave_sg(struct dma_chan *chan,
 	return &td_desc->txd;
 }
 
-static int td_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-		      unsigned long arg)
+static int td_terminate_all(struct dma_chan *chan)
 {
 	struct timb_dma_chan *td_chan =
 		container_of(chan, struct timb_dma_chan, chan);
 	struct timb_dma_desc *td_desc, *_td_desc;
 
 	dev_dbg(chan2dev(chan), "%s: Entry\n", __func__);
-
-	if (cmd != DMA_TERMINATE_ALL)
-		return -ENXIO;
 
 	/* first the easy part, put the queue into the free list */
 	spin_lock_bh(&td_chan->lock);
@@ -697,7 +689,7 @@ static int td_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_SLAVE, td->dma.cap_mask);
 	dma_cap_set(DMA_PRIVATE, td->dma.cap_mask);
 	td->dma.device_prep_slave_sg = td_prep_slave_sg;
-	td->dma.device_control = td_control;
+	td->dma.device_terminate_all = td_terminate_all;
 
 	td->dma.dev = &pdev->dev;
 
@@ -783,7 +775,6 @@ static int td_remove(struct platform_device *pdev)
 static struct platform_driver td_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner  = THIS_MODULE,
 	},
 	.probe	= td_probe,
 	.remove	= td_remove,

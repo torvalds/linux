@@ -63,6 +63,6 @@ static inline void rtw_reset_continual_urb_error(struct dvobj_priv *dvobj)
 	atomic_set(&dvobj->continual_urb_error, 0);
 }
 
-void rtl8723au_chip_configure(struct rtw_adapter *padapter);
+bool rtl8723au_chip_configure(struct rtw_adapter *padapter);
 
 #endif /* __USB_OPS_H_ */

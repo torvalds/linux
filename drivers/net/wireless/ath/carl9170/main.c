@@ -1011,9 +1011,8 @@ static void carl9170_op_configure_filter(struct ieee80211_hw *hw,
 	if (multicast != ar->cur_mc_hash)
 		WARN_ON(carl9170_update_multicast(ar, multicast));
 
-	if (changed_flags & (FIF_OTHER_BSS | FIF_PROMISC_IN_BSS)) {
-		ar->sniffer_enabled = !!(*new_flags &
-			(FIF_OTHER_BSS | FIF_PROMISC_IN_BSS));
+	if (changed_flags & FIF_OTHER_BSS) {
+		ar->sniffer_enabled = !!(*new_flags & FIF_OTHER_BSS);
 
 		WARN_ON(carl9170_set_operating_mode(ar));
 	}
@@ -1033,7 +1032,7 @@ static void carl9170_op_configure_filter(struct ieee80211_hw *hw,
 		if (!(*new_flags & FIF_PSPOLL))
 			rx_filter |= CARL9170_RX_FILTER_CTL_PSPOLL;
 
-		if (!(*new_flags & (FIF_OTHER_BSS | FIF_PROMISC_IN_BSS))) {
+		if (!(*new_flags & FIF_OTHER_BSS)) {
 			rx_filter |= CARL9170_RX_FILTER_OTHER_RA;
 			rx_filter |= CARL9170_RX_FILTER_DECRY_FAIL;
 		}
@@ -1414,10 +1413,12 @@ static void carl9170_ampdu_work(struct work_struct *work)
 
 static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
-				    enum ieee80211_ampdu_mlme_action action,
-				    struct ieee80211_sta *sta,
-				    u16 tid, u16 *ssn, u8 buf_size)
+				    struct ieee80211_ampdu_params *params)
 {
+	struct ieee80211_sta *sta = params->sta;
+	enum ieee80211_ampdu_mlme_action action = params->action;
+	u16 tid = params->tid;
+	u16 *ssn = &params->ssn;
 	struct ar9170 *ar = hw->priv;
 	struct carl9170_sta_info *sta_info = (void *) sta->drv_priv;
 	struct carl9170_sta_tid *tid_info;
@@ -1430,18 +1431,10 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 		if (!sta_info->ht_sta)
 			return -EOPNOTSUPP;
 
-		rcu_read_lock();
-		if (rcu_dereference(sta_info->agg[tid])) {
-			rcu_read_unlock();
-			return -EBUSY;
-		}
-
 		tid_info = kzalloc(sizeof(struct carl9170_sta_tid),
 				   GFP_ATOMIC);
-		if (!tid_info) {
-			rcu_read_unlock();
+		if (!tid_info)
 			return -ENOMEM;
-		}
 
 		tid_info->hsn = tid_info->bsn = tid_info->snx = (*ssn);
 		tid_info->state = CARL9170_TID_STATE_PROGRESS;
@@ -1460,7 +1453,6 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 		list_add_tail_rcu(&tid_info->list, &ar->tx_ampdu_list);
 		rcu_assign_pointer(sta_info->agg[tid], tid_info);
 		spin_unlock_bh(&ar->tx_ampdu_list_lock);
-		rcu_read_unlock();
 
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
@@ -1699,9 +1691,9 @@ found:
 		survey->filled |= SURVEY_INFO_IN_USE;
 
 	if (ar->fw.hw_counters) {
-		survey->filled |= SURVEY_INFO_CHANNEL_TIME |
-				  SURVEY_INFO_CHANNEL_TIME_BUSY |
-				  SURVEY_INFO_CHANNEL_TIME_TX;
+		survey->filled |= SURVEY_INFO_TIME |
+				  SURVEY_INFO_TIME_BUSY |
+				  SURVEY_INFO_TIME_TX;
 	}
 
 	return 0;
@@ -1854,22 +1846,22 @@ void *carl9170_alloc(size_t priv_size)
 	/* firmware decides which modes we support */
 	hw->wiphy->interface_modes = 0;
 
-	hw->flags |= IEEE80211_HW_RX_INCLUDES_FCS |
-		     IEEE80211_HW_MFP_CAPABLE |
-		     IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-		     IEEE80211_HW_SUPPORTS_PS |
-		     IEEE80211_HW_PS_NULLFUNC_STACK |
-		     IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC |
-		     IEEE80211_HW_SUPPORTS_RC_TABLE |
-		     IEEE80211_HW_SIGNAL_DBM |
-		     IEEE80211_HW_SUPPORTS_HT_CCK_RATES;
+	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
+	ieee80211_hw_set(hw, MFP_CAPABLE);
+	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(hw, SUPPORTS_PS);
+	ieee80211_hw_set(hw, PS_NULLFUNC_STACK);
+	ieee80211_hw_set(hw, NEED_DTIM_BEFORE_ASSOC);
+	ieee80211_hw_set(hw, SUPPORTS_RC_TABLE);
+	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, SUPPORTS_HT_CCK_RATES);
 
 	if (!modparam_noht) {
 		/*
 		 * see the comment above, why we allow the user
 		 * to disable HT by a module parameter.
 		 */
-		hw->flags |= IEEE80211_HW_AMPDU_AGGREGATION;
+		ieee80211_hw_set(hw, AMPDU_AGGREGATION);
 	}
 
 	hw->extra_tx_headroom = sizeof(struct _carl9170_tx_superframe);

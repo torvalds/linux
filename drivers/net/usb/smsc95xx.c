@@ -1670,12 +1670,14 @@ done:
 static int smsc95xx_resume(struct usb_interface *intf)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
-	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
-	u8 suspend_flags = pdata->suspend_flags;
+	struct smsc95xx_priv *pdata;
+	u8 suspend_flags;
 	int ret;
 	u32 val;
 
 	BUG_ON(!dev);
+	pdata = (struct smsc95xx_priv *)(dev->data[0]);
+	suspend_flags = pdata->suspend_flags;
 
 	netdev_dbg(dev->net, "resume suspend_flags=0x%02x\n", suspend_flags);
 
@@ -1811,11 +1813,6 @@ static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		/* padding bytes before the next frame starts */
 		if (skb->len)
 			skb_pull(skb, align_count);
-	}
-
-	if (unlikely(skb->len < 0)) {
-		netdev_warn(dev->net, "invalid rx length<0 %d\n", skb->len);
-		return 0;
 	}
 
 	return 1;

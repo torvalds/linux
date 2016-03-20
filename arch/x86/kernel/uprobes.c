@@ -29,6 +29,7 @@
 #include <linux/kdebug.h>
 #include <asm/processor.h>
 #include <asm/insn.h>
+#include <asm/mmu_context.h>
 
 /* Post-execution fixups. */
 
@@ -66,27 +67,54 @@
  * Good-instruction tables for 32-bit apps.  This is non-const and volatile
  * to keep gcc from statically optimizing it out, as variable_test_bit makes
  * some versions of gcc to think only *(unsigned long*) is used.
+ *
+ * Opcodes we'll probably never support:
+ * 6c-6f - ins,outs. SEGVs if used in userspace
+ * e4-e7 - in,out imm. SEGVs if used in userspace
+ * ec-ef - in,out acc. SEGVs if used in userspace
+ * cc - int3. SIGTRAP if used in userspace
+ * ce - into. Not used in userspace - no kernel support to make it useful. SEGVs
+ *	(why we support bound (62) then? it's similar, and similarly unused...)
+ * f1 - int1. SIGTRAP if used in userspace
+ * f4 - hlt. SEGVs if used in userspace
+ * fa - cli. SEGVs if used in userspace
+ * fb - sti. SEGVs if used in userspace
+ *
+ * Opcodes which need some work to be supported:
+ * 07,17,1f - pop es/ss/ds
+ *	Normally not used in userspace, but would execute if used.
+ *	Can cause GP or stack exception if tries to load wrong segment descriptor.
+ *	We hesitate to run them under single step since kernel's handling
+ *	of userspace single-stepping (TF flag) is fragile.
+ *	We can easily refuse to support push es/cs/ss/ds (06/0e/16/1e)
+ *	on the same grounds that they are never used.
+ * cd - int N.
+ *	Used by userspace for "int 80" syscall entry. (Other "int N"
+ *	cause GP -> SEGV since their IDT gates don't allow calls from CPL 3).
+ *	Not supported since kernel's handling of userspace single-stepping
+ *	(TF flag) is fragile.
+ * cf - iret. Normally not used in userspace. Doesn't SEGV unless arguments are bad
  */
 #if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 static volatile u32 good_insns_32[256 / 32] = {
 	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
 	/*      ----------------------------------------------         */
-	W(0x00, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0) | /* 00 */
+	W(0x00, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1) | /* 00 */
 	W(0x10, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0) , /* 10 */
-	W(0x20, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1) | /* 20 */
-	W(0x30, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1) , /* 30 */
+	W(0x20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 20 */
+	W(0x30, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 30 */
 	W(0x40, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 40 */
 	W(0x50, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 50 */
-	W(0x60, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0) | /* 60 */
+	W(0x60, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0) | /* 60 */
 	W(0x70, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 70 */
 	W(0x80, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 80 */
 	W(0x90, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 90 */
 	W(0xa0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* a0 */
 	W(0xb0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* b0 */
 	W(0xc0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0) | /* c0 */
-	W(0xd0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* d0 */
+	W(0xd0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* d0 */
 	W(0xe0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0) | /* e0 */
-	W(0xf0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1)   /* f0 */
+	W(0xf0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1)   /* f0 */
 	/*      ----------------------------------------------         */
 	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
 };
@@ -94,27 +122,61 @@ static volatile u32 good_insns_32[256 / 32] = {
 #define good_insns_32	NULL
 #endif
 
-/* Good-instruction tables for 64-bit apps */
+/* Good-instruction tables for 64-bit apps.
+ *
+ * Genuinely invalid opcodes:
+ * 06,07 - formerly push/pop es
+ * 0e - formerly push cs
+ * 16,17 - formerly push/pop ss
+ * 1e,1f - formerly push/pop ds
+ * 27,2f,37,3f - formerly daa/das/aaa/aas
+ * 60,61 - formerly pusha/popa
+ * 62 - formerly bound. EVEX prefix for AVX512 (not yet supported)
+ * 82 - formerly redundant encoding of Group1
+ * 9a - formerly call seg:ofs
+ * ce - formerly into
+ * d4,d5 - formerly aam/aad
+ * d6 - formerly undocumented salc
+ * ea - formerly jmp seg:ofs
+ *
+ * Opcodes we'll probably never support:
+ * 6c-6f - ins,outs. SEGVs if used in userspace
+ * e4-e7 - in,out imm. SEGVs if used in userspace
+ * ec-ef - in,out acc. SEGVs if used in userspace
+ * cc - int3. SIGTRAP if used in userspace
+ * f1 - int1. SIGTRAP if used in userspace
+ * f4 - hlt. SEGVs if used in userspace
+ * fa - cli. SEGVs if used in userspace
+ * fb - sti. SEGVs if used in userspace
+ *
+ * Opcodes which need some work to be supported:
+ * cd - int N.
+ *	Used by userspace for "int 80" syscall entry. (Other "int N"
+ *	cause GP -> SEGV since their IDT gates don't allow calls from CPL 3).
+ *	Not supported since kernel's handling of userspace single-stepping
+ *	(TF flag) is fragile.
+ * cf - iret. Normally not used in userspace. Doesn't SEGV unless arguments are bad
+ */
 #if defined(CONFIG_X86_64)
 static volatile u32 good_insns_64[256 / 32] = {
 	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
 	/*      ----------------------------------------------         */
-	W(0x00, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0) | /* 00 */
+	W(0x00, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1) | /* 00 */
 	W(0x10, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0) , /* 10 */
-	W(0x20, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0) | /* 20 */
-	W(0x30, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0) , /* 30 */
-	W(0x40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) | /* 40 */
+	W(0x20, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0) | /* 20 */
+	W(0x30, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0) , /* 30 */
+	W(0x40, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 40 */
 	W(0x50, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 50 */
-	W(0x60, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0) | /* 60 */
+	W(0x60, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0) | /* 60 */
 	W(0x70, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 70 */
 	W(0x80, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 80 */
-	W(0x90, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 90 */
+	W(0x90, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1) , /* 90 */
 	W(0xa0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* a0 */
 	W(0xb0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* b0 */
-	W(0xc0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0) | /* c0 */
+	W(0xc0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0) | /* c0 */
 	W(0xd0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* d0 */
-	W(0xe0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0) | /* e0 */
-	W(0xf0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1)   /* f0 */
+	W(0xe0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0) | /* e0 */
+	W(0xf0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1)   /* f0 */
 	/*      ----------------------------------------------         */
 	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
 };
@@ -122,49 +184,55 @@ static volatile u32 good_insns_64[256 / 32] = {
 #define good_insns_64	NULL
 #endif
 
-/* Using this for both 64-bit and 32-bit apps */
+/* Using this for both 64-bit and 32-bit apps.
+ * Opcodes we don't support:
+ * 0f 00 - SLDT/STR/LLDT/LTR/VERR/VERW/-/- group. System insns
+ * 0f 01 - SGDT/SIDT/LGDT/LIDT/SMSW/-/LMSW/INVLPG group.
+ *	Also encodes tons of other system insns if mod=11.
+ *	Some are in fact non-system: xend, xtest, rdtscp, maybe more
+ * 0f 05 - syscall
+ * 0f 06 - clts (CPL0 insn)
+ * 0f 07 - sysret
+ * 0f 08 - invd (CPL0 insn)
+ * 0f 09 - wbinvd (CPL0 insn)
+ * 0f 0b - ud2
+ * 0f 30 - wrmsr (CPL0 insn) (then why rdmsr is allowed, it's also CPL0 insn?)
+ * 0f 34 - sysenter
+ * 0f 35 - sysexit
+ * 0f 37 - getsec
+ * 0f 78 - vmread (Intel VMX. CPL0 insn)
+ * 0f 79 - vmwrite (Intel VMX. CPL0 insn)
+ *	Note: with prefixes, these two opcodes are
+ *	extrq/insertq/AVX512 convert vector ops.
+ * 0f ae - group15: [f]xsave,[f]xrstor,[v]{ld,st}mxcsr,clflush[opt],
+ *	{rd,wr}{fs,gs}base,{s,l,m}fence.
+ *	Why? They are all user-executable.
+ */
 static volatile u32 good_2byte_insns[256 / 32] = {
 	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
 	/*      ----------------------------------------------         */
-	W(0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1) | /* 00 */
-	W(0x10, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1) , /* 10 */
-	W(0x20, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1) | /* 20 */
-	W(0x30, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) , /* 30 */
+	W(0x00, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1) | /* 00 */
+	W(0x10, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 10 */
+	W(0x20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 20 */
+	W(0x30, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1) , /* 30 */
 	W(0x40, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 40 */
 	W(0x50, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 50 */
 	W(0x60, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 60 */
-	W(0x70, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1) , /* 70 */
+	W(0x70, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1) , /* 70 */
 	W(0x80, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 80 */
 	W(0x90, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 90 */
-	W(0xa0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1) | /* a0 */
-	W(0xb0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1) , /* b0 */
+	W(0xa0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1) | /* a0 */
+	W(0xb0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* b0 */
 	W(0xc0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* c0 */
-	W(0xd0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* d0 */
+	W(0xd0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* d0 */
 	W(0xe0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* e0 */
-	W(0xf0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)   /* f0 */
+	W(0xf0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)   /* f0 */
 	/*      ----------------------------------------------         */
 	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
 };
 #undef W
 
 /*
- * opcodes we'll probably never support:
- *
- *  6c-6d, e4-e5, ec-ed - in
- *  6e-6f, e6-e7, ee-ef - out
- *  cc, cd - int3, int
- *  cf - iret
- *  d6 - illegal instruction
- *  f1 - int1/icebp
- *  f4 - hlt
- *  fa, fb - cli, sti
- *  0f - lar, lsl, syscall, clts, sysret, sysenter, sysexit, invd, wbinvd, ud2
- *
- * invalid opcodes in 64-bit mode:
- *
- *  06, 0e, 16, 1e, 27, 2f, 37, 3f, 60-62, 82, c4-c5, d4-d5
- *  63 - we support this opcode in x86_64 but not in i386.
- *
  * opcodes we may need to refine support for:
  *
  *  0f - 2-byte instructions: For many of these instructions, the validity
@@ -219,7 +287,7 @@ static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn, bool
 {
 	u32 volatile *good_insns;
 
-	insn_init(insn, auprobe->insn, x86_64);
+	insn_init(insn, auprobe->insn, sizeof(auprobe->insn), x86_64);
 	/* has the side-effect of processing the entire instruction */
 	insn_get_length(insn);
 	if (WARN_ON_ONCE(!insn_complete(insn)))
@@ -245,11 +313,6 @@ static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn, bool
 }
 
 #ifdef CONFIG_X86_64
-static inline bool is_64bit_mm(struct mm_struct *mm)
-{
-	return	!config_enabled(CONFIG_IA32_EMULATION) ||
-		!(mm->context.ia32_compat == TIF_IA32);
-}
 /*
  * If arch_uprobe->insn doesn't use rip-relative addressing, return
  * immediately.  Otherwise, rewrite the instruction so that it accesses
@@ -430,10 +493,6 @@ static void riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	}
 }
 #else /* 32-bit: */
-static inline bool is_64bit_mm(struct mm_struct *mm)
-{
-	return false;
-}
 /*
  * No RIP-relative addressing on 32-bit
  */
@@ -845,7 +904,7 @@ int arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val,
 	int ret = NOTIFY_DONE;
 
 	/* We are only interested in userspace traps */
-	if (regs && !user_mode_vm(regs))
+	if (regs && !user_mode(regs))
 		return NOTIFY_DONE;
 
 	switch (val) {
@@ -925,4 +984,13 @@ arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr, struct pt_regs
 	}
 
 	return -1;
+}
+
+bool arch_uretprobe_is_alive(struct return_instance *ret, enum rp_check ctx,
+				struct pt_regs *regs)
+{
+	if (ctx == RP_CHECK_CALL) /* sp was just decremented by "call" insn */
+		return regs->sp < ret->stack;
+	else
+		return regs->sp <= ret->stack;
 }

@@ -79,11 +79,12 @@ struct iommu_table_entry {
  *  d). Similar to the 'init', except that this gets called from pci_iommu_init
  *      where we do have a memory allocator.
  *
- * The standard vs the _FINISH differs in that the _FINISH variant will
- * continue detecting other IOMMUs in the call list after the
- * the detection routine returns a positive number. The _FINISH will
- * stop the execution chain. Both will still call the 'init' and
- * 'late_init' functions if they are set.
+ * The standard IOMMU_INIT differs from the IOMMU_INIT_FINISH variant
+ * in that the former will continue detecting other IOMMUs in the call
+ * list after the detection routine returns a positive number, while the
+ * latter will stop the execution chain upon first successful detection.
+ * Both variants will still call the 'init' and 'late_init' functions if
+ * they are set.
  */
 #define IOMMU_INIT_FINISH(_detect, _depend, _init, _late_init)		\
 	__IOMMU_INIT(_detect, _depend, _init, _late_init, 1)

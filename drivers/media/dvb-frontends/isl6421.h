@@ -22,7 +22,7 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org
+ * the project's page is at https://linuxtv.org
  */
 
 #ifndef _ISL6421_H
@@ -39,7 +39,7 @@
 #define ISL6421_ISEL1	0x20
 #define ISL6421_DCL	0x40
 
-#if IS_ENABLED(CONFIG_DVB_ISL6421)
+#if IS_REACHABLE(CONFIG_DVB_ISL6421)
 /* override_set and override_clear control which system register bits (above) to always set & clear */
 extern struct dvb_frontend *isl6421_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, u8 i2c_addr,
 			  u8 override_set, u8 override_clear, bool override_tone);

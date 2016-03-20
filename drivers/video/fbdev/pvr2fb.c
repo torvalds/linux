@@ -686,10 +686,8 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 	if (!pages)
 		return -ENOMEM;
 
-	down_read(&current->mm->mmap_sem);
-	ret = get_user_pages(current, current->mm, (unsigned long)buf,
-			     nr_pages, WRITE, 0, pages, NULL);
-	up_read(&current->mm->mmap_sem);
+	ret = get_user_pages_unlocked(current, current->mm, (unsigned long)buf,
+				      nr_pages, WRITE, 0, pages);
 
 	if (ret < nr_pages) {
 		nr_pages = ret;
@@ -1001,7 +999,7 @@ static int pvr2_get_param(const struct pvr2_params *p, const char *s, int val,
 
 	for (i = 0 ; i < size ; i++ ) {
 		if (s != NULL) {
-			if (!strnicmp(p[i].name, s, strlen(s)))
+			if (!strncasecmp(p[i].name, s, strlen(s)))
 				return p[i].val;
 		} else {
 			if (p[i].val == val)

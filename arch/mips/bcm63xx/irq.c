@@ -58,9 +58,9 @@ static inline int enable_irq_for_cpu(int cpu, struct irq_data *d,
 
 #ifdef CONFIG_SMP
 	if (m)
-		enable &= cpu_isset(cpu, *m);
+		enable &= cpumask_test_cpu(cpu, m);
 	else if (irqd_affinity_was_set(d))
-		enable &= cpu_isset(cpu, *d->affinity);
+		enable &= cpumask_test_cpu(cpu, irq_data_get_affinity_mask(d));
 #endif
 	return enable;
 }
@@ -311,7 +311,7 @@ static int bcm63xx_external_irq_set_type(struct irq_data *d,
 		break;
 
 	default:
-		printk(KERN_ERR "bogus flow type combination given !\n");
+		pr_err("bogus flow type combination given !\n");
 		return -EINVAL;
 	}
 
@@ -365,9 +365,9 @@ static int bcm63xx_external_irq_set_type(struct irq_data *d,
 
 	irqd_set_trigger_type(d, flow_type);
 	if (flow_type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 	else
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 
 	return IRQ_SET_MASK_OK_NOCOPY;
 }
@@ -434,7 +434,7 @@ static void bcm63xx_init_irq(void)
 		irq_stat_addr[0] += PERF_IRQSTAT_3368_REG;
 		irq_mask_addr[0] += PERF_IRQMASK_3368_REG;
 		irq_stat_addr[1] = 0;
-		irq_stat_addr[1] = 0;
+		irq_mask_addr[1] = 0;
 		irq_bits = 32;
 		ext_irq_count = 4;
 		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_3368;
@@ -443,7 +443,7 @@ static void bcm63xx_init_irq(void)
 		irq_stat_addr[0] += PERF_IRQSTAT_6328_REG(0);
 		irq_mask_addr[0] += PERF_IRQMASK_6328_REG(0);
 		irq_stat_addr[1] += PERF_IRQSTAT_6328_REG(1);
-		irq_stat_addr[1] += PERF_IRQMASK_6328_REG(1);
+		irq_mask_addr[1] += PERF_IRQMASK_6328_REG(1);
 		irq_bits = 64;
 		ext_irq_count = 4;
 		is_ext_irq_cascaded = 1;

@@ -2,9 +2,8 @@
 #define ASM_X86_CMPXCHG_H
 
 #include <linux/compiler.h>
+#include <asm/cpufeatures.h>
 #include <asm/alternative.h> /* Provides LOCK_PREFIX */
-
-#define __HAVE_ARCH_CMPXCHG 1
 
 /*
  * Non-existant functions to indicate usage errors at link time

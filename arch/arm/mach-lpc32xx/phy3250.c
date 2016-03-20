@@ -86,8 +86,8 @@ static int lpc32xx_clcd_setup(struct clcd_fb *fb)
 {
 	dma_addr_t dma;
 
-	fb->fb.screen_base = dma_alloc_writecombine(&fb->dev->dev,
-		PANEL_SIZE, &dma, GFP_KERNEL);
+	fb->fb.screen_base = dma_alloc_wc(&fb->dev->dev, PANEL_SIZE, &dma,
+					  GFP_KERNEL);
 	if (!fb->fb.screen_base) {
 		printk(KERN_ERR "CLCD: unable to map framebuffer\n");
 		return -ENOMEM;
@@ -116,15 +116,14 @@ static int lpc32xx_clcd_setup(struct clcd_fb *fb)
 
 static int lpc32xx_clcd_mmap(struct clcd_fb *fb, struct vm_area_struct *vma)
 {
-	return dma_mmap_writecombine(&fb->dev->dev, vma,
-		fb->fb.screen_base, fb->fb.fix.smem_start,
-		fb->fb.fix.smem_len);
+	return dma_mmap_wc(&fb->dev->dev, vma, fb->fb.screen_base,
+			   fb->fb.fix.smem_start, fb->fb.fix.smem_len);
 }
 
 static void lpc32xx_clcd_remove(struct clcd_fb *fb)
 {
-	dma_free_writecombine(&fb->dev->dev, fb->fb.fix.smem_len,
-		fb->fb.screen_base, fb->fb.fix.smem_start);
+	dma_free_wc(&fb->dev->dev, fb->fb.fix.smem_len, fb->fb.screen_base,
+		    fb->fb.fix.smem_start);
 }
 
 /*
@@ -212,7 +211,7 @@ static struct lpc32xx_mlc_platform_data lpc32xx_mlc_data = {
 	.dma_filter = pl08x_filter_id,
 };
 
-static const struct of_dev_auxdata lpc32xx_auxdata_lookup[] __initconst = {
+static const struct of_dev_auxdata const lpc32xx_auxdata_lookup[] __initconst = {
 	OF_DEV_AUXDATA("arm,pl022", 0x20084000, "dev:ssp0", NULL),
 	OF_DEV_AUXDATA("arm,pl022", 0x2008C000, "dev:ssp1", NULL),
 	OF_DEV_AUXDATA("arm,pl110", 0x31040000, "dev:clcd", &lpc32xx_clcd_data),
@@ -248,7 +247,7 @@ static void __init lpc3250_machine_init(void)
 			     lpc32xx_auxdata_lookup, NULL);
 }
 
-static char const *lpc32xx_dt_compat[] __initdata = {
+static const char *const lpc32xx_dt_compat[] __initconst = {
 	"nxp,lpc3220",
 	"nxp,lpc3230",
 	"nxp,lpc3240",
@@ -263,5 +262,4 @@ DT_MACHINE_START(LPC32XX_DT, "LPC32XX SoC (Flattened Device Tree)")
 	.init_time	= lpc32xx_timer_init,
 	.init_machine	= lpc3250_machine_init,
 	.dt_compat	= lpc32xx_dt_compat,
-	.restart	= lpc23xx_restart,
 MACHINE_END

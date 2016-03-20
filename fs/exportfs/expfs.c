@@ -50,7 +50,7 @@ find_acceptable_alias(struct dentry *result,
 
 	inode = result->d_inode;
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(dentry, &inode->i_dentry, d_alias) {
+	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
 		dget(dentry);
 		spin_unlock(&inode->i_lock);
 		if (toput)
@@ -124,10 +124,10 @@ static struct dentry *reconnect_one(struct vfsmount *mnt,
 	int err;
 
 	parent = ERR_PTR(-EACCES);
-	mutex_lock(&dentry->d_inode->i_mutex);
+	inode_lock(dentry->d_inode);
 	if (mnt->mnt_sb->s_export_op->get_parent)
 		parent = mnt->mnt_sb->s_export_op->get_parent(dentry);
-	mutex_unlock(&dentry->d_inode->i_mutex);
+	inode_unlock(dentry->d_inode);
 
 	if (IS_ERR(parent)) {
 		dprintk("%s: get_parent of %ld failed, err %d\n",
@@ -143,9 +143,9 @@ static struct dentry *reconnect_one(struct vfsmount *mnt,
 	if (err)
 		goto out_err;
 	dprintk("%s: found name: %s\n", __func__, nbuf);
-	mutex_lock(&parent->d_inode->i_mutex);
+	inode_lock(parent->d_inode);
 	tmp = lookup_one_len(nbuf, parent, strlen(nbuf));
-	mutex_unlock(&parent->d_inode->i_mutex);
+	inode_unlock(parent->d_inode);
 	if (IS_ERR(tmp)) {
 		dprintk("%s: lookup failed: %d\n", __func__, PTR_ERR(tmp));
 		goto out_err;
@@ -241,10 +241,11 @@ struct getdents_callback {
  * A rather strange filldir function to capture
  * the name matching the specified inode number.
  */
-static int filldir_one(void * __buf, const char * name, int len,
+static int filldir_one(struct dir_context *ctx, const char *name, int len,
 			loff_t pos, u64 ino, unsigned int d_type)
 {
-	struct getdents_callback *buf = __buf;
+	struct getdents_callback *buf =
+		container_of(ctx, struct getdents_callback, ctx);
 	int result = 0;
 
 	buf->sequence++;
@@ -428,7 +429,7 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 	if (IS_ERR(result))
 		return result;
 
-	if (S_ISDIR(result->d_inode->i_mode)) {
+	if (d_is_dir(result)) {
 		/*
 		 * This request is for a directory.
 		 *
@@ -502,10 +503,10 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 		 */
 		err = exportfs_get_name(mnt, target_dir, nbuf, result);
 		if (!err) {
-			mutex_lock(&target_dir->d_inode->i_mutex);
+			inode_lock(target_dir->d_inode);
 			nresult = lookup_one_len(nbuf, target_dir,
 						 strlen(nbuf));
-			mutex_unlock(&target_dir->d_inode->i_mutex);
+			inode_unlock(target_dir->d_inode);
 			if (!IS_ERR(nresult)) {
 				if (nresult->d_inode) {
 					dput(result);

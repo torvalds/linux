@@ -80,6 +80,12 @@ if the requested mode is invalid or unsupported. Since this is a
 <!-- FIXME -->write-only ioctl, it does not return the actually
 selected audio mode.</para>
 
+    <para><link linkend="sdr">SDR</link> specific tuner types are
+<constant>V4L2_TUNER_SDR</constant> and <constant>V4L2_TUNER_RF</constant>.
+For SDR devices <structfield>audmode</structfield> field must be
+initialized to zero.
+The term 'tuner' means SDR receiver in this context.</para>
+
     <para>To change the radio frequency the &VIDIOC-S-FREQUENCY; ioctl
 is available.</para>
 
@@ -259,6 +265,16 @@ applications must set the array to zero.</entry>
 	  <row>
 	    <entry><constant>V4L2_TUNER_ANALOG_TV</constant></entry>
 	    <entry>2</entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_TUNER_SDR</constant></entry>
+	    <entry>4</entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_TUNER_RF</constant></entry>
+	    <entry>5</entry>
 	    <entry></entry>
 	  </row>
 	</tbody>

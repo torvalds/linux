@@ -71,7 +71,8 @@ static int twl4030_pwrbutton_probe(struct platform_device *pdev)
 	pwr->dev.parent = &pdev->dev;
 
 	err = devm_request_threaded_irq(&pwr->dev, irq, NULL, powerbutton_irq,
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
+			IRQF_ONESHOT,
 			"twl4030_pwrbutton", pwr);
 	if (err < 0) {
 		dev_err(&pdev->dev, "Can't get IRQ for pwrbutton: %d\n", err);
@@ -85,6 +86,7 @@ static int twl4030_pwrbutton_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, pwr);
+	device_init_wakeup(&pdev->dev, true);
 
 	return 0;
 }
@@ -101,7 +103,6 @@ static struct platform_driver twl4030_pwrbutton_driver = {
 	.probe		= twl4030_pwrbutton_probe,
 	.driver		= {
 		.name	= "twl4030_pwrbutton",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(twl4030_pwrbutton_dt_match_table),
 	},
 };

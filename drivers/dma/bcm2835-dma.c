@@ -31,6 +31,7 @@
  */
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmapool.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -62,6 +63,11 @@ struct bcm2835_dma_cb {
 	uint32_t pad[2];
 };
 
+struct bcm2835_cb_entry {
+	struct bcm2835_dma_cb *cb;
+	dma_addr_t paddr;
+};
+
 struct bcm2835_chan {
 	struct virt_dma_chan vc;
 	struct list_head node;
@@ -72,18 +78,18 @@ struct bcm2835_chan {
 
 	int ch;
 	struct bcm2835_desc *desc;
+	struct dma_pool *cb_pool;
 
 	void __iomem *chan_base;
 	int irq_number;
 };
 
 struct bcm2835_desc {
+	struct bcm2835_chan *c;
 	struct virt_dma_desc vd;
 	enum dma_transfer_direction dir;
 
-	unsigned int control_block_size;
-	struct bcm2835_dma_cb *control_block_base;
-	dma_addr_t control_block_base_phys;
+	struct bcm2835_cb_entry *cb_list;
 
 	unsigned int frames;
 	size_t size;
@@ -143,10 +149,13 @@ static inline struct bcm2835_desc *to_bcm2835_dma_desc(
 static void bcm2835_dma_desc_free(struct virt_dma_desc *vd)
 {
 	struct bcm2835_desc *desc = container_of(vd, struct bcm2835_desc, vd);
-	dma_free_coherent(desc->vd.tx.chan->device->dev,
-			desc->control_block_size,
-			desc->control_block_base,
-			desc->control_block_base_phys);
+	int i;
+
+	for (i = 0; i < desc->frames; i++)
+		dma_pool_free(desc->c->cb_pool, desc->cb_list[i].cb,
+			      desc->cb_list[i].paddr);
+
+	kfree(desc->cb_list);
 	kfree(desc);
 }
 
@@ -199,7 +208,7 @@ static void bcm2835_dma_start_desc(struct bcm2835_chan *c)
 
 	c->desc = d = to_bcm2835_dma_desc(&vd->tx);
 
-	writel(d->control_block_base_phys, c->chan_base + BCM2835_DMA_ADDR);
+	writel(d->cb_list[0].paddr, c->chan_base + BCM2835_DMA_ADDR);
 	writel(BCM2835_DMA_ACTIVE, c->chan_base + BCM2835_DMA_CS);
 }
 
@@ -232,9 +241,16 @@ static irqreturn_t bcm2835_dma_callback(int irq, void *data)
 static int bcm2835_dma_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
+	struct device *dev = c->vc.chan.device->dev;
 
-	dev_dbg(c->vc.chan.device->dev,
-			"Allocating DMA channel %d\n", c->ch);
+	dev_dbg(dev, "Allocating DMA channel %d\n", c->ch);
+
+	c->cb_pool = dma_pool_create(dev_name(dev), dev,
+				     sizeof(struct bcm2835_dma_cb), 0, 0);
+	if (!c->cb_pool) {
+		dev_err(dev, "unable to allocate descriptor pool\n");
+		return -ENOMEM;
+	}
 
 	return request_irq(c->irq_number,
 			bcm2835_dma_callback, 0, "DMA IRQ", c);
@@ -246,6 +262,7 @@ static void bcm2835_dma_free_chan_resources(struct dma_chan *chan)
 
 	vchan_free_chan_resources(&c->vc);
 	free_irq(c->irq_number, c);
+	dma_pool_destroy(c->cb_pool);
 
 	dev_dbg(c->vc.chan.device->dev, "Freeing DMA channel %u\n", c->ch);
 }
@@ -261,8 +278,7 @@ static size_t bcm2835_dma_desc_size_pos(struct bcm2835_desc *d, dma_addr_t addr)
 	size_t size;
 
 	for (size = i = 0; i < d->frames; i++) {
-		struct bcm2835_dma_cb *control_block =
-			&d->control_block_base[i];
+		struct bcm2835_dma_cb *control_block = d->cb_list[i].cb;
 		size_t this_size = control_block->length;
 		dma_addr_t dma;
 
@@ -343,6 +359,7 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 	dma_addr_t dev_addr;
 	unsigned int es, sync_type;
 	unsigned int frame;
+	int i;
 
 	/* Grab configuration */
 	if (!is_slave_direction(direction)) {
@@ -374,18 +391,23 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 	if (!d)
 		return NULL;
 
+	d->c = c;
 	d->dir = direction;
 	d->frames = buf_len / period_len;
 
-	/* Allocate memory for control blocks */
-	d->control_block_size = d->frames * sizeof(struct bcm2835_dma_cb);
-	d->control_block_base = dma_zalloc_coherent(chan->device->dev,
-			d->control_block_size, &d->control_block_base_phys,
-			GFP_NOWAIT);
-
-	if (!d->control_block_base) {
+	d->cb_list = kcalloc(d->frames, sizeof(*d->cb_list), GFP_KERNEL);
+	if (!d->cb_list) {
 		kfree(d);
 		return NULL;
+	}
+	/* Allocate memory for control blocks */
+	for (i = 0; i < d->frames; i++) {
+		struct bcm2835_cb_entry *cb_entry = &d->cb_list[i];
+
+		cb_entry->cb = dma_pool_zalloc(c->cb_pool, GFP_ATOMIC,
+					       &cb_entry->paddr);
+		if (!cb_entry->cb)
+			goto error_cb;
 	}
 
 	/*
@@ -393,8 +415,7 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 	 * for each frame and link them together.
 	 */
 	for (frame = 0; frame < d->frames; frame++) {
-		struct bcm2835_dma_cb *control_block =
-			&d->control_block_base[frame];
+		struct bcm2835_dma_cb *control_block = d->cb_list[frame].cb;
 
 		/* Setup adresses */
 		if (d->dir == DMA_DEV_TO_MEM) {
@@ -428,17 +449,28 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 		 * This DMA engine driver currently only supports cyclic DMA.
 		 * Therefore, wrap around at number of frames.
 		 */
-		control_block->next = d->control_block_base_phys +
-			sizeof(struct bcm2835_dma_cb)
-			* ((frame + 1) % d->frames);
+		control_block->next = d->cb_list[((frame + 1) % d->frames)].paddr;
 	}
 
 	return vchan_tx_prep(&c->vc, &d->vd, flags);
+error_cb:
+	i--;
+	for (; i >= 0; i--) {
+		struct bcm2835_cb_entry *cb_entry = &d->cb_list[i];
+
+		dma_pool_free(c->cb_pool, cb_entry->cb, cb_entry->paddr);
+	}
+
+	kfree(d->cb_list);
+	kfree(d);
+	return NULL;
 }
 
-static int bcm2835_dma_slave_config(struct bcm2835_chan *c,
-		struct dma_slave_config *cfg)
+static int bcm2835_dma_slave_config(struct dma_chan *chan,
+				    struct dma_slave_config *cfg)
 {
+	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
+
 	if ((cfg->direction == DMA_DEV_TO_MEM &&
 	     cfg->src_addr_width != DMA_SLAVE_BUSWIDTH_4_BYTES) ||
 	    (cfg->direction == DMA_MEM_TO_DEV &&
@@ -452,8 +484,9 @@ static int bcm2835_dma_slave_config(struct bcm2835_chan *c,
 	return 0;
 }
 
-static int bcm2835_dma_terminate_all(struct bcm2835_chan *c)
+static int bcm2835_dma_terminate_all(struct dma_chan *chan)
 {
+	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
 	struct bcm2835_dmadev *d = to_bcm2835_dma_dev(c->vc.chan.device);
 	unsigned long flags;
 	int timeout = 10000;
@@ -472,6 +505,7 @@ static int bcm2835_dma_terminate_all(struct bcm2835_chan *c)
 	 * c->desc is NULL and exit.)
 	 */
 	if (c->desc) {
+		bcm2835_dma_desc_free(&c->desc->vd);
 		c->desc = NULL;
 		bcm2835_dma_abort(c->chan_base);
 
@@ -495,24 +529,6 @@ static int bcm2835_dma_terminate_all(struct bcm2835_chan *c)
 	return 0;
 }
 
-static int bcm2835_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-	unsigned long arg)
-{
-	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
-
-	switch (cmd) {
-	case DMA_SLAVE_CONFIG:
-		return bcm2835_dma_slave_config(c,
-				(struct dma_slave_config *)arg);
-
-	case DMA_TERMINATE_ALL:
-		return bcm2835_dma_terminate_all(c);
-
-	default:
-		return -ENXIO;
-	}
-}
-
 static int bcm2835_dma_chan_init(struct bcm2835_dmadev *d, int chan_id, int irq)
 {
 	struct bcm2835_chan *c;
@@ -524,8 +540,6 @@ static int bcm2835_dma_chan_init(struct bcm2835_dmadev *d, int chan_id, int irq)
 	c->vc.desc_free = bcm2835_dma_desc_free;
 	vchan_init(&c->vc, &d->ddev);
 	INIT_LIST_HEAD(&c->node);
-
-	d->ddev.chancnt++;
 
 	c->chan_base = BCM2835_DMA_CHANIO(d->base, chan_id);
 	c->ch = chan_id;
@@ -567,18 +581,6 @@ static struct dma_chan *bcm2835_dma_xlate(struct of_phandle_args *spec,
 	return chan;
 }
 
-static int bcm2835_dma_device_slave_caps(struct dma_chan *dchan,
-	struct dma_slave_caps *caps)
-{
-	caps->src_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
-	caps->dstn_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
-	caps->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
-	caps->cmd_pause = false;
-	caps->cmd_terminate = true;
-
-	return 0;
-}
-
 static int bcm2835_dma_probe(struct platform_device *pdev)
 {
 	struct bcm2835_dmadev *od;
@@ -617,9 +619,12 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 	od->ddev.device_free_chan_resources = bcm2835_dma_free_chan_resources;
 	od->ddev.device_tx_status = bcm2835_dma_tx_status;
 	od->ddev.device_issue_pending = bcm2835_dma_issue_pending;
-	od->ddev.device_slave_caps = bcm2835_dma_device_slave_caps;
 	od->ddev.device_prep_dma_cyclic = bcm2835_dma_prep_dma_cyclic;
-	od->ddev.device_control = bcm2835_dma_control;
+	od->ddev.device_config = bcm2835_dma_slave_config;
+	od->ddev.device_terminate_all = bcm2835_dma_terminate_all;
+	od->ddev.src_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
+	od->ddev.dst_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
+	od->ddev.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 	od->ddev.dev = &pdev->dev;
 	INIT_LIST_HEAD(&od->ddev.channels);
 	spin_lock_init(&od->lock);
@@ -694,7 +699,6 @@ static struct platform_driver bcm2835_dma_driver = {
 	.remove	= bcm2835_dma_remove,
 	.driver = {
 		.name = "bcm2835-dma",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(bcm2835_dma_of_match),
 	},
 };

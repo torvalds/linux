@@ -20,8 +20,20 @@
 #include <asm/thread_info.h>	/* for TS_COMPAT */
 #include <asm/unistd.h>
 
-typedef void (*sys_call_ptr_t)(void);
+typedef asmlinkage long (*sys_call_ptr_t)(unsigned long, unsigned long,
+					  unsigned long, unsigned long,
+					  unsigned long, unsigned long);
 extern const sys_call_ptr_t sys_call_table[];
+
+#if defined(CONFIG_X86_32)
+#define ia32_sys_call_table sys_call_table
+#define __NR_syscall_compat_max __NR_syscall_max
+#define IA32_NR_syscalls NR_syscalls
+#endif
+
+#if defined(CONFIG_IA32_EMULATION)
+extern const sys_call_ptr_t ia32_sys_call_table[];
+#endif
 
 /*
  * Only the low 32 bits of orig_ax are meaningful, so we return int.

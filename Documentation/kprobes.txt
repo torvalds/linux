@@ -300,12 +300,13 @@ architectures:
 - arm
 - ppc
 - mips
+- s390
 
 3. Configuring Kprobes
 
 When configuring the kernel using make menuconfig/xconfig/oldconfig,
-ensure that CONFIG_KPROBES is set to "y".  Under "Instrumentation
-Support", look for "Kprobes".
+ensure that CONFIG_KPROBES is set to "y". Under "General setup", look
+for "Kprobes".
 
 So that you can load and unload Kprobes-based instrumentation modules,
 make sure "Loadable module support" (CONFIG_MODULES) and "Module
@@ -701,7 +702,8 @@ a virtual address that is no longer valid (module init sections, module
 virtual addresses that correspond to modules that've been unloaded),
 such probes are marked with [GONE]. If the probe is temporarily disabled,
 such probes are marked with [DISABLED]. If the probe is optimized, it is
-marked with [OPTIMIZED].
+marked with [OPTIMIZED]. If the probe is ftrace-based, it is marked with
+[FTRACE].
 
 /sys/kernel/debug/kprobes/enabled: Turn kprobes ON/OFF forcibly.
 

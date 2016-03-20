@@ -10,7 +10,7 @@ Required properties:
 - dsa,ethernet		: Should be a phandle to a valid Ethernet device node
 - dsa,mii-bus		: Should be a phandle to a valid MDIO bus device node
 
-Optionnal properties:
+Optional properties:
 - interrupts		: property with a value describing the switch
 			  interrupt number (not supported by the driver)
 
@@ -19,9 +19,20 @@ the parent DSA node. The maximum number of allowed child nodes is 4
 (DSA_MAX_SWITCHES).
 Each of these switch child nodes should have the following required properties:
 
-- reg			: Describes the switch address on the MII bus
+- reg			: Contains two fields. The first one describes the
+			  address on the MII bus. The second is the switch
+			  number that must be unique in cascaded configurations
 - #address-cells	: Must be 1
 - #size-cells		: Must be 0
+
+A switch child node has the following optional property:
+
+- eeprom-length		: Set to the length of an EEPROM connected to the
+			  switch. Must be set if the switch can not detect
+			  the presence and/or size of a connected EEPROM,
+			  otherwise optional.
+- reset-gpios		: phandle and specifier to a gpio line connected to
+			  reset pin of the switch chip.
 
 A switch may have multiple "port" children nodes
 
@@ -35,9 +46,30 @@ Note that a port labelled "dsa" will imply checking for the uplink phandle
 described below.
 
 Optionnal property:
-- link			: Should be a phandle to another switch's DSA port.
+- link			: Should be a list of phandles to another switch's DSA port.
 			  This property is only used when switches are being
-			  chained/cascaded together.
+			  chained/cascaded together. This port is used as outgoing port
+			  towards the phandle port, which can be more than one hop away.
+
+- phy-handle		: Phandle to a PHY on an external MDIO bus, not the
+			  switch internal one. See
+			  Documentation/devicetree/bindings/net/ethernet.txt
+			  for details.
+
+- phy-mode		: String representing the connection to the designated
+			  PHY node specified by the 'phy-handle' property. See
+			  Documentation/devicetree/bindings/net/ethernet.txt
+			  for details.
+
+- mii-bus		: Should be a phandle to a valid MDIO bus device node.
+			  This mii-bus will be used in preference to the
+			  global dsa,mii-bus defined above, for this switch.
+
+Optional subnodes:
+- fixed-link		: Fixed-link subnode describing a link to a non-MDIO
+			  managed entity. See
+			  Documentation/devicetree/bindings/net/fixed-link.txt
+			  for details.
 
 Example:
 
@@ -58,6 +90,7 @@ Example:
 			port@0 {
 				reg = <0>;
 				label = "lan1";
+				phy-handle = <&phy0>;
 			};
 
 			port@1 {
@@ -70,10 +103,11 @@ Example:
 				label = "cpu";
 			};
 
-			switch0uplink: port@6 {
+			switch0port6: port@6 {
 				reg = <6>;
 				label = "dsa";
-				link = <&switch1uplink>;
+				link = <&switch1port0
+				        &switch2port0>;
 			};
 		};
 
@@ -81,11 +115,32 @@ Example:
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <17 1>;	/* MDIO address 17, switch 1 in tree */
+			mii-bus = <&mii_bus1>;
+			reset-gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
 
-			switch1uplink: port@0 {
+			switch1port0: port@0 {
 				reg = <0>;
 				label = "dsa";
-				link = <&switch0uplink>;
+				link = <&switch0port6>;
+			};
+			switch1port1: port@1 {
+				reg = <1>;
+				label = "dsa";
+				link = <&switch2port1>;
+			};
+		};
+
+		switch@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <18 2>;	/* MDIO address 18, switch 2 in tree */
+			mii-bus = <&mii_bus1>;
+
+			switch2port0: port@0 {
+				reg = <0>;
+				label = "dsa";
+				link = <&switch1port1
+				        &switch0port6>;
 			};
 		};
 	};

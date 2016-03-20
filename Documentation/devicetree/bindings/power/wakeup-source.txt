@@ -1,0 +1,71 @@
+Specifying wakeup capability for devices
+============================================
+
+Any device nodes
+----------------
+Nodes that describe devices which has wakeup capability must contain an
+"wakeup-source" boolean property.
+
+Also, if device is marked as a wakeup source, then all the primary
+interrupt(s) can be used as wakeup interrupt(s).
+
+However if the devices have dedicated interrupt as the wakeup source
+then they need to specify/identify the same using device specific
+interrupt name. In such cases only that interrupt can be used as wakeup
+interrupt.
+
+List of legacy properties and respective binding document
+---------------------------------------------------------
+
+1. "enable-sdio-wakeup"		Documentation/devicetree/bindings/mmc/mmc.txt
+2. "gpio-key,wakeup"		Documentation/devicetree/bindings/input/gpio-keys{,-polled}.txt
+3. "has-tpo"			Documentation/devicetree/bindings/rtc/rtc-opal.txt
+4. "isil,irq2-can-wakeup-machine" Documentation/devicetree/bindings/rtc/isil,isl12057.txt
+5. "linux,wakeup"		Documentation/devicetree/bindings/input/gpio-matrix-keypad.txt
+				Documentation/devicetree/bindings/mfd/tc3589x.txt
+				Documentation/devicetree/bindings/input/ads7846.txt
+6. "linux,keypad-wakeup"	Documentation/devicetree/bindings/input/qcom,pm8xxx-keypad.txt
+7. "linux,input-wakeup"		Documentation/devicetree/bindings/input/samsung-keypad.txt
+8. "nvidia,wakeup-source"	Documentation/devicetree/bindings/input/nvidia,tegra20-kbc.txt
+
+Examples
+--------
+
+1. With "wakeup" interrupt name
+
+	device@10000 {
+		compatible	= "vendor,device-id";
+		reg		= <0x10000 0x1000>;
+		interrupts	= <0 19 4>, <0 21 4>, <0 22 4>;
+		interrupt-names	= "ack", "err", "wakeup";
+		wakeup-source;
+	};
+
+2. Without "wakeup" interrupt name
+
+	embedded-controller {
+		compatible = "google,cros-ec-i2c";
+		reg = <0x1e>;
+		interrupts = <6 0>;
+		interrupt-parent = <&gpx1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ec_irq>;
+		wakeup-source;
+	};
+
+3. Without interrupts
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			debounce_interval = <50>;
+			wakeup-source;
+			linux,code = <116>;
+			label = "POWER";
+			gpios = <&iofpga_gpio0 0 0x4>;
+		};
+		[....]
+	};

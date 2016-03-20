@@ -266,7 +266,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 
 	error = omap4_keypad_parse_dt(&pdev->dev, keypad_data);
 	if (error)
-		return error;
+		goto err_free_keypad;
 
 	res = request_mem_region(res->start, resource_size(res), pdev->name);
 	if (!res) {
@@ -460,7 +460,6 @@ static struct platform_driver omap4_keypad_driver = {
 	.remove		= omap4_keypad_remove,
 	.driver		= {
 		.name	= "omap4-keypad",
-		.owner	= THIS_MODULE,
 		.pm	= &omap4_keypad_pm_ops,
 		.of_match_table = omap_keypad_dt_match,
 	},

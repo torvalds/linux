@@ -184,15 +184,16 @@ static void alx_schedule_reset(struct alx_priv *alx)
 	schedule_work(&alx->reset_wk);
 }
 
-static bool alx_clean_rx_irq(struct alx_priv *alx, int budget)
+static int alx_clean_rx_irq(struct alx_priv *alx, int budget)
 {
 	struct alx_rx_queue *rxq = &alx->rxq;
 	struct alx_rrd *rrd;
 	struct alx_buffer *rxb;
 	struct sk_buff *skb;
 	u16 length, rfd_cleaned = 0;
+	int work = 0;
 
-	while (budget > 0) {
+	while (work < budget) {
 		rrd = &rxq->rrd[rxq->rrd_read_idx];
 		if (!(rrd->word3 & cpu_to_le32(1 << RRD_UPDATED_SHIFT)))
 			break;
@@ -203,7 +204,7 @@ static bool alx_clean_rx_irq(struct alx_priv *alx, int budget)
 		    ALX_GET_FIELD(le32_to_cpu(rrd->word0),
 				  RRD_NOR) != 1) {
 			alx_schedule_reset(alx);
-			return 0;
+			return work;
 		}
 
 		rxb = &rxq->bufs[rxq->read_idx];
@@ -243,7 +244,7 @@ static bool alx_clean_rx_irq(struct alx_priv *alx, int budget)
 		}
 
 		napi_gro_receive(&alx->napi, skb);
-		budget--;
+		work++;
 
 next_pkt:
 		if (++rxq->read_idx == alx->rx_ringsz)
@@ -258,21 +259,22 @@ next_pkt:
 	if (rfd_cleaned)
 		alx_refill_rx_ring(alx, GFP_ATOMIC);
 
-	return budget > 0;
+	return work;
 }
 
 static int alx_poll(struct napi_struct *napi, int budget)
 {
 	struct alx_priv *alx = container_of(napi, struct alx_priv, napi);
 	struct alx_hw *hw = &alx->hw;
-	bool complete = true;
 	unsigned long flags;
+	bool tx_complete;
+	int work;
 
-	complete = alx_clean_tx_irq(alx) &&
-		   alx_clean_rx_irq(alx, budget);
+	tx_complete = alx_clean_tx_irq(alx);
+	work = alx_clean_rx_irq(alx, budget);
 
-	if (!complete)
-		return 1;
+	if (!tx_complete || work == budget)
+		return budget;
 
 	napi_complete(&alx->napi);
 
@@ -284,7 +286,7 @@ static int alx_poll(struct napi_struct *napi, int budget)
 
 	alx_post_write(hw);
 
-	return 0;
+	return work;
 }
 
 static irqreturn_t alx_intr_handle(struct alx_priv *alx, u32 intr)
@@ -575,7 +577,6 @@ static int alx_alloc_rings(struct alx_priv *alx)
 
 	alx->int_mask &= ~ALX_ISR_ALL_QUEUES;
 	alx->int_mask |= ALX_ISR_TX_Q0 | ALX_ISR_RX_Q0;
-	alx->tx_ringsz = alx->tx_ringsz;
 
 	netif_napi_add(alx->dev, &alx->napi, alx_poll, 64);
 
@@ -703,7 +704,7 @@ static int alx_init_sw(struct alx_priv *alx)
 
 	hw->smb_timer = 400;
 	hw->mtu = alx->dev->mtu;
-	alx->rxbuf_size = ALIGN(ALX_RAW_MTU(hw->mtu), 8);
+	alx->rxbuf_size = ALX_MAX_FRAME_LEN(hw->mtu);
 	alx->tx_ringsz = 256;
 	alx->rx_ringsz = 512;
 	hw->imt = 200;
@@ -804,7 +805,7 @@ static void alx_reinit(struct alx_priv *alx)
 static int alx_change_mtu(struct net_device *netdev, int mtu)
 {
 	struct alx_priv *alx = netdev_priv(netdev);
-	int max_frame = mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
+	int max_frame = ALX_MAX_FRAME_LEN(mtu);
 
 	if ((max_frame < ALX_MIN_FRAME_SIZE) ||
 	    (max_frame > ALX_MAX_FRAME_SIZE))
@@ -815,8 +816,7 @@ static int alx_change_mtu(struct net_device *netdev, int mtu)
 
 	netdev->mtu = mtu;
 	alx->hw.mtu = mtu;
-	alx->rxbuf_size = mtu > ALX_DEF_RXBUF_SIZE ?
-			   ALIGN(max_frame, 8) : ALX_DEF_RXBUF_SIZE;
+	alx->rxbuf_size = max(max_frame, ALX_DEF_RXBUF_SIZE);
 	netdev_update_features(netdev);
 	if (netif_running(netdev))
 		alx_reinit(alx);
@@ -1531,6 +1531,8 @@ static const struct pci_device_id alx_pci_tbl[] = {
 	{ PCI_VDEVICE(ATTANSIC, ALX_DEV_ID_AR8161),
 	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_BUG },
 	{ PCI_VDEVICE(ATTANSIC, ALX_DEV_ID_E2200),
+	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_BUG },
+	{ PCI_VDEVICE(ATTANSIC, ALX_DEV_ID_E2400),
 	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_BUG },
 	{ PCI_VDEVICE(ATTANSIC, ALX_DEV_ID_AR8162),
 	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_BUG },

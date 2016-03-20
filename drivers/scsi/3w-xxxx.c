@@ -523,19 +523,6 @@ static ssize_t tw_show_stats(struct device *dev, struct device_attribute *attr,
 	return len;
 } /* End tw_show_stats() */
 
-/* This function will set a devices queue depth */
-static int tw_change_queue_depth(struct scsi_device *sdev, int queue_depth,
-				 int reason)
-{
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
-
-	if (queue_depth > TW_Q_LENGTH-2)
-		queue_depth = TW_Q_LENGTH-2;
-	scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, queue_depth);
-	return queue_depth;
-} /* End tw_change_queue_depth() */
-
 /* Create sysfs 'stats' entry */
 static struct device_attribute tw_host_stats_attr = {
 	.attr = {
@@ -1058,6 +1045,9 @@ static int tw_chrdev_open(struct inode *inode, struct file *file)
 static const struct file_operations tw_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= tw_chrdev_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = tw_chrdev_ioctl,
+#endif
 	.open		= tw_chrdev_open,
 	.release	= NULL,
 	.llseek		= noop_llseek,
@@ -1284,32 +1274,6 @@ static int tw_initialize_device_extension(TW_Device_Extension *tw_dev)
 	return 0;
 } /* End tw_initialize_device_extension() */
 
-static int tw_map_scsi_sg_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
-{
-	int use_sg;
-
-	dprintk(KERN_WARNING "3w-xxxx: tw_map_scsi_sg_data()\n");
-
-	use_sg = scsi_dma_map(cmd);
-	if (use_sg < 0) {
-		printk(KERN_WARNING "3w-xxxx: tw_map_scsi_sg_data(): pci_map_sg() failed.\n");
-		return 0;
-	}
-
-	cmd->SCp.phase = TW_PHASE_SGLIST;
-	cmd->SCp.have_data_in = use_sg;
-
-	return use_sg;
-} /* End tw_map_scsi_sg_data() */
-
-static void tw_unmap_scsi_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
-{
-	dprintk(KERN_WARNING "3w-xxxx: tw_unmap_scsi_data()\n");
-
-	if (cmd->SCp.phase == TW_PHASE_SGLIST)
-		scsi_dma_unmap(cmd);
-} /* End tw_unmap_scsi_data() */
-
 /* This function will reset a device extension */
 static int tw_reset_device_extension(TW_Device_Extension *tw_dev)
 {
@@ -1332,8 +1296,8 @@ static int tw_reset_device_extension(TW_Device_Extension *tw_dev)
 			srb = tw_dev->srb[i];
 			if (srb != NULL) {
 				srb->result = (DID_RESET << 16);
-				tw_dev->srb[i]->scsi_done(tw_dev->srb[i]);
-				tw_unmap_scsi_data(tw_dev->tw_pci_dev, tw_dev->srb[i]);
+				scsi_dma_unmap(srb);
+				srb->scsi_done(srb);
 			}
 		}
 	}
@@ -1780,8 +1744,8 @@ static int tw_scsiop_read_write(TW_Device_Extension *tw_dev, int request_id)
 	command_packet->byte8.io.lba = lba;
 	command_packet->byte6.block_count = num_sectors;
 
-	use_sg = tw_map_scsi_sg_data(tw_dev->tw_pci_dev, tw_dev->srb[request_id]);
-	if (!use_sg)
+	use_sg = scsi_dma_map(srb);
+	if (use_sg <= 0)
 		return 1;
 
 	scsi_for_each_sg(tw_dev->srb[request_id], sg, use_sg, i) {
@@ -1967,9 +1931,6 @@ static int tw_scsi_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_c
 
 	/* Save the scsi command for use by the ISR */
 	tw_dev->srb[request_id] = SCpnt;
-
-	/* Initialize phase to zero */
-	SCpnt->SCp.phase = TW_PHASE_INITIAL;
 
 	switch (*command) {
 		case READ_10:
@@ -2198,12 +2159,11 @@ static irqreturn_t tw_interrupt(int irq, void *dev_instance)
 
 				/* Now complete the io */
 				if ((error != TW_ISR_DONT_COMPLETE)) {
+					scsi_dma_unmap(tw_dev->srb[request_id]);
+					tw_dev->srb[request_id]->scsi_done(tw_dev->srb[request_id]);
 					tw_dev->state[request_id] = TW_S_COMPLETED;
 					tw_state_request_finish(tw_dev, request_id);
 					tw_dev->posted_request_count--;
-					tw_dev->srb[request_id]->scsi_done(tw_dev->srb[request_id]);
-					
-					tw_unmap_scsi_data(tw_dev->tw_pci_dev, tw_dev->srb[request_id]);
 				}
 			}
 				
@@ -2270,7 +2230,7 @@ static struct scsi_host_template driver_template = {
 	.queuecommand		= tw_scsi_queue,
 	.eh_host_reset_handler	= tw_scsi_eh_reset,
 	.bios_param		= tw_scsi_biosparam,
-	.change_queue_depth	= tw_change_queue_depth,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.can_queue		= TW_Q_LENGTH-2,
 	.slave_configure	= tw_slave_configure,
 	.this_id		= -1,

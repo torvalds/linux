@@ -24,8 +24,6 @@
 
 #include <linux/err.h>
 
-#include <linux/wl12xx.h>
-
 #include "../wlcore/wlcore.h"
 #include "../wlcore/debug.h"
 #include "../wlcore/io.h"
@@ -41,6 +39,7 @@
 #include "scan.h"
 #include "event.h"
 #include "debugfs.h"
+#include "conf.h"
 
 static char *fref_param;
 static char *tcxo_param;
@@ -48,69 +47,69 @@ static char *tcxo_param;
 static struct wlcore_conf wl12xx_conf = {
 	.sg = {
 		.params = {
-			[CONF_SG_ACL_BT_MASTER_MIN_BR] = 10,
-			[CONF_SG_ACL_BT_MASTER_MAX_BR] = 180,
-			[CONF_SG_ACL_BT_SLAVE_MIN_BR] = 10,
-			[CONF_SG_ACL_BT_SLAVE_MAX_BR] = 180,
-			[CONF_SG_ACL_BT_MASTER_MIN_EDR] = 10,
-			[CONF_SG_ACL_BT_MASTER_MAX_EDR] = 80,
-			[CONF_SG_ACL_BT_SLAVE_MIN_EDR] = 10,
-			[CONF_SG_ACL_BT_SLAVE_MAX_EDR] = 80,
-			[CONF_SG_ACL_WLAN_PS_MASTER_BR] = 8,
-			[CONF_SG_ACL_WLAN_PS_SLAVE_BR] = 8,
-			[CONF_SG_ACL_WLAN_PS_MASTER_EDR] = 20,
-			[CONF_SG_ACL_WLAN_PS_SLAVE_EDR] = 20,
-			[CONF_SG_ACL_WLAN_ACTIVE_MASTER_MIN_BR] = 20,
-			[CONF_SG_ACL_WLAN_ACTIVE_MASTER_MAX_BR] = 35,
-			[CONF_SG_ACL_WLAN_ACTIVE_SLAVE_MIN_BR] = 16,
-			[CONF_SG_ACL_WLAN_ACTIVE_SLAVE_MAX_BR] = 35,
-			[CONF_SG_ACL_WLAN_ACTIVE_MASTER_MIN_EDR] = 32,
-			[CONF_SG_ACL_WLAN_ACTIVE_MASTER_MAX_EDR] = 50,
-			[CONF_SG_ACL_WLAN_ACTIVE_SLAVE_MIN_EDR] = 28,
-			[CONF_SG_ACL_WLAN_ACTIVE_SLAVE_MAX_EDR] = 50,
-			[CONF_SG_ACL_ACTIVE_SCAN_WLAN_BR] = 10,
-			[CONF_SG_ACL_ACTIVE_SCAN_WLAN_EDR] = 20,
-			[CONF_SG_ACL_PASSIVE_SCAN_BT_BR] = 75,
-			[CONF_SG_ACL_PASSIVE_SCAN_WLAN_BR] = 15,
-			[CONF_SG_ACL_PASSIVE_SCAN_BT_EDR] = 27,
-			[CONF_SG_ACL_PASSIVE_SCAN_WLAN_EDR] = 17,
+			[WL12XX_CONF_SG_ACL_BT_MASTER_MIN_BR] = 10,
+			[WL12XX_CONF_SG_ACL_BT_MASTER_MAX_BR] = 180,
+			[WL12XX_CONF_SG_ACL_BT_SLAVE_MIN_BR] = 10,
+			[WL12XX_CONF_SG_ACL_BT_SLAVE_MAX_BR] = 180,
+			[WL12XX_CONF_SG_ACL_BT_MASTER_MIN_EDR] = 10,
+			[WL12XX_CONF_SG_ACL_BT_MASTER_MAX_EDR] = 80,
+			[WL12XX_CONF_SG_ACL_BT_SLAVE_MIN_EDR] = 10,
+			[WL12XX_CONF_SG_ACL_BT_SLAVE_MAX_EDR] = 80,
+			[WL12XX_CONF_SG_ACL_WLAN_PS_MASTER_BR] = 8,
+			[WL12XX_CONF_SG_ACL_WLAN_PS_SLAVE_BR] = 8,
+			[WL12XX_CONF_SG_ACL_WLAN_PS_MASTER_EDR] = 20,
+			[WL12XX_CONF_SG_ACL_WLAN_PS_SLAVE_EDR] = 20,
+			[WL12XX_CONF_SG_ACL_WLAN_ACTIVE_MASTER_MIN_BR] = 20,
+			[WL12XX_CONF_SG_ACL_WLAN_ACTIVE_MASTER_MAX_BR] = 35,
+			[WL12XX_CONF_SG_ACL_WLAN_ACTIVE_SLAVE_MIN_BR] = 16,
+			[WL12XX_CONF_SG_ACL_WLAN_ACTIVE_SLAVE_MAX_BR] = 35,
+			[WL12XX_CONF_SG_ACL_WLAN_ACTIVE_MASTER_MIN_EDR] = 32,
+			[WL12XX_CONF_SG_ACL_WLAN_ACTIVE_MASTER_MAX_EDR] = 50,
+			[WL12XX_CONF_SG_ACL_WLAN_ACTIVE_SLAVE_MIN_EDR] = 28,
+			[WL12XX_CONF_SG_ACL_WLAN_ACTIVE_SLAVE_MAX_EDR] = 50,
+			[WL12XX_CONF_SG_ACL_ACTIVE_SCAN_WLAN_BR] = 10,
+			[WL12XX_CONF_SG_ACL_ACTIVE_SCAN_WLAN_EDR] = 20,
+			[WL12XX_CONF_SG_ACL_PASSIVE_SCAN_BT_BR] = 75,
+			[WL12XX_CONF_SG_ACL_PASSIVE_SCAN_WLAN_BR] = 15,
+			[WL12XX_CONF_SG_ACL_PASSIVE_SCAN_BT_EDR] = 27,
+			[WL12XX_CONF_SG_ACL_PASSIVE_SCAN_WLAN_EDR] = 17,
 			/* active scan params */
-			[CONF_SG_AUTO_SCAN_PROBE_REQ] = 170,
-			[CONF_SG_ACTIVE_SCAN_DURATION_FACTOR_HV3] = 50,
-			[CONF_SG_ACTIVE_SCAN_DURATION_FACTOR_A2DP] = 100,
+			[WL12XX_CONF_SG_AUTO_SCAN_PROBE_REQ] = 170,
+			[WL12XX_CONF_SG_ACTIVE_SCAN_DURATION_FACTOR_HV3] = 50,
+			[WL12XX_CONF_SG_ACTIVE_SCAN_DURATION_FACTOR_A2DP] = 100,
 			/* passive scan params */
-			[CONF_SG_PASSIVE_SCAN_DURATION_FACTOR_A2DP_BR] = 800,
-			[CONF_SG_PASSIVE_SCAN_DURATION_FACTOR_A2DP_EDR] = 200,
-			[CONF_SG_PASSIVE_SCAN_DURATION_FACTOR_HV3] = 200,
+			[WL12XX_CONF_SG_PASSIVE_SCAN_DUR_FACTOR_A2DP_BR] = 800,
+			[WL12XX_CONF_SG_PASSIVE_SCAN_DUR_FACTOR_A2DP_EDR] = 200,
+			[WL12XX_CONF_SG_PASSIVE_SCAN_DUR_FACTOR_HV3] = 200,
 			/* passive scan in dual antenna params */
-			[CONF_SG_CONSECUTIVE_HV3_IN_PASSIVE_SCAN] = 0,
-			[CONF_SG_BCN_HV3_COLLISION_THRESH_IN_PASSIVE_SCAN] = 0,
-			[CONF_SG_TX_RX_PROTECTION_BWIDTH_IN_PASSIVE_SCAN] = 0,
+			[WL12XX_CONF_SG_CONSECUTIVE_HV3_IN_PASSIVE_SCAN] = 0,
+			[WL12XX_CONF_SG_BCN_HV3_COLL_THR_IN_PASSIVE_SCAN] = 0,
+			[WL12XX_CONF_SG_TX_RX_PROTECT_BW_IN_PASSIVE_SCAN] = 0,
 			/* general params */
-			[CONF_SG_STA_FORCE_PS_IN_BT_SCO] = 1,
-			[CONF_SG_ANTENNA_CONFIGURATION] = 0,
-			[CONF_SG_BEACON_MISS_PERCENT] = 60,
-			[CONF_SG_DHCP_TIME] = 5000,
-			[CONF_SG_RXT] = 1200,
-			[CONF_SG_TXT] = 1000,
-			[CONF_SG_ADAPTIVE_RXT_TXT] = 1,
-			[CONF_SG_GENERAL_USAGE_BIT_MAP] = 3,
-			[CONF_SG_HV3_MAX_SERVED] = 6,
-			[CONF_SG_PS_POLL_TIMEOUT] = 10,
-			[CONF_SG_UPSD_TIMEOUT] = 10,
-			[CONF_SG_CONSECUTIVE_CTS_THRESHOLD] = 2,
-			[CONF_SG_STA_RX_WINDOW_AFTER_DTIM] = 5,
-			[CONF_SG_STA_CONNECTION_PROTECTION_TIME] = 30,
+			[WL12XX_CONF_SG_STA_FORCE_PS_IN_BT_SCO] = 1,
+			[WL12XX_CONF_SG_ANTENNA_CONFIGURATION] = 0,
+			[WL12XX_CONF_SG_BEACON_MISS_PERCENT] = 60,
+			[WL12XX_CONF_SG_DHCP_TIME] = 5000,
+			[WL12XX_CONF_SG_RXT] = 1200,
+			[WL12XX_CONF_SG_TXT] = 1000,
+			[WL12XX_CONF_SG_ADAPTIVE_RXT_TXT] = 1,
+			[WL12XX_CONF_SG_GENERAL_USAGE_BIT_MAP] = 3,
+			[WL12XX_CONF_SG_HV3_MAX_SERVED] = 6,
+			[WL12XX_CONF_SG_PS_POLL_TIMEOUT] = 10,
+			[WL12XX_CONF_SG_UPSD_TIMEOUT] = 10,
+			[WL12XX_CONF_SG_CONSECUTIVE_CTS_THRESHOLD] = 2,
+			[WL12XX_CONF_SG_STA_RX_WINDOW_AFTER_DTIM] = 5,
+			[WL12XX_CONF_SG_STA_CONNECTION_PROTECTION_TIME] = 30,
 			/* AP params */
-			[CONF_AP_BEACON_MISS_TX] = 3,
-			[CONF_AP_RX_WINDOW_AFTER_BEACON] = 10,
-			[CONF_AP_BEACON_WINDOW_INTERVAL] = 2,
-			[CONF_AP_CONNECTION_PROTECTION_TIME] = 0,
-			[CONF_AP_BT_ACL_VAL_BT_SERVE_TIME] = 25,
-			[CONF_AP_BT_ACL_VAL_WL_SERVE_TIME] = 25,
+			[WL12XX_CONF_AP_BEACON_MISS_TX] = 3,
+			[WL12XX_CONF_AP_RX_WINDOW_AFTER_BEACON] = 10,
+			[WL12XX_CONF_AP_BEACON_WINDOW_INTERVAL] = 2,
+			[WL12XX_CONF_AP_CONNECTION_PROTECTION_TIME] = 0,
+			[WL12XX_CONF_AP_BT_ACL_VAL_BT_SERVE_TIME] = 25,
+			[WL12XX_CONF_AP_BT_ACL_VAL_WL_SERVE_TIME] = 25,
 			/* CTS Diluting params */
-			[CONF_SG_CTS_DILUTED_BAD_RX_PACKETS_TH] = 0,
-			[CONF_SG_CTS_CHOP_IN_DUAL_ANT_SCO_MASTER] = 0,
+			[WL12XX_CONF_SG_CTS_DILUTED_BAD_RX_PACKETS_TH] = 0,
+			[WL12XX_CONF_SG_CTS_CHOP_IN_DUAL_ANT_SCO_MASTER] = 0,
 		},
 		.state = CONF_SG_PROTECTIVE,
 	},
@@ -250,6 +249,7 @@ static struct wlcore_conf wl12xx_conf = {
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
 		.sta_sleep_auth              = WL1271_PSM_ILLEGAL,
+		.suspend_rx_ba_activity      = 0,
 	},
 	.itrim = {
 		.enable = false,
@@ -1728,6 +1728,9 @@ static struct wlcore_ops wl12xx_ops = {
 	.convert_hwaddr		= wl12xx_convert_hwaddr,
 	.lnk_high_prio		= wl12xx_lnk_high_prio,
 	.lnk_low_prio		= wl12xx_lnk_low_prio,
+	.interrupt_notify	= NULL,
+	.rx_ba_filter		= NULL,
+	.ap_sleep		= NULL,
 };
 
 static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {
@@ -1766,14 +1769,48 @@ wl12xx_iface_combinations[] = {
 	},
 };
 
+static const struct wl12xx_clock wl12xx_refclock_table[] = {
+	{ 19200000,	false,	WL12XX_REFCLOCK_19	},
+	{ 26000000,	false,	WL12XX_REFCLOCK_26	},
+	{ 26000000,	true,	WL12XX_REFCLOCK_26_XTAL	},
+	{ 38400000,	false,	WL12XX_REFCLOCK_38	},
+	{ 38400000,	true,	WL12XX_REFCLOCK_38_XTAL	},
+	{ 52000000,	false,	WL12XX_REFCLOCK_52	},
+	{ 0,		false,	0 }
+};
+
+static const struct wl12xx_clock wl12xx_tcxoclock_table[] = {
+	{ 16368000,	true,	WL12XX_TCXOCLOCK_16_368	},
+	{ 16800000,	true,	WL12XX_TCXOCLOCK_16_8	},
+	{ 19200000,	true,	WL12XX_TCXOCLOCK_19_2	},
+	{ 26000000,	true,	WL12XX_TCXOCLOCK_26	},
+	{ 32736000,	true,	WL12XX_TCXOCLOCK_32_736	},
+	{ 33600000,	true,	WL12XX_TCXOCLOCK_33_6	},
+	{ 38400000,	true,	WL12XX_TCXOCLOCK_38_4	},
+	{ 52000000,	true,	WL12XX_TCXOCLOCK_52	},
+	{ 0,		false,	0 }
+};
+
+static int wl12xx_get_clock_idx(const struct wl12xx_clock *table,
+				u32 freq, bool xtal)
+{
+	int i;
+
+	for (i = 0; table[i].freq != 0; i++)
+		if ((table[i].freq == freq) && (table[i].xtal == xtal))
+			return table[i].hw_idx;
+
+	return -EINVAL;
+}
+
 static int wl12xx_setup(struct wl1271 *wl)
 {
 	struct wl12xx_priv *priv = wl->priv;
 	struct wlcore_platdev_data *pdev_data = dev_get_platdata(&wl->pdev->dev);
-	struct wl12xx_platform_data *pdata = pdev_data->pdata;
 
 	BUILD_BUG_ON(WL12XX_MAX_LINKS > WLCORE_MAX_LINKS);
 	BUILD_BUG_ON(WL12XX_MAX_AP_STATIONS > WL12XX_MAX_LINKS);
+	BUILD_BUG_ON(WL12XX_CONF_SG_PARAMS_MAX > WLCORE_CONF_SG_PARAMS_MAX);
 
 	wl->rtable = wl12xx_rtable;
 	wl->num_tx_desc = WL12XX_NUM_TX_DESCRIPTORS;
@@ -1795,7 +1832,17 @@ static int wl12xx_setup(struct wl1271 *wl)
 	wl12xx_conf_init(wl);
 
 	if (!fref_param) {
-		priv->ref_clock = pdata->board_ref_clock;
+		priv->ref_clock = wl12xx_get_clock_idx(wl12xx_refclock_table,
+						pdev_data->ref_clock_freq,
+						pdev_data->ref_clock_xtal);
+		if (priv->ref_clock < 0) {
+			wl1271_error("Invalid ref_clock frequency (%d Hz, %s)",
+				     pdev_data->ref_clock_freq,
+				     pdev_data->ref_clock_xtal ?
+				     "XTAL" : "not XTAL");
+
+			return priv->ref_clock;
+		}
 	} else {
 		if (!strcmp(fref_param, "19.2"))
 			priv->ref_clock = WL12XX_REFCLOCK_19;
@@ -1813,9 +1860,17 @@ static int wl12xx_setup(struct wl1271 *wl)
 			wl1271_error("Invalid fref parameter %s", fref_param);
 	}
 
-	if (!tcxo_param) {
-		priv->tcxo_clock = pdata->board_tcxo_clock;
-	} else {
+	if (!tcxo_param && pdev_data->tcxo_clock_freq) {
+		priv->tcxo_clock = wl12xx_get_clock_idx(wl12xx_tcxoclock_table,
+						pdev_data->tcxo_clock_freq,
+						true);
+		if (priv->tcxo_clock < 0) {
+			wl1271_error("Invalid tcxo_clock frequency (%d Hz)",
+				     pdev_data->tcxo_clock_freq);
+
+			return priv->tcxo_clock;
+		}
+	} else if (tcxo_param) {
 		if (!strcmp(tcxo_param, "19.2"))
 			priv->tcxo_clock = WL12XX_TCXOCLOCK_19_2;
 		else if (!strcmp(tcxo_param, "26"))
@@ -1900,7 +1955,6 @@ static struct platform_driver wl12xx_driver = {
 	.id_table	= wl12xx_id_table,
 	.driver = {
 		.name	= "wl12xx_driver",
-		.owner	= THIS_MODULE,
 	}
 };
 

@@ -72,7 +72,9 @@ void platform_restart(void)
 #if XCHAL_NUM_IBREAK > 0
 			      "wsr	a2, ibreakenable\n\t"
 #endif
+#if XCHAL_HAVE_LOOPS
 			      "wsr	a2, lcount\n\t"
+#endif
 			      "movi	a2, 0x1f\n\t"
 			      "wsr	a2, ps\n\t"
 			      "isync\n\t"
@@ -111,7 +113,7 @@ void platform_heartbeat(void)
 }
 
 //#define RS_TABLE_SIZE 2
-//#define STD_COM_FLAGS (ASYNC_BOOT_AUTOCONF|ASYNC_SKIP_TEST)
+//#define STD_COM_FLAGS (UPF_BOOT_AUTOCONF|UPF_SKIP_TEST)
 
 #define _SERIAL_PORT(_base,_irq)					\
 {									\

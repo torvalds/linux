@@ -42,7 +42,49 @@
 #define ST_MAGN_FS_AVL_5600MG			5600
 #define ST_MAGN_FS_AVL_8000MG			8000
 #define ST_MAGN_FS_AVL_8100MG			8100
-#define ST_MAGN_FS_AVL_10000MG			10000
+#define ST_MAGN_FS_AVL_12000MG			12000
+#define ST_MAGN_FS_AVL_15000MG			15000
+#define ST_MAGN_FS_AVL_16000MG			16000
+
+/* CUSTOM VALUES FOR SENSOR 0 */
+#define ST_MAGN_0_ODR_ADDR			0x00
+#define ST_MAGN_0_ODR_MASK			0x1c
+#define ST_MAGN_0_ODR_AVL_1HZ_VAL		0x00
+#define ST_MAGN_0_ODR_AVL_2HZ_VAL		0x01
+#define ST_MAGN_0_ODR_AVL_3HZ_VAL		0x02
+#define ST_MAGN_0_ODR_AVL_8HZ_VAL		0x03
+#define ST_MAGN_0_ODR_AVL_15HZ_VAL		0x04
+#define ST_MAGN_0_ODR_AVL_30HZ_VAL		0x05
+#define ST_MAGN_0_ODR_AVL_75HZ_VAL		0x06
+#define ST_MAGN_0_ODR_AVL_220HZ_VAL		0x07
+#define ST_MAGN_0_PW_ADDR			0x02
+#define ST_MAGN_0_PW_MASK			0x03
+#define ST_MAGN_0_PW_ON				0x00
+#define ST_MAGN_0_PW_OFF			0x03
+#define ST_MAGN_0_FS_ADDR			0x01
+#define ST_MAGN_0_FS_MASK			0xe0
+#define ST_MAGN_0_FS_AVL_1300_VAL		0x01
+#define ST_MAGN_0_FS_AVL_1900_VAL		0x02
+#define ST_MAGN_0_FS_AVL_2500_VAL		0x03
+#define ST_MAGN_0_FS_AVL_4000_VAL		0x04
+#define ST_MAGN_0_FS_AVL_4700_VAL		0x05
+#define ST_MAGN_0_FS_AVL_5600_VAL		0x06
+#define ST_MAGN_0_FS_AVL_8100_VAL		0x07
+#define ST_MAGN_0_FS_AVL_1300_GAIN_XY		1100
+#define ST_MAGN_0_FS_AVL_1900_GAIN_XY		855
+#define ST_MAGN_0_FS_AVL_2500_GAIN_XY		670
+#define ST_MAGN_0_FS_AVL_4000_GAIN_XY		450
+#define ST_MAGN_0_FS_AVL_4700_GAIN_XY		400
+#define ST_MAGN_0_FS_AVL_5600_GAIN_XY		330
+#define ST_MAGN_0_FS_AVL_8100_GAIN_XY		230
+#define ST_MAGN_0_FS_AVL_1300_GAIN_Z		980
+#define ST_MAGN_0_FS_AVL_1900_GAIN_Z		760
+#define ST_MAGN_0_FS_AVL_2500_GAIN_Z		600
+#define ST_MAGN_0_FS_AVL_4000_GAIN_Z		400
+#define ST_MAGN_0_FS_AVL_4700_GAIN_Z		355
+#define ST_MAGN_0_FS_AVL_5600_GAIN_Z		295
+#define ST_MAGN_0_FS_AVL_8100_GAIN_Z		205
+#define ST_MAGN_0_MULTIREAD_BIT			false
 
 /* CUSTOM VALUES FOR SENSOR 1 */
 #define ST_MAGN_1_WAI_EXP			0x3c
@@ -69,20 +111,20 @@
 #define ST_MAGN_1_FS_AVL_4700_VAL		0x05
 #define ST_MAGN_1_FS_AVL_5600_VAL		0x06
 #define ST_MAGN_1_FS_AVL_8100_VAL		0x07
-#define ST_MAGN_1_FS_AVL_1300_GAIN_XY		1100
-#define ST_MAGN_1_FS_AVL_1900_GAIN_XY		855
-#define ST_MAGN_1_FS_AVL_2500_GAIN_XY		670
-#define ST_MAGN_1_FS_AVL_4000_GAIN_XY		450
-#define ST_MAGN_1_FS_AVL_4700_GAIN_XY		400
-#define ST_MAGN_1_FS_AVL_5600_GAIN_XY		330
-#define ST_MAGN_1_FS_AVL_8100_GAIN_XY		230
-#define ST_MAGN_1_FS_AVL_1300_GAIN_Z		980
-#define ST_MAGN_1_FS_AVL_1900_GAIN_Z		760
-#define ST_MAGN_1_FS_AVL_2500_GAIN_Z		600
-#define ST_MAGN_1_FS_AVL_4000_GAIN_Z		400
-#define ST_MAGN_1_FS_AVL_4700_GAIN_Z		355
-#define ST_MAGN_1_FS_AVL_5600_GAIN_Z		295
-#define ST_MAGN_1_FS_AVL_8100_GAIN_Z		205
+#define ST_MAGN_1_FS_AVL_1300_GAIN_XY		909
+#define ST_MAGN_1_FS_AVL_1900_GAIN_XY		1169
+#define ST_MAGN_1_FS_AVL_2500_GAIN_XY		1492
+#define ST_MAGN_1_FS_AVL_4000_GAIN_XY		2222
+#define ST_MAGN_1_FS_AVL_4700_GAIN_XY		2500
+#define ST_MAGN_1_FS_AVL_5600_GAIN_XY		3030
+#define ST_MAGN_1_FS_AVL_8100_GAIN_XY		4347
+#define ST_MAGN_1_FS_AVL_1300_GAIN_Z		1020
+#define ST_MAGN_1_FS_AVL_1900_GAIN_Z		1315
+#define ST_MAGN_1_FS_AVL_2500_GAIN_Z		1666
+#define ST_MAGN_1_FS_AVL_4000_GAIN_Z		2500
+#define ST_MAGN_1_FS_AVL_4700_GAIN_Z		2816
+#define ST_MAGN_1_FS_AVL_5600_GAIN_Z		3389
+#define ST_MAGN_1_FS_AVL_8100_GAIN_Z		4878
 #define ST_MAGN_1_MULTIREAD_BIT			false
 
 /* CUSTOM VALUES FOR SENSOR 2 */
@@ -105,14 +147,41 @@
 #define ST_MAGN_2_FS_MASK			0x60
 #define ST_MAGN_2_FS_AVL_4000_VAL		0x00
 #define ST_MAGN_2_FS_AVL_8000_VAL		0x01
-#define ST_MAGN_2_FS_AVL_10000_VAL		0x02
-#define ST_MAGN_2_FS_AVL_4000_GAIN		430
-#define ST_MAGN_2_FS_AVL_8000_GAIN		230
-#define ST_MAGN_2_FS_AVL_10000_GAIN		230
+#define ST_MAGN_2_FS_AVL_12000_VAL		0x02
+#define ST_MAGN_2_FS_AVL_16000_VAL		0x03
+#define ST_MAGN_2_FS_AVL_4000_GAIN		146
+#define ST_MAGN_2_FS_AVL_8000_GAIN		292
+#define ST_MAGN_2_FS_AVL_12000_GAIN		438
+#define ST_MAGN_2_FS_AVL_16000_GAIN		584
 #define ST_MAGN_2_MULTIREAD_BIT			false
 #define ST_MAGN_2_OUT_X_L_ADDR			0x28
 #define ST_MAGN_2_OUT_Y_L_ADDR			0x2a
 #define ST_MAGN_2_OUT_Z_L_ADDR			0x2c
+
+/* CUSTOM VALUES FOR SENSOR 3 */
+#define ST_MAGN_3_WAI_ADDR			0x4f
+#define ST_MAGN_3_WAI_EXP			0x40
+#define ST_MAGN_3_ODR_ADDR			0x60
+#define ST_MAGN_3_ODR_MASK			0x0c
+#define ST_MAGN_3_ODR_AVL_10HZ_VAL		0x00
+#define ST_MAGN_3_ODR_AVL_20HZ_VAL		0x01
+#define ST_MAGN_3_ODR_AVL_50HZ_VAL		0x02
+#define ST_MAGN_3_ODR_AVL_100HZ_VAL		0x03
+#define ST_MAGN_3_PW_ADDR			0x60
+#define ST_MAGN_3_PW_MASK			0x03
+#define ST_MAGN_3_PW_ON				0x00
+#define ST_MAGN_3_PW_OFF			0x03
+#define ST_MAGN_3_BDU_ADDR			0x62
+#define ST_MAGN_3_BDU_MASK			0x10
+#define ST_MAGN_3_DRDY_IRQ_ADDR			0x62
+#define ST_MAGN_3_DRDY_INT_MASK			0x01
+#define ST_MAGN_3_IHL_IRQ_ADDR			0x63
+#define ST_MAGN_3_IHL_IRQ_MASK			0x04
+#define ST_MAGN_3_FS_AVL_15000_GAIN		1500
+#define ST_MAGN_3_MULTIREAD_BIT			false
+#define ST_MAGN_3_OUT_X_L_ADDR			0x68
+#define ST_MAGN_3_OUT_Y_L_ADDR			0x6a
+#define ST_MAGN_3_OUT_Z_L_ADDR			0x6c
 
 static const struct iio_chan_spec st_magn_16bit_channels[] = {
 	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
@@ -146,9 +215,103 @@ static const struct iio_chan_spec st_magn_2_16bit_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
-static const struct st_sensors st_magn_sensors[] = {
+static const struct iio_chan_spec st_magn_3_16bit_channels[] = {
+	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_X, 1, IIO_MOD_X, 's', IIO_LE, 16, 16,
+			ST_MAGN_3_OUT_X_L_ADDR),
+	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_Y, 1, IIO_MOD_Y, 's', IIO_LE, 16, 16,
+			ST_MAGN_3_OUT_Y_L_ADDR),
+	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_Z, 1, IIO_MOD_Z, 's', IIO_LE, 16, 16,
+			ST_MAGN_3_OUT_Z_L_ADDR),
+	IIO_CHAN_SOFT_TIMESTAMP(3)
+};
+
+static const struct st_sensor_settings st_magn_sensors_settings[] = {
+	{
+		.wai = 0, /* This sensor has no valid WhoAmI report 0 */
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
+		.sensors_supported = {
+			[0] = LSM303DLH_MAGN_DEV_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_magn_16bit_channels,
+		.odr = {
+			.addr = ST_MAGN_0_ODR_ADDR,
+			.mask = ST_MAGN_0_ODR_MASK,
+			.odr_avl = {
+				{ 1, ST_MAGN_0_ODR_AVL_1HZ_VAL, },
+				{ 2, ST_MAGN_0_ODR_AVL_2HZ_VAL, },
+				{ 3, ST_MAGN_0_ODR_AVL_3HZ_VAL, },
+				{ 8, ST_MAGN_0_ODR_AVL_8HZ_VAL, },
+				{ 15, ST_MAGN_0_ODR_AVL_15HZ_VAL, },
+				{ 30, ST_MAGN_0_ODR_AVL_30HZ_VAL, },
+				{ 75, ST_MAGN_0_ODR_AVL_75HZ_VAL, },
+			},
+		},
+		.pw = {
+			.addr = ST_MAGN_0_PW_ADDR,
+			.mask = ST_MAGN_0_PW_MASK,
+			.value_on = ST_MAGN_0_PW_ON,
+			.value_off = ST_MAGN_0_PW_OFF,
+		},
+		.fs = {
+			.addr = ST_MAGN_0_FS_ADDR,
+			.mask = ST_MAGN_0_FS_MASK,
+			.fs_avl = {
+				[0] = {
+					.num = ST_MAGN_FS_AVL_1300MG,
+					.value = ST_MAGN_0_FS_AVL_1300_VAL,
+					.gain = ST_MAGN_0_FS_AVL_1300_GAIN_XY,
+					.gain2 = ST_MAGN_0_FS_AVL_1300_GAIN_Z,
+				},
+				[1] = {
+					.num = ST_MAGN_FS_AVL_1900MG,
+					.value = ST_MAGN_0_FS_AVL_1900_VAL,
+					.gain = ST_MAGN_0_FS_AVL_1900_GAIN_XY,
+					.gain2 = ST_MAGN_0_FS_AVL_1900_GAIN_Z,
+				},
+				[2] = {
+					.num = ST_MAGN_FS_AVL_2500MG,
+					.value = ST_MAGN_0_FS_AVL_2500_VAL,
+					.gain = ST_MAGN_0_FS_AVL_2500_GAIN_XY,
+					.gain2 = ST_MAGN_0_FS_AVL_2500_GAIN_Z,
+				},
+				[3] = {
+					.num = ST_MAGN_FS_AVL_4000MG,
+					.value = ST_MAGN_0_FS_AVL_4000_VAL,
+					.gain = ST_MAGN_0_FS_AVL_4000_GAIN_XY,
+					.gain2 = ST_MAGN_0_FS_AVL_4000_GAIN_Z,
+				},
+				[4] = {
+					.num = ST_MAGN_FS_AVL_4700MG,
+					.value = ST_MAGN_0_FS_AVL_4700_VAL,
+					.gain = ST_MAGN_0_FS_AVL_4700_GAIN_XY,
+					.gain2 = ST_MAGN_0_FS_AVL_4700_GAIN_Z,
+				},
+				[5] = {
+					.num = ST_MAGN_FS_AVL_5600MG,
+					.value = ST_MAGN_0_FS_AVL_5600_VAL,
+					.gain = ST_MAGN_0_FS_AVL_5600_GAIN_XY,
+					.gain2 = ST_MAGN_0_FS_AVL_5600_GAIN_Z,
+				},
+				[6] = {
+					.num = ST_MAGN_FS_AVL_8100MG,
+					.value = ST_MAGN_0_FS_AVL_8100_VAL,
+					.gain = ST_MAGN_0_FS_AVL_8100_GAIN_XY,
+					.gain2 = ST_MAGN_0_FS_AVL_8100_GAIN_Z,
+				},
+			},
+		},
+		.multi_read_bit = ST_MAGN_0_MULTIREAD_BIT,
+		.bootime = 2,
+	},
 	{
 		.wai = ST_MAGN_1_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LSM303DLHC_MAGN_DEV_NAME,
 			[1] = LSM303DLM_MAGN_DEV_NAME,
@@ -227,6 +390,7 @@ static const struct st_sensors st_magn_sensors[] = {
 	},
 	{
 		.wai = ST_MAGN_2_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LIS3MDL_MAGN_DEV_NAME,
 		},
@@ -266,13 +430,62 @@ static const struct st_sensors st_magn_sensors[] = {
 					.gain = ST_MAGN_2_FS_AVL_8000_GAIN,
 				},
 				[2] = {
-					.num = ST_MAGN_FS_AVL_10000MG,
-					.value = ST_MAGN_2_FS_AVL_10000_VAL,
-					.gain = ST_MAGN_2_FS_AVL_10000_GAIN,
+					.num = ST_MAGN_FS_AVL_12000MG,
+					.value = ST_MAGN_2_FS_AVL_12000_VAL,
+					.gain = ST_MAGN_2_FS_AVL_12000_GAIN,
+				},
+				[3] = {
+					.num = ST_MAGN_FS_AVL_16000MG,
+					.value = ST_MAGN_2_FS_AVL_16000_VAL,
+					.gain = ST_MAGN_2_FS_AVL_16000_GAIN,
 				},
 			},
 		},
 		.multi_read_bit = ST_MAGN_2_MULTIREAD_BIT,
+		.bootime = 2,
+	},
+	{
+		.wai = ST_MAGN_3_WAI_EXP,
+		.wai_addr = ST_MAGN_3_WAI_ADDR,
+		.sensors_supported = {
+			[0] = LSM303AGR_MAGN_DEV_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_magn_3_16bit_channels,
+		.odr = {
+			.addr = ST_MAGN_3_ODR_ADDR,
+			.mask = ST_MAGN_3_ODR_MASK,
+			.odr_avl = {
+				{ 10, ST_MAGN_3_ODR_AVL_10HZ_VAL, },
+				{ 20, ST_MAGN_3_ODR_AVL_20HZ_VAL, },
+				{ 50, ST_MAGN_3_ODR_AVL_50HZ_VAL, },
+				{ 100, ST_MAGN_3_ODR_AVL_100HZ_VAL, },
+			},
+		},
+		.pw = {
+			.addr = ST_MAGN_3_PW_ADDR,
+			.mask = ST_MAGN_3_PW_MASK,
+			.value_on = ST_MAGN_3_PW_ON,
+			.value_off = ST_MAGN_3_PW_OFF,
+		},
+		.fs = {
+			.fs_avl = {
+				[0] = {
+					.num = ST_MAGN_FS_AVL_15000MG,
+					.gain = ST_MAGN_3_FS_AVL_15000_GAIN,
+				},
+			},
+		},
+		.bdu = {
+			.addr = ST_MAGN_3_BDU_ADDR,
+			.mask = ST_MAGN_3_BDU_MASK,
+		},
+		.drdy_irq = {
+			.addr = ST_MAGN_3_DRDY_IRQ_ADDR,
+			.mask_int1 = ST_MAGN_3_DRDY_INT_MASK,
+			.addr_ihl = ST_MAGN_3_IHL_IRQ_ADDR,
+			.mask_ihl = ST_MAGN_3_IHL_IRQ_MASK,
+		},
+		.multi_read_bit = ST_MAGN_3_MULTIREAD_BIT,
 		.bootime = 2,
 	},
 };
@@ -351,10 +564,20 @@ static const struct iio_info magn_info = {
 	.attrs = &st_magn_attribute_group,
 	.read_raw = &st_magn_read_raw,
 	.write_raw = &st_magn_write_raw,
+	.debugfs_reg_access = &st_sensors_debugfs_reg_access,
 };
 
-int st_magn_common_probe(struct iio_dev *indio_dev,
-					struct st_sensors_platform_data *pdata)
+#ifdef CONFIG_IIO_TRIGGER
+static const struct iio_trigger_ops st_magn_trigger_ops = {
+	.owner = THIS_MODULE,
+	.set_trigger_state = ST_MAGN_TRIGGER_SET_STATE,
+};
+#define ST_MAGN_TRIGGER_OPS (&st_magn_trigger_ops)
+#else
+#define ST_MAGN_TRIGGER_OPS NULL
+#endif
+
+int st_magn_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *mdata = iio_priv(indio_dev);
 	int irq = mdata->get_irq_data_ready(indio_dev);
@@ -362,24 +585,26 @@ int st_magn_common_probe(struct iio_dev *indio_dev,
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &magn_info;
+	mutex_init(&mdata->tb.buf_lock);
 
 	st_sensors_power_enable(indio_dev);
 
 	err = st_sensors_check_device_support(indio_dev,
-				ARRAY_SIZE(st_magn_sensors), st_magn_sensors);
+					ARRAY_SIZE(st_magn_sensors_settings),
+					st_magn_sensors_settings);
 	if (err < 0)
 		return err;
 
 	mdata->num_data_channels = ST_MAGN_NUMBER_DATA_CHANNELS;
-	mdata->multiread_bit = mdata->sensor->multi_read_bit;
-	indio_dev->channels = mdata->sensor->ch;
+	mdata->multiread_bit = mdata->sensor_settings->multi_read_bit;
+	indio_dev->channels = mdata->sensor_settings->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
 
 	mdata->current_fullscale = (struct st_sensor_fullscale_avl *)
-						&mdata->sensor->fs.fs_avl[0];
-	mdata->odr = mdata->sensor->odr.odr_avl[0].hz;
+					&mdata->sensor_settings->fs.fs_avl[0];
+	mdata->odr = mdata->sensor_settings->odr.odr_avl[0].hz;
 
-	err = st_sensors_init_sensor(indio_dev, pdata);
+	err = st_sensors_init_sensor(indio_dev, NULL);
 	if (err < 0)
 		return err;
 
@@ -388,7 +613,8 @@ int st_magn_common_probe(struct iio_dev *indio_dev,
 		return err;
 
 	if (irq > 0) {
-		err = st_sensors_allocate_trigger(indio_dev, NULL);
+		err = st_sensors_allocate_trigger(indio_dev,
+						ST_MAGN_TRIGGER_OPS);
 		if (err < 0)
 			goto st_magn_probe_trigger_error;
 	}

@@ -31,11 +31,6 @@ static inline int right_child(int i)
 	return (i << 1) + 2;
 }
 
-static inline int dl_time_before(u64 a, u64 b)
-{
-	return (s64)(a - b) < 0;
-}
-
 static void cpudl_exchange(struct cpudl *cp, int a, int b)
 {
 	int cpu_a = cp->elements[a].cpu, cpu_b = cp->elements[b].cpu;
@@ -107,9 +102,8 @@ int cpudl_find(struct cpudl *cp, struct task_struct *p,
 	int best_cpu = -1;
 	const struct sched_dl_entity *dl_se = &p->dl;
 
-	if (later_mask && cpumask_and(later_mask, cp->free_cpus,
-			&p->cpus_allowed) && cpumask_and(later_mask,
-			later_mask, cpu_active_mask)) {
+	if (later_mask &&
+	    cpumask_and(later_mask, cp->free_cpus, &p->cpus_allowed)) {
 		best_cpu = cpumask_any(later_mask);
 		goto out;
 	} else if (cpumask_test_cpu(cpudl_maximum(cp), &p->cpus_allowed) &&
@@ -188,6 +182,26 @@ out:
 }
 
 /*
+ * cpudl_set_freecpu - Set the cpudl.free_cpus
+ * @cp: the cpudl max-heap context
+ * @cpu: rd attached cpu
+ */
+void cpudl_set_freecpu(struct cpudl *cp, int cpu)
+{
+	cpumask_set_cpu(cpu, cp->free_cpus);
+}
+
+/*
+ * cpudl_clear_freecpu - Clear the cpudl.free_cpus
+ * @cp: the cpudl max-heap context
+ * @cpu: rd attached cpu
+ */
+void cpudl_clear_freecpu(struct cpudl *cp, int cpu)
+{
+	cpumask_clear_cpu(cpu, cp->free_cpus);
+}
+
+/*
  * cpudl_init - initialize the cpudl structure
  * @cp: the cpudl max-heap context
  */
@@ -205,15 +219,13 @@ int cpudl_init(struct cpudl *cp)
 	if (!cp->elements)
 		return -ENOMEM;
 
-	if (!alloc_cpumask_var(&cp->free_cpus, GFP_KERNEL)) {
+	if (!zalloc_cpumask_var(&cp->free_cpus, GFP_KERNEL)) {
 		kfree(cp->elements);
 		return -ENOMEM;
 	}
 
 	for_each_possible_cpu(i)
 		cp->elements[i].idx = IDX_INVALID;
-
-	cpumask_setall(cp->free_cpus);
 
 	return 0;
 }

@@ -10,6 +10,15 @@ struct scsi_transport_template;
 struct sas_rphy;
 struct request;
 
+#if !IS_ENABLED(CONFIG_SCSI_SAS_ATTRS)
+static inline int is_sas_attached(struct scsi_device *sdev)
+{
+	return 0;
+}
+#else
+extern int is_sas_attached(struct scsi_device *sdev);
+#endif
+
 static inline int sas_protocol_ata(enum sas_protocol proto)
 {
 	return ((proto & SAS_PROTOCOL_SATA) ||
@@ -180,6 +189,7 @@ extern int sas_phy_add(struct sas_phy *);
 extern void sas_phy_delete(struct sas_phy *);
 extern int scsi_is_sas_phy(const struct device *);
 
+u64 sas_get_address(struct scsi_device *);
 unsigned int sas_tlr_supported(struct scsi_device *);
 unsigned int sas_is_tlr_enabled(struct scsi_device *);
 void sas_disable_tlr(struct scsi_device *);

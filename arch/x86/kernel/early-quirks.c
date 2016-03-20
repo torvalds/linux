@@ -455,6 +455,23 @@ struct intel_stolen_funcs {
 	u32 (*base)(int num, int slot, int func, size_t size);
 };
 
+static size_t __init gen9_stolen_size(int num, int slot, int func)
+{
+	u16 gmch_ctrl;
+
+	gmch_ctrl = read_pci_config_16(num, slot, func, SNB_GMCH_CTRL);
+	gmch_ctrl >>= BDW_GMCH_GMS_SHIFT;
+	gmch_ctrl &= BDW_GMCH_GMS_MASK;
+
+	if (gmch_ctrl < 0xf0)
+		return gmch_ctrl << 25; /* 32 MB units */
+	else
+		/* 4MB increments starting at 0xf0 for 4MB */
+		return (gmch_ctrl - 0xf0 + 1) << 22;
+}
+
+typedef size_t (*stolen_size_fn)(int num, int slot, int func);
+
 static const struct intel_stolen_funcs i830_stolen_funcs __initconst = {
 	.base = i830_stolen_base,
 	.size = i830_stolen_size,
@@ -490,6 +507,11 @@ static const struct intel_stolen_funcs gen8_stolen_funcs __initconst = {
 	.size = gen8_stolen_size,
 };
 
+static const struct intel_stolen_funcs gen9_stolen_funcs __initconst = {
+	.base = intel_stolen_base,
+	.size = gen9_stolen_size,
+};
+
 static const struct intel_stolen_funcs chv_stolen_funcs __initconst = {
 	.base = intel_stolen_base,
 	.size = chv_stolen_size,
@@ -523,6 +545,9 @@ static const struct pci_device_id intel_stolen_ids[] __initconst = {
 	INTEL_BDW_M_IDS(&gen8_stolen_funcs),
 	INTEL_BDW_D_IDS(&gen8_stolen_funcs),
 	INTEL_CHV_IDS(&chv_stolen_funcs),
+	INTEL_SKL_IDS(&gen9_stolen_funcs),
+	INTEL_BXT_IDS(&gen9_stolen_funcs),
+	INTEL_KBL_IDS(&gen9_stolen_funcs),
 };
 
 static void __init intel_graphics_stolen(int num, int slot, int func)
@@ -560,7 +585,7 @@ static void __init intel_graphics_stolen(int num, int slot, int func)
 static void __init force_disable_hpet(int num, int slot, int func)
 {
 #ifdef CONFIG_HPET_TIMER
-	boot_hpet_disable = 1;
+	boot_hpet_disable = true;
 	pr_info("x86/hpet: Will disable the HPET for this platform because it's not reliable\n");
 #endif
 }
@@ -604,8 +629,12 @@ static struct chipset early_qrk[] __initdata = {
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA, PCI_ANY_ID,
 	  QFLAG_APPLY_ONCE, intel_graphics_stolen },
 	/*
-	 * HPET on current version of Baytrail platform has accuracy
-	 * problems, disable it for now:
+	 * HPET on the current version of the Baytrail platform has accuracy
+	 * problems: it will halt in deep idle state - so we disable it.
+	 *
+	 * More details can be found in section 18.10.1.3 of the datasheet:
+	 *
+	 *    http://www.intel.com/content/dam/www/public/us/en/documents/datasheets/atom-z8000-datasheet-vol-1.pdf
 	 */
 	{ PCI_VENDOR_ID_INTEL, 0x0f00,
 		PCI_CLASS_BRIDGE_HOST, PCI_ANY_ID, 0, force_disable_hpet},

@@ -44,6 +44,10 @@ struct privcmd_hypercall {
 
 struct privcmd_mmap_entry {
 	__u64 va;
+	/*
+	 * This should be a GFN. It's not possible to change the name because
+	 * it's exposed to the user-space.
+	 */
 	__u64 mfn;
 	__u64 npages;
 };

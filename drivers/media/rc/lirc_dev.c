@@ -506,6 +506,7 @@ int lirc_dev_fop_close(struct inode *inode, struct file *file)
 {
 	struct irctl *ir = irctls[iminor(inode)];
 	struct cdev *cdev;
+	int ret;
 
 	if (!ir) {
 		printk(KERN_ERR "%s: called with invalid irctl\n", __func__);
@@ -516,10 +517,10 @@ int lirc_dev_fop_close(struct inode *inode, struct file *file)
 
 	dev_dbg(ir->d.dev, LOGHEAD "close called\n", ir->d.name, ir->d.minor);
 
-	WARN_ON(mutex_lock_killable(&lirc_dev_lock));
+	ret = mutex_lock_killable(&lirc_dev_lock);
+	WARN_ON(ret);
 
-	if (ir->d.rdev)
-		rc_close(ir->d.rdev);
+	rc_close(ir->d.rdev);
 
 	ir->open--;
 	if (ir->attached) {
@@ -533,7 +534,8 @@ int lirc_dev_fop_close(struct inode *inode, struct file *file)
 		kfree(ir);
 	}
 
-	mutex_unlock(&lirc_dev_lock);
+	if (!ret)
+		mutex_unlock(&lirc_dev_lock);
 
 	return 0;
 }
@@ -554,14 +556,14 @@ unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait)
 	if (!ir->attached)
 		return POLLERR;
 
-	poll_wait(file, &ir->buf->wait_poll, wait);
+	if (ir->buf) {
+		poll_wait(file, &ir->buf->wait_poll, wait);
 
-	if (ir->buf)
 		if (lirc_buffer_empty(ir->buf))
 			ret = 0;
 		else
 			ret = POLLIN | POLLRDNORM;
-	else
+	} else
 		ret = POLLERR;
 
 	dev_dbg(ir->d.dev, LOGHEAD "poll result = %d\n",
@@ -595,7 +597,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case LIRC_GET_FEATURES:
-		result = put_user(ir->d.features, (__u32 *)arg);
+		result = put_user(ir->d.features, (__u32 __user *)arg);
 		break;
 	case LIRC_GET_REC_MODE:
 		if (!(ir->d.features & LIRC_CAN_REC_MASK)) {
@@ -605,7 +607,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		result = put_user(LIRC_REC2MODE
 				  (ir->d.features & LIRC_CAN_REC_MASK),
-				  (__u32 *)arg);
+				  (__u32 __user *)arg);
 		break;
 	case LIRC_SET_REC_MODE:
 		if (!(ir->d.features & LIRC_CAN_REC_MASK)) {
@@ -613,7 +615,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		result = get_user(mode, (__u32 *)arg);
+		result = get_user(mode, (__u32 __user *)arg);
 		if (!result && !(LIRC_MODE2REC(mode) & ir->d.features))
 			result = -EINVAL;
 		/*
@@ -622,7 +624,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		 */
 		break;
 	case LIRC_GET_LENGTH:
-		result = put_user(ir->d.code_length, (__u32 *)arg);
+		result = put_user(ir->d.code_length, (__u32 __user *)arg);
 		break;
 	case LIRC_GET_MIN_TIMEOUT:
 		if (!(ir->d.features & LIRC_CAN_SET_REC_TIMEOUT) ||
@@ -631,7 +633,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		result = put_user(ir->d.min_timeout, (__u32 *)arg);
+		result = put_user(ir->d.min_timeout, (__u32 __user *)arg);
 		break;
 	case LIRC_GET_MAX_TIMEOUT:
 		if (!(ir->d.features & LIRC_CAN_SET_REC_TIMEOUT) ||
@@ -640,7 +642,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		result = put_user(ir->d.max_timeout, (__u32 *)arg);
+		result = put_user(ir->d.max_timeout, (__u32 __user *)arg);
 		break;
 	default:
 		result = -EINVAL;
@@ -736,7 +738,7 @@ ssize_t lirc_dev_fop_read(struct file *file,
 			}
 		} else {
 			lirc_buffer_read(ir->buf, buf);
-			ret = copy_to_user((void *)buffer+written, buf,
+			ret = copy_to_user((void __user *)buffer+written, buf,
 					   ir->buf->chunk_size);
 			if (!ret)
 				written += ir->buf->chunk_size;

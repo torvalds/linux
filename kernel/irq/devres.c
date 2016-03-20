@@ -38,7 +38,7 @@ static int devm_irq_match(struct device *dev, void *res, void *data)
  *
  *	Except for the extra @dev argument, this function takes the
  *	same arguments and performs the same function as
- *	request_irq().  IRQs requested with this function will be
+ *	request_threaded_irq().  IRQs requested with this function will be
  *	automatically freed on driver detach.
  *
  *	If an IRQ allocated with this function needs to be freed
@@ -104,7 +104,7 @@ int devm_request_any_context_irq(struct device *dev, unsigned int irq,
 		return -ENOMEM;
 
 	rc = request_any_context_irq(irq, handler, irqflags, devname, dev_id);
-	if (rc) {
+	if (rc < 0) {
 		devres_free(dr);
 		return rc;
 	}
@@ -113,7 +113,7 @@ int devm_request_any_context_irq(struct device *dev, unsigned int irq,
 	dr->dev_id = dev_id;
 	devres_add(dev, dr);
 
-	return 0;
+	return rc;
 }
 EXPORT_SYMBOL(devm_request_any_context_irq);
 

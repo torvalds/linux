@@ -62,7 +62,7 @@ struct video_obj {
 };
 
 struct vpif_disp_buffer {
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 };
 
@@ -100,7 +100,7 @@ struct common_obj {
 
 struct channel_obj {
 	/* V4l2 specific parameters */
-	struct video_device *video_dev;	/* Identifies video device for
+	struct video_device video_dev;	/* Identifies video device for
 					 * this channel */
 	u32 field_id;			/* Indicates id of the field
 					 * which is being displayed */

@@ -170,6 +170,9 @@ sctp_chunk_length_valid(struct sctp_chunk *chunk,
 {
 	__u16 chunk_length = ntohs(chunk->chunk_hdr->length);
 
+	/* Previously already marked? */
+	if (unlikely(chunk->pdiscard))
+		return 0;
 	if (unlikely(chunk_length < required_length))
 		return 0;
 
@@ -850,7 +853,7 @@ nomem:
 
 /*
  * Respond to a normal COOKIE ACK chunk.
- * We are the side that is being asked for an association.
+ * We are the side that is asking for an association.
  *
  * RFC 2960 5.1 Normal Establishment of an Association
  *
@@ -1775,9 +1778,22 @@ static sctp_disposition_t sctp_sf_do_dupcook_a(struct net *net,
 	/* Update the content of current association. */
 	sctp_add_cmd_sf(commands, SCTP_CMD_UPDATE_ASSOC, SCTP_ASOC(new_asoc));
 	sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP, SCTP_ULPEVENT(ev));
-	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
-			SCTP_STATE(SCTP_STATE_ESTABLISHED));
-	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
+	if (sctp_state(asoc, SHUTDOWN_PENDING) &&
+	    (sctp_sstate(asoc->base.sk, CLOSING) ||
+	     sock_flag(asoc->base.sk, SOCK_DEAD))) {
+		/* if were currently in SHUTDOWN_PENDING, but the socket
+		 * has been closed by user, don't transition to ESTABLISHED.
+		 * Instead trigger SHUTDOWN bundled with COOKIE_ACK.
+		 */
+		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
+		return sctp_sf_do_9_2_start_shutdown(net, ep, asoc,
+						     SCTP_ST_CHUNK(0), NULL,
+						     commands);
+	} else {
+		sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
+				SCTP_STATE(SCTP_STATE_ESTABLISHED));
+		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
+	}
 	return SCTP_DISPOSITION_CONSUME;
 
 nomem_ev:
@@ -2290,7 +2306,7 @@ static sctp_disposition_t sctp_sf_do_5_2_6_stale(struct net *net,
 						 sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *chunk = arg;
-	time_t stale;
+	u32 stale;
 	sctp_cookie_preserve_param_t bht;
 	sctp_errhdr_t *err;
 	struct sctp_chunk *reply;
@@ -2960,7 +2976,7 @@ sctp_disposition_t sctp_sf_eat_data_6_2(struct net *net,
 		SCTP_INC_STATS(net, SCTP_MIB_IN_DATA_CHUNK_DISCARDS);
 		goto discard_force;
 	case SCTP_IERROR_NO_DATA:
-		goto consume;
+		return SCTP_DISPOSITION_ABORT;
 	case SCTP_IERROR_PROTO_VIOLATION:
 		return sctp_sf_abort_violation(net, ep, asoc, chunk, commands,
 			(u8 *)chunk->subh.data_hdr, sizeof(sctp_datahdr_t));
@@ -3027,9 +3043,6 @@ discard_noforce:
 		sctp_add_cmd_sf(commands, SCTP_CMD_GEN_SACK, force);
 
 	return SCTP_DISPOSITION_DISCARD;
-consume:
-	return SCTP_DISPOSITION_CONSUME;
-
 }
 
 /*
@@ -3077,7 +3090,7 @@ sctp_disposition_t sctp_sf_eat_data_fast_4_4(struct net *net,
 	case SCTP_IERROR_BAD_STREAM:
 		break;
 	case SCTP_IERROR_NO_DATA:
-		goto consume;
+		return SCTP_DISPOSITION_ABORT;
 	case SCTP_IERROR_PROTO_VIOLATION:
 		return sctp_sf_abort_violation(net, ep, asoc, chunk, commands,
 			(u8 *)chunk->subh.data_hdr, sizeof(sctp_datahdr_t));
@@ -3103,7 +3116,6 @@ sctp_disposition_t sctp_sf_eat_data_fast_4_4(struct net *net,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_T2_SHUTDOWN));
 	}
 
-consume:
 	return SCTP_DISPOSITION_CONSUME;
 }
 
@@ -3578,9 +3590,7 @@ sctp_disposition_t sctp_sf_do_asconf(struct net *net,
 	struct sctp_chunk	*asconf_ack = NULL;
 	struct sctp_paramhdr	*err_param = NULL;
 	sctp_addiphdr_t		*hdr;
-	union sctp_addr_param	*addr_param;
 	__u32			serial;
-	int			length;
 
 	if (!sctp_vtag_verify(chunk, asoc)) {
 		sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_BAD_TAG,
@@ -3605,17 +3615,8 @@ sctp_disposition_t sctp_sf_do_asconf(struct net *net,
 	hdr = (sctp_addiphdr_t *)chunk->skb->data;
 	serial = ntohl(hdr->serial);
 
-	addr_param = (union sctp_addr_param *)hdr->params;
-	length = ntohs(addr_param->p.length);
-	if (length < sizeof(sctp_paramhdr_t))
-		return sctp_sf_violation_paramlen(net, ep, asoc, type, arg,
-			   (void *)addr_param, commands);
-
 	/* Verify the ASCONF chunk before processing it. */
-	if (!sctp_verify_asconf(asoc,
-			    (sctp_paramhdr_t *)((void *)addr_param + length),
-			    (void *)chunk->chunk_end,
-			    &err_param))
+	if (!sctp_verify_asconf(asoc, chunk, true, &err_param))
 		return sctp_sf_violation_paramlen(net, ep, asoc, type, arg,
 						  (void *)err_param, commands);
 
@@ -3732,10 +3733,7 @@ sctp_disposition_t sctp_sf_do_asconf_ack(struct net *net,
 	rcvd_serial = ntohl(addip_hdr->serial);
 
 	/* Verify the ASCONF-ACK chunk before processing it. */
-	if (!sctp_verify_asconf(asoc,
-	    (sctp_paramhdr_t *)addip_hdr->params,
-	    (void *)asconf_ack->chunk_end,
-	    &err_param))
+	if (!sctp_verify_asconf(asoc, asconf_ack, false, &err_param))
 		return sctp_sf_violation_paramlen(net, ep, asoc, type, arg,
 			   (void *)err_param, commands);
 
@@ -4823,11 +4821,9 @@ sctp_disposition_t sctp_sf_do_9_1_prm_abort(
 	 * if necessary to fill gaps.
 	 */
 	struct sctp_chunk *abort = arg;
-	sctp_disposition_t retval;
 
-	retval = SCTP_DISPOSITION_CONSUME;
-
-	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
+	if (abort)
+		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
 
 	/* Even if we can't send the ABORT due to low memory delete the
 	 * TCB.  This is a departure from our typical NOMEM handling.
@@ -4842,7 +4838,7 @@ sctp_disposition_t sctp_sf_do_9_1_prm_abort(
 	SCTP_INC_STATS(net, SCTP_MIB_ABORTEDS);
 	SCTP_DEC_STATS(net, SCTP_MIB_CURRESTAB);
 
-	return retval;
+	return SCTP_DISPOSITION_ABORT;
 }
 
 /* We tried an illegal operation on an association which is closed.  */
@@ -4957,14 +4953,13 @@ sctp_disposition_t sctp_sf_cookie_wait_prm_abort(
 	sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *abort = arg;
-	sctp_disposition_t retval;
 
 	/* Stop T1-init timer */
 	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_STOP,
 			SCTP_TO(SCTP_EVENT_TIMEOUT_T1_INIT));
-	retval = SCTP_DISPOSITION_CONSUME;
 
-	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
+	if (abort)
+		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
 			SCTP_STATE(SCTP_STATE_CLOSED));
@@ -4981,7 +4976,7 @@ sctp_disposition_t sctp_sf_cookie_wait_prm_abort(
 	sctp_add_cmd_sf(commands, SCTP_CMD_INIT_FAILED,
 			SCTP_PERR(SCTP_ERROR_USER_ABORT));
 
-	return retval;
+	return SCTP_DISPOSITION_ABORT;
 }
 
 /*
@@ -5410,7 +5405,8 @@ sctp_disposition_t sctp_sf_do_6_3_3_rtx(struct net *net,
 	SCTP_INC_STATS(net, SCTP_MIB_T3_RTX_EXPIREDS);
 
 	if (asoc->overall_error_count >= asoc->max_retrans) {
-		if (asoc->state == SCTP_STATE_SHUTDOWN_PENDING) {
+		if (asoc->peer.zero_window_announced &&
+		    asoc->state == SCTP_STATE_SHUTDOWN_PENDING) {
 			/*
 			 * We are here likely because the receiver had its rwnd
 			 * closed for a while and we have not been able to

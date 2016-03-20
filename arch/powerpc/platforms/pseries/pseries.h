@@ -11,6 +11,7 @@
 #define _PSERIES_PSERIES_H
 
 #include <linux/interrupt.h>
+#include <asm/rtas.h>
 
 struct device_node;
 
@@ -56,13 +57,36 @@ extern void hvc_vio_init_early(void);
 /* Dynamic logical Partitioning/Mobility */
 extern void dlpar_free_cc_nodes(struct device_node *);
 extern void dlpar_free_cc_property(struct property *);
-extern struct device_node *dlpar_configure_connector(u32, struct device_node *);
+extern struct device_node *dlpar_configure_connector(__be32,
+						struct device_node *);
 extern int dlpar_attach_node(struct device_node *);
 extern int dlpar_detach_node(struct device_node *);
+extern int dlpar_acquire_drc(u32 drc_index);
+extern int dlpar_release_drc(u32 drc_index);
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+int dlpar_memory(struct pseries_hp_errorlog *hp_elog);
+#else
+static inline int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
+#ifdef CONFIG_HOTPLUG_CPU
+int dlpar_cpu(struct pseries_hp_errorlog *hp_elog);
+#else
+static inline int dlpar_cpu(struct pseries_hp_errorlog *hp_elog)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 /* PCI root bridge prepare function override for pseries */
 struct pci_host_bridge;
 int pseries_root_bridge_prepare(struct pci_host_bridge *bridge);
+
+extern struct pci_controller_ops pseries_pci_controller_ops;
 
 unsigned long pseries_memory_block_size(void);
 

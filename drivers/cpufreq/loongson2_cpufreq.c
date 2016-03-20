@@ -3,7 +3,7 @@
  *
  * The 2E revision of loongson processor not support this feature.
  *
- * Copyright (C) 2006 - 2008 Lemote Inc. & Insititute of Computing Technology
+ * Copyright (C) 2006 - 2008 Lemote Inc. & Institute of Computing Technology
  * Author: Yanhua, yanh@lemote.com
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -20,7 +20,7 @@
 #include <asm/clock.h>
 #include <asm/idle.h>
 
-#include <asm/mach-loongson/loongson.h>
+#include <asm/mach-loongson64/loongson.h>
 
 static uint nowait;
 
@@ -130,7 +130,6 @@ MODULE_DEVICE_TABLE(platform, platform_device_ids);
 static struct platform_driver platform_driver = {
 	.driver = {
 		.name = "loongson2_cpufreq",
-		.owner = THIS_MODULE,
 	},
 	.id_table = platform_device_ids,
 };

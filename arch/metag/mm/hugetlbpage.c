@@ -67,7 +67,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 	pgd = pgd_offset(mm, addr);
 	pud = pud_offset(pgd, addr);
 	pmd = pmd_offset(pud, addr);
-	pte = pte_alloc_map(mm, NULL, pmd, addr);
+	pte = pte_alloc_map(mm, pmd, addr);
 	pgd->pgd &= ~_PAGE_SZ_MASK;
 	pgd->pgd |= _PAGE_SZHUGE;
 
@@ -87,17 +87,6 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 	pte = pte_offset_kernel(pmd, addr);
 
 	return pte;
-}
-
-int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
-{
-	return 0;
-}
-
-struct page *follow_huge_addr(struct mm_struct *mm,
-			      unsigned long address, int write)
-{
-	return ERR_PTR(-EINVAL);
 }
 
 int pmd_huge(pmd_t pmd)

@@ -1,7 +1,7 @@
 /*
  * trace event based perf event profiling/tracing
  *
- * Copyright (C) 2009 Red Hat Inc, Peter Zijlstra <pzijlstr@redhat.com>
+ * Copyright (C) 2009 Red Hat Inc, Peter Zijlstra
  * Copyright (C) 2009-2010 Frederic Weisbecker <fweisbec@gmail.com>
  */
 
@@ -21,7 +21,7 @@ typedef typeof(unsigned long [PERF_MAX_TRACE_SIZE / sizeof(unsigned long)])
 /* Count the events in use (per event id, not per instance) */
 static int	total_ref_count;
 
-static int perf_trace_event_perm(struct ftrace_event_call *tp_event,
+static int perf_trace_event_perm(struct trace_event_call *tp_event,
 				 struct perf_event *p_event)
 {
 	if (tp_event->perf_perm) {
@@ -83,7 +83,7 @@ static int perf_trace_event_perm(struct ftrace_event_call *tp_event,
 	return 0;
 }
 
-static int perf_trace_event_reg(struct ftrace_event_call *tp_event,
+static int perf_trace_event_reg(struct trace_event_call *tp_event,
 				struct perf_event *p_event)
 {
 	struct hlist_head __percpu *list;
@@ -143,7 +143,7 @@ fail:
 
 static void perf_trace_event_unreg(struct perf_event *p_event)
 {
-	struct ftrace_event_call *tp_event = p_event->tp_event;
+	struct trace_event_call *tp_event = p_event->tp_event;
 	int i;
 
 	if (--tp_event->perf_refcount > 0)
@@ -172,17 +172,17 @@ out:
 
 static int perf_trace_event_open(struct perf_event *p_event)
 {
-	struct ftrace_event_call *tp_event = p_event->tp_event;
+	struct trace_event_call *tp_event = p_event->tp_event;
 	return tp_event->class->reg(tp_event, TRACE_REG_PERF_OPEN, p_event);
 }
 
 static void perf_trace_event_close(struct perf_event *p_event)
 {
-	struct ftrace_event_call *tp_event = p_event->tp_event;
+	struct trace_event_call *tp_event = p_event->tp_event;
 	tp_event->class->reg(tp_event, TRACE_REG_PERF_CLOSE, p_event);
 }
 
-static int perf_trace_event_init(struct ftrace_event_call *tp_event,
+static int perf_trace_event_init(struct trace_event_call *tp_event,
 				 struct perf_event *p_event)
 {
 	int ret;
@@ -206,7 +206,7 @@ static int perf_trace_event_init(struct ftrace_event_call *tp_event,
 
 int perf_trace_init(struct perf_event *p_event)
 {
-	struct ftrace_event_call *tp_event;
+	struct trace_event_call *tp_event;
 	u64 event_id = p_event->attr.config;
 	int ret = -EINVAL;
 
@@ -236,7 +236,7 @@ void perf_trace_destroy(struct perf_event *p_event)
 
 int perf_trace_add(struct perf_event *p_event, int flags)
 {
-	struct ftrace_event_call *tp_event = p_event->tp_event;
+	struct trace_event_call *tp_event = p_event->tp_event;
 	struct hlist_head __percpu *pcpu_list;
 	struct hlist_head *list;
 
@@ -255,13 +255,13 @@ int perf_trace_add(struct perf_event *p_event, int flags)
 
 void perf_trace_del(struct perf_event *p_event, int flags)
 {
-	struct ftrace_event_call *tp_event = p_event->tp_event;
+	struct trace_event_call *tp_event = p_event->tp_event;
 	hlist_del_rcu(&p_event->hlist_entry);
 	tp_event->class->reg(tp_event, TRACE_REG_PERF_DEL, p_event);
 }
 
 void *perf_trace_buf_prepare(int size, unsigned short type,
-			     struct pt_regs *regs, int *rctxp)
+			     struct pt_regs **regs, int *rctxp)
 {
 	struct trace_entry *entry;
 	unsigned long flags;
@@ -280,6 +280,8 @@ void *perf_trace_buf_prepare(int size, unsigned short type,
 	if (*rctxp < 0)
 		return NULL;
 
+	if (regs)
+		*regs = this_cpu_ptr(&__perf_regs[*rctxp]);
 	raw_data = this_cpu_ptr(perf_trace_buf[*rctxp]);
 
 	/* zero the dead bytes from align to not leak stack to user */
@@ -332,7 +334,7 @@ static int perf_ftrace_function_register(struct perf_event *event)
 {
 	struct ftrace_ops *ops = &event->ftrace_ops;
 
-	ops->flags |= FTRACE_OPS_FL_CONTROL;
+	ops->flags |= FTRACE_OPS_FL_PER_CPU | FTRACE_OPS_FL_RCU;
 	ops->func = perf_ftrace_function_call;
 	return register_ftrace_function(ops);
 }
@@ -355,7 +357,7 @@ static void perf_ftrace_function_disable(struct perf_event *event)
 	ftrace_function_local_disable(&event->ftrace_ops);
 }
 
-int perf_ftrace_event_register(struct ftrace_event_call *call,
+int perf_ftrace_event_register(struct trace_event_call *call,
 			       enum trace_reg type, void *data)
 {
 	switch (type) {

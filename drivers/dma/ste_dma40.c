@@ -1429,10 +1429,16 @@ static bool d40_tx_is_linked(struct d40_chan *d40c)
 	return is_link;
 }
 
-static int d40_pause(struct d40_chan *d40c)
+static int d40_pause(struct dma_chan *chan)
 {
+	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
 	int res = 0;
 	unsigned long flags;
+
+	if (d40c->phy_chan == NULL) {
+		chan_err(d40c, "Channel is not allocated!\n");
+		return -EINVAL;
+	}
 
 	if (!d40c->busy)
 		return 0;
@@ -1448,10 +1454,16 @@ static int d40_pause(struct d40_chan *d40c)
 	return res;
 }
 
-static int d40_resume(struct d40_chan *d40c)
+static int d40_resume(struct dma_chan *chan)
 {
+	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
 	int res = 0;
 	unsigned long flags;
+
+	if (d40c->phy_chan == NULL) {
+		chan_err(d40c, "Channel is not allocated!\n");
+		return -EINVAL;
+	}
 
 	if (!d40c->busy)
 		return 0;
@@ -2502,7 +2514,8 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 	sg_dma_len(&dst_sg) = size;
 	sg_dma_len(&src_sg) = size;
 
-	return d40_prep_sg(chan, &src_sg, &dst_sg, 1, DMA_NONE, dma_flags);
+	return d40_prep_sg(chan, &src_sg, &dst_sg, 1,
+			   DMA_MEM_TO_MEM, dma_flags);
 }
 
 static struct dma_async_tx_descriptor *
@@ -2514,7 +2527,8 @@ d40_prep_memcpy_sg(struct dma_chan *chan,
 	if (dst_nents != src_nents)
 		return NULL;
 
-	return d40_prep_sg(chan, src_sg, dst_sg, src_nents, DMA_NONE, dma_flags);
+	return d40_prep_sg(chan, src_sg, dst_sg, src_nents,
+			   DMA_MEM_TO_MEM, dma_flags);
 }
 
 static struct dma_async_tx_descriptor *
@@ -2604,11 +2618,16 @@ static void d40_issue_pending(struct dma_chan *chan)
 	spin_unlock_irqrestore(&d40c->lock, flags);
 }
 
-static void d40_terminate_all(struct dma_chan *chan)
+static int d40_terminate_all(struct dma_chan *chan)
 {
 	unsigned long flags;
 	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
 	int ret;
+
+	if (d40c->phy_chan == NULL) {
+		chan_err(d40c, "Channel is not allocated!\n");
+		return -EINVAL;
+	}
 
 	spin_lock_irqsave(&d40c->lock, flags);
 
@@ -2627,6 +2646,7 @@ static void d40_terminate_all(struct dma_chan *chan)
 	d40c->busy = false;
 
 	spin_unlock_irqrestore(&d40c->lock, flags);
+	return 0;
 }
 
 static int
@@ -2672,6 +2692,11 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	dma_addr_t config_addr;
 	u32 src_maxburst, dst_maxburst;
 	int ret;
+
+	if (d40c->phy_chan == NULL) {
+		chan_err(d40c, "Channel is not allocated!\n");
+		return -EINVAL;
+	}
 
 	src_addr_width = config->src_addr_width;
 	src_maxburst = config->src_maxburst;
@@ -2781,35 +2806,6 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	return 0;
 }
 
-static int d40_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-		       unsigned long arg)
-{
-	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
-
-	if (d40c->phy_chan == NULL) {
-		chan_err(d40c, "Channel is not allocated!\n");
-		return -EINVAL;
-	}
-
-	switch (cmd) {
-	case DMA_TERMINATE_ALL:
-		d40_terminate_all(chan);
-		return 0;
-	case DMA_PAUSE:
-		return d40_pause(d40c);
-	case DMA_RESUME:
-		return d40_resume(d40c);
-	case DMA_SLAVE_CONFIG:
-		return d40_set_runtime_config(chan,
-			(struct dma_slave_config *) arg);
-	default:
-		break;
-	}
-
-	/* Other commands are unimplemented */
-	return -ENXIO;
-}
-
 /* Initialization functions */
 
 static void __init d40_chan_init(struct d40_base *base, struct dma_device *dma,
@@ -2857,7 +2853,7 @@ static void d40_ops_init(struct d40_base *base, struct dma_device *dev)
 		 * This controller can only access address at even
 		 * 32bit boundaries, i.e. 2^2
 		 */
-		dev->copy_align = 2;
+		dev->copy_align = DMAENGINE_ALIGN_4_BYTES;
 	}
 
 	if (dma_has_cap(DMA_SG, dev->cap_mask))
@@ -2870,7 +2866,10 @@ static void d40_ops_init(struct d40_base *base, struct dma_device *dev)
 	dev->device_free_chan_resources = d40_free_chan_resources;
 	dev->device_issue_pending = d40_issue_pending;
 	dev->device_tx_status = d40_tx_status;
-	dev->device_control = d40_control;
+	dev->device_config = d40_set_runtime_config;
+	dev->device_pause = d40_pause;
+	dev->device_resume = d40_resume;
+	dev->device_terminate_all = d40_terminate_all;
 	dev->dev = base->dev;
 }
 
@@ -2908,7 +2907,7 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 
 	if (err) {
 		d40_err(base->dev,
-			"Failed to regsiter memcpy only channels\n");
+			"Failed to register memcpy only channels\n");
 		goto failure2;
 	}
 
@@ -3051,7 +3050,7 @@ static int dma40_runtime_resume(struct device *dev)
 
 static const struct dev_pm_ops dma40_pm_ops = {
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(dma40_suspend, dma40_resume)
-	SET_PM_RUNTIME_PM_OPS(dma40_runtime_suspend,
+	SET_RUNTIME_PM_OPS(dma40_runtime_suspend,
 				dma40_runtime_resume,
 				NULL)
 };
@@ -3432,6 +3431,7 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 
 			d40_err(base->dev, "Failed to allocate %d pages.\n",
 				base->lcla_pool.pages);
+			ret = -ENOMEM;
 
 			for (j = 0; j < i; j++)
 				free_pages(page_list[j], base->lcla_pool.pages);
@@ -3543,26 +3543,26 @@ static int __init d40_probe(struct platform_device *pdev)
 	struct stedma40_platform_data *plat_data = dev_get_platdata(&pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	int ret = -ENOENT;
-	struct d40_base *base = NULL;
-	struct resource *res = NULL;
+	struct d40_base *base;
+	struct resource *res;
 	int num_reserved_chans;
 	u32 val;
 
 	if (!plat_data) {
 		if (np) {
-			if(d40_of_probe(pdev, np)) {
+			if (d40_of_probe(pdev, np)) {
 				ret = -ENOMEM;
-				goto failure;
+				goto report_failure;
 			}
 		} else {
 			d40_err(&pdev->dev, "No pdata or Device Tree provided\n");
-			goto failure;
+			goto report_failure;
 		}
 	}
 
 	base = d40_hw_detect_init(pdev);
 	if (!base)
-		goto failure;
+		goto report_failure;
 
 	num_reserved_chans = d40_phy_res_init(base);
 
@@ -3693,51 +3693,48 @@ static int __init d40_probe(struct platform_device *pdev)
 	return 0;
 
 failure:
-	if (base) {
-		if (base->desc_slab)
-			kmem_cache_destroy(base->desc_slab);
-		if (base->virtbase)
-			iounmap(base->virtbase);
+	kmem_cache_destroy(base->desc_slab);
+	if (base->virtbase)
+		iounmap(base->virtbase);
 
-		if (base->lcla_pool.base && base->plat_data->use_esram_lcla) {
-			iounmap(base->lcla_pool.base);
-			base->lcla_pool.base = NULL;
-		}
-
-		if (base->lcla_pool.dma_addr)
-			dma_unmap_single(base->dev, base->lcla_pool.dma_addr,
-					 SZ_1K * base->num_phy_chans,
-					 DMA_TO_DEVICE);
-
-		if (!base->lcla_pool.base_unaligned && base->lcla_pool.base)
-			free_pages((unsigned long)base->lcla_pool.base,
-				   base->lcla_pool.pages);
-
-		kfree(base->lcla_pool.base_unaligned);
-
-		if (base->phy_lcpa)
-			release_mem_region(base->phy_lcpa,
-					   base->lcpa_size);
-		if (base->phy_start)
-			release_mem_region(base->phy_start,
-					   base->phy_size);
-		if (base->clk) {
-			clk_disable_unprepare(base->clk);
-			clk_put(base->clk);
-		}
-
-		if (base->lcpa_regulator) {
-			regulator_disable(base->lcpa_regulator);
-			regulator_put(base->lcpa_regulator);
-		}
-
-		kfree(base->lcla_pool.alloc_map);
-		kfree(base->lookup_log_chans);
-		kfree(base->lookup_phy_chans);
-		kfree(base->phy_res);
-		kfree(base);
+	if (base->lcla_pool.base && base->plat_data->use_esram_lcla) {
+		iounmap(base->lcla_pool.base);
+		base->lcla_pool.base = NULL;
 	}
 
+	if (base->lcla_pool.dma_addr)
+		dma_unmap_single(base->dev, base->lcla_pool.dma_addr,
+				 SZ_1K * base->num_phy_chans,
+				 DMA_TO_DEVICE);
+
+	if (!base->lcla_pool.base_unaligned && base->lcla_pool.base)
+		free_pages((unsigned long)base->lcla_pool.base,
+			   base->lcla_pool.pages);
+
+	kfree(base->lcla_pool.base_unaligned);
+
+	if (base->phy_lcpa)
+		release_mem_region(base->phy_lcpa,
+				   base->lcpa_size);
+	if (base->phy_start)
+		release_mem_region(base->phy_start,
+				   base->phy_size);
+	if (base->clk) {
+		clk_disable_unprepare(base->clk);
+		clk_put(base->clk);
+	}
+
+	if (base->lcpa_regulator) {
+		regulator_disable(base->lcpa_regulator);
+		regulator_put(base->lcpa_regulator);
+	}
+
+	kfree(base->lcla_pool.alloc_map);
+	kfree(base->lookup_log_chans);
+	kfree(base->lookup_phy_chans);
+	kfree(base->phy_res);
+	kfree(base);
+report_failure:
 	d40_err(&pdev->dev, "probe failed\n");
 	return ret;
 }
@@ -3749,7 +3746,6 @@ static const struct of_device_id d40_match[] = {
 
 static struct platform_driver d40_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name  = D40_NAME,
 		.pm = &dma40_pm_ops,
 		.of_match_table = d40_match,

@@ -1,0 +1,75 @@
+Renesas Sampling Rate Convert Sound Card:
+
+Renesas Sampling Rate Convert Sound Card specifies audio DAI connections of SoC <-> codec.
+
+Required properties:
+
+- compatible				: "renesas,rsrc-card{,<board>}"
+					  Examples with boards are:
+					    - "renesas,rsrc-card"
+					    - "renesas,rsrc-card,lager"
+					    - "renesas,rsrc-card,koelsch"
+Optional properties:
+
+- card_name				: User specified audio sound card name, one string
+					  property.
+- cpu					: CPU   sub-node
+- codec					: CODEC sub-node
+
+Optional subnode properties:
+
+- format				: CPU/CODEC common audio format.
+					  "i2s", "right_j", "left_j" , "dsp_a"
+					  "dsp_b", "ac97", "pdm", "msb", "lsb"
+- frame-master				: Indicates dai-link frame master.
+					  phandle to a cpu or codec subnode.
+- bitclock-master			: Indicates dai-link bit clock master.
+					  phandle to a cpu or codec subnode.
+- bitclock-inversion			: bool property. Add this if the
+					  dai-link uses bit clock inversion.
+- frame-inversion			: bool property. Add this if the
+					  dai-link uses frame clock inversion.
+- convert-rate				: platform specified sampling rate convert
+- convert-channels			: platform specified converted channel size (2 - 8 ch)
+- audio-prefix				: see audio-routing
+- audio-routing				: A list of the connections between audio components.
+					  Each entry is a pair of strings, the first being the connection's sink,
+					  the second being the connection's source. Valid names for sources.
+					  use audio-prefix if some components is using same sink/sources naming.
+					  it can be used if compatible was "renesas,rsrc-card";
+
+Required CPU/CODEC subnodes properties:
+
+- sound-dai				: phandle and port of CPU/CODEC
+
+Optional CPU/CODEC subnodes properties:
+
+- clocks / system-clock-frequency	: specify subnode's clock if needed.
+					  it can be specified via "clocks" if system has
+					  clock node (= common clock), or "system-clock-frequency"
+					  (if system doens't support common clock)
+					  If a clock is specified, it is
+					  enabled with clk_prepare_enable()
+					  in dai startup() and disabled with
+					  clk_disable_unprepare() in dai
+					  shutdown().
+
+Example
+
+sound {
+	compatible = "renesas,rsrc-card,lager";
+
+	card-name = "rsnd-ak4643";
+	format = "left_j";
+	bitclock-master = <&sndcodec>;
+	frame-master = <&sndcodec>;
+
+	sndcpu: cpu {
+		sound-dai = <&rcar_sound>;
+	};
+
+	sndcodec: codec {
+		sound-dai = <&ak4643>;
+		system-clock-frequency = <11289600>;
+	};
+};

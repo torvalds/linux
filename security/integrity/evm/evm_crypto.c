@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/crypto.h>
 #include <linux/xattr.h>
+#include <linux/evm.h>
 #include <keys/encrypted-type.h>
 #include <crypto/hash.h>
 #include "evm.h"
@@ -32,6 +33,44 @@ struct crypto_shash *hash_tfm;
 
 static DEFINE_MUTEX(mutex);
 
+#define EVM_SET_KEY_BUSY 0
+
+static unsigned long evm_set_key_flags;
+
+/**
+ * evm_set_key() - set EVM HMAC key from the kernel
+ * @key: pointer to a buffer with the key data
+ * @size: length of the key data
+ *
+ * This function allows setting the EVM HMAC key from the kernel
+ * without using the "encrypted" key subsystem keys. It can be used
+ * by the crypto HW kernel module which has its own way of managing
+ * keys.
+ *
+ * key length should be between 32 and 128 bytes long
+ */
+int evm_set_key(void *key, size_t keylen)
+{
+	int rc;
+
+	rc = -EBUSY;
+	if (test_and_set_bit(EVM_SET_KEY_BUSY, &evm_set_key_flags))
+		goto busy;
+	rc = -EINVAL;
+	if (keylen > MAX_KEY_SIZE)
+		goto inval;
+	memcpy(evmkey, key, keylen);
+	evm_initialized |= EVM_INIT_HMAC;
+	pr_info("key initialized\n");
+	return 0;
+inval:
+	clear_bit(EVM_SET_KEY_BUSY, &evm_set_key_flags);
+busy:
+	pr_err("key initialization failed\n");
+	return rc;
+}
+EXPORT_SYMBOL_GPL(evm_set_key);
+
 static struct shash_desc *init_desc(char type)
 {
 	long rc;
@@ -40,6 +79,10 @@ static struct shash_desc *init_desc(char type)
 	struct shash_desc *desc;
 
 	if (type == EVM_XATTR_HMAC) {
+		if (!(evm_initialized & EVM_INIT_HMAC)) {
+			pr_err("HMAC key is not set\n");
+			return ERR_PTR(-ENOKEY);
+		}
 		tfm = &hmac_tfm;
 		algo = evm_hmac;
 	} else {
@@ -131,7 +174,7 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 				size_t req_xattr_value_len,
 				char type, char *digest)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	struct shash_desc *desc;
 	char **xattrname;
 	size_t xattr_size = 0;
@@ -199,7 +242,7 @@ int evm_calc_hash(struct dentry *dentry, const char *req_xattr_name,
 int evm_update_evmxattr(struct dentry *dentry, const char *xattr_name,
 			const char *xattr_value, size_t xattr_value_len)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	struct evm_ima_xattr_data xattr_data;
 	int rc = 0;
 
@@ -240,20 +283,17 @@ int evm_init_key(void)
 {
 	struct key *evm_key;
 	struct encrypted_key_payload *ekp;
-	int rc = 0;
+	int rc;
 
 	evm_key = request_key(&key_type_encrypted, EVMKEY, NULL);
 	if (IS_ERR(evm_key))
 		return -ENOENT;
 
 	down_read(&evm_key->sem);
-	ekp = evm_key->payload.data;
-	if (ekp->decrypted_datalen > MAX_KEY_SIZE) {
-		rc = -EINVAL;
-		goto out;
-	}
-	memcpy(evmkey, ekp->decrypted_data, ekp->decrypted_datalen);
-out:
+	ekp = evm_key->payload.data[0];
+
+	rc = evm_set_key(ekp->decrypted_data, ekp->decrypted_datalen);
+
 	/* burn the original key contents */
 	memset(ekp->decrypted_data, 0, ekp->decrypted_datalen);
 	up_read(&evm_key->sem);

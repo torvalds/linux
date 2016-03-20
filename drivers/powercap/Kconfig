@@ -17,7 +17,7 @@ if POWERCAP
 # Client driver configurations go here.
 config INTEL_RAPL
 	tristate "Intel RAPL Support"
-	depends on X86
+	depends on X86 && IOSF_MBI
 	default n
 	---help---
 	  This enables support for the Intel Running Average Power Limit (RAPL)

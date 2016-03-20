@@ -107,5 +107,13 @@ struct sched_watchdog {
 #define SHUTDOWN_suspend    2  /* Clean up, save suspend info, kill.         */
 #define SHUTDOWN_crash      3  /* Tell controller we've crashed.             */
 #define SHUTDOWN_watchdog   4  /* Restart because watchdog time expired.     */
+/*
+ * Domain asked to perform 'soft reset' for it. The expected behavior is to
+ * reset internal Xen state for the domain returning it to the point where it
+ * was created but leaving the domain's memory contents and vCPU contexts
+ * intact. This will allow the domain to start over and set up all Xen specific
+ * interfaces again.
+ */
+#define SHUTDOWN_soft_reset 5
 
 #endif /* __XEN_PUBLIC_SCHED_H__ */

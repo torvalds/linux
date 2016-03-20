@@ -22,8 +22,6 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
@@ -169,7 +167,16 @@ xfs_inobt_init_rec_from_cur(
 	union xfs_btree_rec	*rec)
 {
 	rec->inobt.ir_startino = cpu_to_be32(cur->bc_rec.i.ir_startino);
-	rec->inobt.ir_freecount = cpu_to_be32(cur->bc_rec.i.ir_freecount);
+	if (xfs_sb_version_hassparseinodes(&cur->bc_mp->m_sb)) {
+		rec->inobt.ir_u.sp.ir_holemask =
+					cpu_to_be16(cur->bc_rec.i.ir_holemask);
+		rec->inobt.ir_u.sp.ir_count = cur->bc_rec.i.ir_count;
+		rec->inobt.ir_u.sp.ir_freecount = cur->bc_rec.i.ir_freecount;
+	} else {
+		/* ir_holemask/ir_count not supported on-disk */
+		rec->inobt.ir_u.f.ir_freecount =
+					cpu_to_be32(cur->bc_rec.i.ir_freecount);
+	}
 	rec->inobt.ir_free = cpu_to_be64(cur->bc_rec.i.ir_free);
 }
 
@@ -214,7 +221,6 @@ xfs_inobt_verify(
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
-	struct xfs_perag	*pag = bp->b_pag;
 	unsigned int		level;
 
 	/*
@@ -230,14 +236,7 @@ xfs_inobt_verify(
 	switch (block->bb_magic) {
 	case cpu_to_be32(XFS_IBT_CRC_MAGIC):
 	case cpu_to_be32(XFS_FIBT_CRC_MAGIC):
-		if (!xfs_sb_version_hascrc(&mp->m_sb))
-			return false;
-		if (!uuid_equal(&block->bb_u.s.bb_uuid, &mp->m_sb.sb_uuid))
-			return false;
-		if (block->bb_u.s.bb_blkno != cpu_to_be64(bp->b_bn))
-			return false;
-		if (pag &&
-		    be32_to_cpu(block->bb_u.s.bb_owner) != pag->pag_agno)
+		if (!xfs_btree_sblock_v5hdr_verify(bp))
 			return false;
 		/* fall through */
 	case cpu_to_be32(XFS_IBT_MAGIC):
@@ -247,24 +246,12 @@ xfs_inobt_verify(
 		return 0;
 	}
 
-	/* numrecs and level verification */
+	/* level verification */
 	level = be16_to_cpu(block->bb_level);
 	if (level >= mp->m_in_maxlevels)
 		return false;
-	if (be16_to_cpu(block->bb_numrecs) > mp->m_inobt_mxr[level != 0])
-		return false;
 
-	/* sibling pointer verification */
-	if (!block->bb_u.s.bb_leftsib ||
-	    (be32_to_cpu(block->bb_u.s.bb_leftsib) >= mp->m_sb.sb_agblocks &&
-	     block->bb_u.s.bb_leftsib != cpu_to_be32(NULLAGBLOCK)))
-		return false;
-	if (!block->bb_u.s.bb_rightsib ||
-	    (be32_to_cpu(block->bb_u.s.bb_rightsib) >= mp->m_sb.sb_agblocks &&
-	     block->bb_u.s.bb_rightsib != cpu_to_be32(NULLAGBLOCK)))
-		return false;
-
-	return true;
+	return xfs_btree_sblock_verify(bp, mp->m_inobt_mxr[level != 0]);
 }
 
 static void
@@ -297,6 +284,7 @@ xfs_inobt_write_verify(
 }
 
 const struct xfs_buf_ops xfs_inobt_buf_ops = {
+	.name = "xfs_inobt",
 	.verify_read = xfs_inobt_read_verify,
 	.verify_write = xfs_inobt_write_verify,
 };
@@ -420,3 +408,85 @@ xfs_inobt_maxrecs(
 		return blocklen / sizeof(xfs_inobt_rec_t);
 	return blocklen / (sizeof(xfs_inobt_key_t) + sizeof(xfs_inobt_ptr_t));
 }
+
+/*
+ * Convert the inode record holemask to an inode allocation bitmap. The inode
+ * allocation bitmap is inode granularity and specifies whether an inode is
+ * physically allocated on disk (not whether the inode is considered allocated
+ * or free by the fs).
+ *
+ * A bit value of 1 means the inode is allocated, a value of 0 means it is free.
+ */
+uint64_t
+xfs_inobt_irec_to_allocmask(
+	struct xfs_inobt_rec_incore	*rec)
+{
+	uint64_t			bitmap = 0;
+	uint64_t			inodespbit;
+	int				nextbit;
+	uint				allocbitmap;
+
+	/*
+	 * The holemask has 16-bits for a 64 inode record. Therefore each
+	 * holemask bit represents multiple inodes. Create a mask of bits to set
+	 * in the allocmask for each holemask bit.
+	 */
+	inodespbit = (1 << XFS_INODES_PER_HOLEMASK_BIT) - 1;
+
+	/*
+	 * Allocated inodes are represented by 0 bits in holemask. Invert the 0
+	 * bits to 1 and convert to a uint so we can use xfs_next_bit(). Mask
+	 * anything beyond the 16 holemask bits since this casts to a larger
+	 * type.
+	 */
+	allocbitmap = ~rec->ir_holemask & ((1 << XFS_INOBT_HOLEMASK_BITS) - 1);
+
+	/*
+	 * allocbitmap is the inverted holemask so every set bit represents
+	 * allocated inodes. To expand from 16-bit holemask granularity to
+	 * 64-bit (e.g., bit-per-inode), set inodespbit bits in the target
+	 * bitmap for every holemask bit.
+	 */
+	nextbit = xfs_next_bit(&allocbitmap, 1, 0);
+	while (nextbit != -1) {
+		ASSERT(nextbit < (sizeof(rec->ir_holemask) * NBBY));
+
+		bitmap |= (inodespbit <<
+			   (nextbit * XFS_INODES_PER_HOLEMASK_BIT));
+
+		nextbit = xfs_next_bit(&allocbitmap, 1, nextbit + 1);
+	}
+
+	return bitmap;
+}
+
+#if defined(DEBUG) || defined(XFS_WARN)
+/*
+ * Verify that an in-core inode record has a valid inode count.
+ */
+int
+xfs_inobt_rec_check_count(
+	struct xfs_mount		*mp,
+	struct xfs_inobt_rec_incore	*rec)
+{
+	int				inocount = 0;
+	int				nextbit = 0;
+	uint64_t			allocbmap;
+	int				wordsz;
+
+	wordsz = sizeof(allocbmap) / sizeof(unsigned int);
+	allocbmap = xfs_inobt_irec_to_allocmask(rec);
+
+	nextbit = xfs_next_bit((uint *) &allocbmap, wordsz, nextbit);
+	while (nextbit != -1) {
+		inocount++;
+		nextbit = xfs_next_bit((uint *) &allocbmap, wordsz,
+				       nextbit + 1);
+	}
+
+	if (inocount != rec->ir_count)
+		return -EFSCORRUPTED;
+
+	return 0;
+}
+#endif	/* DEBUG */

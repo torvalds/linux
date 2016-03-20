@@ -112,8 +112,8 @@ as the &v4l2-format; <structfield>type</structfield> field. See <xref
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved</structfield>[2]</entry>
-	    <entry>A place holder for future extensions. This array should
-be zeroed by applications.</entry>
+	    <entry>A place holder for future extensions. Drivers and applications
+must set the array to zero.</entry>
 	  </row>
 	</tbody>
       </tgroup>

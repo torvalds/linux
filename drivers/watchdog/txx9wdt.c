@@ -131,6 +131,7 @@ static int __init txx9wdt_probe(struct platform_device *dev)
 	txx9wdt.timeout = timeout;
 	txx9wdt.min_timeout = 1;
 	txx9wdt.max_timeout = WD_MAX_TIMEOUT;
+	txx9wdt.parent = &dev->dev;
 	watchdog_set_nowayout(&txx9wdt, nowayout);
 
 	ret = watchdog_register_device(&txx9wdt);
@@ -167,7 +168,6 @@ static struct platform_driver txx9wdt_driver = {
 	.shutdown = txx9wdt_shutdown,
 	.driver = {
 		.name = "txx9wdt",
-		.owner = THIS_MODULE,
 	},
 };
 

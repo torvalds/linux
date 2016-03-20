@@ -875,6 +875,7 @@ static const struct of_device_id of_twl6030_match_tbl[] = {
 	},
 	{ /* end */ }
 };
+MODULE_DEVICE_TABLE(of, of_twl6030_match_tbl);
 
 static int twl6030_gpadc_probe(struct platform_device *pdev)
 {
@@ -994,7 +995,6 @@ static struct platform_driver twl6030_gpadc_driver = {
 	.remove		= twl6030_gpadc_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &twl6030_gpadc_pm_ops,
 		.of_match_table = of_twl6030_match_tbl,
 	},
@@ -1002,7 +1002,7 @@ static struct platform_driver twl6030_gpadc_driver = {
 
 module_platform_driver(twl6030_gpadc_driver);
 
-MODULE_ALIAS("platform: " DRIVER_NAME);
+MODULE_ALIAS("platform:" DRIVER_NAME);
 MODULE_AUTHOR("Balaji T K <balajitk@ti.com>");
 MODULE_AUTHOR("Graeme Gregory <gg@slimlogic.co.uk>");
 MODULE_AUTHOR("Oleksandr Kozaruk <oleksandr.kozaruk@ti.com");

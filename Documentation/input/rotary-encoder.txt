@@ -9,8 +9,9 @@ peripherals with two wires. The outputs are phase-shifted by 90 degrees
 and by triggering on falling and rising edges, the turn direction can
 be determined.
 
-Some encoders have both outputs low in stable states, whereas others also have
-a stable state with both outputs high (half-period mode).
+Some encoders have both outputs low in stable states, others also have
+a stable state with both outputs high (half-period mode) and some have
+a stable state in all steps (quarter-period mode).
 
 The phase diagram of these two outputs look like this:
 
@@ -32,8 +33,11 @@ The phase diagram of these two outputs look like this:
                 |<-->|
 	          one step (half-period mode)
 
+                |<>|
+	          one step (quarter-period mode)
+
 For more information, please see
-	http://en.wikipedia.org/wiki/Rotary_encoder
+	https://en.wikipedia.org/wiki/Rotary_encoder
 
 
 1. Events / state machine
@@ -109,6 +113,7 @@ static struct rotary_encoder_platform_data my_rotary_encoder_info = {
 	.inverted_a	= 0,
 	.inverted_b	= 0,
 	.half_period	= false,
+	.wakeup_source	= false,
 };
 
 static struct platform_device rotary_encoder_device = {

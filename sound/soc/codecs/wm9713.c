@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/regmap.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/ac97_codec.h>
@@ -29,43 +30,18 @@
 
 #include "wm9713.h"
 
+#define WM9713_VENDOR_ID 0x574d4c13
+#define WM9713_VENDOR_ID_MASK 0xffffffff
+
 struct wm9713_priv {
+	struct snd_ac97 *ac97;
 	u32 pll_in; /* PLL input frequency */
+	unsigned int hp_mixer[2];
+	struct mutex lock;
 };
 
-static unsigned int ac97_read(struct snd_soc_codec *codec,
-	unsigned int reg);
-static int ac97_write(struct snd_soc_codec *codec,
-	unsigned int reg, unsigned int val);
-
-/*
- * WM9713 register cache
- * Reg 0x3c bit 15 is used by touch driver.
- */
-static const u16 wm9713_reg[] = {
-	0x6174, 0x8080, 0x8080, 0x8080,
-	0xc880, 0xe808, 0xe808, 0x0808,
-	0x00da, 0x8000, 0xd600, 0xaaa0,
-	0xaaa0, 0xaaa0, 0x0000, 0x0000,
-	0x0f0f, 0x0040, 0x0000, 0x7f00,
-	0x0405, 0x0410, 0xbb80, 0xbb80,
-	0x0000, 0xbb80, 0x0000, 0x4523,
-	0x0000, 0x2000, 0x7eff, 0xffff,
-	0x0000, 0x0000, 0x0080, 0x0000,
-	0x0000, 0x0000, 0xfffe, 0xffff,
-	0x0000, 0x0000, 0x0000, 0xfffe,
-	0x4000, 0x0000, 0x0000, 0x0000,
-	0xb032, 0x3e00, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0006,
-	0x0001, 0x0000, 0x574d, 0x4c13,
-	0x0000, 0x0000, 0x0000
-};
-
-/* virtual HP mixers regs */
-#define HPL_MIXER	0x80
-#define HPR_MIXER	0x82
-#define MICB_MUX	0x82
+#define HPL_MIXER 0
+#define HPR_MIXER 1
 
 static const char *wm9713_mic_mixer[] = {"Stereo", "Mic 1", "Mic 2", "Mute"};
 static const char *wm9713_rec_mux[] = {"Stereo", "Left", "Right", "Mute"};
@@ -110,17 +86,16 @@ SOC_ENUM_SINGLE(AC97_REC_GAIN_MIC, 10, 8, wm9713_dac_inv), /* dac invert 2 15 */
 SOC_ENUM_SINGLE(AC97_GENERAL_PURPOSE, 15, 2, wm9713_bass), /* bass control 16 */
 SOC_ENUM_SINGLE(AC97_PCI_SVID, 5, 2, wm9713_ng_type), /* noise gate type 17 */
 SOC_ENUM_SINGLE(AC97_3D_CONTROL, 12, 3, wm9713_mic_select), /* mic selection 18 */
-SOC_ENUM_SINGLE(MICB_MUX, 0, 2, wm9713_micb_select), /* mic selection 19 */
+SOC_ENUM_SINGLE_VIRT(2, wm9713_micb_select), /* mic selection 19 */
 };
 
 static const DECLARE_TLV_DB_SCALE(out_tlv, -4650, 150, 0);
 static const DECLARE_TLV_DB_SCALE(main_tlv, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(misc_tlv, -1500, 300, 0);
-static unsigned int mic_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const  DECLARE_TLV_DB_RANGE(mic_tlv,
 	0, 2, TLV_DB_SCALE_ITEM(1200, 600, 0),
-	3, 3, TLV_DB_SCALE_ITEM(3000, 0, 0),
-};
+	3, 3, TLV_DB_SCALE_ITEM(3000, 0, 0)
+);
 
 static const struct snd_kcontrol_new wm9713_snd_ac97_controls[] = {
 SOC_DOUBLE_TLV("Speaker Playback Volume", AC97_MASTER, 8, 0, 31, 1, out_tlv),
@@ -217,23 +192,28 @@ SOC_SINGLE("3D Depth", AC97_REC_GAIN_MIC, 0, 15, 1),
 static int wm9713_voice_shutdown(struct snd_soc_dapm_widget *w,
 				 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
-	u16 status, rate;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	if (WARN_ON(event != SND_SOC_DAPM_PRE_PMD))
 		return -EINVAL;
 
 	/* Gracefully shut down the voice interface. */
-	status = ac97_read(codec, AC97_EXTENDED_MID) | 0x1000;
-	rate = ac97_read(codec, AC97_HANDSET_RATE) & 0xF0FF;
-	ac97_write(codec, AC97_HANDSET_RATE, rate | 0x0200);
+	snd_soc_update_bits(codec, AC97_HANDSET_RATE, 0x0f00, 0x0200);
 	schedule_timeout_interruptible(msecs_to_jiffies(1));
-	ac97_write(codec, AC97_HANDSET_RATE, rate | 0x0F00);
-	ac97_write(codec, AC97_EXTENDED_MID, status);
+	snd_soc_update_bits(codec, AC97_HANDSET_RATE, 0x0f00, 0x0f00);
+	snd_soc_update_bits(codec, AC97_EXTENDED_MID, 0x1000, 0x1000);
 
 	return 0;
 }
 
+static const unsigned int wm9713_mixer_mute_regs[] = {
+	AC97_PC_BEEP,
+	AC97_MASTER_TONE,
+	AC97_PHONE,
+	AC97_REC_SEL,
+	AC97_PCM,
+	AC97_AUX,
+};
 
 /* We have to create a fake left and right HP mixers because
  * the codec only has a single control that is shared by both channels.
@@ -241,73 +221,95 @@ static int wm9713_voice_shutdown(struct snd_soc_dapm_widget *w,
  * register map, thus we add a new (virtual) register to help determine the
  * audio route within the device.
  */
-static int mixer_event(struct snd_soc_dapm_widget *w,
-	struct snd_kcontrol *kcontrol, int event)
+static int wm9713_hp_mixer_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
 {
-	u16 l, r, beep, tone, phone, rec, pcm, aux;
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
+	struct wm9713_priv *wm9713 = snd_soc_codec_get_drvdata(codec);
+	unsigned int val = ucontrol->value.integer.value[0];
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int mixer, mask, shift, old;
+	struct snd_soc_dapm_update update;
+	bool change;
 
-	l = ac97_read(w->codec, HPL_MIXER);
-	r = ac97_read(w->codec, HPR_MIXER);
-	beep = ac97_read(w->codec, AC97_PC_BEEP);
-	tone = ac97_read(w->codec, AC97_MASTER_TONE);
-	phone = ac97_read(w->codec, AC97_PHONE);
-	rec = ac97_read(w->codec, AC97_REC_SEL);
-	pcm = ac97_read(w->codec, AC97_PCM);
-	aux = ac97_read(w->codec, AC97_AUX);
+	mixer = mc->shift >> 8;
+	shift = mc->shift & 0xff;
+	mask = (1 << shift);
 
-	if (event & SND_SOC_DAPM_PRE_REG)
-		return 0;
-	if ((l & 0x1) || (r & 0x1))
-		ac97_write(w->codec, AC97_PC_BEEP, beep & 0x7fff);
+	mutex_lock(&wm9713->lock);
+	old = wm9713->hp_mixer[mixer];
+	if (ucontrol->value.integer.value[0])
+		wm9713->hp_mixer[mixer] |= mask;
 	else
-		ac97_write(w->codec, AC97_PC_BEEP, beep | 0x8000);
+		wm9713->hp_mixer[mixer] &= ~mask;
 
-	if ((l & 0x2) || (r & 0x2))
-		ac97_write(w->codec, AC97_MASTER_TONE, tone & 0x7fff);
-	else
-		ac97_write(w->codec, AC97_MASTER_TONE, tone | 0x8000);
+	change = old != wm9713->hp_mixer[mixer];
+	if (change) {
+		update.kcontrol = kcontrol;
+		update.reg = wm9713_mixer_mute_regs[shift];
+		update.mask = 0x8000;
+		if ((wm9713->hp_mixer[0] & mask) ||
+		    (wm9713->hp_mixer[1] & mask))
+			update.val = 0x0;
+		else
+			update.val = 0x8000;
 
-	if ((l & 0x4) || (r & 0x4))
-		ac97_write(w->codec, AC97_PHONE, phone & 0x7fff);
-	else
-		ac97_write(w->codec, AC97_PHONE, phone | 0x8000);
+		snd_soc_dapm_mixer_update_power(dapm, kcontrol, val,
+			&update);
+	}
 
-	if ((l & 0x8) || (r & 0x8))
-		ac97_write(w->codec, AC97_REC_SEL, rec & 0x7fff);
-	else
-		ac97_write(w->codec, AC97_REC_SEL, rec | 0x8000);
+	mutex_unlock(&wm9713->lock);
 
-	if ((l & 0x10) || (r & 0x10))
-		ac97_write(w->codec, AC97_PCM, pcm & 0x7fff);
-	else
-		ac97_write(w->codec, AC97_PCM, pcm | 0x8000);
+	return change;
+}
 
-	if ((l & 0x20) || (r & 0x20))
-		ac97_write(w->codec, AC97_AUX, aux & 0x7fff);
-	else
-		ac97_write(w->codec, AC97_AUX, aux | 0x8000);
+static int wm9713_hp_mixer_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
+	struct wm9713_priv *wm9713 = snd_soc_codec_get_drvdata(codec);
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int mixer, shift;
+
+	mixer = mc->shift >> 8;
+	shift = mc->shift & 0xff;
+
+	ucontrol->value.integer.value[0] =
+		(wm9713->hp_mixer[mixer] >> shift) & 1;
 
 	return 0;
 }
 
+#define WM9713_HP_MIXER_CTRL(xname, xmixer, xshift) { \
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_soc_info_volsw, \
+	.get = wm9713_hp_mixer_get, .put = wm9713_hp_mixer_put, \
+	.private_value = SOC_DOUBLE_VALUE(SND_SOC_NOPM, \
+		xshift, xmixer, 1, 0, 0) \
+}
+
 /* Left Headphone Mixers */
 static const struct snd_kcontrol_new wm9713_hpl_mixer_controls[] = {
-SOC_DAPM_SINGLE("Beep Playback Switch", HPL_MIXER, 5, 1, 0),
-SOC_DAPM_SINGLE("Voice Playback Switch", HPL_MIXER, 4, 1, 0),
-SOC_DAPM_SINGLE("Aux Playback Switch", HPL_MIXER, 3, 1, 0),
-SOC_DAPM_SINGLE("PCM Playback Switch", HPL_MIXER, 2, 1, 0),
-SOC_DAPM_SINGLE("MonoIn Playback Switch", HPL_MIXER, 1, 1, 0),
-SOC_DAPM_SINGLE("Bypass Playback Switch", HPL_MIXER, 0, 1, 0),
+WM9713_HP_MIXER_CTRL("Beep Playback Switch", HPL_MIXER, 5),
+WM9713_HP_MIXER_CTRL("Voice Playback Switch", HPL_MIXER, 4),
+WM9713_HP_MIXER_CTRL("Aux Playback Switch", HPL_MIXER, 3),
+WM9713_HP_MIXER_CTRL("PCM Playback Switch", HPL_MIXER, 2),
+WM9713_HP_MIXER_CTRL("MonoIn Playback Switch", HPL_MIXER, 1),
+WM9713_HP_MIXER_CTRL("Bypass Playback Switch", HPL_MIXER, 0),
 };
 
 /* Right Headphone Mixers */
 static const struct snd_kcontrol_new wm9713_hpr_mixer_controls[] = {
-SOC_DAPM_SINGLE("Beep Playback Switch", HPR_MIXER, 5, 1, 0),
-SOC_DAPM_SINGLE("Voice Playback Switch", HPR_MIXER, 4, 1, 0),
-SOC_DAPM_SINGLE("Aux Playback Switch", HPR_MIXER, 3, 1, 0),
-SOC_DAPM_SINGLE("PCM Playback Switch", HPR_MIXER, 2, 1, 0),
-SOC_DAPM_SINGLE("MonoIn Playback Switch", HPR_MIXER, 1, 1, 0),
-SOC_DAPM_SINGLE("Bypass Playback Switch", HPR_MIXER, 0, 1, 0),
+WM9713_HP_MIXER_CTRL("Beep Playback Switch", HPR_MIXER, 5),
+WM9713_HP_MIXER_CTRL("Voice Playback Switch", HPR_MIXER, 4),
+WM9713_HP_MIXER_CTRL("Aux Playback Switch", HPR_MIXER, 3),
+WM9713_HP_MIXER_CTRL("PCM Playback Switch", HPR_MIXER, 2),
+WM9713_HP_MIXER_CTRL("MonoIn Playback Switch", HPR_MIXER, 1),
+WM9713_HP_MIXER_CTRL("Bypass Playback Switch", HPR_MIXER, 0),
 };
 
 /* headphone capture mux */
@@ -429,12 +431,10 @@ SND_SOC_DAPM_MUX("Mic A Source", SND_SOC_NOPM, 0, 0,
 	&wm9713_mic_sel_mux_controls),
 SND_SOC_DAPM_MUX("Mic B Source", SND_SOC_NOPM, 0, 0,
 	&wm9713_micb_sel_mux_controls),
-SND_SOC_DAPM_MIXER_E("Left HP Mixer", AC97_EXTENDED_MID, 3, 1,
-	&wm9713_hpl_mixer_controls[0], ARRAY_SIZE(wm9713_hpl_mixer_controls),
-	mixer_event, SND_SOC_DAPM_POST_REG),
-SND_SOC_DAPM_MIXER_E("Right HP Mixer", AC97_EXTENDED_MID, 2, 1,
-	&wm9713_hpr_mixer_controls[0], ARRAY_SIZE(wm9713_hpr_mixer_controls),
-	mixer_event, SND_SOC_DAPM_POST_REG),
+SND_SOC_DAPM_MIXER("Left HP Mixer", AC97_EXTENDED_MID, 3, 1,
+	&wm9713_hpl_mixer_controls[0], ARRAY_SIZE(wm9713_hpl_mixer_controls)),
+SND_SOC_DAPM_MIXER("Right HP Mixer", AC97_EXTENDED_MID, 2, 1,
+	&wm9713_hpr_mixer_controls[0], ARRAY_SIZE(wm9713_hpr_mixer_controls)),
 SND_SOC_DAPM_MIXER("Mono Mixer", AC97_EXTENDED_MID, 0, 1,
 	&wm9713_mono_mixer_controls[0], ARRAY_SIZE(wm9713_mono_mixer_controls)),
 SND_SOC_DAPM_MIXER("Speaker Mixer", AC97_EXTENDED_MID, 1, 1,
@@ -644,37 +644,97 @@ static const struct snd_soc_dapm_route wm9713_audio_map[] = {
 	{"Capture Mono Mux", "Right", "Right Capture Source"},
 };
 
-static unsigned int ac97_read(struct snd_soc_codec *codec,
-	unsigned int reg)
+static bool wm9713_readable_reg(struct device *dev, unsigned int reg)
 {
-	u16 *cache = codec->reg_cache;
-
-	if (reg == AC97_RESET || reg == AC97_GPIO_STATUS ||
-		reg == AC97_VENDOR_ID1 || reg == AC97_VENDOR_ID2 ||
-		reg == AC97_CD)
-		return soc_ac97_ops->read(codec->ac97, reg);
-	else {
-		reg = reg >> 1;
-
-		if (reg >= (ARRAY_SIZE(wm9713_reg)))
-			return -EIO;
-
-		return cache[reg];
+	switch (reg) {
+	case AC97_RESET ... AC97_PCM_SURR_DAC_RATE:
+	case AC97_PCM_LR_ADC_RATE:
+	case AC97_CENTER_LFE_MASTER:
+	case AC97_SPDIF ... AC97_LINE1_LEVEL:
+	case AC97_GPIO_CFG ... 0x5c:
+	case AC97_CODEC_CLASS_REV ... AC97_PCI_SID:
+	case 0x74 ... AC97_VENDOR_ID2:
+		return true;
+	default:
+		return false;
 	}
 }
 
-static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
-	unsigned int val)
+static bool wm9713_writeable_reg(struct device *dev, unsigned int reg)
 {
-	u16 *cache = codec->reg_cache;
-	if (reg < 0x7c)
-		soc_ac97_ops->write(codec->ac97, reg, val);
-	reg = reg >> 1;
-	if (reg < (ARRAY_SIZE(wm9713_reg)))
-		cache[reg] = val;
-
-	return 0;
+	switch (reg) {
+	case AC97_VENDOR_ID1:
+	case AC97_VENDOR_ID2:
+		return false;
+	default:
+		return wm9713_readable_reg(dev, reg);
+	}
 }
+
+static const struct reg_default wm9713_reg_defaults[] = {
+	{ 0x02, 0x8080 },	/* Speaker Output Volume */
+	{ 0x04, 0x8080 },	/* Headphone Output Volume */
+	{ 0x06, 0x8080 },	/* Out3/OUT4 Volume */
+	{ 0x08, 0xc880 },	/* Mono Volume */
+	{ 0x0a, 0xe808 },	/* LINEIN Volume */
+	{ 0x0c, 0xe808 },	/* DAC PGA Volume */
+	{ 0x0e, 0x0808 },	/* MIC PGA Volume */
+	{ 0x10, 0x00da },	/* MIC Routing Control */
+	{ 0x12, 0x8000 },	/* Record PGA Volume */
+	{ 0x14, 0xd600 },	/* Record Routing */
+	{ 0x16, 0xaaa0 },	/* PCBEEP Volume */
+	{ 0x18, 0xaaa0 },	/* VxDAC Volume */
+	{ 0x1a, 0xaaa0 },	/* AUXDAC Volume */
+	{ 0x1c, 0x0000 },	/* Output PGA Mux */
+	{ 0x1e, 0x0000 },	/* DAC 3D control */
+	{ 0x20, 0x0f0f },	/* DAC Tone Control*/
+	{ 0x22, 0x0040 },	/* MIC Input Select & Bias */
+	{ 0x24, 0x0000 },	/* Output Volume Mapping & Jack */
+	{ 0x26, 0x7f00 },	/* Powerdown Ctrl/Stat*/
+	{ 0x28, 0x0405 },	/* Extended Audio ID */
+	{ 0x2a, 0x0410 },	/* Extended Audio Start/Ctrl */
+	{ 0x2c, 0xbb80 },	/* Audio DACs Sample Rate */
+	{ 0x2e, 0xbb80 },	/* AUXDAC Sample Rate */
+	{ 0x32, 0xbb80 },	/* Audio ADCs Sample Rate */
+	{ 0x36, 0x4523 },	/* PCM codec control */
+	{ 0x3a, 0x2000 },	/* SPDIF control */
+	{ 0x3c, 0xfdff },	/* Powerdown 1 */
+	{ 0x3e, 0xffff },	/* Powerdown 2 */
+	{ 0x40, 0x0000 },	/* General Purpose */
+	{ 0x42, 0x0000 },	/* Fast Power-Up Control */
+	{ 0x44, 0x0080 },	/* MCLK/PLL Control */
+	{ 0x46, 0x0000 },	/* MCLK/PLL Control */
+	{ 0x4c, 0xfffe },	/* GPIO Pin Configuration */
+	{ 0x4e, 0xffff },	/* GPIO Pin Polarity / Type */
+	{ 0x50, 0x0000 },	/* GPIO Pin Sticky */
+	{ 0x52, 0x0000 },	/* GPIO Pin Wake-Up */
+				/* GPIO Pin Status */
+	{ 0x56, 0xfffe },	/* GPIO Pin Sharing */
+	{ 0x58, 0x4000 },	/* GPIO PullUp/PullDown */
+	{ 0x5a, 0x0000 },	/* Additional Functions 1 */
+	{ 0x5c, 0x0000 },	/* Additional Functions 2 */
+	{ 0x60, 0xb032 },	/* ALC Control */
+	{ 0x62, 0x3e00 },	/* ALC / Noise Gate Control */
+	{ 0x64, 0x0000 },	/* AUXDAC input control */
+	{ 0x74, 0x0000 },	/* Digitiser Reg 1 */
+	{ 0x76, 0x0006 },	/* Digitiser Reg 2 */
+	{ 0x78, 0x0001 },	/* Digitiser Reg 3 */
+	{ 0x7a, 0x0000 },	/* Digitiser Read Back */
+};
+
+static const struct regmap_config wm9713_regmap_config = {
+	.reg_bits = 16,
+	.reg_stride = 2,
+	.val_bits = 16,
+	.max_register = 0x7e,
+	.cache_type = REGCACHE_RBTREE,
+
+	.reg_defaults = wm9713_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(wm9713_reg_defaults),
+	.volatile_reg = regmap_ac97_default_volatile,
+	.readable_reg = wm9713_readable_reg,
+	.writeable_reg = wm9713_writeable_reg,
+};
 
 /* PLL divisors */
 struct _pll_div {
@@ -689,7 +749,8 @@ struct _pll_div {
  * to allow rounding later */
 #define FIXED_PLL_SIZE ((1 << 22) * 10)
 
-static void pll_factors(struct _pll_div *pll_div, unsigned int source)
+static void pll_factors(struct snd_soc_codec *codec,
+	struct _pll_div *pll_div, unsigned int source)
 {
 	u64 Kpart;
 	unsigned int K, Ndiv, Nmod, target;
@@ -724,7 +785,7 @@ static void pll_factors(struct _pll_div *pll_div, unsigned int source)
 
 	Ndiv = target / source;
 	if ((Ndiv < 5) || (Ndiv > 12))
-		printk(KERN_WARNING
+		dev_warn(codec->dev,
 			"WM9713 PLL N value %u out of recommended range!\n",
 			Ndiv);
 
@@ -760,20 +821,18 @@ static int wm9713_set_pll(struct snd_soc_codec *codec,
 	/* turn PLL off ? */
 	if (freq_in == 0) {
 		/* disable PLL power and select ext source */
-		reg = ac97_read(codec, AC97_HANDSET_RATE);
-		ac97_write(codec, AC97_HANDSET_RATE, reg | 0x0080);
-		reg = ac97_read(codec, AC97_EXTENDED_MID);
-		ac97_write(codec, AC97_EXTENDED_MID, reg | 0x0200);
+		snd_soc_update_bits(codec, AC97_HANDSET_RATE, 0x0080, 0x0080);
+		snd_soc_update_bits(codec, AC97_EXTENDED_MID, 0x0200, 0x0200);
 		wm9713->pll_in = 0;
 		return 0;
 	}
 
-	pll_factors(&pll_div, freq_in);
+	pll_factors(codec, &pll_div, freq_in);
 
 	if (pll_div.k == 0) {
 		reg = (pll_div.n << 12) | (pll_div.lf << 11) |
 			(pll_div.divsel << 9) | (pll_div.divctl << 8);
-		ac97_write(codec, AC97_LINE1_LEVEL, reg);
+		snd_soc_write(codec, AC97_LINE1_LEVEL, reg);
 	} else {
 		/* write the fractional k to the reg 0x46 pages */
 		reg2 = (pll_div.n << 12) | (pll_div.lf << 11) | (1 << 10) |
@@ -781,33 +840,31 @@ static int wm9713_set_pll(struct snd_soc_codec *codec,
 
 		/* K [21:20] */
 		reg = reg2 | (0x5 << 4) | (pll_div.k >> 20);
-		ac97_write(codec, AC97_LINE1_LEVEL, reg);
+		snd_soc_write(codec, AC97_LINE1_LEVEL, reg);
 
 		/* K [19:16] */
 		reg = reg2 | (0x4 << 4) | ((pll_div.k >> 16) & 0xf);
-		ac97_write(codec, AC97_LINE1_LEVEL, reg);
+		snd_soc_write(codec, AC97_LINE1_LEVEL, reg);
 
 		/* K [15:12] */
 		reg = reg2 | (0x3 << 4) | ((pll_div.k >> 12) & 0xf);
-		ac97_write(codec, AC97_LINE1_LEVEL, reg);
+		snd_soc_write(codec, AC97_LINE1_LEVEL, reg);
 
 		/* K [11:8] */
 		reg = reg2 | (0x2 << 4) | ((pll_div.k >> 8) & 0xf);
-		ac97_write(codec, AC97_LINE1_LEVEL, reg);
+		snd_soc_write(codec, AC97_LINE1_LEVEL, reg);
 
 		/* K [7:4] */
 		reg = reg2 | (0x1 << 4) | ((pll_div.k >> 4) & 0xf);
-		ac97_write(codec, AC97_LINE1_LEVEL, reg);
+		snd_soc_write(codec, AC97_LINE1_LEVEL, reg);
 
 		reg = reg2 | (0x0 << 4) | (pll_div.k & 0xf); /* K [3:0] */
-		ac97_write(codec, AC97_LINE1_LEVEL, reg);
+		snd_soc_write(codec, AC97_LINE1_LEVEL, reg);
 	}
 
 	/* turn PLL on and select as source */
-	reg = ac97_read(codec, AC97_EXTENDED_MID);
-	ac97_write(codec, AC97_EXTENDED_MID, reg & 0xfdff);
-	reg = ac97_read(codec, AC97_HANDSET_RATE);
-	ac97_write(codec, AC97_HANDSET_RATE, reg & 0xff7f);
+	snd_soc_update_bits(codec, AC97_EXTENDED_MID, 0x0200, 0x0000);
+	snd_soc_update_bits(codec, AC97_HANDSET_RATE, 0x0080, 0x0000);
 	wm9713->pll_in = freq_in;
 
 	/* wait 10ms AC97 link frames for the link to stabilise */
@@ -830,10 +887,10 @@ static int wm9713_set_dai_tristate(struct snd_soc_dai *codec_dai,
 	int tristate)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	u16 reg = ac97_read(codec, AC97_CENTER_LFE_MASTER) & 0x9fff;
 
 	if (tristate)
-		ac97_write(codec, AC97_CENTER_LFE_MASTER, reg);
+		snd_soc_update_bits(codec, AC97_CENTER_LFE_MASTER,
+				    0x6000, 0x0000);
 
 	return 0;
 }
@@ -846,36 +903,30 @@ static int wm9713_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 		int div_id, int div)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	u16 reg;
 
 	switch (div_id) {
 	case WM9713_PCMCLK_DIV:
-		reg = ac97_read(codec, AC97_HANDSET_RATE) & 0xf0ff;
-		ac97_write(codec, AC97_HANDSET_RATE, reg | div);
+		snd_soc_update_bits(codec, AC97_HANDSET_RATE, 0x0f00, div);
 		break;
 	case WM9713_CLKA_MULT:
-		reg = ac97_read(codec, AC97_HANDSET_RATE) & 0xfffd;
-		ac97_write(codec, AC97_HANDSET_RATE, reg | div);
+		snd_soc_update_bits(codec, AC97_HANDSET_RATE, 0x0002, div);
 		break;
 	case WM9713_CLKB_MULT:
-		reg = ac97_read(codec, AC97_HANDSET_RATE) & 0xfffb;
-		ac97_write(codec, AC97_HANDSET_RATE, reg | div);
+		snd_soc_update_bits(codec, AC97_HANDSET_RATE, 0x0004, div);
 		break;
 	case WM9713_HIFI_DIV:
-		reg = ac97_read(codec, AC97_HANDSET_RATE) & 0x8fff;
-		ac97_write(codec, AC97_HANDSET_RATE, reg | div);
+		snd_soc_update_bits(codec, AC97_HANDSET_RATE, 0x7000, div);
 		break;
 	case WM9713_PCMBCLK_DIV:
-		reg = ac97_read(codec, AC97_CENTER_LFE_MASTER) & 0xf1ff;
-		ac97_write(codec, AC97_CENTER_LFE_MASTER, reg | div);
+		snd_soc_update_bits(codec, AC97_CENTER_LFE_MASTER, 0x0e00, div);
 		break;
 	case WM9713_PCMCLK_PLL_DIV:
-		reg = ac97_read(codec, AC97_LINE1_LEVEL) & 0xff80;
-		ac97_write(codec, AC97_LINE1_LEVEL, reg | 0x60 | div);
+		snd_soc_update_bits(codec, AC97_LINE1_LEVEL,
+				    0x007f, div | 0x60);
 		break;
 	case WM9713_HIFI_PLL_DIV:
-		reg = ac97_read(codec, AC97_LINE1_LEVEL) & 0xff80;
-		ac97_write(codec, AC97_LINE1_LEVEL, reg | 0x70 | div);
+		snd_soc_update_bits(codec, AC97_LINE1_LEVEL,
+				    0x007f, div | 0x70);
 		break;
 	default:
 		return -EINVAL;
@@ -888,7 +939,7 @@ static int wm9713_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	u16 gpio = ac97_read(codec, AC97_GPIO_CFG) & 0xffc5;
+	u16 gpio = snd_soc_read(codec, AC97_GPIO_CFG) & 0xffc5;
 	u16 reg = 0x8000;
 
 	/* clock masters */
@@ -941,8 +992,8 @@ static int wm9713_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		break;
 	}
 
-	ac97_write(codec, AC97_GPIO_CFG, gpio);
-	ac97_write(codec, AC97_CENTER_LFE_MASTER, reg);
+	snd_soc_write(codec, AC97_GPIO_CFG, gpio);
+	snd_soc_write(codec, AC97_CENTER_LFE_MASTER, reg);
 	return 0;
 }
 
@@ -951,24 +1002,24 @@ static int wm9713_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u16 reg = ac97_read(codec, AC97_CENTER_LFE_MASTER) & 0xfff3;
 
+	/* enable PCM interface in master mode */
 	switch (params_width(params)) {
 	case 16:
 		break;
 	case 20:
-		reg |= 0x0004;
+		snd_soc_update_bits(codec, AC97_CENTER_LFE_MASTER,
+				    0x000c, 0x0004);
 		break;
 	case 24:
-		reg |= 0x0008;
+		snd_soc_update_bits(codec, AC97_CENTER_LFE_MASTER,
+				    0x000c, 0x0008);
 		break;
 	case 32:
-		reg |= 0x000c;
+		snd_soc_update_bits(codec, AC97_CENTER_LFE_MASTER,
+				    0x000c, 0x000c);
 		break;
 	}
-
-	/* enable PCM interface in master mode */
-	ac97_write(codec, AC97_CENTER_LFE_MASTER, reg);
 	return 0;
 }
 
@@ -978,17 +1029,15 @@ static int ac97_hifi_prepare(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int reg;
-	u16 vra;
 
-	vra = ac97_read(codec, AC97_EXTENDED_STATUS);
-	ac97_write(codec, AC97_EXTENDED_STATUS, vra | 0x1);
+	snd_soc_update_bits(codec, AC97_EXTENDED_STATUS, 0x0001, 0x0001);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		reg = AC97_PCM_FRONT_DAC_RATE;
 	else
 		reg = AC97_PCM_LR_ADC_RATE;
 
-	return ac97_write(codec, reg, runtime->rate);
+	return snd_soc_write(codec, reg, runtime->rate);
 }
 
 static int ac97_aux_prepare(struct snd_pcm_substream *substream,
@@ -996,17 +1045,14 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	u16 vra, xsle;
 
-	vra = ac97_read(codec, AC97_EXTENDED_STATUS);
-	ac97_write(codec, AC97_EXTENDED_STATUS, vra | 0x1);
-	xsle = ac97_read(codec, AC97_PCI_SID);
-	ac97_write(codec, AC97_PCI_SID, xsle | 0x8000);
+	snd_soc_update_bits(codec, AC97_EXTENDED_STATUS, 0x0001, 0x0001);
+	snd_soc_update_bits(codec, AC97_PCI_SID, 0x8000, 0x8000);
 
 	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
 		return -ENODEV;
 
-	return ac97_write(codec, AC97_PCM_SURR_DAC_RATE, runtime->rate);
+	return snd_soc_write(codec, AC97_PCM_SURR_DAC_RATE, runtime->rate);
 }
 
 #define WM9713_RATES (SNDRV_PCM_RATE_8000  |	\
@@ -1023,8 +1069,8 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream,
 			  SNDRV_PCM_RATE_48000)
 
 #define WM9713_PCM_FORMATS \
-	(SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S20_3LE | \
-	 SNDRV_PCM_FORMAT_S24_LE)
+	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
+	 SNDRV_PCM_FMTBIT_S24_LE)
 
 static const struct snd_soc_dai_ops wm9713_dai_ops_hifi = {
 	.prepare	= ac97_hifi_prepare,
@@ -1049,7 +1095,6 @@ static const struct snd_soc_dai_ops wm9713_dai_ops_voice = {
 static struct snd_soc_dai_driver wm9713_dai[] = {
 {
 	.name = "wm9713-hifi",
-	.ac97_control = 1,
 	.playback = {
 		.stream_name = "HiFi Playback",
 		.channels_min = 1,
@@ -1093,65 +1138,41 @@ static struct snd_soc_dai_driver wm9713_dai[] = {
 	},
 };
 
-int wm9713_reset(struct snd_soc_codec *codec, int try_warm)
-{
-	if (try_warm && soc_ac97_ops->warm_reset) {
-		soc_ac97_ops->warm_reset(codec->ac97);
-		if (ac97_read(codec, 0) == wm9713_reg[0])
-			return 1;
-	}
-
-	soc_ac97_ops->reset(codec->ac97);
-	if (soc_ac97_ops->warm_reset)
-		soc_ac97_ops->warm_reset(codec->ac97);
-	if (ac97_read(codec, 0) != wm9713_reg[0])
-		return -EIO;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(wm9713_reset);
-
 static int wm9713_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	u16 reg;
-
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		/* enable thermal shutdown */
-		reg = ac97_read(codec, AC97_EXTENDED_MID) & 0x1bff;
-		ac97_write(codec, AC97_EXTENDED_MID, reg);
+		snd_soc_update_bits(codec, AC97_EXTENDED_MID, 0xe400, 0x0000);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* enable master bias and vmid */
-		reg = ac97_read(codec, AC97_EXTENDED_MID) & 0x3bff;
-		ac97_write(codec, AC97_EXTENDED_MID, reg);
-		ac97_write(codec, AC97_POWERDOWN, 0x0000);
+		snd_soc_update_bits(codec, AC97_EXTENDED_MID, 0xc400, 0x0000);
+		snd_soc_write(codec, AC97_POWERDOWN, 0x0000);
 		break;
 	case SND_SOC_BIAS_OFF:
 		/* disable everything including AC link */
-		ac97_write(codec, AC97_EXTENDED_MID, 0xffff);
-		ac97_write(codec, AC97_EXTENDED_MSTATUS, 0xffff);
-		ac97_write(codec, AC97_POWERDOWN, 0xffff);
+		snd_soc_write(codec, AC97_EXTENDED_MID, 0xffff);
+		snd_soc_write(codec, AC97_EXTENDED_MSTATUS, 0xffff);
+		snd_soc_write(codec, AC97_POWERDOWN, 0xffff);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
 static int wm9713_soc_suspend(struct snd_soc_codec *codec)
 {
-	u16 reg;
-
 	/* Disable everything except touchpanel - that will be handled
 	 * by the touch driver and left disabled if touch is not in
 	 * use. */
-	reg = ac97_read(codec, AC97_EXTENDED_MID);
-	ac97_write(codec, AC97_EXTENDED_MID, reg | 0x7fff);
-	ac97_write(codec, AC97_EXTENDED_MSTATUS, 0xffff);
-	ac97_write(codec, AC97_POWERDOWN, 0x6f00);
-	ac97_write(codec, AC97_POWERDOWN, 0xffff);
+	snd_soc_update_bits(codec, AC97_EXTENDED_MID, 0x7fff,
+				 0x7fff);
+	snd_soc_write(codec, AC97_EXTENDED_MSTATUS, 0xffff);
+	snd_soc_write(codec, AC97_POWERDOWN, 0x6f00);
+	snd_soc_write(codec, AC97_POWERDOWN, 0xffff);
 
 	return 0;
 }
@@ -1159,16 +1180,14 @@ static int wm9713_soc_suspend(struct snd_soc_codec *codec)
 static int wm9713_soc_resume(struct snd_soc_codec *codec)
 {
 	struct wm9713_priv *wm9713 = snd_soc_codec_get_drvdata(codec);
-	int i, ret;
-	u16 *cache = codec->reg_cache;
+	int ret;
 
-	ret = wm9713_reset(codec, 1);
-	if (ret < 0) {
-		printk(KERN_ERR "could not reset AC97 codec\n");
+	ret = snd_ac97_reset(wm9713->ac97, true, WM9713_VENDOR_ID,
+		WM9713_VENDOR_ID_MASK);
+	if (ret < 0)
 		return ret;
-	}
 
-	wm9713_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* do we need to re-start the PLL ? */
 	if (wm9713->pll_in)
@@ -1176,12 +1195,8 @@ static int wm9713_soc_resume(struct snd_soc_codec *codec)
 
 	/* only synchronise the codec if warm reset failed */
 	if (ret == 0) {
-		for (i = 2; i < ARRAY_SIZE(wm9713_reg) << 1; i += 2) {
-			if (i == AC97_POWERDOWN || i == AC97_EXTENDED_MID ||
-				i == AC97_EXTENDED_MSTATUS || i > 0x66)
-				continue;
-			soc_ac97_ops->write(codec->ac97, i, cache[i>>1]);
-		}
+		regcache_mark_dirty(codec->component.regmap);
+		snd_soc_cache_sync(codec);
 	}
 
 	return ret;
@@ -1189,50 +1204,34 @@ static int wm9713_soc_resume(struct snd_soc_codec *codec)
 
 static int wm9713_soc_probe(struct snd_soc_codec *codec)
 {
-	struct wm9713_priv *wm9713;
-	int ret = 0, reg;
+	struct wm9713_priv *wm9713 = snd_soc_codec_get_drvdata(codec);
+	struct regmap *regmap;
 
-	wm9713 = kzalloc(sizeof(struct wm9713_priv), GFP_KERNEL);
-	if (wm9713 == NULL)
-		return -ENOMEM;
-	snd_soc_codec_set_drvdata(codec, wm9713);
+	wm9713->ac97 = snd_soc_new_ac97_codec(codec, WM9713_VENDOR_ID,
+		WM9713_VENDOR_ID_MASK);
+	if (IS_ERR(wm9713->ac97))
+		return PTR_ERR(wm9713->ac97);
 
-	ret = snd_soc_new_ac97_codec(codec, soc_ac97_ops, 0);
-	if (ret < 0)
-		goto codec_err;
-
-	/* do a cold reset for the controller and then try
-	 * a warm reset followed by an optional cold reset for codec */
-	wm9713_reset(codec, 0);
-	ret = wm9713_reset(codec, 1);
-	if (ret < 0) {
-		printk(KERN_ERR "Failed to reset WM9713: AC97 link error\n");
-		goto reset_err;
+	regmap = regmap_init_ac97(wm9713->ac97, &wm9713_regmap_config);
+	if (IS_ERR(regmap)) {
+		snd_soc_free_ac97_codec(wm9713->ac97);
+		return PTR_ERR(regmap);
 	}
 
-	wm9713_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_init_regmap(codec, regmap);
 
 	/* unmute the adc - move to kcontrol */
-	reg = ac97_read(codec, AC97_CD) & 0x7fff;
-	ac97_write(codec, AC97_CD, reg);
-
-	snd_soc_add_codec_controls(codec, wm9713_snd_ac97_controls,
-				ARRAY_SIZE(wm9713_snd_ac97_controls));
+	snd_soc_update_bits(codec, AC97_CD, 0x7fff, 0x0000);
 
 	return 0;
-
-reset_err:
-	snd_soc_free_ac97_codec(codec);
-codec_err:
-	kfree(wm9713);
-	return ret;
 }
 
 static int wm9713_soc_remove(struct snd_soc_codec *codec)
 {
 	struct wm9713_priv *wm9713 = snd_soc_codec_get_drvdata(codec);
-	snd_soc_free_ac97_codec(codec);
-	kfree(wm9713);
+
+	snd_soc_codec_exit_regmap(codec);
+	snd_soc_free_ac97_codec(wm9713->ac97);
 	return 0;
 }
 
@@ -1241,13 +1240,10 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9713 = {
 	.remove = 	wm9713_soc_remove,
 	.suspend =	wm9713_soc_suspend,
 	.resume = 	wm9713_soc_resume,
-	.read = ac97_read,
-	.write = ac97_write,
 	.set_bias_level = wm9713_set_bias_level,
-	.reg_cache_size = ARRAY_SIZE(wm9713_reg),
-	.reg_word_size = sizeof(u16),
-	.reg_cache_step = 2,
-	.reg_cache_default = wm9713_reg,
+
+	.controls = wm9713_snd_ac97_controls,
+	.num_controls = ARRAY_SIZE(wm9713_snd_ac97_controls),
 	.dapm_widgets = wm9713_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(wm9713_dapm_widgets),
 	.dapm_routes = wm9713_audio_map,
@@ -1256,6 +1252,16 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9713 = {
 
 static int wm9713_probe(struct platform_device *pdev)
 {
+	struct wm9713_priv *wm9713;
+
+	wm9713 = devm_kzalloc(&pdev->dev, sizeof(*wm9713), GFP_KERNEL);
+	if (wm9713 == NULL)
+		return -ENOMEM;
+
+	mutex_init(&wm9713->lock);
+
+	platform_set_drvdata(pdev, wm9713);
+
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_wm9713, wm9713_dai, ARRAY_SIZE(wm9713_dai));
 }
@@ -1269,7 +1275,6 @@ static int wm9713_remove(struct platform_device *pdev)
 static struct platform_driver wm9713_codec_driver = {
 	.driver = {
 			.name = "wm9713-codec",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = wm9713_probe,

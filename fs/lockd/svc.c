@@ -25,17 +25,22 @@
 #include <linux/mutex.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/inetdevice.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcsock.h>
+#include <linux/sunrpc/svc_xprt.h>
 #include <net/ip.h>
+#include <net/addrconf.h>
+#include <net/ipv6.h>
 #include <linux/lockd/lockd.h>
 #include <linux/nfs.h>
 
 #include "netns.h"
+#include "procfs.h"
 
 #define NLMDBG_FACILITY		NLMDBG_SVC
 #define LOCKD_BUFSIZE		(1024 + NLMSVC_XDRSIZE)
@@ -43,7 +48,7 @@
 
 static struct svc_program	nlmsvc_program;
 
-struct nlmsvc_binding *		nlmsvc_ops;
+const struct nlmsvc_binding	*nlmsvc_ops;
 EXPORT_SYMBOL_GPL(nlmsvc_ops);
 
 static DEFINE_MUTEX(nlmsvc_mutex);
@@ -89,8 +94,7 @@ static unsigned long get_lockd_grace_period(void)
 
 static void grace_ender(struct work_struct *grace)
 {
-	struct delayed_work *dwork = container_of(grace, struct delayed_work,
-						  work);
+	struct delayed_work *dwork = to_delayed_work(grace);
 	struct lockd_net *ln = container_of(dwork, struct lockd_net,
 					    grace_period_end);
 
@@ -136,10 +140,6 @@ lockd(void *vrqstp)
 	allow_signal(SIGKILL);
 
 	dprintk("NFS locking service started (ver " LOCKD_VERSION ").\n");
-
-	if (!nlm_timeout)
-		nlm_timeout = LOCKD_DFLT_TIMEO;
-	nlmsvc_timeout = nlm_timeout * HZ;
 
 	/*
 	 * The main request loop. We don't terminate until the last
@@ -253,13 +253,11 @@ static int lockd_up_net(struct svc_serv *serv, struct net *net)
 
 	error = make_socks(serv, net);
 	if (error < 0)
-		goto err_socks;
+		goto err_bind;
 	set_grace_period(net);
 	dprintk("lockd_up_net: per-net data created; net=%p\n", net);
 	return 0;
 
-err_socks:
-	svc_rpcb_cleanup(serv, net);
 err_bind:
 	ln->nlmsvc_users--;
 	return error;
@@ -284,6 +282,68 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 	}
 }
 
+static int lockd_inetaddr_event(struct notifier_block *this,
+	unsigned long event, void *ptr)
+{
+	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
+	struct sockaddr_in sin;
+
+	if (event != NETDEV_DOWN)
+		goto out;
+
+	if (nlmsvc_rqst) {
+		dprintk("lockd_inetaddr_event: removed %pI4\n",
+			&ifa->ifa_local);
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = ifa->ifa_local;
+		svc_age_temp_xprts_now(nlmsvc_rqst->rq_server,
+			(struct sockaddr *)&sin);
+	}
+
+out:
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block lockd_inetaddr_notifier = {
+	.notifier_call = lockd_inetaddr_event,
+};
+
+#if IS_ENABLED(CONFIG_IPV6)
+static int lockd_inet6addr_event(struct notifier_block *this,
+	unsigned long event, void *ptr)
+{
+	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
+	struct sockaddr_in6 sin6;
+
+	if (event != NETDEV_DOWN)
+		goto out;
+
+	if (nlmsvc_rqst) {
+		dprintk("lockd_inet6addr_event: removed %pI6\n", &ifa->addr);
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_addr = ifa->addr;
+		svc_age_temp_xprts_now(nlmsvc_rqst->rq_server,
+			(struct sockaddr *)&sin6);
+	}
+
+out:
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block lockd_inet6addr_notifier = {
+	.notifier_call = lockd_inet6addr_event,
+};
+#endif
+
+static void lockd_svc_exit_thread(void)
+{
+	unregister_inetaddr_notifier(&lockd_inetaddr_notifier);
+#if IS_ENABLED(CONFIG_IPV6)
+	unregister_inet6addr_notifier(&lockd_inet6addr_notifier);
+#endif
+	svc_exit_thread(nlmsvc_rqst);
+}
+
 static int lockd_start_svc(struct svc_serv *serv)
 {
 	int error;
@@ -306,23 +366,31 @@ static int lockd_start_svc(struct svc_serv *serv)
 	svc_sock_update_bufs(serv);
 	serv->sv_maxconn = nlm_max_connections;
 
-	nlmsvc_task = kthread_run(lockd, nlmsvc_rqst, "%s", serv->sv_name);
+	nlmsvc_task = kthread_create(lockd, nlmsvc_rqst, "%s", serv->sv_name);
 	if (IS_ERR(nlmsvc_task)) {
 		error = PTR_ERR(nlmsvc_task);
 		printk(KERN_WARNING
 			"lockd_up: kthread_run failed, error=%d\n", error);
 		goto out_task;
 	}
+	nlmsvc_rqst->rq_task = nlmsvc_task;
+	wake_up_process(nlmsvc_task);
+
 	dprintk("lockd_up: service started\n");
 	return 0;
 
 out_task:
-	svc_exit_thread(nlmsvc_rqst);
+	lockd_svc_exit_thread();
 	nlmsvc_task = NULL;
 out_rqst:
 	nlmsvc_rqst = NULL;
 	return error;
 }
+
+static struct svc_serv_ops lockd_sv_ops = {
+	.svo_shutdown		= svc_rpcb_cleanup,
+	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
+};
 
 static struct svc_serv *lockd_create_svc(void)
 {
@@ -348,11 +416,19 @@ static struct svc_serv *lockd_create_svc(void)
 		printk(KERN_WARNING
 			"lockd_up: no pid, %d users??\n", nlmsvc_users);
 
-	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, NULL);
+	if (!nlm_timeout)
+		nlm_timeout = LOCKD_DFLT_TIMEO;
+	nlmsvc_timeout = nlm_timeout * HZ;
+
+	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, &lockd_sv_ops);
 	if (!serv) {
 		printk(KERN_WARNING "lockd_up: create service failed\n");
 		return ERR_PTR(-ENOMEM);
 	}
+	register_inetaddr_notifier(&lockd_inetaddr_notifier);
+#if IS_ENABLED(CONFIG_IPV6)
+	register_inet6addr_notifier(&lockd_inet6addr_notifier);
+#endif
 	dprintk("lockd_up: service created\n");
 	return serv;
 }
@@ -421,7 +497,7 @@ lockd_down(struct net *net)
 	}
 	kthread_stop(nlmsvc_task);
 	dprintk("lockd_down: service stopped\n");
-	svc_exit_thread(nlmsvc_rqst);
+	lockd_svc_exit_thread();
 	dprintk("lockd_down: service destroyed\n");
 	nlmsvc_task = NULL;
 	nlmsvc_rqst = NULL;
@@ -583,8 +659,9 @@ static int lockd_init_net(struct net *net)
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	INIT_DELAYED_WORK(&ln->grace_period_end, grace_ender);
-	INIT_LIST_HEAD(&ln->grace_list);
-	spin_lock_init(&ln->nsm_clnt_lock);
+	INIT_LIST_HEAD(&ln->lockd_manager.list);
+	ln->lockd_manager.block_opens = false;
+	INIT_LIST_HEAD(&ln->nsm_handles);
 	return 0;
 }
 
@@ -617,8 +694,15 @@ static int __init init_nlm(void)
 	err = register_pernet_subsys(&lockd_net_ops);
 	if (err)
 		goto err_pernet;
+
+	err = lockd_create_procfs();
+	if (err)
+		goto err_procfs;
+
 	return 0;
 
+err_procfs:
+	unregister_pernet_subsys(&lockd_net_ops);
 err_pernet:
 #ifdef CONFIG_SYSCTL
 	unregister_sysctl_table(nlm_sysctl_table);
@@ -631,6 +715,7 @@ static void __exit exit_nlm(void)
 {
 	/* FIXME: delete all NLM clients */
 	nlm_shutdown_hosts();
+	lockd_remove_procfs();
 	unregister_pernet_subsys(&lockd_net_ops);
 #ifdef CONFIG_SYSCTL
 	unregister_sysctl_table(nlm_sysctl_table);

@@ -1,0 +1,46 @@
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&intc>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			model = "axis,crisv32";
+			reg = <0>;
+		};
+	};
+
+	soc {
+		compatible = "simple-bus";
+		model = "etraxfs";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		intc: interrupt-controller {
+			compatible = "axis,crisv32-intc";
+			reg = <0xb001c000 0x1000>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+
+		gio: gpio@b001a000 {
+			compatible = "axis,etraxfs-gio";
+			reg = <0xb001a000 0x1000>;
+			interrupts = <50>;
+			gpio-controller;
+			#gpio-cells = <3>;
+		};
+
+		serial@b00260000 {
+			compatible = "axis,etraxfs-uart";
+			reg = <0xb0026000 0x1000>;
+			interrupts = <68>;
+			status = "disabled";
+		};
+	};
+};

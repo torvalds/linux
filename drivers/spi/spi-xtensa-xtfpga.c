@@ -34,18 +34,19 @@ struct xtfpga_spi {
 static inline void xtfpga_spi_write32(const struct xtfpga_spi *spi,
 				      unsigned addr, u32 val)
 {
-	iowrite32(val, spi->regs + addr);
+	__raw_writel(val, spi->regs + addr);
 }
 
 static inline unsigned int xtfpga_spi_read32(const struct xtfpga_spi *spi,
 					     unsigned addr)
 {
-	return ioread32(spi->regs + addr);
+	return __raw_readl(spi->regs + addr);
 }
 
 static inline void xtfpga_spi_wait_busy(struct xtfpga_spi *xspi)
 {
 	unsigned i;
+
 	for (i = 0; xtfpga_spi_read32(xspi, XTFPGA_SPI_BUSY) &&
 	     i < BUSY_WAIT_US; ++i)
 		udelay(1);
@@ -159,7 +160,6 @@ static struct platform_driver xtfpga_spi_driver = {
 	.remove = xtfpga_spi_remove,
 	.driver = {
 		.name = XTFPGA_SPI_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(xtfpga_spi_of_match),
 	},
 };

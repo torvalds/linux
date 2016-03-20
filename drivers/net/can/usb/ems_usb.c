@@ -117,13 +117,16 @@ MODULE_LICENSE("GPL v2");
  */
 #define EMS_USB_ARM7_CLOCK 8000000
 
+#define CPC_TX_QUEUE_TRIGGER_LOW	25
+#define CPC_TX_QUEUE_TRIGGER_HIGH	35
+
 /*
  * CAN-Message representation in a CPC_MSG. Message object type is
  * CPC_MSG_TYPE_CAN_FRAME or CPC_MSG_TYPE_RTR_FRAME or
  * CPC_MSG_TYPE_EXT_CAN_FRAME or CPC_MSG_TYPE_EXT_RTR_FRAME.
  */
 struct cpc_can_msg {
-	u32 id;
+	__le32 id;
 	u8 length;
 	u8 msg[8];
 };
@@ -200,8 +203,8 @@ struct __packed ems_cpc_msg {
 	u8 type;	/* type of message */
 	u8 length;	/* length of data within union 'msg' */
 	u8 msgid;	/* confirmation handle */
-	u32 ts_sec;	/* timestamp in seconds */
-	u32 ts_nsec;	/* timestamp in nano seconds */
+	__le32 ts_sec;	/* timestamp in seconds */
+	__le32 ts_nsec;	/* timestamp in nano seconds */
 
 	union {
 		u8 generic[64];
@@ -278,6 +281,9 @@ static void ems_usb_read_interrupt_callback(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		dev->free_slots = dev->intr_in_buffer[1];
+		if (dev->free_slots > CPC_TX_QUEUE_TRIGGER_HIGH &&
+		    netif_queue_stopped(netdev))
+			netif_wake_queue(netdev);
 		break;
 
 	case -ECONNRESET: /* unlink */
@@ -324,10 +330,9 @@ static void ems_usb_rx_can_msg(struct ems_usb *dev, struct ems_cpc_msg *msg)
 			cf->data[i] = msg->msg.can_msg.msg[i];
 	}
 
-	netif_rx(skb);
-
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	netif_rx(skb);
 }
 
 static void ems_usb_rx_err(struct ems_usb *dev, struct ems_cpc_msg *msg)
@@ -347,6 +352,7 @@ static void ems_usb_rx_err(struct ems_usb *dev, struct ems_cpc_msg *msg)
 			dev->can.state = CAN_STATE_BUS_OFF;
 			cf->can_id |= CAN_ERR_BUSOFF;
 
+			dev->can.can_stats.bus_off++;
 			can_bus_off(dev->netdev);
 		} else if (state & SJA1000_SR_ES) {
 			dev->can.state = CAN_STATE_ERROR_WARNING;
@@ -377,7 +383,6 @@ static void ems_usb_rx_err(struct ems_usb *dev, struct ems_cpc_msg *msg)
 			cf->data[2] |= CAN_ERR_PROT_STUFF;
 			break;
 		default:
-			cf->data[2] |= CAN_ERR_PROT_UNSPEC;
 			cf->data[3] = ecc & SJA1000_ECC_SEG;
 			break;
 		}
@@ -399,10 +404,9 @@ static void ems_usb_rx_err(struct ems_usb *dev, struct ems_cpc_msg *msg)
 		stats->rx_errors++;
 	}
 
-	netif_rx(skb);
-
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	netif_rx(skb);
 }
 
 /*
@@ -434,10 +438,9 @@ static void ems_usb_read_bulk_callback(struct urb *urb)
 	if (urb->actual_length > CPC_HEADER_SIZE) {
 		struct ems_cpc_msg *msg;
 		u8 *ibuf = urb->transfer_buffer;
-		u8 msg_count, again, start;
+		u8 msg_count, start;
 
 		msg_count = ibuf[0] & ~0x80;
-		again = ibuf[0] & 0x80;
 
 		start = CPC_HEADER_SIZE;
 
@@ -529,8 +532,6 @@ static void ems_usb_write_bulk_callback(struct urb *urb)
 	/* Release context */
 	context->echo_index = MAX_TX_URBS;
 
-	if (netif_queue_stopped(netdev))
-		netif_wake_queue(netdev);
 }
 
 /*
@@ -590,7 +591,7 @@ static int ems_usb_start(struct ems_usb *dev)
 	int err, i;
 
 	dev->intr_in_buffer[0] = 0;
-	dev->free_slots = 15; /* initial size */
+	dev->free_slots = 50; /* initial size */
 
 	for (i = 0; i < MAX_RX_URBS; i++) {
 		struct urb *urb = NULL;
@@ -765,7 +766,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 
 	msg = (struct ems_cpc_msg *)&buf[CPC_HEADER_SIZE];
 
-	msg->msg.can_msg.id = cf->can_id & CAN_ERR_MASK;
+	msg->msg.can_msg.id = cpu_to_le32(cf->can_id & CAN_ERR_MASK);
 	msg->msg.can_msg.length = cf->can_dlc;
 
 	if (cf->can_id & CAN_RTR_FLAG) {
@@ -782,9 +783,6 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 
 		msg->length = CPC_CAN_MSG_MIN_SIZE + cf->can_dlc;
 	}
-
-	/* Respect byte order */
-	msg->msg.can_msg.id = cpu_to_le32(msg->msg.can_msg.id);
 
 	for (i = 0; i < MAX_TX_URBS; i++) {
 		if (dev->tx_contexts[i].echo_index == MAX_TX_URBS) {
@@ -841,7 +839,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 
 		/* Slow down tx path */
 		if (atomic_read(&dev->active_tx_urbs) >= MAX_TX_URBS ||
-		    dev->free_slots < 5) {
+		    dev->free_slots < CPC_TX_QUEUE_TRIGGER_LOW) {
 			netif_stop_queue(netdev);
 		}
 	}

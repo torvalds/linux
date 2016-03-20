@@ -14,10 +14,12 @@
 #include <linux/irq.h>
 #include <linux/dmi.h>
 #include <linux/device.h>
+#include <linux/interrupt.h>
 #include <linux/suspend.h>
 #include <linux/reboot.h>
 #include <linux/acpi.h>
 #include <linux/module.h>
+#include <linux/syscore_ops.h>
 #include <asm/io.h>
 #include <trace/events/power.h>
 
@@ -60,7 +62,7 @@ static int acpi_sleep_prepare(u32 acpi_state)
 	if (acpi_state == ACPI_STATE_S3) {
 		if (!acpi_wakeup_address)
 			return -EFAULT;
-		acpi_set_firmware_waking_vector(acpi_wakeup_address);
+		acpi_set_waking_vector(acpi_wakeup_address);
 
 	}
 	ACPI_FLUSH_CPU_CACHE();
@@ -320,7 +322,7 @@ static struct dmi_system_id acpisleep_dmi_table[] __initdata = {
 	{},
 };
 
-static void acpi_sleep_dmi_check(void)
+static void __init acpi_sleep_dmi_check(void)
 {
 	int year;
 
@@ -409,7 +411,7 @@ static void acpi_pm_finish(void)
 	acpi_leave_sleep_state(acpi_state);
 
 	/* reset firmware waking vector */
-	acpi_set_firmware_waking_vector((acpi_physical_address) 0);
+	acpi_set_waking_vector(0);
 
 	acpi_target_sleep_state = ACPI_STATE_S0;
 
@@ -486,6 +488,8 @@ static int acpi_suspend_begin(suspend_state_t pm_state)
 		pr_err("ACPI does not support sleep state S%u\n", acpi_state);
 		return -ENOSYS;
 	}
+	if (acpi_state > ACPI_STATE_S1)
+		pm_set_suspend_via_firmware();
 
 	acpi_pm_start(acpi_state);
 	return 0;
@@ -521,6 +525,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 		if (error)
 			return error;
 		pr_info(PREFIX "Low-level resume complete\n");
+		pm_set_resume_via_firmware();
 		break;
 	}
 	trace_suspend_resume(TPS("acpi_suspend"), acpi_state, false);
@@ -626,6 +631,24 @@ static int acpi_freeze_begin(void)
 	return 0;
 }
 
+static int acpi_freeze_prepare(void)
+{
+	acpi_enable_wakeup_devices(ACPI_STATE_S0);
+	acpi_enable_all_wakeup_gpes();
+	acpi_os_wait_events_complete();
+	if (acpi_sci_irq_valid())
+		enable_irq_wake(acpi_sci_irq);
+	return 0;
+}
+
+static void acpi_freeze_restore(void)
+{
+	acpi_disable_wakeup_devices(ACPI_STATE_S0);
+	if (acpi_sci_irq_valid())
+		disable_irq_wake(acpi_sci_irq);
+	acpi_enable_all_runtime_gpes();
+}
+
 static void acpi_freeze_end(void)
 {
 	acpi_scan_lock_release();
@@ -633,6 +656,8 @@ static void acpi_freeze_end(void)
 
 static const struct platform_freeze_ops acpi_freeze_ops = {
 	.begin = acpi_freeze_begin,
+	.prepare = acpi_freeze_prepare,
+	.restore = acpi_freeze_restore,
 	.end = acpi_freeze_end,
 };
 
@@ -652,6 +677,39 @@ static void acpi_sleep_suspend_setup(void)
 #else /* !CONFIG_SUSPEND */
 static inline void acpi_sleep_suspend_setup(void) {}
 #endif /* !CONFIG_SUSPEND */
+
+#ifdef CONFIG_PM_SLEEP
+static u32 saved_bm_rld;
+
+static int  acpi_save_bm_rld(void)
+{
+	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_RLD, &saved_bm_rld);
+	return 0;
+}
+
+static void  acpi_restore_bm_rld(void)
+{
+	u32 resumed_bm_rld = 0;
+
+	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_RLD, &resumed_bm_rld);
+	if (resumed_bm_rld == saved_bm_rld)
+		return;
+
+	acpi_write_bit_register(ACPI_BITREG_BUS_MASTER_RLD, saved_bm_rld);
+}
+
+static struct syscore_ops acpi_sleep_syscore_ops = {
+	.suspend = acpi_save_bm_rld,
+	.resume = acpi_restore_bm_rld,
+};
+
+void acpi_sleep_syscore_init(void)
+{
+	register_syscore_ops(&acpi_sleep_syscore_ops);
+}
+#else
+static inline void acpi_sleep_syscore_init(void) {}
+#endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_HIBERNATION
 static unsigned long s4_hardware_signature;
@@ -789,26 +847,12 @@ static void acpi_sleep_hibernate_setup(void)
 static inline void acpi_sleep_hibernate_setup(void) {}
 #endif /* !CONFIG_HIBERNATION */
 
-int acpi_suspend(u32 acpi_state)
-{
-	suspend_state_t states[] = {
-		[1] = PM_SUSPEND_STANDBY,
-		[3] = PM_SUSPEND_MEM,
-		[5] = PM_SUSPEND_MAX
-	};
-
-	if (acpi_state < 6 && states[acpi_state])
-		return pm_suspend(states[acpi_state]);
-	if (acpi_state == 4)
-		return hibernate();
-	return -EINVAL;
-}
-
 static void acpi_power_off_prepare(void)
 {
 	/* Prepare to power off the system */
 	acpi_sleep_prepare(ACPI_STATE_S5);
 	acpi_disable_all_gpes();
+	acpi_os_wait_events_complete();
 }
 
 static void acpi_power_off(void)
@@ -829,6 +873,7 @@ int __init acpi_sleep_init(void)
 
 	sleep_states[ACPI_STATE_S0] = 1;
 
+	acpi_sleep_syscore_init();
 	acpi_sleep_suspend_setup();
 	acpi_sleep_hibernate_setup();
 
