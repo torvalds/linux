@@ -581,37 +581,45 @@ static int __init cstate_probe(const struct cstate_model *cm)
 	return (has_cstate_core || has_cstate_pkg) ? 0 : -ENODEV;
 }
 
-static void __init cstate_cpumask_init(void)
+static void __init cstate_cleanup(void)
 {
-	int cpu;
+	if (has_cstate_core)
+		perf_pmu_unregister(&cstate_core_pmu);
+
+	if (has_cstate_pkg)
+		perf_pmu_unregister(&cstate_pkg_pmu);
+}
+
+static int __init cstate_init(void)
+{
+	int cpu, err;
 
 	cpu_notifier_register_begin();
-
 	for_each_online_cpu(cpu)
 		cstate_cpu_init(cpu);
 
-	__perf_cpu_notifier(cstate_cpu_notifier);
-
-	cpu_notifier_register_done();
-}
-
-static void __init cstate_pmus_register(void)
-{
-	int err;
-
 	if (has_cstate_core) {
 		err = perf_pmu_register(&cstate_core_pmu, cstate_core_pmu.name, -1);
-		if (WARN_ON(err))
-			pr_info("Failed to register PMU %s error %d\n",
-				cstate_core_pmu.name, err);
+		if (err) {
+			has_cstate_core = false;
+			pr_info("Failed to register cstate core pmu\n");
+			goto out;
+		}
 	}
 
 	if (has_cstate_pkg) {
 		err = perf_pmu_register(&cstate_pkg_pmu, cstate_pkg_pmu.name, -1);
-		if (WARN_ON(err))
-			pr_info("Failed to register PMU %s error %d\n",
-				cstate_pkg_pmu.name, err);
+		if (err) {
+			has_cstate_pkg = false;
+			pr_info("Failed to register cstate pkg pmu\n");
+			cstate_cleanup();
+			goto out;
+		}
 	}
+	__perf_cpu_notifier(cstate_cpu_notifier);
+out:
+	cpu_notifier_register_done();
+	return err;
 }
 
 static int __init cstate_pmu_init(void)
@@ -630,10 +638,6 @@ static int __init cstate_pmu_init(void)
 	if (err)
 		return err;
 
-	cstate_cpumask_init();
-
-	cstate_pmus_register();
-
-	return 0;
+	return cstate_init();
 }
 device_initcall(cstate_pmu_init);
