@@ -221,7 +221,7 @@ struct tb_drom_entry_port {
 	u8 micro1:4;
 	u8 micro3;
 
-	/* BYTES 5-6, TODO: verify (find hardware that has these set) */
+	/* BYTES 6-7, TODO: verify (find hardware that has these set) */
 	u8 peer_port_rid:4;
 	u8 unknown3:3;
 	bool has_peer_port:1;

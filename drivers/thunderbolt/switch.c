@@ -350,7 +350,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 		return NULL;
 
 	sw->tb = tb;
-	if (tb_cfg_read(tb->ctl, &sw->config, route, 0, 2, 0, 5))
+	if (tb_cfg_read(tb->ctl, &sw->config, route, 0, TB_CFG_SWITCH, 0, 5))
 		goto err;
 	tb_info(tb,
 		"initializing Switch at %#llx (depth: %d, up port: %d)\n",
@@ -426,9 +426,9 @@ err:
 }
 
 /**
- * tb_sw_set_unpplugged() - set is_unplugged on switch and downstream switches
+ * tb_sw_set_unplugged() - set is_unplugged on switch and downstream switches
  */
-void tb_sw_set_unpplugged(struct tb_switch *sw)
+void tb_sw_set_unplugged(struct tb_switch *sw)
 {
 	int i;
 	if (sw == sw->tb->root_switch) {
@@ -442,7 +442,7 @@ void tb_sw_set_unpplugged(struct tb_switch *sw)
 	sw->is_unplugged = true;
 	for (i = 0; i <= sw->config.max_port_number; i++) {
 		if (!tb_is_upstream_port(&sw->ports[i]) && sw->ports[i].remote)
-			tb_sw_set_unpplugged(sw->ports[i].remote->sw);
+			tb_sw_set_unplugged(sw->ports[i].remote->sw);
 	}
 }
 
@@ -484,7 +484,7 @@ int tb_switch_resume(struct tb_switch *sw)
 			|| tb_switch_resume(port->remote->sw)) {
 			tb_port_warn(port,
 				     "lost during suspend, disconnecting\n");
-			tb_sw_set_unpplugged(port->remote->sw);
+			tb_sw_set_unplugged(port->remote->sw);
 		}
 	}
 	return 0;
