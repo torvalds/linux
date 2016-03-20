@@ -77,6 +77,7 @@ enum iio_modifier {
 	IIO_MOD_Q,
 	IIO_MOD_CO2,
 	IIO_MOD_VOC,
+	IIO_MOD_LIGHT_UV,
 };
 
 enum iio_event_type {
