@@ -11965,6 +11965,12 @@ M:	David Härdeman <david@hardeman.nu>
 S:	Maintained
 F:	drivers/media/rc/winbond-cir.c
 
+WINSYSTEMS EBC-C384 WATCHDOG DRIVER
+M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+L:	linux-watchdog@vger.kernel.org
+S:	Maintained
+F:	drivers/watchdog/ebc-c384_wdt.c
+
 WINSYSTEMS WS16C48 GPIO DRIVER
 M:	William Breathitt Gray <vilhelm.gray@gmail.com>
 L:	linux-gpio@vger.kernel.org
