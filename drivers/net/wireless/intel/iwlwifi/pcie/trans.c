@@ -1170,7 +1170,7 @@ static void iwl_pcie_synchronize_irqs(struct iwl_trans *trans)
 	if (trans_pcie->msix_enabled) {
 		int i;
 
-		for (i = 0; i < trans_pcie->allocated_vector; i++)
+		for (i = 0; i < trans_pcie->alloc_vecs; i++)
 			synchronize_irq(trans_pcie->msix_entries[i].vector);
 	} else {
 		synchronize_irq(trans_pcie->pci_dev->irq);
@@ -1429,12 +1429,57 @@ static struct iwl_causes_list causes_list[] = {
 	{MSIX_HW_INT_CAUSES_REG_HAP,		CSR_MSIX_HW_INT_MASK_AD, 0x2E},
 };
 
+static void iwl_pcie_map_non_rx_causes(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie =  IWL_TRANS_GET_PCIE_TRANS(trans);
+	int val = trans_pcie->def_irq | MSIX_NON_AUTO_CLEAR_CAUSE;
+	int i;
+
+	/*
+	 * Access all non RX causes and map them to the default irq.
+	 * In case we are missing at least one interrupt vector,
+	 * the first interrupt vector will serve non-RX and FBQ causes.
+	 */
+	for (i = 0; i < ARRAY_SIZE(causes_list); i++) {
+		iwl_write8(trans, CSR_MSIX_IVAR(causes_list[i].addr), val);
+		iwl_clear_bit(trans, causes_list[i].mask_reg,
+			      causes_list[i].cause_num);
+	}
+}
+
+static void iwl_pcie_map_rx_causes(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	u32 offset =
+		trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS ? 1 : 0;
+	u32 val, idx;
+
+	/*
+	 * The first RX queue - fallback queue, which is designated for
+	 * management frame, command responses etc, is always mapped to the
+	 * first interrupt vector. The other RX queues are mapped to
+	 * the other (N - 2) interrupt vectors.
+	 */
+	val = BIT(MSIX_FH_INT_CAUSES_Q(0));
+	for (idx = 1; idx < trans->num_rx_queues; idx++) {
+		iwl_write8(trans, CSR_MSIX_RX_IVAR(idx),
+			   MSIX_FH_INT_CAUSES_Q(idx - offset));
+		val |= BIT(MSIX_FH_INT_CAUSES_Q(idx));
+	}
+	iwl_write32(trans, CSR_MSIX_FH_INT_MASK_AD, ~val);
+
+	val = MSIX_FH_INT_CAUSES_Q(0);
+	if (trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_NON_RX)
+		val |= MSIX_NON_AUTO_CLEAR_CAUSE;
+	iwl_write8(trans, CSR_MSIX_RX_IVAR(0), val);
+
+	if (trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS)
+		iwl_write8(trans, CSR_MSIX_RX_IVAR(1), val);
+}
+
 static void iwl_pcie_init_msix(struct iwl_trans_pcie *trans_pcie)
 {
-	u32 val, max_rx_vector, i;
 	struct iwl_trans *trans = trans_pcie->trans;
-
-	max_rx_vector = trans_pcie->allocated_vector - 1;
 
 	if (!trans_pcie->msix_enabled) {
 		if (trans->cfg->mq_rx_supported)
@@ -1446,25 +1491,16 @@ static void iwl_pcie_init_msix(struct iwl_trans_pcie *trans_pcie)
 	iwl_write_prph(trans, UREG_CHICK, UREG_CHICK_MSIX_ENABLE);
 
 	/*
-	 * Each cause from the list above and the RX causes is represented as
-	 * a byte in the IVAR table. We access the first (N - 1) bytes and map
-	 * them to the (N - 1) vectors so these vectors will be used as rx
-	 * vectors. Then access all non rx causes and map them to the
-	 * default queue (N'th queue).
+	 * Each cause from the causes list above and the RX causes is
+	 * represented as a byte in the IVAR table. The first nibble
+	 * represents the bound interrupt vector of the cause, the second
+	 * represents no auto clear for this cause. This will be set if its
+	 * interrupt vector is bound to serve other causes.
 	 */
-	for (i = 0; i < max_rx_vector; i++) {
-		iwl_write8(trans, CSR_MSIX_RX_IVAR(i), MSIX_FH_INT_CAUSES_Q(i));
-		iwl_clear_bit(trans, CSR_MSIX_FH_INT_MASK_AD,
-			      BIT(MSIX_FH_INT_CAUSES_Q(i)));
-	}
+	iwl_pcie_map_rx_causes(trans);
 
-	for (i = 0; i < ARRAY_SIZE(causes_list); i++) {
-		val = trans_pcie->default_irq_num |
-			MSIX_NON_AUTO_CLEAR_CAUSE;
-		iwl_write8(trans, CSR_MSIX_IVAR(causes_list[i].addr), val);
-		iwl_clear_bit(trans, causes_list[i].mask_reg,
-			      causes_list[i].cause_num);
-	}
+	iwl_pcie_map_non_rx_causes(trans);
+
 	trans_pcie->fh_init_mask =
 		~iwl_read32(trans, CSR_MSIX_FH_INT_MASK_AD);
 	trans_pcie->fh_mask = trans_pcie->fh_init_mask;
@@ -1477,9 +1513,8 @@ static void iwl_pcie_set_interrupt_capa(struct pci_dev *pdev,
 					struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int max_vector, nvec, i;
 	u16 pci_cmd;
-	int max_vector;
-	int ret, i;
 
 	if (trans->cfg->mq_rx_supported) {
 		max_vector = min_t(u32, (num_possible_cpus() + 2),
@@ -1487,33 +1522,48 @@ static void iwl_pcie_set_interrupt_capa(struct pci_dev *pdev,
 		for (i = 0; i < max_vector; i++)
 			trans_pcie->msix_entries[i].entry = i;
 
-		ret = pci_enable_msix_range(pdev, trans_pcie->msix_entries,
-					    MSIX_MIN_INTERRUPT_VECTORS,
-					    max_vector);
-		if (ret > 1) {
+		nvec = pci_enable_msix_range(pdev, trans_pcie->msix_entries,
+					     MSIX_MIN_INTERRUPT_VECTORS,
+					     max_vector);
+		if (nvec < 0) {
 			IWL_DEBUG_INFO(trans,
-				       "Enable MSI-X allocate %d interrupt vector\n",
-				       ret);
-			trans_pcie->allocated_vector = ret;
-			trans_pcie->default_irq_num =
-				trans_pcie->allocated_vector - 1;
-			trans_pcie->trans->num_rx_queues =
-				trans_pcie->allocated_vector - 1;
-			trans_pcie->msix_enabled = true;
-
-			return;
+				       "ret = %d failed to enable msi-x mode move to msi mode\n",
+				       nvec);
+			goto msi;
 		}
-		IWL_DEBUG_INFO(trans,
-			       "ret = %d %s move to msi mode\n", ret,
-			       (ret == 1) ?
-			       "can't allocate more than 1 interrupt vector" :
-			       "failed to enable msi-x mode");
-		pci_disable_msix(pdev);
-	}
 
-	ret = pci_enable_msi(pdev);
-	if (ret) {
-		dev_err(&pdev->dev, "pci_enable_msi failed - %d\n", ret);
+		IWL_DEBUG_INFO(trans,
+			       "Enable MSI-X allocate %d interrupt vector\n",
+			       nvec);
+		trans_pcie->def_irq = (nvec == max_vector) ? nvec - 1 : 0;
+		/*
+		 * In case the OS provides fewer interrupts than requested,
+		 * different causes will share the same interrupt vector
+		 * as follow:
+		 * One interrupt less: non rx causes shared with FBQ.
+		 * Two interrupts less: non rx causes shared with FBQ and RSS.
+		 * More than two interrupts: we will use fewer RSS queues.
+		 */
+		if (nvec <= num_online_cpus()) {
+			trans_pcie->trans->num_rx_queues = nvec + 1;
+			trans_pcie->shared_vec_mask = IWL_SHARED_IRQ_NON_RX |
+				IWL_SHARED_IRQ_FIRST_RSS;
+		} else if (nvec == num_online_cpus() + 1) {
+			trans_pcie->trans->num_rx_queues = nvec;
+			trans_pcie->shared_vec_mask = IWL_SHARED_IRQ_NON_RX;
+		} else {
+			trans_pcie->trans->num_rx_queues = nvec - 1;
+		}
+
+		trans_pcie->alloc_vecs = nvec;
+		trans_pcie->msix_enabled = true;
+		return;
+	}
+msi:
+
+	nvec = pci_enable_msi(pdev);
+	if (nvec) {
+		dev_err(&pdev->dev, "pci_enable_msi failed - %d\n", nvec);
 		/* enable rfkill interrupt: hw bug w/a */
 		pci_read_config_word(pdev, PCI_COMMAND, &pci_cmd);
 		if (pci_cmd & PCI_COMMAND_INTX_DISABLE) {
@@ -1526,16 +1576,14 @@ static void iwl_pcie_set_interrupt_capa(struct pci_dev *pdev,
 static int iwl_pcie_init_msix_handler(struct pci_dev *pdev,
 				      struct iwl_trans_pcie *trans_pcie)
 {
-	int i, last_vector;
+	int i;
 
-	last_vector = trans_pcie->trans->num_rx_queues;
-
-	for (i = 0; i < trans_pcie->allocated_vector; i++) {
+	for (i = 0; i < trans_pcie->alloc_vecs; i++) {
 		int ret;
 
 		ret = request_threaded_irq(trans_pcie->msix_entries[i].vector,
 					   iwl_pcie_msix_isr,
-					   (i == last_vector) ?
+					   (i == trans_pcie->def_irq) ?
 					   iwl_pcie_irq_msix_handler :
 					   iwl_pcie_irq_rx_msix_handler,
 					   IRQF_SHARED,
@@ -1712,7 +1760,7 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 	iwl_pcie_rx_free(trans);
 
 	if (trans_pcie->msix_enabled) {
-		for (i = 0; i < trans_pcie->allocated_vector; i++)
+		for (i = 0; i < trans_pcie->alloc_vecs; i++)
 			free_irq(trans_pcie->msix_entries[i].vector,
 				 &trans_pcie->msix_entries[i]);
 

@@ -1885,6 +1885,20 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 			      inta_fh,
 			      iwl_read32(trans, CSR_MSIX_FH_INT_MASK_AD));
 
+	if ((trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_NON_RX) &&
+	    inta_fh & MSIX_FH_INT_CAUSES_Q0) {
+		local_bh_disable();
+		iwl_pcie_rx_handle(trans, 0);
+		local_bh_enable();
+	}
+
+	if ((trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS) &&
+	    inta_fh & MSIX_FH_INT_CAUSES_Q1) {
+		local_bh_disable();
+		iwl_pcie_rx_handle(trans, 1);
+		local_bh_enable();
+	}
+
 	/* This "Tx" DMA channel is used only for loading uCode */
 	if (inta_fh & MSIX_FH_INT_CAUSES_D2S_CH0_NUM) {
 		IWL_DEBUG_ISR(trans, "uCode load interrupt\n");

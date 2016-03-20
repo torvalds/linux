@@ -304,6 +304,16 @@ struct iwl_tso_hdr_page {
 };
 
 /**
+ * enum iwl_shared_irq_flags - level of sharing for irq
+ * @IWL_SHARED_IRQ_NON_RX: interrupt vector serves non rx causes.
+ * @IWL_SHARED_IRQ_FIRST_RSS: interrupt vector serves first RSS queue.
+ */
+enum iwl_shared_irq_flags {
+	IWL_SHARED_IRQ_NON_RX		= BIT(0),
+	IWL_SHARED_IRQ_FIRST_RSS	= BIT(1),
+};
+
+/**
  * struct iwl_trans_pcie - PCIe transport specific data
  * @rxq: all the RX queue data
  * @rx_pool: initial pool of iwl_rx_mem_buffer for all the queues
@@ -333,8 +343,10 @@ struct iwl_tso_hdr_page {
  * @fw_mon_size: size of the buffer for the firmware monitor
  * @msix_entries: array of MSI-X entries
  * @msix_enabled: true if managed to enable MSI-X
- * @allocated_vector: the number of interrupt vector allocated by the OS
- * @default_irq_num: default irq for non rx interrupt
+ * @shared_vec_mask: the type of causes the shared vector handles
+ *	(see iwl_shared_irq_flags).
+ * @alloc_vecs: the number of interrupt vectors allocated by the OS
+ * @def_irq: default irq for non rx causes
  * @fh_init_mask: initial unmasked fh causes
  * @hw_init_mask: initial unmasked hw causes
  * @fh_mask: current unmasked fh causes
@@ -407,8 +419,9 @@ struct iwl_trans_pcie {
 
 	struct msix_entry msix_entries[IWL_MAX_RX_HW_QUEUES];
 	bool msix_enabled;
-	u32 allocated_vector;
-	u32 default_irq_num;
+	u8 shared_vec_mask;
+	u32 alloc_vecs;
+	u32 def_irq;
 	u32 fh_init_mask;
 	u32 hw_init_mask;
 	u32 fh_mask;
