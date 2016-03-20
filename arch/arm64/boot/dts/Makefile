@@ -1,5 +1,7 @@
+dts-dirs += al
 dts-dirs += altera
 dts-dirs += amd
+dts-dirs += amlogic
 dts-dirs += apm
 dts-dirs += arm
 dts-dirs += broadcom
