@@ -315,8 +315,8 @@
 	ENTRY_COMP(io_getevents)
 	ENTRY_COMP(io_submit)
 	ENTRY_SAME(io_cancel)
-	ENTRY_SAME(alloc_hugepages)	/* 220 */
-	ENTRY_SAME(free_hugepages)
+	ENTRY_SAME(ni_syscall)		/* 220: was alloc_hugepages */
+	ENTRY_SAME(ni_syscall)		/* was free_hugepages */
 	ENTRY_SAME(exit_group)
 	ENTRY_COMP(lookup_dcookie)
 	ENTRY_SAME(epoll_create)

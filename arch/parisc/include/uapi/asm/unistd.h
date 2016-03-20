@@ -235,8 +235,8 @@
 #define __NR_io_getevents       (__NR_Linux + 217)
 #define __NR_io_submit          (__NR_Linux + 218)
 #define __NR_io_cancel          (__NR_Linux + 219)
-#define __NR_alloc_hugepages    (__NR_Linux + 220)
-#define __NR_free_hugepages     (__NR_Linux + 221)
+#define __NR_alloc_hugepages    (__NR_Linux + 220) /* not used */
+#define __NR_free_hugepages     (__NR_Linux + 221) /* not used */
 #define __NR_exit_group         (__NR_Linux + 222)
 #define __NR_lookup_dcookie     (__NR_Linux + 223)
 #define __NR_epoll_create       (__NR_Linux + 224)
