@@ -1482,8 +1482,7 @@ static struct omap_hwmod_class_sysconfig dra7xx_ocp2scp_sysc = {
 	.syss_offs	= 0x0014,
 	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_SIDLEMODE |
 			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -1532,14 +1531,21 @@ static struct omap_hwmod_class dra7xx_pciess_hwmod_class = {
 };
 
 /* pcie1 */
+static struct omap_hwmod_rst_info dra7xx_pciess1_resets[] = {
+	{ .name = "pcie", .rst_shift = 0 },
+};
+
 static struct omap_hwmod dra7xx_pciess1_hwmod = {
 	.name		= "pcie1",
 	.class		= &dra7xx_pciess_hwmod_class,
 	.clkdm_name	= "pcie_clkdm",
+	.rst_lines	= dra7xx_pciess1_resets,
+	.rst_lines_cnt	= ARRAY_SIZE(dra7xx_pciess1_resets),
 	.main_clk	= "l4_root_clk_div",
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3INIT_PCIESS1_CLKCTRL_OFFSET,
+			.rstctrl_offs = DRA7XX_RM_L3INIT_PCIESS_RSTCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3INIT_PCIESS1_CONTEXT_OFFSET,
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
@@ -1547,14 +1553,22 @@ static struct omap_hwmod dra7xx_pciess1_hwmod = {
 };
 
 /* pcie2 */
+static struct omap_hwmod_rst_info dra7xx_pciess2_resets[] = {
+	{ .name = "pcie", .rst_shift = 1 },
+};
+
+/* pcie2 */
 static struct omap_hwmod dra7xx_pciess2_hwmod = {
 	.name		= "pcie2",
 	.class		= &dra7xx_pciess_hwmod_class,
 	.clkdm_name	= "pcie_clkdm",
+	.rst_lines	= dra7xx_pciess2_resets,
+	.rst_lines_cnt	= ARRAY_SIZE(dra7xx_pciess2_resets),
 	.main_clk	= "l4_root_clk_div",
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = DRA7XX_CM_L3INIT_PCIESS2_CLKCTRL_OFFSET,
+			.rstctrl_offs = DRA7XX_RM_L3INIT_PCIESS_RSTCTRL_OFFSET,
 			.context_offs = DRA7XX_RM_L3INIT_PCIESS2_CONTEXT_OFFSET,
 			.modulemode   = MODULEMODE_SWCTRL,
 		},

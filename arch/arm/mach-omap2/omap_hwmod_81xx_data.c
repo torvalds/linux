@@ -429,6 +429,7 @@ static struct omap_hwmod dm81xx_elm_hwmod = {
 static struct omap_hwmod_ocp_if dm81xx_l4_ls__elm = {
 	.master		= &dm81xx_l4_ls_hwmod,
 	.slave		= &dm81xx_elm_hwmod,
+	.clk		= "sysclk6_ck",
 	.user		= OCP_USER_MPU,
 };
 
@@ -478,6 +479,7 @@ static struct omap_hwmod dm81xx_gpio1_hwmod = {
 static struct omap_hwmod_ocp_if dm81xx_l4_ls__gpio1 = {
 	.master		= &dm81xx_l4_ls_hwmod,
 	.slave		= &dm81xx_gpio1_hwmod,
+	.clk		= "sysclk6_ck",
 	.user		= OCP_USER_MPU,
 };
 
@@ -504,6 +506,7 @@ static struct omap_hwmod dm81xx_gpio2_hwmod = {
 static struct omap_hwmod_ocp_if dm81xx_l4_ls__gpio2 = {
 	.master		= &dm81xx_l4_ls_hwmod,
 	.slave		= &dm81xx_gpio2_hwmod,
+	.clk		= "sysclk6_ck",
 	.user		= OCP_USER_MPU,
 };
 
@@ -628,7 +631,7 @@ static struct omap_hwmod dm814x_timer1_hwmod = {
 static struct omap_hwmod_ocp_if dm814x_l4_ls__timer1 = {
 	.master		= &dm81xx_l4_ls_hwmod,
 	.slave		= &dm814x_timer1_hwmod,
-	.clk		= "timer1_fck",
+	.clk		= "sysclk6_ck",
 	.user		= OCP_USER_MPU,
 };
 
@@ -665,7 +668,7 @@ static struct omap_hwmod dm814x_timer2_hwmod = {
 static struct omap_hwmod_ocp_if dm814x_l4_ls__timer2 = {
 	.master		= &dm81xx_l4_ls_hwmod,
 	.slave		= &dm814x_timer2_hwmod,
-	.clk		= "timer2_fck",
+	.clk		= "sysclk6_ck",
 	.user		= OCP_USER_MPU,
 };
 
@@ -1123,6 +1126,7 @@ static struct omap_hwmod dm81xx_mailbox_hwmod = {
 static struct omap_hwmod_ocp_if dm81xx_l4_ls__mailbox = {
 	.master		= &dm81xx_l4_ls_hwmod,
 	.slave		= &dm81xx_mailbox_hwmod,
+	.clk		= "sysclk6_ck",
 	.user		= OCP_USER_MPU,
 };
 
@@ -1157,6 +1161,7 @@ static struct omap_hwmod dm81xx_spinbox_hwmod = {
 static struct omap_hwmod_ocp_if dm81xx_l4_ls__spinbox = {
 	.master		= &dm81xx_l4_ls_hwmod,
 	.slave		= &dm81xx_spinbox_hwmod,
+	.clk		= "sysclk6_ck",
 	.user		= OCP_USER_MPU,
 };
 
