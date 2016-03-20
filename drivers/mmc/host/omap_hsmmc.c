@@ -351,15 +351,14 @@ static int omap_hsmmc_set_pbias(struct omap_hsmmc_host *host, bool power_on,
 	return 0;
 }
 
-static int omap_hsmmc_set_power(struct device *dev, int power_on, int vdd)
+static int omap_hsmmc_set_power(struct omap_hsmmc_host *host, int power_on,
+				int vdd)
 {
-	struct omap_hsmmc_host *host =
-		platform_get_drvdata(to_platform_device(dev));
 	struct mmc_host *mmc = host->mmc;
 	int ret = 0;
 
 	if (mmc_pdata(host)->set_power)
-		return mmc_pdata(host)->set_power(dev, power_on, vdd);
+		return mmc_pdata(host)->set_power(host->dev, power_on, vdd);
 
 	/*
 	 * If we don't see a Vcc regulator, assume it's a fixed
@@ -369,7 +368,7 @@ static int omap_hsmmc_set_power(struct device *dev, int power_on, int vdd)
 		return 0;
 
 	if (mmc_pdata(host)->before_set_reg)
-		mmc_pdata(host)->before_set_reg(dev, power_on, vdd);
+		mmc_pdata(host)->before_set_reg(host->dev, power_on, vdd);
 
 	ret = omap_hsmmc_set_pbias(host, false, 0);
 	if (ret)
@@ -403,7 +402,7 @@ static int omap_hsmmc_set_power(struct device *dev, int power_on, int vdd)
 	}
 
 	if (mmc_pdata(host)->after_set_reg)
-		mmc_pdata(host)->after_set_reg(dev, power_on, vdd);
+		mmc_pdata(host)->after_set_reg(host->dev, power_on, vdd);
 
 	return 0;
 
@@ -1255,11 +1254,11 @@ static int omap_hsmmc_switch_opcond(struct omap_hsmmc_host *host, int vdd)
 		clk_disable_unprepare(host->dbclk);
 
 	/* Turn the power off */
-	ret = omap_hsmmc_set_power(host->dev, 0, 0);
+	ret = omap_hsmmc_set_power(host, 0, 0);
 
 	/* Turn the power ON with given VDD 1.8 or 3.0v */
 	if (!ret)
-		ret = omap_hsmmc_set_power(host->dev, 1, vdd);
+		ret = omap_hsmmc_set_power(host, 1, vdd);
 	pm_runtime_get_sync(host->dev);
 	if (host->dbclk)
 		clk_prepare_enable(host->dbclk);
@@ -1658,10 +1657,10 @@ static void omap_hsmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (ios->power_mode != host->power_mode) {
 		switch (ios->power_mode) {
 		case MMC_POWER_OFF:
-			omap_hsmmc_set_power(host->dev, 0, 0);
+			omap_hsmmc_set_power(host, 0, 0);
 			break;
 		case MMC_POWER_UP:
-			omap_hsmmc_set_power(host->dev, 1, ios->vdd);
+			omap_hsmmc_set_power(host, 1, ios->vdd);
 			break;
 		case MMC_POWER_ON:
 			do_send_init_stream = 1;
