@@ -570,9 +570,8 @@ static void giveback(struct driver_data *drv_data)
 		/* see if the next and current messages point
 		 * to the same chip
 		 */
-		if (next_msg && next_msg->spi != msg->spi)
-			next_msg = NULL;
-		if (!next_msg || msg->state == ERROR_STATE)
+		if ((next_msg && next_msg->spi != msg->spi) ||
+		    msg->state == ERROR_STATE)
 			cs_deassert(drv_data);
 	}
 
