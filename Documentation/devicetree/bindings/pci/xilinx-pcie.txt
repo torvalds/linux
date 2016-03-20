@@ -17,7 +17,7 @@ Required properties:
 	Please refer to the standard PCI bus binding document for a more
 	detailed explanation
 
-Optional properties:
+Optional properties for Zynq/Microblaze:
 - bus-range: PCI bus numbers covered
 
 Interrupt controller child node
@@ -38,13 +38,13 @@ the four INTx interrupts in ISR and route them to this domain.
 
 Example:
 ++++++++
-
+Zynq:
 	pci_express: axi-pcie@50000000 {
 		#address-cells = <3>;
 		#size-cells = <2>;
 		#interrupt-cells = <1>;
 		compatible = "xlnx,axi-pcie-host-1.00.a";
-		reg = < 0x50000000 0x10000000 >;
+		reg = < 0x50000000 0x1000000 >;
 		device_type = "pci";
 		interrupts = < 0 52 4 >;
 		interrupt-map-mask = <0 0 0 7>;
@@ -59,4 +59,30 @@ Example:
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
 		};
+	};
+
+
+Microblaze:
+	pci_express: axi-pcie@10000000 {
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		compatible = "xlnx,axi-pcie-host-1.00.a";
+		reg = <0x10000000 0x4000000>;
+		device_type = "pci";
+		interrupt-parent = <&microblaze_0_intc>;
+		interrupts = <1 2>;
+		interrupt-map-mask = <0 0 0 7>;
+		interrupt-map = <0 0 0 1 &pcie_intc 1>,
+				<0 0 0 2 &pcie_intc 2>,
+				<0 0 0 3 &pcie_intc 3>,
+				<0 0 0 4 &pcie_intc 4>;
+		ranges = <0x02000000 0x00000000 0x80000000 0x80000000 0x00000000 0x10000000>;
+
+		pcie_intc: interrupt-controller {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+		};
+
 	};

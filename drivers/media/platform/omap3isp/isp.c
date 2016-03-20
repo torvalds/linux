@@ -64,6 +64,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-mc.h>
 #include <media/v4l2-of.h>
 
 #include "isp.h"
@@ -449,7 +450,7 @@ void omap3isp_configure_bridge(struct isp_device *isp,
 	case CCDC_INPUT_PARALLEL:
 		ispctrl_val |= ISPCTRL_PAR_SER_CLK_SEL_PARALLEL;
 		ispctrl_val |= parcfg->clk_pol << ISPCTRL_PAR_CLK_POL_SHIFT;
-		shift += parcfg->data_lane_shift * 2;
+		shift += parcfg->data_lane_shift;
 		break;
 
 	case CCDC_INPUT_CSI2A:
@@ -654,216 +655,6 @@ static irqreturn_t isp_isr(int irq, void *_isp)
 #endif
 
 	return IRQ_HANDLED;
-}
-
-/* -----------------------------------------------------------------------------
- * Pipeline power management
- *
- * Entities must be powered up when part of a pipeline that contains at least
- * one open video device node.
- *
- * To achieve this use the entity use_count field to track the number of users.
- * For entities corresponding to video device nodes the use_count field stores
- * the users count of the node. For entities corresponding to subdevs the
- * use_count field stores the total number of users of all video device nodes
- * in the pipeline.
- *
- * The omap3isp_pipeline_pm_use() function must be called in the open() and
- * close() handlers of video device nodes. It increments or decrements the use
- * count of all subdev entities in the pipeline.
- *
- * To react to link management on powered pipelines, the link setup notification
- * callback updates the use count of all entities in the source and sink sides
- * of the link.
- */
-
-/*
- * isp_pipeline_pm_use_count - Count the number of users of a pipeline
- * @entity: The entity
- *
- * Return the total number of users of all video device nodes in the pipeline.
- */
-static int isp_pipeline_pm_use_count(struct media_entity *entity,
-	struct media_entity_graph *graph)
-{
-	int use = 0;
-
-	media_entity_graph_walk_start(graph, entity);
-
-	while ((entity = media_entity_graph_walk_next(graph))) {
-		if (is_media_entity_v4l2_io(entity))
-			use += entity->use_count;
-	}
-
-	return use;
-}
-
-/*
- * isp_pipeline_pm_power_one - Apply power change to an entity
- * @entity: The entity
- * @change: Use count change
- *
- * Change the entity use count by @change. If the entity is a subdev update its
- * power state by calling the core::s_power operation when the use count goes
- * from 0 to != 0 or from != 0 to 0.
- *
- * Return 0 on success or a negative error code on failure.
- */
-static int isp_pipeline_pm_power_one(struct media_entity *entity, int change)
-{
-	struct v4l2_subdev *subdev;
-	int ret;
-
-	subdev = is_media_entity_v4l2_subdev(entity)
-	       ? media_entity_to_v4l2_subdev(entity) : NULL;
-
-	if (entity->use_count == 0 && change > 0 && subdev != NULL) {
-		ret = v4l2_subdev_call(subdev, core, s_power, 1);
-		if (ret < 0 && ret != -ENOIOCTLCMD)
-			return ret;
-	}
-
-	entity->use_count += change;
-	WARN_ON(entity->use_count < 0);
-
-	if (entity->use_count == 0 && change < 0 && subdev != NULL)
-		v4l2_subdev_call(subdev, core, s_power, 0);
-
-	return 0;
-}
-
-/*
- * isp_pipeline_pm_power - Apply power change to all entities in a pipeline
- * @entity: The entity
- * @change: Use count change
- *
- * Walk the pipeline to update the use count and the power state of all non-node
- * entities.
- *
- * Return 0 on success or a negative error code on failure.
- */
-static int isp_pipeline_pm_power(struct media_entity *entity, int change,
-	struct media_entity_graph *graph)
-{
-	struct media_entity *first = entity;
-	int ret = 0;
-
-	if (!change)
-		return 0;
-
-	media_entity_graph_walk_start(graph, entity);
-
-	while (!ret && (entity = media_entity_graph_walk_next(graph)))
-		if (is_media_entity_v4l2_subdev(entity))
-			ret = isp_pipeline_pm_power_one(entity, change);
-
-	if (!ret)
-		return ret;
-
-	media_entity_graph_walk_start(graph, first);
-
-	while ((first = media_entity_graph_walk_next(graph))
-	       && first != entity)
-		if (is_media_entity_v4l2_subdev(first))
-			isp_pipeline_pm_power_one(first, -change);
-
-	return ret;
-}
-
-/*
- * omap3isp_pipeline_pm_use - Update the use count of an entity
- * @entity: The entity
- * @use: Use (1) or stop using (0) the entity
- *
- * Update the use count of all entities in the pipeline and power entities on or
- * off accordingly.
- *
- * Return 0 on success or a negative error code on failure. Powering entities
- * off is assumed to never fail. No failure can occur when the use parameter is
- * set to 0.
- */
-int omap3isp_pipeline_pm_use(struct media_entity *entity, int use,
-			     struct media_entity_graph *graph)
-{
-	int change = use ? 1 : -1;
-	int ret;
-
-	mutex_lock(&entity->graph_obj.mdev->graph_mutex);
-
-	/* Apply use count to node. */
-	entity->use_count += change;
-	WARN_ON(entity->use_count < 0);
-
-	/* Apply power change to connected non-nodes. */
-	ret = isp_pipeline_pm_power(entity, change, graph);
-	if (ret < 0)
-		entity->use_count -= change;
-
-	mutex_unlock(&entity->graph_obj.mdev->graph_mutex);
-
-	return ret;
-}
-
-/*
- * isp_pipeline_link_notify - Link management notification callback
- * @link: The link
- * @flags: New link flags that will be applied
- * @notification: The link's state change notification type (MEDIA_DEV_NOTIFY_*)
- *
- * React to link management on powered pipelines by updating the use count of
- * all entities in the source and sink sides of the link. Entities are powered
- * on or off accordingly.
- *
- * Return 0 on success or a negative error code on failure. Powering entities
- * off is assumed to never fail. This function will not fail for disconnection
- * events.
- */
-static int isp_pipeline_link_notify(struct media_link *link, u32 flags,
-				    unsigned int notification)
-{
-	struct media_entity_graph *graph =
-		&container_of(link->graph_obj.mdev, struct isp_device,
-			      media_dev)->pm_count_graph;
-	struct media_entity *source = link->source->entity;
-	struct media_entity *sink = link->sink->entity;
-	int source_use;
-	int sink_use;
-	int ret = 0;
-
-	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH) {
-		ret = media_entity_graph_walk_init(graph,
-						   link->graph_obj.mdev);
-		if (ret)
-			return ret;
-	}
-
-	source_use = isp_pipeline_pm_use_count(source, graph);
-	sink_use = isp_pipeline_pm_use_count(sink, graph);
-
-	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
-	    !(flags & MEDIA_LNK_FL_ENABLED)) {
-		/* Powering off entities is assumed to never fail. */
-		isp_pipeline_pm_power(source, -sink_use, graph);
-		isp_pipeline_pm_power(sink, -source_use, graph);
-		return 0;
-	}
-
-	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH &&
-		(flags & MEDIA_LNK_FL_ENABLED)) {
-
-		ret = isp_pipeline_pm_power(source, sink_use, graph);
-		if (ret < 0)
-			return ret;
-
-		ret = isp_pipeline_pm_power(sink, source_use, graph);
-		if (ret < 0)
-			isp_pipeline_pm_power(source, -sink_use, graph);
-	}
-
-	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH)
-		media_entity_graph_walk_cleanup(graph);
-
-	return ret;
 }
 
 /* -----------------------------------------------------------------------------
@@ -1889,7 +1680,7 @@ static int isp_register_entities(struct isp_device *isp)
 	strlcpy(isp->media_dev.model, "TI OMAP3 ISP",
 		sizeof(isp->media_dev.model));
 	isp->media_dev.hw_revision = isp->revision;
-	isp->media_dev.link_notify = isp_pipeline_link_notify;
+	isp->media_dev.link_notify = v4l2_pipeline_link_notify;
 	media_device_init(&isp->media_dev);
 
 	isp->v4l2_dev.mdev = &isp->media_dev;
@@ -2235,8 +2026,11 @@ static int isp_of_parse_node(struct device *dev, struct device_node *node,
 	struct isp_bus_cfg *buscfg = &isd->bus;
 	struct v4l2_of_endpoint vep;
 	unsigned int i;
+	int ret;
 
-	v4l2_of_parse_endpoint(node, &vep);
+	ret = v4l2_of_parse_endpoint(node, &vep);
+	if (ret)
+		return ret;
 
 	dev_dbg(dev, "parsing endpoint %s, interface %u\n", node->full_name,
 		vep.base.port);
@@ -2528,12 +2322,13 @@ static int isp_probe(struct platform_device *pdev)
 	}
 
 	/* Interrupt */
-	isp->irq_num = platform_get_irq(pdev, 0);
-	if (isp->irq_num <= 0) {
+	ret = platform_get_irq(pdev, 0);
+	if (ret <= 0) {
 		dev_err(isp->dev, "No IRQ resource\n");
 		ret = -ENODEV;
 		goto error_iommu;
 	}
+	isp->irq_num = ret;
 
 	if (devm_request_irq(isp->dev, isp->irq_num, isp_isr, IRQF_SHARED,
 			     "OMAP3 ISP", isp)) {
@@ -2599,6 +2394,7 @@ static const struct of_device_id omap3isp_of_table[] = {
 	{ .compatible = "ti,omap3-isp" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, omap3isp_of_table);
 
 static struct platform_driver omap3isp_driver = {
 	.probe = isp_probe,

@@ -122,31 +122,26 @@ void rtw_free_mlme_priv(struct mlme_priv *pmlmepriv)
 {
 	rtw_free_mlme_priv_ie_data(pmlmepriv);
 
-	if (pmlmepriv) {
-		if (pmlmepriv->free_bss_buf)
-			vfree(pmlmepriv->free_bss_buf);
-	}
+	if (pmlmepriv)
+		vfree(pmlmepriv->free_bss_buf);
 }
 
-struct	wlan_network *_rtw_alloc_network(struct	mlme_priv *pmlmepriv)/* _queue *free_queue) */
+struct wlan_network *_rtw_alloc_network(struct mlme_priv *pmlmepriv)
+					/* _queue *free_queue) */
 {
-	struct	wlan_network	*pnetwork;
+	struct wlan_network *pnetwork;
 	struct __queue *free_queue = &pmlmepriv->free_bss_pool;
-	struct list_head *plist = NULL;
 
 	spin_lock_bh(&free_queue->lock);
-
-	if (list_empty(&free_queue->queue)) {
-		pnetwork = NULL;
+	pnetwork = list_first_entry_or_null(&free_queue->queue,
+					    struct wlan_network, list);
+	if (!pnetwork)
 		goto exit;
-	}
-	plist = free_queue->queue.next;
-
-	pnetwork = container_of(plist, struct wlan_network, list);
 
 	list_del_init(&pnetwork->list);
 
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("_rtw_alloc_network: ptr=%p\n", plist));
+	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
+		 ("_rtw_alloc_network: ptr=%p\n", &pnetwork->list));
 	pnetwork->network_type = 0;
 	pnetwork->fixed = false;
 	pnetwork->last_scanned = jiffies;

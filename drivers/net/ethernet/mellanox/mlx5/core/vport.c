@@ -850,3 +850,43 @@ int mlx5_nic_vport_disable_roce(struct mlx5_core_dev *mdev)
 	return mlx5_nic_vport_update_roce_state(mdev, MLX5_VPORT_ROCE_DISABLED);
 }
 EXPORT_SYMBOL_GPL(mlx5_nic_vport_disable_roce);
+
+int mlx5_core_query_vport_counter(struct mlx5_core_dev *dev, u8 other_vport,
+				  u8 port_num, void *out, size_t out_sz)
+{
+	int	in_sz = MLX5_ST_SZ_BYTES(query_vport_counter_in);
+	int	is_group_manager;
+	void   *in;
+	int	err;
+
+	is_group_manager = MLX5_CAP_GEN(dev, vport_group_manager);
+	in = mlx5_vzalloc(in_sz);
+	if (!in) {
+		err = -ENOMEM;
+		return err;
+	}
+
+	MLX5_SET(query_vport_counter_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_VPORT_COUNTER);
+	if (other_vport) {
+		if (is_group_manager) {
+			MLX5_SET(query_vport_counter_in, in, other_vport, 1);
+			MLX5_SET(query_vport_counter_in, in, vport_number, 0);
+		} else {
+			err = -EPERM;
+			goto free;
+		}
+	}
+	if (MLX5_CAP_GEN(dev, num_ports) == 2)
+		MLX5_SET(query_vport_counter_in, in, port_num, port_num);
+
+	err = mlx5_cmd_exec(dev, in, in_sz, out,  out_sz);
+	if (err)
+		goto free;
+	err = mlx5_cmd_status_to_err_v2(out);
+
+free:
+	kvfree(in);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_core_query_vport_counter);

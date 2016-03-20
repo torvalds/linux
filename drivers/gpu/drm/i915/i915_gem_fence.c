@@ -34,8 +34,8 @@
  * set of these objects.
  *
  * Fences are used to detile GTT memory mappings. They're also connected to the
- * hardware frontbuffer render tracking and hence interract with frontbuffer
- * conmpression. Furthermore on older platforms fences are required for tiled
+ * hardware frontbuffer render tracking and hence interact with frontbuffer
+ * compression. Furthermore on older platforms fences are required for tiled
  * objects used by the display engine. They can also be used by the render
  * engine - they're required for blitter commands and are optional for render
  * commands. But on gen4+ both display (with the exception of fbc) and rendering
@@ -46,8 +46,8 @@
  *
  * Finally note that because fences are such a restricted resource they're
  * dynamically associated with objects. Furthermore fence state is committed to
- * the hardware lazily to avoid unecessary stalls on gen2/3. Therefore code must
- * explictly call i915_gem_object_get_fence() to synchronize fencing status
+ * the hardware lazily to avoid unnecessary stalls on gen2/3. Therefore code must
+ * explicitly call i915_gem_object_get_fence() to synchronize fencing status
  * for cpu access. Also note that some code wants an unfenced view, for those
  * cases the fence can be removed forcefully with i915_gem_object_put_fence().
  *
@@ -527,7 +527,7 @@ void i915_gem_restore_fences(struct drm_device *dev)
  * required.
  *
  * When bit 17 is XORed in, we simply refuse to tile at all.  Bit
- * 17 is not just a page offset, so as we page an objet out and back in,
+ * 17 is not just a page offset, so as we page an object out and back in,
  * individual pages in it will have different bit 17 addresses, resulting in
  * each 64 bytes being swapped with its neighbor!
  *

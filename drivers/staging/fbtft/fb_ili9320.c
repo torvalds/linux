@@ -47,10 +47,10 @@ static int init_display(struct fbtft_par *par)
 
 	devcode = read_devicecode(par);
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "Device code: 0x%04X\n",
-		devcode);
+		      devcode);
 	if ((devcode != 0x0000) && (devcode != 0x9320))
 		dev_warn(par->info->device,
-			"Unrecognized Device code: 0x%04X (expected 0x9320)\n",
+			 "Unrecognized Device code: 0x%04X (expected 0x9320)\n",
 			devcode);
 
 	/* Initialization sequence from ILI9320 Application Notes */
@@ -216,10 +216,10 @@ static int set_var(struct fbtft_par *par)
 }
 
 /*
-  Gamma string format:
-    VRP0 VRP1 RP0 RP1 KP0 KP1 KP2 KP3 KP4 KP5
-    VRN0 VRN1 RN0 RN1 KN0 KN1 KN2 KN3 KN4 KN5
-*/
+ * Gamma string format:
+ *  VRP0 VRP1 RP0 RP1 KP0 KP1 KP2 KP3 KP4 KP5
+ *  VRN0 VRN1 RN0 RN1 KN0 KN1 KN2 KN3 KN4 KN5
+ */
 #define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
@@ -248,6 +248,7 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 
 	return 0;
 }
+
 #undef CURVE
 
 static struct fbtft_display display = {

@@ -1761,8 +1761,8 @@ lcs_get_control(struct lcs_card *card, struct lcs_cmd *cmd)
 			lcs_schedule_recovery(card);
 			break;
 		case LCS_CMD_STOPLAN:
-			pr_warning("Stoplan for %s initiated by LGW.\n",
-				   card->dev->name);
+			pr_warn("Stoplan for %s initiated by LGW\n",
+				card->dev->name);
 			if (card->dev)
 				netif_carrier_off(card->dev);
 			break;

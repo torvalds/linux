@@ -16,6 +16,9 @@ hostprogs-y += tracex5
 hostprogs-y += tracex6
 hostprogs-y += trace_output
 hostprogs-y += lathist
+hostprogs-y += offwaketime
+hostprogs-y += spintest
+hostprogs-y += map_perf_test
 
 test_verifier-objs := test_verifier.o libbpf.o
 test_maps-objs := test_maps.o libbpf.o
@@ -32,6 +35,9 @@ tracex5-objs := bpf_load.o libbpf.o tracex5_user.o
 tracex6-objs := bpf_load.o libbpf.o tracex6_user.o
 trace_output-objs := bpf_load.o libbpf.o trace_output_user.o
 lathist-objs := bpf_load.o libbpf.o lathist_user.o
+offwaketime-objs := bpf_load.o libbpf.o offwaketime_user.o
+spintest-objs := bpf_load.o libbpf.o spintest_user.o
+map_perf_test-objs := bpf_load.o libbpf.o map_perf_test_user.o
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -47,6 +53,9 @@ always += tracex6_kern.o
 always += trace_output_kern.o
 always += tcbpf1_kern.o
 always += lathist_kern.o
+always += offwaketime_kern.o
+always += spintest_kern.o
+always += map_perf_test_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
 
@@ -63,6 +72,9 @@ HOSTLOADLIBES_tracex5 += -lelf
 HOSTLOADLIBES_tracex6 += -lelf
 HOSTLOADLIBES_trace_output += -lelf -lrt
 HOSTLOADLIBES_lathist += -lelf
+HOSTLOADLIBES_offwaketime += -lelf
+HOSTLOADLIBES_spintest += -lelf
+HOSTLOADLIBES_map_perf_test += -lelf -lrt
 
 # point this to your LLVM backend with bpf support
 LLC=$(srctree)/tools/bpf/llvm/bld/Debug+Asserts/bin/llc

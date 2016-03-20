@@ -56,10 +56,10 @@ void end_swap_bio_write(struct bio *bio)
 		 * Also clear PG_reclaim to avoid rotate_reclaimable_page()
 		 */
 		set_page_dirty(page);
-		printk(KERN_ALERT "Write-error on swap-device (%u:%u:%Lu)\n",
-				imajor(bio->bi_bdev->bd_inode),
-				iminor(bio->bi_bdev->bd_inode),
-				(unsigned long long)bio->bi_iter.bi_sector);
+		pr_alert("Write-error on swap-device (%u:%u:%llu)\n",
+			 imajor(bio->bi_bdev->bd_inode),
+			 iminor(bio->bi_bdev->bd_inode),
+			 (unsigned long long)bio->bi_iter.bi_sector);
 		ClearPageReclaim(page);
 	}
 	end_page_writeback(page);
@@ -73,10 +73,10 @@ static void end_swap_bio_read(struct bio *bio)
 	if (bio->bi_error) {
 		SetPageError(page);
 		ClearPageUptodate(page);
-		printk(KERN_ALERT "Read-error on swap-device (%u:%u:%Lu)\n",
-				imajor(bio->bi_bdev->bd_inode),
-				iminor(bio->bi_bdev->bd_inode),
-				(unsigned long long)bio->bi_iter.bi_sector);
+		pr_alert("Read-error on swap-device (%u:%u:%llu)\n",
+			 imajor(bio->bi_bdev->bd_inode),
+			 iminor(bio->bi_bdev->bd_inode),
+			 (unsigned long long)bio->bi_iter.bi_sector);
 		goto out;
 	}
 
@@ -216,7 +216,7 @@ reprobe:
 out:
 	return ret;
 bad_bmap:
-	printk(KERN_ERR "swapon: swapfile has holes\n");
+	pr_err("swapon: swapfile has holes\n");
 	ret = -EINVAL;
 	goto out;
 }
@@ -290,8 +290,8 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 			 */
 			set_page_dirty(page);
 			ClearPageReclaim(page);
-			pr_err_ratelimited("Write error on dio swapfile (%Lu)\n",
-				page_file_offset(page));
+			pr_err_ratelimited("Write error on dio swapfile (%llu)\n",
+					   page_file_offset(page));
 		}
 		end_page_writeback(page);
 		return ret;

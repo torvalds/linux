@@ -236,12 +236,10 @@ static void rds_ib_cq_comp_handler_recv(struct ib_cq *cq, void *context)
 	tasklet_schedule(&ic->i_recv_tasklet);
 }
 
-static void poll_cq(struct rds_ib_connection *ic, struct ib_cq *cq,
-		    struct ib_wc *wcs,
-		    struct rds_ib_ack_state *ack_state)
+static void poll_scq(struct rds_ib_connection *ic, struct ib_cq *cq,
+		     struct ib_wc *wcs)
 {
-	int nr;
-	int i;
+	int nr, i;
 	struct ib_wc *wc;
 
 	while ((nr = ib_poll_cq(cq, RDS_IB_WC_MAX, wcs)) > 0) {
@@ -251,10 +249,12 @@ static void poll_cq(struct rds_ib_connection *ic, struct ib_cq *cq,
 				 (unsigned long long)wc->wr_id, wc->status,
 				 wc->byte_len, be32_to_cpu(wc->ex.imm_data));
 
-			if (wc->wr_id & RDS_IB_SEND_OP)
+			if (wc->wr_id <= ic->i_send_ring.w_nr ||
+			    wc->wr_id == RDS_IB_ACK_WR_ID)
 				rds_ib_send_cqe_handler(ic, wc);
 			else
-				rds_ib_recv_cqe_handler(ic, wc, ack_state);
+				rds_ib_mr_cqe_handler(ic, wc);
+
 		}
 	}
 }
@@ -263,19 +263,36 @@ static void rds_ib_tasklet_fn_send(unsigned long data)
 {
 	struct rds_ib_connection *ic = (struct rds_ib_connection *)data;
 	struct rds_connection *conn = ic->conn;
-	struct rds_ib_ack_state state;
 
 	rds_ib_stats_inc(s_ib_tasklet_call);
 
-	memset(&state, 0, sizeof(state));
-	poll_cq(ic, ic->i_send_cq, ic->i_send_wc, &state);
+	poll_scq(ic, ic->i_send_cq, ic->i_send_wc);
 	ib_req_notify_cq(ic->i_send_cq, IB_CQ_NEXT_COMP);
-	poll_cq(ic, ic->i_send_cq, ic->i_send_wc, &state);
+	poll_scq(ic, ic->i_send_cq, ic->i_send_wc);
 
 	if (rds_conn_up(conn) &&
 	    (!test_bit(RDS_LL_SEND_FULL, &conn->c_flags) ||
 	    test_bit(0, &conn->c_map_queued)))
 		rds_send_xmit(ic->conn);
+}
+
+static void poll_rcq(struct rds_ib_connection *ic, struct ib_cq *cq,
+		     struct ib_wc *wcs,
+		     struct rds_ib_ack_state *ack_state)
+{
+	int nr, i;
+	struct ib_wc *wc;
+
+	while ((nr = ib_poll_cq(cq, RDS_IB_WC_MAX, wcs)) > 0) {
+		for (i = 0; i < nr; i++) {
+			wc = wcs + i;
+			rdsdebug("wc wr_id 0x%llx status %u byte_len %u imm_data %u\n",
+				 (unsigned long long)wc->wr_id, wc->status,
+				 wc->byte_len, be32_to_cpu(wc->ex.imm_data));
+
+			rds_ib_recv_cqe_handler(ic, wc, ack_state);
+		}
+	}
 }
 
 static void rds_ib_tasklet_fn_recv(unsigned long data)
@@ -291,9 +308,9 @@ static void rds_ib_tasklet_fn_recv(unsigned long data)
 	rds_ib_stats_inc(s_ib_tasklet_call);
 
 	memset(&state, 0, sizeof(state));
-	poll_cq(ic, ic->i_recv_cq, ic->i_recv_wc, &state);
+	poll_rcq(ic, ic->i_recv_cq, ic->i_recv_wc, &state);
 	ib_req_notify_cq(ic->i_recv_cq, IB_CQ_SOLICITED);
-	poll_cq(ic, ic->i_recv_cq, ic->i_recv_wc, &state);
+	poll_rcq(ic, ic->i_recv_cq, ic->i_recv_wc, &state);
 
 	if (state.ack_next_valid)
 		rds_ib_set_ack(ic, state.ack_next, state.ack_required);
@@ -351,7 +368,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	struct ib_qp_init_attr attr;
 	struct ib_cq_init_attr cq_attr = {};
 	struct rds_ib_device *rds_ibdev;
-	int ret;
+	int ret, fr_queue_space;
 
 	/*
 	 * It's normal to see a null device if an incoming connection races
@@ -360,6 +377,12 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	rds_ibdev = rds_ib_get_client_data(dev);
 	if (!rds_ibdev)
 		return -EOPNOTSUPP;
+
+	/* The fr_queue_space is currently set to 512, to add extra space on
+	 * completion queue and send queue. This extra space is used for FRMR
+	 * registration and invalidation work requests
+	 */
+	fr_queue_space = (rds_ibdev->use_fastreg ? RDS_IB_DEFAULT_FR_WR : 0);
 
 	/* add the conn now so that connection establishment has the dev */
 	rds_ib_add_conn(rds_ibdev, conn);
@@ -372,7 +395,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	/* Protection domain and memory range */
 	ic->i_pd = rds_ibdev->pd;
 
-	cq_attr.cqe = ic->i_send_ring.w_nr + 1;
+	cq_attr.cqe = ic->i_send_ring.w_nr + fr_queue_space + 1;
 
 	ic->i_send_cq = ib_create_cq(dev, rds_ib_cq_comp_handler_send,
 				     rds_ib_cq_event_handler, conn,
@@ -412,7 +435,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	attr.event_handler = rds_ib_qp_event_handler;
 	attr.qp_context = conn;
 	/* + 1 to allow for the single ack message */
-	attr.cap.max_send_wr = ic->i_send_ring.w_nr + 1;
+	attr.cap.max_send_wr = ic->i_send_ring.w_nr + fr_queue_space + 1;
 	attr.cap.max_recv_wr = ic->i_recv_ring.w_nr + 1;
 	attr.cap.max_send_sge = rds_ibdev->max_sge;
 	attr.cap.max_recv_sge = RDS_IB_RECV_SGE;
@@ -420,6 +443,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	attr.qp_type = IB_QPT_RC;
 	attr.send_cq = ic->i_send_cq;
 	attr.recv_cq = ic->i_recv_cq;
+	atomic_set(&ic->i_fastreg_wrs, RDS_IB_DEFAULT_FR_WR);
 
 	/*
 	 * XXX this can fail if max_*_wr is too large?  Are we supposed
@@ -739,7 +763,8 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 		 */
 		wait_event(rds_ib_ring_empty_wait,
 			   rds_ib_ring_empty(&ic->i_recv_ring) &&
-			   (atomic_read(&ic->i_signaled_sends) == 0));
+			   (atomic_read(&ic->i_signaled_sends) == 0) &&
+			   (atomic_read(&ic->i_fastreg_wrs) == RDS_IB_DEFAULT_FR_WR));
 		tasklet_kill(&ic->i_send_tasklet);
 		tasklet_kill(&ic->i_recv_tasklet);
 

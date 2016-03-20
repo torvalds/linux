@@ -45,14 +45,10 @@
 #include <linux/etherdevice.h>
 #include <linux/uaccess.h>
 #include <net/arp.h>
-
 #include "rtllib.h"
-
 
 u32 rt_global_debug_component = COMP_ERR;
 EXPORT_SYMBOL(rt_global_debug_component);
-
-
 
 static inline int rtllib_networks_allocate(struct rtllib_device *ieee)
 {
@@ -109,7 +105,6 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 		goto failed;
 	}
 	rtllib_networks_initialize(ieee);
-
 
 	/* Default fragmentation threshold is maximum payload size */
 	ieee->fts = DEFAULT_FTS;

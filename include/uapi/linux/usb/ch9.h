@@ -234,6 +234,8 @@ struct usb_ctrlrequest {
 #define USB_DT_PIPE_USAGE		0x24
 /* From the USB 3.0 spec */
 #define	USB_DT_SS_ENDPOINT_COMP		0x30
+/* From the USB 3.1 spec */
+#define	USB_DT_SSP_ISOC_ENDPOINT_COMP	0x31
 
 /* Conventional codes for class-specific descriptors.  The convention is
  * defined in the USB "Common Class" Spec (3.11).  Individual class specs
@@ -613,6 +615,20 @@ static inline int usb_endpoint_interrupt_type(
 
 /*-------------------------------------------------------------------------*/
 
+/* USB_DT_SSP_ISOC_ENDPOINT_COMP: SuperSpeedPlus Isochronous Endpoint Companion
+ * descriptor
+ */
+struct usb_ssp_isoc_ep_comp_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__le16 wReseved;
+	__le32 dwBytesPerInterval;
+} __attribute__ ((packed));
+
+#define USB_DT_SSP_ISOC_EP_COMP_SIZE		8
+
+/*-------------------------------------------------------------------------*/
+
 /* USB_DT_SS_ENDPOINT_COMP: SuperSpeed Endpoint Companion descriptor */
 struct usb_ss_ep_comp_descriptor {
 	__u8  bLength;
@@ -646,6 +662,8 @@ usb_ss_max_streams(const struct usb_ss_ep_comp_descriptor *comp)
 
 /* Bits 1:0 of bmAttributes if this is an isoc endpoint */
 #define USB_SS_MULT(p)			(1 + ((p) & 0x3))
+/* Bit 7 of bmAttributes if a SSP isoc endpoint companion descriptor exists */
+#define USB_SS_SSP_ISOC_COMP(p)		((p) & (1 << 7))
 
 /*-------------------------------------------------------------------------*/
 
@@ -690,6 +708,7 @@ struct usb_otg20_descriptor {
 #define USB_OTG_HNP		(1 << 1)	/* swap host/device roles */
 #define USB_OTG_ADP		(1 << 2)	/* support ADP */
 
+#define OTG_STS_SELECTOR	0xF000		/* OTG status selector */
 /*-------------------------------------------------------------------------*/
 
 /* USB_DT_DEBUG:  for special highspeed devices, replacing serial console */
@@ -894,6 +913,22 @@ struct usb_ssp_cap_descriptor {
 #define USB_SSP_SUBLINK_SPEED_LSM	(0xff << 16)	/* Lanespeed mantissa */
 } __attribute__((packed));
 
+/*
+ * Precision time measurement capability descriptor: advertised by devices and
+ * hubs that support PTM
+ */
+#define	USB_PTM_CAP_TYPE	0xb
+struct usb_ptm_cap_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__u8  bDevCapabilityType;
+} __attribute__((packed));
+
+/*
+ * The size of the descriptor for the Sublink Speed Attribute Count
+ * (SSAC) specified in bmAttributes[4:0].
+ */
+#define USB_DT_USB_SSP_CAP_SIZE(ssac)	(16 + ssac * 4)
 
 /*-------------------------------------------------------------------------*/
 
@@ -954,6 +989,7 @@ enum usb_device_speed {
 	USB_SPEED_HIGH,				/* usb 2.0 */
 	USB_SPEED_WIRELESS,			/* wireless (usb 2.5) */
 	USB_SPEED_SUPER,			/* usb 3.0 */
+	USB_SPEED_SUPER_PLUS,			/* usb 3.1 */
 };
 
 

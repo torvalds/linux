@@ -256,7 +256,7 @@ extern int force_personality32;
    instruction set this CPU supports.  This could be done in user space,
    but it's not easy, and we've already done it here.  */
 
-#define ELF_HWCAP		(boot_cpu_data.x86_capability[0])
+#define ELF_HWCAP		(boot_cpu_data.x86_capability[CPUID_1_EDX])
 
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in

@@ -95,7 +95,7 @@ int vnic_wq_alloc(struct vnic_dev *vdev, struct vnic_wq *wq, unsigned int index,
 
 	wq->ctrl = vnic_dev_get_res(vdev, RES_TYPE_WQ, index);
 	if (!wq->ctrl) {
-		vdev_err("Failed to hook WQ[%d] resource\n", index);
+		vdev_err(vdev, "Failed to hook WQ[%d] resource\n", index);
 		return -EINVAL;
 	}
 
@@ -187,7 +187,7 @@ int vnic_wq_disable(struct vnic_wq *wq)
 		udelay(10);
 	}
 
-	vdev_neterr("Failed to disable WQ[%d]\n", wq->index);
+	vdev_neterr(vdev, "Failed to disable WQ[%d]\n", wq->index);
 
 	return -ETIMEDOUT;
 }

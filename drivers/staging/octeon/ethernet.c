@@ -86,10 +86,6 @@ int rx_napi_weight = 32;
 module_param(rx_napi_weight, int, 0444);
 MODULE_PARM_DESC(rx_napi_weight, "The NAPI WEIGHT parameter.");
 
-/*
- * cvm_oct_poll_queue - Workqueue for polling operations.
- */
-struct workqueue_struct *cvm_oct_poll_queue;
 
 /*
  * cvm_oct_poll_queue_stopping - flag to indicate polling should stop.
@@ -121,8 +117,7 @@ static void cvm_oct_rx_refill_worker(struct work_struct *work)
 	cvm_oct_rx_refill_pool(num_packet_buffers / 2);
 
 	if (!atomic_read(&cvm_oct_poll_queue_stopping))
-		queue_delayed_work(cvm_oct_poll_queue,
-				   &cvm_oct_rx_refill_work, HZ);
+		schedule_delayed_work(&cvm_oct_rx_refill_work, HZ);
 }
 
 static void cvm_oct_periodic_worker(struct work_struct *work)
@@ -138,8 +133,7 @@ static void cvm_oct_periodic_worker(struct work_struct *work)
 						cvm_oct_device[priv->port]);
 
 	if (!atomic_read(&cvm_oct_poll_queue_stopping))
-		queue_delayed_work(cvm_oct_poll_queue,
-						&priv->port_periodic_work, HZ);
+		schedule_delayed_work(&priv->port_periodic_work, HZ);
 }
 
 static void cvm_oct_configure_common_hw(void)
@@ -226,18 +220,7 @@ static struct net_device_stats *cvm_oct_common_get_stats(struct net_device *dev)
 		priv->stats.multicast += rx_status.multicast_packets;
 		priv->stats.rx_crc_errors += rx_status.inb_errors;
 		priv->stats.rx_frame_errors += rx_status.fcs_align_err_packets;
-
-		/*
-		 * The drop counter must be incremented atomically
-		 * since the RX tasklet also increments it.
-		 */
-#ifdef CONFIG_64BIT
-		atomic64_add(rx_status.dropped_packets,
-			     (atomic64_t *)&priv->stats.rx_dropped);
-#else
-		atomic_add(rx_status.dropped_packets,
-			     (atomic_t *)&priv->stats.rx_dropped);
-#endif
+		priv->stats.rx_dropped += rx_status.dropped_packets;
 	}
 
 	return &priv->stats;
@@ -265,22 +248,22 @@ static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
 	 * Limit the MTU to make sure the ethernet packets are between
 	 * 64 bytes and 65535 bytes.
 	 */
-	if ((new_mtu + 14 + 4 + vlan_bytes < 64)
-	    || (new_mtu + 14 + 4 + vlan_bytes > 65392)) {
+	if ((new_mtu + 14 + 4 + vlan_bytes < 64) ||
+	    (new_mtu + 14 + 4 + vlan_bytes > 65392)) {
 		pr_err("MTU must be between %d and %d.\n",
 		       64 - 14 - 4 - vlan_bytes, 65392 - 14 - 4 - vlan_bytes);
 		return -EINVAL;
 	}
 	dev->mtu = new_mtu;
 
-	if ((interface < 2)
-	    && (cvmx_helper_interface_get_mode(interface) !=
+	if ((interface < 2) &&
+	    (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
 		/* Add ethernet header and FCS, and VLAN if configured. */
 		int max_packet = new_mtu + 14 + 4 + vlan_bytes;
 
-		if (OCTEON_IS_MODEL(OCTEON_CN3XXX)
-		    || OCTEON_IS_MODEL(OCTEON_CN58XX)) {
+		if (OCTEON_IS_MODEL(OCTEON_CN3XXX) ||
+		    OCTEON_IS_MODEL(OCTEON_CN58XX)) {
 			/* Signal errors on packets larger than the MTU */
 			cvmx_write_csr(CVMX_GMXX_RXX_FRM_MAX(index, interface),
 				       max_packet);
@@ -319,8 +302,8 @@ static void cvm_oct_common_set_multicast_list(struct net_device *dev)
 	int interface = INTERFACE(priv->port);
 	int index = INDEX(priv->port);
 
-	if ((interface < 2)
-	    && (cvmx_helper_interface_get_mode(interface) !=
+	if ((interface < 2) &&
+	    (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
 		union cvmx_gmxx_rxx_adr_ctl control;
 
@@ -371,8 +354,8 @@ static int cvm_oct_set_mac_filter(struct net_device *dev)
 	int interface = INTERFACE(priv->port);
 	int index = INDEX(priv->port);
 
-	if ((interface < 2)
-	    && (cvmx_helper_interface_get_mode(interface) !=
+	if ((interface < 2) &&
+	    (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
 		int i;
 		u8 *ptr = dev->dev_addr;
@@ -445,8 +428,8 @@ int cvm_oct_common_init(struct net_device *dev)
 	 * Force the interface to use the POW send if always_use_pow
 	 * was specified or it is in the pow send list.
 	 */
-	if ((pow_send_group != -1)
-	    && (always_use_pow || strstr(pow_send_list, dev->name)))
+	if ((pow_send_group != -1) &&
+	    (always_use_pow || strstr(pow_send_list, dev->name)))
 		priv->queue = -1;
 
 	if (priv->queue != -1)
@@ -557,6 +540,7 @@ static const struct net_device_ops cvm_oct_npi_netdev_ops = {
 	.ndo_poll_controller	= cvm_oct_poll_controller,
 #endif
 };
+
 static const struct net_device_ops cvm_oct_xaui_netdev_ops = {
 	.ndo_init		= cvm_oct_common_init,
 	.ndo_uninit		= cvm_oct_common_uninit,
@@ -572,6 +556,7 @@ static const struct net_device_ops cvm_oct_xaui_netdev_ops = {
 	.ndo_poll_controller	= cvm_oct_poll_controller,
 #endif
 };
+
 static const struct net_device_ops cvm_oct_sgmii_netdev_ops = {
 	.ndo_init		= cvm_oct_sgmii_init,
 	.ndo_uninit		= cvm_oct_common_uninit,
@@ -587,6 +572,7 @@ static const struct net_device_ops cvm_oct_sgmii_netdev_ops = {
 	.ndo_poll_controller	= cvm_oct_poll_controller,
 #endif
 };
+
 static const struct net_device_ops cvm_oct_spi_netdev_ops = {
 	.ndo_init		= cvm_oct_spi_init,
 	.ndo_uninit		= cvm_oct_spi_uninit,
@@ -600,9 +586,10 @@ static const struct net_device_ops cvm_oct_spi_netdev_ops = {
 	.ndo_poll_controller	= cvm_oct_poll_controller,
 #endif
 };
+
 static const struct net_device_ops cvm_oct_rgmii_netdev_ops = {
-	.ndo_init		= cvm_oct_rgmii_init,
-	.ndo_uninit		= cvm_oct_rgmii_uninit,
+	.ndo_init		= cvm_oct_common_init,
+	.ndo_uninit		= cvm_oct_common_uninit,
 	.ndo_open		= cvm_oct_rgmii_open,
 	.ndo_stop		= cvm_oct_common_stop,
 	.ndo_start_xmit		= cvm_oct_xmit,
@@ -615,6 +602,7 @@ static const struct net_device_ops cvm_oct_rgmii_netdev_ops = {
 	.ndo_poll_controller	= cvm_oct_poll_controller,
 #endif
 };
+
 static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 	.ndo_init		= cvm_oct_common_init,
 	.ndo_start_xmit		= cvm_oct_xmit_pow,
@@ -677,11 +665,6 @@ static int cvm_oct_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	cvm_oct_poll_queue = create_singlethread_workqueue("octeon-ethernet");
-	if (!cvm_oct_poll_queue) {
-		pr_err("octeon-ethernet: Cannot create workqueue");
-		return -ENOMEM;
-	}
 
 	cvm_oct_configure_common_hw();
 
@@ -790,7 +773,6 @@ static int cvm_oct_probe(struct platform_device *pdev)
 				cvmx_fau_atomic_write32(priv->fau + qos * 4, 0);
 
 			switch (priv->imode) {
-
 			/* These types don't support ports to IPD/PKO */
 			case CVMX_HELPER_INTERFACE_MODE_DISABLED:
 			case CVMX_HELPER_INTERFACE_MODE_PCIE:
@@ -840,8 +822,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 				fau -=
 				    cvmx_pko_get_num_queues(priv->port) *
 				    sizeof(u32);
-				queue_delayed_work(cvm_oct_poll_queue,
-						&priv->port_periodic_work, HZ);
+				schedule_delayed_work(&priv->port_periodic_work, HZ);
 			}
 		}
 	}
@@ -854,7 +835,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 	 */
 	cvm_oct_tx_poll_interval = 150 * (octeon_get_clock_rate() / 1000000);
 
-	queue_delayed_work(cvm_oct_poll_queue, &cvm_oct_rx_refill_work, HZ);
+	schedule_delayed_work(&cvm_oct_rx_refill_work, HZ);
 
 	return 0;
 }
@@ -897,7 +878,6 @@ static int cvm_oct_remove(struct platform_device *pdev)
 		}
 	}
 
-	destroy_workqueue(cvm_oct_poll_queue);
 
 	cvmx_pko_shutdown();
 

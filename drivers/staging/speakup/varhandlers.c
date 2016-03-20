@@ -176,7 +176,6 @@ struct punc_var_t *spk_get_punc_var(enum var_id_t var_id)
 int spk_set_num_var(int input, struct st_var_header *var, int how)
 {
 	int val;
-	short ret = 0;
 	int *p_val = var->p_val;
 	int l;
 	char buf[32];
@@ -186,50 +185,51 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 	if (!var_data)
 		return -ENODATA;
 
-	if (how == E_NEW_DEFAULT) {
+	val = var_data->u.n.value;
+	switch (how) {
+	case E_NEW_DEFAULT:
 		if (input < var_data->u.n.low || input > var_data->u.n.high)
 			return -ERANGE;
 		var_data->u.n.default_val = input;
 		return 0;
-	}
-	if (how == E_DEFAULT) {
+	case E_DEFAULT:
 		val = var_data->u.n.default_val;
-		ret = -ERESTART;
-	} else {
-		if (how == E_SET)
-			val = input;
-		else
-			val = var_data->u.n.value;
-		if (how == E_INC)
-			val += input;
-		else if (how == E_DEC)
-			val -= input;
-		if (val < var_data->u.n.low || val > var_data->u.n.high)
-			return -ERANGE;
+		break;
+	case E_SET:
+		val = input;
+		break;
+	case E_INC:
+		val += input;
+		break;
+	case E_DEC:
+		val -= input;
+		break;
 	}
+
+	if (val < var_data->u.n.low || val > var_data->u.n.high)
+		return -ERANGE;
+
 	var_data->u.n.value = val;
 	if (var->var_type == VAR_TIME && p_val != NULL) {
 		*p_val = msecs_to_jiffies(val);
-		return ret;
+		return 0;
 	}
 	if (p_val != NULL)
 		*p_val = val;
 	if (var->var_id == PUNC_LEVEL) {
 		spk_punc_mask = spk_punc_masks[val];
-		return ret;
+		return 0;
 	}
 	if (var_data->u.n.multiplier != 0)
 		val *= var_data->u.n.multiplier;
 	val += var_data->u.n.offset;
 	if (var->var_id < FIRST_SYNTH_VAR || !synth)
-		return ret;
-	if (synth->synth_adjust) {
-		int status = synth->synth_adjust(var);
+		return 0;
+	if (synth->synth_adjust)
+		return synth->synth_adjust(var);
 
-		return (status != 0) ? status : ret;
-	}
 	if (!var_data->u.n.synth_fmt)
-		return ret;
+		return 0;
 	if (var->var_id == PITCH)
 		cp = spk_pitch_buff;
 	else
@@ -240,7 +240,7 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 		l = sprintf(cp,
 			var_data->u.n.synth_fmt, var_data->u.n.out_str[val]);
 	synth_printf("%s", cp);
-	return ret;
+	return 0;
 }
 
 int spk_set_string_var(const char *page, struct st_var_header *var, int len)

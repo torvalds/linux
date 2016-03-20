@@ -178,7 +178,7 @@ static struct gpio_chip mcfgpio_chip = {
 
 static int __init mcfgpio_sysinit(void)
 {
-	gpiochip_add(&mcfgpio_chip);
+	gpiochip_add_data(&mcfgpio_chip, NULL);
 	return subsys_system_register(&mcfgpio_subsys, NULL);
 }
 

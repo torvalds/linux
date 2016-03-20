@@ -182,20 +182,11 @@ static int ttl_probe(struct platform_device *pdev)
 	gpio->base = -1;
 	gpio->ngpio = 20;
 
-	ret = gpiochip_add_data(gpio, NULL);
+	ret = devm_gpiochip_add_data(dev, gpio, NULL);
 	if (ret) {
 		dev_err(dev, "unable to add GPIO chip\n");
 		return ret;
 	}
-
-	return 0;
-}
-
-static int ttl_remove(struct platform_device *pdev)
-{
-	struct ttl_module *mod = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&mod->gpio);
 
 	return 0;
 }
@@ -205,7 +196,6 @@ static struct platform_driver ttl_driver = {
 		.name	= DRV_NAME,
 	},
 	.probe		= ttl_probe,
-	.remove		= ttl_remove,
 };
 
 module_platform_driver(ttl_driver);

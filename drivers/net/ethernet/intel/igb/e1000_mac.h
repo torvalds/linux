@@ -56,8 +56,9 @@ s32  igb_write_8bit_ctrl_reg(struct e1000_hw *hw, u32 reg,
 
 void igb_clear_hw_cntrs_base(struct e1000_hw *hw);
 void igb_clear_vfta(struct e1000_hw *hw);
-void igb_clear_vfta_i350(struct e1000_hw *hw);
-s32  igb_vfta_set(struct e1000_hw *hw, u32 vid, bool add);
+void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value);
+s32  igb_vfta_set(struct e1000_hw *hw, u32 vid, u32 vind,
+		  bool vlan_on, bool vlvf_bypass);
 void igb_config_collision_dist(struct e1000_hw *hw);
 void igb_init_rx_addrs(struct e1000_hw *hw, u16 rar_count);
 void igb_mta_set(struct e1000_hw *hw, u32 hash_value);

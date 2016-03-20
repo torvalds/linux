@@ -26,7 +26,6 @@
 static DEFINE_MUTEX(bat_lock); /* protects gpio pins */
 static struct work_struct bat_work;
 static struct ucb1x00 *ucb;
-static int wakeup_enabled;
 
 struct collie_bat {
 	int status;
@@ -291,6 +290,8 @@ static struct gpio collie_batt_gpios[] = {
 };
 
 #ifdef CONFIG_PM
+static int wakeup_enabled;
+
 static int collie_bat_suspend(struct ucb1x00_dev *dev)
 {
 	/* flush all pending status updates */

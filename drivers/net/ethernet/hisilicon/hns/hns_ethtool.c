@@ -295,8 +295,10 @@ static int __lb_setup(struct net_device *ndev,
 
 	switch (loop) {
 	case MAC_INTERNALLOOP_PHY:
-		if ((phy_dev) && (!phy_dev->is_c45))
+		if ((phy_dev) && (!phy_dev->is_c45)) {
 			ret = hns_nic_config_phy_loopback(phy_dev, 0x1);
+			ret |= h->dev->ops->set_loopback(h, loop, 0x1);
+		}
 		break;
 	case MAC_INTERNALLOOP_MAC:
 		if ((h->dev->ops->set_loopback) &&
@@ -376,6 +378,7 @@ static void __lb_other_process(struct hns_nic_ring_data *ring_data,
 			       struct sk_buff *skb)
 {
 	struct net_device *ndev;
+	struct hns_nic_priv *priv;
 	struct hnae_ring *ring;
 	struct netdev_queue *dev_queue;
 	struct sk_buff *new_skb;
@@ -385,8 +388,17 @@ static void __lb_other_process(struct hns_nic_ring_data *ring_data,
 	char buff[33]; /* 32B data and the last character '\0' */
 
 	if (!ring_data) { /* Just for doing create frame*/
+		ndev = skb->dev;
+		priv = netdev_priv(ndev);
+
 		frame_size = skb->len;
 		memset(skb->data, 0xFF, frame_size);
+		if ((!AE_IS_VER1(priv->enet_ver)) &&
+		    (priv->ae_handle->port_type == HNAE_PORT_SERVICE)) {
+			memcpy(skb->data, ndev->dev_addr, 6);
+			skb->data[5] += 0x1f;
+		}
+
 		frame_size &= ~1ul;
 		memset(&skb->data[frame_size / 2], 0xAA, frame_size / 2 - 1);
 		memset(&skb->data[frame_size / 2 + 10], 0xBE,
@@ -486,6 +498,7 @@ static int __lb_run_test(struct net_device *ndev,
 
 	/* place data into test skb */
 	(void)skb_put(skb, size);
+	skb->dev = ndev;
 	__lb_other_process(NULL, skb);
 	skb->queue_mapping = NIC_LB_TEST_RING_ID;
 

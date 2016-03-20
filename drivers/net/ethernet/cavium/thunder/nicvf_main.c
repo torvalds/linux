@@ -574,8 +574,7 @@ static inline void nicvf_set_rxhash(struct net_device *netdev,
 
 static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 				  struct napi_struct *napi,
-				  struct cmp_queue *cq,
-				  struct cqe_rx_t *cqe_rx, int cqe_type)
+				  struct cqe_rx_t *cqe_rx)
 {
 	struct sk_buff *skb;
 	struct nicvf *nic = netdev_priv(netdev);
@@ -591,7 +590,7 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 	}
 
 	/* Check for errors */
-	err = nicvf_check_cqe_rx_errs(nic, cq, cqe_rx);
+	err = nicvf_check_cqe_rx_errs(nic, cqe_rx);
 	if (err && !cqe_rx->rb_cnt)
 		return;
 
@@ -682,8 +681,7 @@ loop:
 			   cq_idx, cq_desc->cqe_type);
 		switch (cq_desc->cqe_type) {
 		case CQE_TYPE_RX:
-			nicvf_rcv_pkt_handler(netdev, napi, cq,
-					      cq_desc, CQE_TYPE_RX);
+			nicvf_rcv_pkt_handler(netdev, napi, cq_desc);
 			work_done++;
 		break;
 		case CQE_TYPE_SEND:
@@ -828,7 +826,7 @@ static irqreturn_t nicvf_intr_handler(int irq, void *cq_irq)
 	nicvf_disable_intr(nic, NICVF_INTR_CQ, qidx);
 
 	/* Schedule NAPI */
-	napi_schedule(&cq_poll->napi);
+	napi_schedule_irqoff(&cq_poll->napi);
 
 	/* Clear interrupt */
 	nicvf_clear_intr(nic, NICVF_INTR_CQ, qidx);
@@ -899,6 +897,31 @@ static void nicvf_disable_msix(struct nicvf *nic)
 	}
 }
 
+static void nicvf_set_irq_affinity(struct nicvf *nic)
+{
+	int vec, cpu;
+	int irqnum;
+
+	for (vec = 0; vec < nic->num_vec; vec++) {
+		if (!nic->irq_allocated[vec])
+			continue;
+
+		if (!zalloc_cpumask_var(&nic->affinity_mask[vec], GFP_KERNEL))
+			return;
+		 /* CQ interrupts */
+		if (vec < NICVF_INTR_ID_SQ)
+			/* Leave CPU0 for RBDR and other interrupts */
+			cpu = nicvf_netdev_qidx(nic, vec) + 1;
+		else
+			cpu = 0;
+
+		cpumask_set_cpu(cpumask_local_spread(cpu, nic->node),
+				nic->affinity_mask[vec]);
+		irqnum = nic->msix_entries[vec].vector;
+		irq_set_affinity_hint(irqnum, nic->affinity_mask[vec]);
+	}
+}
+
 static int nicvf_register_interrupts(struct nicvf *nic)
 {
 	int irq, ret = 0;
@@ -944,8 +967,13 @@ static int nicvf_register_interrupts(struct nicvf *nic)
 	ret = request_irq(nic->msix_entries[irq].vector,
 			  nicvf_qs_err_intr_handler,
 			  0, nic->irq_name[irq], nic);
-	if (!ret)
-		nic->irq_allocated[irq] = true;
+	if (ret)
+		goto err;
+
+	nic->irq_allocated[irq] = true;
+
+	/* Set IRQ affinities */
+	nicvf_set_irq_affinity(nic);
 
 err:
 	if (ret)
@@ -962,6 +990,9 @@ static void nicvf_unregister_interrupts(struct nicvf *nic)
 	for (irq = 0; irq < nic->num_vec; irq++) {
 		if (!nic->irq_allocated[irq])
 			continue;
+
+		irq_set_affinity_hint(nic->msix_entries[irq].vector, NULL);
+		free_cpumask_var(nic->affinity_mask[irq]);
 
 		if (irq < NICVF_INTR_ID_SQ)
 			free_irq(nic->msix_entries[irq].vector, nic->napi[irq]);
@@ -1125,7 +1156,6 @@ int nicvf_stop(struct net_device *netdev)
 
 	/* Clear multiqset info */
 	nic->pnicvf = nic;
-	nic->sqs_count = 0;
 
 	return 0;
 }
@@ -1354,6 +1384,9 @@ void nicvf_update_stats(struct nicvf *nic)
 	drv_stats->tx_frames_ok = stats->tx_ucast_frames_ok +
 				  stats->tx_bcast_frames_ok +
 				  stats->tx_mcast_frames_ok;
+	drv_stats->rx_frames_ok = stats->rx_ucast_frames +
+				  stats->rx_bcast_frames +
+				  stats->rx_mcast_frames;
 	drv_stats->rx_drops = stats->rx_drop_red +
 			      stats->rx_drop_overrun;
 	drv_stats->tx_drops = stats->tx_drops;
@@ -1394,6 +1427,7 @@ static void nicvf_tx_timeout(struct net_device *dev)
 		netdev_warn(dev, "%s: Transmit timed out, resetting\n",
 			    dev->name);
 
+	nic->drv_stats.tx_timeout++;
 	schedule_work(&nic->reset_task);
 }
 
@@ -1538,6 +1572,9 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	nicvf_send_vf_struct(nic);
 
+	if (!pass1_silicon(nic->pdev))
+		nic->hw_tso = true;
+
 	/* Check if this VF is in QS only mode */
 	if (nic->sqs_mode)
 		return 0;
@@ -1556,9 +1593,6 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->hw_features |= NETIF_F_LOOPBACK;
 
 	netdev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
-
-	if (!pass1_silicon(nic->pdev))
-		nic->hw_tso = true;
 
 	netdev->netdev_ops = &nicvf_netdev_ops;
 	netdev->watchdog_timeo = NICVF_TX_TIMEOUT;

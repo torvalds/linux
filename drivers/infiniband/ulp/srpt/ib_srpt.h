@@ -218,20 +218,20 @@ struct srpt_send_ioctx {
 
 /**
  * enum rdma_ch_state - SRP channel state.
- * @CH_CONNECTING:	 QP is in RTR state; waiting for RTU.
- * @CH_LIVE:		 QP is in RTS state.
- * @CH_DISCONNECTING:    DREQ has been received; waiting for DREP
- *                       or DREQ has been send and waiting for DREP
- *                       or .
- * @CH_DRAINING:	 QP is in ERR state; waiting for last WQE event.
- * @CH_RELEASING:	 Last WQE event has been received; releasing resources.
+ * @CH_CONNECTING:    QP is in RTR state; waiting for RTU.
+ * @CH_LIVE:	      QP is in RTS state.
+ * @CH_DISCONNECTING: DREQ has been sent and waiting for DREP or DREQ has
+ *                    been received.
+ * @CH_DRAINING:      DREP has been received or waiting for DREP timed out
+ *                    and last work request has been queued.
+ * @CH_DISCONNECTED:  Last completion has been received.
  */
 enum rdma_ch_state {
 	CH_CONNECTING,
 	CH_LIVE,
 	CH_DISCONNECTING,
 	CH_DRAINING,
-	CH_RELEASING
+	CH_DISCONNECTED,
 };
 
 /**
@@ -267,6 +267,8 @@ struct srpt_rdma_ch {
 	struct ib_cm_id		*cm_id;
 	struct ib_qp		*qp;
 	struct ib_cq		*cq;
+	struct ib_cqe		zw_cqe;
+	struct kref		kref;
 	int			rq_size;
 	u32			rsp_size;
 	atomic_t		sq_wr_avail;
@@ -286,7 +288,6 @@ struct srpt_rdma_ch {
 	u8			sess_name[36];
 	struct work_struct	release_work;
 	struct completion	*release_done;
-	bool			in_shutdown;
 };
 
 /**
@@ -343,7 +344,7 @@ struct srpt_port {
  * @ioctx_ring:    Per-HCA SRQ.
  * @rch_list:      Per-device channel list -- see also srpt_rdma_ch.list.
  * @ch_releaseQ:   Enables waiting for removal from rch_list.
- * @spinlock:      Protects rch_list and tpg.
+ * @mutex:         Protects rch_list.
  * @port:          Information about the ports owned by this HCA.
  * @event_handler: Per-HCA asynchronous IB event handler.
  * @list:          Node in srpt_dev_list.
@@ -357,18 +358,10 @@ struct srpt_device {
 	struct srpt_recv_ioctx	**ioctx_ring;
 	struct list_head	rch_list;
 	wait_queue_head_t	ch_releaseQ;
-	spinlock_t		spinlock;
+	struct mutex		mutex;
 	struct srpt_port	port[2];
 	struct ib_event_handler	event_handler;
 	struct list_head	list;
-};
-
-/**
- * struct srpt_node_acl - Per-initiator ACL data (managed via configfs).
- * @nacl:      Target core node ACL information.
- */
-struct srpt_node_acl {
-	struct se_node_acl	nacl;
 };
 
 #endif				/* IB_SRPT_H */

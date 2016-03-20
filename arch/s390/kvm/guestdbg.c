@@ -17,7 +17,7 @@
 /*
  * Extends the address range given by *start and *stop to include the address
  * range starting with estart and the length len. Takes care of overflowing
- * intervals and tries to minimize the overall intervall size.
+ * intervals and tries to minimize the overall interval size.
  */
 static void extend_address_range(u64 *start, u64 *stop, u64 estart, int len)
 {
@@ -72,7 +72,7 @@ static void enable_all_hw_bp(struct kvm_vcpu *vcpu)
 		return;
 
 	/*
-	 * If the guest is not interrested in branching events, we can savely
+	 * If the guest is not interested in branching events, we can safely
 	 * limit them to the PER address range.
 	 */
 	if (!(*cr9 & PER_EVENT_BRANCH))

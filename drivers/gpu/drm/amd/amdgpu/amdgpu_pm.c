@@ -113,6 +113,10 @@ static ssize_t amdgpu_get_dpm_forced_performance_level(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return snprintf(buf, PAGE_SIZE, "off\n");
+
 	if (adev->pp_enabled) {
 		enum amd_dpm_forced_level level;
 
@@ -140,6 +144,11 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 	enum amdgpu_dpm_forced_level level;
 	int ret = 0;
 
+	/* Can't force performance level when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
+
 	if (strncmp("low", buf, strlen("low")) == 0) {
 		level = AMDGPU_DPM_FORCED_LEVEL_LOW;
 	} else if (strncmp("high", buf, strlen("high")) == 0) {
@@ -157,6 +166,7 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 		mutex_lock(&adev->pm.mutex);
 		if (adev->pm.dpm.thermal_active) {
 			count = -EINVAL;
+			mutex_unlock(&adev->pm.mutex);
 			goto fail;
 		}
 		ret = amdgpu_dpm_force_performance_level(adev, level);
@@ -167,8 +177,6 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 		mutex_unlock(&adev->pm.mutex);
 	}
 fail:
-	mutex_unlock(&adev->pm.mutex);
-
 	return count;
 }
 
@@ -182,7 +190,13 @@ static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 				      char *buf)
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	struct drm_device *ddev = adev->ddev;
 	int temp;
+
+	/* Can't get temperature when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
 
 	if (!adev->pp_enabled && !adev->pm.funcs->get_temperature)
 		temp = 0;
@@ -634,11 +648,6 @@ force:
 
 	/* update display watermarks based on new power state */
 	amdgpu_display_bandwidth_update(adev);
-	/* update displays */
-	amdgpu_dpm_display_configuration_changed(adev);
-
-	adev->pm.dpm.current_active_crtcs = adev->pm.dpm.new_active_crtcs;
-	adev->pm.dpm.current_active_crtc_count = adev->pm.dpm.new_active_crtc_count;
 
 	/* wait for the rings to drain */
 	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
@@ -654,6 +663,12 @@ force:
 	adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps;
 
 	amdgpu_dpm_post_set_power_state(adev);
+
+	/* update displays */
+	amdgpu_dpm_display_configuration_changed(adev);
+
+	adev->pm.dpm.current_active_crtcs = adev->pm.dpm.new_active_crtcs;
+	adev->pm.dpm.current_active_crtc_count = adev->pm.dpm.new_active_crtc_count;
 
 	if (adev->pm.funcs->force_performance_level) {
 		if (adev->pm.dpm.thermal_active) {
@@ -847,12 +862,16 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
+	struct drm_device *ddev = adev->ddev;
 
 	if (!adev->pm.dpm_enabled) {
 		seq_printf(m, "dpm not enabled\n");
 		return 0;
 	}
-	if (adev->pp_enabled) {
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON)) {
+		seq_printf(m, "PX asic powered off\n");
+	} else if (adev->pp_enabled) {
 		amdgpu_dpm_debugfs_print_current_performance_level(adev, m);
 	} else {
 		mutex_lock(&adev->pm.mutex);

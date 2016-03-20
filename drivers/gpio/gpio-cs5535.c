@@ -320,13 +320,13 @@ static int cs5535_gpio_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "can't fetch device resource info\n");
-		goto done;
+		return err;
 	}
 
 	if (!devm_request_region(&pdev->dev, res->start, resource_size(res),
 				 pdev->name)) {
 		dev_err(&pdev->dev, "can't request region\n");
-		goto done;
+		return err;
 	}
 
 	/* set up the driver-specific struct */
@@ -348,19 +348,10 @@ static int cs5535_gpio_probe(struct platform_device *pdev)
 				mask_orig, mask);
 
 	/* finally, register with the generic GPIO API */
-	err = gpiochip_add_data(&cs5535_gpio_chip.chip, &cs5535_gpio_chip);
+	err = devm_gpiochip_add_data(&pdev->dev, &cs5535_gpio_chip.chip,
+				     &cs5535_gpio_chip);
 	if (err)
-		goto done;
-
-	return 0;
-
-done:
-	return err;
-}
-
-static int cs5535_gpio_remove(struct platform_device *pdev)
-{
-	gpiochip_remove(&cs5535_gpio_chip.chip);
+		return err;
 
 	return 0;
 }
@@ -370,7 +361,6 @@ static struct platform_driver cs5535_gpio_driver = {
 		.name = DRV_NAME,
 	},
 	.probe = cs5535_gpio_probe,
-	.remove = cs5535_gpio_remove,
 };
 
 module_platform_driver(cs5535_gpio_driver);

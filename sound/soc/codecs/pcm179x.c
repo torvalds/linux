@@ -20,7 +20,6 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/spi/spi.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -29,7 +28,6 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include "pcm179x.h"
 
@@ -189,18 +187,14 @@ static struct snd_soc_dai_driver pcm179x_dai = {
 		.stream_name = "Playback",
 		.channels_min = 2,
 		.channels_max = 2,
-		.rates = PCM1792A_RATES,
+		.rates = SNDRV_PCM_RATE_CONTINUOUS,
+		.rate_min = 10000,
+		.rate_max = 200000,
 		.formats = PCM1792A_FORMATS, },
 	.ops = &pcm179x_dai_ops,
 };
 
-static const struct of_device_id pcm179x_of_match[] = {
-	{ .compatible = "ti,pcm1792a", },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, pcm179x_of_match);
-
-static const struct regmap_config pcm179x_regmap = {
+const struct regmap_config pcm179x_regmap_config = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
 	.max_register		= 23,
@@ -209,6 +203,7 @@ static const struct regmap_config pcm179x_regmap = {
 	.writeable_reg		= pcm179x_writeable_reg,
 	.readable_reg		= pcm179x_accessible_reg,
 };
+EXPORT_SYMBOL_GPL(pcm179x_regmap_config);
 
 static struct snd_soc_codec_driver soc_codec_dev_pcm179x = {
 	.controls		= pcm179x_controls,
@@ -219,52 +214,29 @@ static struct snd_soc_codec_driver soc_codec_dev_pcm179x = {
 	.num_dapm_routes	= ARRAY_SIZE(pcm179x_dapm_routes),
 };
 
-static int pcm179x_spi_probe(struct spi_device *spi)
+int pcm179x_common_init(struct device *dev, struct regmap *regmap)
 {
 	struct pcm179x_private *pcm179x;
-	int ret;
 
-	pcm179x = devm_kzalloc(&spi->dev, sizeof(struct pcm179x_private),
+	pcm179x = devm_kzalloc(dev, sizeof(struct pcm179x_private),
 				GFP_KERNEL);
 	if (!pcm179x)
 		return -ENOMEM;
 
-	spi_set_drvdata(spi, pcm179x);
+	pcm179x->regmap = regmap;
+	dev_set_drvdata(dev, pcm179x);
 
-	pcm179x->regmap = devm_regmap_init_spi(spi, &pcm179x_regmap);
-	if (IS_ERR(pcm179x->regmap)) {
-		ret = PTR_ERR(pcm179x->regmap);
-		dev_err(&spi->dev, "Failed to register regmap: %d\n", ret);
-		return ret;
-	}
-
-	return snd_soc_register_codec(&spi->dev,
+	return snd_soc_register_codec(dev,
 			&soc_codec_dev_pcm179x, &pcm179x_dai, 1);
 }
+EXPORT_SYMBOL_GPL(pcm179x_common_init);
 
-static int pcm179x_spi_remove(struct spi_device *spi)
+int pcm179x_common_exit(struct device *dev)
 {
-	snd_soc_unregister_codec(&spi->dev);
+	snd_soc_unregister_codec(dev);
 	return 0;
 }
-
-static const struct spi_device_id pcm179x_spi_ids[] = {
-	{ "pcm179x", 0 },
-	{ },
-};
-MODULE_DEVICE_TABLE(spi, pcm179x_spi_ids);
-
-static struct spi_driver pcm179x_codec_driver = {
-	.driver = {
-		.name = "pcm179x",
-		.of_match_table = of_match_ptr(pcm179x_of_match),
-	},
-	.id_table = pcm179x_spi_ids,
-	.probe = pcm179x_spi_probe,
-	.remove = pcm179x_spi_remove,
-};
-
-module_spi_driver(pcm179x_codec_driver);
+EXPORT_SYMBOL_GPL(pcm179x_common_exit);
 
 MODULE_DESCRIPTION("ASoC PCM179X driver");
 MODULE_AUTHOR("Michael Trimarchi <michael@amarulasolutions.com>");

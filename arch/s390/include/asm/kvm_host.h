@@ -20,6 +20,7 @@
 #include <linux/kvm_types.h>
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
+#include <linux/seqlock.h>
 #include <asm/debug.h>
 #include <asm/cpu.h>
 #include <asm/fpu/api.h>
@@ -229,17 +230,11 @@ struct kvm_s390_itdb {
 	__u8	data[256];
 } __packed;
 
-struct kvm_s390_vregs {
-	__vector128 vrs[32];
-	__u8	reserved200[512];	/* for future vector expansion */
-} __packed;
-
 struct sie_page {
 	struct kvm_s390_sie_block sie_block;
 	__u8 reserved200[1024];		/* 0x0200 */
 	struct kvm_s390_itdb itdb;	/* 0x0600 */
-	__u8 reserved700[1280];		/* 0x0700 */
-	struct kvm_s390_vregs vregs;	/* 0x0c00 */
+	__u8 reserved700[2304];		/* 0x0700 */
 } __packed;
 
 struct kvm_vcpu_stat {
@@ -467,7 +462,7 @@ struct kvm_s390_irq_payload {
 struct kvm_s390_local_interrupt {
 	spinlock_t lock;
 	struct kvm_s390_float_interrupt *float_int;
-	wait_queue_head_t *wq;
+	struct swait_queue_head *wq;
 	atomic_t *cpuflags;
 	DECLARE_BITMAP(sigp_emerg_pending, KVM_MAX_VCPUS);
 	struct kvm_s390_irq_payload irq;
@@ -558,6 +553,15 @@ struct kvm_vcpu_arch {
 	unsigned long pfault_token;
 	unsigned long pfault_select;
 	unsigned long pfault_compare;
+	bool cputm_enabled;
+	/*
+	 * The seqcount protects updates to cputm_start and sie_block.cputm,
+	 * this way we can have non-blocking reads with consistent values.
+	 * Only the owning VCPU thread (vcpu->cpu) is allowed to change these
+	 * values and to start/stop/enable/disable cpu timer accounting.
+	 */
+	seqcount_t cputm_seqcount;
+	__u64 cputm_start;
 };
 
 struct kvm_vm_stat {
@@ -596,15 +600,11 @@ struct s390_io_adapter {
 #define S390_ARCH_FAC_MASK_SIZE_U64 \
 	(S390_ARCH_FAC_MASK_SIZE_BYTE / sizeof(u64))
 
-struct kvm_s390_fac {
-	/* facility list requested by guest */
-	__u64 list[S390_ARCH_FAC_LIST_SIZE_U64];
-	/* facility mask supported by kvm & hosting machine */
-	__u64 mask[S390_ARCH_FAC_LIST_SIZE_U64];
-};
-
 struct kvm_s390_cpu_model {
-	struct kvm_s390_fac *fac;
+	/* facility mask supported by kvm & hosting machine */
+	__u64 fac_mask[S390_ARCH_FAC_LIST_SIZE_U64];
+	/* facility list requested by guest (in dma page) */
+	__u64 *fac_list;
 	struct cpuid cpu_id;
 	unsigned short ibc;
 };
@@ -622,6 +622,16 @@ struct kvm_s390_crypto_cb {
 	__u8    aes_wrapping_key_mask[32];      /* 0x0060 */
 	__u8    reserved80[128];                /* 0x0080 */
 };
+
+/*
+ * sie_page2 has to be allocated as DMA because fac_list and crycb need
+ * 31bit addresses in the sie control block.
+ */
+struct sie_page2 {
+	__u64 fac_list[S390_ARCH_FAC_LIST_SIZE_U64];	/* 0x0000 */
+	struct kvm_s390_crypto_cb crycb;		/* 0x0800 */
+	u8 reserved900[0x1000 - 0x900];			/* 0x0900 */
+} __packed;
 
 struct kvm_arch{
 	void *sca;
@@ -643,6 +653,7 @@ struct kvm_arch{
 	int ipte_lock_count;
 	struct mutex ipte_mutex;
 	spinlock_t start_stop_lock;
+	struct sie_page2 *sie_page2;
 	struct kvm_s390_cpu_model model;
 	struct kvm_s390_crypto crypto;
 	u64 epoch;

@@ -664,12 +664,15 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	enum intel_display_power_domain power_domain;
 	enum port port;
+	bool ret;
 
 	DRM_DEBUG_KMS("\n");
 
 	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_is_enabled(dev_priv, power_domain))
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
+
+	ret = false;
 
 	/* XXX: this only works for one DSI output */
 	for_each_dsi_port(port, intel_dsi->ports) {
@@ -691,12 +694,16 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 		if (dpi_enabled || (func & CMD_MODE_DATA_WIDTH_MASK)) {
 			if (I915_READ(MIPI_DEVICE_READY(port)) & DEVICE_READY) {
 				*pipe = port == PORT_A ? PIPE_A : PIPE_B;
-				return true;
+				ret = true;
+
+				goto out;
 			}
 		}
 	}
+out:
+	intel_display_power_put(dev_priv, power_domain);
 
-	return false;
+	return ret;
 }
 
 static void intel_dsi_get_config(struct intel_encoder *encoder,

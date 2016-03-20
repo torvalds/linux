@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2006-2016  B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -30,14 +30,17 @@
 struct lock_class_key;
 
 /* callback to a compare function.  should compare 2 element datas for their
- * keys, return 0 if same and not 0 if not same
+ * keys
+ *
+ * Return: 0 if same and not 0 if not same
  */
 typedef int (*batadv_hashdata_compare_cb)(const struct hlist_node *,
 					  const void *);
 
-/* the hashfunction, should return an index
- * based on the key in the data of the first
- * argument and the size the second
+/* the hashfunction
+ *
+ * Return: an index based on the key in the data of the first argument and the
+ * size the second
  */
 typedef u32 (*batadv_hashdata_choose_cb)(const void *, u32);
 typedef void (*batadv_hashdata_free_cb)(struct hlist_node *, void *);
@@ -96,7 +99,7 @@ static inline void batadv_hash_delete(struct batadv_hashtable *hash,
  *	@data: data passed to the aforementioned callbacks as argument
  *	@data_node: to be added element
  *
- *	Returns 0 on success, 1 if the element already is in the hash
+ *	Return: 0 on success, 1 if the element already is in the hash
  *	and -1 on error.
  */
 static inline int batadv_hash_add(struct batadv_hashtable *hash,
@@ -139,10 +142,11 @@ out:
 	return ret;
 }
 
-/* removes data from hash, if found. returns pointer do data on success, so you
- * can remove the used structure yourself, or NULL on error .  data could be the
- * structure you use with just the key filled, we just need the key for
- * comparing.
+/* removes data from hash, if found. data could be the structure you use with
+ * just the key filled, we just need the key for comparing.
+ *
+ * Return: returns pointer do data on success, so you can remove the used
+ * structure yourself, or NULL on error
  */
 static inline void *batadv_hash_remove(struct batadv_hashtable *hash,
 				       batadv_hashdata_compare_cb compare,

@@ -69,12 +69,12 @@ static int llog_cat_id2handle(const struct lu_env *env,
 	struct llog_handle	*loghandle;
 	int			 rc = 0;
 
-	if (cathandle == NULL)
+	if (!cathandle)
 		return -EBADF;
 
 	down_write(&cathandle->lgh_lock);
 	list_for_each_entry(loghandle, &cathandle->u.chd.chd_head,
-				u.phd.phd_entry) {
+			    u.phd.phd_entry) {
 		struct llog_logid *cgl = &loghandle->lgh_id;
 
 		if (ostid_id(&cgl->lgl_oi) == ostid_id(&logid->lgl_oi) &&
@@ -130,7 +130,7 @@ int llog_cat_close(const struct lu_env *env, struct llog_handle *cathandle)
 	int			 rc;
 
 	list_for_each_entry_safe(loghandle, n, &cathandle->u.chd.chd_head,
-				     u.phd.phd_entry) {
+				 u.phd.phd_entry) {
 		/* unlink open-not-created llogs */
 		list_del_init(&loghandle->u.phd.phd_entry);
 		llog_close(env, loghandle);

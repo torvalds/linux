@@ -330,14 +330,13 @@ nfulnl_alloc_skb(struct net *net, u32 peer_portid, unsigned int inst_size,
 	 * message.  WARNING: has to be <= 128k due to slab restrictions */
 
 	n = max(inst_size, pkt_size);
-	skb = nfnetlink_alloc_skb(net, n, peer_portid, GFP_ATOMIC);
+	skb = alloc_skb(n, GFP_ATOMIC);
 	if (!skb) {
 		if (n > pkt_size) {
 			/* try to allocate only as much as we need for current
 			 * packet */
 
-			skb = nfnetlink_alloc_skb(net, pkt_size,
-						  peer_portid, GFP_ATOMIC);
+			skb = alloc_skb(pkt_size, GFP_ATOMIC);
 		}
 	}
 

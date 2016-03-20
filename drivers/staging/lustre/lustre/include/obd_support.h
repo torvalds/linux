@@ -47,7 +47,8 @@ extern unsigned int obd_debug_peer_on_timeout;
 extern unsigned int obd_dump_on_timeout;
 extern unsigned int obd_dump_on_eviction;
 /* obd_timeout should only be used for recovery, not for
-   networking / disk / timings affected by load (use Adaptive Timeouts) */
+ * networking / disk / timings affected by load (use Adaptive Timeouts)
+ */
 extern unsigned int obd_timeout;	  /* seconds */
 extern unsigned int obd_timeout_set;
 extern unsigned int at_min;
@@ -104,18 +105,21 @@ extern char obd_jobid_var[];
  * failover targets the client only pings one server at a time, and pings
  * can be lost on a loaded network. Since eviction has serious consequences,
  * and there's no urgent need to evict a client just because it's idle, we
- * should be very conservative here. */
+ * should be very conservative here.
+ */
 #define PING_EVICT_TIMEOUT (PING_INTERVAL * 6)
 #define DISK_TIMEOUT 50	  /* Beyond this we warn about disk speed */
 #define CONNECTION_SWITCH_MIN 5U /* Connection switching rate limiter */
- /* Max connect interval for nonresponsive servers; ~50s to avoid building up
-    connect requests in the LND queues, but within obd_timeout so we don't
-    miss the recovery window */
+/* Max connect interval for nonresponsive servers; ~50s to avoid building up
+ * connect requests in the LND queues, but within obd_timeout so we don't
+ * miss the recovery window
+ */
 #define CONNECTION_SWITCH_MAX min(50U, max(CONNECTION_SWITCH_MIN, obd_timeout))
 #define CONNECTION_SWITCH_INC 5  /* Connection timeout backoff */
 /* In general this should be low to have quick detection of a system
-   running on a backup server. (If it's too low, import_select_connection
-   will increase the timeout anyhow.)  */
+ * running on a backup server. (If it's too low, import_select_connection
+ * will increase the timeout anyhow.)
+ */
 #define INITIAL_CONNECT_TIMEOUT max(CONNECTION_SWITCH_MIN, obd_timeout/20)
 /* The max delay between connects is SWITCH_MAX + SWITCH_INC + INITIAL */
 #define RECONNECT_DELAY_MAX (CONNECTION_SWITCH_MAX + CONNECTION_SWITCH_INC + \
@@ -507,7 +511,6 @@ extern char obd_jobid_var[];
 do {									      \
 	struct portals_handle *__h = (handle);				      \
 									      \
-	LASSERT(handle != NULL);					      \
 	__h->h_cookie = (unsigned long)(ptr);				      \
 	__h->h_size = (size);						      \
 	call_rcu(&__h->h_rcu, class_handle_free_cb);			      \

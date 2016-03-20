@@ -787,7 +787,7 @@ struct inode *__ext4_new_inode(handle_t *handle, struct inode *dir,
 	sbi = EXT4_SB(sb);
 
 	/*
-	 * Initalize owners and quota early so that we don't have to account
+	 * Initialize owners and quota early so that we don't have to account
 	 * for quota initialization worst case in standard inode creating
 	 * transaction
 	 */

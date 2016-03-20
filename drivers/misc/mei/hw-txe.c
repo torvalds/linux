@@ -28,6 +28,9 @@
 #include "client.h"
 #include "hbm.h"
 
+#include "mei-trace.h"
+
+
 /**
  * mei_txe_reg_read - Reads 32bit data from the txe device
  *
@@ -640,8 +643,11 @@ static int mei_txe_fw_status(struct mei_device *dev,
 
 	fw_status->count = fw_src->count;
 	for (i = 0; i < fw_src->count && i < MEI_FW_STATUS_MAX; i++) {
-		ret = pci_read_config_dword(pdev,
-			fw_src->status[i], &fw_status->status[i]);
+		ret = pci_read_config_dword(pdev, fw_src->status[i],
+					    &fw_status->status[i]);
+		trace_mei_pci_cfg_read(dev->dev, "PCI_CFG_HSF_X",
+				       fw_src->status[i],
+				       fw_status->status[i]);
 		if (ret)
 			return ret;
 	}

@@ -61,7 +61,7 @@ static inline struct ll_remote_perm *alloc_ll_remote_perm(void)
 {
 	struct ll_remote_perm *lrp;
 
-	lrp = kmem_cache_alloc(ll_remote_perm_cachep, GFP_KERNEL | __GFP_ZERO);
+	lrp = kmem_cache_zalloc(ll_remote_perm_cachep, GFP_KERNEL);
 	if (lrp)
 		INIT_HLIST_NODE(&lrp->lrp_list);
 	return lrp;
@@ -82,7 +82,7 @@ static struct hlist_head *alloc_rmtperm_hash(void)
 	struct hlist_head *hash;
 	int i;
 
-	hash = kmem_cache_alloc(ll_rmtperm_hash_cachep, GFP_NOFS | __GFP_ZERO);
+	hash = kmem_cache_zalloc(ll_rmtperm_hash_cachep, GFP_NOFS);
 	if (!hash)
 		return NULL;
 

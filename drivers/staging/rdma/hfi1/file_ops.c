@@ -487,8 +487,7 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		 * Map only the amount allocated to the context, not the
 		 * entire available context's PIO space.
 		 */
-		memlen = ALIGN(uctxt->sc->credits * PIO_BLOCK_SIZE,
-			       PAGE_SIZE);
+		memlen = PAGE_ALIGN(uctxt->sc->credits * PIO_BLOCK_SIZE);
 		flags &= ~VM_MAYREAD;
 		flags |= VM_DONTCOPY | VM_DONTEXPAND;
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
@@ -638,7 +637,7 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 			goto done;
 		}
 		memaddr = (u64)cq->comps;
-		memlen = ALIGN(sizeof(*cq->comps) * cq->nentries, PAGE_SIZE);
+		memlen = PAGE_ALIGN(sizeof(*cq->comps) * cq->nentries);
 		flags |= VM_IO | VM_DONTEXPAND;
 		vmf = 1;
 		break;

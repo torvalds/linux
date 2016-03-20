@@ -13,6 +13,10 @@
 #include <asm/efi.h>
 #include <asm/sections.h>
 
+#include "efistub.h"
+
+extern bool __nokaslr;
+
 efi_status_t __init handle_kernel_image(efi_system_table_t *sys_table_arg,
 					unsigned long *image_addr,
 					unsigned long *image_size,
@@ -23,26 +27,52 @@ efi_status_t __init handle_kernel_image(efi_system_table_t *sys_table_arg,
 {
 	efi_status_t status;
 	unsigned long kernel_size, kernel_memsize = 0;
-	unsigned long nr_pages;
 	void *old_image_addr = (void *)*image_addr;
 	unsigned long preferred_offset;
+	u64 phys_seed = 0;
+
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
+		if (!__nokaslr) {
+			status = efi_get_random_bytes(sys_table_arg,
+						      sizeof(phys_seed),
+						      (u8 *)&phys_seed);
+			if (status == EFI_NOT_FOUND) {
+				pr_efi(sys_table_arg, "EFI_RNG_PROTOCOL unavailable, no randomness supplied\n");
+			} else if (status != EFI_SUCCESS) {
+				pr_efi_err(sys_table_arg, "efi_get_random_bytes() failed\n");
+				return status;
+			}
+		} else {
+			pr_efi(sys_table_arg, "KASLR disabled on kernel command line\n");
+		}
+	}
 
 	/*
 	 * The preferred offset of the kernel Image is TEXT_OFFSET bytes beyond
 	 * a 2 MB aligned base, which itself may be lower than dram_base, as
 	 * long as the resulting offset equals or exceeds it.
 	 */
-	preferred_offset = round_down(dram_base, SZ_2M) + TEXT_OFFSET;
+	preferred_offset = round_down(dram_base, MIN_KIMG_ALIGN) + TEXT_OFFSET;
 	if (preferred_offset < dram_base)
-		preferred_offset += SZ_2M;
+		preferred_offset += MIN_KIMG_ALIGN;
 
-	/* Relocate the image, if required. */
 	kernel_size = _edata - _text;
-	if (*image_addr != preferred_offset) {
-		kernel_memsize = kernel_size + (_end - _edata);
+	kernel_memsize = kernel_size + (_end - _edata);
 
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && phys_seed != 0) {
 		/*
-		 * First, try a straight allocation at the preferred offset.
+		 * If KASLR is enabled, and we have some randomness available,
+		 * locate the kernel at a randomized offset in physical memory.
+		 */
+		*reserve_size = kernel_memsize + TEXT_OFFSET;
+		status = efi_random_alloc(sys_table_arg, *reserve_size,
+					  MIN_KIMG_ALIGN, reserve_addr,
+					  phys_seed);
+
+		*image_addr = *reserve_addr + TEXT_OFFSET;
+	} else {
+		/*
+		 * Else, try a straight allocation at the preferred offset.
 		 * This will work around the issue where, if dram_base == 0x0,
 		 * efi_low_alloc() refuses to allocate at 0x0 (to prevent the
 		 * address of the allocation to be mistaken for a FAIL return
@@ -52,27 +82,31 @@ efi_status_t __init handle_kernel_image(efi_system_table_t *sys_table_arg,
 		 * Mustang), we can still place the kernel at the address
 		 * 'dram_base + TEXT_OFFSET'.
 		 */
-		*image_addr = *reserve_addr = preferred_offset;
-		nr_pages = round_up(kernel_memsize, EFI_ALLOC_ALIGN) /
-			   EFI_PAGE_SIZE;
-		status = efi_call_early(allocate_pages, EFI_ALLOCATE_ADDRESS,
-					EFI_LOADER_DATA, nr_pages,
-					(efi_physical_addr_t *)reserve_addr);
-		if (status != EFI_SUCCESS) {
-			kernel_memsize += TEXT_OFFSET;
-			status = efi_low_alloc(sys_table_arg, kernel_memsize,
-					       SZ_2M, reserve_addr);
+		if (*image_addr == preferred_offset)
+			return EFI_SUCCESS;
 
-			if (status != EFI_SUCCESS) {
-				pr_efi_err(sys_table_arg, "Failed to relocate kernel\n");
-				return status;
-			}
-			*image_addr = *reserve_addr + TEXT_OFFSET;
-		}
-		memcpy((void *)*image_addr, old_image_addr, kernel_size);
-		*reserve_size = kernel_memsize;
+		*image_addr = *reserve_addr = preferred_offset;
+		*reserve_size = round_up(kernel_memsize, EFI_ALLOC_ALIGN);
+
+		status = efi_call_early(allocate_pages, EFI_ALLOCATE_ADDRESS,
+					EFI_LOADER_DATA,
+					*reserve_size / EFI_PAGE_SIZE,
+					(efi_physical_addr_t *)reserve_addr);
 	}
 
+	if (status != EFI_SUCCESS) {
+		*reserve_size = kernel_memsize + TEXT_OFFSET;
+		status = efi_low_alloc(sys_table_arg, *reserve_size,
+				       MIN_KIMG_ALIGN, reserve_addr);
+
+		if (status != EFI_SUCCESS) {
+			pr_efi_err(sys_table_arg, "Failed to relocate kernel\n");
+			*reserve_size = 0;
+			return status;
+		}
+		*image_addr = *reserve_addr + TEXT_OFFSET;
+	}
+	memcpy((void *)*image_addr, old_image_addr, kernel_size);
 
 	return EFI_SUCCESS;
 }

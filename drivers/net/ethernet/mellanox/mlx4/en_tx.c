@@ -213,7 +213,9 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 	mlx4_en_fill_qp_context(priv, ring->size, ring->stride, 1, 0, ring->qpn,
 				ring->cqn, user_prio, &ring->context);
 	if (ring->bf_alloced)
-		ring->context.usr_page = cpu_to_be32(ring->bf.uar->index);
+		ring->context.usr_page =
+			cpu_to_be32(mlx4_to_hw_uar_index(mdev->dev,
+							 ring->bf.uar->index));
 
 	err = mlx4_qp_to_ready(mdev->dev, &ring->wqres.mtt, &ring->context,
 			       &ring->qp, &ring->qp_state);
@@ -274,7 +276,8 @@ static void mlx4_en_stamp_wqe(struct mlx4_en_priv *priv,
 
 static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 				struct mlx4_en_tx_ring *ring,
-				int index, u8 owner, u64 timestamp)
+				int index, u8 owner, u64 timestamp,
+				int napi_mode)
 {
 	struct mlx4_en_tx_info *tx_info = &ring->tx_info[index];
 	struct mlx4_en_tx_desc *tx_desc = ring->buf + index * TXBB_SIZE;
@@ -345,7 +348,8 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 			}
 		}
 	}
-	dev_consume_skb_any(skb);
+	napi_consume_skb(skb, napi_mode);
+
 	return tx_info->nr_txbb;
 }
 
@@ -369,7 +373,8 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 	while (ring->cons != ring->prod) {
 		ring->last_nr_txbb = mlx4_en_free_tx_desc(priv, ring,
 						ring->cons & ring->size_mask,
-						!!(ring->cons & ring->size), 0);
+						!!(ring->cons & ring->size), 0,
+						0 /* Non-NAPI caller */);
 		ring->cons += ring->last_nr_txbb;
 		cnt++;
 	}
@@ -383,7 +388,7 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 }
 
 static bool mlx4_en_process_tx_cq(struct net_device *dev,
-				 struct mlx4_en_cq *cq)
+				  struct mlx4_en_cq *cq, int napi_budget)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_cq *mcq = &cq->mcq;
@@ -449,7 +454,7 @@ static bool mlx4_en_process_tx_cq(struct net_device *dev,
 			last_nr_txbb = mlx4_en_free_tx_desc(
 					priv, ring, ring_index,
 					!!((ring_cons + txbbs_skipped) &
-					ring->size), timestamp);
+					ring->size), timestamp, napi_budget);
 
 			mlx4_en_stamp_wqe(priv, ring, stamp_index,
 					  !!((ring_cons + txbbs_stamp) &
@@ -509,7 +514,7 @@ int mlx4_en_poll_tx_cq(struct napi_struct *napi, int budget)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	int clean_complete;
 
-	clean_complete = mlx4_en_process_tx_cq(dev, cq);
+	clean_complete = mlx4_en_process_tx_cq(dev, cq, budget);
 	if (!clean_complete)
 		return budget;
 

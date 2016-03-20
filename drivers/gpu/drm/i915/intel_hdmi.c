@@ -880,15 +880,18 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	enum intel_display_power_domain power_domain;
 	u32 tmp;
+	bool ret;
 
 	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_is_enabled(dev_priv, power_domain))
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
+
+	ret = false;
 
 	tmp = I915_READ(intel_hdmi->hdmi_reg);
 
 	if (!(tmp & SDVO_ENABLE))
-		return false;
+		goto out;
 
 	if (HAS_PCH_CPT(dev))
 		*pipe = PORT_TO_PIPE_CPT(tmp);
@@ -897,7 +900,12 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	else
 		*pipe = PORT_TO_PIPE(tmp);
 
-	return true;
+	ret = true;
+
+out:
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static void intel_hdmi_get_config(struct intel_encoder *encoder,
@@ -2146,7 +2154,6 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 void intel_hdmi_init(struct drm_device *dev,
 		     i915_reg_t hdmi_reg, enum port port)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_digital_port *intel_dig_port;
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
@@ -2215,7 +2222,6 @@ void intel_hdmi_init(struct drm_device *dev,
 		intel_encoder->cloneable |= 1 << INTEL_OUTPUT_HDMI;
 
 	intel_dig_port->port = port;
-	dev_priv->dig_port_map[port] = intel_encoder;
 	intel_dig_port->hdmi.hdmi_reg = hdmi_reg;
 	intel_dig_port->dp.output_reg = INVALID_MMIO_REG;
 

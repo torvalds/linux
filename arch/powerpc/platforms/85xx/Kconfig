@@ -8,6 +8,7 @@ menuconfig FSL_SOC_BOOKE
 	select FSL_PCI if PCI
 	select SERIAL_8250_EXTENDED if SERIAL_8250
 	select SERIAL_8250_SHARE_IRQ if SERIAL_8250
+	select FSL_CORENET_RCPM if PPC_E500MC
 	default y
 
 if FSL_SOC_BOOKE

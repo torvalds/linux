@@ -99,12 +99,12 @@ static void klp_find_object_module(struct klp_object *obj)
 	/*
 	 * We do not want to block removal of patched modules and therefore
 	 * we do not take a reference here. The patches are removed by
-	 * a going module handler instead.
+	 * klp_module_going() instead.
 	 */
 	mod = find_module(obj->name);
 	/*
-	 * Do not mess work of the module coming and going notifiers.
-	 * Note that the patch might still be needed before the going handler
+	 * Do not mess work of klp_module_coming() and klp_module_going().
+	 * Note that the patch might still be needed before klp_module_going()
 	 * is called. Module functions can be called even in the GOING state
 	 * until mod->exit() finishes. This is especially important for
 	 * patches that modify semantic of the functions.
@@ -190,8 +190,8 @@ static int klp_find_object_symbol(const char *objname, const char *name,
 	if (args.addr == 0)
 		pr_err("symbol '%s' not found in symbol table\n", name);
 	else if (args.count > 1 && sympos == 0) {
-		pr_err("unresolvable ambiguity (%lu matches) on symbol '%s' in object '%s'\n",
-		       args.count, name, objname);
+		pr_err("unresolvable ambiguity for symbol '%s' in object '%s'\n",
+		       name, objname);
 	} else if (sympos != args.count && sympos > 0) {
 		pr_err("symbol position %lu for symbol '%s' in object '%s' not found\n",
 		       sympos, name, objname ? objname : "vmlinux");
@@ -866,88 +866,49 @@ int klp_register_patch(struct klp_patch *patch)
 }
 EXPORT_SYMBOL_GPL(klp_register_patch);
 
-static int klp_module_notify_coming(struct klp_patch *patch,
-				     struct klp_object *obj)
-{
-	struct module *pmod = patch->mod;
-	struct module *mod = obj->mod;
-	int ret;
-
-	ret = klp_init_object_loaded(patch, obj);
-	if (ret) {
-		pr_warn("failed to initialize patch '%s' for module '%s' (%d)\n",
-			pmod->name, mod->name, ret);
-		return ret;
-	}
-
-	if (patch->state == KLP_DISABLED)
-		return 0;
-
-	pr_notice("applying patch '%s' to loading module '%s'\n",
-		  pmod->name, mod->name);
-
-	ret = klp_enable_object(obj);
-	if (ret)
-		pr_warn("failed to apply patch '%s' to module '%s' (%d)\n",
-			pmod->name, mod->name, ret);
-	return ret;
-}
-
-static void klp_module_notify_going(struct klp_patch *patch,
-				    struct klp_object *obj)
-{
-	struct module *pmod = patch->mod;
-	struct module *mod = obj->mod;
-
-	if (patch->state == KLP_DISABLED)
-		goto disabled;
-
-	pr_notice("reverting patch '%s' on unloading module '%s'\n",
-		  pmod->name, mod->name);
-
-	klp_disable_object(obj);
-
-disabled:
-	klp_free_object_loaded(obj);
-}
-
-static int klp_module_notify(struct notifier_block *nb, unsigned long action,
-			     void *data)
+int klp_module_coming(struct module *mod)
 {
 	int ret;
-	struct module *mod = data;
 	struct klp_patch *patch;
 	struct klp_object *obj;
 
-	if (action != MODULE_STATE_COMING && action != MODULE_STATE_GOING)
-		return 0;
+	if (WARN_ON(mod->state != MODULE_STATE_COMING))
+		return -EINVAL;
 
 	mutex_lock(&klp_mutex);
-
 	/*
-	 * Each module has to know that the notifier has been called.
-	 * We never know what module will get patched by a new patch.
+	 * Each module has to know that klp_module_coming()
+	 * has been called. We never know what module will
+	 * get patched by a new patch.
 	 */
-	if (action == MODULE_STATE_COMING)
-		mod->klp_alive = true;
-	else /* MODULE_STATE_GOING */
-		mod->klp_alive = false;
+	mod->klp_alive = true;
 
 	list_for_each_entry(patch, &klp_patches, list) {
 		klp_for_each_object(patch, obj) {
 			if (!klp_is_module(obj) || strcmp(obj->name, mod->name))
 				continue;
 
-			if (action == MODULE_STATE_COMING) {
-				obj->mod = mod;
-				ret = klp_module_notify_coming(patch, obj);
-				if (ret) {
-					obj->mod = NULL;
-					pr_warn("patch '%s' is in an inconsistent state!\n",
-						patch->mod->name);
-				}
-			} else /* MODULE_STATE_GOING */
-				klp_module_notify_going(patch, obj);
+			obj->mod = mod;
+
+			ret = klp_init_object_loaded(patch, obj);
+			if (ret) {
+				pr_warn("failed to initialize patch '%s' for module '%s' (%d)\n",
+					patch->mod->name, obj->mod->name, ret);
+				goto err;
+			}
+
+			if (patch->state == KLP_DISABLED)
+				break;
+
+			pr_notice("applying patch '%s' to loading module '%s'\n",
+				  patch->mod->name, obj->mod->name);
+
+			ret = klp_enable_object(obj);
+			if (ret) {
+				pr_warn("failed to apply patch '%s' to module '%s' (%d)\n",
+					patch->mod->name, obj->mod->name, ret);
+				goto err;
+			}
 
 			break;
 		}
@@ -956,12 +917,56 @@ static int klp_module_notify(struct notifier_block *nb, unsigned long action,
 	mutex_unlock(&klp_mutex);
 
 	return 0;
+
+err:
+	/*
+	 * If a patch is unsuccessfully applied, return
+	 * error to the module loader.
+	 */
+	pr_warn("patch '%s' failed for module '%s', refusing to load module '%s'\n",
+		patch->mod->name, obj->mod->name, obj->mod->name);
+	mod->klp_alive = false;
+	klp_free_object_loaded(obj);
+	mutex_unlock(&klp_mutex);
+
+	return ret;
 }
 
-static struct notifier_block klp_module_nb = {
-	.notifier_call = klp_module_notify,
-	.priority = INT_MIN+1, /* called late but before ftrace notifier */
-};
+void klp_module_going(struct module *mod)
+{
+	struct klp_patch *patch;
+	struct klp_object *obj;
+
+	if (WARN_ON(mod->state != MODULE_STATE_GOING &&
+		    mod->state != MODULE_STATE_COMING))
+		return;
+
+	mutex_lock(&klp_mutex);
+	/*
+	 * Each module has to know that klp_module_going()
+	 * has been called. We never know what module will
+	 * get patched by a new patch.
+	 */
+	mod->klp_alive = false;
+
+	list_for_each_entry(patch, &klp_patches, list) {
+		klp_for_each_object(patch, obj) {
+			if (!klp_is_module(obj) || strcmp(obj->name, mod->name))
+				continue;
+
+			if (patch->state != KLP_DISABLED) {
+				pr_notice("reverting patch '%s' on unloading module '%s'\n",
+					  patch->mod->name, obj->mod->name);
+				klp_disable_object(obj);
+			}
+
+			klp_free_object_loaded(obj);
+			break;
+		}
+	}
+
+	mutex_unlock(&klp_mutex);
+}
 
 static int __init klp_init(void)
 {
@@ -973,21 +978,11 @@ static int __init klp_init(void)
 		return -EINVAL;
 	}
 
-	ret = register_module_notifier(&klp_module_nb);
-	if (ret)
-		return ret;
-
 	klp_root_kobj = kobject_create_and_add("livepatch", kernel_kobj);
-	if (!klp_root_kobj) {
-		ret = -ENOMEM;
-		goto unregister;
-	}
+	if (!klp_root_kobj)
+		return -ENOMEM;
 
 	return 0;
-
-unregister:
-	unregister_module_notifier(&klp_module_nb);
-	return ret;
 }
 
 module_init(klp_init);

@@ -15,6 +15,7 @@
 #include <linux/regmap.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
 #include <linux/regulator/lp872x.h>
 #include <linux/regulator/driver.h>
 #include <linux/platform_device.h>
@@ -738,10 +739,8 @@ static int lp872x_init_dvs(struct lp872x *lp)
 		goto set_default_dvs_mode;
 
 	gpio = dvs->gpio;
-	if (!gpio_is_valid(gpio)) {
-		dev_warn(lp->dev, "invalid gpio: %d\n", gpio);
+	if (!gpio_is_valid(gpio))
 		goto set_default_dvs_mode;
-	}
 
 	pinstate = dvs->init_state;
 	ret = devm_gpio_request_one(lp->dev, gpio, pinstate, "LP872X DVS");
@@ -757,6 +756,33 @@ static int lp872x_init_dvs(struct lp872x *lp)
 set_default_dvs_mode:
 	return lp872x_update_bits(lp, LP872X_GENERAL_CFG, mask[lp->chipid],
 				default_dvs_mode[lp->chipid]);
+}
+
+static int lp872x_hw_enable(struct lp872x *lp)
+{
+	int ret, gpio;
+
+	if (!lp->pdata)
+		return -EINVAL;
+
+	gpio = lp->pdata->enable_gpio;
+	if (!gpio_is_valid(gpio))
+		return 0;
+
+	/* Always set enable GPIO high. */
+	ret = devm_gpio_request_one(lp->dev, gpio, GPIOF_OUT_INIT_HIGH, "LP872X EN");
+	if (ret) {
+		dev_err(lp->dev, "gpio request err: %d\n", ret);
+		return ret;
+	}
+
+	/* Each chip has a different enable delay. */
+	if (lp->chipid == LP8720)
+		usleep_range(LP8720_ENABLE_DELAY, 1.5 * LP8720_ENABLE_DELAY);
+	else
+		usleep_range(LP8725_ENABLE_DELAY, 1.5 * LP8725_ENABLE_DELAY);
+
+	return 0;
 }
 
 static int lp872x_config(struct lp872x *lp)
@@ -877,6 +903,8 @@ static struct lp872x_platform_data
 	of_property_read_u8(np, "ti,dvs-state", &dvs_state);
 	pdata->dvs->init_state = dvs_state ? DVS_HIGH : DVS_LOW;
 
+	pdata->enable_gpio = of_get_named_gpio(np, "enable-gpios", 0);
+
 	if (of_get_child_count(np) == 0)
 		goto out;
 
@@ -949,6 +977,10 @@ static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	lp->pdata = pdata;
 	lp->chipid = id->driver_data;
 	i2c_set_clientdata(cl, lp);
+
+	ret = lp872x_hw_enable(lp);
+	if (ret)
+		return ret;
 
 	ret = lp872x_config(lp);
 	if (ret)

@@ -3397,7 +3397,7 @@ err_pcidev:
 static const struct pci_device_id pci_id[] = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x2096),
-		.class =	(PCI_CLASS_SERIAL_USB << 8) | 0xfe,
+		.class =	PCI_CLASS_SERIAL_USB_DEVICE,
 		.class_mask =	0xffffffff,
 	},
 	{},

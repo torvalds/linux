@@ -15,7 +15,7 @@
  * page tables.
  */
 pgd_t *idmap_pgd;
-phys_addr_t (*arch_virt_to_idmap) (unsigned long x);
+unsigned long (*arch_virt_to_idmap)(unsigned long x);
 
 #ifdef CONFIG_ARM_LPAE
 static void idmap_add_pmd(pud_t *pud, unsigned long addr, unsigned long end,

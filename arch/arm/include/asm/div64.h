@@ -74,7 +74,7 @@ static inline uint32_t __div64_32(uint64_t *n, uint32_t base)
 static inline uint64_t __arch_xprod_64(uint64_t m, uint64_t n, bool bias)
 {
 	unsigned long long res;
-	unsigned int tmp = 0;
+	register unsigned int tmp asm("ip") = 0;
 
 	if (!bias) {
 		asm (	"umull	%Q0, %R0, %Q1, %Q2\n\t"
@@ -90,12 +90,12 @@ static inline uint64_t __arch_xprod_64(uint64_t m, uint64_t n, bool bias)
 			: "r" (m), "r" (n)
 			: "cc");
 	} else {
-		asm (	"umull	%Q0, %R0, %Q1, %Q2\n\t"
-			"cmn	%Q0, %Q1\n\t"
-			"adcs	%R0, %R0, %R1\n\t"
-			"adc	%Q0, %3, #0"
-			: "=&r" (res)
-			: "r" (m), "r" (n), "r" (tmp)
+		asm (	"umull	%Q0, %R0, %Q2, %Q3\n\t"
+			"cmn	%Q0, %Q2\n\t"
+			"adcs	%R0, %R0, %R2\n\t"
+			"adc	%Q0, %1, #0"
+			: "=&r" (res), "+&r" (tmp)
+			: "r" (m), "r" (n)
 			: "cc");
 	}
 

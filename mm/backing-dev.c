@@ -1026,8 +1026,8 @@ int pdflush_proc_obsolete(struct ctl_table *table, int write,
 
 	if (copy_to_user(buffer, kbuf, sizeof(kbuf)))
 		return -EFAULT;
-	printk_once(KERN_WARNING "%s exported in /proc is scheduled for removal\n",
-			table->procname);
+	pr_warn_once("%s exported in /proc is scheduled for removal\n",
+		     table->procname);
 
 	*lenp = 2;
 	*ppos += *lenp;

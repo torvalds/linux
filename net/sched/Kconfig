@@ -739,6 +739,28 @@ config NET_ACT_CONNMARK
 	  To compile this code as a module, choose M here: the
 	  module will be called act_connmark.
 
+config NET_ACT_IFE
+        tristate "Inter-FE action based on IETF ForCES InterFE LFB"
+        depends on NET_CLS_ACT
+        ---help---
+	  Say Y here to allow for sourcing and terminating metadata
+	  For details refer to netdev01 paper:
+	  "Distributing Linux Traffic Control Classifier-Action Subsystem"
+	   Authors: Jamal Hadi Salim and Damascene M. Joachimpillai
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_ife.
+
+config NET_IFE_SKBMARK
+        tristate "Support to encoding decoding skb mark on IFE action"
+        depends on NET_ACT_IFE
+        ---help---
+
+config NET_IFE_SKBPRIO
+        tristate "Support to encoding decoding skb prio on IFE action"
+        depends on NET_ACT_IFE
+        ---help---
+
 config NET_CLS_IND
 	bool "Incoming device classification"
 	depends on NET_CLS_U32 || NET_CLS_FW

@@ -95,7 +95,7 @@ static struct snd_soc_ops tosa_ops = {
 static int tosa_get_jack(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = tosa_jack_func;
+	ucontrol->value.enumerated.item[0] = tosa_jack_func;
 	return 0;
 }
 
@@ -104,10 +104,10 @@ static int tosa_set_jack(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
-	if (tosa_jack_func == ucontrol->value.integer.value[0])
+	if (tosa_jack_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	tosa_jack_func = ucontrol->value.integer.value[0];
+	tosa_jack_func = ucontrol->value.enumerated.item[0];
 	tosa_ext_control(&card->dapm);
 	return 1;
 }
@@ -115,7 +115,7 @@ static int tosa_set_jack(struct snd_kcontrol *kcontrol,
 static int tosa_get_spk(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = tosa_spk_func;
+	ucontrol->value.enumerated.item[0] = tosa_spk_func;
 	return 0;
 }
 
@@ -124,10 +124,10 @@ static int tosa_set_spk(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
-	if (tosa_spk_func == ucontrol->value.integer.value[0])
+	if (tosa_spk_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	tosa_spk_func = ucontrol->value.integer.value[0];
+	tosa_spk_func = ucontrol->value.enumerated.item[0];
 	tosa_ext_control(&card->dapm);
 	return 1;
 }

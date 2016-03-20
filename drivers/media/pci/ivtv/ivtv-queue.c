@@ -141,7 +141,7 @@ int ivtv_queue_move(struct ivtv_stream *s, struct ivtv_queue *from, struct ivtv_
 		spin_unlock_irqrestore(&s->qlock, flags);
 		return -ENOMEM;
 	}
-	while (bytes_available < needed_bytes) {
+	while (steal && bytes_available < needed_bytes) {
 		struct ivtv_buffer *buf = list_entry(steal->list.prev, struct ivtv_buffer, list);
 		u16 dma_xfer_cnt = buf->dma_xfer_cnt;
 

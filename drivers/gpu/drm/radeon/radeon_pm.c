@@ -1082,10 +1082,6 @@ force:
 	/* update displays */
 	radeon_dpm_display_configuration_changed(rdev);
 
-	rdev->pm.dpm.current_active_crtcs = rdev->pm.dpm.new_active_crtcs;
-	rdev->pm.dpm.current_active_crtc_count = rdev->pm.dpm.new_active_crtc_count;
-	rdev->pm.dpm.single_display = single_display;
-
 	/* wait for the rings to drain */
 	for (i = 0; i < RADEON_NUM_RINGS; i++) {
 		struct radeon_ring *ring = &rdev->ring[i];
@@ -1100,6 +1096,10 @@ force:
 	rdev->pm.dpm.current_ps = rdev->pm.dpm.requested_ps;
 
 	radeon_dpm_post_set_power_state(rdev);
+
+	rdev->pm.dpm.current_active_crtcs = rdev->pm.dpm.new_active_crtcs;
+	rdev->pm.dpm.current_active_crtc_count = rdev->pm.dpm.new_active_crtc_count;
+	rdev->pm.dpm.single_display = single_display;
 
 	if (rdev->asic->dpm.force_performance_level) {
 		if (rdev->pm.dpm.thermal_active) {

@@ -180,32 +180,6 @@ static void get_tx_power_index(struct adapter *adapt, u8 channel, u8 *cck_pwr,
 			hal_data->BW20_24G_Diff[TxCount][RF_PATH_A]+
 			hal_data->BW20_24G_Diff[TxCount][index];
 			bw40_pwr[TxCount] = hal_data->Index24G_BW40_Base[TxCount][index];
-		} else if (TxCount == RF_PATH_C) {
-			cck_pwr[TxCount] = hal_data->Index24G_CCK_Base[TxCount][index];
-			ofdm_pwr[TxCount] = hal_data->Index24G_BW40_Base[RF_PATH_A][index]+
-			hal_data->BW20_24G_Diff[RF_PATH_A][index]+
-			hal_data->BW20_24G_Diff[RF_PATH_B][index]+
-			hal_data->BW20_24G_Diff[TxCount][index];
-
-			bw20_pwr[TxCount] = hal_data->Index24G_BW40_Base[RF_PATH_A][index]+
-			hal_data->BW20_24G_Diff[RF_PATH_A][index]+
-			hal_data->BW20_24G_Diff[RF_PATH_B][index]+
-			hal_data->BW20_24G_Diff[TxCount][index];
-			bw40_pwr[TxCount] = hal_data->Index24G_BW40_Base[TxCount][index];
-		} else if (TxCount == RF_PATH_D) {
-			cck_pwr[TxCount] = hal_data->Index24G_CCK_Base[TxCount][index];
-			ofdm_pwr[TxCount] = hal_data->Index24G_BW40_Base[RF_PATH_A][index]+
-			hal_data->BW20_24G_Diff[RF_PATH_A][index]+
-			hal_data->BW20_24G_Diff[RF_PATH_B][index]+
-			hal_data->BW20_24G_Diff[RF_PATH_C][index]+
-			hal_data->BW20_24G_Diff[TxCount][index];
-
-			bw20_pwr[TxCount] = hal_data->Index24G_BW40_Base[RF_PATH_A][index]+
-			hal_data->BW20_24G_Diff[RF_PATH_A][index]+
-			hal_data->BW20_24G_Diff[RF_PATH_B][index]+
-			hal_data->BW20_24G_Diff[RF_PATH_C][index]+
-			hal_data->BW20_24G_Diff[TxCount][index];
-			bw40_pwr[TxCount] = hal_data->Index24G_BW40_Base[TxCount][index];
 		}
 	}
 }

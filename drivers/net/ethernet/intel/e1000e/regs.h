@@ -245,6 +245,10 @@
 #define E1000_SYSTIML	0x0B600	/* System time register Low - RO */
 #define E1000_SYSTIMH	0x0B604	/* System time register High - RO */
 #define E1000_TIMINCA	0x0B608	/* Increment attributes register - RW */
+#define E1000_SYSSTMPL  0x0B648 /* HH Timesync system stamp low register */
+#define E1000_SYSSTMPH  0x0B64C /* HH Timesync system stamp hi register */
+#define E1000_PLTSTMPL  0x0B640 /* HH Timesync platform stamp low register */
+#define E1000_PLTSTMPH  0x0B644 /* HH Timesync platform stamp hi register */
 #define E1000_RXMTRL	0x0B634	/* Time sync Rx EtherType and Msg Type - RW */
 #define E1000_RXUDP	0x0B638	/* Time Sync Rx UDP Port - RW */
 

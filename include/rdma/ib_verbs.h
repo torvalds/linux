@@ -212,6 +212,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_MANAGED_FLOW_STEERING		= (1 << 29),
 	IB_DEVICE_SIGNATURE_HANDOVER		= (1 << 30),
 	IB_DEVICE_ON_DEMAND_PAGING		= (1 << 31),
+	IB_DEVICE_SG_GAPS_REG			= (1ULL << 32),
 };
 
 enum ib_signature_prot_cap {
@@ -662,10 +663,15 @@ __attribute_const__ int ib_rate_to_mbps(enum ib_rate rate);
  * @IB_MR_TYPE_SIGNATURE:     memory region that is used for
  *                            signature operations (data-integrity
  *                            capable regions)
+ * @IB_MR_TYPE_SG_GAPS:       memory region that is capable to
+ *                            register any arbitrary sg lists (without
+ *                            the normal mr constraints - see
+ *                            ib_map_mr_sg)
  */
 enum ib_mr_type {
 	IB_MR_TYPE_MEM_REG,
 	IB_MR_TYPE_SIGNATURE,
+	IB_MR_TYPE_SG_GAPS,
 };
 
 /**
@@ -1487,6 +1493,11 @@ enum ib_flow_domain {
 	IB_FLOW_DOMAIN_NUM /* Must be last */
 };
 
+enum ib_flow_flags {
+	IB_FLOW_ATTR_FLAGS_DONT_TRAP = 1UL << 1, /* Continue match, no steal */
+	IB_FLOW_ATTR_FLAGS_RESERVED  = 1UL << 2  /* Must be last */
+};
+
 struct ib_flow_eth_filter {
 	u8	dst_mac[6];
 	u8	src_mac[6];
@@ -1808,7 +1819,8 @@ struct ib_device {
 						struct scatterlist *sg,
 						int sg_nents);
 	struct ib_mw *             (*alloc_mw)(struct ib_pd *pd,
-					       enum ib_mw_type type);
+					       enum ib_mw_type type,
+					       struct ib_udata *udata);
 	int                        (*dealloc_mw)(struct ib_mw *mw);
 	struct ib_fmr *	           (*alloc_fmr)(struct ib_pd *pd,
 						int mr_access_flags,
@@ -1846,6 +1858,8 @@ struct ib_device {
 	int			   (*check_mr_status)(struct ib_mr *mr, u32 check_mask,
 						      struct ib_mr_status *mr_status);
 	void			   (*disassociate_ucontext)(struct ib_ucontext *ibcontext);
+	void			   (*drain_rq)(struct ib_qp *qp);
+	void			   (*drain_sq)(struct ib_qp *qp);
 
 	struct ib_dma_mapping_ops   *dma_ops;
 
@@ -3094,4 +3108,7 @@ int ib_sg_to_pages(struct ib_mr *mr,
 		   int sg_nents,
 		   int (*set_page)(struct ib_mr *, u64));
 
+void ib_drain_rq(struct ib_qp *qp);
+void ib_drain_sq(struct ib_qp *qp);
+void ib_drain_qp(struct ib_qp *qp);
 #endif /* IB_VERBS_H */

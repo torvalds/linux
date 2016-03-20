@@ -162,6 +162,22 @@ static int __init x86_mpx_setup(char *s)
 }
 __setup("nompx", x86_mpx_setup);
 
+static int __init x86_noinvpcid_setup(char *s)
+{
+	/* noinvpcid doesn't accept parameters */
+	if (s)
+		return -EINVAL;
+
+	/* do not emit a message if the feature is not present */
+	if (!boot_cpu_has(X86_FEATURE_INVPCID))
+		return 0;
+
+	setup_clear_cpu_cap(X86_FEATURE_INVPCID);
+	pr_info("noinvpcid: INVPCID feature disabled\n");
+	return 0;
+}
+early_param("noinvpcid", x86_noinvpcid_setup);
+
 #ifdef CONFIG_X86_32
 static int cachesize_override = -1;
 static int disable_x86_serial_nr = 1;
@@ -228,7 +244,7 @@ static void squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
 	lo |= 0x200000;
 	wrmsr(MSR_IA32_BBL_CR_CTL, lo, hi);
 
-	printk(KERN_NOTICE "CPU serial number disabled.\n");
+	pr_notice("CPU serial number disabled.\n");
 	clear_cpu_cap(c, X86_FEATURE_PN);
 
 	/* Disabling the serial number may affect the cpuid level */
@@ -329,9 +345,8 @@ static void filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 		if (!warn)
 			continue;
 
-		printk(KERN_WARNING
-		       "CPU: CPU feature " X86_CAP_FMT " disabled, no CPUID level 0x%x\n",
-				x86_cap_flag(df->feature), df->level);
+		pr_warn("CPU: CPU feature " X86_CAP_FMT " disabled, no CPUID level 0x%x\n",
+			x86_cap_flag(df->feature), df->level);
 	}
 }
 
@@ -510,7 +525,7 @@ void detect_ht(struct cpuinfo_x86 *c)
 	smp_num_siblings = (ebx & 0xff0000) >> 16;
 
 	if (smp_num_siblings == 1) {
-		printk_once(KERN_INFO "CPU0: Hyper-Threading is disabled\n");
+		pr_info_once("CPU0: Hyper-Threading is disabled\n");
 		goto out;
 	}
 
@@ -531,10 +546,10 @@ void detect_ht(struct cpuinfo_x86 *c)
 
 out:
 	if (!printed && (c->x86_max_cores * smp_num_siblings) > 1) {
-		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n",
-		       c->phys_proc_id);
-		printk(KERN_INFO  "CPU: Processor Core ID: %d\n",
-		       c->cpu_core_id);
+		pr_info("CPU: Physical Processor ID: %d\n",
+			c->phys_proc_id);
+		pr_info("CPU: Processor Core ID: %d\n",
+			c->cpu_core_id);
 		printed = 1;
 	}
 #endif
@@ -559,9 +574,8 @@ static void get_cpu_vendor(struct cpuinfo_x86 *c)
 		}
 	}
 
-	printk_once(KERN_ERR
-			"CPU: vendor_id '%s' unknown, using generic init.\n" \
-			"CPU: Your system may be unstable.\n", v);
+	pr_err_once("CPU: vendor_id '%s' unknown, using generic init.\n" \
+		    "CPU: Your system may be unstable.\n", v);
 
 	c->x86_vendor = X86_VENDOR_UNKNOWN;
 	this_cpu = &default_cpu;
@@ -760,7 +774,7 @@ void __init early_cpu_init(void)
 	int count = 0;
 
 #ifdef CONFIG_PROCESSOR_SELECT
-	printk(KERN_INFO "KERNEL supported cpus:\n");
+	pr_info("KERNEL supported cpus:\n");
 #endif
 
 	for (cdev = __x86_cpu_dev_start; cdev < __x86_cpu_dev_end; cdev++) {
@@ -778,7 +792,7 @@ void __init early_cpu_init(void)
 			for (j = 0; j < 2; j++) {
 				if (!cpudev->c_ident[j])
 					continue;
-				printk(KERN_INFO "  %s %s\n", cpudev->c_vendor,
+				pr_info("  %s %s\n", cpudev->c_vendor,
 					cpudev->c_ident[j]);
 			}
 		}
@@ -802,6 +816,31 @@ static void detect_nopl(struct cpuinfo_x86 *c)
 	clear_cpu_cap(c, X86_FEATURE_NOPL);
 #else
 	set_cpu_cap(c, X86_FEATURE_NOPL);
+#endif
+
+	/*
+	 * ESPFIX is a strange bug.  All real CPUs have it.  Paravirt
+	 * systems that run Linux at CPL > 0 may or may not have the
+	 * issue, but, even if they have the issue, there's absolutely
+	 * nothing we can do about it because we can't use the real IRET
+	 * instruction.
+	 *
+	 * NB: For the time being, only 32-bit kernels support
+	 * X86_BUG_ESPFIX as such.  64-bit kernels directly choose
+	 * whether to apply espfix using paravirt hooks.  If any
+	 * non-paravirt system ever shows up that does *not* have the
+	 * ESPFIX issue, we can change this.
+	 */
+#ifdef CONFIG_X86_32
+#ifdef CONFIG_PARAVIRT
+	do {
+		extern void native_iret(void);
+		if (pv_cpu_ops.iret == native_iret)
+			set_cpu_bug(c, X86_BUG_ESPFIX);
+	} while (0);
+#else
+	set_cpu_bug(c, X86_BUG_ESPFIX);
+#endif
 #endif
 }
 
@@ -977,6 +1016,8 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 #ifdef CONFIG_NUMA
 	numa_add_cpu(smp_processor_id());
 #endif
+	/* The boot/hotplug time assigment got cleared, restore it */
+	c->logical_proc_id = topology_phys_to_logical_pkg(c->phys_proc_id);
 }
 
 /*
@@ -1061,7 +1102,7 @@ static void __print_cpu_msr(void)
 		for (index = index_min; index < index_max; index++) {
 			if (rdmsrl_safe(index, &val))
 				continue;
-			printk(KERN_INFO " MSR%08x: %016llx\n", index, val);
+			pr_info(" MSR%08x: %016llx\n", index, val);
 		}
 	}
 }
@@ -1100,19 +1141,19 @@ void print_cpu_info(struct cpuinfo_x86 *c)
 	}
 
 	if (vendor && !strstr(c->x86_model_id, vendor))
-		printk(KERN_CONT "%s ", vendor);
+		pr_cont("%s ", vendor);
 
 	if (c->x86_model_id[0])
-		printk(KERN_CONT "%s", c->x86_model_id);
+		pr_cont("%s", c->x86_model_id);
 	else
-		printk(KERN_CONT "%d86", c->x86);
+		pr_cont("%d86", c->x86);
 
-	printk(KERN_CONT " (family: 0x%x, model: 0x%x", c->x86, c->x86_model);
+	pr_cont(" (family: 0x%x, model: 0x%x", c->x86, c->x86_model);
 
 	if (c->x86_mask || c->cpuid_level >= 0)
-		printk(KERN_CONT ", stepping: 0x%x)\n", c->x86_mask);
+		pr_cont(", stepping: 0x%x)\n", c->x86_mask);
 	else
-		printk(KERN_CONT ")\n");
+		pr_cont(")\n");
 
 	print_cpu_msr(c);
 }
@@ -1438,7 +1479,7 @@ void cpu_init(void)
 
 	show_ucode_info_early();
 
-	printk(KERN_INFO "Initializing CPU#%d\n", cpu);
+	pr_info("Initializing CPU#%d\n", cpu);
 
 	if (cpu_feature_enabled(X86_FEATURE_VME) ||
 	    cpu_has_tsc ||
@@ -1474,20 +1515,6 @@ void cpu_init(void)
 	fpu__init_cpu();
 }
 #endif
-
-#ifdef CONFIG_X86_DEBUG_STATIC_CPU_HAS
-void warn_pre_alternatives(void)
-{
-	WARN(1, "You're using static_cpu_has before alternatives have run!\n");
-}
-EXPORT_SYMBOL_GPL(warn_pre_alternatives);
-#endif
-
-inline bool __static_cpu_has_safe(u16 bit)
-{
-	return boot_cpu_has(bit);
-}
-EXPORT_SYMBOL_GPL(__static_cpu_has_safe);
 
 static void bsp_resume(void)
 {
