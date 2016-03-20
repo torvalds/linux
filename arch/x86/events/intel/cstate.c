@@ -91,6 +91,8 @@
 #include <asm/cpu_device_id.h>
 #include "../perf_event.h"
 
+MODULE_LICENSE("GPL");
+
 #define DEFINE_CSTATE_FORMAT_ATTR(_var, _name, _format)		\
 static ssize_t __cstate_##_var##_show(struct kobject *kobj,	\
 				struct kobj_attribute *attr,	\
@@ -432,6 +434,11 @@ static int cstate_cpu_notifier(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
+static struct notifier_block cstate_cpu_nb = {
+	.notifier_call	= cstate_cpu_notifier,
+	.priority       = CPU_PRI_PERF + 1,
+};
+
 static struct pmu cstate_core_pmu = {
 	.attr_groups	= core_attr_groups,
 	.name		= "cstate_core",
@@ -581,7 +588,7 @@ static int __init cstate_probe(const struct cstate_model *cm)
 	return (has_cstate_core || has_cstate_pkg) ? 0 : -ENODEV;
 }
 
-static void __init cstate_cleanup(void)
+static inline void cstate_cleanup(void)
 {
 	if (has_cstate_core)
 		perf_pmu_unregister(&cstate_core_pmu);
@@ -616,7 +623,7 @@ static int __init cstate_init(void)
 			goto out;
 		}
 	}
-	__perf_cpu_notifier(cstate_cpu_notifier);
+	__register_cpu_notifier(&cstate_cpu_nb);
 out:
 	cpu_notifier_register_done();
 	return err;
@@ -640,4 +647,13 @@ static int __init cstate_pmu_init(void)
 
 	return cstate_init();
 }
-device_initcall(cstate_pmu_init);
+module_init(cstate_pmu_init);
+
+static void __exit cstate_pmu_exit(void)
+{
+	cpu_notifier_register_begin();
+	__unregister_cpu_notifier(&cstate_cpu_nb);
+	cstate_cleanup();
+	cpu_notifier_register_done();
+}
+module_exit(cstate_pmu_exit);
