@@ -269,6 +269,18 @@
 					     "mmc2_sample";
 		};
 
+		usb_clk: clk@01c200cc {
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			compatible = "allwinner,sun8i-h3-usb-clk";
+			reg = <0x01c200cc 0x4>;
+			clocks = <&osc24M>;
+			clock-output-names = "usb_phy0", "usb_phy1",
+					     "usb_phy2", "usb_phy3",
+					     "usb_ohci0", "usb_ohci1",
+					     "usb_ohci2", "usb_ohci3";
+		};
+
 		mbus_clk: clk@01c2015c {
 			#clock-cells = <0>;
 			compatible = "allwinner,sun8i-a23-mbus-clk";
