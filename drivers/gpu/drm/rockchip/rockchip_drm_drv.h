@@ -68,6 +68,7 @@ struct rockchip_atomic_commit {
  */
 struct rockchip_drm_file_private {
 	struct list_head		gem_cpu_acquire_list;
+	struct rockchip_drm_rga_private *rga_priv;
 };
 
 /*

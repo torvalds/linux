@@ -16,6 +16,15 @@ config DRM_ROCKCHIP
 	  2D or 3D acceleration; acceleration is performed by other
 	  IP found on the SoC.
 
+config ROCKCHIP_DRM_RGA
+	tristate "Rockchip RGA support"
+	depends on DRM_ROCKCHIP
+	help
+	  Choose this option to enable support for Rockchip RGA.
+	  Rockchip RGA is a kind of hardware 2D accelerator, and it support
+	  solid roration, scaling, color format transform, say Y to enable its
+	  driver
+
 config ROCKCHIP_DW_HDMI
         tristate "Rockchip specific extensions for Synopsys DW HDMI"
         depends on DRM_ROCKCHIP
