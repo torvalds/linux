@@ -429,6 +429,27 @@
 				reg = <0x22000 0x1000>;
 			};
 
+			/*
+			 * As a special exception to the "order by
+			 * register address" rule, the eth0 node is
+			 * placed here to ensure that it gets
+			 * registered as the first interface, since
+			 * the network subsystem doesn't allow naming
+			 * interfaces using DT aliases. Without this,
+			 * the ordering of interfaces is different
+			 * from the one used in U-Boot and the
+			 * labeling of interfaces on the boards, which
+			 * is very confusing for users.
+			 */
+			eth0: ethernet@70000 {
+				compatible = "marvell,armada-370-neta";
+				reg = <0x70000 0x4000>;
+				interrupts-extended = <&mpic 8>;
+				clocks = <&gateclk 4>;
+				tx-csum-limit = <9800>;
+				status = "disabled";
+			};
+
 			eth1: ethernet@30000 {
 				compatible = "marvell,armada-370-neta";
 				reg = <0x30000 0x4000>;
@@ -491,15 +512,6 @@
 					dmacap,xor;
 					dmacap,memset;
 				};
-			};
-
-			eth0: ethernet@70000 {
-				compatible = "marvell,armada-370-neta";
-				reg = <0x70000 0x4000>;
-				interrupts-extended = <&mpic 8>;
-				clocks = <&gateclk 4>;
-				tx-csum-limit = <9800>;
-				status = "disabled";
 			};
 
 			mdio: mdio@72004 {
