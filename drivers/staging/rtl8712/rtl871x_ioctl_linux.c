@@ -399,7 +399,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 		if (wep_key_len > 0) {
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
 			pwep = kzalloc(sizeof(*pwep), GFP_ATOMIC);
-			if (pwep == NULL)
+			if (!pwep)
 				return -ENOMEM;
 			pwep->KeyLength = wep_key_len;
 			pwep->Length = wep_key_len +
@@ -1793,7 +1793,7 @@ static int r871x_wx_set_enc_ext(struct net_device *dev,
 
 	param_len = sizeof(struct ieee_param) + pext->key_len;
 	param = kzalloc(param_len, GFP_ATOMIC);
-	if (param == NULL)
+	if (!param)
 		return -ENOMEM;
 	param->cmd = IEEE_CMD_SET_ENCRYPTION;
 	eth_broadcast_addr(param->sta_addr);
