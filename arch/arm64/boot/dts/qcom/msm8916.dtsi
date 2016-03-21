@@ -61,24 +61,33 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0>;
+			next-level-cache = <&L2_0>;
 		};
 
 		CPU1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x1>;
+			next-level-cache = <&L2_0>;
 		};
 
 		CPU2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x2>;
+			next-level-cache = <&L2_0>;
 		};
 
 		CPU3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x3>;
+			next-level-cache = <&L2_0>;
+		};
+
+		L2_0: l2-cache {
+		      compatible = "cache";
+		      cache-level = <2>;
 		};
 	};
 
@@ -134,7 +143,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		gcc: qcom,gcc@1800000 {
+		gcc: clock-controller@1800000 {
 			compatible = "qcom,gcc-msm8916";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
@@ -343,6 +352,32 @@
 			status = "disabled";
 		};
 
+		lpass: lpass@07708000 {
+			status = "disabled";
+			compatible = "qcom,lpass-cpu-apq8016";
+			clocks = <&gcc GCC_ULTAUDIO_AHBFABRIC_IXFABRIC_CLK>,
+				 <&gcc GCC_ULTAUDIO_PCNOC_MPORT_CLK>,
+				 <&gcc GCC_ULTAUDIO_PCNOC_SWAY_CLK>,
+				 <&gcc GCC_ULTAUDIO_LPAIF_PRI_I2S_CLK>,
+				 <&gcc GCC_ULTAUDIO_LPAIF_SEC_I2S_CLK>,
+				 <&gcc GCC_ULTAUDIO_LPAIF_SEC_I2S_CLK>,
+				 <&gcc GCC_ULTAUDIO_LPAIF_AUX_I2S_CLK>;
+
+			clock-names = "ahbix-clk",
+					"pcnoc-mport-clk",
+					"pcnoc-sway-clk",
+					"mi2s-bit-clk0",
+					"mi2s-bit-clk1",
+					"mi2s-bit-clk2",
+					"mi2s-bit-clk3";
+			#sound-dai-cells = <1>;
+
+			interrupts = <0 160 0>;
+			interrupt-names = "lpass-irq-lpaif";
+			reg = <0x07708000 0x10000>;
+			reg-names = "lpass-lpaif";
+		};
+
 		sdhc_1: sdhci@07824000 {
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0x07824900 0x11c>, <0x07824000 0x800>;
@@ -395,10 +430,11 @@
 			interrupts = <GIC_SPI 134 IRQ_TYPE_EDGE_BOTH>,
 				     <GIC_SPI 140 IRQ_TYPE_EDGE_RISING>;
 
-			qcom,vdd-levels = <1 5 7>;
+			qcom,vdd-levels = <500000 1000000 1320000>;
 			qcom,phy-init-sequence = <0x44 0x6B 0x24 0x13>;
 			dr_mode = "peripheral";
 			qcom,otg-control = <2>; // PMIC
+			qcom,manual-pullup;
 
 			clocks = <&gcc GCC_USB_HS_AHB_CLK>,
 				 <&gcc GCC_USB_HS_SYSTEM_CLK>,
@@ -515,11 +551,15 @@
 				compatible = "qcom,rpm-msm8916";
 				qcom,smd-channels = "rpm_requests";
 
-				pm8916-regulators {
+				rpmcc: qcom,rpmcc {
+					compatible = "qcom,rpmcc-msm8916", "qcom,rpmcc";
+					#clock-cells = <1>;
+				};
+
+				smd_rpm_regulators: pm8916-regulators {
 					compatible = "qcom,rpm-pm8916-regulators";
 
 					pm8916_s1: s1 {};
-					pm8916_s2: s2 {};
 					pm8916_s3: s3 {};
 					pm8916_s4: s4 {};
 

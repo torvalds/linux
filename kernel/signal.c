@@ -2709,6 +2709,10 @@ int copy_siginfo_to_user(siginfo_t __user *to, const siginfo_t *from)
 			err |= __put_user(from->si_upper, &to->si_upper);
 		}
 #endif
+#ifdef SEGV_PKUERR
+		if (from->si_signo == SIGSEGV && from->si_code == SEGV_PKUERR)
+			err |= __put_user(from->si_pkey, &to->si_pkey);
+#endif
 		break;
 	case __SI_CHLD:
 		err |= __put_user(from->si_pid, &to->si_pid);

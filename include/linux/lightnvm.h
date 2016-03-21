@@ -92,9 +92,9 @@ enum {
 	NVM_ADDRMODE_CHANNEL	= 1,
 
 	/* Plane programming mode for LUN */
-	NVM_PLANE_SINGLE	= 0,
-	NVM_PLANE_DOUBLE	= 1,
-	NVM_PLANE_QUAD		= 2,
+	NVM_PLANE_SINGLE	= 1,
+	NVM_PLANE_DOUBLE	= 2,
+	NVM_PLANE_QUAD		= 4,
 
 	/* Status codes */
 	NVM_RSP_SUCCESS		= 0x0,
@@ -341,8 +341,8 @@ struct nvm_dev {
 	int lps_per_blk;
 	int *lptbl;
 
-	unsigned long total_pages;
 	unsigned long total_blocks;
+	unsigned long total_secs;
 	int nr_luns;
 	unsigned max_pages_per_blk;
 

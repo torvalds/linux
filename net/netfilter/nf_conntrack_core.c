@@ -74,8 +74,7 @@ void nf_conntrack_lock(spinlock_t *lock) __acquires(lock)
 	spin_lock(lock);
 	while (unlikely(nf_conntrack_locks_all)) {
 		spin_unlock(lock);
-		spin_lock(&nf_conntrack_locks_all_lock);
-		spin_unlock(&nf_conntrack_locks_all_lock);
+		spin_unlock_wait(&nf_conntrack_locks_all_lock);
 		spin_lock(lock);
 	}
 }
@@ -121,8 +120,7 @@ static void nf_conntrack_all_lock(void)
 	nf_conntrack_locks_all = true;
 
 	for (i = 0; i < CONNTRACK_LOCKS; i++) {
-		spin_lock(&nf_conntrack_locks[i]);
-		spin_unlock(&nf_conntrack_locks[i]);
+		spin_unlock_wait(&nf_conntrack_locks[i]);
 	}
 }
 

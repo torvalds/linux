@@ -28,6 +28,8 @@
 
 #include <uapi/linux/netfilter_bridge.h> /* NF_BR_PRE_ROUTING */
 
+static DEFINE_PER_CPU(struct rnd_state, nft_prandom_state);
+
 void nft_meta_get_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
@@ -181,6 +183,11 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		*dest = sock_cgroup_classid(&sk->sk_cgrp_data);
 		break;
 #endif
+	case NFT_META_PRANDOM: {
+		struct rnd_state *state = this_cpu_ptr(&nft_prandom_state);
+		*dest = prandom_u32_state(state);
+		break;
+	}
 	default:
 		WARN_ON(1);
 		goto err;
@@ -276,6 +283,10 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 	case NFT_META_IIFNAME:
 	case NFT_META_OIFNAME:
 		len = IFNAMSIZ;
+		break;
+	case NFT_META_PRANDOM:
+		prandom_init_once(&nft_prandom_state);
+		len = sizeof(u32);
 		break;
 	default:
 		return -EOPNOTSUPP;

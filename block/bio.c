@@ -296,13 +296,19 @@ void bio_reset(struct bio *bio)
 }
 EXPORT_SYMBOL(bio_reset);
 
-static void bio_chain_endio(struct bio *bio)
+static struct bio *__bio_chain_endio(struct bio *bio)
 {
 	struct bio *parent = bio->bi_private;
 
-	parent->bi_error = bio->bi_error;
-	bio_endio(parent);
+	if (!parent->bi_error)
+		parent->bi_error = bio->bi_error;
 	bio_put(bio);
+	return parent;
+}
+
+static void bio_chain_endio(struct bio *bio)
+{
+	bio_endio(__bio_chain_endio(bio));
 }
 
 /*
@@ -1742,29 +1748,25 @@ static inline bool bio_remaining_done(struct bio *bio)
  **/
 void bio_endio(struct bio *bio)
 {
-	while (bio) {
-		if (unlikely(!bio_remaining_done(bio)))
-			break;
+again:
+	if (!bio_remaining_done(bio))
+		return;
 
-		/*
-		 * Need to have a real endio function for chained bios,
-		 * otherwise various corner cases will break (like stacking
-		 * block devices that save/restore bi_end_io) - however, we want
-		 * to avoid unbounded recursion and blowing the stack. Tail call
-		 * optimization would handle this, but compiling with frame
-		 * pointers also disables gcc's sibling call optimization.
-		 */
-		if (bio->bi_end_io == bio_chain_endio) {
-			struct bio *parent = bio->bi_private;
-			parent->bi_error = bio->bi_error;
-			bio_put(bio);
-			bio = parent;
-		} else {
-			if (bio->bi_end_io)
-				bio->bi_end_io(bio);
-			bio = NULL;
-		}
+	/*
+	 * Need to have a real endio function for chained bios, otherwise
+	 * various corner cases will break (like stacking block devices that
+	 * save/restore bi_end_io) - however, we want to avoid unbounded
+	 * recursion and blowing the stack. Tail call optimization would
+	 * handle this, but compiling with frame pointers also disables
+	 * gcc's sibling call optimization.
+	 */
+	if (bio->bi_end_io == bio_chain_endio) {
+		bio = __bio_chain_endio(bio);
+		goto again;
 	}
+
+	if (bio->bi_end_io)
+		bio->bi_end_io(bio);
 }
 EXPORT_SYMBOL(bio_endio);
 

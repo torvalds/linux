@@ -68,6 +68,8 @@ struct dp_stats_percpu {
  * ovs_mutex and RCU.
  * @stats_percpu: Per-CPU datapath statistics.
  * @net: Reference to net namespace.
+ * @max_headroom: the maximum headroom of all vports in this datapath; it will
+ * be used by all the internal vports in this dp.
  *
  * Context: See the comment on locking at the top of datapath.c for additional
  * locking information.
@@ -89,6 +91,8 @@ struct datapath {
 	possible_net_t net;
 
 	u32 user_features;
+
+	u32 max_headroom;
 };
 
 /**

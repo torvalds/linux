@@ -525,7 +525,8 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 		ts.tv_nsec = rq->perout.period.nsec;
 		ns = timespec64_to_ns(&ts);
 		ns = ns >> 1;
-		if (on && ns <= 70000000LL) {
+		if (on && ((ns <= 70000000LL) || (ns == 125000000LL) ||
+			   (ns == 250000000LL) || (ns == 500000000LL))) {
 			if (ns < 8LL)
 				return -EINVAL;
 			use_freq = 1;

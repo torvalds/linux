@@ -332,7 +332,6 @@ static int ip6_forward_proxy_check(struct sk_buff *skb)
 static inline int ip6_forward_finish(struct net *net, struct sock *sk,
 				     struct sk_buff *skb)
 {
-	skb_sender_cpu_clear(skb);
 	return dst_output(net, sk, skb);
 }
 

@@ -279,5 +279,5 @@ struct cgroup_subsys cpuacct_cgrp_subsys = {
 	.css_alloc	= cpuacct_css_alloc,
 	.css_free	= cpuacct_css_free,
 	.legacy_cftypes	= files,
-	.early_init	= 1,
+	.early_init	= true,
 };

@@ -2226,7 +2226,7 @@ static int process_responses(struct sge_rspq *q, int budget)
 		budget_left--;
 	}
 
-	if (q->offset >= 0 && rxq->fl.size - rxq->fl.avail >= 16)
+	if (q->offset >= 0 && fl_cap(&rxq->fl) - rxq->fl.avail >= 16)
 		__refill_fl(q->adap, &rxq->fl);
 	return budget - budget_left;
 }
@@ -2611,8 +2611,18 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 				htonl(FW_IQ_CMD_FL0CNGCHMAP_V(cong) |
 				      FW_IQ_CMD_FL0CONGCIF_F |
 				      FW_IQ_CMD_FL0CONGEN_F);
+		/* In T6, for egress queue type FL there is internal overhead
+		 * of 16B for header going into FLM module.  Hence the maximum
+		 * allowed burst size is 448 bytes.  For T4/T5, the hardware
+		 * doesn't coalesce fetch requests if more than 64 bytes of
+		 * Free List pointers are provided, so we use a 128-byte Fetch
+		 * Burst Minimum there (T6 implements coalescing so we can use
+		 * the smaller 64-byte value there).
+		 */
 		c.fl0dcaen_to_fl0cidxfthresh =
-			htons(FW_IQ_CMD_FL0FBMIN_V(FETCHBURSTMIN_64B_X) |
+			htons(FW_IQ_CMD_FL0FBMIN_V(chip <= CHELSIO_T5 ?
+						   FETCHBURSTMIN_128B_X :
+						   FETCHBURSTMIN_64B_X) |
 			      FW_IQ_CMD_FL0FBMAX_V((chip <= CHELSIO_T5) ?
 						   FETCHBURSTMAX_512B_X :
 						   FETCHBURSTMAX_256B_X));

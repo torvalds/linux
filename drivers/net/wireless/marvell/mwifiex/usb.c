@@ -244,9 +244,9 @@ setup_for_next:
 	if (card->rx_cmd_ep == context->ep) {
 		mwifiex_usb_submit_rx_urb(context, size);
 	} else {
-		if (atomic_read(&adapter->rx_pending) <= HIGH_RX_PENDING){
+		if (atomic_read(&adapter->rx_pending) <= HIGH_RX_PENDING) {
 			mwifiex_usb_submit_rx_urb(context, size);
-		}else{
+		} else {
 			context->skb = NULL;
 		}
 	}

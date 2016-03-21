@@ -250,6 +250,12 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	if (error)
 		goto out_destroy_freelist;
 
+	/*
+	 * Increase usage count temporarily here so that calling
+	 * scsi_autopm_put_host() will trigger runtime idle if there is
+	 * nothing else preventing suspending the device.
+	 */
+	pm_runtime_get_noresume(&shost->shost_gendev);
 	pm_runtime_set_active(&shost->shost_gendev);
 	pm_runtime_enable(&shost->shost_gendev);
 	device_enable_async_suspend(&shost->shost_gendev);
@@ -290,6 +296,7 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 		goto out_destroy_host;
 
 	scsi_proc_host_add(shost);
+	scsi_autopm_put_host(shost);
 	return error;
 
  out_destroy_host:

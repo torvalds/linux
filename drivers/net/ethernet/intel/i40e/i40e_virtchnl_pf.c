@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -461,7 +461,7 @@ static int i40e_config_vsi_rx_queue(struct i40e_vf *vf, u16 vsi_id,
 		rx_ctx.hbuff = info->hdr_size >> I40E_RXQ_CTX_HBUFF_SHIFT;
 
 		/* set splitalways mode 10b */
-		rx_ctx.dtype = 0x2;
+		rx_ctx.dtype = I40E_RX_DTYPE_HEADER_SPLIT;
 	}
 
 	/* databuffer length validation */
@@ -602,8 +602,8 @@ static void i40e_enable_vf_mappings(struct i40e_vf *vf)
 	 * that VF queues be mapped using this method, even when they are
 	 * contiguous in real life
 	 */
-	wr32(hw, I40E_VSILAN_QBASE(vf->lan_vsi_id),
-	     I40E_VSILAN_QBASE_VSIQTABLE_ENA_MASK);
+	i40e_write_rx_ctl(hw, I40E_VSILAN_QBASE(vf->lan_vsi_id),
+			  I40E_VSILAN_QBASE_VSIQTABLE_ENA_MASK);
 
 	/* enable VF vplan_qtable mappings */
 	reg = I40E_VPLAN_MAPENA_TXRX_ENA_MASK;
@@ -630,7 +630,8 @@ static void i40e_enable_vf_mappings(struct i40e_vf *vf)
 						      (j * 2) + 1);
 			reg |= qid << 16;
 		}
-		wr32(hw, I40E_VSILAN_QTABLE(j, vf->lan_vsi_id), reg);
+		i40e_write_rx_ctl(hw, I40E_VSILAN_QTABLE(j, vf->lan_vsi_id),
+				  reg);
 	}
 
 	i40e_flush(hw);
@@ -980,7 +981,7 @@ err_alloc:
 		i40e_free_vfs(pf);
 err_iov:
 	/* Re-enable interrupt 0. */
-	i40e_irq_dynamic_enable_icr0(pf);
+	i40e_irq_dynamic_enable_icr0(pf, false);
 	return ret;
 }
 
@@ -1213,8 +1214,20 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 		vfres->vf_offload_flags |= I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG;
 	}
 
+	if (pf->flags & I40E_FLAG_MULTIPLE_TCP_UDP_RSS_PCTYPE) {
+		if (vf->driver_caps & I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
+			vfres->vf_offload_flags |=
+				I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2;
+	}
+
 	if (vf->driver_caps & I40E_VIRTCHNL_VF_OFFLOAD_RX_POLLING)
 		vfres->vf_offload_flags |= I40E_VIRTCHNL_VF_OFFLOAD_RX_POLLING;
+
+	if (pf->flags & I40E_FLAG_WB_ON_ITR_CAPABLE) {
+		if (vf->driver_caps & I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
+			vfres->vf_offload_flags |=
+					I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR;
+	}
 
 	vfres->num_vsis = num_vsis;
 	vfres->num_queue_pairs = vf->num_queue_pairs;
@@ -2025,7 +2038,11 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 	if (!test_bit(__I40E_VFLR_EVENT_PENDING, &pf->state))
 		return 0;
 
-	/* re-enable vflr interrupt cause */
+	/* Re-enable the VFLR interrupt cause here, before looking for which
+	 * VF got reset. Otherwise, if another VF gets a reset while the
+	 * first one is being processed, that interrupt will be lost, and
+	 * that VF will be stuck in reset forever.
+	 */
 	reg = rd32(hw, I40E_PFINT_ICR0_ENA);
 	reg |= I40E_PFINT_ICR0_ENA_VFLR_MASK;
 	wr32(hw, I40E_PFINT_ICR0_ENA, reg);
@@ -2186,6 +2203,8 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
 		 * and then reloading the VF driver.
 		 */
 		i40e_vc_disable_vf(pf, vf);
+		/* During reset the VF got a new VSI, so refresh the pointer. */
+		vsi = pf->vsi[vf->lan_vsi_idx];
 	}
 
 	/* Check for condition where there was already a port VLAN ID
@@ -2293,6 +2312,9 @@ int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 	switch (pf->hw.phy.link_info.link_speed) {
 	case I40E_LINK_SPEED_40GB:
 		speed = 40000;
+		break;
+	case I40E_LINK_SPEED_20GB:
+		speed = 20000;
 		break;
 	case I40E_LINK_SPEED_10GB:
 		speed = 10000;

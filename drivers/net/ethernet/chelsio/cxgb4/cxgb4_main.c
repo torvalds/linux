@@ -338,56 +338,6 @@ void t4_os_portmod_changed(const struct adapter *adap, int port_id)
 		netdev_info(dev, "%s module inserted\n", mod_str[pi->mod_type]);
 }
 
-/*
- * Configure the exact and hash address filters to handle a port's multicast
- * and secondary unicast MAC addresses.
- */
-static int set_addr_filters(const struct net_device *dev, bool sleep)
-{
-	u64 mhash = 0;
-	u64 uhash = 0;
-	bool free = true;
-	u16 filt_idx[7];
-	const u8 *addr[7];
-	int ret, naddr = 0;
-	const struct netdev_hw_addr *ha;
-	int uc_cnt = netdev_uc_count(dev);
-	int mc_cnt = netdev_mc_count(dev);
-	const struct port_info *pi = netdev_priv(dev);
-	unsigned int mb = pi->adapter->pf;
-
-	/* first do the secondary unicast addresses */
-	netdev_for_each_uc_addr(ha, dev) {
-		addr[naddr++] = ha->addr;
-		if (--uc_cnt == 0 || naddr >= ARRAY_SIZE(addr)) {
-			ret = t4_alloc_mac_filt(pi->adapter, mb, pi->viid, free,
-					naddr, addr, filt_idx, &uhash, sleep);
-			if (ret < 0)
-				return ret;
-
-			free = false;
-			naddr = 0;
-		}
-	}
-
-	/* next set up the multicast addresses */
-	netdev_for_each_mc_addr(ha, dev) {
-		addr[naddr++] = ha->addr;
-		if (--mc_cnt == 0 || naddr >= ARRAY_SIZE(addr)) {
-			ret = t4_alloc_mac_filt(pi->adapter, mb, pi->viid, free,
-					naddr, addr, filt_idx, &mhash, sleep);
-			if (ret < 0)
-				return ret;
-
-			free = false;
-			naddr = 0;
-		}
-	}
-
-	return t4_set_addr_hash(pi->adapter, mb, pi->viid, uhash != 0,
-				uhash | mhash, sleep);
-}
-
 int dbfifo_int_thresh = 10; /* 10 == 640 entry threshold */
 module_param(dbfifo_int_thresh, int, 0644);
 MODULE_PARM_DESC(dbfifo_int_thresh, "doorbell fifo interrupt threshold");
@@ -400,22 +350,96 @@ module_param(dbfifo_drain_delay, int, 0644);
 MODULE_PARM_DESC(dbfifo_drain_delay,
 		 "usecs to sleep while draining the dbfifo");
 
+static inline int cxgb4_set_addr_hash(struct port_info *pi)
+{
+	struct adapter *adap = pi->adapter;
+	u64 vec = 0;
+	bool ucast = false;
+	struct hash_mac_addr *entry;
+
+	/* Calculate the hash vector for the updated list and program it */
+	list_for_each_entry(entry, &adap->mac_hlist, list) {
+		ucast |= is_unicast_ether_addr(entry->addr);
+		vec |= (1ULL << hash_mac_addr(entry->addr));
+	}
+	return t4_set_addr_hash(adap, adap->mbox, pi->viid, ucast,
+				vec, false);
+}
+
+static int cxgb4_mac_sync(struct net_device *netdev, const u8 *mac_addr)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adap = pi->adapter;
+	int ret;
+	u64 mhash = 0;
+	u64 uhash = 0;
+	bool free = false;
+	bool ucast = is_unicast_ether_addr(mac_addr);
+	const u8 *maclist[1] = {mac_addr};
+	struct hash_mac_addr *new_entry;
+
+	ret = t4_alloc_mac_filt(adap, adap->mbox, pi->viid, free, 1, maclist,
+				NULL, ucast ? &uhash : &mhash, false);
+	if (ret < 0)
+		goto out;
+	/* if hash != 0, then add the addr to hash addr list
+	 * so on the end we will calculate the hash for the
+	 * list and program it
+	 */
+	if (uhash || mhash) {
+		new_entry = kzalloc(sizeof(*new_entry), GFP_ATOMIC);
+		if (!new_entry)
+			return -ENOMEM;
+		ether_addr_copy(new_entry->addr, mac_addr);
+		list_add_tail(&new_entry->list, &adap->mac_hlist);
+		ret = cxgb4_set_addr_hash(pi);
+	}
+out:
+	return ret < 0 ? ret : 0;
+}
+
+static int cxgb4_mac_unsync(struct net_device *netdev, const u8 *mac_addr)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adap = pi->adapter;
+	int ret;
+	const u8 *maclist[1] = {mac_addr};
+	struct hash_mac_addr *entry, *tmp;
+
+	/* If the MAC address to be removed is in the hash addr
+	 * list, delete it from the list and update hash vector
+	 */
+	list_for_each_entry_safe(entry, tmp, &adap->mac_hlist, list) {
+		if (ether_addr_equal(entry->addr, mac_addr)) {
+			list_del(&entry->list);
+			kfree(entry);
+			return cxgb4_set_addr_hash(pi);
+		}
+	}
+
+	ret = t4_free_mac_filt(adap, adap->mbox, pi->viid, 1, maclist, false);
+	return ret < 0 ? -EINVAL : 0;
+}
+
 /*
  * Set Rx properties of a port, such as promiscruity, address filters, and MTU.
  * If @mtu is -1 it is left unchanged.
  */
 static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
 {
-	int ret;
 	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
 
-	ret = set_addr_filters(dev, sleep_ok);
-	if (ret == 0)
-		ret = t4_set_rxmode(pi->adapter, pi->adapter->pf, pi->viid, mtu,
-				    (dev->flags & IFF_PROMISC) ? 1 : 0,
-				    (dev->flags & IFF_ALLMULTI) ? 1 : 0, 1, -1,
-				    sleep_ok);
-	return ret;
+	if (!(dev->flags & IFF_PROMISC)) {
+		__dev_uc_sync(dev, cxgb4_mac_sync, cxgb4_mac_unsync);
+		if (!(dev->flags & IFF_ALLMULTI))
+			__dev_mc_sync(dev, cxgb4_mac_sync, cxgb4_mac_unsync);
+	}
+
+	return t4_set_rxmode(adapter, adapter->mbox, pi->viid, mtu,
+			     (dev->flags & IFF_PROMISC) ? 1 : 0,
+			     (dev->flags & IFF_ALLMULTI) ? 1 : 0, 1, -1,
+			     sleep_ok);
 }
 
 /**
@@ -2677,6 +2701,8 @@ static int cxgb_up(struct adapter *adap)
 #if IS_ENABLED(CONFIG_IPV6)
 	update_clip(adap);
 #endif
+	/* Initialize hash mac addr list*/
+	INIT_LIST_HEAD(&adap->mac_hlist);
  out:
 	return err;
  irq_err:

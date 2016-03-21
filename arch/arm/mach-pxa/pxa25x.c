@@ -206,7 +206,7 @@ static int __init pxa25x_init(void)
 		register_syscore_ops(&pxa_irq_syscore_ops);
 		register_syscore_ops(&pxa2xx_mfp_syscore_ops);
 
-		pxa2xx_set_dmac_info(16);
+		pxa2xx_set_dmac_info(16, 40);
 		pxa_register_device(&pxa25x_device_gpio, &pxa25x_gpio_info);
 		ret = platform_add_devices(pxa25x_devices,
 					   ARRAY_SIZE(pxa25x_devices));

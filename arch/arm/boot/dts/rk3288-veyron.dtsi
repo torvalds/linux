@@ -64,7 +64,7 @@
 			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			debounce-interval = <100>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -338,11 +338,6 @@
 	clock-frequency = <100000>;
 	i2c-scl-falling-time-ns = <300>;
 	i2c-scl-rising-time-ns = <1000>;
-};
-
-&power {
-	assigned-clocks = <&cru SCLK_EDP_24M>;
-	assigned-clock-parents = <&xin24m>;
 };
 
 &pwm1 {

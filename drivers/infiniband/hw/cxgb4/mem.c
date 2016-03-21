@@ -34,6 +34,7 @@
 #include <linux/moduleparam.h>
 #include <rdma/ib_umem.h>
 #include <linux/atomic.h>
+#include <rdma/ib_user_verbs.h>
 
 #include "iw_cxgb4.h"
 
@@ -552,7 +553,8 @@ err:
 	return ERR_PTR(err);
 }
 
-struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
+struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
+			    struct ib_udata *udata)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_pd *php;
@@ -617,12 +619,14 @@ struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
 	int ret = 0;
 	int length = roundup(max_num_sg * sizeof(u64), 32);
 
-	if (mr_type != IB_MR_TYPE_MEM_REG ||
-	    max_num_sg > t4_max_fr_depth(use_dsgl))
-		return ERR_PTR(-EINVAL);
-
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;
+
+	if (mr_type != IB_MR_TYPE_MEM_REG ||
+	    max_num_sg > t4_max_fr_depth(&rhp->rdev.lldi.ulptx_memwrite_dsgl &&
+					 use_dsgl))
+		return ERR_PTR(-EINVAL);
+
 	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
 	if (!mhp) {
 		ret = -ENOMEM;

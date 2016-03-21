@@ -311,8 +311,13 @@ static int mlxsw_sp_port_attr_br_ageing_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	unsigned long ageing_jiffies = clock_t_to_jiffies(ageing_clock_t);
 	u32 ageing_time = jiffies_to_msecs(ageing_jiffies) / 1000;
 
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
+	if (switchdev_trans_ph_prepare(trans)) {
+		if (ageing_time < MLXSW_SP_MIN_AGEING_TIME ||
+		    ageing_time > MLXSW_SP_MAX_AGEING_TIME)
+			return -ERANGE;
+		else
+			return 0;
+	}
 
 	return mlxsw_sp_ageing_set(mlxsw_sp, ageing_time);
 }

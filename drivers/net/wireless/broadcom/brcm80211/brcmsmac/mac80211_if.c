@@ -818,13 +818,15 @@ brcms_ops_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 static int
 brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 		    struct ieee80211_vif *vif,
-		    enum ieee80211_ampdu_mlme_action action,
-		    struct ieee80211_sta *sta, u16 tid, u16 *ssn,
-		    u8 buf_size, bool amsdu)
+		    struct ieee80211_ampdu_params *params)
 {
 	struct brcms_info *wl = hw->priv;
 	struct scb *scb = &wl->wlc->pri_scb;
 	int status;
+	struct ieee80211_sta *sta = params->sta;
+	enum ieee80211_ampdu_mlme_action action = params->action;
+	u16 tid = params->tid;
+	u8 buf_size = params->buf_size;
 
 	if (WARN_ON(scb->magic != SCB_MAGIC))
 		return -EIDRM;

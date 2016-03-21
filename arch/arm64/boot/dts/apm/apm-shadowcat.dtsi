@@ -224,7 +224,7 @@
 			};
 
 			socpll: socpll@17000120 {
-				compatible = "apm,xgene-socpll-clock";
+				compatible = "apm,xgene-socpll-v2-clock";
 				#clock-cells = <1>;
 				clocks = <&refclk 0>;
 				reg = <0x0 0x17000120 0x0 0x1000>;
@@ -453,6 +453,25 @@
 			};
 		};
 
+		mailbox: mailbox@10540000 {
+			compatible = "apm,xgene-slimpro-mbox";
+			reg = <0x0 0x10540000 0x0 0x8000>;
+			#mbox-cells = <1>;
+			interrupts =   <0x0 0x0 0x4
+					0x0 0x1 0x4
+					0x0 0x2 0x4
+					0x0 0x3 0x4
+					0x0 0x4 0x4
+					0x0 0x5 0x4
+					0x0 0x6 0x4
+					0x0 0x7 0x4>;
+		};
+
+		i2cslimpro {
+			compatible = "apm,xgene-slimpro-i2c";
+			mboxes = <&mailbox 0>;
+		};
+
 		serial0: serial@10600000 {
 			device_type = "serial";
 			compatible = "ns16550";
@@ -598,6 +617,12 @@
 				     <0x0 0x2d 0x1>,
 				     <0x0 0x2e 0x1>,
 				     <0x0 0x2f 0x1>;
+			interrupt-parent = <&gic>;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			apm,nr-gpios = <22>;
+			apm,nr-irqs = <8>;
+			apm,irq-start = <8>;
 		};
 
 		sgenet0: ethernet@1f610000 {
@@ -621,7 +646,13 @@
 			      <0x0 0x1f600000 0x0 0Xd100>,
 			      <0x0 0x20000000 0x0 0X220000>;
 			interrupts = <0 108 4>,
-				     <0 109 4>;
+				     <0 109 4>,
+				     <0 110 4>,
+				     <0 111 4>,
+				     <0 112 4>,
+				     <0 113 4>,
+				     <0 114 4>,
+				     <0 115 4>;
 			port-id = <1>;
 			dma-coherent;
 			clocks = <&xge1clk 0>;

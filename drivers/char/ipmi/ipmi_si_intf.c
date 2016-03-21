@@ -849,7 +849,7 @@ static enum si_sm_result smi_event_handler(struct smi_info *smi_info,
 		smi_inc_stat(smi_info, complete_transactions);
 
 		handle_transaction_done(smi_info);
-		si_sm_result = smi_info->handlers->event(smi_info->si_sm, 0);
+		goto restart;
 	} else if (si_sm_result == SI_SM_HOSED) {
 		smi_inc_stat(smi_info, hosed_count);
 
@@ -866,7 +866,7 @@ static enum si_sm_result smi_event_handler(struct smi_info *smi_info,
 			 */
 			return_hosed_msg(smi_info, IPMI_ERR_UNSPECIFIED);
 		}
-		si_sm_result = smi_info->handlers->event(smi_info->si_sm, 0);
+		goto restart;
 	}
 
 	/*
@@ -1363,12 +1363,12 @@ MODULE_PARM_DESC(trydmi, "Setting this to zero will disable the"
 		 " default scan of the interfaces identified via DMI");
 #endif
 module_param_named(tryplatform, si_tryplatform, bool, 0);
-MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the"
+MODULE_PARM_DESC(tryplatform, "Setting this to zero will disable the"
 		 " default scan of the interfaces identified via platform"
 		 " interfaces like openfirmware");
 #ifdef CONFIG_PCI
 module_param_named(trypci, si_trypci, bool, 0);
-MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the"
+MODULE_PARM_DESC(trypci, "Setting this to zero will disable the"
 		 " default scan of the interfaces identified via pci");
 #endif
 module_param_named(trydefaults, si_trydefaults, bool, 0);
@@ -2689,6 +2689,9 @@ static int acpi_ipmi_probe(struct platform_device *dev)
 	acpi_status status;
 	unsigned long long tmp;
 	int rv = -EINVAL;
+
+	if (!si_tryacpi)
+	       return 0;
 
 	handle = ACPI_HANDLE(&dev->dev);
 	if (!handle)

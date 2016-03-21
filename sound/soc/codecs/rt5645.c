@@ -1674,7 +1674,7 @@ static void hp_amp_power(struct snd_soc_codec *codec, int on)
 				regmap_write(rt5645->regmap, RT5645_PR_BASE +
 					RT5645_MAMP_INT_REG2, 0xfc00);
 				snd_soc_write(codec, RT5645_DEPOP_M2, 0x1140);
-				msleep(70);
+				msleep(90);
 				rt5645->hp_on = true;
 			} else {
 				/* depop parameters */
@@ -3029,13 +3029,18 @@ static int rt5645_set_bias_level(struct snd_soc_codec *codec,
 			RT5645_PWR_BG | RT5645_PWR_VREF2,
 			RT5645_PWR_VREF1 | RT5645_PWR_MB |
 			RT5645_PWR_BG | RT5645_PWR_VREF2);
+		mdelay(10);
 		snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
 			RT5645_PWR_FV1 | RT5645_PWR_FV2,
 			RT5645_PWR_FV1 | RT5645_PWR_FV2);
-		if (rt5645->en_button_func &&
-			snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
-			queue_delayed_work(system_power_efficient_wq,
-				&rt5645->jack_detect_work, msecs_to_jiffies(0));
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+			snd_soc_write(codec, RT5645_DEPOP_M2, 0x1140);
+			msleep(40);
+			if (rt5645->en_button_func)
+				queue_delayed_work(system_power_efficient_wq,
+					&rt5645->jack_detect_work,
+					msecs_to_jiffies(0));
+		}
 		break;
 
 	case SND_SOC_BIAS_OFF:

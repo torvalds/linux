@@ -51,6 +51,7 @@ struct factory_config {
 
 static struct factory_config factory_config;
 
+#ifdef CONFIG_CPU_FREQ
 struct part_no_info {
 	const char	*part_no;	/* part number string of interest */
 	int		max_freq;	/* khz */
@@ -87,7 +88,6 @@ static struct part_no_info mityomapl138_pn_info[] = {
 	},
 };
 
-#ifdef CONFIG_CPU_FREQ
 static void mityomapl138_cpufreq_init(const char *partnum)
 {
 	int i, ret;

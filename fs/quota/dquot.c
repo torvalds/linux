@@ -2430,9 +2430,7 @@ int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
 	struct dentry *dentry;
 	int error;
 
-	inode_lock(d_inode(sb->s_root));
-	dentry = lookup_one_len(qf_name, sb->s_root, strlen(qf_name));
-	inode_unlock(d_inode(sb->s_root));
+	dentry = lookup_one_len_unlocked(qf_name, sb->s_root, strlen(qf_name));
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 

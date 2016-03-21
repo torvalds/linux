@@ -6106,9 +6106,10 @@ static int sctp_getsockopt(struct sock *sk, int level, int optname,
 	return retval;
 }
 
-static void sctp_hash(struct sock *sk)
+static int sctp_hash(struct sock *sk)
 {
 	/* STUB */
+	return 0;
 }
 
 static void sctp_unhash(struct sock *sk)
@@ -7253,14 +7254,12 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	/* Hook this new socket in to the bind_hash list. */
 	head = &sctp_port_hashtable[sctp_phashfn(sock_net(oldsk),
 						 inet_sk(oldsk)->inet_num)];
-	local_bh_disable();
-	spin_lock(&head->lock);
+	spin_lock_bh(&head->lock);
 	pp = sctp_sk(oldsk)->bind_hash;
 	sk_add_bind_node(newsk, &pp->owner);
 	sctp_sk(newsk)->bind_hash = pp;
 	inet_sk(newsk)->inet_num = inet_sk(oldsk)->inet_num;
-	spin_unlock(&head->lock);
-	local_bh_enable();
+	spin_unlock_bh(&head->lock);
 
 	/* Copy the bind_addr list from the original endpoint to the new
 	 * endpoint so that we can handle restarts properly
