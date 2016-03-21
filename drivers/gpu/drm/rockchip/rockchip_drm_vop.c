@@ -816,38 +816,6 @@ static const struct drm_plane_funcs vop_plane_funcs = {
 	.atomic_destroy_state = vop_atomic_plane_destroy_state,
 };
 
-int rockchip_drm_crtc_mode_config(struct drm_crtc *crtc,
-				  int connector_type,
-				  int out_mode)
-{
-	struct vop *vop = to_vop(crtc);
-
-	if (WARN_ON(!vop->is_enabled))
-		return -EINVAL;
-
-	switch (connector_type) {
-	case DRM_MODE_CONNECTOR_LVDS:
-		VOP_CTRL_SET(vop, rgb_en, 1);
-		break;
-	case DRM_MODE_CONNECTOR_eDP:
-		VOP_CTRL_SET(vop, edp_en, 1);
-		break;
-	case DRM_MODE_CONNECTOR_HDMIA:
-		VOP_CTRL_SET(vop, hdmi_en, 1);
-		break;
-	case DRM_MODE_CONNECTOR_DSI:
-		VOP_CTRL_SET(vop, mipi_en, 1);
-		break;
-	default:
-		DRM_ERROR("unsupport connector_type[%d]\n", connector_type);
-		return -EINVAL;
-	};
-	VOP_CTRL_SET(vop, out_mode, out_mode);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rockchip_drm_crtc_mode_config);
-
 static int vop_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
@@ -941,6 +909,8 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	u16 vact_st = adjusted_mode->vtotal - adjusted_mode->vsync_start;
 	u16 vact_end = vact_st + vdisplay;
 	uint32_t val;
+	int type = ROCKCHIP_OUT_MODE_TYPE(adjusted_mode->private_flags);
+	int out_mode = ROCKCHIP_OUT_MODE(adjusted_mode->private_flags);
 
 	vop_enable(crtc);
 	/*
@@ -983,6 +953,23 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : 1;
 	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? 0 : (1 << 1);
 	VOP_CTRL_SET(vop, pin_pol, val);
+	switch(type) {
+	case DRM_MODE_CONNECTOR_LVDS:
+		VOP_CTRL_SET(vop, rgb_en, 1);
+		break;
+	case DRM_MODE_CONNECTOR_eDP:
+		VOP_CTRL_SET(vop, edp_en, 1);
+		break;
+	case DRM_MODE_CONNECTOR_HDMIA:
+		VOP_CTRL_SET(vop, hdmi_en, 1);
+		break;
+	case DRM_MODE_CONNECTOR_DSI:
+		VOP_CTRL_SET(vop, mipi_en, 1);
+		break;
+	default:
+		DRM_ERROR("unsupport connector_type[%d]\n", type);
+	}
+	VOP_CTRL_SET(vop, out_mode, out_mode);
 
 	VOP_CTRL_SET(vop, htotal_pw, (htotal << 16) | hsync_len);
 	val = hact_st << 16;

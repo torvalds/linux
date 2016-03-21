@@ -186,6 +186,8 @@ dw_hdmi_rockchip_encoder_mode_fixup(struct drm_encoder *encoder,
 				    const struct drm_display_mode *mode,
 				    struct drm_display_mode *adj_mode)
 {
+	adj_mode->private_flags = ROCKCHIP_DSP_MODE(HDMIA, AAAA);
+
 	return true;
 }
 
@@ -200,9 +202,6 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
 	u32 val;
 	int mux;
-
-	rockchip_drm_crtc_mode_config(encoder->crtc, DRM_MODE_CONNECTOR_HDMIA,
-				      ROCKCHIP_OUT_MODE_AAAA);
 
 	mux = rockchip_drm_encoder_get_mux_id(hdmi->dev->of_node, encoder);
 	if (mux)

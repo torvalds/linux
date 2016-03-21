@@ -183,6 +183,12 @@ struct vop_data {
 /* for use special outface */
 #define ROCKCHIP_OUT_MODE_AAAA	15
 
+#define ROCKCHIP_OUT_MODE_TYPE(x)	((x) >> 16)
+#define ROCKCHIP_OUT_MODE(x)		((x) & 0xffff)
+#define ROCKCHIP_DSP_MODE(type, mode) \
+		(DRM_MODE_CONNECTOR_##type << 16) | \
+		(ROCKCHIP_OUT_MODE_##mode & 0xffff)
+
 enum alpha_mode {
 	ALPHA_STRAIGHT,
 	ALPHA_INVERSE,

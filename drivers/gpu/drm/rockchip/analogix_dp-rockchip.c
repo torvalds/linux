@@ -97,6 +97,21 @@ rockchip_dp_drm_encoder_mode_fixup(struct drm_encoder *encoder,
 				   const struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
+	/*
+	 * FIXME(Yakir): driver should configure the CRTC output video
+	 * mode with the display information which indicated the monitor
+	 * support colorimetry.
+	 *
+	 * But don't know why the CRTC driver seems could only output the
+	 * RGBaaa rightly. For example, if connect the "innolux,n116bge"
+	 * eDP screen, EDID would indicated that screen only accepted the
+	 * 6bpc mode. But if I configure CRTC to RGB666 output, then eDP
+	 * screen would show a blue picture (RGB888 show a green picture).
+	 * But if I configure CTRC to RGBaaa, and eDP driver still keep
+	 * RGB666 input video mode, then screen would works prefect.
+	 */
+	adjusted_mode->private_flags = ROCKCHIP_DSP_MODE(eDP, AAAA);
+
 	/* do nothing */
 	return true;
 }
@@ -113,27 +128,6 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder)
 	struct rockchip_dp_device *dp = to_dp(encoder);
 	int ret;
 	u32 val;
-
-	/*
-	 * FIXME(Yakir): driver should configure the CRTC output video
-	 * mode with the display information which indicated the monitor
-	 * support colorimetry.
-	 *
-	 * But don't know why the CRTC driver seems could only output the
-	 * RGBaaa rightly. For example, if connect the "innolux,n116bge"
-	 * eDP screen, EDID would indicated that screen only accepted the
-	 * 6bpc mode. But if I configure CRTC to RGB666 output, then eDP
-	 * screen would show a blue picture (RGB888 show a green picture).
-	 * But if I configure CTRC to RGBaaa, and eDP driver still keep
-	 * RGB666 input video mode, then screen would works prefect.
-	 */
-	ret = rockchip_drm_crtc_mode_config(encoder->crtc,
-					    DRM_MODE_CONNECTOR_eDP,
-					    ROCKCHIP_OUT_MODE_AAAA);
-	if (ret < 0) {
-		dev_err(dp->dev, "Could not set crtc mode config (%d)\n", ret);
-		return;
-	}
 
 	ret = rockchip_drm_encoder_get_mux_id(dp->dev->of_node, encoder);
 	if (ret < 0)
