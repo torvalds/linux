@@ -333,7 +333,8 @@ static int ade7753_set_irq(struct device *dev, bool enable)
 
 	if (enable)
 		irqen |= BIT(3); /* Enables an interrupt when a data is
-				    present in the waveform register */
+				  * present in the waveform register
+				  */
 	else
 		irqen &= ~BIT(3);
 

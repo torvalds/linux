@@ -351,7 +351,8 @@ static int ade7754_set_irq(struct device *dev, bool enable)
 
 	if (enable)
 		irqen |= BIT(14); /* Enables an interrupt when a data is
-				     present in the waveform register */
+				   * present in the waveform register
+				   */
 	else
 		irqen &= ~BIT(14);
 

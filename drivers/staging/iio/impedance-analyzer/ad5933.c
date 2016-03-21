@@ -691,8 +691,9 @@ static void ad5933_work(struct work_struct *work)
 	}
 
 	if (status & AD5933_STAT_SWEEP_DONE) {
-		/* last sample received - power down do nothing until
-		 * the ring enable is toggled */
+		/* last sample received - power down do
+		 * nothing until the ring enable is toggled
+		 */
 		ad5933_cmd(st, AD5933_CTRL_POWER_DOWN);
 	} else {
 		/* we just received a valid datum, move on to the next */
