@@ -8693,10 +8693,9 @@ static bool ironlake_needs_fb_cb_tune(struct dpll *dpll, int factor)
 	return i9xx_dpll_compute_m(dpll) < factor * dpll->n;
 }
 
-static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
-				      struct intel_crtc_state *crtc_state,
-				      u32 *fp,
-				      intel_clock_t *reduced_clock, u32 *fp2)
+static void ironlake_compute_dpll(struct intel_crtc *intel_crtc,
+				  struct intel_crtc_state *crtc_state,
+				  intel_clock_t *reduced_clock)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
 	struct drm_device *dev = crtc->dev;
@@ -8705,7 +8704,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
 	struct intel_encoder *encoder;
-	uint32_t dpll;
+	u32 dpll, fp, fp2;
 	int factor, i;
 	bool is_lvds = false, is_sdvo = false;
 
@@ -8738,11 +8737,19 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	} else if (crtc_state->sdvo_tv_clock)
 		factor = 20;
 
-	if (ironlake_needs_fb_cb_tune(&crtc_state->dpll, factor))
-		*fp |= FP_CB_TUNE;
+	fp = i9xx_dpll_compute_fp(&crtc_state->dpll);
 
-	if (fp2 && (reduced_clock->m < factor * reduced_clock->n))
-		*fp2 |= FP_CB_TUNE;
+	if (ironlake_needs_fb_cb_tune(&crtc_state->dpll, factor))
+		fp |= FP_CB_TUNE;
+
+	if (reduced_clock) {
+		fp2 = i9xx_dpll_compute_fp(reduced_clock);
+
+		if (reduced_clock->m < factor * reduced_clock->n)
+			fp2 |= FP_CB_TUNE;
+	} else {
+		fp2 = fp;
+	}
 
 	dpll = 0;
 
@@ -8784,14 +8791,17 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
 
-	return dpll | DPLL_VCO_ENABLE;
+	dpll |= DPLL_VCO_ENABLE;
+
+	crtc_state->dpll_hw_state.dpll = dpll;
+	crtc_state->dpll_hw_state.fp0 = fp;
+	crtc_state->dpll_hw_state.fp1 = fp2;
 }
 
 static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 				       struct intel_crtc_state *crtc_state)
 {
 	intel_clock_t reduced_clock;
-	u32 dpll = 0, fp = 0, fp2 = 0;
 	bool has_reduced_clock = false;
 	struct intel_shared_dpll *pll;
 
@@ -8813,19 +8823,8 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 		return -EINVAL;
 	}
 
-	fp = i9xx_dpll_compute_fp(&crtc_state->dpll);
-	if (has_reduced_clock)
-		fp2 = i9xx_dpll_compute_fp(&reduced_clock);
-	else
-		fp2 = fp;
-
-	dpll = ironlake_compute_dpll(crtc, crtc_state,
-				     &fp, &reduced_clock,
-				     has_reduced_clock ? &fp2 : NULL);
-
-	crtc_state->dpll_hw_state.dpll = dpll;
-	crtc_state->dpll_hw_state.fp0 = fp;
-	crtc_state->dpll_hw_state.fp1 = fp2;
+	ironlake_compute_dpll(crtc, crtc_state,
+			      has_reduced_clock ? &reduced_clock : NULL);
 
 	pll = intel_get_shared_dpll(crtc, crtc_state, NULL);
 	if (pll == NULL) {
