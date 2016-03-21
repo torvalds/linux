@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/regulator/consumer.h>
 
 #include <video/omapdss.h>
 #include <video/omap-panel-data.h>
@@ -32,6 +33,7 @@ struct panel_drv_data {
 	int backlight_gpio;
 
 	struct gpio_desc *enable_gpio;
+	struct regulator *vcc_supply;
 };
 
 #define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)
@@ -83,6 +85,12 @@ static int panel_dpi_enable(struct omap_dss_device *dssdev)
 	if (r)
 		return r;
 
+	r = regulator_enable(ddata->vcc_supply);
+	if (r) {
+		in->ops.dpi->disable(in);
+		return r;
+	}
+
 	gpiod_set_value_cansleep(ddata->enable_gpio, 1);
 
 	if (gpio_is_valid(ddata->backlight_gpio))
@@ -105,6 +113,7 @@ static void panel_dpi_disable(struct omap_dss_device *dssdev)
 		gpio_set_value_cansleep(ddata->backlight_gpio, 0);
 
 	gpiod_set_value_cansleep(ddata->enable_gpio, 0);
+	regulator_disable(ddata->vcc_supply);
 
 	in->ops.dpi->disable(in);
 
@@ -222,6 +231,10 @@ static int panel_dpi_probe_of(struct platform_device *pdev)
 	gpio = devm_gpiod_get_optional(&pdev->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(gpio))
 		return PTR_ERR(gpio);
+
+	ddata->vcc_supply = devm_regulator_get(&pdev->dev, "vcc");
+	if (IS_ERR(ddata->vcc_supply))
+		return PTR_ERR(ddata->vcc_supply);
 
 	ddata->backlight_gpio = -ENOENT;
 
