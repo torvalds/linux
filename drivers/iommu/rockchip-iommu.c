@@ -1049,6 +1049,8 @@ static int rk_iommu_probe(struct platform_device *pdev)
 
 	for (i = 0; i < pdev->num_resources; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		if (!res)
+			continue;
 		iommu->bases[i] = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(iommu->bases[i]))
 			continue;
