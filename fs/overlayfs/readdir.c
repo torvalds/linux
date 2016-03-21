@@ -36,7 +36,7 @@ struct ovl_dir_cache {
 
 struct ovl_readdir_data {
 	struct dir_context ctx;
-	bool is_merge;
+	bool is_lowest;
 	struct rb_root root;
 	struct list_head *list;
 	struct list_head middle;
@@ -140,9 +140,9 @@ static int ovl_cache_entry_add_rb(struct ovl_readdir_data *rdd,
 	return 0;
 }
 
-static int ovl_fill_lower(struct ovl_readdir_data *rdd,
-			  const char *name, int namelen,
-			  loff_t offset, u64 ino, unsigned int d_type)
+static int ovl_fill_lowest(struct ovl_readdir_data *rdd,
+			   const char *name, int namelen,
+			   loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct ovl_cache_entry *p;
 
@@ -194,10 +194,10 @@ static int ovl_fill_merge(struct dir_context *ctx, const char *name,
 		container_of(ctx, struct ovl_readdir_data, ctx);
 
 	rdd->count++;
-	if (!rdd->is_merge)
+	if (!rdd->is_lowest)
 		return ovl_cache_entry_add_rb(rdd, name, namelen, ino, d_type);
 	else
-		return ovl_fill_lower(rdd, name, namelen, offset, ino, d_type);
+		return ovl_fill_lowest(rdd, name, namelen, offset, ino, d_type);
 }
 
 static int ovl_check_whiteouts(struct dentry *dir, struct ovl_readdir_data *rdd)
@@ -290,7 +290,7 @@ static int ovl_dir_read_merged(struct dentry *dentry, struct list_head *list)
 		.ctx.actor = ovl_fill_merge,
 		.list = list,
 		.root = RB_ROOT,
-		.is_merge = false,
+		.is_lowest = false,
 	};
 	int idx, next;
 
@@ -307,7 +307,7 @@ static int ovl_dir_read_merged(struct dentry *dentry, struct list_head *list)
 			 * allows offsets to be reasonably constant
 			 */
 			list_add(&rdd.middle, rdd.list);
-			rdd.is_merge = true;
+			rdd.is_lowest = true;
 			err = ovl_dir_read(&realpath, &rdd);
 			list_del(&rdd.middle);
 		}
