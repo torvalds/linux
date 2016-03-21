@@ -622,8 +622,9 @@ static ssize_t altr_edac_device_trig(struct file *file,
 		if (ACCESS_ONCE(ptemp[i]))
 			result = -1;
 		/* Toggle Error bit (it is latched), leave ECC enabled */
-		writel(error_mask, drvdata->base);
-		writel(priv->ecc_enable_mask, drvdata->base);
+		writel(error_mask, (drvdata->base + priv->set_err_ofst));
+		writel(priv->ecc_enable_mask, (drvdata->base +
+					       priv->set_err_ofst));
 		ptemp[i] = i;
 	}
 	/* Ensure it has been written out */
@@ -879,6 +880,7 @@ const struct edac_device_prv_data ocramecc_data = {
 	.ecc_enable_mask = ALTR_OCR_ECC_EN,
 	.ce_set_mask = (ALTR_OCR_ECC_EN | ALTR_OCR_ECC_INJS),
 	.ue_set_mask = (ALTR_OCR_ECC_EN | ALTR_OCR_ECC_INJD),
+	.set_err_ofst = ALTR_OCR_ECC_REG_OFFSET,
 	.trig_alloc_sz = ALTR_TRIG_OCRAM_BYTE_SIZE,
 };
 
@@ -949,6 +951,7 @@ const struct edac_device_prv_data l2ecc_data = {
 	.ecc_enable_mask = ALTR_L2_ECC_EN,
 	.ce_set_mask = (ALTR_L2_ECC_EN | ALTR_L2_ECC_INJS),
 	.ue_set_mask = (ALTR_L2_ECC_EN | ALTR_L2_ECC_INJD),
+	.set_err_ofst = ALTR_L2_ECC_REG_OFFSET,
 	.trig_alloc_sz = ALTR_TRIG_L2C_BYTE_SIZE,
 };
 

@@ -205,6 +205,7 @@ struct altr_sdram_mc_data {
 /******* Cyclone5 and Arria5 Defines *******/
 /* OCRAM ECC Management Group Defines */
 #define ALTR_MAN_GRP_OCRAM_ECC_OFFSET   0x04
+#define ALTR_OCR_ECC_REG_OFFSET         0x00
 #define ALTR_OCR_ECC_EN                 BIT(0)
 #define ALTR_OCR_ECC_INJS               BIT(1)
 #define ALTR_OCR_ECC_INJD               BIT(2)
@@ -213,6 +214,7 @@ struct altr_sdram_mc_data {
 
 /* L2 ECC Management Group Defines */
 #define ALTR_MAN_GRP_L2_ECC_OFFSET      0x00
+#define ALTR_L2_ECC_REG_OFFSET          0x00
 #define ALTR_L2_ECC_EN                  BIT(0)
 #define ALTR_L2_ECC_INJS                BIT(1)
 #define ALTR_L2_ECC_INJD                BIT(2)
@@ -229,6 +231,7 @@ struct edac_device_prv_data {
 	int ecc_enable_mask;
 	int ce_set_mask;
 	int ue_set_mask;
+	int set_err_ofst;
 	int trig_alloc_sz;
 };
 
