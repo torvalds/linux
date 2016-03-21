@@ -278,7 +278,7 @@ struct vsp1_dl *vsp1_dl_create(struct vsp1_device *vsp1)
 	dl->vsp1 = vsp1;
 	dl->size = VSP1_DL_BODY_SIZE * ARRAY_SIZE(dl->lists.all);
 
-	dl->mem = dma_alloc_writecombine(vsp1->dev, dl->size, &dl->dma,
+	dl->mem = dma_alloc_wc(vsp1->dev, dl->size, &dl->dma,
 					 GFP_KERNEL);
 	if (!dl->mem) {
 		kfree(dl);
@@ -300,6 +300,6 @@ struct vsp1_dl *vsp1_dl_create(struct vsp1_device *vsp1)
 
 void vsp1_dl_destroy(struct vsp1_dl *dl)
 {
-	dma_free_writecombine(dl->vsp1->dev, dl->size, dl->mem, dl->dma);
+	dma_free_wc(dl->vsp1->dev, dl->size, dl->mem, dl->dma);
 	kfree(dl);
 }
