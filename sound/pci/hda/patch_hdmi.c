@@ -154,7 +154,6 @@ struct hdmi_spec {
 	/* i915/powerwell (Haswell+/Valleyview+) specific */
 	bool use_acomp_notifier; /* use i915 eld_notify callback for hotplug */
 	struct i915_audio_component_audio_ops i915_audio_ops;
-	bool i915_bound; /* was i915 bound in this driver? */
 
 	struct hdac_chmap chmap;
 };
@@ -2074,6 +2073,18 @@ static void hdmi_array_free(struct hdmi_spec *spec)
 	snd_array_free(&spec->cvts);
 }
 
+static void generic_spec_free(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec = codec->spec;
+
+	if (spec) {
+		hdmi_array_free(spec);
+		kfree(spec);
+		codec->spec = NULL;
+	}
+	codec->dp_mst = false;
+}
+
 static void generic_hdmi_free(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -2098,10 +2109,7 @@ static void generic_hdmi_free(struct hda_codec *codec)
 			spec->pcm_rec[pcm_idx].jack = NULL;
 	}
 
-	if (spec->i915_bound)
-		snd_hdac_i915_exit(&codec->bus->core);
-	hdmi_array_free(spec);
-	kfree(spec);
+	generic_spec_free(codec);
 }
 
 #ifdef CONFIG_PM
@@ -2138,6 +2146,54 @@ static const struct hdmi_ops generic_standard_hdmi_ops = {
 	.pin_hbr_setup				= hdmi_pin_hbr_setup,
 	.setup_stream				= hdmi_setup_stream,
 };
+
+/* allocate codec->spec and assign/initialize generic parser ops */
+static int alloc_generic_hdmi(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec;
+
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+
+	spec->ops = generic_standard_hdmi_ops;
+	mutex_init(&spec->pcm_lock);
+	snd_hdac_register_chmap_ops(&codec->core, &spec->chmap);
+
+	spec->chmap.ops.get_chmap = hdmi_get_chmap;
+	spec->chmap.ops.set_chmap = hdmi_set_chmap;
+	spec->chmap.ops.is_pcm_attached = is_hdmi_pcm_attached;
+
+	codec->spec = spec;
+	hdmi_array_init(spec, 4);
+
+	codec->patch_ops = generic_hdmi_patch_ops;
+
+	return 0;
+}
+
+/* generic HDMI parser */
+static int patch_generic_hdmi(struct hda_codec *codec)
+{
+	int err;
+
+	err = alloc_generic_hdmi(codec);
+	if (err < 0)
+		return err;
+
+	err = hdmi_parse_codec(codec);
+	if (err < 0) {
+		generic_spec_free(codec);
+		return err;
+	}
+
+	generic_hdmi_init_per_pins(codec);
+	return 0;
+}
+
+/*
+ * Intel codec parsers and helpers
+ */
 
 static void intel_haswell_fixup_connect_list(struct hda_codec *codec,
 					     hda_nid_t nid)
@@ -2234,92 +2290,96 @@ static void intel_pin_eld_notify(void *audio_ptr, int port)
 	check_presence_and_report(codec, pin_nid);
 }
 
-static int patch_generic_hdmi(struct hda_codec *codec)
+/* register i915 component pin_eld_notify callback */
+static void register_i915_notifier(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec = codec->spec;
+
+	spec->use_acomp_notifier = true;
+	spec->i915_audio_ops.audio_ptr = codec;
+	/* intel_audio_codec_enable() or intel_audio_codec_disable()
+	 * will call pin_eld_notify with using audio_ptr pointer
+	 * We need make sure audio_ptr is really setup
+	 */
+	wmb();
+	spec->i915_audio_ops.pin_eld_notify = intel_pin_eld_notify;
+	snd_hdac_i915_register_notifier(&spec->i915_audio_ops);
+}
+
+/* Intel Haswell and onwards; audio component with eld notifier */
+static int patch_i915_hsw_hdmi(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec;
+	int err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
-
-	spec->ops = generic_standard_hdmi_ops;
-	mutex_init(&spec->pcm_lock);
-	snd_hdac_register_chmap_ops(&codec->core, &spec->chmap);
-
-	spec->chmap.ops.get_chmap = hdmi_get_chmap;
-	spec->chmap.ops.set_chmap = hdmi_set_chmap;
-	spec->chmap.ops.is_pcm_attached = is_hdmi_pcm_attached;
-
-	codec->spec = spec;
-	hdmi_array_init(spec, 4);
-
-#ifdef CONFIG_SND_HDA_I915
-	/* Try to bind with i915 for Intel HSW+ codecs (if not done yet) */
-	if ((codec->core.vendor_id >> 16) == 0x8086 &&
-	    is_haswell_plus(codec)) {
-#if 0
-		/* on-demand binding leads to an unbalanced refcount when
-		 * both i915 and hda drivers are probed concurrently;
-		 * disabled temporarily for now
-		 */
-		if (!codec->bus->core.audio_component)
-			if (!snd_hdac_i915_init(&codec->bus->core))
-				spec->i915_bound = true;
-#endif
-		/* use i915 audio component notifier for hotplug */
-		if (codec->bus->core.audio_component)
-			spec->use_acomp_notifier = true;
+	/* HSW+ requires i915 binding */
+	if (!codec->bus->core.audio_component) {
+		codec_info(codec, "No i915 binding for Intel HDMI/DP codec\n");
+		return -ENODEV;
 	}
-#endif
 
-	if (is_haswell_plus(codec)) {
-		intel_haswell_enable_all_pins(codec, true);
-		intel_haswell_fixup_enable_dp12(codec);
+	err = alloc_generic_hdmi(codec);
+	if (err < 0)
+		return err;
+	spec = codec->spec;
+
+	intel_haswell_enable_all_pins(codec, true);
+	intel_haswell_fixup_enable_dp12(codec);
+
+	/* For Haswell/Broadwell, the controller is also in the power well and
+	 * can cover the codec power request, and so need not set this flag.
+	 */
+	if (!is_haswell(codec) && !is_broadwell(codec))
+		codec->core.link_power_control = 1;
+
+	codec->patch_ops.set_power_state = haswell_set_power_state;
+	codec->dp_mst = true;
+	codec->depop_delay = 0;
+	codec->auto_runtime_pm = 1;
+
+	err = hdmi_parse_codec(codec);
+	if (err < 0) {
+		generic_spec_free(codec);
+		return err;
 	}
+
+	generic_hdmi_init_per_pins(codec);
+	register_i915_notifier(codec);
+	return 0;
+}
+
+/* Intel Baytrail and Braswell; without get_eld notifier */
+static int patch_i915_byt_hdmi(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec;
+	int err;
+
+	/* requires i915 binding */
+	if (!codec->bus->core.audio_component) {
+		codec_info(codec, "No i915 binding for Intel HDMI/DP codec\n");
+		return -ENODEV;
+	}
+
+	err = alloc_generic_hdmi(codec);
+	if (err < 0)
+		return err;
+	spec = codec->spec;
 
 	/* For Valleyview/Cherryview, only the display codec is in the display
 	 * power well and can use link_power ops to request/release the power.
-	 * For Haswell/Broadwell, the controller is also in the power well and
-	 * can cover the codec power request, and so need not set this flag.
-	 * For previous platforms, there is no such power well feature.
 	 */
-	if (is_valleyview_plus(codec) || is_skylake(codec) ||
-			is_broxton(codec))
-		codec->core.link_power_control = 1;
+	codec->core.link_power_control = 1;
 
-	if (hdmi_parse_codec(codec) < 0) {
-		if (spec->i915_bound)
-			snd_hdac_i915_exit(&codec->bus->core);
-		codec->spec = NULL;
-		kfree(spec);
-		return -EINVAL;
-	}
-	codec->patch_ops = generic_hdmi_patch_ops;
-	if (is_haswell_plus(codec)) {
-		codec->patch_ops.set_power_state = haswell_set_power_state;
-		codec->dp_mst = true;
-	}
+	codec->depop_delay = 0;
+	codec->auto_runtime_pm = 1;
 
-	/* Enable runtime pm for HDMI audio codec of HSW/BDW/SKL/BYT/BSW */
-	if (is_haswell_plus(codec) || is_valleyview_plus(codec))
-		codec->auto_runtime_pm = 1;
+	err = hdmi_parse_codec(codec);
+	if (err < 0) {
+		generic_spec_free(codec);
+		return err;
+	}
 
 	generic_hdmi_init_per_pins(codec);
-
-
-	if (codec_has_acomp(codec)) {
-		codec->depop_delay = 0;
-		spec->i915_audio_ops.audio_ptr = codec;
-		/* intel_audio_codec_enable() or intel_audio_codec_disable()
-		 * will call pin_eld_notify with using audio_ptr pointer
-		 * We need make sure audio_ptr is really setup
-		 */
-		wmb();
-		spec->i915_audio_ops.pin_eld_notify = intel_pin_eld_notify;
-		snd_hdac_i915_register_notifier(&spec->i915_audio_ops);
-	}
-
-	WARN_ON(spec->dyn_pcm_assign && !codec_has_acomp(codec));
 	return 0;
 }
 
@@ -3498,14 +3558,14 @@ HDA_CODEC_ENTRY(0x80862803, "Eaglelake HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862804, "IbexPeak HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862805, "CougarPoint HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862806, "PantherPoint HDMI", patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x80862807, "Haswell HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x80862808, "Broadwell HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x80862809, "Skylake HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x8086280a, "Broxton HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x8086280b, "Kabylake HDMI",	patch_generic_hdmi),
+HDA_CODEC_ENTRY(0x80862807, "Haswell HDMI",	patch_i915_hsw_hdmi),
+HDA_CODEC_ENTRY(0x80862808, "Broadwell HDMI",	patch_i915_hsw_hdmi),
+HDA_CODEC_ENTRY(0x80862809, "Skylake HDMI",	patch_i915_hsw_hdmi),
+HDA_CODEC_ENTRY(0x8086280a, "Broxton HDMI",	patch_i915_hsw_hdmi),
+HDA_CODEC_ENTRY(0x8086280b, "Kabylake HDMI",	patch_i915_hsw_hdmi),
 HDA_CODEC_ENTRY(0x80862880, "CedarTrail HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x80862882, "Valleyview2 HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x80862883, "Braswell HDMI",	patch_generic_hdmi),
+HDA_CODEC_ENTRY(0x80862882, "Valleyview2 HDMI",	patch_i915_byt_hdmi),
+HDA_CODEC_ENTRY(0x80862883, "Braswell HDMI",	patch_i915_byt_hdmi),
 HDA_CODEC_ENTRY(0x808629fb, "Crestline HDMI",	patch_generic_hdmi),
 /* special ID for generic HDMI */
 HDA_CODEC_ENTRY(HDA_CODEC_ID_GENERIC_HDMI, "Generic HDMI", patch_generic_hdmi),
