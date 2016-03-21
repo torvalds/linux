@@ -1606,7 +1606,7 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 	engine->next_context_status_buffer = next_context_status_buffer_hw;
 	DRM_DEBUG_DRIVER("Execlists enabled for %s\n", engine->name);
 
-	memset(&engine->hangcheck, 0, sizeof(engine->hangcheck));
+	intel_engine_init_hangcheck(engine);
 
 	return 0;
 }

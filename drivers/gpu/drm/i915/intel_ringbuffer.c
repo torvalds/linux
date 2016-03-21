@@ -555,6 +555,11 @@ static bool stop_ring(struct intel_engine_cs *engine)
 	return (I915_READ_HEAD(engine) & HEAD_ADDR) == 0;
 }
 
+void intel_engine_init_hangcheck(struct intel_engine_cs *engine)
+{
+	memset(&engine->hangcheck, 0, sizeof(engine->hangcheck));
+}
+
 static int init_ring_common(struct intel_engine_cs *engine)
 {
 	struct drm_device *dev = engine->dev;
@@ -634,7 +639,7 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	ringbuf->tail = I915_READ_TAIL(engine) & TAIL_ADDR;
 	intel_ring_update_space(ringbuf);
 
-	memset(&engine->hangcheck, 0, sizeof(engine->hangcheck));
+	intel_engine_init_hangcheck(engine);
 
 out:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
