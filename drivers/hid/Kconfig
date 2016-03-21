@@ -134,6 +134,12 @@ config HID_APPLEIR
 
 	Say Y here if you want support for Apple infrared remote control.
 
+config HID_ASUS
+	tristate "Asus"
+	depends on I2C_HID
+	---help---
+	Support for Asus X205TA built-in keyboard via i2c.
+
 config HID_AUREAL
 	tristate "Aureal"
 	depends on HID
