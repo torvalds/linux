@@ -183,7 +183,7 @@ struct segment_allocation {
  * this value is set in page as a private data which indicate that
  * the page is atomically written, and it is in inmem_pages list.
  */
-#define ATOMIC_WRITTEN_PAGE		0x0000ffff
+#define ATOMIC_WRITTEN_PAGE		((unsigned long)-1)
 
 #define IS_ATOMIC_WRITTEN_PAGE(page)			\
 		(page_private(page) == (unsigned long)ATOMIC_WRITTEN_PAGE)
@@ -191,6 +191,7 @@ struct segment_allocation {
 struct inmem_pages {
 	struct list_head list;
 	struct page *page;
+	block_t old_addr;		/* for revoking when fail to commit */
 };
 
 struct sit_info {
@@ -257,6 +258,8 @@ struct victim_selection {
 struct curseg_info {
 	struct mutex curseg_mutex;		/* lock for consistency */
 	struct f2fs_summary_block *sum_blk;	/* cached summary block */
+	struct rw_semaphore journal_rwsem;	/* protect journal area */
+	struct f2fs_journal *journal;		/* cached journal info */
 	unsigned char alloc_type;		/* current allocation type */
 	unsigned int segno;			/* current segment number */
 	unsigned short next_blkoff;		/* next block offset to write */
