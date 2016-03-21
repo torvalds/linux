@@ -224,7 +224,7 @@ static int quota_getquota(struct super_block *sb, int type, qid_t id,
 
 /*
  * Return quota for next active quota >= this id, if any exists,
- * otherwise return -ESRCH via ->get_nextdqblk
+ * otherwise return -ENOENT via ->get_nextdqblk
  */
 static int quota_getnextquota(struct super_block *sb, int type, qid_t id,
 			  void __user *addr)
@@ -655,7 +655,7 @@ static int quota_getxquota(struct super_block *sb, int type, qid_t id,
 
 /*
  * Return quota for next active quota >= this id, if any exists,
- * otherwise return -ESRCH via ->get_nextdqblk.
+ * otherwise return -ENOENT via ->get_nextdqblk.
  */
 static int quota_getnextxquota(struct super_block *sb, int type, qid_t id,
 			    void __user *addr)
@@ -765,10 +765,14 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 /* Return 1 if 'cmd' will block on frozen filesystem */
 static int quotactl_cmd_write(int cmd)
 {
+	/*
+	 * We cannot allow Q_GETQUOTA and Q_GETNEXTQUOTA without write access
+	 * as dquot_acquire() may allocate space for new structure and OCFS2
+	 * needs to increment on-disk use count.
+	 */
 	switch (cmd) {
 	case Q_GETFMT:
 	case Q_GETINFO:
-	case Q_GETNEXTQUOTA:
 	case Q_SYNC:
 	case Q_XGETQSTAT:
 	case Q_XGETQSTATV:

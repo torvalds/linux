@@ -306,6 +306,7 @@ struct quota_format_ops {
 	int (*read_dqblk)(struct dquot *dquot);		/* Read structure for one user */
 	int (*commit_dqblk)(struct dquot *dquot);	/* Write structure for one user */
 	int (*release_dqblk)(struct dquot *dquot);	/* Called when last reference to dquot is being dropped */
+	int (*get_next_id)(struct super_block *sb, struct kqid *qid);	/* Get next ID with existing structure in the quota file */
 };
 
 /* Operations working with dquots */
@@ -321,6 +322,8 @@ struct dquot_operations {
 	 * quota code only */
 	qsize_t *(*get_reserved_space) (struct inode *);
 	int (*get_projid) (struct inode *, kprojid_t *);/* Get project ID */
+	/* Get next ID with active quota structure */
+	int (*get_next_id) (struct super_block *sb, struct kqid *qid);
 };
 
 struct path;
