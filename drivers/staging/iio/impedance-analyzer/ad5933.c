@@ -315,10 +315,10 @@ static ssize_t ad5933_show_frequency(struct device *dev,
 
 	freqreg = be32_to_cpu(dat.d32) & 0xFFFFFF;
 
-	freqreg = (u64) freqreg * (u64) (st->mclk_hz / 4);
+	freqreg = (u64)freqreg * (u64)(st->mclk_hz / 4);
 	do_div(freqreg, 1 << 27);
 
-	return sprintf(buf, "%d\n", (int) freqreg);
+	return sprintf(buf, "%d\n", (int)freqreg);
 }
 
 static ssize_t ad5933_store_frequency(struct device *dev,
@@ -366,7 +366,7 @@ static ssize_t ad5933_show(struct device *dev,
 	int ret = 0, len = 0;
 
 	mutex_lock(&indio_dev->mlock);
-	switch ((u32) this_attr->address) {
+	switch ((u32)this_attr->address) {
 	case AD5933_OUT_RANGE:
 		len = sprintf(buf, "%u\n",
 			      st->range_avail[(st->ctrl_hb >> 1) & 0x3]);
@@ -417,7 +417,7 @@ static ssize_t ad5933_store(struct device *dev,
 	}
 
 	mutex_lock(&indio_dev->mlock);
-	switch ((u32) this_attr->address) {
+	switch ((u32)this_attr->address) {
 	case AD5933_OUT_RANGE:
 		for (i = 0; i < 4; i++)
 			if (val == st->range_avail[i]) {
