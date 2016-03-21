@@ -8797,7 +8797,6 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 				       struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
 	intel_clock_t clock, reduced_clock;
 	u32 dpll = 0, fp = 0, fp2 = 0;
 	bool has_reduced_clock = false;
@@ -8808,9 +8807,6 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 	       sizeof(crtc_state->dpll_hw_state));
 
 	is_lvds = intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS);
-
-	WARN(!(HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)),
-	     "Unexpected PCH type %d\n", INTEL_PCH_TYPE(dev));
 
 	if (!crtc_state->clock_set) {
 		if (!ironlake_compute_clocks(&crtc->base, crtc_state, &clock,
