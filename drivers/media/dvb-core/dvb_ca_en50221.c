@@ -161,6 +161,18 @@ struct dvb_ca_private {
 	struct mutex ioctl_mutex;
 };
 
+static void dvb_ca_private_free(struct dvb_ca_private *ca)
+{
+	unsigned int i;
+
+	dvb_unregister_device(ca->dvbdev);
+	for (i = 0; i < ca->slot_count; i++)
+		vfree(ca->slot_info[i].rx_buffer.data);
+
+	kfree(ca->slot_info);
+	kfree(ca);
+}
+
 static void dvb_ca_en50221_thread_wakeup(struct dvb_ca_private *ca);
 static int dvb_ca_en50221_read_data(struct dvb_ca_private *ca, int slot, u8 * ebuf, int ecount);
 static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot, u8 * ebuf, int ecount);
@@ -1759,10 +1771,7 @@ void dvb_ca_en50221_release(struct dvb_ca_en50221 *pubca)
 
 	for (i = 0; i < ca->slot_count; i++) {
 		dvb_ca_en50221_slot_shutdown(ca, i);
-		vfree(ca->slot_info[i].rx_buffer.data);
 	}
-	kfree(ca->slot_info);
-	dvb_unregister_device(ca->dvbdev);
-	kfree(ca);
+	dvb_ca_private_free(ca);
 	pubca->private = NULL;
 }
