@@ -1486,7 +1486,7 @@ static void sync_eld_via_acomp(struct hda_codec *codec,
 
 	mutex_lock(&per_pin->lock);
 	eld->monitor_present = false;
-	size = snd_hdac_acomp_get_eld(&codec->bus->core, per_pin->pin_nid,
+	size = snd_hdac_acomp_get_eld(&codec->core, per_pin->pin_nid,
 				      &eld->monitor_present, eld->eld_buffer,
 				      ELD_MAX_SIZE);
 	if (size > 0) {
@@ -1740,7 +1740,7 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	/* Call sync_audio_rate to set the N/CTS/M manually if necessary */
 	/* Todo: add DP1.2 MST audio support later */
 	if (codec_has_acomp(codec))
-		snd_hdac_sync_audio_rate(&codec->bus->core, pin_nid, runtime->rate);
+		snd_hdac_sync_audio_rate(&codec->core, pin_nid, runtime->rate);
 
 	non_pcm = check_non_pcm_per_cvt(codec, cvt_nid);
 	mutex_lock(&per_pin->lock);
