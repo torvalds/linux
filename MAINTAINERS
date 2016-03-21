@@ -7865,6 +7865,11 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	sound/soc/codecs/tfa9879*
 
+OBJTOOL
+M:	Josh Poimboeuf <jpoimboe@redhat.com>
+S:	Supported
+F:	tools/objtool/
+
 OMAP SUPPORT
 M:	Tony Lindgren <tony@atomide.com>
 L:	linux-omap@vger.kernel.org
