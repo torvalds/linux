@@ -969,6 +969,15 @@
 		#iommu-cells = <0>;
 	};
 
+	sss: sss@10830000 {
+		compatible = "samsung,exynos4210-secss";
+		reg = <0x10830000 0x300>;
+		interrupts = <0 112 0>;
+		clocks = <&clock CLK_SSS>;
+		clock-names = "secss";
+		status = "disabled";
+	};
+
 	prng: rng@10830400 {
 		compatible = "samsung,exynos4-rng";
 		reg = <0x10830400 0x200>;
