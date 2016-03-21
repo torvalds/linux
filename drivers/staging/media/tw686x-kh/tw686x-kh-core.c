@@ -30,7 +30,7 @@ static irqreturn_t tw686x_irq(int irq, void *dev_id)
 		spin_unlock_irqrestore(&dev->irq_lock, flags);
 
 		if (int_status & 0xFF0000FF)
-			handled = tw686x_video_irq(dev);
+			handled = tw686x_kh_video_irq(dev);
 	}
 
 	return IRQ_RETVAL(handled);
@@ -99,7 +99,7 @@ static int tw686x_probe(struct pci_dev *pci_dev,
 		return err;
 	}
 
-	err = tw686x_video_init(dev);
+	err = tw686x_kh_video_init(dev);
 	if (err)
 		return err;
 
@@ -111,7 +111,7 @@ static void tw686x_remove(struct pci_dev *pci_dev)
 {
 	struct tw686x_dev *dev = pci_get_drvdata(pci_dev);
 
-	tw686x_video_free(dev);
+	tw686x_kh_video_free(dev);
 }
 
 /* driver_data is number of A/V channels */

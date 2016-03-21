@@ -113,6 +113,6 @@ static inline unsigned int is_second_gen(struct tw686x_dev *dev)
 	return dev->type & TYPE_SECOND_GEN;
 }
 
-int tw686x_video_irq(struct tw686x_dev *dev);
-int tw686x_video_init(struct tw686x_dev *dev);
-void tw686x_video_free(struct tw686x_dev *dev);
+int tw686x_kh_video_irq(struct tw686x_dev *dev);
+int tw686x_kh_video_init(struct tw686x_dev *dev);
+void tw686x_kh_video_free(struct tw686x_dev *dev);

@@ -503,7 +503,7 @@ static int tw686x_s_input(struct file *file, void *priv, unsigned int v)
 	return 0;
 }
 
-const struct v4l2_file_operations tw686x_video_fops = {
+static const struct v4l2_file_operations tw686x_video_fops = {
 	.owner		= THIS_MODULE,
 	.open		= v4l2_fh_open,
 	.unlocked_ioctl	= video_ioctl2,
@@ -513,7 +513,7 @@ const struct v4l2_file_operations tw686x_video_fops = {
 	.mmap		= vb2_fop_mmap,
 };
 
-const struct v4l2_ioctl_ops tw686x_video_ioctl_ops = {
+static const struct v4l2_ioctl_ops tw686x_video_ioctl_ops = {
 	.vidioc_querycap		= tw686x_querycap,
 	.vidioc_enum_fmt_vid_cap	= tw686x_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap		= tw686x_g_fmt_vid_cap,
@@ -616,7 +616,7 @@ static int video_thread(void *arg)
 	return 0;
 }
 
-int tw686x_video_irq(struct tw686x_dev *dev)
+int tw686x_kh_video_irq(struct tw686x_dev *dev)
 {
 	unsigned long flags, handled = 0;
 	u32 requests;
@@ -632,7 +632,7 @@ int tw686x_video_irq(struct tw686x_dev *dev)
 	return handled;
 }
 
-void tw686x_video_free(struct tw686x_dev *dev)
+void tw686x_kh_video_free(struct tw686x_dev *dev)
 {
 	unsigned int ch, n;
 
@@ -660,7 +660,7 @@ void tw686x_video_free(struct tw686x_dev *dev)
 
 #define SG_TABLE_SIZE (MAX_SG_DESC_COUNT * sizeof(struct vdma_desc))
 
-int tw686x_video_init(struct tw686x_dev *dev)
+int tw686x_kh_video_init(struct tw686x_dev *dev)
 {
 	unsigned int ch, n;
 	int err;
@@ -816,6 +816,6 @@ int tw686x_video_init(struct tw686x_dev *dev)
 	return 0;
 
 error:
-	tw686x_video_free(dev);
+	tw686x_kh_video_free(dev);
 	return err;
 }
