@@ -217,8 +217,10 @@ struct altr_sdram_mc_data {
 #define ALTR_L2_ECC_INJS                BIT(1)
 #define ALTR_L2_ECC_INJD                BIT(2)
 
+struct altr_edac_device_dev;
+
 struct edac_device_prv_data {
-	int (*setup)(struct platform_device *pdev, void __iomem *base);
+	int (*setup)(struct altr_edac_device_dev *device);
 	int ce_clear_mask;
 	int ue_clear_mask;
 	char dbgfs_name[20];

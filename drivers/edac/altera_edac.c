@@ -746,7 +746,7 @@ static int altr_edac_device_probe(struct platform_device *pdev)
 
 	/* Check specific dependencies for the module */
 	if (drvdata->data->setup) {
-		res = drvdata->data->setup(pdev, drvdata->base);
+		res = drvdata->data->setup(drvdata);
 		if (res)
 			goto fail1;
 	}
@@ -856,9 +856,9 @@ static void ocram_free_mem(void *p, size_t size, void *other)
  *	Can't turn on ECC here because accessing un-initialized
  *	memory will cause CE/UE errors possibly causing an ABORT.
  */
-static int altr_ocram_check_deps(struct platform_device *pdev,
-				 void __iomem *base)
+static int altr_ocram_check_deps(struct altr_edac_device_dev *device)
 {
+	void __iomem  *base = device->base;
 	if (readl(base) & ALTR_OCR_ECC_EN)
 		return 0;
 
@@ -923,9 +923,9 @@ static void l2_free_mem(void *p, size_t size, void *other)
  *	Bail if ECC is not enabled.
  *	Note that L2 Cache Enable is forced at build time.
  */
-static int altr_l2_check_deps(struct platform_device *pdev,
-			      void __iomem *base)
+static int altr_l2_check_deps(struct altr_edac_device_dev *device)
 {
+	void __iomem *base = device->base;
 	if (readl(base) & ALTR_L2_ECC_EN)
 		return 0;
 
