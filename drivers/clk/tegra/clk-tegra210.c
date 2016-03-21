@@ -92,6 +92,7 @@
 #define PLLE_AUX 0x48c
 #define PLLRE_BASE 0x4c4
 #define PLLRE_MISC0 0x4c8
+#define PLLRE_OUT1 0x4cc
 #define PLLDP_BASE 0x590
 #define PLLDP_MISC 0x594
 
@@ -2653,8 +2654,10 @@ static void __init tegra210_pll_init(void __iomem *clk_base,
 	clks[TEGRA210_CLK_PLL_D_OUT0] = clk;
 
 	/* PLLRE */
-	clk = tegra_clk_register_pllre("pll_re_vco", "pll_ref", clk_base, pmc,
-			     0, &pll_re_vco_params, &pll_re_lock, pll_ref_freq);
+	clk = tegra_clk_register_pllre_tegra210("pll_re_vco", "pll_ref",
+						clk_base, pmc, 0,
+						&pll_re_vco_params,
+						&pll_re_lock, pll_ref_freq);
 	clk_register_clkdev(clk, "pll_re_vco", NULL);
 	clks[TEGRA210_CLK_PLL_RE_VCO] = clk;
 
@@ -2663,6 +2666,15 @@ static void __init tegra210_pll_init(void __iomem *clk_base,
 					 pll_vco_post_div_table, &pll_re_lock);
 	clk_register_clkdev(clk, "pll_re_out", NULL);
 	clks[TEGRA210_CLK_PLL_RE_OUT] = clk;
+
+	clk = tegra_clk_register_divider("pll_re_out1_div", "pll_re_vco",
+					 clk_base + PLLRE_OUT1, 0,
+					 TEGRA_DIVIDER_ROUND_UP,
+					 8, 8, 1, NULL);
+	clk = tegra_clk_register_pll_out("pll_re_out1", "pll_re_out1_div",
+					 clk_base + PLLRE_OUT1, 1, 0,
+					 CLK_SET_RATE_PARENT, 0, NULL);
+	clks[TEGRA210_CLK_PLL_RE_OUT1] = clk;
 
 	/* PLLE */
 	clk = tegra_clk_register_plle_tegra210("pll_e", "pll_ref",

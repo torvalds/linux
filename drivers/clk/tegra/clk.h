@@ -386,6 +386,12 @@ struct clk *tegra_clk_register_pllre(const char *name, const char *parent_name,
 			   struct tegra_clk_pll_params *pll_params,
 			   spinlock_t *lock, unsigned long parent_rate);
 
+struct clk *tegra_clk_register_pllre_tegra210(const char *name,
+			   const char *parent_name, void __iomem *clk_base,
+			   void __iomem *pmc, unsigned long flags,
+			   struct tegra_clk_pll_params *pll_params,
+			   spinlock_t *lock, unsigned long parent_rate);
+
 struct clk *tegra_clk_register_plle_tegra114(const char *name,
 				const char *parent_name,
 				void __iomem *clk_base, unsigned long flags,
