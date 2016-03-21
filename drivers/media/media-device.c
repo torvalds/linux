@@ -499,12 +499,6 @@ static long media_device_compat_ioctl(struct file *filp, unsigned int cmd,
 	long ret;
 
 	switch (cmd) {
-	case MEDIA_IOC_DEVICE_INFO:
-	case MEDIA_IOC_ENUM_ENTITIES:
-	case MEDIA_IOC_SETUP_LINK:
-	case MEDIA_IOC_G_TOPOLOGY:
-		return media_device_ioctl(filp, cmd, arg);
-
 	case MEDIA_IOC_ENUM_LINKS32:
 		mutex_lock(&dev->graph_mutex);
 		ret = media_device_enum_links32(dev,
@@ -513,7 +507,7 @@ static long media_device_compat_ioctl(struct file *filp, unsigned int cmd,
 		break;
 
 	default:
-		ret = -ENOIOCTLCMD;
+		return media_device_ioctl(filp, cmd, arg);
 	}
 
 	return ret;
