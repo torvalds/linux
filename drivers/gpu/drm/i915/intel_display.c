@@ -566,30 +566,6 @@ static bool intel_pipe_will_have_type(const struct intel_crtc_state *crtc_state,
 }
 
 static const intel_limit_t *
-intel_ironlake_limit(struct intel_crtc_state *crtc_state, int refclk)
-{
-	struct drm_device *dev = crtc_state->base.crtc->dev;
-	const intel_limit_t *limit;
-
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
-		if (intel_is_dual_link_lvds(dev)) {
-			if (refclk == 100000)
-				limit = &intel_limits_ironlake_dual_lvds_100m;
-			else
-				limit = &intel_limits_ironlake_dual_lvds;
-		} else {
-			if (refclk == 100000)
-				limit = &intel_limits_ironlake_single_lvds_100m;
-			else
-				limit = &intel_limits_ironlake_single_lvds;
-		}
-	} else
-		limit = &intel_limits_ironlake_dac;
-
-	return limit;
-}
-
-static const intel_limit_t *
 intel_g4x_limit(struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = crtc_state->base.crtc->dev;
@@ -619,8 +595,8 @@ intel_limit(struct intel_crtc_state *crtc_state, int refclk)
 
 	if (IS_BROXTON(dev))
 		limit = &intel_limits_bxt;
-	else if (HAS_PCH_SPLIT(dev))
-		limit = intel_ironlake_limit(crtc_state, refclk);
+	else if (WARN_ON(HAS_PCH_SPLIT(dev)))
+		limit = NULL;
 	else if (IS_G4X(dev)) {
 		limit = intel_g4x_limit(crtc_state);
 	} else if (IS_PINEVIEW(dev)) {
@@ -8671,13 +8647,28 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 	const intel_limit_t *limit;
 	bool ret;
 
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
-	    intel_panel_use_ssc(dev_priv)) {
-		DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n",
-			      dev_priv->vbt.lvds_ssc_freq);
-		refclk = dev_priv->vbt.lvds_ssc_freq;
+	refclk = 120000;
+
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
+		if (intel_panel_use_ssc(dev_priv)) {
+			DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n",
+				      dev_priv->vbt.lvds_ssc_freq);
+			refclk = dev_priv->vbt.lvds_ssc_freq;
+		}
+
+		if (intel_is_dual_link_lvds(dev)) {
+			if (refclk == 100000)
+				limit = &intel_limits_ironlake_dual_lvds_100m;
+			else
+				limit = &intel_limits_ironlake_dual_lvds;
+		} else {
+			if (refclk == 100000)
+				limit = &intel_limits_ironlake_single_lvds_100m;
+			else
+				limit = &intel_limits_ironlake_single_lvds;
+		}
 	} else {
-		refclk = 120000;
+		limit = &intel_limits_ironlake_dac;
 	}
 
 	/*
@@ -8685,7 +8676,6 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 	 * refclk, or FALSE.  The returned values represent the clock equation:
 	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
 	 */
-	limit = intel_limit(crtc_state, refclk);
 	ret = dev_priv->display.find_dpll(limit, crtc_state,
 					  crtc_state->port_clock,
 					  refclk, NULL, clock);
