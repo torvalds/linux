@@ -5,6 +5,16 @@
 /* error code which can't be mistaken for valid address */
 #define EFI_ERROR	(~0UL)
 
+/*
+ * __init annotations should not be used in the EFI stub, since the code is
+ * either included in the decompressor (x86, ARM) where they have no effect,
+ * or the whole stub is __init annotated at the section level (arm64), by
+ * renaming the sections, in which case the __init annotation will be
+ * redundant, and will result in section names like .init.init.text, and our
+ * linker script does not expect that.
+ */
+#undef __init
+
 void efi_char16_printk(efi_system_table_t *, efi_char16_t *);
 
 efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg, void *__image,
@@ -49,5 +59,7 @@ efi_status_t efi_get_random_bytes(efi_system_table_t *sys_table,
 efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
 			      unsigned long size, unsigned long align,
 			      unsigned long *addr, unsigned long random_seed);
+
+efi_status_t check_platform_features(efi_system_table_t *sys_table_arg);
 
 #endif
