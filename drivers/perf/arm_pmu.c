@@ -1002,8 +1002,7 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 	}
 
 	if (ret) {
-		pr_info("%s: failed to probe PMU! Error %i\n",
-			node->full_name, ret);
+		pr_info("%s: failed to probe PMU!\n", of_node_full_name(node));
 		goto out_free;
 	}
 
@@ -1023,8 +1022,8 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 out_destroy:
 	cpu_pmu_destroy(pmu);
 out_free:
-	pr_info("%s: failed to register PMU devices! Error %i\n",
-		node->full_name, ret);
+	pr_info("%s: failed to register PMU devices!\n",
+		of_node_full_name(node));
 	kfree(pmu);
 	return ret;
 }
