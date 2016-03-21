@@ -77,8 +77,12 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 	static bool shown_bug_once;
 	struct device *dev = dev_priv->dev->dev;
 	bool is_error = level[1] <= KERN_ERR[1];
+	bool is_debug = level[1] == KERN_DEBUG[1];
 	struct va_format vaf;
 	va_list args;
+
+	if (is_debug && !(drm_debug & DRM_UT_DRIVER))
+		return;
 
 	va_start(args, fmt);
 
