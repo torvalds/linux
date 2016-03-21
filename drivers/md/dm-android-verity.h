@@ -44,6 +44,8 @@
 #define VERITY_DEBUG 0
 
 #define DM_MSG_PREFIX                   "android-verity"
+
+#define DM_LINEAR_ARGS 2
 /*
  * There can be two formats.
  * if fec is present
@@ -89,4 +91,5 @@ struct bio_read {
 	int number_of_pages;
 };
 
+extern struct target_type linear_target;
 #endif /* DM_ANDROID_VERITY_H */

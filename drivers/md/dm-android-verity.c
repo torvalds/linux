@@ -13,6 +13,7 @@
  */
 
 #include <linux/buffer_head.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/device-mapper.h>
@@ -42,6 +43,25 @@
 
 static char verifiedbootstate[VERITY_COMMANDLINE_PARAM_LENGTH];
 static char veritymode[VERITY_COMMANDLINE_PARAM_LENGTH];
+
+static bool target_added;
+static bool verity_enabled = true;
+struct dentry *debug_dir;
+static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv);
+
+static struct target_type android_verity_target = {
+	.name                   = "android-verity",
+	.version                = {1, 0, 0},
+	.module                 = THIS_MODULE,
+	.ctr                    = android_verity_ctr,
+	.dtr                    = verity_dtr,
+	.map                    = verity_map,
+	.status                 = verity_status,
+	.ioctl                  = verity_ioctl,
+	.merge                  = verity_merge,
+	.iterate_devices        = verity_iterate_devices,
+	.io_hints               = verity_io_hints,
+};
 
 static int __init verified_boot_state_param(char *line)
 {
@@ -549,6 +569,35 @@ static inline bool test_mult_overflow(sector_t a, u32 b)
 	return a > r;
 }
 
+static int add_as_linear_device(struct dm_target *ti, char *dev)
+{
+	/*Move to linear mapping defines*/
+	char *linear_table_args[DM_LINEAR_ARGS];
+	char offset[]  = "0";
+	int err = 0;
+
+	linear_table_args[0] = dev;
+	linear_table_args[1] = offset;
+
+	android_verity_target.dtr = linear_target.dtr,
+	android_verity_target.map = linear_target.map,
+	android_verity_target.status = linear_target.status,
+	android_verity_target.ioctl = linear_target.ioctl,
+	android_verity_target.merge = linear_target.merge,
+	android_verity_target.iterate_devices = linear_target.iterate_devices,
+	android_verity_target.io_hints = NULL;
+
+	err = linear_target.ctr(ti, DM_LINEAR_ARGS, linear_table_args);
+
+	if (!err) {
+		DMINFO("Added android-verity as a linear target");
+		target_added = true;
+	} else
+		DMERR("Failed to add android-verity as linear target");
+
+	return err;
+}
+
 /*
  * Target parameters:
  *	<key id>	Key id of the public key in the system keyring.
@@ -613,21 +662,27 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	if (err == VERITY_STATE_DISABLE) {
 		DMERR("Mounting root with verity disabled");
-		return -EINVAL;
+		verity_enabled = false;
+		/* we would still have to parse the args to figure out
+		 * the data blocks size. Or may be could map the entire
+		 * partition similar to mounting the device.
+		 */
 	} else if (err) {
 		DMERR("Verity header handle error");
 		handle_error();
 		goto free_metadata;
 	}
 
-	err = verify_verity_signature(key_id, metadata);
+	if (!verity_enabled) {
+		err = verify_verity_signature(key_id, metadata);
 
-	if (err) {
-		DMERR("Signature verification failed");
-		handle_error();
-		goto free_metadata;
-	} else
-		DMINFO("Signature verification success");
+		if (err) {
+			DMERR("Signature verification failed");
+			handle_error();
+			goto free_metadata;
+		} else
+			DMINFO("Signature verification success");
+	}
 
 	table_ptr = metadata->verity_table;
 
@@ -683,6 +738,12 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	/* update target length */
 	ti->len = data_sectors;
 
+	/* Setup linear target and free */
+	if (!verity_enabled) {
+		err = add_as_linear_device(ti, argv[1]);
+		goto free_metadata;
+	}
+
 	/*substitute data_dev and hash_dev*/
 	verity_table_args[1] = argv[1];
 	verity_table_args[2] = argv[1];
@@ -730,6 +791,13 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	err = verity_ctr(ti, no_of_args, verity_table_args);
 
+	if (err)
+		DMERR("android-verity failed to mount as verity target");
+	else {
+		target_added = true;
+		DMINFO("android-verity mounted as verity target");
+	}
+
 free_metadata:
 	kfree(metadata->header);
 	kfree(metadata->verity_table);
@@ -737,33 +805,52 @@ free_metadata:
 	return err;
 }
 
-static struct target_type android_verity_target = {
-	.name			= "android-verity",
-	.version		= {1, 0, 0},
-	.module			= THIS_MODULE,
-	.ctr			= android_verity_ctr,
-	.dtr			= verity_dtr,
-	.map			= verity_map,
-	.status			= verity_status,
-	.ioctl			= verity_ioctl,
-	.merge			= verity_merge,
-	.iterate_devices	= verity_iterate_devices,
-	.io_hints		= verity_io_hints,
-};
-
 static int __init dm_android_verity_init(void)
 {
 	int r;
+	struct dentry *file;
 
 	r = dm_register_target(&android_verity_target);
 	if (r < 0)
 		DMERR("register failed %d", r);
 
+	/* Tracks the status of the last added target */
+	debug_dir = debugfs_create_dir("android_verity", NULL);
+
+	if (IS_ERR_OR_NULL(debug_dir)) {
+		DMERR("Cannot create android_verity debugfs directory: %ld",
+			PTR_ERR(debug_dir));
+		goto end;
+	}
+
+	file = debugfs_create_bool("target_added", S_IRUGO, debug_dir,
+				(u32 *)&target_added);
+
+	if (IS_ERR_OR_NULL(file)) {
+		DMERR("Cannot create android_verity debugfs directory: %ld",
+			PTR_ERR(debug_dir));
+		debugfs_remove_recursive(debug_dir);
+		goto end;
+	}
+
+	file = debugfs_create_bool("verity_enabled", S_IRUGO, debug_dir,
+				(u32 *)&verity_enabled);
+
+	if (IS_ERR_OR_NULL(file)) {
+		DMERR("Cannot create android_verity debugfs directory: %ld",
+			PTR_ERR(debug_dir));
+		debugfs_remove_recursive(debug_dir);
+	}
+
+end:
 	return r;
 }
 
 static void __exit dm_android_verity_exit(void)
 {
+	if (!IS_ERR_OR_NULL(debug_dir))
+		debugfs_remove_recursive(debug_dir);
+
 	dm_unregister_target(&android_verity_target);
 }
 
