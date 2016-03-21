@@ -1,6 +1,8 @@
 /*
  * include/linux/mmc/tmio.h
  *
+ * Copyright (C) 2016 Sang Engineering, Wolfram Sang
+ * Copyright (C) 2015-16 Renesas Electronics Corporation
  * Copyright (C) 2007 Ian Molton
  * Copyright (C) 2004 Ian Molton
  *
@@ -60,6 +62,9 @@
 #define TMIO_STAT_ILL_FUNC      0x20000000
 #define TMIO_STAT_CMD_BUSY      0x40000000
 #define TMIO_STAT_ILL_ACCESS    0x80000000
+
+#define	CLK_CTL_DIV_MASK	0xff
+#define	CLK_CTL_SCLKEN		BIT(8)
 
 #define TMIO_BBS		512		/* Boot block size */
 

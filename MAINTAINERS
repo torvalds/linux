@@ -9836,10 +9836,12 @@ S:	Maintained
 F:	drivers/mmc/host/sdricoh_cs.c
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
+M:	Adrian Hunter <adrian.hunter@intel.com>
 L:	linux-mmc@vger.kernel.org
-S:	Orphan
-F:	drivers/mmc/host/sdhci.*
-F:	drivers/mmc/host/sdhci-pltfm.[ch]
+T:	git git://git.infradead.org/users/ahunter/linux-sdhci.git
+S:	Maintained
+F:	drivers/mmc/host/sdhci*
+F:	include/linux/mmc/sdhci*
 
 SECURE COMPUTING
 M:	Kees Cook <keescook@chromium.org>

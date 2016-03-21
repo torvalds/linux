@@ -22,6 +22,7 @@ Required properties:
 		"renesas,sdhi-r8a7792" - SDHI IP on R8A7792 SoC
 		"renesas,sdhi-r8a7793" - SDHI IP on R8A7793 SoC
 		"renesas,sdhi-r8a7794" - SDHI IP on R8A7794 SoC
+		"renesas,sdhi-r8a7795" - SDHI IP on R8A7795 SoC
 
 Optional properties:
 - toshiba,mmc-wrprotect-disable: write-protect detection is unavailable
