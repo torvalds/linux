@@ -8565,21 +8565,6 @@ void intel_init_pch_refclk(struct drm_device *dev)
 		lpt_init_pch_refclk(dev);
 }
 
-static int ironlake_get_refclk(struct intel_crtc_state *crtc_state)
-{
-	struct drm_device *dev = crtc_state->base.crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
-	    intel_panel_use_ssc(dev_priv)) {
-		DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n",
-			      dev_priv->vbt.lvds_ssc_freq);
-		return dev_priv->vbt.lvds_ssc_freq;
-	}
-
-	return 120000;
-}
-
 static void ironlake_set_pipeconf(struct drm_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
@@ -8686,7 +8671,14 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 	const intel_limit_t *limit;
 	bool ret;
 
-	refclk = ironlake_get_refclk(crtc_state);
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
+	    intel_panel_use_ssc(dev_priv)) {
+		DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n",
+			      dev_priv->vbt.lvds_ssc_freq);
+		refclk = dev_priv->vbt.lvds_ssc_freq;
+	} else {
+		refclk = 120000;
+	}
 
 	/*
 	 * Returns a set of divisors for the desired target clock with the given
