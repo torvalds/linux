@@ -1114,11 +1114,18 @@ static int rk3368_lcdc_axi_gather_cfg(struct lcdc_device *lcdc_dev,
 	switch (win->area[0].format) {
 	case ARGB888:
 	case XBGR888:
+	case XRGB888:
 	case ABGR888:
+	case FBDC_ARGB_888:
+	case FBDC_RGBX_888:
+	case FBDC_ABGR_888:
 		yrgb_gather_num = 3;
 		break;
 	case RGB888:
 	case RGB565:
+	case BGR888:
+	case BGR565:
+	case FBDC_RGB_565:
 		yrgb_gather_num = 2;
 		break;
 	case YUV444:
