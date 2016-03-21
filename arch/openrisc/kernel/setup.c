@@ -295,7 +295,7 @@ void __init setup_arch(char **cmdline_p)
 
 	*cmdline_p = boot_command_line;
 
-	printk(KERN_INFO "OpenRISC Linux -- http://openrisc.net\n");
+	printk(KERN_INFO "OpenRISC Linux -- http://openrisc.io\n");
 }
 
 static int show_cpuinfo(struct seq_file *m, void *v)
