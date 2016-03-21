@@ -26,8 +26,20 @@
 
 #ifdef CONFIG_X86
 #define valid_IRQ(i) (((i) != 0) && ((i) != 2))
+static inline bool acpi_iospace_resource_valid(struct resource *res)
+{
+	/* On X86 IO space is limited to the [0 - 64K] IO port range */
+	return res->end < 0x10003;
+}
 #else
 #define valid_IRQ(i) (true)
+/*
+ * ACPI IO descriptors on arches other than X86 contain MMIO CPU physical
+ * addresses mapping IO space in CPU physical address space, IO space
+ * resources can be placed anywhere in the 64-bit physical address space.
+ */
+static inline bool
+acpi_iospace_resource_valid(struct resource *res) { return true; }
 #endif
 
 static bool acpi_dev_resource_len_valid(u64 start, u64 end, u64 len, bool io)
@@ -126,7 +138,7 @@ static void acpi_dev_ioresource_flags(struct resource *res, u64 len,
 	if (!acpi_dev_resource_len_valid(res->start, res->end, len, true))
 		res->flags |= IORESOURCE_DISABLED | IORESOURCE_UNSET;
 
-	if (res->end >= 0x10003)
+	if (!acpi_iospace_resource_valid(res))
 		res->flags |= IORESOURCE_DISABLED | IORESOURCE_UNSET;
 
 	if (io_decode == ACPI_DECODE_16)
