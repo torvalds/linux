@@ -575,24 +575,6 @@ struct dpll;
 struct drm_i915_display_funcs {
 	int (*get_display_clock_speed)(struct drm_device *dev);
 	int (*get_fifo_size)(struct drm_device *dev, int plane);
-	/**
-	 * find_dpll() - Find the best values for the PLL
-	 * @limit: limits for the PLL
-	 * @crtc: current CRTC
-	 * @target: target frequency in kHz
-	 * @refclk: reference clock frequency in kHz
-	 * @match_clock: if provided, @best_clock P divider must
-	 *               match the P divider from @match_clock
-	 *               used for LVDS downclocking
-	 * @best_clock: best PLL values found
-	 *
-	 * Returns true on success, false on failure.
-	 */
-	bool (*find_dpll)(const struct intel_limit *limit,
-			  struct intel_crtc_state *crtc_state,
-			  int target, int refclk,
-			  struct dpll *match_clock,
-			  struct dpll *best_clock);
 	int (*compute_pipe_wm)(struct intel_crtc_state *cstate);
 	int (*compute_intermediate_wm)(struct drm_device *dev,
 				       struct intel_crtc *intel_crtc,

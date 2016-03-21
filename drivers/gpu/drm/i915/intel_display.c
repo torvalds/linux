@@ -564,33 +564,6 @@ static bool intel_pipe_will_have_type(const struct intel_crtc_state *crtc_state,
 	return false;
 }
 
-static const intel_limit_t *
-intel_limit(struct intel_crtc_state *crtc_state, int refclk)
-{
-	struct drm_device *dev = crtc_state->base.crtc->dev;
-	const intel_limit_t *limit;
-
-	if (IS_BROXTON(dev) || IS_CHERRYVIEW(dev) || IS_VALLEYVIEW(dev) ||
-	    HAS_PCH_SPLIT(dev) || IS_G4X(dev) || IS_GEN2(dev))
-		limit = NULL;
-
-	if (IS_PINEVIEW(dev)) {
-		if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS))
-			limit = &intel_limits_pineview_lvds;
-		else
-			limit = &intel_limits_pineview_sdvo;
-	} else if (!IS_GEN2(dev)) {
-		if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS))
-			limit = &intel_limits_i9xx_lvds;
-		else
-			limit = &intel_limits_i9xx_sdvo;
-	}
-
-	WARN_ON(limit == NULL);
-
-	return limit;
-}
-
 /*
  * Platform specific helpers to calculate the port PLL loopback- (clock.m),
  * and post-divider (clock.p) values, pre- (clock.vco) and post-divided fast
@@ -721,6 +694,16 @@ i9xx_select_p2_div(const intel_limit_t *limit,
 	}
 }
 
+/*
+ * Returns a set of divisors for the desired target clock with the given
+ * refclk, or FALSE.  The returned values represent the clock equation:
+ * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
+ *
+ * Target and reference clocks are specified in kHz.
+ *
+ * If match_clock is provided, then best_clock P divider must match the P
+ * divider from @match_clock used for LVDS downclocking.
+ */
 static bool
 i9xx_find_best_dpll(const intel_limit_t *limit,
 		    struct intel_crtc_state *crtc_state,
@@ -768,6 +751,16 @@ i9xx_find_best_dpll(const intel_limit_t *limit,
 	return (err != target);
 }
 
+/*
+ * Returns a set of divisors for the desired target clock with the given
+ * refclk, or FALSE.  The returned values represent the clock equation:
+ * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
+ *
+ * Target and reference clocks are specified in kHz.
+ *
+ * If match_clock is provided, then best_clock P divider must match the P
+ * divider from @match_clock used for LVDS downclocking.
+ */
 static bool
 pnv_find_best_dpll(const intel_limit_t *limit,
 		   struct intel_crtc_state *crtc_state,
@@ -817,6 +810,11 @@ pnv_find_best_dpll(const intel_limit_t *limit,
  * Returns a set of divisors for the desired target clock with the given
  * refclk, or FALSE.  The returned values represent the clock equation:
  * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
+ *
+ * Target and reference clocks are specified in kHz.
+ *
+ * If match_clock is provided, then best_clock P divider must match the P
+ * divider from @match_clock used for LVDS downclocking.
  */
 static bool
 g4x_find_best_dpll(const intel_limit_t *limit,
@@ -7849,43 +7847,67 @@ static int g4x_crtc_compute_clock(struct intel_crtc *crtc,
 	return 0;
 }
 
-static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
-				   struct intel_crtc_state *crtc_state)
+static int pnv_crtc_compute_clock(struct intel_crtc *crtc,
+				  struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	bool ok;
 	const intel_limit_t *limit;
 	int refclk = 96000;
 
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
 
-	if (crtc_state->has_dsi_encoder)
-		return 0;
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
+		if (intel_panel_use_ssc(dev_priv)) {
+			refclk = dev_priv->vbt.lvds_ssc_freq;
+			DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
+		}
 
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
-	    intel_panel_use_ssc(dev_priv)) {
-		refclk = dev_priv->vbt.lvds_ssc_freq;
-		DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
+		limit = &intel_limits_pineview_lvds;
+	} else {
+		limit = &intel_limits_pineview_sdvo;
 	}
 
-	if (!crtc_state->clock_set) {
-		/*
-		 * Returns a set of divisors for the desired target clock with
-		 * the given refclk, or FALSE.  The returned values represent
-		 * the clock equation: reflck * (5 * (m1 + 2) + (m2 + 2)) / (n +
-		 * 2) / p1 / p2.
-		 */
-		limit = intel_limit(crtc_state, refclk);
-		ok = dev_priv->display.find_dpll(limit, crtc_state,
-						 crtc_state->port_clock,
-						 refclk, NULL,
-						 &crtc_state->dpll);
-		if (!ok) {
-			DRM_ERROR("Couldn't find PLL settings for mode!\n");
-			return -EINVAL;
+	if (!crtc_state->clock_set &&
+	    !pnv_find_best_dpll(limit, crtc_state, crtc_state->port_clock,
+				refclk, NULL, &crtc_state->dpll)) {
+		DRM_ERROR("Couldn't find PLL settings for mode!\n");
+		return -EINVAL;
+	}
+
+	i9xx_compute_dpll(crtc, crtc_state, NULL);
+
+	return 0;
+}
+
+static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
+				   struct intel_crtc_state *crtc_state)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const intel_limit_t *limit;
+	int refclk = 96000;
+
+	memset(&crtc_state->dpll_hw_state, 0,
+	       sizeof(crtc_state->dpll_hw_state));
+
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
+		if (intel_panel_use_ssc(dev_priv)) {
+			refclk = dev_priv->vbt.lvds_ssc_freq;
+			DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
 		}
+
+		limit = &intel_limits_i9xx_lvds;
+	} else {
+		limit = &intel_limits_i9xx_sdvo;
+	}
+
+	if (!crtc_state->clock_set &&
+	    !i9xx_find_best_dpll(limit, crtc_state, crtc_state->port_clock,
+				 refclk, NULL, &crtc_state->dpll)) {
+		DRM_ERROR("Couldn't find PLL settings for mode!\n");
+		return -EINVAL;
 	}
 
 	i9xx_compute_dpll(crtc, crtc_state, NULL);
@@ -14800,11 +14822,6 @@ static const struct drm_mode_config_funcs intel_mode_funcs = {
  */
 void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 {
-	if (IS_PINEVIEW(dev_priv))
-		dev_priv->display.find_dpll = pnv_find_best_dpll;
-	else
-		dev_priv->display.find_dpll = i9xx_find_best_dpll;
-
 	if (INTEL_INFO(dev_priv)->gen >= 9) {
 		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
@@ -14848,6 +14865,13 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.get_initial_plane_config =
 			i9xx_get_initial_plane_config;
 		dev_priv->display.crtc_compute_clock = g4x_crtc_compute_clock;
+		dev_priv->display.crtc_enable = i9xx_crtc_enable;
+		dev_priv->display.crtc_disable = i9xx_crtc_disable;
+	} else if (IS_PINEVIEW(dev_priv)) {
+		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
+		dev_priv->display.get_initial_plane_config =
+			i9xx_get_initial_plane_config;
+		dev_priv->display.crtc_compute_clock = pnv_crtc_compute_clock;
 		dev_priv->display.crtc_enable = i9xx_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
 	} else if (!IS_GEN2(dev_priv)) {
