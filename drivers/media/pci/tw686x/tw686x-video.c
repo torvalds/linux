@@ -665,7 +665,7 @@ static int tw686x_enum_input(struct file *file, void *priv,
 	return 0;
 }
 
-const struct v4l2_file_operations tw686x_video_fops = {
+static const struct v4l2_file_operations tw686x_video_fops = {
 	.owner		= THIS_MODULE,
 	.open		= v4l2_fh_open,
 	.unlocked_ioctl	= video_ioctl2,
@@ -675,7 +675,7 @@ const struct v4l2_file_operations tw686x_video_fops = {
 	.mmap		= vb2_fop_mmap,
 };
 
-const struct v4l2_ioctl_ops tw686x_video_ioctl_ops = {
+static const struct v4l2_ioctl_ops tw686x_video_ioctl_ops = {
 	.vidioc_querycap		= tw686x_querycap,
 	.vidioc_g_fmt_vid_cap		= tw686x_g_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap		= tw686x_s_fmt_vid_cap,
