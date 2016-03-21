@@ -1418,6 +1418,8 @@ enum netdev_priv_flags {
  *	@unreg_list:	List entry, that is used, when we are unregistering the
  *			device, see the function unregister_netdev
  *	@close_list:	List entry, that is used, when we are closing the device
+ *	@ptype_all:     Device-specific packet handlers for all protocols
+ *	@ptype_specific: Device-specific, protocol-specific packet handlers
  *
  *	@adj_list:	Directly linked devices, like slaves for bonding
  *	@all_adj_list:	All linked devices, *including* neighbours
