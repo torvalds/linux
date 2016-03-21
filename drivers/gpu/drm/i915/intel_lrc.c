@@ -1448,6 +1448,25 @@ static int gen9_init_perctx_bb(struct intel_engine_cs *engine,
 		wa_ctx_emit(batch, index, MI_NOOP);
 	}
 
+	/* WaClearTdlStateAckDirtyBits:bxt */
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_B0)) {
+		wa_ctx_emit(batch, index, MI_LOAD_REGISTER_IMM(4));
+
+		wa_ctx_emit_reg(batch, index, GEN8_STATE_ACK);
+		wa_ctx_emit(batch, index, _MASKED_BIT_DISABLE(GEN9_SUBSLICE_TDL_ACK_BITS));
+
+		wa_ctx_emit_reg(batch, index, GEN9_STATE_ACK_SLICE1);
+		wa_ctx_emit(batch, index, _MASKED_BIT_DISABLE(GEN9_SUBSLICE_TDL_ACK_BITS));
+
+		wa_ctx_emit_reg(batch, index, GEN9_STATE_ACK_SLICE2);
+		wa_ctx_emit(batch, index, _MASKED_BIT_DISABLE(GEN9_SUBSLICE_TDL_ACK_BITS));
+
+		wa_ctx_emit_reg(batch, index, GEN7_ROW_CHICKEN2);
+		/* dummy write to CS, mask bits are 0 to ensure the register is not modified */
+		wa_ctx_emit(batch, index, 0x0);
+		wa_ctx_emit(batch, index, MI_NOOP);
+	}
+
 	/* WaDisableCtxRestoreArbitration:skl,bxt */
 	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0) ||
 	    IS_BXT_REVID(dev, 0, BXT_REVID_A1))

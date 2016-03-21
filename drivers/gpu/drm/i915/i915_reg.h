@@ -1790,6 +1790,18 @@ enum skl_disp_power_wells {
 #define   GEN9_IZ_HASHING_MASK(slice)			(0x3 << ((slice) * 2))
 #define   GEN9_IZ_HASHING(slice, val)			((val) << ((slice) * 2))
 
+/* WaClearTdlStateAckDirtyBits */
+#define GEN8_STATE_ACK		_MMIO(0x20F0)
+#define GEN9_STATE_ACK_SLICE1	_MMIO(0x20F8)
+#define GEN9_STATE_ACK_SLICE2	_MMIO(0x2100)
+#define   GEN9_STATE_ACK_TDL0 (1 << 12)
+#define   GEN9_STATE_ACK_TDL1 (1 << 13)
+#define   GEN9_STATE_ACK_TDL2 (1 << 14)
+#define   GEN9_STATE_ACK_TDL3 (1 << 15)
+#define   GEN9_SUBSLICE_TDL_ACK_BITS \
+	(GEN9_STATE_ACK_TDL3 | GEN9_STATE_ACK_TDL2 | \
+	 GEN9_STATE_ACK_TDL1 | GEN9_STATE_ACK_TDL0)
+
 #define GFX_MODE	_MMIO(0x2520)
 #define GFX_MODE_GEN7	_MMIO(0x229c)
 #define RING_MODE_GEN7(ring)	_MMIO((ring)->mmio_base+0x29c)
