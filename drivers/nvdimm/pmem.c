@@ -33,9 +33,6 @@
 #include "nd.h"
 
 struct pmem_device {
-	struct request_queue	*pmem_queue;
-	struct gendisk		*pmem_disk;
-
 	/* One contiguous memory region per device */
 	phys_addr_t		phys_addr;
 	/* when non-zero this device is hosting a 'pfn' instance */
@@ -52,7 +49,7 @@ struct pmem_device {
 static void pmem_clear_poison(struct pmem_device *pmem, phys_addr_t offset,
 		unsigned int len)
 {
-	struct device *dev = disk_to_dev(pmem->pmem_disk);
+	struct device *dev = pmem->bb.dev;
 	sector_t sector;
 	long cleared;
 
@@ -241,7 +238,6 @@ static int pmem_attach_disk(struct device *dev,
 	q = blk_alloc_queue_node(GFP_KERNEL, dev_to_node(dev));
 	if (!q)
 		return -ENOMEM;
-	pmem->pmem_queue = q;
 
 	pmem->pfn_flags = PFN_DEV;
 	if (is_nd_pfn(dev)) {
@@ -274,12 +270,12 @@ static int pmem_attach_disk(struct device *dev,
 		return PTR_ERR(addr);
 	pmem->virt_addr = (void __pmem *) addr;
 
-	blk_queue_make_request(pmem->pmem_queue, pmem_make_request);
-	blk_queue_physical_block_size(pmem->pmem_queue, PAGE_SIZE);
-	blk_queue_max_hw_sectors(pmem->pmem_queue, UINT_MAX);
-	blk_queue_bounce_limit(pmem->pmem_queue, BLK_BOUNCE_ANY);
-	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, pmem->pmem_queue);
-	pmem->pmem_queue->queuedata = pmem;
+	blk_queue_make_request(q, pmem_make_request);
+	blk_queue_physical_block_size(q, PAGE_SIZE);
+	blk_queue_max_hw_sectors(q, UINT_MAX);
+	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
+	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
+	q->queuedata = pmem;
 
 	disk = alloc_disk_node(0, nid);
 	if (!disk)
@@ -290,13 +286,12 @@ static int pmem_attach_disk(struct device *dev,
 	}
 
 	disk->fops		= &pmem_fops;
-	disk->queue		= pmem->pmem_queue;
+	disk->queue		= q;
 	disk->flags		= GENHD_FL_EXT_DEVT;
 	nvdimm_namespace_disk_name(ndns, disk->disk_name);
 	disk->driverfs_dev = dev;
 	set_capacity(disk, (pmem->size - pmem->pfn_pad - pmem->data_offset)
 			/ 512);
-	pmem->pmem_disk = disk;
 	if (devm_init_badblocks(dev, &pmem->bb))
 		return -ENOMEM;
 	nvdimm_badblocks_populate(to_nd_region(dev->parent), &pmem->bb, res);
