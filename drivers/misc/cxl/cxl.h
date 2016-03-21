@@ -579,6 +579,7 @@ struct cxl {
 	bool perst_loads_image;
 	bool perst_select_user;
 	bool perst_same_image;
+	bool psl_timebase_synced;
 };
 
 int cxl_pci_alloc_one_irq(struct cxl *adapter);

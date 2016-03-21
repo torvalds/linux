@@ -1101,6 +1101,12 @@ struct cxl *cxl_guest_init_adapter(struct device_node *np, struct platform_devic
 	adapter->dev.release = release_adapter;
 	dev_set_drvdata(&pdev->dev, adapter);
 
+	/*
+	 * Hypervisor controls PSL timebase initialization (p1 register).
+	 * On FW840, PSL is initialized.
+	 */
+	adapter->psl_timebase_synced = true;
+
 	if ((rc = cxl_of_read_adapter_handle(adapter, np)))
 		goto err1;
 
