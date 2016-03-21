@@ -832,7 +832,7 @@ static ssize_t wil_write_file_wmi(struct file *file, const char __user *buf,
 	u16 cmdid;
 	int rc, rc1;
 
-	if (cmdlen <= 0)
+	if (cmdlen < 0)
 		return -EINVAL;
 
 	wmi = kmalloc(len, GFP_KERNEL);
@@ -845,7 +845,7 @@ static ssize_t wil_write_file_wmi(struct file *file, const char __user *buf,
 		return rc;
 	}
 
-	cmd = &wmi[1];
+	cmd = (cmdlen > 0) ? &wmi[1] : NULL;
 	cmdid = le16_to_cpu(wmi->command_id);
 
 	rc1 = wmi_send(wil, cmdid, cmd, cmdlen);
