@@ -8676,9 +8676,8 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 	 * refclk, or FALSE.  The returned values represent the clock equation:
 	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
 	 */
-	ret = dev_priv->display.find_dpll(limit, crtc_state,
-					  crtc_state->port_clock,
-					  refclk, NULL, clock);
+	ret = g4x_find_best_dpll(limit, crtc_state, crtc_state->port_clock,
+				 refclk, NULL, clock);
 	if (!ret)
 		return false;
 
