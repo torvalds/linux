@@ -157,6 +157,7 @@ struct hdmi_spec {
 	/* i915/powerwell (Haswell+/Valleyview+) specific */
 	bool use_acomp_notifier; /* use i915 eld_notify callback for hotplug */
 	struct i915_audio_component_audio_ops i915_audio_ops;
+	bool i915_bound; /* was i915 bound in this driver? */
 
 	struct hdac_chmap chmap;
 };
@@ -2077,6 +2078,8 @@ static void generic_spec_free(struct hda_codec *codec)
 	struct hdmi_spec *spec = codec->spec;
 
 	if (spec) {
+		if (spec->i915_bound)
+			snd_hdac_i915_exit(&codec->bus->core);
 		hdmi_array_free(spec);
 		kfree(spec);
 		codec->spec = NULL;
@@ -2407,6 +2410,40 @@ static int patch_i915_byt_hdmi(struct hda_codec *codec)
 
 	generic_hdmi_init_per_pins(codec);
 	return 0;
+}
+
+/* Intel SandyBridge and IvyBridge; with i915 eld notifier */
+static int patch_i915_cpt_hdmi(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec;
+	int err;
+
+	/* no i915 component should have been bound before this */
+	if (WARN_ON(codec->bus->core.audio_component))
+		return -EBUSY;
+
+	err = alloc_generic_hdmi(codec);
+	if (err < 0)
+		return err;
+	spec = codec->spec;
+
+	/* Try to bind with i915 now */
+	err = snd_hdac_i915_init(&codec->bus->core);
+	if (err < 0)
+		goto error;
+	spec->i915_bound = true;
+
+	err = hdmi_parse_codec(codec);
+	if (err < 0)
+		goto error;
+
+	generic_hdmi_init_per_pins(codec);
+	register_i915_notifier(codec);
+	return 0;
+
+ error:
+	generic_spec_free(codec);
+	return err;
 }
 
 /*
@@ -3582,8 +3619,8 @@ HDA_CODEC_ENTRY(0x80862801, "Bearlake HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862802, "Cantiga HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862803, "Eaglelake HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862804, "IbexPeak HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x80862805, "CougarPoint HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x80862806, "PantherPoint HDMI", patch_generic_hdmi),
+HDA_CODEC_ENTRY(0x80862805, "CougarPoint HDMI",	patch_i915_cpt_hdmi),
+HDA_CODEC_ENTRY(0x80862806, "PantherPoint HDMI", patch_i915_cpt_hdmi),
 HDA_CODEC_ENTRY(0x80862807, "Haswell HDMI",	patch_i915_hsw_hdmi),
 HDA_CODEC_ENTRY(0x80862808, "Broadwell HDMI",	patch_i915_hsw_hdmi),
 HDA_CODEC_ENTRY(0x80862809, "Skylake HDMI",	patch_i915_hsw_hdmi),
