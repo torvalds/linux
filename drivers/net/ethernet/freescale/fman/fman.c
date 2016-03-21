@@ -2791,6 +2791,8 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 		goto fman_free;
 	}
 
+	fman->dev = &of_dev->dev;
+
 	return fman;
 
 fman_node_put:
@@ -2844,8 +2846,6 @@ static int fman_probe(struct platform_device *of_dev)
 	}
 
 	dev_set_drvdata(dev, fman);
-
-	fman->dev = dev;
 
 	dev_dbg(dev, "FMan%d probed\n", fman->dts_params.id);
 

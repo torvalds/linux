@@ -446,7 +446,7 @@ static int dac33_get_fifo_mode(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 
-	ucontrol->value.integer.value[0] = dac33->fifo_mode;
+	ucontrol->value.enumerated.item[0] = dac33->fifo_mode;
 
 	return 0;
 }
@@ -458,17 +458,16 @@ static int dac33_set_fifo_mode(struct snd_kcontrol *kcontrol,
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
-	if (dac33->fifo_mode == ucontrol->value.integer.value[0])
+	if (dac33->fifo_mode == ucontrol->value.enumerated.item[0])
 		return 0;
 	/* Do not allow changes while stream is running*/
 	if (snd_soc_codec_is_active(codec))
 		return -EPERM;
 
-	if (ucontrol->value.integer.value[0] < 0 ||
-	    ucontrol->value.integer.value[0] >= DAC33_FIFO_LAST_MODE)
+	if (ucontrol->value.enumerated.item[0] >= DAC33_FIFO_LAST_MODE)
 		ret = -EINVAL;
 	else
-		dac33->fifo_mode = ucontrol->value.integer.value[0];
+		dac33->fifo_mode = ucontrol->value.enumerated.item[0];
 
 	return ret;
 }

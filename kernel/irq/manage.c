@@ -144,13 +144,11 @@ int irq_can_set_affinity(unsigned int irq)
  */
 void irq_set_thread_affinity(struct irq_desc *desc)
 {
-	struct irqaction *action = desc->action;
+	struct irqaction *action;
 
-	while (action) {
+	for_each_action_of_desc(desc, action)
 		if (action->thread)
 			set_bit(IRQTF_AFFINITY, &action->thread_flags);
-		action = action->next;
-	}
 }
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
@@ -994,7 +992,7 @@ void irq_wake_thread(unsigned int irq, void *dev_id)
 		return;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	for (action = desc->action; action; action = action->next) {
+	for_each_action_of_desc(desc, action) {
 		if (action->dev_id == dev_id) {
 			if (action->thread)
 				__irq_wake_thread(desc, action);

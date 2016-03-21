@@ -14,7 +14,7 @@
 #include <linux/sysfs.h>
 #include <linux/pci.h>
 
-#include <asm/processor.h>
+#include <asm/cpufeature.h>
 #include <asm/amd_nb.h>
 #include <asm/smp.h>
 
@@ -444,7 +444,7 @@ static ssize_t store_cache_disable(struct cacheinfo *this_leaf,
 	err = amd_set_l3_disable_slot(nb, cpu, slot, val);
 	if (err) {
 		if (err == -EEXIST)
-			pr_warning("L3 slot %d in use/index already disabled!\n",
+			pr_warn("L3 slot %d in use/index already disabled!\n",
 				   slot);
 		return err;
 	}

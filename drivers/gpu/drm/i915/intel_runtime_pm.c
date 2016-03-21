@@ -2303,15 +2303,15 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
  */
 void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
 {
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
-		skl_display_core_uninit(dev_priv);
-
 	/*
 	 * Even if power well support was disabled we still want to disable
 	 * power wells while we are system suspended.
 	 */
 	if (!i915.disable_power_well)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
+		skl_display_core_uninit(dev_priv);
 }
 
 /**
@@ -2349,22 +2349,20 @@ bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct device *device = &dev->pdev->dev;
-	int ret;
 
-	if (!IS_ENABLED(CONFIG_PM))
-		return true;
+	if (IS_ENABLED(CONFIG_PM)) {
+		int ret = pm_runtime_get_if_in_use(device);
 
-	ret = pm_runtime_get_if_in_use(device);
-
-	/*
-	 * In cases runtime PM is disabled by the RPM core and we get an
-	 * -EINVAL return value we are not supposed to call this function,
-	 * since the power state is undefined. This applies atm to the
-	 * late/early system suspend/resume handlers.
-	 */
-	WARN_ON_ONCE(ret < 0);
-	if (ret <= 0)
-		return false;
+		/*
+		 * In cases runtime PM is disabled by the RPM core and we get
+		 * an -EINVAL return value we are not supposed to call this
+		 * function, since the power state is undefined. This applies
+		 * atm to the late/early system suspend/resume handlers.
+		 */
+		WARN_ON_ONCE(ret < 0);
+		if (ret <= 0)
+			return false;
+	}
 
 	atomic_inc(&dev_priv->pm.wakeref_count);
 	assert_rpm_wakelock_held(dev_priv);

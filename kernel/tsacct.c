@@ -93,9 +93,11 @@ void xacct_add_tsk(struct taskstats *stats, struct task_struct *p)
 {
 	struct mm_struct *mm;
 
-	/* convert pages-usec to Mbyte-usec */
-	stats->coremem = p->acct_rss_mem1 * PAGE_SIZE / MB;
-	stats->virtmem = p->acct_vm_mem1 * PAGE_SIZE / MB;
+	/* convert pages-nsec/1024 to Mbyte-usec, see __acct_update_integrals */
+	stats->coremem = p->acct_rss_mem1 * PAGE_SIZE;
+	do_div(stats->coremem, 1000 * KB);
+	stats->virtmem = p->acct_vm_mem1 * PAGE_SIZE;
+	do_div(stats->virtmem, 1000 * KB);
 	mm = get_task_mm(p);
 	if (mm) {
 		/* adjust to KB unit */
@@ -123,27 +125,28 @@ void xacct_add_tsk(struct taskstats *stats, struct task_struct *p)
 static void __acct_update_integrals(struct task_struct *tsk,
 				    cputime_t utime, cputime_t stime)
 {
-	if (likely(tsk->mm)) {
-		cputime_t time, dtime;
-		struct timeval value;
-		unsigned long flags;
-		u64 delta;
+	cputime_t time, dtime;
+	u64 delta;
 
-		local_irq_save(flags);
-		time = stime + utime;
-		dtime = time - tsk->acct_timexpd;
-		jiffies_to_timeval(cputime_to_jiffies(dtime), &value);
-		delta = value.tv_sec;
-		delta = delta * USEC_PER_SEC + value.tv_usec;
+	if (!likely(tsk->mm))
+		return;
 
-		if (delta == 0)
-			goto out;
-		tsk->acct_timexpd = time;
-		tsk->acct_rss_mem1 += delta * get_mm_rss(tsk->mm);
-		tsk->acct_vm_mem1 += delta * tsk->mm->total_vm;
-	out:
-		local_irq_restore(flags);
-	}
+	time = stime + utime;
+	dtime = time - tsk->acct_timexpd;
+	/* Avoid division: cputime_t is often in nanoseconds already. */
+	delta = cputime_to_nsecs(dtime);
+
+	if (delta < TICK_NSEC)
+		return;
+
+	tsk->acct_timexpd = time;
+	/*
+	 * Divide by 1024 to avoid overflow, and to avoid division.
+	 * The final unit reported to userspace is Mbyte-usecs,
+	 * the rest of the math is done in xacct_add_tsk.
+	 */
+	tsk->acct_rss_mem1 += delta * get_mm_rss(tsk->mm) >> 10;
+	tsk->acct_vm_mem1 += delta * tsk->mm->total_vm >> 10;
 }
 
 /**
@@ -153,9 +156,12 @@ static void __acct_update_integrals(struct task_struct *tsk,
 void acct_update_integrals(struct task_struct *tsk)
 {
 	cputime_t utime, stime;
+	unsigned long flags;
 
+	local_irq_save(flags);
 	task_cputime(tsk, &utime, &stime);
 	__acct_update_integrals(tsk, utime, stime);
+	local_irq_restore(flags);
 }
 
 /**
