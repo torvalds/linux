@@ -864,9 +864,6 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
 	struct hdmi_spec *spec = codec->spec;
 	int err;
 
-	if (is_haswell_plus(codec))
-		haswell_verify_D0(codec, cvt_nid, pin_nid);
-
 	err = spec->ops.pin_hbr_setup(codec, pin_nid, is_hbr_format(format));
 
 	if (err) {
@@ -2307,6 +2304,14 @@ static void register_i915_notifier(struct hda_codec *codec)
 	snd_hdac_i915_register_notifier(&spec->i915_audio_ops);
 }
 
+/* setup_stream ops override for HSW+ */
+static int i915_hsw_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
+				 hda_nid_t pin_nid, u32 stream_tag, int format)
+{
+	haswell_verify_D0(codec, cvt_nid, pin_nid);
+	return hdmi_setup_stream(codec, cvt_nid, pin_nid, stream_tag, format);
+}
+
 /* Intel Haswell and onwards; audio component with eld notifier */
 static int patch_i915_hsw_hdmi(struct hda_codec *codec)
 {
@@ -2337,6 +2342,8 @@ static int patch_i915_hsw_hdmi(struct hda_codec *codec)
 	codec->dp_mst = true;
 	codec->depop_delay = 0;
 	codec->auto_runtime_pm = 1;
+
+	spec->ops.setup_stream = i915_hsw_setup_stream;
 
 	err = hdmi_parse_codec(codec);
 	if (err < 0) {
