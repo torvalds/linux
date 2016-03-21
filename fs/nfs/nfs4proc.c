@@ -2461,14 +2461,15 @@ static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 
 	dentry = opendata->dentry;
 	if (d_really_is_negative(dentry)) {
-		/* FIXME: Is this d_drop() ever needed? */
+		struct dentry *alias;
 		d_drop(dentry);
-		dentry = d_add_unique(dentry, igrab(state->inode));
-		if (dentry == NULL) {
-			dentry = opendata->dentry;
-		} else {
+		alias = d_exact_alias(dentry, state->inode);
+		if (!alias)
+			alias = d_splice_alias(igrab(state->inode), dentry);
+		/* d_splice_alias() can't fail here - it's a non-directory */
+		if (alias) {
 			dput(ctx->dentry);
-			ctx->dentry = dentry;
+			ctx->dentry = dentry = alias;
 		}
 		nfs_set_verifier(dentry,
 				nfs_save_change_attribute(d_inode(opendata->dir)));

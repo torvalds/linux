@@ -2665,7 +2665,7 @@ void __init hugetlb_add_hstate(unsigned int order)
 	unsigned long i;
 
 	if (size_to_hstate(PAGE_SIZE << order)) {
-		pr_warning("hugepagesz= specified twice, ignoring\n");
+		pr_warn("hugepagesz= specified twice, ignoring\n");
 		return;
 	}
 	BUG_ON(hugetlb_max_hstate >= HUGE_MAX_HSTATE);
@@ -2701,8 +2701,7 @@ static int __init hugetlb_nrpages_setup(char *s)
 		mhp = &parsed_hstate->max_huge_pages;
 
 	if (mhp == last_mhp) {
-		pr_warning("hugepages= specified twice without "
-			   "interleaving hugepagesz=, ignoring\n");
+		pr_warn("hugepages= specified twice without interleaving hugepagesz=, ignoring\n");
 		return 1;
 	}
 

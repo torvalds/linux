@@ -52,6 +52,7 @@ enum htt_h2t_msg_type { /* host-to-target */
 	/* This command is used for sending management frames in HTT < 3.0.
 	 * HTT >= 3.0 uses TX_FRM for everything. */
 	HTT_H2T_MSG_TYPE_MGMT_TX            = 7,
+	HTT_H2T_MSG_TYPE_TX_FETCH_RESP      = 11,
 
 	HTT_H2T_NUM_MSGS /* keep this last */
 };
@@ -413,10 +414,10 @@ enum htt_10_4_t2h_msg_type {
 	HTT_10_4_T2H_MSG_TYPE_EN_STATS               = 0x14,
 	HTT_10_4_T2H_MSG_TYPE_AGGR_CONF              = 0x15,
 	HTT_10_4_T2H_MSG_TYPE_TX_FETCH_IND           = 0x16,
-	HTT_10_4_T2H_MSG_TYPE_TX_FETCH_CONF          = 0x17,
+	HTT_10_4_T2H_MSG_TYPE_TX_FETCH_CONFIRM       = 0x17,
 	HTT_10_4_T2H_MSG_TYPE_STATS_NOUPLOAD         = 0x18,
 	/* 0x19 to 0x2f are reserved */
-	HTT_10_4_T2H_MSG_TYPE_TX_LOW_LATENCY_IND     = 0x30,
+	HTT_10_4_T2H_MSG_TYPE_TX_MODE_SWITCH_IND     = 0x30,
 	/* keep this last */
 	HTT_10_4_T2H_NUM_MSGS
 };
@@ -449,8 +450,8 @@ enum htt_t2h_msg_type {
 	HTT_T2H_MSG_TYPE_TEST,
 	HTT_T2H_MSG_TYPE_EN_STATS,
 	HTT_T2H_MSG_TYPE_TX_FETCH_IND,
-	HTT_T2H_MSG_TYPE_TX_FETCH_CONF,
-	HTT_T2H_MSG_TYPE_TX_LOW_LATENCY_IND,
+	HTT_T2H_MSG_TYPE_TX_FETCH_CONFIRM,
+	HTT_T2H_MSG_TYPE_TX_MODE_SWITCH_IND,
 	/* keep this last */
 	HTT_T2H_NUM_MSGS
 };
@@ -1306,9 +1307,43 @@ struct htt_frag_desc_bank_id {
  * so we use a conservatively safe value for now */
 #define HTT_FRAG_DESC_BANK_MAX 4
 
-#define HTT_FRAG_DESC_BANK_CFG_INFO_PDEV_ID_MASK 0x03
-#define HTT_FRAG_DESC_BANK_CFG_INFO_PDEV_ID_LSB  0
-#define HTT_FRAG_DESC_BANK_CFG_INFO_SWAP         (1 << 2)
+#define HTT_FRAG_DESC_BANK_CFG_INFO_PDEV_ID_MASK		0x03
+#define HTT_FRAG_DESC_BANK_CFG_INFO_PDEV_ID_LSB			0
+#define HTT_FRAG_DESC_BANK_CFG_INFO_SWAP			BIT(2)
+#define HTT_FRAG_DESC_BANK_CFG_INFO_Q_STATE_VALID		BIT(3)
+#define HTT_FRAG_DESC_BANK_CFG_INFO_Q_STATE_DEPTH_TYPE_MASK	BIT(4)
+#define HTT_FRAG_DESC_BANK_CFG_INFO_Q_STATE_DEPTH_TYPE_LSB	4
+
+enum htt_q_depth_type {
+	HTT_Q_DEPTH_TYPE_BYTES = 0,
+	HTT_Q_DEPTH_TYPE_MSDUS = 1,
+};
+
+#define HTT_TX_Q_STATE_NUM_PEERS		(TARGET_10_4_NUM_QCACHE_PEERS_MAX + \
+						 TARGET_10_4_NUM_VDEVS)
+#define HTT_TX_Q_STATE_NUM_TIDS			8
+#define HTT_TX_Q_STATE_ENTRY_SIZE		1
+#define HTT_TX_Q_STATE_ENTRY_MULTIPLIER		0
+
+/**
+ * htt_q_state_conf - part of htt_frag_desc_bank_cfg for host q state config
+ *
+ * Defines host q state format and behavior. See htt_q_state.
+ *
+ * @record_size: Defines the size of each host q entry in bytes. In practice
+ *	however firmware (at least 10.4.3-00191) ignores this host
+ *	configuration value and uses hardcoded value of 1.
+ * @record_multiplier: This is valid only when q depth type is MSDUs. It
+ *	defines the exponent for the power of 2 multiplication.
+ */
+struct htt_q_state_conf {
+	__le32 paddr;
+	__le16 num_peers;
+	__le16 num_tids;
+	u8 record_size;
+	u8 record_multiplier;
+	u8 pad[2];
+} __packed;
 
 struct htt_frag_desc_bank_cfg {
 	u8 info; /* HTT_FRAG_DESC_BANK_CFG_INFO_ */
@@ -1316,6 +1351,114 @@ struct htt_frag_desc_bank_cfg {
 	u8 desc_size;
 	__le32 bank_base_addrs[HTT_FRAG_DESC_BANK_MAX];
 	struct htt_frag_desc_bank_id bank_id[HTT_FRAG_DESC_BANK_MAX];
+	struct htt_q_state_conf q_state;
+} __packed;
+
+#define HTT_TX_Q_STATE_ENTRY_COEFFICIENT	128
+#define HTT_TX_Q_STATE_ENTRY_FACTOR_MASK	0x3f
+#define HTT_TX_Q_STATE_ENTRY_FACTOR_LSB		0
+#define HTT_TX_Q_STATE_ENTRY_EXP_MASK		0xc0
+#define HTT_TX_Q_STATE_ENTRY_EXP_LSB		6
+
+/**
+ * htt_q_state - shared between host and firmware via DMA
+ *
+ * This structure is used for the host to expose it's software queue state to
+ * firmware so that its rate control can schedule fetch requests for optimized
+ * performance. This is most notably used for MU-MIMO aggregation when multiple
+ * MU clients are connected.
+ *
+ * @count: Each element defines the host queue depth. When q depth type was
+ *	configured as HTT_Q_DEPTH_TYPE_BYTES then each entry is defined as:
+ *	FACTOR * 128 * 8^EXP (see HTT_TX_Q_STATE_ENTRY_FACTOR_MASK and
+ *	HTT_TX_Q_STATE_ENTRY_EXP_MASK). When q depth type was configured as
+ *	HTT_Q_DEPTH_TYPE_MSDUS the number of packets is scaled by 2 **
+ *	record_multiplier (see htt_q_state_conf).
+ * @map: Used by firmware to quickly check which host queues are not empty. It
+ *	is a bitmap simply saying.
+ * @seq: Used by firmware to quickly check if the host queues were updated
+ *	since it last checked.
+ *
+ * FIXME: Is the q_state map[] size calculation really correct?
+ */
+struct htt_q_state {
+	u8 count[HTT_TX_Q_STATE_NUM_TIDS][HTT_TX_Q_STATE_NUM_PEERS];
+	u32 map[HTT_TX_Q_STATE_NUM_TIDS][(HTT_TX_Q_STATE_NUM_PEERS + 31) / 32];
+	__le32 seq;
+} __packed;
+
+#define HTT_TX_FETCH_RECORD_INFO_PEER_ID_MASK	0x0fff
+#define HTT_TX_FETCH_RECORD_INFO_PEER_ID_LSB	0
+#define HTT_TX_FETCH_RECORD_INFO_TID_MASK	0xf000
+#define HTT_TX_FETCH_RECORD_INFO_TID_LSB	12
+
+struct htt_tx_fetch_record {
+	__le16 info; /* HTT_TX_FETCH_IND_RECORD_INFO_ */
+	__le16 num_msdus;
+	__le32 num_bytes;
+} __packed;
+
+struct htt_tx_fetch_ind {
+	u8 pad0;
+	__le16 fetch_seq_num;
+	__le32 token;
+	__le16 num_resp_ids;
+	__le16 num_records;
+	struct htt_tx_fetch_record records[0];
+	__le32 resp_ids[0]; /* ath10k_htt_get_tx_fetch_ind_resp_ids() */
+} __packed;
+
+static inline void *
+ath10k_htt_get_tx_fetch_ind_resp_ids(struct htt_tx_fetch_ind *ind)
+{
+	return (void *)&ind->records[le16_to_cpu(ind->num_records)];
+}
+
+struct htt_tx_fetch_resp {
+	u8 pad0;
+	__le16 resp_id;
+	__le16 fetch_seq_num;
+	__le16 num_records;
+	__le32 token;
+	struct htt_tx_fetch_record records[0];
+} __packed;
+
+struct htt_tx_fetch_confirm {
+	u8 pad0;
+	__le16 num_resp_ids;
+	__le32 resp_ids[0];
+} __packed;
+
+enum htt_tx_mode_switch_mode {
+	HTT_TX_MODE_SWITCH_PUSH = 0,
+	HTT_TX_MODE_SWITCH_PUSH_PULL = 1,
+};
+
+#define HTT_TX_MODE_SWITCH_IND_INFO0_ENABLE		BIT(0)
+#define HTT_TX_MODE_SWITCH_IND_INFO0_NUM_RECORDS_MASK	0xfffe
+#define HTT_TX_MODE_SWITCH_IND_INFO0_NUM_RECORDS_LSB	1
+
+#define HTT_TX_MODE_SWITCH_IND_INFO1_MODE_MASK		0x0003
+#define HTT_TX_MODE_SWITCH_IND_INFO1_MODE_LSB		0
+#define HTT_TX_MODE_SWITCH_IND_INFO1_THRESHOLD_MASK	0xfffc
+#define HTT_TX_MODE_SWITCH_IND_INFO1_THRESHOLD_LSB	2
+
+#define HTT_TX_MODE_SWITCH_RECORD_INFO0_PEER_ID_MASK	0x0fff
+#define HTT_TX_MODE_SWITCH_RECORD_INFO0_PEER_ID_LSB	0
+#define HTT_TX_MODE_SWITCH_RECORD_INFO0_TID_MASK	0xf000
+#define HTT_TX_MODE_SWITCH_RECORD_INFO0_TID_LSB		12
+
+struct htt_tx_mode_switch_record {
+	__le16 info0; /* HTT_TX_MODE_SWITCH_RECORD_INFO0_ */
+	__le16 num_max_msdus;
+} __packed;
+
+struct htt_tx_mode_switch_ind {
+	u8 pad0;
+	__le16 info0; /* HTT_TX_MODE_SWITCH_IND_INFO0_ */
+	__le16 info1; /* HTT_TX_MODE_SWITCH_IND_INFO1_ */
+	u8 pad1[2];
+	struct htt_tx_mode_switch_record records[0];
 } __packed;
 
 union htt_rx_pn_t {
@@ -1340,6 +1483,7 @@ struct htt_cmd {
 		struct htt_oob_sync_req oob_sync_req;
 		struct htt_aggr_conf aggr_conf;
 		struct htt_frag_desc_bank_cfg frag_desc_bank_cfg;
+		struct htt_tx_fetch_resp tx_fetch_resp;
 	};
 } __packed;
 
@@ -1364,6 +1508,9 @@ struct htt_resp {
 		struct htt_rx_pn_ind rx_pn_ind;
 		struct htt_rx_offload_ind rx_offload_ind;
 		struct htt_rx_in_ord_ind rx_in_ord_ind;
+		struct htt_tx_fetch_ind tx_fetch_ind;
+		struct htt_tx_fetch_confirm tx_fetch_confirm;
+		struct htt_tx_mode_switch_ind tx_mode_switch_ind;
 	};
 } __packed;
 
@@ -1518,6 +1665,14 @@ struct ath10k_htt {
 		dma_addr_t paddr;
 		struct ath10k_htt_txbuf *vaddr;
 	} txbuf;
+
+	struct {
+		struct htt_q_state *vaddr;
+		dma_addr_t paddr;
+		u16 num_peers;
+		u16 num_tids;
+		enum htt_q_depth_type type;
+	} tx_q_state;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64

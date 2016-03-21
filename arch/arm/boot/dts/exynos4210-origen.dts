@@ -60,35 +60,35 @@
 			label = "Up";
 			gpios = <&gpx2 0 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_UP>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		down {
 			label = "Down";
 			gpios = <&gpx2 1 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_DOWN>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		back {
 			label = "Back";
 			gpios = <&gpx1 7 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_BACK>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		home {
 			label = "Home";
 			gpios = <&gpx1 6 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOME>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		menu {
 			label = "Menu";
 			gpios = <&gpx1 5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_MENU>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

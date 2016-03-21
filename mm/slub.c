@@ -254,11 +254,10 @@ static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
 {
 	void *p;
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
+	if (!debug_pagealloc_enabled())
+		return get_freepointer(s, object);
+
 	probe_kernel_read(&p, (void **)(object + s->offset), sizeof(p));
-#else
-	p = get_freepointer(s, object);
-#endif
 	return p;
 }
 
@@ -951,14 +950,14 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
 		max_objects = MAX_OBJS_PER_PAGE;
 
 	if (page->objects != max_objects) {
-		slab_err(s, page, "Wrong number of objects. Found %d but "
-			"should be %d", page->objects, max_objects);
+		slab_err(s, page, "Wrong number of objects. Found %d but should be %d",
+			 page->objects, max_objects);
 		page->objects = max_objects;
 		slab_fix(s, "Number of objects adjusted.");
 	}
 	if (page->inuse != page->objects - nr) {
-		slab_err(s, page, "Wrong object count. Counter is %d but "
-			"counted were %d", page->inuse, page->objects - nr);
+		slab_err(s, page, "Wrong object count. Counter is %d but counted were %d",
+			 page->inuse, page->objects - nr);
 		page->inuse = page->objects - nr;
 		slab_fix(s, "Object count adjusted.");
 	}
@@ -1118,8 +1117,8 @@ static inline int free_consistency_checks(struct kmem_cache *s,
 
 	if (unlikely(s != page->slab_cache)) {
 		if (!PageSlab(page)) {
-			slab_err(s, page, "Attempt to free object(0x%p) "
-				"outside of slab", object);
+			slab_err(s, page, "Attempt to free object(0x%p) outside of slab",
+				 object);
 		} else if (!page->slab_cache) {
 			pr_err("SLUB <none>: no slab for object 0x%p.\n",
 			       object);
@@ -1427,7 +1426,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 	 */
 	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
 	if ((alloc_gfp & __GFP_DIRECT_RECLAIM) && oo_order(oo) > oo_order(s->min))
-		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~__GFP_DIRECT_RECLAIM;
+		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~(__GFP_RECLAIM|__GFP_NOFAIL);
 
 	page = alloc_slab_page(s, alloc_gfp, node, oo);
 	if (unlikely(!page)) {
@@ -1540,7 +1539,8 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 	page_mapcount_reset(page);
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += pages;
-	__free_kmem_pages(page, order);
+	memcg_uncharge_slab(page, order, s);
+	__free_pages(page, order);
 }
 
 #define need_reserve_slab_rcu						\
@@ -3439,10 +3439,9 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
 	free_kmem_cache_nodes(s);
 error:
 	if (flags & SLAB_PANIC)
-		panic("Cannot create slab %s size=%lu realsize=%u "
-			"order=%u offset=%u flags=%lx\n",
-			s->name, (unsigned long)s->size, s->size,
-			oo_order(s->oo), s->offset, flags);
+		panic("Cannot create slab %s size=%lu realsize=%u order=%u offset=%u flags=%lx\n",
+		      s->name, (unsigned long)s->size, s->size,
+		      oo_order(s->oo), s->offset, flags);
 	return -EINVAL;
 }
 

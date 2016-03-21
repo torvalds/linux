@@ -33,7 +33,7 @@
  * 16 byte block block or 25 cycles per byte. Thus 768 bytes of input data
  * will need an estimated maximum of 20,000 cycles. Headroom for cache misses
  * included. Even with the low end model clocked at 667 MHz this equals to a
- * critical time window of less than 30us. The value has been choosen to
+ * critical time window of less than 30us. The value has been chosen to
  * process a 512 byte disk block in one or a large 1400 bytes IPsec network
  * packet in two runs.
  *

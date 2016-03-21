@@ -132,6 +132,12 @@ strongly discouraged for production use.  It is recommended to decide
 the hierarchies and controller associations before starting using the
 controllers after system boot.
 
+During transition to v2, system management software might still
+automount the v1 cgroup filesystem and so hijack all controllers
+during boot, before manual intervention is possible. To make testing
+and experimenting easier, the kernel parameter cgroup_no_v1= allows
+disabling controllers in v1 and make them always available in v2.
+
 
 2-2. Organizing Processes
 
@@ -843,6 +849,15 @@ PAGE_SIZE multiple when read back.
 		Amount of memory used to cache filesystem data,
 		including tmpfs and shared memory.
 
+	  kernel_stack
+
+		Amount of memory allocated to kernel stacks.
+
+	  slab
+
+		Amount of memory used for storing in-kernel data
+		structures.
+
 	  sock
 
 		Amount of memory used in network transmission buffers
@@ -871,6 +886,16 @@ PAGE_SIZE multiple when read back.
 		on the internal memory management lists used by the
 		page reclaim algorithm
 
+	  slab_reclaimable
+
+		Part of "slab" that might be reclaimed, such as
+		dentries and inodes.
+
+	  slab_unreclaimable
+
+		Part of "slab" that cannot be reclaimed on memory
+		pressure.
+
 	  pgfault
 
 		Total number of page faults incurred
@@ -896,7 +921,7 @@ PAGE_SIZE multiple when read back.
 	limit, anonymous meomry of the cgroup will not be swapped out.
 
 
-5-2-2. General Usage
+5-2-2. Usage Guidelines
 
 "memory.high" is the main mechanism to control memory usage.
 Over-committing on high limit (sum of high limits > available memory)
@@ -1367,6 +1392,12 @@ allocation from the slack available in other groups or the rest of the
 system than killing the group.  Otherwise, memory.max is there to
 limit this type of spillover and ultimately contain buggy or even
 malicious applications.
+
+Setting the original memory.limit_in_bytes below the current usage was
+subject to a race condition, where concurrent charges could cause the
+limit setting to fail. memory.max on the other hand will first set the
+limit to prevent new charges, and then reclaim and OOM kill until the
+new limit is met - or the task writing to memory.max is killed.
 
 The combined memory+swap accounting and limiting is replaced by real
 control over swap space.

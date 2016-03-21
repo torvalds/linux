@@ -184,6 +184,7 @@ struct mwifiex_ds_tx_ba_stream_tbl {
 };
 
 #define DBG_CMD_NUM    5
+#define MWIFIEX_DBG_SDIO_MP_NUM    10
 
 struct tdls_peer_info {
 	u8 peer_addr[ETH_ALEN];
@@ -235,6 +236,11 @@ struct mwifiex_debug_info {
 	u8 cmd_sent;
 	u8 cmd_resp_received;
 	u8 event_received;
+	u32 last_mp_wr_bitmap[MWIFIEX_DBG_SDIO_MP_NUM];
+	u32 last_mp_wr_ports[MWIFIEX_DBG_SDIO_MP_NUM];
+	u32 last_mp_wr_len[MWIFIEX_DBG_SDIO_MP_NUM];
+	u32 last_mp_curr_wr_port[MWIFIEX_DBG_SDIO_MP_NUM];
+	u8 last_sdio_mp_index;
 };
 
 #define MWIFIEX_KEY_INDEX_UNICAST	0x40000000
@@ -269,6 +275,10 @@ struct mwifiex_ds_hs_cfg {
 	u32 conditions;
 	u32 gpio;
 	u32 gap;
+};
+
+struct mwifiex_ds_wakeup_reason {
+	u16  hs_wakeup_reason;
 };
 
 #define DEEP_SLEEP_ON  1
@@ -414,6 +424,7 @@ struct mwifiex_ds_mef_cfg {
 #define MWIFIEX_VSIE_MASK_SCAN     0x01
 #define MWIFIEX_VSIE_MASK_ASSOC    0x02
 #define MWIFIEX_VSIE_MASK_ADHOC    0x04
+#define MWIFIEX_VSIE_MASK_BGSCAN   0x08
 
 enum {
 	MWIFIEX_FUNC_INIT = 1,

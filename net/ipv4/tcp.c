@@ -282,8 +282,6 @@
 #include <asm/unaligned.h>
 #include <net/busy_poll.h>
 
-int sysctl_tcp_fin_timeout __read_mostly = TCP_FIN_TIMEOUT;
-
 int sysctl_tcp_min_tso_segs __read_mostly = 2;
 
 int sysctl_tcp_autocorking __read_mostly = 1;
@@ -406,7 +404,7 @@ void tcp_init_sock(struct sock *sk)
 	tp->mss_cache = TCP_MSS_DEFAULT;
 	u64_stats_init(&tp->syncp);
 
-	tp->reordering = sysctl_tcp_reordering;
+	tp->reordering = sock_net(sk)->ipv4.sysctl_tcp_reordering;
 	tcp_enable_early_retrans(tp);
 	tcp_assign_congestion_control(sk);
 
@@ -558,20 +556,7 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			return -EINVAL;
 
 		slow = lock_sock_fast(sk);
-		if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV))
-			answ = 0;
-		else if (sock_flag(sk, SOCK_URGINLINE) ||
-			 !tp->urg_data ||
-			 before(tp->urg_seq, tp->copied_seq) ||
-			 !before(tp->urg_seq, tp->rcv_nxt)) {
-
-			answ = tp->rcv_nxt - tp->copied_seq;
-
-			/* Subtract 1, if FIN was received */
-			if (answ && sock_flag(sk, SOCK_DONE))
-				answ--;
-		} else
-			answ = tp->urg_seq - tp->copied_seq;
+		answ = tcp_inq(sk);
 		unlock_sock_fast(sk, slow);
 		break;
 	case SIOCATMARK:
@@ -1466,8 +1451,10 @@ static struct sk_buff *tcp_recv_skb(struct sock *sk, u32 seq, u32 *off)
 
 	while ((skb = skb_peek(&sk->sk_receive_queue)) != NULL) {
 		offset = seq - TCP_SKB_CB(skb)->seq;
-		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)
+		if (unlikely(TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)) {
+			pr_err_once("%s: found a SYN, please report !\n", __func__);
 			offset--;
+		}
 		if (offset < skb->len || (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)) {
 			*off = offset;
 			return skb;
@@ -1657,8 +1644,10 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 				break;
 
 			offset = *seq - TCP_SKB_CB(skb)->seq;
-			if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)
+			if (unlikely(TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)) {
+				pr_err_once("%s: found a SYN, please report !\n", __func__);
 				offset--;
+			}
 			if (offset < skb->len)
 				goto found_ok_skb;
 			if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
@@ -2326,6 +2315,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct net *net = sock_net(sk);
 	int val;
 	int err = 0;
 
@@ -2522,7 +2512,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	case TCP_LINGER2:
 		if (val < 0)
 			tp->linger2 = -1;
-		else if (val > sysctl_tcp_fin_timeout / HZ)
+		else if (val > net->ipv4.sysctl_tcp_fin_timeout / HZ)
 			tp->linger2 = 0;
 		else
 			tp->linger2 = val * HZ;
@@ -2639,6 +2629,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	u32 now = tcp_time_stamp;
 	unsigned int start;
+	int notsent_bytes;
 	u64 rate64;
 	u32 rate;
 
@@ -2719,6 +2710,13 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	} while (u64_stats_fetch_retry_irq(&tp->syncp, start));
 	info->tcpi_segs_out = tp->segs_out;
 	info->tcpi_segs_in = tp->segs_in;
+
+	notsent_bytes = READ_ONCE(tp->write_seq) - READ_ONCE(tp->snd_nxt);
+	info->tcpi_notsent_bytes = max(0, notsent_bytes);
+
+	info->tcpi_min_rtt = tcp_min_rtt(tp);
+	info->tcpi_data_segs_in = tp->data_segs_in;
+	info->tcpi_data_segs_out = tp->data_segs_out;
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
 
@@ -2727,6 +2725,7 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct net *net = sock_net(sk);
 	int val, len;
 
 	if (get_user(len, optlen))
@@ -2761,12 +2760,12 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		val = keepalive_probes(tp);
 		break;
 	case TCP_SYNCNT:
-		val = icsk->icsk_syn_retries ? : sysctl_tcp_syn_retries;
+		val = icsk->icsk_syn_retries ? : net->ipv4.sysctl_tcp_syn_retries;
 		break;
 	case TCP_LINGER2:
 		val = tp->linger2;
 		if (val >= 0)
-			val = (val ? : sysctl_tcp_fin_timeout) / HZ;
+			val = (val ? : net->ipv4.sysctl_tcp_fin_timeout) / HZ;
 		break;
 	case TCP_DEFER_ACCEPT:
 		val = retrans_to_secs(icsk->icsk_accept_queue.rskq_defer_accept,

@@ -300,7 +300,18 @@ check_var_size(u32 attributes, unsigned long size)
 	if (!fops->query_variable_store)
 		return EFI_UNSUPPORTED;
 
-	return fops->query_variable_store(attributes, size);
+	return fops->query_variable_store(attributes, size, false);
+}
+
+static efi_status_t
+check_var_size_nonblocking(u32 attributes, unsigned long size)
+{
+	const struct efivar_operations *fops = __efivars->ops;
+
+	if (!fops->query_variable_store)
+		return EFI_UNSUPPORTED;
+
+	return fops->query_variable_store(attributes, size, true);
 }
 
 static int efi_status_to_err(efi_status_t status)
@@ -681,7 +692,8 @@ efivar_entry_set_nonblocking(efi_char16_t *name, efi_guid_t vendor,
 	if (!spin_trylock_irqsave(&__efivars->lock, flags))
 		return -EBUSY;
 
-	status = check_var_size(attributes, size + ucs2_strsize(name, 1024));
+	status = check_var_size_nonblocking(attributes,
+					    size + ucs2_strsize(name, 1024));
 	if (status != EFI_SUCCESS) {
 		spin_unlock_irqrestore(&__efivars->lock, flags);
 		return -ENOSPC;

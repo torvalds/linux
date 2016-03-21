@@ -7,6 +7,8 @@
 
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
+#include <net/net_namespace.h>
+#include <net/netns/generic.h>
 
 struct tcf_common {
 	struct hlist_node		tcfc_head;
@@ -65,11 +67,6 @@ static inline int tcf_hashinfo_init(struct tcf_hashinfo *hf, unsigned int mask)
 	return 0;
 }
 
-static inline void tcf_hashinfo_destroy(struct tcf_hashinfo *hf)
-{
-	kfree(hf->htab);
-}
-
 /* Update lastuse only if needed, to avoid dirtying a cache line.
  * We use a temp variable to avoid fetching jiffies twice.
  */
@@ -81,42 +78,76 @@ static inline void tcf_lastuse_update(struct tcf_t *tm)
 		tm->lastuse = now;
 }
 
-#ifdef CONFIG_NET_CLS_ACT
-
-#define ACT_P_CREATED 1
-#define ACT_P_DELETED 1
-
 struct tc_action {
 	void			*priv;
 	const struct tc_action_ops	*ops;
 	__u32			type; /* for backward compat(TCA_OLD_COMPAT) */
 	__u32			order;
 	struct list_head	list;
+	struct tcf_hashinfo	*hinfo;
 };
+
+#ifdef CONFIG_NET_CLS_ACT
+
+#define ACT_P_CREATED 1
+#define ACT_P_DELETED 1
 
 struct tc_action_ops {
 	struct list_head head;
-	struct tcf_hashinfo *hinfo;
 	char    kind[IFNAMSIZ];
 	__u32   type; /* TBD to match kind */
 	struct module		*owner;
 	int     (*act)(struct sk_buff *, const struct tc_action *, struct tcf_result *);
 	int     (*dump)(struct sk_buff *, struct tc_action *, int, int);
 	void	(*cleanup)(struct tc_action *, int bind);
-	int     (*lookup)(struct tc_action *, u32);
+	int     (*lookup)(struct net *, struct tc_action *, u32);
 	int     (*init)(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action *act, int ovr,
 			int bind);
-	int     (*walk)(struct sk_buff *, struct netlink_callback *, int, struct tc_action *);
+	int     (*walk)(struct net *, struct sk_buff *,
+			struct netlink_callback *, int, struct tc_action *);
 };
 
-int tcf_hash_search(struct tc_action *a, u32 index);
-u32 tcf_hash_new_index(struct tcf_hashinfo *hinfo);
-int tcf_hash_check(u32 index, struct tc_action *a, int bind);
-int tcf_hash_create(u32 index, struct nlattr *est, struct tc_action *a,
-		    int size, int bind, bool cpustats);
+struct tc_action_net {
+	struct tcf_hashinfo *hinfo;
+	const struct tc_action_ops *ops;
+};
+
+static inline
+int tc_action_net_init(struct tc_action_net *tn, const struct tc_action_ops *ops,
+		       unsigned int mask)
+{
+	int err = 0;
+
+	tn->hinfo = kmalloc(sizeof(*tn->hinfo), GFP_KERNEL);
+	if (!tn->hinfo)
+		return -ENOMEM;
+	tn->ops = ops;
+	err = tcf_hashinfo_init(tn->hinfo, mask);
+	if (err)
+		kfree(tn->hinfo);
+	return err;
+}
+
+void tcf_hashinfo_destroy(const struct tc_action_ops *ops,
+			  struct tcf_hashinfo *hinfo);
+
+static inline void tc_action_net_exit(struct tc_action_net *tn)
+{
+	tcf_hashinfo_destroy(tn->ops, tn->hinfo);
+}
+
+int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
+		       struct netlink_callback *cb, int type,
+		       struct tc_action *a);
+int tcf_hash_search(struct tc_action_net *tn, struct tc_action *a, u32 index);
+u32 tcf_hash_new_index(struct tc_action_net *tn);
+int tcf_hash_check(struct tc_action_net *tn, u32 index, struct tc_action *a,
+		   int bind);
+int tcf_hash_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
+		    struct tc_action *a, int size, int bind, bool cpustats);
 void tcf_hash_cleanup(struct tc_action *a, struct nlattr *est);
-void tcf_hash_insert(struct tc_action *a);
+void tcf_hash_insert(struct tc_action_net *tn, struct tc_action *a);
 
 int __tcf_hash_release(struct tc_action *a, bool bind, bool strict);
 
@@ -125,8 +156,8 @@ static inline int tcf_hash_release(struct tc_action *a, bool bind)
 	return __tcf_hash_release(a, bind, false);
 }
 
-int tcf_register_action(struct tc_action_ops *a, unsigned int mask);
-int tcf_unregister_action(struct tc_action_ops *a);
+int tcf_register_action(struct tc_action_ops *a, struct pernet_operations *ops);
+int tcf_unregister_action(struct tc_action_ops *a, struct pernet_operations *ops);
 int tcf_action_destroy(struct list_head *actions, int bind);
 int tcf_action_exec(struct sk_buff *skb, const struct list_head *actions,
 		    struct tcf_result *res);
@@ -140,5 +171,16 @@ int tcf_action_dump(struct sk_buff *skb, struct list_head *, int, int);
 int tcf_action_dump_old(struct sk_buff *skb, struct tc_action *a, int, int);
 int tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int, int);
 int tcf_action_copy_stats(struct sk_buff *, struct tc_action *, int);
+
+#define tc_no_actions(_exts) \
+	(list_empty(&(_exts)->actions))
+
+#define tc_for_each_action(_a, _exts) \
+	list_for_each_entry(a, &(_exts)->actions, list)
+#else /* CONFIG_NET_CLS_ACT */
+
+#define tc_no_actions(_exts) true
+#define tc_for_each_action(_a, _exts) while (0)
+
 #endif /* CONFIG_NET_CLS_ACT */
 #endif

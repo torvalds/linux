@@ -23,40 +23,8 @@
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
-#include <asm/hardware/cache-l2x0.h>
 
 #include "common.h"
-
-static struct map_desc r8a7740_io_desc[] __initdata = {
-	 /*
-	  * for CPGA/INTC/PFC
-	  * 0xe6000000-0xefffffff -> 0xe6000000-0xefffffff
-	  */
-	{
-		.virtual	= 0xe6000000,
-		.pfn		= __phys_to_pfn(0xe6000000),
-		.length		= 160 << 20,
-		.type		= MT_DEVICE_NONSHARED
-	},
-#ifdef CONFIG_CACHE_L2X0
-	/*
-	 * for l2x0_init()
-	 * 0xf0100000-0xf0101000 -> 0xf0002000-0xf0003000
-	 */
-	{
-		.virtual	= 0xf0002000,
-		.pfn		= __phys_to_pfn(0xf0100000),
-		.length		= PAGE_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	},
-#endif
-};
-
-static void __init r8a7740_map_io(void)
-{
-	debug_ll_io_init();
-	iotable_init(r8a7740_io_desc, ARRAY_SIZE(r8a7740_io_desc));
-}
 
 /*
  * r8a7740 chip has lasting errata on MERAM buffer.
@@ -110,10 +78,6 @@ static void __init r8a7740_generic_init(void)
 {
 	r8a7740_meram_workaround();
 
-#ifdef CONFIG_CACHE_L2X0
-	/* Shared attribute override enable, 32K*8way */
-	l2x0_init(IOMEM(0xf0002000), 0x00400000, 0xc20f0fff);
-#endif
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
@@ -123,7 +87,8 @@ static const char *const r8a7740_boards_compat_dt[] __initconst = {
 };
 
 DT_MACHINE_START(R8A7740_DT, "Generic R8A7740 (Flattened Device Tree)")
-	.map_io		= r8a7740_map_io,
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.init_early	= shmobile_init_delay,
 	.init_irq	= r8a7740_init_irq_of,
 	.init_machine	= r8a7740_generic_init,

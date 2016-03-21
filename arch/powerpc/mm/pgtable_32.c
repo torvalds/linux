@@ -37,35 +37,10 @@
 
 #include "mmu_decl.h"
 
-unsigned long ioremap_base;
 unsigned long ioremap_bot;
 EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
 
-#ifdef CONFIG_6xx
-#define HAVE_BATS	1
-#endif
-
-#if defined(CONFIG_FSL_BOOKE)
-#define HAVE_TLBCAM	1
-#endif
-
-extern char etext[], _stext[];
-
-#ifdef HAVE_BATS
-extern phys_addr_t v_mapped_by_bats(unsigned long va);
-extern unsigned long p_mapped_by_bats(phys_addr_t pa);
-#else /* !HAVE_BATS */
-#define v_mapped_by_bats(x)	(0UL)
-#define p_mapped_by_bats(x)	(0UL)
-#endif /* HAVE_BATS */
-
-#ifdef HAVE_TLBCAM
-extern phys_addr_t v_mapped_by_tlbcam(unsigned long va);
-extern unsigned long p_mapped_by_tlbcam(phys_addr_t pa);
-#else /* !HAVE_TLBCAM */
-#define v_mapped_by_tlbcam(x)	(0UL)
-#define p_mapped_by_tlbcam(x)	(0UL)
-#endif /* HAVE_TLBCAM */
+extern char etext[], _stext[], _sinittext[], _einittext[];
 
 #define PGDIR_ORDER	(32 + PGD_T_LOG2 - PGDIR_SHIFT)
 
@@ -197,7 +172,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
 	/*
 	 * Choose an address to map it to.
 	 * Once the vmalloc system is running, we use it.
-	 * Before then, we use space going down from ioremap_base
+	 * Before then, we use space going down from IOREMAP_TOP
 	 * (ioremap_bot records where we're up to).
 	 */
 	p = addr & PAGE_MASK;
@@ -228,19 +203,10 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
 
 	/*
 	 * Is it already mapped?  Perhaps overlapped by a previous
-	 * BAT mapping.  If the whole area is mapped then we're done,
-	 * otherwise remap it since we want to keep the virt addrs for
-	 * each request contiguous.
-	 *
-	 * We make the assumption here that if the bottom and top
-	 * of the range we want are mapped then it's mapped to the
-	 * same virt address (and this is contiguous).
-	 *  -- Cort
+	 * mapping.
 	 */
-	if ((v = p_mapped_by_bats(p)) /*&& p_mapped_by_bats(p+size-1)*/ )
-		goto out;
-
-	if ((v = p_mapped_by_tlbcam(p)))
+	v = p_block_mapped(p);
+	if (v)
 		goto out;
 
 	if (slab_is_available()) {
@@ -278,7 +244,8 @@ void iounmap(volatile void __iomem *addr)
 	 * If mapped by BATs then there is nothing to do.
 	 * Calling vfree() generates a benign warning.
 	 */
-	if (v_mapped_by_bats((unsigned long)addr)) return;
+	if (v_block_mapped((unsigned long)addr))
+		return;
 
 	if (addr > high_memory && (unsigned long) addr < ioremap_bot)
 		vunmap((void *) (PAGE_MASK & (unsigned long)addr));
@@ -322,7 +289,8 @@ void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 	v = PAGE_OFFSET + s;
 	p = memstart_addr + s;
 	for (; s < top; s += PAGE_SIZE) {
-		ktext = ((char *) v >= _stext && (char *) v < etext);
+		ktext = ((char *)v >= _stext && (char *)v < etext) ||
+			((char *)v >= _sinittext && (char *)v < _einittext);
 		f = ktext ? pgprot_val(PAGE_KERNEL_TEXT) : pgprot_val(PAGE_KERNEL);
 		map_page(v, p, f);
 #ifdef CONFIG_PPC_STD_MMU_32
@@ -403,7 +371,7 @@ static int __change_page_attr(struct page *page, pgprot_t prot)
 	BUG_ON(PageHighMem(page));
 	address = (unsigned long)page_address(page);
 
-	if (v_mapped_by_bats(address) || v_mapped_by_tlbcam(address))
+	if (v_block_mapped(address))
 		return 0;
 	if (!get_pteptr(&init_mm, address, &kpte, &kpmd))
 		return -EINVAL;

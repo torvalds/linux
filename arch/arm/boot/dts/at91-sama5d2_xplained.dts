@@ -46,6 +46,7 @@
 #include "sama5d2.dtsi"
 #include "sama5d2-pinfunc.h"
 #include <dt-bindings/mfd/atmel-flexcom.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Atmel SAMA5D2 Xplained";
@@ -71,11 +72,20 @@
 
 	ahb {
 		usb0: gadget@00300000 {
+			atmel,vbus-gpio = <&pioA 31 GPIO_ACTIVE_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usba_vbus>;
 			status = "okay";
 		};
 
 		usb1: ohci@00400000 {
 			num-ports = <3>;
+			atmel,vbus-gpio = <0 /* &pioA 41 GPIO_ACTIVE_HIGH */
+					   &pioA 42 GPIO_ACTIVE_HIGH
+					   0
+					  >;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb_default>;
 			status = "okay";
 		};
 
@@ -267,7 +277,29 @@
 				};
 			};
 
+			adc: adc@fc030000 {
+				vddana-supply = <&vdd_3v3_lp_reg>;
+				vref-supply = <&vdd_3v3_lp_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_adc_default>;
+				status = "okay";
+			};
+
 			pinctrl@fc038000 {
+				/*
+				 * There is no real pinmux for ADC, if the pin
+				 * is not requested by another peripheral then
+				 * the muxing is done when channel is enabled.
+				 * Requesting pins for ADC is GPIO is
+				 * encouraged to prevent conflicts and to
+				 * disable bias in order to be in the same
+				 * state when the pin is not muxed to the adc.
+				 */
+				pinctrl_adc_default: adc_default {
+					pinmux = <PIN_PD23__GPIO>;
+					bias-disable;
+				};
+
 				pinctrl_flx0_default: flx0_default {
 					pinmux = <PIN_PB28__FLEXCOM0_IO0>,
 						 <PIN_PB29__FLEXCOM0_IO1>;
@@ -292,6 +324,18 @@
 					bias-disable;
 				};
 
+				pinctrl_key_gpio_default: key_gpio_default {
+					pinmux = <PIN_PB9__GPIO>;
+					bias-pull-up;
+				};
+
+				pinctrl_led_gpio_default: led_gpio_default {
+					pinmux = <PIN_PB0__GPIO>,
+						 <PIN_PB5__GPIO>,
+						 <PIN_PB6__GPIO>;
+					bias-pull-up;
+				};
+
 				pinctrl_macb0_default: macb0_default {
 					pinmux = <PIN_PB14__GTXCK>,
 						 <PIN_PB15__GTXEN>,
@@ -308,6 +352,7 @@
 
 				pinctrl_macb0_phy_irq: macb0_phy_irq {
 					pinmux = <PIN_PC9__GPIO>;
+					bias-disable;
 				};
 
 				pinctrl_pdmic_default: pdmic_default {
@@ -375,7 +420,54 @@
 						 <PIN_PB12__UTXD3>;
 					bias-disable;
 				};
+
+				pinctrl_usb_default: usb_default {
+					pinmux = <PIN_PB10__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_usba_vbus: usba_vbus {
+					pinmux = <PIN_PA31__GPIO>;
+					bias-disable;
+				};
+
 			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_key_gpio_default>;
+
+		bp1 {
+			label = "PB_USER";
+			gpios = <&pioA 41 GPIO_ACTIVE_LOW>;
+			linux,code = <0x104>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_led_gpio_default>;
+		status = "okay";
+
+		red {
+			label = "red";
+			gpios = <&pioA 38 GPIO_ACTIVE_LOW>;
+		};
+
+		green {
+			label = "green";
+			gpios = <&pioA 37 GPIO_ACTIVE_LOW>;
+		};
+
+		blue {
+			label = "blue";
+			gpios = <&pioA 32 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
 		};
 	};
 };

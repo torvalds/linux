@@ -202,6 +202,26 @@ config ARM_SP805_WATCHDOG
 	  ARM Primecell SP805 Watchdog timer. This will reboot your system when
 	  the timeout is reached.
 
+config ARM_SBSA_WATCHDOG
+	tristate "ARM SBSA Generic Watchdog"
+	depends on ARM64
+	depends on ARM_ARCH_TIMER
+	select WATCHDOG_CORE
+	help
+	  ARM SBSA Generic Watchdog has two stage timeouts:
+	  the first signal (WS0) is for alerting the system by interrupt,
+	  the second one (WS1) is a real hardware reset.
+	  More details: ARM DEN0029B - Server Base System Architecture (SBSA)
+
+	  This driver can operate ARM SBSA Generic Watchdog as a single stage
+	  or a two stages watchdog, it depends on the module parameter "action".
+
+	  Note: the maximum timeout in the two stages mode is half of that in
+	  the single stage mode.
+
+	  To compile this driver as module, choose M here: The module
+	  will be called sbsa_gwdt.
+
 config ASM9260_WATCHDOG
 	tristate "Alphascale ASM9260 watchdog"
 	depends on MACH_ASM9260
@@ -330,6 +350,7 @@ config SA1100_WATCHDOG
 config DW_WATCHDOG
 	tristate "Synopsys DesignWare watchdog"
 	depends on HAS_IOMEM
+	select WATCHDOG_CORE
 	help
 	  Say Y here if to include support for the Synopsys DesignWare
 	  watchdog timer found in many chips.
@@ -399,6 +420,7 @@ config DAVINCI_WATCHDOG
 config ORION_WATCHDOG
 	tristate "Orion watchdog"
 	depends on ARCH_ORION5X || ARCH_DOVE || MACH_DOVE || ARCH_MVEBU
+	depends on ARM
 	select WATCHDOG_CORE
 	help
 	  Say Y here if to include support for the watchdog timer
@@ -468,6 +490,7 @@ config NUC900_WATCHDOG
 config TS4800_WATCHDOG
 	tristate "TS-4800 Watchdog"
 	depends on HAS_IOMEM && OF
+	depends on SOC_IMX51 || COMPILE_TEST
 	select WATCHDOG_CORE
 	select MFD_SYSCON
 	help
@@ -712,6 +735,15 @@ config ALIM7101_WDT
 	  module will be called alim7101_wdt.
 
 	  Most people will say N.
+
+config EBC_C384_WDT
+	tristate "WinSystems EBC-C384 Watchdog Timer"
+	depends on X86
+	select WATCHDOG_CORE
+	help
+	  Enables watchdog timer support for the watchdog timer on the
+	  WinSystems EBC-C384 motherboard. The timeout may be configured via
+	  the timeout module parameter.
 
 config F71808E_WDT
 	tristate "Fintek F71808E, F71862FG, F71869, F71882FG and F71889FG Watchdog"
@@ -1142,6 +1174,7 @@ config W83627HF_WDT
 		NCT6779
 		NCT6791
 		NCT6792
+		NCT6102D/04D/06D
 
 	  This watchdog simply watches your kernel to make sure it doesn't
 	  freeze, and if it does, it reboots your computer after a certain
@@ -1228,6 +1261,17 @@ config INTEL_MEI_WDT
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called mei_wdt.
+
+config NI903X_WDT
+	tristate "NI 903x/913x Watchdog"
+	depends on X86 && ACPI
+	select WATCHDOG_CORE
+	---help---
+	  This is the driver for the watchdog timer on the National Instruments
+	  903x/913x real-time controllers.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ni903x_wdt.
 
 # M32R Architecture
 
@@ -1392,10 +1436,12 @@ config BCM7038_WDT
 	tristate "BCM7038 Watchdog"
 	select WATCHDOG_CORE
 	depends on HAS_IOMEM
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST
 	help
-	 Watchdog driver for the built-in hardware in Broadcom 7038 SoCs.
-
-	 Say 'Y or 'M' here to enable the driver.
+	 Watchdog driver for the built-in hardware in Broadcom 7038 and
+	 later SoCs used in set-top boxes.  BCM7038 was made public
+	 during the 2004 CES, and since then, many Broadcom chips use this
+	 watchdog block, including some cable modem chips.
 
 config IMGPDC_WDT
 	tristate "Imagination Technologies PDC Watchdog Timer"

@@ -21,14 +21,14 @@
 /*
  * Maximum lifetime of a call (in jiffies).
  */
-unsigned rxrpc_max_call_lifetime = 60 * HZ;
+unsigned int rxrpc_max_call_lifetime = 60 * HZ;
 
 /*
  * Time till dead call expires after last use (in jiffies).
  */
-unsigned rxrpc_dead_call_expiry = 2 * HZ;
+unsigned int rxrpc_dead_call_expiry = 2 * HZ;
 
-const char *const rxrpc_call_states[] = {
+const char *const rxrpc_call_states[NR__RXRPC_CALL_STATES] = {
 	[RXRPC_CALL_CLIENT_SEND_REQUEST]	= "ClSndReq",
 	[RXRPC_CALL_CLIENT_AWAIT_REPLY]		= "ClAwtRpl",
 	[RXRPC_CALL_CLIENT_RECV_REPLY]		= "ClRcvRpl",
@@ -64,11 +64,11 @@ static DEFINE_HASHTABLE(rxrpc_call_hash, 10);
  * Hash function for rxrpc_call_hash
  */
 static unsigned long rxrpc_call_hashfunc(
-	u8		clientflag,
-	__be32		cid,
-	__be32		call_id,
-	__be32		epoch,
-	__be16		service_id,
+	u8		in_clientflag,
+	u32		cid,
+	u32		call_id,
+	u32		epoch,
+	u16		service_id,
 	sa_family_t	proto,
 	void		*localptr,
 	unsigned int	addr_size,
@@ -77,7 +77,6 @@ static unsigned long rxrpc_call_hashfunc(
 	const u16 *p;
 	unsigned int i;
 	unsigned long key;
-	u32 hcid = ntohl(cid);
 
 	_enter("");
 
@@ -85,12 +84,12 @@ static unsigned long rxrpc_call_hashfunc(
 	/* We just want to add up the __be32 values, so forcing the
 	 * cast should be okay.
 	 */
-	key += (__force u32)epoch;
-	key += (__force u16)service_id;
-	key += (__force u32)call_id;
-	key += (hcid & RXRPC_CIDMASK) >> RXRPC_CIDSHIFT;
-	key += hcid & RXRPC_CHANNELMASK;
-	key += clientflag;
+	key += epoch;
+	key += service_id;
+	key += call_id;
+	key += (cid & RXRPC_CIDMASK) >> RXRPC_CIDSHIFT;
+	key += cid & RXRPC_CHANNELMASK;
+	key += in_clientflag;
 	key += proto;
 	/* Step through the peer address in 16-bit portions for speed */
 	for (i = 0, p = (const u16 *)peer_addr; i < addr_size >> 1; i++, p++)
@@ -148,19 +147,16 @@ static void rxrpc_call_hash_del(struct rxrpc_call *call)
  * isn't there.
  */
 struct rxrpc_call *rxrpc_find_call_hash(
-	u8		clientflag,
-	__be32		cid,
-	__be32		call_id,
-	__be32		epoch,
-	__be16		service_id,
+	struct rxrpc_host_header *hdr,
 	void		*localptr,
 	sa_family_t	proto,
-	const u8	*peer_addr)
+	const void	*peer_addr)
 {
 	unsigned long key;
 	unsigned int addr_size = 0;
 	struct rxrpc_call *call = NULL;
 	struct rxrpc_call *ret = NULL;
+	u8 in_clientflag = hdr->flags & RXRPC_CLIENT_INITIATED;
 
 	_enter("");
 	switch (proto) {
@@ -174,20 +170,21 @@ struct rxrpc_call *rxrpc_find_call_hash(
 		break;
 	}
 
-	key = rxrpc_call_hashfunc(clientflag, cid, call_id, epoch,
-				  service_id, proto, localptr, addr_size,
+	key = rxrpc_call_hashfunc(in_clientflag, hdr->cid, hdr->callNumber,
+				  hdr->epoch, hdr->serviceId,
+				  proto, localptr, addr_size,
 				  peer_addr);
 	hash_for_each_possible_rcu(rxrpc_call_hash, call, hash_node, key) {
 		if (call->hash_key == key &&
-		    call->call_id == call_id &&
-		    call->cid == cid &&
-		    call->in_clientflag == clientflag &&
-		    call->service_id == service_id &&
+		    call->call_id == hdr->callNumber &&
+		    call->cid == hdr->cid &&
+		    call->in_clientflag == in_clientflag &&
+		    call->service_id == hdr->serviceId &&
 		    call->proto == proto &&
 		    call->local == localptr &&
 		    memcmp(call->peer_ip.ipv6_addr, peer_addr,
-			      addr_size) == 0 &&
-		    call->epoch == epoch) {
+			   addr_size) == 0 &&
+		    call->epoch == hdr->epoch) {
 			ret = call;
 			break;
 		}
@@ -414,12 +411,12 @@ found_extant_second:
  */
 struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 				       struct rxrpc_connection *conn,
-				       struct rxrpc_header *hdr,
+				       struct rxrpc_host_header *hdr,
 				       gfp_t gfp)
 {
 	struct rxrpc_call *call, *candidate;
 	struct rb_node **p, *parent;
-	__be32 call_id;
+	u32 call_id;
 
 	_enter(",%d,,%x", conn->debug_id, gfp);
 
@@ -433,7 +430,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	candidate->conn = conn;
 	candidate->cid = hdr->cid;
 	candidate->call_id = hdr->callNumber;
-	candidate->channel = ntohl(hdr->cid) & RXRPC_CHANNELMASK;
+	candidate->channel = hdr->cid & RXRPC_CHANNELMASK;
 	candidate->rx_data_post = 0;
 	candidate->state = RXRPC_CALL_SERVER_ACCEPTING;
 	if (conn->security_ix > 0)
@@ -452,7 +449,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 		read_lock(&call->state_lock);
 		switch (call->state) {
 		case RXRPC_CALL_LOCALLY_ABORTED:
-			if (!test_and_set_bit(RXRPC_CALL_ABORT, &call->events))
+			if (!test_and_set_bit(RXRPC_CALL_EV_ABORT, &call->events))
 				rxrpc_queue_call(call);
 		case RXRPC_CALL_REMOTELY_ABORTED:
 			read_unlock(&call->state_lock);
@@ -492,9 +489,9 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 		/* The tree is sorted in order of the __be32 value without
 		 * turning it into host order.
 		 */
-		if ((__force u32)call_id < (__force u32)call->call_id)
+		if (call_id < call->call_id)
 			p = &(*p)->rb_left;
-		else if ((__force u32)call_id > (__force u32)call->call_id)
+		else if (call_id > call->call_id)
 			p = &(*p)->rb_right;
 		else
 			goto old_call;
@@ -686,7 +683,7 @@ void rxrpc_release_call(struct rxrpc_call *call)
 		_debug("+++ ABORTING STATE %d +++\n", call->state);
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
 		call->abort_code = RX_CALL_DEAD;
-		set_bit(RXRPC_CALL_ABORT, &call->events);
+		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		rxrpc_queue_call(call);
 	}
 	write_unlock(&call->state_lock);
@@ -714,8 +711,7 @@ void rxrpc_release_call(struct rxrpc_call *call)
 
 			_debug("- zap %s %%%u #%u",
 			       rxrpc_pkts[sp->hdr.type],
-			       ntohl(sp->hdr.serial),
-			       ntohl(sp->hdr.seq));
+			       sp->hdr.serial, sp->hdr.seq);
 			rxrpc_free_skb(skb);
 			spin_lock_bh(&call->lock);
 		}
@@ -763,10 +759,10 @@ static void rxrpc_mark_call_released(struct rxrpc_call *call)
 			_debug("abort call %p", call);
 			call->state = RXRPC_CALL_LOCALLY_ABORTED;
 			call->abort_code = RX_CALL_DEAD;
-			if (!test_and_set_bit(RXRPC_CALL_ABORT, &call->events))
+			if (!test_and_set_bit(RXRPC_CALL_EV_ABORT, &call->events))
 				sched = true;
 		}
-		if (!test_and_set_bit(RXRPC_CALL_RELEASE, &call->events))
+		if (!test_and_set_bit(RXRPC_CALL_EV_RELEASE, &call->events))
 			sched = true;
 		if (sched)
 			rxrpc_queue_call(call);
@@ -873,9 +869,9 @@ static void rxrpc_cleanup_call(struct rxrpc_call *call)
 			unsigned long _skb;
 
 			_skb = call->acks_window[call->acks_tail] & ~1;
-			sp = rxrpc_skb((struct sk_buff *) _skb);
-			_debug("+++ clear Tx %u", ntohl(sp->hdr.seq));
-			rxrpc_free_skb((struct sk_buff *) _skb);
+			sp = rxrpc_skb((struct sk_buff *)_skb);
+			_debug("+++ clear Tx %u", sp->hdr.seq);
+			rxrpc_free_skb((struct sk_buff *)_skb);
 			call->acks_tail =
 				(call->acks_tail + 1) & (call->acks_winsz - 1);
 		}
@@ -975,7 +971,7 @@ static void rxrpc_call_life_expired(unsigned long _call)
 	_enter("{%d}", call->debug_id);
 	read_lock_bh(&call->state_lock);
 	if (call->state < RXRPC_CALL_COMPLETE) {
-		set_bit(RXRPC_CALL_LIFE_TIMER, &call->events);
+		set_bit(RXRPC_CALL_EV_LIFE_TIMER, &call->events);
 		rxrpc_queue_call(call);
 	}
 	read_unlock_bh(&call->state_lock);
@@ -995,7 +991,7 @@ static void rxrpc_resend_time_expired(unsigned long _call)
 		return;
 
 	clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
-	if (!test_and_set_bit(RXRPC_CALL_RESEND_TIMER, &call->events))
+	if (!test_and_set_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events))
 		rxrpc_queue_call(call);
 }
 
@@ -1013,7 +1009,7 @@ static void rxrpc_ack_time_expired(unsigned long _call)
 
 	read_lock_bh(&call->state_lock);
 	if (call->state < RXRPC_CALL_COMPLETE &&
-	    !test_and_set_bit(RXRPC_CALL_ACK, &call->events))
+	    !test_and_set_bit(RXRPC_CALL_EV_ACK, &call->events))
 		rxrpc_queue_call(call);
 	read_unlock_bh(&call->state_lock);
 }

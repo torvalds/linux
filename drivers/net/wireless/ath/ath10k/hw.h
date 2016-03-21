@@ -106,6 +106,14 @@ enum qca9377_chip_id_rev {
 #define QCA9377_HW_1_0_BOARD_DATA_FILE "board.bin"
 #define QCA9377_HW_1_0_PATCH_LOAD_ADDR	0x1234
 
+/* QCA4019 1.0 definitions */
+#define QCA4019_HW_1_0_DEV_VERSION     0x01000000
+#define QCA4019_HW_1_0_FW_DIR          ATH10K_FW_DIR "/QCA4019/hw1.0"
+#define QCA4019_HW_1_0_FW_FILE         "firmware.bin"
+#define QCA4019_HW_1_0_OTP_FILE        "otp.bin"
+#define QCA4019_HW_1_0_BOARD_DATA_FILE "board.bin"
+#define QCA4019_HW_1_0_PATCH_LOAD_ADDR  0x1234
+
 #define ATH10K_FW_API2_FILE		"firmware-2.bin"
 #define ATH10K_FW_API3_FILE		"firmware-3.bin"
 
@@ -200,6 +208,7 @@ enum ath10k_hw_rev {
 	ATH10K_HW_QCA6174,
 	ATH10K_HW_QCA99X0,
 	ATH10K_HW_QCA9377,
+	ATH10K_HW_QCA4019,
 };
 
 struct ath10k_hw_regs {
@@ -232,6 +241,7 @@ struct ath10k_hw_regs {
 extern const struct ath10k_hw_regs qca988x_regs;
 extern const struct ath10k_hw_regs qca6174_regs;
 extern const struct ath10k_hw_regs qca99x0_regs;
+extern const struct ath10k_hw_regs qca4019_regs;
 
 struct ath10k_hw_values {
 	u32 rtc_state_val_on;
@@ -245,6 +255,7 @@ struct ath10k_hw_values {
 extern const struct ath10k_hw_values qca988x_values;
 extern const struct ath10k_hw_values qca6174_values;
 extern const struct ath10k_hw_values qca99x0_values;
+extern const struct ath10k_hw_values qca4019_values;
 
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev);
@@ -253,6 +264,7 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 #define QCA_REV_6174(ar) ((ar)->hw_rev == ATH10K_HW_QCA6174)
 #define QCA_REV_99X0(ar) ((ar)->hw_rev == ATH10K_HW_QCA99X0)
 #define QCA_REV_9377(ar) ((ar)->hw_rev == ATH10K_HW_QCA9377)
+#define QCA_REV_40XX(ar) ((ar)->hw_rev == ATH10K_HW_QCA4019)
 
 /* Known pecularities:
  *  - raw appears in nwifi decap, raw and nwifi appear in ethernet decap
@@ -363,7 +375,10 @@ enum ath10k_hw_4addr_pad {
 #define TARGET_10X_MAC_AGGR_DELIM		0
 #define TARGET_10X_AST_SKID_LIMIT		128
 #define TARGET_10X_NUM_STATIONS			128
+#define TARGET_10X_TX_STATS_NUM_STATIONS	118
 #define TARGET_10X_NUM_PEERS			((TARGET_10X_NUM_STATIONS) + \
+						 (TARGET_10X_NUM_VDEVS))
+#define TARGET_10X_TX_STATS_NUM_PEERS		((TARGET_10X_TX_STATS_NUM_STATIONS) + \
 						 (TARGET_10X_NUM_VDEVS))
 #define TARGET_10X_NUM_OFFLOAD_PEERS		0
 #define TARGET_10X_NUM_OFFLOAD_REORDER_BUFS	0
@@ -371,6 +386,8 @@ enum ath10k_hw_4addr_pad {
 #define TARGET_10X_NUM_TIDS_MAX			256
 #define TARGET_10X_NUM_TIDS			min((TARGET_10X_NUM_TIDS_MAX), \
 						    (TARGET_10X_NUM_PEERS) * 2)
+#define TARGET_10X_TX_STATS_NUM_TIDS		min((TARGET_10X_NUM_TIDS_MAX), \
+						    (TARGET_10X_TX_STATS_NUM_PEERS) * 2)
 #define TARGET_10X_TX_CHAIN_MASK		(BIT(0) | BIT(1) | BIT(2))
 #define TARGET_10X_RX_CHAIN_MASK		(BIT(0) | BIT(1) | BIT(2))
 #define TARGET_10X_RX_TIMEOUT_LO_PRI		100
@@ -414,16 +431,11 @@ enum ath10k_hw_4addr_pad {
 #define TARGET_10_4_ACTIVE_PEERS		0
 
 #define TARGET_10_4_NUM_QCACHE_PEERS_MAX	512
-#define TARGET_10_4_QCACHE_ACTIVE_PEERS		50
 #define TARGET_10_4_NUM_OFFLOAD_PEERS		0
 #define TARGET_10_4_NUM_OFFLOAD_REORDER_BUFFS	0
 #define TARGET_10_4_NUM_PEER_KEYS		2
 #define TARGET_10_4_TGT_NUM_TIDS		((TARGET_10_4_NUM_PEERS) * 2)
 #define TARGET_10_4_AST_SKID_LIMIT		32
-#define TARGET_10_4_TX_CHAIN_MASK		(BIT(0) | BIT(1) | \
-						 BIT(2) | BIT(3))
-#define TARGET_10_4_RX_CHAIN_MASK		(BIT(0) | BIT(1) | \
-						 BIT(2) | BIT(3))
 
 /* 100 ms for video, best-effort, and background */
 #define TARGET_10_4_RX_TIMEOUT_LO_PRI		100
@@ -449,7 +461,6 @@ enum ath10k_hw_4addr_pad {
 #define TARGET_10_4_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK 1
 #define TARGET_10_4_VOW_CONFIG			0
 #define TARGET_10_4_GTK_OFFLOAD_MAX_VDEV	3
-#define TARGET_10_4_NUM_MSDU_DESC		(1024 + 400)
 #define TARGET_10_4_11AC_TX_MAX_FRAGS		2
 #define TARGET_10_4_MAX_PEER_EXT_STATS		16
 #define TARGET_10_4_SMART_ANT_CAP		0
@@ -601,6 +612,7 @@ enum ath10k_hw_4addr_pad {
 #define FW_INDICATOR_ADDRESS			ar->regs->fw_indicator_address
 #define FW_IND_EVENT_PENDING			1
 #define FW_IND_INITIALIZED			2
+#define FW_IND_HOST_READY			0x80000000
 
 /* HOST_REG interrupt from firmware */
 #define PCIE_INTR_FIRMWARE_MASK			ar->regs->pcie_intr_fw_mask

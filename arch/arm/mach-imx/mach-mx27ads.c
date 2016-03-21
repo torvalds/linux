@@ -204,9 +204,9 @@ static struct i2c_board_info mx27ads_i2c_devices[] = {
 static void vgpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	if (value)
-		__raw_writew(PBC_BCTRL1_LCDON, PBC_BCTRL1_SET_REG);
+		imx_writew(PBC_BCTRL1_LCDON, PBC_BCTRL1_SET_REG);
 	else
-		__raw_writew(PBC_BCTRL1_LCDON, PBC_BCTRL1_CLEAR_REG);
+		imx_writew(PBC_BCTRL1_LCDON, PBC_BCTRL1_CLEAR_REG);
 }
 
 static int vgpio_dir_out(struct gpio_chip *chip, unsigned offset, int value)
@@ -366,7 +366,7 @@ static void __init mx27ads_timer_init(void)
 {
 	unsigned long fref = 26000000;
 
-	if ((__raw_readw(PBC_VERSION_REG) & CKIH_27MHZ_BIT_SET) == 0)
+	if ((imx_readw(PBC_VERSION_REG) & CKIH_27MHZ_BIT_SET) == 0)
 		fref = 27000000;
 
 	mx27_clocks_init(fref);

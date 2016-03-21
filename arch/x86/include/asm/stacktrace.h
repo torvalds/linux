@@ -37,7 +37,7 @@ print_context_stack_bp(struct thread_info *tinfo,
 /* Generic stack tracer with callbacks */
 
 struct stacktrace_ops {
-	void (*address)(void *data, unsigned long address, int reliable);
+	int (*address)(void *data, unsigned long address, int reliable);
 	/* On negative return stop dumping */
 	int (*stack)(void *data, char *name);
 	walk_stack_t	walk_stack;

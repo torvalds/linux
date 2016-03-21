@@ -1,7 +1,7 @@
 /*
  * B4860DS Device Tree Source
  *
- * Copyright 2012 Freescale Semiconductor Inc.
+ * Copyright 2012 - 2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -39,9 +39,66 @@
 	model = "fsl,B4860QDS";
 	compatible = "fsl,B4860QDS";
 
+	aliases {
+		phy_sgmii_1e = &phy_sgmii_1e;
+		phy_sgmii_1f = &phy_sgmii_1f;
+		phy_xaui_slot1 = &phy_xaui_slot1;
+		phy_xaui_slot2 = &phy_xaui_slot2;
+	};
+
 	ifc: localbus@ffe124000 {
 		board-control@3,0 {
 			compatible = "fsl,b4860qds-fpga", "fsl,fpga-qixis";
+		};
+	};
+
+	soc@ffe000000 {
+		fman@400000 {
+			ethernet@e8000 {
+				phy-handle = <&phy_sgmii_1e>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@ea000 {
+				phy-handle = <&phy_sgmii_1f>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@f0000 {
+				phy-handle = <&phy_xaui_slot1>;
+				phy-connection-type = "xgmii";
+			};
+
+			ethernet@f2000 {
+				phy-handle = <&phy_xaui_slot2>;
+				phy-connection-type = "xgmii";
+			};
+
+			mdio@fc000 {
+				phy_sgmii_1e: ethernet-phy@1e {
+					reg = <0x1e>;
+					status = "disabled";
+				};
+
+				phy_sgmii_1f: ethernet-phy@1f {
+					reg = <0x1f>;
+					status = "disabled";
+				};
+			};
+
+			mdio@fd000 {
+				phy_xaui_slot1: xaui-phy@slot1 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x7>;
+					status = "disabled";
+				};
+
+				phy_xaui_slot2: xaui-phy@slot2 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x6>;
+					status = "disabled";
+				};
+			};
 		};
 	};
 
@@ -55,7 +112,6 @@
 			ranges = <0 0 0xc 0x30000000 0 0x10000000>;
 		};
 	};
-
 };
 
 /include/ "b4860si-post.dtsi"

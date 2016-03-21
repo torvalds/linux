@@ -17,6 +17,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/irqchip/arm-gic-v3.h>
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/virt.h>
@@ -159,6 +160,29 @@ ARM_BE8(orr	r7, r7, #(1 << 25))     @ HSCTLR.EE
 	bic	r7, #1			@ Clear ENABLE
 	mcr	p15, 0, r7, c14, c3, 1	@ CNTV_CTL
 1:
+#endif
+
+#ifdef CONFIG_ARM_GIC_V3
+	@ Check whether GICv3 system registers are available
+	mrc	p15, 0, r7, c0, c1, 1	@ ID_PFR1
+	ubfx	r7, r7, #28, #4
+	cmp	r7, #1
+	bne	2f
+
+	@ Enable system register accesses
+	mrc	p15, 4, r7, c12, c9, 5	@ ICC_HSRE
+	orr	r7, r7, #(ICC_SRE_EL2_ENABLE | ICC_SRE_EL2_SRE)
+	mcr	p15, 4, r7, c12, c9, 5	@ ICC_HSRE
+	isb
+
+	@ SRE bit could be forced to 0 by firmware.
+	@ Check whether it sticks before accessing any other sysreg
+	mrc	p15, 4, r7, c12, c9, 5	@ ICC_HSRE
+	tst	r7, #ICC_SRE_EL2_SRE
+	beq	2f
+	mov	r7, #0
+	mcr	p15, 4, r7, c12, c11, 0	@ ICH_HCR
+2:
 #endif
 
 	bx	lr			@ The boot CPU mode is left in r4.

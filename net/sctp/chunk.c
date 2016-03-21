@@ -70,19 +70,6 @@ static struct sctp_datamsg *sctp_datamsg_new(gfp_t gfp)
 	return msg;
 }
 
-void sctp_datamsg_free(struct sctp_datamsg *msg)
-{
-	struct sctp_chunk *chunk;
-
-	/* This doesn't have to be a _safe vairant because
-	 * sctp_chunk_free() only drops the refs.
-	 */
-	list_for_each_entry(chunk, &msg->chunks, frag_list)
-		sctp_chunk_free(chunk);
-
-	sctp_datamsg_put(msg);
-}
-
 /* Final destructruction of datamsg memory. */
 static void sctp_datamsg_destroy(struct sctp_datamsg *msg)
 {
@@ -273,7 +260,8 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 				frag |= SCTP_DATA_SACK_IMM;
 		}
 
-		chunk = sctp_make_datafrag_empty(asoc, sinfo, len, frag, 0);
+		chunk = sctp_make_datafrag_empty(asoc, sinfo, len, frag,
+						 0, GFP_KERNEL);
 
 		if (!chunk) {
 			err = -ENOMEM;
@@ -309,7 +297,8 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		    (sinfo->sinfo_flags & SCTP_SACK_IMMEDIATELY))
 			frag |= SCTP_DATA_SACK_IMM;
 
-		chunk = sctp_make_datafrag_empty(asoc, sinfo, over, frag, 0);
+		chunk = sctp_make_datafrag_empty(asoc, sinfo, over, frag,
+						 0, GFP_KERNEL);
 
 		if (!chunk) {
 			err = -ENOMEM;

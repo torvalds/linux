@@ -424,6 +424,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	struct usb_device *dev;
 	struct usb_hcd *usb_hcd = bus_to_hcd(bus);
 	unsigned root_hub = 0;
+	unsigned raw_port = port1;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -498,11 +499,11 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 
 		if (!parent->parent) {
 			/* device under root hub's port */
-			port1 = usb_hcd_find_raw_port_number(usb_hcd,
+			raw_port = usb_hcd_find_raw_port_number(usb_hcd,
 				port1);
 		}
 		dev->dev.of_node = usb_of_get_child_node(parent->dev.of_node,
-				port1);
+				raw_port);
 
 		/* hub driver sets up TT records */
 	}

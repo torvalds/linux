@@ -132,6 +132,13 @@ static int mwifiex_unregister(struct mwifiex_adapter *adapter)
 		}
 	}
 
+	if (adapter->nd_info) {
+		for (i = 0 ; i < adapter->nd_info->n_matches ; i++)
+			kfree(adapter->nd_info->matches[i]);
+		kfree(adapter->nd_info);
+		adapter->nd_info = NULL;
+	}
+
 	vfree(adapter->chan_stats);
 	kfree(adapter);
 	return 0;
@@ -745,6 +752,13 @@ int mwifiex_queue_tx_pkt(struct mwifiex_private *priv, struct sk_buff *skb)
 	 }
 
 	mwifiex_queue_main_work(priv->adapter);
+
+	if (priv->sched_scanning) {
+		mwifiex_dbg(priv->adapter, INFO,
+			    "aborting bgscan on ndo_stop\n");
+		mwifiex_stop_bg_scan(priv);
+		cfg80211_sched_scan_stopped(priv->wdev.wiphy);
+	}
 
 	return 0;
 }

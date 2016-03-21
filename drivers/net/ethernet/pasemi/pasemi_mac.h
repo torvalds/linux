@@ -31,7 +31,6 @@
 #define CS_RING_SIZE (TX_RING_SIZE*2)
 
 
-#define MAX_LRO_DESCRIPTORS 8
 #define MAX_CS	2
 
 struct pasemi_mac_txring {
@@ -84,10 +83,7 @@ struct pasemi_mac {
 
 	u8		mac_addr[ETH_ALEN];
 
-	struct net_lro_mgr	lro_mgr;
-	struct net_lro_desc	lro_desc[MAX_LRO_DESCRIPTORS];
 	struct timer_list	rxtimer;
-	unsigned int		lro_max_aggr;
 
 	struct pasemi_mac_txring *tx;
 	struct pasemi_mac_rxring *rx;

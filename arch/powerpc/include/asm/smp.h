@@ -67,6 +67,9 @@ void generic_cpu_die(unsigned int cpu);
 void generic_set_cpu_dead(unsigned int cpu);
 void generic_set_cpu_up(unsigned int cpu);
 int generic_check_cpu_restart(unsigned int cpu);
+int is_cpu_dead(unsigned int cpu);
+#else
+#define generic_set_cpu_up(i)	do { } while (0)
 #endif
 
 #ifdef CONFIG_PPC64
@@ -201,6 +204,7 @@ extern void generic_secondary_thread_init(void);
 extern unsigned long __secondary_hold_spinloop;
 extern unsigned long __secondary_hold_acknowledge;
 extern char __secondary_hold;
+extern unsigned int booting_thread_hwid;
 
 extern void __early_start(void);
 #endif /* __ASSEMBLY__ */

@@ -79,3 +79,16 @@ config PAGE_POISONING_ZERO
 	   Enabling page poisoning with this option will disable hibernation
 
 	   If unsure, say N
+	bool
+
+config DEBUG_PAGE_REF
+	bool "Enable tracepoint to track down page reference manipulation"
+	depends on DEBUG_KERNEL
+	depends on TRACEPOINTS
+	---help---
+	  This is a feature to add tracepoint for tracking down page reference
+	  manipulation. This tracking is useful to diagnose functional failure
+	  due to migration failures caused by page reference mismatches.  Be
+	  careful when enabling this feature because it adds about 30 KB to the
+	  kernel code.  However the runtime performance overhead is virtually
+	  nil until the tracepoints are actually enabled.

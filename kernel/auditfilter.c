@@ -158,7 +158,7 @@ char *audit_unpack_string(void **bufp, size_t *remain, size_t len)
 	return str;
 }
 
-/* Translate an inode field to kernel respresentation. */
+/* Translate an inode field to kernel representation. */
 static inline int audit_to_inode(struct audit_krule *krule,
 				 struct audit_field *f)
 {
@@ -415,7 +415,7 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 	return 0;
 }
 
-/* Translate struct audit_rule_data to kernel's rule respresentation. */
+/* Translate struct audit_rule_data to kernel's rule representation. */
 static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 					       size_t datasz)
 {
@@ -593,7 +593,7 @@ static inline size_t audit_pack_string(void **bufp, const char *str)
 	return len;
 }
 
-/* Translate kernel rule respresentation to struct audit_rule_data. */
+/* Translate kernel rule representation to struct audit_rule_data. */
 static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 {
 	struct audit_rule_data *data;

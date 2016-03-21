@@ -258,6 +258,28 @@ requeue:
 }
 
 /*
+ * Mark an object as being inactive.
+ */
+void cachefiles_mark_object_inactive(struct cachefiles_cache *cache,
+				     struct cachefiles_object *object)
+{
+	write_lock(&cache->active_lock);
+	rb_erase(&object->active_node, &cache->active_nodes);
+	clear_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags);
+	write_unlock(&cache->active_lock);
+
+	wake_up_bit(&object->flags, CACHEFILES_OBJECT_ACTIVE);
+
+	/* This object can now be culled, so we need to let the daemon know
+	 * that there is something it can remove if it needs to.
+	 */
+	atomic_long_add(d_backing_inode(object->dentry)->i_blocks,
+			&cache->b_released);
+	if (atomic_inc_return(&cache->f_released))
+		cachefiles_state_changed(cache);
+}
+
+/*
  * delete an object representation from the cache
  * - file backed objects are unlinked
  * - directory backed objects are stuffed into the graveyard for userspace to
@@ -684,11 +706,7 @@ mark_active_timed_out:
 
 check_error:
 	_debug("check error %d", ret);
-	write_lock(&cache->active_lock);
-	rb_erase(&object->active_node, &cache->active_nodes);
-	clear_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags);
-	wake_up_bit(&object->flags, CACHEFILES_OBJECT_ACTIVE);
-	write_unlock(&cache->active_lock);
+	cachefiles_mark_object_inactive(cache, object);
 release_dentry:
 	dput(object->dentry);
 	object->dentry = NULL;

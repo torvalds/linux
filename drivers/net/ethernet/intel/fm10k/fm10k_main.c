@@ -243,7 +243,7 @@ static bool fm10k_can_reuse_rx_page(struct fm10k_rx_buffer *rx_buffer,
 	/* Even if we own the page, we are not allowed to use atomic_set()
 	 * This would break get_page_unless_zero() users.
 	 */
-	atomic_inc(&page->_count);
+	page_ref_inc(page);
 
 	return true;
 }
@@ -1937,8 +1937,10 @@ static void fm10k_init_reta(struct fm10k_intfc *interface)
 	u16 i, rss_i = interface->ring_feature[RING_F_RSS].indices;
 	u32 reta, base;
 
-	/* If the netdev is initialized we have to maintain table if possible */
-	if (interface->netdev->reg_state != NETREG_UNINITIALIZED) {
+	/* If the Rx flow indirection table has been configured manually, we
+	 * need to maintain it when possible.
+	 */
+	if (netif_is_rxfh_configured(interface->netdev)) {
 		for (i = FM10K_RETA_SIZE; i--;) {
 			reta = interface->reta[i];
 			if ((((reta << 24) >> 24) < rss_i) &&
@@ -1946,6 +1948,10 @@ static void fm10k_init_reta(struct fm10k_intfc *interface)
 			    (((reta <<  8) >> 24) < rss_i) &&
 			    (((reta)       >> 24) < rss_i))
 				continue;
+
+			/* this should never happen */
+			dev_err(&interface->pdev->dev,
+				"RSS indirection table assigned flows out of queue bounds. Reconfiguring.\n");
 			goto repopulate_reta;
 		}
 

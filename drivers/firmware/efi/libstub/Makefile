@@ -23,6 +23,7 @@ KBUILD_CFLAGS			:= $(cflags-y) -DDISABLE_BRANCH_PROFILING \
 GCOV_PROFILE			:= n
 KASAN_SANITIZE			:= n
 UBSAN_SANITIZE			:= n
+OBJECT_FILES_NON_STANDARD	:= y
 
 lib-y				:= efi-stub-helper.o
 
