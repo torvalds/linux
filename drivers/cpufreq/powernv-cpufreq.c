@@ -44,7 +44,6 @@
 
 static struct cpufreq_frequency_table powernv_freqs[POWERNV_MAX_PSTATES+1];
 static bool rebooting, throttled, occ_reset;
-static unsigned int *core_to_chip_map;
 
 static const char * const throttle_reason[] = {
 	"No throttling",
@@ -65,6 +64,7 @@ static struct chip {
 } *chips;
 
 static int nr_chips;
+static DEFINE_PER_CPU(struct chip *, chip_info);
 
 /*
  * Note: The set of pstates consists of contiguous integers, the
@@ -324,34 +324,31 @@ static inline unsigned int get_nominal_index(void)
 
 static void powernv_cpufreq_throttle_check(void *data)
 {
+	struct chip *chip;
 	unsigned int cpu = smp_processor_id();
-	unsigned int chip_id = core_to_chip_map[cpu_core_index_of_thread(cpu)];
 	unsigned long pmsr;
-	int pmsr_pmax, i;
+	int pmsr_pmax;
 
 	pmsr = get_pmspr(SPRN_PMSR);
-
-	for (i = 0; i < nr_chips; i++)
-		if (chips[i].id == chip_id)
-			break;
+	chip = this_cpu_read(chip_info);
 
 	/* Check for Pmax Capping */
 	pmsr_pmax = (s8)PMSR_MAX(pmsr);
 	if (pmsr_pmax != powernv_pstate_info.max) {
-		if (chips[i].throttled)
+		if (chip->throttled)
 			goto next;
-		chips[i].throttled = true;
+		chip->throttled = true;
 		if (pmsr_pmax < powernv_pstate_info.nominal)
 			pr_warn_once("CPU %d on Chip %u has Pmax reduced below nominal frequency (%d < %d)\n",
-				     cpu, chips[i].id, pmsr_pmax,
+				     cpu, chip->id, pmsr_pmax,
 				     powernv_pstate_info.nominal);
-		trace_powernv_throttle(chips[i].id,
-				      throttle_reason[chips[i].throttle_reason],
+		trace_powernv_throttle(chip->id,
+				      throttle_reason[chip->throttle_reason],
 				      pmsr_pmax);
-	} else if (chips[i].throttled) {
-		chips[i].throttled = false;
-		trace_powernv_throttle(chips[i].id,
-				      throttle_reason[chips[i].throttle_reason],
+	} else if (chip->throttled) {
+		chip->throttled = false;
+		trace_powernv_throttle(chip->id,
+				      throttle_reason[chip->throttle_reason],
 				      pmsr_pmax);
 	}
 
@@ -558,47 +555,34 @@ static int init_chip_info(void)
 	unsigned int chip[256];
 	unsigned int cpu, i;
 	unsigned int prev_chip_id = UINT_MAX;
-	cpumask_t cpu_mask;
-	int ret = -ENOMEM;
 
-	core_to_chip_map = kcalloc(cpu_nr_cores(), sizeof(unsigned int),
-				   GFP_KERNEL);
-	if (!core_to_chip_map)
-		goto out;
-
-	cpumask_copy(&cpu_mask, cpu_possible_mask);
-	for_each_cpu(cpu, &cpu_mask) {
+	for_each_possible_cpu(cpu) {
 		unsigned int id = cpu_to_chip_id(cpu);
 
 		if (prev_chip_id != id) {
 			prev_chip_id = id;
 			chip[nr_chips++] = id;
 		}
-		core_to_chip_map[cpu_core_index_of_thread(cpu)] = id;
-		cpumask_andnot(&cpu_mask, &cpu_mask, cpu_sibling_mask(cpu));
 	}
 
 	chips = kcalloc(nr_chips, sizeof(struct chip), GFP_KERNEL);
 	if (!chips)
-		goto free_chip_map;
+		return -ENOMEM;
 
 	for (i = 0; i < nr_chips; i++) {
 		chips[i].id = chip[i];
 		cpumask_copy(&chips[i].mask, cpumask_of_node(chip[i]));
 		INIT_WORK(&chips[i].throttle, powernv_cpufreq_work_fn);
+		for_each_cpu(cpu, &chips[i].mask)
+			per_cpu(chip_info, cpu) =  &chips[i];
 	}
 
 	return 0;
-free_chip_map:
-	kfree(core_to_chip_map);
-out:
-	return ret;
 }
 
 static inline void clean_chip_info(void)
 {
 	kfree(chips);
-	kfree(core_to_chip_map);
 }
 
 static inline void unregister_all_notifiers(void)
