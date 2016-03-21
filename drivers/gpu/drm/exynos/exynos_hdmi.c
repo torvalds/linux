@@ -867,10 +867,8 @@ static void hdmi_reg_infoframe(struct hdmi_context *hdata,
 {
 	u32 hdr_sum;
 	u8 chksum;
-	u32 mod;
 	u8 ar;
 
-	mod = hdmi_reg_read(hdata, HDMI_MODE_SEL);
 	if (hdata->dvi_mode) {
 		hdmi_reg_writeb(hdata, HDMI_VSI_CON,
 				HDMI_VSI_CON_DO_NOT_TRANSMIT);

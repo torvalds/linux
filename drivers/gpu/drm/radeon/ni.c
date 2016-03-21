@@ -1257,7 +1257,7 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 		tmp = RREG32_CG(CG_CGTT_LOCAL_0);
 		tmp &= ~0x00380000;
 		WREG32_CG(CG_CGTT_LOCAL_0, tmp);
-                tmp = RREG32_CG(CG_CGTT_LOCAL_1);
+		tmp = RREG32_CG(CG_CGTT_LOCAL_1);
 		tmp &= ~0x0e000000;
 		WREG32_CG(CG_CGTT_LOCAL_1, tmp);
 	}
@@ -2634,7 +2634,7 @@ int tn_set_vce_clocks(struct radeon_device *rdev, u32 evclk, u32 ecclk)
 	struct atom_clock_dividers dividers;
 	int r, i;
 
-        r = radeon_atom_get_clock_dividers(rdev, COMPUTE_ENGINE_PLL_PARAM,
+	r = radeon_atom_get_clock_dividers(rdev, COMPUTE_ENGINE_PLL_PARAM,
 					   ecclk, false, &dividers);
 	if (r)
 		return r;

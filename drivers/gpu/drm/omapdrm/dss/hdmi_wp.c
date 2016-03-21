@@ -165,12 +165,24 @@ void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
 {
 	u32 timing_h = 0;
 	u32 timing_v = 0;
+	unsigned hsw_offset = 1;
 
 	DSSDBG("Enter hdmi_wp_video_config_timing\n");
 
+	/*
+	 * On OMAP4 and OMAP5 ES1 the HSW field is programmed as is. On OMAP5
+	 * ES2+ (including DRA7/AM5 SoCs) HSW field is programmed to hsw-1.
+	 * However, we don't support OMAP5 ES1 at all, so we can just check for
+	 * OMAP4 here.
+	 */
+	if (omapdss_get_version() == OMAPDSS_VER_OMAP4430_ES1 ||
+	    omapdss_get_version() == OMAPDSS_VER_OMAP4430_ES2 ||
+	    omapdss_get_version() == OMAPDSS_VER_OMAP4)
+		hsw_offset = 0;
+
 	timing_h |= FLD_VAL(timings->hbp, 31, 20);
 	timing_h |= FLD_VAL(timings->hfp, 19, 8);
-	timing_h |= FLD_VAL(timings->hsw, 7, 0);
+	timing_h |= FLD_VAL(timings->hsw - hsw_offset, 7, 0);
 	hdmi_write_reg(wp->base, HDMI_WP_VIDEO_TIMING_H, timing_h);
 
 	timing_v |= FLD_VAL(timings->vbp, 31, 20);
@@ -187,8 +199,6 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 	video_fmt->packing_mode = HDMI_PACK_10b_RGB_YUV444;
 	video_fmt->y_res = param->timings.y_res;
 	video_fmt->x_res = param->timings.x_res;
-	if (param->timings.interlace)
-		video_fmt->y_res /= 2;
 
 	timings->hbp = param->timings.hbp;
 	timings->hfp = param->timings.hfp;
@@ -196,9 +206,25 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 	timings->vbp = param->timings.vbp;
 	timings->vfp = param->timings.vfp;
 	timings->vsw = param->timings.vsw;
+
 	timings->vsync_level = param->timings.vsync_level;
 	timings->hsync_level = param->timings.hsync_level;
 	timings->interlace = param->timings.interlace;
+	timings->double_pixel = param->timings.double_pixel;
+
+	if (param->timings.interlace) {
+		video_fmt->y_res /= 2;
+		timings->vbp /= 2;
+		timings->vfp /= 2;
+		timings->vsw /= 2;
+	}
+
+	if (param->timings.double_pixel) {
+		video_fmt->x_res *= 2;
+		timings->hfp *= 2;
+		timings->hsw *= 2;
+		timings->hbp *= 2;
+	}
 }
 
 void hdmi_wp_audio_config_format(struct hdmi_wp_data *wp,
