@@ -111,7 +111,6 @@ static void intel_begin_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
 static void intel_finish_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
 static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_crtc,
 	struct intel_crtc_state *crtc_state);
-static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state);
 static void skylake_pfit_enable(struct intel_crtc *crtc);
 static void ironlake_pfit_disable(struct intel_crtc *crtc, bool force);
 static void ironlake_pfit_enable(struct intel_crtc *crtc);
@@ -593,21 +592,17 @@ intel_limit(struct intel_crtc_state *crtc_state, int refclk)
 	struct drm_device *dev = crtc_state->base.crtc->dev;
 	const intel_limit_t *limit;
 
-	if (IS_BROXTON(dev))
-		limit = &intel_limits_bxt;
-	else if (WARN_ON(HAS_PCH_SPLIT(dev)))
+	if (IS_BROXTON(dev) || IS_CHERRYVIEW(dev) || IS_VALLEYVIEW(dev) ||
+	    HAS_PCH_SPLIT(dev))
 		limit = NULL;
-	else if (IS_G4X(dev)) {
+
+	if (IS_G4X(dev)) {
 		limit = intel_g4x_limit(crtc_state);
 	} else if (IS_PINEVIEW(dev)) {
 		if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits_pineview_lvds;
 		else
 			limit = &intel_limits_pineview_sdvo;
-	} else if (IS_CHERRYVIEW(dev)) {
-		limit = &intel_limits_chv;
-	} else if (IS_VALLEYVIEW(dev)) {
-		limit = &intel_limits_vlv;
 	} else if (!IS_GEN2(dev)) {
 		if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits_i9xx_lvds;
@@ -621,6 +616,9 @@ intel_limit(struct intel_crtc_state *crtc_state, int refclk)
 		else
 			limit = &intel_limits_i8xx_dac;
 	}
+
+	WARN_ON(limit == NULL);
+
 	return limit;
 }
 
@@ -939,6 +937,11 @@ static bool vlv_PLL_is_optimal(struct drm_device *dev, int target_freq,
 	return *error_ppm + 10 < best_error_ppm;
 }
 
+/*
+ * Returns a set of divisors for the desired target clock with the given
+ * refclk, or FALSE.  The returned values represent the clock equation:
+ * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
+ */
 static bool
 vlv_find_best_dpll(const intel_limit_t *limit,
 		   struct intel_crtc_state *crtc_state,
@@ -993,6 +996,11 @@ vlv_find_best_dpll(const intel_limit_t *limit,
 	return found;
 }
 
+/*
+ * Returns a set of divisors for the desired target clock with the given
+ * refclk, or FALSE.  The returned values represent the clock equation:
+ * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
+ */
 static bool
 chv_find_best_dpll(const intel_limit_t *limit,
 		   struct intel_crtc_state *crtc_state,
@@ -1054,9 +1062,10 @@ chv_find_best_dpll(const intel_limit_t *limit,
 bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state, int target_clock,
 			intel_clock_t *best_clock)
 {
-	int refclk = i9xx_get_refclk(crtc_state);
+	int refclk = 100000;
+	const intel_limit_t *limit = &intel_limits_bxt;
 
-	return chv_find_best_dpll(intel_limit(crtc_state, refclk), crtc_state,
+	return chv_find_best_dpll(limit, crtc_state,
 				  target_clock, refclk, NULL, best_clock);
 }
 
@@ -7046,9 +7055,7 @@ static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state)
 
 	WARN_ON(!crtc_state->base.state);
 
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev) || IS_BROXTON(dev)) {
-		refclk = 100000;
-	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 	    intel_panel_use_ssc(dev_priv)) {
 		refclk = dev_priv->vbt.lvds_ssc_freq;
 		DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
@@ -7852,13 +7859,57 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 
 	if (IS_GEN2(dev)) {
 		i8xx_compute_dpll(crtc, crtc_state, NULL);
-	} else if (IS_CHERRYVIEW(dev)) {
-		chv_compute_dpll(crtc, crtc_state);
-	} else if (IS_VALLEYVIEW(dev)) {
-		vlv_compute_dpll(crtc, crtc_state);
 	} else {
 		i9xx_compute_dpll(crtc, crtc_state, NULL);
 	}
+
+	return 0;
+}
+
+static int chv_crtc_compute_clock(struct intel_crtc *crtc,
+				  struct intel_crtc_state *crtc_state)
+{
+	int refclk = 100000;
+	const intel_limit_t *limit = &intel_limits_chv;
+
+	memset(&crtc_state->dpll_hw_state, 0,
+	       sizeof(crtc_state->dpll_hw_state));
+
+	if (crtc_state->has_dsi_encoder)
+		return 0;
+
+	if (!crtc_state->clock_set &&
+	    !chv_find_best_dpll(limit, crtc_state, crtc_state->port_clock,
+				refclk, NULL, &crtc_state->dpll)) {
+		DRM_ERROR("Couldn't find PLL settings for mode!\n");
+		return -EINVAL;
+	}
+
+	chv_compute_dpll(crtc, crtc_state);
+
+	return 0;
+}
+
+static int vlv_crtc_compute_clock(struct intel_crtc *crtc,
+				  struct intel_crtc_state *crtc_state)
+{
+	int refclk = 100000;
+	const intel_limit_t *limit = &intel_limits_vlv;
+
+	memset(&crtc_state->dpll_hw_state, 0,
+	       sizeof(crtc_state->dpll_hw_state));
+
+	if (crtc_state->has_dsi_encoder)
+		return 0;
+
+	if (!crtc_state->clock_set &&
+	    !vlv_find_best_dpll(limit, crtc_state, crtc_state->port_clock,
+				refclk, NULL, &crtc_state->dpll)) {
+		DRM_ERROR("Couldn't find PLL settings for mode!\n");
+		return -EINVAL;
+	}
+
+	vlv_compute_dpll(crtc, crtc_state);
 
 	return 0;
 }
@@ -14724,10 +14775,6 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 {
 	if (HAS_PCH_SPLIT(dev_priv) || IS_G4X(dev_priv))
 		dev_priv->display.find_dpll = g4x_find_best_dpll;
-	else if (IS_CHERRYVIEW(dev_priv))
-		dev_priv->display.find_dpll = chv_find_best_dpll;
-	else if (IS_VALLEYVIEW(dev_priv))
-		dev_priv->display.find_dpll = vlv_find_best_dpll;
 	else if (IS_PINEVIEW(dev_priv))
 		dev_priv->display.find_dpll = pnv_find_best_dpll;
 	else
@@ -14757,11 +14804,18 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 			ironlake_crtc_compute_clock;
 		dev_priv->display.crtc_enable = ironlake_crtc_enable;
 		dev_priv->display.crtc_disable = ironlake_crtc_disable;
-	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+	} else if (IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
 			i9xx_get_initial_plane_config;
-		dev_priv->display.crtc_compute_clock = i9xx_crtc_compute_clock;
+		dev_priv->display.crtc_compute_clock = chv_crtc_compute_clock;
+		dev_priv->display.crtc_enable = valleyview_crtc_enable;
+		dev_priv->display.crtc_disable = i9xx_crtc_disable;
+	} else if (IS_VALLEYVIEW(dev_priv)) {
+		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
+		dev_priv->display.get_initial_plane_config =
+			i9xx_get_initial_plane_config;
+		dev_priv->display.crtc_compute_clock = vlv_crtc_compute_clock;
 		dev_priv->display.crtc_enable = valleyview_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
 	} else {
