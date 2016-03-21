@@ -8800,13 +8800,16 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 	intel_clock_t clock, reduced_clock;
 	u32 dpll = 0, fp = 0, fp2 = 0;
 	bool has_reduced_clock = false;
-	bool is_lvds = false;
 	struct intel_shared_dpll *pll;
 
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
 
-	is_lvds = intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS);
+	crtc->lowfreq_avail = false;
+
+	/* CPU eDP is the only output that doesn't need a PCH PLL of its own. */
+	if (!crtc_state->has_pch_encoder)
+		return 0;
 
 	if (!crtc_state->clock_set) {
 		if (!ironlake_compute_clocks(&crtc->base, crtc_state, &clock,
@@ -8824,34 +8827,30 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 		crtc_state->dpll.p2 = clock.p2;
 	}
 
-	/* CPU eDP is the only output that doesn't need a PCH PLL of its own. */
-	if (crtc_state->has_pch_encoder) {
-		fp = i9xx_dpll_compute_fp(&crtc_state->dpll);
-		if (has_reduced_clock)
-			fp2 = i9xx_dpll_compute_fp(&reduced_clock);
-		else
-			fp2 = fp;
+	fp = i9xx_dpll_compute_fp(&crtc_state->dpll);
+	if (has_reduced_clock)
+		fp2 = i9xx_dpll_compute_fp(&reduced_clock);
+	else
+		fp2 = fp;
 
-		dpll = ironlake_compute_dpll(crtc, crtc_state,
-					     &fp, &reduced_clock,
-					     has_reduced_clock ? &fp2 : NULL);
+	dpll = ironlake_compute_dpll(crtc, crtc_state,
+				     &fp, &reduced_clock,
+				     has_reduced_clock ? &fp2 : NULL);
 
-		crtc_state->dpll_hw_state.dpll = dpll;
-		crtc_state->dpll_hw_state.fp0 = fp;
-		crtc_state->dpll_hw_state.fp1 = fp2;
+	crtc_state->dpll_hw_state.dpll = dpll;
+	crtc_state->dpll_hw_state.fp0 = fp;
+	crtc_state->dpll_hw_state.fp1 = fp2;
 
-		pll = intel_get_shared_dpll(crtc, crtc_state, NULL);
-		if (pll == NULL) {
-			DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
-					 pipe_name(crtc->pipe));
-			return -EINVAL;
-		}
+	pll = intel_get_shared_dpll(crtc, crtc_state, NULL);
+	if (pll == NULL) {
+		DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
+				 pipe_name(crtc->pipe));
+		return -EINVAL;
 	}
 
-	if (is_lvds && has_reduced_clock)
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
+	    has_reduced_clock)
 		crtc->lowfreq_avail = true;
-	else
-		crtc->lowfreq_avail = false;
 
 	return 0;
 }
