@@ -213,6 +213,16 @@ static int panel_dpi_probe_of(struct platform_device *pdev)
 
 	ddata->enable_gpio = gpio;
 
+	/*
+	 * Many different panels are supported by this driver and there are
+	 * probably very different needs for their reset pins in regards to
+	 * timing and order relative to the enable gpio. So for now it's just
+	 * ensured that the reset line isn't active.
+	 */
+	gpio = devm_gpiod_get_optional(&pdev->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
+
 	ddata->backlight_gpio = -ENOENT;
 
 	r = of_get_display_timing(node, "panel-timing", &timing);
