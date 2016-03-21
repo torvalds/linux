@@ -58,6 +58,7 @@
 #define ABX8XX_OSC_OSEL		BIT(7)
 
 #define ABX8XX_REG_OSS		0x1d
+#define ABX8XX_OSS_OF		BIT(1)
 #define ABX8XX_OSS_OMODE	BIT(4)
 
 #define ABX8XX_REG_CFG_KEY	0x1f
@@ -138,7 +139,23 @@ static int abx80x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	unsigned char buf[8];
-	int err;
+	int err, flags, rc_mode = 0;
+
+	/* Read the Oscillator Failure only in XT mode */
+	rc_mode = abx80x_is_rc_mode(client);
+	if (rc_mode < 0)
+		return rc_mode;
+
+	if (!rc_mode) {
+		flags = i2c_smbus_read_byte_data(client, ABX8XX_REG_OSS);
+		if (flags < 0)
+			return flags;
+
+		if (flags & ABX8XX_OSS_OF) {
+			dev_err(dev, "Oscillator failure, data is invalid.\n");
+			return -EINVAL;
+		}
+	}
 
 	err = i2c_smbus_read_i2c_block_data(client, ABX8XX_REG_HTH,
 					    sizeof(buf), buf);
@@ -166,7 +183,7 @@ static int abx80x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	unsigned char buf[8];
-	int err;
+	int err, flags;
 
 	if (tm->tm_year < 100)
 		return -EINVAL;
@@ -185,6 +202,18 @@ static int abx80x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	if (err < 0) {
 		dev_err(&client->dev, "Unable to write to date registers\n");
 		return -EIO;
+	}
+
+	/* Clear the OF bit of Oscillator Status Register */
+	flags = i2c_smbus_read_byte_data(client, ABX8XX_REG_OSS);
+	if (flags < 0)
+		return flags;
+
+	err = i2c_smbus_write_byte_data(client, ABX8XX_REG_OSS,
+					flags & ~ABX8XX_OSS_OF);
+	if (err < 0) {
+		dev_err(&client->dev, "Unable to write oscillator status register\n");
+		return err;
 	}
 
 	return 0;
