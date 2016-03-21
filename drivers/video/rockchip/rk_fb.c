@@ -4188,6 +4188,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			mutex_init(&dev_drv->output_lock);
 
 			INIT_LIST_HEAD(&dev_drv->update_regs_list);
+			INIT_LIST_HEAD(&dev_drv->saved_list);
 			mutex_init(&dev_drv->update_regs_list_lock);
 			init_kthread_worker(&dev_drv->update_regs_worker);
 
