@@ -946,15 +946,15 @@ igmp_max_memberships - INTEGER
 	The value 5459 assumes no IP header options, so in practice
 	this number may be lower.
 
-	conf/interface/*  changes special settings per interface (where
-	"interface" is the name of your network interface)
-
-	conf/all/*	  is special, changes the settings for all interfaces
-
 igmp_qrv - INTEGER
 	 Controls the IGMP query robustness variable (see RFC2236 8.1).
 	 Default: 2 (as specified by RFC2236 8.1)
 	 Minimum: 1 (as specified by RFC6636 4.5)
+
+conf/interface/*  changes special settings per interface (where
+"interface" is the name of your network interface)
+
+conf/all/*	  is special, changes the settings for all interfaces
 
 log_martians - BOOLEAN
 	Log packets with impossible addresses to kernel log.
