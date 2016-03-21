@@ -60,6 +60,10 @@ static const struct phy_mpll_config_tab PHY_MPLL_TABLE[] = {
 		1,	2,	1,	0,	7,	0,	3},
 	{148500000,	297000000,	0,	16,	3,	0,	0,
 		1,	1,	0,	0,	7,	0,	3},
+	{148500000,	297000000,	0,	8,	0,	0,	0,
+		1,	1,	0,	0,	0,	0,	3},
+	{148500000,	594000000,	0,	8,	0,	3,	1,
+		1,	3,	0,	0,	0,	0,	3},
 	{297000000,	148500000,	0,	8,	0,	0,	0,
 		1,	0,	1,	0,	0,	0,	3},
 	{297000000,	297000000,	0,	8,	0,	0,	0,
@@ -691,10 +695,14 @@ static int rockchip_hdmiv2_config_phy(struct hdmi_dev *hdmi_dev)
 	int stat = 0, i = 0;
 	const struct phy_mpll_config_tab *phy_mpll = NULL;
 
-	if (hdmi_dev->soctype == HDMI_SOC_RK322X)
+	if (hdmi_dev->soctype == HDMI_SOC_RK322X) {
 		return ext_phy_config(hdmi_dev);
-	else if (hdmi_dev->soctype == HDMI_SOC_RK3366)
-		clk_set_rate(hdmi_dev->pclk_phy, hdmi_dev->pixelclk);
+	} else if (hdmi_dev->soctype == HDMI_SOC_RK3366) {
+		if (hdmi_dev->pixelclk > 148500000)
+			clk_set_rate(hdmi_dev->pclk_phy, 148500000);
+		else
+			clk_set_rate(hdmi_dev->pclk_phy, hdmi_dev->pixelclk);
+	}
 
 	hdmi_msk_reg(hdmi_dev, PHY_I2CM_DIV,
 		     m_PHY_I2CM_FAST_STD, v_PHY_I2CM_FAST_STD(0));
@@ -717,10 +725,17 @@ static int rockchip_hdmiv2_config_phy(struct hdmi_dev *hdmi_dev)
 	hdmi_writel(hdmi_dev, PHY_I2CM_SLAVE, PHY_GEN2_ADDR);
 
 	/* config the required PHY I2C register */
-	phy_mpll = get_phy_mpll_tab(hdmi_dev->pixelclk,
-				    hdmi_dev->tmdsclk,
-				    hdmi_dev->pixelrepeat - 1,
-				    hdmi_dev->colordepth);
+	if (hdmi_dev->soctype == HDMI_SOC_RK3366 &&
+	    hdmi_dev->pixelclk > 148500000)
+		phy_mpll = get_phy_mpll_tab(148500000,
+					    hdmi_dev->tmdsclk,
+					    hdmi_dev->pixelrepeat - 1,
+					    hdmi_dev->colordepth);
+	else
+		phy_mpll = get_phy_mpll_tab(hdmi_dev->pixelclk,
+					    hdmi_dev->tmdsclk,
+					    hdmi_dev->pixelrepeat - 1,
+					    hdmi_dev->colordepth);
 	if (phy_mpll) {
 		rockchip_hdmiv2_write_phy(hdmi_dev, PHYTX_OPMODE_PLLCFG,
 					  v_PREP_DIV(phy_mpll->prep_div) |
