@@ -8800,7 +8800,7 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	intel_clock_t clock, reduced_clock;
 	u32 dpll = 0, fp = 0, fp2 = 0;
-	bool ok, has_reduced_clock = false;
+	bool has_reduced_clock = false;
 	bool is_lvds = false;
 	struct intel_shared_dpll *pll;
 
@@ -8812,14 +8812,15 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 	WARN(!(HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)),
 	     "Unexpected PCH type %d\n", INTEL_PCH_TYPE(dev));
 
-	ok = ironlake_compute_clocks(&crtc->base, crtc_state, &clock,
-				     &has_reduced_clock, &reduced_clock);
-	if (!ok && !crtc_state->clock_set) {
-		DRM_ERROR("Couldn't find PLL settings for mode!\n");
-		return -EINVAL;
-	}
-	/* Compat-code for transition, will disappear. */
 	if (!crtc_state->clock_set) {
+		if (!ironlake_compute_clocks(&crtc->base, crtc_state, &clock,
+					     &has_reduced_clock,
+					     &reduced_clock)) {
+			DRM_ERROR("Couldn't find PLL settings for mode!\n");
+			return -EINVAL;
+		}
+
+		/* Compat-code for transition, will disappear. */
 		crtc_state->dpll.n = clock.n;
 		crtc_state->dpll.m1 = clock.m1;
 		crtc_state->dpll.m2 = clock.m2;
