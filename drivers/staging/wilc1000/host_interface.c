@@ -234,7 +234,7 @@ static struct message_queue hif_msg_q;
 static struct semaphore hif_sema_thread;
 static struct semaphore hif_sema_driver;
 static struct completion hif_wait_response;
-static struct semaphore hif_sema_deinit;
+static struct mutex hif_deinit_lock;
 static struct timer_list periodic_rssi;
 
 u8 wilc_multicast_mac_addr_list[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
@@ -3402,7 +3402,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	if (clients_count == 0)	{
 		sema_init(&hif_sema_thread, 0);
 		sema_init(&hif_sema_driver, 0);
-		sema_init(&hif_sema_deinit, 1);
+		mutex_init(&hif_deinit_lock);
 	}
 
 	init_completion(&hif_drv->comp_test_key_block);
@@ -3470,7 +3470,7 @@ int wilc_deinit(struct wilc_vif *vif)
 		return -EFAULT;
 	}
 
-	down(&hif_sema_deinit);
+	mutex_lock(&hif_deinit_lock);
 
 	terminated_handle = hif_drv;
 
@@ -3512,7 +3512,7 @@ int wilc_deinit(struct wilc_vif *vif)
 
 	clients_count--;
 	terminated_handle = NULL;
-	up(&hif_sema_deinit);
+	mutex_unlock(&hif_deinit_lock);
 	return result;
 }
 
@@ -3559,25 +3559,25 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *pu8Buffer,
 	struct host_if_drv *hif_drv = NULL;
 	struct wilc_vif *vif;
 
-	down(&hif_sema_deinit);
+	mutex_lock(&hif_deinit_lock);
 
 	id = ((pu8Buffer[u32Length - 4]) | (pu8Buffer[u32Length - 3] << 8) | (pu8Buffer[u32Length - 2] << 16) | (pu8Buffer[u32Length - 1] << 24));
 	vif = wilc_get_vif_from_idx(wilc, id);
 	if (!vif) {
-		up(&hif_sema_deinit);
+		mutex_unlock(&hif_deinit_lock);
 		return;
 	}
 
 	hif_drv = vif->hif_drv;
 
 	if (!hif_drv || hif_drv == terminated_handle) {
-		up(&hif_sema_deinit);
+		mutex_unlock(&hif_deinit_lock);
 		return;
 	}
 
 	if (!hif_drv->usr_conn_req.conn_result) {
 		netdev_err(vif->ndev, "there is no current Connect Request\n");
-		up(&hif_sema_deinit);
+		mutex_unlock(&hif_deinit_lock);
 		return;
 	}
 
@@ -3594,7 +3594,7 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *pu8Buffer,
 	if (result)
 		netdev_err(vif->ndev, "synchronous info (%d)\n", result);
 
-	up(&hif_sema_deinit);
+	mutex_unlock(&hif_deinit_lock);
 }
 
 void wilc_scan_complete_received(struct wilc *wilc, u8 *pu8Buffer,
