@@ -603,6 +603,21 @@
 			reg = <0xffe00000 0x40000>;
 		};
 
+		eccmgr: eccmgr@ffd06000 {
+			compatible = "altr,socfpga-a10-ecc-manager";
+			altr,sysmgr-syscon = <&sysmgr>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			interrupts = <0 2 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 0 IRQ_TYPE_LEVEL_HIGH>;
+			ranges;
+
+			l2-ecc@ffd06010 {
+				compatible = "altr,socfpga-a10-l2-ecc";
+				reg = <0xffd06010 0x4>;
+			};
+		};
+
 		rst: rstmgr@ffd05000 {
 			#reset-cells = <1>;
 			compatible = "altr,rst-mgr";
