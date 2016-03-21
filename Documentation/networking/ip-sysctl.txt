@@ -946,10 +946,15 @@ igmp_max_memberships - INTEGER
 	The value 5459 assumes no IP header options, so in practice
 	this number may be lower.
 
+igmp_max_msf - INTEGER
+	Maximum number of addresses allowed in the source filter list for a
+	multicast group.
+	Default: 10
+
 igmp_qrv - INTEGER
-	 Controls the IGMP query robustness variable (see RFC2236 8.1).
-	 Default: 2 (as specified by RFC2236 8.1)
-	 Minimum: 1 (as specified by RFC6636 4.5)
+	Controls the IGMP query robustness variable (see RFC2236 8.1).
+	Default: 2 (as specified by RFC2236 8.1)
+	Minimum: 1 (as specified by RFC6636 4.5)
 
 conf/interface/*  changes special settings per interface (where
 "interface" is the name of your network interface)
