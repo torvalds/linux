@@ -193,8 +193,26 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_NOHUGEPAGE	0x40000000	/* MADV_NOHUGEPAGE marked this vma */
 #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
 
+#ifdef CONFIG_ARCH_USES_HIGH_VMA_FLAGS
+#define VM_HIGH_ARCH_BIT_0	32	/* bit only usable on 64-bit architectures */
+#define VM_HIGH_ARCH_BIT_1	33	/* bit only usable on 64-bit architectures */
+#define VM_HIGH_ARCH_BIT_2	34	/* bit only usable on 64-bit architectures */
+#define VM_HIGH_ARCH_BIT_3	35	/* bit only usable on 64-bit architectures */
+#define VM_HIGH_ARCH_0	BIT(VM_HIGH_ARCH_BIT_0)
+#define VM_HIGH_ARCH_1	BIT(VM_HIGH_ARCH_BIT_1)
+#define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
+#define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
+#endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
+
 #if defined(CONFIG_X86)
 # define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
+#if defined (CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS)
+# define VM_PKEY_SHIFT	VM_HIGH_ARCH_BIT_0
+# define VM_PKEY_BIT0	VM_HIGH_ARCH_0	/* A protection key is a 4-bit value */
+# define VM_PKEY_BIT1	VM_HIGH_ARCH_1
+# define VM_PKEY_BIT2	VM_HIGH_ARCH_2
+# define VM_PKEY_BIT3	VM_HIGH_ARCH_3
+#endif
 #elif defined(CONFIG_PPC)
 # define VM_SAO		VM_ARCH_1	/* Strong Access Ordering (powerpc) */
 #elif defined(CONFIG_PARISC)
@@ -256,6 +274,8 @@ extern pgprot_t protection_map[16];
 #define FAULT_FLAG_KILLABLE	0x10	/* The fault task is in SIGKILL killable region */
 #define FAULT_FLAG_TRIED	0x20	/* Second try */
 #define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
+#define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
+#define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
 
 /*
  * vm_fault is filled by the the pagefault handler and passed to the vma's
@@ -1224,23 +1244,81 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		      unsigned long start, unsigned long nr_pages,
 		      unsigned int foll_flags, struct page **pages,
 		      struct vm_area_struct **vmas, int *nonblocking);
-long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-		    unsigned long start, unsigned long nr_pages,
-		    int write, int force, struct page **pages,
-		    struct vm_area_struct **vmas);
-long get_user_pages_locked(struct task_struct *tsk, struct mm_struct *mm,
-		    unsigned long start, unsigned long nr_pages,
-		    int write, int force, struct page **pages,
-		    int *locked);
+long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
+			    unsigned long start, unsigned long nr_pages,
+			    int write, int force, struct page **pages,
+			    struct vm_area_struct **vmas);
+long get_user_pages6(unsigned long start, unsigned long nr_pages,
+			    int write, int force, struct page **pages,
+			    struct vm_area_struct **vmas);
+long get_user_pages_locked6(unsigned long start, unsigned long nr_pages,
+		    int write, int force, struct page **pages, int *locked);
 long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
 			       unsigned long start, unsigned long nr_pages,
 			       int write, int force, struct page **pages,
 			       unsigned int gup_flags);
-long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
-		    unsigned long start, unsigned long nr_pages,
+long get_user_pages_unlocked5(unsigned long start, unsigned long nr_pages,
 		    int write, int force, struct page **pages);
 int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			struct page **pages);
+
+/* suppress warnings from use in EXPORT_SYMBOL() */
+#ifndef __DISABLE_GUP_DEPRECATED
+#define __gup_deprecated __deprecated
+#else
+#define __gup_deprecated
+#endif
+/*
+ * These macros provide backward-compatibility with the old
+ * get_user_pages() variants which took tsk/mm.  These
+ * functions/macros provide both compile-time __deprecated so we
+ * can catch old-style use and not break the build.  The actual
+ * functions also have WARN_ON()s to let us know at runtime if
+ * the get_user_pages() should have been the "remote" variant.
+ *
+ * These are hideous, but temporary.
+ *
+ * If you run into one of these __deprecated warnings, look
+ * at how you are calling get_user_pages().  If you are calling
+ * it with current/current->mm as the first two arguments,
+ * simply remove those arguments.  The behavior will be the same
+ * as it is now.  If you are calling it on another task, use
+ * get_user_pages_remote() instead.
+ *
+ * Any questions?  Ask Dave Hansen <dave@sr71.net>
+ */
+long
+__gup_deprecated
+get_user_pages8(struct task_struct *tsk, struct mm_struct *mm,
+		unsigned long start, unsigned long nr_pages,
+		int write, int force, struct page **pages,
+		struct vm_area_struct **vmas);
+#define GUP_MACRO(_1, _2, _3, _4, _5, _6, _7, _8, get_user_pages, ...)	\
+	get_user_pages
+#define get_user_pages(...) GUP_MACRO(__VA_ARGS__,	\
+		get_user_pages8, x,			\
+		get_user_pages6, x, x, x, x, x)(__VA_ARGS__)
+
+__gup_deprecated
+long get_user_pages_locked8(struct task_struct *tsk, struct mm_struct *mm,
+		unsigned long start, unsigned long nr_pages,
+		int write, int force, struct page **pages,
+		int *locked);
+#define GUPL_MACRO(_1, _2, _3, _4, _5, _6, _7, _8, get_user_pages_locked, ...)	\
+	get_user_pages_locked
+#define get_user_pages_locked(...) GUPL_MACRO(__VA_ARGS__,	\
+		get_user_pages_locked8,	x,			\
+		get_user_pages_locked6, x, x, x, x)(__VA_ARGS__)
+
+__gup_deprecated
+long get_user_pages_unlocked7(struct task_struct *tsk, struct mm_struct *mm,
+		unsigned long start, unsigned long nr_pages,
+		int write, int force, struct page **pages);
+#define GUPU_MACRO(_1, _2, _3, _4, _5, _6, _7, get_user_pages_unlocked, ...)	\
+	get_user_pages_unlocked
+#define get_user_pages_unlocked(...) GUPU_MACRO(__VA_ARGS__,	\
+		get_user_pages_unlocked7, x,			\
+		get_user_pages_unlocked5, x, x, x, x)(__VA_ARGS__)
 
 /* Container for pinned pfns / pages */
 struct frame_vector {
@@ -2169,6 +2247,7 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
 #define FOLL_MIGRATION	0x400	/* wait for page to replace migration entry */
 #define FOLL_TRIED	0x800	/* a retry, previous pass started an IO */
 #define FOLL_MLOCK	0x1000	/* lock present pages */
+#define FOLL_REMOTE	0x2000	/* we are working on non-current tsk/mm */
 
 typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
 			void *data);
