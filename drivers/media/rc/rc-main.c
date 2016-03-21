@@ -1263,6 +1263,9 @@ unlock:
 
 static void rc_dev_release(struct device *device)
 {
+	struct rc_dev *dev = to_rc_dev(device);
+
+	kfree(dev);
 }
 
 #define ADD_HOTPLUG_VAR(fmt, val...)					\
@@ -1384,7 +1387,9 @@ void rc_free_device(struct rc_dev *dev)
 
 	put_device(&dev->dev);
 
-	kfree(dev);
+	/* kfree(dev) will be called by the callback function
+	   rc_dev_release() */
+
 	module_put(THIS_MODULE);
 }
 EXPORT_SYMBOL_GPL(rc_free_device);
