@@ -90,7 +90,7 @@ static int socfpga_reset_status(struct reset_controller_dev *rcdev,
 	return !(reg & BIT(offset));
 }
 
-static struct reset_control_ops socfpga_reset_ops = {
+static const struct reset_control_ops socfpga_reset_ops = {
 	.assert		= socfpga_reset_assert,
 	.deassert	= socfpga_reset_deassert,
 	.status		= socfpga_reset_status,

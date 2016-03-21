@@ -70,7 +70,7 @@ static int ath79_reset_status(struct reset_controller_dev *rcdev,
 	return !!(val & BIT(id));
 }
 
-static struct reset_control_ops ath79_reset_ops = {
+static const struct reset_control_ops ath79_reset_ops = {
 	.assert = ath79_reset_assert,
 	.deassert = ath79_reset_deassert,
 	.status = ath79_reset_status,

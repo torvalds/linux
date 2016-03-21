@@ -445,7 +445,11 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
  * Global data
  */
 struct kgdb_arch arch_kgdb_ops = {
+#ifdef __LITTLE_ENDIAN__
+	.gdb_bpt_instr = {0x08, 0x10, 0x82, 0x7d},
+#else
 	.gdb_bpt_instr = {0x7d, 0x82, 0x10, 0x08},
+#endif
 };
 
 static int kgdb_not_implemented(struct pt_regs *regs)

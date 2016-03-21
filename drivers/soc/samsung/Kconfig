@@ -1,0 +1,13 @@
+#
+# SAMSUNG SoC drivers
+#
+menuconfig SOC_SAMSUNG
+	bool "Samsung SoC driver support" if COMPILE_TEST
+
+if SOC_SAMSUNG
+
+config EXYNOS_PMU
+	bool "Exynos PMU controller driver" if COMPILE_TEST
+	depends on (ARM && ARCH_EXYNOS) || ((ARM || ARM64) && COMPILE_TEST)
+
+endif

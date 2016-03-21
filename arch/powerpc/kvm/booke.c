@@ -992,7 +992,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	kvmppc_restart_interrupt(vcpu, exit_nr);
 
 	/*
-	 * get last instruction before beeing preempted
+	 * get last instruction before being preempted
 	 * TODO: for e6500 check also BOOKE_INTERRUPT_LRAT_ERROR & ESR_DATA
 	 */
 	switch (exit_nr) {

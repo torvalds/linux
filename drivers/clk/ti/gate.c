@@ -24,8 +24,6 @@
 
 #include "clock.h"
 
-#define to_clk_divider(_hw) container_of(_hw, struct clk_divider, hw)
-
 #undef pr_fmt
 #define pr_fmt(fmt) "%s: " fmt, __func__
 

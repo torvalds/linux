@@ -445,7 +445,7 @@ void generic_cpu_die(unsigned int cpu)
 
 	for (i = 0; i < 100; i++) {
 		smp_rmb();
-		if (per_cpu(cpu_state, cpu) == CPU_DEAD)
+		if (is_cpu_dead(cpu))
 			return;
 		msleep(100);
 	}
@@ -470,6 +470,11 @@ void generic_set_cpu_up(unsigned int cpu)
 int generic_check_cpu_restart(unsigned int cpu)
 {
 	return per_cpu(cpu_state, cpu) == CPU_UP_PREPARE;
+}
+
+int is_cpu_dead(unsigned int cpu)
+{
+	return per_cpu(cpu_state, cpu) == CPU_DEAD;
 }
 
 static bool secondaries_inhibited(void)

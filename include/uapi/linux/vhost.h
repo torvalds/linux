@@ -126,6 +126,12 @@ struct vhost_memory {
 #define VHOST_SET_VRING_CALL _IOW(VHOST_VIRTIO, 0x21, struct vhost_vring_file)
 /* Set eventfd to signal an error */
 #define VHOST_SET_VRING_ERR _IOW(VHOST_VIRTIO, 0x22, struct vhost_vring_file)
+/* Set busy loop timeout (in us) */
+#define VHOST_SET_VRING_BUSYLOOP_TIMEOUT _IOW(VHOST_VIRTIO, 0x23,	\
+					 struct vhost_vring_state)
+/* Get busy loop timeout (in us) */
+#define VHOST_GET_VRING_BUSYLOOP_TIMEOUT _IOW(VHOST_VIRTIO, 0x24,	\
+					 struct vhost_vring_state)
 
 /* VHOST_NET specific defines */
 

@@ -24,7 +24,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x80000000 0x80000000>;
+		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
 	vdd_3v3: fixedregulator-vdd_3v3 {
@@ -591,6 +591,11 @@
 		IOVDD-supply = <&vdd_3v3>;
 		DRVDD-supply = <&vdd_3v3>;
 		DVDD-supply = <&aic_dvdd>;
+	};
+
+	eeprom: eeprom@50 {
+		compatible = "at,24c32";
+		reg = <0x50>;
 	};
 };
 

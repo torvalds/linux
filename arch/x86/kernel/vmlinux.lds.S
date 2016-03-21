@@ -81,11 +81,11 @@ PHDRS {
 SECTIONS
 {
 #ifdef CONFIG_X86_32
-        . = LOAD_OFFSET + LOAD_PHYSICAL_ADDR;
-        phys_startup_32 = startup_32 - LOAD_OFFSET;
+	. = LOAD_OFFSET + LOAD_PHYSICAL_ADDR;
+	phys_startup_32 = ABSOLUTE(startup_32 - LOAD_OFFSET);
 #else
-        . = __START_KERNEL;
-        phys_startup_64 = startup_64 - LOAD_OFFSET;
+	. = __START_KERNEL;
+	phys_startup_64 = ABSOLUTE(startup_64 - LOAD_OFFSET);
 #endif
 
 	/* Text and read-only data */
