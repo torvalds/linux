@@ -1487,6 +1487,24 @@ unsigned int cpufreq_get(unsigned int cpu)
 }
 EXPORT_SYMBOL(cpufreq_get);
 
+static unsigned int cpufreq_update_current_freq(struct cpufreq_policy *policy)
+{
+	unsigned int new_freq;
+
+	new_freq = cpufreq_driver->get(policy->cpu);
+	if (!new_freq)
+		return 0;
+
+	if (!policy->cur) {
+		pr_debug("cpufreq: Driver did not initialize current freq\n");
+		policy->cur = new_freq;
+	} else if (policy->cur != new_freq && has_target()) {
+		cpufreq_out_of_sync(policy, new_freq);
+	}
+
+	return new_freq;
+}
+
 static struct subsys_interface cpufreq_interface = {
 	.name		= "cpufreq",
 	.subsys		= &cpu_subsys,
@@ -2152,18 +2170,10 @@ int cpufreq_update_policy(unsigned int cpu)
 	 * -> ask driver for current freq and notify governors about a change
 	 */
 	if (cpufreq_driver->get && !cpufreq_driver->setpolicy) {
-		new_policy.cur = cpufreq_driver->get(cpu);
+		new_policy.cur = cpufreq_update_current_freq(policy);
 		if (WARN_ON(!new_policy.cur)) {
 			ret = -EIO;
 			goto unlock;
-		}
-
-		if (!policy->cur) {
-			pr_debug("Driver did not initialize current freq\n");
-			policy->cur = new_policy.cur;
-		} else {
-			if (policy->cur != new_policy.cur && has_target())
-				cpufreq_out_of_sync(policy, new_policy.cur);
 		}
 	}
 
