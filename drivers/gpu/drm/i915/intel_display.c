@@ -565,40 +565,16 @@ static bool intel_pipe_will_have_type(const struct intel_crtc_state *crtc_state,
 }
 
 static const intel_limit_t *
-intel_g4x_limit(struct intel_crtc_state *crtc_state)
-{
-	struct drm_device *dev = crtc_state->base.crtc->dev;
-	const intel_limit_t *limit;
-
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
-		if (intel_is_dual_link_lvds(dev))
-			limit = &intel_limits_g4x_dual_channel_lvds;
-		else
-			limit = &intel_limits_g4x_single_channel_lvds;
-	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_HDMI) ||
-		   intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_ANALOG)) {
-		limit = &intel_limits_g4x_hdmi;
-	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_SDVO)) {
-		limit = &intel_limits_g4x_sdvo;
-	} else /* The option is for other outputs */
-		limit = &intel_limits_i9xx_sdvo;
-
-	return limit;
-}
-
-static const intel_limit_t *
 intel_limit(struct intel_crtc_state *crtc_state, int refclk)
 {
 	struct drm_device *dev = crtc_state->base.crtc->dev;
 	const intel_limit_t *limit;
 
 	if (IS_BROXTON(dev) || IS_CHERRYVIEW(dev) || IS_VALLEYVIEW(dev) ||
-	    HAS_PCH_SPLIT(dev) || IS_GEN2(dev))
+	    HAS_PCH_SPLIT(dev) || IS_G4X(dev) || IS_GEN2(dev))
 		limit = NULL;
 
-	if (IS_G4X(dev)) {
-		limit = intel_g4x_limit(crtc_state);
-	} else if (IS_PINEVIEW(dev)) {
+	if (IS_PINEVIEW(dev)) {
 		if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits_pineview_lvds;
 		else
@@ -7830,6 +7806,49 @@ static int i8xx_crtc_compute_clock(struct intel_crtc *crtc,
 	return 0;
 }
 
+static int g4x_crtc_compute_clock(struct intel_crtc *crtc,
+				  struct intel_crtc_state *crtc_state)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const intel_limit_t *limit;
+	int refclk = 96000;
+
+	memset(&crtc_state->dpll_hw_state, 0,
+	       sizeof(crtc_state->dpll_hw_state));
+
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
+		if (intel_panel_use_ssc(dev_priv)) {
+			refclk = dev_priv->vbt.lvds_ssc_freq;
+			DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
+		}
+
+		if (intel_is_dual_link_lvds(dev))
+			limit = &intel_limits_g4x_dual_channel_lvds;
+		else
+			limit = &intel_limits_g4x_single_channel_lvds;
+	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_HDMI) ||
+		   intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_ANALOG)) {
+		limit = &intel_limits_g4x_hdmi;
+	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_SDVO)) {
+		limit = &intel_limits_g4x_sdvo;
+	} else {
+		/* The option is for other outputs */
+		limit = &intel_limits_i9xx_sdvo;
+	}
+
+	if (!crtc_state->clock_set &&
+	    !g4x_find_best_dpll(limit, crtc_state, crtc_state->port_clock,
+				refclk, NULL, &crtc_state->dpll)) {
+		DRM_ERROR("Couldn't find PLL settings for mode!\n");
+		return -EINVAL;
+	}
+
+	i9xx_compute_dpll(crtc, crtc_state, NULL);
+
+	return 0;
+}
+
 static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 				   struct intel_crtc_state *crtc_state)
 {
@@ -14781,9 +14800,7 @@ static const struct drm_mode_config_funcs intel_mode_funcs = {
  */
 void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 {
-	if (HAS_PCH_SPLIT(dev_priv) || IS_G4X(dev_priv))
-		dev_priv->display.find_dpll = g4x_find_best_dpll;
-	else if (IS_PINEVIEW(dev_priv))
+	if (IS_PINEVIEW(dev_priv))
 		dev_priv->display.find_dpll = pnv_find_best_dpll;
 	else
 		dev_priv->display.find_dpll = i9xx_find_best_dpll;
@@ -14825,6 +14842,13 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 			i9xx_get_initial_plane_config;
 		dev_priv->display.crtc_compute_clock = vlv_crtc_compute_clock;
 		dev_priv->display.crtc_enable = valleyview_crtc_enable;
+		dev_priv->display.crtc_disable = i9xx_crtc_disable;
+	} else if (IS_G4X(dev_priv)) {
+		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
+		dev_priv->display.get_initial_plane_config =
+			i9xx_get_initial_plane_config;
+		dev_priv->display.crtc_compute_clock = g4x_crtc_compute_clock;
+		dev_priv->display.crtc_enable = i9xx_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
 	} else if (!IS_GEN2(dev_priv)) {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
