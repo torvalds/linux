@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,96 +49,50 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
-#include "verbs.h"
+#include "srq.h"
+#include "vt.h"
 
 /**
- * hfi1_post_srq_receive - post a receive on a shared receive queue
- * @ibsrq: the SRQ to post the receive on
- * @wr: the list of work requests to post
- * @bad_wr: A pointer to the first WR to cause a problem is put here
+ * rvt_driver_srq_init - init srq resources on a per driver basis
+ * @rdi: rvt dev structure
  *
- * This may be called from interrupt context.
+ * Do any initialization needed when a driver registers with rdmavt.
  */
-int hfi1_post_srq_receive(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-			  struct ib_recv_wr **bad_wr)
+void rvt_driver_srq_init(struct rvt_dev_info *rdi)
 {
-	struct hfi1_srq *srq = to_isrq(ibsrq);
-	struct hfi1_rwq *wq;
-	unsigned long flags;
-	int ret;
-
-	for (; wr; wr = wr->next) {
-		struct hfi1_rwqe *wqe;
-		u32 next;
-		int i;
-
-		if ((unsigned) wr->num_sge > srq->rq.max_sge) {
-			*bad_wr = wr;
-			ret = -EINVAL;
-			goto bail;
-		}
-
-		spin_lock_irqsave(&srq->rq.lock, flags);
-		wq = srq->rq.wq;
-		next = wq->head + 1;
-		if (next >= srq->rq.size)
-			next = 0;
-		if (next == wq->tail) {
-			spin_unlock_irqrestore(&srq->rq.lock, flags);
-			*bad_wr = wr;
-			ret = -ENOMEM;
-			goto bail;
-		}
-
-		wqe = get_rwqe_ptr(&srq->rq, wq->head);
-		wqe->wr_id = wr->wr_id;
-		wqe->num_sge = wr->num_sge;
-		for (i = 0; i < wr->num_sge; i++)
-			wqe->sg_list[i] = wr->sg_list[i];
-		/* Make sure queue entry is written before the head index. */
-		smp_wmb();
-		wq->head = next;
-		spin_unlock_irqrestore(&srq->rq.lock, flags);
-	}
-	ret = 0;
-
-bail:
-	return ret;
+	spin_lock_init(&rdi->n_srqs_lock);
+	rdi->n_srqs_allocated = 0;
 }
 
 /**
- * hfi1_create_srq - create a shared receive queue
+ * rvt_create_srq - create a shared receive queue
  * @ibpd: the protection domain of the SRQ to create
  * @srq_init_attr: the attributes of the SRQ
  * @udata: data from libibverbs when creating a user SRQ
+ *
+ * Return: Allocated srq object
  */
-struct ib_srq *hfi1_create_srq(struct ib_pd *ibpd,
-			       struct ib_srq_init_attr *srq_init_attr,
-			       struct ib_udata *udata)
+struct ib_srq *rvt_create_srq(struct ib_pd *ibpd,
+			      struct ib_srq_init_attr *srq_init_attr,
+			      struct ib_udata *udata)
 {
-	struct hfi1_ibdev *dev = to_idev(ibpd->device);
-	struct hfi1_srq *srq;
+	struct rvt_dev_info *dev = ib_to_rvt(ibpd->device);
+	struct rvt_srq *srq;
 	u32 sz;
 	struct ib_srq *ret;
 
-	if (srq_init_attr->srq_type != IB_SRQT_BASIC) {
-		ret = ERR_PTR(-ENOSYS);
-		goto done;
-	}
+	if (srq_init_attr->srq_type != IB_SRQT_BASIC)
+		return ERR_PTR(-ENOSYS);
 
 	if (srq_init_attr->attr.max_sge == 0 ||
-	    srq_init_attr->attr.max_sge > hfi1_max_srq_sges ||
+	    srq_init_attr->attr.max_sge > dev->dparms.props.max_srq_sge ||
 	    srq_init_attr->attr.max_wr == 0 ||
-	    srq_init_attr->attr.max_wr > hfi1_max_srq_wrs) {
-		ret = ERR_PTR(-EINVAL);
-		goto done;
-	}
+	    srq_init_attr->attr.max_wr > dev->dparms.props.max_srq_wr)
+		return ERR_PTR(-EINVAL);
 
 	srq = kmalloc(sizeof(*srq), GFP_KERNEL);
-	if (!srq) {
-		ret = ERR_PTR(-ENOMEM);
-		goto done;
-	}
+	if (!srq)
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * Need to use vmalloc() if we want to support large #s of entries.
@@ -149,8 +100,8 @@ struct ib_srq *hfi1_create_srq(struct ib_pd *ibpd,
 	srq->rq.size = srq_init_attr->attr.max_wr + 1;
 	srq->rq.max_sge = srq_init_attr->attr.max_sge;
 	sz = sizeof(struct ib_sge) * srq->rq.max_sge +
-		sizeof(struct hfi1_rwqe);
-	srq->rq.wq = vmalloc_user(sizeof(struct hfi1_rwq) + srq->rq.size * sz);
+		sizeof(struct rvt_rwqe);
+	srq->rq.wq = vmalloc_user(sizeof(struct rvt_rwq) + srq->rq.size * sz);
 	if (!srq->rq.wq) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail_srq;
@@ -158,15 +109,15 @@ struct ib_srq *hfi1_create_srq(struct ib_pd *ibpd,
 
 	/*
 	 * Return the address of the RWQ as the offset to mmap.
-	 * See hfi1_mmap() for details.
+	 * See rvt_mmap() for details.
 	 */
 	if (udata && udata->outlen >= sizeof(__u64)) {
 		int err;
-		u32 s = sizeof(struct hfi1_rwq) + srq->rq.size * sz;
+		u32 s = sizeof(struct rvt_rwq) + srq->rq.size * sz;
 
 		srq->ip =
-		    hfi1_create_mmap_info(dev, s, ibpd->uobject->context,
-					  srq->rq.wq);
+		    rvt_create_mmap_info(dev, s, ibpd->uobject->context,
+					 srq->rq.wq);
 		if (!srq->ip) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail_wq;
@@ -178,8 +129,9 @@ struct ib_srq *hfi1_create_srq(struct ib_pd *ibpd,
 			ret = ERR_PTR(err);
 			goto bail_ip;
 		}
-	} else
+	} else {
 		srq->ip = NULL;
+	}
 
 	/*
 	 * ib_create_srq() will initialize srq->ibsrq.
@@ -190,7 +142,7 @@ struct ib_srq *hfi1_create_srq(struct ib_pd *ibpd,
 	srq->limit = srq_init_attr->attr.srq_limit;
 
 	spin_lock(&dev->n_srqs_lock);
-	if (dev->n_srqs_allocated == hfi1_max_srqs) {
+	if (dev->n_srqs_allocated == dev->dparms.props.max_srq) {
 		spin_unlock(&dev->n_srqs_lock);
 		ret = ERR_PTR(-ENOMEM);
 		goto bail_ip;
@@ -205,8 +157,7 @@ struct ib_srq *hfi1_create_srq(struct ib_pd *ibpd,
 		spin_unlock_irq(&dev->pending_lock);
 	}
 
-	ret = &srq->ibsrq;
-	goto done;
+	return &srq->ibsrq;
 
 bail_ip:
 	kfree(srq->ip);
@@ -214,46 +165,44 @@ bail_wq:
 	vfree(srq->rq.wq);
 bail_srq:
 	kfree(srq);
-done:
 	return ret;
 }
 
 /**
- * hfi1_modify_srq - modify a shared receive queue
+ * rvt_modify_srq - modify a shared receive queue
  * @ibsrq: the SRQ to modify
  * @attr: the new attributes of the SRQ
  * @attr_mask: indicates which attributes to modify
  * @udata: user data for libibverbs.so
+ *
+ * Return: 0 on success
  */
-int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
-		    enum ib_srq_attr_mask attr_mask,
-		    struct ib_udata *udata)
+int rvt_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
+		   enum ib_srq_attr_mask attr_mask,
+		   struct ib_udata *udata)
 {
-	struct hfi1_srq *srq = to_isrq(ibsrq);
-	struct hfi1_rwq *wq;
+	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
+	struct rvt_dev_info *dev = ib_to_rvt(ibsrq->device);
+	struct rvt_rwq *wq;
 	int ret = 0;
 
 	if (attr_mask & IB_SRQ_MAX_WR) {
-		struct hfi1_rwq *owq;
-		struct hfi1_rwqe *p;
+		struct rvt_rwq *owq;
+		struct rvt_rwqe *p;
 		u32 sz, size, n, head, tail;
 
 		/* Check that the requested sizes are below the limits. */
-		if ((attr->max_wr > hfi1_max_srq_wrs) ||
+		if ((attr->max_wr > dev->dparms.props.max_srq_wr) ||
 		    ((attr_mask & IB_SRQ_LIMIT) ?
-		     attr->srq_limit : srq->limit) > attr->max_wr) {
-			ret = -EINVAL;
-			goto bail;
-		}
+		     attr->srq_limit : srq->limit) > attr->max_wr)
+			return -EINVAL;
 
-		sz = sizeof(struct hfi1_rwqe) +
+		sz = sizeof(struct rvt_rwqe) +
 			srq->rq.max_sge * sizeof(struct ib_sge);
 		size = attr->max_wr + 1;
-		wq = vmalloc_user(sizeof(struct hfi1_rwq) + size * sz);
-		if (!wq) {
-			ret = -ENOMEM;
-			goto bail;
-		}
+		wq = vmalloc_user(sizeof(struct rvt_rwq) + size * sz);
+		if (!wq)
+			return -ENOMEM;
 
 		/* Check that we can write the offset to mmap. */
 		if (udata && udata->inlen >= sizeof(__u64)) {
@@ -264,8 +213,8 @@ int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 						 sizeof(offset_addr));
 			if (ret)
 				goto bail_free;
-			udata->outbuf =
-				(void __user *) (unsigned long) offset_addr;
+			udata->outbuf = (void __user *)
+					(unsigned long)offset_addr;
 			ret = ib_copy_to_udata(udata, &offset,
 					       sizeof(offset));
 			if (ret)
@@ -296,16 +245,16 @@ int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		n = 0;
 		p = wq->wq;
 		while (tail != head) {
-			struct hfi1_rwqe *wqe;
+			struct rvt_rwqe *wqe;
 			int i;
 
-			wqe = get_rwqe_ptr(&srq->rq, tail);
+			wqe = rvt_get_rwqe_ptr(&srq->rq, tail);
 			p->wr_id = wqe->wr_id;
 			p->num_sge = wqe->num_sge;
 			for (i = 0; i < wqe->num_sge; i++)
 				p->sg_list[i] = wqe->sg_list[i];
 			n++;
-			p = (struct hfi1_rwqe *)((char *)p + sz);
+			p = (struct rvt_rwqe *)((char *)p + sz);
 			if (++tail >= srq->rq.size)
 				tail = 0;
 		}
@@ -320,21 +269,21 @@ int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		vfree(owq);
 
 		if (srq->ip) {
-			struct hfi1_mmap_info *ip = srq->ip;
-			struct hfi1_ibdev *dev = to_idev(srq->ibsrq.device);
-			u32 s = sizeof(struct hfi1_rwq) + size * sz;
+			struct rvt_mmap_info *ip = srq->ip;
+			struct rvt_dev_info *dev = ib_to_rvt(srq->ibsrq.device);
+			u32 s = sizeof(struct rvt_rwq) + size * sz;
 
-			hfi1_update_mmap_info(dev, ip, s, wq);
+			rvt_update_mmap_info(dev, ip, s, wq);
 
 			/*
 			 * Return the offset to mmap.
-			 * See hfi1_mmap() for details.
+			 * See rvt_mmap() for details.
 			 */
 			if (udata && udata->inlen >= sizeof(__u64)) {
 				ret = ib_copy_to_udata(udata, &ip->offset,
 						       sizeof(ip->offset));
 				if (ret)
-					goto bail;
+					return ret;
 			}
 
 			/*
@@ -355,19 +304,24 @@ int hfi1_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 			srq->limit = attr->srq_limit;
 		spin_unlock_irq(&srq->rq.lock);
 	}
-	goto bail;
+	return ret;
 
 bail_unlock:
 	spin_unlock_irq(&srq->rq.lock);
 bail_free:
 	vfree(wq);
-bail:
 	return ret;
 }
 
-int hfi1_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
+/** rvt_query_srq - query srq data
+ * @ibsrq: srq to query
+ * @attr: return info in attr
+ *
+ * Return: always 0
+ */
+int rvt_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 {
-	struct hfi1_srq *srq = to_isrq(ibsrq);
+	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
 
 	attr->max_wr = srq->rq.size - 1;
 	attr->max_sge = srq->rq.max_sge;
@@ -376,19 +330,21 @@ int hfi1_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 }
 
 /**
- * hfi1_destroy_srq - destroy a shared receive queue
- * @ibsrq: the SRQ to destroy
+ * rvt_destroy_srq - destory an srq
+ * @ibsrq: srq object to destroy
+ *
+ * Return always 0
  */
-int hfi1_destroy_srq(struct ib_srq *ibsrq)
+int rvt_destroy_srq(struct ib_srq *ibsrq)
 {
-	struct hfi1_srq *srq = to_isrq(ibsrq);
-	struct hfi1_ibdev *dev = to_idev(ibsrq->device);
+	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
+	struct rvt_dev_info *dev = ib_to_rvt(ibsrq->device);
 
 	spin_lock(&dev->n_srqs_lock);
 	dev->n_srqs_allocated--;
 	spin_unlock(&dev->n_srqs_lock);
 	if (srq->ip)
-		kref_put(&srq->ip->ref, hfi1_release_mmap_info);
+		kref_put(&srq->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(srq->rq.wq);
 	kfree(srq);

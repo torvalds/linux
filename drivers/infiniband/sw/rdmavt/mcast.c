@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,17 +45,36 @@
  *
  */
 
+#include <linux/slab.h>
+#include <linux/sched.h>
 #include <linux/rculist.h>
+#include <rdma/rdma_vt.h>
+#include <rdma/rdmavt_qp.h>
 
-#include "hfi.h"
+#include "mcast.h"
+
+/**
+ * rvt_driver_mcast - init resources for multicast
+ * @rdi: rvt dev struct
+ *
+ * This is per device that registers with rdmavt
+ */
+void rvt_driver_mcast_init(struct rvt_dev_info *rdi)
+{
+	/*
+	 * Anything that needs setup for multicast on a per driver or per rdi
+	 * basis should be done in here.
+	 */
+	spin_lock_init(&rdi->n_mcast_grps_lock);
+}
 
 /**
  * mcast_qp_alloc - alloc a struct to link a QP to mcast GID struct
  * @qp: the QP to link
  */
-static struct hfi1_mcast_qp *mcast_qp_alloc(struct hfi1_qp *qp)
+static struct rvt_mcast_qp *rvt_mcast_qp_alloc(struct rvt_qp *qp)
 {
-	struct hfi1_mcast_qp *mqp;
+	struct rvt_mcast_qp *mqp;
 
 	mqp = kmalloc(sizeof(*mqp), GFP_KERNEL);
 	if (!mqp)
@@ -71,9 +87,9 @@ bail:
 	return mqp;
 }
 
-static void mcast_qp_free(struct hfi1_mcast_qp *mqp)
+static void rvt_mcast_qp_free(struct rvt_mcast_qp *mqp)
 {
-	struct hfi1_qp *qp = mqp->qp;
+	struct rvt_qp *qp = mqp->qp;
 
 	/* Notify hfi1_destroy_qp() if it is waiting. */
 	if (atomic_dec_and_test(&qp->refcount))
@@ -88,11 +104,11 @@ static void mcast_qp_free(struct hfi1_mcast_qp *mqp)
  *
  * A list of QPs will be attached to this structure.
  */
-static struct hfi1_mcast *mcast_alloc(union ib_gid *mgid)
+static struct rvt_mcast *rvt_mcast_alloc(union ib_gid *mgid)
 {
-	struct hfi1_mcast *mcast;
+	struct rvt_mcast *mcast;
 
-	mcast = kmalloc(sizeof(*mcast), GFP_KERNEL);
+	mcast = kzalloc(sizeof(*mcast), GFP_KERNEL);
 	if (!mcast)
 		goto bail;
 
@@ -100,75 +116,72 @@ static struct hfi1_mcast *mcast_alloc(union ib_gid *mgid)
 	INIT_LIST_HEAD(&mcast->qp_list);
 	init_waitqueue_head(&mcast->wait);
 	atomic_set(&mcast->refcount, 0);
-	mcast->n_attached = 0;
 
 bail:
 	return mcast;
 }
 
-static void mcast_free(struct hfi1_mcast *mcast)
+static void rvt_mcast_free(struct rvt_mcast *mcast)
 {
-	struct hfi1_mcast_qp *p, *tmp;
+	struct rvt_mcast_qp *p, *tmp;
 
 	list_for_each_entry_safe(p, tmp, &mcast->qp_list, list)
-		mcast_qp_free(p);
+		rvt_mcast_qp_free(p);
 
 	kfree(mcast);
 }
 
 /**
- * hfi1_mcast_find - search the global table for the given multicast GID
+ * rvt_mcast_find - search the global table for the given multicast GID
  * @ibp: the IB port structure
  * @mgid: the multicast GID to search for
  *
- * Returns NULL if not found.
- *
  * The caller is responsible for decrementing the reference count if found.
+ *
+ * Return: NULL if not found.
  */
-struct hfi1_mcast *hfi1_mcast_find(struct hfi1_ibport *ibp, union ib_gid *mgid)
+struct rvt_mcast *rvt_mcast_find(struct rvt_ibport *ibp, union ib_gid *mgid)
 {
 	struct rb_node *n;
 	unsigned long flags;
-	struct hfi1_mcast *mcast;
+	struct rvt_mcast *found = NULL;
 
 	spin_lock_irqsave(&ibp->lock, flags);
 	n = ibp->mcast_tree.rb_node;
 	while (n) {
 		int ret;
+		struct rvt_mcast *mcast;
 
-		mcast = rb_entry(n, struct hfi1_mcast, rb_node);
+		mcast = rb_entry(n, struct rvt_mcast, rb_node);
 
 		ret = memcmp(mgid->raw, mcast->mgid.raw,
 			     sizeof(union ib_gid));
-		if (ret < 0)
+		if (ret < 0) {
 			n = n->rb_left;
-		else if (ret > 0)
+		} else if (ret > 0) {
 			n = n->rb_right;
-		else {
+		} else {
 			atomic_inc(&mcast->refcount);
-			spin_unlock_irqrestore(&ibp->lock, flags);
-			goto bail;
+			found = mcast;
+			break;
 		}
 	}
 	spin_unlock_irqrestore(&ibp->lock, flags);
-
-	mcast = NULL;
-
-bail:
-	return mcast;
+	return found;
 }
+EXPORT_SYMBOL(rvt_mcast_find);
 
 /**
  * mcast_add - insert mcast GID into table and attach QP struct
  * @mcast: the mcast GID table
  * @mqp: the QP to attach
  *
- * Return zero if both were added.  Return EEXIST if the GID was already in
+ * Return: zero if both were added.  Return EEXIST if the GID was already in
  * the table but the QP was added.  Return ESRCH if the QP was already
  * attached and neither structure was added.
  */
-static int mcast_add(struct hfi1_ibdev *dev, struct hfi1_ibport *ibp,
-		     struct hfi1_mcast *mcast, struct hfi1_mcast_qp *mqp)
+static int rvt_mcast_add(struct rvt_dev_info *rdi, struct rvt_ibport *ibp,
+			 struct rvt_mcast *mcast, struct rvt_mcast_qp *mqp)
 {
 	struct rb_node **n = &ibp->mcast_tree.rb_node;
 	struct rb_node *pn = NULL;
@@ -177,11 +190,11 @@ static int mcast_add(struct hfi1_ibdev *dev, struct hfi1_ibport *ibp,
 	spin_lock_irq(&ibp->lock);
 
 	while (*n) {
-		struct hfi1_mcast *tmcast;
-		struct hfi1_mcast_qp *p;
+		struct rvt_mcast *tmcast;
+		struct rvt_mcast_qp *p;
 
 		pn = *n;
-		tmcast = rb_entry(pn, struct hfi1_mcast, rb_node);
+		tmcast = rb_entry(pn, struct rvt_mcast, rb_node);
 
 		ret = memcmp(mcast->mgid.raw, tmcast->mgid.raw,
 			     sizeof(union ib_gid));
@@ -201,7 +214,8 @@ static int mcast_add(struct hfi1_ibdev *dev, struct hfi1_ibport *ibp,
 				goto bail;
 			}
 		}
-		if (tmcast->n_attached == hfi1_max_mcast_qp_attached) {
+		if (tmcast->n_attached ==
+		    rdi->dparms.props.max_mcast_qp_attach) {
 			ret = ENOMEM;
 			goto bail;
 		}
@@ -213,15 +227,15 @@ static int mcast_add(struct hfi1_ibdev *dev, struct hfi1_ibport *ibp,
 		goto bail;
 	}
 
-	spin_lock(&dev->n_mcast_grps_lock);
-	if (dev->n_mcast_grps_allocated == hfi1_max_mcast_grps) {
-		spin_unlock(&dev->n_mcast_grps_lock);
+	spin_lock(&rdi->n_mcast_grps_lock);
+	if (rdi->n_mcast_grps_allocated == rdi->dparms.props.max_mcast_grp) {
+		spin_unlock(&rdi->n_mcast_grps_lock);
 		ret = ENOMEM;
 		goto bail;
 	}
 
-	dev->n_mcast_grps_allocated++;
-	spin_unlock(&dev->n_mcast_grps_lock);
+	rdi->n_mcast_grps_allocated++;
+	spin_unlock(&rdi->n_mcast_grps_lock);
 
 	mcast->n_attached++;
 
@@ -239,92 +253,98 @@ bail:
 	return ret;
 }
 
-int hfi1_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
+/**
+ * rvt_attach_mcast - attach a qp to a multicast group
+ * @ibqp: Infiniband qp
+ * @igd: multicast guid
+ * @lid: multicast lid
+ *
+ * Return: 0 on success
+ */
+int rvt_attach_mcast(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
-	struct hfi1_qp *qp = to_iqp(ibqp);
-	struct hfi1_ibdev *dev = to_idev(ibqp->device);
-	struct hfi1_ibport *ibp;
-	struct hfi1_mcast *mcast;
-	struct hfi1_mcast_qp *mqp;
-	int ret;
+	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
+	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
+	struct rvt_ibport *ibp = rdi->ports[qp->port_num - 1];
+	struct rvt_mcast *mcast;
+	struct rvt_mcast_qp *mqp;
+	int ret = -ENOMEM;
 
-	if (ibqp->qp_num <= 1 || qp->state == IB_QPS_RESET) {
-		ret = -EINVAL;
-		goto bail;
-	}
+	if (ibqp->qp_num <= 1 || qp->state == IB_QPS_RESET)
+		return -EINVAL;
 
 	/*
 	 * Allocate data structures since its better to do this outside of
 	 * spin locks and it will most likely be needed.
 	 */
-	mcast = mcast_alloc(gid);
-	if (mcast == NULL) {
-		ret = -ENOMEM;
-		goto bail;
-	}
-	mqp = mcast_qp_alloc(qp);
-	if (mqp == NULL) {
-		mcast_free(mcast);
-		ret = -ENOMEM;
-		goto bail;
-	}
-	ibp = to_iport(ibqp->device, qp->port_num);
-	switch (mcast_add(dev, ibp, mcast, mqp)) {
+	mcast = rvt_mcast_alloc(gid);
+	if (!mcast)
+		return -ENOMEM;
+
+	mqp = rvt_mcast_qp_alloc(qp);
+	if (!mqp)
+		goto bail_mcast;
+
+	switch (rvt_mcast_add(rdi, ibp, mcast, mqp)) {
 	case ESRCH:
 		/* Neither was used: OK to attach the same QP twice. */
-		mcast_qp_free(mqp);
-		mcast_free(mcast);
-		break;
-
-	case EEXIST:            /* The mcast wasn't used */
-		mcast_free(mcast);
-		break;
-
+		ret = 0;
+		goto bail_mqp;
+	case EEXIST: /* The mcast wasn't used */
+		ret = 0;
+		goto bail_mcast;
 	case ENOMEM:
 		/* Exceeded the maximum number of mcast groups. */
-		mcast_qp_free(mqp);
-		mcast_free(mcast);
 		ret = -ENOMEM;
-		goto bail;
-
+		goto bail_mqp;
 	default:
 		break;
 	}
 
-	ret = 0;
+	return 0;
 
-bail:
+bail_mqp:
+	rvt_mcast_qp_free(mqp);
+
+bail_mcast:
+	rvt_mcast_free(mcast);
+
 	return ret;
 }
 
-int hfi1_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
+/**
+ * rvt_detach_mcast - remove a qp from a multicast group
+ * @ibqp: Infiniband qp
+ * @igd: multicast guid
+ * @lid: multicast lid
+ *
+ * Return: 0 on success
+ */
+int rvt_detach_mcast(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
-	struct hfi1_qp *qp = to_iqp(ibqp);
-	struct hfi1_ibdev *dev = to_idev(ibqp->device);
-	struct hfi1_ibport *ibp = to_iport(ibqp->device, qp->port_num);
-	struct hfi1_mcast *mcast = NULL;
-	struct hfi1_mcast_qp *p, *tmp;
+	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
+	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
+	struct rvt_ibport *ibp = rdi->ports[qp->port_num - 1];
+	struct rvt_mcast *mcast = NULL;
+	struct rvt_mcast_qp *p, *tmp, *delp = NULL;
 	struct rb_node *n;
 	int last = 0;
-	int ret;
+	int ret = 0;
 
-	if (ibqp->qp_num <= 1 || qp->state == IB_QPS_RESET) {
-		ret = -EINVAL;
-		goto bail;
-	}
+	if (ibqp->qp_num <= 1 || qp->state == IB_QPS_RESET)
+		return -EINVAL;
 
 	spin_lock_irq(&ibp->lock);
 
 	/* Find the GID in the mcast table. */
 	n = ibp->mcast_tree.rb_node;
 	while (1) {
-		if (n == NULL) {
+		if (!n) {
 			spin_unlock_irq(&ibp->lock);
-			ret = -EINVAL;
-			goto bail;
+			return -EINVAL;
 		}
 
-		mcast = rb_entry(n, struct hfi1_mcast, rb_node);
+		mcast = rb_entry(n, struct rvt_mcast, rb_node);
 		ret = memcmp(gid->raw, mcast->mgid.raw,
 			     sizeof(union ib_gid));
 		if (ret < 0)
@@ -345,6 +365,7 @@ int hfi1_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		 */
 		list_del_rcu(&p->list);
 		mcast->n_attached--;
+		delp = p;
 
 		/* If this was the last attached QP, remove the GID too. */
 		if (list_empty(&mcast->qp_list)) {
@@ -355,31 +376,42 @@ int hfi1_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	}
 
 	spin_unlock_irq(&ibp->lock);
+	/* QP not attached */
+	if (!delp)
+		return -EINVAL;
 
-	if (p) {
-		/*
-		 * Wait for any list walkers to finish before freeing the
-		 * list element.
-		 */
-		wait_event(mcast->wait, atomic_read(&mcast->refcount) <= 1);
-		mcast_qp_free(p);
-	}
+	/*
+	 * Wait for any list walkers to finish before freeing the
+	 * list element.
+	 */
+	wait_event(mcast->wait, atomic_read(&mcast->refcount) <= 1);
+	rvt_mcast_qp_free(delp);
+
 	if (last) {
 		atomic_dec(&mcast->refcount);
 		wait_event(mcast->wait, !atomic_read(&mcast->refcount));
-		mcast_free(mcast);
-		spin_lock_irq(&dev->n_mcast_grps_lock);
-		dev->n_mcast_grps_allocated--;
-		spin_unlock_irq(&dev->n_mcast_grps_lock);
+		rvt_mcast_free(mcast);
+		spin_lock_irq(&rdi->n_mcast_grps_lock);
+		rdi->n_mcast_grps_allocated--;
+		spin_unlock_irq(&rdi->n_mcast_grps_lock);
 	}
 
-	ret = 0;
-
-bail:
-	return ret;
+	return 0;
 }
 
-int hfi1_mcast_tree_empty(struct hfi1_ibport *ibp)
+/**
+ *rvt_mast_tree_empty - determine if any qps are attached to any mcast group
+ *@rdi: rvt dev struct
+ *
+ * Return: in use count
+ */
+int rvt_mcast_tree_empty(struct rvt_dev_info *rdi)
 {
-	return ibp->mcast_tree.rb_node == NULL;
+	int i;
+	int in_use = 0;
+
+	for (i = 0; i < rdi->dparms.nports; i++)
+		if (rdi->ports[i]->mcast_tree.rb_node)
+			in_use++;
+	return in_use;
 }

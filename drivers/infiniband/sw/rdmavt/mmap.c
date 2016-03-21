@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,68 +45,74 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
 #include <asm/pgtable.h>
-
-#include "verbs.h"
+#include "mmap.h"
 
 /**
- * hfi1_release_mmap_info - free mmap info structure
- * @ref: a pointer to the kref within struct hfi1_mmap_info
+ * rvt_mmap_init - init link list and lock for mem map
+ * @rdi: rvt dev struct
  */
-void hfi1_release_mmap_info(struct kref *ref)
+void rvt_mmap_init(struct rvt_dev_info *rdi)
 {
-	struct hfi1_mmap_info *ip =
-		container_of(ref, struct hfi1_mmap_info, ref);
-	struct hfi1_ibdev *dev = to_idev(ip->context->device);
+	INIT_LIST_HEAD(&rdi->pending_mmaps);
+	spin_lock_init(&rdi->pending_lock);
+	rdi->mmap_offset = PAGE_SIZE;
+	spin_lock_init(&rdi->mmap_offset_lock);
+}
 
-	spin_lock_irq(&dev->pending_lock);
+/**
+ * rvt_release_mmap_info - free mmap info structure
+ * @ref: a pointer to the kref within struct rvt_mmap_info
+ */
+void rvt_release_mmap_info(struct kref *ref)
+{
+	struct rvt_mmap_info *ip =
+		container_of(ref, struct rvt_mmap_info, ref);
+	struct rvt_dev_info *rdi = ib_to_rvt(ip->context->device);
+
+	spin_lock_irq(&rdi->pending_lock);
 	list_del(&ip->pending_mmaps);
-	spin_unlock_irq(&dev->pending_lock);
+	spin_unlock_irq(&rdi->pending_lock);
 
 	vfree(ip->obj);
 	kfree(ip);
 }
 
-/*
- * open and close keep track of how many times the CQ is mapped,
- * to avoid releasing it.
- */
-static void hfi1_vma_open(struct vm_area_struct *vma)
+static void rvt_vma_open(struct vm_area_struct *vma)
 {
-	struct hfi1_mmap_info *ip = vma->vm_private_data;
+	struct rvt_mmap_info *ip = vma->vm_private_data;
 
 	kref_get(&ip->ref);
 }
 
-static void hfi1_vma_close(struct vm_area_struct *vma)
+static void rvt_vma_close(struct vm_area_struct *vma)
 {
-	struct hfi1_mmap_info *ip = vma->vm_private_data;
+	struct rvt_mmap_info *ip = vma->vm_private_data;
 
-	kref_put(&ip->ref, hfi1_release_mmap_info);
+	kref_put(&ip->ref, rvt_release_mmap_info);
 }
 
-static struct vm_operations_struct hfi1_vm_ops = {
-	.open =     hfi1_vma_open,
-	.close =    hfi1_vma_close,
+static const struct vm_operations_struct rvt_vm_ops = {
+	.open = rvt_vma_open,
+	.close = rvt_vma_close,
 };
 
 /**
- * hfi1_mmap - create a new mmap region
+ * rvt_mmap - create a new mmap region
  * @context: the IB user context of the process making the mmap() call
  * @vma: the VMA to be initialized
- * Return zero if the mmap is OK. Otherwise, return an errno.
+ *
+ * Return: zero if the mmap is OK. Otherwise, return an errno.
  */
-int hfi1_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
+int rvt_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
-	struct hfi1_ibdev *dev = to_idev(context->device);
+	struct rvt_dev_info *rdi = ib_to_rvt(context->device);
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	unsigned long size = vma->vm_end - vma->vm_start;
-	struct hfi1_mmap_info *ip, *pp;
+	struct rvt_mmap_info *ip, *pp;
 	int ret = -EINVAL;
 
 	/*
@@ -117,53 +120,60 @@ int hfi1_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	 * Normally, this list is very short since a call to create a
 	 * CQ, QP, or SRQ is soon followed by a call to mmap().
 	 */
-	spin_lock_irq(&dev->pending_lock);
-	list_for_each_entry_safe(ip, pp, &dev->pending_mmaps,
+	spin_lock_irq(&rdi->pending_lock);
+	list_for_each_entry_safe(ip, pp, &rdi->pending_mmaps,
 				 pending_mmaps) {
 		/* Only the creator is allowed to mmap the object */
-		if (context != ip->context || (__u64) offset != ip->offset)
+		if (context != ip->context || (__u64)offset != ip->offset)
 			continue;
 		/* Don't allow a mmap larger than the object. */
 		if (size > ip->size)
 			break;
 
 		list_del_init(&ip->pending_mmaps);
-		spin_unlock_irq(&dev->pending_lock);
+		spin_unlock_irq(&rdi->pending_lock);
 
 		ret = remap_vmalloc_range(vma, ip->obj, 0);
 		if (ret)
 			goto done;
-		vma->vm_ops = &hfi1_vm_ops;
+		vma->vm_ops = &rvt_vm_ops;
 		vma->vm_private_data = ip;
-		hfi1_vma_open(vma);
+		rvt_vma_open(vma);
 		goto done;
 	}
-	spin_unlock_irq(&dev->pending_lock);
+	spin_unlock_irq(&rdi->pending_lock);
 done:
 	return ret;
 }
 
-/*
- * Allocate information for hfi1_mmap
+/**
+ * rvt_create_mmap_info - allocate information for hfi1_mmap
+ * @rdi: rvt dev struct
+ * @size: size in bytes to map
+ * @context: user context
+ * @obj: opaque pointer to a cq, wq etc
+ *
+ * Return: rvt_mmap struct on success
  */
-struct hfi1_mmap_info *hfi1_create_mmap_info(struct hfi1_ibdev *dev,
-					     u32 size,
-					     struct ib_ucontext *context,
-					     void *obj) {
-	struct hfi1_mmap_info *ip;
+struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi,
+					   u32 size,
+					   struct ib_ucontext *context,
+					   void *obj)
+{
+	struct rvt_mmap_info *ip;
 
-	ip = kmalloc(sizeof(*ip), GFP_KERNEL);
+	ip = kmalloc_node(sizeof(*ip), GFP_KERNEL, rdi->dparms.node);
 	if (!ip)
-		goto bail;
+		return ip;
 
 	size = PAGE_ALIGN(size);
 
-	spin_lock_irq(&dev->mmap_offset_lock);
-	if (dev->mmap_offset == 0)
-		dev->mmap_offset = PAGE_SIZE;
-	ip->offset = dev->mmap_offset;
-	dev->mmap_offset += size;
-	spin_unlock_irq(&dev->mmap_offset_lock);
+	spin_lock_irq(&rdi->mmap_offset_lock);
+	if (rdi->mmap_offset == 0)
+		rdi->mmap_offset = PAGE_SIZE;
+	ip->offset = rdi->mmap_offset;
+	rdi->mmap_offset += size;
+	spin_unlock_irq(&rdi->mmap_offset_lock);
 
 	INIT_LIST_HEAD(&ip->pending_mmaps);
 	ip->size = size;
@@ -171,21 +181,27 @@ struct hfi1_mmap_info *hfi1_create_mmap_info(struct hfi1_ibdev *dev,
 	ip->obj = obj;
 	kref_init(&ip->ref);
 
-bail:
 	return ip;
 }
 
-void hfi1_update_mmap_info(struct hfi1_ibdev *dev, struct hfi1_mmap_info *ip,
-			   u32 size, void *obj)
+/**
+ * rvt_update_mmap_info - update a mem map
+ * @rdi: rvt dev struct
+ * @ip: mmap info pointer
+ * @size: size to grow by
+ * @obj: opaque pointer to cq, wq, etc.
+ */
+void rvt_update_mmap_info(struct rvt_dev_info *rdi, struct rvt_mmap_info *ip,
+			  u32 size, void *obj)
 {
 	size = PAGE_ALIGN(size);
 
-	spin_lock_irq(&dev->mmap_offset_lock);
-	if (dev->mmap_offset == 0)
-		dev->mmap_offset = PAGE_SIZE;
-	ip->offset = dev->mmap_offset;
-	dev->mmap_offset += size;
-	spin_unlock_irq(&dev->mmap_offset_lock);
+	spin_lock_irq(&rdi->mmap_offset_lock);
+	if (rdi->mmap_offset == 0)
+		rdi->mmap_offset = PAGE_SIZE;
+	ip->offset = rdi->mmap_offset;
+	rdi->mmap_offset += size;
+	spin_unlock_irq(&rdi->mmap_offset_lock);
 
 	ip->size = size;
 	ip->obj = obj;

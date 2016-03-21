@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,8 +48,10 @@
 #define _HFI1_MAD_H
 
 #include <rdma/ib_pma.h>
-#define USE_PI_LED_ENABLE	1 /* use led enabled bit in struct
-				   * opa_port_states, if available */
+#define USE_PI_LED_ENABLE	1 /*
+				   * use led enabled bit in struct
+				   * opa_port_states, if available
+				   */
 #include <rdma/opa_smi.h>
 #include <rdma/opa_port_info.h>
 #ifndef PI_LED_ENABLE_SUP
@@ -235,7 +234,6 @@ struct ib_pma_portcounters_cong {
 #define IB_CC_SVCTYPE_RD 0x2
 #define IB_CC_SVCTYPE_UD 0x3
 
-
 /*
  * There should be an equivalent IB #define for the following, but
  * I cannot find it.
@@ -267,7 +265,7 @@ struct opa_hfi1_cong_log {
 	u8 congestion_flags;
 	__be16 threshold_event_counter;
 	__be32 current_time_stamp;
-	u8 threshold_cong_event_map[OPA_MAX_SLS/8];
+	u8 threshold_cong_event_map[OPA_MAX_SLS / 8];
 	struct opa_hfi1_cong_log_event events[OPA_CONG_LOG_ELEMS];
 } __packed;
 
