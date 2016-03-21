@@ -219,12 +219,39 @@ struct altr_sdram_mc_data {
 #define ALTR_L2_ECC_INJS                BIT(1)
 #define ALTR_L2_ECC_INJD                BIT(2)
 
+/* Arria10 General ECC Block Module Defines */
+#define A10_SYSMGR_ECC_INTSTAT_SERR_OFST  0x9C
+#define A10_SYSMGR_ECC_INTSTAT_DERR_OFST  0xA0
+#define A10_SYSMGR_ECC_INTSTAT_L2         BIT(0)
+
+#define A10_SYSGMR_MPU_CLEAR_L2_ECC_OFST  0xA8
+#define A10_SYSGMR_MPU_CLEAR_L2_ECC_SB    BIT(15)
+#define A10_SYSGMR_MPU_CLEAR_L2_ECC_MB    BIT(31)
+
+/* Arria 10 L2 ECC Management Group Defines */
+#define ALTR_A10_L2_ECC_CTL_OFST        0x0
+#define ALTR_A10_L2_ECC_EN_CTL          BIT(0)
+
+#define ALTR_A10_L2_ECC_STATUS          0xFFD060A4
+#define ALTR_A10_L2_ECC_STAT_OFST       0xA4
+#define ALTR_A10_L2_ECC_SERR_PEND       BIT(0)
+#define ALTR_A10_L2_ECC_MERR_PEND       BIT(0)
+
+#define ALTR_A10_L2_ECC_CLR_OFST        0x4
+#define ALTR_A10_L2_ECC_SERR_CLR        BIT(15)
+#define ALTR_A10_L2_ECC_MERR_CLR        BIT(31)
+
+#define ALTR_A10_L2_ECC_INJ_OFST        ALTR_A10_L2_ECC_CTL_OFST
+#define ALTR_A10_L2_ECC_CE_INJ_MASK     0x00000101
+#define ALTR_A10_L2_ECC_UE_INJ_MASK     0x00010101
+
 struct altr_edac_device_dev;
 
 struct edac_device_prv_data {
 	int (*setup)(struct altr_edac_device_dev *device);
 	int ce_clear_mask;
 	int ue_clear_mask;
+	int irq_status_mask;
 	char dbgfs_name[20];
 	void * (*alloc_mem)(size_t size, void **other);
 	void (*free_mem)(void *p, size_t size, void *other);
@@ -232,16 +259,31 @@ struct edac_device_prv_data {
 	int ce_set_mask;
 	int ue_set_mask;
 	int set_err_ofst;
+	irqreturn_t (*ecc_irq_handler)(struct altr_edac_device_dev *dci,
+				       bool sb);
 	int trig_alloc_sz;
 };
 
 struct altr_edac_device_dev {
+	struct list_head next;
 	void __iomem *base;
 	int sb_irq;
 	int db_irq;
 	const struct edac_device_prv_data *data;
 	struct dentry *debugfs_dir;
 	char *edac_dev_name;
+	struct altr_arria10_edac *edac;
+	struct edac_device_ctl_info *edac_dev;
+	struct device ddev;
+	int edac_idx;
+};
+
+struct altr_arria10_edac {
+	struct device		*dev;
+	struct regmap		*ecc_mgr_map;
+	int sb_irq;
+	int db_irq;
+	struct list_head	a10_ecc_devices;
 };
 
 #endif	/* #ifndef _ALTERA_EDAC_H */
