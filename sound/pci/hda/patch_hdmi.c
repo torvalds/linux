@@ -114,6 +114,9 @@ struct hdmi_ops {
 	int (*setup_stream)(struct hda_codec *codec, hda_nid_t cvt_nid,
 			    hda_nid_t pin_nid, u32 stream_tag, int format);
 
+	void (*pin_cvt_fixup)(struct hda_codec *codec,
+			      struct hdmi_spec_per_pin *per_pin,
+			      hda_nid_t cvt_nid);
 };
 
 struct hdmi_pcm {
@@ -881,7 +884,7 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
  * of the pin.
  */
 static int hdmi_choose_cvt(struct hda_codec *codec,
-			int pin_idx, int *cvt_id, int *mux_id)
+			   int pin_idx, int *cvt_id)
 {
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_spec_per_pin *per_pin;
@@ -922,8 +925,6 @@ static int hdmi_choose_cvt(struct hda_codec *codec,
 
 	if (cvt_id)
 		*cvt_id = cvt_idx;
-	if (mux_id)
-		*mux_id = mux_idx;
 
 	return 0;
 }
@@ -1016,9 +1017,6 @@ static void intel_not_share_assigned_cvt_nid(struct hda_codec *codec,
 	int mux_idx;
 	struct hdmi_spec *spec = codec->spec;
 
-	if (!is_haswell_plus(codec) && !is_valleyview_plus(codec))
-		return;
-
 	/* On Intel platform, the mapping of converter nid to
 	 * mux index of the pins are always the same.
 	 * The pin nid may be 0, this means all pins will not
@@ -1027,6 +1025,17 @@ static void intel_not_share_assigned_cvt_nid(struct hda_codec *codec,
 	mux_idx = intel_cvt_id_to_mux_idx(spec, cvt_nid);
 	if (mux_idx >= 0)
 		intel_not_share_assigned_cvt(codec, pin_nid, mux_idx);
+}
+
+/* skeleton caller of pin_cvt_fixup ops */
+static void pin_cvt_fixup(struct hda_codec *codec,
+			  struct hdmi_spec_per_pin *per_pin,
+			  hda_nid_t cvt_nid)
+{
+	struct hdmi_spec *spec = codec->spec;
+
+	if (spec->ops.pin_cvt_fixup)
+		spec->ops.pin_cvt_fixup(codec, per_pin, cvt_nid);
 }
 
 /* called in hdmi_pcm_open when no pin is assigned to the PCM
@@ -1046,7 +1055,7 @@ static int hdmi_pcm_open_no_pin(struct hda_pcm_stream *hinfo,
 	if (pcm_idx < 0)
 		return -EINVAL;
 
-	err = hdmi_choose_cvt(codec, -1, &cvt_idx, NULL);
+	err = hdmi_choose_cvt(codec, -1, &cvt_idx);
 	if (err)
 		return err;
 
@@ -1054,7 +1063,7 @@ static int hdmi_pcm_open_no_pin(struct hda_pcm_stream *hinfo,
 	per_cvt->assigned = 1;
 	hinfo->nid = per_cvt->cvt_nid;
 
-	intel_not_share_assigned_cvt_nid(codec, 0, per_cvt->cvt_nid);
+	pin_cvt_fixup(codec, NULL, per_cvt->cvt_nid);
 
 	set_bit(pcm_idx, &spec->pcm_in_use);
 	/* todo: setup spdif ctls assign */
@@ -1086,7 +1095,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 {
 	struct hdmi_spec *spec = codec->spec;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int pin_idx, cvt_idx, pcm_idx, mux_idx = 0;
+	int pin_idx, cvt_idx, pcm_idx;
 	struct hdmi_spec_per_pin *per_pin;
 	struct hdmi_eld *eld;
 	struct hdmi_spec_per_cvt *per_cvt = NULL;
@@ -1115,7 +1124,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 		}
 	}
 
-	err = hdmi_choose_cvt(codec, pin_idx, &cvt_idx, &mux_idx);
+	err = hdmi_choose_cvt(codec, pin_idx, &cvt_idx);
 	if (err < 0) {
 		mutex_unlock(&spec->pcm_lock);
 		return err;
@@ -1132,11 +1141,10 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 
 	snd_hda_codec_write_cache(codec, per_pin->pin_nid, 0,
 			    AC_VERB_SET_CONNECT_SEL,
-			    mux_idx);
+			    per_pin->mux_idx);
 
 	/* configure unused pins to choose other converters */
-	if (is_haswell_plus(codec) || is_valleyview_plus(codec))
-		intel_not_share_assigned_cvt(codec, per_pin->pin_nid, mux_idx);
+	pin_cvt_fixup(codec, per_pin, 0);
 
 	snd_hda_spdif_ctls_assign(codec, pcm_idx, per_cvt->cvt_nid);
 
@@ -1369,12 +1377,7 @@ static void update_eld(struct hda_codec *codec,
 	 *   and this can make HW reset converter selection on a pin.
 	 */
 	if (eld->eld_valid && !old_eld_valid && per_pin->setup) {
-		if (is_haswell_plus(codec) || is_valleyview_plus(codec)) {
-			intel_verify_pin_cvt_connect(codec, per_pin);
-			intel_not_share_assigned_cvt(codec, per_pin->pin_nid,
-						     per_pin->mux_idx);
-		}
-
+		pin_cvt_fixup(codec, per_pin, 0);
 		hdmi_setup_audio_infoframe(codec, per_pin, per_pin->non_pcm);
 	}
 
@@ -1709,7 +1712,7 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 		 * skip pin setup and return 0 to make audio playback
 		 * be ongoing
 		 */
-		intel_not_share_assigned_cvt_nid(codec, 0, cvt_nid);
+		pin_cvt_fixup(codec, NULL, cvt_nid);
 		snd_hda_codec_setup_stream(codec, cvt_nid,
 					stream_tag, 0, format);
 		mutex_unlock(&spec->pcm_lock);
@@ -1722,18 +1725,16 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	}
 	per_pin = get_pin(spec, pin_idx);
 	pin_nid = per_pin->pin_nid;
-	if (is_haswell_plus(codec) || is_valleyview_plus(codec)) {
-		/* Verify pin:cvt selections to avoid silent audio after S3.
-		 * After S3, the audio driver restores pin:cvt selections
-		 * but this can happen before gfx is ready and such selection
-		 * is overlooked by HW. Thus multiple pins can share a same
-		 * default convertor and mute control will affect each other,
-		 * which can cause a resumed audio playback become silent
-		 * after S3.
-		 */
-		intel_verify_pin_cvt_connect(codec, per_pin);
-		intel_not_share_assigned_cvt(codec, pin_nid, per_pin->mux_idx);
-	}
+
+	/* Verify pin:cvt selections to avoid silent audio after S3.
+	 * After S3, the audio driver restores pin:cvt selections
+	 * but this can happen before gfx is ready and such selection
+	 * is overlooked by HW. Thus multiple pins can share a same
+	 * default convertor and mute control will affect each other,
+	 * which can cause a resumed audio playback become silent
+	 * after S3.
+	 */
+	pin_cvt_fixup(codec, per_pin, 0);
 
 	/* Call sync_audio_rate to set the N/CTS/M manually if necessary */
 	/* Todo: add DP1.2 MST audio support later */
@@ -2312,6 +2313,20 @@ static int i915_hsw_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
 	return hdmi_setup_stream(codec, cvt_nid, pin_nid, stream_tag, format);
 }
 
+/* pin_cvt_fixup ops override for HSW+ and VLV+ */
+static void i915_pin_cvt_fixup(struct hda_codec *codec,
+			       struct hdmi_spec_per_pin *per_pin,
+			       hda_nid_t cvt_nid)
+{
+	if (per_pin) {
+		intel_verify_pin_cvt_connect(codec, per_pin);
+		intel_not_share_assigned_cvt(codec, per_pin->pin_nid,
+					     per_pin->mux_idx);
+	} else {
+		intel_not_share_assigned_cvt_nid(codec, 0, cvt_nid);
+	}
+}
+
 /* Intel Haswell and onwards; audio component with eld notifier */
 static int patch_i915_hsw_hdmi(struct hda_codec *codec)
 {
@@ -2344,6 +2359,7 @@ static int patch_i915_hsw_hdmi(struct hda_codec *codec)
 	codec->auto_runtime_pm = 1;
 
 	spec->ops.setup_stream = i915_hsw_setup_stream;
+	spec->ops.pin_cvt_fixup = i915_pin_cvt_fixup;
 
 	err = hdmi_parse_codec(codec);
 	if (err < 0) {
@@ -2380,6 +2396,8 @@ static int patch_i915_byt_hdmi(struct hda_codec *codec)
 
 	codec->depop_delay = 0;
 	codec->auto_runtime_pm = 1;
+
+	spec->ops.pin_cvt_fixup = i915_pin_cvt_fixup;
 
 	err = hdmi_parse_codec(codec);
 	if (err < 0) {
