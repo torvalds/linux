@@ -672,6 +672,10 @@
 &hdmi {
 	status = "okay";
 	rockchip,hdmi_video_source = <DISPLAY_SOURCE_LCDC1>;
+	rockchip,phy_table =
+		<148500000 0 0 17 18 18 18>,
+		<297000000 1 1 17 14 14 14>,
+		<594000000 1 1 16 5 5 5>;
 };
 
 &vop_lite {
