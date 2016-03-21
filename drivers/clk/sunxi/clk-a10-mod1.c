@@ -62,7 +62,7 @@ static void __init sun4i_mod1_clk_setup(struct device_node *node)
 	clk = clk_register_composite(NULL, clk_name, parents, i,
 				     &mux->hw, &clk_mux_ops,
 				     NULL, NULL,
-				     &gate->hw, &clk_gate_ops, 0);
+				     &gate->hw, &clk_gate_ops, CLK_SET_RATE_PARENT);
 	if (IS_ERR(clk))
 		goto err_free_gate;
 
