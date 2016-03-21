@@ -292,12 +292,22 @@ found:
 			page_bytes_left -= root->sectorsize;
 			if (!page_bytes_left) {
 				bio_index++;
+				/*
+				 * make sure we're still inside the
+				 * bio before we update page_bytes_left
+				 */
+				if (bio_index >= bio->bi_vcnt) {
+					WARN_ON_ONCE(count);
+					goto done;
+				}
 				bvec++;
 				page_bytes_left = bvec->bv_len;
 			}
 
 		}
 	}
+
+done:
 	btrfs_free_path(path);
 	return 0;
 }
