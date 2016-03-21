@@ -859,7 +859,9 @@ static void ocram_free_mem(void *p, size_t size, void *other)
 static int altr_ocram_check_deps(struct altr_edac_device_dev *device)
 {
 	void __iomem  *base = device->base;
-	if (readl(base) & ALTR_OCR_ECC_EN)
+	const struct edac_device_prv_data *prv = device->data;
+
+	if (readl(base) & prv->ecc_enable_mask)
 		return 0;
 
 	edac_printk(KERN_ERR, EDAC_DEVICE,
@@ -926,7 +928,10 @@ static void l2_free_mem(void *p, size_t size, void *other)
 static int altr_l2_check_deps(struct altr_edac_device_dev *device)
 {
 	void __iomem *base = device->base;
-	if (readl(base) & ALTR_L2_ECC_EN)
+	const struct edac_device_prv_data *prv = device->data;
+
+	if ((readl(base) & prv->ecc_enable_mask) ==
+	     prv->ecc_enable_mask)
 		return 0;
 
 	edac_printk(KERN_ERR, EDAC_DEVICE,
