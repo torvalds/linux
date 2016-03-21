@@ -43,7 +43,7 @@ static void of_get_regulation_constraints(struct device_node *np,
 		constraints->max_uV = pval;
 
 	/* Voltage change possible? */
-	if (constraints->min_uV != constraints->max_uV) {
+	if (constraints->min_uV && constraints->max_uV) {
 		constraints->valid_ops_mask |= REGULATOR_CHANGE_VOLTAGE;
 		constraints->apply_uV = true;
 	}

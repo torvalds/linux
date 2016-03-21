@@ -906,7 +906,8 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 
 	/* do we need to apply the constraint voltage */
 	if (rdev->constraints->apply_uV &&
-	    rdev->constraints->min_uV == rdev->constraints->max_uV) {
+	    rdev->constraints->min_uV && rdev->constraints->max_uV) {
+		int target_min, target_max;
 		int current_uV = _regulator_get_voltage(rdev);
 		if (current_uV < 0) {
 			rdev_err(rdev,
@@ -914,15 +915,32 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 				 current_uV);
 			return current_uV;
 		}
-		if (current_uV < rdev->constraints->min_uV ||
-		    current_uV > rdev->constraints->max_uV) {
+
+		/*
+		 * If we're below the minimum voltage move up to the
+		 * minimum voltage, if we're above the maximum voltage
+		 * then move down to the maximum.
+		 */
+		target_min = current_uV;
+		target_max = current_uV;
+
+		if (current_uV < rdev->constraints->min_uV) {
+			target_min = rdev->constraints->min_uV;
+			target_max = rdev->constraints->min_uV;
+		}
+
+		if (current_uV > rdev->constraints->max_uV) {
+			target_min = rdev->constraints->max_uV;
+			target_max = rdev->constraints->max_uV;
+		}
+
+		if (target_min != current_uV || target_max != current_uV) {
 			ret = _regulator_do_set_voltage(
-				rdev, rdev->constraints->min_uV,
-				rdev->constraints->max_uV);
+				rdev, target_min, target_max);
 			if (ret < 0) {
 				rdev_err(rdev,
-					"failed to apply %duV constraint(%d)\n",
-					rdev->constraints->min_uV, ret);
+					"failed to apply %d-%duV constraint(%d)\n",
+					target_min, target_max, ret);
 				return ret;
 			}
 		}
