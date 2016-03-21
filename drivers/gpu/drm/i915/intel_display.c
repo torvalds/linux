@@ -7816,7 +7816,6 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int refclk;
-	intel_clock_t clock;
 	bool ok;
 	const intel_limit_t *limit;
 
@@ -7838,18 +7837,12 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 		limit = intel_limit(crtc_state, refclk);
 		ok = dev_priv->display.find_dpll(limit, crtc_state,
 						 crtc_state->port_clock,
-						 refclk, NULL, &clock);
+						 refclk, NULL,
+						 &crtc_state->dpll);
 		if (!ok) {
 			DRM_ERROR("Couldn't find PLL settings for mode!\n");
 			return -EINVAL;
 		}
-
-		/* Compat-code for transition, will disappear. */
-		crtc_state->dpll.n = clock.n;
-		crtc_state->dpll.m1 = clock.m1;
-		crtc_state->dpll.m2 = clock.m2;
-		crtc_state->dpll.p1 = clock.p1;
-		crtc_state->dpll.p2 = clock.p2;
 	}
 
 	if (IS_GEN2(dev)) {
@@ -8797,7 +8790,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 				       struct intel_crtc_state *crtc_state)
 {
-	intel_clock_t clock, reduced_clock;
+	intel_clock_t reduced_clock;
 	u32 dpll = 0, fp = 0, fp2 = 0;
 	bool has_reduced_clock = false;
 	struct intel_shared_dpll *pll;
@@ -8811,20 +8804,13 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 	if (!crtc_state->has_pch_encoder)
 		return 0;
 
-	if (!crtc_state->clock_set) {
-		if (!ironlake_compute_clocks(&crtc->base, crtc_state, &clock,
-					     &has_reduced_clock,
-					     &reduced_clock)) {
-			DRM_ERROR("Couldn't find PLL settings for mode!\n");
-			return -EINVAL;
-		}
-
-		/* Compat-code for transition, will disappear. */
-		crtc_state->dpll.n = clock.n;
-		crtc_state->dpll.m1 = clock.m1;
-		crtc_state->dpll.m2 = clock.m2;
-		crtc_state->dpll.p1 = clock.p1;
-		crtc_state->dpll.p2 = clock.p2;
+	if (!crtc_state->clock_set &&
+	    !ironlake_compute_clocks(&crtc->base, crtc_state,
+				     &crtc_state->dpll,
+				     &has_reduced_clock,
+				     &reduced_clock)) {
+		DRM_ERROR("Couldn't find PLL settings for mode!\n");
+		return -EINVAL;
 	}
 
 	fp = i9xx_dpll_compute_fp(&crtc_state->dpll);
