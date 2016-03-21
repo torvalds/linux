@@ -273,9 +273,7 @@ static int imx_hifi_hw_free(struct snd_pcm_substream *substream)
 
 	data->is_stream_in_use[tx] = false;
 
-	/* Power down PLL to save power*/
 	if (data->is_codec_master && !data->is_stream_in_use[!tx]) {
-		snd_soc_dai_set_pll(codec_dai, 0, 0, 0, 0);
 		ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF);
 		if (ret)
 			dev_warn(dev, "failed to set codec dai fmt: %d\n", ret);
