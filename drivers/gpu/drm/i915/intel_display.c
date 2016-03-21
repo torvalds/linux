@@ -8832,6 +8832,8 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 		fp = i9xx_dpll_compute_fp(&crtc_state->dpll);
 		if (has_reduced_clock)
 			fp2 = i9xx_dpll_compute_fp(&reduced_clock);
+		else
+			fp2 = fp;
 
 		dpll = ironlake_compute_dpll(crtc, crtc_state,
 					     &fp, &reduced_clock,
@@ -8839,10 +8841,7 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 
 		crtc_state->dpll_hw_state.dpll = dpll;
 		crtc_state->dpll_hw_state.fp0 = fp;
-		if (has_reduced_clock)
-			crtc_state->dpll_hw_state.fp1 = fp2;
-		else
-			crtc_state->dpll_hw_state.fp1 = fp;
+		crtc_state->dpll_hw_state.fp1 = fp2;
 
 		pll = intel_get_shared_dpll(crtc, crtc_state, NULL);
 		if (pll == NULL) {
