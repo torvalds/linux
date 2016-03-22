@@ -1073,6 +1073,11 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	for (i = 0; i < n_counters; ++i)
 		ni_tio_init_counter(&devpriv->counter_dev->counters[i]);
 
+	 /*
+	  * Default the DIO channels as:
+	  *   chan 0-7:  DIO inputs
+	  *   chan 8-39: counter signal inputs
+	  */
 	for (i = 0; i < NUM_PFI_CHANNELS; ++i) {
 		if (i < 8)
 			ni_660x_set_pfi_routing(dev, i, NI_660X_PFI_OUTPUT_DIO);
