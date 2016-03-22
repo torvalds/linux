@@ -1388,6 +1388,9 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 			RK3399_CLKGATE_CON(0), 6, GFLAGS,
 			&rk3399_uart4_pmu_fracmux),
 
+	DIV(0, "pclk_pmu_src", "ppll", CLK_IGNORE_UNUSED,
+			RK3399_CLKSEL_CON(0), 0, 5, DFLAGS),
+
 	/* pmu clock gates */
 	GATE(SCLK_TIMER12_PMU, "clk_timer0_pmu", "clk_timer_src_pmu", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(0), 3, GFLAGS),
 	GATE(SCLK_TIMER13_PMU, "clk_timer1_pmu", "clk_timer_src_pmu", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(0), 4, GFLAGS),
@@ -1508,7 +1511,7 @@ static void __init rk3399_pmu_clk_init(struct device_node *np)
 		return;
 	}
 
-	/* enable pclk_pmc_src gate */
+	/* enable gate for pclk_pmu_src */
 	regmap_write(grf, RK3399_PMUGRF_SOC_CON0,
 			  HIWORD_UPDATE(0, RK3399_PMUCRU_PCLK_GATE_MASK,
 					RK3399_PMUCRU_PCLK_GATE_SHIFT));
