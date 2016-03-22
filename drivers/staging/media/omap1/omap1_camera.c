@@ -1640,7 +1640,8 @@ static int omap1_cam_probe(struct platform_device *pdev)
 	/* setup DMA autoinitialization */
 	omap_dma_link_lch(pcdev->dma_ch, pcdev->dma_ch);
 
-	err = request_irq(pcdev->irq, cam_isr, 0, DRIVER_NAME, pcdev);
+	err = devm_request_irq(&pdev->dev, pcdev->irq, cam_isr, 0, DRIVER_NAME,
+			       pcdev);
 	if (err) {
 		dev_err(&pdev->dev, "Camera interrupt register failed\n");
 		goto exit_free_dma;
@@ -1654,14 +1655,12 @@ static int omap1_cam_probe(struct platform_device *pdev)
 
 	err = soc_camera_host_register(&pcdev->soc_host);
 	if (err)
-		goto exit_free_irq;
+		return err;
 
 	dev_info(&pdev->dev, "OMAP1 Camera Interface driver loaded\n");
 
 	return 0;
 
-exit_free_irq:
-	free_irq(pcdev->irq, pcdev);
 exit_free_dma:
 	omap_free_dma(pcdev->dma_ch);
 exit:
@@ -1673,8 +1672,6 @@ static int omap1_cam_remove(struct platform_device *pdev)
 	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
 	struct omap1_cam_dev *pcdev = container_of(soc_host,
 					struct omap1_cam_dev, soc_host);
-
-	free_irq(pcdev->irq, pcdev);
 
 	omap_free_dma(pcdev->dma_ch);
 
