@@ -1415,7 +1415,7 @@ __be32 inet_current_timestamp(void)
 	msecs += (u32)ts.tv_nsec / NSEC_PER_MSEC;
 
 	/* Convert to network byte order. */
-	return htons(msecs);
+	return htonl(msecs);
 }
 EXPORT_SYMBOL(inet_current_timestamp);
 
