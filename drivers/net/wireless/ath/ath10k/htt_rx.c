@@ -526,6 +526,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	skb_queue_head_init(&htt->rx_compl_q);
 	skb_queue_head_init(&htt->rx_in_ord_compl_q);
 	skb_queue_head_init(&htt->tx_fetch_ind_q);
+	atomic_set(&htt->num_mpdus_ready, 0);
 
 	tasklet_init(&htt->txrx_compl_task, ath10k_htt_txrx_compl_task,
 		     (unsigned long)htt);
@@ -1564,8 +1565,8 @@ static int ath10k_htt_rx_handle_amsdu(struct ath10k_htt *htt)
 	return 0;
 }
 
-static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
-				  struct htt_rx_indication *rx)
+static void ath10k_htt_rx_proc_rx_ind(struct ath10k_htt *htt,
+				      struct htt_rx_indication *rx)
 {
 	struct ath10k *ar = htt->ar;
 	struct htt_rx_indication_mpdu_range *mpdu_ranges;
@@ -1584,19 +1585,16 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 	for (i = 0; i < num_mpdu_ranges; i++)
 		mpdu_count += mpdu_ranges[i].mpdu_count;
 
-	while (mpdu_count--) {
-		if (ath10k_htt_rx_handle_amsdu(htt) < 0)
-			break;
-	}
+	atomic_add(mpdu_count, &htt->num_mpdus_ready);
 
-	tasklet_schedule(&htt->rx_replenish_task);
+	tasklet_schedule(&htt->txrx_compl_task);
 }
 
 static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt)
 {
-	ath10k_htt_rx_handle_amsdu(htt);
+	atomic_inc(&htt->num_mpdus_ready);
 
-	tasklet_schedule(&htt->rx_replenish_task);
+	tasklet_schedule(&htt->txrx_compl_task);
 }
 
 static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
@@ -2250,9 +2248,8 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_RX_IND:
-		skb_queue_tail(&htt->rx_compl_q, skb);
-		tasklet_schedule(&htt->txrx_compl_task);
-		return;
+		ath10k_htt_rx_proc_rx_ind(htt, &resp->rx_ind);
+		break;
 	case HTT_T2H_MSG_TYPE_PEER_MAP: {
 		struct htt_peer_map_event ev = {
 			.vdev_id = resp->peer_map.vdev_id,
@@ -2419,17 +2416,13 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 	struct sk_buff_head rx_q;
 	struct sk_buff_head rx_ind_q;
 	struct sk_buff_head tx_ind_q;
-	struct htt_resp *resp;
 	struct sk_buff *skb;
 	unsigned long flags;
+	int num_mpdus;
 
 	__skb_queue_head_init(&rx_q);
 	__skb_queue_head_init(&rx_ind_q);
 	__skb_queue_head_init(&tx_ind_q);
-
-	spin_lock_irqsave(&htt->rx_compl_q.lock, flags);
-	skb_queue_splice_init(&htt->rx_compl_q, &rx_q);
-	spin_unlock_irqrestore(&htt->rx_compl_q.lock, flags);
 
 	spin_lock_irqsave(&htt->rx_in_ord_compl_q.lock, flags);
 	skb_queue_splice_init(&htt->rx_in_ord_compl_q, &rx_ind_q);
@@ -2454,10 +2447,12 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 
 	ath10k_mac_tx_push_pending(ar);
 
-	while ((skb = __skb_dequeue(&rx_q))) {
-		resp = (struct htt_resp *)skb->data;
-		ath10k_htt_rx_handler(htt, &resp->rx_ind);
-		dev_kfree_skb_any(skb);
+	num_mpdus = atomic_read(&htt->num_mpdus_ready);
+	atomic_sub(num_mpdus, &htt->num_mpdus_ready);
+
+	while (num_mpdus--) {
+		if (ath10k_htt_rx_handle_amsdu(htt))
+			break;
 	}
 
 	while ((skb = __skb_dequeue(&rx_ind_q))) {
@@ -2466,4 +2461,6 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 		spin_unlock_bh(&htt->rx_ring.lock);
 		dev_kfree_skb_any(skb);
 	}
+
+	tasklet_schedule(&htt->rx_replenish_task);
 }

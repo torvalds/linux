@@ -1663,6 +1663,7 @@ struct ath10k_htt {
 	 * used to avoid further failures */
 	bool rx_confused;
 	struct tasklet_struct rx_replenish_task;
+	atomic_t num_mpdus_ready;
 
 	/* This is used to group tx/rx completions separately and process them
 	 * in batches to reduce cache stalls */
