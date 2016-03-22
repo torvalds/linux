@@ -324,7 +324,7 @@ static int nd_blk_probe(struct device *dev)
 	ndns->rw_bytes = nsblk_rw_bytes;
 	if (is_nd_btt(dev))
 		return nvdimm_namespace_attach_btt(ndns);
-	else if (nd_btt_probe(dev, ndns, nsblk) == 0) {
+	else if (nd_btt_probe(dev, ndns) == 0) {
 		/* we'll come back as btt-blk */
 		return -ENXIO;
 	} else

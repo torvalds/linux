@@ -273,8 +273,7 @@ static int __nd_btt_probe(struct nd_btt *nd_btt,
 	return 0;
 }
 
-int nd_btt_probe(struct device *dev, struct nd_namespace_common *ndns,
-		void *drvdata)
+int nd_btt_probe(struct device *dev, struct nd_namespace_common *ndns)
 {
 	int rc;
 	struct device *btt_dev;
@@ -289,7 +288,6 @@ int nd_btt_probe(struct device *dev, struct nd_namespace_common *ndns,
 	nvdimm_bus_unlock(&ndns->dev);
 	if (!btt_dev)
 		return -ENOMEM;
-	dev_set_drvdata(btt_dev, drvdata);
 	btt_sb = devm_kzalloc(dev, sizeof(*btt_sb), GFP_KERNEL);
 	rc = __nd_btt_probe(to_nd_btt(btt_dev), ndns, btt_sb);
 	dev_dbg(dev, "%s: btt: %s\n", __func__,

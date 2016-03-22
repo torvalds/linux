@@ -410,8 +410,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 }
 EXPORT_SYMBOL(nd_pfn_validate);
 
-int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns,
-		void *drvdata)
+int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 {
 	int rc;
 	struct nd_pfn *nd_pfn;
@@ -427,7 +426,6 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns,
 	nvdimm_bus_unlock(&ndns->dev);
 	if (!pfn_dev)
 		return -ENOMEM;
-	dev_set_drvdata(pfn_dev, drvdata);
 	pfn_sb = devm_kzalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
 	nd_pfn = to_nd_pfn(pfn_dev);
 	nd_pfn->pfn_sb = pfn_sb;

@@ -15,6 +15,7 @@
 #include <linux/fs.h>
 #include <linux/ndctl.h>
 #include <linux/device.h>
+#include <linux/badblocks.h>
 
 enum nvdimm_event {
 	NVDIMM_REVALIDATE_POISON,
@@ -55,13 +56,19 @@ static inline struct nd_namespace_common *to_ndns(struct device *dev)
 }
 
 /**
- * struct nd_namespace_io - infrastructure for loading an nd_pmem instance
+ * struct nd_namespace_io - device representation of a persistent memory range
  * @dev: namespace device created by the nd region driver
  * @res: struct resource conversion of a NFIT SPA table
+ * @size: cached resource_size(@res) for fast path size checks
+ * @addr: virtual address to access the namespace range
+ * @bb: badblocks list for the namespace range
  */
 struct nd_namespace_io {
 	struct nd_namespace_common common;
 	struct resource res;
+	resource_size_t size;
+	void __pmem *addr;
+	struct badblocks bb;
 };
 
 /**

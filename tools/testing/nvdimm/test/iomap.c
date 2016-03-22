@@ -239,13 +239,11 @@ struct resource *__wrap___devm_request_region(struct device *dev,
 }
 EXPORT_SYMBOL(__wrap___devm_request_region);
 
-void __wrap___release_region(struct resource *parent, resource_size_t start,
-				resource_size_t n)
+static bool nfit_test_release_region(struct resource *parent,
+		resource_size_t start, resource_size_t n)
 {
-	struct nfit_test_resource *nfit_res;
-
 	if (parent == &iomem_resource) {
-		nfit_res = get_nfit_res(start);
+		struct nfit_test_resource *nfit_res = get_nfit_res(start);
 		if (nfit_res) {
 			struct resource *res = nfit_res->res + 1;
 
@@ -254,11 +252,26 @@ void __wrap___release_region(struct resource *parent, resource_size_t start,
 						__func__, start, n, res);
 			else
 				memset(res, 0, sizeof(*res));
-			return;
+			return true;
 		}
 	}
-	__release_region(parent, start, n);
+	return false;
+}
+
+void __wrap___release_region(struct resource *parent, resource_size_t start,
+		resource_size_t n)
+{
+	if (!nfit_test_release_region(parent, start, n))
+		__release_region(parent, start, n);
 }
 EXPORT_SYMBOL(__wrap___release_region);
+
+void __wrap___devm_release_region(struct device *dev, struct resource *parent,
+		resource_size_t start, resource_size_t n)
+{
+	if (!nfit_test_release_region(parent, start, n))
+		__devm_release_region(dev, parent, start, n);
+}
+EXPORT_SYMBOL(__wrap___devm_release_region);
 
 MODULE_LICENSE("GPL v2");

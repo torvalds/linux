@@ -13,6 +13,7 @@
 #ifndef __ND_H__
 #define __ND_H__
 #include <linux/libnvdimm.h>
+#include <linux/badblocks.h>
 #include <linux/blkdev.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
@@ -197,13 +198,12 @@ struct nd_gen_sb {
 
 u64 nd_sb_checksum(struct nd_gen_sb *sb);
 #if IS_ENABLED(CONFIG_BTT)
-int nd_btt_probe(struct device *dev, struct nd_namespace_common *ndns,
-		void *drvdata);
+int nd_btt_probe(struct device *dev, struct nd_namespace_common *ndns);
 bool is_nd_btt(struct device *dev);
 struct device *nd_btt_create(struct nd_region *nd_region);
 #else
 static inline int nd_btt_probe(struct device *dev,
-		struct nd_namespace_common *ndns, void *drvdata)
+		struct nd_namespace_common *ndns)
 {
 	return -ENODEV;
 }
@@ -221,14 +221,13 @@ static inline struct device *nd_btt_create(struct nd_region *nd_region)
 
 struct nd_pfn *to_nd_pfn(struct device *dev);
 #if IS_ENABLED(CONFIG_NVDIMM_PFN)
-int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns,
-		void *drvdata);
+int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns);
 bool is_nd_pfn(struct device *dev);
 struct device *nd_pfn_create(struct nd_region *nd_region);
 int nd_pfn_validate(struct nd_pfn *nd_pfn);
 #else
-static inline int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns,
-		void *drvdata)
+static inline int nd_pfn_probe(struct device *dev,
+		struct nd_namespace_common *ndns)
 {
 	return -ENODEV;
 }
@@ -272,6 +271,20 @@ const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
 		char *name);
 void nvdimm_badblocks_populate(struct nd_region *nd_region,
 		struct badblocks *bb, const struct resource *res);
+#if IS_ENABLED(CONFIG_ND_CLAIM)
+int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio);
+void devm_nsio_disable(struct device *dev, struct nd_namespace_io *nsio);
+#else
+static inline int devm_nsio_enable(struct device *dev,
+		struct nd_namespace_io *nsio)
+{
+	return -ENXIO;
+}
+static inline void devm_nsio_disable(struct device *dev,
+		struct nd_namespace_io *nsio)
+{
+}
+#endif
 int nd_blk_region_init(struct nd_region *nd_region);
 void __nd_iostat_start(struct bio *bio, unsigned long *start);
 static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)
@@ -285,6 +298,19 @@ static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)
 	return true;
 }
 void nd_iostat_end(struct bio *bio, unsigned long start);
+static inline bool is_bad_pmem(struct badblocks *bb, sector_t sector,
+		unsigned int len)
+{
+	if (bb->count) {
+		sector_t first_bad;
+		int num_bad;
+
+		return !!badblocks_check(bb, sector, len / 512, &first_bad,
+				&num_bad);
+	}
+
+	return false;
+}
 resource_size_t nd_namespace_blk_validate(struct nd_namespace_blk *nsblk);
 const u8 *nd_dev_to_uuid(struct device *dev);
 bool pmem_should_map_pages(struct device *dev);
