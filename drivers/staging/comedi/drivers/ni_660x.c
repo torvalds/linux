@@ -157,6 +157,11 @@ enum ni_660x_register {
 
 #define NI660X_CLK_CFG_COUNTER_SWAP	BIT(21)
 
+#define NI660X_DMA_CFG_SEL(_c, _s)	(((_s) & 0x1f) << (8 * (_c)))
+#define NI660X_DMA_CFG_SEL_MASK(_c)	NI660X_DMA_CFG_SEL((_c), 0x1f)
+#define NI660X_DMA_CFG_SEL_NONE(_c)	NI660X_DMA_CFG_SEL((_c), 0x1f)
+#define NI660X_DMA_CFG_RESET(_c)	NI660X_DMA_CFG_SEL((_c), 0x80)
+
 #define NI660X_IO_CFG(x)		(NI660X_IO_CFG_0_1 + ((x) / 2))
 #define NI660X_IO_CFG_OUT_SEL(_c, _s)	(((_s) & 0x3) << (((_c) % 2) ? 0 : 8))
 #define NI660X_IO_CFG_OUT_SEL_MASK(_c)	NI660X_IO_CFG_OUT_SEL((_c), 0x3)
@@ -282,29 +287,6 @@ static const struct ni_660x_register_data ni_660x_reg_data[NI660X_NUM_REGS] = {
 	[NI660X_IO_CFG_38_39]		= { 0x7a2, 2 }	/* read/write */
 };
 
-/* dma configuration register bits */
-static inline unsigned dma_select_mask(unsigned dma_channel)
-{
-	BUG_ON(dma_channel >= MAX_DMA_CHANNEL);
-	return 0x1f << (8 * dma_channel);
-}
-
-enum dma_selection {
-	dma_selection_none = 0x1f,
-};
-
-static inline unsigned dma_select_bits(unsigned dma_channel, unsigned selection)
-{
-	BUG_ON(dma_channel >= MAX_DMA_CHANNEL);
-	return (selection << (8 * dma_channel)) & dma_select_mask(dma_channel);
-}
-
-static inline unsigned dma_reset_bit(unsigned dma_channel)
-{
-	BUG_ON(dma_channel >= MAX_DMA_CHANNEL);
-	return 0x80 << (8 * dma_channel);
-}
-
 enum global_interrupt_status_register_bits {
 	Counter_0_Int_Bit = 0x100,
 	Counter_1_Int_Bit = 0x200,
@@ -372,7 +354,7 @@ struct ni_660x_private {
 	spinlock_t mite_channel_lock;
 	/* interrupt_lock prevents races between interrupt and comedi_poll */
 	spinlock_t interrupt_lock;
-	unsigned dma_configuration_soft_copies[NI_660X_MAX_NUM_CHIPS];
+	unsigned dma_cfg[NI_660X_MAX_NUM_CHIPS];
 	spinlock_t soft_reg_copy_lock;
 	unsigned short pfi_output_selects[NUM_PFI_CHANNELS];
 };
@@ -591,13 +573,12 @@ static inline void ni_660x_set_dma_channel(struct comedi_device *dev,
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
-	devpriv->dma_configuration_soft_copies[chip] &=
-		~dma_select_mask(mite_channel);
-	devpriv->dma_configuration_soft_copies[chip] |=
-		dma_select_bits(mite_channel, counter->counter_index);
-	ni_660x_write_register(dev, chip,
-			       devpriv->dma_configuration_soft_copies[chip] |
-			       dma_reset_bit(mite_channel), NI660X_DMA_CFG);
+	devpriv->dma_cfg[chip] &= ~NI660X_DMA_CFG_SEL_MASK(mite_channel);
+	devpriv->dma_cfg[chip] |= NI660X_DMA_CFG_SEL(mite_channel,
+						     counter->counter_index);
+	ni_660x_write_register(dev, chip, devpriv->dma_cfg[chip] |
+			       NI660X_DMA_CFG_RESET(mite_channel),
+			       NI660X_DMA_CFG);
 	mmiowb();
 	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
 }
@@ -611,12 +592,9 @@ static inline void ni_660x_unset_dma_channel(struct comedi_device *dev,
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
-	devpriv->dma_configuration_soft_copies[chip] &=
-	    ~dma_select_mask(mite_channel);
-	devpriv->dma_configuration_soft_copies[chip] |=
-	    dma_select_bits(mite_channel, dma_selection_none);
-	ni_660x_write_register(dev, chip,
-			       devpriv->dma_configuration_soft_copies[chip],
+	devpriv->dma_cfg[chip] &= ~NI660X_DMA_CFG_SEL_MASK(mite_channel);
+	devpriv->dma_cfg[chip] |= NI660X_DMA_CFG_SEL_NONE(mite_channel);
+	ni_660x_write_register(dev, chip, devpriv->dma_cfg[chip],
 			       NI660X_DMA_CFG);
 	mmiowb();
 	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
@@ -819,13 +797,10 @@ static void init_tio_chip(struct comedi_device *dev, int chipset)
 	unsigned i;
 
 	/*  init dma configuration register */
-	devpriv->dma_configuration_soft_copies[chipset] = 0;
-	for (i = 0; i < MAX_DMA_CHANNEL; ++i) {
-		devpriv->dma_configuration_soft_copies[chipset] |=
-		    dma_select_bits(i, dma_selection_none) & dma_select_mask(i);
-	}
-	ni_660x_write_register(dev, chipset,
-			       devpriv->dma_configuration_soft_copies[chipset],
+	devpriv->dma_cfg[chipset] = 0;
+	for (i = 0; i < MAX_DMA_CHANNEL; ++i)
+		devpriv->dma_cfg[chipset] |= NI660X_DMA_CFG_SEL_NONE(i);
+	ni_660x_write_register(dev, chipset, devpriv->dma_cfg[chipset],
 			       NI660X_DMA_CFG);
 	for (i = 0; i < NUM_PFI_CHANNELS; ++i)
 		ni_660x_write_register(dev, chipset, 0, NI660X_IO_CFG(i));
