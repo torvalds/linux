@@ -34,7 +34,7 @@
  * libcfs/include/libcfs/libcfs_ioctl.h
  *
  * Low-level ioctl data structures. Kernel ioctl functions declared here,
- * and user space functions are in libcfsutil_ioctl.h.
+ * and user space functions are in libcfs/util/ioctl.h.
  *
  */
 
