@@ -165,12 +165,13 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
 		down_read(&ioctl_list_sem);
 		list_for_each_entry(hand, &ioctl_list, item) {
 			err = hand->handle_ioctl(cmd, hdr);
-			if (err != -EINVAL) {
-				if (err == 0)
-					err = libcfs_ioctl_popdata(arg,
-							hdr, hdr->ioc_len);
-				break;
-			}
+			if (err == -EINVAL)
+				continue;
+
+			if (!err)
+				err = libcfs_ioctl_popdata(arg, hdr,
+							   hdr->ioc_len);
+			break;
 		}
 		up_read(&ioctl_list_sem);
 		break; }
