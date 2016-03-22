@@ -1351,8 +1351,9 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 			RK3399_CLKSEL_CON(1), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3399_CLKGATE_CON(0), 2, GFLAGS),
 
-	COMPOSITE_NOGATE(0, "clk_wifi_div", mux_ppll_24m_p, CLK_IGNORE_UNUSED,
-			RK3399_CLKSEL_CON(1), 13, 1, MFLAGS, 8, 5, DFLAGS),
+	COMPOSITE(0, "clk_wifi_div", mux_ppll_24m_p, CLK_IGNORE_UNUSED,
+			RK3399_CLKSEL_CON(1), 13, 1, MFLAGS, 8, 5, DFLAGS,
+			RK3399_CLKGATE_CON(0), 8, GFLAGS),
 
 	COMPOSITE_FRACMUX_NOGATE(0, "clk_wifi_frac", "clk_wifi_div", CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(7), 0,
@@ -1422,6 +1423,11 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 static const char *const rk3399_critical_clocks[] __initconst = {
 	"aclk_cci_pre",
 	"pclk_pmu_src",
+	"pclk_perilp0",
+	"hclk_perilp0",
+	"pclk_perilp1",
+	"pclk_perihp",
+	"hclk_perihp",
 };
 
 static void __init rk3399_clk_init(struct device_node *np)
