@@ -107,6 +107,12 @@ static inline u32 read_pkru(void)
 	return 0;
 }
 
+static inline void write_pkru(u32 pkru)
+{
+	if (boot_cpu_has(X86_FEATURE_OSPKE))
+		__write_pkru(pkru);
+}
+
 static inline int pte_young(pte_t pte)
 {
 	return pte_flags(pte) & _PAGE_ACCESSED;
