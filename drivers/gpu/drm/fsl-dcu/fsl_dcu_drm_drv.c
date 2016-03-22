@@ -290,6 +290,11 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 	if (!fsl_dev)
 		return -ENOMEM;
 
+	id = of_match_node(fsl_dcu_of_match, pdev->dev.of_node);
+	if (!id)
+		return -ENODEV;
+	fsl_dev->soc = id->data;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "could not get memory IO resource\n");
@@ -308,24 +313,6 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	fsl_dev->clk = devm_clk_get(dev, "dcu");
-	if (IS_ERR(fsl_dev->clk)) {
-		ret = PTR_ERR(fsl_dev->clk);
-		dev_err(dev, "failed to get dcu clock\n");
-		return ret;
-	}
-	ret = clk_prepare(fsl_dev->clk);
-	if (ret < 0) {
-		dev_err(dev, "failed to prepare dcu clk\n");
-		return ret;
-	}
-	ret = clk_enable(fsl_dev->clk);
-	if (ret < 0) {
-		dev_err(dev, "failed to enable dcu clk\n");
-		clk_unprepare(fsl_dev->clk);
-		return ret;
-	}
-
 	fsl_dev->regmap = devm_regmap_init_mmio(dev, base,
 			&fsl_dcu_regmap_config);
 	if (IS_ERR(fsl_dev->regmap)) {
@@ -333,14 +320,22 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 		return PTR_ERR(fsl_dev->regmap);
 	}
 
-	id = of_match_node(fsl_dcu_of_match, pdev->dev.of_node);
-	if (!id)
-		return -ENODEV;
-	fsl_dev->soc = id->data;
+	fsl_dev->clk = devm_clk_get(dev, "dcu");
+	if (IS_ERR(fsl_dev->clk)) {
+		dev_err(dev, "failed to get dcu clock\n");
+		return PTR_ERR(fsl_dev->clk);
+	}
+	ret = clk_prepare_enable(fsl_dev->clk);
+	if (ret < 0) {
+		dev_err(dev, "failed to enable dcu clk\n");
+		return ret;
+	}
 
 	drm = drm_dev_alloc(driver, dev);
-	if (!drm)
-		return -ENOMEM;
+	if (!drm) {
+		ret = -ENOMEM;
+		goto disable_clk;
+	}
 
 	fsl_dev->dev = dev;
 	fsl_dev->drm = drm;
@@ -360,6 +355,8 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 
 unref:
 	drm_dev_unref(drm);
+disable_clk:
+	clk_disable_unprepare(fsl_dev->clk);
 	return ret;
 }
 
@@ -367,6 +364,7 @@ static int fsl_dcu_drm_remove(struct platform_device *pdev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = platform_get_drvdata(pdev);
 
+	clk_disable_unprepare(fsl_dev->clk);
 	drm_put_dev(fsl_dev->drm);
 
 	return 0;
