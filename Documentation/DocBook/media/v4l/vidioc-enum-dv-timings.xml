@@ -61,8 +61,9 @@ of known supported timings. Call &VIDIOC-DV-TIMINGS-CAP; to check if it also sup
 standards or even custom timings that are not in this list.</para>
 
     <para>To query the available timings, applications initialize the
-<structfield>index</structfield> field and zero the reserved array of &v4l2-enum-dv-timings;
-and call the <constant>VIDIOC_ENUM_DV_TIMINGS</constant> ioctl on a video node with a
+<structfield>index</structfield> field, set the <structfield>pad</structfield> field to 0,
+zero the reserved array of &v4l2-enum-dv-timings; and call the
+<constant>VIDIOC_ENUM_DV_TIMINGS</constant> ioctl on a video node with a
 pointer to this structure. Drivers fill the rest of the structure or return an
 &EINVAL; when the index is out of bounds. To enumerate all supported DV timings,
 applications shall begin at index zero, incrementing by one until the
