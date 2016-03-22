@@ -187,8 +187,8 @@ PNAME(mux_uart3_p)				= { "clk_uart3_div", "clk_uart3_frac", "xin24m" };
 PNAME(mux_ppll_24m_p)				= { "ppll", "xin24m" };
 PNAME(mux_24m_ppll_p)				= { "xin24m", "ppll" };
 PNAME(mux_fclk_cm0s_pmu_ppll_p)			= { "fclk_cm0s_pmu_ppll_src", "xin24m" };
-PNAME(mux_wifi_div_frac_p)			= { "clk_wifi_div", "clk_wifi_frac" };
-PNAME(mux_uart4_div_frac_p)			= { "clk_uart4_div", "clk_uart4_frac" };
+PNAME(mux_wifi_pmu_p)				= { "clk_wifi_div", "clk_wifi_frac" };
+PNAME(mux_uart4_pmu_p)				= { "clk_uart4_div", "clk_uart4_frac", "xin24m" };
 PNAME(mux_clk_testout2_2io_p)			= { "clk_testout2", "clk_32k_suspend_pmu" };
 
 static struct rockchip_pll_clock rk3399_pll_clks[] __initdata = {
@@ -234,6 +234,10 @@ static struct rockchip_clk_branch rk3399_uart3_fracmux __initdata =
 	MUX(SCLK_UART3, "clk_uart3", mux_uart3_p, CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(36), 8, 2, MFLAGS);
 
+static struct rockchip_clk_branch rk3399_uart4_pmu_fracmux __initdata =
+	MUX(SCLK_UART4_PMU, "clk_uart4_pmu", mux_uart4_pmu_p, CLK_SET_RATE_PARENT,
+			RK3399_CLKSEL_CON(5), 8, 2, MFLAGS);
+
 static struct rockchip_clk_branch rk3399_dclk_vop0_fracmux __initdata =
 	MUX(DCLK_VOP0, "dclk_vop0", mux_dclk_vop0_p, CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(49), 11, 1, MFLAGS);
@@ -243,7 +247,7 @@ static struct rockchip_clk_branch rk3399_dclk_vop1_fracmux __initdata =
 			RK3399_CLKSEL_CON(50), 11, 1, MFLAGS);
 
 static struct rockchip_clk_branch rk3399_pmuclk_wifi_fracmux __initdata =
-	MUX(SCLK_WIFI_PMU, "clk_wifi_pmu", mux_wifi_div_frac_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_WIFI_PMU, "clk_wifi_pmu", mux_wifi_pmu_p, CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(1), 14, 1, MFLAGS);
 
 static const struct rockchip_cpuclk_reg_data rk3399_cpuclkl_data = {
@@ -1247,7 +1251,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	GATE(PCLK_PMU_INTR_ARB, "pclk_pmu_intr_arb", "pclk_alive", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(31), 9, GFLAGS),
 	GATE(PCLK_SGRF, "pclk_sgrf", "pclk_alive", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(31), 10, GFLAGS),
 
-	GATE(0, "clk_mipidphy_ref", "xin24m", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(11), 14, GFLAGS),
+	GATE(SCLK_MIPIDPHY_REF, "clk_mipidphy_ref", "xin24m", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(11), 14, GFLAGS),
 	GATE(SCLK_DPHY_PLL, "clk_dphy_pll", "clk_mipidphy_ref", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(21), 0, GFLAGS),
 
 	GATE(SCLK_MIPIDPHY_CFG, "clk_mipidphy_cfg", "xin24m", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(11), 15, GFLAGS),
@@ -1379,12 +1383,10 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 			RK3399_CLKSEL_CON(5), 10, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3399_CLKGATE_CON(0), 5, GFLAGS),
 
-	COMPOSITE_FRAC(0, "clk_uart4_frac", "clk_uart4_div", CLK_SET_RATE_PARENT,
+	COMPOSITE_FRACMUX(0, "clk_uart4_frac", "clk_uart4_div", CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(6), 0,
-			RK3399_CLKGATE_CON(0), 6, GFLAGS),
-
-	MUX(SCLK_UART4_PMU, "clk_uart4_pmu", mux_uart4_div_frac_p, CLK_IGNORE_UNUSED,
-			RK3399_CLKSEL_CON(5), 8, 2, MFLAGS),
+			RK3399_CLKGATE_CON(0), 6, GFLAGS,
+			&rk3399_uart4_pmu_fracmux),
 
 	/* pmu clock gates */
 	GATE(SCLK_TIMER12_PMU, "clk_timer0_pmu", "clk_timer_src_pmu", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(0), 3, GFLAGS),
