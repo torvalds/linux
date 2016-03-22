@@ -613,9 +613,11 @@ static irqreturn_t ni_660x_interrupt(int irq, void *d)
 
 	if (!dev->attached)
 		return IRQ_NONE;
+	/* make sure dev->attached is checked before doing anything else */
+	smp_mb();
+
 	/* lock to avoid race with comedi_poll */
 	spin_lock_irqsave(&devpriv->interrupt_lock, flags);
-	smp_mb();
 	for (i = 0; i < dev->n_subdevices; ++i) {
 		s = &dev->subdevices[i];
 		if (s->type == COMEDI_SUBD_COUNTER)
