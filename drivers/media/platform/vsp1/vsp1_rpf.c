@@ -141,9 +141,27 @@ static void rpf_configure(struct vsp1_entity *entity,
 		       (left << VI6_RPF_LOC_HCOORD_SHIFT) |
 		       (top << VI6_RPF_LOC_VCOORD_SHIFT));
 
-	/* Use the alpha channel (extended to 8 bits) when available or an
-	 * alpha value set through the V4L2_CID_ALPHA_COMPONENT control
-	 * otherwise. Disable color keying.
+	/* On Gen2 use the alpha channel (extended to 8 bits) when available or
+	 * a fixed alpha value set through the V4L2_CID_ALPHA_COMPONENT control
+	 * otherwise.
+	 *
+	 * The Gen3 RPF has extended alpha capability and can both multiply the
+	 * alpha channel by a fixed global alpha value, and multiply the pixel
+	 * components to convert the input to premultiplied alpha.
+	 *
+	 * As alpha premultiplication is available in the BRU for both Gen2 and
+	 * Gen3 we handle it there and use the Gen3 alpha multiplier for global
+	 * alpha multiplication only. This however prevents conversion to
+	 * premultiplied alpha if no BRU is present in the pipeline. If that use
+	 * case turns out to be useful we will revisit the implementation (for
+	 * Gen3 only).
+	 *
+	 * We enable alpha multiplication on Gen3 using the fixed alpha value
+	 * set through the V4L2_CID_ALPHA_COMPONENT control when the input
+	 * contains an alpha channel. On Gen2 the global alpha is ignored in
+	 * that case.
+	 *
+	 * In all cases, disable color keying.
 	 */
 	vsp1_rpf_write(rpf, dl, VI6_RPF_ALPH_SEL, VI6_RPF_ALPH_SEL_AEXT_EXT |
 		       (fmtinfo->alpha ? VI6_RPF_ALPH_SEL_ASEL_PACKED
@@ -152,10 +170,43 @@ static void rpf_configure(struct vsp1_entity *entity,
 	vsp1_rpf_write(rpf, dl, VI6_RPF_VRTCOL_SET,
 		       rpf->alpha << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
 
+	if (entity->vsp1->info->gen == 3) {
+		u32 mult;
+
+		if (fmtinfo->alpha) {
+			/* When the input contains an alpha channel enable the
+			 * alpha multiplier. If the input is premultiplied we
+			 * need to multiply both the alpha channel and the pixel
+			 * components by the global alpha value to keep them
+			 * premultiplied. Otherwise multiply the alpha channel
+			 * only.
+			 */
+			bool premultiplied = format->flags
+					   & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA;
+
+			mult = VI6_RPF_MULT_ALPHA_A_MMD_RATIO
+			     | (premultiplied ?
+				VI6_RPF_MULT_ALPHA_P_MMD_RATIO :
+				VI6_RPF_MULT_ALPHA_P_MMD_NONE)
+			     | (rpf->alpha << VI6_RPF_MULT_ALPHA_RATIO_SHIFT);
+		} else {
+			/* When the input doesn't contain an alpha channel the
+			 * global alpha value is applied in the unpacking unit,
+			 * the alpha multiplier isn't needed and must be
+			 * disabled.
+			 */
+			mult = VI6_RPF_MULT_ALPHA_A_MMD_NONE
+			     | VI6_RPF_MULT_ALPHA_P_MMD_NONE;
+		}
+
+		vsp1_rpf_write(rpf, dl, VI6_RPF_MULT_ALPHA, mult);
+	}
+
 	vsp1_pipeline_propagate_alpha(pipe, &rpf->entity, dl, rpf->alpha);
 
 	vsp1_rpf_write(rpf, dl, VI6_RPF_MSK_CTRL, 0);
 	vsp1_rpf_write(rpf, dl, VI6_RPF_CKEY_CTRL, 0);
+
 }
 
 static const struct vsp1_entity_operations rpf_entity_ops = {

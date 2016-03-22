@@ -558,6 +558,7 @@ static const struct dev_pm_ops vsp1_pm_ops = {
 static const struct vsp1_device_info vsp1_device_infos[] = {
 	{
 		.version = VI6_IP_VERSION_MODEL_VSPS_H2,
+		.gen = 2,
 		.features = VSP1_HAS_BRU | VSP1_HAS_LUT | VSP1_HAS_SRU,
 		.rpf_count = 5,
 		.uds_count = 3,
@@ -566,6 +567,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uapi = true,
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPR_H2,
+		.gen = 2,
 		.features = VSP1_HAS_BRU | VSP1_HAS_SRU,
 		.rpf_count = 5,
 		.uds_count = 1,
@@ -574,6 +576,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uapi = true,
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPD_GEN2,
+		.gen = 2,
 		.features = VSP1_HAS_BRU | VSP1_HAS_LIF | VSP1_HAS_LUT,
 		.rpf_count = 4,
 		.uds_count = 1,
@@ -582,6 +585,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uapi = true,
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPS_M2,
+		.gen = 2,
 		.features = VSP1_HAS_BRU | VSP1_HAS_LUT | VSP1_HAS_SRU,
 		.rpf_count = 5,
 		.uds_count = 3,
@@ -590,6 +594,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uapi = true,
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPI_GEN3,
+		.gen = 3,
 		.features = VSP1_HAS_LUT | VSP1_HAS_SRU,
 		.rpf_count = 1,
 		.uds_count = 1,
@@ -597,6 +602,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uapi = true,
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPBD_GEN3,
+		.gen = 3,
 		.features = VSP1_HAS_BRU,
 		.rpf_count = 5,
 		.wpf_count = 1,
@@ -604,6 +610,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uapi = true,
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPBC_GEN3,
+		.gen = 3,
 		.features = VSP1_HAS_BRU | VSP1_HAS_LUT,
 		.rpf_count = 5,
 		.wpf_count = 1,
@@ -611,6 +618,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uapi = true,
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPD_GEN3,
+		.gen = 3,
 		.features = VSP1_HAS_BRU | VSP1_HAS_LIF,
 		.rpf_count = 5,
 		.wpf_count = 2,
