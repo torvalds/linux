@@ -43,9 +43,6 @@ extern struct dentry *arch_debugfs_dir;
 
 #if defined(CONFIG_DEBUG_FS)
 
-/* declared over in file.c */
-extern const struct file_operations debugfs_file_operations;
-
 struct dentry *debugfs_create_file(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
 				   const struct file_operations *fops);

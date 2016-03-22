@@ -27,8 +27,13 @@
 #include <linux/parser.h>
 #include <linux/magic.h>
 #include <linux/slab.h>
+#include <linux/srcu.h>
+
+#include "internal.h"
 
 #define DEBUGFS_DEFAULT_MODE	0700
+
+DEFINE_SRCU(debugfs_srcu);
 
 static struct vfsmount *debugfs_mount;
 static int debugfs_mount_count;
@@ -341,8 +346,12 @@ struct dentry *debugfs_create_file(const char *name, umode_t mode,
 		return failed_creating(dentry);
 
 	inode->i_mode = mode;
-	inode->i_fop = fops ? fops : &debugfs_file_operations;
 	inode->i_private = data;
+
+	inode->i_fop = fops ? &debugfs_open_proxy_file_operations
+		: &debugfs_noop_file_operations;
+	dentry->d_fsdata = (void *)fops;
+
 	d_instantiate(dentry, inode);
 	fsnotify_create(d_inode(dentry->d_parent), dentry);
 	return end_creating(dentry);
@@ -570,6 +579,7 @@ void debugfs_remove(struct dentry *dentry)
 	inode_unlock(d_inode(parent));
 	if (!ret)
 		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
+	synchronize_srcu(&debugfs_srcu);
 }
 EXPORT_SYMBOL_GPL(debugfs_remove);
 
@@ -647,6 +657,7 @@ void debugfs_remove_recursive(struct dentry *dentry)
 	if (!__debugfs_remove(child, parent))
 		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
 	inode_unlock(d_inode(parent));
+	synchronize_srcu(&debugfs_srcu);
 }
 EXPORT_SYMBOL_GPL(debugfs_remove_recursive);
 
