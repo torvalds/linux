@@ -333,40 +333,40 @@
 #define CLK_NR_CLKS			(HCLK_SDIOAUDIO_NOC + 1)
 
 /* pmu-clocks indices */
-#define SCLK_32K_SUSPEND_PMU		521
-#define SCLK_SPI3_PMU			522
-#define SCLK_TIMER12_PMU		523
-#define SCLK_TIMER13_PMU		524
-#define SCLK_UART4_PMU			525
-#define SCLK_PVTM_PMU			526
-#define SCLK_WIFI_PMU			527
-#define SCLK_I2C0_PMU			528
-#define SCLK_I2C4_PMU			529
-#define SCLK_I2C8_PMU			530
+#define SCLK_32K_SUSPEND_PMU		1
+#define SCLK_SPI3_PMU			2
+#define SCLK_TIMER12_PMU		3
+#define SCLK_TIMER13_PMU		4
+#define SCLK_UART4_PMU			5
+#define SCLK_PVTM_PMU			6
+#define SCLK_WIFI_PMU			7
+#define SCLK_I2C0_PMU			8
+#define SCLK_I2C4_PMU			9
+#define SCLK_I2C8_PMU			10
 
-#define PCLK_PMU			540
-#define PCLK_PMUGRF_PMU			541
-#define PCLK_INTMEM1_PMU		542
-#define PCLK_GPIO0_PMU			543
-#define PCLK_GPIO1_PMU			544
-#define PCLK_SGRF_PMU			545
-#define PCLK_NOC_PMU			546
-#define PCLK_I2C0_PMU			547
-#define PCLK_I2C4_PMU			548
-#define PCLK_I2C8_PMU			549
-#define PCLK_RKPWM_PMU			550
-#define PCLK_SPI3_PMU			551
-#define PCLK_TIMER_PMU			552
-#define PCLK_MAILBOX_PMU		553
-#define PCLK_UART4_PMU			554
-#define PCLK_WDT_M0_PMU			555
+#define PCLK_PMU			20
+#define PCLK_PMUGRF_PMU			21
+#define PCLK_INTMEM1_PMU		22
+#define PCLK_GPIO0_PMU			23
+#define PCLK_GPIO1_PMU			24
+#define PCLK_SGRF_PMU			25
+#define PCLK_NOC_PMU			26
+#define PCLK_I2C0_PMU			27
+#define PCLK_I2C4_PMU			28
+#define PCLK_I2C8_PMU			29
+#define PCLK_RKPWM_PMU			30
+#define PCLK_SPI3_PMU			31
+#define PCLK_TIMER_PMU			32
+#define PCLK_MAILBOX_PMU		33
+#define PCLK_UART4_PMU			34
+#define PCLK_WDT_M0_PMU			35
 
-#define FCLK_CM0S_PMU			560
-#define SCLK_CM0S_PMU			561
-#define HCLK_CM0S_PMU			562
-#define DCLK_CM0S_PMU			563
-#define PCLK_INTR_ARB_PMU		564
-#define HCLK_NOC_PMU			565
+#define FCLK_CM0S_PMU			45
+#define SCLK_CM0S_PMU			46
+#define HCLK_CM0S_PMU			47
+#define DCLK_CM0S_PMU			48
+#define PCLK_INTR_ARB_PMU		49
+#define HCLK_NOC_PMU			50
 
 #define CLKPMU_NR_CLKS			(HCLK_NOC_PMU - SCLK_32K_SUSPEND_PMU + 1)
 
