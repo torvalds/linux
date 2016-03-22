@@ -187,12 +187,14 @@ enum {
 #define PFERR_USER_BIT 2
 #define PFERR_RSVD_BIT 3
 #define PFERR_FETCH_BIT 4
+#define PFERR_PK_BIT 5
 
 #define PFERR_PRESENT_MASK (1U << PFERR_PRESENT_BIT)
 #define PFERR_WRITE_MASK (1U << PFERR_WRITE_BIT)
 #define PFERR_USER_MASK (1U << PFERR_USER_BIT)
 #define PFERR_RSVD_MASK (1U << PFERR_RSVD_BIT)
 #define PFERR_FETCH_MASK (1U << PFERR_FETCH_BIT)
+#define PFERR_PK_MASK (1U << PFERR_PK_BIT)
 
 /* apic attention bits */
 #define KVM_APIC_CHECK_VAPIC	0
@@ -882,6 +884,7 @@ struct kvm_x86_ops {
 	void (*cache_reg)(struct kvm_vcpu *vcpu, enum kvm_reg reg);
 	unsigned long (*get_rflags)(struct kvm_vcpu *vcpu);
 	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);
+	u32 (*get_pkru)(struct kvm_vcpu *vcpu);
 	void (*fpu_activate)(struct kvm_vcpu *vcpu);
 	void (*fpu_deactivate)(struct kvm_vcpu *vcpu);
 
