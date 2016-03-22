@@ -598,6 +598,10 @@ struct vcpu_vmx {
 	struct page *pml_pg;
 
 	u64 current_tsc_ratio;
+
+	bool guest_pkru_valid;
+	u32 guest_pkru;
+	u32 host_pkru;
 };
 
 enum segment_cache_field {
@@ -2107,6 +2111,7 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 	} while (cmpxchg(&pi_desc->control, old.control,
 			new.control) != old.control);
 }
+
 /*
  * Switches to specified vcpu, until a matching vcpu_put(), but assumes
  * vcpu mutex is already taken.
@@ -2167,6 +2172,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	}
 
 	vmx_vcpu_pi_load(vcpu, cpu);
+	vmx->host_pkru = read_pkru();
 }
 
 static void vmx_vcpu_pi_put(struct kvm_vcpu *vcpu)
@@ -8639,6 +8645,9 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
 		vmx_set_interrupt_shadow(vcpu, 0);
 
+	if (vmx->guest_pkru_valid)
+		__write_pkru(vmx->guest_pkru);
+
 	atomic_switch_perf_msrs(vmx);
 	debugctlmsr = get_debugctlmsr();
 
@@ -8777,6 +8786,20 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	vmx->loaded_vmcs->launched = 1;
 
 	vmx->exit_reason = vmcs_read32(VM_EXIT_REASON);
+
+	/*
+	 * eager fpu is enabled if PKEY is supported and CR4 is switched
+	 * back on host, so it is safe to read guest PKRU from current
+	 * XSAVE.
+	 */
+	if (boot_cpu_has(X86_FEATURE_OSPKE)) {
+		vmx->guest_pkru = __read_pkru();
+		if (vmx->guest_pkru != vmx->host_pkru) {
+			vmx->guest_pkru_valid = true;
+			__write_pkru(vmx->host_pkru);
+		} else
+			vmx->guest_pkru_valid = false;
+	}
 
 	/*
 	 * the KVM_REQ_EVENT optimization bit is only on for one entry, and if
