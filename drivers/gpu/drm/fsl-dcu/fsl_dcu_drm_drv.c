@@ -331,10 +331,21 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	fsl_dev->pix_clk = devm_clk_get(dev, "pix");
+	if (IS_ERR(fsl_dev->pix_clk)) {
+		/* legancy binding, use dcu clock as pixel clock */
+		fsl_dev->pix_clk = fsl_dev->clk;
+	}
+	ret = clk_prepare_enable(fsl_dev->pix_clk);
+	if (ret < 0) {
+		dev_err(dev, "failed to enable pix clk\n");
+		goto disable_clk;
+	}
+
 	drm = drm_dev_alloc(driver, dev);
 	if (!drm) {
 		ret = -ENOMEM;
-		goto disable_clk;
+		goto disable_pix_clk;
 	}
 
 	fsl_dev->dev = dev;
@@ -355,6 +366,8 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 
 unref:
 	drm_dev_unref(drm);
+disable_pix_clk:
+	clk_disable_unprepare(fsl_dev->pix_clk);
 disable_clk:
 	clk_disable_unprepare(fsl_dev->clk);
 	return ret;
@@ -365,6 +378,7 @@ static int fsl_dcu_drm_remove(struct platform_device *pdev)
 	struct fsl_dcu_drm_device *fsl_dev = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(fsl_dev->clk);
+	clk_disable_unprepare(fsl_dev->pix_clk);
 	drm_put_dev(fsl_dev->drm);
 
 	return 0;

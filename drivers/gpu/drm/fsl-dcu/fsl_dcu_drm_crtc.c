@@ -71,7 +71,7 @@ static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	unsigned long dcuclk;
 
 	index = drm_crtc_index(crtc);
-	dcuclk = clk_get_rate(fsl_dev->clk);
+	dcuclk = clk_get_rate(fsl_dev->pix_clk);
 	div = dcuclk / mode->clock / 1000;
 
 	/* Configure timings: */
