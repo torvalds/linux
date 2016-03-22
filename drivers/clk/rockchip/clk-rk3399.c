@@ -1428,6 +1428,17 @@ static const char *const rk3399_critical_clocks[] __initconst = {
 	"pclk_perilp1",
 	"pclk_perihp",
 	"hclk_perihp",
+	"aclk_perihp",
+	"aclk_perilp0",
+	"hclk_perilp1",
+	"aclk_dmac0_perilp",
+	"gpll_hclk_perilp1_src",
+	"gpll_aclk_perilp0_src",
+	"gpll_aclk_perihp_src",
+	"pclk_pmu_src",
+	"fclk_cm0s_src_pmu",
+	"clk_timer_src_pmu",
+	"ppll",
 };
 
 static void __init rk3399_clk_init(struct device_node *np)
