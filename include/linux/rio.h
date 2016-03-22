@@ -202,6 +202,7 @@ struct rio_dev {
 #define	to_rio_dev(n) container_of(n, struct rio_dev, dev)
 #define sw_to_rio_dev(n) container_of(n, struct rio_dev, rswitch[0])
 #define	to_rio_mport(n) container_of(n, struct rio_mport, dev)
+#define	to_rio_net(n) container_of(n, struct rio_net, dev)
 
 /**
  * struct rio_msg - RIO message event
@@ -237,6 +238,7 @@ enum rio_phy_type {
  * @dbells: List of doorbell events
  * @node: Node in global list of master ports
  * @nnode: Node in network list of master ports
+ * @net: RIO net this mport is attached to
  * @iores: I/O mem resource that this master port interface owns
  * @riores: RIO resources that this master port interfaces owns
  * @inb_msg: RIO inbound message event descriptors
@@ -258,6 +260,7 @@ struct rio_mport {
 	struct list_head dbells;	/* list of doorbell events */
 	struct list_head node;	/* node in global list of ports */
 	struct list_head nnode;	/* node in net list of ports */
+	struct rio_net *net;	/* RIO net this mport is attached to */
 	struct resource iores;
 	struct resource riores[RIO_MAX_MPORT_RESOURCES];
 	struct rio_msg inb_msg[RIO_MAX_MBOX];
@@ -287,13 +290,6 @@ struct rio_mport {
  */
 #define RIO_SCAN_ENUM_NO_WAIT	0x00000001 /* Do not wait for enum completed */
 
-struct rio_id_table {
-	u16 start;	/* logical minimal id */
-	u32 max;	/* max number of IDs in table */
-	spinlock_t lock;
-	unsigned long *table;
-};
-
 /**
  * struct rio_net - RIO network info
  * @node: Node in global list of RIO networks
@@ -302,7 +298,9 @@ struct rio_id_table {
  * @mports: List of master ports accessing this network
  * @hport: Default port for accessing this network
  * @id: RIO network ID
- * @destid_table: destID allocation table
+ * @dev: Device object
+ * @enum_data: private data specific to a network enumerator
+ * @release: enumerator-specific release callback
  */
 struct rio_net {
 	struct list_head node;	/* node in list of networks */
@@ -311,7 +309,9 @@ struct rio_net {
 	struct list_head mports;	/* list of ports accessing net */
 	struct rio_mport *hport;	/* primary port for accessing net */
 	unsigned char id;	/* RIO network ID */
-	struct rio_id_table destid_table;  /* destID allocation table */
+	struct device dev;
+	void *enum_data;	/* private data for enumerator of the network */
+	void (*release)(struct rio_net *net);
 };
 
 enum rio_link_speed {

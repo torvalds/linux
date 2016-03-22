@@ -39,6 +39,9 @@ extern int rio_route_get_entry(struct rio_dev *rdev, u16 table,
 extern int rio_route_clr_table(struct rio_dev *rdev, u16 table, int lock);
 extern int rio_set_port_lockout(struct rio_dev *rdev, u32 pnum, int lock);
 extern struct rio_dev *rio_get_comptag(u32 comp_tag, struct rio_dev *from);
+extern struct rio_net *rio_alloc_net(struct rio_mport *mport);
+extern int rio_add_net(struct rio_net *net);
+extern void rio_free_net(struct rio_net *net);
 extern int rio_add_device(struct rio_dev *rdev);
 extern void rio_del_device(struct rio_dev *rdev);
 extern int rio_enable_rx_tx_port(struct rio_mport *port, int local, u16 destid,

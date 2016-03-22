@@ -42,6 +42,7 @@ MODULE_PARM_DESC(hdid,
 	"Destination ID assignment to local RapidIO controllers");
 
 static LIST_HEAD(rio_devices);
+static LIST_HEAD(rio_nets);
 static DEFINE_SPINLOCK(rio_global_list_lock);
 
 static LIST_HEAD(rio_mports);
@@ -83,6 +84,58 @@ int rio_query_mport(struct rio_mport *port,
 	return port->ops->query_mport(port, mport_attr);
 }
 EXPORT_SYMBOL(rio_query_mport);
+
+/**
+ * rio_alloc_net- Allocate and initialize a new RIO network data structure
+ * @mport: Master port associated with the RIO network
+ *
+ * Allocates a RIO network structure, initializes per-network
+ * list heads, and adds the associated master port to the
+ * network list of associated master ports. Returns a
+ * RIO network pointer on success or %NULL on failure.
+ */
+struct rio_net *rio_alloc_net(struct rio_mport *mport)
+{
+	struct rio_net *net;
+
+	net = kzalloc(sizeof(struct rio_net), GFP_KERNEL);
+	if (net) {
+		INIT_LIST_HEAD(&net->node);
+		INIT_LIST_HEAD(&net->devices);
+		INIT_LIST_HEAD(&net->switches);
+		INIT_LIST_HEAD(&net->mports);
+		mport->net = net;
+	}
+	return net;
+}
+EXPORT_SYMBOL_GPL(rio_alloc_net);
+
+int rio_add_net(struct rio_net *net)
+{
+	int err;
+
+	err = device_register(&net->dev);
+	if (err)
+		return err;
+	spin_lock(&rio_global_list_lock);
+	list_add_tail(&net->node, &rio_nets);
+	spin_unlock(&rio_global_list_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rio_add_net);
+
+void rio_free_net(struct rio_net *net)
+{
+	spin_lock(&rio_global_list_lock);
+	if (!list_empty(&net->node))
+		list_del(&net->node);
+	spin_unlock(&rio_global_list_lock);
+	if (net->release)
+		net->release(net);
+	device_unregister(&net->dev);
+}
+EXPORT_SYMBOL_GPL(rio_free_net);
 
 /**
  * rio_add_device- Adds a RIO device to the device model

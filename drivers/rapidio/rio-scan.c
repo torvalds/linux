@@ -39,6 +39,13 @@
 
 static void rio_init_em(struct rio_dev *rdev);
 
+struct rio_id_table {
+	u16 start;	/* logical minimal id */
+	u32 max;	/* max number of IDs in table */
+	spinlock_t lock;
+	unsigned long table[0];
+};
+
 static int next_destid = 0;
 static int next_comptag = 1;
 
@@ -62,7 +69,7 @@ static int rio_mport_phys_table[] = {
 static u16 rio_destid_alloc(struct rio_net *net)
 {
 	int destid;
-	struct rio_id_table *idtab = &net->destid_table;
+	struct rio_id_table *idtab = (struct rio_id_table *)net->enum_data;
 
 	spin_lock(&idtab->lock);
 	destid = find_first_zero_bit(idtab->table, idtab->max);
@@ -88,7 +95,7 @@ static u16 rio_destid_alloc(struct rio_net *net)
 static int rio_destid_reserve(struct rio_net *net, u16 destid)
 {
 	int oldbit;
-	struct rio_id_table *idtab = &net->destid_table;
+	struct rio_id_table *idtab = (struct rio_id_table *)net->enum_data;
 
 	destid -= idtab->start;
 	spin_lock(&idtab->lock);
@@ -106,7 +113,7 @@ static int rio_destid_reserve(struct rio_net *net, u16 destid)
  */
 static void rio_destid_free(struct rio_net *net, u16 destid)
 {
-	struct rio_id_table *idtab = &net->destid_table;
+	struct rio_id_table *idtab = (struct rio_id_table *)net->enum_data;
 
 	destid -= idtab->start;
 	spin_lock(&idtab->lock);
@@ -121,7 +128,7 @@ static void rio_destid_free(struct rio_net *net, u16 destid)
 static u16 rio_destid_first(struct rio_net *net)
 {
 	int destid;
-	struct rio_id_table *idtab = &net->destid_table;
+	struct rio_id_table *idtab = (struct rio_id_table *)net->enum_data;
 
 	spin_lock(&idtab->lock);
 	destid = find_first_bit(idtab->table, idtab->max);
@@ -141,7 +148,7 @@ static u16 rio_destid_first(struct rio_net *net)
 static u16 rio_destid_next(struct rio_net *net, u16 from)
 {
 	int destid;
-	struct rio_id_table *idtab = &net->destid_table;
+	struct rio_id_table *idtab = (struct rio_id_table *)net->enum_data;
 
 	spin_lock(&idtab->lock);
 	destid = find_next_bit(idtab->table, idtab->max, from);
@@ -458,7 +465,7 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 			     rdev->comp_tag & RIO_CTAG_UDEVID);
 	}
 
-	rdev->dev.parent = &port->dev;
+	rdev->dev.parent = &net->dev;
 	rio_attach_device(rdev);
 	rdev->dev.release = rio_release_dev;
 	rdev->dma_mask = DMA_BIT_MASK(32);
@@ -855,50 +862,71 @@ static int rio_mport_is_active(struct rio_mport *port)
 	return result & RIO_PORT_N_ERR_STS_PORT_OK;
 }
 
-/**
- * rio_alloc_net- Allocate and configure a new RIO network
- * @port: Master port associated with the RIO network
- * @do_enum: Enumeration/Discovery mode flag
- * @start: logical minimal start id for new net
- *
- * Allocates a RIO network structure, initializes per-network
- * list heads, and adds the associated master port to the
- * network list of associated master ports. Returns a
- * RIO network pointer on success or %NULL on failure.
- */
-static struct rio_net *rio_alloc_net(struct rio_mport *port,
-					       int do_enum, u16 start)
+static void rio_scan_release_net(struct rio_net *net)
+{
+	pr_debug("RIO-SCAN: %s: net_%d\n", __func__, net->id);
+	kfree(net->enum_data);
+}
+
+static void rio_scan_release_dev(struct device *dev)
 {
 	struct rio_net *net;
 
-	net = kzalloc(sizeof(struct rio_net), GFP_KERNEL);
-	if (net && do_enum) {
-		net->destid_table.table = kcalloc(
-			BITS_TO_LONGS(RIO_MAX_ROUTE_ENTRIES(port->sys_size)),
-			sizeof(long),
-			GFP_KERNEL);
+	net = to_rio_net(dev);
+	pr_debug("RIO-SCAN: %s: net_%d\n", __func__, net->id);
+	kfree(net);
+}
 
-		if (net->destid_table.table == NULL) {
+/*
+ * rio_scan_alloc_net - Allocate and configure a new RIO network
+ * @mport: Master port associated with the RIO network
+ * @do_enum: Enumeration/Discovery mode flag
+ * @start: logical minimal start id for new net
+ *
+ * Allocates a new RIO network structure and initializes enumerator-specific
+ * part of it (if required).
+ * Returns a RIO network pointer on success or %NULL on failure.
+ */
+static struct rio_net *rio_scan_alloc_net(struct rio_mport *mport,
+					  int do_enum, u16 start)
+{
+	struct rio_net *net;
+
+	net = rio_alloc_net(mport);
+
+	if (net && do_enum) {
+		struct rio_id_table *idtab;
+		size_t size;
+
+		size = sizeof(struct rio_id_table) +
+				BITS_TO_LONGS(
+					RIO_MAX_ROUTE_ENTRIES(mport->sys_size)
+					) * sizeof(long);
+
+		idtab = kzalloc(size, GFP_KERNEL);
+
+		if (idtab == NULL) {
 			pr_err("RIO: failed to allocate destID table\n");
-			kfree(net);
+			rio_free_net(net);
 			net = NULL;
 		} else {
-			net->destid_table.start = start;
-			net->destid_table.max =
-					RIO_MAX_ROUTE_ENTRIES(port->sys_size);
-			spin_lock_init(&net->destid_table.lock);
+			net->enum_data = idtab;
+			net->release = rio_scan_release_net;
+			idtab->start = start;
+			idtab->max = RIO_MAX_ROUTE_ENTRIES(mport->sys_size);
+			spin_lock_init(&idtab->lock);
 		}
 	}
 
 	if (net) {
-		INIT_LIST_HEAD(&net->node);
-		INIT_LIST_HEAD(&net->devices);
-		INIT_LIST_HEAD(&net->switches);
-		INIT_LIST_HEAD(&net->mports);
-		list_add_tail(&port->nnode, &net->mports);
-		net->hport = port;
-		net->id = port->id;
+		net->id = mport->id;
+		net->hport = mport;
+		dev_set_name(&net->dev, "rnet_%d", net->id);
+		net->dev.parent = &mport->dev;
+		net->dev.release = rio_scan_release_dev;
+		rio_add_net(net);
 	}
+
 	return net;
 }
 
@@ -1007,7 +1035,7 @@ static int rio_enum_mport(struct rio_mport *mport, u32 flags)
 
 	/* If master port has an active link, allocate net and enum peers */
 	if (rio_mport_is_active(mport)) {
-		net = rio_alloc_net(mport, 1, 0);
+		net = rio_scan_alloc_net(mport, 1, 0);
 		if (!net) {
 			printk(KERN_ERR "RIO: failed to allocate new net\n");
 			rc = -ENOMEM;
@@ -1124,7 +1152,7 @@ static int rio_disc_mport(struct rio_mport *mport, u32 flags)
 enum_done:
 		pr_debug("RIO: ... enumeration done\n");
 
-		net = rio_alloc_net(mport, 0, 0);
+		net = rio_scan_alloc_net(mport, 0, 0);
 		if (!net) {
 			printk(KERN_ERR "RIO: Failed to allocate new net\n");
 			goto bail;
