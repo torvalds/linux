@@ -88,6 +88,16 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 			apic->lapic_timer.timer_mode_mask = 1 << 17;
 	}
 
+	best = kvm_find_cpuid_entry(vcpu, 7, 0);
+	if (best) {
+		/* Update OSPKE bit */
+		if (boot_cpu_has(X86_FEATURE_PKU) && best->function == 0x7) {
+			best->ecx &= ~F(OSPKE);
+			if (kvm_read_cr4_bits(vcpu, X86_CR4_PKE))
+				best->ecx |= F(OSPKE);
+		}
+	}
+
 	best = kvm_find_cpuid_entry(vcpu, 0xD, 0);
 	if (!best) {
 		vcpu->arch.guest_supported_xcr0 = 0;
@@ -360,6 +370,9 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	const u32 kvm_cpuid_D_1_eax_x86_features =
 		F(XSAVEOPT) | F(XSAVEC) | F(XGETBV1) | f_xsaves;
 
+	/* cpuid 7.0.ecx*/
+	const u32 kvm_cpuid_7_0_ecx_x86_features = F(PKU) | 0 /*OSPKE*/;
+
 	/* all calls to cpuid_count() should be made on the same cpu */
 	get_cpu();
 
@@ -437,10 +450,16 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 			cpuid_mask(&entry->ebx, CPUID_7_0_EBX);
 			// TSC_ADJUST is emulated
 			entry->ebx |= F(TSC_ADJUST);
-		} else
+			entry->ecx &= kvm_cpuid_7_0_ecx_x86_features;
+			cpuid_mask(&entry->ecx, CPUID_7_ECX);
+			/* PKU is not yet implemented for shadow paging. */
+			if (!tdp_enabled)
+				entry->ecx &= ~F(PKU);
+		} else {
 			entry->ebx = 0;
+			entry->ecx = 0;
+		}
 		entry->eax = 0;
-		entry->ecx = 0;
 		entry->edx = 0;
 		break;
 	}
