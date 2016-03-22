@@ -780,21 +780,30 @@ static void init_tio_chip(struct comedi_device *dev, int chipset)
 
 static int ni_660x_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	unsigned int base_bitfield_channel = CR_CHAN(insn->chanspec);
+	unsigned int shift = CR_CHAN(insn->chanspec);
+	unsigned int mask = data[0] << shift;
+	unsigned int bits = data[1] << shift;
 
-	/*  Check if we have to write some bits */
-	if (data[0]) {
-		s->state &= ~(data[0] << base_bitfield_channel);
-		s->state |= (data[0] & data[1]) << base_bitfield_channel;
-		/* Write out the new digital output lines */
+	/*
+	 * There are 40 channels in this subdevice but only 32 are usable
+	 * as DIO. The shift adjusts the mask/bits to account for the base
+	 * channel in insn->chanspec. The state update can then be handled
+	 * normally for the 32 usable channels.
+	 */
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 		ni_660x_write(dev, 0, s->state, NI660X_DIO32_OUTPUT);
 	}
-	/* on return, data[1] contains the value of the digital
-	 * input and output lines. */
-	data[1] = (ni_660x_read(dev, 0, NI660X_DIO32_INPUT) >>
-			base_bitfield_channel);
+
+	/*
+	 * Return the input channels, shifted back to account for the base
+	 * channel.
+	 */
+	data[1] = ni_660x_read(dev, 0, NI660X_DIO32_INPUT) >> shift;
 
 	return insn->n;
 }
