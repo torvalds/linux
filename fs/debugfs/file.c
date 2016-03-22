@@ -992,7 +992,8 @@ struct dentry *debugfs_create_u32_array(const char *name, umode_t mode,
 	data->array = array;
 	data->elements = elements;
 
-	return debugfs_create_file(name, mode, parent, data, &u32_array_fops);
+	return debugfs_create_file_unsafe(name, mode, parent, data,
+					&u32_array_fops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_u32_array);
 
