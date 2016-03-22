@@ -24,6 +24,7 @@
 #include <linux/skbuff.h>
 #include <linux/crc32.h>
 #include <linux/ethtool.h>
+#include <linux/reboot.h>
 
 #define DRV_NAME        "rionet"
 #define DRV_VERSION     "0.3"
@@ -599,6 +600,30 @@ out:
 	return rc;
 }
 
+static int rionet_shutdown(struct notifier_block *nb, unsigned long code,
+			   void *unused)
+{
+	struct rionet_peer *peer, *tmp;
+	int i;
+
+	pr_debug("%s: %s\n", DRV_NAME, __func__);
+
+	for (i = 0; i < RIONET_MAX_NETS; i++) {
+		if (!nets[i].ndev)
+			continue;
+
+		list_for_each_entry_safe(peer, tmp, &nets[i].peers, node) {
+			if (nets[i].active[peer->rdev->destid]) {
+				rio_send_doorbell(peer->rdev,
+						  RIONET_DOORBELL_LEAVE);
+				nets[i].active[peer->rdev->destid] = NULL;
+			}
+		}
+	}
+
+	return NOTIFY_DONE;
+}
+
 #ifdef MODULE
 static struct rio_device_id rionet_id_table[] = {
 	{RIO_DEVICE(RIO_ANY_ID, RIO_ANY_ID)},
@@ -615,8 +640,20 @@ static struct subsys_interface rionet_interface = {
 	.remove_dev	= rionet_remove_dev,
 };
 
+static struct notifier_block rionet_notifier = {
+	.notifier_call = rionet_shutdown,
+};
+
 static int __init rionet_init(void)
 {
+	int ret;
+
+	ret = register_reboot_notifier(&rionet_notifier);
+	if (ret) {
+		pr_err("%s: failed to register reboot notifier (err=%d)\n",
+		       DRV_NAME, ret);
+		return ret;
+	}
 	return subsys_interface_register(&rionet_interface);
 }
 
@@ -648,6 +685,7 @@ static void __exit rionet_exit(void)
 		}
 	}
 
+	unregister_reboot_notifier(&rionet_notifier);
 	subsys_interface_unregister(&rionet_interface);
 }
 
