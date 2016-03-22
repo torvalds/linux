@@ -91,17 +91,6 @@ do {						    \
 	data.ioc_len = sizeof(data);		    \
 } while (0)
 
-struct libcfs_ioctl_handler {
-	struct list_head item;
-	int (*handle_ioctl)(unsigned int cmd, struct libcfs_ioctl_hdr *hdr);
-};
-
-#define DECLARE_IOCTL_HANDLER(ident, func)		      \
-	struct libcfs_ioctl_handler ident = {		   \
-		/* .item = */ LIST_HEAD_INIT(ident.item),   \
-		/* .handle_ioctl = */ func		      \
-	}
-
 /* FIXME check conflict with lustre_lib.h */
 #define LIBCFS_IOC_DEBUG_MASK	     _IOWR('f', 250, long)
 
@@ -223,8 +212,6 @@ static inline bool libcfs_ioctl_is_invalid(struct libcfs_ioctl_data *data)
 	return 0;
 }
 
-int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand);
-int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand);
 int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
 			 const struct libcfs_ioctl_hdr __user *uparam);
 int libcfs_ioctl_popdata(void __user *arg, void *buf, int size);

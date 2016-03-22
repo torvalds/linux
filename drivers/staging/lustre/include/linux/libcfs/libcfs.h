@@ -119,6 +119,20 @@ void cfs_get_random_bytes(void *buf, int size);
 #include "libcfs_fail.h"
 #include "libcfs_crypto.h"
 
+struct libcfs_ioctl_handler {
+	struct list_head item;
+	int (*handle_ioctl)(unsigned int cmd, struct libcfs_ioctl_hdr *hdr);
+};
+
+#define DECLARE_IOCTL_HANDLER(ident, func)			\
+	struct libcfs_ioctl_handler ident = {			\
+		.item		= LIST_HEAD_INIT(ident.item),	\
+		.handle_ioctl	= func				\
+	}
+
+int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand);
+int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand);
+
 /* container_of depends on "likely" which is defined in libcfs_private.h */
 static inline void *__container_of(void *ptr, unsigned long shift)
 {
