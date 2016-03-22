@@ -1058,8 +1058,7 @@ static __init void ftrace_profile_tracefs(struct dentry *d_tracer)
 	entry = tracefs_create_file("function_profile_enabled", 0644,
 				    d_tracer, NULL, &ftrace_profile_fops);
 	if (!entry)
-		pr_warning("Could not create tracefs "
-			   "'function_profile_enabled' entry\n");
+		pr_warn("Could not create tracefs 'function_profile_enabled' entry\n");
 }
 
 #else /* CONFIG_FUNCTION_PROFILER */
@@ -2314,8 +2313,8 @@ unsigned long ftrace_get_addr_curr(struct dyn_ftrace *rec)
 	if (rec->flags & FTRACE_FL_TRAMP_EN) {
 		ops = ftrace_find_tramp_ops_curr(rec);
 		if (FTRACE_WARN_ON(!ops)) {
-			pr_warning("Bad trampoline accounting at: %p (%pS)\n",
-				    (void *)rec->ip, (void *)rec->ip);
+			pr_warn("Bad trampoline accounting at: %p (%pS)\n",
+				(void *)rec->ip, (void *)rec->ip);
 			/* Ftrace is shutting down, return anything */
 			return (unsigned long)FTRACE_ADDR;
 		}
