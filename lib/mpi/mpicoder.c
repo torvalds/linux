@@ -407,12 +407,11 @@ int mpi_write_to_sgl(MPI a, struct scatterlist *sgl, unsigned *nbytes,
 			mpi_limb_t *limb2 = (void *)p - sizeof(alimb)
 				+ lzeros;
 			*limb1 = *limb2;
-			p -= lzeros;
 			y = lzeros;
 			lzeros = 0;
 		}
 
-		p = p - (sizeof(alimb) - y);
+		p = p - sizeof(alimb);
 
 		for (x = 0; x < sizeof(alimb) - y; x++) {
 			if (!buf_len) {
