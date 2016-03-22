@@ -116,7 +116,7 @@ static int libcfs_ioctl_handle(struct cfs_psdev_file *pfile, unsigned long cmd,
 			       void __user *arg, struct libcfs_ioctl_hdr *hdr)
 {
 	struct libcfs_ioctl_data *data = NULL;
-	int err = -EINVAL;
+	int err = 0;
 
 	/*
 	 * The libcfs_ioctl_data_adjust() function performs adjustment
@@ -134,7 +134,7 @@ static int libcfs_ioctl_handle(struct cfs_psdev_file *pfile, unsigned long cmd,
 	switch (cmd) {
 	case IOC_LIBCFS_CLEAR_DEBUG:
 		libcfs_debug_clear_buffer();
-		return 0;
+		break;
 	/*
 	 * case IOC_LIBCFS_PANIC:
 	 * Handled in arch/cfs_module.c
@@ -144,7 +144,7 @@ static int libcfs_ioctl_handle(struct cfs_psdev_file *pfile, unsigned long cmd,
 		    data->ioc_inlbuf1[data->ioc_inllen1 - 1] != '\0')
 			return -EINVAL;
 		libcfs_debug_mark_buffer(data->ioc_inlbuf1);
-		return 0;
+		break;
 
 	default: {
 		struct libcfs_ioctl_handler *hand;
@@ -161,8 +161,7 @@ static int libcfs_ioctl_handle(struct cfs_psdev_file *pfile, unsigned long cmd,
 			}
 		}
 		up_read(&ioctl_list_sem);
-		break;
-	}
+		break; }
 	}
 
 	return err;
