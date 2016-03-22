@@ -1413,7 +1413,7 @@ EXPORT_SYMBOL_GPL(ni_gpct_device_construct);
 
 void ni_gpct_device_destroy(struct ni_gpct_device *counter_dev)
 {
-	if (!counter_dev->counters)
+	if (!counter_dev)
 		return;
 	kfree(counter_dev->counters);
 	kfree(counter_dev);
