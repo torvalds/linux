@@ -1453,10 +1453,13 @@ tsi721_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
 	struct tsi721_device *priv = mport->priv;
 	struct tsi721_omsg_desc *desc;
 	u32 tx_slot;
+	unsigned long flags;
 
 	if (!priv->omsg_init[mbox] ||
 	    len > TSI721_MSG_MAX_SIZE || len < 8)
 		return -EINVAL;
+
+	spin_lock_irqsave(&priv->omsg_ring[mbox].lock, flags);
 
 	tx_slot = priv->omsg_ring[mbox].tx_slot;
 
@@ -1469,9 +1472,11 @@ tsi721_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
 	/* Build descriptor associated with buffer */
 	desc = priv->omsg_ring[mbox].omd_base;
 	desc[tx_slot].type_id = cpu_to_le32((DTYPE4 << 29) | rdev->destid);
+#ifdef TSI721_OMSG_DESC_INT
+	/* Request IOF_DONE interrupt generation for each N-th frame in queue */
 	if (tx_slot % 4 == 0)
 		desc[tx_slot].type_id |= cpu_to_le32(TSI721_OMD_IOF);
-
+#endif
 	desc[tx_slot].msg_info =
 		cpu_to_le32((mport->sys_size << 26) | (mbox << 22) |
 			    (0xe << 12) | (len & 0xff8));
@@ -1497,6 +1502,8 @@ tsi721_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
 		priv->regs + TSI721_OBDMAC_DWRCNT(mbox));
 	ioread32(priv->regs + TSI721_OBDMAC_DWRCNT(mbox));
 
+	spin_unlock_irqrestore(&priv->omsg_ring[mbox].lock, flags);
+
 	return 0;
 }
 
@@ -1511,6 +1518,9 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 {
 	u32 omsg_int;
 	struct rio_mport *mport = &priv->mport;
+	void *dev_id = NULL;
+	u32 tx_slot = 0xffffffff;
+	int do_callback = 0;
 
 	spin_lock(&priv->omsg_ring[ch].lock);
 
@@ -1524,7 +1534,6 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 		u32 srd_ptr;
 		u64 *sts_ptr, last_ptr = 0, prev_ptr = 0;
 		int i, j;
-		u32 tx_slot;
 
 		/*
 		 * Find last successfully processed descriptor
@@ -1574,14 +1583,19 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 				goto no_sts_update;
 		}
 
+		if (tx_slot >= priv->omsg_ring[ch].size)
+			dev_dbg(&priv->pdev->dev,
+				  "OB_MSG tx_slot=%x > size=%x",
+				  tx_slot, priv->omsg_ring[ch].size);
+		WARN_ON(tx_slot >= priv->omsg_ring[ch].size);
+
 		/* Move slot index to the next message to be sent */
 		++tx_slot;
 		if (tx_slot == priv->omsg_ring[ch].size)
 			tx_slot = 0;
-		BUG_ON(tx_slot >= priv->omsg_ring[ch].size);
-		mport->outb_msg[ch].mcback(mport,
-				priv->omsg_ring[ch].dev_id, ch,
-				tx_slot);
+
+		dev_id = priv->omsg_ring[ch].dev_id;
+		do_callback = 1;
 	}
 
 no_sts_update:
@@ -1597,15 +1611,15 @@ no_sts_update:
 
 		iowrite32(TSI721_OBDMAC_INT_ERROR,
 				priv->regs + TSI721_OBDMAC_INT(ch));
-		iowrite32(TSI721_OBDMAC_CTL_INIT,
+		iowrite32(TSI721_OBDMAC_CTL_RETRY_THR | TSI721_OBDMAC_CTL_INIT,
 				priv->regs + TSI721_OBDMAC_CTL(ch));
 		ioread32(priv->regs + TSI721_OBDMAC_CTL(ch));
 
 		/* Inform upper level to clear all pending tx slots */
-		if (mport->outb_msg[ch].mcback)
-			mport->outb_msg[ch].mcback(mport,
-					priv->omsg_ring[ch].dev_id, ch,
-					priv->omsg_ring[ch].tx_slot);
+		dev_id = priv->omsg_ring[ch].dev_id;
+		tx_slot = priv->omsg_ring[ch].tx_slot;
+		do_callback = 1;
+
 		/* Synch tx_slot tracking */
 		iowrite32(priv->omsg_ring[ch].tx_slot,
 			priv->regs + TSI721_OBDMAC_DRDCNT(ch));
@@ -1627,6 +1641,9 @@ no_sts_update:
 	}
 
 	spin_unlock(&priv->omsg_ring[ch].lock);
+
+	if (mport->outb_msg[ch].mcback && do_callback)
+		mport->outb_msg[ch].mcback(mport, dev_id, ch, tx_slot);
 }
 
 /**
@@ -1768,7 +1785,8 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 	mb();
 
 	/* Initialize Outbound Message engine */
-	iowrite32(TSI721_OBDMAC_CTL_INIT, priv->regs + TSI721_OBDMAC_CTL(mbox));
+	iowrite32(TSI721_OBDMAC_CTL_RETRY_THR | TSI721_OBDMAC_CTL_INIT,
+		  priv->regs + TSI721_OBDMAC_CTL(mbox));
 	ioread32(priv->regs + TSI721_OBDMAC_DWRCNT(mbox));
 	udelay(10);
 
