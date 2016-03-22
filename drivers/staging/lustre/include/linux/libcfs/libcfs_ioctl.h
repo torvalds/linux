@@ -76,20 +76,11 @@ struct libcfs_ioctl_data {
 	char ioc_bulk[0];
 };
 
-#define ioc_priority ioc_u32[0]
-
 struct libcfs_debug_ioctl_data {
 	struct libcfs_ioctl_hdr hdr;
 	unsigned int subs;
 	unsigned int debug;
 };
-
-#define LIBCFS_IOC_INIT(data)			   \
-do {						    \
-	memset(&data, 0, sizeof(data));		 \
-	data.ioc_version = LIBCFS_IOCTL_VERSION;	\
-	data.ioc_len = sizeof(data);		    \
-} while (0)
 
 /* FIXME check conflict with lustre_lib.h */
 #define LIBCFS_IOC_DEBUG_MASK	     _IOWR('f', 250, long)
