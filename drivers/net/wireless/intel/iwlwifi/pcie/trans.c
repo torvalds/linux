@@ -1435,7 +1435,7 @@ static void iwl_pcie_set_interrupt_capa(struct pci_dev *pdev,
 	int ret, i;
 
 	if (trans->cfg->mq_rx_supported) {
-		max_vector = min_t(u32, (num_possible_cpus() + 1),
+		max_vector = min_t(u32, (num_possible_cpus() + 2),
 				   IWL_MAX_RX_HW_QUEUES);
 		for (i = 0; i < max_vector; i++)
 			trans_pcie->msix_entries[i].entry = i;
