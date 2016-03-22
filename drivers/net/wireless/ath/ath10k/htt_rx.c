@@ -2449,10 +2449,17 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 	}
 	case HTT_T2H_MSG_TYPE_AGGR_CONF:
 		break;
-	case HTT_T2H_MSG_TYPE_TX_FETCH_IND:
-		skb_queue_tail(&htt->tx_fetch_ind_q, skb);
+	case HTT_T2H_MSG_TYPE_TX_FETCH_IND: {
+		struct sk_buff *tx_fetch_ind = skb_copy(skb, GFP_ATOMIC);
+
+		if (!tx_fetch_ind) {
+			ath10k_warn(ar, "failed to copy htt tx fetch ind\n");
+			break;
+		}
+		skb_queue_tail(&htt->tx_fetch_ind_q, tx_fetch_ind);
 		tasklet_schedule(&htt->txrx_compl_task);
-		return;
+		break;
+	}
 	case HTT_T2H_MSG_TYPE_TX_FETCH_CONFIRM:
 		ath10k_htt_rx_tx_fetch_confirm(ar, skb);
 		break;
