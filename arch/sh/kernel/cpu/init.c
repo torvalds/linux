@@ -323,9 +323,13 @@ asmlinkage void cpu_init(void)
 	cache_init();
 
 	if (raw_smp_processor_id() == 0) {
+#ifdef CONFIG_MMU
 		shm_align_mask = max_t(unsigned long,
 				       current_cpu_data.dcache.way_size - 1,
 				       PAGE_SIZE - 1);
+#else
+		shm_align_mask = PAGE_SIZE - 1;
+#endif
 
 		/* Boot CPU sets the cache shape */
 		detect_cache_shape();

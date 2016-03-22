@@ -244,7 +244,11 @@ void flush_cache_sigtramp(unsigned long address)
 
 static void compute_alias(struct cache_info *c)
 {
+#ifdef CONFIG_MMU
 	c->alias_mask = ((c->sets - 1) << c->entry_shift) & ~(PAGE_SIZE - 1);
+#else
+	c->alias_mask = 0;
+#endif
 	c->n_aliases = c->alias_mask ? (c->alias_mask >> PAGE_SHIFT) + 1 : 0;
 }
 
