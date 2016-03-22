@@ -60,7 +60,7 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	struct usb_device	*pusbd;
 
 	pdvobjpriv = kzalloc(sizeof(*pdvobjpriv), GFP_KERNEL);
-	if (pdvobjpriv == NULL)
+	if (!pdvobjpriv)
 		return NULL;
 
 	pdvobjpriv->pusbintf = usb_intf;
