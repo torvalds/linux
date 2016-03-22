@@ -95,13 +95,6 @@ int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
 	return err;
 }
 
-int libcfs_ioctl_popdata(void __user *arg, void *data, int size)
-{
-	if (copy_to_user(arg, data, size))
-		return -EFAULT;
-	return 0;
-}
-
 static int
 libcfs_psdev_open(struct inode *inode, struct file *file)
 {

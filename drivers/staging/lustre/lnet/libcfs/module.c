@@ -168,9 +168,10 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
 			if (err == -EINVAL)
 				continue;
 
-			if (!err)
-				err = libcfs_ioctl_popdata(uparam, hdr,
-							   hdr->ioc_len);
+			if (!err) {
+				if (copy_to_user(uparam, hdr, hdr->ioc_len))
+					err = -EFAULT;
+			}
 			break;
 		}
 		up_read(&ioctl_list_sem);
