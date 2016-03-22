@@ -19,9 +19,6 @@
 #ifndef _NI_LABPC_H
 #define _NI_LABPC_H
 
-#define EEPROM_SIZE	256	/*  256 byte eeprom */
-#define NUM_AO_CHAN	2	/*  boards have two analog output channels */
-
 enum transfer_type { fifo_not_empty_transfer, fifo_half_full_transfer,
 	isa_dma_transfer
 };

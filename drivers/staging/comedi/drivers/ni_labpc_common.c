@@ -1261,7 +1261,7 @@ int labpc_common_attach(struct comedi_device *dev,
 	if (board->has_ao) {
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
-		s->n_chan	= NUM_AO_CHAN;
+		s->n_chan	= 2;
 		s->maxdata	= 0x0fff;
 		s->range_table	= &range_labpc_ao;
 		s->insn_write	= labpc_ao_insn_write;
@@ -1307,12 +1307,12 @@ int labpc_common_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
-	/* EEPROM */
+	/* EEPROM (256 bytes) */
 	s = &dev->subdevices[4];
 	if (board->is_labpc1200) {
 		s->type		= COMEDI_SUBD_MEMORY;
 		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-		s->n_chan	= EEPROM_SIZE;
+		s->n_chan	= 256;
 		s->maxdata	= 0xff;
 		s->insn_write	= labpc_eeprom_insn_write;
 
