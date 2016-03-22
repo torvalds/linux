@@ -660,8 +660,6 @@ static void jz4740_mmc_send_command(struct jz4740_mmc_host *host,
 		cmdat |= JZ_MMC_CMDAT_DATA_EN;
 		if (cmd->data->flags & MMC_DATA_WRITE)
 			cmdat |= JZ_MMC_CMDAT_WRITE;
-		if (cmd->data->flags & MMC_DATA_STREAM)
-			cmdat |= JZ_MMC_CMDAT_STREAM;
 		if (host->use_dma)
 			cmdat |= JZ_MMC_CMDAT_DMA_EN;
 

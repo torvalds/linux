@@ -1210,11 +1210,19 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
 	enum drm_mode_status status;
 	int clock;
+	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
 
 	clock = mode->clock;
+
+	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
+		clock *= 2;
+
+	if (clock > max_dotclk)
+		return MODE_CLOCK_HIGH;
+
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		clock *= 2;
 
@@ -2041,6 +2049,11 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	enum port port = intel_dig_port->port;
 	uint8_t alternate_ddc_pin;
 
+	if (WARN(intel_dig_port->max_lanes < 4,
+		 "Not enough lanes (%d) for HDMI on port %c\n",
+		 intel_dig_port->max_lanes, port_name(port)))
+		return;
+
 	drm_connector_init(dev, connector, &intel_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
 	drm_connector_helper_add(connector, &intel_hdmi_connector_helper_funcs);
@@ -2224,6 +2237,7 @@ void intel_hdmi_init(struct drm_device *dev,
 	intel_dig_port->port = port;
 	intel_dig_port->hdmi.hdmi_reg = hdmi_reg;
 	intel_dig_port->dp.output_reg = INVALID_MMIO_REG;
+	intel_dig_port->max_lanes = 4;
 
 	intel_hdmi_init_connector(intel_dig_port, intel_connector);
 }

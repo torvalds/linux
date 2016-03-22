@@ -858,10 +858,6 @@ static void tegra_drm_preclose(struct drm_device *drm, struct drm_file *file)
 {
 	struct tegra_drm_file *fpriv = file->driver_priv;
 	struct tegra_drm_context *context, *tmp;
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &drm->mode_config.crtc_list, head)
-		tegra_dc_cancel_page_flip(crtc, file);
 
 	list_for_each_entry_safe(context, tmp, &fpriv->contexts, list)
 		tegra_drm_context_free(context);

@@ -152,7 +152,7 @@ xfs_nfs_get_inode(
 		return ERR_PTR(error);
 	}
 
-	if (ip->i_d.di_gen != generation) {
+	if (VFS_I(ip)->i_generation != generation) {
 		IRELE(ip);
 		return ERR_PTR(-ESTALE);
 	}

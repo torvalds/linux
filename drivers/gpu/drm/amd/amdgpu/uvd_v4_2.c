@@ -164,7 +164,7 @@ static int uvd_v4_2_hw_init(void *handle)
 		goto done;
 	}
 
-	r = amdgpu_ring_lock(ring, 10);
+	r = amdgpu_ring_alloc(ring, 10);
 	if (r) {
 		DRM_ERROR("amdgpu: ring failed to lock UVD ring (%d).\n", r);
 		goto done;
@@ -189,7 +189,7 @@ static int uvd_v4_2_hw_init(void *handle)
 	amdgpu_ring_write(ring, PACKET0(mmUVD_SEMA_CNTL, 0));
 	amdgpu_ring_write(ring, 3);
 
-	amdgpu_ring_unlock_commit(ring);
+	amdgpu_ring_commit(ring);
 
 done:
 	/* lower clocks again */
@@ -439,33 +439,6 @@ static void uvd_v4_2_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq
 }
 
 /**
- * uvd_v4_2_ring_emit_semaphore - emit semaphore command
- *
- * @ring: amdgpu_ring pointer
- * @semaphore: semaphore to emit commands for
- * @emit_wait: true if we should emit a wait command
- *
- * Emit a semaphore command (either wait or signal) to the UVD ring.
- */
-static bool uvd_v4_2_ring_emit_semaphore(struct amdgpu_ring *ring,
-					 struct amdgpu_semaphore *semaphore,
-					 bool emit_wait)
-{
-	uint64_t addr = semaphore->gpu_addr;
-
-	amdgpu_ring_write(ring, PACKET0(mmUVD_SEMA_ADDR_LOW, 0));
-	amdgpu_ring_write(ring, (addr >> 3) & 0x000FFFFF);
-
-	amdgpu_ring_write(ring, PACKET0(mmUVD_SEMA_ADDR_HIGH, 0));
-	amdgpu_ring_write(ring, (addr >> 23) & 0x000FFFFF);
-
-	amdgpu_ring_write(ring, PACKET0(mmUVD_SEMA_CMD, 0));
-	amdgpu_ring_write(ring, 0x80 | (emit_wait ? 1 : 0));
-
-	return true;
-}
-
-/**
  * uvd_v4_2_ring_test_ring - register write test
  *
  * @ring: amdgpu_ring pointer
@@ -480,7 +453,7 @@ static int uvd_v4_2_ring_test_ring(struct amdgpu_ring *ring)
 	int r;
 
 	WREG32(mmUVD_CONTEXT_ID, 0xCAFEDEAD);
-	r = amdgpu_ring_lock(ring, 3);
+	r = amdgpu_ring_alloc(ring, 3);
 	if (r) {
 		DRM_ERROR("amdgpu: cp failed to lock ring %d (%d).\n",
 			  ring->idx, r);
@@ -488,7 +461,7 @@ static int uvd_v4_2_ring_test_ring(struct amdgpu_ring *ring)
 	}
 	amdgpu_ring_write(ring, PACKET0(mmUVD_CONTEXT_ID, 0));
 	amdgpu_ring_write(ring, 0xDEADBEEF);
-	amdgpu_ring_unlock_commit(ring);
+	amdgpu_ring_commit(ring);
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = RREG32(mmUVD_CONTEXT_ID);
 		if (tmp == 0xDEADBEEF)
@@ -549,7 +522,7 @@ static int uvd_v4_2_ring_test_ib(struct amdgpu_ring *ring)
 		goto error;
 	}
 
-	r = amdgpu_uvd_get_destroy_msg(ring, 1, &fence);
+	r = amdgpu_uvd_get_destroy_msg(ring, 1, true, &fence);
 	if (r) {
 		DRM_ERROR("amdgpu: failed to get destroy ib (%d).\n", r);
 		goto error;
@@ -602,6 +575,10 @@ static void uvd_v4_2_mc_resume(struct amdgpu_device *adev)
 	/* bits 32-39 */
 	addr = (adev->uvd.gpu_addr >> 32) & 0xFF;
 	WREG32(mmUVD_LMI_EXT40_ADDR, addr | (0x9 << 16) | (0x1 << 31));
+
+	WREG32(mmUVD_UDEC_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+	WREG32(mmUVD_UDEC_DB_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
+	WREG32(mmUVD_UDEC_DBW_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 
 	uvd_v4_2_init_cg(adev);
 }
@@ -804,6 +781,13 @@ static void uvd_v4_2_print_status(void *handle)
 		 RREG32(mmUVD_SEMA_SIGNAL_INCOMPLETE_TIMEOUT_CNTL));
 	dev_info(adev->dev, "  UVD_CONTEXT_ID=0x%08X\n",
 		 RREG32(mmUVD_CONTEXT_ID));
+	dev_info(adev->dev, "  UVD_UDEC_ADDR_CONFIG=0x%08X\n",
+		 RREG32(mmUVD_UDEC_ADDR_CONFIG));
+	dev_info(adev->dev, "  UVD_UDEC_DB_ADDR_CONFIG=0x%08X\n",
+		 RREG32(mmUVD_UDEC_DB_ADDR_CONFIG));
+	dev_info(adev->dev, "  UVD_UDEC_DBW_ADDR_CONFIG=0x%08X\n",
+		 RREG32(mmUVD_UDEC_DBW_ADDR_CONFIG));
+
 }
 
 static int uvd_v4_2_set_interrupt_state(struct amdgpu_device *adev,
@@ -888,10 +872,10 @@ static const struct amdgpu_ring_funcs uvd_v4_2_ring_funcs = {
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
 	.emit_ib = uvd_v4_2_ring_emit_ib,
 	.emit_fence = uvd_v4_2_ring_emit_fence,
-	.emit_semaphore = uvd_v4_2_ring_emit_semaphore,
 	.test_ring = uvd_v4_2_ring_test_ring,
 	.test_ib = uvd_v4_2_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
+	.pad_ib = amdgpu_ring_generic_pad_ib,
 };
 
 static void uvd_v4_2_set_ring_funcs(struct amdgpu_device *adev)

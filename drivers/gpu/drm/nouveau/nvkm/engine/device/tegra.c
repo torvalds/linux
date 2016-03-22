@@ -255,7 +255,6 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 
 	tdev->func = func;
 	tdev->pdev = pdev;
-	tdev->irq = -1;
 
 	tdev->vdd = devm_regulator_get(&pdev->dev, "vdd");
 	if (IS_ERR(tdev->vdd)) {
@@ -280,6 +279,15 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 		ret = PTR_ERR(tdev->clk_pwr);
 		goto free;
 	}
+
+	/**
+	 * The IOMMU bit defines the upper limit of the GPU-addressable space.
+	 * This will be refined in nouveau_ttm_init but we need to do it early
+	 * for instmem to behave properly
+	 */
+	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(tdev->func->iommu_bit));
+	if (ret)
+		goto free;
 
 	nvkm_device_tegra_probe_iommu(tdev);
 
