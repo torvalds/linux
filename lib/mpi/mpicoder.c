@@ -402,14 +402,14 @@ int mpi_write_to_sgl(MPI a, struct scatterlist *sgl, unsigned *nbytes,
 #else
 #error please implement for this limb size.
 #endif
-		if (lzeros > 0) {
+		if (lzeros) {
 			mpi_limb_t *limb1 = (void *)p - sizeof(alimb);
 			mpi_limb_t *limb2 = (void *)p - sizeof(alimb)
 				+ lzeros;
 			*limb1 = *limb2;
 			p -= lzeros;
 			y = lzeros;
-			lzeros -= sizeof(alimb);
+			lzeros = 0;
 		}
 
 		p = p - (sizeof(alimb) - y);
