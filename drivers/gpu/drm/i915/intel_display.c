@@ -593,7 +593,7 @@ intel_limit(struct intel_crtc_state *crtc_state, int refclk)
 	const intel_limit_t *limit;
 
 	if (IS_BROXTON(dev) || IS_CHERRYVIEW(dev) || IS_VALLEYVIEW(dev) ||
-	    HAS_PCH_SPLIT(dev))
+	    HAS_PCH_SPLIT(dev) || IS_GEN2(dev))
 		limit = NULL;
 
 	if (IS_G4X(dev)) {
@@ -608,13 +608,6 @@ intel_limit(struct intel_crtc_state *crtc_state, int refclk)
 			limit = &intel_limits_i9xx_lvds;
 		else
 			limit = &intel_limits_i9xx_sdvo;
-	} else {
-		if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS))
-			limit = &intel_limits_i8xx_lvds;
-		else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_DVO))
-			limit = &intel_limits_i8xx_dvo;
-		else
-			limit = &intel_limits_i8xx_dac;
 	}
 
 	WARN_ON(limit == NULL);
@@ -7047,27 +7040,6 @@ static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 		&& !(dev_priv->quirks & QUIRK_LVDS_SSC_DISABLE);
 }
 
-static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state)
-{
-	struct drm_device *dev = crtc_state->base.crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int refclk;
-
-	WARN_ON(!crtc_state->base.state);
-
-	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
-	    intel_panel_use_ssc(dev_priv)) {
-		refclk = dev_priv->vbt.lvds_ssc_freq;
-		DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
-	} else if (!IS_GEN2(dev)) {
-		refclk = 96000;
-	} else {
-		refclk = 48000;
-	}
-
-	return refclk;
-}
-
 static uint32_t pnv_dpll_compute_fp(struct dpll *dpll)
 {
 	return (1 << dpll->n) << 16 | dpll->m2;
@@ -7822,14 +7794,50 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 	POSTING_READ(PIPECONF(intel_crtc->pipe));
 }
 
+static int i8xx_crtc_compute_clock(struct intel_crtc *crtc,
+				   struct intel_crtc_state *crtc_state)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const intel_limit_t *limit;
+	int refclk = 48000;
+
+	memset(&crtc_state->dpll_hw_state, 0,
+	       sizeof(crtc_state->dpll_hw_state));
+
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
+		if (intel_panel_use_ssc(dev_priv)) {
+			refclk = dev_priv->vbt.lvds_ssc_freq;
+			DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
+		}
+
+		limit = &intel_limits_i8xx_lvds;
+	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_DVO)) {
+		limit = &intel_limits_i8xx_dvo;
+	} else {
+		limit = &intel_limits_i8xx_dac;
+	}
+
+	if (!crtc_state->clock_set &&
+	    !i9xx_find_best_dpll(limit, crtc_state, crtc_state->port_clock,
+				 refclk, NULL, &crtc_state->dpll)) {
+		DRM_ERROR("Couldn't find PLL settings for mode!\n");
+		return -EINVAL;
+	}
+
+	i8xx_compute_dpll(crtc, crtc_state, NULL);
+
+	return 0;
+}
+
 static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 				   struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int refclk;
 	bool ok;
 	const intel_limit_t *limit;
+	int refclk = 96000;
 
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
@@ -7837,9 +7845,13 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 	if (crtc_state->has_dsi_encoder)
 		return 0;
 
-	if (!crtc_state->clock_set) {
-		refclk = i9xx_get_refclk(crtc_state);
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
+	    intel_panel_use_ssc(dev_priv)) {
+		refclk = dev_priv->vbt.lvds_ssc_freq;
+		DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
+	}
 
+	if (!crtc_state->clock_set) {
 		/*
 		 * Returns a set of divisors for the desired target clock with
 		 * the given refclk, or FALSE.  The returned values represent
@@ -7857,11 +7869,7 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 		}
 	}
 
-	if (IS_GEN2(dev)) {
-		i8xx_compute_dpll(crtc, crtc_state, NULL);
-	} else {
-		i9xx_compute_dpll(crtc, crtc_state, NULL);
-	}
+	i9xx_compute_dpll(crtc, crtc_state, NULL);
 
 	return 0;
 }
@@ -14818,11 +14826,18 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.crtc_compute_clock = vlv_crtc_compute_clock;
 		dev_priv->display.crtc_enable = valleyview_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
-	} else {
+	} else if (!IS_GEN2(dev_priv)) {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
 			i9xx_get_initial_plane_config;
 		dev_priv->display.crtc_compute_clock = i9xx_crtc_compute_clock;
+		dev_priv->display.crtc_enable = i9xx_crtc_enable;
+		dev_priv->display.crtc_disable = i9xx_crtc_disable;
+	} else {
+		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
+		dev_priv->display.get_initial_plane_config =
+			i9xx_get_initial_plane_config;
+		dev_priv->display.crtc_compute_clock = i8xx_crtc_compute_clock;
 		dev_priv->display.crtc_enable = i9xx_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
 	}
