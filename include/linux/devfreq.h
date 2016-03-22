@@ -272,6 +272,39 @@ struct devfreq_simple_ondemand_data {
 };
 #endif
 
+#if IS_ENABLED(CONFIG_DEVFREQ_GOV_PASSIVE)
+/**
+ * struct devfreq_passive_data - void *data fed to struct devfreq
+ *	and devfreq_add_device
+ * @parent:	the devfreq instance of parent device.
+ * @get_target_freq:	Optional callback, Returns desired operating frequency
+ *			for the device using passive governor. That is called
+ *			when passive governor should decide the next frequency
+ *			by using the new frequency of parent devfreq device
+ *			using governors except for passive governor.
+ *			If the devfreq device has the specific method to decide
+ *			the next frequency, should use this callback.
+ * @this:	the devfreq instance of own device.
+ * @nb:		the notifier block for DEVFREQ_TRANSITION_NOTIFIER list
+ *
+ * The devfreq_passive_data have to set the devfreq instance of parent
+ * device with governors except for the passive governor. But, don't need to
+ * initialize the 'this' and 'nb' field because the devfreq core will handle
+ * them.
+ */
+struct devfreq_passive_data {
+	/* Should set the devfreq instance of parent device */
+	struct devfreq *parent;
+
+	/* Optional callback to decide the next frequency of passvice device */
+	int (*get_target_freq)(struct devfreq *this, unsigned long *freq);
+
+	/* For passive governor's internal use. Don't need to set them */
+	struct devfreq *this;
+	struct notifier_block nb;
+};
+#endif
+
 #else /* !CONFIG_PM_DEVFREQ */
 static inline struct devfreq *devfreq_add_device(struct device *dev,
 					  struct devfreq_dev_profile *profile,

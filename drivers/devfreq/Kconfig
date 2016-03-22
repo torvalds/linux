@@ -64,6 +64,14 @@ config DEVFREQ_GOV_USERSPACE
 	  Otherwise, the governor does not change the frequency
 	  given at the initialization.
 
+config DEVFREQ_GOV_PASSIVE
+	tristate "Passive"
+	help
+	  Sets the frequency based on the frequency of its parent devfreq
+	  device. This governor does not change the frequency by itself
+	  through sysfs entries. The passive governor recommends that
+	  devfreq device uses the OPP table to get the frequency/voltage.
+
 comment "DEVFREQ Drivers"
 
 config ARM_EXYNOS_BUS_DEVFREQ
