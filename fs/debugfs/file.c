@@ -312,22 +312,6 @@ ssize_t debugfs_attr_write(struct file *file, const char __user *buf,
 }
 EXPORT_SYMBOL_GPL(debugfs_attr_write);
 
-static struct dentry *debugfs_create_mode(const char *name, umode_t mode,
-					  struct dentry *parent, void *value,
-				          const struct file_operations *fops,
-				          const struct file_operations *fops_ro,
-				          const struct file_operations *fops_wo)
-{
-	/* if there are no write bits set, make read only */
-	if (!(mode & S_IWUGO))
-		return debugfs_create_file(name, mode, parent, value, fops_ro);
-	/* if there are no read bits set, make write only */
-	if (!(mode & S_IRUGO))
-		return debugfs_create_file(name, mode, parent, value, fops_wo);
-
-	return debugfs_create_file(name, mode, parent, value, fops);
-}
-
 static struct dentry *debugfs_create_mode_unsafe(const char *name, umode_t mode,
 					struct dentry *parent, void *value,
 					const struct file_operations *fops,
@@ -756,9 +740,17 @@ ssize_t debugfs_read_file_bool(struct file *file, char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
 	char buf[3];
-	bool *val = file->private_data;
+	bool val;
+	int r, srcu_idx;
 
-	if (*val)
+	r = debugfs_use_file_start(F_DENTRY(file), &srcu_idx);
+	if (likely(!r))
+		val = *(bool *)file->private_data;
+	debugfs_use_file_finish(srcu_idx);
+	if (r)
+		return r;
+
+	if (val)
 		buf[0] = 'Y';
 	else
 		buf[0] = 'N';
@@ -774,6 +766,7 @@ ssize_t debugfs_write_file_bool(struct file *file, const char __user *user_buf,
 	char buf[32];
 	size_t buf_size;
 	bool bv;
+	int r, srcu_idx;
 	bool *val = file->private_data;
 
 	buf_size = min(count, (sizeof(buf)-1));
@@ -781,8 +774,14 @@ ssize_t debugfs_write_file_bool(struct file *file, const char __user *user_buf,
 		return -EFAULT;
 
 	buf[buf_size] = '\0';
-	if (strtobool(buf, &bv) == 0)
-		*val = bv;
+	if (strtobool(buf, &bv) == 0) {
+		r = debugfs_use_file_start(F_DENTRY(file), &srcu_idx);
+		if (likely(!r))
+			*val = bv;
+		debugfs_use_file_finish(srcu_idx);
+		if (r)
+			return r;
+	}
 
 	return count;
 }
@@ -834,7 +833,7 @@ static const struct file_operations fops_bool_wo = {
 struct dentry *debugfs_create_bool(const char *name, umode_t mode,
 				   struct dentry *parent, bool *value)
 {
-	return debugfs_create_mode(name, mode, parent, value, &fops_bool,
+	return debugfs_create_mode_unsafe(name, mode, parent, value, &fops_bool,
 				   &fops_bool_ro, &fops_bool_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_bool);
