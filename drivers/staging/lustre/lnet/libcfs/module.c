@@ -121,8 +121,11 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
 
 	/* 'cmd' and permissions get checked in our arch-specific caller */
 	err = libcfs_ioctl_getdata(&hdr, arg);
-	if (err)
+	if (err) {
+		CDEBUG_LIMIT(D_ERROR,
+			     "libcfs ioctl: data header error %d\n", err);
 		return err;
+	}
 
 	/*
 	 * The libcfs_ioctl_data_adjust() function performs adjustment
@@ -137,6 +140,7 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
 			goto out;
 	}
 
+	CDEBUG(D_IOCTL, "libcfs ioctl cmd %lu\n", cmd);
 	switch (cmd) {
 	case IOC_LIBCFS_CLEAR_DEBUG:
 		libcfs_debug_clear_buffer();
