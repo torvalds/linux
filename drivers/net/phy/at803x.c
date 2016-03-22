@@ -277,7 +277,7 @@ static int at803x_probe(struct phy_device *phydev)
 	if (!priv)
 		return -ENOMEM;
 
-	gpiod_reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	gpiod_reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(gpiod_reset))
 		return PTR_ERR(gpiod_reset);
 
@@ -362,9 +362,9 @@ static void at803x_link_change_notify(struct phy_device *phydev)
 
 				at803x_context_save(phydev, &context);
 
-				gpiod_set_value(priv->gpiod_reset, 0);
-				msleep(1);
 				gpiod_set_value(priv->gpiod_reset, 1);
+				msleep(1);
+				gpiod_set_value(priv->gpiod_reset, 0);
 				msleep(1);
 
 				at803x_context_restore(phydev, &context);
