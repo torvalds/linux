@@ -964,15 +964,67 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	/* Old GENERAL-PURPOSE COUNTER/TIME (GPCT) subdevice, no longer used */
 	s->type = COMEDI_SUBD_UNUSED;
 
+	/*
+	 * Digital I/O subdevice
+	 *
+	 * There are 40 channels but only the first 32 can be digital I/Os.
+	 * The last 8 are dedicated to counters 0 and 1.
+	 *
+	 * Counter 0-3 signals are from the first TIO chip.
+	 * Counter 4-7 signals are from the second TIO chip.
+	 *
+	 * Comedi	External
+	 * PFI Chan	DIO Chan        Counter Signal
+	 * -------	--------	--------------
+	 *     0	    0
+	 *     1	    1
+	 *     2	    2
+	 *     3	    3
+	 *     4	    4
+	 *     5	    5
+	 *     6	    6
+	 *     7	    7
+	 *     8	    8		CTR 7 OUT
+	 *     9	    9		CTR 7 AUX
+	 *    10	   10		CTR 7 GATE
+	 *    11	   11		CTR 7 SOURCE
+	 *    12	   12		CTR 6 OUT
+	 *    13	   13		CTR 6 AUX
+	 *    14	   14		CTR 6 GATE
+	 *    15	   15		CTR 6 SOURCE
+	 *    16	   16		CTR 5 OUT
+	 *    17	   17		CTR 5 AUX
+	 *    18	   18		CTR 5 GATE
+	 *    19	   19		CTR 5 SOURCE
+	 *    20	   20		CTR 4 OUT
+	 *    21	   21		CTR 4 AUX
+	 *    22	   22		CTR 4 GATE
+	 *    23	   23		CTR 4 SOURCE
+	 *    24	   24		CTR 3 OUT
+	 *    25	   25		CTR 3 AUX
+	 *    26	   26		CTR 3 GATE
+	 *    27	   27		CTR 3 SOURCE
+	 *    28	   28		CTR 2 OUT
+	 *    29	   29		CTR 2 AUX
+	 *    30	   30		CTR 2 GATE
+	 *    31	   31		CTR 2 SOURCE
+	 *    32			CTR 1 OUT
+	 *    33			CTR 1 AUX
+	 *    34			CTR 1 GATE
+	 *    35			CTR 1 SOURCE
+	 *    36			CTR 0 OUT
+	 *    37			CTR 0 AUX
+	 *    38			CTR 0 GATE
+	 *    39			CTR 0 SOURCE
+	 */
 	s = &dev->subdevices[subdev++];
-	/* DIGITAL I/O SUBDEVICE */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = NUM_PFI_CHANNELS;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = ni_660x_dio_insn_bits;
-	s->insn_config = ni_660x_dio_insn_config;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= NUM_PFI_CHANNELS;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= ni_660x_dio_insn_bits;
+	s->insn_config	= ni_660x_dio_insn_config;
 
 	/*
 	 * We use the ioconfig registers to control dio direction, so zero
