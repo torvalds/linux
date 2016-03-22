@@ -112,11 +112,17 @@ int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand)
 }
 EXPORT_SYMBOL(libcfs_deregister_ioctl);
 
-static int libcfs_ioctl_handle(struct cfs_psdev_file *pfile, unsigned long cmd,
-			       void __user *arg, struct libcfs_ioctl_hdr *hdr)
+static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
+			void __user *arg)
 {
 	struct libcfs_ioctl_data *data = NULL;
-	int err = 0;
+	struct libcfs_ioctl_hdr *hdr;
+	int err;
+
+	/* 'cmd' and permissions get checked in our arch-specific caller */
+	err = libcfs_ioctl_getdata(&hdr, arg);
+	if (err)
+		return err;
 
 	/*
 	 * The libcfs_ioctl_data_adjust() function performs adjustment
@@ -128,7 +134,7 @@ static int libcfs_ioctl_handle(struct cfs_psdev_file *pfile, unsigned long cmd,
 		data = container_of(hdr, struct libcfs_ioctl_data, ioc_hdr);
 		err = libcfs_ioctl_data_adjust(data);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	switch (cmd) {
@@ -141,8 +147,10 @@ static int libcfs_ioctl_handle(struct cfs_psdev_file *pfile, unsigned long cmd,
 	 */
 	case IOC_LIBCFS_MARK_DEBUG:
 		if (!data->ioc_inlbuf1 ||
-		    data->ioc_inlbuf1[data->ioc_inllen1 - 1] != '\0')
-			return -EINVAL;
+		    data->ioc_inlbuf1[data->ioc_inllen1 - 1] != '\0') {
+			err = -EINVAL;
+			goto out;
+		}
 		libcfs_debug_mark_buffer(data->ioc_inlbuf1);
 		break;
 
@@ -163,22 +171,7 @@ static int libcfs_ioctl_handle(struct cfs_psdev_file *pfile, unsigned long cmd,
 		up_read(&ioctl_list_sem);
 		break; }
 	}
-
-	return err;
-}
-
-static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
-			void __user *arg)
-{
-	struct libcfs_ioctl_hdr *hdr;
-	int err = 0;
-
-	/* 'cmd' and permissions get checked in our arch-specific caller */
-	err = libcfs_ioctl_getdata(&hdr, arg);
-	if (err)
-		return err;
-
-	err = libcfs_ioctl_handle(pfile, cmd, arg, hdr);
+out:
 	LIBCFS_FREE(hdr, hdr->ioc_len);
 	return err;
 }
