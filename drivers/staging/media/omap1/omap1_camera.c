@@ -1576,17 +1576,14 @@ static int omap1_cam_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	clk = clk_get(&pdev->dev, "armper_ck");
-	if (IS_ERR(clk)) {
-		err = PTR_ERR(clk);
-		goto exit;
-	}
+	clk = devm_clk_get(&pdev->dev, "armper_ck");
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 
 	pcdev = kzalloc(sizeof(*pcdev) + resource_size(res), GFP_KERNEL);
 	if (!pcdev) {
 		dev_err(&pdev->dev, "Could not allocate pcdev\n");
-		err = -ENOMEM;
-		goto exit_put_clk;
+		return -ENOMEM;
 	}
 
 	pcdev->res = res;
@@ -1685,8 +1682,6 @@ exit_release:
 	release_mem_region(res->start, resource_size(res));
 exit_kfree:
 	kfree(pcdev);
-exit_put_clk:
-	clk_put(clk);
 exit:
 	return err;
 }
@@ -1708,8 +1703,6 @@ static int omap1_cam_remove(struct platform_device *pdev)
 
 	res = pcdev->res;
 	release_mem_region(res->start, resource_size(res));
-
-	clk_put(pcdev->clk);
 
 	kfree(pcdev);
 
