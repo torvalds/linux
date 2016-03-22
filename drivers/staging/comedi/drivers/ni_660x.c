@@ -174,12 +174,12 @@ static inline unsigned NI_660X_GPCT_SUBDEV(unsigned index)
 	return NI_660X_GPCT_SUBDEV_0 + index;
 }
 
-struct NI_660xRegisterData {
+struct ni_660x_register_data {
 	int offset;		/*  Offset from base address from GPCT chip */
 	char size;		/* 2 or 4 bytes */
 };
 
-static const struct NI_660xRegisterData registerData[NI660X_NUM_REGS] = {
+static const struct ni_660x_register_data ni_660x_reg_data[NI660X_NUM_REGS] = {
 	[NI660X_G0_INT_ACK]		= { 0x004, 2 },	/* write */
 	[NI660X_G0_STATUS]		= { 0x004, 2 },	/* read */
 	[NI660X_G1_INT_ACK]		= { 0x006, 2 },	/* write */
@@ -564,9 +564,9 @@ static inline void ni_660x_write_register(struct comedi_device *dev,
 					  unsigned chip, unsigned bits,
 					  enum ni_660x_register reg)
 {
-	unsigned int addr = GPCT_OFFSET[chip] + registerData[reg].offset;
+	unsigned int addr = GPCT_OFFSET[chip] + ni_660x_reg_data[reg].offset;
 
-	if (registerData[reg].size == 2)
+	if (ni_660x_reg_data[reg].size == 2)
 		writew(bits, dev->mmio + addr);
 	else
 		writel(bits, dev->mmio + addr);
@@ -576,9 +576,9 @@ static inline unsigned ni_660x_read_register(struct comedi_device *dev,
 					     unsigned chip,
 					     enum ni_660x_register reg)
 {
-	unsigned int addr = GPCT_OFFSET[chip] + registerData[reg].offset;
+	unsigned int addr = GPCT_OFFSET[chip] + ni_660x_reg_data[reg].offset;
 
-	if (registerData[reg].size == 2)
+	if (ni_660x_reg_data[reg].size == 2)
 		return readw(dev->mmio + addr);
 	return readl(dev->mmio + addr);
 }
