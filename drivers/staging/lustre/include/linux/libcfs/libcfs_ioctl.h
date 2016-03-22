@@ -49,6 +49,9 @@ struct libcfs_ioctl_hdr {
 	__u32 ioc_version;
 };
 
+/** max size to copy from userspace */
+#define LIBCFS_IOC_DATA_MAX	(128 * 1024)
+
 struct libcfs_ioctl_data {
 	struct libcfs_ioctl_hdr ioc_hdr;
 

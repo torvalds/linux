@@ -54,9 +54,6 @@
 
 # define DEBUG_SUBSYSTEM S_LNET
 
-#define LNET_MAX_IOCTL_BUF_LEN (sizeof(struct lnet_ioctl_net_config) + \
-				sizeof(struct lnet_ioctl_config_data))
-
 #include "../../include/linux/libcfs/libcfs.h"
 #include <asm/div64.h>
 
@@ -186,7 +183,7 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
 	 * do a check here to restrict the size of the memory
 	 * to allocate to guard against DoS attacks.
 	 */
-	if (buf_len > LNET_MAX_IOCTL_BUF_LEN) {
+	if (buf_len > LIBCFS_IOC_DATA_MAX) {
 		CERROR("LNET: user buffer exceeds kernel buffer\n");
 		return -EINVAL;
 	}
