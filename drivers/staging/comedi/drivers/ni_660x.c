@@ -864,6 +864,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	const struct ni_660x_board *board = NULL;
 	struct ni_660x_private *devpriv;
 	struct comedi_subdevice *s;
+	struct ni_gpct_device *gpct_dev;
 	unsigned int n_counters;
 	int subdev;
 	int ret;
@@ -977,46 +978,50 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	ni_660x_write(dev, 0, 0, NI660X_STC_DIO_CONTROL);
 
 	n_counters = board->n_chips * NI660X_COUNTERS_PER_CHIP;
-	devpriv->counter_dev = ni_gpct_device_construct(dev,
-						     ni_660x_gpct_write,
-						     ni_660x_gpct_read,
-						     ni_gpct_variant_660x,
-						     n_counters);
-	if (!devpriv->counter_dev)
+	gpct_dev = ni_gpct_device_construct(dev,
+					    ni_660x_gpct_write,
+					    ni_660x_gpct_read,
+					    ni_gpct_variant_660x,
+					    n_counters);
+	if (!gpct_dev)
 		return -ENOMEM;
+	devpriv->counter_dev = gpct_dev;
+
+	/* Counter subdevices (4 NI TIO General Purpose Counters per chip) */
 	for (i = 0; i < NI660X_MAX_COUNTERS; ++i) {
 		s = &dev->subdevices[subdev++];
 		if (i < n_counters) {
-			s->type = COMEDI_SUBD_COUNTER;
-			s->subdev_flags = SDF_READABLE | SDF_WRITABLE |
-					  SDF_LSAMPL | SDF_CMD_READ;
-			s->n_chan = 3;
-			s->maxdata = 0xffffffff;
-			s->insn_read = ni_tio_insn_read;
-			s->insn_write = ni_tio_insn_write;
-			s->insn_config = ni_tio_insn_config;
-			s->do_cmd = &ni_660x_cmd;
-			s->len_chanlist = 1;
-			s->do_cmdtest = ni_tio_cmdtest;
-			s->cancel = &ni_660x_cancel;
-			s->poll = &ni_660x_input_poll;
-			s->async_dma_dir = DMA_BIDIRECTIONAL;
-			s->buf_change = &ni_660x_buf_change;
-			s->private = &devpriv->counter_dev->counters[i];
+			struct ni_gpct *counter = &gpct_dev->counters[i];
 
-			devpriv->counter_dev->counters[i].chip_index =
-			    i / NI660X_COUNTERS_PER_CHIP;
-			devpriv->counter_dev->counters[i].counter_index =
-			    i % NI660X_COUNTERS_PER_CHIP;
+			counter->chip_index = i / NI660X_COUNTERS_PER_CHIP;
+			counter->counter_index = i % NI660X_COUNTERS_PER_CHIP;
+
+			s->type		= COMEDI_SUBD_COUNTER;
+			s->subdev_flags	= SDF_READABLE | SDF_WRITABLE |
+					  SDF_LSAMPL | SDF_CMD_READ;
+			s->n_chan	= 3;
+			s->maxdata	= 0xffffffff;
+			s->insn_read	= ni_tio_insn_read;
+			s->insn_write	= ni_tio_insn_write;
+			s->insn_config	= ni_tio_insn_config;
+			s->len_chanlist	= 1;
+			s->do_cmd	= ni_660x_cmd;
+			s->do_cmdtest	= ni_tio_cmdtest;
+			s->cancel	= ni_660x_cancel;
+			s->poll		= ni_660x_input_poll;
+			s->buf_change	= ni_660x_buf_change;
+			s->async_dma_dir = DMA_BIDIRECTIONAL;
+			s->private	= counter;
 		} else {
-			s->type = COMEDI_SUBD_UNUSED;
+			s->type		= COMEDI_SUBD_UNUSED;
 		}
 	}
+
 	for (i = 0; i < board->n_chips; ++i)
 		init_tio_chip(dev, i);
 
 	for (i = 0; i < n_counters; ++i)
-		ni_tio_init_counter(&devpriv->counter_dev->counters[i]);
+		ni_tio_init_counter(&gpct_dev->counters[i]);
 
 	 /*
 	  * Default the DIO channels as:
