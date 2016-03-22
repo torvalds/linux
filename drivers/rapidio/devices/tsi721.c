@@ -841,6 +841,169 @@ static void tsi721_free_irq(struct tsi721_device *priv)
 	free_irq(priv->pdev->irq, (void *)priv);
 }
 
+static int
+tsi721_obw_alloc(struct tsi721_device *priv, struct tsi721_obw_bar *pbar,
+		 u32 size, int *win_id)
+{
+	u64 win_base;
+	u64 bar_base;
+	u64 bar_end;
+	u32 align;
+	struct tsi721_ob_win *win;
+	struct tsi721_ob_win *new_win = NULL;
+	int new_win_idx = -1;
+	int i = 0;
+
+	bar_base = pbar->base;
+	bar_end =  bar_base + pbar->size;
+	win_base = bar_base;
+	align = size/TSI721_PC2SR_ZONES;
+
+	while (i < TSI721_IBWIN_NUM) {
+		for (i = 0; i < TSI721_IBWIN_NUM; i++) {
+			if (!priv->ob_win[i].active) {
+				if (new_win == NULL) {
+					new_win = &priv->ob_win[i];
+					new_win_idx = i;
+				}
+				continue;
+			}
+
+			/*
+			 * If this window belongs to the current BAR check it
+			 * for overlap
+			 */
+			win = &priv->ob_win[i];
+
+			if (win->base >= bar_base && win->base < bar_end) {
+				if (win_base < (win->base + win->size) &&
+						(win_base + size) > win->base) {
+					/* Overlap detected */
+					win_base = win->base + win->size;
+					win_base = ALIGN(win_base, align);
+					break;
+				}
+			}
+		}
+	}
+
+	if (win_base + size > bar_end)
+		return -ENOMEM;
+
+	if (!new_win) {
+		dev_err(&priv->pdev->dev, "ERR: OBW count tracking failed\n");
+		return -EIO;
+	}
+
+	new_win->active = true;
+	new_win->base = win_base;
+	new_win->size = size;
+	new_win->pbar = pbar;
+	priv->obwin_cnt--;
+	pbar->free -= size;
+	*win_id = new_win_idx;
+	return 0;
+}
+
+static int tsi721_map_outb_win(struct rio_mport *mport, u16 destid, u64 rstart,
+			u32 size, u32 flags, dma_addr_t *laddr)
+{
+	struct tsi721_device *priv = mport->priv;
+	int i;
+	struct tsi721_obw_bar *pbar;
+	struct tsi721_ob_win *ob_win;
+	int obw = -1;
+	u32 rval;
+	u64 rio_addr;
+	u32 zsize;
+	int ret = -ENOMEM;
+
+	if (!is_power_of_2(size) || (size < 0x8000) || (rstart & (size - 1)))
+		return -EINVAL;
+
+	if (priv->obwin_cnt == 0)
+		return -EBUSY;
+
+	for (i = 0; i < 2; i++) {
+		if (priv->p2r_bar[i].free >= size) {
+			pbar = &priv->p2r_bar[i];
+			ret = tsi721_obw_alloc(priv, pbar, size, &obw);
+			if (!ret)
+				break;
+		}
+	}
+
+	if (ret)
+		return ret;
+
+	WARN_ON(obw == -1);
+	ob_win = &priv->ob_win[obw];
+	ob_win->destid = destid;
+	ob_win->rstart = rstart;
+
+	/*
+	 * Configure Outbound Window
+	 */
+
+	zsize = size/TSI721_PC2SR_ZONES;
+	rio_addr = rstart;
+
+	/*
+	 * Program Address Translation Zones:
+	 *  This implementation uses all 8 zones associated wit window.
+	 */
+	for (i = 0; i < TSI721_PC2SR_ZONES; i++) {
+
+		while (ioread32(priv->regs + TSI721_ZONE_SEL) &
+			TSI721_ZONE_SEL_GO) {
+			udelay(1);
+		}
+
+		rval = (u32)(rio_addr & TSI721_LUT_DATA0_ADD) |
+			TSI721_LUT_DATA0_NREAD | TSI721_LUT_DATA0_NWR;
+		iowrite32(rval, priv->regs + TSI721_LUT_DATA0);
+		rval = (u32)(rio_addr >> 32);
+		iowrite32(rval, priv->regs + TSI721_LUT_DATA1);
+		rval = destid;
+		iowrite32(rval, priv->regs + TSI721_LUT_DATA2);
+
+		rval = TSI721_ZONE_SEL_GO | (obw << 3) | i;
+		iowrite32(rval, priv->regs + TSI721_ZONE_SEL);
+
+		rio_addr += zsize;
+	}
+
+	iowrite32(TSI721_OBWIN_SIZE(size) << 8,
+		  priv->regs + TSI721_OBWINSZ(obw));
+	iowrite32((u32)(ob_win->base >> 32), priv->regs + TSI721_OBWINUB(obw));
+	iowrite32((u32)(ob_win->base & TSI721_OBWINLB_BA) | TSI721_OBWINLB_WEN,
+		  priv->regs + TSI721_OBWINLB(obw));
+
+	*laddr = ob_win->base;
+	return 0;
+}
+
+static void tsi721_unmap_outb_win(struct rio_mport *mport,
+				  u16 destid, u64 rstart)
+{
+	struct tsi721_device *priv = mport->priv;
+	struct tsi721_ob_win *ob_win;
+	int i;
+
+	for (i = 0; i < TSI721_OBWIN_NUM; i++) {
+		ob_win = &priv->ob_win[i];
+
+		if (ob_win->active &&
+		    ob_win->destid == destid && ob_win->rstart == rstart) {
+			ob_win->active = false;
+			iowrite32(0, priv->regs + TSI721_OBWINLB(i));
+			ob_win->pbar->free += ob_win->size;
+			priv->obwin_cnt++;
+			break;
+		}
+	}
+}
+
 /**
  * tsi721_init_pc2sr_mapping - initializes outbound (PCIe->SRIO)
  * translation regions.
@@ -850,11 +1013,41 @@ static void tsi721_free_irq(struct tsi721_device *priv)
  */
 static void tsi721_init_pc2sr_mapping(struct tsi721_device *priv)
 {
-	int i;
+	int i, z;
+	u32 rval;
 
 	/* Disable all PC2SR translation windows */
 	for (i = 0; i < TSI721_OBWIN_NUM; i++)
 		iowrite32(0, priv->regs + TSI721_OBWINLB(i));
+
+	/* Initialize zone lookup tables to avoid ECC errors on reads */
+	iowrite32(0, priv->regs + TSI721_LUT_DATA0);
+	iowrite32(0, priv->regs + TSI721_LUT_DATA1);
+	iowrite32(0, priv->regs + TSI721_LUT_DATA2);
+
+	for (i = 0; i < TSI721_OBWIN_NUM; i++) {
+		for (z = 0; z < TSI721_PC2SR_ZONES; z++) {
+			while (ioread32(priv->regs + TSI721_ZONE_SEL) &
+				TSI721_ZONE_SEL_GO) {
+				udelay(1);
+			}
+			rval = TSI721_ZONE_SEL_GO | (i << 3) | z;
+			iowrite32(rval, priv->regs + TSI721_ZONE_SEL);
+		}
+	}
+
+	if (priv->p2r_bar[0].size == 0 && priv->p2r_bar[1].size == 0) {
+		priv->obwin_cnt = 0;
+		return;
+	}
+
+	priv->p2r_bar[0].free = priv->p2r_bar[0].size;
+	priv->p2r_bar[1].free = priv->p2r_bar[1].size;
+
+	for (i = 0; i < TSI721_OBWIN_NUM; i++)
+		priv->ob_win[i].active = false;
+
+	priv->obwin_cnt = TSI721_OBWIN_NUM;
 }
 
 /**
@@ -2418,6 +2611,8 @@ static struct rio_ops tsi721_rio_ops = {
 	.unmap_inb		= tsi721_rio_unmap_inb_mem,
 	.pwenable		= tsi721_pw_enable,
 	.query_mport		= tsi721_query_mport,
+	.map_outb		= tsi721_map_outb_win,
+	.unmap_outb		= tsi721_unmap_outb_win,
 };
 
 static void tsi721_mport_release(struct device *dev)
@@ -2573,14 +2768,27 @@ static int tsi721_probe(struct pci_dev *pdev,
 	 * It may be a good idea to keep them disabled using HW configuration
 	 * to save PCI memory space.
 	 */
-	if ((pci_resource_flags(pdev, BAR_2) & IORESOURCE_MEM) &&
-	    (pci_resource_flags(pdev, BAR_2) & IORESOURCE_MEM_64)) {
-		dev_info(&pdev->dev, "Outbound BAR2 is not used but enabled.\n");
+
+	priv->p2r_bar[0].size = priv->p2r_bar[1].size = 0;
+
+	if (pci_resource_flags(pdev, BAR_2) & IORESOURCE_MEM_64) {
+		if (pci_resource_flags(pdev, BAR_2) & IORESOURCE_PREFETCH)
+			dev_info(&pdev->dev,
+				 "Prefetchable OBW BAR2 will not be used\n");
+		else {
+			priv->p2r_bar[0].base = pci_resource_start(pdev, BAR_2);
+			priv->p2r_bar[0].size = pci_resource_len(pdev, BAR_2);
+		}
 	}
 
-	if ((pci_resource_flags(pdev, BAR_4) & IORESOURCE_MEM) &&
-	    (pci_resource_flags(pdev, BAR_4) & IORESOURCE_MEM_64)) {
-		dev_info(&pdev->dev, "Outbound BAR4 is not used but enabled.\n");
+	if (pci_resource_flags(pdev, BAR_4) & IORESOURCE_MEM_64) {
+		if (pci_resource_flags(pdev, BAR_4) & IORESOURCE_PREFETCH)
+			dev_info(&pdev->dev,
+				 "Prefetchable OBW BAR4 will not be used\n");
+		else {
+			priv->p2r_bar[1].base = pci_resource_start(pdev, BAR_4);
+			priv->p2r_bar[1].size = pci_resource_len(pdev, BAR_4);
+		}
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);

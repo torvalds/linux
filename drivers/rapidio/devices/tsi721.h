@@ -822,6 +822,21 @@ struct tsi721_ib_win {
 	struct list_head mappings;
 };
 
+struct tsi721_obw_bar {
+	u64		base;
+	u64		size;
+	u64		free;
+};
+
+struct tsi721_ob_win {
+	u64		base;
+	u32		size;
+	u16		destid;
+	u64		rstart;
+	bool		active;
+	struct tsi721_obw_bar *pbar;
+};
+
 struct tsi721_device {
 	struct pci_dev	*pdev;
 	struct rio_mport mport;
@@ -861,6 +876,11 @@ struct tsi721_device {
 	/* Inbound Mapping Windows */
 	struct tsi721_ib_win ib_win[TSI721_IBWIN_NUM];
 	int		ibwin_cnt;
+
+	/* Outbound Mapping Windows */
+	struct tsi721_obw_bar p2r_bar[2];
+	struct tsi721_ob_win  ob_win[TSI721_OBWIN_NUM];
+	int		obwin_cnt;
 };
 
 #ifdef CONFIG_RAPIDIO_DMA_ENGINE
