@@ -53,56 +53,56 @@ static inline bool libcfs_ioctl_is_invalid(struct libcfs_ioctl_data *data)
 {
 	if (data->ioc_hdr.ioc_len > (1 << 30)) {
 		CERROR("LIBCFS ioctl: ioc_len larger than 1<<30\n");
-		return 1;
+		return true;
 	}
 	if (data->ioc_inllen1 > (1<<30)) {
 		CERROR("LIBCFS ioctl: ioc_inllen1 larger than 1<<30\n");
-		return 1;
+		return true;
 	}
 	if (data->ioc_inllen2 > (1<<30)) {
 		CERROR("LIBCFS ioctl: ioc_inllen2 larger than 1<<30\n");
-		return 1;
+		return true;
 	}
 	if (data->ioc_inlbuf1 && !data->ioc_inllen1) {
 		CERROR("LIBCFS ioctl: inlbuf1 pointer but 0 length\n");
-		return 1;
+		return true;
 	}
 	if (data->ioc_inlbuf2 && !data->ioc_inllen2) {
 		CERROR("LIBCFS ioctl: inlbuf2 pointer but 0 length\n");
-		return 1;
+		return true;
 	}
 	if (data->ioc_pbuf1 && !data->ioc_plen1) {
 		CERROR("LIBCFS ioctl: pbuf1 pointer but 0 length\n");
-		return 1;
+		return true;
 	}
 	if (data->ioc_pbuf2 && !data->ioc_plen2) {
 		CERROR("LIBCFS ioctl: pbuf2 pointer but 0 length\n");
-		return 1;
+		return true;
 	}
 	if (data->ioc_plen1 && !data->ioc_pbuf1) {
 		CERROR("LIBCFS ioctl: plen1 nonzero but no pbuf1 pointer\n");
-		return 1;
+		return true;
 	}
 	if (data->ioc_plen2 && !data->ioc_pbuf2) {
 		CERROR("LIBCFS ioctl: plen2 nonzero but no pbuf2 pointer\n");
-		return 1;
+		return true;
 	}
 	if ((__u32)libcfs_ioctl_packlen(data) != data->ioc_hdr.ioc_len) {
 		CERROR("LIBCFS ioctl: packlen != ioc_len\n");
-		return 1;
+		return true;
 	}
 	if (data->ioc_inllen1 &&
 	    data->ioc_bulk[data->ioc_inllen1 - 1] != '\0') {
 		CERROR("LIBCFS ioctl: inlbuf1 not 0 terminated\n");
-		return 1;
+		return true;
 	}
 	if (data->ioc_inllen2 &&
 	    data->ioc_bulk[cfs_size_round(data->ioc_inllen1) +
 			   data->ioc_inllen2 - 1] != '\0') {
 		CERROR("LIBCFS ioctl: inlbuf2 not 0 terminated\n");
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 int libcfs_ioctl_data_adjust(struct libcfs_ioctl_data *data)
