@@ -465,16 +465,6 @@ static unsigned int ni_660x_gpct_read(struct ni_gpct *counter,
 	return ni_660x_read(dev, counter->chip_index, ni_660x_register);
 }
 
-static inline struct mite_dma_descriptor_ring *mite_ring(struct ni_660x_private
-							 *priv,
-							 struct ni_gpct
-							 *counter)
-{
-	unsigned int chip = counter->chip_index;
-
-	return priv->mite_rings[chip][counter->counter_index];
-}
-
 static inline void ni_660x_set_dma_channel(struct comedi_device *dev,
 					   unsigned int mite_channel,
 					   struct ni_gpct *counter)
@@ -515,12 +505,13 @@ static int ni_660x_request_mite_channel(struct comedi_device *dev,
 					enum comedi_io_direction direction)
 {
 	struct ni_660x_private *devpriv = dev->private;
-	unsigned long flags;
+	struct mite_dma_descriptor_ring *ring;
 	struct mite_channel *mite_chan;
+	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	mite_chan = mite_request_channel(devpriv->mite,
-					 mite_ring(devpriv, counter));
+	ring = devpriv->mite_rings[counter->chip_index][counter->counter_index];
+	mite_chan = mite_request_channel(devpriv->mite, ring);
 	if (!mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
@@ -645,9 +636,11 @@ static int ni_660x_buf_change(struct comedi_device *dev,
 {
 	struct ni_660x_private *devpriv = dev->private;
 	struct ni_gpct *counter = s->private;
+	struct mite_dma_descriptor_ring *ring;
 	int ret;
 
-	ret = mite_buf_change(mite_ring(devpriv, counter), s);
+	ring = devpriv->mite_rings[counter->chip_index][counter->counter_index];
+	ret = mite_buf_change(ring, s);
 	if (ret < 0)
 		return ret;
 
