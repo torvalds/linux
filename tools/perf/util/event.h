@@ -192,6 +192,7 @@ struct perf_sample {
 	u64 data_src;
 	u32 flags;
 	u16 insn_len;
+	u8  cpumode;
 	void *raw_data;
 	struct ip_callchain *callchain;
 	struct branch_stack *branch_stack;

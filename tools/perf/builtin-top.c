@@ -809,7 +809,6 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 	struct perf_session *session = top->session;
 	union perf_event *event;
 	struct machine *machine;
-	u8 origin;
 	int ret;
 
 	while ((event = perf_evlist__mmap_read(top->evlist, idx)) != NULL) {
@@ -822,12 +821,10 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 		evsel = perf_evlist__id2evsel(session->evlist, sample.id);
 		assert(evsel != NULL);
 
-		origin = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-
 		if (event->header.type == PERF_RECORD_SAMPLE)
 			++top->samples;
 
-		switch (origin) {
+		switch (sample.cpumode) {
 		case PERF_RECORD_MISC_USER:
 			++top->us_samples;
 			if (top->hide_user_symbols)

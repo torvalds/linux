@@ -63,6 +63,7 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 			.hide_unresolved = false,
 		};
 
+		sample.cpumode = PERF_RECORD_MISC_USER;
 		sample.cpu = fake_samples[i].cpu;
 		sample.pid = fake_samples[i].pid;
 		sample.tid = fake_samples[i].pid;

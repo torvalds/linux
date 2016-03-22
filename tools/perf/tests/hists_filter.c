@@ -76,6 +76,7 @@ static int add_hist_entries(struct perf_evlist *evlist,
 			hists->dso_filter = NULL;
 			hists->symbol_filter_str = NULL;
 
+			sample.cpumode = PERF_RECORD_MISC_USER;
 			sample.pid = fake_samples[i].pid;
 			sample.tid = fake_samples[i].pid;
 			sample.ip = fake_samples[i].ip;

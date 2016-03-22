@@ -82,6 +82,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 				},
 			};
 
+			sample.cpumode = PERF_RECORD_MISC_USER;
 			sample.pid = fake_common_samples[k].pid;
 			sample.tid = fake_common_samples[k].pid;
 			sample.ip = fake_common_samples[k].ip;

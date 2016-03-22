@@ -416,9 +416,6 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 {
 	struct addr_location al;
 	struct thread *thread;
-	u8 cpumode;
-
-	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
 	thread = machine__findnew_thread(machine, sample->pid, sample->tid);
 	if (thread == NULL) {
@@ -427,7 +424,7 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 		goto repipe;
 	}
 
-	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->ip, &al);
+	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->ip, &al);
 
 	if (al.map != NULL) {
 		if (!al.map->dso->hit) {

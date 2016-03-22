@@ -498,14 +498,13 @@ static void print_sample_brstack(union perf_event *event __maybe_unused,
 	}
 }
 
-static void print_sample_brstacksym(union perf_event *event,
+static void print_sample_brstacksym(union perf_event *event __maybe_unused,
 			  struct perf_sample *sample,
 			  struct thread *thread __maybe_unused,
 			  struct perf_event_attr *attr __maybe_unused)
 {
 	struct branch_stack *br = sample->branch_stack;
 	struct addr_location alf, alt;
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	u64 i, from, to;
 
 	if (!(br && br->nr))
@@ -518,11 +517,11 @@ static void print_sample_brstacksym(union perf_event *event,
 		from = br->entries[i].from;
 		to   = br->entries[i].to;
 
-		thread__find_addr_map(thread, cpumode, MAP__FUNCTION, from, &alf);
+		thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, from, &alf);
 		if (alf.map)
 			alf.sym = map__find_symbol(alf.map, alf.addr, NULL);
 
-		thread__find_addr_map(thread, cpumode, MAP__FUNCTION, to, &alt);
+		thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, to, &alt);
 		if (alt.map)
 			alt.sym = map__find_symbol(alt.map, alt.addr, NULL);
 
