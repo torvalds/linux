@@ -41,19 +41,6 @@
 /* Ondemand Sampling types */
 enum {OD_NORMAL_SAMPLE, OD_SUB_SAMPLE};
 
-struct gov_attr_set {
-	struct kobject kobj;
-	struct list_head policy_list;
-	struct mutex update_lock;
-	int usage_count;
-};
-
-extern const struct sysfs_ops governor_sysfs_ops;
-
-void gov_attr_set_init(struct gov_attr_set *attr_set, struct list_head *list_node);
-void gov_attr_set_get(struct gov_attr_set *attr_set, struct list_head *list_node);
-unsigned int gov_attr_set_put(struct gov_attr_set *attr_set, struct list_head *list_node);
-
 /*
  * Abbreviations:
  * dbs: used as a shortform for demand based switching It helps to keep variable
@@ -79,14 +66,6 @@ static inline struct dbs_data *to_dbs_data(struct gov_attr_set *attr_set)
 {
 	return container_of(attr_set, struct dbs_data, attr_set);
 }
-
-/* Governor's specific attributes */
-struct governor_attr {
-	struct attribute attr;
-	ssize_t (*show)(struct gov_attr_set *attr_set, char *buf);
-	ssize_t (*store)(struct gov_attr_set *attr_set, const char *buf,
-			 size_t count);
-};
 
 #define gov_show_one(_gov, file_name)					\
 static ssize_t show_##file_name						\
