@@ -403,7 +403,7 @@
 	i2c0: i2c@ff3c0000 {
 		compatible = "rockchip,rk3399-i2c";
 		reg = <0x0 0xff3c0000 0x0 0x1000>;
-		clocks =  <&cru SCLK_I2C0_PMU>, <&cru PCLK_I2C0_PMU>;
+		clocks =  <&pmucru SCLK_I2C0_PMU>, <&pmucru PCLK_I2C0_PMU>;
 		clock-names = "i2c", "pclk";
 		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
@@ -699,7 +699,7 @@
 	spi3: spi@ff350000 {
 		compatible = "rockchip,rk3399-spi", "rockchip,rk3066-spi";
 		reg = <0x0 0xff350000 0x0 0x1000>;
-		clocks = <&cru SCLK_SPI3_PMU>, <&cru PCLK_SPI3_PMU>;
+		clocks = <&pmucru SCLK_SPI3_PMU>, <&pmucru PCLK_SPI3_PMU>;
 		clock-names = "spiclk", "apb_pclk";
 		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
@@ -712,7 +712,7 @@
 	uart4: serial@ff370000 {
 		compatible = "rockchip,rk3399-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xff370000 0x0 0x100>;
-		clocks = <&cru SCLK_UART4_PMU>, <&cru PCLK_UART4_PMU>;
+		clocks = <&pmucru SCLK_UART4_PMU>, <&pmucru PCLK_UART4_PMU>;
 		clock-names = "baudclk", "apb_pclk";
 		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
@@ -725,7 +725,7 @@
 	i2c4: i2c@ff3d0000 {
 		compatible = "rockchip,rk3399-i2c";
 		reg = <0x0 0xff3d0000 0x0 0x1000>;
-		clocks = <&cru SCLK_I2C4_PMU>, <&cru PCLK_I2C4_PMU>;
+		clocks = <&pmucru SCLK_I2C4_PMU>, <&pmucru PCLK_I2C4_PMU>;
 		clock-names = "i2c", "pclk";
 		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
@@ -738,7 +738,7 @@
 	i2c8: i2c@ff3e0000 {
 		compatible = "rockchip,rk3399-i2c";
 		reg = <0x0 0xff3e0000 0x0 0x1000>;
-		clocks = <&cru SCLK_I2C8_PMU>, <&cru PCLK_I2C8_PMU>;
+		clocks = <&pmucru SCLK_I2C8_PMU>, <&pmucru PCLK_I2C8_PMU>;
 		clock-names = "i2c", "pclk";
 		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
@@ -754,7 +754,7 @@
 		#pwm-cells = <3>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm0_pin>;
-		clocks = <&cru PCLK_RKPWM_PMU>;
+		clocks = <&pmucru PCLK_RKPWM_PMU>;
 		clock-names = "pwm";
 		status = "disabled";
 	};
@@ -765,7 +765,7 @@
 		#pwm-cells = <3>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm1_pin>;
-		clocks = <&cru PCLK_RKPWM_PMU>;
+		clocks = <&pmucru PCLK_RKPWM_PMU>;
 		clock-names = "pwm";
 		status = "disabled";
 	};
@@ -776,7 +776,7 @@
 		#pwm-cells = <3>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm2_pin>;
-		clocks = <&cru PCLK_RKPWM_PMU>;
+		clocks = <&pmucru PCLK_RKPWM_PMU>;
 		clock-names = "pwm";
 		status = "disabled";
 	};
@@ -787,7 +787,7 @@
 		#pwm-cells = <3>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm3a_pin>;
-		clocks = <&cru PCLK_RKPWM_PMU>;
+		clocks = <&pmucru PCLK_RKPWM_PMU>;
 		clock-names = "pwm";
 		status = "disabled";
 	};
@@ -798,7 +798,7 @@
 		rockchip,grf = <&pmugrf>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
-		assigned-clocks = <&cru PLL_PPLL>;
+		assigned-clocks = <&pmucru PLL_PPLL>;
 		assigned-clock-rates = <676000000>;
 	};
 
@@ -906,7 +906,7 @@
 		gpio0: gpio0@ff720000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff720000 0x0 0x100>;
-			clocks = <&cru PCLK_GPIO0_PMU>;
+			clocks = <&pmucru PCLK_GPIO0_PMU>;
 			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 
 			gpio-controller;
@@ -919,7 +919,7 @@
 		gpio1: gpio1@ff730000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff730000 0x0 0x100>;
-			clocks = <&cru PCLK_GPIO1_PMU>;
+			clocks = <&pmucru PCLK_GPIO1_PMU>;
 			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 
 			gpio-controller;
