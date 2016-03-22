@@ -380,13 +380,11 @@ ENTRY(system_call)
 	brasl	%r14,do_signal
 	TSTMSK	__PT_FLAGS(%r11),_PIF_SYSCALL
 	jno	.Lsysc_return
+.Lsysc_do_syscall:
+	lghi	%r13,__TASK_thread
 	lmg	%r2,%r7,__PT_R2(%r11)	# load svc arguments
-	lghi	%r8,0			# svc 0 returns -ENOSYS
-	llgh	%r1,__PT_INT_CODE+2(%r11)	# load new svc number
-	cghi	%r1,NR_syscalls
-	jnl	.Lsysc_nr_ok		# invalid svc number -> do svc 0
-	slag	%r8,%r1,2
-	j	.Lsysc_nr_ok		# restart svc
+	lghi	%r1,0			# svc 0 returns -ENOSYS
+	j	.Lsysc_do_svc
 
 #
 # _TIF_NOTIFY_RESUME is set, call do_notify_resume
@@ -528,6 +526,8 @@ ENTRY(pgm_check_handler)
 	LOCKDEP_SYS_EXIT
 	tm	__PT_PSW+1(%r11),0x01	# returning to user ?
 	jno	.Lsysc_restore
+	TSTMSK	__PT_FLAGS(%r11),_PIF_SYSCALL
+	jo	.Lsysc_do_syscall
 	j	.Lsysc_tif
 
 #
