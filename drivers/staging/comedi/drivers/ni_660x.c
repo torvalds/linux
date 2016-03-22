@@ -204,9 +204,7 @@ static const struct ni_660x_register_data ni_660x_reg_data[NI660X_NUM_REGS] = {
 	[NI660X_IO_CFG_38_39]		= { 0x7a2, 2 }	/* read/write */
 };
 
-/* Offset of the GPCT chips from the base-address of the card */
-/* First chip is at base-address + 0x00, etc. */
-static const unsigned GPCT_OFFSET[2] = { 0x0, 0x800 };
+#define NI660X_CHIP_OFFSET		0x800
 
 enum ni_660x_boardid {
 	BOARD_PCI6601,
@@ -271,7 +269,8 @@ struct ni_660x_private {
 static void ni_660x_write(struct comedi_device *dev, unsigned int chip,
 			  unsigned int bits, unsigned int reg)
 {
-	unsigned int addr = GPCT_OFFSET[chip] + ni_660x_reg_data[reg].offset;
+	unsigned int addr = (chip * NI660X_CHIP_OFFSET) +
+			    ni_660x_reg_data[reg].offset;
 
 	if (ni_660x_reg_data[reg].size == 2)
 		writew(bits, dev->mmio + addr);
@@ -282,7 +281,8 @@ static void ni_660x_write(struct comedi_device *dev, unsigned int chip,
 static unsigned int ni_660x_read(struct comedi_device *dev,
 				 unsigned int chip, unsigned int reg)
 {
-	unsigned int addr = GPCT_OFFSET[chip] + ni_660x_reg_data[reg].offset;
+	unsigned int addr = (chip * NI660X_CHIP_OFFSET) +
+			    ni_660x_reg_data[reg].offset;
 
 	if (ni_660x_reg_data[reg].size == 2)
 		return readw(dev->mmio + addr);
