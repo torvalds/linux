@@ -342,13 +342,6 @@ struct ni_660x_private {
 	unsigned short pfi_output_selects[NUM_PFI_CHANNELS];
 };
 
-static inline unsigned ni_660x_num_counters(struct comedi_device *dev)
-{
-	const struct ni_660x_board *board = dev->board_ptr;
-
-	return board->n_chips * counters_per_chip;
-}
-
 static enum ni_660x_register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 {
 	switch (reg) {
@@ -927,6 +920,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	const struct ni_660x_board *board = NULL;
 	struct ni_660x_private *devpriv;
 	struct comedi_subdevice *s;
+	unsigned int n_counters;
 	int subdev;
 	int ret;
 	unsigned i;
@@ -986,17 +980,17 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	 */
 	ni_660x_write(dev, 0, 0, NI660X_STC_DIO_CONTROL);
 
+	n_counters = board->n_chips * counters_per_chip;
 	devpriv->counter_dev = ni_gpct_device_construct(dev,
 						     ni_660x_gpct_write,
 						     ni_660x_gpct_read,
 						     ni_gpct_variant_660x,
-						     ni_660x_num_counters
-						     (dev));
+						     n_counters);
 	if (!devpriv->counter_dev)
 		return -ENOMEM;
 	for (i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i) {
 		s = &dev->subdevices[subdev++];
-		if (i < ni_660x_num_counters(dev)) {
+		if (i < n_counters) {
 			s->type = COMEDI_SUBD_COUNTER;
 			s->subdev_flags = SDF_READABLE | SDF_WRITABLE |
 					  SDF_LSAMPL | SDF_CMD_READ;
@@ -1025,7 +1019,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	for (i = 0; i < board->n_chips; ++i)
 		init_tio_chip(dev, i);
 
-	for (i = 0; i < ni_660x_num_counters(dev); ++i)
+	for (i = 0; i < n_counters; ++i)
 		ni_tio_init_counter(&devpriv->counter_dev->counters[i]);
 
 	for (i = 0; i < NUM_PFI_CHANNELS; ++i) {
