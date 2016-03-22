@@ -129,6 +129,12 @@ _c_flags += $(if $(patsubst n%,, \
 		$(CFLAGS_KASAN))
 endif
 
+ifeq ($(CONFIG_KCOV),y)
+_c_flags += $(if $(patsubst n%,, \
+	$(KCOV_INSTRUMENT_$(basetarget).o)$(KCOV_INSTRUMENT)y), \
+	$(CFLAGS_KCOV))
+endif
+
 # If building the kernel in a separate objtree expand all occurrences
 # of -Idir to -I$(srctree)/dir except for absolute paths (starting with '/').
 
