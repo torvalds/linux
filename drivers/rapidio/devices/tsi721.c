@@ -885,25 +885,51 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 		u64 rstart, u32 size, u32 flags)
 {
 	struct tsi721_device *priv = mport->priv;
-	int i;
+	int i, avail = -1;
 	u32 regval;
+	struct tsi721_ib_win *ib_win;
+	int ret = -EBUSY;
 
 	if (!is_power_of_2(size) || size < 0x1000 ||
 	    ((u64)lstart & (size - 1)) || (rstart & (size - 1)))
 		return -EINVAL;
 
-	/* Search for free inbound translation window */
+	spin_lock(&priv->win_lock);
+	/*
+	 * Scan for overlapping with active regions and mark the first available
+	 * IB window at the same time.
+	 */
 	for (i = 0; i < TSI721_IBWIN_NUM; i++) {
-		regval = ioread32(priv->regs + TSI721_IBWIN_LB(i));
-		if (!(regval & TSI721_IBWIN_LB_WEN))
+		ib_win = &priv->ib_win[i];
+		if (!ib_win->active) {
+			if (avail == -1) {
+				avail = i;
+				ret = 0;
+			}
+		} else if (rstart < (ib_win->rstart + ib_win->size) &&
+					(rstart + size) > ib_win->rstart) {
+			ret = -EFAULT;
 			break;
+		}
 	}
 
-	if (i >= TSI721_IBWIN_NUM) {
-		dev_err(&priv->pdev->dev,
-			"Unable to find free inbound window\n");
-		return -EBUSY;
+	if (ret)
+		goto err_out;
+	i = avail;
+
+	/* Sanity check: available IB window must be disabled at this point */
+	regval = ioread32(priv->regs + TSI721_IBWIN_LB(i));
+	if (WARN_ON(regval & TSI721_IBWIN_LB_WEN)) {
+		ret = -EIO;
+		goto err_out;
 	}
+
+	ib_win = &priv->ib_win[i];
+	ib_win->active = true;
+	ib_win->rstart = rstart;
+	ib_win->lstart = lstart;
+	ib_win->size = size;
+	spin_unlock(&priv->win_lock);
 
 	iowrite32(TSI721_IBWIN_SIZE(size) << 8,
 			priv->regs + TSI721_IBWIN_SZ(i));
@@ -920,6 +946,9 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 		i, rstart, (unsigned long long)lstart);
 
 	return 0;
+err_out:
+	spin_unlock(&priv->win_lock);
+	return ret;
 }
 
 /**
@@ -931,25 +960,25 @@ static void tsi721_rio_unmap_inb_mem(struct rio_mport *mport,
 				dma_addr_t lstart)
 {
 	struct tsi721_device *priv = mport->priv;
+	struct tsi721_ib_win *ib_win;
 	int i;
-	u64 addr;
-	u32 regval;
 
 	/* Search for matching active inbound translation window */
+	spin_lock(&priv->win_lock);
 	for (i = 0; i < TSI721_IBWIN_NUM; i++) {
-		regval = ioread32(priv->regs + TSI721_IBWIN_LB(i));
-		if (regval & TSI721_IBWIN_LB_WEN) {
-			regval = ioread32(priv->regs + TSI721_IBWIN_TUA(i));
-			addr = (u64)regval << 32;
-			regval = ioread32(priv->regs + TSI721_IBWIN_TLA(i));
-			addr |= regval & TSI721_IBWIN_TLA_ADD;
-
-			if (addr == (u64)lstart) {
-				iowrite32(0, priv->regs + TSI721_IBWIN_LB(i));
-				break;
-			}
+		ib_win = &priv->ib_win[i];
+		if (ib_win->active && ib_win->lstart == lstart) {
+			iowrite32(0, priv->regs + TSI721_IBWIN_LB(i));
+			ib_win->active = false;
+			break;
 		}
 	}
+	spin_unlock(&priv->win_lock);
+
+	if (i == TSI721_IBWIN_NUM)
+		dev_err(&priv->pdev->dev,
+			"IB window mapped to %llx not found\n",
+			(unsigned long long)lstart);
 }
 
 /**
@@ -966,6 +995,7 @@ static void tsi721_init_sr2pc_mapping(struct tsi721_device *priv)
 	/* Disable all SR2PC inbound windows */
 	for (i = 0; i < TSI721_IBWIN_NUM; i++)
 		iowrite32(0, priv->regs + TSI721_IBWIN_LB(i));
+	spin_lock_init(&priv->win_lock);
 }
 
 /**

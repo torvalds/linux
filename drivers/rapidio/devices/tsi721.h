@@ -808,6 +808,13 @@ struct msix_irq {
 };
 #endif /* CONFIG_PCI_MSI */
 
+struct tsi721_ib_win {
+	u64		rstart;
+	u32		size;
+	dma_addr_t	lstart;
+	bool		active;
+};
+
 struct tsi721_device {
 	struct pci_dev	*pdev;
 	struct rio_mport *mport;
@@ -843,6 +850,10 @@ struct tsi721_device {
 	/* Outbound Messaging */
 	int		omsg_init[TSI721_OMSG_CHNUM];
 	struct tsi721_omsg_ring	omsg_ring[TSI721_OMSG_CHNUM];
+
+	/* Inbound Mapping Windows */
+	struct tsi721_ib_win ib_win[TSI721_IBWIN_NUM];
+	spinlock_t	win_lock;
 };
 
 #ifdef CONFIG_RAPIDIO_DMA_ENGINE
