@@ -51,15 +51,15 @@ static inline int libcfs_ioctl_packlen(struct libcfs_ioctl_data *data)
 
 static inline bool libcfs_ioctl_is_invalid(struct libcfs_ioctl_data *data)
 {
-	if (data->ioc_hdr.ioc_len > (1 << 30)) {
+	if (data->ioc_hdr.ioc_len > BIT(30)) {
 		CERROR("LIBCFS ioctl: ioc_len larger than 1<<30\n");
 		return true;
 	}
-	if (data->ioc_inllen1 > (1<<30)) {
+	if (data->ioc_inllen1 > BIT(30)) {
 		CERROR("LIBCFS ioctl: ioc_inllen1 larger than 1<<30\n");
 		return true;
 	}
-	if (data->ioc_inllen2 > (1<<30)) {
+	if (data->ioc_inllen2 > BIT(30)) {
 		CERROR("LIBCFS ioctl: ioc_inllen2 larger than 1<<30\n");
 		return true;
 	}
