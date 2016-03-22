@@ -1007,7 +1007,7 @@ static int au0828_v4l2_close(struct file *filp)
 		del_timer_sync(&dev->vbi_timeout);
 	}
 
-	if (dev->dev_state == DEV_DISCONNECTED)
+	if (dev->dev_state & DEV_DISCONNECTED)
 		goto end;
 
 	if (dev->users == 1) {
