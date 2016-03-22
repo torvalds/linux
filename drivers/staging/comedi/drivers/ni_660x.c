@@ -179,15 +179,6 @@ enum ni_660x_register {
 #define NI660X_IO_CFG_IN_SEL(_c, _s)	(((_s) & 0x7) << (((_c) % 2) ? 4 : 12))
 #define NI660X_IO_CFG_IN_SEL_MASK(_c)	NI660X_IO_CFG_IN_SEL((_c), 0x7)
 
-enum ni_660x_subdevices {
-	NI_660X_DIO_SUBDEV = 1,
-	NI_660X_GPCT_SUBDEV_0 = 2
-};
-static inline unsigned NI_660X_GPCT_SUBDEV(unsigned index)
-{
-	return NI_660X_GPCT_SUBDEV_0 + index;
-}
-
 struct ni_660x_register_data {
 	int offset;		/*  Offset from base address from GPCT chip */
 	char size;		/* 2 or 4 bytes */
@@ -694,9 +685,10 @@ static irqreturn_t ni_660x_interrupt(int irq, void *d)
 	/* lock to avoid race with comedi_poll */
 	spin_lock_irqsave(&devpriv->interrupt_lock, flags);
 	smp_mb();
-	for (i = 0; i < ni_660x_num_counters(dev); ++i) {
-		s = &dev->subdevices[NI_660X_GPCT_SUBDEV(i)];
-		ni_660x_handle_gpct_interrupt(dev, s);
+	for (i = 0; i < dev->n_subdevices; ++i) {
+		s = &dev->subdevices[i];
+		if (s->type == COMEDI_SUBD_COUNTER)
+			ni_660x_handle_gpct_interrupt(dev, s);
 	}
 	spin_unlock_irqrestore(&devpriv->interrupt_lock, flags);
 	return IRQ_HANDLED;
@@ -935,6 +927,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	const struct ni_660x_board *board = NULL;
 	struct ni_660x_private *devpriv;
 	struct comedi_subdevice *s;
+	int subdev;
 	int ret;
 	unsigned i;
 	unsigned global_interrupt_config_bits;
@@ -971,11 +964,13 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = &dev->subdevices[0];
+	subdev = 0;
+
+	s = &dev->subdevices[subdev++];
 	/* Old GENERAL-PURPOSE COUNTER/TIME (GPCT) subdevice, no longer used */
 	s->type = COMEDI_SUBD_UNUSED;
 
-	s = &dev->subdevices[NI_660X_DIO_SUBDEV];
+	s = &dev->subdevices[subdev++];
 	/* DIGITAL I/O SUBDEVICE */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -1000,7 +995,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	if (!devpriv->counter_dev)
 		return -ENOMEM;
 	for (i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i) {
-		s = &dev->subdevices[NI_660X_GPCT_SUBDEV(i)];
+		s = &dev->subdevices[subdev++];
 		if (i < ni_660x_num_counters(dev)) {
 			s->type = COMEDI_SUBD_COUNTER;
 			s->subdev_flags = SDF_READABLE | SDF_WRITABLE |
