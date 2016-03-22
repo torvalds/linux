@@ -56,6 +56,19 @@
 #define PHYCTRL_DLLRDY_SHIFT	0x5
 #define PHYCTRL_DLLRDY_DONE	0x1
 #define PHYCTRL_DLLRDY_GOING	0x0
+#define PHYCTRL_FREQSEL_200M	0x0
+#define PHYCTRL_FREQSEL_50M	0x1
+#define PHYCTRL_FREQSEL_100M	0x2
+#define PHYCTRL_FREQSEL_150M	0x3
+#define PHYCTRL_FREQSEL_MASK	0x3
+#define PHYCTRL_FREQSEL_SHIFT	0xc
+#define PHYCTRL_DR_MASK		0x7
+#define PHYCTRL_DR_SHIFT	0x4
+#define PHYCTRL_DR_50OHM	0x0
+#define PHYCTRL_DR_33OHM	0x1
+#define PHYCTRL_DR_66OHM	0x2
+#define PHYCTRL_DR_100OHM	0x3
+#define PHYCTRL_DR_40OHM	0x4
 
 struct rockchip_emmc_phy {
 	unsigned int	reg_offset;
@@ -135,6 +148,25 @@ static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
 	return 0;
 }
 
+static int rockchip_emmc_phy_init(struct phy*phy)
+{
+	struct rockchip_emmc_phy *rk_phy = phy_get_drvdata(phy);
+
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
+		     HIWORD_UPDATE(PHYCTRL_FREQSEL_200M,
+				   PHYCTRL_FREQSEL_MASK,
+				   PHYCTRL_FREQSEL_SHIFT));
+
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON6,
+		     HIWORD_UPDATE(PHYCTRL_DR_100OHM,
+				   PHYCTRL_DR_MASK,
+				   PHYCTRL_DR_SHIFT));
+
+	return 0;
+}
+
 static int rockchip_emmc_phy_power_off(struct phy *phy)
 {
 	struct rockchip_emmc_phy *rk_phy = phy_get_drvdata(phy);
@@ -162,6 +194,7 @@ static int rockchip_emmc_phy_power_on(struct phy *phy)
 }
 
 static const struct phy_ops ops = {
+	.init		= rockchip_emmc_phy_init,
 	.power_on	= rockchip_emmc_phy_power_on,
 	.power_off	= rockchip_emmc_phy_power_off,
 	.owner		= THIS_MODULE,
