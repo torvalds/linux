@@ -1154,7 +1154,7 @@ static int gb_lights_request_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 	struct device *dev = &connection->bundle->dev;
-	struct gb_lights *glights = connection->private;
+	struct gb_lights *glights = gb_connection_get_data(connection);
 	struct gb_light *light;
 	struct gb_message *request;
 	struct gb_lights_event_request *payload;
@@ -1230,7 +1230,7 @@ static int gb_lights_probe(struct gb_bundle *bundle,
 	}
 
 	glights->connection = connection;
-	connection->private = glights;
+	gb_connection_set_data(connection, glights);
 
 	mutex_init(&glights->lights_lock);
 

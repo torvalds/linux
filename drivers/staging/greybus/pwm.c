@@ -188,7 +188,7 @@ static int gb_pwm_connection_init(struct gb_connection *connection)
 	if (!pwmc)
 		return -ENOMEM;
 	pwmc->connection = connection;
-	connection->private = pwmc;
+	gb_connection_set_data(connection, pwmc);
 
 	/* Query number of pwms present */
 	ret = gb_pwm_count_operation(pwmc);
@@ -218,8 +218,7 @@ out_err:
 
 static void gb_pwm_connection_exit(struct gb_connection *connection)
 {
-	struct gb_pwm_chip *pwmc = connection->private;
-
+	struct gb_pwm_chip *pwmc = gb_connection_get_data(connection);
 	if (!pwmc)
 		return;
 

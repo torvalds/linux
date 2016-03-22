@@ -711,7 +711,7 @@ static int gb_power_supplies_register(struct gb_power_supplies *supplies)
 static int gb_supplies_request_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
-	struct gb_power_supplies *supplies = connection->private;
+	struct gb_power_supplies *supplies = gb_connection_get_data(connection);
 	struct gb_power_supply *gbpsy;
 	struct gb_message *request;
 	struct gb_power_supply_event_request *payload;
@@ -792,7 +792,7 @@ static int gb_power_supply_probe(struct gb_bundle *bundle,
 	}
 
 	supplies->connection = connection;
-	connection->private = supplies;
+	gb_connection_set_data(connection, supplies);
 
 	mutex_init(&supplies->supplies_lock);
 

@@ -28,7 +28,7 @@ struct gb_spi {
 
 static struct spi_master *get_master_from_spi(struct gb_spi *spi)
 {
-	return spi->connection->private;
+	return gb_connection_get_data(spi->connection);
 }
 
 static int tx_header_fit_operation(u32 tx_size, u32 count, size_t data_max)
@@ -339,7 +339,7 @@ static int gb_spi_connection_init(struct gb_connection *connection)
 
 	spi = spi_master_get_devdata(master);
 	spi->connection = connection;
-	connection->private = master;
+	gb_connection_set_data(connection, master);
 
 	/* get master configuration */
 	ret = gb_spi_get_master_config(spi);
@@ -382,7 +382,7 @@ out_put_master:
 
 static void gb_spi_connection_exit(struct gb_connection *connection)
 {
-	struct spi_master *master = connection->private;
+	struct spi_master *master = gb_connection_get_data(connection);
 
 	spi_unregister_master(master);
 }

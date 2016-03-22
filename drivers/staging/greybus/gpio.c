@@ -351,7 +351,7 @@ static int gb_gpio_request_recv(u8 type, struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 	struct device *dev = &connection->bundle->dev;
-	struct gb_gpio_controller *ggc = connection->private;
+	struct gb_gpio_controller *ggc = gb_connection_get_data(connection);
 	struct gb_message *request;
 	struct gb_gpio_irq_event_request *event;
 	int irq;
@@ -633,7 +633,7 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 	if (!ggc)
 		return -ENOMEM;
 	ggc->connection = connection;
-	connection->private = ggc;
+	gb_connection_set_data(connection, ggc);
 
 	ret = gb_gpio_controller_setup(ggc);
 	if (ret)
@@ -700,7 +700,7 @@ err_free_controller:
 
 static void gb_gpio_connection_exit(struct gb_connection *connection)
 {
-	struct gb_gpio_controller *ggc = connection->private;
+	struct gb_gpio_controller *ggc = gb_connection_get_data(connection);
 
 	if (!ggc)
 		return;

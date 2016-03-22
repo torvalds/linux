@@ -201,15 +201,14 @@ static int _gb_sdio_process_events(struct gb_sdio_host *host, u8 event)
 
 static int gb_sdio_event_recv(u8 type, struct gb_operation *op)
 {
-	struct gb_connection *connection = op->connection;
-	struct gb_sdio_host *host = connection->private;
+	struct gb_sdio_host *host = gb_connection_get_data(op->connection);
 	struct gb_message *request;
 	struct gb_sdio_event_request *payload;
 	int ret =  0;
 	u8 event;
 
 	if (type != GB_SDIO_TYPE_EVENT) {
-		dev_err(&connection->bundle->dev,
+		dev_err(mmc_dev(host->mmc),
 			"unsupported unsolicited event: %u\n", type);
 		return -EINVAL;
 	}
@@ -723,7 +722,7 @@ static int gb_sdio_connection_init(struct gb_connection *connection)
 	host->removed = true;
 
 	host->connection = connection;
-	connection->private = host;
+	gb_connection_set_data(connection, host);
 
 	ret = gb_sdio_get_caps(host);
 	if (ret < 0)
@@ -767,7 +766,7 @@ free_work:
 free_buffer:
 	kfree(host->xfer_buffer);
 free_mmc:
-	connection->private = NULL;
+	gb_connection_set_data(connection, NULL);
 	mmc_free_host(mmc);
 
 	return ret;
@@ -776,7 +775,7 @@ free_mmc:
 static void gb_sdio_connection_exit(struct gb_connection *connection)
 {
 	struct mmc_host *mmc;
-	struct gb_sdio_host *host = connection->private;
+	struct gb_sdio_host *host = gb_connection_get_data(connection);
 
 	if (!host)
 		return;
@@ -784,7 +783,7 @@ static void gb_sdio_connection_exit(struct gb_connection *connection)
 	mutex_lock(&host->lock);
 	host->removed = true;
 	mmc = host->mmc;
-	connection->private = NULL;
+	gb_connection_set_data(connection, NULL);
 	mutex_unlock(&host->lock);
 
 	flush_workqueue(host->mrq_workqueue);

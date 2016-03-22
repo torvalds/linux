@@ -397,7 +397,7 @@ EXPORT_SYMBOL_GPL(gb_svc_ping);
 static int gb_svc_version_request(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
-	struct gb_svc *svc = connection->private;
+	struct gb_svc *svc = gb_connection_get_data(connection);
 	struct gb_protocol_version_request *request;
 	struct gb_protocol_version_response *response;
 
@@ -432,7 +432,7 @@ static int gb_svc_version_request(struct gb_operation *op)
 static int gb_svc_hello(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
-	struct gb_svc *svc = connection->private;
+	struct gb_svc *svc = gb_connection_get_data(connection);
 	struct gb_svc_hello_request *hello_request;
 	int ret;
 
@@ -550,7 +550,7 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 {
 	struct gb_svc_intf_hotplug_request *request;
 	struct gb_connection *connection = operation->connection;
-	struct gb_svc *svc = connection->private;
+	struct gb_svc *svc = gb_connection_get_data(connection);
 	struct gb_host_device *hd = connection->hd;
 	struct gb_interface *intf;
 	u8 intf_id;
@@ -644,7 +644,7 @@ out_interface_add:
 
 static void gb_svc_process_intf_hot_unplug(struct gb_operation *operation)
 {
-	struct gb_svc *svc = operation->connection->private;
+	struct gb_svc *svc = gb_connection_get_data(operation->connection);
 	struct gb_svc_intf_hot_unplug_request *request;
 	struct gb_host_device *hd = operation->connection->hd;
 	struct gb_interface *intf;
@@ -675,7 +675,7 @@ static void gb_svc_process_deferred_request(struct work_struct *work)
 
 	dr = container_of(work, struct gb_svc_deferred_request, work);
 	operation = dr->operation;
-	svc = operation->connection->private;
+	svc = gb_connection_get_data(operation->connection);
 	type = operation->request->header->type;
 
 	switch (type) {
@@ -695,7 +695,7 @@ static void gb_svc_process_deferred_request(struct work_struct *work)
 
 static int gb_svc_queue_deferred_request(struct gb_operation *operation)
 {
-	struct gb_svc *svc = operation->connection->private;
+	struct gb_svc *svc = gb_connection_get_data(operation->connection);
 	struct gb_svc_deferred_request *dr;
 
 	dr = kmalloc(sizeof(*dr), GFP_KERNEL);
@@ -723,7 +723,7 @@ static int gb_svc_queue_deferred_request(struct gb_operation *operation)
  */
 static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 {
-	struct gb_svc *svc = op->connection->private;
+	struct gb_svc *svc = gb_connection_get_data(op->connection);
 	struct gb_svc_intf_hotplug_request *request;
 
 	if (op->request->payload_size < sizeof(*request)) {
@@ -741,7 +741,7 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 
 static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 {
-	struct gb_svc *svc = op->connection->private;
+	struct gb_svc *svc = gb_connection_get_data(op->connection);
 	struct gb_svc_intf_hot_unplug_request *request;
 
 	if (op->request->payload_size < sizeof(*request)) {
@@ -759,7 +759,7 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 
 static int gb_svc_intf_reset_recv(struct gb_operation *op)
 {
-	struct gb_svc *svc = op->connection->private;
+	struct gb_svc *svc = gb_connection_get_data(op->connection);
 	struct gb_message *request = op->request;
 	struct gb_svc_intf_reset_request *reset;
 	u8 intf_id;
@@ -794,7 +794,7 @@ static int gb_svc_key_code_map(struct gb_svc *svc, u16 key_code, u16 *code)
 
 static int gb_svc_key_event_recv(struct gb_operation *op)
 {
-	struct gb_svc *svc = op->connection->private;
+	struct gb_svc *svc = gb_connection_get_data(op->connection);
 	struct gb_message *request = op->request;
 	struct gb_svc_key_event_request *key;
 	u16 code;
@@ -828,7 +828,7 @@ static int gb_svc_key_event_recv(struct gb_operation *op)
 static int gb_svc_request_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
-	struct gb_svc *svc = connection->private;
+	struct gb_svc *svc = gb_connection_get_data(connection);
 	u8 type = op->type;
 	int ret = 0;
 
@@ -975,7 +975,7 @@ struct gb_svc *gb_svc_create(struct gb_host_device *hd)
 		goto err_free_input;
 	}
 
-	svc->connection->private = svc;
+	gb_connection_set_data(svc->connection, svc);
 
 	return svc;
 

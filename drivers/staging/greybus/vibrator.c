@@ -114,7 +114,7 @@ static int gb_vibrator_probe(struct gb_bundle *bundle,
 		retval = PTR_ERR(connection);
 		goto err_free_vib;
 	}
-	connection->private = vib;
+	gb_connection_set_data(connection, vib);
 
 	vib->connection = connection;
 

@@ -176,7 +176,7 @@ static int gb_usb_connection_init(struct gb_connection *connection)
 
 	gb_usb_dev = to_gb_usb_device(hcd);
 	gb_usb_dev->connection = connection;
-	connection->private = gb_usb_dev;
+	gb_connection_set_data(connection, gb_usb_dev);
 
 	hcd->has_tt = 1;
 
@@ -206,7 +206,7 @@ err_put_hcd:
 
 static void gb_usb_connection_exit(struct gb_connection *connection)
 {
-	struct gb_usb_device *gb_usb_dev = connection->private;
+	struct gb_usb_device *gb_usb_dev = gb_connection_get_data(connection);
 	struct usb_hcd *hcd = gb_usb_device_to_hcd(gb_usb_dev);
 
 	usb_remove_hcd(hcd);

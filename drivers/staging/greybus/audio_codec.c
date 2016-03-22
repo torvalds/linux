@@ -675,7 +675,7 @@ static int gb_audio_add_mgmt_connection(struct gbaudio_codec_info *gbcodec,
 	if (IS_ERR(connection))
 		return PTR_ERR(connection);
 
-	connection->private = gbcodec;
+	gb_connection_set_data(connection, gbcodec);
 	gbcodec->mgmt_connection = connection;
 
 	return 0;
@@ -703,7 +703,7 @@ static int gb_audio_add_data_connection(struct gbaudio_codec_info *gbcodec,
 		return PTR_ERR(connection);
 	}
 
-	connection->private = gbcodec;
+	gb_connection_set_data(connection, gbcodec);
 	atomic_set(&dai->users, 0);
 	init_waitqueue_head(&dai->wait_queue);
 	dai->data_cport = connection->intf_cport_id;

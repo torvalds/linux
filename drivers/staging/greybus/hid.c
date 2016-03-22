@@ -100,7 +100,7 @@ static int gb_hid_set_report(struct gb_hid *ghid, u8 report_type, u8 report_id,
 static int gb_hid_request_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
-	struct gb_hid *ghid = connection->private;
+	struct gb_hid *ghid = gb_connection_get_data(connection);
 	struct gb_hid_input_report_request *request = op->request->payload;
 
 	if (op->type != GB_HID_TYPE_IRQ_EVENT) {
@@ -449,7 +449,7 @@ static int gb_hid_probe(struct gb_bundle *bundle,
 		goto err_free_ghid;
 	}
 
-	connection->private = ghid;
+	gb_connection_set_data(connection, ghid);
 	ghid->connection = connection;
 
 	hid = hid_allocate_device();

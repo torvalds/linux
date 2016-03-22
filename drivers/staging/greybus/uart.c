@@ -69,7 +69,7 @@ static atomic_t reference_count = ATOMIC_INIT(0);
 static int gb_uart_receive_data_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
-	struct gb_tty *gb_tty = connection->private;
+	struct gb_tty *gb_tty = gb_connection_get_data(connection);
 	struct tty_port *port = &gb_tty->port;
 	struct gb_message *request = op->request;
 	struct gb_uart_recv_data_request *receive_data;
@@ -125,7 +125,7 @@ static int gb_uart_receive_data_handler(struct gb_operation *op)
 static int gb_uart_serial_state_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
-	struct gb_tty *gb_tty = connection->private;
+	struct gb_tty *gb_tty = gb_connection_get_data(connection);
 	struct gb_message *request = op->request;
 	struct gb_uart_serial_state_request *serial_state;
 
@@ -658,7 +658,7 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	}
 
 	gb_tty->connection = connection;
-	connection->private = gb_tty;
+	gb_connection_set_data(connection, gb_tty);
 
 	minor = alloc_minor(gb_tty);
 	if (minor < 0) {
@@ -702,7 +702,7 @@ error:
 	tty_port_destroy(&gb_tty->port);
 	release_minor(gb_tty);
 error_minor:
-	connection->private = NULL;
+	gb_connection_set_data(connection, NULL);
 	kfree(gb_tty->buffer);
 error_payload:
 	kfree(gb_tty);
@@ -714,7 +714,7 @@ error_alloc:
 
 static void gb_uart_connection_exit(struct gb_connection *connection)
 {
-	struct gb_tty *gb_tty = connection->private;
+	struct gb_tty *gb_tty = gb_connection_get_data(connection);
 	struct tty_struct *tty;
 
 	if (!gb_tty)
@@ -724,7 +724,7 @@ static void gb_uart_connection_exit(struct gb_connection *connection)
 	gb_tty->disconnected = true;
 
 	wake_up_all(&gb_tty->wioctl);
-	connection->private = NULL;
+	gb_connection_set_data(connection, NULL);
 	mutex_unlock(&gb_tty->mutex);
 
 	tty = tty_port_tty_get(&gb_tty->port);

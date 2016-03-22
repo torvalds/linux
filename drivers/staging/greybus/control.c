@@ -195,7 +195,7 @@ struct gb_control *gb_control_create(struct gb_interface *intf)
 		return NULL;
 	}
 
-	control->connection->private = control;
+	gb_connection_set_data(control->connection, control);
 
 	return control;
 }

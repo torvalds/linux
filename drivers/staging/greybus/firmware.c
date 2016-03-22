@@ -115,11 +115,10 @@ static int download_firmware(struct gb_firmware *firmware, u8 stage)
 
 static int gb_firmware_size_request(struct gb_operation *op)
 {
-	struct gb_connection *connection = op->connection;
-	struct gb_firmware *firmware = connection->private;
+	struct gb_firmware *firmware = gb_connection_get_data(op->connection);
 	struct gb_firmware_size_request *size_request = op->request->payload;
 	struct gb_firmware_size_response *size_response;
-	struct device *dev = &connection->bundle->dev;
+	struct device *dev = &op->connection->bundle->dev;
 	int ret;
 
 	if (op->request->payload_size != sizeof(*size_request)) {
@@ -153,12 +152,11 @@ static int gb_firmware_size_request(struct gb_operation *op)
 
 static int gb_firmware_get_firmware(struct gb_operation *op)
 {
-	struct gb_connection *connection = op->connection;
-	struct gb_firmware *firmware = connection->private;
+	struct gb_firmware *firmware = gb_connection_get_data(op->connection);
 	const struct firmware *fw = firmware->fw;
 	struct gb_firmware_get_firmware_request *firmware_request;
 	struct gb_firmware_get_firmware_response *firmware_response;
-	struct device *dev = &connection->bundle->dev;
+	struct device *dev = &op->connection->bundle->dev;
 	unsigned int offset, size;
 
 	if (op->request->payload_size != sizeof(*firmware_request)) {
@@ -309,7 +307,7 @@ static int gb_firmware_probe(struct gb_bundle *bundle,
 		goto err_free_firmware;
 	}
 
-	connection->private = firmware;
+	gb_connection_set_data(connection, firmware);
 
 	firmware->connection = connection;
 

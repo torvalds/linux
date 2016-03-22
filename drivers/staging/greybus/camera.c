@@ -374,7 +374,7 @@ static int gb_camera_flush(struct gb_camera *gcam, u32 *request_id)
 
 static int gb_camera_event_recv(u8 type, struct gb_operation *op)
 {
-	struct gb_camera *gcam = op->connection->private;
+	struct gb_camera *gcam = gb_connection_get_data(op->connection);
 	struct gb_camera_metadata_request *payload;
 	struct gb_message *request;
 
@@ -904,7 +904,7 @@ static int gb_camera_connection_init(struct gb_connection *connection)
 		return -ENOMEM;
 
 	gcam->connection = connection;
-	connection->private = gcam;
+	gb_connection_set_data(connection, gcam);
 
 	/*
 	 * Create the data connection between camera module CDSI0 and APB CDS1.
@@ -936,7 +936,7 @@ error:
 
 static void gb_camera_connection_exit(struct gb_connection *connection)
 {
-	struct gb_camera *gcam = connection->private;
+	struct gb_camera *gcam = gb_connection_get_data(connection);
 
 	gb_camera_unregister_intf_ops(gcam);
 

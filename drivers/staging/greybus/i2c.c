@@ -251,7 +251,7 @@ static int gb_i2c_connection_init(struct gb_connection *connection)
 		return -ENOMEM;
 
 	gb_i2c_dev->connection = connection;	/* refcount? */
-	connection->private = gb_i2c_dev;
+	gb_connection_set_data(connection, gb_i2c_dev);
 
 	ret = gb_i2c_device_setup(gb_i2c_dev);
 	if (ret)
@@ -282,7 +282,7 @@ out_err:
 
 static void gb_i2c_connection_exit(struct gb_connection *connection)
 {
-	struct gb_i2c_device *gb_i2c_dev = connection->private;
+	struct gb_i2c_device *gb_i2c_dev = gb_connection_get_data(connection);
 
 	i2c_del_adapter(&gb_i2c_dev->adapter);
 	/* kref_put(gb_i2c_dev->connection) */
