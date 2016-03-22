@@ -48,8 +48,7 @@ enum ni_660x_constants {
 };
 
 #define NUM_PFI_CHANNELS 40
-/* really there are only up to 3 dma channels, but the register layout allows
-for 4 */
+/* there are only up to 3 dma channels, but the register layout allows for 4 */
 #define MAX_DMA_CHANNEL 4
 
 /* See Register-Level Programmer Manual page 3.1 */
@@ -985,8 +984,11 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = ni_660x_dio_insn_bits;
 	s->insn_config = ni_660x_dio_insn_config;
-	/*  we use the ioconfig registers to control dio direction, so zero
-	output enables in stc dio control reg */
+
+	/*
+	 * We use the ioconfig registers to control dio direction, so zero
+	 * output enables in stc dio control reg.
+	 */
 	ni_660x_write(dev, 0, 0, NI660X_STC_DIO_CONTROL);
 
 	devpriv->counter_dev = ni_gpct_device_construct(dev,
@@ -1040,8 +1042,11 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 						NI660X_IO_CFG_OUT_SEL_COUNTER);
 		ni_660x_select_pfi_output(dev, i, NI660X_IO_CFG_OUT_SEL_HIGH_Z);
 	}
-	/* to be safe, set counterswap bits on tio chips after all the counter
-	   outputs have been set to high impedance mode */
+
+	/*
+	 * To be safe, set counterswap bits on tio chips after all the counter
+	 * outputs have been set to high impedance mode.
+	 */
 	for (i = 0; i < board->n_chips; ++i)
 		set_tio_counterswap(dev, i);
 
