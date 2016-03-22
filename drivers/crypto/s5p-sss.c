@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -284,7 +283,7 @@ static int s5p_set_outdata(struct s5p_aes_dev *dev, struct scatterlist *sg)
 	dev->sg_dst = sg;
 	err = 0;
 
- exit:
+exit:
 	return err;
 }
 
@@ -310,7 +309,7 @@ static int s5p_set_indata(struct s5p_aes_dev *dev, struct scatterlist *sg)
 	dev->sg_src = sg;
 	err = 0;
 
- exit:
+exit:
 	return err;
 }
 
@@ -452,10 +451,10 @@ static void s5p_aes_crypt_start(struct s5p_aes_dev *dev, unsigned long mode)
 
 	return;
 
- outdata_error:
+outdata_error:
 	s5p_unset_indata(dev);
 
- indata_error:
+indata_error:
 	s5p_aes_complete(dev, err);
 	spin_unlock_irqrestore(&dev->lock, flags);
 }
@@ -506,7 +505,7 @@ static int s5p_aes_handle_req(struct s5p_aes_dev *dev,
 
 	tasklet_schedule(&dev->tasklet);
 
- exit:
+exit:
 	return err;
 }
 
@@ -705,7 +704,7 @@ static int s5p_aes_probe(struct platform_device *pdev)
 
 	return 0;
 
- err_algs:
+err_algs:
 	dev_err(dev, "can't register '%s': %d\n", algs[i].cra_name, err);
 
 	for (j = 0; j < i; j++)
@@ -713,7 +712,7 @@ static int s5p_aes_probe(struct platform_device *pdev)
 
 	tasklet_kill(&pdata->tasklet);
 
- err_irq:
+err_irq:
 	clk_disable_unprepare(pdata->clk);
 
 	s5p_dev = NULL;
