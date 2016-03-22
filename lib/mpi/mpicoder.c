@@ -418,15 +418,15 @@ EXPORT_SYMBOL_GPL(mpi_write_to_sgl);
  * a new MPI and reads the content of the sgl to the MPI.
  *
  * @sgl:	scatterlist to read from
- * @len:	number of bytes to read
+ * @nbytes:	number of bytes to read
  *
  * Return:	Pointer to a new MPI or NULL on error
  */
-MPI mpi_read_raw_from_sgl(struct scatterlist *sgl, unsigned int len)
+MPI mpi_read_raw_from_sgl(struct scatterlist *sgl, unsigned int nbytes)
 {
 	struct scatterlist *sg;
 	int x, i, j, z, lzeros, ents;
-	unsigned int nbits, nlimbs, nbytes;
+	unsigned int nbits, nlimbs;
 	mpi_limb_t a;
 	MPI val = NULL;
 
@@ -455,7 +455,7 @@ MPI mpi_read_raw_from_sgl(struct scatterlist *sgl, unsigned int len)
 	if (!ents)
 		nbytes = 0;
 	else
-		nbytes = len - lzeros;
+		nbytes -= lzeros;
 
 	nbits = nbytes * 8;
 	if (nbits > MAX_EXTERN_MPI_BITS) {
