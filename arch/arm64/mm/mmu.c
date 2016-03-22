@@ -211,8 +211,7 @@ static void alloc_init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 		if (((addr | next | phys) & ~SECTION_MASK) == 0 &&
 		      block_mappings_allowed(pgtable_alloc)) {
 			pmd_t old_pmd =*pmd;
-			set_pmd(pmd, __pmd(phys |
-					   pgprot_val(mk_sect_prot(prot))));
+			pmd_set_huge(pmd, phys, prot);
 			/*
 			 * Check for previous table entries created during
 			 * boot (__create_page_tables) and flush them.
@@ -272,8 +271,7 @@ static void alloc_init_pud(pgd_t *pgd, unsigned long addr, unsigned long end,
 		if (use_1G_block(addr, next, phys) &&
 		    block_mappings_allowed(pgtable_alloc)) {
 			pud_t old_pud = *pud;
-			set_pud(pud, __pud(phys |
-					   pgprot_val(mk_sect_prot(prot))));
+			pud_set_huge(pud, phys, prot);
 
 			/*
 			 * If we have an old value for a pud, it will
