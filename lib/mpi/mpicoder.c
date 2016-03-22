@@ -484,9 +484,6 @@ MPI mpi_read_raw_from_sgl(struct scatterlist *sgl, unsigned int nbytes)
 		const u8 *buffer = sg_virt(sg) + lzeros;
 		int len = sg->length - lzeros;
 
-		if  (sg_is_last(sg) && (len % BYTES_PER_MPI_LIMB))
-			len += BYTES_PER_MPI_LIMB - (len % BYTES_PER_MPI_LIMB);
-
 		for (x = 0; x < len; x++) {
 			a <<= 8;
 			a |= *buffer++;
