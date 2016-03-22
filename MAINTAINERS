@@ -5270,6 +5270,16 @@ F:	include/linux/hyperv.h
 F:	tools/hv/
 F:	Documentation/ABI/stable/sysfs-bus-vmbus
 
+I2C MUXES
+M:	Peter Rosin <peda@axentia.se>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	Documentation/i2c/muxes/
+F:	Documentation/devicetree/bindings/i2c/i2c-mux*
+F:	drivers/i2c/i2c-mux.c
+F:	drivers/i2c/muxes/
+F:	include/linux/i2c-mux.h
+
 I2C OVER PARALLEL PORT
 M:	Jean Delvare <jdelvare@suse.com>
 L:	linux-i2c@vger.kernel.org
@@ -9676,9 +9686,9 @@ F: Documentation/devicetree/bindings/net/snps,dwc-qos-ethernet.txt
 F: drivers/net/ethernet/synopsys/dwc_eth_qos.c
 
 SYNOPSYS DESIGNWARE I2C DRIVER
-M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 M:	Jarkko Nikula <jarkko.nikula@linux.intel.com>
-M:	Mika Westerberg <mika.westerberg@linux.intel.com>
+R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+R:	Mika Westerberg <mika.westerberg@linux.intel.com>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/busses/i2c-designware-*
