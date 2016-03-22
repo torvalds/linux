@@ -202,9 +202,9 @@ struct dgnc_board {
 						 * to our channels.
 						 */
 
-	struct tty_driver	SerialDriver;
+	struct tty_driver serial_driver;
 	char		SerialName[200];
-	struct tty_driver	PrintDriver;
+	struct tty_driver print_driver;
 	char		PrintName[200];
 
 	bool		dgnc_Major_Serial_Registered;
