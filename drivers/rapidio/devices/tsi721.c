@@ -2288,6 +2288,39 @@ static int tsi721_messages_init(struct tsi721_device *priv)
 }
 
 /**
+ * tsi721_query_mport - Fetch inbound message from the Tsi721 MSG Queue
+ * @mport: Master port implementing the Inbound Messaging Engine
+ * @mbox: Inbound mailbox number
+ *
+ * Returns pointer to the message on success or NULL on failure.
+ */
+static int tsi721_query_mport(struct rio_mport *mport,
+			      struct rio_mport_attr *attr)
+{
+	struct tsi721_device *priv = mport->priv;
+	u32 rval;
+
+	rval = ioread32(priv->regs + (0x100 + RIO_PORT_N_ERR_STS_CSR(0)));
+	if (rval & RIO_PORT_N_ERR_STS_PORT_OK) {
+		rval = ioread32(priv->regs + (0x100 + RIO_PORT_N_CTL2_CSR(0)));
+		attr->link_speed = (rval & RIO_PORT_N_CTL2_SEL_BAUD) >> 28;
+		rval = ioread32(priv->regs + (0x100 + RIO_PORT_N_CTL_CSR(0)));
+		attr->link_width = (rval & RIO_PORT_N_CTL_IPW) >> 27;
+	} else
+		attr->link_speed = RIO_LINK_DOWN;
+
+#ifdef CONFIG_RAPIDIO_DMA_ENGINE
+	attr->flags = RIO_MPORT_DMA | RIO_MPORT_DMA_SG;
+	attr->dma_max_sge = 0;
+	attr->dma_max_size = TSI721_BDMA_MAX_BCOUNT;
+	attr->dma_align = 0;
+#else
+	attr->flags = 0;
+#endif
+	return 0;
+}
+
+/**
  * tsi721_disable_ints - disables all device interrupts
  * @priv: pointer to tsi721 private data
  */
@@ -2372,6 +2405,7 @@ static int tsi721_setup_mport(struct tsi721_device *priv)
 	ops->get_inb_message = tsi721_get_inb_message;
 	ops->map_inb = tsi721_rio_map_inb_mem;
 	ops->unmap_inb = tsi721_rio_unmap_inb_mem;
+	ops->query_mport = tsi721_query_mport;
 
 	mport = kzalloc(sizeof(struct rio_mport), GFP_KERNEL);
 	if (!mport) {
