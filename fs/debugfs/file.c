@@ -23,8 +23,11 @@
 #include <linux/atomic.h>
 #include <linux/device.h>
 #include <linux/srcu.h>
+#include <asm/poll.h>
 
 #include "internal.h"
+
+struct poll_table_struct;
 
 static ssize_t default_read_file(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
@@ -66,7 +69,7 @@ const struct file_operations debugfs_noop_file_operations = {
  * debugfs_use_file_start() must be followed by a matching call
  * to debugfs_use_file_finish().
  */
-static int debugfs_use_file_start(const struct dentry *dentry, int *srcu_idx)
+int debugfs_use_file_start(const struct dentry *dentry, int *srcu_idx)
 	__acquires(&debugfs_srcu)
 {
 	*srcu_idx = srcu_read_lock(&debugfs_srcu);
@@ -75,6 +78,7 @@ static int debugfs_use_file_start(const struct dentry *dentry, int *srcu_idx)
 		return -EIO;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(debugfs_use_file_start);
 
 /**
  * debugfs_use_file_finish - mark the end of file data access
@@ -85,10 +89,11 @@ static int debugfs_use_file_start(const struct dentry *dentry, int *srcu_idx)
  * debugfs_remove_recursive() blocked by a former call to
  * debugfs_use_file_start() to proceed and return to its caller.
  */
-static void debugfs_use_file_finish(int srcu_idx) __releases(&debugfs_srcu)
+void debugfs_use_file_finish(int srcu_idx) __releases(&debugfs_srcu)
 {
 	srcu_read_unlock(&debugfs_srcu, srcu_idx);
 }
+EXPORT_SYMBOL_GPL(debugfs_use_file_finish);
 
 #define F_DENTRY(filp) ((filp)->f_path.dentry)
 
@@ -129,6 +134,154 @@ out:
 
 const struct file_operations debugfs_open_proxy_file_operations = {
 	.open = open_proxy_open,
+};
+
+#define PROTO(args...) args
+#define ARGS(args...) args
+
+#define FULL_PROXY_FUNC(name, ret_type, filp, proto, args)		\
+static ret_type full_proxy_ ## name(proto)				\
+{									\
+	const struct dentry *dentry = F_DENTRY(filp);			\
+	const struct file_operations *real_fops =			\
+		REAL_FOPS_DEREF(dentry);				\
+	int srcu_idx;							\
+	ret_type r;							\
+									\
+	r = debugfs_use_file_start(dentry, &srcu_idx);			\
+	if (likely(!r))						\
+		r = real_fops->name(args);				\
+	debugfs_use_file_finish(srcu_idx);				\
+	return r;							\
+}
+
+FULL_PROXY_FUNC(llseek, loff_t, filp,
+		PROTO(struct file *filp, loff_t offset, int whence),
+		ARGS(filp, offset, whence));
+
+FULL_PROXY_FUNC(read, ssize_t, filp,
+		PROTO(struct file *filp, char __user *buf, size_t size,
+			loff_t *ppos),
+		ARGS(filp, buf, size, ppos));
+
+FULL_PROXY_FUNC(write, ssize_t, filp,
+		PROTO(struct file *filp, const char __user *buf, size_t size,
+			loff_t *ppos),
+		ARGS(filp, buf, size, ppos));
+
+FULL_PROXY_FUNC(unlocked_ioctl, long, filp,
+		PROTO(struct file *filp, unsigned int cmd, unsigned long arg),
+		ARGS(filp, cmd, arg));
+
+static unsigned int full_proxy_poll(struct file *filp,
+				struct poll_table_struct *wait)
+{
+	const struct dentry *dentry = F_DENTRY(filp);
+	const struct file_operations *real_fops = REAL_FOPS_DEREF(dentry);
+	int srcu_idx;
+	unsigned int r = 0;
+
+	if (debugfs_use_file_start(dentry, &srcu_idx)) {
+		debugfs_use_file_finish(srcu_idx);
+		return POLLHUP;
+	}
+
+	r = real_fops->poll(filp, wait);
+	debugfs_use_file_finish(srcu_idx);
+	return r;
+}
+
+static int full_proxy_release(struct inode *inode, struct file *filp)
+{
+	const struct dentry *dentry = F_DENTRY(filp);
+	const struct file_operations *real_fops = REAL_FOPS_DEREF(dentry);
+	const struct file_operations *proxy_fops = filp->f_op;
+	int r = 0;
+
+	/*
+	 * We must not protect this against removal races here: the
+	 * original releaser should be called unconditionally in order
+	 * not to leak any resources. Releasers must not assume that
+	 * ->i_private is still being meaningful here.
+	 */
+	if (real_fops->release)
+		r = real_fops->release(inode, filp);
+
+	replace_fops(filp, d_inode(dentry)->i_fop);
+	kfree((void *)proxy_fops);
+	fops_put(real_fops);
+	return 0;
+}
+
+static void __full_proxy_fops_init(struct file_operations *proxy_fops,
+				const struct file_operations *real_fops)
+{
+	proxy_fops->release = full_proxy_release;
+	if (real_fops->llseek)
+		proxy_fops->llseek = full_proxy_llseek;
+	if (real_fops->read)
+		proxy_fops->read = full_proxy_read;
+	if (real_fops->write)
+		proxy_fops->write = full_proxy_write;
+	if (real_fops->poll)
+		proxy_fops->poll = full_proxy_poll;
+	if (real_fops->unlocked_ioctl)
+		proxy_fops->unlocked_ioctl = full_proxy_unlocked_ioctl;
+}
+
+static int full_proxy_open(struct inode *inode, struct file *filp)
+{
+	const struct dentry *dentry = F_DENTRY(filp);
+	const struct file_operations *real_fops = NULL;
+	struct file_operations *proxy_fops = NULL;
+	int srcu_idx, r;
+
+	r = debugfs_use_file_start(dentry, &srcu_idx);
+	if (r) {
+		r = -ENOENT;
+		goto out;
+	}
+
+	real_fops = REAL_FOPS_DEREF(dentry);
+	real_fops = fops_get(real_fops);
+	if (!real_fops) {
+		/* Huh? Module did not cleanup after itself at exit? */
+		WARN(1, "debugfs file owner did not clean up at exit: %pd",
+			dentry);
+		r = -ENXIO;
+		goto out;
+	}
+
+	proxy_fops = kzalloc(sizeof(*proxy_fops), GFP_KERNEL);
+	if (!proxy_fops) {
+		r = -ENOMEM;
+		goto free_proxy;
+	}
+	__full_proxy_fops_init(proxy_fops, real_fops);
+	replace_fops(filp, proxy_fops);
+
+	if (real_fops->open) {
+		r = real_fops->open(inode, filp);
+
+		if (filp->f_op != proxy_fops) {
+			/* No protection against file removal anymore. */
+			WARN(1, "debugfs file owner replaced proxy fops: %pd",
+				dentry);
+			goto free_proxy;
+		}
+	}
+
+	goto out;
+free_proxy:
+	kfree(proxy_fops);
+	fops_put(real_fops);
+out:
+	debugfs_use_file_finish(srcu_idx);
+	return r;
+}
+
+const struct file_operations debugfs_full_proxy_file_operations = {
+	.open = full_proxy_open,
 };
 
 static struct dentry *debugfs_create_mode(const char *name, umode_t mode,

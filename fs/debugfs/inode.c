@@ -300,6 +300,37 @@ static struct dentry *end_creating(struct dentry *dentry)
 	return dentry;
 }
 
+static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
+				struct dentry *parent, void *data,
+				const struct file_operations *proxy_fops,
+				const struct file_operations *real_fops)
+{
+	struct dentry *dentry;
+	struct inode *inode;
+
+	if (!(mode & S_IFMT))
+		mode |= S_IFREG;
+	BUG_ON(!S_ISREG(mode));
+	dentry = start_creating(name, parent);
+
+	if (IS_ERR(dentry))
+		return NULL;
+
+	inode = debugfs_get_inode(dentry->d_sb);
+	if (unlikely(!inode))
+		return failed_creating(dentry);
+
+	inode->i_mode = mode;
+	inode->i_private = data;
+
+	inode->i_fop = proxy_fops;
+	dentry->d_fsdata = (void *)real_fops;
+
+	d_instantiate(dentry, inode);
+	fsnotify_create(d_inode(dentry->d_parent), dentry);
+	return end_creating(dentry);
+}
+
 /**
  * debugfs_create_file - create a file in the debugfs filesystem
  * @name: a pointer to a string containing the name of the file to create.
@@ -330,33 +361,24 @@ struct dentry *debugfs_create_file(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
 				   const struct file_operations *fops)
 {
-	struct dentry *dentry;
-	struct inode *inode;
 
-	if (!(mode & S_IFMT))
-		mode |= S_IFREG;
-	BUG_ON(!S_ISREG(mode));
-	dentry = start_creating(name, parent);
-
-	if (IS_ERR(dentry))
-		return NULL;
-
-	inode = debugfs_get_inode(dentry->d_sb);
-	if (unlikely(!inode))
-		return failed_creating(dentry);
-
-	inode->i_mode = mode;
-	inode->i_private = data;
-
-	inode->i_fop = fops ? &debugfs_open_proxy_file_operations
-		: &debugfs_noop_file_operations;
-	dentry->d_fsdata = (void *)fops;
-
-	d_instantiate(dentry, inode);
-	fsnotify_create(d_inode(dentry->d_parent), dentry);
-	return end_creating(dentry);
+	return __debugfs_create_file(name, mode, parent, data,
+				fops ? &debugfs_full_proxy_file_operations :
+					&debugfs_noop_file_operations,
+				fops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_file);
+
+struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
+				   struct dentry *parent, void *data,
+				   const struct file_operations *fops)
+{
+
+	return __debugfs_create_file(name, mode, parent, data,
+				fops ? &debugfs_open_proxy_file_operations :
+					&debugfs_noop_file_operations,
+				fops);
+}
 
 /**
  * debugfs_create_file_size - create a file in the debugfs filesystem
@@ -579,6 +601,7 @@ void debugfs_remove(struct dentry *dentry)
 	inode_unlock(d_inode(parent));
 	if (!ret)
 		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
+
 	synchronize_srcu(&debugfs_srcu);
 }
 EXPORT_SYMBOL_GPL(debugfs_remove);
@@ -657,6 +680,7 @@ void debugfs_remove_recursive(struct dentry *dentry)
 	if (!__debugfs_remove(child, parent))
 		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
 	inode_unlock(d_inode(parent));
+
 	synchronize_srcu(&debugfs_srcu);
 }
 EXPORT_SYMBOL_GPL(debugfs_remove_recursive);

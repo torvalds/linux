@@ -19,9 +19,11 @@
 #include <linux/seq_file.h>
 
 #include <linux/types.h>
+#include <linux/compiler.h>
 
 struct device;
 struct file_operations;
+struct srcu_struct;
 
 struct debugfs_blob_wrapper {
 	void *data;
@@ -40,6 +42,8 @@ struct debugfs_regset32 {
 };
 
 extern struct dentry *arch_debugfs_dir;
+
+extern struct srcu_struct debugfs_srcu;
 
 #if defined(CONFIG_DEBUG_FS)
 
@@ -64,6 +68,11 @@ struct dentry *debugfs_create_automount(const char *name,
 
 void debugfs_remove(struct dentry *dentry);
 void debugfs_remove_recursive(struct dentry *dentry);
+
+int debugfs_use_file_start(const struct dentry *dentry, int *srcu_idx)
+	__acquires(&debugfs_srcu);
+
+void debugfs_use_file_finish(int srcu_idx) __releases(&debugfs_srcu);
 
 struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
                 struct dentry *new_dir, const char *new_name);
@@ -171,6 +180,17 @@ static inline void debugfs_remove(struct dentry *dentry)
 { }
 
 static inline void debugfs_remove_recursive(struct dentry *dentry)
+{ }
+
+static inline int debugfs_use_file_start(const struct dentry *dentry,
+					int *srcu_idx)
+	__acquires(&debugfs_srcu)
+{
+	return 0;
+}
+
+static inline void debugfs_use_file_finish(int srcu_idx)
+	__releases(&debugfs_srcu)
 { }
 
 static inline struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
