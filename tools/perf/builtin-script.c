@@ -498,7 +498,7 @@ static void print_sample_brstack(union perf_event *event __maybe_unused,
 	}
 }
 
-static void print_sample_brstacksym(union perf_event *event __maybe_unused,
+static void print_sample_brstacksym(union perf_event *event,
 			  struct perf_sample *sample,
 			  struct thread *thread __maybe_unused,
 			  struct perf_event_attr *attr __maybe_unused)

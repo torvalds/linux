@@ -302,7 +302,7 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
  * TODO
 */
 int dso__data_get_fd(struct dso *dso, struct machine *machine);
-void dso__data_put_fd(struct dso *dso __maybe_unused);
+void dso__data_put_fd(struct dso *dso);
 void dso__data_close(struct dso *dso);
 
 off_t dso__data_size(struct dso *dso, struct machine *machine);

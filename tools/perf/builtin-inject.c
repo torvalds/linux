@@ -131,8 +131,7 @@ static int copy_bytes(struct perf_inject *inject, int fd, off_t size)
 
 static s64 perf_event__repipe_auxtrace(struct perf_tool *tool,
 				       union perf_event *event,
-				       struct perf_session *session
-				       __maybe_unused)
+				       struct perf_session *session)
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject,
 						  tool);
