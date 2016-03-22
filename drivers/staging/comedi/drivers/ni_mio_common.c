@@ -5675,8 +5675,6 @@ static void mio_common_detach(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
 
-	if (devpriv) {
-		if (devpriv->counter_dev)
-			ni_gpct_device_destroy(devpriv->counter_dev);
-	}
+	if (devpriv)
+		ni_gpct_device_destroy(devpriv->counter_dev);
 }
