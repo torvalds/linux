@@ -5243,6 +5243,8 @@ static const struct hc_driver xhci_hc_driver = {
 	.enable_usb3_lpm_timeout =	xhci_enable_usb3_lpm_timeout,
 	.disable_usb3_lpm_timeout =	xhci_disable_usb3_lpm_timeout,
 	.find_raw_port_number =	xhci_find_raw_port_number,
+	.sec_event_ring_setup =		xhci_sec_event_ring_setup,
+	.sec_event_ring_cleanup =	xhci_sec_event_ring_cleanup,
 };
 
 void xhci_init_driver(struct hc_driver *drv,

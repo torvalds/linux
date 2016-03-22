@@ -825,6 +825,23 @@ int usb_get_current_frame_number(struct usb_device *dev)
 }
 EXPORT_SYMBOL_GPL(usb_get_current_frame_number);
 
+int usb_sec_event_ring_setup(struct usb_device *dev,
+	unsigned int intr_num)
+{
+	if (dev->state == USB_STATE_NOTATTACHED)
+		return 0;
+
+	return usb_hcd_sec_event_ring_setup(dev, intr_num);
+}
+EXPORT_SYMBOL(usb_sec_event_ring_setup);
+
+int usb_sec_event_ring_cleanup(struct usb_device *dev,
+	unsigned int intr_num)
+{
+	return usb_hcd_sec_event_ring_cleanup(dev, intr_num);
+}
+EXPORT_SYMBOL(usb_sec_event_ring_cleanup);
+
 /**
  * usb_get_controller_id - returns the host controller id.
  * @dev: the device whose host controller id is being queried.
