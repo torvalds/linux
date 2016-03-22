@@ -84,8 +84,10 @@ static const struct comedi_lrange range_labpc_ao = {
 	}
 };
 
-/* functions that do inb/outb and readb/writeb so we can use
- * function pointers to decide which to use */
+/*
+ * functions that do inb/outb and readb/writeb so we can use
+ * function pointers to decide which to use
+ */
 static unsigned int labpc_inb(struct comedi_device *dev, unsigned long reg)
 {
 	return inb(dev->iobase + reg);
@@ -656,19 +658,24 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* figure out what method we will use to transfer data */
 	if (devpriv->dma &&
-	    /* dma unsafe at RT priority,
-	     * and too much setup time for CMDF_WAKE_EOS */
-	    (cmd->flags & (CMDF_WAKE_EOS | CMDF_PRIORITY)) == 0)
+	    (cmd->flags & (CMDF_WAKE_EOS | CMDF_PRIORITY)) == 0) {
+		/*
+		 * dma unsafe at RT priority,
+		 * and too much setup time for CMDF_WAKE_EOS
+		 */
 		xfer = isa_dma_transfer;
-	else if (/* pc-plus has no fifo-half full interrupt */
-		 board->is_labpc1200 &&
-		 /* wake-end-of-scan should interrupt on fifo not empty */
-		 (cmd->flags & CMDF_WAKE_EOS) == 0 &&
-		 /* make sure we are taking more than just a few points */
-		 (cmd->stop_src != TRIG_COUNT || devpriv->count > 256))
+	} else if (board->is_labpc1200 &&
+		   (cmd->flags & CMDF_WAKE_EOS) == 0 &&
+		   (cmd->stop_src != TRIG_COUNT || devpriv->count > 256)) {
+		/*
+		 * pc-plus has no fifo-half full interrupt
+		 * wake-end-of-scan should interrupt on fifo not empty
+		 * make sure we are taking more than just a few points
+		 */
 		xfer = fifo_half_full_transfer;
-	else
+	} else {
 		xfer = fifo_not_empty_transfer;
+	}
 	devpriv->current_transfer = xfer;
 
 	labpc_ai_set_chan_and_gain(dev, mode, chan, range, aref);
@@ -679,9 +686,11 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* manual says to set scan enable bit on second pass */
 	if (mode == MODE_MULT_CHAN_UP || mode == MODE_MULT_CHAN_DOWN) {
 		devpriv->cmd1 |= CMD1_SCANEN;
-		/* need a brief delay before enabling scan, or scan
-		 * list will get screwed when you switch
-		 * between scan up to scan down mode - dunno why */
+		/*
+		 * Need a brief delay before enabling scan, or scan
+		 * list will get screwed when you switch between
+		 * scan up to scan down mode - dunno why.
+		 */
 		udelay(1);
 		devpriv->write_byte(dev, devpriv->cmd1, CMD1_REG);
 	}
@@ -728,8 +737,10 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->cmd4 = 0;
 	if (cmd->convert_src != TRIG_EXT)
 		devpriv->cmd4 |= CMD4_ECLKRCV;
-	/* XXX should discard first scan when using interval scanning
-	 * since manual says it is not synced with scan clock */
+	/*
+	 * XXX should discard first scan when using interval scanning
+	 * since manual says it is not synced with scan clock.
+	 */
 	if (!labpc_use_continuous_mode(cmd, mode)) {
 		devpriv->cmd4 |= CMD4_INTSCAN;
 		if (cmd->scan_begin_src == TRIG_EXT)
@@ -795,8 +806,10 @@ static int labpc_drain_fifo(struct comedi_device *dev)
 	return 0;
 }
 
-/* makes sure all data acquired by board is transferred to comedi (used
- * when acquisition is terminated by stop_src == TRIG_EXT). */
+/*
+ * Makes sure all data acquired by board is transferred to comedi (used
+ * when acquisition is terminated by stop_src == TRIG_EXT).
+ */
 static void labpc_drain_dregs(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
@@ -907,9 +920,11 @@ static int labpc_ao_insn_write(struct comedi_device *dev,
 
 	channel = CR_CHAN(insn->chanspec);
 
-	/* turn off pacing of analog output channel */
-	/* note: hardware bug in daqcard-1200 means pacing cannot
-	 * be independently enabled/disabled for its the two channels */
+	/*
+	 * Turn off pacing of analog output channel.
+	 * NOTE: hardware bug in daqcard-1200 means pacing cannot
+	 * be independently enabled/disabled for its the two channels.
+	 */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->cmd2 &= ~CMD2_LDAC(channel);
 	devpriv->write_byte(dev, devpriv->cmd2, CMD2_REG);
