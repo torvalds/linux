@@ -18,7 +18,7 @@
 /*
  * HIGHMEM API:
  *
- * kmap() API provides sleep semantics hence refered to as "permanent maps"
+ * kmap() API provides sleep semantics hence referred to as "permanent maps"
  * It allows mapping LAST_PKMAP pages, using @last_pkmap_nr as the cursor
  * for book-keeping
  *

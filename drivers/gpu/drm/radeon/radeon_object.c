@@ -214,8 +214,8 @@ int radeon_bo_create(struct radeon_device *rdev,
 	INIT_LIST_HEAD(&bo->list);
 	INIT_LIST_HEAD(&bo->va);
 	bo->initial_domain = domain & (RADEON_GEM_DOMAIN_VRAM |
-	                               RADEON_GEM_DOMAIN_GTT |
-	                               RADEON_GEM_DOMAIN_CPU);
+				       RADEON_GEM_DOMAIN_GTT |
+				       RADEON_GEM_DOMAIN_CPU);
 
 	bo->flags = flags;
 	/* PCI GART is always snooped */
@@ -848,7 +848,7 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
  *
  */
 void radeon_bo_fence(struct radeon_bo *bo, struct radeon_fence *fence,
-                     bool shared)
+		     bool shared)
 {
 	struct reservation_object *resv = bo->tbo.resv;
 

@@ -25,6 +25,7 @@
 #include "btrfs_inode.h"
 #include "extent_io.h"
 #include "disk-io.h"
+#include "compression.h"
 
 static struct kmem_cache *btrfs_ordered_extent_cache;
 
@@ -1009,7 +1010,7 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 	for (; node; node = rb_prev(node)) {
 		test = rb_entry(node, struct btrfs_ordered_extent, rb_node);
 
-		/* We treat this entry as if it doesnt exist */
+		/* We treat this entry as if it doesn't exist */
 		if (test_bit(BTRFS_ORDERED_UPDATED_ISIZE, &test->flags))
 			continue;
 		if (test->file_offset + test->len <= disk_i_size)
@@ -1114,6 +1115,5 @@ int __init ordered_data_init(void)
 
 void ordered_data_exit(void)
 {
-	if (btrfs_ordered_extent_cache)
-		kmem_cache_destroy(btrfs_ordered_extent_cache);
+	kmem_cache_destroy(btrfs_ordered_extent_cache);
 }

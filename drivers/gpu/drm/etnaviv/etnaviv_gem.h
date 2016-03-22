@@ -88,6 +88,12 @@ static inline bool is_active(struct etnaviv_gem_object *etnaviv_obj)
 
 #define MAX_CMDS 4
 
+struct etnaviv_gem_submit_bo {
+	u32 flags;
+	struct etnaviv_gem_object *obj;
+	struct etnaviv_vram_mapping *mapping;
+};
+
 /* Created per submit-ioctl, to track bo's and cmdstream bufs, etc,
  * associated with the cmdstream submission for synchronization (and
  * make it easier to unwind when things go wrong, etc).  This only
@@ -99,11 +105,7 @@ struct etnaviv_gem_submit {
 	struct ww_acquire_ctx ticket;
 	u32 fence;
 	unsigned int nr_bos;
-	struct {
-		u32 flags;
-		struct etnaviv_gem_object *obj;
-		u32 iova;
-	} bos[0];
+	struct etnaviv_gem_submit_bo bos[0];
 };
 
 int etnaviv_gem_wait_bo(struct etnaviv_gpu *gpu, struct drm_gem_object *obj,
@@ -114,5 +116,10 @@ int etnaviv_gem_new_private(struct drm_device *dev, size_t size, u32 flags,
 int etnaviv_gem_obj_add(struct drm_device *dev, struct drm_gem_object *obj);
 struct page **etnaviv_gem_get_pages(struct etnaviv_gem_object *obj);
 void etnaviv_gem_put_pages(struct etnaviv_gem_object *obj);
+
+struct etnaviv_vram_mapping *etnaviv_gem_mapping_get(
+	struct drm_gem_object *obj, struct etnaviv_gpu *gpu);
+void etnaviv_gem_mapping_reference(struct etnaviv_vram_mapping *mapping);
+void etnaviv_gem_mapping_unreference(struct etnaviv_vram_mapping *mapping);
 
 #endif /* __ETNAVIV_GEM_H__ */

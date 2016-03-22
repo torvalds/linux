@@ -257,17 +257,15 @@ Access to a dma_buf from the kernel context involves three steps:
 
    Interface:
       int dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
-				   size_t start, size_t len,
 				   enum dma_data_direction direction)
 
    This allows the exporter to ensure that the memory is actually available for
    cpu access - the exporter might need to allocate or swap-in and pin the
    backing storage. The exporter also needs to ensure that cpu access is
-   coherent for the given range and access direction. The range and access
-   direction can be used by the exporter to optimize the cache flushing, i.e.
-   access outside of the range or with a different direction (read instead of
-   write) might return stale or even bogus data (e.g. when the exporter needs to
-   copy the data to temporary storage).
+   coherent for the access direction. The direction can be used by the exporter
+   to optimize the cache flushing, i.e. access with a different direction (read
+   instead of write) might return stale or even bogus data (e.g. when the
+   exporter needs to copy the data to temporary storage).
 
    This step might fail, e.g. in oom conditions.
 
@@ -322,14 +320,13 @@ Access to a dma_buf from the kernel context involves three steps:
 
 3. Finish access
 
-   When the importer is done accessing the range specified in begin_cpu_access,
-   it needs to announce this to the exporter (to facilitate cache flushing and
-   unpinning of any pinned resources). The result of any dma_buf kmap calls
-   after end_cpu_access is undefined.
+   When the importer is done accessing the CPU, it needs to announce this to
+   the exporter (to facilitate cache flushing and unpinning of any pinned
+   resources). The result of any dma_buf kmap calls after end_cpu_access is
+   undefined.
 
    Interface:
       void dma_buf_end_cpu_access(struct dma_buf *dma_buf,
-				  size_t start, size_t len,
 				  enum dma_data_direction dir);
 
 
@@ -353,7 +350,26 @@ Being able to mmap an export dma-buf buffer object has 2 main use-cases:
    handles, too). So it's beneficial to support this in a similar fashion on
    dma-buf to have a good transition path for existing Android userspace.
 
-   No special interfaces, userspace simply calls mmap on the dma-buf fd.
+   No special interfaces, userspace simply calls mmap on the dma-buf fd, making
+   sure that the cache synchronization ioctl (DMA_BUF_IOCTL_SYNC) is *always*
+   used when the access happens. This is discussed next paragraphs.
+
+   Some systems might need some sort of cache coherency management e.g. when
+   CPU and GPU domains are being accessed through dma-buf at the same time. To
+   circumvent this problem there are begin/end coherency markers, that forward
+   directly to existing dma-buf device drivers vfunc hooks. Userspace can make
+   use of those markers through the DMA_BUF_IOCTL_SYNC ioctl. The sequence
+   would be used like following:
+     - mmap dma-buf fd
+     - for each drawing/upload cycle in CPU 1. SYNC_START ioctl, 2. read/write
+       to mmap area 3. SYNC_END ioctl. This can be repeated as often as you
+       want (with the new data being consumed by the GPU or say scanout device)
+     - munmap once you don't need the buffer any more
+
+    Therefore, for correctness and optimal performance, systems with the memory
+    cache shared by the GPU and CPU i.e. the "coherent" and also the
+    "incoherent" are always required to use SYNC_START and SYNC_END before and
+    after, respectively, when accessing the mapped address.
 
 2. Supporting existing mmap interfaces in importers
 

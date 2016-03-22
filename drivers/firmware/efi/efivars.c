@@ -386,7 +386,7 @@ static const struct sysfs_ops efivar_attr_ops = {
 
 static void efivar_release(struct kobject *kobj)
 {
-	struct efivar_entry *var = container_of(kobj, struct efivar_entry, kobj);
+	struct efivar_entry *var = to_efivar_entry(kobj);
 	kfree(var);
 }
 

@@ -642,10 +642,10 @@ static const struct amdgpu_ring_funcs vce_v2_0_ring_funcs = {
 	.parse_cs = amdgpu_vce_ring_parse_cs,
 	.emit_ib = amdgpu_vce_ring_emit_ib,
 	.emit_fence = amdgpu_vce_ring_emit_fence,
-	.emit_semaphore = amdgpu_vce_ring_emit_semaphore,
 	.test_ring = amdgpu_vce_ring_test_ring,
 	.test_ib = amdgpu_vce_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
+	.pad_ib = amdgpu_ring_generic_pad_ib,
 };
 
 static void vce_v2_0_set_ring_funcs(struct amdgpu_device *adev)

@@ -97,12 +97,11 @@ void gm107_grctx_generate_bundle(struct gf100_grctx *);
 void gm107_grctx_generate_pagepool(struct gf100_grctx *);
 void gm107_grctx_generate_attrib(struct gf100_grctx *);
 
-extern const struct gf100_grctx_func gm204_grctx;
-void gm204_grctx_generate_main(struct gf100_gr *, struct gf100_grctx *);
-void gm204_grctx_generate_tpcid(struct gf100_gr *);
-void gm204_grctx_generate_405b60(struct gf100_gr *);
+extern const struct gf100_grctx_func gm200_grctx;
+void gm200_grctx_generate_main(struct gf100_gr *, struct gf100_grctx *);
+void gm200_grctx_generate_tpcid(struct gf100_gr *);
+void gm200_grctx_generate_405b60(struct gf100_gr *);
 
-extern const struct gf100_grctx_func gm206_grctx;
 extern const struct gf100_grctx_func gm20b_grctx;
 
 /* context init value lists */
@@ -210,19 +209,4 @@ extern const struct gf100_gr_init gk208_grctx_init_crstr_0[];
 
 extern const struct gf100_gr_init gm107_grctx_init_gpc_unk_0[];
 extern const struct gf100_gr_init gm107_grctx_init_wwdx_0[];
-
-extern const struct gf100_gr_pack gm204_grctx_pack_icmd[];
-
-extern const struct gf100_gr_pack gm204_grctx_pack_mthd[];
-
-extern const struct gf100_gr_pack gm204_grctx_pack_hub[];
-
-extern const struct gf100_gr_init gm204_grctx_init_prop_0[];
-extern const struct gf100_gr_init gm204_grctx_init_setup_0[];
-extern const struct gf100_gr_init gm204_grctx_init_gpm_0[];
-extern const struct gf100_gr_init gm204_grctx_init_gpc_unk_2[];
-
-extern const struct gf100_gr_pack gm204_grctx_pack_tpc[];
-
-extern const struct gf100_gr_pack gm204_grctx_pack_ppc[];
 #endif

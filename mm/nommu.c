@@ -15,6 +15,8 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#define __DISABLE_GUP_DEPRECATED
+
 #include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/vmacache.h>
@@ -159,8 +161,7 @@ finish_or_fault:
  *   slab page or a secondary page from a compound page
  * - don't permit access to VMAs that don't support it, such as I/O mappings
  */
-long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-		    unsigned long start, unsigned long nr_pages,
+long get_user_pages6(unsigned long start, unsigned long nr_pages,
 		    int write, int force, struct page **pages,
 		    struct vm_area_struct **vmas)
 {
@@ -171,20 +172,18 @@ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	if (force)
 		flags |= FOLL_FORCE;
 
-	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas,
-				NULL);
+	return __get_user_pages(current, current->mm, start, nr_pages, flags,
+				pages, vmas, NULL);
 }
-EXPORT_SYMBOL(get_user_pages);
+EXPORT_SYMBOL(get_user_pages6);
 
-long get_user_pages_locked(struct task_struct *tsk, struct mm_struct *mm,
-			   unsigned long start, unsigned long nr_pages,
-			   int write, int force, struct page **pages,
-			   int *locked)
+long get_user_pages_locked6(unsigned long start, unsigned long nr_pages,
+			    int write, int force, struct page **pages,
+			    int *locked)
 {
-	return get_user_pages(tsk, mm, start, nr_pages, write, force,
-			      pages, NULL);
+	return get_user_pages6(start, nr_pages, write, force, pages, NULL);
 }
-EXPORT_SYMBOL(get_user_pages_locked);
+EXPORT_SYMBOL(get_user_pages_locked6);
 
 long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
 			       unsigned long start, unsigned long nr_pages,
@@ -193,21 +192,20 @@ long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
 {
 	long ret;
 	down_read(&mm->mmap_sem);
-	ret = get_user_pages(tsk, mm, start, nr_pages, write, force,
-			     pages, NULL);
+	ret = __get_user_pages(tsk, mm, start, nr_pages, gup_flags, pages,
+				NULL, NULL);
 	up_read(&mm->mmap_sem);
 	return ret;
 }
 EXPORT_SYMBOL(__get_user_pages_unlocked);
 
-long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
-			     unsigned long start, unsigned long nr_pages,
+long get_user_pages_unlocked5(unsigned long start, unsigned long nr_pages,
 			     int write, int force, struct page **pages)
 {
-	return __get_user_pages_unlocked(tsk, mm, start, nr_pages, write,
-					 force, pages, 0);
+	return __get_user_pages_unlocked(current, current->mm, start, nr_pages,
+					 write, force, pages, 0);
 }
-EXPORT_SYMBOL(get_user_pages_unlocked);
+EXPORT_SYMBOL(get_user_pages_unlocked5);
 
 /**
  * follow_pfn - look up PFN at a user virtual address
@@ -1061,7 +1059,7 @@ static unsigned long determine_vm_flags(struct file *file,
 {
 	unsigned long vm_flags;
 
-	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags);
+	vm_flags = calc_vm_prot_bits(prot, 0) | calc_vm_flag_bits(flags);
 	/* vm_flags |= mm->def_flags; */
 
 	if (!(capabilities & NOMMU_MAP_DIRECT)) {
@@ -1991,3 +1989,31 @@ static int __meminit init_admin_reserve(void)
 	return 0;
 }
 subsys_initcall(init_admin_reserve);
+
+long get_user_pages8(struct task_struct *tsk, struct mm_struct *mm,
+		     unsigned long start, unsigned long nr_pages,
+		     int write, int force, struct page **pages,
+		     struct vm_area_struct **vmas)
+{
+	return get_user_pages6(start, nr_pages, write, force, pages, vmas);
+}
+EXPORT_SYMBOL(get_user_pages8);
+
+long get_user_pages_locked8(struct task_struct *tsk, struct mm_struct *mm,
+			    unsigned long start, unsigned long nr_pages,
+			    int write, int force, struct page **pages,
+			    int *locked)
+{
+	return get_user_pages_locked6(start, nr_pages, write,
+				      force, pages, locked);
+}
+EXPORT_SYMBOL(get_user_pages_locked8);
+
+long get_user_pages_unlocked7(struct task_struct *tsk, struct mm_struct *mm,
+			      unsigned long start, unsigned long nr_pages,
+			      int write, int force, struct page **pages)
+{
+	return get_user_pages_unlocked5(start, nr_pages, write, force, pages);
+}
+EXPORT_SYMBOL(get_user_pages_unlocked7);
+

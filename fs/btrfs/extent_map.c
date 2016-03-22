@@ -4,6 +4,7 @@
 #include <linux/hardirq.h>
 #include "ctree.h"
 #include "extent_map.h"
+#include "compression.h"
 
 
 static struct kmem_cache *extent_map_cache;
@@ -20,8 +21,7 @@ int __init extent_map_init(void)
 
 void extent_map_exit(void)
 {
-	if (extent_map_cache)
-		kmem_cache_destroy(extent_map_cache);
+	kmem_cache_destroy(extent_map_cache);
 }
 
 /**
@@ -62,7 +62,7 @@ struct extent_map *alloc_extent_map(void)
 
 /**
  * free_extent_map - drop reference count of an extent_map
- * @em:		extent map beeing releasead
+ * @em:		extent map being releasead
  *
  * Drops the reference out on @em by one and free the structure
  * if the reference count hits zero.
@@ -422,7 +422,7 @@ struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
 /**
  * remove_extent_mapping - removes an extent_map from the extent tree
  * @tree:	extent tree to remove from
- * @em:		extent map beeing removed
+ * @em:		extent map being removed
  *
  * Removes @em from @tree.  No reference counts are dropped, and no checks
  * are done to see if the range is in use
