@@ -995,14 +995,12 @@ struct file *filp_open(const char *filename, int flags, umode_t mode)
 EXPORT_SYMBOL(filp_open);
 
 struct file *file_open_root(struct dentry *dentry, struct vfsmount *mnt,
-			    const char *filename, int flags)
+			    const char *filename, int flags, umode_t mode)
 {
 	struct open_flags op;
-	int err = build_open_flags(flags, 0, &op);
+	int err = build_open_flags(flags, mode, &op);
 	if (err)
 		return ERR_PTR(err);
-	if (flags & O_CREAT)
-		return ERR_PTR(-EINVAL);
 	return do_file_open_root(dentry, mnt, filename, &op);
 }
 EXPORT_SYMBOL(file_open_root);
