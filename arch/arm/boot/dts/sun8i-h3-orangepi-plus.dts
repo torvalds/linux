@@ -79,12 +79,16 @@
 
 	r_gpio_keys {
 		compatible = "gpio-keys";
-		input-name = "sw4";
-
 		pinctrl-names = "default";
 		pinctrl-0 = <&sw_r_opc>;
 
-		sw4@0 {
+		sw2 {
+			label = "sw2";
+			linux,code = <BTN_1>;
+			gpios = <&r_pio 0 4 GPIO_ACTIVE_LOW>;
+		};
+
+		sw4 {
 			label = "sw4";
 			linux,code = <BTN_0>;
 			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
@@ -187,7 +191,7 @@
 	};
 
 	sw_r_opc: key_pins@0 {
-		allwinner,pins = "PL03";
+		allwinner,pins = "PL3", "PL4";
 		allwinner,function = "gpio_in";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
