@@ -202,12 +202,12 @@ config SCSI_ENCLOSURE
 	  certain enclosure conditions to be reported and is not required.
 
 config SCSI_CONSTANTS
-	bool "Verbose SCSI error reporting (kernel size +=75K)"
+	bool "Verbose SCSI error reporting (kernel size += 36K)"
 	depends on SCSI
 	help
 	  The error messages regarding your SCSI hardware will be easier to
 	  understand if you say Y here; it will enlarge your kernel by about
-	  75 KB. If in doubt, say Y.
+	  36 KB. If in doubt, say Y.
 
 config SCSI_LOGGING
 	bool "SCSI logging facility"
