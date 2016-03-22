@@ -41,6 +41,9 @@
 #ifndef __LIBCFS_IOCTL_H__
 #define __LIBCFS_IOCTL_H__
 
+#include <linux/types.h>
+#include <linux/ioctl.h>
+
 #define LIBCFS_IOCTL_VERSION	0x0001000a
 #define LIBCFS_IOCTL_VERSION2	0x0001000b
 
