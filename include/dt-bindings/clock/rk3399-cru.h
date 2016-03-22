@@ -333,16 +333,16 @@
 #define CLK_NR_CLKS			(HCLK_SDIOAUDIO_NOC + 1)
 
 /* pmu-clocks indices */
-#define SCLK_32K_SUSPEND_PMU		1
-#define SCLK_SPI3_PMU			2
-#define SCLK_TIMER12_PMU		3
-#define SCLK_TIMER13_PMU		4
-#define SCLK_UART4_PMU			5
-#define SCLK_PVTM_PMU			6
-#define SCLK_WIFI_PMU			7
-#define SCLK_I2C0_PMU			8
-#define SCLK_I2C4_PMU			9
-#define SCLK_I2C8_PMU			10
+#define SCLK_32K_SUSPEND_PMU		0
+#define SCLK_SPI3_PMU			1
+#define SCLK_TIMER12_PMU		2
+#define SCLK_TIMER13_PMU		3
+#define SCLK_UART4_PMU			4
+#define SCLK_PVTM_PMU			5
+#define SCLK_WIFI_PMU			6
+#define SCLK_I2C0_PMU			7
+#define SCLK_I2C4_PMU			8
+#define SCLK_I2C8_PMU			9
 
 #define PCLK_PMU			20
 #define PCLK_PMUGRF_PMU			21
@@ -368,7 +368,7 @@
 #define PCLK_INTR_ARB_PMU		49
 #define HCLK_NOC_PMU			50
 
-#define CLKPMU_NR_CLKS			(HCLK_NOC_PMU - SCLK_32K_SUSPEND_PMU + 1)
+#define CLKPMU_NR_CLKS			(HCLK_NOC_PMU + 1)
 
 /* soft-reset indices */
 
