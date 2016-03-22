@@ -97,7 +97,7 @@ do {						    \
 #define IOC_LIBCFS_TYPE		   'e'
 #define IOC_LIBCFS_MIN_NR		 30
 /* libcfs ioctls */
-#define IOC_LIBCFS_PANIC		   _IOWR('e', 30, long)
+/* IOC_LIBCFS_PANIC obsolete in 2.8.0, was _IOWR('e', 30, IOCTL_LIBCFS_TYPE) */
 #define IOC_LIBCFS_CLEAR_DEBUG	     _IOWR('e', 31, long)
 #define IOC_LIBCFS_MARK_DEBUG	      _IOWR('e', 32, long)
 #define IOC_LIBCFS_MEMHOG		  _IOWR('e', 36, long)
