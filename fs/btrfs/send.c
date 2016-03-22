@@ -34,6 +34,7 @@
 #include "disk-io.h"
 #include "btrfs_inode.h"
 #include "transaction.h"
+#include "compression.h"
 
 static int g_verbose = 0;
 
@@ -304,7 +305,7 @@ static struct fs_path *fs_path_alloc(void)
 {
 	struct fs_path *p;
 
-	p = kmalloc(sizeof(*p), GFP_NOFS);
+	p = kmalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return NULL;
 	p->reversed = 0;
@@ -363,11 +364,11 @@ static int fs_path_ensure_buf(struct fs_path *p, int len)
 	 * First time the inline_buf does not suffice
 	 */
 	if (p->buf == p->inline_buf) {
-		tmp_buf = kmalloc(len, GFP_NOFS);
+		tmp_buf = kmalloc(len, GFP_KERNEL);
 		if (tmp_buf)
 			memcpy(tmp_buf, p->buf, old_buf_len);
 	} else {
-		tmp_buf = krealloc(p->buf, len, GFP_NOFS);
+		tmp_buf = krealloc(p->buf, len, GFP_KERNEL);
 	}
 	if (!tmp_buf)
 		return -ENOMEM;
@@ -995,7 +996,7 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 	 * values are small.
 	 */
 	buf_len = PATH_MAX;
-	buf = kmalloc(buf_len, GFP_NOFS);
+	buf = kmalloc(buf_len, GFP_KERNEL);
 	if (!buf) {
 		ret = -ENOMEM;
 		goto out;
@@ -1042,7 +1043,7 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 				buf = NULL;
 			} else {
 				char *tmp = krealloc(buf, buf_len,
-						     GFP_NOFS | __GFP_NOWARN);
+						GFP_KERNEL | __GFP_NOWARN);
 
 				if (!tmp)
 					kfree(buf);
@@ -1303,7 +1304,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 	/* We only use this path under the commit sem */
 	tmp_path->need_commit_sem = 0;
 
-	backref_ctx = kmalloc(sizeof(*backref_ctx), GFP_NOFS);
+	backref_ctx = kmalloc(sizeof(*backref_ctx), GFP_KERNEL);
 	if (!backref_ctx) {
 		ret = -ENOMEM;
 		goto out;
@@ -1984,7 +1985,7 @@ static int name_cache_insert(struct send_ctx *sctx,
 	nce_head = radix_tree_lookup(&sctx->name_cache,
 			(unsigned long)nce->ino);
 	if (!nce_head) {
-		nce_head = kmalloc(sizeof(*nce_head), GFP_NOFS);
+		nce_head = kmalloc(sizeof(*nce_head), GFP_KERNEL);
 		if (!nce_head) {
 			kfree(nce);
 			return -ENOMEM;
@@ -2179,7 +2180,7 @@ out_cache:
 	/*
 	 * Store the result of the lookup in the name cache.
 	 */
-	nce = kmalloc(sizeof(*nce) + fs_path_len(dest) + 1, GFP_NOFS);
+	nce = kmalloc(sizeof(*nce) + fs_path_len(dest) + 1, GFP_KERNEL);
 	if (!nce) {
 		ret = -ENOMEM;
 		goto out;
@@ -2315,7 +2316,7 @@ static int send_subvol_begin(struct send_ctx *sctx)
 	if (!path)
 		return -ENOMEM;
 
-	name = kmalloc(BTRFS_PATH_NAME_MAX, GFP_NOFS);
+	name = kmalloc(BTRFS_PATH_NAME_MAX, GFP_KERNEL);
 	if (!name) {
 		btrfs_free_path(path);
 		return -ENOMEM;
@@ -2730,7 +2731,7 @@ static int __record_ref(struct list_head *head, u64 dir,
 {
 	struct recorded_ref *ref;
 
-	ref = kmalloc(sizeof(*ref), GFP_NOFS);
+	ref = kmalloc(sizeof(*ref), GFP_KERNEL);
 	if (!ref)
 		return -ENOMEM;
 
@@ -2755,7 +2756,7 @@ static int dup_ref(struct recorded_ref *ref, struct list_head *list)
 {
 	struct recorded_ref *new;
 
-	new = kmalloc(sizeof(*ref), GFP_NOFS);
+	new = kmalloc(sizeof(*ref), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
@@ -2818,7 +2819,7 @@ add_orphan_dir_info(struct send_ctx *sctx, u64 dir_ino)
 	struct rb_node *parent = NULL;
 	struct orphan_dir_info *entry, *odi;
 
-	odi = kmalloc(sizeof(*odi), GFP_NOFS);
+	odi = kmalloc(sizeof(*odi), GFP_KERNEL);
 	if (!odi)
 		return ERR_PTR(-ENOMEM);
 	odi->ino = dir_ino;
@@ -2973,7 +2974,7 @@ static int add_waiting_dir_move(struct send_ctx *sctx, u64 ino, bool orphanized)
 	struct rb_node *parent = NULL;
 	struct waiting_dir_move *entry, *dm;
 
-	dm = kmalloc(sizeof(*dm), GFP_NOFS);
+	dm = kmalloc(sizeof(*dm), GFP_KERNEL);
 	if (!dm)
 		return -ENOMEM;
 	dm->ino = ino;
@@ -3040,7 +3041,7 @@ static int add_pending_dir_move(struct send_ctx *sctx,
 	int exists = 0;
 	int ret;
 
-	pm = kmalloc(sizeof(*pm), GFP_NOFS);
+	pm = kmalloc(sizeof(*pm), GFP_KERNEL);
 	if (!pm)
 		return -ENOMEM;
 	pm->parent_ino = parent_ino;
@@ -4280,7 +4281,7 @@ static int __find_xattr(int num, struct btrfs_key *di_key,
 	    strncmp(name, ctx->name, name_len) == 0) {
 		ctx->found_idx = num;
 		ctx->found_data_len = data_len;
-		ctx->found_data = kmemdup(data, data_len, GFP_NOFS);
+		ctx->found_data = kmemdup(data, data_len, GFP_KERNEL);
 		if (!ctx->found_data)
 			return -ENOMEM;
 		return 1;
@@ -4481,7 +4482,7 @@ static ssize_t fill_read_buf(struct send_ctx *sctx, u64 offset, u32 len)
 	while (index <= last_index) {
 		unsigned cur_len = min_t(unsigned, len,
 					 PAGE_CACHE_SIZE - pg_offset);
-		page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
+		page = find_or_create_page(inode->i_mapping, index, GFP_KERNEL);
 		if (!page) {
 			ret = -ENOMEM;
 			break;
@@ -5989,7 +5990,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 		goto out;
 	}
 
-	sctx = kzalloc(sizeof(struct send_ctx), GFP_NOFS);
+	sctx = kzalloc(sizeof(struct send_ctx), GFP_KERNEL);
 	if (!sctx) {
 		ret = -ENOMEM;
 		goto out;
@@ -5997,7 +5998,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 
 	INIT_LIST_HEAD(&sctx->new_refs);
 	INIT_LIST_HEAD(&sctx->deleted_refs);
-	INIT_RADIX_TREE(&sctx->name_cache, GFP_NOFS);
+	INIT_RADIX_TREE(&sctx->name_cache, GFP_KERNEL);
 	INIT_LIST_HEAD(&sctx->name_cache_list);
 
 	sctx->flags = arg->flags;

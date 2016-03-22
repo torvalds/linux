@@ -61,6 +61,7 @@
 struct extent_state;
 struct btrfs_root;
 struct btrfs_io_bio;
+struct io_failure_record;
 
 typedef	int (extent_submit_bio_hook_t)(struct inode *inode, int rw,
 				       struct bio *bio, int mirror_num,
@@ -111,8 +112,7 @@ struct extent_state {
 	atomic_t refs;
 	unsigned state;
 
-	/* for use by the FS */
-	u64 private;
+	struct io_failure_record *failrec;
 
 #ifdef CONFIG_BTRFS_DEBUG
 	struct list_head leak_list;
@@ -342,7 +342,6 @@ int extent_readpages(struct extent_io_tree *tree,
 		     get_extent_t get_extent);
 int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		__u64 start, __u64 len, get_extent_t *get_extent);
-int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private);
 void set_page_extent_mapped(struct page *page);
 
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
