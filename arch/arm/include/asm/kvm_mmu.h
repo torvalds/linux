@@ -47,6 +47,7 @@
 #include <linux/highmem.h>
 #include <asm/cacheflush.h>
 #include <asm/pgalloc.h>
+#include <asm/stage2_pgtable.h>
 
 int create_hyp_mappings(void *from, void *to);
 int create_hyp_io_mappings(void *from, void *to, phys_addr_t);
