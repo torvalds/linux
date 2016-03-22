@@ -1569,9 +1569,8 @@ static int omap1_cam_probe(struct platform_device *pdev)
 	unsigned int irq;
 	int err = 0;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!res || (int)irq <= 0) {
+	if ((int)irq <= 0) {
 		err = -ENODEV;
 		goto exit;
 	}
@@ -1585,7 +1584,6 @@ static int omap1_cam_probe(struct platform_device *pdev)
 	if (!pcdev)
 		return -ENOMEM;
 
-	pcdev->res = res;
 	pcdev->clk = clk;
 
 	pcdev->pdata = pdev->dev.platform_data;
@@ -1616,17 +1614,11 @@ static int omap1_cam_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&pcdev->capture);
 	spin_lock_init(&pcdev->lock);
 
-	/*
-	 * Request the region.
-	 */
-	if (!request_mem_region(res->start, resource_size(res), DRIVER_NAME))
-		return -EBUSY;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
-	base = ioremap(res->start, resource_size(res));
-	if (!base) {
-		err = -ENOMEM;
-		goto exit_release;
-	}
 	pcdev->irq = irq;
 	pcdev->base = base;
 
@@ -1636,8 +1628,7 @@ static int omap1_cam_probe(struct platform_device *pdev)
 			dma_isr, (void *)pcdev, &pcdev->dma_ch);
 	if (err < 0) {
 		dev_err(&pdev->dev, "Can't request DMA for OMAP1 Camera\n");
-		err = -EBUSY;
-		goto exit_iounmap;
+		return -EBUSY;
 	}
 	dev_dbg(&pdev->dev, "got DMA channel %d\n", pcdev->dma_ch);
 
@@ -1673,10 +1664,6 @@ exit_free_irq:
 	free_irq(pcdev->irq, pcdev);
 exit_free_dma:
 	omap_free_dma(pcdev->dma_ch);
-exit_iounmap:
-	iounmap(base);
-exit_release:
-	release_mem_region(res->start, resource_size(res));
 exit:
 	return err;
 }
@@ -1686,18 +1673,12 @@ static int omap1_cam_remove(struct platform_device *pdev)
 	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
 	struct omap1_cam_dev *pcdev = container_of(soc_host,
 					struct omap1_cam_dev, soc_host);
-	struct resource *res;
 
 	free_irq(pcdev->irq, pcdev);
 
 	omap_free_dma(pcdev->dma_ch);
 
 	soc_camera_host_unregister(soc_host);
-
-	iounmap(pcdev->base);
-
-	res = pcdev->res;
-	release_mem_region(res->start, resource_size(res));
 
 	dev_info(&pdev->dev, "OMAP1 Camera Interface driver unloaded\n");
 
