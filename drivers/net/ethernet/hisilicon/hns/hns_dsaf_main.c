@@ -748,8 +748,9 @@ static void hns_dsaf_tbl_stat_en(struct dsaf_device *dsaf_dev)
  */
 static void hns_dsaf_rocee_bp_en(struct dsaf_device *dsaf_dev)
 {
-	dsaf_set_dev_bit(dsaf_dev, DSAF_XGE_CTRL_SIG_CFG_0_REG,
-			 DSAF_FC_XGE_TX_PAUSE_S, 1);
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver))
+		dsaf_set_dev_bit(dsaf_dev, DSAF_XGE_CTRL_SIG_CFG_0_REG,
+				 DSAF_FC_XGE_TX_PAUSE_S, 1);
 }
 
 /* set msk for dsaf exception irq*/
