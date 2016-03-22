@@ -888,71 +888,145 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 	int i, avail = -1;
 	u32 regval;
 	struct tsi721_ib_win *ib_win;
+	bool direct = (lstart == rstart);
+	u64 ibw_size;
+	dma_addr_t loc_start;
+	u64 ibw_start;
+	struct tsi721_ib_win_mapping *map = NULL;
 	int ret = -EBUSY;
 
-	if (!is_power_of_2(size) || size < 0x1000 ||
-	    ((u64)lstart & (size - 1)) || (rstart & (size - 1)))
-		return -EINVAL;
+	if (direct) {
+		dev_dbg(&priv->pdev->dev,
+			"Direct (RIO_0x%llx -> PCIe_0x%pad), size=0x%x",
+			rstart, &lstart, size);
 
-	spin_lock(&priv->win_lock);
+		/* Calculate minimal acceptable window size and base address */
+
+		ibw_size = roundup_pow_of_two(size);
+		ibw_start = lstart & ~(ibw_size - 1);
+
+		while ((lstart + size) > (ibw_start + ibw_size)) {
+			ibw_size *= 2;
+			ibw_start = lstart & ~(ibw_size - 1);
+			if (ibw_size > 0x80000000) { /* Limit max size to 2GB */
+				return -EBUSY;
+			}
+		}
+
+		loc_start = ibw_start;
+
+		map = kzalloc(sizeof(struct tsi721_ib_win_mapping), GFP_ATOMIC);
+		if (map == NULL)
+			return -ENOMEM;
+
+	} else {
+		dev_dbg(&priv->pdev->dev,
+			"Translated (RIO_0x%llx -> PCIe_0x%pad), size=0x%x",
+			rstart, &lstart, size);
+
+		if (!is_power_of_2(size) || size < 0x1000 ||
+		    ((u64)lstart & (size - 1)) || (rstart & (size - 1)))
+			return -EINVAL;
+		if (priv->ibwin_cnt == 0)
+			return -EBUSY;
+		ibw_start = rstart;
+		ibw_size = size;
+		loc_start = lstart;
+	}
+
 	/*
 	 * Scan for overlapping with active regions and mark the first available
 	 * IB window at the same time.
 	 */
 	for (i = 0; i < TSI721_IBWIN_NUM; i++) {
 		ib_win = &priv->ib_win[i];
+
 		if (!ib_win->active) {
 			if (avail == -1) {
 				avail = i;
 				ret = 0;
 			}
-		} else if (rstart < (ib_win->rstart + ib_win->size) &&
-					(rstart + size) > ib_win->rstart) {
+		} else if (ibw_start < (ib_win->rstart + ib_win->size) &&
+			   (ibw_start + ibw_size) > ib_win->rstart) {
+			/* Return error if address translation involved */
+			if (direct && ib_win->xlat) {
+				ret = -EFAULT;
+				break;
+			}
+
+			/*
+			 * Direct mappings usually are larger than originally
+			 * requested fragments - check if this new request fits
+			 * into it.
+			 */
+			if (rstart >= ib_win->rstart &&
+			    (rstart + size) <= (ib_win->rstart +
+							ib_win->size)) {
+				/* We are in - no further mapping required */
+				map->lstart = lstart;
+				list_add_tail(&map->node, &ib_win->mappings);
+				return 0;
+			}
+
 			ret = -EFAULT;
 			break;
 		}
 	}
 
 	if (ret)
-		goto err_out;
+		goto out;
 	i = avail;
 
 	/* Sanity check: available IB window must be disabled at this point */
 	regval = ioread32(priv->regs + TSI721_IBWIN_LB(i));
 	if (WARN_ON(regval & TSI721_IBWIN_LB_WEN)) {
 		ret = -EIO;
-		goto err_out;
+		goto out;
 	}
 
 	ib_win = &priv->ib_win[i];
 	ib_win->active = true;
-	ib_win->rstart = rstart;
-	ib_win->lstart = lstart;
-	ib_win->size = size;
-	spin_unlock(&priv->win_lock);
+	ib_win->rstart = ibw_start;
+	ib_win->lstart = loc_start;
+	ib_win->size = ibw_size;
+	ib_win->xlat = (lstart != rstart);
+	INIT_LIST_HEAD(&ib_win->mappings);
 
-	iowrite32(TSI721_IBWIN_SIZE(size) << 8,
+	/*
+	 * When using direct IBW mapping and have larger than requested IBW size
+	 * we can have multiple local memory blocks mapped through the same IBW
+	 * To handle this situation we maintain list of "clients" for such IBWs.
+	 */
+	if (direct) {
+		map->lstart = lstart;
+		list_add_tail(&map->node, &ib_win->mappings);
+	}
+
+	iowrite32(TSI721_IBWIN_SIZE(ibw_size) << 8,
 			priv->regs + TSI721_IBWIN_SZ(i));
 
-	iowrite32(((u64)lstart >> 32), priv->regs + TSI721_IBWIN_TUA(i));
-	iowrite32(((u64)lstart & TSI721_IBWIN_TLA_ADD),
+	iowrite32(((u64)loc_start >> 32), priv->regs + TSI721_IBWIN_TUA(i));
+	iowrite32(((u64)loc_start & TSI721_IBWIN_TLA_ADD),
 		  priv->regs + TSI721_IBWIN_TLA(i));
 
-	iowrite32(rstart >> 32, priv->regs + TSI721_IBWIN_UB(i));
-	iowrite32((rstart & TSI721_IBWIN_LB_BA) | TSI721_IBWIN_LB_WEN,
+	iowrite32(ibw_start >> 32, priv->regs + TSI721_IBWIN_UB(i));
+	iowrite32((ibw_start & TSI721_IBWIN_LB_BA) | TSI721_IBWIN_LB_WEN,
 		priv->regs + TSI721_IBWIN_LB(i));
+
+	priv->ibwin_cnt--;
+
 	dev_dbg(&priv->pdev->dev,
-		"Configured IBWIN%d mapping (RIO_0x%llx -> PCIe_0x%llx)\n",
-		i, rstart, (unsigned long long)lstart);
+		"Configured IBWIN%d (RIO_0x%llx -> PCIe_0x%llx), size=0x%llx\n",
+		i, ibw_start, (unsigned long long)loc_start, ibw_size);
 
 	return 0;
-err_out:
-	spin_unlock(&priv->win_lock);
+out:
+	kfree(map);
 	return ret;
 }
 
 /**
- * fsl_rio_unmap_inb_mem -- Unmapping inbound memory region.
+ * tsi721_rio_unmap_inb_mem -- Unmapping inbound memory region.
  * @mport: RapidIO master port
  * @lstart: Local memory space start address.
  */
@@ -963,22 +1037,53 @@ static void tsi721_rio_unmap_inb_mem(struct rio_mport *mport,
 	struct tsi721_ib_win *ib_win;
 	int i;
 
+	dev_dbg(&priv->pdev->dev,
+		"Unmap IBW mapped to PCIe_0x%pad", &lstart);
+
 	/* Search for matching active inbound translation window */
-	spin_lock(&priv->win_lock);
 	for (i = 0; i < TSI721_IBWIN_NUM; i++) {
 		ib_win = &priv->ib_win[i];
-		if (ib_win->active && ib_win->lstart == lstart) {
+
+		/* Address translating IBWs must to be an exact march */
+		if (!ib_win->active ||
+		    (ib_win->xlat && lstart != ib_win->lstart))
+			continue;
+
+		if (lstart >= ib_win->lstart &&
+		    lstart < (ib_win->lstart + ib_win->size)) {
+
+			if (!ib_win->xlat) {
+				struct tsi721_ib_win_mapping *map;
+				int found = 0;
+
+				list_for_each_entry(map,
+						    &ib_win->mappings, node) {
+					if (map->lstart == lstart) {
+						list_del(&map->node);
+						kfree(map);
+						found = 1;
+						break;
+					}
+				}
+
+				if (!found)
+					continue;
+
+				if (!list_empty(&ib_win->mappings))
+					break;
+			}
+
+			dev_dbg(&priv->pdev->dev, "Disable IBWIN_%d", i);
 			iowrite32(0, priv->regs + TSI721_IBWIN_LB(i));
 			ib_win->active = false;
+			priv->ibwin_cnt++;
 			break;
 		}
 	}
-	spin_unlock(&priv->win_lock);
 
 	if (i == TSI721_IBWIN_NUM)
-		dev_err(&priv->pdev->dev,
-			"IB window mapped to %llx not found\n",
-			(unsigned long long)lstart);
+		dev_dbg(&priv->pdev->dev,
+			"IB window mapped to %pad not found", &lstart);
 }
 
 /**
@@ -995,7 +1100,7 @@ static void tsi721_init_sr2pc_mapping(struct tsi721_device *priv)
 	/* Disable all SR2PC inbound windows */
 	for (i = 0; i < TSI721_IBWIN_NUM; i++)
 		iowrite32(0, priv->regs + TSI721_IBWIN_LB(i));
-	spin_lock_init(&priv->win_lock);
+	priv->ibwin_cnt = TSI721_IBWIN_NUM;
 }
 
 /**

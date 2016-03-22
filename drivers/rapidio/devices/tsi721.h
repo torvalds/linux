@@ -808,11 +808,18 @@ struct msix_irq {
 };
 #endif /* CONFIG_PCI_MSI */
 
+struct tsi721_ib_win_mapping {
+	struct list_head node;
+	dma_addr_t	lstart;
+};
+
 struct tsi721_ib_win {
 	u64		rstart;
 	u32		size;
 	dma_addr_t	lstart;
 	bool		active;
+	bool		xlat;
+	struct list_head mappings;
 };
 
 struct tsi721_device {
@@ -853,7 +860,7 @@ struct tsi721_device {
 
 	/* Inbound Mapping Windows */
 	struct tsi721_ib_win ib_win[TSI721_IBWIN_NUM];
-	spinlock_t	win_lock;
+	int		ibwin_cnt;
 };
 
 #ifdef CONFIG_RAPIDIO_DMA_ENGINE
