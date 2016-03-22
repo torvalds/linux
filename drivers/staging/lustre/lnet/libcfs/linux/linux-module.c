@@ -95,11 +95,10 @@ int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
 	return err;
 }
 
-static long libcfs_ioctl(struct file *file,
-			 unsigned int cmd, unsigned long arg)
+static long
+libcfs_psdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct cfs_psdev_file	 pfile;
-	int    rc = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -112,16 +111,12 @@ static long libcfs_ioctl(struct file *file,
 		return -EINVAL;
 	}
 
-	if (libcfs_psdev_ops.p_ioctl)
-		rc = libcfs_psdev_ops.p_ioctl(&pfile, cmd, (void __user *)arg);
-	else
-		rc = -EPERM;
-	return rc;
+	return libcfs_ioctl(&pfile, cmd, (void __user *)arg);
 }
 
 static const struct file_operations libcfs_fops = {
 	.owner		= THIS_MODULE,
-	.unlocked_ioctl	= libcfs_ioctl,
+	.unlocked_ioctl	= libcfs_psdev_ioctl,
 };
 
 struct miscdevice libcfs_dev = {

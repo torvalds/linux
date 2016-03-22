@@ -75,7 +75,6 @@ struct cfs_psdev_file {
 struct cfs_psdev_ops {
 	int (*p_read)(struct cfs_psdev_file *, char *, unsigned long);
 	int (*p_write)(struct cfs_psdev_file *, char *, unsigned long);
-	int (*p_ioctl)(struct cfs_psdev_file *, unsigned long, void __user *);
 };
 
 /*
@@ -130,6 +129,8 @@ struct libcfs_ioctl_handler {
 
 int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand);
 int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand);
+
+int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *arg);
 
 /* container_of depends on "likely" which is defined in libcfs_private.h */
 static inline void *__container_of(void *ptr, unsigned long shift)
