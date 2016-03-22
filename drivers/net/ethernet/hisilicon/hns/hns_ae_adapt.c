@@ -420,7 +420,10 @@ static int hns_ae_set_autoneg(struct hnae_handle *handle, u8 enable)
 
 static void hns_ae_set_promisc_mode(struct hnae_handle *handle, u32 en)
 {
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+
 	hns_dsaf_set_promisc_mode(hns_ae_get_dsaf_dev(handle->dev), en);
+	hns_mac_set_promisc(mac_cb, (u8)!!en);
 }
 
 static int hns_ae_get_autoneg(struct hnae_handle *handle)
