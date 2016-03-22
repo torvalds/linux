@@ -516,9 +516,9 @@ static void ni_660x_write(struct comedi_device *dev,
 		writel(bits, dev->mmio + addr);
 }
 
-static inline unsigned ni_660x_read_register(struct comedi_device *dev,
-					     unsigned chip,
-					     enum ni_660x_register reg)
+static unsigned int ni_660x_read(struct comedi_device *dev,
+				 unsigned int chip,
+				 enum ni_660x_register reg)
 {
 	unsigned int addr = GPCT_OFFSET[chip] + ni_660x_reg_data[reg].offset;
 
@@ -544,7 +544,7 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter,
 	enum ni_660x_register ni_660x_register = ni_gpct_to_660x_register(reg);
 	unsigned chip = counter->chip_index;
 
-	return ni_660x_read_register(dev, chip, ni_660x_register);
+	return ni_660x_read(dev, chip, ni_660x_register);
 }
 
 static inline struct mite_dma_descriptor_ring *mite_ring(struct ni_660x_private
@@ -812,7 +812,7 @@ static int ni_660x_dio_insn_bits(struct comedi_device *dev,
 	}
 	/* on return, data[1] contains the value of the digital
 	 * input and output lines. */
-	data[1] = (ni_660x_read_register(dev, 0, NI660X_DIO32_INPUT) >>
+	data[1] = (ni_660x_read(dev, 0, NI660X_DIO32_INPUT) >>
 			base_bitfield_channel);
 
 	return insn->n;
@@ -843,9 +843,8 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 	}
 
 	if (idle_chipset != active_chipset) {
-		idle_bits =
-		    ni_660x_read_register(dev, idle_chipset,
-					  NI660X_IO_CFG(pfi_channel));
+		idle_bits = ni_660x_read(dev, idle_chipset,
+					 NI660X_IO_CFG(pfi_channel));
 		idle_bits &= ~NI660X_IO_CFG_OUT_SEL_MASK(pfi_channel);
 		idle_bits |=
 		    NI660X_IO_CFG_OUT_SEL(pfi_channel,
@@ -854,9 +853,8 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 			      NI660X_IO_CFG(pfi_channel));
 	}
 
-	active_bits =
-	    ni_660x_read_register(dev, active_chipset,
-				  NI660X_IO_CFG(pfi_channel));
+	active_bits = ni_660x_read(dev, active_chipset,
+				   NI660X_IO_CFG(pfi_channel));
 	active_bits &= ~NI660X_IO_CFG_OUT_SEL_MASK(pfi_channel);
 	active_bits |= NI660X_IO_CFG_OUT_SEL(pfi_channel, output_select);
 	ni_660x_write(dev, active_chipset, active_bits,
@@ -927,7 +925,7 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 		break;
 
 	case INSN_CONFIG_FILTER:
-		val = ni_660x_read_register(dev, 0, NI660X_IO_CFG(chan));
+		val = ni_660x_read(dev, 0, NI660X_IO_CFG(chan));
 		val &= ~NI660X_IO_CFG_IN_SEL_MASK(chan);
 		val |= NI660X_IO_CFG_IN_SEL(chan, data[1]);
 		ni_660x_write(dev, 0, val, NI660X_IO_CFG(chan));
