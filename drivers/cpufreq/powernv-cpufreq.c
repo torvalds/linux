@@ -54,6 +54,16 @@ static const char * const throttle_reason[] = {
 	"OCC Reset"
 };
 
+enum throttle_reason_type {
+	NO_THROTTLE = 0,
+	POWERCAP,
+	CPU_OVERTEMP,
+	POWER_SUPPLY_FAILURE,
+	OVERCURRENT,
+	OCC_RESET_THROTTLE,
+	OCC_MAX_REASON
+};
+
 static struct chip {
 	unsigned int id;
 	bool throttled;
@@ -61,6 +71,9 @@ static struct chip {
 	u8 throttle_reason;
 	cpumask_t mask;
 	struct work_struct throttle;
+	int throttle_turbo;
+	int throttle_sub_turbo;
+	int reason[OCC_MAX_REASON];
 } *chips;
 
 static int nr_chips;
@@ -194,6 +207,42 @@ static struct freq_attr *powernv_cpu_freq_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
 	&cpufreq_freq_attr_cpuinfo_nominal_freq,
 	NULL,
+};
+
+#define throttle_attr(name, member)					\
+static ssize_t name##_show(struct cpufreq_policy *policy, char *buf)	\
+{									\
+	struct chip *chip = per_cpu(chip_info, policy->cpu);		\
+									\
+	return sprintf(buf, "%u\n", chip->member);			\
+}									\
+									\
+static struct freq_attr throttle_attr_##name = __ATTR_RO(name)		\
+
+throttle_attr(unthrottle, reason[NO_THROTTLE]);
+throttle_attr(powercap, reason[POWERCAP]);
+throttle_attr(overtemp, reason[CPU_OVERTEMP]);
+throttle_attr(supply_fault, reason[POWER_SUPPLY_FAILURE]);
+throttle_attr(overcurrent, reason[OVERCURRENT]);
+throttle_attr(occ_reset, reason[OCC_RESET_THROTTLE]);
+throttle_attr(turbo_stat, throttle_turbo);
+throttle_attr(sub_turbo_stat, throttle_sub_turbo);
+
+static struct attribute *throttle_attrs[] = {
+	&throttle_attr_unthrottle.attr,
+	&throttle_attr_powercap.attr,
+	&throttle_attr_overtemp.attr,
+	&throttle_attr_supply_fault.attr,
+	&throttle_attr_overcurrent.attr,
+	&throttle_attr_occ_reset.attr,
+	&throttle_attr_turbo_stat.attr,
+	&throttle_attr_sub_turbo_stat.attr,
+	NULL,
+};
+
+static const struct attribute_group throttle_attr_grp = {
+	.name	= "throttle_stats",
+	.attrs	= throttle_attrs,
 };
 
 /* Helper routines */
@@ -338,10 +387,14 @@ static void powernv_cpufreq_throttle_check(void *data)
 		if (chip->throttled)
 			goto next;
 		chip->throttled = true;
-		if (pmsr_pmax < powernv_pstate_info.nominal)
+		if (pmsr_pmax < powernv_pstate_info.nominal) {
 			pr_warn_once("CPU %d on Chip %u has Pmax reduced below nominal frequency (%d < %d)\n",
 				     cpu, chip->id, pmsr_pmax,
 				     powernv_pstate_info.nominal);
+			chip->throttle_sub_turbo++;
+		} else {
+			chip->throttle_turbo++;
+		}
 		trace_powernv_throttle(chip->id,
 				      throttle_reason[chip->throttle_reason],
 				      pmsr_pmax);
@@ -408,6 +461,21 @@ static int powernv_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	for (i = 0; i < threads_per_core; i++)
 		cpumask_set_cpu(base + i, policy->cpus);
 
+	if (!policy->driver_data) {
+		int ret;
+
+		ret = sysfs_create_group(&policy->kobj, &throttle_attr_grp);
+		if (ret) {
+			pr_info("Failed to create throttle stats directory for cpu %d\n",
+				policy->cpu);
+			return ret;
+		}
+		/*
+		 * policy->driver_data is used as a flag for one-time
+		 * creation of throttle sysfs files.
+		 */
+		policy->driver_data = policy;
+	}
 	return cpufreq_table_validate_and_show(policy, powernv_freqs);
 }
 
@@ -514,8 +582,10 @@ static int powernv_cpufreq_occ_msg(struct notifier_block *nb,
 				break;
 
 		if (omsg.throttle_status >= 0 &&
-		    omsg.throttle_status <= OCC_MAX_THROTTLE_STATUS)
+		    omsg.throttle_status <= OCC_MAX_THROTTLE_STATUS) {
 			chips[i].throttle_reason = omsg.throttle_status;
+			chips[i].reason[omsg.throttle_status]++;
+		}
 
 		if (!omsg.throttle_status)
 			chips[i].restore = true;
