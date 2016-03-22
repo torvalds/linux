@@ -113,14 +113,14 @@ int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand)
 EXPORT_SYMBOL(libcfs_deregister_ioctl);
 
 static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
-			void __user *arg)
+			void __user *uparam)
 {
 	struct libcfs_ioctl_data *data = NULL;
 	struct libcfs_ioctl_hdr *hdr;
 	int err;
 
 	/* 'cmd' and permissions get checked in our arch-specific caller */
-	err = libcfs_ioctl_getdata(&hdr, arg);
+	err = libcfs_ioctl_getdata(&hdr, uparam);
 	if (err) {
 		CDEBUG_LIMIT(D_ERROR,
 			     "libcfs ioctl: data header error %d\n", err);
@@ -169,7 +169,7 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
 				continue;
 
 			if (!err)
-				err = libcfs_ioctl_popdata(arg, hdr,
+				err = libcfs_ioctl_popdata(uparam, hdr,
 							   hdr->ioc_len);
 			break;
 		}
