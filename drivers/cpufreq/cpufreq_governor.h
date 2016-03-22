@@ -41,6 +41,13 @@
 /* Ondemand Sampling types */
 enum {OD_NORMAL_SAMPLE, OD_SUB_SAMPLE};
 
+struct gov_attr_set {
+	struct kobject kobj;
+	struct list_head policy_list;
+	struct mutex update_lock;
+	int usage_count;
+};
+
 /*
  * Abbreviations:
  * dbs: used as a shortform for demand based switching It helps to keep variable
@@ -52,7 +59,7 @@ enum {OD_NORMAL_SAMPLE, OD_SUB_SAMPLE};
 
 /* Governor demand based switching data (per-policy or global). */
 struct dbs_data {
-	int usage_count;
+	struct gov_attr_set attr_set;
 	void *tuners;
 	unsigned int min_sampling_rate;
 	unsigned int ignore_nice_load;
@@ -60,37 +67,35 @@ struct dbs_data {
 	unsigned int sampling_down_factor;
 	unsigned int up_threshold;
 	unsigned int io_is_busy;
-
-	struct kobject kobj;
-	struct list_head policy_dbs_list;
-	/*
-	 * Protect concurrent updates to governor tunables from sysfs,
-	 * policy_dbs_list and usage_count.
-	 */
-	struct mutex mutex;
 };
 
+static inline struct dbs_data *to_dbs_data(struct gov_attr_set *attr_set)
+{
+	return container_of(attr_set, struct dbs_data, attr_set);
+}
+
 /* Governor's specific attributes */
-struct dbs_data;
 struct governor_attr {
 	struct attribute attr;
-	ssize_t (*show)(struct dbs_data *dbs_data, char *buf);
-	ssize_t (*store)(struct dbs_data *dbs_data, const char *buf,
+	ssize_t (*show)(struct gov_attr_set *attr_set, char *buf);
+	ssize_t (*store)(struct gov_attr_set *attr_set, const char *buf,
 			 size_t count);
 };
 
 #define gov_show_one(_gov, file_name)					\
 static ssize_t show_##file_name						\
-(struct dbs_data *dbs_data, char *buf)					\
+(struct gov_attr_set *attr_set, char *buf)				\
 {									\
+	struct dbs_data *dbs_data = to_dbs_data(attr_set);		\
 	struct _gov##_dbs_tuners *tuners = dbs_data->tuners;		\
 	return sprintf(buf, "%u\n", tuners->file_name);			\
 }
 
 #define gov_show_one_common(file_name)					\
 static ssize_t show_##file_name						\
-(struct dbs_data *dbs_data, char *buf)					\
+(struct gov_attr_set *attr_set, char *buf)				\
 {									\
+	struct dbs_data *dbs_data = to_dbs_data(attr_set);		\
 	return sprintf(buf, "%u\n", dbs_data->file_name);		\
 }
 
@@ -184,7 +189,7 @@ void od_register_powersave_bias_handler(unsigned int (*f)
 		(struct cpufreq_policy *, unsigned int, unsigned int),
 		unsigned int powersave_bias);
 void od_unregister_powersave_bias_handler(void);
-ssize_t store_sampling_rate(struct dbs_data *dbs_data, const char *buf,
+ssize_t store_sampling_rate(struct gov_attr_set *attr_set, const char *buf,
 			    size_t count);
 void gov_update_cpu_data(struct dbs_data *dbs_data);
 #endif /* _CPUFREQ_GOVERNOR_H */

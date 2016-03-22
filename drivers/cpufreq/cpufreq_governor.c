@@ -43,9 +43,10 @@ static DEFINE_MUTEX(gov_dbs_data_mutex);
  * This must be called with dbs_data->mutex held, otherwise traversing
  * policy_dbs_list isn't safe.
  */
-ssize_t store_sampling_rate(struct dbs_data *dbs_data, const char *buf,
+ssize_t store_sampling_rate(struct gov_attr_set *attr_set, const char *buf,
 			    size_t count)
 {
+	struct dbs_data *dbs_data = to_dbs_data(attr_set);
 	struct policy_dbs_info *policy_dbs;
 	unsigned int rate;
 	int ret;
@@ -59,7 +60,7 @@ ssize_t store_sampling_rate(struct dbs_data *dbs_data, const char *buf,
 	 * We are operating under dbs_data->mutex and so the list and its
 	 * entries can't be freed concurrently.
 	 */
-	list_for_each_entry(policy_dbs, &dbs_data->policy_dbs_list, list) {
+	list_for_each_entry(policy_dbs, &attr_set->policy_list, list) {
 		mutex_lock(&policy_dbs->timer_mutex);
 		/*
 		 * On 32-bit architectures this may race with the
@@ -96,7 +97,7 @@ void gov_update_cpu_data(struct dbs_data *dbs_data)
 {
 	struct policy_dbs_info *policy_dbs;
 
-	list_for_each_entry(policy_dbs, &dbs_data->policy_dbs_list, list) {
+	list_for_each_entry(policy_dbs, &dbs_data->attr_set.policy_list, list) {
 		unsigned int j;
 
 		for_each_cpu(j, policy_dbs->policy->cpus) {
@@ -111,9 +112,9 @@ void gov_update_cpu_data(struct dbs_data *dbs_data)
 }
 EXPORT_SYMBOL_GPL(gov_update_cpu_data);
 
-static inline struct dbs_data *to_dbs_data(struct kobject *kobj)
+static inline struct gov_attr_set *to_gov_attr_set(struct kobject *kobj)
 {
-	return container_of(kobj, struct dbs_data, kobj);
+	return container_of(kobj, struct gov_attr_set, kobj);
 }
 
 static inline struct governor_attr *to_gov_attr(struct attribute *attr)
@@ -124,25 +125,24 @@ static inline struct governor_attr *to_gov_attr(struct attribute *attr)
 static ssize_t governor_show(struct kobject *kobj, struct attribute *attr,
 			     char *buf)
 {
-	struct dbs_data *dbs_data = to_dbs_data(kobj);
 	struct governor_attr *gattr = to_gov_attr(attr);
 
-	return gattr->show(dbs_data, buf);
+	return gattr->show(to_gov_attr_set(kobj), buf);
 }
 
 static ssize_t governor_store(struct kobject *kobj, struct attribute *attr,
 			      const char *buf, size_t count)
 {
-	struct dbs_data *dbs_data = to_dbs_data(kobj);
+	struct gov_attr_set *attr_set = to_gov_attr_set(kobj);
 	struct governor_attr *gattr = to_gov_attr(attr);
 	int ret = -EBUSY;
 
-	mutex_lock(&dbs_data->mutex);
+	mutex_lock(&attr_set->update_lock);
 
-	if (dbs_data->usage_count)
-		ret = gattr->store(dbs_data, buf, count);
+	if (attr_set->usage_count)
+		ret = gattr->store(attr_set, buf, count);
 
-	mutex_unlock(&dbs_data->mutex);
+	mutex_unlock(&attr_set->update_lock);
 
 	return ret;
 }
@@ -425,6 +425,41 @@ static void free_policy_dbs_info(struct policy_dbs_info *policy_dbs,
 	gov->free(policy_dbs);
 }
 
+static void gov_attr_set_init(struct gov_attr_set *attr_set,
+			      struct list_head *list_node)
+{
+	INIT_LIST_HEAD(&attr_set->policy_list);
+	mutex_init(&attr_set->update_lock);
+	attr_set->usage_count = 1;
+	list_add(list_node, &attr_set->policy_list);
+}
+
+static void gov_attr_set_get(struct gov_attr_set *attr_set,
+			     struct list_head *list_node)
+{
+	mutex_lock(&attr_set->update_lock);
+	attr_set->usage_count++;
+	list_add(list_node, &attr_set->policy_list);
+	mutex_unlock(&attr_set->update_lock);
+}
+
+static unsigned int gov_attr_set_put(struct gov_attr_set *attr_set,
+				     struct list_head *list_node)
+{
+	unsigned int count;
+
+	mutex_lock(&attr_set->update_lock);
+	list_del(list_node);
+	count = --attr_set->usage_count;
+	mutex_unlock(&attr_set->update_lock);
+	if (count)
+		return count;
+
+	kobject_put(&attr_set->kobj);
+	mutex_destroy(&attr_set->update_lock);
+	return 0;
+}
+
 static int cpufreq_governor_init(struct cpufreq_policy *policy)
 {
 	struct dbs_governor *gov = dbs_governor_of(policy);
@@ -453,10 +488,7 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 		policy_dbs->dbs_data = dbs_data;
 		policy->governor_data = policy_dbs;
 
-		mutex_lock(&dbs_data->mutex);
-		dbs_data->usage_count++;
-		list_add(&policy_dbs->list, &dbs_data->policy_dbs_list);
-		mutex_unlock(&dbs_data->mutex);
+		gov_attr_set_get(&dbs_data->attr_set, &policy_dbs->list);
 		goto out;
 	}
 
@@ -466,8 +498,7 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 		goto free_policy_dbs_info;
 	}
 
-	INIT_LIST_HEAD(&dbs_data->policy_dbs_list);
-	mutex_init(&dbs_data->mutex);
+	gov_attr_set_init(&dbs_data->attr_set, &policy_dbs->list);
 
 	ret = gov->init(dbs_data, !policy->governor->initialized);
 	if (ret)
@@ -487,14 +518,11 @@ static int cpufreq_governor_init(struct cpufreq_policy *policy)
 	if (!have_governor_per_policy())
 		gov->gdbs_data = dbs_data;
 
+	policy_dbs->dbs_data = dbs_data;
 	policy->governor_data = policy_dbs;
 
-	policy_dbs->dbs_data = dbs_data;
-	dbs_data->usage_count = 1;
-	list_add(&policy_dbs->list, &dbs_data->policy_dbs_list);
-
 	gov->kobj_type.sysfs_ops = &governor_sysfs_ops;
-	ret = kobject_init_and_add(&dbs_data->kobj, &gov->kobj_type,
+	ret = kobject_init_and_add(&dbs_data->attr_set.kobj, &gov->kobj_type,
 				   get_governor_parent_kobj(policy),
 				   "%s", gov->gov.name);
 	if (!ret)
@@ -523,29 +551,21 @@ static int cpufreq_governor_exit(struct cpufreq_policy *policy)
 	struct dbs_governor *gov = dbs_governor_of(policy);
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
-	int count;
+	unsigned int count;
 
 	/* Protect gov->gdbs_data against concurrent updates. */
 	mutex_lock(&gov_dbs_data_mutex);
 
-	mutex_lock(&dbs_data->mutex);
-	list_del(&policy_dbs->list);
-	count = --dbs_data->usage_count;
-	mutex_unlock(&dbs_data->mutex);
+	count = gov_attr_set_put(&dbs_data->attr_set, &policy_dbs->list);
+
+	policy->governor_data = NULL;
 
 	if (!count) {
-		kobject_put(&dbs_data->kobj);
-
-		policy->governor_data = NULL;
-
 		if (!have_governor_per_policy())
 			gov->gdbs_data = NULL;
 
 		gov->exit(dbs_data, policy->governor->initialized == 1);
-		mutex_destroy(&dbs_data->mutex);
 		kfree(dbs_data);
-	} else {
-		policy->governor_data = NULL;
 	}
 
 	free_policy_dbs_info(policy_dbs, gov);
