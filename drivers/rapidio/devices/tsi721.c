@@ -2426,11 +2426,9 @@ static int tsi721_probe(struct pci_dev *pdev,
 
 	BUG_ON(!pci_is_pcie(pdev));
 
-	/* Clear "no snoop" and "relaxed ordering" bits, use default MRRS. */
+	/* Clear "no snoop" and "relaxed ordering" bits. */
 	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
-		PCI_EXP_DEVCTL_READRQ | PCI_EXP_DEVCTL_RELAX_EN |
-		PCI_EXP_DEVCTL_NOSNOOP_EN,
-		PCI_EXP_DEVCTL_READRQ_512B);
+		PCI_EXP_DEVCTL_RELAX_EN | PCI_EXP_DEVCTL_NOSNOOP_EN, 0);
 
 	/* Adjust PCIe completion timeout. */
 	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL2, 0xf, 0x2);
