@@ -499,9 +499,24 @@ err_disable_hclk:
 static void vop_crtc_disable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
+	int i;
 
 	if (!vop->is_enabled)
 		return;
+
+	/*
+	 * We need to make sure that all windows are disabled before we
+	 * disable that crtc. Otherwise we might try to scan from a destroyed
+	 * buffer later.
+	 */
+	for (i = 0; i < vop->data->win_size; i++) {
+		struct vop_win *vop_win = &vop->win[i];
+		const struct vop_win_data *win = vop_win->data;
+
+		spin_lock(&vop->reg_lock);
+		VOP_WIN_SET(vop, win, enable, 0);
+		spin_unlock(&vop->reg_lock);
+	}
 
 	drm_crtc_vblank_off(crtc);
 
