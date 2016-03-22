@@ -331,7 +331,7 @@ static const struct ni_660x_board ni_660x_boards[] = {
 struct ni_660x_private {
 	struct mite_struct *mite;
 	struct ni_gpct_device *counter_dev;
-	uint64_t pfi_direction_bits;
+	u64 pfi_direction_bits;
 	struct mite_dma_descriptor_ring
 	*mite_rings[NI_660X_MAX_NUM_CHIPS][counters_per_chip];
 	spinlock_t mite_channel_lock;
@@ -854,7 +854,7 @@ static int ni_660x_set_pfi_routing(struct comedi_device *dev,
 	}
 
 	devpriv->pfi_output_selects[chan] = source;
-	if (devpriv->pfi_direction_bits & (((uint64_t) 1) << chan))
+	if (devpriv->pfi_direction_bits & (1ULL << chan))
 		ni_660x_select_pfi_output(dev, chan,
 					  devpriv->pfi_output_selects[chan]);
 	return 0;
@@ -867,7 +867,7 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 {
 	struct ni_660x_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	uint64_t bit = 1ULL << chan;
+	u64 bit = 1ULL << chan;
 	unsigned int val;
 	int ret;
 
