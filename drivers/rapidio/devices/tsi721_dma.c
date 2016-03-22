@@ -84,7 +84,7 @@ static int tsi721_bdma_ch_init(struct tsi721_bdma_chan *bdma_chan, int bd_num)
 	 */
 	bd_ptr = dma_zalloc_coherent(dev,
 				(bd_num + 1) * sizeof(struct tsi721_dma_desc),
-				&bd_phys, GFP_KERNEL);
+				&bd_phys, GFP_ATOMIC);
 	if (!bd_ptr)
 		return -ENOMEM;
 
@@ -102,7 +102,7 @@ static int tsi721_bdma_ch_init(struct tsi721_bdma_chan *bdma_chan, int bd_num)
 	sts_size = roundup_pow_of_two(sts_size);
 	sts_ptr = dma_zalloc_coherent(dev,
 				     sts_size * sizeof(struct tsi721_dma_sts),
-				     &sts_phys, GFP_KERNEL);
+				     &sts_phys, GFP_ATOMIC);
 	if (!sts_ptr) {
 		/* Free space allocated for DMA descriptors */
 		dma_free_coherent(dev,
@@ -297,7 +297,8 @@ static irqreturn_t tsi721_bdma_msix(int irq, void *ptr)
 {
 	struct tsi721_bdma_chan *bdma_chan = ptr;
 
-	tsi721_bdma_handler(bdma_chan);
+	if (bdma_chan->active)
+		tasklet_schedule(&bdma_chan->tasklet);
 	return IRQ_HANDLED;
 }
 #endif /* CONFIG_PCI_MSI */
@@ -618,14 +619,14 @@ static void tsi721_dma_tasklet(unsigned long data)
 			}
 			list_add(&desc->desc_node, &bdma_chan->free_list);
 			bdma_chan->active_tx = NULL;
+			tsi721_advance_work(bdma_chan, NULL);
 			spin_unlock(&bdma_chan->lock);
 			if (callback)
 				callback(param);
-			spin_lock(&bdma_chan->lock);
+		} else {
+			tsi721_advance_work(bdma_chan, bdma_chan->active_tx);
+			spin_unlock(&bdma_chan->lock);
 		}
-
-		tsi721_advance_work(bdma_chan, bdma_chan->active_tx);
-		spin_unlock(&bdma_chan->lock);
 	}
 
 	/* Re-Enable BDMA channel interrupts */
@@ -681,7 +682,7 @@ static int tsi721_alloc_chan_resources(struct dma_chan *dchan)
 
 	/* Allocate queue of transaction descriptors */
 	desc = kcalloc(TSI721_DMA_TX_QUEUE_SZ, sizeof(struct tsi721_tx_desc),
-			GFP_KERNEL);
+			GFP_ATOMIC);
 	if (!desc) {
 		tsi_err(&dchan->dev->device,
 			"DMAC%d Failed to allocate logical descriptors",
@@ -744,7 +745,13 @@ static
 enum dma_status tsi721_tx_status(struct dma_chan *dchan, dma_cookie_t cookie,
 				 struct dma_tx_state *txstate)
 {
-	return dma_cookie_status(dchan, cookie, txstate);
+	struct tsi721_bdma_chan *bdma_chan = to_tsi721_chan(dchan);
+	enum dma_status	status;
+
+	spin_lock_bh(&bdma_chan->lock);
+	status = dma_cookie_status(dchan, cookie, txstate);
+	spin_unlock_bh(&bdma_chan->lock);
+	return status;
 }
 
 static void tsi721_issue_pending(struct dma_chan *dchan)
