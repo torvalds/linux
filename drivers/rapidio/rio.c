@@ -138,6 +138,20 @@ void rio_free_net(struct rio_net *net)
 EXPORT_SYMBOL_GPL(rio_free_net);
 
 /**
+ * rio_local_set_device_id - Set the base/extended device id for a port
+ * @port: RIO master port
+ * @did: Device ID value to be written
+ *
+ * Writes the base/extended device id from a device.
+ */
+void rio_local_set_device_id(struct rio_mport *port, u16 did)
+{
+	rio_local_write_config_32(port, RIO_DID_CSR,
+				  RIO_SET_DID(port->sys_size, did));
+}
+EXPORT_SYMBOL_GPL(rio_local_set_device_id);
+
+/**
  * rio_add_device- Adds a RIO device to the device model
  * @rdev: RIO device
  *

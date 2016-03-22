@@ -194,19 +194,6 @@ static void rio_set_device_id(struct rio_mport *port, u16 destid, u8 hopcount, u
 }
 
 /**
- * rio_local_set_device_id - Set the base/extended device id for a port
- * @port: RIO master port
- * @did: Device ID value to be written
- *
- * Writes the base/extended device id from a device.
- */
-static void rio_local_set_device_id(struct rio_mport *port, u16 did)
-{
-	rio_local_write_config_32(port, RIO_DID_CSR, RIO_SET_DID(port->sys_size,
-				did));
-}
-
-/**
  * rio_clear_locks- Release all host locks and signal enumeration complete
  * @net: RIO network to run on
  *
