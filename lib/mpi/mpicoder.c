@@ -477,19 +477,17 @@ MPI mpi_read_raw_from_sgl(struct scatterlist *sgl, unsigned int nbytes)
 
 	j = nlimbs - 1;
 	a = 0;
-	z = 0;
-	x = BYTES_PER_MPI_LIMB - nbytes % BYTES_PER_MPI_LIMB;
-	x %= BYTES_PER_MPI_LIMB;
+	z = BYTES_PER_MPI_LIMB - nbytes % BYTES_PER_MPI_LIMB;
+	z %= BYTES_PER_MPI_LIMB;
 
 	for_each_sg(sgl, sg, ents, i) {
 		const u8 *buffer = sg_virt(sg) + lzeros;
 		int len = sg->length - lzeros;
-		int buf_shift = x;
 
 		if  (sg_is_last(sg) && (len % BYTES_PER_MPI_LIMB))
 			len += BYTES_PER_MPI_LIMB - (len % BYTES_PER_MPI_LIMB);
 
-		for (; x < len + buf_shift; x++) {
+		for (x = 0; x < len; x++) {
 			a <<= 8;
 			a |= *buffer++;
 			if (((z + x + 1) % BYTES_PER_MPI_LIMB) == 0) {
@@ -498,7 +496,6 @@ MPI mpi_read_raw_from_sgl(struct scatterlist *sgl, unsigned int nbytes)
 			}
 		}
 		z += x;
-		x = 0;
 		lzeros = 0;
 	}
 	return val;
