@@ -1580,11 +1580,10 @@ static int omap1_cam_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	pcdev = kzalloc(sizeof(*pcdev) + resource_size(res), GFP_KERNEL);
-	if (!pcdev) {
-		dev_err(&pdev->dev, "Could not allocate pcdev\n");
+	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev) + resource_size(res),
+			     GFP_KERNEL);
+	if (!pcdev)
 		return -ENOMEM;
-	}
 
 	pcdev->res = res;
 	pcdev->clk = clk;
@@ -1620,10 +1619,8 @@ static int omap1_cam_probe(struct platform_device *pdev)
 	/*
 	 * Request the region.
 	 */
-	if (!request_mem_region(res->start, resource_size(res), DRIVER_NAME)) {
-		err = -EBUSY;
-		goto exit_kfree;
-	}
+	if (!request_mem_region(res->start, resource_size(res), DRIVER_NAME))
+		return -EBUSY;
 
 	base = ioremap(res->start, resource_size(res));
 	if (!base) {
@@ -1680,8 +1677,6 @@ exit_iounmap:
 	iounmap(base);
 exit_release:
 	release_mem_region(res->start, resource_size(res));
-exit_kfree:
-	kfree(pcdev);
 exit:
 	return err;
 }
@@ -1703,8 +1698,6 @@ static int omap1_cam_remove(struct platform_device *pdev)
 
 	res = pcdev->res;
 	release_mem_region(res->start, resource_size(res));
-
-	kfree(pcdev);
 
 	dev_info(&pdev->dev, "OMAP1 Camera Interface driver unloaded\n");
 
