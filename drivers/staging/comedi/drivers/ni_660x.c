@@ -398,11 +398,13 @@ struct ni_660x_private {
 	struct ni_gpct_device *counter_dev;
 	struct mite_dma_descriptor_ring
 	*mite_rings[NI_660X_MAX_NUM_CHIPS][counters_per_chip];
+	/* protects mite channel request/release */
 	spinlock_t mite_channel_lock;
-	/* interrupt_lock prevents races between interrupt and comedi_poll */
+	/* prevents races between interrupt and comedi_poll */
 	spinlock_t interrupt_lock;
+	/* protects dma_cfg changes */
+	spinlock_t dma_cfg_lock;
 	unsigned int dma_cfg[NI_660X_MAX_NUM_CHIPS];
-	spinlock_t soft_reg_copy_lock;
 	unsigned int io_cfg[NUM_PFI_CHANNELS];
 	u64 io_dir;
 };
@@ -482,7 +484,7 @@ static inline void ni_660x_set_dma_channel(struct comedi_device *dev,
 	unsigned int chip = counter->chip_index;
 	unsigned long flags;
 
-	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
+	spin_lock_irqsave(&devpriv->dma_cfg_lock, flags);
 	devpriv->dma_cfg[chip] &= ~NI660X_DMA_CFG_SEL_MASK(mite_channel);
 	devpriv->dma_cfg[chip] |= NI660X_DMA_CFG_SEL(mite_channel,
 						     counter->counter_index);
@@ -490,7 +492,7 @@ static inline void ni_660x_set_dma_channel(struct comedi_device *dev,
 		      NI660X_DMA_CFG_RESET(mite_channel),
 		      NI660X_DMA_CFG);
 	mmiowb();
-	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
+	spin_unlock_irqrestore(&devpriv->dma_cfg_lock, flags);
 }
 
 static inline void ni_660x_unset_dma_channel(struct comedi_device *dev,
@@ -501,12 +503,12 @@ static inline void ni_660x_unset_dma_channel(struct comedi_device *dev,
 	unsigned int chip = counter->chip_index;
 	unsigned long flags;
 
-	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
+	spin_lock_irqsave(&devpriv->dma_cfg_lock, flags);
 	devpriv->dma_cfg[chip] &= ~NI660X_DMA_CFG_SEL_MASK(mite_channel);
 	devpriv->dma_cfg[chip] |= NI660X_DMA_CFG_SEL_NONE(mite_channel);
 	ni_660x_write(dev, chip, devpriv->dma_cfg[chip], NI660X_DMA_CFG);
 	mmiowb();
-	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
+	spin_unlock_irqrestore(&devpriv->dma_cfg_lock, flags);
 }
 
 static int ni_660x_request_mite_channel(struct comedi_device *dev,
@@ -662,7 +664,7 @@ static int ni_660x_allocate_private(struct comedi_device *dev)
 
 	spin_lock_init(&devpriv->mite_channel_lock);
 	spin_lock_init(&devpriv->interrupt_lock);
-	spin_lock_init(&devpriv->soft_reg_copy_lock);
+	spin_lock_init(&devpriv->dma_cfg_lock);
 	for (i = 0; i < NUM_PFI_CHANNELS; ++i)
 		devpriv->io_cfg[i] = NI_660X_PFI_OUTPUT_COUNTER;
 
