@@ -26,6 +26,7 @@ struct dsaf_device;
 
 #define MAC_DEFAULT_MTU	(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN + ETH_DATA_LEN)
 #define MAC_MAX_MTU		9600
+#define MAC_MAX_MTU_V2		9728
 #define MAC_MIN_MTU		68
 
 #define MAC_DEFAULT_PAUSE_TIME 0xff
