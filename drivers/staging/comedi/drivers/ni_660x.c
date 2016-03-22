@@ -914,6 +914,16 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 
 	ni_660x_init_tio_chips(dev, board->n_chips);
 
+	n_counters = board->n_chips * NI660X_COUNTERS_PER_CHIP;
+	gpct_dev = ni_gpct_device_construct(dev,
+					    ni_660x_gpct_write,
+					    ni_660x_gpct_read,
+					    ni_gpct_variant_660x,
+					    n_counters);
+	if (!gpct_dev)
+		return -ENOMEM;
+	devpriv->counter_dev = gpct_dev;
+
 	ret = comedi_alloc_subdevices(dev, 2 + NI660X_MAX_COUNTERS);
 	if (ret)
 		return ret;
@@ -985,16 +995,6 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= ni_660x_dio_insn_bits;
 	s->insn_config	= ni_660x_dio_insn_config;
-
-	n_counters = board->n_chips * NI660X_COUNTERS_PER_CHIP;
-	gpct_dev = ni_gpct_device_construct(dev,
-					    ni_660x_gpct_write,
-					    ni_660x_gpct_read,
-					    ni_gpct_variant_660x,
-					    n_counters);
-	if (!gpct_dev)
-		return -ENOMEM;
-	devpriv->counter_dev = gpct_dev;
 
 	/* Counter subdevices (4 NI TIO General Purpose Counters per chip) */
 	for (i = 0; i < NI660X_MAX_COUNTERS; ++i) {
