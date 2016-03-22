@@ -66,9 +66,13 @@ static void fill_v2_desc(struct hnae_ring *ring, void *priv,
 	desc->addr = cpu_to_le64(dma);
 	desc->tx.send_size = cpu_to_le16((u16)size);
 
-	/*config bd buffer end */
+	/* config bd buffer end */
 	hnae_set_bit(rrcfv, HNSV2_TXD_VLD_B, 1);
 	hnae_set_field(bn_pid, HNSV2_TXD_BUFNUM_M, 0, buf_num - 1);
+
+	/* fill port_id in the tx bd for sending management pkts */
+	hnae_set_field(bn_pid, HNSV2_TXD_PORTID_M,
+		       HNSV2_TXD_PORTID_S, ring->q->handle->dport_id);
 
 	if (type == DESC_TYPE_SKB) {
 		skb = (struct sk_buff *)priv;

@@ -175,6 +175,7 @@ struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 	ae_handle->phy_node = vf_cb->mac_cb->phy_node;
 	ae_handle->if_support = vf_cb->mac_cb->if_support;
 	ae_handle->port_type = vf_cb->mac_cb->mac_type;
+	ae_handle->dport_id = port_idx;
 
 	return ae_handle;
 vf_id_err:
