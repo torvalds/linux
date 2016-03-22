@@ -1021,13 +1021,12 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 			s->buf_change	= ni_660x_buf_change;
 			s->async_dma_dir = DMA_BIDIRECTIONAL;
 			s->private	= counter;
+
+			ni_tio_init_counter(counter);
 		} else {
 			s->type		= COMEDI_SUBD_UNUSED;
 		}
 	}
-
-	for (i = 0; i < n_counters; ++i)
-		ni_tio_init_counter(&gpct_dev->counters[i]);
 
 	 /*
 	  * Default the DIO channels as:
