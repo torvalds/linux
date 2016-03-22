@@ -127,13 +127,13 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
 		return err;
 	}
 
-	/*
-	 * The libcfs_ioctl_data_adjust() function performs adjustment
-	 * operations on the libcfs_ioctl_data structure to make
-	 * it usable by the code.  This doesn't need to be called
-	 * for new data structures added.
-	 */
 	if (hdr->ioc_version == LIBCFS_IOCTL_VERSION) {
+		/*
+		 * The libcfs_ioctl_data_adjust() function performs adjustment
+		 * operations on the libcfs_ioctl_data structure to make
+		 * it usable by the code.  This doesn't need to be called
+		 * for new data structures added.
+		 */
 		data = container_of(hdr, struct libcfs_ioctl_data, ioc_hdr);
 		err = libcfs_ioctl_data_adjust(data);
 		if (err)
