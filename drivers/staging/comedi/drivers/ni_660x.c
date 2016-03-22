@@ -279,6 +279,77 @@ static const struct ni_660x_register_data ni_660x_reg_data[NI660X_NUM_REGS] = {
 	[NI660X_IO_CFG_38_39]		= { 0x7a2, 2 }	/* read/write */
 };
 
+static const enum ni_660x_register ni_gpct_to_660x_register[] = {
+	[NITIO_G0_AUTO_INC]		= NI660X_G0_AUTO_INC,
+	[NITIO_G1_AUTO_INC]		= NI660X_G1_AUTO_INC,
+	[NITIO_G2_AUTO_INC]		= NI660X_G2_AUTO_INC,
+	[NITIO_G3_AUTO_INC]		= NI660X_G3_AUTO_INC,
+	[NITIO_G0_CMD]			= NI660X_G0_CMD,
+	[NITIO_G1_CMD]			= NI660X_G1_CMD,
+	[NITIO_G2_CMD]			= NI660X_G2_CMD,
+	[NITIO_G3_CMD]			= NI660X_G3_CMD,
+	[NITIO_G0_HW_SAVE]		= NI660X_G0_HW_SAVE,
+	[NITIO_G1_HW_SAVE]		= NI660X_G1_HW_SAVE,
+	[NITIO_G2_HW_SAVE]		= NI660X_G2_HW_SAVE,
+	[NITIO_G3_HW_SAVE]		= NI660X_G3_HW_SAVE,
+	[NITIO_G0_SW_SAVE]		= NI660X_G0_SW_SAVE,
+	[NITIO_G1_SW_SAVE]		= NI660X_G1_SW_SAVE,
+	[NITIO_G2_SW_SAVE]		= NI660X_G2_SW_SAVE,
+	[NITIO_G3_SW_SAVE]		= NI660X_G3_SW_SAVE,
+	[NITIO_G0_MODE]			= NI660X_G0_MODE,
+	[NITIO_G1_MODE]			= NI660X_G1_MODE,
+	[NITIO_G2_MODE]			= NI660X_G2_MODE,
+	[NITIO_G3_MODE]			= NI660X_G3_MODE,
+	[NITIO_G0_LOADA]		= NI660X_G0_LOADA,
+	[NITIO_G1_LOADA]		= NI660X_G1_LOADA,
+	[NITIO_G2_LOADA]		= NI660X_G2_LOADA,
+	[NITIO_G3_LOADA]		= NI660X_G3_LOADA,
+	[NITIO_G0_LOADB]		= NI660X_G0_LOADB,
+	[NITIO_G1_LOADB]		= NI660X_G1_LOADB,
+	[NITIO_G2_LOADB]		= NI660X_G2_LOADB,
+	[NITIO_G3_LOADB]		= NI660X_G3_LOADB,
+	[NITIO_G0_INPUT_SEL]		= NI660X_G0_INPUT_SEL,
+	[NITIO_G1_INPUT_SEL]		= NI660X_G1_INPUT_SEL,
+	[NITIO_G2_INPUT_SEL]		= NI660X_G2_INPUT_SEL,
+	[NITIO_G3_INPUT_SEL]		= NI660X_G3_INPUT_SEL,
+	[NITIO_G0_CNT_MODE]		= NI660X_G0_CNT_MODE,
+	[NITIO_G1_CNT_MODE]		= NI660X_G1_CNT_MODE,
+	[NITIO_G2_CNT_MODE]		= NI660X_G2_CNT_MODE,
+	[NITIO_G3_CNT_MODE]		= NI660X_G3_CNT_MODE,
+	[NITIO_G0_GATE2]		= NI660X_G0_GATE2,
+	[NITIO_G1_GATE2]		= NI660X_G1_GATE2,
+	[NITIO_G2_GATE2]		= NI660X_G2_GATE2,
+	[NITIO_G3_GATE2]		= NI660X_G3_GATE2,
+	[NITIO_G01_STATUS]		= NI660X_G01_STATUS,
+	[NITIO_G23_STATUS]		= NI660X_G23_STATUS,
+	[NITIO_G01_RESET]		= NI660X_G01_RESET,
+	[NITIO_G23_RESET]		= NI660X_G23_RESET,
+	[NITIO_G01_STATUS1]		= NI660X_G01_STATUS1,
+	[NITIO_G23_STATUS1]		= NI660X_G23_STATUS1,
+	[NITIO_G01_STATUS2]		= NI660X_G01_STATUS2,
+	[NITIO_G23_STATUS2]		= NI660X_G23_STATUS2,
+	[NITIO_G0_DMA_CFG]		= NI660X_G0_DMA_CFG,
+	[NITIO_G1_DMA_CFG]		= NI660X_G1_DMA_CFG,
+	[NITIO_G2_DMA_CFG]		= NI660X_G2_DMA_CFG,
+	[NITIO_G3_DMA_CFG]		= NI660X_G3_DMA_CFG,
+	[NITIO_G0_DMA_STATUS]		= NI660X_G0_DMA_STATUS,
+	[NITIO_G1_DMA_STATUS]		= NI660X_G1_DMA_STATUS,
+	[NITIO_G2_DMA_STATUS]		= NI660X_G2_DMA_STATUS,
+	[NITIO_G3_DMA_STATUS]		= NI660X_G3_DMA_STATUS,
+	[NITIO_G0_INT_ACK]		= NI660X_G0_INT_ACK,
+	[NITIO_G1_INT_ACK]		= NI660X_G1_INT_ACK,
+	[NITIO_G2_INT_ACK]		= NI660X_G2_INT_ACK,
+	[NITIO_G3_INT_ACK]		= NI660X_G3_INT_ACK,
+	[NITIO_G0_STATUS]		= NI660X_G0_STATUS,
+	[NITIO_G1_STATUS]		= NI660X_G1_STATUS,
+	[NITIO_G2_STATUS]		= NI660X_G2_STATUS,
+	[NITIO_G3_STATUS]		= NI660X_G3_STATUS,
+	[NITIO_G0_INT_ENA]		= NI660X_G0_INT_ENA,
+	[NITIO_G1_INT_ENA]		= NI660X_G1_INT_ENA,
+	[NITIO_G2_INT_ENA]		= NI660X_G2_INT_ENA,
+	[NITIO_G3_INT_ENA]		= NI660X_G3_INT_ENA,
+};
+
 /* Offset of the GPCT chips from the base-address of the card */
 /* First chip is at base-address + 0x00, etc. */
 static const unsigned GPCT_OFFSET[2] = { 0x0, 0x800 };
@@ -336,151 +407,6 @@ struct ni_660x_private {
 	u64 io_dir;
 };
 
-static enum ni_660x_register ni_gpct_to_660x_register(enum ni_gpct_register reg)
-{
-	switch (reg) {
-	case NITIO_G0_AUTO_INC:
-		return NI660X_G0_AUTO_INC;
-	case NITIO_G1_AUTO_INC:
-		return NI660X_G1_AUTO_INC;
-	case NITIO_G2_AUTO_INC:
-		return NI660X_G2_AUTO_INC;
-	case NITIO_G3_AUTO_INC:
-		return NI660X_G3_AUTO_INC;
-	case NITIO_G0_CMD:
-		return NI660X_G0_CMD;
-	case NITIO_G1_CMD:
-		return NI660X_G1_CMD;
-	case NITIO_G2_CMD:
-		return NI660X_G2_CMD;
-	case NITIO_G3_CMD:
-		return NI660X_G3_CMD;
-	case NITIO_G0_HW_SAVE:
-		return NI660X_G0_HW_SAVE;
-	case NITIO_G1_HW_SAVE:
-		return NI660X_G1_HW_SAVE;
-	case NITIO_G2_HW_SAVE:
-		return NI660X_G2_HW_SAVE;
-	case NITIO_G3_HW_SAVE:
-		return NI660X_G3_HW_SAVE;
-	case NITIO_G0_SW_SAVE:
-		return NI660X_G0_SW_SAVE;
-	case NITIO_G1_SW_SAVE:
-		return NI660X_G1_SW_SAVE;
-	case NITIO_G2_SW_SAVE:
-		return NI660X_G2_SW_SAVE;
-	case NITIO_G3_SW_SAVE:
-		return NI660X_G3_SW_SAVE;
-	case NITIO_G0_MODE:
-		return NI660X_G0_MODE;
-	case NITIO_G1_MODE:
-		return NI660X_G1_MODE;
-	case NITIO_G2_MODE:
-		return NI660X_G2_MODE;
-	case NITIO_G3_MODE:
-		return NI660X_G3_MODE;
-	case NITIO_G0_LOADA:
-		return NI660X_G0_LOADA;
-	case NITIO_G1_LOADA:
-		return NI660X_G1_LOADA;
-	case NITIO_G2_LOADA:
-		return NI660X_G2_LOADA;
-	case NITIO_G3_LOADA:
-		return NI660X_G3_LOADA;
-	case NITIO_G0_LOADB:
-		return NI660X_G0_LOADB;
-	case NITIO_G1_LOADB:
-		return NI660X_G1_LOADB;
-	case NITIO_G2_LOADB:
-		return NI660X_G2_LOADB;
-	case NITIO_G3_LOADB:
-		return NI660X_G3_LOADB;
-	case NITIO_G0_INPUT_SEL:
-		return NI660X_G0_INPUT_SEL;
-	case NITIO_G1_INPUT_SEL:
-		return NI660X_G1_INPUT_SEL;
-	case NITIO_G2_INPUT_SEL:
-		return NI660X_G2_INPUT_SEL;
-	case NITIO_G3_INPUT_SEL:
-		return NI660X_G3_INPUT_SEL;
-	case NITIO_G01_STATUS:
-		return NI660X_G01_STATUS;
-	case NITIO_G23_STATUS:
-		return NI660X_G23_STATUS;
-	case NITIO_G01_RESET:
-		return NI660X_G01_RESET;
-	case NITIO_G23_RESET:
-		return NI660X_G23_RESET;
-	case NITIO_G01_STATUS1:
-		return NI660X_G01_STATUS1;
-	case NITIO_G23_STATUS1:
-		return NI660X_G23_STATUS1;
-	case NITIO_G01_STATUS2:
-		return NI660X_G01_STATUS2;
-	case NITIO_G23_STATUS2:
-		return NI660X_G23_STATUS2;
-	case NITIO_G0_CNT_MODE:
-		return NI660X_G0_CNT_MODE;
-	case NITIO_G1_CNT_MODE:
-		return NI660X_G1_CNT_MODE;
-	case NITIO_G2_CNT_MODE:
-		return NI660X_G2_CNT_MODE;
-	case NITIO_G3_CNT_MODE:
-		return NI660X_G3_CNT_MODE;
-	case NITIO_G0_GATE2:
-		return NI660X_G0_GATE2;
-	case NITIO_G1_GATE2:
-		return NI660X_G1_GATE2;
-	case NITIO_G2_GATE2:
-		return NI660X_G2_GATE2;
-	case NITIO_G3_GATE2:
-		return NI660X_G3_GATE2;
-	case NITIO_G0_DMA_CFG:
-		return NI660X_G0_DMA_CFG;
-	case NITIO_G0_DMA_STATUS:
-		return NI660X_G0_DMA_STATUS;
-	case NITIO_G1_DMA_CFG:
-		return NI660X_G1_DMA_CFG;
-	case NITIO_G1_DMA_STATUS:
-		return NI660X_G1_DMA_STATUS;
-	case NITIO_G2_DMA_CFG:
-		return NI660X_G2_DMA_CFG;
-	case NITIO_G2_DMA_STATUS:
-		return NI660X_G2_DMA_STATUS;
-	case NITIO_G3_DMA_CFG:
-		return NI660X_G3_DMA_CFG;
-	case NITIO_G3_DMA_STATUS:
-		return NI660X_G3_DMA_STATUS;
-	case NITIO_G0_INT_ACK:
-		return NI660X_G0_INT_ACK;
-	case NITIO_G1_INT_ACK:
-		return NI660X_G1_INT_ACK;
-	case NITIO_G2_INT_ACK:
-		return NI660X_G2_INT_ACK;
-	case NITIO_G3_INT_ACK:
-		return NI660X_G3_INT_ACK;
-	case NITIO_G0_STATUS:
-		return NI660X_G0_STATUS;
-	case NITIO_G1_STATUS:
-		return NI660X_G1_STATUS;
-	case NITIO_G2_STATUS:
-		return NI660X_G2_STATUS;
-	case NITIO_G3_STATUS:
-		return NI660X_G3_STATUS;
-	case NITIO_G0_INT_ENA:
-		return NI660X_G0_INT_ENA;
-	case NITIO_G1_INT_ENA:
-		return NI660X_G1_INT_ENA;
-	case NITIO_G2_INT_ENA:
-		return NI660X_G2_INT_ENA;
-	case NITIO_G3_INT_ENA:
-		return NI660X_G3_INT_ENA;
-	default:
-		BUG();
-		return 0;
-	}
-}
-
 static void ni_660x_write(struct comedi_device *dev,
 			  unsigned int chip, unsigned int bits,
 			  enum ni_660x_register reg)
@@ -508,7 +434,15 @@ static void ni_660x_gpct_write(struct ni_gpct *counter, unsigned int bits,
 			       enum ni_gpct_register reg)
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
-	enum ni_660x_register ni_660x_register = ni_gpct_to_660x_register(reg);
+	enum ni_660x_register ni_660x_register;
+
+	if (reg < ARRAY_SIZE(ni_gpct_to_660x_register)) {
+		ni_660x_register = ni_gpct_to_660x_register[reg];
+	} else {
+		dev_warn(dev->class_dev, "%s: unhandled register=0x%x\n",
+			 __func__, reg);
+		return;
+	}
 
 	ni_660x_write(dev, counter->chip_index, bits, ni_660x_register);
 }
@@ -517,7 +451,15 @@ static unsigned int ni_660x_gpct_read(struct ni_gpct *counter,
 				      enum ni_gpct_register reg)
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
-	enum ni_660x_register ni_660x_register = ni_gpct_to_660x_register(reg);
+	enum ni_660x_register ni_660x_register;
+
+	if (reg < ARRAY_SIZE(ni_gpct_to_660x_register)) {
+		ni_660x_register = ni_gpct_to_660x_register[reg];
+	} else {
+		dev_warn(dev->class_dev, "%s: unhandled register=0x%x\n",
+			 __func__, reg);
+		return 0;
+	}
 
 	return ni_660x_read(dev, counter->chip_index, ni_660x_register);
 }
