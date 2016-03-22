@@ -598,10 +598,8 @@ int perf_event__process(struct perf_tool *tool,
 
 struct addr_location;
 
-int perf_event__preprocess_sample(const union perf_event *event,
-				  struct machine *machine,
-				  struct addr_location *al,
-				  struct perf_sample *sample);
+int machine__resolve(struct machine *machine, struct addr_location *al,
+		     struct perf_sample *sample);
 
 void addr_location__put(struct addr_location *al);
 

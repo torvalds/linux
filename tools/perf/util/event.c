@@ -1295,10 +1295,8 @@ void thread__find_addr_location(struct thread *thread,
  * Callers need to drop the reference to al->thread, obtained in
  * machine__findnew_thread()
  */
-int perf_event__preprocess_sample(const union perf_event *event __maybe_unused,
-				  struct machine *machine,
-				  struct addr_location *al,
-				  struct perf_sample *sample)
+int machine__resolve(struct machine *machine, struct addr_location *al,
+		     struct perf_sample *sample)
 {
 	struct thread *thread = machine__findnew_thread(machine, sample->pid,
 							sample->tid);

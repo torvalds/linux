@@ -728,7 +728,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	if (event->header.misc & PERF_RECORD_MISC_EXACT_IP)
 		top->exact_samples++;
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0)
+	if (machine__resolve(machine, &al, sample) < 0)
 		return;
 
 	if (!top->kptr_restrict_warned &&

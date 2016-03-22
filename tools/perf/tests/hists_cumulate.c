@@ -81,11 +81,6 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(fake_samples); i++) {
-		const union perf_event event = {
-			.header = {
-				.misc = PERF_RECORD_MISC_USER,
-			},
-		};
 		struct hist_entry_iter iter = {
 			.evsel = evsel,
 			.sample	= &sample,
@@ -103,8 +98,7 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 		sample.ip = fake_samples[i].ip;
 		sample.callchain = (struct ip_callchain *)fake_callchains[i];
 
-		if (perf_event__preprocess_sample(&event, machine, &al,
-						  &sample) < 0)
+		if (machine__resolve(machine, &al, &sample) < 0)
 			goto out;
 
 		if (hist_entry_iter__add(&iter, &al, PERF_MAX_STACK_DEPTH,
