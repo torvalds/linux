@@ -138,7 +138,7 @@ static u64 cpuusage_read(struct cgroup_subsys_state *css, struct cftype *cft)
 	u64 totalcpuusage = 0;
 	int i;
 
-	for_each_present_cpu(i)
+	for_each_possible_cpu(i)
 		totalcpuusage += cpuacct_cpuusage_read(ca, i);
 
 	return totalcpuusage;
@@ -159,7 +159,7 @@ static int cpuusage_write(struct cgroup_subsys_state *css, struct cftype *cft,
 		goto out;
 	}
 
-	for_each_present_cpu(i)
+	for_each_possible_cpu(i)
 		cpuacct_cpuusage_write(ca, i, 0);
 
 out:
@@ -172,7 +172,7 @@ static int cpuacct_percpu_seq_show(struct seq_file *m, void *V)
 	u64 percpu;
 	int i;
 
-	for_each_present_cpu(i) {
+	for_each_possible_cpu(i) {
 		percpu = cpuacct_cpuusage_read(ca, i);
 		seq_printf(m, "%llu ", (unsigned long long) percpu);
 	}
@@ -191,7 +191,7 @@ static int cpuacct_stats_show(struct seq_file *sf, void *v)
 	int cpu;
 	s64 val = 0;
 
-	for_each_online_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		struct kernel_cpustat *kcpustat = per_cpu_ptr(ca->cpustat, cpu);
 		val += kcpustat->cpustat[CPUTIME_USER];
 		val += kcpustat->cpustat[CPUTIME_NICE];
@@ -200,7 +200,7 @@ static int cpuacct_stats_show(struct seq_file *sf, void *v)
 	seq_printf(sf, "%s %lld\n", cpuacct_stat_desc[CPUACCT_STAT_USER], val);
 
 	val = 0;
-	for_each_online_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		struct kernel_cpustat *kcpustat = per_cpu_ptr(ca->cpustat, cpu);
 		val += kcpustat->cpustat[CPUTIME_SYSTEM];
 		val += kcpustat->cpustat[CPUTIME_IRQ];
