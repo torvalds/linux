@@ -258,7 +258,7 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 		return ERR_PTR(-ENOMEM);
 
 	init.name = name;
-	init.parent_names = &parent_names[0];
+	init.parent_names = &parent_names[reg_data->mux_core_main];
 	init.num_parents = 1;
 	init.ops = &rockchip_cpuclk_ops;
 
@@ -276,10 +276,10 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 	cpuclk->clk_nb.notifier_call = rockchip_cpuclk_notifier_cb;
 	cpuclk->hw.init = &init;
 
-	cpuclk->alt_parent = __clk_lookup(parent_names[1]);
+	cpuclk->alt_parent = __clk_lookup(parent_names[reg_data->mux_core_alt]);
 	if (!cpuclk->alt_parent) {
-		pr_err("%s: could not lookup alternate parent\n",
-		       __func__);
+		pr_err("%s: could not lookup alternate parent: (%d)\n",
+		       __func__, reg_data->mux_core_alt);
 		ret = -EINVAL;
 		goto free_cpuclk;
 	}
@@ -291,10 +291,11 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 		goto free_cpuclk;
 	}
 
-	clk = __clk_lookup(parent_names[0]);
+	clk = __clk_lookup(parent_names[reg_data->mux_core_main]);
 	if (!clk) {
-		pr_err("%s: could not lookup parent clock %s\n",
-		       __func__, parent_names[0]);
+		pr_err("%s: could not lookup parent clock: (%d) %s\n",
+		       __func__, reg_data->mux_core_main,
+		       parent_names[reg_data->mux_core_main]);
 		ret = -EINVAL;
 		goto free_cpuclk;
 	}
