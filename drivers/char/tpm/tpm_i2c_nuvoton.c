@@ -540,7 +540,6 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	init_waitqueue_head(&chip->vendor.read_queue);
-	init_waitqueue_head(&chip->vendor.int_queue);
 
 	/* Default timeouts */
 	chip->vendor.timeout_a = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
