@@ -201,16 +201,9 @@ int mpi_read_buffer(MPI a, uint8_t *buf, unsigned buf_len, unsigned *nbytes,
 #else
 #error please implement for this limb size.
 #endif
-		memcpy(p, &alimb, BYTES_PER_MPI_LIMB);
-		p += BYTES_PER_MPI_LIMB;
-		if (lzeros > 0) {
-			mpi_limb_t *limb1 = (void *)p - sizeof(alimb);
-			mpi_limb_t *limb2 = (void *)p - sizeof(alimb)
-				+ lzeros;
-			*limb1 = *limb2;
-			p -= lzeros;
-			lzeros -= sizeof(alimb);
-		}
+		memcpy(p, (u8 *)&alimb + lzeros, BYTES_PER_MPI_LIMB - lzeros);
+		p += BYTES_PER_MPI_LIMB - lzeros;
+		lzeros = 0;
 	}
 	return 0;
 }
