@@ -2219,7 +2219,18 @@ static inline enum ieee80211_band phy_mode_to_band(u32 phy_mode)
 	return band;
 }
 
-void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
+void ath10k_htt_htc_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
+{
+	bool release;
+
+	release = ath10k_htt_t2h_msg_handler(ar, skb);
+
+	/* Free the indication buffer */
+	if (release)
+		dev_kfree_skb_any(skb);
+}
+
+bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_htt *htt = &ar->htt;
 	struct htt_resp *resp = (struct htt_resp *)skb->data;
@@ -2235,8 +2246,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 	if (resp->hdr.msg_type >= ar->htt.t2h_msg_types_max) {
 		ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx, unsupported msg_type: 0x%0X\n max: 0x%0X",
 			   resp->hdr.msg_type, ar->htt.t2h_msg_types_max);
-		dev_kfree_skb_any(skb);
-		return;
+		return true;
 	}
 	type = ar->htt.t2h_msg_types[resp->hdr.msg_type];
 
@@ -2352,7 +2362,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 	case HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND: {
 		skb_queue_tail(&htt->rx_in_ord_compl_q, skb);
 		tasklet_schedule(&htt->txrx_compl_task);
-		return;
+		return false;
 	}
 	case HTT_T2H_MSG_TYPE_TX_CREDIT_UPDATE_IND:
 		break;
@@ -2394,9 +2404,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 				skb->data, skb->len);
 		break;
 	};
-
-	/* Free the indication buffer */
-	dev_kfree_skb_any(skb);
+	return true;
 }
 EXPORT_SYMBOL(ath10k_htt_t2h_msg_handler);
 
