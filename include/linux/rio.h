@@ -245,6 +245,7 @@ enum rio_phy_type {
 /**
  * struct rio_mport - RIO master port info
  * @dbells: List of doorbell events
+ * @pwrites: List of portwrite events
  * @node: Node in global list of master ports
  * @nnode: Node in network list of master ports
  * @net: RIO net this mport is attached to
@@ -270,6 +271,7 @@ enum rio_phy_type {
  */
 struct rio_mport {
 	struct list_head dbells;	/* list of doorbell events */
+	struct list_head pwrites;	/* list of portwrite events */
 	struct list_head node;	/* node in global list of ports */
 	struct list_head nnode;	/* node in net list of ports */
 	struct rio_net *net;	/* RIO net this mport is attached to */

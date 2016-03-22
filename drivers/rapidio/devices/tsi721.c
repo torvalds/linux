@@ -36,8 +36,6 @@
 
 #include "tsi721.h"
 
-#define DEBUG_PW	/* Inbound Port-Write debugging */
-
 static void tsi721_omsg_handler(struct tsi721_device *priv, int ch);
 static void tsi721_imsg_handler(struct tsi721_device *priv, int ch);
 
@@ -282,30 +280,15 @@ static void tsi721_pw_dpc(struct work_struct *work)
 {
 	struct tsi721_device *priv = container_of(work, struct tsi721_device,
 						    pw_work);
-	u32 msg_buffer[RIO_PW_MSG_SIZE/sizeof(u32)]; /* Use full size PW message
-							buffer for RIO layer */
+	union rio_pw_msg pwmsg;
 
 	/*
 	 * Process port-write messages
 	 */
-	while (kfifo_out_spinlocked(&priv->pw_fifo, (unsigned char *)msg_buffer,
+	while (kfifo_out_spinlocked(&priv->pw_fifo, (unsigned char *)&pwmsg,
 			 TSI721_RIO_PW_MSG_SIZE, &priv->pw_fifo_lock)) {
-		/* Process one message */
-#ifdef DEBUG_PW
-		{
-		u32 i;
-		pr_debug("%s : Port-Write Message:", __func__);
-		for (i = 0; i < RIO_PW_MSG_SIZE/sizeof(u32); ) {
-			pr_debug("0x%02x: %08x %08x %08x %08x", i*4,
-				msg_buffer[i], msg_buffer[i + 1],
-				msg_buffer[i + 2], msg_buffer[i + 3]);
-			i += 4;
-		}
-		pr_debug("\n");
-		}
-#endif
 		/* Pass the port-write message to RIO core for processing */
-		rio_inb_pwrite_handler((union rio_pw_msg *)msg_buffer);
+		rio_inb_pwrite_handler(&priv->mport, &pwmsg);
 	}
 }
 
@@ -2702,6 +2685,7 @@ static void tsi721_remove(struct pci_dev *pdev)
 
 	tsi721_disable_ints(priv);
 	tsi721_free_irq(priv);
+	flush_scheduled_work();
 	rio_unregister_mport(&priv->mport);
 
 	tsi721_unregister_dma(priv);

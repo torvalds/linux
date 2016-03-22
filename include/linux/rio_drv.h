@@ -374,7 +374,14 @@ extern void rio_unmap_inb_region(struct rio_mport *mport, dma_addr_t lstart);
 extern int rio_request_inb_pwrite(struct rio_dev *,
 			int (*)(struct rio_dev *, union rio_pw_msg*, int));
 extern int rio_release_inb_pwrite(struct rio_dev *);
-extern int rio_inb_pwrite_handler(union rio_pw_msg *pw_msg);
+extern int rio_add_mport_pw_handler(struct rio_mport *mport, void *dev_id,
+			int (*pwcback)(struct rio_mport *mport, void *dev_id,
+			union rio_pw_msg *msg, int step));
+extern int rio_del_mport_pw_handler(struct rio_mport *mport, void *dev_id,
+			int (*pwcback)(struct rio_mport *mport, void *dev_id,
+			union rio_pw_msg *msg, int step));
+extern int rio_inb_pwrite_handler(struct rio_mport *mport,
+				  union rio_pw_msg *pw_msg);
 extern void rio_pw_enable(struct rio_mport *mport, int enable);
 
 /* LDM support */

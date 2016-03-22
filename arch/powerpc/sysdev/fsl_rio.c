@@ -726,6 +726,7 @@ int fsl_rio_setup(struct platform_device *dev)
 		fsl_rio_inbound_mem_init(priv);
 
 		dbell->mport[i] = port;
+		pw->mport[i] = port;
 
 		if (rio_register_mport(port)) {
 			release_resource(&port->iores);

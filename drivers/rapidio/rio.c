@@ -30,6 +30,20 @@
 
 #include "rio.h"
 
+/*
+ * struct rio_pwrite - RIO portwrite event
+ * @node:    Node in list of doorbell events
+ * @pwcback: Doorbell event callback
+ * @context: Handler specific context to pass on event
+ */
+struct rio_pwrite {
+	struct list_head node;
+
+	int (*pwcback)(struct rio_mport *mport, void *context,
+		       union rio_pw_msg *msg, int step);
+	void *context;
+};
+
 MODULE_DESCRIPTION("RapidIO Subsystem Core");
 MODULE_AUTHOR("Matt Porter <mporter@kernel.crashing.org>");
 MODULE_AUTHOR("Alexandre Bounine <alexandre.bounine@idt.com>");
@@ -514,7 +528,71 @@ int rio_release_outb_dbell(struct rio_dev *rdev, struct resource *res)
 }
 
 /**
- * rio_request_inb_pwrite - request inbound port-write message service
+ * rio_add_mport_pw_handler - add port-write message handler into the list
+ *                            of mport specific pw handlers
+ * @mport:   RIO master port to bind the portwrite callback
+ * @context: Handler specific context to pass on event
+ * @pwcback: Callback to execute when portwrite is received
+ *
+ * Returns 0 if the request has been satisfied.
+ */
+int rio_add_mport_pw_handler(struct rio_mport *mport, void *context,
+			     int (*pwcback)(struct rio_mport *mport,
+			     void *context, union rio_pw_msg *msg, int step))
+{
+	int rc = 0;
+	struct rio_pwrite *pwrite;
+
+	pwrite = kzalloc(sizeof(struct rio_pwrite), GFP_KERNEL);
+	if (!pwrite) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	pwrite->pwcback = pwcback;
+	pwrite->context = context;
+	mutex_lock(&mport->lock);
+	list_add_tail(&pwrite->node, &mport->pwrites);
+	mutex_unlock(&mport->lock);
+out:
+	return rc;
+}
+EXPORT_SYMBOL_GPL(rio_add_mport_pw_handler);
+
+/**
+ * rio_del_mport_pw_handler - remove port-write message handler from the list
+ *                            of mport specific pw handlers
+ * @mport:   RIO master port to bind the portwrite callback
+ * @context: Registered handler specific context to pass on event
+ * @pwcback: Registered callback function
+ *
+ * Returns 0 if the request has been satisfied.
+ */
+int rio_del_mport_pw_handler(struct rio_mport *mport, void *context,
+			     int (*pwcback)(struct rio_mport *mport,
+			     void *context, union rio_pw_msg *msg, int step))
+{
+	int rc = -EINVAL;
+	struct rio_pwrite *pwrite;
+
+	mutex_lock(&mport->lock);
+	list_for_each_entry(pwrite, &mport->pwrites, node) {
+		if (pwrite->pwcback == pwcback && pwrite->context == context) {
+			list_del(&pwrite->node);
+			kfree(pwrite);
+			rc = 0;
+			break;
+		}
+	}
+	mutex_unlock(&mport->lock);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(rio_del_mport_pw_handler);
+
+/**
+ * rio_request_inb_pwrite - request inbound port-write message service for
+ *                          specific RapidIO device
  * @rdev: RIO device to which register inbound port-write callback routine
  * @pwcback: Callback routine to execute when port-write is received
  *
@@ -539,6 +617,7 @@ EXPORT_SYMBOL_GPL(rio_request_inb_pwrite);
 
 /**
  * rio_release_inb_pwrite - release inbound port-write message service
+ *                          associated with specific RapidIO device
  * @rdev: RIO device which registered for inbound port-write callback
  *
  * Removes callback from the rio_dev structure. Returns 0 if the request
@@ -1002,51 +1081,65 @@ rd_err:
 }
 
 /**
- * rio_inb_pwrite_handler - process inbound port-write message
+ * rio_inb_pwrite_handler - inbound port-write message handler
+ * @mport:  mport device associated with port-write
  * @pw_msg: pointer to inbound port-write message
  *
  * Processes an inbound port-write message. Returns 0 if the request
  * has been satisfied.
  */
-int rio_inb_pwrite_handler(union rio_pw_msg *pw_msg)
+int rio_inb_pwrite_handler(struct rio_mport *mport, union rio_pw_msg *pw_msg)
 {
 	struct rio_dev *rdev;
 	u32 err_status, em_perrdet, em_ltlerrdet;
 	int rc, portnum;
-
-	rdev = rio_get_comptag((pw_msg->em.comptag & RIO_CTAG_UDEVID), NULL);
-	if (rdev == NULL) {
-		/* Device removed or enumeration error */
-		pr_debug("RIO: %s No matching device for CTag 0x%08x\n",
-			__func__, pw_msg->em.comptag);
-		return -EIO;
-	}
-
-	pr_debug("RIO: Port-Write message from %s\n", rio_name(rdev));
+	struct rio_pwrite *pwrite;
 
 #ifdef DEBUG_PW
 	{
-	u32 i;
-	for (i = 0; i < RIO_PW_MSG_SIZE/sizeof(u32);) {
+		u32 i;
+
+		pr_debug("%s: PW to mport_%d:\n", __func__, mport->id);
+		for (i = 0; i < RIO_PW_MSG_SIZE / sizeof(u32); i = i + 4) {
 			pr_debug("0x%02x: %08x %08x %08x %08x\n",
-				 i*4, pw_msg->raw[i], pw_msg->raw[i + 1],
-				 pw_msg->raw[i + 2], pw_msg->raw[i + 3]);
-			i += 4;
-	}
+				i * 4, pw_msg->raw[i], pw_msg->raw[i + 1],
+				pw_msg->raw[i + 2], pw_msg->raw[i + 3]);
+		}
 	}
 #endif
 
-	/* Call an external service function (if such is registered
-	 * for this device). This may be the service for endpoints that send
-	 * device-specific port-write messages. End-point messages expected
-	 * to be handled completely by EP specific device driver.
+	rdev = rio_get_comptag((pw_msg->em.comptag & RIO_CTAG_UDEVID), NULL);
+	if (rdev) {
+		pr_debug("RIO: Port-Write message from %s\n", rio_name(rdev));
+	} else {
+		pr_debug("RIO: %s No matching device for CTag 0x%08x\n",
+			__func__, pw_msg->em.comptag);
+	}
+
+	/* Call a device-specific handler (if it is registered for the device).
+	 * This may be the service for endpoints that send device-specific
+	 * port-write messages. End-point messages expected to be handled
+	 * completely by EP specific device driver.
 	 * For switches rc==0 signals that no standard processing required.
 	 */
-	if (rdev->pwcback != NULL) {
+	if (rdev && rdev->pwcback) {
 		rc = rdev->pwcback(rdev, pw_msg, 0);
 		if (rc == 0)
 			return 0;
 	}
+
+	mutex_lock(&mport->lock);
+	list_for_each_entry(pwrite, &mport->pwrites, node)
+		pwrite->pwcback(mport, pwrite->context, pw_msg, 0);
+	mutex_unlock(&mport->lock);
+
+	if (!rdev)
+		return 0;
+
+	/*
+	 * FIXME: The code below stays as it was before for now until we decide
+	 * how to do default PW handling in combination with per-mport callbacks
+	 */
 
 	portnum = pw_msg->em.is_port & 0xFF;
 
@@ -2060,6 +2153,7 @@ int rio_mport_initialize(struct rio_mport *mport)
 	mport->nscan = NULL;
 	mutex_init(&mport->lock);
 	mport->pwe_refcnt = 0;
+	INIT_LIST_HEAD(&mport->pwrites);
 
 	return 0;
 }
