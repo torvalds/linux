@@ -96,12 +96,18 @@ int rio_add_device(struct rio_dev *rdev)
 {
 	int err;
 
-	err = device_add(&rdev->dev);
+	err = device_register(&rdev->dev);
 	if (err)
 		return err;
 
 	spin_lock(&rio_global_list_lock);
 	list_add_tail(&rdev->global_list, &rio_devices);
+	if (rdev->net) {
+		list_add_tail(&rdev->net_list, &rdev->net->devices);
+		if (rdev->pef & RIO_PEF_SWITCH)
+			list_add_tail(&rdev->rswitch->node,
+				      &rdev->net->switches);
+	}
 	spin_unlock(&rio_global_list_lock);
 
 	rio_create_sysfs_dev_files(rdev);
@@ -109,6 +115,31 @@ int rio_add_device(struct rio_dev *rdev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rio_add_device);
+
+/*
+ * rio_del_device - removes a RIO device from the device model
+ * @rdev: RIO device
+ *
+ * Removes the RIO device to the kernel device list and subsystem's device list.
+ * Clears sysfs entries for the removed device.
+ */
+void rio_del_device(struct rio_dev *rdev)
+{
+	pr_debug("RIO: %s: removing %s\n", __func__, rio_name(rdev));
+	spin_lock(&rio_global_list_lock);
+	list_del(&rdev->global_list);
+	if (rdev->net) {
+		list_del(&rdev->net_list);
+		if (rdev->pef & RIO_PEF_SWITCH) {
+			list_del(&rdev->rswitch->node);
+			kfree(rdev->rswitch->route_table);
+		}
+	}
+	spin_unlock(&rio_global_list_lock);
+	rio_remove_sysfs_dev_files(rdev);
+	device_unregister(&rdev->dev);
+}
+EXPORT_SYMBOL_GPL(rio_del_device);
 
 /**
  * rio_request_inb_mbox - request inbound mailbox service

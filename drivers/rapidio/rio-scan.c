@@ -449,9 +449,6 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 
 		if (do_enum)
 			rio_route_clr_table(rdev, RIO_GLOBAL_TABLE, 0);
-
-		list_add_tail(&rswitch->node, &net->switches);
-
 	} else {
 		if (do_enum)
 			/*Enable Input Output Port (transmitter reviever)*/
@@ -463,11 +460,7 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 
 	rdev->dev.parent = &port->dev;
 	rio_attach_device(rdev);
-
-	device_initialize(&rdev->dev);
 	rdev->dev.release = rio_release_dev;
-	rio_dev_get(rdev);
-
 	rdev->dma_mask = DMA_BIT_MASK(32);
 	rdev->dev.dma_mask = &rdev->dma_mask;
 	rdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
@@ -479,6 +472,8 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 	ret = rio_add_device(rdev);
 	if (ret)
 		goto cleanup;
+
+	rio_dev_get(rdev);
 
 	return rdev;
 
@@ -621,8 +616,6 @@ static int rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 	rdev = rio_setup_device(net, port, RIO_ANY_DESTID(port->sys_size),
 					hopcount, 1);
 	if (rdev) {
-		/* Add device to the global and bus/net specific list. */
-		list_add_tail(&rdev->net_list, &net->devices);
 		rdev->prev = prev;
 		if (prev && rio_is_switch(prev))
 			prev->rswitch->nextdev[prev_port] = rdev;
@@ -778,8 +771,6 @@ rio_disc_peer(struct rio_net *net, struct rio_mport *port, u16 destid,
 
 	/* Setup new RIO device */
 	if ((rdev = rio_setup_device(net, port, destid, hopcount, 0))) {
-		/* Add device to the global and bus/net specific list. */
-		list_add_tail(&rdev->net_list, &net->devices);
 		rdev->prev = prev;
 		if (prev && rio_is_switch(prev))
 			prev->rswitch->nextdev[prev_port] = rdev;
