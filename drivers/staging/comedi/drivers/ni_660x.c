@@ -996,6 +996,19 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	s->insn_bits	= ni_660x_dio_insn_bits;
 	s->insn_config	= ni_660x_dio_insn_config;
 
+	 /*
+	  * Default the DIO channels as:
+	  *   chan 0-7:  DIO inputs
+	  *   chan 8-39: counter signal inputs
+	  */
+	for (i = 0; i < s->n_chan; ++i) {
+		unsigned int source = (i < 8) ? NI_660X_PFI_OUTPUT_DIO
+					      : NI_660X_PFI_OUTPUT_COUNTER;
+
+		ni_660x_set_pfi_routing(dev, i, source);
+		ni_660x_select_pfi_output(dev, i, 0);		/* high-z */
+	}
+
 	/* Counter subdevices (4 NI TIO General Purpose Counters per chip) */
 	for (i = 0; i < NI660X_MAX_COUNTERS; ++i) {
 		s = &dev->subdevices[subdev++];
@@ -1026,20 +1039,6 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 		} else {
 			s->type		= COMEDI_SUBD_UNUSED;
 		}
-	}
-
-	 /*
-	  * Default the DIO channels as:
-	  *   chan 0-7:  DIO inputs
-	  *   chan 8-39: counter signal inputs
-	  */
-	for (i = 0; i < NI660X_NUM_PFI_CHANNELS; ++i) {
-		if (i < 8)
-			ni_660x_set_pfi_routing(dev, i, NI_660X_PFI_OUTPUT_DIO);
-		else
-			ni_660x_set_pfi_routing(dev, i,
-						NI_660X_PFI_OUTPUT_COUNTER);
-		ni_660x_select_pfi_output(dev, i, 0);		/* high-z */
 	}
 
 	/*
