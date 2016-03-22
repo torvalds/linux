@@ -21,6 +21,46 @@
 #ifndef __TSI721_H
 #define __TSI721_H
 
+/* Debug output filtering masks */
+enum {
+	DBG_NONE	= 0,
+	DBG_INIT	= BIT(0), /* driver init */
+	DBG_EXIT	= BIT(1), /* driver exit */
+	DBG_MPORT	= BIT(2), /* mport add/remove */
+	DBG_MAINT	= BIT(3), /* maintenance ops messages */
+	DBG_DMA		= BIT(4), /* DMA transfer messages */
+	DBG_DMAV	= BIT(5), /* verbose DMA transfer messages */
+	DBG_IBW		= BIT(6), /* inbound window */
+	DBG_EVENT	= BIT(7), /* event handling messages */
+	DBG_OBW		= BIT(8), /* outbound window messages */
+	DBG_DBELL	= BIT(9), /* doorbell messages */
+	DBG_OMSG	= BIT(10), /* doorbell messages */
+	DBG_IMSG	= BIT(11), /* doorbell messages */
+	DBG_ALL		= ~0,
+};
+
+#ifdef DEBUG
+extern u32 dbg_level;
+
+#define tsi_debug(level, dev, fmt, arg...)				\
+	do {								\
+		if (DBG_##level & dbg_level)				\
+			dev_dbg(dev, "%s: " fmt "\n", __func__, ##arg);	\
+	} while (0)
+#else
+#define tsi_debug(level, dev, fmt, arg...) \
+		no_printk(KERN_DEBUG "%s: " fmt "\n", __func__, ##arg)
+#endif
+
+#define tsi_info(dev, fmt, arg...) \
+	dev_info(dev, "%s: " fmt "\n", __func__, ##arg)
+
+#define tsi_warn(dev, fmt, arg...) \
+	dev_warn(dev, "%s: WARNING " fmt "\n", __func__, ##arg)
+
+#define tsi_err(dev, fmt, arg...) \
+	dev_err(dev, "%s: ERROR " fmt "\n", __func__, ##arg)
+
 #define DRV_NAME	"tsi721"
 
 #define DEFAULT_HOPCOUNT	0xff

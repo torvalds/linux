@@ -36,6 +36,12 @@
 
 #include "tsi721.h"
 
+#ifdef DEBUG
+u32 dbg_level = DBG_INIT | DBG_EXIT;
+module_param(dbg_level, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(dbg_level, "Debugging output level (default 0 = none)");
+#endif
+
 static void tsi721_omsg_handler(struct tsi721_device *priv, int ch);
 static void tsi721_imsg_handler(struct tsi721_device *priv, int ch);
 
@@ -141,9 +147,9 @@ static int tsi721_maint_dma(struct tsi721_device *priv, u32 sys_size,
 							& TSI721_DMAC_STS_RUN) {
 		udelay(1);
 		if (++i >= 5000000) {
-			dev_dbg(&priv->pdev->dev,
-				"%s : DMA[%d] read timeout ch_status=%x\n",
-				__func__, priv->mdma.ch_id, ch_stat);
+			tsi_debug(MAINT, &priv->pdev->dev,
+				"DMA[%d] read timeout ch_status=%x",
+				priv->mdma.ch_id, ch_stat);
 			if (!do_wr)
 				*data = 0xffffffff;
 			err = -EIO;
@@ -155,10 +161,12 @@ static int tsi721_maint_dma(struct tsi721_device *priv, u32 sys_size,
 		/* If DMA operation aborted due to error,
 		 * reinitialize DMA channel
 		 */
-		dev_dbg(&priv->pdev->dev, "%s : DMA ABORT ch_stat=%x\n",
-			__func__, ch_stat);
-		dev_dbg(&priv->pdev->dev, "OP=%d : destid=%x hc=%x off=%x\n",
-			do_wr ? MAINT_WR : MAINT_RD, destid, hopcount, offset);
+		tsi_debug(MAINT, &priv->pdev->dev, "DMA ABORT ch_stat=%x",
+			  ch_stat);
+		tsi_debug(MAINT, &priv->pdev->dev,
+			  "OP=%d : destid=%x hc=%x off=%x",
+			  do_wr ? MAINT_WR : MAINT_RD,
+			  destid, hopcount, offset);
 		iowrite32(TSI721_DMAC_INT_ALL, regs + TSI721_DMAC_INT);
 		iowrite32(TSI721_DMAC_CTL_INIT, regs + TSI721_DMAC_CTL);
 		udelay(10);
@@ -336,8 +344,8 @@ static int tsi721_dsend(struct rio_mport *mport, int index,
 	offset = (((mport->sys_size) ? RIO_TT_CODE_16 : RIO_TT_CODE_8) << 18) |
 		 (destid << 2);
 
-	dev_dbg(&priv->pdev->dev,
-		"Send Doorbell 0x%04x to destID 0x%x\n", data, destid);
+	tsi_debug(DBELL, &priv->pdev->dev,
+		  "Send Doorbell 0x%04x to destID 0x%x", data, destid);
 	iowrite16be(data, priv->odb_base + offset);
 
 	return 0;
@@ -411,10 +419,10 @@ static void tsi721_db_dpc(struct work_struct *work)
 			dbell->dinb(mport, dbell->dev_id, DBELL_SID(idb.bytes),
 				    DBELL_TID(idb.bytes), DBELL_INF(idb.bytes));
 		} else {
-			dev_dbg(&priv->pdev->dev,
-				"spurious inb doorbell, sid %2.2x tid %2.2x"
-				" info %4.4x\n", DBELL_SID(idb.bytes),
-				DBELL_TID(idb.bytes), DBELL_INF(idb.bytes));
+			tsi_debug(DBELL, &priv->pdev->dev,
+				  "spurious IDB sid %2.2x tid %2.2x info %4.4x",
+				  DBELL_SID(idb.bytes), DBELL_TID(idb.bytes),
+				  DBELL_INF(idb.bytes));
 		}
 
 		wr_ptr = ioread32(priv->regs +
@@ -470,8 +478,8 @@ static irqreturn_t tsi721_irqhandler(int irq, void *ptr)
 			if (intval & TSI721_SR_CHINT_IDBQRCV)
 				tsi721_dbell_handler(priv);
 			else
-				dev_info(&priv->pdev->dev,
-					"Unsupported SR_CH_INT %x\n", intval);
+				tsi_info(&priv->pdev->dev,
+					"Unsupported SR_CH_INT %x", intval);
 
 			/* Clear interrupts */
 			iowrite32(intval,
@@ -533,8 +541,8 @@ static irqreturn_t tsi721_irqhandler(int irq, void *ptr)
 		int ch;
 
 		if (dev_ch_int & TSI721_INT_BDMA_CHAN_M) {
-			dev_dbg(&priv->pdev->dev,
-				"IRQ from DMA channel 0x%08x\n", dev_ch_int);
+			tsi_debug(DMA, &priv->pdev->dev,
+				  "IRQ from DMA channel 0x%08x", dev_ch_int);
 
 			for (ch = 0; ch < TSI721_DMA_MAXCH; ch++) {
 				if (!(dev_ch_int & TSI721_INT_BDMA_CHAN(ch)))
@@ -749,8 +757,8 @@ static int tsi721_enable_msix(struct tsi721_device *priv)
 
 	err = pci_enable_msix_exact(priv->pdev, entries, ARRAY_SIZE(entries));
 	if (err) {
-		dev_err(&priv->pdev->dev,
-			"Failed to enable MSI-X (err=%d)\n", err);
+		tsi_err(&priv->pdev->dev,
+			"Failed to enable MSI-X (err=%d)", err);
 		return err;
 	}
 
@@ -824,8 +832,8 @@ static int tsi721_request_irq(struct tsi721_device *priv)
 			  DRV_NAME, (void *)priv);
 
 	if (err)
-		dev_err(&priv->pdev->dev,
-			"Unable to allocate interrupt, Error: %d\n", err);
+		tsi_err(&priv->pdev->dev,
+			"Unable to allocate interrupt, err=%d", err);
 
 	return err;
 }
@@ -891,7 +899,7 @@ tsi721_obw_alloc(struct tsi721_device *priv, struct tsi721_obw_bar *pbar,
 		return -ENOMEM;
 
 	if (!new_win) {
-		dev_err(&priv->pdev->dev, "ERR: OBW count tracking failed\n");
+		tsi_err(&priv->pdev->dev, "OBW count tracking failed");
 		return -EIO;
 	}
 
@@ -918,6 +926,9 @@ static int tsi721_map_outb_win(struct rio_mport *mport, u16 destid, u64 rstart,
 	u32 zsize;
 	int ret = -ENOMEM;
 
+	tsi_debug(OBW, &priv->pdev->dev,
+		  "did=%d ra=0x%llx sz=0x%x", destid, rstart, size);
+
 	if (!is_power_of_2(size) || (size < 0x8000) || (rstart & (size - 1)))
 		return -EINVAL;
 
@@ -940,6 +951,8 @@ static int tsi721_map_outb_win(struct rio_mport *mport, u16 destid, u64 rstart,
 	ob_win = &priv->ob_win[obw];
 	ob_win->destid = destid;
 	ob_win->rstart = rstart;
+	tsi_debug(OBW, &priv->pdev->dev,
+		  "allocated OBW%d @%llx", obw, ob_win->base);
 
 	/*
 	 * Configure Outbound Window
@@ -990,11 +1003,15 @@ static void tsi721_unmap_outb_win(struct rio_mport *mport,
 	struct tsi721_ob_win *ob_win;
 	int i;
 
+	tsi_debug(OBW, &priv->pdev->dev, "did=%d ra=0x%llx", destid, rstart);
+
 	for (i = 0; i < TSI721_OBWIN_NUM; i++) {
 		ob_win = &priv->ob_win[i];
 
 		if (ob_win->active &&
 		    ob_win->destid == destid && ob_win->rstart == rstart) {
+			tsi_debug(OBW, &priv->pdev->dev,
+				  "free OBW%d @%llx", i, ob_win->base);
 			ob_win->active = false;
 			iowrite32(0, priv->regs + TSI721_OBWINLB(i));
 			ob_win->pbar->free += ob_win->size;
@@ -1078,14 +1095,14 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 	int ret = -EBUSY;
 
 	if (direct) {
-		dev_dbg(&priv->pdev->dev,
-			"Direct (RIO_0x%llx -> PCIe_0x%pad), size=0x%x",
-			rstart, &lstart, size);
-
 		/* Calculate minimal acceptable window size and base address */
 
 		ibw_size = roundup_pow_of_two(size);
 		ibw_start = lstart & ~(ibw_size - 1);
+
+		tsi_debug(IBW, &priv->pdev->dev,
+			"Direct (RIO_0x%llx -> PCIe_0x%pad), size=0x%x, ibw_start = 0x%llx",
+			rstart, &lstart, size, ibw_start);
 
 		while ((lstart + size) > (ibw_start + ibw_size)) {
 			ibw_size *= 2;
@@ -1102,7 +1119,7 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 			return -ENOMEM;
 
 	} else {
-		dev_dbg(&priv->pdev->dev,
+		tsi_debug(IBW, &priv->pdev->dev,
 			"Translated (RIO_0x%llx -> PCIe_0x%pad), size=0x%x",
 			rstart, &lstart, size);
 
@@ -1197,9 +1214,9 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 
 	priv->ibwin_cnt--;
 
-	dev_dbg(&priv->pdev->dev,
-		"Configured IBWIN%d (RIO_0x%llx -> PCIe_0x%llx), size=0x%llx\n",
-		i, ibw_start, (unsigned long long)loc_start, ibw_size);
+	tsi_debug(IBW, &priv->pdev->dev,
+		"Configured IBWIN%d (RIO_0x%llx -> PCIe_0x%pad), size=0x%llx",
+		i, ibw_start, &loc_start, ibw_size);
 
 	return 0;
 out:
@@ -1219,7 +1236,7 @@ static void tsi721_rio_unmap_inb_mem(struct rio_mport *mport,
 	struct tsi721_ib_win *ib_win;
 	int i;
 
-	dev_dbg(&priv->pdev->dev,
+	tsi_debug(IBW, &priv->pdev->dev,
 		"Unmap IBW mapped to PCIe_0x%pad", &lstart);
 
 	/* Search for matching active inbound translation window */
@@ -1255,7 +1272,7 @@ static void tsi721_rio_unmap_inb_mem(struct rio_mport *mport,
 					break;
 			}
 
-			dev_dbg(&priv->pdev->dev, "Disable IBWIN_%d", i);
+			tsi_debug(IBW, &priv->pdev->dev, "Disable IBWIN_%d", i);
 			iowrite32(0, priv->regs + TSI721_IBWIN_LB(i));
 			ib_win->active = false;
 			priv->ibwin_cnt++;
@@ -1264,7 +1281,7 @@ static void tsi721_rio_unmap_inb_mem(struct rio_mport *mport,
 	}
 
 	if (i == TSI721_IBWIN_NUM)
-		dev_dbg(&priv->pdev->dev,
+		tsi_debug(IBW, &priv->pdev->dev,
 			"IB window mapped to %pad not found", &lstart);
 }
 
@@ -1319,7 +1336,7 @@ static int tsi721_port_write_init(struct tsi721_device *priv)
 	spin_lock_init(&priv->pw_fifo_lock);
 	if (kfifo_alloc(&priv->pw_fifo,
 			TSI721_RIO_PW_MSG_SIZE * 32, GFP_KERNEL)) {
-		dev_err(&priv->pdev->dev, "PW FIFO allocation failed\n");
+		tsi_err(&priv->pdev->dev, "PW FIFO allocation failed");
 		return -ENOMEM;
 	}
 
@@ -1351,8 +1368,9 @@ static int tsi721_doorbell_init(struct tsi721_device *priv)
 	if (!priv->idb_base)
 		return -ENOMEM;
 
-	dev_dbg(&priv->pdev->dev, "Allocated IDB buffer @ %p (phys = %llx)\n",
-		priv->idb_base, (unsigned long long)priv->idb_dma);
+	tsi_debug(DBELL, &priv->pdev->dev,
+		  "Allocated IDB buffer @ %p (phys = %pad)",
+		  priv->idb_base, &priv->idb_dma);
 
 	iowrite32(TSI721_IDQ_SIZE_VAL(IDB_QSIZE),
 		priv->regs + TSI721_IDQ_SIZE(IDB_QUEUE));
@@ -1398,9 +1416,8 @@ static int tsi721_bdma_maint_init(struct tsi721_device *priv)
 	int		bd_num = 2;
 	void __iomem	*regs;
 
-	dev_dbg(&priv->pdev->dev,
-		"Init Block DMA Engine for Maintenance requests, CH%d\n",
-		TSI721_DMACH_MAINT);
+	tsi_debug(MAINT, &priv->pdev->dev,
+		  "Init BDMA_%d Maintenance requests", TSI721_DMACH_MAINT);
 
 	/*
 	 * Initialize DMA channel for maintenance requests
@@ -1420,8 +1437,8 @@ static int tsi721_bdma_maint_init(struct tsi721_device *priv)
 	priv->mdma.bd_phys = bd_phys;
 	priv->mdma.bd_base = bd_ptr;
 
-	dev_dbg(&priv->pdev->dev, "DMA descriptors @ %p (phys = %llx)\n",
-		bd_ptr, (unsigned long long)bd_phys);
+	tsi_debug(MAINT, &priv->pdev->dev, "DMA descriptors @ %p (phys = %pad)",
+		  bd_ptr, &bd_phys);
 
 	/* Allocate space for descriptor status FIFO */
 	sts_size = (bd_num >= TSI721_DMA_MINSTSSZ) ?
@@ -1443,9 +1460,9 @@ static int tsi721_bdma_maint_init(struct tsi721_device *priv)
 	priv->mdma.sts_base = sts_ptr;
 	priv->mdma.sts_size = sts_size;
 
-	dev_dbg(&priv->pdev->dev,
-		"desc status FIFO @ %p (phys = %llx) size=0x%x\n",
-		sts_ptr, (unsigned long long)sts_phys, sts_size);
+	tsi_debug(MAINT, &priv->pdev->dev,
+		"desc status FIFO @ %p (phys = %pad) size=0x%x",
+		sts_ptr, &sts_phys, sts_size);
 
 	/* Initialize DMA descriptors ring */
 	bd_ptr[bd_num - 1].type_id = cpu_to_le32(DTYPE3 << 29);
@@ -1720,8 +1737,8 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 	omsg_int = ioread32(priv->regs + TSI721_OBDMAC_INT(ch));
 
 	if (omsg_int & TSI721_OBDMAC_INT_ST_FULL)
-		dev_info(&priv->pdev->dev,
-			"OB MBOX%d: Status FIFO is full\n", ch);
+		tsi_info(&priv->pdev->dev,
+			"OB MBOX%d: Status FIFO is full", ch);
 
 	if (omsg_int & (TSI721_OBDMAC_INT_DONE | TSI721_OBDMAC_INT_IOF_DONE)) {
 		u32 srd_ptr;
@@ -1777,7 +1794,7 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 		}
 
 		if (tx_slot >= priv->omsg_ring[ch].size)
-			dev_dbg(&priv->pdev->dev,
+			tsi_debug(OMSG, &priv->pdev->dev,
 				  "OB_MSG tx_slot=%x > size=%x",
 				  tx_slot, priv->omsg_ring[ch].size);
 		WARN_ON(tx_slot >= priv->omsg_ring[ch].size);
@@ -1799,8 +1816,8 @@ no_sts_update:
 		* reinitialize OB MSG channel
 		*/
 
-		dev_dbg(&priv->pdev->dev, "OB MSG ABORT ch_stat=%x\n",
-			ioread32(priv->regs + TSI721_OBDMAC_STS(ch)));
+		tsi_debug(OMSG, &priv->pdev->dev, "OB MSG ABORT ch_stat=%x",
+			  ioread32(priv->regs + TSI721_OBDMAC_STS(ch)));
 
 		iowrite32(TSI721_OBDMAC_INT_ERROR,
 				priv->regs + TSI721_OBDMAC_INT(ch));
@@ -1874,9 +1891,8 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 				&priv->omsg_ring[mbox].omq_phys[i],
 				GFP_KERNEL);
 		if (priv->omsg_ring[mbox].omq_base[i] == NULL) {
-			dev_dbg(&priv->pdev->dev,
-				"Unable to allocate OB MSG data buffer for"
-				" MBOX%d\n", mbox);
+			tsi_debug(OMSG, &priv->pdev->dev,
+				  "ENOMEM for OB_MSG_%d data buffer", mbox);
 			rc = -ENOMEM;
 			goto out_buf;
 		}
@@ -1888,9 +1904,8 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 				(entries + 1) * sizeof(struct tsi721_omsg_desc),
 				&priv->omsg_ring[mbox].omd_phys, GFP_KERNEL);
 	if (priv->omsg_ring[mbox].omd_base == NULL) {
-		dev_dbg(&priv->pdev->dev,
-			"Unable to allocate OB MSG descriptor memory "
-			"for MBOX%d\n", mbox);
+		tsi_debug(OMSG, &priv->pdev->dev,
+			"ENOMEM for OB_MSG_%d descriptor memory", mbox);
 		rc = -ENOMEM;
 		goto out_buf;
 	}
@@ -1904,9 +1919,8 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 						sizeof(struct tsi721_dma_sts),
 			&priv->omsg_ring[mbox].sts_phys, GFP_KERNEL);
 	if (priv->omsg_ring[mbox].sts_base == NULL) {
-		dev_dbg(&priv->pdev->dev,
-			"Unable to allocate OB MSG descriptor status FIFO "
-			"for MBOX%d\n", mbox);
+		tsi_debug(OMSG, &priv->pdev->dev,
+			"ENOMEM for OB_MSG_%d status FIFO", mbox);
 		rc = -ENOMEM;
 		goto out_desc;
 	}
@@ -1942,9 +1956,9 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 				 priv->msix[idx].irq_name, (void *)priv);
 
 		if (rc) {
-			dev_dbg(&priv->pdev->dev,
-				"Unable to allocate MSI-X interrupt for "
-				"OBOX%d-DONE\n", mbox);
+			tsi_debug(OMSG, &priv->pdev->dev,
+				"Unable to get MSI-X IRQ for OBOX%d-DONE",
+				mbox);
 			goto out_stat;
 		}
 
@@ -1953,9 +1967,8 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 				 priv->msix[idx].irq_name, (void *)priv);
 
 		if (rc)	{
-			dev_dbg(&priv->pdev->dev,
-				"Unable to allocate MSI-X interrupt for "
-				"MBOX%d-INT\n", mbox);
+			tsi_debug(OMSG, &priv->pdev->dev,
+				"Unable to get MSI-X IRQ for MBOX%d-INT", mbox);
 			idx = TSI721_VECT_OMB0_DONE + mbox;
 			free_irq(priv->msix[idx].vector, (void *)priv);
 			goto out_stat;
@@ -2096,16 +2109,13 @@ static void tsi721_imsg_handler(struct tsi721_device *priv, int ch)
 	imsg_int = ioread32(priv->regs + TSI721_IBDMAC_INT(ch));
 
 	if (imsg_int & TSI721_IBDMAC_INT_SRTO)
-		dev_info(&priv->pdev->dev, "IB MBOX%d SRIO timeout\n",
-			mbox);
+		tsi_info(&priv->pdev->dev, "IB MBOX%d SRIO timeout", mbox);
 
 	if (imsg_int & TSI721_IBDMAC_INT_PC_ERROR)
-		dev_info(&priv->pdev->dev, "IB MBOX%d PCIe error\n",
-			mbox);
+		tsi_info(&priv->pdev->dev, "IB MBOX%d PCIe error", mbox);
 
 	if (imsg_int & TSI721_IBDMAC_INT_FQ_LOW)
-		dev_info(&priv->pdev->dev,
-			"IB MBOX%d IB free queue low\n", mbox);
+		tsi_info(&priv->pdev->dev, "IB MBOX%d IB free queue low", mbox);
 
 	/* Clear IB channel interrupts */
 	iowrite32(imsg_int, priv->regs + TSI721_IBDMAC_INT(ch));
@@ -2169,8 +2179,8 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 				   GFP_KERNEL);
 
 	if (priv->imsg_ring[mbox].buf_base == NULL) {
-		dev_err(&priv->pdev->dev,
-			"Failed to allocate buffers for IB MBOX%d\n", mbox);
+		tsi_err(&priv->pdev->dev,
+			"Failed to allocate buffers for IB MBOX%d", mbox);
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -2183,8 +2193,8 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 				   GFP_KERNEL);
 
 	if (priv->imsg_ring[mbox].imfq_base == NULL) {
-		dev_err(&priv->pdev->dev,
-			"Failed to allocate free queue for IB MBOX%d\n", mbox);
+		tsi_err(&priv->pdev->dev,
+			"Failed to allocate free queue for IB MBOX%d", mbox);
 		rc = -ENOMEM;
 		goto out_buf;
 	}
@@ -2196,8 +2206,8 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 				   &priv->imsg_ring[mbox].imd_phys, GFP_KERNEL);
 
 	if (priv->imsg_ring[mbox].imd_base == NULL) {
-		dev_err(&priv->pdev->dev,
-			"Failed to allocate descriptor memory for IB MBOX%d\n",
+		tsi_err(&priv->pdev->dev,
+			"Failed to allocate descriptor memory for IB MBOX%d",
 			mbox);
 		rc = -ENOMEM;
 		goto out_dma;
@@ -2256,9 +2266,9 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 				 priv->msix[idx].irq_name, (void *)priv);
 
 		if (rc) {
-			dev_dbg(&priv->pdev->dev,
-				"Unable to allocate MSI-X interrupt for "
-				"IBOX%d-DONE\n", mbox);
+			tsi_debug(IMSG, &priv->pdev->dev,
+				"Unable to get MSI-X IRQ for IBOX%d-DONE",
+				mbox);
 			goto out_desc;
 		}
 
@@ -2267,9 +2277,8 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 				 priv->msix[idx].irq_name, (void *)priv);
 
 		if (rc)	{
-			dev_dbg(&priv->pdev->dev,
-				"Unable to allocate MSI-X interrupt for "
-				"IBOX%d-INT\n", mbox);
+			tsi_debug(IMSG, &priv->pdev->dev,
+				"Unable to get MSI-X IRQ for IBOX%d-INT", mbox);
 			free_irq(
 				priv->msix[TSI721_VECT_IMB0_RCV + mbox].vector,
 				(void *)priv);
@@ -2392,8 +2401,8 @@ static int tsi721_add_inb_buffer(struct rio_mport *mport, int mbox, void *buf)
 
 	rx_slot = priv->imsg_ring[mbox].rx_slot;
 	if (priv->imsg_ring[mbox].imq_base[rx_slot]) {
-		dev_err(&priv->pdev->dev,
-			"Error adding inbound buffer %d, buffer exists\n",
+		tsi_err(&priv->pdev->dev,
+			"Error adding inbound buffer %d, buffer exists",
 			rx_slot);
 		rc = -EINVAL;
 		goto out;
@@ -2619,7 +2628,7 @@ static void tsi721_mport_release(struct device *dev)
 {
 	struct rio_mport *mport = to_rio_mport(dev);
 
-	dev_dbg(dev, "RIO: %s %s id=%d\n", __func__, mport->name, mport->id);
+	tsi_debug(EXIT, dev, "%s id=%d", mport->name, mport->id);
 }
 
 /**
@@ -2663,15 +2672,15 @@ static int tsi721_setup_mport(struct tsi721_device *priv)
 	else if (!pci_enable_msi(pdev))
 		priv->flags |= TSI721_USING_MSI;
 	else
-		dev_info(&pdev->dev,
-			 "MSI/MSI-X is not available. Using legacy INTx.\n");
+		tsi_debug(MPORT, &pdev->dev,
+			 "MSI/MSI-X is not available. Using legacy INTx.");
 #endif /* CONFIG_PCI_MSI */
 
 	err = tsi721_request_irq(priv);
 
 	if (err) {
-		dev_err(&pdev->dev, "Unable to get assigned PCI IRQ "
-			"vector %02X err=0x%x\n", pdev->irq, err);
+		tsi_err(&pdev->dev, "Unable to get PCI IRQ %02X (err=0x%x)",
+			pdev->irq, err);
 		return err;
 	}
 
@@ -2712,15 +2721,14 @@ static int tsi721_probe(struct pci_dev *pdev,
 	int err;
 
 	priv = kzalloc(sizeof(struct tsi721_device), GFP_KERNEL);
-	if (priv == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate memory for device\n");
+	if (!priv) {
 		err = -ENOMEM;
 		goto err_exit;
 	}
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "Failed to enable PCI device\n");
+		tsi_err(&pdev->dev, "Failed to enable PCI device");
 		goto err_clean;
 	}
 
@@ -2728,13 +2736,12 @@ static int tsi721_probe(struct pci_dev *pdev,
 
 #ifdef DEBUG
 	{
-	int i;
-	for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
-		dev_dbg(&pdev->dev, "res[%d] @ 0x%llx (0x%lx, 0x%lx)\n",
-			i, (unsigned long long)pci_resource_start(pdev, i),
-			(unsigned long)pci_resource_len(pdev, i),
-			pci_resource_flags(pdev, i));
-	}
+		int i;
+
+		for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
+			tsi_debug(INIT, &pdev->dev, "res%d %pR",
+				  i, &pdev->resource[i]);
+		}
 	}
 #endif
 	/*
@@ -2745,8 +2752,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 	if (!(pci_resource_flags(pdev, BAR_0) & IORESOURCE_MEM) ||
 	    pci_resource_flags(pdev, BAR_0) & IORESOURCE_MEM_64 ||
 	    pci_resource_len(pdev, BAR_0) < TSI721_REG_SPACE_SIZE) {
-		dev_err(&pdev->dev,
-			"Missing or misconfigured CSR BAR0, aborting.\n");
+		tsi_err(&pdev->dev, "Missing or misconfigured CSR BAR0");
 		err = -ENODEV;
 		goto err_disable_pdev;
 	}
@@ -2755,8 +2761,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 	if (!(pci_resource_flags(pdev, BAR_1) & IORESOURCE_MEM) ||
 	    pci_resource_flags(pdev, BAR_1) & IORESOURCE_MEM_64 ||
 	    pci_resource_len(pdev, BAR_1) < TSI721_DB_WIN_SIZE) {
-		dev_err(&pdev->dev,
-			"Missing or misconfigured Doorbell BAR1, aborting.\n");
+		tsi_err(&pdev->dev, "Missing or misconfigured Doorbell BAR1");
 		err = -ENODEV;
 		goto err_disable_pdev;
 	}
@@ -2773,8 +2778,8 @@ static int tsi721_probe(struct pci_dev *pdev,
 
 	if (pci_resource_flags(pdev, BAR_2) & IORESOURCE_MEM_64) {
 		if (pci_resource_flags(pdev, BAR_2) & IORESOURCE_PREFETCH)
-			dev_info(&pdev->dev,
-				 "Prefetchable OBW BAR2 will not be used\n");
+			tsi_debug(INIT, &pdev->dev,
+				 "Prefetchable OBW BAR2 will not be used");
 		else {
 			priv->p2r_bar[0].base = pci_resource_start(pdev, BAR_2);
 			priv->p2r_bar[0].size = pci_resource_len(pdev, BAR_2);
@@ -2783,8 +2788,8 @@ static int tsi721_probe(struct pci_dev *pdev,
 
 	if (pci_resource_flags(pdev, BAR_4) & IORESOURCE_MEM_64) {
 		if (pci_resource_flags(pdev, BAR_4) & IORESOURCE_PREFETCH)
-			dev_info(&pdev->dev,
-				 "Prefetchable OBW BAR4 will not be used\n");
+			tsi_debug(INIT, &pdev->dev,
+				 "Prefetchable OBW BAR4 will not be used");
 		else {
 			priv->p2r_bar[1].base = pci_resource_start(pdev, BAR_4);
 			priv->p2r_bar[1].size = pci_resource_len(pdev, BAR_4);
@@ -2793,8 +2798,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot obtain PCI resources, "
-			"aborting.\n");
+		tsi_err(&pdev->dev, "Unable to obtain PCI resources");
 		goto err_disable_pdev;
 	}
 
@@ -2802,16 +2806,14 @@ static int tsi721_probe(struct pci_dev *pdev,
 
 	priv->regs = pci_ioremap_bar(pdev, BAR_0);
 	if (!priv->regs) {
-		dev_err(&pdev->dev,
-			"Unable to map device registers space, aborting\n");
+		tsi_err(&pdev->dev, "Unable to map device registers space");
 		err = -ENOMEM;
 		goto err_free_res;
 	}
 
 	priv->odb_base = pci_ioremap_bar(pdev, BAR_1);
 	if (!priv->odb_base) {
-		dev_err(&pdev->dev,
-			"Unable to map outbound doorbells space, aborting\n");
+		tsi_err(&pdev->dev, "Unable to map outbound doorbells space");
 		err = -ENOMEM;
 		goto err_unmap_bars;
 	}
@@ -2820,16 +2822,16 @@ static int tsi721_probe(struct pci_dev *pdev,
 	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
 		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
-			dev_info(&pdev->dev, "Unable to set DMA mask\n");
+			tsi_err(&pdev->dev, "Unable to set DMA mask");
 			goto err_unmap_bars;
 		}
 
 		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))
-			dev_info(&pdev->dev, "Unable to set consistent DMA mask\n");
+			tsi_info(&pdev->dev, "Unable to set consistent DMA mask");
 	} else {
 		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (err)
-			dev_info(&pdev->dev, "Unable to set consistent DMA mask\n");
+			tsi_info(&pdev->dev, "Unable to set consistent DMA mask");
 	}
 
 	BUG_ON(!pci_is_pcie(pdev));
@@ -2858,7 +2860,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 	tsi721_init_sr2pc_mapping(priv);
 
 	if (tsi721_bdma_maint_init(priv)) {
-		dev_err(&pdev->dev, "BDMA initialization failed, aborting\n");
+		tsi_err(&pdev->dev, "BDMA initialization failed");
 		err = -ENOMEM;
 		goto err_unmap_bars;
 	}
@@ -2907,7 +2909,7 @@ static void tsi721_remove(struct pci_dev *pdev)
 {
 	struct tsi721_device *priv = pci_get_drvdata(pdev);
 
-	dev_dbg(&pdev->dev, "%s enter\n", __func__);
+	tsi_debug(EXIT, &pdev->dev, "enter");
 
 	tsi721_disable_ints(priv);
 	tsi721_free_irq(priv);
@@ -2935,14 +2937,14 @@ static void tsi721_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	kfree(priv);
-	dev_dbg(&pdev->dev, "%s exit\n", __func__);
+	tsi_debug(EXIT, &pdev->dev, "exit");
 }
 
 static void tsi721_shutdown(struct pci_dev *pdev)
 {
 	struct tsi721_device *priv = pci_get_drvdata(pdev);
 
-	dev_dbg(&pdev->dev, "RIO: %s\n", __func__);
+	tsi_debug(EXIT, &pdev->dev, "enter");
 
 	tsi721_disable_ints(priv);
 	tsi721_dma_stop_all(priv);
