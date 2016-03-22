@@ -137,6 +137,13 @@ struct rio_switch_ops {
 	int (*em_handle) (struct rio_dev *dev, u8 swport);
 };
 
+enum rio_device_state {
+	RIO_DEVICE_INITIALIZING,
+	RIO_DEVICE_RUNNING,
+	RIO_DEVICE_GONE,
+	RIO_DEVICE_SHUTDOWN,
+};
+
 /**
  * struct rio_dev - RIO device info
  * @global_list: Node in list of all RIO devices
@@ -165,6 +172,7 @@ struct rio_switch_ops {
  * @destid: Network destination ID (or associated destid for switch)
  * @hopcount: Hopcount to this device
  * @prev: Previous RIO device connected to the current one
+ * @state: device state
  * @rswitch: struct rio_switch (if valid for this device)
  */
 struct rio_dev {
@@ -194,6 +202,7 @@ struct rio_dev {
 	u16 destid;
 	u8 hopcount;
 	struct rio_dev *prev;
+	atomic_t state;
 	struct rio_switch rswitch[0];	/* RIO switch info */
 };
 
@@ -255,6 +264,7 @@ enum rio_phy_type {
  * @priv: Master port private data
  * @dma: DMA device associated with mport
  * @nscan: RapidIO network enumeration/discovery operations
+ * @state: mport device state
  */
 struct rio_mport {
 	struct list_head dbells;	/* list of doorbell events */
@@ -283,7 +293,13 @@ struct rio_mport {
 	struct dma_device	dma;
 #endif
 	struct rio_scan *nscan;
+	atomic_t state;
 };
+
+static inline int rio_mport_is_running(struct rio_mport *mport)
+{
+	return atomic_read(&mport->state) == RIO_DEVICE_RUNNING;
+}
 
 /*
  * Enumeration/discovery control flags
@@ -525,7 +541,9 @@ struct rio_scan_node {
 };
 
 /* Architecture and hardware-specific functions */
+extern int rio_mport_initialize(struct rio_mport *);
 extern int rio_register_mport(struct rio_mport *);
+extern int rio_unregister_mport(struct rio_mport *);
 extern int rio_open_inb_mbox(struct rio_mport *, void *, int, int);
 extern void rio_close_inb_mbox(struct rio_mport *, int);
 extern int rio_open_outb_mbox(struct rio_mport *, void *, int, int);

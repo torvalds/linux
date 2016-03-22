@@ -149,6 +149,7 @@ int rio_add_device(struct rio_dev *rdev)
 {
 	int err;
 
+	atomic_set(&rdev->state, RIO_DEVICE_RUNNING);
 	err = device_register(&rdev->dev);
 	if (err)
 		return err;
@@ -172,13 +173,15 @@ EXPORT_SYMBOL_GPL(rio_add_device);
 /*
  * rio_del_device - removes a RIO device from the device model
  * @rdev: RIO device
+ * @state: device state to set during removal process
  *
  * Removes the RIO device to the kernel device list and subsystem's device list.
  * Clears sysfs entries for the removed device.
  */
-void rio_del_device(struct rio_dev *rdev)
+void rio_del_device(struct rio_dev *rdev, enum rio_device_state state)
 {
 	pr_debug("RIO: %s: removing %s\n", __func__, rio_name(rdev));
+	atomic_set(&rdev->state, state);
 	spin_lock(&rio_global_list_lock);
 	list_del(&rdev->global_list);
 	if (rdev->net) {
@@ -2010,32 +2013,28 @@ static int rio_get_hdid(int index)
 	return hdid[index];
 }
 
+int rio_mport_initialize(struct rio_mport *mport)
+{
+	if (next_portid >= RIO_MAX_MPORTS) {
+		pr_err("RIO: reached specified max number of mports\n");
+		return -ENODEV;
+	}
+
+	atomic_set(&mport->state, RIO_DEVICE_INITIALIZING);
+	mport->id = next_portid++;
+	mport->host_deviceid = rio_get_hdid(mport->id);
+	mport->nscan = NULL;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rio_mport_initialize);
+
 int rio_register_mport(struct rio_mport *port)
 {
 	struct rio_scan_node *scan = NULL;
 	int res = 0;
 
-	if (next_portid >= RIO_MAX_MPORTS) {
-		pr_err("RIO: reached specified max number of mports\n");
-		return 1;
-	}
-
-	port->id = next_portid++;
-	port->host_deviceid = rio_get_hdid(port->id);
-	port->nscan = NULL;
-
-	dev_set_name(&port->dev, "rapidio%d", port->id);
-	port->dev.class = &rio_mport_class;
-
-	res = device_register(&port->dev);
-	if (res)
-		dev_err(&port->dev, "RIO: mport%d registration failed ERR=%d\n",
-			port->id, res);
-	else
-		dev_dbg(&port->dev, "RIO: mport%d registered\n", port->id);
-
 	mutex_lock(&rio_mport_list_lock);
-	list_add_tail(&port->node, &rio_mports);
 
 	/*
 	 * Check if there are any registered enumeration/discovery operations
@@ -2049,12 +2048,73 @@ int rio_register_mport(struct rio_mport *port)
 				break;
 		}
 	}
+
+	list_add_tail(&port->node, &rio_mports);
 	mutex_unlock(&rio_mport_list_lock);
 
-	pr_debug("RIO: %s %s id=%d\n", __func__, port->name, port->id);
-	return 0;
+	dev_set_name(&port->dev, "rapidio%d", port->id);
+	port->dev.class = &rio_mport_class;
+	atomic_set(&port->state, RIO_DEVICE_RUNNING);
+
+	res = device_register(&port->dev);
+	if (res)
+		dev_err(&port->dev, "RIO: mport%d registration failed ERR=%d\n",
+			port->id, res);
+	else
+		dev_dbg(&port->dev, "RIO: registered mport%d\n", port->id);
+
+	return res;
 }
 EXPORT_SYMBOL_GPL(rio_register_mport);
+
+static int rio_mport_cleanup_callback(struct device *dev, void *data)
+{
+	struct rio_dev *rdev = to_rio_dev(dev);
+
+	if (dev->bus == &rio_bus_type)
+		rio_del_device(rdev, RIO_DEVICE_SHUTDOWN);
+	return 0;
+}
+
+static int rio_net_remove_children(struct rio_net *net)
+{
+	/*
+	 * Unregister all RapidIO devices residing on this net (this will
+	 * invoke notification of registered subsystem interfaces as well).
+	 */
+	device_for_each_child(&net->dev, NULL, rio_mport_cleanup_callback);
+	return 0;
+}
+
+int rio_unregister_mport(struct rio_mport *port)
+{
+	pr_debug("RIO: %s %s id=%d\n", __func__, port->name, port->id);
+
+	/* Transition mport to the SHUTDOWN state */
+	if (atomic_cmpxchg(&port->state,
+			   RIO_DEVICE_RUNNING,
+			   RIO_DEVICE_SHUTDOWN) != RIO_DEVICE_RUNNING) {
+		pr_err("RIO: %s unexpected state transition for mport %s\n",
+			__func__, port->name);
+	}
+
+	if (port->net && port->net->hport == port) {
+		rio_net_remove_children(port->net);
+		rio_free_net(port->net);
+	}
+
+	/*
+	 * Unregister all RapidIO devices attached to this mport (this will
+	 * invoke notification of registered subsystem interfaces as well).
+	 */
+	mutex_lock(&rio_mport_list_lock);
+	list_del(&port->node);
+	mutex_unlock(&rio_mport_list_lock);
+	device_unregister(&port->dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rio_unregister_mport);
 
 EXPORT_SYMBOL_GPL(rio_local_get_device_id);
 EXPORT_SYMBOL_GPL(rio_get_device);

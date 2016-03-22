@@ -43,7 +43,7 @@ extern struct rio_net *rio_alloc_net(struct rio_mport *mport);
 extern int rio_add_net(struct rio_net *net);
 extern void rio_free_net(struct rio_net *net);
 extern int rio_add_device(struct rio_dev *rdev);
-extern void rio_del_device(struct rio_dev *rdev);
+extern void rio_del_device(struct rio_dev *rdev, enum rio_device_state state);
 extern int rio_enable_rx_tx_port(struct rio_mport *port, int local, u16 destid,
 				 u8 hopcount, u8 port_num);
 extern int rio_register_scan(int mport_id, struct rio_scan *scan_ops);
