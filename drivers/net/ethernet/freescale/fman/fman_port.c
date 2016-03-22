@@ -1477,7 +1477,8 @@ EXPORT_SYMBOL(fman_port_cfg_buf_prefix_content);
  */
 int fman_port_disable(struct fman_port *port)
 {
-	u32 __iomem *bmi_cfg_reg, *bmi_status_reg, tmp;
+	u32 __iomem *bmi_cfg_reg, *bmi_status_reg;
+	u32 tmp;
 	bool rx_port, failure = false;
 	int count;
 
@@ -1553,7 +1554,8 @@ EXPORT_SYMBOL(fman_port_disable);
  */
 int fman_port_enable(struct fman_port *port)
 {
-	u32 __iomem *bmi_cfg_reg, tmp;
+	u32 __iomem *bmi_cfg_reg;
+	u32 tmp;
 	bool rx_port;
 
 	if (!is_init_done(port->cfg))
@@ -1743,7 +1745,7 @@ static int fman_port_probe(struct platform_device *of_dev)
 
 	port->dts_params.base_addr = devm_ioremap(port->dev, res.start,
 						  resource_size(&res));
-	if (port->dts_params.base_addr == 0)
+	if (!port->dts_params.base_addr)
 		dev_err(port->dev, "%s: devm_ioremap() failed\n", __func__);
 
 	dev_set_drvdata(&of_dev->dev, port);

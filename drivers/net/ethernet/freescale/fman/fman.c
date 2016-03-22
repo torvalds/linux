@@ -2462,7 +2462,7 @@ EXPORT_SYMBOL(fman_get_mem_region);
  * particular forwarding scenarios that add extra headers to the
  * forwarded frame.
  */
-int fsl_fm_rx_extra_headroom = FSL_FM_RX_EXTRA_HEADROOM;
+static int fsl_fm_rx_extra_headroom = FSL_FM_RX_EXTRA_HEADROOM;
 module_param(fsl_fm_rx_extra_headroom, int, 0);
 MODULE_PARM_DESC(fsl_fm_rx_extra_headroom, "Extra headroom for Rx buffers");
 
@@ -2475,7 +2475,7 @@ MODULE_PARM_DESC(fsl_fm_rx_extra_headroom, "Extra headroom for Rx buffers");
  * Could be overridden once, at boot-time, via the
  * fm_set_max_frm() callback.
  */
-int fsl_fm_max_frm = FSL_FM_MAX_FRAME_SIZE;
+static int fsl_fm_max_frm = FSL_FM_MAX_FRAME_SIZE;
 module_param(fsl_fm_max_frm, int, 0);
 MODULE_PARM_DESC(fsl_fm_max_frm, "Maximum frame size, across all interfaces");
 
@@ -2868,7 +2868,7 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 
 	fman->dts_params.base_addr =
 		devm_ioremap(&of_dev->dev, phys_base_addr, mem_size);
-	if (fman->dts_params.base_addr == 0) {
+	if (!fman->dts_params.base_addr) {
 		dev_err(&of_dev->dev, "%s: devm_ioremap() failed\n", __func__);
 		goto fman_free;
 	}
