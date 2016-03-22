@@ -224,10 +224,9 @@ static struct pmem_device *pmem_alloc(struct device *dev,
 	if (!arch_has_wmb_pmem())
 		dev_warn(dev, "unable to guarantee persistence of writes\n");
 
-	if (!devm_request_mem_region(dev, pmem->phys_addr, pmem->size,
-			dev_name(dev))) {
-		dev_warn(dev, "could not reserve region [0x%pa:0x%zx]\n",
-				&pmem->phys_addr, pmem->size);
+	if (!devm_request_mem_region(dev, res->start, resource_size(res),
+				dev_name(dev))) {
+		dev_warn(dev, "could not reserve region %pR\n", res);
 		return ERR_PTR(-EBUSY);
 	}
 
