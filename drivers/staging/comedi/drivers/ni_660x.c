@@ -158,12 +158,6 @@ enum ni_660x_register {
 
 #define NI660X_IO_CFG(x)	(NI660X_IO_CFG_0_1 + ((x) / 2))
 
-enum ni_660x_register_direction {
-	NI_660x_READ,
-	NI_660x_WRITE,
-	NI_660x_READ_WRITE
-};
-
 enum ni_660x_pfi_output_select {
 	pfi_output_select_high_Z = 0,
 	pfi_output_select_counter = 1,
@@ -182,109 +176,108 @@ static inline unsigned NI_660X_GPCT_SUBDEV(unsigned index)
 
 struct NI_660xRegisterData {
 	int offset;		/*  Offset from base address from GPCT chip */
-	enum ni_660x_register_direction direction;
 	char size;		/* 2 or 4 bytes */
 };
 
 static const struct NI_660xRegisterData registerData[NI660X_NUM_REGS] = {
-	[NI660X_G0_INT_ACK]		= { 0x004, NI_660x_WRITE, 2 },
-	[NI660X_G0_STATUS]		= { 0x004, NI_660x_READ, 2 },
-	[NI660X_G1_INT_ACK]		= { 0x006, NI_660x_WRITE, 2 },
-	[NI660X_G1_STATUS]		= { 0x006, NI_660x_READ, 2 },
-	[NI660X_G01_STATUS]		= { 0x008, NI_660x_READ, 2 },
-	[NI660X_G0_CMD]			= { 0x00c, NI_660x_WRITE, 2 },
-	[NI660X_STC_DIO_PARALLEL_INPUT]	= { 0x00e, NI_660x_READ, 2 },
-	[NI660X_G1_CMD]			= { 0x00e, NI_660x_WRITE, 2 },
-	[NI660X_G0_HW_SAVE]		= { 0x010, NI_660x_READ, 4 },
-	[NI660X_G1_HW_SAVE]		= { 0x014, NI_660x_READ, 4 },
-	[NI660X_STC_DIO_OUTPUT]		= { 0x014, NI_660x_WRITE, 2 },
-	[NI660X_STC_DIO_CONTROL]	= { 0x016, NI_660x_WRITE, 2 },
-	[NI660X_G0_SW_SAVE]		= { 0x018, NI_660x_READ, 4 },
-	[NI660X_G1_SW_SAVE]		= { 0x01c, NI_660x_READ, 4 },
-	[NI660X_G0_MODE]		= { 0x034, NI_660x_WRITE, 2 },
-	[NI660X_G01_STATUS1]		= { 0x036, NI_660x_READ, 2 },
-	[NI660X_G1_MODE]		= { 0x036, NI_660x_WRITE, 2 },
-	[NI660X_STC_DIO_SERIAL_INPUT]	= { 0x038, NI_660x_READ, 2 },
-	[NI660X_G0_LOADA]		= { 0x038, NI_660x_WRITE, 4 },
-	[NI660X_G01_STATUS2]		= { 0x03a, NI_660x_READ, 2 },
-	[NI660X_G0_LOADB]		= { 0x03c, NI_660x_WRITE, 4 },
-	[NI660X_G1_LOADA]		= { 0x040, NI_660x_WRITE, 4 },
-	[NI660X_G1_LOADB]		= { 0x044, NI_660x_WRITE, 4 },
-	[NI660X_G0_INPUT_SEL]		= { 0x048, NI_660x_WRITE, 2 },
-	[NI660X_G1_INPUT_SEL]		= { 0x04a, NI_660x_WRITE, 2 },
-	[NI660X_G0_AUTO_INC]		= { 0x088, NI_660x_WRITE, 2 },
-	[NI660X_G1_AUTO_INC]		= { 0x08a, NI_660x_WRITE, 2 },
-	[NI660X_G01_RESET]		= { 0x090, NI_660x_WRITE, 2 },
-	[NI660X_G0_INT_ENA]		= { 0x092, NI_660x_WRITE, 2 },
-	[NI660X_G1_INT_ENA]		= { 0x096, NI_660x_WRITE, 2 },
-	[NI660X_G0_CNT_MODE]		= { 0x0b0, NI_660x_WRITE, 2 },
-	[NI660X_G1_CNT_MODE]		= { 0x0b2, NI_660x_WRITE, 2 },
-	[NI660X_G0_GATE2]		= { 0x0b4, NI_660x_WRITE, 2 },
-	[NI660X_G1_GATE2]		= { 0x0b6, NI_660x_WRITE, 2 },
-	[NI660X_G0_DMA_CFG]		= { 0x0b8, NI_660x_WRITE, 2 },
-	[NI660X_G0_DMA_STATUS]		= { 0x0b8, NI_660x_READ, 2 },
-	[NI660X_G1_DMA_CFG]		= { 0x0ba, NI_660x_WRITE, 2 },
-	[NI660X_G1_DMA_STATUS]		= { 0x0ba, NI_660x_READ, 2 },
-	[NI660X_G2_INT_ACK]		= { 0x104, NI_660x_WRITE, 2 },
-	[NI660X_G2_STATUS]		= { 0x104, NI_660x_READ, 2 },
-	[NI660X_G3_INT_ACK]		= { 0x106, NI_660x_WRITE, 2 },
-	[NI660X_G3_STATUS]		= { 0x106, NI_660x_READ, 2 },
-	[NI660X_G23_STATUS]		= { 0x108, NI_660x_READ, 2 },
-	[NI660X_G2_CMD]			= { 0x10c, NI_660x_WRITE, 2 },
-	[NI660X_G3_CMD]			= { 0x10e, NI_660x_WRITE, 2 },
-	[NI660X_G2_HW_SAVE]		= { 0x110, NI_660x_READ, 4 },
-	[NI660X_G3_HW_SAVE]		= { 0x114, NI_660x_READ, 4 },
-	[NI660X_G2_SW_SAVE]		= { 0x118, NI_660x_READ, 4 },
-	[NI660X_G3_SW_SAVE]		= { 0x11c, NI_660x_READ, 4 },
-	[NI660X_G2_MODE]		= { 0x134, NI_660x_WRITE, 2 },
-	[NI660X_G23_STATUS1]		= { 0x136, NI_660x_READ, 2 },
-	[NI660X_G3_MODE]		= { 0x136, NI_660x_WRITE, 2 },
-	[NI660X_G2_LOADA]		= { 0x138, NI_660x_WRITE, 4 },
-	[NI660X_G23_STATUS2]		= { 0x13a, NI_660x_READ, 2 },
-	[NI660X_G2_LOADB]		= { 0x13c, NI_660x_WRITE, 4 },
-	[NI660X_G3_LOADA]		= { 0x140, NI_660x_WRITE, 4 },
-	[NI660X_G3_LOADB]		= { 0x144, NI_660x_WRITE, 4 },
-	[NI660X_G2_INPUT_SEL]		= { 0x148, NI_660x_WRITE, 2 },
-	[NI660X_G3_INPUT_SEL]		= { 0x14a, NI_660x_WRITE, 2 },
-	[NI660X_G2_AUTO_INC]		= { 0x188, NI_660x_WRITE, 2 },
-	[NI660X_G3_AUTO_INC]		= { 0x18a, NI_660x_WRITE, 2 },
-	[NI660X_G23_RESET]		= { 0x190, NI_660x_WRITE, 2 },
-	[NI660X_G2_INT_ENA]		= { 0x192, NI_660x_WRITE, 2 },
-	[NI660X_G3_INT_ENA]		= { 0x196, NI_660x_WRITE, 2 },
-	[NI660X_G2_CNT_MODE]		= { 0x1b0, NI_660x_WRITE, 2 },
-	[NI660X_G3_CNT_MODE]		= { 0x1b2, NI_660x_WRITE, 2 },
-	[NI660X_G3_GATE2]		= { 0x1b6, NI_660x_WRITE, 2 },
-	[NI660X_G2_GATE2]		= { 0x1b4, NI_660x_WRITE, 2 },
-	[NI660X_G2_DMA_CFG]		= { 0x1b8, NI_660x_WRITE, 2 },
-	[NI660X_G2_DMA_STATUS]		= { 0x1b8, NI_660x_READ, 2 },
-	[NI660X_G3_DMA_CFG]		= { 0x1ba, NI_660x_WRITE, 2 },
-	[NI660X_G3_DMA_STATUS]		= { 0x1ba, NI_660x_READ, 2 },
-	[NI660X_DIO32_INPUT]		= { 0x414, NI_660x_READ, 4 },
-	[NI660X_DIO32_OUTPUT]		= { 0x510, NI_660x_WRITE, 4 },
-	[NI660X_CLK_CFG]		= { 0x73c, NI_660x_WRITE, 4 },
-	[NI660X_GLOBAL_INT_STATUS]	= { 0x754, NI_660x_READ, 4 },
-	[NI660X_DMA_CFG]		= { 0x76c, NI_660x_WRITE, 4 },
-	[NI660X_GLOBAL_INT_CFG]		= { 0x770, NI_660x_WRITE, 4 },
-	[NI660X_IO_CFG_0_1]		= { 0x77c, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_2_3]		= { 0x77e, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_4_5]		= { 0x780, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_6_7]		= { 0x782, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_8_9]		= { 0x784, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_10_11]		= { 0x786, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_12_13]		= { 0x788, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_14_15]		= { 0x78a, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_16_17]		= { 0x78c, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_18_19]		= { 0x78e, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_20_21]		= { 0x790, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_22_23]		= { 0x792, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_24_25]		= { 0x794, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_26_27]		= { 0x796, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_28_29]		= { 0x798, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_30_31]		= { 0x79a, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_32_33]		= { 0x79c, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_34_35]		= { 0x79e, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_36_37]		= { 0x7a0, NI_660x_READ_WRITE, 2 },
-	[NI660X_IO_CFG_38_39]		= { 0x7a2, NI_660x_READ_WRITE, 2 }
+	[NI660X_G0_INT_ACK]		= { 0x004, 2 },	/* write */
+	[NI660X_G0_STATUS]		= { 0x004, 2 },	/* read */
+	[NI660X_G1_INT_ACK]		= { 0x006, 2 },	/* write */
+	[NI660X_G1_STATUS]		= { 0x006, 2 },	/* read */
+	[NI660X_G01_STATUS]		= { 0x008, 2 },	/* read */
+	[NI660X_G0_CMD]			= { 0x00c, 2 },	/* write */
+	[NI660X_STC_DIO_PARALLEL_INPUT]	= { 0x00e, 2 },	/* read */
+	[NI660X_G1_CMD]			= { 0x00e, 2 },	/* write */
+	[NI660X_G0_HW_SAVE]		= { 0x010, 4 },	/* read */
+	[NI660X_G1_HW_SAVE]		= { 0x014, 4 },	/* read */
+	[NI660X_STC_DIO_OUTPUT]		= { 0x014, 2 },	/* write */
+	[NI660X_STC_DIO_CONTROL]	= { 0x016, 2 },	/* write */
+	[NI660X_G0_SW_SAVE]		= { 0x018, 4 },	/* read */
+	[NI660X_G1_SW_SAVE]		= { 0x01c, 4 },	/* read */
+	[NI660X_G0_MODE]		= { 0x034, 2 },	/* write */
+	[NI660X_G01_STATUS1]		= { 0x036, 2 },	/* read */
+	[NI660X_G1_MODE]		= { 0x036, 2 },	/* write */
+	[NI660X_STC_DIO_SERIAL_INPUT]	= { 0x038, 2 },	/* read */
+	[NI660X_G0_LOADA]		= { 0x038, 4 },	/* write */
+	[NI660X_G01_STATUS2]		= { 0x03a, 2 },	/* read */
+	[NI660X_G0_LOADB]		= { 0x03c, 4 },	/* write */
+	[NI660X_G1_LOADA]		= { 0x040, 4 },	/* write */
+	[NI660X_G1_LOADB]		= { 0x044, 4 },	/* write */
+	[NI660X_G0_INPUT_SEL]		= { 0x048, 2 },	/* write */
+	[NI660X_G1_INPUT_SEL]		= { 0x04a, 2 },	/* write */
+	[NI660X_G0_AUTO_INC]		= { 0x088, 2 },	/* write */
+	[NI660X_G1_AUTO_INC]		= { 0x08a, 2 },	/* write */
+	[NI660X_G01_RESET]		= { 0x090, 2 },	/* write */
+	[NI660X_G0_INT_ENA]		= { 0x092, 2 },	/* write */
+	[NI660X_G1_INT_ENA]		= { 0x096, 2 },	/* write */
+	[NI660X_G0_CNT_MODE]		= { 0x0b0, 2 },	/* write */
+	[NI660X_G1_CNT_MODE]		= { 0x0b2, 2 },	/* write */
+	[NI660X_G0_GATE2]		= { 0x0b4, 2 },	/* write */
+	[NI660X_G1_GATE2]		= { 0x0b6, 2 },	/* write */
+	[NI660X_G0_DMA_CFG]		= { 0x0b8, 2 },	/* write */
+	[NI660X_G0_DMA_STATUS]		= { 0x0b8, 2 },	/* read */
+	[NI660X_G1_DMA_CFG]		= { 0x0ba, 2 },	/* write */
+	[NI660X_G1_DMA_STATUS]		= { 0x0ba, 2 },	/* read */
+	[NI660X_G2_INT_ACK]		= { 0x104, 2 },	/* write */
+	[NI660X_G2_STATUS]		= { 0x104, 2 },	/* read */
+	[NI660X_G3_INT_ACK]		= { 0x106, 2 },	/* write */
+	[NI660X_G3_STATUS]		= { 0x106, 2 },	/* read */
+	[NI660X_G23_STATUS]		= { 0x108, 2 },	/* read */
+	[NI660X_G2_CMD]			= { 0x10c, 2 },	/* write */
+	[NI660X_G3_CMD]			= { 0x10e, 2 },	/* write */
+	[NI660X_G2_HW_SAVE]		= { 0x110, 4 },	/* read */
+	[NI660X_G3_HW_SAVE]		= { 0x114, 4 },	/* read */
+	[NI660X_G2_SW_SAVE]		= { 0x118, 4 },	/* read */
+	[NI660X_G3_SW_SAVE]		= { 0x11c, 4 },	/* read */
+	[NI660X_G2_MODE]		= { 0x134, 2 },	/* write */
+	[NI660X_G23_STATUS1]		= { 0x136, 2 },	/* read */
+	[NI660X_G3_MODE]		= { 0x136, 2 },	/* write */
+	[NI660X_G2_LOADA]		= { 0x138, 4 },	/* write */
+	[NI660X_G23_STATUS2]		= { 0x13a, 2 },	/* read */
+	[NI660X_G2_LOADB]		= { 0x13c, 4 },	/* write */
+	[NI660X_G3_LOADA]		= { 0x140, 4 },	/* write */
+	[NI660X_G3_LOADB]		= { 0x144, 4 },	/* write */
+	[NI660X_G2_INPUT_SEL]		= { 0x148, 2 },	/* write */
+	[NI660X_G3_INPUT_SEL]		= { 0x14a, 2 },	/* write */
+	[NI660X_G2_AUTO_INC]		= { 0x188, 2 },	/* write */
+	[NI660X_G3_AUTO_INC]		= { 0x18a, 2 },	/* write */
+	[NI660X_G23_RESET]		= { 0x190, 2 },	/* write */
+	[NI660X_G2_INT_ENA]		= { 0x192, 2 },	/* write */
+	[NI660X_G3_INT_ENA]		= { 0x196, 2 },	/* write */
+	[NI660X_G2_CNT_MODE]		= { 0x1b0, 2 },	/* write */
+	[NI660X_G3_CNT_MODE]		= { 0x1b2, 2 },	/* write */
+	[NI660X_G3_GATE2]		= { 0x1b6, 2 },	/* write */
+	[NI660X_G2_GATE2]		= { 0x1b4, 2 },	/* write */
+	[NI660X_G2_DMA_CFG]		= { 0x1b8, 2 },	/* write */
+	[NI660X_G2_DMA_STATUS]		= { 0x1b8, 2 },	/* read */
+	[NI660X_G3_DMA_CFG]		= { 0x1ba, 2 },	/* write */
+	[NI660X_G3_DMA_STATUS]		= { 0x1ba, 2 },	/* read */
+	[NI660X_DIO32_INPUT]		= { 0x414, 4 },	/* read */
+	[NI660X_DIO32_OUTPUT]		= { 0x510, 4 },	/* write */
+	[NI660X_CLK_CFG]		= { 0x73c, 4 },	/* write */
+	[NI660X_GLOBAL_INT_STATUS]	= { 0x754, 4 },	/* read */
+	[NI660X_DMA_CFG]		= { 0x76c, 4 },	/* write */
+	[NI660X_GLOBAL_INT_CFG]		= { 0x770, 4 },	/* write */
+	[NI660X_IO_CFG_0_1]		= { 0x77c, 2 },	/* read/write */
+	[NI660X_IO_CFG_2_3]		= { 0x77e, 2 },	/* read/write */
+	[NI660X_IO_CFG_4_5]		= { 0x780, 2 },	/* read/write */
+	[NI660X_IO_CFG_6_7]		= { 0x782, 2 },	/* read/write */
+	[NI660X_IO_CFG_8_9]		= { 0x784, 2 },	/* read/write */
+	[NI660X_IO_CFG_10_11]		= { 0x786, 2 },	/* read/write */
+	[NI660X_IO_CFG_12_13]		= { 0x788, 2 },	/* read/write */
+	[NI660X_IO_CFG_14_15]		= { 0x78a, 2 },	/* read/write */
+	[NI660X_IO_CFG_16_17]		= { 0x78c, 2 },	/* read/write */
+	[NI660X_IO_CFG_18_19]		= { 0x78e, 2 },	/* read/write */
+	[NI660X_IO_CFG_20_21]		= { 0x790, 2 },	/* read/write */
+	[NI660X_IO_CFG_22_23]		= { 0x792, 2 },	/* read/write */
+	[NI660X_IO_CFG_24_25]		= { 0x794, 2 },	/* read/write */
+	[NI660X_IO_CFG_26_27]		= { 0x796, 2 },	/* read/write */
+	[NI660X_IO_CFG_28_29]		= { 0x798, 2 },	/* read/write */
+	[NI660X_IO_CFG_30_31]		= { 0x79a, 2 },	/* read/write */
+	[NI660X_IO_CFG_32_33]		= { 0x79c, 2 },	/* read/write */
+	[NI660X_IO_CFG_34_35]		= { 0x79e, 2 },	/* read/write */
+	[NI660X_IO_CFG_36_37]		= { 0x7a0, 2 },	/* read/write */
+	[NI660X_IO_CFG_38_39]		= { 0x7a2, 2 }	/* read/write */
 };
 
 /* kind of ENABLE for the second counter */
