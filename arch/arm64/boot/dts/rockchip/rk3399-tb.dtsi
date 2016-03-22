@@ -179,11 +179,15 @@
 	status = "disabled";
 };
 
+&emmc_phy {
+	status = "okay";
+};
+
 &sdhci {
 	bus-width = <8>;
 	supports-emmc;
 	non-removable;
-	status = "disabled";
+	status = "okay";
 };
 
 &i2s0 {
