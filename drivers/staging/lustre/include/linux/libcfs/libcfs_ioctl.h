@@ -225,8 +225,8 @@ static inline bool libcfs_ioctl_is_invalid(struct libcfs_ioctl_data *data)
 
 int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand);
 int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand);
-int libcfs_ioctl_getdata_len(const struct libcfs_ioctl_hdr __user *arg,
-			     __u32 *buf_len);
+int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
+			 const struct libcfs_ioctl_hdr __user *uparam);
 int libcfs_ioctl_popdata(void __user *arg, void *buf, int size);
 int libcfs_ioctl_data_adjust(struct libcfs_ioctl_data *data);
 

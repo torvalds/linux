@@ -57,12 +57,13 @@ int libcfs_ioctl_data_adjust(struct libcfs_ioctl_data *data)
 	return 0;
 }
 
-int libcfs_ioctl_getdata_len(const struct libcfs_ioctl_hdr __user *arg,
-			     __u32 *len)
+int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
+			 const struct libcfs_ioctl_hdr __user *uhdr)
 {
 	struct libcfs_ioctl_hdr hdr;
+	int err = 0;
 
-	if (copy_from_user(&hdr, arg, sizeof(hdr)))
+	if (copy_from_user(&hdr, uhdr, sizeof(uhdr)))
 		return -EFAULT;
 
 	if (hdr.ioc_version != LIBCFS_IOCTL_VERSION &&
@@ -72,9 +73,21 @@ int libcfs_ioctl_getdata_len(const struct libcfs_ioctl_hdr __user *arg,
 		return -EINVAL;
 	}
 
-	*len = hdr.ioc_len;
+	if (hdr.ioc_len > LIBCFS_IOC_DATA_MAX) {
+		CERROR("libcfs ioctl: user buffer is too large %d/%d\n",
+		       hdr.ioc_len, LIBCFS_IOC_DATA_MAX);
+		return -EINVAL;
+	}
 
-	return 0;
+	LIBCFS_ALLOC(*hdr_pp, hdr.ioc_len);
+	if (!*hdr_pp)
+		return -ENOMEM;
+
+	if (copy_from_user(*hdr_pp, uhdr, hdr.ioc_len)) {
+		LIBCFS_FREE(*hdr_pp, hdr.ioc_len);
+		err = -EFAULT;
+	}
+	return err;
 }
 
 int libcfs_ioctl_popdata(void __user *arg, void *data, int size)

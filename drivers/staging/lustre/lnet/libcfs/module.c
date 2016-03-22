@@ -172,36 +172,14 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
 {
 	struct libcfs_ioctl_hdr *hdr;
 	int err = 0;
-	__u32 buf_len;
 
-	err = libcfs_ioctl_getdata_len(arg, &buf_len);
+	/* 'cmd' and permissions get checked in our arch-specific caller */
+	err = libcfs_ioctl_getdata(&hdr, arg);
 	if (err)
 		return err;
 
-	/*
-	 * do a check here to restrict the size of the memory
-	 * to allocate to guard against DoS attacks.
-	 */
-	if (buf_len > LIBCFS_IOC_DATA_MAX) {
-		CERROR("LNET: user buffer exceeds kernel buffer\n");
-		return -EINVAL;
-	}
-
-	LIBCFS_ALLOC_GFP(hdr, buf_len, GFP_KERNEL);
-	if (!hdr)
-		return -ENOMEM;
-
-	/* 'cmd' and permissions get checked in our arch-specific caller */
-	if (copy_from_user(hdr, arg, buf_len)) {
-		CERROR("LNET ioctl: data error\n");
-		err = -EFAULT;
-		goto out;
-	}
-
 	err = libcfs_ioctl_handle(pfile, cmd, arg, hdr);
-
-out:
-	LIBCFS_FREE(hdr, buf_len);
+	LIBCFS_FREE(hdr, hdr->ioc_len);
 	return err;
 }
 
