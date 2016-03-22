@@ -274,7 +274,7 @@ check_spm:
 	return per_cpu(cpu_spm_drv, cpu) ? 0 : -ENXIO;
 }
 
-static struct cpuidle_ops qcom_cpuidle_ops __initdata = {
+static const struct cpuidle_ops qcom_cpuidle_ops __initconst = {
 	.suspend = qcom_idle_enter,
 	.init = qcom_cpuidle_init,
 };
