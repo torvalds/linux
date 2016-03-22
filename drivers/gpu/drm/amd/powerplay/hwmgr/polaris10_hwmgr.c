@@ -1248,6 +1248,9 @@ static int polaris10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 		if (i > 1)
 			levels[i].DeepSleepDivId = 0;
 	}
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_SPLLShutdownSupport))
+		data->smc_state_table.GraphicsLevel[0].SclkSetting.SSc_En = 0;
 
 	data->smc_state_table.GraphicsLevel[0].EnabledForActivity = 1;
 	data->smc_state_table.GraphicsDpmLevelCount =
@@ -2602,6 +2605,9 @@ int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_TCPRamping);
 
+	if (hwmgr->chip_id == CHIP_POLARIS11)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_SPLLShutdownSupport);
 	return 0;
 }
 
