@@ -1064,8 +1064,10 @@ static void ni_660x_detach(struct comedi_device *dev)
 {
 	struct ni_660x_private *devpriv = dev->private;
 
-	if (dev->irq)
+	if (dev->irq) {
+		ni_660x_write(dev, 0, 0, NI660X_GLOBAL_INT_CFG);
 		free_irq(dev->irq, dev);
+	}
 	if (devpriv) {
 		ni_gpct_device_destroy(devpriv->counter_dev);
 		ni_660x_free_mite_rings(dev);
