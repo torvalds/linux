@@ -703,20 +703,6 @@ static void ni_660x_free_mite_rings(struct comedi_device *dev)
 	}
 }
 
-static void init_tio_chip(struct comedi_device *dev, int chipset)
-{
-	struct ni_660x_private *devpriv = dev->private;
-	unsigned int i;
-
-	/*  init dma configuration register */
-	devpriv->dma_cfg[chipset] = 0;
-	for (i = 0; i < NI660X_MAX_DMA_CHANNEL; ++i)
-		devpriv->dma_cfg[chipset] |= NI660X_DMA_CFG_SEL_NONE(i);
-	ni_660x_write(dev, chipset, devpriv->dma_cfg[chipset], NI660X_DMA_CFG);
-	for (i = 0; i < NI660X_NUM_PFI_CHANNELS; ++i)
-		ni_660x_write(dev, chipset, 0, NI660X_IO_CFG(i));
-}
-
 static int ni_660x_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
@@ -857,6 +843,33 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
+static void ni_660x_init_tio_chips(struct comedi_device *dev,
+				   unsigned int n_chips)
+{
+	struct ni_660x_private *devpriv = dev->private;
+	unsigned int chip;
+	unsigned int chan;
+
+	/*
+	 * We use the ioconfig registers to control dio direction, so zero
+	 * output enables in stc dio control reg.
+	 */
+	ni_660x_write(dev, 0, 0, NI660X_STC_DIO_CONTROL);
+
+	for (chip = 0; chip < n_chips; ++chip) {
+		/* init dma configuration register */
+		devpriv->dma_cfg[chip] = 0;
+		for (chan = 0; chan < NI660X_MAX_DMA_CHANNEL; ++chan)
+			devpriv->dma_cfg[chip] |= NI660X_DMA_CFG_SEL_NONE(chan);
+		ni_660x_write(dev, chip, devpriv->dma_cfg[chip],
+			      NI660X_DMA_CFG);
+
+		/* init ioconfig registers */
+		for (chan = 0; chan < NI660X_NUM_PFI_CHANNELS; ++chan)
+			ni_660x_write(dev, chip, 0, NI660X_IO_CFG(chan));
+	}
+}
+
 static int ni_660x_auto_attach(struct comedi_device *dev,
 			       unsigned long context)
 {
@@ -898,6 +911,8 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	ret = ni_660x_alloc_mite_rings(dev);
 	if (ret < 0)
 		return ret;
+
+	ni_660x_init_tio_chips(dev, board->n_chips);
 
 	ret = comedi_alloc_subdevices(dev, 2 + NI660X_MAX_COUNTERS);
 	if (ret)
@@ -971,12 +986,6 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	s->insn_bits	= ni_660x_dio_insn_bits;
 	s->insn_config	= ni_660x_dio_insn_config;
 
-	/*
-	 * We use the ioconfig registers to control dio direction, so zero
-	 * output enables in stc dio control reg.
-	 */
-	ni_660x_write(dev, 0, 0, NI660X_STC_DIO_CONTROL);
-
 	n_counters = board->n_chips * NI660X_COUNTERS_PER_CHIP;
 	gpct_dev = ni_gpct_device_construct(dev,
 					    ni_660x_gpct_write,
@@ -1016,9 +1025,6 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 			s->type		= COMEDI_SUBD_UNUSED;
 		}
 	}
-
-	for (i = 0; i < board->n_chips; ++i)
-		init_tio_chip(dev, i);
 
 	for (i = 0; i < n_counters; ++i)
 		ni_tio_init_counter(&gpct_dev->counters[i]);
