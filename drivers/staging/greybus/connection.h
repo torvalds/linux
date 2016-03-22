@@ -88,4 +88,15 @@ static inline bool gb_connection_e2efc_enabled(struct gb_connection *connection)
 	return !(connection->flags & GB_CONNECTION_FLAG_CSD);
 }
 
+static inline void *gb_connection_get_data(struct gb_connection *connection)
+{
+	return connection->private;
+}
+
+static inline void gb_connection_set_data(struct gb_connection *connection,
+					  void *data)
+{
+	connection->private = data;
+}
+
 #endif /* __CONNECTION_H */
