@@ -226,7 +226,6 @@ void ath10k_htt_rx_free(struct ath10k_htt *htt)
 	tasklet_kill(&htt->rx_replenish_task);
 	tasklet_kill(&htt->txrx_compl_task);
 
-	skb_queue_purge(&htt->tx_compl_q);
 	skb_queue_purge(&htt->rx_compl_q);
 	skb_queue_purge(&htt->rx_in_ord_compl_q);
 	skb_queue_purge(&htt->tx_fetch_ind_q);
@@ -567,7 +566,6 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	tasklet_init(&htt->rx_replenish_task, ath10k_htt_rx_replenish_task,
 		     (unsigned long)htt);
 
-	skb_queue_head_init(&htt->tx_compl_q);
 	skb_queue_head_init(&htt->rx_compl_q);
 	skb_queue_head_init(&htt->rx_in_ord_compl_q);
 	skb_queue_head_init(&htt->tx_fetch_ind_q);
@@ -1678,7 +1676,7 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 	}
 }
 
-static void ath10k_htt_rx_frm_tx_compl(struct ath10k *ar,
+static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
 				       struct sk_buff *skb)
 {
 	struct ath10k_htt *htt = &ar->htt;
@@ -1690,19 +1688,19 @@ static void ath10k_htt_rx_frm_tx_compl(struct ath10k *ar,
 
 	switch (status) {
 	case HTT_DATA_TX_STATUS_NO_ACK:
-		tx_done.no_ack = true;
+		tx_done.status = HTT_TX_COMPL_STATE_NOACK;
 		break;
 	case HTT_DATA_TX_STATUS_OK:
-		tx_done.success = true;
+		tx_done.status = HTT_TX_COMPL_STATE_ACK;
 		break;
 	case HTT_DATA_TX_STATUS_DISCARD:
 	case HTT_DATA_TX_STATUS_POSTPONE:
 	case HTT_DATA_TX_STATUS_DOWNLOAD_FAIL:
-		tx_done.discard = true;
+		tx_done.status = HTT_TX_COMPL_STATE_DISCARD;
 		break;
 	default:
 		ath10k_warn(ar, "unhandled tx completion status %d\n", status);
-		tx_done.discard = true;
+		tx_done.status = HTT_TX_COMPL_STATE_DISCARD;
 		break;
 	}
 
@@ -1712,7 +1710,20 @@ static void ath10k_htt_rx_frm_tx_compl(struct ath10k *ar,
 	for (i = 0; i < resp->data_tx_completion.num_msdus; i++) {
 		msdu_id = resp->data_tx_completion.msdus[i];
 		tx_done.msdu_id = __le16_to_cpu(msdu_id);
-		ath10k_txrx_tx_unref(htt, &tx_done);
+
+		/* kfifo_put: In practice firmware shouldn't fire off per-CE
+		 * interrupt and main interrupt (MSI/-X range case) for the same
+		 * HTC service so it should be safe to use kfifo_put w/o lock.
+		 *
+		 * From kfifo_put() documentation:
+		 *  Note that with only one concurrent reader and one concurrent
+		 *  writer, you don't need extra locking to use these macro.
+		 */
+		if (!kfifo_put(&htt->txdone_fifo, tx_done)) {
+			ath10k_warn(ar, "txdone fifo overrun, msdu_id %d status %d\n",
+				    tx_done.msdu_id, tx_done.status);
+			ath10k_txrx_tx_unref(htt, &tx_done);
+		}
 	}
 }
 
@@ -2339,18 +2350,17 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		struct htt_tx_done tx_done = {};
 		int status = __le32_to_cpu(resp->mgmt_tx_completion.status);
 
-		tx_done.msdu_id =
-			__le32_to_cpu(resp->mgmt_tx_completion.desc_id);
+		tx_done.msdu_id = __le32_to_cpu(resp->mgmt_tx_completion.desc_id);
 
 		switch (status) {
 		case HTT_MGMT_TX_STATUS_OK:
-			tx_done.success = true;
+			tx_done.status = HTT_TX_COMPL_STATE_ACK;
 			break;
 		case HTT_MGMT_TX_STATUS_RETRY:
-			tx_done.no_ack = true;
+			tx_done.status = HTT_TX_COMPL_STATE_NOACK;
 			break;
 		case HTT_MGMT_TX_STATUS_DROP:
-			tx_done.discard = true;
+			tx_done.status = HTT_TX_COMPL_STATE_DISCARD;
 			break;
 		}
 
@@ -2364,9 +2374,9 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_TX_COMPL_IND:
-		skb_queue_tail(&htt->tx_compl_q, skb);
+		ath10k_htt_rx_tx_compl_ind(htt->ar, skb);
 		tasklet_schedule(&htt->txrx_compl_task);
-		return;
+		break;
 	case HTT_T2H_MSG_TYPE_SEC_IND: {
 		struct ath10k *ar = htt->ar;
 		struct htt_security_indication *ev = &resp->security_indication;
@@ -2475,7 +2485,7 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 {
 	struct ath10k_htt *htt = (struct ath10k_htt *)ptr;
 	struct ath10k *ar = htt->ar;
-	struct sk_buff_head tx_q;
+	struct htt_tx_done tx_done = {};
 	struct sk_buff_head rx_q;
 	struct sk_buff_head rx_ind_q;
 	struct sk_buff_head tx_ind_q;
@@ -2483,14 +2493,9 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 	struct sk_buff *skb;
 	unsigned long flags;
 
-	__skb_queue_head_init(&tx_q);
 	__skb_queue_head_init(&rx_q);
 	__skb_queue_head_init(&rx_ind_q);
 	__skb_queue_head_init(&tx_ind_q);
-
-	spin_lock_irqsave(&htt->tx_compl_q.lock, flags);
-	skb_queue_splice_init(&htt->tx_compl_q, &tx_q);
-	spin_unlock_irqrestore(&htt->tx_compl_q.lock, flags);
 
 	spin_lock_irqsave(&htt->rx_compl_q.lock, flags);
 	skb_queue_splice_init(&htt->rx_compl_q, &rx_q);
@@ -2504,10 +2509,13 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 	skb_queue_splice_init(&htt->tx_fetch_ind_q, &tx_ind_q);
 	spin_unlock_irqrestore(&htt->tx_fetch_ind_q.lock, flags);
 
-	while ((skb = __skb_dequeue(&tx_q))) {
-		ath10k_htt_rx_frm_tx_compl(htt->ar, skb);
-		dev_kfree_skb_any(skb);
-	}
+	/* kfifo_get: called only within txrx_tasklet so it's neatly serialized.
+	 * From kfifo_get() documentation:
+	 *  Note that with only one concurrent reader and one concurrent writer,
+	 *  you don't need extra locking to use these macro.
+	 */
+	while (kfifo_get(&htt->txdone_fifo, &tx_done))
+		ath10k_txrx_tx_unref(htt, &tx_done);
 
 	while ((skb = __skb_dequeue(&tx_ind_q))) {
 		ath10k_htt_rx_tx_fetch_ind(ar, skb);

@@ -339,7 +339,17 @@ int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 		goto free_frag_desc;
 	}
 
+	size = roundup_pow_of_two(htt->max_num_pending_tx);
+	ret = kfifo_alloc(&htt->txdone_fifo, size, GFP_KERNEL);
+	if (ret) {
+		ath10k_err(ar, "failed to alloc txdone fifo: %d\n", ret);
+		goto free_txq;
+	}
+
 	return 0;
+
+free_txq:
+	ath10k_htt_tx_free_txq(htt);
 
 free_frag_desc:
 	ath10k_htt_tx_free_cont_frag_desc(htt);
@@ -364,8 +374,8 @@ static int ath10k_htt_tx_clean_up_pending(int msdu_id, void *skb, void *ctx)
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT, "force cleanup msdu_id %hu\n", msdu_id);
 
-	tx_done.discard = 1;
 	tx_done.msdu_id = msdu_id;
+	tx_done.status = HTT_TX_COMPL_STATE_DISCARD;
 
 	ath10k_txrx_tx_unref(htt, &tx_done);
 
@@ -388,6 +398,8 @@ void ath10k_htt_tx_free(struct ath10k_htt *htt)
 
 	ath10k_htt_tx_free_txq(htt);
 	ath10k_htt_tx_free_cont_frag_desc(htt);
+	WARN_ON(!kfifo_is_empty(&htt->txdone_fifo));
+	kfifo_free(&htt->txdone_fifo);
 }
 
 void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)

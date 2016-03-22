@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/dmapool.h>
 #include <linux/hashtable.h>
+#include <linux/kfifo.h>
 #include <net/mac80211.h>
 
 #include "htc.h"
@@ -1526,10 +1527,15 @@ struct htt_resp {
 /*** host side structures follow ***/
 
 struct htt_tx_done {
-	u32 msdu_id;
-	bool discard;
-	bool no_ack;
-	bool success;
+	u16 msdu_id;
+	u16 status;
+};
+
+enum htt_tx_compl_state {
+	HTT_TX_COMPL_STATE_NONE,
+	HTT_TX_COMPL_STATE_ACK,
+	HTT_TX_COMPL_STATE_NOACK,
+	HTT_TX_COMPL_STATE_DISCARD,
 };
 
 struct htt_peer_map_event {
@@ -1650,6 +1656,9 @@ struct ath10k_htt {
 	struct idr pending_tx;
 	wait_queue_head_t empty_tx_wq;
 
+	/* FIFO for storing tx done status {ack, no-ack, discard} and msdu id */
+	DECLARE_KFIFO_PTR(txdone_fifo, struct htt_tx_done);
+
 	/* set if host-fw communication goes haywire
 	 * used to avoid further failures */
 	bool rx_confused;
@@ -1658,7 +1667,6 @@ struct ath10k_htt {
 	/* This is used to group tx/rx completions separately and process them
 	 * in batches to reduce cache stalls */
 	struct tasklet_struct txrx_compl_task;
-	struct sk_buff_head tx_compl_q;
 	struct sk_buff_head rx_compl_q;
 	struct sk_buff_head rx_in_ord_compl_q;
 	struct sk_buff_head tx_fetch_ind_q;
