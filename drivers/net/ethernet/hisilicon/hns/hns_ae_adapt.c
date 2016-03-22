@@ -803,7 +803,7 @@ static int hns_ae_set_rss(struct hnae_handle *handle, const u32 *indir,
 
 	/* set the RSS Hash Key if specififed by the user */
 	if (key)
-		hns_ppe_set_rss_key(ppe_cb, (int *)key);
+		hns_ppe_set_rss_key(ppe_cb, (u32 *)key);
 
 	/* update the shadow RSS table with user specified qids */
 	memcpy(ppe_cb->rss_indir_table, indir, HNS_PPEV2_RSS_IND_TBL_SIZE);
