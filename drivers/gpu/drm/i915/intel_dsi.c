@@ -1163,6 +1163,8 @@ void intel_dsi_init(struct drm_device *dev)
 
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		dev_priv->mipi_mmio_base = VLV_MIPI_BASE;
+	} else if (IS_BROXTON(dev)) {
+		dev_priv->mipi_mmio_base = BXT_MIPI_BASE;
 	} else {
 		DRM_ERROR("Unsupported Mipi device to reg base");
 		return;

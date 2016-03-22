@@ -14394,6 +14394,8 @@ static void intel_setup_outputs(struct drm_device *dev)
 		intel_ddi_init(dev, PORT_A);
 		intel_ddi_init(dev, PORT_B);
 		intel_ddi_init(dev, PORT_C);
+
+		intel_dsi_init(dev);
 	} else if (HAS_DDI(dev)) {
 		int found;
 
