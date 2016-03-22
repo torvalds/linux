@@ -156,13 +156,7 @@ enum ni_660x_register {
 	NI660X_NUM_REGS,
 };
 
-static inline unsigned IOConfigReg(unsigned pfi_channel)
-{
-	unsigned reg = NI660X_IO_CFG_0_1 + pfi_channel / 2;
-
-	BUG_ON(reg > NI660X_IO_CFG_38_39);
-	return reg;
-}
+#define NI660X_IO_CFG(x)	(NI660X_IO_CFG_0_1 + ((x) / 2))
 
 enum ni_660x_register_width {
 	DATA_1B,
@@ -893,7 +887,7 @@ static void init_tio_chip(struct comedi_device *dev, int chipset)
 			       devpriv->dma_configuration_soft_copies[chipset],
 			       NI660X_DMA_CFG);
 	for (i = 0; i < NUM_PFI_CHANNELS; ++i)
-		ni_660x_write_register(dev, chipset, 0, IOConfigReg(i));
+		ni_660x_write_register(dev, chipset, 0, NI660X_IO_CFG(i));
 }
 
 static int ni_660x_dio_insn_bits(struct comedi_device *dev,
@@ -944,22 +938,22 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 	if (idle_chipset != active_chipset) {
 		idle_bits =
 		    ni_660x_read_register(dev, idle_chipset,
-					  IOConfigReg(pfi_channel));
+					  NI660X_IO_CFG(pfi_channel));
 		idle_bits &= ~pfi_output_select_mask(pfi_channel);
 		idle_bits |=
 		    pfi_output_select_bits(pfi_channel,
 					   pfi_output_select_high_Z);
 		ni_660x_write_register(dev, idle_chipset, idle_bits,
-				       IOConfigReg(pfi_channel));
+				       NI660X_IO_CFG(pfi_channel));
 	}
 
 	active_bits =
 	    ni_660x_read_register(dev, active_chipset,
-				  IOConfigReg(pfi_channel));
+				  NI660X_IO_CFG(pfi_channel));
 	active_bits &= ~pfi_output_select_mask(pfi_channel);
 	active_bits |= pfi_output_select_bits(pfi_channel, output_select);
 	ni_660x_write_register(dev, active_chipset, active_bits,
-			       IOConfigReg(pfi_channel));
+			       NI660X_IO_CFG(pfi_channel));
 }
 
 static int ni_660x_set_pfi_routing(struct comedi_device *dev, unsigned chan,
@@ -1025,10 +1019,10 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 		break;
 
 	case INSN_CONFIG_FILTER:
-		val = ni_660x_read_register(dev, 0, IOConfigReg(chan));
+		val = ni_660x_read_register(dev, 0, NI660X_IO_CFG(chan));
 		val &= ~pfi_input_select_mask(chan);
 		val |= pfi_input_select_bits(chan, data[1]);
-		ni_660x_write_register(dev, 0, val, IOConfigReg(chan));
+		ni_660x_write_register(dev, 0, val, NI660X_IO_CFG(chan));
 		break;
 
 	default:
