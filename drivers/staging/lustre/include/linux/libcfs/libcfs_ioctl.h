@@ -138,8 +138,4 @@ struct libcfs_debug_ioctl_data {
 #define IOC_LIBCFS_GET_LNET_STATS	_IOWR(IOC_LIBCFS_TYPE, 91, IOCTL_CONFIG_SIZE)
 #define IOC_LIBCFS_MAX_NR		91
 
-int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
-			 const struct libcfs_ioctl_hdr __user *uparam);
-int libcfs_ioctl_data_adjust(struct libcfs_ioctl_data *data);
-
 #endif /* __LIBCFS_IOCTL_H__ */
