@@ -8,6 +8,7 @@ enum {
 	RDMA_NL_IWCM,
 	RDMA_NL_RSVD,
 	RDMA_NL_LS,	/* RDMA Local Services */
+	RDMA_NL_I40IW,
 	RDMA_NL_NUM_CLIENTS
 };
 

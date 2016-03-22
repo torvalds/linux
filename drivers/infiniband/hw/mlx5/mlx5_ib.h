@@ -776,6 +776,14 @@ void mlx5_ib_qp_disable_pagefaults(struct mlx5_ib_qp *qp);
 void mlx5_ib_qp_enable_pagefaults(struct mlx5_ib_qp *qp);
 void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
 			      unsigned long end);
+int mlx5_ib_get_vf_config(struct ib_device *device, int vf,
+			  u8 port, struct ifla_vf_info *info);
+int mlx5_ib_set_vf_link_state(struct ib_device *device, int vf,
+			      u8 port, int state);
+int mlx5_ib_get_vf_stats(struct ib_device *device, int vf,
+			 u8 port, struct ifla_vf_stats *stats);
+int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u8 port,
+			u64 guid, int type);
 
 #else /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 static inline void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)

@@ -180,6 +180,7 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	struct sk_buff *skb;
 	u64 mapping[IPOIB_UD_RX_SG];
 	union ib_gid *dgid;
+	union ib_gid *sgid;
 
 	ipoib_dbg_data(priv, "recv completion: id %d, status: %d\n",
 		       wr_id, wc->status);
@@ -202,13 +203,6 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 		priv->rx_ring[wr_id].skb = NULL;
 		return;
 	}
-
-	/*
-	 * Drop packets that this interface sent, ie multicast packets
-	 * that the HCA has replicated.
-	 */
-	if (wc->slid == priv->local_lid && wc->src_qp == priv->qp->qp_num)
-		goto repost;
 
 	memcpy(mapping, priv->rx_ring[wr_id].mapping,
 	       IPOIB_UD_RX_SG * sizeof *mapping);
@@ -238,6 +232,25 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 		skb->pkt_type = PACKET_BROADCAST;
 	else
 		skb->pkt_type = PACKET_MULTICAST;
+
+	sgid = &((struct ib_grh *)skb->data)->sgid;
+
+	/*
+	 * Drop packets that this interface sent, ie multicast packets
+	 * that the HCA has replicated.
+	 */
+	if (wc->slid == priv->local_lid && wc->src_qp == priv->qp->qp_num) {
+		int need_repost = 1;
+
+		if ((wc->wc_flags & IB_WC_GRH) &&
+		    sgid->global.interface_id != priv->local_gid.global.interface_id)
+			need_repost = 0;
+
+		if (need_repost) {
+			dev_kfree_skb_any(skb);
+			goto repost;
+		}
+	}
 
 	skb_pull(skb, IB_GRH_BYTES);
 

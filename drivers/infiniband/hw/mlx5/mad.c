@@ -208,7 +208,7 @@ static int process_pma_cmd(struct ib_device *ibdev, u8 port_num,
 		if (!out_cnt)
 			return IB_MAD_RESULT_FAILURE;
 
-		err = mlx5_core_query_vport_counter(dev->mdev, 0,
+		err = mlx5_core_query_vport_counter(dev->mdev, 0, 0,
 						    port_num, out_cnt, sz);
 		if (!err)
 			pma_cnt_ext_assign(pma_cnt_ext, out_cnt);

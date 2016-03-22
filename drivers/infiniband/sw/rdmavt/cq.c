@@ -1,56 +1,67 @@
 /*
- * Copyright (c) 2013 Intel Corporation.  All rights reserved.
- * Copyright (c) 2006, 2007, 2008, 2010 QLogic Corporation. All rights reserved.
- * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
+ * Copyright(c) 2016 Intel Corporation.
  *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
+ * This file is provided under a dual BSD/GPLv2 license.  When using or
+ * redistributing this file, you may do so under either license.
  *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
+ * GPL LICENSE SUMMARY
  *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
  *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * BSD LICENSE
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *  - Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  - Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *  - Neither the name of Intel Corporation nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  */
 
-#include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/kthread.h>
-
-#include "qib_verbs.h"
-#include "qib.h"
+#include "cq.h"
+#include "vt.h"
 
 /**
- * qib_cq_enter - add a new entry to the completion queue
+ * rvt_cq_enter - add a new entry to the completion queue
  * @cq: completion queue
  * @entry: work completion entry to add
- * @sig: true if @entry is a solicitated entry
+ * @sig: true if @entry is solicited
  *
  * This may be called with qp->s_lock held.
  */
-void qib_cq_enter(struct qib_cq *cq, struct ib_wc *entry, int solicited)
+void rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
 {
-	struct qib_cq_wc *wc;
+	struct rvt_cq_wc *wc;
 	unsigned long flags;
 	u32 head;
 	u32 next;
@@ -63,11 +74,13 @@ void qib_cq_enter(struct qib_cq *cq, struct ib_wc *entry, int solicited)
 	 */
 	wc = cq->queue;
 	head = wc->head;
-	if (head >= (unsigned) cq->ibcq.cqe) {
+	if (head >= (unsigned)cq->ibcq.cqe) {
 		head = cq->ibcq.cqe;
 		next = 0;
-	} else
+	} else {
 		next = head + 1;
+	}
+
 	if (unlikely(next == wc->tail)) {
 		spin_unlock_irqrestore(&cq->lock, flags);
 		if (cq->ibcq.event_handler) {
@@ -98,8 +111,9 @@ void qib_cq_enter(struct qib_cq *cq, struct ib_wc *entry, int solicited)
 		wc->uqueue[head].port_num = entry->port_num;
 		/* Make sure entry is written before the head index. */
 		smp_wmb();
-	} else
+	} else {
 		wc->kqueue[head] = *entry;
+	}
 	wc->head = next;
 
 	if (cq->notify == IB_CQ_NEXT_COMP ||
@@ -110,10 +124,10 @@ void qib_cq_enter(struct qib_cq *cq, struct ib_wc *entry, int solicited)
 		 * This will cause send_complete() to be called in
 		 * another thread.
 		 */
-		smp_rmb();
-		worker = cq->dd->worker;
+		smp_read_barrier_depends(); /* see rvt_cq_exit */
+		worker = cq->rdi->worker;
 		if (likely(worker)) {
-			cq->notify = IB_CQ_NONE;
+			cq->notify = RVT_CQ_NONE;
 			cq->triggered++;
 			queue_kthread_work(worker, &cq->comptask);
 		}
@@ -121,59 +135,11 @@ void qib_cq_enter(struct qib_cq *cq, struct ib_wc *entry, int solicited)
 
 	spin_unlock_irqrestore(&cq->lock, flags);
 }
-
-/**
- * qib_poll_cq - poll for work completion entries
- * @ibcq: the completion queue to poll
- * @num_entries: the maximum number of entries to return
- * @entry: pointer to array where work completions are placed
- *
- * Returns the number of completion entries polled.
- *
- * This may be called from interrupt context.  Also called by ib_poll_cq()
- * in the generic verbs code.
- */
-int qib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
-{
-	struct qib_cq *cq = to_icq(ibcq);
-	struct qib_cq_wc *wc;
-	unsigned long flags;
-	int npolled;
-	u32 tail;
-
-	/* The kernel can only poll a kernel completion queue */
-	if (cq->ip) {
-		npolled = -EINVAL;
-		goto bail;
-	}
-
-	spin_lock_irqsave(&cq->lock, flags);
-
-	wc = cq->queue;
-	tail = wc->tail;
-	if (tail > (u32) cq->ibcq.cqe)
-		tail = (u32) cq->ibcq.cqe;
-	for (npolled = 0; npolled < num_entries; ++npolled, ++entry) {
-		if (tail == wc->head)
-			break;
-		/* The kernel doesn't need a RMB since it has the lock. */
-		*entry = wc->kqueue[tail];
-		if (tail >= cq->ibcq.cqe)
-			tail = 0;
-		else
-			tail++;
-	}
-	wc->tail = tail;
-
-	spin_unlock_irqrestore(&cq->lock, flags);
-
-bail:
-	return npolled;
-}
+EXPORT_SYMBOL(rvt_cq_enter);
 
 static void send_complete(struct kthread_work *work)
 {
-	struct qib_cq *cq = container_of(work, struct qib_cq, comptask);
+	struct rvt_cq *cq = container_of(work, struct rvt_cq, comptask);
 
 	/*
 	 * The completion handler will most likely rearm the notification
@@ -201,43 +167,39 @@ static void send_complete(struct kthread_work *work)
 }
 
 /**
- * qib_create_cq - create a completion queue
+ * rvt_create_cq - create a completion queue
  * @ibdev: the device this completion queue is attached to
  * @attr: creation attributes
  * @context: unused by the QLogic_IB driver
  * @udata: user data for libibverbs.so
  *
- * Returns a pointer to the completion queue or negative errno values
- * for failure.
- *
  * Called by ib_create_cq() in the generic verbs code.
+ *
+ * Return: pointer to the completion queue or negative errno values
+ * for failure.
  */
-struct ib_cq *qib_create_cq(struct ib_device *ibdev,
+struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 			    const struct ib_cq_init_attr *attr,
 			    struct ib_ucontext *context,
 			    struct ib_udata *udata)
 {
-	int entries = attr->cqe;
-	struct qib_ibdev *dev = to_idev(ibdev);
-	struct qib_cq *cq;
-	struct qib_cq_wc *wc;
+	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
+	struct rvt_cq *cq;
+	struct rvt_cq_wc *wc;
 	struct ib_cq *ret;
 	u32 sz;
+	unsigned int entries = attr->cqe;
 
 	if (attr->flags)
 		return ERR_PTR(-EINVAL);
 
-	if (entries < 1 || entries > ib_qib_max_cqes) {
-		ret = ERR_PTR(-EINVAL);
-		goto done;
-	}
+	if (entries < 1 || entries > rdi->dparms.props.max_cqe)
+		return ERR_PTR(-EINVAL);
 
 	/* Allocate the completion queue structure. */
-	cq = kmalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq) {
-		ret = ERR_PTR(-ENOMEM);
-		goto done;
-	}
+	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
+	if (!cq)
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * Allocate the completion queue entries and head/tail pointers.
@@ -259,12 +221,12 @@ struct ib_cq *qib_create_cq(struct ib_device *ibdev,
 
 	/*
 	 * Return the address of the WC as the offset to mmap.
-	 * See qib_mmap() for details.
+	 * See rvt_mmap() for details.
 	 */
 	if (udata && udata->outlen >= sizeof(__u64)) {
 		int err;
 
-		cq->ip = qib_create_mmap_info(dev, sz, context, wc);
+		cq->ip = rvt_create_mmap_info(rdi, sz, context, wc);
 		if (!cq->ip) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail_wc;
@@ -276,23 +238,22 @@ struct ib_cq *qib_create_cq(struct ib_device *ibdev,
 			ret = ERR_PTR(err);
 			goto bail_ip;
 		}
-	} else
-		cq->ip = NULL;
+	}
 
-	spin_lock(&dev->n_cqs_lock);
-	if (dev->n_cqs_allocated == ib_qib_max_cqs) {
-		spin_unlock(&dev->n_cqs_lock);
+	spin_lock(&rdi->n_cqs_lock);
+	if (rdi->n_cqs_allocated == rdi->dparms.props.max_cq) {
+		spin_unlock(&rdi->n_cqs_lock);
 		ret = ERR_PTR(-ENOMEM);
 		goto bail_ip;
 	}
 
-	dev->n_cqs_allocated++;
-	spin_unlock(&dev->n_cqs_lock);
+	rdi->n_cqs_allocated++;
+	spin_unlock(&rdi->n_cqs_lock);
 
 	if (cq->ip) {
-		spin_lock_irq(&dev->pending_lock);
-		list_add(&cq->ip->pending_mmaps, &dev->pending_mmaps);
-		spin_unlock_irq(&dev->pending_lock);
+		spin_lock_irq(&rdi->pending_lock);
+		list_add(&cq->ip->pending_mmaps, &rdi->pending_mmaps);
+		spin_unlock_irq(&rdi->pending_lock);
 	}
 
 	/*
@@ -300,14 +261,11 @@ struct ib_cq *qib_create_cq(struct ib_device *ibdev,
 	 * The number of entries should be >= the number requested or return
 	 * an error.
 	 */
-	cq->dd = dd_from_dev(dev);
+	cq->rdi = rdi;
 	cq->ibcq.cqe = entries;
-	cq->notify = IB_CQ_NONE;
-	cq->triggered = 0;
+	cq->notify = RVT_CQ_NONE;
 	spin_lock_init(&cq->lock);
 	init_kthread_work(&cq->comptask, send_complete);
-	wc->head = 0;
-	wc->tail = 0;
 	cq->queue = wc;
 
 	ret = &cq->ibcq;
@@ -325,24 +283,24 @@ done:
 }
 
 /**
- * qib_destroy_cq - destroy a completion queue
+ * rvt_destroy_cq - destroy a completion queue
  * @ibcq: the completion queue to destroy.
  *
- * Returns 0 for success.
- *
  * Called by ib_destroy_cq() in the generic verbs code.
+ *
+ * Return: always 0
  */
-int qib_destroy_cq(struct ib_cq *ibcq)
+int rvt_destroy_cq(struct ib_cq *ibcq)
 {
-	struct qib_ibdev *dev = to_idev(ibcq->device);
-	struct qib_cq *cq = to_icq(ibcq);
+	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
+	struct rvt_dev_info *rdi = cq->rdi;
 
 	flush_kthread_work(&cq->comptask);
-	spin_lock(&dev->n_cqs_lock);
-	dev->n_cqs_allocated--;
-	spin_unlock(&dev->n_cqs_lock);
+	spin_lock(&rdi->n_cqs_lock);
+	rdi->n_cqs_allocated--;
+	spin_unlock(&rdi->n_cqs_lock);
 	if (cq->ip)
-		kref_put(&cq->ip->ref, qib_release_mmap_info);
+		kref_put(&cq->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(cq->queue);
 	kfree(cq);
@@ -351,18 +309,18 @@ int qib_destroy_cq(struct ib_cq *ibcq)
 }
 
 /**
- * qib_req_notify_cq - change the notification type for a completion queue
+ * rvt_req_notify_cq - change the notification type for a completion queue
  * @ibcq: the completion queue
  * @notify_flags: the type of notification to request
  *
- * Returns 0 for success.
- *
  * This may be called from interrupt context.  Also called by
  * ib_req_notify_cq() in the generic verbs code.
+ *
+ * Return: 0 for success.
  */
-int qib_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
+int rvt_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
 {
-	struct qib_cq *cq = to_icq(ibcq);
+	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
 	unsigned long flags;
 	int ret = 0;
 
@@ -384,24 +342,23 @@ int qib_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
 }
 
 /**
- * qib_resize_cq - change the size of the CQ
+ * rvt_resize_cq - change the size of the CQ
  * @ibcq: the completion queue
  *
- * Returns 0 for success.
+ * Return: 0 for success.
  */
-int qib_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
+int rvt_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 {
-	struct qib_cq *cq = to_icq(ibcq);
-	struct qib_cq_wc *old_wc;
-	struct qib_cq_wc *wc;
+	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
+	struct rvt_cq_wc *old_wc;
+	struct rvt_cq_wc *wc;
 	u32 head, tail, n;
 	int ret;
 	u32 sz;
+	struct rvt_dev_info *rdi = cq->rdi;
 
-	if (cqe < 1 || cqe > ib_qib_max_cqes) {
-		ret = -EINVAL;
-		goto bail;
-	}
+	if (cqe < 1 || cqe > rdi->dparms.props.max_cqe)
+		return -EINVAL;
 
 	/*
 	 * Need to use vmalloc() if we want to support large #s of entries.
@@ -412,10 +369,8 @@ int qib_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	else
 		sz += sizeof(struct ib_wc) * (cqe + 1);
 	wc = vmalloc_user(sz);
-	if (!wc) {
-		ret = -ENOMEM;
-		goto bail;
-	}
+	if (!wc)
+		return -ENOMEM;
 
 	/* Check that we can write the offset to mmap. */
 	if (udata && udata->outlen >= sizeof(__u64)) {
@@ -433,11 +388,11 @@ int qib_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	 */
 	old_wc = cq->queue;
 	head = old_wc->head;
-	if (head > (u32) cq->ibcq.cqe)
-		head = (u32) cq->ibcq.cqe;
+	if (head > (u32)cq->ibcq.cqe)
+		head = (u32)cq->ibcq.cqe;
 	tail = old_wc->tail;
-	if (tail > (u32) cq->ibcq.cqe)
-		tail = (u32) cq->ibcq.cqe;
+	if (tail > (u32)cq->ibcq.cqe)
+		tail = (u32)cq->ibcq.cqe;
 	if (head < tail)
 		n = cq->ibcq.cqe + 1 + head - tail;
 	else
@@ -451,7 +406,7 @@ int qib_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 			wc->uqueue[n] = old_wc->uqueue[tail];
 		else
 			wc->kqueue[n] = old_wc->kqueue[tail];
-		if (tail == (u32) cq->ibcq.cqe)
+		if (tail == (u32)cq->ibcq.cqe)
 			tail = 0;
 		else
 			tail++;
@@ -465,80 +420,131 @@ int qib_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	vfree(old_wc);
 
 	if (cq->ip) {
-		struct qib_ibdev *dev = to_idev(ibcq->device);
-		struct qib_mmap_info *ip = cq->ip;
+		struct rvt_mmap_info *ip = cq->ip;
 
-		qib_update_mmap_info(dev, ip, sz, wc);
+		rvt_update_mmap_info(rdi, ip, sz, wc);
 
 		/*
 		 * Return the offset to mmap.
-		 * See qib_mmap() for details.
+		 * See rvt_mmap() for details.
 		 */
 		if (udata && udata->outlen >= sizeof(__u64)) {
 			ret = ib_copy_to_udata(udata, &ip->offset,
 					       sizeof(ip->offset));
 			if (ret)
-				goto bail;
+				return ret;
 		}
 
-		spin_lock_irq(&dev->pending_lock);
+		spin_lock_irq(&rdi->pending_lock);
 		if (list_empty(&ip->pending_mmaps))
-			list_add(&ip->pending_mmaps, &dev->pending_mmaps);
-		spin_unlock_irq(&dev->pending_lock);
+			list_add(&ip->pending_mmaps, &rdi->pending_mmaps);
+		spin_unlock_irq(&rdi->pending_lock);
 	}
 
-	ret = 0;
-	goto bail;
+	return 0;
 
 bail_unlock:
 	spin_unlock_irq(&cq->lock);
 bail_free:
 	vfree(wc);
-bail:
 	return ret;
 }
 
-int qib_cq_init(struct qib_devdata *dd)
+/**
+ * rvt_poll_cq - poll for work completion entries
+ * @ibcq: the completion queue to poll
+ * @num_entries: the maximum number of entries to return
+ * @entry: pointer to array where work completions are placed
+ *
+ * This may be called from interrupt context.  Also called by ib_poll_cq()
+ * in the generic verbs code.
+ *
+ * Return: the number of completion entries polled.
+ */
+int rvt_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
+{
+	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
+	struct rvt_cq_wc *wc;
+	unsigned long flags;
+	int npolled;
+	u32 tail;
+
+	/* The kernel can only poll a kernel completion queue */
+	if (cq->ip)
+		return -EINVAL;
+
+	spin_lock_irqsave(&cq->lock, flags);
+
+	wc = cq->queue;
+	tail = wc->tail;
+	if (tail > (u32)cq->ibcq.cqe)
+		tail = (u32)cq->ibcq.cqe;
+	for (npolled = 0; npolled < num_entries; ++npolled, ++entry) {
+		if (tail == wc->head)
+			break;
+		/* The kernel doesn't need a RMB since it has the lock. */
+		*entry = wc->kqueue[tail];
+		if (tail >= cq->ibcq.cqe)
+			tail = 0;
+		else
+			tail++;
+	}
+	wc->tail = tail;
+
+	spin_unlock_irqrestore(&cq->lock, flags);
+
+	return npolled;
+}
+
+/**
+ * rvt_driver_cq_init - Init cq resources on behalf of driver
+ * @rdi: rvt dev structure
+ *
+ * Return: 0 on success
+ */
+int rvt_driver_cq_init(struct rvt_dev_info *rdi)
 {
 	int ret = 0;
 	int cpu;
 	struct task_struct *task;
 
-	if (dd->worker)
+	if (rdi->worker)
 		return 0;
-	dd->worker = kzalloc(sizeof(*dd->worker), GFP_KERNEL);
-	if (!dd->worker)
+	rdi->worker = kzalloc(sizeof(*rdi->worker), GFP_KERNEL);
+	if (!rdi->worker)
 		return -ENOMEM;
-	init_kthread_worker(dd->worker);
+	init_kthread_worker(rdi->worker);
 	task = kthread_create_on_node(
 		kthread_worker_fn,
-		dd->worker,
-		dd->assigned_node_id,
-		"qib_cq%d", dd->unit);
-	if (IS_ERR(task))
-		goto task_fail;
-	cpu = cpumask_first(cpumask_of_node(dd->assigned_node_id));
+		rdi->worker,
+		rdi->dparms.node,
+		"%s", rdi->dparms.cq_name);
+	if (IS_ERR(task)) {
+		kfree(rdi->worker);
+		rdi->worker = NULL;
+		return PTR_ERR(task);
+	}
+
+	cpu = cpumask_first(cpumask_of_node(rdi->dparms.node));
 	kthread_bind(task, cpu);
 	wake_up_process(task);
-out:
 	return ret;
-task_fail:
-	ret = PTR_ERR(task);
-	kfree(dd->worker);
-	dd->worker = NULL;
-	goto out;
 }
 
-void qib_cq_exit(struct qib_devdata *dd)
+/**
+ * rvt_cq_exit - tear down cq reources
+ * @rdi: rvt dev structure
+ */
+void rvt_cq_exit(struct rvt_dev_info *rdi)
 {
 	struct kthread_worker *worker;
 
-	worker = dd->worker;
+	worker = rdi->worker;
 	if (!worker)
 		return;
 	/* blocks future queuing from send_complete() */
-	dd->worker = NULL;
-	smp_wmb();
+	rdi->worker = NULL;
+	smp_wmb(); /* See rdi_cq_enter */
 	flush_kthread_worker(worker);
 	kthread_stop(worker->task);
 	kfree(worker);
