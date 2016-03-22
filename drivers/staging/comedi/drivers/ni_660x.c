@@ -155,6 +155,8 @@ enum ni_660x_register {
 	NI660X_NUM_REGS,
 };
 
+#define NI660X_CLK_CFG_COUNTER_SWAP	BIT(21)
+
 #define NI660X_IO_CFG(x)		(NI660X_IO_CFG_0_1 + ((x) / 2))
 #define NI660X_IO_CFG_OUT_SEL(_c, _s)	(((_s) & 0x3) << (((_c) % 2) ? 0 : 8))
 #define NI660X_IO_CFG_OUT_SEL_MASK(_c)	NI660X_IO_CFG_OUT_SEL((_c), 0x3)
@@ -278,11 +280,6 @@ static const struct ni_660x_register_data ni_660x_reg_data[NI660X_NUM_REGS] = {
 	[NI660X_IO_CFG_34_35]		= { 0x79e, 2 },	/* read/write */
 	[NI660X_IO_CFG_36_37]		= { 0x7a0, 2 },	/* read/write */
 	[NI660X_IO_CFG_38_39]		= { 0x7a2, 2 }	/* read/write */
-};
-
-/* kind of ENABLE for the second counter */
-enum clock_config_register_bits {
-	CounterSwap = 0x1 << 21
 };
 
 /* dma configuration register bits */
@@ -704,7 +701,7 @@ static void set_tio_counterswap(struct comedi_device *dev, int chip)
 	 * first chip.
 	 */
 	if (chip)
-		bits = CounterSwap;
+		bits = NI660X_CLK_CFG_COUNTER_SWAP;
 
 	ni_660x_write_register(dev, chip, bits, NI660X_CLK_CFG);
 }
