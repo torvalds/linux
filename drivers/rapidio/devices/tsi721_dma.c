@@ -767,7 +767,7 @@ struct dma_async_tx_descriptor *tsi721_prep_rio_sg(struct dma_chan *dchan,
 			void *tinfo)
 {
 	struct tsi721_bdma_chan *bdma_chan = to_tsi721_chan(dchan);
-	struct tsi721_tx_desc *desc, *_d;
+	struct tsi721_tx_desc *desc;
 	struct rio_dma_ext *rext = tinfo;
 	enum dma_rtype rtype;
 	struct dma_async_tx_descriptor *txd = NULL;
@@ -775,7 +775,7 @@ struct dma_async_tx_descriptor *tsi721_prep_rio_sg(struct dma_chan *dchan,
 	if (!sgl || !sg_len) {
 		tsi_err(&dchan->dev->device, "DMAC%d No SG list",
 			bdma_chan->id);
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	tsi_debug(DMA, &dchan->dev->device, "DMAC%d %s", bdma_chan->id,
@@ -800,27 +800,32 @@ struct dma_async_tx_descriptor *tsi721_prep_rio_sg(struct dma_chan *dchan,
 		tsi_err(&dchan->dev->device,
 			"DMAC%d Unsupported DMA direction option",
 			bdma_chan->id);
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	spin_lock_bh(&bdma_chan->lock);
 
-	list_for_each_entry_safe(desc, _d, &bdma_chan->free_list, desc_node) {
-		if (async_tx_test_ack(&desc->txd)) {
-			list_del_init(&desc->desc_node);
-			desc->destid = rext->destid;
-			desc->rio_addr = rext->rio_addr;
-			desc->rio_addr_u = 0;
-			desc->rtype = rtype;
-			desc->sg_len	= sg_len;
-			desc->sg	= sgl;
-			txd		= &desc->txd;
-			txd->flags	= flags;
-			break;
-		}
+	if (!list_empty(&bdma_chan->free_list)) {
+		desc = list_first_entry(&bdma_chan->free_list,
+				struct tsi721_tx_desc, desc_node);
+		list_del_init(&desc->desc_node);
+		desc->destid = rext->destid;
+		desc->rio_addr = rext->rio_addr;
+		desc->rio_addr_u = 0;
+		desc->rtype = rtype;
+		desc->sg_len	= sg_len;
+		desc->sg	= sgl;
+		txd		= &desc->txd;
+		txd->flags	= flags;
 	}
 
 	spin_unlock_bh(&bdma_chan->lock);
+
+	if (!txd) {
+		tsi_debug(DMA, &dchan->dev->device,
+			  "DMAC%d free TXD is not available", bdma_chan->id);
+		return ERR_PTR(-EBUSY);
+	}
 
 	return txd;
 }
