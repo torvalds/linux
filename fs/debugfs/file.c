@@ -842,8 +842,15 @@ static ssize_t read_file_blob(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {
 	struct debugfs_blob_wrapper *blob = file->private_data;
-	return simple_read_from_buffer(user_buf, count, ppos, blob->data,
-			blob->size);
+	ssize_t r;
+	int srcu_idx;
+
+	r = debugfs_use_file_start(F_DENTRY(file), &srcu_idx);
+	if (likely(!r))
+		r = simple_read_from_buffer(user_buf, count, ppos, blob->data,
+					blob->size);
+	debugfs_use_file_finish(srcu_idx);
+	return r;
 }
 
 static const struct file_operations fops_blob = {
@@ -880,7 +887,7 @@ struct dentry *debugfs_create_blob(const char *name, umode_t mode,
 				   struct dentry *parent,
 				   struct debugfs_blob_wrapper *blob)
 {
-	return debugfs_create_file(name, mode, parent, blob, &fops_blob);
+	return debugfs_create_file_unsafe(name, mode, parent, blob, &fops_blob);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_blob);
 
