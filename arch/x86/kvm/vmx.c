@@ -3893,13 +3893,17 @@ static int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 
 	if (!enable_unrestricted_guest && !is_paging(vcpu))
 		/*
-		 * SMEP/SMAP is disabled if CPU is in non-paging mode in
-		 * hardware.  However KVM always uses paging mode without
-		 * unrestricted guest.
-		 * To emulate this behavior, SMEP/SMAP needs to be manually
-		 * disabled when guest switches to non-paging mode.
+		 * SMEP/SMAP/PKU is disabled if CPU is in non-paging mode in
+		 * hardware.  To emulate this behavior, SMEP/SMAP/PKU needs
+		 * to be manually disabled when guest switches to non-paging
+		 * mode.
+		 *
+		 * If !enable_unrestricted_guest, the CPU is always running
+		 * with CR0.PG=1 and CR4 needs to be modified.
+		 * If enable_unrestricted_guest, the CPU automatically
+		 * disables SMEP/SMAP/PKU when the guest sets CR0.PG=0.
 		 */
-		hw_cr4 &= ~(X86_CR4_SMEP | X86_CR4_SMAP);
+		hw_cr4 &= ~(X86_CR4_SMEP | X86_CR4_SMAP | X86_CR4_PKE);
 
 	vmcs_writel(CR4_READ_SHADOW, cr4);
 	vmcs_writel(GUEST_CR4, hw_cr4);
