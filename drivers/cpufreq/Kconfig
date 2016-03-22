@@ -18,7 +18,11 @@ config CPU_FREQ
 
 if CPU_FREQ
 
+config CPU_FREQ_GOV_ATTR_SET
+	bool
+
 config CPU_FREQ_GOV_COMMON
+	select CPU_FREQ_GOV_ATTR_SET
 	select IRQ_WORK
 	bool
 

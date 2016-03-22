@@ -48,6 +48,12 @@ struct gov_attr_set {
 	int usage_count;
 };
 
+extern const struct sysfs_ops governor_sysfs_ops;
+
+void gov_attr_set_init(struct gov_attr_set *attr_set, struct list_head *list_node);
+void gov_attr_set_get(struct gov_attr_set *attr_set, struct list_head *list_node);
+unsigned int gov_attr_set_put(struct gov_attr_set *attr_set, struct list_head *list_node);
+
 /*
  * Abbreviations:
  * dbs: used as a shortform for demand based switching It helps to keep variable

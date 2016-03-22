@@ -112,53 +112,6 @@ void gov_update_cpu_data(struct dbs_data *dbs_data)
 }
 EXPORT_SYMBOL_GPL(gov_update_cpu_data);
 
-static inline struct gov_attr_set *to_gov_attr_set(struct kobject *kobj)
-{
-	return container_of(kobj, struct gov_attr_set, kobj);
-}
-
-static inline struct governor_attr *to_gov_attr(struct attribute *attr)
-{
-	return container_of(attr, struct governor_attr, attr);
-}
-
-static ssize_t governor_show(struct kobject *kobj, struct attribute *attr,
-			     char *buf)
-{
-	struct governor_attr *gattr = to_gov_attr(attr);
-
-	return gattr->show(to_gov_attr_set(kobj), buf);
-}
-
-static ssize_t governor_store(struct kobject *kobj, struct attribute *attr,
-			      const char *buf, size_t count)
-{
-	struct gov_attr_set *attr_set = to_gov_attr_set(kobj);
-	struct governor_attr *gattr = to_gov_attr(attr);
-	int ret = -EBUSY;
-
-	mutex_lock(&attr_set->update_lock);
-
-	if (attr_set->usage_count)
-		ret = gattr->store(attr_set, buf, count);
-
-	mutex_unlock(&attr_set->update_lock);
-
-	return ret;
-}
-
-/*
- * Sysfs Ops for accessing governor attributes.
- *
- * All show/store invocations for governor specific sysfs attributes, will first
- * call the below show/store callbacks and the attribute specific callback will
- * be called from within it.
- */
-static const struct sysfs_ops governor_sysfs_ops = {
-	.show	= governor_show,
-	.store	= governor_store,
-};
-
 unsigned int dbs_update(struct cpufreq_policy *policy)
 {
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
@@ -423,41 +376,6 @@ static void free_policy_dbs_info(struct policy_dbs_info *policy_dbs,
 		j_cdbs->update_util.func = NULL;
 	}
 	gov->free(policy_dbs);
-}
-
-static void gov_attr_set_init(struct gov_attr_set *attr_set,
-			      struct list_head *list_node)
-{
-	INIT_LIST_HEAD(&attr_set->policy_list);
-	mutex_init(&attr_set->update_lock);
-	attr_set->usage_count = 1;
-	list_add(list_node, &attr_set->policy_list);
-}
-
-static void gov_attr_set_get(struct gov_attr_set *attr_set,
-			     struct list_head *list_node)
-{
-	mutex_lock(&attr_set->update_lock);
-	attr_set->usage_count++;
-	list_add(list_node, &attr_set->policy_list);
-	mutex_unlock(&attr_set->update_lock);
-}
-
-static unsigned int gov_attr_set_put(struct gov_attr_set *attr_set,
-				     struct list_head *list_node)
-{
-	unsigned int count;
-
-	mutex_lock(&attr_set->update_lock);
-	list_del(list_node);
-	count = --attr_set->usage_count;
-	mutex_unlock(&attr_set->update_lock);
-	if (count)
-		return count;
-
-	kobject_put(&attr_set->kobj);
-	mutex_destroy(&attr_set->update_lock);
-	return 0;
 }
 
 static int cpufreq_governor_init(struct cpufreq_policy *policy)
