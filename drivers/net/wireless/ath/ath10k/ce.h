@@ -166,6 +166,7 @@ int ath10k_ce_num_free_src_entries(struct ath10k_ce_pipe *pipe);
 int __ath10k_ce_rx_num_free_bufs(struct ath10k_ce_pipe *pipe);
 int __ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr);
 int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr);
+void ath10k_ce_rx_update_write_idx(struct ath10k_ce_pipe *pipe, u32 nentries);
 
 /* recv flags */
 /* Data is byte-swapped */
@@ -410,6 +411,8 @@ static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
 	(((int)(toidx)-(int)(fromidx)) & (nentries_mask))
 
 #define CE_RING_IDX_INCR(nentries_mask, idx) (((idx) + 1) & (nentries_mask))
+#define CE_RING_IDX_ADD(nentries_mask, idx, num) \
+		(((idx) + (num)) & (nentries_mask))
 
 #define CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_LSB \
 				ar->regs->ce_wrap_intr_sum_host_msi_lsb

@@ -809,7 +809,8 @@ static void ath10k_pci_rx_post_pipe(struct ath10k_pci_pipe *pipe)
 	spin_lock_bh(&ar_pci->ce_lock);
 	num = __ath10k_ce_rx_num_free_bufs(ce_pipe);
 	spin_unlock_bh(&ar_pci->ce_lock);
-	while (num--) {
+
+	while (num >= 0) {
 		ret = __ath10k_pci_rx_post_buf(pipe);
 		if (ret) {
 			if (ret == -ENOSPC)
@@ -819,6 +820,7 @@ static void ath10k_pci_rx_post_pipe(struct ath10k_pci_pipe *pipe)
 				  ATH10K_PCI_RX_POST_RETRY_MS);
 			break;
 		}
+		num--;
 	}
 }
 
@@ -1212,6 +1214,63 @@ static void ath10k_pci_process_rx_cb(struct ath10k_ce_pipe *ce_state,
 	ath10k_pci_rx_post_pipe(pipe_info);
 }
 
+static void ath10k_pci_process_htt_rx_cb(struct ath10k_ce_pipe *ce_state,
+					 void (*callback)(struct ath10k *ar,
+							  struct sk_buff *skb))
+{
+	struct ath10k *ar = ce_state->ar;
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	struct ath10k_pci_pipe *pipe_info =  &ar_pci->pipe_info[ce_state->id];
+	struct ath10k_ce_pipe *ce_pipe = pipe_info->ce_hdl;
+	struct sk_buff *skb;
+	struct sk_buff_head list;
+	void *transfer_context;
+	unsigned int nbytes, max_nbytes, nentries;
+	int orig_len;
+
+	/* No need to aquire ce_lock for CE5, since this is the only place CE5
+	 * is processed other than init and deinit. Before releasing CE5
+	 * buffers, interrupts are disabled. Thus CE5 access is serialized.
+	 */
+	__skb_queue_head_init(&list);
+	while (ath10k_ce_completed_recv_next_nolock(ce_state, &transfer_context,
+						    &nbytes) == 0) {
+		skb = transfer_context;
+		max_nbytes = skb->len + skb_tailroom(skb);
+
+		if (unlikely(max_nbytes < nbytes)) {
+			ath10k_warn(ar, "rxed more than expected (nbytes %d, max %d)",
+				    nbytes, max_nbytes);
+			continue;
+		}
+
+		dma_sync_single_for_cpu(ar->dev, ATH10K_SKB_RXCB(skb)->paddr,
+					max_nbytes, DMA_FROM_DEVICE);
+		skb_put(skb, nbytes);
+		__skb_queue_tail(&list, skb);
+	}
+
+	nentries = skb_queue_len(&list);
+	while ((skb = __skb_dequeue(&list))) {
+		ath10k_dbg(ar, ATH10K_DBG_PCI, "pci rx ce pipe %d len %d\n",
+			   ce_state->id, skb->len);
+		ath10k_dbg_dump(ar, ATH10K_DBG_PCI_DUMP, NULL, "pci rx: ",
+				skb->data, skb->len);
+
+		orig_len = skb->len;
+		callback(ar, skb);
+		skb_push(skb, orig_len - skb->len);
+		skb_reset_tail_pointer(skb);
+		skb_trim(skb, 0);
+
+		/*let device gain the buffer again*/
+		dma_sync_single_for_device(ar->dev, ATH10K_SKB_RXCB(skb)->paddr,
+					   skb->len + skb_tailroom(skb),
+					   DMA_FROM_DEVICE);
+	}
+	ath10k_ce_rx_update_write_idx(ce_pipe, nentries);
+}
+
 /* Called by lower (CE) layer when data is received from the Target. */
 static void ath10k_pci_htc_rx_cb(struct ath10k_ce_pipe *ce_state)
 {
@@ -1268,7 +1327,7 @@ static void ath10k_pci_htt_rx_cb(struct ath10k_ce_pipe *ce_state)
 	 */
 	ath10k_ce_per_engine_service(ce_state->ar, 4);
 
-	ath10k_pci_process_rx_cb(ce_state, ath10k_pci_htt_rx_deliver);
+	ath10k_pci_process_htt_rx_cb(ce_state, ath10k_pci_htt_rx_deliver);
 }
 
 int ath10k_pci_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
