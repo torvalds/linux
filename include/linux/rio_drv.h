@@ -369,6 +369,10 @@ void rio_release_region(struct rio_dev *, int);
 extern int rio_map_inb_region(struct rio_mport *mport, dma_addr_t local,
 			u64 rbase, u32 size, u32 rflags);
 extern void rio_unmap_inb_region(struct rio_mport *mport, dma_addr_t lstart);
+extern int rio_map_outb_region(struct rio_mport *mport, u16 destid, u64 rbase,
+			u32 size, u32 rflags, dma_addr_t *local);
+extern void rio_unmap_outb_region(struct rio_mport *mport,
+				  u16 destid, u64 rstart);
 
 /* Port-Write management */
 extern int rio_request_inb_pwrite(struct rio_dev *,

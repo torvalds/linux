@@ -700,6 +700,56 @@ void rio_unmap_inb_region(struct rio_mport *mport, dma_addr_t lstart)
 EXPORT_SYMBOL_GPL(rio_unmap_inb_region);
 
 /**
+ * rio_map_outb_region -- Map outbound memory region.
+ * @mport: Master port.
+ * @destid: destination id window points to
+ * @rbase: RIO base address window translates to
+ * @size: Size of the memory region
+ * @rflags: Flags for mapping.
+ * @local: physical address of memory region mapped
+ *
+ * Return: 0 -- Success.
+ *
+ * This function will create the mapping from RIO space to local memory.
+ */
+int rio_map_outb_region(struct rio_mport *mport, u16 destid, u64 rbase,
+			u32 size, u32 rflags, dma_addr_t *local)
+{
+	int rc = 0;
+	unsigned long flags;
+
+	if (!mport->ops->map_outb)
+		return -ENODEV;
+
+	spin_lock_irqsave(&rio_mmap_lock, flags);
+	rc = mport->ops->map_outb(mport, destid, rbase, size,
+		rflags, local);
+	spin_unlock_irqrestore(&rio_mmap_lock, flags);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(rio_map_outb_region);
+
+/**
+ * rio_unmap_inb_region -- Unmap the inbound memory region
+ * @mport: Master port
+ * @destid: destination id mapping points to
+ * @rstart: RIO base address window translates to
+ */
+void rio_unmap_outb_region(struct rio_mport *mport, u16 destid, u64 rstart)
+{
+	unsigned long flags;
+
+	if (!mport->ops->unmap_outb)
+		return;
+
+	spin_lock_irqsave(&rio_mmap_lock, flags);
+	mport->ops->unmap_outb(mport, destid, rstart);
+	spin_unlock_irqrestore(&rio_mmap_lock, flags);
+}
+EXPORT_SYMBOL_GPL(rio_unmap_outb_region);
+
+/**
  * rio_mport_get_physefb - Helper function that returns register offset
  *                      for Physical Layer Extended Features Block.
  * @port: Master port to issue transaction

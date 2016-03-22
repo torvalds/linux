@@ -400,6 +400,8 @@ struct rio_mport_attr {
  * @map_inb: Callback to map RapidIO address region into local memory space.
  * @unmap_inb: Callback to unmap RapidIO address region mapped with map_inb().
  * @query_mport: Callback to query mport device attributes.
+ * @map_outb: Callback to map outbound address region into local memory space.
+ * @unmap_outb: Callback to unmap outbound RapidIO address region.
  */
 struct rio_ops {
 	int (*lcread) (struct rio_mport *mport, int index, u32 offset, int len,
@@ -427,6 +429,9 @@ struct rio_ops {
 	void (*unmap_inb)(struct rio_mport *mport, dma_addr_t lstart);
 	int (*query_mport)(struct rio_mport *mport,
 			   struct rio_mport_attr *attr);
+	int (*map_outb)(struct rio_mport *mport, u16 destid, u64 rstart,
+			u32 size, u32 flags, dma_addr_t *laddr);
+	void (*unmap_outb)(struct rio_mport *mport, u16 destid, u64 rstart);
 };
 
 #define RIO_RESOURCE_MEM	0x00000100
