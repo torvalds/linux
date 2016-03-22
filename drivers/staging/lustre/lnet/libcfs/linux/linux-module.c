@@ -98,8 +98,6 @@ int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
 static long
 libcfs_psdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct cfs_psdev_file	 pfile;
-
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
@@ -111,7 +109,7 @@ libcfs_psdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -EINVAL;
 	}
 
-	return libcfs_ioctl(&pfile, cmd, (void __user *)arg);
+	return libcfs_ioctl(cmd, (void __user *)arg);
 }
 
 static const struct file_operations libcfs_fops = {

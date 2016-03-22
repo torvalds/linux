@@ -98,8 +98,7 @@ int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand)
 }
 EXPORT_SYMBOL(libcfs_deregister_ioctl);
 
-int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
-		 void __user *uparam)
+int libcfs_ioctl(unsigned long cmd, void __user *uparam)
 {
 	struct libcfs_ioctl_data *data = NULL;
 	struct libcfs_ioctl_hdr *hdr;
@@ -164,11 +163,6 @@ out:
 	LIBCFS_FREE(hdr, hdr->ioc_len);
 	return err;
 }
-
-struct cfs_psdev_ops libcfs_psdev_ops = {
-	NULL,
-	NULL,
-};
 
 int lprocfs_call_handler(void *data, int write, loff_t *ppos,
 			 void __user *buffer, size_t *lenp,

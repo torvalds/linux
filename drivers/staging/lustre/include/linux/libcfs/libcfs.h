@@ -60,24 +60,6 @@
 #define LNET_ACCEPTOR_MAX_RESERVED_PORT    1023
 
 /*
- * libcfs pseudo device operations
- *
- * It's just draft now.
- */
-
-struct cfs_psdev_file {
-	unsigned long   off;
-	void	    *private_data;
-	unsigned long   reserved1;
-	unsigned long   reserved2;
-};
-
-struct cfs_psdev_ops {
-	int (*p_read)(struct cfs_psdev_file *, char *, unsigned long);
-	int (*p_write)(struct cfs_psdev_file *, char *, unsigned long);
-};
-
-/*
  * Drop into debugger, if possible. Implementation is provided by platform.
  */
 
@@ -130,7 +112,7 @@ struct libcfs_ioctl_handler {
 int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand);
 int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand);
 
-int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *arg);
+int libcfs_ioctl(unsigned long cmd, void *arg);
 
 /* container_of depends on "likely" which is defined in libcfs_private.h */
 static inline void *__container_of(void *ptr, unsigned long shift)
@@ -155,8 +137,6 @@ extern struct miscdevice libcfs_dev;
  */
 extern char lnet_upcall[1024];
 extern char lnet_debug_log_upcall[1024];
-
-extern struct cfs_psdev_ops libcfs_psdev_ops;
 
 extern struct cfs_wi_sched *cfs_sched_rehash;
 
