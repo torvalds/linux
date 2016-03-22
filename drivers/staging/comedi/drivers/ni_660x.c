@@ -817,46 +817,40 @@ static int ni_660x_dio_insn_bits(struct comedi_device *dev,
 }
 
 static void ni_660x_select_pfi_output(struct comedi_device *dev,
-				      unsigned pfi_channel,
-				      unsigned output_select)
+				      unsigned int chan, unsigned int out_sel)
 {
 	const struct ni_660x_board *board = dev->board_ptr;
-	static const unsigned counter_4_7_first_pfi = 8;
-	static const unsigned counter_4_7_last_pfi = 23;
-	unsigned active_chipset = 0;
-	unsigned idle_chipset = 0;
-	unsigned active_bits;
-	unsigned idle_bits;
+	unsigned int active_chip = 0;
+	unsigned int idle_chip = 0;
+	unsigned int bits;
 
 	if (board->n_chips > 1) {
-		if (output_select == NI660X_IO_CFG_OUT_SEL_COUNTER &&
-		    pfi_channel >= counter_4_7_first_pfi &&
-		    pfi_channel <= counter_4_7_last_pfi) {
-			active_chipset = 1;
-			idle_chipset = 0;
+		if (out_sel == NI660X_IO_CFG_OUT_SEL_COUNTER &&
+		    chan >= 8 && chan <= 23) {
+			/* counters 4-7 pfi channels */
+			active_chip = 1;
+			idle_chip = 0;
 		} else {
-			active_chipset = 0;
-			idle_chipset = 1;
+			/* counters 0-3 pfi channels */
+			active_chip = 0;
+			idle_chip = 1;
 		}
 	}
 
-	if (idle_chipset != active_chipset) {
-		idle_bits = ni_660x_read(dev, idle_chipset,
-					 NI660X_IO_CFG(pfi_channel));
-		idle_bits &= ~NI660X_IO_CFG_OUT_SEL_MASK(pfi_channel);
-		idle_bits |=
-		    NI660X_IO_CFG_OUT_SEL(pfi_channel,
-					  NI660X_IO_CFG_OUT_SEL_HIGH_Z);
-		ni_660x_write(dev, idle_chipset, idle_bits,
-			      NI660X_IO_CFG(pfi_channel));
+	if (idle_chip != active_chip) {
+		/* set the pfi channel to high-z on the inactive chip */
+		bits = ni_660x_read(dev, idle_chip, NI660X_IO_CFG(chan));
+		bits &= ~NI660X_IO_CFG_OUT_SEL_MASK(chan);
+		bits |= NI660X_IO_CFG_OUT_SEL(chan,
+					      NI660X_IO_CFG_OUT_SEL_HIGH_Z);
+		ni_660x_write(dev, idle_chip, bits, NI660X_IO_CFG(chan));
 	}
 
-	active_bits = ni_660x_read(dev, active_chipset,
-				   NI660X_IO_CFG(pfi_channel));
-	active_bits &= ~NI660X_IO_CFG_OUT_SEL_MASK(pfi_channel);
-	active_bits |= NI660X_IO_CFG_OUT_SEL(pfi_channel, output_select);
-	ni_660x_write(dev, active_chipset, active_bits,
-		      NI660X_IO_CFG(pfi_channel));
+	/* set the pfi channel output on the active chip */
+	bits = ni_660x_read(dev, active_chip, NI660X_IO_CFG(chan));
+	bits &= ~NI660X_IO_CFG_OUT_SEL_MASK(chan);
+	bits |= NI660X_IO_CFG_OUT_SEL(chan, out_sel);
+	ni_660x_write(dev, active_chip, bits, NI660X_IO_CFG(chan));
 }
 
 static int ni_660x_set_pfi_routing(struct comedi_device *dev, unsigned chan,
