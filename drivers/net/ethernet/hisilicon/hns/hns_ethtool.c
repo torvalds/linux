@@ -1245,6 +1245,23 @@ hns_set_rss(struct net_device *netdev, const u32 *indir, const u8 *key,
 	return ops->set_rss(priv->ae_handle, indir, key, hfunc);
 }
 
+static int hns_get_rxnfc(struct net_device *netdev,
+			 struct ethtool_rxnfc *cmd,
+			 u32 *rule_locs)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXRINGS:
+		cmd->data = priv->ae_handle->q_num;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static struct ethtool_ops hns_ethtool_ops = {
 	.get_drvinfo = hns_nic_get_drvinfo,
 	.get_link  = hns_nic_get_link,
@@ -1268,6 +1285,7 @@ static struct ethtool_ops hns_ethtool_ops = {
 	.get_rxfh_indir_size = hns_get_rss_indir_size,
 	.get_rxfh = hns_get_rss,
 	.set_rxfh = hns_set_rss,
+	.get_rxnfc = hns_get_rxnfc,
 };
 
 void hns_ethtool_set_ops(struct net_device *ndev)

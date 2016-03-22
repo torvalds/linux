@@ -791,7 +791,8 @@ static int hns_ae_get_rss(struct hnae_handle *handle, u32 *indir, u8 *key,
 		memcpy(key, ppe_cb->rss_key, HNS_PPEV2_RSS_KEY_SIZE);
 
 	/* update the current hash->queue mappings from the shadow RSS table */
-	memcpy(indir, ppe_cb->rss_indir_table, HNS_PPEV2_RSS_IND_TBL_SIZE);
+	memcpy(indir, ppe_cb->rss_indir_table,
+	       HNS_PPEV2_RSS_IND_TBL_SIZE * sizeof(*indir));
 
 	return 0;
 }
@@ -806,7 +807,8 @@ static int hns_ae_set_rss(struct hnae_handle *handle, const u32 *indir,
 		hns_ppe_set_rss_key(ppe_cb, (u32 *)key);
 
 	/* update the shadow RSS table with user specified qids */
-	memcpy(ppe_cb->rss_indir_table, indir, HNS_PPEV2_RSS_IND_TBL_SIZE);
+	memcpy(ppe_cb->rss_indir_table, indir,
+	       HNS_PPEV2_RSS_IND_TBL_SIZE * sizeof(*indir));
 
 	/* now update the hardware */
 	hns_ppe_set_indir_table(ppe_cb, ppe_cb->rss_indir_table);
