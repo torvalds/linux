@@ -186,7 +186,9 @@ drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 #define reg5_phy 				DSI_DPHY_BITS(0x14, 3, 0)
 #define reg5_3_phy 				DSI_DPHY_BITS(0x14, 1, 3)
 #define reg5_7_phy 				DSI_DPHY_BITS(0x14, 1, 7)
-#define reg8_phy 				DSI_DPHY_BITS(0x20, 4, 0)
+#define reg8_phy				DSI_DPHY_BITS(0x20, 8, 0)
+#define rega_phy				DSI_DPHY_BITS(0x28, 8, 0)
+#define regb_phy				DSI_DPHY_BITS(0X2c, 8, 0)
 
 #define reg_fbdiv_8 				DSI_DPHY_BITS(0x0c, 1, 5)
 #define reg_prediv 				DSI_DPHY_BITS(0x0c, 5, 0)
@@ -194,7 +196,7 @@ drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 #define reg9_phy 				DSI_DPHY_BITS(0x24, 8, 0)
 #define reg10_phy 				DSI_DPHY_BITS(0X40, 8, 0)
 #define reg10_4_6_phy				DSI_DPHY_BITS(0X40, 3, 4)
-#define regb_phy 				DSI_DPHY_BITS(0X2c, 4, 0)
+#define regb_0_3_phy				DSI_DPHY_BITS(0X2c, 4, 0)
 
 #define reg_dig_rstn 				DSI_DPHY_BITS(0X80, 1, 0)
 #define reg20_phy 				DSI_DPHY_BITS(0X80, 8, 0)
