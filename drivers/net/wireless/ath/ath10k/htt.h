@@ -1662,7 +1662,6 @@ struct ath10k_htt {
 	/* set if host-fw communication goes haywire
 	 * used to avoid further failures */
 	bool rx_confused;
-	struct tasklet_struct rx_replenish_task;
 	atomic_t num_mpdus_ready;
 
 	/* This is used to group tx/rx completions separately and process them
@@ -1737,7 +1736,7 @@ struct htt_rx_desc {
 
 /* Refill a bunch of RX buffers for each refill round so that FW/HW can handle
  * aggregated traffic more nicely. */
-#define ATH10K_HTT_MAX_NUM_REFILL 16
+#define ATH10K_HTT_MAX_NUM_REFILL 100
 
 /*
  * DMA_MAP expects the buffer to be an integral number of cache lines.
