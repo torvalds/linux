@@ -599,7 +599,6 @@ static int ni_660x_request_mite_channel(struct comedi_device *dev,
 	struct mite_channel *mite_chan;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	BUG_ON(counter->mite_chan);
 	mite_chan = mite_request_channel(devpriv->mite,
 					 mite_ring(devpriv, counter));
 	if (!mite_chan) {
