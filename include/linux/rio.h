@@ -314,6 +314,50 @@ struct rio_net {
 	struct rio_id_table destid_table;  /* destID allocation table */
 };
 
+enum rio_link_speed {
+	RIO_LINK_DOWN = 0, /* SRIO Link not initialized */
+	RIO_LINK_125 = 1, /* 1.25 GBaud  */
+	RIO_LINK_250 = 2, /* 2.5 GBaud   */
+	RIO_LINK_312 = 3, /* 3.125 GBaud */
+	RIO_LINK_500 = 4, /* 5.0 GBaud   */
+	RIO_LINK_625 = 5  /* 6.25 GBaud  */
+};
+
+enum rio_link_width {
+	RIO_LINK_1X  = 0,
+	RIO_LINK_1XR = 1,
+	RIO_LINK_2X  = 3,
+	RIO_LINK_4X  = 2,
+	RIO_LINK_8X  = 4,
+	RIO_LINK_16X = 5
+};
+
+enum rio_mport_flags {
+	RIO_MPORT_DMA	 = (1 << 0), /* supports DMA data transfers */
+	RIO_MPORT_DMA_SG = (1 << 1), /* DMA supports HW SG mode */
+	RIO_MPORT_IBSG	 = (1 << 2), /* inbound mapping supports SG */
+};
+
+/**
+ * struct rio_mport_attr - RIO mport device attributes
+ * @flags: mport device capability flags
+ * @link_speed: SRIO link speed value (as defined by RapidIO specification)
+ * @link_width:	SRIO link width value (as defined by RapidIO specification)
+ * @dma_max_sge: number of SG list entries that can be handled by DMA channel(s)
+ * @dma_max_size: max number of bytes in single DMA transfer (SG entry)
+ * @dma_align: alignment shift for DMA operations (as for other DMA operations)
+ */
+struct rio_mport_attr {
+	int flags;
+	int link_speed;
+	int link_width;
+
+	/* DMA capability info: valid only if RIO_MPORT_DMA flag is set */
+	int dma_max_sge;
+	int dma_max_size;
+	int dma_align;
+};
+
 /* Low-level architecture-dependent routines */
 
 /**
@@ -333,6 +377,7 @@ struct rio_net {
  * @get_inb_message: Callback to get a message from an inbound mailbox queue.
  * @map_inb: Callback to map RapidIO address region into local memory space.
  * @unmap_inb: Callback to unmap RapidIO address region mapped with map_inb().
+ * @query_mport: Callback to query mport device attributes.
  */
 struct rio_ops {
 	int (*lcread) (struct rio_mport *mport, int index, u32 offset, int len,
@@ -358,6 +403,8 @@ struct rio_ops {
 	int (*map_inb)(struct rio_mport *mport, dma_addr_t lstart,
 			u64 rstart, u32 size, u32 flags);
 	void (*unmap_inb)(struct rio_mport *mport, dma_addr_t lstart);
+	int (*query_mport)(struct rio_mport *mport,
+			   struct rio_mport_attr *attr);
 };
 
 #define RIO_RESOURCE_MEM	0x00000100
@@ -481,5 +528,7 @@ extern int rio_open_inb_mbox(struct rio_mport *, void *, int, int);
 extern void rio_close_inb_mbox(struct rio_mport *, int);
 extern int rio_open_outb_mbox(struct rio_mport *, void *, int, int);
 extern void rio_close_outb_mbox(struct rio_mport *, int);
+extern int rio_query_mport(struct rio_mport *port,
+			   struct rio_mport_attr *mport_attr);
 
 #endif				/* LINUX_RIO_H */

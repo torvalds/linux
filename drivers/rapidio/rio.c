@@ -68,6 +68,23 @@ u16 rio_local_get_device_id(struct rio_mport *port)
 }
 
 /**
+ * rio_query_mport - Query mport device attributes
+ * @port: mport device to query
+ * @mport_attr: mport attributes data structure
+ *
+ * Returns attributes of specified mport through the
+ * pointer to attributes data structure.
+ */
+int rio_query_mport(struct rio_mport *port,
+		    struct rio_mport_attr *mport_attr)
+{
+	if (!port->ops->query_mport)
+		return -ENODATA;
+	return port->ops->query_mport(port, mport_attr);
+}
+EXPORT_SYMBOL(rio_query_mport);
+
+/**
  * rio_add_device- Adds a RIO device to the device model
  * @rdev: RIO device
  *
