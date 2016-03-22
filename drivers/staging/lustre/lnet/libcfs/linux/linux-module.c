@@ -40,9 +40,9 @@
 
 #define LNET_MINOR 240
 
-static inline int libcfs_ioctl_packlen(struct libcfs_ioctl_data *data)
+static inline size_t libcfs_ioctl_packlen(struct libcfs_ioctl_data *data)
 {
-	int len = sizeof(*data);
+	size_t len = sizeof(*data);
 
 	len += cfs_size_round(data->ioc_inllen1);
 	len += cfs_size_round(data->ioc_inllen2);
