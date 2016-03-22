@@ -527,24 +527,22 @@ static unsigned int ni_660x_read(struct comedi_device *dev,
 	return readl(dev->mmio + addr);
 }
 
-static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
-				   enum ni_gpct_register reg)
+static void ni_660x_gpct_write(struct ni_gpct *counter, unsigned int bits,
+			       enum ni_gpct_register reg)
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
 	enum ni_660x_register ni_660x_register = ni_gpct_to_660x_register(reg);
-	unsigned chip = counter->chip_index;
 
-	ni_660x_write(dev, chip, bits, ni_660x_register);
+	ni_660x_write(dev, counter->chip_index, bits, ni_660x_register);
 }
 
-static unsigned ni_gpct_read_register(struct ni_gpct *counter,
+static unsigned int ni_660x_gpct_read(struct ni_gpct *counter,
 				      enum ni_gpct_register reg)
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
 	enum ni_660x_register ni_660x_register = ni_gpct_to_660x_register(reg);
-	unsigned chip = counter->chip_index;
 
-	return ni_660x_read(dev, chip, ni_660x_register);
+	return ni_660x_read(dev, counter->chip_index, ni_660x_register);
 }
 
 static inline struct mite_dma_descriptor_ring *mite_ring(struct ni_660x_private
@@ -999,8 +997,8 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	ni_660x_write(dev, 0, 0, NI660X_STC_DIO_CONTROL);
 
 	devpriv->counter_dev = ni_gpct_device_construct(dev,
-						     &ni_gpct_write_register,
-						     &ni_gpct_read_register,
+						     ni_660x_gpct_write,
+						     ni_660x_gpct_read,
 						     ni_gpct_variant_660x,
 						     ni_660x_num_counters
 						     (dev));
