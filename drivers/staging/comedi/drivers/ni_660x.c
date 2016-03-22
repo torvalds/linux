@@ -156,14 +156,15 @@ enum ni_660x_register {
 	NI660X_NUM_REGS,
 };
 
-#define NI660X_IO_CFG(x)	(NI660X_IO_CFG_0_1 + ((x) / 2))
-
-enum ni_660x_pfi_output_select {
-	pfi_output_select_high_Z = 0,
-	pfi_output_select_counter = 1,
-	pfi_output_select_do = 2,
-	num_pfi_output_selects
-};
+#define NI660X_IO_CFG(x)		(NI660X_IO_CFG_0_1 + ((x) / 2))
+#define NI660X_IO_CFG_OUT_SEL(_c, _s)	(((_s) & 0x3) << (((_c) % 2) ? 0 : 8))
+#define NI660X_IO_CFG_OUT_SEL_MASK(_c)	NI660X_IO_CFG_OUT_SEL((_c), 0x3)
+#define NI660X_IO_CFG_OUT_SEL_HIGH_Z	0
+#define NI660X_IO_CFG_OUT_SEL_COUNTER	1
+#define NI660X_IO_CFG_OUT_SEL_DO	2
+#define NI660X_IO_CFG_OUT_SEL_MAX	3
+#define NI660X_IO_CFG_IN_SEL(_c, _s)	(((_s) & 0x7) << (((_c) % 2) ? 4 : 12))
+#define NI660X_IO_CFG_IN_SEL_MASK(_c)	NI660X_IO_CFG_IN_SEL((_c), 0x7)
 
 enum ni_660x_subdevices {
 	NI_660X_DIO_SUBDEV = 1,
@@ -284,34 +285,6 @@ static const struct ni_660x_register_data ni_660x_reg_data[NI660X_NUM_REGS] = {
 enum clock_config_register_bits {
 	CounterSwap = 0x1 << 21
 };
-
-/* ioconfigreg */
-static inline unsigned ioconfig_bitshift(unsigned pfi_channel)
-{
-	return (pfi_channel % 2) ? 0 : 8;
-}
-
-static inline unsigned pfi_output_select_mask(unsigned pfi_channel)
-{
-	return 0x3 << ioconfig_bitshift(pfi_channel);
-}
-
-static inline unsigned pfi_output_select_bits(unsigned pfi_channel,
-					      unsigned output_select)
-{
-	return (output_select & 0x3) << ioconfig_bitshift(pfi_channel);
-}
-
-static inline unsigned pfi_input_select_mask(unsigned pfi_channel)
-{
-	return 0x7 << (4 + ioconfig_bitshift(pfi_channel));
-}
-
-static inline unsigned pfi_input_select_bits(unsigned pfi_channel,
-					     unsigned input_select)
-{
-	return (input_select & 0x7) << (4 + ioconfig_bitshift(pfi_channel));
-}
 
 /* dma configuration register bits */
 static inline unsigned dma_select_mask(unsigned dma_channel)
@@ -808,7 +781,7 @@ static int ni_660x_allocate_private(struct comedi_device *dev)
 	spin_lock_init(&devpriv->interrupt_lock);
 	spin_lock_init(&devpriv->soft_reg_copy_lock);
 	for (i = 0; i < NUM_PFI_CHANNELS; ++i)
-		devpriv->pfi_output_selects[i] = pfi_output_select_counter;
+		devpriv->pfi_output_selects[i] = NI660X_IO_CFG_OUT_SEL_COUNTER;
 
 	return 0;
 }
@@ -896,7 +869,7 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 	unsigned idle_bits;
 
 	if (board->n_chips > 1) {
-		if (output_select == pfi_output_select_counter &&
+		if (output_select == NI660X_IO_CFG_OUT_SEL_COUNTER &&
 		    pfi_channel >= counter_4_7_first_pfi &&
 		    pfi_channel <= counter_4_7_last_pfi) {
 			active_chipset = 1;
@@ -911,10 +884,10 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 		idle_bits =
 		    ni_660x_read_register(dev, idle_chipset,
 					  NI660X_IO_CFG(pfi_channel));
-		idle_bits &= ~pfi_output_select_mask(pfi_channel);
+		idle_bits &= ~NI660X_IO_CFG_OUT_SEL_MASK(pfi_channel);
 		idle_bits |=
-		    pfi_output_select_bits(pfi_channel,
-					   pfi_output_select_high_Z);
+		    NI660X_IO_CFG_OUT_SEL(pfi_channel,
+					  NI660X_IO_CFG_OUT_SEL_HIGH_Z);
 		ni_660x_write_register(dev, idle_chipset, idle_bits,
 				       NI660X_IO_CFG(pfi_channel));
 	}
@@ -922,8 +895,8 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 	active_bits =
 	    ni_660x_read_register(dev, active_chipset,
 				  NI660X_IO_CFG(pfi_channel));
-	active_bits &= ~pfi_output_select_mask(pfi_channel);
-	active_bits |= pfi_output_select_bits(pfi_channel, output_select);
+	active_bits &= ~NI660X_IO_CFG_OUT_SEL_MASK(pfi_channel);
+	active_bits |= NI660X_IO_CFG_OUT_SEL(pfi_channel, output_select);
 	ni_660x_write_register(dev, active_chipset, active_bits,
 			       NI660X_IO_CFG(pfi_channel));
 }
@@ -933,15 +906,15 @@ static int ni_660x_set_pfi_routing(struct comedi_device *dev, unsigned chan,
 {
 	struct ni_660x_private *devpriv = dev->private;
 
-	if (source > num_pfi_output_selects)
+	if (source > NI660X_IO_CFG_OUT_SEL_MAX)
 		return -EINVAL;
-	if (source == pfi_output_select_high_Z)
+	if (source == NI660X_IO_CFG_OUT_SEL_HIGH_Z)
 		return -EINVAL;
 	if (chan < min_counter_pfi_chan) {
-		if (source == pfi_output_select_counter)
+		if (source == NI660X_IO_CFG_OUT_SEL_COUNTER)
 			return -EINVAL;
 	} else if (chan > max_dio_pfi_chan) {
-		if (source == pfi_output_select_do)
+		if (source == NI660X_IO_CFG_OUT_SEL_DO)
 			return -EINVAL;
 	}
 
@@ -972,7 +945,8 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 
 	case INSN_CONFIG_DIO_INPUT:
 		devpriv->pfi_direction_bits &= ~bit;
-		ni_660x_select_pfi_output(dev, chan, pfi_output_select_high_Z);
+		ni_660x_select_pfi_output(dev, chan,
+					  NI660X_IO_CFG_OUT_SEL_HIGH_Z);
 		break;
 
 	case INSN_CONFIG_DIO_QUERY:
@@ -992,8 +966,8 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 
 	case INSN_CONFIG_FILTER:
 		val = ni_660x_read_register(dev, 0, NI660X_IO_CFG(chan));
-		val &= ~pfi_input_select_mask(chan);
-		val |= pfi_input_select_bits(chan, data[1]);
+		val &= ~NI660X_IO_CFG_IN_SEL_MASK(chan);
+		val |= NI660X_IO_CFG_IN_SEL(chan, data[1]);
 		ni_660x_write_register(dev, 0, val, NI660X_IO_CFG(chan));
 		break;
 
@@ -1108,11 +1082,12 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 
 	for (i = 0; i < NUM_PFI_CHANNELS; ++i) {
 		if (i < min_counter_pfi_chan)
-			ni_660x_set_pfi_routing(dev, i, pfi_output_select_do);
+			ni_660x_set_pfi_routing(dev, i,
+						NI660X_IO_CFG_OUT_SEL_DO);
 		else
 			ni_660x_set_pfi_routing(dev, i,
-						pfi_output_select_counter);
-		ni_660x_select_pfi_output(dev, i, pfi_output_select_high_Z);
+						NI660X_IO_CFG_OUT_SEL_COUNTER);
+		ni_660x_select_pfi_output(dev, i, NI660X_IO_CFG_OUT_SEL_HIGH_Z);
 	}
 	/* to be safe, set counterswap bits on tio chips after all the counter
 	   outputs have been set to high impedance mode */
