@@ -43,7 +43,7 @@
 int libcfs_ioctl_data_adjust(struct libcfs_ioctl_data *data)
 {
 	if (libcfs_ioctl_is_invalid(data)) {
-		CERROR("LNET: ioctl not correctly formatted\n");
+		CERROR("libcfs ioctl: parameter not correctly formatted\n");
 		return -EINVAL;
 	}
 
@@ -68,7 +68,7 @@ int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
 
 	if (hdr.ioc_version != LIBCFS_IOCTL_VERSION &&
 	    hdr.ioc_version != LIBCFS_IOCTL_VERSION2) {
-		CERROR("LNET: version mismatch expected %#x, got %#x\n",
+		CERROR("libcfs ioctl: version mismatch expected %#x, got %#x\n",
 		       LIBCFS_IOCTL_VERSION, hdr.ioc_version);
 		return -EINVAL;
 	}
