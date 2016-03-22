@@ -362,7 +362,9 @@ rio_setup_inb_dbell(struct rio_mport *mport, void *dev_id, struct resource *res,
 	dbell->dinb = dinb;
 	dbell->dev_id = dev_id;
 
+	mutex_lock(&mport->lock);
 	list_add_tail(&dbell->node, &mport->dbells);
+	mutex_unlock(&mport->lock);
 
       out:
 	return rc;
@@ -426,21 +428,21 @@ int rio_release_inb_dbell(struct rio_mport *mport, u16 start, u16 end)
 	int rc = 0, found = 0;
 	struct rio_dbell *dbell;
 
+	mutex_lock(&mport->lock);
 	list_for_each_entry(dbell, &mport->dbells, node) {
 		if ((dbell->res->start == start) && (dbell->res->end == end)) {
+			list_del(&dbell->node);
 			found = 1;
 			break;
 		}
 	}
+	mutex_unlock(&mport->lock);
 
 	/* If we can't find an exact match, fail */
 	if (!found) {
 		rc = -EINVAL;
 		goto out;
 	}
-
-	/* Delete from list */
-	list_del(&dbell->node);
 
 	/* Release the doorbell resource */
 	rc = release_resource(dbell->res);
@@ -2024,6 +2026,7 @@ int rio_mport_initialize(struct rio_mport *mport)
 	mport->id = next_portid++;
 	mport->host_deviceid = rio_get_hdid(mport->id);
 	mport->nscan = NULL;
+	mutex_init(&mport->lock);
 
 	return 0;
 }
