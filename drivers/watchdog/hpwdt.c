@@ -484,7 +484,7 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 	static int die_nmi_called;
 
 	if (!hpwdt_nmi_decoding)
-		goto out;
+		return NMI_DONE;
 
 	spin_lock_irqsave(&rom_lock, rom_pl);
 	if (!die_nmi_called && !is_icru && !is_uefi)
@@ -497,11 +497,11 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 
 	if (!is_icru && !is_uefi) {
 		if (cmn_regs.u1.ral == 0) {
-			panic("An NMI occurred, "
-				"but unable to determine source.\n");
+			nmi_panic(regs, "An NMI occurred, but unable to determine source.\n");
+			return NMI_HANDLED;
 		}
 	}
-	panic("An NMI occurred. Depending on your system the reason "
+	nmi_panic(regs, "An NMI occurred. Depending on your system the reason "
 		"for the NMI is logged in any one of the following "
 		"resources:\n"
 		"1. Integrated Management Log (IML)\n"
@@ -509,8 +509,7 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 		"3. OA Forward Progress Log\n"
 		"4. iLO Event Log");
 
-out:
-	return NMI_DONE;
+	return NMI_HANDLED;
 }
 #endif /* CONFIG_HPWDT_NMI_DECODING */
 
