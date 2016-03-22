@@ -2592,10 +2592,14 @@ static inline struct drm_property *drm_property_find(struct drm_device *dev,
 static inline uint32_t drm_color_lut_extract(uint32_t user_input,
 					     uint32_t bit_precision)
 {
-	uint32_t val = user_input + (1 << (16 - bit_precision - 1));
+	uint32_t val = user_input;
 	uint32_t max = 0xffff >> (16 - bit_precision);
 
-	val >>= 16 - bit_precision;
+	/* Round only if we're not using full precision. */
+	if (bit_precision < 16) {
+		val += 1UL << (16 - bit_precision - 1);
+		val >>= 16 - bit_precision;
+	}
 
 	return clamp_val(val, 0, max);
 }
