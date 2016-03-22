@@ -887,7 +887,7 @@ int tsi721_register_dma(struct tsi721_device *priv)
 	int i;
 	int nr_channels = 0;
 	int err;
-	struct rio_mport *mport = priv->mport;
+	struct rio_mport *mport = &priv->mport;
 
 	INIT_LIST_HEAD(&mport->dma.channels);
 
@@ -936,4 +936,30 @@ int tsi721_register_dma(struct tsi721_device *priv)
 		dev_err(&priv->pdev->dev, "Failed to register DMA device\n");
 
 	return err;
+}
+
+void tsi721_unregister_dma(struct tsi721_device *priv)
+{
+	struct rio_mport *mport = &priv->mport;
+	struct dma_chan *chan, *_c;
+	struct tsi721_bdma_chan *bdma_chan;
+
+	tsi721_dma_stop_all(priv);
+	dma_async_device_unregister(&mport->dma);
+
+	list_for_each_entry_safe(chan, _c, &mport->dma.channels,
+					device_node) {
+		bdma_chan = to_tsi721_chan(chan);
+		if (bdma_chan->active) {
+			tsi721_bdma_interrupt_enable(bdma_chan, 0);
+			bdma_chan->active = false;
+			tsi721_sync_dma_irq(bdma_chan);
+			tasklet_kill(&bdma_chan->tasklet);
+			INIT_LIST_HEAD(&bdma_chan->free_list);
+			kfree(bdma_chan->tx_desc);
+			tsi721_bdma_ch_free(bdma_chan);
+		}
+
+		list_del(&chan->device_node);
+	}
 }

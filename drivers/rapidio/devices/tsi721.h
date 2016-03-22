@@ -824,7 +824,7 @@ struct tsi721_ib_win {
 
 struct tsi721_device {
 	struct pci_dev	*pdev;
-	struct rio_mport *mport;
+	struct rio_mport mport;
 	u32		flags;
 	void __iomem	*regs;
 #ifdef CONFIG_PCI_MSI
@@ -866,9 +866,11 @@ struct tsi721_device {
 #ifdef CONFIG_RAPIDIO_DMA_ENGINE
 extern void tsi721_bdma_handler(struct tsi721_bdma_chan *bdma_chan);
 extern int tsi721_register_dma(struct tsi721_device *priv);
+extern void tsi721_unregister_dma(struct tsi721_device *priv);
 extern void tsi721_dma_stop_all(struct tsi721_device *priv);
 #else
 #define tsi721_dma_stop_all(priv) do {} while (0)
+#define tsi721_unregister_dma(priv) do {} while (0)
 #endif
 
 #endif

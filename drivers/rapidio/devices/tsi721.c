@@ -236,16 +236,15 @@ static int tsi721_cwrite_dma(struct rio_mport *mport, int index, u16 destid,
 
 /**
  * tsi721_pw_handler - Tsi721 inbound port-write interrupt handler
- * @mport: RapidIO master port structure
+ * @priv:  tsi721 device private structure
  *
  * Handles inbound port-write interrupts. Copies PW message from an internal
  * buffer into PW message FIFO and schedules deferred routine to process
  * queued messages.
  */
 static int
-tsi721_pw_handler(struct rio_mport *mport)
+tsi721_pw_handler(struct tsi721_device *priv)
 {
-	struct tsi721_device *priv = mport->priv;
 	u32 pw_stat;
 	u32 pw_buf[TSI721_RIO_PW_MSG_SIZE/sizeof(u32)];
 
@@ -363,16 +362,15 @@ static int tsi721_dsend(struct rio_mport *mport, int index,
 
 /**
  * tsi721_dbell_handler - Tsi721 doorbell interrupt handler
- * @mport: RapidIO master port structure
+ * @priv: tsi721 device-specific data structure
  *
  * Handles inbound doorbell interrupts. Copies doorbell entry from an internal
  * buffer into DB message FIFO and schedules deferred  routine to process
  * queued DBs.
  */
 static int
-tsi721_dbell_handler(struct rio_mport *mport)
+tsi721_dbell_handler(struct tsi721_device *priv)
 {
-	struct tsi721_device *priv = mport->priv;
 	u32 regval;
 
 	/* Disable IDB interrupts */
@@ -404,7 +402,7 @@ static void tsi721_db_dpc(struct work_struct *work)
 	/*
 	 * Process queued inbound doorbells
 	 */
-	mport = priv->mport;
+	mport = &priv->mport;
 
 	wr_ptr = ioread32(priv->regs + TSI721_IDQ_WP(IDB_QUEUE)) % IDB_QSIZE;
 	rd_ptr = ioread32(priv->regs + TSI721_IDQ_RP(IDB_QUEUE)) % IDB_QSIZE;
@@ -457,15 +455,14 @@ static void tsi721_db_dpc(struct work_struct *work)
 /**
  * tsi721_irqhandler - Tsi721 interrupt handler
  * @irq: Linux interrupt number
- * @ptr: Pointer to interrupt-specific data (mport structure)
+ * @ptr: Pointer to interrupt-specific data (tsi721_device structure)
  *
  * Handles Tsi721 interrupts signaled using MSI and INTA. Checks reported
  * interrupt events and calls an event-specific handler(s).
  */
 static irqreturn_t tsi721_irqhandler(int irq, void *ptr)
 {
-	struct rio_mport *mport = (struct rio_mport *)ptr;
-	struct tsi721_device *priv = mport->priv;
+	struct tsi721_device *priv = (struct tsi721_device *)ptr;
 	u32 dev_int;
 	u32 dev_ch_int;
 	u32 intval;
@@ -488,7 +485,7 @@ static irqreturn_t tsi721_irqhandler(int irq, void *ptr)
 			intval = ioread32(priv->regs +
 						TSI721_SR_CHINT(IDB_QUEUE));
 			if (intval & TSI721_SR_CHINT_IDBQRCV)
-				tsi721_dbell_handler(mport);
+				tsi721_dbell_handler(priv);
 			else
 				dev_info(&priv->pdev->dev,
 					"Unsupported SR_CH_INT %x\n", intval);
@@ -545,7 +542,7 @@ static irqreturn_t tsi721_irqhandler(int irq, void *ptr)
 		/* Service SRIO MAC interrupts */
 		intval = ioread32(priv->regs + TSI721_RIO_EM_INT_STAT);
 		if (intval & TSI721_RIO_EM_INT_STAT_PW_RX)
-			tsi721_pw_handler(mport);
+			tsi721_pw_handler(priv);
 	}
 
 #ifdef CONFIG_RAPIDIO_DMA_ENGINE
@@ -613,13 +610,13 @@ static void tsi721_interrupts_init(struct tsi721_device *priv)
 /**
  * tsi721_omsg_msix - MSI-X interrupt handler for outbound messaging
  * @irq: Linux interrupt number
- * @ptr: Pointer to interrupt-specific data (mport structure)
+ * @ptr: Pointer to interrupt-specific data (tsi721_device structure)
  *
  * Handles outbound messaging interrupts signaled using MSI-X.
  */
 static irqreturn_t tsi721_omsg_msix(int irq, void *ptr)
 {
-	struct tsi721_device *priv = ((struct rio_mport *)ptr)->priv;
+	struct tsi721_device *priv = (struct tsi721_device *)ptr;
 	int mbox;
 
 	mbox = (irq - priv->msix[TSI721_VECT_OMB0_DONE].vector) % RIO_MAX_MBOX;
@@ -630,13 +627,13 @@ static irqreturn_t tsi721_omsg_msix(int irq, void *ptr)
 /**
  * tsi721_imsg_msix - MSI-X interrupt handler for inbound messaging
  * @irq: Linux interrupt number
- * @ptr: Pointer to interrupt-specific data (mport structure)
+ * @ptr: Pointer to interrupt-specific data (tsi721_device structure)
  *
  * Handles inbound messaging interrupts signaled using MSI-X.
  */
 static irqreturn_t tsi721_imsg_msix(int irq, void *ptr)
 {
-	struct tsi721_device *priv = ((struct rio_mport *)ptr)->priv;
+	struct tsi721_device *priv = (struct tsi721_device *)ptr;
 	int mbox;
 
 	mbox = (irq - priv->msix[TSI721_VECT_IMB0_RCV].vector) % RIO_MAX_MBOX;
@@ -647,19 +644,19 @@ static irqreturn_t tsi721_imsg_msix(int irq, void *ptr)
 /**
  * tsi721_srio_msix - Tsi721 MSI-X SRIO MAC interrupt handler
  * @irq: Linux interrupt number
- * @ptr: Pointer to interrupt-specific data (mport structure)
+ * @ptr: Pointer to interrupt-specific data (tsi721_device structure)
  *
  * Handles Tsi721 interrupts from SRIO MAC.
  */
 static irqreturn_t tsi721_srio_msix(int irq, void *ptr)
 {
-	struct tsi721_device *priv = ((struct rio_mport *)ptr)->priv;
+	struct tsi721_device *priv = (struct tsi721_device *)ptr;
 	u32 srio_int;
 
 	/* Service SRIO MAC interrupts */
 	srio_int = ioread32(priv->regs + TSI721_RIO_EM_INT_STAT);
 	if (srio_int & TSI721_RIO_EM_INT_STAT_PW_RX)
-		tsi721_pw_handler((struct rio_mport *)ptr);
+		tsi721_pw_handler(priv);
 
 	return IRQ_HANDLED;
 }
@@ -667,7 +664,7 @@ static irqreturn_t tsi721_srio_msix(int irq, void *ptr)
 /**
  * tsi721_sr2pc_ch_msix - Tsi721 MSI-X SR2PC Channel interrupt handler
  * @irq: Linux interrupt number
- * @ptr: Pointer to interrupt-specific data (mport structure)
+ * @ptr: Pointer to interrupt-specific data (tsi721_device structure)
  *
  * Handles Tsi721 interrupts from SR2PC Channel.
  * NOTE: At this moment services only one SR2PC channel associated with inbound
@@ -675,13 +672,13 @@ static irqreturn_t tsi721_srio_msix(int irq, void *ptr)
  */
 static irqreturn_t tsi721_sr2pc_ch_msix(int irq, void *ptr)
 {
-	struct tsi721_device *priv = ((struct rio_mport *)ptr)->priv;
+	struct tsi721_device *priv = (struct tsi721_device *)ptr;
 	u32 sr_ch_int;
 
 	/* Service Inbound DB interrupt from SR2PC channel */
 	sr_ch_int = ioread32(priv->regs + TSI721_SR_CHINT(IDB_QUEUE));
 	if (sr_ch_int & TSI721_SR_CHINT_IDBQRCV)
-		tsi721_dbell_handler((struct rio_mport *)ptr);
+		tsi721_dbell_handler(priv);
 
 	/* Clear interrupts */
 	iowrite32(sr_ch_int, priv->regs + TSI721_SR_CHINT(IDB_QUEUE));
@@ -693,32 +690,31 @@ static irqreturn_t tsi721_sr2pc_ch_msix(int irq, void *ptr)
 
 /**
  * tsi721_request_msix - register interrupt service for MSI-X mode.
- * @mport: RapidIO master port structure
+ * @priv: tsi721 device-specific data structure
  *
  * Registers MSI-X interrupt service routines for interrupts that are active
  * immediately after mport initialization. Messaging interrupt service routines
  * should be registered during corresponding open requests.
  */
-static int tsi721_request_msix(struct rio_mport *mport)
+static int tsi721_request_msix(struct tsi721_device *priv)
 {
-	struct tsi721_device *priv = mport->priv;
 	int err = 0;
 
 	err = request_irq(priv->msix[TSI721_VECT_IDB].vector,
 			tsi721_sr2pc_ch_msix, 0,
-			priv->msix[TSI721_VECT_IDB].irq_name, (void *)mport);
+			priv->msix[TSI721_VECT_IDB].irq_name, (void *)priv);
 	if (err)
-		goto out;
+		return err;
 
 	err = request_irq(priv->msix[TSI721_VECT_PWRX].vector,
 			tsi721_srio_msix, 0,
-			priv->msix[TSI721_VECT_PWRX].irq_name, (void *)mport);
-	if (err)
-		free_irq(
-			priv->msix[TSI721_VECT_IDB].vector,
-			(void *)mport);
-out:
-	return err;
+			priv->msix[TSI721_VECT_PWRX].irq_name, (void *)priv);
+	if (err) {
+		free_irq(priv->msix[TSI721_VECT_IDB].vector, (void *)priv);
+		return err;
+	}
+
+	return 0;
 }
 
 /**
@@ -831,25 +827,35 @@ static int tsi721_enable_msix(struct tsi721_device *priv)
 }
 #endif /* CONFIG_PCI_MSI */
 
-static int tsi721_request_irq(struct rio_mport *mport)
+static int tsi721_request_irq(struct tsi721_device *priv)
 {
-	struct tsi721_device *priv = mport->priv;
 	int err;
 
 #ifdef CONFIG_PCI_MSI
 	if (priv->flags & TSI721_USING_MSIX)
-		err = tsi721_request_msix(mport);
+		err = tsi721_request_msix(priv);
 	else
 #endif
 		err = request_irq(priv->pdev->irq, tsi721_irqhandler,
 			  (priv->flags & TSI721_USING_MSI) ? 0 : IRQF_SHARED,
-			  DRV_NAME, (void *)mport);
+			  DRV_NAME, (void *)priv);
 
 	if (err)
 		dev_err(&priv->pdev->dev,
 			"Unable to allocate interrupt, Error: %d\n", err);
 
 	return err;
+}
+
+static void tsi721_free_irq(struct tsi721_device *priv)
+{
+#ifdef CONFIG_PCI_MSI
+	if (priv->flags & TSI721_USING_MSIX) {
+		free_irq(priv->msix[TSI721_VECT_IDB].vector, (void *)priv);
+		free_irq(priv->msix[TSI721_VECT_PWRX].vector, (void *)priv);
+	} else
+#endif
+	free_irq(priv->pdev->irq, (void *)priv);
 }
 
 /**
@@ -1103,6 +1109,26 @@ static void tsi721_init_sr2pc_mapping(struct tsi721_device *priv)
 	priv->ibwin_cnt = TSI721_IBWIN_NUM;
 }
 
+/*
+ * tsi721_close_sr2pc_mapping - closes all active inbound (SRIO->PCIe)
+ * translation regions.
+ * @priv: pointer to tsi721 device private data
+ */
+static void tsi721_close_sr2pc_mapping(struct tsi721_device *priv)
+{
+	struct tsi721_ib_win *ib_win;
+	int i;
+
+	/* Disable all active SR2PC inbound windows */
+	for (i = 0; i < TSI721_IBWIN_NUM; i++) {
+		ib_win = &priv->ib_win[i];
+		if (ib_win->active) {
+			iowrite32(0, priv->regs + TSI721_IBWIN_LB(i));
+			ib_win->active = false;
+		}
+	}
+}
+
 /**
  * tsi721_port_write_init - Inbound port write interface init
  * @priv: pointer to tsi721 private data
@@ -1124,6 +1150,11 @@ static int tsi721_port_write_init(struct tsi721_device *priv)
 	/* Use reliable port-write capture mode */
 	iowrite32(TSI721_RIO_PW_CTL_PWC_REL, priv->regs + TSI721_RIO_PW_CTL);
 	return 0;
+}
+
+static void tsi721_port_write_free(struct tsi721_device *priv)
+{
+	kfifo_free(&priv->pw_fifo);
 }
 
 static int tsi721_doorbell_init(struct tsi721_device *priv)
@@ -1496,6 +1527,7 @@ tsi721_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
 static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 {
 	u32 omsg_int;
+	struct rio_mport *mport = &priv->mport;
 
 	spin_lock(&priv->omsg_ring[ch].lock);
 
@@ -1537,7 +1569,7 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 		priv->omsg_ring[ch].sts_rdptr = srd_ptr;
 		iowrite32(srd_ptr, priv->regs + TSI721_OBDMAC_DSRP(ch));
 
-		if (!priv->mport->outb_msg[ch].mcback)
+		if (!mport->outb_msg[ch].mcback)
 			goto no_sts_update;
 
 		/* Inform upper layer about transfer completion */
@@ -1564,7 +1596,7 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 		if (tx_slot == priv->omsg_ring[ch].size)
 			tx_slot = 0;
 		BUG_ON(tx_slot >= priv->omsg_ring[ch].size);
-		priv->mport->outb_msg[ch].mcback(priv->mport,
+		mport->outb_msg[ch].mcback(mport,
 				priv->omsg_ring[ch].dev_id, ch,
 				tx_slot);
 	}
@@ -1587,8 +1619,8 @@ no_sts_update:
 		ioread32(priv->regs + TSI721_OBDMAC_CTL(ch));
 
 		/* Inform upper level to clear all pending tx slots */
-		if (priv->mport->outb_msg[ch].mcback)
-			priv->mport->outb_msg[ch].mcback(priv->mport,
+		if (mport->outb_msg[ch].mcback)
+			mport->outb_msg[ch].mcback(mport,
 					priv->omsg_ring[ch].dev_id, ch,
 					priv->omsg_ring[ch].tx_slot);
 		/* Synch tx_slot tracking */
@@ -1710,12 +1742,11 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 
 #ifdef CONFIG_PCI_MSI
 	if (priv->flags & TSI721_USING_MSIX) {
+		int idx = TSI721_VECT_OMB0_DONE + mbox;
+
 		/* Request interrupt service if we are in MSI-X mode */
-		rc = request_irq(
-			priv->msix[TSI721_VECT_OMB0_DONE + mbox].vector,
-			tsi721_omsg_msix, 0,
-			priv->msix[TSI721_VECT_OMB0_DONE + mbox].irq_name,
-			(void *)mport);
+		rc = request_irq(priv->msix[idx].vector, tsi721_omsg_msix, 0,
+				 priv->msix[idx].irq_name, (void *)priv);
 
 		if (rc) {
 			dev_dbg(&priv->pdev->dev,
@@ -1724,18 +1755,16 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 			goto out_stat;
 		}
 
-		rc = request_irq(priv->msix[TSI721_VECT_OMB0_INT + mbox].vector,
-			tsi721_omsg_msix, 0,
-			priv->msix[TSI721_VECT_OMB0_INT + mbox].irq_name,
-			(void *)mport);
+		idx = TSI721_VECT_OMB0_INT + mbox;
+		rc = request_irq(priv->msix[idx].vector, tsi721_omsg_msix, 0,
+				 priv->msix[idx].irq_name, (void *)priv);
 
 		if (rc)	{
 			dev_dbg(&priv->pdev->dev,
 				"Unable to allocate MSI-X interrupt for "
 				"MBOX%d-INT\n", mbox);
-			free_irq(
-				priv->msix[TSI721_VECT_OMB0_DONE + mbox].vector,
-				(void *)mport);
+			idx = TSI721_VECT_OMB0_DONE + mbox;
+			free_irq(priv->msix[idx].vector, (void *)priv);
 			goto out_stat;
 		}
 	}
@@ -1819,9 +1848,9 @@ static void tsi721_close_outb_mbox(struct rio_mport *mport, int mbox)
 #ifdef CONFIG_PCI_MSI
 	if (priv->flags & TSI721_USING_MSIX) {
 		free_irq(priv->msix[TSI721_VECT_OMB0_DONE + mbox].vector,
-			 (void *)mport);
+			 (void *)priv);
 		free_irq(priv->msix[TSI721_VECT_OMB0_INT + mbox].vector,
-			 (void *)mport);
+			 (void *)priv);
 	}
 #endif /* CONFIG_PCI_MSI */
 
@@ -1866,6 +1895,7 @@ static void tsi721_imsg_handler(struct tsi721_device *priv, int ch)
 {
 	u32 mbox = ch - 4;
 	u32 imsg_int;
+	struct rio_mport *mport = &priv->mport;
 
 	spin_lock(&priv->imsg_ring[mbox].lock);
 
@@ -1888,8 +1918,8 @@ static void tsi721_imsg_handler(struct tsi721_device *priv, int ch)
 
 	/* If an IB Msg is received notify the upper layer */
 	if (imsg_int & TSI721_IBDMAC_INT_DQ_RCV &&
-		priv->mport->inb_msg[mbox].mcback)
-		priv->mport->inb_msg[mbox].mcback(priv->mport,
+		mport->inb_msg[mbox].mcback)
+		mport->inb_msg[mbox].mcback(mport,
 				priv->imsg_ring[mbox].dev_id, mbox, -1);
 
 	if (!(priv->flags & TSI721_USING_MSIX)) {
@@ -1994,7 +2024,7 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 	 * once when first inbound mailbox is requested.
 	 */
 	if (!(priv->flags & TSI721_IMSGID_SET)) {
-		iowrite32((u32)priv->mport->host_deviceid,
+		iowrite32((u32)priv->mport.host_deviceid,
 			priv->regs + TSI721_IB_DEVID);
 		priv->flags |= TSI721_IMSGID_SET;
 	}
@@ -2025,11 +2055,11 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 
 #ifdef CONFIG_PCI_MSI
 	if (priv->flags & TSI721_USING_MSIX) {
+		int idx = TSI721_VECT_IMB0_RCV + mbox;
+
 		/* Request interrupt service if we are in MSI-X mode */
-		rc = request_irq(priv->msix[TSI721_VECT_IMB0_RCV + mbox].vector,
-			tsi721_imsg_msix, 0,
-			priv->msix[TSI721_VECT_IMB0_RCV + mbox].irq_name,
-			(void *)mport);
+		rc = request_irq(priv->msix[idx].vector, tsi721_imsg_msix, 0,
+				 priv->msix[idx].irq_name, (void *)priv);
 
 		if (rc) {
 			dev_dbg(&priv->pdev->dev,
@@ -2038,10 +2068,9 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 			goto out_desc;
 		}
 
-		rc = request_irq(priv->msix[TSI721_VECT_IMB0_INT + mbox].vector,
-			tsi721_imsg_msix, 0,
-			priv->msix[TSI721_VECT_IMB0_INT + mbox].irq_name,
-			(void *)mport);
+		idx = TSI721_VECT_IMB0_INT + mbox;
+		rc = request_irq(priv->msix[idx].vector, tsi721_imsg_msix, 0,
+				 priv->msix[idx].irq_name, (void *)priv);
 
 		if (rc)	{
 			dev_dbg(&priv->pdev->dev,
@@ -2049,7 +2078,7 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 				"IBOX%d-INT\n", mbox);
 			free_irq(
 				priv->msix[TSI721_VECT_IMB0_RCV + mbox].vector,
-				(void *)mport);
+				(void *)priv);
 			goto out_desc;
 		}
 	}
@@ -2120,9 +2149,9 @@ static void tsi721_close_inb_mbox(struct rio_mport *mport, int mbox)
 #ifdef CONFIG_PCI_MSI
 	if (priv->flags & TSI721_USING_MSIX) {
 		free_irq(priv->msix[TSI721_VECT_IMB0_RCV + mbox].vector,
-				(void *)mport);
+				(void *)priv);
 		free_irq(priv->msix[TSI721_VECT_IMB0_INT + mbox].vector,
-				(void *)mport);
+				(void *)priv);
 	}
 #endif /* CONFIG_PCI_MSI */
 
@@ -2371,6 +2400,32 @@ static void tsi721_disable_ints(struct tsi721_device *priv)
 	iowrite32(0, priv->regs + TSI721_RIO_EM_DEV_INT_EN);
 }
 
+static struct rio_ops tsi721_rio_ops = {
+	.lcread			= tsi721_lcread,
+	.lcwrite		= tsi721_lcwrite,
+	.cread			= tsi721_cread_dma,
+	.cwrite			= tsi721_cwrite_dma,
+	.dsend			= tsi721_dsend,
+	.open_inb_mbox		= tsi721_open_inb_mbox,
+	.close_inb_mbox		= tsi721_close_inb_mbox,
+	.open_outb_mbox		= tsi721_open_outb_mbox,
+	.close_outb_mbox	= tsi721_close_outb_mbox,
+	.add_outb_message	= tsi721_add_outb_message,
+	.add_inb_buffer		= tsi721_add_inb_buffer,
+	.get_inb_message	= tsi721_get_inb_message,
+	.map_inb		= tsi721_rio_map_inb_mem,
+	.unmap_inb		= tsi721_rio_unmap_inb_mem,
+	.pwenable		= tsi721_pw_enable,
+	.query_mport		= tsi721_query_mport,
+};
+
+static void tsi721_mport_release(struct device *dev)
+{
+	struct rio_mport *mport = to_rio_mport(dev);
+
+	dev_dbg(dev, "RIO: %s %s id=%d\n", __func__, mport->name, mport->id);
+}
+
 /**
  * tsi721_setup_mport - Setup Tsi721 as RapidIO subsystem master port
  * @priv: pointer to tsi721 private data
@@ -2381,47 +2436,20 @@ static int tsi721_setup_mport(struct tsi721_device *priv)
 {
 	struct pci_dev *pdev = priv->pdev;
 	int err = 0;
-	struct rio_ops *ops;
+	struct rio_mport *mport = &priv->mport;
 
-	struct rio_mport *mport;
+	err = rio_mport_initialize(mport);
+	if (err)
+		return err;
 
-	ops = kzalloc(sizeof(struct rio_ops), GFP_KERNEL);
-	if (!ops) {
-		dev_dbg(&pdev->dev, "Unable to allocate memory for rio_ops\n");
-		return -ENOMEM;
-	}
-
-	ops->lcread = tsi721_lcread;
-	ops->lcwrite = tsi721_lcwrite;
-	ops->cread = tsi721_cread_dma;
-	ops->cwrite = tsi721_cwrite_dma;
-	ops->dsend = tsi721_dsend;
-	ops->open_inb_mbox = tsi721_open_inb_mbox;
-	ops->close_inb_mbox = tsi721_close_inb_mbox;
-	ops->open_outb_mbox = tsi721_open_outb_mbox;
-	ops->close_outb_mbox = tsi721_close_outb_mbox;
-	ops->add_outb_message = tsi721_add_outb_message;
-	ops->add_inb_buffer = tsi721_add_inb_buffer;
-	ops->get_inb_message = tsi721_get_inb_message;
-	ops->map_inb = tsi721_rio_map_inb_mem;
-	ops->unmap_inb = tsi721_rio_unmap_inb_mem;
-	ops->query_mport = tsi721_query_mport;
-
-	mport = kzalloc(sizeof(struct rio_mport), GFP_KERNEL);
-	if (!mport) {
-		kfree(ops);
-		dev_dbg(&pdev->dev, "Unable to allocate memory for mport\n");
-		return -ENOMEM;
-	}
-
-	mport->ops = ops;
+	mport->ops = &tsi721_rio_ops;
 	mport->index = 0;
 	mport->sys_size = 0; /* small system */
 	mport->phy_type = RIO_PHY_SERIAL;
 	mport->priv = (void *)priv;
 	mport->phys_efptr = 0x100;
 	mport->dev.parent = &pdev->dev;
-	priv->mport = mport;
+	mport->dev.release = tsi721_mport_release;
 
 	INIT_LIST_HEAD(&mport->dbells);
 
@@ -2443,26 +2471,23 @@ static int tsi721_setup_mport(struct tsi721_device *priv)
 			 "MSI/MSI-X is not available. Using legacy INTx.\n");
 #endif /* CONFIG_PCI_MSI */
 
-	err = tsi721_request_irq(mport);
+	err = tsi721_request_irq(priv);
 
-	if (!err) {
-		tsi721_interrupts_init(priv);
-		ops->pwenable = tsi721_pw_enable;
-	} else {
+	if (err) {
 		dev_err(&pdev->dev, "Unable to get assigned PCI IRQ "
 			"vector %02X err=0x%x\n", pdev->irq, err);
-		goto err_exit;
+		return err;
 	}
 
 #ifdef CONFIG_RAPIDIO_DMA_ENGINE
-	tsi721_register_dma(priv);
+	err = tsi721_register_dma(priv);
+	if (err)
+		goto err_exit;
 #endif
 	/* Enable SRIO link */
 	iowrite32(ioread32(priv->regs + TSI721_DEVCTL) |
 		  TSI721_DEVCTL_SRBOOT_CMPL,
 		  priv->regs + TSI721_DEVCTL);
-
-	rio_register_mport(mport);
 
 	if (mport->host_deviceid >= 0)
 		iowrite32(RIO_PORT_GEN_HOST | RIO_PORT_GEN_MASTER |
@@ -2471,11 +2496,16 @@ static int tsi721_setup_mport(struct tsi721_device *priv)
 	else
 		iowrite32(0, priv->regs + (0x100 + RIO_PORT_GEN_CTL_CSR));
 
+	err = rio_register_mport(mport);
+	if (err) {
+		tsi721_unregister_dma(priv);
+		goto err_exit;
+	}
+
 	return 0;
 
 err_exit:
-	kfree(mport);
-	kfree(ops);
+	tsi721_free_irq(priv);
 	return err;
 }
 
@@ -2639,10 +2669,12 @@ static int tsi721_probe(struct pci_dev *pdev,
 		goto err_free_consistent;
 
 	pci_set_drvdata(pdev, priv);
+	tsi721_interrupts_init(priv);
 
 	return 0;
 
 err_free_consistent:
+	tsi721_port_write_free(priv);
 	tsi721_doorbell_free(priv);
 err_free_bdma:
 	tsi721_bdma_maint_free(priv);
@@ -2660,6 +2692,40 @@ err_clean:
 	kfree(priv);
 err_exit:
 	return err;
+}
+
+static void tsi721_remove(struct pci_dev *pdev)
+{
+	struct tsi721_device *priv = pci_get_drvdata(pdev);
+
+	dev_dbg(&pdev->dev, "%s enter\n", __func__);
+
+	tsi721_disable_ints(priv);
+	tsi721_free_irq(priv);
+	rio_unregister_mport(&priv->mport);
+
+	tsi721_unregister_dma(priv);
+	tsi721_bdma_maint_free(priv);
+	tsi721_doorbell_free(priv);
+	tsi721_port_write_free(priv);
+	tsi721_close_sr2pc_mapping(priv);
+
+	if (priv->regs)
+		iounmap(priv->regs);
+	if (priv->odb_base)
+		iounmap(priv->odb_base);
+#ifdef CONFIG_PCI_MSI
+	if (priv->flags & TSI721_USING_MSIX)
+		pci_disable_msix(priv->pdev);
+	else if (priv->flags & TSI721_USING_MSI)
+		pci_disable_msi(priv->pdev);
+#endif
+	pci_release_regions(pdev);
+	pci_clear_master(pdev);
+	pci_disable_device(pdev);
+	pci_set_drvdata(pdev, NULL);
+	kfree(priv);
+	dev_dbg(&pdev->dev, "%s exit\n", __func__);
 }
 
 static void tsi721_shutdown(struct pci_dev *pdev)
@@ -2685,15 +2751,11 @@ static struct pci_driver tsi721_driver = {
 	.name		= "tsi721",
 	.id_table	= tsi721_pci_tbl,
 	.probe		= tsi721_probe,
+	.remove		= tsi721_remove,
 	.shutdown	= tsi721_shutdown,
 };
 
-static int __init tsi721_init(void)
-{
-	return pci_register_driver(&tsi721_driver);
-}
-
-device_initcall(tsi721_init);
+module_pci_driver(tsi721_driver);
 
 MODULE_DESCRIPTION("IDT Tsi721 PCIExpress-to-SRIO bridge driver");
 MODULE_AUTHOR("Integrated Device Technology, Inc.");
