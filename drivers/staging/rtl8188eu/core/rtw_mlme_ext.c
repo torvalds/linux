@@ -4289,12 +4289,12 @@ void report_survey_event(struct adapter *padapter,
 
 
 	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
-	if (pcmd_obj == NULL)
+	if (!pcmd_obj)
 		return;
 
 	cmdsz = sizeof(struct survey_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_ATOMIC);
-	if (pevtcmd == NULL) {
+	if (!pevtcmd) {
 		kfree(pcmd_obj);
 		return;
 	}
@@ -4341,12 +4341,12 @@ void report_surveydone_event(struct adapter *padapter)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
-	if (pcmd_obj == NULL)
+	if (!pcmd_obj)
 		return;
 
 	cmdsz = sizeof(struct surveydone_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_KERNEL);
-	if (pevtcmd == NULL) {
+	if (!pevtcmd) {
 		kfree(pcmd_obj);
 		return;
 	}
@@ -4387,12 +4387,12 @@ void report_join_res(struct adapter *padapter, int res)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
-	if (pcmd_obj == NULL)
+	if (!pcmd_obj)
 		return;
 
 	cmdsz = sizeof(struct joinbss_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_ATOMIC);
-	if (pevtcmd == NULL) {
+	if (!pevtcmd) {
 		kfree(pcmd_obj);
 		return;
 	}
@@ -4440,12 +4440,12 @@ void report_del_sta_event(struct adapter *padapter, unsigned char *MacAddr, unsi
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
-	if (pcmd_obj == NULL)
+	if (!pcmd_obj)
 		return;
 
 	cmdsz = sizeof(struct stadel_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_KERNEL);
-	if (pevtcmd == NULL) {
+	if (!pevtcmd) {
 		kfree(pcmd_obj);
 		return;
 	}
@@ -4495,12 +4495,12 @@ void report_add_sta_event(struct adapter *padapter, unsigned char *MacAddr, int 
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
-	if (pcmd_obj == NULL)
+	if (!pcmd_obj)
 		return;
 
 	cmdsz = sizeof(struct stassoc_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_KERNEL);
-	if (pevtcmd == NULL) {
+	if (!pevtcmd) {
 		kfree(pcmd_obj);
 		return;
 	}
@@ -4911,11 +4911,11 @@ void survey_timer_hdl(unsigned long data)
 		}
 
 		ph2c = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
-		if (ph2c == NULL)
+		if (!ph2c)
 			goto exit_survey_timer_hdl;
 
 		psurveyPara = kzalloc(sizeof(struct sitesurvey_parm), GFP_ATOMIC);
-		if (psurveyPara == NULL) {
+		if (!psurveyPara) {
 			kfree(ph2c);
 			goto exit_survey_timer_hdl;
 		}
@@ -5479,7 +5479,7 @@ u8 set_tx_beacon_cmd(struct adapter *padapter)
 
 
 	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
-	if (ph2c == NULL) {
+	if (!ph2c) {
 		res = _FAIL;
 		goto exit;
 	}
