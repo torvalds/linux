@@ -674,7 +674,7 @@ struct tsi721_bdma_chan {
 	struct dma_chan		dchan;
 	struct tsi721_tx_desc	*tx_desc;
 	spinlock_t		lock;
-	struct list_head	active_list;
+	struct tsi721_tx_desc	*active_tx;
 	struct list_head	queue;
 	struct list_head	free_list;
 	struct tasklet_struct	tasklet;
