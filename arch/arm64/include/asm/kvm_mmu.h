@@ -249,6 +249,20 @@ static inline bool kvm_page_empty(void *ptr)
 #endif
 
 
+#define hyp_pte_table_empty(ptep) kvm_page_empty(ptep)
+
+#ifdef __PAGETABLE_PMD_FOLDED
+#define hyp_pmd_table_empty(pmdp) (0)
+#else
+#define hyp_pmd_table_empty(pmdp) kvm_page_empty(pmdp)
+#endif
+
+#ifdef __PAGETABLE_PUD_FOLDED
+#define hyp_pud_table_empty(pudp) (0)
+#else
+#define hyp_pud_table_empty(pudp) kvm_page_empty(pudp)
+#endif
+
 struct kvm;
 
 #define kvm_flush_dcache_to_poc(a,l)	__flush_dcache_area((a), (l))
