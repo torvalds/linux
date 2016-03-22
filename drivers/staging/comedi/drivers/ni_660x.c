@@ -157,6 +157,14 @@ enum ni_660x_register {
 
 #define NI660X_CLK_CFG_COUNTER_SWAP	BIT(21)
 
+#define NI660X_GLOBAL_INT_COUNTER0	BIT(8)
+#define NI660X_GLOBAL_INT_COUNTER1	BIT(9)
+#define NI660X_GLOBAL_INT_COUNTER2	BIT(10)
+#define NI660X_GLOBAL_INT_COUNTER3	BIT(11)
+#define NI660X_GLOBAL_INT_CASCADE	BIT(29)
+#define NI660X_GLOBAL_INT_GLOBAL_POL	BIT(30)
+#define NI660X_GLOBAL_INT_GLOBAL	BIT(31)
+
 #define NI660X_DMA_CFG_SEL(_c, _s)	(((_s) & 0x1f) << (8 * (_c)))
 #define NI660X_DMA_CFG_SEL_MASK(_c)	NI660X_DMA_CFG_SEL((_c), 0x1f)
 #define NI660X_DMA_CFG_SEL_NONE(_c)	NI660X_DMA_CFG_SEL((_c), 0x1f)
@@ -285,21 +293,6 @@ static const struct ni_660x_register_data ni_660x_reg_data[NI660X_NUM_REGS] = {
 	[NI660X_IO_CFG_34_35]		= { 0x79e, 2 },	/* read/write */
 	[NI660X_IO_CFG_36_37]		= { 0x7a0, 2 },	/* read/write */
 	[NI660X_IO_CFG_38_39]		= { 0x7a2, 2 }	/* read/write */
-};
-
-enum global_interrupt_status_register_bits {
-	Counter_0_Int_Bit = 0x100,
-	Counter_1_Int_Bit = 0x200,
-	Counter_2_Int_Bit = 0x400,
-	Counter_3_Int_Bit = 0x800,
-	Cascade_Int_Bit = 0x20000000,
-	Global_Int_Bit = 0x80000000
-};
-
-enum global_interrupt_config_register_bits {
-	Cascade_Int_Enable_Bit = 0x20000000,
-	Global_Int_Polarity_Bit = 0x40000000,
-	Global_Int_Enable_Bit = 0x80000000
 };
 
 /* Offset of the GPCT chips from the base-address of the card */
@@ -1072,9 +1065,9 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 		return ret;
 	}
 	dev->irq = pcidev->irq;
-	global_interrupt_config_bits = Global_Int_Enable_Bit;
+	global_interrupt_config_bits = NI660X_GLOBAL_INT_GLOBAL;
 	if (board->n_chips > 1)
-		global_interrupt_config_bits |= Cascade_Int_Enable_Bit;
+		global_interrupt_config_bits |= NI660X_GLOBAL_INT_CASCADE;
 	ni_660x_write_register(dev, 0, global_interrupt_config_bits,
 			       NI660X_GLOBAL_INT_CFG);
 
