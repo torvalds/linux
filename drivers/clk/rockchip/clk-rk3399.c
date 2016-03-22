@@ -119,10 +119,6 @@ PNAME(mux_armclkb_p)				= { "clk_core_b_lpll_src",
 						    "clk_core_b_bpll_src",
 						    "clk_core_b_dpll_src",
 						    "clk_core_b_gpll_src" };
-PNAME(mux_ddrc_p)				= { "clk_ddrc_lpll_src",
-						    "clk_ddrc_bpll_src",
-						    "clk_ddrc_dpll_src",
-						    "clk_ddrc_gpll_src" };
 PNAME(mux_aclk_cci_p)				= { "cpll_aclk_cci_src",
 						    "gpll_aclk_cci_src",
 						    "npll_aclk_cci_src",
@@ -641,13 +637,13 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(3), 6, GFLAGS),
 
 	/* cci */
-	GATE(0, "cpll_cci", "cpll", CLK_IGNORE_UNUSED,
+	GATE(0, "cpll_aclk_cci_src", "cpll", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(2), 0, GFLAGS),
-	GATE(0, "gpll_cci", "gpll", CLK_IGNORE_UNUSED,
+	GATE(0, "gpll_aclk_cci_src", "gpll", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(2), 1, GFLAGS),
-	GATE(0, "npll_cci", "npll", CLK_IGNORE_UNUSED,
+	GATE(0, "npll_aclk_cci_src", "npll", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(2), 2, GFLAGS),
-	GATE(0, "vpll_cci", "vpll", CLK_IGNORE_UNUSED,
+	GATE(0, "vpll_aclk_cci_src", "vpll", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(2), 3, GFLAGS),
 
 	COMPOSITE(0, "aclk_cci_pre", mux_aclk_cci_p, CLK_IGNORE_UNUSED,
