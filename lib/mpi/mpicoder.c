@@ -447,16 +447,12 @@ MPI mpi_read_raw_from_sgl(struct scatterlist *sgl, unsigned int nbytes)
 			break;
 
 		ents--;
+		nbytes -= lzeros;
 		lzeros = 0;
 	}
 
 	sgl = sg;
-
-	if (!ents)
-		nbytes = 0;
-	else
-		nbytes -= lzeros;
-
+	nbytes -= lzeros;
 	nbits = nbytes * 8;
 	if (nbits > MAX_EXTERN_MPI_BITS) {
 		pr_info("MPI: mpi too large (%u bits)\n", nbits);
