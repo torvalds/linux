@@ -537,7 +537,7 @@ static void print_sample_brstacksym(union perf_event *event __maybe_unused,
 }
 
 
-static void print_sample_addr(union perf_event *event,
+static void print_sample_addr(union perf_event *event __maybe_unused,
 			  struct perf_sample *sample,
 			  struct thread *thread,
 			  struct perf_event_attr *attr)
@@ -549,7 +549,7 @@ static void print_sample_addr(union perf_event *event,
 	if (!sample_addr_correlates_sym(attr))
 		return;
 
-	perf_event__preprocess_sample_addr(event, sample, thread, &al);
+	thread__resolve(thread, &al, sample);
 
 	if (PRINT_FIELD(SYM)) {
 		printf(" ");

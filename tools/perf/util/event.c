@@ -1392,10 +1392,8 @@ bool sample_addr_correlates_sym(struct perf_event_attr *attr)
 	return false;
 }
 
-void perf_event__preprocess_sample_addr(union perf_event *event __maybe_unused,
-					struct perf_sample *sample,
-					struct thread *thread,
-					struct addr_location *al)
+void thread__resolve(struct thread *thread, struct addr_location *al,
+		     struct perf_sample *sample)
 {
 	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->addr, al);
 	if (!al->map)
