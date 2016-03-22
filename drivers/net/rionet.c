@@ -676,6 +676,34 @@ static int rionet_shutdown(struct notifier_block *nb, unsigned long code,
 	return NOTIFY_DONE;
 }
 
+static void rionet_remove_mport(struct device *dev,
+				struct class_interface *class_intf)
+{
+	struct rio_mport *mport = to_rio_mport(dev);
+	struct net_device *ndev;
+	int id = mport->id;
+
+	pr_debug("%s %s\n", __func__, mport->name);
+
+	WARN(nets[id].nact, "%s called when connected to %d peers\n",
+	     __func__, nets[id].nact);
+	WARN(!nets[id].ndev, "%s called for mport without NDEV\n",
+	     __func__);
+
+	if (nets[id].ndev) {
+		ndev = nets[id].ndev;
+		netif_stop_queue(ndev);
+		unregister_netdev(ndev);
+
+		free_pages((unsigned long)nets[id].active,
+			   get_order(sizeof(void *) *
+			   RIO_MAX_ROUTE_ENTRIES(mport->sys_size)));
+		nets[id].active = NULL;
+		free_netdev(ndev);
+		nets[id].ndev = NULL;
+	}
+}
+
 #ifdef MODULE
 static struct rio_device_id rionet_id_table[] = {
 	{RIO_DEVICE(RIO_ANY_ID, RIO_ANY_ID)},
@@ -696,6 +724,13 @@ static struct notifier_block rionet_notifier = {
 	.notifier_call = rionet_shutdown,
 };
 
+/* the rio_mport_interface is used to handle local mport devices */
+static struct class_interface rio_mport_interface __refdata = {
+	.class = &rio_mport_class,
+	.add_dev = NULL,
+	.remove_dev = rionet_remove_mport,
+};
+
 static int __init rionet_init(void)
 {
 	int ret;
@@ -706,39 +741,22 @@ static int __init rionet_init(void)
 		       DRV_NAME, ret);
 		return ret;
 	}
+
+	ret = class_interface_register(&rio_mport_interface);
+	if (ret) {
+		pr_err("%s: class_interface_register error: %d\n",
+		       DRV_NAME, ret);
+		return ret;
+	}
+
 	return subsys_interface_register(&rionet_interface);
 }
 
 static void __exit rionet_exit(void)
 {
-	struct rionet_private *rnet;
-	struct net_device *ndev;
-	struct rionet_peer *peer, *tmp;
-	int i;
-
-	for (i = 0; i < RIONET_MAX_NETS; i++) {
-		if (nets[i].ndev != NULL) {
-			ndev = nets[i].ndev;
-			rnet = netdev_priv(ndev);
-			unregister_netdev(ndev);
-
-			list_for_each_entry_safe(peer,
-						 tmp, &nets[i].peers, node) {
-				list_del(&peer->node);
-				kfree(peer);
-			}
-
-			free_pages((unsigned long)nets[i].active,
-				 get_order(sizeof(void *) *
-				 RIO_MAX_ROUTE_ENTRIES(rnet->mport->sys_size)));
-			nets[i].active = NULL;
-
-			free_netdev(ndev);
-		}
-	}
-
 	unregister_reboot_notifier(&rionet_notifier);
 	subsys_interface_unregister(&rionet_interface);
+	class_interface_unregister(&rio_mport_interface);
 }
 
 late_initcall(rionet_init);
