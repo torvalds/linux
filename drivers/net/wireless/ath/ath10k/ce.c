@@ -444,14 +444,10 @@ int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr)
  */
 int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
 					 void **per_transfer_contextp,
-					 u32 *bufferp,
-					 unsigned int *nbytesp,
-					 unsigned int *transfer_idp,
-					 unsigned int *flagsp)
+					 unsigned int *nbytesp)
 {
 	struct ath10k_ce_ring *dest_ring = ce_state->dest_ring;
 	unsigned int nentries_mask = dest_ring->nentries_mask;
-	struct ath10k *ar = ce_state->ar;
 	unsigned int sw_index = dest_ring->sw_index;
 
 	struct ce_desc *base = dest_ring->base_addr_owner_space;
@@ -476,14 +472,7 @@ int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
 	desc->nbytes = 0;
 
 	/* Return data from completed destination descriptor */
-	*bufferp = __le32_to_cpu(sdesc.addr);
 	*nbytesp = nbytes;
-	*transfer_idp = MS(__le16_to_cpu(sdesc.flags), CE_DESC_FLAGS_META_DATA);
-
-	if (__le16_to_cpu(sdesc.flags) & CE_DESC_FLAGS_BYTE_SWAP)
-		*flagsp = CE_RECV_FLAG_SWAPPED;
-	else
-		*flagsp = 0;
 
 	if (per_transfer_contextp)
 		*per_transfer_contextp =
@@ -501,10 +490,7 @@ int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
 
 int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp,
-				  u32 *bufferp,
-				  unsigned int *nbytesp,
-				  unsigned int *transfer_idp,
-				  unsigned int *flagsp)
+				  unsigned int *nbytesp)
 {
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -513,8 +499,7 @@ int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 	spin_lock_bh(&ar_pci->ce_lock);
 	ret = ath10k_ce_completed_recv_next_nolock(ce_state,
 						   per_transfer_contextp,
-						   bufferp, nbytesp,
-						   transfer_idp, flagsp);
+						   nbytesp);
 	spin_unlock_bh(&ar_pci->ce_lock);
 
 	return ret;

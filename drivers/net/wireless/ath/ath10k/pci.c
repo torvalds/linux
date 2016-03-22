@@ -870,10 +870,8 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret = 0;
-	u32 buf;
+	u32 *buf;
 	unsigned int completed_nbytes, orig_nbytes, remaining_bytes;
-	unsigned int id;
-	unsigned int flags;
 	struct ath10k_ce_pipe *ce_diag;
 	/* Host buffer address in CE space */
 	u32 ce_data;
@@ -909,7 +907,7 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 		nbytes = min_t(unsigned int, remaining_bytes,
 			       DIAG_TRANSFER_LIMIT);
 
-		ret = __ath10k_ce_rx_post_buf(ce_diag, NULL, ce_data);
+		ret = __ath10k_ce_rx_post_buf(ce_diag, &ce_data, ce_data);
 		if (ret != 0)
 			goto done;
 
@@ -940,9 +938,10 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 		}
 
 		i = 0;
-		while (ath10k_ce_completed_recv_next_nolock(ce_diag, NULL, &buf,
-							    &completed_nbytes,
-							    &id, &flags) != 0) {
+		while (ath10k_ce_completed_recv_next_nolock(ce_diag,
+							    (void **)&buf,
+							    &completed_nbytes)
+								!= 0) {
 			mdelay(1);
 
 			if (i++ > DIAG_ACCESS_CE_TIMEOUT_MS) {
@@ -956,7 +955,7 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 			goto done;
 		}
 
-		if (buf != ce_data) {
+		if (*buf != ce_data) {
 			ret = -EIO;
 			goto done;
 		}
@@ -1026,10 +1025,8 @@ int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret = 0;
-	u32 buf;
+	u32 *buf;
 	unsigned int completed_nbytes, orig_nbytes, remaining_bytes;
-	unsigned int id;
-	unsigned int flags;
 	struct ath10k_ce_pipe *ce_diag;
 	void *data_buf = NULL;
 	u32 ce_data;	/* Host buffer address in CE space */
@@ -1078,7 +1075,7 @@ int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 		nbytes = min_t(int, remaining_bytes, DIAG_TRANSFER_LIMIT);
 
 		/* Set up to receive directly into Target(!) address */
-		ret = __ath10k_ce_rx_post_buf(ce_diag, NULL, address);
+		ret = __ath10k_ce_rx_post_buf(ce_diag, &address, address);
 		if (ret != 0)
 			goto done;
 
@@ -1103,9 +1100,10 @@ int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 		}
 
 		i = 0;
-		while (ath10k_ce_completed_recv_next_nolock(ce_diag, NULL, &buf,
-							    &completed_nbytes,
-							    &id, &flags) != 0) {
+		while (ath10k_ce_completed_recv_next_nolock(ce_diag,
+							    (void **)&buf,
+							    &completed_nbytes)
+								!= 0) {
 			mdelay(1);
 
 			if (i++ > DIAG_ACCESS_CE_TIMEOUT_MS) {
@@ -1119,7 +1117,7 @@ int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 			goto done;
 		}
 
-		if (buf != address) {
+		if (*buf != address) {
 			ret = -EIO;
 			goto done;
 		}
@@ -1181,15 +1179,11 @@ static void ath10k_pci_process_rx_cb(struct ath10k_ce_pipe *ce_state,
 	struct sk_buff *skb;
 	struct sk_buff_head list;
 	void *transfer_context;
-	u32 ce_data;
 	unsigned int nbytes, max_nbytes;
-	unsigned int transfer_id;
-	unsigned int flags;
 
 	__skb_queue_head_init(&list);
 	while (ath10k_ce_completed_recv_next(ce_state, &transfer_context,
-					     &ce_data, &nbytes, &transfer_id,
-					     &flags) == 0) {
+					     &nbytes) == 0) {
 		skb = transfer_context;
 		max_nbytes = skb->len + skb_tailroom(skb);
 		dma_unmap_single(ar->dev, ATH10K_SKB_RXCB(skb)->paddr,
@@ -1835,13 +1829,10 @@ static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state)
 {
 	struct ath10k *ar = ce_state->ar;
 	struct bmi_xfer *xfer;
-	u32 ce_data;
 	unsigned int nbytes;
-	unsigned int transfer_id;
-	unsigned int flags;
 
-	if (ath10k_ce_completed_recv_next(ce_state, (void **)&xfer, &ce_data,
-					  &nbytes, &transfer_id, &flags))
+	if (ath10k_ce_completed_recv_next(ce_state, (void **)&xfer,
+					  &nbytes))
 		return;
 
 	if (WARN_ON_ONCE(!xfer))

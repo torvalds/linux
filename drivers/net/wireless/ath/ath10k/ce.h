@@ -177,10 +177,7 @@ int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr);
  */
 int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp,
-				  u32 *bufferp,
-				  unsigned int *nbytesp,
-				  unsigned int *transfer_idp,
-				  unsigned int *flagsp);
+				  unsigned int *nbytesp);
 /*
  * Supply data for the next completed unprocessed send descriptor.
  * Pops 1 completed send buffer from Source ring.
@@ -212,10 +209,7 @@ int ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
 
 int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
 					 void **per_transfer_contextp,
-					 u32 *bufferp,
-					 unsigned int *nbytesp,
-					 unsigned int *transfer_idp,
-					 unsigned int *flagsp);
+					 unsigned int *nbytesp);
 
 /*
  * Support clean shutdown by allowing the caller to cancel
