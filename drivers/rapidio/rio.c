@@ -560,6 +560,24 @@ int rio_release_inb_pwrite(struct rio_dev *rdev)
 EXPORT_SYMBOL_GPL(rio_release_inb_pwrite);
 
 /**
+ * rio_pw_enable - Enables/disables port-write handling by a master port
+ * @mport: Master port associated with port-write handling
+ * @enable:  1=enable,  0=disable
+ */
+void rio_pw_enable(struct rio_mport *mport, int enable)
+{
+	if (mport->ops->pwenable) {
+		mutex_lock(&mport->lock);
+
+		if ((enable && ++mport->pwe_refcnt == 1) ||
+		    (!enable && mport->pwe_refcnt && --mport->pwe_refcnt == 0))
+			mport->ops->pwenable(mport, enable);
+		mutex_unlock(&mport->lock);
+	}
+}
+EXPORT_SYMBOL_GPL(rio_pw_enable);
+
+/**
  * rio_map_inb_region -- Map inbound memory region.
  * @mport: Master port.
  * @local: physical address of memory region to be mapped
@@ -2041,6 +2059,7 @@ int rio_mport_initialize(struct rio_mport *mport)
 	mport->host_deviceid = rio_get_hdid(mport->id);
 	mport->nscan = NULL;
 	mutex_init(&mport->lock);
+	mport->pwe_refcnt = 0;
 
 	return 0;
 }

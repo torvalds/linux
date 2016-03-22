@@ -974,17 +974,6 @@ static void rio_init_em(struct rio_dev *rdev)
 }
 
 /**
- * rio_pw_enable - Enables/disables port-write handling by a master port
- * @port: Master port associated with port-write handling
- * @enable:  1=enable,  0=disable
- */
-static void rio_pw_enable(struct rio_mport *port, int enable)
-{
-	if (port->ops->pwenable)
-		port->ops->pwenable(port, enable);
-}
-
-/**
  * rio_enum_mport- Start enumeration through a master port
  * @mport: Master port to send transactions
  * @flags: Enumeration control flags

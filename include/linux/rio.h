@@ -266,6 +266,7 @@ enum rio_phy_type {
  * @dma: DMA device associated with mport
  * @nscan: RapidIO network enumeration/discovery operations
  * @state: mport device state
+ * @pwe_refcnt: port-write enable ref counter to track enable/disable requests
  */
 struct rio_mport {
 	struct list_head dbells;	/* list of doorbell events */
@@ -296,6 +297,7 @@ struct rio_mport {
 #endif
 	struct rio_scan *nscan;
 	atomic_t state;
+	unsigned int pwe_refcnt;
 };
 
 static inline int rio_mport_is_running(struct rio_mport *mport)

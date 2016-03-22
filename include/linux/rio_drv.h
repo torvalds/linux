@@ -375,6 +375,7 @@ extern int rio_request_inb_pwrite(struct rio_dev *,
 			int (*)(struct rio_dev *, union rio_pw_msg*, int));
 extern int rio_release_inb_pwrite(struct rio_dev *);
 extern int rio_inb_pwrite_handler(union rio_pw_msg *pw_msg);
+extern void rio_pw_enable(struct rio_mport *mport, int enable);
 
 /* LDM support */
 int rio_register_driver(struct rio_driver *);
