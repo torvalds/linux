@@ -28,6 +28,7 @@ struct dsaf_device;
 #define MAC_MAX_MTU		9600
 #define MAC_MAX_MTU_V2		9728
 #define MAC_MIN_MTU		68
+#define MAC_MAX_MTU_DBG		MAC_DEFAULT_MTU
 
 #define MAC_DEFAULT_PAUSE_TIME 0xff
 
