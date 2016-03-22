@@ -73,8 +73,6 @@ struct cfs_psdev_file {
 };
 
 struct cfs_psdev_ops {
-	int (*p_open)(unsigned long, void *);
-	int (*p_close)(unsigned long, void *);
 	int (*p_read)(struct cfs_psdev_file *, char *, unsigned long);
 	int (*p_write)(struct cfs_psdev_file *, char *, unsigned long);
 	int (*p_ioctl)(struct cfs_psdev_file *, unsigned long, void __user *);

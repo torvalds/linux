@@ -65,20 +65,6 @@
 
 static struct dentry *lnet_debugfs_root;
 
-/* called when opening /dev/device */
-static int libcfs_psdev_open(unsigned long flags, void *args)
-{
-	try_module_get(THIS_MODULE);
-	return 0;
-}
-
-/* called when closing /dev/device */
-static int libcfs_psdev_release(unsigned long flags, void *args)
-{
-	module_put(THIS_MODULE);
-	return 0;
-}
-
 static DECLARE_RWSEM(ioctl_list_sem);
 static LIST_HEAD(ioctl_list);
 
@@ -180,8 +166,6 @@ out:
 }
 
 struct cfs_psdev_ops libcfs_psdev_ops = {
-	libcfs_psdev_open,
-	libcfs_psdev_release,
 	NULL,
 	NULL,
 	libcfs_ioctl

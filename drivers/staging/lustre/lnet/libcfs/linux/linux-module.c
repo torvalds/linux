@@ -95,35 +95,6 @@ int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
 	return err;
 }
 
-static int
-libcfs_psdev_open(struct inode *inode, struct file *file)
-{
-	int    rc = 0;
-
-	if (!inode)
-		return -EINVAL;
-	if (libcfs_psdev_ops.p_open)
-		rc = libcfs_psdev_ops.p_open(0, NULL);
-	else
-		return -EPERM;
-	return rc;
-}
-
-/* called when closing /dev/device */
-static int
-libcfs_psdev_release(struct inode *inode, struct file *file)
-{
-	int    rc = 0;
-
-	if (!inode)
-		return -EINVAL;
-	if (libcfs_psdev_ops.p_close)
-		rc = libcfs_psdev_ops.p_close(0, NULL);
-	else
-		rc = -EPERM;
-	return rc;
-}
-
 static long libcfs_ioctl(struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
@@ -149,9 +120,8 @@ static long libcfs_ioctl(struct file *file,
 }
 
 static const struct file_operations libcfs_fops = {
+	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= libcfs_ioctl,
-	.open		= libcfs_psdev_open,
-	.release	= libcfs_psdev_release,
 };
 
 struct miscdevice libcfs_dev = {
