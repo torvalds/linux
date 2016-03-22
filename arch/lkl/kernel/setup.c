@@ -50,8 +50,8 @@ static void __init lkl_run_kernel(void *arg)
 }
 
 int __init lkl_start_kernel(struct lkl_host_operations *ops,
-			    unsigned long _mem_size,
-			    const char *fmt, ...)
+			unsigned long _mem_size,
+			const char *fmt, ...)
 {
 	va_list ap;
 	int ret;
@@ -117,6 +117,8 @@ void machine_restart(char *unused)
 	machine_halt();
 }
 
+extern int lkl_netdevs_remove(void);
+
 long lkl_sys_halt(void)
 {
 	long err;
@@ -139,6 +141,10 @@ long lkl_sys_halt(void)
 	lkl_ops->sem_free(init_sem);
 
 	free_initial_syscall_thread();
+	if (lkl_netdevs_remove() == 0)
+		/* We know that there is nothing else touching our
+		 * memory. */
+		free_mem();
 
 	return 0;
 }
@@ -147,10 +153,6 @@ void arch_cpu_idle(void)
 {
 	if (halt) {
 		threads_cleanup();
-		/* TODO(pscollins): If we free here, it causes a
-		 * segfault because the tx/rx threads are still
-		 * running in parallel. */
-		/* free_mem(); */
 
 		/* Shutdown the clockevents source. */
 		tick_suspend_local();

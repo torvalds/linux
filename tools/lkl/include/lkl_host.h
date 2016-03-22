@@ -47,12 +47,21 @@ struct lkl_dev_blk_ops {
 	int (*request)(union lkl_disk disk, struct lkl_blk_req *req);
 };
 
+struct lkl_netdev {
+	struct lkl_dev_net_ops *ops;
+	lkl_thread_t rx_tid, tx_tid;
+};
+
 struct lkl_dev_net_ops {
 	int (*tx)(struct lkl_netdev *nd, void *data, int len);
 	int (*rx)(struct lkl_netdev *nd, void *data, int *len);
 #define LKL_DEV_NET_POLL_RX		1
 #define LKL_DEV_NET_POLL_TX		2
 	int (*poll)(struct lkl_netdev *nd, int events);
+	/* Release all resources acquired --- in particular, kill the
+	 * polling threads and close any open handles. Not implemented
+	 * by all netdev types. 0 for success, -1 for failure. */
+	int (*close)(struct lkl_netdev *nd);
 };
 
 #ifdef __cplusplus

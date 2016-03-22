@@ -53,6 +53,9 @@ ans=$(LKL_HIJACK_MOUNT=proc,sysfs\
 echo "$ans" | tail -n 15 | grep "65536" # lo's MTU
 # lo's dev id
 echo "$ans" | grep "0x0"        # lo's dev_id
+# Doesn't really belong in this section, but might as well check for
+# it here.
+! echo "$ans" | grep "WARN: failed to free"
 
 echo "== TAP tests =="
 if [ ! -c /dev/net/tun ]; then
@@ -72,10 +75,12 @@ sudo ip link set dev lkl_ptt0 up
 sudo ip addr add dev lkl_ptt0 192.168.13.1/24
 
 # Make sure our device has the addresses we expect
-addr=$(LKL_HIJACK_NET_MAC="aa:bb:cc:dd:ee:ff" ${hijack_script} ip addr) 
+addr=$(LKL_HIJACK_DEBUG=1\
+  LKL_HIJACK_NET_MAC="aa:bb:cc:dd:ee:ff" ${hijack_script} ip addr) 
 echo "$addr" | grep eth0
 echo "$addr" | grep 192.168.13.2
 echo "$addr" | grep "aa:bb:cc:dd:ee:ff"
+! echo "$addr" | grep "WARN: failed to free"
 
 # Copy ping so we're allowed to run it under LKL
 cp `which ping` .

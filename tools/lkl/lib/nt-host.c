@@ -67,7 +67,7 @@ static lkl_thread_t thread_create(void (*fn)(void *), void *arg)
 {
 	DWORD WINAPI (*win_fn)(LPVOID arg) = (DWORD WINAPI (*)(LPVOID))fn;
 
-	return CreateThread(NULL, 0, win_fn, arg, 0, NULL);
+	return (lkl_thread_t)CreateThread(NULL, 0, win_fn, arg, 0, NULL);
 }
 
 static void thread_detach(void)
@@ -77,6 +77,13 @@ static void thread_detach(void)
 static void thread_exit(void)
 {
 	ExitThread(0);
+}
+
+static int thread_join(lkl_thread_t tid)
+{
+	/* TODO: error handling */
+	WaitForSingleObject(tid, INFINITE);
+	return 0;
 }
 
 static int tls_alloc(unsigned int *key)
@@ -202,6 +209,7 @@ struct lkl_host_operations lkl_host_ops = {
 	.thread_create = thread_create,
 	.thread_detach = thread_detach,
 	.thread_exit = thread_exit,
+	.thread_join = thread_join,
 	.sem_alloc = sem_alloc,
 	.sem_free = sem_free,
 	.sem_up = sem_up,
@@ -301,3 +309,10 @@ struct lkl_dev_blk_ops lkl_dev_blk_ops = {
 	.get_capacity = handle_get_capacity,
 	.request = blk_request,
 };
+
+/* Needed to resolve linker error on Win32. We don't really support
+ * any network IO on Windows, anyway, so there's no loss here. */
+int lkl_netdevs_remove(void)
+{
+	return -1;
+}
