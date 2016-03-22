@@ -299,7 +299,7 @@ enum ni_660x_boardid {
 
 struct ni_660x_board {
 	const char *name;
-	unsigned n_chips;	/* total number of TIO chips */
+	unsigned int n_chips;	/* total number of TIO chips */
 };
 
 static const struct ni_660x_board ni_660x_boards[] = {
@@ -337,7 +337,7 @@ struct ni_660x_private {
 	spinlock_t mite_channel_lock;
 	/* interrupt_lock prevents races between interrupt and comedi_poll */
 	spinlock_t interrupt_lock;
-	unsigned dma_cfg[NI_660X_MAX_NUM_CHIPS];
+	unsigned int dma_cfg[NI_660X_MAX_NUM_CHIPS];
 	spinlock_t soft_reg_copy_lock;
 	unsigned short pfi_output_selects[NUM_PFI_CHANNELS];
 };
@@ -533,17 +533,17 @@ static inline struct mite_dma_descriptor_ring *mite_ring(struct ni_660x_private
 							 struct ni_gpct
 							 *counter)
 {
-	unsigned chip = counter->chip_index;
+	unsigned int chip = counter->chip_index;
 
 	return priv->mite_rings[chip][counter->counter_index];
 }
 
 static inline void ni_660x_set_dma_channel(struct comedi_device *dev,
-					   unsigned mite_channel,
+					   unsigned int mite_channel,
 					   struct ni_gpct *counter)
 {
 	struct ni_660x_private *devpriv = dev->private;
-	unsigned chip = counter->chip_index;
+	unsigned int chip = counter->chip_index;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
@@ -558,11 +558,11 @@ static inline void ni_660x_set_dma_channel(struct comedi_device *dev,
 }
 
 static inline void ni_660x_unset_dma_channel(struct comedi_device *dev,
-					     unsigned mite_channel,
+					     unsigned int mite_channel,
 					     struct ni_gpct *counter)
 {
 	struct ni_660x_private *devpriv = dev->private;
-	unsigned chip = counter->chip_index;
+	unsigned int chip = counter->chip_index;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
@@ -642,7 +642,7 @@ static int ni_660x_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static void set_tio_counterswap(struct comedi_device *dev, int chip)
 {
-	unsigned bits = 0;
+	unsigned int bits = 0;
 
 	/*
 	 * See P. 3.5 of the Register-Level Programming manual.
@@ -670,7 +670,7 @@ static irqreturn_t ni_660x_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct ni_660x_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
-	unsigned i;
+	unsigned int i;
 	unsigned long flags;
 
 	if (!dev->attached)
@@ -718,7 +718,7 @@ static int ni_660x_buf_change(struct comedi_device *dev,
 static int ni_660x_allocate_private(struct comedi_device *dev)
 {
 	struct ni_660x_private *devpriv;
-	unsigned i;
+	unsigned int i;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -737,8 +737,8 @@ static int ni_660x_alloc_mite_rings(struct comedi_device *dev)
 {
 	const struct ni_660x_board *board = dev->board_ptr;
 	struct ni_660x_private *devpriv = dev->private;
-	unsigned i;
-	unsigned j;
+	unsigned int i;
+	unsigned int j;
 
 	for (i = 0; i < board->n_chips; ++i) {
 		for (j = 0; j < counters_per_chip; ++j) {
@@ -755,8 +755,8 @@ static void ni_660x_free_mite_rings(struct comedi_device *dev)
 {
 	const struct ni_660x_board *board = dev->board_ptr;
 	struct ni_660x_private *devpriv = dev->private;
-	unsigned i;
-	unsigned j;
+	unsigned int i;
+	unsigned int j;
 
 	for (i = 0; i < board->n_chips; ++i) {
 		for (j = 0; j < counters_per_chip; ++j)
@@ -767,7 +767,7 @@ static void ni_660x_free_mite_rings(struct comedi_device *dev)
 static void init_tio_chip(struct comedi_device *dev, int chipset)
 {
 	struct ni_660x_private *devpriv = dev->private;
-	unsigned i;
+	unsigned int i;
 
 	/*  init dma configuration register */
 	devpriv->dma_cfg[chipset] = 0;
@@ -782,7 +782,7 @@ static int ni_660x_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
-	unsigned base_bitfield_channel = CR_CHAN(insn->chanspec);
+	unsigned int base_bitfield_channel = CR_CHAN(insn->chanspec);
 
 	/*  Check if we have to write some bits */
 	if (data[0]) {
@@ -836,8 +836,8 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 	ni_660x_write(dev, active_chip, bits, NI660X_IO_CFG(chan));
 }
 
-static int ni_660x_set_pfi_routing(struct comedi_device *dev, unsigned chan,
-				   unsigned source)
+static int ni_660x_set_pfi_routing(struct comedi_device *dev,
+				   unsigned int chan, unsigned int source)
 {
 	struct ni_660x_private *devpriv = dev->private;
 
@@ -923,8 +923,8 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	unsigned int n_counters;
 	int subdev;
 	int ret;
-	unsigned i;
-	unsigned global_interrupt_config_bits;
+	unsigned int i;
+	unsigned int global_interrupt_config_bits;
 
 	if (context < ARRAY_SIZE(ni_660x_boards))
 		board = &ni_660x_boards[context];
