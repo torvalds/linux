@@ -173,6 +173,14 @@ static inline u64 nvme_block_nr(struct nvme_ns *ns, sector_t sector)
 	return (sector >> (ns->lba_shift - 9));
 }
 
+static inline unsigned nvme_map_len(struct request *rq)
+{
+	if (rq->cmd_flags & REQ_DISCARD)
+		return sizeof(struct nvme_dsm_range);
+	else
+		return blk_rq_bytes(rq);
+}
+
 static inline void nvme_setup_flush(struct nvme_ns *ns,
 		struct nvme_command *cmnd)
 {

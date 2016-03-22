@@ -334,16 +334,11 @@ static __le64 **iod_list(struct request *req)
 	return (__le64 **)(iod->sg + req->nr_phys_segments);
 }
 
-static int nvme_init_iod(struct request *rq, struct nvme_dev *dev)
+static int nvme_init_iod(struct request *rq, unsigned size,
+		struct nvme_dev *dev)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(rq);
 	int nseg = rq->nr_phys_segments;
-	unsigned size;
-
-	if (rq->cmd_flags & REQ_DISCARD)
-		size = sizeof(struct nvme_dsm_range);
-	else
-		size = blk_rq_bytes(rq);
 
 	if (nseg > NVME_INT_PAGES || size > NVME_INT_BYTES(dev)) {
 		iod->sg = kmalloc(nvme_iod_alloc_size(dev, size, nseg), GFP_ATOMIC);
@@ -637,6 +632,7 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nvme_dev *dev = nvmeq->dev;
 	struct request *req = bd->rq;
 	struct nvme_command cmnd;
+	unsigned map_len;
 	int ret = BLK_MQ_RQ_QUEUE_OK;
 
 	/*
@@ -652,7 +648,8 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 		}
 	}
 
-	ret = nvme_init_iod(req, dev);
+	map_len = nvme_map_len(req);
+	ret = nvme_init_iod(req, map_len, dev);
 	if (ret)
 		return ret;
 
