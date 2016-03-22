@@ -369,6 +369,33 @@ struct dentry *debugfs_create_file(const char *name, umode_t mode,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_file);
 
+/**
+ * debugfs_create_file_unsafe - create a file in the debugfs filesystem
+ * @name: a pointer to a string containing the name of the file to create.
+ * @mode: the permission that the file should have.
+ * @parent: a pointer to the parent dentry for this file.  This should be a
+ *          directory dentry if set.  If this parameter is NULL, then the
+ *          file will be created in the root of the debugfs filesystem.
+ * @data: a pointer to something that the caller will want to get to later
+ *        on.  The inode.i_private pointer will point to this value on
+ *        the open() call.
+ * @fops: a pointer to a struct file_operations that should be used for
+ *        this file.
+ *
+ * debugfs_create_file_unsafe() is completely analogous to
+ * debugfs_create_file(), the only difference being that the fops
+ * handed it will not get protected against file removals by the
+ * debugfs core.
+ *
+ * It is your responsibility to protect your struct file_operation
+ * methods against file removals by means of debugfs_use_file_start()
+ * and debugfs_use_file_finish(). ->open() is still protected by
+ * debugfs though.
+ *
+ * Any struct file_operations defined by means of
+ * DEFINE_DEBUGFS_ATTRIBUTE() is protected against file removals and
+ * thus, may be used here.
+ */
 struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
 				   const struct file_operations *fops)
@@ -379,6 +406,7 @@ struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
 					&debugfs_noop_file_operations,
 				fops);
 }
+EXPORT_SYMBOL_GPL(debugfs_create_file_unsafe);
 
 /**
  * debugfs_create_file_size - create a file in the debugfs filesystem
