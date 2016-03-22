@@ -852,6 +852,36 @@ static int tsi721_terminate_all(struct dma_chan *dchan)
 	return 0;
 }
 
+static void tsi721_dma_stop(struct tsi721_bdma_chan *bdma_chan)
+{
+	if (!bdma_chan->active)
+		return;
+	spin_lock_bh(&bdma_chan->lock);
+	if (!tsi721_dma_is_idle(bdma_chan)) {
+		int timeout = 100000;
+
+		/* stop the transfer in progress */
+		iowrite32(TSI721_DMAC_CTL_SUSP,
+			  bdma_chan->regs + TSI721_DMAC_CTL);
+
+		/* Wait until DMA channel stops */
+		while (!tsi721_dma_is_idle(bdma_chan) && --timeout)
+			udelay(1);
+	}
+
+	spin_unlock_bh(&bdma_chan->lock);
+}
+
+void tsi721_dma_stop_all(struct tsi721_device *priv)
+{
+	int i;
+
+	for (i = 0; i < TSI721_DMA_MAXCH; i++) {
+		if (i != TSI721_DMACH_MAINT)
+			tsi721_dma_stop(&priv->bdma[i]);
+	}
+}
+
 int tsi721_register_dma(struct tsi721_device *priv)
 {
 	int i;

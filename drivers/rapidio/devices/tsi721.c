@@ -2638,6 +2638,8 @@ static int tsi721_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_free_consistent;
 
+	pci_set_drvdata(pdev, priv);
+
 	return 0;
 
 err_free_consistent:
@@ -2660,6 +2662,18 @@ err_exit:
 	return err;
 }
 
+static void tsi721_shutdown(struct pci_dev *pdev)
+{
+	struct tsi721_device *priv = pci_get_drvdata(pdev);
+
+	dev_dbg(&pdev->dev, "RIO: %s\n", __func__);
+
+	tsi721_disable_ints(priv);
+	tsi721_dma_stop_all(priv);
+	pci_clear_master(pdev);
+	pci_disable_device(pdev);
+}
+
 static const struct pci_device_id tsi721_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_IDT, PCI_DEVICE_ID_TSI721) },
 	{ 0, }	/* terminate list */
@@ -2671,6 +2685,7 @@ static struct pci_driver tsi721_driver = {
 	.name		= "tsi721",
 	.id_table	= tsi721_pci_tbl,
 	.probe		= tsi721_probe,
+	.shutdown	= tsi721_shutdown,
 };
 
 static int __init tsi721_init(void)

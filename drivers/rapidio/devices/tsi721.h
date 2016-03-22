@@ -866,6 +866,9 @@ struct tsi721_device {
 #ifdef CONFIG_RAPIDIO_DMA_ENGINE
 extern void tsi721_bdma_handler(struct tsi721_bdma_chan *bdma_chan);
 extern int tsi721_register_dma(struct tsi721_device *priv);
+extern void tsi721_dma_stop_all(struct tsi721_device *priv);
+#else
+#define tsi721_dma_stop_all(priv) do {} while (0)
 #endif
 
 #endif
