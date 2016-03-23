@@ -174,7 +174,6 @@ struct tpm_chip {
 
 	int dev_num;		/* /dev/tpm# */
 	unsigned long is_open;	/* only one allowed */
-	int time_expired;
 
 	struct mutex tpm_mutex;	/* tpm is processing */
 
