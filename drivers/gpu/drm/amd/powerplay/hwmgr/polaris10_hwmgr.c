@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
+#include <asm/div64.h>
 #include "linux/delay.h"
 #include "pp_acpi.h"
 #include "hwmgr.h"
@@ -981,7 +982,8 @@ static int polaris10_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 	sclk_setting->Fcw_int = (uint16_t)((clock << table->SclkFcwRangeTable[sclk_setting->PllRange].postdiv) / ref_clock);
 	temp = clock << table->SclkFcwRangeTable[sclk_setting->PllRange].postdiv;
 	temp <<= 0x10;
-	sclk_setting->Fcw_frac = (uint16_t)(0xFFFF & (temp / ref_clock));
+	do_div(temp, ref_clock);
+	sclk_setting->Fcw_frac = temp & 0xffff;
 
 	pcc_target_percent = 10; /*  Hardcode 10% for now. */
 	pcc_target_freq = clock - (clock * pcc_target_percent / 100);
@@ -995,7 +997,8 @@ static int polaris10_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 		sclk_setting->Fcw1_int = (uint16_t)((ss_target_freq << table->SclkFcwRangeTable[sclk_setting->PllRange].postdiv) / ref_clock);
 		temp = ss_target_freq << table->SclkFcwRangeTable[sclk_setting->PllRange].postdiv;
 		temp <<= 0x10;
-		sclk_setting->Fcw1_frac = (uint16_t)(0xFFFF & (temp / ref_clock));
+		do_div(temp, ref_clock);
+		sclk_setting->Fcw1_frac = temp & 0xffff;
 	}
 
 	return 0;

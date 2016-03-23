@@ -942,14 +942,14 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 		goto out;
 	}
 
-	tmp = (unsigned int *)((uint64_t)rlc_hdr +
+	tmp = (unsigned int *)((uintptr_t)rlc_hdr +
 			le32_to_cpu(rlc_hdr->reg_list_format_array_offset_bytes));
 	for (i = 0 ; i < (rlc_hdr->reg_list_format_size_bytes >> 2); i++)
 		adev->gfx.rlc.register_list_format[i] =	le32_to_cpu(tmp[i]);
 
 	adev->gfx.rlc.register_restore = adev->gfx.rlc.register_list_format + i;
 
-	tmp = (unsigned int *)((uint64_t)rlc_hdr +
+	tmp = (unsigned int *)((uintptr_t)rlc_hdr +
 			le32_to_cpu(rlc_hdr->reg_list_array_offset_bytes));
 	for (i = 0 ; i < (rlc_hdr->reg_list_size_bytes >> 2); i++)
 		adev->gfx.rlc.register_restore[i] = le32_to_cpu(tmp[i]);
