@@ -59,9 +59,12 @@ static ssize_t mbox_test_signal_write(struct file *filp,
 		return -EINVAL;
 	}
 
-	tdev->signal = kzalloc(MBOX_MAX_SIG_LEN, GFP_KERNEL);
-	if (!tdev->signal)
-		return -ENOMEM;
+	/* Only allocate memory if we need to */
+	if (!tdev->signal) {
+		tdev->signal = kzalloc(MBOX_MAX_SIG_LEN, GFP_KERNEL);
+		if (!tdev->signal)
+			return -ENOMEM;
+	}
 
 	if (copy_from_user(tdev->signal, userbuf, count)) {
 		kfree(tdev->signal);
