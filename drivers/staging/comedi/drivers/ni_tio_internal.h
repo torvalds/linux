@@ -1,20 +1,19 @@
 /*
-    drivers/ni_tio_internal.h
-    Header file for NI general purpose counter support code (ni_tio.c and
-    ni_tiocmd.c)
-
-    COMEDI - Linux Control and Measurement Device Interface
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * Header file for NI general purpose counter support code (ni_tio.c and
+ * ni_tiocmd.c)
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 #ifndef _COMEDI_NI_TIO_INTERNAL_H
 #define _COMEDI_NI_TIO_INTERNAL_H
@@ -212,7 +211,8 @@ static inline void ni_tio_set_bits_transient(struct ni_gpct *counter,
 	spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
 }
 
-/* ni_tio_set_bits( ) is for safely writing to registers whose bits may be
+/*
+ * ni_tio_set_bits( ) is for safely writing to registers whose bits may be
  * twiddled in interrupt context, or whose software copy may be read in
  * interrupt context.
  */
@@ -224,10 +224,11 @@ static inline void ni_tio_set_bits(struct ni_gpct *counter,
 				  0x0);
 }
 
-/* ni_tio_get_soft_copy( ) is for safely reading the software copy of a register
-whose bits might be modified in interrupt context, or whose software copy
-might need to be read in interrupt context.
-*/
+/*
+ * ni_tio_get_soft_copy( ) is for safely reading the software copy of a
+ * register whose bits might be modified in interrupt context, or whose
+ * software copy might need to be read in interrupt context.
+ */
 static inline unsigned ni_tio_get_soft_copy(const struct ni_gpct *counter,
 					    enum ni_gpct_register
 					    register_index)
