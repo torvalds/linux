@@ -348,6 +348,15 @@ struct iwl_mvm_key_pn {
 	} ____cacheline_aligned_in_smp q[];
 };
 
+struct iwl_mvm_delba_data {
+	u32 baid;
+} __packed;
+
+struct iwl_mvm_delba_notif {
+	struct iwl_mvm_internal_rxq_notif metadata;
+	struct iwl_mvm_delba_data delba;
+} __packed;
+
 /**
  * struct iwl_mvm_rxq_dup_data - per station per rx queue data
  * @last_seq: last sequence per tid for duplicate packet detection

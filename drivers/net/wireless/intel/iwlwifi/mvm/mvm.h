@@ -614,6 +614,28 @@ struct iwl_mvm_shared_mem_cfg {
 };
 
 /**
+ * struct iwl_mvm_reorder_buffer - per ra/tid/queue reorder buffer
+ * @head_sn: reorder window head sn
+ * @num_stored: number of mpdus stored in the buffer
+ * @buf_size: the reorder buffer size as set by the last addba request
+ * @sta_id: sta id of this reorder buffer
+ * @queue: queue of this reorder buffer
+ * @last_amsdu: track last ASMDU SN for duplication detection
+ * @last_sub_index: track ASMDU sub frame index for duplication detection
+ * @entries: list of skbs stored
+ */
+struct iwl_mvm_reorder_buffer {
+	u16 head_sn;
+	u16 num_stored;
+	u8 buf_size;
+	u8 sta_id;
+	int queue;
+	u16 last_amsdu;
+	u8 last_sub_index;
+	struct sk_buff_head entries[IEEE80211_MAX_AMPDU_BUF];
+} ____cacheline_aligned_in_smp;
+
+/**
  * struct iwl_mvm_baid_data - BA session data
  * @sta_id: station id
  * @tid: tid of the session
@@ -622,6 +644,7 @@ struct iwl_mvm_shared_mem_cfg {
  * @last_rx: last rx jiffies, updated only if timeout passed from last update
  * @session_timer: timer to check if BA session expired, runs at 2 * timeout
  * @mvm: mvm pointer, needed for timer context
+ * @reorder_buf: reorder buffer, allocated per queue
  */
 struct iwl_mvm_baid_data {
 	struct rcu_head rcu_head;
@@ -632,6 +655,7 @@ struct iwl_mvm_baid_data {
 	unsigned long last_rx;
 	struct timer_list session_timer;
 	struct iwl_mvm *mvm;
+	struct iwl_mvm_reorder_buffer reorder_buf[];
 };
 
 struct iwl_mvm {

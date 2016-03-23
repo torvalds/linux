@@ -395,6 +395,67 @@ int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
 	return ret;
 }
 
+static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
+				   struct ieee80211_sta *sta,
+				   struct napi_struct *napi,
+				   struct iwl_mvm_reorder_buffer *reorder_buf,
+				   u16 nssn)
+{
+	u16 ssn = reorder_buf->head_sn;
+
+	while (ieee80211_sn_less(ssn, nssn)) {
+		int index = ssn % reorder_buf->buf_size;
+		struct sk_buff_head *skb_list = &reorder_buf->entries[index];
+		struct sk_buff *skb;
+
+		ssn = ieee80211_sn_inc(ssn);
+
+		/* holes are valid since nssn indicates frames were received. */
+		if (skb_queue_empty(skb_list) || !skb_peek_tail(skb_list))
+			continue;
+		/* Empty the list. Will have more than one frame for A-MSDU */
+		while ((skb = __skb_dequeue(skb_list))) {
+			iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb,
+							reorder_buf->queue,
+							sta);
+			reorder_buf->num_stored--;
+		}
+	}
+	reorder_buf->head_sn = nssn;
+}
+
+static void iwl_mvm_del_ba(struct iwl_mvm *mvm, int queue,
+			   struct iwl_mvm_delba_data *data)
+{
+	struct iwl_mvm_baid_data *ba_data;
+	struct ieee80211_sta *sta;
+	struct iwl_mvm_reorder_buffer *reorder_buf;
+	u8 baid = data->baid;
+
+	if (WARN_ON_ONCE(baid >= IWL_RX_REORDER_DATA_INVALID_BAID))
+		return;
+
+	rcu_read_lock();
+
+	ba_data = rcu_dereference(mvm->baid_map[baid]);
+	if (WARN_ON_ONCE(!ba_data))
+		goto out;
+
+	sta = rcu_dereference(mvm->fw_id_to_mac_id[ba_data->sta_id]);
+	if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta)))
+		goto out;
+
+	reorder_buf = &ba_data->reorder_buf[queue];
+
+	/* release all frames that are in the reorder buffer to the stack */
+	iwl_mvm_release_frames(mvm, sta, NULL, reorder_buf,
+			       ieee80211_sn_add(reorder_buf->head_sn,
+						reorder_buf->buf_size));
+
+out:
+	rcu_read_unlock();
+}
+
 void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			    int queue)
 {
@@ -418,10 +479,127 @@ void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	case IWL_MVM_RXQ_EMPTY:
 		break;
 	case IWL_MVM_RXQ_NOTIF_DEL_BA:
+		iwl_mvm_del_ba(mvm, queue, (void *)internal_notif->data);
 		break;
 	default:
 		WARN_ONCE(1, "Invalid identifier %d", internal_notif->type);
 	}
+}
+
+/*
+ * Returns true if the MPDU was buffered\dropped, false if it should be passed
+ * to upper layer.
+ */
+static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
+			    struct napi_struct *napi,
+			    int queue,
+			    struct ieee80211_sta *sta,
+			    struct sk_buff *skb,
+			    struct iwl_rx_mpdu_desc *desc)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_baid_data *baid_data;
+	struct iwl_mvm_reorder_buffer *buffer;
+	struct sk_buff *tail;
+	u32 reorder = le32_to_cpu(desc->reorder_data);
+	bool amsdu = desc->mac_flags2 & IWL_RX_MPDU_MFLG2_AMSDU;
+	u8 tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
+	u8 sub_frame_idx = desc->amsdu_info &
+			   IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK;
+	int index;
+	u16 nssn, sn;
+	u8 baid;
+
+	baid = (reorder & IWL_RX_MPDU_REORDER_BAID_MASK) >>
+		IWL_RX_MPDU_REORDER_BAID_SHIFT;
+
+	if (baid == IWL_RX_REORDER_DATA_INVALID_BAID)
+		return false;
+
+	/* no sta yet */
+	if (WARN_ON(IS_ERR_OR_NULL(sta)))
+		return false;
+
+	/* not a data packet */
+	if (!ieee80211_is_data_qos(hdr->frame_control) ||
+	    is_multicast_ether_addr(hdr->addr1))
+		return false;
+
+	if (unlikely(!ieee80211_is_data_present(hdr->frame_control)))
+		return false;
+
+	baid_data = rcu_dereference(mvm->baid_map[baid]);
+	if (WARN(!baid_data,
+		 "Received baid %d, but no data exists for this BAID\n", baid))
+		return false;
+	if (WARN(tid != baid_data->tid || mvm_sta->sta_id != baid_data->sta_id,
+		 "baid 0x%x is mapped to sta:%d tid:%d, but was received for sta:%d tid:%d\n",
+		 baid, baid_data->sta_id, baid_data->tid, mvm_sta->sta_id,
+		 tid))
+		return false;
+
+	nssn = reorder & IWL_RX_MPDU_REORDER_NSSN_MASK;
+	sn = (reorder & IWL_RX_MPDU_REORDER_SN_MASK) >>
+		IWL_RX_MPDU_REORDER_SN_SHIFT;
+
+	buffer = &baid_data->reorder_buf[queue];
+
+	/*
+	 * If there was a significant jump in the nssn - adjust.
+	 * If the SN is smaller than the NSSN it might need to first go into
+	 * the reorder buffer, in which case we just release up to it and the
+	 * rest of the function will take of storing it and releasing up to the
+	 * nssn
+	 */
+	if (!ieee80211_sn_less(nssn, buffer->head_sn + buffer->buf_size)) {
+		u16 min_sn = ieee80211_sn_less(sn, nssn) ? sn : nssn;
+
+		iwl_mvm_release_frames(mvm, sta, napi, buffer, min_sn);
+	}
+
+	/* drop any oudated packets */
+	if (ieee80211_sn_less(sn, buffer->head_sn))
+		goto drop;
+
+	/* release immediately if allowed by nssn and no stored frames */
+	if (!buffer->num_stored && ieee80211_sn_less(sn, nssn)) {
+		buffer->head_sn = nssn;
+		/* No need to update AMSDU last SN - we are moving the head */
+		return false;
+	}
+
+	index = sn % buffer->buf_size;
+
+	/*
+	 * Check if we already stored this frame
+	 * As AMSDU is either received or not as whole, logic is simple:
+	 * If we have frames in that position in the buffer and the last frame
+	 * originated from AMSDU had a different SN then it is a retransmission.
+	 * If it is the same SN then if the subframe index is incrementing it
+	 * is the same AMSDU - otherwise it is a retransmission.
+	 */
+	tail = skb_peek_tail(&buffer->entries[index]);
+	if (tail && !amsdu)
+		goto drop;
+	else if (tail && (sn != buffer->last_amsdu ||
+			  buffer->last_sub_index >= sub_frame_idx))
+		goto drop;
+
+	/* put in reorder buffer */
+	__skb_queue_tail(&buffer->entries[index], skb);
+	buffer->num_stored++;
+	if (amsdu) {
+		buffer->last_amsdu = sn;
+		buffer->last_sub_index = sub_frame_idx;
+	}
+
+	iwl_mvm_release_frames(mvm, sta, napi, buffer, nssn);
+	return true;
+
+drop:
+	kfree_skb(skb);
+	return true;
 }
 
 static void iwl_mvm_agg_rx_received(struct iwl_mvm *mvm, u8 baid)
@@ -638,7 +816,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	/* TODO: PHY info - gscan */
 
 	iwl_mvm_create_skb(skb, hdr, len, crypt_len, rxb);
-	iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta);
+	if (!iwl_mvm_reorder(mvm, napi, queue, sta, skb, desc))
+		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta);
 	rcu_read_unlock();
 }
 

@@ -1167,14 +1167,63 @@ int iwl_mvm_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 #define IWL_MAX_RX_BA_SESSIONS 16
 
-static void iwl_mvm_sync_rxq_del_ba(struct iwl_mvm *mvm)
+static void iwl_mvm_sync_rxq_del_ba(struct iwl_mvm *mvm, u8 baid)
 {
-	struct iwl_mvm_internal_rxq_notif data = {
-		.type = IWL_MVM_RXQ_EMPTY,
-		.sync = 1,
+	struct iwl_mvm_delba_notif notif = {
+		.metadata.type = IWL_MVM_RXQ_NOTIF_DEL_BA,
+		.metadata.sync = 1,
+		.delba.baid = baid,
 	};
+	iwl_mvm_sync_rx_queues_internal(mvm, (void *)&notif, sizeof(notif));
+};
 
-	iwl_mvm_sync_rx_queues_internal(mvm, &data, sizeof(data));
+static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
+				 struct iwl_mvm_baid_data *data)
+{
+	int i;
+
+	iwl_mvm_sync_rxq_del_ba(mvm, data->baid);
+
+	for (i = 0; i < mvm->trans->num_rx_queues; i++) {
+		int j;
+		struct iwl_mvm_reorder_buffer *reorder_buf =
+			&data->reorder_buf[i];
+
+		if (likely(!reorder_buf->num_stored))
+			continue;
+
+		/*
+		 * This shouldn't happen in regular DELBA since the internal
+		 * delBA notification should trigger a release of all frames in
+		 * the reorder buffer.
+		 */
+		WARN_ON(1);
+
+		for (j = 0; j < reorder_buf->buf_size; j++)
+			__skb_queue_purge(&reorder_buf->entries[j]);
+	}
+}
+
+static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
+					u32 sta_id,
+					struct iwl_mvm_baid_data *data,
+					u16 ssn, u8 buf_size)
+{
+	int i;
+
+	for (i = 0; i < mvm->trans->num_rx_queues; i++) {
+		struct iwl_mvm_reorder_buffer *reorder_buf =
+			&data->reorder_buf[i];
+		int j;
+
+		reorder_buf->num_stored = 0;
+		reorder_buf->head_sn = ssn;
+		reorder_buf->buf_size = buf_size;
+		reorder_buf->queue = i;
+		reorder_buf->sta_id = sta_id;
+		for (j = 0; j < reorder_buf->buf_size; j++)
+			__skb_queue_head_init(&reorder_buf->entries[j]);
+	}
 }
 
 int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
@@ -1198,7 +1247,10 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		 * Allocate here so if allocation fails we can bail out early
 		 * before starting the BA session in the firmware
 		 */
-		baid_data = kzalloc(sizeof(*baid_data), GFP_KERNEL);
+		baid_data = kzalloc(sizeof(*baid_data) +
+				    mvm->trans->num_rx_queues *
+				    sizeof(baid_data->reorder_buf[0]),
+				    GFP_KERNEL);
 		if (!baid_data)
 			return -ENOMEM;
 	}
@@ -1273,6 +1325,8 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			mod_timer(&baid_data->session_timer,
 				  TU_TO_EXP_TIME(timeout * 2));
 
+		iwl_mvm_init_reorder_buffer(mvm, mvm_sta->sta_id,
+					    baid_data, ssn, buf_size);
 		/*
 		 * protect the BA data with RCU to cover a case where our
 		 * internal RX sync mechanism will timeout (not that it's
@@ -1297,9 +1351,8 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			return -EINVAL;
 
 		/* synchronize all rx queues so we can safely delete */
-		iwl_mvm_sync_rxq_del_ba(mvm);
+		iwl_mvm_free_reorder(mvm, baid_data);
 		del_timer_sync(&baid_data->session_timer);
-
 		RCU_INIT_POINTER(mvm->baid_map[baid], NULL);
 		kfree_rcu(baid_data, rcu_head);
 	}
