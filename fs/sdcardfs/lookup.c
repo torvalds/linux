@@ -238,13 +238,8 @@ static struct dentry *__sdcardfs_lookup(struct dentry *dentry,
 	lower_dir_mnt = lower_parent_path->mnt;
 
 	/* Use vfs_path_lookup to check if the dentry exists or not */
-	if (sbi->options.lower_fs == LOWER_FS_EXT4) {
-		err = vfs_path_lookup(lower_dir_dentry, lower_dir_mnt, name,
-				LOOKUP_CASE_INSENSITIVE, &lower_path);
-	} else if (sbi->options.lower_fs == LOWER_FS_FAT) {
-		err = vfs_path_lookup(lower_dir_dentry, lower_dir_mnt, name, 0,
+	err = vfs_path_lookup(lower_dir_dentry, lower_dir_mnt, name, 0,
 				&lower_path);
-	}
 
 	/* no error: handle positive dentries */
 	if (!err) {
