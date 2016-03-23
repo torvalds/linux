@@ -582,7 +582,12 @@ __nfqnl_enqueue_packet(struct net *net, struct nfqnl_instance *queue,
 	/* nfnetlink_unicast will either free the nskb or add it to a socket */
 	err = nfnetlink_unicast(nskb, net, queue->peer_portid, MSG_DONTWAIT);
 	if (err < 0) {
-		queue->queue_user_dropped++;
+		if (queue->flags & NFQA_CFG_F_FAIL_OPEN) {
+			failopen = 1;
+			err = 0;
+		} else {
+			queue->queue_user_dropped++;
+		}
 		goto err_out_unlock;
 	}
 
