@@ -12756,48 +12756,43 @@ static void intel_pipe_config_sanity_check(struct drm_i915_private *dev_priv,
 	}
 }
 
-static void check_wm_state(struct drm_device *dev)
+static void check_wm_state(struct drm_crtc *crtc,
+			   struct drm_crtc_state *new_state)
 {
+	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct skl_ddb_allocation hw_ddb, *sw_ddb;
-	struct intel_crtc *intel_crtc;
+	struct skl_ddb_entry *hw_entry, *sw_entry;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	const enum pipe pipe = intel_crtc->pipe;
 	int plane;
 
-	if (INTEL_INFO(dev)->gen < 9)
+	if (INTEL_INFO(dev)->gen < 9 || !new_state->active)
 		return;
 
 	skl_ddb_get_hw_state(dev_priv, &hw_ddb);
 	sw_ddb = &dev_priv->wm.skl_hw.ddb;
 
-	for_each_intel_crtc(dev, intel_crtc) {
-		struct skl_ddb_entry *hw_entry, *sw_entry;
-		const enum pipe pipe = intel_crtc->pipe;
-
-		if (!intel_crtc->active)
-			continue;
-
-		/* planes */
-		for_each_plane(dev_priv, pipe, plane) {
-			hw_entry = &hw_ddb.plane[pipe][plane];
-			sw_entry = &sw_ddb->plane[pipe][plane];
-
-			if (skl_ddb_entry_equal(hw_entry, sw_entry))
-				continue;
-
-			DRM_ERROR("mismatch in DDB state pipe %c plane %d "
-				  "(expected (%u,%u), found (%u,%u))\n",
-				  pipe_name(pipe), plane + 1,
-				  sw_entry->start, sw_entry->end,
-				  hw_entry->start, hw_entry->end);
-		}
-
-		/* cursor */
-		hw_entry = &hw_ddb.plane[pipe][PLANE_CURSOR];
-		sw_entry = &sw_ddb->plane[pipe][PLANE_CURSOR];
+	/* planes */
+	for_each_plane(dev_priv, pipe, plane) {
+		hw_entry = &hw_ddb.plane[pipe][plane];
+		sw_entry = &sw_ddb->plane[pipe][plane];
 
 		if (skl_ddb_entry_equal(hw_entry, sw_entry))
 			continue;
 
+		DRM_ERROR("mismatch in DDB state pipe %c plane %d "
+			  "(expected (%u,%u), found (%u,%u))\n",
+			  pipe_name(pipe), plane + 1,
+			  sw_entry->start, sw_entry->end,
+			  hw_entry->start, hw_entry->end);
+	}
+
+	/* cursor */
+	hw_entry = &hw_ddb.plane[pipe][PLANE_CURSOR];
+	sw_entry = &sw_ddb->plane[pipe][PLANE_CURSOR];
+
+	if (!skl_ddb_entry_equal(hw_entry, sw_entry)) {
 		DRM_ERROR("mismatch in DDB state pipe %c cursor "
 			  "(expected (%u,%u), found (%u,%u))\n",
 			  pipe_name(pipe),
@@ -12807,19 +12802,17 @@ static void check_wm_state(struct drm_device *dev)
 }
 
 static void
-check_connector_state(struct drm_device *dev,
-		      struct drm_atomic_state *old_state)
+check_connector_state(struct drm_device *dev, struct drm_crtc *crtc)
 {
-	struct drm_connector_state *old_conn_state;
 	struct drm_connector *connector;
-	int i;
 
-	for_each_connector_in_state(old_state, connector, old_conn_state, i) {
+	drm_for_each_connector(connector, dev) {
 		struct drm_encoder *encoder = connector->encoder;
 		struct drm_connector_state *state = connector->state;
 
-		/* This also checks the encoder/connector hw state with the
-		 * ->get_hw_state callbacks. */
+		if (state->crtc != crtc)
+			continue;
+
 		intel_connector_check_state(to_intel_connector(connector));
 
 		I915_STATE_WARN(state->best_encoder != encoder,
@@ -12868,144 +12861,201 @@ check_encoder_state(struct drm_device *dev)
 }
 
 static void
-check_crtc_state(struct drm_device *dev, struct drm_atomic_state *old_state)
+check_crtc_state(struct drm_crtc *crtc,
+		 struct drm_crtc_state *old_crtc_state,
+		 struct drm_crtc_state *new_crtc_state)
 {
+	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
-	struct drm_crtc_state *old_crtc_state;
-	struct drm_crtc *crtc;
-	int i;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *pipe_config, *sw_config;
+	struct drm_atomic_state *old_state;
+	bool active;
 
-	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-		struct intel_crtc_state *pipe_config, *sw_config;
-		bool active;
+	old_state = old_crtc_state->state;
+	__drm_atomic_helper_crtc_destroy_state(crtc, old_crtc_state);
+	pipe_config = to_intel_crtc_state(old_crtc_state);
+	memset(pipe_config, 0, sizeof(*pipe_config));
+	pipe_config->base.crtc = crtc;
+	pipe_config->base.state = old_state;
 
-		if (!needs_modeset(crtc->state) &&
-		    !to_intel_crtc_state(crtc->state)->update_pipe)
-			continue;
+	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
 
-		__drm_atomic_helper_crtc_destroy_state(crtc, old_crtc_state);
-		pipe_config = to_intel_crtc_state(old_crtc_state);
-		memset(pipe_config, 0, sizeof(*pipe_config));
-		pipe_config->base.crtc = crtc;
-		pipe_config->base.state = old_state;
+	active = dev_priv->display.get_pipe_config(intel_crtc, pipe_config);
 
-		DRM_DEBUG_KMS("[CRTC:%d]\n",
-			      crtc->base.id);
+	/* hw state is inconsistent with the pipe quirk */
+	if ((intel_crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
+	    (intel_crtc->pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
+		active = new_crtc_state->active;
 
-		active = dev_priv->display.get_pipe_config(intel_crtc,
-							   pipe_config);
+	I915_STATE_WARN(new_crtc_state->active != active,
+	     "crtc active state doesn't match with hw state "
+	     "(expected %i, found %i)\n", new_crtc_state->active, active);
 
-		/* hw state is inconsistent with the pipe quirk */
-		if ((intel_crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
-		    (intel_crtc->pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
-			active = crtc->state->active;
+	I915_STATE_WARN(intel_crtc->active != new_crtc_state->active,
+	     "transitional active state does not match atomic hw state "
+	     "(expected %i, found %i)\n", new_crtc_state->active, intel_crtc->active);
 
-		I915_STATE_WARN(crtc->state->active != active,
-		     "crtc active state doesn't match with hw state "
-		     "(expected %i, found %i)\n", crtc->state->active, active);
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
+		enum pipe pipe;
 
-		I915_STATE_WARN(intel_crtc->active != crtc->state->active,
-		     "transitional active state does not match atomic hw state "
-		     "(expected %i, found %i)\n", crtc->state->active, intel_crtc->active);
+		active = encoder->get_hw_state(encoder, &pipe);
+		I915_STATE_WARN(active != new_crtc_state->active,
+			"[ENCODER:%i] active %i with crtc active %i\n",
+			encoder->base.base.id, active, new_crtc_state->active);
 
-		for_each_encoder_on_crtc(dev, crtc, encoder) {
-			enum pipe pipe;
+		I915_STATE_WARN(active && intel_crtc->pipe != pipe,
+				"Encoder connected to wrong pipe %c\n",
+				pipe_name(pipe));
 
-			active = encoder->get_hw_state(encoder, &pipe);
-			I915_STATE_WARN(active != crtc->state->active,
-				"[ENCODER:%i] active %i with crtc active %i\n",
-				encoder->base.base.id, active, crtc->state->active);
+		if (active)
+			encoder->get_config(encoder, pipe_config);
+	}
 
-			I915_STATE_WARN(active && intel_crtc->pipe != pipe,
-					"Encoder connected to wrong pipe %c\n",
-					pipe_name(pipe));
+	if (!new_crtc_state->active)
+		return;
 
-			if (active)
-				encoder->get_config(encoder, pipe_config);
-		}
+	intel_pipe_config_sanity_check(dev_priv, pipe_config);
 
-		if (!crtc->state->active)
-			continue;
-
-		intel_pipe_config_sanity_check(dev_priv, pipe_config);
-
-		sw_config = to_intel_crtc_state(crtc->state);
-		if (!intel_pipe_config_compare(dev, sw_config,
-					       pipe_config, false)) {
-			I915_STATE_WARN(1, "pipe state doesn't match!\n");
-			intel_dump_pipe_config(intel_crtc, pipe_config,
-					       "[hw state]");
-			intel_dump_pipe_config(intel_crtc, sw_config,
-					       "[sw state]");
-		}
+	sw_config = to_intel_crtc_state(crtc->state);
+	if (!intel_pipe_config_compare(dev, sw_config,
+				       pipe_config, false)) {
+		I915_STATE_WARN(1, "pipe state doesn't match!\n");
+		intel_dump_pipe_config(intel_crtc, pipe_config,
+				       "[hw state]");
+		intel_dump_pipe_config(intel_crtc, sw_config,
+				       "[sw state]");
 	}
 }
 
 static void
-check_shared_dpll_state(struct drm_device *dev)
+check_single_dpll_state(struct drm_i915_private *dev_priv,
+			struct intel_shared_dpll *pll,
+			struct drm_crtc *crtc,
+			struct drm_crtc_state *new_state)
+{
+	struct intel_dpll_hw_state dpll_hw_state;
+	unsigned crtc_mask;
+	bool active;
+
+	memset(&dpll_hw_state, 0, sizeof(dpll_hw_state));
+
+	DRM_DEBUG_KMS("%s\n", pll->name);
+
+	active = pll->funcs.get_hw_state(dev_priv, pll, &dpll_hw_state);
+
+	if (!(pll->flags & INTEL_DPLL_ALWAYS_ON)) {
+		I915_STATE_WARN(!pll->on && pll->active_mask,
+		     "pll in active use but not on in sw tracking\n");
+		I915_STATE_WARN(pll->on && !pll->active_mask,
+		     "pll is on but not used by any active crtc\n");
+		I915_STATE_WARN(pll->on != active,
+		     "pll on state mismatch (expected %i, found %i)\n",
+		     pll->on, active);
+	}
+
+	if (!crtc) {
+		I915_STATE_WARN(pll->active_mask & ~pll->config.crtc_mask,
+				"more active pll users than references: %x vs %x\n",
+				pll->active_mask, pll->config.crtc_mask);
+
+		return;
+	}
+
+	crtc_mask = 1 << drm_crtc_index(crtc);
+
+	if (new_state->active)
+		I915_STATE_WARN(!(pll->active_mask & crtc_mask),
+				"pll active mismatch (expected pipe %c in active mask 0x%02x)\n",
+				pipe_name(drm_crtc_index(crtc)), pll->active_mask);
+	else
+		I915_STATE_WARN(pll->active_mask & crtc_mask,
+				"pll active mismatch (didn't expect pipe %c in active mask 0x%02x)\n",
+				pipe_name(drm_crtc_index(crtc)), pll->active_mask);
+
+	I915_STATE_WARN(!(pll->config.crtc_mask & crtc_mask),
+			"pll enabled crtcs mismatch (expected 0x%x in 0x%02x)\n",
+			crtc_mask, pll->config.crtc_mask);
+
+	I915_STATE_WARN(pll->on && memcmp(&pll->config.hw_state,
+					  &dpll_hw_state,
+					  sizeof(dpll_hw_state)),
+			"pll hw state mismatch\n");
+}
+
+static void
+check_shared_dpll_state(struct drm_device *dev, struct drm_crtc *crtc,
+			struct drm_crtc_state *old_crtc_state,
+			struct drm_crtc_state *new_crtc_state)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *crtc;
-	struct intel_dpll_hw_state dpll_hw_state;
+	struct intel_crtc_state *old_state = to_intel_crtc_state(old_crtc_state);
+	struct intel_crtc_state *new_state = to_intel_crtc_state(new_crtc_state);
+
+	if (new_state->shared_dpll)
+		check_single_dpll_state(dev_priv, new_state->shared_dpll, crtc, new_crtc_state);
+
+	if (old_state->shared_dpll &&
+	    old_state->shared_dpll != new_state->shared_dpll) {
+		unsigned crtc_mask = 1 << drm_crtc_index(crtc);
+		struct intel_shared_dpll *pll = old_state->shared_dpll;
+
+		I915_STATE_WARN(pll->active_mask & crtc_mask,
+				"pll active mismatch (didn't expect pipe %c in active mask)\n",
+				pipe_name(drm_crtc_index(crtc)));
+		I915_STATE_WARN(pll->config.crtc_mask & crtc_mask,
+				"pll enabled crtcs mismatch (found %x in enabled mask)\n",
+				pipe_name(drm_crtc_index(crtc)));
+	}
+}
+
+static void
+intel_modeset_check_crtc(struct drm_crtc *crtc,
+			 struct drm_crtc_state *old_state,
+			 struct drm_crtc_state *new_state)
+{
+	if (!needs_modeset(new_state) &&
+	    !to_intel_crtc_state(new_state)->update_pipe)
+		return;
+
+	check_wm_state(crtc, new_state);
+	check_connector_state(crtc->dev, crtc);
+	check_crtc_state(crtc, old_state, new_state);
+	check_shared_dpll_state(crtc->dev, crtc, old_state, new_state);
+}
+
+static void
+check_disabled_dpll_state(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		struct intel_shared_dpll *pll =
-			intel_get_shared_dpll_by_id(dev_priv, i);
-		unsigned enabled_crtcs = 0, active_crtcs = 0;
-		bool active;
+	for (i = 0; i < dev_priv->num_shared_dpll; i++)
+		check_single_dpll_state(dev_priv, &dev_priv->shared_dplls[i], NULL, NULL);
+}
 
-		memset(&dpll_hw_state, 0, sizeof(dpll_hw_state));
-
-		DRM_DEBUG_KMS("%s\n", pll->name);
-
-		active = pll->funcs.get_hw_state(dev_priv, pll, &dpll_hw_state);
-
-		I915_STATE_WARN(pll->active_mask & ~pll->config.crtc_mask,
-		     "more active pll users than references: %x vs %x\n",
-		     pll->active_mask, pll->config.crtc_mask);
-
-		if (!(pll->flags & INTEL_DPLL_ALWAYS_ON)) {
-			I915_STATE_WARN(!pll->on && pll->active_mask,
-			     "pll in active use but not on in sw tracking\n");
-			I915_STATE_WARN(pll->on && !pll->active_mask,
-			     "pll is on but not used by any active crtc\n");
-			I915_STATE_WARN(pll->on != active,
-			     "pll on state mismatch (expected %i, found %i)\n",
-			     pll->on, active);
-		}
-
-		for_each_intel_crtc(dev, crtc) {
-			if (crtc->base.state->enable && crtc->config->shared_dpll == pll)
-				enabled_crtcs |= 1 << drm_crtc_index(&crtc->base);
-			if (crtc->base.state->active && crtc->config->shared_dpll == pll)
-				active_crtcs |= 1 << drm_crtc_index(&crtc->base);
-		}
-
-		I915_STATE_WARN(pll->active_mask != active_crtcs,
-		     "pll active crtcs mismatch (expected %x, found %x)\n",
-		     pll->active_mask, active_crtcs);
-		I915_STATE_WARN(pll->config.crtc_mask != enabled_crtcs,
-		     "pll enabled crtcs mismatch (expected %x, found %x)\n",
-		     pll->config.crtc_mask, enabled_crtcs);
-
-		I915_STATE_WARN(pll->on && memcmp(&pll->config.hw_state, &dpll_hw_state,
-				       sizeof(dpll_hw_state)),
-		     "pll hw state mismatch\n");
-	}
+static void
+intel_modeset_check_disabled(struct drm_device *dev,
+			     struct drm_atomic_state *old_state)
+{
+	check_encoder_state(dev);
+	check_connector_state(dev, NULL);
+	check_disabled_dpll_state(dev);
 }
 
 static void
 intel_modeset_check_state(struct drm_device *dev,
 			  struct drm_atomic_state *old_state)
 {
-	check_wm_state(dev);
-	check_connector_state(dev, old_state);
-	check_encoder_state(dev);
-	check_crtc_state(dev, old_state);
-	check_shared_dpll_state(dev);
+	struct drm_crtc_state *old_crtc_state;
+	struct drm_crtc *crtc;
+	int i;
+
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i)
+		intel_modeset_check_crtc(crtc, old_crtc_state, crtc->state);
+
+	intel_modeset_check_disabled(dev, old_state);
 }
 
 static void update_scanline_offset(struct intel_crtc *crtc)
