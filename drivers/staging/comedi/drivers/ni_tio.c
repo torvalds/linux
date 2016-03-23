@@ -111,19 +111,6 @@
 #define NI_660X_LOGIC_LOW_GATE2_SEL	0x1f
 #define NI_660X_MAX_UP_DOWN_PIN		7
 
-static inline unsigned int GI_ALT_SYNC(enum ni_gpct_variant variant)
-{
-	switch (variant) {
-	case ni_gpct_variant_e_series:
-	default:
-		return 0;
-	case ni_gpct_variant_m_series:
-		return GI_M_ALT_SYNC;
-	case ni_gpct_variant_660x:
-		return GI_660X_ALT_SYNC;
-	}
-}
-
 static inline unsigned int GI_PRESCALE_X2(enum ni_gpct_variant variant)
 {
 	switch (variant) {
@@ -465,48 +452,56 @@ ni_tio_generic_clock_src_select(const struct ni_gpct *counter)
 	}
 }
 
-static void ni_tio_set_sync_mode(struct ni_gpct *counter, int force_alt_sync)
+static void ni_tio_set_sync_mode(struct ni_gpct *counter)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned int cidx = counter->counter_index;
-	unsigned int counting_mode_reg = NITIO_CNT_MODE_REG(cidx);
 	static const u64 min_normal_sync_period_ps = 25000;
+	unsigned int mask = 0;
+	unsigned int bits = 0;
+	unsigned int reg;
 	unsigned int mode;
-	u64 clock_period_ps;
+	u64 ps;
+	bool force_alt_sync;
 
-	if (!ni_tio_counting_mode_registers_present(counter_dev))
+	/* only m series and 660x variants have counting mode registers */
+	switch (counter_dev->variant) {
+	case ni_gpct_variant_e_series:
+	default:
 		return;
+	case ni_gpct_variant_m_series:
+		mask = GI_M_ALT_SYNC;
+		break;
+	case ni_gpct_variant_660x:
+		mask = GI_660X_ALT_SYNC;
+		break;
+	}
 
-	mode = ni_tio_get_soft_copy(counter, counting_mode_reg);
+	reg = NITIO_CNT_MODE_REG(cidx);
+	mode = ni_tio_get_soft_copy(counter, reg);
 	switch (mode & GI_CNT_MODE_MASK) {
 	case GI_CNT_MODE_QUADX1:
 	case GI_CNT_MODE_QUADX2:
 	case GI_CNT_MODE_QUADX4:
 	case GI_CNT_MODE_SYNC_SRC:
-		force_alt_sync = 1;
+		force_alt_sync = true;
 		break;
 	default:
+		force_alt_sync = false;
 		break;
 	}
 
-	clock_period_ps = ni_tio_clock_period_ps(counter,
-				ni_tio_generic_clock_src_select(counter));
+	ps = ni_tio_clock_period_ps(counter,
+				    ni_tio_generic_clock_src_select(counter));
 
 	/*
 	 * It's not clear what we should do if clock_period is unknown, so we
-	 * are not using the alt sync bit in that case, but allow the caller
-	 * to decide by using the force_alt_sync parameter.
+	 * are not using the alt sync bit in that case.
 	 */
-	if (force_alt_sync ||
-	    (clock_period_ps && clock_period_ps < min_normal_sync_period_ps)) {
-		ni_tio_set_bits(counter, counting_mode_reg,
-				GI_ALT_SYNC(counter_dev->variant),
-				GI_ALT_SYNC(counter_dev->variant));
-	} else {
-		ni_tio_set_bits(counter, counting_mode_reg,
-				GI_ALT_SYNC(counter_dev->variant),
-				0x0);
-	}
+	if (force_alt_sync || (ps && ps < min_normal_sync_period_ps))
+		bits = mask;
+
+	ni_tio_set_bits(counter, reg, mask, bits);
 }
 
 static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned int mode)
@@ -552,7 +547,7 @@ static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned int mode)
 		ni_tio_set_bits(counter, NITIO_CNT_MODE_REG(cidx),
 				GI_CNT_MODE_MASK | GI_INDEX_PHASE_MASK |
 				GI_INDEX_MODE, bits);
-		ni_tio_set_sync_mode(counter, 0);
+		ni_tio_set_sync_mode(counter);
 	}
 
 	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx), GI_CNT_DIR_MASK,
@@ -807,7 +802,7 @@ static int ni_tio_set_clock_src(struct ni_gpct *counter,
 				GI_PRESCALE_X8(counter_dev->variant), bits);
 	}
 	counter->clock_period_ps = period_ns * 1000;
-	ni_tio_set_sync_mode(counter, 0);
+	ni_tio_set_sync_mode(counter);
 	return 0;
 }
 
