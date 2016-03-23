@@ -32,8 +32,6 @@ static inline int klp_check_compiler_support(void)
 #endif
 	return 0;
 }
-int klp_write_module_reloc(struct module *mod, unsigned long type,
-			   unsigned long loc, unsigned long value);
 
 static inline void klp_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 {
