@@ -228,6 +228,43 @@ static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter,
 	return clock_period_ps;
 }
 
+static void ni_tio_set_bits_transient(struct ni_gpct *counter,
+				      enum ni_gpct_register reg,
+				      unsigned int mask, unsigned int value,
+				      unsigned int transient)
+{
+	struct ni_gpct_device *counter_dev = counter->counter_dev;
+	unsigned long flags;
+
+	if (reg < NITIO_NUM_REGS) {
+		spin_lock_irqsave(&counter_dev->regs_lock, flags);
+		counter_dev->regs[reg] &= ~mask;
+		counter_dev->regs[reg] |= (value & mask);
+		write_register(counter, counter_dev->regs[reg] | transient,
+			       reg);
+		mmiowb();
+		spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
+	}
+}
+
+/**
+ * ni_tio_set_bits() - Safely write a counter register.
+ * @counter: struct ni_gpct counter.
+ * @reg: the register to write.
+ * @mask: the bits to change.
+ * @value: the new bits value.
+ *
+ * Used to write to, and update the software copy, a register whose bits may
+ * be twiddled in interrupt context, or whose software copy may be read in
+ * interrupt context.
+ */
+void ni_tio_set_bits(struct ni_gpct *counter, enum ni_gpct_register reg,
+		     unsigned int mask, unsigned int value)
+{
+	ni_tio_set_bits_transient(counter, reg, mask, value, 0x0);
+}
+EXPORT_SYMBOL_GPL(ni_tio_set_bits);
+
 /**
  * ni_tio_get_soft_copy() - Safely read the software copy of a counter register.
  * @counter: struct ni_gpct counter.

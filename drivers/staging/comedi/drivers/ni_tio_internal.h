@@ -191,39 +191,8 @@ static inline int ni_tio_counting_mode_registers_present(const struct
 	return 0;
 }
 
-static inline void ni_tio_set_bits_transient(struct ni_gpct *counter,
-					     enum ni_gpct_register
-					     register_index, unsigned bit_mask,
-					     unsigned bit_values,
-					     unsigned transient_bit_values)
-{
-	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	unsigned long flags;
-
-	BUG_ON(register_index >= NITIO_NUM_REGS);
-	spin_lock_irqsave(&counter_dev->regs_lock, flags);
-	counter_dev->regs[register_index] &= ~bit_mask;
-	counter_dev->regs[register_index] |= (bit_values & bit_mask);
-	write_register(counter,
-		       counter_dev->regs[register_index] | transient_bit_values,
-		       register_index);
-	mmiowb();
-	spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
-}
-
-/*
- * ni_tio_set_bits( ) is for safely writing to registers whose bits may be
- * twiddled in interrupt context, or whose software copy may be read in
- * interrupt context.
- */
-static inline void ni_tio_set_bits(struct ni_gpct *counter,
-				   enum ni_gpct_register register_index,
-				   unsigned bit_mask, unsigned bit_values)
-{
-	ni_tio_set_bits_transient(counter, register_index, bit_mask, bit_values,
-				  0x0);
-}
-
+void ni_tio_set_bits(struct ni_gpct *, enum ni_gpct_register reg,
+		     unsigned int mask, unsigned int value);
 unsigned int ni_tio_get_soft_copy(const struct ni_gpct *,
 				  enum ni_gpct_register reg);
 
