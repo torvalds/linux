@@ -14,7 +14,6 @@
 
 #include <scsi/scsi_host.h>
 
-/*#define PSEUDO_DMA*/
 #define DONT_USE_INTR
 
 #define priv(host)			((struct NCR5380_hostdata *)(host)->hostdata)
@@ -24,7 +23,7 @@
 #define NCR5380_write(reg, value) \
 	writeb(value, priv(instance)->base + ((reg) << 2))
 
-#define NCR5380_dma_xfer_len(instance, cmd, phase)	(cmd->transfersize)
+#define NCR5380_dma_xfer_len(instance, cmd, phase)	(0)
 
 #define NCR5380_queue_command		oakscsi_queue_command
 #define NCR5380_info			oakscsi_info

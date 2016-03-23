@@ -1,5 +1,3 @@
-#define PSEUDO_DMA
-
 /*
  * Trantor T128/T128F/T228 driver
  *	Note : architecturally, the T100 and T130 are different and won't 
@@ -394,8 +392,6 @@ static struct scsi_host_template driver_template = {
 	.detect			= t128_detect,
 	.release		= t128_release,
 	.proc_name		= "t128",
-	.show_info		= t128_show_info,
-	.write_info		= t128_write_info,
 	.info			= t128_info,
 	.queuecommand		= t128_queue_command,
 	.eh_abort_handler	= t128_abort,

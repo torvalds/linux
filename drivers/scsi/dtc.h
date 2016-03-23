@@ -27,8 +27,6 @@
 #define NCR5380_abort			dtc_abort
 #define NCR5380_bus_reset		dtc_bus_reset
 #define NCR5380_info			dtc_info
-#define NCR5380_show_info		dtc_show_info 
-#define NCR5380_write_info		dtc_write_info 
 
 /* 15 12 11 10
    1001 1100 0000 0000 */

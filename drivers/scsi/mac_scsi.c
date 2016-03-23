@@ -28,8 +28,6 @@
 
 /* Definitions for the core NCR5380 driver. */
 
-#define PSEUDO_DMA
-
 #define NCR5380_implementation_fields   unsigned char *pdma_base
 
 #define NCR5380_read(reg)               macscsi_read(instance, reg)
@@ -46,8 +44,6 @@
 #define NCR5380_abort                   macscsi_abort
 #define NCR5380_bus_reset               macscsi_bus_reset
 #define NCR5380_info                    macscsi_info
-#define NCR5380_show_info               macscsi_show_info
-#define NCR5380_write_info              macscsi_write_info
 
 #include "NCR5380.h"
 
@@ -111,7 +107,6 @@ static int __init mac_scsi_setup(char *str)
 __setup("mac5380=", mac_scsi_setup);
 #endif /* !MODULE */
 
-#ifdef PSEUDO_DMA
 /* 
    Pseudo-DMA: (Ove Edlund)
    The code attempts to catch bus errors that occur if one for example
@@ -303,7 +298,6 @@ static int macscsi_pwrite(struct Scsi_Host *instance,
 
 	return 0;
 }
-#endif
 
 static int macscsi_dma_xfer_len(struct Scsi_Host *instance,
                                 struct scsi_cmnd *cmd)
@@ -324,8 +318,6 @@ static int macscsi_dma_xfer_len(struct Scsi_Host *instance,
 static struct scsi_host_template mac_scsi_template = {
 	.module			= THIS_MODULE,
 	.proc_name		= DRV_MODULE_NAME,
-	.show_info		= macscsi_show_info,
-	.write_info		= macscsi_write_info,
 	.name			= "Macintosh NCR5380 SCSI",
 	.info			= macscsi_info,
 	.queuecommand		= macscsi_queue_command,
@@ -351,9 +343,7 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 	if (!pio_mem)
 		return -ENODEV;
 
-#ifdef PSEUDO_DMA
 	pdma_mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-#endif
 
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 

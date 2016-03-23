@@ -1,4 +1,3 @@
-#define PSEUDO_DMA
 #define DONT_USE_INTR
 
 /*
@@ -352,8 +351,6 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 	while (!(NCR5380_read(DTC_CONTROL_REG) & D_CR_ACCESS))
 		++i;
 	rtrc(0);
-	if (i > hostdata->spin_max_r)
-		hostdata->spin_max_r = i;
 	return (0);
 }
 
@@ -400,8 +397,6 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
 	rtrc(7);
 	/* Check for parity error here. fixme. */
 	rtrc(0);
-	if (i > hostdata->spin_max_w)
-		hostdata->spin_max_w = i;
 	return (0);
 }
 
@@ -440,8 +435,6 @@ static struct scsi_host_template driver_template = {
 	.detect			= dtc_detect,
 	.release		= dtc_release,
 	.proc_name		= "dtc3x80",
-	.show_info		= dtc_show_info,
-	.write_info		= dtc_write_info,
 	.info			= dtc_info,
 	.queuecommand		= dtc_queue_command,
 	.eh_abort_handler	= dtc_abort,

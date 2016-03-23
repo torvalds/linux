@@ -57,7 +57,6 @@
  */
 
 #define AUTOPROBE_IRQ
-#define PSEUDO_DMA
 
 #include <asm/io.h>
 #include <linux/blkdev.h>

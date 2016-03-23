@@ -257,10 +257,6 @@ struct NCR5380_hostdata {
 #ifdef SUPPORT_TAGS
 	struct tag_alloc TagAlloc[8][8];	/* 8 targets and 8 LUNs */
 #endif
-#ifdef PSEUDO_DMA
-	unsigned spin_max_r;
-	unsigned spin_max_w;
-#endif
 	struct workqueue_struct *work_q;
 	unsigned long accesses_per_ms;	/* chip register accesses per ms */
 };

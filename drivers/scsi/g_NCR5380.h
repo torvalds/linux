@@ -70,7 +70,6 @@
 #define NCR5380_pread generic_NCR5380_pread
 #define NCR5380_pwrite generic_NCR5380_pwrite
 #define NCR5380_info generic_NCR5380_info
-#define NCR5380_show_info generic_NCR5380_show_info
 
 #define BOARD_NCR5380	0
 #define BOARD_NCR53C400	1

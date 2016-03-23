@@ -469,33 +469,8 @@ static void prepare_info(struct Scsi_Host *instance)
 #ifdef PARITY
 	         "PARITY "
 #endif
-#ifdef PSEUDO_DMA
-	         "PSEUDO_DMA "
-#endif
 	         "");
 }
-
-#ifdef PSEUDO_DMA
-static int __maybe_unused NCR5380_write_info(struct Scsi_Host *instance,
-	char *buffer, int length)
-{
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-
-	hostdata->spin_max_r = 0;
-	hostdata->spin_max_w = 0;
-	return 0;
-}
-
-static int __maybe_unused NCR5380_show_info(struct seq_file *m,
-                                            struct Scsi_Host *instance)
-{
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-
-	seq_printf(m, "Highwater I/O busy spin counts: write %d, read %d\n",
-	        hostdata->spin_max_w, hostdata->spin_max_r);
-	return 0;
-}
-#endif
 
 /**
  * NCR5380_init - initialise an NCR5380
@@ -1436,7 +1411,6 @@ timeout:
 	return -1;
 }
 
-#if defined(PSEUDO_DMA)
 /*
  * Function : int NCR5380_transfer_dma (struct Scsi_Host *instance,
  * unsigned char *phase, int *count, unsigned char **data)
@@ -1592,7 +1566,6 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 	*phase = NCR5380_read(STATUS_REG) & PHASE_MASK;
 	return foo;
 }
-#endif /* PSEUDO_DMA */
 
 /*
  * Function : NCR5380_information_transfer (struct Scsi_Host *instance)
@@ -1683,7 +1656,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				 * in an unconditional loop.
 				 */
 
-#if defined(PSEUDO_DMA)
 				transfersize = 0;
 				if (!cmd->device->borken)
 					transfersize = NCR5380_dma_xfer_len(instance, cmd, phase);
@@ -1706,9 +1678,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						/* XXX - need to source or sink data here, as appropriate */
 					} else
 						cmd->SCp.this_residual -= transfersize - len;
-				} else
-#endif /* PSEUDO_DMA */
-				{
+				} else {
 					/* Break up transfer into 3 ms chunks,
 					 * presuming 6 accesses per handshake.
 					 */

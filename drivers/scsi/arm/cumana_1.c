@@ -13,8 +13,6 @@
 
 #include <scsi/scsi_host.h>
 
-#define PSEUDO_DMA
-
 #define priv(host)			((struct NCR5380_hostdata *)(host)->hostdata)
 #define NCR5380_read(reg)		cumanascsi_read(instance, reg)
 #define NCR5380_write(reg, value)	cumanascsi_write(instance, reg, value)

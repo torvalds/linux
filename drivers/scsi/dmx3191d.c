@@ -39,6 +39,10 @@
 #define NCR5380_read(reg)		inb(instance->io_port + reg)
 #define NCR5380_write(reg, value)	outb(value, instance->io_port + reg)
 
+#define NCR5380_dma_xfer_len(instance, cmd, phase)	(0)
+#define NCR5380_pread(instance, dst, len)		(0)
+#define NCR5380_pwrite(instance, src, len)		(0)
+
 #define NCR5380_implementation_fields	/* none */
 
 #include "NCR5380.h"

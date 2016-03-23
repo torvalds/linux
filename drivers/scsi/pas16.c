@@ -1,5 +1,3 @@
-#define PSEUDO_DMA
-
 /*
  * This driver adapted from Drew Eckhardt's Trantor T128 driver
  *
@@ -479,7 +477,6 @@ static inline int NCR5380_pread (struct Scsi_Host *instance, unsigned char *dst,
 	P_DATA_REG_OFFSET);
     register int i = len;
     int ii = 0;
-    struct NCR5380_hostdata *hostdata = shost_priv(instance);
 
     while ( !(inb(instance->io_port + P_STATUS_REG_OFFSET) & P_ST_RDY) )
 	 ++ii;
@@ -492,8 +489,6 @@ static inline int NCR5380_pread (struct Scsi_Host *instance, unsigned char *dst,
 	    instance->host_no);
 	return -1;
     }
-    if (ii > hostdata->spin_max_r)
-        hostdata->spin_max_r = ii;
     return 0;
 }
 
@@ -516,7 +511,6 @@ static inline int NCR5380_pwrite (struct Scsi_Host *instance, unsigned char *src
     register unsigned short reg = (instance->io_port + P_DATA_REG_OFFSET);
     register int i = len;
     int ii = 0;
-    struct NCR5380_hostdata *hostdata = shost_priv(instance);
 
     while ( !((inb(instance->io_port + P_STATUS_REG_OFFSET)) & P_ST_RDY) )
 	 ++ii;
@@ -529,8 +523,6 @@ static inline int NCR5380_pwrite (struct Scsi_Host *instance, unsigned char *src
 	    instance->host_no);
 	return -1;
     }
-    if (ii > hostdata->spin_max_w)
-        hostdata->spin_max_w = ii;
     return 0;
 }
 
@@ -550,8 +542,6 @@ static struct scsi_host_template driver_template = {
 	.detect			= pas16_detect,
 	.release		= pas16_release,
 	.proc_name		= "pas16",
-	.show_info		= pas16_show_info,
-	.write_info		= pas16_write_info,
 	.info			= pas16_info,
 	.queuecommand		= pas16_queue_command,
 	.eh_abort_handler	= pas16_abort,
