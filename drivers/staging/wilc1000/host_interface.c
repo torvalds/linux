@@ -232,7 +232,7 @@ static u8 P2P_LISTEN_STATE;
 static struct task_struct *hif_thread_handler;
 static struct message_queue hif_msg_q;
 static struct completion hif_thread_comp;
-static struct semaphore hif_sema_driver;
+static struct completion hif_driver_comp;
 static struct completion hif_wait_response;
 static struct mutex hif_deinit_lock;
 static struct timer_list periodic_rssi;
@@ -321,7 +321,7 @@ static s32 handle_set_wfi_drv_handler(struct wilc_vif *vif,
 				      hif_drv_handler->handler);
 
 	if (!hif_drv_handler->handler)
-		up(&hif_sema_driver);
+		complete(&hif_driver_comp);
 
 	if (result) {
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
@@ -346,7 +346,7 @@ static s32 handle_set_operation_mode(struct wilc_vif *vif,
 				      wilc_get_vif_idx(vif));
 
 	if ((hif_op_mode->mode) == IDLE_MODE)
-		up(&hif_sema_driver);
+		complete(&hif_driver_comp);
 
 	if (result) {
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
@@ -3401,7 +3401,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	if (clients_count == 0)	{
 		init_completion(&hif_thread_comp);
-		sema_init(&hif_sema_driver, 0);
+		init_completion(&hif_driver_comp);
 		mutex_init(&hif_deinit_lock);
 	}
 
@@ -3480,7 +3480,7 @@ int wilc_deinit(struct wilc_vif *vif)
 	del_timer_sync(&hif_drv->remain_on_ch_timer);
 
 	wilc_set_wfi_drv_handler(vif, 0, 0);
-	down(&hif_sema_driver);
+	wait_for_completion(&hif_driver_comp);
 
 	if (hif_drv->usr_scan_req.scan_result) {
 		hif_drv->usr_scan_req.scan_result(SCAN_EVENT_ABORTED, NULL,
