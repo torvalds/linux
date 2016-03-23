@@ -4871,6 +4871,30 @@ static int polaris10_print_clock_levels(struct pp_hwmgr *hwmgr,
 	return size;
 }
 
+static int polaris10_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
+{
+	if (mode) {
+		/* stop auto-manage */
+		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_MicrocodeFanControl))
+			polaris10_fan_ctrl_stop_smc_fan_control(hwmgr);
+		polaris10_fan_ctrl_set_static_mode(hwmgr, mode);
+	} else
+		/* restart auto-manage */
+		polaris10_fan_ctrl_reset_fan_speed_to_default(hwmgr);
+
+	return 0;
+}
+
+static int polaris10_get_fan_control_mode(struct pp_hwmgr *hwmgr)
+{
+	if (hwmgr->fan_ctrl_is_in_default_mode)
+		return hwmgr->fan_ctrl_default_mode;
+	else
+		return PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+				CG_FDO_CTRL2, FDO_PWM_MODE);
+}
+
 static const struct pp_hwmgr_func polaris10_hwmgr_funcs = {
 	.backend_init = &polaris10_hwmgr_backend_init,
 	.backend_fini = &polaris10_hwmgr_backend_fini,
@@ -4907,6 +4931,8 @@ static const struct pp_hwmgr_func polaris10_hwmgr_funcs = {
 	.register_internal_thermal_interrupt = polaris10_register_internal_thermal_interrupt,
 	.check_smc_update_required_for_display_configuration = polaris10_check_smc_update_required_for_display_configuration,
 	.check_states_equal = polaris10_check_states_equal,
+	.set_fan_control_mode = polaris10_set_fan_control_mode,
+	.get_fan_control_mode = polaris10_get_fan_control_mode,
 	.get_pp_table = polaris10_get_pp_table,
 	.set_pp_table = polaris10_set_pp_table,
 	.force_clock_level = polaris10_force_clock_level,
