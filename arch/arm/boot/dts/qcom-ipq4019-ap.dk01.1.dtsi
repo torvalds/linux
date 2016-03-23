@@ -48,6 +48,43 @@
 					bias-disable;
 				};
 			};
+
+			spi_0_pins: spi_0_pinmux {
+				pinmux {
+					function = "blsp_spi0";
+					pins = "gpio55", "gpio56", "gpio57";
+				};
+				pinmux_cs {
+					function = "gpio";
+					pins = "gpio54";
+				};
+				pinconf {
+					pins = "gpio55", "gpio56", "gpio57";
+					drive-strength = <12>;
+					bias-disable;
+				};
+				pinconf_cs {
+					pins = "gpio54";
+					drive-strength = <2>;
+					bias-disable;
+					output-high;
+				};
+			};
+		};
+
+		spi_0: spi@78b5000 {
+			pinctrl-0 = <&spi_0_pins>;
+			pinctrl-names = "default";
+			status = "ok";
+			cs-gpios = <&tlmm 54 0>;
+
+			mx25l25635e@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0>;
+				compatible = "mx25l25635e";
+				spi-max-frequency = <24000000>;
+			};
 		};
 
 		serial@78af000 {
