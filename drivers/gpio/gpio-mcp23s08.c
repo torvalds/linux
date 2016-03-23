@@ -362,7 +362,8 @@ static irqreturn_t mcp23s08_irq(int irq, void *data)
 	for (i = 0; i < mcp->chip.ngpio; i++) {
 		if ((BIT(i) & mcp->cache[MCP_INTF]) &&
 		    ((BIT(i) & intcap & mcp->irq_rise) ||
-		     (mcp->irq_fall & ~intcap & BIT(i)))) {
+		     (mcp->irq_fall & ~intcap & BIT(i)) ||
+		     (BIT(i) & mcp->cache[MCP_INTCON]))) {
 			child_irq = irq_find_mapping(mcp->chip.irqdomain, i);
 			handle_nested_irq(child_irq);
 		}
@@ -408,6 +409,12 @@ static int mcp23s08_irq_set_type(struct irq_data *data, unsigned int type)
 		mcp->cache[MCP_INTCON] &= ~BIT(pos);
 		mcp->irq_rise &= ~BIT(pos);
 		mcp->irq_fall |= BIT(pos);
+	} else if (type & IRQ_TYPE_LEVEL_HIGH) {
+		mcp->cache[MCP_INTCON] |= BIT(pos);
+		mcp->cache[MCP_DEFVAL] &= ~BIT(pos);
+	} else if (type & IRQ_TYPE_LEVEL_LOW) {
+		mcp->cache[MCP_INTCON] |= BIT(pos);
+		mcp->cache[MCP_DEFVAL] |= BIT(pos);
 	} else
 		return -EINVAL;
 
