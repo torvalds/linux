@@ -54,10 +54,8 @@
 #define NCR5380_abort                   sun3scsi_abort
 #define NCR5380_info                    sun3scsi_info
 
-#define NCR5380_dma_read_setup(instance, data, count) \
-        sun3scsi_dma_setup(instance, data, count, 0)
-#define NCR5380_dma_write_setup(instance, data, count) \
-        sun3scsi_dma_setup(instance, data, count, 1)
+#define NCR5380_dma_recv_setup(instance, data, count) (count)
+#define NCR5380_dma_send_setup(instance, data, count) (count)
 #define NCR5380_dma_residual(instance) \
         sun3scsi_dma_residual(instance)
 #define NCR5380_dma_xfer_len(instance, cmd, phase) \
@@ -406,7 +404,7 @@ static int sun3scsi_dma_finish(int write_flag)
 
 }
 	
-#include "atari_NCR5380.c"
+#include "NCR5380.c"
 
 #ifdef SUN3_SCSI_VME
 #define SUN3_SCSI_NAME          "Sun3 NCR5380 VME SCSI"
