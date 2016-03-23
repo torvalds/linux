@@ -188,7 +188,7 @@ static struct configfs_bin_attribute _pfx##attr_##_name = {	\
 }
 
 #define CONFIGFS_BIN_ATTR_RO(_pfx, _name, _priv, _maxsz)	\
-static struct configfs_attribute _pfx##attr_##_name = {		\
+static struct configfs_bin_attribute _pfx##attr_##_name = {	\
 	.cb_attr = {						\
 		.ca_name	= __stringify(_name),		\
 		.ca_mode	= S_IRUGO,			\
@@ -200,7 +200,7 @@ static struct configfs_attribute _pfx##attr_##_name = {		\
 }
 
 #define CONFIGFS_BIN_ATTR_WO(_pfx, _name, _priv, _maxsz)	\
-static struct configfs_attribute _pfx##attr_##_name = {		\
+static struct configfs_bin_attribute _pfx##attr_##_name = {	\
 	.cb_attr = {						\
 		.ca_name	= __stringify(_name),		\
 		.ca_mode	= S_IWUSR,			\
