@@ -60,14 +60,15 @@ static inline long access_ok(int type, const void __user * addr,
  * use a 32bit (unsigned int) address here.
  */
 
+#define ARCH_HAS_RELATIVE_EXTABLE
 struct exception_table_entry {
-	unsigned long insn;	/* address of insn that is allowed to fault. */
-	unsigned long fixup;	/* fixup routine */
+	int insn;	/* relative address of insn that is allowed to fault. */
+	int fixup;	/* relative address of fixup routine */
 };
 
 #define ASM_EXCEPTIONTABLE_ENTRY( fault_addr, except_addr )\
 	".section __ex_table,\"aw\"\n"			   \
-	ASM_WORD_INSN #fault_addr ", " #except_addr "\n\t" \
+	".word (" #fault_addr " - .), (" #except_addr " - .)\n\t" \
 	".previous\n"
 
 /*
