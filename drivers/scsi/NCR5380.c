@@ -2437,7 +2437,7 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 		struct scsi_cmnd *cmd = NCR5380_to_scmd(ncmd);
 
 		set_host_byte(cmd, DID_RESET);
-		cmd->scsi_done(cmd);
+		complete_cmd(instance, cmd);
 	}
 	INIT_LIST_HEAD(&hostdata->disconnected);
 
