@@ -71,11 +71,7 @@ static inline void strbuf_setlen(struct strbuf *sb, size_t len) {
 }
 
 /*----- add data in your buffer -----*/
-static inline void strbuf_addch(struct strbuf *sb, int c) {
-	strbuf_grow(sb, 1);
-	sb->buf[sb->len++] = c;
-	sb->buf[sb->len] = '\0';
-}
+void strbuf_addch(struct strbuf *sb, int c);
 
 void strbuf_add(struct strbuf *buf, const void *, size_t);
 static inline void strbuf_addstr(struct strbuf *sb, const char *s) {
@@ -84,7 +80,6 @@ static inline void strbuf_addstr(struct strbuf *sb, const char *s) {
 
 __attribute__((format(printf,2,3)))
 void strbuf_addf(struct strbuf *sb, const char *fmt, ...);
-void strbuf_addv(struct strbuf *sb, const char *fmt, va_list ap);
 
 /* XXX: if read fails, any partial read is undone */
 ssize_t strbuf_read(struct strbuf *, int fd, ssize_t hint);
