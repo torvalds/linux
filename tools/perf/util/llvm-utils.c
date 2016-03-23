@@ -98,11 +98,12 @@ read_from_pipe(const char *cmd, void **p_buf, size_t *p_read_sz)
 	void *buf = NULL;
 	FILE *file = NULL;
 	size_t read_sz = 0, buf_sz = 0;
+	char serr[STRERR_BUFSIZE];
 
 	file = popen(cmd, "r");
 	if (!file) {
 		pr_err("ERROR: unable to popen cmd: %s\n",
-		       strerror(errno));
+		       strerror_r(errno, serr, sizeof(serr)));
 		return -EINVAL;
 	}
 
@@ -136,7 +137,7 @@ read_from_pipe(const char *cmd, void **p_buf, size_t *p_read_sz)
 
 	if (ferror(file)) {
 		pr_err("ERROR: error occurred when reading from pipe: %s\n",
-		       strerror(errno));
+		       strerror_r(errno, serr, sizeof(serr)));
 		err = -EIO;
 		goto errout;
 	}
@@ -370,7 +371,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	if (nr_cpus_avail <= 0) {
 		pr_err(
 "WARNING:\tunable to get available CPUs in this system: %s\n"
-"        \tUse 128 instead.\n", strerror(errno));
+"        \tUse 128 instead.\n", strerror_r(errno, serr, sizeof(serr)));
 		nr_cpus_avail = 128;
 	}
 	snprintf(nr_cpus_avail_str, sizeof(nr_cpus_avail_str), "%d",
