@@ -84,6 +84,8 @@
 #define NCR5380_bus_reset t128_bus_reset
 #define NCR5380_info t128_info
 
+#define NCR5380_io_delay(x)		udelay(x)
+
 /* 15 14 12 10 7 5 3
    1101 0100 1010 1000 */
 

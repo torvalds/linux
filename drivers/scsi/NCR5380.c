@@ -39,12 +39,6 @@
  * tagged queueing)
  */
 
-#ifdef BOARD_REQUIRES_NO_DELAY
-#define io_recovery_delay(x)
-#else
-#define io_recovery_delay(x)	udelay(x)
-#endif
-
 /*
  * Design
  *
@@ -149,6 +143,10 @@
  * driver wishes to autoprobe for an IRQ line, the NCR5380_probe_irq(instance,
  * possible) function may be used.
  */
+
+#ifndef NCR5380_io_delay
+#define NCR5380_io_delay(x)
+#endif
 
 static int do_abort(struct Scsi_Host *);
 static void do_reset(struct Scsi_Host *);
@@ -1468,14 +1466,14 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 	 */
 
 	if (p & SR_IO) {
-		io_recovery_delay(1);
+		NCR5380_io_delay(1);
 		NCR5380_write(START_DMA_INITIATOR_RECEIVE_REG, 0);
 	} else {
-		io_recovery_delay(1);
+		NCR5380_io_delay(1);
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_DATA);
-		io_recovery_delay(1);
+		NCR5380_io_delay(1);
 		NCR5380_write(START_DMA_SEND_REG, 0);
-		io_recovery_delay(1);
+		NCR5380_io_delay(1);
 	}
 
 /*

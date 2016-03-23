@@ -28,6 +28,8 @@
 #define NCR5380_bus_reset		dtc_bus_reset
 #define NCR5380_info			dtc_info
 
+#define NCR5380_io_delay(x)		udelay(x)
+
 /* 15 12 11 10
    1001 1100 0000 0000 */
 
