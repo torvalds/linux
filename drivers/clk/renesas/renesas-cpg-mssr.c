@@ -348,6 +348,7 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
 #else
 			dev_dbg(dev, "Ignoring MSTP %s to prevent disabling\n",
 				mod->name);
+			kfree(clock);
 			return;
 #endif
 		}
@@ -568,7 +569,11 @@ static int __init cpg_mssr_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	devm_add_action(dev, cpg_mssr_del_clk_provider, np);
+	error = devm_add_action_or_reset(dev,
+					 cpg_mssr_del_clk_provider,
+					 np);
+	if (error)
+		return error;
 
 	error = cpg_mssr_add_clk_domain(dev, info->core_pm_clks,
 					info->num_core_pm_clks);

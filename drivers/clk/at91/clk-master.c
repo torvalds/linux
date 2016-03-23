@@ -199,14 +199,14 @@ of_at91_clk_master_setup(struct device_node *np,
 			 const struct clk_master_layout *layout)
 {
 	struct clk *clk;
-	int num_parents;
+	unsigned int num_parents;
 	const char *parent_names[MASTER_SOURCE_MAX];
 	const char *name = np->name;
 	struct clk_master_characteristics *characteristics;
 	struct regmap *regmap;
 
 	num_parents = of_clk_get_parent_count(np);
-	if (num_parents <= 0 || num_parents > MASTER_SOURCE_MAX)
+	if (num_parents == 0 || num_parents > MASTER_SOURCE_MAX)
 		return;
 
 	of_clk_parent_fill(np, parent_names, num_parents);

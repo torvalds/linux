@@ -11,8 +11,8 @@
  * (at your option) any later version.
  */
 
-#ifndef __LINUX_CLK_SHMOBILE_H_
-#define __LINUX_CLK_SHMOBILE_H_
+#ifndef __LINUX_CLK_RENESAS_H_
+#define __LINUX_CLK_RENESAS_H_
 
 #include <linux/types.h>
 

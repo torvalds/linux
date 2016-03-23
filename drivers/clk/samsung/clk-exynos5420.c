@@ -480,16 +480,16 @@ PNAME(mout_group15_5800_p)	= { "dout_osc_div", "mout_sw_aclk550_cam" };
 /* fixed rate clocks generated outside the soc */
 static struct samsung_fixed_rate_clock
 		exynos5x_fixed_rate_ext_clks[] __initdata = {
-	FRATE(CLK_FIN_PLL, "fin_pll", NULL, CLK_IS_ROOT, 0),
+	FRATE(CLK_FIN_PLL, "fin_pll", NULL, 0, 0),
 };
 
 /* fixed rate clocks generated inside the soc */
 static struct samsung_fixed_rate_clock exynos5x_fixed_rate_clks[] __initdata = {
-	FRATE(CLK_SCLK_HDMIPHY, "sclk_hdmiphy", NULL, CLK_IS_ROOT, 24000000),
-	FRATE(0, "sclk_pwi", NULL, CLK_IS_ROOT, 24000000),
-	FRATE(0, "sclk_usbh20", NULL, CLK_IS_ROOT, 48000000),
-	FRATE(0, "mphy_refclk_ixtal24", NULL, CLK_IS_ROOT, 48000000),
-	FRATE(0, "sclk_usbh20_scan_clk", NULL, CLK_IS_ROOT, 480000000),
+	FRATE(CLK_SCLK_HDMIPHY, "sclk_hdmiphy", NULL, 0, 24000000),
+	FRATE(0, "sclk_pwi", NULL, 0, 24000000),
+	FRATE(0, "sclk_usbh20", NULL, 0, 48000000),
+	FRATE(0, "mphy_refclk_ixtal24", NULL, 0, 48000000),
+	FRATE(0, "sclk_usbh20_scan_clk", NULL, 0, 480000000),
 };
 
 static struct samsung_fixed_factor_clock

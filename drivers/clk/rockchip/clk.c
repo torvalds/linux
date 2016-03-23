@@ -70,7 +70,7 @@ static struct clk *rockchip_clk_register_branch(const char *name,
 	if (gate_offset >= 0) {
 		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 		if (!gate)
-			return ERR_PTR(-ENOMEM);
+			goto err_gate;
 
 		gate->flags = gate_flags;
 		gate->reg = base + gate_offset;
@@ -82,7 +82,7 @@ static struct clk *rockchip_clk_register_branch(const char *name,
 	if (div_width > 0) {
 		div = kzalloc(sizeof(*div), GFP_KERNEL);
 		if (!div)
-			return ERR_PTR(-ENOMEM);
+			goto err_div;
 
 		div->flags = div_flags;
 		div->reg = base + muxdiv_offset;
@@ -102,6 +102,11 @@ static struct clk *rockchip_clk_register_branch(const char *name,
 				     flags);
 
 	return clk;
+err_div:
+	kfree(gate);
+err_gate:
+	kfree(mux);
+	return ERR_PTR(-ENOMEM);
 }
 
 struct rockchip_clk_frac {
@@ -262,6 +267,53 @@ static struct clk *rockchip_clk_register_frac_branch(const char *name,
 	return clk;
 }
 
+static struct clk *rockchip_clk_register_factor_branch(const char *name,
+		const char *const *parent_names, u8 num_parents,
+		void __iomem *base, unsigned int mult, unsigned int div,
+		int gate_offset, u8 gate_shift, u8 gate_flags,
+		unsigned long flags, spinlock_t *lock)
+{
+	struct clk *clk;
+	struct clk_gate *gate = NULL;
+	struct clk_fixed_factor *fix = NULL;
+
+	/* without gate, register a simple factor clock */
+	if (gate_offset == 0) {
+		return clk_register_fixed_factor(NULL, name,
+				parent_names[0], flags, mult,
+				div);
+	}
+
+	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	if (!gate)
+		return ERR_PTR(-ENOMEM);
+
+	gate->flags = gate_flags;
+	gate->reg = base + gate_offset;
+	gate->bit_idx = gate_shift;
+	gate->lock = lock;
+
+	fix = kzalloc(sizeof(*fix), GFP_KERNEL);
+	if (!fix) {
+		kfree(gate);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	fix->mult = mult;
+	fix->div = div;
+
+	clk = clk_register_composite(NULL, name, parent_names, num_parents,
+				     NULL, NULL,
+				     &fix->hw, &clk_fixed_factor_ops,
+				     &gate->hw, &clk_gate_ops, flags);
+	if (IS_ERR(clk)) {
+		kfree(fix);
+		kfree(gate);
+	}
+
+	return clk;
+}
+
 static DEFINE_SPINLOCK(clk_lock);
 static struct clk **clk_table;
 static void __iomem *reg_base;
@@ -396,6 +448,14 @@ void __init rockchip_clk_register_branches(
 				list->num_parents,
 				reg_base + list->muxdiv_offset,
 				list->div_shift, list->div_flags, &clk_lock);
+			break;
+		case branch_factor:
+			clk = rockchip_clk_register_factor_branch(
+				list->name, list->parent_names,
+				list->num_parents, reg_base,
+				list->div_shift, list->div_width,
+				list->gate_offset, list->gate_shift,
+				list->gate_flags, flags, &clk_lock);
 			break;
 		}
 

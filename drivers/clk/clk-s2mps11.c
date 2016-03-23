@@ -99,17 +99,14 @@ static struct clk_init_data s2mps11_clks_init[S2MPS11_CLKS_NUM] = {
 	[S2MPS11_CLK_AP] = {
 		.name = "s2mps11_ap",
 		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
 	},
 	[S2MPS11_CLK_CP] = {
 		.name = "s2mps11_cp",
 		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
 	},
 	[S2MPS11_CLK_BT] = {
 		.name = "s2mps11_bt",
 		.ops = &s2mps11_clk_ops,
-		.flags = CLK_IS_ROOT,
 	},
 };
 
