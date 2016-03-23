@@ -94,6 +94,11 @@ static int rockchip_pll_wait_lock(struct rockchip_clk_pll *pll)
 	unsigned int val;
 	int delay = 24000000, ret;
 
+	if (IS_ERR(grf)) {
+		pr_err("%s: grf regmap not available\n", __func__);
+		return PTR_ERR(grf);
+	}
+
 	while (delay > 0) {
 		ret = regmap_read(grf, pll->lock_offset, &val);
 		if (ret) {

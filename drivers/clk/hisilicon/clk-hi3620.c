@@ -78,15 +78,15 @@ static const char *const mmc3_mux_p[] __initconst = { "armpll2", "armpll3", };
 
 /* fixed rate clocks */
 static struct hisi_fixed_rate_clock hi3620_fixed_rate_clks[] __initdata = {
-	{ HI3620_OSC32K,   "osc32k",   NULL, CLK_IS_ROOT, 32768, },
-	{ HI3620_OSC26M,   "osc26m",   NULL, CLK_IS_ROOT, 26000000, },
-	{ HI3620_PCLK,     "pclk",     NULL, CLK_IS_ROOT, 26000000, },
-	{ HI3620_PLL_ARM0, "armpll0",  NULL, CLK_IS_ROOT, 1600000000, },
-	{ HI3620_PLL_ARM1, "armpll1",  NULL, CLK_IS_ROOT, 1600000000, },
-	{ HI3620_PLL_PERI, "armpll2",  NULL, CLK_IS_ROOT, 1440000000, },
-	{ HI3620_PLL_USB,  "armpll3",  NULL, CLK_IS_ROOT, 1440000000, },
-	{ HI3620_PLL_HDMI, "armpll4",  NULL, CLK_IS_ROOT, 1188000000, },
-	{ HI3620_PLL_GPU,  "armpll5",  NULL, CLK_IS_ROOT, 1300000000, },
+	{ HI3620_OSC32K,   "osc32k",   NULL, 0, 32768, },
+	{ HI3620_OSC26M,   "osc26m",   NULL, 0, 26000000, },
+	{ HI3620_PCLK,     "pclk",     NULL, 0, 26000000, },
+	{ HI3620_PLL_ARM0, "armpll0",  NULL, 0, 1600000000, },
+	{ HI3620_PLL_ARM1, "armpll1",  NULL, 0, 1600000000, },
+	{ HI3620_PLL_PERI, "armpll2",  NULL, 0, 1440000000, },
+	{ HI3620_PLL_USB,  "armpll3",  NULL, 0, 1440000000, },
+	{ HI3620_PLL_HDMI, "armpll4",  NULL, 0, 1188000000, },
+	{ HI3620_PLL_GPU,  "armpll5",  NULL, 0, 1300000000, },
 };
 
 /* fixed factor clocks */

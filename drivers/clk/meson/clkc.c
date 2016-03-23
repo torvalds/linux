@@ -198,7 +198,7 @@ meson_clk_register_fixed_rate(const struct clk_conf *clk_conf,
 }
 
 void __init meson_clk_register_clks(const struct clk_conf *clk_confs,
-				    size_t nr_confs,
+				    unsigned int nr_confs,
 				    void __iomem *clk_base)
 {
 	unsigned int i;
