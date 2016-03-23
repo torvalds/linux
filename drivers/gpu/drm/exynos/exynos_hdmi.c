@@ -1754,6 +1754,8 @@ static void hdmi_enable(struct drm_encoder *encoder)
 
 	hdmi_set_refclk(hdata, true);
 
+	hdmi_reg_writemask(hdata, HDMI_PHY_CON_0, 0, HDMI_PHY_POWER_OFF_EN);
+
 	hdmi_conf_apply(hdata);
 
 	hdata->powered = true;
@@ -1785,6 +1787,8 @@ static void hdmi_disable(struct drm_encoder *encoder)
 	hdmi_reg_writemask(hdata, HDMI_CON_0, 0, HDMI_EN);
 
 	cancel_delayed_work(&hdata->hotplug_work);
+
+	hdmi_reg_writemask(hdata, HDMI_PHY_CON_0, ~0, HDMI_PHY_POWER_OFF_EN);
 
 	hdmi_set_refclk(hdata, false);
 
