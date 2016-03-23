@@ -212,7 +212,7 @@ static void pat_bsp_init(u64 pat)
 {
 	u64 tmp_pat;
 
-	if (!cpu_has_pat) {
+	if (!boot_cpu_has(X86_FEATURE_PAT)) {
 		pat_disable("PAT not supported by CPU.");
 		return;
 	}
@@ -230,7 +230,7 @@ static void pat_bsp_init(u64 pat)
 
 static void pat_ap_init(u64 pat)
 {
-	if (!cpu_has_pat) {
+	if (!boot_cpu_has(X86_FEATURE_PAT)) {
 		/*
 		 * If this happens we are on a secondary CPU, but switched to
 		 * PAT on the boot CPU. We have no way to undo PAT.
