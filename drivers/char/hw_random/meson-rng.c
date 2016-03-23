@@ -105,6 +105,8 @@ static int meson_rng_probe(struct platform_device *pdev)
 
 	meson_rng->dev = &pdev->dev;
 	meson_rng->rng.name = "meson";
+	meson_rng->rng.init = meson_rng_init;
+	meson_rng->rng.cleanup = meson_rng_cleanup;
 	meson_rng->rng.read = meson_read;
 
 	platform_set_drvdata(pdev, meson_rng);
