@@ -50,6 +50,42 @@ int of_get_nand_ecc_mode(struct device_node *np)
 EXPORT_SYMBOL_GPL(of_get_nand_ecc_mode);
 
 /**
+ * of_get_nand_ecc_algo - Get nand ecc algorithm for given device_node
+ * @np:	Pointer to the given device_node
+ *
+ * The function gets ecc algorithm and returns its enum value, or errno in error
+ * case.
+ */
+int of_get_nand_ecc_algo(struct device_node *np)
+{
+	const char *pm;
+	int err;
+
+	/*
+	 * TODO: Read ECC algo OF property and map it to enum nand_ecc_algo.
+	 * It's not implemented yet as currently NAND subsystem ignores
+	 * algorithm explicitly set this way. Once it's handled we should
+	 * document & support new property.
+	 */
+
+	/*
+	 * For backward compatibility we also read "nand-ecc-mode" checking
+	 * for some obsoleted values that were specifying ECC algorithm.
+	 */
+	err = of_property_read_string(np, "nand-ecc-mode", &pm);
+	if (err < 0)
+		return err;
+
+	if (!strcasecmp(pm, "soft"))
+		return NAND_ECC_HAMMING;
+	else if (!strcasecmp(pm, "soft_bch"))
+		return NAND_ECC_BCH;
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(of_get_nand_ecc_algo);
+
+/**
  * of_get_nand_ecc_step_size - Get ECC step size associated to
  * the required ECC strength (see below).
  * @np:	Pointer to the given device_node
