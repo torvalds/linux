@@ -22,9 +22,6 @@
 #include <linux/spinlock.h>
 #include <linux/mfd/syscon.h>
 
-/* MIPI_PHYn_CONTROL reg. offset (for base address from ioremap): n = 0..1 */
-#define EXYNOS_MIPI_PHY_CONTROL(n)	((n) * 4)
-
 enum exynos_mipi_phy_id {
 	EXYNOS_MIPI_PHY_ID_CSIS0,
 	EXYNOS_MIPI_PHY_ID_DSIM0,
@@ -50,7 +47,6 @@ static int __set_phy_state(struct exynos_mipi_video_phy *state,
 			enum exynos_mipi_phy_id id, unsigned int on)
 {
 	const unsigned int offset = EXYNOS4_MIPI_PHY_CONTROL(id / 2);
-	void __iomem *addr;
 	u32 val, reset;
 
 	if (is_mipi_dsim_phy_id(id))
@@ -60,35 +56,17 @@ static int __set_phy_state(struct exynos_mipi_video_phy *state,
 
 	spin_lock(&state->slock);
 
-	if (!IS_ERR(state->regmap)) {
-		regmap_read(state->regmap, offset, &val);
-		if (on)
-			val |= reset;
-		else
-			val &= ~reset;
-		regmap_write(state->regmap, offset, val);
-		if (on)
-			val |= EXYNOS4_MIPI_PHY_ENABLE;
-		else if (!(val & EXYNOS4_MIPI_PHY_RESET_MASK))
-			val &= ~EXYNOS4_MIPI_PHY_ENABLE;
-		regmap_write(state->regmap, offset, val);
-	} else {
-		addr = state->regs + EXYNOS_MIPI_PHY_CONTROL(id / 2);
-
-		val = readl(addr);
-		if (on)
-			val |= reset;
-		else
-			val &= ~reset;
-		writel(val, addr);
-		/* Clear ENABLE bit only if MRESETN, SRESETN bits are not set */
-		if (on)
-			val |= EXYNOS4_MIPI_PHY_ENABLE;
-		else if (!(val & EXYNOS4_MIPI_PHY_RESET_MASK))
-			val &= ~EXYNOS4_MIPI_PHY_ENABLE;
-
-		writel(val, addr);
-	}
+	regmap_read(state->regmap, offset, &val);
+	if (on)
+		val |= reset;
+	else
+		val &= ~reset;
+	regmap_write(state->regmap, offset, val);
+	if (on)
+		val |= EXYNOS4_MIPI_PHY_ENABLE;
+	else if (!(val & EXYNOS4_MIPI_PHY_RESET_MASK))
+		val &= ~EXYNOS4_MIPI_PHY_ENABLE;
+	regmap_write(state->regmap, offset, val);
 
 	spin_unlock(&state->slock);
 	return 0;
@@ -142,17 +120,8 @@ static int exynos_mipi_video_phy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	state->regmap = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
-	if (IS_ERR(state->regmap)) {
-		struct resource *res;
-
-		dev_info(dev, "regmap lookup failed: %ld\n",
-			 PTR_ERR(state->regmap));
-
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		state->regs = devm_ioremap_resource(dev, res);
-		if (IS_ERR(state->regs))
-			return PTR_ERR(state->regs);
-	}
+	if (IS_ERR(state->regmap))
+		return PTR_ERR(state->regmap);
 
 	dev_set_drvdata(dev, state);
 	spin_lock_init(&state->slock);
