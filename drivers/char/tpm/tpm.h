@@ -135,7 +135,6 @@ struct tpm_vendor_specific {
 
 	int irq;
 
-	struct list_head list;
 	int locality;
 	unsigned long timeout_a, timeout_b, timeout_c, timeout_d; /* jiffies */
 	bool timeout_adjusted;

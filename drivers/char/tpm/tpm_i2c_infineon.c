@@ -619,7 +619,6 @@ static int tpm_tis_i2c_init(struct device *dev)
 
 	dev_info(dev, "1.2 TPM (device-id 0x%X)\n", vendor >> 16);
 
-	INIT_LIST_HEAD(&chip->vendor.list);
 	tpm_dev.chip = chip;
 
 	tpm_get_timeouts(chip);
