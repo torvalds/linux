@@ -26,6 +26,7 @@
 #define NCR5380_dma_xfer_len(instance, cmd, phase)	(0)
 #define NCR5380_dma_recv_setup		oakscsi_pread
 #define NCR5380_dma_send_setup		oakscsi_pwrite
+#define NCR5380_dma_residual(instance)	(0)
 
 #define NCR5380_queue_command		oakscsi_queue_command
 #define NCR5380_info			oakscsi_info
@@ -144,7 +145,7 @@ static int oakscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	host->irq = NO_IRQ;
 	host->n_io_port = 255;
 
-	ret = NCR5380_init(host, FLAG_DMA_FIXUP);
+	ret = NCR5380_init(host, FLAG_DMA_FIXUP | FLAG_LATE_DMA_SETUP);
 	if (ret)
 		goto out_unmap;
 

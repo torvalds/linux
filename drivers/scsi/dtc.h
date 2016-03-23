@@ -23,6 +23,7 @@
         dtc_dma_xfer_len(cmd)
 #define NCR5380_dma_recv_setup		dtc_pread
 #define NCR5380_dma_send_setup		dtc_pwrite
+#define NCR5380_dma_residual(instance)	(0)
 
 #define NCR5380_intr			dtc_intr
 #define NCR5380_queue_command		dtc_queue_command

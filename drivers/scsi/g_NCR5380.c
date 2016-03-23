@@ -466,7 +466,7 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 		}
 #endif
 
-		if (NCR5380_init(instance, flags))
+		if (NCR5380_init(instance, flags | FLAG_LATE_DMA_SETUP))
 			goto out_unregister;
 
 		switch (overrides[current_override].board) {

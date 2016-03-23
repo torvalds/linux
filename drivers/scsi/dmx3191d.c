@@ -42,6 +42,7 @@
 #define NCR5380_dma_xfer_len(instance, cmd, phase)	(0)
 #define NCR5380_dma_recv_setup(instance, dst, len)	(0)
 #define NCR5380_dma_send_setup(instance, src, len)	(0)
+#define NCR5380_dma_residual(instance)			(0)
 
 #define NCR5380_implementation_fields	/* none */
 

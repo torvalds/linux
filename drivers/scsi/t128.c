@@ -208,7 +208,7 @@ found:
 	instance->base = base;
 	((struct NCR5380_hostdata *)instance->hostdata)->base = p;
 
-	if (NCR5380_init(instance, FLAG_DMA_FIXUP))
+	if (NCR5380_init(instance, FLAG_DMA_FIXUP | FLAG_LATE_DMA_SETUP))
 		goto out_unregister;
 
 	NCR5380_maybe_reset_bus(instance);

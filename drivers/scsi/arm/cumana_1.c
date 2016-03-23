@@ -20,6 +20,7 @@
 #define NCR5380_dma_xfer_len(instance, cmd, phase)	(cmd->transfersize)
 #define NCR5380_dma_recv_setup		cumanascsi_pread
 #define NCR5380_dma_send_setup		cumanascsi_pwrite
+#define NCR5380_dma_residual(instance)	(0)
 
 #define NCR5380_intr			cumanascsi_intr
 #define NCR5380_queue_command		cumanascsi_queue_command
@@ -245,7 +246,7 @@ static int cumanascsi1_probe(struct expansion_card *ec,
 
 	host->irq = ec->irq;
 
-	ret = NCR5380_init(host, FLAG_DMA_FIXUP);
+	ret = NCR5380_init(host, FLAG_DMA_FIXUP | FLAG_LATE_DMA_SETUP);
 	if (ret)
 		goto out_unmap;
 

@@ -375,7 +375,7 @@ static int __init pas16_detect(struct scsi_host_template *tpnt)
 		
 	instance->io_port = io_port;
 
-	if (NCR5380_init(instance, FLAG_DMA_FIXUP))
+	if (NCR5380_init(instance, FLAG_DMA_FIXUP | FLAG_LATE_DMA_SETUP))
 		goto out_unregister;
 
 	NCR5380_maybe_reset_bus(instance);

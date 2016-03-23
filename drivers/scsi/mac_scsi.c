@@ -37,6 +37,7 @@
         macscsi_dma_xfer_len(instance, cmd)
 #define NCR5380_dma_recv_setup          macscsi_pread
 #define NCR5380_dma_send_setup          macscsi_pwrite
+#define NCR5380_dma_residual(instance)  (0)
 
 #define NCR5380_intr                    macscsi_intr
 #define NCR5380_queue_command           macscsi_queue_command
@@ -386,7 +387,7 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 #endif
 	host_flags |= setup_toshiba_delay > 0 ? FLAG_TOSHIBA_DELAY : 0;
 
-	error = NCR5380_init(instance, host_flags);
+	error = NCR5380_init(instance, host_flags | FLAG_LATE_DMA_SETUP);
 	if (error)
 		goto fail_init;
 
