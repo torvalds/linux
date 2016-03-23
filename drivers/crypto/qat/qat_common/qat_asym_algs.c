@@ -711,7 +711,7 @@ static void qat_rsa_exit_tfm(struct crypto_akcipher *tfm)
 	}
 	qat_crypto_put_instance(ctx->inst);
 	ctx->n = NULL;
-	ctx->d = NULL;
+	ctx->e = NULL;
 	ctx->d = NULL;
 }
 
