@@ -635,8 +635,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 	if (!s) {
 		printk(KERN_ERR "%s: Out of memory whilst trying to kmalloc "
 		       "[%zd] bytes of kernel memory\n", __func__, sizeof(*s));
-		rc = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
 	(*packet_size) = 0;
 	rc = ecryptfs_find_auth_tok_for_sig(
@@ -922,8 +921,7 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 	if (!s) {
 		printk(KERN_ERR "%s: Out of memory whilst trying to kmalloc "
 		       "[%zd] bytes of kernel memory\n", __func__, sizeof(*s));
-		rc = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
 	if (max_packet_size < ECRYPTFS_TAG_70_MIN_METADATA_SIZE) {
 		printk(KERN_WARNING "%s: max_packet_size is [%zd]; it must be "
