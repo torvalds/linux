@@ -13036,26 +13036,11 @@ check_disabled_dpll_state(struct drm_device *dev)
 }
 
 static void
-intel_modeset_check_disabled(struct drm_device *dev,
-			     struct drm_atomic_state *old_state)
+intel_modeset_check_disabled(struct drm_device *dev)
 {
 	check_encoder_state(dev);
 	check_connector_state(dev, NULL);
 	check_disabled_dpll_state(dev);
-}
-
-static void
-intel_modeset_check_state(struct drm_device *dev,
-			  struct drm_atomic_state *old_state)
-{
-	struct drm_crtc_state *old_crtc_state;
-	struct drm_crtc *crtc;
-	int i;
-
-	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i)
-		intel_modeset_check_crtc(crtc, old_crtc_state, crtc->state);
-
-	intel_modeset_check_disabled(dev, old_state);
 }
 
 static void update_scanline_offset(struct intel_crtc *crtc)
@@ -13625,6 +13610,8 @@ static int intel_atomic_commit(struct drm_device *dev,
 		if (dev_priv->display.modeset_commit_cdclk &&
 		    intel_state->dev_cdclk != dev_priv->cdclk_freq)
 			dev_priv->display.modeset_commit_cdclk(state);
+
+		intel_modeset_check_disabled(dev);
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
@@ -13679,6 +13666,8 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 		if (put_domains[i])
 			modeset_put_power_domains(dev_priv, put_domains[i]);
+
+		intel_modeset_check_crtc(crtc, old_crtc_state, crtc->state);
 	}
 
 	if (intel_state->modeset)
@@ -13687,9 +13676,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 	mutex_lock(&dev->struct_mutex);
 	drm_atomic_helper_cleanup_planes(dev, state);
 	mutex_unlock(&dev->struct_mutex);
-
-	if (hw_check)
-		intel_modeset_check_state(dev, state);
 
 	drm_atomic_state_free(state);
 
