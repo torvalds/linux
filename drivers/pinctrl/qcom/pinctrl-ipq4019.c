@@ -237,7 +237,7 @@ DECLARE_QCA_GPIO_PINS(99);
 		.pins = gpio##id##_pins,		\
 		.npins = (unsigned)ARRAY_SIZE(gpio##id##_pins),	\
 		.funcs = (int[]){			\
-			qca_mux_NA, /* gpio mode */	\
+			qca_mux_gpio, /* gpio mode */	\
 			qca_mux_##f1,			\
 			qca_mux_##f2,			\
 			qca_mux_##f3,			\
