@@ -1389,7 +1389,7 @@ static int sctp_getsockopt_connectx3(struct sock *sk, int len,
 	int err = 0;
 
 #ifdef CONFIG_COMPAT
-	if (is_compat_task()) {
+	if (in_compat_syscall()) {
 		struct compat_sctp_getaddrs_old param32;
 
 		if (len < sizeof(param32))

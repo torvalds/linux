@@ -1942,7 +1942,7 @@ hcall_real_table:
 	.long	DOTSYM(kvmppc_h_clear_ref) - hcall_real_table
 	.long	DOTSYM(kvmppc_h_protect) - hcall_real_table
 	.long	DOTSYM(kvmppc_h_get_tce) - hcall_real_table
-	.long	DOTSYM(kvmppc_h_put_tce) - hcall_real_table
+	.long	DOTSYM(kvmppc_rm_h_put_tce) - hcall_real_table
 	.long	0		/* 0x24 - H_SET_SPRG0 */
 	.long	DOTSYM(kvmppc_h_set_dabr) - hcall_real_table
 	.long	0		/* 0x2c */
@@ -2020,7 +2020,7 @@ hcall_real_table:
 	.long	0		/* 0x12c */
 	.long	0		/* 0x130 */
 	.long	DOTSYM(kvmppc_h_set_xdabr) - hcall_real_table
-	.long	DOTSYM(kvmppc_h_stuff_tce) - hcall_real_table
+	.long	DOTSYM(kvmppc_rm_h_stuff_tce) - hcall_real_table
 	.long	DOTSYM(kvmppc_rm_h_put_tce_indirect) - hcall_real_table
 	.long	0		/* 0x140 */
 	.long	0		/* 0x144 */

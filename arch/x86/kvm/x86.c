@@ -723,7 +723,7 @@ int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
 	unsigned long old_cr4 = kvm_read_cr4(vcpu);
 	unsigned long pdptr_bits = X86_CR4_PGE | X86_CR4_PSE | X86_CR4_PAE |
-				   X86_CR4_SMEP | X86_CR4_SMAP;
+				   X86_CR4_SMEP | X86_CR4_SMAP | X86_CR4_PKE;
 
 	if (cr4 & CR4_RESERVED_BITS)
 		return 1;
@@ -738,6 +738,9 @@ int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		return 1;
 
 	if (!guest_cpuid_has_fsgsbase(vcpu) && (cr4 & X86_CR4_FSGSBASE))
+		return 1;
+
+	if (!guest_cpuid_has_pku(vcpu) && (cr4 & X86_CR4_PKE))
 		return 1;
 
 	if (is_long_mode(vcpu)) {
@@ -765,7 +768,7 @@ int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	    (!(cr4 & X86_CR4_PCIDE) && (old_cr4 & X86_CR4_PCIDE)))
 		kvm_mmu_reset_context(vcpu);
 
-	if ((cr4 ^ old_cr4) & X86_CR4_OSXSAVE)
+	if ((cr4 ^ old_cr4) & (X86_CR4_OSXSAVE | X86_CR4_PKE))
 		kvm_update_cpuid(vcpu);
 
 	return 0;
@@ -4326,9 +4329,14 @@ static int vcpu_mmio_gva_to_gpa(struct kvm_vcpu *vcpu, unsigned long gva,
 	u32 access = ((kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0)
 		| (write ? PFERR_WRITE_MASK : 0);
 
+	/*
+	 * currently PKRU is only applied to ept enabled guest so
+	 * there is no pkey in EPT page table for L1 guest or EPT
+	 * shadow page table for L2 guest.
+	 */
 	if (vcpu_match_mmio_gva(vcpu, gva)
 	    && !permission_fault(vcpu, vcpu->arch.walk_mmu,
-				 vcpu->arch.access, access)) {
+				 vcpu->arch.access, 0, access)) {
 		*gpa = vcpu->arch.mmio_gfn << PAGE_SHIFT |
 					(gva & (PAGE_SIZE - 1));
 		trace_vcpu_match_mmio(gva, *gpa, write, false);
@@ -6588,8 +6596,12 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 
-	/* We should set ->mode before check ->requests,
-	 * see the comment in make_all_cpus_request.
+	/*
+	 * We should set ->mode before check ->requests,
+	 * Please see the comment in kvm_make_all_cpus_request.
+	 * This also orders the write to mode from any reads
+	 * to the page tables done while the VCPU is running.
+	 * Please see the comment in kvm_flush_remote_tlbs.
 	 */
 	smp_mb__after_srcu_read_unlock();
 
@@ -7123,7 +7135,7 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 
 	mmu_reset_needed |= kvm_read_cr4(vcpu) != sregs->cr4;
 	kvm_x86_ops->set_cr4(vcpu, sregs->cr4);
-	if (sregs->cr4 & X86_CR4_OSXSAVE)
+	if (sregs->cr4 & (X86_CR4_OSXSAVE | X86_CR4_PKE))
 		kvm_update_cpuid(vcpu);
 
 	idx = srcu_read_lock(&vcpu->kvm->srcu);

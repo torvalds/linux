@@ -599,6 +599,8 @@ enum {
 				 */
 	IFLA_VF_STATS,		/* network device statistics */
 	IFLA_VF_TRUST,		/* Trust VF */
+	IFLA_VF_IB_NODE_GUID,	/* VF Infiniband node GUID */
+	IFLA_VF_IB_PORT_GUID,	/* VF Infiniband port GUID */
 	__IFLA_VF_MAX,
 };
 
@@ -629,6 +631,11 @@ struct ifla_vf_rate {
 struct ifla_vf_spoofchk {
 	__u32 vf;
 	__u32 setting;
+};
+
+struct ifla_vf_guid {
+	__u32 vf;
+	__u64 guid;
 };
 
 enum {

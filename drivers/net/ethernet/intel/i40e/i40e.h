@@ -58,6 +58,7 @@
 #ifdef I40E_FCOE
 #include "i40e_fcoe.h"
 #endif
+#include "i40e_client.h"
 #include "i40e_virtchnl.h"
 #include "i40e_virtchnl_pf.h"
 #include "i40e_txrx.h"
@@ -190,6 +191,7 @@ struct i40e_lump_tracking {
 	u16 search_hint;
 	u16 list[0];
 #define I40E_PILE_VALID_BIT  0x8000
+#define I40E_IWARP_IRQ_PILE_ID  (I40E_PILE_VALID_BIT - 2)
 };
 
 #define I40E_DEFAULT_ATR_SAMPLE_RATE	20
@@ -282,6 +284,8 @@ struct i40e_pf {
 #endif /* I40E_FCOE */
 	u16 num_lan_qps;           /* num lan queues this PF has set up */
 	u16 num_lan_msix;          /* num queue vectors for the base PF vsi */
+	u16 num_iwarp_msix;        /* num of iwarp vectors for this PF */
+	int iwarp_base_vector;
 	int queues_left;           /* queues left unclaimed */
 	u16 alloc_rss_size;        /* allocated RSS queues */
 	u16 rss_size_max;          /* HW defined max RSS queues */
@@ -329,6 +333,7 @@ struct i40e_pf {
 #define I40E_FLAG_16BYTE_RX_DESC_ENABLED	BIT_ULL(13)
 #define I40E_FLAG_CLEAN_ADMINQ			BIT_ULL(14)
 #define I40E_FLAG_FILTER_SYNC			BIT_ULL(15)
+#define I40E_FLAG_SERVICE_CLIENT_REQUESTED	BIT_ULL(16)
 #define I40E_FLAG_PROCESS_MDD_EVENT		BIT_ULL(17)
 #define I40E_FLAG_PROCESS_VFLR_EVENT		BIT_ULL(18)
 #define I40E_FLAG_SRIOV_ENABLED			BIT_ULL(19)
@@ -571,6 +576,8 @@ struct i40e_vsi {
 	struct kobject *kobj;  /* sysfs object */
 	bool current_isup;     /* Sync 'link up' logging */
 
+	void *priv;	/* client driver data reference. */
+
 	/* VSI specific handlers */
 	irqreturn_t (*irq_handler)(int irq, void *data);
 
@@ -728,6 +735,10 @@ void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 			      struct i40e_vsi_context *ctxt,
 			      u8 enabled_tc, bool is_add);
 #endif
+void i40e_service_event_schedule(struct i40e_pf *pf);
+void i40e_notify_client_of_vf_msg(struct i40e_vsi *vsi, u32 vf_id,
+				  u8 *msg, u16 len);
+
 int i40e_vsi_control_rings(struct i40e_vsi *vsi, bool enable);
 int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count);
 struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags, u16 uplink_seid,
@@ -750,6 +761,17 @@ static inline void i40e_dbg_pf_exit(struct i40e_pf *pf) {}
 static inline void i40e_dbg_init(void) {}
 static inline void i40e_dbg_exit(void) {}
 #endif /* CONFIG_DEBUG_FS*/
+/* needed by client drivers */
+int i40e_lan_add_device(struct i40e_pf *pf);
+int i40e_lan_del_device(struct i40e_pf *pf);
+void i40e_client_subtask(struct i40e_pf *pf);
+void i40e_notify_client_of_l2_param_changes(struct i40e_vsi *vsi);
+void i40e_notify_client_of_netdev_open(struct i40e_vsi *vsi);
+void i40e_notify_client_of_netdev_close(struct i40e_vsi *vsi, bool reset);
+void i40e_notify_client_of_vf_enable(struct i40e_pf *pf, u32 num_vfs);
+void i40e_notify_client_of_vf_reset(struct i40e_pf *pf, u32 vf_id);
+int i40e_vf_client_capable(struct i40e_pf *pf, u32 vf_id,
+			   enum i40e_client_type type);
 /**
  * i40e_irq_dynamic_enable - Enable default interrupt generation settings
  * @vsi: pointer to a vsi

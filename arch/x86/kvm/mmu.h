@@ -10,10 +10,11 @@
 #define PT32_ENT_PER_PAGE (1 << PT32_PT_BITS)
 
 #define PT_WRITABLE_SHIFT 1
+#define PT_USER_SHIFT 2
 
 #define PT_PRESENT_MASK (1ULL << 0)
 #define PT_WRITABLE_MASK (1ULL << PT_WRITABLE_SHIFT)
-#define PT_USER_MASK (1ULL << 2)
+#define PT_USER_MASK (1ULL << PT_USER_SHIFT)
 #define PT_PWT_MASK (1ULL << 3)
 #define PT_PCD_MASK (1ULL << 4)
 #define PT_ACCESSED_SHIFT 5
@@ -141,11 +142,16 @@ static inline bool is_write_protection(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Will a fault with a given page-fault error code (pfec) cause a permission
- * fault with the given access (in ACC_* format)?
+ * Check if a given access (described through the I/D, W/R and U/S bits of a
+ * page fault error code pfec) causes a permission fault with the given PTE
+ * access rights (in ACC_* format).
+ *
+ * Return zero if the access does not fault; return the page fault error code
+ * if the access faults.
  */
-static inline bool permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
-				    unsigned pte_access, unsigned pfec)
+static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+				  unsigned pte_access, unsigned pte_pkey,
+				  unsigned pfec)
 {
 	int cpl = kvm_x86_ops->get_cpl(vcpu);
 	unsigned long rflags = kvm_x86_ops->get_rflags(vcpu);
@@ -166,10 +172,32 @@ static inline bool permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	unsigned long smap = (cpl - 3) & (rflags & X86_EFLAGS_AC);
 	int index = (pfec >> 1) +
 		    (smap >> (X86_EFLAGS_AC_BIT - PFERR_RSVD_BIT + 1));
+	bool fault = (mmu->permissions[index] >> pte_access) & 1;
 
-	WARN_ON(pfec & PFERR_RSVD_MASK);
+	WARN_ON(pfec & (PFERR_PK_MASK | PFERR_RSVD_MASK));
+	pfec |= PFERR_PRESENT_MASK;
 
-	return (mmu->permissions[index] >> pte_access) & 1;
+	if (unlikely(mmu->pkru_mask)) {
+		u32 pkru_bits, offset;
+
+		/*
+		* PKRU defines 32 bits, there are 16 domains and 2
+		* attribute bits per domain in pkru.  pte_pkey is the
+		* index of the protection domain, so pte_pkey * 2 is
+		* is the index of the first bit for the domain.
+		*/
+		pkru_bits = (kvm_read_pkru(vcpu) >> (pte_pkey * 2)) & 3;
+
+		/* clear present bit, replace PFEC.RSVD with ACC_USER_MASK. */
+		offset = pfec - 1 +
+			((pte_access & PT_USER_MASK) << (PFERR_RSVD_BIT - PT_USER_SHIFT));
+
+		pkru_bits &= mmu->pkru_mask >> offset;
+		pfec |= -pkru_bits & PFERR_PK_MASK;
+		fault |= (pkru_bits != 0);
+	}
+
+	return -(uint32_t)fault & pfec;
 }
 
 void kvm_mmu_invalidate_zap_all_pages(struct kvm *kvm);
