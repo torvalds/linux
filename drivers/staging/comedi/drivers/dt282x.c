@@ -697,11 +697,7 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 	/* Step 3: check if arguments are trivially valid */
 
 	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
-
 	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-
-	err |= comedi_check_trigger_arg_min(&cmd->convert_arg, 4000);
-
 	err |= comedi_check_trigger_arg_max(&cmd->convert_arg, DT2821_OSC_MAX);
 	err |= comedi_check_trigger_arg_min(&cmd->convert_arg, board->ai_speed);
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
