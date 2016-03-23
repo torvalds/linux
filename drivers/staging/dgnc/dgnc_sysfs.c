@@ -33,7 +33,7 @@ static DRIVER_ATTR(version, S_IRUSR, dgnc_driver_version_show, NULL);
 
 static ssize_t dgnc_driver_boards_show(struct device_driver *ddp, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", dgnc_NumBoards);
+	return snprintf(buf, PAGE_SIZE, "%d\n", dgnc_num_boards);
 }
 static DRIVER_ATTR(boards, S_IRUSR, dgnc_driver_boards_show, NULL);
 

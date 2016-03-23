@@ -399,12 +399,12 @@ struct channel_t {
 /*
  * Our Global Variables.
  */
-extern uint		dgnc_Major;		/* Our driver/mgmt major */
+extern uint		dgnc_major;		/* Our driver/mgmt major */
 extern int		dgnc_poll_tick;		/* Poll interval - 20 ms */
 extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock */
 extern spinlock_t	dgnc_poll_lock;		/* Poll scheduling lock */
-extern uint		dgnc_NumBoards;		/* Total number of boards */
-extern struct dgnc_board	*dgnc_Board[MAXBOARDS];	/* Array of board
+extern uint		dgnc_num_boards;		/* Total number of boards */
+extern struct dgnc_board	*dgnc_board[MAXBOARDS];	/* Array of board
 							 * structs
 							 */
 
