@@ -296,7 +296,7 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	spin_lock(&mvm->queue_info_lock);
+	spin_lock_bh(&mvm->queue_info_lock);
 
 	/*
 	 * Non-QoS, QoS NDP and MGMT frames should go to a MGMT queue, if one
@@ -324,7 +324,7 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 	if (queue >= 0)
 		mvm->queue_info[queue].setup_reserved = false;
 
-	spin_unlock(&mvm->queue_info_lock);
+	spin_unlock_bh(&mvm->queue_info_lock);
 
 	/* TODO: support shared queues for same RA */
 	if (queue < 0)
@@ -402,12 +402,12 @@ static void iwl_mvm_tx_deferred_stream(struct iwl_mvm *mvm,
 
 	__skb_queue_head_init(&deferred_tx);
 
+	/* Disable bottom-halves when entering TX path */
+	local_bh_disable();
 	spin_lock(&mvmsta->lock);
 	skb_queue_splice_init(&tid_data->deferred_tx_frames, &deferred_tx);
 	spin_unlock(&mvmsta->lock);
 
-	/* Disable bottom-halves when entering TX path */
-	local_bh_disable();
 	while ((skb = __skb_dequeue(&deferred_tx)))
 		if (no_queue || iwl_mvm_tx_skb(mvm, skb, sta))
 			ieee80211_free_txskb(mvm->hw, skb);
