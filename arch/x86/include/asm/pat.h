@@ -6,7 +6,7 @@
 
 bool pat_enabled(void);
 extern void pat_init(void);
-void pat_init_cache_modes(u64);
+void __init_cache_modes(u64);
 
 extern int reserve_memtype(u64 start, u64 end,
 		enum page_cache_mode req_pcm, enum page_cache_mode *ret_pcm);

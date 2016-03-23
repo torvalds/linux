@@ -1632,7 +1632,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 * configuration.
 	 */
 	rdmsrl(MSR_IA32_CR_PAT, pat);
-	pat_init_cache_modes(pat);
+	__init_cache_modes(pat);
 
 	/* keep using Xen gdt for now; no urgent need to change it */
 
