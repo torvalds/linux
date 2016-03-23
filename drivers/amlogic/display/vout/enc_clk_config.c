@@ -782,7 +782,7 @@ static enc_clk_val_t setting_enc_clk_val[] = {
     {VMODE_VGA,        2014, 8, 1, 1, VIU_ENCP, 10, 4, 1, 1, -1, -1, -1,  1,  -1},
     {VMODE_SVGA,       1058, 2, 1, 1, VIU_ENCP, 10, 1, 2, 1, -1, -1, -1,  1,   1},
     {VMODE_XGA,        1085, 1, 1, 1, VIU_ENCP,  5, 1, 1, 1, -1, -1, -1,  1,   1},
-    {VMODE_SXGA,       1080, 1, 1, 1, VIU_ENCP, 10, 1, 1, 1, -1, -1, -1,  1,  -1},
+    {VMODE_SXGA,       2160, 2, 2, 1, VIU_ENCP, 10, 1, 1, 1, -1, -1, -1,  1,  -1},
     {VMODE_1920x1200,  1540, 1, 1, 1, VIU_ENCP, 10, 1, 1, 1, -1, -1, -1,  1,  -1},
 #endif
 
