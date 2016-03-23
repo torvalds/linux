@@ -55,5 +55,9 @@
 			pinctrl-names = "default";
 			status = "ok";
 		};
+
+		watchdog@b017000 {
+			status = "ok";
+		};
 	};
 };

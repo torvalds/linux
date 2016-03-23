@@ -171,5 +171,13 @@
 				<&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 		};
+
+		watchdog@b017000 {
+			compatible = "qcom,kpss-standalone";
+			reg = <0xb017000 0x40>;
+			clocks = <&sleep_clk>;
+			timeout-sec = <10>;
+			status = "disabled";
+		};
 	};
 };
