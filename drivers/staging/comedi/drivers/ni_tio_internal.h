@@ -174,21 +174,11 @@ static inline unsigned read_register(struct ni_gpct *counter,
 	return counter->counter_dev->read_register(counter, reg);
 }
 
-static inline int ni_tio_counting_mode_registers_present(const struct
-							 ni_gpct_device
-							 *counter_dev)
+static inline bool
+ni_tio_counting_mode_registers_present(const struct ni_gpct_device *counter_dev)
 {
-	switch (counter_dev->variant) {
-	case ni_gpct_variant_e_series:
-		return 0;
-	case ni_gpct_variant_m_series:
-	case ni_gpct_variant_660x:
-		return 1;
-	default:
-		BUG();
-		break;
-	}
-	return 0;
+	/* m series and 660x variants have counting mode registers */
+	return counter_dev->variant != ni_gpct_variant_e_series;
 }
 
 void ni_tio_set_bits(struct ni_gpct *, enum ni_gpct_register reg,

@@ -451,7 +451,7 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter, int force_alt_sync)
 	unsigned mode;
 	uint64_t clock_period_ps;
 
-	if (ni_tio_counting_mode_registers_present(counter_dev) == 0)
+	if (!ni_tio_counting_mode_registers_present(counter_dev))
 		return;
 
 	mode = ni_tio_get_soft_copy(counter, counting_mode_reg);
