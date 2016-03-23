@@ -56,8 +56,6 @@
  *     
  */
 
-#define AUTOPROBE_IRQ
-
 #include <asm/io.h>
 #include <linux/blkdev.h>
 #include <linux/module.h>

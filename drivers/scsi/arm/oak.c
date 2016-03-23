@@ -14,8 +14,6 @@
 
 #include <scsi/scsi_host.h>
 
-#define DONT_USE_INTR
-
 #define priv(host)			((struct NCR5380_hostdata *)(host)->hostdata)
 
 #define NCR5380_read(reg) \

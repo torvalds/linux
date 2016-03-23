@@ -34,8 +34,6 @@
  * Definitions for the generic 5380 driver.
  */
 
-#define DONT_USE_INTR
-
 #define NCR5380_read(reg)		inb(instance->io_port + reg)
 #define NCR5380_write(reg, value)	outb(value, instance->io_port + reg)
 

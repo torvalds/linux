@@ -1,5 +1,3 @@
-#define DONT_USE_INTR
-
 /*
  * DTC 3180/3280 driver, by
  *	Ray Van Tassle	rayvt@comm.mot.com
@@ -53,7 +51,6 @@
 #include <scsi/scsi_host.h>
 
 #include "dtc.h"
-#define AUTOPROBE_IRQ
 #include "NCR5380.h"
 
 /*
@@ -243,9 +240,10 @@ found:
 		if (instance->irq == 255)
 			instance->irq = NO_IRQ;
 
-#ifndef DONT_USE_INTR
 		/* With interrupts enabled, it will sometimes hang when doing heavy
 		 * reads. So better not enable them until I finger it out. */
+		instance->irq = NO_IRQ;
+
 		if (instance->irq != NO_IRQ)
 			if (request_irq(instance->irq, dtc_intr, 0,
 					"dtc", instance)) {
@@ -257,11 +255,7 @@ found:
 			printk(KERN_WARNING "scsi%d : interrupts not enabled. for better interactive performance,\n", instance->host_no);
 			printk(KERN_WARNING "scsi%d : please jumper the board for a free IRQ.\n", instance->host_no);
 		}
-#else
-		if (instance->irq != NO_IRQ)
-			printk(KERN_WARNING "scsi%d : interrupts not used. Might as well not jumper it.\n", instance->host_no);
-		instance->irq = NO_IRQ;
-#endif
+
 		dprintk(NDEBUG_INIT, "scsi%d : irq = %d\n",
 		        instance->host_no, instance->irq);
 

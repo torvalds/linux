@@ -106,9 +106,6 @@
  * DIFFERENTIAL - if defined, NCR53c81 chips will use external differential
  * transceivers.
  *
- * DONT_USE_INTR - if defined, never use interrupts, even if we probe or
- * override-configure an IRQ.
- *
  * PSEUDO_DMA - if defined, PSEUDO DMA is used during the data transfer phases.
  *
  * REAL_DMA - if defined, REAL DMA is used during the data transfer phases.
@@ -464,9 +461,6 @@ static void prepare_info(struct Scsi_Host *instance)
 	         hostdata->flags & FLAG_DMA_FIXUP     ? "DMA_FIXUP "     : "",
 	         hostdata->flags & FLAG_NO_PSEUDO_DMA ? "NO_PSEUDO_DMA " : "",
 	         hostdata->flags & FLAG_TOSHIBA_DELAY ? "TOSHIBA_DELAY "  : "",
-#ifdef AUTOPROBE_IRQ
-	         "AUTOPROBE_IRQ "
-#endif
 #ifdef DIFFERENTIAL
 	         "DIFFERENTIAL "
 #endif
@@ -915,8 +909,6 @@ static void NCR5380_dma_complete(struct Scsi_Host *instance)
 	}
 }
 
-#ifndef DONT_USE_INTR
-
 /**
  * NCR5380_intr - generic NCR5380 irq handler
  * @irq: interrupt number
@@ -951,7 +943,7 @@ static void NCR5380_dma_complete(struct Scsi_Host *instance)
  * the Busy Monitor interrupt is enabled together with DMA Mode.
  */
 
-static irqreturn_t NCR5380_intr(int irq, void *dev_id)
+static irqreturn_t __maybe_unused NCR5380_intr(int irq, void *dev_id)
 {
 	struct Scsi_Host *instance = dev_id;
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
@@ -1019,8 +1011,6 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 
 	return IRQ_RETVAL(handled);
 }
-
-#endif
 
 /*
  * Function : int NCR5380_select(struct Scsi_Host *instance,

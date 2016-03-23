@@ -280,16 +280,12 @@ static void NCR5380_print(struct Scsi_Host *instance);
 #define NCR5380_dprint_phase(flg, arg) do {} while (0)
 #endif
 
-#if defined(AUTOPROBE_IRQ)
 static int NCR5380_probe_irq(struct Scsi_Host *instance, int possible);
-#endif
 static int NCR5380_init(struct Scsi_Host *instance, int flags);
 static int NCR5380_maybe_reset_bus(struct Scsi_Host *);
 static void NCR5380_exit(struct Scsi_Host *instance);
 static void NCR5380_information_transfer(struct Scsi_Host *instance);
-#ifndef DONT_USE_INTR
 static irqreturn_t NCR5380_intr(int irq, void *dev_id);
-#endif
 static void NCR5380_main(struct work_struct *work);
 static const char *NCR5380_info(struct Scsi_Host *instance);
 static void NCR5380_reselect(struct Scsi_Host *instance);
