@@ -34,13 +34,6 @@
 /* Adapted for the Sun 3 by Sam Creasey. */
 
 /*
- * Further development / testing that should be done :
- *
- * 4.  Test SCSI-II tagged queueing (I have no devices which support
- * tagged queueing)
- */
-
-/*
  * Design
  *
  * This is a generic 5380 driver.  To use it on a different platform,
@@ -1257,14 +1250,6 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	 * was true but before BSY was false during selection, the information
 	 * transfer phase should be a MESSAGE OUT phase so that we can send the
 	 * IDENTIFY message.
-	 *
-	 * If SCSI-II tagged queuing is enabled, we also send a SIMPLE_QUEUE_TAG
-	 * message (2 bytes) with a tag ID that we increment with every command
-	 * until it wraps back to 0.
-	 *
-	 * XXX - it turns out that there are some broken SCSI-II devices,
-	 * which claim to support tagged queuing but fail when more than
-	 * some number of commands are issued at once.
 	 */
 
 	/* Wait for start of REQ/ACK handshake */
@@ -1287,9 +1272,6 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	tmp[0] = IDENTIFY(((instance->irq == NO_IRQ) ? 0 : 1), cmd->device->lun);
 
 	len = 1;
-	cmd->tag = 0;
-
-	/* Send message(s) */
 	data = tmp;
 	phase = PHASE_MSGOUT;
 	NCR5380_transfer_pio(instance, &phase, &len, &data);
@@ -2256,8 +2238,8 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 
 	hostdata->connected = tmp;
-	dsprintk(NDEBUG_RESELECTION, instance, "nexus established, target %d, lun %llu, tag %d\n",
-	         scmd_id(tmp), tmp->device->lun, tmp->tag);
+	dsprintk(NDEBUG_RESELECTION, instance, "nexus established, target %d, lun %llu\n",
+	         scmd_id(tmp), tmp->device->lun);
 }
 
 /**

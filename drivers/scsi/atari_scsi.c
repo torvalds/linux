@@ -87,9 +87,6 @@
 
 /* Definitions for the core NCR5380 driver. */
 
-#define SUPPORT_TAGS
-#define MAX_TAGS                        32
-
 #define NCR5380_implementation_fields   /* none */
 
 #define NCR5380_read(reg)               atari_scsi_reg_read(reg)
@@ -189,8 +186,6 @@ static int setup_cmd_per_lun = -1;
 module_param(setup_cmd_per_lun, int, 0);
 static int setup_sg_tablesize = -1;
 module_param(setup_sg_tablesize, int, 0);
-static int setup_use_tagged_queuing = -1;
-module_param(setup_use_tagged_queuing, int, 0);
 static int setup_hostid = -1;
 module_param(setup_hostid, int, 0);
 static int setup_toshiba_delay = -1;
@@ -479,8 +474,7 @@ static int __init atari_scsi_setup(char *str)
 		setup_sg_tablesize = ints[3];
 	if (ints[0] >= 4)
 		setup_hostid = ints[4];
-	if (ints[0] >= 5)
-		setup_use_tagged_queuing = ints[5];
+	/* ints[5] (use_tagged_queuing) is ignored */
 	/* ints[6] (use_pdma) is ignored */
 	if (ints[0] >= 7)
 		setup_toshiba_delay = ints[7];
@@ -853,9 +847,6 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 	instance->irq = irq->start;
 
 	host_flags |= IS_A_TT() ? 0 : FLAG_LATE_DMA_SETUP;
-#ifdef SUPPORT_TAGS
-	host_flags |= setup_use_tagged_queuing > 0 ? FLAG_TAGGED_QUEUING : 0;
-#endif
 	host_flags |= setup_toshiba_delay > 0 ? FLAG_TOSHIBA_DELAY : 0;
 
 	error = NCR5380_init(instance, host_flags);

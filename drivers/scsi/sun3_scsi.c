@@ -41,9 +41,6 @@
 
 /* Definitions for the core NCR5380 driver. */
 
-/* #define SUPPORT_TAGS */
-/* #define MAX_TAGS                     32 */
-
 #define NCR5380_implementation_fields   /* none */
 
 #define NCR5380_read(reg)               sun3scsi_read(reg)
@@ -75,10 +72,6 @@ static int setup_cmd_per_lun = -1;
 module_param(setup_cmd_per_lun, int, 0);
 static int setup_sg_tablesize = -1;
 module_param(setup_sg_tablesize, int, 0);
-#ifdef SUPPORT_TAGS
-static int setup_use_tagged_queuing = -1;
-module_param(setup_use_tagged_queuing, int, 0);
-#endif
 static int setup_hostid = -1;
 module_param(setup_hostid, int, 0);
 
@@ -511,10 +504,6 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 
 	instance->io_port = (unsigned long)ioaddr;
 	instance->irq = irq->start;
-
-#ifdef SUPPORT_TAGS
-	host_flags |= setup_use_tagged_queuing > 0 ? FLAG_TAGGED_QUEUING : 0;
-#endif
 
 	error = NCR5380_init(instance, host_flags);
 	if (error)

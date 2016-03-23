@@ -199,13 +199,6 @@
 
 #define PHASE_SR_TO_TCR(phase) ((phase) >> 2)
 
-/* 
- * "Special" value for the (unsigned char) command tag, to indicate
- * I_T_L nexus instead of I_T_L_Q.
- */
-
-#define TAG_NONE	0xff
-
 /*
  * These are "special" values for the irq and dma_channel fields of the 
  * Scsi_Host structure
@@ -223,16 +216,7 @@
 #define FLAG_DMA_FIXUP			1	/* Use DMA errata workarounds */
 #define FLAG_NO_PSEUDO_DMA		8	/* Inhibit DMA */
 #define FLAG_LATE_DMA_SETUP		32	/* Setup NCR before DMA H/W */
-#define FLAG_TAGGED_QUEUING		64	/* as X3T9.2 spelled it */
 #define FLAG_TOSHIBA_DELAY		128	/* Allow for borken CD-ROMs */
-
-#ifdef SUPPORT_TAGS
-struct tag_alloc {
-	DECLARE_BITMAP(allocated, MAX_TAGS);
-	int nr_allocated;
-	int queue_size;
-};
-#endif
 
 struct NCR5380_hostdata {
 	NCR5380_implementation_fields;		/* implementation specific */
@@ -254,9 +238,6 @@ struct NCR5380_hostdata {
 	int read_overruns;                /* number of bytes to cut from a
 	                                   * transfer to handle chip overruns */
 	struct work_struct main_task;
-#ifdef SUPPORT_TAGS
-	struct tag_alloc TagAlloc[8][8];	/* 8 targets and 8 LUNs */
-#endif
 	struct workqueue_struct *work_q;
 	unsigned long accesses_per_ms;	/* chip register accesses per ms */
 };
