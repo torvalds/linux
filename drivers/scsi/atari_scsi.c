@@ -83,11 +83,12 @@
 
 #include <scsi/scsi_host.h>
 
+#define DMA_MIN_SIZE                    32
+
 /* Definitions for the core NCR5380 driver. */
 
 #define SUPPORT_TAGS
 #define MAX_TAGS                        32
-#define DMA_MIN_SIZE                    32
 
 #define NCR5380_implementation_fields   /* none */
 
@@ -604,6 +605,9 @@ static unsigned long atari_dma_xfer_len(unsigned long wanted_len,
 					struct scsi_cmnd *cmd, int write_flag)
 {
 	unsigned long	possible_len, limit;
+
+	if (wanted_len < DMA_MIN_SIZE)
+		return 0;
 
 	if (IS_A_TT())
 		/* TT SCSI DMA can transfer arbitrary #bytes */

@@ -1857,12 +1857,11 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					d = cmd->SCp.ptr;
 				}
 				/* this command setup for dma yet? */
-				if ((count >= DMA_MIN_SIZE) && (sun3_dma_setup_done != cmd)) {
-					if (cmd->request->cmd_type == REQ_TYPE_FS) {
-						sun3scsi_dma_setup(instance, d, count,
-						                   rq_data_dir(cmd->request));
-						sun3_dma_setup_done = cmd;
-					}
+				if (sun3_dma_setup_done != cmd &&
+				    sun3scsi_dma_xfer_len(count, cmd) > 0) {
+					sun3scsi_dma_setup(instance, d, count,
+					                   rq_data_dir(cmd->request));
+					sun3_dma_setup_done = cmd;
 				}
 #ifdef SUN3_SCSI_VME
 				dregs->csr |= CSR_INTR;
@@ -1927,7 +1926,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 #endif
 					transfersize = NCR5380_dma_xfer_len(instance, cmd, phase);
 
-				if (transfersize >= DMA_MIN_SIZE) {
+				if (transfersize > 0) {
 					len = transfersize;
 					cmd->SCp.phase = phase;
 					if (NCR5380_transfer_dma(instance, &phase,
@@ -2366,7 +2365,8 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 			d = tmp->SCp.ptr;
 		}
 		/* setup this command for dma if not already */
-		if ((count >= DMA_MIN_SIZE) && (sun3_dma_setup_done != tmp)) {
+		if (sun3_dma_setup_done != tmp &&
+		    sun3scsi_dma_xfer_len(count, tmp) > 0) {
 			sun3scsi_dma_setup(instance, d, count,
 			                   rq_data_dir(tmp->request));
 			sun3_dma_setup_done = tmp;

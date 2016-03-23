@@ -36,12 +36,12 @@
 #include <scsi/scsi_host.h>
 #include "sun3_scsi.h"
 
-/* Definitions for the core NCR5380 driver. */
-
-/* #define SUPPORT_TAGS */
 /* minimum number of bytes to do dma on */
 #define DMA_MIN_SIZE                    129
 
+/* Definitions for the core NCR5380 driver. */
+
+/* #define SUPPORT_TAGS */
 /* #define MAX_TAGS                     32 */
 
 #define NCR5380_implementation_fields   /* none */
@@ -61,7 +61,7 @@
 #define NCR5380_dma_residual(instance) \
         sun3scsi_dma_residual(instance)
 #define NCR5380_dma_xfer_len(instance, cmd, phase) \
-        sun3scsi_dma_xfer_len(cmd->SCp.this_residual, cmd, !((phase) & SR_IO))
+        sun3scsi_dma_xfer_len(cmd->SCp.this_residual, cmd)
 
 #define NCR5380_acquire_dma_irq(instance)    (1)
 #define NCR5380_release_dma_irq(instance)
@@ -262,14 +262,13 @@ static inline unsigned long sun3scsi_dma_residual(struct Scsi_Host *instance)
 	return last_residual;
 }
 
-static inline unsigned long sun3scsi_dma_xfer_len(unsigned long wanted,
-						  struct scsi_cmnd *cmd,
-						  int write_flag)
+static inline unsigned long sun3scsi_dma_xfer_len(unsigned long wanted_len,
+                                                  struct scsi_cmnd *cmd)
 {
-	if (cmd->request->cmd_type == REQ_TYPE_FS)
- 		return wanted;
-	else
+	if (wanted_len < DMA_MIN_SIZE || cmd->request->cmd_type != REQ_TYPE_FS)
 		return 0;
+
+	return wanted_len;
 }
 
 static inline int sun3scsi_dma_start(unsigned long count, unsigned char *data)
