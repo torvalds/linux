@@ -51,9 +51,9 @@ static void ni_tio_configure_dma(struct ni_gpct *counter,
 				 bool enable, bool read)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	unsigned cidx = counter->counter_index;
-	unsigned mask;
-	unsigned bits;
+	unsigned int cidx = counter->counter_index;
+	unsigned int mask;
+	unsigned int bits;
 
 	mask = GI_READ_ACKS_IRQ | GI_WRITE_ACKS_IRQ;
 	bits = 0;
@@ -113,7 +113,7 @@ static int ni_tio_input_cmd(struct comedi_subdevice *s)
 {
 	struct ni_gpct *counter = s->private;
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	unsigned cidx = counter->counter_index;
+	unsigned int cidx = counter->counter_index;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	int ret = 0;
@@ -163,9 +163,9 @@ static int ni_tio_cmd_setup(struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct ni_gpct *counter = s->private;
-	unsigned cidx = counter->counter_index;
+	unsigned int cidx = counter->counter_index;
 	int set_gate_source = 0;
-	unsigned gate_source;
+	unsigned int gate_source;
 	int retval = 0;
 
 	if (cmd->scan_begin_src == TRIG_EXT) {
@@ -289,7 +289,7 @@ EXPORT_SYMBOL_GPL(ni_tio_cmdtest);
 
 int ni_tio_cancel(struct ni_gpct *counter)
 {
-	unsigned cidx = counter->counter_index;
+	unsigned int cidx = counter->counter_index;
 	unsigned long flags;
 
 	ni_tio_arm(counter, false, 0);
@@ -341,12 +341,12 @@ static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
 					   int *perm_stale_data,
 					   int *stale_data)
 {
-	unsigned cidx = counter->counter_index;
+	unsigned int cidx = counter->counter_index;
 	const unsigned short gxx_status = ni_tio_read(counter,
 						NITIO_SHARED_STATUS_REG(cidx));
 	const unsigned short gi_status = ni_tio_read(counter,
 						NITIO_STATUS_REG(cidx));
-	unsigned ack = 0;
+	unsigned int ack = 0;
 
 	if (gate_error)
 		*gate_error = 0;
@@ -407,8 +407,8 @@ EXPORT_SYMBOL_GPL(ni_tio_acknowledge);
 void ni_tio_handle_interrupt(struct ni_gpct *counter,
 			     struct comedi_subdevice *s)
 {
-	unsigned cidx = counter->counter_index;
-	unsigned gpct_mite_status;
+	unsigned int cidx = counter->counter_index;
+	unsigned int gpct_mite_status;
 	unsigned long flags;
 	int gate_error;
 	int tc_error;
