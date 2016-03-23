@@ -113,6 +113,17 @@
 #define DT2821_SUPCSR_XCLK		BIT(1)
 #define DT2821_SUPCSR_BDINIT		BIT(0)
 #define DT2821_TMRCTR_REG		0x0e
+#define DT2821_TMRCTR_PRESCALE(x)	(((x) & 0xf) << 8)
+#define DT2821_TMRCTR_DIVIDER(x)	((255 - ((x) & 0xff)) << 0)
+
+/* Pacer Clock */
+#define DT2821_OSC_BASE		250	/* 4 MHz (in nanoseconds) */
+#define DT2821_PRESCALE(x)	BIT(x)
+#define DT2821_PRESCALE_MAX	15
+#define DT2821_DIVIDER_MAX	255
+#define DT2821_OSC_MAX		(DT2821_OSC_BASE *			\
+				 DT2821_PRESCALE(DT2821_PRESCALE_MAX) *	\
+				 DT2821_DIVIDER_MAX)
 
 static const struct comedi_lrange range_dt282x_ai_lo_bipolar = {
 	4, {
@@ -365,10 +376,10 @@ static unsigned int dt282x_ns_to_timer(unsigned int *ns, unsigned int flags)
 {
 	unsigned int prescale, base, divider;
 
-	for (prescale = 0; prescale < 16; prescale++) {
-		if (prescale == 1)
+	for (prescale = 0; prescale <= DT2821_PRESCALE_MAX; prescale++) {
+		if (prescale == 1)	/* 0 and 1 are both divide by 1 */
 			continue;
-		base = 250 * (1 << prescale);
+		base = DT2821_OSC_BASE * DT2821_PRESCALE(prescale);
 		switch (flags & CMDF_ROUND_MASK) {
 		case CMDF_ROUND_NEAREST:
 		default:
@@ -381,15 +392,17 @@ static unsigned int dt282x_ns_to_timer(unsigned int *ns, unsigned int flags)
 			divider = DIV_ROUND_UP(*ns, base);
 			break;
 		}
-		if (divider < 256) {
-			*ns = divider * base;
-			return (prescale << 8) | (255 - divider);
-		}
+		if (divider <= DT2821_DIVIDER_MAX)
+			break;
 	}
-	base = 250 * (1 << 15);
-	divider = 255;
+	if (divider > DT2821_DIVIDER_MAX) {
+		prescale = DT2821_PRESCALE_MAX;
+		divider = DT2821_DIVIDER_MAX;
+		base = DT2821_OSC_BASE * DT2821_PRESCALE(prescale);
+	}
 	*ns = divider * base;
-	return (15 << 8) | (255 - divider);
+	return DT2821_TMRCTR_PRESCALE(prescale) |
+	       DT2821_TMRCTR_DIVIDER(divider);
 }
 
 static void dt282x_munge(struct comedi_device *dev,
@@ -689,8 +702,7 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 
 	err |= comedi_check_trigger_arg_min(&cmd->convert_arg, 4000);
 
-#define SLOWEST_TIMER	(250*(1<<15)*255)
-	err |= comedi_check_trigger_arg_max(&cmd->convert_arg, SLOWEST_TIMER);
+	err |= comedi_check_trigger_arg_max(&cmd->convert_arg, DT2821_OSC_MAX);
 	err |= comedi_check_trigger_arg_min(&cmd->convert_arg, board->ai_speed);
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
 					   cmd->chanlist_len);
