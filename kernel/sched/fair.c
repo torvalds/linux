@@ -7399,10 +7399,7 @@ more_balance:
 					&busiest->active_balance_work);
 			}
 
-			/*
-			 * We've kicked active balancing, reset the failure
-			 * counter.
-			 */
+			/* We've kicked active balancing, force task migration. */
 			sd->nr_balance_failed = sd->cache_nice_tries+1;
 		}
 	} else
@@ -7637,10 +7634,13 @@ static int active_load_balance_cpu_stop(void *data)
 		schedstat_inc(sd, alb_count);
 
 		p = detach_one_task(&env);
-		if (p)
+		if (p) {
 			schedstat_inc(sd, alb_pushed);
-		else
+			/* Active balancing done, reset the failure counter. */
+			sd->nr_balance_failed = 0;
+		} else {
 			schedstat_inc(sd, alb_failed);
+		}
 	}
 	rcu_read_unlock();
 out_unlock:
