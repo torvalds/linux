@@ -593,7 +593,7 @@ int qat_rsa_get_d(void *context, size_t hdrlen, unsigned char tag,
 
 	ret = -ENOMEM;
 	ctx->d = dma_zalloc_coherent(dev, ctx->key_sz, &ctx->dma_d, GFP_KERNEL);
-	if (!ctx->n)
+	if (!ctx->d)
 		goto err;
 
 	memcpy(ctx->d + (ctx->key_sz - vlen), ptr, vlen);
