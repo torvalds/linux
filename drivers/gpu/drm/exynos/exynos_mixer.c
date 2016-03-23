@@ -1065,6 +1065,8 @@ static void mixer_enable(struct exynos_drm_crtc *crtc)
 
 	pm_runtime_get_sync(ctx->dev);
 
+	exynos_drm_pipe_clk_enable(crtc, true);
+
 	mixer_vsync_set_update(ctx, false);
 
 	mixer_reg_writemask(res, MXR_STATUS, ~0, MXR_STATUS_SOFT_RESET);
@@ -1093,6 +1095,8 @@ static void mixer_disable(struct exynos_drm_crtc *crtc)
 
 	for (i = 0; i < MIXER_WIN_NR; i++)
 		mixer_disable_plane(crtc, &ctx->planes[i]);
+
+	exynos_drm_pipe_clk_enable(crtc, false);
 
 	pm_runtime_put(ctx->dev);
 
