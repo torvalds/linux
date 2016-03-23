@@ -113,25 +113,29 @@
 
 		opp00 {
 			opp-hz = /bits/ 64 <408000000>;
-			opp-microvolt = <1200000>;
+			opp-microvolt = <950000>;
 			clock-latency-ns = <40000>;
 			opp-suspend;
 		};
 		opp01 {
 			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <1200000>;
+			opp-microvolt = <950000>;
 		};
 		opp02 {
 			opp-hz = /bits/ 64 <816000000>;
-			opp-microvolt = <1200000>;
+			opp-microvolt = <1000000>;
 		};
 		opp03 {
 			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <1200000>;
+			opp-microvolt = <1075000>;
 		};
 		opp04 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <1200000>;
+			opp-microvolt = <1175000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1296000000>;
+			opp-microvolt = <1250000>;
 		};
 	};
 
