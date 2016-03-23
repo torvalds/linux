@@ -292,6 +292,8 @@ static void NCR5380_reselect(struct Scsi_Host *instance);
 static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *, struct scsi_cmnd *);
 static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase, int *count, unsigned char **data);
 static int NCR5380_transfer_pio(struct Scsi_Host *instance, unsigned char *phase, int *count, unsigned char **data);
+static int NCR5380_poll_politely(struct Scsi_Host *, int, int, int, int);
+static int NCR5380_poll_politely2(struct Scsi_Host *, int, int, int, int, int, int, int);
 
 #endif				/* __KERNEL__ */
 #endif				/* NCR5380_H */
