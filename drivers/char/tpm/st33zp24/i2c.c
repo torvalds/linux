@@ -113,19 +113,8 @@ static const struct st33zp24_phy_ops i2c_phy_ops = {
 static int st33zp24_i2c_acpi_request_resources(struct i2c_client *client)
 {
 	struct st33zp24_i2c_phy *phy = i2c_get_clientdata(client);
-	const struct acpi_device_id *id;
 	struct gpio_desc *gpiod_lpcpd;
-	struct device *dev;
-
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	/* Match the struct device against a given list of ACPI IDs */
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return -ENODEV;
+	struct device *dev = &client->dev;
 
 	/* Get LPCPD GPIO from ACPI */
 	gpiod_lpcpd = devm_gpiod_get_index(dev, "TPM IO LPCPD", 1,
