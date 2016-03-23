@@ -325,12 +325,7 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
 
-	decon_shadow_protect_win(ctx, win, true);
-
-	/* window disable */
 	decon_set_bits(ctx, DECON_WINCONx(win), WINCONx_ENWIN_F, 0);
-
-	decon_shadow_protect_win(ctx, win, false);
 }
 
 static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
