@@ -1,19 +1,18 @@
 /*
-  comedi/drivers/ni_tiocmd.c
-  Command support for NI general purpose counters
-
-  Copyright (C) 2006 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-*/
+ * Command support for NI general purpose counters
+ *
+ * Copyright (C) 2006 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
  * Module: ni_tiocmd
@@ -36,12 +35,9 @@
  * DAQ 660x Register-Level Programmer Manual  (NI 370505A-01)
  * DAQ 6601/6602 User Manual (NI 322137B-01)
  * 340934b.pdf  DAQ-STC reference manual
+ *
+ * TODO: Support use of both banks X and Y
  */
-
-/*
-TODO:
-	Support use of both banks X and Y
-*/
 
 #include <linux/module.h>
 #include "ni_tio_internal.h"
@@ -305,9 +301,6 @@ int ni_tio_cancel(struct ni_gpct *counter)
 }
 EXPORT_SYMBOL_GPL(ni_tio_cancel);
 
-	/* During buffered input counter operation for e-series, the gate
-	   interrupt is acked automatically by the dma controller, due to the
-	   Gi_Read/Write_Acknowledges_IRQ bits in the input select register.  */
 static int should_ack_gate(struct ni_gpct *counter)
 {
 	unsigned long flags;
@@ -315,12 +308,19 @@ static int should_ack_gate(struct ni_gpct *counter)
 
 	switch (counter->counter_dev->variant) {
 	case ni_gpct_variant_m_series:
-	/*  not sure if 660x really supports gate
-	    interrupts (the bits are not listed
-	    in register-level manual) */
 	case ni_gpct_variant_660x:
+		/*
+		 * not sure if 660x really supports gate interrupts
+		 * (the bits are not listed in register-level manual)
+		 */
 		return 1;
 	case ni_gpct_variant_e_series:
+		/*
+		 * During buffered input counter operation for e-series,
+		 * the gate interrupt is acked automatically by the dma
+		 * controller, due to the Gi_Read/Write_Acknowledges_IRQ
+		 * bits in the input select register.
+		 */
 		spin_lock_irqsave(&counter->lock, flags);
 		{
 			if (!counter->mite_chan ||
@@ -360,9 +360,11 @@ static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
 	if (gxx_status & GI_GATE_ERROR(cidx)) {
 		ack |= GI_GATE_ERROR_CONFIRM(cidx);
 		if (gate_error) {
-			/*660x don't support automatic acknowledgment
-			  of gate interrupt via dma read/write
-			   and report bogus gate errors */
+			/*
+			 * 660x don't support automatic acknowledgment
+			 * of gate interrupt via dma read/write
+			 * and report bogus gate errors
+			 */
 			if (counter->counter_dev->variant !=
 			    ni_gpct_variant_660x)
 				*gate_error = 1;
