@@ -105,7 +105,7 @@
 				status = "disabled";
 			};
 
-			usb3: usb3@58000 {
+			usb3: usb@58000 {
 				compatible = "generic-xhci";
 				reg = <0x58000 0x4000>;
 				interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
