@@ -948,7 +948,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKGATE_CON(7), 6, GFLAGS),
 	GATE(0, "gpll_fclk_cm0s_src", "gpll", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(7), 5, GFLAGS),
-	COMPOSITE(0, "fclk_cm0s", mux_fclk_cm0s_p, CLK_IGNORE_UNUSED,
+	COMPOSITE(FCLK_CM0S, "fclk_cm0s", mux_fclk_cm0s_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(24), 15, 1, MFLAGS, 8, 5, DFLAGS,
 			RK3399_CLKGATE_CON(7), 9, GFLAGS),
 
@@ -1182,7 +1182,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKSEL_CON(55), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3399_CLKGATE_CON(11), 4, GFLAGS),
 
-	COMPOSITE(SCLK_ISP1, "aclk_isp1", mux_pll_src_cpll_gpll_ppll_p, CLK_IGNORE_UNUSED,
+	COMPOSITE(ACLK_ISP1, "aclk_isp1", mux_pll_src_cpll_gpll_ppll_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(54), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3399_CLKGATE_CON(12), 10, GFLAGS),
 	COMPOSITE_NOMUX(0, "hclk_isp1", "aclk_isp1", 0,
@@ -1220,7 +1220,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKSEL_CON(56), 5, 1, MFLAGS),
 
 	/* gic */
-	COMPOSITE(0, "aclk_gic_pre", mux_pll_src_cpll_gpll_p, CLK_IGNORE_UNUSED,
+	COMPOSITE(ACLK_GIC_PRE, "aclk_gic_pre", mux_pll_src_cpll_gpll_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(56), 15, 1, MFLAGS, 8, 5, DFLAGS,
 			RK3399_CLKGATE_CON(12), 12, GFLAGS),
 
@@ -1233,7 +1233,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 
 	/* alive */
 	/* pclk_alive_gpll_src is controlled by PMUGRF_SOC_CON0[6] */
-	DIV(0, "pclk_alive", "gpll", 0,
+	DIV(PCLK_ALIVE, "pclk_alive", "gpll", 0,
 			RK3399_CLKSEL_CON(57), 0, 5, DFLAGS),
 
 	GATE(PCLK_USBPHY_MUX_G, "pclk_usbphy_mux_g", "pclk_alive", CLK_IGNORE_UNUSED, RK3399_CLKGATE_CON(21), 4, GFLAGS),
@@ -1345,7 +1345,7 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 	GATE(0, "fclk_cm0s_pmu_ppll_src", "ppll", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(0), 1, GFLAGS),
 
-	COMPOSITE_NOGATE(0, "fclk_cm0s_src_pmu", mux_fclk_cm0s_pmu_ppll_p, CLK_IGNORE_UNUSED,
+	COMPOSITE_NOGATE(FCLK_CM0S_SRC_PMU, "fclk_cm0s_src_pmu", mux_fclk_cm0s_pmu_ppll_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(0), 15, 1, MFLAGS, 8, 5, DFLAGS),
 
 	COMPOSITE(SCLK_SPI3_PMU, "clk_spi3_pmu", mux_24m_ppll_p, CLK_IGNORE_UNUSED,
@@ -1389,7 +1389,7 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 			RK3399_CLKGATE_CON(0), 6, GFLAGS,
 			&rk3399_uart4_pmu_fracmux),
 
-	DIV(0, "pclk_pmu_src", "ppll", CLK_IGNORE_UNUSED,
+	DIV(PCLK_SRC_PMU, "pclk_pmu_src", "ppll", CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(0), 0, 5, DFLAGS),
 
 	/* pmu clock gates */
