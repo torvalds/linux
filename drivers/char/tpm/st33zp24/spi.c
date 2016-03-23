@@ -232,19 +232,8 @@ static const struct st33zp24_phy_ops spi_phy_ops = {
 static int st33zp24_spi_acpi_request_resources(struct spi_device *spi_dev)
 {
 	struct st33zp24_spi_phy *phy = spi_get_drvdata(spi_dev);
-	const struct acpi_device_id *id;
 	struct gpio_desc *gpiod_lpcpd;
-	struct device *dev;
-
-	if (!spi_dev)
-		return -EINVAL;
-
-	dev = &spi_dev->dev;
-
-	/* Match the struct device against a given list of ACPI IDs */
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return -ENODEV;
+	struct device *dev = &spi_dev->dev;
 
 	/* Get LPCPD GPIO from ACPI */
 	gpiod_lpcpd = devm_gpiod_get_index(dev, "TPM IO LPCPD", 1,
