@@ -668,7 +668,9 @@
 			<&cru PLL_NPLL>, <&cru PLL_MPLL>,
 			<&cru PLL_WPLL>, <&cru PLL_BPLL>,
 			<&cru ACLK_VOP_FULL>, <&cru ACLK_VOP_LITE>,
-			<&cru HCLK_VOP_LITE>,<&cru HCLK_VOP_LITE>;
+			<&cru HCLK_VOP_LITE>,<&cru HCLK_VOP_LITE>,
+			<&cru ACLK_BUS>, <&cru ACLK_PERI0>,
+			<&cru ACLK_PERI1>;
 		assigned-clock-rates =
 			<0>,
 			<0>, <0>,
@@ -676,7 +678,9 @@
 			<594000000>, <594000000>,
 			<960000000>, <520000000>,
 			<375000000>, <288000000>,
-			<100000000>, <100000000>;
+			<100000000>, <100000000>,
+			<288000000>, <288000000>,
+			<144000000>;
 		assigned-clock-parents =
 			<&cru SCLK_32K_INTR>,
 			<&cru SCLK_MPLL_SRC>, <&cru PLL_NPLL>;
