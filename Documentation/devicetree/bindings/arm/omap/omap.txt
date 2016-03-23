@@ -133,6 +133,9 @@ Boards:
 - AM335X Bone : Low cost community board
   compatible = "ti,am335x-bone", "ti,am33xx", "ti,omap3"
 
+- AM3359 ICEv2 : Low cost Industrial Communication Engine EVM.
+  compatible = "ti,am3359-icev2", "ti,am33xx", "ti,omap3"
+
 - AM335X OrionLXm : Substation Automation Platform
   compatible = "novatech,am335x-lxm", "ti,am33xx"
 
