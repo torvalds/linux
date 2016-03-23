@@ -85,7 +85,6 @@
 
 /* Definitions for the core NCR5380 driver. */
 
-#define REAL_DMA
 #define SUPPORT_TAGS
 #define MAX_TAGS                        32
 #define DMA_MIN_SIZE                    32
@@ -159,14 +158,11 @@ static inline unsigned long SCSI_DMA_GETADR(void)
 	return adr;
 }
 
-#ifdef REAL_DMA
 static void atari_scsi_fetch_restbytes(void);
-#endif
 
 static unsigned char (*atari_scsi_reg_read)(unsigned char reg);
 static void (*atari_scsi_reg_write)(unsigned char reg, unsigned char value);
 
-#ifdef REAL_DMA
 static unsigned long	atari_dma_residual, atari_dma_startaddr;
 static short		atari_dma_active;
 /* pointer to the dribble buffer */
@@ -185,7 +181,6 @@ static char		*atari_dma_orig_addr;
 /* mask for address bits that can't be used with the ST-DMA */
 static unsigned long	atari_dma_stram_mask;
 #define STRAM_ADDR(a)	(((a) & atari_dma_stram_mask) == 0)
-#endif
 
 static int setup_can_queue = -1;
 module_param(setup_can_queue, int, 0);
@@ -200,8 +195,6 @@ module_param(setup_hostid, int, 0);
 static int setup_toshiba_delay = -1;
 module_param(setup_toshiba_delay, int, 0);
 
-
-#if defined(REAL_DMA)
 
 static int scsi_dma_is_ignored_buserr(unsigned char dma_stat)
 {
@@ -255,12 +248,9 @@ static void scsi_dma_buserr(int irq, void *dummy)
 }
 #endif
 
-#endif
-
 
 static irqreturn_t scsi_tt_intr(int irq, void *dev)
 {
-#ifdef REAL_DMA
 	struct Scsi_Host *instance = dev;
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int dma_stat;
@@ -342,8 +332,6 @@ static irqreturn_t scsi_tt_intr(int irq, void *dev)
 		tt_scsi_dma.dma_ctrl = 0;
 	}
 
-#endif /* REAL_DMA */
-
 	NCR5380_intr(irq, dev);
 
 	return IRQ_HANDLED;
@@ -352,7 +340,6 @@ static irqreturn_t scsi_tt_intr(int irq, void *dev)
 
 static irqreturn_t scsi_falcon_intr(int irq, void *dev)
 {
-#ifdef REAL_DMA
 	struct Scsi_Host *instance = dev;
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int dma_stat;
@@ -405,15 +392,12 @@ static irqreturn_t scsi_falcon_intr(int irq, void *dev)
 		atari_dma_orig_addr = NULL;
 	}
 
-#endif /* REAL_DMA */
-
 	NCR5380_intr(irq, dev);
 
 	return IRQ_HANDLED;
 }
 
 
-#ifdef REAL_DMA
 static void atari_scsi_fetch_restbytes(void)
 {
 	int nr;
@@ -436,7 +420,6 @@ static void atari_scsi_fetch_restbytes(void)
 			*dst++ = *src++;
 	}
 }
-#endif /* REAL_DMA */
 
 
 /* This function releases the lock on the DMA chip if there is no
@@ -507,8 +490,6 @@ static int __init atari_scsi_setup(char *str)
 __setup("atascsi=", atari_scsi_setup);
 #endif /* !MODULE */
 
-
-#if defined(REAL_DMA)
 
 static unsigned long atari_scsi_dma_setup(struct Scsi_Host *instance,
 					  void *data, unsigned long count,
@@ -703,9 +684,6 @@ static unsigned long atari_dma_xfer_len(unsigned long wanted_len,
 }
 
 
-#endif	/* REAL_DMA */
-
-
 /* NCR5380 register access functions
  *
  * There are separate functions for TT and Falcon, because the access
@@ -745,7 +723,6 @@ static int atari_scsi_bus_reset(struct scsi_cmnd *cmd)
 
 	local_irq_save(flags);
 
-#ifdef REAL_DMA
 	/* Abort a maybe active DMA transfer */
 	if (IS_A_TT()) {
 		tt_scsi_dma.dma_ctrl = 0;
@@ -754,7 +731,6 @@ static int atari_scsi_bus_reset(struct scsi_cmnd *cmd)
 		atari_dma_active = 0;
 		atari_dma_orig_addr = NULL;
 	}
-#endif
 
 	rv = NCR5380_bus_reset(cmd);
 
@@ -850,8 +826,6 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 		}
 	}
 
-
-#ifdef REAL_DMA
 	/* If running on a Falcon and if there's TT-Ram (i.e., more than one
 	 * memory block, since there's always ST-Ram in a Falcon), then
 	 * allocate a STRAM_BUFFER_SIZE byte dribble buffer for transfers
@@ -867,7 +841,6 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 		atari_dma_phys_buffer = atari_stram_to_phys(atari_dma_buffer);
 		atari_dma_orig_addr = 0;
 	}
-#endif
 
 	instance = scsi_host_alloc(&atari_scsi_template,
 	                           sizeof(struct NCR5380_hostdata));
@@ -897,7 +870,7 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 			goto fail_irq;
 		}
 		tt_mfp.active_edge |= 0x80;	/* SCSI int on L->H */
-#ifdef REAL_DMA
+
 		tt_scsi_dma.dma_ctrl = 0;
 		atari_dma_residual = 0;
 
@@ -919,17 +892,14 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 
 			hostdata->read_overruns = 4;
 		}
-#endif
 	} else {
 		/* Nothing to do for the interrupt: the ST-DMA is initialized
 		 * already.
 		 */
-#ifdef REAL_DMA
 		atari_dma_residual = 0;
 		atari_dma_active = 0;
 		atari_dma_stram_mask = (ATARIHW_PRESENT(EXTD_DMA) ? 0x00000000
 					: 0xff000000);
-#endif
 	}
 
 	NCR5380_maybe_reset_bus(instance);

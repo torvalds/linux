@@ -112,14 +112,8 @@
  * specific implementation of the NCR5380
  *
  * Either real DMA *or* pseudo DMA may be implemented
- * REAL functions :
- * NCR5380_REAL_DMA should be defined if real DMA is to be used.
  * Note that the DMA setup functions should return the number of bytes
  * that they were able to program the controller for.
- *
- * Also note that generic i386/PC versions of these macros are
- * available as NCR5380_i386_dma_write_setup,
- * NCR5380_i386_dma_read_setup, and NCR5380_i386_dma_residual.
  *
  * NCR5380_dma_write_setup(instance, src, count) - initialize
  * NCR5380_dma_read_setup(instance, dst, count) - initialize
@@ -586,9 +580,6 @@ static void prepare_info(struct Scsi_Host *instance)
 #ifdef DIFFERENTIAL
 	         "DIFFERENTIAL "
 #endif
-#ifdef REAL_DMA
-	         "REAL_DMA "
-#endif
 #ifdef PARITY
 	         "PARITY "
 #endif
@@ -629,9 +620,8 @@ static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 #ifdef SUPPORT_TAGS
 	init_tags(hostdata);
 #endif
-#if defined (REAL_DMA)
 	hostdata->dma_len = 0;
-#endif
+
 	spin_lock_init(&hostdata->lock);
 	hostdata->connected = NULL;
 	hostdata->sensing = NULL;
@@ -974,11 +964,7 @@ static void NCR5380_main(struct work_struct *work)
 #endif
 			}
 		}
-		if (hostdata->connected
-#ifdef REAL_DMA
-		    && !hostdata->dma_len
-#endif
-		    ) {
+		if (hostdata->connected && !hostdata->dma_len) {
 			dsprintk(NDEBUG_MAIN, instance, "main: performing information transfer\n");
 			NCR5380_information_transfer(instance);
 			done = 0;
@@ -990,7 +976,6 @@ static void NCR5380_main(struct work_struct *work)
 }
 
 
-#ifdef REAL_DMA
 /*
  * Function : void NCR5380_dma_complete (struct Scsi_Host *instance)
  *
@@ -1071,7 +1056,6 @@ static void NCR5380_dma_complete(struct Scsi_Host *instance)
 		}
 	}
 }
-#endif /* REAL_DMA */
 
 
 /**
@@ -1126,7 +1110,6 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 		dsprintk(NDEBUG_INTR, instance, "IRQ %d, BASR 0x%02x, SR 0x%02x, MR 0x%02x\n",
 		         irq, basr, sr, mr);
 
-#if defined(REAL_DMA)
 		if ((mr & MR_DMA_MODE) || (mr & MR_MONITOR_BSY)) {
 			/* Probably End of DMA, Phase Mismatch or Loss of BSY.
 			 * We ack IRQ after clearing Mode Register. Workarounds
@@ -1142,9 +1125,7 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 				NCR5380_write(MODE_REG, MR_BASE);
 				NCR5380_read(RESET_PARITY_INTERRUPT_REG);
 			}
-		} else
-#endif /* REAL_DMA */
-		if ((NCR5380_read(CURRENT_SCSI_DATA_REG) & hostdata->id_mask) &&
+		} else if ((NCR5380_read(CURRENT_SCSI_DATA_REG) & hostdata->id_mask) &&
 		    (sr & (SR_SEL | SR_IO | SR_BSY | SR_RST)) == (SR_SEL | SR_IO)) {
 			/* Probably reselected */
 			NCR5380_write(SELECT_ENABLE_REG, 0);
@@ -1710,7 +1691,7 @@ timeout:
 	return -1;
 }
 
-#if defined(REAL_DMA)
+
 /*
  * Function : int NCR5380_transfer_dma (struct Scsi_Host *instance,
  * unsigned char *phase, int *count, unsigned char **data)
@@ -1819,7 +1800,6 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 
 	return 0;
 }
-#endif /* defined(REAL_DMA) */
 
 /*
  * Function : NCR5380_information_transfer (struct Scsi_Host *instance)
@@ -1866,7 +1846,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 			}
 #if defined(CONFIG_SUN3)
 			if (phase == PHASE_CMDOUT) {
-#if defined(REAL_DMA)
 				void *d;
 				unsigned long count;
 
@@ -1885,7 +1864,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						sun3_dma_setup_done = cmd;
 					}
 				}
-#endif
 #ifdef SUN3_SCSI_VME
 				dregs->csr |= CSR_INTR;
 #endif
@@ -1943,12 +1921,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				 * in an unconditional loop.
 				 */
 
-				/* ++roman: I suggest, this should be
-				 * #if def(REAL_DMA)
-				 * instead of leaving REAL_DMA out.
-				 */
-
-#if defined(REAL_DMA)
 #if !defined(CONFIG_SUN3)
 				transfersize = 0;
 				if (!cmd->device->borken)
@@ -1972,21 +1944,9 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						do_abort(instance);
 						cmd->result = DID_ERROR << 16;
 						/* XXX - need to source or sink data here, as appropriate */
-					} else {
-#ifdef REAL_DMA
-						/* ++roman: When using real DMA,
-						 * information_transfer() should return after
-						 * starting DMA since it has nothing more to
-						 * do.
-						 */
+					} else
 						return;
-#else
-						cmd->SCp.this_residual -= transfersize - len;
-#endif
-					}
-				} else
-#endif /* defined(REAL_DMA) */
-				{
+				} else {
 					/* Break up transfer into 3 ms chunks,
 					 * presuming 6 accesses per handshake.
 					 */
@@ -1997,7 +1957,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					                     (unsigned char **)&cmd->SCp.ptr);
 					cmd->SCp.this_residual -= transfersize - len;
 				}
-#if defined(CONFIG_SUN3) && defined(REAL_DMA)
+#if defined(CONFIG_SUN3)
 				/* if we had intended to dma that command clear it */
 				if (sun3_dma_setup_done == cmd)
 					sun3_dma_setup_done = NULL;
@@ -2305,7 +2265,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 		return;
 	}
 
-#if defined(CONFIG_SUN3) && defined(REAL_DMA)
+#if defined(CONFIG_SUN3)
 	/* acknowledge toggle to MSGIN */
 	NCR5380_write(TARGET_COMMAND_REG, PHASE_SR_TO_TCR(PHASE_MSGIN));
 
@@ -2392,7 +2352,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 		return;
 	}
 
-#if defined(CONFIG_SUN3) && defined(REAL_DMA)
+#if defined(CONFIG_SUN3)
 	/* engage dma setup for the command we just saw */
 	{
 		void *d;
@@ -2555,9 +2515,7 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 	if (hostdata->connected == cmd) {
 		dsprintk(NDEBUG_ABORT, instance, "abort: cmd %p is connected\n", cmd);
 		hostdata->connected = NULL;
-#ifdef REAL_DMA
 		hostdata->dma_len = 0;
-#endif
 		if (do_abort(instance)) {
 			set_host_byte(cmd, DID_ERROR);
 			complete_cmd(instance, cmd);
@@ -2664,9 +2622,7 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 #endif
 	for (i = 0; i < 8; ++i)
 		hostdata->busy[i] = 0;
-#ifdef REAL_DMA
 	hostdata->dma_len = 0;
-#endif
 
 	queue_work(hostdata->work_q, &hostdata->main_task);
 	maybe_release_dma_irq(instance);

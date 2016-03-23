@@ -38,7 +38,6 @@
 
 /* Definitions for the core NCR5380 driver. */
 
-#define REAL_DMA
 /* #define SUPPORT_TAGS */
 /* minimum number of bytes to do dma on */
 #define DMA_MIN_SIZE                    129
@@ -527,15 +526,9 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 	error = request_irq(instance->irq, scsi_sun3_intr, 0,
 	                    "NCR5380", instance);
 	if (error) {
-#ifdef REAL_DMA
 		pr_err(PFX "scsi%d: IRQ %d not free, bailing out\n",
 		       instance->host_no, instance->irq);
 		goto fail_irq;
-#else
-		pr_warn(PFX "scsi%d: IRQ %d not free, interrupts disabled\n",
-		        instance->host_no, instance->irq);
-		instance->irq = NO_IRQ;
-#endif
 	}
 
 	dregs->csr = 0;
@@ -565,8 +558,7 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 	return 0;
 
 fail_host:
-	if (instance->irq != NO_IRQ)
-		free_irq(instance->irq, instance);
+	free_irq(instance->irq, instance);
 fail_irq:
 	NCR5380_exit(instance);
 fail_init:
@@ -583,8 +575,7 @@ static int __exit sun3_scsi_remove(struct platform_device *pdev)
 	struct Scsi_Host *instance = platform_get_drvdata(pdev);
 
 	scsi_remove_host(instance);
-	if (instance->irq != NO_IRQ)
-		free_irq(instance->irq, instance);
+	free_irq(instance->irq, instance);
 	NCR5380_exit(instance);
 	scsi_host_put(instance);
 	if (udc_regs)
