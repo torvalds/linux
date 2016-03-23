@@ -389,6 +389,8 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	pm_runtime_get_sync(ctx->dev);
 
+	exynos_drm_pipe_clk_enable(crtc, true);
+
 	set_bit(BIT_CLKS_ENABLED, &ctx->flags);
 
 	decon_swreset(ctx);
@@ -419,6 +421,8 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 	decon_swreset(ctx);
 
 	clear_bit(BIT_CLKS_ENABLED, &ctx->flags);
+
+	exynos_drm_pipe_clk_enable(crtc, false);
 
 	pm_runtime_put_sync(ctx->dev);
 
