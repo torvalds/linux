@@ -1837,6 +1837,13 @@ struct drm_i915_private {
 	struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
 	const struct intel_dpll_mgr *dpll_mgr;
 
+	/*
+	 * dpll_lock serializes intel_{prepare,enable,disable}_shared_dpll.
+	 * Must be global rather than per dpll, because on some platforms
+	 * plls share registers.
+	 */
+	struct mutex dpll_lock;
+
 	unsigned int active_crtcs;
 	unsigned int min_pixclk[I915_MAX_PIPES];
 
