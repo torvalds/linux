@@ -608,7 +608,7 @@ int ni_tio_arm(struct ni_gpct *counter, bool arm, unsigned int start_trigger)
 }
 EXPORT_SYMBOL_GPL(ni_tio_arm);
 
-static unsigned int ni_660x_clk_src(unsigned int clock_source)
+static int ni_660x_clk_src(unsigned int clock_source, unsigned int *bits)
 {
 	unsigned int clk_src = clock_source & NI_GPCT_CLOCK_SRC_SELECT_MASK;
 	unsigned int ni_660x_clock;
@@ -653,14 +653,13 @@ static unsigned int ni_660x_clk_src(unsigned int clock_source)
 		}
 		if (i <= NI_660X_MAX_SRC_PIN)
 			break;
-		ni_660x_clock = 0;
-		BUG();
-		break;
+		return -EINVAL;
 	}
-	return GI_SRC_SEL(ni_660x_clock);
+	*bits = GI_SRC_SEL(ni_660x_clock);
+	return 0;
 }
 
-static unsigned int ni_m_clk_src(unsigned int clock_source)
+static int ni_m_clk_src(unsigned int clock_source, unsigned int *bits)
 {
 	unsigned int clk_src = clock_source & NI_GPCT_CLOCK_SRC_SELECT_MASK;
 	unsigned int ni_m_series_clock;
@@ -711,13 +710,10 @@ static unsigned int ni_m_clk_src(unsigned int clock_source)
 		}
 		if (i <= NI_M_MAX_PFI_CHAN)
 			break;
-		pr_err("invalid clock source 0x%lx\n",
-		       (unsigned long)clock_source);
-		BUG();
-		ni_m_series_clock = 0;
-		break;
+		return -EINVAL;
 	}
-	return GI_SRC_SEL(ni_m_series_clock);
+	*bits = GI_SRC_SEL(ni_m_series_clock);
+	return 0;
 };
 
 static void ni_tio_set_source_subselect(struct ni_gpct *counter,
@@ -755,18 +751,26 @@ static int ni_tio_set_clock_src(struct ni_gpct *counter,
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned int cidx = counter->counter_index;
 	unsigned int bits = 0;
+	int ret;
 
-	/* FIXME: validate clock source */
 	switch (counter_dev->variant) {
 	case ni_gpct_variant_660x:
-		bits |= ni_660x_clk_src(clock_source);
+		ret = ni_660x_clk_src(clock_source, &bits);
 		break;
 	case ni_gpct_variant_e_series:
 	case ni_gpct_variant_m_series:
 	default:
-		bits |= ni_m_clk_src(clock_source);
+		ret = ni_m_clk_src(clock_source, &bits);
 		break;
 	}
+	if (ret) {
+		struct comedi_device *dev = counter_dev->dev;
+
+		dev_err(dev->class_dev, "invalid clock source 0x%x\n",
+			clock_source);
+		return ret;
+	}
+
 	if (clock_source & NI_GPCT_INVERT_CLOCK_SRC_BIT)
 		bits |= GI_SRC_POL_INVERT;
 	ni_tio_set_bits(counter, NITIO_INPUT_SEL_REG(cidx),
