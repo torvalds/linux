@@ -40,11 +40,22 @@
 static bool boot_cpu_done;
 
 static int __read_mostly __pat_enabled = IS_ENABLED(CONFIG_X86_PAT);
+static void init_cache_modes(void);
 
-static inline void pat_disable(const char *reason)
+void pat_disable(const char *reason)
 {
+	if (!__pat_enabled)
+		return;
+
+	if (boot_cpu_done) {
+		WARN_ONCE(1, "x86/PAT: PAT cannot be disabled after initialization\n");
+		return;
+	}
+
 	__pat_enabled = 0;
 	pr_info("x86/PAT: %s\n", reason);
+
+	init_cache_modes();
 }
 
 static int __init nopat(char *str)
