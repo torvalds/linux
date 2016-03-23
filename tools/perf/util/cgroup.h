@@ -13,7 +13,7 @@ struct cgroup_sel {
 
 
 extern int nr_cgroups; /* number of explicit cgroups defined */
-extern void close_cgroup(struct cgroup_sel *cgrp);
-extern int parse_cgroups(const struct option *opt, const char *str, int unset);
+void close_cgroup(struct cgroup_sel *cgrp);
+int parse_cgroups(const struct option *opt, const char *str, int unset);
 
 #endif /* __CGROUP_H__ */

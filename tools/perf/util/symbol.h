@@ -34,8 +34,8 @@
 #endif
 
 #ifdef HAVE_LIBELF_SUPPORT
-extern Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
-				GElf_Shdr *shp, const char *name, size_t *idx);
+Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
+			     GElf_Shdr *shp, const char *name, size_t *idx);
 #endif
 
 #ifndef DMGL_PARAMS
