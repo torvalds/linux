@@ -141,8 +141,7 @@ static void atml_plat_remove(void)
 	if (chip) {
 		tpm_chip_unregister(chip);
 		if (priv->have_region)
-			atmel_release_region(chip->vendor.base,
-					     priv->region_size);
+			atmel_release_region(priv->base, priv->region_size);
 		atmel_put_base_addr(chip->vendor.iobase);
 		platform_device_unregister(pdev);
 	}
@@ -191,6 +190,7 @@ static int __init init_atmel(void)
 		goto err_unreg_dev;
 	}
 
+	priv->base = base;
 	priv->have_region = have_region;
 	priv->region_size = region_size;
 
@@ -201,7 +201,6 @@ static int __init init_atmel(void)
 	}
 
 	chip->vendor.iobase = iobase;
-	chip->vendor.base = base;
 	chip->vendor.priv = priv;
 
 	rc = tpm_chip_register(chip);

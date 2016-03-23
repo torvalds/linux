@@ -132,7 +132,6 @@ struct tpm_chip;
 
 struct tpm_vendor_specific {
 	void __iomem *iobase;		/* ioremapped address */
-	unsigned long base;		/* TPM base address */
 
 	int irq;
 
