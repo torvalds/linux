@@ -338,8 +338,7 @@ static int should_ack_gate(struct ni_gpct *counter)
 static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
 					   int *gate_error,
 					   int *tc_error,
-					   int *perm_stale_data,
-					   int *stale_data)
+					   int *perm_stale_data)
 {
 	unsigned int cidx = counter->counter_index;
 	const unsigned short gxx_status = ni_tio_read(counter,
@@ -354,8 +353,6 @@ static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
 		*tc_error = 0;
 	if (perm_stale_data)
 		*perm_stale_data = 0;
-	if (stale_data)
-		*stale_data = 0;
 
 	if (gxx_status & GI_GATE_ERROR(cidx)) {
 		ack |= GI_GATE_ERROR_CONFIRM(cidx);
@@ -385,10 +382,6 @@ static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
 		ni_tio_write(counter, ack, NITIO_INT_ACK_REG(cidx));
 	if (ni_tio_get_soft_copy(counter, NITIO_MODE_REG(cidx)) &
 	    GI_LOADING_ON_GATE) {
-		if (gxx_status & GI_STALE_DATA(cidx)) {
-			if (stale_data)
-				*stale_data = 1;
-		}
 		if (ni_tio_read(counter, NITIO_STATUS2_REG(cidx)) &
 		    GI_PERMANENT_STALE(cidx)) {
 			dev_info(counter->counter_dev->dev->class_dev,
@@ -402,7 +395,7 @@ static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
 
 void ni_tio_acknowledge(struct ni_gpct *counter)
 {
-	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
+	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(ni_tio_acknowledge);
 
@@ -417,7 +410,7 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 	int perm_stale_data;
 
 	ni_tio_acknowledge_and_confirm(counter, &gate_error, &tc_error,
-				       &perm_stale_data, NULL);
+				       &perm_stale_data);
 	if (gate_error) {
 		dev_notice(counter->counter_dev->dev->class_dev,
 			   "%s: Gi_Gate_Error detected.\n", __func__);
