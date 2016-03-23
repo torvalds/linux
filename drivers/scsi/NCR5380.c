@@ -488,6 +488,8 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 	int i;
 	unsigned long deadline;
 
+	instance->max_lun = 7;
+
 	hostdata->host = instance;
 	hostdata->id_mask = 1 << instance->this_id;
 	hostdata->id_higher_mask = 0;
