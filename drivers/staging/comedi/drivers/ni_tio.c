@@ -189,7 +189,7 @@ void ni_tio_write(struct ni_gpct *counter, unsigned int value,
 		  enum ni_gpct_register reg)
 {
 	if (reg < NITIO_NUM_REGS)
-		counter->counter_dev->write_register(counter, value, reg);
+		counter->counter_dev->write(counter, value, reg);
 }
 EXPORT_SYMBOL_GPL(ni_tio_write);
 
@@ -201,7 +201,7 @@ EXPORT_SYMBOL_GPL(ni_tio_write);
 unsigned int ni_tio_read(struct ni_gpct *counter, enum ni_gpct_register reg)
 {
 	if (reg < NITIO_NUM_REGS)
-		return counter->counter_dev->read_register(counter, reg);
+		return counter->counter_dev->read(counter, reg);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ni_tio_read);
@@ -1455,17 +1455,17 @@ EXPORT_SYMBOL_GPL(ni_tio_init_counter);
 
 struct ni_gpct_device *
 ni_gpct_device_construct(struct comedi_device *dev,
-			 void (*write_register)(struct ni_gpct *counter,
-						unsigned bits,
-						enum ni_gpct_register reg),
-			 unsigned (*read_register)(struct ni_gpct *counter,
-						   enum ni_gpct_register reg),
+			 void (*write)(struct ni_gpct *counter,
+				       unsigned int value,
+				       enum ni_gpct_register reg),
+			 unsigned int (*read)(struct ni_gpct *counter,
+					      enum ni_gpct_register reg),
 			 enum ni_gpct_variant variant,
-			 unsigned num_counters)
+			 unsigned int num_counters)
 {
 	struct ni_gpct_device *counter_dev;
 	struct ni_gpct *counter;
-	unsigned i;
+	unsigned int i;
 
 	if (num_counters == 0)
 		return NULL;
@@ -1475,8 +1475,8 @@ ni_gpct_device_construct(struct comedi_device *dev,
 		return NULL;
 
 	counter_dev->dev = dev;
-	counter_dev->write_register = write_register;
-	counter_dev->read_register = read_register;
+	counter_dev->write = write;
+	counter_dev->read = read;
 	counter_dev->variant = variant;
 
 	spin_lock_init(&counter_dev->regs_lock);

@@ -115,10 +115,9 @@ struct ni_gpct {
 
 struct ni_gpct_device {
 	struct comedi_device *dev;
-	void (*write_register)(struct ni_gpct *counter, unsigned bits,
-			       enum ni_gpct_register reg);
-	unsigned (*read_register)(struct ni_gpct *counter,
-				  enum ni_gpct_register reg);
+	void (*write)(struct ni_gpct *, unsigned int value,
+		      enum ni_gpct_register);
+	unsigned int (*read)(struct ni_gpct *, enum ni_gpct_register);
 	enum ni_gpct_variant variant;
 	struct ni_gpct *counters;
 	unsigned num_counters;
@@ -128,13 +127,13 @@ struct ni_gpct_device {
 
 struct ni_gpct_device *
 ni_gpct_device_construct(struct comedi_device *,
-			 void (*write_register)(struct ni_gpct *,
-						unsigned bits,
-						enum ni_gpct_register),
-			 unsigned (*read_register)(struct ni_gpct *,
-						   enum ni_gpct_register),
+			 void (*write)(struct ni_gpct *,
+				       unsigned int value,
+				       enum ni_gpct_register),
+			 unsigned int (*read)(struct ni_gpct *,
+					      enum ni_gpct_register),
 			 enum ni_gpct_variant,
-			 unsigned num_counters);
+			 unsigned int num_counters);
 void ni_gpct_device_destroy(struct ni_gpct_device *);
 void ni_tio_init_counter(struct ni_gpct *);
 int ni_tio_insn_read(struct comedi_device *, struct comedi_subdevice *,
