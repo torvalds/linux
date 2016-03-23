@@ -5,6 +5,7 @@
 #include <asm/pgtable_types.h>
 
 bool pat_enabled(void);
+void pat_disable(const char *reason);
 extern void pat_init(void);
 void __init_cache_modes(u64);
 
