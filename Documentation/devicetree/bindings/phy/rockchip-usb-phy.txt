@@ -6,6 +6,7 @@ Required properties:
      "rockchip,rk3188-usb-phy"
      "rockchip,rk3288-usb-phy"
      "rockchip,rk336x-usb-phy"
+     "rockchip,rk3399-usb-phy"
  - rockchip,grf : phandle to the syscon managing the "general
    register files"
  - #address-cells: should be 1
@@ -25,6 +26,8 @@ required properties:
 Optional Properties:
 - clocks : phandle + clock specifier for the phy clocks
 - clock-names: string, clock name, must be "phyclk"
+- host_drv_gpio: vbus-drv gpio, pull gpio on/off to
+  control vbus supply.
 - #clock-cells: for users of the phy-pll, should be 0
 
 Example:
