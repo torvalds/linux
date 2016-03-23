@@ -179,5 +179,10 @@
 			timeout-sec = <10>;
 			status = "disabled";
 		};
+
+		restart@4ab000 {
+			compatible = "qcom,pshold";
+			reg = <0x4ab000 0x4>;
+		};
 	};
 };
