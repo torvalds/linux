@@ -106,11 +106,11 @@ enum ni_gpct_variant {
 
 struct ni_gpct {
 	struct ni_gpct_device *counter_dev;
-	unsigned counter_index;
-	unsigned chip_index;
-	uint64_t clock_period_ps;	/* clock period in picoseconds */
+	unsigned int counter_index;
+	unsigned int chip_index;
+	u64 clock_period_ps;	/* clock period in picoseconds */
 	struct mite_channel *mite_chan;
-	spinlock_t lock;
+	spinlock_t lock;	/* protects 'mite_chan' */
 };
 
 struct ni_gpct_device {
