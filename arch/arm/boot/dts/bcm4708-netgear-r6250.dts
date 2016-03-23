@@ -24,17 +24,6 @@
 		reg = <0x00000000 0x08000000>;
 	};
 
-	axi@18000000 {
-		usb3@23000 {
-			reg = <0x00023000 0x1000>;
-
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			vcc-gpio = <&chipcommon 0 GPIO_ACTIVE_HIGH>;
-		};
-	};
-
 	leds {
 		compatible = "gpio-leds";
 
@@ -96,4 +85,8 @@
 
 &uart0 {
 	status = "okay";
+};
+
+&usb3 {
+	vcc-gpio = <&chipcommon 0 GPIO_ACTIVE_HIGH>;
 };

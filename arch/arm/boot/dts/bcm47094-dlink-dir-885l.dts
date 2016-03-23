@@ -109,3 +109,7 @@
 	status = "okay";
 	clock-frequency = <125000000>;
 };
+
+&usb3 {
+	vcc-gpio = <&chipcommon 18 GPIO_ACTIVE_HIGH>;
+};

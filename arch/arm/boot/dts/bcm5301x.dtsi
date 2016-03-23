@@ -207,6 +207,20 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
+
+		usb2: usb2@21000 {
+			reg = <0x00021000 0x1000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
+		usb3: usb3@23000 {
+			reg = <0x00023000 0x1000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
 	};
 
 	lcpll0: lcpll0@1800c100 {
