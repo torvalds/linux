@@ -55,7 +55,7 @@
 #define FIRMWARE_FIJI		"amdgpu/fiji_uvd.bin"
 #define FIRMWARE_STONEY		"amdgpu/stoney_uvd.bin"
 #define FIRMWARE_POLARIS10	"amdgpu/polaris10_uvd.bin"
-#define FIRMWARE_POLARIS11         "amdgpu/polaris11_uvd.bin"
+#define FIRMWARE_POLARIS11	"amdgpu/polaris11_uvd.bin"
 
 /**
  * amdgpu_uvd_cs_ctx - Command submission parser context
