@@ -492,6 +492,10 @@
 	status = "okay";
 };
 
+&sss {
+	status = "okay";
+};
+
 &tmu {
 	vtmu-supply = <&ldo10_reg>;
 	status = "okay";
