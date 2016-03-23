@@ -1,19 +1,18 @@
 /*
-  comedi/drivers/ni_tio.c
-  Support for NI general purpose counters
-
-  Copyright (C) 2006 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-*/
+ * Support for NI general purpose counters
+ *
+ * Copyright (C) 2006 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
  * Module: ni_tio
@@ -36,12 +35,9 @@
  * DAQ 660x Register-Level Programmer Manual  (NI 370505A-01)
  * DAQ 6601/6602 User Manual (NI 322137B-01)
  * 340934b.pdf  DAQ-STC reference manual
+ *
+ * TODO: Support use of both banks X and Y
  */
-
-/*
-TODO:
-	Support use of both banks X and Y
-*/
 
 #include <linux/module.h>
 #include <linux/slab.h>
