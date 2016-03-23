@@ -3377,7 +3377,7 @@ static void fiji_set_dpm_event_sources(struct pp_hwmgr *hwmgr,
 				DPM_EVENT_SRC, src);
 		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, GENERAL_PWRMGT,
 				THERMAL_PROTECTION_DIS,
-				phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+				!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_ThermalController));
 	} else
 		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, GENERAL_PWRMGT,

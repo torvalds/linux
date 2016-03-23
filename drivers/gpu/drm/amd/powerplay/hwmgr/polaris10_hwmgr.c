@@ -2395,7 +2395,7 @@ static void polaris10_set_dpm_event_sources(struct pp_hwmgr *hwmgr, uint32_t sou
 				DPM_EVENT_SRC, src);
 		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, GENERAL_PWRMGT,
 				THERMAL_PROTECTION_DIS,
-				phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+				!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_ThermalController));
 	} else
 		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, GENERAL_PWRMGT,
@@ -2562,6 +2562,9 @@ int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep);
 
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+		PHM_PlatformCaps_DynamicPatchPowerState);
+
 	if (data->mvdd_control == POLARIS10_VOLTAGE_CONTROL_NONE)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_EnableMVDDControl);
@@ -2580,6 +2583,9 @@ int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 			PHM_PlatformCaps_DynamicPowerManagement);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_UnTabledHardwareInterface);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_TablelessHardwareInterface);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
@@ -2596,10 +2602,6 @@ int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 
 	/* power tune caps Assume disabled */
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
-					PHM_PlatformCaps_PowerContainment);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
-							PHM_PlatformCaps_CAC);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_SQRamping);
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_DBRamping);
@@ -2608,6 +2610,22 @@ int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_TCPRamping);
 
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_PowerContainment);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+							PHM_PlatformCaps_CAC);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_RegulatorHot);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_AutomaticDCTransition);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_ODFuzzyFanControlSupport);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_FanSpeedInTableIsRPM);
 	if (hwmgr->chip_id == CHIP_POLARIS11)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_SPLLShutdownSupport);
@@ -2890,6 +2908,11 @@ static int polaris10_set_private_data_based_on_pptable(struct pp_hwmgr *hwmgr)
 	table_info->max_clock_voltage_on_ac.vddci =
 		allowed_mclk_vdd_table->entries[allowed_mclk_vdd_table->count - 1].vddci;
 
+	hwmgr->dyn_state.max_clock_voltage_on_ac.sclk = table_info->max_clock_voltage_on_ac.sclk;
+	hwmgr->dyn_state.max_clock_voltage_on_ac.mclk = table_info->max_clock_voltage_on_ac.mclk;
+	hwmgr->dyn_state.max_clock_voltage_on_ac.vddc = table_info->max_clock_voltage_on_ac.vddc;
+	hwmgr->dyn_state.max_clock_voltage_on_ac.vddci =table_info->max_clock_voltage_on_ac.vddci;
+
 	return 0;
 }
 
@@ -2899,6 +2922,8 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	struct pp_atomctrl_gpio_pin_assignment gpio_pin_assignment;
 	uint32_t temp_reg;
 	int result;
+	struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
 	data->dll_default_on = false;
 	data->sram_end = SMC_RAM_END;
@@ -2936,9 +2961,6 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 			VOLTAGE_TYPE_VDDC, VOLTAGE_OBJ_SVID2))
 		data->voltage_control = POLARIS10_VOLTAGE_CONTROL_BY_SVID2;
-
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_DynamicPatchPowerState);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_EnableMVDDControl)) {
@@ -2987,10 +3009,7 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 							POLARIS10_MAX_HARDWARE_POWERLEVELS;
 		hwmgr->platform_descriptor.hardwarePerformanceLevels = 2;
 		hwmgr->platform_descriptor.minimumClocksReductionPercentage = 50;
-		hwmgr->platform_descriptor.vbiosInterruptId = 0x20000400; /* IRQ_SOURCE1_SW_INT */
-/* The true clock step depends on the frequency, typically 4.5 or 9 MHz. Here we use 5. */
-		hwmgr->platform_descriptor.clockStep.engineClock = 500;
-		hwmgr->platform_descriptor.clockStep.memoryClock = 500;
+
 
 		if (atomctrl_get_pp_assign_pin(hwmgr, VDDC_PCC_GPIO_PINID, &gpio_pin_assignment)) {
 			temp_reg = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCNB_PWRMGT_CNTL);
@@ -3019,6 +3038,52 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCNB_PWRMGT_CNTL, temp_reg);
 		}
 
+		if (table_info->cac_dtp_table->usDefaultTargetOperatingTemp != 0 &&
+			hwmgr->thermal_controller.advanceFanControlParameters.ucFanControlMode) {
+			hwmgr->thermal_controller.advanceFanControlParameters.usFanPWMMinLimit =
+				(uint16_t)hwmgr->thermal_controller.advanceFanControlParameters.ucMinimumPWMLimit;
+
+			hwmgr->thermal_controller.advanceFanControlParameters.usFanPWMMaxLimit =
+				(uint16_t)hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanPWM;
+
+			hwmgr->thermal_controller.advanceFanControlParameters.usFanPWMStep = 1;
+
+			hwmgr->thermal_controller.advanceFanControlParameters.usFanRPMMaxLimit = 100;
+
+			hwmgr->thermal_controller.advanceFanControlParameters.usFanRPMMinLimit =
+				(uint16_t)hwmgr->thermal_controller.advanceFanControlParameters.ucMinimumPWMLimit;
+
+			hwmgr->thermal_controller.advanceFanControlParameters.usFanRPMStep = 1;
+
+			table_info->cac_dtp_table->usDefaultTargetOperatingTemp = (table_info->cac_dtp_table->usDefaultTargetOperatingTemp >= 50) ?
+									(table_info->cac_dtp_table->usDefaultTargetOperatingTemp -50) : 0;
+
+			table_info->cac_dtp_table->usOperatingTempMaxLimit = table_info->cac_dtp_table->usDefaultTargetOperatingTemp;
+			table_info->cac_dtp_table->usOperatingTempStep = 1;
+			table_info->cac_dtp_table->usOperatingTempHyst = 1;
+
+			hwmgr->thermal_controller.advanceFanControlParameters.usMaxFanPWM =
+				       hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanPWM;
+
+			hwmgr->thermal_controller.advanceFanControlParameters.usMaxFanRPM =
+				       hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanRPM;
+
+			hwmgr->dyn_state.cac_dtp_table->usOperatingTempMinLimit =
+				       table_info->cac_dtp_table->usOperatingTempMinLimit;
+
+			hwmgr->dyn_state.cac_dtp_table->usOperatingTempMaxLimit =
+				       table_info->cac_dtp_table->usOperatingTempMaxLimit;
+
+			hwmgr->dyn_state.cac_dtp_table->usDefaultTargetOperatingTemp =
+				       table_info->cac_dtp_table->usDefaultTargetOperatingTemp;
+
+			hwmgr->dyn_state.cac_dtp_table->usOperatingTempStep =
+				       table_info->cac_dtp_table->usOperatingTempStep;
+
+			hwmgr->dyn_state.cac_dtp_table->usTargetOperatingTemp =
+				       table_info->cac_dtp_table->usTargetOperatingTemp;
+		}
+
 		sys_info.size = sizeof(struct cgs_system_info);
 		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_GEN_INFO;
 		result = cgs_query_system_info(hwmgr->device, &sys_info);
@@ -3035,6 +3100,11 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 			data->pcie_lane_cap = 0x2f0000;
 		else
 			data->pcie_lane_cap = (uint32_t)sys_info.value;
+
+		hwmgr->platform_descriptor.vbiosInterruptId = 0x20000400; /* IRQ_SOURCE1_SW_INT */
+/* The true clock step depends on the frequency, typically 4.5 or 9 MHz. Here we use 5. */
+		hwmgr->platform_descriptor.clockStep.engineClock = 500;
+		hwmgr->platform_descriptor.clockStep.memoryClock = 500;
 	} else {
 		/* Ignore return value in here, we are cleaning up a mess. */
 		polaris10_hwmgr_backend_fini(hwmgr);
