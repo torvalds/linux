@@ -99,9 +99,9 @@
 #define NCR5380_abort                   atari_scsi_abort
 #define NCR5380_info                    atari_scsi_info
 
-#define NCR5380_dma_read_setup(instance, data, count) \
+#define NCR5380_dma_recv_setup(instance, data, count) \
         atari_scsi_dma_setup(instance, data, count, 0)
-#define NCR5380_dma_write_setup(instance, data, count) \
+#define NCR5380_dma_send_setup(instance, data, count) \
         atari_scsi_dma_setup(instance, data, count, 1)
 #define NCR5380_dma_residual(instance) \
         atari_scsi_dma_residual(instance)
@@ -715,7 +715,7 @@ static void atari_scsi_falcon_reg_write(unsigned char reg, unsigned char value)
 }
 
 
-#include "atari_NCR5380.c"
+#include "NCR5380.c"
 
 static int atari_scsi_bus_reset(struct scsi_cmnd *cmd)
 {

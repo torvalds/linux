@@ -29,6 +29,8 @@
  * Ronald van Cuijlenborg, Alan Cox and others.
  */
 
+/* Ported to Atari by Roman Hodek and others. */
+
 /*
  * Further development / testing that should be done :
  *
@@ -139,6 +141,14 @@
 
 #ifndef NCR5380_io_delay
 #define NCR5380_io_delay(x)
+#endif
+
+#ifndef NCR5380_acquire_dma_irq
+#define NCR5380_acquire_dma_irq(x)	(1)
+#endif
+
+#ifndef NCR5380_release_dma_irq
+#define NCR5380_release_dma_irq(x)
 #endif
 
 static int do_abort(struct Scsi_Host *);
@@ -658,6 +668,9 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 
 	cmd->result = 0;
 
+	if (!NCR5380_acquire_dma_irq(instance))
+		return SCSI_MLQUEUE_HOST_BUSY;
+
 	spin_lock_irqsave(&hostdata->lock, flags);
 
 	/*
@@ -680,6 +693,19 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 	/* Kick off command processing */
 	queue_work(hostdata->work_q, &hostdata->main_task);
 	return 0;
+}
+
+static inline void maybe_release_dma_irq(struct Scsi_Host *instance)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	/* Caller does the locking needed to set & test these data atomically */
+	if (list_empty(&hostdata->disconnected) &&
+	    list_empty(&hostdata->unissued) &&
+	    list_empty(&hostdata->autosense) &&
+	    !hostdata->connected &&
+	    !hostdata->selecting)
+		NCR5380_release_dma_irq(instance);
 }
 
 /**
@@ -783,6 +809,7 @@ static void NCR5380_main(struct work_struct *work)
 
 			if (!NCR5380_select(instance, cmd)) {
 				dsprintk(NDEBUG_MAIN, instance, "main: select complete\n");
+				maybe_release_dma_irq(instance);
 			} else {
 				dsprintk(NDEBUG_MAIN | NDEBUG_QUEUES, instance,
 				         "main: select failed, returning %p to queue\n", cmd);
@@ -1828,6 +1855,8 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 
 					/* Enable reselect interrupts */
 					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
+
+					maybe_release_dma_irq(instance);
 					return;
 				case MESSAGE_REJECT:
 					/* Accept message by clearing ACK */
@@ -1963,6 +1992,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					hostdata->connected = NULL;
 					cmd->result = DID_ERROR << 16;
 					complete_cmd(instance, cmd);
+					maybe_release_dma_irq(instance);
 					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 					return;
 				}
@@ -2256,6 +2286,7 @@ out:
 		dsprintk(NDEBUG_ABORT, instance, "abort: successfully aborted %p\n", cmd);
 
 	queue_work(hostdata->work_q, &hostdata->main_task);
+	maybe_release_dma_irq(instance);
 	spin_unlock_irqrestore(&hostdata->lock, flags);
 
 	return result;
@@ -2336,6 +2367,7 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 	hostdata->dma_len = 0;
 
 	queue_work(hostdata->work_q, &hostdata->main_task);
+	maybe_release_dma_irq(instance);
 	spin_unlock_irqrestore(&hostdata->lock, flags);
 
 	return SUCCESS;
