@@ -2261,6 +2261,7 @@ static int __init ns_init_module(void)
 	chip->read_buf   = ns_nand_read_buf;
 	chip->read_word  = ns_nand_read_word;
 	chip->ecc.mode   = NAND_ECC_SOFT;
+	chip->ecc.algo   = NAND_ECC_HAMMING;
 	/* The NAND_SKIP_BBTSCAN option is necessary for 'overridesize' */
 	/* and 'badblocks' parameters to work */
 	chip->options   |= NAND_SKIP_BBTSCAN;
@@ -2339,6 +2340,7 @@ static int __init ns_init_module(void)
 			goto error;
 		}
 		chip->ecc.mode = NAND_ECC_SOFT_BCH;
+		chip->ecc.algo = NAND_ECC_BCH;
 		chip->ecc.size = 512;
 		chip->ecc.strength = bch;
 		chip->ecc.bytes = eccbytes;
