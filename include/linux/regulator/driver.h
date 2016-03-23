@@ -93,6 +93,9 @@ struct regulator_linear_range {
  * @get_current_limit: Get the configured limit for a current-limited regulator.
  * @set_input_current_limit: Configure an input limit.
  *
+ * @set_over_current_protection: Support capability of automatically shutting
+ *                               down when detecting an over current event.
+ *
  * @set_active_discharge: Set active discharge enable/disable of regulators.
  *
  * @set_mode: Set the configured operating mode for the regulator.
