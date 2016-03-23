@@ -57,10 +57,7 @@
  */
 
 #define AUTOPROBE_IRQ
-
-#ifdef CONFIG_SCSI_GENERIC_NCR53C400
 #define PSEUDO_DMA
-#endif
 
 #include <asm/io.h>
 #include <linux/blkdev.h>
@@ -270,7 +267,7 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 #ifndef SCSI_G_NCR5380_MEM
 	int i;
 	int port_idx = -1;
-	unsigned long region_size = 16;
+	unsigned long region_size;
 #endif
 	static unsigned int __initdata ncr_53c400a_ports[] = {
 		0x280, 0x290, 0x300, 0x310, 0x330, 0x340, 0x348, 0x350, 0
@@ -290,6 +287,7 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 #ifdef SCSI_G_NCR5380_MEM
 	unsigned long base;
 	void __iomem *iomem;
+	resource_size_t iomem_size;
 #endif
 
 	if (ncr_irq)
@@ -353,9 +351,7 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 			flags = FLAG_NO_PSEUDO_DMA;
 			break;
 		case BOARD_NCR53C400:
-#ifdef PSEUDO_DMA
 			flags = FLAG_NO_DMA_FIXUP;
-#endif
 			break;
 		case BOARD_NCR53C400A:
 			flags = FLAG_NO_DMA_FIXUP;
@@ -381,20 +377,22 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 			/* Disable the adapter and look for a free io port */
 			magic_configure(-1, 0, magic);
 
+			region_size = 16;
+
 			if (overrides[current_override].NCR5380_map_name != PORT_AUTO)
 				for (i = 0; ports[i]; i++) {
-					if (!request_region(ports[i],  16, "ncr53c80"))
+					if (!request_region(ports[i], region_size, "ncr53c80"))
 						continue;
 					if (overrides[current_override].NCR5380_map_name == ports[i])
 						break;
-					release_region(ports[i], 16);
+					release_region(ports[i], region_size);
 			} else
 				for (i = 0; ports[i]; i++) {
-					if (!request_region(ports[i],  16, "ncr53c80"))
+					if (!request_region(ports[i], region_size, "ncr53c80"))
 						continue;
 					if (inb(ports[i]) == 0xff)
 						break;
-					release_region(ports[i], 16);
+					release_region(ports[i], region_size);
 				}
 			if (ports[i]) {
 				/* At this point we have our region reserved */
@@ -410,17 +408,19 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 		else
 		{
 			/* Not a 53C400A style setup - just grab */
-			if(!(request_region(overrides[current_override].NCR5380_map_name, NCR5380_region_size, "ncr5380")))
+			region_size = 8;
+			if (!request_region(overrides[current_override].NCR5380_map_name,
+			                    region_size, "ncr5380"))
 				continue;
-			region_size = NCR5380_region_size;
 		}
 #else
 		base = overrides[current_override].NCR5380_map_name;
-		if (!request_mem_region(base, NCR5380_region_size, "ncr5380"))
+		iomem_size = NCR53C400_region_size;
+		if (!request_mem_region(base, iomem_size, "ncr5380"))
 			continue;
-		iomem = ioremap(base, NCR5380_region_size);
+		iomem = ioremap(base, iomem_size);
 		if (!iomem) {
-			release_mem_region(base, NCR5380_region_size);
+			release_mem_region(base, iomem_size);
 			continue;
 		}
 #endif
@@ -458,6 +458,7 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 #else
 		instance->base = overrides[current_override].NCR5380_map_name;
 		hostdata->iomem = iomem;
+		hostdata->iomem_size = iomem_size;
 		switch (overrides[current_override].board) {
 		case BOARD_NCR53C400:
 			hostdata->c400_ctl_status = 0x100;
@@ -524,7 +525,7 @@ out_release:
 	release_region(overrides[current_override].NCR5380_map_name, region_size);
 #else
 	iounmap(iomem);
-	release_mem_region(base, NCR5380_region_size);
+	release_mem_region(base, iomem_size);
 #endif
 	return count;
 }
@@ -546,42 +547,15 @@ static int generic_NCR5380_release_resources(struct Scsi_Host *instance)
 #ifndef SCSI_G_NCR5380_MEM
 	release_region(instance->io_port, instance->n_io_port);
 #else
-	iounmap(((struct NCR5380_hostdata *)instance->hostdata)->iomem);
-	release_mem_region(instance->base, NCR5380_region_size);
+	{
+		struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+		iounmap(hostdata->iomem);
+		release_mem_region(instance->base, hostdata->iomem_size);
+	}
 #endif
 	return 0;
 }
-
-#ifdef BIOSPARAM
-/**
- *	generic_NCR5380_biosparam
- *	@disk: disk to compute geometry for
- *	@dev: device identifier for this disk
- *	@ip: sizes to fill in
- *
- *	Generates a BIOS / DOS compatible H-C-S mapping for the specified 
- *	device / size.
- * 
- * 	XXX Most SCSI boards use this mapping, I could be incorrect.  Someone
- *	using hard disks on a trantor should verify that this mapping
- *	corresponds to that used by the BIOS / ASPI driver by running the linux
- *	fdisk program and matching the H_C_S coordinates to what DOS uses.
- *
- *	Locks: none
- */
-
-static int
-generic_NCR5380_biosparam(struct scsi_device *sdev, struct block_device *bdev,
-			  sector_t capacity, int *ip)
-{
-	ip[0] = 64;
-	ip[1] = 32;
-	ip[2] = capacity >> 11;
-	return 0;
-}
-#endif
-
-#ifdef PSEUDO_DMA
 
 /**
  *	NCR5380_pread		-	pseudo DMA read
@@ -756,8 +730,6 @@ static int generic_NCR5380_dma_xfer_len(struct scsi_cmnd *cmd)
 	return transfersize;
 }
 
-#endif /* PSEUDO_DMA */
-
 /*
  *	Include the NCR5380 core code that we build our driver around	
  */
@@ -773,7 +745,6 @@ static struct scsi_host_template driver_template = {
 	.queuecommand		= generic_NCR5380_queue_command,
 	.eh_abort_handler	= generic_NCR5380_abort,
 	.eh_bus_reset_handler	= generic_NCR5380_bus_reset,
-	.bios_param		= NCR5380_BIOSPARAM,
 	.can_queue		= 16,
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,

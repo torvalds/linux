@@ -14,13 +14,6 @@
 #ifndef GENERIC_NCR5380_H
 #define GENERIC_NCR5380_H
 
-#ifdef CONFIG_SCSI_GENERIC_NCR53C400
-#define BIOSPARAM
-#define NCR5380_BIOSPARAM generic_NCR5380_biosparam
-#else
-#define NCR5380_BIOSPARAM NULL
-#endif
-
 #define __STRVAL(x) #x
 #define STRVAL(x) __STRVAL(x)
 
@@ -29,12 +22,6 @@
 
 #define NCR5380_map_type int
 #define NCR5380_map_name port
-
-#ifdef CONFIG_SCSI_GENERIC_NCR53C400
-#define NCR5380_region_size 16
-#else
-#define NCR5380_region_size 8
-#endif
 
 #define NCR5380_read(reg) \
 	inb(instance->io_port + (reg))
@@ -55,7 +42,7 @@
 #define NCR5380_map_name base
 #define NCR53C400_mem_base 0x3880
 #define NCR53C400_host_buffer 0x3900
-#define NCR5380_region_size 0x3a00
+#define NCR53C400_region_size 0x3a00
 
 #define NCR5380_read(reg) \
 	readb(((struct NCR5380_hostdata *)shost_priv(instance))->iomem + \
@@ -66,6 +53,7 @@
 
 #define NCR5380_implementation_fields \
 	void __iomem *iomem; \
+	resource_size_t iomem_size; \
 	int c400_ctl_status; \
 	int c400_blk_cnt; \
 	int c400_host_buf;

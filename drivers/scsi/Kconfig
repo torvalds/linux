@@ -813,17 +813,6 @@ config SCSI_GENERIC_NCR5380_MMIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called g_NCR5380_mmio.
 
-config SCSI_GENERIC_NCR53C400
-	bool "Enable NCR53c400 extensions"
-	depends on SCSI_GENERIC_NCR5380
-	help
-	  This enables certain optimizations for the NCR53c400 SCSI cards.
-	  You might as well try it out.  Note that this driver will only probe
-	  for the Trantor T130B in its default configuration; you might have
-	  to pass a command line option to the kernel at boot time if it does
-	  not detect your card.  See the file
-	  <file:Documentation/scsi/g_NCR5380.txt> for details.
-
 config SCSI_IPS
 	tristate "IBM ServeRAID support"
 	depends on PCI && SCSI
