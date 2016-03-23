@@ -619,6 +619,7 @@ struct nvsp_message {
 #define NETVSC_PACKET_SIZE                      4096
 
 #define VRSS_SEND_TAB_SIZE 16
+#define VRSS_CHANNEL_MAX 64
 
 #define RNDIS_MAX_PKT_DEFAULT 8
 #define RNDIS_PKT_ALIGN_DEFAULT 8
@@ -700,13 +701,13 @@ struct netvsc_device {
 
 	struct net_device *ndev;
 
-	struct vmbus_channel *chn_table[NR_CPUS];
+	struct vmbus_channel *chn_table[VRSS_CHANNEL_MAX];
 	u32 send_table[VRSS_SEND_TAB_SIZE];
 	u32 max_chn;
 	u32 num_chn;
 	spinlock_t sc_lock; /* Protects num_sc_offered variable */
 	u32 num_sc_offered;
-	atomic_t queue_sends[NR_CPUS];
+	atomic_t queue_sends[VRSS_CHANNEL_MAX];
 
 	/* Holds rndis device info */
 	void *extension;
@@ -718,7 +719,7 @@ struct netvsc_device {
 	/* The sub channel callback buffer */
 	unsigned char *sub_cb_buf;
 
-	struct multi_send_data msd[NR_CPUS];
+	struct multi_send_data msd[VRSS_CHANNEL_MAX];
 	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
 	u32 pkt_align; /* alignment bytes, e.g. 8 */
 

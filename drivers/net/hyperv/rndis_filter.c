@@ -1113,9 +1113,9 @@ int rndis_filter_device_add(struct hv_device *dev,
 	if (ret || rsscap.num_recv_que < 2)
 		goto out;
 
-	num_rss_qs = min(device_info->max_num_vrss_chns, rsscap.num_recv_que);
+	net_device->max_chn = min_t(u32, VRSS_CHANNEL_MAX, rsscap.num_recv_que);
 
-	net_device->max_chn = rsscap.num_recv_que;
+	num_rss_qs = min(device_info->max_num_vrss_chns, net_device->max_chn);
 
 	/*
 	 * We will limit the VRSS channels to the number CPUs in the NUMA node
