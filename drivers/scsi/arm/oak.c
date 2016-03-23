@@ -47,13 +47,13 @@ static inline int oakscsi_pwrite(struct Scsi_Host *instance,
   void __iomem *base = priv(instance)->base;
 
 printk("writing %p len %d\n",addr, len);
-  if(!len) return -1;
 
   while(1)
   {
     int status;
     while (((status = readw(base + STAT)) & 0x100)==0);
   }
+  return 0;
 }
 
 static inline int oakscsi_pread(struct Scsi_Host *instance,
@@ -74,7 +74,7 @@ printk("reading %p len %d\n", addr, len);
       if(status & 0x200 || !timeout)
       {
         printk("status = %08X\n", status);
-        return 1;
+        return -1;
       }
     }
 

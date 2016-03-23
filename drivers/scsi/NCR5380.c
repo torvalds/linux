@@ -1431,7 +1431,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 	register unsigned char p = *phase;
 	register unsigned char *d = *data;
 	unsigned char tmp;
-	int foo;
+	int result;
 
 	if ((tmp = (NCR5380_read(STATUS_REG) & PHASE_MASK)) != p) {
 		*phase = tmp;
@@ -1505,9 +1505,9 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
  */
 
 	if (p & SR_IO) {
-		foo = NCR5380_dma_recv_setup(instance, d,
+		result = NCR5380_dma_recv_setup(instance, d,
 			hostdata->flags & FLAG_DMA_FIXUP ? c - 1 : c);
-		if (!foo && (hostdata->flags & FLAG_DMA_FIXUP)) {
+		if (!result && (hostdata->flags & FLAG_DMA_FIXUP)) {
 			/*
 			 * The workaround was to transfer fewer bytes than we
 			 * intended to with the pseudo-DMA read function, wait for
@@ -1525,19 +1525,19 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 
 			if (NCR5380_poll_politely(instance, BUS_AND_STATUS_REG,
 			                          BASR_DRQ, BASR_DRQ, HZ) < 0) {
-				foo = -1;
+				result = -1;
 				shost_printk(KERN_ERR, instance, "PDMA read: DRQ timeout\n");
 			}
 			if (NCR5380_poll_politely(instance, STATUS_REG,
 			                          SR_REQ, 0, HZ) < 0) {
-				foo = -1;
+				result = -1;
 				shost_printk(KERN_ERR, instance, "PDMA read: !REQ timeout\n");
 			}
 			d[c - 1] = NCR5380_read(INPUT_DATA_REG);
 		}
 	} else {
-		foo = NCR5380_dma_send_setup(instance, d, c);
-		if (!foo && (hostdata->flags & FLAG_DMA_FIXUP)) {
+		result = NCR5380_dma_send_setup(instance, d, c);
+		if (!result && (hostdata->flags & FLAG_DMA_FIXUP)) {
 			/*
 			 * Wait for the last byte to be sent.  If REQ is being asserted for
 			 * the byte we're interested, we'll ACK it and it will go false.
@@ -1545,7 +1545,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 			if (NCR5380_poll_politely2(instance,
 			     BUS_AND_STATUS_REG, BASR_DRQ, BASR_DRQ,
 			     BUS_AND_STATUS_REG, BASR_PHASE_MATCH, 0, HZ) < 0) {
-				foo = -1;
+				result = -1;
 				shost_printk(KERN_ERR, instance, "PDMA write: DRQ and phase timeout\n");
 			}
 		}
@@ -1555,8 +1555,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
 	*data = d + c;
 	*count = 0;
-	*phase = NCR5380_read(STATUS_REG) & PHASE_MASK;
-	return foo;
+	return result;
 }
 
 /*
@@ -1652,7 +1651,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				if (!cmd->device->borken)
 					transfersize = NCR5380_dma_xfer_len(instance, cmd, phase);
 
-				if (transfersize) {
+				if (transfersize > 0) {
 					len = transfersize;
 					if (NCR5380_transfer_dma(instance, &phase,
 					    &len, (unsigned char **)&cmd->SCp.ptr)) {

@@ -527,9 +527,6 @@ static unsigned long atari_scsi_dma_setup(struct Scsi_Host *instance,
 	 */
 	dma_cache_maintenance(addr, count, dir);
 
-	if (count == 0)
-		printk(KERN_NOTICE "SCSI warning: DMA programmed for 0 bytes !\n");
-
 	if (IS_A_TT()) {
 		tt_scsi_dma.dma_ctrl = dir;
 		SCSI_DMA_WRITE_P(dma_addr, addr);

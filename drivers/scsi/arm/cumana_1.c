@@ -101,7 +101,10 @@ static inline int cumanascsi_pwrite(struct Scsi_Host *host,
   }
 end:
   writeb(priv(host)->ctrl | 0x40, priv(host)->base + CTRL);
-  return len;
+
+	if (len)
+		return -1;
+	return 0;
 }
 
 static inline int cumanascsi_pread(struct Scsi_Host *host,
@@ -163,7 +166,10 @@ static inline int cumanascsi_pread(struct Scsi_Host *host,
   }
 end:
   writeb(priv(host)->ctrl | 0x40, priv(host)->base + CTRL);
-  return len;
+
+	if (len)
+		return -1;
+	return 0;
 }
 
 static unsigned char cumanascsi_read(struct Scsi_Host *host, unsigned int reg)
