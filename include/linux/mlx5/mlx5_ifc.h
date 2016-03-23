@@ -618,6 +618,33 @@ struct mlx5_ifc_odp_cap_bits {
 	u8         reserved_at_e0[0x720];
 };
 
+struct mlx5_ifc_calc_op {
+	u8        reserved_at_0[0x10];
+	u8        reserved_at_10[0x9];
+	u8        op_swap_endianness[0x1];
+	u8        op_min[0x1];
+	u8        op_xor[0x1];
+	u8        op_or[0x1];
+	u8        op_and[0x1];
+	u8        op_max[0x1];
+	u8        op_add[0x1];
+};
+
+struct mlx5_ifc_vector_calc_cap_bits {
+	u8         calc_matrix[0x1];
+	u8         reserved_at_1[0x1f];
+	u8         reserved_at_20[0x8];
+	u8         max_vec_count[0x8];
+	u8         reserved_at_30[0xd];
+	u8         max_chunk_size[0x3];
+	struct mlx5_ifc_calc_op calc0;
+	struct mlx5_ifc_calc_op calc1;
+	struct mlx5_ifc_calc_op calc2;
+	struct mlx5_ifc_calc_op calc3;
+
+	u8         reserved_at_e0[0x720];
+};
+
 enum {
 	MLX5_WQ_TYPE_LINKED_LIST  = 0x0,
 	MLX5_WQ_TYPE_CYCLIC       = 0x1,
@@ -784,7 +811,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         cd[0x1];
 	u8         reserved_at_22c[0x1];
 	u8         apm[0x1];
-	u8         reserved_at_22e[0x2];
+	u8         vector_calc[0x1];
+	u8         reserved_at_22f[0x1];
 	u8	   imaicl[0x1];
 	u8         reserved_at_231[0x4];
 	u8         qkv[0x1];
@@ -1954,6 +1982,7 @@ union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_flow_table_nic_cap_bits flow_table_nic_cap;
 	struct mlx5_ifc_flow_table_eswitch_cap_bits flow_table_eswitch_cap;
 	struct mlx5_ifc_e_switch_cap_bits e_switch_cap;
+	struct mlx5_ifc_vector_calc_cap_bits vector_calc_cap;
 	u8         reserved_at_0[0x8000];
 };
 
@@ -3679,6 +3708,12 @@ struct mlx5_ifc_query_hca_vport_pkey_in_bits {
 
 	u8         reserved_at_60[0x10];
 	u8         pkey_index[0x10];
+};
+
+enum {
+	MLX5_HCA_VPORT_SEL_PORT_GUID	= 1 << 0,
+	MLX5_HCA_VPORT_SEL_NODE_GUID	= 1 << 1,
+	MLX5_HCA_VPORT_SEL_STATE_POLICY	= 1 << 2,
 };
 
 struct mlx5_ifc_query_hca_vport_gid_out_bits {

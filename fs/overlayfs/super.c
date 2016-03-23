@@ -936,7 +936,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	err = -EINVAL;
 	if (!ufs->config.lowerdir) {
-		pr_err("overlayfs: missing 'lowerdir'\n");
+		if (!silent)
+			pr_err("overlayfs: missing 'lowerdir'\n");
 		goto out_free_config;
 	}
 
@@ -1027,6 +1028,21 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 				ufs->config.workdir, OVL_WORKDIR_NAME, -err);
 			sb->s_flags |= MS_RDONLY;
 			ufs->workdir = NULL;
+		}
+
+		/*
+		 * Upper should support d_type, else whiteouts are visible.
+		 * Given workdir and upper are on same fs, we can do
+		 * iterate_dir() on workdir.
+		 */
+		err = ovl_check_d_type_supported(&workpath);
+		if (err < 0)
+			goto out_put_workdir;
+
+		if (!err) {
+			pr_err("overlayfs: upper fs needs to support d_type.\n");
+			err = -EINVAL;
+			goto out_put_workdir;
 		}
 	}
 

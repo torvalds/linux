@@ -25,7 +25,7 @@
 #define CLK_SET_PARENT_GATE	BIT(1) /* must be gated across re-parent */
 #define CLK_SET_RATE_PARENT	BIT(2) /* propagate rate change up one level */
 #define CLK_IGNORE_UNUSED	BIT(3) /* do not gate even if unused */
-#define CLK_IS_ROOT		BIT(4) /* root clk, has no parent */
+#define CLK_IS_ROOT		BIT(4) /* Deprecated: Don't use */
 #define CLK_IS_BASIC		BIT(5) /* Basic clk, can't do a to_clk_foo() */
 #define CLK_GET_RATE_NOCACHE	BIT(6) /* do not use the cached clk rate */
 #define CLK_SET_RATE_NO_REPARENT BIT(7) /* don't re-parent on rate change */
@@ -285,7 +285,7 @@ struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
 struct clk *clk_register_fixed_rate_with_accuracy(struct device *dev,
 		const char *name, const char *parent_name, unsigned long flags,
 		unsigned long fixed_rate, unsigned long fixed_accuracy);
-
+void clk_unregister_fixed_rate(struct clk *clk);
 void of_fixed_clk_setup(struct device_node *np);
 
 /**
@@ -498,6 +498,7 @@ extern const struct clk_ops clk_fixed_factor_ops;
 struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		unsigned int mult, unsigned int div);
+void clk_unregister_fixed_factor(struct clk *clk);
 
 /**
  * struct clk_fractional_divider - adjustable fractional divider clock
@@ -625,8 +626,6 @@ struct clk *clk_register_gpio_gate(struct device *dev, const char *name,
 		const char *parent_name, unsigned gpio, bool active_low,
 		unsigned long flags);
 
-void of_gpio_clk_gate_setup(struct device_node *node);
-
 /**
  * struct clk_gpio_mux - gpio controlled clock multiplexer
  *
@@ -641,8 +640,6 @@ extern const struct clk_ops clk_gpio_mux_ops;
 struct clk *clk_register_gpio_mux(struct device *dev, const char *name,
 		const char * const *parent_names, u8 num_parents, unsigned gpio,
 		bool active_low, unsigned long flags);
-
-void of_gpio_mux_clk_setup(struct device_node *node);
 
 /**
  * clk_register - allocate a new clock, register it and return an opaque cookie
@@ -719,7 +716,7 @@ void of_clk_del_provider(struct device_node *np);
 struct clk *of_clk_src_simple_get(struct of_phandle_args *clkspec,
 				  void *data);
 struct clk *of_clk_src_onecell_get(struct of_phandle_args *clkspec, void *data);
-int of_clk_get_parent_count(struct device_node *np);
+unsigned int of_clk_get_parent_count(struct device_node *np);
 int of_clk_parent_fill(struct device_node *np, const char **parents,
 		       unsigned int size);
 const char *of_clk_get_parent_name(struct device_node *np, int index);

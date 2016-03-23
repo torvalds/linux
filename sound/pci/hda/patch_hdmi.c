@@ -152,6 +152,7 @@ struct hdmi_spec {
 	struct hda_pcm_stream pcm_playback;
 
 	/* i915/powerwell (Haswell+/Valleyview+) specific */
+	bool use_acomp_notifier; /* use i915 eld_notify callback for hotplug */
 	struct i915_audio_component_audio_ops i915_audio_ops;
 	bool i915_bound; /* was i915 bound in this driver? */
 
@@ -159,8 +160,11 @@ struct hdmi_spec {
 };
 
 #ifdef CONFIG_SND_HDA_I915
-#define codec_has_acomp(codec) \
-	((codec)->bus->core.audio_component != NULL)
+static inline bool codec_has_acomp(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec = codec->spec;
+	return spec->use_acomp_notifier;
+}
 #else
 #define codec_has_acomp(codec)	false
 #endif
@@ -1354,6 +1358,7 @@ static void update_eld(struct hda_codec *codec,
 			   eld->eld_size) != 0)
 			eld_changed = true;
 
+	pin_eld->monitor_present = eld->monitor_present;
 	pin_eld->eld_valid = eld->eld_valid;
 	pin_eld->eld_size = eld->eld_size;
 	if (eld->eld_valid)
@@ -1479,11 +1484,10 @@ static void sync_eld_via_acomp(struct hda_codec *codec,
 	int size;
 
 	mutex_lock(&per_pin->lock);
+	eld->monitor_present = false;
 	size = snd_hdac_acomp_get_eld(&codec->bus->core, per_pin->pin_nid,
 				      &eld->monitor_present, eld->eld_buffer,
 				      ELD_MAX_SIZE);
-	if (size < 0)
-		goto unlock;
 	if (size > 0) {
 		size = min(size, ELD_MAX_SIZE);
 		if (snd_hdmi_parse_eld(codec, &eld->info,
@@ -1736,7 +1740,8 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 	/* Call sync_audio_rate to set the N/CTS/M manually if necessary */
 	/* Todo: add DP1.2 MST audio support later */
-	snd_hdac_sync_audio_rate(&codec->bus->core, pin_nid, runtime->rate);
+	if (codec_has_acomp(codec))
+		snd_hdac_sync_audio_rate(&codec->bus->core, pin_nid, runtime->rate);
 
 	non_pcm = check_non_pcm_per_cvt(codec, cvt_nid);
 	mutex_lock(&per_pin->lock);
@@ -2248,12 +2253,24 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	codec->spec = spec;
 	hdmi_array_init(spec, 4);
 
+#ifdef CONFIG_SND_HDA_I915
 	/* Try to bind with i915 for Intel HSW+ codecs (if not done yet) */
-	if (!codec_has_acomp(codec) &&
-	    (codec->core.vendor_id >> 16) == 0x8086 &&
-	    is_haswell_plus(codec))
-		if (!snd_hdac_i915_init(&codec->bus->core))
-			spec->i915_bound = true;
+	if ((codec->core.vendor_id >> 16) == 0x8086 &&
+	    is_haswell_plus(codec)) {
+#if 0
+		/* on-demand binding leads to an unbalanced refcount when
+		 * both i915 and hda drivers are probed concurrently;
+		 * disabled temporarily for now
+		 */
+		if (!codec->bus->core.audio_component)
+			if (!snd_hdac_i915_init(&codec->bus->core))
+				spec->i915_bound = true;
+#endif
+		/* use i915 audio component notifier for hotplug */
+		if (codec->bus->core.audio_component)
+			spec->use_acomp_notifier = true;
+	}
+#endif
 
 	if (is_haswell_plus(codec)) {
 		intel_haswell_enable_all_pins(codec, true);

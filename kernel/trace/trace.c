@@ -2071,20 +2071,20 @@ void trace_printk_init_buffers(void)
 
 	/* trace_printk() is for debug use only. Don't use it in production. */
 
-	pr_warning("\n");
-	pr_warning("**********************************************************\n");
-	pr_warning("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
-	pr_warning("**                                                      **\n");
-	pr_warning("** trace_printk() being used. Allocating extra memory.  **\n");
-	pr_warning("**                                                      **\n");
-	pr_warning("** This means that this is a DEBUG kernel and it is     **\n");
-	pr_warning("** unsafe for production use.                           **\n");
-	pr_warning("**                                                      **\n");
-	pr_warning("** If you see this message and you are not debugging    **\n");
-	pr_warning("** the kernel, report this immediately to your vendor!  **\n");
-	pr_warning("**                                                      **\n");
-	pr_warning("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
-	pr_warning("**********************************************************\n");
+	pr_warn("\n");
+	pr_warn("**********************************************************\n");
+	pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("** trace_printk() being used. Allocating extra memory.  **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("** This means that this is a DEBUG kernel and it is     **\n");
+	pr_warn("** unsafe for production use.                           **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("** If you see this message and you are not debugging    **\n");
+	pr_warn("** the kernel, report this immediately to your vendor!  **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
+	pr_warn("**********************************************************\n");
 
 	/* Expand the buffers to set size */
 	tracing_update_buffers();
@@ -4101,7 +4101,7 @@ trace_insert_enum_map_file(struct module *mod, struct trace_enum_map **start,
 	 */
 	map_array = kmalloc(sizeof(*map_array) * (len + 2), GFP_KERNEL);
 	if (!map_array) {
-		pr_warning("Unable to allocate trace enum mapping\n");
+		pr_warn("Unable to allocate trace enum mapping\n");
 		return;
 	}
 
@@ -6131,7 +6131,7 @@ tracing_init_tracefs_percpu(struct trace_array *tr, long cpu)
 	snprintf(cpu_dir, 30, "cpu%ld", cpu);
 	d_cpu = tracefs_create_dir(cpu_dir, d_percpu);
 	if (!d_cpu) {
-		pr_warning("Could not create tracefs '%s' entry\n", cpu_dir);
+		pr_warn("Could not create tracefs '%s' entry\n", cpu_dir);
 		return;
 	}
 
@@ -6318,7 +6318,7 @@ struct dentry *trace_create_file(const char *name,
 
 	ret = tracefs_create_file(name, mode, parent, data, fops);
 	if (!ret)
-		pr_warning("Could not create tracefs '%s' entry\n", name);
+		pr_warn("Could not create tracefs '%s' entry\n", name);
 
 	return ret;
 }
@@ -6337,7 +6337,7 @@ static struct dentry *trace_options_init_dentry(struct trace_array *tr)
 
 	tr->options = tracefs_create_dir("options", d_tracer);
 	if (!tr->options) {
-		pr_warning("Could not create tracefs directory 'options'\n");
+		pr_warn("Could not create tracefs directory 'options'\n");
 		return NULL;
 	}
 
@@ -7248,8 +7248,8 @@ __init static int tracer_alloc_buffers(void)
 	if (trace_boot_clock) {
 		ret = tracing_set_clock(&global_trace, trace_boot_clock);
 		if (ret < 0)
-			pr_warning("Trace clock %s not defined, going back to default\n",
-				   trace_boot_clock);
+			pr_warn("Trace clock %s not defined, going back to default\n",
+				trace_boot_clock);
 	}
 
 	/*

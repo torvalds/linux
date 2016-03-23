@@ -341,8 +341,9 @@ static u16 to_fw_pkey_sz(u32 size)
 	}
 }
 
-int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type,
-		       enum mlx5_cap_mode cap_mode)
+static int mlx5_core_get_caps_mode(struct mlx5_core_dev *dev,
+				   enum mlx5_cap_type cap_type,
+				   enum mlx5_cap_mode cap_mode)
 {
 	u8 in[MLX5_ST_SZ_BYTES(query_hca_cap_in)];
 	int out_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
@@ -392,6 +393,16 @@ query_ex:
 	return err;
 }
 
+int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type)
+{
+	int ret;
+
+	ret = mlx5_core_get_caps_mode(dev, cap_type, HCA_CAP_OPMOD_GET_CUR);
+	if (ret)
+		return ret;
+	return mlx5_core_get_caps_mode(dev, cap_type, HCA_CAP_OPMOD_GET_MAX);
+}
+
 static int set_caps(struct mlx5_core_dev *dev, void *in, int in_sz, int opmod)
 {
 	u32 out[MLX5_ST_SZ_DW(set_hca_cap_out)];
@@ -419,8 +430,7 @@ static int handle_hca_cap_atomic(struct mlx5_core_dev *dev)
 	int err;
 
 	if (MLX5_CAP_GEN(dev, atomic)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_ATOMIC,
-					 HCA_CAP_OPMOD_GET_CUR);
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ATOMIC);
 		if (err)
 			return err;
 	} else {
@@ -462,11 +472,7 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 	if (!set_ctx)
 		goto query_ex;
 
-	err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL, HCA_CAP_OPMOD_GET_MAX);
-	if (err)
-		goto query_ex;
-
-	err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL, HCA_CAP_OPMOD_GET_CUR);
+	err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL);
 	if (err)
 		goto query_ex;
 

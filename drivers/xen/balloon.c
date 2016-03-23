@@ -42,7 +42,6 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
 #include <linux/pagemap.h>
@@ -760,7 +759,4 @@ static int __init balloon_init(void)
 
 	return 0;
 }
-
 subsys_initcall(balloon_init);
-
-MODULE_LICENSE("GPL");

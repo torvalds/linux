@@ -67,6 +67,14 @@ config RAPIDIO_ENUM_BASIC
 
 endchoice
 
+config RAPIDIO_MPORT_CDEV
+	tristate "RapidIO /dev mport device driver"
+	depends on RAPIDIO
+	help
+	  This option includes generic RapidIO mport device driver which
+	  allows to user space applications to perform RapidIO-specific
+	  operations through selected RapidIO mport.
+
 menu "RapidIO Switch drivers"
 	depends on RAPIDIO
 

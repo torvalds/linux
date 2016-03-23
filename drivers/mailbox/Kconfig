@@ -87,6 +87,17 @@ config STI_MBOX
 	  Mailbox implementation for STMicroelectonics family chips with
 	  hardware for interprocessor communication.
 
+config TI_MESSAGE_MANAGER
+	tristate "Texas Instruments Message Manager Driver"
+	depends on ARCH_KEYSTONE
+	help
+	  An implementation of Message Manager slave driver for Keystone
+	  architecture SoCs from Texas Instruments. Message Manager is a
+	  communication entity found on few of Texas Instrument's keystone
+	  architecture SoCs. These may be used for communication between
+	  multiple processors within the SoC. Select this driver if your
+	  platform has support for the hardware block.
+
 config HI6220_MBOX
 	tristate "Hi6220 Mailbox"
 	depends on ARCH_HISI
