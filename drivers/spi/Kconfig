@@ -379,6 +379,12 @@ config SPI_MT65XX
 	  say Y or M here.If you are not sure, say N.
 	  SPI drivers for Mediatek MT65XX and MT81XX series ARM SoCs.
 
+config SPI_NINTENDO3DS
+	tristate "Nintendo 3DS SPI"
+	depends on ARCH_NINTENDO3DS
+	help
+	  SPI driver for the Nintendo 3DS
+
 config SPI_NUC900
 	tristate "Nuvoton NUC900 series SPI"
 	depends on ARCH_W90X900
