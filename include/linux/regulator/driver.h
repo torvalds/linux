@@ -255,6 +255,8 @@ enum regulator_type {
  *
  * @vsel_reg: Register for selector when using regulator_regmap_X_voltage_
  * @vsel_mask: Mask for register bitfield used for selector
+ * @csel_reg: Register for TPS65218 LS3 current regulator
+ * @csel_mask: Mask for TPS65218 LS3 current regulator
  * @apply_reg: Register for initiate voltage change on the output when
  *                using regulator_set_voltage_sel_regmap
  * @apply_bit: Register bitfield used for initiate voltage change on the
