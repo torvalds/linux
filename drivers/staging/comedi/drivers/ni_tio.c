@@ -1020,8 +1020,7 @@ int ni_tio_set_gate_src(struct ni_gpct *counter,
 		case ni_gpct_variant_660x:
 			return ni_660x_set_gate2(counter, src);
 		default:
-			BUG();
-			break;
+			return -EINVAL;
 		}
 		break;
 	default:
