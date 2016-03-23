@@ -3450,8 +3450,9 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 			if (!(pVBInfo->TVInfo &
 			    (TVSetYPbPr525p | TVSetYPbPr750p)))
 				tempbx >>= 1;
-		} else
+		} else {
 			tempbx >>= 1;
+		}
 	}
 
 	tempbx -= 2;
