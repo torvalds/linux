@@ -1659,6 +1659,10 @@ static void hdmi_mode_apply(struct hdmi_context *hdata)
 
 static void hdmiphy_conf_reset(struct hdmi_context *hdata)
 {
+	hdmi_reg_writemask(hdata, HDMI_CORE_RSTOUT, 0, 1);
+	usleep_range(10000, 12000);
+	hdmi_reg_writemask(hdata, HDMI_CORE_RSTOUT, ~0, 1);
+	usleep_range(10000, 12000);
 	hdmi_reg_writemask(hdata, HDMI_PHY_RSTOUT, ~0, HDMI_PHY_SW_RSTOUT);
 	usleep_range(10000, 12000);
 	hdmi_reg_writemask(hdata, HDMI_PHY_RSTOUT, 0, HDMI_PHY_SW_RSTOUT);
