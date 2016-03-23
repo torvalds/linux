@@ -3073,7 +3073,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 			     gpu_error.hangcheck_work.work);
 	struct drm_device *dev = dev_priv->dev;
 	struct intel_engine_cs *engine;
-	int i;
+	enum intel_engine_id id;
 	int busy_count = 0, rings_hung = 0;
 	bool stuck[I915_NUM_ENGINES] = { 0 };
 #define BUSY 1
@@ -3097,7 +3097,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	 */
 	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 
-	for_each_engine(engine, dev_priv, i) {
+	for_each_engine_id(engine, dev_priv, id) {
 		u64 acthd;
 		u32 seqno;
 		bool busy = true;
@@ -3157,7 +3157,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 					break;
 				case HANGCHECK_HUNG:
 					engine->hangcheck.score += HUNG;
-					stuck[i] = true;
+					stuck[id] = true;
 					break;
 				}
 			}
@@ -3184,10 +3184,10 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		busy_count += busy;
 	}
 
-	for_each_engine(engine, dev_priv, i) {
+	for_each_engine_id(engine, dev_priv, id) {
 		if (engine->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG) {
 			DRM_INFO("%s on %s\n",
-				 stuck[i] ? "stuck" : "no progress",
+				 stuck[id] ? "stuck" : "no progress",
 				 engine->name);
 			rings_hung |= intel_engine_flag(engine);
 		}

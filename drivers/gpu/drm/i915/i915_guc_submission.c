@@ -381,7 +381,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	struct intel_context *ctx = client->owner;
 	struct guc_context_desc desc;
 	struct sg_table *sg;
-	int i;
+	enum intel_engine_id id;
 
 	memset(&desc, 0, sizeof(desc));
 
@@ -390,7 +390,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	desc.priority = client->priority;
 	desc.db_id = client->doorbell_id;
 
-	for_each_engine(engine, dev_priv, i) {
+	for_each_engine_id(engine, dev_priv, id) {
 		struct guc_execlist_context *lrc = &desc.lrc[engine->guc_id];
 		struct drm_i915_gem_object *obj;
 		uint64_t ctx_desc;
@@ -402,7 +402,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		 * for now who owns a GuC client. But for future owner of GuC
 		 * client, need to make sure lrc is pinned prior to enter here.
 		 */
-		obj = ctx->engine[i].state;
+		obj = ctx->engine[id].state;
 		if (!obj)
 			break;	/* XXX: continue? */
 
@@ -415,7 +415,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
 				(engine->guc_id << GUC_ELC_ENGINE_OFFSET);
 
-		obj = ctx->engine[i].ringbuf->obj;
+		obj = ctx->engine[id].ringbuf->obj;
 
 		lrc->ring_begin = i915_gem_obj_ggtt_offset(obj);
 		lrc->ring_end = lrc->ring_begin + obj->base.size - 1;

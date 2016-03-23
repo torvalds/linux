@@ -846,7 +846,7 @@ static void gen8_record_semaphore_state(struct drm_i915_private *dev_priv,
 					struct drm_i915_error_ring *ering)
 {
 	struct intel_engine_cs *to;
-	int i;
+	enum intel_engine_id id;
 
 	if (!i915_semaphore_is_enabled(dev_priv->dev))
 		return;
@@ -856,7 +856,7 @@ static void gen8_record_semaphore_state(struct drm_i915_private *dev_priv,
 			i915_error_ggtt_object_create(dev_priv,
 						      dev_priv->semaphore_obj);
 
-	for_each_engine(to, dev_priv, i) {
+	for_each_engine_id(to, dev_priv, id) {
 		int idx;
 		u16 signal_offset;
 		u32 *tmp;
@@ -864,7 +864,7 @@ static void gen8_record_semaphore_state(struct drm_i915_private *dev_priv,
 		if (engine == to)
 			continue;
 
-		signal_offset = (GEN8_SIGNAL_OFFSET(engine, i) & (PAGE_SIZE - 1))
+		signal_offset = (GEN8_SIGNAL_OFFSET(engine, id) & (PAGE_SIZE - 1))
 				/ 4;
 		tmp = error->semaphore_obj->pages[0];
 		idx = intel_ring_sync_index(engine, to);

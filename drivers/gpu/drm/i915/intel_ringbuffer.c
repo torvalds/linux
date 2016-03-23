@@ -1280,7 +1280,8 @@ static int gen8_rcs_signal(struct drm_i915_gem_request *signaller_req,
 	struct drm_device *dev = signaller->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *waiter;
-	int i, ret, num_rings;
+	enum intel_engine_id id;
+	int ret, num_rings;
 
 	num_rings = hweight32(INTEL_INFO(dev)->ring_mask);
 	num_dwords += (num_rings-1) * MBOX_UPDATE_DWORDS;
@@ -1290,9 +1291,9 @@ static int gen8_rcs_signal(struct drm_i915_gem_request *signaller_req,
 	if (ret)
 		return ret;
 
-	for_each_engine(waiter, dev_priv, i) {
+	for_each_engine_id(waiter, dev_priv, id) {
 		u32 seqno;
-		u64 gtt_offset = signaller->semaphore.signal_ggtt[i];
+		u64 gtt_offset = signaller->semaphore.signal_ggtt[id];
 		if (gtt_offset == MI_SEMAPHORE_SYNC_INVALID)
 			continue;
 
@@ -1321,7 +1322,8 @@ static int gen8_xcs_signal(struct drm_i915_gem_request *signaller_req,
 	struct drm_device *dev = signaller->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *waiter;
-	int i, ret, num_rings;
+	enum intel_engine_id id;
+	int ret, num_rings;
 
 	num_rings = hweight32(INTEL_INFO(dev)->ring_mask);
 	num_dwords += (num_rings-1) * MBOX_UPDATE_DWORDS;
@@ -1331,9 +1333,9 @@ static int gen8_xcs_signal(struct drm_i915_gem_request *signaller_req,
 	if (ret)
 		return ret;
 
-	for_each_engine(waiter, dev_priv, i) {
+	for_each_engine_id(waiter, dev_priv, id) {
 		u32 seqno;
-		u64 gtt_offset = signaller->semaphore.signal_ggtt[i];
+		u64 gtt_offset = signaller->semaphore.signal_ggtt[id];
 		if (gtt_offset == MI_SEMAPHORE_SYNC_INVALID)
 			continue;
 
@@ -1359,7 +1361,8 @@ static int gen6_signal(struct drm_i915_gem_request *signaller_req,
 	struct drm_device *dev = signaller->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *useless;
-	int i, ret, num_rings;
+	enum intel_engine_id id;
+	int ret, num_rings;
 
 #define MBOX_UPDATE_DWORDS 3
 	num_rings = hweight32(INTEL_INFO(dev)->ring_mask);
@@ -1370,8 +1373,8 @@ static int gen6_signal(struct drm_i915_gem_request *signaller_req,
 	if (ret)
 		return ret;
 
-	for_each_engine(useless, dev_priv, i) {
-		i915_reg_t mbox_reg = signaller->semaphore.mbox.signal[i];
+	for_each_engine_id(useless, dev_priv, id) {
+		i915_reg_t mbox_reg = signaller->semaphore.mbox.signal[id];
 
 		if (i915_mmio_reg_valid(mbox_reg)) {
 			u32 seqno = i915_gem_request_get_seqno(signaller_req);

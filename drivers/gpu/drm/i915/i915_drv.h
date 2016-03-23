@@ -1995,6 +1995,15 @@ static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
 	for ((i__) = 0; (i__) < I915_NUM_ENGINES; (i__)++) \
 		for_each_if ((((ring__) = &(dev_priv__)->engine[(i__)]), intel_engine_initialized((ring__))))
 
+/* Iterator with engine_id */
+#define for_each_engine_id(engine__, dev_priv__, id__) \
+	for ((engine__) = &(dev_priv__)->engine[0], (id__) = 0; \
+	     (engine__) < &(dev_priv__)->engine[I915_NUM_ENGINES]; \
+	     (engine__)++) \
+		for_each_if (((id__) = (engine__)->id, \
+			      intel_engine_initialized(engine__)))
+
+/* Iterator over subset of engines selected by mask */
 #define for_each_engine_masked(engine__, dev_priv__, mask__) \
 	for ((engine__) = &dev_priv->engine[0]; (engine__) < &dev_priv->engine[I915_NUM_ENGINES]; (engine__)++) \
 		for_each_if (intel_engine_flag((engine__)) & (mask__) && intel_engine_initialized((engine__)))
