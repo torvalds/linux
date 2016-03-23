@@ -69,8 +69,11 @@ ENTRY(handle_interrupt)
 
 	clri		; To make status32.IE agree with CPU internal state
 
-	lr  r0, [ICAUSE]
+#ifdef CONFIG_TRACE_IRQFLAGS
+	TRACE_ASM_IRQ_DISABLE
+#endif
 
+	lr  r0, [ICAUSE]
 	mov   blink, ret_from_exception
 
 	b.d  arch_do_IRQ
@@ -168,6 +171,11 @@ END(EV_TLBProtV)
 ; All 2 entry points to here already disable interrupts
 
 .Lrestore_regs:
+
+	# Interrpts are actually disabled from this point on, but will get
+	# reenabled after we return from interrupt/exception.
+	# But irq tracer needs to be told now...
+	TRACE_ASM_IRQ_ENABLE
 
 	ld	r0, [sp, PT_status32]	; U/K mode at time of entry
 	lr	r10, [AUX_IRQ_ACT]
