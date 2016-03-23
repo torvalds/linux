@@ -160,19 +160,8 @@
 #define GI_TC_INTERRUPT_ENABLE(x)	(((x) % 2) ? BIT(9) : BIT(6))
 #define GI_GATE_INTERRUPT_ENABLE(x)	(((x) % 2) ? BIT(10) : BIT(8))
 
-static inline void write_register(struct ni_gpct *counter, unsigned bits,
-				  enum ni_gpct_register reg)
-{
-	BUG_ON(reg >= NITIO_NUM_REGS);
-	counter->counter_dev->write_register(counter, bits, reg);
-}
-
-static inline unsigned read_register(struct ni_gpct *counter,
-				     enum ni_gpct_register reg)
-{
-	BUG_ON(reg >= NITIO_NUM_REGS);
-	return counter->counter_dev->read_register(counter, reg);
-}
+void ni_tio_write(struct ni_gpct *, unsigned int value, enum ni_gpct_register);
+unsigned int ni_tio_read(struct ni_gpct *, enum ni_gpct_register);
 
 static inline bool
 ni_tio_counting_mode_registers_present(const struct ni_gpct_device *counter_dev)

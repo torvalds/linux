@@ -342,9 +342,9 @@ static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
 					   int *stale_data)
 {
 	unsigned cidx = counter->counter_index;
-	const unsigned short gxx_status = read_register(counter,
+	const unsigned short gxx_status = ni_tio_read(counter,
 						NITIO_SHARED_STATUS_REG(cidx));
-	const unsigned short gi_status = read_register(counter,
+	const unsigned short gi_status = ni_tio_read(counter,
 						NITIO_STATUS_REG(cidx));
 	unsigned ack = 0;
 
@@ -380,14 +380,14 @@ static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
 			ack |= GI_GATE_INTERRUPT_ACK;
 	}
 	if (ack)
-		write_register(counter, ack, NITIO_INT_ACK_REG(cidx));
+		ni_tio_write(counter, ack, NITIO_INT_ACK_REG(cidx));
 	if (ni_tio_get_soft_copy(counter, NITIO_MODE_REG(cidx)) &
 	    GI_LOADING_ON_GATE) {
 		if (gxx_status & GI_STALE_DATA(cidx)) {
 			if (stale_data)
 				*stale_data = 1;
 		}
-		if (read_register(counter, NITIO_STATUS2_REG(cidx)) &
+		if (ni_tio_read(counter, NITIO_STATUS2_REG(cidx)) &
 		    GI_PERMANENT_STALE(cidx)) {
 			dev_info(counter->counter_dev->dev->class_dev,
 				 "%s: Gi_Permanent_Stale_Data detected.\n",
@@ -426,7 +426,7 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 	switch (counter->counter_dev->variant) {
 	case ni_gpct_variant_m_series:
 	case ni_gpct_variant_660x:
-		if (read_register(counter, NITIO_DMA_STATUS_REG(cidx)) &
+		if (ni_tio_read(counter, NITIO_DMA_STATUS_REG(cidx)) &
 		    GI_DRQ_ERROR) {
 			dev_notice(counter->counter_dev->dev->class_dev,
 				   "%s: Gi_DRQ_Error detected.\n", __func__);
