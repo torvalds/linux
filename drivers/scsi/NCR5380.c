@@ -256,12 +256,20 @@ static struct {
 	{0, NULL}
 },
 basrs[] = {
+	{BASR_END_DMA_TRANSFER, "END OF DMA"},
+	{BASR_DRQ, "DRQ"},
+	{BASR_PARITY_ERROR, "PARITY ERROR"},
+	{BASR_IRQ, "IRQ"},
+	{BASR_PHASE_MATCH, "PHASE MATCH"},
+	{BASR_BUSY_ERROR, "BUSY ERROR"},
 	{BASR_ATN, "ATN"},
 	{BASR_ACK, "ACK"},
 	{0, NULL}
 },
 icrs[] = {
 	{ICR_ASSERT_RST, "ASSERT RST"},
+	{ICR_ARBITRATION_PROGRESS, "ARB. IN PROGRESS"},
+	{ICR_ARBITRATION_LOST, "LOST ARB."},
 	{ICR_ASSERT_ACK, "ASSERT ACK"},
 	{ICR_ASSERT_BSY, "ASSERT BSY"},
 	{ICR_ASSERT_SEL, "ASSERT SEL"},
@@ -270,14 +278,14 @@ icrs[] = {
 	{0, NULL}
 },
 mrs[] = {
-	{MR_BLOCK_DMA_MODE, "MODE BLOCK DMA"},
-	{MR_TARGET, "MODE TARGET"},
-	{MR_ENABLE_PAR_CHECK, "MODE PARITY CHECK"},
-	{MR_ENABLE_PAR_INTR, "MODE PARITY INTR"},
-	{MR_ENABLE_EOP_INTR, "MODE EOP INTR"},
-	{MR_MONITOR_BSY, "MODE MONITOR BSY"},
-	{MR_DMA_MODE, "MODE DMA"},
-	{MR_ARBITRATE, "MODE ARBITRATION"},
+	{MR_BLOCK_DMA_MODE, "BLOCK DMA MODE"},
+	{MR_TARGET, "TARGET"},
+	{MR_ENABLE_PAR_CHECK, "PARITY CHECK"},
+	{MR_ENABLE_PAR_INTR, "PARITY INTR"},
+	{MR_ENABLE_EOP_INTR, "EOP INTR"},
+	{MR_MONITOR_BSY, "MONITOR BSY"},
+	{MR_DMA_MODE, "DMA MODE"},
+	{MR_ARBITRATE, "ARBITRATE"},
 	{0, NULL}
 };
 
@@ -298,23 +306,23 @@ static void NCR5380_print(struct Scsi_Host *instance)
 	icr = NCR5380_read(INITIATOR_COMMAND_REG);
 	basr = NCR5380_read(BUS_AND_STATUS_REG);
 
-	printk("STATUS_REG: %02x ", status);
+	printk(KERN_DEBUG "SR =   0x%02x : ", status);
 	for (i = 0; signals[i].mask; ++i)
 		if (status & signals[i].mask)
-			printk(",%s", signals[i].name);
-	printk("\nBASR: %02x ", basr);
+			printk(KERN_CONT "%s, ", signals[i].name);
+	printk(KERN_CONT "\nBASR = 0x%02x : ", basr);
 	for (i = 0; basrs[i].mask; ++i)
 		if (basr & basrs[i].mask)
-			printk(",%s", basrs[i].name);
-	printk("\nICR: %02x ", icr);
+			printk(KERN_CONT "%s, ", basrs[i].name);
+	printk(KERN_CONT "\nICR =  0x%02x : ", icr);
 	for (i = 0; icrs[i].mask; ++i)
 		if (icr & icrs[i].mask)
-			printk(",%s", icrs[i].name);
-	printk("\nMODE: %02x ", mr);
+			printk(KERN_CONT "%s, ", icrs[i].name);
+	printk(KERN_CONT "\nMR =   0x%02x : ", mr);
 	for (i = 0; mrs[i].mask; ++i)
 		if (mr & mrs[i].mask)
-			printk(",%s", mrs[i].name);
-	printk("\n");
+			printk(KERN_CONT "%s, ", mrs[i].name);
+	printk(KERN_CONT "\n");
 }
 
 static struct {
