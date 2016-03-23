@@ -162,7 +162,6 @@ static inline char *gitstrchrnul(const char *s, int c)
 /*
  * Wrappers:
  */
-char *xstrdup(const char *str);
 void *xrealloc(void *ptr, size_t size) __attribute__((weak));
 
 

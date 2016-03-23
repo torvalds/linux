@@ -70,7 +70,4 @@ char *strip_path_suffix(const char *path, const char *suffix);
 char *mkpath(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
 char *perf_path(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
 
-char *perf_pathdup(const char *fmt, ...)
-	__attribute__((format (printf, 1, 2)));
-
 #endif /* __PERF_CACHE_H */
