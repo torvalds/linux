@@ -157,7 +157,7 @@ static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_kernel_op_s *new_op;
-	loff_t orig_size = i_size_read(inode);
+	loff_t orig_size;
 	int ret = -EINVAL;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
@@ -167,6 +167,17 @@ static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
 		     &orangefs_inode->refn.khandle,
 		     orangefs_inode->refn.fs_id,
 		     iattr->ia_size);
+
+	/* Ensure that we have a up to date size, so we know if it changed. */
+	ret = orangefs_inode_getattr(inode, 0, 1);
+	if (ret == -ESTALE)
+		ret = -EIO;
+	if (ret) {
+		gossip_err("%s: orangefs_inode_getattr failed, ret:%d:.\n",
+		    __func__, ret);
+		return ret;
+	}
+	orig_size = i_size_read(inode);
 
 	truncate_setsize(inode, iattr->ia_size);
 
