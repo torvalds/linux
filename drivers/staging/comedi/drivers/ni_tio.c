@@ -228,6 +228,31 @@ static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter,
 	return clock_period_ps;
 }
 
+/**
+ * ni_tio_get_soft_copy() - Safely read the software copy of a counter register.
+ * @counter: struct ni_gpct counter.
+ * @reg: the register to read.
+ *
+ * Used to get the software copy of a register whose bits might be modified
+ * in interrupt context, or whose software copy might need to be read in
+ * interrupt context.
+ */
+unsigned int ni_tio_get_soft_copy(const struct ni_gpct *counter,
+				  enum ni_gpct_register reg)
+{
+	struct ni_gpct_device *counter_dev = counter->counter_dev;
+	unsigned int value = 0;
+	unsigned long flags;
+
+	if (reg < NITIO_NUM_REGS) {
+		spin_lock_irqsave(&counter_dev->regs_lock, flags);
+		value = counter_dev->regs[reg];
+		spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
+	}
+	return value;
+}
+EXPORT_SYMBOL_GPL(ni_tio_get_soft_copy);
+
 static unsigned ni_tio_clock_src_modifiers(const struct ni_gpct *counter)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;

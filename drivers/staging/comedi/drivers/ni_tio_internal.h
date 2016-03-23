@@ -224,25 +224,8 @@ static inline void ni_tio_set_bits(struct ni_gpct *counter,
 				  0x0);
 }
 
-/*
- * ni_tio_get_soft_copy( ) is for safely reading the software copy of a
- * register whose bits might be modified in interrupt context, or whose
- * software copy might need to be read in interrupt context.
- */
-static inline unsigned ni_tio_get_soft_copy(const struct ni_gpct *counter,
-					    enum ni_gpct_register
-					    register_index)
-{
-	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	unsigned long flags;
-	unsigned value;
-
-	BUG_ON(register_index >= NITIO_NUM_REGS);
-	spin_lock_irqsave(&counter_dev->regs_lock, flags);
-	value = counter_dev->regs[register_index];
-	spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
-	return value;
-}
+unsigned int ni_tio_get_soft_copy(const struct ni_gpct *,
+				  enum ni_gpct_register reg);
 
 int ni_tio_arm(struct ni_gpct *, bool arm, unsigned int start_trigger);
 int ni_tio_set_gate_src(struct ni_gpct *, unsigned int gate, unsigned int src);
