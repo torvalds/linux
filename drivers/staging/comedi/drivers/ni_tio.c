@@ -1295,15 +1295,18 @@ int ni_tio_insn_config(struct comedi_device *dev,
 	struct ni_gpct *counter = s->private;
 	unsigned int cidx = counter->counter_index;
 	unsigned int status;
+	int ret = 0;
 
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
-		return ni_tio_set_counter_mode(counter, data[1]);
+		ret = ni_tio_set_counter_mode(counter, data[1]);
+		break;
 	case INSN_CONFIG_ARM:
-		return ni_tio_arm(counter, true, data[1]);
+		ret = ni_tio_arm(counter, true, data[1]);
+		break;
 	case INSN_CONFIG_DISARM:
-		ni_tio_arm(counter, false, 0);
-		return 0;
+		ret = ni_tio_arm(counter, false, 0);
+		break;
 	case INSN_CONFIG_GET_COUNTER_STATUS:
 		data[1] = 0;
 		status = ni_tio_read(counter, NITIO_SHARED_STATUS_REG(cidx));
@@ -1313,25 +1316,29 @@ int ni_tio_insn_config(struct comedi_device *dev,
 				data[1] |= COMEDI_COUNTER_COUNTING;
 		}
 		data[2] = COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING;
-		return 0;
+		break;
 	case INSN_CONFIG_SET_CLOCK_SRC:
-		return ni_tio_set_clock_src(counter, data[1], data[2]);
+		ret = ni_tio_set_clock_src(counter, data[1], data[2]);
+		break;
 	case INSN_CONFIG_GET_CLOCK_SRC:
 		ni_tio_get_clock_src(counter, &data[1], &data[2]);
-		return 0;
+		break;
 	case INSN_CONFIG_SET_GATE_SRC:
-		return ni_tio_set_gate_src(counter, data[1], data[2]);
+		ret = ni_tio_set_gate_src(counter, data[1], data[2]);
+		break;
 	case INSN_CONFIG_GET_GATE_SRC:
-		return ni_tio_get_gate_src(counter, data[1], &data[2]);
+		ret = ni_tio_get_gate_src(counter, data[1], &data[2]);
+		break;
 	case INSN_CONFIG_SET_OTHER_SRC:
-		return ni_tio_set_other_src(counter, data[1], data[2]);
+		ret = ni_tio_set_other_src(counter, data[1], data[2]);
+		break;
 	case INSN_CONFIG_RESET:
 		ni_tio_reset_count_and_disarm(counter);
-		return 0;
-	default:
 		break;
+	default:
+		return -EINVAL;
 	}
-	return -EINVAL;
+	return ret ? ret : insn->n;
 }
 EXPORT_SYMBOL_GPL(ni_tio_insn_config);
 
