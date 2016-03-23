@@ -405,16 +405,19 @@ void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	notif = (void *)pkt->data;
 	internal_notif = (void *)notif->payload;
 
-	switch (internal_notif->type) {
-	case IWL_MVM_RXQ_SYNC:
-		if (mvm->queue_sync_cookie == internal_notif->cookie)
-			atomic_dec(&mvm->queue_sync_counter);
-		else
+	if (internal_notif->sync) {
+		if (mvm->queue_sync_cookie != internal_notif->cookie) {
 			WARN_ONCE(1,
 				  "Received expired RX queue sync message\n");
+			return;
+		}
+		atomic_dec(&mvm->queue_sync_counter);
+	}
+
+	switch (internal_notif->type) {
+	case IWL_MVM_RXQ_EMPTY:
 		break;
 	case IWL_MVM_RXQ_NOTIF_DEL_BA:
-		/* TODO */
 		break;
 	default:
 		WARN_ONCE(1, "Invalid identifier %d", internal_notif->type);

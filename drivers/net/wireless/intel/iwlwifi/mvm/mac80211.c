@@ -4037,12 +4037,10 @@ static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
 	}
 }
 
-static void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm)
+void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
+				     struct iwl_mvm_internal_rxq_notif *notif,
+				     u32 size)
 {
-	struct iwl_mvm_internal_rxq_notif data = {
-		.type = IWL_MVM_RXQ_SYNC,
-		.cookie = mvm->queue_sync_cookie,
-	};
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(notif_waitq);
 	u32 qmask = BIT(mvm->trans->num_rx_queues) - 1;
 	int ret;
@@ -4052,16 +4050,22 @@ static void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm)
 	if (!iwl_mvm_has_new_rx_api(mvm))
 		return;
 
-	atomic_set(&mvm->queue_sync_counter, mvm->trans->num_rx_queues);
+	notif->cookie = mvm->queue_sync_cookie;
 
-	ret = iwl_mvm_notify_rx_queue(mvm, qmask, (u8 *)&data, sizeof(data));
+	if (notif->sync)
+		atomic_set(&mvm->queue_sync_counter,
+			   mvm->trans->num_rx_queues);
+
+	ret = iwl_mvm_notify_rx_queue(mvm, qmask, (u8 *)notif, size);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to trigger RX queues sync (%d)\n", ret);
 		goto out;
 	}
-	ret = wait_event_timeout(notif_waitq,
-				 atomic_read(&mvm->queue_sync_counter) == 0,
-				 HZ);
+
+	if (notif->sync)
+		ret = wait_event_timeout(notif_waitq,
+					 atomic_read(&mvm->queue_sync_counter) == 0,
+					 HZ);
 	WARN_ON_ONCE(!ret);
 
 out:
@@ -4072,9 +4076,13 @@ out:
 static void iwl_mvm_sync_rx_queues(struct ieee80211_hw *hw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_internal_rxq_notif data = {
+		.type = IWL_MVM_RXQ_EMPTY,
+		.sync = 1,
+	};
 
 	mutex_lock(&mvm->mutex);
-	iwl_mvm_sync_rx_queues_internal(mvm);
+	iwl_mvm_sync_rx_queues_internal(mvm, &data, sizeof(data));
 	mutex_unlock(&mvm->mutex);
 }
 
