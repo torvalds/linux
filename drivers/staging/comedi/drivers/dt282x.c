@@ -1093,20 +1093,6 @@ static int dt282x_initialize(struct comedi_device *dev)
 	return 0;
 }
 
-/*
-   options:
-   0	i/o base
-   1	irq
-   2	dma1
-   3	dma2
-   4	0=single ended, 1=differential
-   5	ai 0=straight binary, 1=2's comp
-   6	ao0 0=straight binary, 1=2's comp
-   7	ao1 0=straight binary, 1=2's comp
-   8	ai 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V
-   9	ao0 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V, 4=±2.5 V
-   10	ao1 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V, 4=±2.5 V
- */
 static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct dt282x_board *board = dev->board_ptr;
