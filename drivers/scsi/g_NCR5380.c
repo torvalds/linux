@@ -18,42 +18,8 @@
  *
  * Added ISAPNP support for DTC436 adapters,
  * Thomas Sailer, sailer@ife.ee.ethz.ch
- */
-
-/* 
- * TODO : flesh out DMA support, find some one actually using this (I have
- * 	a memory mapped Trantor board that works fine)
- */
-
-/*
- * The card is detected and initialized in one of several ways : 
- * 1.  With command line overrides - NCR5380=port,irq may be 
- *     used on the LILO command line to override the defaults.
  *
- * 2.  With the GENERIC_NCR5380_OVERRIDE compile time define.  This is 
- *     specified as an array of address, irq, dma, board tuples.  Ie, for
- *     one board at 0x350, IRQ5, no dma, I could say  
- *     -DGENERIC_NCR5380_OVERRIDE={{0xcc000, 5, DMA_NONE, BOARD_NCR5380}}
- * 
- * -1 should be specified for no or DMA interrupt, -2 to autoprobe for an 
- * 	IRQ line if overridden on the command line.
- *
- * 3.  When included as a module, with arguments passed on the command line:
- *         ncr_irq=xx	the interrupt
- *         ncr_addr=xx  the port or base address (for port or memory
- *              	mapped, resp.)
- *         ncr_dma=xx	the DMA
- *         ncr_5380=1	to set up for a NCR5380 board
- *         ncr_53c400=1	to set up for a NCR53C400 board
- *     e.g.
- *     modprobe g_NCR5380 ncr_irq=5 ncr_addr=0x350 ncr_5380=1
- *       for a port mapped NCR5380 board or
- *     modprobe g_NCR5380 ncr_irq=255 ncr_addr=0xc8000 ncr_53c400=1
- *       for a memory mapped NCR53C400 board with interrupts disabled.
- * 
- * 255 should be specified for no or DMA interrupt, 254 to autoprobe for an 
- * 	IRQ line if overridden on the command line.
- *     
+ * See Documentation/scsi/g_NCR5380.txt for more info.
  */
 
 #include <asm/io.h>
