@@ -213,10 +213,10 @@ static void ni_tio_reset_count_and_disarm(struct ni_gpct *counter)
 	ni_tio_write(counter, GI_RESET(cidx), NITIO_RESET_REG(cidx));
 }
 
-static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter,
-				       unsigned int generic_clock_source)
+static u64 ni_tio_clock_period_ps(const struct ni_gpct *counter,
+				  unsigned int generic_clock_source)
 {
-	uint64_t clock_period_ps;
+	u64 clock_period_ps;
 
 	switch (generic_clock_source & NI_GPCT_CLOCK_SRC_SELECT_MASK) {
 	case NI_GPCT_TIMEBASE_1_CLOCK_SRC_BITS:
@@ -474,9 +474,9 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter, int force_alt_sync)
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned int cidx = counter->counter_index;
 	unsigned int counting_mode_reg = NITIO_CNT_MODE_REG(cidx);
-	static const uint64_t min_normal_sync_period_ps = 25000;
+	static const u64 min_normal_sync_period_ps = 25000;
 	unsigned int mode;
-	uint64_t clock_period_ps;
+	u64 clock_period_ps;
 
 	if (!ni_tio_counting_mode_registers_present(counter_dev))
 		return;
@@ -819,7 +819,7 @@ static void ni_tio_get_clock_src(struct ni_gpct *counter,
 				 unsigned int *clock_source,
 				 unsigned int *period_ns)
 {
-	uint64_t temp64;
+	u64 temp64;
 
 	*clock_source = ni_tio_generic_clock_src_select(counter);
 	temp64 = ni_tio_clock_period_ps(counter, *clock_source);
