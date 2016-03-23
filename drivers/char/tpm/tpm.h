@@ -136,9 +136,6 @@ struct tpm_vendor_specific {
 
 	int irq;
 
-	int region_size;
-	int have_region;
-
 	struct list_head list;
 	int locality;
 	unsigned long timeout_a, timeout_b, timeout_c, timeout_d; /* jiffies */

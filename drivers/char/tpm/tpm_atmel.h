@@ -22,6 +22,11 @@
  *
  */
 
+struct tpm_atmel_priv {
+	int region_size;
+	int have_region;
+};
+
 #ifdef CONFIG_PPC64
 
 #include <asm/prom.h>

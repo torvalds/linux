@@ -136,12 +136,13 @@ static struct platform_device *pdev;
 static void atml_plat_remove(void)
 {
 	struct tpm_chip *chip = dev_get_drvdata(&pdev->dev);
+	struct tpm_atmel_priv *priv = chip->vendor.priv;
 
 	if (chip) {
 		tpm_chip_unregister(chip);
-		if (chip->vendor.have_region)
+		if (priv->have_region)
 			atmel_release_region(chip->vendor.base,
-					     chip->vendor.region_size);
+					     priv->region_size);
 		atmel_put_base_addr(chip->vendor.iobase);
 		platform_device_unregister(pdev);
 	}
@@ -163,6 +164,7 @@ static int __init init_atmel(void)
 	int have_region, region_size;
 	unsigned long base;
 	struct  tpm_chip *chip;
+	struct tpm_atmel_priv *priv;
 
 	rc = platform_driver_register(&atml_drv);
 	if (rc)
@@ -183,6 +185,15 @@ static int __init init_atmel(void)
 		goto err_rel_reg;
 	}
 
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv) {
+		rc = -ENOMEM;
+		goto err_unreg_dev;
+	}
+
+	priv->have_region = have_region;
+	priv->region_size = region_size;
+
 	chip = tpmm_chip_alloc(&pdev->dev, &tpm_atmel);
 	if (IS_ERR(chip)) {
 		rc = PTR_ERR(chip);
@@ -191,8 +202,7 @@ static int __init init_atmel(void)
 
 	chip->vendor.iobase = iobase;
 	chip->vendor.base = base;
-	chip->vendor.have_region = have_region;
-	chip->vendor.region_size = region_size;
+	chip->vendor.priv = priv;
 
 	rc = tpm_chip_register(chip);
 	if (rc)
