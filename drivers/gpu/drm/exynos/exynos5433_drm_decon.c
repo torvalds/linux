@@ -396,6 +396,8 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	set_bit(BIT_CLKS_ENABLED, &ctx->flags);
 
+	decon_swreset(ctx);
+
 	/* if vblank was enabled status, enable it again. */
 	if (test_and_clear_bit(BIT_IRQS_ENABLED, &ctx->flags))
 		decon_enable_vblank(ctx->crtc);
