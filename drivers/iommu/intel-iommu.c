@@ -1143,7 +1143,7 @@ next:
 	} while (!first_pte_in_page(++pte) && pfn <= last_pfn);
 }
 
-/* free page table pages. last level pte should already be cleared */
+/* clear last level (leaf) ptes and free page table pages. */
 static void dma_pte_free_pagetable(struct dmar_domain *domain,
 				   unsigned long start_pfn,
 				   unsigned long last_pfn)
