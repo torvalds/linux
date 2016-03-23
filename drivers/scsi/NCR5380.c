@@ -1833,8 +1833,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 
 #if defined(PSEUDO_DMA) || defined(REAL_DMA_POLL)
 				transfersize = 0;
-				if (!cmd->device->borken &&
-				    !(hostdata->flags & FLAG_NO_PSEUDO_DMA))
+				if (!cmd->device->borken)
 					transfersize = NCR5380_dma_xfer_len(instance, cmd, phase);
 
 				if (transfersize) {

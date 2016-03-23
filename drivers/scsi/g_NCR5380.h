@@ -61,7 +61,7 @@
 #endif
 
 #define NCR5380_dma_xfer_len(instance, cmd, phase) \
-        generic_NCR5380_dma_xfer_len(cmd)
+        generic_NCR5380_dma_xfer_len(instance, cmd)
 
 #define NCR5380_intr generic_NCR5380_intr
 #define NCR5380_queue_command generic_NCR5380_queue_command

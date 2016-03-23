@@ -37,7 +37,9 @@
 
 #define NCR5380_pread                   macscsi_pread
 #define NCR5380_pwrite                  macscsi_pwrite
-#define NCR5380_dma_xfer_len(instance, cmd, phase)	(cmd->transfersize)
+
+#define NCR5380_dma_xfer_len(instance, cmd, phase) \
+        macscsi_dma_xfer_len(instance, cmd)
 
 #define NCR5380_intr                    macscsi_intr
 #define NCR5380_queue_command           macscsi_queue_command
@@ -302,6 +304,17 @@ static int macscsi_pwrite(struct Scsi_Host *instance,
 	return 0;
 }
 #endif
+
+static int macscsi_dma_xfer_len(struct Scsi_Host *instance,
+                                struct scsi_cmnd *cmd)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	if (hostdata->flags & FLAG_NO_PSEUDO_DMA)
+		return 0;
+
+	return cmd->transfersize;
+}
 
 #include "NCR5380.c"
 

@@ -712,9 +712,14 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
 	return 0;
 }
 
-static int generic_NCR5380_dma_xfer_len(struct scsi_cmnd *cmd)
+static int generic_NCR5380_dma_xfer_len(struct Scsi_Host *instance,
+                                        struct scsi_cmnd *cmd)
 {
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int transfersize = cmd->transfersize;
+
+	if (hostdata->flags & FLAG_NO_PSEUDO_DMA)
+		return 0;
 
 	/* Limit transfers to 32K, for xx400 & xx406
 	 * pseudoDMA that transfers in 128 bytes blocks.
