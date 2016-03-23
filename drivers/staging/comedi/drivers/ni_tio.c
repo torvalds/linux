@@ -183,8 +183,9 @@ static void ni_tio_reset_count_and_disarm(struct ni_gpct *counter)
 	ni_tio_write(counter, GI_RESET(cidx), NITIO_RESET_REG(cidx));
 }
 
-static u64 ni_tio_clock_period_ps(const struct ni_gpct *counter,
-				  unsigned int generic_clock_source)
+static int ni_tio_clock_period_ps(const struct ni_gpct *counter,
+				  unsigned int generic_clock_source,
+				  u64 *period_ps)
 {
 	u64 clock_period_ps;
 
@@ -219,10 +220,10 @@ static u64 ni_tio_clock_period_ps(const struct ni_gpct *counter,
 		clock_period_ps *= 8;
 		break;
 	default:
-		BUG();
-		break;
+		return -EINVAL;
 	}
-	return clock_period_ps;
+	*period_ps = clock_period_ps;
+	return 0;
 }
 
 static void ni_tio_set_bits_transient(struct ni_gpct *counter,
@@ -304,7 +305,8 @@ static unsigned int ni_tio_clock_src_modifiers(const struct ni_gpct *counter)
 	return bits;
 }
 
-static unsigned int ni_m_series_clock_src_select(const struct ni_gpct *counter)
+static int ni_m_series_clock_src_select(const struct ni_gpct *counter,
+					unsigned int *clk_src)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned int cidx = counter->counter_index;
@@ -362,14 +364,15 @@ static unsigned int ni_m_series_clock_src_select(const struct ni_gpct *counter)
 		}
 		if (i <= NI_M_MAX_PFI_CHAN)
 			break;
-		BUG();
-		break;
+		return -EINVAL;
 	}
 	clock_source |= ni_tio_clock_src_modifiers(counter);
-	return clock_source;
+	*clk_src = clock_source;
+	return 0;
 }
 
-static unsigned int ni_660x_clock_src_select(const struct ni_gpct *counter)
+static int ni_660x_clock_src_select(const struct ni_gpct *counter,
+				    unsigned int *clk_src)
 {
 	unsigned int clock_source = 0;
 	unsigned int cidx = counter->counter_index;
@@ -419,23 +422,23 @@ static unsigned int ni_660x_clock_src_select(const struct ni_gpct *counter)
 		}
 		if (i <= NI_660X_MAX_SRC_PIN)
 			break;
-		BUG();
-		break;
+		return -EINVAL;
 	}
 	clock_source |= ni_tio_clock_src_modifiers(counter);
-	return clock_source;
+	*clk_src = clock_source;
+	return 0;
 }
 
-static unsigned int
-ni_tio_generic_clock_src_select(const struct ni_gpct *counter)
+static int ni_tio_generic_clock_src_select(const struct ni_gpct *counter,
+					   unsigned int *clk_src)
 {
 	switch (counter->counter_dev->variant) {
 	case ni_gpct_variant_e_series:
 	case ni_gpct_variant_m_series:
 	default:
-		return ni_m_series_clock_src_select(counter);
+		return ni_m_series_clock_src_select(counter, clk_src);
 	case ni_gpct_variant_660x:
-		return ni_660x_clock_src_select(counter);
+		return ni_660x_clock_src_select(counter, clk_src);
 	}
 }
 
@@ -448,6 +451,7 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter)
 	unsigned int bits = 0;
 	unsigned int reg;
 	unsigned int mode;
+	unsigned int clk_src;
 	u64 ps;
 	bool force_alt_sync;
 
@@ -478,8 +482,8 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter)
 		break;
 	}
 
-	ps = ni_tio_clock_period_ps(counter,
-				    ni_tio_generic_clock_src_select(counter));
+	ni_tio_generic_clock_src_select(counter, &clk_src);
+	ni_tio_clock_period_ps(counter, clk_src, &ps);
 
 	/*
 	 * It's not clear what we should do if clock_period is unknown, so we
@@ -800,16 +804,22 @@ static int ni_tio_set_clock_src(struct ni_gpct *counter,
 	return 0;
 }
 
-static void ni_tio_get_clock_src(struct ni_gpct *counter,
-				 unsigned int *clock_source,
-				 unsigned int *period_ns)
+static int ni_tio_get_clock_src(struct ni_gpct *counter,
+				unsigned int *clock_source,
+				unsigned int *period_ns)
 {
 	u64 temp64;
+	int ret;
 
-	*clock_source = ni_tio_generic_clock_src_select(counter);
-	temp64 = ni_tio_clock_period_ps(counter, *clock_source);
+	ret = ni_tio_generic_clock_src_select(counter, clock_source);
+	if (ret)
+		return ret;
+	ret = ni_tio_clock_period_ps(counter, *clock_source, &temp64);
+	if (ret)
+		return ret;
 	do_div(temp64, 1000);	/* ps to ns */
 	*period_ns = temp64;
+	return 0;
 }
 
 static int ni_660x_set_gate(struct ni_gpct *counter, unsigned int gate_source)
@@ -1320,7 +1330,7 @@ int ni_tio_insn_config(struct comedi_device *dev,
 		ret = ni_tio_set_clock_src(counter, data[1], data[2]);
 		break;
 	case INSN_CONFIG_GET_CLOCK_SRC:
-		ni_tio_get_clock_src(counter, &data[1], &data[2]);
+		ret = ni_tio_get_clock_src(counter, &data[1], &data[2]);
 		break;
 	case INSN_CONFIG_SET_GATE_SRC:
 		ret = ni_tio_set_gate_src(counter, data[1], data[2]);
