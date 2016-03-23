@@ -67,6 +67,7 @@
 #include <sys/utsname.h>
 #include <sys/mman.h>
 
+#include <linux/stringify.h>
 #include <linux/types.h>
 
 static volatile int done;

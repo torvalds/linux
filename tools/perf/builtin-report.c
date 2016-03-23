@@ -41,6 +41,7 @@
 
 #include <dlfcn.h>
 #include <linux/bitmap.h>
+#include <linux/stringify.h>
 
 struct report {
 	struct perf_tool	tool;

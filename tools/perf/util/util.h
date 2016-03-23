@@ -138,8 +138,6 @@ void die(const char *err, ...) NORETURN __attribute__((format (printf, 1, 2)));
 int error(const char *err, ...) __attribute__((format (printf, 1, 2)));
 void warning(const char *err, ...) __attribute__((format (printf, 1, 2)));
 
-#include "../../../include/linux/stringify.h"
-
 void set_warning_routine(void (*routine)(const char *err, va_list params));
 
 int prefixcmp(const char *str, const char *prefix);
