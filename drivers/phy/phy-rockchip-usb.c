@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
+#include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -42,6 +43,10 @@
 #define USB2_PHY_SUSPEND	(0x5 << 0 | 0xd << 4 | 0x1 << 8)
 #define USB2_PHY_RESUME	(0)
 
+#define UTMI_SEL_GRF_WR_ENA	(0x3 << 16)
+#define UTMI_SEL_GRF_SUSPEND	(0x1 << 0)
+#define UTMI_SEL_GRF_RESUME	(0x3 << 0)
+
 struct rockchip_usb_phys {
 	int reg;
 	const char *pll_name;
@@ -57,6 +62,7 @@ struct rockchip_usb_phy_pdata {
 struct rockchip_usb_phy_base {
 	struct device *dev;
 	struct regmap *reg_base;
+	struct gpio_desc *vbus_drv_gpio;
 	const struct rockchip_usb_phy_pdata *pdata;
 };
 
@@ -320,6 +326,17 @@ static const struct rockchip_usb_phy_pdata rk336x_pdata = {
 	.siddq_ctl  = false,
 };
 
+static const struct rockchip_usb_phy_pdata rk3399_pdata = {
+	.phys = (struct rockchip_usb_phys[]){
+		{ .reg = 0xe458, .pll_name = "sclk_otgphy0_480m" },
+		{ .reg = 0xe468, .pll_name = "sclk_otgphy1_480m" },
+		{ /* sentinel */ }
+	},
+	.phy_pw_on  = UTMI_SEL_GRF_WR_ENA | UTMI_SEL_GRF_RESUME,
+	.phy_pw_off = UTMI_SEL_GRF_WR_ENA | UTMI_SEL_GRF_SUSPEND,
+	.siddq_ctl  = false,
+};
+
 static int rockchip_usb_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -349,6 +366,14 @@ static int rockchip_usb_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(phy_base->reg_base);
 	}
 
+	/* Request the vbus_drv GPIO asserted */
+	phy_base->vbus_drv_gpio =
+		devm_gpiod_get_optional(dev, "vbus_drv", GPIOD_OUT_HIGH);
+	if (!phy_base->vbus_drv_gpio)
+		dev_info(&pdev->dev, "vbus_drv is not assigned!\n");
+	else if (IS_ERR(phy_base->vbus_drv_gpio))
+		return PTR_ERR(phy_base->vbus_drv_gpio);
+
 	for_each_available_child_of_node(dev->of_node, child) {
 		err = rockchip_usb_phy_init(phy_base, child);
 		if (err) {
@@ -366,6 +391,7 @@ static const struct of_device_id rockchip_usb_phy_dt_ids[] = {
 	{ .compatible = "rockchip,rk3188-usb-phy", .data = &rk3188_pdata },
 	{ .compatible = "rockchip,rk3288-usb-phy", .data = &rk3288_pdata },
 	{ .compatible = "rockchip,rk336x-usb-phy", .data = &rk336x_pdata },
+	{ .compatible = "rockchip,rk3399-usb-phy", .data = &rk3399_pdata },
 	{}
 };
 
