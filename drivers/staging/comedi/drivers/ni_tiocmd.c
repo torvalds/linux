@@ -103,7 +103,7 @@ static int ni_tio_input_inttrig(struct comedi_device *dev,
 	spin_unlock_irqrestore(&counter->lock, flags);
 	if (ret < 0)
 		return ret;
-	ret = ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
+	ret = ni_tio_arm(counter, true, NI_GPCT_ARM_IMMEDIATE);
 	s->async->inttrig = NULL;
 
 	return ret;
@@ -143,9 +143,9 @@ static int ni_tio_input_cmd(struct comedi_subdevice *s)
 		mite_dma_arm(counter->mite_chan);
 
 		if (cmd->start_src == TRIG_NOW)
-			ret = ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
+			ret = ni_tio_arm(counter, true, NI_GPCT_ARM_IMMEDIATE);
 		else if (cmd->start_src == TRIG_EXT)
-			ret = ni_tio_arm(counter, 1, cmd->start_arg);
+			ret = ni_tio_arm(counter, true, cmd->start_arg);
 	}
 	return ret;
 }
@@ -292,7 +292,7 @@ int ni_tio_cancel(struct ni_gpct *counter)
 	unsigned cidx = counter->counter_index;
 	unsigned long flags;
 
-	ni_tio_arm(counter, 0, 0);
+	ni_tio_arm(counter, false, 0);
 	spin_lock_irqsave(&counter->lock, flags);
 	if (counter->mite_chan)
 		mite_dma_disarm(counter->mite_chan);

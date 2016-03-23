@@ -484,11 +484,11 @@ static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned mode)
 	return 0;
 }
 
-int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
+int ni_tio_arm(struct ni_gpct *counter, bool arm, unsigned int start_trigger)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	unsigned cidx = counter->counter_index;
-	unsigned command_transient_bits = 0;
+	unsigned int cidx = counter->counter_index;
+	unsigned int command_transient_bits = 0;
 
 	if (arm) {
 		switch (start_trigger) {
@@ -502,8 +502,8 @@ int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
 			break;
 		}
 		if (ni_tio_counting_mode_registers_present(counter_dev)) {
-			unsigned bits = 0;
-			unsigned sel_mask;
+			unsigned int bits = 0;
+			unsigned int sel_mask;
 
 			sel_mask = GI_HW_ARM_SEL_MASK(counter_dev->variant);
 
@@ -1180,9 +1180,9 @@ int ni_tio_insn_config(struct comedi_device *dev,
 	case INSN_CONFIG_SET_COUNTER_MODE:
 		return ni_tio_set_counter_mode(counter, data[1]);
 	case INSN_CONFIG_ARM:
-		return ni_tio_arm(counter, 1, data[1]);
+		return ni_tio_arm(counter, true, data[1]);
 	case INSN_CONFIG_DISARM:
-		ni_tio_arm(counter, 0, 0);
+		ni_tio_arm(counter, false, 0);
 		return 0;
 	case INSN_CONFIG_GET_COUNTER_STATUS:
 		data[1] = 0;
