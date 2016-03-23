@@ -208,21 +208,21 @@ static int get_burstcount(struct tpm_chip *chip)
 {
 	unsigned long stop;
 	int burstcnt, status;
-	u8 tpm_reg, temp;
+	u8 temp;
 	struct st33zp24_dev *tpm_dev;
 
 	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
 
 	stop = jiffies + chip->vendor.timeout_d;
 	do {
-		tpm_reg = TPM_STS + 1;
-		status = tpm_dev->ops->recv(tpm_dev->phy_id, tpm_reg, &temp, 1);
+		status = tpm_dev->ops->recv(tpm_dev->phy_id, TPM_STS + 1,
+					    &temp, 1);
 		if (status < 0)
 			return -EBUSY;
 
-		tpm_reg = TPM_STS + 2;
 		burstcnt = temp;
-		status = tpm_dev->ops->recv(tpm_dev->phy_id, tpm_reg, &temp, 1);
+		status = tpm_dev->ops->recv(tpm_dev->phy_id, TPM_STS + 2,
+					    &temp, 1);
 		if (status < 0)
 			return -EBUSY;
 
