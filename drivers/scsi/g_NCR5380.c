@@ -348,23 +348,17 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 		flags = 0;
 		switch (overrides[current_override].board) {
 		case BOARD_NCR5380:
-			flags = FLAG_NO_PSEUDO_DMA;
-			break;
-		case BOARD_NCR53C400:
-			flags = FLAG_NO_DMA_FIXUP;
+			flags = FLAG_NO_PSEUDO_DMA | FLAG_DMA_FIXUP;
 			break;
 		case BOARD_NCR53C400A:
-			flags = FLAG_NO_DMA_FIXUP;
 			ports = ncr_53c400a_ports;
 			magic = ncr_53c400a_magic;
 			break;
 		case BOARD_HP_C2502:
-			flags = FLAG_NO_DMA_FIXUP;
 			ports = ncr_53c400a_ports;
 			magic = hp_c2502_magic;
 			break;
 		case BOARD_DTC3181E:
-			flags = FLAG_NO_DMA_FIXUP;
 			ports = dtc_3181e_ports;
 			magic = ncr_53c400a_magic;
 			break;

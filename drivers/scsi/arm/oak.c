@@ -143,7 +143,7 @@ static int oakscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	host->irq = NO_IRQ;
 	host->n_io_port = 255;
 
-	ret = NCR5380_init(host, 0);
+	ret = NCR5380_init(host, FLAG_DMA_FIXUP);
 	if (ret)
 		goto out_unmap;
 

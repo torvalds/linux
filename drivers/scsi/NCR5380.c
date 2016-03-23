@@ -457,7 +457,7 @@ static void prepare_info(struct Scsi_Host *instance)
 	         instance->base, instance->irq,
 	         instance->can_queue, instance->cmd_per_lun,
 	         instance->sg_tablesize, instance->this_id,
-	         hostdata->flags & FLAG_NO_DMA_FIXUP  ? "NO_DMA_FIXUP "  : "",
+	         hostdata->flags & FLAG_DMA_FIXUP     ? "DMA_FIXUP "     : "",
 	         hostdata->flags & FLAG_NO_PSEUDO_DMA ? "NO_PSEUDO_DMA " : "",
 	         hostdata->flags & FLAG_TOSHIBA_DELAY ? "TOSHIBA_DELAY "  : "",
 #ifdef AUTOPROBE_IRQ
@@ -1480,11 +1480,11 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 	 * before the setting of DMA mode to after transfer of the last byte.
 	 */
 
-	if (hostdata->flags & FLAG_NO_DMA_FIXUP)
+	if (hostdata->flags & FLAG_DMA_FIXUP)
+		NCR5380_write(MODE_REG, MR_BASE | MR_DMA_MODE | MR_MONITOR_BSY);
+	else
 		NCR5380_write(MODE_REG, MR_BASE | MR_DMA_MODE | MR_MONITOR_BSY |
 		                        MR_ENABLE_EOP_INTR);
-	else
-		NCR5380_write(MODE_REG, MR_BASE | MR_DMA_MODE | MR_MONITOR_BSY);
 
 	dprintk(NDEBUG_DMA, "scsi%d : mode reg = 0x%X\n", instance->host_no, NCR5380_read(MODE_REG));
 
@@ -1540,8 +1540,8 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 
 	if (p & SR_IO) {
 		foo = NCR5380_pread(instance, d,
-			hostdata->flags & FLAG_NO_DMA_FIXUP ? c : c - 1);
-		if (!foo && !(hostdata->flags & FLAG_NO_DMA_FIXUP)) {
+			hostdata->flags & FLAG_DMA_FIXUP ? c - 1 : c);
+		if (!foo && (hostdata->flags & FLAG_DMA_FIXUP)) {
 			/*
 			 * The workaround was to transfer fewer bytes than we
 			 * intended to with the pseudo-DMA read function, wait for
@@ -1571,7 +1571,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 		}
 	} else {
 		foo = NCR5380_pwrite(instance, d, c);
-		if (!foo && !(hostdata->flags & FLAG_NO_DMA_FIXUP)) {
+		if (!foo && (hostdata->flags & FLAG_DMA_FIXUP)) {
 			/*
 			 * Wait for the last byte to be sent.  If REQ is being asserted for
 			 * the byte we're interested, we'll ACK it and it will go false.

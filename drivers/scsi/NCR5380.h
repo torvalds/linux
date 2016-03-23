@@ -220,7 +220,7 @@
 #define NO_IRQ		0
 #endif
 
-#define FLAG_NO_DMA_FIXUP		1	/* No DMA errata workarounds */
+#define FLAG_DMA_FIXUP			1	/* Use DMA errata workarounds */
 #define FLAG_NO_PSEUDO_DMA		8	/* Inhibit DMA */
 #define FLAG_LATE_DMA_SETUP		32	/* Setup NCR before DMA H/W */
 #define FLAG_TAGGED_QUEUING		64	/* as X3T9.2 spelled it */

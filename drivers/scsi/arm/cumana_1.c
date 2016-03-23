@@ -239,7 +239,7 @@ static int cumanascsi1_probe(struct expansion_card *ec,
 
 	host->irq = ec->irq;
 
-	ret = NCR5380_init(host, 0);
+	ret = NCR5380_init(host, FLAG_DMA_FIXUP);
 	if (ret)
 		goto out_unmap;
 
