@@ -231,7 +231,7 @@ bool wilc_optaining_ip;
 static u8 P2P_LISTEN_STATE;
 static struct task_struct *hif_thread_handler;
 static struct message_queue hif_msg_q;
-static struct semaphore hif_sema_thread;
+static struct completion hif_thread_comp;
 static struct semaphore hif_sema_driver;
 static struct completion hif_wait_response;
 static struct mutex hif_deinit_lock;
@@ -2668,7 +2668,7 @@ static int hostIFthread(void *pvArg)
 		}
 	}
 
-	up(&hif_sema_thread);
+	complete(&hif_thread_comp);
 	return 0;
 }
 
@@ -3400,7 +3400,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	wilc_optaining_ip = false;
 
 	if (clients_count == 0)	{
-		sema_init(&hif_sema_thread, 0);
+		init_completion(&hif_thread_comp);
 		sema_init(&hif_sema_driver, 0);
 		mutex_init(&hif_deinit_lock);
 	}
@@ -3503,7 +3503,7 @@ int wilc_deinit(struct wilc_vif *vif)
 		if (result != 0)
 			netdev_err(vif->ndev, "deinit : Error(%d)\n", result);
 
-		down(&hif_sema_thread);
+		wait_for_completion(&hif_thread_comp);
 
 		wilc_mq_destroy(&hif_msg_q);
 	}
