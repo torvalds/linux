@@ -147,6 +147,31 @@
 			status = "disabled";
 		};
 
+
+		cryptobam: dma@8e04000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x08e04000 0x20000>;
+			interrupts = <GIC_SPI 207 0>;
+			clocks = <&gcc GCC_CRYPTO_AHB_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <1>;
+			qcom,controlled-remotely;
+			status = "disabled";
+		};
+
+		crypto@8e3a000 {
+			compatible = "qcom,crypto-v5.1";
+			reg = <0x08e3a000 0x6000>;
+			clocks = <&gcc GCC_CRYPTO_AHB_CLK>,
+				 <&gcc GCC_CRYPTO_AXI_CLK>,
+				 <&gcc GCC_CRYPTO_CLK>;
+			clock-names = "iface", "bus", "core";
+			dmas = <&cryptobam 2>, <&cryptobam 3>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
                 acc0: clock-controller@b088000 {
                         compatible = "qcom,kpss-acc-v1";
                         reg = <0x0b088000 0x1000>, <0xb008000 0x1000>;

@@ -93,6 +93,14 @@
 			status = "ok";
 		};
 
+		cryptobam: dma@8e04000 {
+			status = "ok";
+		};
+
+		crypto@8e3a000 {
+			status = "ok";
+		};
+
 		watchdog@b017000 {
 			status = "ok";
 		};
