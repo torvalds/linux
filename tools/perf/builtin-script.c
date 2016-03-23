@@ -405,9 +405,7 @@ out:
 	return 0;
 }
 
-static void print_sample_iregs(union perf_event *event __maybe_unused,
-			  struct perf_sample *sample,
-			  struct thread *thread __maybe_unused,
+static void print_sample_iregs(struct perf_sample *sample,
 			  struct perf_event_attr *attr)
 {
 	struct regs_dump *regs = &sample->intr_regs;
@@ -476,10 +474,7 @@ mispred_str(struct branch_entry *br)
 	return br->flags.predicted ? 'P' : 'M';
 }
 
-static void print_sample_brstack(union perf_event *event __maybe_unused,
-			  struct perf_sample *sample,
-			  struct thread *thread __maybe_unused,
-			  struct perf_event_attr *attr __maybe_unused)
+static void print_sample_brstack(struct perf_sample *sample)
 {
 	struct branch_stack *br = sample->branch_stack;
 	u64 i;
@@ -498,10 +493,8 @@ static void print_sample_brstack(union perf_event *event __maybe_unused,
 	}
 }
 
-static void print_sample_brstacksym(union perf_event *event __maybe_unused,
-			  struct perf_sample *sample,
-			  struct thread *thread __maybe_unused,
-			  struct perf_event_attr *attr __maybe_unused)
+static void print_sample_brstacksym(struct perf_sample *sample,
+				    struct thread *thread)
 {
 	struct branch_stack *br = sample->branch_stack;
 	struct addr_location alf, alt;
@@ -537,8 +530,7 @@ static void print_sample_brstacksym(union perf_event *event __maybe_unused,
 }
 
 
-static void print_sample_addr(union perf_event *event __maybe_unused,
-			  struct perf_sample *sample,
+static void print_sample_addr(struct perf_sample *sample,
 			  struct thread *thread,
 			  struct perf_event_attr *attr)
 {
@@ -566,8 +558,7 @@ static void print_sample_addr(union perf_event *event __maybe_unused,
 	}
 }
 
-static void print_sample_bts(union perf_event *event,
-			     struct perf_sample *sample,
+static void print_sample_bts(struct perf_sample *sample,
 			     struct perf_evsel *evsel,
 			     struct thread *thread,
 			     struct addr_location *al)
@@ -597,7 +588,7 @@ static void print_sample_bts(union perf_event *event,
 	    ((evsel->attr.sample_type & PERF_SAMPLE_ADDR) &&
 	     !output[attr->type].user_set)) {
 		printf(" => ");
-		print_sample_addr(event, sample, thread, attr);
+		print_sample_addr(sample, thread, attr);
 	}
 
 	if (print_srcline_last)
@@ -746,7 +737,7 @@ static size_t data_src__printf(u64 data_src)
 	return printf("%-*s", maxlen, out);
 }
 
-static void process_event(struct perf_script *script, union perf_event *event,
+static void process_event(struct perf_script *script,
 			  struct perf_sample *sample, struct perf_evsel *evsel,
 			  struct addr_location *al)
 {
@@ -775,7 +766,7 @@ static void process_event(struct perf_script *script, union perf_event *event,
 		print_sample_flags(sample->flags);
 
 	if (is_bts_event(attr)) {
-		print_sample_bts(event, sample, evsel, thread, al);
+		print_sample_bts(sample, evsel, thread, al);
 		return;
 	}
 
@@ -783,7 +774,7 @@ static void process_event(struct perf_script *script, union perf_event *event,
 		event_format__print(evsel->tp_format, sample->cpu,
 				    sample->raw_data, sample->raw_size);
 	if (PRINT_FIELD(ADDR))
-		print_sample_addr(event, sample, thread, attr);
+		print_sample_addr(sample, thread, attr);
 
 	if (PRINT_FIELD(DATA_SRC))
 		data_src__printf(sample->data_src);
@@ -803,12 +794,12 @@ static void process_event(struct perf_script *script, union perf_event *event,
 	}
 
 	if (PRINT_FIELD(IREGS))
-		print_sample_iregs(event, sample, thread, attr);
+		print_sample_iregs(sample, attr);
 
 	if (PRINT_FIELD(BRSTACK))
-		print_sample_brstack(event, sample, thread, attr);
+		print_sample_brstack(sample);
 	else if (PRINT_FIELD(BRSTACKSYM))
-		print_sample_brstacksym(event, sample, thread, attr);
+		print_sample_brstacksym(sample, thread);
 
 	if (perf_evsel__is_bpf_output(evsel) && PRINT_FIELD(BPF_OUTPUT))
 		print_sample_bpf_output(sample);
@@ -919,7 +910,7 @@ static int process_sample_event(struct perf_tool *tool,
 	if (scripting_ops)
 		scripting_ops->process_event(event, sample, evsel, &al);
 	else
-		process_event(scr, event, sample, evsel, &al);
+		process_event(scr, sample, evsel, &al);
 
 out_put:
 	addr_location__put(&al);
