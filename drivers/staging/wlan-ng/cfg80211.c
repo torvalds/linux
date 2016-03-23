@@ -771,8 +771,10 @@ static struct wiphy *wlan_create_wiphy(struct device *dev, wlandevice_t *wlandev
 	wiphy->n_cipher_suites = PRISM2_NUM_CIPHER_SUITES;
 	wiphy->cipher_suites = prism2_cipher_suites;
 
-	if (wiphy_register(wiphy) < 0)
+	if (wiphy_register(wiphy) < 0) {
+		wiphy_free(wiphy);
 		return NULL;
+	}
 
 	return wiphy;
 }
