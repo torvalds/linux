@@ -412,6 +412,7 @@
 		regulator-always-on;
 		regulator-boot-on;
 		regulator-initial-state = <3>;
+		regulator-ramp-delay = <2000>;
 		regulator-state-mem {
 			regulator-off-in-suspend;
 			regulator-suspend-microvolt = <900000>;
