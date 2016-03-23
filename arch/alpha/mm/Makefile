@@ -4,6 +4,6 @@
 
 ccflags-y := -Werror
 
-obj-y	:= init.o fault.o extable.o
+obj-y	:= init.o fault.o
 
 obj-$(CONFIG_DISCONTIGMEM) += numa.o
