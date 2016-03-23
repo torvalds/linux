@@ -323,14 +323,14 @@ struct SMU74_Discrete_DpmTable {
 	uint16_t                            BAPMTI_R[SMU74_DTE_ITERATIONS][SMU74_DTE_SOURCES][SMU74_DTE_SINKS];
 	uint16_t                            BAPMTI_RC[SMU74_DTE_ITERATIONS][SMU74_DTE_SOURCES][SMU74_DTE_SINKS];
 
-	uint8_t                             DTEAmbientTempBase;
-	uint8_t                             DTETjOffset;
-	uint8_t                             GpuTjMax;
-	uint8_t                             GpuTjHyst;
+	uint16_t                            TemperatureLimitEdge;
+	uint16_t                            TemperatureLimitHotspot;
+
 	uint16_t                            BootVddc;
 	uint16_t                            BootVddci;
 
-	uint32_t                            BAPM_TEMP_GRADIENT;
+	uint16_t                            FanGainEdge;
+	uint16_t                            FanGainHotspot;
 
 	uint32_t                            LowSclkInterruptThreshold;
 	uint32_t                            VddGfxReChkWait;

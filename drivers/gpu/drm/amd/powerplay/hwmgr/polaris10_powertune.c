@@ -57,6 +57,13 @@ void polaris10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 
 }
 
+static uint16_t scale_fan_gain_settings(uint16_t raw_setting)
+{
+	uint32_t tmp;
+	tmp = raw_setting * 4096 / 100;
+	return (uint16_t)tmp;
+}
+
 int polaris10_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
@@ -65,6 +72,8 @@ int polaris10_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_cac_tdp_table *cac_dtp_table = table_info->cac_dtp_table;
+	struct pp_advance_fan_control_parameters *fan_table=
+			&hwmgr->thermal_controller.advanceFanControlParameters;
 	int i, j, k;
 	uint16_t *pdef1;
 	uint16_t *pdef2;
@@ -75,15 +84,16 @@ int polaris10_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(cac_dtp_table->usTargetOperatingTemp <= 255,
 				"Target Operating Temp is out of Range!",
 				);
-/*  This is the same value as TemperatureLimitHigh except it is integer with no fraction bit. */
-	dpm_table->GpuTjMax = (uint8_t)(cac_dtp_table->usTargetOperatingTemp);
 
-/*  HW request to hard code this value to 8 which is 0.5C */
-	dpm_table->GpuTjHyst = 8;
+	dpm_table->TemperatureLimitEdge = PP_HOST_TO_SMC_US(
+			cac_dtp_table->usTargetOperatingTemp * 256);
+	dpm_table->TemperatureLimitHotspot = PP_HOST_TO_SMC_US(
+			cac_dtp_table->usTemperatureLimitHotspot * 256);
+	dpm_table->FanGainEdge = PP_HOST_TO_SMC_US(
+			scale_fan_gain_settings(fan_table->usFanGainEdge));
+	dpm_table->FanGainHotspot = PP_HOST_TO_SMC_US(
+			scale_fan_gain_settings(fan_table->usFanGainHotspot));
 
-	dpm_table->DTEAmbientTempBase = defaults->DTEAmbientTempBase;
-	dpm_table->DTETjOffset = (uint8_t)(data->dte_tj_offset);
-	dpm_table->BAPM_TEMP_GRADIENT = PP_HOST_TO_SMC_UL(defaults->BAPM_TEMP_GRADIENT);
 	pdef1 = defaults->BAPMTI_R;
 	pdef2 = defaults->BAPMTI_RC;
 
@@ -330,14 +340,6 @@ int polaris10_enable_power_containment(struct pp_hwmgr *hwmgr)
 	data->power_containment_features = 0;
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_PowerContainment)) {
-		if (data->enable_dte_feature) {
-			smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
-					(uint16_t)(PPSMC_MSG_EnableDTE));
-			PP_ASSERT_WITH_CODE((0 == smc_result),
-					"Failed to enable DTE in SMC.", result = -1;);
-			if (0 == smc_result)
-				data->power_containment_features |= POWERCONTAINMENT_FEATURE_DTE;
-		}
 
 		if (data->enable_tdc_limit_feature) {
 			smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
