@@ -72,6 +72,10 @@
 			};
 		};
 
+		blsp_dma: dma@7884000 {
+			status = "ok";
+		};
+
 		spi_0: spi@78b5000 {
 			pinctrl-0 = <&spi_0_pins>;
 			pinctrl-names = "default";
