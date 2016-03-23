@@ -19,10 +19,6 @@
 
 #include "../comedidev.h"
 
-/* forward declarations */
-struct mite_struct;
-struct ni_gpct_device;
-
 enum ni_gpct_register {
 	NITIO_G0_AUTO_INC,
 	NITIO_G1_AUTO_INC,
