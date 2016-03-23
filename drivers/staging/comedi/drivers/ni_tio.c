@@ -137,19 +137,6 @@ static inline unsigned int GI_PRESCALE_X8(enum ni_gpct_variant variant)
 	}
 }
 
-static inline unsigned int GI_HW_ARM_SEL_MASK(enum ni_gpct_variant variant)
-{
-	switch (variant) {
-	case ni_gpct_variant_e_series:
-	default:
-		return 0;
-	case ni_gpct_variant_m_series:
-		return GI_M_HW_ARM_SEL_MASK;
-	case ni_gpct_variant_660x:
-		return GI_660X_HW_ARM_SEL_MASK;
-	}
-}
-
 static bool ni_tio_has_gate2_registers(const struct ni_gpct_device *counter_dev)
 {
 	switch (counter_dev->variant) {
@@ -568,52 +555,55 @@ int ni_tio_arm(struct ni_gpct *counter, bool arm, unsigned int start_trigger)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned int cidx = counter->counter_index;
-	unsigned int command_transient_bits = 0;
+	unsigned int transient_bits = 0;
 
 	if (arm) {
-		switch (start_trigger) {
-		case NI_GPCT_ARM_IMMEDIATE:
-			command_transient_bits |= GI_ARM;
-			break;
-		case NI_GPCT_ARM_PAIRED_IMMEDIATE:
-			command_transient_bits |= GI_ARM | GI_ARM_COPY;
-			break;
+		unsigned int mask = 0;
+		unsigned int bits = 0;
+
+		/* only m series and 660x have counting mode registers */
+		switch (counter_dev->variant) {
+		case ni_gpct_variant_e_series:
 		default:
 			break;
+		case ni_gpct_variant_m_series:
+			mask = GI_M_HW_ARM_SEL_MASK;
+			break;
+		case ni_gpct_variant_660x:
+			mask = GI_660X_HW_ARM_SEL_MASK;
+			break;
 		}
-		if (ni_tio_counting_mode_registers_present(counter_dev)) {
-			unsigned int bits = 0;
-			unsigned int sel_mask;
 
-			sel_mask = GI_HW_ARM_SEL_MASK(counter_dev->variant);
-
-			switch (start_trigger) {
-			case NI_GPCT_ARM_IMMEDIATE:
-			case NI_GPCT_ARM_PAIRED_IMMEDIATE:
-				break;
-			default:
-				if (start_trigger & NI_GPCT_ARM_UNKNOWN) {
-					/*
-					 * pass-through the least significant
-					 * bits so we can figure out what
-					 * select later
-					 */
-					bits |= GI_HW_ARM_ENA |
-						(GI_HW_ARM_SEL(start_trigger) &
-						 sel_mask);
-				} else {
-					return -EINVAL;
-				}
-				break;
+		switch (start_trigger) {
+		case NI_GPCT_ARM_IMMEDIATE:
+			transient_bits |= GI_ARM;
+			break;
+		case NI_GPCT_ARM_PAIRED_IMMEDIATE:
+			transient_bits |= GI_ARM | GI_ARM_COPY;
+			break;
+		default:
+			/*
+			 * for m series and 660x, pass-through the least
+			 * significant bits so we can figure out what select
+			 * later
+			 */
+			if (mask && (start_trigger & NI_GPCT_ARM_UNKNOWN)) {
+				bits |= GI_HW_ARM_ENA |
+					(GI_HW_ARM_SEL(start_trigger) & mask);
+			} else {
+				return -EINVAL;
 			}
-			ni_tio_set_bits(counter, NITIO_CNT_MODE_REG(cidx),
-					GI_HW_ARM_ENA | sel_mask, bits);
+			break;
 		}
+
+		if (mask)
+			ni_tio_set_bits(counter, NITIO_CNT_MODE_REG(cidx),
+					GI_HW_ARM_ENA | mask, bits);
 	} else {
-		command_transient_bits |= GI_DISARM;
+		transient_bits |= GI_DISARM;
 	}
 	ni_tio_set_bits_transient(counter, NITIO_CMD_REG(cidx),
-				  0, 0, command_transient_bits);
+				  0, 0, transient_bits);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ni_tio_arm);
