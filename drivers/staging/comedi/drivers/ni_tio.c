@@ -891,16 +891,16 @@ static int ni_m_set_gate2(struct ni_gpct *counter, unsigned int gate_source)
 	return 0;
 }
 
-int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
-			unsigned int gate_source)
+int ni_tio_set_gate_src(struct ni_gpct *counter,
+			unsigned int gate, unsigned int src)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	unsigned cidx = counter->counter_index;
-	unsigned int chan = CR_CHAN(gate_source);
-	unsigned gate2_reg = NITIO_GATE2_REG(cidx);
-	unsigned mode = 0;
+	unsigned int cidx = counter->counter_index;
+	unsigned int chan = CR_CHAN(src);
+	unsigned int gate2_reg = NITIO_GATE2_REG(cidx);
+	unsigned int mode = 0;
 
-	switch (gate_index) {
+	switch (gate) {
 	case 0:
 		if (chan == NI_GPCT_DISABLED_GATE_SELECT) {
 			ni_tio_set_bits(counter, NITIO_MODE_REG(cidx),
@@ -908,9 +908,9 @@ int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
 					GI_GATING_DISABLED);
 			return 0;
 		}
-		if (gate_source & CR_INVERT)
+		if (src & CR_INVERT)
 			mode |= GI_GATE_POL_INVERT;
-		if (gate_source & CR_EDGE)
+		if (src & CR_EDGE)
 			mode |= GI_RISING_EDGE_GATING;
 		else
 			mode |= GI_LEVEL_GATING;
@@ -921,9 +921,9 @@ int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
 		case ni_gpct_variant_e_series:
 		case ni_gpct_variant_m_series:
 		default:
-			return ni_m_set_gate(counter, gate_source);
+			return ni_m_set_gate(counter, src);
 		case ni_gpct_variant_660x:
-			return ni_660x_set_gate(counter, gate_source);
+			return ni_660x_set_gate(counter, src);
 		}
 		break;
 	case 1:
@@ -936,15 +936,15 @@ int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
 				       gate2_reg);
 			return 0;
 		}
-		if (gate_source & CR_INVERT)
+		if (src & CR_INVERT)
 			counter_dev->regs[gate2_reg] |= GI_GATE2_POL_INVERT;
 		else
 			counter_dev->regs[gate2_reg] &= ~GI_GATE2_POL_INVERT;
 		switch (counter_dev->variant) {
 		case ni_gpct_variant_m_series:
-			return ni_m_set_gate2(counter, gate_source);
+			return ni_m_set_gate2(counter, src);
 		case ni_gpct_variant_660x:
-			return ni_660x_set_gate2(counter, gate_source);
+			return ni_660x_set_gate2(counter, src);
 		default:
 			BUG();
 			break;
