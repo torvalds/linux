@@ -1654,15 +1654,11 @@ static void hdmi_mode_apply(struct hdmi_context *hdata)
 	else
 		hdmi_v14_mode_apply(hdata);
 
-	hdmiphy_wait_for_pll(hdata);
-	hdmi_clk_set_parents(hdata, true);
 	hdmi_start(hdata, true);
 }
 
 static void hdmiphy_conf_reset(struct hdmi_context *hdata)
 {
-	hdmi_clk_set_parents(hdata, false);
-
 	hdmi_reg_writemask(hdata, HDMI_PHY_RSTOUT, ~0, HDMI_PHY_SW_RSTOUT);
 	usleep_range(10000, 12000);
 	hdmi_reg_writemask(hdata, HDMI_PHY_RSTOUT, 0, HDMI_PHY_SW_RSTOUT);
@@ -1680,29 +1676,33 @@ static void hdmiphy_enable_mode_set(struct hdmi_context *hdata, bool enable)
 static void hdmiphy_conf_apply(struct hdmi_context *hdata)
 {
 	int ret;
-	int i;
+	const u8 *phy_conf;
 
-	i = hdmi_find_phy_conf(hdata, hdata->current_mode.clock * 1000);
-	if (i < 0) {
+	ret = hdmi_find_phy_conf(hdata, hdata->current_mode.clock * 1000);
+	if (ret < 0) {
 		DRM_ERROR("failed to find hdmiphy conf\n");
 		return;
 	}
+	phy_conf = hdata->drv_data->phy_confs.data[ret].conf;
+
+	hdmi_clk_set_parents(hdata, false);
+
+	hdmiphy_conf_reset(hdata);
 
 	hdmiphy_enable_mode_set(hdata, true);
-	ret = hdmiphy_reg_write_buf(hdata, 0,
-			hdata->drv_data->phy_confs.data[i].conf, 32);
+	ret = hdmiphy_reg_write_buf(hdata, 0, phy_conf, 32);
 	if (ret) {
 		DRM_ERROR("failed to configure hdmiphy\n");
 		return;
 	}
 	hdmiphy_enable_mode_set(hdata, false);
-
+	hdmi_clk_set_parents(hdata, true);
 	usleep_range(10000, 12000);
+	hdmiphy_wait_for_pll(hdata);
 }
 
 static void hdmi_conf_apply(struct hdmi_context *hdata)
 {
-	hdmiphy_conf_reset(hdata);
 	hdmiphy_conf_apply(hdata);
 	hdmi_start(hdata, false);
 	hdmi_conf_init(hdata);
