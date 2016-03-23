@@ -31,11 +31,13 @@
 #include "uvd/uvd_6_0_sh_mask.h"
 #include "oss/oss_2_0_d.h"
 #include "oss/oss_2_0_sh_mask.h"
+#include "vi.h"
 
 static void uvd_v6_0_set_ring_funcs(struct amdgpu_device *adev);
 static void uvd_v6_0_set_irq_funcs(struct amdgpu_device *adev);
 static int uvd_v6_0_start(struct amdgpu_device *adev);
 static void uvd_v6_0_stop(struct amdgpu_device *adev);
+static void uvd_v6_0_set_sw_clock_gating(struct amdgpu_device *adev);
 
 /**
  * uvd_v6_0_ring_get_rptr - get read pointer
@@ -284,6 +286,7 @@ static void uvd_v6_0_mc_resume(struct amdgpu_device *adev)
 	WREG32(mmUVD_UDEC_DBW_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 }
 
+#if 0
 static void cz_set_uvd_clock_gating_branches(struct amdgpu_device *adev,
 		bool enable)
 {
@@ -360,157 +363,7 @@ static void cz_set_uvd_clock_gating_branches(struct amdgpu_device *adev,
 	WREG32(mmUVD_CGC_GATE, data);
 	WREG32(mmUVD_SUVD_CGC_GATE, data1);
 }
-
-static void tonga_set_uvd_clock_gating_branches(struct amdgpu_device *adev,
-		bool enable)
-{
-	u32 data, data1;
-
-	data = RREG32(mmUVD_CGC_GATE);
-	data1 = RREG32(mmUVD_SUVD_CGC_GATE);
-	if (enable) {
-		data |= UVD_CGC_GATE__SYS_MASK |
-				UVD_CGC_GATE__UDEC_MASK |
-				UVD_CGC_GATE__MPEG2_MASK |
-				UVD_CGC_GATE__RBC_MASK |
-				UVD_CGC_GATE__LMI_MC_MASK |
-				UVD_CGC_GATE__IDCT_MASK |
-				UVD_CGC_GATE__MPRD_MASK |
-				UVD_CGC_GATE__MPC_MASK |
-				UVD_CGC_GATE__LBSI_MASK |
-				UVD_CGC_GATE__LRBBM_MASK |
-				UVD_CGC_GATE__UDEC_RE_MASK |
-				UVD_CGC_GATE__UDEC_CM_MASK |
-				UVD_CGC_GATE__UDEC_IT_MASK |
-				UVD_CGC_GATE__UDEC_DB_MASK |
-				UVD_CGC_GATE__UDEC_MP_MASK |
-				UVD_CGC_GATE__WCB_MASK |
-				UVD_CGC_GATE__VCPU_MASK |
-				UVD_CGC_GATE__SCPU_MASK;
-		data1 |= UVD_SUVD_CGC_GATE__SRE_MASK |
-				UVD_SUVD_CGC_GATE__SIT_MASK |
-				UVD_SUVD_CGC_GATE__SMP_MASK |
-				UVD_SUVD_CGC_GATE__SCM_MASK |
-				UVD_SUVD_CGC_GATE__SDB_MASK;
-	} else {
-		data &= ~(UVD_CGC_GATE__SYS_MASK |
-				UVD_CGC_GATE__UDEC_MASK |
-				UVD_CGC_GATE__MPEG2_MASK |
-				UVD_CGC_GATE__RBC_MASK |
-				UVD_CGC_GATE__LMI_MC_MASK |
-				UVD_CGC_GATE__LMI_UMC_MASK |
-				UVD_CGC_GATE__IDCT_MASK |
-				UVD_CGC_GATE__MPRD_MASK |
-				UVD_CGC_GATE__MPC_MASK |
-				UVD_CGC_GATE__LBSI_MASK |
-				UVD_CGC_GATE__LRBBM_MASK |
-				UVD_CGC_GATE__UDEC_RE_MASK |
-				UVD_CGC_GATE__UDEC_CM_MASK |
-				UVD_CGC_GATE__UDEC_IT_MASK |
-				UVD_CGC_GATE__UDEC_DB_MASK |
-				UVD_CGC_GATE__UDEC_MP_MASK |
-				UVD_CGC_GATE__WCB_MASK |
-				UVD_CGC_GATE__VCPU_MASK |
-				UVD_CGC_GATE__SCPU_MASK);
-		data1 &= ~(UVD_SUVD_CGC_GATE__SRE_MASK |
-				UVD_SUVD_CGC_GATE__SIT_MASK |
-				UVD_SUVD_CGC_GATE__SMP_MASK |
-				UVD_SUVD_CGC_GATE__SCM_MASK |
-				UVD_SUVD_CGC_GATE__SDB_MASK);
-	}
-	WREG32(mmUVD_CGC_GATE, data);
-	WREG32(mmUVD_SUVD_CGC_GATE, data1);
-}
-
-static void uvd_v6_0_set_uvd_dynamic_clock_mode(struct amdgpu_device *adev,
-		bool swmode)
-{
-	u32 data, data1 = 0, data2;
-
-	/* Always un-gate UVD REGS bit */
-	data = RREG32(mmUVD_CGC_GATE);
-	data &= ~(UVD_CGC_GATE__REGS_MASK);
-	WREG32(mmUVD_CGC_GATE, data);
-
-	data = RREG32(mmUVD_CGC_CTRL);
-	data &= ~(UVD_CGC_CTRL__CLK_OFF_DELAY_MASK |
-			UVD_CGC_CTRL__CLK_GATE_DLY_TIMER_MASK);
-	data |= UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK |
-			1 << REG_FIELD_SHIFT(UVD_CGC_CTRL, CLK_GATE_DLY_TIMER) |
-			4 << REG_FIELD_SHIFT(UVD_CGC_CTRL, CLK_OFF_DELAY);
-
-	data2 = RREG32(mmUVD_SUVD_CGC_CTRL);
-	if (swmode) {
-		data &= ~(UVD_CGC_CTRL__UDEC_RE_MODE_MASK |
-				UVD_CGC_CTRL__UDEC_CM_MODE_MASK |
-				UVD_CGC_CTRL__UDEC_IT_MODE_MASK |
-				UVD_CGC_CTRL__UDEC_DB_MODE_MASK |
-				UVD_CGC_CTRL__UDEC_MP_MODE_MASK |
-				UVD_CGC_CTRL__SYS_MODE_MASK |
-				UVD_CGC_CTRL__UDEC_MODE_MASK |
-				UVD_CGC_CTRL__MPEG2_MODE_MASK |
-				UVD_CGC_CTRL__REGS_MODE_MASK |
-				UVD_CGC_CTRL__RBC_MODE_MASK |
-				UVD_CGC_CTRL__LMI_MC_MODE_MASK |
-				UVD_CGC_CTRL__LMI_UMC_MODE_MASK |
-				UVD_CGC_CTRL__IDCT_MODE_MASK |
-				UVD_CGC_CTRL__MPRD_MODE_MASK |
-				UVD_CGC_CTRL__MPC_MODE_MASK |
-				UVD_CGC_CTRL__LBSI_MODE_MASK |
-				UVD_CGC_CTRL__LRBBM_MODE_MASK |
-				UVD_CGC_CTRL__WCB_MODE_MASK |
-				UVD_CGC_CTRL__VCPU_MODE_MASK |
-				UVD_CGC_CTRL__JPEG_MODE_MASK |
-				UVD_CGC_CTRL__SCPU_MODE_MASK);
-		data1 |= UVD_CGC_CTRL2__DYN_OCLK_RAMP_EN_MASK |
-				UVD_CGC_CTRL2__DYN_RCLK_RAMP_EN_MASK;
-		data1 &= ~UVD_CGC_CTRL2__GATER_DIV_ID_MASK;
-		data1 |= 7 << REG_FIELD_SHIFT(UVD_CGC_CTRL2, GATER_DIV_ID);
-		data2 &= ~(UVD_SUVD_CGC_CTRL__SRE_MODE_MASK |
-				UVD_SUVD_CGC_CTRL__SIT_MODE_MASK |
-				UVD_SUVD_CGC_CTRL__SMP_MODE_MASK |
-				UVD_SUVD_CGC_CTRL__SCM_MODE_MASK |
-				UVD_SUVD_CGC_CTRL__SDB_MODE_MASK);
-	} else {
-		data |= UVD_CGC_CTRL__UDEC_RE_MODE_MASK |
-				UVD_CGC_CTRL__UDEC_CM_MODE_MASK |
-				UVD_CGC_CTRL__UDEC_IT_MODE_MASK |
-				UVD_CGC_CTRL__UDEC_DB_MODE_MASK |
-				UVD_CGC_CTRL__UDEC_MP_MODE_MASK |
-				UVD_CGC_CTRL__SYS_MODE_MASK |
-				UVD_CGC_CTRL__UDEC_MODE_MASK |
-				UVD_CGC_CTRL__MPEG2_MODE_MASK |
-				UVD_CGC_CTRL__REGS_MODE_MASK |
-				UVD_CGC_CTRL__RBC_MODE_MASK |
-				UVD_CGC_CTRL__LMI_MC_MODE_MASK |
-				UVD_CGC_CTRL__LMI_UMC_MODE_MASK |
-				UVD_CGC_CTRL__IDCT_MODE_MASK |
-				UVD_CGC_CTRL__MPRD_MODE_MASK |
-				UVD_CGC_CTRL__MPC_MODE_MASK |
-				UVD_CGC_CTRL__LBSI_MODE_MASK |
-				UVD_CGC_CTRL__LRBBM_MODE_MASK |
-				UVD_CGC_CTRL__WCB_MODE_MASK |
-				UVD_CGC_CTRL__VCPU_MODE_MASK |
-				UVD_CGC_CTRL__SCPU_MODE_MASK;
-		data2 |= UVD_SUVD_CGC_CTRL__SRE_MODE_MASK |
-				UVD_SUVD_CGC_CTRL__SIT_MODE_MASK |
-				UVD_SUVD_CGC_CTRL__SMP_MODE_MASK |
-				UVD_SUVD_CGC_CTRL__SCM_MODE_MASK |
-				UVD_SUVD_CGC_CTRL__SDB_MODE_MASK;
-	}
-	WREG32(mmUVD_CGC_CTRL, data);
-	WREG32(mmUVD_SUVD_CGC_CTRL, data2);
-
-	data = RREG32_UVD_CTX(ixUVD_CGC_CTRL2);
-	data &= ~(REG_FIELD_MASK(UVD_CGC_CTRL2, DYN_OCLK_RAMP_EN) |
-			REG_FIELD_MASK(UVD_CGC_CTRL2, DYN_RCLK_RAMP_EN) |
-			REG_FIELD_MASK(UVD_CGC_CTRL2, GATER_DIV_ID));
-	data1 &= (REG_FIELD_MASK(UVD_CGC_CTRL2, DYN_OCLK_RAMP_EN) |
-			REG_FIELD_MASK(UVD_CGC_CTRL2, DYN_RCLK_RAMP_EN) |
-			REG_FIELD_MASK(UVD_CGC_CTRL2, GATER_DIV_ID));
-	data |= data1;
-	WREG32_UVD_CTX(ixUVD_CGC_CTRL2, data);
-}
+#endif
 
 /**
  * uvd_v6_0_start - start UVD block
@@ -538,11 +391,7 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 
 	/* Set dynamic clock gating in S/W control mode */
 	if (adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG) {
-		if (adev->flags & AMD_IS_APU)
-			cz_set_uvd_clock_gating_branches(adev, false);
-		else
-			tonga_set_uvd_clock_gating_branches(adev, false);
-		uvd_v6_0_set_uvd_dynamic_clock_mode(adev, true);
+		uvd_v6_0_set_sw_clock_gating(adev);
 	} else {
 		/* disable clock gating */
 		uint32_t data = RREG32(mmUVD_CGC_CTRL);
@@ -978,25 +827,129 @@ static int uvd_v6_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
+static void uvd_v6_0_set_sw_clock_gating(struct amdgpu_device *adev)
+{
+	uint32_t data, data1, data2, suvd_flags;
+
+	data = RREG32(mmUVD_CGC_CTRL);
+	data1 = RREG32(mmUVD_SUVD_CGC_GATE);
+	data2 = RREG32(mmUVD_SUVD_CGC_CTRL);
+
+	data &= ~(UVD_CGC_CTRL__CLK_OFF_DELAY_MASK |
+		  UVD_CGC_CTRL__CLK_GATE_DLY_TIMER_MASK);
+
+	suvd_flags = UVD_SUVD_CGC_GATE__SRE_MASK |
+		     UVD_SUVD_CGC_GATE__SIT_MASK |
+		     UVD_SUVD_CGC_GATE__SMP_MASK |
+		     UVD_SUVD_CGC_GATE__SCM_MASK |
+		     UVD_SUVD_CGC_GATE__SDB_MASK;
+
+	data |= UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK |
+		(1 << REG_FIELD_SHIFT(UVD_CGC_CTRL, CLK_GATE_DLY_TIMER)) |
+		(4 << REG_FIELD_SHIFT(UVD_CGC_CTRL, CLK_OFF_DELAY));
+
+	data &= ~(UVD_CGC_CTRL__UDEC_RE_MODE_MASK |
+			UVD_CGC_CTRL__UDEC_CM_MODE_MASK |
+			UVD_CGC_CTRL__UDEC_IT_MODE_MASK |
+			UVD_CGC_CTRL__UDEC_DB_MODE_MASK |
+			UVD_CGC_CTRL__UDEC_MP_MODE_MASK |
+			UVD_CGC_CTRL__SYS_MODE_MASK |
+			UVD_CGC_CTRL__UDEC_MODE_MASK |
+			UVD_CGC_CTRL__MPEG2_MODE_MASK |
+			UVD_CGC_CTRL__REGS_MODE_MASK |
+			UVD_CGC_CTRL__RBC_MODE_MASK |
+			UVD_CGC_CTRL__LMI_MC_MODE_MASK |
+			UVD_CGC_CTRL__LMI_UMC_MODE_MASK |
+			UVD_CGC_CTRL__IDCT_MODE_MASK |
+			UVD_CGC_CTRL__MPRD_MODE_MASK |
+			UVD_CGC_CTRL__MPC_MODE_MASK |
+			UVD_CGC_CTRL__LBSI_MODE_MASK |
+			UVD_CGC_CTRL__LRBBM_MODE_MASK |
+			UVD_CGC_CTRL__WCB_MODE_MASK |
+			UVD_CGC_CTRL__VCPU_MODE_MASK |
+			UVD_CGC_CTRL__JPEG_MODE_MASK |
+			UVD_CGC_CTRL__SCPU_MODE_MASK |
+			UVD_CGC_CTRL__JPEG2_MODE_MASK);
+	data2 &= ~(UVD_SUVD_CGC_CTRL__SRE_MODE_MASK |
+			UVD_SUVD_CGC_CTRL__SIT_MODE_MASK |
+			UVD_SUVD_CGC_CTRL__SMP_MODE_MASK |
+			UVD_SUVD_CGC_CTRL__SCM_MODE_MASK |
+			UVD_SUVD_CGC_CTRL__SDB_MODE_MASK);
+	data1 |= suvd_flags;
+
+	WREG32(mmUVD_CGC_CTRL, data);
+	WREG32(mmUVD_CGC_GATE, 0);
+	WREG32(mmUVD_SUVD_CGC_GATE, data1);
+	WREG32(mmUVD_SUVD_CGC_CTRL, data2);
+}
+
+#if 0
+static void uvd_v6_0_set_hw_clock_gating(struct amdgpu_device *adev)
+{
+	uint32_t data, data1, cgc_flags, suvd_flags;
+
+	data = RREG32(mmUVD_CGC_GATE);
+	data1 = RREG32(mmUVD_SUVD_CGC_GATE);
+
+	cgc_flags = UVD_CGC_GATE__SYS_MASK |
+		UVD_CGC_GATE__UDEC_MASK |
+		UVD_CGC_GATE__MPEG2_MASK |
+		UVD_CGC_GATE__RBC_MASK |
+		UVD_CGC_GATE__LMI_MC_MASK |
+		UVD_CGC_GATE__IDCT_MASK |
+		UVD_CGC_GATE__MPRD_MASK |
+		UVD_CGC_GATE__MPC_MASK |
+		UVD_CGC_GATE__LBSI_MASK |
+		UVD_CGC_GATE__LRBBM_MASK |
+		UVD_CGC_GATE__UDEC_RE_MASK |
+		UVD_CGC_GATE__UDEC_CM_MASK |
+		UVD_CGC_GATE__UDEC_IT_MASK |
+		UVD_CGC_GATE__UDEC_DB_MASK |
+		UVD_CGC_GATE__UDEC_MP_MASK |
+		UVD_CGC_GATE__WCB_MASK |
+		UVD_CGC_GATE__VCPU_MASK |
+		UVD_CGC_GATE__SCPU_MASK |
+		UVD_CGC_GATE__JPEG_MASK |
+		UVD_CGC_GATE__JPEG2_MASK;
+
+	suvd_flags = UVD_SUVD_CGC_GATE__SRE_MASK |
+				UVD_SUVD_CGC_GATE__SIT_MASK |
+				UVD_SUVD_CGC_GATE__SMP_MASK |
+				UVD_SUVD_CGC_GATE__SCM_MASK |
+				UVD_SUVD_CGC_GATE__SDB_MASK;
+
+	data |= cgc_flags;
+	data1 |= suvd_flags;
+
+	WREG32(mmUVD_CGC_GATE, data);
+	WREG32(mmUVD_SUVD_CGC_GATE, data1);
+}
+#endif
+
 static int uvd_v6_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	static int curstate = -1;
 
 	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
 		return 0;
 
+	if (curstate == state)
+		return 0;
+
+	curstate = state;
 	if (enable) {
-		if (adev->flags & AMD_IS_APU)
-			cz_set_uvd_clock_gating_branches(adev, enable);
-		else
-			tonga_set_uvd_clock_gating_branches(adev, enable);
-		uvd_v6_0_set_uvd_dynamic_clock_mode(adev, true);
+		/* disable HW gating and enable Sw gating */
+		uvd_v6_0_set_sw_clock_gating(adev);
 	} else {
-		uint32_t data = RREG32(mmUVD_CGC_CTRL);
-		data &= ~UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
-		WREG32(mmUVD_CGC_CTRL, data);
+		/* wait for STATUS to clear */
+		if (uvd_v6_0_wait_for_idle(handle))
+			return -EBUSY;
+
+		/* enable HW gates because UVD is idle */
+/*		uvd_v6_0_set_hw_clock_gating(adev); */
 	}
 
 	return 0;
