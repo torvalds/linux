@@ -154,6 +154,10 @@ struct exynos_drm_crtc_ops {
 	void (*clock_enable)(struct exynos_drm_crtc *crtc, bool enable);
 };
 
+struct exynos_drm_clk {
+	void (*enable)(struct exynos_drm_clk *clk, bool enable);
+};
+
 /*
  * Exynos specific crtc structure.
  *
@@ -182,7 +186,15 @@ struct exynos_drm_crtc {
 	atomic_t			pending_update;
 	const struct exynos_drm_crtc_ops	*ops;
 	void				*ctx;
+	struct exynos_drm_clk		*pipe_clk;
 };
+
+static inline void exynos_drm_pipe_clk_enable(struct exynos_drm_crtc *crtc,
+					      bool enable)
+{
+	if (crtc->pipe_clk)
+		crtc->pipe_clk->enable(crtc->pipe_clk, enable);
+}
 
 struct exynos_drm_g2d_private {
 	struct device		*dev;
