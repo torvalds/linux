@@ -162,7 +162,7 @@ TRACE_EVENT(cpu_frequency_limits,
 
 	TP_fast_assign(
 		__entry->min_freq = min_freq;
-		__entry->max_freq = min_freq;
+		__entry->max_freq = max_freq;
 		__entry->cpu_id = cpu_id;
 	),
 
