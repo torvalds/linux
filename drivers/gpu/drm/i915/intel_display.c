@@ -4412,8 +4412,11 @@ void hsw_enable_ips(struct intel_crtc *crtc)
 	if (!crtc->config->ips_enabled)
 		return;
 
-	/* We can only enable IPS after we enable a plane and wait for a vblank */
-	intel_wait_for_vblank(dev, crtc->pipe);
+	/*
+	 * We can only enable IPS after we enable a plane and wait for a vblank
+	 * This function is called from post_plane_update, which is run after
+	 * a vblank wait.
+	 */
 
 	assert_plane_enabled(dev_priv, crtc->plane);
 	if (IS_BROADWELL(dev)) {
