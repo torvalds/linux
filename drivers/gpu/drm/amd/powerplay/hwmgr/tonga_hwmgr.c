@@ -5893,7 +5893,7 @@ uint32_t tonga_get_xclk(struct pp_hwmgr *hwmgr)
 	if (!fw_info)
 		return 0;
 
-	reference_clock = le16_to_cpu(fw_info->usMinPixelClockPLL_Output);
+	reference_clock = le16_to_cpu(fw_info->usReferenceClock);
 
 	divide = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, CG_CLKPIN_CNTL, XTALIN_DIVIDE);
 
