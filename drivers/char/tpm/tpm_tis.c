@@ -94,6 +94,7 @@ struct tpm_info {
 #define	TPM_RID(l)			(0x0F04 | ((l) << 12))
 
 struct priv_data {
+	u16 manufacturer_id;
 	bool irq_tested;
 	wait_queue_head_t int_queue;
 };
@@ -516,7 +517,9 @@ out:
 
 static bool tpm_tis_req_canceled(struct tpm_chip *chip, u8 status)
 {
-	switch (chip->vendor.manufacturer_id) {
+	struct priv_data *priv = chip->vendor.priv;
+
+	switch (priv->manufacturer_id) {
 	case TPM_VID_WINBOND:
 		return ((status == TPM_STS_VALID) ||
 			(status == (TPM_STS_VALID | TPM_STS_COMMAND_READY)));
@@ -717,7 +720,7 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 		goto out_err;
 
 	vendor = ioread32(chip->vendor.iobase + TPM_DID_VID(0));
-	chip->vendor.manufacturer_id = vendor;
+	priv->manufacturer_id = vendor;
 
 	dev_info(dev, "%s TPM (device-id 0x%X, rev-id %d)\n",
 		 (chip->flags & TPM_CHIP_FLAG_TPM2) ? "2.0" : "1.2",

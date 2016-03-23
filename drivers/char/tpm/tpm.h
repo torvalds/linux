@@ -145,8 +145,6 @@ struct tpm_vendor_specific {
 	void *priv;
 
 	wait_queue_head_t read_queue;
-
-	u16 manufacturer_id;
 };
 
 #define TPM_VPRIV(c)     ((c)->vendor.priv)
