@@ -45,18 +45,6 @@
  */
 #define TRAMPOLINE_VA		(HYP_PAGE_OFFSET_MASK & PAGE_MASK)
 
-/*
- * KVM_MMU_CACHE_MIN_PAGES is the number of stage2 page table translation
- * levels in addition to the PGD and potentially the PUD which are
- * pre-allocated (we pre-allocate the fake PGD and the PUD when the Stage-2
- * tables use one level of tables less than the kernel.
- */
-#ifdef CONFIG_ARM64_64K_PAGES
-#define KVM_MMU_CACHE_MIN_PAGES	1
-#else
-#define KVM_MMU_CACHE_MIN_PAGES	2
-#endif
-
 #ifdef __ASSEMBLY__
 
 #include <asm/alternative.h>
@@ -155,69 +143,21 @@ static inline bool kvm_s2pmd_readonly(pmd_t *pmd)
 
 static inline void *kvm_get_hwpgd(struct kvm *kvm)
 {
-	pgd_t *pgd = kvm->arch.pgd;
-	pud_t *pud;
-
-	if (KVM_PREALLOC_LEVEL == 0)
-		return pgd;
-
-	pud = pud_offset(pgd, 0);
-	if (KVM_PREALLOC_LEVEL == 1)
-		return pud;
-
-	BUG_ON(KVM_PREALLOC_LEVEL != 2);
-	return pmd_offset(pud, 0);
+	return kvm->arch.pgd;
 }
 
 static inline unsigned int kvm_get_hwpgd_size(void)
 {
-	if (KVM_PREALLOC_LEVEL > 0)
-		return PTRS_PER_S2_PGD * PAGE_SIZE;
 	return PTRS_PER_S2_PGD * sizeof(pgd_t);
 }
 
-/*
- * Allocate fake pgd for the host kernel page table macros to work.
- * This is not used by the hardware and we have no alignment
- * requirement for this allocation.
- */
 static inline pgd_t *kvm_setup_fake_pgd(pgd_t *hwpgd)
 {
-	int i;
-	pgd_t *pgd;
-
-	if (!KVM_PREALLOC_LEVEL)
-		return hwpgd;
-
-	/*
-	 * When KVM_PREALLOC_LEVEL==2, we allocate a single page for
-	 * the PMD and the kernel will use folded pud.
-	 * When KVM_PREALLOC_LEVEL==1, we allocate 2 consecutive PUD
-	 * pages.
-	 */
-
-	pgd = kmalloc(PTRS_PER_S2_PGD * sizeof(pgd_t),
-			GFP_KERNEL | __GFP_ZERO);
-	if (!pgd)
-		return ERR_PTR(-ENOMEM);
-
-	/* Plug the HW PGD into the fake one. */
-	for (i = 0; i < PTRS_PER_S2_PGD; i++) {
-		if (KVM_PREALLOC_LEVEL == 1)
-			pgd_populate(NULL, pgd + i,
-				     (pud_t *)hwpgd + i * PTRS_PER_PUD);
-		else if (KVM_PREALLOC_LEVEL == 2)
-			pud_populate(NULL, pud_offset(pgd, 0) + i,
-				     (pmd_t *)hwpgd + i * PTRS_PER_PMD);
-	}
-
-	return pgd;
+	return hwpgd;
 }
 
 static inline void kvm_free_fake_pgd(pgd_t *pgd)
 {
-	if (KVM_PREALLOC_LEVEL > 0)
-		kfree(pgd);
 }
 static inline bool kvm_page_empty(void *ptr)
 {
