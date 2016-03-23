@@ -442,6 +442,8 @@
 	ENTRY_SAME(userfaultfd)
 	ENTRY_SAME(mlock2)		/* 345 */
 	ENTRY_SAME(copy_file_range)
+	ENTRY_COMP(preadv2)
+	ENTRY_COMP(pwritev2)
 
 
 .ifne (. - 90b) - (__NR_Linux_syscalls * (91b - 90b))
