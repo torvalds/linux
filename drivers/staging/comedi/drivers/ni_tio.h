@@ -120,9 +120,9 @@ struct ni_gpct_device {
 	unsigned int (*read)(struct ni_gpct *, enum ni_gpct_register);
 	enum ni_gpct_variant variant;
 	struct ni_gpct *counters;
-	unsigned num_counters;
-	unsigned regs[NITIO_NUM_REGS];
-	spinlock_t regs_lock;
+	unsigned int num_counters;
+	unsigned int regs[NITIO_NUM_REGS];
+	spinlock_t regs_lock;		/* protects 'regs' */
 };
 
 struct ni_gpct_device *
