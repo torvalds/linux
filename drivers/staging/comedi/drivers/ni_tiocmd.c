@@ -125,9 +125,6 @@ static int ni_tio_input_cmd(struct comedi_subdevice *s)
 	case ni_gpct_variant_e_series:
 		mite_prep_dma(counter->mite_chan, 16, 32);
 		break;
-	default:
-		BUG();
-		break;
 	}
 	ni_tio_set_bits(counter, NITIO_CMD_REG(cidx), GI_SAVE_TRACE, 0);
 	ni_tio_configure_dma(counter, true, true);
