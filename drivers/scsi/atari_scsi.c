@@ -752,6 +752,7 @@ static struct scsi_host_template atari_scsi_template = {
 	.eh_abort_handler	= atari_scsi_abort,
 	.eh_bus_reset_handler	= atari_scsi_bus_reset,
 	.this_id		= 7,
+	.cmd_per_lun		= 2,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.cmd_size		= NCR5380_CMD_SIZE,
 };
@@ -788,11 +789,9 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 	 */
 	if (ATARIHW_PRESENT(TT_SCSI)) {
 		atari_scsi_template.can_queue    = 16;
-		atari_scsi_template.cmd_per_lun  = 8;
 		atari_scsi_template.sg_tablesize = SG_ALL;
 	} else {
 		atari_scsi_template.can_queue    = 8;
-		atari_scsi_template.cmd_per_lun  = 1;
 		atari_scsi_template.sg_tablesize = SG_NONE;
 	}
 
