@@ -127,16 +127,10 @@
  * specific implementation of the NCR5380
  *
  * Either real DMA *or* pseudo DMA may be implemented
- * Note that the DMA setup functions should return the number of bytes
- * that they were able to program the controller for.
  *
  * NCR5380_dma_write_setup(instance, src, count) - initialize
  * NCR5380_dma_read_setup(instance, dst, count) - initialize
  * NCR5380_dma_residual(instance); - residual count
- *
- * PSEUDO functions :
- * NCR5380_pwrite(instance, src, count)
- * NCR5380_pread(instance, dst, count);
  *
  * The generic driver is initialized by calling NCR5380_init(instance),
  * after setting the appropriate host specific fields and ID.  If the
@@ -1511,7 +1505,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
  */
 
 	if (p & SR_IO) {
-		foo = NCR5380_pread(instance, d,
+		foo = NCR5380_dma_recv_setup(instance, d,
 			hostdata->flags & FLAG_DMA_FIXUP ? c - 1 : c);
 		if (!foo && (hostdata->flags & FLAG_DMA_FIXUP)) {
 			/*
@@ -1542,7 +1536,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 			d[c - 1] = NCR5380_read(INPUT_DATA_REG);
 		}
 	} else {
-		foo = NCR5380_pwrite(instance, d, c);
+		foo = NCR5380_dma_send_setup(instance, d, c);
 		if (!foo && (hostdata->flags & FLAG_DMA_FIXUP)) {
 			/*
 			 * Wait for the last byte to be sent.  If REQ is being asserted for

@@ -103,6 +103,8 @@
 #define NCR5380_write(reg, value) ( outb((value),PAS16_io_port(reg)) )
 
 #define NCR5380_dma_xfer_len(instance, cmd, phase)	(cmd->transfersize)
+#define NCR5380_dma_recv_setup		pas16_pread
+#define NCR5380_dma_send_setup		pas16_pwrite
 
 #define NCR5380_intr pas16_intr
 #define NCR5380_queue_command pas16_queue_command

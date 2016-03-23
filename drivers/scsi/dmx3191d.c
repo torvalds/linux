@@ -40,8 +40,8 @@
 #define NCR5380_write(reg, value)	outb(value, instance->io_port + reg)
 
 #define NCR5380_dma_xfer_len(instance, cmd, phase)	(0)
-#define NCR5380_pread(instance, dst, len)		(0)
-#define NCR5380_pwrite(instance, src, len)		(0)
+#define NCR5380_dma_recv_setup(instance, dst, len)	(0)
+#define NCR5380_dma_send_setup(instance, src, len)	(0)
 
 #define NCR5380_implementation_fields	/* none */
 

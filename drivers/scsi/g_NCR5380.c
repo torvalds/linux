@@ -551,7 +551,7 @@ static int generic_NCR5380_release_resources(struct Scsi_Host *instance)
 }
 
 /**
- *	NCR5380_pread		-	pseudo DMA read
+ *	generic_NCR5380_pread - pseudo DMA read
  *	@instance: adapter to read from
  *	@dst: buffer to read into
  *	@len: buffer length
@@ -560,7 +560,8 @@ static int generic_NCR5380_release_resources(struct Scsi_Host *instance)
  *	controller
  */
  
-static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, int len)
+static inline int generic_NCR5380_pread(struct Scsi_Host *instance,
+                                        unsigned char *dst, int len)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int blocks = len / 128;
@@ -628,7 +629,7 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 }
 
 /**
- *	NCR5380_write		-	pseudo DMA write
+ *	generic_NCR5380_pwrite - pseudo DMA write
  *	@instance: adapter to read from
  *	@dst: buffer to read into
  *	@len: buffer length
@@ -637,7 +638,8 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
  *	controller
  */
 
-static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src, int len)
+static inline int generic_NCR5380_pwrite(struct Scsi_Host *instance,
+                                         unsigned char *src, int len)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int blocks = len / 128;

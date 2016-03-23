@@ -322,7 +322,8 @@ static int dtc_biosparam(struct scsi_device *sdev, struct block_device *dev,
  * 	timeout.
 */
 
-static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, int len)
+static inline int dtc_pread(struct Scsi_Host *instance,
+                            unsigned char *dst, int len)
 {
 	unsigned char *d = dst;
 	int i;			/* For counting time spent in the poll-loop */
@@ -367,7 +368,8 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
  * 	timeout.
 */
 
-static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src, int len)
+static inline int dtc_pwrite(struct Scsi_Host *instance,
+                             unsigned char *src, int len)
 {
 	int i;
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);

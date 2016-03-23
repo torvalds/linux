@@ -458,7 +458,7 @@ static int pas16_biosparam(struct scsi_device *sdev, struct block_device *dev,
 }
 
 /*
- * Function : int NCR5380_pread (struct Scsi_Host *instance, 
+ * Function : int pas16_pread (struct Scsi_Host *instance,
  *	unsigned char *dst, int len)
  *
  * Purpose : Fast 5380 pseudo-dma read function, transfers len bytes to 
@@ -470,8 +470,9 @@ static int pas16_biosparam(struct scsi_device *sdev, struct block_device *dev,
  * 	timeout.
  */
 
-static inline int NCR5380_pread (struct Scsi_Host *instance, unsigned char *dst,
-    int len) {
+static inline int pas16_pread(struct Scsi_Host *instance,
+                              unsigned char *dst, int len)
+{
     register unsigned char  *d = dst;
     register unsigned short reg = (unsigned short) (instance->io_port + 
 	P_DATA_REG_OFFSET);
@@ -493,7 +494,7 @@ static inline int NCR5380_pread (struct Scsi_Host *instance, unsigned char *dst,
 }
 
 /*
- * Function : int NCR5380_pwrite (struct Scsi_Host *instance, 
+ * Function : int pas16_pwrite (struct Scsi_Host *instance,
  *	unsigned char *src, int len)
  *
  * Purpose : Fast 5380 pseudo-dma write function, transfers len bytes from
@@ -505,8 +506,9 @@ static inline int NCR5380_pread (struct Scsi_Host *instance, unsigned char *dst,
  * 	timeout.
  */
 
-static inline int NCR5380_pwrite (struct Scsi_Host *instance, unsigned char *src,
-    int len) {
+static inline int pas16_pwrite(struct Scsi_Host *instance,
+                               unsigned char *src, int len)
+{
     register unsigned char *s = src;
     register unsigned short reg = (instance->io_port + P_DATA_REG_OFFSET);
     register int i = len;

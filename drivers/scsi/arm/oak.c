@@ -24,6 +24,8 @@
 	writeb(value, priv(instance)->base + ((reg) << 2))
 
 #define NCR5380_dma_xfer_len(instance, cmd, phase)	(0)
+#define NCR5380_dma_recv_setup		oakscsi_pread
+#define NCR5380_dma_send_setup		oakscsi_pwrite
 
 #define NCR5380_queue_command		oakscsi_queue_command
 #define NCR5380_info			oakscsi_info
@@ -39,8 +41,8 @@
 #define STAT	((128 + 16) << 2)
 #define DATA	((128 + 8) << 2)
 
-static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *addr,
-              int len)
+static inline int oakscsi_pwrite(struct Scsi_Host *instance,
+                                 unsigned char *addr, int len)
 {
   void __iomem *base = priv(instance)->base;
 
@@ -54,8 +56,8 @@ printk("writing %p len %d\n",addr, len);
   }
 }
 
-static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *addr,
-              int len)
+static inline int oakscsi_pread(struct Scsi_Host *instance,
+                                unsigned char *addr, int len)
 {
   void __iomem *base = priv(instance)->base;
 printk("reading %p len %d\n", addr, len);

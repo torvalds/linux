@@ -292,7 +292,7 @@ static int t128_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 }
 
 /*
- * Function : int NCR5380_pread (struct Scsi_Host *instance, 
+ * Function : int t128_pread (struct Scsi_Host *instance,
  *	unsigned char *dst, int len)
  *
  * Purpose : Fast 5380 pseudo-dma read function, transfers len bytes to 
@@ -304,8 +304,8 @@ static int t128_biosparam(struct scsi_device *sdev, struct block_device *bdev,
  * 	timeout.
  */
 
-static inline int
-NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, int len)
+static inline int t128_pread(struct Scsi_Host *instance,
+                             unsigned char *dst, int len)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	void __iomem *reg, *base = hostdata->base;
@@ -338,7 +338,7 @@ NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, int len)
 }
 
 /*
- * Function : int NCR5380_pwrite (struct Scsi_Host *instance, 
+ * Function : int t128_pwrite (struct Scsi_Host *instance,
  *	unsigned char *src, int len)
  *
  * Purpose : Fast 5380 pseudo-dma write function, transfers len bytes from
@@ -350,8 +350,8 @@ NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, int len)
  * 	timeout.
  */
 
-static inline int
-NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src, int len)
+static inline int t128_pwrite(struct Scsi_Host *instance,
+                              unsigned char *src, int len)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	void __iomem *reg, *base = hostdata->base;
