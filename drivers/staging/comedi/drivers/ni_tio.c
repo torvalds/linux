@@ -1192,19 +1192,22 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned int gate_index,
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned int cidx = counter->counter_index;
-	unsigned int mode = ni_tio_get_soft_copy(counter, NITIO_MODE_REG(cidx));
-	unsigned int gate2_reg = NITIO_GATE2_REG(cidx);
+	unsigned int mode;
+	unsigned int reg;
 	unsigned int gate;
+
+	mode = ni_tio_get_soft_copy(counter, NITIO_MODE_REG(cidx));
+	if (((mode & GI_GATING_MODE_MASK) == GI_GATING_DISABLED) ||
+	    (gate_index == 1 &&
+	     !(counter_dev->regs[NITIO_GATE2_REG(cidx)] & GI_GATE2_MODE))) {
+		*gate_source = NI_GPCT_DISABLED_GATE_SELECT;
+		return 0;
+	}
 
 	switch (gate_index) {
 	case 0:
-		if ((mode & GI_GATING_MODE_MASK) == GI_GATING_DISABLED) {
-			*gate_source = NI_GPCT_DISABLED_GATE_SELECT;
-			return 0;
-		}
-
-		gate = GI_BITS_TO_GATE(ni_tio_get_soft_copy(counter,
-						NITIO_INPUT_SEL_REG(cidx)));
+		reg = NITIO_INPUT_SEL_REG(cidx);
+		gate = GI_BITS_TO_GATE(ni_tio_get_soft_copy(counter, reg));
 
 		switch (counter_dev->variant) {
 		case ni_gpct_variant_e_series:
@@ -1222,13 +1225,8 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned int gate_index,
 			*gate_source |= CR_EDGE;
 		break;
 	case 1:
-		if ((mode & GI_GATING_MODE_MASK) == GI_GATING_DISABLED ||
-		    !(counter_dev->regs[gate2_reg] & GI_GATE2_MODE)) {
-			*gate_source = NI_GPCT_DISABLED_GATE_SELECT;
-			return 0;
-		}
-
-		gate = GI_BITS_TO_GATE2(counter_dev->regs[gate2_reg]);
+		reg = NITIO_GATE2_REG(cidx);
+		gate = GI_BITS_TO_GATE2(counter_dev->regs[reg]);
 
 		switch (counter_dev->variant) {
 		case ni_gpct_variant_e_series:
@@ -1240,7 +1238,7 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned int gate_index,
 			*gate_source = ni_660x_gate2_to_generic_gate(gate);
 			break;
 		}
-		if (counter_dev->regs[gate2_reg] & GI_GATE2_POL_INVERT)
+		if (counter_dev->regs[reg] & GI_GATE2_POL_INVERT)
 			*gate_source |= CR_INVERT;
 		/* second gate can't have edge/level mode set independently */
 		if ((mode & GI_GATING_MODE_MASK) != GI_LEVEL_GATING)
