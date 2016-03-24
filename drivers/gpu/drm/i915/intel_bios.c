@@ -529,9 +529,6 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 	if (driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
 		dev_priv->vbt.edp.support = 1;
 
-	if (driver->dual_frequency)
-		dev_priv->render_reclock_avail = true;
-
 	DRM_DEBUG_KMS("DRRS State Enabled:%d\n", driver->drrs_enabled);
 	/*
 	 * If DRRS is not supported, drrs_type has to be set to 0.

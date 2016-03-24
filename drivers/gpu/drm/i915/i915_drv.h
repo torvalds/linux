@@ -1844,9 +1844,6 @@ struct drm_i915_private {
 
 	struct i915_workarounds workarounds;
 
-	/* Reclocking support */
-	bool render_reclock_avail;
-
 	struct i915_frontbuffer_tracking fb_tracking;
 
 	u16 orig_clock;
