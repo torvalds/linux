@@ -50,35 +50,35 @@
 			wakeup-source;
 			linux,code = <2>;
 			label = "userpb";
-			gpios = <&gpio1 0 0x4>;
+			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
 		};
 		button@2 {
 			debounce_interval = <50>;
 			wakeup-source;
 			linux,code = <3>;
 			label = "extkb1";
-			gpios = <&gpio4 23 0x4>;
+			gpios = <&gpio4 23 GPIO_ACTIVE_HIGH>;
 		};
 		button@3 {
 			debounce_interval = <50>;
 			wakeup-source;
 			linux,code = <4>;
 			label = "extkb2";
-			gpios = <&gpio4 24 0x4>;
+			gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>;
 		};
 		button@4 {
 			debounce_interval = <50>;
 			wakeup-source;
 			linux,code = <5>;
 			label = "extkb3";
-			gpios = <&gpio5 1 0x4>;
+			gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
 		};
 		button@5 {
 			debounce_interval = <50>;
 			wakeup-source;
 			linux,code = <6>;
 			label = "extkb4";
-			gpios = <&gpio5 2 0x4>;
+			gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -88,7 +88,7 @@
 		pinctrl-0 = <&gpioled_snowball_mode>;
 		used-led {
 			label = "user_led";
-			gpios = <&gpio4 14 0x4>;
+			gpios = <&gpio4 14 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
 		};
@@ -155,8 +155,8 @@
 		vmmci: regulator-gpio {
 			compatible = "regulator-gpio";
 
-			gpios = <&gpio7 4 0x4>;
-			enable-gpio = <&gpio6 25 0x4>;
+			gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
+			enable-gpio = <&gpio6 25 GPIO_ACTIVE_HIGH>;
 
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <2900000>;
@@ -182,8 +182,7 @@
 			pinctrl-0 = <&sdi0_default_mode>;
 			pinctrl-1 = <&sdi0_sleep_mode>;
 
-			cd-gpios  = <&gpio6 26 0x4>; // 218
-			cd-inverted;
+			cd-gpios  = <&gpio6 26 GPIO_ACTIVE_LOW>; // 218
 
 			status = "okay";
 		};
