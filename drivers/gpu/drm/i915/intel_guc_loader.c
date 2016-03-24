@@ -82,12 +82,12 @@ const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status)
 static void direct_interrupts_to_host(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
-	int i, irqs;
+	int irqs;
 
 	/* tell all command streamers NOT to forward interrupts and vblank to GuC */
 	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_NEVER);
 	irqs |= _MASKED_BIT_DISABLE(GFX_INTERRUPT_STEERING);
-	for_each_engine(engine, dev_priv, i)
+	for_each_engine(engine, dev_priv)
 		I915_WRITE(RING_MODE_GEN7(engine), irqs);
 
 	/* route all GT interrupts to the host */
@@ -99,12 +99,12 @@ static void direct_interrupts_to_host(struct drm_i915_private *dev_priv)
 static void direct_interrupts_to_guc(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
-	int i, irqs;
+	int irqs;
 
 	/* tell all command streamers to forward interrupts and vblank to GuC */
 	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_ALWAYS);
 	irqs |= _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
-	for_each_engine(engine, dev_priv, i)
+	for_each_engine(engine, dev_priv)
 		I915_WRITE(RING_MODE_GEN7(engine), irqs);
 
 	/* route USER_INTERRUPT to Host, all others are sent to GuC. */

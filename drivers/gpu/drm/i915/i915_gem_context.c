@@ -517,7 +517,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 		i915_semaphore_is_enabled(engine->dev) ?
 		hweight32(INTEL_INFO(engine->dev)->ring_mask) - 1 :
 		0;
-	int len, i, ret;
+	int len, ret;
 
 	/* w/a: If Flush TLB Invalidation Mode is enabled, driver must do a TLB
 	 * invalidation prior to MI_SET_CONTEXT. On GEN6 we don't set the value
@@ -553,7 +553,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 
 			intel_ring_emit(engine,
 					MI_LOAD_REGISTER_IMM(num_rings));
-			for_each_engine(signaller, to_i915(engine->dev), i) {
+			for_each_engine(signaller, to_i915(engine->dev)) {
 				if (signaller == engine)
 					continue;
 
@@ -582,7 +582,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 
 			intel_ring_emit(engine,
 					MI_LOAD_REGISTER_IMM(num_rings));
-			for_each_engine(signaller, to_i915(engine->dev), i) {
+			for_each_engine(signaller, to_i915(engine->dev)) {
 				if (signaller == engine)
 					continue;
 

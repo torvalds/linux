@@ -38,12 +38,11 @@ i915_verify_lists(struct drm_device *dev)
 	struct drm_i915_gem_object *obj;
 	struct intel_engine_cs *engine;
 	int err = 0;
-	int i;
 
 	if (warned)
 		return 0;
 
-	for_each_engine(engine, dev_priv, i) {
+	for_each_engine(engine, dev_priv) {
 		list_for_each_entry(obj, &engine->active_list,
 				    engine_list[engine->id]) {
 			if (obj->base.dev != dev ||

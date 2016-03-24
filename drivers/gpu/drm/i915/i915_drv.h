@@ -1990,10 +1990,12 @@ static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
 	return container_of(guc, struct drm_i915_private, guc);
 }
 
-/* Iterate over initialised rings */
-#define for_each_engine(ring__, dev_priv__, i__) \
-	for ((i__) = 0; (i__) < I915_NUM_ENGINES; (i__)++) \
-		for_each_if ((((ring__) = &(dev_priv__)->engine[(i__)]), intel_engine_initialized((ring__))))
+/* Simple iterator over all initialised engines */
+#define for_each_engine(engine__, dev_priv__) \
+	for ((engine__) = &(dev_priv__)->engine[0]; \
+	     (engine__) < &(dev_priv__)->engine[I915_NUM_ENGINES]; \
+	     (engine__)++) \
+		for_each_if (intel_engine_initialized(engine__))
 
 /* Iterator with engine_id */
 #define for_each_engine_id(engine__, dev_priv__, id__) \
@@ -2005,8 +2007,11 @@ static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
 
 /* Iterator over subset of engines selected by mask */
 #define for_each_engine_masked(engine__, dev_priv__, mask__) \
-	for ((engine__) = &dev_priv->engine[0]; (engine__) < &dev_priv->engine[I915_NUM_ENGINES]; (engine__)++) \
-		for_each_if (intel_engine_flag((engine__)) & (mask__) && intel_engine_initialized((engine__)))
+	for ((engine__) = &(dev_priv__)->engine[0]; \
+	     (engine__) < &(dev_priv__)->engine[I915_NUM_ENGINES]; \
+	     (engine__)++) \
+		for_each_if (((mask__) & intel_engine_flag(engine__)) && \
+			     intel_engine_initialized(engine__))
 
 enum hdmi_force_audio {
 	HDMI_AUDIO_OFF_DVI = -2,	/* no aux data for HDMI-DVI converter */

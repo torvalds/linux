@@ -842,7 +842,7 @@ static void guc_create_ads(struct intel_guc *guc)
 	struct guc_mmio_reg_state *reg_state;
 	struct intel_engine_cs *engine;
 	struct page *page;
-	u32 size, i;
+	u32 size;
 
 	/* The ads obj includes the struct itself and buffers passed to GuC */
 	size = sizeof(struct guc_ads) + sizeof(struct guc_policies) +
@@ -871,7 +871,7 @@ static void guc_create_ads(struct intel_guc *guc)
 	engine = &dev_priv->engine[RCS];
 	ads->golden_context_lrca = engine->status_page.gfx_addr;
 
-	for_each_engine(engine, dev_priv, i)
+	for_each_engine(engine, dev_priv)
 		ads->eng_state_size[engine->guc_id] = intel_lr_context_size(engine);
 
 	/* GuC scheduling policies */
@@ -884,7 +884,7 @@ static void guc_create_ads(struct intel_guc *guc)
 	/* MMIO reg state */
 	reg_state = (void *)policies + sizeof(struct guc_policies);
 
-	for_each_engine(engine, dev_priv, i) {
+	for_each_engine(engine, dev_priv) {
 		reg_state->mmio_white_list[engine->guc_id].mmio_start =
 			engine->mmio_base + GUC_MMIO_WHITE_LIST_START;
 
