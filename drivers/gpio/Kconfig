@@ -474,7 +474,7 @@ config GPIO_XILINX
 
 config GPIO_XLP
 	tristate "Netlogic XLP GPIO support"
-	depends on CPU_XLP && OF_GPIO
+	depends on OF_GPIO && (CPU_XLP || ARCH_VULCAN || COMPILE_TEST)
 	select GPIOLIB_IRQCHIP
 	help
 	  This driver provides support for GPIO interface on Netlogic XLP MIPS64
