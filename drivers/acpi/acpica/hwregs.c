@@ -83,6 +83,8 @@ acpi_status
 acpi_hw_validate_register(struct acpi_generic_address *reg,
 			  u8 max_bit_width, u64 *address)
 {
+	u8 bit_width;
+	u8 access_width;
 
 	/* Must have a valid pointer to a GAS structure */
 
@@ -109,23 +111,26 @@ acpi_hw_validate_register(struct acpi_generic_address *reg,
 		return (AE_SUPPORT);
 	}
 
-	/* Validate the bit_width */
+	/* Validate the access_width */
 
-	if ((reg->bit_width != 8) &&
-	    (reg->bit_width != 16) &&
-	    (reg->bit_width != 32) && (reg->bit_width != max_bit_width)) {
+	if (reg->access_width > 4) {
 		ACPI_ERROR((AE_INFO,
-			    "Unsupported register bit width: 0x%X",
-			    reg->bit_width));
+			    "Unsupported register access width: 0x%X",
+			    reg->access_width));
 		return (AE_SUPPORT);
 	}
 
-	/* Validate the bit_offset. Just a warning for now. */
+	/* Validate the bit_width, convert access_width into number of bits */
 
-	if (reg->bit_offset != 0) {
+	access_width = reg->access_width ? reg->access_width : 1;
+	access_width = 1 << (access_width + 2);
+	bit_width =
+	    ACPI_ROUND_UP(reg->bit_offset + reg->bit_width, access_width);
+	if (max_bit_width < bit_width) {
 		ACPI_WARNING((AE_INFO,
-			      "Unsupported register bit offset: 0x%X",
-			      reg->bit_offset));
+			      "Requested bit width 0x%X is smaller than register bit width 0x%X",
+			      max_bit_width, bit_width));
+		return (AE_SUPPORT);
 	}
 
 	return (AE_OK);
