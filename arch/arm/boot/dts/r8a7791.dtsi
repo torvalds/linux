@@ -1520,7 +1520,7 @@
 	};
 
 	xhci: usb@ee000000 {
-		compatible = "renesas,xhci-r8a7791";
+		compatible = "renesas,xhci-r8a7791", "renesas,rcar-gen2-xhci";
 		reg = <0 0xee000000 0 0xc00>;
 		interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7791_CLK_SSUSB>;
