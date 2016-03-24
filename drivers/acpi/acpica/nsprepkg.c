@@ -179,6 +179,7 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 			if (ACPI_FAILURE(status)) {
 				return (status);
 			}
+
 			elements++;
 		}
 		break;
@@ -225,6 +226,7 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 					return (status);
 				}
 			}
+
 			elements++;
 		}
 		break;
@@ -569,11 +571,13 @@ acpi_ns_check_package_list(struct acpi_evaluate_info *info,
 			if (sub_package->package.count < expected_count) {
 				goto package_too_small;
 			}
+
 			if (sub_package->package.count <
 			    package->ret_info.count1) {
 				expected_count = package->ret_info.count1;
 				goto package_too_small;
 			}
+
 			if (expected_count == 0) {
 				/*
 				 * Either the num_entries element was originally zero or it was
@@ -661,6 +665,7 @@ acpi_ns_check_package_elements(struct acpi_evaluate_info *info,
 		if (ACPI_FAILURE(status)) {
 			return (status);
 		}
+
 		this_element++;
 	}
 
@@ -671,6 +676,7 @@ acpi_ns_check_package_elements(struct acpi_evaluate_info *info,
 		if (ACPI_FAILURE(status)) {
 			return (status);
 		}
+
 		this_element++;
 	}
 
