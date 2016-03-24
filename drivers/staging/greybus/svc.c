@@ -99,11 +99,31 @@ static ssize_t watchdog_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(watchdog);
 
+static ssize_t pwr_off_store(struct device *dev,
+			     struct device_attribute *attr, const char *buf,
+			     size_t len)
+{
+	struct gb_svc *svc = to_gb_svc(dev);
+	int retval;
+	bool user_request;
+
+	retval = strtobool(buf, &user_request);
+	if (retval) {
+		return retval;
+	}
+	if (user_request) {
+		retval = gb_svc_pwr_off(svc);
+	}
+	return len;
+}
+static DEVICE_ATTR_WO(pwr_off);
+
 static struct attribute *svc_attrs[] = {
 	&dev_attr_endo_id.attr,
 	&dev_attr_ap_intf_id.attr,
 	&dev_attr_intf_eject.attr,
 	&dev_attr_watchdog.attr,
+	&dev_attr_pwr_off.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(svc);
@@ -319,6 +339,14 @@ int gb_svc_ping(struct gb_svc *svc)
 					 GB_OPERATION_TIMEOUT_DEFAULT * 2);
 }
 EXPORT_SYMBOL_GPL(gb_svc_ping);
+
+int gb_svc_pwr_off(struct gb_svc *svc)
+{
+	return gb_operation_sync_timeout(svc->connection, GB_SVC_TYPE_PWR_DOWN,
+					 NULL, 0, NULL, 0,
+					 GB_OPERATION_TIMEOUT_DEFAULT * 2);
+}
+EXPORT_SYMBOL_GPL(gb_svc_pwr_off);
 
 static int gb_svc_version_request(struct gb_operation *op)
 {
