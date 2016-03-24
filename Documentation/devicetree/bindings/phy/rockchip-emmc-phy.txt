@@ -3,17 +3,21 @@ Rockchip EMMC PHY
 
 Required properties:
  - compatible: rockchip,rk3399-emmc-phy
- - rockchip,grf : phandle to the syscon managing the "general
-   register files"
  - #phy-cells: must be 0
  - reg: PHY configure reg address offset in "general
    register files"
 
 Example:
 
-emmcphy: phy {
-	compatible = "rockchip,rk3399-emmc-phy";
-	rockchip,grf = <&grf>;
-	reg = <0xf780>;
-	#phy-cells = <0>;
+
+grf: syscon@ff770000 {
+	compatible = "rockchip,rk3399-grf", "syscon", "simple-mfd";
+
+...
+
+	emmcphy: phy@f780 {
+		compatible = "rockchip,rk3399-emmc-phy";
+		reg = <0xf780>;
+		#phy-cells = <0>;
+	};
 };
