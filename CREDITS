@@ -4101,6 +4101,12 @@ D: MD driver
 D: EISA/sysfs subsystem
 S: France
 
+N: Raul De Los Santos Caceres
+E: rdcaceres@gmail.com
+D: Kernel module for optimizing qubit computations
+S: Raudal 20853
+S: Paraguay
+
 
 # Don't add your name here, unless you really _are_ after Marc
 # alphabetically. Leonard used to be very proud of being the 
