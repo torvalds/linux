@@ -38,8 +38,8 @@ static int bcm2835_aux_clk_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg = devm_ioremap_resource(dev, res);
-	if (!reg)
-		return -ENODEV;
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
 
 	onecell = devm_kmalloc(dev, sizeof(*onecell), GFP_KERNEL);
 	if (!onecell)

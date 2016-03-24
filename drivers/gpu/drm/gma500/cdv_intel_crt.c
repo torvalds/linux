@@ -217,7 +217,6 @@ static int cdv_intel_crt_set_property(struct drm_connector *connector,
 
 static const struct drm_encoder_helper_funcs cdv_intel_crt_helper_funcs = {
 	.dpms = cdv_intel_crt_dpms,
-	.mode_fixup = gma_encoder_mode_fixup,
 	.prepare = gma_encoder_prepare,
 	.commit = gma_encoder_commit,
 	.mode_set = cdv_intel_crt_mode_set,

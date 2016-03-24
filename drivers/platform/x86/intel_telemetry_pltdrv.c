@@ -1030,8 +1030,19 @@ static int telemetry_plt_set_trace_verbosity(enum telemetry_unit telem_unit,
 	switch (telem_unit) {
 	case TELEM_PSS:
 		ret = intel_punit_ipc_command(
+				IPC_PUNIT_BIOS_READ_TELE_TRACE_CTRL,
+				0, 0, NULL, &temp);
+		if (ret) {
+			pr_err("PSS TRACE_CTRL Read Failed\n");
+			goto out;
+		}
+
+		TELEM_CLEAR_VERBOSITY_BITS(temp);
+		TELEM_SET_VERBOSITY_BITS(temp, verbosity);
+
+		ret = intel_punit_ipc_command(
 				IPC_PUNIT_BIOS_WRITE_TELE_TRACE_CTRL,
-				0, 0, &verbosity, NULL);
+				0, 0, &temp, NULL);
 		if (ret) {
 			pr_err("PSS TRACE_CTRL Verbosity Set Failed\n");
 			goto out;

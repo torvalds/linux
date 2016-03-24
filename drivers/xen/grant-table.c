@@ -33,7 +33,6 @@
 
 #define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/slab.h>

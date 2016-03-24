@@ -217,7 +217,7 @@ static struct clk *crg11_get(struct of_phandle_args *clkspec, void *data)
 	init.name = clkp;
 	init.num_parents = 0;
 	init.ops = &crg_port_ops;
-	init.flags = CLK_IS_ROOT;
+	init.flags = 0;
 	crgclk->hw.init = &init;
 	crgclk->cntrlr = cntrlr;
 	crgclk->domain = domain;
@@ -341,7 +341,7 @@ struct clk *mb86s7x_clclk_register(struct device *cpu_dev)
 
 	init.name = dev_name(cpu_dev);
 	init.ops = &clk_clc_ops;
-	init.flags = CLK_IS_ROOT | CLK_GET_RATE_NOCACHE;
+	init.flags = CLK_GET_RATE_NOCACHE;
 	init.num_parents = 0;
 
 	return devm_clk_register(cpu_dev, &clc->hw);

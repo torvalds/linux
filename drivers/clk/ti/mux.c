@@ -178,7 +178,7 @@ static void of_mux_clk_setup(struct device_node *node)
 {
 	struct clk *clk;
 	void __iomem *reg;
-	int num_parents;
+	unsigned int num_parents;
 	const char **parent_names;
 	u8 clk_mux_flags = 0;
 	u32 mask = 0;
@@ -261,7 +261,7 @@ struct clk_hw *ti_clk_build_component_mux(struct ti_clk_mux *setup)
 static void __init of_ti_composite_mux_clk_setup(struct device_node *node)
 {
 	struct clk_mux *mux;
-	int num_parents;
+	unsigned int num_parents;
 	u32 val;
 
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);

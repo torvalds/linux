@@ -373,7 +373,9 @@ static void exit_vm_noop(void *info)
 
 void force_vm_exit(const cpumask_t *mask)
 {
+	preempt_disable();
 	smp_call_function_many(mask, exit_vm_noop, NULL, true);
+	preempt_enable();
 }
 
 /**

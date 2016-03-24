@@ -606,7 +606,8 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 
 		/* PMTU discovery (RFC1191) */
 		if (ICMP_FRAG_NEEDED == code) {
-			sctp_icmp_frag_needed(sk, asoc, transport, info);
+			sctp_icmp_frag_needed(sk, asoc, transport,
+					      WORD_TRUNC(info));
 			goto out_unlock;
 		} else {
 			if (ICMP_PROT_UNREACH == code) {

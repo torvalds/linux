@@ -176,14 +176,14 @@ PNAME(audio2_p6410)	= { "mout_epll", "dout_mpll", "fin_pll", "iiscdclk2",
 
 /* Fixed rate clocks generated outside the SoC. */
 FIXED_RATE_CLOCKS(s3c64xx_fixed_rate_ext_clks) __initdata = {
-	FRATE(0, "fin_pll", NULL, CLK_IS_ROOT, 0),
-	FRATE(0, "xusbxti", NULL, CLK_IS_ROOT, 0),
+	FRATE(0, "fin_pll", NULL, 0, 0),
+	FRATE(0, "xusbxti", NULL, 0, 0),
 };
 
 /* Fixed rate clocks generated inside the SoC. */
 FIXED_RATE_CLOCKS(s3c64xx_fixed_rate_clks) __initdata = {
-	FRATE(CLK27M, "clk27m", NULL, CLK_IS_ROOT, 27000000),
-	FRATE(CLK48M, "clk48m", NULL, CLK_IS_ROOT, 48000000),
+	FRATE(CLK27M, "clk27m", NULL, 0, 27000000),
+	FRATE(CLK48M, "clk48m", NULL, 0, 48000000),
 };
 
 /* List of clock muxes present on all S3C64xx SoCs. */

@@ -978,8 +978,12 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			     (new_transport->state == SCTP_UNCONFIRMED) ||
 			     (new_transport->state == SCTP_PF)))
 				new_transport = asoc->peer.active_path;
-			if (new_transport->state == SCTP_UNCONFIRMED)
+			if (new_transport->state == SCTP_UNCONFIRMED) {
+				WARN_ONCE(1, "Atempt to send packet on unconfirmed path.");
+				sctp_chunk_fail(chunk, 0);
+				sctp_chunk_free(chunk);
 				continue;
+			}
 
 			/* Change packets if necessary.  */
 			if (new_transport != transport) {

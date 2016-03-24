@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,7 +49,7 @@
 
 #include "verbs.h"
 
-#define BAD_DMA_ADDRESS ((u64) 0)
+#define BAD_DMA_ADDRESS ((u64)0)
 
 /*
  * The following functions implement driver specific replacements
@@ -74,7 +71,7 @@ static u64 hfi1_dma_map_single(struct ib_device *dev, void *cpu_addr,
 	if (WARN_ON(!valid_dma_direction(direction)))
 		return BAD_DMA_ADDRESS;
 
-	return (u64) cpu_addr;
+	return (u64)cpu_addr;
 }
 
 static void hfi1_dma_unmap_single(struct ib_device *dev, u64 addr, size_t size,
@@ -95,7 +92,7 @@ static u64 hfi1_dma_map_page(struct ib_device *dev, struct page *page,
 	if (offset + size > PAGE_SIZE)
 		return BAD_DMA_ADDRESS;
 
-	addr = (u64) page_address(page);
+	addr = (u64)page_address(page);
 	if (addr)
 		addr += offset;
 
@@ -120,7 +117,7 @@ static int hfi1_map_sg(struct ib_device *dev, struct scatterlist *sgl,
 		return BAD_DMA_ADDRESS;
 
 	for_each_sg(sgl, sg, nents, i) {
-		addr = (u64) page_address(sg_page(sg));
+		addr = (u64)page_address(sg_page(sg));
 		if (!addr) {
 			ret = 0;
 			break;
@@ -161,14 +158,14 @@ static void *hfi1_dma_alloc_coherent(struct ib_device *dev, size_t size,
 	if (p)
 		addr = page_address(p);
 	if (dma_handle)
-		*dma_handle = (u64) addr;
+		*dma_handle = (u64)addr;
 	return addr;
 }
 
 static void hfi1_dma_free_coherent(struct ib_device *dev, size_t size,
 				   void *cpu_addr, u64 dma_handle)
 {
-	free_pages((unsigned long) cpu_addr, get_order(size));
+	free_pages((unsigned long)cpu_addr, get_order(size));
 }
 
 struct ib_dma_mapping_ops hfi1_dma_mapping_ops = {

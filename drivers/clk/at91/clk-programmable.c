@@ -230,14 +230,14 @@ of_at91_clk_prog_setup(struct device_node *np,
 	int num;
 	u32 id;
 	struct clk *clk;
-	int num_parents;
+	unsigned int num_parents;
 	const char *parent_names[PROG_SOURCE_MAX];
 	const char *name;
 	struct device_node *progclknp;
 	struct regmap *regmap;
 
 	num_parents = of_clk_get_parent_count(np);
-	if (num_parents <= 0 || num_parents > PROG_SOURCE_MAX)
+	if (num_parents == 0 || num_parents > PROG_SOURCE_MAX)
 		return;
 
 	of_clk_parent_fill(np, parent_names, num_parents);

@@ -55,7 +55,7 @@ static u64 he_get_acc_##_field(struct hist_entry *he)				\
 	return he->stat_acc->_field;						\
 }										\
 										\
-static int perf_gtk__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,	\
+static int perf_gtk__hpp_color_##_type(struct perf_hpp_fmt *fmt,		\
 				       struct perf_hpp *hpp,			\
 				       struct hist_entry *he)			\
 {										\

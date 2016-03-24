@@ -402,7 +402,7 @@ static void copy_query_dev_fields(struct ib_uverbs_file *file,
 	resp->hw_ver		= attr->hw_ver;
 	resp->max_qp		= attr->max_qp;
 	resp->max_qp_wr		= attr->max_qp_wr;
-	resp->device_cap_flags	= attr->device_cap_flags;
+	resp->device_cap_flags	= lower_32_bits(attr->device_cap_flags);
 	resp->max_sge		= attr->max_sge;
 	resp->max_sge_rd	= attr->max_sge_rd;
 	resp->max_cq		= attr->max_cq;
@@ -3600,9 +3600,9 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 			      struct ib_udata *ucore,
 			      struct ib_udata *uhw)
 {
-	struct ib_uverbs_ex_query_device_resp resp;
+	struct ib_uverbs_ex_query_device_resp resp = { {0} };
 	struct ib_uverbs_ex_query_device  cmd;
-	struct ib_device_attr attr;
+	struct ib_device_attr attr = {0};
 	int err;
 
 	if (ucore->inlen < sizeof(cmd))
@@ -3623,14 +3623,11 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 	if (ucore->outlen < resp.response_length)
 		return -ENOSPC;
 
-	memset(&attr, 0, sizeof(attr));
-
 	err = ib_dev->query_device(ib_dev, &attr, uhw);
 	if (err)
 		return err;
 
 	copy_query_dev_fields(file, ib_dev, &resp.base, &attr);
-	resp.comp_mask = 0;
 
 	if (ucore->outlen < resp.response_length + sizeof(resp.odp_caps))
 		goto end;
@@ -3643,9 +3640,6 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 		attr.odp_caps.per_transport_caps.uc_odp_caps;
 	resp.odp_caps.per_transport_caps.ud_odp_caps =
 		attr.odp_caps.per_transport_caps.ud_odp_caps;
-	resp.odp_caps.reserved = 0;
-#else
-	memset(&resp.odp_caps, 0, sizeof(resp.odp_caps));
 #endif
 	resp.response_length += sizeof(resp.odp_caps);
 
@@ -3663,8 +3657,5 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 
 end:
 	err = ib_copy_to_udata(ucore, &resp, resp.response_length);
-	if (err)
-		return err;
-
-	return 0;
+	return err;
 }

@@ -121,12 +121,17 @@ struct hw_perf_event {
 		struct { /* intel_cqm */
 			int			cqm_state;
 			u32			cqm_rmid;
+			int			is_group_event;
 			struct list_head	cqm_events_entry;
 			struct list_head	cqm_groups_entry;
 			struct list_head	cqm_group_entry;
 		};
 		struct { /* itrace */
 			int			itrace_started;
+		};
+		struct { /* amd_power */
+			u64	pwr_acc;
+			u64	ptsc;
 		};
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 		struct { /* breakpoint */

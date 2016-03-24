@@ -131,8 +131,7 @@ static int copy_bytes(struct perf_inject *inject, int fd, off_t size)
 
 static s64 perf_event__repipe_auxtrace(struct perf_tool *tool,
 				       union perf_event *event,
-				       struct perf_session *session
-				       __maybe_unused)
+				       struct perf_session *session)
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject,
 						  tool);
@@ -417,9 +416,6 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 {
 	struct addr_location al;
 	struct thread *thread;
-	u8 cpumode;
-
-	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
 	thread = machine__findnew_thread(machine, sample->pid, sample->tid);
 	if (thread == NULL) {
@@ -428,7 +424,7 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 		goto repipe;
 	}
 
-	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->ip, &al);
+	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->ip, &al);
 
 	if (al.map != NULL) {
 		if (!al.map->dso->hit) {

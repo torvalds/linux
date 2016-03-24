@@ -11,6 +11,13 @@
 #ifndef ASM_ARC_DMA_MAPPING_H
 #define ASM_ARC_DMA_MAPPING_H
 
+#ifndef CONFIG_ARC_PLAT_NEEDS_PHYS_TO_DMA
+#define plat_dma_to_phys(dev, dma_handle) ((phys_addr_t)(dma_handle))
+#define plat_phys_to_dma(dev, paddr) ((dma_addr_t)(paddr))
+#else
+#include <plat/dma.h>
+#endif
+
 extern struct dma_map_ops arc_dma_ops;
 
 static inline struct dma_map_ops *get_dma_ops(struct device *dev)

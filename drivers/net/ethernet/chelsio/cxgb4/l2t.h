@@ -39,6 +39,8 @@
 #include <linux/if_ether.h>
 #include <linux/atomic.h>
 
+#define VLAN_NONE 0xfff
+
 enum { L2T_SIZE = 4096 };     /* # of L2T entries */
 
 enum {

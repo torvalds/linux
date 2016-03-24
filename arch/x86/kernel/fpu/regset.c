@@ -8,7 +8,7 @@
 /*
  * The xstateregs_active() routine is the same as the regset_fpregs_active() routine,
  * as the "regset->n" for the xstate regset will be updated based on the feature
- * capabilites supported by the xsave.
+ * capabilities supported by the xsave.
  */
 int regset_fpregs_active(struct task_struct *target, const struct user_regset *regset)
 {

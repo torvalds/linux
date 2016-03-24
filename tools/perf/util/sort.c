@@ -2225,7 +2225,7 @@ int hpp_dimension__add_output(unsigned col)
 }
 
 static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
-			       struct perf_evlist *evlist __maybe_unused,
+			       struct perf_evlist *evlist,
 			       int level)
 {
 	unsigned int i;

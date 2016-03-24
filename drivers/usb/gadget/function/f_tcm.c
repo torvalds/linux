@@ -41,13 +41,6 @@ static inline struct f_uas *to_f_uas(struct usb_function *f)
 	return container_of(f, struct f_uas, function);
 }
 
-static void usbg_cmd_release(struct kref *);
-
-static inline void usbg_cleanup_cmd(struct usbg_cmd *cmd)
-{
-	kref_put(&cmd->ref, usbg_cmd_release);
-}
-
 /* Start bot.c code */
 
 static int bot_enqueue_cmd_cbw(struct f_uas *fu)
@@ -68,7 +61,7 @@ static void bot_status_complete(struct usb_ep *ep, struct usb_request *req)
 	struct usbg_cmd *cmd = req->context;
 	struct f_uas *fu = cmd->fu;
 
-	usbg_cleanup_cmd(cmd);
+	transport_generic_free_cmd(&cmd->se_cmd, 0);
 	if (req->status < 0) {
 		pr_err("ERR %s(%d)\n", __func__, __LINE__);
 		return;
@@ -605,7 +598,7 @@ static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 		break;
 
 	case UASP_QUEUE_COMMAND:
-		usbg_cleanup_cmd(cmd);
+		transport_generic_free_cmd(&cmd->se_cmd, 0);
 		usb_ep_queue(fu->ep_cmd, fu->cmd.req, GFP_ATOMIC);
 		break;
 
@@ -615,7 +608,7 @@ static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 	return;
 
 cleanup:
-	usbg_cleanup_cmd(cmd);
+	transport_generic_free_cmd(&cmd->se_cmd, 0);
 }
 
 static int uasp_send_status_response(struct usbg_cmd *cmd)
@@ -977,7 +970,7 @@ static void usbg_data_write_cmpl(struct usb_ep *ep, struct usb_request *req)
 	return;
 
 cleanup:
-	usbg_cleanup_cmd(cmd);
+	transport_generic_free_cmd(&cmd->se_cmd, 0);
 }
 
 static int usbg_prepare_w_request(struct usbg_cmd *cmd, struct usb_request *req)
@@ -1046,7 +1039,7 @@ static void usbg_cmd_work(struct work_struct *work)
 	struct se_cmd *se_cmd;
 	struct tcm_usbg_nexus *tv_nexus;
 	struct usbg_tpg *tpg;
-	int dir;
+	int dir, flags = (TARGET_SCF_UNKNOWN_SIZE | TARGET_SCF_ACK_KREF);
 
 	se_cmd = &cmd->se_cmd;
 	tpg = cmd->fu->tpg;
@@ -1060,9 +1053,9 @@ static void usbg_cmd_work(struct work_struct *work)
 		goto out;
 	}
 
-	if (target_submit_cmd(se_cmd, tv_nexus->tvn_se_sess,
-			cmd->cmd_buf, cmd->sense_iu.sense, cmd->unpacked_lun,
-			0, cmd->prio_attr, dir, TARGET_SCF_UNKNOWN_SIZE) < 0)
+	if (target_submit_cmd(se_cmd, tv_nexus->tvn_se_sess, cmd->cmd_buf,
+			      cmd->sense_iu.sense, cmd->unpacked_lun, 0,
+			      cmd->prio_attr, dir, flags) < 0)
 		goto out;
 
 	return;
@@ -1070,42 +1063,64 @@ static void usbg_cmd_work(struct work_struct *work)
 out:
 	transport_send_check_condition_and_sense(se_cmd,
 			TCM_UNSUPPORTED_SCSI_OPCODE, 1);
-	usbg_cleanup_cmd(cmd);
+	transport_generic_free_cmd(&cmd->se_cmd, 0);
 }
+
+static struct usbg_cmd *usbg_get_cmd(struct f_uas *fu,
+		struct tcm_usbg_nexus *tv_nexus, u32 scsi_tag)
+{
+	struct se_session *se_sess = tv_nexus->tvn_se_sess;
+	struct usbg_cmd *cmd;
+	int tag;
+
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, GFP_ATOMIC);
+	if (tag < 0)
+		return ERR_PTR(-ENOMEM);
+
+	cmd = &((struct usbg_cmd *)se_sess->sess_cmd_map)[tag];
+	memset(cmd, 0, sizeof(*cmd));
+	cmd->se_cmd.map_tag = tag;
+	cmd->se_cmd.tag = cmd->tag = scsi_tag;
+	cmd->fu = fu;
+
+	return cmd;
+}
+
+static void usbg_release_cmd(struct se_cmd *);
 
 static int usbg_submit_command(struct f_uas *fu,
 		void *cmdbuf, unsigned int len)
 {
 	struct command_iu *cmd_iu = cmdbuf;
 	struct usbg_cmd *cmd;
-	struct usbg_tpg *tpg;
-	struct tcm_usbg_nexus *tv_nexus;
+	struct usbg_tpg *tpg = fu->tpg;
+	struct tcm_usbg_nexus *tv_nexus = tpg->tpg_nexus;
 	u32 cmd_len;
+	u16 scsi_tag;
 
 	if (cmd_iu->iu_id != IU_ID_COMMAND) {
 		pr_err("Unsupported type %d\n", cmd_iu->iu_id);
 		return -EINVAL;
 	}
 
-	cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
-	if (!cmd)
-		return -ENOMEM;
+	tv_nexus = tpg->tpg_nexus;
+	if (!tv_nexus) {
+		pr_err("Missing nexus, ignoring command\n");
+		return -EINVAL;
+	}
 
-	cmd->fu = fu;
-
-	/* XXX until I figure out why I can't free in on complete */
-	kref_init(&cmd->ref);
-	kref_get(&cmd->ref);
-
-	tpg = fu->tpg;
 	cmd_len = (cmd_iu->len & ~0x3) + 16;
 	if (cmd_len > USBG_MAX_CMD)
-		goto err;
+		return -EINVAL;
 
+	scsi_tag = be16_to_cpup(&cmd_iu->tag);
+	cmd = usbg_get_cmd(fu, tv_nexus, scsi_tag);
+	if (IS_ERR(cmd)) {
+		pr_err("usbg_get_cmd failed\n");
+		return -ENOMEM;
+	}
 	memcpy(cmd->cmd_buf, cmd_iu->cdb, cmd_len);
 
-	cmd->tag = be16_to_cpup(&cmd_iu->tag);
-	cmd->se_cmd.tag = cmd->tag;
 	if (fu->flags & USBG_USE_STREAMS) {
 		if (cmd->tag > UASP_SS_EP_COMP_NUM_STREAMS)
 			goto err;
@@ -1115,12 +1130,6 @@ static int usbg_submit_command(struct f_uas *fu,
 			cmd->stream = &fu->stream[cmd->tag - 1];
 	} else {
 		cmd->stream = &fu->stream[0];
-	}
-
-	tv_nexus = tpg->tpg_nexus;
-	if (!tv_nexus) {
-		pr_err("Missing nexus, ignoring command\n");
-		goto err;
 	}
 
 	switch (cmd_iu->prio_attr & 0x7) {
@@ -1148,7 +1157,7 @@ static int usbg_submit_command(struct f_uas *fu,
 
 	return 0;
 err:
-	kfree(cmd);
+	usbg_release_cmd(&cmd->se_cmd);
 	return -EINVAL;
 }
 
@@ -1182,7 +1191,7 @@ static void bot_cmd_work(struct work_struct *work)
 out:
 	transport_send_check_condition_and_sense(se_cmd,
 				TCM_UNSUPPORTED_SCSI_OPCODE, 1);
-	usbg_cleanup_cmd(cmd);
+	transport_generic_free_cmd(&cmd->se_cmd, 0);
 }
 
 static int bot_submit_command(struct f_uas *fu,
@@ -1190,7 +1199,7 @@ static int bot_submit_command(struct f_uas *fu,
 {
 	struct bulk_cb_wrap *cbw = cmdbuf;
 	struct usbg_cmd *cmd;
-	struct usbg_tpg *tpg;
+	struct usbg_tpg *tpg = fu->tpg;
 	struct tcm_usbg_nexus *tv_nexus;
 	u32 cmd_len;
 
@@ -1207,28 +1216,20 @@ static int bot_submit_command(struct f_uas *fu,
 	if (cmd_len < 1 || cmd_len > 16)
 		return -EINVAL;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
-	if (!cmd)
-		return -ENOMEM;
-
-	cmd->fu = fu;
-
-	/* XXX until I figure out why I can't free in on complete */
-	kref_init(&cmd->ref);
-	kref_get(&cmd->ref);
-
-	tpg = fu->tpg;
-
-	memcpy(cmd->cmd_buf, cbw->CDB, cmd_len);
-
-	cmd->bot_tag = cbw->Tag;
-
 	tv_nexus = tpg->tpg_nexus;
 	if (!tv_nexus) {
 		pr_err("Missing nexus, ignoring command\n");
-		goto err;
+		return -ENODEV;
 	}
 
+	cmd = usbg_get_cmd(fu, tv_nexus, cbw->Tag);
+	if (IS_ERR(cmd)) {
+		pr_err("usbg_get_cmd failed\n");
+		return -ENOMEM;
+	}
+	memcpy(cmd->cmd_buf, cbw->CDB, cmd_len);
+
+	cmd->bot_tag = cbw->Tag;
 	cmd->prio_attr = TCM_SIMPLE_TAG;
 	cmd->unpacked_lun = cbw->Lun;
 	cmd->is_read = cbw->Flags & US_BULK_FLAG_IN ? 1 : 0;
@@ -1239,9 +1240,6 @@ static int bot_submit_command(struct f_uas *fu,
 	queue_work(tpg->workqueue, &cmd->work);
 
 	return 0;
-err:
-	kfree(cmd);
-	return -EINVAL;
 }
 
 /* Start fabric.c code */
@@ -1282,20 +1280,14 @@ static u32 usbg_tpg_get_inst_index(struct se_portal_group *se_tpg)
 	return 1;
 }
 
-static void usbg_cmd_release(struct kref *ref)
-{
-	struct usbg_cmd *cmd = container_of(ref, struct usbg_cmd,
-			ref);
-
-	transport_generic_free_cmd(&cmd->se_cmd, 0);
-}
-
 static void usbg_release_cmd(struct se_cmd *se_cmd)
 {
 	struct usbg_cmd *cmd = container_of(se_cmd, struct usbg_cmd,
 			se_cmd);
+	struct se_session *se_sess = se_cmd->se_sess;
+
 	kfree(cmd->data_buf);
-	kfree(cmd);
+	percpu_ida_free(&se_sess->sess_tag_pool, se_cmd->map_tag);
 }
 
 static int usbg_shutdown_session(struct se_session *se_sess)
@@ -1579,55 +1571,48 @@ out:
 	return ret;
 }
 
+static int usbg_alloc_sess_cb(struct se_portal_group *se_tpg,
+			      struct se_session *se_sess, void *p)
+{
+	struct usbg_tpg *tpg = container_of(se_tpg,
+				struct usbg_tpg, se_tpg);
+
+	tpg->tpg_nexus = p;
+	return 0;
+}
+
 static int tcm_usbg_make_nexus(struct usbg_tpg *tpg, char *name)
 {
-	struct se_portal_group *se_tpg;
 	struct tcm_usbg_nexus *tv_nexus;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&tpg->tpg_mutex);
 	if (tpg->tpg_nexus) {
 		ret = -EEXIST;
 		pr_debug("tpg->tpg_nexus already exists\n");
-		goto err_unlock;
+		goto out_unlock;
 	}
-	se_tpg = &tpg->se_tpg;
 
-	ret = -ENOMEM;
 	tv_nexus = kzalloc(sizeof(*tv_nexus), GFP_KERNEL);
-	if (!tv_nexus)
-		goto err_unlock;
-	tv_nexus->tvn_se_sess = transport_init_session(TARGET_PROT_NORMAL);
-	if (IS_ERR(tv_nexus->tvn_se_sess))
-		goto err_free;
+	if (!tv_nexus) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
 
-	/*
-	 * Since we are running in 'demo mode' this call with generate a
-	 * struct se_node_acl for the tcm_vhost struct se_portal_group with
-	 * the SCSI Initiator port name of the passed configfs group 'name'.
-	 */
-	tv_nexus->tvn_se_sess->se_node_acl = core_tpg_check_initiator_node_acl(
-			se_tpg, name);
-	if (!tv_nexus->tvn_se_sess->se_node_acl) {
+	tv_nexus->tvn_se_sess = target_alloc_session(&tpg->se_tpg,
+						     USB_G_DEFAULT_SESSION_TAGS,
+						     sizeof(struct usbg_cmd),
+						     TARGET_PROT_NORMAL, name,
+						     tv_nexus, usbg_alloc_sess_cb);
+	if (IS_ERR(tv_nexus->tvn_se_sess)) {
 #define MAKE_NEXUS_MSG "core_tpg_check_initiator_node_acl() failed for %s\n"
 		pr_debug(MAKE_NEXUS_MSG, name);
 #undef MAKE_NEXUS_MSG
-		goto err_session;
+		ret = PTR_ERR(tv_nexus->tvn_se_sess);
+		kfree(tv_nexus);
 	}
-	/*
-	 * Now register the TCM vHost virtual I_T Nexus as active.
-	 */
-	transport_register_session(se_tpg, tv_nexus->tvn_se_sess->se_node_acl,
-			tv_nexus->tvn_se_sess, tv_nexus);
-	tpg->tpg_nexus = tv_nexus;
-	mutex_unlock(&tpg->tpg_mutex);
-	return 0;
 
-err_session:
-	transport_free_session(tv_nexus->tvn_se_sess);
-err_free:
-	kfree(tv_nexus);
-err_unlock:
+out_unlock:
 	mutex_unlock(&tpg->tpg_mutex);
 	return ret;
 }
@@ -1735,11 +1720,7 @@ static void usbg_port_unlink(struct se_portal_group *se_tpg,
 
 static int usbg_check_stop_free(struct se_cmd *se_cmd)
 {
-	struct usbg_cmd *cmd = container_of(se_cmd, struct usbg_cmd,
-			se_cmd);
-
-	kref_put(&cmd->ref, usbg_cmd_release);
-	return 1;
+	return target_put_sess_cmd(se_cmd);
 }
 
 static const struct target_core_fabric_ops usbg_ops = {

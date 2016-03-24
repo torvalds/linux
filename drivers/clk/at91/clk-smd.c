@@ -142,13 +142,13 @@ at91sam9x5_clk_register_smd(struct regmap *regmap, const char *name,
 static void __init of_at91sam9x5_clk_smd_setup(struct device_node *np)
 {
 	struct clk *clk;
-	int num_parents;
+	unsigned int num_parents;
 	const char *parent_names[SMD_SOURCE_MAX];
 	const char *name = np->name;
 	struct regmap *regmap;
 
 	num_parents = of_clk_get_parent_count(np);
-	if (num_parents <= 0 || num_parents > SMD_SOURCE_MAX)
+	if (num_parents == 0 || num_parents > SMD_SOURCE_MAX)
 		return;
 
 	of_clk_parent_fill(np, parent_names, num_parents);

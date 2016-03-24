@@ -37,6 +37,7 @@
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/spinlock.h>
+#include <linux/ktime.h>
 #include <linux/mISDNif.h>
 #include <linux/export.h>
 #include "core.h"
@@ -45,15 +46,15 @@ static u_int *debug;
 static LIST_HEAD(iclock_list);
 static DEFINE_RWLOCK(iclock_lock);
 static u16 iclock_count;		/* counter of last clock */
-static struct timeval iclock_tv;	/* time stamp of last clock */
-static int iclock_tv_valid;		/* already received one timestamp */
+static ktime_t iclock_timestamp;	/* time stamp of last clock */
+static int iclock_timestamp_valid;	/* already received one timestamp */
 static struct mISDNclock *iclock_current;
 
 void
 mISDN_init_clock(u_int *dp)
 {
 	debug = dp;
-	do_gettimeofday(&iclock_tv);
+	iclock_timestamp = ktime_get();
 }
 
 static void
@@ -86,7 +87,7 @@ select_iclock(void)
 	}
 	if (bestclock != iclock_current) {
 		/* no clock received yet */
-		iclock_tv_valid = 0;
+		iclock_timestamp_valid = 0;
 	}
 	iclock_current = bestclock;
 }
@@ -139,12 +140,11 @@ mISDN_unregister_clock(struct mISDNclock *iclock)
 EXPORT_SYMBOL(mISDN_unregister_clock);
 
 void
-mISDN_clock_update(struct mISDNclock *iclock, int samples, struct timeval *tv)
+mISDN_clock_update(struct mISDNclock *iclock, int samples, ktime_t *timestamp)
 {
 	u_long		flags;
-	struct timeval	tv_now;
-	time_t		elapsed_sec;
-	int		elapsed_8000th;
+	ktime_t		timestamp_now;
+	u16		delta;
 
 	write_lock_irqsave(&iclock_lock, flags);
 	if (iclock_current != iclock) {
@@ -156,33 +156,27 @@ mISDN_clock_update(struct mISDNclock *iclock, int samples, struct timeval *tv)
 		write_unlock_irqrestore(&iclock_lock, flags);
 		return;
 	}
-	if (iclock_tv_valid) {
+	if (iclock_timestamp_valid) {
 		/* increment sample counter by given samples */
 		iclock_count += samples;
-		if (tv) { /* tv must be set, if function call is delayed */
-			iclock_tv.tv_sec = tv->tv_sec;
-			iclock_tv.tv_usec = tv->tv_usec;
-		} else
-			do_gettimeofday(&iclock_tv);
+		if (timestamp) { /* timestamp must be set, if function call is delayed */
+			iclock_timestamp = *timestamp;
+		} else	{
+			iclock_timestamp = ktime_get();
+		}
 	} else {
 		/* calc elapsed time by system clock */
-		if (tv) { /* tv must be set, if function call is delayed */
-			tv_now.tv_sec = tv->tv_sec;
-			tv_now.tv_usec = tv->tv_usec;
-		} else
-			do_gettimeofday(&tv_now);
-		elapsed_sec = tv_now.tv_sec - iclock_tv.tv_sec;
-		elapsed_8000th = (tv_now.tv_usec / 125)
-			- (iclock_tv.tv_usec / 125);
-		if (elapsed_8000th < 0) {
-			elapsed_sec -= 1;
-			elapsed_8000th += 8000;
+		if (timestamp) { /* timestamp must be set, if function call is delayed */
+			timestamp_now = *timestamp;
+		} else {
+			timestamp_now = ktime_get();
 		}
+		delta = ktime_divns(ktime_sub(timestamp_now, iclock_timestamp),
+				(NSEC_PER_SEC / 8000));
 		/* add elapsed time to counter and set new timestamp */
-		iclock_count += elapsed_sec * 8000 + elapsed_8000th;
-		iclock_tv.tv_sec = tv_now.tv_sec;
-		iclock_tv.tv_usec = tv_now.tv_usec;
-		iclock_tv_valid = 1;
+		iclock_count += delta;
+		iclock_timestamp = timestamp_now;
+		iclock_timestamp_valid = 1;
 		if (*debug & DEBUG_CLOCK)
 			printk("Received first clock from source '%s'.\n",
 			       iclock_current ? iclock_current->name : "nothing");
@@ -195,22 +189,17 @@ unsigned short
 mISDN_clock_get(void)
 {
 	u_long		flags;
-	struct timeval	tv_now;
-	time_t		elapsed_sec;
-	int		elapsed_8000th;
+	ktime_t		timestamp_now;
+	u16		delta;
 	u16		count;
 
 	read_lock_irqsave(&iclock_lock, flags);
 	/* calc elapsed time by system clock */
-	do_gettimeofday(&tv_now);
-	elapsed_sec = tv_now.tv_sec - iclock_tv.tv_sec;
-	elapsed_8000th = (tv_now.tv_usec / 125) - (iclock_tv.tv_usec / 125);
-	if (elapsed_8000th < 0) {
-		elapsed_sec -= 1;
-		elapsed_8000th += 8000;
-	}
+	timestamp_now = ktime_get();
+	delta = ktime_divns(ktime_sub(timestamp_now, iclock_timestamp),
+			(NSEC_PER_SEC / 8000));
 	/* add elapsed time to counter */
-	count =	iclock_count + elapsed_sec * 8000 + elapsed_8000th;
+	count =	iclock_count + delta;
 	read_unlock_irqrestore(&iclock_lock, flags);
 	return count;
 }

@@ -94,10 +94,7 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 			desc = NULL;
 			ret = cookie;
 		}
-		dev_dbg(&host->pdev->dev, "%s(): mapped %d -> %d, cookie %d, rq %p\n",
-			__func__, host->sg_len, ret, cookie, host->mrq);
 	}
-
 pio:
 	if (!desc) {
 		/* DMA failed, fall back to PIO */
@@ -115,9 +112,6 @@ pio:
 		dev_warn(&host->pdev->dev,
 			 "DMA failed: %d, falling back to PIO\n", ret);
 	}
-
-	dev_dbg(&host->pdev->dev, "%s(): desc %p, sg[%d]\n", __func__,
-		desc, host->sg_len);
 }
 
 static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
@@ -174,10 +168,7 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 			desc = NULL;
 			ret = cookie;
 		}
-		dev_dbg(&host->pdev->dev, "%s(): mapped %d -> %d, cookie %d, rq %p\n",
-			__func__, host->sg_len, ret, cookie, host->mrq);
 	}
-
 pio:
 	if (!desc) {
 		/* DMA failed, fall back to PIO */
@@ -195,8 +186,6 @@ pio:
 		dev_warn(&host->pdev->dev,
 			 "DMA failed: %d, falling back to PIO\n", ret);
 	}
-
-	dev_dbg(&host->pdev->dev, "%s(): desc %p\n", __func__, desc);
 }
 
 void tmio_mmc_start_dma(struct tmio_mmc_host *host,

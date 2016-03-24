@@ -20,10 +20,10 @@
 
 static int mmap_handler(struct perf_tool *tool __maybe_unused,
 			union perf_event *event,
-			struct perf_sample *sample __maybe_unused,
+			struct perf_sample *sample,
 			struct machine *machine)
 {
-	return machine__process_mmap2_event(machine, event, NULL);
+	return machine__process_mmap2_event(machine, event, sample);
 }
 
 static int init_live_machine(struct machine *machine)

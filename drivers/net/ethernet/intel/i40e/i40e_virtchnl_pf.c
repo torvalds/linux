@@ -352,6 +352,136 @@ irq_list_done:
 }
 
 /**
+ * i40e_release_iwarp_qvlist
+ * @vf: pointer to the VF.
+ *
+ **/
+static void i40e_release_iwarp_qvlist(struct i40e_vf *vf)
+{
+	struct i40e_pf *pf = vf->pf;
+	struct i40e_virtchnl_iwarp_qvlist_info *qvlist_info = vf->qvlist_info;
+	u32 msix_vf;
+	u32 i;
+
+	if (!vf->qvlist_info)
+		return;
+
+	msix_vf = pf->hw.func_caps.num_msix_vectors_vf;
+	for (i = 0; i < qvlist_info->num_vectors; i++) {
+		struct i40e_virtchnl_iwarp_qv_info *qv_info;
+		u32 next_q_index, next_q_type;
+		struct i40e_hw *hw = &pf->hw;
+		u32 v_idx, reg_idx, reg;
+
+		qv_info = &qvlist_info->qv_info[i];
+		if (!qv_info)
+			continue;
+		v_idx = qv_info->v_idx;
+		if (qv_info->ceq_idx != I40E_QUEUE_INVALID_IDX) {
+			/* Figure out the queue after CEQ and make that the
+			 * first queue.
+			 */
+			reg_idx = (msix_vf - 1) * vf->vf_id + qv_info->ceq_idx;
+			reg = rd32(hw, I40E_VPINT_CEQCTL(reg_idx));
+			next_q_index = (reg & I40E_VPINT_CEQCTL_NEXTQ_INDX_MASK)
+					>> I40E_VPINT_CEQCTL_NEXTQ_INDX_SHIFT;
+			next_q_type = (reg & I40E_VPINT_CEQCTL_NEXTQ_TYPE_MASK)
+					>> I40E_VPINT_CEQCTL_NEXTQ_TYPE_SHIFT;
+
+			reg_idx = ((msix_vf - 1) * vf->vf_id) + (v_idx - 1);
+			reg = (next_q_index &
+			       I40E_VPINT_LNKLSTN_FIRSTQ_INDX_MASK) |
+			       (next_q_type <<
+			       I40E_VPINT_LNKLSTN_FIRSTQ_TYPE_SHIFT);
+
+			wr32(hw, I40E_VPINT_LNKLSTN(reg_idx), reg);
+		}
+	}
+	kfree(vf->qvlist_info);
+	vf->qvlist_info = NULL;
+}
+
+/**
+ * i40e_config_iwarp_qvlist
+ * @vf: pointer to the VF info
+ * @qvlist_info: queue and vector list
+ *
+ * Return 0 on success or < 0 on error
+ **/
+static int i40e_config_iwarp_qvlist(struct i40e_vf *vf,
+				    struct i40e_virtchnl_iwarp_qvlist_info *qvlist_info)
+{
+	struct i40e_pf *pf = vf->pf;
+	struct i40e_hw *hw = &pf->hw;
+	struct i40e_virtchnl_iwarp_qv_info *qv_info;
+	u32 v_idx, i, reg_idx, reg;
+	u32 next_q_idx, next_q_type;
+	u32 msix_vf, size;
+
+	size = sizeof(struct i40e_virtchnl_iwarp_qvlist_info) +
+	       (sizeof(struct i40e_virtchnl_iwarp_qv_info) *
+						(qvlist_info->num_vectors - 1));
+	vf->qvlist_info = kzalloc(size, GFP_KERNEL);
+	vf->qvlist_info->num_vectors = qvlist_info->num_vectors;
+
+	msix_vf = pf->hw.func_caps.num_msix_vectors_vf;
+	for (i = 0; i < qvlist_info->num_vectors; i++) {
+		qv_info = &qvlist_info->qv_info[i];
+		if (!qv_info)
+			continue;
+		v_idx = qv_info->v_idx;
+
+		/* Validate vector id belongs to this vf */
+		if (!i40e_vc_isvalid_vector_id(vf, v_idx))
+			goto err;
+
+		vf->qvlist_info->qv_info[i] = *qv_info;
+
+		reg_idx = ((msix_vf - 1) * vf->vf_id) + (v_idx - 1);
+		/* We might be sharing the interrupt, so get the first queue
+		 * index and type, push it down the list by adding the new
+		 * queue on top. Also link it with the new queue in CEQCTL.
+		 */
+		reg = rd32(hw, I40E_VPINT_LNKLSTN(reg_idx));
+		next_q_idx = ((reg & I40E_VPINT_LNKLSTN_FIRSTQ_INDX_MASK) >>
+				I40E_VPINT_LNKLSTN_FIRSTQ_INDX_SHIFT);
+		next_q_type = ((reg & I40E_VPINT_LNKLSTN_FIRSTQ_TYPE_MASK) >>
+				I40E_VPINT_LNKLSTN_FIRSTQ_TYPE_SHIFT);
+
+		if (qv_info->ceq_idx != I40E_QUEUE_INVALID_IDX) {
+			reg_idx = (msix_vf - 1) * vf->vf_id + qv_info->ceq_idx;
+			reg = (I40E_VPINT_CEQCTL_CAUSE_ENA_MASK |
+			(v_idx << I40E_VPINT_CEQCTL_MSIX_INDX_SHIFT) |
+			(qv_info->itr_idx << I40E_VPINT_CEQCTL_ITR_INDX_SHIFT) |
+			(next_q_type << I40E_VPINT_CEQCTL_NEXTQ_TYPE_SHIFT) |
+			(next_q_idx << I40E_VPINT_CEQCTL_NEXTQ_INDX_SHIFT));
+			wr32(hw, I40E_VPINT_CEQCTL(reg_idx), reg);
+
+			reg_idx = ((msix_vf - 1) * vf->vf_id) + (v_idx - 1);
+			reg = (qv_info->ceq_idx &
+			       I40E_VPINT_LNKLSTN_FIRSTQ_INDX_MASK) |
+			       (I40E_QUEUE_TYPE_PE_CEQ <<
+			       I40E_VPINT_LNKLSTN_FIRSTQ_TYPE_SHIFT);
+			wr32(hw, I40E_VPINT_LNKLSTN(reg_idx), reg);
+		}
+
+		if (qv_info->aeq_idx != I40E_QUEUE_INVALID_IDX) {
+			reg = (I40E_VPINT_AEQCTL_CAUSE_ENA_MASK |
+			(v_idx << I40E_VPINT_AEQCTL_MSIX_INDX_SHIFT) |
+			(qv_info->itr_idx << I40E_VPINT_AEQCTL_ITR_INDX_SHIFT));
+
+			wr32(hw, I40E_VPINT_AEQCTL(vf->vf_id), reg);
+		}
+	}
+
+	return 0;
+err:
+	kfree(vf->qvlist_info);
+	vf->qvlist_info = NULL;
+	return -EINVAL;
+}
+
+/**
  * i40e_config_vsi_tx_queue
  * @vf: pointer to the VF info
  * @vsi_id: id of VSI as provided by the FW
@@ -850,9 +980,11 @@ complete_reset:
 	/* reallocate VF resources to reset the VSI state */
 	i40e_free_vf_res(vf);
 	if (!i40e_alloc_vf_res(vf)) {
+		int abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 		i40e_enable_vf_mappings(vf);
 		set_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
 		clear_bit(I40E_VF_STAT_DISABLED, &vf->vf_states);
+		i40e_notify_client_of_vf_reset(pf, abs_vf_id);
 	}
 	/* tell the VF the reset is done */
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_id), I40E_VFR_VFACTIVE);
@@ -877,11 +1009,7 @@ void i40e_free_vfs(struct i40e_pf *pf)
 	while (test_and_set_bit(__I40E_VF_DISABLE, &pf->state))
 		usleep_range(1000, 2000);
 
-	for (i = 0; i < pf->num_alloc_vfs; i++)
-		if (test_bit(I40E_VF_STAT_INIT, &pf->vf[i].vf_states))
-			i40e_vsi_control_rings(pf->vsi[pf->vf[i].lan_vsi_idx],
-					       false);
-
+	i40e_notify_client_of_vf_enable(pf, 0);
 	for (i = 0; i < pf->num_alloc_vfs; i++)
 		if (test_bit(I40E_VF_STAT_INIT, &pf->vf[i].vf_states))
 			i40e_vsi_control_rings(pf->vsi[pf->vf[i].lan_vsi_idx],
@@ -953,6 +1081,7 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 			goto err_iov;
 		}
 	}
+	i40e_notify_client_of_vf_enable(pf, num_alloc_vfs);
 	/* allocate memory */
 	vfs = kcalloc(num_alloc_vfs, sizeof(struct i40e_vf), GFP_KERNEL);
 	if (!vfs) {
@@ -1206,6 +1335,13 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 	vsi = pf->vsi[vf->lan_vsi_idx];
 	if (!vsi->info.pvid)
 		vfres->vf_offload_flags |= I40E_VIRTCHNL_VF_OFFLOAD_VLAN;
+
+	if (i40e_vf_client_capable(pf, vf->vf_id, I40E_CLIENT_IWARP) &&
+	    (vf->driver_caps & I40E_VIRTCHNL_VF_OFFLOAD_IWARP)) {
+		vfres->vf_offload_flags |= I40E_VIRTCHNL_VF_OFFLOAD_IWARP;
+		set_bit(I40E_VF_STAT_IWARPENA, &vf->vf_states);
+	}
+
 	if (pf->flags & I40E_FLAG_RSS_AQ_CAPABLE) {
 		if (vf->driver_caps & I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ)
 			vfres->vf_offload_flags |=
@@ -1827,6 +1963,72 @@ error_param:
 }
 
 /**
+ * i40e_vc_iwarp_msg
+ * @vf: pointer to the VF info
+ * @msg: pointer to the msg buffer
+ * @msglen: msg length
+ *
+ * called from the VF for the iwarp msgs
+ **/
+static int i40e_vc_iwarp_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
+{
+	struct i40e_pf *pf = vf->pf;
+	int abs_vf_id = vf->vf_id + pf->hw.func_caps.vf_base_id;
+	i40e_status aq_ret = 0;
+
+	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
+	    !test_bit(I40E_VF_STAT_IWARPENA, &vf->vf_states)) {
+		aq_ret = I40E_ERR_PARAM;
+		goto error_param;
+	}
+
+	i40e_notify_client_of_vf_msg(pf->vsi[pf->lan_vsi], abs_vf_id,
+				     msg, msglen);
+
+error_param:
+	/* send the response to the VF */
+	return i40e_vc_send_resp_to_vf(vf, I40E_VIRTCHNL_OP_IWARP,
+				       aq_ret);
+}
+
+/**
+ * i40e_vc_iwarp_qvmap_msg
+ * @vf: pointer to the VF info
+ * @msg: pointer to the msg buffer
+ * @msglen: msg length
+ * @config: config qvmap or release it
+ *
+ * called from the VF for the iwarp msgs
+ **/
+static int i40e_vc_iwarp_qvmap_msg(struct i40e_vf *vf, u8 *msg, u16 msglen,
+				   bool config)
+{
+	struct i40e_virtchnl_iwarp_qvlist_info *qvlist_info =
+				(struct i40e_virtchnl_iwarp_qvlist_info *)msg;
+	i40e_status aq_ret = 0;
+
+	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
+	    !test_bit(I40E_VF_STAT_IWARPENA, &vf->vf_states)) {
+		aq_ret = I40E_ERR_PARAM;
+		goto error_param;
+	}
+
+	if (config) {
+		if (i40e_config_iwarp_qvlist(vf, qvlist_info))
+			aq_ret = I40E_ERR_PARAM;
+	} else {
+		i40e_release_iwarp_qvlist(vf);
+	}
+
+error_param:
+	/* send the response to the VF */
+	return i40e_vc_send_resp_to_vf(vf,
+			       config ? I40E_VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP :
+			       I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP,
+			       aq_ret);
+}
+
+/**
  * i40e_vc_validate_vf_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
@@ -1921,6 +2123,32 @@ static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
 	case I40E_VIRTCHNL_OP_GET_STATS:
 		valid_len = sizeof(struct i40e_virtchnl_queue_select);
 		break;
+	case I40E_VIRTCHNL_OP_IWARP:
+		/* These messages are opaque to us and will be validated in
+		 * the RDMA client code. We just need to check for nonzero
+		 * length. The firmware will enforce max length restrictions.
+		 */
+		if (msglen)
+			valid_len = msglen;
+		else
+			err_msg_format = true;
+		break;
+	case I40E_VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP:
+		valid_len = 0;
+		break;
+	case I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP:
+		valid_len = sizeof(struct i40e_virtchnl_iwarp_qvlist_info);
+		if (msglen >= valid_len) {
+			struct i40e_virtchnl_iwarp_qvlist_info *qv =
+				(struct i40e_virtchnl_iwarp_qvlist_info *)msg;
+			if (qv->num_vectors == 0) {
+				err_msg_format = true;
+				break;
+			}
+			valid_len += ((qv->num_vectors - 1) *
+				sizeof(struct i40e_virtchnl_iwarp_qv_info));
+		}
+		break;
 	/* These are always errors coming from the VF. */
 	case I40E_VIRTCHNL_OP_EVENT:
 	case I40E_VIRTCHNL_OP_UNKNOWN:
@@ -2009,6 +2237,15 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, u16 vf_id, u32 v_opcode,
 		break;
 	case I40E_VIRTCHNL_OP_GET_STATS:
 		ret = i40e_vc_get_stats_msg(vf, msg, msglen);
+		break;
+	case I40E_VIRTCHNL_OP_IWARP:
+		ret = i40e_vc_iwarp_msg(vf, msg, msglen);
+		break;
+	case I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP:
+		ret = i40e_vc_iwarp_qvmap_msg(vf, msg, msglen, true);
+		break;
+	case I40E_VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP:
+		ret = i40e_vc_iwarp_qvmap_msg(vf, msg, msglen, false);
 		break;
 	case I40E_VIRTCHNL_OP_UNKNOWN:
 	default:

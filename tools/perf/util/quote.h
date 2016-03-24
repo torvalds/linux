@@ -24,6 +24,6 @@
  * sq_quote() in a real application.
  */
 
-extern void sq_quote_argv(struct strbuf *, const char **argv, size_t maxlen);
+void sq_quote_argv(struct strbuf *, const char **argv, size_t maxlen);
 
 #endif /* __PERF_QUOTE_H */

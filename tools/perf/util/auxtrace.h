@@ -517,7 +517,7 @@ static inline void auxtrace__free(struct perf_session *session)
 
 static inline struct auxtrace_record *
 auxtrace_record__init(struct perf_evlist *evlist __maybe_unused,
-		      int *err __maybe_unused)
+		      int *err)
 {
 	*err = 0;
 	return NULL;

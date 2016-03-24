@@ -55,8 +55,8 @@
 #define ARC_REG_TIMER1_CTRL	0x101	/* timer 1 control */
 #define ARC_REG_TIMER1_CNT	0x100	/* timer 1 count */
 
-#define TIMER_CTRL_IE		(1 << 0) /* Interupt when Count reachs limit */
-#define TIMER_CTRL_NH		(1 << 1) /* Count only when CPU NOT halted */
+#define TIMER_CTRL_IE	(1 << 0) /* Interrupt when Count reaches limit */
+#define TIMER_CTRL_NH	(1 << 1) /* Count only when CPU NOT halted */
 
 #define ARC_TIMER_MAX	0xFFFFFFFF
 

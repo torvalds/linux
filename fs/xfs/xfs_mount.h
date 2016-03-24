@@ -147,6 +147,17 @@ typedef struct xfs_mount {
 	 * to various other kinds of pain inflicted on the pNFS server.
 	 */
 	__uint32_t		m_generation;
+
+#ifdef DEBUG
+	/*
+	 * DEBUG mode instrumentation to test and/or trigger delayed allocation
+	 * block killing in the event of failed writes. When enabled, all
+	 * buffered writes are forced to fail. All delalloc blocks in the range
+	 * of the write (including pre-existing delalloc blocks!) are tossed as
+	 * part of the write failure error handling sequence.
+	 */
+	bool			m_fail_writes;
+#endif
 } xfs_mount_t;
 
 /*
@@ -166,9 +177,8 @@ typedef struct xfs_mount {
 #define XFS_MOUNT_GRPID		(1ULL << 9)	/* group-ID assigned from directory */
 #define XFS_MOUNT_NORECOVERY	(1ULL << 10)	/* no recovery - dirty fs */
 #define XFS_MOUNT_DFLT_IOSIZE	(1ULL << 12)	/* set default i/o size */
-#define XFS_MOUNT_32BITINODES	(1ULL << 14)	/* do not create inodes above
-						 * 32 bits in size */
-#define XFS_MOUNT_SMALL_INUMS	(1ULL << 15)	/* users wants 32bit inodes */
+#define XFS_MOUNT_SMALL_INUMS	(1ULL << 14)	/* user wants 32bit inodes */
+#define XFS_MOUNT_32BITINODES	(1ULL << 15)	/* inode32 allocator active */
 #define XFS_MOUNT_NOUUID	(1ULL << 16)	/* ignore uuid during mount */
 #define XFS_MOUNT_BARRIER	(1ULL << 17)
 #define XFS_MOUNT_IKEEP		(1ULL << 18)	/* keep empty inode clusters*/
@@ -264,6 +274,20 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 	return (xfs_agblock_t) do_div(ld, mp->m_sb.sb_agblocks);
 }
 
+#ifdef DEBUG
+static inline bool
+xfs_mp_fail_writes(struct xfs_mount *mp)
+{
+	return mp->m_fail_writes;
+}
+#else
+static inline bool
+xfs_mp_fail_writes(struct xfs_mount *mp)
+{
+	return 0;
+}
+#endif
+
 /*
  * Per-ag incore structure, copies of information in agf and agi, to improve the
  * performance of allocation group selection.
@@ -327,7 +351,6 @@ extern int	xfs_mod_fdblocks(struct xfs_mount *mp, int64_t delta,
 				 bool reserved);
 extern int	xfs_mod_frextents(struct xfs_mount *mp, int64_t delta);
 
-extern int	xfs_mount_log_sb(xfs_mount_t *);
 extern struct xfs_buf *xfs_getsb(xfs_mount_t *, int);
 extern int	xfs_readsb(xfs_mount_t *, int);
 extern void	xfs_freesb(xfs_mount_t *);
