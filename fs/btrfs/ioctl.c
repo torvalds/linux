@@ -4430,7 +4430,7 @@ static long btrfs_ioctl_dev_replace(struct btrfs_root *root, void __user *arg)
 			1)) {
 			ret = BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
 		} else {
-			ret = btrfs_dev_replace_start(root, p);
+			ret = btrfs_dev_replace_by_ioctl(root, p);
 			atomic_set(
 			 &root->fs_info->mutually_exclusive_operation_running,
 			 0);

@@ -302,8 +302,8 @@ void btrfs_after_dev_replace_commit(struct btrfs_fs_info *fs_info)
 		dev_replace->cursor_left_last_write_of_item;
 }
 
-int btrfs_dev_replace_start(struct btrfs_root *root,
-			    struct btrfs_ioctl_dev_replace_args *args)
+int btrfs_dev_replace_start(struct btrfs_root *root, char *tgtdev_name,
+				u64 srcdevid, char *srcdev_name, int read_src)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -312,25 +312,16 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	struct btrfs_device *tgt_device = NULL;
 	struct btrfs_device *src_device = NULL;
 
-	switch (args->start.cont_reading_from_srcdev_mode) {
-	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_ALWAYS:
-	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_AVOID:
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	/* the disk copy procedure reuses the scrub code */
 	mutex_lock(&fs_info->volume_mutex);
-	ret = btrfs_find_device_by_devspec(root, args->start.srcdevid,
-					    args->start.srcdev_name,
-					    &src_device);
+	ret = btrfs_find_device_by_devspec(root, srcdevid,
+					    srcdev_name, &src_device);
 	if (ret) {
 		mutex_unlock(&fs_info->volume_mutex);
 		return ret;
 	}
 
-	ret = btrfs_init_dev_replace_tgtdev(root, args->start.tgtdev_name,
+	ret = btrfs_init_dev_replace_tgtdev(root, tgtdev_name,
 					    src_device, &tgt_device);
 	mutex_unlock(&fs_info->volume_mutex);
 	if (ret)
@@ -357,12 +348,11 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 		break;
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED:
-		args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_ALREADY_STARTED;
+		ret = BTRFS_IOCTL_DEV_REPLACE_RESULT_ALREADY_STARTED;
 		goto leave;
 	}
 
-	dev_replace->cont_reading_from_srcdev_mode =
-		args->start.cont_reading_from_srcdev_mode;
+	dev_replace->cont_reading_from_srcdev_mode = read_src;
 	WARN_ON(!src_device);
 	dev_replace->srcdev = src_device;
 	WARN_ON(!tgt_device);
@@ -389,7 +379,6 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	dev_replace->item_needs_writeback = 1;
 	atomic64_set(&dev_replace->num_write_errors, 0);
 	atomic64_set(&dev_replace->num_uncorrectable_read_errors, 0);
-	args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_NO_ERROR;
 	btrfs_dev_replace_unlock(dev_replace, 1);
 
 	ret = btrfs_sysfs_add_device_link(tgt_device->fs_devices, tgt_device);
@@ -415,10 +404,8 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 			      &dev_replace->scrub_progress, 0, 1);
 
 	ret = btrfs_dev_replace_finishing(fs_info, ret);
-	/* don't warn if EINPROGRESS, someone else might be running scrub */
 	if (ret == -EINPROGRESS) {
-		args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_SCRUB_INPROGRESS;
-		ret = 0;
+		ret = BTRFS_IOCTL_DEV_REPLACE_RESULT_SCRUB_INPROGRESS;
 	} else {
 		WARN_ON(ret);
 	}
@@ -430,6 +417,35 @@ leave:
 	dev_replace->tgtdev = NULL;
 	btrfs_dev_replace_unlock(dev_replace, 1);
 	btrfs_destroy_dev_replace_tgtdev(fs_info, tgt_device);
+	return ret;
+}
+
+int btrfs_dev_replace_by_ioctl(struct btrfs_root *root,
+			    struct btrfs_ioctl_dev_replace_args *args)
+{
+	int ret;
+
+	switch (args->start.cont_reading_from_srcdev_mode) {
+	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_ALWAYS:
+	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_AVOID:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if ((args->start.srcdevid == 0 && args->start.srcdev_name[0] == '\0') ||
+	    args->start.tgtdev_name[0] == '\0')
+		return -EINVAL;
+
+	ret = btrfs_dev_replace_start(root, args->start.tgtdev_name,
+					args->start.srcdevid,
+					args->start.srcdev_name,
+					args->start.cont_reading_from_srcdev_mode);
+	args->result = ret;
+	/* don't warn if EINPROGRESS, someone else might be running scrub */
+	if (ret == BTRFS_IOCTL_DEV_REPLACE_RESULT_SCRUB_INPROGRESS)
+		ret = 0;
+
 	return ret;
 }
 
