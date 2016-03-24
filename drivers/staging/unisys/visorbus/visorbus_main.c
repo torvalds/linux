@@ -420,7 +420,7 @@ static ssize_t client_bus_info_show(struct device *dev,
 	struct visor_device *vdev = to_visor_device(dev);
 	struct visorchannel *channel = vdev->visorchannel;
 
-	int i, x, remain = PAGE_SIZE;
+	int i, shift, remain = PAGE_SIZE;
 	unsigned long off;
 	char *pos = buf;
 	u8 *partition_name;
@@ -430,44 +430,45 @@ static ssize_t client_bus_info_show(struct device *dev,
 	if (channel) {
 		if (vdev->name)
 			partition_name = vdev->name;
-		x = snprintf(pos, remain,
-			     "Client device / client driver info for %s partition (vbus #%d):\n",
-			     partition_name, vdev->chipset_dev_no);
-		pos += x;
-		remain -= x;
-		x = visorchannel_read(channel,
-				      offsetof(struct
-					       spar_vbus_channel_protocol,
-					       chp_info),
-				      &dev_info, sizeof(dev_info));
-		if (x >= 0) {
-			x = vbuschannel_devinfo_to_string(&dev_info, pos,
-							  remain, -1);
-			pos += x;
-			remain -= x;
+		shift = snprintf(pos, remain,
+				 "Client device / client driver info for %s eartition (vbus #%d):\n",
+				 partition_name, vdev->chipset_dev_no);
+		pos += shift;
+		remain -= shift;
+		shift = visorchannel_read(channel,
+					  offsetof(struct
+						   spar_vbus_channel_protocol,
+						   chp_info),
+					  &dev_info, sizeof(dev_info));
+		if (shift >= 0) {
+			shift = vbuschannel_devinfo_to_string(&dev_info, pos,
+							      remain, -1);
+			pos += shift;
+			remain -= shift;
 		}
-		x = visorchannel_read(channel,
-				      offsetof(struct
-					       spar_vbus_channel_protocol,
-					       bus_info),
-				      &dev_info, sizeof(dev_info));
-		if (x >= 0) {
-			x = vbuschannel_devinfo_to_string(&dev_info, pos,
-							  remain, -1);
-			pos += x;
-			remain -= x;
+		shift = visorchannel_read(channel,
+					  offsetof(struct
+						   spar_vbus_channel_protocol,
+						   bus_info),
+					  &dev_info, sizeof(dev_info));
+		if (shift >= 0) {
+			shift = vbuschannel_devinfo_to_string(&dev_info, pos,
+							      remain, -1);
+			pos += shift;
+			remain -= shift;
 		}
 		off = offsetof(struct spar_vbus_channel_protocol, dev_info);
 		i = 0;
 		while (off + sizeof(dev_info) <=
 		       visorchannel_get_nbytes(channel)) {
-			x = visorchannel_read(channel,
-					      off, &dev_info, sizeof(dev_info));
-			if (x >= 0) {
-				x = vbuschannel_devinfo_to_string
+			shift = visorchannel_read(channel,
+						  off, &dev_info,
+						  sizeof(dev_info));
+			if (shift >= 0) {
+				shift = vbuschannel_devinfo_to_string
 				    (&dev_info, pos, remain, i);
-				pos += x;
-				remain -= x;
+				pos += shift;
+				remain -= shift;
 			}
 			off += sizeof(dev_info);
 			i++;
