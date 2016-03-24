@@ -57,9 +57,6 @@
 /* Highest firmware API version supported */
 #define IWL9000_UCODE_API_MAX	21
 
-/* Oldest version we won't warn about */
-#define IWL9000_UCODE_API_OK	16
-
 /* Lowest firmware API version supported */
 #define IWL9000_UCODE_API_MIN	16
 
@@ -122,7 +119,6 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 
 #define IWL_DEVICE_9000							\
 	.ucode_api_max = IWL9000_UCODE_API_MAX,				\
-	.ucode_api_ok = IWL9000_UCODE_API_OK,				\
 	.ucode_api_min = IWL9000_UCODE_API_MIN,				\
 	.device_family = IWL_DEVICE_FAMILY_8000,			\
 	.max_inst_size = IWL60_RTC_INST_SIZE,				\
@@ -164,4 +160,4 @@ const struct iwl_cfg iwl5165_2ac_cfg = {
 		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
 };
 
-MODULE_FIRMWARE(IWL9000_MODULE_FIRMWARE(IWL9000_UCODE_API_OK));
+MODULE_FIRMWARE(IWL9000_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));

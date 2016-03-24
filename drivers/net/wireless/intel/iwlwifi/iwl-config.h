@@ -279,8 +279,6 @@ struct iwl_pwr_tx_backoff {
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as fw_name_pre<api>.ucode.
  * @ucode_api_max: Highest version of uCode API supported by driver.
- * @ucode_api_ok: oldest version of the uCode API that is OK to load
- *	without a warning, for use in transitions
  * @ucode_api_min: Lowest version of uCode API supported by driver.
  * @max_inst_size: The maximal length of the fw inst section
  * @max_data_size: The maximal length of the fw data section
@@ -326,7 +324,6 @@ struct iwl_cfg {
 	const char *name;
 	const char *fw_name_pre;
 	const unsigned int ucode_api_max;
-	const unsigned int ucode_api_ok;
 	const unsigned int ucode_api_min;
 	const enum iwl_device_family device_family;
 	const u32 max_data_size;

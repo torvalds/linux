@@ -1206,7 +1206,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	int err;
 	struct iwl_firmware_pieces *pieces;
 	const unsigned int api_max = drv->cfg->ucode_api_max;
-	unsigned int api_ok = drv->cfg->ucode_api_ok;
 	const unsigned int api_min = drv->cfg->ucode_api_min;
 	size_t trigger_tlv_sz[FW_DBG_TRIGGER_MAX];
 	u32 api_ver;
@@ -1219,20 +1218,12 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
 
-	if (!api_ok)
-		api_ok = api_max;
-
 	pieces = kzalloc(sizeof(*pieces), GFP_KERNEL);
 	if (!pieces)
 		return;
 
-	if (!ucode_raw) {
-		if (drv->fw_index <= api_ok)
-			IWL_ERR(drv,
-				"request for firmware file '%s' failed.\n",
-				drv->firmware_name);
+	if (!ucode_raw)
 		goto try_again;
-	}
 
 	IWL_DEBUG_INFO(drv, "Loaded firmware file '%s' (%zd bytes).\n",
 		       drv->firmware_name, ucode_raw->size);
@@ -1270,19 +1261,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 				"Driver supports v%u, firmware is v%u.\n",
 				api_max, api_ver);
 			goto try_again;
-		}
-
-		if (api_ver < api_ok) {
-			if (api_ok != api_max)
-				IWL_ERR(drv, "Firmware has old API version, "
-					"expected v%u through v%u, got v%u.\n",
-					api_ok, api_max, api_ver);
-			else
-				IWL_ERR(drv, "Firmware has old API version, "
-					"expected v%u, got v%u.\n",
-					api_max, api_ver);
-			IWL_ERR(drv, "New firmware can be obtained from "
-				      "http://www.intellinuxwireless.org/.\n");
 		}
 	}
 
