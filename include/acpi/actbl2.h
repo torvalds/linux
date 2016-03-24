@@ -1107,10 +1107,10 @@ struct acpi_table_slic {
 /*******************************************************************************
  *
  * SPCR - Serial Port Console Redirection table
- *        Version 1
+ *        Version 2
  *
  * Conforms to "Serial Port Console Redirection Table",
- * Version 1.00, January 11, 2002
+ * Version 1.03, August 10, 2015
  *
  ******************************************************************************/
 
@@ -1141,6 +1141,8 @@ struct acpi_table_spcr {
 /* Masks for pci_flags field above */
 
 #define ACPI_SPCR_DO_NOT_DISABLE    (1)
+
+/* Values for Interface Type: See the definition of the DBG2 table */
 
 /*******************************************************************************
  *
