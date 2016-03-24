@@ -175,10 +175,9 @@ static void acpi_ec_event_processor(struct work_struct *work);
 struct acpi_ec *boot_ec, *first_ec;
 EXPORT_SYMBOL(first_ec);
 
-static int EC_FLAGS_VALIDATE_ECDT; /* ASUStec ECDTs need to be validated */
-static int EC_FLAGS_SKIP_DSDT_SCAN; /* Not all BIOS survive early DSDT scan */
 static int EC_FLAGS_CLEAR_ON_RESUME; /* Needs acpi_ec_clear() on boot/resume */
 static int EC_FLAGS_QUERY_HANDSHAKE; /* Needs QR_EC issued when SCI_EVT set */
+static int EC_FLAGS_CORRECT_ECDT; /* Needs ECDT port address correction */
 
 /* --------------------------------------------------------------------------
  *                           Logging/Debugging
@@ -1358,11 +1357,12 @@ static int acpi_ec_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ACPI_EC_CLASS);
 
 	/* Check for boot EC */
-	if (boot_ec &&
-	    (boot_ec->handle == device->handle ||
-	     boot_ec->handle == ACPI_ROOT_OBJECT)) {
+	if (boot_ec) {
 		ec = boot_ec;
 		boot_ec = NULL;
+		ec_remove_handlers(ec);
+		if (first_ec == ec)
+			first_ec = NULL;
 	} else {
 		ec = make_acpi_ec();
 		if (!ec)
@@ -1462,20 +1462,6 @@ static const struct acpi_device_id ec_device_ids[] = {
 	{"", 0},
 };
 
-/* Some BIOS do not survive early DSDT scan, skip it */
-static int ec_skip_dsdt_scan(const struct dmi_system_id *id)
-{
-	EC_FLAGS_SKIP_DSDT_SCAN = 1;
-	return 0;
-}
-
-/* ASUStek often supplies us with broken ECDT, validate it */
-static int ec_validate_ecdt(const struct dmi_system_id *id)
-{
-	EC_FLAGS_VALIDATE_ECDT = 1;
-	return 0;
-}
-
 #if 0
 /*
  * Some EC firmware variations refuses to respond QR_EC when SCI_EVT is not
@@ -1517,29 +1503,28 @@ static int ec_clear_on_resume(const struct dmi_system_id *id)
 	return 0;
 }
 
+static int ec_correct_ecdt(const struct dmi_system_id *id)
+{
+	pr_debug("Detected system needing ECDT address correction.\n");
+	EC_FLAGS_CORRECT_ECDT = 1;
+	return 0;
+}
+
 static struct dmi_system_id ec_dmi_table[] __initdata = {
 	{
-	ec_skip_dsdt_scan, "Compal JFL92", {
-	DMI_MATCH(DMI_BIOS_VENDOR, "COMPAL"),
-	DMI_MATCH(DMI_BOARD_NAME, "JFL92") }, NULL},
+	ec_correct_ecdt, "Asus L4R", {
+	DMI_MATCH(DMI_BIOS_VERSION, "1008.006"),
+	DMI_MATCH(DMI_PRODUCT_NAME, "L4R"),
+	DMI_MATCH(DMI_BOARD_NAME, "L4R") }, NULL},
 	{
-	ec_validate_ecdt, "MSI MS-171F", {
+	ec_correct_ecdt, "Asus M6R", {
+	DMI_MATCH(DMI_BIOS_VERSION, "0207"),
+	DMI_MATCH(DMI_PRODUCT_NAME, "M6R"),
+	DMI_MATCH(DMI_BOARD_NAME, "M6R") }, NULL},
+	{
+	ec_correct_ecdt, "MSI MS-171F", {
 	DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star"),
 	DMI_MATCH(DMI_PRODUCT_NAME, "MS-171F"),}, NULL},
-	{
-	ec_validate_ecdt, "ASUS hardware", {
-	DMI_MATCH(DMI_BIOS_VENDOR, "ASUS") }, NULL},
-	{
-	ec_validate_ecdt, "ASUS hardware", {
-	DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer Inc.") }, NULL},
-	{
-	ec_skip_dsdt_scan, "HP Folio 13", {
-	DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "HP Folio 13"),}, NULL},
-	{
-	ec_validate_ecdt, "ASUS hardware", {
-	DMI_MATCH(DMI_SYS_VENDOR, "ASUSTek Computer Inc."),
-	DMI_MATCH(DMI_PRODUCT_NAME, "L4R"),}, NULL},
 	{
 	ec_clear_on_resume, "Samsung hardware", {
 	DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD.")}, NULL},
@@ -1548,8 +1533,8 @@ static struct dmi_system_id ec_dmi_table[] __initdata = {
 
 int __init acpi_ec_ecdt_probe(void)
 {
+	int ret = 0;
 	acpi_status status;
-	struct acpi_ec *saved_ec = NULL;
 	struct acpi_table_ecdt *ecdt_ptr;
 
 	boot_ec = make_acpi_ec();
@@ -1561,67 +1546,45 @@ int __init acpi_ec_ecdt_probe(void)
 	dmi_check_system(ec_dmi_table);
 	status = acpi_get_table(ACPI_SIG_ECDT, 1,
 				(struct acpi_table_header **)&ecdt_ptr);
-	if (ACPI_SUCCESS(status)) {
-		pr_info("EC description table is found, configuring boot EC\n");
+	if (ACPI_FAILURE(status)) {
+		ret = -ENODEV;
+		goto error;
+	}
+
+	if (!ecdt_ptr->control.address || !ecdt_ptr->data.address) {
+		/*
+		 * Asus X50GL:
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=11880
+		 */
+		ret = -ENODEV;
+		goto error;
+	}
+
+	pr_info("EC description table is found, configuring boot EC\n");
+	if (EC_FLAGS_CORRECT_ECDT) {
+		/*
+		 * Asus L4R, Asus M6R
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=9399
+		 * MSI MS-171F
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=12461
+		 */
+		boot_ec->command_addr = ecdt_ptr->data.address;
+		boot_ec->data_addr = ecdt_ptr->control.address;
+	} else {
 		boot_ec->command_addr = ecdt_ptr->control.address;
 		boot_ec->data_addr = ecdt_ptr->data.address;
-		boot_ec->gpe = ecdt_ptr->gpe;
-		boot_ec->handle = ACPI_ROOT_OBJECT;
-		acpi_get_handle(ACPI_ROOT_OBJECT, ecdt_ptr->id,
-				&boot_ec->handle);
-		/* Don't trust ECDT, which comes from ASUSTek */
-		if (!EC_FLAGS_VALIDATE_ECDT)
-			goto install;
-		saved_ec = kmemdup(boot_ec, sizeof(struct acpi_ec), GFP_KERNEL);
-		if (!saved_ec)
-			return -ENOMEM;
-	/* fall through */
 	}
-
-	if (EC_FLAGS_SKIP_DSDT_SCAN) {
-		kfree(saved_ec);
-		return -ENODEV;
-	}
-
-	/* This workaround is needed only on some broken machines,
-	 * which require early EC, but fail to provide ECDT */
-	pr_debug("Look up EC in DSDT\n");
-	status = acpi_get_devices(ec_device_ids[0].id, ec_parse_device,
-					boot_ec, NULL);
-	/* Check that acpi_get_devices actually find something */
-	if (ACPI_FAILURE(status) || !boot_ec->handle)
-		goto error;
-	if (saved_ec) {
-		/* try to find good ECDT from ASUSTek */
-		if (saved_ec->command_addr != boot_ec->command_addr ||
-		    saved_ec->data_addr != boot_ec->data_addr ||
-		    saved_ec->gpe != boot_ec->gpe ||
-		    saved_ec->handle != boot_ec->handle)
-			pr_info("ASUSTek keeps feeding us with broken "
-			"ECDT tables, which are very hard to workaround. "
-			"Trying to use DSDT EC info instead. Please send "
-			"output of acpidump to linux-acpi@vger.kernel.org\n");
-		kfree(saved_ec);
-		saved_ec = NULL;
-	} else {
-		/* We really need to limit this workaround, the only ASUS,
-		* which needs it, has fake EC._INI method, so use it as flag.
-		* Keep boot_ec struct as it will be needed soon.
-		*/
-		if (!dmi_name_in_vendors("ASUS") ||
-		    !acpi_has_method(boot_ec->handle, "_INI"))
-			return -ENODEV;
-	}
-install:
-	if (!ec_install_handlers(boot_ec)) {
+	boot_ec->gpe = ecdt_ptr->gpe;
+	boot_ec->handle = ACPI_ROOT_OBJECT;
+	ret = ec_install_handlers(boot_ec);
+	if (!ret)
 		first_ec = boot_ec;
-		return 0;
-	}
 error:
-	kfree(boot_ec);
-	kfree(saved_ec);
-	boot_ec = NULL;
-	return -ENODEV;
+	if (ret) {
+		kfree(boot_ec);
+		boot_ec = NULL;
+	}
+	return ret;
 }
 
 static int param_set_event_clearing(const char *val, struct kernel_param *kp)
