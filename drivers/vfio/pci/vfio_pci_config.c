@@ -408,6 +408,7 @@ static void vfio_bar_restore(struct vfio_pci_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	u32 *rbar = vdev->rbar;
+	u16 cmd;
 	int i;
 
 	if (pdev->is_virtfn)
@@ -420,6 +421,12 @@ static void vfio_bar_restore(struct vfio_pci_device *vdev)
 		pci_user_write_config_dword(pdev, i, *rbar);
 
 	pci_user_write_config_dword(pdev, PCI_ROM_ADDRESS, *rbar);
+
+	if (vdev->nointx) {
+		pci_user_read_config_word(pdev, PCI_COMMAND, &cmd);
+		cmd |= PCI_COMMAND_INTX_DISABLE;
+		pci_user_write_config_word(pdev, PCI_COMMAND, cmd);
+	}
 }
 
 static __le32 vfio_generate_bar_flags(struct pci_dev *pdev, int bar)
@@ -1545,7 +1552,7 @@ int vfio_config_init(struct vfio_pci_device *vdev)
 		*(__le16 *)&vconfig[PCI_DEVICE_ID] = cpu_to_le16(pdev->device);
 	}
 
-	if (!IS_ENABLED(CONFIG_VFIO_PCI_INTX))
+	if (!IS_ENABLED(CONFIG_VFIO_PCI_INTX) || vdev->nointx)
 		vconfig[PCI_INTERRUPT_PIN] = 0;
 
 	ret = vfio_cap_init(vdev);
