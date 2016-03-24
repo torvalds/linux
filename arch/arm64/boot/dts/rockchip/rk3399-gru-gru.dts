@@ -1,0 +1,141 @@
+/*
+ * Google Gru-Gru Rev 0+ board device tree source
+ *
+ * Copyright 2016 Google, Inc
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *  Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+#include "rk3399-gru.dtsi"
+
+/ {
+	model = "Google Gru";
+	compatible = "google,gru-rev15", "google,gru-rev14",
+		     "google,gru-rev13", "google,gru-rev12",
+		     "google,gru-rev11", "google,gru-rev10",
+		     "google,gru-rev9", "google,gru-rev8",
+		     "google,gru-rev7", "google,gru-rev6",
+		     "google,gru-rev5", "google,gru-rev4",
+		     "google,gru-rev3", "google,gru-rev2",
+		     "google,gru-rev1", "google,gru-rev0",
+		     "google,gru", "google,veyron", "rockchip,rk3399";
+
+	/* pp1800 children */
+
+	pp1800_fp: pp1800-fp {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1800_fp";
+		pinctrl-names = "default";
+		pinctrl-0 = <&fp_en>;
+
+		enable-active-high;
+		gpio = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+
+		regulator-always-on;
+		regulator-boot-on;
+
+		vin-supply = <&pp1800>;
+	};
+
+	/* pp3300 children */
+
+	pp3300_fp: pp3300-fp {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_fp";
+		/* NOTE: fp_en pinctrl in pp1800_fp */
+
+		enable-active-high;
+		gpio = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+
+		regulator-always-on;
+		regulator-boot-on;
+
+		vin-supply = <&pp3300>;
+	};
+};
+
+ap_i2c_dvs: &i2c0 {
+	status = "okay";
+
+	// TODO: bus speed
+	//       ...with no speed, it should just use 100kHz
+	// TODO: rise / fall times?
+
+	/* LP8556 */
+	backlight@2c {
+		compatible = "ti,lp8556";
+		reg = <0x2c>;
+
+		bl-name = "lcd-bl";
+		dev-ctrl = /bits/ 8 <0x85>;
+		init-brt = /bits/ 8 <0x10>;
+
+		power-supply = <&pp3300_disp>;
+	};
+};
+
+ap_i2c_cam: &i2c2 {
+	status = "okay";
+};
+
+ap_i2c_nfc: &i2c7 {
+	status = "okay";
+};
+
+&spi4 {
+	status = "okay";
+
+	fingerprint@0 {
+		compatible = "spidev";
+		spi-max-frequency = <10000000>;
+		reg = <0>;
+	};
+};
+
+/* PINCTRL: always below everything else */
+
+&pinctrl {
+	discrete-regulators {
+		fp_en: fp-en {
+			rockchip,pins = <RK_GPIO1 1 RK_FUNC_GPIO
+					 &pcfg_pull_none>;
+		};
+	};
+};
