@@ -198,8 +198,6 @@ void
 acpi_ev_detach_region(union acpi_operand_object *region_obj,
 		      u8 acpi_ns_is_locked);
 
-void acpi_ev_associate_reg_method(union acpi_operand_object *region_obj);
-
 void
 acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
 			    acpi_adr_space_type space_id, u32 function);
