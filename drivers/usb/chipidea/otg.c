@@ -158,7 +158,7 @@ static void ci_otg_work(struct work_struct *work)
 int ci_hdrc_otg_init(struct ci_hdrc *ci)
 {
 	INIT_WORK(&ci->work, ci_otg_work);
-	ci->wq = create_singlethread_workqueue("ci_otg");
+	ci->wq = create_freezable_workqueue("ci_otg");
 	if (!ci->wq) {
 		dev_err(ci->dev, "can't create workqueue\n");
 		return -ENODEV;

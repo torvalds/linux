@@ -11,8 +11,11 @@
 #include <linux/smp.h>
 #include <linux/irq.h>
 #include <linux/spinlock.h>
+#include <asm/irqflags-arcv2.h>
 #include <asm/mcip.h>
 #include <asm/setup.h>
+
+#define SOFTIRQ_IRQ	21
 
 static char smp_cpuinfo_buf[128];
 static int idu_detected;
@@ -22,12 +25,19 @@ static DEFINE_RAW_SPINLOCK(mcip_lock);
 static void mcip_setup_per_cpu(int cpu)
 {
 	smp_ipi_irq_setup(cpu, IPI_IRQ);
+	smp_ipi_irq_setup(cpu, SOFTIRQ_IRQ);
 }
 
 static void mcip_ipi_send(int cpu)
 {
 	unsigned long flags;
 	int ipi_was_pending;
+
+	/* ARConnect can only send IPI to others */
+	if (unlikely(cpu == raw_smp_processor_id())) {
+		arc_softirq_trigger(SOFTIRQ_IRQ);
+		return;
+	}
 
 	/*
 	 * NOTE: We must spin here if the other cpu hasn't yet
@@ -62,6 +72,11 @@ static void mcip_ipi_clear(int irq)
 	unsigned int cpu, c;
 	unsigned long flags;
 	unsigned int __maybe_unused copy;
+
+	if (unlikely(irq == SOFTIRQ_IRQ)) {
+		arc_softirq_clear(irq);
+		return;
+	}
 
 	raw_spin_lock_irqsave(&mcip_lock, flags);
 

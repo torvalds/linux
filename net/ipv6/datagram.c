@@ -163,6 +163,9 @@ ipv4_connected:
 	fl6.fl6_sport = inet->inet_sport;
 	fl6.flowi6_uid = sock_i_uid(sk);
 
+	if (!fl6.flowi6_oif)
+		fl6.flowi6_oif = np->sticky_pktinfo.ipi6_ifindex;
+
 	if (!fl6.flowi6_oif && (addr_type&IPV6_ADDR_MULTICAST))
 		fl6.flowi6_oif = np->mcast_oif;
 

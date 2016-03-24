@@ -636,6 +636,13 @@ static u32 __of_msi_map_rid(struct device *dev, struct device_node **np,
 		msi_base = be32_to_cpup(msi_map + 2);
 		rid_len = be32_to_cpup(msi_map + 3);
 
+		if (rid_base & ~map_mask) {
+			dev_err(parent_dev,
+				"Invalid msi-map translation - msi-map-mask (0x%x) ignores rid-base (0x%x)\n",
+				map_mask, rid_base);
+			return rid_out;
+		}
+
 		msi_controller_node = of_find_node_by_phandle(phandle);
 
 		matched = (masked_rid >= rid_base &&
@@ -655,7 +662,7 @@ static u32 __of_msi_map_rid(struct device *dev, struct device_node **np,
 	if (!matched)
 		return rid_out;
 
-	rid_out = masked_rid + msi_base;
+	rid_out = masked_rid - rid_base + msi_base;
 	dev_dbg(dev,
 		"msi-map at: %s, using mask %08x, rid-base: %08x, msi-base: %08x, length: %08x, rid: %08x -> %08x\n",
 		dev_name(parent_dev), map_mask, rid_base, msi_base,

@@ -335,7 +335,7 @@ static void dedotify(Elf64_Sym *syms, unsigned int numsyms, char *strtab)
 		if (syms[i].st_shndx == SHN_UNDEF) {
 			char *name = strtab + syms[i].st_name;
 			if (name[0] == '.')
-				memmove(name, name+1, strlen(name));
+				syms[i].st_name++;
 		}
 	}
 }

@@ -414,7 +414,7 @@ static int cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
 		delta = mftb() - psl_tb;
 		if (delta < 0)
 			delta = -delta;
-	} while (cputime_to_usecs(delta) > 16);
+	} while (tb_to_ns(delta) > 16000);
 
 	return 0;
 }

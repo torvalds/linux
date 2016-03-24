@@ -789,14 +789,16 @@ static void inet_child_forget(struct sock *sk, struct request_sock *req,
 	reqsk_put(req);
 }
 
-void inet_csk_reqsk_queue_add(struct sock *sk, struct request_sock *req,
-			      struct sock *child)
+struct sock *inet_csk_reqsk_queue_add(struct sock *sk,
+				      struct request_sock *req,
+				      struct sock *child)
 {
 	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
 
 	spin_lock(&queue->rskq_lock);
 	if (unlikely(sk->sk_state != TCP_LISTEN)) {
 		inet_child_forget(sk, req, child);
+		child = NULL;
 	} else {
 		req->sk = child;
 		req->dl_next = NULL;
@@ -808,6 +810,7 @@ void inet_csk_reqsk_queue_add(struct sock *sk, struct request_sock *req,
 		sk_acceptq_added(sk);
 	}
 	spin_unlock(&queue->rskq_lock);
+	return child;
 }
 EXPORT_SYMBOL(inet_csk_reqsk_queue_add);
 
@@ -817,11 +820,8 @@ struct sock *inet_csk_complete_hashdance(struct sock *sk, struct sock *child,
 	if (own_req) {
 		inet_csk_reqsk_queue_drop(sk, req);
 		reqsk_queue_removed(&inet_csk(sk)->icsk_accept_queue, req);
-		inet_csk_reqsk_queue_add(sk, req, child);
-		/* Warning: caller must not call reqsk_put(req);
-		 * child stole last reference on it.
-		 */
-		return child;
+		if (inet_csk_reqsk_queue_add(sk, req, child))
+			return child;
 	}
 	/* Too bad, another child took ownership of the request, undo. */
 	bh_unlock_sock(child);

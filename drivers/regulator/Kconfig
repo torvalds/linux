@@ -446,6 +446,7 @@ config REGULATOR_MC13892
 config REGULATOR_MT6311
 	tristate "MediaTek MT6311 PMIC"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  Say y here to select this option to enable the power regulator of
 	  MediaTek MT6311 PMIC.

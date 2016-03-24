@@ -162,10 +162,9 @@ choice
 		  mobile SoCs in the Kona family of chips (e.g. bcm28155,
 		  bcm11351, etc...)
 
-	config DEBUG_BCM63XX
+	config DEBUG_BCM63XX_UART
 		bool "Kernel low-level debugging on BCM63XX UART"
 		depends on ARCH_BCM_63XX
-		select DEBUG_UART_BCM63XX
 
 	config DEBUG_BERLIN_UART
 		bool "Marvell Berlin SoC Debug UART"
@@ -1348,7 +1347,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/vf.S" if DEBUG_VF_UART
 	default "debug/vt8500.S" if DEBUG_VT8500_UART0
 	default "debug/zynq.S" if DEBUG_ZYNQ_UART0 || DEBUG_ZYNQ_UART1
-	default "debug/bcm63xx.S" if DEBUG_UART_BCM63XX
+	default "debug/bcm63xx.S" if DEBUG_BCM63XX_UART
 	default "debug/digicolor.S" if DEBUG_DIGICOLOR_UA0
 	default "mach/debug-macro.S"
 
@@ -1363,10 +1362,6 @@ config DEBUG_UART_8250
 		ARCH_GEMINI || ARCH_IOP13XX || ARCH_IOP32X || \
 		ARCH_IOP33X || ARCH_IXP4XX || \
 		ARCH_LPC32XX || ARCH_MV78XX0 || ARCH_ORION5X || ARCH_RPC
-
-# Compatibility options for BCM63xx
-config DEBUG_UART_BCM63XX
-	def_bool ARCH_BCM_63XX
 
 config DEBUG_UART_PHYS
 	hex "Physical base address of debug UART"
@@ -1462,7 +1457,7 @@ config DEBUG_UART_PHYS
 	default 0xfffb0000 if DEBUG_OMAP1UART1 || DEBUG_OMAP7XXUART1
 	default 0xfffb0800 if DEBUG_OMAP1UART2 || DEBUG_OMAP7XXUART2
 	default 0xfffb9800 if DEBUG_OMAP1UART3 || DEBUG_OMAP7XXUART3
-	default 0xfffe8600 if DEBUG_UART_BCM63XX
+	default 0xfffe8600 if DEBUG_BCM63XX_UART
 	default 0xfffff700 if ARCH_IOP33X
 	depends on ARCH_EP93XX || \
 	        DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
@@ -1474,7 +1469,7 @@ config DEBUG_UART_PHYS
 		DEBUG_RCAR_GEN2_SCIF0 || DEBUG_RCAR_GEN2_SCIF2 || \
 		DEBUG_RMOBILE_SCIFA0 || DEBUG_RMOBILE_SCIFA1 || \
 		DEBUG_RMOBILE_SCIFA4 || DEBUG_S3C24XX_UART || \
-		DEBUG_UART_BCM63XX || DEBUG_ASM9260_UART || \
+		DEBUG_BCM63XX_UART || DEBUG_ASM9260_UART || \
 		DEBUG_SIRFSOC_UART || DEBUG_DIGICOLOR_UA0 || \
 		DEBUG_AT91_UART
 
@@ -1515,7 +1510,7 @@ config DEBUG_UART_VIRT
 	default 0xfb10c000 if DEBUG_REALVIEW_PB1176_PORT
 	default 0xfc40ab00 if DEBUG_BRCMSTB_UART
 	default 0xfc705000 if DEBUG_ZTE_ZX
-	default 0xfcfe8600 if DEBUG_UART_BCM63XX
+	default 0xfcfe8600 if DEBUG_BCM63XX_UART
 	default 0xfd000000 if ARCH_SPEAR3XX || ARCH_SPEAR6XX
 	default 0xfd000000 if ARCH_SPEAR13XX
 	default 0xfd012000 if ARCH_MV78XX0
@@ -1566,7 +1561,7 @@ config DEBUG_UART_VIRT
 		DEBUG_UART_8250 || DEBUG_UART_PL01X || DEBUG_MESON_UARTAO || \
 		DEBUG_NETX_UART || \
 		DEBUG_QCOM_UARTDM || DEBUG_S3C24XX_UART || \
-		DEBUG_UART_BCM63XX || DEBUG_ASM9260_UART || \
+		DEBUG_BCM63XX_UART || DEBUG_ASM9260_UART || \
 		DEBUG_SIRFSOC_UART || DEBUG_DIGICOLOR_UA0
 
 config DEBUG_UART_8250_SHIFT

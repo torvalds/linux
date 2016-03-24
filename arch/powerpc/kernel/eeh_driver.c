@@ -418,8 +418,7 @@ static void *eeh_rmv_device(void *data, void *userdata)
 		eeh_pcid_put(dev);
 		if (driver->err_handler &&
 		    driver->err_handler->error_detected &&
-		    driver->err_handler->slot_reset &&
-		    driver->err_handler->resume)
+		    driver->err_handler->slot_reset)
 			return NULL;
 	}
 

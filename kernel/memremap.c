@@ -133,8 +133,10 @@ void *devm_memremap(struct device *dev, resource_size_t offset,
 	if (addr) {
 		*ptr = addr;
 		devres_add(dev, ptr);
-	} else
+	} else {
 		devres_free(ptr);
+		return ERR_PTR(-ENXIO);
+	}
 
 	return addr;
 }

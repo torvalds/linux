@@ -1984,11 +1984,6 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 				     vxlan->cfg.port_max, true);
 
 	if (info) {
-		if (info->key.tun_flags & TUNNEL_CSUM)
-			flags |= VXLAN_F_UDP_CSUM;
-		else
-			flags &= ~VXLAN_F_UDP_CSUM;
-
 		ttl = info->key.ttl;
 		tos = info->key.tos;
 
@@ -2003,8 +1998,15 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			goto drop;
 		sk = vxlan->vn4_sock->sock->sk;
 
-		if (info && (info->key.tun_flags & TUNNEL_DONT_FRAGMENT))
-			df = htons(IP_DF);
+		if (info) {
+			if (info->key.tun_flags & TUNNEL_DONT_FRAGMENT)
+				df = htons(IP_DF);
+
+			if (info->key.tun_flags & TUNNEL_CSUM)
+				flags |= VXLAN_F_UDP_CSUM;
+			else
+				flags &= ~VXLAN_F_UDP_CSUM;
+		}
 
 		memset(&fl4, 0, sizeof(fl4));
 		fl4.flowi4_oif = rdst ? rdst->remote_ifindex : 0;
@@ -2100,6 +2102,13 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 				goto tx_error;
 			vxlan_encap_bypass(skb, vxlan, dst_vxlan);
 			return;
+		}
+
+		if (info) {
+			if (info->key.tun_flags & TUNNEL_CSUM)
+				flags &= ~VXLAN_F_UDP_ZERO_CSUM6_TX;
+			else
+				flags |= VXLAN_F_UDP_ZERO_CSUM6_TX;
 		}
 
 		ttl = ttl ? : ip6_dst_hoplimit(ndst);
