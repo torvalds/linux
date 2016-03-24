@@ -93,7 +93,7 @@ static struct posix_acl *v9fs_get_cached_acl(struct inode *inode, int type)
 	 * instantiating the inode (v9fs_inode_from_fid)
 	 */
 	acl = get_cached_acl(inode, type);
-	BUG_ON(acl == ACL_NOT_CACHED);
+	BUG_ON(is_uncached_acl(acl));
 	return acl;
 }
 

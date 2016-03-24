@@ -197,10 +197,8 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 
 	size = reiserfs_xattr_get(inode, name, NULL, 0);
 	if (size < 0) {
-		if (size == -ENODATA || size == -ENOSYS) {
-			set_cached_acl(inode, type, NULL);
+		if (size == -ENODATA || size == -ENOSYS)
 			return NULL;
-		}
 		return ERR_PTR(size);
 	}
 
@@ -220,8 +218,6 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 	} else {
 		acl = reiserfs_posix_acl_from_disk(value, retval);
 	}
-	if (!IS_ERR(acl))
-		set_cached_acl(inode, type, acl);
 
 	kfree(value);
 	return acl;

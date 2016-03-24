@@ -63,9 +63,6 @@ struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 	}
 	kfree(value);
 
-	if (!IS_ERR(acl))
-		set_cached_acl(inode, type, acl);
-
 	return acl;
 }
 
