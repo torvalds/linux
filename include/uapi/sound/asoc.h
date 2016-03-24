@@ -116,6 +116,14 @@
 #define SND_SOC_TPLG_STREAM_PLAYBACK	0
 #define SND_SOC_TPLG_STREAM_CAPTURE	1
 
+/* vendor tuple types */
+#define SND_SOC_TPLG_TUPLE_TYPE_UUID	0
+#define SND_SOC_TPLG_TUPLE_TYPE_STRING	1
+#define SND_SOC_TPLG_TUPLE_TYPE_BOOL	2
+#define SND_SOC_TPLG_TUPLE_TYPE_BYTE	3
+#define SND_SOC_TPLG_TUPLE_TYPE_WORD	4
+#define SND_SOC_TPLG_TUPLE_TYPE_SHORT	5
+
 /*
  * Block Header.
  * This header precedes all object and object arrays below.
@@ -132,6 +140,35 @@ struct snd_soc_tplg_hdr {
 	__le32 count;		/* number of elements in block */
 } __attribute__((packed));
 
+/* vendor tuple for uuid */
+struct snd_soc_tplg_vendor_uuid_elem {
+	__le32 token;
+	char uuid[16];
+} __attribute__((packed));
+
+/* vendor tuple for a bool/byte/short/word value */
+struct snd_soc_tplg_vendor_value_elem {
+	__le32 token;
+	__le32 value;
+} __attribute__((packed));
+
+/* vendor tuple for string */
+struct snd_soc_tplg_vendor_string_elem {
+	__le32 token;
+	char string[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+} __attribute__((packed));
+
+struct snd_soc_tplg_vendor_array {
+	__le32 size;	/* size in bytes of the array, including all elements */
+	__le32 type;	/* SND_SOC_TPLG_TUPLE_TYPE_ */
+	__le32 num_elems;	/* number of elements in array */
+	union {
+		struct snd_soc_tplg_vendor_uuid_elem uuid[0];
+		struct snd_soc_tplg_vendor_value_elem value[0];
+		struct snd_soc_tplg_vendor_string_elem string[0];
+	};
+} __attribute__((packed));
+
 /*
  * Private data.
  * All topology objects may have private data that can be used by the driver or
@@ -139,7 +176,10 @@ struct snd_soc_tplg_hdr {
  */
 struct snd_soc_tplg_private {
 	__le32 size;	/* in bytes of private data */
-	char data[0];
+	union {
+		char data[0];
+		struct snd_soc_tplg_vendor_array array[0];
+	};
 } __attribute__((packed));
 
 /*
