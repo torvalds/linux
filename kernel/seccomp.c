@@ -915,7 +915,7 @@ long seccomp_get_filter(struct task_struct *task, unsigned long filter_off,
 
 	fprog = filter->prog->orig_prog;
 	if (!fprog) {
-		/* This must be a new non-cBPF filter, since we save every
+		/* This must be a new non-cBPF filter, since we save
 		 * every cBPF filter's orig_prog above when
 		 * CONFIG_CHECKPOINT_RESTORE is enabled.
 		 */
