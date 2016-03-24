@@ -3070,7 +3070,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	int slot;
 	u64 nstripes;
 	struct extent_buffer *l;
-	struct btrfs_key key;
 	u64 physical;
 	u64 logical;
 	u64 logic_end;
@@ -3079,7 +3078,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	int mirror_num;
 	struct reada_control *reada1;
 	struct reada_control *reada2;
-	struct btrfs_key key_start;
+	struct btrfs_key key;
 	struct btrfs_key key_end;
 	u64 increment = map->stripe_len;
 	u64 offset;
@@ -3158,21 +3157,21 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	scrub_blocked_if_needed(fs_info);
 
 	/* FIXME it might be better to start readahead at commit root */
-	key_start.objectid = logical;
-	key_start.type = BTRFS_EXTENT_ITEM_KEY;
-	key_start.offset = (u64)0;
+	key.objectid = logical;
+	key.type = BTRFS_EXTENT_ITEM_KEY;
+	key.offset = (u64)0;
 	key_end.objectid = logic_end;
 	key_end.type = BTRFS_METADATA_ITEM_KEY;
 	key_end.offset = (u64)-1;
-	reada1 = btrfs_reada_add(root, &key_start, &key_end);
+	reada1 = btrfs_reada_add(root, &key, &key_end);
 
-	key_start.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
-	key_start.type = BTRFS_EXTENT_CSUM_KEY;
-	key_start.offset = logical;
+	key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
+	key.type = BTRFS_EXTENT_CSUM_KEY;
+	key.offset = logical;
 	key_end.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
 	key_end.type = BTRFS_EXTENT_CSUM_KEY;
 	key_end.offset = logic_end;
-	reada2 = btrfs_reada_add(csum_root, &key_start, &key_end);
+	reada2 = btrfs_reada_add(csum_root, &key, &key_end);
 
 	if (!IS_ERR(reada1))
 		btrfs_reada_wait(reada1);
