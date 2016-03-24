@@ -984,7 +984,7 @@ struct acpi_msct_proximity {
 
 /*******************************************************************************
  *
- * NFIT - NVDIMM Interface Table (ACPI 6.0)
+ * NFIT - NVDIMM Interface Table (ACPI 6.0+)
  *        Version 1
  *
  ******************************************************************************/
@@ -1065,6 +1065,7 @@ struct acpi_nfit_memory_map {
 #define ACPI_NFIT_MEM_NOT_ARMED         (1<<3)	/* 03: Memory Device is not armed */
 #define ACPI_NFIT_MEM_HEALTH_OBSERVED   (1<<4)	/* 04: Memory Device observed SMART/health events */
 #define ACPI_NFIT_MEM_HEALTH_ENABLED    (1<<5)	/* 05: SMART/health events enabled */
+#define ACPI_NFIT_MEM_MAP_FAILED        (1<<6)	/* 06: Mapping to SPA failed */
 
 /* 2: Interleave Structure */
 
@@ -1096,7 +1097,10 @@ struct acpi_nfit_control_region {
 	u16 subsystem_vendor_id;
 	u16 subsystem_device_id;
 	u16 subsystem_revision_id;
-	u8 reserved[6];		/* Reserved, must be zero */
+	u8 valid_fields;
+	u8 manufacturing_location;
+	u16 manufacturing_date;
+	u8 reserved[2];		/* Reserved, must be zero */
 	u32 serial_number;
 	u16 code;
 	u16 windows;
@@ -1111,7 +1115,11 @@ struct acpi_nfit_control_region {
 
 /* Flags */
 
-#define ACPI_NFIT_CONTROL_BUFFERED      (1)	/* Block Data Windows implementation is buffered */
+#define ACPI_NFIT_CONTROL_BUFFERED          (1)	/* Block Data Windows implementation is buffered */
+
+/* valid_fields bits */
+
+#define ACPI_NFIT_CONTROL_MFG_INFO_VALID    (1)	/* Manufacturing fields are valid */
 
 /* 5: NVDIMM Block Data Window Region Structure */
 
