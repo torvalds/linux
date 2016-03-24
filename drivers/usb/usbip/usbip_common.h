@@ -267,7 +267,6 @@ struct usbip_device {
 	struct task_struct *tcp_tx;
 
 	unsigned long event;
-	struct task_struct *eh;
 	wait_queue_head_t eh_waitq;
 
 	struct eh_ops {
@@ -313,10 +312,13 @@ void usbip_pad_iso(struct usbip_device *ud, struct urb *urb);
 int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb);
 
 /* usbip_event.c */
+int usbip_init_eh(void);
+void usbip_finish_eh(void);
 int usbip_start_eh(struct usbip_device *ud);
 void usbip_stop_eh(struct usbip_device *ud);
 void usbip_event_add(struct usbip_device *ud, unsigned long event);
 int usbip_event_happened(struct usbip_device *ud);
+int usbip_in_eh(struct task_struct *task);
 
 static inline int interface_to_busnum(struct usb_interface *interface)
 {
