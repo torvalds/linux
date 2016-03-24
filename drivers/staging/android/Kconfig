@@ -14,20 +14,6 @@ config ASHMEM
 	  It is, in theory, a good memory allocator for low-memory devices,
 	  because it can discard shared memory units when under memory pressure.
 
-config ANDROID_TIMED_OUTPUT
-	bool "Timed output class driver"
-	default y
-
-config ANDROID_TIMED_GPIO
-	tristate "Android timed gpio driver"
-	depends on GPIOLIB || COMPILE_TEST
-	depends on ANDROID_TIMED_OUTPUT
-	default n
-        ---help---
-	  Unlike generic gpio is to allow programs to access and manipulate gpio
-	  registers from user space, timed output/gpio is a system to allow changing
-	  a gpio pin and restore it automatically after a specified timeout.
-
 config ANDROID_LOW_MEMORY_KILLER
 	bool "Android Low Memory Killer"
 	---help---
