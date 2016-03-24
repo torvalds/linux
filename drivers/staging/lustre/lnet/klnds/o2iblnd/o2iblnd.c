@@ -1965,10 +1965,13 @@ static int kiblnd_net_init_pools(kib_net_t *net, __u32 *cpts, int ncpts)
 	/*
 	 * premapping can fail if ibd_nmr > 1, so we always create
 	 * FMR pool and map-on-demand if premapping failed
+	 *
+	 * cfs_precpt_alloc is creating an array of struct kib_fmr_poolset
+	 * The number of struct kib_fmr_poolsets create is equal to the
+	 * number of CPTs that exist, i.e net->ibn_fmr_ps[cpt].
 	 */
-
 	net->ibn_fmr_ps = cfs_percpt_alloc(lnet_cpt_table(),
-					   sizeof(*net->ibn_fmr_ps));
+					   sizeof(kib_fmr_poolset_t));
 	if (!net->ibn_fmr_ps) {
 		CERROR("Failed to allocate FMR pool array\n");
 		rc = -ENOMEM;
@@ -1991,8 +1994,13 @@ static int kiblnd_net_init_pools(kib_net_t *net, __u32 *cpts, int ncpts)
 		LASSERT(i == ncpts);
 
  create_tx_pool:
+	/*
+	 * cfs_precpt_alloc is creating an array of struct kib_tx_poolset
+	 * The number of struct kib_tx_poolsets create is equal to the
+	 * number of CPTs that exist, i.e net->ibn_tx_ps[cpt].
+	 */
 	net->ibn_tx_ps = cfs_percpt_alloc(lnet_cpt_table(),
-					  sizeof(*net->ibn_tx_ps));
+					  sizeof(kib_tx_poolset_t));
 	if (!net->ibn_tx_ps) {
 		CERROR("Failed to allocate tx pool array\n");
 		rc = -ENOMEM;
