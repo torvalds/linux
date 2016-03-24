@@ -1030,8 +1030,7 @@ static __init void ftrace_profile_tracefs(struct dentry *d_tracer)
 	for_each_possible_cpu(cpu) {
 		stat = &per_cpu(ftrace_profile_stats, cpu);
 
-		/* allocate enough for function name + cpu number */
-		name = kmalloc(32, GFP_KERNEL);
+		name = kasprintf(GFP_KERNEL, "function%d", cpu);
 		if (!name) {
 			/*
 			 * The files created are permanent, if something happens
@@ -1043,7 +1042,6 @@ static __init void ftrace_profile_tracefs(struct dentry *d_tracer)
 			return;
 		}
 		stat->stat = function_stats;
-		snprintf(name, 32, "function%d", cpu);
 		stat->stat.name = name;
 		ret = register_stat_tracer(&stat->stat);
 		if (ret) {
@@ -1609,7 +1607,7 @@ static bool test_rec_ops_needs_regs(struct dyn_ftrace *rec)
 	return  keep_regs;
 }
 
-static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
+static bool __ftrace_hash_rec_update(struct ftrace_ops *ops,
 				     int filter_hash,
 				     bool inc)
 {
@@ -1617,12 +1615,13 @@ static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 	struct ftrace_hash *other_hash;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
+	bool update = false;
 	int count = 0;
 	int all = 0;
 
 	/* Only update if the ops has been registered */
 	if (!(ops->flags & FTRACE_OPS_FL_ENABLED))
-		return;
+		return false;
 
 	/*
 	 * In the filter_hash case:
@@ -1649,7 +1648,7 @@ static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 		 * then there's nothing to do.
 		 */
 		if (ftrace_hash_empty(hash))
-			return;
+			return false;
 	}
 
 	do_for_each_ftrace_rec(pg, rec) {
@@ -1693,7 +1692,7 @@ static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 		if (inc) {
 			rec->flags++;
 			if (FTRACE_WARN_ON(ftrace_rec_count(rec) == FTRACE_REF_MAX))
-				return;
+				return false;
 
 			/*
 			 * If there's only a single callback registered to a
@@ -1719,7 +1718,7 @@ static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 				rec->flags |= FTRACE_FL_REGS;
 		} else {
 			if (FTRACE_WARN_ON(ftrace_rec_count(rec) == 0))
-				return;
+				return false;
 			rec->flags--;
 
 			/*
@@ -1752,22 +1751,28 @@ static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
 			 */
 		}
 		count++;
+
+		/* Must match FTRACE_UPDATE_CALLS in ftrace_modify_all_code() */
+		update |= ftrace_test_record(rec, 1) != FTRACE_UPDATE_IGNORE;
+
 		/* Shortcut, if we handled all records, we are done. */
 		if (!all && count == hash->count)
-			return;
+			return update;
 	} while_for_each_ftrace_rec();
+
+	return update;
 }
 
-static void ftrace_hash_rec_disable(struct ftrace_ops *ops,
+static bool ftrace_hash_rec_disable(struct ftrace_ops *ops,
 				    int filter_hash)
 {
-	__ftrace_hash_rec_update(ops, filter_hash, 0);
+	return __ftrace_hash_rec_update(ops, filter_hash, 0);
 }
 
-static void ftrace_hash_rec_enable(struct ftrace_ops *ops,
+static bool ftrace_hash_rec_enable(struct ftrace_ops *ops,
 				   int filter_hash)
 {
-	__ftrace_hash_rec_update(ops, filter_hash, 1);
+	return __ftrace_hash_rec_update(ops, filter_hash, 1);
 }
 
 static void ftrace_hash_rec_update_modify(struct ftrace_ops *ops,
@@ -2643,7 +2648,6 @@ static int ftrace_startup(struct ftrace_ops *ops, int command)
 		return ret;
 
 	ftrace_start_up++;
-	command |= FTRACE_UPDATE_CALLS;
 
 	/*
 	 * Note that ftrace probes uses this to start up
@@ -2664,7 +2668,8 @@ static int ftrace_startup(struct ftrace_ops *ops, int command)
 		return ret;
 	}
 
-	ftrace_hash_rec_enable(ops, 1);
+	if (ftrace_hash_rec_enable(ops, 1))
+		command |= FTRACE_UPDATE_CALLS;
 
 	ftrace_startup_enable(command);
 
@@ -2694,11 +2699,11 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 
 	/* Disabling ipmodify never fails */
 	ftrace_hash_ipmodify_disable(ops);
-	ftrace_hash_rec_disable(ops, 1);
+
+	if (ftrace_hash_rec_disable(ops, 1))
+		command |= FTRACE_UPDATE_CALLS;
 
 	ops->flags &= ~FTRACE_OPS_FL_ENABLED;
-
-	command |= FTRACE_UPDATE_CALLS;
 
 	if (saved_ftrace_func != ftrace_trace_function) {
 		saved_ftrace_func = ftrace_trace_function;

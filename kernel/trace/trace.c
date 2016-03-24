@@ -74,11 +74,6 @@ static struct tracer_opt dummy_tracer_opt[] = {
 	{ }
 };
 
-static struct tracer_flags dummy_tracer_flags = {
-	.val = 0,
-	.opts = dummy_tracer_opt
-};
-
 static int
 dummy_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
@@ -1258,11 +1253,21 @@ int __init register_tracer(struct tracer *type)
 
 	if (!type->set_flag)
 		type->set_flag = &dummy_set_flag;
-	if (!type->flags)
-		type->flags = &dummy_tracer_flags;
-	else
+	if (!type->flags) {
+		/*allocate a dummy tracer_flags*/
+		type->flags = kmalloc(sizeof(*type->flags), GFP_KERNEL);
+		if (!type->flags) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		type->flags->val = 0;
+		type->flags->opts = dummy_tracer_opt;
+	} else
 		if (!type->flags->opts)
 			type->flags->opts = dummy_tracer_opt;
+
+	/* store the tracer for __set_tracer_option */
+	type->flags->trace = type;
 
 	ret = run_tracer_selftest(type);
 	if (ret < 0)
@@ -1659,6 +1664,7 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 #else
 		TRACE_FLAG_IRQS_NOSUPPORT |
 #endif
+		((pc & NMI_MASK    ) ? TRACE_FLAG_NMI     : 0) |
 		((pc & HARDIRQ_MASK) ? TRACE_FLAG_HARDIRQ : 0) |
 		((pc & SOFTIRQ_MASK) ? TRACE_FLAG_SOFTIRQ : 0) |
 		(tif_need_resched() ? TRACE_FLAG_NEED_RESCHED : 0) |
@@ -3505,7 +3511,7 @@ static int __set_tracer_option(struct trace_array *tr,
 			       struct tracer_flags *tracer_flags,
 			       struct tracer_opt *opts, int neg)
 {
-	struct tracer *trace = tr->current_trace;
+	struct tracer *trace = tracer_flags->trace;
 	int ret;
 
 	ret = trace->set_flag(tr, tracer_flags->val, opts->bit, !neg);
@@ -4949,7 +4955,10 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 
 	spd.nr_pages = i;
 
-	ret = splice_to_pipe(pipe, &spd);
+	if (i)
+		ret = splice_to_pipe(pipe, &spd);
+	else
+		ret = 0;
 out:
 	splice_shrink_spd(&spd);
 	return ret;
@@ -6391,11 +6400,8 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
 		return;
 
 	for (i = 0; i < tr->nr_topts; i++) {
-		/*
-		 * Check if these flags have already been added.
-		 * Some tracers share flags.
-		 */
-		if (tr->topts[i].tracer->flags == tracer->flags)
+		/* Make sure there's no duplicate flags. */
+		if (WARN_ON_ONCE(tr->topts[i].tracer->flags == tracer->flags))
 			return;
 	}
 

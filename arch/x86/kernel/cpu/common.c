@@ -692,7 +692,9 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 			cpuid_count(0x0000000F, 1, &eax, &ebx, &ecx, &edx);
 			c->x86_capability[CPUID_F_1_EDX] = edx;
 
-			if (cpu_has(c, X86_FEATURE_CQM_OCCUP_LLC)) {
+			if ((cpu_has(c, X86_FEATURE_CQM_OCCUP_LLC)) ||
+			      ((cpu_has(c, X86_FEATURE_CQM_MBM_TOTAL)) ||
+			       (cpu_has(c, X86_FEATURE_CQM_MBM_LOCAL)))) {
 				c->x86_cache_max_rmid = ecx;
 				c->x86_cache_occ_scale = ebx;
 			}
@@ -968,7 +970,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	if (this_cpu->c_identify)
 		this_cpu->c_identify(c);
 
-	/* Clear/Set all flags overriden by options, after probe */
+	/* Clear/Set all flags overridden by options, after probe */
 	for (i = 0; i < NCAPINTS; i++) {
 		c->x86_capability[i] &= ~cpu_caps_cleared[i];
 		c->x86_capability[i] |= cpu_caps_set[i];
@@ -1028,7 +1030,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	setup_pku(c);
 
 	/*
-	 * Clear/Set all flags overriden by options, need do it
+	 * Clear/Set all flags overridden by options, need do it
 	 * before following smp all cpus cap AND.
 	 */
 	for (i = 0; i < NCAPINTS; i++) {

@@ -670,7 +670,7 @@ iter_prepare_branch_entry(struct hist_entry_iter *iter, struct addr_location *al
 }
 
 static int
-iter_add_single_branch_entry(struct hist_entry_iter *iter __maybe_unused,
+iter_add_single_branch_entry(struct hist_entry_iter *iter,
 			     struct addr_location *al __maybe_unused)
 {
 	/* to avoid calling callback function */

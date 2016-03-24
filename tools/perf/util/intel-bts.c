@@ -678,7 +678,7 @@ static int intel_bts_process_auxtrace_event(struct perf_session *session,
 	return 0;
 }
 
-static int intel_bts_flush(struct perf_session *session __maybe_unused,
+static int intel_bts_flush(struct perf_session *session,
 			   struct perf_tool *tool __maybe_unused)
 {
 	struct intel_bts *bts = container_of(session->auxtrace, struct intel_bts,

@@ -13,8 +13,16 @@
 #define MSR_IA32_QM_CTR		0x0c8e
 #define MSR_IA32_QM_EVTSEL	0x0c8d
 
+#define MBM_CNTR_WIDTH		24
+/*
+ * Guaranteed time in ms as per SDM where MBM counters will not overflow.
+ */
+#define MBM_CTR_OVERFLOW_TIME	1000
+
 static u32 cqm_max_rmid = -1;
 static unsigned int cqm_l3_scale; /* supposedly cacheline size */
+static bool cqm_enabled, mbm_enabled;
+unsigned int mbm_socket_max;
 
 /**
  * struct intel_pqr_state - State cache for the PQR MSR
@@ -42,7 +50,36 @@ struct intel_pqr_state {
  * interrupts disabled, which is sufficient for the protection.
  */
 static DEFINE_PER_CPU(struct intel_pqr_state, pqr_state);
+static struct hrtimer *mbm_timers;
+/**
+ * struct sample - mbm event's (local or total) data
+ * @total_bytes    #bytes since we began monitoring
+ * @prev_msr       previous value of MSR
+ */
+struct sample {
+	u64	total_bytes;
+	u64	prev_msr;
+};
 
+/*
+ * samples profiled for total memory bandwidth type events
+ */
+static struct sample *mbm_total;
+/*
+ * samples profiled for local memory bandwidth type events
+ */
+static struct sample *mbm_local;
+
+#define pkg_id	topology_physical_package_id(smp_processor_id())
+/*
+ * rmid_2_index returns the index for the rmid in mbm_local/mbm_total array.
+ * mbm_total[] and mbm_local[] are linearly indexed by socket# * max number of
+ * rmids per socket, an example is given below
+ * RMID1 of Socket0:  vrmid =  1
+ * RMID1 of Socket1:  vrmid =  1 * (cqm_max_rmid + 1) + 1
+ * RMID1 of Socket2:  vrmid =  2 * (cqm_max_rmid + 1) + 1
+ */
+#define rmid_2_index(rmid)  ((pkg_id * (cqm_max_rmid + 1)) + rmid)
 /*
  * Protects cache_cgroups and cqm_rmid_free_lru and cqm_rmid_limbo_lru.
  * Also protects event->hw.cqm_rmid
@@ -65,9 +102,13 @@ static cpumask_t cqm_cpumask;
 #define RMID_VAL_ERROR		(1ULL << 63)
 #define RMID_VAL_UNAVAIL	(1ULL << 62)
 
-#define QOS_L3_OCCUP_EVENT_ID	(1 << 0)
-
-#define QOS_EVENT_MASK	QOS_L3_OCCUP_EVENT_ID
+/*
+ * Event IDs are used to program IA32_QM_EVTSEL before reading event
+ * counter from IA32_QM_CTR
+ */
+#define QOS_L3_OCCUP_EVENT_ID	0x01
+#define QOS_MBM_TOTAL_EVENT_ID	0x02
+#define QOS_MBM_LOCAL_EVENT_ID	0x03
 
 /*
  * This is central to the rotation algorithm in __intel_cqm_rmid_rotate().
@@ -211,6 +252,21 @@ static void __put_rmid(u32 rmid)
 	list_add_tail(&entry->list, &cqm_rmid_limbo_lru);
 }
 
+static void cqm_cleanup(void)
+{
+	int i;
+
+	if (!cqm_rmid_ptrs)
+		return;
+
+	for (i = 0; i < cqm_max_rmid; i++)
+		kfree(cqm_rmid_ptrs[i]);
+
+	kfree(cqm_rmid_ptrs);
+	cqm_rmid_ptrs = NULL;
+	cqm_enabled = false;
+}
+
 static int intel_cqm_setup_rmid_cache(void)
 {
 	struct cqm_rmid_entry *entry;
@@ -218,7 +274,7 @@ static int intel_cqm_setup_rmid_cache(void)
 	int r = 0;
 
 	nr_rmids = cqm_max_rmid + 1;
-	cqm_rmid_ptrs = kmalloc(sizeof(struct cqm_rmid_entry *) *
+	cqm_rmid_ptrs = kzalloc(sizeof(struct cqm_rmid_entry *) *
 				nr_rmids, GFP_KERNEL);
 	if (!cqm_rmid_ptrs)
 		return -ENOMEM;
@@ -249,11 +305,9 @@ static int intel_cqm_setup_rmid_cache(void)
 	mutex_unlock(&cache_mutex);
 
 	return 0;
-fail:
-	while (r--)
-		kfree(cqm_rmid_ptrs[r]);
 
-	kfree(cqm_rmid_ptrs);
+fail:
+	cqm_cleanup();
 	return -ENOMEM;
 }
 
@@ -281,9 +335,13 @@ static bool __match_event(struct perf_event *a, struct perf_event *b)
 
 	/*
 	 * Events that target same task are placed into the same cache group.
+	 * Mark it as a multi event group, so that we update ->count
+	 * for every event rather than just the group leader later.
 	 */
-	if (a->hw.target == b->hw.target)
+	if (a->hw.target == b->hw.target) {
+		b->hw.is_group_event = true;
 		return true;
+	}
 
 	/*
 	 * Are we an inherited event?
@@ -392,10 +450,26 @@ static bool __conflict_event(struct perf_event *a, struct perf_event *b)
 
 struct rmid_read {
 	u32 rmid;
+	u32 evt_type;
 	atomic64_t value;
 };
 
 static void __intel_cqm_event_count(void *info);
+static void init_mbm_sample(u32 rmid, u32 evt_type);
+static void __intel_mbm_event_count(void *info);
+
+static bool is_mbm_event(int e)
+{
+	return (e >= QOS_MBM_TOTAL_EVENT_ID && e <= QOS_MBM_LOCAL_EVENT_ID);
+}
+
+static void cqm_mask_call(struct rmid_read *rr)
+{
+	if (is_mbm_event(rr->evt_type))
+		on_each_cpu_mask(&cqm_cpumask, __intel_mbm_event_count, rr, 1);
+	else
+		on_each_cpu_mask(&cqm_cpumask, __intel_cqm_event_count, rr, 1);
+}
 
 /*
  * Exchange the RMID of a group of events.
@@ -413,12 +487,12 @@ static u32 intel_cqm_xchg_rmid(struct perf_event *group, u32 rmid)
 	 */
 	if (__rmid_valid(old_rmid) && !__rmid_valid(rmid)) {
 		struct rmid_read rr = {
-			.value = ATOMIC64_INIT(0),
 			.rmid = old_rmid,
+			.evt_type = group->attr.config,
+			.value = ATOMIC64_INIT(0),
 		};
 
-		on_each_cpu_mask(&cqm_cpumask, __intel_cqm_event_count,
-				 &rr, 1);
+		cqm_mask_call(&rr);
 		local64_set(&group->count, atomic64_read(&rr.value));
 	}
 
@@ -429,6 +503,22 @@ static u32 intel_cqm_xchg_rmid(struct perf_event *group, u32 rmid)
 		event->hw.cqm_rmid = rmid;
 
 	raw_spin_unlock_irq(&cache_lock);
+
+	/*
+	 * If the allocation is for mbm, init the mbm stats.
+	 * Need to check if each event in the group is mbm event
+	 * because there could be multiple type of events in the same group.
+	 */
+	if (__rmid_valid(rmid)) {
+		event = group;
+		if (is_mbm_event(event->attr.config))
+			init_mbm_sample(rmid, event->attr.config);
+
+		list_for_each_entry(event, head, hw.cqm_group_entry) {
+			if (is_mbm_event(event->attr.config))
+				init_mbm_sample(rmid, event->attr.config);
+		}
+	}
 
 	return old_rmid;
 }
@@ -837,6 +927,72 @@ static void intel_cqm_rmid_rotate(struct work_struct *work)
 	schedule_delayed_work(&intel_cqm_rmid_work, delay);
 }
 
+static u64 update_sample(unsigned int rmid, u32 evt_type, int first)
+{
+	struct sample *mbm_current;
+	u32 vrmid = rmid_2_index(rmid);
+	u64 val, bytes, shift;
+	u32 eventid;
+
+	if (evt_type == QOS_MBM_LOCAL_EVENT_ID) {
+		mbm_current = &mbm_local[vrmid];
+		eventid     = QOS_MBM_LOCAL_EVENT_ID;
+	} else {
+		mbm_current = &mbm_total[vrmid];
+		eventid     = QOS_MBM_TOTAL_EVENT_ID;
+	}
+
+	wrmsr(MSR_IA32_QM_EVTSEL, eventid, rmid);
+	rdmsrl(MSR_IA32_QM_CTR, val);
+	if (val & (RMID_VAL_ERROR | RMID_VAL_UNAVAIL))
+		return mbm_current->total_bytes;
+
+	if (first) {
+		mbm_current->prev_msr = val;
+		mbm_current->total_bytes = 0;
+		return mbm_current->total_bytes;
+	}
+
+	/*
+	 * The h/w guarantees that counters will not overflow
+	 * so long as we poll them at least once per second.
+	 */
+	shift = 64 - MBM_CNTR_WIDTH;
+	bytes = (val << shift) - (mbm_current->prev_msr << shift);
+	bytes >>= shift;
+
+	bytes *= cqm_l3_scale;
+
+	mbm_current->total_bytes += bytes;
+	mbm_current->prev_msr = val;
+
+	return mbm_current->total_bytes;
+}
+
+static u64 rmid_read_mbm(unsigned int rmid, u32 evt_type)
+{
+	return update_sample(rmid, evt_type, 0);
+}
+
+static void __intel_mbm_event_init(void *info)
+{
+	struct rmid_read *rr = info;
+
+	update_sample(rr->rmid, rr->evt_type, 1);
+}
+
+static void init_mbm_sample(u32 rmid, u32 evt_type)
+{
+	struct rmid_read rr = {
+		.rmid = rmid,
+		.evt_type = evt_type,
+		.value = ATOMIC64_INIT(0),
+	};
+
+	/* on each socket, init sample */
+	on_each_cpu_mask(&cqm_cpumask, __intel_mbm_event_init, &rr, 1);
+}
+
 /*
  * Find a group and setup RMID.
  *
@@ -849,6 +1005,7 @@ static void intel_cqm_setup_event(struct perf_event *event,
 	bool conflict = false;
 	u32 rmid;
 
+	event->hw.is_group_event = false;
 	list_for_each_entry(iter, &cache_groups, hw.cqm_groups_entry) {
 		rmid = iter->hw.cqm_rmid;
 
@@ -856,6 +1013,8 @@ static void intel_cqm_setup_event(struct perf_event *event,
 			/* All tasks in a group share an RMID */
 			event->hw.cqm_rmid = rmid;
 			*group = iter;
+			if (is_mbm_event(event->attr.config) && __rmid_valid(rmid))
+				init_mbm_sample(rmid, event->attr.config);
 			return;
 		}
 
@@ -871,6 +1030,9 @@ static void intel_cqm_setup_event(struct perf_event *event,
 		rmid = INVALID_RMID;
 	else
 		rmid = __get_rmid();
+
+	if (is_mbm_event(event->attr.config) && __rmid_valid(rmid))
+		init_mbm_sample(rmid, event->attr.config);
 
 	event->hw.cqm_rmid = rmid;
 }
@@ -893,7 +1055,10 @@ static void intel_cqm_event_read(struct perf_event *event)
 	if (!__rmid_valid(rmid))
 		goto out;
 
-	val = __rmid_read(rmid);
+	if (is_mbm_event(event->attr.config))
+		val = rmid_read_mbm(rmid, event->attr.config);
+	else
+		val = __rmid_read(rmid);
 
 	/*
 	 * Ignore this reading on error states and do not update the value.
@@ -924,10 +1089,100 @@ static inline bool cqm_group_leader(struct perf_event *event)
 	return !list_empty(&event->hw.cqm_groups_entry);
 }
 
+static void __intel_mbm_event_count(void *info)
+{
+	struct rmid_read *rr = info;
+	u64 val;
+
+	val = rmid_read_mbm(rr->rmid, rr->evt_type);
+	if (val & (RMID_VAL_ERROR | RMID_VAL_UNAVAIL))
+		return;
+	atomic64_add(val, &rr->value);
+}
+
+static enum hrtimer_restart mbm_hrtimer_handle(struct hrtimer *hrtimer)
+{
+	struct perf_event *iter, *iter1;
+	int ret = HRTIMER_RESTART;
+	struct list_head *head;
+	unsigned long flags;
+	u32 grp_rmid;
+
+	/*
+	 * Need to cache_lock as the timer Event Select MSR reads
+	 * can race with the mbm/cqm count() and mbm_init() reads.
+	 */
+	raw_spin_lock_irqsave(&cache_lock, flags);
+
+	if (list_empty(&cache_groups)) {
+		ret = HRTIMER_NORESTART;
+		goto out;
+	}
+
+	list_for_each_entry(iter, &cache_groups, hw.cqm_groups_entry) {
+		grp_rmid = iter->hw.cqm_rmid;
+		if (!__rmid_valid(grp_rmid))
+			continue;
+		if (is_mbm_event(iter->attr.config))
+			update_sample(grp_rmid, iter->attr.config, 0);
+
+		head = &iter->hw.cqm_group_entry;
+		if (list_empty(head))
+			continue;
+		list_for_each_entry(iter1, head, hw.cqm_group_entry) {
+			if (!iter1->hw.is_group_event)
+				break;
+			if (is_mbm_event(iter1->attr.config))
+				update_sample(iter1->hw.cqm_rmid,
+					      iter1->attr.config, 0);
+		}
+	}
+
+	hrtimer_forward_now(hrtimer, ms_to_ktime(MBM_CTR_OVERFLOW_TIME));
+out:
+	raw_spin_unlock_irqrestore(&cache_lock, flags);
+
+	return ret;
+}
+
+static void __mbm_start_timer(void *info)
+{
+	hrtimer_start(&mbm_timers[pkg_id], ms_to_ktime(MBM_CTR_OVERFLOW_TIME),
+			     HRTIMER_MODE_REL_PINNED);
+}
+
+static void __mbm_stop_timer(void *info)
+{
+	hrtimer_cancel(&mbm_timers[pkg_id]);
+}
+
+static void mbm_start_timers(void)
+{
+	on_each_cpu_mask(&cqm_cpumask, __mbm_start_timer, NULL, 1);
+}
+
+static void mbm_stop_timers(void)
+{
+	on_each_cpu_mask(&cqm_cpumask, __mbm_stop_timer, NULL, 1);
+}
+
+static void mbm_hrtimer_init(void)
+{
+	struct hrtimer *hr;
+	int i;
+
+	for (i = 0; i < mbm_socket_max; i++) {
+		hr = &mbm_timers[i];
+		hrtimer_init(hr, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		hr->function = mbm_hrtimer_handle;
+	}
+}
+
 static u64 intel_cqm_event_count(struct perf_event *event)
 {
 	unsigned long flags;
 	struct rmid_read rr = {
+		.evt_type = event->attr.config,
 		.value = ATOMIC64_INIT(0),
 	};
 
@@ -940,7 +1195,9 @@ static u64 intel_cqm_event_count(struct perf_event *event)
 		return __perf_event_count(event);
 
 	/*
-	 * Only the group leader gets to report values. This stops us
+	 * Only the group leader gets to report values except in case of
+	 * multiple events in the same group, we still need to read the
+	 * other events.This stops us
 	 * reporting duplicate values to userspace, and gives us a clear
 	 * rule for which task gets to report the values.
 	 *
@@ -948,7 +1205,7 @@ static u64 intel_cqm_event_count(struct perf_event *event)
 	 * specific packages - we forfeit that ability when we create
 	 * task events.
 	 */
-	if (!cqm_group_leader(event))
+	if (!cqm_group_leader(event) && !event->hw.is_group_event)
 		return 0;
 
 	/*
@@ -975,7 +1232,7 @@ static u64 intel_cqm_event_count(struct perf_event *event)
 	if (!__rmid_valid(rr.rmid))
 		goto out;
 
-	on_each_cpu_mask(&cqm_cpumask, __intel_cqm_event_count, &rr, 1);
+	cqm_mask_call(&rr);
 
 	raw_spin_lock_irqsave(&cache_lock, flags);
 	if (event->hw.cqm_rmid == rr.rmid)
@@ -1046,8 +1303,14 @@ static int intel_cqm_event_add(struct perf_event *event, int mode)
 static void intel_cqm_event_destroy(struct perf_event *event)
 {
 	struct perf_event *group_other = NULL;
+	unsigned long flags;
 
 	mutex_lock(&cache_mutex);
+	/*
+	* Hold the cache_lock as mbm timer handlers could be
+	* scanning the list of events.
+	*/
+	raw_spin_lock_irqsave(&cache_lock, flags);
 
 	/*
 	 * If there's another event in this group...
@@ -1079,6 +1342,14 @@ static void intel_cqm_event_destroy(struct perf_event *event)
 		}
 	}
 
+	raw_spin_unlock_irqrestore(&cache_lock, flags);
+
+	/*
+	 * Stop the mbm overflow timers when the last event is destroyed.
+	*/
+	if (mbm_enabled && list_empty(&cache_groups))
+		mbm_stop_timers();
+
 	mutex_unlock(&cache_mutex);
 }
 
@@ -1086,11 +1357,13 @@ static int intel_cqm_event_init(struct perf_event *event)
 {
 	struct perf_event *group = NULL;
 	bool rotate = false;
+	unsigned long flags;
 
 	if (event->attr.type != intel_cqm_pmu.type)
 		return -ENOENT;
 
-	if (event->attr.config & ~QOS_EVENT_MASK)
+	if ((event->attr.config < QOS_L3_OCCUP_EVENT_ID) ||
+	     (event->attr.config > QOS_MBM_LOCAL_EVENT_ID))
 		return -EINVAL;
 
 	/* unsupported modes and filters */
@@ -1110,8 +1383,20 @@ static int intel_cqm_event_init(struct perf_event *event)
 
 	mutex_lock(&cache_mutex);
 
+	/*
+	 * Start the mbm overflow timers when the first event is created.
+	*/
+	if (mbm_enabled && list_empty(&cache_groups))
+		mbm_start_timers();
+
 	/* Will also set rmid */
 	intel_cqm_setup_event(event, &group);
+
+	/*
+	* Hold the cache_lock as mbm timer handlers be
+	* scanning the list of events.
+	*/
+	raw_spin_lock_irqsave(&cache_lock, flags);
 
 	if (group) {
 		list_add_tail(&event->hw.cqm_group_entry,
@@ -1131,6 +1416,7 @@ static int intel_cqm_event_init(struct perf_event *event)
 			rotate = true;
 	}
 
+	raw_spin_unlock_irqrestore(&cache_lock, flags);
 	mutex_unlock(&cache_mutex);
 
 	if (rotate)
@@ -1145,6 +1431,16 @@ EVENT_ATTR_STR(llc_occupancy.unit, intel_cqm_llc_unit, "Bytes");
 EVENT_ATTR_STR(llc_occupancy.scale, intel_cqm_llc_scale, NULL);
 EVENT_ATTR_STR(llc_occupancy.snapshot, intel_cqm_llc_snapshot, "1");
 
+EVENT_ATTR_STR(total_bytes, intel_cqm_total_bytes, "event=0x02");
+EVENT_ATTR_STR(total_bytes.per-pkg, intel_cqm_total_bytes_pkg, "1");
+EVENT_ATTR_STR(total_bytes.unit, intel_cqm_total_bytes_unit, "MB");
+EVENT_ATTR_STR(total_bytes.scale, intel_cqm_total_bytes_scale, "1e-6");
+
+EVENT_ATTR_STR(local_bytes, intel_cqm_local_bytes, "event=0x03");
+EVENT_ATTR_STR(local_bytes.per-pkg, intel_cqm_local_bytes_pkg, "1");
+EVENT_ATTR_STR(local_bytes.unit, intel_cqm_local_bytes_unit, "MB");
+EVENT_ATTR_STR(local_bytes.scale, intel_cqm_local_bytes_scale, "1e-6");
+
 static struct attribute *intel_cqm_events_attr[] = {
 	EVENT_PTR(intel_cqm_llc),
 	EVENT_PTR(intel_cqm_llc_pkg),
@@ -1154,9 +1450,38 @@ static struct attribute *intel_cqm_events_attr[] = {
 	NULL,
 };
 
+static struct attribute *intel_mbm_events_attr[] = {
+	EVENT_PTR(intel_cqm_total_bytes),
+	EVENT_PTR(intel_cqm_local_bytes),
+	EVENT_PTR(intel_cqm_total_bytes_pkg),
+	EVENT_PTR(intel_cqm_local_bytes_pkg),
+	EVENT_PTR(intel_cqm_total_bytes_unit),
+	EVENT_PTR(intel_cqm_local_bytes_unit),
+	EVENT_PTR(intel_cqm_total_bytes_scale),
+	EVENT_PTR(intel_cqm_local_bytes_scale),
+	NULL,
+};
+
+static struct attribute *intel_cmt_mbm_events_attr[] = {
+	EVENT_PTR(intel_cqm_llc),
+	EVENT_PTR(intel_cqm_total_bytes),
+	EVENT_PTR(intel_cqm_local_bytes),
+	EVENT_PTR(intel_cqm_llc_pkg),
+	EVENT_PTR(intel_cqm_total_bytes_pkg),
+	EVENT_PTR(intel_cqm_local_bytes_pkg),
+	EVENT_PTR(intel_cqm_llc_unit),
+	EVENT_PTR(intel_cqm_total_bytes_unit),
+	EVENT_PTR(intel_cqm_local_bytes_unit),
+	EVENT_PTR(intel_cqm_llc_scale),
+	EVENT_PTR(intel_cqm_total_bytes_scale),
+	EVENT_PTR(intel_cqm_local_bytes_scale),
+	EVENT_PTR(intel_cqm_llc_snapshot),
+	NULL,
+};
+
 static struct attribute_group intel_cqm_events_group = {
 	.name = "events",
-	.attrs = intel_cqm_events_attr,
+	.attrs = NULL,
 };
 
 PMU_FORMAT_ATTR(event, "config:0-7");
@@ -1303,12 +1628,70 @@ static const struct x86_cpu_id intel_cqm_match[] = {
 	{}
 };
 
+static void mbm_cleanup(void)
+{
+	if (!mbm_enabled)
+		return;
+
+	kfree(mbm_local);
+	kfree(mbm_total);
+	mbm_enabled = false;
+}
+
+static const struct x86_cpu_id intel_mbm_local_match[] = {
+	{ .vendor = X86_VENDOR_INTEL, .feature = X86_FEATURE_CQM_MBM_LOCAL },
+	{}
+};
+
+static const struct x86_cpu_id intel_mbm_total_match[] = {
+	{ .vendor = X86_VENDOR_INTEL, .feature = X86_FEATURE_CQM_MBM_TOTAL },
+	{}
+};
+
+static int intel_mbm_init(void)
+{
+	int ret = 0, array_size, maxid = cqm_max_rmid + 1;
+
+	mbm_socket_max = topology_max_packages();
+	array_size = sizeof(struct sample) * maxid * mbm_socket_max;
+	mbm_local = kmalloc(array_size, GFP_KERNEL);
+	if (!mbm_local)
+		return -ENOMEM;
+
+	mbm_total = kmalloc(array_size, GFP_KERNEL);
+	if (!mbm_total) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	array_size = sizeof(struct hrtimer) * mbm_socket_max;
+	mbm_timers = kmalloc(array_size, GFP_KERNEL);
+	if (!mbm_timers) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	mbm_hrtimer_init();
+
+out:
+	if (ret)
+		mbm_cleanup();
+
+	return ret;
+}
+
 static int __init intel_cqm_init(void)
 {
-	char *str, scale[20];
+	char *str = NULL, scale[20];
 	int i, cpu, ret;
 
-	if (!x86_match_cpu(intel_cqm_match))
+	if (x86_match_cpu(intel_cqm_match))
+		cqm_enabled = true;
+
+	if (x86_match_cpu(intel_mbm_local_match) &&
+	     x86_match_cpu(intel_mbm_total_match))
+		mbm_enabled = true;
+
+	if (!cqm_enabled && !mbm_enabled)
 		return -ENODEV;
 
 	cqm_l3_scale = boot_cpu_data.x86_cache_occ_scale;
@@ -1365,16 +1748,41 @@ static int __init intel_cqm_init(void)
 		cqm_pick_event_reader(i);
 	}
 
-	__perf_cpu_notifier(intel_cqm_cpu_notifier);
+	if (mbm_enabled)
+		ret = intel_mbm_init();
+	if (ret && !cqm_enabled)
+		goto out;
+
+	if (cqm_enabled && mbm_enabled)
+		intel_cqm_events_group.attrs = intel_cmt_mbm_events_attr;
+	else if (!cqm_enabled && mbm_enabled)
+		intel_cqm_events_group.attrs = intel_mbm_events_attr;
+	else if (cqm_enabled && !mbm_enabled)
+		intel_cqm_events_group.attrs = intel_cqm_events_attr;
 
 	ret = perf_pmu_register(&intel_cqm_pmu, "intel_cqm", -1);
-	if (ret)
+	if (ret) {
 		pr_err("Intel CQM perf registration failed: %d\n", ret);
-	else
-		pr_info("Intel CQM monitoring enabled\n");
+		goto out;
+	}
 
+	if (cqm_enabled)
+		pr_info("Intel CQM monitoring enabled\n");
+	if (mbm_enabled)
+		pr_info("Intel MBM enabled\n");
+
+	/*
+	 * Register the hot cpu notifier once we are sure cqm
+	 * is enabled to avoid notifier leak.
+	 */
+	__perf_cpu_notifier(intel_cqm_cpu_notifier);
 out:
 	cpu_notifier_register_done();
+	if (ret) {
+		kfree(str);
+		cqm_cleanup();
+		mbm_cleanup();
+	}
 
 	return ret;
 }

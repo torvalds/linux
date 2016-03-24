@@ -1602,8 +1602,7 @@ __init struct attribute **merge_attr(struct attribute **a, struct attribute **b)
 	return new;
 }
 
-ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
-			  char *page)
+ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr, char *page)
 {
 	struct perf_pmu_events_attr *pmu_attr = \
 		container_of(attr, struct perf_pmu_events_attr, attr);
@@ -1615,6 +1614,7 @@ ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
 
 	return x86_pmu.events_sysfs_show(page, config);
 }
+EXPORT_SYMBOL_GPL(events_sysfs_show);
 
 EVENT_ATTR(cpu-cycles,			CPU_CYCLES		);
 EVENT_ATTR(instructions,		INSTRUCTIONS		);

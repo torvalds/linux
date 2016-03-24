@@ -1210,6 +1210,15 @@ config MICROCODE_OLD_INTERFACE
 	def_bool y
 	depends on MICROCODE
 
+config PERF_EVENTS_AMD_POWER
+	depends on PERF_EVENTS && CPU_SUP_AMD
+	tristate "AMD Processor Power Reporting Mechanism"
+	---help---
+	  Provide power reporting mechanism support for AMD processors.
+	  Currently, it leverages X86_FEATURE_ACC_POWER
+	  (CPUID Fn8000_0007_EDX[12]) interface to calculate the
+	  average power consumption on Family 15h processors.
+
 config X86_MSR
 	tristate "/dev/cpu/*/msr - Model-specific register support"
 	---help---

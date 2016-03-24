@@ -376,7 +376,13 @@ static void perf_ibs_start(struct perf_event *event, int flags)
 	hwc->state = 0;
 
 	perf_ibs_set_period(perf_ibs, hwc, &period);
+	/*
+	 * Set STARTED before enabling the hardware, such that
+	 * a subsequent NMI must observe it. Then clear STOPPING
+	 * such that we don't consume NMIs by accident.
+	 */
 	set_bit(IBS_STARTED, pcpu->state);
+	clear_bit(IBS_STOPPING, pcpu->state);
 	perf_ibs_enable_event(perf_ibs, hwc, period >> 4);
 
 	perf_event_update_userpage(event);
@@ -390,7 +396,7 @@ static void perf_ibs_stop(struct perf_event *event, int flags)
 	u64 config;
 	int stopping;
 
-	stopping = test_and_clear_bit(IBS_STARTED, pcpu->state);
+	stopping = test_bit(IBS_STARTED, pcpu->state);
 
 	if (!stopping && (hwc->state & PERF_HES_UPTODATE))
 		return;
@@ -398,8 +404,24 @@ static void perf_ibs_stop(struct perf_event *event, int flags)
 	rdmsrl(hwc->config_base, config);
 
 	if (stopping) {
+		/*
+		 * Set STOPPING before disabling the hardware, such that it
+		 * must be visible to NMIs the moment we clear the EN bit,
+		 * at which point we can generate an !VALID sample which
+		 * we need to consume.
+		 */
 		set_bit(IBS_STOPPING, pcpu->state);
 		perf_ibs_disable_event(perf_ibs, hwc, config);
+		/*
+		 * Clear STARTED after disabling the hardware; if it were
+		 * cleared before an NMI hitting after the clear but before
+		 * clearing the EN bit might think it a spurious NMI and not
+		 * handle it.
+		 *
+		 * Clearing it after, however, creates the problem of the NMI
+		 * handler seeing STARTED but not having a valid sample.
+		 */
+		clear_bit(IBS_STARTED, pcpu->state);
 		WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
 		hwc->state |= PERF_HES_STOPPED;
 	}
@@ -527,20 +549,24 @@ static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
 	u64 *buf, *config, period;
 
 	if (!test_bit(IBS_STARTED, pcpu->state)) {
+fail:
 		/*
 		 * Catch spurious interrupts after stopping IBS: After
 		 * disabling IBS there could be still incoming NMIs
 		 * with samples that even have the valid bit cleared.
 		 * Mark all this NMIs as handled.
 		 */
-		return test_and_clear_bit(IBS_STOPPING, pcpu->state) ? 1 : 0;
+		if (test_and_clear_bit(IBS_STOPPING, pcpu->state))
+			return 1;
+
+		return 0;
 	}
 
 	msr = hwc->config_base;
 	buf = ibs_data.regs;
 	rdmsrl(msr, *buf);
 	if (!(*buf++ & perf_ibs->valid_mask))
-		return 0;
+		goto fail;
 
 	config = &ibs_data.regs[0];
 	perf_ibs_event_update(perf_ibs, event, config);
@@ -599,7 +625,7 @@ static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
 	throttle = perf_event_overflow(event, &data, &regs);
 out:
 	if (throttle)
-		perf_ibs_disable_event(perf_ibs, hwc, *config);
+		perf_ibs_stop(event, 0);
 	else
 		perf_ibs_enable_event(perf_ibs, hwc, period >> 4);
 
@@ -611,6 +637,7 @@ out:
 static int
 perf_ibs_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 {
+	u64 stamp = sched_clock();
 	int handled = 0;
 
 	handled += perf_ibs_handle_irq(&perf_ibs_fetch, regs);
@@ -618,6 +645,8 @@ perf_ibs_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 
 	if (handled)
 		inc_irq_stat(apic_perf_irqs);
+
+	perf_sample_event_took(sched_clock() - stamp);
 
 	return handled;
 }

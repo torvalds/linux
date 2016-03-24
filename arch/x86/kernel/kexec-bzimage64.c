@@ -271,7 +271,7 @@ static int bzImage64_probe(const char *buf, unsigned long len)
 	int ret = -ENOEXEC;
 	struct setup_header *header;
 
-	/* kernel should be atleast two sectors long */
+	/* kernel should be at least two sectors long */
 	if (len < 2 * 512) {
 		pr_err("File is too short to be a bzImage\n");
 		return ret;
