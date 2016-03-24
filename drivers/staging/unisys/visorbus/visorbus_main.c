@@ -279,12 +279,12 @@ static ssize_t typeguid_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
-	char s[99];
+	char typeid[99];
 
 	if (!vdev->visorchannel)
 		return 0;
 	return snprintf(buf, PAGE_SIZE, "%s\n",
-			visorchannel_id(vdev->visorchannel, s));
+			visorchannel_id(vdev->visorchannel, typeid));
 }
 
 static ssize_t zoneguid_show(struct device *dev, struct device_attribute *attr,
