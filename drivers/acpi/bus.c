@@ -1005,6 +1005,9 @@ static int __init acpi_bus_init(void)
 		goto error1;
 	}
 
+	/* Set capability bits for _OSC under processor scope */
+	acpi_early_processor_osc();
+
 	/*
 	 * _OSC method may exist in module level code,
 	 * so it must be run after ACPI_FULL_INITIALIZATION
