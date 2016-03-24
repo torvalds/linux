@@ -1013,8 +1013,8 @@ int hns_phy_led_set(struct net_device *netdev, int value)
 	struct phy_device *phy_dev = priv->phy;
 
 	retval = phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_LED);
-	retval = phy_write(phy_dev, HNS_LED_FC_REG, value);
-	retval = phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_COPPER);
+	retval |= phy_write(phy_dev, HNS_LED_FC_REG, value);
+	retval |= phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_COPPER);
 	if (retval) {
 		netdev_err(netdev, "mdiobus_write fail !\n");
 		return retval;
