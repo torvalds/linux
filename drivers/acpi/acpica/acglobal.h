@@ -361,6 +361,15 @@ ACPI_GLOBAL(u32, acpi_gbl_num_objects);
 
 #endif				/* ACPI_DEBUGGER */
 
+#if defined (ACPI_DISASSEMBLER) || defined (ACPI_ASL_COMPILER)
+
+ACPI_GLOBAL(const char, *acpi_gbl_pld_panel_list[]);
+ACPI_GLOBAL(const char, *acpi_gbl_pld_vertical_position_list[]);
+ACPI_GLOBAL(const char, *acpi_gbl_pld_horizontal_position_list[]);
+ACPI_GLOBAL(const char, *acpi_gbl_pld_shape_list[]);
+
+#endif
+
 /*****************************************************************************
  *
  * Application globals
