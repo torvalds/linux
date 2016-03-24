@@ -76,9 +76,9 @@ enum channel_clientstate {
 };
 
 static inline const u8 *
-ULTRA_CHANNELCLI_STRING(u32 v)
+ULTRA_CHANNELCLI_STRING(u32 state)
 {
-	switch (v) {
+	switch (state) {
 	case CHANNELCLI_DETACHED:
 		return (const u8 *)("DETACHED");
 	case CHANNELCLI_DISABLED:
