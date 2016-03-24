@@ -1446,15 +1446,16 @@ struct intel_vbt_data {
 
 	enum drrs_support_type drrs_type;
 
-	/* eDP */
-	int edp_rate;
-	int edp_lanes;
-	int edp_preemphasis;
-	int edp_vswing;
-	bool edp_initialized;
-	bool edp_support;
-	int edp_bpp;
-	struct edp_power_seq edp_pps;
+	struct {
+		int rate;
+		int lanes;
+		int preemphasis;
+		int vswing;
+		bool initialized;
+		bool support;
+		int bpp;
+		struct edp_power_seq pps;
+	} edp;
 
 	struct {
 		bool full_link;

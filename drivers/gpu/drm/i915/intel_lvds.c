@@ -924,7 +924,7 @@ void intel_lvds_init(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev)) {
 		if ((lvds & LVDS_DETECTED) == 0)
 			return;
-		if (dev_priv->vbt.edp_support) {
+		if (dev_priv->vbt.edp.support) {
 			DRM_DEBUG_KMS("disable LVDS for eDP support\n");
 			return;
 		}
