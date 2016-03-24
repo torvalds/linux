@@ -422,7 +422,7 @@ static ssize_t client_bus_info_show(struct device *dev,
 
 	int i, x, remain = PAGE_SIZE;
 	unsigned long off;
-	char *p = buf;
+	char *pos = buf;
 	u8 *partition_name;
 	struct ultra_vbus_deviceinfo dev_info;
 
@@ -430,10 +430,10 @@ static ssize_t client_bus_info_show(struct device *dev,
 	if (channel) {
 		if (vdev->name)
 			partition_name = vdev->name;
-		x = snprintf(p, remain,
+		x = snprintf(pos, remain,
 			     "Client device / client driver info for %s partition (vbus #%d):\n",
 			     partition_name, vdev->chipset_dev_no);
-		p += x;
+		pos += x;
 		remain -= x;
 		x = visorchannel_read(channel,
 				      offsetof(struct
@@ -441,9 +441,9 @@ static ssize_t client_bus_info_show(struct device *dev,
 					       chp_info),
 				      &dev_info, sizeof(dev_info));
 		if (x >= 0) {
-			x = vbuschannel_devinfo_to_string(&dev_info, p,
+			x = vbuschannel_devinfo_to_string(&dev_info, pos,
 							  remain, -1);
-			p += x;
+			pos += x;
 			remain -= x;
 		}
 		x = visorchannel_read(channel,
@@ -452,9 +452,9 @@ static ssize_t client_bus_info_show(struct device *dev,
 					       bus_info),
 				      &dev_info, sizeof(dev_info));
 		if (x >= 0) {
-			x = vbuschannel_devinfo_to_string(&dev_info, p,
+			x = vbuschannel_devinfo_to_string(&dev_info, pos,
 							  remain, -1);
-			p += x;
+			pos += x;
 			remain -= x;
 		}
 		off = offsetof(struct spar_vbus_channel_protocol, dev_info);
@@ -465,8 +465,8 @@ static ssize_t client_bus_info_show(struct device *dev,
 					      off, &dev_info, sizeof(dev_info));
 			if (x >= 0) {
 				x = vbuschannel_devinfo_to_string
-				    (&dev_info, p, remain, i);
-				p += x;
+				    (&dev_info, pos, remain, i);
+				pos += x;
 				remain -= x;
 			}
 			off += sizeof(dev_info);
