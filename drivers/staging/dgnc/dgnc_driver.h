@@ -203,15 +203,15 @@ struct dgnc_board {
 						 */
 
 	struct tty_driver serial_driver;
-	char		SerialName[200];
+	char		serial_name[200];
 	struct tty_driver print_driver;
-	char		PrintName[200];
+	char		print_name[200];
 
-	bool		dgnc_Major_Serial_Registered;
-	bool		dgnc_Major_TransparentPrint_Registered;
+	bool		dgnc_major_serial_registered;
+	bool		dgnc_major_transparent_print_registered;
 
-	uint		dgnc_Serial_Major;
-	uint		dgnc_TransparentPrint_Major;
+	uint		dgnc_serial_major;
+	uint		dgnc_transparent_print_major;
 
 	uint		TtyRefCnt;
 
