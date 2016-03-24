@@ -175,6 +175,7 @@ struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 	ae_handle->phy_node = vf_cb->mac_cb->phy_node;
 	ae_handle->if_support = vf_cb->mac_cb->if_support;
 	ae_handle->port_type = vf_cb->mac_cb->mac_type;
+	ae_handle->dport_id = port_idx;
 
 	return ae_handle;
 vf_id_err:
@@ -419,7 +420,10 @@ static int hns_ae_set_autoneg(struct hnae_handle *handle, u8 enable)
 
 static void hns_ae_set_promisc_mode(struct hnae_handle *handle, u32 en)
 {
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+
 	hns_dsaf_set_promisc_mode(hns_ae_get_dsaf_dev(handle->dev), en);
+	hns_mac_set_promisc(mac_cb, (u8)!!en);
 }
 
 static int hns_ae_get_autoneg(struct hnae_handle *handle)
@@ -787,7 +791,8 @@ static int hns_ae_get_rss(struct hnae_handle *handle, u32 *indir, u8 *key,
 		memcpy(key, ppe_cb->rss_key, HNS_PPEV2_RSS_KEY_SIZE);
 
 	/* update the current hash->queue mappings from the shadow RSS table */
-	memcpy(indir, ppe_cb->rss_indir_table, HNS_PPEV2_RSS_IND_TBL_SIZE);
+	memcpy(indir, ppe_cb->rss_indir_table,
+	       HNS_PPEV2_RSS_IND_TBL_SIZE * sizeof(*indir));
 
 	return 0;
 }
@@ -799,10 +804,11 @@ static int hns_ae_set_rss(struct hnae_handle *handle, const u32 *indir,
 
 	/* set the RSS Hash Key if specififed by the user */
 	if (key)
-		hns_ppe_set_rss_key(ppe_cb, (int *)key);
+		hns_ppe_set_rss_key(ppe_cb, (u32 *)key);
 
 	/* update the shadow RSS table with user specified qids */
-	memcpy(ppe_cb->rss_indir_table, indir, HNS_PPEV2_RSS_IND_TBL_SIZE);
+	memcpy(ppe_cb->rss_indir_table, indir,
+	       HNS_PPEV2_RSS_IND_TBL_SIZE * sizeof(*indir));
 
 	/* now update the hardware */
 	hns_ppe_set_indir_table(ppe_cb, ppe_cb->rss_indir_table);
