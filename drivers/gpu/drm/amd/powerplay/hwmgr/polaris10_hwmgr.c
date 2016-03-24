@@ -2354,10 +2354,13 @@ static int polaris10_start_dpm(struct pp_hwmgr *hwmgr)
 				return -1);
 	}
 
-	PP_ASSERT_WITH_CODE((0 == smum_send_msg_to_smc(hwmgr->smumgr,
-					PPSMC_MSG_EnableACDCGPIOInterrupt)),
-					"Failed to enable AC DC GPIO Interrupt!",
-			);
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_Falcon_QuickTransition)) {
+		PP_ASSERT_WITH_CODE((0 == smum_send_msg_to_smc(hwmgr->smumgr,
+				PPSMC_MSG_EnableACDCGPIOInterrupt)),
+				"Failed to enable AC DC GPIO Interrupt!",
+				);
+	}
 
 	return 0;
 }
