@@ -66,17 +66,28 @@
  *
  *****************************************************************************/
 
+/* Common application configuration. All single threaded except for acpi_exec. */
+
+#if (defined ACPI_ASL_COMPILER) || \
+	(defined ACPI_BIN_APP)      || \
+	(defined ACPI_DUMP_APP)     || \
+	(defined ACPI_HELP_APP)     || \
+	(defined ACPI_NAMES_APP)    || \
+	(defined ACPI_SRC_APP)      || \
+	(defined ACPI_XTRACT_APP)   || \
+	(defined ACPI_EXAMPLE_APP)
+#define ACPI_APPLICATION
+#define ACPI_SINGLE_THREADED
+#endif
+
 /* iASL configuration */
 
 #ifdef ACPI_ASL_COMPILER
-#define ACPI_APPLICATION
 #define ACPI_DEBUG_OUTPUT
 #define ACPI_CONSTANT_EVAL_ONLY
 #define ACPI_LARGE_NAMESPACE_NODE
 #define ACPI_DATA_TABLE_DISASSEMBLY
-#define ACPI_SINGLE_THREADED
 #define ACPI_32BIT_PHYSICAL_ADDRESS
-
 #define ACPI_DISASSEMBLER 1
 #endif
 
@@ -87,21 +98,6 @@
 #define ACPI_FULL_DEBUG
 #define ACPI_MUTEX_DEBUG
 #define ACPI_DBG_TRACK_ALLOCATIONS
-#endif
-
-/*
- * acpi_bin/acpi_dump/acpi_help/acpi_names/acpi_src/acpi_xtract/Example
- * configuration. All single threaded.
- */
-#if (defined ACPI_BIN_APP)      || \
-	(defined ACPI_DUMP_APP)     || \
-	(defined ACPI_HELP_APP)     || \
-	(defined ACPI_NAMES_APP)    || \
-	(defined ACPI_SRC_APP)      || \
-	(defined ACPI_XTRACT_APP)   || \
-	(defined ACPI_EXAMPLE_APP)
-#define ACPI_APPLICATION
-#define ACPI_SINGLE_THREADED
 #endif
 
 /* acpi_help configuration. Error messages disabled. */
@@ -138,11 +134,16 @@
 #define ACPI_REDUCED_HARDWARE 1
 #endif
 
-/* Linkable ACPICA library */
+/* Linkable ACPICA library. Two versions, one with full debug. */
 
 #ifdef ACPI_LIBRARY
 #define ACPI_USE_LOCAL_CACHE
-#define ACPI_FULL_DEBUG
+#define ACPI_DEBUGGER 1
+#define ACPI_DISASSEMBLER 1
+
+#ifdef _DEBUG
+#define ACPI_DEBUG_OUTPUT
+#endif
 #endif
 
 /* Common for all ACPICA applications */
