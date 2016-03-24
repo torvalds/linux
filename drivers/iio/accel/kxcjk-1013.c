@@ -923,7 +923,7 @@ static const struct iio_event_spec kxcjk1013_event = {
 		.realbits = 12,						\
 		.storagebits = 16,					\
 		.shift = 4,						\
-		.endianness = IIO_CPU,					\
+		.endianness = IIO_LE,					\
 	},								\
 	.event_spec = &kxcjk1013_event,				\
 	.num_event_specs = 1						\
@@ -961,19 +961,16 @@ static irqreturn_t kxcjk1013_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct kxcjk1013_data *data = iio_priv(indio_dev);
-	int bit, ret, i = 0;
+	int ret;
 
 	mutex_lock(&data->mutex);
-
-	for (bit = 0; bit < AXIS_MAX; bit++) {
-		ret = kxcjk1013_get_acc_reg(data, bit);
-		if (ret < 0) {
-			mutex_unlock(&data->mutex);
-			goto err;
-		}
-		data->buffer[i++] = ret;
-	}
+	ret = i2c_smbus_read_i2c_block_data_or_emulated(data->client,
+							KXCJK1013_REG_XOUT_L,
+							AXIS_MAX * 2,
+							(u8 *)data->buffer);
 	mutex_unlock(&data->mutex);
+	if (ret < 0)
+		goto err;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 					   data->timestamp);
