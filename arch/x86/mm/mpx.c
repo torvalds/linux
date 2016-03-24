@@ -728,14 +728,14 @@ static inline unsigned long bd_entry_virt_space(struct mm_struct *mm)
 
 	/*
 	 * This covers 32-bit emulation as well as 32-bit kernels
-	 * running on 64-bit harware.
+	 * running on 64-bit hardware.
 	 */
 	if (!is_64bit_mm(mm))
 		return (4ULL * GB) / MPX_BD_NR_ENTRIES_32;
 
 	/*
 	 * 'x86_virt_bits' returns what the hardware is capable
-	 * of, and returns the full >32-bit adddress space when
+	 * of, and returns the full >32-bit address space when
 	 * running 32-bit kernels on 64-bit hardware.
 	 */
 	virt_space = (1ULL << boot_cpu_data.x86_virt_bits);

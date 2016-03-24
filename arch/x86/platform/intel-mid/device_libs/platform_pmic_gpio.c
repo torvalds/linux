@@ -1,5 +1,5 @@
 /*
- * platform_pmic_gpio.c: PMIC GPIO platform data initilization file
+ * platform_pmic_gpio.c: PMIC GPIO platform data initialization file
  *
  * (C) Copyright 2013 Intel Corporation
  * Author: Sathyanarayanan Kuppuswamy <sathyanarayanan.kuppuswamy@intel.com>
