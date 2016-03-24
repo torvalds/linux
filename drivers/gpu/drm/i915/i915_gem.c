@@ -4235,9 +4235,6 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 	vma = ggtt_view ? i915_gem_obj_to_ggtt_view(obj, ggtt_view) :
 			  i915_gem_obj_to_vma(obj, vm);
 
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
-
 	if (vma) {
 		if (WARN_ON(vma->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT))
 			return -EBUSY;
@@ -4300,8 +4297,7 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 uint32_t alignment,
 			 uint64_t flags)
 {
-	if (WARN_ONCE(!view, "no view specified"))
-		return -EINVAL;
+	BUG_ON(!view);
 
 	return i915_gem_object_do_pin(obj, i915_obj_to_ggtt(obj), view,
 				      alignment, flags | PIN_GLOBAL);
@@ -4618,8 +4614,7 @@ struct i915_vma *i915_gem_obj_to_ggtt_view(struct drm_i915_gem_object *obj,
 	struct i915_address_space *ggtt = i915_obj_to_ggtt(obj);
 	struct i915_vma *vma;
 
-	if (WARN_ONCE(!view, "no view specified"))
-		return ERR_PTR(-EINVAL);
+	BUG_ON(!view);
 
 	list_for_each_entry(vma, &obj->vma_list, obj_link)
 		if (vma->vm == ggtt &&

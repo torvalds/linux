@@ -3341,15 +3341,7 @@ i915_gem_obj_lookup_or_create_ggtt_vma(struct drm_i915_gem_object *obj,
 				       const struct i915_ggtt_view *view)
 {
 	struct i915_address_space *ggtt = i915_obj_to_ggtt(obj);
-	struct i915_vma *vma;
-
-	if (WARN_ON(!view))
-		return ERR_PTR(-EINVAL);
-
-	vma = i915_gem_obj_to_ggtt_view(obj, view);
-
-	if (IS_ERR(vma))
-		return vma;
+	struct i915_vma *vma = i915_gem_obj_to_ggtt_view(obj, view);
 
 	if (!vma)
 		vma = __i915_gem_vma_create(obj, ggtt, view);
