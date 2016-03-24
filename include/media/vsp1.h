@@ -27,7 +27,8 @@ void vsp1_du_atomic_begin(struct device *dev);
 int vsp1_du_atomic_update_ext(struct device *dev, unsigned int rpf,
 			      u32 pixelformat, unsigned int pitch,
 			      dma_addr_t mem[2], const struct v4l2_rect *src,
-			      const struct v4l2_rect *dst, unsigned int zpos);
+			      const struct v4l2_rect *dst, unsigned int alpha,
+			      unsigned int zpos);
 void vsp1_du_atomic_flush(struct device *dev);
 
 static inline int vsp1_du_atomic_update(struct device *dev,
@@ -37,7 +38,7 @@ static inline int vsp1_du_atomic_update(struct device *dev,
 					const struct v4l2_rect *dst)
 {
 	return vsp1_du_atomic_update_ext(dev, rpf_index, pixelformat, pitch,
-					 mem, src, dst, 0);
+					 mem, src, dst, 255, 0);
 }
 
 #endif /* __MEDIA_VSP1_H__ */

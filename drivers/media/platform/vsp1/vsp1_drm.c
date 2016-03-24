@@ -235,6 +235,7 @@ EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
  * @mem: DMA addresses of the memory buffers (one per plane)
  * @src: the source crop rectangle for the RPF
  * @dst: the destination compose rectangle for the BRU input
+ * @alpha: global alpha value for the input
  * @zpos: the Z-order position of the input
  *
  * Configure the VSP to perform composition of the image referenced by @mem
@@ -263,7 +264,8 @@ EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
 int vsp1_du_atomic_update_ext(struct device *dev, unsigned int rpf_index,
 			      u32 pixelformat, unsigned int pitch,
 			      dma_addr_t mem[2], const struct v4l2_rect *src,
-			      const struct v4l2_rect *dst, unsigned int zpos)
+			      const struct v4l2_rect *dst, unsigned int alpha,
+			      unsigned int zpos)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	const struct vsp1_format_info *fmtinfo;
@@ -303,6 +305,7 @@ int vsp1_du_atomic_update_ext(struct device *dev, unsigned int rpf_index,
 	rpf->format.num_planes = fmtinfo->planes;
 	rpf->format.plane_fmt[0].bytesperline = pitch;
 	rpf->format.plane_fmt[1].bytesperline = pitch;
+	rpf->alpha = alpha;
 
 	rpf->mem.addr[0] = mem[0];
 	rpf->mem.addr[1] = mem[1];
