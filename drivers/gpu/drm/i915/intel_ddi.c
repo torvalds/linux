@@ -360,7 +360,7 @@ skl_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
 static const struct ddi_buf_trans *
 skl_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 {
-	if (dev_priv->edp_low_vswing) {
+	if (dev_priv->vbt.edp.low_vswing) {
 		if (IS_SKL_ULX(dev_priv) || IS_KBL_ULX(dev_priv)) {
 			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_edp);
 			return skl_y_ddi_translations_edp;
@@ -1431,7 +1431,7 @@ static void bxt_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
 	u32 n_entries, i;
 	uint32_t val;
 
-	if (type == INTEL_OUTPUT_EDP && dev_priv->edp_low_vswing) {
+	if (type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp.low_vswing) {
 		n_entries = ARRAY_SIZE(bxt_ddi_translations_edp);
 		ddi_translations = bxt_ddi_translations_edp;
 	} else if (type == INTEL_OUTPUT_DISPLAYPORT

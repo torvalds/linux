@@ -3157,7 +3157,7 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 	if (IS_BROXTON(dev))
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else if (INTEL_INFO(dev)->gen >= 9) {
-		if (dev_priv->edp_low_vswing && port == PORT_A)
+		if (dev_priv->vbt.edp.low_vswing && port == PORT_A)
 			return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
 	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
