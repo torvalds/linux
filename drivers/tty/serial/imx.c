@@ -887,7 +887,7 @@ static void imx_mctrl_check(struct imx_port *sport)
 
 	sport->old_status = status;
 
-	if (changed & TIOCM_RI)
+	if (changed & TIOCM_RI && status & TIOCM_RI)
 		sport->port.icount.rng++;
 	if (changed & TIOCM_DSR)
 		sport->port.icount.dsr++;
