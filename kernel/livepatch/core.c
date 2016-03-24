@@ -298,6 +298,19 @@ unlock:
 	rcu_read_unlock();
 }
 
+/*
+ * Convert a function address into the appropriate ftrace location.
+ *
+ * Usually this is just the address of the function, but on some architectures
+ * it's more complicated so allow them to provide a custom behaviour.
+ */
+#ifndef klp_get_ftrace_location
+static unsigned long klp_get_ftrace_location(unsigned long faddr)
+{
+	return faddr;
+}
+#endif
+
 static void klp_disable_func(struct klp_func *func)
 {
 	struct klp_ops *ops;
@@ -312,8 +325,14 @@ static void klp_disable_func(struct klp_func *func)
 		return;
 
 	if (list_is_singular(&ops->func_stack)) {
+		unsigned long ftrace_loc;
+
+		ftrace_loc = klp_get_ftrace_location(func->old_addr);
+		if (WARN_ON(!ftrace_loc))
+			return;
+
 		WARN_ON(unregister_ftrace_function(&ops->fops));
-		WARN_ON(ftrace_set_filter_ip(&ops->fops, func->old_addr, 1, 0));
+		WARN_ON(ftrace_set_filter_ip(&ops->fops, ftrace_loc, 1, 0));
 
 		list_del_rcu(&func->stack_node);
 		list_del(&ops->node);
@@ -338,6 +357,15 @@ static int klp_enable_func(struct klp_func *func)
 
 	ops = klp_find_ops(func->old_addr);
 	if (!ops) {
+		unsigned long ftrace_loc;
+
+		ftrace_loc = klp_get_ftrace_location(func->old_addr);
+		if (!ftrace_loc) {
+			pr_err("failed to find location for function '%s'\n",
+				func->old_name);
+			return -EINVAL;
+		}
+
 		ops = kzalloc(sizeof(*ops), GFP_KERNEL);
 		if (!ops)
 			return -ENOMEM;
@@ -352,7 +380,7 @@ static int klp_enable_func(struct klp_func *func)
 		INIT_LIST_HEAD(&ops->func_stack);
 		list_add_rcu(&func->stack_node, &ops->func_stack);
 
-		ret = ftrace_set_filter_ip(&ops->fops, func->old_addr, 0, 0);
+		ret = ftrace_set_filter_ip(&ops->fops, ftrace_loc, 0, 0);
 		if (ret) {
 			pr_err("failed to set ftrace filter for function '%s' (%d)\n",
 			       func->old_name, ret);
@@ -363,7 +391,7 @@ static int klp_enable_func(struct klp_func *func)
 		if (ret) {
 			pr_err("failed to register ftrace handler for function '%s' (%d)\n",
 			       func->old_name, ret);
-			ftrace_set_filter_ip(&ops->fops, func->old_addr, 1, 0);
+			ftrace_set_filter_ip(&ops->fops, ftrace_loc, 1, 0);
 			goto err;
 		}
 
