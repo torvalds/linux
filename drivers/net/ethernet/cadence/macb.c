@@ -2959,7 +2959,7 @@ static int macb_probe(struct platform_device *pdev)
 		int gpio = of_get_named_gpio(phy_node, "reset-gpios", 0);
 		if (gpio_is_valid(gpio))
 			bp->reset_gpio = gpio_to_desc(gpio);
-		gpiod_set_value(bp->reset_gpio, GPIOD_OUT_HIGH);
+		gpiod_direction_output(bp->reset_gpio, 1);
 	}
 	of_node_put(phy_node);
 
@@ -3029,7 +3029,7 @@ static int macb_remove(struct platform_device *pdev)
 		mdiobus_free(bp->mii_bus);
 
 		/* Shutdown the PHY if there is a GPIO reset */
-		gpiod_set_value(bp->reset_gpio, GPIOD_OUT_LOW);
+		gpiod_set_value(bp->reset_gpio, 0);
 
 		unregister_netdev(dev);
 		clk_disable_unprepare(bp->tx_clk);

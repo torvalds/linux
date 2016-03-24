@@ -56,6 +56,7 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 
 	/* setup inner skb. */
 	skb->encapsulation = 0;
+	SKB_GSO_CB(skb)->encap_level = 0;
 	__skb_pull(skb, tnl_hlen);
 	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, skb_inner_network_offset(skb));
@@ -311,14 +312,14 @@ struct sk_buff **udp_gro_receive(struct sk_buff **head, struct sk_buff *skb,
 	unsigned int off = skb_gro_offset(skb);
 	int flush = 1;
 
-	if (NAPI_GRO_CB(skb)->udp_mark ||
+	if (NAPI_GRO_CB(skb)->encap_mark ||
 	    (skb->ip_summed != CHECKSUM_PARTIAL &&
 	     NAPI_GRO_CB(skb)->csum_cnt == 0 &&
 	     !NAPI_GRO_CB(skb)->csum_valid))
 		goto out;
 
-	/* mark that this skb passed once through the udp gro layer */
-	NAPI_GRO_CB(skb)->udp_mark = 1;
+	/* mark that this skb passed once through the tunnel gro layer */
+	NAPI_GRO_CB(skb)->encap_mark = 1;
 
 	rcu_read_lock();
 	uo_priv = rcu_dereference(udp_offload_base);

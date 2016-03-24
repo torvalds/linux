@@ -443,6 +443,7 @@ config LEDS_DELL_NETBOOKS
 	tristate "External LED on Dell Business Netbooks"
 	depends on LEDS_CLASS
 	depends on X86 && ACPI_WMI
+	depends on DELL_SMBIOS
 	help
 	  This adds support for the Latitude 2100 and similar
 	  notebooks that have an external LED.
