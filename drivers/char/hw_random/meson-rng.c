@@ -72,6 +72,28 @@ static int meson_read(struct hwrng *rng, void *buf,
 	return 8;
 }
 
+static int meson_rng_init(struct hwrng *rng)
+{
+	print_state("b resu");
+	switch_mod_gate_by_type(MOD_RANDOM_NUM_GEN, 1);
+	print_state("a resu");
+
+	// Enable the ring oscillator
+	// NOTE:  CBUS 0x207f bit[0] = enable
+	// NOTE:  CBUS 0x207f bit[1] = high-frequency mode.
+	//      Setting bit[1]=1 may change the randomness even more
+	aml_set_reg32_mask(P_AM_RING_OSC_REG0, (1 << 0) | (1 << 1));
+
+	return 0;
+}
+
+static void meson_rng_cleanup(struct hwrng *rng)
+{
+	print_state("b susp");
+	switch_mod_gate_by_type(MOD_RANDOM_NUM_GEN, 0);
+	print_state("a susp");
+}
+
 static int meson_rng_probe(struct platform_device *pdev)
 {
 	struct meson_rng *meson_rng;
@@ -83,6 +105,8 @@ static int meson_rng_probe(struct platform_device *pdev)
 
 	meson_rng->dev = &pdev->dev;
 	meson_rng->rng.name = "meson";
+	meson_rng->rng.init = meson_rng_init;
+	meson_rng->rng.cleanup = meson_rng_cleanup;
 	meson_rng->rng.read = meson_read;
 
 	platform_set_drvdata(pdev, meson_rng);
@@ -107,24 +131,17 @@ static int meson_rng_remove(struct platform_device *pdev)
 #if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_RUNTIME)
 static int meson_rng_runtime_suspend(struct device *dev)
 {
-	print_state("b susp");
-	switch_mod_gate_by_type(MOD_RANDOM_NUM_GEN, 0);
-	print_state("a susp");
+	struct platform_device *pdev = to_platform_device(dev);
+	struct meson_rng *meson_rng = platform_get_drvdata(pdev);
+	meson_rng_cleanup(&meson_rng->rng);
 	return 0;
 }
 
 static int meson_rng_runtime_resume(struct device *dev)
 {
-	print_state("b resu");
-	switch_mod_gate_by_type(MOD_RANDOM_NUM_GEN, 1);
-	print_state("a resu");
-
-	// Enable the ring oscillator
-	// NOTE:  CBUS 0x207f bit[0] = enable
-	// NOTE:  CBUS 0x207f bit[1] = high-frequency mode.
-	//      Setting bit[1]=1 may change the randomness even more
-	aml_set_reg32_mask(P_AM_RING_OSC_REG0, (1 << 0) | (1 << 1));
-
+	struct platform_device *pdev = to_platform_device(dev);
+	struct meson_rng *meson_rng = platform_get_drvdata(pdev);
+	meson_rng_init(&meson_rng->rng);
 	return 0;
 }
 #endif
