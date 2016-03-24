@@ -213,8 +213,6 @@ struct dgnc_board {
 	uint		dgnc_serial_major;
 	uint		dgnc_transparent_print_major;
 
-	uint		TtyRefCnt;
-
 	u16		dpatype;	/* The board "type",
 					 * as defined by DPA
 					 */
