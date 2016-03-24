@@ -53,11 +53,7 @@ static int pxa2xx_spi_map_dma_buffer(struct driver_data *drv_data,
 	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
 		size_t bytes = min_t(size_t, len, SZ_2K);
 
-		if (buf)
-			sg_set_buf(sg, pbuf, bytes);
-		else
-			sg_set_buf(sg, drv_data->dummy, bytes);
-
+		sg_set_buf(sg, pbuf, bytes);
 		pbuf += bytes;
 		len -= bytes;
 	}
@@ -311,10 +307,6 @@ int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
-
-	drv_data->dummy = devm_kzalloc(dev, SZ_2K, GFP_KERNEL);
-	if (!drv_data->dummy)
-		return -ENOMEM;
 
 	drv_data->tx_chan = dma_request_slave_channel_compat(mask,
 				pdata->dma_filter, pdata->tx_param, dev, "tx");

@@ -1562,6 +1562,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	master->unprepare_transfer_hardware = pxa2xx_spi_unprepare_transfer;
 	master->fw_translate_cs = pxa2xx_spi_fw_translate_cs;
 	master->auto_runtime_pm = true;
+	master->flags = SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX;
 
 	drv_data->ssp_type = ssp->type;
 
