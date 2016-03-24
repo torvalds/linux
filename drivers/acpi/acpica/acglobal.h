@@ -187,6 +187,8 @@ extern const char *acpi_gbl_sleep_state_names[ACPI_S_STATE_COUNT];
 extern const char *acpi_gbl_lowest_dstate_names[ACPI_NUM_sx_w_METHODS];
 extern const char *acpi_gbl_highest_dstate_names[ACPI_NUM_sx_d_METHODS];
 extern const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS];
+extern const char acpi_gbl_lower_hex_digits[];
+extern const char acpi_gbl_upper_hex_digits[];
 extern const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES];
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS

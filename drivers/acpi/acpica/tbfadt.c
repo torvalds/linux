@@ -53,7 +53,7 @@ static void
 acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
 			     u8 space_id,
 			     u8 byte_width,
-			     u64 address, char *register_name, u8 flags);
+			     u64 address, const char *register_name, u8 flags);
 
 static void acpi_tb_convert_fadt(void);
 
@@ -65,7 +65,7 @@ acpi_tb_select_address(char *register_name, u32 address32, u64 address64);
 /* Table for conversion of FADT to common internal format and FADT validation */
 
 typedef struct acpi_fadt_info {
-	char *name;
+	const char *name;
 	u16 address64;
 	u16 address32;
 	u16 length;
@@ -192,7 +192,7 @@ static void
 acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
 			     u8 space_id,
 			     u8 byte_width,
-			     u64 address, char *register_name, u8 flags)
+			     u64 address, const char *register_name, u8 flags)
 {
 	u8 bit_width;
 
@@ -468,7 +468,7 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
 
 static void acpi_tb_convert_fadt(void)
 {
-	char *name;
+	const char *name;
 	struct acpi_generic_address *address64;
 	u32 address32;
 	u8 length;

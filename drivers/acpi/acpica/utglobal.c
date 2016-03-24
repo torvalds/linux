@@ -80,6 +80,11 @@ const char *acpi_gbl_highest_dstate_names[ACPI_NUM_sx_d_METHODS] = {
 	"_S4D"
 };
 
+/* Hex-to-ascii */
+
+const char acpi_gbl_lower_hex_digits[] = "0123456789abcdef";
+const char acpi_gbl_upper_hex_digits[] = "0123456789ABCDEF";
+
 /*******************************************************************************
  *
  * Namespace globals

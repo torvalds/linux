@@ -671,7 +671,7 @@ acpi_rs_get_aei_method_data(struct acpi_namespace_node *node,
 
 acpi_status
 acpi_rs_get_method_data(acpi_handle handle,
-			char *path, struct acpi_buffer *ret_buffer)
+			const char *path, struct acpi_buffer *ret_buffer)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;

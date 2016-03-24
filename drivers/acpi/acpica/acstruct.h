@@ -184,7 +184,7 @@ struct acpi_evaluate_info {
 	/* The first 3 elements are passed by the caller to acpi_ns_evaluate */
 
 	struct acpi_namespace_node *prefix_node;	/* Input: starting node */
-	char *relative_pathname;	/* Input: path relative to prefix_node */
+	const char *relative_pathname;	/* Input: path relative to prefix_node */
 	union acpi_operand_object **parameters;	/* Input: argument list */
 
 	struct acpi_namespace_node *node;	/* Resolved node (prefix_node:relative_pathname) */

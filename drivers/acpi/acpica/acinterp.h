@@ -67,7 +67,7 @@
 typedef const struct acpi_exdump_info {
 	u8 opcode;
 	u8 offset;
-	char *name;
+	const char *name;
 
 } acpi_exdump_info;
 

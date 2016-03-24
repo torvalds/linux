@@ -538,7 +538,8 @@ acpi_ev_attach_region(union acpi_operand_object *handler_obj,
 
 void acpi_ev_associate_reg_method(union acpi_operand_object *region_obj)
 {
-	acpi_name *reg_name_ptr = (acpi_name *) METHOD_NAME__REG;
+	const acpi_name *reg_name_ptr =
+	    ACPI_CAST_PTR(acpi_name, METHOD_NAME__REG);
 	struct acpi_namespace_node *method_node;
 	struct acpi_namespace_node *node;
 	union acpi_operand_object *region_obj2;

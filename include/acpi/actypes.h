@@ -995,7 +995,7 @@ struct acpi_buffer {
  * Predefined Namespace items
  */
 struct acpi_predefined_names {
-	char *name;
+	const char *name;
 	u8 type;
 	char *val;
 };
@@ -1228,7 +1228,7 @@ struct acpi_mem_space_context {
  * struct acpi_memory_list is used only if the ACPICA local cache is enabled
  */
 struct acpi_memory_list {
-	char *list_name;
+	const char *list_name;
 	void *list_head;
 	u16 object_size;
 	u16 max_depth;

@@ -67,11 +67,6 @@ static char *acpi_ut_format_number(char *string,
 
 static char *acpi_ut_put_number(char *string, u64 number, u8 base, u8 upper);
 
-/* Module globals */
-
-static const char acpi_gbl_lower_hex_digits[] = "0123456789abcdef";
-static const char acpi_gbl_upper_hex_digits[] = "0123456789ABCDEF";
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_bound_string_length

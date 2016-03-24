@@ -504,9 +504,7 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 	 * Evaluate the \_Sx namespace object containing the register values
 	 * for this state
 	 */
-	info->relative_pathname = ACPI_CAST_PTR(char,
-						acpi_gbl_sleep_state_names
-						[sleep_state]);
+	info->relative_pathname = acpi_gbl_sleep_state_names[sleep_state];
 
 	status = acpi_ns_evaluate(info);
 	if (ACPI_FAILURE(status)) {
