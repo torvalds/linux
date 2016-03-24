@@ -1079,7 +1079,7 @@ nla_put_failure:
  *	@filter_dev: filter device
  *	@idx:
  *
- *	Delete FDB entry from switch device.
+ *	Dump FDB entries from switch device.
  */
 int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			    struct net_device *dev,
