@@ -20,7 +20,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/acpi.h>
-#include <linux/gpio/consumer.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/iio/iio.h>
