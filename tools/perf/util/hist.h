@@ -199,8 +199,6 @@ int hists__init(void);
 int __hists__init(struct hists *hists, struct perf_hpp_list *hpp_list);
 
 struct rb_root *hists__get_rotate_entries_in(struct hists *hists);
-int hists__collapse_insert_entry(struct hists *hists,
-				  struct rb_root *root, struct hist_entry *he);
 
 struct perf_hpp {
 	char *buf;
