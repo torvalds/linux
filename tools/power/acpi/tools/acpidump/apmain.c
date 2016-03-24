@@ -209,7 +209,8 @@ static int ap_do_options(int argc, char **argv)
 		case 'r':	/* Dump tables from specified RSDP */
 
 			status =
-			    acpi_ut_strtoul64(acpi_gbl_optarg, 0,
+			    acpi_ut_strtoul64(acpi_gbl_optarg, ACPI_ANY_BASE,
+					      ACPI_MAX64_BYTE_WIDTH,
 					      &gbl_rsdp_base);
 			if (ACPI_FAILURE(status)) {
 				acpi_log_error

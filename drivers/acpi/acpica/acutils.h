@@ -175,7 +175,14 @@ void acpi_ut_strlwr(char *src_string);
 
 int acpi_ut_stricmp(char *string1, char *string2);
 
-acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer);
+acpi_status
+acpi_ut_strtoul64(char *string,
+		  u32 base, u32 max_integer_byte_width, u64 *ret_integer);
+
+/* Values for max_integer_byte_width above */
+
+#define ACPI_MAX32_BYTE_WIDTH       4
+#define ACPI_MAX64_BYTE_WIDTH       8
 
 /*
  * utglobal - Global data structures and procedures

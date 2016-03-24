@@ -124,7 +124,9 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 		 * of ACPI 3.0) is that the to_integer() operator allows both decimal
 		 * and hexadecimal strings (hex prefixed with "0x").
 		 */
-		status = acpi_ut_strtoul64((char *)pointer, flags, &result);
+		status = acpi_ut_strtoul64((char *)pointer, flags,
+					   acpi_gbl_integer_byte_width,
+					   &result);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
