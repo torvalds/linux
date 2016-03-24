@@ -1342,7 +1342,7 @@ static int rk808_probe(struct i2c_client *client,
 			dev_err(&client->dev, "create rk8xx sysfs error\n");
 	}
 
-	if (pm_off && !pm_power_off) {
+	if (pm_off) {
 		rk808_i2c_client = client;
 		pm_power_off = rk808->pm_pwroff_fn;
 	}
