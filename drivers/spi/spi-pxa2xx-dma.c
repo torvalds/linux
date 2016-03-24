@@ -33,12 +33,10 @@ static int pxa2xx_spi_map_dma_buffer(struct driver_data *drv_data,
 		dmadev = drv_data->tx_chan->device->dev;
 		sgt = &drv_data->tx_sgt;
 		buf = drv_data->tx;
-		drv_data->tx_map_len = len;
 	} else {
 		dmadev = drv_data->rx_chan->device->dev;
 		sgt = &drv_data->rx_sgt;
 		buf = drv_data->rx;
-		drv_data->rx_map_len = len;
 	}
 
 	nents = DIV_ROUND_UP(len, SZ_2K);
@@ -132,9 +130,6 @@ static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 
 		if (!error) {
 			pxa2xx_spi_unmap_dma_buffers(drv_data);
-
-			drv_data->tx += drv_data->tx_map_len;
-			drv_data->rx += drv_data->rx_map_len;
 
 			msg->actual_length += drv_data->len;
 			msg->state = pxa2xx_spi_next_transfer(drv_data);
