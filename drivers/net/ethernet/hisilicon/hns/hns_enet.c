@@ -1814,7 +1814,7 @@ static int hns_nic_try_get_ae(struct net_device *ndev)
 	h = hnae_get_handle(&priv->netdev->dev,
 			    priv->ae_node, priv->port_id, NULL);
 	if (IS_ERR_OR_NULL(h)) {
-		ret = PTR_ERR(h);
+		ret = -ENODEV;
 		dev_dbg(priv->dev, "has not handle, register notifier!\n");
 		goto out;
 	}
