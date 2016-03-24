@@ -482,7 +482,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 			      child->slave_addr,
 			      (child->dvo_port == DEVICE_PORT_DVOB) ?
 			      "SDVOB" : "SDVOC");
-		p_mapping = &(dev_priv->sdvo_mappings[child->dvo_port - 1]);
+		p_mapping = &dev_priv->vbt.sdvo_mappings[child->dvo_port - 1];
 		if (!p_mapping->initialized) {
 			p_mapping->dvo_port = child->dvo_port;
 			p_mapping->slave_addr = child->slave_addr;
