@@ -468,6 +468,9 @@ static int dwc3_phy_setup(struct dwc3 *dwc)
 	if (dwc->dis_u3_susphy_quirk)
 		reg &= ~DWC3_GUSB3PIPECTL_SUSPHY;
 
+	if (dwc->dis_del_phy_power_chg_quirk)
+		reg &= ~DWC3_GUSB3PIPECTL_DEPOCHANGE;
+
 	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(0), reg);
 
 	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
@@ -949,6 +952,8 @@ static int dwc3_probe(struct platform_device *pdev)
 				"snps,dis_enblslpm_quirk");
 	dwc->dis_u2_freeclk_exists_quirk = device_property_read_bool(dev,
 				"snps,dis_u2_freeclk_exists_quirk");
+	dwc->dis_del_phy_power_chg_quirk = device_property_read_bool(dev,
+				"snps,dis_del_phy_power_chg_quirk");
 	dwc->phyif_utmi_16_bits = device_property_read_bool(dev,
 				"snps,phyif_utmi_16_bits");
 
@@ -987,6 +992,8 @@ static int dwc3_probe(struct platform_device *pdev)
 		dwc->dis_enblslpm_quirk = pdata->dis_enblslpm_quirk;
 		dwc->dis_u2_freeclk_exists_quirk =
 					pdata->dis_u2_freeclk_exists_quirk;
+		dwc->dis_del_phy_power_chg_quirk =
+					pdata->dis_del_phy_power_chg_quirk;
 		dwc->phyif_utmi_16_bits = pdata->phyif_utmi_16_bits;
 
 		dwc->tx_de_emphasis_quirk = pdata->tx_de_emphasis_quirk;
