@@ -49,6 +49,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 
 	/* setup inner skb. */
 	skb->encapsulation = 0;
+	SKB_GSO_CB(skb)->encap_level = 0;
 	__skb_pull(skb, tnl_hlen);
 	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, skb_inner_network_offset(skb));
@@ -125,6 +126,11 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 	int flush = 1;
 	struct packet_offload *ptype;
 	__be16 type;
+
+	if (NAPI_GRO_CB(skb)->encap_mark)
+		goto out;
+
+	NAPI_GRO_CB(skb)->encap_mark = 1;
 
 	off = skb_gro_offset(skb);
 	hlen = off + sizeof(*greh);

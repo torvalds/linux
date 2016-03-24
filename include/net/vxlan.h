@@ -271,36 +271,36 @@ static inline struct vxlanhdr *vxlan_hdr(struct sk_buff *skb)
 static inline __be32 vxlan_vni(__be32 vni_field)
 {
 #if defined(__BIG_ENDIAN)
-	return vni_field >> 8;
+	return (__force __be32)((__force u32)vni_field >> 8);
 #else
-	return (vni_field & VXLAN_VNI_MASK) << 8;
+	return (__force __be32)((__force u32)(vni_field & VXLAN_VNI_MASK) << 8);
 #endif
 }
 
 static inline __be32 vxlan_vni_field(__be32 vni)
 {
 #if defined(__BIG_ENDIAN)
-	return vni << 8;
+	return (__force __be32)((__force u32)vni << 8);
 #else
-	return vni >> 8;
+	return (__force __be32)((__force u32)vni >> 8);
 #endif
 }
 
 static inline __be32 vxlan_tun_id_to_vni(__be64 tun_id)
 {
 #if defined(__BIG_ENDIAN)
-	return tun_id;
+	return (__force __be32)tun_id;
 #else
-	return tun_id >> 32;
+	return (__force __be32)((__force u64)tun_id >> 32);
 #endif
 }
 
 static inline __be64 vxlan_vni_to_tun_id(__be32 vni)
 {
 #if defined(__BIG_ENDIAN)
-	return (__be64)vni;
+	return (__force __be64)vni;
 #else
-	return (__be64)vni << 32;
+	return (__force __be64)((u64)(__force u32)vni << 32);
 #endif
 }
 
