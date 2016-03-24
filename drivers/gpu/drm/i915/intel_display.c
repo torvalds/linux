@@ -36,6 +36,7 @@
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "intel_dsi.h"
 #include "i915_trace.h"
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -9869,6 +9870,16 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 		if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 			continue;
 		*power_domain_mask |= BIT(power_domain);
+
+		/*
+		 * The PLL needs to be enabled with a valid divider
+		 * configuration, otherwise accessing DSI registers will hang
+		 * the machine. See BSpec North Display Engine
+		 * registers/MIPI[BXT]. We can break out here early, since we
+		 * need the same DSI PLL to be enabled for both DSI ports.
+		 */
+		if (!intel_dsi_pll_is_enabled(dev_priv))
+			break;
 
 		/* XXX: this works for video mode only */
 		tmp = I915_READ(BXT_MIPI_PORT_CTRL(port));

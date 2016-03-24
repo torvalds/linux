@@ -192,6 +192,36 @@ static void vlv_disable_dsi_pll(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
+static bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
+{
+	bool enabled;
+	u32 val;
+	u32 mask;
+
+	mask = BXT_DSI_PLL_DO_ENABLE | BXT_DSI_PLL_LOCKED;
+	val = I915_READ(BXT_DSI_PLL_ENABLE);
+	enabled = (val & mask) == mask;
+
+	if (!enabled)
+		return false;
+
+	/*
+	 * Both dividers must be programmed with valid values even if only one
+	 * of the PLL is used, see BSpec/Broxton Clocks. Check this here for
+	 * paranoia, since BIOS is known to misconfigure PLLs in this way at
+	 * times, and since accessing DSI registers with invalid dividers
+	 * causes a system hang.
+	 */
+	val = I915_READ(BXT_DSI_PLL_CTL);
+	if (!(val & BXT_DSIA_16X_MASK) || !(val & BXT_DSIC_16X_MASK)) {
+		DRM_DEBUG_DRIVER("PLL is enabled with invalid divider settings (%08x)\n",
+				 val);
+		enabled = false;
+	}
+
+	return enabled;
+}
+
 static void bxt_disable_dsi_pll(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
@@ -484,6 +514,16 @@ static void bxt_enable_dsi_pll(struct intel_encoder *encoder)
 	}
 
 	DRM_DEBUG_KMS("DSI PLL locked\n");
+}
+
+bool intel_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
+{
+	if (IS_BROXTON(dev_priv))
+		return bxt_dsi_pll_is_enabled(dev_priv);
+
+	MISSING_CASE(INTEL_DEVID(dev_priv));
+
+	return false;
 }
 
 void intel_enable_dsi_pll(struct intel_encoder *encoder)

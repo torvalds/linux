@@ -7811,9 +7811,11 @@ enum skl_disp_power_wells {
 #define  BXT_DSIC_16X_BY2		(1 << 10)
 #define  BXT_DSIC_16X_BY3		(2 << 10)
 #define  BXT_DSIC_16X_BY4		(3 << 10)
+#define  BXT_DSIC_16X_MASK		(3 << 10)
 #define  BXT_DSIA_16X_BY2		(1 << 8)
 #define  BXT_DSIA_16X_BY3		(2 << 8)
 #define  BXT_DSIA_16X_BY4		(3 << 8)
+#define  BXT_DSIA_16X_MASK		(3 << 8)
 #define  BXT_DSI_FREQ_SEL_SHIFT		8
 #define  BXT_DSI_FREQ_SEL_MASK		(0xF << BXT_DSI_FREQ_SEL_SHIFT)
 

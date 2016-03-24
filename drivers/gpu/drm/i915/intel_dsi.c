@@ -684,6 +684,14 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
+	/*
+	 * On Broxton the PLL needs to be enabled with a valid divider
+	 * configuration, otherwise accessing DSI registers will hang the
+	 * machine. See BSpec North Display Engine registers/MIPI[BXT].
+	 */
+	if (IS_BROXTON(dev_priv) && !intel_dsi_pll_is_enabled(dev_priv))
+		goto out_put_power;
+
 	/* XXX: this only works for one DSI output */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		i915_reg_t ctrl_reg = IS_BROXTON(dev) ?
@@ -726,6 +734,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 		break;
 	}
 
+out_put_power:
 	intel_display_power_put(dev_priv, power_domain);
 
 	return active;

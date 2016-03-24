@@ -126,6 +126,7 @@ static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 	return container_of(encoder, struct intel_dsi, base.base);
 }
 
+bool intel_dsi_pll_is_enabled(struct drm_i915_private *dev_priv);
 extern void intel_enable_dsi_pll(struct intel_encoder *encoder);
 extern void intel_disable_dsi_pll(struct intel_encoder *encoder);
 extern u32 intel_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp);
