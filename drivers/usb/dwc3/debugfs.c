@@ -47,6 +47,7 @@ static const struct debugfs_reg32 dwc3_regs[] = {
 	dump_register(GCTL),
 	dump_register(GEVTEN),
 	dump_register(GSTS),
+	dump_register(GUCTL1),
 	dump_register(GSNPSID),
 	dump_register(GGPIO),
 	dump_register(GUID),
