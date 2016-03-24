@@ -470,7 +470,7 @@ handle_locking_key(struct input_dev *visorinput_dev,
 		break;
 	}
 	if (led >= 0) {
-		int old_state = (test_bit(led, visorinput_dev->led) != 0);
+		int old_state = (test_bit(led, visorinput_dev->led));
 
 		if (old_state != desired_state) {
 			input_report_key(visorinput_dev, keycode, 1);
