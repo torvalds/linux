@@ -34,10 +34,6 @@ struct posix_acl *jfs_get_acl(struct inode *inode, int type)
 	int size;
 	char *value = NULL;
 
-	acl = get_cached_acl(inode, type);
-	if (acl != ACL_NOT_CACHED)
-		return acl;
-
 	switch(type) {
 		case ACL_TYPE_ACCESS:
 			ea_name = XATTR_NAME_POSIX_ACL_ACCESS;
