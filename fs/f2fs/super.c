@@ -791,11 +791,6 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	org_mount_opt = sbi->mount_opt;
 	active_logs = sbi->active_logs;
 
-	if (*flags & MS_RDONLY) {
-		set_opt(sbi, FASTBOOT);
-		set_sbi_flag(sbi, SBI_IS_DIRTY);
-	}
-
 	/* recover superblocks we couldn't write due to previous RO mount */
 	if (!(*flags & MS_RDONLY) && is_sbi_flag_set(sbi, SBI_NEED_SB_WRITE)) {
 		err = f2fs_commit_super(sbi, false);
@@ -804,8 +799,6 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 		if (!err)
 			clear_sbi_flag(sbi, SBI_NEED_SB_WRITE);
 	}
-
-	sync_filesystem(sb);
 
 	sbi->mount_opt.opt = 0;
 	default_options(sbi);
@@ -838,7 +831,6 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	if ((*flags & MS_RDONLY) || !test_opt(sbi, BG_GC)) {
 		if (sbi->gc_thread) {
 			stop_gc_thread(sbi);
-			f2fs_sync_fs(sb, 1);
 			need_restart_gc = true;
 		}
 	} else if (!sbi->gc_thread) {
@@ -846,6 +838,16 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 		if (err)
 			goto restore_opts;
 		need_stop_gc = true;
+	}
+
+	if (*flags & MS_RDONLY) {
+		writeback_inodes_sb(sb, WB_REASON_SYNC);
+		sync_inodes_sb(sb);
+
+		set_sbi_flag(sbi, SBI_IS_DIRTY);
+		set_sbi_flag(sbi, SBI_IS_CLOSE);
+		f2fs_sync_fs(sb, 1);
+		clear_sbi_flag(sbi, SBI_IS_CLOSE);
 	}
 
 	/*
