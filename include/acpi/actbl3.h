@@ -184,7 +184,7 @@ struct acpi_table_fpdt {
 	struct acpi_table_header header;	/* Common ACPI table header */
 };
 
-/* FPDT subtable header */
+/* FPDT subtable header (Performance Record Structure) */
 
 struct acpi_fpdt_header {
 	u16 type;
@@ -205,6 +205,57 @@ enum acpi_fpdt_type {
 
 /* 0: Firmware Basic Boot Performance Record */
 
+struct acpi_fpdt_boot_pointer {
+	struct acpi_fpdt_header header;
+	u8 reserved[4];
+	u64 address;
+};
+
+/* 1: S3 Performance Table Pointer Record */
+
+struct acpi_fpdt_s3pt_pointer {
+	struct acpi_fpdt_header header;
+	u8 reserved[4];
+	u64 address;
+};
+
+/*
+ * S3PT - S3 Performance Table. This table is pointed to by the
+ * S3 Pointer Record above.
+ */
+struct acpi_table_s3pt {
+	u8 signature[4];	/* "S3PT" */
+	u32 length;
+};
+
+/*
+ * S3PT Subtables (Not part of the actual FPDT)
+ */
+
+/* Values for Type field in S3PT header */
+
+enum acpi_s3pt_type {
+	ACPI_S3PT_TYPE_RESUME = 0,
+	ACPI_S3PT_TYPE_SUSPEND = 1,
+	ACPI_FPDT_BOOT_PERFORMANCE = 2
+};
+
+struct acpi_s3pt_resume {
+	struct acpi_fpdt_header header;
+	u32 resume_count;
+	u64 full_resume;
+	u64 average_resume;
+};
+
+struct acpi_s3pt_suspend {
+	struct acpi_fpdt_header header;
+	u64 suspend_start;
+	u64 suspend_end;
+};
+
+/*
+ * FPDT Boot Performance Record (Not part of the actual FPDT)
+ */
 struct acpi_fpdt_boot {
 	struct acpi_fpdt_header header;
 	u8 reserved[4];
@@ -213,52 +264,6 @@ struct acpi_fpdt_boot {
 	u64 startup_start;
 	u64 exit_services_entry;
 	u64 exit_services_exit;
-};
-
-/* 1: S3 Performance Table Pointer Record */
-
-struct acpi_fpdt_s3pt_ptr {
-	struct acpi_fpdt_header header;
-	u8 reserved[4];
-	u64 address;
-};
-
-/*
- * S3PT - S3 Performance Table. This table is pointed to by the
- * FPDT S3 Pointer Record above.
- */
-struct acpi_table_s3pt {
-	u8 signature[4];	/* "S3PT" */
-	u32 length;
-};
-
-/*
- * S3PT Subtables
- */
-struct acpi_s3pt_header {
-	u16 type;
-	u8 length;
-	u8 revision;
-};
-
-/* Values for Type field above */
-
-enum acpi_s3pt_type {
-	ACPI_S3PT_TYPE_RESUME = 0,
-	ACPI_S3PT_TYPE_SUSPEND = 1
-};
-
-struct acpi_s3pt_resume {
-	struct acpi_s3pt_header header;
-	u32 resume_count;
-	u64 full_resume;
-	u64 average_resume;
-};
-
-struct acpi_s3pt_suspend {
-	struct acpi_s3pt_header header;
-	u64 suspend_start;
-	u64 suspend_end;
 };
 
 /*******************************************************************************
