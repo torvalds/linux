@@ -28,7 +28,6 @@ int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 			   struct machine *machine)
 {
 	struct addr_location al;
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct thread *thread = machine__findnew_thread(machine, sample->pid,
 							sample->tid);
 
@@ -38,7 +37,7 @@ int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 		return -1;
 	}
 
-	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->ip, &al);
+	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->ip, &al);
 
 	if (al.map != NULL)
 		al.map->dso->hit = 1;

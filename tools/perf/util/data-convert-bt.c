@@ -632,7 +632,7 @@ static bool is_flush_needed(struct ctf_stream *cs)
 }
 
 static int process_sample_event(struct perf_tool *tool,
-				union perf_event *_event __maybe_unused,
+				union perf_event *_event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
 				struct machine *machine __maybe_unused)

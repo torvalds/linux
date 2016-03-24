@@ -1872,11 +1872,6 @@ static int process_cpu_topology(struct perf_file_section *section,
 		if (ph->needs_swap)
 			nr = bswap_32(nr);
 
-		if (nr > (u32)cpu_nr) {
-			pr_debug("core_id number is too big."
-				 "You may need to upgrade the perf tool.\n");
-			goto free_cpu;
-		}
 		ph->env.cpu[i].core_id = nr;
 
 		ret = readn(fd, &nr, sizeof(nr));

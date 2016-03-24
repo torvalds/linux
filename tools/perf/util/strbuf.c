@@ -51,6 +51,13 @@ void strbuf_grow(struct strbuf *sb, size_t extra)
 	ALLOC_GROW(sb->buf, sb->len + extra + 1, sb->alloc);
 }
 
+void strbuf_addch(struct strbuf *sb, int c)
+{
+	strbuf_grow(sb, 1);
+	sb->buf[sb->len++] = c;
+	sb->buf[sb->len] = '\0';
+}
+
 void strbuf_add(struct strbuf *sb, const void *data, size_t len)
 {
 	strbuf_grow(sb, len);
@@ -58,7 +65,7 @@ void strbuf_add(struct strbuf *sb, const void *data, size_t len)
 	strbuf_setlen(sb, sb->len + len);
 }
 
-void strbuf_addv(struct strbuf *sb, const char *fmt, va_list ap)
+static void strbuf_addv(struct strbuf *sb, const char *fmt, va_list ap)
 {
 	int len;
 	va_list ap_saved;

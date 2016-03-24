@@ -330,7 +330,7 @@ static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 	struct hists *hists = evsel__hists(evsel);
 	int ret = -1;
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
+	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
