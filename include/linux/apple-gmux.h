@@ -35,7 +35,7 @@
  */
 static inline bool apple_gmux_present(void)
 {
-	return acpi_dev_present(GMUX_ACPI_HID);
+	return acpi_dev_found(GMUX_ACPI_HID);
 }
 
 #else  /* !CONFIG_APPLE_GMUX */

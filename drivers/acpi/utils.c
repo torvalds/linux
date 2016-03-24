@@ -707,7 +707,7 @@ bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, int rev, u64 funcs)
 EXPORT_SYMBOL(acpi_check_dsm);
 
 /**
- * acpi_dev_present - Detect presence of a given ACPI device in the system.
+ * acpi_dev_found - Detect presence of a given ACPI device in the namespace.
  * @hid: Hardware ID of the device.
  *
  * Return %true if the device was present at the moment of invocation.
@@ -719,7 +719,7 @@ EXPORT_SYMBOL(acpi_check_dsm);
  * instead). Calling from module_init() is fine (which is synonymous
  * with device_initcall()).
  */
-bool acpi_dev_present(const char *hid)
+bool acpi_dev_found(const char *hid)
 {
 	struct acpi_device_bus_id *acpi_device_bus_id;
 	bool found = false;
@@ -734,7 +734,7 @@ bool acpi_dev_present(const char *hid)
 
 	return found;
 }
-EXPORT_SYMBOL(acpi_dev_present);
+EXPORT_SYMBOL(acpi_dev_found);
 
 /*
  * acpi_backlight= handling, this is done here rather then in video_detect.c
