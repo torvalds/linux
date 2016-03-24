@@ -79,7 +79,10 @@ int fsl_dcu_drm_encoder_create(struct fsl_dcu_drm_device *fsl_dev,
 
 static void fsl_dcu_drm_connector_destroy(struct drm_connector *connector)
 {
+	struct fsl_dcu_drm_connector *fsl_con = to_fsl_dcu_connector(connector);
+
 	drm_connector_unregister(connector);
+	drm_panel_detach(fsl_con->panel);
 	drm_connector_cleanup(connector);
 }
 
