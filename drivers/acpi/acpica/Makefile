@@ -43,6 +43,7 @@ acpi-y +=		\
 	evxfregn.o
 
 acpi-y +=		\
+	exconcat.o	\
 	exconfig.o	\
 	exconvrt.o	\
 	excreate.o	\
