@@ -65,6 +65,9 @@ enum r8a7795_clk_types {
 	CLK_TYPE_GEN3_SD,
 };
 
+#define DEF_GEN3_SD(_name, _id, _parent, _offset)	\
+	DEF_BASE(_name, _id, CLK_TYPE_GEN3_SD, _parent, .offset = _offset)
+
 static const struct cpg_core_clk r8a7795_core_clks[] __initconst = {
 	/* External Clock Inputs */
 	DEF_INPUT("extal",  CLK_EXTAL),
@@ -102,10 +105,10 @@ static const struct cpg_core_clk r8a7795_core_clks[] __initconst = {
 	DEF_FIXED("s3d2",       R8A7795_CLK_S3D2,  CLK_S3,         2, 1),
 	DEF_FIXED("s3d4",       R8A7795_CLK_S3D4,  CLK_S3,         4, 1),
 
-	DEF_SD("sd0",           R8A7795_CLK_SD0,   CLK_PLL1_DIV2, 0x0074),
-	DEF_SD("sd1",           R8A7795_CLK_SD1,   CLK_PLL1_DIV2, 0x0078),
-	DEF_SD("sd2",           R8A7795_CLK_SD2,   CLK_PLL1_DIV2, 0x0268),
-	DEF_SD("sd3",           R8A7795_CLK_SD3,   CLK_PLL1_DIV2, 0x026c),
+	DEF_GEN3_SD("sd0",      R8A7795_CLK_SD0,   CLK_PLL1_DIV2, 0x0074),
+	DEF_GEN3_SD("sd1",      R8A7795_CLK_SD1,   CLK_PLL1_DIV2, 0x0078),
+	DEF_GEN3_SD("sd2",      R8A7795_CLK_SD2,   CLK_PLL1_DIV2, 0x0268),
+	DEF_GEN3_SD("sd3",      R8A7795_CLK_SD3,   CLK_PLL1_DIV2, 0x026c),
 
 	DEF_FIXED("cl",         R8A7795_CLK_CL,    CLK_PLL1_DIV2, 48, 1),
 	DEF_FIXED("cp",         R8A7795_CLK_CP,    CLK_EXTAL,      2, 1),
