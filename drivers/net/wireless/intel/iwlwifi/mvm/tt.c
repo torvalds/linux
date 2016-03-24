@@ -801,9 +801,6 @@ static int iwl_mvm_tcool_set_cur_state(struct thermal_cooling_device *cdev,
 	if (!mvm->ucode_loaded || !(mvm->cur_ucode == IWL_UCODE_REGULAR))
 		return -EIO;
 
-	if (test_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status))
-		return -EBUSY;
-
 	mutex_lock(&mvm->mutex);
 
 	if (new_state >= ARRAY_SIZE(iwl_mvm_cdev_budgets)) {
