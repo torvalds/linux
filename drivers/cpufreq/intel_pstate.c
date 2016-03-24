@@ -134,7 +134,7 @@ struct pstate_funcs {
 	int (*get_min)(void);
 	int (*get_turbo)(void);
 	int (*get_scaling)(void);
-	void (*set)(struct cpudata*, int pstate);
+	u64 (*get_val)(struct cpudata*, int pstate);
 	void (*get_vid)(struct cpudata *);
 	int32_t (*get_target_pstate)(struct cpudata *);
 };
@@ -565,7 +565,7 @@ static int atom_get_turbo_pstate(void)
 	return value & 0x7F;
 }
 
-static void atom_set_pstate(struct cpudata *cpudata, int pstate)
+static u64 atom_get_val(struct cpudata *cpudata, int pstate)
 {
 	u64 val;
 	int32_t vid_fp;
@@ -585,9 +585,7 @@ static void atom_set_pstate(struct cpudata *cpudata, int pstate)
 	if (pstate > cpudata->pstate.max_pstate)
 		vid = cpudata->vid.turbo;
 
-	val |= vid;
-
-	wrmsrl_on_cpu(cpudata->cpu, MSR_IA32_PERF_CTL, val);
+	return val | vid;
 }
 
 static int silvermont_get_scaling(void)
@@ -711,7 +709,7 @@ static inline int core_get_scaling(void)
 	return 100000;
 }
 
-static void core_set_pstate(struct cpudata *cpudata, int pstate)
+static u64 core_get_val(struct cpudata *cpudata, int pstate)
 {
 	u64 val;
 
@@ -719,7 +717,7 @@ static void core_set_pstate(struct cpudata *cpudata, int pstate)
 	if (limits->no_turbo && !limits->turbo_disabled)
 		val |= (u64)1 << 32;
 
-	wrmsrl(MSR_IA32_PERF_CTL, val);
+	return val;
 }
 
 static int knl_get_turbo_pstate(void)
@@ -750,7 +748,7 @@ static struct cpu_defaults core_params = {
 		.get_min = core_get_min_pstate,
 		.get_turbo = core_get_turbo_pstate,
 		.get_scaling = core_get_scaling,
-		.set = core_set_pstate,
+		.get_val = core_get_val,
 		.get_target_pstate = get_target_pstate_use_performance,
 	},
 };
@@ -769,7 +767,7 @@ static struct cpu_defaults silvermont_params = {
 		.get_max_physical = atom_get_max_pstate,
 		.get_min = atom_get_min_pstate,
 		.get_turbo = atom_get_turbo_pstate,
-		.set = atom_set_pstate,
+		.get_val = atom_get_val,
 		.get_scaling = silvermont_get_scaling,
 		.get_vid = atom_get_vid,
 		.get_target_pstate = get_target_pstate_use_cpu_load,
@@ -790,7 +788,7 @@ static struct cpu_defaults airmont_params = {
 		.get_max_physical = atom_get_max_pstate,
 		.get_min = atom_get_min_pstate,
 		.get_turbo = atom_get_turbo_pstate,
-		.set = atom_set_pstate,
+		.get_val = atom_get_val,
 		.get_scaling = airmont_get_scaling,
 		.get_vid = atom_get_vid,
 		.get_target_pstate = get_target_pstate_use_cpu_load,
@@ -812,7 +810,7 @@ static struct cpu_defaults knl_params = {
 		.get_min = core_get_min_pstate,
 		.get_turbo = knl_get_turbo_pstate,
 		.get_scaling = core_get_scaling,
-		.set = core_set_pstate,
+		.get_val = core_get_val,
 		.get_target_pstate = get_target_pstate_use_performance,
 	},
 };
@@ -839,25 +837,24 @@ static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 	*min = clamp_t(int, min_perf, cpu->pstate.min_pstate, max_perf);
 }
 
-static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate, bool force)
+static inline void intel_pstate_record_pstate(struct cpudata *cpu, int pstate)
 {
-	int max_perf, min_perf;
-
-	if (force) {
-		update_turbo_state();
-
-		intel_pstate_get_min_max(cpu, &min_perf, &max_perf);
-
-		pstate = clamp_t(int, pstate, min_perf, max_perf);
-
-		if (pstate == cpu->pstate.current_pstate)
-			return;
-	}
 	trace_cpu_frequency(pstate * cpu->pstate.scaling, cpu->cpu);
-
 	cpu->pstate.current_pstate = pstate;
+}
 
-	pstate_funcs.set(cpu, pstate);
+static void intel_pstate_set_min_pstate(struct cpudata *cpu)
+{
+	int pstate = cpu->pstate.min_pstate;
+
+	intel_pstate_record_pstate(cpu, pstate);
+	/*
+	 * Generally, there is no guarantee that this code will always run on
+	 * the CPU being updated, so force the register update to run on the
+	 * right CPU.
+	 */
+	wrmsrl_on_cpu(cpu->cpu, MSR_IA32_PERF_CTL,
+		      pstate_funcs.get_val(cpu, pstate));
 }
 
 static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
@@ -870,7 +867,8 @@ static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 
 	if (pstate_funcs.get_vid)
 		pstate_funcs.get_vid(cpu);
-	intel_pstate_set_pstate(cpu, cpu->pstate.min_pstate, false);
+
+	intel_pstate_set_min_pstate(cpu);
 }
 
 static inline void intel_pstate_calc_busy(struct cpudata *cpu)
@@ -997,6 +995,21 @@ static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu)
 	return cpu->pstate.current_pstate - pid_calc(&cpu->pid, core_busy);
 }
 
+static inline void intel_pstate_update_pstate(struct cpudata *cpu, int pstate)
+{
+	int max_perf, min_perf;
+
+	update_turbo_state();
+
+	intel_pstate_get_min_max(cpu, &min_perf, &max_perf);
+	pstate = clamp_t(int, pstate, min_perf, max_perf);
+	if (pstate == cpu->pstate.current_pstate)
+		return;
+
+	intel_pstate_record_pstate(cpu, pstate);
+	wrmsrl(MSR_IA32_PERF_CTL, pstate_funcs.get_val(cpu, pstate));
+}
+
 static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
 {
 	int from, target_pstate;
@@ -1006,7 +1019,7 @@ static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
 
 	target_pstate = pstate_funcs.get_target_pstate(cpu);
 
-	intel_pstate_set_pstate(cpu, target_pstate, true);
+	intel_pstate_update_pstate(cpu, target_pstate);
 
 	sample = &cpu->sample;
 	trace_pstate_sample(fp_toint(sample->core_pct_busy),
@@ -1180,7 +1193,7 @@ static void intel_pstate_stop_cpu(struct cpufreq_policy *policy)
 	if (hwp_active)
 		return;
 
-	intel_pstate_set_pstate(cpu, cpu->pstate.min_pstate, false);
+	intel_pstate_set_min_pstate(cpu);
 }
 
 static int intel_pstate_cpu_init(struct cpufreq_policy *policy)
@@ -1255,7 +1268,7 @@ static void copy_cpu_funcs(struct pstate_funcs *funcs)
 	pstate_funcs.get_min   = funcs->get_min;
 	pstate_funcs.get_turbo = funcs->get_turbo;
 	pstate_funcs.get_scaling = funcs->get_scaling;
-	pstate_funcs.set       = funcs->set;
+	pstate_funcs.get_val   = funcs->get_val;
 	pstate_funcs.get_vid   = funcs->get_vid;
 	pstate_funcs.get_target_pstate = funcs->get_target_pstate;
 
