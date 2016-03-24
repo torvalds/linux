@@ -989,6 +989,7 @@ static const struct iio_event_spec bmc150_accel_event = {
 		.realbits = (bits),					\
 		.storagebits = 16,					\
 		.shift = 16 - (bits),					\
+		.endianness = IIO_LE,					\
 	},								\
 	.event_spec = &bmc150_accel_event,				\
 	.num_event_specs = 1						\
@@ -1114,21 +1115,14 @@ static irqreturn_t bmc150_accel_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
-	int bit, ret, i = 0;
-	unsigned int raw_val;
+	int ret;
 
 	mutex_lock(&data->mutex);
-	for (bit = 0; bit < AXIS_MAX; bit++) {
-		ret = regmap_bulk_read(data->regmap,
-				       BMC150_ACCEL_AXIS_TO_REG(bit), &raw_val,
-				       2);
-		if (ret < 0) {
-			mutex_unlock(&data->mutex);
-			goto err_read;
-		}
-		data->buffer[i++] = raw_val;
-	}
+	ret = regmap_bulk_read(data->regmap, BMC150_ACCEL_REG_XOUT_L,
+			       data->buffer, AXIS_MAX * 2);
 	mutex_unlock(&data->mutex);
+	if (ret < 0)
+		goto err_read;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 					   pf->timestamp);
