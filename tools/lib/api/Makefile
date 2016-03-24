@@ -1,5 +1,5 @@
 include ../../scripts/Makefile.include
-include ../../perf/config/utilities.mak		# QUIET_CLEAN
+include ../../scripts/utilities.mak		# QUIET_CLEAN
 
 ifeq ($(srctree),)
 srctree := $(patsubst %/,%,$(dir $(shell pwd)))

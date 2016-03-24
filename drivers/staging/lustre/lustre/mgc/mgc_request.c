@@ -1282,7 +1282,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 
 		rc = -ENOMEM;
 		lcfg = lustre_cfg_new(LCFG_PARAM, &bufs);
-		if (!lcfg) {
+		if (IS_ERR(lcfg)) {
 			CERROR("mgc: cannot allocate memory\n");
 			break;
 		}

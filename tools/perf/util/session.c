@@ -1107,12 +1107,11 @@ static struct machine *machines__find_for_cpumode(struct machines *machines,
 					       union perf_event *event,
 					       struct perf_sample *sample)
 {
-	const u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct machine *machine;
 
 	if (perf_guest &&
-	    ((cpumode == PERF_RECORD_MISC_GUEST_KERNEL) ||
-	     (cpumode == PERF_RECORD_MISC_GUEST_USER))) {
+	    ((sample->cpumode == PERF_RECORD_MISC_GUEST_KERNEL) ||
+	     (sample->cpumode == PERF_RECORD_MISC_GUEST_USER))) {
 		u32 pid;
 
 		if (event->header.type == PERF_RECORD_MMAP

@@ -1,5 +1,5 @@
 /*
- * platform_tc35876x.c: tc35876x platform data initilization file
+ * platform_tc35876x.c: tc35876x platform data initialization file
  *
  * (C) Copyright 2013 Intel Corporation
  * Author: Sathyanarayanan Kuppuswamy <sathyanarayanan.kuppuswamy@intel.com>

@@ -2170,6 +2170,13 @@ static int get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 	int ret;
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	struct wilc_vif *vif = netdev_priv(priv->dev);
+	struct wilc *wl;
+
+	wl = vif->wilc;
+
+	/* If firmware is not started, return. */
+	if (!wl->initialized)
+		return -EIO;
 
 	ret = wilc_get_tx_power(vif, (u8 *)dbm);
 	if (ret)
