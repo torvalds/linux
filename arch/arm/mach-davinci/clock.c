@@ -195,6 +195,14 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 		return -EINVAL;
 
 	mutex_lock(&clocks_mutex);
+	if (clk->set_parent) {
+		int ret = clk->set_parent(clk, parent);
+
+		if (ret) {
+			mutex_unlock(&clocks_mutex);
+			return ret;
+		}
+	}
 	clk->parent = parent;
 	list_del_init(&clk->childnode);
 	list_add(&clk->childnode, &clk->parent->children);
@@ -224,8 +232,17 @@ int clk_register(struct clk *clk)
 
 	mutex_lock(&clocks_mutex);
 	list_add_tail(&clk->node, &clocks);
-	if (clk->parent)
+	if (clk->parent) {
+		if (clk->set_parent) {
+			int ret = clk->set_parent(clk, clk->parent);
+
+			if (ret) {
+				mutex_unlock(&clocks_mutex);
+				return ret;
+			}
+		}
 		list_add_tail(&clk->childnode, &clk->parent->children);
+	}
 	mutex_unlock(&clocks_mutex);
 
 	/* If rate is already set, use it */
