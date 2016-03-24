@@ -301,27 +301,24 @@ EXPORT_SYMBOL_GPL(ubi_open_volume_nm);
  */
 struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode)
 {
-	int error, ubi_num, vol_id, mod;
-	struct inode *inode;
-	struct path path;
+	int error, ubi_num, vol_id;
+	struct kstat stat;
 
 	dbg_gen("open volume %s, mode %d", pathname, mode);
 
 	if (!pathname || !*pathname)
 		return ERR_PTR(-EINVAL);
 
-	error = kern_path(pathname, LOOKUP_FOLLOW, &path);
+	error = vfs_stat(pathname, &stat);
 	if (error)
 		return ERR_PTR(error);
 
-	inode = d_backing_inode(path.dentry);
-	mod = inode->i_mode;
-	ubi_num = ubi_major2num(imajor(inode));
-	vol_id = iminor(inode) - 1;
-	path_put(&path);
-
-	if (!S_ISCHR(mod))
+	if (!S_ISCHR(stat.mode))
 		return ERR_PTR(-EINVAL);
+
+	ubi_num = ubi_major2num(MAJOR(stat.rdev));
+	vol_id = MINOR(stat.rdev) - 1;
+
 	if (vol_id >= 0 && ubi_num >= 0)
 		return ubi_open_volume(ubi_num, vol_id, mode);
 	return ERR_PTR(-ENODEV);
