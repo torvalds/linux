@@ -26,8 +26,7 @@ required properties:
 Optional Properties:
 - clocks : phandle + clock specifier for the phy clocks
 - clock-names: string, clock name, must be "phyclk"
-- host_drv_gpio: vbus-drv gpio, pull gpio on/off to
-  control vbus supply.
+- vbus_drv-gpio: pull gpio on/off to control vbus power supply.
 - #clock-cells: for users of the phy-pll, should be 0
 
 Example:
