@@ -94,6 +94,8 @@
 		scsi_opcode_name(WRITE_16),			\
 		scsi_opcode_name(VERIFY_16),			\
 		scsi_opcode_name(WRITE_SAME_16),		\
+		scsi_opcode_name(ZBC_OUT),			\
+		scsi_opcode_name(ZBC_IN),			\
 		scsi_opcode_name(SERVICE_ACTION_IN_16),		\
 		scsi_opcode_name(READ_32),			\
 		scsi_opcode_name(WRITE_32),			\
