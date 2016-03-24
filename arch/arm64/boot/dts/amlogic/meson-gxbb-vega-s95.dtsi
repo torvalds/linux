@@ -45,6 +45,10 @@
 / {
 	compatible = "tronsmart,vega-s95", "amlogic,meson-gxbb";
 
+	aliases {
+		serial0 = &uart_AO;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
