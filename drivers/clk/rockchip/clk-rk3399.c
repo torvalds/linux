@@ -1424,9 +1424,8 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 	GATE(HCLK_NOC_PMU, "hclk_noc_pmu", "fclk_cm0s_src_pmu", CLK_IGNORE_UNUSED, RK3399_PMU_CLKGATE_CON(2), 5, GFLAGS),
 };
 
-static const char *const rk3399_critical_clocks[] __initconst = {
+static const char *const rk3399_cru_critical_clocks[] __initconst = {
 	"aclk_cci_pre",
-	"pclk_pmu_src",
 	"pclk_perilp0",
 	"hclk_perilp0",
 	"pclk_perilp1",
@@ -1439,10 +1438,13 @@ static const char *const rk3399_critical_clocks[] __initconst = {
 	"gpll_hclk_perilp1_src",
 	"gpll_aclk_perilp0_src",
 	"gpll_aclk_perihp_src",
+};
+
+static const char *const rk3399_pmucru_critical_clocks[] __initconst = {
+	"ppll",
 	"pclk_pmu_src",
 	"fclk_cm0s_src_pmu",
 	"clk_timer_src_pmu",
-	"ppll",
 };
 
 static void __init rk3399_clk_init(struct device_node *np)
@@ -1468,8 +1470,8 @@ static void __init rk3399_clk_init(struct device_node *np)
 	rockchip_clk_register_branches(ctx, rk3399_clk_branches,
 				  ARRAY_SIZE(rk3399_clk_branches));
 
-	rockchip_clk_protect_critical(rk3399_critical_clocks,
-				      ARRAY_SIZE(rk3399_critical_clocks));
+	rockchip_clk_protect_critical(rk3399_cru_critical_clocks,
+				      ARRAY_SIZE(rk3399_cru_critical_clocks));
 
 	rockchip_clk_register_armclk(ctx, ARMCLKL, "armclkl",
 			mux_armclkl_p, ARRAY_SIZE(mux_armclkl_p),
@@ -1529,6 +1531,9 @@ static void __init rk3399_pmu_clk_init(struct device_node *np)
 
 	rockchip_clk_register_branches(ctx, rk3399_clk_pmu_branches,
 				  ARRAY_SIZE(rk3399_clk_pmu_branches));
+
+	rockchip_clk_protect_critical(rk3399_pmucru_critical_clocks,
+				      ARRAY_SIZE(rk3399_pmucru_critical_clocks));
 
 	rockchip_register_softrst(np, 2, reg_base + RK3399_PMU_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
