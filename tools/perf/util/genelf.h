@@ -2,12 +2,10 @@
 #define __GENELF_H__
 
 /* genelf.c */
-extern int jit_write_elf(int fd, uint64_t code_addr, const char *sym,
-			 const void *code, int csize,
-			 void *debug, int nr_debug_entries);
+int jit_write_elf(int fd, uint64_t code_addr, const char *sym,
+		  const void *code, int csize, void *debug, int nr_debug_entries);
 /* genelf_debug.c */
-extern int jit_add_debug_info(Elf *e, uint64_t code_addr,
-			      void *debug, int nr_debug_entries);
+int jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries);
 
 #if   defined(__arm__)
 #define GEN_ELF_ARCH	EM_ARM
