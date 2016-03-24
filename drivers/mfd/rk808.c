@@ -382,7 +382,7 @@ static int rk808_probe(struct i2c_client *client,
 
 	pm_off = of_property_read_bool(np,
 				"rockchip,system-power-controller");
-	if (pm_off && !pm_power_off) {
+	if (pm_off) {
 		rk808_i2c_client = client;
 		pm_power_off = rk808_device_shutdown;
 	}
