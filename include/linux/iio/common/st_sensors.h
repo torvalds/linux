@@ -37,6 +37,7 @@
 #define ST_SENSORS_DEFAULT_AXIS_ADDR		0x20
 #define ST_SENSORS_DEFAULT_AXIS_MASK		0x07
 #define ST_SENSORS_DEFAULT_AXIS_N_BIT		3
+#define ST_SENSORS_DEFAULT_STAT_ADDR		0x27
 
 #define ST_SENSORS_MAX_NAME			17
 #define ST_SENSORS_MAX_4WAI			7
@@ -121,6 +122,7 @@ struct st_sensor_bdu {
  * @mask_int2: mask to enable/disable IRQ on INT2 pin.
  * @addr_ihl: address to enable/disable active low on the INT lines.
  * @mask_ihl: mask to enable/disable active low on the INT lines.
+ * @addr_stat_drdy: address to read status of DRDY (data ready) interrupt
  * struct ig1 - represents the Interrupt Generator 1 of sensors.
  * @en_addr: address of the enable ig1 register.
  * @en_mask: mask to write the on/off value for enable.
@@ -131,6 +133,7 @@ struct st_sensor_data_ready_irq {
 	u8 mask_int2;
 	u8 addr_ihl;
 	u8 mask_ihl;
+	u8 addr_stat_drdy;
 	struct {
 		u8 en_addr;
 		u8 en_mask;

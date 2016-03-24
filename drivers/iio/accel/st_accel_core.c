@@ -332,6 +332,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask_int2 = ST_ACCEL_1_DRDY_IRQ_INT2_MASK,
 			.addr_ihl = ST_ACCEL_1_IHL_IRQ_ADDR,
 			.mask_ihl = ST_ACCEL_1_IHL_IRQ_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_ACCEL_1_MULTIREAD_BIT,
 		.bootime = 2,
@@ -397,6 +398,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask_int2 = ST_ACCEL_2_DRDY_IRQ_INT2_MASK,
 			.addr_ihl = ST_ACCEL_2_IHL_IRQ_ADDR,
 			.mask_ihl = ST_ACCEL_2_IHL_IRQ_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_ACCEL_2_MULTIREAD_BIT,
 		.bootime = 2,
@@ -474,6 +476,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask_int2 = ST_ACCEL_3_DRDY_IRQ_INT2_MASK,
 			.addr_ihl = ST_ACCEL_3_IHL_IRQ_ADDR,
 			.mask_ihl = ST_ACCEL_3_IHL_IRQ_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 			.ig1 = {
 				.en_addr = ST_ACCEL_3_IG1_EN_ADDR,
 				.en_mask = ST_ACCEL_3_IG1_EN_MASK,
@@ -532,6 +535,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 		.drdy_irq = {
 			.addr = ST_ACCEL_4_DRDY_IRQ_ADDR,
 			.mask_int1 = ST_ACCEL_4_DRDY_IRQ_INT1_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_ACCEL_4_MULTIREAD_BIT,
 		.bootime = 2, /* guess */
@@ -583,6 +587,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask_int2 = ST_ACCEL_5_DRDY_IRQ_INT2_MASK,
 			.addr_ihl = ST_ACCEL_5_IHL_IRQ_ADDR,
 			.mask_ihl = ST_ACCEL_5_IHL_IRQ_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_ACCEL_5_MULTIREAD_BIT,
 		.bootime = 2, /* guess */

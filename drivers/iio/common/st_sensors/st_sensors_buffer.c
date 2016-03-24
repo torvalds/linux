@@ -58,6 +58,24 @@ irqreturn_t st_sensors_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
+	/* If we have a status register, check if this IRQ came from us */
+	if (sdata->sensor_settings->drdy_irq.addr_stat_drdy) {
+		u8 status;
+
+		len = sdata->tf->read_byte(&sdata->tb, sdata->dev,
+			   sdata->sensor_settings->drdy_irq.addr_stat_drdy,
+			   &status);
+		if (len < 0)
+			dev_err(sdata->dev, "could not read channel status\n");
+
+		/*
+		 * If this was not caused by any channels on this sensor,
+		 * return IRQ_NONE
+		 */
+		if (!(status & (u8)indio_dev->active_scan_mask[0]))
+			return IRQ_NONE;
+	}
+
 	len = st_sensors_get_buffer_element(indio_dev, sdata->buffer_data);
 	if (len < 0)
 		goto st_sensors_get_buffer_element_error;
