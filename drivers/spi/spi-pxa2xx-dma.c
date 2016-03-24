@@ -267,19 +267,22 @@ irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst)
 {
 	struct dma_async_tx_descriptor *tx_desc, *rx_desc;
+	int err = 0;
 
 	tx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_MEM_TO_DEV);
 	if (!tx_desc) {
 		dev_err(&drv_data->pdev->dev,
 			"failed to get DMA TX descriptor\n");
-		return -EBUSY;
+		err = -EBUSY;
+		goto err_tx;
 	}
 
 	rx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_DEV_TO_MEM);
 	if (!rx_desc) {
 		dev_err(&drv_data->pdev->dev,
 			"failed to get DMA RX descriptor\n");
-		return -EBUSY;
+		err = -EBUSY;
+		goto err_rx;
 	}
 
 	/* We are ready when RX completes */
@@ -289,6 +292,12 @@ int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst)
 	dmaengine_submit(rx_desc);
 	dmaengine_submit(tx_desc);
 	return 0;
+
+err_rx:
+	dmaengine_terminate_async(drv_data->tx_chan);
+err_tx:
+	pxa2xx_spi_unmap_dma_buffers(drv_data);
+	return err;
 }
 
 void pxa2xx_spi_dma_start(struct driver_data *drv_data)
