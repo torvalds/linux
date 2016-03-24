@@ -24,9 +24,8 @@
 #define PLL_GPLL			5
 #define PLL_NPLL			6
 #define PLL_VPLL			7
-#define PLL_PPLL			8
-#define ARMCLKL				9
-#define ARMCLKB				10
+#define ARMCLKL				8
+#define ARMCLKB				9
 
 /* sclk gates (special clocks) */
 #define SCLK_I2C1			65
@@ -337,16 +336,19 @@
 #define CLK_NR_CLKS			(HCLK_SDIOAUDIO_NOC + 1)
 
 /* pmu-clocks indices */
-#define SCLK_32K_SUSPEND_PMU		0
-#define SCLK_SPI3_PMU			1
-#define SCLK_TIMER12_PMU		2
-#define SCLK_TIMER13_PMU		3
-#define SCLK_UART4_PMU			4
-#define SCLK_PVTM_PMU			5
-#define SCLK_WIFI_PMU			6
-#define SCLK_I2C0_PMU			7
-#define SCLK_I2C4_PMU			8
-#define SCLK_I2C8_PMU			9
+
+#define PLL_PPLL			1
+
+#define SCLK_32K_SUSPEND_PMU		2
+#define SCLK_SPI3_PMU			3
+#define SCLK_TIMER12_PMU		4
+#define SCLK_TIMER13_PMU		5
+#define SCLK_UART4_PMU			6
+#define SCLK_PVTM_PMU			7
+#define SCLK_WIFI_PMU			8
+#define SCLK_I2C0_PMU			9
+#define SCLK_I2C4_PMU			10
+#define SCLK_I2C8_PMU			11
 
 #define PCLK_SRC_PMU			19
 #define PCLK_PMU			20
