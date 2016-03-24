@@ -389,6 +389,10 @@
 			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "otg";
 			tx-fifo-resize;
+			snps,dis_enblslpm_quirk;
+			snps,phyif_utmi_16_bits;
+			snps,dis_u2_freeclk_exists_quirk;
+			snps,dis_del_phy_power_chg_quirk;
 			status = "disabled";
 		};
 	};
@@ -413,6 +417,10 @@
 			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "otg";
 			tx-fifo-resize;
+			snps,dis_enblslpm_quirk;
+			snps,phyif_utmi_16_bits;
+			snps,dis_u2_freeclk_exists_quirk;
+			snps,dis_del_phy_power_chg_quirk;
 			status = "disabled";
 		};
 	};
