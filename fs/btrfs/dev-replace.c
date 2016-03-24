@@ -368,7 +368,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	WARN_ON(!tgt_device);
 	dev_replace->tgtdev = tgt_device;
 
-	btrfs_info_in_rcu(root->fs_info,
+	btrfs_info_in_rcu(fs_info,
 		      "dev_replace from %s (devid %llu) to %s started",
 		      src_device->missing ? "<missing disk>" :
 		        rcu_str_deref(src_device->name),
@@ -394,9 +394,9 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 
 	ret = btrfs_sysfs_add_device_link(tgt_device->fs_devices, tgt_device);
 	if (ret)
-		btrfs_err(root->fs_info, "kobj add dev failed %d\n", ret);
+		btrfs_err(fs_info, "kobj add dev failed %d\n", ret);
 
-	btrfs_wait_ordered_roots(root->fs_info, -1);
+	btrfs_wait_ordered_roots(fs_info, -1);
 
 	/* force writing the updated state information to disk */
 	trans = btrfs_start_transaction(root, 0);
@@ -414,7 +414,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 			      btrfs_device_get_total_bytes(src_device),
 			      &dev_replace->scrub_progress, 0, 1);
 
-	ret = btrfs_dev_replace_finishing(root->fs_info, ret);
+	ret = btrfs_dev_replace_finishing(fs_info, ret);
 	/* don't warn if EINPROGRESS, someone else might be running scrub */
 	if (ret == -EINPROGRESS) {
 		args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_SCRUB_INPROGRESS;
