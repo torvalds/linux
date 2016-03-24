@@ -13,18 +13,26 @@
 #ifndef __VSP1_DRM_H__
 #define __VSP1_DRM_H__
 
+#include <linux/videodev2.h>
+
 #include "vsp1_pipe.h"
 
 /**
  * vsp1_drm - State for the API exposed to the DRM driver
  * @pipe: the VSP1 pipeline used for display
  * @num_inputs: number of active pipeline inputs at the beginning of an update
- * @update: the pipeline configuration has been updated
+ * @planes: source crop rectangle, destination compose rectangle and z-order
+ *	position for every input
  */
 struct vsp1_drm {
 	struct vsp1_pipeline pipe;
 	unsigned int num_inputs;
-	bool update;
+	struct {
+		bool enabled;
+		struct v4l2_rect crop;
+		struct v4l2_rect compose;
+		unsigned int zpos;
+	} inputs[VSP1_MAX_RPF];
 };
 
 int vsp1_drm_init(struct vsp1_device *vsp1);
