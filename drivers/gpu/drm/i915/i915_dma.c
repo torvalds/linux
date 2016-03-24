@@ -1178,7 +1178,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	intel_device_info_runtime_init(dev);
 
-	ret = i915_gem_gtt_init(dev);
+	ret = i915_ggtt_init_hw(dev);
 	if (ret)
 		return ret;
 
@@ -1187,13 +1187,13 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	ret = i915_kick_out_firmware_fb(dev_priv);
 	if (ret) {
 		DRM_ERROR("failed to remove conflicting framebuffer drivers\n");
-		goto out_gtt;
+		goto out_ggtt;
 	}
 
 	ret = i915_kick_out_vgacon(dev_priv);
 	if (ret) {
 		DRM_ERROR("failed to remove conflicting VGA console\n");
-		goto out_gtt;
+		goto out_ggtt;
 	}
 
 	pci_set_master(dev->pdev);
@@ -1220,7 +1220,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 				     aperture_size);
 	if (dev_priv->ggtt.mappable == NULL) {
 		ret = -EIO;
-		goto out_gtt;
+		goto out_ggtt;
 	}
 
 	dev_priv->ggtt.mtrr = arch_phys_wc_add(dev_priv->ggtt.mappable_base,
@@ -1253,8 +1253,8 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	return 0;
 
-out_gtt:
-	i915_global_gtt_cleanup(dev);
+out_ggtt:
+	i915_ggtt_cleanup_hw(dev);
 
 	return ret;
 }
@@ -1273,7 +1273,7 @@ static void i915_driver_cleanup_hw(struct drm_i915_private *dev_priv)
 	pm_qos_remove_request(&dev_priv->pm_qos);
 	arch_phys_wc_del(dev_priv->ggtt.mtrr);
 	io_mapping_free(dev_priv->ggtt.mappable);
-	i915_global_gtt_cleanup(dev);
+	i915_ggtt_cleanup_hw(dev);
 }
 
 /**

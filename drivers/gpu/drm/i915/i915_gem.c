@@ -4962,7 +4962,7 @@ int i915_gem_init(struct drm_device *dev)
 	if (ret)
 		goto out_unlock;
 
-	i915_gem_init_global_gtt(dev);
+	i915_gem_init_ggtt(dev);
 
 	ret = i915_gem_context_init(dev);
 	if (ret)

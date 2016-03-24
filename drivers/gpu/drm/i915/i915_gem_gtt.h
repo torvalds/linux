@@ -513,10 +513,9 @@ i915_page_dir_dma_addr(const struct i915_hw_ppgtt *ppgtt, const unsigned n)
 		px_dma(ppgtt->base.scratch_pd);
 }
 
-int i915_gem_gtt_init(struct drm_device *dev);
-void i915_gem_init_global_gtt(struct drm_device *dev);
-void i915_global_gtt_cleanup(struct drm_device *dev);
-
+int i915_ggtt_init_hw(struct drm_device *dev);
+void i915_gem_init_ggtt(struct drm_device *dev);
+void i915_ggtt_cleanup_hw(struct drm_device *dev);
 
 int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
 int i915_ppgtt_init_hw(struct drm_device *dev);
