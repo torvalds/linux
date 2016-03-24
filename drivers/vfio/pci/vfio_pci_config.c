@@ -522,6 +522,23 @@ static int vfio_basic_config_read(struct vfio_pci_device *vdev, int pos,
 	return count;
 }
 
+/* Test whether BARs match the value we think they should contain */
+static bool vfio_need_bar_restore(struct vfio_pci_device *vdev)
+{
+	int i = 0, pos = PCI_BASE_ADDRESS_0, ret;
+	u32 bar;
+
+	for (; pos <= PCI_BASE_ADDRESS_5; i++, pos += 4) {
+		if (vdev->rbar[i]) {
+			ret = pci_user_read_config_dword(vdev->pdev, pos, &bar);
+			if (ret || vdev->rbar[i] != bar)
+				return true;
+		}
+	}
+
+	return false;
+}
+
 static int vfio_basic_config_write(struct vfio_pci_device *vdev, int pos,
 				   int count, struct perm_bits *perm,
 				   int offset, __le32 val)
@@ -560,7 +577,8 @@ static int vfio_basic_config_write(struct vfio_pci_device *vdev, int pos,
 		 * SR-IOV devices will trigger this, but we catch them later
 		 */
 		if ((new_mem && virt_mem && !phys_mem) ||
-		    (new_io && virt_io && !phys_io))
+		    (new_io && virt_io && !phys_io) ||
+		    vfio_need_bar_restore(vdev))
 			vfio_bar_restore(vdev);
 	}
 
