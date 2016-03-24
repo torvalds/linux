@@ -262,6 +262,18 @@ int vgic_init(struct kvm *kvm)
 	vgic_debug_init(kvm);
 
 	dist->initialized = true;
+
+	/*
+	 * If we're initializing GICv2 on-demand when first running the VCPU
+	 * then we need to load the VGIC state onto the CPU.  We can detect
+	 * this easily by checking if we are in between vcpu_load and vcpu_put
+	 * when we just initialized the VGIC.
+	 */
+	preempt_disable();
+	vcpu = kvm_arm_get_running_vcpu();
+	if (vcpu)
+		kvm_vgic_load(vcpu);
+	preempt_enable();
 out:
 	return ret;
 }

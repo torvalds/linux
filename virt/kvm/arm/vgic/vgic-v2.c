@@ -184,6 +184,7 @@ void vgic_v2_clear_lr(struct kvm_vcpu *vcpu, int lr)
 
 void vgic_v2_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 {
+	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
 	u32 vmcr;
 
 	vmcr  = (vmcrp->ctlr << GICH_VMCR_CTRL_SHIFT) & GICH_VMCR_CTRL_MASK;
@@ -194,12 +195,15 @@ void vgic_v2_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 	vmcr |= (vmcrp->pmr << GICH_VMCR_PRIMASK_SHIFT) &
 		GICH_VMCR_PRIMASK_MASK;
 
-	vcpu->arch.vgic_cpu.vgic_v2.vgic_vmcr = vmcr;
+	cpu_if->vgic_vmcr = vmcr;
 }
 
 void vgic_v2_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 {
-	u32 vmcr = vcpu->arch.vgic_cpu.vgic_v2.vgic_vmcr;
+	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
+	u32 vmcr;
+
+	vmcr = cpu_if->vgic_vmcr;
 
 	vmcrp->ctlr = (vmcr & GICH_VMCR_CTRL_MASK) >>
 			GICH_VMCR_CTRL_SHIFT;
@@ -374,4 +378,20 @@ out:
 		iounmap(kvm_vgic_global_state.vcpu_base_va);
 
 	return ret;
+}
+
+void vgic_v2_load(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
+	struct vgic_dist *vgic = &vcpu->kvm->arch.vgic;
+
+	writel_relaxed(cpu_if->vgic_vmcr, vgic->vctrl_base + GICH_VMCR);
+}
+
+void vgic_v2_put(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
+	struct vgic_dist *vgic = &vcpu->kvm->arch.vgic;
+
+	cpu_if->vgic_vmcr = readl_relaxed(vgic->vctrl_base + GICH_VMCR);
 }

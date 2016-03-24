@@ -159,8 +159,6 @@ void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 	if (!cpu_if->vgic_sre)
 		dsb(st);
 
-	cpu_if->vgic_vmcr  = read_gicreg(ICH_VMCR_EL2);
-
 	if (vcpu->arch.vgic_cpu.live_lrs) {
 		int i;
 		u32 max_lr_idx, nr_pri_bits;
@@ -261,8 +259,6 @@ void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
 			live_lrs |= (1 << i);
 	}
 
-	write_gicreg(cpu_if->vgic_vmcr, ICH_VMCR_EL2);
-
 	if (live_lrs) {
 		write_gicreg(cpu_if->vgic_hcr, ICH_HCR_EL2);
 
@@ -325,4 +321,14 @@ void __hyp_text __vgic_v3_init_lrs(void)
 u64 __hyp_text __vgic_v3_get_ich_vtr_el2(void)
 {
 	return read_gicreg(ICH_VTR_EL2);
+}
+
+u64 __hyp_text __vgic_v3_read_vmcr(void)
+{
+	return read_gicreg(ICH_VMCR_EL2);
+}
+
+void __hyp_text __vgic_v3_write_vmcr(u32 vmcr)
+{
+	write_gicreg(vmcr, ICH_VMCR_EL2);
 }

@@ -351,15 +351,14 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	vcpu->arch.host_cpu_context = this_cpu_ptr(kvm_host_cpu_state);
 
 	kvm_arm_set_running_vcpu(vcpu);
+
+	kvm_vgic_load(vcpu);
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
-	/*
-	 * The arch-generic KVM code expects the cpu field of a vcpu to be -1
-	 * if the vcpu is no longer assigned to a cpu.  This is used for the
-	 * optimized make_all_cpus_request path.
-	 */
+	kvm_vgic_put(vcpu);
+
 	vcpu->cpu = -1;
 
 	kvm_arm_set_running_vcpu(NULL);
@@ -633,7 +632,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		 * non-preemptible context.
 		 */
 		preempt_disable();
+
 		kvm_pmu_flush_hwstate(vcpu);
+
 		kvm_timer_flush_hwstate(vcpu);
 		kvm_vgic_flush_hwstate(vcpu);
 
