@@ -1291,6 +1291,7 @@
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 		assigned-clocks =
+			<&cru ARMCLKL>, <&cru ARMCLKB>,
 			<&cru PLL_GPLL>, <&cru PLL_CPLL>,
 			<&cru PLL_NPLL>,
 			<&cru ACLK_PERIHP>, <&cru HCLK_PERIHP>,
@@ -1302,6 +1303,7 @@
 			<&cru ACLK_GIC_PRE>,
 			<&cru PCLK_DDR>;
 		assigned-clock-rates =
+			 <816000000>, <1008000000>,
 			 <594000000>,  <800000000>,
 			<1000000000>,
 			 <150000000>,   <75000000>,
