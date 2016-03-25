@@ -19,6 +19,7 @@
 #include <linux/printk.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/stackdepot.h>
 #include <linux/stacktrace.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -119,8 +120,15 @@ static inline bool init_task_stack_addr(const void *addr)
 #ifdef CONFIG_SLAB
 static void print_track(struct kasan_track *track)
 {
-	pr_err("PID = %u, CPU = %u, timestamp = %lu\n", track->pid,
-	       track->cpu, (unsigned long)track->when);
+	pr_err("PID = %u\n", track->pid);
+	if (track->stack) {
+		struct stack_trace trace;
+
+		depot_fetch_stack(track->stack, &trace);
+		print_stack_trace(&trace, 0);
+	} else {
+		pr_err("(stack is not available)\n");
+	}
 }
 
 static void object_err(struct kmem_cache *cache, struct page *page,

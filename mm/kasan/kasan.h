@@ -2,6 +2,7 @@
 #define __MM_KASAN_KASAN_H
 
 #include <linux/kasan.h>
+#include <linux/stackdepot.h>
 
 #define KASAN_SHADOW_SCALE_SIZE (1UL << KASAN_SHADOW_SCALE_SHIFT)
 #define KASAN_SHADOW_MASK       (KASAN_SHADOW_SCALE_SIZE - 1)
@@ -67,16 +68,18 @@ enum kasan_state {
 	KASAN_STATE_FREE
 };
 
+#define KASAN_STACK_DEPTH 64
+
 struct kasan_track {
-	u64 cpu : 6;			/* for NR_CPUS = 64 */
-	u64 pid : 16;			/* 65536 processes */
-	u64 when : 42;			/* ~140 years */
+	u32 pid;
+	depot_stack_handle_t stack;
 };
 
 struct kasan_alloc_meta {
+	struct kasan_track track;
 	u32 state : 2;	/* enum kasan_state */
 	u32 alloc_size : 30;
-	struct kasan_track track;
+	u32 reserved;
 };
 
 struct kasan_free_meta {
