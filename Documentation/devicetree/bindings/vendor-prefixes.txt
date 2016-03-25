@@ -172,6 +172,7 @@ nxp	NXP Semiconductors
 okaya	Okaya Electric America, Inc.
 olimex	OLIMEX Ltd.
 onnn	ON Semiconductor Corp.
+ontat	On Tat Industrial Company
 opencores	OpenCores.org
 option	Option NV
 ortustech	Ortus Technology Co., Ltd.
