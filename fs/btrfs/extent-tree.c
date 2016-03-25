@@ -4835,15 +4835,6 @@ commit:
 	return btrfs_commit_transaction(trans, root);
 }
 
-enum flush_state {
-	FLUSH_DELAYED_ITEMS_NR	=	1,
-	FLUSH_DELAYED_ITEMS	=	2,
-	FLUSH_DELALLOC		=	3,
-	FLUSH_DELALLOC_WAIT	=	4,
-	ALLOC_CHUNK		=	5,
-	COMMIT_TRANS		=	6,
-};
-
 struct reserve_ticket {
 	u64 bytes;
 	int error;
@@ -4901,6 +4892,8 @@ static int flush_space(struct btrfs_root *root,
 		break;
 	}
 
+	trace_btrfs_flush_space(root->fs_info, space_info->flags, num_bytes,
+				orig_bytes, state, ret);
 	return ret;
 }
 
@@ -5178,6 +5171,10 @@ static int __reserve_metadata_bytes(struct btrfs_root *root,
 			list_add_tail(&ticket.list, &space_info->tickets);
 			if (!space_info->flush) {
 				space_info->flush = 1;
+				trace_btrfs_trigger_flush(root->fs_info,
+							  space_info->flags,
+							  orig_bytes, flush,
+							  "enospc");
 				queue_work(system_unbound_wq,
 					   &root->fs_info->async_reclaim_work);
 			}
@@ -5194,9 +5191,14 @@ static int __reserve_metadata_bytes(struct btrfs_root *root,
 		 */
 		if (!root->fs_info->log_root_recovering &&
 		    need_do_async_reclaim(space_info, root->fs_info, used) &&
-		    !work_busy(&root->fs_info->async_reclaim_work))
+		    !work_busy(&root->fs_info->async_reclaim_work)) {
+			trace_btrfs_trigger_flush(root->fs_info,
+						  space_info->flags,
+						  orig_bytes, flush,
+						  "preempt");
 			queue_work(system_unbound_wq,
 				   &root->fs_info->async_reclaim_work);
+		}
 	}
 	spin_unlock(&space_info->lock);
 	if (!ret || flush == BTRFS_RESERVE_NO_FLUSH)
