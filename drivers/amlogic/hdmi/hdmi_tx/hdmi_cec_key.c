@@ -36,7 +36,7 @@
 #include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
 hdmitx_dev_t *hdmitx_device = NULL;
 
-__u16 cec_key_map[128] = {
+__u16 cec_key_map[160] = {
     KEY_ENTER, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, 0 , 0 , 0 ,//0x00
     0 , KEY_HOMEPAGE , KEY_MENU, 0, 0, KEY_BACK, 0, 0,
     0 , 0, 0, 0, 0, 0, 0, 0,//0x10
@@ -54,6 +54,10 @@ __u16 cec_key_map[128] = {
     0 , KEY_MEDIA, 0, 0, KEY_POWER, 0, 0, 0,
     0 , KEY_BLUE, KEY_RED, KEY_GREEN, KEY_YELLOW, 0, 0, 0,//0x70
     0 , 0, 0, 0, 0, 0, 0, 0x2fd,
+    0 , 0, 0, 0, 0, 0, 0, 0,//0x80
+    0 , 0, 0, 0, 0, 0, 0, 0,
+    0 , KEY_EXIT, 0, 0, 0, 0, KEY_PVR, 0,//0x90  //samsung vendor buttons return and channel_list
+    0 , 0, 0, 0, 0, 0, 0, 0,
 };
 
 void cec_send_event(cec_rx_message_t* pcec_message)
