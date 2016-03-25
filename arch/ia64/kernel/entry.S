@@ -1773,5 +1773,7 @@ sys_call_table:
 	data8 sys_kcmp				// 1345
 	data8 sys_mlock2
 	data8 sys_copy_file_range
+	data8 sys_preadv2
+	data8 sys_pwritev2
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
