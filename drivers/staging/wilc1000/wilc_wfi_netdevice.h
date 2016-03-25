@@ -140,7 +140,7 @@ struct wilc_priv {
 };
 
 struct frame_reg {
-	u16 frame_type;
+	u16 type;
 	bool reg;
 };
 
