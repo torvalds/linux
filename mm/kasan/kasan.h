@@ -57,6 +57,40 @@ struct kasan_global {
 #endif
 };
 
+/**
+ * Structures to keep alloc and free tracks *
+ */
+
+enum kasan_state {
+	KASAN_STATE_INIT,
+	KASAN_STATE_ALLOC,
+	KASAN_STATE_FREE
+};
+
+struct kasan_track {
+	u64 cpu : 6;			/* for NR_CPUS = 64 */
+	u64 pid : 16;			/* 65536 processes */
+	u64 when : 42;			/* ~140 years */
+};
+
+struct kasan_alloc_meta {
+	u32 state : 2;	/* enum kasan_state */
+	u32 alloc_size : 30;
+	struct kasan_track track;
+};
+
+struct kasan_free_meta {
+	/* Allocator freelist pointer, unused by KASAN. */
+	void **freelist;
+	struct kasan_track track;
+};
+
+struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
+					const void *object);
+struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
+					const void *object);
+
+
 static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
 {
 	return (void *)(((unsigned long)shadow_addr - KASAN_SHADOW_OFFSET)
