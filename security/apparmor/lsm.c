@@ -172,7 +172,7 @@ static int common_perm(int op, const struct path *path, u32 mask,
  *
  * Returns: %0 else error code if error or permission denied
  */
-static int common_perm_dir_dentry(int op, struct path *dir,
+static int common_perm_dir_dentry(int op, const struct path *dir,
 				  struct dentry *dentry, u32 mask,
 				  struct path_cond *cond)
 {
@@ -209,7 +209,7 @@ static inline int common_perm_path(int op, const struct path *path, u32 mask)
  *
  * Returns: %0 else error code if error or permission denied
  */
-static int common_perm_rm(int op, struct path *dir,
+static int common_perm_rm(int op, const struct path *dir,
 			  struct dentry *dentry, u32 mask)
 {
 	struct inode *inode = d_backing_inode(dentry);
@@ -234,8 +234,8 @@ static int common_perm_rm(int op, struct path *dir,
  *
  * Returns: %0 else error code if error or permission denied
  */
-static int common_perm_create(int op, struct path *dir, struct dentry *dentry,
-			      u32 mask, umode_t mode)
+static int common_perm_create(int op, const struct path *dir,
+			      struct dentry *dentry, u32 mask, umode_t mode)
 {
 	struct path_cond cond = { current_fsuid(), mode };
 
