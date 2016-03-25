@@ -2167,19 +2167,26 @@ static int ocfs2_dio_get_block(struct inode *inode, sector_t iblock,
 	mlog(0, "get block of %lu at %llu:%u req %u\n",
 			inode->i_ino, pos, len, total_len);
 
-	down_read(&oi->ip_alloc_sem);
-	/* This is the fast path for re-write. */
-	ret = ocfs2_get_block(inode, iblock, bh_result, create);
+	/*
+	 * Because we need to change file size in ocfs2_dio_end_io_write(), or
+	 * we may need to add it to orphan dir. So can not fall to fast path
+	 * while file size will be changed.
+	 */
+	if (pos + total_len <= i_size_read(inode)) {
+		down_read(&oi->ip_alloc_sem);
+		/* This is the fast path for re-write. */
+		ret = ocfs2_get_block(inode, iblock, bh_result, create);
 
-	up_read(&oi->ip_alloc_sem);
+		up_read(&oi->ip_alloc_sem);
 
-	if (buffer_mapped(bh_result) &&
-	    !buffer_new(bh_result) &&
-	    ret == 0)
-		goto out;
+		if (buffer_mapped(bh_result) &&
+		    !buffer_new(bh_result) &&
+		    ret == 0)
+			goto out;
 
-	/* Clear state set by ocfs2_get_block. */
-	bh_result->b_state = 0;
+		/* Clear state set by ocfs2_get_block. */
+		bh_result->b_state = 0;
+	}
 
 	dwc = ocfs2_dio_alloc_write_ctx(bh_result, &first_get_block);
 	if (unlikely(dwc == NULL)) {
