@@ -399,6 +399,8 @@
 
 &i2c0 {
 	status = "okay";
+	i2c-scl-rising-time-ns = <250>;
+	i2c-scl-falling-time-ns = <20>;
 
 	syr827: syr827@40 {
 		regulator-name = "vdd_arm";
@@ -611,6 +613,8 @@
 
 &i2c1 {
 	status = "okay";
+	i2c-scl-rising-time-ns = <460>;
+	i2c-scl-falling-time-ns = <15>;
 
 	rt5640: rt5640@1c {
 		#sound-dai-cells = <0>;
