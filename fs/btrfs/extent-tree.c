@@ -3913,6 +3913,7 @@ static const char *alloc_name(u64 flags)
 
 static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 			     u64 total_bytes, u64 bytes_used,
+			     u64 bytes_readonly,
 			     struct btrfs_space_info **space_info)
 {
 	struct btrfs_space_info *found;
@@ -3933,6 +3934,7 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 		found->disk_total += total_bytes * factor;
 		found->bytes_used += bytes_used;
 		found->disk_used += bytes_used * factor;
+		found->bytes_readonly += bytes_readonly;
 		if (total_bytes > 0)
 			found->full = 0;
 		spin_unlock(&found->lock);
@@ -3960,7 +3962,7 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	found->disk_used = bytes_used * factor;
 	found->bytes_pinned = 0;
 	found->bytes_reserved = 0;
-	found->bytes_readonly = 0;
+	found->bytes_readonly = bytes_readonly;
 	found->bytes_may_use = 0;
 	found->full = 0;
 	found->max_extent_size = 0;
@@ -4470,7 +4472,7 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	space_info = __find_space_info(extent_root->fs_info, flags);
 	if (!space_info) {
 		ret = update_space_info(extent_root->fs_info, flags,
-					0, 0, &space_info);
+					0, 0, 0, &space_info);
 		BUG_ON(ret); /* -ENOMEM */
 	}
 	BUG_ON(!space_info); /* Logic error */
@@ -10007,7 +10009,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 
 		ret = update_space_info(info, cache->flags, found_key.offset,
 					btrfs_block_group_used(&cache->item),
-					&space_info);
+					cache->bytes_super, &space_info);
 		if (ret) {
 			btrfs_remove_free_space_cache(cache);
 			spin_lock(&info->block_group_cache_lock);
@@ -10020,9 +10022,6 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		}
 
 		cache->space_info = space_info;
-		spin_lock(&cache->space_info->lock);
-		cache->space_info->bytes_readonly += cache->bytes_super;
-		spin_unlock(&cache->space_info->lock);
 
 		__link_block_group(space_info, cache);
 
@@ -10114,7 +10113,6 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	int ret;
 	struct btrfs_root *extent_root;
 	struct btrfs_block_group_cache *cache;
-
 	extent_root = root->fs_info->extent_root;
 
 	btrfs_set_log_full_commit(root->fs_info, trans);
@@ -10160,7 +10158,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	 * assigned to our block group, but don't update its counters just yet.
 	 * We want our bg to be added to the rbtree with its ->space_info set.
 	 */
-	ret = update_space_info(root->fs_info, cache->flags, 0, 0,
+	ret = update_space_info(root->fs_info, cache->flags, 0, 0, 0,
 				&cache->space_info);
 	if (ret) {
 		btrfs_remove_free_space_cache(cache);
@@ -10180,7 +10178,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	 * the rbtree, update the space info's counters.
 	 */
 	ret = update_space_info(root->fs_info, cache->flags, size, bytes_used,
-				&cache->space_info);
+				cache->bytes_super, &cache->space_info);
 	if (ret) {
 		btrfs_remove_free_space_cache(cache);
 		spin_lock(&root->fs_info->block_group_cache_lock);
@@ -10193,16 +10191,11 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	}
 	update_global_block_rsv(root->fs_info);
 
-	spin_lock(&cache->space_info->lock);
-	cache->space_info->bytes_readonly += cache->bytes_super;
-	spin_unlock(&cache->space_info->lock);
-
 	__link_block_group(cache->space_info, cache);
 
 	list_add_tail(&cache->bg_list, &trans->new_bgs);
 
 	set_avail_alloc_bits(extent_root->fs_info, type);
-
 	return 0;
 }
 
@@ -10747,21 +10740,21 @@ int btrfs_init_space_info(struct btrfs_fs_info *fs_info)
 		mixed = 1;
 
 	flags = BTRFS_BLOCK_GROUP_SYSTEM;
-	ret = update_space_info(fs_info, flags, 0, 0, &space_info);
+	ret = update_space_info(fs_info, flags, 0, 0, 0, &space_info);
 	if (ret)
 		goto out;
 
 	if (mixed) {
 		flags = BTRFS_BLOCK_GROUP_METADATA | BTRFS_BLOCK_GROUP_DATA;
-		ret = update_space_info(fs_info, flags, 0, 0, &space_info);
+		ret = update_space_info(fs_info, flags, 0, 0, 0, &space_info);
 	} else {
 		flags = BTRFS_BLOCK_GROUP_METADATA;
-		ret = update_space_info(fs_info, flags, 0, 0, &space_info);
+		ret = update_space_info(fs_info, flags, 0, 0, 0, &space_info);
 		if (ret)
 			goto out;
 
 		flags = BTRFS_BLOCK_GROUP_DATA;
-		ret = update_space_info(fs_info, flags, 0, 0, &space_info);
+		ret = update_space_info(fs_info, flags, 0, 0, 0, &space_info);
 	}
 out:
 	return ret;
