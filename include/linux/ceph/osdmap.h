@@ -172,19 +172,19 @@ struct ceph_osdmap {
 	int crush_scratch_ary[CEPH_PG_MAX_SIZE * 3];
 };
 
-static inline int ceph_osd_exists(struct ceph_osdmap *map, int osd)
+static inline bool ceph_osd_exists(struct ceph_osdmap *map, int osd)
 {
 	return osd >= 0 && osd < map->max_osd &&
 	       (map->osd_state[osd] & CEPH_OSD_EXISTS);
 }
 
-static inline int ceph_osd_is_up(struct ceph_osdmap *map, int osd)
+static inline bool ceph_osd_is_up(struct ceph_osdmap *map, int osd)
 {
 	return ceph_osd_exists(map, osd) &&
 	       (map->osd_state[osd] & CEPH_OSD_UP);
 }
 
-static inline int ceph_osd_is_down(struct ceph_osdmap *map, int osd)
+static inline bool ceph_osd_is_down(struct ceph_osdmap *map, int osd)
 {
 	return !ceph_osd_is_up(map, osd);
 }
