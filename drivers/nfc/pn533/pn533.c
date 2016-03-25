@@ -2427,8 +2427,37 @@ static int pn533_rf_field(struct nfc_dev *nfc_dev, u8 rf)
 	return rc;
 }
 
+static int pn532_sam_configuration(struct nfc_dev *nfc_dev)
+{
+	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
+	struct sk_buff *skb;
+	struct sk_buff *resp;
+
+	skb = pn533_alloc_skb(dev, 1);
+	if (!skb)
+		return -ENOMEM;
+
+	*skb_put(skb, 1) = 0x01;
+
+	resp = pn533_send_cmd_sync(dev, PN533_CMD_SAM_CONFIGURATION, skb);
+	if (IS_ERR(resp))
+		return PTR_ERR(resp);
+
+	dev_kfree_skb(resp);
+	return 0;
+}
+
 static int pn533_dev_up(struct nfc_dev *nfc_dev)
 {
+	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
+
+	if (dev->device_type == PN533_DEVICE_PN532) {
+		int rc = pn532_sam_configuration(nfc_dev);
+
+		if (rc)
+			return rc;
+	}
+
 	return pn533_rf_field(nfc_dev, 1);
 }
 
@@ -2461,6 +2490,7 @@ static int pn533_setup(struct pn533 *dev)
 	case PN533_DEVICE_STD:
 	case PN533_DEVICE_PASORI:
 	case PN533_DEVICE_ACR122U:
+	case PN533_DEVICE_PN532:
 		max_retries.mx_rty_atr = 0x2;
 		max_retries.mx_rty_psl = 0x1;
 		max_retries.mx_rty_passive_act =
@@ -2496,6 +2526,7 @@ static int pn533_setup(struct pn533 *dev)
 
 	switch (dev->device_type) {
 	case PN533_DEVICE_STD:
+	case PN533_DEVICE_PN532:
 		break;
 
 	case PN533_DEVICE_PASORI:
