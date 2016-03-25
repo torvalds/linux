@@ -259,10 +259,12 @@ static struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 
 	for (i = 0; i < wilc->vif_num; i++) {
 		if (wilc->vif[i]->mode == STATION_MODE)
-			if (!memcmp(bssid, wilc->vif[i]->bssid, ETH_ALEN))
+			if (ether_addr_equal_unaligned(bssid,
+						       wilc->vif[i]->bssid))
 				return wilc->vif[i]->ndev;
 		if (wilc->vif[i]->mode == AP_MODE)
-			if (!memcmp(bssid1, wilc->vif[i]->bssid, ETH_ALEN))
+			if (ether_addr_equal_unaligned(bssid1,
+						       wilc->vif[i]->bssid))
 				return wilc->vif[i]->ndev;
 	}
 
