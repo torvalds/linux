@@ -687,7 +687,7 @@ static int tomoyo_update_path_number_acl(const u8 perm,
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_path_number_perm(const u8 type, struct path *path,
+int tomoyo_path_number_perm(const u8 type, const struct path *path,
 			    unsigned long number)
 {
 	struct tomoyo_request_info r;
@@ -733,7 +733,7 @@ int tomoyo_path_number_perm(const u8 type, struct path *path,
  * Returns 0 on success, negative value otherwise.
  */
 int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
-				 struct path *path, const int flag)
+				 const struct path *path, const int flag)
 {
 	const u8 acc_mode = ACC_MODE(flag);
 	int error = 0;
@@ -838,7 +838,7 @@ int tomoyo_path_perm(const u8 operation, const struct path *path, const char *ta
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_mkdev_perm(const u8 operation, struct path *path,
+int tomoyo_mkdev_perm(const u8 operation, const struct path *path,
 		      const unsigned int mode, unsigned int dev)
 {
 	struct tomoyo_request_info r;
@@ -882,8 +882,8 @@ int tomoyo_mkdev_perm(const u8 operation, struct path *path,
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_path2_perm(const u8 operation, struct path *path1,
-		      struct path *path2)
+int tomoyo_path2_perm(const u8 operation, const struct path *path1,
+		      const struct path *path2)
 {
 	int error = -ENOMEM;
 	struct tomoyo_path_info buf1;
