@@ -334,7 +334,7 @@ static int apparmor_path_rename(struct path *old_dir, struct dentry *old_dentry,
 	return error;
 }
 
-static int apparmor_path_chmod(struct path *path, umode_t mode)
+static int apparmor_path_chmod(const struct path *path, umode_t mode)
 {
 	if (!mediated_filesystem(path->dentry))
 		return 0;

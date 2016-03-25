@@ -485,7 +485,7 @@ int security_path_truncate(const struct path *path)
 	return call_int_hook(path_truncate, 0, path);
 }
 
-int security_path_chmod(struct path *path, umode_t mode)
+int security_path_chmod(const struct path *path, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
 		return 0;

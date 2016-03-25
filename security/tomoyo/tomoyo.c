@@ -351,7 +351,7 @@ static int tomoyo_file_ioctl(struct file *file, unsigned int cmd,
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_chmod(struct path *path, umode_t mode)
+static int tomoyo_path_chmod(const struct path *path, umode_t mode)
 {
 	return tomoyo_path_number_perm(TOMOYO_TYPE_CHMOD, path,
 				       mode & S_IALLUGO);

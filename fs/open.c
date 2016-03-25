@@ -499,7 +499,7 @@ out:
 	return error;
 }
 
-static int chmod_common(struct path *path, umode_t mode)
+static int chmod_common(const struct path *path, umode_t mode)
 {
 	struct inode *inode = path->dentry->d_inode;
 	struct inode *delegated_inode = NULL;

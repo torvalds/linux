@@ -1374,7 +1374,7 @@ union security_list_options {
 	int (*path_rename)(struct path *old_dir, struct dentry *old_dentry,
 				struct path *new_dir,
 				struct dentry *new_dentry);
-	int (*path_chmod)(struct path *path, umode_t mode);
+	int (*path_chmod)(const struct path *path, umode_t mode);
 	int (*path_chown)(const struct path *path, kuid_t uid, kgid_t gid);
 	int (*path_chroot)(struct path *path);
 #endif
