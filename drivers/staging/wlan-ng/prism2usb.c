@@ -8,7 +8,7 @@
 	{ USB_DEVICE(vid, pid),			\
 	.driver_info = (unsigned long)name }
 
-static struct usb_device_id usb_prism_tbl[] = {
+static const struct usb_device_id usb_prism_tbl[] = {
 	PRISM_DEV(0x04bb, 0x0922, "IOData AirPort WN-B11/USBS"),
 	PRISM_DEV(0x07aa, 0x0012, "Corega Wireless LAN USB Stick-11"),
 	PRISM_DEV(0x09aa, 0x3642, "Prism2.x 11Mbps WLAN USB Adapter"),
