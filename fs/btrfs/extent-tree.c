@@ -6331,8 +6331,6 @@ static int pin_down_extent(struct btrfs_root *root,
 				      cache->space_info->flags, num_bytes, 1);
 	set_extent_dirty(root->fs_info->pinned_extents, bytenr,
 			 bytenr + num_bytes - 1, GFP_NOFS | __GFP_NOFAIL);
-	if (reserved)
-		trace_btrfs_reserved_extent_free(root, bytenr, num_bytes);
 	return 0;
 }
 
@@ -8008,12 +8006,10 @@ static int __btrfs_free_reserved_extent(struct btrfs_root *root,
 			ret = btrfs_discard_extent(root, start, len, NULL);
 		btrfs_add_free_space(cache, start, len);
 		btrfs_update_reserved_bytes(cache, len, RESERVE_FREE, delalloc);
+		trace_btrfs_reserved_extent_free(root, start, len);
 	}
 
 	btrfs_put_block_group(cache);
-
-	trace_btrfs_reserved_extent_free(root, start, len);
-
 	return ret;
 }
 
