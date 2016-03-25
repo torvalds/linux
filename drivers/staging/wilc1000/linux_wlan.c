@@ -303,22 +303,18 @@ int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc)
 	return ret_val;
 }
 
-#define USE_TX_BACKOFF_DELAY_IF_NO_BUFFERS
-
 static int linux_wlan_txq_task(void *vp)
 {
 	int ret, txq_count;
 	struct wilc_vif *vif;
 	struct wilc *wl;
 	struct net_device *dev = vp;
-#if defined USE_TX_BACKOFF_DELAY_IF_NO_BUFFERS
 #define TX_BACKOFF_WEIGHT_INCR_STEP (1)
 #define TX_BACKOFF_WEIGHT_DECR_STEP (1)
 #define TX_BACKOFF_WEIGHT_MAX (7)
 #define TX_BACKOFF_WEIGHT_MIN (0)
 #define TX_BACKOFF_WEIGHT_UNIT_MS (10)
 	int backoff_weight = TX_BACKOFF_WEIGHT_MIN;
-#endif
 
 	vif = netdev_priv(dev);
 	wl = vif->wilc;
@@ -334,9 +330,6 @@ static int linux_wlan_txq_task(void *vp)
 				schedule();
 			break;
 		}
-#if !defined USE_TX_BACKOFF_DELAY_IF_NO_BUFFERS
-		ret = wilc_wlan_handle_txq(dev, &txq_count);
-#else
 		do {
 			ret = wilc_wlan_handle_txq(dev, &txq_count);
 			if (txq_count < FLOW_CONTROL_LOWER_THRESHOLD) {
@@ -358,7 +351,6 @@ static int linux_wlan_txq_task(void *vp)
 				}
 			}
 		} while (ret == WILC_TX_ERR_NO_BUF && !wl->close);
-#endif
 	}
 	return 0;
 }
