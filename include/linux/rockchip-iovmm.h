@@ -11,15 +11,15 @@
 #include <linux/atomic.h>
 #include <linux/spinlock.h>
 
-#define IEP_IOMMU_COMPATIBLE_NAME "rockchip,iommu"
-#define VIP_IOMMU_COMPATIBLE_NAME "rockchip,iommu"
-#define ISP_IOMMU_COMPATIBLE_NAME "rockchip,iommu"
-#define VOPB_IOMMU_COMPATIBLE_NAME "rockchip,iommu"
-#define VOPL_IOMMU_COMPATIBLE_NAME "rockchip,iommu"
-#define VOP_IOMMU_COMPATIBLE_NAME	"rockchip,iommu"
-#define HEVC_IOMMU_COMPATIBLE_NAME "rockchip,iommu"
-#define VPU_IOMMU_COMPATIBLE_NAME "rockchip,iommu"
-#define VDEC_IOMMU_COMPATIBLE_NAME "rockchip,iommu"
+#define IEP_IOMMU_COMPATIBLE_NAME "rockchip,iep_mmu"
+#define VIP_IOMMU_COMPATIBLE_NAME "rockchip,vip_mmu"
+#define ISP_IOMMU_COMPATIBLE_NAME "rockchip,isp_mmu"
+#define VOPB_IOMMU_COMPATIBLE_NAME "rockchip,vopb_mmu"
+#define VOPL_IOMMU_COMPATIBLE_NAME "rockchip,vopl_mmu"
+#define VOP_IOMMU_COMPATIBLE_NAME	"rockchip,vop_mmu"
+#define HEVC_IOMMU_COMPATIBLE_NAME "rockchip,hevc_mmu"
+#define VPU_IOMMU_COMPATIBLE_NAME "rockchip,vpu_mmu"
+#define VDEC_IOMMU_COMPATIBLE_NAME "rockchip,vdec_mmu"
 
 enum rk_iommu_inttype {
 	IOMMU_PAGEFAULT,
