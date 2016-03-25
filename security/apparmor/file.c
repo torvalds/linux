@@ -275,7 +275,7 @@ static inline bool is_deleted(struct dentry *dentry)
  *
  * Returns: %0 else error if access denied or other error
  */
-int aa_path_perm(int op, struct aa_profile *profile, struct path *path,
+int aa_path_perm(int op, struct aa_profile *profile, const struct path *path,
 		 int flags, u32 request, struct path_cond *cond)
 {
 	char *buffer = NULL;

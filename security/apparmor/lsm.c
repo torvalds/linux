@@ -149,7 +149,7 @@ static int apparmor_capable(const struct cred *cred, struct user_namespace *ns,
  *
  * Returns: %0 else error code if error or permission denied
  */
-static int common_perm(int op, struct path *path, u32 mask,
+static int common_perm(int op, const struct path *path, u32 mask,
 		       struct path_cond *cond)
 {
 	struct aa_profile *profile;
