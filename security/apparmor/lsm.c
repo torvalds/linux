@@ -245,7 +245,7 @@ static int common_perm_create(int op, const struct path *dir,
 	return common_perm_dir_dentry(op, dir, dentry, mask, &cond);
 }
 
-static int apparmor_path_unlink(struct path *dir, struct dentry *dentry)
+static int apparmor_path_unlink(const struct path *dir, struct dentry *dentry)
 {
 	return common_perm_rm(OP_UNLINK, dir, dentry, AA_MAY_DELETE);
 }
@@ -257,7 +257,7 @@ static int apparmor_path_mkdir(struct path *dir, struct dentry *dentry,
 				  S_IFDIR);
 }
 
-static int apparmor_path_rmdir(struct path *dir, struct dentry *dentry)
+static int apparmor_path_rmdir(const struct path *dir, struct dentry *dentry)
 {
 	return common_perm_rm(OP_RMDIR, dir, dentry, AA_MAY_DELETE);
 }

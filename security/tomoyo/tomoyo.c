@@ -163,7 +163,7 @@ static int tomoyo_path_truncate(const struct path *path)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_unlink(struct path *parent, struct dentry *dentry)
+static int tomoyo_path_unlink(const struct path *parent, struct dentry *dentry)
 {
 	struct path path = { parent->mnt, dentry };
 	return tomoyo_path_perm(TOMOYO_TYPE_UNLINK, &path, NULL);
@@ -194,7 +194,7 @@ static int tomoyo_path_mkdir(struct path *parent, struct dentry *dentry,
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_rmdir(struct path *parent, struct dentry *dentry)
+static int tomoyo_path_rmdir(const struct path *parent, struct dentry *dentry)
 {
 	struct path path = { parent->mnt, dentry };
 	return tomoyo_path_perm(TOMOYO_TYPE_RMDIR, &path, NULL);

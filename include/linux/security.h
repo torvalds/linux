@@ -1442,9 +1442,9 @@ static inline void security_skb_classify_flow(struct sk_buff *skb, struct flowi 
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 
 #ifdef CONFIG_SECURITY_PATH
-int security_path_unlink(struct path *dir, struct dentry *dentry);
+int security_path_unlink(const struct path *dir, struct dentry *dentry);
 int security_path_mkdir(struct path *dir, struct dentry *dentry, umode_t mode);
-int security_path_rmdir(struct path *dir, struct dentry *dentry);
+int security_path_rmdir(const struct path *dir, struct dentry *dentry);
 int security_path_mknod(struct path *dir, struct dentry *dentry, umode_t mode,
 			unsigned int dev);
 int security_path_truncate(const struct path *path);
@@ -1459,7 +1459,7 @@ int security_path_chmod(const struct path *path, umode_t mode);
 int security_path_chown(const struct path *path, kuid_t uid, kgid_t gid);
 int security_path_chroot(struct path *path);
 #else	/* CONFIG_SECURITY_PATH */
-static inline int security_path_unlink(struct path *dir, struct dentry *dentry)
+static inline int security_path_unlink(const struct path *dir, struct dentry *dentry)
 {
 	return 0;
 }
@@ -1470,7 +1470,7 @@ static inline int security_path_mkdir(struct path *dir, struct dentry *dentry,
 	return 0;
 }
 
-static inline int security_path_rmdir(struct path *dir, struct dentry *dentry)
+static inline int security_path_rmdir(const struct path *dir, struct dentry *dentry)
 {
 	return 0;
 }

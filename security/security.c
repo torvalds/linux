@@ -427,14 +427,14 @@ int security_path_mkdir(struct path *dir, struct dentry *dentry, umode_t mode)
 }
 EXPORT_SYMBOL(security_path_mkdir);
 
-int security_path_rmdir(struct path *dir, struct dentry *dentry)
+int security_path_rmdir(const struct path *dir, struct dentry *dentry)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
 		return 0;
 	return call_int_hook(path_rmdir, 0, dir, dentry);
 }
 
-int security_path_unlink(struct path *dir, struct dentry *dentry)
+int security_path_unlink(const struct path *dir, struct dentry *dentry)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
 		return 0;

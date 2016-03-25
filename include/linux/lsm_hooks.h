@@ -1360,10 +1360,10 @@ union security_list_options {
 
 
 #ifdef CONFIG_SECURITY_PATH
-	int (*path_unlink)(struct path *dir, struct dentry *dentry);
+	int (*path_unlink)(const struct path *dir, struct dentry *dentry);
 	int (*path_mkdir)(struct path *dir, struct dentry *dentry,
 				umode_t mode);
-	int (*path_rmdir)(struct path *dir, struct dentry *dentry);
+	int (*path_rmdir)(const struct path *dir, struct dentry *dentry);
 	int (*path_mknod)(struct path *dir, struct dentry *dentry,
 				umode_t mode, unsigned int dev);
 	int (*path_truncate)(const struct path *path);
