@@ -275,7 +275,7 @@ static int apparmor_path_truncate(const struct path *path)
 				  d_backing_inode(path->dentry)->i_mode
 	};
 
-	if (!path->mnt || !mediated_filesystem(path->dentry))
+	if (!mediated_filesystem(path->dentry))
 		return 0;
 
 	return common_perm(OP_TRUNC, path, MAY_WRITE | AA_MAY_META_WRITE,
