@@ -380,7 +380,6 @@ EXPORT_SYMBOL(drm_atomic_set_mode_prop_for_crtc);
  * drm_atomic_replace_property_blob - replace a blob property
  * @blob: a pointer to the member blob to be replaced
  * @new_blob: the new blob to replace with
- * @expected_size: the expected size of the new blob
  * @replaced: whether the blob has been replaced
  *
  * RETURNS:

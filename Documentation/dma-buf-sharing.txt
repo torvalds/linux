@@ -352,7 +352,8 @@ Being able to mmap an export dma-buf buffer object has 2 main use-cases:
 
    No special interfaces, userspace simply calls mmap on the dma-buf fd, making
    sure that the cache synchronization ioctl (DMA_BUF_IOCTL_SYNC) is *always*
-   used when the access happens. This is discussed next paragraphs.
+   used when the access happens. Note that DMA_BUF_IOCTL_SYNC can fail with
+   -EAGAIN or -EINTR, in which case it must be restarted.
 
    Some systems might need some sort of cache coherency management e.g. when
    CPU and GPU domains are being accessed through dma-buf at the same time. To
@@ -366,10 +367,10 @@ Being able to mmap an export dma-buf buffer object has 2 main use-cases:
        want (with the new data being consumed by the GPU or say scanout device)
      - munmap once you don't need the buffer any more
 
-    Therefore, for correctness and optimal performance, systems with the memory
-    cache shared by the GPU and CPU i.e. the "coherent" and also the
-    "incoherent" are always required to use SYNC_START and SYNC_END before and
-    after, respectively, when accessing the mapped address.
+    For correctness and optimal performance, it is always required to use
+    SYNC_START and SYNC_END before and after, respectively, when accessing the
+    mapped address. Userspace cannot rely on coherent access, even when there
+    are systems where it just works without calling these ioctls.
 
 2. Supporting existing mmap interfaces in importers
 

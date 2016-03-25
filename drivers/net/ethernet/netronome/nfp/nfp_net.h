@@ -45,7 +45,7 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
-#include <asm-generic/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-nonatomic-hi-lo.h>
 
 #include "nfp_net_ctrl.h"
 
