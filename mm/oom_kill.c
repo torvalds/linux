@@ -418,8 +418,10 @@ bool oom_killer_disabled __read_mostly;
  * victim (if that is possible) to help the OOM killer to move on.
  */
 static struct task_struct *oom_reaper_th;
-static struct task_struct *task_to_reap;
 static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
+static LIST_HEAD(oom_reaper_list);
+static DEFINE_SPINLOCK(oom_reaper_lock);
+
 
 static bool __oom_reap_task(struct task_struct *tsk)
 {
@@ -524,12 +526,20 @@ static void oom_reap_task(struct task_struct *tsk)
 static int oom_reaper(void *unused)
 {
 	while (true) {
-		struct task_struct *tsk;
+		struct task_struct *tsk = NULL;
 
 		wait_event_freezable(oom_reaper_wait,
-				     (tsk = READ_ONCE(task_to_reap)));
-		oom_reap_task(tsk);
-		WRITE_ONCE(task_to_reap, NULL);
+				     (!list_empty(&oom_reaper_list)));
+		spin_lock(&oom_reaper_lock);
+		if (!list_empty(&oom_reaper_list)) {
+			tsk = list_first_entry(&oom_reaper_list,
+					struct task_struct, oom_reaper_list);
+			list_del(&tsk->oom_reaper_list);
+		}
+		spin_unlock(&oom_reaper_lock);
+
+		if (tsk)
+			oom_reap_task(tsk);
 	}
 
 	return 0;
@@ -537,23 +547,15 @@ static int oom_reaper(void *unused)
 
 static void wake_oom_reaper(struct task_struct *tsk)
 {
-	struct task_struct *old_tsk;
-
 	if (!oom_reaper_th)
 		return;
 
 	get_task_struct(tsk);
 
-	/*
-	 * Make sure that only a single mm is ever queued for the reaper
-	 * because multiple are not necessary and the operation might be
-	 * disruptive so better reduce it to the bare minimum.
-	 */
-	old_tsk = cmpxchg(&task_to_reap, NULL, tsk);
-	if (!old_tsk)
-		wake_up(&oom_reaper_wait);
-	else
-		put_task_struct(tsk);
+	spin_lock(&oom_reaper_lock);
+	list_add(&tsk->oom_reaper_list, &oom_reaper_list);
+	spin_unlock(&oom_reaper_lock);
+	wake_up(&oom_reaper_wait);
 }
 
 static int __init oom_init(void)
