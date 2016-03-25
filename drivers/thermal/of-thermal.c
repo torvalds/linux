@@ -906,7 +906,7 @@ finish:
 	return tz;
 
 free_tbps:
-	for (i = 0; i < tz->num_tbps; i++)
+	for (i = i - 1; i >= 0; i--)
 		of_node_put(tz->tbps[i].cooling_device);
 	kfree(tz->tbps);
 free_trips:
