@@ -6000,8 +6000,10 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 
 	spin_lock(&BTRFS_I(inode)->lock);
 	if (test_and_set_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
-			     &BTRFS_I(inode)->runtime_flags))
+			     &BTRFS_I(inode)->runtime_flags)) {
+		to_reserve -= btrfs_calc_trans_metadata_size(root, 1);
 		release_extra = true;
+	}
 	BTRFS_I(inode)->reserved_extents += nr_extents;
 	spin_unlock(&BTRFS_I(inode)->lock);
 
