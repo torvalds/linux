@@ -691,14 +691,6 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 
 		wilc_wlan_stop(wl);
 		wilc_wlan_cleanup(dev);
-#if defined(PLAT_ALLWINNER_A20) || defined(PLAT_ALLWINNER_A23) || defined(PLAT_ALLWINNER_A31)
-		if (!wl->dev_irq_num &&
-		    wl->hif_func->disable_interrupt) {
-			mutex_lock(&wl->hif_cs);
-			wl->hif_func->disable_interrupt(wl);
-			mutex_unlock(&wl->hif_cs);
-		}
-#endif
 		wlan_deinit_locks(dev);
 
 		wl->initialized = false;
