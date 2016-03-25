@@ -385,7 +385,7 @@ static int tomoyo_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_chroot(struct path *path)
+static int tomoyo_path_chroot(const struct path *path)
 {
 	return tomoyo_path_perm(TOMOYO_TYPE_CHROOT, path, NULL);
 }

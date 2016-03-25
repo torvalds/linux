@@ -1457,7 +1457,7 @@ int security_path_rename(const struct path *old_dir, struct dentry *old_dentry,
 			 unsigned int flags);
 int security_path_chmod(const struct path *path, umode_t mode);
 int security_path_chown(const struct path *path, kuid_t uid, kgid_t gid);
-int security_path_chroot(struct path *path);
+int security_path_chroot(const struct path *path);
 #else	/* CONFIG_SECURITY_PATH */
 static inline int security_path_unlink(const struct path *dir, struct dentry *dentry)
 {
@@ -1518,7 +1518,7 @@ static inline int security_path_chown(const struct path *path, kuid_t uid, kgid_
 	return 0;
 }
 
-static inline int security_path_chroot(struct path *path)
+static inline int security_path_chroot(const struct path *path)
 {
 	return 0;
 }
