@@ -7,6 +7,7 @@ config KASAN
 	bool "KASan: runtime memory debugger"
 	depends on SLUB_DEBUG || (SLAB && !DEBUG_SLAB)
 	select CONSTRUCTORS
+	select STACKDEPOT if SLAB
 	help
 	  Enables kernel address sanitizer - runtime memory debugger,
 	  designed to find out-of-bounds accesses and use-after-free bugs.

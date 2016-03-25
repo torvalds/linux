@@ -17,7 +17,9 @@
 #define DISABLE_BRANCH_PROFILING
 
 #include <linux/export.h>
+#include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/kasan.h>
 #include <linux/kernel.h>
 #include <linux/kmemleak.h>
 #include <linux/linkage.h>
@@ -32,7 +34,6 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
-#include <linux/kasan.h>
 
 #include "kasan.h"
 #include "../slab.h"
@@ -413,23 +414,65 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object)
 #endif
 }
 
-static inline void set_track(struct kasan_track *track)
+#ifdef CONFIG_SLAB
+static inline int in_irqentry_text(unsigned long ptr)
 {
-	track->cpu = raw_smp_processor_id();
-	track->pid = current->pid;
-	track->when = jiffies;
+	return (ptr >= (unsigned long)&__irqentry_text_start &&
+		ptr < (unsigned long)&__irqentry_text_end) ||
+		(ptr >= (unsigned long)&__softirqentry_text_start &&
+		 ptr < (unsigned long)&__softirqentry_text_end);
 }
 
-#ifdef CONFIG_SLAB
+static inline void filter_irq_stacks(struct stack_trace *trace)
+{
+	int i;
+
+	if (!trace->nr_entries)
+		return;
+	for (i = 0; i < trace->nr_entries; i++)
+		if (in_irqentry_text(trace->entries[i])) {
+			/* Include the irqentry function into the stack. */
+			trace->nr_entries = i + 1;
+			break;
+		}
+}
+
+static inline depot_stack_handle_t save_stack(gfp_t flags)
+{
+	unsigned long entries[KASAN_STACK_DEPTH];
+	struct stack_trace trace = {
+		.nr_entries = 0,
+		.entries = entries,
+		.max_entries = KASAN_STACK_DEPTH,
+		.skip = 0
+	};
+
+	save_stack_trace(&trace);
+	filter_irq_stacks(&trace);
+	if (trace.nr_entries != 0 &&
+	    trace.entries[trace.nr_entries-1] == ULONG_MAX)
+		trace.nr_entries--;
+
+	return depot_save_stack(&trace, flags);
+}
+
+static inline void set_track(struct kasan_track *track, gfp_t flags)
+{
+	track->pid = current->pid;
+	track->stack = save_stack(flags);
+}
+
 struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
 					const void *object)
 {
+	BUILD_BUG_ON(sizeof(struct kasan_alloc_meta) > 32);
 	return (void *)object + cache->kasan_info.alloc_meta_offset;
 }
 
 struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
 				      const void *object)
 {
+	BUILD_BUG_ON(sizeof(struct kasan_free_meta) > 32);
 	return (void *)object + cache->kasan_info.free_meta_offset;
 }
 #endif
@@ -486,7 +529,7 @@ void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
 
 		alloc_info->state = KASAN_STATE_ALLOC;
 		alloc_info->alloc_size = size;
-		set_track(&alloc_info->track);
+		set_track(&alloc_info->track, flags);
 	}
 #endif
 }
