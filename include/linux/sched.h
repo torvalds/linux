@@ -2870,10 +2870,18 @@ static inline unsigned long stack_not_used(struct task_struct *p)
 	unsigned long *n = end_of_stack(p);
 
 	do { 	/* Skip over canary */
+# ifdef CONFIG_STACK_GROWSUP
+		n--;
+# else
 		n++;
+# endif
 	} while (!*n);
 
+# ifdef CONFIG_STACK_GROWSUP
+	return (unsigned long)end_of_stack(p) - (unsigned long)n;
+# else
 	return (unsigned long)n - (unsigned long)end_of_stack(p);
+# endif
 }
 #endif
 extern void set_task_stack_end_magic(struct task_struct *tsk);
