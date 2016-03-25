@@ -1540,7 +1540,8 @@ static int pn533_start_poll_complete(struct pn533 *dev, struct sk_buff *resp)
 	int rc, tgdata_len;
 
 	/* Toggle the DEP polling */
-	dev->poll_dep = 1;
+	if (dev->poll_protocols & NFC_PROTO_NFC_DEP_MASK)
+		dev->poll_dep = 1;
 
 	nbtg = resp->data[0];
 	tg = resp->data[1];
@@ -2054,7 +2055,7 @@ static int pn533_send_poll_frame(struct pn533 *dev)
 	dev_dbg(&dev->interface->dev, "%s mod len %d\n",
 		__func__, mod->len);
 
-	if (dev->poll_dep)  {
+	if ((dev->poll_protocols & NFC_PROTO_NFC_DEP_MASK) && dev->poll_dep)  {
 		dev->poll_dep = 0;
 		return pn533_poll_dep(dev->nfc_dev);
 	}
