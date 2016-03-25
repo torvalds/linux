@@ -129,7 +129,7 @@ static void mic_set_path(struct exynos_mic *mic, bool enable)
 	} else
 		val &= ~(MIC0_RGB_MUX | MIC0_I80_MUX | MIC0_ON_MUX);
 
-	regmap_write(mic->sysreg, DSD_CFG_MUX, val);
+	ret = regmap_write(mic->sysreg, DSD_CFG_MUX, val);
 	if (ret)
 		DRM_ERROR("mic: Failed to read system register\n");
 }
