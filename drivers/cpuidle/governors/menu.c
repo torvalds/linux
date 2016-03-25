@@ -196,7 +196,7 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev);
  * of points is below a threshold. If it is... then use the
  * average of these 8 points as the estimated value.
  */
-static void get_typical_interval(struct menu_device *data)
+static unsigned int get_typical_interval(struct menu_device *data)
 {
 	int i, divisor;
 	unsigned int max, thresh, avg;
@@ -253,9 +253,7 @@ again:
 	if (likely(variance <= U64_MAX/36)) {
 		if ((((u64)avg*avg > variance*36) && (divisor * 4 >= INTERVALS * 3))
 							|| variance <= 400) {
-			if (data->next_timer_us > avg)
-				data->predicted_us = avg;
-			return;
+			return avg;
 		}
 	}
 
@@ -269,7 +267,7 @@ again:
 	 * with sporadic activity with a bunch of short pauses.
 	 */
 	if ((divisor * 4) <= INTERVALS * 3)
-		return;
+		return UINT_MAX;
 
 	thresh = max - 1;
 	goto again;
@@ -286,6 +284,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	int latency_req = pm_qos_request(PM_QOS_CPU_DMA_LATENCY);
 	int i;
 	unsigned int interactivity_req;
+	unsigned int expected_interval;
 	unsigned long nr_iowaiters, cpu_load;
 
 	if (data->needs_update) {
@@ -312,30 +311,41 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 					 data->correction_factor[data->bucket],
 					 RESOLUTION * DECAY);
 
-	get_typical_interval(data);
+	expected_interval = get_typical_interval(data);
+	expected_interval = min(expected_interval, data->next_timer_us);
+
+	if (CPUIDLE_DRIVER_STATE_START > 0) {
+		struct cpuidle_state *s = &drv->states[CPUIDLE_DRIVER_STATE_START];
+		unsigned int polling_threshold;
+
+		/*
+		 * We want to default to C1 (hlt), not to busy polling
+		 * unless the timer is happening really really soon, or
+		 * C1's exit latency exceeds the user configured limit.
+		 */
+		polling_threshold = max_t(unsigned int, 20, s->target_residency);
+		if (data->next_timer_us > polling_threshold &&
+		    latency_req > s->exit_latency && !s->disabled &&
+		    !dev->states_usage[CPUIDLE_DRIVER_STATE_START].disable)
+			data->last_state_idx = CPUIDLE_DRIVER_STATE_START;
+		else
+			data->last_state_idx = CPUIDLE_DRIVER_STATE_START - 1;
+	} else {
+		data->last_state_idx = CPUIDLE_DRIVER_STATE_START;
+	}
 
 	/*
-	 * Performance multiplier defines a minimum predicted idle
-	 * duration / latency ratio. Adjust the latency limit if
-	 * necessary.
+	 * Use the lowest expected idle interval to pick the idle state.
+	 */
+	data->predicted_us = min(data->predicted_us, expected_interval);
+
+	/*
+	 * Use the performance multiplier and the user-configurable
+	 * latency_req to determine the maximum exit latency.
 	 */
 	interactivity_req = data->predicted_us / performance_multiplier(nr_iowaiters, cpu_load);
 	if (latency_req > interactivity_req)
 		latency_req = interactivity_req;
-
-	if (CPUIDLE_DRIVER_STATE_START > 0) {
-		data->last_state_idx = CPUIDLE_DRIVER_STATE_START - 1;
-		/*
-		 * We want to default to C1 (hlt), not to busy polling
-		 * unless the timer is happening really really soon.
-		 */
-		if (interactivity_req > 20 &&
-		    !drv->states[CPUIDLE_DRIVER_STATE_START].disabled &&
-			dev->states_usage[CPUIDLE_DRIVER_STATE_START].disable == 0)
-			data->last_state_idx = CPUIDLE_DRIVER_STATE_START;
-	} else {
-		data->last_state_idx = CPUIDLE_DRIVER_STATE_START;
-	}
 
 	/*
 	 * Find the idle state with the lowest power while satisfying
