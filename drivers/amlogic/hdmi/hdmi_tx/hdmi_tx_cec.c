@@ -183,9 +183,9 @@ void cec_node_init(hdmitx_dev_t* hdmitx_device)
     struct vendor_info_data *vend_data = NULL;
     
     int i, bool = 0;
-    const enum _cec_log_dev_addr_e player_dev[3] = {CEC_PLAYBACK_DEVICE_1_ADDR,
-                                                    CEC_PLAYBACK_DEVICE_2_ADDR,
-                                                    CEC_PLAYBACK_DEVICE_3_ADDR,
+    const enum _cec_log_dev_addr_e player_dev[3] = {CEC_RECORDING_DEVICE_1_ADDR,
+                                                    CEC_RECORDING_DEVICE_2_ADDR,
+                                                    CEC_RECORDING_DEVICE_3_ADDR,
                                                    };
 
     unsigned long cec_phy_addr;
