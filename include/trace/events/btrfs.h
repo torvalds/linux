@@ -440,6 +440,46 @@ TRACE_EVENT(btrfs_sync_fs,
 	TP_printk("wait = %d", __entry->wait)
 );
 
+TRACE_EVENT(btrfs_add_block_group,
+
+	TP_PROTO(struct btrfs_fs_info *fs_info,
+		 struct btrfs_block_group_cache *block_group, int create),
+
+	TP_ARGS(fs_info, block_group, create),
+
+	TP_STRUCT__entry(
+		__array(	u8,	fsid,	BTRFS_UUID_SIZE	)
+		__field(	u64,	offset			)
+		__field(	u64,	size			)
+		__field(	u64,	flags			)
+		__field(	u64,	bytes_used		)
+		__field(	u64,	bytes_super		)
+		__field(	int,	create			)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->fsid, fs_info->fsid, BTRFS_UUID_SIZE);
+		__entry->offset		= block_group->key.objectid;
+		__entry->size		= block_group->key.offset;
+		__entry->flags		= block_group->flags;
+		__entry->bytes_used	=
+			btrfs_block_group_used(&block_group->item);
+		__entry->bytes_super	= block_group->bytes_super;
+		__entry->create		= create;
+	),
+
+	TP_printk("%pU: block_group offset = %llu, size = %llu, "
+		  "flags = %llu(%s), bytes_used = %llu, bytes_super = %llu, "
+		  "create = %d", __entry->fsid,
+		  (unsigned long long)__entry->offset,
+		  (unsigned long long)__entry->size,
+		  (unsigned long long)__entry->flags,
+		  __print_flags((unsigned long)__entry->flags, "|",
+				BTRFS_GROUP_FLAGS),
+		  (unsigned long long)__entry->bytes_used,
+		  (unsigned long long)__entry->bytes_super, __entry->create)
+);
+
 #define show_ref_action(action)						\
 	__print_symbolic(action,					\
 		{ BTRFS_ADD_DELAYED_REF,    "ADD_DELAYED_REF" },	\

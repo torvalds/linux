@@ -9994,6 +9994,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 			goto error;
 		}
 
+		trace_btrfs_add_block_group(root->fs_info, cache, 0);
 		ret = update_space_info(info, cache->flags, found_key.offset,
 					btrfs_block_group_used(&cache->item),
 					cache->bytes_super, &space_info);
@@ -10164,6 +10165,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	 * Now that our block group has its ->space_info set and is inserted in
 	 * the rbtree, update the space info's counters.
 	 */
+	trace_btrfs_add_block_group(root->fs_info, cache, 1);
 	ret = update_space_info(root->fs_info, cache->flags, size, bytes_used,
 				cache->bytes_super, &cache->space_info);
 	if (ret) {
