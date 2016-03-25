@@ -123,6 +123,8 @@ int polaris10_phm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 	if (data->vce_power_gated == bgate)
 		return 0;
 
+	data->vce_power_gated = bgate;
+
 	if (bgate)
 		polaris10_phm_powerdown_vce(hwmgr);
 	else
