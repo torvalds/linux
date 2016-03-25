@@ -74,6 +74,7 @@ arch/*/include/uapi/asm/unistd*.h
 arch/*/include/uapi/asm/perf_regs.h
 arch/*/lib/memcpy*.S
 arch/*/lib/memset*.S
+arch/*/include/asm/*features.h
 include/linux/poison.h
 include/linux/hw_breakpoint.h
 include/uapi/linux/perf_event.h
