@@ -242,6 +242,7 @@ struct nvm_rq {
 	uint16_t nr_pages;
 	uint16_t flags;
 
+	u64 ppa_status; /* ppa media status */
 	int error;
 };
 
@@ -346,6 +347,7 @@ struct nvm_dev {
 	int nr_luns;
 	unsigned max_pages_per_blk;
 
+	unsigned long *lun_map;
 	void *ppalist_pool;
 
 	struct nvm_id identity;
@@ -355,6 +357,7 @@ struct nvm_dev {
 	char name[DISK_NAME_LEN];
 
 	struct mutex mlock;
+	spinlock_t lock;
 };
 
 static inline struct ppa_addr generic_to_dev_addr(struct nvm_dev *dev,
@@ -465,7 +468,12 @@ typedef int (nvmm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
 typedef int (nvmm_erase_blk_fn)(struct nvm_dev *, struct nvm_block *,
 								unsigned long);
 typedef struct nvm_lun *(nvmm_get_lun_fn)(struct nvm_dev *, int);
+typedef int (nvmm_reserve_lun)(struct nvm_dev *, int);
+typedef void (nvmm_release_lun)(struct nvm_dev *, int);
 typedef void (nvmm_lun_info_print_fn)(struct nvm_dev *);
+
+typedef int (nvmm_get_area_fn)(struct nvm_dev *, sector_t *, sector_t);
+typedef void (nvmm_put_area_fn)(struct nvm_dev *, sector_t);
 
 struct nvmm_type {
 	const char *name;
@@ -488,9 +496,15 @@ struct nvmm_type {
 
 	/* Configuration management */
 	nvmm_get_lun_fn *get_lun;
+	nvmm_reserve_lun *reserve_lun;
+	nvmm_release_lun *release_lun;
 
 	/* Statistics */
 	nvmm_lun_info_print_fn *lun_info_print;
+
+	nvmm_get_area_fn *get_area;
+	nvmm_put_area_fn *put_area;
+
 	struct list_head list;
 };
 

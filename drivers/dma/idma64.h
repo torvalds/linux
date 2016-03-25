@@ -16,7 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#include <asm-generic/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #include "virt-dma.h"
 

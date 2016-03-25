@@ -1,5 +1,5 @@
 /*
- * Device Tree Source for UniPhier PH1-LD10 SoC
+ * Device Tree Source for UniPhier PH1-LD20 SoC
  *
  * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
  *
@@ -43,7 +43,7 @@
  */
 
 / {
-	compatible = "socionext,ph1-ld10";
+	compatible = "socionext,ph1-ld20";
 	#address-cells = <2>;
 	#size-cells = <2>;
 	interrupt-parent = <&gic>;
@@ -132,12 +132,6 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
-
-		extbus: extbus {
-			compatible = "simple-bus";
-			#address-cells = <2>;
-			#size-cells = <1>;
-		};
 
 		serial0: serial@54006800 {
 			compatible = "socionext,uniphier-uart";
@@ -261,8 +255,21 @@
 			clock-frequency = <400000>;
 		};
 
+		system_bus: system-bus@58c00000 {
+			compatible = "socionext,uniphier-system-bus";
+			status = "disabled";
+			reg = <0x58c00000 0x400>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+		};
+
+		smpctrl@59800000 {
+			compatible = "socionext,uniphier-smpctrl";
+			reg = <0x59801000 0x400>;
+		};
+
 		pinctrl: pinctrl@5f801000 {
-			compatible = "socionext,ph1-ld10-pinctrl", "syscon";
+			compatible = "socionext,ph1-ld20-pinctrl", "syscon";
 			reg = <0x5f801000 0xe00>;
 		};
 

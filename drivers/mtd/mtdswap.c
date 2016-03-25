@@ -346,7 +346,7 @@ static int mtdswap_read_markers(struct mtdswap_dev *d, struct swap_eb *eb)
 	if (mtd_can_have_bb(d->mtd) && mtd_block_isbad(d->mtd, offset))
 		return MTDSWAP_SCANNED_BAD;
 
-	ops.ooblen = 2 * d->mtd->ecclayout->oobavail;
+	ops.ooblen = 2 * d->mtd->oobavail;
 	ops.oobbuf = d->oob_buf;
 	ops.ooboffs = 0;
 	ops.datbuf = NULL;
@@ -359,7 +359,7 @@ static int mtdswap_read_markers(struct mtdswap_dev *d, struct swap_eb *eb)
 
 	data = (struct mtdswap_oobdata *)d->oob_buf;
 	data2 = (struct mtdswap_oobdata *)
-		(d->oob_buf + d->mtd->ecclayout->oobavail);
+		(d->oob_buf + d->mtd->oobavail);
 
 	if (le16_to_cpu(data->magic) == MTDSWAP_MAGIC_CLEAN) {
 		eb->erase_count = le32_to_cpu(data->count);
@@ -933,7 +933,7 @@ static unsigned int mtdswap_eblk_passes(struct mtdswap_dev *d,
 
 	ops.mode = MTD_OPS_AUTO_OOB;
 	ops.len = mtd->writesize;
-	ops.ooblen = mtd->ecclayout->oobavail;
+	ops.ooblen = mtd->oobavail;
 	ops.ooboffs = 0;
 	ops.datbuf = d->page_buf;
 	ops.oobbuf = d->oob_buf;
@@ -945,7 +945,7 @@ static unsigned int mtdswap_eblk_passes(struct mtdswap_dev *d,
 		for (i = 0; i < mtd_pages; i++) {
 			patt = mtdswap_test_patt(test + i);
 			memset(d->page_buf, patt, mtd->writesize);
-			memset(d->oob_buf, patt, mtd->ecclayout->oobavail);
+			memset(d->oob_buf, patt, mtd->oobavail);
 			ret = mtd_write_oob(mtd, pos, &ops);
 			if (ret)
 				goto error;
@@ -964,7 +964,7 @@ static unsigned int mtdswap_eblk_passes(struct mtdswap_dev *d,
 				if (p1[j] != patt)
 					goto error;
 
-			for (j = 0; j < mtd->ecclayout->oobavail; j++)
+			for (j = 0; j < mtd->oobavail; j++)
 				if (p2[j] != (unsigned char)patt)
 					goto error;
 
@@ -1387,7 +1387,7 @@ static int mtdswap_init(struct mtdswap_dev *d, unsigned int eblocks,
 	if (!d->page_buf)
 		goto page_buf_fail;
 
-	d->oob_buf = kmalloc(2 * mtd->ecclayout->oobavail, GFP_KERNEL);
+	d->oob_buf = kmalloc(2 * mtd->oobavail, GFP_KERNEL);
 	if (!d->oob_buf)
 		goto oob_buf_fail;
 
@@ -1417,7 +1417,6 @@ static void mtdswap_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	unsigned long part;
 	unsigned int eblocks, eavailable, bad_blocks, spare_cnt;
 	uint64_t swap_size, use_size, size_limit;
-	struct nand_ecclayout *oinfo;
 	int ret;
 
 	parts = &partitions[0];
@@ -1447,17 +1446,10 @@ static void mtdswap_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		return;
 	}
 
-	oinfo = mtd->ecclayout;
-	if (!oinfo) {
-		printk(KERN_ERR "%s: mtd%d does not have OOB\n",
-			MTDSWAP_PREFIX, mtd->index);
-		return;
-	}
-
-	if (!mtd->oobsize || oinfo->oobavail < MTDSWAP_OOBSIZE) {
+	if (!mtd->oobsize || mtd->oobavail < MTDSWAP_OOBSIZE) {
 		printk(KERN_ERR "%s: Not enough free bytes in OOB, "
 			"%d available, %zu needed.\n",
-			MTDSWAP_PREFIX, oinfo->oobavail, MTDSWAP_OOBSIZE);
+			MTDSWAP_PREFIX, mtd->oobavail, MTDSWAP_OOBSIZE);
 		return;
 	}
 
