@@ -149,7 +149,7 @@ struct wilc_vif {
 	u8 iftype;
 	int monitor_flag;
 	int mac_opened;
-	struct frame_reg g_struct_frame_reg[num_reg_frame];
+	struct frame_reg frame_reg[num_reg_frame];
 	struct net_device_stats netstats;
 	struct wilc *wilc;
 	u8 src_addr[ETH_ALEN];

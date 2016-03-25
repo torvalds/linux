@@ -966,12 +966,12 @@ int wilc_mac_open(struct net_device *ndev)
 
 	wilc_mgmt_frame_register(vif->ndev->ieee80211_ptr->wiphy,
 				 vif->ndev->ieee80211_ptr,
-				 vif->g_struct_frame_reg[0].frame_type,
-				 vif->g_struct_frame_reg[0].reg);
+				 vif->frame_reg[0].frame_type,
+				 vif->frame_reg[0].reg);
 	wilc_mgmt_frame_register(vif->ndev->ieee80211_ptr->wiphy,
 				 vif->ndev->ieee80211_ptr,
-				 vif->g_struct_frame_reg[1].frame_type,
-				 vif->g_struct_frame_reg[1].reg);
+				 vif->frame_reg[1].frame_type,
+				 vif->frame_reg[1].reg);
 	netif_wake_queue(ndev);
 	wl->open_ifcs++;
 	vif->mac_opened = 1;
@@ -1260,8 +1260,8 @@ void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 	}
 
 	vif = netdev_priv(wilc->vif[1]->ndev);
-	if ((buff[0] == vif->g_struct_frame_reg[0].frame_type && vif->g_struct_frame_reg[0].reg) ||
-	    (buff[0] == vif->g_struct_frame_reg[1].frame_type && vif->g_struct_frame_reg[1].reg))
+	if ((buff[0] == vif->frame_reg[0].frame_type && vif->frame_reg[0].reg) ||
+	    (buff[0] == vif->frame_reg[1].frame_type && vif->frame_reg[1].reg))
 		WILC_WFI_p2p_rx(wilc->vif[1]->ndev, buff, size);
 }
 

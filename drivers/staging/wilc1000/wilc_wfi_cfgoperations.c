@@ -1745,15 +1745,15 @@ void wilc_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
 	switch (frame_type) {
 	case PROBE_REQ:
 	{
-		vif->g_struct_frame_reg[0].frame_type = frame_type;
-		vif->g_struct_frame_reg[0].reg = reg;
+		vif->frame_reg[0].frame_type = frame_type;
+		vif->frame_reg[0].reg = reg;
 	}
 	break;
 
 	case ACTION:
 	{
-		vif->g_struct_frame_reg[1].frame_type = frame_type;
-		vif->g_struct_frame_reg[1].reg = reg;
+		vif->frame_reg[1].frame_type = frame_type;
+		vif->frame_reg[1].reg = reg;
 	}
 	break;
 
