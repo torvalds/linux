@@ -189,7 +189,7 @@ static blk_qc_t nd_blk_make_request(struct request_queue *q, struct bio *bio)
 		err = nd_blk_do_bvec(blk_dev, bip, bvec.bv_page, len,
 					bvec.bv_offset, rw, iter.bi_sector);
 		if (err) {
-			dev_info(&blk_dev->nsblk->common.dev,
+			dev_dbg(&blk_dev->nsblk->common.dev,
 					"io error in %s sector %lld, len %d,\n",
 					(rw == READ) ? "READ" : "WRITE",
 					(unsigned long long) iter.bi_sector, len);
