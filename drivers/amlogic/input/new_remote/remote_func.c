@@ -442,6 +442,7 @@ int remote_hw_reprot_key(struct remote *remote_data)
 	}
 	else if((remote_data->frame_status & REPEARTFLAG) && remote_data->enable_repeat_falg){	//repeate key
 #ifdef CONFIG_AML_HDMI_TX
+#ifndef CONFIG_AML_HDMI_TX_NEW_CEC_DRIVER
        extern int rc_long_press_pwr_key;
 		if((remote_data->repeat_release_code == 0x1a) && (!cec_repeat)) {
             rc_long_press_pwr_key = 1;
@@ -451,6 +452,7 @@ int remote_hw_reprot_key(struct remote *remote_data)
 		if(remote_data->repeat_release_code == 0x1a)
  		    cec_repeat--;
 
+#endif
 #endif
 		if (remote_data->repeat_enable) {
 			repeat_count++;
