@@ -21,8 +21,10 @@
 #include "vsp1_rwpf.h"
 #include "vsp1_video.h"
 
-#define WPF_MAX_WIDTH				2048
-#define WPF_MAX_HEIGHT				2048
+#define WPF_GEN2_MAX_WIDTH			2048U
+#define WPF_GEN2_MAX_HEIGHT			2048U
+#define WPF_GEN3_MAX_WIDTH			8190U
+#define WPF_GEN3_MAX_HEIGHT			8190U
 
 /* -----------------------------------------------------------------------------
  * Device Access
@@ -201,8 +203,13 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 	if (wpf == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	wpf->max_width = WPF_MAX_WIDTH;
-	wpf->max_height = WPF_MAX_HEIGHT;
+	if (vsp1->info->gen == 2) {
+		wpf->max_width = WPF_GEN2_MAX_WIDTH;
+		wpf->max_height = WPF_GEN2_MAX_HEIGHT;
+	} else {
+		wpf->max_width = WPF_GEN3_MAX_WIDTH;
+		wpf->max_height = WPF_GEN3_MAX_HEIGHT;
+	}
 
 	wpf->entity.ops = &wpf_entity_ops;
 	wpf->entity.type = VSP1_ENTITY_WPF;
