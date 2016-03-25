@@ -2043,8 +2043,10 @@ static int ocfs2_expand_nonsparse_inode(struct inode *inode,
 	if (ret)
 		mlog_errno(ret);
 
-	wc->w_first_new_cpos =
-		ocfs2_clusters_for_bytes(inode->i_sb, i_size_read(inode));
+	/* There is no wc if this is call from direct. */
+	if (wc)
+		wc->w_first_new_cpos =
+			ocfs2_clusters_for_bytes(inode->i_sb, i_size_read(inode));
 
 	return ret;
 }
@@ -2135,14 +2137,17 @@ try_again:
 		}
 	}
 
-	if (ocfs2_sparse_alloc(osb))
-		ret = ocfs2_zero_tail(inode, di_bh, pos);
-	else
-		ret = ocfs2_expand_nonsparse_inode(inode, di_bh, pos, len,
-						   wc);
-	if (ret) {
-		mlog_errno(ret);
-		goto out;
+	/* Direct io change i_size late, should not zero tail here. */
+	if (type != OCFS2_WRITE_DIRECT) {
+		if (ocfs2_sparse_alloc(osb))
+			ret = ocfs2_zero_tail(inode, di_bh, pos);
+		else
+			ret = ocfs2_expand_nonsparse_inode(inode, di_bh, pos,
+							   len, wc);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
 	}
 
 	ret = ocfs2_check_range_for_refcount(inode, pos, len);
@@ -2203,8 +2208,9 @@ try_again:
 
 		credits = ocfs2_calc_extend_credits(inode->i_sb,
 						    &di->id2.i_list);
-
-	}
+	} else if (type == OCFS2_WRITE_DIRECT)
+		/* direct write needs not to start trans if no extents alloc. */
+		goto success;
 
 	/*
 	 * We have to zero sparse allocated clusters, unwritten extent clusters,
@@ -2402,12 +2408,14 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 	handle_t *handle = wc->w_handle;
 	struct page *tmppage;
 
-	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), wc->w_di_bh,
-			OCFS2_JOURNAL_ACCESS_WRITE);
-	if (ret) {
-		copied = ret;
-		mlog_errno(ret);
-		goto out;
+	if (handle) {
+		ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode),
+				wc->w_di_bh, OCFS2_JOURNAL_ACCESS_WRITE);
+		if (ret) {
+			copied = ret;
+			mlog_errno(ret);
+			goto out;
+		}
 	}
 
 	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
@@ -2450,25 +2458,29 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 		}
 
 		if (page_has_buffers(tmppage)) {
-			if (ocfs2_should_order_data(inode))
-				ocfs2_jbd2_file_inode(wc->w_handle, inode);
+			if (handle && ocfs2_should_order_data(inode))
+				ocfs2_jbd2_file_inode(handle, inode);
 			block_commit_write(tmppage, from, to);
 		}
 	}
 
 out_write_size:
-	pos += copied;
-	if (pos > i_size_read(inode)) {
-		i_size_write(inode, pos);
-		mark_inode_dirty(inode);
+	/* Direct io do not update i_size here. */
+	if (wc->w_type != OCFS2_WRITE_DIRECT) {
+		pos += copied;
+		if (pos > i_size_read(inode)) {
+			i_size_write(inode, pos);
+			mark_inode_dirty(inode);
+		}
+		inode->i_blocks = ocfs2_inode_sector_count(inode);
+		di->i_size = cpu_to_le64((u64)i_size_read(inode));
+		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		di->i_mtime = di->i_ctime = cpu_to_le64(inode->i_mtime.tv_sec);
+		di->i_mtime_nsec = di->i_ctime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
+		ocfs2_update_inode_fsync_trans(handle, inode, 1);
 	}
-	inode->i_blocks = ocfs2_inode_sector_count(inode);
-	di->i_size = cpu_to_le64((u64)i_size_read(inode));
-	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-	di->i_mtime = di->i_ctime = cpu_to_le64(inode->i_mtime.tv_sec);
-	di->i_mtime_nsec = di->i_ctime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
-	ocfs2_update_inode_fsync_trans(handle, inode, 1);
-	ocfs2_journal_dirty(handle, wc->w_di_bh);
+	if (handle)
+		ocfs2_journal_dirty(handle, wc->w_di_bh);
 
 out:
 	/* unlock pages before dealloc since it needs acquiring j_trans_barrier
@@ -2478,7 +2490,8 @@ out:
 	 */
 	ocfs2_unlock_pages(wc);
 
-	ocfs2_commit_trans(osb, handle);
+	if (handle)
+		ocfs2_commit_trans(osb, handle);
 
 	ocfs2_run_deallocs(osb, &wc->w_dealloc);
 
