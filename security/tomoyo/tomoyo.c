@@ -366,7 +366,7 @@ static int tomoyo_path_chmod(struct path *path, umode_t mode)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_chown(struct path *path, kuid_t uid, kgid_t gid)
+static int tomoyo_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 {
 	int error = 0;
 	if (uid_valid(uid))

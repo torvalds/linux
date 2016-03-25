@@ -492,7 +492,7 @@ int security_path_chmod(struct path *path, umode_t mode)
 	return call_int_hook(path_chmod, 0, path, mode);
 }
 
-int security_path_chown(struct path *path, kuid_t uid, kgid_t gid)
+int security_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
 		return 0;

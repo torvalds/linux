@@ -1375,7 +1375,7 @@ union security_list_options {
 				struct path *new_dir,
 				struct dentry *new_dentry);
 	int (*path_chmod)(struct path *path, umode_t mode);
-	int (*path_chown)(struct path *path, kuid_t uid, kgid_t gid);
+	int (*path_chown)(const struct path *path, kuid_t uid, kgid_t gid);
 	int (*path_chroot)(struct path *path);
 #endif
 
