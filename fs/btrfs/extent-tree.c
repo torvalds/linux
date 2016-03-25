@@ -6246,6 +6246,9 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 			spin_unlock(&cache->lock);
 			spin_unlock(&cache->space_info->lock);
 
+			trace_btrfs_space_reservation(root->fs_info, "pinned",
+						      cache->space_info->flags,
+						      num_bytes, 1);
 			set_extent_dirty(info->pinned_extents,
 					 bytenr, bytenr + num_bytes - 1,
 					 GFP_NOFS | __GFP_NOFAIL);
@@ -6320,6 +6323,8 @@ static int pin_down_extent(struct btrfs_root *root,
 	spin_unlock(&cache->lock);
 	spin_unlock(&cache->space_info->lock);
 
+	trace_btrfs_space_reservation(root->fs_info, "pinned",
+				      cache->space_info->flags, num_bytes, 1);
 	set_extent_dirty(root->fs_info->pinned_extents, bytenr,
 			 bytenr + num_bytes - 1, GFP_NOFS | __GFP_NOFAIL);
 	if (reserved)
@@ -6678,6 +6683,9 @@ static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end,
 		spin_lock(&cache->lock);
 		cache->pinned -= len;
 		space_info->bytes_pinned -= len;
+
+		trace_btrfs_space_reservation(fs_info, "pinned",
+					      space_info->flags, len, 0);
 		space_info->max_extent_size = 0;
 		percpu_counter_add(&space_info->total_bytes_pinned, -len);
 		if (cache->ro) {
