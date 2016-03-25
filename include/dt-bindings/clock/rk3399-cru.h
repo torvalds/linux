@@ -132,7 +132,9 @@
 
 #define DCLK_VOP0			180
 #define DCLK_VOP1			181
-#define DCLK_M0_PERILP			182
+#define DCLK_VOP0_DIV			182
+#define DCLK_VOP1_DIV			183
+#define DCLK_M0_PERILP			184
 
 #define FCLK_CM0S 			190
 
@@ -208,6 +210,8 @@
 #define ACLK_PERF_CORE_L 		260
 #define ACLK_PERF_CORE_B 		261
 #define ACLK_GIC_PRE	 		262
+#define ACLK_VOP0_PRE	 		263
+#define ACLK_VOP1_PRE	 		264
 
 /* pclk gates */
 #define PCLK_PERIHP			320
