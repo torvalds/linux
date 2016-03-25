@@ -892,6 +892,7 @@ static const struct file_operations vidmem_operations = {
     .read = seq_read,
     .write = vidmem_write,
     .llseek = seq_lseek,
+    .release = single_release,
 } ;
 
 /*******************************************************************************
