@@ -1447,7 +1447,7 @@ int security_path_mkdir(struct path *dir, struct dentry *dentry, umode_t mode);
 int security_path_rmdir(struct path *dir, struct dentry *dentry);
 int security_path_mknod(struct path *dir, struct dentry *dentry, umode_t mode,
 			unsigned int dev);
-int security_path_truncate(struct path *path);
+int security_path_truncate(const struct path *path);
 int security_path_symlink(struct path *dir, struct dentry *dentry,
 			  const char *old_name);
 int security_path_link(struct dentry *old_dentry, struct path *new_dir,
@@ -1481,7 +1481,7 @@ static inline int security_path_mknod(struct path *dir, struct dentry *dentry,
 	return 0;
 }
 
-static inline int security_path_truncate(struct path *path)
+static inline int security_path_truncate(const struct path *path)
 {
 	return 0;
 }

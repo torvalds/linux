@@ -478,7 +478,7 @@ int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
 }
 EXPORT_SYMBOL(security_path_rename);
 
-int security_path_truncate(struct path *path)
+int security_path_truncate(const struct path *path)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
 		return 0;

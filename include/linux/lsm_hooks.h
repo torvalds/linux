@@ -1366,7 +1366,7 @@ union security_list_options {
 	int (*path_rmdir)(struct path *dir, struct dentry *dentry);
 	int (*path_mknod)(struct path *dir, struct dentry *dentry,
 				umode_t mode, unsigned int dev);
-	int (*path_truncate)(struct path *path);
+	int (*path_truncate)(const struct path *path);
 	int (*path_symlink)(struct path *dir, struct dentry *dentry,
 				const char *old_name);
 	int (*path_link)(struct dentry *old_dentry, struct path *new_dir,
