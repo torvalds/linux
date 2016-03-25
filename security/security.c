@@ -450,7 +450,7 @@ int security_path_symlink(const struct path *dir, struct dentry *dentry,
 	return call_int_hook(path_symlink, 0, dir, dentry, old_name);
 }
 
-int security_path_link(struct dentry *old_dentry, struct path *new_dir,
+int security_path_link(struct dentry *old_dentry, const struct path *new_dir,
 		       struct dentry *new_dentry)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry))))
@@ -458,8 +458,8 @@ int security_path_link(struct dentry *old_dentry, struct path *new_dir,
 	return call_int_hook(path_link, 0, old_dentry, new_dir, new_dentry);
 }
 
-int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
-			 struct path *new_dir, struct dentry *new_dentry,
+int security_path_rename(const struct path *old_dir, struct dentry *old_dentry,
+			 const struct path *new_dir, struct dentry *new_dentry,
 			 unsigned int flags)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry)) ||

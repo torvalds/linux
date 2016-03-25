@@ -1450,10 +1450,10 @@ int security_path_mknod(const struct path *dir, struct dentry *dentry, umode_t m
 int security_path_truncate(const struct path *path);
 int security_path_symlink(const struct path *dir, struct dentry *dentry,
 			  const char *old_name);
-int security_path_link(struct dentry *old_dentry, struct path *new_dir,
+int security_path_link(struct dentry *old_dentry, const struct path *new_dir,
 		       struct dentry *new_dentry);
-int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
-			 struct path *new_dir, struct dentry *new_dentry,
+int security_path_rename(const struct path *old_dir, struct dentry *old_dentry,
+			 const struct path *new_dir, struct dentry *new_dentry,
 			 unsigned int flags);
 int security_path_chmod(const struct path *path, umode_t mode);
 int security_path_chown(const struct path *path, kuid_t uid, kgid_t gid);
@@ -1493,15 +1493,15 @@ static inline int security_path_symlink(const struct path *dir, struct dentry *d
 }
 
 static inline int security_path_link(struct dentry *old_dentry,
-				     struct path *new_dir,
+				     const struct path *new_dir,
 				     struct dentry *new_dentry)
 {
 	return 0;
 }
 
-static inline int security_path_rename(struct path *old_dir,
+static inline int security_path_rename(const struct path *old_dir,
 				       struct dentry *old_dentry,
-				       struct path *new_dir,
+				       const struct path *new_dir,
 				       struct dentry *new_dentry,
 				       unsigned int flags)
 {

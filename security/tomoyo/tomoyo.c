@@ -265,7 +265,7 @@ static int tomoyo_path_mknod(const struct path *parent, struct dentry *dentry,
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_link(struct dentry *old_dentry, struct path *new_dir,
+static int tomoyo_path_link(struct dentry *old_dentry, const struct path *new_dir,
 			    struct dentry *new_dentry)
 {
 	struct path path1 = { new_dir->mnt, old_dentry };
@@ -283,9 +283,9 @@ static int tomoyo_path_link(struct dentry *old_dentry, struct path *new_dir,
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_rename(struct path *old_parent,
+static int tomoyo_path_rename(const struct path *old_parent,
 			      struct dentry *old_dentry,
-			      struct path *new_parent,
+			      const struct path *new_parent,
 			      struct dentry *new_dentry)
 {
 	struct path path1 = { old_parent->mnt, old_dentry };

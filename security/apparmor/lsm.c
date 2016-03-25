@@ -280,7 +280,7 @@ static int apparmor_path_symlink(const struct path *dir, struct dentry *dentry,
 				  S_IFLNK);
 }
 
-static int apparmor_path_link(struct dentry *old_dentry, struct path *new_dir,
+static int apparmor_path_link(struct dentry *old_dentry, const struct path *new_dir,
 			      struct dentry *new_dentry)
 {
 	struct aa_profile *profile;
@@ -295,8 +295,8 @@ static int apparmor_path_link(struct dentry *old_dentry, struct path *new_dir,
 	return error;
 }
 
-static int apparmor_path_rename(struct path *old_dir, struct dentry *old_dentry,
-				struct path *new_dir, struct dentry *new_dentry)
+static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_dentry,
+				const struct path *new_dir, struct dentry *new_dentry)
 {
 	struct aa_profile *profile;
 	int error = 0;

@@ -1369,10 +1369,10 @@ union security_list_options {
 	int (*path_truncate)(const struct path *path);
 	int (*path_symlink)(const struct path *dir, struct dentry *dentry,
 				const char *old_name);
-	int (*path_link)(struct dentry *old_dentry, struct path *new_dir,
+	int (*path_link)(struct dentry *old_dentry, const struct path *new_dir,
 				struct dentry *new_dentry);
-	int (*path_rename)(struct path *old_dir, struct dentry *old_dentry,
-				struct path *new_dir,
+	int (*path_rename)(const struct path *old_dir, struct dentry *old_dentry,
+				const struct path *new_dir,
 				struct dentry *new_dentry);
 	int (*path_chmod)(const struct path *path, umode_t mode);
 	int (*path_chown)(const struct path *path, kuid_t uid, kgid_t gid);
