@@ -147,7 +147,7 @@ void print_usage(void)
 
 int main(int argc, char **argv)
 {
-	const char *device_name;
+	const char *device_name = NULL;
 	int ret;
 	int c;
 
