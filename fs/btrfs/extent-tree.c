@@ -5726,12 +5726,12 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	u64 to_reserve = 0;
 	u64 csum_bytes;
 	unsigned nr_extents = 0;
-	int extra_reserve = 0;
 	enum btrfs_reserve_flush_enum flush = BTRFS_RESERVE_FLUSH_ALL;
 	int ret = 0;
 	bool delalloc_lock = true;
 	u64 to_free = 0;
 	unsigned dropped;
+	bool release_extra = false;
 
 	/* If we are a free space inode we need to not flush since we will be in
 	 * the middle of a transaction commit.  We also don't need the delalloc
@@ -5757,24 +5757,15 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 					 BTRFS_MAX_EXTENT_SIZE - 1,
 					 BTRFS_MAX_EXTENT_SIZE);
 	BTRFS_I(inode)->outstanding_extents += nr_extents;
-	nr_extents = 0;
 
+	nr_extents = 0;
 	if (BTRFS_I(inode)->outstanding_extents >
 	    BTRFS_I(inode)->reserved_extents)
-		nr_extents = BTRFS_I(inode)->outstanding_extents -
+		nr_extents += BTRFS_I(inode)->outstanding_extents -
 			BTRFS_I(inode)->reserved_extents;
 
-	/*
-	 * Add an item to reserve for updating the inode when we complete the
-	 * delalloc io.
-	 */
-	if (!test_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
-		      &BTRFS_I(inode)->runtime_flags)) {
-		nr_extents++;
-		extra_reserve = 1;
-	}
-
-	to_reserve = btrfs_calc_trans_metadata_size(root, nr_extents);
+	/* We always want to reserve a slot for updating the inode. */
+	to_reserve = btrfs_calc_trans_metadata_size(root, nr_extents + 1);
 	to_reserve += calc_csum_metadata_size(inode, num_bytes, 1);
 	csum_bytes = BTRFS_I(inode)->csum_bytes;
 	spin_unlock(&BTRFS_I(inode)->lock);
@@ -5786,18 +5777,16 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 			goto out_fail;
 	}
 
-	ret = reserve_metadata_bytes(root, block_rsv, to_reserve, flush);
+	ret = btrfs_block_rsv_add(root, block_rsv, to_reserve, flush);
 	if (unlikely(ret)) {
 		btrfs_qgroup_free_meta(root, nr_extents * root->nodesize);
 		goto out_fail;
 	}
 
 	spin_lock(&BTRFS_I(inode)->lock);
-	if (extra_reserve) {
-		set_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
-			&BTRFS_I(inode)->runtime_flags);
-		nr_extents--;
-	}
+	if (test_and_set_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
+			     &BTRFS_I(inode)->runtime_flags))
+		release_extra = true;
 	BTRFS_I(inode)->reserved_extents += nr_extents;
 	spin_unlock(&BTRFS_I(inode)->lock);
 
@@ -5807,8 +5796,10 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	if (to_reserve)
 		trace_btrfs_space_reservation(root->fs_info, "delalloc",
 					      btrfs_ino(inode), to_reserve, 1);
-	block_rsv_add_bytes(block_rsv, to_reserve, 1);
-
+	if (release_extra)
+		btrfs_block_rsv_release(root, block_rsv,
+					btrfs_calc_trans_metadata_size(root,
+								       1));
 	return 0;
 
 out_fail:
