@@ -2178,7 +2178,7 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	int full_coherency = !(osb->s_mount_opt &
 			       OCFS2_MOUNT_COHERENCY_BUFFERED);
-	int unaligned_dio = 0;
+	void *saved_ki_complete = NULL;
 	int append_write = ((iocb->ki_pos + count) >=
 			i_size_read(inode) ? 1 : 0);
 
@@ -2241,17 +2241,12 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 		goto out;
 	}
 
-	if (direct_io && !is_sync_kiocb(iocb))
-		unaligned_dio = ocfs2_is_io_unaligned(inode, count, iocb->ki_pos);
-
-	if (unaligned_dio) {
+	if (direct_io && !is_sync_kiocb(iocb) &&
+	    ocfs2_is_io_unaligned(inode, count, iocb->ki_pos)) {
 		/*
-		 * Wait on previous unaligned aio to complete before
-		 * proceeding.
+		 * Make it a sync io if it's an unaligned aio.
 		 */
-		mutex_lock(&OCFS2_I(inode)->ip_unaligned_aio);
-		/* Mark the iocb as needing an unlock in ocfs2_dio_end_io */
-		ocfs2_iocb_set_unaligned_aio(iocb);
+		saved_ki_complete = xchg(&iocb->ki_complete, NULL);
 	}
 
 	/* communicate with ocfs2_dio_end_io */
@@ -2272,11 +2267,10 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 	 */
 	if ((written == -EIOCBQUEUED) || (!ocfs2_iocb_is_rw_locked(iocb))) {
 		rw_level = -1;
-		unaligned_dio = 0;
 	}
 
 	if (unlikely(written <= 0))
-		goto no_sync;
+		goto out;
 
 	if (((file->f_flags & O_DSYNC) && !direct_io) ||
 	    IS_SYNC(inode)) {
@@ -2298,13 +2292,10 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 						      iocb->ki_pos - 1);
 	}
 
-no_sync:
-	if (unaligned_dio && ocfs2_iocb_is_unaligned_aio(iocb)) {
-		ocfs2_iocb_clear_unaligned_aio(iocb);
-		mutex_unlock(&OCFS2_I(inode)->ip_unaligned_aio);
-	}
-
 out:
+	if (saved_ki_complete)
+		xchg(&iocb->ki_complete, saved_ki_complete);
+
 	if (rw_level != -1)
 		ocfs2_rw_unlock(inode, rw_level);
 

@@ -43,9 +43,6 @@ struct ocfs2_inode_info
 	/* protects extended attribute changes on this inode */
 	struct rw_semaphore		ip_xattr_sem;
 
-	/* Number of outstanding AIO's which are not page aligned */
-	struct mutex			ip_unaligned_aio;
-
 	/* These fields are protected by ip_lock */
 	spinlock_t			ip_lock;
 	u32				ip_open_count;
