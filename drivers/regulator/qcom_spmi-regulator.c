@@ -1201,7 +1201,7 @@ static int spmi_regulator_match(struct spmi_regulator *vreg, u16 force_type)
 	ret = spmi_vreg_read(vreg, SPMI_COMMON_REG_DIG_MAJOR_REV, version,
 		ARRAY_SIZE(version));
 	if (ret) {
-		dev_err(vreg->dev, "could not read version registers\n");
+		dev_dbg(vreg->dev, "could not read version registers\n");
 		return ret;
 	}
 	dig_major_rev	= version[SPMI_COMMON_REG_DIG_MAJOR_REV
@@ -1624,7 +1624,7 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 
 		ret = spmi_regulator_match(vreg, reg->force_type);
 		if (ret)
-			goto err;
+			continue;
 
 		config.dev = dev;
 		config.driver_data = vreg;
