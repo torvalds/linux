@@ -462,7 +462,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 			   void *data);
 
 void orangefs_kill_sb(struct super_block *sb);
-int orangefs_remount(struct super_block *sb);
+int orangefs_remount(struct orangefs_sb_info_s *);
 
 int fsid_key_table_initialize(void);
 void fsid_key_table_finalize(void);
@@ -597,38 +597,6 @@ int service_operation(struct orangefs_kernel_op_s *op,
 #define get_interruptible_flag(inode) \
 	((ORANGEFS_SB(inode->i_sb)->flags & ORANGEFS_OPT_INTR) ? \
 		ORANGEFS_OP_INTERRUPTIBLE : 0)
-
-#define add_orangefs_sb(sb)						\
-do {									\
-	gossip_debug(GOSSIP_SUPER_DEBUG,				\
-		     "Adding SB %p to orangefs superblocks\n",		\
-		     ORANGEFS_SB(sb));					\
-	spin_lock(&orangefs_superblocks_lock);				\
-	list_add_tail(&ORANGEFS_SB(sb)->list, &orangefs_superblocks);		\
-	spin_unlock(&orangefs_superblocks_lock); \
-} while (0)
-
-#define remove_orangefs_sb(sb)						\
-do {									\
-	struct list_head *tmp = NULL;					\
-	struct list_head *tmp_safe = NULL;				\
-	struct orangefs_sb_info_s *orangefs_sb = NULL;			\
-									\
-	spin_lock(&orangefs_superblocks_lock);				\
-	list_for_each_safe(tmp, tmp_safe, &orangefs_superblocks) {		\
-		orangefs_sb = list_entry(tmp,				\
-				      struct orangefs_sb_info_s,		\
-				      list);				\
-		if (orangefs_sb && (orangefs_sb->sb == sb)) {			\
-			gossip_debug(GOSSIP_SUPER_DEBUG,		\
-			    "Removing SB %p from orangefs superblocks\n",	\
-			orangefs_sb);					\
-			list_del(&orangefs_sb->list);			\
-			break;						\
-		}							\
-	}								\
-	spin_unlock(&orangefs_superblocks_lock);				\
-} while (0)
 
 #define fill_default_sys_attrs(sys_attr, type, mode)			\
 do {									\

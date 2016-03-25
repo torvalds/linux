@@ -572,8 +572,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 	struct dev_mask_info_s mask_info = { 0 };
 	struct dev_mask2_info_s mask2_info = { 0, 0 };
 	int upstream_kmod = 1;
-	struct list_head *tmp = NULL;
-	struct orangefs_sb_info_s *orangefs_sb = NULL;
+	struct orangefs_sb_info_s *orangefs_sb;
 
 	/* mtmoore: add locking here */
 
@@ -619,26 +618,32 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		gossip_debug(GOSSIP_DEV_DEBUG,
 			     "%s: priority remount in progress\n",
 			     __func__);
-		list_for_each(tmp, &orangefs_superblocks) {
-			orangefs_sb =
-				list_entry(tmp,
-					   struct orangefs_sb_info_s,
-					   list);
-			if (orangefs_sb && (orangefs_sb->sb)) {
-				gossip_debug(GOSSIP_DEV_DEBUG,
-					     "%s: Remounting SB %p\n",
-					     __func__,
-					     orangefs_sb);
+		spin_lock(&orangefs_superblocks_lock);
+		list_for_each_entry(orangefs_sb, &orangefs_superblocks, list) {
+			/*
+			 * We have to drop the spinlock, so entries can be
+			 * removed.  They can't be freed, though, so we just
+			 * keep the forward pointers and zero the back ones -
+			 * that way we can get to the rest of the list.
+			 */
+			if (!orangefs_sb->list.prev)
+				continue;
+			gossip_debug(GOSSIP_DEV_DEBUG,
+				     "%s: Remounting SB %p\n",
+				     __func__,
+				     orangefs_sb);
 
-				ret = orangefs_remount(orangefs_sb->sb);
-				if (ret) {
-					gossip_debug(GOSSIP_DEV_DEBUG,
-						     "SB %p remount failed\n",
-						     orangefs_sb);
-					break;
-				}
+			spin_unlock(&orangefs_superblocks_lock);
+			ret = orangefs_remount(orangefs_sb);
+			spin_lock(&orangefs_superblocks_lock);
+			if (ret) {
+				gossip_debug(GOSSIP_DEV_DEBUG,
+					     "SB %p remount failed\n",
+					     orangefs_sb);
+				break;
 			}
 		}
+		spin_unlock(&orangefs_superblocks_lock);
 		gossip_debug(GOSSIP_DEV_DEBUG,
 			     "%s: priority remount complete\n",
 			     __func__);

@@ -210,7 +210,7 @@ static int orangefs_remount_fs(struct super_block *sb, int *flags, char *data)
  * the client regains all of the mount information from us.
  * NOTE: this function assumes that the request_mutex is already acquired!
  */
-int orangefs_remount(struct super_block *sb)
+int orangefs_remount(struct orangefs_sb_info_s *orangefs_sb)
 {
 	struct orangefs_kernel_op_s *new_op;
 	int ret = -EINVAL;
@@ -221,7 +221,7 @@ int orangefs_remount(struct super_block *sb)
 	if (!new_op)
 		return -ENOMEM;
 	strncpy(new_op->upcall.req.fs_mount.orangefs_config_server,
-		ORANGEFS_SB(sb)->devname,
+		orangefs_sb->devname,
 		ORANGEFS_MAX_SERVER_ADDR_LEN);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
@@ -244,8 +244,8 @@ int orangefs_remount(struct super_block *sb)
 		 * short-lived mapping that the system interface uses
 		 * to map this superblock to a particular mount entry
 		 */
-		ORANGEFS_SB(sb)->id = new_op->downcall.resp.fs_mount.id;
-		ORANGEFS_SB(sb)->mount_pending = 0;
+		orangefs_sb->id = new_op->downcall.resp.fs_mount.id;
+		orangefs_sb->mount_pending = 0;
 	}
 
 	op_release(new_op);
@@ -485,7 +485,12 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	 * finally, add this sb to our list of known orangefs
 	 * sb's
 	 */
-	add_orangefs_sb(sb);
+	gossip_debug(GOSSIP_SUPER_DEBUG,
+		     "Adding SB %p to orangefs superblocks\n",
+		     ORANGEFS_SB(sb));
+	spin_lock(&orangefs_superblocks_lock);
+	list_add_tail(&ORANGEFS_SB(sb)->list, &orangefs_superblocks);
+	spin_unlock(&orangefs_superblocks_lock);
 	op_release(new_op);
 	return dget(sb->s_root);
 
@@ -512,10 +517,21 @@ void orangefs_kill_sb(struct super_block *sb)
 	 * issue the unmount to userspace to tell it to remove the
 	 * dynamic mount info it has for this superblock
 	 */
-	orangefs_unmount_sb(sb);
+	 orangefs_unmount_sb(sb);
 
 	/* remove the sb from our list of orangefs specific sb's */
-	remove_orangefs_sb(sb);
+
+	spin_lock(&orangefs_superblocks_lock);
+	__list_del_entry(&ORANGEFS_SB(sb)->list);	/* not list_del_init */
+	ORANGEFS_SB(sb)->list.prev = NULL;
+	spin_unlock(&orangefs_superblocks_lock);
+
+	/*
+	 * make sure that ORANGEFS_DEV_REMOUNT_ALL loop that might've seen us
+	 * gets completed before we free the dang thing.
+	 */
+	mutex_lock(&request_mutex);
+	mutex_unlock(&request_mutex);
 
 	/* free the orangefs superblock private data */
 	kfree(ORANGEFS_SB(sb));
