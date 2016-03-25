@@ -175,7 +175,7 @@ int aa_path_perm(int op, struct aa_profile *profile, const struct path *path,
 		 int flags, u32 request, struct path_cond *cond);
 
 int aa_path_link(struct aa_profile *profile, struct dentry *old_dentry,
-		 struct path *new_dir, struct dentry *new_dentry);
+		 const struct path *new_dir, struct dentry *new_dentry);
 
 int aa_file_perm(int op, struct aa_profile *profile, struct file *file,
 		 u32 request);

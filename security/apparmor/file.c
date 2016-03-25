@@ -346,7 +346,7 @@ static inline bool xindex_is_subset(u32 link, u32 target)
  * Returns: %0 if allowed else error
  */
 int aa_path_link(struct aa_profile *profile, struct dentry *old_dentry,
-		 struct path *new_dir, struct dentry *new_dentry)
+		 const struct path *new_dir, struct dentry *new_dentry)
 {
 	struct path link = { new_dir->mnt, new_dentry };
 	struct path target = { new_dir->mnt, old_dentry };
