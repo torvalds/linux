@@ -30,8 +30,6 @@ static struct notifier_block g_dev_notifier = {
 	.notifier_call = dev_state_ev_handler
 };
 
-#define IRQ_WAIT	1
-#define IRQ_NO_WAIT	0
 static struct semaphore close_exit_sync;
 
 static int wlan_deinit_locks(struct net_device *dev);
