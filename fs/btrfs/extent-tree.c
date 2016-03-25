@@ -9778,13 +9778,15 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		space_info = list_entry(info->space_info.next,
 					struct btrfs_space_info,
 					list);
-		if (btrfs_test_opt(info->tree_root, ENOSPC_DEBUG)) {
-			if (WARN_ON(space_info->bytes_pinned > 0 ||
+
+		/*
+		 * Do not hide this behind enospc_debug, this is actually
+		 * important and indicates a real bug if this happens.
+		 */
+		if (WARN_ON(space_info->bytes_pinned > 0 ||
 			    space_info->bytes_reserved > 0 ||
-			    space_info->bytes_may_use > 0)) {
-				dump_space_info(space_info, 0, 0);
-			}
-		}
+			    space_info->bytes_may_use > 0))
+			dump_space_info(space_info, 0, 0);
 		list_del(&space_info->list);
 		for (i = 0; i < BTRFS_NR_RAID_TYPES; i++) {
 			struct kobject *kobj;
