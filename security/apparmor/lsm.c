@@ -250,7 +250,7 @@ static int apparmor_path_unlink(const struct path *dir, struct dentry *dentry)
 	return common_perm_rm(OP_UNLINK, dir, dentry, AA_MAY_DELETE);
 }
 
-static int apparmor_path_mkdir(struct path *dir, struct dentry *dentry,
+static int apparmor_path_mkdir(const struct path *dir, struct dentry *dentry,
 			       umode_t mode)
 {
 	return common_perm_create(OP_MKDIR, dir, dentry, AA_MAY_CREATE,
@@ -262,7 +262,7 @@ static int apparmor_path_rmdir(const struct path *dir, struct dentry *dentry)
 	return common_perm_rm(OP_RMDIR, dir, dentry, AA_MAY_DELETE);
 }
 
-static int apparmor_path_mknod(struct path *dir, struct dentry *dentry,
+static int apparmor_path_mknod(const struct path *dir, struct dentry *dentry,
 			       umode_t mode, unsigned int dev)
 {
 	return common_perm_create(OP_MKNOD, dir, dentry, AA_MAY_CREATE, mode);
@@ -273,7 +273,7 @@ static int apparmor_path_truncate(const struct path *path)
 	return common_perm_path(OP_TRUNC, path, MAY_WRITE | AA_MAY_META_WRITE);
 }
 
-static int apparmor_path_symlink(struct path *dir, struct dentry *dentry,
+static int apparmor_path_symlink(const struct path *dir, struct dentry *dentry,
 				 const char *old_name)
 {
 	return common_perm_create(OP_SYMLINK, dir, dentry, AA_MAY_CREATE,

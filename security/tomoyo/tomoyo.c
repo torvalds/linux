@@ -178,7 +178,7 @@ static int tomoyo_path_unlink(const struct path *parent, struct dentry *dentry)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_mkdir(struct path *parent, struct dentry *dentry,
+static int tomoyo_path_mkdir(const struct path *parent, struct dentry *dentry,
 			     umode_t mode)
 {
 	struct path path = { parent->mnt, dentry };
@@ -209,7 +209,7 @@ static int tomoyo_path_rmdir(const struct path *parent, struct dentry *dentry)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_symlink(struct path *parent, struct dentry *dentry,
+static int tomoyo_path_symlink(const struct path *parent, struct dentry *dentry,
 			       const char *old_name)
 {
 	struct path path = { parent->mnt, dentry };
@@ -226,7 +226,7 @@ static int tomoyo_path_symlink(struct path *parent, struct dentry *dentry,
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
+static int tomoyo_path_mknod(const struct path *parent, struct dentry *dentry,
 			     umode_t mode, unsigned int dev)
 {
 	struct path path = { parent->mnt, dentry };

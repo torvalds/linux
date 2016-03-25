@@ -410,7 +410,7 @@ int security_old_inode_init_security(struct inode *inode, struct inode *dir,
 EXPORT_SYMBOL(security_old_inode_init_security);
 
 #ifdef CONFIG_SECURITY_PATH
-int security_path_mknod(struct path *dir, struct dentry *dentry, umode_t mode,
+int security_path_mknod(const struct path *dir, struct dentry *dentry, umode_t mode,
 			unsigned int dev)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
@@ -419,7 +419,7 @@ int security_path_mknod(struct path *dir, struct dentry *dentry, umode_t mode,
 }
 EXPORT_SYMBOL(security_path_mknod);
 
-int security_path_mkdir(struct path *dir, struct dentry *dentry, umode_t mode)
+int security_path_mkdir(const struct path *dir, struct dentry *dentry, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
 		return 0;
@@ -442,7 +442,7 @@ int security_path_unlink(const struct path *dir, struct dentry *dentry)
 }
 EXPORT_SYMBOL(security_path_unlink);
 
-int security_path_symlink(struct path *dir, struct dentry *dentry,
+int security_path_symlink(const struct path *dir, struct dentry *dentry,
 			  const char *old_name)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
