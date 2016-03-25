@@ -65,7 +65,7 @@ int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
 	return ret;
 }
 
-long vfs_truncate(struct path *path, loff_t length)
+long vfs_truncate(const struct path *path, loff_t length)
 {
 	struct inode *inode;
 	long error;
