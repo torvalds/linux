@@ -1087,6 +1087,40 @@ static const struct panel_desc okaya_rs800480t_7x0gp = {
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
 };
 
+/*
+ * 800x480 CVT. The panel appears to be quite accepting, at least as far as
+ * pixel clocks, but this is the timing that was being used in the Adafruit
+ * installation instructions.
+ */
+static const struct drm_display_mode ontat_yx700wv03_mode = {
+	.clock = 29500,
+	.hdisplay = 800,
+	.hsync_start = 824,
+	.hsync_end = 896,
+	.htotal = 992,
+	.vdisplay = 480,
+	.vsync_start = 483,
+	.vsync_end = 493,
+	.vtotal = 500,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+};
+
+/*
+ * Specification at:
+ * https://www.adafruit.com/images/product-files/2406/c3163.pdf
+ */
+static const struct panel_desc ontat_yx700wv03 = {
+	.modes = &ontat_yx700wv03_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 154,
+		.height = 83,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+};
+
 static const struct drm_display_mode ortustech_com43h4m85ulc_mode  = {
 	.clock = 25000,
 	.hdisplay = 480,
@@ -1331,6 +1365,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "okaya,rs800480t-7x0gp",
 		.data = &okaya_rs800480t_7x0gp,
+	}, {
+		.compatible = "ontat,yx700wv03",
+		.data = &ontat_yx700wv03,
 	}, {
 		.compatible = "ortustech,com43h4m85ulc",
 		.data = &ortustech_com43h4m85ulc,
