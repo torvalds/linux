@@ -1,5 +1,5 @@
 CC = $(CROSS_COMPILE)gcc
-CFLAGS += -Wall -g -D_GNU_SOURCE
+CFLAGS += -O2 -Wall -g -D_GNU_SOURCE
 
 all: lsgpio
 
