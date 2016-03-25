@@ -113,7 +113,7 @@ static int nuc900_check_rb(struct nuc900_nand *nand)
 {
 	unsigned int val;
 	spin_lock(&nand->lock);
-	val = __raw_readl(REG_SMISR);
+	val = __raw_readl(nand->reg + REG_SMISR);
 	val &= READYBUSY;
 	spin_unlock(&nand->lock);
 
