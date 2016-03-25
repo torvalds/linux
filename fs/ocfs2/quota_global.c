@@ -726,7 +726,7 @@ static int ocfs2_release_dquot(struct dquot *dquot)
 		dqgrab(dquot);
 		/* First entry on list -> queue work */
 		if (llist_add(&OCFS2_DQUOT(dquot)->list, &osb->dquot_drop_list))
-			queue_work(ocfs2_wq, &osb->dquot_drop_work);
+			queue_work(osb->ocfs2_wq, &osb->dquot_drop_work);
 		goto out;
 	}
 	status = ocfs2_lock_global_qf(oinfo, 1);

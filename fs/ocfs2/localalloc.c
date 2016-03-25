@@ -386,7 +386,7 @@ void ocfs2_shutdown_local_alloc(struct ocfs2_super *osb)
 	struct ocfs2_dinode *alloc = NULL;
 
 	cancel_delayed_work(&osb->la_enable_wq);
-	flush_workqueue(ocfs2_wq);
+	flush_workqueue(osb->ocfs2_wq);
 
 	if (osb->local_alloc_state == OCFS2_LA_UNUSED)
 		goto out;
@@ -1085,7 +1085,7 @@ static int ocfs2_recalc_la_window(struct ocfs2_super *osb,
 		} else {
 			osb->local_alloc_state = OCFS2_LA_DISABLED;
 		}
-		queue_delayed_work(ocfs2_wq, &osb->la_enable_wq,
+		queue_delayed_work(osb->ocfs2_wq, &osb->la_enable_wq,
 				   OCFS2_LA_ENABLE_INTERVAL);
 		goto out_unlock;
 	}

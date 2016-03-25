@@ -6079,7 +6079,7 @@ void ocfs2_schedule_truncate_log_flush(struct ocfs2_super *osb,
 		if (cancel)
 			cancel_delayed_work(&osb->osb_truncate_log_wq);
 
-		queue_delayed_work(ocfs2_wq, &osb->osb_truncate_log_wq,
+		queue_delayed_work(osb->ocfs2_wq, &osb->osb_truncate_log_wq,
 				   OCFS2_TRUNCATE_LOG_FLUSH_INTERVAL);
 	}
 }
@@ -6253,7 +6253,7 @@ void ocfs2_truncate_log_shutdown(struct ocfs2_super *osb)
 
 	if (tl_inode) {
 		cancel_delayed_work(&osb->osb_truncate_log_wq);
-		flush_workqueue(ocfs2_wq);
+		flush_workqueue(osb->ocfs2_wq);
 
 		status = ocfs2_flush_truncate_log(osb);
 		if (status < 0)
