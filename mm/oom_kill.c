@@ -416,20 +416,36 @@ bool oom_killer_disabled __read_mostly;
  * victim (if that is possible) to help the OOM killer to move on.
  */
 static struct task_struct *oom_reaper_th;
-static struct mm_struct *mm_to_reap;
+static struct task_struct *task_to_reap;
 static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
 
-static bool __oom_reap_vmas(struct mm_struct *mm)
+static bool __oom_reap_task(struct task_struct *tsk)
 {
 	struct mmu_gather tlb;
 	struct vm_area_struct *vma;
+	struct mm_struct *mm;
+	struct task_struct *p;
 	struct zap_details details = {.check_swap_entries = true,
 				      .ignore_dirty = true};
 	bool ret = true;
 
-	/* We might have raced with exit path */
-	if (!atomic_inc_not_zero(&mm->mm_users))
+	/*
+	 * Make sure we find the associated mm_struct even when the particular
+	 * thread has already terminated and cleared its mm.
+	 * We might have race with exit path so consider our work done if there
+	 * is no mm.
+	 */
+	p = find_lock_task_mm(tsk);
+	if (!p)
 		return true;
+
+	mm = p->mm;
+	if (!atomic_inc_not_zero(&mm->mm_users)) {
+		task_unlock(p);
+		return true;
+	}
+
+	task_unlock(p);
 
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		ret = false;
@@ -464,60 +480,66 @@ static bool __oom_reap_vmas(struct mm_struct *mm)
 	}
 	tlb_finish_mmu(&tlb, 0, -1);
 	up_read(&mm->mmap_sem);
+
+	/*
+	 * Clear TIF_MEMDIE because the task shouldn't be sitting on a
+	 * reasonably reclaimable memory anymore. OOM killer can continue
+	 * by selecting other victim if unmapping hasn't led to any
+	 * improvements. This also means that selecting this task doesn't
+	 * make any sense.
+	 */
+	tsk->signal->oom_score_adj = OOM_SCORE_ADJ_MIN;
+	exit_oom_victim(tsk);
 out:
 	mmput(mm);
 	return ret;
 }
 
-static void oom_reap_vmas(struct mm_struct *mm)
+static void oom_reap_task(struct task_struct *tsk)
 {
 	int attempts = 0;
 
 	/* Retry the down_read_trylock(mmap_sem) a few times */
-	while (attempts++ < 10 && !__oom_reap_vmas(mm))
+	while (attempts++ < 10 && !__oom_reap_task(tsk))
 		schedule_timeout_idle(HZ/10);
 
 	/* Drop a reference taken by wake_oom_reaper */
-	mmdrop(mm);
+	put_task_struct(tsk);
 }
 
 static int oom_reaper(void *unused)
 {
 	while (true) {
-		struct mm_struct *mm;
+		struct task_struct *tsk;
 
 		wait_event_freezable(oom_reaper_wait,
-				     (mm = READ_ONCE(mm_to_reap)));
-		oom_reap_vmas(mm);
-		WRITE_ONCE(mm_to_reap, NULL);
+				     (tsk = READ_ONCE(task_to_reap)));
+		oom_reap_task(tsk);
+		WRITE_ONCE(task_to_reap, NULL);
 	}
 
 	return 0;
 }
 
-static void wake_oom_reaper(struct mm_struct *mm)
+static void wake_oom_reaper(struct task_struct *tsk)
 {
-	struct mm_struct *old_mm;
+	struct task_struct *old_tsk;
 
 	if (!oom_reaper_th)
 		return;
 
-	/*
-	 * Pin the given mm. Use mm_count instead of mm_users because
-	 * we do not want to delay the address space tear down.
-	 */
-	atomic_inc(&mm->mm_count);
+	get_task_struct(tsk);
 
 	/*
 	 * Make sure that only a single mm is ever queued for the reaper
 	 * because multiple are not necessary and the operation might be
 	 * disruptive so better reduce it to the bare minimum.
 	 */
-	old_mm = cmpxchg(&mm_to_reap, NULL, mm);
-	if (!old_mm)
+	old_tsk = cmpxchg(&task_to_reap, NULL, tsk);
+	if (!old_tsk)
 		wake_up(&oom_reaper_wait);
 	else
-		mmdrop(mm);
+		put_task_struct(tsk);
 }
 
 static int __init oom_init(void)
@@ -532,7 +554,7 @@ static int __init oom_init(void)
 }
 subsys_initcall(oom_init)
 #else
-static void wake_oom_reaper(struct mm_struct *mm)
+static void wake_oom_reaper(struct task_struct *tsk)
 {
 }
 #endif
@@ -563,9 +585,10 @@ void mark_oom_victim(struct task_struct *tsk)
 /**
  * exit_oom_victim - note the exit of an OOM victim
  */
-void exit_oom_victim(void)
+void exit_oom_victim(struct task_struct *tsk)
 {
-	clear_thread_flag(TIF_MEMDIE);
+	if (!test_and_clear_tsk_thread_flag(tsk, TIF_MEMDIE))
+		return;
 
 	if (!atomic_dec_return(&oom_victims))
 		wake_up_all(&oom_victims_wait);
@@ -748,7 +771,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
 	rcu_read_unlock();
 
 	if (can_oom_reap)
-		wake_oom_reaper(mm);
+		wake_oom_reaper(victim);
 
 	mmdrop(mm);
 	put_task_struct(victim);
