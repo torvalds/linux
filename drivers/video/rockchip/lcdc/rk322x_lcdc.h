@@ -169,10 +169,14 @@
  * LINE_FLAG: Line flag config register
  * VOP_STATUS: vop status register
  * BLANKING_VALUE: Register0000 Abstract
+ * MCU_BYPASS_PORT: Mcu bypass value
  * WIN0_DSP_BG: Win0 layer background color
  * WIN1_DSP_BG: Win1 layer background color
  * WIN2_DSP_BG: Win2 layer background color
  * WIN3_DSP_BG: Win3 layer background color
+ * YUV2YUV_WIN: YUV to YUV win
+ * YUV2YUV_POST: Post YUV to YUV
+ * AUTO_GATING_EN: Auto gating enable
  * DBG_PERF_LATENCY_CTRL0: Axi performance latency module contrl register0
  * DBG_PERF_RD_MAX_LATENCY_NUM0: Read max latency number
  * DBG_PERF_RD_LATENCY_THR_NUM0: The number of bigger than configed
@@ -201,7 +205,7 @@
  * DBG_PRE_REG0: Vop debug pre register0
  * DBG_PRE_RESERVED: Vop debug pre register1 reserved
  * DBG_POST_REG0: Vop debug post register0
- * DBG_POST_RESERVED: Vop debug post register1 reserved
+ * DBG_POST_REG1: Vop debug
  * DBG_DATAO: debug data output path
  * DBG_DATAO_2: debug data output path 2
  * WIN2_LUT_ADDR: Win2 lut base address
@@ -250,10 +254,14 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_EDP_OUT_EN(x)			VAL_MASK(x, 1, 14)
 #define  V_MIPI_OUT_EN(x)			VAL_MASK(x, 1, 15)
 #define  V_OVERLAY_MODE(x)			VAL_MASK(x, 1, 16)
+/* rk322x only */
 #define  V_FS_SAME_ADDR_MASK_EN(x)		VAL_MASK(x, 1, 17)
 #define  V_POST_LB_MODE(x)			VAL_MASK(x, 1, 18)
 #define  V_WIN23_PRI_OPT_MODE(x)		VAL_MASK(x, 1, 19)
+/* rk322x only */
 #define  V_VOP_MMU_EN(x)			VAL_MASK(x, 1, 20)
+/* rk3399 only */
+#define  V_VOP_FIELD_TVE_TIMING_POL(x)		VAL_MASK(x, 1, 20)
 #define  V_VOP_DMA_STOP(x)			VAL_MASK(x, 1, 21)
 #define  V_VOP_STANDBY_EN(x)			VAL_MASK(x, 1, 22)
 #define  V_AUTO_GATING_EN(x)			VAL_MASK(x, 1, 23)
@@ -280,7 +288,10 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define DSP_CTRL0			0x00000010
 #define  V_DSP_OUT_MODE(x)			VAL_MASK(x, 4, 0)
 #define  V_SW_CORE_DCLK_SEL(x)			VAL_MASK(x, 1, 4)
+/* rk322x */
 #define  V_SW_HDMI_CLK_I_SEL(x)			VAL_MASK(x, 1, 5)
+/* rk3399 */
+#define  V_P2I_EN(x)				VAL_MASK(x, 1, 5)
 #define  V_DSP_DCLK_DDR(x)			VAL_MASK(x, 1, 8)
 #define  V_DSP_DDR_PHASE(x)			VAL_MASK(x, 1, 9)
 #define  V_DSP_INTERLACE(x)			VAL_MASK(x, 1, 10)
@@ -297,6 +308,8 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_DSP_YUV_CLIP(x)			VAL_MASK(x, 1, 21)
 #define  V_DSP_X_MIR_EN(x)			VAL_MASK(x, 1, 22)
 #define  V_DSP_Y_MIR_EN(x)			VAL_MASK(x, 1, 23)
+/* rk3399 only */
+#define  V_SW_TVE_OUTPUT_SEL(x)			VAL_MASK(x, 1, 25)
 #define  V_DSP_FIELD(x)				VAL_MASK(x, 1, 31)
 #define DSP_CTRL1			0x00000014
 #define  V_DSP_LUT_EN(x)			VAL_MASK(x, 1, 0)
@@ -374,6 +387,8 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_WIN0_MID_SWAP(x)			VAL_MASK(x, 1, 14)
 #define  V_WIN0_UV_SWAP(x)			VAL_MASK(x, 1, 15)
 #define  V_WIN0_HW_PRE_MUL_EN(x)		VAL_MASK(x, 1, 16)
+/* rk3399 only */
+#define  V_WIN0_YUYV(x)				VAL_MASK(x, 1, 17)
 #define  V_WIN0_YRGB_DEFLICK(x)			VAL_MASK(x, 1, 18)
 #define  V_WIN0_CBR_DEFLICK(x)			VAL_MASK(x, 1, 19)
 #define  V_WIN0_YUV_CLIP(x)			VAL_MASK(x, 1, 20)
@@ -469,6 +484,8 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_WIN1_MID_SWAP(x)			VAL_MASK(x, 1, 14)
 #define  V_WIN1_UV_SWAP(x)			VAL_MASK(x, 1, 15)
 #define  V_WIN1_HW_PRE_MUL_EN(x)		VAL_MASK(x, 1, 16)
+/* rk3399 only */
+#define  V_WIN1_YUYV(x)				VAL_MASK(x, 1, 17)
 #define  V_WIN1_YRGB_DEFLICK(x)			VAL_MASK(x, 1, 18)
 #define  V_WIN1_CBR_DEFLICK(x)			VAL_MASK(x, 1, 19)
 #define  V_WIN1_YUV_CLIP(x)			VAL_MASK(x, 1, 20)
@@ -551,7 +568,7 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define WIN2_CTRL0			0x000000b0
 #define  V_WIN2_EN(x)				VAL_MASK(x, 1, 0)
 #define  V_WIN2_INTERLACE_READ(x)		VAL_MASK(x, 1, 1)
-#define  V_WIN2_CSC_MODE(x)			VAL_MASK(x, 1, 2)
+#define  V_WIN2_CSC_MODE(x)			VAL_MASK(x, 2, 2)
 #define  V_WIN2_MST0_EN(x)			VAL_MASK(x, 1, 4)
 #define  V_WIN2_DATA_FMT0(x)			VAL_MASK(x, 2, 5)
 #define  V_WIN2_MST1_EN(x)			VAL_MASK(x, 1, 8)
@@ -643,7 +660,7 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define WIN3_CTRL0			0x00000100
 #define  V_WIN3_EN(x)				VAL_MASK(x, 1, 0)
 #define  V_WIN3_INTERLACE_READ(x)		VAL_MASK(x, 1, 1)
-#define  V_WIN3_CSC_MODE(x)			VAL_MASK(x, 1, 2)
+#define  V_WIN3_CSC_MODE(x)			VAL_MASK(x, 2, 2)
 #define  V_WIN3_MST0_EN(x)			VAL_MASK(x, 1, 4)
 #define  V_WIN3_DATA_FMT0(x)			VAL_MASK(x, 2, 5)
 #define  V_WIN3_MST1_EN(x)			VAL_MASK(x, 1, 8)
@@ -738,7 +755,7 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_HWC_MODE(x)				VAL_MASK(x, 1, 4)
 #define  V_HWC_SIZE(x)				VAL_MASK(x, 2, 5)
 #define  V_HWC_INTERLACE_READ(x)		VAL_MASK(x, 1, 8)
-#define  V_HWC_CSC_MODE(x)			VAL_MASK(x, 1, 10)
+#define  V_HWC_CSC_MODE(x)			VAL_MASK(x, 2, 10)
 #define  V_HWC_RB_SWAP(x)			VAL_MASK(x, 1, 12)
 #define  V_HWC_ALPHA_SWAP(x)			VAL_MASK(x, 1, 13)
 #define  V_HWC_ENDIAN_SWAP(x)			VAL_MASK(x, 1, 14)
@@ -859,6 +876,8 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_CABC_STAGE_DOWN(x)			VAL_MASK(x, 8, 0)
 #define  V_CABC_STAGE_UP(x)			VAL_MASK(x, 9, 8)
 #define  V_CABC_STAGE_UP_MODE(x)		VAL_MASK(x, 1, 19)
+#define  V_MAX_SCALE_CFG_VALUE(x) 		VAL_MASK(x, 9, 20)
+#define  V_MAX_SCALE_CFG_ENABLE(x) 		VAL_MASK(x, 1, 31)
 #define CABC_CTRL3			0x000001cc
 #define  V_CABC_GLOBAL_DN(x)			VAL_MASK(x, 8, 0)
 #define  V_CABC_GLOBAL_DN_LIMIT_EN(x)		VAL_MASK(x, 1, 8)
@@ -992,6 +1011,9 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_INTR_EN_WIN3_EMPTY(x)		VAL_MASK(x, 1, 9)
 #define  V_INTR_EN_HWC_EMPTY(x)			VAL_MASK(x, 1, 10)
 #define  V_INTR_EN_POST_BUF_EMPTY(x)		VAL_MASK(x, 1, 11)
+/* rk3399 only */
+#define  V_INTR_EN_FS_FIELD(x)			VAL_MASK(x, 1, 12)
+/* rk322x only */
 #define  V_INTR_EN_PWM_GEN(x)			VAL_MASK(x, 1, 12)
 #define  V_INTR_EN_DSP_HOLD_VALID(x)		VAL_MASK(x, 1, 13)
 #define  V_INTR_EN_MMU(x)			VAL_MASK(x, 1, 14)
@@ -1010,6 +1032,9 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_INT_CLR_WIN3_EMPTY(x)		VAL_MASK(x, 1, 9)
 #define  V_INT_CLR_HWC_EMPTY(x)			VAL_MASK(x, 1, 10)
 #define  V_INT_CLR_POST_BUF_EMPTY(x)		VAL_MASK(x, 1, 11)
+/* rk3399 only */
+#define  V_INT_CLR_FS_FIELD(x)			VAL_MASK(x, 1, 12)
+/* rk322x only */
 #define  V_INT_CLR_PWM_GEN(x)			VAL_MASK(x, 1, 12)
 #define  V_INT_CLR_DSP_HOLD_VALID(x)		VAL_MASK(x, 1, 13)
 #define  V_INT_CLR_MMU(x)			VAL_MASK(x, 1, 14)
@@ -1028,6 +1053,9 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_INT_STATUS_WIN3_EMPTY(x)		VAL_MASK(x, 1, 9)
 #define  V_INT_STATUS_HWC_EMPTY(x)		VAL_MASK(x, 1, 10)
 #define  V_INT_STATUS_POST_BUF_EMPTY(x)		VAL_MASK(x, 1, 11)
+/* rk3399 only */
+#define  V_INT_STATUS_FS_FIELD(x)		VAL_MASK(x, 1, 12)
+/* rk322x only */
 #define  V_INT_STATUS_PWM_GEN(x)		VAL_MASK(x, 1, 12)
 #define  V_INT_STATUS_DSP_HOLD_VALID(x)		VAL_MASK(x, 1, 13)
 #define  V_INT_STATUS_MMU(x)			VAL_MASK(x, 1, 14)
@@ -1045,6 +1073,9 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_INT_RAW_STATUS_WIN3_EMPTY(x)		VAL_MASK(x, 1, 9)
 #define  V_INT_RAW_STATUS_HWC_EMPTY(x)		VAL_MASK(x, 1, 10)
 #define  V_INT_RAW_STATUS_POST_BUF_EMPTY(x)	VAL_MASK(x, 1, 11)
+/* rk3399 only */
+#define  V_INT_RAW_STATUS_FS_FIELD(x)		VAL_MASK(x, 1, 12)
+/* rk322x only */
 #define  V_INT_RAW_STATUS_PWM_GEN(x)		VAL_MASK(x, 1, 12)
 #define  V_INT_RAW_STATUS_DSP_HOLD_VALID(x)	VAL_MASK(x, 1, 13)
 #define  V_INT_RAW_STATUS_MMU(x)		VAL_MASK(x, 1, 14)
@@ -1080,6 +1111,9 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_INT_CLR_AFBCD2_HREG_AXI_RRESP(x)	VAL_MASK(x, 1, 9)
 #define  V_INT_CLR_AFBCD3_HREG_DEC_RESP(x)	VAL_MASK(x, 1, 10)
 #define  V_INT_CLR_AFBCD3_HREG_AXI_RRESP(x)	VAL_MASK(x, 1, 11)
+#define  V_INT_CLR_WB_YRGB_FIFO_FULL(x)		VAL_MASK(x, 1, 12)
+#define  V_INT_CLR_WB_UV_FIFO_FULL(x)		VAL_MASK(x, 1, 13)
+#define  V_INT_CLR_WB_DMA_FINISH(x)		VAL_MASK(x, 1, 14)
 #define  V_INT_CLR_VFP(x)			VAL_MASK(x, 1, 15)
 #define INTR_STATUS1			0x00000298
 #define  V_INT_STATUS_FBCD0(x)			VAL_MASK(x, 1, 0)
@@ -1094,6 +1128,9 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_INT_STATUS_AFBCD2_HREG_AXI_RRESP(x)	VAL_MASK(x, 1, 9)
 #define  V_INT_STATUS_AFBCD3_HREG_DEC_RESP(x)	VAL_MASK(x, 1, 10)
 #define  V_INT_STATUS_AFBCD4_HREG_DEC_RESP(x)	VAL_MASK(x, 1, 11)
+#define  V_INT_STATUS_WB_YRGB_FIFO_FULL(x)	VAL_MASK(x, 1, 12)
+#define  V_INT_STATUS_WB_UV_FIFO_FULL(x)	VAL_MASK(x, 1, 13)
+#define  V_INT_STATUS_WB_DMA_FINISH(x)		VAL_MASK(x, 1, 14)
 #define  V_INT_STATUS_VFP(x)			VAL_MASK(x, 1, 15)
 #define INTR_RAW_STATUS1		0x0000029c
 #define  V_INT_RAW_STATUS_FBCD0(x)		VAL_MASK(x, 1, 0)
@@ -1108,6 +1145,9 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_INT_RAW_STATUS_AFBCD2_HREG_AXI_RRESP(x)	VAL_MASK(x, 1, 9)
 #define  V_INT_RAW_STATUS_AFBCD3_HREG_DEC_RESP(x)	VAL_MASK(x, 1, 10)
 #define  V_INT_RAW_STATUS_AFBCD3_HREG_AXI_RRESP(x)	VAL_MASK(x, 1, 11)
+#define  V_INT_RAW_STATUS_WB_YRGB_FIFO_FULL(x)	VAL_MASK(x, 1, 12)
+#define  V_INT_RAW_STATUS_WB_UV_FIFO_FULL(x)	VAL_MASK(x, 1, 13)
+#define  V_INT_RAW_STATUS_WB_DMA_FINISH(x)	VAL_MASK(x, 1, 14)
 #define  V_INT_RAW_STATUS_VFP(x)		VAL_MASK(x, 1, 15)
 #define LINE_FLAG			0x000002a0
 #define  V_DSP_LINE_FLAG_NUM_0(x)		VAL_MASK(x, 13, 0)
@@ -1241,6 +1281,18 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define POST_YUV2YUV_Y2R_COE		0x00000480
 #define POST_YUV2YUV_3x3_COE		0x000004a0
 #define POST_YUV2YUV_R2Y_COE		0x000004c0
+#define WIN0_YUV2YUV_Y2R		0x000004e0
+#define WIN0_YUV2YUV_3x3		0x00000500
+#define WIN0_YUV2YUV_R2Y		0x00000520
+#define WIN1_YUV2YUV_Y2R		0x00000540
+#define WIN1_YUV2YUV_3x3		0x00000560
+#define WIN1_YUV2YUV_R2Y		0x00000580
+#define WIN2_YUV2YUV_Y2R		0x000005a0
+#define WIN2_YUV2YUV_3x3		0x000005c0
+#define WIN2_YUV2YUV_R2Y		0x000005e0
+#define WIN3_YUV2YUV_Y2R		0x00000600
+#define WIN3_YUV2YUV_3x3		0x00000620
+#define WIN3_YUV2YUV_R2Y		0x00000640
 #define WIN2_LUT_ADDR			0x00001000
 #define  V_WIN2_LUT_ADDR(x)			VAL_MASK(x, 32, 0)
 #define WIN3_LUT_ADDR			0x00001400
@@ -1265,7 +1317,10 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  INTR_WIN3_EMPTY		(1 << 9)
 #define  INTR_HWC_EMPTY			(1 << 10)
 #define  INTR_POST_BUF_EMPTY		(1 << 11)
+/* rk322x */
 #define  INTR_PWM_GEN			(1 << 12)
+/* rk3399 */
+#define  INTR_FS_FIELD			(1 << 12)
 #define  INTR_DSP_HOLD_VALID		(1 << 13)
 #define  INTR_MMU			(1 << 14)
 #define  INTR_DMA_FINISH		(1 << 15)
@@ -1296,17 +1351,47 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define OUT_CCIR656_MODE_1              6
 #define OUT_CCIR656_MODE_2              7
 
+enum cabc_stage_mode {
+	LAST_FRAME_PWM_VAL	= 0x0,
+	CUR_FRAME_PWM_VAL	= 0x1,
+	STAGE_BY_STAGE		= 0x2
+};
+
+enum {
+	VOP_RK322X,
+	VOP_RK3399,
+};
+
+enum {
+	VOP_WIN0,
+	VOP_WIN1,
+	VOP_WIN2,
+	VOP_WIN3,
+	VOP_HWC,
+	VOP_WIN_MAX,
+};
+
+struct vop_data {
+	int chip_type;
+	struct rk_lcdc_win *win;
+	int n_wins;
+};
+
 struct vop_device {
 	int id;
+	const struct vop_data *data;
 	struct rk_lcdc_driver driver;
 	struct device *dev;
 	struct rk_screen *screen;
+	struct regmap *grf_base;
 
 	void __iomem *regs;
 	void *regsbak;
 	u32 reg_phy_base;
 	u32 len;
 
+	int __iomem *dsp_lut_addr_base;
+	int __iomem *cabc_lut_addr_base;
 	/* one time only one process allowed to config the register */
 	spinlock_t reg_lock;
 
@@ -1317,6 +1402,8 @@ struct vop_device {
 	bool clk_on;
 	/*active layer counter,when  atv_layer_cnt = 0,disable lcdc*/
 	u8 atv_layer_cnt;
+	/* point write back status */
+	bool wb_on;
 
 	unsigned int		irq;
 
@@ -1391,7 +1478,7 @@ static inline void vop_clr_bit(struct vop_device *vop_dev, u32 offset, u64 v)
 	writel_relaxed(*_pv, vop_dev->regs + offset);
 }
 
-static inline void  vop_msk_reg(struct vop_device *vop_dev, u32 offset, u64 v)
+static inline void vop_msk_reg(struct vop_device *vop_dev, u32 offset, u64 v)
 {
 	u32 *_pv = (u32 *)vop_dev->regsbak;
 
@@ -1399,6 +1486,15 @@ static inline void  vop_msk_reg(struct vop_device *vop_dev, u32 offset, u64 v)
 	(*_pv) &= (~(v >> 32));
 	(*_pv) |= (u32)v;
 	writel_relaxed(*_pv, vop_dev->regs + offset);
+}
+
+static inline void vop_msk_reg_nobak(struct vop_device *vop_dev,
+				     u32 offset, u64 v)
+{
+	u32 *_pv = (u32 *)vop_dev->regsbak;
+
+	_pv += (offset >> 2);
+	writel_relaxed((*_pv & (~(v >> 32))) | (u32)v, vop_dev->regs + offset);
 }
 
 static inline void vop_mask_writel(struct vop_device *vop_dev, u32 offset,

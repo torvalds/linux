@@ -24,12 +24,12 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/rockchip-iovmm.h>
 #include <asm/div64.h>
 #include <linux/uaccess.h>
-#include <linux/rockchip/cpu.h>
 #include <linux/rockchip/iomap.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/common.h>
@@ -38,6 +38,7 @@
 #include "rk322x_lcdc.h"
 
 /*#define CONFIG_RK_FPGA 1*/
+#define VOP_CHIP(dev)	(dev->data->chip_type)
 
 static int dbg_thresd;
 module_param(dbg_thresd, int, S_IRUGO | S_IWUSR);
@@ -47,112 +48,156 @@ module_param(dbg_thresd, int, S_IRUGO | S_IWUSR);
 		pr_info(x);\
 	} while (0)
 
-static const uint32_t csc_y2r_bt601_limit[12] = {
+static struct rk_lcdc_win rk322x_vop_win[] = {
+	{ .name = "win0", .id = VOP_WIN0},
+	{ .name = "win1", .id = VOP_WIN1},
+	{ .name = "hwc",  .id = VOP_HWC}
+};
+
+static struct rk_lcdc_win rk3399_vop_win[] = {
+	{ .name = "win0", .id = VOP_WIN0},
+	{ .name = "win1", .id = VOP_WIN1},
+	{ .name = "win2", .id = VOP_WIN2},
+	{ .name = "win3", .id = VOP_WIN3},
+	{ .name = "hwc",  .id = VOP_HWC}
+};
+
+static const struct vop_data rk322x_data = {
+	.chip_type = VOP_RK322X,
+	.win = rk322x_vop_win,
+	.n_wins = ARRAY_SIZE(rk322x_vop_win),
+};
+
+static const struct vop_data rk3399_data = {
+	.chip_type = VOP_RK3399,
+	.win = rk3399_vop_win,
+	.n_wins = ARRAY_SIZE(rk3399_vop_win),
+};
+
+#if defined(CONFIG_OF)
+static const struct of_device_id vop_dt_ids[] = {
+	{.compatible = "rockchip,rk322x-lcdc",
+	 .data = &rk322x_data, },
+	{.compatible = "rockchip,rk3399-lcdc",
+	 .data = &rk3399_data, },
+	{}
+};
+#endif
+
+static const u32 csc_y2r_bt601_limit[12] = {
 	0x04a8,      0,  0x0662, 0xfffc8654,
 	0x04a8, 0xfe6f,  0xfcbf, 0x00022056,
 	0x04a8, 0x0812,       0, 0xfffbaeac,
 };
 
-static const uint32_t csc_y2r_bt709_full[12] = {
+static const u32 csc_y2r_bt709_full[12] = {
 	0x04a8,      0,  0x072c, 0xfffc219e,
 	0x04a8, 0xff26,  0xfdde, 0x0001357b,
 	0x04a8, 0x0873,       0, 0xfffb7dee,
 };
 
-static const uint32_t csc_y2r_bt601_full[12] = {
+static const u32 csc_y2r_bt601_full[12] = {
 	0x0400,      0,  0x059c, 0xfffd342d,
 	0x0400, 0xfea0,  0xfd25, 0x00021fcc,
 	0x0400, 0x0717,       0, 0xfffc76bc,
 };
 
-static const uint32_t csc_y2r_bt601_limit_10[12] = {
+static const u32 csc_y2r_bt601_limit_10[12] = {
 	0x04a8,      0,  0x0662, 0xfff2134e,
 	0x04a8, 0xfe6f,  0xfcbf, 0x00087b58,
 	0x04a8, 0x0812,       0, 0xffeeb4b0,
 };
 
-static const uint32_t csc_y2r_bt709_full_10[12] = {
+static const u32 csc_y2r_bt709_full_10[12] = {
 	0x04a8,      0,  0x072c, 0xfff08077,
 	0x04a8, 0xff26,  0xfdde, 0x0004cfed,
 	0x04a8, 0x0873,       0, 0xffedf1b8,
 };
 
-static const uint32_t csc_y2r_bt601_full_10[12] = {
+static const u32 csc_y2r_bt601_full_10[12] = {
 	0x0400,      0,  0x059c, 0xfff4cab4,
 	0x0400, 0xfea0,  0xfd25, 0x00087932,
 	0x0400, 0x0717,       0, 0xfff1d4f2,
 };
 
-static const uint32_t csc_y2r_bt2020[12] = {
+static const u32 csc_y2r_bt2020[12] = {
 	0x04a8,      0, 0x06b6, 0xfff16bfc,
 	0x04a8, 0xff40, 0xfd66, 0x58ae9,
 	0x04a8, 0x0890,      0, 0xffedb828,
 };
 
-static const uint32_t csc_r2y_bt601_limit[12] = {
+static const u32 csc_r2y_bt601_limit[12] = {
 	0x0107, 0x0204, 0x0064, 0x04200,
 	0xff68, 0xfed6, 0x01c2, 0x20200,
 	0x01c2, 0xfe87, 0xffb7, 0x20200,
 };
 
-static const uint32_t csc_r2y_bt709_full[12] = {
+static const u32 csc_r2y_bt709_full[12] = {
 	0x00bb, 0x0275, 0x003f, 0x04200,
 	0xff99, 0xfea5, 0x01c2, 0x20200,
 	0x01c2, 0xfe68, 0xffd7, 0x20200,
 };
 
-static const uint32_t csc_r2y_bt601_full[12] = {
+static const u32 csc_r2y_bt601_full[12] = {
 	0x0132, 0x0259, 0x0075, 0x200,
 	0xff53, 0xfead, 0x0200, 0x20200,
 	0x0200, 0xfe53, 0xffad, 0x20200,
 };
 
-static const uint32_t csc_r2y_bt601_limit_10[12] = {
+static const u32 csc_r2y_bt601_limit_10[12] = {
 	0x0107, 0x0204, 0x0064, 0x10200,
 	0xff68, 0xfed6, 0x01c2, 0x80200,
 	0x01c2, 0xfe87, 0xffb7, 0x80200,
 };
 
-static const uint32_t csc_r2y_bt709_full_10[12] = {
+static const u32 csc_r2y_bt709_full_10[12] = {
 	0x00bb, 0x0275, 0x003f, 0x10200,
 	0xff99, 0xfea5, 0x01c2, 0x80200,
 	0x01c2, 0xfe68, 0xffd7, 0x80200,
 };
 
-static const uint32_t csc_r2y_bt601_full_10[12] = {
+static const u32 csc_r2y_bt601_full_10[12] = {
 	0x0132, 0x0259, 0x0075, 0x200,
 	0xff53, 0xfead, 0x0200, 0x80200,
 	0x0200, 0xfe53, 0xffad, 0x80200,
 };
 
-static const uint32_t csc_r2y_bt2020[12] = {
+static const u32 csc_r2y_bt2020[12] = {
 	0x00e6, 0x0253, 0x0034, 0x10200,
 	0xff83, 0xfebd, 0x01c1, 0x80200,
 	0x01c1, 0xfe64, 0xffdc, 0x80200,
 };
 
-static const uint32_t csc_r2r_bt2020to709[12] = {
+static const u32 csc_r2r_bt2020to709[12] = {
 	0x06a4, 0xfda6, 0xffb5, 0x200,
 	0xff80, 0x0488, 0xfff8, 0x200,
 	0xffed, 0xff99, 0x047a, 0x200,
 };
 
-static const uint32_t csc_r2r_bt709to2020[12] = {
+static const u32 csc_r2r_bt709to2020[12] = {
 	0x282, 0x151, 0x02c, 0x200,
 	0x047, 0x3ae, 0x00c, 0x200,
 	0x011, 0x05a, 0x395, 0x200,
 };
 
-static struct rk_lcdc_win vop_win[] = {
-	{ .name = "win0", .id = 0},
-	{ .name = "win1", .id = 1},
-	{ .name = "hwc",  .id = 2}
-};
+static int vop_get_id(struct vop_device *vop_dev, u32 phy_base)
+{
+	if (VOP_CHIP(vop_dev) == VOP_RK3399) {
+		if (phy_base == 0xff900000) /* vop big */
+			return 0;
+		else if (phy_base == 0xff8f0000) /* vop lit */
+			return 1;
+		else
+			return -EINVAL;
+	} else {
+		return 0;
+	}
+}
 
 static void vop_load_csc_table(struct vop_device *vop_dev, u32 offset,
-			       const uint32_t *table)
+			       const u32 *table)
 {
-	uint32_t csc_val;
+	u32 csc_val;
 
 	csc_val = table[1] << 16 | table[0];
 	vop_writel(vop_dev, offset, csc_val);
@@ -172,7 +217,94 @@ static void vop_load_csc_table(struct vop_device *vop_dev, u32 offset,
 	vop_writel(vop_dev, offset + 0x1c, csc_val);
 }
 
+#define LOAD_CSC(dev, mode, table, win_id) \
+		vop_load_csc_table(dev, \
+				   WIN0_YUV2YUV_##mode + 0x60 * win_id, \
+				   table)
+
 static int vop_set_bcsh(struct rk_lcdc_driver *dev_drv, bool enable);
+
+static int vop_set_lut(struct rk_lcdc_driver *dev_drv, int *dsp_lut)
+{
+	struct vop_device *vop_dev =
+			container_of(dev_drv, struct vop_device, driver);
+	int i, j;
+
+	if (!vop_dev->dsp_lut_addr_base) {
+		dev_warn(vop_dev->dev, "not support dsp lut config\n");
+		return 0;
+	}
+
+	if (!dsp_lut) {
+		dev_err(vop_dev->dev, "dsp lut table is null\n");
+		return -EINVAL;
+	}
+
+	spin_lock(&vop_dev->reg_lock);
+	for (i = 0; i < 256; i++) {
+		u32 v, r, g, b;
+		int __iomem *c;
+
+		v = dsp_lut[i];
+		c = vop_dev->dsp_lut_addr_base + (i << 2);
+		b = (v & 0xff) << 2;
+		g = (v & 0xff00) << 4;
+		r = (v & 0xff0000) << 6;
+		v = r + g + b;
+		for (j = 0; j < 4; j++) {
+			writel_relaxed(v, c);
+			v += (1 + (1 << 10) + (1 << 20));
+			c++;
+		}
+	}
+	vop_msk_reg(vop_dev, DSP_CTRL1, V_DSP_LUT_EN(1));
+	/*
+	 * update_gamma value auto clean to 0 by HW, should not
+	 * bakeup it.
+	 */
+	vop_msk_reg_nobak(vop_dev, DSP_CTRL1, V_UPDATE_GAMMA_LUT(1));
+
+	vop_cfg_done(vop_dev);
+	spin_unlock(&vop_dev->reg_lock);
+
+	return 0;
+}
+
+static int vop_set_cabc(struct rk_lcdc_driver *dev_drv, int *cabc_lut)
+{
+	struct vop_device *vop_dev =
+			container_of(dev_drv, struct vop_device, driver);
+	int i;
+
+	if (!vop_dev->cabc_lut_addr_base) {
+		dev_warn(vop_dev->dev, "not support cabc config\n");
+		return 0;
+	}
+
+	if (!cabc_lut) {
+		dev_err(vop_dev->dev, "cabc lut table is null\n");
+		return -EINVAL;
+	}
+	spin_lock(&vop_dev->reg_lock);
+	vop_msk_reg(vop_dev, CABC_CTRL1, V_CABC_LUT_EN(0));
+	vop_cfg_done(vop_dev);
+	spin_unlock(&vop_dev->reg_lock);
+
+	mdelay(25);
+
+	spin_lock(&vop_dev->reg_lock);
+	for (i = 0; i < 128; i++) {
+		u32 v;
+
+		v = cabc_lut[i];
+
+		writel_relaxed(v, vop_dev->cabc_lut_addr_base + i);
+	}
+	vop_msk_reg(vop_dev, CABC_CTRL1, V_CABC_LUT_EN(1));
+	spin_unlock(&vop_dev->reg_lock);
+
+	return 0;
+}
 
 static int vop_clk_enable(struct vop_device *vop_dev)
 {
@@ -180,8 +312,10 @@ static int vop_clk_enable(struct vop_device *vop_dev)
 		clk_prepare_enable(vop_dev->hclk);
 		clk_prepare_enable(vop_dev->dclk);
 		clk_prepare_enable(vop_dev->aclk);
-		clk_prepare_enable(vop_dev->hclk_noc);
-		clk_prepare_enable(vop_dev->aclk_noc);
+		if (vop_dev->hclk_noc)
+			clk_prepare_enable(vop_dev->hclk_noc);
+		if (vop_dev->aclk_noc)
+			clk_prepare_enable(vop_dev->aclk_noc);
 		spin_lock(&vop_dev->reg_lock);
 		vop_dev->clk_on = 1;
 		spin_unlock(&vop_dev->reg_lock);
@@ -200,8 +334,10 @@ static int vop_clk_disable(struct vop_device *vop_dev)
 		clk_disable_unprepare(vop_dev->dclk);
 		clk_disable_unprepare(vop_dev->hclk);
 		clk_disable_unprepare(vop_dev->aclk);
-		clk_disable_unprepare(vop_dev->hclk_noc);
-		clk_disable_unprepare(vop_dev->aclk_noc);
+		if (vop_dev->hclk_noc)
+			clk_disable_unprepare(vop_dev->hclk_noc);
+		if (vop_dev->aclk_noc)
+			clk_disable_unprepare(vop_dev->aclk_noc);
 	}
 
 	return 0;
@@ -274,6 +410,8 @@ static int win##id##_enable(struct vop_device *vop_dev, int en)	\
 
 WIN_EN(0);
 WIN_EN(1);
+WIN_EN(2);
+WIN_EN(3);
 
 /*enable/disable win directly*/
 static int vop_win_direct_en(struct rk_lcdc_driver *drv,
@@ -285,6 +423,10 @@ static int vop_win_direct_en(struct rk_lcdc_driver *drv,
 		win0_enable(vop_dev, en);
 	else if (win_id == 1)
 		win1_enable(vop_dev, en);
+	else if (win_id == 2)
+		win2_enable(vop_dev, en);
+	else if (win_id == 3)
+		win3_enable(vop_dev, en);
 	else
 		dev_err(vop_dev->dev, "invalid win number:%d\n", win_id);
 	return 0;
@@ -390,17 +532,22 @@ static int vop_pre_init(struct rk_lcdc_driver *dev_drv)
 	    container_of(dev_drv, struct vop_device, driver);
 	if (vop_dev->pre_init)
 		return 0;
-
-	vop_dev->hclk = devm_clk_get(vop_dev->dev, "hclk_vop");
-	vop_dev->aclk = devm_clk_get(vop_dev->dev, "aclk_vop");
-	vop_dev->dclk = devm_clk_get(vop_dev->dev, "dclk_vop");
-	vop_dev->hclk_noc = devm_clk_get(vop_dev->dev, "hclk_vop_noc");
-	vop_dev->aclk_noc = devm_clk_get(vop_dev->dev, "aclk_vop_noc");
-
+	vop_dev->hclk = devm_clk_get(vop_dev->dev, "hclk_lcdc");
+	vop_dev->aclk = devm_clk_get(vop_dev->dev, "aclk_lcdc");
+	vop_dev->dclk = devm_clk_get(vop_dev->dev, "dclk_lcdc");
 	if (IS_ERR(vop_dev->aclk) || IS_ERR(vop_dev->dclk) ||
-	    IS_ERR(vop_dev->hclk) || IS_ERR(vop_dev->hclk_noc) ||
-	    IS_ERR(vop_dev->aclk_noc))
+	    IS_ERR(vop_dev->hclk))
 		dev_err(vop_dev->dev, "failed to get clk source\n");
+	vop_dev->hclk_noc = devm_clk_get(vop_dev->dev, "hclk_vop_noc");
+	if (IS_ERR(vop_dev->hclk_noc)) {
+		vop_dev->hclk_noc = NULL;
+		dev_err(vop_dev->dev, "failed to get clk source\n");
+	}
+	vop_dev->aclk_noc = devm_clk_get(vop_dev->dev, "aclk_vop_noc");
+	if (IS_ERR(vop_dev->aclk_noc)) {
+		vop_dev->aclk_noc = NULL;
+		dev_err(vop_dev->dev, "failed to get clk source\n");
+	}
 	if (!support_uboot_display())
 		rk_disp_pwr_enable(dev_drv);
 	vop_clk_enable(vop_dev);
@@ -441,17 +588,22 @@ static int vop_pre_init(struct rk_lcdc_driver *dev_drv)
 static void vop_deint(struct vop_device *vop_dev)
 {
 	if (vop_dev->clk_on) {
+		u64 val;
+
 		vop_disable_irq(vop_dev);
 		spin_lock(&vop_dev->reg_lock);
 		vop_msk_reg(vop_dev, WIN0_CTRL0, V_WIN0_EN(0));
 		vop_msk_reg(vop_dev, WIN1_CTRL0, V_WIN0_EN(0));
 
+		val = V_WIN2_EN(0) | V_WIN2_MST0_EN(0) | V_WIN2_MST1_EN(0) |
+			V_WIN2_MST2_EN(0) | V_WIN2_MST3_EN(0);
+		vop_msk_reg(vop_dev, WIN2_CTRL0, val);
+		vop_msk_reg(vop_dev, WIN3_CTRL0, val);
 		vop_cfg_done(vop_dev);
 		spin_unlock(&vop_dev->reg_lock);
 		mdelay(50);
 	}
 }
-
 
 static void vop_win_csc_mode(struct vop_device *vop_dev,
 			     struct rk_lcdc_win *win,
@@ -459,16 +611,86 @@ static void vop_win_csc_mode(struct vop_device *vop_dev,
 {
 	u64 val;
 
-	if (win->id == 0) {
+	if (win->id == VOP_WIN0) {
 		val = V_WIN0_CSC_MODE(csc_mode);
 		vop_msk_reg(vop_dev, WIN0_CTRL0, val);
-	} else if (win->id == 1) {
+	} else if (win->id == VOP_WIN1) {
 		val = V_WIN1_CSC_MODE(csc_mode);
 		vop_msk_reg(vop_dev, WIN1_CTRL0, val);
 	} else {
 		val = V_HWC_CSC_MODE(csc_mode);
 		vop_msk_reg(vop_dev, HWC_CTRL0, val);
 	}
+}
+
+static int rk3399_vop_win_csc_cfg(struct rk_lcdc_driver *dev_drv)
+{
+	struct vop_device *vop_dev =
+	    container_of(dev_drv, struct vop_device, driver);
+	int output_color = dev_drv->output_color;
+	int i;
+
+	for (i = 0; i < dev_drv->lcdc_win_num && i <= 4; i++) {
+		struct rk_lcdc_win *win = dev_drv->win[i];
+		int shift = i * 8;
+		u64 val = V_WIN0_YUV2YUV_EN(0) | V_WIN0_YUV2YUV_R2Y_EN(0) |
+				V_WIN0_YUV2YUV_Y2R_EN(0);
+
+		if (!win->state)
+			continue;
+		if (output_color == COLOR_RGB && !IS_YUV(win->area[0].fmt_cfg))
+			goto post;
+
+		if (output_color == COLOR_RGB) {
+			val |= V_WIN0_YUV2YUV_Y2R_EN(1);
+			if (win->colorspace == CSC_BT601) {
+				/*
+				 * Win Y2Y moudle always use 10bit mode.
+				 */
+				LOAD_CSC(vop_dev, Y2R,
+					 csc_y2r_bt601_full_10, i);
+			} else if (win->colorspace == CSC_BT709) {
+				LOAD_CSC(vop_dev, Y2R,
+					 csc_y2r_bt709_full_10, i);
+			} else if (win->colorspace == CSC_BT2020) {
+				val |= V_WIN0_YUV2YUV_EN(1);
+				LOAD_CSC(vop_dev, Y2R, csc_y2r_bt2020, i);
+				LOAD_CSC(vop_dev, 3x3, csc_r2r_bt2020to709, i);
+			}
+		} else if (output_color == COLOR_YCBCR ||
+				output_color == COLOR_YCBCR_BT709) {
+			if (!IS_YUV(win->area[0].fmt_cfg)) {
+				val |= V_WIN0_YUV2YUV_R2Y_EN(1);
+				LOAD_CSC(vop_dev, R2Y, csc_r2y_bt709_full, i);
+			} else if (win->colorspace == CSC_BT2020) {
+				val |= V_WIN0_YUV2YUV_EN(1) |
+					V_WIN0_YUV2YUV_Y2R_EN(1) |
+					V_WIN0_YUV2YUV_R2Y_EN(1);
+				LOAD_CSC(vop_dev, R2Y, csc_y2r_bt2020, i);
+				LOAD_CSC(vop_dev, R2Y, csc_r2r_bt2020to709, i);
+				LOAD_CSC(vop_dev, R2Y, csc_r2y_bt709_full, i);
+			}
+		} else if (output_color == COLOR_YCBCR_BT2020) {
+			if (!IS_YUV(win->area[0].fmt_cfg)) {
+				val |= V_WIN0_YUV2YUV_R2Y_EN(1) |
+					V_WIN0_YUV2YUV_EN(1);
+				LOAD_CSC(vop_dev, R2Y, csc_r2r_bt709to2020, i);
+				LOAD_CSC(vop_dev, R2Y, csc_r2y_bt2020, i);
+			} else if (win->colorspace == CSC_BT601 ||
+					win->colorspace == CSC_BT709) {
+				val |= V_WIN0_YUV2YUV_Y2R_EN(1) |
+					V_WIN0_YUV2YUV_R2Y_EN(1) |
+					V_WIN0_YUV2YUV_EN(1);
+				LOAD_CSC(vop_dev, R2Y, csc_y2r_bt709_full, i);
+				LOAD_CSC(vop_dev, R2Y, csc_r2r_bt709to2020, i);
+				LOAD_CSC(vop_dev, R2Y, csc_r2y_bt2020, i);
+			}
+		}
+post:
+		vop_msk_reg(vop_dev, YUV2YUV_WIN, val << shift);
+	}
+
+	return output_color;
 }
 
 /*
@@ -500,112 +722,131 @@ static void vop_win_csc_mode(struct vop_device *vop_dev,
  *
  * 9. RGB        --> bypass   --->    709To2020->R2Y   --> YUV_OUTPUT(2020)
  *
- * 10. RGB        --> R2Y(709) --->       Y2R          --> YUV_OUTPUT(709)
+ * 10. RGB       --> R2Y(709) --->      bypass        --> YUV_OUTPUT(709)
  *
- * 11. RGB       --> R2Y(601) --->       Y2R           --> YUV_OUTPUT(601)
+ * 11. RGB       --> R2Y(601) --->       bypass        --> YUV_OUTPUT(601)
  *
  * 12. RGB       --> bypass   --->       bypass        --> RGB_OUTPUT(709)
  */
-
-static void vop_post_csc_cfg(struct rk_lcdc_driver *dev_drv)
+static int rk3228_vop_win_csc_cfg(struct rk_lcdc_driver *dev_drv)
 {
 	struct vop_device *vop_dev =
 	    container_of(dev_drv, struct vop_device, driver);
 	struct rk_lcdc_win *win;
 	int output_color = dev_drv->output_color;
-	int i, r2y_mode;
-	int overlay_mode;
 	int win_csc = COLOR_RGB;
-	u64 val;
-
-	if (output_color == COLOR_RGB)
-		overlay_mode = VOP_RGB_DOMAIN;
-	else
-		overlay_mode = VOP_YUV_DOMAIN;
-
-	if (output_color == COLOR_YCBCR)
-		r2y_mode = VOP_R2Y_CSC_BT601;
-	else
-		r2y_mode = VOP_R2Y_CSC_BT709;
+	int r2y_mode = VOP_R2Y_CSC_BT709;
+	int i;
 
 	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 		win = dev_drv->win[i];
 		if (!win->state)
 			continue;
-		/*
-		 * force use yuv domain when there is a windows's csc is bt2020.
-		 */
-		if (win->colorspace == CSC_BT2020) {
-			overlay_mode = VOP_YUV_DOMAIN;
-			r2y_mode = VOP_R2Y_CSC_BT709;
-			win_csc = COLOR_YCBCR_BT2020;
-			break;
+
+		if (IS_YUV(win->area[0].fmt_cfg)) {
+			if (win->colorspace == CSC_BT2020 &&
+			    win_csc < COLOR_YCBCR_BT2020) {
+				r2y_mode = VOP_R2Y_CSC_BT709;
+				win_csc = COLOR_YCBCR_BT2020;
+			}
+
+			if (win->colorspace == CSC_BT709 &&
+			    win_csc < COLOR_YCBCR_BT709) {
+				r2y_mode = VOP_R2Y_CSC_BT709;
+				win_csc = COLOR_YCBCR_BT709;
+			}
+
+			if (win->colorspace == CSC_BT601 &&
+			    win_csc < COLOR_YCBCR) {
+				r2y_mode = VOP_R2Y_CSC_BT709;
+				win_csc = COLOR_YCBCR;
+			}
 		}
-		if (IS_YUV(win->area[0].fmt_cfg))
+	}
+
+	if (win_csc == COLOR_RGB) {
+		if (output_color == COLOR_YCBCR_BT709) {
+			r2y_mode = VOP_R2Y_CSC_BT709;
+			win_csc = COLOR_YCBCR_BT709;
+		} else if (output_color == COLOR_YCBCR) {
+			r2y_mode = VOP_R2Y_CSC_BT601;
 			win_csc = COLOR_YCBCR;
+		}
 	}
 
 	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 		win = dev_drv->win[i];
 		if (!win->state)
 			continue;
-		if (overlay_mode == VOP_YUV_DOMAIN &&
-		    !IS_YUV(win->area[0].fmt_cfg))
+
+		if (win_csc != COLOR_RGB && !IS_YUV(win->area[0].fmt_cfg))
 			vop_win_csc_mode(vop_dev, win, r2y_mode);
-		if (overlay_mode == VOP_RGB_DOMAIN &&
-		    IS_YUV(win->area[0].fmt_cfg)) {
-			if (win->colorspace == CSC_BT709)
-				vop_win_csc_mode(vop_dev, win, VOP_Y2R_CSC_HD);
-			else if (win->colorspace == CSC_BT601)
+
+		if (IS_YUV(win->area[0].fmt_cfg)) {
+			if (win_csc == COLOR_YCBCR)
 				vop_win_csc_mode(vop_dev, win,
 						 VOP_Y2R_CSC_MPEG);
-			else
-				pr_err("Error Y2R path, colorspace=%d\n",
-				       win->colorspace);
+			else if (win_csc == COLOR_YCBCR_BT709)
+				vop_win_csc_mode(vop_dev, win, VOP_Y2R_CSC_HD);
 		}
 	}
 
-	if (win_csc == COLOR_RGB && overlay_mode == VOP_YUV_DOMAIN)
-		win_csc = COLOR_YCBCR;
-	else if (IS_YUV_COLOR(win_csc) && overlay_mode == VOP_RGB_DOMAIN)
-		win_csc = COLOR_RGB;
+	return win_csc;
+}
+
+static int vop_post_csc_cfg(struct rk_lcdc_driver *dev_drv)
+{
+	struct vop_device *vop_dev =
+	    container_of(dev_drv, struct vop_device, driver);
+	int output_color = dev_drv->output_color;
+	int win_csc, overlay_mode;
+	u64 val;
+
+	if (VOP_CHIP(vop_dev) == VOP_RK322X) {
+		win_csc = rk3228_vop_win_csc_cfg(dev_drv);
+	} else if (VOP_CHIP(vop_dev) == VOP_RK3399) {
+		win_csc = rk3399_vop_win_csc_cfg(dev_drv);
+
+		/*
+		 * RK3399 not support post csc config.
+		 */
+		goto done;
+	}
 
 	val = V_YUV2YUV_POST_Y2R_EN(0) | V_YUV2YUV_POST_EN(0) |
 		V_YUV2YUV_POST_R2Y_EN(0);
 	/* Y2R */
 	if (win_csc == COLOR_YCBCR && output_color == COLOR_YCBCR_BT2020) {
-		win_csc = COLOR_RGB;
 		val |= V_YUV2YUV_POST_Y2R_EN(1);
 		vop_load_csc_table(vop_dev, POST_YUV2YUV_Y2R_COE,
 				   csc_y2r_bt709_full);
 	}
 	if (win_csc == COLOR_YCBCR_BT2020 &&
 	    output_color != COLOR_YCBCR_BT2020) {
-		win_csc = COLOR_RGB_BT2020;
 		val |= V_YUV2YUV_POST_Y2R_EN(1);
 		vop_load_csc_table(vop_dev, POST_YUV2YUV_Y2R_COE,
 				   csc_y2r_bt2020);
 	}
 
 	/* R2R */
-	if (win_csc == COLOR_RGB && output_color == COLOR_YCBCR_BT2020) {
-		win_csc = COLOR_RGB_BT2020;
+	if ((win_csc == COLOR_YCBCR ||
+	     win_csc == COLOR_YCBCR_BT709 ||
+	     win_csc == COLOR_RGB) && output_color == COLOR_YCBCR_BT2020) {
 		val |= V_YUV2YUV_POST_EN(1);
 		vop_load_csc_table(vop_dev, POST_YUV2YUV_3x3_COE,
 				   csc_r2r_bt709to2020);
 	}
-	if (win_csc == COLOR_RGB_BT2020 &&
+	if (win_csc == COLOR_YCBCR_BT2020 &&
 	    (output_color == COLOR_YCBCR ||
 	     output_color == COLOR_YCBCR_BT709 ||
 	     output_color == COLOR_RGB)) {
-		win_csc = COLOR_RGB;
 		val |= V_YUV2YUV_POST_EN(1);
 		vop_load_csc_table(vop_dev, POST_YUV2YUV_3x3_COE,
 				   csc_r2r_bt2020to709);
 	}
 
-	/* R2Y */
-	if (!IS_YUV_COLOR(win_csc) && IS_YUV_COLOR(output_color)) {
+	/* Y2R */
+	if (output_color != COLOR_RGB) {
 		val |= V_YUV2YUV_POST_R2Y_EN(1);
 
 		if (output_color == COLOR_YCBCR_BT2020)
@@ -616,10 +857,14 @@ static void vop_post_csc_cfg(struct rk_lcdc_driver *dev_drv)
 					   csc_r2y_bt709_full);
 	}
 
-	DBG(1, "win_csc=%d output_color=%d val=%llx overlay_mode=%d\n",
-	    win_csc, output_color, val, overlay_mode);
-	vop_msk_reg(vop_dev, SYS_CTRL, V_OVERLAY_MODE(overlay_mode));
+	DBG(1, "win_csc=%d output_color=%d val=%llx\n",
+	    win_csc, output_color, val);
 	vop_msk_reg(vop_dev, YUV2YUV_POST, val);
+done:
+	overlay_mode = (win_csc != COLOR_RGB) ? VOP_YUV_DOMAIN : VOP_RGB_DOMAIN;
+	vop_msk_reg(vop_dev, SYS_CTRL, V_OVERLAY_MODE(overlay_mode));
+
+	return 0;
 }
 
 static int vop_post_cfg(struct rk_lcdc_driver *dev_drv)
@@ -703,7 +948,7 @@ static int vop_post_cfg(struct rk_lcdc_driver *dev_drv)
 					screen->post_dsp_sty / 2 +
 					1;
 		post_dsp_vact_end_f1 = post_dsp_vact_st_f1 +
-					screen->post_ysize/2;
+					screen->post_ysize / 2;
 	} else {
 		if (screen->y_mirror == 0) {
 			post_dsp_vact_st = screen->post_dsp_sty +
@@ -769,6 +1014,12 @@ static int vop_clr_key_cfg(struct rk_lcdc_driver *dev_drv)
 			break;
 		case 1:
 			vop_writel(vop_dev, WIN1_COLOR_KEY, key_val);
+			break;
+		case 2:
+			vop_writel(vop_dev, WIN2_COLOR_KEY, key_val);
+			break;
+		case 3:
+			vop_writel(vop_dev, WIN3_COLOR_KEY, key_val);
 			break;
 		default:
 			pr_info("%s:un support win num:%d\n",
@@ -906,6 +1157,14 @@ static int vop_alpha_cfg(struct rk_lcdc_driver *dev_drv, int win_id)
 		dst_alpha_ctl = 0xa4;
 		break;
 	case 2:
+		src_alpha_ctl = 0xdc;
+		dst_alpha_ctl = 0xec;
+		break;
+	case 3:
+		src_alpha_ctl = 0x12c;
+		dst_alpha_ctl = 0x13c;
+		break;
+	case 4:
 		src_alpha_ctl = 0x160;
 		dst_alpha_ctl = 0x164;
 		break;
@@ -958,13 +1217,17 @@ static int vop_axi_gather_cfg(struct vop_device *vop_dev,
 		return -EINVAL;
 	}
 
-	if ((win->id == 0) || (win->id == 1)) {
+	if ((win->id == VOP_WIN0) || (win->id == VOP_WIN1)) {
 		val = V_WIN0_YRGB_AXI_GATHER_EN(1) |
 			V_WIN0_CBR_AXI_GATHER_EN(1) |
 			V_WIN0_YRGB_AXI_GATHER_NUM(yrgb_gather_num) |
 			V_WIN0_CBR_AXI_GATHER_NUM(cbcr_gather_num);
 		vop_msk_reg(vop_dev, WIN0_CTRL1 + (win->id * 0x40), val);
-	} else if (win->id == 2) {
+	} else if ((win->id == VOP_WIN2) || (win->id == VOP_WIN3)) {
+		val = V_WIN2_AXI_GATHER_EN(1) |
+			V_WIN2_AXI_GATHER_NUM(yrgb_gather_num);
+		vop_msk_reg(vop_dev, WIN2_CTRL1 + ((win->id - 2) * 0x50), val);
+	} else if (win->id == VOP_HWC) {
 		val = V_HWC_AXI_GATHER_EN(1) |
 			V_HWC_AXI_GATHER_NUM(yrgb_gather_num);
 		vop_msk_reg(vop_dev, HWC_CTRL1, val);
@@ -978,7 +1241,7 @@ static int vop_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 	    container_of(dev_drv, struct vop_device, driver);
 	struct rk_lcdc_win *win = dev_drv->win[win_id];
 	u64 val;
-	uint32_t off;
+	u32 off;
 	int format;
 
 	off = win_id * 0x40;
@@ -1085,6 +1348,138 @@ static int vop_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 	return 0;
 }
 
+static int area_xst(struct rk_lcdc_win *win, int area_num)
+{
+	struct rk_lcdc_win_area area_temp;
+	int i, j;
+
+	for (i = 0; i < area_num; i++) {
+		for (j = i + 1; j < area_num; j++) {
+			if (win->area[i].dsp_stx >  win->area[j].dsp_stx) {
+				memcpy(&area_temp, &win->area[i],
+				       sizeof(struct rk_lcdc_win_area));
+				memcpy(&win->area[i], &win->area[j],
+				       sizeof(struct rk_lcdc_win_area));
+				memcpy(&win->area[j], &area_temp,
+				       sizeof(struct rk_lcdc_win_area));
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int vop_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
+{
+	struct vop_device *vop_dev =
+			container_of(dev_drv, struct vop_device, driver);
+	struct rk_lcdc_win *win = dev_drv->win[win_id];
+	unsigned int off;
+	u64 val;
+
+	off = (win_id - 2) * 0x50;
+	area_xst(win, win->area_num);
+
+	if (win->state == 1) {
+		vop_axi_gather_cfg(vop_dev, win);
+		val = V_WIN2_EN(1) | V_WIN1_CSC_MODE(win->csc_mode);
+		vop_msk_reg(vop_dev, WIN2_CTRL0 + off, val);
+		/* area 0 */
+		if (win->area[0].state == 1) {
+			val = V_WIN2_MST0_EN(win->area[0].state) |
+			    V_WIN2_DATA_FMT0(win->area[0].fmt_cfg) |
+			    V_WIN2_RB_SWAP0(win->area[0].swap_rb);
+			vop_msk_reg(vop_dev, WIN2_CTRL0 + off, val);
+
+			val = V_WIN2_VIR_STRIDE0(win->area[0].y_vir_stride);
+			vop_msk_reg(vop_dev, WIN2_VIR0_1 + off, val);
+
+			val = V_WIN2_DSP_WIDTH0(win->area[0].xsize) |
+			    V_WIN2_DSP_HEIGHT0(win->area[0].ysize);
+			vop_writel(vop_dev, WIN2_DSP_INFO0 + off, val);
+			val = V_WIN2_DSP_XST0(win->area[0].dsp_stx) |
+			    V_WIN2_DSP_YST0(win->area[0].dsp_sty);
+			vop_writel(vop_dev, WIN2_DSP_ST0 + off, val);
+		} else {
+			val = V_WIN2_MST0_EN(0);
+			vop_msk_reg(vop_dev, WIN2_CTRL0 + off, val);
+		}
+		/* area 1 */
+		if (win->area[1].state == 1) {
+			val = V_WIN2_MST1_EN(win->area[1].state) |
+			    V_WIN2_DATA_FMT1(win->area[1].fmt_cfg) |
+			    V_WIN2_RB_SWAP1(win->area[1].swap_rb);
+			vop_msk_reg(vop_dev, WIN2_CTRL0 + off, val);
+
+			val = V_WIN2_VIR_STRIDE1(win->area[1].y_vir_stride);
+			vop_msk_reg(vop_dev, WIN2_VIR0_1 + off, val);
+
+			val = V_WIN2_DSP_WIDTH1(win->area[1].xsize) |
+			    V_WIN2_DSP_HEIGHT1(win->area[1].ysize);
+			vop_writel(vop_dev, WIN2_DSP_INFO1 + off, val);
+			val = V_WIN2_DSP_XST1(win->area[1].dsp_stx) |
+			    V_WIN2_DSP_YST1(win->area[1].dsp_sty);
+			vop_writel(vop_dev, WIN2_DSP_ST1 + off, val);
+		} else {
+			val = V_WIN2_MST1_EN(0);
+			vop_msk_reg(vop_dev, WIN2_CTRL0 + off, val);
+		}
+		/* area 2 */
+		if (win->area[2].state == 1) {
+			val = V_WIN2_MST2_EN(win->area[2].state) |
+			    V_WIN2_DATA_FMT2(win->area[2].fmt_cfg) |
+			    V_WIN2_RB_SWAP2(win->area[2].swap_rb);
+			vop_msk_reg(vop_dev, WIN2_CTRL0 + off, val);
+
+			val = V_WIN2_VIR_STRIDE2(win->area[2].y_vir_stride);
+			vop_msk_reg(vop_dev, WIN2_VIR2_3 + off, val);
+
+			val = V_WIN2_DSP_WIDTH2(win->area[2].xsize) |
+			    V_WIN2_DSP_HEIGHT2(win->area[2].ysize);
+			vop_writel(vop_dev, WIN2_DSP_INFO2 + off, val);
+			val = V_WIN2_DSP_XST2(win->area[2].dsp_stx) |
+			    V_WIN2_DSP_YST2(win->area[2].dsp_sty);
+			vop_writel(vop_dev, WIN2_DSP_ST2 + off, val);
+		} else {
+			val = V_WIN2_MST2_EN(0);
+			vop_msk_reg(vop_dev, WIN2_CTRL0 + off, val);
+		}
+		/* area 3 */
+		if (win->area[3].state == 1) {
+			val = V_WIN2_MST3_EN(win->area[3].state) |
+			    V_WIN2_DATA_FMT3(win->area[3].fmt_cfg) |
+			    V_WIN2_RB_SWAP3(win->area[3].swap_rb);
+			vop_msk_reg(vop_dev, WIN2_CTRL0 + off, val);
+
+			val = V_WIN2_VIR_STRIDE3(win->area[3].y_vir_stride);
+			vop_msk_reg(vop_dev, WIN2_VIR2_3 + off, val);
+
+			val = V_WIN2_DSP_WIDTH3(win->area[3].xsize) |
+			    V_WIN2_DSP_HEIGHT3(win->area[3].ysize);
+			vop_writel(vop_dev, WIN2_DSP_INFO3 + off, val);
+			val = V_WIN2_DSP_XST3(win->area[3].dsp_stx) |
+			    V_WIN2_DSP_YST3(win->area[3].dsp_sty);
+			vop_writel(vop_dev, WIN2_DSP_ST3 + off, val);
+		} else {
+			val = V_WIN2_MST3_EN(0);
+			vop_msk_reg(vop_dev, WIN2_CTRL0 + off, val);
+		}
+
+		if (win->alpha_en == 1) {
+			vop_alpha_cfg(dev_drv, win_id);
+		} else {
+			val = V_WIN2_SRC_ALPHA_EN(0);
+			vop_msk_reg(vop_dev, WIN2_SRC_ALPHA_CTRL + off, val);
+		}
+	} else {
+		val = V_WIN2_EN(win->state) | V_WIN2_MST0_EN(0) |
+		    V_WIN2_MST1_EN(0) | V_WIN2_MST2_EN(0) | V_WIN2_MST3_EN(0);
+		vop_msk_reg(vop_dev, WIN2_CTRL0 + off, val);
+	}
+
+	return 0;
+}
+
 static int vop_hwc_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 {
 	struct vop_device *vop_dev =
@@ -1143,9 +1538,11 @@ static int vop_layer_update_regs(struct vop_device *vop_dev,
 	if (likely(vop_dev->clk_on)) {
 		vop_msk_reg(vop_dev, SYS_CTRL,
 			    V_VOP_STANDBY_EN(vop_dev->standby));
-		if ((win->id == 0) || (win->id == 1))
+		if ((win->id == VOP_WIN0) || (win->id == VOP_WIN1))
 			vop_win_0_1_reg_update(dev_drv, win->id);
-		else if (win->id == 2)
+		else if ((win->id == VOP_WIN2) || (win->id == VOP_WIN3))
+			vop_win_2_3_reg_update(dev_drv, win->id);
+		else if (win->id == VOP_HWC)
 			vop_hwc_reg_update(dev_drv, win->id);
 		vop_cfg_done(vop_dev);
 	}
@@ -1337,7 +1734,7 @@ static int vop_get_dspbuf_info(struct rk_lcdc_driver *dev_drv, u16 *xact,
 
 	val = vop_readl(vop_dev, WIN0_ACT_INFO);
 	*xact = (val & MASK(WIN0_ACT_WIDTH)) + 1;
-	*yact = ((val & MASK(WIN0_ACT_HEIGHT))>>16) + 1;
+	*yact = ((val & MASK(WIN0_ACT_HEIGHT)) >> 16) + 1;
 
 	val = vop_readl(vop_dev, WIN0_CTRL0);
 	*format = (val & MASK(WIN0_DATA_FMT)) >> 1;
@@ -1363,7 +1760,7 @@ static int vop_post_dspbuf(struct rk_lcdc_driver *dev_drv, u32 rgb_mst,
 		V_WIN0_Y_MIR_EN(ymirror);
 	vop_msk_reg(vop_dev, WIN0_CTRL0, val);
 
-	vop_msk_reg(vop_dev, WIN0_VIR,	V_WIN0_VIR_STRIDE(xvir));
+	vop_msk_reg(vop_dev, WIN0_VIR, V_WIN0_VIR_STRIDE(xvir));
 	vop_writel(vop_dev, WIN0_ACT_INFO, V_WIN0_ACT_WIDTH(xact - 1) |
 		   V_WIN0_ACT_HEIGHT(yact - 1));
 
@@ -1382,38 +1779,6 @@ static int vop_post_dspbuf(struct rk_lcdc_driver *dev_drv, u32 rgb_mst,
 
 	return 0;
 }
-
-/*
-static int lcdc_reset(struct rk_lcdc_driver *dev_drv, bool initscreen)
-{
-	struct vop_device *vop_dev =
-	    container_of(dev_drv, struct vop_device, driver);
-	u64 val;
-	u32 __maybe_unused v;
-
-	if (!vop_dev->standby && initscreen && (dev_drv->first_frame != 1)) {
-		mdelay(150);
-		val = V_WIN0_EN(0);
-		vop_msk_reg(vop_dev, WIN0_CTRL0, val);
-		vop_msk_reg(vop_dev, WIN1_CTRL0, val);
-
-		val = V_WIN2_EN(0) | V_WIN2_MST0_EN(0) |
-			V_WIN2_MST1_EN(0) |
-			V_WIN2_MST2_EN(0) | V_WIN2_MST3_EN(0);
-		vop_msk_reg(vop_dev, WIN2_CTRL0, val);
-		vop_msk_reg(vop_dev, WIN3_CTRL0, val);
-		val = V_HDMI_OUT_EN(0);
-		vop_msk_reg(vop_dev, SYS_CTRL, val);
-		vop_cfg_done(vop_dev);
-		mdelay(50);
-		vop_msk_reg(vop_dev, SYS_CTRL, V_VOP_STANDBY_EN(1));
-		writel_relaxed(0, vop_dev->regs + REG_CFG_DONE);
-		mdelay(50);
-	}
-
-	return 0;
-}
-*/
 
 static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 {
@@ -1435,49 +1800,58 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	spin_lock(&vop_dev->reg_lock);
 	if (likely(vop_dev->clk_on)) {
 		switch (screen->face) {
+		case OUT_P565:
+			face = OUT_P565;
+			val = V_DITHER_DOWN_EN(1) | V_DITHER_UP_EN(1) |
+				V_PRE_DITHER_DOWN_EN(1) |
+				V_DITHER_DOWN_SEL(1) | V_DITHER_DOWN_MODE(0);
+			break;
+		case OUT_P666:
+			face = OUT_P666;
+			val = V_DITHER_DOWN_EN(1) | V_DITHER_UP_EN(1) |
+				V_PRE_DITHER_DOWN_EN(1) |
+				V_DITHER_DOWN_SEL(1) | V_DITHER_DOWN_MODE(1);
+			break;
+		case OUT_D888_P565:
+			face = OUT_P888;
+			val = V_DITHER_DOWN_EN(1) | V_DITHER_UP_EN(1) |
+				V_PRE_DITHER_DOWN_EN(1) |
+				V_DITHER_DOWN_SEL(1) | V_DITHER_DOWN_MODE(0);
+			break;
+		case OUT_D888_P666:
+			face = OUT_P888;
+			val = V_DITHER_DOWN_EN(1) | V_DITHER_UP_EN(1) |
+				V_PRE_DITHER_DOWN_EN(1) |
+				V_DITHER_DOWN_SEL(1) | V_DITHER_DOWN_MODE(1);
+			break;
 		case OUT_P888:
-			if (rockchip_get_cpu_version())
-				face = OUT_P101010;
-			else
-				face = OUT_P888;
-
-			val = V_DITHER_DOWN_EN(0) | V_DITHER_UP_EN(0)
-				| V_PRE_DITHER_DOWN_EN(1);
+			face = OUT_P888;
+			val = V_DITHER_DOWN_EN(0) | V_DITHER_UP_EN(1)
+				| V_PRE_DITHER_DOWN_EN(1) |
+				V_DITHER_DOWN_SEL(0) | V_DITHER_DOWN_MODE(0);
 			break;
 		case OUT_YUV_420:
-			if (rockchip_get_cpu_version()) {
-				face = OUT_YUV_420;
-				dclk_ddr = 1;
-				val = V_DITHER_DOWN_EN(0) | V_DITHER_UP_EN(0)
-					| V_PRE_DITHER_DOWN_EN(1);
-				break;
-			}
-			dev_err(vop_dev->dev,
-				"This chip can't supported screen face[%d]\n",
-				screen->face);
+			face = OUT_YUV_420;
+			dclk_ddr = 1;
+			val = V_DITHER_DOWN_EN(0) | V_DITHER_UP_EN(1) |
+				V_PRE_DITHER_DOWN_EN(1) |
+				V_DITHER_DOWN_SEL(0) |
+				V_DITHER_DOWN_MODE(0);
 			break;
 		case OUT_YUV_420_10BIT:
-			if (rockchip_get_cpu_version()) {
-				face = OUT_YUV_420;
-				dclk_ddr = 1;
-				val = V_DITHER_DOWN_EN(0) | V_DITHER_UP_EN(1)
-					| V_PRE_DITHER_DOWN_EN(0);
-				break;
-			}
-			dev_err(vop_dev->dev,
-				"This chip can't supported screen face[%d]\n",
-				screen->face);
+			face = OUT_YUV_420;
+			dclk_ddr = 1;
+			val = V_DITHER_DOWN_EN(0) | V_DITHER_UP_EN(1) |
+				V_PRE_DITHER_DOWN_EN(0) |
+				V_DITHER_DOWN_SEL(0) |
+				V_DITHER_DOWN_MODE(0);
 			break;
 		case OUT_P101010:
-			if (rockchip_get_cpu_version()) {
-				face = OUT_P101010;
-				val = V_DITHER_DOWN_EN(0) | V_DITHER_UP_EN(1)
-					| V_PRE_DITHER_DOWN_EN(0);
-				break;
-			}
-			dev_err(vop_dev->dev,
-				"This chip can't supported screen face[%d]\n",
-				screen->face);
+			face = OUT_P101010;
+			val = V_DITHER_DOWN_EN(0) | V_DITHER_UP_EN(1) |
+				V_PRE_DITHER_DOWN_EN(0) |
+				V_DITHER_DOWN_SEL(0) |
+				V_DITHER_DOWN_MODE(0);
 			break;
 		default:
 			dev_err(vop_dev->dev, "un supported screen face[%d]!\n",
@@ -1501,6 +1875,17 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			break;
 		case SCREEN_HDMI:
 			val = V_HDMI_OUT_EN(1) | V_SW_UV_OFFSET_EN(0);
+			vop_msk_reg(vop_dev, SYS_CTRL, val);
+			break;
+		case SCREEN_RGB:
+		case SCREEN_LVDS:
+			val = V_RGB_OUT_EN(1);
+			vop_msk_reg(vop_dev, SYS_CTRL, val);
+		case SCREEN_MIPI:
+			val = V_MIPI_OUT_EN(1);
+			vop_msk_reg(vop_dev, SYS_CTRL, val);
+		case SCREEN_EDP:
+			val = V_EDP_OUT_EN(1);
 			vop_msk_reg(vop_dev, SYS_CTRL, val);
 			break;
 		default:
@@ -1558,8 +1943,8 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		} else {
 			val = V_DSP_OUT_RGB_YUV(0);
 			vop_msk_reg(vop_dev, POST_SCL_CTRL, val);
-			val = V_DSP_BG_BLUE(0) | V_DSP_BG_GREEN(0) |
-				V_DSP_BG_RED(0);
+			val = V_DSP_BG_BLUE(0x55) | V_DSP_BG_GREEN(0x55) |
+				V_DSP_BG_RED(0x55);
 			vop_msk_reg(vop_dev, DSP_BG, val);
 		}
 		dev_drv->output_color = screen->color_mode;
@@ -1663,11 +2048,11 @@ static int vop_open(struct rk_lcdc_driver *dev_drv, int win_id,
 			vop_load_screen(dev_drv, 1);
 		if (dev_drv->bcsh.enable)
 			vop_set_bcsh(dev_drv, 1);
-		spin_lock(&vop_dev->reg_lock);
-		spin_unlock(&vop_dev->reg_lock);
+		vop_set_lut(dev_drv, dev_drv->cur_screen->dsp_lut);
+		vop_set_cabc(dev_drv, dev_drv->cur_screen->cabc_lut);
 	}
 
-	if (win_id < ARRAY_SIZE(vop_win))
+	if (win_id < dev_drv->lcdc_win_num)
 		vop_layer_enable(vop_dev, win_id, open);
 	else
 		dev_err(vop_dev->dev, "invalid win id:%d\n", win_id);
@@ -1700,6 +2085,33 @@ static int win_0_1_display(struct vop_device *vop_dev,
 	}
 	spin_unlock(&vop_dev->reg_lock);
 
+	return 0;
+}
+
+static int win_2_3_display(struct vop_device *vop_dev,
+			   struct rk_lcdc_win *win)
+{
+	u32 i, y_addr;
+	unsigned int off;
+
+	off = (win->id - 2) * 0x50;
+	y_addr = win->area[0].smem_start + win->area[0].y_offset;
+	DBG(2, "lcdc[%d]:win[%d]:", vop_dev->id, win->id);
+
+	if (likely(vop_dev->clk_on)) {
+		for (i = 0; i < win->area_num; i++) {
+			DBG(2, "area[%d]:yaddr:0x%x>>offset:0x%x>>\n",
+			    i, win->area[i].y_addr, win->area[i].y_offset);
+			win->area[i].y_addr =
+			    win->area[i].smem_start + win->area[i].y_offset;
+			}
+		spin_lock(&vop_dev->reg_lock);
+		vop_writel(vop_dev, WIN2_MST0 + off, win->area[0].y_addr);
+		vop_writel(vop_dev, WIN2_MST1 + off, win->area[1].y_addr);
+		vop_writel(vop_dev, WIN2_MST2 + off, win->area[2].y_addr);
+		vop_writel(vop_dev, WIN2_MST3 + off, win->area[3].y_addr);
+		spin_unlock(&vop_dev->reg_lock);
+	}
 	return 0;
 }
 
@@ -1741,6 +2153,10 @@ static int vop_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 	} else if (win_id == 1) {
 		win_0_1_display(vop_dev, win);
 	} else if (win_id == 2) {
+		win_2_3_display(vop_dev, win);
+	} else if (win_id == 3) {
+		win_2_3_display(vop_dev, win);
+	} else if (win_id == 4) {
 		hwc_display(vop_dev, win);
 	} else {
 		dev_err(dev_drv->dev, "invalid win number:%d!\n", win_id);
@@ -1964,8 +2380,9 @@ static int vop_cal_scl_fac(struct rk_lcdc_win *win, struct rk_screen *screen)
 	if ((win->yrgb_ver_scl_mode == SCALE_DOWN) &&
 	    (win->area[0].fbdc_en == 1)) {
 		/* in this pattern,use bil mode,not support souble scd,
-		use avg mode, support double scd, but aclk should be
-		bigger than dclk,aclk>>dclk */
+		 * use avg mode, support double scd, but aclk should be
+		 * bigger than dclk.
+		 */
 		if (yrgb_srcH >= 2 * yrgb_dstH) {
 			pr_err("ERROR : fbdc mode,not support y scale down:");
 			pr_err("srcH[%d] > 2 *dstH[%d]\n",
@@ -2349,6 +2766,95 @@ static int win_0_1_set_par(struct vop_device *vop_dev,
 	return 0;
 }
 
+static int win_2_3_set_par(struct vop_device *vop_dev,
+			   struct rk_screen *screen, struct rk_lcdc_win *win)
+{
+	int i;
+	u8 fmt_cfg, swap_rb;
+	char fmt[9] = "NULL";
+
+	if (VOP_CHIP(vop_dev) == VOP_RK322X) {
+		pr_err("rk3228 not support win2/3 set par\n");
+		return -EINVAL;
+	}
+	if (win->ymirror) {
+		pr_err("win[%d] not support y mirror\n", win->id);
+		return -EINVAL;
+	}
+	spin_lock(&vop_dev->reg_lock);
+	if (likely(vop_dev->clk_on)) {
+		DBG(2, "lcdc[%d]:win[%d]>>\n>\n", vop_dev->id, win->id);
+		for (i = 0; i < win->area_num; i++) {
+			switch (win->area[i].format) {
+			case FBDC_RGB_565:
+				fmt_cfg = 2;
+				swap_rb = 0;
+				win->fmt_10 = 0;
+				win->area[0].fbdc_fmt_cfg = 0x05;
+				break;
+			case FBDC_ARGB_888:
+				fmt_cfg = 0;
+				swap_rb = 0;
+				win->fmt_10 = 0;
+				win->area[0].fbdc_fmt_cfg = 0x0c;
+				break;
+			case FBDC_RGBX_888:
+				fmt_cfg = 0;
+				swap_rb = 0;
+				win->fmt_10 = 0;
+				win->area[0].fbdc_fmt_cfg = 0x3a;
+				break;
+			case ARGB888:
+				fmt_cfg = 0;
+				swap_rb = 0;
+				break;
+			case XBGR888:
+			case ABGR888:
+				fmt_cfg = 0;
+				swap_rb = 1;
+				break;
+			case RGB888:
+				fmt_cfg = 1;
+				swap_rb = 0;
+				break;
+			case RGB565:
+				fmt_cfg = 2;
+				swap_rb = 0;
+				break;
+			default:
+				dev_err(vop_dev->driver.dev,
+					"%s:un supported format!\n", __func__);
+				spin_unlock(&vop_dev->reg_lock);
+				return -EINVAL;
+			}
+			win->area[i].fmt_cfg = fmt_cfg;
+			win->area[i].swap_rb = swap_rb;
+			win->area[i].dsp_stx = dsp_x_pos(win->xmirror, screen,
+							 &win->area[i]);
+			win->area[i].dsp_sty = dsp_y_pos(win->ymirror, screen,
+							 &win->area[i]);
+			if (((win->area[i].xact != win->area[i].xsize) ||
+			     (win->area[i].yact != win->area[i].ysize)) &&
+			    (screen->mode.vmode == FB_VMODE_NONINTERLACED)) {
+				pr_err("win[%d]->area[%d],not support scale\n",
+				       win->id, i);
+				pr_err("xact=%d,yact=%d,xsize=%d,ysize=%d\n",
+				       win->area[i].xact, win->area[i].yact,
+				       win->area[i].xsize, win->area[i].ysize);
+				win->area[i].xsize = win->area[i].xact;
+				win->area[i].ysize = win->area[i].yact;
+			}
+			DBG(2, "fmt:%s:xsize:%d>>ysize:%d>>xpos:%d>>ypos:%d\n",
+			    get_format_string(win->area[i].format, fmt),
+			    win->area[i].xsize, win->area[i].ysize,
+			    win->area[i].xpos, win->area[i].ypos);
+		}
+	}
+	vop_win_2_3_reg_update(&vop_dev->driver, win->id);
+	spin_unlock(&vop_dev->reg_lock);
+	return 0;
+}
+
 static int hwc_set_par(struct vop_device *vop_dev,
 		       struct rk_screen *screen, struct rk_lcdc_win *win)
 {
@@ -2395,7 +2901,7 @@ static int hwc_set_par(struct vop_device *vop_dev,
 		xvir = win->area[0].xvir;
 		yvir = win->area[0].yvir;
 	}
-	vop_hwc_reg_update(&vop_dev->driver, 2);
+	vop_hwc_reg_update(&vop_dev->driver, 4);
 	spin_unlock(&vop_dev->reg_lock);
 
 	DBG(1, "lcdc[%d]:hwc>>%s\n>>format:%s>>>xact:%d>>yact:%d>>xsize:%d",
@@ -2418,6 +2924,7 @@ static int vop_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 		return 0;
 	}
 	win = dev_drv->win[win_id];
+	if (win)
 	switch (win_id) {
 	case 0:
 		win_0_1_set_par(vop_dev, screen, win);
@@ -2426,12 +2933,96 @@ static int vop_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 		win_0_1_set_par(vop_dev, screen, win);
 		break;
 	case 2:
+		win_2_3_set_par(vop_dev, screen, win);
+		break;
+	case 3:
+		win_2_3_set_par(vop_dev, screen, win);
+		break;
+	case 4:
 		hwc_set_par(vop_dev, screen, win);
 		break;
 	default:
 		dev_err(dev_drv->dev, "unsupported win number:%d\n", win_id);
 		break;
 	}
+	return 0;
+}
+
+static int vop_set_writeback(struct rk_lcdc_driver *dev_drv)
+{
+	struct vop_device *vop_dev =
+	    container_of(dev_drv, struct vop_device, driver);
+	int output_color = dev_drv->output_color;
+	struct rk_screen *screen = dev_drv->cur_screen;
+	struct rk_fb_reg_wb_data *wb_data;
+	int xact = screen->mode.xres;
+	int yact = screen->mode.yres;
+	u32 fmt_cfg;
+	int xsize, ysize;
+	u64 v;
+
+	if (unlikely(!vop_dev->clk_on)) {
+		pr_info("%s,clk_on = %d\n", __func__, vop_dev->clk_on);
+		return 0;
+	}
+	wb_data = &dev_drv->wb_data;
+
+	xsize = wb_data->xsize;
+	ysize = wb_data->ysize;
+
+	/*
+	 * RGB overlay mode support ARGB888, RGB888, RGB565, NV12,
+	 * but YUV overlay mode only support NV12, it's hard to judge RGB
+	 * or YUV overlay mode by userspace, so here force only support
+	 * NV12 mode.
+	 */
+	if (wb_data->data_format != YUV420 && output_color != COLOR_RGB) {
+		pr_err("writeback only support NV12 when overlay is not RGB\n");
+		return -EINVAL;
+	}
+
+	if (ysize != yact && ysize != (yact / 2)) {
+		pr_err("WriteBack only support yact=%d, ysize=%d\n",
+		       yact, ysize);
+		return -EINVAL;
+	}
+
+	switch (wb_data->data_format) {
+	case ARGB888:
+		fmt_cfg = 0;
+		break;
+	case RGB888:
+		fmt_cfg = 1;
+		break;
+	case RGB565:
+		fmt_cfg = 2;
+		break;
+	case YUV420:
+		fmt_cfg = 8;
+		break;
+	default:
+		pr_info("unsupport fmt: %d\n", wb_data->data_format);
+		return -EINVAL;
+	}
+
+	v = V_WB_EN(wb_data->state) | V_WB_FMT(fmt_cfg) | V_WB_RGB2YUV_MODE(1) |
+		V_WB_XPSD_BIL_EN(xact != xsize) |
+		V_WB_YTHROW_EN(ysize == (yact / 2)) |
+		V_WB_YTHROW_MODE(0);
+
+	v |= V_WB_RGB2YUV_EN((output_color == COLOR_RGB) &&
+			     (wb_data->data_format == YUV420));
+
+	vop_msk_reg(vop_dev, WB_CTRL0, v);
+
+	v = V_WB_WIDTH(xsize) | V_WB_XPSD_BIL_FACTOR((xact << 12) / xsize);
+
+	vop_msk_reg(vop_dev, WB_CTRL1, v);
+
+	vop_writel(vop_dev, WB_YRGB_MST, wb_data->smem_start);
+	if (wb_data->data_format == YUV420)
+		vop_writel(vop_dev, WB_CBR_MST, wb_data->smem_start);
+
 	return 0;
 }
 
@@ -2452,8 +3043,7 @@ static int vop_ioctl(struct rk_lcdc_driver *dev_drv, unsigned int cmd,
 			return -EFAULT;
 		break;
 	case RK_FBIOPUT_COLOR_KEY_CFG:
-		if (copy_from_user(&clr_key_cfg, argp,
-				   sizeof(struct color_key_cfg)))
+		if (copy_from_user(&clr_key_cfg, argp, sizeof(clr_key_cfg)))
 			return -EFAULT;
 		vop_clr_key_cfg(dev_drv);
 		vop_writel(vop_dev, WIN0_COLOR_KEY,
@@ -2521,6 +3111,7 @@ static int vop_early_suspend(struct rk_lcdc_driver *dev_drv)
 		return 0;
 
 	dev_drv->suspend_flag = 1;
+	/* ensure suspend_flag take effect on multi process */
 	smp_wmb();
 	flush_kthread_worker(&dev_drv->update_regs_worker);
 
@@ -2559,8 +3150,12 @@ static int vop_early_resume(struct rk_lcdc_driver *dev_drv)
 	rk_disp_pwr_enable(dev_drv);
 
 	vop_clk_enable(vop_dev);
+	spin_lock(&vop_dev->reg_lock);
 	memcpy(vop_dev->regs, vop_dev->regsbak, vop_dev->len);
+	spin_unlock(&vop_dev->reg_lock);
 
+	vop_set_lut(dev_drv, dev_drv->cur_screen->dsp_lut);
+	vop_set_cabc(dev_drv, dev_drv->cur_screen->cabc_lut);
 	spin_lock(&vop_dev->reg_lock);
 
 	vop_msk_reg(vop_dev, DSP_CTRL0, V_DSP_OUT_ZERO(0));
@@ -2619,6 +3214,34 @@ static int vop_get_win_state(struct rk_lcdc_driver *dev_drv,
 		area_status = vop_read_bit(vop_dev, WIN1_CTRL0, V_WIN1_EN(0));
 		break;
 	case 2:
+		if (area_id == 0)
+			area_status = vop_read_bit(vop_dev, WIN2_CTRL0,
+						   V_WIN2_MST0_EN(0));
+		if (area_id == 1)
+			area_status = vop_read_bit(vop_dev, WIN2_CTRL0,
+						   V_WIN2_MST1_EN(0));
+		if (area_id == 2)
+			area_status = vop_read_bit(vop_dev, WIN2_CTRL0,
+						   V_WIN2_MST2_EN(0));
+		if (area_id == 3)
+			area_status = vop_read_bit(vop_dev, WIN2_CTRL0,
+						   V_WIN2_MST3_EN(0));
+		break;
+	case 3:
+		if (area_id == 0)
+			area_status = vop_read_bit(vop_dev, WIN3_CTRL0,
+						   V_WIN3_MST0_EN(0));
+		if (area_id == 1)
+			area_status = vop_read_bit(vop_dev, WIN3_CTRL0,
+						   V_WIN3_MST1_EN(0));
+		if (area_id == 2)
+			area_status = vop_read_bit(vop_dev, WIN3_CTRL0,
+						   V_WIN3_MST2_EN(0));
+		if (area_id == 3)
+			area_status = vop_read_bit(vop_dev, WIN3_CTRL0,
+						   V_WIN3_MST3_EN(0));
+		break;
+	case 4:
 		area_status = vop_read_bit(vop_dev, HWC_CTRL0, V_HWC_EN(0));
 		break;
 	default:
@@ -2634,8 +3257,16 @@ static int vop_get_win_state(struct rk_lcdc_driver *dev_drv,
 static int vop_get_area_num(struct rk_lcdc_driver *dev_drv,
 			    unsigned int *area_support)
 {
+	struct vop_device *vop_dev =
+	    container_of(dev_drv, struct vop_device, driver);
+
 	area_support[0] = 1;
 	area_support[1] = 1;
+
+	if (VOP_CHIP(vop_dev) == VOP_RK3399) {
+		area_support[2] = 4;
+		area_support[3] = 4;
+	}
 
 	return 0;
 }
@@ -2743,6 +3374,7 @@ static char *vop_format_to_string(int format, char *fmt)
 	}
 	return fmt;
 }
+
 static ssize_t vop_get_disp_info(struct rk_lcdc_driver *dev_drv,
 				 char *buf, int win_id)
 {
@@ -2858,7 +3490,7 @@ static ssize_t vop_get_disp_info(struct rk_lcdc_driver *dev_drv,
 
 	size += snprintf(dsp_buf, 80,
 		 "  x_st :%4d, y_st  :%4d, y_h_fac:%5d, y_v_fac:%5d, ",
-		 w0_st_x-h_pw_bp, w0_st_y-v_pw_bp, w0_y_h_fac, w0_y_v_fac);
+		 w0_st_x - h_pw_bp, w0_st_y - v_pw_bp, w0_y_h_fac, w0_y_v_fac);
 	strcat(buf, dsp_buf);
 	memset(dsp_buf, 0, sizeof(dsp_buf));
 
@@ -2884,7 +3516,7 @@ static ssize_t vop_get_disp_info(struct rk_lcdc_driver *dev_drv,
 
 	size += snprintf(dsp_buf, 80,
 		 "  x_st :%4d, y_st  :%4d, y_h_fac:%5d, y_v_fac:%5d, ",
-		 w1_st_x-h_pw_bp, w1_st_y-v_pw_bp, w1_y_h_fac, w1_y_v_fac);
+		 w1_st_x - h_pw_bp, w1_st_y - v_pw_bp, w1_y_h_fac, w1_y_v_fac);
 	strcat(buf, dsp_buf);
 	memset(dsp_buf, 0, sizeof(dsp_buf));
 
@@ -2998,6 +3630,18 @@ static int vop_config_done(struct rk_lcdc_driver *dev_drv)
 				vop_msk_reg(vop_dev, WIN1_CTRL0, val);
 				break;
 			case 2:
+				val = V_WIN2_EN(0) | V_WIN2_MST0_EN(0) |
+				    V_WIN2_MST1_EN(0) |
+				    V_WIN2_MST2_EN(0) | V_WIN2_MST3_EN(0);
+				vop_msk_reg(vop_dev, WIN2_CTRL0, val);
+				break;
+			case 3:
+				val = V_WIN3_EN(0) | V_WIN3_MST0_EN(0) |
+				    V_WIN3_MST1_EN(0) |
+				    V_WIN3_MST2_EN(0) | V_WIN3_MST3_EN(0);
+				vop_msk_reg(vop_dev, WIN3_CTRL0, val);
+				break;
+			case 4:
 				val = V_HWC_EN(0);
 				vop_msk_reg(vop_dev, HWC_CTRL0, val);
 				break;
@@ -3092,34 +3736,44 @@ static int vop_get_dsp_addr(struct rk_lcdc_driver *dev_drv,
 	if (vop_dev->clk_on) {
 		dsp_addr[0][0] = vop_readl(vop_dev, WIN0_YRGB_MST);
 		dsp_addr[1][0] = vop_readl(vop_dev, WIN1_YRGB_MST);
-		dsp_addr[2][0] = vop_readl(vop_dev, HWC_MST);
+		dsp_addr[2][0] = vop_readl(vop_dev, WIN2_MST0);
+		dsp_addr[2][1] = vop_readl(vop_dev, WIN2_MST1);
+		dsp_addr[2][2] = vop_readl(vop_dev, WIN2_MST2);
+		dsp_addr[2][3] = vop_readl(vop_dev, WIN2_MST3);
+		dsp_addr[3][0] = vop_readl(vop_dev, WIN3_MST0);
+		dsp_addr[3][1] = vop_readl(vop_dev, WIN3_MST1);
+		dsp_addr[3][2] = vop_readl(vop_dev, WIN3_MST2);
+		dsp_addr[3][3] = vop_readl(vop_dev, WIN3_MST3);
+		dsp_addr[4][0] = vop_readl(vop_dev, HWC_MST);
 	}
 	spin_unlock(&vop_dev->reg_lock);
 	return 0;
 }
 
-static u32 pwm_period_hpr, pwm_duty_lpr;
 
 int vop_update_pwm(int bl_pwm_period, int bl_pwm_duty)
 {
-	pwm_period_hpr = bl_pwm_period;
-	pwm_duty_lpr = bl_pwm_duty;
-	/*pr_info("bl_pwm_period_hpr = 0x%x, bl_pwm_duty_lpr = 0x%x\n",
-	bl_pwm_period, bl_pwm_duty);*/
+	/*
+	 * TODO:
+	 * pwm_period_hpr = bl_pwm_period;
+	 * pwm_duty_lpr = bl_pwm_duty;
+	 * pr_info("bl_pwm_period_hpr = 0x%x, bl_pwm_duty_lpr = 0x%x\n",
+	 * bl_pwm_period, bl_pwm_duty);
+	 */
+
 	return 0;
 }
 
 /*
-	a:[-30~0]:
-	    sin_hue = sin(a)*256 +0x100;
-	    cos_hue = cos(a)*256;
-	a:[0~30]
-	    sin_hue = sin(a)*256;
-	    cos_hue = cos(a)*256;
-*/
+ *  a:[-30~0]:
+ *    sin_hue = sin(a)*256 +0x100;
+ *    cos_hue = cos(a)*256;
+ *  a:[0~30]
+ *    sin_hue = sin(a)*256;
+ *    cos_hue = cos(a)*256;
+ */
 static int vop_get_bcsh_hue(struct rk_lcdc_driver *dev_drv, bcsh_hue_mode mode)
 {
-#if 1
 	struct vop_device *vop_dev =
 	    container_of(dev_drv, struct vop_device, driver);
 	u32 val;
@@ -3142,7 +3796,74 @@ static int vop_get_bcsh_hue(struct rk_lcdc_driver *dev_drv, bcsh_hue_mode mode)
 	spin_unlock(&vop_dev->reg_lock);
 
 	return val;
-#endif
+}
+
+static int vop_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode,
+			    int calc, int up, int down, int global)
+{
+	struct vop_device *vop_dev =
+			container_of(dev_drv, struct vop_device, driver);
+	struct rk_screen *screen = dev_drv->cur_screen;
+	u32 total_pixel, calc_pixel, stage_up, stage_down;
+	u32 pixel_num, global_dn;
+
+	if (!vop_dev->cabc_lut_addr_base) {
+		pr_err("vop chip[%d] not supoort cabc\n", VOP_CHIP(vop_dev));
+		return 0;
+	}
+
+	if (!screen->cabc_lut) {
+		pr_err("screen cabc lut not config, so not open cabc\n");
+		return 0;
+	}
+
+	dev_drv->cabc_mode = mode;
+	if (!dev_drv->cabc_mode) {
+		spin_lock(&vop_dev->reg_lock);
+		if (vop_dev->clk_on) {
+			vop_msk_reg(vop_dev, CABC_CTRL0,
+				    V_CABC_EN(0) | V_CABC_HANDLE_EN(0));
+			vop_cfg_done(vop_dev);
+		}
+		pr_info("mode = 0, close cabc\n");
+		spin_unlock(&vop_dev->reg_lock);
+		return 0;
+	}
+
+	total_pixel = screen->mode.xres * screen->mode.yres;
+	pixel_num = 1000 - calc;
+	calc_pixel = (total_pixel * pixel_num) / 1000;
+	stage_up = up;
+	stage_down = down;
+	global_dn = global;
+	pr_info("enable cabc:mode=%d, calc=%d, up=%d, down=%d, global=%d\n",
+		mode, calc, stage_up, stage_down, global_dn);
+
+	spin_lock(&vop_dev->reg_lock);
+	if (vop_dev->clk_on) {
+		u64 val = 0;
+
+		val = V_CABC_EN(1) | V_CABC_HANDLE_EN(1) |
+			V_PWM_CONFIG_MODE(STAGE_BY_STAGE) |
+			V_CABC_CALC_PIXEL_NUM(calc_pixel);
+		vop_msk_reg(vop_dev, CABC_CTRL0, val);
+
+		val = V_CABC_LUT_EN(1) | V_CABC_TOTAL_NUM(total_pixel);
+		vop_msk_reg(vop_dev, CABC_CTRL1, val);
+
+		val = V_CABC_STAGE_DOWN(stage_down) |
+			V_CABC_STAGE_UP(stage_up) |
+			V_CABC_STAGE_UP_MODE(0) | V_MAX_SCALE_CFG_VALUE(1) |
+			V_MAX_SCALE_CFG_ENABLE(0);
+		vop_msk_reg(vop_dev, CABC_CTRL2, val);
+
+		val = V_CABC_GLOBAL_DN(global_dn) |
+			V_CABC_GLOBAL_DN_LIMIT_EN(1);
+		vop_msk_reg(vop_dev, CABC_CTRL3, val);
+		vop_cfg_done(vop_dev);
+	}
+	spin_unlock(&vop_dev->reg_lock);
+
 	return 0;
 }
 
@@ -3370,6 +4091,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.post_dspbuf = vop_post_dspbuf,
 	.set_par = vop_set_par,
 	.pan_display = vop_pan_display,
+	.set_wb = vop_set_writeback,
 	.direct_set_addr = vop_direct_set_win_addr,
 	/*.lcdc_reg_update = vop_reg_update,*/
 	.blank = vop_blank,
@@ -3388,6 +4110,9 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.dpi_win_sel = vop_dpi_win_sel,
 	.dpi_status = vop_dpi_status,
 	.get_dsp_addr = vop_get_dsp_addr,
+	.set_dsp_lut = vop_set_lut,
+	.set_cabc_lut = vop_set_cabc,
+	.set_dsp_cabc = vop_set_dsp_cabc,
 	.set_dsp_bcsh_hue = vop_set_bcsh_hue,
 	.set_dsp_bcsh_bcs = vop_set_bcsh_bcs,
 	.get_dsp_bcsh_hue = vop_get_bcsh_hue,
@@ -3421,6 +4146,18 @@ static irqreturn_t vop_isr(int irq, void *dev_id)
 
 	if (intr_status & INTR_FS) {
 		timestamp = ktime_get();
+		if (vop_dev->wb_on) {
+			u32 wb_status;
+
+			spin_lock_irqsave(&vop_dev->irq_lock, flags);
+			wb_status = vop_read_bit(vop_dev, WB_CTRL0, V_WB_EN(0));
+			if (wb_status)
+				vop_set_bit(vop_dev, WB_CTRL0, V_WB_EN(0));
+
+			vop_cfg_done(vop_dev);
+			vop_dev->driver.wb_data.state = 0;
+			spin_unlock_irqrestore(&vop_dev->irq_lock, flags);
+		}
 		vop_dev->driver.vsync_info.timestamp = timestamp;
 		wake_up_interruptible_all(&vop_dev->driver.vsync_info.wait);
 		intr_status &= ~INTR_FS;
@@ -3547,6 +4284,7 @@ static int vop_probe(struct platform_device *pdev)
 {
 	struct vop_device *vop_dev = NULL;
 	struct rk_lcdc_driver *dev_drv;
+	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct device_node *np = pdev->dev.of_node;
@@ -3564,7 +4302,10 @@ static int vop_probe(struct platform_device *pdev)
 	vop_dev = devm_kzalloc(dev, sizeof(struct vop_device), GFP_KERNEL);
 	if (!vop_dev)
 		return -ENOMEM;
-
+	of_id = of_match_device(vop_dt_ids, dev);
+	vop_dev->data = of_id->data;
+	if (VOP_CHIP(vop_dev) != VOP_RK322X && VOP_CHIP(vop_dev) != VOP_RK3399)
+		return -ENODEV;
 	platform_set_drvdata(pdev, vop_dev);
 	vop_dev->dev = dev;
 	vop_parse_dt(vop_dev);
@@ -3574,25 +4315,35 @@ static int vop_probe(struct platform_device *pdev)
 	vop_dev->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(vop_dev->regs))
 		return PTR_ERR(vop_dev->regs);
-	else
-		dev_info(dev, "vop_dev->regs=0x%lx\n", (long)vop_dev->regs);
+
+	dev_info(dev, "vop_dev->regs=0x%lx\n", (long)vop_dev->regs);
 
 	vop_dev->regsbak = devm_kzalloc(dev, vop_dev->len, GFP_KERNEL);
 	if (IS_ERR(vop_dev->regsbak))
 		return PTR_ERR(vop_dev->regsbak);
+	if (VOP_CHIP(vop_dev) == VOP_RK3399) {
+		vop_dev->dsp_lut_addr_base = vop_dev->regs + GAMMA_LUT_ADDR;
+		vop_dev->cabc_lut_addr_base = vop_dev->regs +
+						CABC_GAMMA_LUT_ADDR;
+	}
+	vop_dev->grf_base =
+		syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	if (IS_ERR(vop_dev->grf_base)) {
+		dev_err(&pdev->dev, "can't find lcdc grf property\n");
+		vop_dev->grf_base = NULL;
+	}
 
-	vop_dev->id = 0;
+	vop_dev->id = vop_get_id(vop_dev, vop_dev->reg_phy_base);
 	dev_set_name(vop_dev->dev, "vop%d", vop_dev->id);
 	dev_drv = &vop_dev->driver;
 	dev_drv->dev = dev;
 	dev_drv->prop = prop;
 	dev_drv->id = vop_dev->id;
 	dev_drv->ops = &lcdc_drv_ops;
-	dev_drv->lcdc_win_num = ARRAY_SIZE(vop_win);
+	dev_drv->lcdc_win_num = vop_dev->data->n_wins;
 	dev_drv->reserved_fb = 0;
 	spin_lock_init(&vop_dev->reg_lock);
 	spin_lock_init(&vop_dev->irq_lock);
-
 	vop_dev->irq = platform_get_irq(pdev, 0);
 	if (vop_dev->irq < 0) {
 		dev_err(&pdev->dev, "cannot find IRQ for lcdc%d\n",
@@ -3601,20 +4352,17 @@ static int vop_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(dev, vop_dev->irq, vop_isr,
-			       IRQF_DISABLED | IRQF_SHARED,
-			       dev_name(dev), vop_dev);
+			       IRQF_SHARED, dev_name(dev), vop_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot requeset irq %d - err %d\n",
 			vop_dev->irq, ret);
 		return ret;
 	}
-
 	if (dev_drv->iommu_enabled)
 		strcpy(dev_drv->mmu_dts_name, VOP_IOMMU_COMPATIBLE_NAME);
-
-	ret = rk_fb_register(dev_drv, vop_win, vop_dev->id);
+	ret = rk_fb_register(dev_drv, vop_dev->data->win, vop_dev->id);
 	if (ret < 0) {
-		dev_err(dev, "register fb for failed!\n");
+		dev_err(dev, "register fb for lcdc%d failed!\n", vop_dev->id);
 		return ret;
 	}
 	vop_dev->screen = dev_drv->screen0;
@@ -3635,23 +4383,15 @@ static void vop_shutdown(struct platform_device *pdev)
 	struct rk_lcdc_driver *dev_drv = &vop_dev->driver;
 
 	dev_drv->suspend_flag = 1;
+	/* ensure suspend_flag take effect on multi process */
 	smp_wmb();
 	flush_kthread_worker(&dev_drv->update_regs_worker);
 	kthread_stop(dev_drv->update_regs_thread);
 	vop_deint(vop_dev);
-	/*if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
-		dev_drv->trsm_ops->disable();*/
 
 	vop_clk_disable(vop_dev);
 	rk_disp_pwr_disable(dev_drv);
 }
-
-#if defined(CONFIG_OF)
-static const struct of_device_id vop_dt_ids[] = {
-	{.compatible = "rockchip,rk322x-lcdc",},
-	{}
-};
-#endif
 
 static struct platform_driver vop_driver = {
 	.probe = vop_probe,
