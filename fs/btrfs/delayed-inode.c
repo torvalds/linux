@@ -553,7 +553,7 @@ static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
 	dst_rsv = &root->fs_info->delayed_block_rsv;
 
 	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
-	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
+	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
 	if (!ret) {
 		trace_btrfs_space_reservation(root->fs_info, "delayed_item",
 					      item->key.objectid,
@@ -649,7 +649,7 @@ static int btrfs_delayed_inode_reserve_metadata(
 		if (!ret)
 			goto out;
 
-		ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
+		ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
 		if (!ret)
 			goto out;
 
@@ -663,12 +663,12 @@ static int btrfs_delayed_inode_reserve_metadata(
 		 * since this really shouldn't happen that often.
 		 */
 		ret = btrfs_block_rsv_migrate(&root->fs_info->global_block_rsv,
-					      dst_rsv, num_bytes);
+					      dst_rsv, num_bytes, 1);
 		goto out;
 	}
 
 migrate:
-	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
+	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
 
 out:
 	/*

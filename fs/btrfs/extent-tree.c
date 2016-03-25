@@ -5265,8 +5265,9 @@ static void block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 	}
 }
 
-static int block_rsv_migrate_bytes(struct btrfs_block_rsv *src,
-				   struct btrfs_block_rsv *dst, u64 num_bytes)
+int btrfs_block_rsv_migrate(struct btrfs_block_rsv *src,
+			    struct btrfs_block_rsv *dst, u64 num_bytes,
+			    int update_size)
 {
 	int ret;
 
@@ -5274,7 +5275,7 @@ static int block_rsv_migrate_bytes(struct btrfs_block_rsv *src,
 	if (ret)
 		return ret;
 
-	block_rsv_add_bytes(dst, num_bytes, 1);
+	block_rsv_add_bytes(dst, num_bytes, update_size);
 	return 0;
 }
 
@@ -5379,13 +5380,6 @@ int btrfs_block_rsv_refill(struct btrfs_root *root,
 	}
 
 	return ret;
-}
-
-int btrfs_block_rsv_migrate(struct btrfs_block_rsv *src_rsv,
-			    struct btrfs_block_rsv *dst_rsv,
-			    u64 num_bytes)
-{
-	return block_rsv_migrate_bytes(src_rsv, dst_rsv, num_bytes);
 }
 
 void btrfs_block_rsv_release(struct btrfs_root *root,
@@ -5567,7 +5561,7 @@ int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
 	u64 num_bytes = btrfs_calc_trans_metadata_size(root, 1);
 	trace_btrfs_space_reservation(root->fs_info, "orphan",
 				      btrfs_ino(inode), num_bytes, 1);
-	return block_rsv_migrate_bytes(src_rsv, dst_rsv, num_bytes);
+	return btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
 }
 
 void btrfs_orphan_release_metadata(struct inode *inode)
@@ -5622,7 +5616,7 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 				  BTRFS_RESERVE_FLUSH_ALL);
 
 	if (ret == -ENOSPC && use_global_rsv)
-		ret = btrfs_block_rsv_migrate(global_rsv, rsv, num_bytes);
+		ret = btrfs_block_rsv_migrate(global_rsv, rsv, num_bytes, 1);
 
 	if (ret && *qgroup_reserved)
 		btrfs_qgroup_free_meta(root, *qgroup_reserved);
