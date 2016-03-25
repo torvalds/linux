@@ -1212,7 +1212,7 @@ struct ocfs2_write_cluster_desc {
 	 * filled.
 	 */
 	unsigned	c_new;
-	unsigned	c_unwritten;
+	unsigned	c_clear_unwritten;
 	unsigned	c_needs_zero;
 };
 
@@ -1588,19 +1588,19 @@ out:
  * Prepare a single cluster for write one cluster into the file.
  */
 static int ocfs2_write_cluster(struct address_space *mapping,
-			       u32 phys, unsigned int unwritten,
+			       u32 phys, unsigned int new,
+			       unsigned int clear_unwritten,
 			       unsigned int should_zero,
 			       struct ocfs2_alloc_context *data_ac,
 			       struct ocfs2_alloc_context *meta_ac,
 			       struct ocfs2_write_ctxt *wc, u32 cpos,
 			       loff_t user_pos, unsigned user_len)
 {
-	int ret, i, new;
+	int ret, i;
 	u64 v_blkno, p_blkno;
 	struct inode *inode = mapping->host;
 	struct ocfs2_extent_tree et;
 
-	new = phys == 0 ? 1 : 0;
 	if (new) {
 		u32 tmp_pos;
 
@@ -1610,9 +1610,9 @@ static int ocfs2_write_cluster(struct address_space *mapping,
 		 */
 		tmp_pos = cpos;
 		ret = ocfs2_add_inode_data(OCFS2_SB(inode->i_sb), inode,
-					   &tmp_pos, 1, 0, wc->w_di_bh,
-					   wc->w_handle, data_ac,
-					   meta_ac, NULL);
+					   &tmp_pos, 1, !clear_unwritten,
+					   wc->w_di_bh, wc->w_handle,
+					   data_ac, meta_ac, NULL);
 		/*
 		 * This shouldn't happen because we must have already
 		 * calculated the correct meta data allocation required. The
@@ -1629,7 +1629,7 @@ static int ocfs2_write_cluster(struct address_space *mapping,
 			mlog_errno(ret);
 			goto out;
 		}
-	} else if (unwritten) {
+	} else if (clear_unwritten) {
 		ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(inode),
 					      wc->w_di_bh);
 		ret = ocfs2_mark_extent_written(inode, &et,
@@ -1712,7 +1712,8 @@ static int ocfs2_write_cluster_by_desc(struct address_space *mapping,
 			local_len = osb->s_clustersize - cluster_off;
 
 		ret = ocfs2_write_cluster(mapping, desc->c_phys,
-					  desc->c_unwritten,
+					  desc->c_new,
+					  desc->c_clear_unwritten,
 					  desc->c_needs_zero,
 					  data_ac, meta_ac,
 					  wc, desc->c_cpos, pos, local_len);
@@ -1857,11 +1858,12 @@ static int ocfs2_populate_write_desc(struct inode *inode,
 		if (phys == 0) {
 			desc->c_new = 1;
 			desc->c_needs_zero = 1;
+			desc->c_clear_unwritten = 1;
 			*clusters_to_alloc = *clusters_to_alloc + 1;
 		}
 
 		if (ext_flags & OCFS2_EXT_UNWRITTEN) {
-			desc->c_unwritten = 1;
+			desc->c_clear_unwritten = 1;
 			desc->c_needs_zero = 1;
 		}
 
