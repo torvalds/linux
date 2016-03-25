@@ -2533,7 +2533,7 @@ int polaris10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 	tmp_result = polaris10_pcie_performance_request(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
-			"Failed to enable thermal auto throttle!", result = tmp_result);
+			"pcie performance request failed!", result = tmp_result);
 
 	return result;
 }
