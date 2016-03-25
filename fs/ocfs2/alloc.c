@@ -2516,21 +2516,6 @@ static int ocfs2_update_edge_lengths(handle_t *handle,
 	struct ocfs2_extent_block *eb;
 	u32 range;
 
-	/*
-	 * In normal tree rotation process, we will never touch the
-	 * tree branch above subtree_index and ocfs2_extend_rotate_transaction
-	 * doesn't reserve the credits for them either.
-	 *
-	 * But we do have a special case here which will update the rightmost
-	 * records for all the bh in the path.
-	 * So we have to allocate extra credits and access them.
-	 */
-	ret = ocfs2_extend_trans(handle, subtree_index);
-	if (ret) {
-		mlog_errno(ret);
-		goto out;
-	}
-
 	ret = ocfs2_journal_access_path(et->et_ci, handle, path);
 	if (ret) {
 		mlog_errno(ret);
@@ -2956,7 +2941,7 @@ static int __ocfs2_rotate_tree_left(handle_t *handle,
 		     right_path->p_node[subtree_root].bh->b_blocknr,
 		     right_path->p_tree_depth);
 
-		ret = ocfs2_extend_rotate_transaction(handle, subtree_root,
+		ret = ocfs2_extend_rotate_transaction(handle, 0,
 						      orig_credits, left_path);
 		if (ret) {
 			mlog_errno(ret);
@@ -3029,21 +3014,9 @@ static int ocfs2_remove_rightmost_path(handle_t *handle,
 	struct ocfs2_extent_block *eb;
 	struct ocfs2_extent_list *el;
 
-
 	ret = ocfs2_et_sanity_check(et);
 	if (ret)
 		goto out;
-	/*
-	 * There's two ways we handle this depending on
-	 * whether path is the only existing one.
-	 */
-	ret = ocfs2_extend_rotate_transaction(handle, 0,
-					      handle->h_buffer_credits,
-					      path);
-	if (ret) {
-		mlog_errno(ret);
-		goto out;
-	}
 
 	ret = ocfs2_journal_access_path(et->et_ci, handle, path);
 	if (ret) {
@@ -3641,6 +3614,14 @@ static int ocfs2_merge_rec_left(struct ocfs2_path *right_path,
 		 */
 		if (le16_to_cpu(right_rec->e_leaf_clusters) == 0 &&
 		    le16_to_cpu(el->l_next_free_rec) == 1) {
+			/* extend credit for ocfs2_remove_rightmost_path */
+			ret = ocfs2_extend_rotate_transaction(handle, 0,
+					handle->h_buffer_credits,
+					right_path);
+			if (ret) {
+				mlog_errno(ret);
+				goto out;
+			}
 
 			ret = ocfs2_remove_rightmost_path(handle, et,
 							  right_path,
@@ -3679,6 +3660,14 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 	BUG_ON(ctxt->c_contig_type == CONTIG_NONE);
 
 	if (ctxt->c_split_covers_rec && ctxt->c_has_empty_extent) {
+		/* extend credit for ocfs2_remove_rightmost_path */
+		ret = ocfs2_extend_rotate_transaction(handle, 0,
+				handle->h_buffer_credits,
+				path);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
 		/*
 		 * The merge code will need to create an empty
 		 * extent to take the place of the newly
@@ -3727,6 +3716,15 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 		 */
 		BUG_ON(!ocfs2_is_empty_extent(&el->l_recs[0]));
 
+		/* extend credit for ocfs2_remove_rightmost_path */
+		ret = ocfs2_extend_rotate_transaction(handle, 0,
+					handle->h_buffer_credits,
+					path);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
 		/* The merge left us with an empty extent, remove it. */
 		ret = ocfs2_rotate_tree_left(handle, et, path, dealloc);
 		if (ret) {
@@ -3743,6 +3741,15 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 		ret = ocfs2_merge_rec_left(path, handle, et, rec,
 					   dealloc, split_index);
 
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		/* extend credit for ocfs2_remove_rightmost_path */
+		ret = ocfs2_extend_rotate_transaction(handle, 0,
+				handle->h_buffer_credits,
+				path);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -3783,6 +3790,16 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 		}
 
 		if (ctxt->c_split_covers_rec) {
+			/* extend credit for ocfs2_remove_rightmost_path */
+			ret = ocfs2_extend_rotate_transaction(handle, 0,
+					handle->h_buffer_credits,
+					path);
+			if (ret) {
+				mlog_errno(ret);
+				ret = 0;
+				goto out;
+			}
+
 			/*
 			 * The merge may have left an empty extent in
 			 * our leaf. Try to rotate it away.
@@ -5342,6 +5359,15 @@ static int ocfs2_truncate_rec(handle_t *handle,
 	struct ocfs2_extent_block *eb;
 
 	if (ocfs2_is_empty_extent(&el->l_recs[0]) && index > 0) {
+		/* extend credit for ocfs2_remove_rightmost_path */
+		ret = ocfs2_extend_rotate_transaction(handle, 0,
+				handle->h_buffer_credits,
+				path);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
 		ret = ocfs2_rotate_tree_left(handle, et, path, dealloc);
 		if (ret) {
 			mlog_errno(ret);
