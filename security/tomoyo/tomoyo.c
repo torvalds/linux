@@ -429,7 +429,7 @@ static int tomoyo_sb_umount(struct vfsmount *mnt, int flags)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_sb_pivotroot(struct path *old_path, struct path *new_path)
+static int tomoyo_sb_pivotroot(const struct path *old_path, const struct path *new_path)
 {
 	return tomoyo_path2_perm(TOMOYO_TYPE_PIVOT_ROOT, new_path, old_path);
 }

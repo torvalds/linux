@@ -313,7 +313,7 @@ int security_sb_umount(struct vfsmount *mnt, int flags)
 	return call_int_hook(sb_umount, 0, mnt, flags);
 }
 
-int security_sb_pivotroot(struct path *old_path, struct path *new_path)
+int security_sb_pivotroot(const struct path *old_path, const struct path *new_path)
 {
 	return call_int_hook(sb_pivotroot, 0, old_path, new_path);
 }

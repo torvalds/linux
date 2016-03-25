@@ -1346,7 +1346,7 @@ union security_list_options {
 	int (*sb_mount)(const char *dev_name, const struct path *path,
 			const char *type, unsigned long flags, void *data);
 	int (*sb_umount)(struct vfsmount *mnt, int flags);
-	int (*sb_pivotroot)(struct path *old_path, struct path *new_path);
+	int (*sb_pivotroot)(const struct path *old_path, const struct path *new_path);
 	int (*sb_set_mnt_opts)(struct super_block *sb,
 				struct security_mnt_opts *opts,
 				unsigned long kern_flags,
