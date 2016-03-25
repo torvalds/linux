@@ -243,7 +243,6 @@ static void orinoco_spy_gather(wlandevice_t *wlandev, char *mac,
 
 	for (i = 0; i < wlandev->spy_number; i++) {
 		if (!memcmp(wlandev->spy_address[i], mac, ETH_ALEN)) {
-			memcpy(wlandev->spy_address[i], mac, ETH_ALEN);
 			wlandev->spy_stat[i].level = rxmeta->signal;
 			wlandev->spy_stat[i].noise = rxmeta->noise;
 			wlandev->spy_stat[i].qual =
