@@ -965,25 +965,11 @@ static void rrpc_requeue(struct work_struct *work)
 
 static void rrpc_gc_free(struct rrpc *rrpc)
 {
-	struct rrpc_lun *rlun;
-	int i;
-
 	if (rrpc->krqd_wq)
 		destroy_workqueue(rrpc->krqd_wq);
 
 	if (rrpc->kgc_wq)
 		destroy_workqueue(rrpc->kgc_wq);
-
-	if (!rrpc->luns)
-		return;
-
-	for (i = 0; i < rrpc->nr_luns; i++) {
-		rlun = &rrpc->luns[i];
-
-		if (!rlun->blocks)
-			break;
-		vfree(rlun->blocks);
-	}
 }
 
 static int rrpc_gc_init(struct rrpc *rrpc)
@@ -1053,7 +1039,10 @@ static int rrpc_map_init(struct rrpc *rrpc)
 {
 	struct nvm_dev *dev = rrpc->dev;
 	sector_t i;
+	u64 slba;
 	int ret;
+
+	slba = rrpc->soffset >> (ilog2(dev->sec_size) - 9);
 
 	rrpc->trans_map = vzalloc(sizeof(struct rrpc_addr) * rrpc->nr_sects);
 	if (!rrpc->trans_map)
@@ -1076,7 +1065,7 @@ static int rrpc_map_init(struct rrpc *rrpc)
 		return 0;
 
 	/* Bring up the mapping table from device */
-	ret = dev->ops->get_l2p_tbl(dev, 0, dev->total_secs, rrpc_l2p_update,
+	ret = dev->ops->get_l2p_tbl(dev, slba, rrpc->nr_sects, rrpc_l2p_update,
 									rrpc);
 	if (ret) {
 		pr_err("nvm: rrpc: could not read L2P table.\n");
@@ -1085,7 +1074,6 @@ static int rrpc_map_init(struct rrpc *rrpc)
 
 	return 0;
 }
-
 
 /* Minimum pages needed within a lun */
 #define PAGE_POOL_SIZE 16
@@ -1141,6 +1129,23 @@ static void rrpc_core_free(struct rrpc *rrpc)
 
 static void rrpc_luns_free(struct rrpc *rrpc)
 {
+	struct nvm_dev *dev = rrpc->dev;
+	struct nvm_lun *lun;
+	struct rrpc_lun *rlun;
+	int i;
+
+	if (!rrpc->luns)
+		return;
+
+	for (i = 0; i < rrpc->nr_luns; i++) {
+		rlun = &rrpc->luns[i];
+		lun = rlun->parent;
+		if (!lun)
+			break;
+		dev->mt->release_lun(dev, lun->id);
+		vfree(rlun->blocks);
+	}
+
 	kfree(rrpc->luns);
 }
 
@@ -1148,7 +1153,7 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 {
 	struct nvm_dev *dev = rrpc->dev;
 	struct rrpc_lun *rlun;
-	int i, j;
+	int i, j, ret = -EINVAL;
 
 	if (dev->sec_per_blk > MAX_INVALID_PAGES_STORAGE * BITS_PER_LONG) {
 		pr_err("rrpc: number of pages per block too high.");
@@ -1164,25 +1169,26 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 
 	/* 1:1 mapping */
 	for (i = 0; i < rrpc->nr_luns; i++) {
-		struct nvm_lun *lun = dev->mt->get_lun(dev, lun_begin + i);
+		int lunid = lun_begin + i;
+		struct nvm_lun *lun;
+
+		if (dev->mt->reserve_lun(dev, lunid)) {
+			pr_err("rrpc: lun %u is already allocated\n", lunid);
+			goto err;
+		}
+
+		lun = dev->mt->get_lun(dev, lunid);
+		if (!lun)
+			goto err;
 
 		rlun = &rrpc->luns[i];
-		rlun->rrpc = rrpc;
 		rlun->parent = lun;
-		INIT_LIST_HEAD(&rlun->prio_list);
-		INIT_LIST_HEAD(&rlun->open_list);
-		INIT_LIST_HEAD(&rlun->closed_list);
-
-		INIT_WORK(&rlun->ws_gc, rrpc_lun_gc);
-		spin_lock_init(&rlun->lock);
-
-		rrpc->total_blocks += dev->blks_per_lun;
-		rrpc->nr_sects += dev->sec_per_lun;
-
 		rlun->blocks = vzalloc(sizeof(struct rrpc_block) *
 						rrpc->dev->blks_per_lun);
-		if (!rlun->blocks)
+		if (!rlun->blocks) {
+			ret = -ENOMEM;
 			goto err;
+		}
 
 		for (j = 0; j < rrpc->dev->blks_per_lun; j++) {
 			struct rrpc_block *rblk = &rlun->blocks[j];
@@ -1193,11 +1199,43 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 			INIT_LIST_HEAD(&rblk->prio);
 			spin_lock_init(&rblk->lock);
 		}
+
+		rlun->rrpc = rrpc;
+		INIT_LIST_HEAD(&rlun->prio_list);
+		INIT_LIST_HEAD(&rlun->open_list);
+		INIT_LIST_HEAD(&rlun->closed_list);
+
+		INIT_WORK(&rlun->ws_gc, rrpc_lun_gc);
+		spin_lock_init(&rlun->lock);
+
+		rrpc->total_blocks += dev->blks_per_lun;
+		rrpc->nr_sects += dev->sec_per_lun;
+
 	}
 
 	return 0;
 err:
-	return -ENOMEM;
+	return ret;
+}
+
+/* returns 0 on success and stores the beginning address in *begin */
+static int rrpc_area_init(struct rrpc *rrpc, sector_t *begin)
+{
+	struct nvm_dev *dev = rrpc->dev;
+	struct nvmm_type *mt = dev->mt;
+	sector_t size = rrpc->nr_sects * dev->sec_size;
+
+	size >>= 9;
+
+	return mt->get_area(dev, begin, size);
+}
+
+static void rrpc_area_free(struct rrpc *rrpc)
+{
+	struct nvm_dev *dev = rrpc->dev;
+	struct nvmm_type *mt = dev->mt;
+
+	mt->put_area(dev, rrpc->soffset);
 }
 
 static void rrpc_free(struct rrpc *rrpc)
@@ -1206,6 +1244,7 @@ static void rrpc_free(struct rrpc *rrpc)
 	rrpc_map_free(rrpc);
 	rrpc_core_free(rrpc);
 	rrpc_luns_free(rrpc);
+	rrpc_area_free(rrpc);
 
 	kfree(rrpc);
 }
@@ -1327,6 +1366,7 @@ static void *rrpc_init(struct nvm_dev *dev, struct gendisk *tdisk,
 	struct request_queue *bqueue = dev->q;
 	struct request_queue *tqueue = tdisk->queue;
 	struct rrpc *rrpc;
+	sector_t soffset;
 	int ret;
 
 	if (!(dev->identity.dom & NVM_RSP_L2P)) {
@@ -1351,6 +1391,13 @@ static void *rrpc_init(struct nvm_dev *dev, struct gendisk *tdisk,
 
 	/* simple round-robin strategy */
 	atomic_set(&rrpc->next_lun, -1);
+
+	ret = rrpc_area_init(rrpc, &soffset);
+	if (ret < 0) {
+		pr_err("nvm: rrpc: could not initialize area\n");
+		return ERR_PTR(ret);
+	}
+	rrpc->soffset = soffset;
 
 	ret = rrpc_luns_init(rrpc, lun_begin, lun_end);
 	if (ret) {

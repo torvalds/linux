@@ -42,11 +42,15 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-&extbus {
+&system_bus {
+	status = "okay";
+	ranges = <1 0x00000000 0x42000000 0x02000000>;
+
 	support_card: support_card {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
+		ranges = <0x00000000 1 0x01f00000 0x00100000>;
 
 		ethsc: ethernet@00000000 {
 			compatible = "smsc,lan9118", "smsc,lan9115";
