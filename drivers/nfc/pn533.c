@@ -2263,12 +2263,35 @@ static int pn533_activate_target(struct nfc_dev *nfc_dev,
 	return 0;
 }
 
+static int pn533_deactivate_target_complete(struct pn533 *dev, void *arg,
+			     struct sk_buff *resp)
+{
+	int rc = 0;
+
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
+
+	if (IS_ERR(resp)) {
+		rc = PTR_ERR(resp);
+
+		nfc_err(&dev->interface->dev, "Target release error %d\n", rc);
+
+		return rc;
+	}
+
+	rc = resp->data[0] & PN533_CMD_RET_MASK;
+	if (rc != PN533_CMD_RET_SUCCESS)
+		nfc_err(&dev->interface->dev,
+			"Error 0x%x when releasing the target\n", rc);
+
+	dev_kfree_skb(resp);
+	return rc;
+}
+
 static void pn533_deactivate_target(struct nfc_dev *nfc_dev,
 				    struct nfc_target *target, u8 mode)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	struct sk_buff *skb;
-	struct sk_buff *resp;
 	int rc;
 
 	dev_dbg(&dev->interface->dev, "%s\n", __func__);
@@ -2287,16 +2310,13 @@ static void pn533_deactivate_target(struct nfc_dev *nfc_dev,
 
 	*skb_put(skb, 1) = 1; /* TG*/
 
-	resp = pn533_send_cmd_sync(dev, PN533_CMD_IN_RELEASE, skb);
-	if (IS_ERR(resp))
-		return;
+	rc = pn533_send_cmd_async(dev, PN533_CMD_IN_RELEASE, skb,
+				  pn533_deactivate_target_complete, NULL);
+	if (rc < 0) {
+		dev_kfree_skb(skb);
+		nfc_err(&dev->interface->dev, "Target release error %d\n", rc);
+	}
 
-	rc = resp->data[0] & PN533_CMD_RET_MASK;
-	if (rc != PN533_CMD_RET_SUCCESS)
-		nfc_err(&dev->interface->dev,
-			"Error 0x%x when releasing the target\n", rc);
-
-	dev_kfree_skb(resp);
 	return;
 }
 
