@@ -57,6 +57,9 @@ struct ocfs2_inode_info
 	u32				ip_flags; /* see below */
 	u32				ip_attr; /* inode attributes */
 
+	/* Record unwritten extents during direct io. */
+	struct list_head		ip_unwritten_list;
+
 	/* protected by recovery_lock. */
 	struct inode			*ip_next_orphan;
 
