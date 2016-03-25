@@ -42,6 +42,7 @@
 
 /dts-v1/;
 #include "rk3399-tb.dtsi"
+#include "rk3399-fb.dtsi"
 
 / {
 	model = "Rockchip monkey";
@@ -131,6 +132,35 @@
 
 &gt9xx {
 	status = "okay";
+};
+
+&fb {
+	status = "okay";
+};
+
+&rk_screen {
+	status = "okay";
+	#include <dt-bindings/display/screen-timing/lcd-tv080wum-nl0-mipi.dtsi>
+};
+
+&vopl_rk_fb {
+	status = "disabled";
+};
+
+&vopb_rk_fb {
+	status = "okay";
+};
+
+&hdmi_rk_fb {
+	status = "disabled";
+};
+
+&mipi0_rk_fb {
+	status = "okay";
+};
+
+&mipi1_rk_fb{
+	status = "disabled";
 };
 
 &saradc {
