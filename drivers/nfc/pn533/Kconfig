@@ -1,0 +1,16 @@
+config NFC_PN533
+	tristate
+	help
+	  NXP PN533 core driver.
+	  This driver provides core functionality for NXP PN533 NFC devices.
+
+config NFC_PN533_USB
+	tristate "NFC PN533 device support (USB)"
+	depends on USB
+	select NFC_PN533
+	---help---
+	  This module adds support for the NXP pn533 USB interface.
+	  Select this if your platform is using the USB bus.
+
+	  If you choose to build a module, it'll be called pn533_usb.
+	  Say N if unsure.
