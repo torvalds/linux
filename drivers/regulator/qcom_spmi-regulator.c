@@ -1510,10 +1510,61 @@ static const struct spmi_regulator_data pm8916_regulators[] = {
 	{ }
 };
 
+static const struct spmi_regulator_data pm8994_regulators[] = {
+	{ "s1", 0x1400, "vdd_s1", },
+	{ "s2", 0x1700, "vdd_s2", },
+	{ "s3", 0x1a00, "vdd_s3", },
+	{ "s4", 0x1d00, "vdd_s4", },
+	{ "s5", 0x2000, "vdd_s5", },
+	{ "s6", 0x2300, "vdd_s6", },
+	{ "s7", 0x2600, "vdd_s7", },
+	{ "s8", 0x2900, "vdd_s8", },
+	{ "s9", 0x2c00, "vdd_s9", },
+	{ "s10", 0x2f00, "vdd_s10", },
+	{ "s11", 0x3200, "vdd_s11", },
+	{ "s12", 0x3500, "vdd_s12", },
+	{ "l1", 0x4000, "vdd_l1", },
+	{ "l2", 0x4100, "vdd_l2_l26_l28", },
+	{ "l3", 0x4200, "vdd_l3_l11", },
+	{ "l4", 0x4300, "vdd_l4_l27_l31", },
+	{ "l5", 0x4400, "vdd_l5_l7", },
+	{ "l6", 0x4500, "vdd_l6_l12_l32", },
+	{ "l7", 0x4600, "vdd_l5_l7", },
+	{ "l8", 0x4700, "vdd_l8_l16_l30", },
+	{ "l9", 0x4800, "vdd_l9_l10_l18_l22", },
+	{ "l10", 0x4900, "vdd_l9_l10_l18_l22", },
+	{ "l11", 0x4a00, "vdd_l3_l11", },
+	{ "l12", 0x4b00, "vdd_l6_l12_l32", },
+	{ "l13", 0x4c00, "vdd_l13_l19_l23_l24", },
+	{ "l14", 0x4d00, "vdd_l14_l15", },
+	{ "l15", 0x4e00, "vdd_l14_l15", },
+	{ "l16", 0x4f00, "vdd_l8_l16_l30", },
+	{ "l17", 0x5000, "vdd_l17_l29", },
+	{ "l18", 0x5100, "vdd_l9_l10_l18_l22", },
+	{ "l19", 0x5200, "vdd_l13_l19_l23_l24", },
+	{ "l20", 0x5300, "vdd_l20_l21", },
+	{ "l21", 0x5400, "vdd_l20_l21", },
+	{ "l22", 0x5500, "vdd_l9_l10_l18_l22", },
+	{ "l23", 0x5600, "vdd_l13_l19_l23_l24", },
+	{ "l24", 0x5700, "vdd_l13_l19_l23_l24", },
+	{ "l25", 0x5800, "vdd_l25", },
+	{ "l26", 0x5900, "vdd_l2_l26_l28", },
+	{ "l27", 0x5a00, "vdd_l4_l27_l31", },
+	{ "l28", 0x5b00, "vdd_l2_l26_l28", },
+	{ "l29", 0x5c00, "vdd_l17_l29", },
+	{ "l30", 0x5d00, "vdd_l8_l16_l30", },
+	{ "l31", 0x5e00, "vdd_l4_l27_l31", },
+	{ "l32", 0x5f00, "vdd_l6_l12_l32", },
+	{ "lvs1", 0x8000, "vdd_lvs_1_2", },
+	{ "lvs2", 0x8100, "vdd_lvs_1_2", },
+	{ }
+};
+
 static const struct of_device_id qcom_spmi_regulator_match[] = {
 	{ .compatible = "qcom,pm8841-regulators", .data = &pm8841_regulators },
 	{ .compatible = "qcom,pm8916-regulators", .data = &pm8916_regulators },
 	{ .compatible = "qcom,pm8941-regulators", .data = &pm8941_regulators },
+	{ .compatible = "qcom,pm8994-regulators", .data = &pm8994_regulators },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_spmi_regulator_match);
