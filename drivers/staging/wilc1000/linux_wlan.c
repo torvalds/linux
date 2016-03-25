@@ -309,12 +309,6 @@ static int linux_wlan_txq_task(void *vp)
 	struct wilc_vif *vif;
 	struct wilc *wl;
 	struct net_device *dev = vp;
-#define TX_BACKOFF_WEIGHT_INCR_STEP (1)
-#define TX_BACKOFF_WEIGHT_DECR_STEP (1)
-#define TX_BACKOFF_WEIGHT_MAX (7)
-#define TX_BACKOFF_WEIGHT_MIN (0)
-#define TX_BACKOFF_WEIGHT_UNIT_MS (10)
-	int backoff_weight = TX_BACKOFF_WEIGHT_MIN;
 
 	vif = netdev_priv(dev);
 	wl = vif->wilc;
@@ -337,18 +331,6 @@ static int linux_wlan_txq_task(void *vp)
 					netif_wake_queue(wl->vif[0]->ndev);
 				if (netif_queue_stopped(wl->vif[1]->ndev))
 					netif_wake_queue(wl->vif[1]->ndev);
-			}
-
-			if (ret == WILC_TX_ERR_NO_BUF) {
-				backoff_weight += TX_BACKOFF_WEIGHT_INCR_STEP;
-				if (backoff_weight > TX_BACKOFF_WEIGHT_MAX)
-					backoff_weight = TX_BACKOFF_WEIGHT_MAX;
-			} else {
-				if (backoff_weight > TX_BACKOFF_WEIGHT_MIN) {
-					backoff_weight -= TX_BACKOFF_WEIGHT_DECR_STEP;
-					if (backoff_weight < TX_BACKOFF_WEIGHT_MIN)
-						backoff_weight = TX_BACKOFF_WEIGHT_MIN;
-				}
 			}
 		} while (ret == WILC_TX_ERR_NO_BUF && !wl->close);
 	}
