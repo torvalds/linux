@@ -772,6 +772,11 @@ static struct rk_iommu *rk_iommu_from_dev(struct device *dev)
 	if (!group)
 		return NULL;
 	iommu_dev = iommu_group_get_iommudata(group);
+	if (!iommu_dev) {
+		dev_info(dev, "Possibly a virtual device\n");
+		return NULL;
+	}
+
 	rk_iommu = dev_get_drvdata(iommu_dev);
 	iommu_group_put(group);
 
