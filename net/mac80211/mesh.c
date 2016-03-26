@@ -905,7 +905,6 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	/* flush STAs and mpaths on this iface */
 	sta_info_flush(sdata);
 	mesh_path_flush_by_iface(sdata);
-	mesh_pathtbl_unregister(sdata);
 
 	/* free all potentially still buffered group-addressed frames */
 	local->total_ps_buffered -= skb_queue_len(&ifmsh->ps.bc_buf);
@@ -1402,4 +1401,10 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	RCU_INIT_POINTER(ifmsh->beacon, NULL);
 
 	sdata->vif.bss_conf.bssid = zero_addr;
+}
+
+void ieee80211_mesh_teardown_sdata(struct ieee80211_sub_if_data *sdata)
+{
+	mesh_rmc_free(sdata);
+	mesh_pathtbl_unregister(sdata);
 }
