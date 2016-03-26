@@ -371,7 +371,6 @@ static int twl4030reg_set_mode(struct regulator_dev *rdev, unsigned mode)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
 	unsigned		message;
-	int			status;
 
 	/* We can only set the mode through state machine commands... */
 	switch (mode) {
@@ -384,13 +383,6 @@ static int twl4030reg_set_mode(struct regulator_dev *rdev, unsigned mode)
 	default:
 		return -EINVAL;
 	}
-
-	/* Ensure the resource is associated with some group */
-	status = twlreg_grp(rdev);
-	if (status < 0)
-		return status;
-	if (!(status & (P3_GRP_4030 | P2_GRP_4030 | P1_GRP_4030)))
-		return -EACCES;
 
 	return twl4030_send_pb_msg(message);
 }
