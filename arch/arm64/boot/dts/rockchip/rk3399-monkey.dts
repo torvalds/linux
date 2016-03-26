@@ -129,8 +129,12 @@
 	};
 };
 
+&gt9xx {
+	status = "okay";
+};
+
 &saradc {
-        status = "okay";
+	status = "okay";
 };
 
 &usbdrd_dwc3_0 {

@@ -383,6 +383,22 @@
 	};
 };
 
+&i2c4 {
+	status = "okay";
+
+	gt9xx: gt9xx@14 {
+		compatible = "goodix,gt9xx";
+		reg = <0x14>;
+		touch-gpio = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpio = <&gpio4 22 GPIO_ACTIVE_HIGH>;
+		max-x = <1200>;
+		max-y = <1900>;
+		tp-size = <911>;
+		tp-supply = <&vcc3v0_tp>;
+		status = "disabled";
+	};
+};
+
 &pwm2 {
 	status = "okay";
 };
