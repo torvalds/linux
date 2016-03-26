@@ -339,8 +339,8 @@ static void cfs_crypto_performance_test(enum cfs_crypto_hash_alg hash_alg)
 	__free_page(page);
 out_err:
 	if (err) {
-		cfs_crypto_hash_speeds[hash_alg] =  -1;
-		CDEBUG(D_INFO, "Crypto hash algorithm %s, err = %d\n",
+		cfs_crypto_hash_speeds[hash_alg] = err;
+		CDEBUG(D_INFO, "Crypto hash algorithm %s test error: rc = %d\n",
 		       cfs_crypto_hash_name(hash_alg), err);
 	} else {
 		unsigned long   tmp;
