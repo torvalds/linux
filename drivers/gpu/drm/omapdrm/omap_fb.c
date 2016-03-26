@@ -387,6 +387,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 	struct omap_framebuffer *omap_fb = NULL;
 	struct drm_framebuffer *fb = NULL;
 	enum omap_color_mode dss_format = 0;
+	unsigned int pitch = mode_cmd->pitches[0];
 	int ret, i;
 
 	DBG("create framebuffer: dev=%p, mode_cmd=%p (%dx%d@%4.4s)",
@@ -420,41 +421,36 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 	omap_fb->dss_format = dss_format;
 	mutex_init(&omap_fb->lock);
 
+	/*
+	 * The code below assumes that no format use more than two planes, and
+	 * that the two planes of multiplane formats need the same number of
+	 * bytes per pixel.
+	 */
+	if (format->num_planes == 2 && pitch != mode_cmd->pitches[1]) {
+		dev_err(dev->dev, "pitches differ between planes 0 and 1\n");
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	if (pitch % format->cpp[0]) {
+		dev_err(dev->dev,
+			"buffer pitch (%u bytes) is not a multiple of pixel size (%u bytes)\n",
+			pitch, format->cpp[0]);
+		ret = -EINVAL;
+		goto fail;
+	}
+
 	for (i = 0; i < format->num_planes; i++) {
 		struct plane *plane = &omap_fb->planes[i];
-		unsigned int pitch = mode_cmd->pitches[i];
-		unsigned int hsub = i == 0 ? 1 : format->hsub;
 		unsigned int vsub = i == 0 ? 1 : format->vsub;
 		unsigned int size;
 
-		if (pitch < mode_cmd->width * format->cpp[i] / hsub) {
-			dev_err(dev->dev, "provided buffer pitch is too small! %d < %d\n",
-				pitch, mode_cmd->width * format->cpp[i] / hsub);
-			ret = -EINVAL;
-			goto fail;
-		}
-
-		if (pitch % format->cpp[i] != 0) {
-			dev_err(dev->dev,
-				"buffer pitch (%d bytes) is not a multiple of pixel size (%d bytes)\n",
-				pitch, format->cpp[i]);
-			ret = -EINVAL;
-			goto fail;
-		}
-
 		size = pitch * mode_cmd->height / vsub;
 
-		if (size > (omap_gem_mmap_size(bos[i]) - mode_cmd->offsets[i])) {
-			dev_err(dev->dev, "provided buffer object is too small! %d < %d\n",
-					bos[i]->size - mode_cmd->offsets[i], size);
-			ret = -EINVAL;
-			goto fail;
-		}
-
-		if (i > 0 && pitch != mode_cmd->pitches[i - 1]) {
+		if (size > omap_gem_mmap_size(bos[i]) - mode_cmd->offsets[i]) {
 			dev_err(dev->dev,
-				"pitches are not the same between framebuffer planes %d != %d\n",
-				pitch, mode_cmd->pitches[i - 1]);
+				"provided buffer object is too small! %d < %d\n",
+				bos[i]->size - mode_cmd->offsets[i], size);
 			ret = -EINVAL;
 			goto fail;
 		}
