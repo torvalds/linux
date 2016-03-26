@@ -316,8 +316,8 @@ static void cfs_crypto_performance_test(unsigned char hash_alg,
 	unsigned long		   start, end;
 	int			     bcount, err = 0;
 	int			     sec = 1; /* do test only 1 sec */
-	unsigned char		   hash[64];
-	unsigned int		    hash_len = 64;
+	unsigned char hash[CFS_CRYPTO_HASH_DIGESTSIZE_MAX];
+	unsigned int hash_len = sizeof(hash);
 
 	for (start = jiffies, end = start + sec * HZ, bcount = 0;
 	     time_before(jiffies, end); bcount++) {

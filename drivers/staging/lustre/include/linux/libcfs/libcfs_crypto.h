@@ -46,7 +46,8 @@ enum cfs_crypto_hash_alg {
 	CFS_HASH_ALG_SHA384,
 	CFS_HASH_ALG_SHA512,
 	CFS_HASH_ALG_CRC32C,
-	CFS_HASH_ALG_MAX
+	CFS_HASH_ALG_MAX,
+	CFS_HASH_ALG_UNKNOWN	= 0xff
 };
 
 static struct cfs_crypto_hash_type hash_types[] = {
@@ -59,7 +60,11 @@ static struct cfs_crypto_hash_type hash_types[] = {
 	[CFS_HASH_ALG_SHA256]  = { "sha256",   0,     32 },
 	[CFS_HASH_ALG_SHA384]  = { "sha384",   0,     48 },
 	[CFS_HASH_ALG_SHA512]  = { "sha512",   0,     64 },
+	[CFS_HASH_ALG_MAX]	= { NULL,	0,	64 },
 };
+
+/* Maximum size of hash_types[].cht_size */
+#define CFS_CRYPTO_HASH_DIGESTSIZE_MAX	64
 
 /**
  * Return hash algorithm information for the specified algorithm identifier
@@ -131,7 +136,7 @@ static inline unsigned char cfs_crypto_hash_alg(const char *algname)
 	for (i = 0; i < CFS_HASH_ALG_MAX; i++)
 		if (!strcmp(hash_types[i].cht_name, algname))
 			break;
-	return (i == CFS_HASH_ALG_MAX ? 0xFF : i);
+	return (i == CFS_HASH_ALG_MAX ? CFS_HASH_ALG_UNKNOWN : i);
 }
 
 int cfs_crypto_hash_digest(unsigned char hash_alg,
