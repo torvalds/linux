@@ -1838,7 +1838,7 @@ static int megasas_slave_configure(struct scsi_device *sdev)
 	struct megasas_instance *instance;
 
 	instance = megasas_lookup_instance(sdev->host->host_no);
-	if (instance->allow_fw_scan) {
+	if (instance->pd_list_not_supported) {
 		if (sdev->channel < MEGASAS_MAX_PD_CHANNELS &&
 			sdev->type == TYPE_DISK) {
 			pd_index = (sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) +
@@ -1874,7 +1874,8 @@ static int megasas_slave_alloc(struct scsi_device *sdev)
 		pd_index =
 			(sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) +
 			sdev->id;
-		if ((instance->allow_fw_scan || instance->pd_list[pd_index].driveState ==
+		if ((instance->pd_list_not_supported ||
+			instance->pd_list[pd_index].driveState ==
 			MR_PD_STATE_SYSTEM)) {
 			goto scan_target;
 		}
@@ -4087,7 +4088,13 @@ megasas_get_pd_list(struct megasas_instance *instance)
 
 	switch (ret) {
 	case DCMD_FAILED:
-		megaraid_sas_kill_hba(instance);
+		dev_info(&instance->pdev->dev, "MR_DCMD_PD_LIST_QUERY "
+			"failed/not supported by firmware\n");
+
+		if (instance->ctrl_context)
+			megaraid_sas_kill_hba(instance);
+		else
+			instance->pd_list_not_supported = 1;
 		break;
 	case DCMD_TIMEOUT:
 
@@ -5034,7 +5041,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	case PCI_DEVICE_ID_DELL_PERC5:
 	default:
 		instance->instancet = &megasas_instance_template_xscale;
-		instance->allow_fw_scan = 1;
 		break;
 	}
 
@@ -6650,12 +6656,13 @@ out:
 	}
 
 	for (i = 0; i < ioc->sge_count; i++) {
-		if (kbuff_arr[i])
+		if (kbuff_arr[i]) {
 			dma_free_coherent(&instance->pdev->dev,
 					  le32_to_cpu(kern_sge32[i].length),
 					  kbuff_arr[i],
 					  le32_to_cpu(kern_sge32[i].phys_addr));
 			kbuff_arr[i] = NULL;
+		}
 	}
 
 	megasas_return_cmd(instance, cmd);
