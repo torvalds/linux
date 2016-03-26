@@ -307,15 +307,26 @@ EXPORT_SYMBOL(cfs_crypto_hash_final);
  * \param[in] buf	data buffer on which to compute the hash
  * \param[in] buf_len	length of \buf on which to compute hash
  */
-static void cfs_crypto_performance_test(enum cfs_crypto_hash_alg hash_alg,
-					const unsigned char *buf,
-					unsigned int buf_len)
+static void cfs_crypto_performance_test(enum cfs_crypto_hash_alg hash_alg)
 {
+	int buf_len = max(PAGE_SIZE, 1048576UL);
+	void *buf;
 	unsigned long		   start, end;
 	int			     bcount, err = 0;
 	int			     sec = 1; /* do test only 1 sec */
+	struct page *page;
 	unsigned char hash[CFS_CRYPTO_HASH_DIGESTSIZE_MAX];
 	unsigned int hash_len = sizeof(hash);
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page) {
+		err = -ENOMEM;
+		goto out_err;
+	}
+
+	buf = kmap(page);
+	memset(buf, 0xAD, PAGE_SIZE);
+	kunmap(page);
 
 	for (start = jiffies, end = start + sec * HZ, bcount = 0;
 	     time_before(jiffies, end); bcount++) {
@@ -325,7 +336,8 @@ static void cfs_crypto_performance_test(enum cfs_crypto_hash_alg hash_alg,
 			break;
 	}
 	end = jiffies;
-
+	__free_page(page);
+out_err:
 	if (err) {
 		cfs_crypto_hash_speeds[hash_alg] =  -1;
 		CDEBUG(D_INFO, "Crypto hash algorithm %s, err = %d\n",
@@ -381,25 +393,11 @@ EXPORT_SYMBOL(cfs_crypto_hash_speed);
  */
 static int cfs_crypto_test_hashes(void)
 {
-	unsigned char	   i;
-	unsigned char	   *data;
-	unsigned int	    j;
-	/* Data block size for testing hash. Maximum
-	 * kmalloc size for 2.6.18 kernel is 128K
-	 */
-	unsigned int	    data_len = 1 * 128 * 1024;
+	enum cfs_crypto_hash_alg hash_alg;
 
-	data = kmalloc(data_len, 0);
-	if (!data)
-		return -ENOMEM;
+	for (hash_alg = 0; hash_alg < CFS_HASH_ALG_MAX; hash_alg++)
+		cfs_crypto_performance_test(hash_alg);
 
-	for (j = 0; j < data_len; j++)
-		data[j] = j & 0xff;
-
-	for (i = 0; i < CFS_HASH_ALG_MAX; i++)
-		cfs_crypto_performance_test(i, data, data_len);
-
-	kfree(data);
 	return 0;
 }
 
