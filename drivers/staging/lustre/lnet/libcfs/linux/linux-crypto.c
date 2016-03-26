@@ -348,9 +348,10 @@ out_err:
 		tmp = ((bcount * buf_len / jiffies_to_msecs(end - start)) *
 		       1000) / (1024 * 1024);
 		cfs_crypto_hash_speeds[hash_alg] = (int)tmp;
+		CDEBUG(D_CONFIG, "Crypto hash algorithm %s speed = %d MB/s\n",
+		       cfs_crypto_hash_name(hash_alg),
+		       cfs_crypto_hash_speeds[hash_alg]);
 	}
-	CDEBUG(D_INFO, "Crypto hash algorithm %s speed = %d MB/s\n",
-	       cfs_crypto_hash_name(hash_alg), cfs_crypto_hash_speeds[hash_alg]);
 }
 
 /**
