@@ -243,6 +243,8 @@
 
 &i2c0 {
 	status = "okay";
+	i2c-scl-rising-time-ns = <450>;
+	i2c-scl-falling-time-ns = <15>;
 
 	mp8865: mp8865@68 {
 		compatible = "mps,mp8865";
@@ -446,6 +448,8 @@
 
 &i2c4 {
 	status = "okay";
+	i2c-scl-rising-time-ns = <600>;
+	i2c-scl-falling-time-ns = <20>;
 
 	gt9xx: gt9xx@14 {
 		compatible = "goodix,gt9xx";
@@ -462,6 +466,8 @@
 
 &i2c1 {
 	status = "okay";
+	i2c-scl-rising-time-ns = <300>;
+	i2c-scl-falling-time-ns = <15>;
 
 	es8316: es8316@10 {
 		#sound-dai-cells = <0>;
