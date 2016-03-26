@@ -374,7 +374,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 			return -ENOKEY;
 	}
 
-	dir = dget_parent(filp->f_path.dentry);
+	dir = dget_parent(file_dentry(filp));
 	if (ext4_encrypted_inode(d_inode(dir)) &&
 	    !ext4_is_child_context_consistent_with_parent(d_inode(dir), inode)) {
 		ext4_warning(inode->i_sb,
