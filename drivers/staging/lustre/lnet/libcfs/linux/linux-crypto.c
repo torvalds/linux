@@ -57,7 +57,7 @@ static int cfs_crypto_hash_speeds[CFS_HASH_ALG_MAX];
  * \retval			0 on success
  * \retval			negative errno on failure
  */
-static int cfs_crypto_hash_alloc(unsigned char hash_alg,
+static int cfs_crypto_hash_alloc(enum cfs_crypto_hash_alg hash_alg,
 				 const struct cfs_crypto_hash_type **type,
 				 struct ahash_request **req,
 				 unsigned char *key,
@@ -141,7 +141,7 @@ static int cfs_crypto_hash_alloc(unsigned char hash_alg,
  * \retval			negative errno for other errors from lower
  *				layers.
  */
-int cfs_crypto_hash_digest(unsigned char hash_alg,
+int cfs_crypto_hash_digest(enum cfs_crypto_hash_alg hash_alg,
 			   const void *buf, unsigned int buf_len,
 			   unsigned char *key, unsigned int key_len,
 			   unsigned char *hash, unsigned int *hash_len)
@@ -193,7 +193,7 @@ EXPORT_SYMBOL(cfs_crypto_hash_digest);
  * \retval		ERR_PTR(errno) in case of error
  */
 struct cfs_crypto_hash_desc *
-cfs_crypto_hash_init(unsigned char hash_alg,
+cfs_crypto_hash_init(enum cfs_crypto_hash_alg hash_alg,
 		     unsigned char *key, unsigned int key_len)
 {
 	struct ahash_request *req;
@@ -309,7 +309,7 @@ EXPORT_SYMBOL(cfs_crypto_hash_final);
  * \param[in] buf	data buffer on which to compute the hash
  * \param[in] buf_len	length of \buf on which to compute hash
  */
-static void cfs_crypto_performance_test(unsigned char hash_alg,
+static void cfs_crypto_performance_test(enum cfs_crypto_hash_alg hash_alg,
 					const unsigned char *buf,
 					unsigned int buf_len)
 {
@@ -355,7 +355,7 @@ static void cfs_crypto_performance_test(unsigned char hash_alg,
  * \retval		-ENOENT if \a hash_alg is unsupported
  * \retval		negative errno if \a hash_alg speed is unavailable
  */
-int cfs_crypto_hash_speed(unsigned char hash_alg)
+int cfs_crypto_hash_speed(enum cfs_crypto_hash_alg hash_alg)
 {
 	if (hash_alg < CFS_HASH_ALG_MAX)
 		return cfs_crypto_hash_speeds[hash_alg];

@@ -75,7 +75,7 @@ static struct cfs_crypto_hash_type hash_types[] = {
  * \retval	NULL for unknown algorithm identifier
  */
 static inline const struct cfs_crypto_hash_type *
-cfs_crypto_hash_type(unsigned char hash_alg)
+cfs_crypto_hash_type(enum cfs_crypto_hash_alg hash_alg)
 {
 	struct cfs_crypto_hash_type *ht;
 
@@ -96,7 +96,7 @@ cfs_crypto_hash_type(unsigned char hash_alg)
  * \retval	"unknown" if hash algorithm is unknown
  */
 static inline const char *
-cfs_crypto_hash_name(unsigned char hash_alg)
+cfs_crypto_hash_name(enum cfs_crypto_hash_alg hash_alg)
 {
 	const struct cfs_crypto_hash_type *ht;
 
@@ -114,7 +114,7 @@ cfs_crypto_hash_name(unsigned char hash_alg)
  * \retval	hash algorithm digest size in bytes
  * \retval	0 if hash algorithm type is unknown
  */
-static inline int cfs_crypto_hash_digestsize(unsigned char hash_alg)
+static inline int cfs_crypto_hash_digestsize(enum cfs_crypto_hash_alg hash_alg)
 {
 	const struct cfs_crypto_hash_type *ht;
 
@@ -132,15 +132,16 @@ static inline int cfs_crypto_hash_digestsize(unsigned char hash_alg)
  */
 static inline unsigned char cfs_crypto_hash_alg(const char *algname)
 {
-	unsigned char   i;
+	enum cfs_crypto_hash_alg hash_alg;
 
-	for (i = 0; i < CFS_HASH_ALG_MAX; i++)
-		if (!strcmp(hash_types[i].cht_name, algname))
-			break;
-	return (i == CFS_HASH_ALG_MAX ? CFS_HASH_ALG_UNKNOWN : i);
+	for (hash_alg = 0; hash_alg < CFS_HASH_ALG_MAX; hash_alg++)
+		if (strcmp(hash_types[hash_alg].cht_name, algname) == 0)
+			return hash_alg;
+
+	return CFS_HASH_ALG_UNKNOWN;
 }
 
-int cfs_crypto_hash_digest(unsigned char hash_alg,
+int cfs_crypto_hash_digest(enum cfs_crypto_hash_alg hash_alg,
 			   const void *buf, unsigned int buf_len,
 			   unsigned char *key, unsigned int key_len,
 			   unsigned char *hash, unsigned int *hash_len);
@@ -149,7 +150,7 @@ int cfs_crypto_hash_digest(unsigned char hash_alg,
 struct cfs_crypto_hash_desc;
 
 struct cfs_crypto_hash_desc *
-cfs_crypto_hash_init(unsigned char hash_alg,
+cfs_crypto_hash_init(enum cfs_crypto_hash_alg hash_alg,
 		     unsigned char *key, unsigned int key_len);
 int cfs_crypto_hash_update_page(struct cfs_crypto_hash_desc *desc,
 				struct page *page, unsigned int offset,
@@ -160,5 +161,5 @@ int cfs_crypto_hash_final(struct cfs_crypto_hash_desc *desc,
 			  unsigned char *hash, unsigned int *hash_len);
 int cfs_crypto_register(void);
 void cfs_crypto_unregister(void);
-int cfs_crypto_hash_speed(unsigned char hash_alg);
+int cfs_crypto_hash_speed(enum cfs_crypto_hash_alg hash_alg);
 #endif
