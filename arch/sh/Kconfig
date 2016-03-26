@@ -739,6 +739,26 @@ endmenu
 
 menu "Boot options"
 
+config USE_BUILTIN_DTB
+	bool "Use builtin DTB"
+	default n
+	depends on SH_DEVICE_TREE
+	help
+	  Link a device tree blob for particular hardware into the kernel,
+	  suppressing use of the DTB pointer provided by the bootloader.
+	  This option should only be used with legacy bootloaders that are
+	  not capable of providing a DTB to the kernel, or for experimental
+	  hardware without stable device tree bindings.
+
+config BUILTIN_DTB_SOURCE
+	string "Source file for builtin DTB"
+	default ""
+	depends on USE_BUILTIN_DTB
+	help
+	  Base name (without suffix, relative to arch/sh/boot/dts) for the
+	  a DTS file that will be used to produce the DTB linked into the
+	  kernel.
+
 config ZERO_PAGE_OFFSET
 	hex
 	default "0x00010000" if PAGE_SIZE_64KB || SH_RTS7751R2D || \

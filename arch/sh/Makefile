@@ -130,6 +130,8 @@ head-y	:= arch/sh/kernel/head_$(BITS).o
 core-y				+= arch/sh/kernel/ arch/sh/mm/ arch/sh/boards/
 core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
 
+core-$(CONFIG_USE_BUILTIN_DTB)	+= arch/sh/boot/dts/
+
 # Mach groups
 machdir-$(CONFIG_SOLUTION_ENGINE)		+= mach-se
 machdir-$(CONFIG_SH_HP6XX)			+= mach-hp6xx
