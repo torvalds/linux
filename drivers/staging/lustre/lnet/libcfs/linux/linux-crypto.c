@@ -330,8 +330,23 @@ static void cfs_crypto_performance_test(enum cfs_crypto_hash_alg hash_alg)
 
 	for (start = jiffies, end = start + sec * HZ, bcount = 0;
 	     time_before(jiffies, end); bcount++) {
-		err = cfs_crypto_hash_digest(hash_alg, buf, buf_len, NULL, 0,
-					     hash, &hash_len);
+		struct cfs_crypto_hash_desc *hdesc;
+		int i;
+
+		hdesc = cfs_crypto_hash_init(hash_alg, NULL, 0);
+		if (IS_ERR(hdesc)) {
+			err = PTR_ERR(hdesc);
+			break;
+		}
+
+		for (i = 0; i < buf_len / PAGE_SIZE; i++) {
+			err = cfs_crypto_hash_update_page(hdesc, page, 0,
+							  PAGE_SIZE);
+			if (err)
+				break;
+		}
+
+		err = cfs_crypto_hash_final(hdesc, hash, &hash_len);
 		if (err)
 			break;
 	}
