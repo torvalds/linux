@@ -404,8 +404,8 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 	}
 
 	if (!format || !dss_format) {
-		dev_err(dev->dev, "unsupported pixel format: %4.4s\n",
-				(char *)&mode_cmd->pixel_format);
+		dev_dbg(dev->dev, "unsupported pixel format: %4.4s\n",
+			(char *)&mode_cmd->pixel_format);
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -427,13 +427,13 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 	 * bytes per pixel.
 	 */
 	if (format->num_planes == 2 && pitch != mode_cmd->pitches[1]) {
-		dev_err(dev->dev, "pitches differ between planes 0 and 1\n");
+		dev_dbg(dev->dev, "pitches differ between planes 0 and 1\n");
 		ret = -EINVAL;
 		goto fail;
 	}
 
 	if (pitch % format->cpp[0]) {
-		dev_err(dev->dev,
+		dev_dbg(dev->dev,
 			"buffer pitch (%u bytes) is not a multiple of pixel size (%u bytes)\n",
 			pitch, format->cpp[0]);
 		ret = -EINVAL;
@@ -448,7 +448,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 		size = pitch * mode_cmd->height / vsub;
 
 		if (size > omap_gem_mmap_size(bos[i]) - mode_cmd->offsets[i]) {
-			dev_err(dev->dev,
+			dev_dbg(dev->dev,
 				"provided buffer object is too small! %d < %d\n",
 				bos[i]->size - mode_cmd->offsets[i], size);
 			ret = -EINVAL;
