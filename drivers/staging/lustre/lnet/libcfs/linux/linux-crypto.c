@@ -193,8 +193,8 @@ EXPORT_SYMBOL(cfs_crypto_hash_digest);
  * \retval		ERR_PTR(errno) in case of error
  */
 struct cfs_crypto_hash_desc *
-	cfs_crypto_hash_init(unsigned char hash_alg,
-			     unsigned char *key, unsigned int key_len)
+cfs_crypto_hash_init(unsigned char hash_alg,
+		     unsigned char *key, unsigned int key_len)
 {
 	struct ahash_request *req;
 	int		     err;

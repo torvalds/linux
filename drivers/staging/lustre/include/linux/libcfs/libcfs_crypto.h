@@ -75,7 +75,7 @@ static struct cfs_crypto_hash_type hash_types[] = {
  * \retval	NULL for unknown algorithm identifier
  */
 static inline const struct cfs_crypto_hash_type *
-		    cfs_crypto_hash_type(unsigned char hash_alg)
+cfs_crypto_hash_type(unsigned char hash_alg)
 {
 	struct cfs_crypto_hash_type *ht;
 
@@ -95,7 +95,8 @@ static inline const struct cfs_crypto_hash_type *
  * \retval	string name of known hash algorithm
  * \retval	"unknown" if hash algorithm is unknown
  */
-static inline const char *cfs_crypto_hash_name(unsigned char hash_alg)
+static inline const char *
+cfs_crypto_hash_name(unsigned char hash_alg)
 {
 	const struct cfs_crypto_hash_type *ht;
 
@@ -147,9 +148,9 @@ int cfs_crypto_hash_digest(unsigned char hash_alg,
 /* cfs crypto hash descriptor */
 struct cfs_crypto_hash_desc;
 
-struct cfs_crypto_hash_desc*
-	cfs_crypto_hash_init(unsigned char hash_alg,
-			     unsigned char *key, unsigned int key_len);
+struct cfs_crypto_hash_desc *
+cfs_crypto_hash_init(unsigned char hash_alg,
+		     unsigned char *key, unsigned int key_len);
 int cfs_crypto_hash_update_page(struct cfs_crypto_hash_desc *desc,
 				struct page *page, unsigned int offset,
 				unsigned int len);
