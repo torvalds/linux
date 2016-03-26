@@ -134,7 +134,7 @@ static inline unsigned char cfs_crypto_hash_alg(const char *algname)
 	return (i == CFS_HASH_ALG_MAX ? 0xFF : i);
 }
 
-int cfs_crypto_hash_digest(unsigned char alg,
+int cfs_crypto_hash_digest(unsigned char hash_alg,
 			   const void *buf, unsigned int buf_len,
 			   unsigned char *key, unsigned int key_len,
 			   unsigned char *hash, unsigned int *hash_len);
@@ -143,7 +143,7 @@ int cfs_crypto_hash_digest(unsigned char alg,
 struct cfs_crypto_hash_desc;
 
 struct cfs_crypto_hash_desc*
-	cfs_crypto_hash_init(unsigned char alg,
+	cfs_crypto_hash_init(unsigned char hash_alg,
 			     unsigned char *key, unsigned int key_len);
 int cfs_crypto_hash_update_page(struct cfs_crypto_hash_desc *desc,
 				struct page *page, unsigned int offset,
