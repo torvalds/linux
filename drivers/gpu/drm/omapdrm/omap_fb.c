@@ -36,7 +36,7 @@ struct format {
 	struct {
 		int stride_bpp;           /* this times width is stride */
 		int sub_y;                /* sub-sample in y dimension */
-	} planes[4];
+	} planes[2];
 	bool yuv;
 };
 
@@ -90,7 +90,7 @@ struct omap_framebuffer {
 	struct drm_framebuffer base;
 	int pin_count;
 	const struct format *format;
-	struct plane planes[4];
+	struct plane planes[2];
 	/* lock for pinning (pin_count and planes.paddr) */
 	struct mutex lock;
 };
