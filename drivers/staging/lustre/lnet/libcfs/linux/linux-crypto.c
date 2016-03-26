@@ -265,8 +265,8 @@ EXPORT_SYMBOL(cfs_crypto_hash_update);
  * \param[in,out] hash_len	pointer to hash buffer size, if \a hdesc = NULL
  *				only free \a hdesc instead of computing the hash
  *
- * \retval	-ENOSPC if \a hash = NULL, or \a hash_len < digest size
  * \retval	0 for success
+ * \retval	-EOVERFLOW if hash_len is too small for the hash digest
  * \retval	negative errno for other errors from lower layers
  */
 int cfs_crypto_hash_final(struct cfs_crypto_hash_desc *hdesc,
@@ -276,22 +276,20 @@ int cfs_crypto_hash_final(struct cfs_crypto_hash_desc *hdesc,
 	struct ahash_request *req = (void *)hdesc;
 	int size = crypto_ahash_digestsize(crypto_ahash_reqtfm(req));
 
-	if (!hash_len) {
-		crypto_free_ahash(crypto_ahash_reqtfm(req));
-		ahash_request_free(req);
-		return 0;
+	if (!hash || !hash_len) {
+		err = 0;
+		goto free_ahash;
 	}
-	if (!hash || *hash_len < size) {
-		*hash_len = size;
-		return -ENOSPC;
+	if (*hash_len < size) {
+		err = -EOVERFLOW;
+		goto free_ahash;
 	}
+
 	ahash_request_set_crypt(req, NULL, hash, 0);
 	err = crypto_ahash_final(req);
-
-	if (err < 0) {
-		/* May be caller can fix error */
-		return err;
-	}
+	if (!err)
+		*hash_len = size;
+free_ahash:
 	crypto_free_ahash(crypto_ahash_reqtfm(req));
 	ahash_request_free(req);
 	return err;
