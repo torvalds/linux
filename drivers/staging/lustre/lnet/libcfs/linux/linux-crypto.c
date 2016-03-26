@@ -357,7 +357,7 @@ int cfs_crypto_hash_speed(enum cfs_crypto_hash_alg hash_alg)
 {
 	if (hash_alg < CFS_HASH_ALG_MAX)
 		return cfs_crypto_hash_speeds[hash_alg];
-	return -1;
+	return -ENOENT;
 }
 EXPORT_SYMBOL(cfs_crypto_hash_speed);
 
