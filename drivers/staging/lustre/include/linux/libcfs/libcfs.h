@@ -96,7 +96,6 @@ void cfs_get_random_bytes(void *buf, int size);
 #include "libcfs_workitem.h"
 #include "libcfs_hash.h"
 #include "libcfs_fail.h"
-#include "libcfs_crypto.h"
 
 struct libcfs_ioctl_handler {
 	struct list_head item;
