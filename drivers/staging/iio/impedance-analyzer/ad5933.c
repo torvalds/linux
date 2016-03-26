@@ -93,14 +93,14 @@ struct ad5933_state {
 	unsigned long			mclk_hz;
 	unsigned char			ctrl_hb;
 	unsigned char			ctrl_lb;
-	unsigned			range_avail[4];
+	unsigned int			range_avail[4];
 	unsigned short			vref_mv;
 	unsigned short			settling_cycles;
 	unsigned short			freq_points;
-	unsigned			freq_start;
-	unsigned			freq_inc;
-	unsigned			state;
-	unsigned			poll_time_jiffies;
+	unsigned int			freq_start;
+	unsigned int			freq_inc;
+	unsigned int			state;
+	unsigned int			poll_time_jiffies;
 };
 
 static struct ad5933_platform_data ad5933_default_pdata  = {
@@ -214,7 +214,7 @@ static int ad5933_wait_busy(struct ad5933_state *st, unsigned char event)
 }
 
 static int ad5933_set_freq(struct ad5933_state *st,
-			   unsigned reg, unsigned long freq)
+			   unsigned int reg, unsigned long freq)
 {
 	unsigned long long freqreg;
 	union {
@@ -274,7 +274,7 @@ static int ad5933_setup(struct ad5933_state *st)
 static void ad5933_calc_out_ranges(struct ad5933_state *st)
 {
 	int i;
-	unsigned normalized_3v3[4] = {1980, 198, 383, 970};
+	unsigned int normalized_3v3[4] = {1980, 198, 383, 970};
 
 	for (i = 0; i < 4; i++)
 		st->range_avail[i] = normalized_3v3[i] * st->vref_mv / 3300;
