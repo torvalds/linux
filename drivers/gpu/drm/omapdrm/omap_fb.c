@@ -354,22 +354,29 @@ void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, const struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	unsigned int num_planes = drm_format_num_planes(mode_cmd->pixel_format);
 	struct drm_gem_object *bos[4];
 	struct drm_framebuffer *fb;
-	int ret;
+	int i;
 
-	ret = objects_lookup(file, mode_cmd->pixel_format,
-			bos, mode_cmd->handles);
-	if (ret)
-		return ERR_PTR(ret);
+	for (i = 0; i < num_planes; i++) {
+		bos[i] = drm_gem_object_lookup(file, mode_cmd->handles[i]);
+		if (!bos[i]) {
+			fb = ERR_PTR(-ENOENT);
+			goto error;
+		}
+	}
 
 	fb = omap_framebuffer_init(dev, mode_cmd, bos);
-	if (IS_ERR(fb)) {
-		int i, n = drm_format_num_planes(mode_cmd->pixel_format);
-		for (i = 0; i < n; i++)
-			drm_gem_object_unreference_unlocked(bos[i]);
-		return fb;
-	}
+	if (IS_ERR(fb))
+		goto error;
+
+	return fb;
+
+error:
+	while (--i > 0)
+		drm_gem_object_unreference_unlocked(bos[i]);
+
 	return fb;
 }
 
