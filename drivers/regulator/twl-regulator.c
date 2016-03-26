@@ -21,7 +21,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/i2c/twl.h>
-
+#include <linux/delay.h>
 
 /*
  * The TWL4030/TW5030/TPS659x0/TWL6030 family chips include power management, a
@@ -188,6 +188,74 @@ static int twl6030reg_is_enabled(struct regulator_dev *rdev)
 	return grp && (val == TWL6030_CFG_STATE_ON);
 }
 
+#define PB_I2C_BUSY	BIT(0)
+#define PB_I2C_BWEN	BIT(1)
+
+/* Wait until buffer empty/ready to send a word on power bus. */
+static int twl4030_wait_pb_ready(void)
+{
+
+	int	ret;
+	int	timeout = 10;
+	u8	val;
+
+	do {
+		ret = twl_i2c_read_u8(TWL_MODULE_PM_MASTER, &val,
+				      TWL4030_PM_MASTER_PB_CFG);
+		if (ret < 0)
+			return ret;
+
+		if (!(val & PB_I2C_BUSY))
+			return 0;
+
+		mdelay(1);
+		timeout--;
+	} while (timeout);
+
+	return -ETIMEDOUT;
+}
+
+/* Send a word over the powerbus */
+static int twl4030_send_pb_msg(unsigned msg)
+{
+	u8	val;
+	int	ret;
+
+	/* save powerbus configuration */
+	ret = twl_i2c_read_u8(TWL_MODULE_PM_MASTER, &val,
+			      TWL4030_PM_MASTER_PB_CFG);
+	if (ret < 0)
+		return ret;
+
+	/* Enable i2c access to powerbus */
+	ret = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, val | PB_I2C_BWEN,
+			       TWL4030_PM_MASTER_PB_CFG);
+	if (ret < 0)
+		return ret;
+
+	ret = twl4030_wait_pb_ready();
+	if (ret < 0)
+		return ret;
+
+	ret = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, msg >> 8,
+			       TWL4030_PM_MASTER_PB_WORD_MSB);
+	if (ret < 0)
+		return ret;
+
+	ret = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, msg & 0xff,
+			       TWL4030_PM_MASTER_PB_WORD_LSB);
+	if (ret < 0)
+		return ret;
+
+	ret = twl4030_wait_pb_ready();
+	if (ret < 0)
+		return ret;
+
+	/* Restore powerbus configuration */
+	return twl_i2c_write_u8(TWL_MODULE_PM_MASTER, val,
+				TWL_MODULE_PM_MASTER);
+}
+
 static int twl4030reg_enable(struct regulator_dev *rdev)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
@@ -324,13 +392,7 @@ static int twl4030reg_set_mode(struct regulator_dev *rdev, unsigned mode)
 	if (!(status & (P3_GRP_4030 | P2_GRP_4030 | P1_GRP_4030)))
 		return -EACCES;
 
-	status = twl_i2c_write_u8(TWL_MODULE_PM_MASTER,
-			message >> 8, TWL4030_PM_MASTER_PB_WORD_MSB);
-	if (status < 0)
-		return status;
-
-	return twl_i2c_write_u8(TWL_MODULE_PM_MASTER,
-			message & 0xff, TWL4030_PM_MASTER_PB_WORD_LSB);
+	return twl4030_send_pb_msg(message);
 }
 
 static int twl6030reg_set_mode(struct regulator_dev *rdev, unsigned mode)
