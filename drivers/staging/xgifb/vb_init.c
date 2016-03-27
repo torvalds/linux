@@ -551,7 +551,8 @@ static int XGINew_ReadWriteRest(unsigned short StopAddr,
 		writel(Position, fbaddr + Position);
 	}
 
-	usleep_range(500, 1500); /* Fix #1759 Memory Size error in Multi-Adapter. */
+	/* Fix #1759 Memory Size error in Multi-Adapter. */
+	usleep_range(500, 1500);
 
 	Position = 0;
 
