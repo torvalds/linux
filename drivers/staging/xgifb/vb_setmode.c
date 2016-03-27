@@ -108,9 +108,9 @@ static void XGI_SetATTRegs(unsigned short ModeIdIndex,
 			if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
 				ARdata = 0;
 			} else if ((pVBInfo->VBInfo &
-				     (SetCRT2ToTV | SetCRT2ToLCD)) &&
-				    (pVBInfo->VBInfo & SetInSlaveMode)) {
-					ARdata = 0;
+				   (SetCRT2ToTV | SetCRT2ToLCD)) &&
+				   (pVBInfo->VBInfo & SetInSlaveMode)) {
+				ARdata = 0;
 			}
 		}
 
@@ -2983,7 +2983,7 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 		if ((pVBInfo->VBInfo & SetCRT2ToHiVision) &&
 		    !(pVBInfo->VBType & VB_SIS301LV) && (resinfo == 7))
-				temp -= 2;
+			temp -= 2;
 	}
 
 	/* 0x05 Horizontal Display Start */
