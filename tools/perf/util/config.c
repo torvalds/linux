@@ -377,6 +377,21 @@ const char *perf_config_dirname(const char *name, const char *value)
 	return value;
 }
 
+static int perf_buildid_config(const char *var, const char *value)
+{
+	/* same dir for all commands */
+	if (!strcmp(var, "buildid.dir")) {
+		const char *dirname = perf_config_dirname(var, value);
+
+		if (!dirname)
+			return -1;
+		strncpy(buildid_dir, dirname, MAXPATHLEN-1);
+		buildid_dir[MAXPATHLEN-1] = '\0';
+	}
+
+	return 0;
+}
+
 static int perf_default_core_config(const char *var __maybe_unused,
 				    const char *value __maybe_unused)
 {
@@ -411,6 +426,9 @@ int perf_default_config(const char *var, const char *value,
 
 	if (!prefixcmp(var, "llvm."))
 		return perf_llvm_config(var, value);
+
+	if (!prefixcmp(var, "buildid."))
+		return perf_buildid_config(var, value);
 
 	/* Add other config variables here. */
 	return 0;
@@ -515,42 +533,10 @@ int config_error_nonbool(const char *var)
 	return error("Missing value for '%s'", var);
 }
 
-struct buildid_dir_config {
-	char *dir;
-};
-
-static int buildid_dir_command_config(const char *var, const char *value,
-				      void *data)
-{
-	struct buildid_dir_config *c = data;
-	const char *v;
-
-	/* same dir for all commands */
-	if (!strcmp(var, "buildid.dir")) {
-		v = perf_config_dirname(var, value);
-		if (!v)
-			return -1;
-		strncpy(c->dir, v, MAXPATHLEN-1);
-		c->dir[MAXPATHLEN-1] = '\0';
-	}
-	return 0;
-}
-
-static void check_buildid_dir_config(void)
-{
-	struct buildid_dir_config c;
-	c.dir = buildid_dir;
-	perf_config(buildid_dir_command_config, &c);
-}
-
 void set_buildid_dir(const char *dir)
 {
 	if (dir)
 		scnprintf(buildid_dir, MAXPATHLEN-1, "%s", dir);
-
-	/* try config file */
-	if (buildid_dir[0] == '\0')
-		check_buildid_dir_config();
 
 	/* default to $HOME/.debug */
 	if (buildid_dir[0] == '\0') {
