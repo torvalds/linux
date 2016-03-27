@@ -1,0 +1,35 @@
+Marvell Armada AP806 System Controller
+======================================
+
+The AP806 is one of the two core HW blocks of the Marvell Armada 7K/8K
+SoCs. It contains a system controller, which provides a number
+registers giving access to numerous features: clocks, pin-muxing and
+many other SoC configuration items. This DT binding allows to describe
+this system controller.
+
+The Device Tree node representing the AP806 system controller provides
+a number of clocks:
+
+ - 0: clock of CPU cluster 0
+ - 1: clock of CPU cluster 1
+ - 2: fixed PLL at 1200 Mhz
+ - 3: MSS clock, derived from the fixed PLL
+
+Required properties:
+
+ - compatible: must be:
+     "marvell,ap806-system-controller", "syscon"
+ - reg: register area of the AP806 system controller
+ - #clock-cells: must be set to 1
+ - clock-output-names: must be defined to:
+    "ap-cpu-cluster-0", "ap-cpu-cluster-1", "ap-fixed", "ap-mss"
+
+Example:
+
+	syscon: system-controller@6f4000 {
+		compatible = "marvell,ap806-system-controller", "syscon";
+		#clock-cells = <1>;
+		clock-output-names = "ap-cpu-cluster-0", "ap-cpu-cluster-1",
+				     "ap-fixed", "ap-mss";
+		reg = <0x6f4000 0x1000>;
+	};
