@@ -128,7 +128,7 @@ int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
 	struct libcfs_ioctl_hdr hdr;
 	int err = 0;
 
-	if (copy_from_user(&hdr, uhdr, sizeof(uhdr)))
+	if (copy_from_user(&hdr, uhdr, sizeof(hdr)))
 		return -EFAULT;
 
 	if (hdr.ioc_version != LIBCFS_IOCTL_VERSION &&
