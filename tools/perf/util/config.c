@@ -540,10 +540,11 @@ void set_buildid_dir(const char *dir)
 
 	/* default to $HOME/.debug */
 	if (buildid_dir[0] == '\0') {
-		char *v = getenv("HOME");
-		if (v) {
+		char *home = getenv("HOME");
+
+		if (home) {
 			snprintf(buildid_dir, MAXPATHLEN-1, "%s/%s",
-				 v, DEBUG_CACHE_DIR);
+				 home, DEBUG_CACHE_DIR);
 		} else {
 			strncpy(buildid_dir, DEBUG_CACHE_DIR, MAXPATHLEN-1);
 		}
