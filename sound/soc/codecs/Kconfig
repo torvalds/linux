@@ -909,7 +909,7 @@ config SND_SOC_WM8955
 	tristate
 
 config SND_SOC_WM8960
-	tristate
+	tristate "Wolfson Microelectronics WM8960 CODEC"
 
 config SND_SOC_WM8961
 	tristate
