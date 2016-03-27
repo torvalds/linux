@@ -1500,8 +1500,8 @@ static int iwl_pcie_init_msix_handler(struct pci_dev *pdev,
 			IWL_ERR(trans_pcie->trans,
 				"Error allocating IRQ %d\n", i);
 			for (j = 0; j < i; j++)
-				free_irq(trans_pcie->msix_entries[i].vector,
-					 &trans_pcie->msix_entries[i]);
+				free_irq(trans_pcie->msix_entries[j].vector,
+					 &trans_pcie->msix_entries[j]);
 			pci_disable_msix(pdev);
 			return ret;
 		}
