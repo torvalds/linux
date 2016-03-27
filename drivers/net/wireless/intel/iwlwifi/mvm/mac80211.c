@@ -720,6 +720,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (ret)
 		iwl_mvm_leds_exit(mvm);
 
+	if (mvm->cfg->vht_mu_mimo_supported)
+		wiphy_ext_feature_set(hw->wiphy,
+				      NL80211_EXT_FEATURE_MU_MIMO_AIR_SNIFFER);
+
 	return ret;
 }
 
@@ -2228,6 +2232,10 @@ static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_ADHOC:
 		iwl_mvm_bss_info_changed_ap_ibss(mvm, vif, bss_conf, changes);
+		break;
+	case NL80211_IFTYPE_MONITOR:
+		if (changes & BSS_CHANGED_MU_GROUPS)
+			iwl_mvm_update_mu_groups(mvm, vif);
 		break;
 	default:
 		/* shouldn't happen */
