@@ -24,7 +24,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/list.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
@@ -805,7 +805,4 @@ static int __init init_spu_base(void)
  out:
 	return ret;
 }
-module_init(init_spu_base);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Arnd Bergmann <arndb@de.ibm.com>");
+device_initcall(init_spu_base);
