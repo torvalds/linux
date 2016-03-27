@@ -36,7 +36,6 @@
 struct snd_oxfw {
 	struct snd_card *card;
 	struct fw_unit *unit;
-	const struct device_info *device_info;
 	struct mutex mutex;
 	spinlock_t lock;
 
