@@ -134,6 +134,7 @@ config SND_FIREWIRE_TASCAM
 	 Say Y here to include support for TASCAM.
 	  * FW-1884
 	  * FW-1082
+	  * FW-1804
 
 	 To compile this driver as a module, choose M here: the module
 	 will be called snd-firewire-tascam.
