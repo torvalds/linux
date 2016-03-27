@@ -1130,8 +1130,9 @@ static int XGIfb_get_cmap_len(const struct fb_var_screeninfo *var)
 	return (var->bits_per_pixel == 8) ? 256 : 16;
 }
 
-static int XGIfb_setcolreg(unsigned regno, unsigned red, unsigned green,
-		unsigned blue, unsigned transp, struct fb_info *info)
+static int XGIfb_setcolreg(unsigned int regno, unsigned int red,
+			   unsigned int green, unsigned int blue,
+			   unsigned int transp, struct fb_info *info)
 {
 	struct xgifb_video_info *xgifb_info = info->par;
 
