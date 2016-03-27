@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -211,7 +210,6 @@ static const struct of_device_id xgene_gpio_of_match[] = {
 	{ .compatible = "apm,xgene-gpio", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, xgene_gpio_of_match);
 
 static struct platform_driver xgene_gpio_driver = {
 	.driver = {
@@ -221,9 +219,4 @@ static struct platform_driver xgene_gpio_driver = {
 	},
 	.probe = xgene_gpio_probe,
 };
-
-module_platform_driver(xgene_gpio_driver);
-
-MODULE_AUTHOR("Feng Kan <fkan@apm.com>");
-MODULE_DESCRIPTION("APM X-Gene GPIO driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(xgene_gpio_driver);
