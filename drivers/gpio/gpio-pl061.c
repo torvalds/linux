@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2008, 2009 Provigent Ltd.
  *
+ * Author: Baruch Siach <baruch@tkos.co.il>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -11,7 +13,7 @@
  */
 #include <linux/spinlock.h>
 #include <linux/errno.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
@@ -429,8 +431,6 @@ static struct amba_id pl061_ids[] = {
 	{ 0, 0 },
 };
 
-MODULE_DEVICE_TABLE(amba, pl061_ids);
-
 static struct amba_driver pl061_gpio_driver = {
 	.drv = {
 		.name	= "pl061_gpio",
@@ -446,8 +446,4 @@ static int __init pl061_gpio_init(void)
 {
 	return amba_driver_register(&pl061_gpio_driver);
 }
-module_init(pl061_gpio_init);
-
-MODULE_AUTHOR("Baruch Siach <baruch@tkos.co.il>");
-MODULE_DESCRIPTION("PL061 GPIO driver");
-MODULE_LICENSE("GPL");
+device_initcall(pl061_gpio_init);
