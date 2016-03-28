@@ -159,11 +159,6 @@ struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 		ae_handle->qs[i]->tx_ring.q = ae_handle->qs[i];
 
 		ring_pair_cb->used_by_vf = 1;
-		if (port_idx < DSAF_SERVICE_PORT_NUM_PER_DSAF)
-			ring_pair_cb->port_id_in_dsa = port_idx;
-		else
-			ring_pair_cb->port_id_in_dsa = 0;
-
 		ring_pair_cb++;
 	}
 
@@ -453,59 +448,46 @@ static int hns_ae_set_pauseparam(struct hnae_handle *handle,
 static void hns_ae_get_coalesce_usecs(struct hnae_handle *handle,
 				      u32 *tx_usecs, u32 *rx_usecs)
 {
-	int port;
+	struct ring_pair_cb *ring_pair =
+		container_of(handle->qs[0], struct ring_pair_cb, q);
 
-	port = hns_ae_map_eport_to_dport(handle->eport_id);
-
-	*tx_usecs = hns_rcb_get_coalesce_usecs(
-		hns_ae_get_dsaf_dev(handle->dev),
-		hns_dsaf_get_comm_idx_by_port(port));
-	*rx_usecs = hns_rcb_get_coalesce_usecs(
-		hns_ae_get_dsaf_dev(handle->dev),
-		hns_dsaf_get_comm_idx_by_port(port));
+	*tx_usecs = hns_rcb_get_coalesce_usecs(ring_pair->rcb_common,
+					       ring_pair->port_id_in_comm);
+	*rx_usecs = hns_rcb_get_coalesce_usecs(ring_pair->rcb_common,
+					       ring_pair->port_id_in_comm);
 }
 
 static void hns_ae_get_rx_max_coalesced_frames(struct hnae_handle *handle,
 					       u32 *tx_frames, u32 *rx_frames)
 {
-	int port;
+	struct ring_pair_cb *ring_pair =
+		container_of(handle->qs[0], struct ring_pair_cb, q);
 
-	assert(handle);
-
-	port = hns_ae_map_eport_to_dport(handle->eport_id);
-
-	*tx_frames = hns_rcb_get_coalesced_frames(
-		hns_ae_get_dsaf_dev(handle->dev), port);
-	*rx_frames = hns_rcb_get_coalesced_frames(
-		hns_ae_get_dsaf_dev(handle->dev), port);
+	*tx_frames = hns_rcb_get_coalesced_frames(ring_pair->rcb_common,
+						  ring_pair->port_id_in_comm);
+	*rx_frames = hns_rcb_get_coalesced_frames(ring_pair->rcb_common,
+						  ring_pair->port_id_in_comm);
 }
 
 static void hns_ae_set_coalesce_usecs(struct hnae_handle *handle,
 				      u32 timeout)
 {
-	int port;
+	struct ring_pair_cb *ring_pair =
+		container_of(handle->qs[0], struct ring_pair_cb, q);
 
-	assert(handle);
-
-	port = hns_ae_map_eport_to_dport(handle->eport_id);
-
-	hns_rcb_set_coalesce_usecs(hns_ae_get_dsaf_dev(handle->dev),
-				   port, timeout);
+	(void)hns_rcb_set_coalesce_usecs(
+		ring_pair->rcb_common, ring_pair->port_id_in_comm, timeout);
 }
 
 static int  hns_ae_set_coalesce_frames(struct hnae_handle *handle,
 				       u32 coalesce_frames)
 {
-	int port;
-	int ret;
+	struct ring_pair_cb *ring_pair =
+		container_of(handle->qs[0], struct ring_pair_cb, q);
 
-	assert(handle);
-
-	port = hns_ae_map_eport_to_dport(handle->eport_id);
-
-	ret = hns_rcb_set_coalesced_frames(hns_ae_get_dsaf_dev(handle->dev),
-					   port, coalesce_frames);
-	return ret;
+	return hns_rcb_set_coalesced_frames(
+		ring_pair->rcb_common,
+		ring_pair->port_id_in_comm, coalesce_frames);
 }
 
 void hns_ae_update_stats(struct hnae_handle *handle,
