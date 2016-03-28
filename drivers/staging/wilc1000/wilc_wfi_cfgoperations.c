@@ -451,7 +451,7 @@ static void CfgScanResult(enum scan_event scan_event,
 		} else if (scan_event == SCAN_EVENT_DONE) {
 			refresh_scan(priv, 1, false);
 
-			down(&(priv->hSemScanReq));
+			mutex_lock(&priv->scan_req_lock);
 
 			if (priv->pstrScanReq) {
 				cfg80211_scan_done(priv->pstrScanReq, false);
@@ -459,9 +459,9 @@ static void CfgScanResult(enum scan_event scan_event,
 				priv->bCfgScanning = false;
 				priv->pstrScanReq = NULL;
 			}
-			up(&(priv->hSemScanReq));
+			mutex_unlock(&priv->scan_req_lock);
 		} else if (scan_event == SCAN_EVENT_ABORTED) {
-			down(&(priv->hSemScanReq));
+			mutex_lock(&priv->scan_req_lock);
 
 			if (priv->pstrScanReq) {
 				update_scan_time();
@@ -471,7 +471,7 @@ static void CfgScanResult(enum scan_event scan_event,
 				priv->bCfgScanning = false;
 				priv->pstrScanReq = NULL;
 			}
-			up(&(priv->hSemScanReq));
+			mutex_unlock(&priv->scan_req_lock);
 		}
 	}
 }
@@ -2307,7 +2307,7 @@ int wilc_init_host_int(struct net_device *net)
 
 	priv->bInP2PlistenState = false;
 
-	sema_init(&(priv->hSemScanReq), 1);
+	mutex_init(&priv->scan_req_lock);
 	s32Error = wilc_init(net, &priv->hif_drv);
 	if (s32Error)
 		netdev_err(net, "Error while initializing hostinterface\n");
