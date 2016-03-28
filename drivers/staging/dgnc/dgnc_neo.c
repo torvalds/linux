@@ -77,9 +77,6 @@ struct board_ops dgnc_neo_ops = {
 	.send_immediate_char =		neo_send_immediate_char
 };
 
-static uint dgnc_offset_table[8] = { 0x01, 0x02, 0x04, 0x08,
-				     0x10, 0x20, 0x40, 0x80 };
-
 /*
  * This function allows calls to ensure that all outstanding
  * PCI writes have been completed, by doing a PCI read against
@@ -923,9 +920,7 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 	struct dgnc_board *brd = voidbrd;
 	struct channel_t *ch;
 	int port = 0;
-	int type = 0;
-	int current_port;
-	u32 tmp;
+	int type;
 	u32 uart_poll;
 	unsigned long flags;
 	unsigned long flags2;
@@ -960,29 +955,12 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 
 	/* At this point, we have at least SOMETHING to service, dig further... */
 
-	current_port = 0;
-
 	/* Loop on each port */
 	while ((uart_poll & 0xff) != 0) {
-		tmp = uart_poll;
+		type = uart_poll >> (8 + (port * 3));
+		type &= 0x7;
 
-		/* Check current port to see if it has interrupt pending */
-		if ((tmp & dgnc_offset_table[current_port]) != 0) {
-			port = current_port;
-			type = tmp >> (8 + (port * 3));
-			type &= 0x7;
-		} else {
-			current_port++;
-			continue;
-		}
-
-		/* Remove this port + type from uart_poll */
-		uart_poll &= ~(dgnc_offset_table[port]);
-
-		if (!type) {
-			/* If no type, just ignore it, and move onto next port */
-			continue;
-		}
+		uart_poll &= ~(0x01 << port);
 
 		/* Switch on type of interrupt we have */
 		switch (type) {
@@ -994,7 +972,7 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 
 			/* Verify the port is in range. */
 			if (port >= brd->nasync)
-				continue;
+				break;
 
 			ch = brd->channels[port];
 			neo_copy_data_from_uart_to_queue(ch);
@@ -1004,14 +982,14 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 			dgnc_check_queue_flow_control(ch);
 			spin_unlock_irqrestore(&ch->ch_lock, flags2);
 
-			continue;
+			break;
 
 		case UART_17158_RX_LINE_STATUS:
 			/*
 			 * RXRDY and RX LINE Status (logic OR of LSR[4:1])
 			 */
 			neo_parse_lsr(brd, port);
-			continue;
+			break;
 
 		case UART_17158_TXRDY:
 			/*
@@ -1027,14 +1005,14 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 			 * it should be, I was getting things like RXDY too. Weird.
 			 */
 			neo_parse_isr(brd, port);
-			continue;
+			break;
 
 		case UART_17158_MSR:
 			/*
 			 * MSR or flow control was seen.
 			 */
 			neo_parse_isr(brd, port);
-			continue;
+			break;
 
 		default:
 			/*
@@ -1043,8 +1021,10 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 			 * these once and awhile.
 			 * Its harmless, just ignore it and move on.
 			 */
-			continue;
+			break;
 		}
+
+		port++;
 	}
 
 	/*
