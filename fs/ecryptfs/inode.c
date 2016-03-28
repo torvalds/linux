@@ -388,55 +388,40 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 				      unsigned int flags)
 {
 	char *encrypted_and_encoded_name = NULL;
-	size_t encrypted_and_encoded_name_size;
-	struct ecryptfs_mount_crypt_stat *mount_crypt_stat = NULL;
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
 	struct dentry *lower_dir_dentry, *lower_dentry;
+	const char *name = ecryptfs_dentry->d_name.name;
+	size_t len = ecryptfs_dentry->d_name.len;
 	struct dentry *res;
 	int rc = 0;
 
 	lower_dir_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry->d_parent);
-	lower_dentry = lookup_one_len_unlocked(ecryptfs_dentry->d_name.name,
-				      lower_dir_dentry,
-				      ecryptfs_dentry->d_name.len);
-	if (IS_ERR(lower_dentry)) {
-		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
-				"[%ld] on lower_dentry = [%pd]\n", __func__,
-				PTR_ERR(lower_dentry), ecryptfs_dentry);
-		res = ERR_CAST(lower_dentry);
-		goto out;
-	}
-	if (d_really_is_positive(lower_dentry))
-		goto interpose;
+
 	mount_crypt_stat = &ecryptfs_superblock_to_private(
 				ecryptfs_dentry->d_sb)->mount_crypt_stat;
-	if (!(mount_crypt_stat
-	    && (mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)))
-		goto interpose;
-	dput(lower_dentry);
-	rc = ecryptfs_encrypt_and_encode_filename(
-		&encrypted_and_encoded_name, &encrypted_and_encoded_name_size,
-		mount_crypt_stat, ecryptfs_dentry->d_name.name,
-		ecryptfs_dentry->d_name.len);
-	if (rc) {
-		printk(KERN_ERR "%s: Error attempting to encrypt and encode "
-		       "filename; rc = [%d]\n", __func__, rc);
-		res = ERR_PTR(rc);
-		goto out;
+	if (mount_crypt_stat
+	    && (mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)) {
+		rc = ecryptfs_encrypt_and_encode_filename(
+			&encrypted_and_encoded_name, &len,
+			mount_crypt_stat, name, len);
+		if (rc) {
+			printk(KERN_ERR "%s: Error attempting to encrypt and encode "
+			       "filename; rc = [%d]\n", __func__, rc);
+			return ERR_PTR(rc);
+		}
+		name = encrypted_and_encoded_name;
 	}
-	lower_dentry = lookup_one_len_unlocked(encrypted_and_encoded_name,
-				      lower_dir_dentry,
-				      encrypted_and_encoded_name_size);
+
+	lower_dentry = lookup_one_len_unlocked(name, lower_dir_dentry, len);
 	if (IS_ERR(lower_dentry)) {
 		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
 				"[%ld] on lower_dentry = [%s]\n", __func__,
 				PTR_ERR(lower_dentry),
-				encrypted_and_encoded_name);
+				name);
 		res = ERR_CAST(lower_dentry);
-		goto out;
+	} else {
+		res = ecryptfs_lookup_interpose(ecryptfs_dentry, lower_dentry);
 	}
-interpose:
-	res = ecryptfs_lookup_interpose(ecryptfs_dentry, lower_dentry);
-out:
 	kfree(encrypted_and_encoded_name);
 	return res;
 }
