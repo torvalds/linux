@@ -1,7 +1,7 @@
 /*
  * Broadcom SATA3 AHCI Controller PHY Driver
  *
- * Copyright © 2009-2015 Broadcom Corporation
+ * Copyright (C) 2016 Broadcom
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -238,13 +238,13 @@ static struct platform_driver brcm_sata_phy_driver = {
 	.probe	= brcm_sata_phy_probe,
 	.driver	= {
 		.of_match_table	= brcm_sata_phy_of_match,
-		.name		= "brcmstb-sata-phy",
+		.name		= "brcm-sata-phy",
 	}
 };
 module_platform_driver(brcm_sata_phy_driver);
 
-MODULE_DESCRIPTION("Broadcom STB SATA PHY driver");
+MODULE_DESCRIPTION("Broadcom SATA PHY driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marc Carino");
 MODULE_AUTHOR("Brian Norris");
-MODULE_ALIAS("platform:phy-brcmstb-sata");
+MODULE_ALIAS("platform:phy-brcm-sata");
