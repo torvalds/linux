@@ -794,8 +794,10 @@ static int hns_set_coalesce(struct net_device *net_dev,
 	    (!ops->set_coalesce_frames))
 		return -ESRCH;
 
-	ops->set_coalesce_usecs(priv->ae_handle,
-					ec->rx_coalesce_usecs);
+	ret = ops->set_coalesce_usecs(priv->ae_handle,
+				      ec->rx_coalesce_usecs);
+	if (ret)
+		return ret;
 
 	ret = ops->set_coalesce_frames(
 		priv->ae_handle,

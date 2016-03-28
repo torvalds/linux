@@ -469,7 +469,7 @@ struct hnae_ae_ops {
 				   u32 *tx_usecs, u32 *rx_usecs);
 	void (*get_rx_max_coalesced_frames)(struct hnae_handle *handle,
 					    u32 *tx_frames, u32 *rx_frames);
-	void (*set_coalesce_usecs)(struct hnae_handle *handle, u32 timeout);
+	int (*set_coalesce_usecs)(struct hnae_handle *handle, u32 timeout);
 	int (*set_coalesce_frames)(struct hnae_handle *handle,
 				   u32 coalesce_frames);
 	void (*set_promisc_mode)(struct hnae_handle *handle, u32 en);

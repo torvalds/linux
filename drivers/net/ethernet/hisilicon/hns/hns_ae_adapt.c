@@ -469,13 +469,13 @@ static void hns_ae_get_rx_max_coalesced_frames(struct hnae_handle *handle,
 						  ring_pair->port_id_in_comm);
 }
 
-static void hns_ae_set_coalesce_usecs(struct hnae_handle *handle,
-				      u32 timeout)
+static int hns_ae_set_coalesce_usecs(struct hnae_handle *handle,
+				     u32 timeout)
 {
 	struct ring_pair_cb *ring_pair =
 		container_of(handle->qs[0], struct ring_pair_cb, q);
 
-	(void)hns_rcb_set_coalesce_usecs(
+	return hns_rcb_set_coalesce_usecs(
 		ring_pair->rcb_common, ring_pair->port_id_in_comm, timeout);
 }
 
