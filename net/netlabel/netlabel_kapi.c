@@ -677,7 +677,7 @@ int netlbl_catmap_setrng(struct netlbl_lsm_catmap **catmap,
 	u32 spot = start;
 
 	while (rc == 0 && spot <= end) {
-		if (((spot & (BITS_PER_LONG - 1)) != 0) &&
+		if (((spot & (BITS_PER_LONG - 1)) == 0) &&
 		    ((end - spot) > BITS_PER_LONG)) {
 			rc = netlbl_catmap_setlong(catmap,
 						   spot,
