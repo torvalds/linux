@@ -256,8 +256,8 @@ struct cfs_percpt_lock {
  * create a cpu-partition lock based on CPU partition table \a cptab,
  * each private lock has extra \a psize bytes padding data
  */
-struct cfs_percpt_lock *cfs_percpt_lock_alloc(struct cfs_cpt_table *cptab);
-
+struct cfs_percpt_lock *cfs_percpt_lock_create(struct cfs_cpt_table *cptab,
+					       struct lock_class_key *keys);
 /* destroy a cpu-partition lock */
 void cfs_percpt_lock_free(struct cfs_percpt_lock *pcl);
 
@@ -266,6 +266,21 @@ void cfs_percpt_lock(struct cfs_percpt_lock *pcl, int index);
 
 /* unlock private lock \a index of \a pcl */
 void cfs_percpt_unlock(struct cfs_percpt_lock *pcl, int index);
+
+#define CFS_PERCPT_LOCK_KEYS	256
+
+/* NB: don't allocate keys dynamically, lockdep needs them to be in ".data" */
+#define cfs_percpt_lock_alloc(cptab)					\
+({									\
+	static struct lock_class_key ___keys[CFS_PERCPT_LOCK_KEYS];	\
+	struct cfs_percpt_lock *___lk;					\
+									\
+	if (cfs_cpt_number(cptab) > CFS_PERCPT_LOCK_KEYS)		\
+		___lk = cfs_percpt_lock_create(cptab, NULL);		\
+	else								\
+		___lk = cfs_percpt_lock_create(cptab, ___keys);		\
+	___lk;								\
+})
 
 /**
  * iterate over all CPU partitions in \a cptab
