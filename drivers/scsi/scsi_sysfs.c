@@ -81,6 +81,7 @@ const char *scsi_host_state_name(enum scsi_host_state state)
 	return name;
 }
 
+#ifdef CONFIG_SCSI_DH
 static const struct {
 	unsigned char	value;
 	char		*name;
@@ -94,7 +95,7 @@ static const struct {
 	{ SCSI_ACCESS_STATE_TRANSITIONING, "transitioning" },
 };
 
-const char *scsi_access_state_name(unsigned char state)
+static const char *scsi_access_state_name(unsigned char state)
 {
 	int i;
 	char *name = NULL;
@@ -107,6 +108,7 @@ const char *scsi_access_state_name(unsigned char state)
 	}
 	return name;
 }
+#endif
 
 static int check_set(unsigned long long *val, char *src)
 {
@@ -226,7 +228,7 @@ show_shost_state(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 /* DEVICE_ATTR(state) clashes with dev_attr_state for sdev */
-struct device_attribute dev_attr_hstate =
+static struct device_attribute dev_attr_hstate =
 	__ATTR(state, S_IRUGO | S_IWUSR, show_shost_state, store_shost_state);
 
 static ssize_t
@@ -401,7 +403,7 @@ static struct attribute *scsi_sysfs_shost_attrs[] = {
 	NULL
 };
 
-struct attribute_group scsi_shost_attr_group = {
+static struct attribute_group scsi_shost_attr_group = {
 	.attrs =	scsi_sysfs_shost_attrs,
 };
 
