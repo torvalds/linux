@@ -968,7 +968,8 @@ static int parse_nat(const struct nlattr *attr,
 			break;
 
 		case OVS_NAT_ATTR_IP_MIN:
-			nla_memcpy(&info->range.min_addr, a, nla_len(a));
+			nla_memcpy(&info->range.min_addr, a,
+				   sizeof(info->range.min_addr));
 			info->range.flags |= NF_NAT_RANGE_MAP_IPS;
 			break;
 
