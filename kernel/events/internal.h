@@ -17,6 +17,7 @@ struct ring_buffer {
 #endif
 	int				nr_pages;	/* nr of data pages  */
 	int				overwrite;	/* can overwrite itself */
+	int				paused;		/* can write into ring buffer */
 
 	atomic_t			poll;		/* POLL_ for wakeups */
 
@@ -62,6 +63,14 @@ static inline void rb_free_rcu(struct rcu_head *rcu_head)
 
 	rb = container_of(rcu_head, struct ring_buffer, rcu_head);
 	rb_free(rb);
+}
+
+static inline void rb_toggle_paused(struct ring_buffer *rb, bool pause)
+{
+	if (!pause && rb->nr_pages)
+		rb->paused = 0;
+	else
+		rb->paused = 1;
 }
 
 extern struct ring_buffer *
