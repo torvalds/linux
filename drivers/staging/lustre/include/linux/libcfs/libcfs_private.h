@@ -193,8 +193,6 @@ void *cfs_percpt_alloc(struct cfs_cpt_table *cptab, unsigned int size);
  */
 void  cfs_percpt_free(void *vars);
 int   cfs_percpt_number(void *vars);
-void *cfs_percpt_current(void *vars);
-void *cfs_percpt_index(void *vars, int idx);
 
 #define cfs_percpt_for_each(var, i, vars)		\
 	for (i = 0; i < cfs_percpt_number(vars) &&	\
