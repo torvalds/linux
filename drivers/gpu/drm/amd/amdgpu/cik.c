@@ -2214,11 +2214,6 @@ static int cik_common_wait_for_idle(void *handle)
 	return 0;
 }
 
-static void cik_common_print_status(void *handle)
-{
-
-}
-
 static int cik_common_soft_reset(void *handle)
 {
 	/* XXX hard reset?? */
@@ -2249,7 +2244,6 @@ const struct amd_ip_funcs cik_common_ip_funcs = {
 	.is_idle = cik_common_is_idle,
 	.wait_for_idle = cik_common_wait_for_idle,
 	.soft_reset = cik_common_soft_reset,
-	.print_status = cik_common_print_status,
 	.set_clockgating_state = cik_common_set_clockgating_state,
 	.set_powergating_state = cik_common_set_powergating_state,
 };

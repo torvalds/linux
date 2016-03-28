@@ -1314,57 +1314,6 @@ static int sdma_v3_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static void sdma_v3_0_print_status(void *handle)
-{
-	int i, j;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	dev_info(adev->dev, "VI SDMA registers\n");
-	dev_info(adev->dev, "  SRBM_STATUS2=0x%08X\n",
-		 RREG32(mmSRBM_STATUS2));
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		dev_info(adev->dev, "  SDMA%d_STATUS_REG=0x%08X\n",
-			 i, RREG32(mmSDMA0_STATUS_REG + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_F32_CNTL=0x%08X\n",
-			 i, RREG32(mmSDMA0_F32_CNTL + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_CNTL=0x%08X\n",
-			 i, RREG32(mmSDMA0_CNTL + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_SEM_WAIT_FAIL_TIMER_CNTL=0x%08X\n",
-			 i, RREG32(mmSDMA0_SEM_WAIT_FAIL_TIMER_CNTL + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_IB_CNTL=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_IB_CNTL + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_RB_CNTL=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_RB_CNTL + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_RB_RPTR=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_RB_RPTR + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_RB_WPTR=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_RB_RPTR_ADDR_HI=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_RB_RPTR_ADDR_HI + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_RB_RPTR_ADDR_LO=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_RB_RPTR_ADDR_LO + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_RB_BASE=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_RB_BASE + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_RB_BASE_HI=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_RB_BASE_HI + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_GFX_DOORBELL=0x%08X\n",
-			 i, RREG32(mmSDMA0_GFX_DOORBELL + sdma_offsets[i]));
-		dev_info(adev->dev, "  SDMA%d_TILING_CONFIG=0x%08X\n",
-			 i, RREG32(mmSDMA0_TILING_CONFIG + sdma_offsets[i]));
-		mutex_lock(&adev->srbm_mutex);
-		for (j = 0; j < 16; j++) {
-			vi_srbm_select(adev, 0, 0, 0, j);
-			dev_info(adev->dev, "  VM %d:\n", j);
-			dev_info(adev->dev, "  SDMA%d_GFX_VIRTUAL_ADDR=0x%08X\n",
-				 i, RREG32(mmSDMA0_GFX_VIRTUAL_ADDR + sdma_offsets[i]));
-			dev_info(adev->dev, "  SDMA%d_GFX_APE1_CNTL=0x%08X\n",
-				 i, RREG32(mmSDMA0_GFX_APE1_CNTL + sdma_offsets[i]));
-		}
-		vi_srbm_select(adev, 0, 0, 0, 0);
-		mutex_unlock(&adev->srbm_mutex);
-	}
-}
-
 static int sdma_v3_0_soft_reset(void *handle)
 {
 	u32 srbm_soft_reset = 0;
@@ -1387,8 +1336,6 @@ static int sdma_v3_0_soft_reset(void *handle)
 	}
 
 	if (srbm_soft_reset) {
-		sdma_v3_0_print_status((void *)adev);
-
 		tmp = RREG32(mmSRBM_SOFT_RESET);
 		tmp |= srbm_soft_reset;
 		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
@@ -1403,8 +1350,6 @@ static int sdma_v3_0_soft_reset(void *handle)
 
 		/* Wait a little for things to settle down */
 		udelay(50);
-
-		sdma_v3_0_print_status((void *)adev);
 	}
 
 	return 0;
@@ -1608,7 +1553,6 @@ const struct amd_ip_funcs sdma_v3_0_ip_funcs = {
 	.is_idle = sdma_v3_0_is_idle,
 	.wait_for_idle = sdma_v3_0_wait_for_idle,
 	.soft_reset = sdma_v3_0_soft_reset,
-	.print_status = sdma_v3_0_print_status,
 	.set_clockgating_state = sdma_v3_0_set_clockgating_state,
 	.set_powergating_state = sdma_v3_0_set_powergating_state,
 };

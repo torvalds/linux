@@ -165,8 +165,6 @@ struct amd_ip_funcs {
 	int (*wait_for_idle)(void *handle);
 	/* soft reset the IP block */
 	int (*soft_reset)(void *handle);
-	/* dump the IP block status registers */
-	void (*print_status)(void *handle);
 	/* enable/disable cg for the IP block */
 	int (*set_clockgating_state)(void *handle,
 				     enum amd_clockgating_state state);

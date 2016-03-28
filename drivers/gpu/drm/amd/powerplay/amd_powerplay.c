@@ -180,10 +180,6 @@ static int pp_sw_reset(void *handle)
 	return 0;
 }
 
-static void pp_print_status(void *handle)
-{
-
-}
 
 static int pp_set_clockgating_state(void *handle,
 				    enum amd_clockgating_state state)
@@ -355,7 +351,6 @@ const struct amd_ip_funcs pp_ip_funcs = {
 	.is_idle = pp_is_idle,
 	.wait_for_idle = pp_wait_for_idle,
 	.soft_reset = pp_sw_reset,
-	.print_status = pp_print_status,
 	.set_clockgating_state = pp_set_clockgating_state,
 	.set_powergating_state = pp_set_powergating_state,
 };

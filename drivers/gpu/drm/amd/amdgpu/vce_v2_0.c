@@ -495,75 +495,6 @@ static int vce_v2_0_soft_reset(void *handle)
 	return vce_v2_0_start(adev);
 }
 
-static void vce_v2_0_print_status(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	dev_info(adev->dev, "VCE 2.0 registers\n");
-	dev_info(adev->dev, "  VCE_STATUS=0x%08X\n",
-		 RREG32(mmVCE_STATUS));
-	dev_info(adev->dev, "  VCE_VCPU_CNTL=0x%08X\n",
-		 RREG32(mmVCE_VCPU_CNTL));
-	dev_info(adev->dev, "  VCE_VCPU_CACHE_OFFSET0=0x%08X\n",
-		 RREG32(mmVCE_VCPU_CACHE_OFFSET0));
-	dev_info(adev->dev, "  VCE_VCPU_CACHE_SIZE0=0x%08X\n",
-		 RREG32(mmVCE_VCPU_CACHE_SIZE0));
-	dev_info(adev->dev, "  VCE_VCPU_CACHE_OFFSET1=0x%08X\n",
-		 RREG32(mmVCE_VCPU_CACHE_OFFSET1));
-	dev_info(adev->dev, "  VCE_VCPU_CACHE_SIZE1=0x%08X\n",
-		 RREG32(mmVCE_VCPU_CACHE_SIZE1));
-	dev_info(adev->dev, "  VCE_VCPU_CACHE_OFFSET2=0x%08X\n",
-		 RREG32(mmVCE_VCPU_CACHE_OFFSET2));
-	dev_info(adev->dev, "  VCE_VCPU_CACHE_SIZE2=0x%08X\n",
-		 RREG32(mmVCE_VCPU_CACHE_SIZE2));
-	dev_info(adev->dev, "  VCE_SOFT_RESET=0x%08X\n",
-		 RREG32(mmVCE_SOFT_RESET));
-	dev_info(adev->dev, "  VCE_RB_BASE_LO2=0x%08X\n",
-		 RREG32(mmVCE_RB_BASE_LO2));
-	dev_info(adev->dev, "  VCE_RB_BASE_HI2=0x%08X\n",
-		 RREG32(mmVCE_RB_BASE_HI2));
-	dev_info(adev->dev, "  VCE_RB_SIZE2=0x%08X\n",
-		 RREG32(mmVCE_RB_SIZE2));
-	dev_info(adev->dev, "  VCE_RB_RPTR2=0x%08X\n",
-		 RREG32(mmVCE_RB_RPTR2));
-	dev_info(adev->dev, "  VCE_RB_WPTR2=0x%08X\n",
-		 RREG32(mmVCE_RB_WPTR2));
-	dev_info(adev->dev, "  VCE_RB_BASE_LO=0x%08X\n",
-		 RREG32(mmVCE_RB_BASE_LO));
-	dev_info(adev->dev, "  VCE_RB_BASE_HI=0x%08X\n",
-		 RREG32(mmVCE_RB_BASE_HI));
-	dev_info(adev->dev, "  VCE_RB_SIZE=0x%08X\n",
-		 RREG32(mmVCE_RB_SIZE));
-	dev_info(adev->dev, "  VCE_RB_RPTR=0x%08X\n",
-		 RREG32(mmVCE_RB_RPTR));
-	dev_info(adev->dev, "  VCE_RB_WPTR=0x%08X\n",
-		 RREG32(mmVCE_RB_WPTR));
-	dev_info(adev->dev, "  VCE_CLOCK_GATING_A=0x%08X\n",
-		 RREG32(mmVCE_CLOCK_GATING_A));
-	dev_info(adev->dev, "  VCE_CLOCK_GATING_B=0x%08X\n",
-		 RREG32(mmVCE_CLOCK_GATING_B));
-	dev_info(adev->dev, "  VCE_CGTT_CLK_OVERRIDE=0x%08X\n",
-		 RREG32(mmVCE_CGTT_CLK_OVERRIDE));
-	dev_info(adev->dev, "  VCE_UENC_CLOCK_GATING=0x%08X\n",
-		 RREG32(mmVCE_UENC_CLOCK_GATING));
-	dev_info(adev->dev, "  VCE_UENC_REG_CLOCK_GATING=0x%08X\n",
-		 RREG32(mmVCE_UENC_REG_CLOCK_GATING));
-	dev_info(adev->dev, "  VCE_SYS_INT_EN=0x%08X\n",
-		 RREG32(mmVCE_SYS_INT_EN));
-	dev_info(adev->dev, "  VCE_LMI_CTRL2=0x%08X\n",
-		 RREG32(mmVCE_LMI_CTRL2));
-	dev_info(adev->dev, "  VCE_LMI_CTRL=0x%08X\n",
-		 RREG32(mmVCE_LMI_CTRL));
-	dev_info(adev->dev, "  VCE_LMI_VM_CTRL=0x%08X\n",
-		 RREG32(mmVCE_LMI_VM_CTRL));
-	dev_info(adev->dev, "  VCE_LMI_SWAP_CNTL=0x%08X\n",
-		 RREG32(mmVCE_LMI_SWAP_CNTL));
-	dev_info(adev->dev, "  VCE_LMI_SWAP_CNTL1=0x%08X\n",
-		 RREG32(mmVCE_LMI_SWAP_CNTL1));
-	dev_info(adev->dev, "  VCE_LMI_CACHE_CTRL=0x%08X\n",
-		 RREG32(mmVCE_LMI_CACHE_CTRL));
-}
-
 static int vce_v2_0_set_interrupt_state(struct amdgpu_device *adev,
 					struct amdgpu_irq_src *source,
 					unsigned type,
@@ -647,7 +578,6 @@ const struct amd_ip_funcs vce_v2_0_ip_funcs = {
 	.is_idle = vce_v2_0_is_idle,
 	.wait_for_idle = vce_v2_0_wait_for_idle,
 	.soft_reset = vce_v2_0_soft_reset,
-	.print_status = vce_v2_0_print_status,
 	.set_clockgating_state = vce_v2_0_set_clockgating_state,
 	.set_powergating_state = vce_v2_0_set_powergating_state,
 };
