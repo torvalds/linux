@@ -34,7 +34,7 @@ struct clk;
 #define HIWORD_UPDATE(val, mask, shift) \
 		((val) << (shift) | (mask) << ((shift) + 16))
 
-/* register positions shared by RK2928, RK3036, RK3066, RK3188 and RK3228 */
+/* register positions shared by RK2928, RK3036, RK3066, RK3188, RK3228, RK3399 */
 #define RK2928_PLL_CON(x)		((x) * 0x4)
 #define RK2928_MODE_CON		0x40
 #define RK2928_CLKSEL_CON(x)	((x) * 0x4 + 0x44)
@@ -92,6 +92,26 @@ struct clk;
 #define RK3368_SDIO1_CON1		0x414
 #define RK3368_EMMC_CON0		0x418
 #define RK3368_EMMC_CON1		0x41c
+
+#define RK3399_PLL_CON(x)		RK2928_PLL_CON(x)
+#define RK3399_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
+#define RK3399_CLKGATE_CON(x)		((x) * 0x4 + 0x300)
+#define RK3399_SOFTRST_CON(x)		((x) * 0x4 + 0x400)
+#define RK3399_GLB_SRST_FST		0x500
+#define RK3399_GLB_SRST_SND		0x504
+#define RK3399_GLB_CNT_TH		0x508
+#define RK3399_MISC_CON			0x50c
+#define RK3399_RST_CON			0x510
+#define RK3399_RST_ST			0x514
+#define RK3399_SDMMC_CON0		0x580
+#define RK3399_SDMMC_CON1		0x584
+#define RK3399_SDIO_CON0		0x588
+#define RK3399_SDIO_CON1		0x58c
+
+#define RK3399_PMU_PLL_CON(x)		RK2928_PLL_CON(x)
+#define RK3399_PMU_CLKSEL_CON(x)	((x) * 0x4 + 0x80)
+#define RK3399_PMU_CLKGATE_CON(x)	((x) * 0x4 + 0x100)
+#define RK3399_PMU_SOFTRST_CON(x)	((x) * 0x4 + 0x110)
 
 enum rockchip_pll_type {
 	pll_rk3036,
