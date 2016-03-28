@@ -2097,7 +2097,7 @@ struct megasas_instance {
 	u8 UnevenSpanSupport;
 
 	u8 supportmax256vd;
-	u8 allow_fw_scan;
+	u8 pd_list_not_supported;
 	u16 fw_supported_vd_count;
 	u16 fw_supported_pd_count;
 

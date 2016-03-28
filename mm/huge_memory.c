@@ -2578,7 +2578,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
 		}
 		khugepaged_node_load[node]++;
 		if (!PageLRU(page)) {
-			result = SCAN_SCAN_ABORT;
+			result = SCAN_PAGE_LRU;
 			goto out_unmap;
 		}
 		if (PageLocked(page)) {

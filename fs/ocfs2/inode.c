@@ -1170,6 +1170,9 @@ static void ocfs2_clear_inode(struct inode *inode)
 	mlog_bug_on_msg(!list_empty(&oi->ip_io_markers),
 			"Clear inode of %llu, inode has io markers\n",
 			(unsigned long long)oi->ip_blkno);
+	mlog_bug_on_msg(!list_empty(&oi->ip_unwritten_list),
+			"Clear inode of %llu, inode has unwritten extents\n",
+			(unsigned long long)oi->ip_blkno);
 
 	ocfs2_extent_map_trunc(inode, 0);
 

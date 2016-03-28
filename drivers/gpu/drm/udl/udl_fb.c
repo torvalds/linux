@@ -423,8 +423,8 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	}
 
 	if (ufb->obj->base.import_attach) {
-		dma_buf_end_cpu_access(ufb->obj->base.import_attach->dmabuf,
-				       DMA_FROM_DEVICE);
+		ret = dma_buf_end_cpu_access(ufb->obj->base.import_attach->dmabuf,
+					     DMA_FROM_DEVICE);
 	}
 
  unlock:

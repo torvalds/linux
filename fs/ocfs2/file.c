@@ -1381,44 +1381,6 @@ out:
 	return ret;
 }
 
-/*
- * Will look for holes and unwritten extents in the range starting at
- * pos for count bytes (inclusive).
- */
-static int ocfs2_check_range_for_holes(struct inode *inode, loff_t pos,
-				       size_t count)
-{
-	int ret = 0;
-	unsigned int extent_flags;
-	u32 cpos, clusters, extent_len, phys_cpos;
-	struct super_block *sb = inode->i_sb;
-
-	cpos = pos >> OCFS2_SB(sb)->s_clustersize_bits;
-	clusters = ocfs2_clusters_for_bytes(sb, pos + count) - cpos;
-
-	while (clusters) {
-		ret = ocfs2_get_clusters(inode, cpos, &phys_cpos, &extent_len,
-					 &extent_flags);
-		if (ret < 0) {
-			mlog_errno(ret);
-			goto out;
-		}
-
-		if (phys_cpos == 0 || (extent_flags & OCFS2_EXT_UNWRITTEN)) {
-			ret = 1;
-			break;
-		}
-
-		if (extent_len > clusters)
-			extent_len = clusters;
-
-		clusters -= extent_len;
-		cpos += extent_len;
-	}
-out:
-	return ret;
-}
-
 static int ocfs2_write_remove_suid(struct inode *inode)
 {
 	int ret;
@@ -2129,18 +2091,12 @@ out:
 
 static int ocfs2_prepare_inode_for_write(struct file *file,
 					 loff_t pos,
-					 size_t count,
-					 int appending,
-					 int *direct_io,
-					 int *has_refcount)
+					 size_t count)
 {
 	int ret = 0, meta_level = 0;
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = d_inode(dentry);
 	loff_t end;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	int full_coherency = !(osb->s_mount_opt &
-		OCFS2_MOUNT_COHERENCY_BUFFERED);
 
 	/*
 	 * We start with a read level meta lock and only jump to an ex
@@ -2189,10 +2145,6 @@ static int ocfs2_prepare_inode_for_write(struct file *file,
 							       pos,
 							       count,
 							       &meta_level);
-			if (has_refcount)
-				*has_refcount = 1;
-			if (direct_io)
-				*direct_io = 0;
 		}
 
 		if (ret < 0) {
@@ -2200,67 +2152,12 @@ static int ocfs2_prepare_inode_for_write(struct file *file,
 			goto out_unlock;
 		}
 
-		/*
-		 * Skip the O_DIRECT checks if we don't need
-		 * them.
-		 */
-		if (!direct_io || !(*direct_io))
-			break;
-
-		/*
-		 * There's no sane way to do direct writes to an inode
-		 * with inline data.
-		 */
-		if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
-			*direct_io = 0;
-			break;
-		}
-
-		/*
-		 * Allowing concurrent direct writes means
-		 * i_size changes wouldn't be synchronized, so
-		 * one node could wind up truncating another
-		 * nodes writes.
-		 */
-		if (end > i_size_read(inode) && !full_coherency) {
-			*direct_io = 0;
-			break;
-		}
-
-		/*
-		 * Fallback to old way if the feature bit is not set.
-		 */
-		if (end > i_size_read(inode) &&
-				!ocfs2_supports_append_dio(osb)) {
-			*direct_io = 0;
-			break;
-		}
-
-		/*
-		 * We don't fill holes during direct io, so
-		 * check for them here. If any are found, the
-		 * caller will have to retake some cluster
-		 * locks and initiate the io as buffered.
-		 */
-		ret = ocfs2_check_range_for_holes(inode, pos, count);
-		if (ret == 1) {
-			/*
-			 * Fallback to old way if the feature bit is not set.
-			 * Otherwise try dio first and then complete the rest
-			 * request through buffer io.
-			 */
-			if (!ocfs2_supports_append_dio(osb))
-				*direct_io = 0;
-			ret = 0;
-		} else if (ret < 0)
-			mlog_errno(ret);
 		break;
 	}
 
 out_unlock:
 	trace_ocfs2_prepare_inode_for_write(OCFS2_I(inode)->ip_blkno,
-					    pos, appending, count,
-					    direct_io, has_refcount);
+					    pos, count);
 
 	if (meta_level >= 0)
 		ocfs2_inode_unlock(inode, meta_level);
@@ -2272,18 +2169,16 @@ out:
 static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 				    struct iov_iter *from)
 {
-	int direct_io, appending, rw_level;
-	int can_do_direct, has_refcount = 0;
+	int direct_io, rw_level;
 	ssize_t written = 0;
 	ssize_t ret;
-	size_t count = iov_iter_count(from), orig_count;
+	size_t count = iov_iter_count(from);
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	int full_coherency = !(osb->s_mount_opt &
 			       OCFS2_MOUNT_COHERENCY_BUFFERED);
-	int unaligned_dio = 0;
-	int dropped_dio = 0;
+	void *saved_ki_complete = NULL;
 	int append_write = ((iocb->ki_pos + count) >=
 			i_size_read(inode) ? 1 : 0);
 
@@ -2296,12 +2191,10 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 	if (count == 0)
 		return 0;
 
-	appending = iocb->ki_flags & IOCB_APPEND ? 1 : 0;
 	direct_io = iocb->ki_flags & IOCB_DIRECT ? 1 : 0;
 
 	inode_lock(inode);
 
-relock:
 	/*
 	 * Concurrent O_DIRECT writes are allowed with
 	 * mount_option "coherency=buffered".
@@ -2334,7 +2227,6 @@ relock:
 		ocfs2_inode_unlock(inode, 1);
 	}
 
-	orig_count = iov_iter_count(from);
 	ret = generic_write_checks(iocb, from);
 	if (ret <= 0) {
 		if (ret)
@@ -2343,41 +2235,18 @@ relock:
 	}
 	count = ret;
 
-	can_do_direct = direct_io;
-	ret = ocfs2_prepare_inode_for_write(file, iocb->ki_pos, count, appending,
-					    &can_do_direct, &has_refcount);
+	ret = ocfs2_prepare_inode_for_write(file, iocb->ki_pos, count);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out;
 	}
 
-	if (direct_io && !is_sync_kiocb(iocb))
-		unaligned_dio = ocfs2_is_io_unaligned(inode, count, iocb->ki_pos);
-
-	/*
-	 * We can't complete the direct I/O as requested, fall back to
-	 * buffered I/O.
-	 */
-	if (direct_io && !can_do_direct) {
-		ocfs2_rw_unlock(inode, rw_level);
-
-		rw_level = -1;
-
-		direct_io = 0;
-		iocb->ki_flags &= ~IOCB_DIRECT;
-		iov_iter_reexpand(from, orig_count);
-		dropped_dio = 1;
-		goto relock;
-	}
-
-	if (unaligned_dio) {
+	if (direct_io && !is_sync_kiocb(iocb) &&
+	    ocfs2_is_io_unaligned(inode, count, iocb->ki_pos)) {
 		/*
-		 * Wait on previous unaligned aio to complete before
-		 * proceeding.
+		 * Make it a sync io if it's an unaligned aio.
 		 */
-		mutex_lock(&OCFS2_I(inode)->ip_unaligned_aio);
-		/* Mark the iocb as needing an unlock in ocfs2_dio_end_io */
-		ocfs2_iocb_set_unaligned_aio(iocb);
+		saved_ki_complete = xchg(&iocb->ki_complete, NULL);
 	}
 
 	/* communicate with ocfs2_dio_end_io */
@@ -2398,14 +2267,13 @@ relock:
 	 */
 	if ((written == -EIOCBQUEUED) || (!ocfs2_iocb_is_rw_locked(iocb))) {
 		rw_level = -1;
-		unaligned_dio = 0;
 	}
 
 	if (unlikely(written <= 0))
-		goto no_sync;
+		goto out;
 
 	if (((file->f_flags & O_DSYNC) && !direct_io) ||
-	    IS_SYNC(inode) || dropped_dio) {
+	    IS_SYNC(inode)) {
 		ret = filemap_fdatawrite_range(file->f_mapping,
 					       iocb->ki_pos - written,
 					       iocb->ki_pos - 1);
@@ -2424,13 +2292,10 @@ relock:
 						      iocb->ki_pos - 1);
 	}
 
-no_sync:
-	if (unaligned_dio && ocfs2_iocb_is_unaligned_aio(iocb)) {
-		ocfs2_iocb_clear_unaligned_aio(iocb);
-		mutex_unlock(&OCFS2_I(inode)->ip_unaligned_aio);
-	}
-
 out:
+	if (saved_ki_complete)
+		xchg(&iocb->ki_complete, saved_ki_complete);
+
 	if (rw_level != -1)
 		ocfs2_rw_unlock(inode, rw_level);
 
