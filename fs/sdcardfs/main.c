@@ -54,7 +54,6 @@ static int parse_options(struct super_block *sb, char *options, int silent,
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
 	int option;
-	char *string_option;
 
 	/* by default, we use AID_MEDIA_RW as uid, gid */
 	opts->fs_low_uid = AID_MEDIA_RW;
@@ -117,7 +116,6 @@ static int parse_options(struct super_block *sb, char *options, int silent,
 			break;
 		/* unknown option */
 		default:
-invalid_option:
 			if (!silent) {
 				printk( KERN_ERR "Unrecognized mount option \"%s\" "
 						"or missing value", p);
