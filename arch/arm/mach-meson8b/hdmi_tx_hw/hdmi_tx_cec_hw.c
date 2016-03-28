@@ -259,6 +259,7 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
     return ret;
 }
 
+#ifndef CONFIG_AML_HDMI_TX_NEW_CEC_DRIVER
 void cec_polling_online_dev(int log_addr, int *bool)
 {
     unsigned long r;
@@ -285,6 +286,7 @@ void cec_polling_online_dev(int log_addr, int *bool)
     hdmi_print(INF, CEC "CEC: poll online logic device: 0x%x BOOL: %d\n", log_addr, *bool);
 
 }
+#endif
 
 
 //--------------------------------------------------------------------------

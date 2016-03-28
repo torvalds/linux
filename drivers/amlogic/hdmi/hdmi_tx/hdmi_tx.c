@@ -510,6 +510,7 @@ static ssize_t store_disp_mode(struct device * dev, struct device_attribute *att
     return 16;
 }
 
+#ifndef CONFIG_AML_HDMI_TX_NEW_CEC_DRIVER
 /*cec attr*/
 static ssize_t show_cec(struct device * dev, struct device_attribute *attr, char * buf)
 {
@@ -550,6 +551,20 @@ static ssize_t store_cec_lang_config(struct device * dev, struct device_attribut
     return count;
 }
 
+#else
+
+extern unsigned long amlogic_cec_debug_flag;
+
+static ssize_t show_amlogic_cec_debug_config(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    return snprintf(buf, PAGE_SIZE, "amlogic_cec_debug:%lu\n", amlogic_cec_debug_flag);
+}
+
+static ssize_t store_amlogic_cec_debug_config(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+   return kstrtoul(buf, 16, &amlogic_cec_debug_flag) ? 0 : count;
+}
+
 static ssize_t show_cec_lang_config(struct device * dev, struct device_attribute *attr, char * buf)
 {
     int pos=0;
@@ -557,6 +572,7 @@ static ssize_t show_cec_lang_config(struct device * dev, struct device_attribute
     pos+=snprintf(buf+pos, PAGE_SIZE, "%x\n",cec_global_info.cec_node_info[cec_global_info.my_node_index].menu_lang);
     return pos;
 }
+#endif
 
 /*aud_mode attr*/
 static ssize_t show_aud_mode(struct device * dev, struct device_attribute *attr, char * buf)
@@ -944,10 +960,14 @@ static DEVICE_ATTR(disp_cap_3d, S_IWUSR | S_IRUGO, show_disp_cap_3d, NULL);
 static DEVICE_ATTR(hdcp_ksv_info, S_IWUSR | S_IRUGO, show_hdcp_ksv_info, NULL);
 static DEVICE_ATTR(hpd_state, S_IWUSR | S_IRUGO, show_hpd_state, NULL);
 static DEVICE_ATTR(support_3d, S_IWUSR | S_IRUGO, show_support_3d, NULL);
+#ifndef CONFIG_AML_HDMI_TX_NEW_CEC_DRIVER
 static DEVICE_ATTR(cec, S_IWUSR | S_IRUGO, show_cec, store_cec);
 static DEVICE_ATTR(cec_config, S_IWUSR | S_IRUGO | S_IWGRP, show_cec_config, store_cec_config);
 //static DEVICE_ATTR(cec_config, S_IWUGO | S_IRUGO , NULL, store_cec_config);
 static DEVICE_ATTR(cec_lang_config, S_IWUSR | S_IRUGO | S_IWGRP, show_cec_lang_config, store_cec_lang_config);
+#else
+static DEVICE_ATTR(amlogic_cec_debug_config, S_IWUSR | S_IRUGO | S_IWGRP, show_amlogic_cec_debug_config, store_amlogic_cec_debug_config);
+#endif
 
 /*****************************
 *    hdmitx display client interface
@@ -1520,7 +1540,9 @@ static void hdmitx_pwr_init(struct hdmi_pwr_ctl *ctl)
 
 static int amhdmitx_probe(struct platform_device *pdev)
 {
+#ifndef CONFIG_AML_HDMI_TX_NEW_CEC_DRIVER
     extern struct switch_dev lang_dev;
+#endif
     int r,ret=0;
 
 #ifdef CONFIG_USE_OF
@@ -1581,9 +1603,13 @@ static int amhdmitx_probe(struct platform_device *pdev)
     ret=device_create_file(hdmitx_dev, &dev_attr_hdcp_ksv_info);
     ret=device_create_file(hdmitx_dev, &dev_attr_hpd_state);
     ret=device_create_file(hdmitx_dev, &dev_attr_support_3d);
+#ifndef CONFIG_AML_HDMI_TX_NEW_CEC_DRIVER
     ret=device_create_file(hdmitx_dev, &dev_attr_cec);
     ret=device_create_file(hdmitx_dev, &dev_attr_cec_config);
     ret=device_create_file(hdmitx_dev, &dev_attr_cec_lang_config);
+#else
+    ret=device_create_file(hdmitx_dev, &dev_attr_amlogic_cec_debug_config);
+#endif
 
     if (hdmitx_dev == NULL) {
         hdmi_print(ERR, SYS "device_create create error\n");
@@ -1670,7 +1696,9 @@ static int amhdmitx_probe(struct platform_device *pdev)
     }
 #endif
     switch_dev_register(&sdev);
+#ifndef CONFIG_AML_HDMI_TX_NEW_CEC_DRIVER
     switch_dev_register(&lang_dev);
+#endif
 
     hdmitx_init_parameters(&hdmitx_device.hdmi_info);
     HDMITX_Meson_Init(&hdmitx_device);
@@ -1709,7 +1737,9 @@ static int amhdmitx_remove(struct platform_device *pdev)
     device_remove_file(hdmitx_dev, &dev_attr_disp_cap_3d);
     device_remove_file(hdmitx_dev, &dev_attr_hpd_state);
     device_remove_file(hdmitx_dev, &dev_attr_support_3d);
+#ifndef CONFIG_AML_HDMI_TX_NEW_CEC_DRIVER
     device_remove_file(hdmitx_dev, &dev_attr_cec);
+#endif
 
     cdev_del(&hdmitx_device.cdev);
 
