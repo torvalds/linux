@@ -425,6 +425,13 @@ static struct ctl_table lnet_table[] = {
 		.proc_handler = &proc_dointvec
 	},
 	{
+		.procname	= "fail_err",
+		.data		= &cfs_fail_err,
+		.maxlen		= sizeof(cfs_fail_err),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
 	}
 };
 
