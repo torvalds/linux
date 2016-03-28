@@ -168,14 +168,25 @@ then
 fi
 echo "NOTE: $QEMU either did not run or was interactive" > $resdir/console.log
 echo $QEMU $qemu_args -m 512 -kernel $resdir/bzImage -append \"$qemu_append $boot_args\" > $resdir/qemu-cmd
-( $QEMU $qemu_args -m 512 -kernel $resdir/bzImage -append "$qemu_append $boot_args"; echo $? > $resdir/qemu-retval ) &
-qemu_pid=$!
+( $QEMU $qemu_args -m 512 -kernel $resdir/bzImage -append "$qemu_append $boot_args"& echo $! > $resdir/qemu_pid; wait `cat  $resdir/qemu_pid`; echo $? > $resdir/qemu-retval ) &
 commandcompleted=0
-echo Monitoring qemu job at pid $qemu_pid
+sleep 10 # Give qemu's pid a chance to reach the file
+if test -s "$resdir/qemu_pid"
+then
+	qemu_pid=`cat "$resdir/qemu_pid"`
+	echo Monitoring qemu job at pid $qemu_pid
+else
+	qemu_pid=""
+	echo Monitoring qemu job at yet-as-unknown pid
+fi
 while :
 do
+	if test -z "$qemu_pid" -a -s "$resdir/qemu_pid"
+	then
+		qemu_pid=`cat "$resdir/qemu_pid"`
+	fi
 	kruntime=`awk 'BEGIN { print systime() - '"$kstarttime"' }' < /dev/null`
-	if kill -0 $qemu_pid > /dev/null 2>&1
+	if test -z "$qemu_pid" || kill -0 "$qemu_pid" > /dev/null 2>&1
 	then
 		if test $kruntime -ge $seconds
 		then
@@ -195,12 +206,16 @@ do
 				ps -fp $killpid >> $resdir/Warnings 2>&1
 			fi
 		else
-			echo ' ---' `date`: Kernel done
+			echo ' ---' `date`: "Kernel done"
 		fi
 		break
 	fi
 done
-if test $commandcompleted -eq 0
+if test -z "$qemu_pid" -a -s "$resdir/qemu_pid"
+then
+	qemu_pid=`cat "$resdir/qemu_pid"`
+fi
+if test $commandcompleted -eq 0 -a -n "$qemu_pid"
 then
 	echo Grace period for qemu job at pid $qemu_pid
 	while :
@@ -220,6 +235,9 @@ then
 		fi
 		sleep 1
 	done
+elif test -z "$qemu_pid"
+then
+	echo Unknown PID, cannot kill qemu command
 fi
 
 parse-torture.sh $resdir/console.log $title
