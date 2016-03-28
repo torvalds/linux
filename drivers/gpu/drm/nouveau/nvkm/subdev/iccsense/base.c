@@ -95,6 +95,63 @@ nvkm_iccsense_ina3221_read(struct nvkm_iccsense *iccsense,
 				       40 * 8);
 }
 
+static void
+nvkm_iccsense_ina209_config(struct nvkm_iccsense *iccsense,
+			    struct nvkm_iccsense_sensor *sensor)
+{
+	struct nvkm_subdev *subdev = &iccsense->subdev;
+	/* configuration:
+	 * 0x0007: 0x0007 shunt and bus continous
+	 * 0x0078: 0x0078 128 samples shunt
+	 * 0x0780: 0x0780 128 samples bus
+	 * 0x1800: 0x0000 +-40 mV shunt range
+	 * 0x2000: 0x0000 16V FSR
+         */
+	u16 value = 0x07ff;
+	nvkm_debug(subdev, "config for sensor id %i: 0x%x\n", sensor->id, value);
+	nv_wr16i2cr(sensor->i2c, sensor->addr, 0x00, value);
+}
+
+static void
+nvkm_iccsense_ina3221_config(struct nvkm_iccsense *iccsense,
+			     struct nvkm_iccsense_sensor *sensor)
+{
+	struct nvkm_subdev *subdev = &iccsense->subdev;
+	/* configuration:
+	 * 0x0007: 0x0007 shunt and bus continous
+	 * 0x0031: 0x0000 140 us conversion time shunt
+	 * 0x01c0: 0x0000 140 us conversion time bus
+	 * 0x0f00: 0x0f00 1024 samples
+	 * 0x7000: 0x?000 channels
+         */
+	u16 value = 0x0e07;
+	if (sensor->rail_mask & 0x1)
+		value |= 0x1 << 14;
+	if (sensor->rail_mask & 0x2)
+		value |= 0x1 << 13;
+	if (sensor->rail_mask & 0x4)
+		value |= 0x1 << 12;
+	nvkm_debug(subdev, "config for sensor id %i: 0x%x\n", sensor->id, value);
+	nv_wr16i2cr(sensor->i2c, sensor->addr, 0x00, value);
+}
+
+static void
+nvkm_iccsense_sensor_config(struct nvkm_iccsense *iccsense,
+		            struct nvkm_iccsense_sensor *sensor)
+{
+	switch (sensor->type) {
+	case NVBIOS_EXTDEV_INA209:
+	case NVBIOS_EXTDEV_INA219:
+		nvkm_iccsense_ina209_config(iccsense, sensor);
+		break;
+	case NVBIOS_EXTDEV_INA3221:
+		nvkm_iccsense_ina3221_config(iccsense, sensor);
+		break;
+	default:
+		break;
+	}
+}
+
 int
 nvkm_iccsense_read_all(struct nvkm_iccsense *iccsense)
 {
@@ -260,8 +317,19 @@ nvkm_iccsense_oneinit(struct nvkm_subdev *subdev)
 	return 0;
 }
 
+static int
+nvkm_iccsense_init(struct nvkm_subdev *subdev)
+{
+	struct nvkm_iccsense *iccsense = nvkm_iccsense(subdev);
+	struct nvkm_iccsense_sensor *sensor;
+	list_for_each_entry(sensor, &iccsense->sensors, head)
+		nvkm_iccsense_sensor_config(iccsense, sensor);
+	return 0;
+}
+
 struct nvkm_subdev_func iccsense_func = {
 	.oneinit = nvkm_iccsense_oneinit,
+	.init = nvkm_iccsense_init,
 	.dtor = nvkm_iccsense_dtor,
 };
 
