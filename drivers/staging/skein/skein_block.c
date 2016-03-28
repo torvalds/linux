@@ -15,6 +15,7 @@
 ************************************************************************/
 
 #include <linux/string.h>
+#include <linux/bitops.h>
 #include "skein_base.h"
 #include "skein_block.h"
 
@@ -59,10 +60,10 @@
 #define ROUND256(p0, p1, p2, p3, ROT, r_num)         \
 	do {                                         \
 		X##p0 += X##p1;                      \
-		X##p1 = rotl_64(X##p1, ROT##_0);     \
+		X##p1 = rol64(X##p1, ROT##_0);       \
 		X##p1 ^= X##p0;                      \
 		X##p2 += X##p3;                      \
-		X##p3 = rotl_64(X##p3, ROT##_1);     \
+		X##p3 = rol64(X##p3, ROT##_1);       \
 		X##p3 ^= X##p2;                      \
 	} while (0)
 
@@ -136,15 +137,16 @@
 #define ROUND512(p0, p1, p2, p3, p4, p5, p6, p7, ROT, r_num)    \
 	do {                                                    \
 		X##p0 += X##p1;                                 \
-		X##p1 = rotl_64(X##p1, ROT##_0);                \
+		X##p1 = rol64(X##p1, ROT##_0);                  \
 		X##p1 ^= X##p0;                                 \
 		X##p2 += X##p3;                                 \
-		X##p3 = rotl_64(X##p3, ROT##_1);                \
+		X##p3 = rol64(X##p3, ROT##_1);                  \
 		X##p3 ^= X##p2;                                 \
 		X##p4 += X##p5;                                 \
-		X##p5 = rotl_64(X##p5, ROT##_2);                \
+		X##p5 = rol64(X##p5, ROT##_2);                  \
 		X##p5 ^= X##p4;                                 \
-		X##p6 += X##p7; X##p7 = rotl_64(X##p7, ROT##_3);\
+		X##p6 += X##p7;                                 \
+		X##p7 = rol64(X##p7, ROT##_3);			\
 		X##p7 ^= X##p6;                                 \
 	} while (0)
 
@@ -226,28 +228,28 @@
 		  pF, ROT, r_num)                                             \
 	do {                                                                  \
 		X##p0 += X##p1;                                               \
-		X##p1 = rotl_64(X##p1, ROT##_0);                              \
+		X##p1 = rol64(X##p1, ROT##_0);                                \
 		X##p1 ^= X##p0;                                               \
 		X##p2 += X##p3;                                               \
-		X##p3 = rotl_64(X##p3, ROT##_1);                              \
+		X##p3 = rol64(X##p3, ROT##_1);                                \
 		X##p3 ^= X##p2;                                               \
 		X##p4 += X##p5;                                               \
-		X##p5 = rotl_64(X##p5, ROT##_2);                              \
+		X##p5 = rol64(X##p5, ROT##_2);                                \
 		X##p5 ^= X##p4;                                               \
 		X##p6 += X##p7;                                               \
-		X##p7 = rotl_64(X##p7, ROT##_3);                              \
+		X##p7 = rol64(X##p7, ROT##_3);                                \
 		X##p7 ^= X##p6;                                               \
 		X##p8 += X##p9;                                               \
-		X##p9 = rotl_64(X##p9, ROT##_4);                              \
+		X##p9 = rol64(X##p9, ROT##_4);                                \
 		X##p9 ^= X##p8;                                               \
 		X##pA += X##pB;                                               \
-		X##pB = rotl_64(X##pB, ROT##_5);                              \
+		X##pB = rol64(X##pB, ROT##_5);                                \
 		X##pB ^= X##pA;                                               \
 		X##pC += X##pD;                                               \
-		X##pD = rotl_64(X##pD, ROT##_6);                              \
+		X##pD = rol64(X##pD, ROT##_6);                                \
 		X##pD ^= X##pC;                                               \
 		X##pE += X##pF;                                               \
-		X##pF = rotl_64(X##pF, ROT##_7);                              \
+		X##pF = rol64(X##pF, ROT##_7);                                \
 		X##pF ^= X##pE;                                               \
 	} while (0)
 
