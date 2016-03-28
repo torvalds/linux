@@ -3800,7 +3800,7 @@ static int wm8962_runtime_resume(struct device *dev)
 	if (ret != 0) {
 		dev_err(dev,
 			"Failed to enable supplies: %d\n", ret);
-		return ret;
+		goto disable_clock;
 	}
 
 	regcache_cache_only(wm8962->regmap, false);
@@ -3838,6 +3838,10 @@ static int wm8962_runtime_resume(struct device *dev)
 	msleep(5);
 
 	return 0;
+
+disable_clock:
+	clk_disable_unprepare(wm8962->pdata.mclk);
+	return ret;
 }
 
 static int wm8962_runtime_suspend(struct device *dev)
