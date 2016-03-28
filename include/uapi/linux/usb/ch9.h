@@ -899,7 +899,7 @@ struct usb_ssp_cap_descriptor {
 	__le32 bmAttributes;
 #define USB_SSP_SUBLINK_SPEED_ATTRIBS	(0x1f << 0) /* sublink speed entries */
 #define USB_SSP_SUBLINK_SPEED_IDS	(0xf << 5)  /* speed ID entries */
-	__u16  wFunctionalitySupport;
+	__le16  wFunctionalitySupport;
 #define USB_SSP_MIN_SUBLINK_SPEED_ATTRIBUTE_ID	(0xf)
 #define USB_SSP_MIN_RX_LANE_COUNT		(0xf << 8)
 #define USB_SSP_MIN_TX_LANE_COUNT		(0xf << 12)
