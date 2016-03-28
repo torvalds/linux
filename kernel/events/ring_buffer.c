@@ -102,8 +102,21 @@ out:
 	preempt_enable();
 }
 
-int perf_output_begin(struct perf_output_handle *handle,
-		      struct perf_event *event, unsigned int size)
+static bool __always_inline
+ring_buffer_has_space(unsigned long head, unsigned long tail,
+		      unsigned long data_size, unsigned int size,
+		      bool backward)
+{
+	if (!backward)
+		return CIRC_SPACE(head, tail, data_size) >= size;
+	else
+		return CIRC_SPACE(tail, head, data_size) >= size;
+}
+
+static int __always_inline
+__perf_output_begin(struct perf_output_handle *handle,
+		    struct perf_event *event, unsigned int size,
+		    bool backward)
 {
 	struct ring_buffer *rb;
 	unsigned long tail, offset, head;
@@ -146,9 +159,12 @@ int perf_output_begin(struct perf_output_handle *handle,
 	do {
 		tail = READ_ONCE(rb->user_page->data_tail);
 		offset = head = local_read(&rb->head);
-		if (!rb->overwrite &&
-		    unlikely(CIRC_SPACE(head, tail, perf_data_size(rb)) < size))
-			goto fail;
+		if (!rb->overwrite) {
+			if (unlikely(!ring_buffer_has_space(head, tail,
+							    perf_data_size(rb),
+							    size, backward)))
+				goto fail;
+		}
 
 		/*
 		 * The above forms a control dependency barrier separating the
@@ -162,8 +178,16 @@ int perf_output_begin(struct perf_output_handle *handle,
 		 * See perf_output_put_handle().
 		 */
 
-		head += size;
+		if (!backward)
+			head += size;
+		else
+			head -= size;
 	} while (local_cmpxchg(&rb->head, offset, head) != offset);
+
+	if (backward) {
+		offset = head;
+		head = (u64)(-head);
+	}
 
 	/*
 	 * We rely on the implied barrier() by local_cmpxchg() to ensure
@@ -204,6 +228,12 @@ out:
 	rcu_read_unlock();
 
 	return -ENOSPC;
+}
+
+int perf_output_begin(struct perf_output_handle *handle,
+		      struct perf_event *event, unsigned int size)
+{
+	return __perf_output_begin(handle, event, size, false);
 }
 
 unsigned int perf_output_copy(struct perf_output_handle *handle,
