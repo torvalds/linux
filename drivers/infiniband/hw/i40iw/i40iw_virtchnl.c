@@ -254,7 +254,7 @@ static void vchnl_pf_send_get_hmc_fcn_resp(struct i40iw_sc_dev *dev,
 static void vchnl_pf_send_get_pe_stats_resp(struct i40iw_sc_dev *dev,
 					    u32 vf_id,
 					    struct i40iw_virtchnl_op_buf *vchnl_msg,
-					    struct i40iw_dev_hw_stats hw_stats)
+					    struct i40iw_dev_hw_stats *hw_stats)
 {
 	enum i40iw_status_code ret_code;
 	u8 resp_buffer[sizeof(struct i40iw_virtchnl_resp_buf) + sizeof(struct i40iw_dev_hw_stats) - 1];
@@ -264,7 +264,7 @@ static void vchnl_pf_send_get_pe_stats_resp(struct i40iw_sc_dev *dev,
 	vchnl_msg_resp->iw_chnl_op_ctx = vchnl_msg->iw_chnl_op_ctx;
 	vchnl_msg_resp->iw_chnl_buf_len = sizeof(resp_buffer);
 	vchnl_msg_resp->iw_op_ret_code = I40IW_SUCCESS;
-	*((struct i40iw_dev_hw_stats *)vchnl_msg_resp->iw_chnl_buf) = hw_stats;
+	*((struct i40iw_dev_hw_stats *)vchnl_msg_resp->iw_chnl_buf) = *hw_stats;
 	ret_code = dev->vchnl_if.vchnl_send(dev, vf_id, resp_buffer, sizeof(resp_buffer));
 	if (ret_code)
 		i40iw_debug(dev, I40IW_DEBUG_VIRT,
@@ -539,7 +539,7 @@ enum i40iw_status_code i40iw_vchnl_recv_pf(struct i40iw_sc_dev *dev,
 		devstat->ops.iw_hw_stat_read_all(devstat, &devstat->hw_stats);
 		spin_unlock_irqrestore(&dev->dev_pestat.stats_lock, flags);
 		vf_dev->msg_count--;
-		vchnl_pf_send_get_pe_stats_resp(dev, vf_id, vchnl_msg, devstat->hw_stats);
+		vchnl_pf_send_get_pe_stats_resp(dev, vf_id, vchnl_msg, &devstat->hw_stats);
 		break;
 	default:
 		i40iw_debug(dev, I40IW_DEBUG_VIRT,
