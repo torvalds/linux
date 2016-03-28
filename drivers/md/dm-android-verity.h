@@ -46,6 +46,8 @@
 #define DM_MSG_PREFIX                   "android-verity"
 
 #define DM_LINEAR_ARGS 2
+#define DM_LINEAR_TARGET_OFFSET "0"
+
 /*
  * There can be two formats.
  * if fec is present
