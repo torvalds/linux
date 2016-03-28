@@ -4559,7 +4559,7 @@ bnxt_hwrm_set_pause_common(struct bnxt *bp, struct hwrm_port_phy_cfg_input *req)
 		if (bp->link_info.req_flow_ctrl & BNXT_LINK_PAUSE_RX)
 			req->auto_pause |= PORT_PHY_CFG_REQ_AUTO_PAUSE_RX;
 		if (bp->link_info.req_flow_ctrl & BNXT_LINK_PAUSE_TX)
-			req->auto_pause |= PORT_PHY_CFG_REQ_AUTO_PAUSE_RX;
+			req->auto_pause |= PORT_PHY_CFG_REQ_AUTO_PAUSE_TX;
 		req->enables |=
 			cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_AUTO_PAUSE);
 	} else {
