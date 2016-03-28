@@ -807,6 +807,9 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 	{ "IN2L PGA", NULL, "IN2L" },
 	{ "IN2R PGA", NULL, "IN2R" },
 
+	{ "Audio Trace DSP", NULL, "DSP2" },
+	{ "Audio Trace DSP", NULL, "SYSCLK" },
+
 	ARIZONA_MIXER_ROUTES("OUT1L", "HPOUT1L"),
 	ARIZONA_MIXER_ROUTES("OUT1R", "HPOUT1R"),
 
@@ -1016,6 +1019,27 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 			.formats = CS47L24_FORMATS,
 		},
 	},
+	{
+		.name = "cs47l24-cpu-trace",
+		.capture = {
+			.stream_name = "Audio Trace CPU",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = CS47L24_RATES,
+			.formats = CS47L24_FORMATS,
+		},
+		.compress_new = snd_soc_new_compress,
+	},
+	{
+		.name = "cs47l24-dsp-trace",
+		.capture = {
+			.stream_name = "Audio Trace DSP",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = CS47L24_RATES,
+			.formats = CS47L24_FORMATS,
+		},
+	},
 };
 
 static int cs47l24_open(struct snd_compr_stream *stream)
@@ -1027,6 +1051,8 @@ static int cs47l24_open(struct snd_compr_stream *stream)
 
 	if (strcmp(rtd->codec_dai->name, "cs47l24-dsp-voicectrl") == 0) {
 		n_adsp = 2;
+	} else if (strcmp(rtd->codec_dai->name, "cs47l24-dsp-trace") == 0) {
+		n_adsp = 1;
 	} else {
 		dev_err(arizona->dev,
 			"No suitable compressed stream for DAI '%s'\n",
@@ -1041,10 +1067,16 @@ static irqreturn_t cs47l24_adsp2_irq(int irq, void *data)
 {
 	struct cs47l24_priv *priv = data;
 	struct arizona *arizona = priv->core.arizona;
-	int ret;
+	int serviced = 0;
+	int i, ret;
 
-	ret = wm_adsp_compr_handle_irq(&priv->core.adsp[2]);
-	if (ret == -ENODEV) {
+	for (i = 1; i <= 2; ++i) {
+		ret = wm_adsp_compr_handle_irq(&priv->core.adsp[i]);
+		if (ret != -ENODEV)
+			serviced++;
+	}
+
+	if (!serviced) {
 		dev_err(arizona->dev, "Spurious compressed data IRQ\n");
 		return IRQ_NONE;
 	}
