@@ -1857,7 +1857,7 @@ static void nvme_remove_dead_ctrl_work(struct work_struct *work)
 
 	nvme_kill_queues(&dev->ctrl);
 	if (pci_get_drvdata(pdev))
-		pci_stop_and_remove_bus_device_locked(pdev);
+		device_release_driver(&pdev->dev);
 	nvme_put_ctrl(&dev->ctrl);
 }
 
