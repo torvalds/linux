@@ -6,6 +6,7 @@
 struct nvkm_iccsense {
 	struct nvkm_subdev subdev;
 	bool data_valid;
+	struct list_head sensors;
 	struct list_head rails;
 };
 
