@@ -2471,7 +2471,7 @@ static void wm8962_configure_bclk(struct snd_soc_codec *codec)
 		break;
 	default:
 		dev_warn(codec->dev, "Unknown DSPCLK divisor read back\n");
-		dspclk = wm8962->sysclk;
+		dspclk = wm8962->sysclk_rate;
 	}
 
 	dev_dbg(codec->dev, "DSPCLK is %dHz, BCLK %d\n", dspclk, wm8962->bclk);
