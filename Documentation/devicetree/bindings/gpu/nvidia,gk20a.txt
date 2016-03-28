@@ -1,9 +1,10 @@
-NVIDIA GK20A Graphics Processing Unit
+NVIDIA Tegra Graphics Processing Units
 
 Required properties:
 - compatible: "nvidia,<gpu>"
   Currently recognized values:
   - nvidia,gk20a
+  - nvidia,gm20b
 - reg: Physical base address and length of the controller's registers.
   Must contain two entries:
   - first entry for bar0
@@ -19,6 +20,9 @@ Required properties:
 - clock-names: Must include the following entries:
   - gpu
   - pwr
+If the compatible string is "nvidia,gm20b", then the following clock
+is also required:
+  - ref
 - resets: Must contain an entry for each entry in reset-names.
   See ../reset/reset.txt for details.
 - reset-names: Must include the following entries:
@@ -27,9 +31,9 @@ Required properties:
 Optional properties:
 - iommus: A reference to the IOMMU. See ../iommu/iommu.txt for details.
 
-Example:
+Example for GK20A:
 
-	gpu@0,57000000 {
+	gpu@57000000 {
 		compatible = "nvidia,gk20a";
 		reg = <0x0 0x57000000 0x0 0x01000000>,
 		      <0x0 0x58000000 0x0 0x01000000>;
@@ -40,6 +44,25 @@ Example:
 		clocks = <&tegra_car TEGRA124_CLK_GPU>,
 			 <&tegra_car TEGRA124_CLK_PLL_P_OUT5>;
 		clock-names = "gpu", "pwr";
+		resets = <&tegra_car 184>;
+		reset-names = "gpu";
+		iommus = <&mc TEGRA_SWGROUP_GPU>;
+		status = "disabled";
+	};
+
+Example for GM20B:
+
+	gpu@57000000 {
+		compatible = "nvidia,gm20b";
+		reg = <0x0 0x57000000 0x0 0x01000000>,
+		      <0x0 0x58000000 0x0 0x01000000>;
+		interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "stall", "nonstall";
+		clocks = <&tegra_car TEGRA210_CLK_GPU>,
+			 <&tegra_car TEGRA210_CLK_PLL_P_OUT5>,
+			 <&tegra_car TEGRA210_CLK_PLL_G_REF>;
+		clock-names = "gpu", "pwr", "ref";
 		resets = <&tegra_car 184>;
 		reset-names = "gpu";
 		iommus = <&mc TEGRA_SWGROUP_GPU>;
