@@ -781,7 +781,7 @@ static irqreturn_t bmg160_trigger_handler(int irq, void *p)
 			mutex_unlock(&data->mutex);
 			goto err;
 		}
-		data->buffer[i++] = ret;
+		data->buffer[i++] = val;
 	}
 	mutex_unlock(&data->mutex);
 
