@@ -176,7 +176,7 @@ typedef int (*swi_action_t) (struct swi_workitem *);
 
 typedef struct swi_workitem {
 	struct cfs_wi_sched *swi_sched;
-	cfs_workitem_t	    swi_workitem;
+	struct cfs_workitem swi_workitem;
 	swi_action_t	    swi_action;
 	int		    swi_state;
 } swi_workitem_t;
@@ -461,7 +461,7 @@ srpc_serv_is_framework(struct srpc_service *svc)
 }
 
 static inline int
-swi_wi_action(cfs_workitem_t *wi)
+swi_wi_action(struct cfs_workitem *wi)
 {
 	swi_workitem_t *swi = container_of(wi, swi_workitem_t, swi_workitem);
 
