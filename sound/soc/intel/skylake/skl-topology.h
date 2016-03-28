@@ -274,10 +274,10 @@ struct skl_pipe {
 
 enum skl_module_state {
 	SKL_MODULE_UNINIT = 0,
-	SKL_MODULE_INIT_DONE = 1,
-	SKL_MODULE_LOADED = 2,
-	SKL_MODULE_UNLOADED = 3,
-	SKL_MODULE_BIND_DONE = 4
+	SKL_MODULE_LOADED = 1,
+	SKL_MODULE_INIT_DONE = 2,
+	SKL_MODULE_BIND_DONE = 3,
+	SKL_MODULE_UNLOADED = 4,
 };
 
 struct skl_module_cfg {
