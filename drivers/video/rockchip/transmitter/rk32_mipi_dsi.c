@@ -27,6 +27,7 @@
 #define DSI_RK312x		0x3128
 #define DSI_RK3368		0x3368
 #define DSI_RK3366		0x3366
+#define DSI_RK3399		0x3399
 #define DSI_ERR			-1
 
 #include <linux/kernel.h>
@@ -50,6 +51,8 @@
 #include "rk32_mipi_dsi.h"
 #include <linux/rockchip/iomap.h>
 #include <linux/rockchip/cpu.h>
+#include<linux/mfd/syscon.h>
+#include<linux/regmap.h>
 
 #define	MIPI_DBG(x...)	/* printk(KERN_INFO x) */
 
@@ -108,7 +111,8 @@ int rockchip_get_screen_type(void)
 
 static int rk32_dsi_read_reg(struct dsi *dsi, u16 reg, u32 *pval)
 {
-	if (dsi->ops.id == DSI_RK3288)
+	if (dsi->ops.id == DSI_RK3288 ||
+	    dsi->ops.id == DSI_RK3399)
 		*pval = __raw_readl(dsi->host.membase + (reg - MIPI_DSI_HOST_OFFSET));
 	else if (dsi->ops.id == DSI_RK312x ||
 		 dsi->ops.id == DSI_RK3368 ||
@@ -123,7 +127,8 @@ static int rk32_dsi_read_reg(struct dsi *dsi, u16 reg, u32 *pval)
 
 static int rk32_dsi_write_reg(struct dsi *dsi, u16 reg, u32 *pval)
 {
-	if (dsi->ops.id == DSI_RK3288)
+	if (dsi->ops.id == DSI_RK3288 ||
+	    dsi->ops.id == DSI_RK3399)
 		__raw_writel(*pval, dsi->host.membase + (reg - MIPI_DSI_HOST_OFFSET));
 	else if (dsi->ops.id == DSI_RK312x ||
 		 dsi->ops.id == DSI_RK3368 ||
@@ -220,6 +225,8 @@ static int rk32_phy_power_up(struct dsi *dsi)
 	/* enable ref clock */
 	clk_prepare_enable(dsi->phy.refclk);
 	clk_prepare_enable(dsi->dsi_pclk);
+	if (dsi->ops.id == DSI_RK3399)
+		clk_prepare_enable(dsi->dsi_host_pclk);
 	udelay(10);
 
 	switch (dsi->host.lane) {
@@ -495,7 +502,8 @@ static int rk312x_phy_power_up(struct dsi *dsi)
 
 static int rk_phy_power_up(struct dsi *dsi)
 {
-	if (dsi->ops.id == DSI_RK3288)
+	if (dsi->ops.id == DSI_RK3288 ||
+	    dsi->ops.id == DSI_RK3399)
 		rk32_phy_power_up(dsi);
 	else if (dsi->ops.id == DSI_RK312x ||
 		 dsi->ops.id == DSI_RK3368 ||
@@ -509,6 +517,8 @@ static int rk32_phy_power_down(struct dsi *dsi)
 	rk32_dsi_set_bits(dsi, 0, phy_shutdownz);
 	clk_disable_unprepare(dsi->phy.refclk);
 	clk_disable_unprepare(dsi->dsi_pclk);
+	if (dsi->ops.id == DSI_RK3399)
+		clk_disable_unprepare(dsi->dsi_host_pclk);
 	return 0;
 }
 
@@ -529,7 +539,8 @@ static int rk312x_phy_power_down(struct dsi *dsi)
 
 static int rk_phy_power_down(struct dsi *dsi)
 {
-	if (dsi->ops.id == DSI_RK3288)
+	if (dsi->ops.id == DSI_RK3288 ||
+	    dsi->ops.id == DSI_RK3399)
 		rk32_phy_power_down(dsi);
 	else if (dsi->ops.id == DSI_RK312x ||
 		 dsi->ops.id == DSI_RK3368 ||
@@ -775,7 +786,8 @@ static int rk312x_phy_init(struct dsi *dsi, int n)
 
 static int rk_phy_init(struct dsi *dsi)
 {
-	if (dsi->ops.id == DSI_RK3288)
+	if (dsi->ops.id == DSI_RK3288 ||
+	    dsi->ops.id == DSI_RK3399)
 		rk32_phy_init(dsi);
 	else if (dsi->ops.id == DSI_RK312x ||
 		 dsi->ops.id == DSI_RK3368 ||
@@ -851,7 +863,8 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 	}
 	if (dsi->ops.id == DSI_RK3288 ||
 	    dsi->ops.id == DSI_RK3368 ||
-	    dsi->ops.id == DSI_RK3366) {
+	    dsi->ops.id == DSI_RK3366 ||
+	    dsi->ops.id == DSI_RK3399) {
 		rk32_dsi_set_bits(dsi, 1, hsync_active_low);
 		rk32_dsi_set_bits(dsi, 1, vsync_active_low);
 
@@ -932,7 +945,10 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 	rk32_dsi_set_bits(dsi, 10, TO_CLK_DIVISION);
 	rk32_dsi_set_bits(dsi, 1000, hstx_to_cnt); /* no sure */
 	rk32_dsi_set_bits(dsi, 1000, lprx_to_cnt);
-	rk32_dsi_set_bits(dsi, 100, phy_stop_wait_time);
+	if (dsi->ops.id == DSI_RK3399)
+		rk32_dsi_set_bits(dsi, 32, phy_stop_wait_time);
+	else
+		rk32_dsi_set_bits(dsi, 100, phy_stop_wait_time);
 
 	/* enable send command in low power mode */
 	rk32_dsi_set_bits(dsi, 4, outvact_lpcmd_time);
@@ -1001,7 +1017,8 @@ static int rk_mipi_dsi_init(void *arg, u32 n)
 	dsi->phy.sys_clk = dsi->phy.ref_clk;
 
 	printk("dsi->phy.sys_clk =%d\n", dsi->phy.sys_clk);
-	if (dsi->ops.id == DSI_RK3288) {
+	if (dsi->ops.id == DSI_RK3288 ||
+	    dsi->ops.id == DSI_RK3399) {
 		if ((screen->hs_tx_clk <= 90 * MHz) || (screen->hs_tx_clk >= 1500 * MHz))
 			dsi->phy.ddr_clk = 1500 * MHz; /* default is 1.5HGz */
 		else
@@ -1639,27 +1656,34 @@ static void rk32_init_phy_mode(int lcdc_id)
 	MIPI_DBG("rk32_init_phy_mode----------lcdc_id=%d\n", lcdc_id);
 
 	/* Only the rk3288 VOP need setting the VOP output. */
-	if (dsi0->ops.id != DSI_RK3288)
-		return;
-
-	/* D-PHY mode select */
-	if (rk_mipi_get_dsi_num() == 1) {
-		if (lcdc_id == 1)
-			/* 1'b1: VOP LIT output to DSI host0;1'b0: VOP BIG output to DSI host0 */
-			val0 = 0x1 << 22 | 0x1 << 6;
-		else
-			val0 = 0x1 << 22 | 0x0 << 6;
-		writel_relaxed(val0, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
-	} else {
-		if (lcdc_id == 1) {
-			val0 = 0x1 << 25 | 0x1 <<  9 | 0x1 << 22 | 0x1 <<  6;
-			val1 = 0x1 << 31 | 0x1 << 30 | 0x0 << 15 | 0x1 << 14;
+	if (dsi0->ops.id == DSI_RK3288) {
+		/* D-PHY mode select */
+		if (rk_mipi_get_dsi_num() == 1) {
+			if (lcdc_id == 1)
+				/* 1'b1: VOP LIT output to DSI host0;1'b0: VOP BIG output to DSI host0 */
+				val0 = 0x1 << 22 | 0x1 << 6;
+			else
+				val0 = 0x1 << 22 | 0x0 << 6;
+			writel_relaxed(val0, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
 		} else {
-			val0 = 0x1 << 25 | 0x0 <<  9 | 0x1 << 22 | 0x0 << 14;
-			val1 = 0x1 << 31 | 0x1 << 30 | 0x0 << 15 | 0x1 << 14;
+			if (lcdc_id == 1) {
+				val0 = 0x1 << 25 | 0x1 <<  9 | 0x1 << 22 | 0x1 <<  6;
+				val1 = 0x1 << 31 | 0x1 << 30 | 0x0 << 15 | 0x1 << 14;
+			} else {
+				val0 = 0x1 << 25 | 0x0 <<  9 | 0x1 << 22 | 0x0 << 14;
+				val1 = 0x1 << 31 | 0x1 << 30 | 0x0 << 15 | 0x1 << 14;
+			}
+			writel_relaxed(val0, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
+			writel_relaxed(val1, RK_GRF_VIRT + RK3288_GRF_SOC_CON14);
 		}
-		writel_relaxed(val0, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
-		writel_relaxed(val1, RK_GRF_VIRT + RK3288_GRF_SOC_CON14);
+	} else if (dsi0->ops.id == DSI_RK3399) {
+		val0 = 0x1 << 16 | 0x0;
+		regmap_write(dsi0->grf_base, RK3399_GRF_CON20, val0);
+
+		val0 = 0x1 << 28 | 0x0 << 12;
+		val0 |= 0xf << 20 | 0x0 << 4;
+		val0 |= 0xf << 16 | 0x0;
+		regmap_write(dsi0->grf_base, RK3399_GRF_CON22, val0);
 	}
 }
 
@@ -1710,11 +1734,17 @@ static struct dsi_type dsi_rk3366 = {
 	.dsi_id = DSI_RK3366,
 };
 
+static struct dsi_type dsi_rk3399 = {
+	.label = "rk3399-dsi",
+	.dsi_id = DSI_RK3399,
+};
+
 static const struct of_device_id of_rk_mipi_dsi_match[] = {
 	{ .compatible = "rockchip,rk32-dsi", .data = &dsi_rk32},
 	{ .compatible = "rockchip,rk312x-dsi", .data = &dsi_rk312x},
 	{ .compatible = "rockchip,rk3368-dsi", .data = &dsi_rk3368},
 	{ .compatible = "rockchip,rk3366-dsi", .data = &dsi_rk3366},
+	{ .compatible = "rockchip,rk3399-dsi", .data = &dsi_rk3399},
 	{ /* Sentinel */ }
 };
 
@@ -1727,6 +1757,7 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 	struct rk_screen *screen;
 	struct mipi_dsi_screen *dsi_screen;
 	struct resource *res_host, *res_phy;
+	struct device_node *np = pdev->dev.of_node;
 	const struct dsi_type *data;
 	const struct of_device_id *of_id =
 			of_match_device(of_rk_mipi_dsi_match, &pdev->dev);
@@ -1743,7 +1774,8 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 	}
 	dsi->ops.id = data->dsi_id;
 	printk(KERN_INFO "%s\n", data->label);
-	if (dsi->ops.id == DSI_RK3288) {
+	if (dsi->ops.id == DSI_RK3288 ||
+	    dsi->ops.id == DSI_RK3399) {
 		res_host = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		dsi->host.membase = devm_ioremap_resource(&pdev->dev, res_host);
 		if (IS_ERR(dsi->host.membase)) {
@@ -1802,6 +1834,21 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 		if (unlikely(IS_ERR(dsi->h2p_hclk))) {
 			dev_err(&pdev->dev, "get hclk_vio_h2p clock fail\n");
 			return PTR_ERR(dsi->h2p_hclk);
+		}
+	}
+
+	if (dsi->ops.id == DSI_RK3399) {
+		/* Get mipi phy cfg clk */
+		dsi->dsi_host_pclk = devm_clk_get(&pdev->dev, "mipi_dphy_cfg");
+		if (unlikely(IS_ERR(dsi->dsi_host_pclk))) {
+			dev_err(&pdev->dev, "get mipi_dphy_cfg clock fail\n");
+			return PTR_ERR(dsi->dsi_host_pclk);
+		}
+
+		dsi->grf_base = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+		if (IS_ERR(dsi->grf_base)) {
+			dev_err(&pdev->dev, "can't find mipi grf property\n");
+			dsi->grf_base = NULL;
 		}
 	}
 
@@ -1903,6 +1950,8 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 			clk_prepare_enable(dsi->h2p_hclk);
 		} else if (dsi->ops.id == DSI_RK3368 ||
 			dsi->ops.id == DSI_RK3366)
+			clk_prepare_enable(dsi->dsi_host_pclk);
+		else if (dsi->ops.id == DSI_RK3399)
 			clk_prepare_enable(dsi->dsi_host_pclk);
 
 		dsi->clk_on = 1;

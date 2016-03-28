@@ -15,6 +15,12 @@ drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 #else
 #include <linux/rockchip/grf.h>
 #endif
+
+#define RK3399_GRF_CON20	0x6250
+#define RK3399_GRF_CON22	0x6258
+#define RK3399_GRF_CON23	0x625c
+#define RK3399_GRF_CON24	0x6260
+
 #define MIPI_DSI_PHY_OFFSET		0x0C00
 #define MIPI_DSI_PHY_SIZE		0x34c
 
@@ -301,6 +307,7 @@ struct dsi {
 	u8 lcdc_id;
 	u8 vid;
 	u8 clk_on;
+	struct regmap *grf_base;
 	struct dsi_phy phy;
 	struct dsi_host host;
 	struct mipi_dsi_ops ops;
