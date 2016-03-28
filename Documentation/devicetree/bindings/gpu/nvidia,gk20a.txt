@@ -24,6 +24,9 @@ Required properties:
 - reset-names: Must include the following entries:
   - gpu
 
+Optional properties:
+- iommus: A reference to the IOMMU. See ../iommu/iommu.txt for details.
+
 Example:
 
 	gpu@0,57000000 {
@@ -39,5 +42,6 @@ Example:
 		clock-names = "gpu", "pwr";
 		resets = <&tegra_car 184>;
 		reset-names = "gpu";
+		iommus = <&mc TEGRA_SWGROUP_GPU>;
 		status = "disabled";
 	};
