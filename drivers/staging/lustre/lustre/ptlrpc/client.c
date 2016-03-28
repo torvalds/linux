@@ -2087,7 +2087,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 		CDEBUG(D_RPCTRACE, "set %p going to sleep for %d seconds\n",
 		       set, timeout);
 
-		if (timeout == 0 && !cfs_signal_pending())
+		if (timeout == 0 && !signal_pending(current))
 			/*
 			 * No requests are in-flight (ether timed out
 			 * or delayed), so we can allow interrupts.
@@ -2114,7 +2114,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 		 * it being ignored forever
 		 */
 		if (rc == -ETIMEDOUT && !lwi.lwi_allow_intr &&
-		    cfs_signal_pending()) {
+		    signal_pending(current)) {
 			sigset_t blocked_sigs =
 					   cfs_block_sigsinv(LUSTRE_FATAL_SIGS);
 
@@ -2124,7 +2124,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 			 * important signals since ptlrpc set is not easily
 			 * reentrant from userspace again
 			 */
-			if (cfs_signal_pending())
+			if (signal_pending(current))
 				ptlrpc_interrupted_set(set);
 			cfs_restore_sigs(blocked_sigs);
 		}

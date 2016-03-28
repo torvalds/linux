@@ -128,13 +128,6 @@ cfs_restore_sigs(sigset_t old)
 }
 EXPORT_SYMBOL(cfs_restore_sigs);
 
-int
-cfs_signal_pending(void)
-{
-	return signal_pending(current);
-}
-EXPORT_SYMBOL(cfs_signal_pending);
-
 void
 cfs_clear_sigpending(void)
 {

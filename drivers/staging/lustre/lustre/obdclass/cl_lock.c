@@ -951,7 +951,7 @@ int cl_lock_state_wait(const struct lu_env *env, struct cl_lock *lock)
 		result = -ERESTARTSYS;
 		if (likely(!OBD_FAIL_CHECK(OBD_FAIL_LOCK_STATE_WAIT_INTR))) {
 			schedule();
-			if (!cfs_signal_pending())
+			if (!signal_pending(current))
 				result = 0;
 		}
 

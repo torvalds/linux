@@ -578,7 +578,7 @@ do {									   \
 									       \
 		if (condition)						 \
 			break;						 \
-		if (cfs_signal_pending()) {				    \
+		if (signal_pending(current)) {				    \
 			if (info->lwi_on_signal &&		     \
 			    (__timeout == 0 || __allow_intr)) {		\
 				if (info->lwi_on_signal != LWI_ON_SIGNAL_NOOP) \
