@@ -1,9 +1,9 @@
 NVIDIA GK20A Graphics Processing Unit
 
 Required properties:
-- compatible: "nvidia,<chip>-<gpu>"
+- compatible: "nvidia,<gpu>"
   Currently recognized values:
-  - nvidia,tegra124-gk20a
+  - nvidia,gk20a
 - reg: Physical base address and length of the controller's registers.
   Must contain two entries:
   - first entry for bar0
