@@ -2027,11 +2027,10 @@ static void fc_vport_dev_release(struct device *dev)
 	kfree(vport);
 }
 
-int scsi_is_fc_vport(const struct device *dev)
+static int scsi_is_fc_vport(const struct device *dev)
 {
 	return dev->release == fc_vport_dev_release;
 }
-EXPORT_SYMBOL(scsi_is_fc_vport);
 
 static int fc_vport_match(struct attribute_container *cont,
 			    struct device *dev)
