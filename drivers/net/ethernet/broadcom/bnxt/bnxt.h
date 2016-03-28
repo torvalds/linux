@@ -477,6 +477,7 @@ struct rx_tpa_end_cmp_ext {
 #define RING_CMP(idx)		((idx) & bp->cp_ring_mask)
 #define NEXT_CMP(idx)		RING_CMP(ADV_RAW_CMP(idx, 1))
 
+#define BNXT_HWRM_MAX_REQ_LEN		(bp->hwrm_max_req_len)
 #define DFLT_HWRM_CMD_TIMEOUT		500
 #define HWRM_CMD_TIMEOUT		(bp->hwrm_cmd_timeout)
 #define HWRM_RESET_TIMEOUT		((HWRM_CMD_TIMEOUT) * 4)
@@ -953,6 +954,7 @@ struct bnxt {
 	dma_addr_t		hw_tx_port_stats_map;
 	int			hw_port_stats_size;
 
+	u16			hwrm_max_req_len;
 	int			hwrm_cmd_timeout;
 	struct mutex		hwrm_cmd_lock;	/* serialize hwrm messages */
 	struct hwrm_ver_get_output	ver_resp;
