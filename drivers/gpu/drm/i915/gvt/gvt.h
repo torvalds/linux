@@ -38,6 +38,7 @@
 #include "mmio.h"
 #include "reg.h"
 #include "interrupt.h"
+#include "gtt.h"
 
 #define GVT_MAX_VGPU 8
 
@@ -61,6 +62,9 @@ struct intel_gvt_device_info {
 	u32 mmio_size;
 	u32 mmio_bar;
 	unsigned long msi_cap_offset;
+	u32 gtt_start_offset;
+	u32 gtt_entry_size;
+	u32 gtt_entry_size_shift;
 };
 
 /* GM resources owned by a vGPU */
@@ -116,6 +120,7 @@ struct intel_vgpu {
 	struct intel_vgpu_cfg_space cfg_space;
 	struct intel_vgpu_mmio mmio;
 	struct intel_vgpu_irq irq;
+	struct intel_vgpu_gtt gtt;
 };
 
 struct intel_gvt_gm {
@@ -153,6 +158,7 @@ struct intel_gvt {
 	struct intel_gvt_mmio mmio;
 	struct intel_gvt_firmware firmware;
 	struct intel_gvt_irq irq;
+	struct intel_gvt_gtt gtt;
 };
 
 void intel_gvt_free_firmware(struct intel_gvt *gvt);
@@ -262,6 +268,38 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 
 void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu);
 
+/* validating GM functions */
+#define vgpu_gmadr_is_aperture(vgpu, gmadr) \
+	((gmadr >= vgpu_aperture_gmadr_base(vgpu)) && \
+	 (gmadr <= vgpu_aperture_gmadr_end(vgpu)))
+
+#define vgpu_gmadr_is_hidden(vgpu, gmadr) \
+	((gmadr >= vgpu_hidden_gmadr_base(vgpu)) && \
+	 (gmadr <= vgpu_hidden_gmadr_end(vgpu)))
+
+#define vgpu_gmadr_is_valid(vgpu, gmadr) \
+	 ((vgpu_gmadr_is_aperture(vgpu, gmadr) || \
+	  (vgpu_gmadr_is_hidden(vgpu, gmadr))))
+
+#define gvt_gmadr_is_aperture(gvt, gmadr) \
+	 ((gmadr >= gvt_aperture_gmadr_base(gvt)) && \
+	  (gmadr <= gvt_aperture_gmadr_end(gvt)))
+
+#define gvt_gmadr_is_hidden(gvt, gmadr) \
+	  ((gmadr >= gvt_hidden_gmadr_base(gvt)) && \
+	   (gmadr <= gvt_hidden_gmadr_end(gvt)))
+
+#define gvt_gmadr_is_valid(gvt, gmadr) \
+	  (gvt_gmadr_is_aperture(gvt, gmadr) || \
+	    gvt_gmadr_is_hidden(gvt, gmadr))
+
+bool intel_gvt_ggtt_validate_range(struct intel_vgpu *vgpu, u64 addr, u32 size);
+int intel_gvt_ggtt_gmadr_g2h(struct intel_vgpu *vgpu, u64 g_addr, u64 *h_addr);
+int intel_gvt_ggtt_gmadr_h2g(struct intel_vgpu *vgpu, u64 h_addr, u64 *g_addr);
+int intel_gvt_ggtt_index_g2h(struct intel_vgpu *vgpu, unsigned long g_index,
+			     unsigned long *h_index);
+int intel_gvt_ggtt_h2g_index(struct intel_vgpu *vgpu, unsigned long h_index,
+			     unsigned long *g_index);
 #include "mpt.h"
 
 #endif

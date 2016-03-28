@@ -33,4 +33,7 @@
 #define gvt_dbg_irq(fmt, args...) \
 	DRM_DEBUG_DRIVER("gvt: irq: "fmt, ##args)
 
+#define gvt_dbg_mm(fmt, args...) \
+	DRM_DEBUG_DRIVER("gvt: mm: "fmt, ##args)
+
 #endif

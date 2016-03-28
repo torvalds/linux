@@ -101,6 +101,9 @@ static void init_device_info(struct intel_gvt *gvt)
 		info->mmio_size = 2 * 1024 * 1024;
 		info->mmio_bar = 0;
 		info->msi_cap_offset = IS_SKYLAKE(gvt->dev_priv) ? 0xac : 0x90;
+		info->gtt_start_offset = 8 * 1024 * 1024;
+		info->gtt_entry_size = 8;
+		info->gtt_entry_size_shift = 3;
 	}
 }
 
@@ -119,6 +122,7 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 	if (WARN_ON(!gvt->initialized))
 		return;
 
+	intel_gvt_clean_gtt(gvt);
 	intel_gvt_clean_irq(gvt);
 	intel_gvt_clean_mmio_info(gvt);
 	intel_gvt_free_firmware(gvt);
@@ -171,10 +175,16 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out_free_firmware;
 
+	ret = intel_gvt_init_gtt(gvt);
+	if (ret)
+		goto out_clean_irq;
+
 	gvt_dbg_core("gvt device creation is done\n");
 	gvt->initialized = true;
 	return 0;
 
+out_clean_irq:
+	intel_gvt_clean_irq(gvt);
 out_free_firmware:
 	intel_gvt_free_firmware(gvt);
 out_clean_mmio_info:

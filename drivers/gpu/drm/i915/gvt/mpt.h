@@ -117,4 +117,111 @@ static inline int intel_gvt_hypervisor_inject_msi(struct intel_vgpu *vgpu)
 	return 0;
 }
 
+/**
+ * intel_gvt_hypervisor_set_wp_page - translate a host VA into MFN
+ * @p: host kernel virtual address
+ *
+ * Returns:
+ * MFN on success, INTEL_GVT_INVALID_ADDR if failed.
+ */
+static inline unsigned long intel_gvt_hypervisor_virt_to_mfn(void *p)
+{
+	return intel_gvt_host.mpt->from_virt_to_mfn(p);
+}
+
+/**
+ * intel_gvt_hypervisor_set_wp_page - set a guest page to write-protected
+ * @vgpu: a vGPU
+ * @p: intel_vgpu_guest_page
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+static inline int intel_gvt_hypervisor_set_wp_page(struct intel_vgpu *vgpu,
+		struct intel_vgpu_guest_page *p)
+{
+	int ret;
+
+	if (p->writeprotection)
+		return 0;
+
+	ret = intel_gvt_host.mpt->set_wp_page(vgpu->handle, p->gfn);
+	if (ret)
+		return ret;
+	p->writeprotection = true;
+	atomic_inc(&vgpu->gtt.n_write_protected_guest_page);
+	return 0;
+}
+
+/**
+ * intel_gvt_hypervisor_unset_wp_page - remove the write-protection of a
+ * guest page
+ * @vgpu: a vGPU
+ * @p: intel_vgpu_guest_page
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+static inline int intel_gvt_hypervisor_unset_wp_page(struct intel_vgpu *vgpu,
+		struct intel_vgpu_guest_page *p)
+{
+	int ret;
+
+	if (!p->writeprotection)
+		return 0;
+
+	ret = intel_gvt_host.mpt->unset_wp_page(vgpu->handle, p->gfn);
+	if (ret)
+		return ret;
+	p->writeprotection = false;
+	atomic_dec(&vgpu->gtt.n_write_protected_guest_page);
+	return 0;
+}
+
+/**
+ * intel_gvt_hypervisor_read_gpa - copy data from GPA to host data buffer
+ * @vgpu: a vGPU
+ * @gpa: guest physical address
+ * @buf: host data buffer
+ * @len: data length
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+static inline int intel_gvt_hypervisor_read_gpa(struct intel_vgpu *vgpu,
+		unsigned long gpa, void *buf, unsigned long len)
+{
+	return intel_gvt_host.mpt->read_gpa(vgpu->handle, gpa, buf, len);
+}
+
+/**
+ * intel_gvt_hypervisor_write_gpa - copy data from host data buffer to GPA
+ * @vgpu: a vGPU
+ * @gpa: guest physical address
+ * @buf: host data buffer
+ * @len: data length
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+static inline int intel_gvt_hypervisor_write_gpa(struct intel_vgpu *vgpu,
+		unsigned long gpa, void *buf, unsigned long len)
+{
+	return intel_gvt_host.mpt->write_gpa(vgpu->handle, gpa, buf, len);
+}
+
+/**
+ * intel_gvt_hypervisor_gfn_to_mfn - translate a GFN to MFN
+ * @vgpu: a vGPU
+ * @gpfn: guest pfn
+ *
+ * Returns:
+ * MFN on success, INTEL_GVT_INVALID_ADDR if failed.
+ */
+static inline unsigned long intel_gvt_hypervisor_gfn_to_mfn(
+		struct intel_vgpu *vgpu, unsigned long gfn)
+{
+	return intel_gvt_host.mpt->gfn_to_mfn(vgpu->handle, gfn);
+}
+
 #endif /* _GVT_MPT_H_ */
