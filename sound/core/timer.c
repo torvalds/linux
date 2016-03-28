@@ -1502,17 +1502,13 @@ static int snd_timer_user_ginfo(struct file *file,
 	return err;
 }
 
-static int snd_timer_user_gparams(struct file *file,
-				  struct snd_timer_gparams __user *_gparams)
+static int timer_set_gparams(struct snd_timer_gparams *gparams)
 {
-	struct snd_timer_gparams gparams;
 	struct snd_timer *t;
 	int err;
 
-	if (copy_from_user(&gparams, _gparams, sizeof(gparams)))
-		return -EFAULT;
 	mutex_lock(&register_mutex);
-	t = snd_timer_find(&gparams.tid);
+	t = snd_timer_find(&gparams->tid);
 	if (!t) {
 		err = -ENODEV;
 		goto _error;
@@ -1525,10 +1521,20 @@ static int snd_timer_user_gparams(struct file *file,
 		err = -ENOSYS;
 		goto _error;
 	}
-	err = t->hw.set_period(t, gparams.period_num, gparams.period_den);
+	err = t->hw.set_period(t, gparams->period_num, gparams->period_den);
 _error:
 	mutex_unlock(&register_mutex);
 	return err;
+}
+
+static int snd_timer_user_gparams(struct file *file,
+				  struct snd_timer_gparams __user *_gparams)
+{
+	struct snd_timer_gparams gparams;
+
+	if (copy_from_user(&gparams, _gparams, sizeof(gparams)))
+		return -EFAULT;
+	return timer_set_gparams(&gparams);
 }
 
 static int snd_timer_user_gstatus(struct file *file,
