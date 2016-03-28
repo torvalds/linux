@@ -48,21 +48,23 @@
 
 	vdd_log: vdd-log {
 		compatible = "pwm-regulator";
-		pwms = <&pwm2 0 1000>;
+		pwms = <&pwm2 0 25000 0>;
 		regulator-name = "vdd_log";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1400000>;
 		regulator-always-on;
+		regulator-boot-on;
 		status = "okay";
 	};
 
 	vdd_center: vdd-center {
 		compatible = "pwm-regulator";
-		pwms = <&pwm3 0 1000>;
+		pwms = <&pwm3 0 25000 0>;
 		regulator-name = "vdd_center";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1400000>;
 		regulator-always-on;
+		regulator-boot-on;
 		status = "okay";
 	};
 

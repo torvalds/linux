@@ -130,6 +130,16 @@
 	};
 };
 
+&vdd_log {
+	rockchip,pwm_id= <2>;
+	rockchip,pwm_voltage = <900000>;
+};
+
+&vdd_center {
+	rockchip,pwm_id= <3>;
+	rockchip,pwm_voltage = <900000>;
+};
+
 &fb {
 	status = "okay";
 };
