@@ -2262,7 +2262,6 @@ struct wireless_dev *wilc_create_wiphy(struct net_device *net, struct device *de
 	}
 
 	priv = wdev_priv(wdev);
-	sema_init(&(priv->SemHandleUpdateStats), 1);
 	priv->wdev = wdev;
 	wdev->wiphy->max_scan_ssids = MAX_NUM_PROBED_SSID;
 #ifdef CONFIG_PM

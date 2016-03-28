@@ -130,7 +130,6 @@ struct wilc_priv {
 	struct wilc_wfi_key *wilc_ptk[MAX_NUM_STA];
 	u8 wilc_groupkey;
 	/* semaphores */
-	struct semaphore SemHandleUpdateStats;
 	struct semaphore hSemScanReq;
 	/*  */
 	bool gbAutoRateAdjusted;
