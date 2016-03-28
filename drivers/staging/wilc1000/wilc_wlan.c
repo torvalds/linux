@@ -1197,7 +1197,7 @@ static int wilc_wlan_cfg_commit(struct wilc_vif *vif, int type,
 	return 0;
 }
 
-int wilc_wlan_cfg_set(struct wilc_vif *vif, int start, u32 wid, u8 *buffer,
+int wilc_wlan_cfg_set(struct wilc_vif *vif, int start, u16 wid, u8 *buffer,
 		      u32 buffer_size, int commit, u32 drv_handler)
 {
 	u32 offset;
@@ -1212,7 +1212,7 @@ int wilc_wlan_cfg_set(struct wilc_vif *vif, int start, u32 wid, u8 *buffer,
 
 	offset = wilc->cfg_frame_offset;
 	ret_size = wilc_wlan_cfg_set_wid(wilc->cfg_frame.frame, offset,
-					 (u16)wid, buffer, buffer_size);
+					 wid, buffer, buffer_size);
 	offset += ret_size;
 	wilc->cfg_frame_offset = offset;
 
