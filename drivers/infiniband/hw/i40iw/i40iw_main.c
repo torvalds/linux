@@ -270,7 +270,6 @@ static void i40iw_disable_irq(struct i40iw_sc_dev *dev,
 		i40iw_wr32(dev->hw, I40E_PFINT_DYN_CTLN(msix_vec->idx - 1), 0);
 	else
 		i40iw_wr32(dev->hw, I40E_VFINT_DYN_CTLN1(msix_vec->idx - 1), 0);
-	synchronize_irq(msix_vec->irq);
 	free_irq(msix_vec->irq, dev_id);
 }
 
