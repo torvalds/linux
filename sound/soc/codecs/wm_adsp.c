@@ -2240,8 +2240,12 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		if (ret != 0)
 			goto err;
 
+		mutex_lock(&dsp->pwr_lock);
+
 		if (wm_adsp_fw[dsp->fw].num_caps != 0)
 			ret = wm_adsp_buffer_init(dsp);
+
+		mutex_unlock(&dsp->pwr_lock);
 
 		break;
 
@@ -2814,11 +2818,14 @@ static int wm_adsp_buffer_update_avail(struct wm_adsp_compr_buf *buf)
 
 int wm_adsp_compr_handle_irq(struct wm_adsp *dsp)
 {
-	struct wm_adsp_compr_buf *buf = dsp->buffer;
-	struct wm_adsp_compr *compr = dsp->compr;
+	struct wm_adsp_compr_buf *buf;
+	struct wm_adsp_compr *compr;
 	int ret = 0;
 
 	mutex_lock(&dsp->pwr_lock);
+
+	buf = dsp->buffer;
+	compr = dsp->compr;
 
 	if (!buf) {
 		ret = -ENODEV;
@@ -2879,13 +2886,15 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 			  struct snd_compr_tstamp *tstamp)
 {
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
-	struct wm_adsp_compr_buf *buf = compr->buf;
 	struct wm_adsp *dsp = compr->dsp;
+	struct wm_adsp_compr_buf *buf;
 	int ret = 0;
 
 	adsp_dbg(dsp, "Pointer request\n");
 
 	mutex_lock(&dsp->pwr_lock);
+
+	buf = compr->buf;
 
 	if (!compr->buf) {
 		ret = -ENXIO;
