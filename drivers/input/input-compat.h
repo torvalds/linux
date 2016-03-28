@@ -17,8 +17,6 @@
 
 #ifdef CONFIG_COMPAT
 
-#define INPUT_COMPAT_TEST in_compat_syscall()
-
 struct input_event_compat {
 	struct compat_timeval time;
 	__u16 type;
@@ -57,7 +55,7 @@ struct ff_effect_compat {
 
 static inline size_t input_event_size(void)
 {
-	return (INPUT_COMPAT_TEST && !COMPAT_USE_64BIT_TIME) ?
+	return (in_compat_syscall() && !COMPAT_USE_64BIT_TIME) ?
 		sizeof(struct input_event_compat) : sizeof(struct input_event);
 }
 

@@ -126,7 +126,7 @@ static void process_one_interrupt(struct rmi_driver_data *data,
 		return;
 
 	fh = to_rmi_function_handler(fn->dev.driver);
-	if (fn->irq_mask && fh->attention) {
+	if (fh->attention) {
 		bitmap_and(data->fn_irq_bits, data->irq_status, fn->irq_mask,
 				data->irq_count);
 		if (!bitmap_empty(data->fn_irq_bits, data->irq_count))
@@ -172,8 +172,7 @@ int rmi_process_interrupt_requests(struct rmi_device *rmi_dev)
 	 * use irq_chip.
 	 */
 	list_for_each_entry(entry, &data->function_list, node)
-		if (entry->irq_mask)
-			process_one_interrupt(data, entry);
+		process_one_interrupt(data, entry);
 
 	if (data->input)
 		input_sync(data->input);

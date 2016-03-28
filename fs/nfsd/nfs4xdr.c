@@ -3365,6 +3365,7 @@ static __be32 nfsd4_encode_splice_read(
 	struct xdr_stream *xdr = &resp->xdr;
 	struct xdr_buf *buf = xdr->buf;
 	u32 eof;
+	long len;
 	int space_left;
 	__be32 nfserr;
 	__be32 *p = xdr->p - 2;
@@ -3373,6 +3374,7 @@ static __be32 nfsd4_encode_splice_read(
 	if (xdr->end - xdr->p < 1)
 		return nfserr_resource;
 
+	len = maxcount;
 	nfserr = nfsd_splice_read(read->rd_rqstp, file,
 				  read->rd_offset, &maxcount);
 	if (nfserr) {
@@ -3385,8 +3387,8 @@ static __be32 nfsd4_encode_splice_read(
 		return nfserr;
 	}
 
-	eof = (read->rd_offset + maxcount >=
-	       d_inode(read->rd_fhp->fh_dentry)->i_size);
+	eof = nfsd_eof_on_read(len, maxcount, read->rd_offset,
+				d_inode(read->rd_fhp->fh_dentry)->i_size);
 
 	*(p++) = htonl(eof);
 	*(p++) = htonl(maxcount);
@@ -3456,14 +3458,15 @@ static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
 	}
 	read->rd_vlen = v;
 
+	len = maxcount;
 	nfserr = nfsd_readv(file, read->rd_offset, resp->rqstp->rq_vec,
 			read->rd_vlen, &maxcount);
 	if (nfserr)
 		return nfserr;
 	xdr_truncate_encode(xdr, starting_len + 8 + ((maxcount+3)&~3));
 
-	eof = (read->rd_offset + maxcount >=
-	       d_inode(read->rd_fhp->fh_dentry)->i_size);
+	eof = nfsd_eof_on_read(len, maxcount, read->rd_offset,
+				d_inode(read->rd_fhp->fh_dentry)->i_size);
 
 	tmp = htonl(eof);
 	write_bytes_to_xdr_buf(xdr->buf, starting_len    , &tmp, 4);

@@ -61,11 +61,14 @@ static irqreturn_t rv8803_handle_irq(int irq, void *dev_id)
 	struct i2c_client *client = dev_id;
 	struct rv8803_data *rv8803 = i2c_get_clientdata(client);
 	unsigned long events = 0;
-	int flags;
+	int flags, try = 0;
 
 	mutex_lock(&rv8803->flags_lock);
 
-	flags = i2c_smbus_read_byte_data(client, RV8803_FLAG);
+	do {
+		flags = i2c_smbus_read_byte_data(client, RV8803_FLAG);
+		try++;
+	} while ((flags == -ENXIO) && (try < 3));
 	if (flags <= 0) {
 		mutex_unlock(&rv8803->flags_lock);
 		return IRQ_NONE;
@@ -424,7 +427,7 @@ static int rv8803_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct rv8803_data *rv8803;
-	int err, flags;
+	int err, flags, try = 0;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_I2C_BLOCK)) {
@@ -441,7 +444,16 @@ static int rv8803_probe(struct i2c_client *client,
 	rv8803->client = client;
 	i2c_set_clientdata(client, rv8803);
 
-	flags = i2c_smbus_read_byte_data(client, RV8803_FLAG);
+	/*
+	 * There is a 60µs window where the RTC may not reply on the i2c bus in
+	 * that case, the transfer is not ACKed. In that case, ensure there are
+	 * multiple attempts.
+	 */
+	do {
+		flags = i2c_smbus_read_byte_data(client, RV8803_FLAG);
+		try++;
+	} while ((flags == -ENXIO) && (try < 3));
+
 	if (flags < 0)
 		return flags;
 
@@ -476,8 +488,12 @@ static int rv8803_probe(struct i2c_client *client,
 		return PTR_ERR(rv8803->rtc);
 	}
 
-	err = i2c_smbus_write_byte_data(rv8803->client, RV8803_EXT,
-					RV8803_EXT_WADA);
+	try = 0;
+	do {
+		err = i2c_smbus_write_byte_data(rv8803->client, RV8803_EXT,
+						RV8803_EXT_WADA);
+		try++;
+	} while ((err == -ENXIO) && (try < 3));
 	if (err)
 		return err;
 

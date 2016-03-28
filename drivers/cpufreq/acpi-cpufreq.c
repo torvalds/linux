@@ -245,7 +245,7 @@ static unsigned extract_freq(u32 val, struct acpi_cpufreq_data *data)
 	}
 }
 
-u32 cpu_freq_read_intel(struct acpi_pct_register *not_used)
+static u32 cpu_freq_read_intel(struct acpi_pct_register *not_used)
 {
 	u32 val, dummy;
 
@@ -253,7 +253,7 @@ u32 cpu_freq_read_intel(struct acpi_pct_register *not_used)
 	return val;
 }
 
-void cpu_freq_write_intel(struct acpi_pct_register *not_used, u32 val)
+static void cpu_freq_write_intel(struct acpi_pct_register *not_used, u32 val)
 {
 	u32 lo, hi;
 
@@ -262,7 +262,7 @@ void cpu_freq_write_intel(struct acpi_pct_register *not_used, u32 val)
 	wrmsr(MSR_IA32_PERF_CTL, lo, hi);
 }
 
-u32 cpu_freq_read_amd(struct acpi_pct_register *not_used)
+static u32 cpu_freq_read_amd(struct acpi_pct_register *not_used)
 {
 	u32 val, dummy;
 
@@ -270,12 +270,12 @@ u32 cpu_freq_read_amd(struct acpi_pct_register *not_used)
 	return val;
 }
 
-void cpu_freq_write_amd(struct acpi_pct_register *not_used, u32 val)
+static void cpu_freq_write_amd(struct acpi_pct_register *not_used, u32 val)
 {
 	wrmsr(MSR_AMD_PERF_CTL, val, 0);
 }
 
-u32 cpu_freq_read_io(struct acpi_pct_register *reg)
+static u32 cpu_freq_read_io(struct acpi_pct_register *reg)
 {
 	u32 val;
 
@@ -283,7 +283,7 @@ u32 cpu_freq_read_io(struct acpi_pct_register *reg)
 	return val;
 }
 
-void cpu_freq_write_io(struct acpi_pct_register *reg, u32 val)
+static void cpu_freq_write_io(struct acpi_pct_register *reg, u32 val)
 {
 	acpi_os_write_port(reg->address, val, reg->bit_width);
 }
@@ -514,8 +514,10 @@ static int boost_notify(struct notifier_block *nb, unsigned long action,
 	 */
 
 	switch (action) {
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
+	case CPU_DOWN_FAILED:
+	case CPU_DOWN_FAILED_FROZEN:
+	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		boost_set_msrs(acpi_cpufreq_driver.boost_enabled, cpumask);
 		break;
 

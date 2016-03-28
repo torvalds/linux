@@ -170,7 +170,7 @@ static int do_page_crypto(struct inode *inode,
 		fscrypt_complete, &ecr);
 
 	BUILD_BUG_ON(FS_XTS_TWEAK_SIZE < sizeof(index));
-	memcpy(xts_tweak, &inode->i_ino, sizeof(index));
+	memcpy(xts_tweak, &index, sizeof(index));
 	memset(&xts_tweak[sizeof(index)], 0,
 			FS_XTS_TWEAK_SIZE - sizeof(index));
 
