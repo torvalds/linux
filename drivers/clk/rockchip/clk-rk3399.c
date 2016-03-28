@@ -21,12 +21,6 @@
 #include <dt-bindings/clock/rk3399-cru.h>
 #include "clk.h"
 
-#define RK3399_PMUGRF_SOC_CON0			0x180
-#define RK3399_PMUCRU_PCLK_GATE_MASK		0x1
-#define RK3399_PMUCRU_PCLK_GATE_SHIFT		4
-#define RK3399_PMUCRU_PCLK_ALIVE_MASK		0x1
-#define RK3399_PMUCRU_PCLK_ALIVE_SHIFT		6
-
 enum rk3399_plls {
 	lpll, bpll, dpll, cpll, gpll, npll, vpll,
 };
@@ -1503,7 +1497,6 @@ static void __init rk3399_pmu_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
-	struct regmap *grf;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -1516,22 +1509,6 @@ static void __init rk3399_pmu_clk_init(struct device_node *np)
 		pr_err("%s: rockchip pmu clk init failed\n", __func__);
 		return;
 	}
-
-	grf = rockchip_clk_get_grf(ctx);
-	if (IS_ERR(grf)) {
-		pr_err("%s: pmugrf regmap not available\n", __func__);
-		return;
-	}
-
-	/* enable gate for pclk_pmu_src */
-	regmap_write(grf, RK3399_PMUGRF_SOC_CON0,
-			  HIWORD_UPDATE(0, RK3399_PMUCRU_PCLK_GATE_MASK,
-					RK3399_PMUCRU_PCLK_GATE_SHIFT));
-
-	/* enable pclk_alive_gpll_src gate */
-	regmap_write(grf, RK3399_PMUGRF_SOC_CON0,
-			  HIWORD_UPDATE(0, RK3399_PMUCRU_PCLK_ALIVE_MASK,
-					RK3399_PMUCRU_PCLK_ALIVE_SHIFT));
 
 	rockchip_clk_register_plls(ctx, rk3399_pmu_pll_clks,
 				   ARRAY_SIZE(rk3399_pmu_pll_clks), -1);
