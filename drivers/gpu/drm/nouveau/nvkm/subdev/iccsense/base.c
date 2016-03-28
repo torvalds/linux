@@ -96,26 +96,23 @@ nvkm_iccsense_ina3221_read(struct nvkm_iccsense *iccsense,
 }
 
 int
-nvkm_iccsense_read(struct nvkm_iccsense *iccsense, u8 idx)
-{
-	struct nvkm_iccsense_rail *rail;
-
-	if (!iccsense || idx >= iccsense->rail_count)
-		return -EINVAL;
-
-	rail = &iccsense->rails[idx];
-	if (!rail->read)
-		return -ENODEV;
-
-	return rail->read(iccsense, rail);
-}
-
-int
 nvkm_iccsense_read_all(struct nvkm_iccsense *iccsense)
 {
 	int result = 0, i;
+
+	if (!iccsense)
+		return -EINVAL;
+
+	if (iccsense->rail_count == 0)
+		return -ENODEV;
+
 	for (i = 0; i < iccsense->rail_count; ++i) {
-		int res = nvkm_iccsense_read(iccsense, i);
+		int res;
+		struct nvkm_iccsense_rail *rail = &iccsense->rails[i];
+		if (!rail->read)
+			return -ENODEV;
+
+		res = rail->read(iccsense, rail);
 		if (res >= 0)
 			result += res;
 		else

@@ -12,6 +12,5 @@ struct nvkm_iccsense {
 };
 
 int gf100_iccsense_new(struct nvkm_device *, int index, struct nvkm_iccsense **);
-int nvkm_iccsense_read(struct nvkm_iccsense *iccsense, u8 idx);
 int nvkm_iccsense_read_all(struct nvkm_iccsense *iccsense);
 #endif
