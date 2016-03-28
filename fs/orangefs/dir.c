@@ -235,7 +235,7 @@ get_new_buffer_index:
 	if (ret == -EIO && op_state_purged(new_op)) {
 		gossip_err("%s: Client is down. Aborting readdir call.\n",
 			__func__);
-		goto out_slot;
+		goto out_free_op;
 	}
 
 	if (ret < 0 || new_op->downcall.status != 0) {
@@ -244,14 +244,14 @@ get_new_buffer_index:
 			     new_op->downcall.status);
 		if (ret >= 0)
 			ret = new_op->downcall.status;
-		goto out_slot;
+		goto out_free_op;
 	}
 
 	dents_buf = new_op->downcall.trailer_buf;
 	if (dents_buf == NULL) {
 		gossip_err("Invalid NULL buffer in readdir response\n");
 		ret = -ENOMEM;
-		goto out_slot;
+		goto out_free_op;
 	}
 
 	bytes_decoded = decode_dirents(dents_buf, new_op->downcall.trailer_size,
@@ -363,8 +363,6 @@ out_destroy_handle:
 out_vfree:
 	gossip_debug(GOSSIP_DIR_DEBUG, "vfree %p\n", dents_buf);
 	vfree(dents_buf);
-out_slot:
-	orangefs_readdir_index_put(buffer_index);
 out_free_op:
 	op_release(new_op);
 	gossip_debug(GOSSIP_DIR_DEBUG, "orangefs_readdir returning %d\n", ret);
