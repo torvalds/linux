@@ -184,7 +184,7 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	struct scatterlist *sg;
 	int i, ret;
 
-	buffer = kzalloc(sizeof(struct ion_buffer), GFP_KERNEL);
+	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer)
 		return ERR_PTR(-ENOMEM);
 
@@ -341,7 +341,7 @@ static struct ion_handle *ion_handle_create(struct ion_client *client,
 {
 	struct ion_handle *handle;
 
-	handle = kzalloc(sizeof(struct ion_handle), GFP_KERNEL);
+	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle)
 		return ERR_PTR(-ENOMEM);
 	kref_init(&handle->ref);
@@ -827,7 +827,7 @@ struct ion_client *ion_client_create(struct ion_device *dev,
 	}
 	task_unlock(current->group_leader);
 
-	client = kzalloc(sizeof(struct ion_client), GFP_KERNEL);
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
 		goto err_put_task_struct;
 
@@ -1035,7 +1035,7 @@ static void ion_vm_open(struct vm_area_struct *vma)
 	struct ion_buffer *buffer = vma->vm_private_data;
 	struct ion_vma_list *vma_list;
 
-	vma_list = kmalloc(sizeof(struct ion_vma_list), GFP_KERNEL);
+	vma_list = kmalloc(sizeof(*vma_list), GFP_KERNEL);
 	if (!vma_list)
 		return;
 	vma_list->vma = vma;
@@ -1650,7 +1650,7 @@ struct ion_device *ion_device_create(long (*custom_ioctl)
 	struct ion_device *idev;
 	int ret;
 
-	idev = kzalloc(sizeof(struct ion_device), GFP_KERNEL);
+	idev = kzalloc(sizeof(*idev), GFP_KERNEL);
 	if (!idev)
 		return ERR_PTR(-ENOMEM);
 
