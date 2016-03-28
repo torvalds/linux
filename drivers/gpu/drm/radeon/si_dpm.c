@@ -3010,6 +3010,10 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 		}
 		++p;
 	}
+	/* limit mclk on all R7 370 parts for stability */
+	if (rdev->pdev->device == 0x6811 &&
+	    rdev->pdev->revision == 0x81)
+		max_mclk = 120000;
 
 	if (rps->vce_active) {
 		rps->evclk = rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].evclk;
