@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2014-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 /*
@@ -588,33 +588,7 @@ static void csi_dmareq_rff_disable(struct mx6s_csi_dev *csi_dev)
 	__raw_writel(cr3, csi_dev->regbase + CSI_CSICR3);
 }
 
-static void csi_set_32bit_imagpara(struct mx6s_csi_dev *csi,
-					int width, int height)
-{
-	int imag_para = 0;
-	unsigned long cr3 = __raw_readl(csi->regbase + CSI_CSICR3);
-
-	imag_para = (width << 16) | height;
-	__raw_writel(imag_para, csi->regbase + CSI_CSIIMAG_PARA);
-
-	/* reflash the embeded DMA controller */
-	__raw_writel(cr3 | BIT_DMA_REFLASH_RFF, csi->regbase + CSI_CSICR3);
-}
-
-static void csi_set_16bit_imagpara(struct mx6s_csi_dev *csi,
-					int width, int height)
-{
-	int imag_para = 0;
-	unsigned long cr3 = __raw_readl(csi->regbase + CSI_CSICR3);
-
-	imag_para = ((width * 2) << 16) | height;
-	__raw_writel(imag_para, csi->regbase + CSI_CSIIMAG_PARA);
-
-	/* reflash the embeded DMA controller */
-	__raw_writel(cr3 | BIT_DMA_REFLASH_RFF, csi->regbase + CSI_CSICR3);
-}
-
-static void csi_set_8bit_imagpara(struct mx6s_csi_dev *csi,
+static void csi_set_imagpara(struct mx6s_csi_dev *csi,
 					int width, int height)
 {
 	int imag_para = 0;
@@ -816,6 +790,7 @@ static int mx6s_configure_csi(struct mx6s_csi_dev *csi_dev)
 {
 	struct v4l2_pix_format *pix = &csi_dev->pix;
 	u32 cr1, cr18;
+	u32 width;
 
 	if (pix->field == V4L2_FIELD_INTERLACED) {
 		csi_deinterlace_enable(csi_dev, true);
@@ -828,21 +803,22 @@ static int mx6s_configure_csi(struct mx6s_csi_dev *csi_dev)
 
 	switch (csi_dev->fmt->pixelformat) {
 	case V4L2_PIX_FMT_YUV32:
-		csi_set_32bit_imagpara(csi_dev, pix->width, pix->height);
+	case V4L2_PIX_FMT_SBGGR8:
+		width = pix->width;
 		break;
 	case V4L2_PIX_FMT_UYVY:
-		csi_set_16bit_imagpara(csi_dev, pix->width, pix->height);
-		break;
 	case V4L2_PIX_FMT_YUYV:
-		csi_set_16bit_imagpara(csi_dev, pix->width, pix->height);
-		break;
-	case V4L2_PIX_FMT_SBGGR8:
-		csi_set_8bit_imagpara(csi_dev, pix->width, pix->height);
+		if (csi_dev->csi_mux_mipi == true)
+			width = pix->width;
+		else
+			/* For parallel 8-bit sensor input */
+			width = pix->width * 2;
 		break;
 	default:
 		pr_debug("   case not supported\n");
 		return -EINVAL;
 	}
+	csi_set_imagpara(csi_dev, width, pix->height);
 
 	if (csi_dev->csi_mux_mipi == true) {
 		cr1 = csi_read(csi_dev, CSI_CSICR1);
