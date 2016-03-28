@@ -212,6 +212,22 @@ static struct rockchip_pll_clock rk3399_pmu_pll_clks[] __initdata = {
 #define GFLAGS (CLK_GATE_HIWORD_MASK | CLK_GATE_SET_TO_DISABLE)
 #define IFLAGS ROCKCHIP_INVERTER_HIWORD_MASK
 
+static struct rockchip_clk_branch rk3399_spdif_fracmux __initdata =
+	MUX(0, "clk_spdif_mux", mux_spdif_p, CLK_SET_RATE_PARENT,
+			RK3399_CLKSEL_CON(32), 13, 2, MFLAGS);
+
+static struct rockchip_clk_branch rk3399_i2s0_fracmux __initdata =
+	MUX(0, "clk_i2s0_mux", mux_i2s0_p, CLK_SET_RATE_PARENT,
+			RK3399_CLKSEL_CON(28), 8, 2, MFLAGS);
+
+static struct rockchip_clk_branch rk3399_i2s1_fracmux __initdata =
+	MUX(0, "clk_i2s1_mux", mux_i2s1_p, CLK_SET_RATE_PARENT,
+			RK3399_CLKSEL_CON(29), 8, 2, MFLAGS);
+
+static struct rockchip_clk_branch rk3399_i2s2_fracmux __initdata =
+	MUX(0, "clk_i2s2_mux", mux_i2s2_p, CLK_SET_RATE_PARENT,
+			RK3399_CLKSEL_CON(30), 8, 2, MFLAGS);
+
 static struct rockchip_clk_branch rk3399_uart0_fracmux __initdata =
 	MUX(SCLK_UART0, "clk_uart0", mux_uart0_p, CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(33), 8, 2, MFLAGS);
@@ -530,11 +546,11 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE(0, "clk_spdif_div", mux_pll_src_cpll_gpll_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(32), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3399_CLKGATE_CON(8), 13, GFLAGS),
-	COMPOSITE_FRAC(0, "clk_spdif_frac", "clk_spdif_div", CLK_SET_RATE_PARENT,
+	COMPOSITE_FRACMUX(0, "clk_spdif_frac", "clk_spdif_div", CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(99), 0,
-			RK3399_CLKGATE_CON(8), 14, GFLAGS),
-	COMPOSITE_NODIV(SCLK_SPDIF_8CH, "clk_spdif", mux_spdif_p, CLK_SET_RATE_PARENT,
-			RK3399_CLKSEL_CON(32), 13, 2, MFLAGS,
+			RK3399_CLKGATE_CON(8), 14, GFLAGS,
+			&rk3399_spdif_fracmux),
+	GATE(SCLK_SPDIF_8CH, "clk_spdif", "clk_spdif_mux", CLK_SET_RATE_PARENT,
 			RK3399_CLKGATE_CON(8), 15, GFLAGS),
 
 	COMPOSITE(SCLK_SPDIF_REC_DPTX, "clk_spdif_rec_dptx", mux_pll_src_cpll_gpll_p, CLK_IGNORE_UNUSED,
@@ -544,39 +560,36 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	COMPOSITE(0, "clk_i2s0_div", mux_pll_src_cpll_gpll_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(28), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3399_CLKGATE_CON(8), 3, GFLAGS),
-	COMPOSITE_FRAC(0, "clk_i2s0_frac", "clk_i2s0_div", CLK_SET_RATE_PARENT,
+	COMPOSITE_FRACMUX(0, "clk_i2s0_frac", "clk_i2s0_div", CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(96), 0,
-			RK3399_CLKGATE_CON(8), 4, GFLAGS),
-	MUX(0, "clk_i2s0_mux", mux_i2s0_p, CLK_SET_RATE_PARENT,
-			RK3399_CLKSEL_CON(28), 8, 2, MFLAGS),
-	GATE(SCLK_I2S0_8CH, "clk_i2s0", "clk_i2s0_mux", CLK_IGNORE_UNUSED,
+			RK3399_CLKGATE_CON(8), 4, GFLAGS,
+			&rk3399_i2s0_fracmux),
+	GATE(SCLK_I2S0_8CH, "clk_i2s0", "clk_i2s0_mux", CLK_SET_RATE_PARENT,
 			RK3399_CLKGATE_CON(8), 5, GFLAGS),
 
 	COMPOSITE(0, "clk_i2s1_div", mux_pll_src_cpll_gpll_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(29), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3399_CLKGATE_CON(8), 6, GFLAGS),
-	COMPOSITE_FRAC(0, "clk_i2s1_frac", "clk_i2s1_div", CLK_SET_RATE_PARENT,
+	COMPOSITE_FRACMUX(0, "clk_i2s1_frac", "clk_i2s1_div", CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(97), 0,
-			RK3399_CLKGATE_CON(8), 7, GFLAGS),
-	MUX(0, "clk_i2s1_mux", mux_i2s1_p, CLK_SET_RATE_PARENT,
-			RK3399_CLKSEL_CON(29), 8, 2, MFLAGS),
-	GATE(SCLK_I2S1_8CH, "clk_i2s1", "clk_i2s1_mux", CLK_IGNORE_UNUSED,
+			RK3399_CLKGATE_CON(8), 7, GFLAGS,
+			&rk3399_i2s1_fracmux),
+	GATE(SCLK_I2S1_8CH, "clk_i2s1", "clk_i2s1_mux", CLK_SET_RATE_PARENT,
 			RK3399_CLKGATE_CON(8), 8, GFLAGS),
 
 	COMPOSITE(0, "clk_i2s2_div", mux_pll_src_cpll_gpll_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(30), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3399_CLKGATE_CON(8), 9, GFLAGS),
-	COMPOSITE_FRAC(0, "clk_i2s2_frac", "clk_i2s2_div", CLK_SET_RATE_PARENT,
+	COMPOSITE_FRACMUX(0, "clk_i2s2_frac", "clk_i2s2_div", CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(98), 0,
-			RK3399_CLKGATE_CON(8), 10, GFLAGS),
-	MUX(0, "clk_i2s2_mux", mux_i2s2_p, CLK_SET_RATE_PARENT,
-			RK3399_CLKSEL_CON(30), 8, 2, MFLAGS),
-	GATE(SCLK_I2S2_8CH, "clk_i2s2", "clk_i2s2_mux", CLK_IGNORE_UNUSED,
+			RK3399_CLKGATE_CON(8), 10, GFLAGS,
+			&rk3399_i2s2_fracmux),
+	GATE(SCLK_I2S2_8CH, "clk_i2s2", "clk_i2s2_mux", CLK_SET_RATE_PARENT,
 			RK3399_CLKGATE_CON(8), 11, GFLAGS),
 
 	MUX(0, "clk_i2sout_src", mux_i2sch_p, CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(31), 0, 2, MFLAGS),
-	COMPOSITE_NODIV(SCLK_I2S_8CH_OUT, "clk_i2sout", mux_i2sout_p, 0,
+	COMPOSITE_NODIV(SCLK_I2S_8CH_OUT, "clk_i2sout", mux_i2sout_p, CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(30), 8, 2, MFLAGS,
 			RK3399_CLKGATE_CON(8), 12, GFLAGS),
 
