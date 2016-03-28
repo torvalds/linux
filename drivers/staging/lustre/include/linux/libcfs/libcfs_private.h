@@ -351,12 +351,6 @@ void cfs_percpt_lock_free(struct cfs_percpt_lock *pcl);
 void cfs_percpt_lock(struct cfs_percpt_lock *pcl, int index);
 /* unlock private lock \a index of \a pcl */
 void cfs_percpt_unlock(struct cfs_percpt_lock *pcl, int index);
-/* create percpt (atomic) refcount based on @cptab */
-atomic_t **cfs_percpt_atomic_alloc(struct cfs_cpt_table *cptab, int val);
-/* destroy percpt refcount */
-void cfs_percpt_atomic_free(atomic_t **refs);
-/* return sum of all percpu refs */
-int cfs_percpt_atomic_summary(atomic_t **refs);
 
 /** Compile-time assertion.
 
