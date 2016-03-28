@@ -4,6 +4,7 @@
 #include <subdev/iccsense.h>
 
 struct nvkm_iccsense_rail {
+	struct list_head head;
 	int (*read)(struct nvkm_iccsense *, struct nvkm_iccsense_rail *);
 	struct i2c_adapter *i2c;
 	u8 addr;

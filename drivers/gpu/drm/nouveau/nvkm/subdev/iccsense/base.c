@@ -98,25 +98,21 @@ nvkm_iccsense_ina3221_read(struct nvkm_iccsense *iccsense,
 int
 nvkm_iccsense_read_all(struct nvkm_iccsense *iccsense)
 {
-	int result = 0, i;
+	int result = 0;
+	struct nvkm_iccsense_rail *rail;
 
 	if (!iccsense)
 		return -EINVAL;
 
-	if (iccsense->rail_count == 0)
-		return -ENODEV;
-
-	for (i = 0; i < iccsense->rail_count; ++i) {
+	list_for_each_entry(rail, &iccsense->rails, head) {
 		int res;
-		struct nvkm_iccsense_rail *rail = &iccsense->rails[i];
 		if (!rail->read)
 			return -ENODEV;
 
 		res = rail->read(iccsense, rail);
-		if (res >= 0)
-			result += res;
-		else
+		if (res < 0)
 			return res;
+		result += res;
 	}
 	return result;
 }
@@ -125,9 +121,12 @@ static void *
 nvkm_iccsense_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_iccsense *iccsense = nvkm_iccsense(subdev);
+	struct nvkm_iccsense_rail *rail, *tmp;
 
-	if (iccsense->rails)
-		kfree(iccsense->rails);
+	list_for_each_entry_safe(rail, tmp, &iccsense->rails, head) {
+		list_del(&rail->head);
+		kfree(rail);
+	}
 
 	return iccsense;
 }
@@ -144,11 +143,6 @@ nvkm_iccsense_oneinit(struct nvkm_subdev *subdev)
 	if (!i2c || !bios || nvbios_iccsense_parse(bios, &stbl)
 	    || !stbl.nr_entry)
 		return 0;
-
-	iccsense->rails = kmalloc(sizeof(*iccsense->rails) * stbl.nr_entry,
-	                          GFP_KERNEL);
-	if (!iccsense->rails)
-		return -ENOMEM;
 
 	iccsense->data_valid = true;
 	for (i = 0; i < stbl.nr_entry; ++i) {
@@ -184,7 +178,10 @@ nvkm_iccsense_oneinit(struct nvkm_subdev *subdev)
 			continue;
 		}
 
-		rail = &iccsense->rails[iccsense->rail_count];
+		rail = kmalloc(sizeof(*rail), GFP_KERNEL);
+		if (!rail)
+			return -ENOMEM;
+
 		switch (extdev.type) {
 		case NVBIOS_EXTDEV_INA209:
 			rail->read = nvkm_iccsense_ina209_read;
@@ -201,7 +198,7 @@ nvkm_iccsense_oneinit(struct nvkm_subdev *subdev)
 		rail->rail = r->rail;
 		rail->mohm = r->resistor_mohm;
 		rail->i2c = &i2c_bus->i2c;
-		++iccsense->rail_count;
+		list_add_tail(&rail->head, &iccsense->rails);
 	}
 	return 0;
 }
@@ -224,6 +221,7 @@ nvkm_iccsense_new_(struct nvkm_device *device, int index,
 {
 	if (!(*iccsense = kzalloc(sizeof(**iccsense), GFP_KERNEL)))
 		return -ENOMEM;
+	INIT_LIST_HEAD(&(*iccsense)->rails);
 	nvkm_iccsense_ctor(device, index, *iccsense);
 	return 0;
 }
