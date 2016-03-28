@@ -457,7 +457,6 @@ static void rk312x_mipi_dsi_set_hs_clk(struct dsi *dsi)
 static int rk312x_phy_power_up(struct dsi *dsi)
 {
 	/* enable ref clock */
-	rk312x_mipi_dsi_set_hs_clk(dsi);
 	clk_prepare_enable(dsi->phy.refclk);
 	clk_prepare_enable(dsi->dsi_pclk);
 	clk_prepare_enable(dsi->dsi_host_pclk);
@@ -466,6 +465,7 @@ static int rk312x_phy_power_up(struct dsi *dsi)
 
 	udelay(10);
 
+	rk312x_mipi_dsi_set_hs_clk(dsi);
 	rk32_dsi_set_bits(dsi, 0xe4, DPHY_REGISTER1);
 	switch (dsi->host.lane) {
 	case 4:
