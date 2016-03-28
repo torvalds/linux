@@ -1157,6 +1157,7 @@ static struct snd_compr_ops cs47l24_compr_ops = {
 static struct snd_soc_platform_driver cs47l24_compr_platform = {
 	.compr_ops = &cs47l24_compr_ops,
 };
+
 static int cs47l24_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
@@ -1225,9 +1226,9 @@ static int cs47l24_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register platform: %d\n", ret);
 		return ret;
 	}
+
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs47l24,
 				      cs47l24_dai, ARRAY_SIZE(cs47l24_dai));
-
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
 		snd_soc_unregister_platform(&pdev->dev);
