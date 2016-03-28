@@ -1202,10 +1202,10 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	 * so we ignore the mux and make clocks nodes as following,
 	 *
 	 * pclkin_cifinv --|-------\
-	 *                 |GSC20_9|-- pclkin_cifmux
+	 *                 |GSC20_9|-- pclkin_cifmux -- |G27_6| -- pclkin_isp1_wrapper
 	 * pclkin_cif    --|-------/
 	 */
-	GATE(PCLK_ISP1_WRAPPER, "pclkin_isp1_wrapper", "pclkin_cifmux", CLK_IGNORE_UNUSED,
+	GATE(PCLK_ISP1_WRAPPER, "pclkin_isp1_wrapper", "pclkin_cif", CLK_IGNORE_UNUSED,
 			RK3399_CLKGATE_CON(27), 6, GFLAGS),
 
 	/* cif */
