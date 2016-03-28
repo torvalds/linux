@@ -403,15 +403,6 @@ config PHY_TUSB1210
 	help
 	  Support for TI TUSB1210 USB ULPI PHY.
 
-config PHY_CYGNUS_PCIE
-	tristate "Broadcom Cygnus PCIe PHY driver"
-	depends on OF && (ARCH_BCM_CYGNUS || COMPILE_TEST)
-	select GENERIC_PHY
-	default ARCH_BCM_CYGNUS
-	help
-	  Enable this to support the Broadcom Cygnus PCIe PHY.
-	  If unsure, say N.
-
 config PHY_BRCM_SATA
 	tristate "Broadcom SATA PHY driver"
 	depends on ARCH_BRCMSTB || ARCH_BCM_IPROC || BMIPS_GENERIC || COMPILE_TEST
@@ -421,4 +412,14 @@ config PHY_BRCM_SATA
 	help
 	  Enable this to support the Broadcom SATA PHY.
 	  If unsure, say N.
+
+config PHY_CYGNUS_PCIE
+	tristate "Broadcom Cygnus PCIe PHY driver"
+	depends on OF && (ARCH_BCM_CYGNUS || COMPILE_TEST)
+	select GENERIC_PHY
+	default ARCH_BCM_CYGNUS
+	help
+	  Enable this to support the Broadcom Cygnus PCIe PHY.
+	  If unsure, say N.
+
 endmenu
