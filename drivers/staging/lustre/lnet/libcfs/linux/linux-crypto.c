@@ -313,7 +313,6 @@ static void cfs_crypto_performance_test(enum cfs_crypto_hash_alg hash_alg)
 	void *buf;
 	unsigned long		   start, end;
 	int			     bcount, err = 0;
-	int			     sec = 1; /* do test only 1 sec */
 	struct page *page;
 	unsigned char hash[CFS_CRYPTO_HASH_DIGESTSIZE_MAX];
 	unsigned int hash_len = sizeof(hash);
@@ -328,8 +327,8 @@ static void cfs_crypto_performance_test(enum cfs_crypto_hash_alg hash_alg)
 	memset(buf, 0xAD, PAGE_SIZE);
 	kunmap(page);
 
-	for (start = jiffies, end = start + sec * HZ, bcount = 0;
-	     time_before(jiffies, end); bcount++) {
+	for (start = jiffies, end = start + msecs_to_jiffies(MSEC_PER_SEC),
+	     bcount = 0; time_before(jiffies, end); bcount++) {
 		struct cfs_crypto_hash_desc *hdesc;
 		int i;
 
