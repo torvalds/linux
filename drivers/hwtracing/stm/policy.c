@@ -107,8 +107,7 @@ stp_policy_node_masters_store(struct config_item *item, const char *page,
 		goto unlock;
 
 	/* must be within [sw_start..sw_end], which is an inclusive range */
-	if (first > INT_MAX || last > INT_MAX || first > last ||
-	    first < stm->data->sw_start ||
+	if (first > last || first < stm->data->sw_start ||
 	    last > stm->data->sw_end) {
 		ret = -ERANGE;
 		goto unlock;
