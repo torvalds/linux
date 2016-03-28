@@ -60,15 +60,8 @@
 #define LNET_ACCEPTOR_MAX_RESERVED_PORT    1023
 
 /*
- * Drop into debugger, if possible. Implementation is provided by platform.
- */
-
-void cfs_enter_debugger(void);
-
-/*
  * Defined by platform
  */
-int unshare_fs_struct(void);
 sigset_t cfs_block_allsigs(void);
 sigset_t cfs_block_sigs(unsigned long sigs);
 sigset_t cfs_block_sigsinv(unsigned long sigs);
