@@ -1276,9 +1276,9 @@ int wilc_wlan_cfg_get(struct wilc_vif *vif, int start, u16 wid, int commit,
 	return ret_size;
 }
 
-int wilc_wlan_cfg_get_val(u32 wid, u8 *buffer, u32 buffer_size)
+int wilc_wlan_cfg_get_val(u16 wid, u8 *buffer, u32 buffer_size)
 {
-	return wilc_wlan_cfg_get_wid_value((u16)wid, buffer, buffer_size);
+	return wilc_wlan_cfg_get_wid_value(wid, buffer, buffer_size);
 }
 
 int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
