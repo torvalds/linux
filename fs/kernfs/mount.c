@@ -14,6 +14,7 @@
 #include <linux/magic.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
+#include <linux/namei.h>
 
 #include "kernfs-internal.h"
 
@@ -60,6 +61,74 @@ struct kernfs_root *kernfs_root_from_sb(struct super_block *sb)
 	if (sb->s_op == &kernfs_sops)
 		return kernfs_info(sb)->root;
 	return NULL;
+}
+
+/*
+ * find the next ancestor in the path down to @child, where @parent was the
+ * ancestor whose descendant we want to find.
+ *
+ * Say the path is /a/b/c/d.  @child is d, @parent is NULL.  We return the root
+ * node.  If @parent is b, then we return the node for c.
+ * Passing in d as @parent is not ok.
+ */
+static struct kernfs_node *find_next_ancestor(struct kernfs_node *child,
+					      struct kernfs_node *parent)
+{
+	if (child == parent) {
+		pr_crit_once("BUG in find_next_ancestor: called with parent == child");
+		return NULL;
+	}
+
+	while (child->parent != parent) {
+		if (!child->parent)
+			return NULL;
+		child = child->parent;
+	}
+
+	return child;
+}
+
+/**
+ * kernfs_node_dentry - get a dentry for the given kernfs_node
+ * @kn: kernfs_node for which a dentry is needed
+ * @sb: the kernfs super_block
+ */
+struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
+				  struct super_block *sb)
+{
+	struct dentry *dentry;
+	struct kernfs_node *knparent = NULL;
+
+	BUG_ON(sb->s_op != &kernfs_sops);
+
+	dentry = dget(sb->s_root);
+
+	/* Check if this is the root kernfs_node */
+	if (!kn->parent)
+		return dentry;
+
+	knparent = find_next_ancestor(kn, NULL);
+	if (WARN_ON(!knparent))
+		return ERR_PTR(-EINVAL);
+
+	do {
+		struct dentry *dtmp;
+		struct kernfs_node *kntmp;
+
+		if (kn == knparent)
+			return dentry;
+		kntmp = find_next_ancestor(kn, knparent);
+		if (WARN_ON(!kntmp))
+			return ERR_PTR(-EINVAL);
+		mutex_lock(&d_inode(dentry)->i_mutex);
+		dtmp = lookup_one_len(kntmp->name, dentry, strlen(kntmp->name));
+		mutex_unlock(&d_inode(dentry)->i_mutex);
+		dput(dentry);
+		if (IS_ERR(dtmp))
+			return dtmp;
+		knparent = kntmp;
+		dentry = dtmp;
+	} while (true);
 }
 
 static int kernfs_fill_super(struct super_block *sb, unsigned long magic)

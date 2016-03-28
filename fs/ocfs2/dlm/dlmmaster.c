@@ -2278,7 +2278,7 @@ int dlm_drop_lockres_ref(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 		dlm_print_one_lock_resource(res);
 		BUG();
 	}
-	return ret;
+	return ret ? ret : r;
 }
 
 int dlm_deref_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
@@ -2345,7 +2345,7 @@ int dlm_deref_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
 		     	res->lockname.len, res->lockname.name, node);
 			dlm_print_one_lock_resource(res);
 		}
-		ret = 0;
+		ret = DLM_DEREF_RESPONSE_DONE;
 		goto done;
 	}
 
@@ -2365,7 +2365,7 @@ int dlm_deref_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
 	spin_unlock(&dlm->work_lock);
 
 	queue_work(dlm->dlm_worker, &dlm->dispatched_work);
-	return 0;
+	return DLM_DEREF_RESPONSE_INPROG;
 
 done:
 	if (res)
@@ -2373,6 +2373,122 @@ done:
 	dlm_put(dlm);
 
 	return ret;
+}
+
+int dlm_deref_lockres_done_handler(struct o2net_msg *msg, u32 len, void *data,
+			      void **ret_data)
+{
+	struct dlm_ctxt *dlm = data;
+	struct dlm_deref_lockres_done *deref
+			= (struct dlm_deref_lockres_done *)msg->buf;
+	struct dlm_lock_resource *res = NULL;
+	char *name;
+	unsigned int namelen;
+	int ret = -EINVAL;
+	u8 node;
+	unsigned int hash;
+
+	if (!dlm_grab(dlm))
+		return 0;
+
+	name = deref->name;
+	namelen = deref->namelen;
+	node = deref->node_idx;
+
+	if (namelen > DLM_LOCKID_NAME_MAX) {
+		mlog(ML_ERROR, "Invalid name length!");
+		goto done;
+	}
+	if (deref->node_idx >= O2NM_MAX_NODES) {
+		mlog(ML_ERROR, "Invalid node number: %u\n", node);
+		goto done;
+	}
+
+	hash = dlm_lockid_hash(name, namelen);
+
+	spin_lock(&dlm->spinlock);
+	res = __dlm_lookup_lockres_full(dlm, name, namelen, hash);
+	if (!res) {
+		spin_unlock(&dlm->spinlock);
+		mlog(ML_ERROR, "%s:%.*s: bad lockres name\n",
+		     dlm->name, namelen, name);
+		goto done;
+	}
+
+	spin_lock(&res->spinlock);
+	BUG_ON(!(res->state & DLM_LOCK_RES_DROPPING_REF));
+	if (!list_empty(&res->purge)) {
+		mlog(0, "%s: Removing res %.*s from purgelist\n",
+			dlm->name, res->lockname.len, res->lockname.name);
+		list_del_init(&res->purge);
+		dlm_lockres_put(res);
+		dlm->purge_count--;
+	}
+
+	if (!__dlm_lockres_unused(res)) {
+		mlog(ML_ERROR, "%s: res %.*s in use after deref\n",
+			dlm->name, res->lockname.len, res->lockname.name);
+		__dlm_print_one_lock_resource(res);
+		BUG();
+	}
+
+	__dlm_unhash_lockres(dlm, res);
+
+	spin_lock(&dlm->track_lock);
+	if (!list_empty(&res->tracking))
+		list_del_init(&res->tracking);
+	else {
+		mlog(ML_ERROR, "%s: Resource %.*s not on the Tracking list\n",
+		     dlm->name, res->lockname.len, res->lockname.name);
+		__dlm_print_one_lock_resource(res);
+	}
+	spin_unlock(&dlm->track_lock);
+
+	/* lockres is not in the hash now. drop the flag and wake up
+	 * any processes waiting in dlm_get_lock_resource.
+	 */
+	res->state &= ~DLM_LOCK_RES_DROPPING_REF;
+	spin_unlock(&res->spinlock);
+	wake_up(&res->wq);
+
+	dlm_lockres_put(res);
+
+	spin_unlock(&dlm->spinlock);
+
+done:
+	dlm_put(dlm);
+	return ret;
+}
+
+static void dlm_drop_lockres_ref_done(struct dlm_ctxt *dlm,
+		struct dlm_lock_resource *res, u8 node)
+{
+	struct dlm_deref_lockres_done deref;
+	int ret = 0, r;
+	const char *lockname;
+	unsigned int namelen;
+
+	lockname = res->lockname.name;
+	namelen = res->lockname.len;
+	BUG_ON(namelen > O2NM_MAX_NAME_LEN);
+
+	memset(&deref, 0, sizeof(deref));
+	deref.node_idx = dlm->node_num;
+	deref.namelen = namelen;
+	memcpy(deref.name, lockname, namelen);
+
+	ret = o2net_send_message(DLM_DEREF_LOCKRES_DONE, dlm->key,
+				 &deref, sizeof(deref), node, &r);
+	if (ret < 0) {
+		mlog(ML_ERROR, "%s: res %.*s, error %d send DEREF DONE "
+				" to node %u\n", dlm->name, namelen,
+				lockname, ret, node);
+	} else if (r < 0) {
+		/* ignore the error */
+		mlog(ML_ERROR, "%s: res %.*s, DEREF to node %u got %d\n",
+		     dlm->name, namelen, lockname, node, r);
+		dlm_print_one_lock_resource(res);
+	}
 }
 
 static void dlm_deref_lockres_worker(struct dlm_work_item *item, void *data)
@@ -2394,6 +2510,8 @@ static void dlm_deref_lockres_worker(struct dlm_work_item *item, void *data)
 		cleared = 1;
 	}
 	spin_unlock(&res->spinlock);
+
+	dlm_drop_lockres_ref_done(dlm, res, node);
 
 	if (cleared) {
 		mlog(0, "%s:%.*s node %u ref dropped in dispatch\n",
@@ -2432,7 +2550,8 @@ static int dlm_is_lockres_migrateable(struct dlm_ctxt *dlm,
 		return 0;
 
 	/* delay migration when the lockres is in RECOCERING state */
-	if (res->state & DLM_LOCK_RES_RECOVERING)
+	if (res->state & (DLM_LOCK_RES_RECOVERING|
+			DLM_LOCK_RES_RECOVERY_WAITING))
 		return 0;
 
 	if (res->owner != dlm->node_num)

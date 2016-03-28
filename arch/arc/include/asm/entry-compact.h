@@ -231,7 +231,7 @@
 	/* free up r9 as scratchpad */
 	PROLOG_FREEUP_REG r9, @int\LVL\()_saved_reg
 
-	/* Which mode (user/kernel) was the system in when intr occured */
+	/* Which mode (user/kernel) was the system in when intr occurred */
 	lr  r9, [status32_l\LVL\()]
 
 	SWITCH_TO_KERNEL_STK

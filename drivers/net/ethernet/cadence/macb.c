@@ -58,6 +58,9 @@
 
 #define GEM_MTU_MIN_SIZE	68
 
+#define MACB_WOL_HAS_MAGIC_PACKET	(0x1 << 0)
+#define MACB_WOL_ENABLED		(0x1 << 1)
+
 /*
  * Graceful stop timeouts in us. We should allow up to
  * 1 frame time (10 Mbits/s, full-duplex, ignoring collisions)
@@ -2124,6 +2127,39 @@ static void macb_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	}
 }
 
+static void macb_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct macb *bp = netdev_priv(netdev);
+
+	wol->supported = 0;
+	wol->wolopts = 0;
+
+	if (bp->wol & MACB_WOL_HAS_MAGIC_PACKET) {
+		wol->supported = WAKE_MAGIC;
+
+		if (bp->wol & MACB_WOL_ENABLED)
+			wol->wolopts |= WAKE_MAGIC;
+	}
+}
+
+static int macb_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct macb *bp = netdev_priv(netdev);
+
+	if (!(bp->wol & MACB_WOL_HAS_MAGIC_PACKET) ||
+	    (wol->wolopts & ~WAKE_MAGIC))
+		return -EOPNOTSUPP;
+
+	if (wol->wolopts & WAKE_MAGIC)
+		bp->wol |= MACB_WOL_ENABLED;
+	else
+		bp->wol &= ~MACB_WOL_ENABLED;
+
+	device_set_wakeup_enable(&bp->pdev->dev, bp->wol & MACB_WOL_ENABLED);
+
+	return 0;
+}
+
 static const struct ethtool_ops macb_ethtool_ops = {
 	.get_settings		= macb_get_settings,
 	.set_settings		= macb_set_settings,
@@ -2131,6 +2167,8 @@ static const struct ethtool_ops macb_ethtool_ops = {
 	.get_regs		= macb_get_regs,
 	.get_link		= ethtool_op_get_link,
 	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_wol		= macb_get_wol,
+	.set_wol		= macb_set_wol,
 };
 
 static const struct ethtool_ops gem_ethtool_ops = {
@@ -2402,9 +2440,9 @@ static int macb_init(struct platform_device *pdev)
 		if (bp->phy_interface == PHY_INTERFACE_MODE_RGMII)
 			val = GEM_BIT(RGMII);
 		else if (bp->phy_interface == PHY_INTERFACE_MODE_RMII &&
-			 (bp->caps & MACB_CAPS_USRIO_DEFAULT_IS_MII))
+			 (bp->caps & MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII))
 			val = MACB_BIT(RMII);
-		else if (!(bp->caps & MACB_CAPS_USRIO_DEFAULT_IS_MII))
+		else if (!(bp->caps & MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII))
 			val = MACB_BIT(MII);
 
 		if (bp->caps & MACB_CAPS_USRIO_HAS_CLKEN)
@@ -2736,7 +2774,7 @@ static int at91ether_init(struct platform_device *pdev)
 }
 
 static const struct macb_config at91sam9260_config = {
-	.caps = MACB_CAPS_USRIO_HAS_CLKEN | MACB_CAPS_USRIO_DEFAULT_IS_MII,
+	.caps = MACB_CAPS_USRIO_HAS_CLKEN | MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII,
 	.clk_init = macb_clk_init,
 	.init = macb_init,
 };
@@ -2749,21 +2787,22 @@ static const struct macb_config pc302gem_config = {
 };
 
 static const struct macb_config sama5d2_config = {
-	.caps = 0,
+	.caps = MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII,
 	.dma_burst_length = 16,
 	.clk_init = macb_clk_init,
 	.init = macb_init,
 };
 
 static const struct macb_config sama5d3_config = {
-	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE,
+	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE
+	      | MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII,
 	.dma_burst_length = 16,
 	.clk_init = macb_clk_init,
 	.init = macb_init,
 };
 
 static const struct macb_config sama5d4_config = {
-	.caps = 0,
+	.caps = MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII,
 	.dma_burst_length = 4,
 	.clk_init = macb_clk_init,
 	.init = macb_init,
@@ -2890,6 +2929,11 @@ static int macb_probe(struct platform_device *pdev)
 	if (macb_config)
 		bp->jumbo_max_len = macb_config->jumbo_max_len;
 
+	bp->wol = 0;
+	if (of_get_property(np, "magic-packet", NULL))
+		bp->wol |= MACB_WOL_HAS_MAGIC_PACKET;
+	device_init_wakeup(&pdev->dev, bp->wol & MACB_WOL_HAS_MAGIC_PACKET);
+
 	spin_lock_init(&bp->lock);
 
 	/* setup capabilities */
@@ -2915,7 +2959,7 @@ static int macb_probe(struct platform_device *pdev)
 		int gpio = of_get_named_gpio(phy_node, "reset-gpios", 0);
 		if (gpio_is_valid(gpio))
 			bp->reset_gpio = gpio_to_desc(gpio);
-		gpiod_set_value(bp->reset_gpio, GPIOD_OUT_HIGH);
+		gpiod_direction_output(bp->reset_gpio, 1);
 	}
 	of_node_put(phy_node);
 
@@ -2985,7 +3029,7 @@ static int macb_remove(struct platform_device *pdev)
 		mdiobus_free(bp->mii_bus);
 
 		/* Shutdown the PHY if there is a GPIO reset */
-		gpiod_set_value(bp->reset_gpio, GPIOD_OUT_LOW);
+		gpiod_set_value(bp->reset_gpio, 0);
 
 		unregister_netdev(dev);
 		clk_disable_unprepare(bp->tx_clk);
@@ -3006,9 +3050,15 @@ static int __maybe_unused macb_suspend(struct device *dev)
 	netif_carrier_off(netdev);
 	netif_device_detach(netdev);
 
-	clk_disable_unprepare(bp->tx_clk);
-	clk_disable_unprepare(bp->hclk);
-	clk_disable_unprepare(bp->pclk);
+	if (bp->wol & MACB_WOL_ENABLED) {
+		macb_writel(bp, IER, MACB_BIT(WOL));
+		macb_writel(bp, WOL, MACB_BIT(MAG));
+		enable_irq_wake(bp->queues[0].irq);
+	} else {
+		clk_disable_unprepare(bp->tx_clk);
+		clk_disable_unprepare(bp->hclk);
+		clk_disable_unprepare(bp->pclk);
+	}
 
 	return 0;
 }
@@ -3019,9 +3069,15 @@ static int __maybe_unused macb_resume(struct device *dev)
 	struct net_device *netdev = platform_get_drvdata(pdev);
 	struct macb *bp = netdev_priv(netdev);
 
-	clk_prepare_enable(bp->pclk);
-	clk_prepare_enable(bp->hclk);
-	clk_prepare_enable(bp->tx_clk);
+	if (bp->wol & MACB_WOL_ENABLED) {
+		macb_writel(bp, IDR, MACB_BIT(WOL));
+		macb_writel(bp, WOL, 0);
+		disable_irq_wake(bp->queues[0].irq);
+	} else {
+		clk_prepare_enable(bp->pclk);
+		clk_prepare_enable(bp->hclk);
+		clk_prepare_enable(bp->tx_clk);
+	}
 
 	netif_device_attach(netdev);
 

@@ -17,13 +17,13 @@
 
 #define DEBUG 1
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/module.h>
+#include <linux/slab.h>
 
 #define MAX_CHIPS 10
 

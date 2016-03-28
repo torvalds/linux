@@ -483,7 +483,7 @@ static int mic_dma_setup_irq(struct mic_dma_chan *ch)
 			mic_dma_intr_handler, mic_dma_thread_fn,
 			"mic dma_channel", ch, ch->ch_num);
 	if (IS_ERR(ch->cookie))
-		return IS_ERR(ch->cookie);
+		return PTR_ERR(ch->cookie);
 	return 0;
 }
 

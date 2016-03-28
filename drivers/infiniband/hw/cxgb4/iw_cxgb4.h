@@ -476,6 +476,8 @@ struct c4iw_qp {
 	wait_queue_head_t wait;
 	struct timer_list timer;
 	int sq_sig_all;
+	struct completion rq_drained;
+	struct completion sq_drained;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)
@@ -753,7 +755,6 @@ enum c4iw_ep_flags {
 	CLOSE_SENT		= 3,
 	TIMEOUT                 = 4,
 	QP_REFERENCED           = 5,
-	RELEASE_MAPINFO		= 6,
 };
 
 enum c4iw_ep_history {
@@ -790,8 +791,6 @@ struct c4iw_ep_common {
 	struct mutex mutex;
 	struct sockaddr_storage local_addr;
 	struct sockaddr_storage remote_addr;
-	struct sockaddr_storage mapped_local_addr;
-	struct sockaddr_storage mapped_remote_addr;
 	struct c4iw_wr_wait wr_wait;
 	unsigned long flags;
 	unsigned long history;
@@ -842,45 +841,6 @@ struct c4iw_ep {
 	int rcv_win;
 	struct c4iw_ep_stats stats;
 };
-
-static inline void print_addr(struct c4iw_ep_common *epc, const char *func,
-			      const char *msg)
-{
-
-#define SINA(a) (&(((struct sockaddr_in *)(a))->sin_addr.s_addr))
-#define SINP(a) ntohs(((struct sockaddr_in *)(a))->sin_port)
-#define SIN6A(a) (&(((struct sockaddr_in6 *)(a))->sin6_addr))
-#define SIN6P(a) ntohs(((struct sockaddr_in6 *)(a))->sin6_port)
-
-	if (c4iw_debug) {
-		switch (epc->local_addr.ss_family) {
-		case AF_INET:
-			PDBG("%s %s %pI4:%u/%u <-> %pI4:%u/%u\n",
-			     func, msg, SINA(&epc->local_addr),
-			     SINP(&epc->local_addr),
-			     SINP(&epc->mapped_local_addr),
-			     SINA(&epc->remote_addr),
-			     SINP(&epc->remote_addr),
-			     SINP(&epc->mapped_remote_addr));
-			break;
-		case AF_INET6:
-			PDBG("%s %s %pI6:%u/%u <-> %pI6:%u/%u\n",
-			     func, msg, SIN6A(&epc->local_addr),
-			     SIN6P(&epc->local_addr),
-			     SIN6P(&epc->mapped_local_addr),
-			     SIN6A(&epc->remote_addr),
-			     SIN6P(&epc->remote_addr),
-			     SIN6P(&epc->mapped_remote_addr));
-			break;
-		default:
-			break;
-		}
-	}
-#undef SINA
-#undef SINP
-#undef SIN6A
-#undef SIN6P
-}
 
 static inline struct c4iw_ep *to_ep(struct iw_cm_id *cm_id)
 {
@@ -961,7 +921,8 @@ int c4iw_map_mr_sg(struct ib_mr *ibmr,
 		   struct scatterlist *sg,
 		   int sg_nents);
 int c4iw_dealloc_mw(struct ib_mw *mw);
-struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
+struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
+			    struct ib_udata *udata);
 struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
 					   u64 length, u64 virt, int acc,
 					   struct ib_udata *udata);
@@ -1016,6 +977,8 @@ extern int c4iw_wr_log;
 extern int db_fc_threshold;
 extern int db_coalescing_threshold;
 extern int use_dsgl;
+void c4iw_drain_rq(struct ib_qp *qp);
+void c4iw_drain_sq(struct ib_qp *qp);
 
 
 #endif

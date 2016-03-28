@@ -503,15 +503,15 @@ static const struct samsung_mux_clock s5p6442_mux_clks[] __initconst = {
 
 /* S5PV210-specific fixed rate clocks generated inside the SoC. */
 static const struct samsung_fixed_rate_clock s5pv210_frate_clks[] __initconst = {
-	FRATE(SCLK_HDMI27M, "sclk_hdmi27m", NULL, CLK_IS_ROOT, 27000000),
-	FRATE(SCLK_HDMIPHY, "sclk_hdmiphy", NULL, CLK_IS_ROOT, 27000000),
-	FRATE(SCLK_USBPHY0, "sclk_usbphy0", NULL, CLK_IS_ROOT, 48000000),
-	FRATE(SCLK_USBPHY1, "sclk_usbphy1", NULL, CLK_IS_ROOT, 48000000),
+	FRATE(SCLK_HDMI27M, "sclk_hdmi27m", NULL, 0, 27000000),
+	FRATE(SCLK_HDMIPHY, "sclk_hdmiphy", NULL, 0, 27000000),
+	FRATE(SCLK_USBPHY0, "sclk_usbphy0", NULL, 0, 48000000),
+	FRATE(SCLK_USBPHY1, "sclk_usbphy1", NULL, 0, 48000000),
 };
 
 /* S5P6442-specific fixed rate clocks generated inside the SoC. */
 static const struct samsung_fixed_rate_clock s5p6442_frate_clks[] __initconst = {
-	FRATE(SCLK_USBPHY0, "sclk_usbphy0", NULL, CLK_IS_ROOT, 30000000),
+	FRATE(SCLK_USBPHY0, "sclk_usbphy0", NULL, 0, 30000000),
 };
 
 /* Common clock dividers. */

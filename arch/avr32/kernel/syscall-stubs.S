@@ -124,3 +124,12 @@ __sys_process_vm_writev:
 	call	sys_process_vm_writev
 	sub	sp, -4
 	popm	pc
+
+	.global __sys_copy_file_range
+	.type	__sys_copy_file_range,@function
+__sys_copy_file_range:
+	pushm	lr
+	st.w	--sp, ARG6
+	call	sys_copy_file_range
+	sub	sp, -4
+	popm	pc

@@ -45,6 +45,7 @@ struct mdp4_kms {
 	struct clk *pclk;
 	struct clk *lut_clk;
 	struct clk *axi_clk;
+	struct msm_mmu *mmu;
 
 	struct mdp_irq error_handler;
 
@@ -199,7 +200,6 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 		enum mdp4_pipe pipe_id, bool private_plane);
 
 uint32_t mdp4_crtc_vblank(struct drm_crtc *crtc);
-void mdp4_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file);
 void mdp4_crtc_set_config(struct drm_crtc *crtc, uint32_t config);
 void mdp4_crtc_set_intf(struct drm_crtc *crtc, enum mdp4_intf intf, int mixer);
 void mdp4_crtc_wait_for_commit_done(struct drm_crtc *crtc);

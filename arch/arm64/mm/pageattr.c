@@ -37,14 +37,31 @@ static int change_page_range(pte_t *ptep, pgtable_t token, unsigned long addr,
 	return 0;
 }
 
+/*
+ * This function assumes that the range is mapped with PAGE_SIZE pages.
+ */
+static int __change_memory_common(unsigned long start, unsigned long size,
+				pgprot_t set_mask, pgprot_t clear_mask)
+{
+	struct page_change_data data;
+	int ret;
+
+	data.set_mask = set_mask;
+	data.clear_mask = clear_mask;
+
+	ret = apply_to_page_range(&init_mm, start, size, change_page_range,
+					&data);
+
+	flush_tlb_kernel_range(start, start + size);
+	return ret;
+}
+
 static int change_memory_common(unsigned long addr, int numpages,
 				pgprot_t set_mask, pgprot_t clear_mask)
 {
 	unsigned long start = addr;
 	unsigned long size = PAGE_SIZE*numpages;
 	unsigned long end = start + size;
-	int ret;
-	struct page_change_data data;
 	struct vm_struct *area;
 
 	if (!PAGE_ALIGNED(addr)) {
@@ -75,14 +92,7 @@ static int change_memory_common(unsigned long addr, int numpages,
 	if (!numpages)
 		return 0;
 
-	data.set_mask = set_mask;
-	data.clear_mask = clear_mask;
-
-	ret = apply_to_page_range(&init_mm, start, size, change_page_range,
-					&data);
-
-	flush_tlb_kernel_range(start, end);
-	return ret;
+	return __change_memory_common(start, size, set_mask, clear_mask);
 }
 
 int set_memory_ro(unsigned long addr, int numpages)
@@ -114,3 +124,19 @@ int set_memory_x(unsigned long addr, int numpages)
 					__pgprot(PTE_PXN));
 }
 EXPORT_SYMBOL_GPL(set_memory_x);
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+void __kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	unsigned long addr = (unsigned long) page_address(page);
+
+	if (enable)
+		__change_memory_common(addr, PAGE_SIZE * numpages,
+					__pgprot(PTE_VALID),
+					__pgprot(0));
+	else
+		__change_memory_common(addr, PAGE_SIZE * numpages,
+					__pgprot(0),
+					__pgprot(PTE_VALID));
+}
+#endif

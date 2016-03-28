@@ -988,23 +988,6 @@ static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 	spin_unlock_irqrestore(&drm->event_lock, flags);
 }
 
-void tegra_dc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file)
-{
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-	struct drm_device *drm = crtc->dev;
-	unsigned long flags;
-
-	spin_lock_irqsave(&drm->event_lock, flags);
-
-	if (dc->event && dc->event->base.file_priv == file) {
-		dc->event->base.destroy(&dc->event->base);
-		drm_crtc_vblank_put(crtc);
-		dc->event = NULL;
-	}
-
-	spin_unlock_irqrestore(&drm->event_lock, flags);
-}
-
 static void tegra_dc_destroy(struct drm_crtc *crtc)
 {
 	drm_crtc_cleanup(crtc);

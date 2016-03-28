@@ -99,7 +99,7 @@ static void mpc85xx_cds_restart(char *cmd)
 		pci_read_config_byte(dev, 0x47, &tmp);
 
 		/*
-		 *  At this point, the harware reset should have triggered.
+		 *  At this point, the hardware reset should have triggered.
 		 *  However, if it doesn't work for some mysterious reason,
 		 *  just fall through to the default reset below.
 		 */

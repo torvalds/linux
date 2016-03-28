@@ -62,6 +62,7 @@ u64  nvif_device_time(struct nvif_device *);
 #define nvxx_gpio(a) nvxx_device(a)->gpio
 #define nvxx_clk(a) nvxx_device(a)->clk
 #define nvxx_i2c(a) nvxx_device(a)->i2c
+#define nvxx_iccsense(a) nvxx_device(a)->iccsense
 #define nvxx_therm(a) nvxx_device(a)->therm
 #define nvxx_volt(a) nvxx_device(a)->volt
 

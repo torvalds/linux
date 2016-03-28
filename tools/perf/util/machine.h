@@ -94,7 +94,7 @@ int machine__process_aux_event(struct machine *machine,
 			       union perf_event *event);
 int machine__process_itrace_start_event(struct machine *machine,
 					union perf_event *event);
-int machine__process_switch_event(struct machine *machine __maybe_unused,
+int machine__process_switch_event(struct machine *machine,
 				  union perf_event *event);
 int machine__process_mmap_event(struct machine *machine, union perf_event *event,
 				struct perf_sample *sample);
@@ -177,6 +177,16 @@ struct symbol *machine__find_kernel_symbol(struct machine *machine,
 {
 	return map_groups__find_symbol(&machine->kmaps, type, addr,
 				       mapp, filter);
+}
+
+static inline
+struct symbol *machine__find_kernel_symbol_by_name(struct machine *machine,
+						   enum map_type type, const char *name,
+						   struct map **mapp,
+						   symbol_filter_t filter)
+{
+	return map_groups__find_symbol_by_name(&machine->kmaps, type, name,
+					       mapp, filter);
 }
 
 static inline

@@ -43,7 +43,7 @@
 		amba {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "arm,amba-bus";
+			compatible = "simple-bus";
 			ranges;
 
 			uart0: uart@10001000 {

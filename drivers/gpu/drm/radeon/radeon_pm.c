@@ -79,7 +79,7 @@ void radeon_pm_acpi_event_handler(struct radeon_device *rdev)
 				radeon_dpm_enable_bapm(rdev, rdev->pm.dpm.ac_power);
 		}
 		mutex_unlock(&rdev->pm.mutex);
-        } else if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
+	} else if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
 		if (rdev->pm.profile == PM_PROFILE_AUTO) {
 			mutex_lock(&rdev->pm.mutex);
 			radeon_pm_update_profile(rdev);
@@ -1079,6 +1079,8 @@ force:
 
 	/* update display watermarks based on new power state */
 	radeon_bandwidth_update(rdev);
+	/* update displays */
+	radeon_dpm_display_configuration_changed(rdev);
 
 	/* wait for the rings to drain */
 	for (i = 0; i < RADEON_NUM_RINGS; i++) {
@@ -1094,9 +1096,6 @@ force:
 	rdev->pm.dpm.current_ps = rdev->pm.dpm.requested_ps;
 
 	radeon_dpm_post_set_power_state(rdev);
-
-	/* update displays */
-	radeon_dpm_display_configuration_changed(rdev);
 
 	rdev->pm.dpm.current_active_crtcs = rdev->pm.dpm.new_active_crtcs;
 	rdev->pm.dpm.current_active_crtc_count = rdev->pm.dpm.new_active_crtc_count;

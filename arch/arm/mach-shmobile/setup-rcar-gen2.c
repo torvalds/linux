@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/clk/shmobile.h>
+#include <linux/clk/renesas.h>
 #include <linux/clocksource.h>
 #include <linux/device.h>
 #include <linux/dma-contiguous.h>
@@ -182,8 +182,6 @@ static int __init rcar_gen2_scan_mem(unsigned long node, const char *uname,
 	return 0;
 }
 
-struct cma *rcar_gen2_dma_contiguous;
-
 void __init rcar_gen2_reserve(void)
 {
 	struct memory_reserve_config mrc;
@@ -194,8 +192,11 @@ void __init rcar_gen2_reserve(void)
 
 	of_scan_flat_dt(rcar_gen2_scan_mem, &mrc);
 #ifdef CONFIG_DMA_CMA
-	if (mrc.size && memblock_is_region_memory(mrc.base, mrc.size))
+	if (mrc.size && memblock_is_region_memory(mrc.base, mrc.size)) {
+		static struct cma *rcar_gen2_dma_contiguous;
+
 		dma_contiguous_reserve_area(mrc.size, mrc.base, 0,
 					    &rcar_gen2_dma_contiguous, true);
+	}
 #endif
 }

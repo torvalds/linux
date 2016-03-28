@@ -1,7 +1,8 @@
 /* Copyright 2002 Andi Kleen */
 
 #include <linux/linkage.h>
-#include <asm/cpufeature.h>
+#include <asm/errno.h>
+#include <asm/cpufeatures.h>
 #include <asm/alternative-asm.h>
 
 /*
@@ -177,3 +178,120 @@ ENTRY(memcpy_orig)
 .Lend:
 	retq
 ENDPROC(memcpy_orig)
+
+#ifndef CONFIG_UML
+/*
+ * memcpy_mcsafe - memory copy with machine check exception handling
+ * Note that we only catch machine checks when reading the source addresses.
+ * Writes to target are posted and don't generate machine checks.
+ */
+ENTRY(memcpy_mcsafe)
+	cmpl $8, %edx
+	/* Less than 8 bytes? Go to byte copy loop */
+	jb .L_no_whole_words
+
+	/* Check for bad alignment of source */
+	testl $7, %esi
+	/* Already aligned */
+	jz .L_8byte_aligned
+
+	/* Copy one byte at a time until source is 8-byte aligned */
+	movl %esi, %ecx
+	andl $7, %ecx
+	subl $8, %ecx
+	negl %ecx
+	subl %ecx, %edx
+.L_copy_leading_bytes:
+	movb (%rsi), %al
+	movb %al, (%rdi)
+	incq %rsi
+	incq %rdi
+	decl %ecx
+	jnz .L_copy_leading_bytes
+
+.L_8byte_aligned:
+	/* Figure out how many whole cache lines (64-bytes) to copy */
+	movl %edx, %ecx
+	andl $63, %edx
+	shrl $6, %ecx
+	jz .L_no_whole_cache_lines
+
+	/* Loop copying whole cache lines */
+.L_cache_w0: movq (%rsi), %r8
+.L_cache_w1: movq 1*8(%rsi), %r9
+.L_cache_w2: movq 2*8(%rsi), %r10
+.L_cache_w3: movq 3*8(%rsi), %r11
+	movq %r8, (%rdi)
+	movq %r9, 1*8(%rdi)
+	movq %r10, 2*8(%rdi)
+	movq %r11, 3*8(%rdi)
+.L_cache_w4: movq 4*8(%rsi), %r8
+.L_cache_w5: movq 5*8(%rsi), %r9
+.L_cache_w6: movq 6*8(%rsi), %r10
+.L_cache_w7: movq 7*8(%rsi), %r11
+	movq %r8, 4*8(%rdi)
+	movq %r9, 5*8(%rdi)
+	movq %r10, 6*8(%rdi)
+	movq %r11, 7*8(%rdi)
+	leaq 64(%rsi), %rsi
+	leaq 64(%rdi), %rdi
+	decl %ecx
+	jnz .L_cache_w0
+
+	/* Are there any trailing 8-byte words? */
+.L_no_whole_cache_lines:
+	movl %edx, %ecx
+	andl $7, %edx
+	shrl $3, %ecx
+	jz .L_no_whole_words
+
+	/* Copy trailing words */
+.L_copy_trailing_words:
+	movq (%rsi), %r8
+	mov %r8, (%rdi)
+	leaq 8(%rsi), %rsi
+	leaq 8(%rdi), %rdi
+	decl %ecx
+	jnz .L_copy_trailing_words
+
+	/* Any trailing bytes? */
+.L_no_whole_words:
+	andl %edx, %edx
+	jz .L_done_memcpy_trap
+
+	/* Copy trailing bytes */
+	movl %edx, %ecx
+.L_copy_trailing_bytes:
+	movb (%rsi), %al
+	movb %al, (%rdi)
+	incq %rsi
+	incq %rdi
+	decl %ecx
+	jnz .L_copy_trailing_bytes
+
+	/* Copy successful. Return zero */
+.L_done_memcpy_trap:
+	xorq %rax, %rax
+	ret
+ENDPROC(memcpy_mcsafe)
+
+	.section .fixup, "ax"
+	/* Return -EFAULT for any failure */
+.L_memcpy_mcsafe_fail:
+	mov	$-EFAULT, %rax
+	ret
+
+	.previous
+
+	_ASM_EXTABLE_FAULT(.L_copy_leading_bytes, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w0, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w1, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w3, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w3, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w4, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w5, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w6, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w7, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_copy_trailing_words, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_copy_trailing_bytes, .L_memcpy_mcsafe_fail)
+#endif

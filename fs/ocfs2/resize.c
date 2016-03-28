@@ -196,7 +196,7 @@ static int update_backups(struct inode * inode, u32 clusters, char *data)
 	for (i = 0; i < OCFS2_MAX_BACKUP_SUPERBLOCKS; i++) {
 		blkno = ocfs2_backup_super_blkno(inode->i_sb, i);
 		cluster = ocfs2_blocks_to_clusters(inode->i_sb, blkno);
-		if (cluster > clusters)
+		if (cluster >= clusters)
 			break;
 
 		ret = ocfs2_read_blocks_sync(osb, blkno, 1, &backup);

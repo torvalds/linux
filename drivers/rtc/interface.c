@@ -939,4 +939,58 @@ void rtc_timer_cancel(struct rtc_device *rtc, struct rtc_timer *timer)
 	mutex_unlock(&rtc->ops_lock);
 }
 
+/**
+ * rtc_read_offset - Read the amount of rtc offset in parts per billion
+ * @ rtc: rtc device to be used
+ * @ offset: the offset in parts per billion
+ *
+ * see below for details.
+ *
+ * Kernel interface to read rtc clock offset
+ * Returns 0 on success, or a negative number on error.
+ * If read_offset() is not implemented for the rtc, return -EINVAL
+ */
+int rtc_read_offset(struct rtc_device *rtc, long *offset)
+{
+	int ret;
 
+	if (!rtc->ops)
+		return -ENODEV;
+
+	if (!rtc->ops->read_offset)
+		return -EINVAL;
+
+	mutex_lock(&rtc->ops_lock);
+	ret = rtc->ops->read_offset(rtc->dev.parent, offset);
+	mutex_unlock(&rtc->ops_lock);
+	return ret;
+}
+
+/**
+ * rtc_set_offset - Adjusts the duration of the average second
+ * @ rtc: rtc device to be used
+ * @ offset: the offset in parts per billion
+ *
+ * Some rtc's allow an adjustment to the average duration of a second
+ * to compensate for differences in the actual clock rate due to temperature,
+ * the crystal, capacitor, etc.
+ *
+ * Kernel interface to adjust an rtc clock offset.
+ * Return 0 on success, or a negative number on error.
+ * If the rtc offset is not setable (or not implemented), return -EINVAL
+ */
+int rtc_set_offset(struct rtc_device *rtc, long offset)
+{
+	int ret;
+
+	if (!rtc->ops)
+		return -ENODEV;
+
+	if (!rtc->ops->set_offset)
+		return -EINVAL;
+
+	mutex_lock(&rtc->ops_lock);
+	ret = rtc->ops->set_offset(rtc->dev.parent, offset);
+	mutex_unlock(&rtc->ops_lock);
+	return ret;
+}

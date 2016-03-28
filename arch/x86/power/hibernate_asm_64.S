@@ -21,8 +21,10 @@
 #include <asm/page_types.h>
 #include <asm/asm-offsets.h>
 #include <asm/processor-flags.h>
+#include <asm/frame.h>
 
 ENTRY(swsusp_arch_suspend)
+	FRAME_BEGIN
 	movq	$saved_context, %rax
 	movq	%rsp, pt_regs_sp(%rax)
 	movq	%rbp, pt_regs_bp(%rax)
@@ -50,7 +52,9 @@ ENTRY(swsusp_arch_suspend)
 	movq	%rax, restore_cr3(%rip)
 
 	call swsusp_save
+	FRAME_END
 	ret
+ENDPROC(swsusp_arch_suspend)
 
 ENTRY(restore_image)
 	/* switch to temporary page tables */
@@ -107,6 +111,7 @@ ENTRY(core_restore_code)
 	 */
 
 ENTRY(restore_registers)
+	FRAME_BEGIN
 	/* go back to the original page tables */
 	movq    %rbx, %cr3
 
@@ -147,4 +152,6 @@ ENTRY(restore_registers)
 	/* tell the hibernation core that we've just restored the memory */
 	movq	%rax, in_suspend(%rip)
 
+	FRAME_END
 	ret
+ENDPROC(restore_registers)

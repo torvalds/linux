@@ -251,6 +251,7 @@ enum iwl_wowlan_flags {
 	ENABLE_L3_FILTERING	= BIT(1),
 	ENABLE_NBNS_FILTERING	= BIT(2),
 	ENABLE_DHCP_FILTERING	= BIT(3),
+	ENABLE_STORE_BEACON	= BIT(4),
 };
 
 struct iwl_wowlan_config_cmd {

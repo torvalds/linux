@@ -35,7 +35,8 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		/* only perip space at end of low mem accessible */
+		/* only perip space at end of low mem accessible
+			 bus addr,   parent bus addr, size */
 		ranges = <0x80000000 0x0 0x80000000 0x80000000>;
 
 		core_intc: core-interrupt-controller {

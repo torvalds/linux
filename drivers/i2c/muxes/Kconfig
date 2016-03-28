@@ -72,4 +72,13 @@ config I2C_MUX_REG
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-mux-reg.
 
+config I2C_DEMUX_PINCTRL
+	tristate "pinctrl-based I2C demultiplexer"
+	depends on PINCTRL && OF
+	select OF_DYNAMIC
+	help
+	  If you say yes to this option, support will be included for an I2C
+	  demultiplexer that uses the pinctrl subsystem. This is useful if you
+	  want to change the I2C master at run-time depending on features.
+
 endmenu

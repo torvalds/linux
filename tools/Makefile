@@ -13,6 +13,7 @@ help:
 	@echo '  cpupower               - a tool for all things x86 CPU power'
 	@echo '  firewire               - the userspace part of nosy, an IEEE-1394 traffic sniffer'
 	@echo '  freefall               - laptop accelerometer program for disk protection'
+	@echo '  gpio                   - GPIO tools'
 	@echo '  hv                     - tools used when in Hyper-V clients'
 	@echo '  iio                    - IIO tools'
 	@echo '  lguest                 - a minimal 32-bit x86 hypervisor'
@@ -20,6 +21,7 @@ help:
 	@echo '  perf                   - Linux performance measurement and analysis tool'
 	@echo '  selftests              - various kernel selftests'
 	@echo '  spi                    - spi tools'
+	@echo '  objtool                - an ELF object analysis tool'
 	@echo '  tmon                   - thermal monitoring and tuning tool'
 	@echo '  turbostat              - Intel CPU idle stats and freq reporting tool'
 	@echo '  usb                    - USB testing tools'
@@ -53,7 +55,7 @@ acpi: FORCE
 cpupower: FORCE
 	$(call descend,power/$@)
 
-cgroup firewire hv guest spi usb virtio vm net iio: FORCE
+cgroup firewire hv guest spi usb virtio vm net iio gpio objtool: FORCE
 	$(call descend,$@)
 
 liblockdep: FORCE
@@ -85,7 +87,7 @@ freefall: FORCE
 all: acpi cgroup cpupower hv firewire lguest \
 		perf selftests turbostat usb \
 		virtio vm net x86_energy_perf_policy \
-		tmon freefall
+		tmon freefall objtool
 
 acpi_install:
 	$(call descend,power/$(@:_install=),install)
@@ -93,7 +95,7 @@ acpi_install:
 cpupower_install:
 	$(call descend,power/$(@:_install=),install)
 
-cgroup_install firewire_install hv_install lguest_install perf_install usb_install virtio_install vm_install net_install:
+cgroup_install firewire_install hv_install lguest_install perf_install usb_install virtio_install vm_install net_install objtool_install:
 	$(call descend,$(@:_install=),install)
 
 selftests_install:
@@ -111,7 +113,7 @@ freefall_install:
 install: acpi_install cgroup_install cpupower_install hv_install firewire_install lguest_install \
 		perf_install selftests_install turbostat_install usb_install \
 		virtio_install vm_install net_install x86_energy_perf_policy_install \
-		tmon_install freefall_install
+		tmon_install freefall_install objtool_install
 
 acpi_clean:
 	$(call descend,power/acpi,clean)
@@ -119,7 +121,7 @@ acpi_clean:
 cpupower_clean:
 	$(call descend,power/cpupower,clean)
 
-cgroup_clean hv_clean firewire_clean lguest_clean spi_clean usb_clean virtio_clean vm_clean net_clean iio_clean:
+cgroup_clean hv_clean firewire_clean lguest_clean spi_clean usb_clean virtio_clean vm_clean net_clean iio_clean gpio_clean objtool_clean:
 	$(call descend,$(@:_clean=),clean)
 
 liblockdep_clean:
@@ -155,6 +157,7 @@ build_clean:
 clean: acpi_clean cgroup_clean cpupower_clean hv_clean firewire_clean lguest_clean \
 		perf_clean selftests_clean turbostat_clean spi_clean usb_clean virtio_clean \
 		vm_clean net_clean iio_clean x86_energy_perf_policy_clean tmon_clean \
-		freefall_clean build_clean libbpf_clean libsubcmd_clean liblockdep_clean
+		freefall_clean build_clean libbpf_clean libsubcmd_clean liblockdep_clean \
+		gpio_clean objtool_clean
 
 .PHONY: FORCE

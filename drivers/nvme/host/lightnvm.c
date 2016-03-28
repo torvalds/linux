@@ -146,6 +146,14 @@ struct nvme_nvm_command {
 	};
 };
 
+struct nvme_nvm_completion {
+	__le64	result;		/* Used by LightNVM to return ppa completions */
+	__le16	sq_head;	/* how much of this queue may be reclaimed */
+	__le16	sq_id;		/* submission queue that generated this entry */
+	__u16	command_id;	/* of the command which completed */
+	__le16	status;		/* did the command fail, and if so, why? */
+};
+
 #define NVME_NVM_LP_MLC_PAIRS 886
 struct nvme_nvm_lp_mlc {
 	__u16			num_pairs;
@@ -379,8 +387,31 @@ out:
 	return ret;
 }
 
+static void nvme_nvm_bb_tbl_fold(struct nvm_dev *nvmdev,
+						int nr_dst_blks, u8 *dst_blks,
+						int nr_src_blks, u8 *src_blks)
+{
+	int blk, offset, pl, blktype;
+
+	for (blk = 0; blk < nr_dst_blks; blk++) {
+		offset = blk * nvmdev->plane_mode;
+		blktype = src_blks[offset];
+
+		/* Bad blocks on any planes take precedence over other types */
+		for (pl = 0; pl < nvmdev->plane_mode; pl++) {
+			if (src_blks[offset + pl] &
+					(NVM_BLK_T_BAD|NVM_BLK_T_GRWN_BAD)) {
+				blktype = src_blks[offset + pl];
+				break;
+			}
+		}
+
+		dst_blks[blk] = blktype;
+	}
+}
+
 static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
-				int nr_blocks, nvm_bb_update_fn *update_bbtbl,
+				int nr_dst_blks, nvm_bb_update_fn *update_bbtbl,
 				void *priv)
 {
 	struct request_queue *q = nvmdev->q;
@@ -388,7 +419,9 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	struct nvme_nvm_command c = {};
 	struct nvme_nvm_bb_tbl *bb_tbl;
-	int tblsz = sizeof(struct nvme_nvm_bb_tbl) + nr_blocks;
+	u8 *dst_blks = NULL;
+	int nr_src_blks = nr_dst_blks * nvmdev->plane_mode;
+	int tblsz = sizeof(struct nvme_nvm_bb_tbl) + nr_src_blks;
 	int ret = 0;
 
 	c.get_bb.opcode = nvme_nvm_admin_get_bb_tbl;
@@ -398,6 +431,12 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 	bb_tbl = kzalloc(tblsz, GFP_KERNEL);
 	if (!bb_tbl)
 		return -ENOMEM;
+
+	dst_blks = kzalloc(nr_dst_blks, GFP_KERNEL);
+	if (!dst_blks) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	ret = nvme_submit_sync_cmd(ctrl->admin_q, (struct nvme_command *)&c,
 								bb_tbl, tblsz);
@@ -420,16 +459,21 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 		goto out;
 	}
 
-	if (le32_to_cpu(bb_tbl->tblks) != nr_blocks) {
+	if (le32_to_cpu(bb_tbl->tblks) != nr_src_blks) {
 		ret = -EINVAL;
 		dev_err(ctrl->dev, "bbt unsuspected blocks returned (%u!=%u)",
-					le32_to_cpu(bb_tbl->tblks), nr_blocks);
+				le32_to_cpu(bb_tbl->tblks), nr_src_blks);
 		goto out;
 	}
 
+	nvme_nvm_bb_tbl_fold(nvmdev, nr_dst_blks, dst_blks,
+						nr_src_blks, bb_tbl->blk);
+
 	ppa = dev_to_generic_addr(nvmdev, ppa);
-	ret = update_bbtbl(ppa, nr_blocks, bb_tbl->blk, priv);
+	ret = update_bbtbl(ppa, nr_dst_blks, dst_blks, priv);
+
 out:
+	kfree(dst_blks);
 	kfree(bb_tbl);
 	return ret;
 }
@@ -471,6 +515,10 @@ static inline void nvme_nvm_rqtocmd(struct request *rq, struct nvm_rq *rqd,
 static void nvme_nvm_end_io(struct request *rq, int error)
 {
 	struct nvm_rq *rqd = rq->end_io_data;
+	struct nvme_nvm_completion *cqe = rq->special;
+
+	if (cqe)
+		rqd->ppa_status = le64_to_cpu(cqe->result);
 
 	nvm_end_io(rqd, error);
 
@@ -490,7 +538,8 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	if (IS_ERR(rq))
 		return -ENOMEM;
 
-	cmd = kzalloc(sizeof(struct nvme_nvm_command), GFP_KERNEL);
+	cmd = kzalloc(sizeof(struct nvme_nvm_command) +
+				sizeof(struct nvme_nvm_completion), GFP_KERNEL);
 	if (!cmd) {
 		blk_mq_free_request(rq);
 		return -ENOMEM;
@@ -509,7 +558,7 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 
 	rq->cmd = (unsigned char *)cmd;
 	rq->cmd_len = sizeof(struct nvme_nvm_command);
-	rq->special = (void *)0;
+	rq->special = cmd + 1;
 
 	rq->end_io_data = rqd;
 

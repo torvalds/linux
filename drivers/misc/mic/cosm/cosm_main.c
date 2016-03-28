@@ -153,8 +153,10 @@ void cosm_stop(struct cosm_device *cdev, bool force)
 		 * stop(..) calls device_unregister and will crash the system if
 		 * called multiple times.
 		 */
-		bool call_hw_ops = cdev->state != MIC_RESET_FAILED &&
-					cdev->state != MIC_READY;
+		u8 state = cdev->state == MIC_RESETTING ?
+					cdev->prev_state : cdev->state;
+		bool call_hw_ops = state != MIC_RESET_FAILED &&
+					state != MIC_READY;
 
 		if (cdev->state != MIC_RESETTING)
 			cosm_set_state(cdev, MIC_RESETTING);
@@ -195,8 +197,11 @@ int cosm_reset(struct cosm_device *cdev)
 
 	mutex_lock(&cdev->cosm_mutex);
 	if (cdev->state != MIC_READY) {
-		cosm_set_state(cdev, MIC_RESETTING);
-		schedule_work(&cdev->reset_trigger_work);
+		if (cdev->state != MIC_RESETTING) {
+			cdev->prev_state = cdev->state;
+			cosm_set_state(cdev, MIC_RESETTING);
+			schedule_work(&cdev->reset_trigger_work);
+		}
 	} else {
 		dev_err(&cdev->dev, "%s %d MIC is READY\n", __func__, __LINE__);
 		rc = -EINVAL;

@@ -40,19 +40,4 @@
 /* Active distance in pixels for a gesture to be reported */
 #define CY_ACT_DIST_DFLT 0xF8 /* pixels */
 
-struct cyttsp_platform_data {
-	u32 maxx;
-	u32 maxy;
-	bool use_hndshk;
-	u8 act_dist;	/* Active distance */
-	u8 act_intrvl;  /* Active refresh interval; ms */
-	u8 tch_tmout;   /* Active touch timeout; ms */
-	u8 lp_intrvl;   /* Low power refresh interval; ms */
-	int (*init)(void);
-	void (*exit)(void);
-	char *name;
-	s16 irq_gpio;
-	u8 *bl_keys;
-};
-
 #endif /* _CYTTSP_H_ */

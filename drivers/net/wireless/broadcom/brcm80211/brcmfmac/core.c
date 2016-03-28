@@ -20,6 +20,8 @@
 #include <linux/inetdevice.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
+#include <net/addrconf.h>
+#include <net/ipv6.h>
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 
@@ -36,11 +38,7 @@
 #include "pcie.h"
 #include "common.h"
 
-MODULE_AUTHOR("Broadcom Corporation");
-MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
-MODULE_LICENSE("Dual BSD/GPL");
-
-#define MAX_WAIT_FOR_8021X_TX			msecs_to_jiffies(50)
+#define MAX_WAIT_FOR_8021X_TX			msecs_to_jiffies(950)
 
 /* AMPDU rx reordering definitions */
 #define BRCMF_RXREORDER_FLOWID_OFFSET		0
@@ -171,6 +169,35 @@ _brcmf_set_mac_address(struct work_struct *work)
 		memcpy(ifp->ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
 	}
 }
+
+#if IS_ENABLED(CONFIG_IPV6)
+static void _brcmf_update_ndtable(struct work_struct *work)
+{
+	struct brcmf_if *ifp;
+	int i, ret;
+
+	ifp = container_of(work, struct brcmf_if, ndoffload_work);
+
+	/* clear the table in firmware */
+	ret = brcmf_fil_iovar_data_set(ifp, "nd_hostip_clear", NULL, 0);
+	if (ret) {
+		brcmf_dbg(TRACE, "fail to clear nd ip table err:%d\n", ret);
+		return;
+	}
+
+	for (i = 0; i < ifp->ipv6addr_idx; i++) {
+		ret = brcmf_fil_iovar_data_set(ifp, "nd_hostip",
+					       &ifp->ipv6_addr_tbl[i],
+					       sizeof(struct in6_addr));
+		if (ret)
+			brcmf_err("add nd ip err %d\n", ret);
+	}
+}
+#else
+static void _brcmf_update_ndtable(struct work_struct *work)
+{
+}
+#endif
 
 static int brcmf_netdev_set_mac_address(struct net_device *ndev, void *addr)
 {
@@ -685,6 +712,7 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 
 	INIT_WORK(&ifp->setmacaddr_work, _brcmf_set_mac_address);
 	INIT_WORK(&ifp->multicast_work, _brcmf_set_multicast_list);
+	INIT_WORK(&ifp->ndoffload_work, _brcmf_update_ndtable);
 
 	if (rtnl_locked)
 		err = register_netdevice(ndev);
@@ -884,6 +912,7 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx)
 		if (ifp->ndev->netdev_ops == &brcmf_netdev_ops_pri) {
 			cancel_work_sync(&ifp->setmacaddr_work);
 			cancel_work_sync(&ifp->multicast_work);
+			cancel_work_sync(&ifp->ndoffload_work);
 		}
 		brcmf_net_detach(ifp->ndev);
 	} else {
@@ -1006,14 +1035,14 @@ static int brcmf_inetaddr_changed(struct notifier_block *nb,
 				return NOTIFY_OK;
 			}
 			for (i = 0; i < ARPOL_MAX_ENTRIES; i++) {
-				if (addr_table[i] != 0) {
-					brcmf_fil_iovar_data_set(ifp,
-						"arp_hostip", &addr_table[i],
-						sizeof(addr_table[i]));
-					if (ret)
-						brcmf_err("add arp ip err %d\n",
-							  ret);
-				}
+				if (addr_table[i] == 0)
+					continue;
+				ret = brcmf_fil_iovar_data_set(ifp, "arp_hostip",
+							       &addr_table[i],
+							       sizeof(addr_table[i]));
+				if (ret)
+					brcmf_err("add arp ip err %d\n",
+						  ret);
 			}
 		}
 		break;
@@ -1025,7 +1054,57 @@ static int brcmf_inetaddr_changed(struct notifier_block *nb,
 }
 #endif
 
-int brcmf_attach(struct device *dev)
+#if IS_ENABLED(CONFIG_IPV6)
+static int brcmf_inet6addr_changed(struct notifier_block *nb,
+				   unsigned long action, void *data)
+{
+	struct brcmf_pub *drvr = container_of(nb, struct brcmf_pub,
+					      inet6addr_notifier);
+	struct inet6_ifaddr *ifa = data;
+	struct brcmf_if *ifp;
+	int i;
+	struct in6_addr *table;
+
+	/* Only handle primary interface */
+	ifp = drvr->iflist[0];
+	if (!ifp)
+		return NOTIFY_DONE;
+	if (ifp->ndev != ifa->idev->dev)
+		return NOTIFY_DONE;
+
+	table = ifp->ipv6_addr_tbl;
+	for (i = 0; i < NDOL_MAX_ENTRIES; i++)
+		if (ipv6_addr_equal(&ifa->addr, &table[i]))
+			break;
+
+	switch (action) {
+	case NETDEV_UP:
+		if (i == NDOL_MAX_ENTRIES) {
+			if (ifp->ipv6addr_idx < NDOL_MAX_ENTRIES) {
+				table[ifp->ipv6addr_idx++] = ifa->addr;
+			} else {
+				for (i = 0; i < NDOL_MAX_ENTRIES - 1; i++)
+					table[i] = table[i + 1];
+				table[NDOL_MAX_ENTRIES - 1] = ifa->addr;
+			}
+		}
+		break;
+	case NETDEV_DOWN:
+		if (i < NDOL_MAX_ENTRIES)
+			for (; i < ifp->ipv6addr_idx; i++)
+				table[i] = table[i + 1];
+		break;
+	default:
+		break;
+	}
+
+	schedule_work(&ifp->ndoffload_work);
+
+	return NOTIFY_OK;
+}
+#endif
+
+int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings)
 {
 	struct brcmf_pub *drvr = NULL;
 	int ret = 0;
@@ -1047,10 +1126,7 @@ int brcmf_attach(struct device *dev)
 	drvr->hdrlen = 0;
 	drvr->bus_if = dev_get_drvdata(dev);
 	drvr->bus_if->drvr = drvr;
-
-	/* Initialize device specific settings */
-	if (brcmf_mp_device_attach(drvr))
-		goto fail;
+	drvr->settings = settings;
 
 	/* attach debug facilities */
 	brcmf_debug_attach(drvr);
@@ -1164,30 +1240,41 @@ int brcmf_bus_start(struct device *dev)
 #ifdef CONFIG_INET
 	drvr->inetaddr_notifier.notifier_call = brcmf_inetaddr_changed;
 	ret = register_inetaddr_notifier(&drvr->inetaddr_notifier);
+	if (ret)
+		goto fail;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	drvr->inet6addr_notifier.notifier_call = brcmf_inet6addr_changed;
+	ret = register_inet6addr_notifier(&drvr->inet6addr_notifier);
+	if (ret) {
+		unregister_inetaddr_notifier(&drvr->inetaddr_notifier);
+		goto fail;
+	}
 #endif
+#endif /* CONFIG_INET */
+
+	return 0;
 
 fail:
-	if (ret < 0) {
-		brcmf_err("failed: %d\n", ret);
-		if (drvr->config) {
-			brcmf_cfg80211_detach(drvr->config);
-			drvr->config = NULL;
-		}
-		if (drvr->fws) {
-			brcmf_fws_del_interface(ifp);
-			brcmf_fws_deinit(drvr);
-		}
-		if (ifp)
-			brcmf_net_detach(ifp->ndev);
-		if (p2p_ifp)
-			brcmf_net_detach(p2p_ifp->ndev);
-		drvr->iflist[0] = NULL;
-		drvr->iflist[1] = NULL;
-		if (brcmf_ignoring_probe_fail(drvr))
-			ret = 0;
-		return ret;
+	brcmf_err("failed: %d\n", ret);
+	if (drvr->config) {
+		brcmf_cfg80211_detach(drvr->config);
+		drvr->config = NULL;
 	}
-	return 0;
+	if (drvr->fws) {
+		brcmf_fws_del_interface(ifp);
+		brcmf_fws_deinit(drvr);
+	}
+	if (ifp)
+		brcmf_net_detach(ifp->ndev);
+	if (p2p_ifp)
+		brcmf_net_detach(p2p_ifp->ndev);
+	drvr->iflist[0] = NULL;
+	drvr->iflist[1] = NULL;
+	if (drvr->settings->ignore_probe_fail)
+		ret = 0;
+
+	return ret;
 }
 
 void brcmf_bus_add_txhdrlen(struct device *dev, uint len)
@@ -1237,6 +1324,10 @@ void brcmf_detach(struct device *dev)
 	unregister_inetaddr_notifier(&drvr->inetaddr_notifier);
 #endif
 
+#if IS_ENABLED(CONFIG_IPV6)
+	unregister_inet6addr_notifier(&drvr->inet6addr_notifier);
+#endif
+
 	/* stop firmware event handling */
 	brcmf_fweh_detach(drvr);
 	if (drvr->config)
@@ -1255,8 +1346,6 @@ void brcmf_detach(struct device *dev)
 	brcmf_bus_detach(drvr);
 
 	brcmf_proto_detach(drvr);
-
-	brcmf_mp_device_detach(drvr);
 
 	brcmf_debug_detach(drvr);
 	bus_if->drvr = NULL;
@@ -1324,19 +1413,15 @@ static void brcmf_driver_register(struct work_struct *work)
 }
 static DECLARE_WORK(brcmf_driver_work, brcmf_driver_register);
 
-static int __init brcmfmac_module_init(void)
+int __init brcmf_core_init(void)
 {
-	brcmf_debugfs_init();
-#ifdef CONFIG_BRCMFMAC_SDIO
-	brcmf_sdio_init();
-#endif
 	if (!schedule_work(&brcmf_driver_work))
 		return -EBUSY;
 
 	return 0;
 }
 
-static void __exit brcmfmac_module_exit(void)
+void __exit brcmf_core_exit(void)
 {
 	cancel_work_sync(&brcmf_driver_work);
 
@@ -1349,8 +1434,5 @@ static void __exit brcmfmac_module_exit(void)
 #ifdef CONFIG_BRCMFMAC_PCIE
 	brcmf_pcie_exit();
 #endif
-	brcmf_debugfs_exit();
 }
 
-module_init(brcmfmac_module_init);
-module_exit(brcmfmac_module_exit);

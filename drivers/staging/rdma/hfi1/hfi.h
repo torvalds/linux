@@ -1,13 +1,12 @@
 #ifndef _HFI1_KERNEL_H
 #define _HFI1_KERNEL_H
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,8 +18,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -65,6 +62,7 @@
 #include <linux/cdev.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <rdma/rdma_vt.h>
 
 #include "chip_registers.h"
 #include "common.h"
@@ -73,7 +71,8 @@
 #include "chip.h"
 #include "mad.h"
 #include "qsfp.h"
-#include "platform_config.h"
+#include "platform.h"
+#include "affinity.h"
 
 /* bumped 1 from s/w major version of TrueScale */
 #define HFI1_CHIP_VERS_MAJ 3U
@@ -98,6 +97,8 @@ extern unsigned long hfi1_cap_mask;
 #define HFI1_CAP_IS_USET(cap) (!!HFI1_CAP_UGET(cap))
 #define HFI1_MISC_GET() ((hfi1_cap_mask >> HFI1_CAP_MISC_SHIFT) & \
 			HFI1_CAP_MISC_MASK)
+/* Offline Disabled Reason is 4-bits */
+#define HFI1_ODR_MASK(rsn) ((rsn) & OPA_PI_MASK_OFFLINE_REASON)
 
 /*
  * Control context is always 0 and handles the error packets.
@@ -177,6 +178,11 @@ struct ctxt_eager_bufs {
 	} *rcvtids;
 };
 
+struct exp_tid_set {
+	struct list_head list;
+	u32 count;
+};
+
 struct hfi1_ctxtdata {
 	/* shadow the ctxt's RcvCtrl register */
 	u64 rcvctrl;
@@ -233,20 +239,13 @@ struct hfi1_ctxtdata {
 	u32 expected_count;
 	/* index of first expected TID entry. */
 	u32 expected_base;
-	/* cursor into the exp group sets */
-	atomic_t tidcursor;
-	/* number of exp TID groups assigned to the ctxt */
-	u16 numtidgroups;
-	/* size of exp TID group fields in tidusemap */
-	u16 tidmapcnt;
-	/* exp TID group usage bitfield array */
-	unsigned long *tidusemap;
-	/* pinned pages for exp sends, allocated at open */
-	struct page **tid_pg_list;
-	/* dma handles for exp tid pages */
-	dma_addr_t *physshadow;
+
+	struct exp_tid_set tid_group_list;
+	struct exp_tid_set tid_used_list;
+	struct exp_tid_set tid_full_list;
+
 	/* lock protecting all Expected TID data */
-	spinlock_t exp_lock;
+	struct mutex exp_lock;
 	/* number of pio bufs for this ctxt (all procs, if shared) */
 	u32 piocnt;
 	/* first pio buffer for this ctxt */
@@ -311,7 +310,23 @@ struct hfi1_ctxtdata {
 	 */
 	struct task_struct *progress;
 	struct list_head sdma_queues;
+	/* protect sdma queues */
 	spinlock_t sdma_qlock;
+
+	/* Is ASPM interrupt supported for this context */
+	bool aspm_intr_supported;
+	/* ASPM state (enabled/disabled) for this context */
+	bool aspm_enabled;
+	/* Timer for re-enabling ASPM if interrupt activity quietens down */
+	struct timer_list aspm_timer;
+	/* Lock to serialize between intr, timer intr and user threads */
+	spinlock_t aspm_lock;
+	/* Is ASPM processing enabled for this context (in intr context) */
+	bool aspm_intr_enable;
+	/* Last interrupt timestamp */
+	ktime_t aspm_ts_last_intr;
+	/* Last timestamp at which we scheduled a timer for this context */
+	ktime_t aspm_ts_timer_sched;
 
 	/*
 	 * The interrupt handler for a particular receive context can vary
@@ -335,7 +350,7 @@ struct hfi1_packet {
 	void *hdr;
 	struct hfi1_ctxtdata *rcd;
 	__le32 *rhf_addr;
-	struct hfi1_qp *qp;
+	struct rvt_qp *qp;
 	struct hfi1_other_headers *ohdr;
 	u64 rhf;
 	u32 maxcnt;
@@ -363,6 +378,7 @@ struct hfi1_snoop_data {
 	int mode_flag;
 	struct cdev cdev;
 	struct device *class_dev;
+	/* protect snoop data */
 	spinlock_t snoop_lock;
 	struct list_head queue;
 	wait_queue_head_t waitq;
@@ -375,7 +391,7 @@ struct hfi1_snoop_data {
 #define HFI1_PORT_SNOOP_MODE     1U
 #define HFI1_PORT_CAPTURE_MODE   2U
 
-struct hfi1_sge_state;
+struct rvt_sge_state;
 
 /*
  * Get/Set IB link-level config parameters for f_get/set_ib_cfg()
@@ -424,17 +440,17 @@ struct hfi1_sge_state;
 #define __HLS_GOING_OFFLINE_BP  9
 #define __HLS_LINK_COOLDOWN_BP 10
 
-#define HLS_UP_INIT	  (1 << __HLS_UP_INIT_BP)
-#define HLS_UP_ARMED	  (1 << __HLS_UP_ARMED_BP)
-#define HLS_UP_ACTIVE	  (1 << __HLS_UP_ACTIVE_BP)
-#define HLS_DN_DOWNDEF	  (1 << __HLS_DN_DOWNDEF_BP) /* link down default */
-#define HLS_DN_POLL	  (1 << __HLS_DN_POLL_BP)
-#define HLS_DN_DISABLE	  (1 << __HLS_DN_DISABLE_BP)
-#define HLS_DN_OFFLINE	  (1 << __HLS_DN_OFFLINE_BP)
-#define HLS_VERIFY_CAP	  (1 << __HLS_VERIFY_CAP_BP)
-#define HLS_GOING_UP	  (1 << __HLS_GOING_UP_BP)
-#define HLS_GOING_OFFLINE (1 << __HLS_GOING_OFFLINE_BP)
-#define HLS_LINK_COOLDOWN (1 << __HLS_LINK_COOLDOWN_BP)
+#define HLS_UP_INIT	  BIT(__HLS_UP_INIT_BP)
+#define HLS_UP_ARMED	  BIT(__HLS_UP_ARMED_BP)
+#define HLS_UP_ACTIVE	  BIT(__HLS_UP_ACTIVE_BP)
+#define HLS_DN_DOWNDEF	  BIT(__HLS_DN_DOWNDEF_BP) /* link down default */
+#define HLS_DN_POLL	  BIT(__HLS_DN_POLL_BP)
+#define HLS_DN_DISABLE	  BIT(__HLS_DN_DISABLE_BP)
+#define HLS_DN_OFFLINE	  BIT(__HLS_DN_OFFLINE_BP)
+#define HLS_VERIFY_CAP	  BIT(__HLS_VERIFY_CAP_BP)
+#define HLS_GOING_UP	  BIT(__HLS_GOING_UP_BP)
+#define HLS_GOING_OFFLINE BIT(__HLS_GOING_OFFLINE_BP)
+#define HLS_LINK_COOLDOWN BIT(__HLS_LINK_COOLDOWN_BP)
 
 #define HLS_UP (HLS_UP_INIT | HLS_UP_ARMED | HLS_UP_ACTIVE)
 
@@ -490,6 +506,7 @@ struct hfi1_sge_state;
 #define CNTR_DISABLED		0x2 /* Disable this counter */
 #define CNTR_32BIT		0x4 /* Simulate 64 bits for this counter */
 #define CNTR_VL			0x8 /* Per VL counter */
+#define CNTR_SDMA              0x10
 #define CNTR_INVALID_VL		-1  /* Specifies invalid VL */
 #define CNTR_MODE_W		0x0
 #define CNTR_MODE_R		0x1
@@ -512,10 +529,11 @@ static inline void incr_cntr32(u32 *cntr)
 
 #define MAX_NAME_SIZE 64
 struct hfi1_msix_entry {
+	enum irq_type type;
 	struct msix_entry msix;
 	void *arg;
 	char name[MAX_NAME_SIZE];
-	cpumask_var_t mask;
+	cpumask_t mask;
 };
 
 /* per-SL CCA information */
@@ -542,6 +560,7 @@ enum {
 };
 
 struct vl_arb_cache {
+	/* protect vl arb cache */
 	spinlock_t lock;
 	struct ib_vl_weight_elem table[VL_ARB_TABLE_SIZE];
 };
@@ -561,7 +580,8 @@ struct hfi1_pportdata {
 	struct kobject sl2sc_kobj;
 	struct kobject vl2mtu_kobj;
 
-	/* QSFP support */
+	/* PHY support */
+	u32 port_type;
 	struct qsfp_data qsfp_info;
 
 	/* GUID for this interface, in host order */
@@ -586,6 +606,7 @@ struct hfi1_pportdata {
 	struct work_struct link_vc_work;
 	struct work_struct link_up_work;
 	struct work_struct link_down_work;
+	struct work_struct dc_host_req_work;
 	struct work_struct sma_message_work;
 	struct work_struct freeze_work;
 	struct work_struct link_downgrade_work;
@@ -623,6 +644,7 @@ struct hfi1_pportdata {
 	u16 link_speed_active;
 	u8 vls_supported;
 	u8 vls_operational;
+	u8 actual_vls_operational;
 	/* LID mask control */
 	u8 lmc;
 	/* Rx Polarity inversion (compensate for ~tx on partner) */
@@ -642,19 +664,23 @@ struct hfi1_pportdata {
 	u8 link_enabled;	/* link enabled? */
 	u8 linkinit_reason;
 	u8 local_tx_rate;	/* rate given to 8051 firmware */
+	u8 last_pstate;		/* info only */
 
 	/* placeholders for IB MAD packet settings */
 	u8 overrun_threshold;
 	u8 phy_error_threshold;
 
-	/* used to override LED behavior */
-	u8 led_override;  /* Substituted for normal value, if non-zero */
-	u16 led_override_timeoff; /* delta to next timer event */
-	u8 led_override_vals[2]; /* Alternates per blink-frame */
-	u8 led_override_phase; /* Just counts, LSB picks from vals[] */
+	/* Used to override LED behavior for things like maintenance beaconing*/
+	/*
+	 * Alternates per phase of blink
+	 * [0] holds LED off duration, [1] holds LED on duration
+	 */
+	unsigned long led_override_vals[2];
+	u8 led_override_phase; /* LSB picks from vals[] */
 	atomic_t led_override_timer_active;
 	/* Used to flash LEDs in override mode */
 	struct timer_list led_override_timer;
+
 	u32 sm_trap_qp;
 	u32 sa_qp;
 
@@ -689,10 +715,12 @@ struct hfi1_pportdata {
 	/* CA's max number of 64 entry units in the congestion control table */
 	u8 cc_max_table_entries;
 
-	/* begin congestion log related entries
-	 * cc_log_lock protects all congestion log related data */
+	/*
+	 * begin congestion log related entries
+	 * cc_log_lock protects all congestion log related data
+	 */
 	spinlock_t cc_log_lock ____cacheline_aligned_in_smp;
-	u8 threshold_cong_event_map[OPA_MAX_SLS/8];
+	u8 threshold_cong_event_map[OPA_MAX_SLS / 8];
 	u16 threshold_event_counter;
 	struct opa_hfi1_cong_log_event_internal cc_events[OPA_CONG_LOG_ELEMS];
 	int cc_log_idx; /* index for logging events */
@@ -705,8 +733,9 @@ struct hfi1_pportdata {
 	u64 *cntrs;
 	/* port relative synthetic counter buffer */
 	u64 *scntrs;
-	/* we synthesize port_xmit_discards from several egress errors */
+	/* port_xmit_discards are synthesized from different egress errors */
 	u64 port_xmit_discards;
+	u64 port_xmit_discards_vl[C_VL_COUNT];
 	u64 port_xmit_constraint_errors;
 	u64 port_rcv_constraint_errors;
 	/* count of 'link_err' interrupts from DC */
@@ -728,6 +757,9 @@ struct hfi1_pportdata {
 	u8 remote_link_down_reason;
 	/* Error events that will cause a port bounce. */
 	u32 port_error_action;
+	struct work_struct linkstate_active_work;
+	/* Does this port need to prescan for FECNs */
+	bool cc_prescan;
 };
 
 typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
@@ -773,6 +805,12 @@ struct hfi1_temp {
 	u8 triggers;      /* temperature triggers */
 };
 
+/* common data between shared ASIC HFIs */
+struct hfi1_asic_data {
+	struct hfi1_devdata *dds[2];	/* back pointers */
+	struct mutex asic_resource_mutex;
+};
+
 /* device data struct now contains only "general per-device" info.
  * fields related to a physical IB port are in a hfi1_pportdata struct.
  */
@@ -782,6 +820,7 @@ struct sdma_vl_map;
 #define BOARD_VERS_MAX 96 /* how long the version string can be */
 #define SERIAL_MAX 16 /* length of the serial number */
 
+typedef int (*send_routine)(struct rvt_qp *, struct hfi1_pkt_state *, u64);
 struct hfi1_devdata {
 	struct hfi1_ibdev verbs_dev;     /* must be first */
 	struct list_head list;
@@ -811,6 +850,12 @@ struct hfi1_devdata {
 	spinlock_t sc_lock;
 	/* Per VL data. Enough for all VLs but not all elements are set/used. */
 	struct per_vl_data vld[PER_VL_SEND_CONTEXTS];
+	/* lock for pio_map */
+	spinlock_t pio_map_lock;
+	/* array of kernel send contexts */
+	struct send_context **kernel_send_context;
+	/* array of vl maps */
+	struct pio_vl_map __rcu *pio_map;
 	/* seqlock for sc2vl */
 	seqlock_t sc2vl_lock;
 	u64 sc2vl[4];
@@ -841,6 +886,8 @@ struct hfi1_devdata {
 	wait_queue_head_t		  sdma_unfreeze_wq;
 	atomic_t			  sdma_unfreeze_count;
 
+	/* common data between shared ASIC HFIs in this OS */
+	struct hfi1_asic_data *asic_data;
 
 	/* hfi1_pportdata, points to array of (physical) port-specific
 	 * data structs, indexed by pidx (0..n-1)
@@ -873,10 +920,11 @@ struct hfi1_devdata {
 	/* reset value */
 	u64 z_int_counter;
 	u64 z_rcv_limit;
+	u64 z_send_schedule;
 	/* percpu int_counter */
 	u64 __percpu *int_counter;
 	u64 __percpu *rcv_limit;
-
+	u64 __percpu *send_schedule;
 	/* number of receive contexts in use by the driver */
 	u32 num_rcv_contexts;
 	/* number of pio send contexts in use by the driver */
@@ -885,6 +933,8 @@ struct hfi1_devdata {
 	 * number of ctxts available for PSM open
 	 */
 	u32 freectxts;
+	/* total number of available user/PSM contexts */
+	u32 num_user_contexts;
 	/* base receive interrupt timeout, in CSR units */
 	u32 rcv_intr_timeout_csr;
 
@@ -996,9 +1046,8 @@ struct hfi1_devdata {
 	u16 irev;	/* implementation revision */
 	u16 dc8051_ver; /* 8051 firmware version */
 
+	struct platform_config platform_config;
 	struct platform_config_cache pcfg_cache;
-	/* control high-level access to qsfp */
-	struct mutex qsfp_i2c_mutex;
 
 	struct diag_client *diag_client;
 	spinlock_t hfi1_diag_trans_lock; /* protect diag observer ops */
@@ -1008,8 +1057,6 @@ struct hfi1_devdata {
 	u16 psxmitwait_check_rate;
 	/* high volume overflow errors deferred to tasklet */
 	struct tasklet_struct error_tasklet;
-	/* per device cq worker */
-	struct kthread_worker *worker;
 
 	/* MSI-X information */
 	struct hfi1_msix_entry *msix_entries;
@@ -1090,10 +1137,8 @@ struct hfi1_devdata {
 	 * Handlers for outgoing data so that snoop/capture does not
 	 * have to have its hooks in the send path
 	 */
-	int (*process_pio_send)(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
-				u64 pbc);
-	int (*process_dma_send)(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
-				u64 pbc);
+	send_routine process_pio_send;
+	send_routine process_dma_send;
 	void (*pio_inline_send)(struct hfi1_devdata *dd, struct pio_buf *pbuf,
 				u64 pbc, const void *from, size_t count);
 
@@ -1105,7 +1150,6 @@ struct hfi1_devdata {
 	struct timer_list rcverr_timer;
 	u32 rcv_ovfl_cnt;
 
-	int assigned_node_id;
 	wait_queue_head_t event_queue;
 
 	/* Save the enabled LCB error bits */
@@ -1115,6 +1159,16 @@ struct hfi1_devdata {
 	/* receive context tail dummy address */
 	__le64 *rcvhdrtail_dummy_kvaddr;
 	dma_addr_t rcvhdrtail_dummy_physaddr;
+
+	bool eprom_available;	/* true if EPROM is available for this device */
+	bool aspm_supported;	/* Does HW support ASPM */
+	bool aspm_enabled;	/* ASPM state: enabled/disabled */
+	/* Serialize ASPM enable/disable between multiple verbs contexts */
+	spinlock_t aspm_lock;
+	/* Number of verbs contexts which have disabled ASPM */
+	atomic_t aspm_disabled_cnt;
+
+	struct hfi1_affinity *affinity;
 };
 
 /* 8051 firmware version helper */
@@ -1125,6 +1179,9 @@ struct hfi1_devdata {
 #define PT_EAGER    1
 #define PT_INVALID  2
 
+struct tid_rb_node;
+struct mmu_rb_node;
+
 /* Private data for file operations */
 struct hfi1_filedata {
 	struct hfi1_ctxtdata *uctxt;
@@ -1133,6 +1190,16 @@ struct hfi1_filedata {
 	struct hfi1_user_sdma_pkt_q *pq;
 	/* for cpu affinity; -1 if none */
 	int rec_cpu_num;
+	u32 tid_n_pinned;
+	struct rb_root tid_rb_root;
+	struct tid_rb_node **entry_to_rb;
+	spinlock_t tid_lock; /* protect tid_[limit,used] counters */
+	u32 tid_limit;
+	u32 tid_used;
+	u32 *invalid_tids;
+	u32 invalid_tid_idx;
+	/* protect invalid_tids array and invalid_tid_idx */
+	spinlock_t invalid_lock;
 };
 
 extern struct list_head hfi1_dev_list;
@@ -1156,7 +1223,7 @@ void handle_user_interrupt(struct hfi1_ctxtdata *rcd);
 int hfi1_create_rcvhdrq(struct hfi1_devdata *, struct hfi1_ctxtdata *);
 int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *);
 int hfi1_create_ctxts(struct hfi1_devdata *dd);
-struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *, u32);
+struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *, u32, int);
 void hfi1_init_pportdata(struct pci_dev *, struct hfi1_pportdata *,
 			 struct hfi1_devdata *, u8, u8);
 void hfi1_free_ctxtdata(struct hfi1_devdata *, struct hfi1_ctxtdata *);
@@ -1164,6 +1231,7 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *, struct hfi1_ctxtdata *);
 int handle_receive_interrupt(struct hfi1_ctxtdata *, int);
 int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *, int);
 int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *, int);
+void set_all_slowpath(struct hfi1_devdata *dd);
 
 /* receive packet handler dispositions */
 #define RCV_PKT_OK      0x0 /* keep going */
@@ -1182,6 +1250,15 @@ int hfi1_reset_device(int);
 static inline u32 driver_lstate(struct hfi1_pportdata *ppd)
 {
 	return ppd->lstate; /* use the cached value */
+}
+
+void receive_interrupt_work(struct work_struct *work);
+
+/* extract service channel from header and rhf */
+static inline int hdr2sc(struct hfi1_message_header *hdr, u64 rhf)
+{
+	return ((be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf) |
+	       ((!!(rhf & RHF_DC_INFO_MASK)) << 4);
 }
 
 static inline u16 generate_jkey(kuid_t uid)
@@ -1253,7 +1330,7 @@ static inline u32 egress_cycles(u32 len, u32 rate)
 void set_link_ipg(struct hfi1_pportdata *ppd);
 void process_becn(struct hfi1_pportdata *ppd, u8 sl,  u16 rlid, u32 lqpn,
 		  u32 rqpn, u8 svc_type);
-void return_cnp(struct hfi1_ibport *ibp, struct hfi1_qp *qp, u32 remote_qpn,
+void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 		u32 pkey, u32 slid, u32 dlid, u8 sc5,
 		const struct ib_grh *old_grh);
 
@@ -1424,6 +1501,7 @@ static inline int valid_ib_mtu(unsigned int mtu)
 		mtu == 1024 || mtu == 2048 ||
 		mtu == 4096;
 }
+
 static inline int valid_opa_max_mtu(unsigned int mtu)
 {
 	return mtu >= 2048 &&
@@ -1445,12 +1523,13 @@ void reset_link_credits(struct hfi1_devdata *dd);
 void assign_remote_cm_au_table(struct hfi1_devdata *dd, u8 vcu);
 
 int snoop_recv_handler(struct hfi1_packet *packet);
-int snoop_send_dma_handler(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+int snoop_send_dma_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			   u64 pbc);
-int snoop_send_pio_handler(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+int snoop_send_pio_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			   u64 pbc);
 void snoop_inline_pio_send(struct hfi1_devdata *dd, struct pio_buf *pbuf,
 			   u64 pbc, const void *from, size_t count);
+int set_buffer_control(struct hfi1_pportdata *ppd, struct buffer_control *bc);
 
 static inline struct hfi1_devdata *dd_from_ppd(struct hfi1_pportdata *ppd)
 {
@@ -1470,6 +1549,11 @@ static inline struct hfi1_devdata *dd_from_ibdev(struct ib_device *ibdev)
 static inline struct hfi1_pportdata *ppd_from_ibp(struct hfi1_ibport *ibp)
 {
 	return container_of(ibp, struct hfi1_pportdata, ibport_data);
+}
+
+static inline struct hfi1_ibdev *dev_from_rdi(struct rvt_dev_info *rdi)
+{
+	return container_of(rdi, struct hfi1_ibdev, rdi);
 }
 
 static inline struct hfi1_ibport *to_iport(struct ib_device *ibdev, u8 port)
@@ -1515,11 +1599,9 @@ static inline struct cc_state *get_cc_state(struct hfi1_pportdata *ppd)
 #define HFI1_HAS_SDMA_TIMEOUT  0x8
 #define HFI1_HAS_SEND_DMA      0x10   /* Supports Send DMA */
 #define HFI1_FORCED_FREEZE     0x80   /* driver forced freeze mode */
-#define HFI1_DO_INIT_ASIC      0x100  /* This device will init the ASIC */
 
 /* IB dword length mask in PBC (lower 11 bits); same for all chips */
 #define HFI1_PBC_LENGTH_MASK                     ((1 << 11) - 1)
-
 
 /* ctxt_flag bit offsets */
 		/* context has been setup */
@@ -1538,14 +1620,10 @@ void hfi1_free_devdata(struct hfi1_devdata *);
 void cc_state_reclaim(struct rcu_head *rcu);
 struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra);
 
-/*
- * Set LED override, only the two LSBs have "public" meaning, but
- * any non-zero value substitutes them for the Link and LinkTrain
- * LED states.
- */
-#define HFI1_LED_PHYS 1 /* Physical (linktraining) GREEN LED */
-#define HFI1_LED_LOG 2  /* Logical (link) YELLOW LED */
-void hfi1_set_led_override(struct hfi1_pportdata *ppd, unsigned int val);
+/* LED beaconing functions */
+void hfi1_start_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
+			     unsigned int timeoff);
+void shutdown_led_override(struct hfi1_pportdata *ppd);
 
 #define HFI1_CREDIT_RETURN_RATE (100)
 
@@ -1587,12 +1665,13 @@ void hfi1_set_led_override(struct hfi1_pportdata *ppd, unsigned int val);
  */
 #define DEFAULT_RCVHDR_ENTSIZE 32
 
+bool hfi1_can_pin_pages(struct hfi1_devdata *, u32, u32);
 int hfi1_acquire_user_pages(unsigned long, size_t, bool, struct page **);
-void hfi1_release_user_pages(struct page **, size_t, bool);
+void hfi1_release_user_pages(struct mm_struct *, struct page **, size_t, bool);
 
 static inline void clear_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
 {
-	*((u64 *) rcd->rcvhdrtail_kvaddr) = 0ULL;
+	*((u64 *)rcd->rcvhdrtail_kvaddr) = 0ULL;
 }
 
 static inline u32 get_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
@@ -1601,7 +1680,7 @@ static inline u32 get_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
 	 * volatile because it's a DMA target from the chip, routine is
 	 * inlined, and don't want register caching or reordering.
 	 */
-	return (u32) le64_to_cpu(*rcd->rcvhdrtail_kvaddr);
+	return (u32)le64_to_cpu(*rcd->rcvhdrtail_kvaddr);
 }
 
 /*
@@ -1633,12 +1712,13 @@ void restore_pci_variables(struct hfi1_devdata *dd);
 int do_pcie_gen3_transition(struct hfi1_devdata *dd);
 int parse_platform_config(struct hfi1_devdata *dd);
 int get_platform_config_field(struct hfi1_devdata *dd,
-			enum platform_config_table_type_encoding table_type,
-			int table_index, int field_index, u32 *data, u32 len);
+			      enum platform_config_table_type_encoding
+			      table_type, int table_index, int field_index,
+			      u32 *data, u32 len);
 
-dma_addr_t hfi1_map_page(struct pci_dev *, struct page *, unsigned long,
-			 size_t, int);
 const char *get_unit_name(int unit);
+const char *get_card_name(struct rvt_dev_info *rdi);
+struct pci_dev *get_pci_dev(struct rvt_dev_info *rdi);
 
 /*
  * Flush write combining store buffers (if present) and perform a write
@@ -1659,7 +1739,7 @@ int process_receive_invalid(struct hfi1_packet *packet);
 
 extern rhf_rcv_function_ptr snoop_rhf_rcv_functions[8];
 
-void update_sge(struct hfi1_sge_state *ss, u32 length);
+void update_sge(struct rvt_sge_state *ss, u32 length);
 
 /* global module parameter variables */
 extern unsigned int hfi1_max_mtu;
@@ -1667,7 +1747,7 @@ extern unsigned int hfi1_cu;
 extern unsigned int user_credit_return_threshold;
 extern int num_user_contexts;
 extern unsigned n_krcvqs;
-extern u8 krcvqs[];
+extern uint krcvqs[];
 extern int krcvqsset;
 extern uint kdeth_qp;
 extern uint loopback;
@@ -1730,7 +1810,7 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 		base_sc_integrity |= HFI1_PKT_KERNEL_SC_INTEGRITY;
 
 	if (is_ax(dd))
-		/* turn off send-side job key checks - A0 erratum */
+		/* turn off send-side job key checks - A0 */
 		return base_sc_integrity &
 		       ~SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
 	return base_sc_integrity;
@@ -1757,7 +1837,7 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 	| SEND_DMA_CHECK_ENABLE_CHECK_ENABLE_SMASK;
 
 	if (is_ax(dd))
-		/* turn off send-side job key checks - A0 erratum */
+		/* turn off send-side job key checks - A0 */
 		return base_sdma_integrity &
 		       ~SEND_DMA_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
 	return base_sdma_integrity;
@@ -1794,6 +1874,10 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 	dev_info(&(dd)->pcidev->dev, "%s: " fmt, \
 			get_unit_name((dd)->unit), ##__VA_ARGS__)
 
+#define dd_dev_dbg(dd, fmt, ...) \
+	dev_dbg(&(dd)->pcidev->dev, "%s: " fmt, \
+		get_unit_name((dd)->unit), ##__VA_ARGS__)
+
 #define hfi1_dev_porterr(dd, port, fmt, ...) \
 	dev_err(&(dd)->pcidev->dev, "%s: IB%u:%u " fmt, \
 			get_unit_name((dd)->unit), (dd)->unit, (port), \
@@ -1825,13 +1909,14 @@ static inline void hfi1_reset_cpu_counters(struct hfi1_devdata *dd)
 
 	dd->z_int_counter = get_all_cpu_total(dd->int_counter);
 	dd->z_rcv_limit = get_all_cpu_total(dd->rcv_limit);
+	dd->z_send_schedule = get_all_cpu_total(dd->send_schedule);
 
 	ppd = (struct hfi1_pportdata *)(dd + 1);
 	for (i = 0; i < dd->num_pports; i++, ppd++) {
-		ppd->ibport_data.z_rc_acks =
-			get_all_cpu_total(ppd->ibport_data.rc_acks);
-		ppd->ibport_data.z_rc_qacks =
-			get_all_cpu_total(ppd->ibport_data.rc_qacks);
+		ppd->ibport_data.rvp.z_rc_acks =
+			get_all_cpu_total(ppd->ibport_data.rvp.rc_acks);
+		ppd->ibport_data.rvp.z_rc_qacks =
+			get_all_cpu_total(ppd->ibport_data.rvp.rc_qacks);
 	}
 }
 
@@ -1842,6 +1927,18 @@ static inline void setextled(struct hfi1_devdata *dd, u32 on)
 		write_csr(dd, DCC_CFG_LED_CNTRL, 0x1F);
 	else
 		write_csr(dd, DCC_CFG_LED_CNTRL, 0x10);
+}
+
+/* return the i2c resource given the target */
+static inline u32 i2c_target(u32 target)
+{
+	return target ? CR_I2C2 : CR_I2C1;
+}
+
+/* return the i2c chain chip resource that this HFI uses for QSFP */
+static inline u32 qsfp_resource(struct hfi1_devdata *dd)
+{
+	return i2c_target(dd->hfi1_id);
 }
 
 int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp);

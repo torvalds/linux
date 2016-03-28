@@ -1440,9 +1440,9 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 
 	device_data->phybase = res->start;
 	device_data->base = devm_ioremap_resource(dev, res);
-	if (!device_data->base) {
+	if (IS_ERR(device_data->base)) {
 		dev_err(dev, "[%s]: ioremap failed!", __func__);
-		ret = -ENOMEM;
+		ret = PTR_ERR(device_data->base);
 		goto out;
 	}
 

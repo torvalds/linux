@@ -350,7 +350,7 @@ static int bcma_register_devices(struct bcma_bus *bus)
 		bcma_register_core(bus, core);
 	}
 
-#ifdef CONFIG_BCMA_DRIVER_MIPS
+#ifdef CONFIG_BCMA_PFLASH
 	if (bus->drv_cc.pflash.present) {
 		err = platform_device_register(&bcma_pflash_dev);
 		if (err)

@@ -27,3 +27,4 @@ Skip collecing build-id when recording: perf record -B
 To change sampling frequency to 100 Hz: perf record -F 100
 See assembly instructions with percentage: perf annotate <symbol>
 If you prefer Intel style assembly, try: perf annotate -M intel
+For hierarchical output, try: perf report --hierarchy

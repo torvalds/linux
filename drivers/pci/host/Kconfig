@@ -5,7 +5,6 @@ config PCI_DRA7XX
 	bool "TI DRA7xx PCIe controller"
 	select PCIE_DW
 	depends on OF && HAS_IOMEM && TI_PIPE3
-	depends on BROKEN
 	help
 	 Enables support for the PCIe controller in the DRA7xx SoC.  There
 	 are two instances of PCIe controller in DRA7xx.  This controller can
@@ -16,6 +15,28 @@ config PCI_MVEBU
 	depends on ARCH_MVEBU || ARCH_DOVE
 	depends on ARM
 	depends on OF
+
+
+config PCIE_XILINX_NWL
+	bool "NWL PCIe Core"
+	depends on ARCH_ZYNQMP
+	select PCI_MSI_IRQ_DOMAIN if PCI_MSI
+	help
+	 Say 'Y' here if you want kernel support for Xilinx
+	 NWL PCIe controller. The controller can act as Root Port
+	 or End Point. The current option selection will only
+	 support root port enabling.
+
+config PCIE_DW_PLAT
+	bool "Platform bus based DesignWare PCIe Controller"
+	select PCIE_DW
+	---help---
+	 This selects the DesignWare PCIe controller support. Select this if
+	 you have a PCIe controller on Platform bus.
+
+	 If you have a controller with this interface, say Y or M here.
+
+	 If unsure, say N.
 
 config PCIE_DW
 	bool
@@ -42,7 +63,7 @@ config PCI_TEGRA
 config PCI_RCAR_GEN2
 	bool "Renesas R-Car Gen2 Internal PCI controller"
 	depends on ARM
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	help
 	  Say Y here if you want internal PCI support on R-Car Gen2 SoC.
 	  There are 3 internal PCI controllers available with a single
@@ -50,13 +71,17 @@ config PCI_RCAR_GEN2
 
 config PCI_RCAR_GEN2_PCIE
 	bool "Renesas R-Car PCIe controller"
-	depends on ARCH_SHMOBILE || (ARM && COMPILE_TEST)
+	depends on ARCH_RENESAS || (ARM && COMPILE_TEST)
 	help
 	  Say Y here if you want PCIe controller support on R-Car Gen2 SoCs.
+
+config PCI_HOST_COMMON
+	bool
 
 config PCI_HOST_GENERIC
 	bool "Generic PCI host controller"
 	depends on (ARM || ARM64) && OF
+	select PCI_HOST_COMMON
 	help
 	  Say Y here if you want to support a simple generic PCI host
 	  controller, such as the one emulated by kvmtool.
@@ -82,7 +107,7 @@ config PCI_KEYSTONE
 
 config PCIE_XILINX
 	bool "Xilinx AXI PCIe host bridge support"
-	depends on ARCH_ZYNQ
+	depends on ARCH_ZYNQ || MICROBLAZE
 	help
 	  Say 'Y' here if you want kernel to support the Xilinx AXI PCIe
 	  Host Bridge driver.
@@ -191,5 +216,19 @@ config PCIE_QCOM
 	  Say Y here to enable PCIe controller support on Qualcomm SoCs. The
 	  PCIe controller uses the Designware core plus Qualcomm-specific
 	  hardware wrappers.
+
+config PCI_HOST_THUNDER_PEM
+	bool "Cavium Thunder PCIe controller to off-chip devices"
+	depends on OF && ARM64
+	select PCI_HOST_COMMON
+	help
+	  Say Y here if you want PCIe support for CN88XX Cavium Thunder SoCs.
+
+config PCI_HOST_THUNDER_ECAM
+	bool "Cavium Thunder ECAM controller to on-chip devices on pass-1.x silicon"
+	depends on OF && ARM64
+	select PCI_HOST_COMMON
+	help
+	  Say Y here if you want ECAM support for CN88XX-Pass-1.x Cavium Thunder SoCs.
 
 endmenu

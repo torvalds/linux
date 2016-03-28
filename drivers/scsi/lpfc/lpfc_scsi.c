@@ -4139,23 +4139,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	/* The sdev is not guaranteed to be valid post scsi_done upcall. */
 	cmd->scsi_done(cmd);
 
-	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
-		spin_lock_irqsave(&phba->hbalock, flags);
-		lpfc_cmd->pCmd = NULL;
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-
-		/*
-		 * If there is a thread waiting for command completion
-		 * wake up the thread.
-		 */
-		spin_lock_irqsave(shost->host_lock, flags);
-		if (lpfc_cmd->waitq)
-			wake_up(lpfc_cmd->waitq);
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		lpfc_release_scsi_buf(phba, lpfc_cmd);
-		return;
-	}
-
 	spin_lock_irqsave(&phba->hbalock, flags);
 	lpfc_cmd->pCmd = NULL;
 	spin_unlock_irqrestore(&phba->hbalock, flags);

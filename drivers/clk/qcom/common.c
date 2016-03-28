@@ -119,7 +119,6 @@ static int _qcom_cc_register_board_clk(struct device *dev, const char *path,
 		fixed->hw.init = &init_data;
 
 		init_data.name = path;
-		init_data.flags = CLK_IS_ROOT;
 		init_data.ops = &clk_fixed_rate_ops;
 
 		clk = devm_clk_register(dev, &fixed->hw);
@@ -185,6 +184,7 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 	struct clk **clks;
 	struct qcom_reset_controller *reset;
 	struct qcom_cc *cc;
+	struct gdsc_desc *scd;
 	size_t num_clks = desc->num_clks;
 	struct clk_regmap **rclks = desc->clks;
 
@@ -213,7 +213,11 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	devm_add_action(dev, qcom_cc_del_clk_provider, pdev->dev.of_node);
+	ret = devm_add_action_or_reset(dev, qcom_cc_del_clk_provider,
+				       pdev->dev.of_node);
+
+	if (ret)
+		return ret;
 
 	reset = &cc->reset;
 	reset->rcdev.of_node = dev->of_node;
@@ -227,17 +231,27 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	devm_add_action(dev, qcom_cc_reset_unregister, &reset->rcdev);
+	ret = devm_add_action_or_reset(dev, qcom_cc_reset_unregister,
+				       &reset->rcdev);
+
+	if (ret)
+		return ret;
 
 	if (desc->gdscs && desc->num_gdscs) {
-		ret = gdsc_register(dev, desc->gdscs, desc->num_gdscs,
-				    &reset->rcdev, regmap);
+		scd = devm_kzalloc(dev, sizeof(*scd), GFP_KERNEL);
+		if (!scd)
+			return -ENOMEM;
+		scd->dev = dev;
+		scd->scs = desc->gdscs;
+		scd->num = desc->num_gdscs;
+		ret = gdsc_register(scd, &reset->rcdev, regmap);
+		if (ret)
+			return ret;
+		ret = devm_add_action_or_reset(dev, qcom_cc_gdsc_unregister,
+					       scd);
 		if (ret)
 			return ret;
 	}
-
-	devm_add_action(dev, qcom_cc_gdsc_unregister, dev);
-
 
 	return 0;
 }

@@ -230,6 +230,11 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 	/* set Rx highest rate */
 	ht_cap.mcs.rx_highest = ht_cap_ie->mcs.rx_highest;
 
+	if (ht_cap.cap & IEEE80211_HT_CAP_MAX_AMSDU)
+		sta->sta.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_7935;
+	else
+		sta->sta.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_3839;
+
  apply:
 	changed = memcmp(&sta->sta.ht_cap, &ht_cap, sizeof(ht_cap));
 

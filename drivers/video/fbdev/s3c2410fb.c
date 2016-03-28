@@ -645,8 +645,8 @@ static int s3c2410fb_map_video_memory(struct fb_info *info)
 
 	dprintk("map_video_memory(fbi=%p) map_size %u\n", fbi, map_size);
 
-	info->screen_base = dma_alloc_writecombine(fbi->dev, map_size,
-						   &map_dma, GFP_KERNEL);
+	info->screen_base = dma_alloc_wc(fbi->dev, map_size, &map_dma,
+					 GFP_KERNEL);
 
 	if (info->screen_base) {
 		/* prevent initial garbage on screen */
@@ -667,8 +667,8 @@ static inline void s3c2410fb_unmap_video_memory(struct fb_info *info)
 {
 	struct s3c2410fb_info *fbi = info->par;
 
-	dma_free_writecombine(fbi->dev, PAGE_ALIGN(info->fix.smem_len),
-			      info->screen_base, info->fix.smem_start);
+	dma_free_wc(fbi->dev, PAGE_ALIGN(info->fix.smem_len),
+		    info->screen_base, info->fix.smem_start);
 }
 
 static inline void modify_gpio(void __iomem *reg,

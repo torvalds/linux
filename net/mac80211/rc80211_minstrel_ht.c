@@ -414,15 +414,16 @@ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 index)
 	    (max_tp_group != MINSTREL_CCK_GROUP))
 		return;
 
+	max_gpr_group = mg->max_group_prob_rate / MCS_GROUP_RATES;
+	max_gpr_idx = mg->max_group_prob_rate % MCS_GROUP_RATES;
+	max_gpr_prob = mi->groups[max_gpr_group].rates[max_gpr_idx].prob_ewma;
+
 	if (mrs->prob_ewma > MINSTREL_FRAC(75, 100)) {
 		cur_tp_avg = minstrel_ht_get_tp_avg(mi, cur_group, cur_idx,
 						    mrs->prob_ewma);
 		if (cur_tp_avg > tmp_tp_avg)
 			mi->max_prob_rate = index;
 
-		max_gpr_group = mg->max_group_prob_rate / MCS_GROUP_RATES;
-		max_gpr_idx = mg->max_group_prob_rate %	MCS_GROUP_RATES;
-		max_gpr_prob = mi->groups[max_gpr_group].rates[max_gpr_idx].prob_ewma;
 		max_gpr_tp_avg = minstrel_ht_get_tp_avg(mi, max_gpr_group,
 							max_gpr_idx,
 							max_gpr_prob);
@@ -431,7 +432,7 @@ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 index)
 	} else {
 		if (mrs->prob_ewma > tmp_prob)
 			mi->max_prob_rate = index;
-		if (mrs->prob_ewma > mg->rates[mg->max_group_prob_rate].prob_ewma)
+		if (mrs->prob_ewma > max_gpr_prob)
 			mg->max_group_prob_rate = index;
 	}
 }
@@ -691,7 +692,7 @@ minstrel_aggr_check(struct ieee80211_sta *pubsta, struct sk_buff *skb)
 	if (likely(sta->ampdu_mlme.tid_tx[tid]))
 		return;
 
-	ieee80211_start_tx_ba_session(pubsta, tid, 5000);
+	ieee80211_start_tx_ba_session(pubsta, tid, 0);
 }
 
 static void
@@ -871,7 +872,7 @@ minstrel_ht_set_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	 *  - if station is in dynamic SMPS (and streams > 1)
 	 *  - for fallback rates, to increase chances of getting through
 	 */
-	if (offset > 0 &&
+	if (offset > 0 ||
 	    (mi->sta->smps_mode == IEEE80211_SMPS_DYNAMIC &&
 	     group->streams > 1)) {
 		ratetbl->rate[offset].count = ratetbl->rate[offset].count_rts;
@@ -1334,7 +1335,8 @@ static u32 minstrel_ht_get_expected_throughput(void *priv_sta)
 	prob = mi->groups[i].rates[j].prob_ewma;
 
 	/* convert tp_avg from pkt per second in kbps */
-	tp_avg = minstrel_ht_get_tp_avg(mi, i, j, prob) * AVG_PKT_SIZE * 8 / 1024;
+	tp_avg = minstrel_ht_get_tp_avg(mi, i, j, prob) * 10;
+	tp_avg = tp_avg * AVG_PKT_SIZE * 8 / 1024;
 
 	return tp_avg;
 }

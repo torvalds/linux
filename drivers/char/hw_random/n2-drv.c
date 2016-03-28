@@ -743,6 +743,16 @@ static const struct of_device_id n2rng_match[] = {
 		.compatible	= "SUNW,kt-rng",
 		.data		= (void *) 1,
 	},
+	{
+		.name		= "random-number-generator",
+		.compatible	= "ORCL,m4-rng",
+		.data		= (void *) 1,
+	},
+	{
+		.name		= "random-number-generator",
+		.compatible	= "ORCL,m7-rng",
+		.data		= (void *) 1,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, n2rng_match);

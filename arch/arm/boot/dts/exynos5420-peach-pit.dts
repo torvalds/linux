@@ -15,6 +15,7 @@
 #include <dt-bindings/clock/maxim,max77802.h>
 #include <dt-bindings/regulator/maxim,max77802.h>
 #include "exynos5420.dtsi"
+#include "exynos5420-cpus.dtsi"
 
 / {
 	model = "Google Peach Pit Rev 6+";
@@ -64,7 +65,7 @@
 			label = "Power";
 			gpios = <&gpx1 2 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		lid-switch {
@@ -73,7 +74,7 @@
 			linux,input-type = <5>; /* EV_SW */
 			linux,code = <0>; /* SW_LID */
 			debounce-interval = <1>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -141,6 +142,14 @@
 &adc {
 	status = "okay";
 	vdd-supply = <&ldo9_reg>;
+};
+
+&cpu0 {
+	cpu-supply = <&buck2_reg>;
+};
+
+&cpu4 {
+	cpu-supply = <&buck6_reg>;
 };
 
 &dp {

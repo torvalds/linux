@@ -133,7 +133,9 @@
 #define PORT_CONTROL_STATE_LEARNING	0x02
 #define PORT_CONTROL_STATE_FORWARDING	0x03
 #define PORT_CONTROL_1		0x05
+#define PORT_CONTROL_1_FID_11_4_MASK	(0xff << 0)
 #define PORT_BASE_VLAN		0x06
+#define PORT_BASE_VLAN_FID_3_0_MASK	(0xf << 12)
 #define PORT_DEFAULT_VLAN	0x07
 #define PORT_DEFAULT_VLAN_MASK	0xfff
 #define PORT_CONTROL_2		0x08
@@ -355,6 +357,8 @@
 #define GLOBAL2_QOS_WEIGHT	0x1c
 #define GLOBAL2_MISC		0x1d
 
+#define MV88E6XXX_N_FID		4096
+
 struct mv88e6xxx_switch_id {
 	u16 id;
 	char *name;
@@ -377,6 +381,11 @@ struct mv88e6xxx_vtu_stu_entry {
 	u8	sid;
 	bool	valid;
 	u8	data[DSA_MAX_PORTS];
+};
+
+struct mv88e6xxx_priv_port {
+	struct net_device *bridge_dev;
+	u8 state;
 };
 
 struct mv88e6xxx_priv_state {
@@ -415,8 +424,9 @@ struct mv88e6xxx_priv_state {
 	int		id; /* switch product id */
 	int		num_ports;	/* number of switch ports */
 
-	unsigned long port_state_update_mask;
-	u8 port_state[DSA_MAX_PORTS];
+	struct mv88e6xxx_priv_port	ports[DSA_MAX_PORTS];
+
+	DECLARE_BITMAP(port_state_update_mask, DSA_MAX_PORTS);
 
 	struct work_struct bridge_work;
 };
@@ -476,9 +486,12 @@ int mv88e6xxx_phy_write_indirect(struct dsa_switch *ds, int addr, int regnum,
 int mv88e6xxx_get_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e);
 int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 		      struct phy_device *phydev, struct ethtool_eee *e);
-int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port, u32 members);
-int mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port, u32 members);
+int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
+			       struct net_device *bridge);
+void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port);
 int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state);
+int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
+				  bool vlan_filtering);
 int mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 				const struct switchdev_obj_port_vlan *vlan,
 				struct switchdev_trans *trans);
@@ -487,9 +500,9 @@ int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 			    struct switchdev_trans *trans);
 int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 			    const struct switchdev_obj_port_vlan *vlan);
-int mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *vid);
-int mv88e6xxx_vlan_getnext(struct dsa_switch *ds, u16 *vid,
-			   unsigned long *ports, unsigned long *untagged);
+int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
+			     struct switchdev_obj_port_vlan *vlan,
+			     int (*cb)(struct switchdev_obj *obj));
 int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
 			       const struct switchdev_obj_port_fdb *fdb,
 			       struct switchdev_trans *trans);
@@ -506,7 +519,7 @@ int mv88e6xxx_phy_page_write(struct dsa_switch *ds, int port, int page,
 			     int reg, int val);
 
 extern struct dsa_switch_driver mv88e6131_switch_driver;
-extern struct dsa_switch_driver mv88e6123_61_65_switch_driver;
+extern struct dsa_switch_driver mv88e6123_switch_driver;
 extern struct dsa_switch_driver mv88e6352_switch_driver;
 extern struct dsa_switch_driver mv88e6171_switch_driver;
 

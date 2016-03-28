@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -63,6 +64,7 @@
  *
  *****************************************************************************/
 #include <linux/vmalloc.h>
+#include <linux/ieee80211.h>
 
 #include "mvm.h"
 #include "fw-dbg.h"
@@ -70,6 +72,44 @@
 #include "iwl-io.h"
 #include "debugfs.h"
 #include "iwl-fw-error-dump.h"
+
+static ssize_t iwl_dbgfs_ctdp_budget_read(struct file *file,
+					  char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	char buf[16];
+	int pos, budget;
+
+	if (!mvm->ucode_loaded || mvm->cur_ucode != IWL_UCODE_REGULAR)
+		return -EIO;
+
+	mutex_lock(&mvm->mutex);
+	budget = iwl_mvm_ctdp_command(mvm, CTDP_CMD_OPERATION_REPORT, 0);
+	mutex_unlock(&mvm->mutex);
+
+	if (budget < 0)
+		return budget;
+
+	pos = scnprintf(buf, sizeof(buf), "%d\n", budget);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+static ssize_t iwl_dbgfs_stop_ctdp_write(struct iwl_mvm *mvm, char *buf,
+					 size_t count, loff_t *ppos)
+{
+	int ret;
+
+	if (!mvm->ucode_loaded || mvm->cur_ucode != IWL_UCODE_REGULAR)
+		return -EIO;
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_ctdp_command(mvm, CTDP_CMD_OPERATION_STOP, 0);
+	mutex_unlock(&mvm->mutex);
+
+	return ret ?: count;
+}
 
 static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 					size_t count, loff_t *ppos)
@@ -261,17 +301,18 @@ static ssize_t iwl_dbgfs_nic_temp_read(struct file *file,
 {
 	struct iwl_mvm *mvm = file->private_data;
 	char buf[16];
-	int pos, temp;
+	int pos, ret;
+	s32 temp;
 
 	if (!mvm->ucode_loaded)
 		return -EIO;
 
 	mutex_lock(&mvm->mutex);
-	temp = iwl_mvm_get_temp(mvm);
+	ret = iwl_mvm_get_temp(mvm, &temp);
 	mutex_unlock(&mvm->mutex);
 
-	if (temp < 0)
-		return temp;
+	if (ret)
+		return -EIO;
 
 	pos = scnprintf(buf , sizeof(buf), "%d\n", temp);
 
@@ -942,6 +983,47 @@ iwl_dbgfs_scan_ant_rxchain_write(struct iwl_mvm *mvm, char *buf,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_indirection_tbl_write(struct iwl_mvm *mvm,
+					       char *buf, size_t count,
+					       loff_t *ppos)
+{
+	struct iwl_rss_config_cmd cmd = {
+		.flags = cpu_to_le32(IWL_RSS_ENABLE),
+		.hash_mask = IWL_RSS_HASH_TYPE_IPV4_TCP |
+			     IWL_RSS_HASH_TYPE_IPV4_PAYLOAD |
+			     IWL_RSS_HASH_TYPE_IPV6_TCP |
+			     IWL_RSS_HASH_TYPE_IPV6_PAYLOAD,
+	};
+	int ret, i, num_repeats, nbytes = count / 2;
+
+	ret = hex2bin(cmd.indirection_table, buf, nbytes);
+	if (ret)
+		return ret;
+
+	/*
+	 * The input is the redirection table, partial or full.
+	 * Repeat the pattern if needed.
+	 * For example, input of 01020F will be repeated 42 times,
+	 * indirecting RSS hash results to queues 1, 2, 15 (skipping
+	 * queues 3 - 14).
+	 */
+	num_repeats = ARRAY_SIZE(cmd.indirection_table) / nbytes;
+	for (i = 1; i < num_repeats; i++)
+		memcpy(&cmd.indirection_table[i * nbytes],
+		       cmd.indirection_table, nbytes);
+	/* handle cut in the middle pattern for the last places */
+	memcpy(&cmd.indirection_table[i * nbytes], cmd.indirection_table,
+	       ARRAY_SIZE(cmd.indirection_table) % nbytes);
+
+	memcpy(cmd.secret_key, mvm->secret_key, sizeof(cmd.secret_key));
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_send_cmd_pdu(mvm, RSS_CONFIG_CMD, 0, sizeof(cmd), &cmd);
+	mutex_unlock(&mvm->mutex);
+
+	return ret ?: count;
+}
+
 static ssize_t iwl_dbgfs_fw_dbg_conf_read(struct file *file,
 					  char __user *user_buf,
 					  size_t count, loff_t *ppos)
@@ -983,7 +1065,7 @@ static ssize_t iwl_dbgfs_cont_recording_write(struct iwl_mvm *mvm,
 	    trans->cfg->device_family != IWL_DEVICE_FAMILY_8000)
 		return -EOPNOTSUPP;
 
-	ret = kstrtouint(buf, 0, &rec_mode);
+	ret = kstrtoint(buf, 0, &rec_mode);
 	if (ret)
 		return ret;
 
@@ -1033,6 +1115,22 @@ static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
 			       (count - 1), NULL);
 
 	iwl_mvm_unref(mvm, IWL_MVM_REF_PRPH_WRITE);
+
+	return count;
+}
+
+static ssize_t iwl_dbgfs_max_amsdu_len_write(struct iwl_mvm *mvm,
+					     char *buf, size_t count,
+					     loff_t *ppos)
+{
+	unsigned int max_amsdu_len;
+	int ret;
+
+	ret = kstrtouint(buf, 0, &max_amsdu_len);
+
+	if (max_amsdu_len > IEEE80211_MAX_MPDU_LEN_VHT_11454)
+		return -EINVAL;
+	mvm->max_amsdu_len = max_amsdu_len;
 
 	return count;
 }
@@ -1433,6 +1531,8 @@ iwl_dbgfs_send_echo_cmd_write(struct iwl_mvm *mvm, char *buf,
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(prph_reg, 64);
 
 /* Device wide debugfs entries */
+MVM_DEBUGFS_READ_FILE_OPS(ctdp_budget);
+MVM_DEBUGFS_WRITE_FILE_OPS(stop_ctdp, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(tx_flush, 16);
 MVM_DEBUGFS_WRITE_FILE_OPS(sta_drain, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(send_echo_cmd, 8);
@@ -1454,6 +1554,9 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(cont_recording, 8);
+MVM_DEBUGFS_WRITE_FILE_OPS(max_amsdu_len, 8);
+MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
+			   (IWL_RSS_INDIRECTION_TABLE_SIZE * 2));
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
@@ -1479,6 +1582,8 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(set_nic_temperature, mvm->debugfs_dir,
 			     S_IWUSR | S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(nic_temp, dbgfs_dir, S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(ctdp_budget, dbgfs_dir, S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(stop_ctdp, dbgfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(stations, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_cmd, dbgfs_dir, S_IRUSR);
@@ -1496,12 +1601,17 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(d0i3_refs, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_conf, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_collect, mvm->debugfs_dir, S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(max_amsdu_len, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(cont_recording, mvm->debugfs_dir, S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(indirection_tbl, mvm->debugfs_dir, S_IWUSR);
 	if (!debugfs_create_bool("enable_scan_iteration_notif",
 				 S_IRUSR | S_IWUSR,
 				 mvm->debugfs_dir,
 				 &mvm->scan_iter_notif_enabled))
+		goto err;
+	if (!debugfs_create_bool("drop_bcn_ap_mode", S_IRUSR | S_IWUSR,
+				 mvm->debugfs_dir, &mvm->drop_bcn_ap_mode))
 		goto err;
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING

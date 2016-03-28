@@ -44,7 +44,7 @@ static void usage(void)
 static int bpf_map_create(void)
 {
 	return bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(uint32_t),
-			      sizeof(uint32_t), 1024);
+			      sizeof(uint32_t), 1024, 0);
 }
 
 static int bpf_prog_create(const char *object)

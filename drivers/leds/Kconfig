@@ -443,6 +443,7 @@ config LEDS_DELL_NETBOOKS
 	tristate "External LED on Dell Business Netbooks"
 	depends on LEDS_CLASS
 	depends on X86 && ACPI_WMI
+	depends on DELL_SMBIOS
 	help
 	  This adds support for the Latitude 2100 and similar
 	  notebooks that have an external LED.
@@ -567,6 +568,14 @@ config LEDS_SEAD3
 
 	  This driver can also be built as a module. If so the module
 	  will be called leds-sead3.
+
+config LEDS_IS31FL32XX
+	tristate "LED support for ISSI IS31FL32XX I2C LED controller family"
+	depends on LEDS_CLASS && I2C && OF
+	help
+	  Say Y here to include support for ISSI IS31FL32XX and Si-En SN32xx
+	  LED controllers. They are I2C devices with multiple constant-current
+	  channels, each with independent 256-level PWM control.
 
 comment "LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)"
 

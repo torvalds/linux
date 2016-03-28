@@ -189,8 +189,11 @@ static inline unsigned FNAME(gpte_access)(struct kvm_vcpu *vcpu, u64 gpte)
 		((gpte & VMX_EPT_EXECUTABLE_MASK) ? ACC_EXEC_MASK : 0) |
 		ACC_USER_MASK;
 #else
-	access = (gpte & (PT_WRITABLE_MASK | PT_USER_MASK)) | ACC_EXEC_MASK;
-	access &= ~(gpte >> PT64_NX_SHIFT);
+	BUILD_BUG_ON(ACC_EXEC_MASK != PT_PRESENT_MASK);
+	BUILD_BUG_ON(ACC_EXEC_MASK != 1);
+	access = gpte & (PT_WRITABLE_MASK | PT_USER_MASK | PT_PRESENT_MASK);
+	/* Combine NX with P (which is set here) to get ACC_EXEC_MASK.  */
+	access ^= (gpte >> PT64_NX_SHIFT);
 #endif
 
 	return access;
@@ -254,6 +257,17 @@ static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static inline unsigned FNAME(gpte_pkeys)(struct kvm_vcpu *vcpu, u64 gpte)
+{
+	unsigned pkeys = 0;
+#if PTTYPE == 64
+	pte_t pte = {.pte = gpte};
+
+	pkeys = pte_flags_pkey(pte_flags(pte));
+#endif
+	return pkeys;
+}
+
 /*
  * Fetch a guest pte for a guest virtual address
  */
@@ -265,7 +279,7 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 	pt_element_t pte;
 	pt_element_t __user *uninitialized_var(ptep_user);
 	gfn_t table_gfn;
-	unsigned index, pt_access, pte_access, accessed_dirty;
+	unsigned index, pt_access, pte_access, accessed_dirty, pte_pkey;
 	gpa_t pte_gpa;
 	int offset;
 	const int write_fault = access & PFERR_WRITE_MASK;
@@ -356,10 +370,10 @@ retry_walk:
 		walker->ptes[walker->level - 1] = pte;
 	} while (!is_last_gpte(mmu, walker->level, pte));
 
-	if (unlikely(permission_fault(vcpu, mmu, pte_access, access))) {
-		errcode |= PFERR_PRESENT_MASK;
+	pte_pkey = FNAME(gpte_pkeys)(vcpu, pte);
+	errcode = permission_fault(vcpu, mmu, pte_access, pte_pkey, access);
+	if (unlikely(errcode))
 		goto error;
-	}
 
 	gfn = gpte_to_gfn_lvl(pte, walker->level);
 	gfn += (addr & PT_LVL_OFFSET_MASK(walker->level)) >> PAGE_SHIFT;
@@ -702,22 +716,15 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 
 	pgprintk("%s: addr %lx err %x\n", __func__, addr, error_code);
 
-	if (unlikely(error_code & PFERR_RSVD_MASK)) {
-		r = handle_mmio_page_fault(vcpu, addr, mmu_is_nested(vcpu));
-		if (likely(r != RET_MMIO_PF_INVALID))
-			return r;
-
-		/*
-		 * page fault with PFEC.RSVD  = 1 is caused by shadow
-		 * page fault, should not be used to walk guest page
-		 * table.
-		 */
-		error_code &= ~PFERR_RSVD_MASK;
-	};
-
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
 		return r;
+
+	/*
+	 * If PFEC.RSVD is set, this is a shadow page fault.
+	 * The bit needs to be cleared before walking guest page tables.
+	 */
+	error_code &= ~PFERR_RSVD_MASK;
 
 	/*
 	 * Look up the guest pte for the faulting address.
@@ -733,6 +740,11 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 			inject_page_fault(vcpu, &walker.fault);
 
 		return 0;
+	}
+
+	if (page_fault_handle_page_track(vcpu, error_code, walker.gfn)) {
+		shadow_page_table_clear_flood(vcpu, addr);
+		return 1;
 	}
 
 	vcpu->arch.write_fault_to_shadow_pgtable = false;
@@ -945,9 +957,15 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 		if (kvm_vcpu_read_guest_atomic(vcpu, pte_gpa, &gpte,
 					       sizeof(pt_element_t)))
-			return -EINVAL;
+			return 0;
 
 		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
+			/*
+			 * Update spte before increasing tlbs_dirty to make
+			 * sure no tlb flush is lost after spte is zapped; see
+			 * the comments in kvm_flush_remote_tlbs().
+			 */
+			smp_wmb();
 			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}
@@ -963,6 +981,11 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 		if (gfn != sp->gfns[i]) {
 			drop_spte(vcpu->kvm, &sp->spt[i]);
+			/*
+			 * The same as above where we are doing
+			 * prefetch_invalid_gpte().
+			 */
+			smp_wmb();
 			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}
@@ -977,7 +1000,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 			 host_writable);
 	}
 
-	return !nr_present;
+	return nr_present;
 }
 
 #undef pt_element_t

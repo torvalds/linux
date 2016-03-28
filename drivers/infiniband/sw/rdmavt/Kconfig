@@ -1,0 +1,6 @@
+config INFINIBAND_RDMAVT
+	tristate "RDMA verbs transport library"
+	depends on 64BIT
+	default m
+	---help---
+	This is a common software verbs provider for RDMA networks.

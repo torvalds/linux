@@ -636,8 +636,8 @@ ssize_t traceprobe_probes_write(struct file *file, const char __user *buffer,
 			*tmp = '\0';
 			size = tmp - kbuf + 1;
 		} else if (done + size < count) {
-			pr_warning("Line length is too long: "
-				   "Should be less than %d.", WRITE_BUFSIZE);
+			pr_warn("Line length is too long: Should be less than %d\n",
+				WRITE_BUFSIZE);
 			ret = -EINVAL;
 			goto out;
 		}

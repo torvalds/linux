@@ -1350,21 +1350,16 @@ error:
  */
 static long ipipe_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	int ret = 0;
-
 	switch (cmd) {
 	case VIDIOC_VPFE_IPIPE_S_CONFIG:
-		ret = ipipe_s_config(sd, arg);
-		break;
+		return ipipe_s_config(sd, arg);
 
 	case VIDIOC_VPFE_IPIPE_G_CONFIG:
-		ret = ipipe_g_config(sd, arg);
-		break;
+		return ipipe_g_config(sd, arg);
 
 	default:
-		ret = -ENOIOCTLCMD;
+		return -ENOIOCTLCMD;
 	}
-	return ret;
 }
 
 void vpfe_ipipe_enable(struct vpfe_device *vpfe_dev, int en)

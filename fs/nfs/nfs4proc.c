@@ -2461,14 +2461,15 @@ static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 
 	dentry = opendata->dentry;
 	if (d_really_is_negative(dentry)) {
-		/* FIXME: Is this d_drop() ever needed? */
+		struct dentry *alias;
 		d_drop(dentry);
-		dentry = d_add_unique(dentry, igrab(state->inode));
-		if (dentry == NULL) {
-			dentry = opendata->dentry;
-		} else {
+		alias = d_exact_alias(dentry, state->inode);
+		if (!alias)
+			alias = d_splice_alias(igrab(state->inode), dentry);
+		/* d_splice_alias() can't fail here - it's a non-directory */
+		if (alias) {
 			dput(ctx->dentry);
-			ctx->dentry = dentry;
+			ctx->dentry = dentry = alias;
 		}
 		nfs_set_verifier(dentry,
 				nfs_save_change_attribute(d_inode(opendata->dir)));
@@ -6782,13 +6783,26 @@ nfs41_same_server_scope(struct nfs41_server_scope *a,
 	return false;
 }
 
+static void
+nfs4_bind_one_conn_to_session_done(struct rpc_task *task, void *calldata)
+{
+}
+
+static const struct rpc_call_ops nfs4_bind_one_conn_to_session_ops = {
+	.rpc_call_done =  &nfs4_bind_one_conn_to_session_done,
+};
+
 /*
- * nfs4_proc_bind_conn_to_session()
+ * nfs4_proc_bind_one_conn_to_session()
  *
  * The 4.1 client currently uses the same TCP connection for the
  * fore and backchannel.
  */
-int nfs4_proc_bind_conn_to_session(struct nfs_client *clp, struct rpc_cred *cred)
+static
+int nfs4_proc_bind_one_conn_to_session(struct rpc_clnt *clnt,
+		struct rpc_xprt *xprt,
+		struct nfs_client *clp,
+		struct rpc_cred *cred)
 {
 	int status;
 	struct nfs41_bind_conn_to_session_args args = {
@@ -6803,6 +6817,14 @@ int nfs4_proc_bind_conn_to_session(struct nfs_client *clp, struct rpc_cred *cred
 		.rpc_resp = &res,
 		.rpc_cred = cred,
 	};
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = clnt,
+		.rpc_xprt = xprt,
+		.callback_ops = &nfs4_bind_one_conn_to_session_ops,
+		.rpc_message = &msg,
+		.flags = RPC_TASK_TIMEOUT,
+	};
+	struct rpc_task *task;
 
 	dprintk("--> %s\n", __func__);
 
@@ -6810,7 +6832,16 @@ int nfs4_proc_bind_conn_to_session(struct nfs_client *clp, struct rpc_cred *cred
 	if (!(clp->cl_session->flags & SESSION4_BACK_CHAN))
 		args.dir = NFS4_CDFC4_FORE;
 
-	status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
+	/* Do not set the backchannel flag unless this is clnt->cl_xprt */
+	if (xprt != rcu_access_pointer(clnt->cl_xprt))
+		args.dir = NFS4_CDFC4_FORE;
+
+	task = rpc_run_task(&task_setup_data);
+	if (!IS_ERR(task)) {
+		status = task->tk_status;
+		rpc_put_task(task);
+	} else
+		status = PTR_ERR(task);
 	trace_nfs4_bind_conn_to_session(clp, status);
 	if (status == 0) {
 		if (memcmp(res.sessionid.data,
@@ -6835,6 +6866,31 @@ int nfs4_proc_bind_conn_to_session(struct nfs_client *clp, struct rpc_cred *cred
 out:
 	dprintk("<-- %s status= %d\n", __func__, status);
 	return status;
+}
+
+struct rpc_bind_conn_calldata {
+	struct nfs_client *clp;
+	struct rpc_cred *cred;
+};
+
+static int
+nfs4_proc_bind_conn_to_session_callback(struct rpc_clnt *clnt,
+		struct rpc_xprt *xprt,
+		void *calldata)
+{
+	struct rpc_bind_conn_calldata *p = calldata;
+
+	return nfs4_proc_bind_one_conn_to_session(clnt, xprt, p->clp, p->cred);
+}
+
+int nfs4_proc_bind_conn_to_session(struct nfs_client *clp, struct rpc_cred *cred)
+{
+	struct rpc_bind_conn_calldata data = {
+		.clp = clp,
+		.cred = cred,
+	};
+	return rpc_clnt_iterate_for_each_xprt(clp->cl_rpcclient,
+			nfs4_proc_bind_conn_to_session_callback, &data);
 }
 
 /*
@@ -7319,7 +7375,7 @@ static void nfs4_init_channel_attrs(struct nfs41_create_session_args *args)
 	args->bc_attrs.max_resp_sz = PAGE_SIZE;
 	args->bc_attrs.max_resp_sz_cached = 0;
 	args->bc_attrs.max_ops = NFS4_MAX_BACK_CHANNEL_OPS;
-	args->bc_attrs.max_reqs = 1;
+	args->bc_attrs.max_reqs = NFS41_BC_MAX_CALLBACKS;
 
 	dprintk("%s: Back Channel : max_rqst_sz=%u max_resp_sz=%u "
 		"max_resp_sz_cached=%u max_ops=%u max_reqs=%u\n",

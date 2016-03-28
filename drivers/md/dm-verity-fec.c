@@ -812,7 +812,7 @@ int verity_fec_ctr(struct dm_verity *v)
 	}
 
 	/* Reserve space for our per-bio data */
-	ti->per_bio_data_size += sizeof(struct dm_verity_fec_io);
+	ti->per_io_data_size += sizeof(struct dm_verity_fec_io);
 
 	return 0;
 }

@@ -1182,14 +1182,14 @@ int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
 	}
 
 	crq->q.reader = 0;
-	crq->item = cache_get(h);
 	crq->buf = buf;
 	crq->len = 0;
 	crq->readers = 0;
 	spin_lock(&queue_lock);
-	if (test_bit(CACHE_PENDING, &h->flags))
+	if (test_bit(CACHE_PENDING, &h->flags)) {
+		crq->item = cache_get(h);
 		list_add_tail(&crq->q.list, &detail->queue);
-	else
+	} else
 		/* Lost a race, no longer PENDING, so don't enqueue */
 		ret = -EAGAIN;
 	spin_unlock(&queue_lock);

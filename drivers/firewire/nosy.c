@@ -33,6 +33,7 @@
 #include <linux/sched.h> /* required for linux/wait.h */
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/time64.h>
 #include <linux/timex.h>
 #include <linux/uaccess.h>
 #include <linux/wait.h>
@@ -413,17 +414,18 @@ static void
 packet_irq_handler(struct pcilynx *lynx)
 {
 	struct client *client;
-	u32 tcode_mask, tcode;
+	u32 tcode_mask, tcode, timestamp;
 	size_t length;
-	struct timeval tv;
+	struct timespec64 ts64;
 
 	/* FIXME: Also report rcv_speed. */
 
 	length = __le32_to_cpu(lynx->rcv_pcl->pcl_status) & 0x00001fff;
 	tcode  = __le32_to_cpu(lynx->rcv_buffer[1]) >> 4 & 0xf;
 
-	do_gettimeofday(&tv);
-	lynx->rcv_buffer[0] = (__force __le32)tv.tv_usec;
+	ktime_get_real_ts64(&ts64);
+	timestamp = ts64.tv_nsec / NSEC_PER_USEC;
+	lynx->rcv_buffer[0] = (__force __le32)timestamp;
 
 	if (length == PHY_PACKET_SIZE)
 		tcode_mask = 1 << TCODE_PHY_PACKET;
@@ -444,14 +446,16 @@ static void
 bus_reset_irq_handler(struct pcilynx *lynx)
 {
 	struct client *client;
-	struct timeval tv;
+	struct timespec64 ts64;
+	u32    timestamp;
 
-	do_gettimeofday(&tv);
+	ktime_get_real_ts64(&ts64);
+	timestamp = ts64.tv_nsec / NSEC_PER_USEC;
 
 	spin_lock(&lynx->client_list_lock);
 
 	list_for_each_entry(client, &lynx->client_list, link)
-		packet_buffer_put(&client->buffer, &tv.tv_usec, 4);
+		packet_buffer_put(&client->buffer, &timestamp, 4);
 
 	spin_unlock(&lynx->client_list_lock);
 }

@@ -76,12 +76,14 @@ enum ovl_path_type ovl_path_type(struct dentry *dentry)
 	if (oe->__upperdentry) {
 		type = __OVL_PATH_UPPER;
 
-		if (oe->numlower) {
-			if (S_ISDIR(dentry->d_inode->i_mode))
-				type |= __OVL_PATH_MERGE;
-		} else if (!oe->opaque) {
+		/*
+		 * Non-dir dentry can hold lower dentry from previous
+		 * location. Its purity depends only on opaque flag.
+		 */
+		if (oe->numlower && S_ISDIR(dentry->d_inode->i_mode))
+			type |= __OVL_PATH_MERGE;
+		else if (!oe->opaque)
 			type |= __OVL_PATH_PURE;
-		}
 	} else {
 		if (oe->numlower > 1)
 			type |= __OVL_PATH_MERGE;
@@ -341,6 +343,7 @@ static const struct dentry_operations ovl_dentry_operations = {
 
 static const struct dentry_operations ovl_reval_dentry_operations = {
 	.d_release = ovl_dentry_release,
+	.d_select_inode = ovl_d_select_inode,
 	.d_revalidate = ovl_dentry_revalidate,
 	.d_weak_revalidate = ovl_dentry_weak_revalidate,
 };
@@ -933,7 +936,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	err = -EINVAL;
 	if (!ufs->config.lowerdir) {
-		pr_err("overlayfs: missing 'lowerdir'\n");
+		if (!silent)
+			pr_err("overlayfs: missing 'lowerdir'\n");
 		goto out_free_config;
 	}
 
@@ -1024,6 +1028,21 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 				ufs->config.workdir, OVL_WORKDIR_NAME, -err);
 			sb->s_flags |= MS_RDONLY;
 			ufs->workdir = NULL;
+		}
+
+		/*
+		 * Upper should support d_type, else whiteouts are visible.
+		 * Given workdir and upper are on same fs, we can do
+		 * iterate_dir() on workdir.
+		 */
+		err = ovl_check_d_type_supported(&workpath);
+		if (err < 0)
+			goto out_put_workdir;
+
+		if (!err) {
+			pr_err("overlayfs: upper fs needs to support d_type.\n");
+			err = -EINVAL;
+			goto out_put_workdir;
 		}
 	}
 

@@ -226,7 +226,4 @@ static inline int pcibios_assign_all_busses(void)
 /* Use any cpu for PCI. */
 #define cpumask_of_pcibus(bus) cpu_online_mask
 
-/* implement the pci_ DMA API in terms of the generic device dma_ one */
-#include <asm-generic/pci-dma-compat.h>
-
 #endif /* _ASM_TILE_PCI_H */

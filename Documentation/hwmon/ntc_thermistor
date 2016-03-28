@@ -3,9 +3,9 @@ Kernel driver ntc_thermistor
 
 Supported thermistors from Murata:
 * Murata NTC Thermistors NCP15WB473, NCP18WB473, NCP21WB473, NCP03WB473,
-  NCP15WL333, NCP03WF104
+  NCP15WL333, NCP03WF104, NCP15XH103
   Prefixes: 'ncp15wb473', 'ncp18wb473', 'ncp21wb473', 'ncp03wb473',
-  'ncp15wl333', 'ncp03wf104'
+  'ncp15wl333', 'ncp03wf104', 'ncp15xh103'
   Datasheet: Publicly available at Murata
 
 Supported thermistors from EPCOS:

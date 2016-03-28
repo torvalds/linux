@@ -57,7 +57,7 @@ the Kerberos tickets, that needs to be sent through the GSS layer in
 order to perform context establishment.
 
 B) It does not properly handle creds where the user is member of more
-than a few housand groups (the current hard limit in the kernel is 65K
+than a few thousand groups (the current hard limit in the kernel is 65K
 groups) due to limitation on the size of the buffer that can be send
 back to the kernel (4KiB).
 

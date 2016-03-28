@@ -529,8 +529,8 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 
 		val /= 338646;
 
-		chip->capdac[chan->channel][chan->differential] = (val > 0 ?
-			AD7746_CAPDAC_DACP(val) | AD7746_CAPDAC_DACEN : 0);
+		chip->capdac[chan->channel][chan->differential] = val > 0 ?
+			AD7746_CAPDAC_DACP(val) | AD7746_CAPDAC_DACEN : 0;
 
 		ret = i2c_smbus_write_byte_data(chip->client,
 			AD7746_REG_CAPDACA,

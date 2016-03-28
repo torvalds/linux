@@ -1,7 +1,22 @@
 menu "Platform selection"
 
+config ARCH_SUNXI
+	bool "Allwinner sunxi 64-bit SoC Family"
+	help
+	  This enables support for Allwinner sunxi based SoCs like the A64.
+
+config ARCH_ALPINE
+	bool "Annapurna Labs Alpine platform"
+	select ALPINE_MSI
+	help
+	  This enables support for the Annapurna Labs Alpine
+	  Soc family.
+
 config ARCH_BCM_IPROC
 	bool "Broadcom iProc SoC Family"
+	select COMMON_CLK_IPROC
+	select PINCTRL
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  This enables support for Broadcom iProc based SoCs
 
@@ -14,21 +29,14 @@ config ARCH_BERLIN
 	  This enables support for Marvell Berlin SoC Family
 
 config ARCH_EXYNOS
-	bool
-	help
-	  This enables support for Samsung Exynos SoC family
-
-config ARCH_EXYNOS7
-	bool "ARMv8 based Samsung Exynos7"
-	select ARCH_EXYNOS
+	bool "ARMv8 based Samsung Exynos SoC family"
 	select COMMON_CLK_SAMSUNG
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_S3C_RTC if RTC_CLASS
 	select PINCTRL
 	select PINCTRL_EXYNOS
-
 	help
-	  This enables support for Samsung Exynos7 SoC family
+	  This enables support for ARMv8 based Samsung Exynos SoC family.
 
 config ARCH_LAYERSCAPE
 	bool "ARMv8 based Freescale Layerscape SoC family"
@@ -37,6 +45,7 @@ config ARCH_LAYERSCAPE
 
 config ARCH_HISI
 	bool "Hisilicon SoC Family"
+	select HISILICON_IRQ_MBIGEN
 	help
 	  This enables support for Hisilicon ARMv8 SoC family
 
@@ -47,6 +56,22 @@ config ARCH_MEDIATEK
 	select MTK_TIMER
 	help
 	  Support for Mediatek MT65xx & MT81xx ARMv8 SoCs
+
+config ARCH_MESON
+	bool "Amlogic Platforms"
+	help
+	  This enables support for the Amlogic S905 SoCs.
+
+config ARCH_MVEBU
+	bool "Marvell EBU SoC Family"
+	select ARMADA_AP806_CORE_CLK
+	select ARMADA_AP806_RING_CLK
+	select MVEBU_ODMI
+	help
+	  This enables support for Marvell EBU familly, including:
+	   - Armada 3700 SoC Family
+	   - Armada 7K SoC Family
+	   - Armada 8K SoC Family
 
 config ARCH_QCOM
 	bool "Qualcomm Platforms"
@@ -60,6 +85,7 @@ config ARCH_ROCKCHIP
 	select ARCH_REQUIRE_GPIOLIB
 	select PINCTRL
 	select PINCTRL_ROCKCHIP
+	select ROCKCHIP_TIMER
 	help
 	  This enables support for the ARMv8 based Rockchip chipsets,
 	  like the RK3368.
@@ -76,7 +102,9 @@ config ARCH_RENESAS
 	bool "Renesas SoC Platforms"
 	select ARCH_SHMOBILE
 	select PINCTRL
-	select PM_GENERIC_DOMAINS if PM
+	select PM
+	select PM_GENERIC_DOMAINS
+	select RENESAS_IRQC
 	help
 	  This enables support for the ARMv8 based Renesas SoCs.
 
@@ -130,6 +158,11 @@ config ARCH_VEXPRESS
 	help
 	  This enables support for the ARMv8 software model (Versatile
 	  Express).
+
+config ARCH_VULCAN
+	bool "Broadcom Vulcan SOC Family"
+	help
+	  This enables support for Broadcom Vulcan SoC Family
 
 config ARCH_XGENE
 	bool "AppliedMicro X-Gene SOC Family"

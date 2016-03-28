@@ -176,7 +176,10 @@ enum wmi_service {
 	WMI_SERVICE_AUX_CHAN_LOAD_INTF,
 	WMI_SERVICE_BSS_CHANNEL_INFO_64,
 	WMI_SERVICE_EXT_RES_CFG_SUPPORT,
-	WMI_SERVICE_MESH,
+	WMI_SERVICE_MESH_11S,
+	WMI_SERVICE_MESH_NON_11S,
+	WMI_SERVICE_PEER_STATS,
+	WMI_SERVICE_RESTRT_CHNL_SUPPORT,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -213,6 +216,7 @@ enum wmi_10x_service {
 	WMI_10X_SERVICE_BSS_CHANNEL_INFO_64,
 	WMI_10X_SERVICE_MESH,
 	WMI_10X_SERVICE_EXT_RES_CFG_SUPPORT,
+	WMI_10X_SERVICE_PEER_STATS,
 };
 
 enum wmi_main_service {
@@ -294,7 +298,10 @@ enum wmi_10_4_service {
 	WMI_10_4_SERVICE_AUX_CHAN_LOAD_INTF,
 	WMI_10_4_SERVICE_BSS_CHANNEL_INFO_64,
 	WMI_10_4_SERVICE_EXT_RES_CFG_SUPPORT,
-	WMI_10_4_SERVICE_MESH,
+	WMI_10_4_SERVICE_MESH_NON_11S,
+	WMI_10_4_SERVICE_RESTRT_CHNL_SUPPORT,
+	WMI_10_4_SERVICE_PEER_STATS,
+	WMI_10_4_SERVICE_MESH_11S,
 };
 
 static inline char *wmi_service_name(int service_id)
@@ -385,7 +392,10 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_AUX_CHAN_LOAD_INTF);
 	SVCSTR(WMI_SERVICE_BSS_CHANNEL_INFO_64);
 	SVCSTR(WMI_SERVICE_EXT_RES_CFG_SUPPORT);
-	SVCSTR(WMI_SERVICE_MESH);
+	SVCSTR(WMI_SERVICE_MESH_11S);
+	SVCSTR(WMI_SERVICE_MESH_NON_11S);
+	SVCSTR(WMI_SERVICE_PEER_STATS);
+	SVCSTR(WMI_SERVICE_RESTRT_CHNL_SUPPORT);
 	default:
 		return NULL;
 	}
@@ -460,9 +470,11 @@ static inline void wmi_10x_svc_map(const __le32 *in, unsigned long *out,
 	SVCMAP(WMI_10X_SERVICE_BSS_CHANNEL_INFO_64,
 	       WMI_SERVICE_BSS_CHANNEL_INFO_64, len);
 	SVCMAP(WMI_10X_SERVICE_MESH,
-	       WMI_SERVICE_MESH, len);
+	       WMI_SERVICE_MESH_11S, len);
 	SVCMAP(WMI_10X_SERVICE_EXT_RES_CFG_SUPPORT,
 	       WMI_SERVICE_EXT_RES_CFG_SUPPORT, len);
+	SVCMAP(WMI_10X_SERVICE_PEER_STATS,
+	       WMI_SERVICE_PEER_STATS, len);
 }
 
 static inline void wmi_main_svc_map(const __le32 *in, unsigned long *out,
@@ -623,8 +635,14 @@ static inline void wmi_10_4_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_BSS_CHANNEL_INFO_64, len);
 	SVCMAP(WMI_10_4_SERVICE_EXT_RES_CFG_SUPPORT,
 	       WMI_SERVICE_EXT_RES_CFG_SUPPORT, len);
-	SVCMAP(WMI_10_4_SERVICE_MESH,
-	       WMI_SERVICE_MESH, len);
+	SVCMAP(WMI_10_4_SERVICE_MESH_NON_11S,
+	       WMI_SERVICE_MESH_NON_11S, len);
+	SVCMAP(WMI_10_4_SERVICE_RESTRT_CHNL_SUPPORT,
+	       WMI_SERVICE_RESTRT_CHNL_SUPPORT, len);
+	SVCMAP(WMI_10_4_SERVICE_PEER_STATS,
+	       WMI_SERVICE_PEER_STATS, len);
+	SVCMAP(WMI_10_4_SERVICE_MESH_11S,
+	       WMI_SERVICE_MESH_11S, len);
 }
 
 #undef SVCMAP
@@ -1800,7 +1818,6 @@ enum wmi_channel_change_cause {
 #define WMI_CHANNEL_CHANGE_CAUSE_CSA (1 << 13)
 
 #define WMI_MAX_SPATIAL_STREAM        3 /* default max ss */
-#define WMI_10_4_MAX_SPATIAL_STREAM   4
 
 /* HT Capabilities*/
 #define WMI_HT_CAP_ENABLED                0x0001   /* HT Enabled/ disabled */
@@ -2417,6 +2434,7 @@ enum wmi_10_2_feature_mask {
 	WMI_10_2_RX_BATCH_MODE = BIT(0),
 	WMI_10_2_ATF_CONFIG    = BIT(1),
 	WMI_10_2_COEX_GPIO     = BIT(3),
+	WMI_10_2_PEER_STATS    = BIT(7),
 };
 
 struct wmi_resource_config_10_2 {
@@ -4227,7 +4245,13 @@ struct wmi_10_2_peer_stats {
 
 struct wmi_10_2_4_peer_stats {
 	struct wmi_10_2_peer_stats common;
-	__le32 unknown_value; /* FIXME: what is this word? */
+	__le32 peer_rssi_changed;
+} __packed;
+
+struct wmi_10_2_4_ext_peer_stats {
+	struct wmi_10_2_peer_stats common;
+	__le32 peer_rssi_changed;
+	__le32 rx_duration;
 } __packed;
 
 struct wmi_10_4_peer_stats {
@@ -4270,12 +4294,40 @@ enum wmi_vdev_type {
 };
 
 enum wmi_vdev_subtype {
-	WMI_VDEV_SUBTYPE_NONE       = 0,
-	WMI_VDEV_SUBTYPE_P2P_DEVICE = 1,
-	WMI_VDEV_SUBTYPE_P2P_CLIENT = 2,
-	WMI_VDEV_SUBTYPE_P2P_GO     = 3,
-	WMI_VDEV_SUBTYPE_PROXY_STA	= 4,
-	WMI_VDEV_SUBTYPE_MESH		= 5,
+	WMI_VDEV_SUBTYPE_NONE,
+	WMI_VDEV_SUBTYPE_P2P_DEVICE,
+	WMI_VDEV_SUBTYPE_P2P_CLIENT,
+	WMI_VDEV_SUBTYPE_P2P_GO,
+	WMI_VDEV_SUBTYPE_PROXY_STA,
+	WMI_VDEV_SUBTYPE_MESH_11S,
+	WMI_VDEV_SUBTYPE_MESH_NON_11S,
+};
+
+enum wmi_vdev_subtype_legacy {
+	WMI_VDEV_SUBTYPE_LEGACY_NONE      = 0,
+	WMI_VDEV_SUBTYPE_LEGACY_P2P_DEV   = 1,
+	WMI_VDEV_SUBTYPE_LEGACY_P2P_CLI   = 2,
+	WMI_VDEV_SUBTYPE_LEGACY_P2P_GO    = 3,
+	WMI_VDEV_SUBTYPE_LEGACY_PROXY_STA = 4,
+};
+
+enum wmi_vdev_subtype_10_2_4 {
+	WMI_VDEV_SUBTYPE_10_2_4_NONE      = 0,
+	WMI_VDEV_SUBTYPE_10_2_4_P2P_DEV   = 1,
+	WMI_VDEV_SUBTYPE_10_2_4_P2P_CLI   = 2,
+	WMI_VDEV_SUBTYPE_10_2_4_P2P_GO    = 3,
+	WMI_VDEV_SUBTYPE_10_2_4_PROXY_STA = 4,
+	WMI_VDEV_SUBTYPE_10_2_4_MESH_11S  = 5,
+};
+
+enum wmi_vdev_subtype_10_4 {
+	WMI_VDEV_SUBTYPE_10_4_NONE         = 0,
+	WMI_VDEV_SUBTYPE_10_4_P2P_DEV      = 1,
+	WMI_VDEV_SUBTYPE_10_4_P2P_CLI      = 2,
+	WMI_VDEV_SUBTYPE_10_4_P2P_GO       = 3,
+	WMI_VDEV_SUBTYPE_10_4_PROXY_STA    = 4,
+	WMI_VDEV_SUBTYPE_10_4_MESH_NON_11S = 5,
+	WMI_VDEV_SUBTYPE_10_4_MESH_11S     = 6,
 };
 
 /* values for vdev_subtype */
@@ -5442,6 +5494,16 @@ struct wmi_host_swba_event {
 	struct wmi_bcn_info bcn_info[0];
 } __packed;
 
+struct wmi_10_2_4_bcn_info {
+	struct wmi_tim_info tim_info;
+	/* The 10.2.4 FW doesn't have p2p NOA info */
+} __packed;
+
+struct wmi_10_2_4_host_swba_event {
+	__le32 vdev_map;
+	struct wmi_10_2_4_bcn_info bcn_info[0];
+} __packed;
+
 /* 16 words = 512 client + 1 word = for guard */
 #define WMI_10_4_TIM_BITMAP_ARRAY_SIZE 17
 
@@ -6436,5 +6498,7 @@ size_t ath10k_wmi_fw_stats_num_vdevs(struct list_head *head);
 void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
 				      struct ath10k_fw_stats *fw_stats,
 				      char *buf);
+int ath10k_wmi_op_get_vdev_subtype(struct ath10k *ar,
+				   enum wmi_vdev_subtype subtype);
 
 #endif /* _WMI_H_ */

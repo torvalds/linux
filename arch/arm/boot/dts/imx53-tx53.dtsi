@@ -37,7 +37,7 @@
 			compatible = "fixed-clock";
 			reg = <0>;
 			#clock-cells = <0>;
-			clock-frequency = <27000000>;
+			clock-frequency = <26000000>;
 		};
 	};
 
@@ -50,7 +50,7 @@
 			label = "Power Button";
 			gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;
 			linux,code = <116>; /* KEY_POWER */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

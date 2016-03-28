@@ -94,6 +94,7 @@ config PPC
 	select OF_RESERVED_MEM
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS if MPROFILE_KERNEL
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select SYSCTL_EXCEPTION_TRACE
@@ -158,6 +159,7 @@ config PPC
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select HAVE_ARCH_SECCOMP_FILTER
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
 
 config GENERIC_CSUM
 	def_bool CPU_LITTLE_ENDIAN
@@ -303,7 +305,7 @@ config ZONE_DMA32
 config PGTABLE_LEVELS
 	int
 	default 2 if !PPC64
-	default 3 if PPC_64K_PAGES
+	default 3 if PPC_64K_PAGES && !PPC_BOOK3S_64
 	default 4
 
 source "init/Kconfig"
@@ -373,6 +375,24 @@ config PPC_TRANSACTIONAL_MEM
        ---help---
          Support user-mode Transactional Memory on POWERPC.
 
+config DISABLE_MPROFILE_KERNEL
+	bool "Disable use of mprofile-kernel for kernel tracing"
+	depends on PPC64 && CPU_LITTLE_ENDIAN
+	default y
+	help
+	  Selecting this options disables use of the mprofile-kernel ABI for
+	  kernel tracing. That will cause options such as live patching
+	  (CONFIG_LIVEPATCH) which depend on CONFIG_DYNAMIC_FTRACE_WITH_REGS to
+	  be disabled also.
+
+	  If you have a toolchain which supports mprofile-kernel, then you can
+	  enable this. Otherwise leave it disabled. If you're not sure, say
+	  "N".
+
+config MPROFILE_KERNEL
+	depends on PPC64 && CPU_LITTLE_ENDIAN
+	def_bool !DISABLE_MPROFILE_KERNEL
+
 config IOMMU_HELPER
 	def_bool PPC64
 
@@ -389,7 +409,7 @@ config SWIOTLB
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
 	depends on SMP && (PPC_PSERIES || \
-	PPC_PMAC || PPC_POWERNV || (PPC_85xx && !PPC_E500MC))
+	PPC_PMAC || PPC_POWERNV || FSL_SOC_BOOKE)
 	---help---
 	  Say Y here to be able to disable and re-enable individual
 	  CPUs at runtime on SMP machines.
@@ -828,13 +848,9 @@ config PCI_8260
 	select PPC_INDIRECT_PCI
 	default y
 
-source "drivers/pci/pcie/Kconfig"
-
 source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
-
-source "drivers/pci/hotplug/Kconfig"
 
 config HAS_RAPIDIO
 	bool

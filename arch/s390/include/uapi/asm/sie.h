@@ -7,6 +7,7 @@
 	{ 0x9c, "DIAG (0x9c) time slice end directed" },	\
 	{ 0x204, "DIAG (0x204) logical-cpu utilization" },	\
 	{ 0x258, "DIAG (0x258) page-reference services" },	\
+	{ 0x288, "DIAG (0x288) watchdog functions" },		\
 	{ 0x308, "DIAG (0x308) ipl functions" },		\
 	{ 0x500, "DIAG (0x500) KVM virtio functions" },		\
 	{ 0x501, "DIAG (0x501) KVM breakpoint" }

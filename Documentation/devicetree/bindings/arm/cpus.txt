@@ -167,6 +167,7 @@ nodes to be present and contain the properties described below.
 			    "arm,cortex-r5"
 			    "arm,cortex-r7"
 			    "brcm,brahma-b15"
+			    "brcm,vulcan"
 			    "cavium,thunder"
 			    "faraday,fa526"
 			    "intel,sa110"
@@ -178,6 +179,7 @@ nodes to be present and contain the properties described below.
 			    "marvell,sheeva-v5"
 			    "nvidia,tegra132-denver"
 			    "qcom,krait"
+			    "qcom,kryo"
 			    "qcom,scorpion"
 	- enable-method
 		Value type: <stringlist>
@@ -250,7 +252,7 @@ nodes to be present and contain the properties described below.
 		Usage: optional
 		Value type: <prop-encoded-array>
 		Definition: A u32 value that represents the running time dynamic
-			    power coefficient in units of mW/MHz/uVolt^2. The
+			    power coefficient in units of mW/MHz/uV^2. The
 			    coefficient can either be calculated from power
 			    measurements or derived by analysis.
 

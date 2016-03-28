@@ -236,7 +236,7 @@ struct pcim_iomap_devres {
 
 static void pcim_iomap_release(struct device *gendev, void *res)
 {
-	struct pci_dev *dev = container_of(gendev, struct pci_dev, dev);
+	struct pci_dev *dev = to_pci_dev(gendev);
 	struct pcim_iomap_devres *this = res;
 	int i;
 

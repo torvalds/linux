@@ -102,7 +102,6 @@ static inline void pci_resource_to_user(const struct pci_dev *dev, int bar,
 #include <linux/scatterlist.h>
 #include <linux/string.h>
 #include <asm/io.h>
-#include <asm-generic/pci-bridge.h>
 
 struct pci_dev;
 
@@ -124,9 +123,6 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 #endif /* CONFIG_PCI_DOMAINS */
 
 #endif /* __KERNEL__ */
-
-/* implement the pci_ DMA API in terms of the generic device dma_ one */
-#include <asm-generic/pci-dma-compat.h>
 
 /* Do platform specific device initialization at pci_enable_device() time */
 extern int pcibios_plat_dev_init(struct pci_dev *dev);

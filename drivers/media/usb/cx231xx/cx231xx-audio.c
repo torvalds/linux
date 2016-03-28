@@ -499,6 +499,11 @@ static int snd_cx231xx_pcm_close(struct snd_pcm_substream *substream)
 	}
 
 	dev->adev.users--;
+	if (substream->runtime->dma_area) {
+		dev_dbg(dev->dev, "freeing\n");
+		vfree(substream->runtime->dma_area);
+		substream->runtime->dma_area = NULL;
+	}
 	mutex_unlock(&dev->lock);
 
 	if (dev->adev.users == 0 && dev->adev.shutdown == 1) {

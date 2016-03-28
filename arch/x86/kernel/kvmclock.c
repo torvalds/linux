@@ -226,7 +226,7 @@ static void kvm_setup_secondary_clock(void)
  * registered memory location. If the guest happens to shutdown, this memory
  * won't be valid. In cases like kexec, in which you install a new kernel, this
  * means a random memory location will be kept being written. So before any
- * kind of shutdown from our side, we unregister the clock by writting anything
+ * kind of shutdown from our side, we unregister the clock by writing anything
  * that does not have the 'enable' bit set in the msr
  */
 #ifdef CONFIG_KEXEC_CORE
