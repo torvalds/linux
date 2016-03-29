@@ -772,5 +772,14 @@
 			pinctrl-0 = <&sdio_pmx_func &sdio_clk_cfg_func &sdio_cfg_func>;
 			pinctrl-1 = <&sdio_pmx_idle &sdio_clk_cfg_idle &sdio_cfg_idle>;
 		};
+
+		tsensor: tsensor@0,f7030700 {
+			compatible = "hisilicon,tsensor";
+			reg = <0x0 0xf7030700 0x0 0x1000>;
+			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sys_ctrl 22>;
+			clock-names = "thermal_clk";
+			#thermal-sensor-cells = <1>;
+		};
 	};
 };
