@@ -11,4 +11,4 @@ menuconfig ADF_FBDEV
 menuconfig ADF_MEMBLOCK
 	depends on ADF
 	depends on HAVE_MEMBLOCK
-	tristate "Helper for using memblocks as buffers in ADF drivers"
+	bool "Helper for using memblocks as buffers in ADF drivers"
