@@ -31,7 +31,8 @@ gb-raw-y := raw.o
 gb-hid-y := hid.o
 gb-es2-y := es2.o
 gb-arche-y := arche-platform.o arche-apb-ctrl.o
-gb-audio-codec-y := audio_codec.o audio_topology.o
+gb-audio-module-y := audio_module.o audio_topology.o
+gb-audio-codec-y := audio_codec.o
 gb-audio-gb-y := audio_gb.o
 gb-audio-apbridgea-y := audio_apbridgea.o
 gb-audio-manager-y += audio_manager.o
@@ -52,6 +53,7 @@ ifeq ($(CONFIG_USB_HSIC_USB3613),y)
 endif
 ifeq ($(CONFIG_SND_SOC_DYNAMIC_DAILINK),y)
  obj-m += gb-audio-codec.o
+obj-m += gb-audio-module.o
 endif
 ifeq ($(CONFIG_ARCH_MSM8994),y)
  obj-m += gb-camera.o
