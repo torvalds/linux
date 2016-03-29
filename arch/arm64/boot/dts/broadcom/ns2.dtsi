@@ -354,6 +354,28 @@
 			status = "disabled";
 		};
 
+		ssp0: ssp@66180000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x66180000 0x1000>;
+			interrupts = <GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>, <&iprocslow>;
+			clock-names = "spiclk", "apb_pclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		ssp1: ssp@66190000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x66190000 0x1000>;
+			interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>, <&iprocslow>;
+			clock-names = "spiclk", "apb_pclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		hwrng: hwrng@66220000 {
 			compatible = "brcm,iproc-rng200";
 			reg = <0x66220000 0x28>;
