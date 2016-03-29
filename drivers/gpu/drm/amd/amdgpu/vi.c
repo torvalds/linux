@@ -121,8 +121,8 @@ static u32 vi_smc_rreg(struct amdgpu_device *adev, u32 reg)
 	u32 r;
 
 	spin_lock_irqsave(&adev->smc_idx_lock, flags);
-	WREG32(mmSMC_IND_INDEX_0, (reg));
-	r = RREG32(mmSMC_IND_DATA_0);
+	WREG32(mmSMC_IND_INDEX_11, (reg));
+	r = RREG32(mmSMC_IND_DATA_11);
 	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
 	return r;
 }
@@ -132,8 +132,8 @@ static void vi_smc_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	unsigned long flags;
 
 	spin_lock_irqsave(&adev->smc_idx_lock, flags);
-	WREG32(mmSMC_IND_INDEX_0, (reg));
-	WREG32(mmSMC_IND_DATA_0, (v));
+	WREG32(mmSMC_IND_INDEX_11, (reg));
+	WREG32(mmSMC_IND_DATA_11, (v));
 	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
 }
 
@@ -437,12 +437,12 @@ static bool vi_read_bios_from_rom(struct amdgpu_device *adev,
 	/* take the smc lock since we are using the smc index */
 	spin_lock_irqsave(&adev->smc_idx_lock, flags);
 	/* set rom index to 0 */
-	WREG32(mmSMC_IND_INDEX_0, ixROM_INDEX);
-	WREG32(mmSMC_IND_DATA_0, 0);
+	WREG32(mmSMC_IND_INDEX_11, ixROM_INDEX);
+	WREG32(mmSMC_IND_DATA_11, 0);
 	/* set index to data for continous read */
-	WREG32(mmSMC_IND_INDEX_0, ixROM_DATA);
+	WREG32(mmSMC_IND_INDEX_11, ixROM_DATA);
 	for (i = 0; i < length_dw; i++)
-		dw_ptr[i] = RREG32(mmSMC_IND_DATA_0);
+		dw_ptr[i] = RREG32(mmSMC_IND_DATA_11);
 	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
 
 	return true;
