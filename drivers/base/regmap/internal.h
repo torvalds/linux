@@ -13,6 +13,7 @@
 #ifndef _REGMAP_INTERNAL_H
 #define _REGMAP_INTERNAL_H
 
+#include <linux/device.h>
 #include <linux/regmap.h>
 #include <linux/fs.h>
 #include <linux/list.h>
