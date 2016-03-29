@@ -148,4 +148,14 @@ config T5403
 	  To compile this driver as a module, choose M here: the module
 	  will be called t5403.
 
+config HP206C
+	tristate "HOPERF HP206C precision barometer and altimeter sensor"
+	depends on I2C
+	help
+	  Say yes here to build support for the HOPREF HP206C precision
+	  barometer and altimeter sensor.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called hp206c.
+
 endmenu
