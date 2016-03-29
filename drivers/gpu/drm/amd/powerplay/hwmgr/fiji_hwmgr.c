@@ -1885,6 +1885,23 @@ static int fiji_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 
 	return 0;
 }
+
+static uint8_t fiji_get_sleep_divider_id_from_clock(struct pp_hwmgr *hwmgr,
+						uint32_t clock, uint32_t clock_insr)
+{
+	uint8_t i;
+	uint32_t temp;
+	uint32_t min = clock_insr > 2500 ? clock_insr : 2500;
+
+	PP_ASSERT_WITH_CODE((clock >= min), "Engine clock can't satisfy stutter requirement!", return 0);
+	for (i = FIJI_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
+		temp = clock / (1UL << i);
+
+		if (temp >= min || i == 0)
+			break;
+	}
+	return i;
+}
 /**
 * Populates single SMC SCLK structure using the provided engine clock
 *
@@ -1928,17 +1945,13 @@ static int fiji_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 
 	threshold = clock * data->fast_watermark_threshold / 100;
 
-	/*
-	* TODO: get minimum clocks from dal configaration
-	* PECI_GetMinClockSettings(hwmgr->pPECI, &minClocks);
-	*/
-	/* data->DisplayTiming.minClockInSR = minClocks.engineClockInSR; */
 
-	/* get level->DeepSleepDivId
-	if (phm_cap_enabled(hwmgr->platformDescriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
-	{
-	level->DeepSleepDivId = PhwFiji_GetSleepDividerIdFromClock(hwmgr, clock, minClocks.engineClockInSR);
-	} */
+	data->display_timing.min_clock_in_sr = hwmgr->display_config.min_core_set_clock_in_sr;
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
+		level->DeepSleepDivId = fiji_get_sleep_divider_id_from_clock(hwmgr, clock,
+								hwmgr->display_config.min_core_set_clock_in_sr);
+
 
 	/* Default to slow, highest DPM level will be
 	 * set to PPSMC_DISPLAY_WATERMARK_LOW later.
@@ -4066,7 +4079,6 @@ static int fiji_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, cons
 	struct fiji_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
 	uint32_t mclk = fiji_ps->performance_levels
 			[fiji_ps->performance_level_count - 1].memory_clock;
-	struct PP_Clocks min_clocks = {0};
 	uint32_t i;
 	struct cgs_display_info info = {0};
 
@@ -4080,10 +4092,8 @@ static int fiji_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, cons
 	if (i >= sclk_table->count)
 		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
 	else {
-	/* TODO: Check SCLK in DAL's minimum clocks
-	 * in case DeepSleep divider update is required.
-	 */
-		if(data->display_timing.min_clock_in_sr != min_clocks.engineClockInSR)
+		if(data->display_timing.min_clock_in_sr !=
+			hwmgr->display_config.min_core_set_clock_in_sr)
 			data->need_update_smu7_dpm_table |= DPMTABLE_UPDATE_SCLK;
 	}
 
@@ -5252,12 +5262,12 @@ bool fiji_check_smc_update_required_for_display_configuration(struct pp_hwmgr *h
 
 	if (data->display_timing.num_existing_displays != info.display_count)
 		is_update_required = true;
-/* TO DO NEED TO GET DEEP SLEEP CLOCK FROM DAL
-	if (phm_cap_enabled(hwmgr->hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep)) {
-		cgs_get_min_clock_settings(hwmgr->device, &min_clocks);
-		if(min_clocks.engineClockInSR != data->display_timing.minClockInSR)
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep)) {
+		if(hwmgr->display_config.min_core_set_clock_in_sr != data->display_timing.min_clock_in_sr)
 			is_update_required = true;
-*/
+	}
+
 	return is_update_required;
 }
 
