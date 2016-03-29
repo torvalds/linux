@@ -16,7 +16,9 @@
 #define __DRIVERS_THERMAL_TEGRA_SOCTHERM_H
 
 #define SENSOR_CONFIG2                          8
+#define SENSOR_CONFIG2_THERMA_MASK		(0xffff << 16)
 #define SENSOR_CONFIG2_THERMA_SHIFT		16
+#define SENSOR_CONFIG2_THERMB_MASK		0xffff
 #define SENSOR_CONFIG2_THERMB_SHIFT		0
 
 #define SENSOR_PDIV				0x1c0
