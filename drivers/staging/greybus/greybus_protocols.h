@@ -54,10 +54,11 @@
 
 /* Fixed IDs for control/svc protocols */
 
-/* Device ID of SVC and AP */
-#define GB_DEVICE_ID_SVC			0
-#define GB_DEVICE_ID_AP				1
-#define GB_DEVICE_ID_MODULES_START		2
+/* SVC switch-port device ids */
+#define GB_SVC_DEVICE_ID_SVC			0
+#define GB_SVC_DEVICE_ID_AP			1
+#define GB_SVC_DEVICE_ID_MIN			2
+#define GB_SVC_DEVICE_ID_MAX			31
 
 #define GB_SVC_CPORT_ID				0
 #define GB_CONTROL_BUNDLE_ID			0
