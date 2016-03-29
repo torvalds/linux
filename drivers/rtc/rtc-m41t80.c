@@ -230,9 +230,8 @@ static struct rtc_class_ops m41t80_rtc_ops = {
 	.proc = m41t80_rtc_proc,
 };
 
-#if defined(CONFIG_RTC_INTF_SYSFS) || defined(CONFIG_RTC_INTF_SYSFS_MODULE)
-static ssize_t m41t80_sysfs_show_flags(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t flags_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	int val;
@@ -242,10 +241,10 @@ static ssize_t m41t80_sysfs_show_flags(struct device *dev,
 		return val;
 	return sprintf(buf, "%#x\n", val);
 }
-static DEVICE_ATTR(flags, S_IRUGO, m41t80_sysfs_show_flags, NULL);
+static DEVICE_ATTR_RO(flags);
 
-static ssize_t m41t80_sysfs_show_sqwfreq(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t sqwfreq_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct m41t80_data *clientdata = i2c_get_clientdata(client);
@@ -272,9 +271,10 @@ static ssize_t m41t80_sysfs_show_sqwfreq(struct device *dev,
 	}
 	return sprintf(buf, "%d\n", val);
 }
-static ssize_t m41t80_sysfs_set_sqwfreq(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
+
+static ssize_t sqwfreq_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct m41t80_data *clientdata = i2c_get_clientdata(client);
@@ -324,8 +324,7 @@ static ssize_t m41t80_sysfs_set_sqwfreq(struct device *dev,
 	}
 	return count;
 }
-static DEVICE_ATTR(sqwfreq, S_IRUGO | S_IWUSR,
-		   m41t80_sysfs_show_sqwfreq, m41t80_sysfs_set_sqwfreq);
+static DEVICE_ATTR_RW(sqwfreq);
 
 static struct attribute *attrs[] = {
 	&dev_attr_flags.attr,
@@ -335,17 +334,6 @@ static struct attribute *attrs[] = {
 static struct attribute_group attr_group = {
 	.attrs = attrs,
 };
-
-static int m41t80_sysfs_register(struct device *dev)
-{
-	return sysfs_create_group(&dev->kobj, &attr_group);
-}
-#else
-static int m41t80_sysfs_register(struct device *dev)
-{
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_RTC_DRV_M41T80_WDT
 /*
@@ -636,6 +624,14 @@ static struct notifier_block wdt_notifier = {
  *
  *****************************************************************************
  */
+
+static void m41t80_remove_sysfs_group(void *_dev)
+{
+	struct device *dev = _dev;
+
+	sysfs_remove_group(&dev->kobj, &attr_group);
+}
+
 static int m41t80_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -697,9 +693,21 @@ static int m41t80_probe(struct i2c_client *client,
 		return rc;
 	}
 
-	rc = m41t80_sysfs_register(&client->dev);
-	if (rc)
+	/* Export sysfs entries */
+	rc = sysfs_create_group(&(&client->dev)->kobj, &attr_group);
+	if (rc) {
+		dev_err(&client->dev, "Failed to create sysfs group: %d\n", rc);
 		return rc;
+	}
+
+	rc = devm_add_action(&client->dev, m41t80_remove_sysfs_group,
+			     &client->dev);
+	if (rc) {
+		m41t80_remove_sysfs_group(&client->dev);
+		dev_err(&client->dev,
+			"Failed to add sysfs cleanup action: %d\n", rc);
+		return rc;
+	}
 
 #ifdef CONFIG_RTC_DRV_M41T80_WDT
 	if (clientdata->features & M41T80_FEATURE_HT) {
