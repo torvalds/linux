@@ -6,7 +6,7 @@
 # Execute this in the source tree.  Do not run it as a background task
 # because qemu does not seem to like that much.
 #
-# Usage: kvm-test-1-run.sh config builddir resdir minutes qemu-args boot_args
+# Usage: kvm-test-1-run.sh config builddir resdir seconds qemu-args boot_args
 #
 # qemu-args defaults to "-enable-kvm -soundhw pcspk -nographic", along with
 #			arguments specifying the number of CPUs and other
@@ -123,8 +123,7 @@ while test -f $builddir.ready
 do
 	sleep 1
 done
-minutes=$4
-seconds=$(($minutes * 60))
+seconds=$4
 qemu_args=$5
 boot_args=$6
 

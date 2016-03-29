@@ -34,7 +34,7 @@ T=/tmp/kvm.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 
-dur=30
+dur=$((30*60))
 dryrun=""
 KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
 PATH=${KVM}/bin:$PATH; export PATH
@@ -116,7 +116,7 @@ do
 		;;
 	--duration)
 		checkarg --duration "(minutes)" $# "$2" '^[0-9]*$' '^error'
-		dur=$2
+		dur=$(($2*60))
 		shift
 		;;
 	--interactive)
