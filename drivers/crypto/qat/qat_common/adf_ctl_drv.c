@@ -284,13 +284,8 @@ static int adf_ctl_stop_devices(uint32_t id)
 			if (!accel_dev->is_vf)
 				continue;
 
-			if (adf_dev_stop(accel_dev)) {
-				dev_err(&GET_DEV(accel_dev),
-					"Failed to stop qat_dev%d\n", id);
-				ret = -EFAULT;
-			} else {
-				adf_dev_shutdown(accel_dev);
-			}
+			adf_dev_stop(accel_dev);
+			adf_dev_shutdown(accel_dev);
 		}
 	}
 
@@ -299,13 +294,8 @@ static int adf_ctl_stop_devices(uint32_t id)
 			if (!adf_dev_started(accel_dev))
 				continue;
 
-			if (adf_dev_stop(accel_dev)) {
-				dev_err(&GET_DEV(accel_dev),
-					"Failed to stop qat_dev%d\n", id);
-				ret = -EFAULT;
-			} else {
-				adf_dev_shutdown(accel_dev);
-			}
+			adf_dev_stop(accel_dev);
+			adf_dev_shutdown(accel_dev);
 		}
 	}
 	return ret;
