@@ -275,7 +275,26 @@ static int adf_ctl_stop_devices(uint32_t id)
 	struct adf_accel_dev *accel_dev;
 	int ret = 0;
 
-	list_for_each_entry_reverse(accel_dev, adf_devmgr_get_head(), list) {
+	list_for_each_entry(accel_dev, adf_devmgr_get_head(), list) {
+		if (id == accel_dev->accel_id || id == ADF_CFG_ALL_DEVICES) {
+			if (!adf_dev_started(accel_dev))
+				continue;
+
+			/* First stop all VFs */
+			if (!accel_dev->is_vf)
+				continue;
+
+			if (adf_dev_stop(accel_dev)) {
+				dev_err(&GET_DEV(accel_dev),
+					"Failed to stop qat_dev%d\n", id);
+				ret = -EFAULT;
+			} else {
+				adf_dev_shutdown(accel_dev);
+			}
+		}
+	}
+
+	list_for_each_entry(accel_dev, adf_devmgr_get_head(), list) {
 		if (id == accel_dev->accel_id || id == ADF_CFG_ALL_DEVICES) {
 			if (!adf_dev_started(accel_dev))
 				continue;
