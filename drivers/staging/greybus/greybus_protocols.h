@@ -884,18 +884,12 @@ struct gb_svc_dme_peer_set_response {
 	__le16	result_code;
 } __packed;
 
-/* Attributes for peer get/set operations */
-#define DME_ATTR_SELECTOR_INDEX_NULL		0
-/* FIXME: remove ES2 support and DME_ATTR_T_TST_SRC_INCREMENT */
-#define DME_ATTR_T_TST_SRC_INCREMENT		0x4083
-#define DME_ATTR_ES3_INIT_STATUS		0x6101
-
-/* Return value from init-status attributes listed above */
-#define DME_DIS_SPI_BOOT_STARTED			0x02
-#define DME_DIS_TRUSTED_SPI_BOOT_FINISHED		0x03
-#define DME_DIS_UNTRUSTED_SPI_BOOT_FINISHED		0x04
-#define DME_DIS_BOOTROM_UNIPRO_BOOT_STARTED		0x06
-#define DME_DIS_BOOTROM_FALLBACK_UNIPRO_BOOT_STARTED	0x09
+/* Greybus init-status values, currently retrieved using DME peer gets. */
+#define GB_INIT_SPI_BOOT_STARTED			0x02
+#define GB_INIT_TRUSTED_SPI_BOOT_FINISHED		0x03
+#define GB_INIT_UNTRUSTED_SPI_BOOT_FINISHED		0x04
+#define GB_INIT_BOOTROM_UNIPRO_BOOT_STARTED		0x06
+#define GB_INIT_BOOTROM_FALLBACK_UNIPRO_BOOT_STARTED	0x09
 
 struct gb_svc_route_create_request {
 	__u8	intf1_id;

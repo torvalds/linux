@@ -12,12 +12,19 @@
 
 #define GB_INTERFACE_DEVICE_ID_BAD	0xff
 
+/* Don't-care selector index */
+#define DME_SELECTOR_INDEX_NULL		0
+
 /* DME attributes */
+/* FIXME: remove ES2 support and DME_T_TST_SRC_INCREMENT */
+#define DME_T_TST_SRC_INCREMENT		0x4083
+
 #define DME_DDBL1_MANUFACTURERID	0x5003
 #define DME_DDBL1_PRODUCTID		0x5004
 
 #define DME_TOSHIBA_ARA_VID		0x6000
 #define DME_TOSHIBA_ARA_PID		0x6001
+#define DME_TOSHIBA_ARA_INIT_STATUS	0x6101
 
 /* DDBL1 Manufacturer and Product ids */
 #define TOSHIBA_DMID			0x0126
@@ -30,8 +37,7 @@ static int gb_interface_dme_attr_get(struct gb_interface *intf,
 							u16 attr, u32 *val)
 {
 	return gb_svc_dme_peer_get(intf->hd->svc, intf->interface_id,
-					attr, DME_ATTR_SELECTOR_INDEX_NULL,
-					val);
+					attr, DME_SELECTOR_INDEX_NULL, val);
 }
 
 static int gb_interface_read_ara_dme(struct gb_interface *intf)
@@ -148,8 +154,8 @@ static void gb_interface_route_destroy(struct gb_interface *intf)
 
 /*
  * T_TstSrcIncrement is written by the module on ES2 as a stand-in for the
- * init-status attribute ES3_INIT_STATUS. The AP needs to read and clear it
- * after reading a non-zero value from it.
+ * init-status attribute DME_TOSHIBA_INIT_STATUS. The AP needs to read and
+ * clear it after reading a non-zero value from it.
  *
  * FIXME: This is module-hardware dependent and needs to be extended for every
  * type of module we want to support.
@@ -168,12 +174,12 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 	 * FIXME: Remove ES2 support
 	 */
 	if (intf->quirks & GB_INTERFACE_QUIRK_NO_INIT_STATUS)
-		attr = DME_ATTR_T_TST_SRC_INCREMENT;
+		attr = DME_T_TST_SRC_INCREMENT;
 	else
-		attr = DME_ATTR_ES3_INIT_STATUS;
+		attr = DME_TOSHIBA_ARA_INIT_STATUS;
 
 	ret = gb_svc_dme_peer_get(hd->svc, intf->interface_id, attr,
-				  DME_ATTR_SELECTOR_INDEX_NULL, &value);
+				  DME_SELECTOR_INDEX_NULL, &value);
 	if (ret)
 		return ret;
 
@@ -205,8 +211,8 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 	 * support the interface-version request.
 	 */
 	switch (init_status) {
-	case DME_DIS_BOOTROM_UNIPRO_BOOT_STARTED:
-	case DME_DIS_BOOTROM_FALLBACK_UNIPRO_BOOT_STARTED:
+	case GB_INIT_BOOTROM_UNIPRO_BOOT_STARTED:
+	case GB_INIT_BOOTROM_FALLBACK_UNIPRO_BOOT_STARTED:
 		intf->quirks |= GB_INTERFACE_QUIRK_NO_CPORT_FEATURES;
 		intf->quirks |= GB_INTERFACE_QUIRK_NO_INTERFACE_VERSION;
 		break;
@@ -214,7 +220,7 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 
 	/* Clear the init status. */
 	return gb_svc_dme_peer_set(hd->svc, intf->interface_id, attr,
-				   DME_ATTR_SELECTOR_INDEX_NULL, 0);
+				   DME_SELECTOR_INDEX_NULL, 0);
 }
 
 /* interface sysfs attributes */
