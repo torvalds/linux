@@ -492,8 +492,18 @@ static int cfg80211_sme_connect(struct wireless_dev *wdev,
 	if (!rdev->ops->auth || !rdev->ops->assoc)
 		return -EOPNOTSUPP;
 
-	if (wdev->current_bss)
-		return -EALREADY;
+	if (wdev->current_bss) {
+		if (!prev_bssid)
+			return -EALREADY;
+		if (prev_bssid &&
+		    !ether_addr_equal(prev_bssid, wdev->current_bss->pub.bssid))
+			return -ENOTCONN;
+		cfg80211_unhold_bss(wdev->current_bss);
+		cfg80211_put_bss(wdev->wiphy, &wdev->current_bss->pub);
+		wdev->current_bss = NULL;
+
+		cfg80211_sme_free(wdev);
+	}
 
 	if (WARN_ON(wdev->conn))
 		return -EINPROGRESS;
