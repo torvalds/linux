@@ -1239,6 +1239,16 @@ static struct se_wwn *lio_target_call_coreaddtiqn(
 	if (IS_ERR(tiqn))
 		return ERR_CAST(tiqn);
 
+	pr_debug("LIO_Target_ConfigFS: REGISTER -> %s\n", tiqn->tiqn);
+	pr_debug("LIO_Target_ConfigFS: REGISTER -> Allocated Node:"
+			" %s\n", name);
+	return &tiqn->tiqn_wwn;
+}
+
+static void lio_target_add_wwn_groups(struct se_wwn *wwn)
+{
+	struct iscsi_tiqn *tiqn = container_of(wwn, struct iscsi_tiqn, tiqn_wwn);
+
 	config_group_init_type_name(&tiqn->tiqn_stat_grps.iscsi_instance_group,
 			"iscsi_instance", &iscsi_stat_instance_cit);
 	configfs_add_default_group(&tiqn->tiqn_stat_grps.iscsi_instance_group,
@@ -1263,20 +1273,12 @@ static struct se_wwn *lio_target_call_coreaddtiqn(
 			"iscsi_logout_stats", &iscsi_stat_logout_cit);
 	configfs_add_default_group(&tiqn->tiqn_stat_grps.iscsi_logout_stats_group,
 			&tiqn->tiqn_wwn.fabric_stat_group);
-
-
-	pr_debug("LIO_Target_ConfigFS: REGISTER -> %s\n", tiqn->tiqn);
-	pr_debug("LIO_Target_ConfigFS: REGISTER -> Allocated Node:"
-			" %s\n", name);
-	return &tiqn->tiqn_wwn;
 }
 
 static void lio_target_call_coredeltiqn(
 	struct se_wwn *wwn)
 {
 	struct iscsi_tiqn *tiqn = container_of(wwn, struct iscsi_tiqn, tiqn_wwn);
-
-	configfs_remove_default_groups(&tiqn->tiqn_wwn.fabric_stat_group);
 
 	pr_debug("LIO_Target_ConfigFS: DEREGISTER -> %s\n",
 			tiqn->tiqn);
@@ -1652,6 +1654,7 @@ const struct target_core_fabric_ops iscsi_ops = {
 	.aborted_task			= lio_aborted_task,
 	.fabric_make_wwn		= lio_target_call_coreaddtiqn,
 	.fabric_drop_wwn		= lio_target_call_coredeltiqn,
+	.add_wwn_groups			= lio_target_add_wwn_groups,
 	.fabric_make_tpg		= lio_target_tiqn_addtpg,
 	.fabric_drop_tpg		= lio_target_tiqn_deltpg,
 	.fabric_make_np			= lio_target_call_addnptotpg,

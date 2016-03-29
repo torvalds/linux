@@ -76,6 +76,7 @@ struct target_core_fabric_ops {
 	struct se_wwn *(*fabric_make_wwn)(struct target_fabric_configfs *,
 				struct config_group *, const char *);
 	void (*fabric_drop_wwn)(struct se_wwn *);
+	void (*add_wwn_groups)(struct se_wwn *);
 	struct se_portal_group *(*fabric_make_tpg)(struct se_wwn *,
 				struct config_group *, const char *);
 	void (*fabric_drop_tpg)(struct se_portal_group *);

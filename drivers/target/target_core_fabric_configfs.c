@@ -891,6 +891,7 @@ static void target_fabric_release_wwn(struct config_item *item)
 				struct se_wwn, wwn_group);
 	struct target_fabric_configfs *tf = wwn->wwn_tf;
 
+	configfs_remove_default_groups(&wwn->fabric_stat_group);
 	tf->tf_ops->fabric_drop_wwn(wwn);
 }
 
@@ -944,6 +945,8 @@ static struct config_group *target_fabric_make_wwn(
 			&tf->tf_wwn_fabric_stats_cit);
 	configfs_add_default_group(&wwn->fabric_stat_group, &wwn->wwn_group);
 
+	if (tf->tf_ops->add_wwn_groups)
+		tf->tf_ops->add_wwn_groups(wwn);
 	return &wwn->wwn_group;
 }
 
