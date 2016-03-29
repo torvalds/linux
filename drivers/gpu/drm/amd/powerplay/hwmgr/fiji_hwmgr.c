@@ -5195,6 +5195,67 @@ static int fiji_print_clock_levels(struct pp_hwmgr *hwmgr,
 	return size;
 }
 
+static inline bool fiji_are_power_levels_equal(const struct fiji_performance_level *pl1,
+							   const struct fiji_performance_level *pl2)
+{
+	return ((pl1->memory_clock == pl2->memory_clock) &&
+		  (pl1->engine_clock == pl2->engine_clock) &&
+		  (pl1->pcie_gen == pl2->pcie_gen) &&
+		  (pl1->pcie_lane == pl2->pcie_lane));
+}
+
+int fiji_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *pstate1, const struct pp_hw_power_state *pstate2, bool *equal)
+{
+	const struct fiji_power_state *psa = cast_const_phw_fiji_power_state(pstate1);
+	const struct fiji_power_state *psb = cast_const_phw_fiji_power_state(pstate2);
+	int i;
+
+	if (equal == NULL || psa == NULL || psb == NULL)
+		return -EINVAL;
+
+	/* If the two states don't even have the same number of performance levels they cannot be the same state. */
+	if (psa->performance_level_count != psb->performance_level_count) {
+		*equal = false;
+		return 0;
+	}
+
+	for (i = 0; i < psa->performance_level_count; i++) {
+		if (!fiji_are_power_levels_equal(&(psa->performance_levels[i]), &(psb->performance_levels[i]))) {
+			/* If we have found even one performance level pair that is different the states are different. */
+			*equal = false;
+			return 0;
+		}
+	}
+
+	/* If all performance levels are the same try to use the UVD clocks to break the tie.*/
+	*equal = ((psa->uvd_clks.vclk == psb->uvd_clks.vclk) && (psa->uvd_clks.dclk == psb->uvd_clks.dclk));
+	*equal &= ((psa->vce_clks.evclk == psb->vce_clks.evclk) && (psa->vce_clks.ecclk == psb->vce_clks.ecclk));
+	*equal &= (psa->sclk_threshold == psb->sclk_threshold);
+	*equal &= (psa->acp_clk == psb->acp_clk);
+
+	return 0;
+}
+
+bool fiji_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	bool is_update_required = false;
+	struct cgs_display_info info = {0,0,NULL};
+
+	cgs_get_active_displays_info(hwmgr->device, &info);
+
+	if (data->display_timing.num_existing_displays != info.display_count)
+		is_update_required = true;
+/* TO DO NEED TO GET DEEP SLEEP CLOCK FROM DAL
+	if (phm_cap_enabled(hwmgr->hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep)) {
+		cgs_get_min_clock_settings(hwmgr->device, &min_clocks);
+		if(min_clocks.engineClockInSR != data->display_timing.minClockInSR)
+			is_update_required = true;
+*/
+	return is_update_required;
+}
+
+
 static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.backend_init = &fiji_hwmgr_backend_init,
 	.backend_fini = &tonga_hwmgr_backend_fini,
@@ -5230,6 +5291,8 @@ static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.register_internal_thermal_interrupt = fiji_register_internal_thermal_interrupt,
 	.set_fan_control_mode = fiji_set_fan_control_mode,
 	.get_fan_control_mode = fiji_get_fan_control_mode,
+	.check_states_equal = fiji_check_states_equal,
+	.check_smc_update_required_for_display_configuration = fiji_check_smc_update_required_for_display_configuration,
 	.get_pp_table = fiji_get_pp_table,
 	.set_pp_table = fiji_set_pp_table,
 	.force_clock_level = fiji_force_clock_level,
