@@ -24,6 +24,8 @@
 
 #define DME_TOSHIBA_ARA_VID		0x6000
 #define DME_TOSHIBA_ARA_PID		0x6001
+#define DME_TOSHIBA_ARA_SN0		0x6002
+#define DME_TOSHIBA_ARA_SN1		0x6003
 #define DME_TOSHIBA_ARA_INIT_STATUS	0x6101
 
 /* DDBL1 Manufacturer and Product ids */
@@ -42,6 +44,7 @@ static int gb_interface_dme_attr_get(struct gb_interface *intf,
 
 static int gb_interface_read_ara_dme(struct gb_interface *intf)
 {
+	u32 sn0, sn1;
 	int ret;
 
 	/*
@@ -64,8 +67,15 @@ static int gb_interface_read_ara_dme(struct gb_interface *intf)
 	if (ret)
 		return ret;
 
-	/* FIXME: serial number not implemented */
-	intf->serial_number = 0;
+	ret = gb_interface_dme_attr_get(intf, DME_TOSHIBA_ARA_SN0, &sn0);
+	if (ret)
+		return ret;
+
+	ret = gb_interface_dme_attr_get(intf, DME_TOSHIBA_ARA_SN1, &sn1);
+	if (ret)
+		return ret;
+
+	intf->serial_number = (u64)sn1 << 32 | sn0;
 
 	return 0;
 }
