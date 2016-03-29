@@ -586,7 +586,7 @@ int br_set_ageing_time(struct net_bridge *br, u32 ageing_time)
 	int err;
 
 	err = switchdev_port_attr_set(br->dev, &attr);
-	if (err)
+	if (err && err != -EOPNOTSUPP)
 		return err;
 
 	br->ageing_time = t;
