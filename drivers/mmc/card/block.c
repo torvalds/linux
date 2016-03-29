@@ -690,11 +690,6 @@ cmd_err:
 static int mmc_blk_ioctl(struct block_device *bdev, fmode_t mode,
 	unsigned int cmd, unsigned long arg)
 {
-#ifdef CONFIG_ARCH_ROCKCHIP
-	if (cmd != MMC_IOC_CMD && cmd != MMC_IOC_MULTI_CMD)
-		return -EINVAL;
-#endif
-
 	/*
 	 * The caller must have CAP_SYS_RAWIO, and must be calling this on the
 	 * whole block device, not on a partition.  This prevents overspray
