@@ -94,7 +94,7 @@ static void __init vmware_platform_setup(void)
  */
 static uint32_t __init vmware_platform(void)
 {
-	if (cpu_has_hypervisor) {
+	if (boot_cpu_has(X86_FEATURE_HYPERVISOR)) {
 		unsigned int eax;
 		unsigned int hyper_vendor_id[3];
 

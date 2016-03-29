@@ -1383,7 +1383,7 @@ static int __init intel_uncore_init(void)
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
 		return -ENODEV;
 
-	if (cpu_has_hypervisor)
+	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
 		return -ENODEV;
 
 	max_packages = topology_max_packages();
