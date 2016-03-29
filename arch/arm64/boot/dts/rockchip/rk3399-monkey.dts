@@ -171,3 +171,18 @@
 	dr_mode = "peripheral";
 };
 
+&vpu {
+	status = "okay";
+};
+
+&rkvdec {
+	status = "okay";
+};
+
+&vpu_mmu {
+	status = "okay";
+};
+
+&vdec_mmu {
+	status = "okay";
+};

@@ -42,6 +42,58 @@
 #include <dt-bindings/display/rk_fb.h>
 
 / {
+	vpu: vpu_service@ff650000 {
+		compatible = "rockchip,vpu_service";
+		rockchip,grf = <&grf>;
+		iommu_enabled = <1>;
+		reg = <0x0 0xff650000 0x0 0x800>;
+		interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec", "irq_enc";
+		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		resets = <&cru SRST_H_VCODEC>, <&cru SRST_A_VCODEC>;
+		reset-names = "video_h", "video_a";
+		name = "vpu_service";
+		dev_mode = <0>;
+		status = "disabled";
+	};
+
+	vpu_mmu: vpu_mmu {
+		dbgname = "vpu";
+		compatible = "rockchip,vpu_mmu";
+		reg = <0x0 0xff650800 0x0 0x40>;
+		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vpu_mmu";
+		status = "disabled";
+	};
+
+	rkvdec: rkvdec@ff660000 {
+		compatible = "rockchip,rkvdec";
+		rockchip,grf = <&grf>;
+		iommu_enabled = <1>;
+		reg = <0x0 0xff660000 0x0 0x400>;
+		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec";
+		clocks = <&cru ACLK_VDU>, <&cru HCLK_VDU>,<&cru SCLK_VDU_CA>,<&cru SCLK_VDU_CORE>;
+		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_cabac", "clk_core";
+		resets = <&cru SRST_H_VDU>, <&cru SRST_A_VDU>;
+		reset-names = "video_h", "video_a";
+		dev_mode = <2>;
+		name = "rkvdec";
+		status = "disabled";
+	};
+
+	vdec_mmu: vdec_mmu {
+		dbgname = "vdec";
+		compatible = "rockchip,vdec_mmu";
+		reg = <0x0 0xff660480 0x0 0x40>,
+		      <0x0 0xff6604c0 0x0 0x40>;
+		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vdec_mmu";
+		status = "disabled";
+	};
+
 	fb: fb {
 		compatible = "rockchip,rk-fb";
 		rockchip,disp-mode = <DUAL>;
