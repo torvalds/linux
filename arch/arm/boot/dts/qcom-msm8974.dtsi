@@ -168,6 +168,31 @@
 		hwlocks = <&tcsr_mutex 3>;
 	};
 
+	smp2p-modem {
+		compatible = "qcom,smp2p";
+		qcom,smem = <435>, <428>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <0 27 IRQ_TYPE_EDGE_RISING>;
+
+		qcom,ipc = <&apcs 8 14>;
+
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <1>;
+
+		modem_smp2p_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+			#qcom,state-cells = <1>;
+		};
+
+		modem_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
 	smp2p-wcnss {
 		compatible = "qcom,smp2p";
 		qcom,smem = <451>, <431>;
@@ -509,6 +534,13 @@
 
 	smd {
 		compatible = "qcom,smd";
+
+		modem {
+			interrupts = <0 25 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,ipc = <&apcs 8 12>;
+			qcom,smd-edge = <0>;
+		};
 
 		rpm {
 			interrupts = <0 168 1>;
