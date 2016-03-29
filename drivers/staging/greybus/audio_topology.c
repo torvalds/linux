@@ -834,7 +834,7 @@ static int gbaudio_tplg_process_widgets(struct gbaudio_module_info *module,
 		list_add(&widget->list, &module->widget_list);
 		ncontrols = curr->ncontrols;
 		curr++;
-		curr += ncontrols * sizeof(struct gb_audio_control);
+		curr = (void *)curr + ncontrols*sizeof(struct gb_audio_control);
 	}
 	module->dapm_widgets = dapm_widgets;
 
