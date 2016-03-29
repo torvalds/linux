@@ -1791,9 +1791,9 @@ static void neo_vpd(struct dgnc_board *brd)
 	 * 0x10 : long resource name tage (PCI-66 files)
 	 * 0x7F : small resource end tag
 	 */
-	if  (((brd->vpd[0x08] != 0x82)
-		&&  (brd->vpd[0x10] != 0x82))
-		||  (brd->vpd[0x7F] != 0x78)) {
+	if  (((brd->vpd[0x08] != 0x82) &&
+	      (brd->vpd[0x10] != 0x82)) ||
+	     (brd->vpd[0x7F] != 0x78)) {
 
 		memset(brd->vpd, '\0', NEO_VPD_IMAGESIZE);
 	} else {
