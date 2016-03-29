@@ -518,19 +518,12 @@ static int mode1_syscalls[] = {
 	0, /* null terminated */
 };
 
-#ifdef CONFIG_COMPAT
-static int mode1_syscalls_32[] = {
-	__NR_seccomp_read_32, __NR_seccomp_write_32, __NR_seccomp_exit_32, __NR_seccomp_sigreturn_32,
-	0, /* null terminated */
-};
-#endif
-
 static void __secure_computing_strict(int this_syscall)
 {
 	int *syscall_whitelist = mode1_syscalls;
 #ifdef CONFIG_COMPAT
 	if (in_compat_syscall())
-		syscall_whitelist = mode1_syscalls_32;
+		syscall_whitelist = get_compat_mode1_syscalls();
 #endif
 	do {
 		if (*syscall_whitelist == this_syscall)
