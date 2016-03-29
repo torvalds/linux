@@ -119,17 +119,6 @@ static int gb_svc_intf_device_id(struct gb_svc *svc, u8 intf_id, u8 device_id)
 				 &request, sizeof(request), NULL, 0);
 }
 
-int gb_svc_intf_reset(struct gb_svc *svc, u8 intf_id)
-{
-	struct gb_svc_intf_reset_request request;
-
-	request.intf_id = intf_id;
-
-	return gb_operation_sync(svc->connection, GB_SVC_TYPE_INTF_RESET,
-				 &request, sizeof(request), NULL, 0);
-}
-EXPORT_SYMBOL_GPL(gb_svc_intf_reset);
-
 int gb_svc_intf_eject(struct gb_svc *svc, u8 intf_id)
 {
 	struct gb_svc_intf_eject_request request;

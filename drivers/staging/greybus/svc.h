@@ -48,7 +48,6 @@ int gb_svc_add(struct gb_svc *svc);
 void gb_svc_del(struct gb_svc *svc);
 void gb_svc_put(struct gb_svc *svc);
 
-int gb_svc_intf_reset(struct gb_svc *svc, u8 intf_id);
 int gb_svc_connection_create(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 			     u8 intf2_id, u16 cport2_id, u8 cport_flags);
 void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
