@@ -147,6 +147,12 @@ static const struct of_device_id tegra_soctherm_of_match[] = {
 		.data = &tegra124_soctherm,
 	},
 #endif
+#ifdef CONFIG_ARCH_TEGRA_210_SOC
+	{
+		.compatible = "nvidia,tegra210-soctherm",
+		.data = &tegra210_soctherm,
+	},
+#endif
 	{ },
 };
 MODULE_DEVICE_TABLE(of, tegra_soctherm_of_match);
