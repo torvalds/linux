@@ -209,8 +209,8 @@ static void comedi_free_board_dev(struct comedi_device *dev)
 	}
 }
 
-static struct comedi_subdevice
-*comedi_subdevice_from_minor(const struct comedi_device *dev, unsigned int minor)
+static struct comedi_subdevice *
+comedi_subdevice_from_minor(const struct comedi_device *dev, unsigned int minor)
 {
 	struct comedi_subdevice *s;
 	unsigned int i = minor - COMEDI_NUM_BOARD_MINORS;
@@ -233,7 +233,8 @@ static struct comedi_device *comedi_dev_get_from_board_minor(unsigned int minor)
 	return dev;
 }
 
-static struct comedi_device *comedi_dev_get_from_subdevice_minor(unsigned int minor)
+static struct comedi_device *
+comedi_dev_get_from_subdevice_minor(unsigned int minor)
 {
 	struct comedi_device *dev;
 	struct comedi_subdevice *s;
@@ -342,7 +343,8 @@ static struct comedi_subdevice *comedi_file_write_subdevice(struct file *file)
 }
 
 static int resize_async_buffer(struct comedi_device *dev,
-			       struct comedi_subdevice *s, unsigned int new_size)
+			       struct comedi_subdevice *s,
+			       unsigned int new_size)
 {
 	struct comedi_async *async = s->async;
 	int retval;
@@ -628,7 +630,8 @@ static void __comedi_set_subdevice_runflags(struct comedi_subdevice *s,
 }
 
 static void comedi_update_subdevice_runflags(struct comedi_subdevice *s,
-					     unsigned int mask, unsigned int bits)
+					     unsigned int mask,
+					     unsigned int bits)
 {
 	unsigned long flags;
 
@@ -2485,7 +2488,8 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		n = min_t(size_t, m, nbytes);
 
 		if (n == 0) {
-			unsigned int runflags = comedi_get_subdevice_runflags(s);
+			unsigned int runflags =
+				     comedi_get_subdevice_runflags(s);
 
 			if (!comedi_is_runflags_running(runflags)) {
 				if (comedi_is_runflags_in_error(runflags))
