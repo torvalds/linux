@@ -484,17 +484,23 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	if (ret) {
 		dev_err(&svc->dev, "failed to activate interface %u: %d\n",
 				intf_id, ret);
-		goto out_interface_add;
+		goto err_interface_add;
 	}
 
 	ret = gb_interface_enable(intf);
 	if (ret) {
 		dev_err(&svc->dev, "failed to enable interface %u: %d\n",
 				intf_id, ret);
-		goto out_interface_add;
+		goto err_interface_deactivate;
 	}
 
-out_interface_add:
+	gb_interface_add(intf);
+
+	return;
+
+err_interface_deactivate:
+	gb_interface_deactivate(intf);
+err_interface_add:
 	gb_interface_add(intf);
 }
 
