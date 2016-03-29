@@ -246,11 +246,12 @@ static const struct {
 				       {500000, BMC150_ACCEL_SLEEP_500_MS},
 				       {1000000, BMC150_ACCEL_SLEEP_1_SEC} };
 
-static const struct regmap_config bmc150_i2c_regmap_conf = {
+const struct regmap_config bmc150_regmap_conf = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x3f,
 };
+EXPORT_SYMBOL_GPL(bmc150_regmap_conf);
 
 static int bmc150_accel_set_mode(struct bmc150_accel_data *data,
 				 enum bmc150_power_modes mode,
