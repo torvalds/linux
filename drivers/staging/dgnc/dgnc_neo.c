@@ -114,8 +114,8 @@ static inline void neo_set_cts_flow_control(struct channel_t *ch)
 	writeb(efr, &ch->ch_neo_uart->efr);
 
 	/* Turn on table D, with 8 char hi/low watermarks */
-	writeb((UART_17158_FCTR_TRGD | UART_17158_FCTR_RTS_4DELAY),
-		&ch->ch_neo_uart->fctr);
+	writeb(UART_17158_FCTR_TRGD | UART_17158_FCTR_RTS_4DELAY,
+	       &ch->ch_neo_uart->fctr);
 
 	/* Feed the UART our trigger levels */
 	writeb(8, &ch->ch_neo_uart->tfifo);
@@ -149,8 +149,8 @@ static inline void neo_set_rts_flow_control(struct channel_t *ch)
 	/* Turn on UART enhanced bits */
 	writeb(efr, &ch->ch_neo_uart->efr);
 
-	writeb((UART_17158_FCTR_TRGD | UART_17158_FCTR_RTS_4DELAY),
-		&ch->ch_neo_uart->fctr);
+	writeb(UART_17158_FCTR_TRGD | UART_17158_FCTR_RTS_4DELAY,
+	       &ch->ch_neo_uart->fctr);
 	ch->ch_r_watermark = 4;
 
 	writeb(32, &ch->ch_neo_uart->rfifo);
@@ -187,7 +187,7 @@ static inline void neo_set_ixon_flow_control(struct channel_t *ch)
 	/* Turn on UART enhanced bits */
 	writeb(efr, &ch->ch_neo_uart->efr);
 
-	writeb((UART_17158_FCTR_TRGD | UART_17158_FCTR_RTS_8DELAY),
+	writeb(UART_17158_FCTR_TRGD | UART_17158_FCTR_RTS_8DELAY,
 	       &ch->ch_neo_uart->fctr);
 	ch->ch_r_watermark = 4;
 
@@ -226,8 +226,8 @@ static inline void neo_set_ixoff_flow_control(struct channel_t *ch)
 	writeb(efr, &ch->ch_neo_uart->efr);
 
 	/* Turn on table D, with 8 char hi/low watermarks */
-	writeb((UART_17158_FCTR_TRGD | UART_17158_FCTR_RTS_8DELAY),
-		&ch->ch_neo_uart->fctr);
+	writeb(UART_17158_FCTR_TRGD | UART_17158_FCTR_RTS_8DELAY,
+	       &ch->ch_neo_uart->fctr);
 
 	writeb(8, &ch->ch_neo_uart->tfifo);
 	ch->ch_t_tlevel = 8;
@@ -267,8 +267,8 @@ static inline void neo_set_no_input_flow_control(struct channel_t *ch)
 	writeb(efr, &ch->ch_neo_uart->efr);
 
 	/* Turn on table D, with 8 char hi/low watermarks */
-	writeb((UART_17158_FCTR_TRGD | UART_17158_FCTR_RTS_8DELAY),
-		&ch->ch_neo_uart->fctr);
+	writeb(UART_17158_FCTR_TRGD | UART_17158_FCTR_RTS_8DELAY,
+	       &ch->ch_neo_uart->fctr);
 
 	ch->ch_r_watermark = 0;
 
@@ -305,8 +305,8 @@ static inline void neo_set_no_output_flow_control(struct channel_t *ch)
 	writeb(efr, &ch->ch_neo_uart->efr);
 
 	/* Turn on table D, with 8 char hi/low watermarks */
-	writeb((UART_17158_FCTR_TRGD | UART_17158_FCTR_RTS_8DELAY),
-		&ch->ch_neo_uart->fctr);
+	writeb(UART_17158_FCTR_TRGD | UART_17158_FCTR_RTS_8DELAY,
+	       &ch->ch_neo_uart->fctr);
 
 	ch->ch_r_watermark = 0;
 
@@ -1353,7 +1353,7 @@ static void neo_flush_uart_read(struct channel_t *ch)
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
 
-	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR),
+	writeb(UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR,
 	       &ch->ch_neo_uart->isr_fcr);
 	neo_pci_posting_flush(ch->ch_bd);
 
@@ -1628,7 +1628,7 @@ static void neo_uart_init(struct channel_t *ch)
 
 	/* Clear out UART and FIFO */
 	readb(&ch->ch_neo_uart->txrx);
-	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT),
+	writeb(UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT,
 	       &ch->ch_neo_uart->isr_fcr);
 	readb(&ch->ch_neo_uart->lsr);
 	readb(&ch->ch_neo_uart->msr);
