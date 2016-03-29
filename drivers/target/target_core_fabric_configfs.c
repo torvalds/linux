@@ -338,10 +338,8 @@ static void target_fabric_nacl_base_release(struct config_item *item)
 {
 	struct se_node_acl *se_nacl = container_of(to_config_group(item),
 			struct se_node_acl, acl_group);
-	struct target_fabric_configfs *tf = se_nacl->se_tpg->se_tpg_wwn->wwn_tf;
 
-	if (tf->tf_ops->fabric_cleanup_nodeacl)
-		tf->tf_ops->fabric_cleanup_nodeacl(se_nacl);
+	configfs_remove_default_groups(&se_nacl->acl_fabric_stat_group);
 	core_tpg_del_initiator_node_acl(se_nacl);
 }
 

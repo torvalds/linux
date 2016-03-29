@@ -779,14 +779,6 @@ static int lio_target_init_nodeacl(struct se_node_acl *se_nacl,
 	return 0;
 }
 
-static void lio_target_cleanup_nodeacl( struct se_node_acl *se_nacl)
-{
-	struct iscsi_node_acl *acl = container_of(se_nacl,
-			struct iscsi_node_acl, se_node_acl);
-
-	configfs_remove_default_groups(&acl->se_node_acl.acl_fabric_stat_group);
-}
-
 /* End items for lio_target_acl_cit */
 
 /* Start items for lio_target_tpg_attrib_cit */
@@ -1665,7 +1657,6 @@ const struct target_core_fabric_ops iscsi_ops = {
 	.fabric_make_np			= lio_target_call_addnptotpg,
 	.fabric_drop_np			= lio_target_call_delnpfromtpg,
 	.fabric_init_nodeacl		= lio_target_init_nodeacl,
-	.fabric_cleanup_nodeacl		= lio_target_cleanup_nodeacl,
 
 	.tfc_discovery_attrs		= lio_target_discovery_auth_attrs,
 	.tfc_wwn_attrs			= lio_target_wwn_attrs,
