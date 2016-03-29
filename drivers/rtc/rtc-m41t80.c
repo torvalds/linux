@@ -758,6 +758,8 @@ static int m41t80_probe(struct i2c_client *client,
 			m41t80_rtc_ops.read_alarm = m41t80_read_alarm;
 			m41t80_rtc_ops.set_alarm = m41t80_set_alarm;
 			m41t80_rtc_ops.alarm_irq_enable = m41t80_alarm_irq_enable;
+			/* Enable the wakealarm */
+			device_init_wakeup(&client->dev, true);
 		}
 	}
 
