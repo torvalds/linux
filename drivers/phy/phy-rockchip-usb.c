@@ -45,7 +45,7 @@
 
 #define UTMI_SEL_GRF_WR_ENA	(0x3 << 16)
 #define UTMI_SEL_GRF_SUSPEND	(0x1 << 0)
-#define UTMI_SEL_GRF_RESUME	(0x3 << 0)
+#define UTMI_SEL_GRF_RESUME	(0x2 << 0)
 
 struct rockchip_usb_phys {
 	int reg;
