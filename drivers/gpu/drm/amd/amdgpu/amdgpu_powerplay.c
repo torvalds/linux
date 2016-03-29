@@ -161,12 +161,8 @@ static int amdgpu_pp_sw_init(void *handle)
 					adev->powerplay.pp_handle);
 
 #ifdef CONFIG_DRM_AMD_POWERPLAY
-	if (adev->pp_enabled) {
-		if (amdgpu_dpm == 0)
-			adev->pm.dpm_enabled = false;
-		else
-			adev->pm.dpm_enabled = true;
-	}
+	if (adev->pp_enabled)
+		adev->pm.dpm_enabled = true;
 #endif
 
 	return ret;
