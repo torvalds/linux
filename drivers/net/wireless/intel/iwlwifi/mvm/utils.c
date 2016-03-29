@@ -376,8 +376,8 @@ struct iwl_error_event_table_v1 {
 struct iwl_error_event_table {
 	u32 valid;		/* (nonzero) valid, (0) log is empty */
 	u32 error_id;		/* type of error */
-	u32 pc;			/* program counter */
-	u32 blink1;		/* branch link */
+	u32 trm_hw_status0;	/* TRM HW status */
+	u32 trm_hw_status1;	/* TRM HW status */
 	u32 blink2;		/* branch link */
 	u32 ilink1;		/* interrupt link */
 	u32 ilink2;		/* interrupt link */
@@ -389,7 +389,7 @@ struct iwl_error_event_table {
 	u32 tsf_hi;		/* network timestamp function timer */
 	u32 gp1;		/* GP1 timer register */
 	u32 gp2;		/* GP2 timer register */
-	u32 gp3;		/* GP3 timer register */
+	u32 fw_rev_type;	/* firmware revision type */
 	u32 major;		/* uCode version major */
 	u32 minor;		/* uCode version minor */
 	u32 hw_ver;		/* HW Silicon version */
@@ -408,7 +408,7 @@ struct iwl_error_event_table {
 				 * time_flag */
 	u32 isr4;		/* isr status register LMPM_NIC_ISR4:
 				 * wico interrupt */
-	u32 isr_pref;		/* isr status register LMPM_NIC_PREF_STAT */
+	u32 last_cmd_id;	/* last HCMD id handled by the firmware */
 	u32 wait_event;		/* wait event() caller address */
 	u32 l2p_control;	/* L2pControlField */
 	u32 l2p_duration;	/* L2pDurationField */
@@ -419,7 +419,7 @@ struct iwl_error_event_table {
 	u32 u_timestamp;	/* indicate when the date and time of the
 				 * compilation */
 	u32 flow_handler;	/* FH read/write pointers, RX credit */
-} __packed /* LOG_ERROR_TABLE_API_S_VER_2 */;
+} __packed /* LOG_ERROR_TABLE_API_S_VER_3 */;
 
 /*
  * UMAC error struct - relevant starting from family 8000 chip.
@@ -529,9 +529,9 @@ static void iwl_mvm_dump_nic_error_log_old(struct iwl_mvm *mvm)
 
 	trace_iwlwifi_dev_ucode_error(trans->dev, table.error_id, table.tsf_low,
 				      table.data1, table.data2, table.data3,
-				      table.blink1, table.blink2, table.ilink1,
-				      table.ilink2, table.bcon_time, table.gp1,
-				      table.gp2, table.gp3, table.ucode_ver, 0,
+				      table.blink2, table.ilink1, table.ilink2,
+				      table.bcon_time, table.gp1, table.gp2,
+				      table.gp3, table.ucode_ver, 0,
 				      table.hw_ver, table.brd_ver);
 	IWL_ERR(mvm, "0x%08X | %-28s\n", table.error_id,
 		desc_lookup(table.error_id));
@@ -615,14 +615,14 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 
 	trace_iwlwifi_dev_ucode_error(trans->dev, table.error_id, table.tsf_low,
 				      table.data1, table.data2, table.data3,
-				      table.blink1, table.blink2, table.ilink1,
+				      table.blink2, table.ilink1,
 				      table.ilink2, table.bcon_time, table.gp1,
-				      table.gp2, table.gp3, table.major,
+				      table.gp2, table.fw_rev_type, table.major,
 				      table.minor, table.hw_ver, table.brd_ver);
 	IWL_ERR(mvm, "0x%08X | %-28s\n", table.error_id,
 		desc_lookup(table.error_id));
-	IWL_ERR(mvm, "0x%08X | uPc\n", table.pc);
-	IWL_ERR(mvm, "0x%08X | branchlink1\n", table.blink1);
+	IWL_ERR(mvm, "0x%08X | trm_hw_status0\n", table.trm_hw_status0);
+	IWL_ERR(mvm, "0x%08X | trm_hw_status1\n", table.trm_hw_status1);
 	IWL_ERR(mvm, "0x%08X | branchlink2\n", table.blink2);
 	IWL_ERR(mvm, "0x%08X | interruptlink1\n", table.ilink1);
 	IWL_ERR(mvm, "0x%08X | interruptlink2\n", table.ilink2);
@@ -634,7 +634,7 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 	IWL_ERR(mvm, "0x%08X | tsf hi\n", table.tsf_hi);
 	IWL_ERR(mvm, "0x%08X | time gp1\n", table.gp1);
 	IWL_ERR(mvm, "0x%08X | time gp2\n", table.gp2);
-	IWL_ERR(mvm, "0x%08X | time gp3\n", table.gp3);
+	IWL_ERR(mvm, "0x%08X | uCode revision type\n", table.fw_rev_type);
 	IWL_ERR(mvm, "0x%08X | uCode version major\n", table.major);
 	IWL_ERR(mvm, "0x%08X | uCode version minor\n", table.minor);
 	IWL_ERR(mvm, "0x%08X | hw version\n", table.hw_ver);
@@ -645,7 +645,7 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 	IWL_ERR(mvm, "0x%08X | isr2\n", table.isr2);
 	IWL_ERR(mvm, "0x%08X | isr3\n", table.isr3);
 	IWL_ERR(mvm, "0x%08X | isr4\n", table.isr4);
-	IWL_ERR(mvm, "0x%08X | isr_pref\n", table.isr_pref);
+	IWL_ERR(mvm, "0x%08X | last cmd Id\n", table.last_cmd_id);
 	IWL_ERR(mvm, "0x%08X | wait_event\n", table.wait_event);
 	IWL_ERR(mvm, "0x%08X | l2p_control\n", table.l2p_control);
 	IWL_ERR(mvm, "0x%08X | l2p_duration\n", table.l2p_duration);
@@ -937,17 +937,15 @@ bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm)
 }
 
 int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       bool value)
+			       bool prev)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int res;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (mvmvif->low_latency == value)
+	if (iwl_mvm_vif_low_latency(mvmvif) == prev)
 		return 0;
-
-	mvmvif->low_latency = value;
 
 	res = iwl_mvm_update_quotas(mvm, false, NULL);
 	if (res)

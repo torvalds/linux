@@ -134,7 +134,6 @@ static void ax88172a_remove_mdio(struct usbnet *dev)
 
 	netdev_info(dev->net, "deregistering mdio bus %s\n", priv->mdio->id);
 	mdiobus_unregister(priv->mdio);
-	kfree(priv->mdio->irq);
 	mdiobus_free(priv->mdio);
 }
 

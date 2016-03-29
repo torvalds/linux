@@ -23,8 +23,8 @@
 
 int cxd2820r_set_frontend_t2(struct dvb_frontend *fe)
 {
-	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	int ret, i, bw_i;
 	u32 if_freq, if_ctl;
 	u64 num;
@@ -169,10 +169,10 @@ error:
 
 }
 
-int cxd2820r_get_frontend_t2(struct dvb_frontend *fe)
+int cxd2820r_get_frontend_t2(struct dvb_frontend *fe,
+			     struct dtv_frontend_properties *c)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u8 buf[2];
 

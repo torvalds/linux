@@ -113,6 +113,7 @@ struct stm_device *stm_find_device(const char *buf)
 
 	stm = to_stm_device(dev);
 	if (!try_module_get(stm->owner)) {
+		/* matches class_find_device() above */
 		put_device(dev);
 		return NULL;
 	}
@@ -125,7 +126,7 @@ struct stm_device *stm_find_device(const char *buf)
  * @stm:	stm device, previously acquired by stm_find_device()
  *
  * This drops the module reference and device reference taken by
- * stm_find_device().
+ * stm_find_device() or stm_char_open().
  */
 void stm_put_device(struct stm_device *stm)
 {
@@ -185,6 +186,9 @@ static void stm_output_claim(struct stm_device *stm, struct stm_output *output)
 {
 	struct stp_master *master = stm_master(stm, output->master);
 
+	lockdep_assert_held(&stm->mc_lock);
+	lockdep_assert_held(&output->lock);
+
 	if (WARN_ON_ONCE(master->nr_free < output->nr_chans))
 		return;
 
@@ -198,6 +202,9 @@ static void
 stm_output_disclaim(struct stm_device *stm, struct stm_output *output)
 {
 	struct stp_master *master = stm_master(stm, output->master);
+
+	lockdep_assert_held(&stm->mc_lock);
+	lockdep_assert_held(&output->lock);
 
 	bitmap_release_region(&master->chan_map[0], output->channel,
 			      ilog2(output->nr_chans));
@@ -233,7 +240,7 @@ static int find_free_channels(unsigned long *bitmap, unsigned int start,
 	return -1;
 }
 
-static unsigned int
+static int
 stm_find_master_chan(struct stm_device *stm, unsigned int width,
 		     unsigned int *mstart, unsigned int mend,
 		     unsigned int *cstart, unsigned int cend)
@@ -288,12 +295,13 @@ static int stm_output_assign(struct stm_device *stm, unsigned int width,
 	}
 
 	spin_lock(&stm->mc_lock);
+	spin_lock(&output->lock);
 	/* output is already assigned -- shouldn't happen */
 	if (WARN_ON_ONCE(output->nr_chans))
 		goto unlock;
 
 	ret = stm_find_master_chan(stm, width, &midx, mend, &cidx, cend);
-	if (ret)
+	if (ret < 0)
 		goto unlock;
 
 	output->master = midx;
@@ -304,6 +312,7 @@ static int stm_output_assign(struct stm_device *stm, unsigned int width,
 
 	ret = 0;
 unlock:
+	spin_unlock(&output->lock);
 	spin_unlock(&stm->mc_lock);
 
 	return ret;
@@ -312,9 +321,16 @@ unlock:
 static void stm_output_free(struct stm_device *stm, struct stm_output *output)
 {
 	spin_lock(&stm->mc_lock);
+	spin_lock(&output->lock);
 	if (output->nr_chans)
 		stm_output_disclaim(stm, output);
+	spin_unlock(&output->lock);
 	spin_unlock(&stm->mc_lock);
+}
+
+static void stm_output_init(struct stm_output *output)
+{
+	spin_lock_init(&output->lock);
 }
 
 static int major_match(struct device *dev, const void *data)
@@ -339,6 +355,7 @@ static int stm_char_open(struct inode *inode, struct file *file)
 	if (!stmf)
 		return -ENOMEM;
 
+	stm_output_init(&stmf->output);
 	stmf->stm = to_stm_device(dev);
 
 	if (!try_module_get(stmf->stm->owner))
@@ -349,6 +366,8 @@ static int stm_char_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 
 err_free:
+	/* matches class_find_device() above */
+	put_device(dev);
 	kfree(stmf);
 
 	return err;
@@ -357,9 +376,19 @@ err_free:
 static int stm_char_release(struct inode *inode, struct file *file)
 {
 	struct stm_file *stmf = file->private_data;
+	struct stm_device *stm = stmf->stm;
 
-	stm_output_free(stmf->stm, &stmf->output);
-	stm_put_device(stmf->stm);
+	if (stm->data->unlink)
+		stm->data->unlink(stm->data, stmf->output.master,
+				  stmf->output.channel);
+
+	stm_output_free(stm, &stmf->output);
+
+	/*
+	 * matches the stm_char_open()'s
+	 * class_find_device() + try_module_get()
+	 */
+	stm_put_device(stm);
 	kfree(stmf);
 
 	return 0;
@@ -380,8 +409,8 @@ static int stm_file_assign(struct stm_file *stmf, char *id, unsigned int width)
 	return ret;
 }
 
-static void stm_write(struct stm_data *data, unsigned int master,
-		      unsigned int channel, const char *buf, size_t count)
+static ssize_t stm_write(struct stm_data *data, unsigned int master,
+			  unsigned int channel, const char *buf, size_t count)
 {
 	unsigned int flags = STP_PACKET_TIMESTAMPED;
 	const unsigned char *p = buf, nil = 0;
@@ -393,9 +422,14 @@ static void stm_write(struct stm_data *data, unsigned int master,
 		sz = data->packet(data, master, channel, STP_PACKET_DATA, flags,
 				  sz, p);
 		flags = 0;
+
+		if (sz < 0)
+			break;
 	}
 
 	data->packet(data, master, channel, STP_PACKET_FLAG, 0, 0, &nil);
+
+	return pos;
 }
 
 static ssize_t stm_char_write(struct file *file, const char __user *buf,
@@ -405,6 +439,9 @@ static ssize_t stm_char_write(struct file *file, const char __user *buf,
 	struct stm_device *stm = stmf->stm;
 	char *kbuf;
 	int err;
+
+	if (count + 1 > PAGE_SIZE)
+		count = PAGE_SIZE - 1;
 
 	/*
 	 * if no m/c have been assigned to this writer up to this
@@ -430,8 +467,8 @@ static ssize_t stm_char_write(struct file *file, const char __user *buf,
 		return -EFAULT;
 	}
 
-	stm_write(stm->data, stmf->output.master, stmf->output.channel, kbuf,
-		  count);
+	count = stm_write(stm->data, stmf->output.master, stmf->output.channel,
+			  kbuf, count);
 
 	kfree(kbuf);
 
@@ -515,10 +552,8 @@ static int stm_char_policy_set_ioctl(struct stm_file *stmf, void __user *arg)
 		ret = stm->data->link(stm->data, stmf->output.master,
 				      stmf->output.channel);
 
-	if (ret) {
+	if (ret)
 		stm_output_free(stmf->stm, &stmf->output);
-		stm_put_device(stmf->stm);
-	}
 
 err_free:
 	kfree(id);
@@ -618,7 +653,7 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 	if (!stm_data->packet || !stm_data->sw_nchannels)
 		return -EINVAL;
 
-	nmasters = stm_data->sw_end - stm_data->sw_start;
+	nmasters = stm_data->sw_end - stm_data->sw_start + 1;
 	stm = kzalloc(sizeof(*stm) + nmasters * sizeof(void *), GFP_KERNEL);
 	if (!stm)
 		return -ENOMEM;
@@ -641,6 +676,7 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 	if (err)
 		goto err_device;
 
+	mutex_init(&stm->link_mutex);
 	spin_lock_init(&stm->link_lock);
 	INIT_LIST_HEAD(&stm->link_list);
 
@@ -654,6 +690,7 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 	return 0;
 
 err_device:
+	/* matches device_initialize() above */
 	put_device(&stm->dev);
 err_free:
 	kfree(stm);
@@ -662,20 +699,28 @@ err_free:
 }
 EXPORT_SYMBOL_GPL(stm_register_device);
 
-static void __stm_source_link_drop(struct stm_source_device *src,
-				   struct stm_device *stm);
+static int __stm_source_link_drop(struct stm_source_device *src,
+				  struct stm_device *stm);
 
 void stm_unregister_device(struct stm_data *stm_data)
 {
 	struct stm_device *stm = stm_data->stm;
 	struct stm_source_device *src, *iter;
-	int i;
+	int i, ret;
 
-	spin_lock(&stm->link_lock);
+	mutex_lock(&stm->link_mutex);
 	list_for_each_entry_safe(src, iter, &stm->link_list, link_entry) {
-		__stm_source_link_drop(src, stm);
+		ret = __stm_source_link_drop(src, stm);
+		/*
+		 * src <-> stm link must not change under the same
+		 * stm::link_mutex, so complain loudly if it has;
+		 * also in this situation ret!=0 means this src is
+		 * not connected to this stm and it should be otherwise
+		 * safe to proceed with the tear-down of stm.
+		 */
+		WARN_ON_ONCE(ret);
 	}
-	spin_unlock(&stm->link_lock);
+	mutex_unlock(&stm->link_mutex);
 
 	synchronize_srcu(&stm_source_srcu);
 
@@ -686,13 +731,24 @@ void stm_unregister_device(struct stm_data *stm_data)
 		stp_policy_unbind(stm->policy);
 	mutex_unlock(&stm->policy_mutex);
 
-	for (i = 0; i < stm->sw_nmasters; i++)
+	for (i = stm->data->sw_start; i <= stm->data->sw_end; i++)
 		stp_master_free(stm, i);
 
 	device_unregister(&stm->dev);
 	stm_data->stm = NULL;
 }
 EXPORT_SYMBOL_GPL(stm_unregister_device);
+
+/*
+ * stm::link_list access serialization uses a spinlock and a mutex; holding
+ * either of them guarantees that the list is stable; modification requires
+ * holding both of them.
+ *
+ * Lock ordering is as follows:
+ *   stm::link_mutex
+ *     stm::link_lock
+ *       src::link_lock
+ */
 
 /**
  * stm_source_link_add() - connect an stm_source device to an stm device
@@ -710,6 +766,7 @@ static int stm_source_link_add(struct stm_source_device *src,
 	char *id;
 	int err;
 
+	mutex_lock(&stm->link_mutex);
 	spin_lock(&stm->link_lock);
 	spin_lock(&src->link_lock);
 
@@ -719,6 +776,7 @@ static int stm_source_link_add(struct stm_source_device *src,
 
 	spin_unlock(&src->link_lock);
 	spin_unlock(&stm->link_lock);
+	mutex_unlock(&stm->link_mutex);
 
 	id = kstrdup(src->data->name, GFP_KERNEL);
 	if (id) {
@@ -753,9 +811,9 @@ static int stm_source_link_add(struct stm_source_device *src,
 
 fail_free_output:
 	stm_output_free(stm, &src->output);
-	stm_put_device(stm);
 
 fail_detach:
+	mutex_lock(&stm->link_mutex);
 	spin_lock(&stm->link_lock);
 	spin_lock(&src->link_lock);
 
@@ -764,6 +822,7 @@ fail_detach:
 
 	spin_unlock(&src->link_lock);
 	spin_unlock(&stm->link_lock);
+	mutex_unlock(&stm->link_mutex);
 
 	return err;
 }
@@ -776,28 +835,55 @@ fail_detach:
  * If @stm is @src::link, disconnect them from one another and put the
  * reference on the @stm device.
  *
- * Caller must hold stm::link_lock.
+ * Caller must hold stm::link_mutex.
  */
-static void __stm_source_link_drop(struct stm_source_device *src,
-				   struct stm_device *stm)
+static int __stm_source_link_drop(struct stm_source_device *src,
+				  struct stm_device *stm)
 {
 	struct stm_device *link;
+	int ret = 0;
 
+	lockdep_assert_held(&stm->link_mutex);
+
+	/* for stm::link_list modification, we hold both mutex and spinlock */
+	spin_lock(&stm->link_lock);
 	spin_lock(&src->link_lock);
 	link = srcu_dereference_check(src->link, &stm_source_srcu, 1);
-	if (WARN_ON_ONCE(link != stm)) {
-		spin_unlock(&src->link_lock);
-		return;
+
+	/*
+	 * The linked device may have changed since we last looked, because
+	 * we weren't holding the src::link_lock back then; if this is the
+	 * case, tell the caller to retry.
+	 */
+	if (link != stm) {
+		ret = -EAGAIN;
+		goto unlock;
 	}
 
 	stm_output_free(link, &src->output);
-	/* caller must hold stm::link_lock */
 	list_del_init(&src->link_entry);
 	/* matches stm_find_device() from stm_source_link_store() */
 	stm_put_device(link);
 	rcu_assign_pointer(src->link, NULL);
 
+unlock:
 	spin_unlock(&src->link_lock);
+	spin_unlock(&stm->link_lock);
+
+	/*
+	 * Call the unlink callbacks for both source and stm, when we know
+	 * that we have actually performed the unlinking.
+	 */
+	if (!ret) {
+		if (src->data->unlink)
+			src->data->unlink(src->data);
+
+		if (stm->data->unlink)
+			stm->data->unlink(stm->data, src->output.master,
+					  src->output.channel);
+	}
+
+	return ret;
 }
 
 /**
@@ -813,21 +899,29 @@ static void __stm_source_link_drop(struct stm_source_device *src,
 static void stm_source_link_drop(struct stm_source_device *src)
 {
 	struct stm_device *stm;
-	int idx;
+	int idx, ret;
 
+retry:
 	idx = srcu_read_lock(&stm_source_srcu);
+	/*
+	 * The stm device will be valid for the duration of this
+	 * read section, but the link may change before we grab
+	 * the src::link_lock in __stm_source_link_drop().
+	 */
 	stm = srcu_dereference(src->link, &stm_source_srcu);
 
+	ret = 0;
 	if (stm) {
-		if (src->data->unlink)
-			src->data->unlink(src->data);
-
-		spin_lock(&stm->link_lock);
-		__stm_source_link_drop(src, stm);
-		spin_unlock(&stm->link_lock);
+		mutex_lock(&stm->link_mutex);
+		ret = __stm_source_link_drop(src, stm);
+		mutex_unlock(&stm->link_mutex);
 	}
 
 	srcu_read_unlock(&stm_source_srcu, idx);
+
+	/* if it did change, retry */
+	if (ret == -EAGAIN)
+		goto retry;
 }
 
 static ssize_t stm_source_link_show(struct device *dev,
@@ -862,8 +956,10 @@ static ssize_t stm_source_link_store(struct device *dev,
 		return -EINVAL;
 
 	err = stm_source_link_add(src, link);
-	if (err)
+	if (err) {
+		/* matches the stm_find_device() above */
 		stm_put_device(link);
+	}
 
 	return err ? : count;
 }
@@ -925,6 +1021,7 @@ int stm_source_register_device(struct device *parent,
 	if (err)
 		goto err;
 
+	stm_output_init(&src->output);
 	spin_lock_init(&src->link_lock);
 	INIT_LIST_HEAD(&src->link_entry);
 	src->data = data;
@@ -973,9 +1070,9 @@ int stm_source_write(struct stm_source_data *data, unsigned int chan,
 
 	stm = srcu_dereference(src->link, &stm_source_srcu);
 	if (stm)
-		stm_write(stm->data, src->output.master,
-			  src->output.channel + chan,
-			  buf, count);
+		count = stm_write(stm->data, src->output.master,
+				  src->output.channel + chan,
+				  buf, count);
 	else
 		count = -ENODEV;
 

@@ -125,7 +125,8 @@ static int wm8350_gpio_probe(struct platform_device *pdev)
 	else
 		wm8350_gpio->gpio_chip.base = -1;
 
-	ret = gpiochip_add_data(&wm8350_gpio->gpio_chip, wm8350_gpio);
+	ret = devm_gpiochip_add_data(&pdev->dev, &wm8350_gpio->gpio_chip,
+				     wm8350_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
 		return ret;
@@ -136,19 +137,10 @@ static int wm8350_gpio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int wm8350_gpio_remove(struct platform_device *pdev)
-{
-	struct wm8350_gpio_data *wm8350_gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&wm8350_gpio->gpio_chip);
-	return 0;
-}
-
 static struct platform_driver wm8350_gpio_driver = {
 	.driver.name	= "wm8350-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= wm8350_gpio_probe,
-	.remove		= wm8350_gpio_remove,
 };
 
 static int __init wm8350_gpio_init(void)

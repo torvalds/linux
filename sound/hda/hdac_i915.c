@@ -126,6 +126,8 @@ EXPORT_SYMBOL_GPL(snd_hdac_get_display_clk);
  */
 static int pin2port(hda_nid_t pin_nid)
 {
+	if (WARN_ON(pin_nid < 5 || pin_nid > 7))
+		return -1;
 	return pin_nid - 4;
 }
 
@@ -144,10 +146,14 @@ static int pin2port(hda_nid_t pin_nid)
 int snd_hdac_sync_audio_rate(struct hdac_bus *bus, hda_nid_t nid, int rate)
 {
 	struct i915_audio_component *acomp = bus->audio_component;
+	int port;
 
 	if (!acomp || !acomp->ops || !acomp->ops->sync_audio_rate)
 		return -ENODEV;
-	return acomp->ops->sync_audio_rate(acomp->dev, pin2port(nid), rate);
+	port = pin2port(nid);
+	if (port < 0)
+		return -EINVAL;
+	return acomp->ops->sync_audio_rate(acomp->dev, port, rate);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_sync_audio_rate);
 
@@ -175,11 +181,15 @@ int snd_hdac_acomp_get_eld(struct hdac_bus *bus, hda_nid_t nid,
 			   bool *audio_enabled, char *buffer, int max_bytes)
 {
 	struct i915_audio_component *acomp = bus->audio_component;
+	int port;
 
 	if (!acomp || !acomp->ops || !acomp->ops->get_eld)
 		return -ENODEV;
 
-	return acomp->ops->get_eld(acomp->dev, pin2port(nid), audio_enabled,
+	port = pin2port(nid);
+	if (port < 0)
+		return -EINVAL;
+	return acomp->ops->get_eld(acomp->dev, port, audio_enabled,
 				   buffer, max_bytes);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_acomp_get_eld);

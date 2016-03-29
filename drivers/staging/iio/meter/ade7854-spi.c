@@ -296,12 +296,6 @@ static int ade7854_spi_probe(struct spi_device *spi)
 	return ade7854_probe(indio_dev, &spi->dev);
 }
 
-static int ade7854_spi_remove(struct spi_device *spi)
-{
-	ade7854_remove(spi_get_drvdata(spi));
-
-	return 0;
-}
 static const struct spi_device_id ade7854_id[] = {
 	{ "ade7854", 0 },
 	{ "ade7858", 0 },
@@ -316,7 +310,6 @@ static struct spi_driver ade7854_driver = {
 		.name = "ade7854",
 	},
 	.probe = ade7854_spi_probe,
-	.remove = ade7854_spi_remove,
 	.id_table = ade7854_id,
 };
 module_spi_driver(ade7854_driver);

@@ -84,10 +84,31 @@ static bool amd_sched_fence_enable_signaling(struct fence *f)
 	return true;
 }
 
-static void amd_sched_fence_release(struct fence *f)
+/**
+ * amd_sched_fence_free - free up the fence memory
+ *
+ * @rcu: RCU callback head
+ *
+ * Free up the fence memory after the RCU grace period.
+ */
+static void amd_sched_fence_free(struct rcu_head *rcu)
 {
+	struct fence *f = container_of(rcu, struct fence, rcu);
 	struct amd_sched_fence *fence = to_amd_sched_fence(f);
 	kmem_cache_free(sched_fence_slab, fence);
+}
+
+/**
+ * amd_sched_fence_release - callback that fence can be freed
+ *
+ * @fence: fence
+ *
+ * This function is called when the reference count becomes zero.
+ * It just RCU schedules freeing up the fence.
+ */
+static void amd_sched_fence_release(struct fence *f)
+{
+	call_rcu(&f->rcu, amd_sched_fence_free);
 }
 
 const struct fence_ops amd_sched_fence_ops = {

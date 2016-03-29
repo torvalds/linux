@@ -196,7 +196,7 @@ int pvr2_context_global_init(void)
 	pvr2_context_thread_ptr = kthread_run(pvr2_context_thread_func,
 					      NULL,
 					      "pvrusb2-context");
-	return (pvr2_context_thread_ptr ? 0 : -ENOMEM);
+	return IS_ERR(pvr2_context_thread_ptr) ? -ENOMEM : 0;
 }
 
 

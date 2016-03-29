@@ -1395,7 +1395,7 @@ static irqreturn_t sh_mmcif_intr(int irq, void *dev_id)
 
 static void sh_mmcif_timeout_work(struct work_struct *work)
 {
-	struct delayed_work *d = container_of(work, struct delayed_work, work);
+	struct delayed_work *d = to_delayed_work(work);
 	struct sh_mmcif_host *host = container_of(d, struct sh_mmcif_host, timeout_work);
 	struct mmc_request *mrq = host->mrq;
 	struct device *dev = sh_mmcif_host_to_dev(host);

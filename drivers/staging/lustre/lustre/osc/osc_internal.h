@@ -47,11 +47,13 @@ struct lu_env;
 
 enum async_flags {
 	ASYNC_READY = 0x1, /* ap_make_ready will not be called before this
-			      page is added to an rpc */
+			    * page is added to an rpc
+			    */
 	ASYNC_URGENT = 0x2, /* page must be put into an RPC before return */
 	ASYNC_COUNT_STABLE = 0x4, /* ap_refresh_count will not be called
-				     to give the caller a chance to update
-				     or cancel the size of the io */
+				   * to give the caller a chance to update
+				   * or cancel the size of the io
+				   */
 	ASYNC_HP = 0x10,
 };
 

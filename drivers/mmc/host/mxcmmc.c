@@ -307,9 +307,6 @@ static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 	enum dma_transfer_direction slave_dirn;
 	int i, nents;
 
-	if (data->flags & MMC_DATA_STREAM)
-		nob = 0xffff;
-
 	host->data = data;
 	data->bytes_xfered = 0;
 

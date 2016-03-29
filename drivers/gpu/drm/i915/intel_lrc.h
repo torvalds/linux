@@ -25,8 +25,6 @@
 #define _INTEL_LRC_H_
 
 #define GEN8_LR_CONTEXT_ALIGN 4096
-#define GEN8_CSB_ENTRIES 6
-#define GEN8_CSB_PTR_MASK 0x07
 
 /* Execlists regs */
 #define RING_ELSP(ring)				_MMIO((ring)->mmio_base + 0x230)
@@ -39,6 +37,22 @@
 #define RING_CONTEXT_STATUS_BUF_LO(ring, i)	_MMIO((ring)->mmio_base + 0x370 + (i) * 8)
 #define RING_CONTEXT_STATUS_BUF_HI(ring, i)	_MMIO((ring)->mmio_base + 0x370 + (i) * 8 + 4)
 #define RING_CONTEXT_STATUS_PTR(ring)		_MMIO((ring)->mmio_base + 0x3a0)
+
+/* The docs specify that the write pointer wraps around after 5h, "After status
+ * is written out to the last available status QW at offset 5h, this pointer
+ * wraps to 0."
+ *
+ * Therefore, one must infer than even though there are 3 bits available, 6 and
+ * 7 appear to be * reserved.
+ */
+#define GEN8_CSB_ENTRIES 6
+#define GEN8_CSB_PTR_MASK 0x7
+#define GEN8_CSB_READ_PTR_MASK (GEN8_CSB_PTR_MASK << 8)
+#define GEN8_CSB_WRITE_PTR_MASK (GEN8_CSB_PTR_MASK << 0)
+#define GEN8_CSB_WRITE_PTR(csb_status) \
+	(((csb_status) & GEN8_CSB_WRITE_PTR_MASK) >> 0)
+#define GEN8_CSB_READ_PTR(csb_status) \
+	(((csb_status) & GEN8_CSB_READ_PTR_MASK) >> 8)
 
 /* Logical Rings */
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request);
@@ -84,13 +98,18 @@ static inline void intel_logical_ring_emit_reg(struct intel_ringbuffer *ringbuf,
 #define LRC_STATE_PN	(LRC_PPHWSP_PN + 1)
 
 void intel_lr_context_free(struct intel_context *ctx);
+uint32_t intel_lr_context_size(struct intel_engine_cs *ring);
 int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 				    struct intel_engine_cs *ring);
-void intel_lr_context_unpin(struct drm_i915_gem_request *req);
+void intel_lr_context_unpin(struct intel_context *ctx,
+			    struct intel_engine_cs *engine);
 void intel_lr_context_reset(struct drm_device *dev,
 			struct intel_context *ctx);
 uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
 				     struct intel_engine_cs *ring);
+
+u32 intel_execlists_ctx_id(struct intel_context *ctx,
+			   struct intel_engine_cs *ring);
 
 /* Execlists */
 int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists);
@@ -98,7 +117,6 @@ struct i915_execbuffer_params;
 int intel_execlists_submission(struct i915_execbuffer_params *params,
 			       struct drm_i915_gem_execbuffer2 *args,
 			       struct list_head *vmas);
-u32 intel_execlists_ctx_id(struct drm_i915_gem_object *ctx_obj);
 
 void intel_lrc_irq_handler(struct intel_engine_cs *ring);
 void intel_execlists_retire_requests(struct intel_engine_cs *ring);

@@ -328,7 +328,8 @@ static int mc_polling_wait_preemptible(struct fsl_mc_io *mc_io,
 			     MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS);
 
 		if (time_after_eq(jiffies, jiffies_until_timeout)) {
-			pr_debug("MC command timed out (portal: %#llx, obj handle: %#x, command: %#x)\n",
+			dev_dbg(mc_io->dev,
+				"MC command timed out (portal: %#llx, obj handle: %#x, command: %#x)\n",
 				 mc_io->portal_phys_addr,
 				 (unsigned int)
 					MC_CMD_HDR_READ_TOKEN(cmd->header),
@@ -369,7 +370,8 @@ static int mc_polling_wait_atomic(struct fsl_mc_io *mc_io,
 		udelay(MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS);
 		timeout_usecs -= MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS;
 		if (timeout_usecs == 0) {
-			pr_debug("MC command timed out (portal: %#llx, obj handle: %#x, command: %#x)\n",
+			dev_dbg(mc_io->dev,
+				"MC command timed out (portal: %#llx, obj handle: %#x, command: %#x)\n",
 				 mc_io->portal_phys_addr,
 				 (unsigned int)
 					MC_CMD_HDR_READ_TOKEN(cmd->header),
@@ -424,7 +426,8 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 		goto common_exit;
 
 	if (status != MC_CMD_STATUS_OK) {
-		pr_debug("MC command failed: portal: %#llx, obj handle: %#x, command: %#x, status: %s (%#x)\n",
+		dev_dbg(mc_io->dev,
+			"MC command failed: portal: %#llx, obj handle: %#x, command: %#x, status: %s (%#x)\n",
 			 mc_io->portal_phys_addr,
 			 (unsigned int)MC_CMD_HDR_READ_TOKEN(cmd->header),
 			 (unsigned int)MC_CMD_HDR_READ_CMDID(cmd->header),

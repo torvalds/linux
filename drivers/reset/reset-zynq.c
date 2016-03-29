@@ -86,7 +86,7 @@ static int zynq_reset_status(struct reset_controller_dev *rcdev,
 	return !!(reg & BIT(offset));
 }
 
-static struct reset_control_ops zynq_reset_ops = {
+static const struct reset_control_ops zynq_reset_ops = {
 	.assert		= zynq_reset_assert,
 	.deassert	= zynq_reset_deassert,
 	.status		= zynq_reset_status,

@@ -727,11 +727,6 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 			spi->chip_select, spi->cs_gpio, err);
 		return err;
 	}
-	/* the implementation of pinctrl-bcm2835 currently does not
-	 * set the GPIO value when using gpio_direction_output
-	 * so we are setting it here explicitly
-	 */
-	gpio_set_value(spi->cs_gpio, (spi->mode & SPI_CS_HIGH) ? 0 : 1);
 
 	return 0;
 }

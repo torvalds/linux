@@ -26,8 +26,6 @@
  * parent - fixed parent.  No clk_set_parent support
  */
 
-#define to_clk_fixed_rate(_hw) container_of(_hw, struct clk_fixed_rate, hw)
-
 static unsigned long clk_fixed_rate_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
@@ -106,6 +104,19 @@ struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
 }
 EXPORT_SYMBOL_GPL(clk_register_fixed_rate);
 
+void clk_unregister_fixed_rate(struct clk *clk)
+{
+	struct clk_hw *hw;
+
+	hw = __clk_get_hw(clk);
+	if (!hw)
+		return;
+
+	clk_unregister(clk);
+	kfree(to_clk_fixed_rate(hw));
+}
+EXPORT_SYMBOL_GPL(clk_unregister_fixed_rate);
+
 #ifdef CONFIG_OF
 /**
  * of_fixed_clk_setup() - Setup function for simple fixed rate clock
@@ -125,8 +136,7 @@ void of_fixed_clk_setup(struct device_node *node)
 	of_property_read_string(node, "clock-output-names", &clk_name);
 
 	clk = clk_register_fixed_rate_with_accuracy(NULL, clk_name, NULL,
-						    CLK_IS_ROOT, rate,
-						    accuracy);
+						    0, rate, accuracy);
 	if (!IS_ERR(clk))
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
 }

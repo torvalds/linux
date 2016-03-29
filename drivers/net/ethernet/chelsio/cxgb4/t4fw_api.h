@@ -101,6 +101,7 @@ enum fw_wr_opcodes {
 	FW_RI_BIND_MW_WR               = 0x18,
 	FW_RI_FR_NSMR_WR               = 0x19,
 	FW_RI_INV_LSTAG_WR             = 0x1a,
+	FW_ISCSI_TX_DATA_WR	       = 0x45,
 	FW_LASTC2E_WR                  = 0x70
 };
 
@@ -561,6 +562,12 @@ enum fw_flowc_mnem {
 	FW_FLOWC_MNEM_SNDBUF,
 	FW_FLOWC_MNEM_MSS,
 	FW_FLOWC_MNEM_TXDATAPLEN_MAX,
+	FW_FLOWC_MNEM_TCPSTATE,
+	FW_FLOWC_MNEM_EOSTATE,
+	FW_FLOWC_MNEM_SCHEDCLASS,
+	FW_FLOWC_MNEM_DCBPRIO,
+	FW_FLOWC_MNEM_SND_SCALE,
+	FW_FLOWC_MNEM_RCV_SCALE,
 };
 
 struct fw_flowc_mnemval {

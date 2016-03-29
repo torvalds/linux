@@ -1,0 +1,200 @@
+Regulator DT binding for MAX77620 Power management IC from Maxim Semiconductor.
+
+Device has multiple DCDC(sd[0-3] and LDOs(ldo[0-8]). The input supply
+of these regulators are defined under parent device node.
+Details of regulator properties are defined as child node under
+sub-node "regulators" which is child node of device node.
+
+Please refer file <Documentation/devicetree/bindings/regulator/regulator.txt>
+for common regulator bindings used by client.
+
+Following are properties of parent node related to regulators.
+
+Optional properties:
+-------------------
+The input supply of regulators are the optional properties on the
+parent device node. The input supply of these regulators are provided
+through following properties:
+in-sd0-supply:		Input supply for SD0, INA-SD0 or INB-SD0 pins.
+in-sd1-supply:		Input supply for SD1.
+in-sd2-supply:		Input supply for SD2.
+in-sd3-supply:		Input supply for SD3.
+in-ldo0-1-supply:	Input supply for LDO0 and LDO1.
+in-ldo2-supply:		Input supply for LDO2.
+in-ldo3-5-supply:	Input supply for LDO3 and LDO5
+in-ldo4-6-supply:	Input supply for LDO4 and LDO6.
+in-ldo7-8-supply:	Input supply for LDO7 and LDO8.
+
+Optional sub nodes for regulators under "regulators" subnode:
+------------------------------------------------------------
+The subnodes name is the name of regulator and it must be one of:
+	sd[0-3], ldo[0-8]
+
+Each sub-node should contain the constraints and initialization
+information for that regulator. The definition for each of these
+nodes is defined using the standard binding for regulators found at
+<Documentation/devicetree/bindings/regulator/regulator.txt>.
+
+Theres are also additional properties for SD/LDOs. These additional properties
+are required to configure FPS configuration parameters for SDs and LDOs.
+Please refer <devicetree/bindings/mfd/max77620.txt> for more detail of Flexible
+Power Sequence (FPS).
+Following are additional properties:
+
+- maxim,active-fps-source:		FPS source for the regulators to get
+					enabled/disabled when system is in
+					active state.  Valid values are:
+					- MAX77620_FPS_SRC_0,
+						FPS source is FPS0.
+					- MAX77620_FPS_SRC_1,
+						FPS source is FPS1
+					- MAX77620_FPS_SRC_2 and
+						FPS source is FPS2
+					- MAX77620_FPS_SRC_NONE.
+						Regulator is not controlled
+						by FPS events and it gets
+						enabled/disabled by register
+						access.
+					Absence of this property will leave
+					the FPS configuration register for that
+					regulator to default configuration.
+
+- maxim,active-fps-power-up-slot:	Sequencing event slot number on which
+					the regulator get enabled when
+					master FPS input event set to HIGH.
+					Valid values are 0 to 7.
+					This is applicable if FPS source is
+					selected as FPS0, FPS1 or FPS2.
+			
+- maxim,active-fps-power-down-slot:	Sequencing event slot number on which
+					the regulator get disabled when master
+					FPS input event set to LOW.
+					Valid values are 0 to 7.
+					This is applicable if FPS source is
+					selected as FPS0, FPS1 or FPS2.
+			
+- maxim,suspend-fps-source:		This is same as property
+					"maxim,active-fps-source" but value
+					get configured when system enters in
+					to suspend state.
+
+- maxim,suspend-fps-power-up-slot:	This is same as property
+					"maxim,active-fps-power-up-slot" but
+					this value get configured into FPS
+					configuration register when system
+					enters into suspend.
+					This is applicable if suspend state
+					FPS source is selected as FPS0, FPS1 or
+
+- maxim,suspend-fps-power-down-slot:	This is same as property
+					"maxim,active-fps-power-down-slot" but
+					this value get configured into FPS
+					configuration register when system
+					enters into suspend.
+					This is applicable if suspend state
+					FPS source is selected as FPS0, FPS1 or
+					FPS2.
+
+Example:
+--------
+#include <dt-bindings/mfd/max77620.h>
+...
+max77620@3c {
+	in-ldo0-1-supply = <&max77620_sd2>;
+	in-ldo7-8-supply = <&max77620_sd2>;
+	regulators {
+		sd0 {
+			regulator-name = "vdd-core";
+			regulator-min-microvolt = <600000>;
+			regulator-max-microvolt = <1400000>;
+			regulator-boot-on;
+			regulator-always-on;
+			maxim,active-fps-source = <MAX77620_FPS_SRC_1>;
+		};
+
+		sd1 {
+			regulator-name = "vddio-ddr";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-always-on;
+			regulator-boot-on;
+			maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+		};
+
+		sd2 {
+			regulator-name = "vdd-pre-reg";
+			regulator-min-microvolt = <1350000>;
+			regulator-max-microvolt = <1350000>;
+		};
+
+		sd3 {
+			regulator-name = "vdd-1v8";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		ldo0 {
+			regulator-name = "avdd-sys";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		ldo1 {
+			regulator-name = "vdd-pex";
+			regulator-min-microvolt = <1050000>;
+			regulator-max-microvolt = <1050000>;
+		};
+
+		ldo2 {
+			regulator-name = "vddio-sdmmc3";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
+		};
+
+		ldo3 {
+			regulator-name = "vdd-cam-hv";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+		};
+
+		ldo4 {
+			regulator-name = "vdd-rtc";
+			regulator-min-microvolt = <1250000>;
+			regulator-max-microvolt = <1250000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		ldo5 {
+			regulator-name = "avdd-ts-hv";
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+		};
+
+		ldo6 {
+			regulator-name = "vdd-ts";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		ldo7 {
+			regulator-name = "vdd-gen-pll-edp";
+			regulator-min-microvolt = <1050000>;
+			regulator-max-microvolt = <1050000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		ldo8 {
+			regulator-name = "vdd-hdmi-dp";
+			regulator-min-microvolt = <1050000>;
+			regulator-max-microvolt = <1050000>;
+		};
+	};
+};

@@ -29,7 +29,7 @@ struct mtk_clk_gate {
 	u8		bit;
 };
 
-static inline struct mtk_clk_gate *to_clk_gate(struct clk_hw *hw)
+static inline struct mtk_clk_gate *to_mtk_clk_gate(struct clk_hw *hw)
 {
 	return container_of(hw, struct mtk_clk_gate, hw);
 }

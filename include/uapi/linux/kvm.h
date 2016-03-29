@@ -157,6 +157,7 @@ struct kvm_s390_skeys {
 
 struct kvm_hyperv_exit {
 #define KVM_EXIT_HYPERV_SYNIC          1
+#define KVM_EXIT_HYPERV_HCALL          2
 	__u32 type;
 	union {
 		struct {
@@ -165,6 +166,11 @@ struct kvm_hyperv_exit {
 			__u64 evt_page;
 			__u64 msg_page;
 		} synic;
+		struct {
+			__u64 input;
+			__u64 result;
+			__u64 params[2];
+		} hcall;
 	} u;
 };
 
@@ -541,7 +547,13 @@ struct kvm_s390_pgm_info {
 	__u8 exc_access_id;
 	__u8 per_access_id;
 	__u8 op_access_id;
-	__u8 pad[3];
+#define KVM_S390_PGM_FLAGS_ILC_VALID	0x01
+#define KVM_S390_PGM_FLAGS_ILC_0	0x02
+#define KVM_S390_PGM_FLAGS_ILC_1	0x04
+#define KVM_S390_PGM_FLAGS_ILC_MASK	0x06
+#define KVM_S390_PGM_FLAGS_NO_REWIND	0x08
+	__u8 flags;
+	__u8 pad[2];
 };
 
 struct kvm_s390_prefix_info {
@@ -850,6 +862,9 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_IOEVENTFD_ANY_LENGTH 122
 #define KVM_CAP_HYPERV_SYNIC 123
 #define KVM_CAP_S390_RI 124
+#define KVM_CAP_SPAPR_TCE_64 125
+#define KVM_CAP_ARM_PMU_V3 126
+#define KVM_CAP_VCPU_ATTRIBUTES 127
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -1142,6 +1157,8 @@ struct kvm_s390_ucas_mapping {
 /* Available with KVM_CAP_PPC_ALLOC_HTAB */
 #define KVM_PPC_ALLOCATE_HTAB	  _IOWR(KVMIO, 0xa7, __u32)
 #define KVM_CREATE_SPAPR_TCE	  _IOW(KVMIO,  0xa8, struct kvm_create_spapr_tce)
+#define KVM_CREATE_SPAPR_TCE_64	  _IOW(KVMIO,  0xa8, \
+				       struct kvm_create_spapr_tce_64)
 /* Available with KVM_CAP_RMA */
 #define KVM_ALLOCATE_RMA	  _IOR(KVMIO,  0xa9, struct kvm_allocate_rma)
 /* Available with KVM_CAP_PPC_HTAB_FD */

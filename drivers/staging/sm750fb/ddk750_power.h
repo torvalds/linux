@@ -9,13 +9,10 @@ typedef enum _DPMS_t {
 }
 DPMS_t;
 
-#define setDAC(off) \
-		{	\
-		POKE32(MISC_CTRL, FIELD_VALUE(PEEK32(MISC_CTRL), \
-									MISC_CTRL,	\
-									DAC_POWER,	\
-									off));	\
-		}
+#define setDAC(off) {							\
+	POKE32(MISC_CTRL,						\
+	       (PEEK32(MISC_CTRL) & ~MISC_CTRL_DAC_POWER_OFF) | (off)); \
+}
 
 void ddk750_setDPMS(DPMS_t);
 

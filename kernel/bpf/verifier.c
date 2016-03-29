@@ -246,6 +246,7 @@ static const struct {
 	{BPF_MAP_TYPE_PROG_ARRAY, BPF_FUNC_tail_call},
 	{BPF_MAP_TYPE_PERF_EVENT_ARRAY, BPF_FUNC_perf_event_read},
 	{BPF_MAP_TYPE_PERF_EVENT_ARRAY, BPF_FUNC_perf_event_output},
+	{BPF_MAP_TYPE_STACK_TRACE, BPF_FUNC_get_stackid},
 };
 
 static void print_verifier_state(struct verifier_env *env)
@@ -778,15 +779,24 @@ static int check_xadd(struct verifier_env *env, struct bpf_insn *insn)
  * bytes from that pointer, make sure that it's within stack boundary
  * and all elements of stack are initialized
  */
-static int check_stack_boundary(struct verifier_env *env,
-				int regno, int access_size)
+static int check_stack_boundary(struct verifier_env *env, int regno,
+				int access_size, bool zero_size_allowed)
 {
 	struct verifier_state *state = &env->cur_state;
 	struct reg_state *regs = state->regs;
 	int off, i;
 
-	if (regs[regno].type != PTR_TO_STACK)
+	if (regs[regno].type != PTR_TO_STACK) {
+		if (zero_size_allowed && access_size == 0 &&
+		    regs[regno].type == CONST_IMM &&
+		    regs[regno].imm  == 0)
+			return 0;
+
+		verbose("R%d type=%s expected=%s\n", regno,
+			reg_type_str[regs[regno].type],
+			reg_type_str[PTR_TO_STACK]);
 		return -EACCES;
+	}
 
 	off = regs[regno].imm;
 	if (off >= 0 || off < -MAX_BPF_STACK || off + access_size > 0 ||
@@ -829,15 +839,24 @@ static int check_func_arg(struct verifier_env *env, u32 regno,
 		return 0;
 	}
 
-	if (arg_type == ARG_PTR_TO_STACK || arg_type == ARG_PTR_TO_MAP_KEY ||
+	if (arg_type == ARG_PTR_TO_MAP_KEY ||
 	    arg_type == ARG_PTR_TO_MAP_VALUE) {
 		expected_type = PTR_TO_STACK;
-	} else if (arg_type == ARG_CONST_STACK_SIZE) {
+	} else if (arg_type == ARG_CONST_STACK_SIZE ||
+		   arg_type == ARG_CONST_STACK_SIZE_OR_ZERO) {
 		expected_type = CONST_IMM;
 	} else if (arg_type == ARG_CONST_MAP_PTR) {
 		expected_type = CONST_PTR_TO_MAP;
 	} else if (arg_type == ARG_PTR_TO_CTX) {
 		expected_type = PTR_TO_CTX;
+	} else if (arg_type == ARG_PTR_TO_STACK) {
+		expected_type = PTR_TO_STACK;
+		/* One exception here. In case function allows for NULL to be
+		 * passed in as argument, it's a CONST_IMM type. Final test
+		 * happens during stack boundary checking.
+		 */
+		if (reg->type == CONST_IMM && reg->imm == 0)
+			expected_type = CONST_IMM;
 	} else {
 		verbose("unsupported arg_type %d\n", arg_type);
 		return -EFAULT;
@@ -867,8 +886,8 @@ static int check_func_arg(struct verifier_env *env, u32 regno,
 			verbose("invalid map_ptr to access map->key\n");
 			return -EACCES;
 		}
-		err = check_stack_boundary(env, regno, (*mapp)->key_size);
-
+		err = check_stack_boundary(env, regno, (*mapp)->key_size,
+					   false);
 	} else if (arg_type == ARG_PTR_TO_MAP_VALUE) {
 		/* bpf_map_xxx(..., map_ptr, ..., value) call:
 		 * check [value, value + map->value_size) validity
@@ -878,9 +897,12 @@ static int check_func_arg(struct verifier_env *env, u32 regno,
 			verbose("invalid map_ptr to access map->value\n");
 			return -EACCES;
 		}
-		err = check_stack_boundary(env, regno, (*mapp)->value_size);
+		err = check_stack_boundary(env, regno, (*mapp)->value_size,
+					   false);
+	} else if (arg_type == ARG_CONST_STACK_SIZE ||
+		   arg_type == ARG_CONST_STACK_SIZE_OR_ZERO) {
+		bool zero_size_allowed = (arg_type == ARG_CONST_STACK_SIZE_OR_ZERO);
 
-	} else if (arg_type == ARG_CONST_STACK_SIZE) {
 		/* bpf_xxx(..., buf, len) call will access 'len' bytes
 		 * from stack pointer 'buf'. Check it
 		 * note: regno == len, regno - 1 == buf
@@ -890,7 +912,8 @@ static int check_func_arg(struct verifier_env *env, u32 regno,
 			verbose("ARG_CONST_STACK_SIZE cannot be first argument\n");
 			return -EACCES;
 		}
-		err = check_stack_boundary(env, regno - 1, reg->imm);
+		err = check_stack_boundary(env, regno - 1, reg->imm,
+					   zero_size_allowed);
 	}
 
 	return err;
@@ -911,8 +934,11 @@ static int check_map_func_compatibility(struct bpf_map *map, int func_id)
 		 * don't allow any other map type to be passed into
 		 * the special func;
 		 */
-		if (bool_func && bool_map != bool_func)
+		if (bool_func && bool_map != bool_func) {
+			verbose("cannot pass map_type %d into func %d\n",
+				map->map_type, func_id);
 			return -EINVAL;
+		}
 	}
 
 	return 0;

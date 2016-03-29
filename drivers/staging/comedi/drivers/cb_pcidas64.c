@@ -1376,7 +1376,7 @@ static int set_ai_fifo_segment_length(struct comedi_device *dev,
 		num_entries = fifo->max_segment_length;
 
 	/*  1 == 256 entries, 2 == 512 entries, etc */
-	num_increments = (num_entries + increment_size / 2) / increment_size;
+	num_increments = DIV_ROUND_CLOSEST(num_entries, increment_size);
 
 	bits = (~(num_increments - 1)) & fifo->fifo_size_reg_mask;
 	devpriv->fifo_size_bits &= ~fifo->fifo_size_reg_mask;
@@ -1480,35 +1480,39 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 	/*  allocate pci dma buffers */
 	for (i = 0; i < ai_dma_ring_count(board); i++) {
 		devpriv->ai_buffer[i] =
-			pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
-					     &devpriv->ai_buffer_bus_addr[i]);
+			dma_alloc_coherent(&pcidev->dev, DMA_BUFFER_SIZE,
+					   &devpriv->ai_buffer_bus_addr[i],
+					   GFP_KERNEL);
 		if (!devpriv->ai_buffer[i])
 			return -ENOMEM;
 	}
 	for (i = 0; i < AO_DMA_RING_COUNT; i++) {
 		if (ao_cmd_is_supported(board)) {
 			devpriv->ao_buffer[i] =
-				pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
-						     &devpriv->
-						      ao_buffer_bus_addr[i]);
+				dma_alloc_coherent(&pcidev->dev,
+						   DMA_BUFFER_SIZE,
+						   &devpriv->
+						   ao_buffer_bus_addr[i],
+						   GFP_KERNEL);
 			if (!devpriv->ao_buffer[i])
 				return -ENOMEM;
 		}
 	}
 	/*  allocate dma descriptors */
 	devpriv->ai_dma_desc =
-		pci_alloc_consistent(pcidev, sizeof(struct plx_dma_desc) *
-				     ai_dma_ring_count(board),
-				     &devpriv->ai_dma_desc_bus_addr);
+		dma_alloc_coherent(&pcidev->dev, sizeof(struct plx_dma_desc) *
+				   ai_dma_ring_count(board),
+				   &devpriv->ai_dma_desc_bus_addr, GFP_KERNEL);
 	if (!devpriv->ai_dma_desc)
 		return -ENOMEM;
 
 	if (ao_cmd_is_supported(board)) {
 		devpriv->ao_dma_desc =
-			pci_alloc_consistent(pcidev,
-					     sizeof(struct plx_dma_desc) *
-					     AO_DMA_RING_COUNT,
-					     &devpriv->ao_dma_desc_bus_addr);
+			dma_alloc_coherent(&pcidev->dev,
+					   sizeof(struct plx_dma_desc) *
+					   AO_DMA_RING_COUNT,
+					   &devpriv->ao_dma_desc_bus_addr,
+					   GFP_KERNEL);
 		if (!devpriv->ao_dma_desc)
 			return -ENOMEM;
 	}
@@ -1564,31 +1568,31 @@ static void cb_pcidas64_free_dma(struct comedi_device *dev)
 	/* free pci dma buffers */
 	for (i = 0; i < ai_dma_ring_count(board); i++) {
 		if (devpriv->ai_buffer[i])
-			pci_free_consistent(pcidev,
-					    DMA_BUFFER_SIZE,
-					    devpriv->ai_buffer[i],
-					    devpriv->ai_buffer_bus_addr[i]);
+			dma_free_coherent(&pcidev->dev,
+					  DMA_BUFFER_SIZE,
+					  devpriv->ai_buffer[i],
+					  devpriv->ai_buffer_bus_addr[i]);
 	}
 	for (i = 0; i < AO_DMA_RING_COUNT; i++) {
 		if (devpriv->ao_buffer[i])
-			pci_free_consistent(pcidev,
-					    DMA_BUFFER_SIZE,
-					    devpriv->ao_buffer[i],
-					    devpriv->ao_buffer_bus_addr[i]);
+			dma_free_coherent(&pcidev->dev,
+					  DMA_BUFFER_SIZE,
+					  devpriv->ao_buffer[i],
+					  devpriv->ao_buffer_bus_addr[i]);
 	}
 	/* free dma descriptors */
 	if (devpriv->ai_dma_desc)
-		pci_free_consistent(pcidev,
-				    sizeof(struct plx_dma_desc) *
-				    ai_dma_ring_count(board),
-				    devpriv->ai_dma_desc,
-				    devpriv->ai_dma_desc_bus_addr);
+		dma_free_coherent(&pcidev->dev,
+				  sizeof(struct plx_dma_desc) *
+				  ai_dma_ring_count(board),
+				  devpriv->ai_dma_desc,
+				  devpriv->ai_dma_desc_bus_addr);
 	if (devpriv->ao_dma_desc)
-		pci_free_consistent(pcidev,
-				    sizeof(struct plx_dma_desc) *
-				    AO_DMA_RING_COUNT,
-				    devpriv->ao_dma_desc,
-				    devpriv->ao_dma_desc_bus_addr);
+		dma_free_coherent(&pcidev->dev,
+				  sizeof(struct plx_dma_desc) *
+				  AO_DMA_RING_COUNT,
+				  devpriv->ao_dma_desc,
+				  devpriv->ao_dma_desc_bus_addr);
 }
 
 static inline void warn_external_queue(struct comedi_device *dev)
@@ -2004,7 +2008,7 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 		break;
 	case CMDF_ROUND_NEAREST:
 	default:
-		divisor = (ns + TIMER_BASE / 2) / TIMER_BASE;
+		divisor = DIV_ROUND_CLOSEST(ns, TIMER_BASE);
 		break;
 	}
 	return divisor;

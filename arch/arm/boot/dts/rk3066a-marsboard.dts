@@ -52,6 +52,18 @@
 		reg = <0x60000000 0x40000000>;
 	};
 
+	vdd_log: vdd-log {
+		compatible = "pwm-regulator";
+		pwms = <&pwm3 0 1000>;
+		regulator-name = "vdd_log";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+		voltage-table = <1000000 100>,
+				<1200000 42>;
+		status = "okay";
+	};
+
 	vcc_sd0: sdmmc-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "sdmmc-supply";
@@ -192,6 +204,10 @@
 			rockchip,pins = <RK_GPIO1 26 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&pwm3 {
+	status = "okay";
 };
 
 &uart0 {

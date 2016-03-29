@@ -1301,9 +1301,8 @@ out_problem:
 
 int machine__process_mmap2_event(struct machine *machine,
 				 union perf_event *event,
-				 struct perf_sample *sample __maybe_unused)
+				 struct perf_sample *sample)
 {
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct thread *thread;
 	struct map *map;
 	enum map_type type;
@@ -1312,8 +1311,8 @@ int machine__process_mmap2_event(struct machine *machine,
 	if (dump_trace)
 		perf_event__fprintf_mmap2(event, stdout);
 
-	if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
-	    cpumode == PERF_RECORD_MISC_KERNEL) {
+	if (sample->cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
+	    sample->cpumode == PERF_RECORD_MISC_KERNEL) {
 		ret = machine__process_kernel_mmap_event(machine, event);
 		if (ret < 0)
 			goto out_problem;
@@ -1355,9 +1354,8 @@ out_problem:
 }
 
 int machine__process_mmap_event(struct machine *machine, union perf_event *event,
-				struct perf_sample *sample __maybe_unused)
+				struct perf_sample *sample)
 {
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct thread *thread;
 	struct map *map;
 	enum map_type type;
@@ -1366,8 +1364,8 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 	if (dump_trace)
 		perf_event__fprintf_mmap(event, stdout);
 
-	if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
-	    cpumode == PERF_RECORD_MISC_KERNEL) {
+	if (sample->cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
+	    sample->cpumode == PERF_RECORD_MISC_KERNEL) {
 		ret = machine__process_kernel_mmap_event(machine, event);
 		if (ret < 0)
 			goto out_problem;

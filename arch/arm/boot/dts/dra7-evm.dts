@@ -18,7 +18,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x80000000 0x60000000>; /* 1536 MB */
+		reg = <0x0 0x80000000 0x0 0x60000000>; /* 1536 MB */
 	};
 
 	evm_3v3_sd: fixedregulator-sd {
@@ -741,9 +741,13 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&nand_flash_x16>;
-	ranges = <0 0 0 0x01000000>;	/* minimum GPMC partition = 16MB */
+	ranges = <0 0 0x08000000 0x01000000>;	/* minimum GPMC partition = 16MB */
 	nand@0,0 {
+		compatible = "ti,omap2-nand";
 		reg = <0 0 4>;		/* device IO registers */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>; /* termcount */
 		ti,nand-ecc-opt = "bch8";
 		ti,elm-id = <&elm>;
 		nand-bus-width = <16>;
@@ -766,7 +770,6 @@
 		gpmc,bus-turnaround-ns = <0>;
 		gpmc,cycle2cycle-delay-ns = <0>;
 		gpmc,clk-activation-ns = <0>;
-		gpmc,wait-monitoring-ns = <0>;
 		gpmc,wr-data-mux-bus-ns = <0>;
 		/* MTD partition table */
 		/* All SPL-* partitions are sized to minimal length

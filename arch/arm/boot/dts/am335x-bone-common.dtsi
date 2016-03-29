@@ -285,8 +285,10 @@
 	};
 };
 
+
+/include/ "tps65217.dtsi"
+
 &tps {
-	compatible = "ti,tps65217";
 	/*
 	 * Configure pmic to enter OFF-state instead of SLEEP-state ("RTC-only
 	 * mode") at poweroff.  Most BeagleBone versions do not support RTC-only
@@ -307,17 +309,12 @@
 	ti,pmic-shutdown-controller;
 
 	regulators {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		dcdc1_reg: regulator@0 {
-			reg = <0>;
 			regulator-name = "vdds_dpr";
 			regulator-always-on;
 		};
 
 		dcdc2_reg: regulator@1 {
-			reg = <1>;
 			/* VDD_MPU voltage limits 0.95V - 1.26V with +/-4% tolerance */
 			regulator-name = "vdd_mpu";
 			regulator-min-microvolt = <925000>;
@@ -327,7 +324,6 @@
 		};
 
 		dcdc3_reg: regulator@2 {
-			reg = <2>;
 			/* VDD_CORE voltage limits 0.95V - 1.1V with +/-4% tolerance */
 			regulator-name = "vdd_core";
 			regulator-min-microvolt = <925000>;
@@ -337,25 +333,21 @@
 		};
 
 		ldo1_reg: regulator@3 {
-			reg = <3>;
 			regulator-name = "vio,vrtc,vdds";
 			regulator-always-on;
 		};
 
 		ldo2_reg: regulator@4 {
-			reg = <4>;
 			regulator-name = "vdd_3v3aux";
 			regulator-always-on;
 		};
 
 		ldo3_reg: regulator@5 {
-			reg = <5>;
 			regulator-name = "vdd_1v8";
 			regulator-always-on;
 		};
 
 		ldo4_reg: regulator@6 {
-			reg = <6>;
 			regulator-name = "vdd_3v3a";
 			regulator-always-on;
 		};

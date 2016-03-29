@@ -43,9 +43,19 @@ enum {
 #define vhost_avail_event(vq) ((__virtio16 __user *)&vq->used->ring[vq->num])
 
 #ifdef CONFIG_VHOST_CROSS_ENDIAN_LEGACY
-static void vhost_vq_reset_user_be(struct vhost_virtqueue *vq)
+static void vhost_disable_cross_endian(struct vhost_virtqueue *vq)
 {
 	vq->user_be = !virtio_legacy_is_little_endian();
+}
+
+static void vhost_enable_cross_endian_big(struct vhost_virtqueue *vq)
+{
+	vq->user_be = true;
+}
+
+static void vhost_enable_cross_endian_little(struct vhost_virtqueue *vq)
+{
+	vq->user_be = false;
 }
 
 static long vhost_set_vring_endian(struct vhost_virtqueue *vq, int __user *argp)
@@ -62,7 +72,10 @@ static long vhost_set_vring_endian(struct vhost_virtqueue *vq, int __user *argp)
 	    s.num != VHOST_VRING_BIG_ENDIAN)
 		return -EINVAL;
 
-	vq->user_be = s.num;
+	if (s.num == VHOST_VRING_BIG_ENDIAN)
+		vhost_enable_cross_endian_big(vq);
+	else
+		vhost_enable_cross_endian_little(vq);
 
 	return 0;
 }
@@ -91,7 +104,7 @@ static void vhost_init_is_le(struct vhost_virtqueue *vq)
 	vq->is_le = vhost_has_feature(vq, VIRTIO_F_VERSION_1) || !vq->user_be;
 }
 #else
-static void vhost_vq_reset_user_be(struct vhost_virtqueue *vq)
+static void vhost_disable_cross_endian(struct vhost_virtqueue *vq)
 {
 }
 
@@ -112,6 +125,11 @@ static void vhost_init_is_le(struct vhost_virtqueue *vq)
 		vq->is_le = true;
 }
 #endif /* CONFIG_VHOST_CROSS_ENDIAN_LEGACY */
+
+static void vhost_reset_is_le(struct vhost_virtqueue *vq)
+{
+	vq->is_le = virtio_legacy_is_little_endian();
+}
 
 static void vhost_poll_func(struct file *file, wait_queue_head_t *wqh,
 			    poll_table *pt)
@@ -245,6 +263,13 @@ void vhost_work_queue(struct vhost_dev *dev, struct vhost_work *work)
 }
 EXPORT_SYMBOL_GPL(vhost_work_queue);
 
+/* A lockless hint for busy polling code to exit the loop */
+bool vhost_has_work(struct vhost_dev *dev)
+{
+	return !list_empty(&dev->work_list);
+}
+EXPORT_SYMBOL_GPL(vhost_has_work);
+
 void vhost_poll_queue(struct vhost_poll *poll)
 {
 	vhost_work_queue(poll->dev, &poll->work);
@@ -276,8 +301,9 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->call = NULL;
 	vq->log_ctx = NULL;
 	vq->memory = NULL;
-	vq->is_le = virtio_legacy_is_little_endian();
-	vhost_vq_reset_user_be(vq);
+	vhost_reset_is_le(vq);
+	vhost_disable_cross_endian(vq);
+	vq->busyloop_timeout = 0;
 }
 
 static int vhost_worker(void *data)
@@ -912,6 +938,19 @@ long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp)
 	case VHOST_GET_VRING_ENDIAN:
 		r = vhost_get_vring_endian(vq, idx, argp);
 		break;
+	case VHOST_SET_VRING_BUSYLOOP_TIMEOUT:
+		if (copy_from_user(&s, argp, sizeof(s))) {
+			r = -EFAULT;
+			break;
+		}
+		vq->busyloop_timeout = s.num;
+		break;
+	case VHOST_GET_VRING_BUSYLOOP_TIMEOUT:
+		s.index = idx;
+		s.num = vq->busyloop_timeout;
+		if (copy_to_user(argp, &s, sizeof(s)))
+			r = -EFAULT;
+		break;
 	default:
 		r = -ENOIOCTLCMD;
 	}
@@ -1152,12 +1191,14 @@ static int vhost_update_avail_event(struct vhost_virtqueue *vq, u16 avail_event)
 	return 0;
 }
 
-int vhost_init_used(struct vhost_virtqueue *vq)
+int vhost_vq_init_access(struct vhost_virtqueue *vq)
 {
 	__virtio16 last_used_idx;
 	int r;
+	bool is_le = vq->is_le;
+
 	if (!vq->private_data) {
-		vq->is_le = virtio_legacy_is_little_endian();
+		vhost_reset_is_le(vq);
 		return 0;
 	}
 
@@ -1165,17 +1206,22 @@ int vhost_init_used(struct vhost_virtqueue *vq)
 
 	r = vhost_update_used_flags(vq);
 	if (r)
-		return r;
+		goto err;
 	vq->signalled_used_valid = false;
-	if (!access_ok(VERIFY_READ, &vq->used->idx, sizeof vq->used->idx))
-		return -EFAULT;
+	if (!access_ok(VERIFY_READ, &vq->used->idx, sizeof vq->used->idx)) {
+		r = -EFAULT;
+		goto err;
+	}
 	r = __get_user(last_used_idx, &vq->used->idx);
 	if (r)
-		return r;
+		goto err;
 	vq->last_used_idx = vhost16_to_cpu(vq, last_used_idx);
 	return 0;
+err:
+	vq->is_le = is_le;
+	return r;
 }
-EXPORT_SYMBOL_GPL(vhost_init_used);
+EXPORT_SYMBOL_GPL(vhost_vq_init_access);
 
 static int translate_desc(struct vhost_virtqueue *vq, u64 addr, u32 len,
 			  struct iovec iov[], int iov_size)
@@ -1625,6 +1671,20 @@ void vhost_add_used_and_signal_n(struct vhost_dev *dev,
 	vhost_signal(dev, vq);
 }
 EXPORT_SYMBOL_GPL(vhost_add_used_and_signal_n);
+
+/* return true if we're sure that avaiable ring is empty */
+bool vhost_vq_avail_empty(struct vhost_dev *dev, struct vhost_virtqueue *vq)
+{
+	__virtio16 avail_idx;
+	int r;
+
+	r = __get_user(avail_idx, &vq->avail->idx);
+	if (r)
+		return false;
+
+	return vhost16_to_cpu(vq, avail_idx) == vq->avail_idx;
+}
+EXPORT_SYMBOL_GPL(vhost_vq_avail_empty);
 
 /* OK, now we need to know about added descriptors. */
 bool vhost_enable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)

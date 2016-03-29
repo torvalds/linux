@@ -310,8 +310,16 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 		set_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED, &root->state);
 
 		err = btrfs_insert_fs_root(root->fs_info, root);
+		/*
+		 * The root might have been inserted already, as before we look
+		 * for orphan roots, log replay might have happened, which
+		 * triggers a transaction commit and qgroup accounting, which
+		 * in turn reads and inserts fs roots while doing backref
+		 * walking.
+		 */
+		if (err == -EEXIST)
+			err = 0;
 		if (err) {
-			BUG_ON(err == -EEXIST);
 			btrfs_free_fs_root(root);
 			break;
 		}
@@ -488,7 +496,7 @@ void btrfs_update_root_times(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root)
 {
 	struct btrfs_root_item *item = &root->root_item;
-	struct timespec ct = CURRENT_TIME;
+	struct timespec ct = current_fs_time(root->fs_info->sb);
 
 	spin_lock(&root->root_item_lock);
 	btrfs_set_root_ctransid(item, trans->transid);

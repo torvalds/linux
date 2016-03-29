@@ -3,7 +3,6 @@ menuconfig ARCH_MVEBU
 	depends on ARCH_MULTI_V7 || ARCH_MULTI_V5
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select CLKSRC_MMIO
-	select GENERIC_IRQ_CHIP
 	select PINCTRL
 	select PLAT_ORION
 	select SOC_BUS
@@ -29,9 +28,11 @@ config MACH_ARMADA_370
 	bool "Marvell Armada 370 boards"
 	depends on ARCH_MULTI_V7
 	select ARMADA_370_CLK
+	select ARMADA_370_XP_IRQ
 	select CPU_PJ4B
 	select MACH_MVEBU_V7
 	select PINCTRL_ARMADA_370
+	select MVEBU_CLK_COREDIV
 	help
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Armada 370 SoC with device tree.
@@ -39,6 +40,7 @@ config MACH_ARMADA_370
 config MACH_ARMADA_375
 	bool "Marvell Armada 375 boards"
 	depends on ARCH_MULTI_V7
+	select ARMADA_370_XP_IRQ
 	select ARM_ERRATA_720789
 	select ARM_ERRATA_753970
 	select ARM_GIC
@@ -48,6 +50,7 @@ config MACH_ARMADA_375
 	select HAVE_SMP
 	select MACH_MVEBU_V7
 	select PINCTRL_ARMADA_375
+	select MVEBU_CLK_COREDIV
 	help
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Armada 375 SoC with device tree.
@@ -58,12 +61,14 @@ config MACH_ARMADA_38X
 	select ARM_ERRATA_720789
 	select ARM_ERRATA_753970
 	select ARM_GIC
+	select ARMADA_370_XP_IRQ
 	select ARMADA_38X_CLK
 	select HAVE_ARM_SCU
 	select HAVE_ARM_TWD if SMP
 	select HAVE_SMP
 	select MACH_MVEBU_V7
 	select PINCTRL_ARMADA_38X
+	select MVEBU_CLK_COREDIV
 	help
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Armada 380/385 SoC with device tree.
@@ -72,6 +77,7 @@ config MACH_ARMADA_39X
 	bool "Marvell Armada 39x boards"
 	depends on ARCH_MULTI_V7
 	select ARM_GIC
+	select ARMADA_370_XP_IRQ
 	select ARMADA_39X_CLK
 	select CACHE_L2X0
 	select HAVE_ARM_SCU
@@ -86,6 +92,7 @@ config MACH_ARMADA_39X
 config MACH_ARMADA_XP
 	bool "Marvell Armada XP boards"
 	depends on ARCH_MULTI_V7
+	select ARMADA_370_XP_IRQ
 	select ARMADA_XP_CLK
 	select CPU_PJ4B
 	select MACH_MVEBU_V7

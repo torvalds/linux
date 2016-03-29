@@ -17,6 +17,9 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 
+#include <linux/gfp.h>
+#include <linux/mm.h>
+
 #define BUF_SIZE 256
 #define PAD_SIZE 16
 #define FILL_CHAR '$'
@@ -411,6 +414,55 @@ netdev_features(void)
 }
 
 static void __init
+flags(void)
+{
+	unsigned long flags;
+	gfp_t gfp;
+	char *cmp_buffer;
+
+	flags = 0;
+	test("", "%pGp", &flags);
+
+	/* Page flags should filter the zone id */
+	flags = 1UL << NR_PAGEFLAGS;
+	test("", "%pGp", &flags);
+
+	flags |= 1UL << PG_uptodate | 1UL << PG_dirty | 1UL << PG_lru
+		| 1UL << PG_active | 1UL << PG_swapbacked;
+	test("uptodate|dirty|lru|active|swapbacked", "%pGp", &flags);
+
+
+	flags = VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC
+			| VM_DENYWRITE;
+	test("read|exec|mayread|maywrite|mayexec|denywrite", "%pGv", &flags);
+
+	gfp = GFP_TRANSHUGE;
+	test("GFP_TRANSHUGE", "%pGg", &gfp);
+
+	gfp = GFP_ATOMIC|__GFP_DMA;
+	test("GFP_ATOMIC|GFP_DMA", "%pGg", &gfp);
+
+	gfp = __GFP_ATOMIC;
+	test("__GFP_ATOMIC", "%pGg", &gfp);
+
+	cmp_buffer = kmalloc(BUF_SIZE, GFP_KERNEL);
+	if (!cmp_buffer)
+		return;
+
+	/* Any flags not translated by the table should remain numeric */
+	gfp = ~__GFP_BITS_MASK;
+	snprintf(cmp_buffer, BUF_SIZE, "%#lx", (unsigned long) gfp);
+	test(cmp_buffer, "%pGg", &gfp);
+
+	snprintf(cmp_buffer, BUF_SIZE, "__GFP_ATOMIC|%#lx",
+							(unsigned long) gfp);
+	gfp |= __GFP_ATOMIC;
+	test(cmp_buffer, "%pGg", &gfp);
+
+	kfree(cmp_buffer);
+}
+
+static void __init
 test_pointer(void)
 {
 	plain();
@@ -428,6 +480,7 @@ test_pointer(void)
 	struct_clk();
 	bitmap();
 	netdev_features();
+	flags();
 }
 
 static int __init

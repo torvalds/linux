@@ -305,6 +305,13 @@
 				reg = <0x60000 0x1000>;
 			};
 
+			rtc: rtc@c0000 {
+				compatible = "ti,am3352-rtc", "ti,da830-rtc";
+				reg = <0xc0000 0x1000>;
+				interrupts = <75 76>;
+				ti,hwmods = "rtc";
+			};
+
 			mmc2: mmc@1d8000 {
 				compatible = "ti,omap4-hsmmc";
 				ti,hwmods = "mmc2";
@@ -547,6 +554,20 @@
 				reg= <0x48140650 0x4>;
 				reg-names = "gmii-sel";
 			};
+		};
+
+		gpmc: gpmc@50000000 {
+			compatible = "ti,am3352-gpmc";
+			ti,hwmods = "gpmc";
+			ti,no-idle-on-init;
+			reg = <0x50000000 0x2000>;
+			interrupts = <100>;
+			gpmc,num-cs = <7>;
+			gpmc,num-waitpins = <2>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 	};
 };

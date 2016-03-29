@@ -201,7 +201,7 @@ struct sctp_chunk *sctp_make_cwr(const struct sctp_association *,
 struct sctp_chunk * sctp_make_datafrag_empty(struct sctp_association *,
 					const struct sctp_sndrcvinfo *sinfo,
 					int len, const __u8 flags,
-					__u16 ssn);
+					__u16 ssn, gfp_t gfp);
 struct sctp_chunk *sctp_make_ecne(const struct sctp_association *,
 				  const __u32);
 struct sctp_chunk *sctp_make_sack(const struct sctp_association *);

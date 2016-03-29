@@ -32,14 +32,6 @@ config ARM_GIC_V3_ITS
 	bool
 	select PCI_MSI_IRQ_DOMAIN
 
-config HISILICON_IRQ_MBIGEN
-	bool "Support mbigen interrupt controller"
-	default n
-	depends on ARM_GIC_V3 && ARM_GIC_V3_ITS && GENERIC_MSI_IRQ_DOMAIN
-	help
-	 Enable the mbigen interrupt controller used on
-	 Hisilicon platform.
-
 config ARM_NVIC
 	bool
 	select IRQ_DOMAIN
@@ -60,6 +52,17 @@ config ARM_VIC_NR
 	  The maximum number of VICs available in the system, for
 	  power management.
 
+config ARMADA_370_XP_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select PCI_MSI_IRQ_DOMAIN if PCI_MSI
+
+config ALPINE_MSI
+	bool
+	depends on PCI && PCI_MSI
+	select GENERIC_IRQ_CHIP
+	select PCI_MSI_IRQ_DOMAIN
+
 config ATMEL_AIC_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
@@ -76,6 +79,11 @@ config ATMEL_AIC5_IRQ
 
 config I8259
 	bool
+	select IRQ_DOMAIN
+
+config BCM6345_L1_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
 config BCM7038_L1_IRQ
@@ -97,6 +105,12 @@ config DW_APB_ICTL
 	bool
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
+
+config HISILICON_IRQ_MBIGEN
+	bool
+	select ARM_GIC_V3
+	select ARM_GIC_V3_ITS
+	select GENERIC_MSI_IRQ_DOMAIN
 
 config IMGPDC_IRQ
 	bool
@@ -151,6 +165,11 @@ config ST_IRQCHIP
 	help
 	  Enables SysCfg Controlled IRQs on STi based platforms.
 
+config TANGO_IRQ
+	bool
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+
 config TB10X_IRQC
 	bool
 	select IRQ_DOMAIN
@@ -160,6 +179,7 @@ config TS4800_IRQ
 	tristate "TS-4800 IRQ controller"
 	select IRQ_DOMAIN
 	depends on HAS_IOMEM
+	depends on SOC_IMX51 || COMPILE_TEST
 	help
 	  Support for the TS-4800 FPGA IRQ controller
 
@@ -193,6 +213,8 @@ config KEYSTONE_IRQ
 
 config MIPS_GIC
 	bool
+	select GENERIC_IRQ_IPI
+	select IRQ_DOMAIN_HIERARCHY
 	select MIPS_CM
 
 config INGENIC_IRQ
@@ -218,3 +240,7 @@ config IRQ_MXS
 	def_bool y if MACH_ASM9260 || ARCH_MXS
 	select IRQ_DOMAIN
 	select STMP_DEVICE
+
+config MVEBU_ODMI
+	bool
+	select GENERIC_MSI_IRQ_DOMAIN

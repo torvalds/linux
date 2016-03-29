@@ -68,6 +68,11 @@ struct fs_node {
 struct mlx5_flow_rule {
 	struct fs_node				node;
 	struct mlx5_flow_destination		dest_attr;
+	/* next_ft should be accessed under chain_lock and only of
+	 * destination type is FWD_NEXT_fT.
+	 */
+	struct list_head			next_ft;
+	u32					sw_action;
 };
 
 /* Type of children is mlx5_flow_group */
@@ -82,6 +87,10 @@ struct mlx5_flow_table {
 		unsigned int		required_groups;
 		unsigned int		num_groups;
 	} autogroup;
+	/* Protect fwd_rules */
+	struct mutex			lock;
+	/* FWD rules that point on this flow table */
+	struct list_head		fwd_rules;
 };
 
 /* Type of children is mlx5_flow_rule */
@@ -142,6 +151,9 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 #define fs_list_for_each_entry(pos, root)		\
 	list_for_each_entry(pos, root, node.list)
 
+#define fs_list_for_each_entry_safe(pos, tmp, root)		\
+	list_for_each_entry_safe(pos, tmp, root, node.list)
+
 #define fs_for_each_ns_or_ft_reverse(pos, prio)				\
 	list_for_each_entry_reverse(pos, &(prio)->node.children, list)
 
@@ -156,6 +168,9 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 
 #define fs_for_each_ft(pos, prio)			\
 	fs_list_for_each_entry(pos, &(prio)->node.children)
+
+#define fs_for_each_ft_safe(pos, tmp, prio)			\
+	fs_list_for_each_entry_safe(pos, tmp, &(prio)->node.children)
 
 #define fs_for_each_fg(pos, ft)			\
 	fs_list_for_each_entry(pos, &(ft)->node.children)

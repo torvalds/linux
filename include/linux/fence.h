@@ -79,6 +79,8 @@ struct fence {
 	unsigned long flags;
 	ktime_t timestamp;
 	int status;
+	struct list_head child_list;
+	struct list_head active_list;
 };
 
 enum fence_flag_bits {
@@ -292,7 +294,7 @@ static inline bool fence_is_later(struct fence *f1, struct fence *f2)
 	if (WARN_ON(f1->context != f2->context))
 		return false;
 
-	return f1->seqno - f2->seqno < INT_MAX;
+	return (int)(f1->seqno - f2->seqno) > 0;
 }
 
 /**

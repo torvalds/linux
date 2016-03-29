@@ -35,14 +35,21 @@ static inline void xen_dma_map_page(struct device *hwdev, struct page *page,
 	     dma_addr_t dev_addr, unsigned long offset, size_t size,
 	     enum dma_data_direction dir, struct dma_attrs *attrs)
 {
-	bool local = XEN_PFN_DOWN(dev_addr) == page_to_xen_pfn(page);
+	unsigned long page_pfn = page_to_xen_pfn(page);
+	unsigned long dev_pfn = XEN_PFN_DOWN(dev_addr);
+	unsigned long compound_pages =
+		(1<<compound_order(page)) * XEN_PFN_PER_PAGE;
+	bool local = (page_pfn <= dev_pfn) &&
+		(dev_pfn - page_pfn < compound_pages);
+
 	/*
-	 * Dom0 is mapped 1:1, while the Linux page can be spanned accross
-	 * multiple Xen page, it's not possible to have a mix of local and
-	 * foreign Xen page. So if the first xen_pfn == mfn the page is local
-	 * otherwise it's a foreign page grant-mapped in dom0. If the page is
-	 * local we can safely call the native dma_ops function, otherwise we
-	 * call the xen specific function.
+	 * Dom0 is mapped 1:1, while the Linux page can span across
+	 * multiple Xen pages, it's not possible for it to contain a
+	 * mix of local and foreign Xen pages. So if the first xen_pfn
+	 * == mfn the page is local otherwise it's a foreign page
+	 * grant-mapped in dom0. If the page is local we can safely
+	 * call the native dma_ops function, otherwise we call the xen
+	 * specific function.
 	 */
 	if (local)
 		__generic_dma_ops(hwdev)->map_page(hwdev, page, offset, size, dir, attrs);

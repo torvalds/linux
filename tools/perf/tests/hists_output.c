@@ -51,11 +51,6 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(fake_samples); i++) {
-		const union perf_event event = {
-			.header = {
-				.misc = PERF_RECORD_MISC_USER,
-			},
-		};
 		struct hist_entry_iter iter = {
 			.evsel = evsel,
 			.sample = &sample,
@@ -63,13 +58,13 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 			.hide_unresolved = false,
 		};
 
+		sample.cpumode = PERF_RECORD_MISC_USER;
 		sample.cpu = fake_samples[i].cpu;
 		sample.pid = fake_samples[i].pid;
 		sample.tid = fake_samples[i].pid;
 		sample.ip = fake_samples[i].ip;
 
-		if (perf_event__preprocess_sample(&event, machine, &al,
-						  &sample) < 0)
+		if (machine__resolve(machine, &al, &sample) < 0)
 			goto out;
 
 		if (hist_entry_iter__add(&iter, &al, PERF_MAX_STACK_DEPTH,
@@ -156,7 +151,7 @@ static int test1(struct perf_evsel *evsel, struct machine *machine)
 		goto out;
 
 	hists__collapse_resort(hists, NULL);
-	hists__output_resort(hists, NULL);
+	perf_evsel__output_resort(evsel, NULL);
 
 	if (verbose > 2) {
 		pr_info("[fields = %s, sort = %s]\n", field_order, sort_order);
@@ -256,7 +251,7 @@ static int test2(struct perf_evsel *evsel, struct machine *machine)
 		goto out;
 
 	hists__collapse_resort(hists, NULL);
-	hists__output_resort(hists, NULL);
+	perf_evsel__output_resort(evsel, NULL);
 
 	if (verbose > 2) {
 		pr_info("[fields = %s, sort = %s]\n", field_order, sort_order);
@@ -310,7 +305,7 @@ static int test3(struct perf_evsel *evsel, struct machine *machine)
 		goto out;
 
 	hists__collapse_resort(hists, NULL);
-	hists__output_resort(hists, NULL);
+	perf_evsel__output_resort(evsel, NULL);
 
 	if (verbose > 2) {
 		pr_info("[fields = %s, sort = %s]\n", field_order, sort_order);
@@ -388,7 +383,7 @@ static int test4(struct perf_evsel *evsel, struct machine *machine)
 		goto out;
 
 	hists__collapse_resort(hists, NULL);
-	hists__output_resort(hists, NULL);
+	perf_evsel__output_resort(evsel, NULL);
 
 	if (verbose > 2) {
 		pr_info("[fields = %s, sort = %s]\n", field_order, sort_order);
@@ -491,7 +486,7 @@ static int test5(struct perf_evsel *evsel, struct machine *machine)
 		goto out;
 
 	hists__collapse_resort(hists, NULL);
-	hists__output_resort(hists, NULL);
+	perf_evsel__output_resort(evsel, NULL);
 
 	if (verbose > 2) {
 		pr_info("[fields = %s, sort = %s]\n", field_order, sort_order);

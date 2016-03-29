@@ -75,37 +75,7 @@ static int __init sbc8641_probe(void)
 	return 0;
 }
 
-static long __init
-mpc86xx_time_init(void)
-{
-	unsigned int temp;
-
-	/* Set the time base to zero */
-	mtspr(SPRN_TBWL, 0);
-	mtspr(SPRN_TBWU, 0);
-
-	temp = mfspr(SPRN_HID0);
-	temp |= HID0_TBEN;
-	mtspr(SPRN_HID0, temp);
-	asm volatile("isync");
-
-	return 0;
-}
-
-static const struct of_device_id of_bus_ids[] __initconst = {
-	{ .compatible = "simple-bus", },
-	{ .compatible = "gianfar", },
-	{ .compatible = "fsl,mpc8641-pcie", },
-	{},
-};
-
-static int __init declare_of_platform_devices(void)
-{
-	of_platform_bus_probe(NULL, of_bus_ids, NULL);
-
-	return 0;
-}
-machine_arch_initcall(sbc8641, declare_of_platform_devices);
+machine_arch_initcall(sbc8641, mpc86xx_common_publish_devices);
 
 define_machine(sbc8641) {
 	.name			= "SBC8641D",

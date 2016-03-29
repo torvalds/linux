@@ -23,6 +23,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/ptrace.h>
+
 /*
  * __boot_cpu_mode records what mode CPUs were booted in.
  * A correctly-implemented bootloader must start all CPUs in the same mode:
@@ -48,6 +50,14 @@ static inline bool is_hyp_mode_available(void)
 static inline bool is_hyp_mode_mismatched(void)
 {
 	return __boot_cpu_mode[0] != __boot_cpu_mode[1];
+}
+
+static inline bool is_kernel_in_hyp_mode(void)
+{
+	u64 el;
+
+	asm("mrs %0, CurrentEL" : "=r" (el));
+	return el == CurrentEL_EL2;
 }
 
 /* The section containing the hypervisor text */

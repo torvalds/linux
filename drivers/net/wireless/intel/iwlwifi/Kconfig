@@ -53,7 +53,6 @@ config IWLWIFI_LEDS
 
 config IWLDVM
 	tristate "Intel Wireless WiFi DVM Firmware support"
-	depends on m
 	help
 	  This is the driver that supports the DVM firmware. The list
 	  of the devices that use this firmware is available here:
@@ -98,6 +97,18 @@ config IWLWIFI_UAPSD
 	  expected throughput due to those APs not enabling aggregation
 
 	  If unsure, say N.
+
+config IWLWIFI_PCIE_RTPM
+       bool "Enable runtime power management mode for PCIe devices"
+       depends on IWLMVM && PM
+       default false
+       help
+         Say Y here to enable runtime power management for PCIe
+         devices.  If enabled, the device will go into low power mode
+         when idle for a short period of time, allowing for improved
+         power saving during runtime.
+
+	 If unsure, say N.
 
 menu "Debugging Options"
 

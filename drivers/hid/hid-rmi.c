@@ -594,6 +594,9 @@ static int rmi_suspend(struct hid_device *hdev, pm_message_t message)
 	int ret;
 	u8 buf[RMI_F11_CTRL_REG_COUNT];
 
+	if (!(data->device_flags & RMI_DEVICE))
+		return 0;
+
 	ret = rmi_read_block(hdev, data->f11.control_base_addr, buf,
 				RMI_F11_CTRL_REG_COUNT);
 	if (ret)
@@ -612,6 +615,9 @@ static int rmi_post_reset(struct hid_device *hdev)
 {
 	struct rmi_data *data = hid_get_drvdata(hdev);
 	int ret;
+
+	if (!(data->device_flags & RMI_DEVICE))
+		return 0;
 
 	ret = rmi_reset_attn_mode(hdev);
 	if (ret) {
@@ -640,6 +646,11 @@ static int rmi_post_reset(struct hid_device *hdev)
 
 static int rmi_post_resume(struct hid_device *hdev)
 {
+	struct rmi_data *data = hid_get_drvdata(hdev);
+
+	if (!(data->device_flags & RMI_DEVICE))
+		return 0;
+
 	return rmi_reset_attn_mode(hdev);
 }
 #endif /* CONFIG_PM */

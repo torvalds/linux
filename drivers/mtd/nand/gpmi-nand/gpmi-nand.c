@@ -1,7 +1,7 @@
 /*
  * Freescale GPMI NAND Flash Driver
  *
- * Copyright (C) 2010-2011 Freescale Semiconductor, Inc.
+ * Copyright (C) 2010-2015 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 Embedded Alley Solutions, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -136,7 +136,7 @@ static inline bool gpmi_check_ecc(struct gpmi_nand_data *this)
  *
  * We may have available oob space in this case.
  */
-static bool set_geometry_by_ecc_info(struct gpmi_nand_data *this)
+static int set_geometry_by_ecc_info(struct gpmi_nand_data *this)
 {
 	struct bch_geometry *geo = &this->bch_geometry;
 	struct nand_chip *chip = &this->nand;
@@ -145,7 +145,7 @@ static bool set_geometry_by_ecc_info(struct gpmi_nand_data *this)
 	unsigned int block_mark_bit_offset;
 
 	if (!(chip->ecc_strength_ds > 0 && chip->ecc_step_ds > 0))
-		return false;
+		return -EINVAL;
 
 	switch (chip->ecc_step_ds) {
 	case SZ_512:
@@ -158,19 +158,19 @@ static bool set_geometry_by_ecc_info(struct gpmi_nand_data *this)
 		dev_err(this->dev,
 			"unsupported nand chip. ecc bits : %d, ecc size : %d\n",
 			chip->ecc_strength_ds, chip->ecc_step_ds);
-		return false;
+		return -EINVAL;
 	}
 	geo->ecc_chunk_size = chip->ecc_step_ds;
 	geo->ecc_strength = round_up(chip->ecc_strength_ds, 2);
 	if (!gpmi_check_ecc(this))
-		return false;
+		return -EINVAL;
 
 	/* Keep the C >= O */
 	if (geo->ecc_chunk_size < mtd->oobsize) {
 		dev_err(this->dev,
 			"unsupported nand chip. ecc size: %d, oob size : %d\n",
 			chip->ecc_step_ds, mtd->oobsize);
-		return false;
+		return -EINVAL;
 	}
 
 	/* The default value, see comment in the legacy_set_geometry(). */
@@ -242,7 +242,7 @@ static bool set_geometry_by_ecc_info(struct gpmi_nand_data *this)
 				+ ALIGN(geo->ecc_chunk_count, 4);
 
 	if (!this->swap_block_mark)
-		return true;
+		return 0;
 
 	/* For bit swap. */
 	block_mark_bit_offset = mtd->writesize * 8 -
@@ -251,7 +251,7 @@ static bool set_geometry_by_ecc_info(struct gpmi_nand_data *this)
 
 	geo->block_mark_byte_offset = block_mark_bit_offset / 8;
 	geo->block_mark_bit_offset  = block_mark_bit_offset % 8;
-	return true;
+	return 0;
 }
 
 static int legacy_set_geometry(struct gpmi_nand_data *this)
@@ -285,7 +285,8 @@ static int legacy_set_geometry(struct gpmi_nand_data *this)
 	geo->ecc_strength = get_ecc_strength(this);
 	if (!gpmi_check_ecc(this)) {
 		dev_err(this->dev,
-			"required ecc strength of the NAND chip: %d is not supported by the GPMI controller (%d)\n",
+			"ecc strength: %d cannot be supported by the controller (%d)\n"
+			"try to use minimum ecc strength that NAND chip required\n",
 			geo->ecc_strength,
 			this->devdata->bch_max_ecc_strength);
 		return -EINVAL;
@@ -366,10 +367,11 @@ static int legacy_set_geometry(struct gpmi_nand_data *this)
 
 int common_nfc_set_geometry(struct gpmi_nand_data *this)
 {
-	if (of_property_read_bool(this->dev->of_node, "fsl,use-minimum-ecc")
-		&& set_geometry_by_ecc_info(this))
-		return 0;
-	return legacy_set_geometry(this);
+	if ((of_property_read_bool(this->dev->of_node, "fsl,use-minimum-ecc"))
+				|| legacy_set_geometry(this))
+		return set_geometry_by_ecc_info(this);
+
+	return 0;
 }
 
 struct dma_chan *get_dma_chan(struct gpmi_nand_data *this)
@@ -2033,9 +2035,54 @@ static int gpmi_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int gpmi_pm_suspend(struct device *dev)
+{
+	struct gpmi_nand_data *this = dev_get_drvdata(dev);
+
+	release_dma_channels(this);
+	return 0;
+}
+
+static int gpmi_pm_resume(struct device *dev)
+{
+	struct gpmi_nand_data *this = dev_get_drvdata(dev);
+	int ret;
+
+	ret = acquire_dma_channels(this);
+	if (ret < 0)
+		return ret;
+
+	/* re-init the GPMI registers */
+	this->flags &= ~GPMI_TIMING_INIT_OK;
+	ret = gpmi_init(this);
+	if (ret) {
+		dev_err(this->dev, "Error setting GPMI : %d\n", ret);
+		return ret;
+	}
+
+	/* re-init the BCH registers */
+	ret = bch_set_geometry(this);
+	if (ret) {
+		dev_err(this->dev, "Error setting BCH : %d\n", ret);
+		return ret;
+	}
+
+	/* re-init others */
+	gpmi_extra_init(this);
+
+	return 0;
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static const struct dev_pm_ops gpmi_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(gpmi_pm_suspend, gpmi_pm_resume)
+};
+
 static struct platform_driver gpmi_nand_driver = {
 	.driver = {
 		.name = "gpmi-nand",
+		.pm = &gpmi_pm_ops,
 		.of_match_table = gpmi_nand_id_table,
 	},
 	.probe   = gpmi_nand_probe,

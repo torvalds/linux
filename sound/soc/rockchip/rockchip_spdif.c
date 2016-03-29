@@ -28,6 +28,7 @@ enum rk_spdif_type {
 	RK_SPDIF_RK3066,
 	RK_SPDIF_RK3188,
 	RK_SPDIF_RK3288,
+	RK_SPDIF_RK3366,
 };
 
 #define RK3288_GRF_SOC_CON2 0x24c
@@ -45,16 +46,22 @@ struct rk_spdif_dev {
 
 static const struct of_device_id rk_spdif_match[] = {
 	{ .compatible = "rockchip,rk3066-spdif",
-	  .data = (void *) RK_SPDIF_RK3066 },
+	  .data = (void *)RK_SPDIF_RK3066 },
 	{ .compatible = "rockchip,rk3188-spdif",
-	  .data = (void *) RK_SPDIF_RK3188 },
+	  .data = (void *)RK_SPDIF_RK3188 },
 	{ .compatible = "rockchip,rk3288-spdif",
-	  .data = (void *) RK_SPDIF_RK3288 },
+	  .data = (void *)RK_SPDIF_RK3288 },
+	{ .compatible = "rockchip,rk3366-spdif",
+	  .data = (void *)RK_SPDIF_RK3366 },
+	{ .compatible = "rockchip,rk3368-spdif",
+	  .data = (void *)RK_SPDIF_RK3366 },
+	{ .compatible = "rockchip,rk3399-spdif",
+	  .data = (void *)RK_SPDIF_RK3366 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rk_spdif_match);
 
-static int rk_spdif_runtime_suspend(struct device *dev)
+static int __maybe_unused rk_spdif_runtime_suspend(struct device *dev)
 {
 	struct rk_spdif_dev *spdif = dev_get_drvdata(dev);
 
@@ -64,7 +71,7 @@ static int rk_spdif_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int rk_spdif_runtime_resume(struct device *dev)
+static int __maybe_unused rk_spdif_runtime_resume(struct device *dev)
 {
 	struct rk_spdif_dev *spdif = dev_get_drvdata(dev);
 	int ret;

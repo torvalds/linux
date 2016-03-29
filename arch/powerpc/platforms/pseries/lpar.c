@@ -505,8 +505,8 @@ static void pSeries_lpar_hugepage_invalidate(unsigned long vsid,
 }
 #endif
 
-static void pSeries_lpar_hpte_removebolted(unsigned long ea,
-					   int psize, int ssize)
+static int pSeries_lpar_hpte_removebolted(unsigned long ea,
+					  int psize, int ssize)
 {
 	unsigned long vpn;
 	unsigned long slot, vsid;
@@ -515,11 +515,14 @@ static void pSeries_lpar_hpte_removebolted(unsigned long ea,
 	vpn = hpt_vpn(ea, vsid, ssize);
 
 	slot = pSeries_lpar_hpte_find(vpn, psize, ssize);
-	BUG_ON(slot == -1);
+	if (slot == -1)
+		return -ENOENT;
+
 	/*
 	 * lpar doesn't use the passed actual page size
 	 */
 	pSeries_lpar_hpte_invalidate(slot, vpn, psize, 0, ssize, 0);
+	return 0;
 }
 
 /*

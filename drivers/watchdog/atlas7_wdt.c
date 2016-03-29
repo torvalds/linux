@@ -154,6 +154,11 @@ static int atlas7_wdt_probe(struct platform_device *pdev)
 	writel(0, wdt->base + ATLAS7_WDT_CNT_CTRL);
 
 	wdt->tick_rate = clk_get_rate(clk);
+	if (!wdt->tick_rate) {
+		ret = -EINVAL;
+		goto err1;
+	}
+
 	wdt->clk = clk;
 	atlas7_wdd.min_timeout = 1;
 	atlas7_wdd.max_timeout = UINT_MAX / wdt->tick_rate;

@@ -249,6 +249,8 @@ int ip_cmsg_send(struct net *net, struct msghdr *msg, struct ipcm_cookie *ipc,
 		switch (cmsg->cmsg_type) {
 		case IP_RETOPTS:
 			err = cmsg->cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr));
+
+			/* Our caller is responsible for freeing ipc->opt */
 			err = ip_options_get(net, &ipc->opt, CMSG_DATA(cmsg),
 					     err < 40 ? err : 40);
 			if (err)
@@ -571,6 +573,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			    int optname, char __user *optval, unsigned int optlen)
 {
 	struct inet_sock *inet = inet_sk(sk);
+	struct net *net = sock_net(sk);
 	int val = 0, err;
 	bool needs_rtnl = setsockopt_needs_rtnl(optname);
 
@@ -910,7 +913,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		}
 		/* numsrc >= (1G-4) overflow in 32 bits */
 		if (msf->imsf_numsrc >= 0x3ffffffcU ||
-		    msf->imsf_numsrc > sysctl_igmp_max_msf) {
+		    msf->imsf_numsrc > net->ipv4.sysctl_igmp_max_msf) {
 			kfree(msf);
 			err = -ENOBUFS;
 			break;
@@ -1065,7 +1068,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 
 		/* numsrc >= (4G-140)/128 overflow in 32 bits */
 		if (gsf->gf_numsrc >= 0x1ffffff ||
-		    gsf->gf_numsrc > sysctl_igmp_max_msf) {
+		    gsf->gf_numsrc > net->ipv4.sysctl_igmp_max_msf) {
 			err = -ENOBUFS;
 			goto mc_msf_out;
 		}
@@ -1340,10 +1343,13 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		val = inet->tos;
 		break;
 	case IP_TTL:
+	{
+		struct net *net = sock_net(sk);
 		val = (inet->uc_ttl == -1 ?
-		       sysctl_ip_default_ttl :
+		       net->ipv4.sysctl_ip_default_ttl :
 		       inet->uc_ttl);
 		break;
+	}
 	case IP_HDRINCL:
 		val = inet->hdrincl;
 		break;

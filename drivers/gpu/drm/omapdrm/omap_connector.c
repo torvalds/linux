@@ -63,6 +63,9 @@ void copy_timings_omap_to_drm(struct drm_display_mode *mode,
 	if (timings->interlace)
 		mode->flags |= DRM_MODE_FLAG_INTERLACE;
 
+	if (timings->double_pixel)
+		mode->flags |= DRM_MODE_FLAG_DBLCLK;
+
 	if (timings->hsync_level == OMAPDSS_SIG_ACTIVE_HIGH)
 		mode->flags |= DRM_MODE_FLAG_PHSYNC;
 	else
@@ -90,6 +93,7 @@ void copy_timings_drm_to_omap(struct omap_video_timings *timings,
 	timings->vbp = mode->vtotal - mode->vsync_end;
 
 	timings->interlace = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
+	timings->double_pixel = !!(mode->flags & DRM_MODE_FLAG_DBLCLK);
 
 	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
 		timings->hsync_level = OMAPDSS_SIG_ACTIVE_HIGH;

@@ -446,49 +446,17 @@ static struct srp_fr_pool *srp_alloc_fr_pool(struct srp_target_port *target)
 				  dev->max_pages_per_mr);
 }
 
-static void srp_drain_done(struct ib_cq *cq, struct ib_wc *wc)
-{
-	struct srp_rdma_ch *ch = cq->cq_context;
-
-	complete(&ch->done);
-}
-
-static struct ib_cqe srp_drain_cqe = {
-	.done		= srp_drain_done,
-};
-
 /**
  * srp_destroy_qp() - destroy an RDMA queue pair
  * @ch: SRP RDMA channel.
  *
- * Change a queue pair into the error state and wait until all receive
- * completions have been processed before destroying it. This avoids that
- * the receive completion handler can access the queue pair while it is
+ * Drain the qp before destroying it.  This avoids that the receive
+ * completion handler can access the queue pair while it is
  * being destroyed.
  */
 static void srp_destroy_qp(struct srp_rdma_ch *ch)
 {
-	static struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
-	static struct ib_recv_wr wr = { 0 };
-	struct ib_recv_wr *bad_wr;
-	int ret;
-
-	wr.wr_cqe = &srp_drain_cqe;
-	/* Destroying a QP and reusing ch->done is only safe if not connected */
-	WARN_ON_ONCE(ch->connected);
-
-	ret = ib_modify_qp(ch->qp, &attr, IB_QP_STATE);
-	WARN_ONCE(ret, "ib_cm_init_qp_attr() returned %d\n", ret);
-	if (ret)
-		goto out;
-
-	init_completion(&ch->done);
-	ret = ib_post_recv(ch->qp, &wr, &bad_wr);
-	WARN_ONCE(ret, "ib_post_recv() returned %d\n", ret);
-	if (ret == 0)
-		wait_for_completion(&ch->done);
-
-out:
+	ib_drain_rq(ch->qp);
 	ib_destroy_qp(ch->qp);
 }
 
@@ -508,7 +476,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	if (!init_attr)
 		return -ENOMEM;
 
-	/* queue_size + 1 for ib_drain_qp */
+	/* queue_size + 1 for ib_drain_rq() */
 	recv_cq = ib_alloc_cq(dev->dev, ch, target->queue_size + 1,
 				ch->comp_vector, IB_POLL_SOFTIRQ);
 	if (IS_ERR(recv_cq)) {

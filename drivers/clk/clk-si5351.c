@@ -1495,7 +1495,7 @@ static int si5351_i2c_probe(struct i2c_client *client,
 	if (drvdata->variant == SI5351_VARIANT_B) {
 		init.name = si5351_pll_names[2];
 		init.ops = &si5351_vxco_ops;
-		init.flags = CLK_IS_ROOT;
+		init.flags = 0;
 		init.parent_names = NULL;
 		init.num_parents = 0;
 	} else {

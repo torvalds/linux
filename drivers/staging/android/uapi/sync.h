@@ -27,49 +27,37 @@ struct sync_merge_data {
 };
 
 /**
- * struct sync_pt_info - detailed sync_pt information
- * @len:		length of sync_pt_info including any driver_data
+ * struct sync_fence_info - detailed fence information
  * @obj_name:		name of parent sync_timeline
  * @driver_name:	name of driver implementing the parent
- * @status:		status of the sync_pt 0:active 1:signaled <0:error
+ * @status:		status of the fence 0:active 1:signaled <0:error
  * @timestamp_ns:	timestamp of status change in nanoseconds
- * @driver_data:	any driver dependent data
  */
-struct sync_pt_info {
-	__u32	len;
+struct sync_fence_info {
 	char	obj_name[32];
 	char	driver_name[32];
 	__s32	status;
 	__u64	timestamp_ns;
-
-	__u8	driver_data[0];
 };
 
 /**
- * struct sync_fence_info_data - data returned from fence info ioctl
+ * struct sync_file_info - data returned from fence info ioctl
  * @len:	ioctl caller writes the size of the buffer its passing in.
- *		ioctl returns length of sync_fence_data returned to userspace
- *		including pt_info.
+ *		ioctl returns length of sync_file_info returned to
+ *		userspace including pt_info.
  * @name:	name of fence
  * @status:	status of fence. 1: signaled 0:active <0:error
- * @pt_info:	a sync_pt_info struct for every sync_pt in the fence
+ * @sync_fence_info: array of sync_fence_info for every fence in the sync_file
  */
-struct sync_fence_info_data {
+struct sync_file_info {
 	__u32	len;
 	char	name[32];
 	__s32	status;
 
-	__u8	pt_info[0];
+	__u8	sync_fence_info[0];
 };
 
 #define SYNC_IOC_MAGIC		'>'
-
-/**
- * DOC: SYNC_IOC_WAIT - wait for a fence to signal
- *
- * pass timeout in milliseconds.  Waits indefinitely timeout < 0.
- */
-#define SYNC_IOC_WAIT		_IOW(SYNC_IOC_MAGIC, 0, __s32)
 
 /**
  * DOC: SYNC_IOC_MERGE - merge two fences
@@ -83,15 +71,14 @@ struct sync_fence_info_data {
 /**
  * DOC: SYNC_IOC_FENCE_INFO - get detailed information on a fence
  *
- * Takes a struct sync_fence_info_data with extra space allocated for pt_info.
+ * Takes a struct sync_file_info_data with extra space allocated for pt_info.
  * Caller should write the size of the buffer into len.  On return, len is
- * updated to reflect the total size of the sync_fence_info_data including
+ * updated to reflect the total size of the sync_file_info_data including
  * pt_info.
  *
  * pt_info is a buffer containing sync_pt_infos for every sync_pt in the fence.
  * To iterate over the sync_pt_infos, use the sync_pt_info.len field.
  */
-#define SYNC_IOC_FENCE_INFO	_IOWR(SYNC_IOC_MAGIC, 2,\
-	struct sync_fence_info_data)
+#define SYNC_IOC_FENCE_INFO	_IOWR(SYNC_IOC_MAGIC, 2, struct sync_file_info)
 
 #endif /* _UAPI_LINUX_SYNC_H */

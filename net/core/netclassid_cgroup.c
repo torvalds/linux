@@ -9,7 +9,6 @@
  * Authors:	Thomas Graf <tgraf@suug.ch>
  */
 
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/cgroup.h>
 #include <linux/fdtable.h>

@@ -165,7 +165,7 @@ static int spics_gpio_probe(struct platform_device *pdev)
 	spics->chip.owner = THIS_MODULE;
 	spics->last_off = -1;
 
-	ret = gpiochip_add_data(&spics->chip, spics);
+	ret = devm_gpiochip_add_data(&pdev->dev, &spics->chip, spics);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to add gpio chip\n");
 		return ret;

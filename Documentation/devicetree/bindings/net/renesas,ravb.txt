@@ -82,8 +82,8 @@ Example:
 				  "ch16", "ch17", "ch18", "ch19",
 				  "ch20", "ch21", "ch22", "ch23",
 				  "ch24";
-		clocks = <&mstp8_clks R8A7795_CLK_ETHERAVB>;
-		power-domains = <&cpg_clocks>;
+		clocks = <&cpg CPG_MOD 812>;
+		power-domains = <&cpg>;
 		phy-mode = "rgmii-id";
 		phy-handle = <&phy0>;
 

@@ -45,14 +45,6 @@ struct panel_encoder {
 };
 #define to_panel_encoder(x) container_of(x, struct panel_encoder, base)
 
-
-static void panel_encoder_destroy(struct drm_encoder *encoder)
-{
-	struct panel_encoder *panel_encoder = to_panel_encoder(encoder);
-	drm_encoder_cleanup(encoder);
-	kfree(panel_encoder);
-}
-
 static void panel_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct panel_encoder *panel_encoder = to_panel_encoder(encoder);
@@ -68,14 +60,6 @@ static void panel_encoder_dpms(struct drm_encoder *encoder, int mode)
 	if (gpio)
 		gpiod_set_value_cansleep(gpio,
 					 mode == DRM_MODE_DPMS_ON ? 1 : 0);
-}
-
-static bool panel_encoder_mode_fixup(struct drm_encoder *encoder,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	/* nothing needed */
-	return true;
 }
 
 static void panel_encoder_prepare(struct drm_encoder *encoder)
@@ -98,12 +82,11 @@ static void panel_encoder_mode_set(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_funcs panel_encoder_funcs = {
-		.destroy        = panel_encoder_destroy,
+		.destroy        = drm_encoder_cleanup,
 };
 
 static const struct drm_encoder_helper_funcs panel_encoder_helper_funcs = {
 		.dpms           = panel_encoder_dpms,
-		.mode_fixup     = panel_encoder_mode_fixup,
 		.prepare        = panel_encoder_prepare,
 		.commit         = panel_encoder_commit,
 		.mode_set       = panel_encoder_mode_set,
@@ -116,7 +99,8 @@ static struct drm_encoder *panel_encoder_create(struct drm_device *dev,
 	struct drm_encoder *encoder;
 	int ret;
 
-	panel_encoder = kzalloc(sizeof(*panel_encoder), GFP_KERNEL);
+	panel_encoder = devm_kzalloc(dev->dev, sizeof(*panel_encoder),
+				     GFP_KERNEL);
 	if (!panel_encoder) {
 		dev_err(dev->dev, "allocation failed\n");
 		return NULL;
@@ -137,7 +121,7 @@ static struct drm_encoder *panel_encoder_create(struct drm_device *dev,
 	return encoder;
 
 fail:
-	panel_encoder_destroy(encoder);
+	drm_encoder_cleanup(encoder);
 	return NULL;
 }
 
@@ -156,10 +140,8 @@ struct panel_connector {
 
 static void panel_connector_destroy(struct drm_connector *connector)
 {
-	struct panel_connector *panel_connector = to_panel_connector(connector);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-	kfree(panel_connector);
 }
 
 static enum drm_connector_status panel_connector_detect(
@@ -232,7 +214,8 @@ static struct drm_connector *panel_connector_create(struct drm_device *dev,
 	struct drm_connector *connector;
 	int ret;
 
-	panel_connector = kzalloc(sizeof(*panel_connector), GFP_KERNEL);
+	panel_connector = devm_kzalloc(dev->dev, sizeof(*panel_connector),
+				       GFP_KERNEL);
 	if (!panel_connector) {
 		dev_err(dev->dev, "allocation failed\n");
 		return NULL;

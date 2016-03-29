@@ -122,8 +122,8 @@ static irqreturn_t knav_acc_int_handler(int irq, void *_instdata)
 	channel = acc->channel;
 	list_dma = acc->list_dma[acc->list_index];
 	list_cpu = acc->list_cpu[acc->list_index];
-	dev_dbg(kdev->dev, "acc-irq: channel %d, list %d, virt %p, phys %x\n",
-		channel, acc->list_index, list_cpu, list_dma);
+	dev_dbg(kdev->dev, "acc-irq: channel %d, list %d, virt %p, dma %pad\n",
+		channel, acc->list_index, list_cpu, &list_dma);
 	if (atomic_read(&acc->retrigger_count)) {
 		atomic_dec(&acc->retrigger_count);
 		__knav_acc_notify(range, acc);
@@ -297,12 +297,12 @@ knav_acc_write(struct knav_device *kdev, struct knav_pdsp_info *pdsp,
 	u32 result;
 
 	dev_dbg(kdev->dev, "acc command %08x %08x %08x %08x %08x\n",
-		cmd->command, cmd->queue_mask, cmd->list_phys,
+		cmd->command, cmd->queue_mask, cmd->list_dma,
 		cmd->queue_num, cmd->timer_config);
 
 	writel_relaxed(cmd->timer_config, &pdsp->acc_command->timer_config);
 	writel_relaxed(cmd->queue_num, &pdsp->acc_command->queue_num);
-	writel_relaxed(cmd->list_phys, &pdsp->acc_command->list_phys);
+	writel_relaxed(cmd->list_dma, &pdsp->acc_command->list_dma);
 	writel_relaxed(cmd->queue_mask, &pdsp->acc_command->queue_mask);
 	writel_relaxed(cmd->command, &pdsp->acc_command->command);
 
@@ -337,7 +337,7 @@ static void knav_acc_setup_cmd(struct knav_device *kdev,
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->command    = acc->channel;
 	cmd->queue_mask = queue_mask;
-	cmd->list_phys  = acc->list_dma[0];
+	cmd->list_dma   = (u32)acc->list_dma[0];
 	cmd->queue_num  = info->list_entries << 16;
 	cmd->queue_num |= queue_base;
 
@@ -591,8 +591,8 @@ int knav_init_acc_range(struct knav_device *kdev,
 		acc->list_cpu[1] = list_mem + list_size;
 		acc->list_dma[0] = list_dma;
 		acc->list_dma[1] = list_dma + list_size;
-		dev_dbg(kdev->dev, "%s: channel %d, phys %08x, virt %8p\n",
-			acc->name, acc->channel, list_dma, list_mem);
+		dev_dbg(kdev->dev, "%s: channel %d, dma %pad, virt %8p\n",
+			acc->name, acc->channel, &list_dma, list_mem);
 	}
 
 	range->ops = &knav_acc_range_ops;

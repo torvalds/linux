@@ -95,6 +95,6 @@ static inline int pxad_toggle_reserved_channel(int legacy_channel)
 }
 #endif
 
-extern void __init pxa2xx_set_dmac_info(int nb_channels);
+extern void __init pxa2xx_set_dmac_info(int nb_channels, int nb_requestors);
 
 #endif /* __PLAT_DMA_H */

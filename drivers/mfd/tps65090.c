@@ -30,7 +30,6 @@
 #include <linux/err.h>
 
 #define NUM_INT_REG 2
-#define TOTAL_NUM_REG 0x18
 
 #define TPS65090_INT1_MASK_VAC_STATUS_CHANGE		1
 #define TPS65090_INT1_MASK_VSYS_STATUS_CHANGE		2
@@ -161,8 +160,8 @@ static bool is_volatile_reg(struct device *dev, unsigned int reg)
 static const struct regmap_config tps65090_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.max_register = TOTAL_NUM_REG,
-	.num_reg_defaults_raw = TOTAL_NUM_REG,
+	.max_register = TPS65090_MAX_REG,
+	.num_reg_defaults_raw = TPS65090_NUM_REGS,
 	.cache_type = REGCACHE_RBTREE,
 	.volatile_reg = is_volatile_reg,
 };

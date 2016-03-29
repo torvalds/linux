@@ -40,6 +40,18 @@
 #define PROTO_HOST	(1)
 #define PROTO_GADGET	(2)
 
+#define OTG_STS_SELECTOR	0xF000	/* OTG status selector, according to
+					 * OTG and EH 2.0 Chapter 6.2.3
+					 * Table:6-4
+					 */
+
+#define HOST_REQUEST_FLAG	1	/* Host request flag, according to
+					 * OTG and EH 2.0 Charpter 6.2.3
+					 * Table:6-5
+					 */
+
+#define T_HOST_REQ_POLL		(1500)	/* 1500ms, HNP polling interval */
+
 enum otg_fsm_timer {
 	/* Standard OTG timers */
 	A_WAIT_VRISE,
@@ -48,6 +60,7 @@ enum otg_fsm_timer {
 	A_AIDL_BDIS,
 	B_ASE0_BRST,
 	A_BIDL_ADIS,
+	B_AIDL_BDIS,
 
 	/* Auxiliary timers */
 	B_SE0_SRP,
@@ -119,6 +132,8 @@ struct otg_fsm {
 	/* Current usb protocol used: 0:undefine; 1:host; 2:client */
 	int protocol;
 	struct mutex lock;
+	u8 *host_req_flag;
+	struct delayed_work hnp_polling_work;
 };
 
 struct otg_fsm_ops {
