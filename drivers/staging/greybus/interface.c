@@ -9,6 +9,69 @@
 
 #include "greybus.h"
 
+
+/*
+ * T_TstSrcIncrement is written by the module on ES2 as a stand-in for boot
+ * status attribute ES3_INIT_STATUS. AP needs to read and clear it, after
+ * reading a non-zero value from it.
+ *
+ * FIXME: This is module-hardware dependent and needs to be extended for every
+ * type of module we want to support.
+ */
+static int gb_interface_read_and_clear_boot_status(struct gb_interface *intf)
+{
+	struct gb_host_device *hd = intf->hd;
+	int ret;
+	u32 value;
+	u16 attr;
+	u8 init_status;
+
+	/*
+	 * Check if the module is ES2 or ES3, and choose attr number
+	 * appropriately.
+	 * FIXME: Remove ES2 support from the kernel entirely.
+	 */
+	if (intf->ddbl1_manufacturer_id == ES2_DDBL1_MFR_ID &&
+				intf->ddbl1_product_id == ES2_DDBL1_PROD_ID)
+		attr = DME_ATTR_T_TST_SRC_INCREMENT;
+	else
+		attr = DME_ATTR_ES3_INIT_STATUS;
+
+	/* Read and clear boot status in ES3_INIT_STATUS */
+	ret = gb_svc_dme_peer_get(hd->svc, intf->interface_id, attr,
+				  DME_ATTR_SELECTOR_INDEX, &value);
+	if (ret)
+		return ret;
+
+	/*
+	 * A nonzero boot status indicates the module has finished
+	 * booting. Clear it.
+	 */
+	if (!value) {
+		dev_err(&intf->dev, "Module not ready yet\n");
+		return -ENODEV;
+	}
+
+	/*
+	 * Check if the module needs to boot from UniPro.
+	 * For ES2: We need to check lowest 8 bits of 'value'.
+	 * For ES3: We need to check highest 8 bits out of 32 of 'value'.
+	 * FIXME: Remove ES2 support from the kernel entirely.
+	 */
+	if (intf->ddbl1_manufacturer_id == ES2_DDBL1_MFR_ID &&
+			intf->ddbl1_product_id == ES2_DDBL1_PROD_ID)
+		init_status = value;
+	else
+		init_status = value >> 24;
+
+	if (init_status == DME_DIS_UNIPRO_BOOT_STARTED ||
+			init_status == DME_DIS_FALLBACK_UNIPRO_BOOT_STARTED)
+		intf->boot_over_unipro = true;
+
+	return gb_svc_dme_peer_set(hd->svc, intf->interface_id, attr,
+				   DME_ATTR_SELECTOR_INDEX, 0);
+}
+
 /* interface sysfs attributes */
 #define gb_interface_attr(field, type)					\
 static ssize_t field##_show(struct device *dev,				\
@@ -146,6 +209,12 @@ int gb_interface_enable(struct gb_interface *intf)
 	struct gb_bundle *bundle, *tmp;
 	int ret, size;
 	void *manifest;
+
+	ret = gb_interface_read_and_clear_boot_status(intf);
+	if (ret) {
+		dev_err(&intf->dev, "failed to clear boot status: %d\n", ret);
+		return ret;
+	}
 
 	/* Establish control connection */
 	ret = gb_control_enable(intf->control);
