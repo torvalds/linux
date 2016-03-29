@@ -226,10 +226,6 @@ struct gb_control_timesync_authoritative_request {
 #define GB_FIRMWARE_TYPE_AP_READY		0x05	/* Request with no-payload */
 #define GB_FIRMWARE_TYPE_GET_VID_PID		0x06	/* Request with no-payload */
 
-/* FIXME: remove all ES2-specific identifiers from the kernel */
-#define ES2_DDBL1_MFR_ID	0x00000126
-#define ES2_DDBL1_PROD_ID	0x00001000
-
 /* Greybus firmware boot stages */
 #define GB_FIRMWARE_BOOT_STAGE_ONE		0x01 /* Reserved for the boot ROM */
 #define GB_FIRMWARE_BOOT_STAGE_TWO		0x02 /* Firmware package to be loaded by the boot ROM */

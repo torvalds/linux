@@ -43,14 +43,7 @@ static void firmware_es2_fixup_vid_pid(struct gb_firmware *firmware)
 	struct gb_interface *intf = connection->bundle->intf;
 	int ret;
 
-	/*
-	 * Use VID/PID specified at hotplug if:
-	 * - Bridge ASIC chip isn't ES2
-	 * - Received non-zero Vendor/Product ids
-	 */
-	if (intf->ddbl1_manufacturer_id != ES2_DDBL1_MFR_ID ||
-	    intf->ddbl1_product_id != ES2_DDBL1_PROD_ID ||
-	    intf->vendor_id != 0 || intf->product_id != 0)
+	if (!(intf->quirks & GB_INTERFACE_QUIRK_NO_ARA_IDS))
 		return;
 
 	ret = gb_operation_sync(connection, GB_FIRMWARE_TYPE_GET_VID_PID,

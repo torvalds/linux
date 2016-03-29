@@ -426,11 +426,7 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 
 	intf = gb_interface_find(hd, intf_id);
 	if (intf) {
-		/*
-		 * For ES2, we need to maintain the same vendor/product ids we
-		 * got from bootrom, otherwise userspace can't distinguish
-		 * between modules.
-		 */
+		/* HACK: Save Ara VID/PID for ES2 hack below */
 		vendor_id = intf->vendor_id;
 		product_id = intf->product_id;
 
@@ -468,15 +464,11 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	}
 
 	/*
-	 * Use VID/PID specified at hotplug if:
-	 * - Bridge ASIC chip isn't ES2
-	 * - Received non-zero Vendor/Product ids
+	 * HACK: Use Ara VID/PID from earlier boot stage.
 	 *
-	 * Otherwise, use the ids we received from bootrom.
+	 * FIXME: remove quirk with ES2 support
 	 */
-	if (intf->ddbl1_manufacturer_id == ES2_DDBL1_MFR_ID &&
-	    intf->ddbl1_product_id == ES2_DDBL1_PROD_ID &&
-	    intf->vendor_id == 0 && intf->product_id == 0) {
+	if (intf->quirks & GB_INTERFACE_QUIRK_NO_ARA_IDS) {
 		intf->vendor_id = vendor_id;
 		intf->product_id = product_id;
 	}

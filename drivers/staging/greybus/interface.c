@@ -80,6 +80,7 @@ static int gb_interface_read_dme(struct gb_interface *intf)
 
 	if (intf->ddbl1_manufacturer_id == TOSHIBA_DMID &&
 			intf->ddbl1_product_id == TOSHIBA_ES2_BRIDGE_DPID) {
+		intf->quirks |= GB_INTERFACE_QUIRK_NO_ARA_IDS;
 		intf->quirks |= GB_INTERFACE_QUIRK_NO_INIT_STATUS;
 	}
 
