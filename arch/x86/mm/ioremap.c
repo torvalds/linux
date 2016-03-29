@@ -378,7 +378,7 @@ EXPORT_SYMBOL(iounmap);
 int __init arch_ioremap_pud_supported(void)
 {
 #ifdef CONFIG_X86_64
-	return cpu_has_gbpages;
+	return boot_cpu_has(X86_FEATURE_GBPAGES);
 #else
 	return 0;
 #endif
