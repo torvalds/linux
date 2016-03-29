@@ -60,7 +60,7 @@ static int gb_interface_read_and_clear_boot_status(struct gb_interface *intf)
 	 */
 	if (intf->ddbl1_manufacturer_id == ES2_DDBL1_MFR_ID &&
 			intf->ddbl1_product_id == ES2_DDBL1_PROD_ID)
-		init_status = value;
+		init_status = value & 0xff;
 	else
 		init_status = value >> 24;
 
