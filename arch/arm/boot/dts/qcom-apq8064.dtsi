@@ -212,6 +212,11 @@
 			regulator;
 		};
 
+		sps_sic_non_secure: sps-sic-non-secure@12100000 {
+			compatible	= "syscon";
+			reg		= <0x12100000 0x10000>;
+		};
+
 		gsbi1: gsbi@12440000 {
 			status = "disabled";
 			compatible = "qcom,gsbi-v1.0.0";
