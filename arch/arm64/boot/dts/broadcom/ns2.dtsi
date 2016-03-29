@@ -347,6 +347,8 @@
 			      <0x65220000 0x1000>,
 			      <0x65240000 0x2000>,
 			      <0x65260000 0x1000>;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_RAW(0xf) |
+				      IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
 		timer0: timer@66030000 {
