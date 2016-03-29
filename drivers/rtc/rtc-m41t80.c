@@ -192,7 +192,6 @@ static int m41t80_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	return 0;
 }
 
-#if defined(CONFIG_RTC_INTF_PROC) || defined(CONFIG_RTC_INTF_PROC_MODULE)
 static int m41t80_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -206,9 +205,6 @@ static int m41t80_rtc_proc(struct device *dev, struct seq_file *seq)
 	}
 	return 0;
 }
-#else
-#define m41t80_rtc_proc NULL
-#endif
 
 static int m41t80_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
