@@ -193,8 +193,8 @@ static int mfd_add_device(struct device *parent, int id,
 			goto fail_alias;
 	}
 
-	if (cell->pset) {
-		ret = platform_device_add_properties(pdev, cell->pset);
+	if (cell->properties) {
+		ret = platform_device_add_properties(pdev, cell->properties);
 		if (ret)
 			goto fail_alias;
 	}
