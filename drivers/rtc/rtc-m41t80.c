@@ -56,6 +56,7 @@
 #define M41T80_ALMON_AFE	BIT(7)	/* AFE: AF Enable Bit */
 #define M41T80_ALMON_SQWE	BIT(6)	/* SQWE: SQW Enable Bit */
 #define M41T80_ALHOUR_HT	BIT(6)	/* HT: Halt Update Bit */
+#define M41T80_FLAGS_OF		BIT(2)	/* OF: Oscillator Failure Bit */
 #define M41T80_FLAGS_AF		BIT(6)	/* AF: Alarm Flag Bit */
 #define M41T80_FLAGS_BATT_LOW	BIT(4)	/* BL: Battery Low Bit */
 #define M41T80_WATCHDOG_RB2	BIT(7)	/* RB: Watchdog resolution */
@@ -134,7 +135,16 @@ static int m41t80_get_datetime(struct i2c_client *client,
 			       struct rtc_time *tm)
 {
 	unsigned char buf[8];
-	int err;
+	int err, flags;
+
+	flags = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
+	if (flags < 0)
+		return flags;
+
+	if (flags & M41T80_FLAGS_OF) {
+		dev_err(&client->dev, "Oscillator failure, data is invalid.\n");
+		return -EINVAL;
+	}
 
 	err = i2c_smbus_read_i2c_block_data(client, M41T80_REG_SSEC,
 					    sizeof(buf), buf);
@@ -159,7 +169,7 @@ static int m41t80_get_datetime(struct i2c_client *client,
 static int m41t80_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	unsigned char buf[8];
-	int err;
+	int err, flags;
 
 	if (tm->tm_year < 100 || tm->tm_year > 199)
 		return -EINVAL;
@@ -178,6 +188,17 @@ static int m41t80_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	if (err < 0) {
 		dev_err(&client->dev, "Unable to write to date registers\n");
 		return err;
+	}
+
+	/* Clear the OF bit of Flags Register */
+	flags = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
+	if (flags < 0)
+		return flags;
+
+	if (i2c_smbus_write_byte_data(client, M41T80_REG_FLAGS,
+				      flags & ~M41T80_FLAGS_OF)) {
+		dev_err(&client->dev, "Unable to write flags register\n");
+		return -EIO;
 	}
 
 	return err;
