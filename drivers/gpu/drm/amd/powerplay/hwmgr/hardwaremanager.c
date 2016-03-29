@@ -130,18 +130,25 @@ int phm_set_power_state(struct pp_hwmgr *hwmgr,
 
 int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 {
+	int ret = 1;
+	bool enabled;
 	PHM_FUNC_CHECK(hwmgr);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 		PHM_PlatformCaps_TablelessHardwareInterface)) {
 		if (NULL != hwmgr->hwmgr_func->dynamic_state_management_enable)
-			return hwmgr->hwmgr_func->dynamic_state_management_enable(hwmgr);
+			ret = hwmgr->hwmgr_func->dynamic_state_management_enable(hwmgr);
 	} else {
-		return phm_dispatch_table(hwmgr,
+		ret = phm_dispatch_table(hwmgr,
 				&(hwmgr->enable_dynamic_state_management),
 				NULL, NULL);
 	}
-	return 0;
+
+	enabled = ret == 0 ? true : false;
+
+	cgs_notify_dpm_enabled(hwmgr->device, enabled);
+
+	return ret;
 }
 
 int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level)
