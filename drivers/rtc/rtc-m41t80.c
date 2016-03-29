@@ -226,7 +226,11 @@ static ssize_t sqwfreq_store(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct m41t80_data *clientdata = i2c_get_clientdata(client);
 	int almon, sqw, reg_sqw, rc;
-	int val = simple_strtoul(buf, NULL, 0);
+	unsigned long val;
+
+	rc = kstrtoul(buf, 0, &val);
+	if (rc < 0)
+		return rc;
 
 	if (!(clientdata->features & M41T80_FEATURE_SQ))
 		return -EINVAL;
@@ -255,7 +259,7 @@ static ssize_t sqwfreq_store(struct device *dev,
 	sqw = (sqw & 0x0f) | (val << 4);
 
 	rc = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
-				      almon & ~M41T80_ALMON_SQWE);
+				       almon & ~M41T80_ALMON_SQWE);
 	if (rc < 0)
 		return rc;
 
@@ -265,8 +269,8 @@ static ssize_t sqwfreq_store(struct device *dev,
 			return rc;
 
 		rc = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
-					     almon | M41T80_ALMON_SQWE);
-		if (rc <0)
+					       almon | M41T80_ALMON_SQWE);
+		if (rc < 0)
 			return rc;
 	}
 	return count;
@@ -278,6 +282,7 @@ static struct attribute *attrs[] = {
 	&dev_attr_sqwfreq.attr,
 	NULL,
 };
+
 static struct attribute_group attr_group = {
 	.attrs = attrs,
 };
@@ -329,7 +334,7 @@ static void wdt_ping(void)
 		/*
 		 * WDS = 1 (0x80), mulitplier = WD_TIMO, resolution = 1s (0x02)
 		 */
-		i2c_data[1] = wdt_margin<<2 | 0x82;
+		i2c_data[1] = wdt_margin << 2 | 0x82;
 
 	/*
 	 * M41T65 has three bits for watchdog resolution.  Don't set bit 7, as
@@ -595,7 +600,7 @@ static int m41t80_probe(struct i2c_client *client,
 	}
 
 	clientdata = devm_kzalloc(&client->dev, sizeof(*clientdata),
-				GFP_KERNEL);
+				  GFP_KERNEL);
 	if (!clientdata)
 		return -ENOMEM;
 
@@ -603,7 +608,7 @@ static int m41t80_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, clientdata);
 
 	rtc = devm_rtc_device_register(&client->dev, client->name,
-					&m41t80_rtc_ops, THIS_MODULE);
+				       &m41t80_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
@@ -617,14 +622,13 @@ static int m41t80_probe(struct i2c_client *client,
 			m41t80_get_datetime(client, &tm);
 			dev_info(&client->dev, "HT bit was set!\n");
 			dev_info(&client->dev,
-				 "Power Down at "
-				 "%04i-%02i-%02i %02i:%02i:%02i\n",
+				 "Power Down at %04i-%02i-%02i %02i:%02i:%02i\n",
 				 tm.tm_year + 1900,
 				 tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
 				 tm.tm_min, tm.tm_sec);
 		}
 		rc = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_HOUR,
-					      rc & ~M41T80_ALHOUR_HT);
+					       rc & ~M41T80_ALHOUR_HT);
 	}
 
 	if (rc < 0) {
@@ -637,7 +641,7 @@ static int m41t80_probe(struct i2c_client *client,
 
 	if (rc >= 0 && rc & M41T80_SEC_ST)
 		rc = i2c_smbus_write_byte_data(client, M41T80_REG_SEC,
-					      rc & ~M41T80_SEC_ST);
+					       rc & ~M41T80_SEC_ST);
 	if (rc < 0) {
 		dev_err(&client->dev, "Can't clear ST bit\n");
 		return rc;
