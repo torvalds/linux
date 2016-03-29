@@ -43,6 +43,7 @@
 #include <linux/if_vlan.h>
 #include <linux/list.h>
 #include <net/switchdev.h>
+#include <net/devlink.h>
 
 #include "port.h"
 #include "core.h"
@@ -56,6 +57,10 @@
 #define MLXSW_SP_PORT_PER_LAG_MAX 16
 
 #define MLXSW_SP_MID_MAX 7000
+
+#define MLXSW_SP_PORTS_PER_CLUSTER_MAX 4
+
+#define MLXSW_SP_PORT_BASE_SPEED 25000	/* Mb/s */
 
 struct mlxsw_sp_port;
 
@@ -118,10 +123,13 @@ struct mlxsw_sp {
 #define MLXSW_SP_DEFAULT_LEARNING_INTERVAL 100
 		unsigned int interval; /* ms */
 	} fdb_notify;
+#define MLXSW_SP_MIN_AGEING_TIME 10
+#define MLXSW_SP_MAX_AGEING_TIME 1000000
 #define MLXSW_SP_DEFAULT_AGEING_TIME 300
 	u32 ageing_time;
 	struct mlxsw_sp_upper master_bridge;
 	struct mlxsw_sp_upper lags[MLXSW_SP_LAG_MAX];
+	u8 port_to_module[MLXSW_PORT_MAX_PORTS];
 };
 
 static inline struct mlxsw_sp_upper *
@@ -149,7 +157,8 @@ struct mlxsw_sp_port {
 	   learning_sync:1,
 	   uc_flood:1,
 	   bridged:1,
-	   lagged:1;
+	   lagged:1,
+	   split:1;
 	u16 pvid;
 	u16 lag_id;
 	struct {
@@ -162,6 +171,7 @@ struct mlxsw_sp_port {
 	unsigned long *untagged_vlans;
 	/* VLAN interfaces */
 	struct list_head vports_list;
+	struct devlink_port devlink_port;
 };
 
 static inline struct mlxsw_sp_port *

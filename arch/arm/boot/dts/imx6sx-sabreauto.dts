@@ -52,7 +52,7 @@
 	cd-gpios = <&gpio7 10 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio3 19 GPIO_ACTIVE_HIGH>;
 	keep-power-in-suspend;
-	enable-sdio-wakeup;
+	wakeup-source;
 	vmmc-supply = <&vcc_sd3>;
 	status = "okay";
 };

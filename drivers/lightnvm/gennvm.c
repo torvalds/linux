@@ -20,6 +20,68 @@
 
 #include "gennvm.h"
 
+static int gennvm_get_area(struct nvm_dev *dev, sector_t *lba, sector_t len)
+{
+	struct gen_nvm *gn = dev->mp;
+	struct gennvm_area *area, *prev, *next;
+	sector_t begin = 0;
+	sector_t max_sectors = (dev->sec_size * dev->total_secs) >> 9;
+
+	if (len > max_sectors)
+		return -EINVAL;
+
+	area = kmalloc(sizeof(struct gennvm_area), GFP_KERNEL);
+	if (!area)
+		return -ENOMEM;
+
+	prev = NULL;
+
+	spin_lock(&dev->lock);
+	list_for_each_entry(next, &gn->area_list, list) {
+		if (begin + len > next->begin) {
+			begin = next->end;
+			prev = next;
+			continue;
+		}
+		break;
+	}
+
+	if ((begin + len) > max_sectors) {
+		spin_unlock(&dev->lock);
+		kfree(area);
+		return -EINVAL;
+	}
+
+	area->begin = *lba = begin;
+	area->end = begin + len;
+
+	if (prev) /* insert into sorted order */
+		list_add(&area->list, &prev->list);
+	else
+		list_add(&area->list, &gn->area_list);
+	spin_unlock(&dev->lock);
+
+	return 0;
+}
+
+static void gennvm_put_area(struct nvm_dev *dev, sector_t begin)
+{
+	struct gen_nvm *gn = dev->mp;
+	struct gennvm_area *area;
+
+	spin_lock(&dev->lock);
+	list_for_each_entry(area, &gn->area_list, list) {
+		if (area->begin != begin)
+			continue;
+
+		list_del(&area->list);
+		spin_unlock(&dev->lock);
+		kfree(area);
+		return;
+	}
+	spin_unlock(&dev->lock);
+}
+
 static void gennvm_blocks_free(struct nvm_dev *dev)
 {
 	struct gen_nvm *gn = dev->mp;
@@ -100,14 +162,13 @@ static int gennvm_block_map(u64 slba, u32 nlb, __le64 *entries, void *private)
 {
 	struct nvm_dev *dev = private;
 	struct gen_nvm *gn = dev->mp;
-	sector_t max_pages = dev->total_pages * (dev->sec_size >> 9);
 	u64 elba = slba + nlb;
 	struct gen_lun *lun;
 	struct nvm_block *blk;
 	u64 i;
 	int lun_id;
 
-	if (unlikely(elba > dev->total_pages)) {
+	if (unlikely(elba > dev->total_secs)) {
 		pr_err("gennvm: L2P data from device is out of bounds!\n");
 		return -EINVAL;
 	}
@@ -115,7 +176,7 @@ static int gennvm_block_map(u64 slba, u32 nlb, __le64 *entries, void *private)
 	for (i = 0; i < nlb; i++) {
 		u64 pba = le64_to_cpu(entries[i]);
 
-		if (unlikely(pba >= max_pages && pba != U64_MAX)) {
+		if (unlikely(pba >= dev->total_secs && pba != U64_MAX)) {
 			pr_err("gennvm: L2P data entry is out of bounds!\n");
 			return -EINVAL;
 		}
@@ -196,8 +257,8 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 		}
 	}
 
-	if (dev->ops->get_l2p_tbl) {
-		ret = dev->ops->get_l2p_tbl(dev, 0, dev->total_pages,
+	if ((dev->identity.dom & NVM_RSP_L2P) && dev->ops->get_l2p_tbl) {
+		ret = dev->ops->get_l2p_tbl(dev, 0, dev->total_secs,
 							gennvm_block_map, dev);
 		if (ret) {
 			pr_err("gennvm: could not read L2P table.\n");
@@ -230,6 +291,7 @@ static int gennvm_register(struct nvm_dev *dev)
 
 	gn->dev = dev;
 	gn->nr_luns = dev->nr_luns;
+	INIT_LIST_HEAD(&gn->area_list);
 	dev->mp = gn;
 
 	ret = gennvm_luns_init(dev, gn);
@@ -420,9 +482,22 @@ static int gennvm_erase_blk(struct nvm_dev *dev, struct nvm_block *blk,
 	return nvm_erase_ppa(dev, &addr, 1);
 }
 
+static int gennvm_reserve_lun(struct nvm_dev *dev, int lunid)
+{
+	return test_and_set_bit(lunid, dev->lun_map);
+}
+
+static void gennvm_release_lun(struct nvm_dev *dev, int lunid)
+{
+	WARN_ON(!test_and_clear_bit(lunid, dev->lun_map));
+}
+
 static struct nvm_lun *gennvm_get_lun(struct nvm_dev *dev, int lunid)
 {
 	struct gen_nvm *gn = dev->mp;
+
+	if (unlikely(lunid >= dev->nr_luns))
+		return NULL;
 
 	return &gn->luns[lunid].vlun;
 }
@@ -465,7 +540,13 @@ static struct nvmm_type gennvm = {
 	.erase_blk		= gennvm_erase_blk,
 
 	.get_lun		= gennvm_get_lun,
+	.reserve_lun		= gennvm_reserve_lun,
+	.release_lun		= gennvm_release_lun,
 	.lun_info_print		= gennvm_lun_info_print,
+
+	.get_area		= gennvm_get_area,
+	.put_area		= gennvm_put_area,
+
 };
 
 static int __init gennvm_module_init(void)

@@ -131,7 +131,7 @@ nvkm_ramht_del(struct nvkm_ramht **pramht)
 	struct nvkm_ramht *ramht = *pramht;
 	if (ramht) {
 		nvkm_gpuobj_del(&ramht->gpuobj);
-		kfree(*pramht);
+		vfree(*pramht);
 		*pramht = NULL;
 	}
 }
@@ -143,8 +143,8 @@ nvkm_ramht_new(struct nvkm_device *device, u32 size, u32 align,
 	struct nvkm_ramht *ramht;
 	int ret, i;
 
-	if (!(ramht = *pramht = kzalloc(sizeof(*ramht) + (size >> 3) *
-					sizeof(*ramht->data), GFP_KERNEL)))
+	if (!(ramht = *pramht = vzalloc(sizeof(*ramht) +
+					(size >> 3) * sizeof(*ramht->data))))
 		return -ENOMEM;
 
 	ramht->device = device;

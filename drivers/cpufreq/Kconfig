@@ -19,6 +19,7 @@ config CPU_FREQ
 if CPU_FREQ
 
 config CPU_FREQ_GOV_COMMON
+	select IRQ_WORK
 	bool
 
 config CPU_FREQ_BOOST_SW

@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,9 +49,9 @@
 
 /* additive distance between non-SOP and SOP space */
 #define SOP_DISTANCE (TXE_PIO_SIZE / 2)
-#define PIO_BLOCK_MASK (PIO_BLOCK_SIZE-1)
+#define PIO_BLOCK_MASK (PIO_BLOCK_SIZE - 1)
 /* number of QUADWORDs in a block */
-#define PIO_BLOCK_QWS (PIO_BLOCK_SIZE/sizeof(u64))
+#define PIO_BLOCK_QWS (PIO_BLOCK_SIZE / sizeof(u64))
 
 /**
  * pio_copy - copy data block to MMIO space
@@ -83,11 +80,13 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 	dest += sizeof(u64);
 
 	/* calculate where the QWORD data ends - in SOP=1 space */
-	dend = dest + ((count>>1) * sizeof(u64));
+	dend = dest + ((count >> 1) * sizeof(u64));
 
 	if (dend < send) {
-		/* all QWORD data is within the SOP block, does *not*
-		   reach the end of the SOP block */
+		/*
+		 * all QWORD data is within the SOP block, does *not*
+		 * reach the end of the SOP block
+		 */
 
 		while (dest < dend) {
 			writeq(*(u64 *)from, dest);
@@ -152,8 +151,10 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
 		writeq(val.val64, dest);
 		dest += sizeof(u64);
 	}
-	/* fill in rest of block, no need to check pbuf->end
-	   as we only wrap on a block boundary */
+	/*
+	 * fill in rest of block, no need to check pbuf->end
+	 * as we only wrap on a block boundary
+	 */
 	while (((unsigned long)dest & PIO_BLOCK_MASK) != 0) {
 		writeq(0, dest);
 		dest += sizeof(u64);
@@ -177,7 +178,7 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
  * "zero" shift - bit shift used to zero out upper bytes.  Input is
  * the count of LSB bytes to preserve.
  */
-#define zshift(x) (8 * (8-(x)))
+#define zshift(x) (8 * (8 - (x)))
 
 /*
  * "merge" shift - bit shift used to merge with carry bytes.  Input is
@@ -196,7 +197,7 @@ void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
  * o nbytes must not span a QW boundary
  */
 static inline void read_low_bytes(struct pio_buf *pbuf, const void *from,
-							unsigned int nbytes)
+				  unsigned int nbytes)
 {
 	unsigned long off;
 
@@ -223,7 +224,7 @@ static inline void read_low_bytes(struct pio_buf *pbuf, const void *from,
  * o nbytes may span a QW boundary
  */
 static inline void read_extra_bytes(struct pio_buf *pbuf,
-					const void *from, unsigned int nbytes)
+				    const void *from, unsigned int nbytes)
 {
 	unsigned long off = (unsigned long)from & 0x7;
 	unsigned int room, xbytes;
@@ -235,7 +236,7 @@ static inline void read_extra_bytes(struct pio_buf *pbuf,
 	while (nbytes) {
 		/* find the number of bytes in this u64 */
 		room = 8 - off;	/* this u64 has room for this many bytes */
-		xbytes = nbytes > room ? room : nbytes;
+		xbytes = min(room, nbytes);
 
 		/*
 		 * shift down to zero lower bytes, shift up to zero upper
@@ -244,7 +245,7 @@ static inline void read_extra_bytes(struct pio_buf *pbuf,
 		pbuf->carry.val64 |= (((*(u64 *)from)
 					>> mshift(off))
 					<< zshift(xbytes))
-					>> zshift(xbytes+pbuf->carry_bytes);
+					>> zshift(xbytes + pbuf->carry_bytes);
 		off = 0;
 		pbuf->carry_bytes += xbytes;
 		nbytes -= xbytes;
@@ -362,7 +363,7 @@ static inline void jcopy(u8 *dest, const u8 *src, u32 n)
  * o from may _not_ be u64 aligned.
  */
 static inline void read_low_bytes(struct pio_buf *pbuf, const void *from,
-							unsigned int nbytes)
+				  unsigned int nbytes)
 {
 	jcopy(&pbuf->carry.val8[0], from, nbytes);
 	pbuf->carry_bytes = nbytes;
@@ -377,7 +378,7 @@ static inline void read_low_bytes(struct pio_buf *pbuf, const void *from,
  * o nbytes may span a QW boundary
  */
 static inline void read_extra_bytes(struct pio_buf *pbuf,
-					const void *from, unsigned int nbytes)
+				    const void *from, unsigned int nbytes)
 {
 	jcopy(&pbuf->carry.val8[pbuf->carry_bytes], from, nbytes);
 	pbuf->carry_bytes += nbytes;
@@ -411,7 +412,7 @@ static inline void merge_write8(
 
 	jcopy(&pbuf->carry.val8[pbuf->carry_bytes], src, remainder);
 	writeq(pbuf->carry.val64, dest);
-	jcopy(&pbuf->carry.val8[0], src+remainder, pbuf->carry_bytes);
+	jcopy(&pbuf->carry.val8[0], src + remainder, pbuf->carry_bytes);
 }
 
 /*
@@ -433,7 +434,7 @@ static inline int carry_write8(struct pio_buf *pbuf, void *dest)
 		u64 zero = 0;
 
 		jcopy(&pbuf->carry.val8[pbuf->carry_bytes], (u8 *)&zero,
-						8 - pbuf->carry_bytes);
+		      8 - pbuf->carry_bytes);
 		writeq(pbuf->carry.val64, dest);
 		return 1;
 	}
@@ -453,7 +454,7 @@ static inline int carry_write8(struct pio_buf *pbuf, void *dest)
  * @nbytes: bytes to copy
  */
 void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
-				const void *from, size_t nbytes)
+			const void *from, size_t nbytes)
 {
 	void __iomem *dest = pbuf->start + SOP_DISTANCE;
 	void __iomem *send = dest + PIO_BLOCK_SIZE;
@@ -463,11 +464,13 @@ void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
 	dest += sizeof(u64);
 
 	/* calculate where the QWORD data ends - in SOP=1 space */
-	dend = dest + ((nbytes>>3) * sizeof(u64));
+	dend = dest + ((nbytes >> 3) * sizeof(u64));
 
 	if (dend < send) {
-		/* all QWORD data is within the SOP block, does *not*
-		   reach the end of the SOP block */
+		/*
+		 * all QWORD data is within the SOP block, does *not*
+		 * reach the end of the SOP block
+		 */
 
 		while (dest < dend) {
 			writeq(*(u64 *)from, dest);
@@ -562,10 +565,12 @@ static void mid_copy_mix(struct pio_buf *pbuf, const void *from, size_t nbytes)
 		void __iomem *send;		/* SOP end */
 		void __iomem *xend;
 
-		/* calculate the end of data or end of block, whichever
-		   comes first */
+		/*
+		 * calculate the end of data or end of block, whichever
+		 * comes first
+		 */
 		send = pbuf->start + PIO_BLOCK_SIZE;
-		xend = send < dend ? send : dend;
+		xend = min(send, dend);
 
 		/* shift up to SOP=1 space */
 		dest += SOP_DISTANCE;
@@ -639,13 +644,13 @@ static void mid_copy_mix(struct pio_buf *pbuf, const void *from, size_t nbytes)
  * Must handle nbytes < 8.
  */
 static void mid_copy_straight(struct pio_buf *pbuf,
-						const void *from, size_t nbytes)
+			      const void *from, size_t nbytes)
 {
 	void __iomem *dest = pbuf->start + (pbuf->qw_written * sizeof(u64));
 	void __iomem *dend;			/* 8-byte data end */
 
 	/* calculate 8-byte data end */
-	dend = dest + ((nbytes>>3) * sizeof(u64));
+	dend = dest + ((nbytes >> 3) * sizeof(u64));
 
 	if (pbuf->qw_written < PIO_BLOCK_QWS) {
 		/*
@@ -656,10 +661,12 @@ static void mid_copy_straight(struct pio_buf *pbuf,
 		void __iomem *send;		/* SOP end */
 		void __iomem *xend;
 
-		/* calculate the end of data or end of block, whichever
-		   comes first */
+		/*
+		 * calculate the end of data or end of block, whichever
+		 * comes first
+		 */
 		send = pbuf->start + PIO_BLOCK_SIZE;
-		xend = send < dend ? send : dend;
+		xend = min(send, dend);
 
 		/* shift up to SOP=1 space */
 		dest += SOP_DISTANCE;
@@ -713,7 +720,7 @@ static void mid_copy_straight(struct pio_buf *pbuf,
 	/* we know carry_bytes was zero on entry to this routine */
 	read_low_bytes(pbuf, from, nbytes & 0x7);
 
-	pbuf->qw_written += nbytes>>3;
+	pbuf->qw_written += nbytes >> 3;
 }
 
 /*

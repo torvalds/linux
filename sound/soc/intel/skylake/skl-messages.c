@@ -72,17 +72,47 @@ static void skl_dsp_enable_notification(struct skl_sst *ctx, bool enable)
 	skl_ipc_set_large_config(&ctx->ipc, &msg, (u32 *)&mask);
 }
 
+static struct skl_dsp_loader_ops skl_get_loader_ops(void)
+{
+	struct skl_dsp_loader_ops loader_ops;
+
+	memset(&loader_ops, 0, sizeof(struct skl_dsp_loader_ops));
+
+	loader_ops.alloc_dma_buf = skl_alloc_dma_buf;
+	loader_ops.free_dma_buf = skl_free_dma_buf;
+
+	return loader_ops;
+};
+
+static const struct skl_dsp_ops dsp_ops[] = {
+	{
+		.id = 0x9d70,
+		.loader_ops = skl_get_loader_ops,
+		.init = skl_sst_dsp_init,
+		.cleanup = skl_sst_dsp_cleanup
+	},
+};
+
+static int skl_get_dsp_ops(int pci_id)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dsp_ops); i++) {
+		if (dsp_ops[i].id == pci_id)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
 int skl_init_dsp(struct skl *skl)
 {
 	void __iomem *mmio_base;
 	struct hdac_ext_bus *ebus = &skl->ebus;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	int irq = bus->irq;
 	struct skl_dsp_loader_ops loader_ops;
-	int ret;
-
-	loader_ops.alloc_dma_buf = skl_alloc_dma_buf;
-	loader_ops.free_dma_buf = skl_free_dma_buf;
+	int irq = bus->irq;
+	int ret, index;
 
 	/* enable ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_enable(&skl->ebus, true);
@@ -95,8 +125,14 @@ int skl_init_dsp(struct skl *skl)
 		return -ENXIO;
 	}
 
-	ret = skl_sst_dsp_init(bus->dev, mmio_base, irq,
+	index  = skl_get_dsp_ops(skl->pci->device);
+	if (index  < 0)
+		return -EINVAL;
+
+	loader_ops = dsp_ops[index].loader_ops();
+	ret = dsp_ops[index].init(bus->dev, mmio_base, irq,
 			skl->fw_name, loader_ops, &skl->skl_sst);
+
 	if (ret < 0)
 		return ret;
 
@@ -106,18 +142,26 @@ int skl_init_dsp(struct skl *skl)
 	return ret;
 }
 
-void skl_free_dsp(struct skl *skl)
+int skl_free_dsp(struct skl *skl)
 {
 	struct hdac_ext_bus *ebus = &skl->ebus;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	struct skl_sst *ctx =  skl->skl_sst;
+	struct skl_sst *ctx = skl->skl_sst;
+	int index;
 
 	/* disable  ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_int_enable(&skl->ebus, false);
 
-	skl_sst_dsp_cleanup(bus->dev, ctx);
+	index = skl_get_dsp_ops(skl->pci->device);
+	if (index  < 0)
+		return -EIO;
+
+	dsp_ops[index].cleanup(bus->dev, ctx);
+
 	if (ctx->dsp->addr.lpe)
 		iounmap(ctx->dsp->addr.lpe);
+
+	return 0;
 }
 
 int skl_suspend_dsp(struct skl *skl)
@@ -238,9 +282,8 @@ static void skl_copy_copier_caps(struct skl_module_cfg *mconfig,
  * Calculate the gatewat settings required for copier module, type of
  * gateway and index of gateway to use
  */
-static void skl_setup_cpr_gateway_cfg(struct skl_sst *ctx,
-			struct skl_module_cfg *mconfig,
-			struct skl_cpr_cfg *cpr_mconfig)
+static u32 skl_get_node_id(struct skl_sst *ctx,
+			struct skl_module_cfg *mconfig)
 {
 	union skl_connector_node_id node_id = {0};
 	union skl_ssp_dma_node ssp_node  = {0};
@@ -289,12 +332,23 @@ static void skl_setup_cpr_gateway_cfg(struct skl_sst *ctx,
 		break;
 
 	default:
-		cpr_mconfig->gtw_cfg.node_id = SKL_NON_GATEWAY_CPR_NODE_ID;
+		node_id.val = 0xFFFFFFFF;
+		break;
+	}
+
+	return node_id.val;
+}
+
+static void skl_setup_cpr_gateway_cfg(struct skl_sst *ctx,
+			struct skl_module_cfg *mconfig,
+			struct skl_cpr_cfg *cpr_mconfig)
+{
+	cpr_mconfig->gtw_cfg.node_id = skl_get_node_id(ctx, mconfig);
+
+	if (cpr_mconfig->gtw_cfg.node_id == SKL_NON_GATEWAY_CPR_NODE_ID) {
 		cpr_mconfig->cpr_feature_mask = 0;
 		return;
 	}
-
-	cpr_mconfig->gtw_cfg.node_id = node_id.val;
 
 	if (SKL_CONN_SOURCE == mconfig->hw_conn_type)
 		cpr_mconfig->gtw_cfg.dma_buffer_size = 2 * mconfig->obs;
@@ -305,6 +359,46 @@ static void skl_setup_cpr_gateway_cfg(struct skl_sst *ctx,
 	cpr_mconfig->gtw_cfg.config_length  = 0;
 
 	skl_copy_copier_caps(mconfig, cpr_mconfig);
+}
+
+#define DMA_CONTROL_ID 5
+
+int skl_dsp_set_dma_control(struct skl_sst *ctx, struct skl_module_cfg *mconfig)
+{
+	struct skl_dma_control *dma_ctrl;
+	struct skl_i2s_config_blob config_blob;
+	struct skl_ipc_large_config_msg msg = {0};
+	int err = 0;
+
+
+	/*
+	 * if blob size is same as capablity size, then no dma control
+	 * present so return
+	 */
+	if (mconfig->formats_config.caps_size == sizeof(config_blob))
+		return 0;
+
+	msg.large_param_id = DMA_CONTROL_ID;
+	msg.param_data_size = sizeof(struct skl_dma_control) +
+				mconfig->formats_config.caps_size;
+
+	dma_ctrl = kzalloc(msg.param_data_size, GFP_KERNEL);
+	if (dma_ctrl == NULL)
+		return -ENOMEM;
+
+	dma_ctrl->node_id = skl_get_node_id(ctx, mconfig);
+
+	/* size in dwords */
+	dma_ctrl->config_length = sizeof(config_blob) / 4;
+
+	memcpy(dma_ctrl->config_data, mconfig->formats_config.caps,
+				mconfig->formats_config.caps_size);
+
+	err = skl_ipc_set_large_config(&ctx->ipc, &msg, (u32 *)dma_ctrl);
+
+	kfree(dma_ctrl);
+
+	return err;
 }
 
 static void skl_setup_out_format(struct skl_sst *ctx,

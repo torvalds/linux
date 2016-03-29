@@ -228,6 +228,8 @@ struct dentry_operations {
 #define DCACHE_FALLTHRU			0x01000000 /* Fall through to lower layer */
 #define DCACHE_OP_SELECT_INODE		0x02000000 /* Unioned entry: dcache op selects inode */
 
+#define DCACHE_ENCRYPTED_WITH_KEY	0x04000000 /* dir is encrypted with a valid key */
+
 extern seqlock_t rename_lock;
 
 /*
@@ -246,6 +248,7 @@ extern struct dentry * d_alloc(struct dentry *, const struct qstr *);
 extern struct dentry * d_alloc_pseudo(struct super_block *, const struct qstr *);
 extern struct dentry * d_splice_alias(struct inode *, struct dentry *);
 extern struct dentry * d_add_ci(struct dentry *, struct inode *, struct qstr *);
+extern struct dentry * d_exact_alias(struct dentry *, struct inode *);
 extern struct dentry *d_find_any_alias(struct inode *inode);
 extern struct dentry * d_obtain_alias(struct inode *);
 extern struct dentry * d_obtain_root(struct inode *);
@@ -272,38 +275,8 @@ extern int have_submounts(struct dentry *);
  * This adds the entry to the hash queues.
  */
 extern void d_rehash(struct dentry *);
-
-/**
- * d_add - add dentry to hash queues
- * @entry: dentry to add
- * @inode: The inode to attach to this dentry
- *
- * This adds the entry to the hash queues and initializes @inode.
- * The entry was actually filled in earlier during d_alloc().
- */
  
-static inline void d_add(struct dentry *entry, struct inode *inode)
-{
-	d_instantiate(entry, inode);
-	d_rehash(entry);
-}
-
-/**
- * d_add_unique - add dentry to hash queues without aliasing
- * @entry: dentry to add
- * @inode: The inode to attach to this dentry
- *
- * This adds the entry to the hash queues and initializes @inode.
- * The entry was actually filled in earlier during d_alloc().
- */
-static inline struct dentry *d_add_unique(struct dentry *entry, struct inode *inode)
-{
-	struct dentry *res;
-
-	res = d_instantiate_unique(entry, inode);
-	d_rehash(res != NULL ? res : entry);
-	return res;
-}
+extern void d_add(struct dentry *, struct inode *);
 
 extern void dentry_update_name_case(struct dentry *, struct qstr *);
 

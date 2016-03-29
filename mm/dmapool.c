@@ -294,8 +294,7 @@ void dma_pool_destroy(struct dma_pool *pool)
 					"dma_pool_destroy %s, %p busy\n",
 					pool->name, page->vaddr);
 			else
-				printk(KERN_ERR
-				       "dma_pool_destroy %s, %p busy\n",
+				pr_err("dma_pool_destroy %s, %p busy\n",
 				       pool->name, page->vaddr);
 			/* leak the still-in-use consistent memory */
 			list_del(&page->page_list);
@@ -424,7 +423,7 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma)
 				"dma_pool_free %s, %p/%lx (bad dma)\n",
 				pool->name, vaddr, (unsigned long)dma);
 		else
-			printk(KERN_ERR "dma_pool_free %s, %p/%lx (bad dma)\n",
+			pr_err("dma_pool_free %s, %p/%lx (bad dma)\n",
 			       pool->name, vaddr, (unsigned long)dma);
 		return;
 	}
@@ -438,8 +437,7 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma)
 				"dma_pool_free %s, %p (bad vaddr)/%Lx\n",
 				pool->name, vaddr, (unsigned long long)dma);
 		else
-			printk(KERN_ERR
-			       "dma_pool_free %s, %p (bad vaddr)/%Lx\n",
+			pr_err("dma_pool_free %s, %p (bad vaddr)/%Lx\n",
 			       pool->name, vaddr, (unsigned long long)dma);
 		return;
 	}
@@ -452,13 +450,11 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma)
 			}
 			spin_unlock_irqrestore(&pool->lock, flags);
 			if (pool->dev)
-				dev_err(pool->dev, "dma_pool_free %s, dma %Lx "
-					"already free\n", pool->name,
-					(unsigned long long)dma);
+				dev_err(pool->dev, "dma_pool_free %s, dma %Lx already free\n",
+					pool->name, (unsigned long long)dma);
 			else
-				printk(KERN_ERR "dma_pool_free %s, dma %Lx "
-					"already free\n", pool->name,
-					(unsigned long long)dma);
+				pr_err("dma_pool_free %s, dma %Lx already free\n",
+				       pool->name, (unsigned long long)dma);
 			return;
 		}
 	}

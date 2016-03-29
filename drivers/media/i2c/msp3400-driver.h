@@ -7,6 +7,7 @@
 #include <media/drv-intf/msp3400.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-mc.h>
 
 /* ---------------------------------------------------------------------- */
 
@@ -102,6 +103,10 @@ struct msp_state {
 	wait_queue_head_t    wq;
 	unsigned int         restart:1;
 	unsigned int         watch_stereo:1;
+
+#if IS_ENABLED(CONFIG_MEDIA_CONTROLLER)
+	struct media_pad pads[IF_AUD_DEC_PAD_NUM_PADS];
+#endif
 };
 
 static inline struct msp_state *to_state(struct v4l2_subdev *sd)

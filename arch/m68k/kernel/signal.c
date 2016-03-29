@@ -737,10 +737,8 @@ badframe:
 	return 1;
 }
 
-asmlinkage int do_sigreturn(unsigned long __unused)
+asmlinkage int do_sigreturn(struct pt_regs *regs, struct switch_stack *sw)
 {
-	struct switch_stack *sw = (struct switch_stack *) &__unused;
-	struct pt_regs *regs = (struct pt_regs *) (sw + 1);
 	unsigned long usp = rdusp();
 	struct sigframe __user *frame = (struct sigframe __user *)(usp - 4);
 	sigset_t set;
@@ -764,10 +762,8 @@ badframe:
 	return 0;
 }
 
-asmlinkage int do_rt_sigreturn(unsigned long __unused)
+asmlinkage int do_rt_sigreturn(struct pt_regs *regs, struct switch_stack *sw)
 {
-	struct switch_stack *sw = (struct switch_stack *) &__unused;
-	struct pt_regs *regs = (struct pt_regs *) (sw + 1);
 	unsigned long usp = rdusp();
 	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)(usp - 4);
 	sigset_t set;

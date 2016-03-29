@@ -646,7 +646,7 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 		hidg_fs_out_ep_desc.bEndpointAddress;
 
 	status = usb_assign_descriptors(f, hidg_fs_descriptors,
-			hidg_hs_descriptors, NULL);
+			hidg_hs_descriptors, NULL, NULL);
 	if (status)
 		goto fail;
 

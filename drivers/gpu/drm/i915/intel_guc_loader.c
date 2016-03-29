@@ -165,6 +165,13 @@ static void set_guc_init_params(struct drm_i915_private *dev_priv)
 			i915.guc_log_level << GUC_LOG_VERBOSITY_SHIFT;
 	}
 
+	if (guc->ads_obj) {
+		u32 ads = (u32)i915_gem_obj_ggtt_offset(guc->ads_obj)
+				>> PAGE_SHIFT;
+		params[GUC_CTL_DEBUG] |= ads << GUC_ADS_ADDR_SHIFT;
+		params[GUC_CTL_DEBUG] |= GUC_ADS_ENABLED;
+	}
+
 	/* If GuC submission is enabled, set up additional parameters here */
 	if (i915.enable_guc_submission) {
 		u32 pgs = i915_gem_obj_ggtt_offset(dev_priv->guc.ctx_pool_obj);
@@ -192,7 +199,7 @@ static void set_guc_init_params(struct drm_i915_private *dev_priv)
  * the value matches either of two values representing completion
  * of the GuC boot process.
  *
- * This is used for polling the GuC status in a wait_for_atomic()
+ * This is used for polling the GuC status in a wait_for()
  * loop below.
  */
 static inline bool guc_ucode_response(struct drm_i915_private *dev_priv,
@@ -252,14 +259,14 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv)
 	I915_WRITE(DMA_CTRL, _MASKED_BIT_ENABLE(UOS_MOVE | START_DMA));
 
 	/*
-	 * Spin-wait for the DMA to complete & the GuC to start up.
+	 * Wait for the DMA to complete & the GuC to start up.
 	 * NB: Docs recommend not using the interrupt for completion.
 	 * Measurements indicate this should take no more than 20ms, so a
 	 * timeout here indicates that the GuC has failed and is unusable.
 	 * (Higher levels of the driver will attempt to fall back to
 	 * execlist mode if this happens.)
 	 */
-	ret = wait_for_atomic(guc_ucode_response(dev_priv, &status), 100);
+	ret = wait_for(guc_ucode_response(dev_priv, &status), 100);
 
 	DRM_DEBUG_DRIVER("DMA status 0x%x, GuC status 0x%x\n",
 			I915_READ(DMA_CTRL), status);
@@ -438,6 +445,7 @@ fail:
 
 	direct_interrupts_to_host(dev_priv);
 	i915_guc_submission_disable(dev);
+	i915_guc_submission_fini(dev);
 
 	return err;
 }
@@ -554,10 +562,12 @@ fail:
 	DRM_ERROR("Failed to fetch GuC firmware from %s (error %d)\n",
 		  guc_fw->guc_fw_path, err);
 
+	mutex_lock(&dev->struct_mutex);
 	obj = guc_fw->guc_fw_obj;
 	if (obj)
 		drm_gem_object_unreference(&obj->base);
 	guc_fw->guc_fw_obj = NULL;
+	mutex_unlock(&dev->struct_mutex);
 
 	release_firmware(fw);		/* OK even if fw is NULL */
 	guc_fw->guc_fw_fetch_status = GUC_FIRMWARE_FAIL;
@@ -624,10 +634,11 @@ void intel_guc_ucode_fini(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 
+	mutex_lock(&dev->struct_mutex);
 	direct_interrupts_to_host(dev_priv);
+	i915_guc_submission_disable(dev);
 	i915_guc_submission_fini(dev);
 
-	mutex_lock(&dev->struct_mutex);
 	if (guc_fw->guc_fw_obj)
 		drm_gem_object_unreference(&guc_fw->guc_fw_obj->base);
 	guc_fw->guc_fw_obj = NULL;

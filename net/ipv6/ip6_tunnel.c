@@ -122,97 +122,6 @@ static struct net_device_stats *ip6_get_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
-/*
- * Locking : hash tables are protected by RCU and RTNL
- */
-
-static void ip6_tnl_per_cpu_dst_set(struct ip6_tnl_dst *idst,
-				    struct dst_entry *dst)
-{
-	write_seqlock_bh(&idst->lock);
-	dst_release(rcu_dereference_protected(
-			    idst->dst,
-			    lockdep_is_held(&idst->lock.lock)));
-	if (dst) {
-		dst_hold(dst);
-		idst->cookie = rt6_get_cookie((struct rt6_info *)dst);
-	} else {
-		idst->cookie = 0;
-	}
-	rcu_assign_pointer(idst->dst, dst);
-	write_sequnlock_bh(&idst->lock);
-}
-
-struct dst_entry *ip6_tnl_dst_get(struct ip6_tnl *t)
-{
-	struct ip6_tnl_dst *idst;
-	struct dst_entry *dst;
-	unsigned int seq;
-	u32 cookie;
-
-	idst = raw_cpu_ptr(t->dst_cache);
-
-	rcu_read_lock();
-	do {
-		seq = read_seqbegin(&idst->lock);
-		dst = rcu_dereference(idst->dst);
-		cookie = idst->cookie;
-	} while (read_seqretry(&idst->lock, seq));
-
-	if (dst && !atomic_inc_not_zero(&dst->__refcnt))
-		dst = NULL;
-	rcu_read_unlock();
-
-	if (dst && dst->obsolete && !dst->ops->check(dst, cookie)) {
-		ip6_tnl_per_cpu_dst_set(idst, NULL);
-		dst_release(dst);
-		dst = NULL;
-	}
-	return dst;
-}
-EXPORT_SYMBOL_GPL(ip6_tnl_dst_get);
-
-void ip6_tnl_dst_reset(struct ip6_tnl *t)
-{
-	int i;
-
-	for_each_possible_cpu(i)
-		ip6_tnl_per_cpu_dst_set(per_cpu_ptr(t->dst_cache, i), NULL);
-}
-EXPORT_SYMBOL_GPL(ip6_tnl_dst_reset);
-
-void ip6_tnl_dst_set(struct ip6_tnl *t, struct dst_entry *dst)
-{
-	ip6_tnl_per_cpu_dst_set(raw_cpu_ptr(t->dst_cache), dst);
-
-}
-EXPORT_SYMBOL_GPL(ip6_tnl_dst_set);
-
-void ip6_tnl_dst_destroy(struct ip6_tnl *t)
-{
-	if (!t->dst_cache)
-		return;
-
-	ip6_tnl_dst_reset(t);
-	free_percpu(t->dst_cache);
-}
-EXPORT_SYMBOL_GPL(ip6_tnl_dst_destroy);
-
-int ip6_tnl_dst_init(struct ip6_tnl *t)
-{
-	int i;
-
-	t->dst_cache = alloc_percpu(struct ip6_tnl_dst);
-	if (!t->dst_cache)
-		return -ENOMEM;
-
-	for_each_possible_cpu(i)
-		seqlock_init(&per_cpu_ptr(t->dst_cache, i)->lock);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ip6_tnl_dst_init);
-
 /**
  * ip6_tnl_lookup - fetch tunnel matching the end-point addresses
  *   @remote: the address of the tunnel exit-point
@@ -329,7 +238,7 @@ static void ip6_dev_free(struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
 
-	ip6_tnl_dst_destroy(t);
+	dst_cache_destroy(&t->dst_cache);
 	free_percpu(dev->tstats);
 	free_netdev(dev);
 }
@@ -462,7 +371,7 @@ ip6_tnl_dev_uninit(struct net_device *dev)
 		RCU_INIT_POINTER(ip6n->tnls_wc[0], NULL);
 	else
 		ip6_tnl_unlink(ip6n, t);
-	ip6_tnl_dst_reset(t);
+	dst_cache_reset(&t->dst_cache);
 	dev_put(dev);
 }
 
@@ -1069,7 +978,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 		memcpy(&fl6->daddr, addr6, sizeof(fl6->daddr));
 		neigh_release(neigh);
 	} else if (!fl6->flowi6_mark)
-		dst = ip6_tnl_dst_get(t);
+		dst = dst_cache_get(&t->dst_cache);
 
 	if (!ip6_tnl_xmit_ctl(t, &fl6->saddr, &fl6->daddr))
 		goto tx_err_link_failure;
@@ -1133,7 +1042,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	}
 
 	if (!fl6->flowi6_mark && ndst)
-		ip6_tnl_dst_set(t, ndst);
+		dst_cache_set_ip6(&t->dst_cache, ndst, &fl6->saddr);
 	skb_dst_set(skb, dst);
 
 	skb->transport_header = skb->network_header;
@@ -1368,7 +1277,7 @@ ip6_tnl_change(struct ip6_tnl *t, const struct __ip6_tnl_parm *p)
 	t->parms.flowinfo = p->flowinfo;
 	t->parms.link = p->link;
 	t->parms.proto = p->proto;
-	ip6_tnl_dst_reset(t);
+	dst_cache_reset(&t->dst_cache);
 	ip6_tnl_link_config(t);
 	return 0;
 }
@@ -1639,7 +1548,7 @@ ip6_tnl_dev_init_gen(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 
-	ret = ip6_tnl_dst_init(t);
+	ret = dst_cache_init(&t->dst_cache, GFP_KERNEL);
 	if (ret) {
 		free_percpu(dev->tstats);
 		dev->tstats = NULL;

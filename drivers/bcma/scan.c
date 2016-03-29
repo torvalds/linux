@@ -98,6 +98,9 @@ static const struct bcma_device_id_name bcma_bcm_device_names[] = {
 	{ BCMA_CORE_SHIM, "SHIM" },
 	{ BCMA_CORE_PCIE2, "PCIe Gen2" },
 	{ BCMA_CORE_ARM_CR4, "ARM CR4" },
+	{ BCMA_CORE_GCI, "GCI" },
+	{ BCMA_CORE_CMEM, "CNDS DDR2/3 memory controller" },
+	{ BCMA_CORE_ARM_CA7, "ARM CA7" },
 	{ BCMA_CORE_DEFAULT, "Default" },
 };
 
@@ -315,6 +318,8 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 		switch (core->id.id) {
 		case BCMA_CORE_4706_MAC_GBIT_COMMON:
 		case BCMA_CORE_NS_CHIPCOMMON_B:
+		case BCMA_CORE_PMU:
+		case BCMA_CORE_GCI:
 		/* Not used yet: case BCMA_CORE_OOB_ROUTER: */
 			break;
 		default:

@@ -341,6 +341,12 @@ Specify vmlinux path which has debuginfo.
 --buildid-all::
 Record build-id of all DSOs regardless whether it's actually hit or not.
 
+--all-kernel::
+Configure all used events to run in kernel space.
+
+--all-user::
+Configure all used events to run in user space.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1], linkperf:perf-list[1]

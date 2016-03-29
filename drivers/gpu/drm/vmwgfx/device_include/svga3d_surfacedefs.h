@@ -25,6 +25,8 @@
  *
  **************************************************************************/
 
+#include <linux/kernel.h>
+
 #ifdef __KERNEL__
 
 #include <drm/vmwgfx_drm.h>
@@ -36,7 +38,6 @@
 #define ARRAY_SIZE(_A) (sizeof(_A) / sizeof((_A)[0]))
 #endif /* ARRAY_SIZE */
 
-#define DIV_ROUND_UP(x, y)  (((x) + (y) - 1) / (y))
 #define max_t(type, x, y)  ((x) > (y) ? (x) : (y))
 #define surf_size_struct SVGA3dSize
 #define u32 uint32
@@ -987,12 +988,12 @@ svga3dsurface_get_size_in_blocks(const struct svga3d_surface_desc *desc,
 				 const surf_size_struct *pixel_size,
 				 surf_size_struct *block_size)
 {
-	block_size->width = DIV_ROUND_UP(pixel_size->width,
-					 desc->block_size.width);
-	block_size->height = DIV_ROUND_UP(pixel_size->height,
-					  desc->block_size.height);
-	block_size->depth = DIV_ROUND_UP(pixel_size->depth,
-					 desc->block_size.depth);
+	block_size->width = __KERNEL_DIV_ROUND_UP(pixel_size->width,
+						  desc->block_size.width);
+	block_size->height = __KERNEL_DIV_ROUND_UP(pixel_size->height,
+						   desc->block_size.height);
+	block_size->depth = __KERNEL_DIV_ROUND_UP(pixel_size->depth,
+						  desc->block_size.depth);
 }
 
 static inline bool
@@ -1100,8 +1101,9 @@ svga3dsurface_get_pixel_offset(SVGA3dSurfaceFormat format,
 	const struct svga3d_surface_desc *desc = svga3dsurface_get_desc(format);
 	const u32 bw = desc->block_size.width, bh = desc->block_size.height;
 	const u32 bd = desc->block_size.depth;
-	const u32 rowstride = DIV_ROUND_UP(width, bw) * desc->bytes_per_block;
-	const u32 imgstride = DIV_ROUND_UP(height, bh) * rowstride;
+	const u32 rowstride = __KERNEL_DIV_ROUND_UP(width, bw) *
+			      desc->bytes_per_block;
+	const u32 imgstride = __KERNEL_DIV_ROUND_UP(height, bh) * rowstride;
 	const u32 offset = (z / bd * imgstride +
 			    y / bh * rowstride +
 			    x / bw * desc->bytes_per_block);

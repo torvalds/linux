@@ -70,6 +70,8 @@ struct dma_map_ops {
 	int is_phys;
 };
 
+extern struct dma_map_ops dma_noop_ops;
+
 #define DMA_BIT_MASK(n)	(((n) == 64) ? ~0ULL : ((1ULL<<(n))-1))
 
 #define DMA_MASK_NONE	0x0ULL
@@ -641,31 +643,40 @@ static inline void dmam_release_declared_memory(struct device *dev)
 }
 #endif /* CONFIG_HAVE_GENERIC_DMA_COHERENT */
 
-static inline void *dma_alloc_writecombine(struct device *dev, size_t size,
-					   dma_addr_t *dma_addr, gfp_t gfp)
+static inline void *dma_alloc_wc(struct device *dev, size_t size,
+				 dma_addr_t *dma_addr, gfp_t gfp)
 {
 	DEFINE_DMA_ATTRS(attrs);
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
 	return dma_alloc_attrs(dev, size, dma_addr, gfp, &attrs);
 }
+#ifndef dma_alloc_writecombine
+#define dma_alloc_writecombine dma_alloc_wc
+#endif
 
-static inline void dma_free_writecombine(struct device *dev, size_t size,
-					 void *cpu_addr, dma_addr_t dma_addr)
+static inline void dma_free_wc(struct device *dev, size_t size,
+			       void *cpu_addr, dma_addr_t dma_addr)
 {
 	DEFINE_DMA_ATTRS(attrs);
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
 	return dma_free_attrs(dev, size, cpu_addr, dma_addr, &attrs);
 }
+#ifndef dma_free_writecombine
+#define dma_free_writecombine dma_free_wc
+#endif
 
-static inline int dma_mmap_writecombine(struct device *dev,
-					struct vm_area_struct *vma,
-					void *cpu_addr, dma_addr_t dma_addr,
-					size_t size)
+static inline int dma_mmap_wc(struct device *dev,
+			      struct vm_area_struct *vma,
+			      void *cpu_addr, dma_addr_t dma_addr,
+			      size_t size)
 {
 	DEFINE_DMA_ATTRS(attrs);
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
 	return dma_mmap_attrs(dev, vma, cpu_addr, dma_addr, size, &attrs);
 }
+#ifndef dma_mmap_writecombine
+#define dma_mmap_writecombine dma_mmap_wc
+#endif
 
 #ifdef CONFIG_NEED_DMA_MAP_STATE
 #define DEFINE_DMA_UNMAP_ADDR(ADDR_NAME)        dma_addr_t ADDR_NAME

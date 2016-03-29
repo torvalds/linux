@@ -193,39 +193,38 @@ fail:
 	goto exit;
 }
 
-void _rtw_free_xmit_priv23a (struct xmit_priv *pxmitpriv)
+void _rtw_free_xmit_priv23a(struct xmit_priv *pxmitpriv)
 {
 	struct rtw_adapter *padapter = pxmitpriv->adapter;
-	struct xmit_frame *pxframe;
-	struct xmit_buf *pxmitbuf;
-	struct list_head *plist, *ptmp;
+	struct xmit_frame *pxframe, *ptmp;
+	struct xmit_buf *pxmitbuf, *ptmp2;
 
-	list_for_each_safe(plist, ptmp, &pxmitpriv->free_xmit_queue.queue) {
-		pxframe = container_of(plist, struct xmit_frame, list);
+	list_for_each_entry_safe(pxframe, ptmp,
+				 &pxmitpriv->free_xmit_queue.queue, list) {
 		list_del_init(&pxframe->list);
 		rtw_os_xmit_complete23a(padapter, pxframe);
 		kfree(pxframe);
 	}
 
-	list_for_each_safe(plist, ptmp, &pxmitpriv->xmitbuf_list) {
-		pxmitbuf = container_of(plist, struct xmit_buf, list2);
+	list_for_each_entry_safe(pxmitbuf, ptmp2,
+				 &pxmitpriv->xmitbuf_list, list2) {
 		list_del_init(&pxmitbuf->list2);
 		rtw_os_xmit_resource_free23a(padapter, pxmitbuf);
 		kfree(pxmitbuf);
 	}
 
 	/* free xframe_ext queue,  the same count as extbuf  */
-	list_for_each_safe(plist, ptmp,
-			   &pxmitpriv->free_xframe_ext_queue.queue) {
-		pxframe = container_of(plist, struct xmit_frame, list);
+	list_for_each_entry_safe(pxframe, ptmp,
+				 &pxmitpriv->free_xframe_ext_queue.queue,
+				 list) {
 		list_del_init(&pxframe->list);
 		rtw_os_xmit_complete23a(padapter, pxframe);
 		kfree(pxframe);
 	}
 
 	/*  free xmit extension buff */
-	list_for_each_safe(plist, ptmp, &pxmitpriv->xmitextbuf_list) {
-		pxmitbuf = container_of(plist, struct xmit_buf, list2);
+	list_for_each_entry_safe(pxmitbuf, ptmp2,
+				 &pxmitpriv->xmitextbuf_list, list2) {
 		list_del_init(&pxmitbuf->list2);
 		rtw_os_xmit_resource_free23a(padapter, pxmitbuf);
 		kfree(pxmitbuf);
@@ -1444,24 +1443,18 @@ Must be very very cautious...
 */
 static struct xmit_frame *rtw_alloc_xmitframe(struct xmit_priv *pxmitpriv)
 {
-	struct xmit_frame *pxframe = NULL;
-	struct list_head *plist, *phead;
+	struct xmit_frame *pxframe;
 	struct rtw_queue *pfree_xmit_queue = &pxmitpriv->free_xmit_queue;
 
 	spin_lock_bh(&pfree_xmit_queue->lock);
 
-	if (list_empty(&pfree_xmit_queue->queue)) {
+	pxframe = list_first_entry_or_null(&pfree_xmit_queue->queue,
+					   struct xmit_frame, list);
+	if (!pxframe) {
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
 			 "rtw_alloc_xmitframe:%d\n",
 			 pxmitpriv->free_xmitframe_cnt);
-		pxframe =  NULL;
 	} else {
-		phead = get_list_head(pfree_xmit_queue);
-
-		plist = phead->next;
-
-		pxframe = container_of(plist, struct xmit_frame, list);
-
 		list_del_init(&pxframe->list);
 		pxmitpriv->free_xmitframe_cnt--;
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
@@ -1478,22 +1471,18 @@ static struct xmit_frame *rtw_alloc_xmitframe(struct xmit_priv *pxmitpriv)
 
 struct xmit_frame *rtw_alloc_xmitframe23a_ext(struct xmit_priv *pxmitpriv)
 {
-	struct xmit_frame *pxframe = NULL;
-	struct list_head *plist, *phead;
+	struct xmit_frame *pxframe;
 	struct rtw_queue *queue = &pxmitpriv->free_xframe_ext_queue;
 
 	spin_lock_bh(&queue->lock);
 
-	if (list_empty(&queue->queue)) {
+	pxframe = list_first_entry_or_null(&queue->queue,
+					   struct xmit_frame, list);
+	if (!pxframe) {
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
 			 "rtw_alloc_xmitframe23a_ext:%d\n",
 			 pxmitpriv->free_xframe_ext_cnt);
-		pxframe =  NULL;
 	} else {
-		phead = get_list_head(queue);
-		plist = phead->next;
-		pxframe = container_of(plist, struct xmit_frame, list);
-
 		list_del_init(&pxframe->list);
 		pxmitpriv->free_xframe_ext_cnt--;
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
@@ -1563,18 +1552,13 @@ exit:
 void rtw_free_xmitframe_queue23a(struct xmit_priv *pxmitpriv,
 				 struct rtw_queue *pframequeue)
 {
-	struct list_head *plist, *phead, *ptmp;
-	struct	xmit_frame *pxmitframe;
+	struct list_head *phead;
+	struct xmit_frame *pxmitframe, *ptmp;
 
 	spin_lock_bh(&pframequeue->lock);
-
 	phead = get_list_head(pframequeue);
-
-	list_for_each_safe(plist, ptmp, phead) {
-		pxmitframe = container_of(plist, struct xmit_frame, list);
-
+	list_for_each_entry_safe(pxmitframe, ptmp, phead, list)
 		rtw_free_xmitframe23a(pxmitpriv, pxmitframe);
-	}
 	spin_unlock_bh(&pframequeue->lock);
 
 }
@@ -1612,9 +1596,9 @@ struct xmit_frame *
 rtw_dequeue_xframe23a(struct xmit_priv *pxmitpriv, struct hw_xmit *phwxmit_i,
 		   int entry)
 {
-	struct list_head *sta_plist, *sta_phead, *ptmp;
+	struct list_head *sta_phead;
 	struct hw_xmit *phwxmit;
-	struct tx_servq *ptxservq = NULL;
+	struct tx_servq *ptxservq = NULL, *ptmp;
 	struct rtw_queue *pframe_queue = NULL;
 	struct xmit_frame *pxmitframe = NULL;
 	struct rtw_adapter *padapter = pxmitpriv->adapter;
@@ -1638,11 +1622,8 @@ rtw_dequeue_xframe23a(struct xmit_priv *pxmitpriv, struct hw_xmit *phwxmit_i,
 		phwxmit = phwxmit_i + inx[i];
 
 		sta_phead = get_list_head(phwxmit->sta_queue);
-
-		list_for_each_safe(sta_plist, ptmp, sta_phead) {
-			ptxservq = container_of(sta_plist, struct tx_servq,
-						tx_pending);
-
+		list_for_each_entry_safe(ptxservq, ptmp, sta_phead,
+					 tx_pending) {
 			pframe_queue = &ptxservq->sta_pending;
 
 			pxmitframe = dequeue_one_xmitframe(pxmitpriv, phwxmit, ptxservq, pframe_queue);
@@ -2052,18 +2033,15 @@ dequeue_xmitframes_to_sleeping_queue(struct rtw_adapter *padapter,
 				     struct rtw_queue *pframequeue)
 {
 	int ret;
-	struct list_head *plist, *phead, *ptmp;
-	u8	ac_index;
+	struct list_head *phead;
+	u8 ac_index;
 	struct tx_servq	*ptxservq;
-	struct pkt_attrib	*pattrib;
-	struct xmit_frame	*pxmitframe;
-	struct hw_xmit *phwxmits =  padapter->xmitpriv.hwxmits;
+	struct pkt_attrib *pattrib;
+	struct xmit_frame *pxmitframe, *ptmp;
+	struct hw_xmit *phwxmits = padapter->xmitpriv.hwxmits;
 
 	phead = get_list_head(pframequeue);
-
-	list_for_each_safe(plist, ptmp, phead) {
-		pxmitframe = container_of(plist, struct xmit_frame, list);
-
+	list_for_each_entry_safe(pxmitframe, ptmp, phead, list) {
 		ret = xmitframe_enqueue_for_sleeping_sta23a(padapter, pxmitframe);
 
 		if (ret == true) {
@@ -2124,17 +2102,14 @@ void wakeup_sta_to_xmit23a(struct rtw_adapter *padapter, struct sta_info *psta)
 {
 	u8 update_mask = 0, wmmps_ac = 0;
 	struct sta_info *psta_bmc;
-	struct list_head *plist, *phead, *ptmp;
-	struct xmit_frame *pxmitframe = NULL;
+	struct list_head *phead;
+	struct xmit_frame *pxmitframe = NULL, *ptmp;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
 	spin_lock_bh(&pxmitpriv->lock);
-
 	phead = get_list_head(&psta->sleep_q);
-
-	list_for_each_safe(plist, ptmp, phead) {
-		pxmitframe = container_of(plist, struct xmit_frame, list);
+	list_for_each_entry_safe(pxmitframe, ptmp, phead, list) {
 		list_del_init(&pxmitframe->list);
 
 		switch (pxmitframe->attrib.priority) {
@@ -2194,7 +2169,6 @@ void wakeup_sta_to_xmit23a(struct rtw_adapter *padapter, struct sta_info *psta)
 
 		pstapriv->sta_dz_bitmap &= ~CHKBIT(psta->aid);
 	}
-
 	/* spin_unlock_bh(&psta->sleep_q.lock); */
 	spin_unlock_bh(&pxmitpriv->lock);
 
@@ -2206,13 +2180,8 @@ void wakeup_sta_to_xmit23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	if ((pstapriv->sta_dz_bitmap&0xfffe) == 0x0) {
 		/* no any sta in ps mode */
 		spin_lock_bh(&pxmitpriv->lock);
-
 		phead = get_list_head(&psta_bmc->sleep_q);
-
-		list_for_each_safe(plist, ptmp, phead) {
-			pxmitframe = container_of(plist, struct xmit_frame,
-						  list);
-
+		list_for_each_entry_safe(pxmitframe, ptmp, phead, list) {
 			list_del_init(&pxmitframe->list);
 
 			psta_bmc->sleepq_len--;
@@ -2232,7 +2201,6 @@ void wakeup_sta_to_xmit23a(struct rtw_adapter *padapter, struct sta_info *psta)
 			/* update_BCNTIM(padapter); */
 			update_mask |= BIT(1);
 		}
-
 		/* spin_unlock_bh(&psta_bmc->sleep_q.lock); */
 		spin_unlock_bh(&pxmitpriv->lock);
 	}
@@ -2245,19 +2213,15 @@ void xmit_delivery_enabled_frames23a(struct rtw_adapter *padapter,
 				  struct sta_info *psta)
 {
 	u8 wmmps_ac = 0;
-	struct list_head *plist, *phead, *ptmp;
-	struct xmit_frame *pxmitframe;
+	struct list_head *phead;
+	struct xmit_frame *pxmitframe, *ptmp;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
 	/* spin_lock_bh(&psta->sleep_q.lock); */
 	spin_lock_bh(&pxmitpriv->lock);
-
 	phead = get_list_head(&psta->sleep_q);
-
-	list_for_each_safe(plist, ptmp, phead) {
-		pxmitframe = container_of(plist, struct xmit_frame, list);
-
+	list_for_each_entry_safe(pxmitframe, ptmp, phead, list) {
 		switch (pxmitframe->attrib.priority) {
 		case 1:
 		case 2:

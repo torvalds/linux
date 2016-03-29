@@ -338,7 +338,6 @@ struct atlas7_pinctrl_data {
 #define ATLAS7_GPIO_CTL_DATAIN_MASK		BIT(7)
 
 struct atlas7_gpio_bank {
-	struct pinctrl_dev *pctldev;
 	int id;
 	int irq;
 	void __iomem *base;
@@ -6070,7 +6069,6 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 	}
 
 	for (idx = 0; idx < nbank; idx++) {
-		struct gpio_pin_range *pin_range;
 		struct atlas7_gpio_bank *bank;
 
 		bank = &a7gc->banks[idx];
@@ -6088,22 +6086,6 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 
 		gpiochip_set_chained_irqchip(chip, &atlas7_gpio_irq_chip,
 					bank->irq, atlas7_gpio_handle_irq);
-
-		/* Records gpio_pin_range to a7gc */
-		list_for_each_entry(pin_range, &chip->pin_ranges, node) {
-			struct pinctrl_gpio_range *range;
-
-			range = &pin_range->range;
-			if (range->id == NGPIO_OF_BANK * idx) {
-				bank->gpio_offset = range->id;
-				bank->ngpio = range->npins;
-				bank->gpio_pins = range->pins;
-				bank->pctldev = pin_range->pctldev;
-				break;
-			}
-		}
-
-		BUG_ON(!bank->pctldev);
 	}
 
 	platform_set_drvdata(pdev, a7gc);

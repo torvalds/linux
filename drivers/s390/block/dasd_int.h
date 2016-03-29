@@ -241,6 +241,13 @@ struct dasd_ccw_req {
 typedef struct dasd_ccw_req *(*dasd_erp_fn_t) (struct dasd_ccw_req *);
 
 /*
+ * A single CQR can only contain a maximum of 255 CCWs. It is limited by
+ * the locate record and locate record extended count value which can only hold
+ * 1 Byte max.
+ */
+#define DASD_CQR_MAX_CCW 255
+
+/*
  * Unique identifier for dasd device.
  */
 #define UA_NOT_CONFIGURED  0x00
@@ -438,7 +445,7 @@ struct dasd_device {
 	/* Device discipline stuff. */
 	struct dasd_discipline *discipline;
 	struct dasd_discipline *base_discipline;
-	char *private;
+	void *private;
 	struct dasd_path path_data;
 
 	/* Device state and target state. */

@@ -35,6 +35,7 @@ ENTRY(entry)
 	 * for image_addr variable passed to efi_entry().
 	 */
 	stp	x29, x30, [sp, #-32]!
+	mov	x29, sp
 
 	/*
 	 * Call efi_entry to do the real work.
@@ -61,7 +62,7 @@ ENTRY(entry)
 	 */
 	mov	x20, x0		// DTB address
 	ldr	x0, [sp, #16]	// relocated _text address
-	ldr	x21, =stext_offset
+	movz	x21, #:abs_g0:stext_offset
 	add	x21, x0, x21
 
 	/*

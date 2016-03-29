@@ -1342,7 +1342,7 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 
 	/* Calculate bytesused field */
 	if (dst_buf->sequence == 0) {
-		vb2_set_plane_payload(&dst_buf->vb2_buf, 0,
+		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, wr_ptr - start_ptr +
 					ctx->vpu_header_size[0] +
 					ctx->vpu_header_size[1] +
 					ctx->vpu_header_size[2]);
@@ -1455,9 +1455,9 @@ static int coda_alloc_bitstream_buffer(struct coda_ctx *ctx,
 		return 0;
 
 	ctx->bitstream.size = roundup_pow_of_two(q_data->sizeimage * 2);
-	ctx->bitstream.vaddr = dma_alloc_writecombine(
-			&ctx->dev->plat_dev->dev, ctx->bitstream.size,
-			&ctx->bitstream.paddr, GFP_KERNEL);
+	ctx->bitstream.vaddr = dma_alloc_wc(&ctx->dev->plat_dev->dev,
+					    ctx->bitstream.size,
+					    &ctx->bitstream.paddr, GFP_KERNEL);
 	if (!ctx->bitstream.vaddr) {
 		v4l2_err(&ctx->dev->v4l2_dev,
 			 "failed to allocate bitstream ringbuffer");
@@ -1474,8 +1474,8 @@ static void coda_free_bitstream_buffer(struct coda_ctx *ctx)
 	if (ctx->bitstream.vaddr == NULL)
 		return;
 
-	dma_free_writecombine(&ctx->dev->plat_dev->dev, ctx->bitstream.size,
-			      ctx->bitstream.vaddr, ctx->bitstream.paddr);
+	dma_free_wc(&ctx->dev->plat_dev->dev, ctx->bitstream.size,
+		    ctx->bitstream.vaddr, ctx->bitstream.paddr);
 	ctx->bitstream.vaddr = NULL;
 	kfifo_init(&ctx->bitstream_fifo, NULL, 0);
 }

@@ -136,6 +136,7 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_if *ifp = brcmf_get_ifp(drvr, 0);
 	struct brcmf_pno_macaddr_le pfn_mac;
+	u32 wowl_cap;
 	s32 err;
 
 	brcmf_feat_firmware_capabilities(ifp);
@@ -143,11 +144,24 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_PNO, "pfn");
 	if (drvr->bus_if->wowl_supported)
 		brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_WOWL, "wowl");
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL)) {
+		err = brcmf_fil_iovar_int_get(ifp, "wowl_cap", &wowl_cap);
+		if (!err) {
+			ifp->drvr->feat_flags |= BIT(BRCMF_FEAT_WOWL_ARP_ND);
+			if (wowl_cap & BRCMF_WOWL_PFN_FOUND)
+				ifp->drvr->feat_flags |=
+					BIT(BRCMF_FEAT_WOWL_ND);
+			if (wowl_cap & BRCMF_WOWL_GTK_FAILURE)
+				ifp->drvr->feat_flags |=
+					BIT(BRCMF_FEAT_WOWL_GTK);
+		}
+	}
 	/* MBSS does not work for 43362 */
 	if (drvr->bus_if->chip == BRCM_CC_43362_CHIP_ID)
 		ifp->drvr->feat_flags &= ~BIT(BRCMF_FEAT_MBSS);
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_RSDB, "rsdb_mode");
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_TDLS, "tdls_enable");
+	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_MFP, "mfp");
 
 	pfn_mac.version = BRCMF_PFN_MACADDR_CFG_VER;
 	err = brcmf_fil_iovar_data_get(ifp, "pfn_macaddr", &pfn_mac,

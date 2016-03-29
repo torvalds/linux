@@ -1,7 +1,11 @@
 #include <stdio.h>
 #include <sys/epoll.h>
+#include <util/util.h>
 #include <util/bpf-loader.h>
 #include <util/evlist.h>
+#include <linux/bpf.h>
+#include <linux/filter.h>
+#include <bpf/bpf.h>
 #include "tests.h"
 #include "llvm.h"
 #include "debug.h"
@@ -71,6 +75,15 @@ static struct {
 		(NR_ITERS + 1) / 4,
 	},
 #endif
+	{
+		LLVM_TESTCASE_BPF_RELOCATION,
+		"Test BPF relocation checker",
+		"[bpf_relocation_test]",
+		"fix 'perf test LLVM' first",
+		"libbpf error when dealing with relocation",
+		NULL,
+		0,
+	},
 };
 
 static int do_test(struct bpf_object *obj, int (*func)(void),
@@ -99,7 +112,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	parse_evlist.error = &parse_error;
 	INIT_LIST_HEAD(&parse_evlist.list);
 
-	err = parse_events_load_bpf_obj(&parse_evlist, &parse_evlist.list, obj);
+	err = parse_events_load_bpf_obj(&parse_evlist, &parse_evlist.list, obj, NULL);
 	if (err || list_empty(&parse_evlist.list)) {
 		pr_debug("Failed to add events selected by BPF\n");
 		return TEST_FAIL;
@@ -190,7 +203,7 @@ static int __test__bpf(int idx)
 
 	ret = test_llvm__fetch_bpf_obj(&obj_buf, &obj_buf_sz,
 				       bpf_testcase_table[idx].prog_id,
-				       true);
+				       true, NULL);
 	if (ret != TEST_OK || !obj_buf || !obj_buf_sz) {
 		pr_debug("Unable to get BPF object, %s\n",
 			 bpf_testcase_table[idx].msg_compile_fail);
@@ -202,14 +215,21 @@ static int __test__bpf(int idx)
 
 	obj = prepare_bpf(obj_buf, obj_buf_sz,
 			  bpf_testcase_table[idx].name);
-	if (!obj) {
+	if ((!!bpf_testcase_table[idx].target_func) != (!!obj)) {
+		if (!obj)
+			pr_debug("Fail to load BPF object: %s\n",
+				 bpf_testcase_table[idx].msg_load_fail);
+		else
+			pr_debug("Success unexpectedly: %s\n",
+				 bpf_testcase_table[idx].msg_load_fail);
 		ret = TEST_FAIL;
 		goto out;
 	}
 
-	ret = do_test(obj,
-		      bpf_testcase_table[idx].target_func,
-		      bpf_testcase_table[idx].expect_result);
+	if (obj)
+		ret = do_test(obj,
+			      bpf_testcase_table[idx].target_func,
+			      bpf_testcase_table[idx].expect_result);
 out:
 	bpf__clear();
 	return ret;
@@ -227,6 +247,36 @@ const char *test__bpf_subtest_get_desc(int i)
 	return bpf_testcase_table[i].desc;
 }
 
+static int check_env(void)
+{
+	int err;
+	unsigned int kver_int;
+	char license[] = "GPL";
+
+	struct bpf_insn insns[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+	};
+
+	err = fetch_kernel_version(&kver_int, NULL, 0);
+	if (err) {
+		pr_debug("Unable to get kernel version\n");
+		return err;
+	}
+
+	err = bpf_load_program(BPF_PROG_TYPE_KPROBE, insns,
+			       sizeof(insns) / sizeof(insns[0]),
+			       license, kver_int, NULL, 0);
+	if (err < 0) {
+		pr_err("Missing basic BPF support, skip this test: %s\n",
+		       strerror(errno));
+		return err;
+	}
+	close(err);
+
+	return 0;
+}
+
 int test__bpf(int i)
 {
 	int err;
@@ -238,6 +288,9 @@ int test__bpf(int i)
 		pr_debug("Only root can run BPF test\n");
 		return TEST_SKIP;
 	}
+
+	if (check_env())
+		return TEST_SKIP;
 
 	err = __test__bpf(i);
 	return err;

@@ -250,7 +250,7 @@ int null_enlarge_reqbuf(struct ptlrpc_sec *sec,
 		alloc_size = size_roundup_power2(newmsg_size);
 
 		newbuf = libcfs_kvzalloc(alloc_size, GFP_NOFS);
-		if (newbuf == NULL)
+		if (!newbuf)
 			return -ENOMEM;
 
 		/* Must lock this, so that otherwise unprotected change of
@@ -258,7 +258,8 @@ int null_enlarge_reqbuf(struct ptlrpc_sec *sec,
 		 * imp_replay_list traversing threads. See LU-3333
 		 * This is a bandaid at best, we really need to deal with this
 		 * in request enlarging code before unpacking that's already
-		 * there */
+		 * there
+		 */
 		if (req->rq_import)
 			spin_lock(&req->rq_import->imp_lock);
 		memcpy(newbuf, req->rq_reqbuf, req->rq_reqlen);
@@ -319,7 +320,7 @@ int null_alloc_rs(struct ptlrpc_request *req, int msgsize)
 		LASSERT(rs->rs_size >= rs_size);
 	} else {
 		rs = libcfs_kvzalloc(rs_size, GFP_NOFS);
-		if (rs == NULL)
+		if (!rs)
 			return -ENOMEM;
 
 		rs->rs_size = rs_size;

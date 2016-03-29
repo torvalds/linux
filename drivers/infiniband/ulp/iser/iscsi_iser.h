@@ -458,9 +458,6 @@ struct iser_fr_pool {
  * @comp:                iser completion context
  * @fr_pool:             connection fast registration poool
  * @pi_support:          Indicate device T10-PI support
- * @last:                last send wr to signal all flush errors were drained
- * @last_cqe:            cqe handler for last wr
- * @last_comp:           completes when all connection completions consumed
  */
 struct ib_conn {
 	struct rdma_cm_id           *cma_id;
@@ -472,10 +469,7 @@ struct ib_conn {
 	struct iser_comp	    *comp;
 	struct iser_fr_pool          fr_pool;
 	bool			     pi_support;
-	struct ib_send_wr	     last;
-	struct ib_cqe		     last_cqe;
 	struct ib_cqe		     reg_cqe;
-	struct completion	     last_comp;
 };
 
 /**
@@ -617,7 +611,6 @@ void iser_cmd_comp(struct ib_cq *cq, struct ib_wc *wc);
 void iser_ctrl_comp(struct ib_cq *cq, struct ib_wc *wc);
 void iser_dataout_comp(struct ib_cq *cq, struct ib_wc *wc);
 void iser_reg_comp(struct ib_cq *cq, struct ib_wc *wc);
-void iser_last_comp(struct ib_cq *cq, struct ib_wc *wc);
 
 void iser_task_rdma_init(struct iscsi_iser_task *task);
 

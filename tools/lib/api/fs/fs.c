@@ -13,6 +13,7 @@
 #include <sys/mount.h>
 
 #include "fs.h"
+#include "debug-internal.h"
 
 #define _STR(x) #x
 #define STR(x) _STR(x)
@@ -300,6 +301,56 @@ int filename__read_ull(const char *filename, unsigned long long *value)
 	return err;
 }
 
+#define STRERR_BUFSIZE  128     /* For the buffer size of strerror_r */
+
+int filename__read_str(const char *filename, char **buf, size_t *sizep)
+{
+	size_t size = 0, alloc_size = 0;
+	void *bf = NULL, *nbf;
+	int fd, n, err = 0;
+	char sbuf[STRERR_BUFSIZE];
+
+	fd = open(filename, O_RDONLY);
+	if (fd < 0)
+		return -errno;
+
+	do {
+		if (size == alloc_size) {
+			alloc_size += BUFSIZ;
+			nbf = realloc(bf, alloc_size);
+			if (!nbf) {
+				err = -ENOMEM;
+				break;
+			}
+
+			bf = nbf;
+		}
+
+		n = read(fd, bf + size, alloc_size - size);
+		if (n < 0) {
+			if (size) {
+				pr_warning("read failed %d: %s\n", errno,
+					 strerror_r(errno, sbuf, sizeof(sbuf)));
+				err = 0;
+			} else
+				err = -errno;
+
+			break;
+		}
+
+		size += n;
+	} while (n > 0);
+
+	if (!err) {
+		*sizep = size;
+		*buf   = bf;
+	} else
+		free(bf);
+
+	close(fd);
+	return err;
+}
+
 int sysfs__read_ull(const char *entry, unsigned long long *value)
 {
 	char path[PATH_MAX];
@@ -324,6 +375,19 @@ int sysfs__read_int(const char *entry, int *value)
 	snprintf(path, sizeof(path), "%s/%s", sysfs, entry);
 
 	return filename__read_int(path, value);
+}
+
+int sysfs__read_str(const char *entry, char **buf, size_t *sizep)
+{
+	char path[PATH_MAX];
+	const char *sysfs = sysfs__mountpoint();
+
+	if (!sysfs)
+		return -1;
+
+	snprintf(path, sizeof(path), "%s/%s", sysfs, entry);
+
+	return filename__read_str(path, buf, sizep);
 }
 
 int sysctl__read_int(const char *sysctl, int *value)

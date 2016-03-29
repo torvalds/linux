@@ -864,12 +864,10 @@ static __be32
 nfsd4_secinfo(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	      struct nfsd4_secinfo *secinfo)
 {
-	struct svc_fh resfh;
 	struct svc_export *exp;
 	struct dentry *dentry;
 	__be32 err;
 
-	fh_init(&resfh, NFS4_FHSIZE);
 	err = fh_verify(rqstp, &cstate->current_fh, S_IFDIR, NFSD_MAY_EXEC);
 	if (err)
 		return err;
@@ -878,6 +876,7 @@ nfsd4_secinfo(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				    &exp, &dentry);
 	if (err)
 		return err;
+	fh_unlock(&cstate->current_fh);
 	if (d_really_is_negative(dentry)) {
 		exp_put(exp);
 		err = nfserr_noent;
@@ -1269,8 +1268,10 @@ nfsd4_getdeviceinfo(struct svc_rqst *rqstp,
 		goto out;
 
 	nfserr = nfs_ok;
-	if (gdp->gd_maxcount != 0)
-		nfserr = ops->proc_getdeviceinfo(exp->ex_path.mnt->mnt_sb, gdp);
+	if (gdp->gd_maxcount != 0) {
+		nfserr = ops->proc_getdeviceinfo(exp->ex_path.mnt->mnt_sb,
+					cstate->session->se_client, gdp);
+	}
 
 	gdp->gd_notify_types &= ops->notify_types;
 out:

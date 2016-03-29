@@ -186,6 +186,7 @@ config NET_IPGRE_DEMUX
 
 config NET_IP_TUNNEL
 	tristate
+	select DST_CACHE
 	default n
 
 config NET_IPGRE
@@ -402,14 +403,6 @@ config INET_XFRM_MODE_BEET
 	select XFRM
 	---help---
 	  Support for IPsec BEET mode.
-
-	  If unsure, say Y.
-
-config INET_LRO
-	tristate "Large Receive Offload (ipv4/tcp)"
-	default y
-	---help---
-	  Support for Large Receive Offload (ipv4/tcp).
 
 	  If unsure, say Y.
 

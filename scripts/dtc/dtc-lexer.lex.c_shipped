@@ -951,31 +951,39 @@ case 2:
 YY_RULE_SETUP
 #line 75 "dtc-lexer.l"
 {
-			char *line, *tmp, *fn;
+			char *line, *fnstart, *fnend;
+			struct data fn;
 			/* skip text before line # */
 			line = yytext;
 			while (!isdigit((unsigned char)*line))
 				line++;
-			/* skip digits in line # */
-			tmp = line;
-			while (!isspace((unsigned char)*tmp))
-				tmp++;
-			/* "NULL"-terminate line # */
-			*tmp = '\0';
-			/* start of filename */
-			fn = strchr(tmp + 1, '"') + 1;
-			/* strip trailing " from filename */
-			tmp = strchr(fn, '"');
-			*tmp = 0;
+
+			/* regexp ensures that first and list "
+			 * in the whole yytext are those at
+			 * beginning and end of the filename string */
+			fnstart = memchr(yytext, '"', yyleng);
+			for (fnend = yytext + yyleng - 1;
+			     *fnend != '"'; fnend--)
+				;
+			assert(fnstart && fnend && (fnend > fnstart));
+
+			fn = data_copy_escape_string(fnstart + 1,
+						     fnend - fnstart - 1);
+
+			/* Don't allow nuls in filenames */
+			if (memchr(fn.val, '\0', fn.len - 1))
+				lexical_error("nul in line number directive");
+
 			/* -1 since #line is the number of the next line */
-			srcpos_set_line(xstrdup(fn), atoi(line) - 1);
+			srcpos_set_line(xstrdup(fn.val), atoi(line) - 1);
+			data_free(fn);
 		}
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(BYTESTRING):
 case YY_STATE_EOF(PROPNODENAME):
 case YY_STATE_EOF(V1):
-#line 96 "dtc-lexer.l"
+#line 104 "dtc-lexer.l"
 {
 			if (!pop_input_file()) {
 				yyterminate();
@@ -985,7 +993,7 @@ case YY_STATE_EOF(V1):
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 102 "dtc-lexer.l"
+#line 110 "dtc-lexer.l"
 {
 			DPRINT("String: %s\n", yytext);
 			yylval.data = data_copy_escape_string(yytext+1,
@@ -995,7 +1003,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 109 "dtc-lexer.l"
+#line 117 "dtc-lexer.l"
 {
 			DPRINT("Keyword: /dts-v1/\n");
 			dts_version = 1;
@@ -1005,7 +1013,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 116 "dtc-lexer.l"
+#line 124 "dtc-lexer.l"
 {
 			DPRINT("Keyword: /memreserve/\n");
 			BEGIN_DEFAULT();
@@ -1014,7 +1022,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 122 "dtc-lexer.l"
+#line 130 "dtc-lexer.l"
 {
 			DPRINT("Keyword: /bits/\n");
 			BEGIN_DEFAULT();
@@ -1023,7 +1031,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 128 "dtc-lexer.l"
+#line 136 "dtc-lexer.l"
 {
 			DPRINT("Keyword: /delete-property/\n");
 			DPRINT("<PROPNODENAME>\n");
@@ -1033,7 +1041,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 135 "dtc-lexer.l"
+#line 143 "dtc-lexer.l"
 {
 			DPRINT("Keyword: /delete-node/\n");
 			DPRINT("<PROPNODENAME>\n");
@@ -1043,7 +1051,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 142 "dtc-lexer.l"
+#line 150 "dtc-lexer.l"
 {
 			DPRINT("Label: %s\n", yytext);
 			yylval.labelref = xstrdup(yytext);
@@ -1053,7 +1061,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 149 "dtc-lexer.l"
+#line 157 "dtc-lexer.l"
 {
 			char *e;
 			DPRINT("Integer Literal: '%s'\n", yytext);
@@ -1061,7 +1069,10 @@ YY_RULE_SETUP
 			errno = 0;
 			yylval.integer = strtoull(yytext, &e, 0);
 
-			assert(!(*e) || !e[strspn(e, "UL")]);
+			if (*e && e[strspn(e, "UL")]) {
+				lexical_error("Bad integer literal '%s'",
+					      yytext);
+			}
 
 			if (errno == ERANGE)
 				lexical_error("Integer literal '%s' out of range",
@@ -1076,7 +1087,7 @@ YY_RULE_SETUP
 case 11:
 /* rule 11 can match eol */
 YY_RULE_SETUP
-#line 168 "dtc-lexer.l"
+#line 179 "dtc-lexer.l"
 {
 			struct data d;
 			DPRINT("Character literal: %s\n", yytext);
@@ -1100,7 +1111,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 189 "dtc-lexer.l"
+#line 200 "dtc-lexer.l"
 {	/* label reference */
 			DPRINT("Ref: %s\n", yytext+1);
 			yylval.labelref = xstrdup(yytext+1);
@@ -1109,7 +1120,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 195 "dtc-lexer.l"
+#line 206 "dtc-lexer.l"
 {	/* new-style path reference */
 			yytext[yyleng-1] = '\0';
 			DPRINT("Ref: %s\n", yytext+2);
@@ -1119,7 +1130,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 202 "dtc-lexer.l"
+#line 213 "dtc-lexer.l"
 {
 			yylval.byte = strtol(yytext, NULL, 16);
 			DPRINT("Byte: %02x\n", (int)yylval.byte);
@@ -1128,7 +1139,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 208 "dtc-lexer.l"
+#line 219 "dtc-lexer.l"
 {
 			DPRINT("/BYTESTRING\n");
 			BEGIN_DEFAULT();
@@ -1137,7 +1148,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 214 "dtc-lexer.l"
+#line 225 "dtc-lexer.l"
 {
 			DPRINT("PropNodeName: %s\n", yytext);
 			yylval.propnodename = xstrdup((yytext[0] == '\\') ?
@@ -1148,7 +1159,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 222 "dtc-lexer.l"
+#line 233 "dtc-lexer.l"
 {
 			DPRINT("Binary Include\n");
 			return DT_INCBIN;
@@ -1157,64 +1168,64 @@ YY_RULE_SETUP
 case 18:
 /* rule 18 can match eol */
 YY_RULE_SETUP
-#line 227 "dtc-lexer.l"
+#line 238 "dtc-lexer.l"
 /* eat whitespace */
 	YY_BREAK
 case 19:
 /* rule 19 can match eol */
 YY_RULE_SETUP
-#line 228 "dtc-lexer.l"
+#line 239 "dtc-lexer.l"
 /* eat C-style comments */
 	YY_BREAK
 case 20:
 /* rule 20 can match eol */
 YY_RULE_SETUP
-#line 229 "dtc-lexer.l"
+#line 240 "dtc-lexer.l"
 /* eat C++-style comments */
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 231 "dtc-lexer.l"
+#line 242 "dtc-lexer.l"
 { return DT_LSHIFT; };
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 232 "dtc-lexer.l"
+#line 243 "dtc-lexer.l"
 { return DT_RSHIFT; };
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 233 "dtc-lexer.l"
+#line 244 "dtc-lexer.l"
 { return DT_LE; };
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 234 "dtc-lexer.l"
+#line 245 "dtc-lexer.l"
 { return DT_GE; };
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 235 "dtc-lexer.l"
+#line 246 "dtc-lexer.l"
 { return DT_EQ; };
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 236 "dtc-lexer.l"
+#line 247 "dtc-lexer.l"
 { return DT_NE; };
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 237 "dtc-lexer.l"
+#line 248 "dtc-lexer.l"
 { return DT_AND; };
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 238 "dtc-lexer.l"
+#line 249 "dtc-lexer.l"
 { return DT_OR; };
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 240 "dtc-lexer.l"
+#line 251 "dtc-lexer.l"
 {
 			DPRINT("Char: %c (\\x%02x)\n", yytext[0],
 				(unsigned)yytext[0]);
@@ -1232,10 +1243,10 @@ YY_RULE_SETUP
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 255 "dtc-lexer.l"
+#line 266 "dtc-lexer.l"
 ECHO;
 	YY_BREAK
-#line 1239 "dtc-lexer.lex.c"
+#line 1250 "dtc-lexer.lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2195,7 +2206,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 254 "dtc-lexer.l"
+#line 265 "dtc-lexer.l"
 
 
 

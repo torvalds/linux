@@ -78,22 +78,20 @@
 #define XTENSA_INTLEVEL_MASK(level) _XTENSA_INTLEVEL_MASK(level)
 #define _XTENSA_INTLEVEL_MASK(level) (XCHAL_INTLEVEL##level##_MASK)
 
-#define IS_POW2(v) (((v) & ((v) - 1)) == 0)
+#define XTENSA_INTLEVEL_ANDBELOW_MASK(l) _XTENSA_INTLEVEL_ANDBELOW_MASK(l)
+#define _XTENSA_INTLEVEL_ANDBELOW_MASK(l) (XCHAL_INTLEVEL##l##_ANDBELOW_MASK)
 
 #define PROFILING_INTLEVEL XTENSA_INT_LEVEL(XCHAL_PROFILING_INTERRUPT)
 
 /* LOCKLEVEL defines the interrupt level that masks all
  * general-purpose interrupts.
  */
-#if defined(CONFIG_XTENSA_VARIANT_HAVE_PERF_EVENTS) && \
-	defined(XCHAL_PROFILING_INTERRUPT) && \
-	PROFILING_INTLEVEL == XCHAL_EXCM_LEVEL && \
-	XCHAL_EXCM_LEVEL > 1 && \
-	IS_POW2(XTENSA_INTLEVEL_MASK(PROFILING_INTLEVEL))
-#define LOCKLEVEL (XCHAL_EXCM_LEVEL - 1)
+#if defined(CONFIG_XTENSA_FAKE_NMI) && defined(XCHAL_PROFILING_INTERRUPT)
+#define LOCKLEVEL (PROFILING_INTLEVEL - 1)
 #else
 #define LOCKLEVEL XCHAL_EXCM_LEVEL
 #endif
+
 #define TOPLEVEL XCHAL_EXCM_LEVEL
 #define XTENSA_FAKE_NMI (LOCKLEVEL < TOPLEVEL)
 
@@ -132,11 +130,10 @@ struct thread_struct {
 	unsigned long bad_vaddr; /* last user fault */
 	unsigned long bad_uaddr; /* last kernel fault accessing user space */
 	unsigned long error_code;
-
-	unsigned long ibreak[XCHAL_NUM_IBREAK];
-	unsigned long dbreaka[XCHAL_NUM_DBREAK];
-	unsigned long dbreakc[XCHAL_NUM_DBREAK];
-
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	struct perf_event *ptrace_bp[XCHAL_NUM_IBREAK];
+	struct perf_event *ptrace_wp[XCHAL_NUM_DBREAK];
+#endif
 	/* Make structure 16 bytes aligned. */
 	int align[0] __attribute__ ((aligned(16)));
 };

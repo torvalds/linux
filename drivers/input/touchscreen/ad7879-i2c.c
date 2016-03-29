@@ -10,6 +10,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/of.h>
 #include <linux/pm.h>
 
 #include "ad7879.h"
@@ -91,10 +92,19 @@ static const struct i2c_device_id ad7879_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ad7879_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id ad7879_i2c_dt_ids[] = {
+	{ .compatible = "adi,ad7879-1", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ad7879_i2c_dt_ids);
+#endif
+
 static struct i2c_driver ad7879_i2c_driver = {
 	.driver = {
 		.name	= "ad7879",
 		.pm	= &ad7879_pm_ops,
+		.of_match_table = of_match_ptr(ad7879_i2c_dt_ids),
 	},
 	.probe		= ad7879_i2c_probe,
 	.remove		= ad7879_i2c_remove,

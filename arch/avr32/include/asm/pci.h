@@ -5,6 +5,4 @@
 
 #define PCI_DMA_BUS_IS_PHYS	(1)
 
-#include <asm-generic/pci-dma-compat.h>
-
 #endif /* __ASM_AVR32_PCI_H__ */

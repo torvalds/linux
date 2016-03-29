@@ -52,7 +52,7 @@ static int scpi_read_temp(void *dev, int *temp)
 	struct scpi_sensors *scpi_sensors = zone->scpi_sensors;
 	struct scpi_ops *scpi_ops = scpi_sensors->scpi_ops;
 	struct sensor_data *sensor = &scpi_sensors->data[zone->sensor_id];
-	u32 value;
+	u64 value;
 	int ret;
 
 	ret = scpi_ops->sensor_get_value(sensor->info.sensor_id, &value);
@@ -70,7 +70,7 @@ scpi_show_sensor(struct device *dev, struct device_attribute *attr, char *buf)
 	struct scpi_sensors *scpi_sensors = dev_get_drvdata(dev);
 	struct scpi_ops *scpi_ops = scpi_sensors->scpi_ops;
 	struct sensor_data *sensor;
-	u32 value;
+	u64 value;
 	int ret;
 
 	sensor = container_of(attr, struct sensor_data, dev_attr_input);
@@ -79,7 +79,7 @@ scpi_show_sensor(struct device *dev, struct device_attribute *attr, char *buf)
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%u\n", value);
+	return sprintf(buf, "%llu\n", value);
 }
 
 static ssize_t
@@ -114,6 +114,7 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 {
 	u16 nr_sensors, i;
 	int num_temp = 0, num_volt = 0, num_current = 0, num_power = 0;
+	int num_energy = 0;
 	struct scpi_ops *scpi_ops;
 	struct device *hwdev, *dev = &pdev->dev;
 	struct scpi_sensors *scpi_sensors;
@@ -181,6 +182,13 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 			snprintf(sensor->label, sizeof(sensor->input),
 				 "power%d_label", num_power + 1);
 			num_power++;
+			break;
+		case ENERGY:
+			snprintf(sensor->input, sizeof(sensor->input),
+				 "energy%d_input", num_energy + 1);
+			snprintf(sensor->label, sizeof(sensor->input),
+				 "energy%d_label", num_energy + 1);
+			num_energy++;
 			break;
 		default:
 			continue;

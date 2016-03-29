@@ -92,7 +92,7 @@ int vnic_rq_alloc(struct vnic_dev *vdev, struct vnic_rq *rq, unsigned int index,
 
 	rq->ctrl = vnic_dev_get_res(vdev, RES_TYPE_RQ, index);
 	if (!rq->ctrl) {
-		vdev_err("Failed to hook RQ[%d] resource\n", index);
+		vdev_err(vdev, "Failed to hook RQ[%d] resource\n", index);
 		return -EINVAL;
 	}
 
@@ -179,7 +179,7 @@ int vnic_rq_disable(struct vnic_rq *rq)
 		udelay(10);
 	}
 
-	vdev_neterr("Failed to disable RQ[%d]\n", rq->index);
+	vdev_neterr(vdev, "Failed to disable RQ[%d]\n", rq->index);
 
 	return -ETIMEDOUT;
 }

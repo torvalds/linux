@@ -1551,6 +1551,46 @@ int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
 }
 EXPORT_SYMBOL(ib_check_mr_status);
 
+int ib_set_vf_link_state(struct ib_device *device, int vf, u8 port,
+			 int state)
+{
+	if (!device->set_vf_link_state)
+		return -ENOSYS;
+
+	return device->set_vf_link_state(device, vf, port, state);
+}
+EXPORT_SYMBOL(ib_set_vf_link_state);
+
+int ib_get_vf_config(struct ib_device *device, int vf, u8 port,
+		     struct ifla_vf_info *info)
+{
+	if (!device->get_vf_config)
+		return -ENOSYS;
+
+	return device->get_vf_config(device, vf, port, info);
+}
+EXPORT_SYMBOL(ib_get_vf_config);
+
+int ib_get_vf_stats(struct ib_device *device, int vf, u8 port,
+		    struct ifla_vf_stats *stats)
+{
+	if (!device->get_vf_stats)
+		return -ENOSYS;
+
+	return device->get_vf_stats(device, vf, port, stats);
+}
+EXPORT_SYMBOL(ib_get_vf_stats);
+
+int ib_set_vf_guid(struct ib_device *device, int vf, u8 port, u64 guid,
+		   int type)
+{
+	if (!device->set_vf_guid)
+		return -ENOSYS;
+
+	return device->set_vf_guid(device, vf, port, guid, type);
+}
+EXPORT_SYMBOL(ib_set_vf_guid);
+
 /**
  * ib_map_mr_sg() - Map the largest prefix of a dma mapped SG list
  *     and set it the memory region.
@@ -1567,6 +1607,8 @@ EXPORT_SYMBOL(ib_check_mr_status);
  * - The last sg element is allowed to have length less than page_size.
  * - If sg_nents total byte length exceeds the mr max_num_sge * page_size
  *   then only max_num_sg entries will be mapped.
+ * - If the MR was allocated with type IB_MR_TYPE_SG_GAPS_REG, non of these
+ *   constraints holds and the page_size argument is ignored.
  *
  * Returns the number of sg elements that were mapped to the memory region.
  *
@@ -1657,3 +1699,167 @@ next_page:
 	return i;
 }
 EXPORT_SYMBOL(ib_sg_to_pages);
+
+struct ib_drain_cqe {
+	struct ib_cqe cqe;
+	struct completion done;
+};
+
+static void ib_drain_qp_done(struct ib_cq *cq, struct ib_wc *wc)
+{
+	struct ib_drain_cqe *cqe = container_of(wc->wr_cqe, struct ib_drain_cqe,
+						cqe);
+
+	complete(&cqe->done);
+}
+
+/*
+ * Post a WR and block until its completion is reaped for the SQ.
+ */
+static void __ib_drain_sq(struct ib_qp *qp)
+{
+	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
+	struct ib_drain_cqe sdrain;
+	struct ib_send_wr swr = {}, *bad_swr;
+	int ret;
+
+	if (qp->send_cq->poll_ctx == IB_POLL_DIRECT) {
+		WARN_ONCE(qp->send_cq->poll_ctx == IB_POLL_DIRECT,
+			  "IB_POLL_DIRECT poll_ctx not supported for drain\n");
+		return;
+	}
+
+	swr.wr_cqe = &sdrain.cqe;
+	sdrain.cqe.done = ib_drain_qp_done;
+	init_completion(&sdrain.done);
+
+	ret = ib_modify_qp(qp, &attr, IB_QP_STATE);
+	if (ret) {
+		WARN_ONCE(ret, "failed to drain send queue: %d\n", ret);
+		return;
+	}
+
+	ret = ib_post_send(qp, &swr, &bad_swr);
+	if (ret) {
+		WARN_ONCE(ret, "failed to drain send queue: %d\n", ret);
+		return;
+	}
+
+	wait_for_completion(&sdrain.done);
+}
+
+/*
+ * Post a WR and block until its completion is reaped for the RQ.
+ */
+static void __ib_drain_rq(struct ib_qp *qp)
+{
+	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
+	struct ib_drain_cqe rdrain;
+	struct ib_recv_wr rwr = {}, *bad_rwr;
+	int ret;
+
+	if (qp->recv_cq->poll_ctx == IB_POLL_DIRECT) {
+		WARN_ONCE(qp->recv_cq->poll_ctx == IB_POLL_DIRECT,
+			  "IB_POLL_DIRECT poll_ctx not supported for drain\n");
+		return;
+	}
+
+	rwr.wr_cqe = &rdrain.cqe;
+	rdrain.cqe.done = ib_drain_qp_done;
+	init_completion(&rdrain.done);
+
+	ret = ib_modify_qp(qp, &attr, IB_QP_STATE);
+	if (ret) {
+		WARN_ONCE(ret, "failed to drain recv queue: %d\n", ret);
+		return;
+	}
+
+	ret = ib_post_recv(qp, &rwr, &bad_rwr);
+	if (ret) {
+		WARN_ONCE(ret, "failed to drain recv queue: %d\n", ret);
+		return;
+	}
+
+	wait_for_completion(&rdrain.done);
+}
+
+/**
+ * ib_drain_sq() - Block until all SQ CQEs have been consumed by the
+ *		   application.
+ * @qp:            queue pair to drain
+ *
+ * If the device has a provider-specific drain function, then
+ * call that.  Otherwise call the generic drain function
+ * __ib_drain_sq().
+ *
+ * The caller must:
+ *
+ * ensure there is room in the CQ and SQ for the drain work request and
+ * completion.
+ *
+ * allocate the CQ using ib_alloc_cq() and the CQ poll context cannot be
+ * IB_POLL_DIRECT.
+ *
+ * ensure that there are no other contexts that are posting WRs concurrently.
+ * Otherwise the drain is not guaranteed.
+ */
+void ib_drain_sq(struct ib_qp *qp)
+{
+	if (qp->device->drain_sq)
+		qp->device->drain_sq(qp);
+	else
+		__ib_drain_sq(qp);
+}
+EXPORT_SYMBOL(ib_drain_sq);
+
+/**
+ * ib_drain_rq() - Block until all RQ CQEs have been consumed by the
+ *		   application.
+ * @qp:            queue pair to drain
+ *
+ * If the device has a provider-specific drain function, then
+ * call that.  Otherwise call the generic drain function
+ * __ib_drain_rq().
+ *
+ * The caller must:
+ *
+ * ensure there is room in the CQ and RQ for the drain work request and
+ * completion.
+ *
+ * allocate the CQ using ib_alloc_cq() and the CQ poll context cannot be
+ * IB_POLL_DIRECT.
+ *
+ * ensure that there are no other contexts that are posting WRs concurrently.
+ * Otherwise the drain is not guaranteed.
+ */
+void ib_drain_rq(struct ib_qp *qp)
+{
+	if (qp->device->drain_rq)
+		qp->device->drain_rq(qp);
+	else
+		__ib_drain_rq(qp);
+}
+EXPORT_SYMBOL(ib_drain_rq);
+
+/**
+ * ib_drain_qp() - Block until all CQEs have been consumed by the
+ *		   application on both the RQ and SQ.
+ * @qp:            queue pair to drain
+ *
+ * The caller must:
+ *
+ * ensure there is room in the CQ(s), SQ, and RQ for drain work requests
+ * and completions.
+ *
+ * allocate the CQs using ib_alloc_cq() and the CQ poll context cannot be
+ * IB_POLL_DIRECT.
+ *
+ * ensure that there are no other contexts that are posting WRs concurrently.
+ * Otherwise the drain is not guaranteed.
+ */
+void ib_drain_qp(struct ib_qp *qp)
+{
+	ib_drain_sq(qp);
+	ib_drain_rq(qp);
+}
+EXPORT_SYMBOL(ib_drain_qp);

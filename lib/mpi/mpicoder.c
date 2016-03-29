@@ -128,6 +128,23 @@ leave:
 }
 EXPORT_SYMBOL_GPL(mpi_read_from_buffer);
 
+static int count_lzeros(MPI a)
+{
+	mpi_limb_t alimb;
+	int i, lzeros = 0;
+
+	for (i = a->nlimbs - 1; i >= 0; i--) {
+		alimb = a->d[i];
+		if (alimb == 0) {
+			lzeros += sizeof(mpi_limb_t);
+		} else {
+			lzeros += count_leading_zeros(alimb) / 8;
+			break;
+		}
+	}
+	return lzeros;
+}
+
 /**
  * mpi_read_buffer() - read MPI to a bufer provided by user (msb first)
  *
@@ -148,7 +165,7 @@ int mpi_read_buffer(MPI a, uint8_t *buf, unsigned buf_len, unsigned *nbytes,
 	uint8_t *p;
 	mpi_limb_t alimb;
 	unsigned int n = mpi_get_size(a);
-	int i, lzeros = 0;
+	int i, lzeros;
 
 	if (!buf || !nbytes)
 		return -EINVAL;
@@ -156,14 +173,7 @@ int mpi_read_buffer(MPI a, uint8_t *buf, unsigned buf_len, unsigned *nbytes,
 	if (sign)
 		*sign = a->sign;
 
-	p = (void *)&a->d[a->nlimbs] - 1;
-
-	for (i = a->nlimbs * sizeof(alimb) - 1; i >= 0; i--, p--) {
-		if (!*p)
-			lzeros++;
-		else
-			break;
-	}
+	lzeros = count_lzeros(a);
 
 	if (buf_len < n - lzeros) {
 		*nbytes = n - lzeros;
@@ -351,7 +361,7 @@ int mpi_write_to_sgl(MPI a, struct scatterlist *sgl, unsigned *nbytes,
 	u8 *p, *p2;
 	mpi_limb_t alimb, alimb2;
 	unsigned int n = mpi_get_size(a);
-	int i, x, y = 0, lzeros = 0, buf_len;
+	int i, x, y = 0, lzeros, buf_len;
 
 	if (!nbytes)
 		return -EINVAL;
@@ -359,14 +369,7 @@ int mpi_write_to_sgl(MPI a, struct scatterlist *sgl, unsigned *nbytes,
 	if (sign)
 		*sign = a->sign;
 
-	p = (void *)&a->d[a->nlimbs] - 1;
-
-	for (i = a->nlimbs * sizeof(alimb) - 1; i >= 0; i--, p--) {
-		if (!*p)
-			lzeros++;
-		else
-			break;
-	}
+	lzeros = count_lzeros(a);
 
 	if (*nbytes < n - lzeros) {
 		*nbytes = n - lzeros;

@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/pm_domain.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
@@ -42,12 +43,12 @@
 
 #define domain_to_gdsc(domain) container_of(domain, struct gdsc, pd)
 
-static int gdsc_is_enabled(struct gdsc *sc)
+static int gdsc_is_enabled(struct gdsc *sc, unsigned int reg)
 {
 	u32 val;
 	int ret;
 
-	ret = regmap_read(sc->regmap, sc->gdscr, &val);
+	ret = regmap_read(sc->regmap, reg, &val);
 	if (ret)
 		return ret;
 
@@ -58,28 +59,46 @@ static int gdsc_toggle_logic(struct gdsc *sc, bool en)
 {
 	int ret;
 	u32 val = en ? 0 : SW_COLLAPSE_MASK;
-	u32 check = en ? PWR_ON_MASK : 0;
-	unsigned long timeout;
+	ktime_t start;
+	unsigned int status_reg = sc->gdscr;
 
 	ret = regmap_update_bits(sc->regmap, sc->gdscr, SW_COLLAPSE_MASK, val);
 	if (ret)
 		return ret;
 
-	timeout = jiffies + usecs_to_jiffies(TIMEOUT_US);
+	/* If disabling votable gdscs, don't poll on status */
+	if ((sc->flags & VOTABLE) && !en) {
+		/*
+		 * Add a short delay here to ensure that an enable
+		 * right after it was disabled does not put it in an
+		 * unknown state
+		 */
+		udelay(TIMEOUT_US);
+		return 0;
+	}
+
+	if (sc->gds_hw_ctrl) {
+		status_reg = sc->gds_hw_ctrl;
+		/*
+		 * The gds hw controller asserts/de-asserts the status bit soon
+		 * after it receives a power on/off request from a master.
+		 * The controller then takes around 8 xo cycles to start its
+		 * internal state machine and update the status bit. During
+		 * this time, the status bit does not reflect the true status
+		 * of the core.
+		 * Add a delay of 1 us between writing to the SW_COLLAPSE bit
+		 * and polling the status bit.
+		 */
+		udelay(1);
+	}
+
+	start = ktime_get();
 	do {
-		ret = regmap_read(sc->regmap, sc->gdscr, &val);
-		if (ret)
-			return ret;
-
-		if ((val & PWR_ON_MASK) == check)
+		if (gdsc_is_enabled(sc, status_reg) == en)
 			return 0;
-	} while (time_before(jiffies, timeout));
+	} while (ktime_us_delta(ktime_get(), start) < TIMEOUT_US);
 
-	ret = regmap_read(sc->regmap, sc->gdscr, &val);
-	if (ret)
-		return ret;
-
-	if ((val & PWR_ON_MASK) == check)
+	if (gdsc_is_enabled(sc, status_reg) == en)
 		return 0;
 
 	return -ETIMEDOUT;
@@ -165,6 +184,7 @@ static int gdsc_init(struct gdsc *sc)
 {
 	u32 mask, val;
 	int on, ret;
+	unsigned int reg;
 
 	/*
 	 * Disable HW trigger: collapse/restore occur based on registers writes.
@@ -185,9 +205,17 @@ static int gdsc_init(struct gdsc *sc)
 			return ret;
 	}
 
-	on = gdsc_is_enabled(sc);
+	reg = sc->gds_hw_ctrl ? sc->gds_hw_ctrl : sc->gdscr;
+	on = gdsc_is_enabled(sc, reg);
 	if (on < 0)
 		return on;
+
+	/*
+	 * Votable GDSCs can be ON due to Vote from other masters.
+	 * If a Votable GDSC is ON, make sure we have a Vote.
+	 */
+	if ((sc->flags & VOTABLE) && on)
+		gdsc_enable(&sc->pd);
 
 	if (on || (sc->pwrsts & PWRSTS_RET))
 		gdsc_force_mem_on(sc);
@@ -201,11 +229,14 @@ static int gdsc_init(struct gdsc *sc)
 	return 0;
 }
 
-int gdsc_register(struct device *dev, struct gdsc **scs, size_t num,
+int gdsc_register(struct gdsc_desc *desc,
 		  struct reset_controller_dev *rcdev, struct regmap *regmap)
 {
 	int i, ret;
 	struct genpd_onecell_data *data;
+	struct device *dev = desc->dev;
+	struct gdsc **scs = desc->scs;
+	size_t num = desc->num;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -228,10 +259,30 @@ int gdsc_register(struct device *dev, struct gdsc **scs, size_t num,
 		data->domains[i] = &scs[i]->pd;
 	}
 
+	/* Add subdomains */
+	for (i = 0; i < num; i++) {
+		if (!scs[i])
+			continue;
+		if (scs[i]->parent)
+			pm_genpd_add_subdomain(scs[i]->parent, &scs[i]->pd);
+	}
+
 	return of_genpd_add_provider_onecell(dev->of_node, data);
 }
 
-void gdsc_unregister(struct device *dev)
+void gdsc_unregister(struct gdsc_desc *desc)
 {
+	int i;
+	struct device *dev = desc->dev;
+	struct gdsc **scs = desc->scs;
+	size_t num = desc->num;
+
+	/* Remove subdomains */
+	for (i = 0; i < num; i++) {
+		if (!scs[i])
+			continue;
+		if (scs[i]->parent)
+			pm_genpd_remove_subdomain(scs[i]->parent, &scs[i]->pd);
+	}
 	of_genpd_del_provider(dev->of_node);
 }

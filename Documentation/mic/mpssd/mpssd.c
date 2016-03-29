@@ -349,7 +349,7 @@ static ssize_t
 sum_iovec_len(struct mic_copy_desc *copy)
 {
 	ssize_t sum = 0;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < copy->iovcnt; i++)
 		sum += copy->iov[i].iov_len;
@@ -372,7 +372,7 @@ static void
 disp_iovec(struct mic_info *mic, struct mic_copy_desc *copy,
 	   const char *s, int line)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < copy->iovcnt; i++)
 		mpsslog("%s %s %d copy->iov[%d] addr %p len 0x%zx\n",
@@ -926,7 +926,7 @@ add_virtio_device(struct mic_info *mic, struct mic_device_desc *dd)
 	char path[PATH_MAX];
 	int fd, err;
 
-	snprintf(path, PATH_MAX, "/dev/mic%d", mic->id);
+	snprintf(path, PATH_MAX, "/dev/vop_virtio%d", mic->id);
 	fd = open(path, O_RDWR);
 	if (fd < 0) {
 		mpsslog("Could not open %s %s\n", path, strerror(errno));

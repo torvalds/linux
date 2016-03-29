@@ -195,6 +195,10 @@
 	};
 };
 
+&refclk {
+	clock-frequency = <25000000>;
+};
+
 &pinctrl {
 	compatible = "socionext,ph1-pro4-pinctrl", "syscon";
 };

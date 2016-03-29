@@ -1,10 +1,42 @@
 /*
  * Copyright 2013 Freescale Semiconductor, Inc.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
+ *
+ *     This file is distributed in the hope that it will be useful
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include "vf610-pinfunc.h"
@@ -16,6 +48,8 @@
 	aliases {
 		can0 = &can0;
 		can1 = &can1;
+		ethernet0 = &fec0;
+		ethernet1 = &fec1;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -174,6 +208,34 @@
 				status = "disabled";
 			};
 
+			sai0: sai@4002f000 {
+				compatible = "fsl,vf610-sai";
+				reg = <0x4002f000 0x1000>;
+				interrupts = <84 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_SAI0>,
+					<&clks VF610_CLK_SAI0_DIV>,
+					<&clks 0>, <&clks 0>;
+				clock-names = "bus", "mclk1", "mclk2", "mclk3";
+				dma-names = "tx", "rx";
+				dmas = <&edma0 0 17>,
+					<&edma0 0 16>;
+				status = "disabled";
+			};
+
+			sai1: sai@40030000 {
+				compatible = "fsl,vf610-sai";
+				reg = <0x40030000 0x1000>;
+				interrupts = <85 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_SAI1>,
+					<&clks VF610_CLK_SAI1_DIV>,
+					<&clks 0>, <&clks 0>;
+				clock-names = "bus", "mclk1", "mclk2", "mclk3";
+				dma-names = "tx", "rx";
+				dmas = <&edma0 0 19>,
+					<&edma0 0 18>;
+				status = "disabled";
+			};
+
 			sai2: sai@40031000 {
 				compatible = "fsl,vf610-sai";
 				reg = <0x40031000 0x1000>;
@@ -185,6 +247,20 @@
 				dma-names = "tx", "rx";
 				dmas = <&edma0 0 21>,
 					<&edma0 0 20>;
+				status = "disabled";
+			};
+
+			sai3: sai@40032000 {
+				compatible = "fsl,vf610-sai";
+				reg = <0x40032000 0x1000>;
+				interrupts = <87 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks VF610_CLK_SAI3>,
+					<&clks VF610_CLK_SAI3_DIV>,
+					<&clks 0>, <&clks 0>;
+				clock-names = "bus", "mclk1", "mclk2", "mclk3";
+				dma-names = "tx", "rx";
+				dmas = <&edma0 1 9>,
+					<&edma0 1 8>;
 				status = "disabled";
 			};
 
@@ -558,6 +634,24 @@
 				status = "disabled";
 			};
 
+			dac0: dac@400cc000 {
+				compatible = "fsl,vf610-dac";
+				reg = <0x400cc000 1000>;
+				interrupts = <55 IRQ_TYPE_LEVEL_HIGH>;
+				clock-names = "dac";
+				clocks = <&clks VF610_CLK_DAC0>;
+				status = "disabled";
+			};
+
+			dac1: dac@400cd000 {
+				compatible = "fsl,vf610-dac";
+				reg = <0x400cd000 1000>;
+				interrupts = <56 IRQ_TYPE_LEVEL_HIGH>;
+				clock-names = "dac";
+				clocks = <&clks VF610_CLK_DAC1>;
+				status = "disabled";
+			};
+
 			fec0: ethernet@400d0000 {
 				compatible = "fsl,mvf600-fec";
 				reg = <0x400d0000 0x1000>;
@@ -628,6 +722,11 @@
 				dma-names = "rx","tx";
 				status = "disabled";
 			};
+		};
+
+		iio-hwmon {
+			compatible = "iio-hwmon";
+			io-channels = <&adc0 16>, <&adc1 16>;
 		};
 	};
 };

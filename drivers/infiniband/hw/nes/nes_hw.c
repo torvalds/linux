@@ -35,17 +35,10 @@
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/ip.h>
-#include <linux/tcp.h>
 #include <linux/if_vlan.h>
-#include <linux/inet_lro.h>
 #include <linux/slab.h>
 
 #include "nes.h"
-
-static unsigned int nes_lro_max_aggr = NES_LRO_MAX_AGGR;
-module_param(nes_lro_max_aggr, uint, 0444);
-MODULE_PARM_DESC(nes_lro_max_aggr, "NIC LRO max packet aggregation");
 
 static int wide_ppm_offset;
 module_param(wide_ppm_offset, int, 0644);
@@ -1642,25 +1635,6 @@ static void nes_rq_wqes_timeout(unsigned long parm)
 }
 
 
-static int nes_lro_get_skb_hdr(struct sk_buff *skb, void **iphdr,
-			       void **tcph, u64 *hdr_flags, void *priv)
-{
-	unsigned int ip_len;
-	struct iphdr *iph;
-	skb_reset_network_header(skb);
-	iph = ip_hdr(skb);
-	if (iph->protocol != IPPROTO_TCP)
-		return -1;
-	ip_len = ip_hdrlen(skb);
-	skb_set_transport_header(skb, ip_len);
-	*tcph = tcp_hdr(skb);
-
-	*hdr_flags = LRO_IPV4 | LRO_TCP;
-	*iphdr = iph;
-	return 0;
-}
-
-
 /**
  * nes_init_nic_qp
  */
@@ -1895,14 +1869,6 @@ int nes_init_nic_qp(struct nes_device *nesdev, struct net_device *netdev)
 		return -ENOMEM;
 	}
 
-	nesvnic->lro_mgr.max_aggr       = nes_lro_max_aggr;
-	nesvnic->lro_mgr.max_desc       = NES_MAX_LRO_DESCRIPTORS;
-	nesvnic->lro_mgr.lro_arr        = nesvnic->lro_desc;
-	nesvnic->lro_mgr.get_skb_header = nes_lro_get_skb_hdr;
-	nesvnic->lro_mgr.features       = LRO_F_NAPI | LRO_F_EXTRACT_VLAN_ID;
-	nesvnic->lro_mgr.dev            = netdev;
-	nesvnic->lro_mgr.ip_summed      = CHECKSUM_UNNECESSARY;
-	nesvnic->lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
 	return 0;
 }
 
@@ -2809,13 +2775,10 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 	u16 pkt_type;
 	u16 rqes_processed = 0;
 	u8 sq_cqes = 0;
-	u8 nes_use_lro = 0;
 
 	head = cq->cq_head;
 	cq_size = cq->cq_size;
 	cq->cqes_pending = 1;
-	if (nesvnic->netdev->features & NETIF_F_LRO)
-		nes_use_lro = 1;
 	do {
 		if (le32_to_cpu(cq->cq_vbase[head].cqe_words[NES_NIC_CQE_MISC_IDX]) &
 				NES_NIC_CQE_VALID) {
@@ -2950,10 +2913,7 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 
 					__vlan_hwaccel_put_tag(rx_skb, htons(ETH_P_8021Q), vlan_tag);
 				}
-				if (nes_use_lro)
-					lro_receive_skb(&nesvnic->lro_mgr, rx_skb, NULL);
-				else
-					netif_receive_skb(rx_skb);
+				napi_gro_receive(&nesvnic->napi, rx_skb);
 
 skip_rx_indicate0:
 				;
@@ -2984,8 +2944,6 @@ skip_rx_indicate0:
 
 	} while (1);
 
-	if (nes_use_lro)
-		lro_flush_all(&nesvnic->lro_mgr);
 	if (sq_cqes) {
 		barrier();
 		/* restart the queue if it had been stopped */

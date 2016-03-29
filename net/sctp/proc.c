@@ -161,7 +161,6 @@ static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_associa
 	struct sctp_af *af;
 
 	primary = &assoc->peer.primary_addr;
-	rcu_read_lock();
 	list_for_each_entry_rcu(transport, &assoc->peer.transport_addr_list,
 			transports) {
 		addr = &transport->ipaddr;
@@ -172,7 +171,6 @@ static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_associa
 		}
 		af->seq_dump_addr(seq, addr);
 	}
-	rcu_read_unlock();
 }
 
 static void *sctp_eps_seq_start(struct seq_file *seq, loff_t *pos)

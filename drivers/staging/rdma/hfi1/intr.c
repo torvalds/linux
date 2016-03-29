@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -98,7 +95,7 @@ static void signal_ib_event(struct hfi1_pportdata *ppd, enum ib_event_type ev)
 	 */
 	if (!(dd->flags & HFI1_INITTED))
 		return;
-	event.device = &dd->verbs_dev.ibdev;
+	event.device = &dd->verbs_dev.rdi.ibdev;
 	event.element.port_num = ppd->port;
 	event.event = ev;
 	ib_dispatch_event(&event);
@@ -131,28 +128,26 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 		 * NOTE: This uses this device's vAU, vCU, and vl15_init for
 		 * the remote values.  Both sides must be using the values.
 		 */
-		if (quick_linkup
-			    || dd->icode == ICODE_FUNCTIONAL_SIMULATOR) {
+		if (quick_linkup || dd->icode == ICODE_FUNCTIONAL_SIMULATOR) {
 			set_up_vl15(dd, dd->vau, dd->vl15_init);
 			assign_remote_cm_au_table(dd, dd->vcu);
 			ppd->neighbor_guid =
-				read_csr(dd,
-					DC_DC8051_STS_REMOTE_GUID);
+				read_csr(dd, DC_DC8051_STS_REMOTE_GUID);
 			ppd->neighbor_type =
 				read_csr(dd, DC_DC8051_STS_REMOTE_NODE_TYPE) &
 					DC_DC8051_STS_REMOTE_NODE_TYPE_VAL_MASK;
 			ppd->neighbor_port_number =
 				read_csr(dd, DC_DC8051_STS_REMOTE_PORT_NO) &
-					DC_DC8051_STS_REMOTE_PORT_NO_VAL_SMASK;
-			dd_dev_info(dd,
-				"Neighbor GUID: %llx Neighbor type %d\n",
-				ppd->neighbor_guid,
-				ppd->neighbor_type);
+					 DC_DC8051_STS_REMOTE_PORT_NO_VAL_SMASK;
+			dd_dev_info(dd, "Neighbor GUID: %llx Neighbor type %d\n",
+				    ppd->neighbor_guid,
+				    ppd->neighbor_type);
 		}
 
 		/* physical link went up */
 		ppd->linkup = 1;
-		ppd->offline_disabled_reason = OPA_LINKDOWN_REASON_NONE;
+		ppd->offline_disabled_reason =
+			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE);
 
 		/* link widths are not available until the link is fully up */
 		get_linkup_link_widths(ppd);
@@ -165,7 +160,7 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 		reset_link_credits(dd);
 
 		/* freeze after a link down to guarantee a clean egress */
-		start_freeze_handling(ppd, FREEZE_SELF|FREEZE_LINK_DOWN);
+		start_freeze_handling(ppd, FREEZE_SELF | FREEZE_LINK_DOWN);
 
 		ev = IB_EVENT_PORT_ERR;
 
@@ -177,8 +172,6 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 		/* notify IB of the link change */
 		signal_ib_event(ppd, ev);
 	}
-
-
 }
 
 /*

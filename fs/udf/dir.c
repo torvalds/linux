@@ -45,7 +45,7 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 	int block, iblock;
 	loff_t nf_pos;
 	int flen;
-	unsigned char *fname = NULL;
+	unsigned char *fname = NULL, *copy_name = NULL;
 	unsigned char *nameptr;
 	uint16_t liu;
 	uint8_t lfi;
@@ -143,7 +143,15 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 			if (poffset >= lfi) {
 				nameptr = (char *)(fibh.ebh->b_data + poffset - lfi);
 			} else {
-				nameptr = fname;
+				if (!copy_name) {
+					copy_name = kmalloc(UDF_NAME_LEN,
+							    GFP_NOFS);
+					if (!copy_name) {
+						ret = -ENOMEM;
+						goto out;
+					}
+				}
+				nameptr = copy_name;
 				memcpy(nameptr, fi->fileIdent + liu,
 				       lfi - poffset);
 				memcpy(nameptr + lfi - poffset,
@@ -185,6 +193,7 @@ out:
 	brelse(fibh.sbh);
 	brelse(epos.bh);
 	kfree(fname);
+	kfree(copy_name);
 
 	return ret;
 }

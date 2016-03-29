@@ -72,14 +72,12 @@ sint _r8712_init_recv_priv(struct recv_priv *precvpriv,
 	_init_queue(&precvpriv->recv_pending_queue);
 	precvpriv->adapter = padapter;
 	precvpriv->free_recvframe_cnt = NR_RECVFRAME;
-	precvpriv->pallocated_frame_buf = kmalloc(NR_RECVFRAME *
+	precvpriv->pallocated_frame_buf = kzalloc(NR_RECVFRAME *
 				sizeof(union recv_frame) + RXFRAME_ALIGN_SZ,
 				GFP_ATOMIC);
 	if (precvpriv->pallocated_frame_buf == NULL)
 		return _FAIL;
 	kmemleak_not_leak(precvpriv->pallocated_frame_buf);
-	memset(precvpriv->pallocated_frame_buf, 0, NR_RECVFRAME *
-		sizeof(union recv_frame) + RXFRAME_ALIGN_SZ);
 	precvpriv->precv_frame_buf = precvpriv->pallocated_frame_buf +
 				    RXFRAME_ALIGN_SZ -
 				    ((addr_t)(precvpriv->pallocated_frame_buf) &
@@ -103,21 +101,17 @@ void _r8712_free_recv_priv(struct recv_priv *precvpriv)
 	r8712_free_recv_priv(precvpriv);
 }
 
-union recv_frame *r8712_alloc_recvframe(struct  __queue *pfree_recv_queue)
+union recv_frame *r8712_alloc_recvframe(struct __queue *pfree_recv_queue)
 {
 	unsigned long irqL;
 	union recv_frame  *precvframe;
-	struct list_head *plist, *phead;
 	struct _adapter *padapter;
 	struct recv_priv *precvpriv;
 
 	spin_lock_irqsave(&pfree_recv_queue->lock, irqL);
-	if (list_empty(&pfree_recv_queue->queue)) {
-		precvframe = NULL;
-	} else {
-		phead = &pfree_recv_queue->queue;
-		plist = phead->next;
-		precvframe = LIST_CONTAINOR(plist, union recv_frame, u);
+	precvframe = list_first_entry_or_null(&pfree_recv_queue->queue,
+					      union recv_frame, u.hdr.list);
+	if (precvframe) {
 		list_del_init(&precvframe->u.hdr.list);
 		padapter = precvframe->u.hdr.adapter;
 		if (padapter != NULL) {

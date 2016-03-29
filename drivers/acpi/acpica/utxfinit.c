@@ -154,21 +154,6 @@ acpi_status __init acpi_enable_subsystem(u32 flags)
 	 */
 	acpi_gbl_early_initialization = FALSE;
 
-	/*
-	 * Install the default operation region handlers. These are the
-	 * handlers that are defined by the ACPI specification to be
-	 * "always accessible" -- namely, system_memory, system_IO, and
-	 * PCI_Config. This also means that no _REG methods need to be
-	 * run for these address spaces. We need to have these handlers
-	 * installed before any AML code can be executed, especially any
-	 * module-level code (11/2015).
-	 */
-	status = acpi_ev_install_region_handlers();
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status,
-				"During Region initialization"));
-		return_ACPI_STATUS(status);
-	}
 #if (!ACPI_REDUCED_HARDWARE)
 
 	/* Enable ACPI mode */
@@ -260,23 +245,6 @@ acpi_status __init acpi_initialize_objects(u32 flags)
 
 	ACPI_FUNCTION_TRACE(acpi_initialize_objects);
 
-	/*
-	 * Run all _REG methods
-	 *
-	 * Note: Any objects accessed by the _REG methods will be automatically
-	 * initialized, even if they contain executable AML (see the call to
-	 * acpi_ns_initialize_objects below).
-	 */
-	acpi_gbl_reg_methods_enabled = TRUE;
-	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Executing _REG OpRegion methods\n"));
-
-		status = acpi_ev_initialize_op_regions();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
 #ifdef ACPI_EXEC_APP
 	/*
 	 * This call implements the "initialization file" option for acpi_exec.
@@ -299,32 +267,27 @@ acpi_status __init acpi_initialize_objects(u32 flags)
 	 */
 	if (acpi_gbl_group_module_level_code) {
 		acpi_ns_exec_module_code_list();
-	}
 
-	/*
-	 * Initialize the objects that remain uninitialized. This runs the
-	 * executable AML that may be part of the declaration of these objects:
-	 * operation_regions, buffer_fields, Buffers, and Packages.
-	 */
-	if (!(flags & ACPI_NO_OBJECT_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Completing Initialization of ACPI Objects\n"));
-
-		status = acpi_ns_initialize_objects();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
+		/*
+		 * Initialize the objects that remain uninitialized. This
+		 * runs the executable AML that may be part of the
+		 * declaration of these objects:
+		 * operation_regions, buffer_fields, Buffers, and Packages.
+		 */
+		if (!(flags & ACPI_NO_OBJECT_INIT)) {
+			status = acpi_ns_initialize_objects();
+			if (ACPI_FAILURE(status)) {
+				return_ACPI_STATUS(status);
+			}
 		}
 	}
 
 	/*
-	 * Initialize all device objects in the namespace. This runs the device
-	 * _STA and _INI methods.
+	 * Initialize all device/region objects in the namespace. This runs
+	 * the device _STA and _INI methods and region _REG methods.
 	 */
-	if (!(flags & ACPI_NO_DEVICE_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Initializing ACPI Devices\n"));
-
-		status = acpi_ns_initialize_devices();
+	if (!(flags & (ACPI_NO_DEVICE_INIT | ACPI_NO_ADDRESS_SPACE_INIT))) {
+		status = acpi_ns_initialize_devices(flags);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}

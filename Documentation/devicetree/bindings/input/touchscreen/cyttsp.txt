@@ -1,0 +1,95 @@
+* Cypress cyttsp touchscreen controller
+
+Required properties:
+ - compatible		: must be "cypress,cyttsp-i2c" or "cypress,cyttsp-spi"
+ - reg			: Device I2C address or SPI chip select number
+ - spi-max-frequency	: Maximum SPI clocking speed of the device (for cyttsp-spi)
+ - interrupt-parent	: the phandle for the gpio controller
+			  (see interrupt binding[0]).
+ - interrupts		: (gpio) interrupt to which the chip is connected
+			  (see interrupt binding[0]).
+ - bootloader-key	: the 8-byte bootloader key that is required to switch
+			  the chip from bootloader mode (default mode) to
+			  application mode.
+			  This property has to be specified as an array of 8
+			  '/bits/ 8' values.
+
+Optional properties:
+ - reset-gpios		: the reset gpio the chip is connected to
+			  (see GPIO binding[1] for more details).
+ - touchscreen-size-x	: horizontal resolution of touchscreen (in pixels)
+ - touchscreen-size-y	: vertical resolution of touchscreen (in pixels)
+ - touchscreen-fuzz-x	: horizontal noise value of the absolute input device
+			  (in pixels)
+ - touchscreen-fuzz-y	: vertical noise value of the absolute input device
+			  (in pixels)
+ - active-distance	: the distance in pixels beyond which a touch must move
+			  before movement is detected and reported by the device.
+			  Valid values: 0-15.
+ - active-interval-ms	: the minimum period in ms between consecutive
+			  scanning/processing cycles when the chip is in active mode.
+			  Valid values: 0-255.
+ - lowpower-interval-ms	: the minimum period in ms between consecutive
+			  scanning/processing cycles when the chip is in low-power mode.
+			  Valid values: 0-2550
+ - touch-timeout-ms	: minimum time in ms spent in the active power state while no
+			  touches are detected before entering low-power mode.
+			  Valid values: 0-2550
+ - use-handshake	: enable register-based handshake (boolean). This should
+			  only be used if the chip is configured to use 'blocking
+			  communication with timeout' (in this case the device
+			  generates an interrupt at the end of every
+			  scanning/processing cycle).
+
+[0]: Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+[1]: Documentation/devicetree/bindings/gpio/gpio.txt
+
+Example:
+	&i2c1 {
+		/* ... */
+		cyttsp@a {
+			compatible = "cypress,cyttsp-i2c";
+			reg = <0xa>;
+			interrupt-parent = <&gpio0>;
+			interrupts = <28 0>;
+			reset-gpios = <&gpio3 4 GPIO_ACTIVE_LOW>;
+
+			touchscreen-size-x = <800>;
+			touchscreen-size-y = <480>;
+			touchscreen-fuzz-x = <4>;
+			touchscreen-fuzz-y = <7>;
+
+			bootloader-key = /bits/ 8 <0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08>;
+			active-distance = <8>;
+			active-interval-ms = <0>;
+			lowpower-interval-ms = <200>;
+			touch-timeout-ms = <100>;
+		};
+
+		/* ... */
+	};
+
+	&mcspi1 {
+		/* ... */
+		cyttsp@0 {
+			compatible = "cypress,cyttsp-spi";
+			spi-max-frequency = <6000000>;
+			reg = <0>;
+			interrupt-parent = <&gpio0>;
+			interrupts = <28 0>;
+			reset-gpios = <&gpio3 4 GPIO_ACTIVE_LOW>;
+
+			touchscreen-size-x = <800>;
+			touchscreen-size-y = <480>;
+			touchscreen-fuzz-x = <4>;
+			touchscreen-fuzz-y = <7>;
+
+			bootloader-key = /bits/ 8 <0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08>;
+			active-distance = <8>;
+			active-interval-ms = <0>;
+			lowpower-interval-ms = <200>;
+			touch-timeout-ms = <100>;
+		};
+
+		/* ... */
+	};

@@ -15,7 +15,7 @@
 #define AT91_IO_P2V(x) (x)
 #endif
 
-#define CONFIG_DEBUG_UART_VIRT AT91_IO_P2V(CONFIG_DEBUG_UART_PHYS)
+#define AT91_DEBUG_UART_VIRT AT91_IO_P2V(CONFIG_DEBUG_UART_PHYS)
 
 #define AT91_DBGU_SR		(0x14)	/* Status Register */
 #define AT91_DBGU_THR		(0x1c)	/* Transmitter Holding Register */
@@ -24,7 +24,7 @@
 
 	.macro	addruart, rp, rv, tmp
 	ldr	\rp, =CONFIG_DEBUG_UART_PHYS		@ System peripherals (phys address)
-	ldr	\rv, =CONFIG_DEBUG_UART_VIRT		@ System peripherals (virt address)
+	ldr	\rv, =AT91_DEBUG_UART_VIRT		@ System peripherals (virt address)
 	.endm
 
 	.macro	senduart,rd,rx

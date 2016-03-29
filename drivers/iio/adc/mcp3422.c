@@ -1,11 +1,12 @@
 /*
- * mcp3422.c - driver for the Microchip mcp3422/3/4/6/7/8 chip family
+ * mcp3422.c - driver for the Microchip mcp3421/2/3/4/5/6/7/8 chip family
  *
  * Copyright (C) 2013, Angelo Compagnucci
  * Author: Angelo Compagnucci <angelo.compagnucci@gmail.com>
  *
  * Datasheet: http://ww1.microchip.com/downloads/en/devicedoc/22088b.pdf
  *            http://ww1.microchip.com/downloads/en/DeviceDoc/22226a.pdf
+ *            http://ww1.microchip.com/downloads/en/DeviceDoc/22072b.pdf
  *
  * This driver exports the value of analog input voltage to sysfs, the
  * voltage unit is nV.
@@ -338,7 +339,7 @@ static int mcp3422_probe(struct i2c_client *client,
 	u8 config;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*adc));
 	if (!indio_dev)
@@ -357,6 +358,7 @@ static int mcp3422_probe(struct i2c_client *client,
 
 	switch (adc->id) {
 	case 1:
+	case 5:
 		indio_dev->channels = mcp3421_channels;
 		indio_dev->num_channels = ARRAY_SIZE(mcp3421_channels);
 		break;
@@ -395,6 +397,7 @@ static const struct i2c_device_id mcp3422_id[] = {
 	{ "mcp3422", 2 },
 	{ "mcp3423", 3 },
 	{ "mcp3424", 4 },
+	{ "mcp3425", 5 },
 	{ "mcp3426", 6 },
 	{ "mcp3427", 7 },
 	{ "mcp3428", 8 },
@@ -421,5 +424,5 @@ static struct i2c_driver mcp3422_driver = {
 module_i2c_driver(mcp3422_driver);
 
 MODULE_AUTHOR("Angelo Compagnucci <angelo.compagnucci@gmail.com>");
-MODULE_DESCRIPTION("Microchip mcp3422/3/4/6/7/8 driver");
+MODULE_DESCRIPTION("Microchip mcp3421/2/3/4/5/6/7/8 driver");
 MODULE_LICENSE("GPL v2");

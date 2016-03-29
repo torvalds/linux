@@ -558,7 +558,7 @@ out:
 }
 
 static const struct iio_info ad5933_info = {
-	.read_raw = &ad5933_read_raw,
+	.read_raw = ad5933_read_raw,
 	.attrs = &ad5933_attribute_group,
 	.driver_module = THIS_MODULE,
 };
@@ -616,9 +616,9 @@ static int ad5933_ring_postdisable(struct iio_dev *indio_dev)
 }
 
 static const struct iio_buffer_setup_ops ad5933_ring_setup_ops = {
-	.preenable = &ad5933_ring_preenable,
-	.postenable = &ad5933_ring_postenable,
-	.postdisable = &ad5933_ring_postdisable,
+	.preenable = ad5933_ring_preenable,
+	.postenable = ad5933_ring_postenable,
+	.postdisable = ad5933_ring_postdisable,
 };
 
 static int ad5933_register_ring_funcs_and_init(struct iio_dev *indio_dev)

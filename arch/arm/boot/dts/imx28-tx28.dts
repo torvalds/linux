@@ -130,7 +130,7 @@
 			compatible = "fixed-clock";
 			reg = <0>;
 			#clock-cells = <0>;
-			clock-frequency = <27000000>;
+			clock-frequency = <26000000>;
 		};
 	};
 
@@ -202,7 +202,7 @@
 			0x02020049 /* row 2, col 2, KEY_KP9 */
 		>;
 		gpio-activelow;
-		linux,wakeup;
+		wakeup-source;
 		debounce-delay-ms = <100>;
 		col-scan-delay-us = <5000>;
 		linux,no-autorepeat;

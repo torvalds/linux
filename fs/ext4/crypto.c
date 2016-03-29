@@ -18,11 +18,9 @@
  * Special Publication 800-38E and IEEE P1619/D16.
  */
 
-#include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/skcipher.h>
 #include <keys/user-type.h>
 #include <keys/encrypted-type.h>
-#include <linux/crypto.h>
 #include <linux/ecryptfs.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
@@ -261,21 +259,21 @@ static int ext4_page_crypto(struct inode *inode,
 
 {
 	u8 xts_tweak[EXT4_XTS_TWEAK_SIZE];
-	struct ablkcipher_request *req = NULL;
+	struct skcipher_request *req = NULL;
 	DECLARE_EXT4_COMPLETION_RESULT(ecr);
 	struct scatterlist dst, src;
 	struct ext4_crypt_info *ci = EXT4_I(inode)->i_crypt_info;
-	struct crypto_ablkcipher *tfm = ci->ci_ctfm;
+	struct crypto_skcipher *tfm = ci->ci_ctfm;
 	int res = 0;
 
-	req = ablkcipher_request_alloc(tfm, GFP_NOFS);
+	req = skcipher_request_alloc(tfm, GFP_NOFS);
 	if (!req) {
 		printk_ratelimited(KERN_ERR
 				   "%s: crypto_request_alloc() failed\n",
 				   __func__);
 		return -ENOMEM;
 	}
-	ablkcipher_request_set_callback(
+	skcipher_request_set_callback(
 		req, CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 		ext4_crypt_complete, &ecr);
 
@@ -288,21 +286,21 @@ static int ext4_page_crypto(struct inode *inode,
 	sg_set_page(&dst, dest_page, PAGE_CACHE_SIZE, 0);
 	sg_init_table(&src, 1);
 	sg_set_page(&src, src_page, PAGE_CACHE_SIZE, 0);
-	ablkcipher_request_set_crypt(req, &src, &dst, PAGE_CACHE_SIZE,
-				     xts_tweak);
+	skcipher_request_set_crypt(req, &src, &dst, PAGE_CACHE_SIZE,
+				   xts_tweak);
 	if (rw == EXT4_DECRYPT)
-		res = crypto_ablkcipher_decrypt(req);
+		res = crypto_skcipher_decrypt(req);
 	else
-		res = crypto_ablkcipher_encrypt(req);
+		res = crypto_skcipher_encrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
-	ablkcipher_request_free(req);
+	skcipher_request_free(req);
 	if (res) {
 		printk_ratelimited(
 			KERN_ERR
-			"%s: crypto_ablkcipher_encrypt() returned %d\n",
+			"%s: crypto_skcipher_encrypt() returned %d\n",
 			__func__, res);
 		return res;
 	}

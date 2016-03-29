@@ -31,6 +31,7 @@
 #define MCP_TYPE_S17	1
 #define MCP_TYPE_008	2
 #define MCP_TYPE_017	3
+#define MCP_TYPE_S18    4
 
 /* Registers are all 8 bits wide.
  *
@@ -48,6 +49,7 @@
 #	define IOCON_HAEN	(1 << 3)
 #	define IOCON_ODR	(1 << 2)
 #	define IOCON_INTPOL	(1 << 1)
+#	define IOCON_INTCC	(1)
 #define MCP_GPPU	0x06
 #define MCP_INTF	0x07
 #define MCP_INTCAP	0x08
@@ -617,6 +619,12 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 		mcp->chip.ngpio = 16;
 		mcp->chip.label = "mcp23s17";
 		break;
+
+	case MCP_TYPE_S18:
+		mcp->ops = &mcp23s17_ops;
+		mcp->chip.ngpio = 16;
+		mcp->chip.label = "mcp23s18";
+		break;
 #endif /* CONFIG_SPI_MASTER */
 
 #if IS_ENABLED(CONFIG_I2C)
@@ -657,8 +665,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 			of_property_read_bool(mcp->chip.parent->of_node,
 					      "microchip,irq-active-high");
 
-		if (type == MCP_TYPE_017)
-			mirror = pdata->mirror;
+		mirror = pdata->mirror;
 	}
 
 	if ((status & IOCON_SEQOP) || !(status & IOCON_HAEN) || mirror ||
@@ -673,6 +680,9 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 
 		if (mirror)
 			status |= IOCON_MIRROR | (IOCON_MIRROR << 8);
+
+		if (type == MCP_TYPE_S18)
+			status |= IOCON_INTCC | (IOCON_INTCC << 8);
 
 		status = mcp->ops->write(mcp, MCP_IOCON, status);
 		if (status < 0)
@@ -734,6 +744,10 @@ static const struct of_device_id mcp23s08_spi_of_match[] = {
 	{
 		.compatible = "microchip,mcp23s17",
 		.data = (void *) MCP_TYPE_S17,
+	},
+	{
+		.compatible = "microchip,mcp23s18",
+		.data = (void *) MCP_TYPE_S18,
 	},
 /* NOTE: The use of the mcp prefix is deprecated and will be removed. */
 	{
@@ -803,6 +817,8 @@ static int mcp230xx_probe(struct i2c_client *client,
 			pdata = devm_kzalloc(&client->dev,
 					sizeof(struct mcp23s08_platform_data),
 					GFP_KERNEL);
+			if (!pdata)
+				return -ENOMEM;
 			pdata->base = -1;
 		}
 	}
@@ -969,8 +985,8 @@ static int mcp23s08_probe(struct spi_device *spi)
 			goto fail;
 
 		if (pdata->base != -1)
-			pdata->base += (type == MCP_TYPE_S17) ? 16 : 8;
-		ngpio += (type == MCP_TYPE_S17) ? 16 : 8;
+			pdata->base += data->mcp[addr]->chip.ngpio;
+		ngpio += data->mcp[addr]->chip.ngpio;
 	}
 	data->ngpio = ngpio;
 
@@ -1012,6 +1028,7 @@ static int mcp23s08_remove(struct spi_device *spi)
 static const struct spi_device_id mcp23s08_ids[] = {
 	{ "mcp23s08", MCP_TYPE_S08 },
 	{ "mcp23s17", MCP_TYPE_S17 },
+	{ "mcp23s18", MCP_TYPE_S18 },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, mcp23s08_ids);
