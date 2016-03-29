@@ -381,14 +381,6 @@ static struct config_group *target_fabric_make_nodeacl(
 	if (IS_ERR(se_nacl))
 		return ERR_CAST(se_nacl);
 
-	if (tf->tf_ops->fabric_init_nodeacl) {
-		int ret = tf->tf_ops->fabric_init_nodeacl(se_nacl, name);
-		if (ret) {
-			core_tpg_del_initiator_node_acl(se_nacl);
-			return ERR_PTR(ret);
-		}
-	}
-
 	config_group_init_type_name(&se_nacl->acl_group, name,
 			&tf->tf_tpg_nacl_base_cit);
 
@@ -411,6 +403,15 @@ static struct config_group *target_fabric_make_nodeacl(
 			"fabric_statistics", &tf->tf_tpg_nacl_stat_cit);
 	configfs_add_default_group(&se_nacl->acl_fabric_stat_group,
 			&se_nacl->acl_group);
+
+	if (tf->tf_ops->fabric_init_nodeacl) {
+		int ret = tf->tf_ops->fabric_init_nodeacl(se_nacl, name);
+		if (ret) {
+			configfs_remove_default_groups(&se_nacl->acl_fabric_stat_group);
+			core_tpg_del_initiator_node_acl(se_nacl);
+			return ERR_PTR(ret);
+		}
+	}
 
 	return &se_nacl->acl_group;
 }
