@@ -794,6 +794,7 @@ void gbaudio_codec_cleanup(struct gbaudio_module_info *module)
 	if (!pb_state && !cap_state)
 		return;
 
+	dev_dbg(gbcodec->dev, "%s: removed, cleanup APBridge\n", module->name);
 	if (pb_state == GBAUDIO_CODEC_START) {
 		/* cleanup PB path, only APBridge specific */
 		data = find_data(module, gbcodec->stream[0].dai_name);
@@ -802,12 +803,16 @@ void gbaudio_codec_cleanup(struct gbaudio_module_info *module)
 				__func__);
 			return;
 		}
-		ret = gb_audio_apbridgea_stop_tx(data->connection, 0);
-		if (ret)
-			return;
-		ret = gb_audio_apbridgea_shutdown_tx(data->connection, 0);
-		if (ret)
-			return;
+
+		if (list_is_singular(&gbcodec->module_list)) {
+			ret = gb_audio_apbridgea_stop_tx(data->connection, 0);
+			if (ret)
+				return;
+			ret = gb_audio_apbridgea_shutdown_tx(data->connection,
+							     0);
+			if (ret)
+				return;
+		}
 		i2s_port = 0;	/* fixed for now */
 		cportid = data->connection->hd_cport_id;
 		ret = gb_audio_apbridgea_unregister_cport(data->connection,
@@ -824,12 +829,15 @@ void gbaudio_codec_cleanup(struct gbaudio_module_info *module)
 				__func__);
 			return;
 		}
-		ret = gb_audio_apbridgea_stop_rx(data->connection, 0);
-		if (ret)
-			return;
-		ret = gb_audio_apbridgea_shutdown_rx(data->connection, 0);
-		if (ret)
-			return;
+		if (list_is_singular(&gbcodec->module_list)) {
+			ret = gb_audio_apbridgea_stop_rx(data->connection, 0);
+			if (ret)
+				return;
+			ret = gb_audio_apbridgea_shutdown_rx(data->connection,
+							     0);
+			if (ret)
+				return;
+		}
 		i2s_port = 0;	/* fixed for now */
 		cportid = data->connection->hd_cport_id;
 		ret = gb_audio_apbridgea_unregister_cport(data->connection,
@@ -854,10 +862,7 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 	dev_dbg(codec->dev, "Process Unregister %s module\n", module->name);
 	mutex_lock(&module->lock);
 
-	if (list_is_last(&module->list, &gbcodec->module_list)) {
-		dev_dbg(codec->dev, "Last module removed, cleanup APBridge\n");
-		gbaudio_codec_cleanup(module);
-	}
+	gbaudio_codec_cleanup(module);
 
 	module->is_connected = 0;
 	if (module->dapm_routes) {
