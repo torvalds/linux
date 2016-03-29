@@ -55,7 +55,7 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 	}
 
 	/*
-	 * Check if the interface needs to boot over UniPro.
+	 * Extract the init status.
 	 *
 	 * For ES2: We need to check lowest 8 bits of 'value'.
 	 * For ES3: We need to check highest 8 bits out of 32 of 'value'.
@@ -67,9 +67,18 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 	else
 		init_status = value >> 24;
 
-	if (init_status == DME_DIS_UNIPRO_BOOT_STARTED ||
-			init_status == DME_DIS_FALLBACK_UNIPRO_BOOT_STARTED)
-		intf->boot_over_unipro = true;
+	/*
+	 * Check if the interface is executing the quirky ES3 bootrom that
+	 * requires E2EFC, CSD and CSV to be disabled and that does not
+	 * support the interface-version request.
+	 */
+	switch (init_status) {
+	case DME_DIS_BOOTROM_UNIPRO_BOOT_STARTED:
+	case DME_DIS_BOOTROM_FALLBACK_UNIPRO_BOOT_STARTED:
+		intf->quirks |= GB_INTERFACE_QUIRK_NO_CPORT_FEATURES;
+		intf->quirks |= GB_INTERFACE_QUIRK_NO_INTERFACE_VERSION;
+		break;
+	}
 
 	/* Clear the init status. */
 	return gb_svc_dme_peer_set(hd->svc, intf->interface_id, attr,

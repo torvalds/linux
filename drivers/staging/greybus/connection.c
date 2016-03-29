@@ -337,9 +337,12 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 
 	intf = connection->intf;
 
-	/* The ES2/ES3 bootrom requires E2EFC, CSD and CSV to be disabled. */
+	/*
+	 * Enable either E2EFC or CSD, unless the interface does not support
+	 * any CPort features.
+	 */
 	cport_flags = GB_SVC_CPORT_FLAG_CSV_N;
-	if (intf->boot_over_unipro) {
+	if (intf->quirks & GB_INTERFACE_QUIRK_NO_CPORT_FEATURES) {
 		cport_flags |= GB_SVC_CPORT_FLAG_CSD_N;
 	} else if (gb_connection_e2efc_enabled(connection)) {
 		cport_flags |= GB_SVC_CPORT_FLAG_CSD_N |

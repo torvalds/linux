@@ -10,6 +10,9 @@
 #ifndef __INTERFACE_H
 #define __INTERFACE_H
 
+#define GB_INTERFACE_QUIRK_NO_CPORT_FEATURES		BIT(0)
+#define GB_INTERFACE_QUIRK_NO_INTERFACE_VERSION		BIT(1)
+
 struct gb_interface {
 	struct device dev;
 	struct gb_control *control;
@@ -36,8 +39,8 @@ struct gb_interface {
 
 	struct gb_host_device *hd;
 
-	/* The interface needs to boot over unipro */
-	bool boot_over_unipro;
+	unsigned long quirks;
+
 	bool disconnected;
 };
 #define to_gb_interface(d) container_of(d, struct gb_interface, dev)

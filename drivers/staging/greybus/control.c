@@ -155,8 +155,7 @@ int gb_control_get_interface_version_operation(struct gb_interface *intf)
 	struct gb_connection *connection = intf->control->connection;
 	int ret;
 
-	/* The ES3 bootrom fails to boot if this request it sent to it */
-	if (intf->boot_over_unipro)
+	if (intf->quirks & GB_INTERFACE_QUIRK_NO_INTERFACE_VERSION)
 		return 0;
 
 	ret = gb_operation_sync(connection, GB_CONTROL_TYPE_INTERFACE_VERSION,

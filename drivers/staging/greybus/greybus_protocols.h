@@ -894,11 +894,11 @@ struct gb_svc_dme_peer_set_response {
 #define DME_ATTR_ES3_INIT_STATUS		0x6101
 
 /* Return value from init-status attributes listed above */
-#define DME_DIS_SPI_BOOT_STARTED		0x02
-#define DME_DIS_TRUSTED_SPI_BOOT_FINISHED	0x03
-#define DME_DIS_UNTRUSTED_SPI_BOOT_FINISHED	0x04
-#define DME_DIS_UNIPRO_BOOT_STARTED		0x06
-#define DME_DIS_FALLBACK_UNIPRO_BOOT_STARTED	0x09
+#define DME_DIS_SPI_BOOT_STARTED			0x02
+#define DME_DIS_TRUSTED_SPI_BOOT_FINISHED		0x03
+#define DME_DIS_UNTRUSTED_SPI_BOOT_FINISHED		0x04
+#define DME_DIS_BOOTROM_UNIPRO_BOOT_STARTED		0x06
+#define DME_DIS_BOOTROM_FALLBACK_UNIPRO_BOOT_STARTED	0x09
 
 struct gb_svc_route_create_request {
 	__u8	intf1_id;
