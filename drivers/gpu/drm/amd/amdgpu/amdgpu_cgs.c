@@ -850,6 +850,16 @@ static int amdgpu_cgs_get_active_displays_info(void *cgs_device,
 	return 0;
 }
 
+
+static int amdgpu_cgs_notify_dpm_enabled(void *cgs_device, bool enabled)
+{
+	CGS_FUNC_ADEV;
+
+	adev->pm.dpm_enabled = enabled;
+
+	return 0;
+}
+
 /** \brief evaluate acpi namespace object, handle or pathname must be valid
  *  \param cgs_device
  *  \param info input/output arguments for the control method
@@ -1100,6 +1110,7 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	amdgpu_cgs_set_powergating_state,
 	amdgpu_cgs_set_clockgating_state,
 	amdgpu_cgs_get_active_displays_info,
+	amdgpu_cgs_notify_dpm_enabled,
 	amdgpu_cgs_call_acpi_method,
 	amdgpu_cgs_query_system_info,
 };
