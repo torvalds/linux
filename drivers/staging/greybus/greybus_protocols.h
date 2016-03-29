@@ -893,9 +893,9 @@ struct gb_svc_dme_peer_set_response {
 } __packed;
 
 /* Attributes for peer get/set operations */
-#define DME_ATTR_SELECTOR_INDEX		0
+#define DME_ATTR_SELECTOR_INDEX			0
 /* FIXME: remove ES2 support and DME_ATTR_T_TST_SRC_INCREMENT */
-#define DME_ATTR_T_TST_SRC_INCREMENT	0x4083
+#define DME_ATTR_T_TST_SRC_INCREMENT		0x4083
 #define DME_ATTR_ES3_INIT_STATUS		0x6101
 
 /* Return value from init-status attributes listed above */
