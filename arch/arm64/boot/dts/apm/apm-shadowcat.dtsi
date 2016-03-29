@@ -543,7 +543,7 @@
 		};
 
 		sata1: sata@1a000000 {
-			compatible = "apm,xgene-ahci";
+			compatible = "apm,xgene-ahci-v2";
 			reg = <0x0 0x1a000000 0x0 0x1000>,
 			      <0x0 0x1f200000 0x0 0x1000>,
 			      <0x0 0x1f20d000 0x0 0x1000>,
@@ -553,7 +553,7 @@
 		};
 
 		sata2: sata@1a200000 {
-			compatible = "apm,xgene-ahci";
+			compatible = "apm,xgene-ahci-v2";
 			reg = <0x0 0x1a200000 0x0 0x1000>,
 			      <0x0 0x1f210000 0x0 0x1000>,
 			      <0x0 0x1f21d000 0x0 0x1000>,
@@ -563,7 +563,7 @@
 		};
 
 		sata3: sata@1a400000 {
-			compatible = "apm,xgene-ahci";
+			compatible = "apm,xgene-ahci-v2";
 			reg = <0x0 0x1a400000 0x0 0x1000>,
 			      <0x0 0x1f220000 0x0 0x1000>,
 			      <0x0 0x1f22d000 0x0 0x1000>,
