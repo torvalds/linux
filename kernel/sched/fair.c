@@ -204,7 +204,7 @@ static void __update_inv_weight(struct load_weight *lw)
  *   OR
  * (delta_exec * (weight * lw->inv_weight)) >> WMULT_SHIFT
  *
- * Either weight := NICE_0_LOAD and lw \e prio_to_wmult[], in which case
+ * Either weight := NICE_0_LOAD and lw \e sched_prio_to_wmult[], in which case
  * we're guaranteed shift stays positive because inv_weight is guaranteed to
  * fit 32 bits, and NICE_0_LOAD gives another 10 bits; therefore shift >= 22.
  *
@@ -5656,7 +5656,7 @@ static bool yield_to_task_fair(struct rq *rq, struct task_struct *p, bool preemp
  *   W_i,0 = \Sum_j w_i,j                                             (2)
  *
  * Where w_i,j is the weight of the j-th runnable task on cpu i. This weight
- * is derived from the nice value as per prio_to_weight[].
+ * is derived from the nice value as per sched_prio_to_weight[].
  *
  * The weight average is an exponential decay average of the instantaneous
  * weight:
