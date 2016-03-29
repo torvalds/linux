@@ -68,6 +68,31 @@ static const u8 gbcodec_reg_defaults[GBCODEC_REG_COUNT] = {
 	GBCODEC_APB2_MUX_REG_DEFAULT,
 };
 
+enum gbaudio_codec_state {
+	GBAUDIO_CODEC_SHUTDOWN = 0,
+	GBAUDIO_CODEC_STARTUP,
+	GBAUDIO_CODEC_HWPARAMS,
+	GBAUDIO_CODEC_PREPARE,
+	GBAUDIO_CODEC_START,
+	GBAUDIO_CODEC_STOP,
+};
+
+struct gbaudio_stream {
+	const char *dai_name;
+	int state;
+	uint8_t sig_bits, channels;
+	uint32_t format, rate;
+};
+
+struct gbaudio_codec_info {
+	struct device *dev;
+	struct snd_soc_codec *codec;
+	struct list_head module_list;
+	struct gbaudio_stream stream[2];	/* PB/CAP */
+	struct mutex lock;
+	u8 reg[GBCODEC_REG_COUNT];
+};
+
 struct gbaudio_widget {
 	__u8 id;
 	const char *name;
@@ -81,81 +106,80 @@ struct gbaudio_control {
 	struct list_head list;
 };
 
-struct gbaudio_dai {
+struct gbaudio_data_connection {
 	__le16 data_cport;
+	int cport_configured;
 	char name[NAME_SIZE];
-	/* DAI users */
-	atomic_t users;
 	struct gb_connection *connection;
 	struct list_head list;
-	wait_queue_head_t wait_queue;
 };
 
-struct gbaudio_codec_info {
+/* stream direction */
+#define GB_PLAYBACK	BIT(0)
+#define GB_CAPTURE	BIT(1)
+
+enum gbaudio_module_state {
+	GBAUDIO_MODULE_OFF = 0,
+	GBAUDIO_MODULE_ON,
+};
+
+struct gbaudio_module_info {
 	/* module info */
+	struct device *dev;
 	int dev_id;	/* check if it should be bundle_id/hd_cport_id */
 	int vid;
 	int pid;
 	int slot;
 	int type;
-	int dai_added;
-	int codec_registered;
 	int set_uevent;
 	char vstr[NAME_SIZE];
 	char pstr[NAME_SIZE];
 	struct list_head list;
-	struct gb_audio_topology *topology;
 	/* need to share this info to above user space */
 	int manager_id;
 	char name[NAME_SIZE];
 
-	/*
-	 * there can be a rece condition between gb_audio_disconnect()
-	 * and dai->trigger from above ASoC layer.
-	 * To avoid any deadlock over codec_info->lock, atomic variable
-	 * is used.
-	 */
-	atomic_t is_connected;
+	/* used by codec_ops */
 	struct mutex lock;
+	int is_connected;
+	int ctrlstate[2];	/* PB/CAP */
 
-	/* soc related data */
-	struct snd_soc_codec *codec;
-	struct device *dev;
-	u8 reg[GBCODEC_REG_COUNT];
-
-	/* dai_link related */
-	char card_name[NAME_SIZE];
-	char *dailink_name[MAX_DAIS];
-	int num_dai_links;
-
+	/* connection info */
 	struct gb_connection *mgmt_connection;
 	size_t num_data_connections;
+	struct list_head data_list;
+
 	/* topology related */
 	int num_dais;
-	int num_kcontrols;
+	int num_controls;
 	int num_dapm_widgets;
 	int num_dapm_routes;
 	unsigned long dai_offset;
 	unsigned long widget_offset;
 	unsigned long control_offset;
 	unsigned long route_offset;
-	struct snd_kcontrol_new *kctls;
-	struct snd_soc_dapm_widget *widgets;
-	struct snd_soc_dapm_route *routes;
+	struct snd_kcontrol_new *controls;
+	struct snd_soc_dapm_widget *dapm_widgets;
+	struct snd_soc_dapm_route *dapm_routes;
 	struct snd_soc_dai_driver *dais;
 
-	/* lists */
-	struct list_head dai_list;
 	struct list_head widget_list;
-	struct list_head codec_ctl_list;
+	struct list_head ctl_list;
 	struct list_head widget_ctl_list;
+
+	struct gb_audio_topology *topology;
 };
 
-struct gbaudio_dai *gbaudio_find_dai(struct gbaudio_codec_info *gbcodec,
-				     int data_cport, const char *name);
-int gbaudio_tplg_parse_data(struct gbaudio_codec_info *gbcodec,
+int gbaudio_tplg_parse_data(struct gbaudio_module_info *module,
 			       struct gb_audio_topology *tplg_data);
-void gbaudio_tplg_release(struct gbaudio_codec_info *gbcodec);
+void gbaudio_tplg_release(struct gbaudio_module_info *module);
+
+int gbaudio_module_update(struct gbaudio_codec_info *codec,
+				 const char *w_name,
+				 struct gbaudio_module_info *module,
+				 int enable);
+int gbaudio_register_module(struct gbaudio_module_info *module);
+void gbaudio_unregister_module(struct gbaudio_module_info *module);
 
 /* protocol related */
 extern int gb_audio_gb_get_topology(struct gb_connection *connection,

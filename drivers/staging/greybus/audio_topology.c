@@ -25,7 +25,32 @@ struct gbaudio_ctl_pvt {
 	struct gb_audio_ctl_elem_info *info;
 };
 
-static const char *gbaudio_map_controlid(struct gbaudio_codec_info *gbcodec,
+static struct gbaudio_module_info *find_gb_module(
+					struct gbaudio_codec_info *codec,
+					char const *name)
+{
+	int dev_id, ret;
+	char begin[NAME_SIZE];
+	struct gbaudio_module_info *module;
+
+	if (!name)
+		return NULL;
+
+	ret = sscanf(name, "%s %d", begin, &dev_id);
+	dev_dbg(codec->dev, "%s:Find module#%d\n", __func__, dev_id);
+
+	mutex_lock(&codec->lock);
+	list_for_each_entry(module, &codec->module_list, list) {
+		if (module->dev_id == dev_id) {
+			mutex_unlock(&codec->lock);
+			return module;
+		}
+	}
+	mutex_unlock(&codec->lock);
+	return NULL;
+}
+
+static const char *gbaudio_map_controlid(struct gbaudio_module_info *module,
 					   __u8 control_id, __u8 index)
 {
 	struct gbaudio_control *control;
@@ -33,14 +58,14 @@ static const char *gbaudio_map_controlid(struct gbaudio_codec_info *gbcodec,
 	if (control_id == GBAUDIO_INVALID_ID)
 		return NULL;
 
-	list_for_each_entry(control, &gbcodec->codec_ctl_list, list) {
+	list_for_each_entry(control, &module->ctl_list, list) {
 		if (control->id == control_id) {
 			if (index == GBAUDIO_INVALID_ID)
 				return control->name;
 			return control->texts[index];
 		}
 	}
-	list_for_each_entry(control, &gbcodec->widget_ctl_list, list) {
+	list_for_each_entry(control, &module->widget_ctl_list, list) {
 		if (control->id == control_id) {
 			if (index == GBAUDIO_INVALID_ID)
 				return control->name;
@@ -50,34 +75,23 @@ static const char *gbaudio_map_controlid(struct gbaudio_codec_info *gbcodec,
 	return NULL;
 }
 
-static int gbaudio_map_widgetname(struct gbaudio_codec_info *gbcodec,
+static int gbaudio_map_widgetname(struct gbaudio_module_info *module,
 					  const char *name)
 {
 	struct gbaudio_widget *widget;
-	char widget_name[NAME_SIZE];
-	char prefix_name[NAME_SIZE];
-
-	snprintf(prefix_name, NAME_SIZE, "GB %d ", gbcodec->dev_id);
-	if (strncmp(name, prefix_name, strlen(prefix_name)))
-		return -EINVAL;
-
-	strlcpy(widget_name, name+strlen(prefix_name), NAME_SIZE);
-	dev_dbg(gbcodec->dev, "widget_name:%s, truncated widget_name:%s\n",
-		name, widget_name);
-
-	list_for_each_entry(widget, &gbcodec->widget_list, list) {
-		if (!strncmp(widget->name, widget_name, NAME_SIZE))
+	list_for_each_entry(widget, &module->widget_list, list) {
+		if (!strncmp(widget->name, name, NAME_SIZE))
 			return widget->id;
 	}
 	return -EINVAL;
 }
 
-static const char *gbaudio_map_widgetid(struct gbaudio_codec_info *gbcodec,
+static const char *gbaudio_map_widgetid(struct gbaudio_module_info *module,
 					  __u8 widget_id)
 {
 	struct gbaudio_widget *widget;
 
-	list_for_each_entry(widget, &gbcodec->widget_list, list) {
+	list_for_each_entry(widget, &module->widget_list, list) {
 		if (widget->id == widget_id)
 			return widget->name;
 	}
@@ -91,14 +105,16 @@ static int gbcodec_mixer_ctl_info(struct snd_kcontrol *kcontrol,
 	const char *name;
 	struct gbaudio_ctl_pvt *data;
 	struct gb_audio_ctl_elem_info *info;
+	struct gbaudio_module_info *module;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct gbaudio_codec_info *gbcodec = snd_soc_codec_get_drvdata(codec);
 
+	dev_dbg(codec->dev, "Entered %s:%s\n", __func__, kcontrol->id.name);
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
 
 	if (!info) {
-		dev_err(gbcodec->dev, "NULL info for %s\n", uinfo->id.name);
+		dev_err(module->dev, "NULL info for %s\n", uinfo->id.name);
 		return -EINVAL;
 	}
 
@@ -118,7 +134,10 @@ static int gbcodec_mixer_ctl_info(struct snd_kcontrol *kcontrol,
 		uinfo->value.enumerated.items = max;
 		if (uinfo->value.enumerated.item > max - 1)
 			uinfo->value.enumerated.item = max - 1;
-		name = gbaudio_map_controlid(gbcodec, data->ctl_id,
+		module = find_gb_module(gbcodec, kcontrol->id.name);
+		if (!module)
+			return -EINVAL;
+		name = gbaudio_map_controlid(module, data->ctl_id,
 					     uinfo->value.enumerated.item);
 		strlcpy(uinfo->value.enumerated.name, name, NAME_SIZE);
 		break;
@@ -137,16 +156,19 @@ static int gbcodec_mixer_ctl_get(struct snd_kcontrol *kcontrol,
 	struct gb_audio_ctl_elem_info *info;
 	struct gbaudio_ctl_pvt *data;
 	struct gb_audio_ctl_elem_value gbvalue;
+	struct gbaudio_module_info *module;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
 
-	if (!atomic_read(&gb->is_connected))
-		return -ENODEV;
+	dev_dbg(codec->dev, "Entered %s:%s\n", __func__, kcontrol->id.name);
+	module = find_gb_module(gb, kcontrol->id.name);
+	if (!module)
+		return -EINVAL;
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
 
-	ret = gb_audio_gb_get_control(gb->mgmt_connection, data->ctl_id,
+	ret = gb_audio_gb_get_control(module->mgmt_connection, data->ctl_id,
 				      GB_AUDIO_INVALID_INDEX, &gbvalue);
 	if (ret) {
 		dev_err(codec->dev, "%d:Error in %s for %s\n", ret, __func__,
@@ -187,11 +209,14 @@ static int gbcodec_mixer_ctl_put(struct snd_kcontrol *kcontrol,
 	struct gb_audio_ctl_elem_info *info;
 	struct gbaudio_ctl_pvt *data;
 	struct gb_audio_ctl_elem_value gbvalue;
+	struct gbaudio_module_info *module;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
 
-	if (!atomic_read(&gb->is_connected))
-		return -ENODEV;
+	dev_dbg(codec->dev, "Entered %s:%s\n", __func__, kcontrol->id.name);
+	module = find_gb_module(gb, kcontrol->id.name);
+	if (!module)
+		return -EINVAL;
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
@@ -223,7 +248,7 @@ static int gbcodec_mixer_ctl_put(struct snd_kcontrol *kcontrol,
 	if (ret)
 		return ret;
 
-	ret = gb_audio_gb_set_control(gb->mgmt_connection, data->ctl_id,
+	ret = gb_audio_gb_set_control(module->mgmt_connection, data->ctl_id,
 				      GB_AUDIO_INVALID_INDEX, &gbvalue);
 	if (ret) {
 		dev_err(codec->dev, "%d:Error in %s for %s\n", ret, __func__,
@@ -250,7 +275,11 @@ static int gbcodec_mixer_dapm_ctl_info(struct snd_kcontrol *kcontrol,
 	int platform_max, platform_min;
 	struct gbaudio_ctl_pvt *data;
 	struct gb_audio_ctl_elem_info *info;
+	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
+	struct snd_soc_codec *codec = widget->codec;
 
+	dev_dbg(codec->dev, "Entered %s:%s\n", __func__, kcontrol->id.name);
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
 
@@ -282,13 +311,16 @@ static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 	struct gb_audio_ctl_elem_info *info;
 	struct gbaudio_ctl_pvt *data;
 	struct gb_audio_ctl_elem_value gbvalue;
+	struct gbaudio_module_info *module;
 	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
 	struct snd_soc_codec *codec = widget->codec;
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
 
-	if (!atomic_read(&gb->is_connected))
-		return -ENODEV;
+	dev_dbg(codec->dev, "Entered %s:%s\n", __func__, kcontrol->id.name);
+	module = find_gb_module(gb, kcontrol->id.name);
+	if (!module)
+		return -EINVAL;
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
@@ -298,7 +330,7 @@ static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 			 "GB: Control '%s' is stereo, which is not supported\n",
 			 kcontrol->id.name);
 
-	ret = gb_audio_gb_get_control(gb->mgmt_connection, data->ctl_id,
+	ret = gb_audio_gb_get_control(module->mgmt_connection, data->ctl_id,
 				      GB_AUDIO_INVALID_INDEX, &gbvalue);
 	if (ret) {
 		dev_err(codec->dev, "%d:Error in %s for %s\n", ret, __func__,
@@ -319,13 +351,16 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 	struct gb_audio_ctl_elem_info *info;
 	struct gbaudio_ctl_pvt *data;
 	struct gb_audio_ctl_elem_value gbvalue;
+	struct gbaudio_module_info *module;
 	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
 	struct snd_soc_codec *codec = widget->codec;
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
 
-	if (!atomic_read(&gb->is_connected))
-		return -ENODEV;
+	dev_dbg(codec->dev, "Entered %s:%s\n", __func__, kcontrol->id.name);
+	module = find_gb_module(gb, kcontrol->id.name);
+	if (!module)
+		return -EINVAL;
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
@@ -352,7 +387,7 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 		}
 		gbvalue.value.integer_value[0] =
 			ucontrol->value.integer.value[0];
-		ret = gb_audio_gb_set_control(gb->mgmt_connection,
+		ret = gb_audio_gb_set_control(module->mgmt_connection,
 					      data->ctl_id,
 					      GB_AUDIO_INVALID_INDEX, &gbvalue);
 		if (ret) {
@@ -420,7 +455,7 @@ static int gbaudio_validate_kcontrol_count(struct gb_audio_widget *w)
 	return ret;
 }
 
-static int gbaudio_tplg_create_kcontrol(struct gbaudio_codec_info *gb,
+static int gbaudio_tplg_create_kcontrol(struct gbaudio_module_info *gb,
 					struct snd_kcontrol_new *kctl,
 					struct gb_audio_control *ctl)
 {
@@ -452,23 +487,23 @@ static int gbaudio_tplg_create_kcontrol(struct gbaudio_codec_info *gb,
 static const char * const gbtexts[] = {"Stereo", "Left", "Right"};
 
 static const SOC_ENUM_SINGLE_DECL(
-	gbcodec_apb1_rx_enum, GBCODEC_APB1_MUX_REG, 0, gbtexts);
+	module_apb1_rx_enum, GBCODEC_APB1_MUX_REG, 0, gbtexts);
 
 static const SOC_ENUM_SINGLE_DECL(
-	gbcodec_mic_enum, GBCODEC_APB1_MUX_REG, 4, gbtexts);
+	module_mic_enum, GBCODEC_APB1_MUX_REG, 4, gbtexts);
 
-static int gbaudio_tplg_create_enum_ctl(struct gbaudio_codec_info *gb,
+static int gbaudio_tplg_create_enum_ctl(struct gbaudio_module_info *gb,
 					struct snd_kcontrol_new *kctl,
 					struct gb_audio_control *ctl)
 {
 	switch (ctl->id) {
 	case 8:
 		*kctl = (struct snd_kcontrol_new)
-			SOC_DAPM_ENUM(ctl->name, gbcodec_apb1_rx_enum);
+			SOC_DAPM_ENUM(ctl->name, module_apb1_rx_enum);
 		break;
 	case 9:
 		*kctl = (struct snd_kcontrol_new)
-			SOC_DAPM_ENUM(ctl->name, gbcodec_mic_enum);
+			SOC_DAPM_ENUM(ctl->name, module_mic_enum);
 		break;
 	default:
 		return -EINVAL;
@@ -477,7 +512,7 @@ static int gbaudio_tplg_create_enum_ctl(struct gbaudio_codec_info *gb,
 	return 0;
 }
 
-static int gbaudio_tplg_create_mixer_ctl(struct gbaudio_codec_info *gb,
+static int gbaudio_tplg_create_mixer_ctl(struct gbaudio_module_info *gb,
 					     struct snd_kcontrol_new *kctl,
 					     struct gb_audio_control *ctl)
 {
@@ -498,7 +533,7 @@ static int gbaudio_tplg_create_mixer_ctl(struct gbaudio_codec_info *gb,
 	return 0;
 }
 
-static int gbaudio_tplg_create_wcontrol(struct gbaudio_codec_info *gb,
+static int gbaudio_tplg_create_wcontrol(struct gbaudio_module_info *gb,
 					     struct snd_kcontrol_new *kctl,
 					     struct gb_audio_control *ctl)
 {
@@ -532,11 +567,17 @@ static int gbaudio_widget_event(struct snd_soc_dapm_widget *w,
 	int ret;
 	struct snd_soc_codec *codec = w->codec;
 	struct gbaudio_codec_info *gbcodec = snd_soc_codec_get_drvdata(codec);
+	struct gbaudio_module_info *module;
 
 	dev_dbg(codec->dev, "%s %s %d\n", __func__, w->name, event);
 
+	/* Find relevant module */
+	module = find_gb_module(gbcodec, w->name);
+	if (!module)
+		return -EINVAL;
+
 	/* map name to widget id */
-	wid = gbaudio_map_widgetname(gbcodec, w->name);
+	wid = gbaudio_map_widgetname(module, w->name);
 	if (wid < 0) {
 		dev_err(codec->dev, "Invalid widget name:%s\n", w->name);
 		return -EINVAL;
@@ -544,10 +585,16 @@ static int gbaudio_widget_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		ret = gb_audio_gb_enable_widget(gbcodec->mgmt_connection, wid);
+		ret = gb_audio_gb_enable_widget(module->mgmt_connection, wid);
+		if (!ret)
+			ret = gbaudio_module_update(gbcodec, w->name, module,
+						    1);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		ret = gb_audio_gb_disable_widget(gbcodec->mgmt_connection, wid);
+		ret = gb_audio_gb_disable_widget(module->mgmt_connection, wid);
+		if (!ret)
+			ret = gbaudio_module_update(gbcodec, w->name, module,
+						    0);
 		break;
 	}
 	if (ret)
@@ -556,7 +603,7 @@ static int gbaudio_widget_event(struct snd_soc_dapm_widget *w,
 	return ret;
 }
 
-static int gbaudio_tplg_create_widget(struct gbaudio_codec_info *gbcodec,
+static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 				      struct snd_soc_dapm_widget *dw,
 				      struct gb_audio_widget *w)
 {
@@ -565,10 +612,11 @@ static int gbaudio_tplg_create_widget(struct gbaudio_codec_info *gbcodec,
 	struct gb_audio_control *curr;
 	struct gbaudio_control *control, *_control;
 	size_t size;
+	char temp_name[NAME_SIZE];
 
 	ret = gbaudio_validate_kcontrol_count(w);
 	if (ret) {
-		dev_err(gbcodec->dev, "Inavlid kcontrol count=%d for %s\n",
+		dev_err(module->dev, "Inavlid kcontrol count=%d for %s\n",
 			w->ncontrols, w->name);
 		return ret;
 	}
@@ -576,7 +624,7 @@ static int gbaudio_tplg_create_widget(struct gbaudio_codec_info *gbcodec,
 	/* allocate memory for kcontrol */
 	if (w->ncontrols) {
 		size = sizeof(struct snd_kcontrol_new) * w->ncontrols;
-		widget_kctls = devm_kzalloc(gbcodec->dev, size, GFP_KERNEL);
+		widget_kctls = devm_kzalloc(module->dev, size, GFP_KERNEL);
 		if (!widget_kctls)
 			return -ENOMEM;
 	}
@@ -584,15 +632,15 @@ static int gbaudio_tplg_create_widget(struct gbaudio_codec_info *gbcodec,
 	/* create relevant kcontrols */
 	for (i = 0; i < w->ncontrols; i++) {
 		curr = &w->ctl[i];
-		ret = gbaudio_tplg_create_wcontrol(gbcodec, &widget_kctls[i],
+		ret = gbaudio_tplg_create_wcontrol(module, &widget_kctls[i],
 						   curr);
 		if (ret) {
-			dev_err(gbcodec->dev,
+			dev_err(module->dev,
 				"%s:%d type widget_ctl not supported\n",
 				curr->name, curr->iface);
 			goto error;
 		}
-		control = devm_kzalloc(gbcodec->dev,
+		control = devm_kzalloc(module->dev,
 				       sizeof(struct gbaudio_control),
 				       GFP_KERNEL);
 		if (!control) {
@@ -604,10 +652,14 @@ static int gbaudio_tplg_create_widget(struct gbaudio_codec_info *gbcodec,
 		if (curr->info.type == GB_AUDIO_CTL_ELEM_TYPE_ENUMERATED)
 			control->texts = (const char * const *)
 				curr->info.value.enumerated.names;
-		list_add(&control->list, &gbcodec->widget_ctl_list);
-		dev_dbg(gbcodec->dev, "%s: control of type %d created\n",
+		list_add(&control->list, &module->widget_ctl_list);
+		dev_dbg(module->dev, "%s: control of type %d created\n",
 			widget_kctls[i].name, widget_kctls[i].iface);
 	}
+
+	/* Prefix dev_id to widget control_name */
+	strlcpy(temp_name, w->name, NAME_SIZE);
+	snprintf(w->name, NAME_SIZE, "GB %d %s", module->dev_id, temp_name);
 
 	switch (w->type) {
 	case snd_soc_dapm_spk:
@@ -677,45 +729,19 @@ static int gbaudio_tplg_create_widget(struct gbaudio_codec_info *gbcodec,
 		goto error;
 	}
 
-	dev_dbg(gbcodec->dev, "%s: widget of type %d created\n", dw->name,
+	dev_dbg(module->dev, "%s: widget of type %d created\n", dw->name,
 		dw->id);
 	return 0;
 error:
-	list_for_each_entry_safe(control, _control, &gbcodec->widget_ctl_list,
+	list_for_each_entry_safe(control, _control, &module->widget_ctl_list,
 				 list) {
 		list_del(&control->list);
-		devm_kfree(gbcodec->dev, control);
+		devm_kfree(module->dev, control);
 	}
 	return ret;
 }
 
-static int gbaudio_tplg_create_dai(struct gbaudio_codec_info *gbcodec,
-				   struct snd_soc_dai_driver *gb_dai,
-				   struct gb_audio_dai *dai)
-{
-	/*
-	 * do not update name here,
-	 * append dev_id before assigning it here
-	 */
-
-	gb_dai->playback.stream_name = dai->playback.stream_name;
-	gb_dai->playback.channels_min = dai->playback.chan_min;
-	gb_dai->playback.channels_max = dai->playback.chan_max;
-	gb_dai->playback.formats = dai->playback.formats;
-	gb_dai->playback.rates = dai->playback.rates;
-	gb_dai->playback.sig_bits = dai->playback.sig_bits;
-
-	gb_dai->capture.stream_name = dai->capture.stream_name;
-	gb_dai->capture.channels_min = dai->capture.chan_min;
-	gb_dai->capture.channels_max = dai->capture.chan_max;
-	gb_dai->capture.formats = dai->capture.formats;
-	gb_dai->capture.rates = dai->capture.rates;
-	gb_dai->capture.sig_bits = dai->capture.sig_bits;
-
-	return 0;
-}
-
-static int gbaudio_tplg_process_kcontrols(struct gbaudio_codec_info *gbcodec,
+static int gbaudio_tplg_process_kcontrols(struct gbaudio_module_info *module,
 				   struct gb_audio_control *controls)
 {
 	int i, ret;
@@ -723,22 +749,23 @@ static int gbaudio_tplg_process_kcontrols(struct gbaudio_codec_info *gbcodec,
 	struct gb_audio_control *curr;
 	struct gbaudio_control *control, *_control;
 	size_t size;
+	char temp_name[NAME_SIZE];
 
-	size = sizeof(struct snd_kcontrol_new) * gbcodec->num_kcontrols;
-	dapm_kctls = devm_kzalloc(gbcodec->dev, size, GFP_KERNEL);
+	size = sizeof(struct snd_kcontrol_new) * module->num_controls;
+	dapm_kctls = devm_kzalloc(module->dev, size, GFP_KERNEL);
 	if (!dapm_kctls)
 		return -ENOMEM;
 
 	curr = controls;
-	for (i = 0; i < gbcodec->num_kcontrols; i++) {
-		ret = gbaudio_tplg_create_kcontrol(gbcodec, &dapm_kctls[i],
+	for (i = 0; i < module->num_controls; i++) {
+		ret = gbaudio_tplg_create_kcontrol(module, &dapm_kctls[i],
 						   curr);
 		if (ret) {
-			dev_err(gbcodec->dev, "%s:%d type not supported\n",
+			dev_err(module->dev, "%s:%d type not supported\n",
 				curr->name, curr->iface);
 			goto error;
 		}
-		control = devm_kzalloc(gbcodec->dev, sizeof(struct
+		control = devm_kzalloc(module->dev, sizeof(struct
 							   gbaudio_control),
 				      GFP_KERNEL);
 		if (!control) {
@@ -746,29 +773,33 @@ static int gbaudio_tplg_process_kcontrols(struct gbaudio_codec_info *gbcodec,
 			goto error;
 		}
 		control->id = curr->id;
+		/* Prefix dev_id to widget_name */
+		strlcpy(temp_name, curr->name, NAME_SIZE);
+		snprintf(curr->name, NAME_SIZE, "GB %d %s", module->dev_id,
+			 temp_name);
 		control->name = curr->name;
 		if (curr->info.type == GB_AUDIO_CTL_ELEM_TYPE_ENUMERATED)
 			control->texts = (const char * const *)
 				curr->info.value.enumerated.names;
-		list_add(&control->list, &gbcodec->codec_ctl_list);
-		dev_dbg(gbcodec->dev, "%d:%s created of type %d\n", curr->id,
+		list_add(&control->list, &module->ctl_list);
+		dev_dbg(module->dev, "%d:%s created of type %d\n", curr->id,
 			curr->name, curr->info.type);
 		curr++;
 	}
-	gbcodec->kctls = dapm_kctls;
+	module->controls = dapm_kctls;
 
 	return 0;
 error:
-	list_for_each_entry_safe(control, _control, &gbcodec->codec_ctl_list,
+	list_for_each_entry_safe(control, _control, &module->ctl_list,
 				 list) {
 		list_del(&control->list);
-		devm_kfree(gbcodec->dev, control);
+		devm_kfree(module->dev, control);
 	}
-	devm_kfree(gbcodec->dev, dapm_kctls);
+	devm_kfree(module->dev, dapm_kctls);
 	return ret;
 }
 
-static int gbaudio_tplg_process_widgets(struct gbaudio_codec_info *gbcodec,
+static int gbaudio_tplg_process_widgets(struct gbaudio_module_info *module,
 				   struct gb_audio_widget *widgets)
 {
 	int i, ret, ncontrols;
@@ -777,21 +808,21 @@ static int gbaudio_tplg_process_widgets(struct gbaudio_codec_info *gbcodec,
 	struct gbaudio_widget *widget, *_widget;
 	size_t size;
 
-	size = sizeof(struct snd_soc_dapm_widget) * gbcodec->num_dapm_widgets;
-	dapm_widgets = devm_kzalloc(gbcodec->dev, size, GFP_KERNEL);
+	size = sizeof(struct snd_soc_dapm_widget) * module->num_dapm_widgets;
+	dapm_widgets = devm_kzalloc(module->dev, size, GFP_KERNEL);
 	if (!dapm_widgets)
 		return -ENOMEM;
 
 	curr = widgets;
-	for (i = 0; i < gbcodec->num_dapm_widgets; i++) {
-		ret = gbaudio_tplg_create_widget(gbcodec, &dapm_widgets[i],
+	for (i = 0; i < module->num_dapm_widgets; i++) {
+		ret = gbaudio_tplg_create_widget(module, &dapm_widgets[i],
 						 curr);
 		if (ret) {
-			dev_err(gbcodec->dev, "%s:%d type not supported\n",
+			dev_err(module->dev, "%s:%d type not supported\n",
 				curr->name, curr->type);
 			goto error;
 		}
-		widget = devm_kzalloc(gbcodec->dev, sizeof(struct
+		widget = devm_kzalloc(module->dev, sizeof(struct
 							   gbaudio_widget),
 				      GFP_KERNEL);
 		if (!widget) {
@@ -800,69 +831,26 @@ static int gbaudio_tplg_process_widgets(struct gbaudio_codec_info *gbcodec,
 		}
 		widget->id = curr->id;
 		widget->name = curr->name;
-		list_add(&widget->list, &gbcodec->widget_list);
+		list_add(&widget->list, &module->widget_list);
 		ncontrols = curr->ncontrols;
 		curr++;
 		curr += ncontrols * sizeof(struct gb_audio_control);
 	}
-	gbcodec->widgets = dapm_widgets;
+	module->dapm_widgets = dapm_widgets;
 
 	return 0;
 
 error:
-	list_for_each_entry_safe(widget, _widget, &gbcodec->widget_list,
+	list_for_each_entry_safe(widget, _widget, &module->widget_list,
 				 list) {
 		list_del(&widget->list);
-		devm_kfree(gbcodec->dev, widget);
+		devm_kfree(module->dev, widget);
 	}
-	devm_kfree(gbcodec->dev, dapm_widgets);
+	devm_kfree(module->dev, dapm_widgets);
 	return ret;
 }
 
-static int gbaudio_tplg_process_dais(struct gbaudio_codec_info *gbcodec,
-				   struct gb_audio_dai *dais)
-{
-	int i, ret;
-	struct snd_soc_dai_driver *gb_dais;
-	struct gb_audio_dai *curr;
-	size_t size;
-	char dai_name[NAME_SIZE];
-	struct gbaudio_dai *dai;
-
-	size = sizeof(struct snd_soc_dai_driver) * gbcodec->num_dais;
-	gb_dais = devm_kzalloc(gbcodec->dev, size, GFP_KERNEL);
-	if (!gb_dais)
-		return -ENOMEM;
-
-	curr = dais;
-	for (i = 0; i < gbcodec->num_dais; i++) {
-		ret = gbaudio_tplg_create_dai(gbcodec, &gb_dais[i], curr);
-		if (ret) {
-			dev_err(gbcodec->dev, "%s failed to create\n",
-				curr->name);
-			goto error;
-		}
-		/* append dev_id to dai_name */
-		snprintf(dai_name, NAME_SIZE, "%s.%d", curr->name,
-			 gbcodec->dev_id);
-		dai = gbaudio_find_dai(gbcodec, curr->data_cport, NULL);
-		if (!dai)
-			goto error;
-		strlcpy(dai->name, dai_name, NAME_SIZE);
-		dev_dbg(gbcodec->dev, "%s:DAI added\n", dai->name);
-		gb_dais[i].name = dai->name;
-		curr++;
-	}
-	gbcodec->dais = gb_dais;
-
-	return 0;
-
-error:
-	devm_kfree(gbcodec->dev, gb_dais);
-	return ret;
-}
-
-static int gbaudio_tplg_process_routes(struct gbaudio_codec_info *gbcodec,
+static int gbaudio_tplg_process_routes(struct gbaudio_module_info *module,
 				   struct gb_audio_route *routes)
 {
 	int i, ret;
@@ -870,47 +858,47 @@ static int gbaudio_tplg_process_routes(struct gbaudio_codec_info *gbcodec,
 	struct gb_audio_route *curr;
 	size_t size;
 
-	size = sizeof(struct snd_soc_dapm_route) * gbcodec->num_dapm_routes;
-	dapm_routes = devm_kzalloc(gbcodec->dev, size, GFP_KERNEL);
+	size = sizeof(struct snd_soc_dapm_route) * module->num_dapm_routes;
+	dapm_routes = devm_kzalloc(module->dev, size, GFP_KERNEL);
 	if (!dapm_routes)
 		return -ENOMEM;
 
 
-	gbcodec->routes = dapm_routes;
+	module->dapm_routes = dapm_routes;
 	curr = routes;
 
-	for (i = 0; i < gbcodec->num_dapm_routes; i++) {
+	for (i = 0; i < module->num_dapm_routes; i++) {
 		dapm_routes->sink =
-			gbaudio_map_widgetid(gbcodec, curr->destination_id);
+			gbaudio_map_widgetid(module, curr->destination_id);
 		if (!dapm_routes->sink) {
-			dev_err(gbcodec->dev, "%d:%d:%d:%d - Invalid sink\n",
+			dev_err(module->dev, "%d:%d:%d:%d - Invalid sink\n",
 				curr->source_id, curr->destination_id,
 				curr->control_id, curr->index);
 			ret = -EINVAL;
 			goto error;
 		}
 		dapm_routes->source =
-			gbaudio_map_widgetid(gbcodec, curr->source_id);
+			gbaudio_map_widgetid(module, curr->source_id);
 		if (!dapm_routes->source) {
-			dev_err(gbcodec->dev, "%d:%d:%d:%d - Invalid source\n",
+			dev_err(module->dev, "%d:%d:%d:%d - Invalid source\n",
 				curr->source_id, curr->destination_id,
 				curr->control_id, curr->index);
 			ret = -EINVAL;
 			goto error;
 		}
 		dapm_routes->control =
-			gbaudio_map_controlid(gbcodec,
+			gbaudio_map_controlid(module,
 						      curr->control_id,
 						      curr->index);
 		if ((curr->control_id !=  GBAUDIO_INVALID_ID) &&
 		    !dapm_routes->control) {
-			dev_err(gbcodec->dev, "%d:%d:%d:%d - Invalid control\n",
+			dev_err(module->dev, "%d:%d:%d:%d - Invalid control\n",
 				curr->source_id, curr->destination_id,
 				curr->control_id, curr->index);
 			ret = -EINVAL;
 			goto error;
 		}
-		dev_dbg(gbcodec->dev, "Route {%s, %s, %s}\n", dapm_routes->sink,
+		dev_dbg(module->dev, "Route {%s, %s, %s}\n", dapm_routes->sink,
 			(dapm_routes->control) ? dapm_routes->control:"NULL",
 			dapm_routes->source);
 		dapm_routes++;
@@ -920,41 +908,39 @@ static int gbaudio_tplg_process_routes(struct gbaudio_codec_info *gbcodec,
 	return 0;
 
 error:
-	devm_kfree(gbcodec->dev, dapm_routes);
+	devm_kfree(module->dev, dapm_routes);
 	return ret;
 }
 
-static int gbaudio_tplg_process_header(struct gbaudio_codec_info *gbcodec,
+static int gbaudio_tplg_process_header(struct gbaudio_module_info *module,
 				 struct gb_audio_topology *tplg_data)
 {
 	/* fetch no. of kcontrols, widgets & routes */
-	gbcodec->num_dais = tplg_data->num_dais;
-	gbcodec->num_kcontrols = tplg_data->num_controls;
-	gbcodec->num_dapm_widgets = tplg_data->num_widgets;
-	gbcodec->num_dapm_routes = tplg_data->num_routes;
+	module->num_controls = tplg_data->num_controls;
+	module->num_dapm_widgets = tplg_data->num_widgets;
+	module->num_dapm_routes = tplg_data->num_routes;
 
 	/* update block offset */
-	gbcodec->dai_offset = (unsigned long)&tplg_data->data;
-	gbcodec->control_offset = gbcodec->dai_offset + tplg_data->size_dais;
-	gbcodec->widget_offset = gbcodec->control_offset +
+	module->dai_offset = (unsigned long)&tplg_data->data;
+	module->control_offset = module->dai_offset + tplg_data->size_dais;
+	module->widget_offset = module->control_offset +
 		tplg_data->size_controls;
-	gbcodec->route_offset = gbcodec->widget_offset +
+	module->route_offset = module->widget_offset +
 		tplg_data->size_widgets;
 
-	dev_dbg(gbcodec->dev, "DAI offset is 0x%lx\n", gbcodec->dai_offset);
-	dev_dbg(gbcodec->dev, "control offset is %lx\n",
-		gbcodec->control_offset);
-	dev_dbg(gbcodec->dev, "widget offset is %lx\n", gbcodec->widget_offset);
-	dev_dbg(gbcodec->dev, "route offset is %lx\n", gbcodec->route_offset);
+	dev_dbg(module->dev, "DAI offset is 0x%lx\n", module->dai_offset);
+	dev_dbg(module->dev, "control offset is %lx\n",
+		module->control_offset);
+	dev_dbg(module->dev, "widget offset is %lx\n", module->widget_offset);
+	dev_dbg(module->dev, "route offset is %lx\n", module->route_offset);
 
 	return 0;
 }
 
-int gbaudio_tplg_parse_data(struct gbaudio_codec_info *gbcodec,
+int gbaudio_tplg_parse_data(struct gbaudio_module_info *module,
 			       struct gb_audio_topology *tplg_data)
 {
 	int ret;
-	struct gb_audio_dai *dais;
 	struct gb_audio_control *controls;
 	struct gb_audio_widget *widgets;
 	struct gb_audio_route *routes;
@@ -962,90 +948,80 @@ int gbaudio_tplg_parse_data(struct gbaudio_codec_info *gbcodec,
 	if (!tplg_data)
 		return -EINVAL;
 
-	ret = gbaudio_tplg_process_header(gbcodec, tplg_data);
+	ret = gbaudio_tplg_process_header(module, tplg_data);
 	if (ret) {
-		dev_err(gbcodec->dev, "%d: Error in parsing topology header\n",
+		dev_err(module->dev, "%d: Error in parsing topology header\n",
 			ret);
 		return ret;
 	}
 
 	/* process control */
-	controls = (struct gb_audio_control *)gbcodec->control_offset;
-	ret = gbaudio_tplg_process_kcontrols(gbcodec, controls);
+	controls = (struct gb_audio_control *)module->control_offset;
+	ret = gbaudio_tplg_process_kcontrols(module, controls);
 	if (ret) {
-		dev_err(gbcodec->dev,
+		dev_err(module->dev,
 			"%d: Error in parsing controls data\n", ret);
 		return ret;
 	}
-	dev_dbg(gbcodec->dev, "Control parsing finished\n");
-
-	/* process DAI */
-	dais = (struct gb_audio_dai *)gbcodec->dai_offset;
-	ret = gbaudio_tplg_process_dais(gbcodec, dais);
-	if (ret) {
-		dev_err(gbcodec->dev,
-			"%d: Error in parsing DAIs data\n", ret);
-		return ret;
-	}
-	dev_dbg(gbcodec->dev, "DAI parsing finished\n");
+	dev_dbg(module->dev, "Control parsing finished\n");
 
 	/* process widgets */
-	widgets = (struct gb_audio_widget *)gbcodec->widget_offset;
-	ret = gbaudio_tplg_process_widgets(gbcodec, widgets);
+	widgets = (struct gb_audio_widget *)module->widget_offset;
+	ret = gbaudio_tplg_process_widgets(module, widgets);
 	if (ret) {
-		dev_err(gbcodec->dev,
+		dev_err(module->dev,
 			"%d: Error in parsing widgets data\n", ret);
 		return ret;
 	}
-	dev_dbg(gbcodec->dev, "Widget parsing finished\n");
+	dev_dbg(module->dev, "Widget parsing finished\n");
 
 	/* process route */
-	routes = (struct gb_audio_route *)gbcodec->route_offset;
-	ret = gbaudio_tplg_process_routes(gbcodec, routes);
+	routes = (struct gb_audio_route *)module->route_offset;
+	ret = gbaudio_tplg_process_routes(module, routes);
 	if (ret) {
-		dev_err(gbcodec->dev,
+		dev_err(module->dev,
 			"%d: Error in parsing routes data\n", ret);
 		return ret;
 	}
-	dev_dbg(gbcodec->dev, "Route parsing finished\n");
+	dev_dbg(module->dev, "Route parsing finished\n");
 
 	return ret;
 }
 
-void gbaudio_tplg_release(struct gbaudio_codec_info *gbcodec)
+void gbaudio_tplg_release(struct gbaudio_module_info *module)
 {
 	struct gbaudio_control *control, *_control;
 	struct gbaudio_widget *widget, *_widget;
 
-	if (!gbcodec->topology)
+	if (!module->topology)
 		return;
 
 	/* release kcontrols */
-	list_for_each_entry_safe(control, _control, &gbcodec->codec_ctl_list,
+	list_for_each_entry_safe(control, _control, &module->ctl_list,
 				 list) {
 		list_del(&control->list);
-		devm_kfree(gbcodec->dev, control);
+		devm_kfree(module->dev, control);
 	}
-	if (gbcodec->kctls)
-		devm_kfree(gbcodec->dev, gbcodec->kctls);
+	if (module->controls)
+		devm_kfree(module->dev, module->controls);
 
 	/* release widget controls */
-	list_for_each_entry_safe(control, _control, &gbcodec->widget_ctl_list,
+	list_for_each_entry_safe(control, _control, &module->widget_ctl_list,
 				 list) {
 		list_del(&control->list);
-		devm_kfree(gbcodec->dev, control);
+		devm_kfree(module->dev, control);
 	}
 
 	/* release widgets */
-	list_for_each_entry_safe(widget, _widget, &gbcodec->widget_list,
+	list_for_each_entry_safe(widget, _widget, &module->widget_list,
 				 list) {
 		list_del(&widget->list);
-		devm_kfree(gbcodec->dev, widget);
+		devm_kfree(module->dev, widget);
 	}
-	if (gbcodec->widgets)
-		devm_kfree(gbcodec->dev, gbcodec->widgets);
+	if (module->dapm_widgets)
+		devm_kfree(module->dev, module->dapm_widgets);
 
 	/* release routes */
-	if (gbcodec->routes)
-		devm_kfree(gbcodec->dev, gbcodec->routes);
+	if (module->dapm_routes)
+		devm_kfree(module->dev, module->dapm_routes);
 }
