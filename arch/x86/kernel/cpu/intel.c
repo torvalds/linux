@@ -456,7 +456,7 @@ static void init_intel(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_ARCH_PERFMON);
 	}
 
-	if (cpu_has_xmm2)
+	if (cpu_has(c, X86_FEATURE_XMM2))
 		set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
 
 	if (boot_cpu_has(X86_FEATURE_DS)) {

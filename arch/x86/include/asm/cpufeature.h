@@ -125,7 +125,6 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 #define cpu_has_apic		boot_cpu_has(X86_FEATURE_APIC)
 #define cpu_has_fxsr		boot_cpu_has(X86_FEATURE_FXSR)
 #define cpu_has_xmm		boot_cpu_has(X86_FEATURE_XMM)
-#define cpu_has_xmm2		boot_cpu_has(X86_FEATURE_XMM2)
 #define cpu_has_aes		boot_cpu_has(X86_FEATURE_AES)
 #define cpu_has_avx		boot_cpu_has(X86_FEATURE_AVX)
 #define cpu_has_avx2		boot_cpu_has(X86_FEATURE_AVX2)
