@@ -132,7 +132,6 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 #define cpu_has_clflush		boot_cpu_has(X86_FEATURE_CLFLUSH)
 #define cpu_has_gbpages		boot_cpu_has(X86_FEATURE_GBPAGES)
 #define cpu_has_pat		boot_cpu_has(X86_FEATURE_PAT)
-#define cpu_has_x2apic		boot_cpu_has(X86_FEATURE_X2APIC)
 #define cpu_has_xsave		boot_cpu_has(X86_FEATURE_XSAVE)
 #define cpu_has_xsaves		boot_cpu_has(X86_FEATURE_XSAVES)
 /*
