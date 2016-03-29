@@ -1701,7 +1701,7 @@ static void fwserial_virt_plug_complete(struct fwtty_peer *peer,
 	dma_fifo_change_tx_limit(&port->tx_fifo, port->max_payload);
 	spin_unlock_bh(&peer->port->lock);
 
-	if (port->port.console && port->fwcon_ops->notify != NULL)
+	if (port->port.console && port->fwcon_ops->notify)
 		(*port->fwcon_ops->notify)(FWCON_NOTIFY_ATTACH, port->con_data);
 
 	fwtty_info(&peer->unit, "peer (guid:%016llx) connected on %s\n",
@@ -1808,7 +1808,7 @@ static void fwserial_release_port(struct fwtty_port *port, bool reset)
 	RCU_INIT_POINTER(port->peer, NULL);
 	spin_unlock_bh(&port->lock);
 
-	if (port->port.console && port->fwcon_ops->notify != NULL)
+	if (port->port.console && port->fwcon_ops->notify)
 		(*port->fwcon_ops->notify)(FWCON_NOTIFY_DETACH, port->con_data);
 }
 
