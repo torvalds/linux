@@ -372,6 +372,7 @@ int snd_hdac_i915_exit(struct hdac_bus *bus)
 
 	kfree(acomp);
 	bus->audio_component = NULL;
+	hdac_acomp = NULL;
 
 	return 0;
 }
