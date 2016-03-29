@@ -167,6 +167,23 @@ static int tas571x_hw_params(struct snd_pcm_substream *substream,
 				  TAS571X_SDI_FMT_MASK, val);
 }
 
+static int tas571x_mute(struct snd_soc_dai *dai, int mute)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	u8 sysctl2;
+	int ret;
+
+	sysctl2 = mute ? TAS571X_SYS_CTRL_2_SDN_MASK : 0;
+
+	ret = snd_soc_update_bits(codec,
+			    TAS571X_SYS_CTRL_2_REG,
+		     TAS571X_SYS_CTRL_2_SDN_MASK,
+		     sysctl2);
+	usleep_range(1000, 2000);
+
+	return ret;
+}
+
 static int tas571x_set_bias_level(struct snd_soc_codec *codec,
 				  enum snd_soc_bias_level level)
 {
@@ -214,6 +231,7 @@ static int tas571x_set_bias_level(struct snd_soc_codec *codec,
 static const struct snd_soc_dai_ops tas571x_dai_ops = {
 	.set_fmt	= tas571x_set_dai_fmt,
 	.hw_params	= tas571x_hw_params,
+	.digital_mute	= tas571x_mute,
 };
 
 static const char *const tas5711_supply_names[] = {
@@ -445,10 +463,6 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(priv->regmap, TAS571X_SYS_CTRL_2_REG,
-				 TAS571X_SYS_CTRL_2_SDN_MASK, 0);
-	if (ret)
-		return ret;
 
 	memcpy(&priv->codec_driver, &tas571x_codec, sizeof(priv->codec_driver));
 	priv->codec_driver.controls = priv->chip->controls;
