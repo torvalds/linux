@@ -52,21 +52,21 @@
 #define M41T80_ALARM_REG_SIZE	\
 	(M41T80_REG_ALARM_SEC + 1 - M41T80_REG_ALARM_MON)
 
-#define M41T80_SEC_ST		(1 << 7)	/* ST: Stop Bit */
-#define M41T80_ALMON_AFE	(1 << 7)	/* AFE: AF Enable Bit */
-#define M41T80_ALMON_SQWE	(1 << 6)	/* SQWE: SQW Enable Bit */
-#define M41T80_ALHOUR_HT	(1 << 6)	/* HT: Halt Update Bit */
-#define M41T80_FLAGS_AF		(1 << 6)	/* AF: Alarm Flag Bit */
-#define M41T80_FLAGS_BATT_LOW	(1 << 4)	/* BL: Battery Low Bit */
-#define M41T80_WATCHDOG_RB2	(1 << 7)	/* RB: Watchdog resolution */
-#define M41T80_WATCHDOG_RB1	(1 << 1)	/* RB: Watchdog resolution */
-#define M41T80_WATCHDOG_RB0	(1 << 0)	/* RB: Watchdog resolution */
+#define M41T80_SEC_ST		BIT(7)	/* ST: Stop Bit */
+#define M41T80_ALMON_AFE	BIT(7)	/* AFE: AF Enable Bit */
+#define M41T80_ALMON_SQWE	BIT(6)	/* SQWE: SQW Enable Bit */
+#define M41T80_ALHOUR_HT	BIT(6)	/* HT: Halt Update Bit */
+#define M41T80_FLAGS_AF		BIT(6)	/* AF: Alarm Flag Bit */
+#define M41T80_FLAGS_BATT_LOW	BIT(4)	/* BL: Battery Low Bit */
+#define M41T80_WATCHDOG_RB2	BIT(7)	/* RB: Watchdog resolution */
+#define M41T80_WATCHDOG_RB1	BIT(1)	/* RB: Watchdog resolution */
+#define M41T80_WATCHDOG_RB0	BIT(0)	/* RB: Watchdog resolution */
 
-#define M41T80_FEATURE_HT	(1 << 0)	/* Halt feature */
-#define M41T80_FEATURE_BL	(1 << 1)	/* Battery low indicator */
-#define M41T80_FEATURE_SQ	(1 << 2)	/* Squarewave feature */
-#define M41T80_FEATURE_WD	(1 << 3)	/* Extra watchdog resolution */
-#define M41T80_FEATURE_SQ_ALT	(1 << 4)	/* RSx bits are in reg 4 */
+#define M41T80_FEATURE_HT	BIT(0)	/* Halt feature */
+#define M41T80_FEATURE_BL	BIT(1)	/* Battery low indicator */
+#define M41T80_FEATURE_SQ	BIT(2)	/* Squarewave feature */
+#define M41T80_FEATURE_WD	BIT(3)	/* Extra watchdog resolution */
+#define M41T80_FEATURE_SQ_ALT	BIT(4)	/* RSx bits are in reg 4 */
 
 static DEFINE_MUTEX(m41t80_rtc_mutex);
 static const struct i2c_device_id m41t80_id[] = {
