@@ -284,7 +284,7 @@ kernel_physical_mapping_init(unsigned long start,
 	 */
 	mapping_iter = 1;
 
-	if (!cpu_has_pse)
+	if (!boot_cpu_has(X86_FEATURE_PSE))
 		use_pse = 0;
 
 repeat:

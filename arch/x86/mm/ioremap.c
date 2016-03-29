@@ -386,7 +386,7 @@ int __init arch_ioremap_pud_supported(void)
 
 int __init arch_ioremap_pmd_supported(void)
 {
-	return cpu_has_pse;
+	return boot_cpu_has(X86_FEATURE_PSE);
 }
 
 /*
