@@ -26,6 +26,10 @@
 
 struct amdgpu_device;
 
+#define AMDGPU_IH_CLIENTID_LEGACY 0
+
+#define AMDGPU_IH_CLIENTID_MAX 0x1f
+
 /*
  * R6xx+ IH ring
  */
@@ -47,10 +51,12 @@ struct amdgpu_ih_ring {
 };
 
 struct amdgpu_iv_entry {
+	unsigned client_id;
 	unsigned src_id;
 	unsigned src_data;
 	unsigned ring_id;
 	unsigned vm_id;
+	unsigned vm_id_src;
 	unsigned pas_id;
 	const uint32_t *iv_entry;
 };

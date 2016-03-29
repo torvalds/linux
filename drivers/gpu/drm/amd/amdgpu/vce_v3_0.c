@@ -383,7 +383,7 @@ static int vce_v3_0_sw_init(void *handle)
 	int r, i;
 
 	/* VCE */
-	r = amdgpu_irq_add_id(adev, 167, &adev->vce.irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 167, &adev->vce.irq);
 	if (r)
 		return r;
 

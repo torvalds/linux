@@ -517,12 +517,12 @@ static int si_dma_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* DMA0 trap event */
-	r = amdgpu_irq_add_id(adev, 224, &adev->sdma.trap_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 224, &adev->sdma.trap_irq);
 	if (r)
 		return r;
 
 	/* DMA1 trap event */
-	r = amdgpu_irq_add_id(adev, 244, &adev->sdma.trap_irq_1);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 244, &adev->sdma.trap_irq_1);
 	if (r)
 		return r;
 

@@ -571,7 +571,9 @@ static const struct amdgpu_irq_src_funcs cgs_irq_funcs = {
 	.process = cgs_process_irq,
 };
 
-static int amdgpu_cgs_add_irq_source(struct cgs_device *cgs_device, unsigned src_id,
+static int amdgpu_cgs_add_irq_source(void *cgs_device,
+				     unsigned client_id,
+				     unsigned src_id,
 				     unsigned num_types,
 				     cgs_irq_source_set_func_t set,
 				     cgs_irq_handler_func_t handler,
@@ -597,7 +599,7 @@ static int amdgpu_cgs_add_irq_source(struct cgs_device *cgs_device, unsigned src
 	irq_params->handler = handler;
 	irq_params->private_data = private_data;
 	source->data = (void *)irq_params;
-	ret = amdgpu_irq_add_id(adev, src_id, source);
+	ret = amdgpu_irq_add_id(adev, client_id, src_id, source);
 	if (ret) {
 		kfree(irq_params);
 		kfree(source);
@@ -606,16 +608,26 @@ static int amdgpu_cgs_add_irq_source(struct cgs_device *cgs_device, unsigned src
 	return ret;
 }
 
-static int amdgpu_cgs_irq_get(struct cgs_device *cgs_device, unsigned src_id, unsigned type)
+static int amdgpu_cgs_irq_get(void *cgs_device, unsigned client_id,
+			      unsigned src_id, unsigned type)
 {
 	CGS_FUNC_ADEV;
-	return amdgpu_irq_get(adev, adev->irq.sources[src_id], type);
+
+	if (!adev->irq.client[client_id].sources)
+		return -EINVAL;
+
+	return amdgpu_irq_get(adev, adev->irq.client[client_id].sources[src_id], type);
 }
 
-static int amdgpu_cgs_irq_put(struct cgs_device *cgs_device, unsigned src_id, unsigned type)
+static int amdgpu_cgs_irq_put(void *cgs_device, unsigned client_id,
+			      unsigned src_id, unsigned type)
 {
 	CGS_FUNC_ADEV;
-	return amdgpu_irq_put(adev, adev->irq.sources[src_id], type);
+
+	if (!adev->irq.client[client_id].sources)
+		return -EINVAL;
+
+	return amdgpu_irq_put(adev, adev->irq.client[client_id].sources[src_id], type);
 }
 
 static int amdgpu_cgs_set_clockgating_state(struct cgs_device *cgs_device,
