@@ -135,7 +135,6 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 #define cpu_has_x2apic		boot_cpu_has(X86_FEATURE_X2APIC)
 #define cpu_has_xsave		boot_cpu_has(X86_FEATURE_XSAVE)
 #define cpu_has_xsaves		boot_cpu_has(X86_FEATURE_XSAVES)
-#define cpu_has_osxsave		boot_cpu_has(X86_FEATURE_OSXSAVE)
 /*
  * Do not add any more of those clumsy macros - use static_cpu_has() for
  * fast paths and boot_cpu_has() otherwise!
