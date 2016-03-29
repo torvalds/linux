@@ -19,6 +19,17 @@
 
 #include "soctherm.h"
 
+#define TEGRA124_THERMTRIP_ANY_EN_MASK		(0x1 << 28)
+#define TEGRA124_THERMTRIP_MEM_EN_MASK		(0x1 << 27)
+#define TEGRA124_THERMTRIP_GPU_EN_MASK		(0x1 << 26)
+#define TEGRA124_THERMTRIP_CPU_EN_MASK		(0x1 << 25)
+#define TEGRA124_THERMTRIP_TSENSE_EN_MASK	(0x1 << 24)
+#define TEGRA124_THERMTRIP_GPUMEM_THRESH_MASK	(0xff << 16)
+#define TEGRA124_THERMTRIP_CPU_THRESH_MASK	(0xff << 8)
+#define TEGRA124_THERMTRIP_TSENSE_THRESH_MASK	0xff
+
+#define TEGRA124_THRESH_GRAIN			1000
+
 static const struct tegra_tsensor_configuration tegra124_tsensor_config = {
 	.tall = 16300,
 	.tiddq_en = 1,
@@ -37,6 +48,9 @@ static const struct tegra_tsensor_group tegra124_tsensor_group_cpu = {
 	.pdiv_mask = SENSOR_PDIV_CPU_MASK,
 	.pllx_hotspot_diff = 10,
 	.pllx_hotspot_mask = SENSOR_HOTSPOT_CPU_MASK,
+	.thermtrip_any_en_mask = TEGRA124_THERMTRIP_ANY_EN_MASK,
+	.thermtrip_enable_mask = TEGRA124_THERMTRIP_CPU_EN_MASK,
+	.thermtrip_threshold_mask = TEGRA124_THERMTRIP_CPU_THRESH_MASK,
 };
 
 static const struct tegra_tsensor_group tegra124_tsensor_group_gpu = {
@@ -49,6 +63,9 @@ static const struct tegra_tsensor_group tegra124_tsensor_group_gpu = {
 	.pdiv_mask = SENSOR_PDIV_GPU_MASK,
 	.pllx_hotspot_diff = 5,
 	.pllx_hotspot_mask = SENSOR_HOTSPOT_GPU_MASK,
+	.thermtrip_any_en_mask = TEGRA124_THERMTRIP_ANY_EN_MASK,
+	.thermtrip_enable_mask = TEGRA124_THERMTRIP_GPU_EN_MASK,
+	.thermtrip_threshold_mask = TEGRA124_THERMTRIP_GPUMEM_THRESH_MASK,
 };
 
 static const struct tegra_tsensor_group tegra124_tsensor_group_pll = {
@@ -59,6 +76,9 @@ static const struct tegra_tsensor_group tegra124_tsensor_group_pll = {
 	.pdiv = 8,
 	.pdiv_ate = 8,
 	.pdiv_mask = SENSOR_PDIV_PLLX_MASK,
+	.thermtrip_any_en_mask = TEGRA124_THERMTRIP_ANY_EN_MASK,
+	.thermtrip_enable_mask = TEGRA124_THERMTRIP_TSENSE_EN_MASK,
+	.thermtrip_threshold_mask = TEGRA124_THERMTRIP_TSENSE_THRESH_MASK,
 };
 
 static const struct tegra_tsensor_group tegra124_tsensor_group_mem = {
@@ -71,6 +91,9 @@ static const struct tegra_tsensor_group tegra124_tsensor_group_mem = {
 	.pdiv_mask = SENSOR_PDIV_MEM_MASK,
 	.pllx_hotspot_diff = 0,
 	.pllx_hotspot_mask = SENSOR_HOTSPOT_MEM_MASK,
+	.thermtrip_any_en_mask = TEGRA124_THERMTRIP_ANY_EN_MASK,
+	.thermtrip_enable_mask = TEGRA124_THERMTRIP_MEM_EN_MASK,
+	.thermtrip_threshold_mask = TEGRA124_THERMTRIP_GPUMEM_THRESH_MASK,
 };
 
 static const struct tegra_tsensor_group *tegra124_tsensor_groups[] = {
@@ -169,4 +192,5 @@ const struct tegra_soctherm_soc tegra124_soctherm = {
 	.ttgs = tegra124_tsensor_groups,
 	.num_ttgs = ARRAY_SIZE(tegra124_tsensor_groups),
 	.tfuse = &tegra124_soctherm_fuse,
+	.thresh_grain = TEGRA124_THRESH_GRAIN,
 };

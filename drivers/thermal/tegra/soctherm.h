@@ -21,6 +21,9 @@
 #define SENSOR_CONFIG2_THERMB_MASK		0xffff
 #define SENSOR_CONFIG2_THERMB_SHIFT		0
 
+#define THERMCTL_THERMTRIP_CTL			0x80
+/* BITs are defined in device file */
+
 #define SENSOR_PDIV				0x1c0
 #define SENSOR_PDIV_CPU_MASK			(0xf << 12)
 #define SENSOR_PDIV_GPU_MASK			(0xf << 8)
@@ -59,6 +62,9 @@ struct tegra_tsensor_group {
 	u32 sensor_temp_mask;
 	u32 pdiv, pdiv_ate, pdiv_mask;
 	u32 pllx_hotspot_diff, pllx_hotspot_mask;
+	u32 thermtrip_enable_mask;
+	u32 thermtrip_any_en_mask;
+	u32 thermtrip_threshold_mask;
 };
 
 struct tegra_tsensor_configuration {
@@ -96,6 +102,7 @@ struct tegra_soctherm_soc {
 	const struct tegra_tsensor_group **ttgs;
 	const unsigned int num_ttgs;
 	const struct tegra_soctherm_fuse *tfuse;
+	const int thresh_grain;
 };
 
 int tegra_calc_shared_calib(const struct tegra_soctherm_fuse *tfuse,
