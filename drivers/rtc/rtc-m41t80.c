@@ -90,6 +90,46 @@ struct m41t80_data {
 	struct rtc_device *rtc;
 };
 
+static irqreturn_t m41t80_handle_irq(int irq, void *dev_id)
+{
+	struct i2c_client *client = dev_id;
+	struct m41t80_data *m41t80 = i2c_get_clientdata(client);
+	struct mutex *lock = &m41t80->rtc->ops_lock;
+	unsigned long events = 0;
+	int flags, flags_afe;
+
+	mutex_lock(lock);
+
+	flags_afe = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_MON);
+	if (flags_afe < 0) {
+		mutex_unlock(lock);
+		return IRQ_NONE;
+	}
+
+	flags = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
+	if (flags <= 0) {
+		mutex_unlock(lock);
+		return IRQ_NONE;
+	}
+
+	if (flags & M41T80_FLAGS_AF) {
+		flags &= ~M41T80_FLAGS_AF;
+		flags_afe &= ~M41T80_ALMON_AFE;
+		events |= RTC_AF;
+	}
+
+	if (events) {
+		rtc_update_irq(m41t80->rtc, 1, events);
+		i2c_smbus_write_byte_data(client, M41T80_REG_FLAGS, flags);
+		i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
+					  flags_afe);
+	}
+
+	mutex_unlock(lock);
+
+	return IRQ_HANDLED;
+}
+
 static int m41t80_get_datetime(struct i2c_client *client,
 			       struct rtc_time *tm)
 {
@@ -167,10 +207,109 @@ static int m41t80_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return m41t80_set_datetime(to_i2c_client(dev), tm);
 }
 
-/*
- * XXX - m41t80 alarm functionality is reported broken.
- * until it is fixed, don't register alarm functions.
- */
+static int m41t80_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	int flags, retval;
+
+	flags = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_MON);
+	if (flags < 0)
+		return flags;
+
+	if (enabled)
+		flags |= M41T80_ALMON_AFE;
+	else
+		flags &= ~M41T80_ALMON_AFE;
+
+	retval = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON, flags);
+	if (retval < 0) {
+		dev_info(dev, "Unable to enable alarm IRQ %d\n", retval);
+		return retval;
+	}
+	return 0;
+}
+
+static int m41t80_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	u8 alarmvals[5];
+	int ret, err;
+
+	alarmvals[0] = bin2bcd(alrm->time.tm_mon + 1);
+	alarmvals[1] = bin2bcd(alrm->time.tm_mday);
+	alarmvals[2] = bin2bcd(alrm->time.tm_hour);
+	alarmvals[3] = bin2bcd(alrm->time.tm_min);
+	alarmvals[4] = bin2bcd(alrm->time.tm_sec);
+
+	/* Clear AF and AFE flags */
+	ret = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_MON);
+	if (ret < 0)
+		return ret;
+	err = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
+					ret & ~(M41T80_ALMON_AFE));
+	if (err < 0) {
+		dev_err(dev, "Unable to clear AFE bit\n");
+		return err;
+	}
+
+	ret = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
+	if (ret < 0)
+		return ret;
+
+	err = i2c_smbus_write_byte_data(client, M41T80_REG_FLAGS,
+					ret & ~(M41T80_FLAGS_AF));
+	if (err < 0) {
+		dev_err(dev, "Unable to clear AF bit\n");
+		return err;
+	}
+
+	/* Write the alarm */
+	err = i2c_smbus_write_i2c_block_data(client, M41T80_REG_ALARM_MON,
+					     5, alarmvals);
+	if (err)
+		return err;
+
+	/* Enable the alarm interrupt */
+	if (alrm->enabled) {
+		alarmvals[0] |= M41T80_ALMON_AFE;
+		err = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
+						alarmvals[0]);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int m41t80_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	u8 alarmvals[5];
+	int flags, ret;
+
+	ret = i2c_smbus_read_i2c_block_data(client, M41T80_REG_ALARM_MON,
+					    5, alarmvals);
+	if (ret != 5)
+		return ret < 0 ? ret : -EIO;
+
+	flags = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
+	if (flags < 0)
+		return flags;
+
+	alrm->time.tm_sec  = bcd2bin(alarmvals[4] & 0x7f);
+	alrm->time.tm_min  = bcd2bin(alarmvals[3] & 0x7f);
+	alrm->time.tm_hour = bcd2bin(alarmvals[2] & 0x3f);
+	alrm->time.tm_wday = -1;
+	alrm->time.tm_mday = bcd2bin(alarmvals[1] & 0x3f);
+	alrm->time.tm_mon  = bcd2bin(alarmvals[0] & 0x3f);
+	alrm->time.tm_year = -1;
+
+	alrm->enabled = !!(alarmvals[0] & M41T80_ALMON_AFE);
+	alrm->pending = (flags & M41T80_FLAGS_AF) && alrm->enabled;
+
+	return 0;
+}
+
 static struct rtc_class_ops m41t80_rtc_ops = {
 	.read_time = m41t80_rtc_read_time,
 	.set_time = m41t80_rtc_set_time,
@@ -591,7 +730,7 @@ static int m41t80_probe(struct i2c_client *client,
 	int rc = 0;
 	struct rtc_device *rtc = NULL;
 	struct rtc_time tm;
-	struct m41t80_data *clientdata = NULL;
+	struct m41t80_data *m41t80_data = NULL;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK |
 				     I2C_FUNC_SMBUS_BYTE_DATA)) {
@@ -599,26 +738,41 @@ static int m41t80_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	clientdata = devm_kzalloc(&client->dev, sizeof(*clientdata),
-				  GFP_KERNEL);
-	if (!clientdata)
+	m41t80_data = devm_kzalloc(&client->dev, sizeof(*m41t80_data),
+				   GFP_KERNEL);
+	if (!m41t80_data)
 		return -ENOMEM;
 
-	clientdata->features = id->driver_data;
-	i2c_set_clientdata(client, clientdata);
+	m41t80_data->features = id->driver_data;
+	i2c_set_clientdata(client, m41t80_data);
+
+	if (client->irq > 0) {
+		rc = devm_request_threaded_irq(&client->dev, client->irq,
+					       NULL, m41t80_handle_irq,
+					       IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					       "m41t80", client);
+		if (rc) {
+			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
+			client->irq = 0;
+		} else {
+			m41t80_rtc_ops.read_alarm = m41t80_read_alarm;
+			m41t80_rtc_ops.set_alarm = m41t80_set_alarm;
+			m41t80_rtc_ops.alarm_irq_enable = m41t80_alarm_irq_enable;
+		}
+	}
 
 	rtc = devm_rtc_device_register(&client->dev, client->name,
 				       &m41t80_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
-	clientdata->rtc = rtc;
+	m41t80_data->rtc = rtc;
 
 	/* Make sure HT (Halt Update) bit is cleared */
 	rc = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_HOUR);
 
 	if (rc >= 0 && rc & M41T80_ALHOUR_HT) {
-		if (clientdata->features & M41T80_FEATURE_HT) {
+		if (m41t80_data->features & M41T80_FEATURE_HT) {
 			m41t80_get_datetime(client, &tm);
 			dev_info(&client->dev, "HT bit was set!\n");
 			dev_info(&client->dev,
@@ -664,7 +818,7 @@ static int m41t80_probe(struct i2c_client *client,
 	}
 
 #ifdef CONFIG_RTC_DRV_M41T80_WDT
-	if (clientdata->features & M41T80_FEATURE_HT) {
+	if (m41t80_data->features & M41T80_FEATURE_HT) {
 		save_client = client;
 		rc = misc_register(&wdt_dev);
 		if (rc)
