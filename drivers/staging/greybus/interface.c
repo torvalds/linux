@@ -11,55 +11,58 @@
 
 
 /*
- * T_TstSrcIncrement is written by the module on ES2 as a stand-in for boot
- * status attribute ES3_INIT_STATUS. AP needs to read and clear it, after
- * reading a non-zero value from it.
+ * T_TstSrcIncrement is written by the module on ES2 as a stand-in for the
+ * init-status attribute ES3_INIT_STATUS. The AP needs to read and clear it
+ * after reading a non-zero value from it.
  *
  * FIXME: This is module-hardware dependent and needs to be extended for every
  * type of module we want to support.
  */
-static int gb_interface_read_and_clear_boot_status(struct gb_interface *intf)
+static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 {
 	struct gb_host_device *hd = intf->hd;
 	int ret;
 	u32 value;
 	u16 attr;
 	u8 init_status;
+	bool es2_bridge;
+
+	es2_bridge = intf->ddbl1_manufacturer_id == ES2_DDBL1_MFR_ID &&
+			intf->ddbl1_product_id == ES2_DDBL1_PROD_ID;
 
 	/*
-	 * Check if the module is ES2 or ES3, and choose attr number
-	 * appropriately.
-	 * FIXME: Remove ES2 support from the kernel entirely.
+	 * ES2 bridges use T_TstSrcIncrement for the init status.
+	 *
+	 * FIXME: Remove ES2 support
 	 */
-	if (intf->ddbl1_manufacturer_id == ES2_DDBL1_MFR_ID &&
-				intf->ddbl1_product_id == ES2_DDBL1_PROD_ID)
+	if (es2_bridge)
 		attr = DME_ATTR_T_TST_SRC_INCREMENT;
 	else
 		attr = DME_ATTR_ES3_INIT_STATUS;
 
-	/* Read and clear boot status in ES3_INIT_STATUS */
 	ret = gb_svc_dme_peer_get(hd->svc, intf->interface_id, attr,
 				  DME_ATTR_SELECTOR_INDEX, &value);
 	if (ret)
 		return ret;
 
 	/*
-	 * A nonzero boot status indicates the module has finished
-	 * booting. Clear it.
+	 * A nonzero init status indicates the module has finished
+	 * initializing.
 	 */
 	if (!value) {
-		dev_err(&intf->dev, "Module not ready yet\n");
+		dev_err(&intf->dev, "invalid init status\n");
 		return -ENODEV;
 	}
 
 	/*
-	 * Check if the module needs to boot from UniPro.
+	 * Check if the interface needs to boot over UniPro.
+	 *
 	 * For ES2: We need to check lowest 8 bits of 'value'.
 	 * For ES3: We need to check highest 8 bits out of 32 of 'value'.
-	 * FIXME: Remove ES2 support from the kernel entirely.
+	 *
+	 * FIXME: Remove ES2 support
 	 */
-	if (intf->ddbl1_manufacturer_id == ES2_DDBL1_MFR_ID &&
-			intf->ddbl1_product_id == ES2_DDBL1_PROD_ID)
+	if (es2_bridge)
 		init_status = value & 0xff;
 	else
 		init_status = value >> 24;
@@ -68,6 +71,7 @@ static int gb_interface_read_and_clear_boot_status(struct gb_interface *intf)
 			init_status == DME_DIS_FALLBACK_UNIPRO_BOOT_STARTED)
 		intf->boot_over_unipro = true;
 
+	/* Clear the init status. */
 	return gb_svc_dme_peer_set(hd->svc, intf->interface_id, attr,
 				   DME_ATTR_SELECTOR_INDEX, 0);
 }
@@ -210,9 +214,9 @@ int gb_interface_enable(struct gb_interface *intf)
 	int ret, size;
 	void *manifest;
 
-	ret = gb_interface_read_and_clear_boot_status(intf);
+	ret = gb_interface_read_and_clear_init_status(intf);
 	if (ret) {
-		dev_err(&intf->dev, "failed to clear boot status: %d\n", ret);
+		dev_err(&intf->dev, "failed to clear init status: %d\n", ret);
 		return ret;
 	}
 
