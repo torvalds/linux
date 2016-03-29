@@ -22,16 +22,148 @@ static LIST_HEAD(gb_codec_list);
  * gb_snd management functions
  */
 
-static int gbaudio_codec_request_handler(struct gb_operation *op)
+static int gbaudio_request_jack(struct gbaudio_module_info *module,
+				  struct gb_audio_jack_event_request *req)
 {
-	struct gb_connection *connection = op->connection;
-	struct gb_audio_streaming_event_request *req = op->request->payload;
+	int report, button_status;
 
-	dev_warn(&connection->bundle->dev,
-		 "Audio Event received: cport: %u, event: %u\n",
+	dev_warn(module->dev, "Jack Event received: type: %u, event: %u\n",
+		 req->widget_type, req->event);
+
+	mutex_lock(&module->lock);
+	if (req->event == GB_AUDIO_JACK_EVENT_REMOVAL) {
+		module->jack_type = 0;
+		button_status = module->button_status;
+		module->button_status = 0;
+		mutex_unlock(&module->lock);
+		if (button_status)
+			snd_soc_jack_report(&module->button_jack, 0,
+					    GBCODEC_JACK_BUTTON_MASK);
+		snd_soc_jack_report(&module->headset_jack, 0,
+				    GBCODEC_JACK_MASK);
+		return 0;
+	}
+
+	report &= ~GBCODEC_JACK_MASK;
+	/* currently supports Headphone, Headset & Lineout only */
+	if (req->widget_type && GB_AUDIO_WIDGET_TYPE_HP)
+		report |=  SND_JACK_HEADPHONE & GBCODEC_JACK_MASK;
+
+	if (req->widget_type && GB_AUDIO_WIDGET_TYPE_MIC)
+		report = SND_JACK_MICROPHONE & GBCODEC_JACK_MASK;
+
+	if (req->widget_type && GB_AUDIO_WIDGET_TYPE_LINE)
+		report = (report & GBCODEC_JACK_MASK) |
+			SND_JACK_LINEOUT | SND_JACK_LINEIN;
+
+	if (module->jack_type)
+		dev_warn(module->dev, "Modifying jack from %d to %d\n",
+			 module->jack_type, report);
+
+	module->jack_type = report;
+	mutex_unlock(&module->lock);
+	snd_soc_jack_report(&module->headset_jack, report, GBCODEC_JACK_MASK);
+
+	return 0;
+}
+
+static int gbaudio_request_button(struct gbaudio_module_info *module,
+				  struct gb_audio_button_event_request *req)
+{
+	int soc_button_id, report;
+
+	dev_warn(module->dev, "Button Event received: id: %u, event: %u\n",
+		 req->button_id, req->event);
+
+	/* currently supports 4 buttons only */
+	mutex_lock(&module->lock);
+	if (!module->jack_type) {
+		dev_err(module->dev, "Jack not present. Bogus event!!\n");
+		mutex_unlock(&module->lock);
+		return -EINVAL;
+	}
+
+	report = module->button_status & GBCODEC_JACK_BUTTON_MASK;
+
+	switch (req->button_id) {
+	case 1:
+		soc_button_id = SND_JACK_BTN_0;
+		break;
+
+	case 2:
+		soc_button_id = SND_JACK_BTN_1;
+		break;
+
+	case 3:
+		soc_button_id = SND_JACK_BTN_2;
+		break;
+
+	case 4:
+		soc_button_id = SND_JACK_BTN_3;
+		break;
+	default:
+		dev_err(module->dev, "Invalid button request received\n");
+		return -EINVAL;
+	}
+
+	if (req->event == GB_AUDIO_BUTTON_EVENT_PRESS)
+		report = report | soc_button_id;
+	else
+		report = report & ~soc_button_id;
+
+	module->button_status = report;
+
+	mutex_unlock(&module->lock);
+
+	snd_soc_jack_report(&module->button_jack, report,
+			    GBCODEC_JACK_BUTTON_MASK);
+
+	return 0;
+}
+
+static int gbaudio_request_stream(struct gbaudio_module_info *module,
+				  struct gb_audio_streaming_event_request *req)
+{
+	dev_warn(module->dev, "Audio Event received: cport: %u, event: %u\n",
 		 req->data_cport, req->event);
 
 	return 0;
+}
+
+static int gbaudio_codec_request_handler(struct gb_operation *op)
+{
+	struct gb_connection *connection = op->connection;
+	struct gbaudio_module_info *module =
+		greybus_get_drvdata(connection->bundle);
+	struct gb_operation_msg_hdr *header = op->request->header;
+	struct gb_audio_streaming_event_request *stream_req;
+	struct gb_audio_jack_event_request *jack_req;
+	struct gb_audio_button_event_request *button_req;
+	int ret;
+
+	switch (header->type) {
+	case GB_AUDIO_TYPE_STREAMING_EVENT:
+		stream_req = op->request->payload;
+		ret = gbaudio_request_stream(module, stream_req);
+		break;
+
+	case GB_AUDIO_TYPE_JACK_EVENT:
+		jack_req = op->request->payload;
+		ret = gbaudio_request_jack(module, jack_req);
+		break;
+
+	case GB_AUDIO_TYPE_BUTTON_EVENT:
+		button_req = op->request->payload;
+		ret = gbaudio_request_button(module, button_req);
+		break;
+
+	default:
+		dev_err(&connection->bundle->dev,
+			"Invalid Audio Event received\n");
+		return -EINVAL;
+	}
+
+	return ret;
 }
 
 static int gbaudio_data_connection_request_handler(struct gb_operation *op)

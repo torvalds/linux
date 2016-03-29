@@ -10,6 +10,7 @@
 #define __LINUX_GBAUDIO_CODEC_H
 
 #include <sound/soc.h>
+#include <sound/jack.h>
 
 #include "greybus.h"
 #include "greybus_protocols.h"
@@ -56,6 +57,11 @@ enum gbcodec_reg_index {
  */
 #define GBCODEC_APB1_MUX_REG_DEFAULT	0x00
 #define GBCODEC_APB2_MUX_REG_DEFAULT	0x00
+
+#define GBCODEC_JACK_MASK (SND_JACK_HEADSET | SND_JACK_LINEOUT | \
+			   SND_JACK_LINEIN | SND_JACK_UNSUPPORTED)
+#define GBCODEC_JACK_BUTTON_MASK (SND_JACK_BTN_0 | SND_JACK_BTN_1 | \
+				  SND_JACK_BTN_2 | SND_JACK_BTN_3)
 
 static const u8 gbcodec_reg_defaults[GBCODEC_REG_COUNT] = {
 	GBCODEC_CTL_REG_DEFAULT,
@@ -138,6 +144,15 @@ struct gbaudio_module_info {
 	/* need to share this info to above user space */
 	int manager_id;
 	char name[NAME_SIZE];
+
+	/* jack related */
+	char jack_name[NAME_SIZE];
+	char button_name[NAME_SIZE];
+	int num_jacks;
+	int jack_type;
+	int button_status;
+	struct snd_soc_jack headset_jack;
+	struct snd_soc_jack button_jack;
 
 	/* used by codec_ops */
 	struct mutex lock;

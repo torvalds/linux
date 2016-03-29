@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
+#include <uapi/linux/input.h>
 
 #include "audio_codec.h"
 #include "audio_apbridgea.h"
@@ -735,10 +736,80 @@ static struct snd_soc_dai_ops gbcodec_dai_ops = {
 	.digital_mute = gbcodec_digital_mute,
 };
 
+static int gbaudio_init_jack(struct gbaudio_module_info *module,
+			     struct snd_soc_codec *codec)
+{
+	int ret;
+
+	if (!module->num_jacks)
+		return 0;
+
+	/* register jack(s) in case any */
+	if (module->num_jacks > 1) {
+		dev_err(module->dev, "Currently supports max=1 jack\n");
+		return -EINVAL;
+	}
+
+	snprintf(module->jack_name, NAME_SIZE, "GB %d Headset Jack",
+		 module->dev_id);
+	ret = snd_soc_jack_new(codec, module->jack_name, GBCODEC_JACK_MASK,
+			       &module->headset_jack);
+	if (ret) {
+		dev_err(module->dev, "Failed to create new jack\n");
+		return ret;
+	}
+
+	snprintf(module->button_name, NAME_SIZE, "GB %d Button Jack",
+		 module->dev_id);
+	ret = snd_soc_jack_new(codec, module->button_name,
+			       GBCODEC_JACK_BUTTON_MASK, &module->button_jack);
+	if (ret) {
+		dev_err(module->dev, "Failed to create button jack\n");
+		return ret;
+	}
+
+	ret = snd_jack_set_key(module->button_jack.jack, SND_JACK_BTN_0,
+			       KEY_MEDIA);
+	if (ret) {
+		dev_err(module->dev, "Failed to set BTN_0\n");
+		return ret;
+	}
+
+	ret = snd_jack_set_key(module->button_jack.jack, SND_JACK_BTN_1,
+			       KEY_VOICECOMMAND);
+	if (ret) {
+		dev_err(module->dev, "Failed to set BTN_1\n");
+		return ret;
+	}
+
+	ret = snd_jack_set_key(module->button_jack.jack, SND_JACK_BTN_2,
+			       KEY_VOLUMEUP);
+	if (ret) {
+		dev_err(module->dev, "Failed to set BTN_2\n");
+		return ret;
+	}
+
+	ret = snd_jack_set_key(module->button_jack.jack, SND_JACK_BTN_3,
+			       KEY_VOLUMEDOWN);
+	if (ret) {
+		dev_err(module->dev, "Failed to set BTN_0\n");
+		return ret;
+	}
+
+	/* FIXME
+	 * verify if this is really required
+	set_bit(INPUT_PROP_NO_DUMMY_RELEASE,
+		module->button_jack.jack->input_dev->propbit);
+	*/
+
+	return 0;
+}
+
 int gbaudio_register_module(struct gbaudio_module_info *module)
 {
 	int ret;
 	struct snd_soc_codec *codec;
+	struct snd_soc_jack *jack = NULL;
 
 	if (!gbcodec) {
 		dev_err(module->dev, "GB Codec not yet probed\n");
@@ -754,6 +825,12 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 			module->num_dais);
 		mutex_unlock(&gbcodec->lock);
 		return -EINVAL;
+	}
+
+	ret = gbaudio_init_jack(module, codec);
+	if (ret) {
+		mutex_unlock(&gbcodec->lock);
+		return ret;
 	}
 
 	if (module->dapm_widgets)
@@ -773,6 +850,15 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 			snd_soc_dapm_link_dai_widgets_component(codec->card,
 								&codec->dapm);
 	}
+
+#ifdef CONFIG_SND_JACK
+	/* register jack devices for this module from codec->jack_list */
+	list_for_each_entry(jack, &codec->jack_list, list) {
+		if ((jack == &module->headset_jack)
+		    || (jack == &module->button_jack))
+			snd_device_register(codec->card->snd_card, jack->jack);
+	}
+#endif
 
 	list_add(&module->list, &gbcodec->module_list);
 	dev_dbg(codec->dev, "Registered %s module\n", module->name);
@@ -851,6 +937,7 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 {
 	struct snd_soc_codec *codec = gbcodec->codec;
 	struct snd_card *card = codec->card->snd_card;
+	struct snd_soc_jack *jack, *next_j;
 
 	dev_dbg(codec->dev, "Unregister %s module\n", module->name);
 
@@ -861,6 +948,17 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 	mutex_lock(&gbcodec->lock);
 	dev_dbg(codec->dev, "Process Unregister %s module\n", module->name);
 	mutex_lock(&module->lock);
+
+#ifdef CONFIG_SND_JACK
+	/* free jack devices for this module from codec->jack_list */
+	list_for_each_entry_safe(jack, next_j, &codec->jack_list, list) {
+		if ((jack == &module->headset_jack)
+		    || (jack == &module->button_jack)) {
+			snd_device_free(codec->card->snd_card, jack->jack);
+			list_del(&jack->list);
+		}
+	}
+#endif
 
 	gbaudio_codec_cleanup(module);
 

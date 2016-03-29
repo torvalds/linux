@@ -669,6 +669,7 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 	case snd_soc_dapm_hp:
 		*dw = (struct snd_soc_dapm_widget)
 			SND_SOC_DAPM_HP(w->name, gbcodec_event_hp);
+		module->num_jacks++;
 		break;
 	case snd_soc_dapm_mic:
 		*dw = (struct snd_soc_dapm_widget)
