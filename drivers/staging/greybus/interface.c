@@ -12,6 +12,74 @@
 
 #define GB_INTERFACE_DEVICE_ID_BAD	0xff
 
+/* DME attributes */
+#define DME_DDBL1_MANUFACTURERID	0x5003
+#define DME_DDBL1_PRODUCTID		0x5004
+
+#define DME_TOSHIBA_ARA_VID		0x6000
+#define DME_TOSHIBA_ARA_PID		0x6001
+
+/* DDBL1 Manufacturer and Product ids */
+#define TOSHIBA_DMID			0x0126
+#define TOSHIBA_ES2_BRIDGE_DPID		0x1000
+#define TOSHIBA_ES3_APBRIDGE_DPID	0x1001
+#define TOSHIBA_ES3_GPBRIDGE_DPID	0x1002
+
+
+static int gb_interface_dme_attr_get(struct gb_interface *intf,
+							u16 attr, u32 *val)
+{
+	return gb_svc_dme_peer_get(intf->hd->svc, intf->interface_id,
+					attr, DME_ATTR_SELECTOR_INDEX_NULL,
+					val);
+}
+
+static int gb_interface_read_ara_dme(struct gb_interface *intf)
+{
+	int ret;
+
+	/*
+	 * Unless this is a Toshiba bridge, bail out until we have defined
+	 * standard Ara attributes.
+	 */
+	if (intf->ddbl1_manufacturer_id != TOSHIBA_DMID) {
+		dev_err(&intf->dev, "unknown manufacturer %08x\n",
+				intf->ddbl1_manufacturer_id);
+		return -ENODEV;
+	}
+
+	ret = gb_interface_dme_attr_get(intf, DME_TOSHIBA_ARA_VID,
+					&intf->vendor_id);
+	if (ret)
+		return ret;
+
+	ret = gb_interface_dme_attr_get(intf, DME_TOSHIBA_ARA_PID,
+					&intf->product_id);
+	if (ret)
+		return ret;
+
+	/* FIXME: serial number not implemented */
+	intf->serial_number = 0;
+
+	return 0;
+}
+
+static int gb_interface_read_dme(struct gb_interface *intf)
+{
+	int ret;
+
+	ret = gb_interface_dme_attr_get(intf, DME_DDBL1_MANUFACTURERID,
+					&intf->ddbl1_manufacturer_id);
+	if (ret)
+		return ret;
+
+	ret = gb_interface_dme_attr_get(intf, DME_DDBL1_PRODUCTID,
+					&intf->ddbl1_product_id);
+	if (ret)
+		return ret;
+
+	return gb_interface_read_ara_dme(intf);
+}
 
 static int gb_interface_route_create(struct gb_interface *intf)
 {
@@ -278,6 +346,10 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 int gb_interface_activate(struct gb_interface *intf)
 {
 	int ret;
+
+	ret = gb_interface_read_dme(intf);
+	if (ret)
+		return ret;
 
 	ret = gb_interface_route_create(intf);
 	if (ret)

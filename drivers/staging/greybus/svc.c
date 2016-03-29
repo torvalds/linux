@@ -460,11 +460,12 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 		return;
 	}
 
-	intf->ddbl1_manufacturer_id = le32_to_cpu(request->data.ddbl1_mfr_id);
-	intf->ddbl1_product_id = le32_to_cpu(request->data.ddbl1_prod_id);
-	intf->vendor_id = le32_to_cpu(request->data.ara_vend_id);
-	intf->product_id = le32_to_cpu(request->data.ara_prod_id);
-	intf->serial_number = le64_to_cpu(request->data.serial_number);
+	ret = gb_interface_activate(intf);
+	if (ret) {
+		dev_err(&svc->dev, "failed to activate interface %u: %d\n",
+				intf_id, ret);
+		goto err_interface_add;
+	}
 
 	/*
 	 * Use VID/PID specified at hotplug if:
@@ -478,13 +479,6 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	    intf->vendor_id == 0 && intf->product_id == 0) {
 		intf->vendor_id = vendor_id;
 		intf->product_id = product_id;
-	}
-
-	ret = gb_interface_activate(intf);
-	if (ret) {
-		dev_err(&svc->dev, "failed to activate interface %u: %d\n",
-				intf_id, ret);
-		goto err_interface_add;
 	}
 
 	ret = gb_interface_enable(intf);

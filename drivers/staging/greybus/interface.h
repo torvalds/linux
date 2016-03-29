@@ -27,7 +27,6 @@ struct gb_interface {
 	char *vendor_string;
 	char *product_string;
 
-	/* Information taken from the hotplug event */
 	u32 ddbl1_manufacturer_id;
 	u32 ddbl1_product_id;
 	u32 vendor_id;
