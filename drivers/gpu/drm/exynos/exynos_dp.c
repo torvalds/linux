@@ -204,7 +204,7 @@ static int exynos_dp_bind(struct device *dev, struct device *master, void *data)
 }
 
 static void exynos_dp_unbind(struct device *dev, struct device *master,
-				void *data)
+			     void *data)
 {
 	return analogix_dp_unbind(dev, master, data);
 }
@@ -221,7 +221,7 @@ static int exynos_dp_probe(struct platform_device *pdev)
 	struct exynos_dp_device *dp;
 
 	dp = devm_kzalloc(&pdev->dev, sizeof(struct exynos_dp_device),
-				GFP_KERNEL);
+			  GFP_KERNEL);
 	if (!dp)
 		return -ENOMEM;
 

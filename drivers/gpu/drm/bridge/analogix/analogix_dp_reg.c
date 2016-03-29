@@ -54,10 +54,10 @@ void analogix_dp_lane_swap(struct analogix_dp_device *dp, bool enable)
 
 	if (enable)
 		reg = LANE3_MAP_LOGIC_LANE_0 | LANE2_MAP_LOGIC_LANE_1 |
-			LANE1_MAP_LOGIC_LANE_2 | LANE0_MAP_LOGIC_LANE_3;
+		      LANE1_MAP_LOGIC_LANE_2 | LANE0_MAP_LOGIC_LANE_3;
 	else
 		reg = LANE3_MAP_LOGIC_LANE_3 | LANE2_MAP_LOGIC_LANE_2 |
-			LANE1_MAP_LOGIC_LANE_1 | LANE0_MAP_LOGIC_LANE_0;
+		      LANE1_MAP_LOGIC_LANE_1 | LANE0_MAP_LOGIC_LANE_0;
 
 	writel(reg, dp->reg_base + ANALOGIX_DP_LANE_MAP);
 }
@@ -202,8 +202,8 @@ void analogix_dp_set_pll_power_down(struct analogix_dp_device *dp, bool enable)
 }
 
 void analogix_dp_set_analog_power_down(struct analogix_dp_device *dp,
-				enum analog_power_block block,
-				bool enable)
+				       enum analog_power_block block,
+				       bool enable)
 {
 	u32 reg;
 
@@ -399,8 +399,8 @@ void analogix_dp_init_aux(struct analogix_dp_device *dp)
 	analogix_dp_reset_aux(dp);
 
 	/* Disable AUX transaction H/W retry */
-	reg = AUX_BIT_PERIOD_EXPECTED_DELAY(3) | AUX_HW_RETRY_COUNT_SEL(0)|
-		AUX_HW_RETRY_INTERVAL_600_MICROSECONDS;
+	reg = AUX_BIT_PERIOD_EXPECTED_DELAY(3) | AUX_HW_RETRY_COUNT_SEL(0) |
+	      AUX_HW_RETRY_INTERVAL_600_MICROSECONDS;
 	writel(reg, dp->reg_base + ANALOGIX_DP_AUX_HW_RETRY_CTL);
 
 	/* Receive AUX Channel DEFER commands equal to DEFFER_COUNT*64 */
@@ -483,8 +483,8 @@ int analogix_dp_start_aux_transaction(struct analogix_dp_device *dp)
 }
 
 int analogix_dp_write_byte_to_dpcd(struct analogix_dp_device *dp,
-				unsigned int reg_addr,
-				unsigned char data)
+				   unsigned int reg_addr,
+				   unsigned char data)
 {
 	u32 reg;
 	int i;
@@ -519,17 +519,16 @@ int analogix_dp_write_byte_to_dpcd(struct analogix_dp_device *dp,
 		retval = analogix_dp_start_aux_transaction(dp);
 		if (retval == 0)
 			break;
-		else
-			dev_dbg(dp->dev, "%s: Aux Transaction fail!\n",
-				__func__);
+
+		dev_dbg(dp->dev, "%s: Aux Transaction fail!\n", __func__);
 	}
 
 	return retval;
 }
 
 int analogix_dp_read_byte_from_dpcd(struct analogix_dp_device *dp,
-				unsigned int reg_addr,
-				unsigned char *data)
+				    unsigned int reg_addr,
+				    unsigned char *data)
 {
 	u32 reg;
 	int i;
@@ -560,9 +559,8 @@ int analogix_dp_read_byte_from_dpcd(struct analogix_dp_device *dp,
 		retval = analogix_dp_start_aux_transaction(dp);
 		if (retval == 0)
 			break;
-		else
-			dev_dbg(dp->dev, "%s: Aux Transaction fail!\n",
-				__func__);
+
+		dev_dbg(dp->dev, "%s: Aux Transaction fail!\n", __func__);
 	}
 
 	/* Read data buffer */
@@ -573,9 +571,9 @@ int analogix_dp_read_byte_from_dpcd(struct analogix_dp_device *dp,
 }
 
 int analogix_dp_write_bytes_to_dpcd(struct analogix_dp_device *dp,
-				unsigned int reg_addr,
-				unsigned int count,
-				unsigned char data[])
+				    unsigned int reg_addr,
+				    unsigned int count,
+				    unsigned char data[])
 {
 	u32 reg;
 	unsigned int start_offset;
@@ -608,8 +606,9 @@ int analogix_dp_write_bytes_to_dpcd(struct analogix_dp_device *dp,
 			for (cur_data_idx = 0; cur_data_idx < cur_data_count;
 			     cur_data_idx++) {
 				reg = data[start_offset + cur_data_idx];
-				writel(reg, dp->reg_base + ANALOGIX_DP_BUF_DATA_0
-							  + 4 * cur_data_idx);
+				writel(reg, dp->reg_base +
+				       ANALOGIX_DP_BUF_DATA_0 +
+				       4 * cur_data_idx);
 			}
 
 			/*
@@ -625,9 +624,9 @@ int analogix_dp_write_bytes_to_dpcd(struct analogix_dp_device *dp,
 			retval = analogix_dp_start_aux_transaction(dp);
 			if (retval == 0)
 				break;
-			else
-				dev_dbg(dp->dev, "%s: Aux Transaction fail!\n",
-					__func__);
+
+			dev_dbg(dp->dev, "%s: Aux Transaction fail!\n",
+				__func__);
 		}
 
 		start_offset += cur_data_count;
@@ -637,9 +636,9 @@ int analogix_dp_write_bytes_to_dpcd(struct analogix_dp_device *dp,
 }
 
 int analogix_dp_read_bytes_from_dpcd(struct analogix_dp_device *dp,
-				unsigned int reg_addr,
-				unsigned int count,
-				unsigned char data[])
+				     unsigned int reg_addr,
+				     unsigned int count,
+				     unsigned char data[])
 {
 	u32 reg;
 	unsigned int start_offset;
@@ -683,9 +682,9 @@ int analogix_dp_read_bytes_from_dpcd(struct analogix_dp_device *dp,
 			retval = analogix_dp_start_aux_transaction(dp);
 			if (retval == 0)
 				break;
-			else
-				dev_dbg(dp->dev, "%s: Aux Transaction fail!\n",
-					__func__);
+
+			dev_dbg(dp->dev, "%s: Aux Transaction fail!\n",
+				__func__);
 		}
 
 		for (cur_data_idx = 0; cur_data_idx < cur_data_count;
@@ -703,8 +702,8 @@ int analogix_dp_read_bytes_from_dpcd(struct analogix_dp_device *dp,
 }
 
 int analogix_dp_select_i2c_device(struct analogix_dp_device *dp,
-				unsigned int device_addr,
-				unsigned int reg_addr)
+				  unsigned int device_addr,
+				  unsigned int reg_addr)
 {
 	u32 reg;
 	int retval;
@@ -736,9 +735,9 @@ int analogix_dp_select_i2c_device(struct analogix_dp_device *dp,
 }
 
 int analogix_dp_read_byte_from_i2c(struct analogix_dp_device *dp,
-				unsigned int device_addr,
-				unsigned int reg_addr,
-				unsigned int *data)
+				   unsigned int device_addr,
+				   unsigned int reg_addr,
+				   unsigned int *data)
 {
 	u32 reg;
 	int i;
@@ -750,7 +749,8 @@ int analogix_dp_read_byte_from_i2c(struct analogix_dp_device *dp,
 		writel(reg, dp->reg_base + ANALOGIX_DP_BUFFER_DATA_CTL);
 
 		/* Select EDID device */
-		retval = analogix_dp_select_i2c_device(dp, device_addr, reg_addr);
+		retval = analogix_dp_select_i2c_device(dp, device_addr,
+						       reg_addr);
 		if (retval != 0)
 			continue;
 
@@ -767,9 +767,8 @@ int analogix_dp_read_byte_from_i2c(struct analogix_dp_device *dp,
 		retval = analogix_dp_start_aux_transaction(dp);
 		if (retval == 0)
 			break;
-		else
-			dev_dbg(dp->dev, "%s: Aux Transaction fail!\n",
-				__func__);
+
+		dev_dbg(dp->dev, "%s: Aux Transaction fail!\n", __func__);
 	}
 
 	/* Read data */
@@ -780,10 +779,10 @@ int analogix_dp_read_byte_from_i2c(struct analogix_dp_device *dp,
 }
 
 int analogix_dp_read_bytes_from_i2c(struct analogix_dp_device *dp,
-				unsigned int device_addr,
-				unsigned int reg_addr,
-				unsigned int count,
-				unsigned char edid[])
+				    unsigned int device_addr,
+				    unsigned int reg_addr,
+				    unsigned int count,
+				    unsigned char edid[])
 {
 	u32 reg;
 	unsigned int i, j;
@@ -828,15 +827,14 @@ int analogix_dp_read_bytes_from_i2c(struct analogix_dp_device *dp,
 				retval = analogix_dp_start_aux_transaction(dp);
 				if (retval == 0)
 					break;
-				else
-					dev_dbg(dp->dev,
-						"%s: Aux Transaction fail!\n",
-						__func__);
+
+				dev_dbg(dp->dev, "%s: Aux Transaction fail!\n",
+					__func__);
 			}
 			/* Check if Rx sends defer */
 			reg = readl(dp->reg_base + ANALOGIX_DP_AUX_RX_COMM);
 			if (reg == AUX_RX_COMM_AUX_DEFER ||
-				reg == AUX_RX_COMM_I2C_DEFER) {
+			    reg == AUX_RX_COMM_I2C_DEFER) {
 				dev_err(dp->dev, "Defer: %d\n\n", reg);
 				defer = 1;
 			}
@@ -885,7 +883,8 @@ void analogix_dp_get_lane_count(struct analogix_dp_device *dp, u32 *count)
 	*count = reg;
 }
 
-void analogix_dp_enable_enhanced_mode(struct analogix_dp_device *dp, bool enable)
+void analogix_dp_enable_enhanced_mode(struct analogix_dp_device *dp,
+				      bool enable)
 {
 	u32 reg;
 
@@ -901,7 +900,7 @@ void analogix_dp_enable_enhanced_mode(struct analogix_dp_device *dp, bool enable
 }
 
 void analogix_dp_set_training_pattern(struct analogix_dp_device *dp,
-				enum pattern_set pattern)
+				      enum pattern_set pattern)
 {
 	u32 reg;
 
@@ -933,7 +932,8 @@ void analogix_dp_set_training_pattern(struct analogix_dp_device *dp,
 	}
 }
 
-void analogix_dp_set_lane0_pre_emphasis(struct analogix_dp_device *dp, u32 level)
+void analogix_dp_set_lane0_pre_emphasis(struct analogix_dp_device *dp,
+					u32 level)
 {
 	u32 reg;
 
@@ -943,7 +943,8 @@ void analogix_dp_set_lane0_pre_emphasis(struct analogix_dp_device *dp, u32 level
 	writel(reg, dp->reg_base + ANALOGIX_DP_LN0_LINK_TRAINING_CTL);
 }
 
-void analogix_dp_set_lane1_pre_emphasis(struct analogix_dp_device *dp, u32 level)
+void analogix_dp_set_lane1_pre_emphasis(struct analogix_dp_device *dp,
+					u32 level)
 {
 	u32 reg;
 
@@ -953,7 +954,8 @@ void analogix_dp_set_lane1_pre_emphasis(struct analogix_dp_device *dp, u32 level
 	writel(reg, dp->reg_base + ANALOGIX_DP_LN1_LINK_TRAINING_CTL);
 }
 
-void analogix_dp_set_lane2_pre_emphasis(struct analogix_dp_device *dp, u32 level)
+void analogix_dp_set_lane2_pre_emphasis(struct analogix_dp_device *dp,
+					u32 level)
 {
 	u32 reg;
 
@@ -963,7 +965,8 @@ void analogix_dp_set_lane2_pre_emphasis(struct analogix_dp_device *dp, u32 level
 	writel(reg, dp->reg_base + ANALOGIX_DP_LN2_LINK_TRAINING_CTL);
 }
 
-void analogix_dp_set_lane3_pre_emphasis(struct analogix_dp_device *dp, u32 level)
+void analogix_dp_set_lane3_pre_emphasis(struct analogix_dp_device *dp,
+					u32 level)
 {
 	u32 reg;
 
@@ -974,7 +977,7 @@ void analogix_dp_set_lane3_pre_emphasis(struct analogix_dp_device *dp, u32 level
 }
 
 void analogix_dp_set_lane0_link_training(struct analogix_dp_device *dp,
-					u32 training_lane)
+					 u32 training_lane)
 {
 	u32 reg;
 
@@ -983,7 +986,7 @@ void analogix_dp_set_lane0_link_training(struct analogix_dp_device *dp,
 }
 
 void analogix_dp_set_lane1_link_training(struct analogix_dp_device *dp,
-					u32 training_lane)
+					 u32 training_lane)
 {
 	u32 reg;
 
@@ -1001,7 +1004,7 @@ void analogix_dp_set_lane2_link_training(struct analogix_dp_device *dp,
 }
 
 void analogix_dp_set_lane3_link_training(struct analogix_dp_device *dp,
-					u32 training_lane)
+					 u32 training_lane)
 {
 	u32 reg;
 
@@ -1125,9 +1128,8 @@ int analogix_dp_is_slave_video_stream_clock_on(struct analogix_dp_device *dp)
 }
 
 void analogix_dp_set_video_cr_mn(struct analogix_dp_device *dp,
-		enum clock_recovery_m_value_type type,
-		u32 m_value,
-		u32 n_value)
+				 enum clock_recovery_m_value_type type,
+				 u32 m_value, u32 n_value)
 {
 	u32 reg;
 
@@ -1221,7 +1223,7 @@ void analogix_dp_config_video_slave_mode(struct analogix_dp_device *dp)
 	u32 reg;
 
 	reg = readl(dp->reg_base + ANALOGIX_DP_FUNC_EN_1);
-	reg &= ~(MASTER_VID_FUNC_EN_N|SLAVE_VID_FUNC_EN_N);
+	reg &= ~(MASTER_VID_FUNC_EN_N | SLAVE_VID_FUNC_EN_N);
 	reg |= MASTER_VID_FUNC_EN_N;
 	writel(reg, dp->reg_base + ANALOGIX_DP_FUNC_EN_1);
 

@@ -187,50 +187,55 @@ int analogix_dp_get_plug_in_status(struct analogix_dp_device *dp);
 void analogix_dp_enable_sw_function(struct analogix_dp_device *dp);
 int analogix_dp_start_aux_transaction(struct analogix_dp_device *dp);
 int analogix_dp_write_byte_to_dpcd(struct analogix_dp_device *dp,
-				unsigned int reg_addr,
-				unsigned char data);
+				   unsigned int reg_addr,
+				   unsigned char data);
 int analogix_dp_read_byte_from_dpcd(struct analogix_dp_device *dp,
-				unsigned int reg_addr,
-				unsigned char *data);
+				    unsigned int reg_addr,
+				    unsigned char *data);
 int analogix_dp_write_bytes_to_dpcd(struct analogix_dp_device *dp,
-				unsigned int reg_addr,
-				unsigned int count,
-				unsigned char data[]);
+				    unsigned int reg_addr,
+				    unsigned int count,
+				    unsigned char data[]);
 int analogix_dp_read_bytes_from_dpcd(struct analogix_dp_device *dp,
-				unsigned int reg_addr,
-				unsigned int count,
-				unsigned char data[]);
+				     unsigned int reg_addr,
+				     unsigned int count,
+				     unsigned char data[]);
 int analogix_dp_select_i2c_device(struct analogix_dp_device *dp,
-				unsigned int device_addr,
-				unsigned int reg_addr);
+				  unsigned int device_addr,
+				  unsigned int reg_addr);
 int analogix_dp_read_byte_from_i2c(struct analogix_dp_device *dp,
-				unsigned int device_addr,
-				unsigned int reg_addr,
-				unsigned int *data);
+				   unsigned int device_addr,
+				   unsigned int reg_addr,
+				   unsigned int *data);
 int analogix_dp_read_bytes_from_i2c(struct analogix_dp_device *dp,
-				unsigned int device_addr,
-				unsigned int reg_addr,
-				unsigned int count,
-				unsigned char edid[]);
+				    unsigned int device_addr,
+				    unsigned int reg_addr,
+				    unsigned int count,
+				    unsigned char edid[]);
 void analogix_dp_set_link_bandwidth(struct analogix_dp_device *dp, u32 bwtype);
 void analogix_dp_get_link_bandwidth(struct analogix_dp_device *dp, u32 *bwtype);
 void analogix_dp_set_lane_count(struct analogix_dp_device *dp, u32 count);
 void analogix_dp_get_lane_count(struct analogix_dp_device *dp, u32 *count);
-void analogix_dp_enable_enhanced_mode(struct analogix_dp_device *dp, bool enable);
+void analogix_dp_enable_enhanced_mode(struct analogix_dp_device *dp,
+				      bool enable);
 void analogix_dp_set_training_pattern(struct analogix_dp_device *dp,
-				enum pattern_set pattern);
-void analogix_dp_set_lane0_pre_emphasis(struct analogix_dp_device *dp, u32 level);
-void analogix_dp_set_lane1_pre_emphasis(struct analogix_dp_device *dp, u32 level);
-void analogix_dp_set_lane2_pre_emphasis(struct analogix_dp_device *dp, u32 level);
-void analogix_dp_set_lane3_pre_emphasis(struct analogix_dp_device *dp, u32 level);
+				      enum pattern_set pattern);
+void analogix_dp_set_lane0_pre_emphasis(struct analogix_dp_device *dp,
+					u32 level);
+void analogix_dp_set_lane1_pre_emphasis(struct analogix_dp_device *dp,
+					u32 level);
+void analogix_dp_set_lane2_pre_emphasis(struct analogix_dp_device *dp,
+					u32 level);
+void analogix_dp_set_lane3_pre_emphasis(struct analogix_dp_device *dp,
+					u32 level);
 void analogix_dp_set_lane0_link_training(struct analogix_dp_device *dp,
-				u32 training_lane);
+					 u32 training_lane);
 void analogix_dp_set_lane1_link_training(struct analogix_dp_device *dp,
-				u32 training_lane);
+					 u32 training_lane);
 void analogix_dp_set_lane2_link_training(struct analogix_dp_device *dp,
-				u32 training_lane);
+					 u32 training_lane);
 void analogix_dp_set_lane3_link_training(struct analogix_dp_device *dp,
-				u32 training_lane);
+					 u32 training_lane);
 u32 analogix_dp_get_lane0_link_training(struct analogix_dp_device *dp);
 u32 analogix_dp_get_lane1_link_training(struct analogix_dp_device *dp);
 u32 analogix_dp_get_lane2_link_training(struct analogix_dp_device *dp);
@@ -241,11 +246,12 @@ void analogix_dp_init_video(struct analogix_dp_device *dp);
 void analogix_dp_set_video_color_format(struct analogix_dp_device *dp);
 int analogix_dp_is_slave_video_stream_clock_on(struct analogix_dp_device *dp);
 void analogix_dp_set_video_cr_mn(struct analogix_dp_device *dp,
-			enum clock_recovery_m_value_type type,
-			u32 m_value,
-			u32 n_value);
+				 enum clock_recovery_m_value_type type,
+				 u32 m_value,
+				 u32 n_value);
 void analogix_dp_set_video_timing_mode(struct analogix_dp_device *dp, u32 type);
-void analogix_dp_enable_video_master(struct analogix_dp_device *dp, bool enable);
+void analogix_dp_enable_video_master(struct analogix_dp_device *dp,
+				     bool enable);
 void analogix_dp_start_video(struct analogix_dp_device *dp);
 int analogix_dp_is_video_stream_on(struct analogix_dp_device *dp);
 void analogix_dp_config_video_slave_mode(struct analogix_dp_device *dp);
