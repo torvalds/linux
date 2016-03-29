@@ -108,4 +108,11 @@ config LEDS_TRIGGER_CAMERA
 	  This enables direct flash/torch on/off by the driver, kernel space.
 	  If unsure, say Y.
 
+config LEDS_TRIGGER_PANIC
+	bool "LED Panic Trigger"
+	depends on LEDS_TRIGGERS
+	help
+	  This allows LEDs to be configured to blink on a kernel panic.
+	  If unsure, say Y.
+
 endif # LEDS_TRIGGERS
