@@ -23,6 +23,8 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
+#include "internal.h"
+
 struct regmap_mmio_context {
 	void __iomem *regs;
 	unsigned val_bytes;
@@ -245,7 +247,7 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 	ctx->val_bytes = config->val_bits / 8;
 	ctx->clk = ERR_PTR(-ENODEV);
 
-	switch (config->val_format_endian) {
+	switch (regmap_get_val_endian(dev, &regmap_mmio, config)) {
 	case REGMAP_ENDIAN_DEFAULT:
 	case REGMAP_ENDIAN_LITTLE:
 #ifdef __LITTLE_ENDIAN
