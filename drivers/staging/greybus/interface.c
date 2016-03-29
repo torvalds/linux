@@ -10,6 +10,71 @@
 #include "greybus.h"
 
 
+static int gb_interface_route_create(struct gb_interface *intf)
+{
+	struct gb_svc *svc = intf->hd->svc;
+	u8 intf_id = intf->interface_id;
+	u8 device_id;
+	int ret;
+
+	/*
+	 * Create a device id for the interface:
+	 * - device id 0 (GB_DEVICE_ID_SVC) belongs to the SVC
+	 * - device id 1 (GB_DEVICE_ID_AP) belongs to the AP
+	 *
+	 * XXX Do we need to allocate device ID for SVC or the AP here? And what
+	 * XXX about an AP with multiple interface blocks?
+	 */
+	ret = ida_simple_get(&svc->device_id_map,
+			     GB_DEVICE_ID_MODULES_START, 0, GFP_KERNEL);
+	if (ret < 0) {
+		dev_err(&intf->dev, "failed to allocate device id: %d\n", ret);
+		return ret;
+	}
+	device_id = ret;
+
+	ret = gb_svc_intf_device_id(svc, intf_id, device_id);
+	if (ret) {
+		dev_err(&intf->dev, "failed to set device id %u: %d\n",
+				device_id, ret);
+		goto err_ida_remove;
+	}
+
+	/* Create a two-way route between the AP and the new interface. */
+	ret = gb_svc_route_create(svc, svc->ap_intf_id, GB_DEVICE_ID_AP,
+				  intf_id, device_id);
+	if (ret) {
+		dev_err(&intf->dev, "failed to create route: %d\n", ret);
+		goto err_svc_id_free;
+	}
+
+	intf->device_id = device_id;
+
+	return 0;
+
+err_svc_id_free:
+	/*
+	 * XXX Should we tell SVC that this id doesn't belong to interface
+	 * XXX anymore.
+	 */
+err_ida_remove:
+	ida_simple_remove(&svc->device_id_map, device_id);
+
+	return ret;
+}
+
+static void gb_interface_route_destroy(struct gb_interface *intf)
+{
+	struct gb_svc *svc = intf->hd->svc;
+
+	if (intf->device_id == GB_DEVICE_ID_BAD)
+		return;
+
+	gb_svc_route_destroy(svc, svc->ap_intf_id, intf->interface_id);
+	ida_simple_remove(&svc->device_id_map, intf->device_id);
+	intf->device_id = GB_DEVICE_ID_BAD;
+}
+
 /*
  * T_TstSrcIncrement is written by the module on ES2 as a stand-in for the
  * init-status attribute ES3_INIT_STATUS. The AP needs to read and clear it
@@ -211,6 +276,22 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 	list_add(&intf->links, &hd->interfaces);
 
 	return intf;
+}
+
+int gb_interface_activate(struct gb_interface *intf)
+{
+	int ret;
+
+	ret = gb_interface_route_create(intf);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+void gb_interface_deactivate(struct gb_interface *intf)
+{
+	gb_interface_route_destroy(intf);
 }
 
 /*

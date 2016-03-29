@@ -48,6 +48,10 @@ int gb_svc_add(struct gb_svc *svc);
 void gb_svc_del(struct gb_svc *svc);
 void gb_svc_put(struct gb_svc *svc);
 
+int gb_svc_intf_device_id(struct gb_svc *svc, u8 intf_id, u8 device_id);
+int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
+			       u8 intf2_id, u8 dev2_id);
+void gb_svc_route_destroy(struct gb_svc *svc, u8 intf1_id, u8 intf2_id);
 int gb_svc_connection_create(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 			     u8 intf2_id, u16 cport2_id, u8 cport_flags);
 void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
