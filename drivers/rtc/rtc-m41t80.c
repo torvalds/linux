@@ -32,21 +32,21 @@
 #include <linux/watchdog.h>
 #endif
 
-#define M41T80_REG_SSEC	0
-#define M41T80_REG_SEC	1
-#define M41T80_REG_MIN	2
-#define M41T80_REG_HOUR	3
-#define M41T80_REG_WDAY	4
-#define M41T80_REG_DAY	5
-#define M41T80_REG_MON	6
-#define M41T80_REG_YEAR	7
-#define M41T80_REG_ALARM_MON	0xa
-#define M41T80_REG_ALARM_DAY	0xb
-#define M41T80_REG_ALARM_HOUR	0xc
-#define M41T80_REG_ALARM_MIN	0xd
-#define M41T80_REG_ALARM_SEC	0xe
-#define M41T80_REG_FLAGS	0xf
-#define M41T80_REG_SQW	0x13
+#define M41T80_REG_SSEC		0x00
+#define M41T80_REG_SEC		0x01
+#define M41T80_REG_MIN		0x02
+#define M41T80_REG_HOUR		0x03
+#define M41T80_REG_WDAY		0x04
+#define M41T80_REG_DAY		0x05
+#define M41T80_REG_MON		0x06
+#define M41T80_REG_YEAR		0x07
+#define M41T80_REG_ALARM_MON	0x0a
+#define M41T80_REG_ALARM_DAY	0x0b
+#define M41T80_REG_ALARM_HOUR	0x0c
+#define M41T80_REG_ALARM_MIN	0x0d
+#define M41T80_REG_ALARM_SEC	0x0e
+#define M41T80_REG_FLAGS	0x0f
+#define M41T80_REG_SQW		0x13
 
 #define M41T80_DATETIME_REG_SIZE	(M41T80_REG_YEAR + 1)
 #define M41T80_ALARM_REG_SIZE	\
@@ -93,24 +93,13 @@ struct m41t80_data {
 static int m41t80_get_datetime(struct i2c_client *client,
 			       struct rtc_time *tm)
 {
-	u8 buf[M41T80_DATETIME_REG_SIZE], dt_addr[1] = { M41T80_REG_SEC };
-	struct i2c_msg msgs[] = {
-		{
-			.addr	= client->addr,
-			.flags	= 0,
-			.len	= 1,
-			.buf	= dt_addr,
-		},
-		{
-			.addr	= client->addr,
-			.flags	= I2C_M_RD,
-			.len	= M41T80_DATETIME_REG_SIZE - M41T80_REG_SEC,
-			.buf	= buf + M41T80_REG_SEC,
-		},
-	};
+	unsigned char buf[8];
+	int err;
 
-	if (i2c_transfer(client->adapter, msgs, 2) < 0) {
-		dev_err(&client->dev, "read error\n");
+	err = i2c_smbus_read_i2c_block_data(client, M41T80_REG_SSEC,
+					    sizeof(buf), buf);
+	if (err < 0) {
+		dev_err(&client->dev, "Unable to read date\n");
 		return -EIO;
 	}
 
@@ -129,67 +118,29 @@ static int m41t80_get_datetime(struct i2c_client *client,
 /* Sets the given date and time to the real time clock. */
 static int m41t80_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
-	u8 wbuf[1 + M41T80_DATETIME_REG_SIZE];
-	u8 *buf = &wbuf[1];
-	u8 dt_addr[1] = { M41T80_REG_SEC };
-	struct i2c_msg msgs_in[] = {
-		{
-			.addr	= client->addr,
-			.flags	= 0,
-			.len	= 1,
-			.buf	= dt_addr,
-		},
-		{
-			.addr	= client->addr,
-			.flags	= I2C_M_RD,
-			.len	= M41T80_DATETIME_REG_SIZE - M41T80_REG_SEC,
-			.buf	= buf + M41T80_REG_SEC,
-		},
-	};
-	struct i2c_msg msgs[] = {
-		{
-			.addr	= client->addr,
-			.flags	= 0,
-			.len	= 1 + M41T80_DATETIME_REG_SIZE,
-			.buf	= wbuf,
-		 },
-	};
+	unsigned char buf[8];
+	int err;
 
-	/* Read current reg values into buf[1..7] */
-	if (i2c_transfer(client->adapter, msgs_in, 2) < 0) {
-		dev_err(&client->dev, "read error\n");
-		return -EIO;
-	}
-
-	wbuf[0] = 0; /* offset into rtc's regs */
-	/* Merge time-data and register flags into buf[0..7] */
-	buf[M41T80_REG_SSEC] = 0;
-	buf[M41T80_REG_SEC] =
-		bin2bcd(tm->tm_sec) | (buf[M41T80_REG_SEC] & ~0x7f);
-	buf[M41T80_REG_MIN] =
-		bin2bcd(tm->tm_min) | (buf[M41T80_REG_MIN] & ~0x7f);
-	buf[M41T80_REG_HOUR] =
-		bin2bcd(tm->tm_hour) | (buf[M41T80_REG_HOUR] & ~0x3f);
-	buf[M41T80_REG_WDAY] =
-		(tm->tm_wday & 0x07) | (buf[M41T80_REG_WDAY] & ~0x07);
-	buf[M41T80_REG_DAY] =
-		bin2bcd(tm->tm_mday) | (buf[M41T80_REG_DAY] & ~0x3f);
-	buf[M41T80_REG_MON] =
-		bin2bcd(tm->tm_mon + 1) | (buf[M41T80_REG_MON] & ~0x1f);
-
-	/* assume 20YY not 19YY */
-	if (tm->tm_year < 100 || tm->tm_year > 199) {
-		dev_err(&client->dev, "Year must be between 2000 and 2099. It's %d.\n",
-			tm->tm_year + 1900);
+	if (tm->tm_year < 100 || tm->tm_year > 199)
 		return -EINVAL;
-	}
-	buf[M41T80_REG_YEAR] = bin2bcd(tm->tm_year % 100);
 
-	if (i2c_transfer(client->adapter, msgs, 1) != 1) {
-		dev_err(&client->dev, "write error\n");
-		return -EIO;
+	buf[M41T80_REG_SSEC] = 0;
+	buf[M41T80_REG_SEC] = bin2bcd(tm->tm_sec);
+	buf[M41T80_REG_MIN] = bin2bcd(tm->tm_min);
+	buf[M41T80_REG_HOUR] = bin2bcd(tm->tm_hour);
+	buf[M41T80_REG_DAY] = bin2bcd(tm->tm_mday);
+	buf[M41T80_REG_MON] = bin2bcd(tm->tm_mon + 1);
+	buf[M41T80_REG_YEAR] = bin2bcd(tm->tm_year - 100);
+	buf[M41T80_REG_WDAY] = tm->tm_wday;
+
+	err = i2c_smbus_write_i2c_block_data(client, M41T80_REG_SSEC,
+					     sizeof(buf), buf);
+	if (err < 0) {
+		dev_err(&client->dev, "Unable to write to date registers\n");
+		return err;
 	}
-	return 0;
+
+	return err;
 }
 
 static int m41t80_rtc_proc(struct device *dev, struct seq_file *seq)
@@ -631,14 +582,17 @@ static void m41t80_remove_sysfs_group(void *_dev)
 static int m41t80_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
+	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	int rc = 0;
 	struct rtc_device *rtc = NULL;
 	struct rtc_time tm;
 	struct m41t80_data *clientdata = NULL;
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C
-				     | I2C_FUNC_SMBUS_BYTE_DATA))
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK |
+				     I2C_FUNC_SMBUS_BYTE_DATA)) {
+		dev_err(&adapter->dev, "doesn't support I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_I2C_BLOCK\n");
 		return -ENODEV;
+	}
 
 	clientdata = devm_kzalloc(&client->dev, sizeof(*clientdata),
 				GFP_KERNEL);
