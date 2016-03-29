@@ -103,7 +103,7 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 		attr = DME_ATTR_ES3_INIT_STATUS;
 
 	ret = gb_svc_dme_peer_get(hd->svc, intf->interface_id, attr,
-				  DME_ATTR_SELECTOR_INDEX, &value);
+				  DME_ATTR_SELECTOR_INDEX_NULL, &value);
 	if (ret)
 		return ret;
 
@@ -144,7 +144,7 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 
 	/* Clear the init status. */
 	return gb_svc_dme_peer_set(hd->svc, intf->interface_id, attr,
-				   DME_ATTR_SELECTOR_INDEX, 0);
+				   DME_ATTR_SELECTOR_INDEX_NULL, 0);
 }
 
 /* interface sysfs attributes */
