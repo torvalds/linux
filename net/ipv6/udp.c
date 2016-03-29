@@ -843,8 +843,8 @@ start_lookup:
 		flush_stack(stack, count, skb, count - 1);
 	} else {
 		if (!inner_flushed)
-			UDP_INC_STATS_BH(net, UDP_MIB_IGNOREDMULTI,
-					 proto == IPPROTO_UDPLITE);
+			UDP6_INC_STATS_BH(net, UDP_MIB_IGNOREDMULTI,
+					  proto == IPPROTO_UDPLITE);
 		consume_skb(skb);
 	}
 	return 0;
