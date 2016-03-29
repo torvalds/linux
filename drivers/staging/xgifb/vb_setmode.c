@@ -1992,7 +1992,8 @@ static void XGI_GetVBInfo(unsigned short ModeIdIndex,
 		}
 
 		/* LCD+TV can't support in slave mode
-		 * (Force LCDA+TV->LCDB) */
+		 * (Force LCDA+TV->LCDB)
+		 */
 		if ((tempbx & SetInSlaveMode) && (tempbx & XGI_SetCRT2ToLCDA)) {
 			tempbx ^= (SetCRT2ToLCD | XGI_SetCRT2ToLCDA |
 				   SetCRT2ToDualEdge);
