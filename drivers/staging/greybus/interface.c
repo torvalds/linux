@@ -78,6 +78,11 @@ static int gb_interface_read_dme(struct gb_interface *intf)
 	if (ret)
 		return ret;
 
+	if (intf->ddbl1_manufacturer_id == TOSHIBA_DMID &&
+			intf->ddbl1_product_id == TOSHIBA_ES2_BRIDGE_DPID) {
+		intf->quirks |= GB_INTERFACE_QUIRK_NO_INIT_STATUS;
+	}
+
 	return gb_interface_read_ara_dme(intf);
 }
 
@@ -155,17 +160,13 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 	u32 value;
 	u16 attr;
 	u8 init_status;
-	bool es2_bridge;
-
-	es2_bridge = intf->ddbl1_manufacturer_id == ES2_DDBL1_MFR_ID &&
-			intf->ddbl1_product_id == ES2_DDBL1_PROD_ID;
 
 	/*
 	 * ES2 bridges use T_TstSrcIncrement for the init status.
 	 *
 	 * FIXME: Remove ES2 support
 	 */
-	if (es2_bridge)
+	if (intf->quirks & GB_INTERFACE_QUIRK_NO_INIT_STATUS)
 		attr = DME_ATTR_T_TST_SRC_INCREMENT;
 	else
 		attr = DME_ATTR_ES3_INIT_STATUS;
@@ -192,7 +193,7 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 	 *
 	 * FIXME: Remove ES2 support
 	 */
-	if (es2_bridge)
+	if (intf->quirks & GB_INTERFACE_QUIRK_NO_INIT_STATUS)
 		init_status = value & 0xff;
 	else
 		init_status = value >> 24;
