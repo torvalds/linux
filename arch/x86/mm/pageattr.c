@@ -1460,7 +1460,7 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 	 * error case we fall back to cpa_flush_all (which uses
 	 * WBINVD):
 	 */
-	if (!ret && cpu_has_clflush) {
+	if (!ret && boot_cpu_has(X86_FEATURE_CLFLUSH)) {
 		if (cpa.flags & (CPA_PAGES_ARRAY | CPA_ARRAY)) {
 			cpa_flush_array(addr, numpages, cache,
 					cpa.flags, pages);

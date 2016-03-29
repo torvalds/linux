@@ -488,7 +488,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		ret = relocate_entry_cpu(obj, reloc, target_offset);
 	else if (obj->map_and_fenceable)
 		ret = relocate_entry_gtt(obj, reloc, target_offset);
-	else if (cpu_has_clflush)
+	else if (static_cpu_has(X86_FEATURE_CLFLUSH))
 		ret = relocate_entry_clflush(obj, reloc, target_offset);
 	else {
 		WARN_ONCE(1, "Impossible case in relocation handling\n");
