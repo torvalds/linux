@@ -1785,9 +1785,15 @@ static void neo_vpd(struct dgnc_board *brd)
 		brd->vpd[(i * 2) + 1] = (a >> 8) & 0xff;
 	}
 
-	if  (((brd->vpd[0x08] != 0x82)	   /* long resource name tag */
-		&&  (brd->vpd[0x10] != 0x82))   /* long resource name tag (PCI-66 files)*/
-		||  (brd->vpd[0x7F] != 0x78)) { /* small resource end tag */
+	/*
+	 * brd->vpd has different name tags by below index.
+	 * 0x08 : long resource name tag
+	 * 0x10 : long resource name tage (PCI-66 files)
+	 * 0x7F : small resource end tag
+	 */
+	if  (((brd->vpd[0x08] != 0x82)
+		&&  (brd->vpd[0x10] != 0x82))
+		||  (brd->vpd[0x7F] != 0x78)) {
 
 		memset(brd->vpd, '\0', NEO_VPD_IMAGESIZE);
 	} else {
