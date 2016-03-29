@@ -143,7 +143,7 @@ static int amdgpu_pp_late_init(void *handle)
 					adev->powerplay.pp_handle);
 
 #ifdef CONFIG_DRM_AMD_POWERPLAY
-	if (adev->pp_enabled) {
+	if (adev->pp_enabled && adev->pm.dpm_enabled) {
 		amdgpu_pm_sysfs_init(adev);
 		amdgpu_dpm_dispatch_task(adev, AMD_PP_EVENT_COMPLETE_INIT, NULL, NULL);
 	}
