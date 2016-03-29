@@ -49,8 +49,13 @@
 			no-map;
 		};
 
-		efs@0fd600000 {
-			reg = <0x0fd60000 0x1a0000>;
+		rfsa@0fd60000 {
+			reg = <0x0fd60000 0x20000>;
+			no-map;
+		};
+
+		rmtfs@0fd80000 {
+			reg = <0x0fd80000 0x180000>;
 			no-map;
 		};
 
