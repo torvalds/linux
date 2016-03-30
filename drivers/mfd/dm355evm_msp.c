@@ -260,7 +260,7 @@ static int add_children(struct i2c_client *client)
 
 	/* GPIO-ish stuff */
 	dm355evm_msp_gpio.parent = &client->dev;
-	status = gpiochip_add(&dm355evm_msp_gpio);
+	status = gpiochip_add_data(&dm355evm_msp_gpio, NULL);
 	if (status < 0)
 		return status;
 
