@@ -395,6 +395,18 @@ int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
 	return ret;
 }
 
+/*
+ * Returns true if sn2 - buffer_size < sn1 < sn2.
+ * To be used only in order to compare reorder buffer head with NSSN.
+ * We fully trust NSSN unless it is behind us due to reorder timeout.
+ * Reorder timeout can only bring us up to buffer_size SNs ahead of NSSN.
+ */
+static bool iwl_mvm_is_sn_less(u16 sn1, u16 sn2, u16 buffer_size)
+{
+	return ieee80211_sn_less(sn1, sn2) &&
+	       !ieee80211_sn_less(sn1, sn2 - buffer_size);
+}
+
 #define RX_REORDER_BUF_TIMEOUT_MQ (HZ / 10)
 
 static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
@@ -408,10 +420,10 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 	lockdep_assert_held(&reorder_buf->lock);
 
 	/* ignore nssn smaller than head sn - this can happen due to timeout */
-	if (ieee80211_sn_less(nssn, ssn))
+	if (iwl_mvm_is_sn_less(nssn, ssn, reorder_buf->buf_size))
 		return;
 
-	while (ieee80211_sn_less(ssn, nssn)) {
+	while (iwl_mvm_is_sn_less(ssn, nssn, reorder_buf->buf_size)) {
 		int index = ssn % reorder_buf->buf_size;
 		struct sk_buff_head *skb_list = &reorder_buf->entries[index];
 		struct sk_buff *skb;
@@ -625,7 +637,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	 * rest of the function will take of storing it and releasing up to the
 	 * nssn
 	 */
-	if (!ieee80211_sn_less(nssn, buffer->head_sn + buffer->buf_size)) {
+	if (!iwl_mvm_is_sn_less(nssn, buffer->head_sn + buffer->buf_size,
+				buffer->buf_size)) {
 		u16 min_sn = ieee80211_sn_less(sn, nssn) ? sn : nssn;
 
 		iwl_mvm_release_frames(mvm, sta, napi, buffer, min_sn);
@@ -637,7 +650,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 
 	/* release immediately if allowed by nssn and no stored frames */
 	if (!buffer->num_stored && ieee80211_sn_less(sn, nssn)) {
-		if (ieee80211_sn_less(buffer->head_sn, nssn))
+		if (iwl_mvm_is_sn_less(buffer->head_sn, nssn,
+				       buffer->buf_size))
 			buffer->head_sn = nssn;
 		/* No need to update AMSDU last SN - we are moving the head */
 		spin_unlock_bh(&buffer->lock);
