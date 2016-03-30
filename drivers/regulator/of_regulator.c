@@ -43,10 +43,12 @@ static void of_get_regulation_constraints(struct device_node *np,
 		constraints->max_uV = pval;
 
 	/* Voltage change possible? */
-	if (constraints->min_uV && constraints->max_uV) {
+	if (constraints->min_uV != constraints->max_uV)
 		constraints->valid_ops_mask |= REGULATOR_CHANGE_VOLTAGE;
+
+	/* Do we have a voltage range, if so try to apply it? */
+	if (constraints->min_uV && constraints->max_uV)
 		constraints->apply_uV = true;
-	}
 
 	if (!of_property_read_u32(np, "regulator-microvolt-offset", &pval))
 		constraints->uV_offset = pval;
