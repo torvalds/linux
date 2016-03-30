@@ -1478,7 +1478,9 @@ static int rcu_torture_barrier_cbs(void *arg)
 		 * The above smp_load_acquire() ensures barrier_phase load
 		 * is ordered before the folloiwng ->call().
 		 */
+		local_irq_disable(); /* Just to test no-irq call_rcu(). */
 		cur_ops->call(&rcu, rcu_torture_barrier_cbf);
+		local_irq_enable();
 		if (atomic_dec_and_test(&barrier_cbs_count))
 			wake_up(&barrier_wq);
 	} while (!torture_must_stop());
