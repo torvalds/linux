@@ -123,6 +123,7 @@ ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
 
 	*env_ret = env;
 
+restart:
 	io = vvp_env_thread_io(env);
 	io->ci_obj = ll_i2info(inode)->lli_clob;
 	LASSERT(io->ci_obj);
@@ -157,6 +158,9 @@ ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
 	} else {
 		LASSERT(rc < 0);
 		cl_io_fini(env, io);
+		if (io->ci_need_restart)
+			goto restart;
+
 		cl_env_nested_put(nest, env);
 		io = ERR_PTR(rc);
 	}
