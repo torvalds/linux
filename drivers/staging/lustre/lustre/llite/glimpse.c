@@ -52,7 +52,6 @@
 #include <linux/file.h>
 
 #include "../include/cl_object.h"
-#include "../include/lclient.h"
 #include "../llite/llite_internal.h"
 
 static const struct cl_lock_descr whole_file = {

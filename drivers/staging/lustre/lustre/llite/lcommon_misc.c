@@ -41,8 +41,8 @@
 #include "../include/obd_support.h"
 #include "../include/obd.h"
 #include "../include/cl_object.h"
-#include "../include/lclient.h"
 
+#include "vvp_internal.h"
 #include "../include/lustre_lite.h"
 
 /* Initialize the default and maximum LOV EA and cookie sizes.  This allows

@@ -43,11 +43,11 @@
 
 /* for struct cl_lock_descr and struct cl_io */
 #include "../include/cl_object.h"
-#include "../include/lclient.h"
 #include "../include/lustre_mdc.h"
 #include "../include/lustre_intent.h"
 #include <linux/compat.h>
 #include <linux/posix_acl_xattr.h>
+#include "vvp_internal.h"
 
 #ifndef FMODE_EXEC
 #define FMODE_EXEC 0

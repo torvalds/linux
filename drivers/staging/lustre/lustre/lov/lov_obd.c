@@ -54,7 +54,6 @@
 #include "../include/lprocfs_status.h"
 #include "../include/lustre_param.h"
 #include "../include/cl_object.h"
-#include "../include/lclient.h"		/* for cl_client_lru */
 #include "../include/lustre/ll_fiemap.h"
 #include "../include/lustre_fid.h"
 
