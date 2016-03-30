@@ -44,6 +44,7 @@
 #include <linux/filter.h>
 #include <linux/audit.h>
 #include <sys/ptrace.h>
+#include <linux/random.h>
 
 /* For older distros: */
 #ifndef MAP_STACK
@@ -1045,6 +1046,29 @@ static size_t syscall_arg__scnprintf_seccomp_flags(char *bf, size_t size,
 
 #define SCA_SECCOMP_FLAGS syscall_arg__scnprintf_seccomp_flags
 
+static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
+						   struct syscall_arg *arg)
+{
+	int printed = 0, flags = arg->val;
+
+#define	P_FLAG(n) \
+	if (flags & GRND_##n) { \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		flags &= ~GRND_##n; \
+	}
+
+	P_FLAG(RANDOM);
+	P_FLAG(NONBLOCK);
+#undef P_FLAG
+
+	if (flags)
+		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
+
+	return printed;
+}
+
+#define SCA_GETRANDOM_FLAGS syscall_arg__scnprintf_getrandom_flags
+
 #define STRARRAY(arg, name, array) \
 	  .arg_scnprintf = { [arg] = SCA_STRARRAY, }, \
 	  .arg_parm	 = { [arg] = &strarray__##array, }
@@ -1137,6 +1161,8 @@ static struct syscall_fmt {
 	{ .name	    = "getdents64", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "getitimer",  .errmsg = true, STRARRAY(0, which, itimers), },
+	{ .name	    = "getrandom",  .errmsg = true,
+	  .arg_scnprintf = { [2] = SCA_GETRANDOM_FLAGS, /* flags */ }, },
 	{ .name	    = "getrlimit",  .errmsg = true, STRARRAY(0, resource, rlimit_resources), },
 	{ .name	    = "getxattr",    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
