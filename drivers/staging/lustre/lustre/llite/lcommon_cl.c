@@ -68,7 +68,6 @@ static const struct cl_req_operations ccc_req_ops;
  */
 
 static struct kmem_cache *ccc_thread_kmem;
-static struct kmem_cache *ccc_session_kmem;
 static struct kmem_cache *ccc_req_kmem;
 
 static struct lu_kmem_descr ccc_caches[] = {
@@ -76,11 +75,6 @@ static struct lu_kmem_descr ccc_caches[] = {
 		.ckd_cache = &ccc_thread_kmem,
 		.ckd_name  = "ccc_thread_kmem",
 		.ckd_size  = sizeof(struct ccc_thread_info),
-	},
-	{
-		.ckd_cache = &ccc_session_kmem,
-		.ckd_name  = "ccc_session_kmem",
-		.ckd_size  = sizeof(struct ccc_session)
 	},
 	{
 		.ckd_cache = &ccc_req_kmem,
@@ -116,35 +110,10 @@ void ccc_key_fini(const struct lu_context *ctx,
 	kmem_cache_free(ccc_thread_kmem, info);
 }
 
-void *ccc_session_key_init(const struct lu_context *ctx,
-			   struct lu_context_key *key)
-{
-	struct ccc_session *session;
-
-	session = kmem_cache_zalloc(ccc_session_kmem, GFP_NOFS);
-	if (!session)
-		session = ERR_PTR(-ENOMEM);
-	return session;
-}
-
-void ccc_session_key_fini(const struct lu_context *ctx,
-			  struct lu_context_key *key, void *data)
-{
-	struct ccc_session *session = data;
-
-	kmem_cache_free(ccc_session_kmem, session);
-}
-
 struct lu_context_key ccc_key = {
 	.lct_tags = LCT_CL_THREAD,
 	.lct_init = ccc_key_init,
 	.lct_fini = ccc_key_fini
-};
-
-struct lu_context_key ccc_session_key = {
-	.lct_tags = LCT_SESSION,
-	.lct_init = ccc_session_key_init,
-	.lct_fini = ccc_session_key_fini
 };
 
 int ccc_req_init(const struct lu_env *env, struct cl_device *dev,
@@ -237,11 +206,11 @@ static void vvp_object_size_unlock(struct cl_object *obj)
  *
  */
 
-int ccc_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
+int vvp_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 			  __u32 enqflags, enum cl_lock_mode mode,
 			  pgoff_t start, pgoff_t end)
 {
-	struct ccc_io	  *cio   = ccc_env_io(env);
+	struct vvp_io *cio = vvp_env_io(env);
 	struct cl_lock_descr   *descr = &cio->cui_link.cill_descr;
 	struct cl_object       *obj   = io->ci_obj;
 
@@ -266,8 +235,8 @@ int ccc_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 	return 0;
 }
 
-void ccc_io_update_iov(const struct lu_env *env,
-		       struct ccc_io *cio, struct cl_io *io)
+void vvp_io_update_iov(const struct lu_env *env,
+		       struct vvp_io *cio, struct cl_io *io)
 {
 	size_t size = io->u.ci_rw.crw_count;
 
@@ -277,27 +246,27 @@ void ccc_io_update_iov(const struct lu_env *env,
 	iov_iter_truncate(cio->cui_iter, size);
 }
 
-int ccc_io_one_lock(const struct lu_env *env, struct cl_io *io,
+int vvp_io_one_lock(const struct lu_env *env, struct cl_io *io,
 		    __u32 enqflags, enum cl_lock_mode mode,
 		    loff_t start, loff_t end)
 {
 	struct cl_object *obj = io->ci_obj;
 
-	return ccc_io_one_lock_index(env, io, enqflags, mode,
+	return vvp_io_one_lock_index(env, io, enqflags, mode,
 				     cl_index(obj, start), cl_index(obj, end));
 }
 
-void ccc_io_end(const struct lu_env *env, const struct cl_io_slice *ios)
+void vvp_io_end(const struct lu_env *env, const struct cl_io_slice *ios)
 {
 	CLOBINVRNT(env, ios->cis_io->ci_obj,
 		   vvp_object_invariant(ios->cis_io->ci_obj));
 }
 
-void ccc_io_advance(const struct lu_env *env,
+void vvp_io_advance(const struct lu_env *env,
 		    const struct cl_io_slice *ios,
 		    size_t nob)
 {
-	struct ccc_io    *cio = cl2ccc_io(env, ios);
+	struct vvp_io    *cio = cl2vvp_io(env, ios);
 	struct cl_io     *io  = ios->cis_io;
 	struct cl_object *obj = ios->cis_io->ci_obj;
 
@@ -492,7 +461,7 @@ int cl_setattr_ost(struct inode *inode, const struct iattr *attr)
 
 again:
 	if (cl_io_init(env, io, CIT_SETATTR, io->ci_obj) == 0) {
-		struct ccc_io *cio = ccc_env_io(env);
+		struct vvp_io *cio = vvp_env_io(env);
 
 		if (attr->ia_valid & ATTR_FILE)
 			/* populate the file descriptor for ftruncate to honor
@@ -524,13 +493,14 @@ again:
  *
  */
 
-struct ccc_io *cl2ccc_io(const struct lu_env *env,
+struct vvp_io *cl2vvp_io(const struct lu_env *env,
 			 const struct cl_io_slice *slice)
 {
-	struct ccc_io *cio;
+	struct vvp_io *cio;
 
-	cio = container_of(slice, struct ccc_io, cui_cl);
-	LASSERT(cio == ccc_env_io(env));
+	cio = container_of(slice, struct vvp_io, cui_cl);
+	LASSERT(cio == vvp_env_io(env));
+
 	return cio;
 }
 

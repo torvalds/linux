@@ -817,59 +817,6 @@ struct ll_close_queue {
 void vvp_write_pending(struct vvp_object *club, struct vvp_page *page);
 void vvp_write_complete(struct vvp_object *club, struct vvp_page *page);
 
-/* specific architecture can implement only part of this list */
-enum vvp_io_subtype {
-	/** normal IO */
-	IO_NORMAL,
-	/** io started from splice_{read|write} */
-	IO_SPLICE
-};
-
-/* IO subtypes */
-struct vvp_io {
-	/** io subtype */
-	enum vvp_io_subtype    cui_io_subtype;
-
-	union {
-		struct {
-			struct pipe_inode_info *cui_pipe;
-			unsigned int	    cui_flags;
-		} splice;
-		struct vvp_fault_io {
-			/**
-			 * Inode modification time that is checked across DLM
-			 * lock request.
-			 */
-			time64_t	    ft_mtime;
-			struct vm_area_struct *ft_vma;
-			/**
-			 *  locked page returned from vvp_io
-			 */
-			struct page	    *ft_vmpage;
-			struct vm_fault_api {
-				/**
-				 * kernel fault info
-				 */
-				struct vm_fault *ft_vmf;
-				/**
-				 * fault API used bitflags for return code.
-				 */
-				unsigned int    ft_flags;
-				/**
-				 * check that flags are from filemap_fault
-				 */
-				bool		ft_flags_valid;
-			} fault;
-		} fault;
-	} u;
-
-	/* Readahead state. */
-	pgoff_t	cui_ra_start;
-	pgoff_t cui_ra_count;
-	/* Set when cui_ra_{start,count} have been initialized. */
-	bool	cui_ra_valid;
-};
-
 /**
  * IO arguments for various VFS I/O interfaces.
  */
@@ -921,25 +868,6 @@ static inline struct vvp_io_args *vvp_env_args(const struct lu_env *env,
 	ret->via_io_subtype = type;
 
 	return ret;
-}
-
-struct vvp_session {
-	struct vvp_io	 vs_ios;
-};
-
-static inline struct vvp_session *vvp_env_session(const struct lu_env *env)
-{
-	extern struct lu_context_key vvp_session_key;
-	struct vvp_session *ses;
-
-	ses = lu_context_key_get(env->le_ses, &vvp_session_key);
-	LASSERT(ses);
-	return ses;
-}
-
-static inline struct vvp_io *vvp_env_io(const struct lu_env *env)
-{
-	return &vvp_env_session(env)->vs_ios;
 }
 
 int vvp_global_init(void);

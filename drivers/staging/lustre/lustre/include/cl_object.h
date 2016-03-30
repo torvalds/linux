@@ -1461,7 +1461,7 @@ enum cl_io_state {
  * This is usually embedded into layer session data, rather than allocated
  * dynamically.
  *
- * \see vvp_io, lov_io, osc_io, ccc_io
+ * \see vvp_io, lov_io, osc_io
  */
 struct cl_io_slice {
 	struct cl_io		  *cis_io;

@@ -376,7 +376,7 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 
 	env = cl_env_get(&refcheck);
 	LASSERT(!IS_ERR(env));
-	io = ccc_env_io(env)->cui_cl.cis_io;
+	io = vvp_env_io(env)->cui_cl.cis_io;
 	LASSERT(io);
 
 	/* 0. Need locking between buffered and direct access. and race with
@@ -439,7 +439,7 @@ out:
 		inode_unlock(inode);
 
 	if (tot_bytes > 0) {
-		struct ccc_io *cio = ccc_env_io(env);
+		struct vvp_io *cio = vvp_env_io(env);
 
 		/* no commit async for direct IO */
 		cio->u.write.cui_written += tot_bytes;
@@ -513,7 +513,7 @@ static int ll_write_begin(struct file *file, struct address_space *mapping,
 	/* To avoid deadlock, try to lock page first. */
 	vmpage = grab_cache_page_nowait(mapping, index);
 	if (unlikely(!vmpage || PageDirty(vmpage) || PageWriteback(vmpage))) {
-		struct ccc_io *cio = ccc_env_io(env);
+		struct vvp_io *cio = vvp_env_io(env);
 		struct cl_page_list *plist = &cio->u.write.cui_queue;
 
 		/* if the page is already in dirty cache, we have to commit
@@ -595,7 +595,7 @@ static int ll_write_end(struct file *file, struct address_space *mapping,
 	struct ll_cl_context *lcc = fsdata;
 	struct lu_env *env;
 	struct cl_io *io;
-	struct ccc_io *cio;
+	struct vvp_io *cio;
 	struct cl_page *page;
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
 	bool unplug = false;
@@ -606,7 +606,7 @@ static int ll_write_end(struct file *file, struct address_space *mapping,
 	env  = lcc->lcc_env;
 	page = lcc->lcc_page;
 	io   = lcc->lcc_io;
-	cio  = ccc_env_io(env);
+	cio  = vvp_env_io(env);
 
 	LASSERT(cl_page_is_owned(page, io));
 	if (copied > 0) {

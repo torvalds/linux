@@ -90,7 +90,7 @@ struct ll_cl_context *ll_cl_init(struct file *file, struct page *vmpage)
 	struct lu_env    *env;
 	struct cl_io     *io;
 	struct cl_object *clob;
-	struct ccc_io    *cio;
+	struct vvp_io    *cio;
 
 	int refcheck;
 	int result = 0;
@@ -108,7 +108,7 @@ struct ll_cl_context *ll_cl_init(struct file *file, struct page *vmpage)
 	lcc->lcc_refcheck = refcheck;
 	lcc->lcc_cookie = current;
 
-	cio = ccc_env_io(env);
+	cio = vvp_env_io(env);
 	io = cio->cui_cl.cis_io;
 	lcc->lcc_io = io;
 	if (!io) {

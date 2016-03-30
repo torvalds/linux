@@ -146,7 +146,7 @@ ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
 
 	rc = cl_io_init(env, io, CIT_FAULT, io->ci_obj);
 	if (rc == 0) {
-		struct ccc_io *cio = ccc_env_io(env);
+		struct vvp_io *cio = vvp_env_io(env);
 		struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
 
 		LASSERT(cio->cui_cl.cis_io == io);
@@ -307,17 +307,17 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 		vio = vvp_env_io(env);
 		vio->u.fault.ft_vma       = vma;
 		vio->u.fault.ft_vmpage    = NULL;
-		vio->u.fault.fault.ft_vmf = vmf;
-		vio->u.fault.fault.ft_flags = 0;
-		vio->u.fault.fault.ft_flags_valid = false;
+		vio->u.fault.ft_vmf = vmf;
+		vio->u.fault.ft_flags = 0;
+		vio->u.fault.ft_flags_valid = false;
 
 		result = cl_io_loop(env, io);
 
 		/* ft_flags are only valid if we reached
 		 * the call to filemap_fault
 		 */
-		if (vio->u.fault.fault.ft_flags_valid)
-			fault_ret = vio->u.fault.fault.ft_flags;
+		if (vio->u.fault.ft_flags_valid)
+			fault_ret = vio->u.fault.ft_flags;
 
 		vmpage = vio->u.fault.ft_vmpage;
 		if (result != 0 && vmpage) {

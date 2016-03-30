@@ -81,10 +81,18 @@ enum ccc_setattr_lock_type {
 	SETATTR_MATCH_LOCK
 };
 
+/* specific architecture can implement only part of this list */
+enum vvp_io_subtype {
+	/** normal IO */
+	IO_NORMAL,
+	/** io started from splice_{read|write} */
+	IO_SPLICE
+};
+
 /**
- * IO state private to vvp or slp layers.
+ * IO state private to IO state private to VVP layer.
  */
-struct ccc_io {
+struct vvp_io {
 	/** super class */
 	struct cl_io_slice     cui_cl;
 	struct cl_io_lock_link cui_link;
@@ -98,9 +106,37 @@ struct ccc_io {
 	size_t cui_tot_count;
 
 	union {
+		struct vvp_fault_io {
+			/**
+			 * Inode modification time that is checked across DLM
+			 * lock request.
+			 */
+			time64_t	    ft_mtime;
+			struct vm_area_struct *ft_vma;
+			/**
+			 *  locked page returned from vvp_io
+			 */
+			struct page	    *ft_vmpage;
+			/**
+			 * kernel fault info
+			 */
+			struct vm_fault *ft_vmf;
+			/**
+			 * fault API used bitflags for return code.
+			 */
+			unsigned int    ft_flags;
+			/**
+			 * check that flags are from filemap_fault
+			 */
+			bool		ft_flags_valid;
+		} fault;
 		struct {
 			enum ccc_setattr_lock_type cui_local_lock;
 		} setattr;
+		struct {
+			struct pipe_inode_info	*cui_pipe;
+			unsigned int		 cui_flags;
+		} splice;
 		struct {
 			struct cl_page_list cui_queue;
 			unsigned long cui_written;
@@ -108,6 +144,9 @@ struct ccc_io {
 			int cui_to;
 		} write;
 	} u;
+
+	enum vvp_io_subtype	cui_io_subtype;
+
 	/**
 	 * Layout version when this IO is initialized
 	 */
@@ -117,6 +156,12 @@ struct ccc_io {
 	 */
 	struct ll_file_data *cui_fd;
 	struct kiocb *cui_iocb;
+
+	/* Readahead state. */
+	pgoff_t	cui_ra_start;
+	pgoff_t	cui_ra_count;
+	/* Set when cui_ra_{start,count} have been initialized. */
+	bool		cui_ra_valid;
 };
 
 /**
@@ -126,7 +171,7 @@ struct ccc_io {
 int cl_is_normalio(const struct lu_env *env, const struct cl_io *io);
 
 extern struct lu_context_key ccc_key;
-extern struct lu_context_key ccc_session_key;
+extern struct lu_context_key vvp_session_key;
 
 extern struct kmem_cache *vvp_lock_kmem;
 extern struct kmem_cache *vvp_object_kmem;
@@ -174,23 +219,23 @@ static inline struct cl_io *ccc_env_thread_io(const struct lu_env *env)
 	return io;
 }
 
-struct ccc_session {
-	struct ccc_io cs_ios;
+struct vvp_session {
+	struct vvp_io cs_ios;
 };
 
-static inline struct ccc_session *ccc_env_session(const struct lu_env *env)
+static inline struct vvp_session *vvp_env_session(const struct lu_env *env)
 {
-	struct ccc_session *ses;
+	struct vvp_session *ses;
 
-	ses = lu_context_key_get(env->le_ses, &ccc_session_key);
+	ses = lu_context_key_get(env->le_ses, &vvp_session_key);
 	LASSERT(ses);
 
 	return ses;
 }
 
-static inline struct ccc_io *ccc_env_io(const struct lu_env *env)
+static inline struct vvp_io *vvp_env_io(const struct lu_env *env)
 {
-	return &ccc_env_session(env)->cs_ios;
+	return &vvp_env_session(env)->cs_ios;
 }
 
 /**
@@ -282,10 +327,6 @@ void *ccc_key_init(const struct lu_context *ctx,
 		   struct lu_context_key *key);
 void ccc_key_fini(const struct lu_context *ctx,
 		  struct lu_context_key *key, void *data);
-void *ccc_session_key_init(const struct lu_context *ctx,
-			   struct lu_context_key *key);
-void  ccc_session_key_fini(const struct lu_context *ctx,
-			   struct lu_context_key *key, void *data);
 
 int ccc_req_init(const struct lu_env *env, struct cl_device *dev,
 		 struct cl_req *req);
@@ -293,16 +334,16 @@ void ccc_umount(const struct lu_env *env, struct cl_device *dev);
 int ccc_global_init(struct lu_device_type *device_type);
 void ccc_global_fini(struct lu_device_type *device_type);
 
-int ccc_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
+int vvp_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 			  __u32 enqflags, enum cl_lock_mode mode,
 			  pgoff_t start, pgoff_t end);
-int ccc_io_one_lock(const struct lu_env *env, struct cl_io *io,
+int vvp_io_one_lock(const struct lu_env *env, struct cl_io *io,
 		    __u32 enqflags, enum cl_lock_mode mode,
 		    loff_t start, loff_t end);
-void ccc_io_end(const struct lu_env *env, const struct cl_io_slice *ios);
-void ccc_io_advance(const struct lu_env *env, const struct cl_io_slice *ios,
+void vvp_io_end(const struct lu_env *env, const struct cl_io_slice *ios);
+void vvp_io_advance(const struct lu_env *env, const struct cl_io_slice *ios,
 		    size_t nob);
-void ccc_io_update_iov(const struct lu_env *env, struct ccc_io *cio,
+void vvp_io_update_iov(const struct lu_env *env, struct vvp_io *cio,
 		       struct cl_io *io);
 int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_io *io, loff_t start, size_t count, int *exceed);
@@ -356,7 +397,7 @@ static inline struct vvp_lock *cl2vvp_lock(const struct cl_lock_slice *slice)
 	return container_of(slice, struct vvp_lock, vlk_cl);
 }
 
-struct ccc_io *cl2ccc_io(const struct lu_env *env,
+struct vvp_io *cl2vvp_io(const struct lu_env *env,
 			 const struct cl_io_slice *slice);
 struct ccc_req *cl2ccc_req(const struct cl_req_slice *slice);
 

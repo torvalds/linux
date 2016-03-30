@@ -138,7 +138,7 @@ struct lu_context_key vvp_session_key = {
 };
 
 /* type constructor/destructor: vvp_type_{init,fini,start,stop}(). */
-LU_TYPE_INIT_FINI(vvp, &ccc_key, &ccc_session_key, &vvp_key, &vvp_session_key);
+LU_TYPE_INIT_FINI(vvp, &ccc_key, &vvp_key, &vvp_session_key);
 
 static const struct lu_device_operations vvp_lu_ops = {
 	.ldo_object_alloc      = vvp_object_alloc
