@@ -57,7 +57,12 @@
 #define GTP_DRIVER_SEND_CFG   1
 #define GTP_HAVE_TOUCH_KEY    0
 #define GTP_POWER_CTRL_SLEEP  0
+
+#if defined(CONFIG_CHROME_PLATFORMS)
+#define GTP_ICS_SLOT_REPORT   1
+#else
 #define GTP_ICS_SLOT_REPORT   0
+#endif
 
 #define GTP_AUTO_UPDATE       0    // auto update fw by .bin file as default
 #define GTP_HEADER_FW_UPDATE  0    // auto update fw by gtp_default_FW in gt9xx_firmware.h, function together with GTP_AUTO_UPDATE
