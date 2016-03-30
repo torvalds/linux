@@ -62,6 +62,7 @@ struct ceph_mount_options {
 	int cap_release_safety;
 	int max_readdir;       /* max readdir result (entires) */
 	int max_readdir_bytes; /* max readdir result (bytes) */
+	int mds_namespace;
 
 	/*
 	 * everything above this point can be memcmp'd; everything below

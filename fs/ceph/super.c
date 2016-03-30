@@ -108,6 +108,7 @@ static int ceph_sync_fs(struct super_block *sb, int wait)
  * mount options
  */
 enum {
+	Opt_mds_namespace,
 	Opt_wsize,
 	Opt_rsize,
 	Opt_rasize,
@@ -143,6 +144,7 @@ enum {
 };
 
 static match_table_t fsopt_tokens = {
+	{Opt_mds_namespace, "mds_namespace=%d"},
 	{Opt_wsize, "wsize=%d"},
 	{Opt_rsize, "rsize=%d"},
 	{Opt_rasize, "rasize=%d"},
@@ -212,6 +214,9 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 
 		/* misc */
+	case Opt_mds_namespace:
+		fsopt->mds_namespace = intval;
+		break;
 	case Opt_wsize:
 		fsopt->wsize = intval;
 		break;
@@ -367,6 +372,7 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
 	fsopt->max_readdir = CEPH_MAX_READDIR_DEFAULT;
 	fsopt->max_readdir_bytes = CEPH_MAX_READDIR_BYTES_DEFAULT;
 	fsopt->congestion_kb = default_congestion_kb();
+	fsopt->mds_namespace = CEPH_FS_CLUSTER_ID_NONE;
 
 	/*
 	 * Distinguish the server list from the path in "dev_name".
@@ -457,6 +463,8 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",noacl");
 #endif
 
+	if (fsopt->mds_namespace != CEPH_FS_CLUSTER_ID_NONE)
+		seq_printf(m, ",mds_namespace=%d", fsopt->mds_namespace);
 	if (fsopt->wsize)
 		seq_printf(m, ",wsize=%d", fsopt->wsize);
 	if (fsopt->rsize != CEPH_RSIZE_DEFAULT)
@@ -530,6 +538,7 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 		goto fail;
 	}
 	fsc->client->extra_mon_dispatch = extra_mon_dispatch;
+	fsc->client->monc.fs_cluster_id = fsopt->mds_namespace;
 	ceph_monc_want_map(&fsc->client->monc, CEPH_SUB_MDSMAP, 0, true);
 
 	fsc->mount_options = fsopt;
