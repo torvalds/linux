@@ -149,7 +149,6 @@ struct visor_device {
 	u32 chipset_bus_no;
 	u32 chipset_dev_no;
 	struct visorchipset_state state;
-	uuid_le type;
 	uuid_le inst;
 	u8 *name;
 	struct controlvm_message_header *pending_msg_hdr;
