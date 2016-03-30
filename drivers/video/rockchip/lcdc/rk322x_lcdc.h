@@ -1650,9 +1650,9 @@ struct lcdc_cabc_mode {
 #define CUBIC_CATROM   2
 #define CUBIC_MITCHELL 3
 
-#define FBDC_FMT_RGB565		0x5
-#define FBDC_FMT_U8U8U8U8	0xc /*ARGB888*/
-#define FBDC_FMT_U8U8U8		0x3a /*RGBP888*/
+#define AFBDC_FMT_RGB565	0x0
+#define AFBDC_FMT_U8U8U8U8	0x5 /*ARGB888*/
+#define AFBDC_FMT_U8U8U8	0x4 /*RGBP888*/
 
 #define CUBIC_MODE_SELETION      CUBIC_PRECISE
 

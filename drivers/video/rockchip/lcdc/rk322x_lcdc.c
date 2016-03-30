@@ -1195,10 +1195,14 @@ static int vop_axi_gather_cfg(struct vop_device *vop_dev,
 	case ARGB888:
 	case XBGR888:
 	case ABGR888:
+	case FBDC_ARGB_888:
+	case FBDC_RGBX_888:
+	case FBDC_ABGR_888:
 		yrgb_gather_num = 3;
 		break;
 	case RGB888:
 	case RGB565:
+	case FBDC_RGB_565:
 		yrgb_gather_num = 2;
 		break;
 	case YUV444:
@@ -1235,6 +1239,47 @@ static int vop_axi_gather_cfg(struct vop_device *vop_dev,
 	return 0;
 }
 
+static int vop_fbdc_reg_update(struct vop_device *vop_dev, int win_id)
+{
+	struct rk_lcdc_win *win = vop_dev->driver.win[win_id];
+	u32 val;
+
+	val = V_VOP_FBDC_WIN_SEL(win_id) |
+		V_AFBCD_HREG_PIXEL_PACKING_FMT(win->area[0].fbdc_fmt_cfg) |
+		V_AFBCD_HREG_BLOCK_SPLIT(win->area[0].fbdc_cor_en);
+	vop_msk_reg(vop_dev, AFBCD0_CTRL, val);
+
+	val = V_AFBCD_HREG_PIC_WIDTH(win->area[0].fbdc_mb_width - 1) |
+		V_AFBCD_HREG_PIC_HEIGHT(win->area[0].fbdc_mb_height - 1);
+	vop_msk_reg(vop_dev, AFBCD0_PIC_SIZE, val);
+
+	return 0;
+}
+
+static int vop_init_fbdc_config(struct vop_device *vop_dev, int win_id)
+{
+	struct rk_lcdc_driver *vop_drv = &vop_dev->driver;
+	struct rk_lcdc_win *win = vop_drv->win[win_id];
+	struct rk_screen *screen = vop_drv->cur_screen;
+
+	if (screen->mode.flag & FB_VMODE_INTERLACED) {
+		dev_err(vop_dev->dev, "unsupport fbdc+interlace!\n");
+		return 0;
+	}
+
+	if (VOP_CHIP(vop_dev) != VOP_RK3399) {
+		pr_err("soc: 0x%08x not support FBDC\n", VOP_CHIP(vop_dev));
+		return 0;
+	}
+
+	win->area[0].fbdc_mb_width = win->area[0].xact;
+	win->area[0].fbdc_mb_height = win->area[0].yact;
+	win->area[0].fbdc_cor_en = 0; /* hreg_block_split */
+	win->area[0].fbdc_fmt_cfg |= 0 << 4;
+
+	return 0;
+}
+
 static int vop_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 {
 	struct vop_device *vop_dev =
@@ -1248,7 +1293,8 @@ static int vop_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 
 	if (win->state == 1) {
 		vop_axi_gather_cfg(vop_dev, win);
-
+		if (win->area[0].fbdc_en)
+			vop_fbdc_reg_update(vop_dev, win_id);
 		/*
 		 * rk322x have a bug on windows 0 and 1:
 		 *
@@ -1382,6 +1428,8 @@ static int vop_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 
 	if (win->state == 1) {
 		vop_axi_gather_cfg(vop_dev, win);
+		if (win->area[0].fbdc_en)
+			vop_fbdc_reg_update(vop_dev, win_id);
 		val = V_WIN2_EN(1) | V_WIN1_CSC_MODE(win->csc_mode);
 		vop_msk_reg(vop_dev, WIN2_CTRL0 + off, val);
 		/* area 0 */
@@ -2082,6 +2130,9 @@ static int win_0_1_display(struct vop_device *vop_dev,
 		win->area[0].uv_addr = uv_addr;
 		vop_writel(vop_dev, WIN0_YRGB_MST + off, win->area[0].y_addr);
 		vop_writel(vop_dev, WIN0_CBR_MST + off, win->area[0].uv_addr);
+		if (win->area[0].fbdc_en == 1)
+			vop_writel(vop_dev, AFBCD0_HDR_PTR,
+				   win->area[0].y_addr);
 	}
 	spin_unlock(&vop_dev->reg_lock);
 
@@ -2110,6 +2161,9 @@ static int win_2_3_display(struct vop_device *vop_dev,
 		vop_writel(vop_dev, WIN2_MST1 + off, win->area[1].y_addr);
 		vop_writel(vop_dev, WIN2_MST2 + off, win->area[2].y_addr);
 		vop_writel(vop_dev, WIN2_MST3 + off, win->area[3].y_addr);
+		if (win->area[0].fbdc_en == 1)
+			vop_writel(vop_dev, AFBCD0_HDR_PTR,
+				   win->area[0].y_addr);
 		spin_unlock(&vop_dev->reg_lock);
 	}
 	return 0;
@@ -2657,25 +2711,25 @@ static int win_0_1_set_par(struct vop_device *vop_dev,
 			fmt_cfg = 2;
 			swap_rb = 0;
 			win->fmt_10 = 0;
-			win->area[0].fbdc_fmt_cfg = 0x05;
+			win->area[0].fbdc_fmt_cfg = AFBDC_FMT_RGB565;
 			break;
 		case FBDC_ARGB_888:
 			fmt_cfg = 0;
-			swap_rb = 0;
+			swap_rb = 1;
 			win->fmt_10 = 0;
-			win->area[0].fbdc_fmt_cfg = 0x0c;
+			win->area[0].fbdc_fmt_cfg = AFBDC_FMT_U8U8U8U8;
 			break;
 		case FBDC_ABGR_888:
 			fmt_cfg = 0;
-			swap_rb = 1;
+			swap_rb = 0;
 			win->fmt_10 = 0;
-			win->area[0].fbdc_fmt_cfg = 0x0c;
+			win->area[0].fbdc_fmt_cfg = AFBDC_FMT_U8U8U8U8;
 			break;
 		case FBDC_RGBX_888:
 			fmt_cfg = 0;
 			swap_rb = 0;
 			win->fmt_10 = 0;
-			win->area[0].fbdc_fmt_cfg = 0x3a;
+			win->area[0].fbdc_fmt_cfg = AFBDC_FMT_U8U8U8U8;
 			break;
 		case ARGB888:
 			fmt_cfg = 0;
@@ -2754,6 +2808,8 @@ static int win_0_1_set_par(struct vop_device *vop_dev,
 		xvir = win->area[0].xvir;
 		yvir = win->area[0].yvir;
 	}
+	if (win->area[0].fbdc_en)
+		vop_init_fbdc_config(vop_dev, win->id);
 	vop_win_0_1_reg_update(&vop_dev->driver, win->id);
 	spin_unlock(&vop_dev->reg_lock);
 
@@ -2850,6 +2906,8 @@ static int win_2_3_set_par(struct vop_device *vop_dev,
 			    win->area[i].xpos, win->area[i].ypos);
 		}
 	}
+	if (win->area[0].fbdc_en)
+		vop_init_fbdc_config(vop_dev, win->id);
 	vop_win_2_3_reg_update(&vop_dev->driver, win->id);
 	spin_unlock(&vop_dev->reg_lock);
 	return 0;
@@ -3610,7 +3668,7 @@ static int vop_config_done(struct rk_lcdc_driver *dev_drv)
 {
 	struct vop_device *vop_dev =
 	    container_of(dev_drv, struct vop_device, driver);
-	int i;
+	int i, fbdc_en = 0;
 	u64 val;
 	struct rk_lcdc_win *win = NULL;
 
@@ -3619,6 +3677,7 @@ static int vop_config_done(struct rk_lcdc_driver *dev_drv)
 	vop_msk_reg(vop_dev, SYS_CTRL, V_VOP_STANDBY_EN(vop_dev->standby));
 	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 		win = dev_drv->win[i];
+		fbdc_en |= win->area[0].fbdc_en;
 		if ((win->state == 0) && (win->last_state == 1)) {
 			switch (win->id) {
 			case 0:
@@ -3650,6 +3709,10 @@ static int vop_config_done(struct rk_lcdc_driver *dev_drv)
 			}
 		}
 		win->last_state = win->state;
+	}
+	if (VOP_CHIP(vop_dev) == VOP_RK3399) {
+		val = V_VOP_FBDC_EN(fbdc_en);
+		vop_msk_reg(vop_dev, AFBCD0_CTRL, val);
 	}
 	vop_cfg_done(vop_dev);
 	spin_unlock(&vop_dev->reg_lock);
