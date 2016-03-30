@@ -337,7 +337,7 @@ static void callchain_node__init_have_children(struct callchain_node *node,
 	chain = list_entry(node->val.next, struct callchain_list, list);
 	chain->has_children = has_sibling;
 
-	if (node->val.next != node->val.prev) {
+	if (!list_empty(&node->val)) {
 		chain = list_entry(node->val.prev, struct callchain_list, list);
 		chain->has_children = !RB_EMPTY_ROOT(&node->rb_root);
 	}
