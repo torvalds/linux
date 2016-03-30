@@ -313,7 +313,8 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 		   uint64_t target_offset)
 {
 	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	uint64_t delta = relocation_target(reloc, target_offset);
 	uint64_t offset;
 	void __iomem *reloc_page;
@@ -330,7 +331,7 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 	/* Map the page containing the relocation we're going to perform.  */
 	offset = i915_gem_obj_ggtt_offset(obj);
 	offset += reloc->offset;
-	reloc_page = io_mapping_map_atomic_wc(dev_priv->ggtt.mappable,
+	reloc_page = io_mapping_map_atomic_wc(ggtt->mappable,
 					      offset & PAGE_MASK);
 	iowrite32(lower_32_bits(delta), reloc_page + offset_in_page(offset));
 
@@ -340,7 +341,7 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 		if (offset_in_page(offset) == 0) {
 			io_mapping_unmap_atomic(reloc_page);
 			reloc_page =
-				io_mapping_map_atomic_wc(dev_priv->ggtt.mappable,
+				io_mapping_map_atomic_wc(ggtt->mappable,
 							 offset);
 		}
 
@@ -1431,7 +1432,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		       struct drm_i915_gem_execbuffer2 *args,
 		       struct drm_i915_gem_exec_object2 *exec)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_i915_gem_request *req = NULL;
 	struct eb_vmas *eb;
 	struct drm_i915_gem_object *batch_obj;
@@ -1504,7 +1506,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ctx->ppgtt)
 		vm = &ctx->ppgtt->base;
 	else
-		vm = &dev_priv->ggtt.base;
+		vm = &ggtt->base;
 
 	memset(&params_master, 0x00, sizeof(params_master));
 

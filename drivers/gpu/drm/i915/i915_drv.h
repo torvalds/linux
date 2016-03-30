@@ -3154,9 +3154,6 @@ i915_gem_obj_to_ggtt(struct drm_i915_gem_object *obj)
 bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj);
 
 /* Some GGTT VM helpers */
-#define i915_obj_to_ggtt(obj) \
-	(&((struct drm_i915_private *)(obj)->base.dev->dev_private)->ggtt.base)
-
 static inline struct i915_hw_ppgtt *
 i915_vm_to_ppgtt(struct i915_address_space *vm)
 {
@@ -3173,7 +3170,10 @@ static inline bool i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *obj)
 static inline unsigned long
 i915_gem_obj_ggtt_size(struct drm_i915_gem_object *obj)
 {
-	return i915_gem_obj_size(obj, i915_obj_to_ggtt(obj));
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+
+	return i915_gem_obj_size(obj, &ggtt->base);
 }
 
 static inline int __must_check
@@ -3181,7 +3181,10 @@ i915_gem_obj_ggtt_pin(struct drm_i915_gem_object *obj,
 		      uint32_t alignment,
 		      unsigned flags)
 {
-	return i915_gem_object_pin(obj, i915_obj_to_ggtt(obj),
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+
+	return i915_gem_object_pin(obj, &ggtt->base,
 				   alignment, flags | PIN_GLOBAL);
 }
 

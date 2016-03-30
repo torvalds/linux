@@ -627,6 +627,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			 struct drm_i915_gem_object *src,
 			 struct i915_address_space *vm)
 {
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_i915_error_object *dst;
 	struct i915_vma *vma = NULL;
 	int num_pages;
@@ -653,7 +654,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 		vma = i915_gem_obj_to_ggtt(src);
 	use_ggtt = (src->cache_level == I915_CACHE_NONE &&
 		   vma && (vma->bound & GLOBAL_BIND) &&
-		   reloc_offset + num_pages * PAGE_SIZE <= dev_priv->ggtt.mappable_end);
+		   reloc_offset + num_pages * PAGE_SIZE <= ggtt->mappable_end);
 
 	/* Cannot access stolen address directly, try to use the aperture */
 	if (src->stolen) {
@@ -663,7 +664,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			goto unwind;
 
 		reloc_offset = i915_gem_obj_ggtt_offset(src);
-		if (reloc_offset + num_pages * PAGE_SIZE > dev_priv->ggtt.mappable_end)
+		if (reloc_offset + num_pages * PAGE_SIZE > ggtt->mappable_end)
 			goto unwind;
 	}
 
@@ -689,7 +690,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			 * captures what the GPU read.
 			 */
 
-			s = io_mapping_map_atomic_wc(dev_priv->ggtt.mappable,
+			s = io_mapping_map_atomic_wc(ggtt->mappable,
 						     reloc_offset);
 			memcpy_fromio(d, s, PAGE_SIZE);
 			io_mapping_unmap_atomic(s);
@@ -1015,7 +1016,8 @@ static void i915_gem_record_active_context(struct intel_engine_cs *engine,
 static void i915_gem_record_rings(struct drm_device *dev,
 				  struct drm_i915_error_state *error)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_i915_gem_request *request;
 	int i, count;
 
@@ -1038,7 +1040,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 			vm = request->ctx && request->ctx->ppgtt ?
 				&request->ctx->ppgtt->base :
-				&dev_priv->ggtt.base;
+				&ggtt->base;
 
 			/* We need to copy these to an anonymous buffer
 			 * as the simplest method to avoid being overwritten

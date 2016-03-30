@@ -42,7 +42,7 @@ typedef uint64_t gen8_pde_t;
 typedef uint64_t gen8_ppgtt_pdpe_t;
 typedef uint64_t gen8_ppgtt_pml4e_t;
 
-#define gtt_total_entries(gtt) ((gtt).base.total >> PAGE_SHIFT)
+#define ggtt_total_entries(ggtt) ((ggtt)->base.total >> PAGE_SHIFT)
 
 /* gen6-hsw has bit 11-4 for physical addr bit 39-32 */
 #define GEN6_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0xff0))

@@ -122,6 +122,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	struct drm_framebuffer *fb;
 	struct drm_device *dev = helper->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_i915_gem_object *obj = NULL;
 	int size, ret;
@@ -146,7 +147,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	/* If the FB is too big, just don't use it since fbdev is not very
 	 * important and we should probably use that space with FBC or other
 	 * features. */
-	if (size * 2 < dev_priv->ggtt.stolen_usable_size)
+	if (size * 2 < ggtt->stolen_usable_size)
 		obj = i915_gem_object_create_stolen(dev, size);
 	if (obj == NULL)
 		obj = i915_gem_alloc_object(dev, size);
@@ -181,7 +182,8 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		container_of(helper, struct intel_fbdev, helper);
 	struct intel_framebuffer *intel_fb = ifbdev->fb;
 	struct drm_device *dev = helper->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct drm_i915_gem_object *obj;
@@ -244,13 +246,13 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 	/* setup aperture base/size for vesafb takeover */
 	info->apertures->ranges[0].base = dev->mode_config.fb_base;
-	info->apertures->ranges[0].size = dev_priv->ggtt.mappable_end;
+	info->apertures->ranges[0].size = ggtt->mappable_end;
 
 	info->fix.smem_start = dev->mode_config.fb_base + i915_gem_obj_ggtt_offset(obj);
 	info->fix.smem_len = size;
 
 	info->screen_base =
-		ioremap_wc(dev_priv->ggtt.mappable_base + i915_gem_obj_ggtt_offset(obj),
+		ioremap_wc(ggtt->mappable_base + i915_gem_obj_ggtt_offset(obj),
 			   size);
 	if (!info->screen_base) {
 		DRM_ERROR("Failed to remap framebuffer into virtual memory\n");

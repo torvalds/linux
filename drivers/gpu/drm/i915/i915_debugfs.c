@@ -202,8 +202,8 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	uintptr_t list = (uintptr_t) node->info_ent->data;
 	struct list_head *head;
 	struct drm_device *dev = node->minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_address_space *vm = &dev_priv->ggtt.base;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct i915_vma *vma;
 	u64 total_obj_size, total_gtt_size;
 	int count, ret;
@@ -216,11 +216,11 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	switch (list) {
 	case ACTIVE_LIST:
 		seq_puts(m, "Active:\n");
-		head = &vm->active_list;
+		head = &ggtt->base.active_list;
 		break;
 	case INACTIVE_LIST:
 		seq_puts(m, "Inactive:\n");
-		head = &vm->inactive_list;
+		head = &ggtt->base.inactive_list;
 		break;
 	default:
 		mutex_unlock(&dev->struct_mutex);
@@ -429,11 +429,11 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 {
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	u32 count, mappable_count, purgeable_count;
 	u64 size, mappable_size, purgeable_size;
 	struct drm_i915_gem_object *obj;
-	struct i915_address_space *vm = &dev_priv->ggtt.base;
 	struct drm_file *file;
 	struct i915_vma *vma;
 	int ret;
@@ -452,12 +452,12 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_vmas(&vm->active_list, vm_link);
+	count_vmas(&ggtt->base.active_list, vm_link);
 	seq_printf(m, "  %u [%u] active objects, %llu [%llu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_vmas(&vm->inactive_list, vm_link);
+	count_vmas(&ggtt->base.inactive_list, vm_link);
 	seq_printf(m, "  %u [%u] inactive objects, %llu [%llu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
@@ -492,8 +492,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   count, size);
 
 	seq_printf(m, "%llu [%llu] gtt total\n",
-		   dev_priv->ggtt.base.total,
-		   (u64)dev_priv->ggtt.mappable_end - dev_priv->ggtt.base.start);
+		   ggtt->base.total, ggtt->mappable_end - ggtt->base.start);
 
 	seq_putc(m, '\n');
 	print_batch_pool_stats(m, dev_priv);
