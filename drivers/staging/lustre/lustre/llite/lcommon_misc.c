@@ -145,7 +145,7 @@ int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
 	io->ci_ignore_layout = 1;
 
 	rc = cl_io_init(env, io, CIT_MISC, io->ci_obj);
-	if (rc) {
+	if (rc != 0) {
 		cl_io_fini(env, io);
 		cl_env_put(env, &refcheck);
 		/* Does not make sense to take GL for released layout */
@@ -154,7 +154,8 @@ int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
 		return rc;
 	}
 
-	descr = &ccc_env_info(env)->cti_descr;
+	lock = ccc_env_lock(env);
+	descr = &lock->cll_descr;
 	descr->cld_obj = obj;
 	descr->cld_start = 0;
 	descr->cld_end = CL_PAGE_EOF;
@@ -164,11 +165,11 @@ int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
 	enqflags = CEF_MUST | (nonblock ? CEF_NONBLOCK : 0);
 	descr->cld_enq_flags = enqflags;
 
-	lock = cl_lock_request(env, io, descr, GROUPLOCK_SCOPE, current);
-	if (IS_ERR(lock)) {
+	rc = cl_lock_request(env, io, lock);
+	if (rc < 0) {
 		cl_io_fini(env, io);
 		cl_env_put(env, &refcheck);
-		return PTR_ERR(lock);
+		return rc;
 	}
 
 	cg->cg_env  = cl_env_get(&refcheck);
@@ -194,8 +195,7 @@ void cl_put_grouplock(struct ccc_grouplock *cg)
 	cl_env_implant(env, &refcheck);
 	cl_env_put(env, &refcheck);
 
-	cl_unuse(env, lock);
-	cl_lock_release(env, lock, GROUPLOCK_SCOPE, current);
+	cl_lock_release(env, lock);
 	cl_io_fini(env, io);
 	cl_env_put(env, NULL);
 }

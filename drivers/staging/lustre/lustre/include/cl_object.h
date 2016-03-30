@@ -82,7 +82,6 @@
  *  - i_mutex
  *      - PG_locked
  *	  - cl_object_header::coh_page_guard
- *	  - cl_object_header::coh_lock_guard
  *	  - lu_site::ls_guard
  *
  * See the top comment in cl_object.c for the description of overall locking and
@@ -404,16 +403,6 @@ struct cl_object_header {
 	 * here.
 	 */
 	struct lu_object_header  coh_lu;
-	/** \name locks
-	 * \todo XXX move locks below to the separate cache-lines, they are
-	 * mostly useless otherwise.
-	 */
-	/** @{ */
-	/** Lock protecting lock list. */
-	spinlock_t		 coh_lock_guard;
-	/** @} locks */
-	/** List of cl_lock's granted for this object. */
-	struct list_head	       coh_locks;
 
 	/**
 	 * Parent object. It is assumed that an object has a well-defined
@@ -795,16 +784,9 @@ struct cl_page_slice {
 /**
  * Lock mode. For the client extent locks.
  *
- * \warning: cl_lock_mode_match() assumes particular ordering here.
  * \ingroup cl_lock
  */
 enum cl_lock_mode {
-	/**
-	 * Mode of a lock that protects no data, and exists only as a
-	 * placeholder. This is used for `glimpse' requests. A phantom lock
-	 * might get promoted to real lock at some point.
-	 */
-	CLM_PHANTOM,
 	CLM_READ,
 	CLM_WRITE,
 	CLM_GROUP
@@ -1114,12 +1096,6 @@ static inline struct page *cl_page_vmpage(struct cl_page *page)
  * (struct cl_lock) and a list of layers (struct cl_lock_slice), linked to
  * cl_lock::cll_layers list through cl_lock_slice::cls_linkage.
  *
- * All locks for a given object are linked into cl_object_header::coh_locks
- * list (protected by cl_object_header::coh_lock_guard spin-lock) through
- * cl_lock::cll_linkage. Currently this list is not sorted in any way. We can
- * sort it in starting lock offset, or use altogether different data structure
- * like a tree.
- *
  * Typical cl_lock consists of the two layers:
  *
  *     - vvp_lock (vvp specific data), and
@@ -1320,289 +1296,21 @@ struct cl_lock_descr {
 	__u32	     cld_enq_flags;
 };
 
-#define DDESCR "%s(%d):[%lu, %lu]"
+#define DDESCR "%s(%d):[%lu, %lu]:%x"
 #define PDESCR(descr)						   \
 	cl_lock_mode_name((descr)->cld_mode), (descr)->cld_mode,	\
-	(descr)->cld_start, (descr)->cld_end
+	(descr)->cld_start, (descr)->cld_end, (descr)->cld_enq_flags
 
 const char *cl_lock_mode_name(const enum cl_lock_mode mode);
-
-/**
- * Lock state-machine states.
- *
- * \htmlonly
- * <pre>
- *
- * Possible state transitions:
- *
- *	      +------------------>NEW
- *	      |		    |
- *	      |		    | cl_enqueue_try()
- *	      |		    |
- *	      |    cl_unuse_try()  V
- *	      |  +--------------QUEUING (*)
- *	      |  |		 |
- *	      |  |		 | cl_enqueue_try()
- *	      |  |		 |
- *	      |  | cl_unuse_try()  V
- *    sub-lock  |  +-------------ENQUEUED (*)
- *    canceled  |  |		 |
- *	      |  |		 | cl_wait_try()
- *	      |  |		 |
- *	      |  |		(R)
- *	      |  |		 |
- *	      |  |		 V
- *	      |  |		HELD<---------+
- *	      |  |		 |	    |
- *	      |  |		 |	    | cl_use_try()
- *	      |  |  cl_unuse_try() |	    |
- *	      |  |		 |	    |
- *	      |  |		 V	 ---+
- *	      |  +------------>INTRANSIT (D) <--+
- *	      |		    |	    |
- *	      |     cl_unuse_try() |	    | cached lock found
- *	      |		    |	    | cl_use_try()
- *	      |		    |	    |
- *	      |		    V	    |
- *	      +------------------CACHED---------+
- *				   |
- *				  (C)
- *				   |
- *				   V
- *				FREEING
- *
- * Legend:
- *
- *	 In states marked with (*) transition to the same state (i.e., a loop
- *	 in the diagram) is possible.
- *
- *	 (R) is the point where Receive call-back is invoked: it allows layers
- *	 to handle arrival of lock reply.
- *
- *	 (C) is the point where Cancellation call-back is invoked.
- *
- *	 (D) is the transit state which means the lock is changing.
- *
- *	 Transition to FREEING state is possible from any other state in the
- *	 diagram in case of unrecoverable error.
- * </pre>
- * \endhtmlonly
- *
- * These states are for individual cl_lock object. Top-lock and its sub-locks
- * can be in the different states. Another way to say this is that we have
- * nested state-machines.
- *
- * Separate QUEUING and ENQUEUED states are needed to support non-blocking
- * operation for locks with multiple sub-locks. Imagine lock on a file F, that
- * intersects 3 stripes S0, S1, and S2. To enqueue F client has to send
- * enqueue to S0, wait for its completion, then send enqueue for S1, wait for
- * its completion and at last enqueue lock for S2, and wait for its
- * completion. In that case, top-lock is in QUEUING state while S0, S1 are
- * handled, and is in ENQUEUED state after enqueue to S2 has been sent (note
- * that in this case, sub-locks move from state to state, and top-lock remains
- * in the same state).
- */
-enum cl_lock_state {
-	/**
-	 * Lock that wasn't yet enqueued
-	 */
-	CLS_NEW,
-	/**
-	 * Enqueue is in progress, blocking for some intermediate interaction
-	 * with the other side.
-	 */
-	CLS_QUEUING,
-	/**
-	 * Lock is fully enqueued, waiting for server to reply when it is
-	 * granted.
-	 */
-	CLS_ENQUEUED,
-	/**
-	 * Lock granted, actively used by some IO.
-	 */
-	CLS_HELD,
-	/**
-	 * This state is used to mark the lock is being used, or unused.
-	 * We need this state because the lock may have several sublocks,
-	 * so it's impossible to have an atomic way to bring all sublocks
-	 * into CLS_HELD state at use case, or all sublocks to CLS_CACHED
-	 * at unuse case.
-	 * If a thread is referring to a lock, and it sees the lock is in this
-	 * state, it must wait for the lock.
-	 * See state diagram for details.
-	 */
-	CLS_INTRANSIT,
-	/**
-	 * Lock granted, not used.
-	 */
-	CLS_CACHED,
-	/**
-	 * Lock is being destroyed.
-	 */
-	CLS_FREEING,
-	CLS_NR
-};
-
-enum cl_lock_flags {
-	/**
-	 * lock has been cancelled. This flag is never cleared once set (by
-	 * cl_lock_cancel0()).
-	 */
-	CLF_CANCELLED	= 1 << 0,
-	/** cancellation is pending for this lock. */
-	CLF_CANCELPEND	= 1 << 1,
-	/** destruction is pending for this lock. */
-	CLF_DOOMED	= 1 << 2,
-	/** from enqueue RPC reply upcall. */
-	CLF_FROM_UPCALL	= 1 << 3,
-};
-
-/**
- * Lock closure.
- *
- * Lock closure is a collection of locks (both top-locks and sub-locks) that
- * might be updated in a result of an operation on a certain lock (which lock
- * this is a closure of).
- *
- * Closures are needed to guarantee dead-lock freedom in the presence of
- *
- *     - nested state-machines (top-lock state-machine composed of sub-lock
- *       state-machines), and
- *
- *     - shared sub-locks.
- *
- * Specifically, many operations, such as lock enqueue, wait, unlock,
- * etc. start from a top-lock, and then operate on a sub-locks of this
- * top-lock, holding a top-lock mutex. When sub-lock state changes as a result
- * of such operation, this change has to be propagated to all top-locks that
- * share this sub-lock. Obviously, no natural lock ordering (e.g.,
- * top-to-bottom or bottom-to-top) captures this scenario, so try-locking has
- * to be used. Lock closure systematizes this try-and-repeat logic.
- */
-struct cl_lock_closure {
-	/**
-	 * Lock that is mutexed when closure construction is started. When
-	 * closure in is `wait' mode (cl_lock_closure::clc_wait), mutex on
-	 * origin is released before waiting.
-	 */
-	struct cl_lock   *clc_origin;
-	/**
-	 * List of enclosed locks, so far. Locks are linked here through
-	 * cl_lock::cll_inclosure.
-	 */
-	struct list_head	clc_list;
-	/**
-	 * True iff closure is in a `wait' mode. This determines what
-	 * cl_lock_enclosure() does when a lock L to be added to the closure
-	 * is currently mutexed by some other thread.
-	 *
-	 * If cl_lock_closure::clc_wait is not set, then closure construction
-	 * fails with CLO_REPEAT immediately.
-	 *
-	 * In wait mode, cl_lock_enclosure() waits until next attempt to build
-	 * a closure might succeed. To this end it releases an origin mutex
-	 * (cl_lock_closure::clc_origin), that has to be the only lock mutex
-	 * owned by the current thread, and then waits on L mutex (by grabbing
-	 * it and immediately releasing), before returning CLO_REPEAT to the
-	 * caller.
-	 */
-	int	       clc_wait;
-	/** Number of locks in the closure. */
-	int	       clc_nr;
-};
 
 /**
  * Layered client lock.
  */
 struct cl_lock {
-	/** Reference counter. */
-	atomic_t	  cll_ref;
 	/** List of slices. Immutable after creation. */
 	struct list_head	    cll_layers;
-	/**
-	 * Linkage into cl_lock::cll_descr::cld_obj::coh_locks list. Protected
-	 * by cl_lock::cll_descr::cld_obj::coh_lock_guard.
-	 */
-	struct list_head	    cll_linkage;
-	/**
-	 * Parameters of this lock. Protected by
-	 * cl_lock::cll_descr::cld_obj::coh_lock_guard nested within
-	 * cl_lock::cll_guard. Modified only on lock creation and in
-	 * cl_lock_modify().
-	 */
+	/** lock attribute, extent, cl_object, etc. */
 	struct cl_lock_descr  cll_descr;
-	/** Protected by cl_lock::cll_guard. */
-	enum cl_lock_state    cll_state;
-	/** signals state changes. */
-	wait_queue_head_t	   cll_wq;
-	/**
-	 * Recursive lock, most fields in cl_lock{} are protected by this.
-	 *
-	 * Locking rules: this mutex is never held across network
-	 * communication, except when lock is being canceled.
-	 *
-	 * Lock ordering: a mutex of a sub-lock is taken first, then a mutex
-	 * on a top-lock. Other direction is implemented through a
-	 * try-lock-repeat loop. Mutices of unrelated locks can be taken only
-	 * by try-locking.
-	 *
-	 * \see osc_lock_enqueue_wait(), lov_lock_cancel(), lov_sublock_wait().
-	 */
-	struct mutex		cll_guard;
-	struct task_struct	*cll_guarder;
-	int		   cll_depth;
-
-	/**
-	 * the owner for INTRANSIT state
-	 */
-	struct task_struct	*cll_intransit_owner;
-	int		   cll_error;
-	/**
-	 * Number of holds on a lock. A hold prevents a lock from being
-	 * canceled and destroyed. Protected by cl_lock::cll_guard.
-	 *
-	 * \see cl_lock_hold(), cl_lock_unhold(), cl_lock_release()
-	 */
-	int		   cll_holds;
-	 /**
-	  * Number of lock users. Valid in cl_lock_state::CLS_HELD state
-	  * only. Lock user pins lock in CLS_HELD state. Protected by
-	  * cl_lock::cll_guard.
-	  *
-	  * \see cl_wait(), cl_unuse().
-	  */
-	int		   cll_users;
-	/**
-	 * Flag bit-mask. Values from enum cl_lock_flags. Updates are
-	 * protected by cl_lock::cll_guard.
-	 */
-	unsigned long	 cll_flags;
-	/**
-	 * A linkage into a list of locks in a closure.
-	 *
-	 * \see cl_lock_closure
-	 */
-	struct list_head	    cll_inclosure;
-	/**
-	 * Confict lock at queuing time.
-	 */
-	struct cl_lock       *cll_conflict;
-	/**
-	 * A list of references to this lock, for debugging.
-	 */
-	struct lu_ref	 cll_reference;
-	/**
-	 * A list of holds on this lock, for debugging.
-	 */
-	struct lu_ref	 cll_holders;
-	/**
-	 * A reference for cl_lock::cll_descr::cld_obj. For debugging.
-	 */
-	struct lu_ref_link    cll_obj_ref;
-#ifdef CONFIG_LOCKDEP
-	/* "dep_map" name is assumed by lockdep.h macros. */
-	struct lockdep_map    dep_map;
-#endif
 };
 
 /**
@@ -1622,170 +1330,32 @@ struct cl_lock_slice {
 };
 
 /**
- * Possible (non-error) return values of ->clo_{enqueue,wait,unlock}().
- *
- * NOTE: lov_subresult() depends on ordering here.
- */
-enum cl_lock_transition {
-	/** operation cannot be completed immediately. Wait for state change. */
-	CLO_WAIT	= 1,
-	/** operation had to release lock mutex, restart. */
-	CLO_REPEAT      = 2,
-	/** lower layer re-enqueued. */
-	CLO_REENQUEUED  = 3,
-};
-
-/**
  *
  * \see vvp_lock_ops, lov_lock_ops, lovsub_lock_ops, osc_lock_ops
  */
 struct cl_lock_operations {
-	/**
-	 * \name statemachine
-	 *
-	 * State machine transitions. These 3 methods are called to transfer
-	 * lock from one state to another, as described in the commentary
-	 * above enum #cl_lock_state.
-	 *
-	 * \retval 0	  this layer has nothing more to do to before
-	 *		       transition to the target state happens;
-	 *
-	 * \retval CLO_REPEAT method had to release and re-acquire cl_lock
-	 *		    mutex, repeat invocation of transition method
-	 *		    across all layers;
-	 *
-	 * \retval CLO_WAIT   this layer cannot move to the target state
-	 *		    immediately, as it has to wait for certain event
-	 *		    (e.g., the communication with the server). It
-	 *		    is guaranteed, that when the state transfer
-	 *		    becomes possible, cl_lock::cll_wq wait-queue
-	 *		    is signaled. Caller can wait for this event by
-	 *		    calling cl_lock_state_wait();
-	 *
-	 * \retval -ve	failure, abort state transition, move the lock
-	 *		    into cl_lock_state::CLS_FREEING state, and set
-	 *		    cl_lock::cll_error.
-	 *
-	 * Once all layers voted to agree to transition (by returning 0), lock
-	 * is moved into corresponding target state. All state transition
-	 * methods are optional.
-	 */
 	/** @{ */
 	/**
 	 * Attempts to enqueue the lock. Called top-to-bottom.
+	 *
+	 * \retval 0	this layer has enqueued the lock successfully
+	 * \retval >0	this layer has enqueued the lock, but need to wait on
+	 *		@anchor for resources
+	 * \retval -ve	failure
 	 *
 	 * \see ccc_lock_enqueue(), lov_lock_enqueue(), lovsub_lock_enqueue(),
 	 * \see osc_lock_enqueue()
 	 */
 	int  (*clo_enqueue)(const struct lu_env *env,
 			    const struct cl_lock_slice *slice,
-			    struct cl_io *io, __u32 enqflags);
+			    struct cl_io *io, struct cl_sync_io *anchor);
 	/**
-	 * Attempts to wait for enqueue result. Called top-to-bottom.
-	 *
-	 * \see ccc_lock_wait(), lov_lock_wait(), osc_lock_wait()
-	 */
-	int  (*clo_wait)(const struct lu_env *env,
-			 const struct cl_lock_slice *slice);
-	/**
-	 * Attempts to unlock the lock. Called bottom-to-top. In addition to
-	 * usual return values of lock state-machine methods, this can return
-	 * -ESTALE to indicate that lock cannot be returned to the cache, and
-	 * has to be re-initialized.
-	 * unuse is a one-shot operation, so it must NOT return CLO_WAIT.
-	 *
-	 * \see ccc_lock_unuse(), lov_lock_unuse(), osc_lock_unuse()
-	 */
-	int  (*clo_unuse)(const struct lu_env *env,
-			  const struct cl_lock_slice *slice);
-	/**
-	 * Notifies layer that cached lock is started being used.
-	 *
-	 * \pre lock->cll_state == CLS_CACHED
-	 *
-	 * \see lov_lock_use(), osc_lock_use()
-	 */
-	int  (*clo_use)(const struct lu_env *env,
-			const struct cl_lock_slice *slice);
-	/** @} statemachine */
-	/**
-	 * A method invoked when lock state is changed (as a result of state
-	 * transition). This is used, for example, to track when the state of
-	 * a sub-lock changes, to propagate this change to the corresponding
-	 * top-lock. Optional
-	 *
-	 * \see lovsub_lock_state()
-	 */
-	void (*clo_state)(const struct lu_env *env,
-			  const struct cl_lock_slice *slice,
-			  enum cl_lock_state st);
-	/**
-	 * Returns true, iff given lock is suitable for the given io, idea
-	 * being, that there are certain "unsafe" locks, e.g., ones acquired
-	 * for O_APPEND writes, that we don't want to re-use for a normal
-	 * write, to avoid the danger of cascading evictions. Optional. Runs
-	 * under cl_object_header::coh_lock_guard.
-	 *
-	 * XXX this should take more information about lock needed by
-	 * io. Probably lock description or something similar.
-	 *
-	 * \see lov_fits_into()
-	 */
-	int (*clo_fits_into)(const struct lu_env *env,
-			     const struct cl_lock_slice *slice,
-			     const struct cl_lock_descr *need,
-			     const struct cl_io *io);
-	/**
-	 * \name ast
-	 * Asynchronous System Traps. All of then are optional, all are
-	 * executed bottom-to-top.
-	 */
-	/** @{ */
-
-	/**
-	 * Cancellation callback. Cancel a lock voluntarily, or under
-	 * the request of server.
+	 * Cancel a lock, release its DLM lock ref, while does not cancel the
+	 * DLM lock
 	 */
 	void (*clo_cancel)(const struct lu_env *env,
 			   const struct cl_lock_slice *slice);
-	/**
-	 * Lock weighting ast. Executed to estimate how precious this lock
-	 * is. The sum of results across all layers is used to determine
-	 * whether lock worth keeping in cache given present memory usage.
-	 *
-	 * \see osc_lock_weigh(), vvp_lock_weigh(), lovsub_lock_weigh().
-	 */
-	unsigned long (*clo_weigh)(const struct lu_env *env,
-				   const struct cl_lock_slice *slice);
-	/** @} ast */
-
-	/**
-	 * \see lovsub_lock_closure()
-	 */
-	int (*clo_closure)(const struct lu_env *env,
-			   const struct cl_lock_slice *slice,
-			   struct cl_lock_closure *closure);
-	/**
-	 * Executed bottom-to-top when lock description changes (e.g., as a
-	 * result of server granting more generous lock than was requested).
-	 *
-	 * \see lovsub_lock_modify()
-	 */
-	int (*clo_modify)(const struct lu_env *env,
-			  const struct cl_lock_slice *slice,
-			  const struct cl_lock_descr *updated);
-	/**
-	 * Notifies layers (bottom-to-top) that lock is going to be
-	 * destroyed. Responsibility of layers is to prevent new references on
-	 * this lock from being acquired once this method returns.
-	 *
-	 * This can be called multiple times due to the races.
-	 *
-	 * \see cl_lock_delete()
-	 * \see osc_lock_delete(), lovsub_lock_delete()
-	 */
-	void (*clo_delete)(const struct lu_env *env,
-			   const struct cl_lock_slice *slice);
+	/** @} */
 	/**
 	 * Destructor. Frees resources and the slice.
 	 *
@@ -2165,9 +1735,13 @@ enum cl_enq_flags {
 	 */
 	CEF_AGL	  = 0x00000020,
 	/**
+	 * enqueue a lock to test DLM lock existence.
+	 */
+	CEF_PEEK	= 0x00000040,
+	/**
 	 * mask of enq_flags.
 	 */
-	CEF_MASK	 = 0x0000003f,
+	CEF_MASK         = 0x0000007f,
 };
 
 /**
@@ -2177,12 +1751,12 @@ enum cl_enq_flags {
 struct cl_io_lock_link {
 	/** linkage into one of cl_lockset lists. */
 	struct list_head	   cill_linkage;
-	struct cl_lock_descr cill_descr;
-	struct cl_lock      *cill_lock;
+	struct cl_lock          cill_lock;
 	/** optional destructor */
 	void	       (*cill_fini)(const struct lu_env *env,
 				    struct cl_io_lock_link *link);
 };
+#define cill_descr	cill_lock.cll_descr
 
 /**
  * Lock-set represents a collection of locks, that io needs at a
@@ -2216,8 +1790,6 @@ struct cl_io_lock_link {
 struct cl_lockset {
 	/** locks to be acquired. */
 	struct list_head  cls_todo;
-	/** locks currently being processed. */
-	struct list_head  cls_curr;
 	/** locks acquired. */
 	struct list_head  cls_done;
 };
@@ -2581,9 +2153,7 @@ struct cl_site {
 	 * and top-locks (and top-pages) are accounted here.
 	 */
 	struct cache_stats    cs_pages;
-	struct cache_stats    cs_locks;
 	atomic_t	  cs_pages_state[CPS_NR];
-	atomic_t	  cs_locks_state[CLS_NR];
 };
 
 int  cl_site_init(struct cl_site *s, struct cl_device *top);
@@ -2707,7 +2277,7 @@ int  cl_object_glimpse(const struct lu_env *env, struct cl_object *obj,
 		       struct ost_lvb *lvb);
 int  cl_conf_set(const struct lu_env *env, struct cl_object *obj,
 		 const struct cl_object_conf *conf);
-void cl_object_prune(const struct lu_env *env, struct cl_object *obj);
+int cl_object_prune(const struct lu_env *env, struct cl_object *obj);
 void cl_object_kill(const struct lu_env *env, struct cl_object *obj);
 
 /**
@@ -2845,121 +2415,17 @@ void cl_lock_descr_print(const struct lu_env *env, void *cookie,
  * @{
  */
 
-struct cl_lock *cl_lock_hold(const struct lu_env *env, const struct cl_io *io,
-			     const struct cl_lock_descr *need,
-			     const char *scope, const void *source);
-struct cl_lock *cl_lock_peek(const struct lu_env *env, const struct cl_io *io,
-			     const struct cl_lock_descr *need,
-			     const char *scope, const void *source);
-struct cl_lock *cl_lock_request(const struct lu_env *env, struct cl_io *io,
-				const struct cl_lock_descr *need,
-				const char *scope, const void *source);
-struct cl_lock *cl_lock_at_pgoff(const struct lu_env *env,
-				 struct cl_object *obj, pgoff_t index,
-				 struct cl_lock *except, int pending,
-				 int canceld);
+int cl_lock_request(const struct lu_env *env, struct cl_io *io,
+		    struct cl_lock *lock);
+int cl_lock_init(const struct lu_env *env, struct cl_lock *lock,
+		 const struct cl_io *io);
+void cl_lock_fini(const struct lu_env *env, struct cl_lock *lock);
 const struct cl_lock_slice *cl_lock_at(const struct cl_lock *lock,
 				       const struct lu_device_type *dtype);
-
-void cl_lock_get(struct cl_lock *lock);
-void cl_lock_get_trust(struct cl_lock *lock);
-void cl_lock_put(const struct lu_env *env, struct cl_lock *lock);
-void cl_lock_hold_add(const struct lu_env *env, struct cl_lock *lock,
-		      const char *scope, const void *source);
-void cl_lock_hold_release(const struct lu_env *env, struct cl_lock *lock,
-			  const char *scope, const void *source);
-void cl_lock_unhold(const struct lu_env *env, struct cl_lock *lock,
-		    const char *scope, const void *source);
-void cl_lock_release(const struct lu_env *env, struct cl_lock *lock,
-		     const char *scope, const void *source);
-void cl_lock_user_add(const struct lu_env *env, struct cl_lock *lock);
-void cl_lock_user_del(const struct lu_env *env, struct cl_lock *lock);
-
-int cl_lock_is_intransit(struct cl_lock *lock);
-
-int cl_lock_enqueue_wait(const struct lu_env *env, struct cl_lock *lock,
-			 int keep_mutex);
-
-/** \name statemachine statemachine
- * Interface to lock state machine consists of 3 parts:
- *
- *     - "try" functions that attempt to effect a state transition. If state
- *     transition is not possible right now (e.g., if it has to wait for some
- *     asynchronous event to occur), these functions return
- *     cl_lock_transition::CLO_WAIT.
- *
- *     - "non-try" functions that implement synchronous blocking interface on
- *     top of non-blocking "try" functions. These functions repeatedly call
- *     corresponding "try" versions, and if state transition is not possible
- *     immediately, wait for lock state change.
- *
- *     - methods from cl_lock_operations, called by "try" functions. Lock can
- *     be advanced to the target state only when all layers voted that they
- *     are ready for this transition. "Try" functions call methods under lock
- *     mutex. If a layer had to release a mutex, it re-acquires it and returns
- *     cl_lock_transition::CLO_REPEAT, causing "try" function to call all
- *     layers again.
- *
- * TRY	      NON-TRY      METHOD			    FINAL STATE
- *
- * cl_enqueue_try() cl_enqueue() cl_lock_operations::clo_enqueue() CLS_ENQUEUED
- *
- * cl_wait_try()    cl_wait()    cl_lock_operations::clo_wait()    CLS_HELD
- *
- * cl_unuse_try()   cl_unuse()   cl_lock_operations::clo_unuse()   CLS_CACHED
- *
- * cl_use_try()     NONE	 cl_lock_operations::clo_use()     CLS_HELD
- *
- * @{
- */
-
-int cl_wait(const struct lu_env *env, struct cl_lock *lock);
-void cl_unuse(const struct lu_env *env, struct cl_lock *lock);
-int cl_enqueue_try(const struct lu_env *env, struct cl_lock *lock,
-		   struct cl_io *io, __u32 flags);
-int cl_unuse_try(const struct lu_env *env, struct cl_lock *lock);
-int cl_wait_try(const struct lu_env *env, struct cl_lock *lock);
-int cl_use_try(const struct lu_env *env, struct cl_lock *lock, int atomic);
-
-/** @} statemachine */
-
-void cl_lock_signal(const struct lu_env *env, struct cl_lock *lock);
-int cl_lock_state_wait(const struct lu_env *env, struct cl_lock *lock);
-void cl_lock_state_set(const struct lu_env *env, struct cl_lock *lock,
-		       enum cl_lock_state state);
-int cl_queue_match(const struct list_head *queue,
-		   const struct cl_lock_descr *need);
-
-void cl_lock_mutex_get(const struct lu_env *env, struct cl_lock *lock);
-void cl_lock_mutex_put(const struct lu_env *env, struct cl_lock *lock);
-int cl_lock_is_mutexed(struct cl_lock *lock);
-int cl_lock_nr_mutexed(const struct lu_env *env);
-int cl_lock_discard_pages(const struct lu_env *env, struct cl_lock *lock);
-int cl_lock_ext_match(const struct cl_lock_descr *has,
-		      const struct cl_lock_descr *need);
-int cl_lock_descr_match(const struct cl_lock_descr *has,
-			const struct cl_lock_descr *need);
-int cl_lock_mode_match(enum cl_lock_mode has, enum cl_lock_mode need);
-int cl_lock_modify(const struct lu_env *env, struct cl_lock *lock,
-		   const struct cl_lock_descr *desc);
-
-void cl_lock_closure_init(const struct lu_env *env,
-			  struct cl_lock_closure *closure,
-			  struct cl_lock *origin, int wait);
-void cl_lock_closure_fini(struct cl_lock_closure *closure);
-int cl_lock_closure_build(const struct lu_env *env, struct cl_lock *lock,
-			  struct cl_lock_closure *closure);
-void cl_lock_disclosure(const struct lu_env *env,
-			struct cl_lock_closure *closure);
-int cl_lock_enclosure(const struct lu_env *env, struct cl_lock *lock,
-		      struct cl_lock_closure *closure);
-
+void cl_lock_release(const struct lu_env *env, struct cl_lock *lock);
+int cl_lock_enqueue(const struct lu_env *env, struct cl_io *io,
+		    struct cl_lock *lock, struct cl_sync_io *anchor);
 void cl_lock_cancel(const struct lu_env *env, struct cl_lock *lock);
-void cl_lock_delete(const struct lu_env *env, struct cl_lock *lock);
-void cl_lock_error(const struct lu_env *env, struct cl_lock *lock, int error);
-void cl_locks_prune(const struct lu_env *env, struct cl_object *obj, int wait);
-
-unsigned long cl_lock_weigh(const struct lu_env *env, struct cl_lock *lock);
 
 /** @} cl_lock */
 

@@ -233,7 +233,7 @@ static int vvp_mmap_locks(const struct lu_env *env,
 	ldlm_policy_data_t      policy;
 	unsigned long	   addr;
 	ssize_t		 count;
-	int		     result;
+	int		 result = 0;
 	struct iov_iter i;
 	struct iovec iov;
 
@@ -265,10 +265,10 @@ static int vvp_mmap_locks(const struct lu_env *env,
 
 			if (ll_file_nolock(vma->vm_file)) {
 				/*
-				 * For no lock case, a lockless lock will be
-				 * generated.
+				 * For no lock case is not allowed for mmap
 				 */
-				flags = CEF_NEVER;
+				result = -EINVAL;
+				break;
 			}
 
 			/*
@@ -290,10 +290,8 @@ static int vvp_mmap_locks(const struct lu_env *env,
 			       descr->cld_mode, descr->cld_start,
 			       descr->cld_end);
 
-			if (result < 0) {
-				up_read(&mm->mmap_sem);
-				return result;
-			}
+			if (result < 0)
+				break;
 
 			if (vma->vm_end - addr >= count)
 				break;
@@ -302,8 +300,10 @@ static int vvp_mmap_locks(const struct lu_env *env,
 			addr = vma->vm_end;
 		}
 		up_read(&mm->mmap_sem);
+		if (result < 0)
+			break;
 	}
-	return 0;
+	return result;
 }
 
 static int vvp_io_rw_lock(const struct lu_env *env, struct cl_io *io,
@@ -781,6 +781,7 @@ static int vvp_io_write_start(const struct lu_env *env,
 		 * PARALLEL IO This has to be changed for parallel IO doing
 		 * out-of-order writes.
 		 */
+		ll_merge_attr(env, inode);
 		pos = io->u.ci_wr.wr.crw_pos = i_size_read(inode);
 		cio->cui_iocb->ki_pos = pos;
 	} else {

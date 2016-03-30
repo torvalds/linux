@@ -2582,6 +2582,8 @@ struct ldlm_extent {
 	__u64 gid;
 };
 
+#define LDLM_GID_ANY ((__u64)-1)
+
 static inline int ldlm_extent_overlap(struct ldlm_extent *ex1,
 				      struct ldlm_extent *ex2)
 {

@@ -51,32 +51,9 @@
  *
  */
 
-/**
- * Estimates lock value for the purpose of managing the lock cache during
- * memory shortages.
- *
- * Locks for memory mapped files are almost infinitely precious, others are
- * junk. "Mapped locks" are heavy, but not infinitely heavy, so that they are
- * ordered within themselves by weights assigned from other layers.
- */
-static unsigned long vvp_lock_weigh(const struct lu_env *env,
-				    const struct cl_lock_slice *slice)
-{
-	struct ccc_object *cob = cl2ccc(slice->cls_obj);
-
-	return atomic_read(&cob->cob_mmap_cnt) > 0 ? ~0UL >> 2 : 0;
-}
-
 static const struct cl_lock_operations vvp_lock_ops = {
-	.clo_delete    = ccc_lock_delete,
 	.clo_fini      = ccc_lock_fini,
-	.clo_enqueue   = ccc_lock_enqueue,
-	.clo_wait      = ccc_lock_wait,
-	.clo_use       = ccc_lock_use,
-	.clo_unuse     = ccc_lock_unuse,
-	.clo_fits_into = ccc_lock_fits_into,
-	.clo_state     = ccc_lock_state,
-	.clo_weigh     = vvp_lock_weigh
+	.clo_enqueue   = ccc_lock_enqueue
 };
 
 int vvp_lock_init(const struct lu_env *env, struct cl_object *obj,

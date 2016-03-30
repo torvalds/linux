@@ -657,7 +657,7 @@ void ldlm_lock_addref(struct lustre_handle *lockh, __u32 mode)
 	struct ldlm_lock *lock;
 
 	lock = ldlm_handle2lock(lockh);
-	LASSERT(lock);
+	LASSERTF(lock, "Non-existing lock: %llx\n", lockh->cookie);
 	ldlm_lock_addref_internal(lock, mode);
 	LDLM_LOCK_PUT(lock);
 }
@@ -1092,6 +1092,7 @@ static struct ldlm_lock *search_queue(struct list_head *queue,
 
 		if (unlikely(match == LCK_GROUP) &&
 		    lock->l_resource->lr_type == LDLM_EXTENT &&
+		    policy->l_extent.gid != LDLM_GID_ANY &&
 		    lock->l_policy_data.l_extent.gid != policy->l_extent.gid)
 			continue;
 

@@ -281,24 +281,17 @@ struct lov_object {
 };
 
 /**
- * Flags that top-lock can set on each of its sub-locks.
- */
-enum lov_sub_flags {
-	/** Top-lock acquired a hold (cl_lock_hold()) on a sub-lock. */
-	LSF_HELD = 1 << 0
-};
-
-/**
  * State lov_lock keeps for each sub-lock.
  */
 struct lov_lock_sub {
 	/** sub-lock itself */
-	struct lovsub_lock  *sub_lock;
-	/** An array of per-sub-lock flags, taken from enum lov_sub_flags */
-	unsigned	     sub_flags;
+	struct cl_lock		sub_lock;
+	/** Set if the sublock has ever been enqueued, meaning it may
+	 * hold resources of underlying layers
+	 */
+	unsigned int		sub_is_enqueued:1,
+				sub_initialized:1;
 	int		  sub_stripe;
-	struct cl_lock_descr sub_descr;
-	struct cl_lock_descr sub_got;
 };
 
 /**
@@ -308,59 +301,8 @@ struct lov_lock {
 	struct cl_lock_slice   lls_cl;
 	/** Number of sub-locks in this lock */
 	int		    lls_nr;
-	/**
-	 * Number of existing sub-locks.
-	 */
-	unsigned	       lls_nr_filled;
-	/**
-	 * Set when sub-lock was canceled, while top-lock was being
-	 * used, or unused.
-	 */
-	unsigned int	       lls_cancel_race:1;
-	/**
-	 * An array of sub-locks
-	 *
-	 * There are two issues with managing sub-locks:
-	 *
-	 *     - sub-locks are concurrently canceled, and
-	 *
-	 *     - sub-locks are shared with other top-locks.
-	 *
-	 * To manage cancellation, top-lock acquires a hold on a sublock
-	 * (lov_sublock_adopt()) when the latter is inserted into
-	 * lov_lock::lls_sub[]. This hold is released (lov_sublock_release())
-	 * when top-lock is going into CLS_CACHED state or destroyed. Hold
-	 * prevents sub-lock from cancellation.
-	 *
-	 * Sub-lock sharing means, among other things, that top-lock that is
-	 * in the process of creation (i.e., not yet inserted into lock list)
-	 * is already accessible to other threads once at least one of its
-	 * sub-locks is created, see lov_lock_sub_init().
-	 *
-	 * Sub-lock can be in one of the following states:
-	 *
-	 *     - doesn't exist, lov_lock::lls_sub[]::sub_lock == NULL. Such
-	 *       sub-lock was either never created (top-lock is in CLS_NEW
-	 *       state), or it was created, then canceled, then destroyed
-	 *       (lov_lock_unlink() cleared sub-lock pointer in the top-lock).
-	 *
-	 *     - sub-lock exists and is on
-	 *       hold. (lov_lock::lls_sub[]::sub_flags & LSF_HELD). This is a
-	 *       normal state of a sub-lock in CLS_HELD and CLS_CACHED states
-	 *       of a top-lock.
-	 *
-	 *     - sub-lock exists, but is not held by the top-lock. This
-	 *       happens after top-lock released a hold on sub-locks before
-	 *       going into cache (lov_lock_unuse()).
-	 *
-	 * \todo To support wide-striping, array has to be replaced with a set
-	 * of queues to avoid scanning.
-	 */
-	struct lov_lock_sub   *lls_sub;
-	/**
-	 * Original description with which lock was enqueued.
-	 */
-	struct cl_lock_descr   lls_orig;
+	/** sublock array */
+	struct lov_lock_sub     lls_sub[0];
 };
 
 struct lov_page {
@@ -445,7 +387,6 @@ struct lov_thread_info {
 	struct ost_lvb	  lti_lvb;
 	struct cl_2queue	lti_cl2q;
 	struct cl_page_list     lti_plist;
-	struct cl_lock_closure  lti_closure;
 	wait_queue_t	  lti_waiter;
 	struct cl_attr          lti_attr;
 };

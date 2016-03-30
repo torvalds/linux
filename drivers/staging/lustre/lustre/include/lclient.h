@@ -99,10 +99,6 @@ struct ccc_io {
 		} write;
 	} u;
 	/**
-	 * True iff io is processing glimpse right now.
-	 */
-	int		  cui_glimpse;
-	/**
 	 * Layout version when this IO is initialized
 	 */
 	__u32		cui_layout_gen;
@@ -123,6 +119,7 @@ extern struct lu_context_key ccc_key;
 extern struct lu_context_key ccc_session_key;
 
 struct ccc_thread_info {
+	struct cl_lock		cti_lock;
 	struct cl_lock_descr cti_descr;
 	struct cl_io	 cti_io;
 	struct cl_attr       cti_attr;
@@ -135,6 +132,14 @@ static inline struct ccc_thread_info *ccc_env_info(const struct lu_env *env)
 	info = lu_context_key_get(&env->le_ctx, &ccc_key);
 	LASSERT(info);
 	return info;
+}
+
+static inline struct cl_lock *ccc_env_lock(const struct lu_env *env)
+{
+	struct cl_lock *lock = &ccc_env_info(env)->cti_lock;
+
+	memset(lock, 0, sizeof(*lock));
+	return lock;
 }
 
 static inline struct cl_attr *ccc_env_thread_attr(const struct lu_env *env)
@@ -308,18 +313,7 @@ void ccc_lock_delete(const struct lu_env *env,
 void ccc_lock_fini(const struct lu_env *env, struct cl_lock_slice *slice);
 int ccc_lock_enqueue(const struct lu_env *env,
 		     const struct cl_lock_slice *slice,
-		     struct cl_io *io, __u32 enqflags);
-int ccc_lock_use(const struct lu_env *env, const struct cl_lock_slice *slice);
-int ccc_lock_unuse(const struct lu_env *env, const struct cl_lock_slice *slice);
-int ccc_lock_wait(const struct lu_env *env, const struct cl_lock_slice *slice);
-int ccc_lock_fits_into(const struct lu_env *env,
-		       const struct cl_lock_slice *slice,
-		       const struct cl_lock_descr *need,
-		       const struct cl_io *io);
-void ccc_lock_state(const struct lu_env *env,
-		    const struct cl_lock_slice *slice,
-		    enum cl_lock_state state);
-
+		     struct cl_io *io, struct cl_sync_io *anchor);
 int ccc_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 			  __u32 enqflags, enum cl_lock_mode mode,
 			  pgoff_t start, pgoff_t end);

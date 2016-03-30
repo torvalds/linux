@@ -170,11 +170,15 @@ static int vvp_prune(const struct lu_env *env, struct cl_object *obj)
 	struct inode *inode = ccc_object_inode(obj);
 	int rc;
 
-	rc = cl_sync_file_range(inode, 0, OBD_OBJECT_EOF, CL_FSYNC_ALL, 1);
-	if (rc == 0)
-		truncate_inode_pages(inode->i_mapping, 0);
+	rc = cl_sync_file_range(inode, 0, OBD_OBJECT_EOF, CL_FSYNC_LOCAL, 1);
+	if (rc < 0) {
+		CDEBUG(D_VFSTRACE, DFID ": writeback failed: %d\n",
+		       PFID(lu_object_fid(&obj->co_lu)), rc);
+		return rc;
+	}
 
-	return rc;
+	truncate_inode_pages(inode->i_mapping, 0);
+	return 0;
 }
 
 static const struct cl_object_operations vvp_ops = {

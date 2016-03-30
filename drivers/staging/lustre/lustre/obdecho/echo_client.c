@@ -171,7 +171,7 @@ struct echo_thread_info {
 
 	struct cl_2queue	eti_queue;
 	struct cl_io	    eti_io;
-	struct cl_lock_descr    eti_descr;
+	struct cl_lock          eti_lock;
 	struct lu_fid	   eti_fid;
 	struct lu_fid		eti_fid2;
 };
@@ -327,26 +327,8 @@ static void echo_lock_fini(const struct lu_env *env,
 	kmem_cache_free(echo_lock_kmem, ecl);
 }
 
-static void echo_lock_delete(const struct lu_env *env,
-			     const struct cl_lock_slice *slice)
-{
-	struct echo_lock *ecl      = cl2echo_lock(slice);
-
-	LASSERT(list_empty(&ecl->el_chain));
-}
-
-static int echo_lock_fits_into(const struct lu_env *env,
-			       const struct cl_lock_slice *slice,
-			       const struct cl_lock_descr *need,
-			       const struct cl_io *unused)
-{
-	return 1;
-}
-
 static struct cl_lock_operations echo_lock_ops = {
 	.clo_fini      = echo_lock_fini,
-	.clo_delete    = echo_lock_delete,
-	.clo_fits_into = echo_lock_fits_into
 };
 
 /** @} echo_lock */
@@ -811,16 +793,7 @@ static void echo_lock_release(const struct lu_env *env,
 {
 	struct cl_lock *clk = echo_lock2cl(ecl);
 
-	cl_lock_get(clk);
-	cl_unuse(env, clk);
-	cl_lock_release(env, clk, "ec enqueue", ecl->el_object);
-	if (!still_used) {
-		cl_lock_mutex_get(env, clk);
-		cl_lock_cancel(env, clk);
-		cl_lock_delete(env, clk);
-		cl_lock_mutex_put(env, clk);
-	}
-	cl_lock_put(env, clk);
+	cl_lock_release(env, clk);
 }
 
 static struct lu_device *echo_device_free(const struct lu_env *env,
@@ -1014,9 +987,11 @@ static int cl_echo_enqueue0(struct lu_env *env, struct echo_object *eco,
 
 	info = echo_env_info(env);
 	io = &info->eti_io;
-	descr = &info->eti_descr;
+	lck = &info->eti_lock;
 	obj = echo_obj2cl(eco);
 
+	memset(lck, 0, sizeof(*lck));
+	descr = &lck->cll_descr;
 	descr->cld_obj   = obj;
 	descr->cld_start = cl_index(obj, start);
 	descr->cld_end   = cl_index(obj, end);
@@ -1024,25 +999,20 @@ static int cl_echo_enqueue0(struct lu_env *env, struct echo_object *eco,
 	descr->cld_enq_flags = enqflags;
 	io->ci_obj = obj;
 
-	lck = cl_lock_request(env, io, descr, "ec enqueue", eco);
-	if (lck) {
+	rc = cl_lock_request(env, io, lck);
+	if (rc == 0) {
 		struct echo_client_obd *ec = eco->eo_dev->ed_ec;
 		struct echo_lock *el;
 
-		rc = cl_wait(env, lck);
-		if (rc == 0) {
-			el = cl2echo_lock(cl_lock_at(lck, &echo_device_type));
-			spin_lock(&ec->ec_lock);
-			if (list_empty(&el->el_chain)) {
-				list_add(&el->el_chain, &ec->ec_locks);
-				el->el_cookie = ++ec->ec_unique;
-			}
-			atomic_inc(&el->el_refcount);
-			*cookie = el->el_cookie;
-			spin_unlock(&ec->ec_lock);
-		} else {
-			cl_lock_release(env, lck, "ec enqueue", current);
+		el = cl2echo_lock(cl_lock_at(lck, &echo_device_type));
+		spin_lock(&ec->ec_lock);
+		if (list_empty(&el->el_chain)) {
+			list_add(&el->el_chain, &ec->ec_locks);
+			el->el_cookie = ++ec->ec_unique;
 		}
+		atomic_inc(&el->el_refcount);
+		*cookie = el->el_cookie;
+		spin_unlock(&ec->ec_lock);
 	}
 	return rc;
 }

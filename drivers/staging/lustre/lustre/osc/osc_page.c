@@ -135,15 +135,15 @@ static int osc_page_is_under_lock(const struct lu_env *env,
 				  struct cl_io *unused, pgoff_t *max_index)
 {
 	struct osc_page *opg = cl2osc_page(slice);
-	struct cl_lock *lock;
+	struct ldlm_lock *dlmlock;
 	int result = -ENODATA;
 
-	*max_index = 0;
-	lock = cl_lock_at_pgoff(env, slice->cpl_obj, osc_index(opg),
-				NULL, 1, 0);
-	if (lock) {
-		*max_index = lock->cll_descr.cld_end;
-		cl_lock_put(env, lock);
+	dlmlock = osc_dlmlock_at_pgoff(env, cl2osc(slice->cpl_obj),
+				       osc_index(opg), 1, 0);
+	if (dlmlock) {
+		*max_index = cl_index(slice->cpl_obj,
+				      dlmlock->l_policy_data.l_extent.end);
+		LDLM_LOCK_PUT(dlmlock);
 		result = 0;
 	}
 	return result;

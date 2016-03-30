@@ -310,8 +310,6 @@ static int lov_delete_empty(const struct lu_env *env, struct lov_object *lov,
 	LASSERT(lov->lo_type == LLT_EMPTY || lov->lo_type == LLT_RELEASED);
 
 	lov_layout_wait(env, lov);
-
-	cl_locks_prune(env, &lov->lo_cl, 0);
 	return 0;
 }
 
@@ -379,7 +377,7 @@ static int lov_delete_raid0(const struct lu_env *env, struct lov_object *lov,
 			struct lovsub_object *los = r0->lo_sub[i];
 
 			if (los) {
-				cl_locks_prune(env, &los->lso_cl, 1);
+				cl_object_prune(env, &los->lso_cl);
 				/*
 				 * If top-level object is to be evicted from
 				 * the cache, so are its sub-objects.
@@ -388,7 +386,6 @@ static int lov_delete_raid0(const struct lu_env *env, struct lov_object *lov,
 			}
 		}
 	}
-	cl_locks_prune(env, &lov->lo_cl, 0);
 	return 0;
 }
 
@@ -714,7 +711,9 @@ static int lov_layout_change(const struct lu_env *unused,
 	old_ops = &lov_dispatch[lov->lo_type];
 	new_ops = &lov_dispatch[llt];
 
-	cl_object_prune(env, &lov->lo_cl);
+	result = cl_object_prune(env, &lov->lo_cl);
+	if (result != 0)
+		goto out;
 
 	result = old_ops->llo_delete(env, lov, &lov->u);
 	if (result == 0) {
@@ -736,6 +735,7 @@ static int lov_layout_change(const struct lu_env *unused,
 		}
 	}
 
+out:
 	cl_env_put(env, &refcheck);
 	cl_env_reexit(cookie);
 	return result;
@@ -816,7 +816,8 @@ static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
 		goto out;
 	}
 
-	lov->lo_layout_invalid = lov_layout_change(env, lov, conf);
+	result = lov_layout_change(env, lov, conf);
+	lov->lo_layout_invalid = result != 0;
 
 out:
 	lov_conf_unlock(lov);

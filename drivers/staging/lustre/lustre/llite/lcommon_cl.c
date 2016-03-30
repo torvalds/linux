@@ -475,12 +475,6 @@ int ccc_transient_page_prep(const struct lu_env *env,
  *
  */
 
-void ccc_lock_delete(const struct lu_env *env,
-		     const struct cl_lock_slice *slice)
-{
-	CLOBINVRNT(env, slice->cls_obj, ccc_object_invariant(slice->cls_obj));
-}
-
 void ccc_lock_fini(const struct lu_env *env, struct cl_lock_slice *slice)
 {
 	struct ccc_lock *clk = cl2ccc_lock(slice);
@@ -490,109 +484,10 @@ void ccc_lock_fini(const struct lu_env *env, struct cl_lock_slice *slice)
 
 int ccc_lock_enqueue(const struct lu_env *env,
 		     const struct cl_lock_slice *slice,
-		     struct cl_io *unused, __u32 enqflags)
+		     struct cl_io *unused, struct cl_sync_io *anchor)
 {
 	CLOBINVRNT(env, slice->cls_obj, ccc_object_invariant(slice->cls_obj));
 	return 0;
-}
-
-int ccc_lock_use(const struct lu_env *env, const struct cl_lock_slice *slice)
-{
-	CLOBINVRNT(env, slice->cls_obj, ccc_object_invariant(slice->cls_obj));
-	return 0;
-}
-
-int ccc_lock_unuse(const struct lu_env *env, const struct cl_lock_slice *slice)
-{
-	CLOBINVRNT(env, slice->cls_obj, ccc_object_invariant(slice->cls_obj));
-	return 0;
-}
-
-int ccc_lock_wait(const struct lu_env *env, const struct cl_lock_slice *slice)
-{
-	CLOBINVRNT(env, slice->cls_obj, ccc_object_invariant(slice->cls_obj));
-	return 0;
-}
-
-/**
- * Implementation of cl_lock_operations::clo_fits_into() methods for ccc
- * layer. This function is executed every time io finds an existing lock in
- * the lock cache while creating new lock. This function has to decide whether
- * cached lock "fits" into io.
- *
- * \param slice lock to be checked
- * \param io    IO that wants a lock.
- *
- * \see lov_lock_fits_into().
- */
-int ccc_lock_fits_into(const struct lu_env *env,
-		       const struct cl_lock_slice *slice,
-		       const struct cl_lock_descr *need,
-		       const struct cl_io *io)
-{
-	const struct cl_lock       *lock  = slice->cls_lock;
-	const struct cl_lock_descr *descr = &lock->cll_descr;
-	const struct ccc_io	*cio   = ccc_env_io(env);
-	int			 result;
-
-	/*
-	 * Work around DLM peculiarity: it assumes that glimpse
-	 * (LDLM_FL_HAS_INTENT) lock is always LCK_PR, and returns reads lock
-	 * when asked for LCK_PW lock with LDLM_FL_HAS_INTENT flag set. Make
-	 * sure that glimpse doesn't get CLM_WRITE top-lock, so that it
-	 * doesn't enqueue CLM_WRITE sub-locks.
-	 */
-	if (cio->cui_glimpse)
-		result = descr->cld_mode != CLM_WRITE;
-
-	/*
-	 * Also, don't match incomplete write locks for read, otherwise read
-	 * would enqueue missing sub-locks in the write mode.
-	 */
-	else if (need->cld_mode != descr->cld_mode)
-		result = lock->cll_state >= CLS_ENQUEUED;
-	else
-		result = 1;
-	return result;
-}
-
-/**
- * Implements cl_lock_operations::clo_state() method for ccc layer, invoked
- * whenever lock state changes. Transfers object attributes, that might be
- * updated as a result of lock acquiring into inode.
- */
-void ccc_lock_state(const struct lu_env *env,
-		    const struct cl_lock_slice *slice,
-		    enum cl_lock_state state)
-{
-	struct cl_lock *lock = slice->cls_lock;
-
-	/*
-	 * Refresh inode attributes when the lock is moving into CLS_HELD
-	 * state, and only when this is a result of real enqueue, rather than
-	 * of finding lock in the cache.
-	 */
-	if (state == CLS_HELD && lock->cll_state < CLS_HELD) {
-		struct cl_object *obj;
-		struct inode     *inode;
-
-		obj   = slice->cls_obj;
-		inode = ccc_object_inode(obj);
-
-		/* vmtruncate() sets the i_size
-		 * under both a DLM lock and the
-		 * ll_inode_size_lock().  If we don't get the
-		 * ll_inode_size_lock() here we can match the DLM lock and
-		 * reset i_size.  generic_file_write can then trust the
-		 * stale i_size when doing appending writes and effectively
-		 * cancel the result of the truncate.  Getting the
-		 * ll_inode_size_lock() after the enqueue maintains the DLM
-		 * -> ll_inode_size_lock() acquiring order.
-		 */
-		if (lock->cll_descr.cld_start == 0 &&
-		    lock->cll_descr.cld_end == CL_PAGE_EOF)
-			ll_merge_attr(env, inode);
-	}
 }
 
 /*****************************************************************************

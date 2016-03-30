@@ -143,9 +143,7 @@ static void *lov_key_init(const struct lu_context *ctx,
 	struct lov_thread_info *info;
 
 	info = kmem_cache_zalloc(lov_thread_kmem, GFP_NOFS);
-	if (info)
-		INIT_LIST_HEAD(&info->lti_closure.clc_list);
-	else
+	if (!info)
 		info = ERR_PTR(-ENOMEM);
 	return info;
 }
@@ -155,7 +153,6 @@ static void lov_key_fini(const struct lu_context *ctx,
 {
 	struct lov_thread_info *info = data;
 
-	LINVRNT(list_empty(&info->lti_closure.clc_list));
 	kmem_cache_free(lov_thread_kmem, info);
 }
 

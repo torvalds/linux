@@ -1075,12 +1075,3 @@ void cl_page_slice_add(struct cl_page *page, struct cl_page_slice *slice,
 	slice->cpl_page = page;
 }
 EXPORT_SYMBOL(cl_page_slice_add);
-
-int  cl_page_init(void)
-{
-	return 0;
-}
-
-void cl_page_fini(void)
-{
-}

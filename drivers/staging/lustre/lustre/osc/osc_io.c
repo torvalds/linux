@@ -354,6 +354,7 @@ static void osc_io_rw_iter_fini(const struct lu_env *env,
 		atomic_add(oio->oi_lru_reserved, cli->cl_lru_left);
 		oio->oi_lru_reserved = 0;
 	}
+	oio->oi_write_osclock = NULL;
 }
 
 static int osc_io_fault_start(const struct lu_env *env,
@@ -751,8 +752,7 @@ static void osc_req_attr_set(const struct lu_env *env,
 	struct lov_oinfo *oinfo;
 	struct cl_req *clerq;
 	struct cl_page *apage; /* _some_ page in @clerq */
-	struct cl_lock *lock;  /* _some_ lock protecting @apage */
-	struct osc_lock *olck;
+	struct ldlm_lock *lock;  /* _some_ lock protecting @apage */
 	struct osc_page *opg;
 	struct obdo *oa;
 	struct ost_lvb *lvb;
@@ -782,38 +782,37 @@ static void osc_req_attr_set(const struct lu_env *env,
 		oa->o_valid |= OBD_MD_FLID;
 	}
 	if (flags & OBD_MD_FLHANDLE) {
-		struct cl_object *subobj;
 
 		clerq = slice->crs_req;
 		LASSERT(!list_empty(&clerq->crq_pages));
 		apage = container_of(clerq->crq_pages.next,
 				     struct cl_page, cp_flight);
 		opg = osc_cl_page_osc(apage, NULL);
-		subobj = opg->ops_cl.cpl_obj;
-		lock = cl_lock_at_pgoff(env, subobj, osc_index(opg),
-					NULL, 1, 1);
-		if (!lock) {
-			struct cl_object_header *head;
-			struct cl_lock *scan;
+		lock = osc_dlmlock_at_pgoff(env, cl2osc(obj), osc_index(opg),
+					    1, 1);
+		if (!lock && !opg->ops_srvlock) {
+			struct ldlm_resource *res;
+			struct ldlm_res_id *resname;
 
-			head = cl_object_header(subobj);
-			list_for_each_entry(scan, &head->coh_locks, cll_linkage)
-				CL_LOCK_DEBUG(D_ERROR, env, scan,
-					      "no cover page!\n");
-			CL_PAGE_DEBUG(D_ERROR, env, apage,
-				      "dump uncover page!\n");
+			CL_PAGE_DEBUG(D_ERROR, env, apage, "uncovered page!\n");
+
+			resname = &osc_env_info(env)->oti_resname;
+			ostid_build_res_name(&oinfo->loi_oi, resname);
+			res = ldlm_resource_get(
+				osc_export(cl2osc(obj))->exp_obd->obd_namespace,
+				NULL, resname, LDLM_EXTENT, 0);
+			ldlm_resource_dump(D_ERROR, res);
+
 			dump_stack();
 			LBUG();
 		}
 
-		olck = osc_lock_at(lock);
-		LASSERT(ergo(opg->ops_srvlock, !olck->ols_lock));
 		/* check for lockless io. */
-		if (olck->ols_lock) {
-			oa->o_handle = olck->ols_lock->l_remote_handle;
+		if (lock) {
+			oa->o_handle = lock->l_remote_handle;
 			oa->o_valid |= OBD_MD_FLHANDLE;
+			LDLM_LOCK_PUT(lock);
 		}
-		cl_lock_put(env, lock);
 	}
 }
 
