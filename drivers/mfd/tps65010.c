@@ -34,7 +34,7 @@
 
 #include <linux/i2c/tps65010.h>
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 
 /*-------------------------------------------------------------------------*/
@@ -477,7 +477,7 @@ tps65010_output(struct gpio_chip *chip, unsigned offset, int value)
 	if (offset < 4) {
 		struct tps65010		*tps;
 
-		tps = container_of(chip, struct tps65010, chip);
+		tps = gpiochip_get_data(chip);
 		if (!(tps->outmask & (1 << offset)))
 			return -EINVAL;
 		tps65010_set_gpio_out_value(offset + 1, value);
@@ -494,7 +494,7 @@ static int tps65010_gpio_get(struct gpio_chip *chip, unsigned offset)
 	int			value;
 	struct tps65010		*tps;
 
-	tps = container_of(chip, struct tps65010, chip);
+	tps = gpiochip_get_data(chip);
 
 	if (offset < 4) {
 		value = i2c_smbus_read_byte_data(tps->client, TPS_DEFGPIO);
@@ -651,7 +651,7 @@ static int tps65010_probe(struct i2c_client *client,
 		tps->chip.ngpio = 7;
 		tps->chip.can_sleep = 1;
 
-		status = gpiochip_add(&tps->chip);
+		status = gpiochip_add_data(&tps->chip, tps);
 		if (status < 0)
 			dev_err(&client->dev, "can't add gpiochip, err %d\n",
 					status);
