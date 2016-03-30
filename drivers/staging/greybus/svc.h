@@ -41,7 +41,7 @@ struct gb_svc {
 	char                    *input_phys;
 	struct gb_svc_watchdog	*watchdog;
 };
-#define to_gb_svc(d) container_of(d, struct gb_svc, d)
+#define to_gb_svc(d) container_of(d, struct gb_svc, dev)
 
 struct gb_svc *gb_svc_create(struct gb_host_device *hd);
 int gb_svc_add(struct gb_svc *svc);
