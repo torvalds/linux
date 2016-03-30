@@ -22,7 +22,8 @@ struct gb_audio_manager_module_descriptor {
 	int vid;
 	int pid;
 	int cport;
-	unsigned int devices;
+	unsigned int ip_devices;
+	unsigned int op_devices;
 };
 
 struct gb_audio_manager_module {

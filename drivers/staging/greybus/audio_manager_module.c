@@ -122,16 +122,27 @@ static struct gb_audio_manager_module_attribute
 					gb_audio_module_cport_attribute =
 	__ATTR(cport, 0664, gb_audio_module_cport_show, NULL);
 
-static ssize_t gb_audio_module_devices_show(
+static ssize_t gb_audio_module_ip_devices_show(
 	struct gb_audio_manager_module *module,
 	struct gb_audio_manager_module_attribute *attr, char *buf)
 {
-	return sprintf(buf, "0x%X", module->desc.devices);
+	return sprintf(buf, "0x%X", module->desc.ip_devices);
 }
 
 static struct gb_audio_manager_module_attribute
-					gb_audio_module_devices_attribute =
-	__ATTR(devices, 0664, gb_audio_module_devices_show, NULL);
+					gb_audio_module_ip_devices_attribute =
+	__ATTR(ip_devices, 0664, gb_audio_module_ip_devices_show, NULL);
+
+static ssize_t gb_audio_module_op_devices_show(
+	struct gb_audio_manager_module *module,
+	struct gb_audio_manager_module_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%X", module->desc.op_devices);
+}
+
+static struct gb_audio_manager_module_attribute
+					gb_audio_module_op_devices_attribute =
+	__ATTR(op_devices, 0664, gb_audio_module_op_devices_show, NULL);
 
 static struct attribute *gb_audio_module_default_attrs[] = {
 	&gb_audio_module_name_attribute.attr,
@@ -139,7 +150,8 @@ static struct attribute *gb_audio_module_default_attrs[] = {
 	&gb_audio_module_vid_attribute.attr,
 	&gb_audio_module_pid_attribute.attr,
 	&gb_audio_module_cport_attribute.attr,
-	&gb_audio_module_devices_attribute.attr,
+	&gb_audio_module_ip_devices_attribute.attr,
+	&gb_audio_module_op_devices_attribute.attr,
 	NULL,   /* need to NULL terminate the list of attributes */
 };
 
@@ -156,7 +168,8 @@ static void send_add_uevent(struct gb_audio_manager_module *module)
 	char vid_string[64];
 	char pid_string[64];
 	char cport_string[64];
-	char devices_string[64];
+	char ip_devices_string[64];
+	char op_devices_string[64];
 
 	char *envp[] = {
 		name_string,
@@ -164,7 +177,8 @@ static void send_add_uevent(struct gb_audio_manager_module *module)
 		vid_string,
 		pid_string,
 		cport_string,
-		devices_string,
+		ip_devices_string,
+		op_devices_string,
 		NULL
 	};
 
@@ -173,7 +187,10 @@ static void send_add_uevent(struct gb_audio_manager_module *module)
 	snprintf(vid_string, 64, "VID=%d", module->desc.vid);
 	snprintf(pid_string, 64, "PID=%d", module->desc.pid);
 	snprintf(cport_string, 64, "CPORT=%d", module->desc.cport);
-	snprintf(devices_string, 64, "DEVICES=0x%X", module->desc.devices);
+	snprintf(ip_devices_string, 64, "I/P DEVICES=0x%X",
+		 module->desc.ip_devices);
+	snprintf(op_devices_string, 64, "O/P DEVICES=0x%X",
+		 module->desc.op_devices);
 
 	kobject_uevent_env(&module->kobj, KOBJ_ADD, envp);
 }
@@ -229,12 +246,13 @@ int gb_audio_manager_module_create(
 
 void gb_audio_manager_module_dump(struct gb_audio_manager_module *module)
 {
-	pr_info("audio module #%d name=%s slot=%d vid=%d pid=%d cport=%d devices=0x%X\n",
+	pr_info("audio module #%d name=%s slot=%d vid=%d pid=%d cport=%d i/p devices=0x%X o/p devices=0x%X\n",
 		module->id,
 		module->desc.name,
 		module->desc.slot,
 		module->desc.vid,
 		module->desc.pid,
 		module->desc.cport,
-		module->desc.devices);
+		module->desc.ip_devices,
+		module->desc.op_devices);
 }
