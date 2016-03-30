@@ -425,7 +425,7 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 
 	CDEBUG(D_CONFIG, "Target uuid: %s. index %d\n", uuidp->uuid, index);
 
-	lmv_init_lock(lmv);
+	mutex_lock(&lmv->lmv_init_mutex);
 
 	if (lmv->desc.ld_tgt_count == 0) {
 		struct obd_device *mdc_obd;
@@ -433,7 +433,7 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		mdc_obd = class_find_client_obd(uuidp, LUSTRE_MDC_NAME,
 						&obd->obd_uuid);
 		if (!mdc_obd) {
-			lmv_init_unlock(lmv);
+			mutex_unlock(&lmv->lmv_init_mutex);
 			CERROR("%s: Target %s not attached: rc = %d\n",
 			       obd->obd_name, uuidp->uuid, -EINVAL);
 			return -EINVAL;
@@ -445,7 +445,7 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		CERROR("%s: UUID %s already assigned at LOV target index %d: rc = %d\n",
 		       obd->obd_name,
 		       obd_uuid2str(&tgt->ltd_uuid), index, -EEXIST);
-		lmv_init_unlock(lmv);
+		mutex_unlock(&lmv->lmv_init_mutex);
 		return -EEXIST;
 	}
 
@@ -459,7 +459,7 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 			newsize <<= 1;
 		newtgts = kcalloc(newsize, sizeof(*newtgts), GFP_NOFS);
 		if (!newtgts) {
-			lmv_init_unlock(lmv);
+			mutex_unlock(&lmv->lmv_init_mutex);
 			return -ENOMEM;
 		}
 
@@ -481,7 +481,7 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 
 	tgt = kzalloc(sizeof(*tgt), GFP_NOFS);
 	if (!tgt) {
-		lmv_init_unlock(lmv);
+		mutex_unlock(&lmv->lmv_init_mutex);
 		return -ENOMEM;
 	}
 
@@ -507,7 +507,7 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		}
 	}
 
-	lmv_init_unlock(lmv);
+	mutex_unlock(&lmv->lmv_init_mutex);
 	return rc;
 }
 
@@ -522,14 +522,14 @@ int lmv_check_connect(struct obd_device *obd)
 	if (lmv->connected)
 		return 0;
 
-	lmv_init_lock(lmv);
+	mutex_lock(&lmv->lmv_init_mutex);
 	if (lmv->connected) {
-		lmv_init_unlock(lmv);
+		mutex_unlock(&lmv->lmv_init_mutex);
 		return 0;
 	}
 
 	if (lmv->desc.ld_tgt_count == 0) {
-		lmv_init_unlock(lmv);
+		mutex_unlock(&lmv->lmv_init_mutex);
 		CERROR("%s: no targets configured.\n", obd->obd_name);
 		return -EINVAL;
 	}
@@ -551,7 +551,7 @@ int lmv_check_connect(struct obd_device *obd)
 	lmv->connected = 1;
 	easize = lmv_get_easize(lmv);
 	lmv_init_ea_size(obd->obd_self_export, easize, 0, 0, 0);
-	lmv_init_unlock(lmv);
+	mutex_unlock(&lmv->lmv_init_mutex);
 	return 0;
 
  out_disc:
@@ -572,7 +572,7 @@ int lmv_check_connect(struct obd_device *obd)
 		}
 	}
 	class_disconnect(lmv->exp);
-	lmv_init_unlock(lmv);
+	mutex_unlock(&lmv->lmv_init_mutex);
 	return rc;
 }
 
@@ -1269,7 +1269,7 @@ static int lmv_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	lmv->lmv_placement = PLACEMENT_CHAR_POLICY;
 
 	spin_lock_init(&lmv->lmv_lock);
-	mutex_init(&lmv->init_mutex);
+	mutex_init(&lmv->lmv_init_mutex);
 
 	lprocfs_lmv_init_vars(&lvars);
 

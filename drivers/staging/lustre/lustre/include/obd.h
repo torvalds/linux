@@ -512,7 +512,7 @@ struct lmv_obd {
 	struct obd_uuid		cluuid;
 	struct obd_export	*exp;
 
-	struct mutex		init_mutex;
+	struct mutex		lmv_init_mutex;
 	int			connected;
 	int			max_easize;
 	int			max_def_easize;
