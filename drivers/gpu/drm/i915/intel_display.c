@@ -3222,9 +3222,6 @@ static void intel_update_pipe_config(struct intel_crtc *crtc,
 		      old_crtc_state->pipe_src_w, old_crtc_state->pipe_src_h,
 		      pipe_config->pipe_src_w, pipe_config->pipe_src_h);
 
-	if (HAS_DDI(dev))
-		intel_color_set_csc(&pipe_config->base);
-
 	/*
 	 * Update pipe size and adjust fitter if needed: the reason for this is
 	 * that in compute_mode_changes we check the native mode (not the pfit
@@ -13591,18 +13588,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 			dev_priv->display.crtc_enable(crtc);
 		}
 
-		if (!modeset &&
-		    crtc->state->active &&
-		    crtc->state->color_mgmt_changed) {
-			/*
-			 * Only update color management when not doing
-			 * a modeset as this will be done by
-			 * crtc_enable already.
-			 */
-			intel_color_set_csc(crtc->state);
-			intel_color_load_luts(crtc->state);
-		}
-
 		if (!modeset)
 			intel_pre_plane_update(to_intel_crtc_state(old_crtc_state));
 
@@ -13920,6 +13905,11 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc,
 
 	if (modeset)
 		return;
+
+	if (crtc->state->color_mgmt_changed || to_intel_crtc_state(crtc->state)->update_pipe) {
+		intel_color_set_csc(crtc->state);
+		intel_color_load_luts(crtc->state);
+	}
 
 	if (to_intel_crtc_state(crtc->state)->update_pipe)
 		intel_update_pipe_config(intel_crtc, old_intel_state);
