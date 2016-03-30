@@ -557,8 +557,15 @@ static bool mmu_spte_update(u64 *sptep, u64 new_spte)
 	      !is_writable_pte(new_spte))
 		ret = true;
 
-	if (!shadow_accessed_mask)
+	if (!shadow_accessed_mask) {
+		/*
+		 * We don't set page dirty when dropping non-writable spte.
+		 * So do it now if the new spte is becoming non-writable.
+		 */
+		if (ret)
+			kvm_set_pfn_dirty(spte_to_pfn(old_spte));
 		return ret;
+	}
 
 	/*
 	 * Flush TLB when accessed/dirty bits are changed in the page tables,
@@ -605,7 +612,8 @@ static int mmu_spte_clear_track_bits(u64 *sptep)
 
 	if (!shadow_accessed_mask || old_spte & shadow_accessed_mask)
 		kvm_set_pfn_accessed(pfn);
-	if (!shadow_dirty_mask || (old_spte & shadow_dirty_mask))
+	if (old_spte & (shadow_dirty_mask ? shadow_dirty_mask :
+					    PT_WRITABLE_MASK))
 		kvm_set_pfn_dirty(pfn);
 	return 1;
 }
