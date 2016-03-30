@@ -73,19 +73,6 @@
  *     - top-page keeps a reference to its sub-page, and destroys it when it
  *       is destroyed.
  *
- *     - sub-lock keep a reference to its top-locks. Top-lock keeps a
- *       reference (and a hold, see cl_lock_hold()) on its sub-locks when it
- *       actively using them (that is, in cl_lock_state::CLS_QUEUING,
- *       cl_lock_state::CLS_ENQUEUED, cl_lock_state::CLS_HELD states). When
- *       moving into cl_lock_state::CLS_CACHED state, top-lock releases a
- *       hold. From this moment top-lock has only a 'weak' reference to its
- *       sub-locks. This reference is protected by top-lock
- *       cl_lock::cll_guard, and will be automatically cleared by the sub-lock
- *       when the latter is destroyed. When a sub-lock is canceled, a
- *       reference to it is removed from the top-lock array, and top-lock is
- *       moved into CLS_NEW state. It is guaranteed that all sub-locks exist
- *       while their top-lock is in CLS_HELD or CLS_CACHED states.
- *
  *     - IO's are not reference counted.
  *
  * To implement a connection between top and sub entities, lov layer is split
