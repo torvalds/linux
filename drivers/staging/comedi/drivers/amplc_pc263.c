@@ -96,13 +96,13 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 }
 
 static struct comedi_driver amplc_pc263_driver = {
-	.driver_name = "amplc_pc263",
-	.module = THIS_MODULE,
-	.attach = pc263_attach,
-	.detach = comedi_legacy_detach,
-	.board_name = &pc263_boards[0].name,
-	.offset = sizeof(struct pc263_board),
-	.num_names = ARRAY_SIZE(pc263_boards),
+	.driver_name	= "amplc_pc263",
+	.module		= THIS_MODULE,
+	.attach		= pc263_attach,
+	.detach		= comedi_legacy_detach,
+	.board_name	= &pc263_boards[0].name,
+	.offset		= sizeof(struct pc263_board),
+	.num_names	= ARRAY_SIZE(pc263_boards),
 };
 
 module_comedi_driver(amplc_pc263_driver);
