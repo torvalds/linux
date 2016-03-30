@@ -613,14 +613,13 @@ int lov_sublock_modify(const struct lu_env *env, struct lov_lock *lov,
 		       const struct cl_lock_descr *d, int idx);
 
 int lov_page_init(const struct lu_env *env, struct cl_object *ob,
-		  struct cl_page *page, struct page *vmpage);
+		  struct cl_page *page, pgoff_t index);
 int lovsub_page_init(const struct lu_env *env, struct cl_object *ob,
-		     struct cl_page *page, struct page *vmpage);
-
+		     struct cl_page *page, pgoff_t index);
 int lov_page_init_empty(const struct lu_env *env, struct cl_object *obj,
-			struct cl_page *page, struct page *vmpage);
+			struct cl_page *page, pgoff_t index);
 int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
-			struct cl_page *page, struct page *vmpage);
+			struct cl_page *page, pgoff_t index);
 struct lu_object *lov_object_alloc(const struct lu_env *env,
 				   const struct lu_object_header *hdr,
 				   struct lu_device *dev);
@@ -789,11 +788,6 @@ cl2lovsub_page(const struct cl_page_slice *slice)
 static inline struct lovsub_req *cl2lovsub_req(const struct cl_req_slice *slice)
 {
 	return container_of0(slice, struct lovsub_req, lsrq_cl);
-}
-
-static inline struct cl_page *lov_sub_page(const struct cl_page_slice *slice)
-{
-	return slice->cpl_page->cp_child;
 }
 
 static inline struct lov_io *cl2lov_io(const struct lu_env *env,

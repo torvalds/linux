@@ -165,28 +165,6 @@ static int ll_releasepage(struct page *vmpage, gfp_t gfp_mask)
 	return result;
 }
 
-static int ll_set_page_dirty(struct page *vmpage)
-{
-#if 0
-	struct cl_page    *page = vvp_vmpage_page_transient(vmpage);
-	struct vvp_object *obj  = cl_inode2vvp(vmpage->mapping->host);
-	struct vvp_page   *cpg;
-
-	/*
-	 * XXX should page method be called here?
-	 */
-	LASSERT(&obj->co_cl == page->cp_obj);
-	cpg = cl2vvp_page(cl_page_at(page, &vvp_device_type));
-	/*
-	 * XXX cannot do much here, because page is possibly not locked:
-	 * sys_munmap()->...
-	 *     ->unmap_page_range()->zap_pte_range()->set_page_dirty().
-	 */
-	vvp_write_pending(obj, cpg);
-#endif
-	return __set_page_dirty_nobuffers(vmpage);
-}
-
 #define MAX_DIRECTIO_SIZE (2*1024*1024*1024UL)
 
 static inline int ll_get_user_pages(int rw, unsigned long user_addr,
@@ -274,7 +252,7 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 		 * write directly
 		 */
 		if (clp->cp_type == CPT_CACHEABLE) {
-			struct page *vmpage = cl_page_vmpage(env, clp);
+			struct page *vmpage = cl_page_vmpage(clp);
 			struct page *src_page;
 			struct page *dst_page;
 			void       *src;
@@ -478,19 +456,16 @@ out:
 static int ll_prepare_partial_page(const struct lu_env *env, struct cl_io *io,
 				   struct cl_page *pg)
 {
-	struct cl_object *obj  = io->ci_obj;
 	struct cl_attr *attr   = ccc_env_thread_attr(env);
-	loff_t          offset = cl_offset(obj, pg->cp_index);
+	struct cl_object *obj  = io->ci_obj;
+	struct ccc_page *cp    = cl_object_page_slice(obj, pg);
+	loff_t          offset = cl_offset(obj, ccc_index(cp));
 	int             result;
 
 	cl_object_attr_lock(obj);
 	result = cl_object_attr_get(env, obj, attr);
 	cl_object_attr_unlock(obj);
 	if (result == 0) {
-		struct ccc_page *cp;
-
-		cp = cl2ccc_page(cl_page_at(pg, &vvp_device_type));
-
 		/*
 		 * If are writing to a new page, no need to read old data.
 		 * The extent locking will have updated the KMS, and for our
@@ -685,7 +660,7 @@ const struct address_space_operations ll_aops = {
 	.direct_IO      = ll_direct_IO_26,
 	.writepage      = ll_writepage,
 	.writepages     = ll_writepages,
-	.set_page_dirty = ll_set_page_dirty,
+	.set_page_dirty = __set_page_dirty_nobuffers,
 	.write_begin    = ll_write_begin,
 	.write_end      = ll_write_end,
 	.invalidatepage = ll_invalidatepage,

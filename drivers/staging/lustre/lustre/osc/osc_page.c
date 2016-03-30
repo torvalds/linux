@@ -64,14 +64,9 @@ static int osc_page_protected(const struct lu_env *env,
  * Page operations.
  *
  */
-static void osc_page_fini(const struct lu_env *env,
-			  struct cl_page_slice *slice)
-{
-}
-
 static void osc_page_transfer_get(struct osc_page *opg, const char *label)
 {
-	struct cl_page *page = cl_page_top(opg->ops_cl.cpl_page);
+	struct cl_page *page = opg->ops_cl.cpl_page;
 
 	LASSERT(!opg->ops_transfer_pinned);
 	cl_page_get(page);
@@ -82,7 +77,7 @@ static void osc_page_transfer_get(struct osc_page *opg, const char *label)
 static void osc_page_transfer_put(const struct lu_env *env,
 				  struct osc_page *opg)
 {
-	struct cl_page *page = cl_page_top(opg->ops_cl.cpl_page);
+	struct cl_page *page = opg->ops_cl.cpl_page;
 
 	if (opg->ops_transfer_pinned) {
 		opg->ops_transfer_pinned = 0;
@@ -139,11 +134,12 @@ static int osc_page_is_under_lock(const struct lu_env *env,
 				  const struct cl_page_slice *slice,
 				  struct cl_io *unused)
 {
+	struct osc_page *opg = cl2osc_page(slice);
 	struct cl_lock *lock;
 	int result = -ENODATA;
 
-	lock = cl_lock_at_page(env, slice->cpl_obj, slice->cpl_page,
-			       NULL, 1, 0);
+	lock = cl_lock_at_pgoff(env, slice->cpl_obj, osc_index(opg),
+				NULL, 1, 0);
 	if (lock) {
 		cl_lock_put(env, lock);
 		result = -EBUSY;
@@ -173,8 +169,8 @@ static int osc_page_print(const struct lu_env *env,
 	struct osc_object *obj = cl2osc(slice->cpl_obj);
 	struct client_obd *cli = &osc_export(obj)->exp_obd->u.cli;
 
-	return (*printer)(env, cookie, LUSTRE_OSC_NAME "-page@%p: 1< %#x %d %u %s %s > 2< %llu %u %u %#x %#x | %p %p %p > 3< %s %p %d %lu %d > 4< %d %d %d %lu %s | %s %s %s %s > 5< %s %s %s %s | %d %s | %d %s %s>\n",
-			  opg,
+	return (*printer)(env, cookie, LUSTRE_OSC_NAME "-page@%p %lu: 1< %#x %d %u %s %s > 2< %llu %u %u %#x %#x | %p %p %p > 3< %s %p %d %lu %d > 4< %d %d %d %lu %s | %s %s %s %s > 5< %s %s %s %s | %d %s | %d %s %s>\n",
+			  opg, osc_index(opg),
 			  /* 1 */
 			  oap->oap_magic, oap->oap_cmd,
 			  oap->oap_interrupted,
@@ -222,7 +218,7 @@ static void osc_page_delete(const struct lu_env *env,
 	osc_page_transfer_put(env, opg);
 	rc = osc_teardown_async_page(env, obj, opg);
 	if (rc) {
-		CL_PAGE_DEBUG(D_ERROR, env, cl_page_top(slice->cpl_page),
+		CL_PAGE_DEBUG(D_ERROR, env, slice->cpl_page,
 			      "Trying to teardown failed: %d\n", rc);
 		LASSERT(0);
 	}
@@ -295,7 +291,6 @@ static int osc_page_flush(const struct lu_env *env,
 }
 
 static const struct cl_page_operations osc_page_ops = {
-	.cpo_fini	  = osc_page_fini,
 	.cpo_print	 = osc_page_print,
 	.cpo_delete	= osc_page_delete,
 	.cpo_is_under_lock = osc_page_is_under_lock,
@@ -305,7 +300,7 @@ static const struct cl_page_operations osc_page_ops = {
 };
 
 int osc_page_init(const struct lu_env *env, struct cl_object *obj,
-		  struct cl_page *page, struct page *vmpage)
+		  struct cl_page *page, pgoff_t index)
 {
 	struct osc_object *osc = cl2osc(obj);
 	struct osc_page *opg = cl_object_page_slice(obj, page);
@@ -313,9 +308,10 @@ int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 
 	opg->ops_from = 0;
 	opg->ops_to = PAGE_CACHE_SIZE;
+	opg->ops_cl.cpl_index = index;
 
-	result = osc_prep_async_page(osc, opg, vmpage,
-				     cl_offset(obj, page->cp_index));
+	result = osc_prep_async_page(osc, opg, page->cp_vmpage,
+				     cl_offset(obj, index));
 	if (result == 0) {
 		struct osc_io *oio = osc_env_io(env);
 
@@ -337,8 +333,7 @@ int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 		result = osc_lru_reserve(env, osc, opg);
 		if (result == 0) {
 			spin_lock(&osc->oo_tree_lock);
-			result = radix_tree_insert(&osc->oo_tree,
-						   page->cp_index, opg);
+			result = radix_tree_insert(&osc->oo_tree, index, opg);
 			if (result == 0)
 				++osc->oo_npages;
 			spin_unlock(&osc->oo_tree_lock);
@@ -584,7 +579,7 @@ int osc_lru_shrink(const struct lu_env *env, struct client_obd *cli,
 		if (--maxscan < 0)
 			break;
 
-		page = cl_page_top(opg->ops_cl.cpl_page);
+		page = opg->ops_cl.cpl_page;
 		if (cl_page_in_use_noref(page)) {
 			list_move_tail(&opg->ops_lru, &cli->cl_lru_list);
 			continue;

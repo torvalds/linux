@@ -982,6 +982,10 @@ static inline void ll_invalidate_page(struct page *vmpage)
 	if (!mapping)
 		return;
 
+	/*
+	 * truncate_complete_page() calls
+	 * a_ops->invalidatepage()->cl_page_delete()->vvp_page_delete().
+	 */
 	ll_teardown_mmaps(mapping, offset, offset + PAGE_CACHE_SIZE);
 	truncate_complete_page(mapping, vmpage);
 }

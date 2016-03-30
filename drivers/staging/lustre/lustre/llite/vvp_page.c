@@ -136,26 +136,15 @@ static void vvp_page_discard(const struct lu_env *env,
 			     struct cl_io *unused)
 {
 	struct page	   *vmpage  = cl2vm_page(slice);
-	struct address_space *mapping;
 	struct ccc_page      *cpg     = cl2ccc_page(slice);
-	__u64 offset;
 
 	LASSERT(vmpage);
 	LASSERT(PageLocked(vmpage));
 
-	mapping = vmpage->mapping;
-
 	if (cpg->cpg_defer_uptodate && !cpg->cpg_ra_used)
-		ll_ra_stats_inc(mapping, RA_STAT_DISCARDED);
+		ll_ra_stats_inc(vmpage->mapping, RA_STAT_DISCARDED);
 
-	offset = vmpage->index << PAGE_SHIFT;
-	ll_teardown_mmaps(vmpage->mapping, offset, offset + PAGE_SIZE);
-
-	/*
-	 * truncate_complete_page() calls
-	 * a_ops->invalidatepage()->cl_page_delete()->vvp_page_delete().
-	 */
-	truncate_complete_page(mapping, vmpage);
+	ll_invalidate_page(vmpage);
 }
 
 static void vvp_page_delete(const struct lu_env *env,
@@ -269,7 +258,7 @@ static void vvp_page_completion_read(const struct lu_env *env,
 {
 	struct ccc_page *cp     = cl2ccc_page(slice);
 	struct page      *vmpage = cp->cpg_page;
-	struct cl_page  *page   = cl_page_top(slice->cpl_page);
+	struct cl_page  *page   = slice->cpl_page;
 	struct inode    *inode  = ccc_object_inode(page->cp_obj);
 
 	LASSERT(PageLocked(vmpage));
@@ -394,7 +383,6 @@ static const struct cl_page_operations vvp_page_ops = {
 	.cpo_assume	= vvp_page_assume,
 	.cpo_unassume      = vvp_page_unassume,
 	.cpo_disown	= vvp_page_disown,
-	.cpo_vmpage	= ccc_page_vmpage,
 	.cpo_discard       = vvp_page_discard,
 	.cpo_delete	= vvp_page_delete,
 	.cpo_export	= vvp_page_export,
@@ -504,7 +492,6 @@ static const struct cl_page_operations vvp_transient_page_ops = {
 	.cpo_unassume      = vvp_transient_page_unassume,
 	.cpo_disown	= vvp_transient_page_disown,
 	.cpo_discard       = vvp_transient_page_discard,
-	.cpo_vmpage	= ccc_page_vmpage,
 	.cpo_fini	  = vvp_transient_page_fini,
 	.cpo_is_vmlocked   = vvp_transient_page_is_vmlocked,
 	.cpo_print	 = vvp_page_print,
@@ -522,12 +509,14 @@ static const struct cl_page_operations vvp_transient_page_ops = {
 };
 
 int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
-		  struct cl_page *page, struct page *vmpage)
+		struct cl_page *page, pgoff_t index)
 {
 	struct ccc_page *cpg = cl_object_page_slice(obj, page);
+	struct page     *vmpage = page->cp_vmpage;
 
 	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
 
+	cpg->cpg_cl.cpl_index = index;
 	cpg->cpg_page = vmpage;
 	page_cache_get(vmpage);
 

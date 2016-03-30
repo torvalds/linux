@@ -336,6 +336,8 @@ struct lu_object *ccc_object_alloc(const struct lu_env *env,
 		obj = ccc2lu(vob);
 		hdr = &vob->cob_header;
 		cl_object_header_init(hdr);
+		hdr->coh_page_bufsize = cfs_size_round(sizeof(struct cl_page));
+
 		lu_object_init(obj, &hdr->coh_lu, dev);
 		lu_object_add_top(&hdr->coh_lu, obj);
 
@@ -450,12 +452,6 @@ static void ccc_object_size_unlock(struct cl_object *obj)
  *
  */
 
-struct page *ccc_page_vmpage(const struct lu_env *env,
-			     const struct cl_page_slice *slice)
-{
-	return cl2vm_page(slice);
-}
-
 int ccc_page_is_under_lock(const struct lu_env *env,
 			   const struct cl_page_slice *slice,
 			   struct cl_io *io)
@@ -471,8 +467,8 @@ int ccc_page_is_under_lock(const struct lu_env *env,
 		if (cio->cui_fd->fd_flags & LL_FILE_GROUP_LOCKED) {
 			result = -EBUSY;
 		} else {
-			desc->cld_start = page->cp_index;
-			desc->cld_end   = page->cp_index;
+			desc->cld_start = ccc_index(cl2ccc_page(slice));
+			desc->cld_end   = ccc_index(cl2ccc_page(slice));
 			desc->cld_obj   = page->cp_obj;
 			desc->cld_mode  = CLM_READ;
 			result = cl_queue_match(&io->ci_lockset.cls_done,

@@ -248,10 +248,12 @@ void lov_sub_put(struct lov_io_sub *sub)
 static int lov_page_stripe(const struct cl_page *page)
 {
 	struct lovsub_object *subobj;
+	const struct cl_page_slice *slice;
 
-	subobj = lu2lovsub(
-		lu_object_locate(page->cp_child->cp_obj->co_lu.lo_header,
-				 &lovsub_device_type));
+	slice = cl_page_at(page, &lovsub_device_type);
+	LASSERT(slice->cpl_obj);
+
+	subobj = cl2lovsub(slice->cpl_obj);
 	return subobj->lso_index;
 }
 

@@ -238,6 +238,11 @@ static inline struct ccc_page *cl2ccc_page(const struct cl_page_slice *slice)
 	return container_of(slice, struct ccc_page, cpg_cl);
 }
 
+static inline pgoff_t ccc_index(struct ccc_page *ccc)
+{
+	return ccc->cpg_cl.cpl_index;
+}
+
 struct ccc_device {
 	struct cl_device    cdv_cl;
 	struct super_block *cdv_sb;
@@ -294,8 +299,6 @@ int ccc_lock_init(const struct lu_env *env, struct cl_object *obj,
 		  const struct cl_lock_operations *lkops);
 int ccc_object_glimpse(const struct lu_env *env,
 		       const struct cl_object *obj, struct ost_lvb *lvb);
-struct page *ccc_page_vmpage(const struct lu_env *env,
-			    const struct cl_page_slice *slice);
 int ccc_page_is_under_lock(const struct lu_env *env,
 			   const struct cl_page_slice *slice, struct cl_io *io);
 int ccc_fail(const struct lu_env *env, const struct cl_page_slice *slice);

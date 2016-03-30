@@ -416,7 +416,7 @@ struct lu_object *osc_object_alloc(const struct lu_env *env,
 				   const struct lu_object_header *hdr,
 				   struct lu_device *dev);
 int osc_page_init(const struct lu_env *env, struct cl_object *obj,
-		  struct cl_page *page, struct page *vmpage);
+		  struct cl_page *page, pgoff_t ind);
 
 void osc_index2policy  (ldlm_policy_data_t *policy, const struct cl_object *obj,
 			pgoff_t start, pgoff_t end);
@@ -553,6 +553,11 @@ static inline struct osc_page *oap2osc(struct osc_async_page *oap)
 	return container_of0(oap, struct osc_page, ops_oap);
 }
 
+static inline pgoff_t osc_index(struct osc_page *opg)
+{
+	return opg->ops_cl.cpl_index;
+}
+
 static inline struct cl_page *oap2cl_page(struct osc_async_page *oap)
 {
 	return oap2osc(oap)->ops_cl.cpl_page;
@@ -561,11 +566,6 @@ static inline struct cl_page *oap2cl_page(struct osc_async_page *oap)
 static inline struct osc_page *oap2osc_page(struct osc_async_page *oap)
 {
 	return (struct osc_page *)container_of(oap, struct osc_page, ops_oap);
-}
-
-static inline pgoff_t osc_index(struct osc_page *opg)
-{
-	return opg->ops_cl.cpl_page->cp_index;
 }
 
 static inline struct osc_lock *cl2osc_lock(const struct cl_lock_slice *slice)
