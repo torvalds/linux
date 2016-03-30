@@ -164,12 +164,6 @@ struct vvp_io {
 	bool		vui_ra_valid;
 };
 
-/**
- * True, if \a io is a normal io, False for other splice_{read,write}.
- * must be implemented in arch specific code.
- */
-int cl_is_normalio(const struct lu_env *env, const struct cl_io *io);
-
 extern struct lu_context_key ccc_key;
 extern struct lu_context_key vvp_session_key;
 
@@ -334,19 +328,6 @@ void ccc_umount(const struct lu_env *env, struct cl_device *dev);
 int ccc_global_init(struct lu_device_type *device_type);
 void ccc_global_fini(struct lu_device_type *device_type);
 
-int vvp_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
-			  __u32 enqflags, enum cl_lock_mode mode,
-			  pgoff_t start, pgoff_t end);
-int vvp_io_one_lock(const struct lu_env *env, struct cl_io *io,
-		    __u32 enqflags, enum cl_lock_mode mode,
-		    loff_t start, loff_t end);
-void vvp_io_end(const struct lu_env *env, const struct cl_io_slice *ios);
-void vvp_io_advance(const struct lu_env *env, const struct cl_io_slice *ios,
-		    size_t nob);
-void vvp_io_update_iov(const struct lu_env *env, struct vvp_io *cio,
-		       struct cl_io *io);
-int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
-		  struct cl_io *io, loff_t start, size_t count, int *exceed);
 void ccc_req_completion(const struct lu_env *env,
 			const struct cl_req_slice *slice, int ioret);
 void ccc_req_attr_set(const struct lu_env *env,
@@ -397,8 +378,6 @@ static inline struct vvp_lock *cl2vvp_lock(const struct cl_lock_slice *slice)
 	return container_of(slice, struct vvp_lock, vlk_cl);
 }
 
-struct vvp_io *cl2vvp_io(const struct lu_env *env,
-			 const struct cl_io_slice *slice);
 struct ccc_req *cl2ccc_req(const struct cl_req_slice *slice);
 
 int cl_setattr_ost(struct inode *inode, const struct iattr *attr);
@@ -447,6 +426,7 @@ void ccc_inode_lsm_put(struct inode *inode, struct lov_stripe_md *lsm);
 
 int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 		struct cl_io *io);
+int vvp_io_write_commit(const struct lu_env *env, struct cl_io *io);
 int vvp_lock_init(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_lock *lock, const struct cl_io *io);
 int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
