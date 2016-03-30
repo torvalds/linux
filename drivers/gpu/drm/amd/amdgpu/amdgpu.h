@@ -612,7 +612,6 @@ struct amdgpu_gart {
 	unsigned			num_cpu_pages;
 	unsigned			table_size;
 	struct page			**pages;
-	dma_addr_t			*pages_addr;
 	bool				ready;
 	const struct amdgpu_gart_funcs *gart_funcs;
 };

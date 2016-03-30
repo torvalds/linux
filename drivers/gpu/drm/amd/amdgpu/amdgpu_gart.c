@@ -240,8 +240,7 @@ void amdgpu_gart_unbind(struct amdgpu_device *adev, unsigned offset,
 	for (i = 0; i < pages; i++, p++) {
 		if (adev->gart.pages[p]) {
 			adev->gart.pages[p] = NULL;
-			adev->gart.pages_addr[p] = adev->dummy_page.addr;
-			page_base = adev->gart.pages_addr[p];
+			page_base = adev->dummy_page.addr;
 			if (!adev->gart.ptr)
 				continue;
 
@@ -287,10 +286,9 @@ int amdgpu_gart_bind(struct amdgpu_device *adev, unsigned offset,
 	p = t / (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE);
 
 	for (i = 0; i < pages; i++, p++) {
-		adev->gart.pages_addr[p] = dma_addr[i];
 		adev->gart.pages[p] = pagelist[i];
 		if (adev->gart.ptr) {
-			page_base = adev->gart.pages_addr[p];
+			page_base = dma_addr[i];
 			for (j = 0; j < (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE); j++, t++) {
 				amdgpu_gart_set_pte_pde(adev, adev->gart.ptr, t, page_base, flags);
 				page_base += AMDGPU_GPU_PAGE_SIZE;
@@ -312,7 +310,7 @@ int amdgpu_gart_bind(struct amdgpu_device *adev, unsigned offset,
  */
 int amdgpu_gart_init(struct amdgpu_device *adev)
 {
-	int r, i;
+	int r;
 
 	if (adev->gart.pages) {
 		return 0;
@@ -336,16 +334,6 @@ int amdgpu_gart_init(struct amdgpu_device *adev)
 		amdgpu_gart_fini(adev);
 		return -ENOMEM;
 	}
-	adev->gart.pages_addr = vzalloc(sizeof(dma_addr_t) *
-					adev->gart.num_cpu_pages);
-	if (adev->gart.pages_addr == NULL) {
-		amdgpu_gart_fini(adev);
-		return -ENOMEM;
-	}
-	/* set GART entry to point to the dummy page by default */
-	for (i = 0; i < adev->gart.num_cpu_pages; i++) {
-		adev->gart.pages_addr[i] = adev->dummy_page.addr;
-	}
 	return 0;
 }
 
@@ -358,15 +346,13 @@ int amdgpu_gart_init(struct amdgpu_device *adev)
  */
 void amdgpu_gart_fini(struct amdgpu_device *adev)
 {
-	if (adev->gart.pages && adev->gart.pages_addr && adev->gart.ready) {
+	if (adev->gart.pages && adev->gart.ready) {
 		/* unbind pages */
 		amdgpu_gart_unbind(adev, 0, adev->gart.num_cpu_pages);
 	}
 	adev->gart.ready = false;
 	vfree(adev->gart.pages);
-	vfree(adev->gart.pages_addr);
 	adev->gart.pages = NULL;
-	adev->gart.pages_addr = NULL;
 
 	amdgpu_dummy_page_fini(adev);
 }
