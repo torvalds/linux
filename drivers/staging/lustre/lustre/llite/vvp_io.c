@@ -595,14 +595,16 @@ static int vvp_io_commit_sync(const struct lu_env *env, struct cl_io *io,
 	if (plist->pl_nr == 0)
 		return 0;
 
-	if (from != 0) {
+	if (from > 0 || to != PAGE_SIZE) {
 		page = cl_page_list_first(plist);
-		cl_page_clip(env, page, from,
-			     plist->pl_nr == 1 ? to : PAGE_SIZE);
-	}
-	if (to != PAGE_SIZE && plist->pl_nr > 1) {
+		if (plist->pl_nr == 1) {
+			cl_page_clip(env, page, from, to);
+		} else if (from > 0) {
+			cl_page_clip(env, page, from, PAGE_SIZE);
+		} else {
 		page = cl_page_list_last(plist);
 		cl_page_clip(env, page, 0, to);
+	}
 	}
 
 	cl_2queue_init(queue);
