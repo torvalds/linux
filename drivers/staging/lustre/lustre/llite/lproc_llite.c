@@ -393,6 +393,8 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 	struct cl_client_cache *cache = &sbi->ll_cache;
+	struct lu_env *env;
+	int refcheck;
 	int mult, rc, pages_number;
 	int diff = 0;
 	int nrpages = 0;
@@ -430,6 +432,10 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 		goto out;
 	}
 
+	env = cl_env_get(&refcheck);
+	if (IS_ERR(env))
+		return 0;
+
 	diff = -diff;
 	while (diff > 0) {
 		int tmp;
@@ -461,13 +467,14 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 
 		/* difficult - have to ask OSCs to drop LRU slots. */
 		tmp = diff << 1;
-		rc = obd_set_info_async(NULL, sbi->ll_dt_exp,
+		rc = obd_set_info_async(env, sbi->ll_dt_exp,
 					sizeof(KEY_CACHE_LRU_SHRINK),
 					KEY_CACHE_LRU_SHRINK,
 					sizeof(tmp), &tmp, NULL);
 		if (rc < 0)
 			break;
 	}
+	cl_env_put(env, &refcheck);
 
 out:
 	if (rc >= 0) {

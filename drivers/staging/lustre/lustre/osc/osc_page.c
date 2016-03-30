@@ -508,6 +508,18 @@ static int osc_cache_too_much(struct client_obd *cli)
 	return 0;
 }
 
+int lru_queue_work(const struct lu_env *env, void *data)
+{
+	struct client_obd *cli = data;
+
+	CDEBUG(D_CACHE, "Run LRU work for client obd %p.\n", cli);
+
+	if (osc_cache_too_much(cli))
+		osc_lru_shrink(env, cli, lru_shrink_max, true);
+
+	return 0;
+}
+
 void osc_lru_add_batch(struct client_obd *cli, struct list_head *plist)
 {
 	LIST_HEAD(lru);
@@ -533,7 +545,8 @@ void osc_lru_add_batch(struct client_obd *cli, struct list_head *plist)
 		client_obd_list_unlock(&cli->cl_lru_list_lock);
 
 		/* XXX: May set force to be true for better performance */
-		osc_lru_shrink(cli, osc_cache_too_much(cli), false);
+		if (osc_cache_too_much(cli))
+			(void)ptlrpcd_queue_work(cli->cl_lru_work);
 	}
 }
 
@@ -566,7 +579,7 @@ static void osc_lru_del(struct client_obd *cli, struct osc_page *opg)
 		 * stealing one of them.
 		 */
 		if (!memory_pressure_get())
-			osc_lru_shrink(cli, osc_cache_too_much(cli), false);
+			(void)ptlrpcd_queue_work(cli->cl_lru_work);
 		wake_up(&osc_lru_waitq);
 	} else {
 		LASSERT(list_empty(&opg->ops_lru));
@@ -610,10 +623,9 @@ static void discard_pagevec(const struct lu_env *env, struct cl_io *io,
 /**
  * Drop @target of pages from LRU at most.
  */
-int osc_lru_shrink(struct client_obd *cli, int target, bool force)
+int osc_lru_shrink(const struct lu_env *env, struct client_obd *cli,
+		   int target, bool force)
 {
-	struct cl_env_nest nest;
-	struct lu_env *env;
 	struct cl_io *io;
 	struct cl_object *clobj = NULL;
 	struct cl_page **pvec;
@@ -638,12 +650,6 @@ int osc_lru_shrink(struct client_obd *cli, int target, bool force)
 		}
 	} else {
 		atomic_inc(&cli->cl_lru_shrinkers);
-	}
-
-	env = cl_env_nested_get(&nest);
-	if (IS_ERR(env)) {
-		rc = PTR_ERR(env);
-		goto out;
 	}
 
 	pvec = osc_env_info(env)->oti_pvec;
@@ -735,9 +741,7 @@ int osc_lru_shrink(struct client_obd *cli, int target, bool force)
 		cl_io_fini(env, io);
 		cl_object_put(env, clobj);
 	}
-	cl_env_nested_put(&nest, env);
 
-out:
 	atomic_dec(&cli->cl_lru_shrinkers);
 	if (count > 0) {
 		atomic_add(count, cli->cl_lru_left);
@@ -753,20 +757,26 @@ static inline int max_to_shrink(struct client_obd *cli)
 
 int osc_lru_reclaim(struct client_obd *cli)
 {
+	struct cl_env_nest nest;
+	struct lu_env *env;
 	struct cl_client_cache *cache = cli->cl_cache;
 	int max_scans;
 	int rc = 0;
 
 	LASSERT(cache);
 
-	rc = osc_lru_shrink(cli, lru_shrink_min, false);
+	env = cl_env_nested_get(&nest);
+	if (IS_ERR(env))
+		return 0;
+
+	rc = osc_lru_shrink(env, cli, osc_cache_too_much(cli), false);
 	if (rc != 0) {
 		if (rc == -EBUSY)
 			rc = 0;
 
 		CDEBUG(D_CACHE, "%s: Free %d pages from own LRU: %p.\n",
 		       cli->cl_import->imp_obd->obd_name, rc, cli);
-		return rc;
+		goto out;
 	}
 
 	CDEBUG(D_CACHE, "%s: cli %p no free slots, pages: %d, busy: %d.\n",
@@ -797,7 +807,8 @@ int osc_lru_reclaim(struct client_obd *cli)
 		if (osc_cache_too_much(cli) > 0) {
 			spin_unlock(&cache->ccc_lru_lock);
 
-			rc = osc_lru_shrink(cli, osc_cache_too_much(cli), true);
+			rc = osc_lru_shrink(env, cli, osc_cache_too_much(cli),
+					    true);
 			spin_lock(&cache->ccc_lru_lock);
 			if (rc != 0)
 				break;
@@ -805,6 +816,8 @@ int osc_lru_reclaim(struct client_obd *cli)
 	}
 	spin_unlock(&cache->ccc_lru_lock);
 
+out:
+	cl_env_nested_put(&nest, env);
 	CDEBUG(D_CACHE, "%s: cli %p freed %d pages.\n",
 	       cli->cl_import->imp_obd->obd_name, cli, rc);
 	return rc;

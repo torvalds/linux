@@ -364,6 +364,7 @@ struct client_obd {
 
 	/* ptlrpc work for writeback in ptlrpcd context */
 	void		    *cl_writeback_work;
+	void			*cl_lru_work;
 	/* hash tables for osc_quota_info */
 	struct cfs_hash	      *cl_quota_hash[MAXQUOTAS];
 };

@@ -222,8 +222,16 @@ static ssize_t osc_cached_mb_seq_write(struct file *file,
 		return -ERANGE;
 
 	rc = atomic_read(&cli->cl_lru_in_list) - pages_number;
-	if (rc > 0)
-		(void)osc_lru_shrink(cli, rc, true);
+	if (rc > 0) {
+		struct lu_env *env;
+		int refcheck;
+
+		env = cl_env_get(&refcheck);
+		if (!IS_ERR(env)) {
+			(void)osc_lru_shrink(env, cli, rc, true);
+			cl_env_put(env, &refcheck);
+		}
+	}
 
 	return count;
 }
