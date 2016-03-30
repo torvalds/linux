@@ -57,10 +57,10 @@ void policy_from_vma(ldlm_policy_data_t *policy,
 		     struct vm_area_struct *vma, unsigned long addr,
 		     size_t count)
 {
-	policy->l_extent.start = ((addr - vma->vm_start) & CFS_PAGE_MASK) +
+	policy->l_extent.start = ((addr - vma->vm_start) & PAGE_MASK) +
 				 (vma->vm_pgoff << PAGE_CACHE_SHIFT);
 	policy->l_extent.end = (policy->l_extent.start + count - 1) |
-			       ~CFS_PAGE_MASK;
+			       ~PAGE_MASK;
 }
 
 struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,

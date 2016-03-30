@@ -57,7 +57,6 @@
 #include "../libcfs_cpu.h"
 #endif
 
-#define CFS_PAGE_MASK		   (~((__u64)PAGE_CACHE_SIZE-1))
 #define page_index(p)       ((p)->index)
 
 #define memory_pressure_get() (current->flags & PF_MEMALLOC)

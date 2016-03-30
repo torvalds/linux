@@ -376,7 +376,7 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 		return -EBADF;
 
 	/* FIXME: io smaller than PAGE_SIZE is broken on ia64 ??? */
-	if ((file_offset & ~CFS_PAGE_MASK) || (count & ~CFS_PAGE_MASK))
+	if ((file_offset & ~PAGE_MASK) || (count & ~PAGE_MASK))
 		return -EINVAL;
 
 	CDEBUG(D_VFSTRACE,
@@ -386,7 +386,7 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 	       MAX_DIO_SIZE >> PAGE_CACHE_SHIFT);
 
 	/* Check that all user buffers are aligned as well */
-	if (iov_iter_alignment(iter) & ~CFS_PAGE_MASK)
+	if (iov_iter_alignment(iter) & ~PAGE_MASK)
 		return -EINVAL;
 
 	env = cl_env_get(&refcheck);
@@ -435,8 +435,8 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 			    size > (PAGE_CACHE_SIZE / sizeof(*pages)) *
 				   PAGE_CACHE_SIZE) {
 				size = ((((size / 2) - 1) |
-					 ~CFS_PAGE_MASK) + 1) &
-					CFS_PAGE_MASK;
+					 ~PAGE_MASK) + 1) &
+					PAGE_MASK;
 				CDEBUG(D_VFSTRACE, "DIO size now %lu\n",
 				       size);
 				continue;

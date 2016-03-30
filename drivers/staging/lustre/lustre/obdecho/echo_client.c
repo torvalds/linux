@@ -1119,7 +1119,7 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 	int rc;
 	int i;
 
-	LASSERT((offset & ~CFS_PAGE_MASK) == 0);
+	LASSERT((offset & ~PAGE_MASK) == 0);
 	LASSERT(ed->ed_next);
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
@@ -1387,7 +1387,7 @@ static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
 	LASSERT(rw == OBD_BRW_WRITE || rw == OBD_BRW_READ);
 
 	if (count <= 0 ||
-	    (count & (~CFS_PAGE_MASK)) != 0)
+	    (count & (~PAGE_MASK)) != 0)
 		return -EINVAL;
 
 	/* XXX think again with misaligned I/O */
@@ -1470,7 +1470,7 @@ static int echo_client_prep_commit(const struct lu_env *env,
 	u64 npages, tot_pages;
 	int i, ret = 0, brw_flags = 0;
 
-	if (count <= 0 || (count & (~CFS_PAGE_MASK)) != 0)
+	if (count <= 0 || (count & (~PAGE_MASK)) != 0)
 		return -EINVAL;
 
 	npages = batch >> PAGE_CACHE_SHIFT;

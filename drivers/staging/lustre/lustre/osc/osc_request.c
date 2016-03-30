@@ -1082,7 +1082,7 @@ static void handle_short_read(int nob_read, u32 page_count,
 		if (pga[i]->count > nob_read) {
 			/* EOF inside this page */
 			ptr = kmap(pga[i]->pg) +
-				(pga[i]->off & ~CFS_PAGE_MASK);
+				(pga[i]->off & ~PAGE_MASK);
 			memset(ptr + nob_read, 0, pga[i]->count - nob_read);
 			kunmap(pga[i]->pg);
 			page_count--;
@@ -1097,7 +1097,7 @@ static void handle_short_read(int nob_read, u32 page_count,
 
 	/* zero remaining pages */
 	while (page_count-- > 0) {
-		ptr = kmap(pga[i]->pg) + (pga[i]->off & ~CFS_PAGE_MASK);
+		ptr = kmap(pga[i]->pg) + (pga[i]->off & ~PAGE_MASK);
 		memset(ptr, 0, pga[i]->count);
 		kunmap(pga[i]->pg);
 		i++;
@@ -1188,20 +1188,20 @@ static u32 osc_checksum_bulk(int nob, u32 pg_count,
 		if (i == 0 && opc == OST_READ &&
 		    OBD_FAIL_CHECK(OBD_FAIL_OSC_CHECKSUM_RECEIVE)) {
 			unsigned char *ptr = kmap(pga[i]->pg);
-			int off = pga[i]->off & ~CFS_PAGE_MASK;
+			int off = pga[i]->off & ~PAGE_MASK;
 
 			memcpy(ptr + off, "bad1", min(4, nob));
 			kunmap(pga[i]->pg);
 		}
 		cfs_crypto_hash_update_page(hdesc, pga[i]->pg,
-					    pga[i]->off & ~CFS_PAGE_MASK,
+					    pga[i]->off & ~PAGE_MASK,
 				  count);
 		CDEBUG(D_PAGE,
 		       "page %p map %p index %lu flags %lx count %u priv %0lx: off %d\n",
 		       pga[i]->pg, pga[i]->pg->mapping, pga[i]->pg->index,
 		       (long)pga[i]->pg->flags, page_count(pga[i]->pg),
 		       page_private(pga[i]->pg),
-		       (int)(pga[i]->off & ~CFS_PAGE_MASK));
+		       (int)(pga[i]->off & ~PAGE_MASK));
 
 		nob -= pga[i]->count;
 		pg_count--;
@@ -1309,7 +1309,7 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 	pg_prev = pga[0];
 	for (requested_nob = i = 0; i < page_count; i++, niobuf++) {
 		struct brw_page *pg = pga[i];
-		int poff = pg->off & ~CFS_PAGE_MASK;
+		int poff = pg->off & ~PAGE_MASK;
 
 		LASSERT(pg->count > 0);
 		/* make sure there is no gap in the middle of page array */
@@ -2227,8 +2227,8 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 	/* Filesystem lock extents are extended to page boundaries so that
 	 * dealing with the page cache is a little smoother.
 	 */
-	policy->l_extent.start -= policy->l_extent.start & ~CFS_PAGE_MASK;
-	policy->l_extent.end |= ~CFS_PAGE_MASK;
+	policy->l_extent.start -= policy->l_extent.start & ~PAGE_MASK;
+	policy->l_extent.end |= ~PAGE_MASK;
 
 	/*
 	 * kms is not valid when either object is completely fresh (so that no
@@ -2378,8 +2378,8 @@ int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 	/* Filesystem lock extents are extended to page boundaries so that
 	 * dealing with the page cache is a little smoother
 	 */
-	policy->l_extent.start -= policy->l_extent.start & ~CFS_PAGE_MASK;
-	policy->l_extent.end |= ~CFS_PAGE_MASK;
+	policy->l_extent.start -= policy->l_extent.start & ~PAGE_MASK;
+	policy->l_extent.end |= ~PAGE_MASK;
 
 	/* Next, search for already existing extent locks that will cover us */
 	/* If we're trying to read, we also search for an existing PW lock.  The
@@ -2784,7 +2784,7 @@ out:
 			goto skip_locking;
 
 		policy.l_extent.start = fm_key->fiemap.fm_start &
-						CFS_PAGE_MASK;
+						PAGE_MASK;
 
 		if (OBD_OBJECT_EOF - fm_key->fiemap.fm_length <=
 		    fm_key->fiemap.fm_start + PAGE_CACHE_SIZE - 1)
@@ -2792,7 +2792,7 @@ out:
 		else
 			policy.l_extent.end = (fm_key->fiemap.fm_start +
 				fm_key->fiemap.fm_length +
-				PAGE_CACHE_SIZE - 1) & CFS_PAGE_MASK;
+				PAGE_CACHE_SIZE - 1) & PAGE_MASK;
 
 		ostid_build_res_name(&fm_key->oa.o_oi, &res_id);
 		mode = ldlm_lock_match(exp->exp_obd->obd_namespace,

@@ -877,7 +877,7 @@ int osc_extent_finish(const struct lu_env *env, struct osc_extent *ext,
 		 * span a whole chunk on the OST side, or our accounting goes
 		 * wrong.  Should match the code in filter_grant_check.
 		 */
-		int offset = oap->oap_page_off & ~CFS_PAGE_MASK;
+		int offset = oap->oap_page_off & ~PAGE_MASK;
 		int count = oap->oap_count + (offset & (blocksize - 1));
 		int end = (offset + oap->oap_count) & (blocksize - 1);
 
@@ -2238,7 +2238,7 @@ int osc_prep_async_page(struct osc_object *osc, struct osc_page *ops,
 
 	oap->oap_page = page;
 	oap->oap_obj_off = offset;
-	LASSERT(!(offset & ~CFS_PAGE_MASK));
+	LASSERT(!(offset & ~PAGE_MASK));
 
 	if (!client_is_remote(exp) && capable(CFS_CAP_SYS_RESOURCE))
 		oap->oap_brw_flags = OBD_BRW_NOQUOTA;

@@ -234,8 +234,8 @@ static int vvp_mmap_locks(const struct lu_env *env,
 		if (count == 0)
 			continue;
 
-		count += addr & (~CFS_PAGE_MASK);
-		addr &= CFS_PAGE_MASK;
+		count += addr & (~PAGE_MASK);
+		addr &= PAGE_MASK;
 
 		down_read(&mm->mmap_sem);
 		while ((vma = our_vma(mm, addr, count)) != NULL) {
@@ -1043,7 +1043,7 @@ static int vvp_io_commit_write(const struct lu_env *env,
 				to = PAGE_CACHE_SIZE;
 				need_clip = false;
 			} else if (last_index == pg->cp_index) {
-				int size_to = i_size_read(inode) & ~CFS_PAGE_MASK;
+				int size_to = i_size_read(inode) & ~PAGE_MASK;
 
 				if (to < size_to)
 					to = size_to;
