@@ -2292,15 +2292,13 @@ no_match:
 	if (*flags & LDLM_FL_TEST_LOCK)
 		return -ENOLCK;
 	if (intent) {
-		LIST_HEAD(cancels);
-
 		req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 					   &RQF_LDLM_ENQUEUE_LVB);
 		if (!req)
 			return -ENOMEM;
 
-		rc = ldlm_prep_enqueue_req(exp, req, &cancels, 0);
-		if (rc) {
+		rc = ptlrpc_request_pack(req, LUSTRE_DLM_VERSION, LDLM_ENQUEUE);
+		if (rc < 0) {
 			ptlrpc_request_free(req);
 			return rc;
 		}
@@ -3110,17 +3108,14 @@ static int osc_import_event(struct obd_device *obd,
  * \retval zero the lock can't be canceled
  * \retval other ok to cancel
  */
-static int osc_cancel_for_recovery(struct ldlm_lock *lock)
+static int osc_cancel_weight(struct ldlm_lock *lock)
 {
 	/*
-	 * Cancel all unused extent lock in granted mode LCK_PR or LCK_CR.
-	 *
-	 * XXX as a future improvement, we can also cancel unused write lock
-	 * if it doesn't have dirty data and active mmaps.
+	 * Cancel all unused and granted extent lock.
 	 */
 	if (lock->l_resource->lr_type == LDLM_EXTENT &&
-	    (lock->l_granted_mode == LCK_PR ||
-	     lock->l_granted_mode == LCK_CR) && osc_ldlm_weigh_ast(lock) == 0)
+	    lock->l_granted_mode == lock->l_req_mode &&
+	    osc_ldlm_weigh_ast(lock) == 0)
 		return 1;
 
 	return 0;
@@ -3197,7 +3192,7 @@ int osc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	}
 
 	INIT_LIST_HEAD(&cli->cl_grant_shrink_list);
-	ns_register_cancel(obd->obd_namespace, osc_cancel_for_recovery);
+	ns_register_cancel(obd->obd_namespace, osc_cancel_weight);
 	return rc;
 
 out_ptlrpcd_work:
