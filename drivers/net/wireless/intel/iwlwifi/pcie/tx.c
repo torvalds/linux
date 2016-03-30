@@ -605,7 +605,7 @@ static void iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
 	if (trans_pcie->ref_cmd_in_flight) {
 		trans_pcie->ref_cmd_in_flight = false;
 		IWL_DEBUG_RPM(trans, "clear ref_cmd_in_flight - unref\n");
-		iwl_trans_pcie_unref(trans);
+		iwl_trans_unref(trans);
 	}
 
 	if (!trans->cfg->base_params->apmg_wake_up_wa)
@@ -650,7 +650,7 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 			if (txq_id != trans_pcie->cmd_queue) {
 				IWL_DEBUG_RPM(trans, "Q %d - last tx freed\n",
 					      q->id);
-				iwl_trans_pcie_unref(trans);
+				iwl_trans_unref(trans);
 			} else {
 				iwl_pcie_clear_cmd_in_flight(trans);
 			}
@@ -1134,7 +1134,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 	if (q->read_ptr == q->write_ptr) {
 		IWL_DEBUG_RPM(trans, "Q %d - last tx reclaimed\n", q->id);
-		iwl_trans_pcie_unref(trans);
+		iwl_trans_unref(trans);
 	}
 
 out:
@@ -1153,7 +1153,7 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 	    !trans_pcie->ref_cmd_in_flight) {
 		trans_pcie->ref_cmd_in_flight = true;
 		IWL_DEBUG_RPM(trans, "set ref_cmd_in_flight - ref\n");
-		iwl_trans_pcie_ref(trans);
+		iwl_trans_ref(trans);
 	}
 
 	/*
@@ -2362,7 +2362,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 				txq->frozen_expiry_remainder = txq->wd_timeout;
 		}
 		IWL_DEBUG_RPM(trans, "Q: %d first tx - take ref\n", q->id);
-		iwl_trans_pcie_ref(trans);
+		iwl_trans_ref(trans);
 	}
 
 	/* Tell device the write index *just past* this latest filled TFD */

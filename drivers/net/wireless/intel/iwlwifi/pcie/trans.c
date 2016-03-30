@@ -2013,7 +2013,7 @@ static void iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans, u32 reg,
 	spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
 }
 
-void iwl_trans_pcie_ref(struct iwl_trans *trans)
+static void iwl_trans_pcie_ref(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -2028,7 +2028,7 @@ void iwl_trans_pcie_ref(struct iwl_trans *trans)
 #endif /* CONFIG_PM */
 }
 
-void iwl_trans_pcie_unref(struct iwl_trans *trans)
+static void iwl_trans_pcie_unref(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
