@@ -1529,10 +1529,8 @@ static int __init vmwgfx_init(void)
 {
 	int ret;
 
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force())
 		return -EINVAL;
-#endif
 
 	ret = drm_pci_init(&driver, &vmw_pci_driver);
 	if (ret)

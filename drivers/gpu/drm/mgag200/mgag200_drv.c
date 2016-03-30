@@ -116,10 +116,8 @@ static struct pci_driver mgag200_pci_driver = {
 
 static int __init mgag200_init(void)
 {
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && mgag200_modeset == -1)
 		return -EINVAL;
-#endif
 
 	if (mgag200_modeset == 0)
 		return -EINVAL;

@@ -218,10 +218,8 @@ static struct drm_driver driver = {
 
 static int __init ast_init(void)
 {
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && ast_modeset == -1)
 		return -EINVAL;
-#endif
 
 	if (ast_modeset == 0)
 		return -EINVAL;
