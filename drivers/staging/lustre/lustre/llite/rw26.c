@@ -512,7 +512,7 @@ static int ll_write_begin(struct file *file, struct address_space *mapping,
 
 	/* To avoid deadlock, try to lock page first. */
 	vmpage = grab_cache_page_nowait(mapping, index);
-	if (unlikely(!vmpage || PageDirty(vmpage))) {
+	if (unlikely(!vmpage || PageDirty(vmpage) || PageWriteback(vmpage))) {
 		struct ccc_io *cio = ccc_env_io(env);
 		struct cl_page_list *plist = &cio->u.write.cui_queue;
 
@@ -522,7 +522,7 @@ static int ll_write_begin(struct file *file, struct address_space *mapping,
 		 * more grants. It's okay for the dirty page to be the first
 		 * one in commit page list, though.
 		 */
-		if (vmpage && PageDirty(vmpage) && plist->pl_nr > 0) {
+		if (vmpage && plist->pl_nr > 0) {
 			unlock_page(vmpage);
 			page_cache_release(vmpage);
 			vmpage = NULL;
