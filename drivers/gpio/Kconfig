@@ -851,6 +851,15 @@ config GPIO_LP3943
 	  LP3943 can be used as a GPIO expander which provides up to 16 GPIOs.
 	  Open drain outputs are required for this usage.
 
+config GPIO_MAX77620
+	bool "GPIO support for PMIC MAX77620 and MAX20024"
+	depends on MFD_MAX77620
+	help
+	  GPIO driver for MAX77620 and MAX20024 PMIC from Maxim Semiconductor.
+	  MAX77620 PMIC has 8 pins that can be configured as GPIOs. The
+	  driver also provides interrupt support for each of the gpios.
+	  Say yes here to enable the max77620 to be used as gpio controller.
+
 config GPIO_MSIC
 	bool "Intel MSIC mixed signal gpio support"
 	depends on MFD_INTEL_MSIC
