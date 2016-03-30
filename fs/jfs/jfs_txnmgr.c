@@ -1764,7 +1764,7 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		if (lwm == next)
 			goto out;
 		if (lwm > next) {
-			jfs_err("xtLog: lwm > next\n");
+			jfs_err("xtLog: lwm > next");
 			goto out;
 		}
 		tlck->flag |= tlckUPDATEMAP;
@@ -2814,7 +2814,7 @@ int jfs_lazycommit(void *arg)
 	if (!list_empty(&TxAnchor.unlock_queue))
 		jfs_err("jfs_lazycommit being killed w/pending transactions!");
 	else
-		jfs_info("jfs_lazycommit being killed\n");
+		jfs_info("jfs_lazycommit being killed");
 	return 0;
 }
 

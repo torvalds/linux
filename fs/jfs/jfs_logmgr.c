@@ -1094,7 +1094,7 @@ int lmLogOpen(struct super_block *sb)
 		if (log->bdev->bd_dev == sbi->logdev) {
 			if (memcmp(log->uuid, sbi->loguuid,
 				   sizeof(log->uuid))) {
-				jfs_warn("wrong uuid on JFS journal\n");
+				jfs_warn("wrong uuid on JFS journal");
 				mutex_unlock(&jfs_log_mutex);
 				return -EINVAL;
 			}
@@ -2136,7 +2136,7 @@ static void lbmStartIO(struct lbuf * bp)
 	struct bio *bio;
 	struct jfs_log *log = bp->l_log;
 
-	jfs_info("lbmStartIO\n");
+	jfs_info("lbmStartIO");
 
 	bio = bio_alloc(GFP_NOFS, 1);
 	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
