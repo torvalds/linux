@@ -816,7 +816,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 	clear_bit(QUEUE_FLAG_ADD_RANDOM, &d->disk->queue->queue_flags);
 	set_bit(QUEUE_FLAG_DISCARD,	&d->disk->queue->queue_flags);
 
-	blk_queue_flush(q, REQ_FLUSH|REQ_FUA);
+	blk_queue_write_cache(q, true, true);
 
 	return 0;
 }
