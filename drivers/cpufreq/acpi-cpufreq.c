@@ -458,6 +458,43 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	return result;
 }
 
+unsigned int acpi_cpufreq_fast_switch(struct cpufreq_policy *policy,
+				      unsigned int target_freq)
+{
+	struct acpi_cpufreq_data *data = policy->driver_data;
+	struct acpi_processor_performance *perf;
+	struct cpufreq_frequency_table *entry;
+	unsigned int next_perf_state, next_freq, freq;
+
+	/*
+	 * Find the closest frequency above target_freq.
+	 *
+	 * The table is sorted in the reverse order with respect to the
+	 * frequency and all of the entries are valid (see the initialization).
+	 */
+	entry = data->freq_table;
+	do {
+		entry++;
+		freq = entry->frequency;
+	} while (freq >= target_freq && freq != CPUFREQ_TABLE_END);
+	entry--;
+	next_freq = entry->frequency;
+	next_perf_state = entry->driver_data;
+
+	perf = to_perf_data(data);
+	if (perf->state == next_perf_state) {
+		if (unlikely(data->resume))
+			data->resume = 0;
+		else
+			return next_freq;
+	}
+
+	data->cpu_freq_write(&perf->control_register,
+			     perf->states[next_perf_state].control);
+	perf->state = next_perf_state;
+	return next_freq;
+}
+
 static unsigned long
 acpi_cpufreq_guess_freq(struct acpi_cpufreq_data *data, unsigned int cpu)
 {
@@ -821,6 +858,9 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	 */
 	data->resume = 1;
 
+	policy->fast_switch_possible = !acpi_pstate_strict &&
+		!(policy_is_shared(policy) && policy->shared_type != CPUFREQ_SHARED_TYPE_ANY);
+
 	return result;
 
 err_freqfree:
@@ -843,6 +883,7 @@ static int acpi_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	pr_debug("acpi_cpufreq_cpu_exit\n");
 
 	if (data) {
+		policy->fast_switch_possible = false;
 		policy->driver_data = NULL;
 		acpi_processor_unregister_performance(data->acpi_perf_cpu);
 		free_cpumask_var(data->freqdomain_cpus);
@@ -876,6 +917,7 @@ static struct freq_attr *acpi_cpufreq_attr[] = {
 static struct cpufreq_driver acpi_cpufreq_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= acpi_cpufreq_target,
+	.fast_switch	= acpi_cpufreq_fast_switch,
 	.bios_limit	= acpi_processor_get_bios_limit,
 	.init		= acpi_cpufreq_cpu_init,
 	.exit		= acpi_cpufreq_cpu_exit,
