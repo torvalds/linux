@@ -836,11 +836,12 @@ error_free:
  * amdgpu_vm_bo_split_mapping - split a mapping into smaller chunks
  *
  * @adev: amdgpu_device pointer
- * @gtt: GART instance to use for mapping
+ * @gtt_flags: flags as they are used for GTT
+ * @pages_addr: DMA addresses to use for mapping
  * @vm: requested vm
  * @mapping: mapped range and flags to use for the update
  * @addr: addr to set the area to
- * @gtt_flags: flags as they are used for GTT
+ * @flags: HW flags for the mapping
  * @fence: optional resulting fence
  *
  * Split the mapping into smaller chunks so that each update fits
@@ -848,8 +849,8 @@ error_free:
  * Returns 0 for success, -EINVAL for failure.
  */
 static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
-				      struct amdgpu_gart *gtt,
 				      uint32_t gtt_flags,
+				      dma_addr_t *pages_addr,
 				      struct amdgpu_vm *vm,
 				      struct amdgpu_bo_va_mapping *mapping,
 				      uint32_t flags, uint64_t addr,
@@ -858,7 +859,6 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 	const uint64_t max_size = 64ULL * 1024ULL * 1024ULL / AMDGPU_GPU_PAGE_SIZE;
 
 	uint64_t src = 0, start = mapping->it.start;
-	dma_addr_t *pages_addr = NULL;
 	int r;
 
 	/* normally,bo_va->flags only contians READABLE and WIRTEABLE bit go here
@@ -871,16 +871,14 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 
 	trace_amdgpu_vm_bo_update(mapping);
 
-	if (gtt) {
+	if (pages_addr) {
 		if (flags == gtt_flags)
 			src = adev->gart.table_addr + (addr >> 12) * 8;
-		else
-			pages_addr = &gtt->pages_addr[addr >> 12];
 		addr = 0;
 	}
 	addr += mapping->offset;
 
-	if (!gtt || src)
+	if (!pages_addr || src)
 		return amdgpu_vm_bo_update_mapping(adev, src, pages_addr, vm,
 						   start, mapping->it.last,
 						   flags, addr, fence);
@@ -920,16 +918,20 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 {
 	struct amdgpu_vm *vm = bo_va->vm;
 	struct amdgpu_bo_va_mapping *mapping;
-	struct amdgpu_gart *gtt = NULL;
+	dma_addr_t *pages_addr = NULL;
 	uint32_t gtt_flags, flags;
 	uint64_t addr;
 	int r;
 
 	if (mem) {
+		struct ttm_dma_tt *ttm;
+
 		addr = (u64)mem->start << PAGE_SHIFT;
 		switch (mem->mem_type) {
 		case TTM_PL_TT:
-			gtt = &bo_va->bo->adev->gart;
+			ttm = container_of(bo_va->bo->tbo.ttm, struct
+					   ttm_dma_tt, ttm);
+			pages_addr = ttm->dma_address;
 			break;
 
 		case TTM_PL_VRAM:
@@ -952,8 +954,9 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	spin_unlock(&vm->status_lock);
 
 	list_for_each_entry(mapping, &bo_va->invalids, list) {
-		r = amdgpu_vm_bo_split_mapping(adev, gtt, gtt_flags, vm, mapping,
-					       flags, addr, &bo_va->last_pt_update);
+		r = amdgpu_vm_bo_split_mapping(adev, gtt_flags, pages_addr, vm,
+					       mapping, flags, addr,
+					       &bo_va->last_pt_update);
 		if (r)
 			return r;
 	}
@@ -998,7 +1001,7 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 			struct amdgpu_bo_va_mapping, list);
 		list_del(&mapping->list);
 
-		r = amdgpu_vm_bo_split_mapping(adev, NULL, 0, vm, mapping,
+		r = amdgpu_vm_bo_split_mapping(adev, 0, NULL, vm, mapping,
 					       0, 0, NULL);
 		kfree(mapping);
 		if (r)
