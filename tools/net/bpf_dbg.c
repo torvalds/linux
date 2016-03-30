@@ -129,16 +129,16 @@ struct bpf_regs {
 };
 
 static struct sock_filter bpf_image[BPF_MAXINSNS + 1];
-static unsigned int bpf_prog_len = 0;
+static unsigned int bpf_prog_len;
 
 static int bpf_breakpoints[64];
 static struct bpf_regs bpf_regs[BPF_MAXINSNS + 1];
 static struct bpf_regs bpf_curr;
-static unsigned int bpf_regs_len = 0;
+static unsigned int bpf_regs_len;
 
 static int pcap_fd = -1;
-static unsigned int pcap_packet = 0;
-static size_t pcap_map_size = 0;
+static unsigned int pcap_packet;
+static size_t pcap_map_size;
 static char *pcap_ptr_va_start, *pcap_ptr_va_curr;
 
 static const char * const op_table[] = {
@@ -1172,7 +1172,7 @@ static int cmd_breakpoint(char *subcmd)
 
 static int cmd_run(char *num)
 {
-	static uint32_t pass = 0, fail = 0;
+	static uint32_t pass, fail;
 	bool has_limit = true;
 	int pkts = 0, i = 0;
 

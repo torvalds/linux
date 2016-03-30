@@ -1,7 +1,7 @@
 /*
  * rcar_lvds_regs.h  --  R-Car LVDS Interface Registers Definitions
  *
- * Copyright (C) 2013 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -15,28 +15,38 @@
 
 #define LVDCR0				0x0000
 #define LVDCR0_DUSEL			(1 << 15)
-#define LVDCR0_DMD			(1 << 12)
+#define LVDCR0_DMD			(1 << 12)		/* Gen2 only */
 #define LVDCR0_LVMD_MASK		(0xf << 8)
 #define LVDCR0_LVMD_SHIFT		8
-#define LVDCR0_PLLEN			(1 << 4)
-#define LVDCR0_BEN			(1 << 2)
-#define LVDCR0_LVEN			(1 << 1)
+#define LVDCR0_PLLON			(1 << 4)
+#define LVDCR0_PWD			(1 << 2)		/* Gen3 only */
+#define LVDCR0_BEN			(1 << 2)		/* Gen2 only */
+#define LVDCR0_LVEN			(1 << 1)		/* Gen2 only */
 #define LVDCR0_LVRES			(1 << 0)
 
 #define LVDCR1				0x0004
-#define LVDCR1_CKSEL			(1 << 15)
-#define LVDCR1_CHSTBY(n)		(3 << (2 + (n) * 2))
-#define LVDCR1_CLKSTBY			(3 << 0)
+#define LVDCR1_CKSEL			(1 << 15)		/* Gen2 only */
+#define LVDCR1_CHSTBY_GEN2(n)		(3 << (2 + (n) * 2))	/* Gen2 only */
+#define LVDCR1_CHSTBY_GEN3(n)		(1 << (2 + (n) * 2))	/* Gen3 only */
+#define LVDCR1_CLKSTBY_GEN2		(3 << 0)		/* Gen2 only */
+#define LVDCR1_CLKSTBY_GEN3		(1 << 0)		/* Gen3 only */
 
 #define LVDPLLCR			0x0008
 #define LVDPLLCR_CEEN			(1 << 14)
 #define LVDPLLCR_FBEN			(1 << 13)
 #define LVDPLLCR_COSEL			(1 << 12)
+/* Gen2 */
 #define LVDPLLCR_PLLDLYCNT_150M		(0x1bf << 0)
 #define LVDPLLCR_PLLDLYCNT_121M		(0x22c << 0)
 #define LVDPLLCR_PLLDLYCNT_60M		(0x77b << 0)
 #define LVDPLLCR_PLLDLYCNT_38M		(0x69a << 0)
 #define LVDPLLCR_PLLDLYCNT_MASK		(0x7ff << 0)
+/* Gen3 */
+#define LVDPLLCR_PLLDIVCNT_42M		(0x014cb << 0)
+#define LVDPLLCR_PLLDIVCNT_85M		(0x00a45 << 0)
+#define LVDPLLCR_PLLDIVCNT_128M		(0x006c3 << 0)
+#define LVDPLLCR_PLLDIVCNT_148M		(0x046c1 << 0)
+#define LVDPLLCR_PLLDIVCNT_MASK		(0x7ffff << 0)
 
 #define LVDCTRCR			0x000c
 #define LVDCTRCR_CTR3SEL_ZERO		(0 << 12)

@@ -220,7 +220,7 @@ done:
 	return skb->len;
 }
 
-static struct sock *unix_lookup_by_ino(int ino)
+static struct sock *unix_lookup_by_ino(unsigned int ino)
 {
 	int i;
 	struct sock *sk;

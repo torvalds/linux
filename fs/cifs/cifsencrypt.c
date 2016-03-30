@@ -33,6 +33,7 @@
 #include <linux/ctype.h>
 #include <linux/random.h>
 #include <linux/highmem.h>
+#include <crypto/skcipher.h>
 
 static int
 cifs_crypto_shash_md5_allocate(struct TCP_Server_Info *server)
@@ -714,7 +715,7 @@ setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
 
 	ses->auth_key.response = kmalloc(baselen + tilen, GFP_KERNEL);
 	if (!ses->auth_key.response) {
-		rc = ENOMEM;
+		rc = -ENOMEM;
 		ses->auth_key.len = 0;
 		goto setup_ntlmv2_rsp_ret;
 	}
@@ -789,38 +790,46 @@ int
 calc_seckey(struct cifs_ses *ses)
 {
 	int rc;
-	struct crypto_blkcipher *tfm_arc4;
+	struct crypto_skcipher *tfm_arc4;
 	struct scatterlist sgin, sgout;
-	struct blkcipher_desc desc;
+	struct skcipher_request *req;
 	unsigned char sec_key[CIFS_SESS_KEY_SIZE]; /* a nonce */
 
 	get_random_bytes(sec_key, CIFS_SESS_KEY_SIZE);
 
-	tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
+	tfm_arc4 = crypto_alloc_skcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm_arc4)) {
 		rc = PTR_ERR(tfm_arc4);
 		cifs_dbg(VFS, "could not allocate crypto API arc4\n");
 		return rc;
 	}
 
-	desc.tfm = tfm_arc4;
-
-	rc = crypto_blkcipher_setkey(tfm_arc4, ses->auth_key.response,
+	rc = crypto_skcipher_setkey(tfm_arc4, ses->auth_key.response,
 					CIFS_SESS_KEY_SIZE);
 	if (rc) {
 		cifs_dbg(VFS, "%s: Could not set response as a key\n",
 			 __func__);
-		return rc;
+		goto out_free_cipher;
+	}
+
+	req = skcipher_request_alloc(tfm_arc4, GFP_KERNEL);
+	if (!req) {
+		rc = -ENOMEM;
+		cifs_dbg(VFS, "could not allocate crypto API arc4 request\n");
+		goto out_free_cipher;
 	}
 
 	sg_init_one(&sgin, sec_key, CIFS_SESS_KEY_SIZE);
 	sg_init_one(&sgout, ses->ntlmssp->ciphertext, CIFS_CPHTXT_SIZE);
 
-	rc = crypto_blkcipher_encrypt(&desc, &sgout, &sgin, CIFS_CPHTXT_SIZE);
+	skcipher_request_set_callback(req, 0, NULL, NULL);
+	skcipher_request_set_crypt(req, &sgin, &sgout, CIFS_CPHTXT_SIZE, NULL);
+
+	rc = crypto_skcipher_encrypt(req);
+	skcipher_request_free(req);
 	if (rc) {
 		cifs_dbg(VFS, "could not encrypt session key rc: %d\n", rc);
-		crypto_free_blkcipher(tfm_arc4);
-		return rc;
+		goto out_free_cipher;
 	}
 
 	/* make secondary_key/nonce as session key */
@@ -828,7 +837,8 @@ calc_seckey(struct cifs_ses *ses)
 	/* and make len as that of session key only */
 	ses->auth_key.len = CIFS_SESS_KEY_SIZE;
 
-	crypto_free_blkcipher(tfm_arc4);
+out_free_cipher:
+	crypto_free_skcipher(tfm_arc4);
 
 	return rc;
 }

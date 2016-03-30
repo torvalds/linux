@@ -2829,6 +2829,7 @@ static int mtf_testlist_show(struct seq_file *sf, void *data)
 
 	mutex_lock(&mmc_test_lock);
 
+	seq_printf(sf, "0:\tRun all tests\n");
 	for (i = 0; i < ARRAY_SIZE(mmc_test_cases); i++)
 		seq_printf(sf, "%d:\t%s\n", i+1, mmc_test_cases[i].name);
 

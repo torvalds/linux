@@ -60,7 +60,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	clear_bit(MLX5E_CHANNEL_NAPI_SCHED, &c->flags);
 
 	for (i = 0; i < c->num_tc; i++)
-		busy |= mlx5e_poll_tx_cq(&c->sq[i].cq);
+		busy |= mlx5e_poll_tx_cq(&c->sq[i].cq, budget);
 
 	work_done = mlx5e_poll_rx_cq(&c->rq.cq, budget);
 	busy |= work_done == budget;
@@ -88,7 +88,6 @@ void mlx5e_completion_event(struct mlx5_core_cq *mcq)
 {
 	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
 
-	set_bit(MLX5E_CQ_HAS_CQES, &cq->flags);
 	set_bit(MLX5E_CHANNEL_NAPI_SCHED, &cq->channel->flags);
 	barrier();
 	napi_schedule(cq->napi);

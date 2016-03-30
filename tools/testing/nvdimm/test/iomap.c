@@ -113,7 +113,7 @@ void *__wrap_devm_memremap_pages(struct device *dev, struct resource *res,
 }
 EXPORT_SYMBOL(__wrap_devm_memremap_pages);
 
-pfn_t __wrap_phys_to_pfn_t(dma_addr_t addr, unsigned long flags)
+pfn_t __wrap_phys_to_pfn_t(phys_addr_t addr, unsigned long flags)
 {
 	struct nfit_test_resource *nfit_res = get_nfit_res(addr);
 

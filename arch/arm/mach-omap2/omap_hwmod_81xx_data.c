@@ -228,6 +228,42 @@ static struct omap_hwmod_ocp_if dm816x_mpu__alwon_l3_med = {
 	.user	= OCP_USER_MPU,
 };
 
+/* RTC */
+static struct omap_hwmod_class_sysconfig ti81xx_rtc_sysc = {
+	.rev_offs	= 0x74,
+	.sysc_offs	= 0x78,
+	.sysc_flags	= SYSC_HAS_SIDLEMODE,
+	.idlemodes	= SIDLE_FORCE | SIDLE_NO |
+			  SIDLE_SMART | SIDLE_SMART_WKUP,
+	.sysc_fields	= &omap_hwmod_sysc_type3,
+};
+
+static struct omap_hwmod_class ti81xx_rtc_hwmod_class = {
+	.name		= "rtc",
+	.sysc		= &ti81xx_rtc_sysc,
+};
+
+struct omap_hwmod ti81xx_rtc_hwmod = {
+	.name		= "rtc",
+	.class		= &ti81xx_rtc_hwmod_class,
+	.clkdm_name	= "alwon_l3s_clkdm",
+	.flags		= HWMOD_NO_IDLEST,
+	.main_clk	= "sysclk18_ck",
+	.prcm		= {
+		.omap4	= {
+			.clkctrl_offs = DM81XX_CM_ALWON_RTC_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+};
+
+static struct omap_hwmod_ocp_if ti81xx_l4_ls__rtc = {
+	.master		= &dm81xx_l4_ls_hwmod,
+	.slave		= &ti81xx_rtc_hwmod,
+	.clk		= "sysclk6_ck",
+	.user		= OCP_USER_MPU,
+};
+
 /* UART common */
 static struct omap_hwmod_class_sysconfig uart_sysc = {
 	.rev_offs	= 0x50,
@@ -1383,6 +1419,7 @@ static struct omap_hwmod_ocp_if *dm814x_hwmod_ocp_ifs[] __initdata = {
 	&dm81xx_l4_ls__mcspi1,
 	&dm814x_l4_ls__mmc1,
 	&dm814x_l4_ls__mmc2,
+	&ti81xx_l4_ls__rtc,
 	&dm81xx_alwon_l3_fast__tpcc,
 	&dm81xx_alwon_l3_fast__tptc0,
 	&dm81xx_alwon_l3_fast__tptc1,
@@ -1422,6 +1459,7 @@ static struct omap_hwmod_ocp_if *dm816x_hwmod_ocp_ifs[] __initdata = {
 	&dm81xx_l4_ls__gpio1,
 	&dm81xx_l4_ls__gpio2,
 	&dm81xx_l4_ls__elm,
+	&ti81xx_l4_ls__rtc,
 	&dm816x_l4_ls__mmc1,
 	&dm816x_l4_ls__timer1,
 	&dm816x_l4_ls__timer2,

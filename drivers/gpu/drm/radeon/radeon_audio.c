@@ -739,9 +739,6 @@ static void radeon_audio_dp_mode_set(struct drm_encoder *encoder,
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
-	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-	struct radeon_connector_atom_dig *dig_connector =
-		radeon_connector->con_priv;
 
 	if (!dig || !dig->afmt)
 		return;
@@ -753,10 +750,7 @@ static void radeon_audio_dp_mode_set(struct drm_encoder *encoder,
 		radeon_audio_write_speaker_allocation(encoder);
 		radeon_audio_write_sad_regs(encoder);
 		radeon_audio_write_latency_fields(encoder, mode);
-		if (rdev->clock.dp_extclk || ASIC_IS_DCE5(rdev))
-			radeon_audio_set_dto(encoder, rdev->clock.default_dispclk * 10);
-		else
-			radeon_audio_set_dto(encoder, dig_connector->dp_clock);
+		radeon_audio_set_dto(encoder, rdev->clock.vco_freq * 10);
 		radeon_audio_set_audio_packet(encoder);
 		radeon_audio_select_pin(encoder);
 
@@ -780,4 +774,16 @@ void radeon_audio_dpms(struct drm_encoder *encoder, int mode)
 
 	if (radeon_encoder->audio && radeon_encoder->audio->dpms)
 		radeon_encoder->audio->dpms(encoder, mode == DRM_MODE_DPMS_ON);
+}
+
+unsigned int radeon_audio_decode_dfs_div(unsigned int div)
+{
+	if (div >= 8 && div < 64)
+		return (div - 8) * 25 + 200;
+	else if (div >= 64 && div < 96)
+		return (div - 64) * 50 + 1600;
+	else if (div >= 96 && div < 128)
+		return (div - 96) * 100 + 3200;
+	else
+		return 0;
 }

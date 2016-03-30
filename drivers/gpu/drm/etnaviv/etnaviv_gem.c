@@ -260,8 +260,32 @@ etnaviv_gem_get_vram_mapping(struct etnaviv_gem_object *obj,
 	return NULL;
 }
 
-int etnaviv_gem_get_iova(struct etnaviv_gpu *gpu,
-	struct drm_gem_object *obj, u32 *iova)
+void etnaviv_gem_mapping_reference(struct etnaviv_vram_mapping *mapping)
+{
+	struct etnaviv_gem_object *etnaviv_obj = mapping->object;
+
+	drm_gem_object_reference(&etnaviv_obj->base);
+
+	mutex_lock(&etnaviv_obj->lock);
+	WARN_ON(mapping->use == 0);
+	mapping->use += 1;
+	mutex_unlock(&etnaviv_obj->lock);
+}
+
+void etnaviv_gem_mapping_unreference(struct etnaviv_vram_mapping *mapping)
+{
+	struct etnaviv_gem_object *etnaviv_obj = mapping->object;
+
+	mutex_lock(&etnaviv_obj->lock);
+	WARN_ON(mapping->use == 0);
+	mapping->use -= 1;
+	mutex_unlock(&etnaviv_obj->lock);
+
+	drm_gem_object_unreference_unlocked(&etnaviv_obj->base);
+}
+
+struct etnaviv_vram_mapping *etnaviv_gem_mapping_get(
+	struct drm_gem_object *obj, struct etnaviv_gpu *gpu)
 {
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 	struct etnaviv_vram_mapping *mapping;
@@ -329,47 +353,45 @@ int etnaviv_gem_get_iova(struct etnaviv_gpu *gpu,
 out:
 	mutex_unlock(&etnaviv_obj->lock);
 
-	if (!ret) {
-		/* Take a reference on the object */
-		drm_gem_object_reference(obj);
-		*iova = mapping->iova;
-	}
+	if (ret)
+		return ERR_PTR(ret);
 
-	return ret;
+	/* Take a reference on the object */
+	drm_gem_object_reference(obj);
+	return mapping;
 }
 
-void etnaviv_gem_put_iova(struct etnaviv_gpu *gpu, struct drm_gem_object *obj)
-{
-	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
-	struct etnaviv_vram_mapping *mapping;
-
-	mutex_lock(&etnaviv_obj->lock);
-	mapping = etnaviv_gem_get_vram_mapping(etnaviv_obj, gpu->mmu);
-
-	WARN_ON(mapping->use == 0);
-	mapping->use -= 1;
-	mutex_unlock(&etnaviv_obj->lock);
-
-	drm_gem_object_unreference_unlocked(obj);
-}
-
-void *etnaviv_gem_vaddr(struct drm_gem_object *obj)
+void *etnaviv_gem_vmap(struct drm_gem_object *obj)
 {
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 
+	if (etnaviv_obj->vaddr)
+		return etnaviv_obj->vaddr;
+
 	mutex_lock(&etnaviv_obj->lock);
-	if (!etnaviv_obj->vaddr) {
-		struct page **pages = etnaviv_gem_get_pages(etnaviv_obj);
-
-		if (IS_ERR(pages))
-			return ERR_CAST(pages);
-
-		etnaviv_obj->vaddr = vmap(pages, obj->size >> PAGE_SHIFT,
-				VM_MAP, pgprot_writecombine(PAGE_KERNEL));
-	}
+	/*
+	 * Need to check again, as we might have raced with another thread
+	 * while waiting for the mutex.
+	 */
+	if (!etnaviv_obj->vaddr)
+		etnaviv_obj->vaddr = etnaviv_obj->ops->vmap(etnaviv_obj);
 	mutex_unlock(&etnaviv_obj->lock);
 
 	return etnaviv_obj->vaddr;
+}
+
+static void *etnaviv_gem_vmap_impl(struct etnaviv_gem_object *obj)
+{
+	struct page **pages;
+
+	lockdep_assert_held(&obj->lock);
+
+	pages = etnaviv_gem_get_pages(obj);
+	if (IS_ERR(pages))
+		return NULL;
+
+	return vmap(pages, obj->base.size >> PAGE_SHIFT,
+			VM_MAP, pgprot_writecombine(PAGE_KERNEL));
 }
 
 static inline enum dma_data_direction etnaviv_op_to_dma_dir(u32 op)
@@ -522,6 +544,7 @@ static void etnaviv_gem_shmem_release(struct etnaviv_gem_object *etnaviv_obj)
 static const struct etnaviv_gem_ops etnaviv_gem_shmem_ops = {
 	.get_pages = etnaviv_gem_shmem_get_pages,
 	.release = etnaviv_gem_shmem_release,
+	.vmap = etnaviv_gem_vmap_impl,
 };
 
 void etnaviv_gem_free_object(struct drm_gem_object *obj)
@@ -738,9 +761,9 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
 
 	down_read(&mm->mmap_sem);
 	while (pinned < npages) {
-		ret = get_user_pages(task, mm, ptr, npages - pinned,
-				     !etnaviv_obj->userptr.ro, 0,
-				     pvec + pinned, NULL);
+		ret = get_user_pages_remote(task, mm, ptr, npages - pinned,
+					    !etnaviv_obj->userptr.ro, 0,
+					    pvec + pinned, NULL);
 		if (ret < 0)
 			break;
 
@@ -866,6 +889,7 @@ static void etnaviv_gem_userptr_release(struct etnaviv_gem_object *etnaviv_obj)
 static const struct etnaviv_gem_ops etnaviv_gem_userptr_ops = {
 	.get_pages = etnaviv_gem_userptr_get_pages,
 	.release = etnaviv_gem_userptr_release,
+	.vmap = etnaviv_gem_vmap_impl,
 };
 
 int etnaviv_gem_new_userptr(struct drm_device *dev, struct drm_file *file,

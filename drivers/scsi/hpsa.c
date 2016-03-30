@@ -1,5 +1,6 @@
 /*
  *    Disk Array driver for HP Smart Array SAS controllers
+ *    Copyright 2016 Microsemi Corporation
  *    Copyright 2014-2015 PMC-Sierra, Inc.
  *    Copyright 2000,2009-2015 Hewlett-Packard Development Company, L.P.
  *
@@ -12,7 +13,7 @@
  *    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
  *    NON INFRINGEMENT.  See the GNU General Public License for more details.
  *
- *    Questions/Comments/Bugfixes to storagedev@pmcs.com
+ *    Questions/Comments/Bugfixes to esc.storagedev@microsemi.com
  *
  */
 
@@ -809,7 +810,8 @@ static ssize_t path_info_show(struct device *dev,
 				PAGE_SIZE - output_len,
 				"PORT: %.2s ",
 				phys_connector);
-		if (hdev->devtype == TYPE_DISK && hdev->expose_device) {
+		if ((hdev->devtype == TYPE_DISK || hdev->devtype == TYPE_ZBC) &&
+			hdev->expose_device) {
 			if (box == 0 || box == 0xFF) {
 				output_len += scnprintf(buf + output_len,
 					PAGE_SIZE - output_len,
@@ -1166,6 +1168,7 @@ static void hpsa_show_dev_msg(const char *level, struct ctlr_info *h,
 		snprintf(label, LABEL_SIZE, "enclosure");
 		break;
 	case TYPE_DISK:
+	case TYPE_ZBC:
 		if (dev->external)
 			snprintf(label, LABEL_SIZE, "external");
 		else if (!is_logical_dev_addr_mode(dev->scsi3addr))
@@ -1636,6 +1639,8 @@ static void hpsa_figure_phys_disk_ptrs(struct ctlr_info *h,
 				continue;
 			if (dev[j]->devtype != TYPE_DISK)
 				continue;
+			if (dev[j]->devtype != TYPE_ZBC)
+				continue;
 			if (is_logical_device(dev[j]))
 				continue;
 			if (dev[j]->ioaccel_handle != dd[i].ioaccel_handle)
@@ -1680,6 +1685,8 @@ static void hpsa_update_log_drive_phys_drive_ptrs(struct ctlr_info *h,
 		if (dev[i] == NULL)
 			continue;
 		if (dev[i]->devtype != TYPE_DISK)
+			continue;
+		if (dev[i]->devtype != TYPE_ZBC)
 			continue;
 		if (!is_logical_device(dev[i]))
 			continue;
@@ -3208,8 +3215,10 @@ static void hpsa_get_enclosure_info(struct ctlr_info *h,
 
 	bmic_device_index = GET_BMIC_DRIVE_NUMBER(&rle->lunid[0]);
 
-	if (bmic_device_index == 0xFF00)
+	if (bmic_device_index == 0xFF00 || MASKED_DEVICE(&rle->lunid[0])) {
+		rc = IO_OK;
 		goto out;
+	}
 
 	bssbp = kzalloc(sizeof(*bssbp), GFP_KERNEL);
 	if (!bssbp)
@@ -3657,18 +3666,6 @@ static int hpsa_device_supports_aborts(struct ctlr_info *h,
 	return rc;
 }
 
-static void sanitize_inquiry_string(unsigned char *s, int len)
-{
-	bool terminated = false;
-
-	for (; len > 0; (--len, ++s)) {
-		if (*s == 0)
-			terminated = true;
-		if (terminated || *s < 0x20 || *s > 0x7e)
-			*s = ' ';
-	}
-}
-
 static int hpsa_update_device_info(struct ctlr_info *h,
 	unsigned char scsi3addr[], struct hpsa_scsi_dev_t *this_device,
 	unsigned char *is_OBDR_device)
@@ -3699,8 +3696,8 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 		goto bail_out;
 	}
 
-	sanitize_inquiry_string(&inq_buff[8], 8);
-	sanitize_inquiry_string(&inq_buff[16], 16);
+	scsi_sanitize_inquiry_string(&inq_buff[8], 8);
+	scsi_sanitize_inquiry_string(&inq_buff[16], 16);
 
 	this_device->devtype = (inq_buff[0] & 0x1f);
 	memcpy(this_device->scsi3addr, scsi3addr, 8);
@@ -3713,7 +3710,8 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 	hpsa_get_device_id(h, scsi3addr, this_device->device_id, 8,
 		sizeof(this_device->device_id));
 
-	if (this_device->devtype == TYPE_DISK &&
+	if ((this_device->devtype == TYPE_DISK ||
+		this_device->devtype == TYPE_ZBC) &&
 		is_logical_dev_addr_mode(scsi3addr)) {
 		int volume_offline;
 
@@ -4181,6 +4179,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 				ncurrent++;
 			break;
 		case TYPE_DISK:
+		case TYPE_ZBC:
 			if (this_device->physical_device) {
 				/* The disk is in HBA mode. */
 				/* Never use RAID mapper in HBA mode. */
@@ -4197,7 +4196,8 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 			ncurrent++;
 			break;
 		case TYPE_ENCLOSURE:
-			hpsa_get_enclosure_info(h, lunaddrbytes,
+			if (!this_device->external)
+				hpsa_get_enclosure_info(h, lunaddrbytes,
 						physdev_list, phys_dev_index,
 						this_device);
 			ncurrent++;
@@ -4970,6 +4970,8 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 		return IO_ACCEL_INELIGIBLE;
 
 	c->phys_disk = dev->phys_disk[map_index];
+	if (!c->phys_disk)
+		return IO_ACCEL_INELIGIBLE;
 
 	disk_handle = dd[map_index].ioaccel_handle;
 	disk_block = le64_to_cpu(map->disk_starting_blk) +
@@ -5835,7 +5837,7 @@ static int hpsa_send_abort_ioaccel2(struct ctlr_info *h,
 }
 
 static int hpsa_send_abort_both_ways(struct ctlr_info *h,
-	unsigned char *scsi3addr, struct CommandList *abort, int reply_queue)
+	struct hpsa_scsi_dev_t *dev, struct CommandList *abort, int reply_queue)
 {
 	/*
 	 * ioccelerator mode 2 commands should be aborted via the
@@ -5844,14 +5846,16 @@ static int hpsa_send_abort_both_ways(struct ctlr_info *h,
 	 * Change abort to physical device reset when abort TMF is unsupported.
 	 */
 	if (abort->cmd_type == CMD_IOACCEL2) {
-		if (HPSATMF_IOACCEL_ENABLED & h->TMFSupportFlags)
+		if ((HPSATMF_IOACCEL_ENABLED & h->TMFSupportFlags) ||
+			dev->physical_device)
 			return hpsa_send_abort_ioaccel2(h, abort,
 						reply_queue);
 		else
-			return hpsa_send_reset_as_abort_ioaccel2(h, scsi3addr,
+			return hpsa_send_reset_as_abort_ioaccel2(h,
+							dev->scsi3addr,
 							abort, reply_queue);
 	}
-	return hpsa_send_abort(h, scsi3addr, abort, reply_queue);
+	return hpsa_send_abort(h, dev->scsi3addr, abort, reply_queue);
 }
 
 /* Find out which reply queue a command was meant to return on */
@@ -5989,7 +5993,7 @@ static int hpsa_eh_abort_handler(struct scsi_cmnd *sc)
 		cmd_free(h, abort);
 		return FAILED;
 	}
-	rc = hpsa_send_abort_both_ways(h, dev->scsi3addr, abort, reply_queue);
+	rc = hpsa_send_abort_both_ways(h, dev, abort, reply_queue);
 	atomic_inc(&h->abort_cmds_available);
 	wake_up_all(&h->abort_cmd_wait_queue);
 	if (rc != 0) {

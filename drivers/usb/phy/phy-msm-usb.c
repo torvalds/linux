@@ -757,14 +757,8 @@ static int msm_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 	otg->host = host;
 	dev_dbg(otg->usb_phy->dev, "host driver registered w/ tranceiver\n");
 
-	/*
-	 * Kick the state machine work, if peripheral is not supported
-	 * or peripheral is already registered with us.
-	 */
-	if (motg->pdata->mode == USB_DR_MODE_HOST || otg->gadget) {
-		pm_runtime_get_sync(otg->usb_phy->dev);
-		schedule_work(&motg->sm_work);
-	}
+	pm_runtime_get_sync(otg->usb_phy->dev);
+	schedule_work(&motg->sm_work);
 
 	return 0;
 }
@@ -827,14 +821,8 @@ static int msm_otg_set_peripheral(struct usb_otg *otg,
 	dev_dbg(otg->usb_phy->dev,
 		"peripheral driver registered w/ tranceiver\n");
 
-	/*
-	 * Kick the state machine work, if host is not supported
-	 * or host is already registered with us.
-	 */
-	if (motg->pdata->mode == USB_DR_MODE_PERIPHERAL || otg->host) {
-		pm_runtime_get_sync(otg->usb_phy->dev);
-		schedule_work(&motg->sm_work);
-	}
+	pm_runtime_get_sync(otg->usb_phy->dev);
+	schedule_work(&motg->sm_work);
 
 	return 0;
 }
@@ -1599,6 +1587,8 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 						&motg->id.nb);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "register ID notifier failed\n");
+			extcon_unregister_notifier(motg->vbus.extcon,
+						   EXTCON_USB, &motg->vbus.nb);
 			return ret;
 		}
 
@@ -1660,15 +1650,6 @@ static int msm_otg_probe(struct platform_device *pdev)
 	if (!motg)
 		return -ENOMEM;
 
-	pdata = dev_get_platdata(&pdev->dev);
-	if (!pdata) {
-		if (!np)
-			return -ENXIO;
-		ret = msm_otg_read_dt(pdev, motg);
-		if (ret)
-			return ret;
-	}
-
 	motg->phy.otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
 				     GFP_KERNEL);
 	if (!motg->phy.otg)
@@ -1710,6 +1691,15 @@ static int msm_otg_probe(struct platform_device *pdev)
 	if (!motg->regs)
 		return -ENOMEM;
 
+	pdata = dev_get_platdata(&pdev->dev);
+	if (!pdata) {
+		if (!np)
+			return -ENXIO;
+		ret = msm_otg_read_dt(pdev, motg);
+		if (ret)
+			return ret;
+	}
+
 	/*
 	 * NOTE: The PHYs can be multiplexed between the chipidea controller
 	 * and the dwc3 controller, using a single bit. It is important that
@@ -1717,8 +1707,10 @@ static int msm_otg_probe(struct platform_device *pdev)
 	 */
 	if (motg->phy_number) {
 		phy_select = devm_ioremap_nocache(&pdev->dev, USB2_PHY_SEL, 4);
-		if (!phy_select)
-			return -ENOMEM;
+		if (!phy_select) {
+			ret = -ENOMEM;
+			goto unregister_extcon;
+		}
 		/* Enable second PHY with the OTG port */
 		writel(0x1, phy_select);
 	}
@@ -1728,7 +1720,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 	motg->irq = platform_get_irq(pdev, 0);
 	if (motg->irq < 0) {
 		dev_err(&pdev->dev, "platform_get_irq failed\n");
-		return motg->irq;
+		ret = motg->irq;
+		goto unregister_extcon;
 	}
 
 	regs[0].supply = "vddcx";
@@ -1737,7 +1730,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 
 	ret = devm_regulator_bulk_get(motg->phy.dev, ARRAY_SIZE(regs), regs);
 	if (ret)
-		return ret;
+		goto unregister_extcon;
 
 	motg->vddcx = regs[0].consumer;
 	motg->v3p3  = regs[1].consumer;
@@ -1834,6 +1827,12 @@ disable_clks:
 	clk_disable_unprepare(motg->clk);
 	if (!IS_ERR(motg->core_clk))
 		clk_disable_unprepare(motg->core_clk);
+unregister_extcon:
+	extcon_unregister_notifier(motg->id.extcon,
+				   EXTCON_USB_HOST, &motg->id.nb);
+	extcon_unregister_notifier(motg->vbus.extcon,
+				   EXTCON_USB, &motg->vbus.nb);
+
 	return ret;
 }
 

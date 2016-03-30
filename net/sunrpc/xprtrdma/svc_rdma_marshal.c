@@ -145,29 +145,44 @@ static __be32 *decode_reply_array(__be32 *va, __be32 *vaend)
 	return (__be32 *)&ary->wc_array[nchunks];
 }
 
-int svc_rdma_xdr_decode_req(struct rpcrdma_msg **rdma_req,
-			    struct svc_rqst *rqstp)
+int svc_rdma_xdr_decode_req(struct rpcrdma_msg *rmsgp, struct svc_rqst *rqstp)
 {
-	struct rpcrdma_msg *rmsgp = NULL;
 	__be32 *va, *vaend;
+	unsigned int len;
 	u32 hdr_len;
 
-	rmsgp = (struct rpcrdma_msg *)rqstp->rq_arg.head[0].iov_base;
-
 	/* Verify that there's enough bytes for header + something */
-	if (rqstp->rq_arg.len <= RPCRDMA_HDRLEN_MIN) {
+	if (rqstp->rq_arg.len <= RPCRDMA_HDRLEN_ERR) {
 		dprintk("svcrdma: header too short = %d\n",
 			rqstp->rq_arg.len);
 		return -EINVAL;
 	}
 
-	if (rmsgp->rm_vers != rpcrdma_version)
-		return -ENOSYS;
+	if (rmsgp->rm_vers != rpcrdma_version) {
+		dprintk("%s: bad version %u\n", __func__,
+			be32_to_cpu(rmsgp->rm_vers));
+		return -EPROTONOSUPPORT;
+	}
 
-	/* Pull in the extra for the padded case and bump our pointer */
-	if (rmsgp->rm_type == rdma_msgp) {
-		int hdrlen;
+	switch (be32_to_cpu(rmsgp->rm_type)) {
+	case RDMA_MSG:
+	case RDMA_NOMSG:
+		break;
 
+	case RDMA_DONE:
+		/* Just drop it */
+		dprintk("svcrdma: dropping RDMA_DONE message\n");
+		return 0;
+
+	case RDMA_ERROR:
+		/* Possible if this is a backchannel reply.
+		 * XXX: We should cancel this XID, though.
+		 */
+		dprintk("svcrdma: dropping RDMA_ERROR message\n");
+		return 0;
+
+	case RDMA_MSGP:
+		/* Pull in the extra for the padded case, bump our pointer */
 		rmsgp->rm_body.rm_padded.rm_align =
 			be32_to_cpu(rmsgp->rm_body.rm_padded.rm_align);
 		rmsgp->rm_body.rm_padded.rm_thresh =
@@ -175,11 +190,15 @@ int svc_rdma_xdr_decode_req(struct rpcrdma_msg **rdma_req,
 
 		va = &rmsgp->rm_body.rm_padded.rm_pempty[4];
 		rqstp->rq_arg.head[0].iov_base = va;
-		hdrlen = (u32)((unsigned long)va - (unsigned long)rmsgp);
-		rqstp->rq_arg.head[0].iov_len -= hdrlen;
-		if (hdrlen > rqstp->rq_arg.len)
+		len = (u32)((unsigned long)va - (unsigned long)rmsgp);
+		rqstp->rq_arg.head[0].iov_len -= len;
+		if (len > rqstp->rq_arg.len)
 			return -EINVAL;
-		return hdrlen;
+		return len;
+	default:
+		dprintk("svcrdma: bad rdma procedure (%u)\n",
+			be32_to_cpu(rmsgp->rm_type));
+		return -EINVAL;
 	}
 
 	/* The chunk list may contain either a read chunk list or a write
@@ -188,20 +207,25 @@ int svc_rdma_xdr_decode_req(struct rpcrdma_msg **rdma_req,
 	va = &rmsgp->rm_body.rm_chunks[0];
 	vaend = (__be32 *)((unsigned long)rmsgp + rqstp->rq_arg.len);
 	va = decode_read_list(va, vaend);
-	if (!va)
+	if (!va) {
+		dprintk("svcrdma: failed to decode read list\n");
 		return -EINVAL;
+	}
 	va = decode_write_list(va, vaend);
-	if (!va)
+	if (!va) {
+		dprintk("svcrdma: failed to decode write list\n");
 		return -EINVAL;
+	}
 	va = decode_reply_array(va, vaend);
-	if (!va)
+	if (!va) {
+		dprintk("svcrdma: failed to decode reply chunk\n");
 		return -EINVAL;
+	}
 
 	rqstp->rq_arg.head[0].iov_base = va;
 	hdr_len = (unsigned long)va - (unsigned long)rmsgp;
 	rqstp->rq_arg.head[0].iov_len -= hdr_len;
 
-	*rdma_req = rmsgp;
 	return hdr_len;
 }
 

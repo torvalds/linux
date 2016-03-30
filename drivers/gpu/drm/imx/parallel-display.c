@@ -112,13 +112,6 @@ static void imx_pd_encoder_dpms(struct drm_encoder *encoder, int mode)
 		drm_panel_enable(imxpd->panel);
 }
 
-static bool imx_pd_encoder_mode_fixup(struct drm_encoder *encoder,
-			   const struct drm_display_mode *mode,
-			   struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void imx_pd_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct imx_parallel_display *imxpd = enc_to_imxpd(encoder);
@@ -166,7 +159,6 @@ static const struct drm_encoder_funcs imx_pd_encoder_funcs = {
 
 static const struct drm_encoder_helper_funcs imx_pd_encoder_helper_funcs = {
 	.dpms = imx_pd_encoder_dpms,
-	.mode_fixup = imx_pd_encoder_mode_fixup,
 	.prepare = imx_pd_encoder_prepare,
 	.commit = imx_pd_encoder_commit,
 	.mode_set = imx_pd_encoder_mode_set,

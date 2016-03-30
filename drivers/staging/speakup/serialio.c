@@ -6,6 +6,12 @@
 #include "spk_priv.h"
 #include "serialio.h"
 
+#include <linux/serial_core.h>
+/* WARNING:  Do not change this to <linux/serial.h> without testing that
+ * SERIAL_PORT_DFNS does get defined to the appropriate value.
+ */
+#include <asm/serial.h>
+
 #ifndef SERIAL_PORT_DFNS
 #define SERIAL_PORT_DFNS
 #endif
@@ -23,8 +29,14 @@ const struct old_serial_port *spk_serial_init(int index)
 	int baud = 9600, quot = 0;
 	unsigned int cval = 0;
 	int cflag = CREAD | HUPCL | CLOCAL | B9600 | CS8;
-	const struct old_serial_port *ser = rs_table + index;
+	const struct old_serial_port *ser;
 	int err;
+
+	if (index >= ARRAY_SIZE(rs_table)) {
+		pr_info("no port info for ttyS%d\n", index);
+		return NULL;
+	}
+	ser = rs_table + index;
 
 	/*	Divisor, bytesize and parity */
 	quot = ser->baud_base / baud;
@@ -81,8 +93,6 @@ const struct old_serial_port *spk_serial_init(int index)
 static irqreturn_t synth_readbuf_handler(int irq, void *dev_id)
 {
 	unsigned long flags;
-/*printk(KERN_ERR "in irq\n"); */
-/*pr_warn("in IRQ\n"); */
 	int c;
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
@@ -90,8 +100,6 @@ static irqreturn_t synth_readbuf_handler(int irq, void *dev_id)
 
 		c = inb_p(speakup_info.port_tts+UART_RX);
 		synth->read_buff_add((u_char) c);
-/*printk(KERN_ERR "c = %d\n", c); */
-/*pr_warn("C = %d\n", c); */
 	}
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	return IRQ_HANDLED;
@@ -164,9 +172,6 @@ int spk_wait_for_xmitr(void)
 	while (!((inb_p(speakup_info.port_tts + UART_MSR)) & UART_MSR_CTS)) {
 		/* CTS */
 		if (--tmout == 0) {
-			/* pr_warn("%s: timed out (cts)\n",
-			 * synth->long_name);
-			 */
 			timeouts++;
 			return 0;
 		}

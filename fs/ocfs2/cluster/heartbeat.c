@@ -287,7 +287,6 @@ struct o2hb_bio_wait_ctxt {
 static void o2hb_write_timeout(struct work_struct *work)
 {
 	int failed, quorum;
-	unsigned long flags;
 	struct o2hb_region *reg =
 		container_of(work, struct o2hb_region,
 			     hr_write_timeout_work.work);
@@ -297,14 +296,14 @@ static void o2hb_write_timeout(struct work_struct *work)
 	     jiffies_to_msecs(jiffies - reg->hr_last_timeout_start));
 
 	if (o2hb_global_heartbeat_active()) {
-		spin_lock_irqsave(&o2hb_live_lock, flags);
+		spin_lock(&o2hb_live_lock);
 		if (test_bit(reg->hr_region_num, o2hb_quorum_region_bitmap))
 			set_bit(reg->hr_region_num, o2hb_failed_region_bitmap);
 		failed = bitmap_weight(o2hb_failed_region_bitmap,
 					O2NM_MAX_REGIONS);
 		quorum = bitmap_weight(o2hb_quorum_region_bitmap,
 					O2NM_MAX_REGIONS);
-		spin_unlock_irqrestore(&o2hb_live_lock, flags);
+		spin_unlock(&o2hb_live_lock);
 
 		mlog(ML_HEARTBEAT, "Number of regions %d, failed regions %d\n",
 		     quorum, failed);
@@ -1254,15 +1253,15 @@ static const struct file_operations o2hb_debug_fops = {
 
 void o2hb_exit(void)
 {
-	kfree(o2hb_db_livenodes);
-	kfree(o2hb_db_liveregions);
-	kfree(o2hb_db_quorumregions);
-	kfree(o2hb_db_failedregions);
 	debugfs_remove(o2hb_debug_failedregions);
 	debugfs_remove(o2hb_debug_quorumregions);
 	debugfs_remove(o2hb_debug_liveregions);
 	debugfs_remove(o2hb_debug_livenodes);
 	debugfs_remove(o2hb_debug_dir);
+	kfree(o2hb_db_livenodes);
+	kfree(o2hb_db_liveregions);
+	kfree(o2hb_db_quorumregions);
+	kfree(o2hb_db_failedregions);
 }
 
 static struct dentry *o2hb_debug_create(const char *name, struct dentry *dir,
@@ -1438,13 +1437,15 @@ static void o2hb_region_release(struct config_item *item)
 
 	kfree(reg->hr_slots);
 
-	kfree(reg->hr_db_regnum);
-	kfree(reg->hr_db_livenodes);
 	debugfs_remove(reg->hr_debug_livenodes);
 	debugfs_remove(reg->hr_debug_regnum);
 	debugfs_remove(reg->hr_debug_elapsed_time);
 	debugfs_remove(reg->hr_debug_pinned);
 	debugfs_remove(reg->hr_debug_dir);
+	kfree(reg->hr_db_livenodes);
+	kfree(reg->hr_db_regnum);
+	kfree(reg->hr_db_elapsed_time);
+	kfree(reg->hr_db_pinned);
 
 	spin_lock(&o2hb_live_lock);
 	list_del(&reg->hr_all_item);
@@ -2423,11 +2424,10 @@ EXPORT_SYMBOL_GPL(o2hb_check_node_heartbeating);
 int o2hb_check_node_heartbeating_no_sem(u8 node_num)
 {
 	unsigned long testing_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
-	unsigned long flags;
 
-	spin_lock_irqsave(&o2hb_live_lock, flags);
+	spin_lock(&o2hb_live_lock);
 	o2hb_fill_node_map_from_callback(testing_map, sizeof(testing_map));
-	spin_unlock_irqrestore(&o2hb_live_lock, flags);
+	spin_unlock(&o2hb_live_lock);
 	if (!test_bit(node_num, testing_map)) {
 		mlog(ML_HEARTBEAT,
 		     "node (%u) does not have heartbeating enabled.\n",

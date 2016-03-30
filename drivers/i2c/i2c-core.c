@@ -28,32 +28,32 @@
  */
 
 #include <dt-bindings/i2c/i2c.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/delay.h>
-#include <linux/errno.h>
-#include <linux/gpio.h>
-#include <linux/slab.h>
-#include <linux/i2c.h>
-#include <linux/init.h>
-#include <linux/idr.h>
-#include <linux/mutex.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <asm/uaccess.h>
+#include <linux/acpi.h>
 #include <linux/clk/clk-conf.h>
 #include <linux/completion.h>
-#include <linux/hardirq.h>
-#include <linux/irqflags.h>
-#include <linux/rwsem.h>
-#include <linux/pm_runtime.h>
-#include <linux/pm_domain.h>
-#include <linux/pm_wakeirq.h>
-#include <linux/acpi.h>
-#include <linux/jump_label.h>
-#include <asm/uaccess.h>
+#include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/errno.h>
+#include <linux/gpio.h>
+#include <linux/hardirq.h>
+#include <linux/i2c.h>
+#include <linux/idr.h>
+#include <linux/init.h>
+#include <linux/irqflags.h>
+#include <linux/jump_label.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/property.h>
+#include <linux/rwsem.h>
+#include <linux/slab.h>
 
 #include "i2c-core.h"
 
@@ -73,6 +73,7 @@ static struct device_type i2c_client_type;
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
 static struct static_key i2c_trace_msg = STATIC_KEY_INIT_FALSE;
+static bool is_registered;
 
 void i2c_transfer_trace_reg(void)
 {
@@ -1529,7 +1530,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	int res = 0;
 
 	/* Can't register until after driver model init */
-	if (unlikely(WARN_ON(!i2c_bus_type.p))) {
+	if (WARN_ON(!is_registered)) {
 		res = -EAGAIN;
 		goto out_list;
 	}
@@ -1926,7 +1927,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	int res;
 
 	/* Can't register until after driver model init */
-	if (unlikely(WARN_ON(!i2c_bus_type.p)))
+	if (WARN_ON(!is_registered))
 		return -EAGAIN;
 
 	/* add the driver to the list of i2c drivers in the driver core */
@@ -2104,6 +2105,9 @@ static int __init i2c_init(void)
 	retval = bus_register(&i2c_bus_type);
 	if (retval)
 		return retval;
+
+	is_registered = true;
+
 #ifdef CONFIG_I2C_COMPAT
 	i2c_adapter_compat_class = class_compat_register("i2c-adapter");
 	if (!i2c_adapter_compat_class) {
@@ -2125,6 +2129,7 @@ class_err:
 	class_compat_unregister(i2c_adapter_compat_class);
 bus_err:
 #endif
+	is_registered = false;
 	bus_unregister(&i2c_bus_type);
 	return retval;
 }

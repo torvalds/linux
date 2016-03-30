@@ -277,7 +277,7 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 		WREG32_P(mmVCE_STATUS, 0, ~1);
 
 		/* Set Clock-Gating off */
-		if (adev->cg_flags & AMDGPU_CG_SUPPORT_VCE_MGCG)
+		if (adev->cg_flags & AMD_CG_SUPPORT_VCE_MGCG)
 			vce_v3_0_set_vce_sw_clock_gating(adev, false);
 
 		if (r) {
@@ -676,7 +676,7 @@ static int vce_v3_0_set_clockgating_state(void *handle,
 	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
 	int i;
 
-	if (!(adev->cg_flags & AMDGPU_CG_SUPPORT_VCE_MGCG))
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_VCE_MGCG))
 		return 0;
 
 	mutex_lock(&adev->grbm_idx_mutex);
@@ -728,6 +728,9 @@ static int vce_v3_0_set_powergating_state(void *handle,
 	 */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (!(adev->pg_flags & AMD_PG_SUPPORT_VCE))
+		return 0;
+
 	if (state == AMD_PG_STATE_GATE)
 		/* XXX do we need a vce_v3_0_stop()? */
 		return 0;
@@ -759,10 +762,10 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_funcs = {
 	.parse_cs = amdgpu_vce_ring_parse_cs,
 	.emit_ib = amdgpu_vce_ring_emit_ib,
 	.emit_fence = amdgpu_vce_ring_emit_fence,
-	.emit_semaphore = amdgpu_vce_ring_emit_semaphore,
 	.test_ring = amdgpu_vce_ring_test_ring,
 	.test_ib = amdgpu_vce_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
+	.pad_ib = amdgpu_ring_generic_pad_ib,
 };
 
 static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev)

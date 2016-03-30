@@ -64,7 +64,6 @@
 #define OARR_SIZE_CFG                BIT(OARR_SIZE_CFG_SHIFT)
 
 #define MAX_NUM_OB_WINDOWS           2
-#define MAX_NUM_PAXC_PF              4
 
 #define IPROC_PCIE_REG_INVALID 0xffff
 
@@ -170,20 +169,6 @@ static inline void iproc_pcie_ob_write(struct iproc_pcie *pcie,
 	writel(val, pcie->base + offset + (window * 8));
 }
 
-static inline bool iproc_pcie_device_is_valid(struct iproc_pcie *pcie,
-					      unsigned int slot,
-					      unsigned int fn)
-{
-	if (slot > 0)
-		return false;
-
-	/* PAXC can only support limited number of functions */
-	if (pcie->type == IPROC_PCIE_PAXC && fn >= MAX_NUM_PAXC_PF)
-		return false;
-
-	return true;
-}
-
 /**
  * Note access to the configuration registers are protected at the higher layer
  * by 'pci_lock' in drivers/pci/access.c
@@ -199,11 +184,11 @@ static void __iomem *iproc_pcie_map_cfg_bus(struct pci_bus *bus,
 	u32 val;
 	u16 offset;
 
-	if (!iproc_pcie_device_is_valid(pcie, slot, fn))
-		return NULL;
-
 	/* root complex access */
 	if (busno == 0) {
+		if (slot > 0 || fn > 0)
+			return NULL;
+
 		iproc_pcie_write_reg(pcie, IPROC_PCIE_CFG_IND_ADDR,
 				     where & CFG_IND_ADDR_MASK);
 		offset = iproc_pcie_reg_offset(pcie, IPROC_PCIE_CFG_IND_DATA);
@@ -212,6 +197,14 @@ static void __iomem *iproc_pcie_map_cfg_bus(struct pci_bus *bus,
 		else
 			return (pcie->base + offset);
 	}
+
+	/*
+	 * PAXC is connected to an internally emulated EP within the SoC.  It
+	 * allows only one device.
+	 */
+	if (pcie->type == IPROC_PCIE_PAXC)
+		if (slot > 0)
+			return NULL;
 
 	/* EP device access */
 	val = (busno << CFG_ADDR_BUS_NUM_SHIFT) |

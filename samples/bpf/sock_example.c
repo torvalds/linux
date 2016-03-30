@@ -34,7 +34,7 @@ static int test_sock(void)
 	long long value = 0, tcp_cnt, udp_cnt, icmp_cnt;
 
 	map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(key), sizeof(value),
-				256);
+				256, 0);
 	if (map_fd < 0) {
 		printf("failed to create map '%s'\n", strerror(errno));
 		goto cleanup;

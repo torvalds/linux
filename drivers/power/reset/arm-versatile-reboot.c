@@ -18,8 +18,8 @@
 #define INTEGRATOR_HDR_LOCK_OFFSET	0x14
 #define INTEGRATOR_CM_CTRL_RESET	(1 << 3)
 
-#define REALVIEW_SYS_LOCK_OFFSET	0x20
-#define REALVIEW_SYS_RESETCTL_OFFSET	0x40
+#define VERSATILE_SYS_LOCK_OFFSET	0x20
+#define VERSATILE_SYS_RESETCTL_OFFSET	0x40
 
 /* Magic unlocking token used on all Versatile boards */
 #define VERSATILE_LOCK_VAL		0xA05F
@@ -29,6 +29,7 @@
  */
 enum versatile_reboot {
 	INTEGRATOR_REBOOT_CM,
+	VERSATILE_REBOOT_CM,
 	REALVIEW_REBOOT_EB,
 	REALVIEW_REBOOT_PB1176,
 	REALVIEW_REBOOT_PB11MP,
@@ -44,6 +45,10 @@ static const struct of_device_id versatile_reboot_of_match[] = {
 	{
 		.compatible = "arm,core-module-integrator",
 		.data = (void *)INTEGRATOR_REBOOT_CM
+	},
+	{
+		.compatible = "arm,core-module-versatile",
+		.data = (void *)VERSATILE_REBOOT_CM,
 	},
 	{
 		.compatible = "arm,realview-eb-syscon",
@@ -82,33 +87,43 @@ static int versatile_reboot(struct notifier_block *this, unsigned long mode,
 				   INTEGRATOR_CM_CTRL_RESET,
 				   INTEGRATOR_CM_CTRL_RESET);
 		break;
+	case VERSATILE_REBOOT_CM:
+		regmap_write(syscon_regmap, VERSATILE_SYS_LOCK_OFFSET,
+			     VERSATILE_LOCK_VAL);
+		regmap_update_bits(syscon_regmap,
+				   VERSATILE_SYS_RESETCTL_OFFSET,
+				   0x0107,
+				   0x0105);
+		regmap_write(syscon_regmap, VERSATILE_SYS_LOCK_OFFSET,
+			     0);
+		break;
 	case REALVIEW_REBOOT_EB:
-		regmap_write(syscon_regmap, REALVIEW_SYS_LOCK_OFFSET,
+		regmap_write(syscon_regmap, VERSATILE_SYS_LOCK_OFFSET,
 			     VERSATILE_LOCK_VAL);
 		regmap_write(syscon_regmap,
-			     REALVIEW_SYS_RESETCTL_OFFSET, 0x0008);
+			     VERSATILE_SYS_RESETCTL_OFFSET, 0x0008);
 		break;
 	case REALVIEW_REBOOT_PB1176:
-		regmap_write(syscon_regmap, REALVIEW_SYS_LOCK_OFFSET,
+		regmap_write(syscon_regmap, VERSATILE_SYS_LOCK_OFFSET,
 			     VERSATILE_LOCK_VAL);
 		regmap_write(syscon_regmap,
-			     REALVIEW_SYS_RESETCTL_OFFSET, 0x0100);
+			     VERSATILE_SYS_RESETCTL_OFFSET, 0x0100);
 		break;
 	case REALVIEW_REBOOT_PB11MP:
 	case REALVIEW_REBOOT_PBA8:
-		regmap_write(syscon_regmap, REALVIEW_SYS_LOCK_OFFSET,
+		regmap_write(syscon_regmap, VERSATILE_SYS_LOCK_OFFSET,
 			     VERSATILE_LOCK_VAL);
-		regmap_write(syscon_regmap, REALVIEW_SYS_RESETCTL_OFFSET,
+		regmap_write(syscon_regmap, VERSATILE_SYS_RESETCTL_OFFSET,
 			     0x0000);
-		regmap_write(syscon_regmap, REALVIEW_SYS_RESETCTL_OFFSET,
+		regmap_write(syscon_regmap, VERSATILE_SYS_RESETCTL_OFFSET,
 			     0x0004);
 		break;
 	case REALVIEW_REBOOT_PBX:
-		regmap_write(syscon_regmap, REALVIEW_SYS_LOCK_OFFSET,
+		regmap_write(syscon_regmap, VERSATILE_SYS_LOCK_OFFSET,
 			     VERSATILE_LOCK_VAL);
-		regmap_write(syscon_regmap, REALVIEW_SYS_RESETCTL_OFFSET,
+		regmap_write(syscon_regmap, VERSATILE_SYS_RESETCTL_OFFSET,
 			     0x00f0);
-		regmap_write(syscon_regmap, REALVIEW_SYS_RESETCTL_OFFSET,
+		regmap_write(syscon_regmap, VERSATILE_SYS_RESETCTL_OFFSET,
 			     0x00f4);
 		break;
 	}

@@ -20,6 +20,8 @@ Optional Properties:
 
 - link-frequencies: List of allowed link frequencies in Hz. Each frequency is
 	expressed as a 64-bit big-endian integer.
+- reset-gpios: GPIO handle which is connected to the reset pin of the chip.
+- standby-gpios: GPIO handle which is connected to the standby pin of the chip.
 
 For further reading on port node refer to
 Documentation/devicetree/bindings/media/video-interfaces.txt.

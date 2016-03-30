@@ -42,7 +42,9 @@ struct sti_mixer {
 
 const char *sti_mixer_to_str(struct sti_mixer *mixer);
 
-struct sti_mixer *sti_mixer_create(struct device *dev, int id,
+struct sti_mixer *sti_mixer_create(struct device *dev,
+				   struct drm_device *drm_dev,
+				   int id,
 				   void __iomem *baseaddr);
 
 int sti_mixer_set_plane_status(struct sti_mixer *mixer,

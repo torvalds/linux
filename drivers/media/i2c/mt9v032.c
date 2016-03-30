@@ -14,6 +14,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/log2.h>
 #include <linux/mutex.h>
@@ -251,6 +252,8 @@ struct mt9v032 {
 
 	struct regmap *regmap;
 	struct clk *clk;
+	struct gpio_desc *reset_gpio;
+	struct gpio_desc *standby_gpio;
 
 	struct mt9v032_platform_data *pdata;
 	const struct mt9v032_model_info *model;
@@ -312,15 +315,30 @@ static int mt9v032_power_on(struct mt9v032 *mt9v032)
 	struct regmap *map = mt9v032->regmap;
 	int ret;
 
+	if (mt9v032->reset_gpio)
+		gpiod_set_value_cansleep(mt9v032->reset_gpio, 1);
+
 	ret = clk_set_rate(mt9v032->clk, mt9v032->sysclk);
 	if (ret < 0)
 		return ret;
 
+	/* System clock has to be enabled before releasing the reset */
 	ret = clk_prepare_enable(mt9v032->clk);
 	if (ret)
 		return ret;
 
 	udelay(1);
+
+	if (mt9v032->reset_gpio) {
+		gpiod_set_value_cansleep(mt9v032->reset_gpio, 0);
+
+		/* After releasing reset we need to wait 10 clock cycles
+		 * before accessing the sensor over I2C. As the minimum SYSCLK
+		 * frequency is 13MHz, waiting 1µs will be enough in the worst
+		 * case.
+		 */
+		udelay(1);
+	}
 
 	/* Reset the chip and stop data read out */
 	ret = regmap_write(map, MT9V032_RESET, 1);
@@ -953,6 +971,16 @@ static int mt9v032_probe(struct i2c_client *client,
 	mt9v032->clk = devm_clk_get(&client->dev, NULL);
 	if (IS_ERR(mt9v032->clk))
 		return PTR_ERR(mt9v032->clk);
+
+	mt9v032->reset_gpio = devm_gpiod_get_optional(&client->dev, "reset",
+						      GPIOD_OUT_HIGH);
+	if (IS_ERR(mt9v032->reset_gpio))
+		return PTR_ERR(mt9v032->reset_gpio);
+
+	mt9v032->standby_gpio = devm_gpiod_get_optional(&client->dev, "standby",
+							GPIOD_OUT_LOW);
+	if (IS_ERR(mt9v032->standby_gpio))
+		return PTR_ERR(mt9v032->standby_gpio);
 
 	mutex_init(&mt9v032->power_lock);
 	mt9v032->pdata = pdata;

@@ -43,233 +43,123 @@
 #define NPS_ENET_REG_GE_RST		0x1400
 #define NPS_ENET_REG_PHASE_FIFO_CTL	0x1404
 
-/* Tx control register */
-struct nps_enet_tx_ctl {
-	union {
-		/* ct: SW sets to indicate frame ready in Tx buffer for
-		 *     transmission. HW resets to when transmission done
-		 * et: Transmit error
-		 * nt: Length in bytes of Tx frame loaded to Tx buffer
-		 */
-		struct {
-			u32
-			__reserved_1:16,
-			ct:1,
-			et:1,
-			__reserved_2:3,
-			nt:11;
-		};
+/* Tx control register masks and shifts */
+#define TX_CTL_NT_MASK 0x7FF
+#define TX_CTL_NT_SHIFT 0
+#define TX_CTL_ET_MASK 0x4000
+#define TX_CTL_ET_SHIFT 14
+#define TX_CTL_CT_MASK 0x8000
+#define TX_CTL_CT_SHIFT 15
 
-		u32 value;
-	};
-};
+/* Rx control register masks and shifts */
+#define RX_CTL_NR_MASK 0x7FF
+#define RX_CTL_NR_SHIFT 0
+#define RX_CTL_CRC_MASK 0x2000
+#define RX_CTL_CRC_SHIFT 13
+#define RX_CTL_ER_MASK 0x4000
+#define RX_CTL_ER_SHIFT 14
+#define RX_CTL_CR_MASK 0x8000
+#define RX_CTL_CR_SHIFT 15
 
-/* Rx control register */
-struct nps_enet_rx_ctl {
-	union {
-		/* cr:  HW sets to indicate frame ready in Rx buffer.
-		 *      SW resets to indicate host read received frame
-		 *      and new frames can be written to Rx buffer
-		 * er:  Rx error indication
-		 * crc: Rx CRC error indication
-		 * nr:  Length in bytes of Rx frame loaded by MAC to Rx buffer
-		 */
-		struct {
-			u32
-			__reserved_1:16,
-			cr:1,
-			er:1,
-			crc:1,
-			__reserved_2:2,
-			nr:11;
-		};
+/* Interrupt enable for data buffer events register masks and shifts */
+#define RX_RDY_MASK 0x1
+#define RX_RDY_SHIFT 0
+#define TX_DONE_MASK 0x2
+#define TX_DONE_SHIFT 1
 
-		u32 value;
-	};
-};
+/* Gbps Eth MAC Configuration 0 register masks and shifts */
+#define CFG_0_RX_EN_MASK 0x1
+#define CFG_0_RX_EN_SHIFT 0
+#define CFG_0_TX_EN_MASK 0x2
+#define CFG_0_TX_EN_SHIFT 1
+#define CFG_0_TX_FC_EN_MASK 0x4
+#define CFG_0_TX_FC_EN_SHIFT 2
+#define CFG_0_TX_PAD_EN_MASK 0x8
+#define CFG_0_TX_PAD_EN_SHIFT 3
+#define CFG_0_TX_CRC_EN_MASK 0x10
+#define CFG_0_TX_CRC_EN_SHIFT 4
+#define CFG_0_RX_FC_EN_MASK 0x20
+#define CFG_0_RX_FC_EN_SHIFT 5
+#define CFG_0_RX_CRC_STRIP_MASK 0x40
+#define CFG_0_RX_CRC_STRIP_SHIFT 6
+#define CFG_0_RX_CRC_IGNORE_MASK 0x80
+#define CFG_0_RX_CRC_IGNORE_SHIFT 7
+#define CFG_0_RX_LENGTH_CHECK_EN_MASK 0x100
+#define CFG_0_RX_LENGTH_CHECK_EN_SHIFT 8
+#define CFG_0_TX_FC_RETR_MASK 0xE00
+#define CFG_0_TX_FC_RETR_SHIFT 9
+#define CFG_0_RX_IFG_MASK 0xF000
+#define CFG_0_RX_IFG_SHIFT 12
+#define CFG_0_TX_IFG_MASK 0x3F0000
+#define CFG_0_TX_IFG_SHIFT 16
+#define CFG_0_RX_PR_CHECK_EN_MASK 0x400000
+#define CFG_0_RX_PR_CHECK_EN_SHIFT 22
+#define CFG_0_NIB_MODE_MASK 0x800000
+#define CFG_0_NIB_MODE_SHIFT 23
+#define CFG_0_TX_IFG_NIB_MASK 0xF000000
+#define CFG_0_TX_IFG_NIB_SHIFT 24
+#define CFG_0_TX_PR_LEN_MASK 0xF0000000
+#define CFG_0_TX_PR_LEN_SHIFT 28
 
-/* Interrupt enable for data buffer events register */
-struct nps_enet_buf_int_enable {
-	union {
-		/* tx_done: Interrupt generation in the case when new frame
-		 *          is ready in Rx buffer
-		 * rx_rdy:  Interrupt generation in the case when current frame
-		 *          was read from TX buffer
-		 */
-		struct {
-			u32
-			__reserved:30,
-			tx_done:1,
-			rx_rdy:1;
-		};
+/* Gbps Eth MAC Configuration 1 register masks and shifts */
+#define CFG_1_OCTET_0_MASK 0x000000FF
+#define CFG_1_OCTET_0_SHIFT 0
+#define CFG_1_OCTET_1_MASK 0x0000FF00
+#define CFG_1_OCTET_1_SHIFT 8
+#define CFG_1_OCTET_2_MASK 0x00FF0000
+#define CFG_1_OCTET_2_SHIFT 16
+#define CFG_1_OCTET_3_MASK 0xFF000000
+#define CFG_1_OCTET_3_SHIFT 24
 
-		u32 value;
-	};
-};
+/* Gbps Eth MAC Configuration 2 register masks and shifts */
+#define CFG_2_OCTET_4_MASK 0x000000FF
+#define CFG_2_OCTET_4_SHIFT 0
+#define CFG_2_OCTET_5_MASK 0x0000FF00
+#define CFG_2_OCTET_5_SHIFT 8
+#define CFG_2_DISK_MC_MASK 0x00100000
+#define CFG_2_DISK_MC_SHIFT 20
+#define CFG_2_DISK_BC_MASK 0x00200000
+#define CFG_2_DISK_BC_SHIFT 21
+#define CFG_2_DISK_DA_MASK 0x00400000
+#define CFG_2_DISK_DA_SHIFT 22
+#define CFG_2_STAT_EN_MASK 0x3000000
+#define CFG_2_STAT_EN_SHIFT 24
+#define CFG_2_TRANSMIT_FLUSH_EN_MASK 0x80000000
+#define CFG_2_TRANSMIT_FLUSH_EN_SHIFT 31
 
-/* Gbps Eth MAC Configuration 0 register */
-struct nps_enet_ge_mac_cfg_0 {
-	union {
-		/* tx_pr_len:          Transmit preamble length in bytes
-		 * tx_ifg_nib:         Tx idle pattern
-		 * nib_mode:           Nibble (4-bit) Mode
-		 * rx_pr_check_en:     Receive preamble Check Enable
-		 * tx_ifg:             Transmit inter-Frame Gap
-		 * rx_ifg:             Receive inter-Frame Gap
-		 * tx_fc_retr:         Transmit Flow Control Retransmit Mode
-		 * rx_length_check_en: Receive Length Check Enable
-		 * rx_crc_ignore:      Results of the CRC check are ignored
-		 * rx_crc_strip:       MAC strips the CRC from received frames
-		 * rx_fc_en:           Receive Flow Control Enable
-		 * tx_crc_en:          Transmit CRC Enabled
-		 * tx_pad_en:          Transmit Padding Enable
-		 * tx_cf_en:           Transmit Flow Control Enable
-		 * tx_en:              Transmit Enable
-		 * rx_en:              Receive Enable
-		 */
-		struct {
-			u32
-			tx_pr_len:4,
-			tx_ifg_nib:4,
-			nib_mode:1,
-			rx_pr_check_en:1,
-			tx_ifg:6,
-			rx_ifg:4,
-			tx_fc_retr:3,
-			rx_length_check_en:1,
-			rx_crc_ignore:1,
-			rx_crc_strip:1,
-			rx_fc_en:1,
-			tx_crc_en:1,
-			tx_pad_en:1,
-			tx_fc_en:1,
-			tx_en:1,
-			rx_en:1;
-		};
+/* Gbps Eth MAC Configuration 3 register masks and shifts */
+#define CFG_3_TM_HD_MODE_MASK 0x1
+#define CFG_3_TM_HD_MODE_SHIFT 0
+#define CFG_3_RX_CBFC_EN_MASK 0x2
+#define CFG_3_RX_CBFC_EN_SHIFT 1
+#define CFG_3_RX_CBFC_REDIR_EN_MASK 0x4
+#define CFG_3_RX_CBFC_REDIR_EN_SHIFT 2
+#define CFG_3_REDIRECT_CBFC_SEL_MASK 0x18
+#define CFG_3_REDIRECT_CBFC_SEL_SHIFT 3
+#define CFG_3_CF_DROP_MASK 0x20
+#define CFG_3_CF_DROP_SHIFT 5
+#define CFG_3_CF_TIMEOUT_MASK 0x3C0
+#define CFG_3_CF_TIMEOUT_SHIFT 6
+#define CFG_3_RX_IFG_TH_MASK 0x7C00
+#define CFG_3_RX_IFG_TH_SHIFT 10
+#define CFG_3_TX_CBFC_EN_MASK 0x8000
+#define CFG_3_TX_CBFC_EN_SHIFT 15
+#define CFG_3_MAX_LEN_MASK 0x3FFF0000
+#define CFG_3_MAX_LEN_SHIFT 16
+#define CFG_3_EXT_OOB_CBFC_SEL_MASK 0xC0000000
+#define CFG_3_EXT_OOB_CBFC_SEL_SHIFT 30
 
-		u32 value;
-	};
-};
+/* GE MAC, PCS reset control register masks and shifts */
+#define RST_SPCS_MASK 0x1
+#define RST_SPCS_SHIFT 0
+#define RST_GMAC_0_MASK 0x100
+#define RST_GMAC_0_SHIFT 8
 
-/* Gbps Eth MAC Configuration 1 register */
-struct nps_enet_ge_mac_cfg_1 {
-	union {
-		/* octet_3: MAC address octet 3
-		 * octet_2: MAC address octet 2
-		 * octet_1: MAC address octet 1
-		 * octet_0: MAC address octet 0
-		 */
-		struct {
-			u32
-			octet_3:8,
-			octet_2:8,
-			octet_1:8,
-			octet_0:8;
-		};
-
-		u32 value;
-	};
-};
-
-/* Gbps Eth MAC Configuration 2 register */
-struct nps_enet_ge_mac_cfg_2 {
-	union {
-		/* transmit_flush_en: MAC flush enable
-		 * stat_en:           RMON statistics interface enable
-		 * disc_da:           Discard frames with DA different
-		 *                    from MAC address
-		 * disc_bc:           Discard broadcast frames
-		 * disc_mc:           Discard multicast frames
-		 * octet_5:           MAC address octet 5
-		 * octet_4:           MAC address octet 4
-		 */
-		struct {
-			u32
-			transmit_flush_en:1,
-			__reserved_1:5,
-			stat_en:2,
-			__reserved_2:1,
-			disc_da:1,
-			disc_bc:1,
-			disc_mc:1,
-			__reserved_3:4,
-			octet_5:8,
-			octet_4:8;
-		};
-
-		u32 value;
-	};
-};
-
-/* Gbps Eth MAC Configuration 3 register */
-struct nps_enet_ge_mac_cfg_3 {
-	union {
-		/* ext_oob_cbfc_sel:  Selects one of the 4 profiles for
-		 *                    extended OOB in-flow-control indication
-		 * max_len:           Maximum receive frame length in bytes
-		 * tx_cbfc_en:        Enable transmission of class-based
-		 *                    flow control packets
-		 * rx_ifg_th:         Threshold for IFG status reporting via OOB
-		 * cf_timeout:        Configurable time to decrement FC counters
-		 * cf_drop:           Drop control frames
-		 * redirect_cbfc_sel: Selects one of CBFC redirect profiles
-		 * rx_cbfc_redir_en:  Enable Rx class-based flow
-		 *                    control redirect
-		 * rx_cbfc_en:        Enable Rx class-based flow control
-		 * tm_hd_mode:        TM header mode
-		 */
-		struct {
-			u32
-			ext_oob_cbfc_sel:2,
-			max_len:14,
-			tx_cbfc_en:1,
-			rx_ifg_th:5,
-			cf_timeout:4,
-			cf_drop:1,
-			redirect_cbfc_sel:2,
-			rx_cbfc_redir_en:1,
-			rx_cbfc_en:1,
-			tm_hd_mode:1;
-		};
-
-		u32 value;
-	};
-};
-
-/* GE MAC, PCS reset control register */
-struct nps_enet_ge_rst {
-	union {
-		/* gmac_0: GE MAC reset
-		 * spcs_0: SGMII PCS reset
-		 */
-		struct {
-			u32
-			__reserved_1:23,
-			gmac_0:1,
-			__reserved_2:7,
-			spcs_0:1;
-		};
-
-		u32 value;
-	};
-};
-
-/* Tx phase sync FIFO control register */
-struct nps_enet_phase_fifo_ctl {
-	union {
-		/* init: initialize serdes TX phase sync FIFO pointers
-		 * rst:  reset serdes TX phase sync FIFO
-		 */
-		struct {
-			u32
-			__reserved:30,
-			init:1,
-			rst:1;
-		};
-
-		u32 value;
-	};
-};
+/* Tx phase sync FIFO control register masks and shifts */
+#define PHASE_FIFO_CTL_RST_MASK 0x1
+#define PHASE_FIFO_CTL_RST_SHIFT 0
+#define PHASE_FIFO_CTL_INIT_MASK 0x2
+#define PHASE_FIFO_CTL_INIT_SHIFT 1
 
 /**
  * struct nps_enet_priv - Storage of ENET's private information.
@@ -285,8 +175,8 @@ struct nps_enet_priv {
 	bool tx_packet_sent;
 	struct sk_buff *tx_skb;
 	struct napi_struct napi;
-	struct nps_enet_ge_mac_cfg_2 ge_mac_cfg_2;
-	struct nps_enet_ge_mac_cfg_3 ge_mac_cfg_3;
+	u32 ge_mac_cfg_2_value;
+	u32 ge_mac_cfg_3_value;
 };
 
 /**

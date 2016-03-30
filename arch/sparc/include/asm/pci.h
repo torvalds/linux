@@ -5,7 +5,4 @@
 #else
 #include <asm/pci_32.h>
 #endif
-
-#include <asm-generic/pci-dma-compat.h>
-
 #endif

@@ -83,6 +83,15 @@ config E1000E
 	  To compile this driver as a module, choose M here. The module
 	  will be called e1000e.
 
+config E1000E_HWTS
+	bool "Support HW cross-timestamp on PCH devices"
+	default y
+	depends on E1000E && X86
+	---help---
+	 Say Y to enable hardware supported cross-timestamping on PCH
+	 devices. The cross-timestamp is available through the PTP clock
+	 driver precise cross-timestamp ioctl (PTP_SYS_OFFSET_PRECISE).
+
 config IGB
 	tristate "Intel(R) 82575/82576 PCI-Express Gigabit Ethernet support"
 	depends on PCI

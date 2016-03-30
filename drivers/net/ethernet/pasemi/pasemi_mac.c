@@ -30,9 +30,7 @@
 #include <linux/skbuff.h>
 
 #include <linux/ip.h>
-#include <linux/tcp.h>
 #include <net/checksum.h>
-#include <linux/inet_lro.h>
 #include <linux/prefetch.h>
 
 #include <asm/irq.h>
@@ -52,11 +50,8 @@
  *
  * - Multicast support
  * - Large MTU support
- * - SW LRO
  * - Multiqueue RX/TX
  */
-
-#define LRO_MAX_AGGR 64
 
 #define PE_MIN_MTU	64
 #define PE_MAX_MTU	9000
@@ -253,37 +248,6 @@ static int pasemi_mac_set_mac_addr(struct net_device *dev, void *p)
 	write_mac_reg(mac, PAS_MAC_CFG_ADR0, adr0);
 	write_mac_reg(mac, PAS_MAC_CFG_ADR1, adr1);
 	pasemi_mac_intf_enable(mac);
-
-	return 0;
-}
-
-static int get_skb_hdr(struct sk_buff *skb, void **iphdr,
-		       void **tcph, u64 *hdr_flags, void *data)
-{
-	u64 macrx = (u64) data;
-	unsigned int ip_len;
-	struct iphdr *iph;
-
-	/* IPv4 header checksum failed */
-	if ((macrx & XCT_MACRX_HTY_M) != XCT_MACRX_HTY_IPV4_OK)
-		return -1;
-
-	/* non tcp packet */
-	skb_reset_network_header(skb);
-	iph = ip_hdr(skb);
-	if (iph->protocol != IPPROTO_TCP)
-		return -1;
-
-	ip_len = ip_hdrlen(skb);
-	skb_set_transport_header(skb, ip_len);
-	*tcph = tcp_hdr(skb);
-
-	/* check if ip header and tcp header are complete */
-	if (ntohs(iph->tot_len) < ip_len + tcp_hdrlen(skb))
-		return -1;
-
-	*hdr_flags = LRO_IPV4 | LRO_TCP;
-	*iphdr = iph;
 
 	return 0;
 }
@@ -817,7 +781,7 @@ static int pasemi_mac_clean_rx(struct pasemi_mac_rxring *rx,
 		skb_put(skb, len-4);
 
 		skb->protocol = eth_type_trans(skb, mac->netdev);
-		lro_receive_skb(&mac->lro_mgr, skb, (void *)macrx);
+		napi_gro_receive(&mac->napi, skb);
 
 next:
 		RX_DESC(rx, n) = 0;
@@ -838,8 +802,6 @@ next:
 	}
 
 	rx_ring(mac)->next_to_clean = n;
-
-	lro_flush_all(&mac->lro_mgr);
 
 	/* Increase is in number of 16-byte entries, and since each descriptor
 	 * with an 8BRES takes up 3x8 bytes (padded to 4x8), increase with
@@ -1753,16 +1715,6 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev->features = NETIF_F_IP_CSUM | NETIF_F_LLTX | NETIF_F_SG |
 			NETIF_F_HIGHDMA | NETIF_F_GSO;
-
-	mac->lro_mgr.max_aggr = LRO_MAX_AGGR;
-	mac->lro_mgr.max_desc = MAX_LRO_DESCRIPTORS;
-	mac->lro_mgr.lro_arr = mac->lro_desc;
-	mac->lro_mgr.get_skb_header = get_skb_hdr;
-	mac->lro_mgr.features = LRO_F_NAPI | LRO_F_EXTRACT_VLAN_ID;
-	mac->lro_mgr.dev = mac->netdev;
-	mac->lro_mgr.ip_summed = CHECKSUM_UNNECESSARY;
-	mac->lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
-
 
 	mac->dma_pdev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa007, NULL);
 	if (!mac->dma_pdev) {

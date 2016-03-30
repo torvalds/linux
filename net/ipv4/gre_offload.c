@@ -18,15 +18,13 @@
 static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 				       netdev_features_t features)
 {
+	int tnl_hlen = skb_inner_mac_header(skb) - skb_transport_header(skb);
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
-	netdev_features_t enc_features;
-	int ghl;
-	struct gre_base_hdr *greh;
 	u16 mac_offset = skb->mac_header;
-	int mac_len = skb->mac_len;
 	__be16 protocol = skb->protocol;
-	int tnl_hlen;
-	bool csum;
+	u16 mac_len = skb->mac_len;
+	int gre_offset, outer_hlen;
+	bool need_csum, ufo;
 
 	if (unlikely(skb_shinfo(skb)->gso_type &
 				~(SKB_GSO_TCPV4 |
@@ -43,74 +41,75 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	if (!skb->encapsulation)
 		goto out;
 
-	if (unlikely(!pskb_may_pull(skb, sizeof(*greh))))
+	if (unlikely(tnl_hlen < sizeof(struct gre_base_hdr)))
 		goto out;
 
-	greh = (struct gre_base_hdr *)skb_transport_header(skb);
-
-	ghl = skb_inner_mac_header(skb) - skb_transport_header(skb);
-	if (unlikely(ghl < sizeof(*greh)))
+	if (unlikely(!pskb_may_pull(skb, tnl_hlen)))
 		goto out;
-
-	csum = !!(greh->flags & GRE_CSUM);
-	if (csum)
-		skb->encap_hdr_csum = 1;
 
 	/* setup inner skb. */
-	skb->protocol = greh->protocol;
 	skb->encapsulation = 0;
-
-	if (unlikely(!pskb_may_pull(skb, ghl)))
-		goto out;
-
-	__skb_pull(skb, ghl);
+	SKB_GSO_CB(skb)->encap_level = 0;
+	__skb_pull(skb, tnl_hlen);
 	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, skb_inner_network_offset(skb));
 	skb->mac_len = skb_inner_network_offset(skb);
+	skb->protocol = skb->inner_protocol;
+
+	need_csum = !!(skb_shinfo(skb)->gso_type & SKB_GSO_GRE_CSUM);
+	skb->encap_hdr_csum = need_csum;
+
+	ufo = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP);
+
+	features &= skb->dev->hw_enc_features;
+
+	/* The only checksum offload we care about from here on out is the
+	 * outer one so strip the existing checksum feature flags based
+	 * on the fact that we will be computing our checksum in software.
+	 */
+	if (ufo) {
+		features &= ~NETIF_F_CSUM_MASK;
+		if (!need_csum)
+			features |= NETIF_F_HW_CSUM;
+	}
 
 	/* segment inner packet. */
-	enc_features = skb->dev->hw_enc_features & features;
-	segs = skb_mac_gso_segment(skb, enc_features);
+	segs = skb_mac_gso_segment(skb, features);
 	if (IS_ERR_OR_NULL(segs)) {
-		skb_gso_error_unwind(skb, protocol, ghl, mac_offset, mac_len);
+		skb_gso_error_unwind(skb, protocol, tnl_hlen, mac_offset,
+				     mac_len);
 		goto out;
 	}
 
+	outer_hlen = skb_tnl_header_len(skb);
+	gre_offset = outer_hlen - tnl_hlen;
 	skb = segs;
-	tnl_hlen = skb_tnl_header_len(skb);
 	do {
-		__skb_push(skb, ghl);
-		if (csum) {
-			__be32 *pcsum;
+		struct gre_base_hdr *greh;
+		__be32 *pcsum;
 
-			if (skb_has_shared_frag(skb)) {
-				int err;
-
-				err = __skb_linearize(skb);
-				if (err) {
-					kfree_skb_list(segs);
-					segs = ERR_PTR(err);
-					goto out;
-				}
-			}
-
-			skb_reset_transport_header(skb);
-
-			greh = (struct gre_base_hdr *)
-			    skb_transport_header(skb);
-			pcsum = (__be32 *)(greh + 1);
-			*pcsum = 0;
-			*(__sum16 *)pcsum = gso_make_checksum(skb, 0);
+		/* Set up inner headers if we are offloading inner checksum */
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+			skb_reset_inner_headers(skb);
+			skb->encapsulation = 1;
 		}
-		__skb_push(skb, tnl_hlen - ghl);
 
-		skb_reset_inner_headers(skb);
-		skb->encapsulation = 1;
-
-		skb_reset_mac_header(skb);
-		skb_set_network_header(skb, mac_len);
 		skb->mac_len = mac_len;
 		skb->protocol = protocol;
+
+		__skb_push(skb, outer_hlen);
+		skb_reset_mac_header(skb);
+		skb_set_network_header(skb, mac_len);
+		skb_set_transport_header(skb, gre_offset);
+
+		if (!need_csum)
+			continue;
+
+		greh = (struct gre_base_hdr *)skb_transport_header(skb);
+		pcsum = (__be32 *)(greh + 1);
+
+		*pcsum = 0;
+		*(__sum16 *)pcsum = gso_make_checksum(skb, 0);
 	} while ((skb = skb->next));
 out:
 	return segs;
@@ -127,6 +126,11 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 	int flush = 1;
 	struct packet_offload *ptype;
 	__be16 type;
+
+	if (NAPI_GRO_CB(skb)->encap_mark)
+		goto out;
+
+	NAPI_GRO_CB(skb)->encap_mark = 1;
 
 	off = skb_gro_offset(skb);
 	hlen = off + sizeof(*greh);
@@ -177,8 +181,6 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 					     null_compute_pseudo);
 	}
 
-	flush = 0;
-
 	for (p = *head; p; p = p->next) {
 		const struct gre_base_hdr *greh2;
 
@@ -215,6 +217,7 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 	skb_gro_postpull_rcsum(skb, greh, grehlen);
 
 	pp = ptype->callbacks.gro_receive(head, skb);
+	flush = 0;
 
 out_unlock:
 	rcu_read_unlock();

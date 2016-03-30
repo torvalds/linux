@@ -80,7 +80,7 @@ static void __init realview_smp_prepare_cpus(unsigned int max_cpus)
 		     virt_to_phys(versatile_secondary_startup));
 }
 
-struct smp_operations realview_dt_smp_ops __initdata = {
+static const struct smp_operations realview_dt_smp_ops __initconst = {
 	.smp_prepare_cpus	= realview_smp_prepare_cpus,
 	.smp_secondary_init	= versatile_secondary_init,
 	.smp_boot_secondary	= versatile_boot_secondary,

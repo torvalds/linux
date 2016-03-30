@@ -272,6 +272,9 @@ static int cz_start_smu(struct pp_smumgr *smumgr)
 				UCODE_ID_CP_MEC_JT1_MASK |
 				UCODE_ID_CP_MEC_JT2_MASK;
 
+	if (smumgr->chip_id == CHIP_STONEY)
+		fw_to_check &= ~(UCODE_ID_SDMA1_MASK | UCODE_ID_CP_MEC_JT2_MASK);
+
 	cz_request_smu_load_fw(smumgr);
 	cz_check_fw_load_finish(smumgr, fw_to_check);
 
@@ -282,7 +285,7 @@ static int cz_start_smu(struct pp_smumgr *smumgr)
 	return ret;
 }
 
-static uint8_t cz_translate_firmware_enum_to_arg(
+static uint8_t cz_translate_firmware_enum_to_arg(struct pp_smumgr *smumgr,
 			enum cz_scratch_entry firmware_enum)
 {
 	uint8_t ret = 0;
@@ -292,7 +295,10 @@ static uint8_t cz_translate_firmware_enum_to_arg(
 		ret = UCODE_ID_SDMA0;
 		break;
 	case CZ_SCRATCH_ENTRY_UCODE_ID_SDMA1:
-		ret = UCODE_ID_SDMA1;
+		if (smumgr->chip_id == CHIP_STONEY)
+			ret = UCODE_ID_SDMA0;
+		else
+			ret = UCODE_ID_SDMA1;
 		break;
 	case CZ_SCRATCH_ENTRY_UCODE_ID_CP_CE:
 		ret = UCODE_ID_CP_CE;
@@ -307,7 +313,10 @@ static uint8_t cz_translate_firmware_enum_to_arg(
 		ret = UCODE_ID_CP_MEC_JT1;
 		break;
 	case CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT2:
-		ret = UCODE_ID_CP_MEC_JT2;
+		if (smumgr->chip_id == CHIP_STONEY)
+			ret = UCODE_ID_CP_MEC_JT1;
+		else
+			ret = UCODE_ID_CP_MEC_JT2;
 		break;
 	case CZ_SCRATCH_ENTRY_UCODE_ID_GMCON_RENG:
 		ret = UCODE_ID_GMCON_RENG;
@@ -396,7 +405,7 @@ static int cz_smu_populate_single_scratch_task(
 	struct SMU_Task *task = &toc->tasks[cz_smu->toc_entry_used_count++];
 
 	task->type = type;
-	task->arg = cz_translate_firmware_enum_to_arg(fw_enum);
+	task->arg = cz_translate_firmware_enum_to_arg(smumgr, fw_enum);
 	task->next = is_last ? END_OF_TASK_LIST : cz_smu->toc_entry_used_count;
 
 	for (i = 0; i < cz_smu->scratch_buffer_length; i++)
@@ -433,7 +442,7 @@ static int cz_smu_populate_single_ucode_load_task(
 	struct SMU_Task *task = &toc->tasks[cz_smu->toc_entry_used_count++];
 
 	task->type = TASK_TYPE_UCODE_LOAD;
-	task->arg = cz_translate_firmware_enum_to_arg(fw_enum);
+	task->arg = cz_translate_firmware_enum_to_arg(smumgr, fw_enum);
 	task->next = is_last ? END_OF_TASK_LIST : cz_smu->toc_entry_used_count;
 
 	for (i = 0; i < cz_smu->driver_buffer_length; i++)
@@ -509,8 +518,14 @@ static int cz_smu_construct_toc_for_vddgfx_exit(struct pp_smumgr *smumgr)
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_ME, false);
 	cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT1, false);
-	cz_smu_populate_single_ucode_load_task(smumgr,
+
+	if (smumgr->chip_id == CHIP_STONEY)
+		cz_smu_populate_single_ucode_load_task(smumgr,
+				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT1, false);
+	else
+		cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT2, false);
+
 	cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_RLC_G, false);
 
@@ -551,7 +566,11 @@ static int cz_smu_construct_toc_for_bootup(struct pp_smumgr *smumgr)
 
 	cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_SDMA0, false);
-	cz_smu_populate_single_ucode_load_task(smumgr,
+	if (smumgr->chip_id == CHIP_STONEY)
+		cz_smu_populate_single_ucode_load_task(smumgr,
+				CZ_SCRATCH_ENTRY_UCODE_ID_SDMA0, false);
+	else
+		cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_SDMA1, false);
 	cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_CE, false);
@@ -561,7 +580,11 @@ static int cz_smu_construct_toc_for_bootup(struct pp_smumgr *smumgr)
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_ME, false);
 	cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT1, false);
-	cz_smu_populate_single_ucode_load_task(smumgr,
+	if (smumgr->chip_id == CHIP_STONEY)
+		cz_smu_populate_single_ucode_load_task(smumgr,
+				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT1, false);
+	else
+		cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT2, false);
 	cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_RLC_G, true);
@@ -618,7 +641,7 @@ static int cz_smu_populate_firmware_entries(struct pp_smumgr *smumgr)
 
 	for (i = 0; i < sizeof(firmware_list)/sizeof(*firmware_list); i++) {
 
-		firmware_type = cz_translate_firmware_enum_to_arg(
+		firmware_type = cz_translate_firmware_enum_to_arg(smumgr,
 					firmware_list[i]);
 
 		ucode_id = cz_convert_fw_type_to_cgs(firmware_type);

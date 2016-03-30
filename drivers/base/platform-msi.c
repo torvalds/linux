@@ -284,6 +284,7 @@ out_free_priv_data:
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(platform_msi_domain_alloc_irqs);
 
 /**
  * platform_msi_domain_free_irqs - Free MSI interrupts for @dev
@@ -301,6 +302,7 @@ void platform_msi_domain_free_irqs(struct device *dev)
 	msi_domain_free_irqs(dev->msi_domain, dev);
 	platform_msi_free_descs(dev, 0, MAX_DEV_MSIS);
 }
+EXPORT_SYMBOL_GPL(platform_msi_domain_free_irqs);
 
 /**
  * platform_msi_get_host_data - Query the private data associated with

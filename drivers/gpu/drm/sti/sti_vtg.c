@@ -15,8 +15,8 @@
 
 #include "sti_vtg.h"
 
-#define VTG_TYPE_MASTER         0
-#define VTG_TYPE_SLAVE_BY_EXT0  1
+#define VTG_MODE_MASTER         0
+#define VTG_MODE_SLAVE_BY_EXT0  1
 
 /* registers offset */
 #define VTG_MODE            0x0000
@@ -64,6 +64,9 @@
 /* Delay introduced by the HDMI in nb of pixel */
 #define HDMI_DELAY          (5)
 
+/* Delay introduced by the DVO in nb of pixel */
+#define DVO_DELAY           (2)
+
 /* delay introduced by the Arbitrary Waveform Generator in nb of pixels */
 #define AWG_DELAY_HD        (-9)
 #define AWG_DELAY_ED        (-8)
@@ -71,13 +74,61 @@
 
 LIST_HEAD(vtg_lookup);
 
+/*
+ * STI VTG register offset structure
+ *
+ *@h_hd:     stores the VTG_H_HD_x     register offset
+ *@top_v_vd: stores the VTG_TOP_V_VD_x register offset
+ *@bot_v_vd: stores the VTG_BOT_V_VD_x register offset
+ *@top_v_hd: stores the VTG_TOP_V_HD_x register offset
+ *@bot_v_hd: stores the VTG_BOT_V_HD_x register offset
+ */
+struct sti_vtg_regs_offs {
+	u32 h_hd;
+	u32 top_v_vd;
+	u32 bot_v_vd;
+	u32 top_v_hd;
+	u32 bot_v_hd;
+};
+
+#define VTG_MAX_SYNC_OUTPUT 4
+static const struct sti_vtg_regs_offs vtg_regs_offs[VTG_MAX_SYNC_OUTPUT] = {
+	{ VTG_H_HD_1,
+	  VTG_TOP_V_VD_1, VTG_BOT_V_VD_1, VTG_TOP_V_HD_1, VTG_BOT_V_HD_1 },
+	{ VTG_H_HD_2,
+	  VTG_TOP_V_VD_2, VTG_BOT_V_VD_2, VTG_TOP_V_HD_2, VTG_BOT_V_HD_2 },
+	{ VTG_H_HD_3,
+	  VTG_TOP_V_VD_3, VTG_BOT_V_VD_3, VTG_TOP_V_HD_3, VTG_BOT_V_HD_3 },
+	{ VTG_H_HD_4,
+	  VTG_TOP_V_VD_4, VTG_BOT_V_VD_4, VTG_TOP_V_HD_4, VTG_BOT_V_HD_4 }
+};
+
+/*
+ * STI VTG synchronisation parameters structure
+ *
+ *@hsync: sample number falling and rising edge
+ *@vsync_line_top: vertical top field line number falling and rising edge
+ *@vsync_line_bot: vertical bottom field line number falling and rising edge
+ *@vsync_off_top: vertical top field sample number rising and falling edge
+ *@vsync_off_bot: vertical bottom field sample number rising and falling edge
+ */
+struct sti_vtg_sync_params {
+	u32 hsync;
+	u32 vsync_line_top;
+	u32 vsync_line_bot;
+	u32 vsync_off_top;
+	u32 vsync_off_bot;
+};
+
 /**
  * STI VTG structure
  *
  * @dev: pointer to device driver
- * @data: data associated to the device
+ * @np: device node
+ * @regs: register mapping
+ * @sync_params: synchronisation parameters used to generate timings
  * @irq: VTG irq
- * @type: VTG type (main or aux)
+ * @irq_status: store the IRQ status value
  * @notifier_list: notifier callback
  * @crtc: the CRTC for vblank event
  * @slave: slave vtg
@@ -87,6 +138,7 @@ struct sti_vtg {
 	struct device *dev;
 	struct device_node *np;
 	void __iomem *regs;
+	struct sti_vtg_sync_params sync_params[VTG_MAX_SYNC_OUTPUT];
 	int irq;
 	u32 irq_status;
 	struct raw_notifier_head notifier_list;
@@ -146,13 +198,69 @@ static void vtg_set_output_window(void __iomem *regs,
 	writel(video_bottom_field_stop, regs + VTG_VID_BFS);
 }
 
-static void vtg_set_mode(struct sti_vtg *vtg,
-			 int type, const struct drm_display_mode *mode)
+static void vtg_set_hsync_vsync_pos(struct sti_vtg_sync_params *sync,
+				    int delay,
+				    const struct drm_display_mode *mode)
 {
-	u32 tmp;
+	long clocksperline, start, stop;
+	u32 risesync_top, fallsync_top;
+	u32 risesync_offs_top, fallsync_offs_top;
+
+	clocksperline = mode->htotal;
+
+	/* Get the hsync position */
+	start = 0;
+	stop = mode->hsync_end - mode->hsync_start;
+
+	start += delay;
+	stop  += delay;
+
+	if (start < 0)
+		start += clocksperline;
+	else if (start >= clocksperline)
+		start -= clocksperline;
+
+	if (stop < 0)
+		stop += clocksperline;
+	else if (stop >= clocksperline)
+		stop -= clocksperline;
+
+	sync->hsync = (stop << 16) | start;
+
+	/* Get the vsync position */
+	if (delay >= 0) {
+		risesync_top = 1;
+		fallsync_top = risesync_top;
+		fallsync_top += mode->vsync_end - mode->vsync_start;
+
+		fallsync_offs_top = (u32)delay;
+		risesync_offs_top = (u32)delay;
+	} else {
+		risesync_top = mode->vtotal;
+		fallsync_top = mode->vsync_end - mode->vsync_start;
+
+		fallsync_offs_top = clocksperline + delay;
+		risesync_offs_top = clocksperline + delay;
+	}
+
+	sync->vsync_line_top = (fallsync_top << 16) | risesync_top;
+	sync->vsync_off_top = (fallsync_offs_top << 16) | risesync_offs_top;
+
+	/* Only progressive supported for now */
+	sync->vsync_line_bot = sync->vsync_line_top;
+	sync->vsync_off_bot = sync->vsync_off_top;
+}
+
+static void vtg_set_mode(struct sti_vtg *vtg,
+			 int type,
+			 struct sti_vtg_sync_params *sync,
+			 const struct drm_display_mode *mode)
+{
+	unsigned int i;
 
 	if (vtg->slave)
-		vtg_set_mode(vtg->slave, VTG_TYPE_SLAVE_BY_EXT0, mode);
+		vtg_set_mode(vtg->slave, VTG_MODE_SLAVE_BY_EXT0,
+			     vtg->sync_params, mode);
 
 	/* Set the number of clock cycles per line */
 	writel(mode->htotal, vtg->regs + VTG_CLKLN);
@@ -163,57 +271,31 @@ static void vtg_set_mode(struct sti_vtg *vtg,
 	/* Program output window */
 	vtg_set_output_window(vtg->regs, mode);
 
-	/* prepare VTG set 1 for HDMI */
-	tmp = (mode->hsync_end - mode->hsync_start + HDMI_DELAY) << 16;
-	tmp |= HDMI_DELAY;
-	writel(tmp, vtg->regs + VTG_H_HD_1);
+	/* Set hsync and vsync position for HDMI */
+	vtg_set_hsync_vsync_pos(&sync[VTG_SYNC_ID_HDMI - 1], HDMI_DELAY, mode);
 
-	tmp = (mode->vsync_end - mode->vsync_start + 1) << 16;
-	tmp |= 1;
-	writel(tmp, vtg->regs + VTG_TOP_V_VD_1);
-	writel(tmp, vtg->regs + VTG_BOT_V_VD_1);
+	/* Set hsync and vsync position for HD DCS */
+	vtg_set_hsync_vsync_pos(&sync[VTG_SYNC_ID_HDDCS - 1], 0, mode);
 
-	tmp = HDMI_DELAY << 16;
-	tmp |= HDMI_DELAY;
-	writel(tmp, vtg->regs + VTG_TOP_V_HD_1);
-	writel(tmp, vtg->regs + VTG_BOT_V_HD_1);
+	/* Set hsync and vsync position for HDF */
+	vtg_set_hsync_vsync_pos(&sync[VTG_SYNC_ID_HDF - 1], AWG_DELAY_HD, mode);
 
-	/* prepare VTG set 2 for for HD DCS */
-	tmp = (mode->hsync_end - mode->hsync_start) << 16;
-	writel(tmp, vtg->regs + VTG_H_HD_2);
+	/* Set hsync and vsync position for DVO */
+	vtg_set_hsync_vsync_pos(&sync[VTG_SYNC_ID_DVO - 1], DVO_DELAY, mode);
 
-	tmp = (mode->vsync_end - mode->vsync_start + 1) << 16;
-	tmp |= 1;
-	writel(tmp, vtg->regs + VTG_TOP_V_VD_2);
-	writel(tmp, vtg->regs + VTG_BOT_V_VD_2);
-	writel(0, vtg->regs + VTG_TOP_V_HD_2);
-	writel(0, vtg->regs + VTG_BOT_V_HD_2);
-
-	/* prepare VTG set 3 for HD Analog in HD mode */
-	tmp = (mode->hsync_end - mode->hsync_start + AWG_DELAY_HD) << 16;
-	tmp |= mode->htotal + AWG_DELAY_HD;
-	writel(tmp, vtg->regs + VTG_H_HD_3);
-
-	tmp = (mode->vsync_end - mode->vsync_start) << 16;
-	tmp |= mode->vtotal;
-	writel(tmp, vtg->regs + VTG_TOP_V_VD_3);
-	writel(tmp, vtg->regs + VTG_BOT_V_VD_3);
-
-	tmp = (mode->htotal + AWG_DELAY_HD) << 16;
-	tmp |= mode->htotal + AWG_DELAY_HD;
-	writel(tmp, vtg->regs + VTG_TOP_V_HD_3);
-	writel(tmp, vtg->regs + VTG_BOT_V_HD_3);
-
-	/* Prepare VTG set 4 for DVO */
-	tmp = (mode->hsync_end - mode->hsync_start) << 16;
-	writel(tmp, vtg->regs + VTG_H_HD_4);
-
-	tmp = (mode->vsync_end - mode->vsync_start + 1) << 16;
-	tmp |= 1;
-	writel(tmp, vtg->regs + VTG_TOP_V_VD_4);
-	writel(tmp, vtg->regs + VTG_BOT_V_VD_4);
-	writel(0, vtg->regs + VTG_TOP_V_HD_4);
-	writel(0, vtg->regs + VTG_BOT_V_HD_4);
+	/* Progam the syncs outputs */
+	for (i = 0; i < VTG_MAX_SYNC_OUTPUT ; i++) {
+		writel(sync[i].hsync,
+		       vtg->regs + vtg_regs_offs[i].h_hd);
+		writel(sync[i].vsync_line_top,
+		       vtg->regs + vtg_regs_offs[i].top_v_vd);
+		writel(sync[i].vsync_line_bot,
+		       vtg->regs + vtg_regs_offs[i].bot_v_vd);
+		writel(sync[i].vsync_off_top,
+		       vtg->regs + vtg_regs_offs[i].top_v_hd);
+		writel(sync[i].vsync_off_bot,
+		       vtg->regs + vtg_regs_offs[i].bot_v_hd);
+	}
 
 	/* mode */
 	writel(type, vtg->regs + VTG_MODE);
@@ -231,7 +313,7 @@ void sti_vtg_set_config(struct sti_vtg *vtg,
 		const struct drm_display_mode *mode)
 {
 	/* write configuration */
-	vtg_set_mode(vtg, VTG_TYPE_MASTER, mode);
+	vtg_set_mode(vtg, VTG_MODE_MASTER, vtg->sync_params, mode);
 
 	vtg_reset(vtg);
 

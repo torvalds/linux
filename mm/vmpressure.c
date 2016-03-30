@@ -248,9 +248,8 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
 
 	if (tree) {
 		spin_lock(&vmpr->sr_lock);
-		vmpr->tree_scanned += scanned;
+		scanned = vmpr->tree_scanned += scanned;
 		vmpr->tree_reclaimed += reclaimed;
-		scanned = vmpr->scanned;
 		spin_unlock(&vmpr->sr_lock);
 
 		if (scanned < vmpressure_win)

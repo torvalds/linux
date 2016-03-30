@@ -113,6 +113,9 @@
 #define GET_NUM_REGN(x)		((x & 0x300000) >> 20) /* bits 20-21 */
 #define CHMAP_EXIST		BIT(24)
 
+/* CCSTAT register */
+#define EDMA_CCSTAT_ACTV	BIT(4)
+
 /*
  * Max of 20 segments per channel to conserve PaRAM slots
  * Also note that MAX_NR_SG should be atleast the no.of periods
@@ -866,6 +869,13 @@ static int edma_terminate_all(struct dma_chan *chan)
 	return 0;
 }
 
+static void edma_synchronize(struct dma_chan *chan)
+{
+	struct edma_chan *echan = to_edma_chan(chan);
+
+	vchan_synchronize(&echan->vchan);
+}
+
 static int edma_slave_config(struct dma_chan *chan,
 	struct dma_slave_config *cfg)
 {
@@ -1362,36 +1372,36 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 static void edma_completion_handler(struct edma_chan *echan)
 {
 	struct device *dev = echan->vchan.chan.device->dev;
-	struct edma_desc *edesc = echan->edesc;
-
-	if (!edesc)
-		return;
+	struct edma_desc *edesc;
 
 	spin_lock(&echan->vchan.lock);
-	if (edesc->cyclic) {
-		vchan_cyclic_callback(&edesc->vdesc);
-		spin_unlock(&echan->vchan.lock);
-		return;
-	} else if (edesc->processed == edesc->pset_nr) {
-		edesc->residue = 0;
-		edma_stop(echan);
-		vchan_cookie_complete(&edesc->vdesc);
-		echan->edesc = NULL;
+	edesc = echan->edesc;
+	if (edesc) {
+		if (edesc->cyclic) {
+			vchan_cyclic_callback(&edesc->vdesc);
+			spin_unlock(&echan->vchan.lock);
+			return;
+		} else if (edesc->processed == edesc->pset_nr) {
+			edesc->residue = 0;
+			edma_stop(echan);
+			vchan_cookie_complete(&edesc->vdesc);
+			echan->edesc = NULL;
 
-		dev_dbg(dev, "Transfer completed on channel %d\n",
-			echan->ch_num);
-	} else {
-		dev_dbg(dev, "Sub transfer completed on channel %d\n",
-			echan->ch_num);
+			dev_dbg(dev, "Transfer completed on channel %d\n",
+				echan->ch_num);
+		} else {
+			dev_dbg(dev, "Sub transfer completed on channel %d\n",
+				echan->ch_num);
 
-		edma_pause(echan);
+			edma_pause(echan);
 
-		/* Update statistics for tx_status */
-		edesc->residue -= edesc->sg_len;
-		edesc->residue_stat = edesc->residue;
-		edesc->processed_stat = edesc->processed;
+			/* Update statistics for tx_status */
+			edesc->residue -= edesc->sg_len;
+			edesc->residue_stat = edesc->residue;
+			edesc->processed_stat = edesc->processed;
+		}
+		edma_execute(echan);
 	}
-	edma_execute(echan);
 
 	spin_unlock(&echan->vchan.lock);
 }
@@ -1680,9 +1690,20 @@ static void edma_issue_pending(struct dma_chan *chan)
 	spin_unlock_irqrestore(&echan->vchan.lock, flags);
 }
 
+/*
+ * This limit exists to avoid a possible infinite loop when waiting for proof
+ * that a particular transfer is completed. This limit can be hit if there
+ * are large bursts to/from slow devices or the CPU is never able to catch
+ * the DMA hardware idle. On an AM335x transfering 48 bytes from the UART
+ * RX-FIFO, as many as 55 loops have been seen.
+ */
+#define EDMA_MAX_TR_WAIT_LOOPS 1000
+
 static u32 edma_residue(struct edma_desc *edesc)
 {
 	bool dst = edesc->direction == DMA_DEV_TO_MEM;
+	int loop_count = EDMA_MAX_TR_WAIT_LOOPS;
+	struct edma_chan *echan = edesc->echan;
 	struct edma_pset *pset = edesc->pset;
 	dma_addr_t done, pos;
 	int i;
@@ -1691,7 +1712,32 @@ static u32 edma_residue(struct edma_desc *edesc)
 	 * We always read the dst/src position from the first RamPar
 	 * pset. That's the one which is active now.
 	 */
-	pos = edma_get_position(edesc->echan->ecc, edesc->echan->slot[0], dst);
+	pos = edma_get_position(echan->ecc, echan->slot[0], dst);
+
+	/*
+	 * "pos" may represent a transfer request that is still being
+	 * processed by the EDMACC or EDMATC. We will busy wait until
+	 * any one of the situations occurs:
+	 *   1. the DMA hardware is idle
+	 *   2. a new transfer request is setup
+	 *   3. we hit the loop limit
+	 */
+	while (edma_read(echan->ecc, EDMA_CCSTAT) & EDMA_CCSTAT_ACTV) {
+		/* check if a new transfer request is setup */
+		if (edma_get_position(echan->ecc,
+				      echan->slot[0], dst) != pos) {
+			break;
+		}
+
+		if (!--loop_count) {
+			dev_dbg_ratelimited(echan->vchan.chan.device->dev,
+				"%s: timeout waiting for PaRAM update\n",
+				__func__);
+			break;
+		}
+
+		cpu_relax();
+	}
 
 	/*
 	 * Cyclic is simple. Just subtract pset[0].addr from pos.
@@ -1798,6 +1844,7 @@ static void edma_dma_init(struct edma_cc *ecc, bool legacy_mode)
 	s_ddev->device_pause = edma_dma_pause;
 	s_ddev->device_resume = edma_dma_resume;
 	s_ddev->device_terminate_all = edma_terminate_all;
+	s_ddev->device_synchronize = edma_synchronize;
 
 	s_ddev->src_addr_widths = EDMA_DMA_BUSWIDTHS;
 	s_ddev->dst_addr_widths = EDMA_DMA_BUSWIDTHS;
@@ -1823,6 +1870,7 @@ static void edma_dma_init(struct edma_cc *ecc, bool legacy_mode)
 		m_ddev->device_pause = edma_dma_pause;
 		m_ddev->device_resume = edma_dma_resume;
 		m_ddev->device_terminate_all = edma_terminate_all;
+		m_ddev->device_synchronize = edma_synchronize;
 
 		m_ddev->src_addr_widths = EDMA_DMA_BUSWIDTHS;
 		m_ddev->dst_addr_widths = EDMA_DMA_BUSWIDTHS;

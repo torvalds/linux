@@ -65,8 +65,7 @@ static ssize_t zorro_read_config(struct file *filp, struct kobject *kobj,
 				 struct bin_attribute *bin_attr,
 				 char *buf, loff_t off, size_t count)
 {
-	struct zorro_dev *z = to_zorro_dev(container_of(kobj, struct device,
-					   kobj));
+	struct zorro_dev *z = to_zorro_dev(kobj_to_dev(kobj));
 	struct ConfigDev cd;
 
 	/* Construct a ConfigDev */

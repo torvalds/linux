@@ -71,29 +71,29 @@ static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
  * controller uses pin controller and the mapping is not contiguous the
  * offset might be different.
  */
-static int acpi_gpiochip_pin_to_gpio_offset(struct gpio_chip *chip, int pin)
+static int acpi_gpiochip_pin_to_gpio_offset(struct gpio_device *gdev, int pin)
 {
 	struct gpio_pin_range *pin_range;
 
 	/* If there are no ranges in this chip, use 1:1 mapping */
-	if (list_empty(&chip->pin_ranges))
+	if (list_empty(&gdev->pin_ranges))
 		return pin;
 
-	list_for_each_entry(pin_range, &chip->pin_ranges, node) {
+	list_for_each_entry(pin_range, &gdev->pin_ranges, node) {
 		const struct pinctrl_gpio_range *range = &pin_range->range;
 		int i;
 
 		if (range->pins) {
 			for (i = 0; i < range->npins; i++) {
 				if (range->pins[i] == pin)
-					return range->base + i - chip->base;
+					return range->base + i - gdev->base;
 			}
 		} else {
 			if (pin >= range->pin_base &&
 			    pin < range->pin_base + range->npins) {
 				unsigned gpio_base;
 
-				gpio_base = range->base - chip->base;
+				gpio_base = range->base - gdev->base;
 				return gpio_base + pin - range->pin_base;
 			}
 		}
@@ -102,7 +102,7 @@ static int acpi_gpiochip_pin_to_gpio_offset(struct gpio_chip *chip, int pin)
 	return -EINVAL;
 }
 #else
-static inline int acpi_gpiochip_pin_to_gpio_offset(struct gpio_chip *chip,
+static inline int acpi_gpiochip_pin_to_gpio_offset(struct gpio_device *gdev,
 						   int pin)
 {
 	return pin;
@@ -134,7 +134,7 @@ static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
 	if (!chip)
 		return ERR_PTR(-EPROBE_DEFER);
 
-	offset = acpi_gpiochip_pin_to_gpio_offset(chip, pin);
+	offset = acpi_gpiochip_pin_to_gpio_offset(chip->gpiodev, pin);
 	if (offset < 0)
 		return ERR_PTR(offset);
 
@@ -202,7 +202,7 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 	if (!handler)
 		return AE_BAD_PARAMETER;
 
-	pin = acpi_gpiochip_pin_to_gpio_offset(chip, pin);
+	pin = acpi_gpiochip_pin_to_gpio_offset(chip->gpiodev, pin);
 	if (pin < 0)
 		return AE_BAD_PARAMETER;
 
@@ -673,7 +673,7 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 		struct gpio_desc *desc;
 		bool found;
 
-		pin = acpi_gpiochip_pin_to_gpio_offset(chip, pin);
+		pin = acpi_gpiochip_pin_to_gpio_offset(chip->gpiodev, pin);
 		if (pin < 0) {
 			status = AE_BAD_PARAMETER;
 			goto out;

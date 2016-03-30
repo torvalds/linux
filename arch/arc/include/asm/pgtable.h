@@ -12,7 +12,7 @@
  *  - Utilise some unused free bits to confine PTE flags to 12 bits
  *     This is a must for 4k pg-sz
  *
- * vineetg: Mar 2011 - changes to accomodate MMU TLB Page Descriptor mods
+ * vineetg: Mar 2011 - changes to accommodate MMU TLB Page Descriptor mods
  *  -TLB Locking never really existed, except for initial specs
  *  -SILENT_xxx not needed for our port
  *  -Per my request, MMU V3 changes the layout of some of the bits
@@ -179,37 +179,44 @@
 #define __S111  PAGE_U_X_W_R
 
 /****************************************************************
- * Page Table Lookup split
+ * 2 tier (PGD:PTE) software page walker
  *
- * We implement 2 tier paging and since this is all software, we are free
- * to customize the span of a PGD / PTE entry to suit us
- *
- *			32 bit virtual address
+ * [31]		    32 bit virtual address              [0]
  * -------------------------------------------------------
- * | BITS_FOR_PGD    |  BITS_FOR_PTE    |  BITS_IN_PAGE  |
+ * |               | <------------ PGDIR_SHIFT ----------> |
+ * |		   |					 |
+ * | BITS_FOR_PGD  |  BITS_FOR_PTE  | <-- PAGE_SHIFT --> |
  * -------------------------------------------------------
  *       |                  |                |
  *       |                  |                --> off in page frame
- *       |		    |
  *       |                  ---> index into Page Table
- *       |
  *       ----> index into Page Directory
+ *
+ * In a single page size configuration, only PAGE_SHIFT is fixed
+ * So both PGD and PTE sizing can be tweaked
+ *  e.g. 8K page (PAGE_SHIFT 13) can have
+ *  - PGDIR_SHIFT 21  -> 11:8:13 address split
+ *  - PGDIR_SHIFT 24  -> 8:11:13 address split
+ *
+ * If Super Page is configured, PGDIR_SHIFT becomes fixed too,
+ * so the sizing flexibility is gone.
  */
 
-#define BITS_IN_PAGE	PAGE_SHIFT
-
-/* Optimal Sizing of Pg Tbl - based on MMU page size */
-#if defined(CONFIG_ARC_PAGE_SIZE_8K)
-#define BITS_FOR_PTE	8		/* 11:8:13 */
-#elif defined(CONFIG_ARC_PAGE_SIZE_16K)
-#define BITS_FOR_PTE	8		/* 10:8:14 */
-#elif defined(CONFIG_ARC_PAGE_SIZE_4K)
-#define BITS_FOR_PTE	9		/* 11:9:12 */
+#if defined(CONFIG_ARC_HUGEPAGE_16M)
+#define PGDIR_SHIFT	24
+#elif defined(CONFIG_ARC_HUGEPAGE_2M)
+#define PGDIR_SHIFT	21
+#else
+/*
+ * Only Normal page support so "hackable" (see comment above)
+ * Default value provides 11:8:13 (8K), 11:9:12 (4K)
+ */
+#define PGDIR_SHIFT	21
 #endif
 
-#define BITS_FOR_PGD	(32 - BITS_FOR_PTE - BITS_IN_PAGE)
+#define BITS_FOR_PTE	(PGDIR_SHIFT - PAGE_SHIFT)
+#define BITS_FOR_PGD	(32 - PGDIR_SHIFT)
 
-#define PGDIR_SHIFT	(32 - BITS_FOR_PGD)
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)	/* vaddr span, not PDG sz */
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
@@ -271,15 +278,14 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 #define pmd_present(x)			(pmd_val(x))
 #define pmd_clear(xp)			do { pmd_val(*(xp)) = 0; } while (0)
 
-#define pte_page(x) (mem_map + \
-		(unsigned long)(((pte_val(x) - CONFIG_LINUX_LINK_BASE) >> \
-				PAGE_SHIFT)))
+#define pte_page(pte)	\
+	(mem_map + virt_to_pfn(pte_val(pte) - CONFIG_LINUX_LINK_BASE))
 
 #define mk_pte(page, prot)	pfn_pte(page_to_pfn(page), prot)
-#define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
+#define pte_pfn(pte)		virt_to_pfn(pte_val(pte))
 #define pfn_pte(pfn, prot)	(__pte(((pte_t)(pfn) << PAGE_SHIFT) | \
 				 pgprot_val(prot)))
-#define __pte_index(addr)	(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
+#define __pte_index(addr)	(virt_to_pfn(addr) & (PTRS_PER_PTE - 1))
 
 /*
  * pte_offset gets a @ptr to PMD entry (PGD in our 2-tier paging system)

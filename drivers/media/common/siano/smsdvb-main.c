@@ -1015,12 +1015,6 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe)
 	}
 }
 
-/* Nothing to do here, as stats are automatically updated */
-static int smsdvb_get_frontend(struct dvb_frontend *fe)
-{
-	return 0;
-}
-
 static int smsdvb_init(struct dvb_frontend *fe)
 {
 	struct smsdvb_client_t *client =
@@ -1069,7 +1063,6 @@ static struct dvb_frontend_ops smsdvb_fe_ops = {
 	.release = smsdvb_release,
 
 	.set_frontend = smsdvb_set_frontend,
-	.get_frontend = smsdvb_get_frontend,
 	.get_tune_settings = smsdvb_get_tune_settings,
 
 	.read_status = smsdvb_read_status,

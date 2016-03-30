@@ -590,8 +590,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pixcir_ts_pins>;
 		reg = <0x5c>;
-		interrupt-parent = <&gpio3>;
-		interrupts = <22 0>;
 
 		attb-gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 
@@ -599,7 +597,7 @@
 		 * 0x264 represents the offset of padconf register of
 		 * gpio3_22 from am43xx_pinmux base.
 		 */
-		interrupts-extended = <&gpio3 22 IRQ_TYPE_NONE>,
+		interrupts-extended = <&gpio3 22 IRQ_TYPE_EDGE_FALLING>,
 				      <&am43xx_pinmux 0x264>;
 		interrupt-names = "tsc", "wakeup";
 
@@ -812,9 +810,13 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&nand_flash_x8>;
-	ranges = <0 0 0 0x01000000>;	/* minimum GPMC partition = 16MB */
+	ranges = <0 0 0x08000000 0x01000000>;	/* CS0 space. Min partition = 16MB */
 	nand@0,0 {
+		compatible = "ti,omap2-nand";
 		reg = <0 0 4>;		/* device IO registers */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>;	/* termcount */
 		ti,nand-ecc-opt = "bch16";
 		ti,elm-id = <&elm>;
 		nand-bus-width = <8>;
@@ -833,11 +835,9 @@
 		gpmc,access-ns = <30>;
 		gpmc,rd-cycle-ns = <40>;
 		gpmc,wr-cycle-ns = <40>;
-		gpmc,wait-pin = <0>;
 		gpmc,bus-turnaround-ns = <0>;
 		gpmc,cycle2cycle-delay-ns = <0>;
 		gpmc,clk-activation-ns = <0>;
-		gpmc,wait-monitoring-ns = <0>;
 		gpmc,wr-access-ns = <40>;
 		gpmc,wr-data-mux-bus-ns = <0>;
 		/* MTD partition table */

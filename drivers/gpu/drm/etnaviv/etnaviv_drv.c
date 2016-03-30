@@ -668,7 +668,6 @@ static struct platform_driver etnaviv_platform_driver = {
 	.probe      = etnaviv_pdev_probe,
 	.remove     = etnaviv_pdev_remove,
 	.driver     = {
-		.owner  = THIS_MODULE,
 		.name   = "etnaviv",
 		.of_match_table = dt_match,
 	},

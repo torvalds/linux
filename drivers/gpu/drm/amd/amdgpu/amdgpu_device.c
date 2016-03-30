@@ -62,6 +62,12 @@ static const char *amdgpu_asic_name[] = {
 	"LAST",
 };
 
+#if defined(CONFIG_VGA_SWITCHEROO)
+bool amdgpu_has_atpx_dgpu_power_cntl(void);
+#else
+static inline bool amdgpu_has_atpx_dgpu_power_cntl(void) { return false; }
+#endif
+
 bool amdgpu_device_is_px(struct drm_device *dev)
 {
 	struct amdgpu_device *adev = dev->dev_private;
@@ -636,31 +642,6 @@ bool amdgpu_card_posted(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_boot_test_post_card - check and possibly initialize the hw
- *
- * @adev: amdgpu_device pointer
- *
- * Check if the asic is initialized and if not, attempt to initialize
- * it (all asics).
- * Returns true if initialized or false if not.
- */
-bool amdgpu_boot_test_post_card(struct amdgpu_device *adev)
-{
-	if (amdgpu_card_posted(adev))
-		return true;
-
-	if (adev->bios) {
-		DRM_INFO("GPU not posted. posting now...\n");
-		if (adev->is_atom_bios)
-			amdgpu_atom_asic_init(adev->mode_info.atom_context);
-		return true;
-	} else {
-		dev_err(adev->dev, "Card not posted and no BIOS - ignoring\n");
-		return false;
-	}
-}
-
-/**
  * amdgpu_dummy_page_init - init dummy page used by the driver
  *
  * @adev: amdgpu_device pointer
@@ -958,12 +939,6 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 		dev_warn(adev->dev, "sched jobs (%d) must be a power of 2\n",
 			 amdgpu_sched_jobs);
 		amdgpu_sched_jobs = roundup_pow_of_two(amdgpu_sched_jobs);
-	}
-	/* vramlimit must be a power of two */
-	if (!amdgpu_check_pot_argument(amdgpu_vram_limit)) {
-		dev_warn(adev->dev, "vram limit (%d) must be a power of 2\n",
-				amdgpu_vram_limit);
-		amdgpu_vram_limit = 0;
 	}
 
 	if (amdgpu_gart_size != -1) {
@@ -1434,7 +1409,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->mman.buffer_funcs = NULL;
 	adev->mman.buffer_funcs_ring = NULL;
 	adev->vm_manager.vm_pte_funcs = NULL;
-	adev->vm_manager.vm_pte_funcs_ring = NULL;
+	adev->vm_manager.vm_pte_num_rings = 0;
 	adev->gart.gart_funcs = NULL;
 	adev->fence_context = fence_context_alloc(AMDGPU_MAX_RINGS);
 
@@ -1455,9 +1430,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
-	mutex_init(&adev->ring_lock);
+	mutex_init(&adev->vm_manager.lock);
 	atomic_set(&adev->irq.ih.lock, 0);
-	mutex_init(&adev->gem.mutex);
 	mutex_init(&adev->pm.mutex);
 	mutex_init(&adev->gfx.gpu_clock_mutex);
 	mutex_init(&adev->srbm_mutex);
@@ -1511,7 +1485,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	if (amdgpu_runtime_pm == 1)
 		runtime = true;
-	if (amdgpu_device_is_px(ddev))
+	if (amdgpu_device_is_px(ddev) && amdgpu_has_atpx_dgpu_power_cntl())
 		runtime = true;
 	vga_switcheroo_register_client(adev->pdev, &amdgpu_switcheroo_ops, runtime);
 	if (runtime)
@@ -1531,8 +1505,13 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		return r;
 	}
 
+	/* See if the asic supports SR-IOV */
+	adev->virtualization.supports_sr_iov =
+		amdgpu_atombios_has_gpu_virtualization_table(adev);
+
 	/* Post card if necessary */
-	if (!amdgpu_card_posted(adev)) {
+	if (!amdgpu_card_posted(adev) ||
+	    adev->virtualization.supports_sr_iov) {
 		if (!adev->bios) {
 			dev_err(adev->dev, "Card not posted and no BIOS - ignoring\n");
 			return -EINVAL;
@@ -1577,11 +1556,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		return r;
 	}
 
-	r = amdgpu_ctx_init(adev, AMD_SCHED_PRIORITY_KERNEL, &adev->kernel_ctx);
-	if (r) {
-		dev_err(adev->dev, "failed to create kernel context (%d).\n", r);
-		return r;
-	}
 	r = amdgpu_ib_ring_tests(adev);
 	if (r)
 		DRM_ERROR("ib ring test failed (%d).\n", r);
@@ -1645,7 +1619,6 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	adev->shutdown = true;
 	/* evict vram memory */
 	amdgpu_bo_evict_vram(adev);
-	amdgpu_ctx_fini(&adev->kernel_ctx);
 	amdgpu_ib_pool_fini(adev);
 	amdgpu_fence_driver_fini(adev);
 	amdgpu_fbdev_fini(adev);
@@ -1795,15 +1768,20 @@ int amdgpu_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	}
 
 	/* post card */
-	amdgpu_atom_asic_init(adev->mode_info.atom_context);
+	if (!amdgpu_card_posted(adev))
+		amdgpu_atom_asic_init(adev->mode_info.atom_context);
 
 	r = amdgpu_resume(adev);
+	if (r)
+		DRM_ERROR("amdgpu_resume failed (%d).\n", r);
 
 	amdgpu_fence_driver_resume(adev);
 
-	r = amdgpu_ib_ring_tests(adev);
-	if (r)
-		DRM_ERROR("ib ring test failed (%d).\n", r);
+	if (resume) {
+		r = amdgpu_ib_ring_tests(adev);
+		if (r)
+			DRM_ERROR("ib ring test failed (%d).\n", r);
+	}
 
 	r = amdgpu_late_init(adev);
 	if (r)
@@ -1889,6 +1867,9 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 
 retry:
 	r = amdgpu_asic_reset(adev);
+	/* post card */
+	amdgpu_atom_asic_init(adev->mode_info.atom_context);
+
 	if (!r) {
 		dev_info(adev->dev, "GPU reset succeeded, trying to resume\n");
 		r = amdgpu_resume(adev);
@@ -1933,80 +1914,97 @@ retry:
 	return r;
 }
 
+#define AMDGPU_DEFAULT_PCIE_GEN_MASK 0x30007  /* gen: chipset 1/2, asic 1/2/3 */
+#define AMDGPU_DEFAULT_PCIE_MLW_MASK 0x2f0000 /* 1/2/4/8/16 lanes */
+
 void amdgpu_get_pcie_info(struct amdgpu_device *adev)
 {
 	u32 mask;
 	int ret;
 
-	if (pci_is_root_bus(adev->pdev->bus))
+	if (amdgpu_pcie_gen_cap)
+		adev->pm.pcie_gen_mask = amdgpu_pcie_gen_cap;
+
+	if (amdgpu_pcie_lane_cap)
+		adev->pm.pcie_mlw_mask = amdgpu_pcie_lane_cap;
+
+	/* covers APUs as well */
+	if (pci_is_root_bus(adev->pdev->bus)) {
+		if (adev->pm.pcie_gen_mask == 0)
+			adev->pm.pcie_gen_mask = AMDGPU_DEFAULT_PCIE_GEN_MASK;
+		if (adev->pm.pcie_mlw_mask == 0)
+			adev->pm.pcie_mlw_mask = AMDGPU_DEFAULT_PCIE_MLW_MASK;
 		return;
-
-	if (amdgpu_pcie_gen2 == 0)
-		return;
-
-	if (adev->flags & AMD_IS_APU)
-		return;
-
-	ret = drm_pcie_get_speed_cap_mask(adev->ddev, &mask);
-	if (!ret) {
-		adev->pm.pcie_gen_mask = (CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN1 |
-					  CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN2 |
-					  CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN3);
-
-		if (mask & DRM_PCIE_SPEED_25)
-			adev->pm.pcie_gen_mask |= CAIL_PCIE_LINK_SPEED_SUPPORT_GEN1;
-		if (mask & DRM_PCIE_SPEED_50)
-			adev->pm.pcie_gen_mask |= CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2;
-		if (mask & DRM_PCIE_SPEED_80)
-			adev->pm.pcie_gen_mask |= CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3;
 	}
-	ret = drm_pcie_get_max_link_width(adev->ddev, &mask);
-	if (!ret) {
-		switch (mask) {
-		case 32:
-			adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X32 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X16 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
-			break;
-		case 16:
-			adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X16 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
-			break;
-		case 12:
-			adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
-			break;
-		case 8:
-			adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
-			break;
-		case 4:
-			adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
-			break;
-		case 2:
-			adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
-						  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
-			break;
-		case 1:
-			adev->pm.pcie_mlw_mask = CAIL_PCIE_LINK_WIDTH_SUPPORT_X1;
-			break;
-		default:
-			break;
+
+	if (adev->pm.pcie_gen_mask == 0) {
+		ret = drm_pcie_get_speed_cap_mask(adev->ddev, &mask);
+		if (!ret) {
+			adev->pm.pcie_gen_mask = (CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN1 |
+						  CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN2 |
+						  CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN3);
+
+			if (mask & DRM_PCIE_SPEED_25)
+				adev->pm.pcie_gen_mask |= CAIL_PCIE_LINK_SPEED_SUPPORT_GEN1;
+			if (mask & DRM_PCIE_SPEED_50)
+				adev->pm.pcie_gen_mask |= CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2;
+			if (mask & DRM_PCIE_SPEED_80)
+				adev->pm.pcie_gen_mask |= CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3;
+		} else {
+			adev->pm.pcie_gen_mask = AMDGPU_DEFAULT_PCIE_GEN_MASK;
+		}
+	}
+	if (adev->pm.pcie_mlw_mask == 0) {
+		ret = drm_pcie_get_max_link_width(adev->ddev, &mask);
+		if (!ret) {
+			switch (mask) {
+			case 32:
+				adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X32 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X16 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+				break;
+			case 16:
+				adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X16 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+				break;
+			case 12:
+				adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+				break;
+			case 8:
+				adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+				break;
+			case 4:
+				adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+				break;
+			case 2:
+				adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+				break;
+			case 1:
+				adev->pm.pcie_mlw_mask = CAIL_PCIE_LINK_WIDTH_SUPPORT_X1;
+				break;
+			default:
+				break;
+			}
+		} else {
+			adev->pm.pcie_mlw_mask = AMDGPU_DEFAULT_PCIE_MLW_MASK;
 		}
 	}
 }

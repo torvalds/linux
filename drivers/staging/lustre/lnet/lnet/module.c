@@ -36,6 +36,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 #include "../../include/linux/lnet/lib-lnet.h"
+#include "../../include/linux/lnet/lib-dlc.h"
 
 static int config_on_load;
 module_param(config_on_load, int, 0444);
@@ -52,13 +53,21 @@ lnet_configure(void *arg)
 	mutex_lock(&lnet_config_mutex);
 
 	if (!the_lnet.ln_niinit_self) {
-		rc = LNetNIInit(LUSTRE_SRV_LNET_PID);
+		rc = try_module_get(THIS_MODULE);
+
+		if (rc != 1)
+			goto out;
+
+		rc = LNetNIInit(LNET_PID_LUSTRE);
 		if (rc >= 0) {
 			the_lnet.ln_niinit_self = 1;
 			rc = 0;
+		} else {
+			module_put(THIS_MODULE);
 		}
 	}
 
+out:
 	mutex_unlock(&lnet_config_mutex);
 	return rc;
 }
@@ -73,6 +82,7 @@ lnet_unconfigure(void)
 	if (the_lnet.ln_niinit_self) {
 		the_lnet.ln_niinit_self = 0;
 		LNetNIFini();
+		module_put(THIS_MODULE);
 	}
 
 	mutex_lock(&the_lnet.ln_api_mutex);
@@ -80,28 +90,93 @@ lnet_unconfigure(void)
 	mutex_unlock(&the_lnet.ln_api_mutex);
 
 	mutex_unlock(&lnet_config_mutex);
-	return (refcount == 0) ? 0 : -EBUSY;
+	return !refcount ? 0 : -EBUSY;
 }
 
 static int
-lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_data *data)
+lnet_dyn_configure(struct libcfs_ioctl_hdr *hdr)
+{
+	struct lnet_ioctl_config_data *conf =
+		(struct lnet_ioctl_config_data *)hdr;
+	int rc;
+
+	if (conf->cfg_hdr.ioc_len < sizeof(*conf))
+		return -EINVAL;
+
+	mutex_lock(&lnet_config_mutex);
+	if (!the_lnet.ln_niinit_self) {
+		rc = -EINVAL;
+		goto out_unlock;
+	}
+	rc = lnet_dyn_add_ni(LNET_PID_LUSTRE,
+			     conf->cfg_config_u.cfg_net.net_intf,
+			     conf->cfg_config_u.cfg_net.net_peer_timeout,
+			     conf->cfg_config_u.cfg_net.net_peer_tx_credits,
+			     conf->cfg_config_u.cfg_net.net_peer_rtr_credits,
+			     conf->cfg_config_u.cfg_net.net_max_tx_credits);
+out_unlock:
+	mutex_unlock(&lnet_config_mutex);
+
+	return rc;
+}
+
+static int
+lnet_dyn_unconfigure(struct libcfs_ioctl_hdr *hdr)
+{
+	struct lnet_ioctl_config_data *conf =
+		(struct lnet_ioctl_config_data *)hdr;
+	int rc;
+
+	if (conf->cfg_hdr.ioc_len < sizeof(*conf))
+		return -EINVAL;
+
+	mutex_lock(&lnet_config_mutex);
+	if (!the_lnet.ln_niinit_self) {
+		rc = -EINVAL;
+		goto out_unlock;
+	}
+	rc = lnet_dyn_del_ni(conf->cfg_net);
+out_unlock:
+	mutex_unlock(&lnet_config_mutex);
+
+	return rc;
+}
+
+static int
+lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 {
 	int rc;
 
 	switch (cmd) {
-	case IOC_LIBCFS_CONFIGURE:
+	case IOC_LIBCFS_CONFIGURE: {
+		struct libcfs_ioctl_data *data =
+			(struct libcfs_ioctl_data *)hdr;
+
+		if (data->ioc_hdr.ioc_len < sizeof(*data))
+			return -EINVAL;
+
+		the_lnet.ln_nis_from_mod_params = data->ioc_flags;
 		return lnet_configure(NULL);
+	}
 
 	case IOC_LIBCFS_UNCONFIGURE:
 		return lnet_unconfigure();
 
+	case IOC_LIBCFS_ADD_NET:
+		return lnet_dyn_configure(hdr);
+
+	case IOC_LIBCFS_DEL_NET:
+		return lnet_dyn_unconfigure(hdr);
+
 	default:
-		/* Passing LNET_PID_ANY only gives me a ref if the net is up
+		/*
+		 * Passing LNET_PID_ANY only gives me a ref if the net is up
 		 * already; I'll need it to ensure the net can't go down while
-		 * I'm called into it */
+		 * I'm called into it
+		 */
 		rc = LNetNIInit(LNET_PID_ANY);
 		if (rc >= 0) {
-			rc = LNetCtl(cmd, data);
+			rc = LNetCtl(cmd, hdr);
 			LNetNIFini();
 		}
 		return rc;
@@ -110,46 +185,46 @@ lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_data *data)
 
 static DECLARE_IOCTL_HANDLER(lnet_ioctl_handler, lnet_ioctl);
 
-static int __init
-init_lnet(void)
+static int __init lnet_init(void)
 {
 	int rc;
 
 	mutex_init(&lnet_config_mutex);
 
-	rc = lnet_init();
-	if (rc != 0) {
-		CERROR("lnet_init: error %d\n", rc);
+	rc = lnet_lib_init();
+	if (rc) {
+		CERROR("lnet_lib_init: error %d\n", rc);
 		return rc;
 	}
 
 	rc = libcfs_register_ioctl(&lnet_ioctl_handler);
-	LASSERT(rc == 0);
+	LASSERT(!rc);
 
 	if (config_on_load) {
-		/* Have to schedule a separate thread to avoid deadlocking
-		 * in modload */
+		/*
+		 * Have to schedule a separate thread to avoid deadlocking
+		 * in modload
+		 */
 		(void) kthread_run(lnet_configure, NULL, "lnet_initd");
 	}
 
 	return 0;
 }
 
-static void __exit
-fini_lnet(void)
+static void __exit lnet_exit(void)
 {
 	int rc;
 
 	rc = libcfs_deregister_ioctl(&lnet_ioctl_handler);
-	LASSERT(rc == 0);
+	LASSERT(!rc);
 
-	lnet_fini();
+	lnet_lib_exit();
 }
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
-MODULE_DESCRIPTION("LNet v3.1");
+MODULE_DESCRIPTION("Lustre Networking layer");
+MODULE_VERSION(LNET_VERSION);
 MODULE_LICENSE("GPL");
-MODULE_VERSION("1.0.0");
 
-module_init(init_lnet);
-module_exit(fini_lnet);
+module_init(lnet_init);
+module_exit(lnet_exit);

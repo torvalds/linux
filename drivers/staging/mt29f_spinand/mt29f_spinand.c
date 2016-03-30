@@ -33,7 +33,7 @@ static inline struct spinand_state *mtd_to_state(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct spinand_info *info = nand_get_controller_data(chip);
-	struct spinand_state *state = (struct spinand_state *)info->priv;
+	struct spinand_state *state = info->priv;
 
 	return state;
 }
@@ -49,7 +49,6 @@ static struct nand_ecclayout spinand_oob_64 = {
 		17, 18, 19, 20, 21, 22,
 		33, 34, 35, 36, 37, 38,
 		49, 50, 51, 52, 53, 54, },
-	.oobavail = 32,
 	.oobfree = {
 		{.offset = 8,
 			.length = 8},
@@ -63,8 +62,8 @@ static struct nand_ecclayout spinand_oob_64 = {
 };
 #endif
 
-/*
- * spinand_cmd - to process a command to send to the SPI Nand
+/**
+ * spinand_cmd - process a command to send to the SPI Nand
  * Description:
  *    Set up the command buffer to send to the SPI controller.
  *    The command buffer has to initialized to 0.
@@ -110,10 +109,10 @@ static int spinand_cmd(struct spi_device *spi, struct spinand_cmd *cmd)
 	return spi_sync(spi, &message);
 }
 
-/*
- * spinand_read_id- Read SPI Nand ID
+/**
+ * spinand_read_id - Read SPI Nand ID
  * Description:
- *    Read ID: read two ID bytes from the SPI Nand device
+ *    read two ID bytes from the SPI Nand device
  */
 static int spinand_read_id(struct spi_device *spi_nand, u8 *id)
 {
@@ -135,8 +134,8 @@ static int spinand_read_id(struct spi_device *spi_nand, u8 *id)
 	return retval;
 }
 
-/*
- * spinand_read_status- send command 0xf to the SPI Nand status register
+/**
+ * spinand_read_status - send command 0xf to the SPI Nand status register
  * Description:
  *    After read, write, or erase, the Nand device is expected to set the
  *    busy status.
@@ -175,7 +174,7 @@ static int wait_till_ready(struct spi_device *spi_nand)
 		retval = spinand_read_status(spi_nand, &stat);
 		if (retval < 0)
 			return -1;
-		else if (!(stat & 0x1))
+		if (!(stat & 0x1))
 			break;
 
 		cond_resched();
@@ -188,7 +187,7 @@ static int wait_till_ready(struct spi_device *spi_nand)
 }
 
 /**
- * spinand_get_otp- send command 0xf to read the SPI Nand OTP register
+ * spinand_get_otp - send command 0xf to read the SPI Nand OTP register
  * Description:
  *   There is one bit( bit 0x10 ) to set or to clear the internal ECC.
  *   Enable chip internal ECC, set the bit to 1
@@ -212,7 +211,7 @@ static int spinand_get_otp(struct spi_device *spi_nand, u8 *otp)
 }
 
 /**
- * spinand_set_otp- send command 0x1f to write the SPI Nand OTP register
+ * spinand_set_otp - send command 0x1f to write the SPI Nand OTP register
  * Description:
  *   There is one bit( bit 0x10 ) to set or to clear the internal ECC.
  *   Enable chip internal ECC, set the bit to 1
@@ -223,11 +222,11 @@ static int spinand_set_otp(struct spi_device *spi_nand, u8 *otp)
 	int retval;
 	struct spinand_cmd cmd = {0};
 
-	cmd.cmd = CMD_WRITE_REG,
-	cmd.n_addr = 1,
-	cmd.addr[0] = REG_OTP,
-	cmd.n_tx = 1,
-	cmd.tx_buf = otp,
+	cmd.cmd = CMD_WRITE_REG;
+	cmd.n_addr = 1;
+	cmd.addr[0] = REG_OTP;
+	cmd.n_tx = 1;
+	cmd.tx_buf = otp;
 
 	retval = spinand_cmd(spi_nand, &cmd);
 	if (retval < 0)
@@ -238,7 +237,7 @@ static int spinand_set_otp(struct spi_device *spi_nand, u8 *otp)
 
 #ifdef CONFIG_MTD_SPINAND_ONDIEECC
 /**
- * spinand_enable_ecc- send command 0x1f to write the SPI Nand OTP register
+ * spinand_enable_ecc - send command 0x1f to write the SPI Nand OTP register
  * Description:
  *   There is one bit( bit 0x10 ) to set or to clear the internal ECC.
  *   Enable chip internal ECC, set the bit to 1
@@ -283,7 +282,7 @@ static int spinand_disable_ecc(struct spi_device *spi_nand)
 }
 
 /**
- * spinand_write_enable- send command 0x06 to enable write or erase the
+ * spinand_write_enable - send command 0x06 to enable write or erase the
  * Nand cells
  * Description:
  *   Before write and erase the Nand cells, the write enable has to be set.
@@ -313,9 +312,9 @@ static int spinand_read_page_to_cache(struct spi_device *spi_nand, u16 page_id)
 	return spinand_cmd(spi_nand, &cmd);
 }
 
-/*
- * spinand_read_from_cache- send command 0x03 to read out the data from the
- * cache register(2112 bytes max)
+/**
+ * spinand_read_from_cache - send command 0x03 to read out the data from the
+ * cache register (2112 bytes max)
  * Description:
  *   The read can specify 1 to 2112 bytes of data read at the corresponding
  *   locations.
@@ -341,15 +340,15 @@ static int spinand_read_from_cache(struct spi_device *spi_nand, u16 page_id,
 	return spinand_cmd(spi_nand, &cmd);
 }
 
-/*
- * spinand_read_page-to read a page with:
+/**
+ * spinand_read_page - read a page
  * @page_id: the physical page number
  * @offset:  the location from 0 to 2111
  * @len:     number of bytes to read
  * @rbuf:    read buffer to hold @len bytes
  *
  * Description:
- *   The read includes two commands to the Nand: 0x13 and 0x03 commands
+ *   The read includes two commands to the Nand - 0x13 and 0x03 commands
  *   Poll to read status to wait for tRD time.
  */
 static int spinand_read_page(struct spi_device *spi_nand, u16 page_id,
@@ -408,11 +407,11 @@ static int spinand_read_page(struct spi_device *spi_nand, u16 page_id,
 	return ret;
 }
 
-/*
- * spinand_program_data_to_cache--to write a page to cache with:
+/**
+ * spinand_program_data_to_cache - write a page to cache
  * @byte_id: the location to write to the cache
  * @len:     number of bytes to write
- * @rbuf:    read buffer to hold @len bytes
+ * @wbuf:    write buffer holding @len bytes
  *
  * Description:
  *   The write command used here is 0x84--indicating that the cache is
@@ -439,7 +438,7 @@ static int spinand_program_data_to_cache(struct spi_device *spi_nand,
 }
 
 /**
- * spinand_program_execute--to write a page from cache to the Nand array with
+ * spinand_program_execute - write a page from cache to the Nand array
  * @page_id: the physical page location to write the page.
  *
  * Description:
@@ -462,11 +461,11 @@ static int spinand_program_execute(struct spi_device *spi_nand, u16 page_id)
 }
 
 /**
- * spinand_program_page--to write a page with:
+ * spinand_program_page - write a page
  * @page_id: the physical page location to write the page.
  * @offset:  the location from the cache starting from 0 to 2111
  * @len:     the number of bytes to write
- * @wbuf:    the buffer to hold the number of bytes
+ * @buf:     the buffer holding @len bytes
  *
  * Description:
  *   The commands used here are 0x06, 0x84, and 0x10--indicating that
@@ -483,8 +482,11 @@ static int spinand_program_page(struct spi_device *spi_nand,
 #ifdef CONFIG_MTD_SPINAND_ONDIEECC
 	unsigned int i, j;
 
-	enable_read_hw_ecc = 0;
 	wbuf = devm_kzalloc(&spi_nand->dev, CACHE_BUF, GFP_KERNEL);
+	if (!wbuf)
+		return -ENOMEM;
+
+	enable_read_hw_ecc = 0;
 	spinand_read_page(spi_nand, page_id, 0, CACHE_BUF, wbuf);
 
 	for (i = offset, j = 0; i < len; i++, j++)
@@ -547,7 +549,7 @@ static int spinand_program_page(struct spi_device *spi_nand,
 }
 
 /**
- * spinand_erase_block_erase--to erase a page with:
+ * spinand_erase_block_erase - erase a page
  * @block_id: the physical block location to erase.
  *
  * Description:
@@ -570,7 +572,7 @@ static int spinand_erase_block_erase(struct spi_device *spi_nand, u16 block_id)
 }
 
 /**
- * spinand_erase_block--to erase a page with:
+ * spinand_erase_block - erase a page
  * @block_id: the physical block location to erase.
  *
  * Description:
@@ -746,7 +748,7 @@ static void spinand_cmdfunc(struct mtd_info *mtd, unsigned int command,
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct spinand_info *info = nand_get_controller_data(chip);
-	struct spinand_state *state = (struct spinand_state *)info->priv;
+	struct spinand_state *state = info->priv;
 
 	switch (command) {
 	/*
@@ -810,7 +812,7 @@ static void spinand_cmdfunc(struct mtd_info *mtd, unsigned int command,
 }
 
 /**
- * spinand_lock_block- send write register 0x1f command to the Nand device
+ * spinand_lock_block - send write register 0x1f command to the Nand device
  *
  * Description:
  *    After power up, all the Nand blocks are locked.  This function allows
@@ -837,12 +839,12 @@ static int spinand_lock_block(struct spi_device *spi_nand, u8 lock)
 	return ret;
 }
 
-/*
+/**
  * spinand_probe - [spinand Interface]
  * @spi_nand: registered device driver.
  *
  * Description:
- *   To set up the device driver parameters to make the device available.
+ *   Set up the device driver parameters to make the device available.
  */
 static int spinand_probe(struct spi_device *spi_nand)
 {
@@ -890,7 +892,8 @@ static int spinand_probe(struct spi_device *spi_nand)
 #else
 	chip->ecc.mode	= NAND_ECC_SOFT;
 	if (spinand_disable_ecc(spi_nand) < 0)
-		pr_info("%s: disable ecc failed!\n", __func__);
+		dev_info(&spi_nand->dev, "%s: disable ecc failed!\n",
+			 __func__);
 #endif
 
 	nand_set_flash_node(chip, spi_nand->dev.of_node);
@@ -916,12 +919,12 @@ static int spinand_probe(struct spi_device *spi_nand)
 	return mtd_device_register(mtd, NULL, 0);
 }
 
-/*
- * spinand_remove: Remove the device driver
+/**
+ * spinand_remove - remove the device driver
  * @spi: the spi device.
  *
  * Description:
- *   To remove the device driver parameters and free up allocated memories.
+ *   Remove the device driver parameters and free up allocated memories.
  */
 static int spinand_remove(struct spi_device *spi)
 {

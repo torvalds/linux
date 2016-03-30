@@ -119,6 +119,8 @@ enum {
 	SCAN_ABORT_UMAC = 0xe,
 	SCAN_COMPLETE_UMAC = 0xf,
 
+	BA_WINDOW_STATUS_NOTIFICATION_ID = 0x13,
+
 	/* station table */
 	ADD_STA_KEY = 0x17,
 	ADD_STA = 0x18,
@@ -213,6 +215,8 @@ enum {
 
 	MFUART_LOAD_NOTIFICATION = 0xb1,
 
+	RSS_CONFIG_CMD = 0xb3,
+
 	REPLY_RX_PHY_CMD = 0xc0,
 	REPLY_RX_MPDU_CMD = 0xc1,
 	FRAME_RELEASE = 0xc3,
@@ -277,7 +281,21 @@ enum {
  */
 enum iwl_phy_ops_subcmd_ids {
 	CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
+	CTDP_CONFIG_CMD = 0x03,
+	TEMP_REPORTING_THRESHOLDS_CMD = 0x04,
+	CT_KILL_NOTIFICATION = 0xFE,
 	DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
+};
+
+enum iwl_data_path_subcmd_ids {
+	UPDATE_MU_GROUPS_CMD = 0x1,
+	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
+	MU_GROUP_MGMT_NOTIF = 0xFE,
+	RX_QUEUES_NOTIFICATION = 0xFF,
+};
+
+enum iwl_prot_offload_subcmd_ids {
+	STORED_BEACON_NTF = 0xFF,
 };
 
 /* command groups */
@@ -285,6 +303,8 @@ enum {
 	LEGACY_GROUP = 0x0,
 	LONG_GROUP = 0x1,
 	PHY_OPS_GROUP = 0x4,
+	DATA_PATH_GROUP = 0x5,
+	PROT_OFFLOAD_GROUP = 0xb,
 };
 
 /**
@@ -1271,6 +1291,26 @@ struct iwl_fw_bcast_filter {
 	struct iwl_fw_bcast_filter_attr attrs[MAX_BCAST_FILTER_ATTRS];
 } __packed; /* BCAST_FILTER_S_VER_1 */
 
+#define BA_WINDOW_STREAMS_MAX		16
+#define BA_WINDOW_STATUS_TID_MSK	0x000F
+#define BA_WINDOW_STATUS_STA_ID_POS	4
+#define BA_WINDOW_STATUS_STA_ID_MSK	0x01F0
+#define BA_WINDOW_STATUS_VALID_MSK	BIT(9)
+
+/**
+ * struct iwl_ba_window_status_notif - reordering window's status notification
+ * @bitmap: bitmap of received frames [start_seq_num + 0]..[start_seq_num + 63]
+ * @ra_tid: bit 3:0 - TID, bit 8:4 - STA_ID, bit 9 - valid
+ * @start_seq_num: the start sequence number of the bitmap
+ * @mpdu_rx_count: the number of received MPDUs since entering D0i3
+ */
+struct iwl_ba_window_status_notif {
+	__le64 bitmap[BA_WINDOW_STREAMS_MAX];
+	__le16 ra_tid[BA_WINDOW_STREAMS_MAX];
+	__le32 start_seq_num[BA_WINDOW_STREAMS_MAX];
+	__le16 mpdu_rx_count[BA_WINDOW_STREAMS_MAX];
+} __packed; /* BA_WINDOW_STATUS_NTFY_API_S_VER_1 */
+
 /**
  * struct iwl_fw_bcast_mac - per-mac broadcast filtering configuration.
  * @default_discard: default action for this mac (discard (1) / pass (0)).
@@ -1668,15 +1708,77 @@ struct iwl_ext_dts_measurement_cmd {
 } __packed; /* XVT_FW_DTS_CONTROL_MEASUREMENT_REQUEST_API_S */
 
 /**
- * iwl_dts_measurement_notif - notification received with the measurements
+ * struct iwl_dts_measurement_notif_v1 - measurements notification
  *
  * @temp: the measured temperature
  * @voltage: the measured voltage
  */
-struct iwl_dts_measurement_notif {
+struct iwl_dts_measurement_notif_v1 {
 	__le32 temp;
 	__le32 voltage;
-} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S */
+} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_1*/
+
+/**
+ * struct iwl_dts_measurement_notif_v2 - measurements notification
+ *
+ * @temp: the measured temperature
+ * @voltage: the measured voltage
+ * @threshold_idx: the trip index that was crossed
+ */
+struct iwl_dts_measurement_notif_v2 {
+	__le32 temp;
+	__le32 voltage;
+	__le32 threshold_idx;
+} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_2 */
+
+/**
+ * struct ct_kill_notif - CT-kill entry notification
+ *
+ * @temperature: the current temperature in celsius
+ * @reserved: reserved
+ */
+struct ct_kill_notif {
+	__le16 temperature;
+	__le16 reserved;
+} __packed; /* GRP_PHY_CT_KILL_NTF */
+
+/**
+* enum ctdp_cmd_operation - CTDP command operations
+* @CTDP_CMD_OPERATION_START: update the current budget
+* @CTDP_CMD_OPERATION_STOP: stop ctdp
+* @CTDP_CMD_OPERATION_REPORT: get the avgerage budget
+*/
+enum iwl_mvm_ctdp_cmd_operation {
+	CTDP_CMD_OPERATION_START	= 0x1,
+	CTDP_CMD_OPERATION_STOP		= 0x2,
+	CTDP_CMD_OPERATION_REPORT	= 0x4,
+};/* CTDP_CMD_OPERATION_TYPE_E */
+
+/**
+ * struct iwl_mvm_ctdp_cmd - track and manage the FW power consumption budget
+ *
+ * @operation: see &enum iwl_mvm_ctdp_cmd_operation
+ * @budget: the budget in milliwatt
+ * @window_size: defined in API but not used
+ */
+struct iwl_mvm_ctdp_cmd {
+	__le32 operation;
+	__le32 budget;
+	__le32 window_size;
+} __packed;
+
+#define IWL_MAX_DTS_TRIPS	8
+
+/**
+ * struct iwl_temp_report_ths_cmd - set temperature thresholds
+ *
+ * @num_temps: number of temperature thresholds passed
+ * @thresholds: array with the thresholds to be configured
+ */
+struct temp_report_ths_cmd {
+	__le32 num_temps;
+	__le16 thresholds[IWL_MAX_DTS_TRIPS];
+} __packed; /* GRP_PHY_TEMP_REPORTING_THRESHOLDS_CMD */
 
 /***********************************
  * TDLS API
@@ -1850,5 +1952,54 @@ struct iwl_shared_mem_cfg {
 	__le32 page_buff_addr;
 	__le32 page_buff_size;
 } __packed; /* SHARED_MEM_ALLOC_API_S_VER_1 */
+
+/**
+ * VHT MU-MIMO group configuration
+ *
+ * @membership_status: a bitmap of MU groups
+ * @user_position:the position of station in a group. If the station is in the
+ *	group then bits (group * 2) is the position -1
+ */
+struct iwl_mu_group_mgmt_cmd {
+	__le32 reserved;
+	__le32 membership_status[2];
+	__le32 user_position[4];
+} __packed; /* MU_GROUP_ID_MNG_TABLE_API_S_VER_1 */
+
+/**
+ * struct iwl_mu_group_mgmt_notif - VHT MU-MIMO group id notification
+ *
+ * @membership_status: a bitmap of MU groups
+ * @user_position: the position of station in a group. If the station is in the
+ *	group then bits (group * 2) is the position -1
+ */
+struct iwl_mu_group_mgmt_notif {
+	__le32 membership_status[2];
+	__le32 user_position[4];
+} __packed; /* MU_GROUP_MNG_NTFY_API_S_VER_1 */
+
+#define MAX_STORED_BEACON_SIZE 600
+
+/**
+ * Stored beacon notification
+ *
+ * @system_time: system time on air rise
+ * @tsf: TSF on air rise
+ * @beacon_timestamp: beacon on air rise
+ * @phy_flags: general phy flags: band, modulation, etc.
+ * @channel: channel this beacon was received on
+ * @rates: rate in ucode internal format
+ * @byte_count: frame's byte count
+ */
+struct iwl_stored_beacon_notif {
+	__le32 system_time;
+	__le64 tsf;
+	__le32 beacon_timestamp;
+	__le16 phy_flags;
+	__le16 channel;
+	__le32 rates;
+	__le32 byte_count;
+	u8 data[MAX_STORED_BEACON_SIZE];
+} __packed; /* WOWLAN_STROED_BEACON_INFO_S_VER_1 */
 
 #endif /* __fw_api_h__ */

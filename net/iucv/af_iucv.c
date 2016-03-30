@@ -708,6 +708,9 @@ static int iucv_sock_bind(struct socket *sock, struct sockaddr *addr,
 	if (!addr || addr->sa_family != AF_IUCV)
 		return -EINVAL;
 
+	if (addr_len < sizeof(struct sockaddr_iucv))
+		return -EINVAL;
+
 	lock_sock(sk);
 	if (sk->sk_state != IUCV_OPEN) {
 		err = -EBADFD;

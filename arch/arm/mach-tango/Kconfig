@@ -1,5 +1,6 @@
 config ARCH_TANGO
-	bool "Sigma Designs Tango4 (SMP87xx)" if ARCH_MULTI_V7
+	bool "Sigma Designs Tango4 (SMP87xx)"
+	depends on ARCH_MULTI_V7
 	# Cortex-A9 MPCore r3p0, PL310 r3p2
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARM_ERRATA_754322

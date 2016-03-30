@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
+#include <drm/drm_cache.h>
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
@@ -96,9 +97,6 @@ static void amdgpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 
 	amdgpu_update_memory_usage(bo->adev, &bo->tbo.mem, NULL);
 
-	mutex_lock(&bo->adev->gem.mutex);
-	list_del_init(&bo->list);
-	mutex_unlock(&bo->adev->gem.mutex);
 	drm_gem_object_release(&bo->gem_base);
 	amdgpu_bo_unref(&bo->parent);
 	kfree(bo->metadata);
@@ -253,14 +251,24 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	bo->adev = adev;
 	INIT_LIST_HEAD(&bo->list);
 	INIT_LIST_HEAD(&bo->va);
-	bo->initial_domain = domain & (AMDGPU_GEM_DOMAIN_VRAM |
-				       AMDGPU_GEM_DOMAIN_GTT |
-				       AMDGPU_GEM_DOMAIN_CPU |
-				       AMDGPU_GEM_DOMAIN_GDS |
-				       AMDGPU_GEM_DOMAIN_GWS |
-				       AMDGPU_GEM_DOMAIN_OA);
+	bo->prefered_domains = domain & (AMDGPU_GEM_DOMAIN_VRAM |
+					 AMDGPU_GEM_DOMAIN_GTT |
+					 AMDGPU_GEM_DOMAIN_CPU |
+					 AMDGPU_GEM_DOMAIN_GDS |
+					 AMDGPU_GEM_DOMAIN_GWS |
+					 AMDGPU_GEM_DOMAIN_OA);
+	bo->allowed_domains = bo->prefered_domains;
+	if (!kernel && bo->allowed_domains == AMDGPU_GEM_DOMAIN_VRAM)
+		bo->allowed_domains |= AMDGPU_GEM_DOMAIN_GTT;
 
 	bo->flags = flags;
+
+	/* For architectures that don't support WC memory,
+	 * mask out the WC flag from the BO
+	 */
+	if (!drm_arch_can_wc_memory())
+		bo->flags &= ~AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+
 	amdgpu_fill_placement_to_bo(bo, placement);
 	/* Kernel allocation are uninterruptible */
 	r = ttm_bo_init(&adev->mman.bdev, &bo->tbo, size, type,
@@ -300,7 +308,7 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 {
 	bool is_iomem;
-	int r;
+	long r;
 
 	if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
 		return -EPERM;
@@ -311,14 +319,20 @@ int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 		}
 		return 0;
 	}
-	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
-	if (r) {
+
+	r = reservation_object_wait_timeout_rcu(bo->tbo.resv, false, false,
+						MAX_SCHEDULE_TIMEOUT);
+	if (r < 0)
 		return r;
-	}
+
+	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
+	if (r)
+		return r;
+
 	bo->kptr = ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
-	if (ptr) {
+	if (ptr)
 		*ptr = bo->kptr;
-	}
+
 	return 0;
 }
 
@@ -359,7 +373,7 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 	int r, i;
 	unsigned fpfn, lpfn;
 
-	if (amdgpu_ttm_tt_has_userptr(bo->tbo.ttm))
+	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm))
 		return -EPERM;
 
 	if (WARN_ON_ONCE(min_offset > max_offset))
@@ -399,7 +413,8 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		}
 		if (fpfn > bo->placements[i].fpfn)
 			bo->placements[i].fpfn = fpfn;
-		if (lpfn && lpfn < bo->placements[i].lpfn)
+		if (!bo->placements[i].lpfn ||
+		    (lpfn && lpfn < bo->placements[i].lpfn))
 			bo->placements[i].lpfn = lpfn;
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 	}
@@ -459,26 +474,6 @@ int amdgpu_bo_evict_vram(struct amdgpu_device *adev)
 		return 0;
 	}
 	return ttm_bo_evict_mm(&adev->mman.bdev, TTM_PL_VRAM);
-}
-
-void amdgpu_bo_force_delete(struct amdgpu_device *adev)
-{
-	struct amdgpu_bo *bo, *n;
-
-	if (list_empty(&adev->gem.objects)) {
-		return;
-	}
-	dev_err(adev->dev, "Userspace still has active objects !\n");
-	list_for_each_entry_safe(bo, n, &adev->gem.objects, list) {
-		dev_err(adev->dev, "%p %p %lu %lu force free\n",
-			&bo->gem_base, bo, (unsigned long)bo->gem_base.size,
-			*((unsigned long *)&bo->gem_base.refcount));
-		mutex_lock(&bo->adev->gem.mutex);
-		list_del_init(&bo->list);
-		mutex_unlock(&bo->adev->gem.mutex);
-		/* this should unref the ttm bo */
-		drm_gem_object_unreference_unlocked(&bo->gem_base);
-	}
 }
 
 int amdgpu_bo_init(struct amdgpu_device *adev)

@@ -35,7 +35,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 	int __res = 1;							\
 	struct elfhdr *__h = (hdr);					\
 									\
-	if (__h->e_machine != EM_MIPS)					\
+	if (!mips_elf_check_machine(__h))				\
 		__res = 0;						\
 	if (__h->e_ident[EI_CLASS] != ELFCLASS32)			\
 		__res = 0;						\

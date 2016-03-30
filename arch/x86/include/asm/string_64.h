@@ -78,6 +78,19 @@ int strcmp(const char *cs, const char *ct);
 #define memset(s, c, n) __memset(s, c, n)
 #endif
 
+/**
+ * memcpy_mcsafe - copy memory with indication if a machine check happened
+ *
+ * @dst:	destination address
+ * @src:	source address
+ * @cnt:	number of bytes to copy
+ *
+ * Low level memory copy function that catches machine checks
+ *
+ * Return 0 for success, -EFAULT for fail
+ */
+int memcpy_mcsafe(void *dst, const void *src, size_t cnt);
+
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_X86_STRING_64_H */

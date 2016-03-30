@@ -225,7 +225,7 @@ unpin:
 	return 0;
 }
 
-static unsigned int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
+static int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
 {
 	int i = 0;
 	u32 last_page = ~0;
@@ -467,9 +467,8 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 		size += g->words * sizeof(u32);
 	}
 
-	job->gather_copy_mapped = dma_alloc_writecombine(dev, size,
-							 &job->gather_copy,
-							 GFP_KERNEL);
+	job->gather_copy_mapped = dma_alloc_wc(dev, size, &job->gather_copy,
+					       GFP_KERNEL);
 	if (!job->gather_copy_mapped) {
 		job->gather_copy_mapped = NULL;
 		return -ENOMEM;
@@ -578,9 +577,8 @@ void host1x_job_unpin(struct host1x_job *job)
 	job->num_unpins = 0;
 
 	if (job->gather_copy_size)
-		dma_free_writecombine(job->channel->dev, job->gather_copy_size,
-				      job->gather_copy_mapped,
-				      job->gather_copy);
+		dma_free_wc(job->channel->dev, job->gather_copy_size,
+		            job->gather_copy_mapped, job->gather_copy);
 }
 EXPORT_SYMBOL(host1x_job_unpin);
 

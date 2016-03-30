@@ -5,7 +5,7 @@ config SND_DAVINCI_SOC
 
 config SND_EDMA_SOC
 	tristate "SoC Audio for Texas Instruments chips using eDMA"
-	depends on SOC_AM33XX || SOC_AM43XX || ARCH_DAVINCI
+	depends on TI_EDMA
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  Say Y or M here if you want audio support for TI SoC which uses eDMA.
@@ -13,6 +13,7 @@ config SND_EDMA_SOC
 	  - daVinci devices
 	  - AM335x
 	  - AM437x/AM438x
+	  - DRA7xx family
 
 config SND_DAVINCI_SOC_I2S
 	tristate

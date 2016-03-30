@@ -1140,7 +1140,7 @@ static int sumo_set_uvd_clock(struct radeon_device *rdev, u32 clock,
 	int r, i;
 	struct atom_clock_dividers dividers;
 
-        r = radeon_atom_get_clock_dividers(rdev, COMPUTE_ENGINE_PLL_PARAM,
+	r = radeon_atom_get_clock_dividers(rdev, COMPUTE_ENGINE_PLL_PARAM,
 					   clock, false, &dividers);
 	if (r)
 		return r;

@@ -1,6 +1,7 @@
 #ifndef __LINUX_GPIO_DRIVER_H
 #define __LINUX_GPIO_DRIVER_H
 
+#include <linux/device.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/irq.h>
@@ -10,22 +11,21 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/kconfig.h>
 
-struct device;
 struct gpio_desc;
 struct of_phandle_args;
 struct device_node;
 struct seq_file;
+struct gpio_device;
 
 #ifdef CONFIG_GPIOLIB
 
 /**
  * struct gpio_chip - abstract a GPIO controller
- * @label: for diagnostics
+ * @label: a functional name for the GPIO device, such as a part
+ *	number or the name of the SoC IP-block implementing it.
+ * @gpiodev: the internal state holder, opaque struct
  * @parent: optional parent device providing the GPIOs
- * @cdev: class device used by sysfs interface (may be NULL)
  * @owner: helps prevent removal of modules exporting active GPIOs
- * @data: per-instance data assigned by the driver
- * @list: links gpio_chips together for traversal
  * @request: optional hook for chip-specific activation, such as
  *	enabling module power and clock; may sleep
  * @free: optional hook for chip-specific deactivation, such as
@@ -52,7 +52,6 @@ struct seq_file;
  *	get rid of the static GPIO number space in the long run.
  * @ngpio: the number of GPIOs handled by this controller; the last GPIO
  *	handled is (base + ngpio - 1).
- * @desc: array of ngpio descriptors. Private.
  * @names: if set, must be an array of strings to use as alternative
  *      names for the GPIOs in this chip. Any entry in the array
  *      may be NULL if there is no alias for the GPIO, however the
@@ -107,11 +106,9 @@ struct seq_file;
  */
 struct gpio_chip {
 	const char		*label;
+	struct gpio_device	*gpiodev;
 	struct device		*parent;
-	struct device		*cdev;
 	struct module		*owner;
-	void			*data;
-	struct list_head        list;
 
 	int			(*request)(struct gpio_chip *chip,
 						unsigned offset);
@@ -141,7 +138,6 @@ struct gpio_chip {
 						struct gpio_chip *chip);
 	int			base;
 	u16			ngpio;
-	struct gpio_desc	*desc;
 	const char		*const *names;
 	bool			can_sleep;
 	bool			irq_not_threaded;
@@ -184,15 +180,6 @@ struct gpio_chip {
 	int (*of_xlate)(struct gpio_chip *gc,
 			const struct of_phandle_args *gpiospec, u32 *flags);
 #endif
-#ifdef CONFIG_PINCTRL
-	/*
-	 * If CONFIG_PINCTRL is enabled, then gpio controllers can optionally
-	 * describe the actual pin range which they serve in an SoC. This
-	 * information would be used by pinctrl subsystem to configure
-	 * corresponding pins for gpio usage.
-	 */
-	struct list_head pin_ranges;
-#endif
 };
 
 extern const char *gpiochip_is_requested(struct gpio_chip *chip,
@@ -205,18 +192,24 @@ static inline int gpiochip_add(struct gpio_chip *chip)
 	return gpiochip_add_data(chip, NULL);
 }
 extern void gpiochip_remove(struct gpio_chip *chip);
+extern int devm_gpiochip_add_data(struct device *dev, struct gpio_chip *chip,
+				  void *data);
+extern void devm_gpiochip_remove(struct device *dev, struct gpio_chip *chip);
+
 extern struct gpio_chip *gpiochip_find(void *data,
 			      int (*match)(struct gpio_chip *chip, void *data));
 
 /* lock/unlock as IRQ */
 int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset);
 void gpiochip_unlock_as_irq(struct gpio_chip *chip, unsigned int offset);
+bool gpiochip_line_is_irq(struct gpio_chip *chip, unsigned int offset);
+
+/* Line status inquiry for drivers */
+bool gpiochip_line_is_open_drain(struct gpio_chip *chip, unsigned int offset);
+bool gpiochip_line_is_open_source(struct gpio_chip *chip, unsigned int offset);
 
 /* get driver data */
-static inline void *gpiochip_get_data(struct gpio_chip *chip)
-{
-	return chip->data;
-}
+void *gpiochip_get_data(struct gpio_chip *chip);
 
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
 

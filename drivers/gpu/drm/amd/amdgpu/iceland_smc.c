@@ -279,6 +279,12 @@ static int iceland_smu_upload_firmware_image(struct amdgpu_device *adev)
 	if (!adev->pm.fw)
 		return -EINVAL;
 
+	/* Skip SMC ucode loading on SR-IOV capable boards.
+	 * vbios does this for us in asic_init in that case.
+	 */
+	if (adev->virtualization.supports_sr_iov)
+		return 0;
+
 	hdr = (const struct smc_firmware_header_v1_0 *)adev->pm.fw->data;
 	amdgpu_ucode_print_smc_hdr(&hdr->header);
 
@@ -432,7 +438,7 @@ static uint32_t iceland_smu_get_mask_for_fw_type(uint32_t fw_type)
 		case AMDGPU_UCODE_ID_CP_ME:
 			return UCODE_ID_CP_ME_MASK;
 		case AMDGPU_UCODE_ID_CP_MEC1:
-			return UCODE_ID_CP_MEC_MASK | UCODE_ID_CP_MEC_JT1_MASK | UCODE_ID_CP_MEC_JT2_MASK;
+			return UCODE_ID_CP_MEC_MASK | UCODE_ID_CP_MEC_JT1_MASK;
 		case AMDGPU_UCODE_ID_CP_MEC2:
 			return UCODE_ID_CP_MEC_MASK;
 		case AMDGPU_UCODE_ID_RLC_G:
@@ -522,12 +528,6 @@ static int iceland_smu_request_load_fw(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
-	if (iceland_smu_populate_single_firmware_entry(adev, UCODE_ID_CP_MEC_JT2,
-			&toc->entry[toc->num_entries++])) {
-		DRM_ERROR("Failed to get firmware entry for MEC_JT2\n");
-		return -EINVAL;
-	}
-
 	if (iceland_smu_populate_single_firmware_entry(adev, UCODE_ID_SDMA0,
 			&toc->entry[toc->num_entries++])) {
 		DRM_ERROR("Failed to get firmware entry for SDMA0\n");
@@ -550,8 +550,8 @@ static int iceland_smu_request_load_fw(struct amdgpu_device *adev)
 			UCODE_ID_CP_ME_MASK |
 			UCODE_ID_CP_PFP_MASK |
 			UCODE_ID_CP_MEC_MASK |
-			UCODE_ID_CP_MEC_JT1_MASK |
-			UCODE_ID_CP_MEC_JT2_MASK;
+			UCODE_ID_CP_MEC_JT1_MASK;
+
 
 	if (iceland_send_msg_to_smc_with_parameter_without_waiting(adev, PPSMC_MSG_LoadUcodes, fw_to_load)) {
 		DRM_ERROR("Fail to request SMU load ucode\n");

@@ -123,8 +123,8 @@ struct iommu_group *vfio_iommu_group_get(struct device *dev)
 	/*
 	 * With noiommu enabled, an IOMMU group will be created for a device
 	 * that doesn't already have one and doesn't have an iommu_ops on their
-	 * bus.  We use iommu_present() again in the main code to detect these
-	 * fake groups.
+	 * bus.  We set iommudata simply to be able to identify these groups
+	 * as special use and for reclamation later.
 	 */
 	if (group || !noiommu || iommu_present(dev->bus))
 		return group;
@@ -134,6 +134,7 @@ struct iommu_group *vfio_iommu_group_get(struct device *dev)
 		return NULL;
 
 	iommu_group_set_name(group, "vfio-noiommu");
+	iommu_group_set_iommudata(group, &noiommu, NULL);
 	ret = iommu_group_add_device(group, dev);
 	iommu_group_put(group);
 	if (ret)
@@ -158,7 +159,7 @@ EXPORT_SYMBOL_GPL(vfio_iommu_group_get);
 void vfio_iommu_group_put(struct iommu_group *group, struct device *dev)
 {
 #ifdef CONFIG_VFIO_NOIOMMU
-	if (!iommu_present(dev->bus))
+	if (iommu_group_get_iommudata(group) == &noiommu)
 		iommu_group_remove_device(dev);
 #endif
 
@@ -190,16 +191,10 @@ static long vfio_noiommu_ioctl(void *iommu_data,
 	return -ENOTTY;
 }
 
-static int vfio_iommu_present(struct device *dev, void *unused)
-{
-	return iommu_present(dev->bus) ? 1 : 0;
-}
-
 static int vfio_noiommu_attach_group(void *iommu_data,
 				     struct iommu_group *iommu_group)
 {
-	return iommu_group_for_each_dev(iommu_group, NULL,
-					vfio_iommu_present) ? -EINVAL : 0;
+	return iommu_group_get_iommudata(iommu_group) == &noiommu ? 0 : -EINVAL;
 }
 
 static void vfio_noiommu_detach_group(void *iommu_data,
@@ -323,8 +318,7 @@ static void vfio_group_unlock_and_free(struct vfio_group *group)
 /**
  * Group objects - create, release, get, put, search
  */
-static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group,
-					    bool iommu_present)
+static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 {
 	struct vfio_group *group, *tmp;
 	struct device *dev;
@@ -342,7 +336,9 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group,
 	atomic_set(&group->container_users, 0);
 	atomic_set(&group->opened, 0);
 	group->iommu_group = iommu_group;
-	group->noiommu = !iommu_present;
+#ifdef CONFIG_VFIO_NOIOMMU
+	group->noiommu = (iommu_group_get_iommudata(iommu_group) == &noiommu);
+#endif
 
 	group->nb.notifier_call = vfio_iommu_group_notifier;
 
@@ -767,7 +763,7 @@ int vfio_add_group_dev(struct device *dev,
 
 	group = vfio_group_get_from_iommu(iommu_group);
 	if (!group) {
-		group = vfio_create_group(iommu_group, iommu_present(dev->bus));
+		group = vfio_create_group(iommu_group);
 		if (IS_ERR(group)) {
 			iommu_group_put(iommu_group);
 			return PTR_ERR(group);
@@ -1084,30 +1080,26 @@ static long vfio_ioctl_set_iommu(struct vfio_container *container,
 			continue;
 		}
 
-		/* module reference holds the driver we're working on */
-		mutex_unlock(&vfio.iommu_drivers_lock);
-
 		data = driver->ops->open(arg);
 		if (IS_ERR(data)) {
 			ret = PTR_ERR(data);
 			module_put(driver->ops->owner);
-			goto skip_drivers_unlock;
+			continue;
 		}
 
 		ret = __vfio_container_attach_groups(container, driver, data);
-		if (!ret) {
-			container->iommu_driver = driver;
-			container->iommu_data = data;
-		} else {
+		if (ret) {
 			driver->ops->release(data);
 			module_put(driver->ops->owner);
+			continue;
 		}
 
-		goto skip_drivers_unlock;
+		container->iommu_driver = driver;
+		container->iommu_data = data;
+		break;
 	}
 
 	mutex_unlock(&vfio.iommu_drivers_lock);
-skip_drivers_unlock:
 	up_write(&container->group_lock);
 
 	return ret;
@@ -1735,6 +1727,60 @@ long vfio_external_check_extension(struct vfio_group *group, unsigned long arg)
 	return vfio_ioctl_check_extension(group->container, arg);
 }
 EXPORT_SYMBOL_GPL(vfio_external_check_extension);
+
+/**
+ * Sub-module support
+ */
+/*
+ * Helper for managing a buffer of info chain capabilities, allocate or
+ * reallocate a buffer with additional @size, filling in @id and @version
+ * of the capability.  A pointer to the new capability is returned.
+ *
+ * NB. The chain is based at the head of the buffer, so new entries are
+ * added to the tail, vfio_info_cap_shift() should be called to fixup the
+ * next offsets prior to copying to the user buffer.
+ */
+struct vfio_info_cap_header *vfio_info_cap_add(struct vfio_info_cap *caps,
+					       size_t size, u16 id, u16 version)
+{
+	void *buf;
+	struct vfio_info_cap_header *header, *tmp;
+
+	buf = krealloc(caps->buf, caps->size + size, GFP_KERNEL);
+	if (!buf) {
+		kfree(caps->buf);
+		caps->size = 0;
+		return ERR_PTR(-ENOMEM);
+	}
+
+	caps->buf = buf;
+	header = buf + caps->size;
+
+	/* Eventually copied to user buffer, zero */
+	memset(header, 0, size);
+
+	header->id = id;
+	header->version = version;
+
+	/* Add to the end of the capability chain */
+	for (tmp = caps->buf; tmp->next; tmp = (void *)tmp + tmp->next)
+		; /* nothing */
+
+	tmp->next = caps->size;
+	caps->size += size;
+
+	return header;
+}
+EXPORT_SYMBOL_GPL(vfio_info_cap_add);
+
+void vfio_info_cap_shift(struct vfio_info_cap *caps, size_t offset)
+{
+	struct vfio_info_cap_header *tmp;
+
+	for (tmp = caps->buf; tmp->next; tmp = (void *)tmp + tmp->next - offset)
+		tmp->next += offset;
+}
+EXPORT_SYMBOL_GPL(vfio_info_cap_shift);
 
 /**
  * Module/class support

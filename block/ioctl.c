@@ -434,42 +434,6 @@ bool blkdev_dax_capable(struct block_device *bdev)
 
 	return true;
 }
-
-static int blkdev_daxset(struct block_device *bdev, unsigned long argp)
-{
-	unsigned long arg;
-	int rc = 0;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
-
-	if (get_user(arg, (int __user *)(argp)))
-		return -EFAULT;
-	arg = !!arg;
-	if (arg == !!(bdev->bd_inode->i_flags & S_DAX))
-		return 0;
-
-	if (arg)
-		arg = S_DAX;
-
-	if (arg && !blkdev_dax_capable(bdev))
-		return -ENOTTY;
-
-	inode_lock(bdev->bd_inode);
-	if (bdev->bd_map_count == 0)
-		inode_set_flags(bdev->bd_inode, arg, S_DAX);
-	else
-		rc = -EBUSY;
-	inode_unlock(bdev->bd_inode);
-	return rc;
-}
-#else
-static int blkdev_daxset(struct block_device *bdev, int arg)
-{
-	if (arg)
-		return -ENOTTY;
-	return 0;
-}
 #endif
 
 static int blkdev_flushbuf(struct block_device *bdev, fmode_t mode,
@@ -634,8 +598,6 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	case BLKTRACESETUP:
 	case BLKTRACETEARDOWN:
 		return blk_trace_ioctl(bdev, cmd, argp);
-	case BLKDAXSET:
-		return blkdev_daxset(bdev, arg);
 	case BLKDAXGET:
 		return put_int(arg, !!(bdev->bd_inode->i_flags & S_DAX));
 		break;

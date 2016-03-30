@@ -33,6 +33,9 @@ io_pgtable_init_table[IO_PGTABLE_NUM_FMTS] =
 	[ARM_64_LPAE_S1] = &io_pgtable_arm_64_lpae_s1_init_fns,
 	[ARM_64_LPAE_S2] = &io_pgtable_arm_64_lpae_s2_init_fns,
 #endif
+#ifdef CONFIG_IOMMU_IO_PGTABLE_ARMV7S
+	[ARM_V7S] = &io_pgtable_arm_v7s_init_fns,
+#endif
 };
 
 struct io_pgtable_ops *alloc_io_pgtable_ops(enum io_pgtable_fmt fmt,
@@ -72,6 +75,6 @@ void free_io_pgtable_ops(struct io_pgtable_ops *ops)
 		return;
 
 	iop = container_of(ops, struct io_pgtable, ops);
-	iop->cfg.tlb->tlb_flush_all(iop->cookie);
+	io_pgtable_tlb_flush_all(iop);
 	io_pgtable_init_table[iop->fmt]->free(iop);
 }

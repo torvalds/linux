@@ -84,7 +84,7 @@ void update_cr_regs(struct task_struct *task)
 		if (test_tsk_thread_flag(task, TIF_UPROBE_SINGLESTEP))
 			new.control |= PER_EVENT_IFETCH;
 		new.start = 0;
-		new.end = PSW_ADDR_INSN;
+		new.end = -1UL;
 	}
 
 	/* Take care of the PER enablement bit in the PSW. */
@@ -148,7 +148,7 @@ static inline unsigned long __peek_user_per(struct task_struct *child,
 	else if (addr == (addr_t) &dummy->cr11)
 		/* End address of the active per set. */
 		return test_thread_flag(TIF_SINGLE_STEP) ?
-			PSW_ADDR_INSN : child->thread.per_user.end;
+			-1UL : child->thread.per_user.end;
 	else if (addr == (addr_t) &dummy->bits)
 		/* Single-step bit. */
 		return test_thread_flag(TIF_SINGLE_STEP) ?
@@ -495,8 +495,6 @@ long arch_ptrace(struct task_struct *child, long request,
 		}
 		return 0;
 	default:
-		/* Removing high order bit from addr (only for 31 bit). */
-		addr &= PSW_ADDR_INSN;
 		return ptrace_request(child, request, addr, data);
 	}
 }

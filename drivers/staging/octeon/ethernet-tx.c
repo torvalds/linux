@@ -95,12 +95,10 @@ static void cvm_oct_free_tx_skbs(struct net_device *dev)
 	for (qos = 0; qos < queues_per_port; qos++) {
 		if (skb_queue_len(&priv->tx_free_list[qos]) == 0)
 			continue;
-		skb_to_free = cvmx_fau_fetch_and_add32(priv->fau+qos*4,
+		skb_to_free = cvmx_fau_fetch_and_add32(priv->fau + qos * 4,
 						       MAX_SKB_TO_FREE);
 		skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free,
-							 priv->fau+qos*4);
-
-
+							 priv->fau + qos * 4);
 		total_freed += skb_to_free;
 		if (skb_to_free > 0) {
 			struct sk_buff *to_free_list = NULL;
@@ -126,7 +124,7 @@ static void cvm_oct_free_tx_skbs(struct net_device *dev)
 		}
 		total_remaining += skb_queue_len(&priv->tx_free_list[qos]);
 	}
-	if (total_freed >= 0 && netif_queue_stopped(dev))
+	if (total_remaining < MAX_OUT_QUEUE_DEPTH && netif_queue_stopped(dev))
 		netif_wake_queue(dev);
 	if (total_remaining)
 		cvm_oct_kick_tx_poll_watchdog();
@@ -176,8 +174,9 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 			qos = 0;
 		else if (qos >= cvmx_pko_get_num_queues(priv->port))
 			qos = 0;
-	} else
+	} else {
 		qos = 0;
+	}
 
 	if (USE_ASYNC_IOBDMA) {
 		/* Save scratch in case userspace is using it */
@@ -309,55 +308,38 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 #if REUSE_SKBUFFS_WITHOUT_FREE
 	fpa_head = skb->head + 256 - ((unsigned long)skb->head & 0x7f);
 	if (unlikely(skb->data < fpa_head)) {
-		/*
-		 * printk("TX buffer beginning can't meet FPA
-		 * alignment constraints\n");
-		 */
+		/* TX buffer beginning can't meet FPA alignment constraints */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely
 	    ((skb_end_pointer(skb) - fpa_head) < CVMX_FPA_PACKET_POOL_SIZE)) {
-		/*
-		   printk("TX buffer isn't large enough for the FPA\n");
-		 */
+		/* TX buffer isn't large enough for the FPA */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb_shared(skb))) {
-		/*
-		   printk("TX buffer sharing data with someone else\n");
-		 */
+		/* TX buffer sharing data with someone else */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb_cloned(skb))) {
-		/*
-		   printk("TX buffer has been cloned\n");
-		 */
+		/* TX buffer has been cloned */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb_header_cloned(skb))) {
-		/*
-		   printk("TX buffer header has been cloned\n");
-		 */
+		/* TX buffer header has been cloned */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb->destructor)) {
-		/*
-		   printk("TX buffer has a destructor\n");
-		 */
+		/* TX buffer has a destructor */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb_shinfo(skb)->nr_frags)) {
-		/*
-		   printk("TX buffer has fragments\n");
-		 */
+		/* TX buffer has fragments */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely
 	    (skb->truesize !=
 	     sizeof(*skb) + skb_end_offset(skb))) {
-		/*
-		   printk("TX buffer truesize has been changed\n");
-		 */
+		/* TX buffer truesize has been changed */
 		goto dont_put_skbuff_in_hw;
 	}
 
@@ -403,7 +385,7 @@ dont_put_skbuff_in_hw:
 	    ((ip_hdr(skb)->protocol == IPPROTO_TCP) ||
 	     (ip_hdr(skb)->protocol == IPPROTO_UDP))) {
 		/* Use hardware checksum calc */
-		pko_command.s.ipoffp1 = sizeof(struct ethhdr) + 1;
+		pko_command.s.ipoffp1 = skb_network_offset(skb) + 1;
 	}
 
 	if (USE_ASYNC_IOBDMA) {
@@ -419,7 +401,8 @@ dont_put_skbuff_in_hw:
 		    cvmx_fau_fetch_and_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
 	}
 
-	skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free, priv->fau+qos*4);
+	skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free,
+						priv->fau + qos * 4);
 
 	/*
 	 * If we're sending faster than the receive can free them then
@@ -430,7 +413,7 @@ dont_put_skbuff_in_hw:
 
 	if (pko_command.s.dontfree) {
 		queue_type = QUEUE_CORE;
-		pko_command.s.reg0 = priv->fau+qos*4;
+		pko_command.s.reg0 = priv->fau + qos * 4;
 	} else {
 		queue_type = QUEUE_HW;
 	}
@@ -443,7 +426,6 @@ dont_put_skbuff_in_hw:
 	/* Drop this packet if we have too many already queued to the HW */
 	if (unlikely(skb_queue_len(&priv->tx_free_list[qos]) >=
 		     MAX_OUT_QUEUE_DEPTH)) {
-
 		if (dev->tx_queue_len != 0) {
 			/* Drop the lock when notifying the core.  */
 			spin_unlock_irqrestore(&priv->tx_free_list[qos].lock,
@@ -559,7 +541,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 
 	/* Get a packet buffer */
 	packet_buffer = cvmx_fpa_alloc(CVMX_FPA_PACKET_POOL);
-	if (unlikely(packet_buffer == NULL)) {
+	if (unlikely(!packet_buffer)) {
 		printk_ratelimited("%s: Failed to allocate a packet buffer\n",
 				   dev->name);
 		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, 1);
@@ -617,8 +599,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		work->word2.s.dec_ipcomp = 0;	/* FIXME */
 #endif
 		work->word2.s.tcp_or_udp =
-		    (ip_hdr(skb)->protocol == IPPROTO_TCP)
-		    || (ip_hdr(skb)->protocol == IPPROTO_UDP);
+		    (ip_hdr(skb)->protocol == IPPROTO_TCP) ||
+		    (ip_hdr(skb)->protocol == IPPROTO_UDP);
 #if 0
 		/* FIXME */
 		work->word2.s.dec_ipsec = 0;
@@ -629,8 +611,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		/* No error, packet is internal */
 		work->word2.s.L4_error = 0;
 #endif
-		work->word2.s.is_frag = !((ip_hdr(skb)->frag_off == 0)
-					  || (ip_hdr(skb)->frag_off ==
+		work->word2.s.is_frag = !((ip_hdr(skb)->frag_off == 0) ||
+					  (ip_hdr(skb)->frag_off ==
 					      1 << 14));
 #if 0
 		/* Assume Linux is sending a good packet */

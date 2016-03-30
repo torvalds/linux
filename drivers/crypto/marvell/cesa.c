@@ -306,7 +306,7 @@ static int mv_cesa_dev_dma_init(struct mv_cesa_dev *cesa)
 		return -ENOMEM;
 
 	dma->padding_pool = dmam_pool_create("cesa_padding", dev, 72, 1, 0);
-	if (!dma->cache_pool)
+	if (!dma->padding_pool)
 		return -ENOMEM;
 
 	cesa->dma = dma;
@@ -420,7 +420,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
 	cesa->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(cesa->regs))
-		return -ENOMEM;
+		return PTR_ERR(cesa->regs);
 
 	ret = mv_cesa_dev_dma_init(cesa);
 	if (ret)

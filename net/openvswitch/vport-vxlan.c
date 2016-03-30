@@ -90,7 +90,9 @@ static struct vport *vxlan_tnl_create(const struct vport_parms *parms)
 	int err;
 	struct vxlan_config conf = {
 		.no_share = true,
-		.flags = VXLAN_F_COLLECT_METADATA,
+		.flags = VXLAN_F_COLLECT_METADATA | VXLAN_F_UDP_ZERO_CSUM6_RX,
+		/* Don't restrict the packets that can be sent by MTU */
+		.mtu = IP_MAX_MTU,
 	};
 
 	if (!options) {

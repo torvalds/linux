@@ -107,8 +107,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 		kmem_cache_free(cachep, new);
 	else {
 #ifdef CONFIG_PPC_BOOK3S_64
-		hpdp->pd = (unsigned long)new |
-			    (shift_to_mmu_psize(pshift) << 2);
+		hpdp->pd = __pa(new) | (shift_to_mmu_psize(pshift) << 2);
 #else
 		hpdp->pd = ((unsigned long)new & ~PD_HUGE) | pshift;
 #endif

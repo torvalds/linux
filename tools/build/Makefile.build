@@ -85,7 +85,7 @@ $(OUTPUT)%.i: %.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_i_c)
 
-$(OUTPUT)%.i: %.S FORCE
+$(OUTPUT)%.s: %.S FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_i_c)
 

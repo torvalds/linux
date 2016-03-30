@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/oid_registry.h>
-#include "public_key.h"
+#include <crypto/public_key.h>
 #include "pkcs7_parser.h"
 #include "pkcs7-asn1.h"
 
@@ -44,7 +44,7 @@ struct pkcs7_parse_context {
 static void pkcs7_free_signed_info(struct pkcs7_signed_info *sinfo)
 {
 	if (sinfo) {
-		mpi_free(sinfo->sig.mpi[0]);
+		kfree(sinfo->sig.s);
 		kfree(sinfo->sig.digest);
 		kfree(sinfo->signing_cert_id);
 		kfree(sinfo);
@@ -87,7 +87,7 @@ EXPORT_SYMBOL_GPL(pkcs7_free_message);
 static int pkcs7_check_authattrs(struct pkcs7_message *msg)
 {
 	struct pkcs7_signed_info *sinfo;
-	bool want;
+	bool want = false;
 
 	sinfo = msg->signed_infos;
 	if (sinfo->authattrs) {
@@ -218,25 +218,25 @@ int pkcs7_sig_note_digest_algo(void *context, size_t hdrlen,
 
 	switch (ctx->last_oid) {
 	case OID_md4:
-		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_MD4;
+		ctx->sinfo->sig.hash_algo = "md4";
 		break;
 	case OID_md5:
-		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_MD5;
+		ctx->sinfo->sig.hash_algo = "md5";
 		break;
 	case OID_sha1:
-		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_SHA1;
+		ctx->sinfo->sig.hash_algo = "sha1";
 		break;
 	case OID_sha256:
-		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_SHA256;
+		ctx->sinfo->sig.hash_algo = "sha256";
 		break;
 	case OID_sha384:
-		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_SHA384;
+		ctx->sinfo->sig.hash_algo = "sha384";
 		break;
 	case OID_sha512:
-		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_SHA512;
+		ctx->sinfo->sig.hash_algo = "sha512";
 		break;
 	case OID_sha224:
-		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_SHA224;
+		ctx->sinfo->sig.hash_algo = "sha224";
 	default:
 		printk("Unsupported digest algo: %u\n", ctx->last_oid);
 		return -ENOPKG;
@@ -255,7 +255,7 @@ int pkcs7_sig_note_pkey_algo(void *context, size_t hdrlen,
 
 	switch (ctx->last_oid) {
 	case OID_rsaEncryption:
-		ctx->sinfo->sig.pkey_algo = PKEY_ALGO_RSA;
+		ctx->sinfo->sig.pkey_algo = "rsa";
 		break;
 	default:
 		printk("Unsupported pkey algo: %u\n", ctx->last_oid);
@@ -547,9 +547,7 @@ int pkcs7_sig_note_set_of_authattrs(void *context, size_t hdrlen,
 	struct pkcs7_signed_info *sinfo = ctx->sinfo;
 
 	if (!test_bit(sinfo_has_content_type, &sinfo->aa_set) ||
-	    !test_bit(sinfo_has_message_digest, &sinfo->aa_set) ||
-	    (ctx->msg->data_type == OID_msIndirectData &&
-	     !test_bit(sinfo_has_ms_opus_info, &sinfo->aa_set))) {
+	    !test_bit(sinfo_has_message_digest, &sinfo->aa_set)) {
 		pr_warn("Missing required AuthAttr\n");
 		return -EBADMSG;
 	}
@@ -616,16 +614,12 @@ int pkcs7_sig_note_signature(void *context, size_t hdrlen,
 			     const void *value, size_t vlen)
 {
 	struct pkcs7_parse_context *ctx = context;
-	MPI mpi;
 
-	BUG_ON(ctx->sinfo->sig.pkey_algo != PKEY_ALGO_RSA);
-
-	mpi = mpi_read_raw_data(value, vlen);
-	if (!mpi)
+	ctx->sinfo->sig.s = kmemdup(value, vlen, GFP_KERNEL);
+	if (!ctx->sinfo->sig.s)
 		return -ENOMEM;
 
-	ctx->sinfo->sig.mpi[0] = mpi;
-	ctx->sinfo->sig.nr_mpi = 1;
+	ctx->sinfo->sig.s_size = vlen;
 	return 0;
 }
 

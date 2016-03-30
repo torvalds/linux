@@ -932,50 +932,6 @@ void ieee80211_gtk_rekey_notify(struct ieee80211_vif *vif, const u8 *bssid,
 }
 EXPORT_SYMBOL_GPL(ieee80211_gtk_rekey_notify);
 
-void ieee80211_get_key_tx_seq(struct ieee80211_key_conf *keyconf,
-			      struct ieee80211_key_seq *seq)
-{
-	struct ieee80211_key *key;
-	u64 pn64;
-
-	if (WARN_ON(!(keyconf->flags & IEEE80211_KEY_FLAG_GENERATE_IV)))
-		return;
-
-	key = container_of(keyconf, struct ieee80211_key, conf);
-
-	switch (key->conf.cipher) {
-	case WLAN_CIPHER_SUITE_TKIP:
-		seq->tkip.iv32 = key->u.tkip.tx.iv32;
-		seq->tkip.iv16 = key->u.tkip.tx.iv16;
-		break;
-	case WLAN_CIPHER_SUITE_CCMP:
-	case WLAN_CIPHER_SUITE_CCMP_256:
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-		BUILD_BUG_ON(offsetof(typeof(*seq), ccmp) !=
-			     offsetof(typeof(*seq), aes_cmac));
-	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
-	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-		BUILD_BUG_ON(offsetof(typeof(*seq), ccmp) !=
-			     offsetof(typeof(*seq), aes_gmac));
-	case WLAN_CIPHER_SUITE_GCMP:
-	case WLAN_CIPHER_SUITE_GCMP_256:
-		BUILD_BUG_ON(offsetof(typeof(*seq), ccmp) !=
-			     offsetof(typeof(*seq), gcmp));
-		pn64 = atomic64_read(&key->conf.tx_pn);
-		seq->ccmp.pn[5] = pn64;
-		seq->ccmp.pn[4] = pn64 >> 8;
-		seq->ccmp.pn[3] = pn64 >> 16;
-		seq->ccmp.pn[2] = pn64 >> 24;
-		seq->ccmp.pn[1] = pn64 >> 32;
-		seq->ccmp.pn[0] = pn64 >> 40;
-		break;
-	default:
-		WARN_ON(1);
-	}
-}
-EXPORT_SYMBOL(ieee80211_get_key_tx_seq);
-
 void ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf,
 			      int tid, struct ieee80211_key_seq *seq)
 {
@@ -1028,48 +984,6 @@ void ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf,
 	}
 }
 EXPORT_SYMBOL(ieee80211_get_key_rx_seq);
-
-void ieee80211_set_key_tx_seq(struct ieee80211_key_conf *keyconf,
-			      struct ieee80211_key_seq *seq)
-{
-	struct ieee80211_key *key;
-	u64 pn64;
-
-	key = container_of(keyconf, struct ieee80211_key, conf);
-
-	switch (key->conf.cipher) {
-	case WLAN_CIPHER_SUITE_TKIP:
-		key->u.tkip.tx.iv32 = seq->tkip.iv32;
-		key->u.tkip.tx.iv16 = seq->tkip.iv16;
-		break;
-	case WLAN_CIPHER_SUITE_CCMP:
-	case WLAN_CIPHER_SUITE_CCMP_256:
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-		BUILD_BUG_ON(offsetof(typeof(*seq), ccmp) !=
-			     offsetof(typeof(*seq), aes_cmac));
-	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
-	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-		BUILD_BUG_ON(offsetof(typeof(*seq), ccmp) !=
-			     offsetof(typeof(*seq), aes_gmac));
-	case WLAN_CIPHER_SUITE_GCMP:
-	case WLAN_CIPHER_SUITE_GCMP_256:
-		BUILD_BUG_ON(offsetof(typeof(*seq), ccmp) !=
-			     offsetof(typeof(*seq), gcmp));
-		pn64 = (u64)seq->ccmp.pn[5] |
-		       ((u64)seq->ccmp.pn[4] << 8) |
-		       ((u64)seq->ccmp.pn[3] << 16) |
-		       ((u64)seq->ccmp.pn[2] << 24) |
-		       ((u64)seq->ccmp.pn[1] << 32) |
-		       ((u64)seq->ccmp.pn[0] << 40);
-		atomic64_set(&key->conf.tx_pn, pn64);
-		break;
-	default:
-		WARN_ON(1);
-		break;
-	}
-}
-EXPORT_SYMBOL_GPL(ieee80211_set_key_tx_seq);
 
 void ieee80211_set_key_rx_seq(struct ieee80211_key_conf *keyconf,
 			      int tid, struct ieee80211_key_seq *seq)

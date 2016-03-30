@@ -349,6 +349,8 @@ EXPORT_SYMBOL_GPL(iio_channel_get);
 
 void iio_channel_release(struct iio_channel *channel)
 {
+	if (!channel)
+		return;
 	iio_device_put(channel->indio_dev);
 	kfree(channel);
 }

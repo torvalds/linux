@@ -191,7 +191,7 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt)
 		struct Qdisc *child = q->queues[i];
 		q->queues[i] = &noop_qdisc;
 		if (child != &noop_qdisc) {
-			qdisc_tree_decrease_qlen(child, child->q.qlen);
+			qdisc_tree_reduce_backlog(child, child->q.qlen, child->qstats.backlog);
 			qdisc_destroy(child);
 		}
 	}
@@ -210,8 +210,9 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt)
 				q->queues[i] = child;
 
 				if (old != &noop_qdisc) {
-					qdisc_tree_decrease_qlen(old,
-								 old->q.qlen);
+					qdisc_tree_reduce_backlog(old,
+								  old->q.qlen,
+								  old->qstats.backlog);
 					qdisc_destroy(old);
 				}
 				sch_tree_unlock(sch);
@@ -268,13 +269,7 @@ static int prio_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	if (new == NULL)
 		new = &noop_qdisc;
 
-	sch_tree_lock(sch);
-	*old = q->queues[band];
-	q->queues[band] = new;
-	qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
-	qdisc_reset(*old);
-	sch_tree_unlock(sch);
-
+	*old = qdisc_replace(sch, new, &q->queues[band]);
 	return 0;
 }
 

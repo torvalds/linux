@@ -75,6 +75,28 @@
 		};
 	};
 
+	pcie_ctlr: pcie-controller@40000000 {
+		compatible = "arm,juno-r1-pcie", "plda,xpressrich3-axi", "pci-host-ecam-generic";
+		device_type = "pci";
+		reg = <0 0x40000000 0 0x10000000>;	/* ECAM config space */
+		bus-range = <0 255>;
+		linux,pci-domain = <0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		dma-coherent;
+		ranges = <0x01000000 0x00 0x5f800000 0x00 0x5f800000 0x0 0x00800000>,
+			 <0x02000000 0x00 0x50000000 0x00 0x50000000 0x0 0x08000000>,
+			 <0x42000000 0x40 0x00000000 0x40 0x00000000 0x1 0x00000000>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 7>;
+		interrupt-map = <0 0 0 1 &gic 0 0 0 136 4>,
+				<0 0 0 2 &gic 0 0 0 137 4>,
+				<0 0 0 3 &gic 0 0 0 138 4>,
+				<0 0 0 4 &gic 0 0 0 139 4>;
+		msi-parent = <&v2m_0>;
+		status = "disabled";
+	};
+
 	scpi {
 		compatible = "arm,scpi";
 		mboxes = <&mailbox 1>;
@@ -83,17 +105,17 @@
 		clocks {
 			compatible = "arm,scpi-clocks";
 
-			scpi_dvfs: scpi_clocks@0 {
+			scpi_dvfs: scpi-dvfs {
 				compatible = "arm,scpi-dvfs-clocks";
 				#clock-cells = <1>;
 				clock-indices = <0>, <1>, <2>;
 				clock-output-names = "atlclk", "aplclk","gpuclk";
 			};
-			scpi_clk: scpi_clocks@3 {
+			scpi_clk: scpi-clk {
 				compatible = "arm,scpi-variable-clocks";
 				#clock-cells = <1>;
-				clock-indices = <3>, <4>;
-				clock-output-names = "pxlclk0", "pxlclk1";
+				clock-indices = <3>;
+				clock-output-names = "pxlclk";
 			};
 		};
 
@@ -115,12 +137,41 @@
 			     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&soc_faxiclk>;
 		clock-names = "apb_pclk";
+	};
+
+	hdlcd@7ff50000 {
+		compatible = "arm,hdlcd";
+		reg = <0 0x7ff50000 0 0x1000>;
+		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&scpi_clk 3>;
+		clock-names = "pxlclk";
+
+		port {
+			hdlcd1_output: hdlcd1-endpoint {
+				remote-endpoint = <&tda998x_1_input>;
+			};
+		};
+	};
+
+	hdlcd@7ff60000 {
+		compatible = "arm,hdlcd";
+		reg = <0 0x7ff60000 0 0x1000>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&scpi_clk 3>;
+		clock-names = "pxlclk";
+
+		port {
+			hdlcd0_output: hdlcd0-endpoint {
+				remote-endpoint = <&tda998x_0_input>;
+			};
+		};
 	};
 
 	soc_uart0: uart@7ff80000 {
@@ -141,14 +192,24 @@
 		i2c-sda-hold-time-ns = <500>;
 		clocks = <&soc_smc50mhz>;
 
-		dvi0: dvi-transmitter@70 {
+		hdmi-transmitter@70 {
 			compatible = "nxp,tda998x";
 			reg = <0x70>;
+			port {
+				tda998x_0_input: tda998x-0-endpoint {
+					remote-endpoint = <&hdlcd0_output>;
+				};
+			};
 		};
 
-		dvi1: dvi-transmitter@71 {
+		hdmi-transmitter@71 {
 			compatible = "nxp,tda998x";
 			reg = <0x71>;
+			port {
+				tda998x_1_input: tda998x-1-endpoint {
+					remote-endpoint = <&hdlcd1_output>;
+				};
+			};
 		};
 	};
 
@@ -182,7 +243,7 @@
 		      <0x00000008 0x80000000 0x1 0x80000000>;
 	};
 
-	smb {
+	smb@08000000 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;

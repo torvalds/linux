@@ -1185,8 +1185,8 @@ static int gbefb_probe(struct platform_device *p_dev)
 	} else {
 		/* try to allocate memory with the classical allocator
 		 * this has high chance to fail on low memory machines */
-		gbe_mem = dma_alloc_writecombine(NULL, gbe_mem_size,
-						 &gbe_dma_addr, GFP_KERNEL);
+		gbe_mem = dma_alloc_wc(NULL, gbe_mem_size, &gbe_dma_addr,
+				       GFP_KERNEL);
 		if (!gbe_mem) {
 			printk(KERN_ERR "gbefb: couldn't allocate framebuffer memory\n");
 			ret = -ENOMEM;
@@ -1238,7 +1238,7 @@ static int gbefb_probe(struct platform_device *p_dev)
 out_gbe_unmap:
 	arch_phys_wc_del(par->wc_cookie);
 	if (gbe_dma_addr)
-		dma_free_writecombine(NULL, gbe_mem_size, gbe_mem, gbe_mem_phys);
+		dma_free_wc(NULL, gbe_mem_size, gbe_mem, gbe_mem_phys);
 out_tiles_free:
 	dma_free_coherent(NULL, GBE_TLB_SIZE * sizeof(uint16_t),
 			  (void *)gbe_tiles.cpu, gbe_tiles.dma);
@@ -1259,7 +1259,7 @@ static int gbefb_remove(struct platform_device* p_dev)
 	gbe_turn_off();
 	arch_phys_wc_del(par->wc_cookie);
 	if (gbe_dma_addr)
-		dma_free_writecombine(NULL, gbe_mem_size, gbe_mem, gbe_mem_phys);
+		dma_free_wc(NULL, gbe_mem_size, gbe_mem, gbe_mem_phys);
 	dma_free_coherent(NULL, GBE_TLB_SIZE * sizeof(uint16_t),
 			  (void *)gbe_tiles.cpu, gbe_tiles.dma);
 	release_mem_region(GBE_BASE, sizeof(struct sgi_gbe));

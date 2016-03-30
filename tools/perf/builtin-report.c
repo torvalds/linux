@@ -41,6 +41,7 @@
 
 #include <dlfcn.h>
 #include <linux/bitmap.h>
+#include <linux/stringify.h>
 
 struct report {
 	struct perf_tool	tool;
@@ -75,7 +76,10 @@ static int report__config(const char *var, const char *value, void *cb)
 		return 0;
 	}
 	if (!strcmp(var, "report.percent-limit")) {
-		rep->min_percent = strtof(value, NULL);
+		double pcnt = strtof(value, NULL);
+
+		rep->min_percent = pcnt;
+		callchain_param.min_percent = pcnt;
 		return 0;
 	}
 	if (!strcmp(var, "report.children")) {
@@ -87,7 +91,7 @@ static int report__config(const char *var, const char *value, void *cb)
 		return 0;
 	}
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
 static int hist_iter__report_callback(struct hist_entry_iter *iter,
@@ -151,7 +155,7 @@ static int process_sample_event(struct perf_tool *tool,
 	};
 	int ret = 0;
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
+	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			 event->header.type);
 		return -1;
@@ -466,10 +470,11 @@ static int report__browse_hists(struct report *rep)
 	return ret;
 }
 
-static void report__collapse_hists(struct report *rep)
+static int report__collapse_hists(struct report *rep)
 {
 	struct ui_progress prog;
 	struct perf_evsel *pos;
+	int ret = 0;
 
 	ui_progress__init(&prog, rep->nr_entries, "Merging related events...");
 
@@ -481,7 +486,9 @@ static void report__collapse_hists(struct report *rep)
 
 		hists->socket_filter = rep->socket_filter;
 
-		hists__collapse_resort(hists, &prog);
+		ret = hists__collapse_resort(hists, &prog);
+		if (ret < 0)
+			break;
 
 		/* Non-group events are considered as leader */
 		if (symbol_conf.event_group &&
@@ -494,6 +501,7 @@ static void report__collapse_hists(struct report *rep)
 	}
 
 	ui_progress__finish();
+	return ret;
 }
 
 static void report__output_resort(struct report *rep)
@@ -504,7 +512,7 @@ static void report__output_resort(struct report *rep)
 	ui_progress__init(&prog, rep->nr_entries, "Sorting events for output...");
 
 	evlist__for_each(rep->session->evlist, pos)
-		hists__output_resort(evsel__hists(pos), &prog);
+		perf_evsel__output_resort(pos, &prog);
 
 	ui_progress__finish();
 }
@@ -561,7 +569,11 @@ static int __cmd_report(struct report *rep)
 		}
 	}
 
-	report__collapse_hists(rep);
+	ret = report__collapse_hists(rep);
+	if (ret) {
+		ui__error("failed to process hist entry\n");
+		return ret;
+	}
 
 	if (session_done())
 		return 0;
@@ -633,8 +645,10 @@ parse_percent_limit(const struct option *opt, const char *str,
 		    int unset __maybe_unused)
 {
 	struct report *rep = opt->value;
+	double pcnt = strtof(str, NULL);
 
-	rep->min_percent = strtof(str, NULL);
+	rep->min_percent = pcnt;
+	callchain_param.min_percent = pcnt;
 	return 0;
 }
 
@@ -798,6 +812,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "only show processor socket that match with this filter"),
 	OPT_BOOLEAN(0, "raw-trace", &symbol_conf.raw_trace,
 		    "Show raw trace event output (do not use print fmt or plugins)"),
+	OPT_BOOLEAN(0, "hierarchy", &symbol_conf.report_hierarchy,
+		    "Show entries in a hierarchy"),
 	OPT_END()
 	};
 	struct perf_data_file file = {
@@ -907,13 +923,19 @@ repeat:
 		symbol_conf.cumulate_callchain = false;
 	}
 
-	if (setup_sorting(session->evlist) < 0) {
-		if (sort_order)
-			parse_options_usage(report_usage, options, "s", 1);
-		if (field_order)
-			parse_options_usage(sort_order ? NULL : report_usage,
-					    options, "F", 1);
-		goto error;
+	if (symbol_conf.report_hierarchy) {
+		/* disable incompatible options */
+		symbol_conf.event_group = false;
+		symbol_conf.cumulate_callchain = false;
+
+		if (field_order) {
+			pr_err("Error: --hierarchy and --fields options cannot be used together\n");
+			parse_options_usage(report_usage, options, "F", 1);
+			parse_options_usage(NULL, options, "hierarchy", 0);
+			goto error;
+		}
+
+		sort__need_collapse = true;
 	}
 
 	/* Force tty output for header output and per-thread stat. */
@@ -924,6 +946,15 @@ repeat:
 		setup_browser(true);
 	else
 		use_browser = 0;
+
+	if (setup_sorting(session->evlist) < 0) {
+		if (sort_order)
+			parse_options_usage(report_usage, options, "s", 1);
+		if (field_order)
+			parse_options_usage(sort_order ? NULL : report_usage,
+					    options, "F", 1);
+		goto error;
+	}
 
 	if (report.header || report.header_only) {
 		perf_session__fprintf_info(session, stdout,

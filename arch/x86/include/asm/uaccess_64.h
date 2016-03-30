@@ -8,7 +8,7 @@
 #include <linux/errno.h>
 #include <linux/lockdep.h>
 #include <asm/alternative.h>
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/page.h>
 
 /*

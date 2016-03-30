@@ -50,6 +50,18 @@ enum sti_plane_status {
 	STI_PLANE_DISABLED,
 };
 
+#define FPS_LENGTH 64
+struct sti_fps_info {
+	bool output;
+	unsigned int curr_frame_counter;
+	unsigned int last_frame_counter;
+	unsigned int curr_field_counter;
+	unsigned int last_field_counter;
+	struct timespec last_timestamp;
+	char fps_str[FPS_LENGTH];
+	char fips_str[FPS_LENGTH];
+};
+
 /**
  * STI plane structure
  *
@@ -57,15 +69,20 @@ enum sti_plane_status {
  * @desc:               plane type & id
  * @status:             to know the status of the plane
  * @zorder:             plane z-order
+ * @fps_info:           frame per second info
  */
 struct sti_plane {
 	struct drm_plane drm_plane;
 	enum sti_plane_desc desc;
 	enum sti_plane_status status;
 	int zorder;
+	struct sti_fps_info fps_info;
 };
 
 const char *sti_plane_to_str(struct sti_plane *plane);
+void sti_plane_update_fps(struct sti_plane *plane,
+			  bool new_frame,
+			  bool new_field);
 void sti_plane_init_property(struct sti_plane *plane,
 			     enum drm_plane_type type);
 #endif

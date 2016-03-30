@@ -388,7 +388,6 @@ repeat:
 }
 
 pte_t *kmap_pte;
-pgprot_t kmap_prot;
 
 static inline pte_t *kmap_get_fixmap_pte(unsigned long vaddr)
 {
@@ -405,8 +404,6 @@ static void __init kmap_init(void)
 	 */
 	kmap_vstart = __fix_to_virt(FIX_KMAP_BEGIN);
 	kmap_pte = kmap_get_fixmap_pte(kmap_vstart);
-
-	kmap_prot = PAGE_KERNEL;
 }
 
 #ifdef CONFIG_HIGHMEM
@@ -871,7 +868,6 @@ static noinline int do_test_wp_bit(void)
 	return flag;
 }
 
-#ifdef CONFIG_DEBUG_RODATA
 const int rodata_test_data = 0xC3;
 EXPORT_SYMBOL_GPL(rodata_test_data);
 
@@ -960,5 +956,3 @@ void mark_rodata_ro(void)
 	if (__supported_pte_mask & _PAGE_NX)
 		debug_checkwx();
 }
-#endif
-

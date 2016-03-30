@@ -39,6 +39,25 @@ config IOMMU_IO_PGTABLE_LPAE_SELFTEST
 
 	  If unsure, say N here.
 
+config IOMMU_IO_PGTABLE_ARMV7S
+	bool "ARMv7/v8 Short Descriptor Format"
+	select IOMMU_IO_PGTABLE
+	depends on HAS_DMA && (ARM || ARM64 || COMPILE_TEST)
+	help
+	  Enable support for the ARM Short-descriptor pagetable format.
+	  This supports 32-bit virtual and physical addresses mapped using
+	  2-level tables with 4KB pages/1MB sections, and contiguous entries
+	  for 64KB pages/16MB supersections if indicated by the IOMMU driver.
+
+config IOMMU_IO_PGTABLE_ARMV7S_SELFTEST
+	bool "ARMv7s selftests"
+	depends on IOMMU_IO_PGTABLE_ARMV7S
+	help
+	  Enable self-tests for ARMv7s page table allocator. This performs
+	  a series of page-table consistency checks during boot.
+
+	  If unsure, say N here.
+
 endmenu
 
 config IOMMU_IOVA
@@ -51,9 +70,9 @@ config OF_IOMMU
 # IOMMU-agnostic DMA-mapping layer
 config IOMMU_DMA
 	bool
-	depends on NEED_SG_DMA_LENGTH
 	select IOMMU_API
 	select IOMMU_IOVA
+	select NEED_SG_DMA_LENGTH
 
 config FSL_PAMU
 	bool "Freescale IOMMU support"
@@ -243,7 +262,7 @@ config TEGRA_IOMMU_SMMU
 
 config EXYNOS_IOMMU
 	bool "Exynos IOMMU Support"
-	depends on ARCH_EXYNOS && ARM && MMU
+	depends on ARCH_EXYNOS && MMU
 	select IOMMU_API
 	select ARM_DMA_USE_IOMMU
 	help
@@ -266,7 +285,7 @@ config EXYNOS_IOMMU_DEBUG
 config IPMMU_VMSA
 	bool "Renesas VMSA-compatible IPMMU"
 	depends on ARM_LPAE
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
 	select ARM_DMA_USE_IOMMU
@@ -317,5 +336,22 @@ config S390_IOMMU
 	select IOMMU_API
 	help
 	  Support for the IOMMU API for s390 PCI devices.
+
+config MTK_IOMMU
+	bool "MTK IOMMU Support"
+	depends on ARM || ARM64
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select ARM_DMA_USE_IOMMU
+	select IOMMU_API
+	select IOMMU_DMA
+	select IOMMU_IO_PGTABLE_ARMV7S
+	select MEMORY
+	select MTK_SMI
+	help
+	  Support for the M4U on certain Mediatek SOCs. M4U is MultiMedia
+	  Memory Management Unit. This option enables remapping of DMA memory
+	  accesses for the multimedia subsystem.
+
+	  If unsure, say N here.
 
 endif # IOMMU_SUPPORT

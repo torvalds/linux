@@ -109,17 +109,6 @@
 	status = "okay";
 };
 
-&i2c3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c3_pins_a>;
-	status = "okay";
-};
-
-&i2c3_pins_a {
-	/* Enable internal pull-up */
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-};
-
 &ohci0 {
 	status = "okay";
 };
@@ -174,7 +163,13 @@
 	vmmc-supply = <&reg_vcc3v0>;
 	bus-width = <8>;
 	non-removable;
+	cap-mmc-hw-reset;
 	status = "okay";
+};
+
+&mmc2_8bit_pins {
+	/* Increase drive strength for DDR modes */
+	allwinner,drive = <SUN4I_PINCTRL_40_MA>;
 };
 
 &reg_usb1_vbus {
@@ -204,17 +199,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_a>;
 	status = "okay";
-};
-
-&uart4 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart4_pins_a>;
-	status = "okay";
-};
-
-&uart4_pins_a {
-	/* Enable internal pull-up */
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 };
 
 &usbphy1 {

@@ -183,14 +183,29 @@ config MDIO_GPIO
 	  To compile this driver as a module, choose M here: the module
 	  will be called mdio-gpio.
 
-config MDIO_OCTEON
-	tristate "Support for MDIO buses on Octeon and ThunderX SOCs"
-	depends on 64BIT
-	help
+config MDIO_CAVIUM
+	tristate
 
+config MDIO_OCTEON
+	tristate "Support for MDIO buses on Octeon and some ThunderX SOCs"
+	depends on 64BIT
+	depends on HAS_IOMEM
+	select MDIO_CAVIUM
+	help
 	  This module provides a driver for the Octeon and ThunderX MDIO
-	  busses. It is required by the Octeon and ThunderX ethernet device
-	  drivers.
+	  buses. It is required by the Octeon and ThunderX ethernet device
+	  drivers on some systems.
+
+config MDIO_THUNDER
+	tristate "Support for MDIO buses on ThunderX SOCs"
+	depends on 64BIT
+	depends on PCI
+	select MDIO_CAVIUM
+	help
+	  This driver supports the MDIO interfaces found on Cavium
+	  ThunderX SoCs when the MDIO bus device appears as a PCI
+	  device.
+
 
 config MDIO_SUN4I
 	tristate "Allwinner sun4i MDIO interface support"

@@ -151,7 +151,7 @@ static inline int drff_init(struct hid_device *hid)
  * descriptor. In any case, it's a wonder it works on Windows.
  *
  *  Usage Page (Desktop),             ; Generic desktop controls (01h)
- *  Usage (Joystik),                  ; Joystik (04h, application collection)
+ *  Usage (Joystick),                 ; Joystick (04h, application collection)
  *  Collection (Application),
  *    Collection (Logical),
  *      Report Size (8),
@@ -207,7 +207,7 @@ static inline int drff_init(struct hid_device *hid)
 /* Fixed report descriptor for PID 0x011 joystick */
 static __u8 pid0011_rdesc_fixed[] = {
 	0x05, 0x01,         /*  Usage Page (Desktop),           */
-	0x09, 0x04,         /*  Usage (Joystik),                */
+	0x09, 0x04,         /*  Usage (Joystick),               */
 	0xA1, 0x01,         /*  Collection (Application),       */
 	0xA1, 0x02,         /*      Collection (Logical),       */
 	0x14,               /*          Logical Minimum (0),    */

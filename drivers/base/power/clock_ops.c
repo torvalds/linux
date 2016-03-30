@@ -137,6 +137,62 @@ int pm_clk_add_clk(struct device *dev, struct clk *clk)
 	return __pm_clk_add(dev, NULL, clk);
 }
 
+
+/**
+ * of_pm_clk_add_clks - Start using device clock(s) for power management.
+ * @dev: Device whose clock(s) is going to be used for power management.
+ *
+ * Add a series of clocks described in the 'clocks' device-tree node for
+ * a device to the list of clocks used for the power management of @dev.
+ * On success, returns the number of clocks added. Returns a negative
+ * error code if there are no clocks in the device node for the device
+ * or if adding a clock fails.
+ */
+int of_pm_clk_add_clks(struct device *dev)
+{
+	struct clk **clks;
+	unsigned int i, count;
+	int ret;
+
+	if (!dev || !dev->of_node)
+		return -EINVAL;
+
+	count = of_count_phandle_with_args(dev->of_node, "clocks",
+					   "#clock-cells");
+	if (count == 0)
+		return -ENODEV;
+
+	clks = kcalloc(count, sizeof(*clks), GFP_KERNEL);
+	if (!clks)
+		return -ENOMEM;
+
+	for (i = 0; i < count; i++) {
+		clks[i] = of_clk_get(dev->of_node, i);
+		if (IS_ERR(clks[i])) {
+			ret = PTR_ERR(clks[i]);
+			goto error;
+		}
+
+		ret = pm_clk_add_clk(dev, clks[i]);
+		if (ret) {
+			clk_put(clks[i]);
+			goto error;
+		}
+	}
+
+	kfree(clks);
+
+	return i;
+
+error:
+	while (i--)
+		pm_clk_remove_clk(dev, clks[i]);
+
+	kfree(clks);
+
+	return ret;
+}
+
 /**
  * __pm_clk_remove - Destroy PM clock entry.
  * @ce: PM clock entry to destroy.
@@ -184,6 +240,39 @@ void pm_clk_remove(struct device *dev, const char *con_id)
 		else if (!con_id || !ce->con_id)
 			continue;
 		else if (!strcmp(con_id, ce->con_id))
+			goto remove;
+	}
+
+	spin_unlock_irq(&psd->lock);
+	return;
+
+ remove:
+	list_del(&ce->node);
+	spin_unlock_irq(&psd->lock);
+
+	__pm_clk_remove(ce);
+}
+
+/**
+ * pm_clk_remove_clk - Stop using a device clock for power management.
+ * @dev: Device whose clock should not be used for PM any more.
+ * @clk: Clock pointer
+ *
+ * Remove the clock pointed to by @clk from the list of clocks used for
+ * the power management of @dev.
+ */
+void pm_clk_remove_clk(struct device *dev, struct clk *clk)
+{
+	struct pm_subsys_data *psd = dev_to_psd(dev);
+	struct pm_clock_entry *ce;
+
+	if (!psd || !clk)
+		return;
+
+	spin_lock_irq(&psd->lock);
+
+	list_for_each_entry(ce, &psd->clock_list, node) {
+		if (clk == ce->clk)
 			goto remove;
 	}
 

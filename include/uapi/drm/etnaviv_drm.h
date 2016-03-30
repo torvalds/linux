@@ -48,6 +48,8 @@ struct drm_etnaviv_timespec {
 #define ETNAVIV_PARAM_GPU_FEATURES_2                0x05
 #define ETNAVIV_PARAM_GPU_FEATURES_3                0x06
 #define ETNAVIV_PARAM_GPU_FEATURES_4                0x07
+#define ETNAVIV_PARAM_GPU_FEATURES_5                0x08
+#define ETNAVIV_PARAM_GPU_FEATURES_6                0x09
 
 #define ETNAVIV_PARAM_GPU_STREAM_COUNT              0x10
 #define ETNAVIV_PARAM_GPU_REGISTER_MAX              0x11
@@ -59,6 +61,7 @@ struct drm_etnaviv_timespec {
 #define ETNAVIV_PARAM_GPU_BUFFER_SIZE               0x17
 #define ETNAVIV_PARAM_GPU_INSTRUCTION_COUNT         0x18
 #define ETNAVIV_PARAM_GPU_NUM_CONSTANTS             0x19
+#define ETNAVIV_PARAM_GPU_NUM_VARYINGS              0x1a
 
 #define ETNA_MAX_PIPES 4
 

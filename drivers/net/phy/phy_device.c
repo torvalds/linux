@@ -1410,7 +1410,7 @@ int genphy_config_init(struct phy_device *phydev)
 
 	features = (SUPPORTED_TP | SUPPORTED_MII
 			| SUPPORTED_AUI | SUPPORTED_FIBRE |
-			SUPPORTED_BNC);
+			SUPPORTED_BNC | SUPPORTED_Pause | SUPPORTED_Asym_Pause);
 
 	/* Do we support autonegotiation? */
 	val = phy_read(phydev, MII_BMSR);

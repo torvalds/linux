@@ -308,15 +308,15 @@ drop:
 	return true;
 }
 
-int sysctl_ip_early_demux __read_mostly = 1;
-EXPORT_SYMBOL(sysctl_ip_early_demux);
-
 static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct rtable *rt;
 
-	if (sysctl_ip_early_demux && !skb_dst(skb) && !skb->sk) {
+	if (net->ipv4.sysctl_ip_early_demux &&
+	    !skb_dst(skb) &&
+	    !skb->sk &&
+	    !ip_is_fragment(iph)) {
 		const struct net_protocol *ipprot;
 		int protocol = iph->protocol;
 
@@ -359,8 +359,31 @@ static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 	rt = skb_rtable(skb);
 	if (rt->rt_type == RTN_MULTICAST) {
 		IP_UPD_PO_STATS_BH(net, IPSTATS_MIB_INMCAST, skb->len);
-	} else if (rt->rt_type == RTN_BROADCAST)
+	} else if (rt->rt_type == RTN_BROADCAST) {
 		IP_UPD_PO_STATS_BH(net, IPSTATS_MIB_INBCAST, skb->len);
+	} else if (skb->pkt_type == PACKET_BROADCAST ||
+		   skb->pkt_type == PACKET_MULTICAST) {
+		struct in_device *in_dev = __in_dev_get_rcu(skb->dev);
+
+		/* RFC 1122 3.3.6:
+		 *
+		 *   When a host sends a datagram to a link-layer broadcast
+		 *   address, the IP destination address MUST be a legal IP
+		 *   broadcast or IP multicast address.
+		 *
+		 *   A host SHOULD silently discard a datagram that is received
+		 *   via a link-layer broadcast (see Section 2.4) but does not
+		 *   specify an IP multicast or broadcast destination address.
+		 *
+		 * This doesn't explicitly say L2 *broadcast*, but broadcast is
+		 * in a way a form of multicast and the most common use case for
+		 * this is 802.11 protecting against cross-station spoofing (the
+		 * so-called "hole-196" attack) so do it for both.
+		 */
+		if (in_dev &&
+		    IN_DEV_ORCONF(in_dev, DROP_UNICAST_IN_L2_MULTICAST))
+			goto drop;
+	}
 
 	return dst_input(skb);
 

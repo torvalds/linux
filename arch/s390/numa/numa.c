@@ -57,9 +57,7 @@ static __init pg_data_t *alloc_node_data(void)
 {
 	pg_data_t *res;
 
-	res = (pg_data_t *) memblock_alloc(sizeof(pg_data_t), 1);
-	if (!res)
-		panic("Could not allocate memory for node data!\n");
+	res = (pg_data_t *) memblock_alloc(sizeof(pg_data_t), 8);
 	memset(res, 0, sizeof(pg_data_t));
 	return res;
 }
@@ -162,7 +160,7 @@ static int __init numa_init_late(void)
 		register_one_node(nid);
 	return 0;
 }
-device_initcall(numa_init_late);
+arch_initcall(numa_init_late);
 
 static int __init parse_debug(char *parm)
 {

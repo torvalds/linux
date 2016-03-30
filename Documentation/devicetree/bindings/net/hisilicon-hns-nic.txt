@@ -4,8 +4,9 @@ Required properties:
 - compatible: "hisilicon,hns-nic-v1" or "hisilicon,hns-nic-v2".
   "hisilicon,hns-nic-v1" is for hip05.
   "hisilicon,hns-nic-v2" is for Hi1610 and Hi1612.
-- ae-name: accelerator name who provides this interface,
-  is simply a name referring to the name of name in the accelerator node.
+- ae-handle: accelerator engine handle for hns,
+  specifies a reference to the associating hardware driver node.
+  see Documentation/devicetree/bindings/net/hisilicon-hns-dsaf.txt
 - port-id: is the index of port provided by DSAF (the accelerator). DSAF can
   connect to 8 PHYs. Port 0 to 1 are both used for adminstration purpose. They
   are called debug ports.
@@ -41,7 +42,7 @@ Example:
 
 	ethernet@0{
 		compatible = "hisilicon,hns-nic-v1";
-		ae-name = "dsaf0";
+		ae-handle = <&dsaf0>;
 		port-id = <0>;
 		local-mac-address = [a2 14 e4 4b 56 76];
 	};

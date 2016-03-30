@@ -1,6 +1,6 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <asm/processor.h>
+#include <asm/cpufeature.h>
 #include <asm/msr.h>
 #include "cpu.h"
 
@@ -33,7 +33,7 @@ static void init_transmeta(struct cpuinfo_x86 *c)
 	if (max >= 0x80860001) {
 		cpuid(0x80860001, &dummy, &cpu_rev, &cpu_freq, &cpu_flags);
 		if (cpu_rev != 0x02000000) {
-			printk(KERN_INFO "CPU: Processor revision %u.%u.%u.%u, %u MHz\n",
+			pr_info("CPU: Processor revision %u.%u.%u.%u, %u MHz\n",
 				(cpu_rev >> 24) & 0xff,
 				(cpu_rev >> 16) & 0xff,
 				(cpu_rev >> 8) & 0xff,
@@ -44,10 +44,10 @@ static void init_transmeta(struct cpuinfo_x86 *c)
 	if (max >= 0x80860002) {
 		cpuid(0x80860002, &new_cpu_rev, &cms_rev1, &cms_rev2, &dummy);
 		if (cpu_rev == 0x02000000) {
-			printk(KERN_INFO "CPU: Processor revision %08X, %u MHz\n",
+			pr_info("CPU: Processor revision %08X, %u MHz\n",
 				new_cpu_rev, cpu_freq);
 		}
-		printk(KERN_INFO "CPU: Code Morphing Software revision %u.%u.%u-%u-%u\n",
+		pr_info("CPU: Code Morphing Software revision %u.%u.%u-%u-%u\n",
 		       (cms_rev1 >> 24) & 0xff,
 		       (cms_rev1 >> 16) & 0xff,
 		       (cms_rev1 >> 8) & 0xff,
@@ -76,7 +76,7 @@ static void init_transmeta(struct cpuinfo_x86 *c)
 		      (void *)&cpu_info[56],
 		      (void *)&cpu_info[60]);
 		cpu_info[64] = '\0';
-		printk(KERN_INFO "CPU: %s\n", cpu_info);
+		pr_info("CPU: %s\n", cpu_info);
 	}
 
 	/* Unhide possibly hidden capability flags */

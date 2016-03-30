@@ -24,11 +24,14 @@ config SND_RAWMIDI
 config SND_COMPRESS_OFFLOAD
 	tristate
 
-# To be effective this also requires INPUT - users should say:
-#    select SND_JACK if INPUT=y || INPUT=SND
-# to avoid having to force INPUT on.
 config SND_JACK
 	bool
+
+# enable input device support in jack layer
+config SND_JACK_INPUT_DEV
+	bool
+	depends on SND_JACK
+	default y if INPUT=y || INPUT=SND
 
 config SND_SEQUENCER
 	tristate "Sequencer support"
@@ -97,11 +100,11 @@ config SND_PCM_TIMER
 	bool "PCM timer interface" if EXPERT
 	default y
 	help
-	  If you disable this option, pcm timer will be inavailable, so
-	  those stubs used pcm timer (e.g. dmix, dsnoop & co) may work
+	  If you disable this option, pcm timer will be unavailable, so
+	  those stubs that use pcm timer (e.g. dmix, dsnoop & co) may work
 	  incorrectlly.
 
-	  For some embedded device, we may disable it to reduce memory
+	  For some embedded devices, we may disable it to reduce memory
 	  footprint, about 20KB on x86_64 platform.
 
 config SND_SEQUENCER_OSS

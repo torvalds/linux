@@ -664,6 +664,12 @@ int intel_setup_gmbus(struct drm_device *dev)
 
 		bus->adapter.algo = &gmbus_algorithm;
 
+		/*
+		 * We wish to retry with bit banging
+		 * after a timed out GMBUS attempt.
+		 */
+		bus->adapter.retries = 1;
+
 		/* By default use a conservative clock rate */
 		bus->reg0 = pin | GMBUS_RATE_100KHZ;
 
@@ -683,7 +689,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 	return 0;
 
 err:
-	while (--pin) {
+	while (pin--) {
 		if (!intel_gmbus_is_valid_pin(dev_priv, pin))
 			continue;
 

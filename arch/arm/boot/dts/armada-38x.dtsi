@@ -429,6 +429,27 @@
 				reg = <0x22000 0x1000>;
 			};
 
+			/*
+			 * As a special exception to the "order by
+			 * register address" rule, the eth0 node is
+			 * placed here to ensure that it gets
+			 * registered as the first interface, since
+			 * the network subsystem doesn't allow naming
+			 * interfaces using DT aliases. Without this,
+			 * the ordering of interfaces is different
+			 * from the one used in U-Boot and the
+			 * labeling of interfaces on the boards, which
+			 * is very confusing for users.
+			 */
+			eth0: ethernet@70000 {
+				compatible = "marvell,armada-370-neta";
+				reg = <0x70000 0x4000>;
+				interrupts-extended = <&mpic 8>;
+				clocks = <&gateclk 4>;
+				tx-csum-limit = <9800>;
+				status = "disabled";
+			};
+
 			eth1: ethernet@30000 {
 				compatible = "marvell,armada-370-neta";
 				reg = <0x30000 0x4000>;
@@ -493,15 +514,6 @@
 				};
 			};
 
-			eth0: ethernet@70000 {
-				compatible = "marvell,armada-370-neta";
-				reg = <0x70000 0x4000>;
-				interrupts-extended = <&mpic 8>;
-				clocks = <&gateclk 4>;
-				tx-csum-limit = <9800>;
-				status = "disabled";
-			};
-
 			mdio: mdio@72004 {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -537,6 +549,14 @@
 				reg = <0xa8000 0x2000>;
 				interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gateclk 15>;
+				status = "disabled";
+			};
+
+			bm: bm@c8000 {
+				compatible = "marvell,armada-380-neta-bm";
+				reg = <0xc8000 0xac>;
+				clocks = <&gateclk 13>;
+				internal-mem = <&bm_bppi>;
 				status = "disabled";
 			};
 
@@ -617,6 +637,17 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 MBUS_ID(0x09, 0x15) 0 0x800>;
+		};
+
+		bm_bppi: bm-bppi {
+			compatible = "mmio-sram";
+			reg = <MBUS_ID(0x0c, 0x04) 0 0x100000>;
+			ranges = <0 MBUS_ID(0x0c, 0x04) 0 0x100000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&gateclk 13>;
+			no-memory-wc;
+			status = "disabled";
 		};
 	};
 

@@ -42,30 +42,6 @@
 /* Version of this UBIFS implementation */
 #define UBIFS_VERSION 1
 
-/* Normal UBIFS messages */
-#define ubifs_msg(c, fmt, ...)                                      \
-	pr_notice("UBIFS (ubi%d:%d): " fmt "\n",                    \
-		  (c)->vi.ubi_num, (c)->vi.vol_id, ##__VA_ARGS__)
-/* UBIFS error messages */
-#define ubifs_err(c, fmt, ...)                                      \
-	pr_err("UBIFS error (ubi%d:%d pid %d): %s: " fmt "\n",      \
-	       (c)->vi.ubi_num, (c)->vi.vol_id, current->pid,       \
-	       __func__, ##__VA_ARGS__)
-/* UBIFS warning messages */
-#define ubifs_warn(c, fmt, ...)                                     \
-	pr_warn("UBIFS warning (ubi%d:%d pid %d): %s: " fmt "\n",   \
-		(c)->vi.ubi_num, (c)->vi.vol_id, current->pid,      \
-		__func__, ##__VA_ARGS__)
-/*
- * A variant of 'ubifs_err()' which takes the UBIFS file-sytem description
- * object as an argument.
- */
-#define ubifs_errc(c, fmt, ...)                                     \
-	do {                                                        \
-		if (!(c)->probing)                                  \
-			ubifs_err(c, fmt, ##__VA_ARGS__);           \
-	} while (0)
-
 /* UBIFS file system VFS magic number */
 #define UBIFS_SUPER_MAGIC 0x24051905
 
@@ -1801,5 +1777,22 @@ int ubifs_decompress(const struct ubifs_info *c, const void *buf, int len,
 #include "debug.h"
 #include "misc.h"
 #include "key.h"
+
+/* Normal UBIFS messages */
+__printf(2, 3)
+void ubifs_msg(const struct ubifs_info *c, const char *fmt, ...);
+__printf(2, 3)
+void ubifs_err(const struct ubifs_info *c, const char *fmt, ...);
+__printf(2, 3)
+void ubifs_warn(const struct ubifs_info *c, const char *fmt, ...);
+/*
+ * A variant of 'ubifs_err()' which takes the UBIFS file-sytem description
+ * object as an argument.
+ */
+#define ubifs_errc(c, fmt, ...)						\
+do {									\
+	if (!(c)->probing)						\
+		ubifs_err(c, fmt, ##__VA_ARGS__);			\
+} while (0)
 
 #endif /* !__UBIFS_H__ */

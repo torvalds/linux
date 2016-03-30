@@ -92,9 +92,8 @@ static int timed_gpio_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EBUSY;
 
-	gpio_data = devm_kzalloc(&pdev->dev,
-				 sizeof(*gpio_data) * pdata->num_gpios,
-				 GFP_KERNEL);
+	gpio_data = devm_kcalloc(&pdev->dev, pdata->num_gpios,
+				 sizeof(*gpio_data), GFP_KERNEL);
 	if (!gpio_data)
 		return -ENOMEM;
 

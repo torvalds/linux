@@ -103,7 +103,7 @@ centaur_validate_add_page(unsigned long base, unsigned long size, unsigned int t
 	 */
 	if (type != MTRR_TYPE_WRCOMB &&
 	    (centaur_mcr_type == 0 || type != MTRR_TYPE_UNCACHABLE)) {
-		pr_warning("mtrr: only write-combining%s supported\n",
+		pr_warn("mtrr: only write-combining%s supported\n",
 			   centaur_mcr_type ? " and uncacheable are" : " is");
 		return -EINVAL;
 	}

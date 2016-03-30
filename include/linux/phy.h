@@ -327,8 +327,6 @@ struct phy_c45_device_ids {
 /* phy_device: An instance of a PHY
  *
  * drv: Pointer to the driver for this PHY instance
- * bus: Pointer to the bus this PHY is on
- * dev: driver model device structure for this PHY
  * phy_id: UID for this device found during discovery
  * c45_ids: 802.3-c45 Device Identifers if is_c45.
  * is_c45:  Set to true if this phy uses clause 45 addressing.
@@ -338,7 +336,6 @@ struct phy_c45_device_ids {
  * suspended: Set to true if this phy has been suspended successfully.
  * state: state of the PHY for management purposes
  * dev_flags: Device-specific flags used by the PHY driver.
- * addr: Bus address of PHY
  * link_timeout: The number of timer firings to wait before the
  * giving up on the current attempt at acquiring a link
  * irq: IRQ number of the PHY's interrupt (-1 if none)

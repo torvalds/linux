@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -953,6 +953,9 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 	u16 flags;
 	u16 ntu;
 
+	/* pre-clean the event info */
+	memset(&e->desc, 0, sizeof(e->desc));
+
 	/* take the lock before we start messing with the ring */
 	mutex_lock(&hw->aq.arq_mutex);
 
@@ -1020,14 +1023,6 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 	hw->aq.arq.next_to_clean = ntc;
 	hw->aq.arq.next_to_use = ntu;
 
-clean_arq_element_out:
-	/* Set pending if needed, unlock and return */
-	if (pending != NULL)
-		*pending = (ntc > ntu ? hw->aq.arq.count : 0) + (ntu - ntc);
-
-clean_arq_element_err:
-	mutex_unlock(&hw->aq.arq_mutex);
-
 	if (i40e_is_nvm_update_op(&e->desc)) {
 		if (hw->aq.nvm_release_on_done) {
 			i40e_release_nvm(hw);
@@ -1047,6 +1042,13 @@ clean_arq_element_err:
 			break;
 		}
 	}
+
+clean_arq_element_out:
+	/* Set pending if needed, unlock and return */
+	if (pending)
+		*pending = (ntc > ntu ? hw->aq.arq.count : 0) + (ntu - ntc);
+clean_arq_element_err:
+	mutex_unlock(&hw->aq.arq_mutex);
 
 	return ret_code;
 }

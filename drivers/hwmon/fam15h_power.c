@@ -90,7 +90,15 @@ static ssize_t show_power(struct device *dev,
 	pci_bus_read_config_dword(f4->bus, PCI_DEVFN(PCI_SLOT(f4->devfn), 5),
 				  REG_TDP_LIMIT3, &val);
 
-	tdp_limit = val >> 16;
+	/*
+	 * On Carrizo and later platforms, ApmTdpLimit bit field
+	 * is extended to 16:31 from 16:28.
+	 */
+	if (boot_cpu_data.x86 == 0x15 && boot_cpu_data.x86_model >= 0x60)
+		tdp_limit = val >> 16;
+	else
+		tdp_limit = (val >> 16) & 0x1fff;
+
 	curr_pwr_watts = ((u64)(tdp_limit +
 				data->base_tdp)) << running_avg_range;
 	curr_pwr_watts -= running_avg_capture;

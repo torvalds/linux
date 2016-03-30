@@ -20,7 +20,6 @@
 #include <drm/drmP.h>
 #include <drm/exynos_drm.h>
 #include "regs-rotator.h"
-#include "exynos_drm.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_ipp.h"
 
@@ -754,7 +753,7 @@ static int rotator_probe(struct platform_device *pdev)
 		goto err_ippdrv_register;
 	}
 
-	DRM_DEBUG_KMS("ippdrv[0x%x]\n", (int)ippdrv);
+	DRM_DEBUG_KMS("ippdrv[%p]\n", ippdrv);
 
 	platform_set_drvdata(pdev, rot);
 

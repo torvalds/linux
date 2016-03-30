@@ -44,6 +44,8 @@
 
 #include <linux/timecounter.h>
 
+#define DEFAULT_UAR_PAGE_SHIFT  12
+
 #define MAX_MSIX_P_PORT		17
 #define MAX_MSIX		64
 #define MIN_MSIX_P_PORT		5
@@ -217,6 +219,7 @@ enum {
 	MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB = 1ULL << 31,
 	MLX4_DEV_CAP_FLAG2_LB_SRC_CHK           = 1ULL << 32,
 	MLX4_DEV_CAP_FLAG2_ROCE_V1_V2		= 1ULL <<  33,
+	MLX4_DEV_CAP_FLAG2_DMFS_UC_MC_SNIFFER   = 1ULL <<  34,
 };
 
 enum {
@@ -856,6 +859,7 @@ struct mlx4_dev {
 	u64			regid_promisc_array[MLX4_MAX_PORTS + 1];
 	u64			regid_allmulti_array[MLX4_MAX_PORTS + 1];
 	struct mlx4_vf_dev     *dev_vfs;
+	u8  uar_page_shift;
 };
 
 struct mlx4_clock_params {
@@ -1157,6 +1161,8 @@ enum mlx4_net_trans_promisc_mode {
 	MLX4_FS_REGULAR = 1,
 	MLX4_FS_ALL_DEFAULT,
 	MLX4_FS_MC_DEFAULT,
+	MLX4_FS_MIRROR_RX_PORT,
+	MLX4_FS_MIRROR_SX_PORT,
 	MLX4_FS_UC_SNIFFER,
 	MLX4_FS_MC_SNIFFER,
 	MLX4_FS_MODE_NUM, /* should be last */
@@ -1528,4 +1534,14 @@ int mlx4_ACCESS_PTYS_REG(struct mlx4_dev *dev,
 int mlx4_get_internal_clock_params(struct mlx4_dev *dev,
 				   struct mlx4_clock_params *params);
 
+static inline int mlx4_to_hw_uar_index(struct mlx4_dev *dev, int index)
+{
+	return (index << (PAGE_SHIFT - dev->uar_page_shift));
+}
+
+static inline int mlx4_get_num_reserved_uar(struct mlx4_dev *dev)
+{
+	/* The first 128 UARs are used for EQ doorbells */
+	return (128 >> (PAGE_SHIFT - dev->uar_page_shift));
+}
 #endif /* MLX4_DEVICE_H */

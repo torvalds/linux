@@ -445,7 +445,7 @@ static void sh_mmcif_request_dma(struct sh_mmcif_host *host)
 							pdata->slave_id_rx);
 	} else {
 		host->chan_tx = dma_request_slave_channel(dev, "tx");
-		host->chan_tx = dma_request_slave_channel(dev, "rx");
+		host->chan_rx = dma_request_slave_channel(dev, "rx");
 	}
 	dev_dbg(dev, "%s: got channel TX %p RX %p\n", __func__, host->chan_tx,
 		host->chan_rx);
@@ -1395,7 +1395,7 @@ static irqreturn_t sh_mmcif_intr(int irq, void *dev_id)
 
 static void sh_mmcif_timeout_work(struct work_struct *work)
 {
-	struct delayed_work *d = container_of(work, struct delayed_work, work);
+	struct delayed_work *d = to_delayed_work(work);
 	struct sh_mmcif_host *host = container_of(d, struct sh_mmcif_host, timeout_work);
 	struct mmc_request *mrq = host->mrq;
 	struct device *dev = sh_mmcif_host_to_dev(host);

@@ -252,14 +252,11 @@ static bool ieee80211_recalc_sw_work(struct ieee80211_local *local,
 static void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc,
 					 unsigned long start_time)
 {
-	struct ieee80211_local *local = roc->sdata->local;
-
 	if (WARN_ON(roc->notified))
 		return;
 
 	roc->start_time = start_time;
 	roc->started = true;
-	roc->hw_begun = true;
 
 	if (roc->mgmt_tx_cookie) {
 		if (!WARN_ON(!roc->frame)) {
@@ -274,9 +271,6 @@ static void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc,
 	}
 
 	roc->notified = true;
-
-	if (!local->ops->remain_on_channel)
-		ieee80211_recalc_sw_work(local, start_time);
 }
 
 static void ieee80211_hw_roc_start(struct work_struct *work)
@@ -291,6 +285,7 @@ static void ieee80211_hw_roc_start(struct work_struct *work)
 		if (!roc->started)
 			break;
 
+		roc->hw_begun = true;
 		ieee80211_handle_roc_started(roc, local->hw_roc_start_time);
 	}
 
@@ -413,6 +408,10 @@ void ieee80211_start_next_roc(struct ieee80211_local *local)
 		return;
 	}
 
+	/* defer roc if driver is not started (i.e. during reconfig) */
+	if (local->in_reconfig)
+		return;
+
 	roc = list_first_entry(&local->roc_list, struct ieee80211_roc_work,
 			       list);
 
@@ -534,8 +533,10 @@ ieee80211_coalesce_hw_started_roc(struct ieee80211_local *local,
 	 * begin, otherwise they'll both be marked properly by the work
 	 * struct that runs once the driver notifies us of the beginning
 	 */
-	if (cur_roc->hw_begun)
+	if (cur_roc->hw_begun) {
+		new_roc->hw_begun = true;
 		ieee80211_handle_roc_started(new_roc, now);
+	}
 
 	return true;
 }
@@ -658,6 +659,7 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 			queued = true;
 			roc->on_channel = tmp->on_channel;
 			ieee80211_handle_roc_started(roc, now);
+			ieee80211_recalc_sw_work(local, now);
 			break;
 		}
 

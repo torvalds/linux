@@ -224,12 +224,12 @@ static int __init nf_tables_netdev_init(void)
 
 	nft_register_chain_type(&nft_filter_chain_netdev);
 	ret = register_pernet_subsys(&nf_tables_netdev_net_ops);
-	if (ret < 0)
+	if (ret < 0) {
 		nft_unregister_chain_type(&nft_filter_chain_netdev);
-
+		return ret;
+	}
 	register_netdevice_notifier(&nf_tables_netdev_notifier);
-
-	return ret;
+	return 0;
 }
 
 static void __exit nf_tables_netdev_exit(void)

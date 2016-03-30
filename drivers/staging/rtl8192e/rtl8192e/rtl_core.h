@@ -338,8 +338,6 @@ struct r8192_priv {
 	struct delayed_work		rfpath_check_wq;
 	struct delayed_work		gpio_change_rf_wq;
 
-	struct workqueue_struct		*priv_wq;
-
 	struct channel_access_setting ChannelAccessSetting;
 
 	struct rtl819x_ops			*ops;

@@ -39,5 +39,5 @@ extern const struct nvkm_disp_oclass gf119_disp_root_oclass;
 extern const struct nvkm_disp_oclass gk104_disp_root_oclass;
 extern const struct nvkm_disp_oclass gk110_disp_root_oclass;
 extern const struct nvkm_disp_oclass gm107_disp_root_oclass;
-extern const struct nvkm_disp_oclass gm204_disp_root_oclass;
+extern const struct nvkm_disp_oclass gm200_disp_root_oclass;
 #endif

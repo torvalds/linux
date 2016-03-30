@@ -9,7 +9,7 @@
    Steve Hirsch, Andreas Koppenh"ofer, Michael Leodolter, Eyal Lebedinsky,
    Michael Schaefer, J"org Weule, and Eric Youngdale.
 
-   Copyright 1992 - 2010 Kai Makisara
+   Copyright 1992 - 2016 Kai Makisara
    email Kai.Makisara@kolumbus.fi
 
    Some small formal changes - aeb, 950809
@@ -17,7 +17,7 @@
    Last modified: 18-JAN-1998 Richard Gooch <rgooch@atnf.csiro.au> Devfs support
  */
 
-static const char *verstr = "20101219";
+static const char *verstr = "20160209";
 
 #include <linux/module.h>
 
@@ -3296,7 +3296,10 @@ static int switch_partition(struct scsi_tape *STp)
 #define PP_OFF_RESERVED        7
 
 #define PP_BIT_IDP             0x20
+#define PP_BIT_FDP             0x80
 #define PP_MSK_PSUM_MB         0x10
+#define PP_MSK_PSUM_UNITS      0x18
+#define PP_MSK_POFM            0x04
 
 /* Get the number of partitions on the tape. As a side effect reads the
    mode page into the tape buffer. */
@@ -3322,6 +3325,29 @@ static int nbr_partitions(struct scsi_tape *STp)
 }
 
 
+static int format_medium(struct scsi_tape *STp, int format)
+{
+	int result = 0;
+	int timeout = STp->long_timeout;
+	unsigned char scmd[MAX_COMMAND_SIZE];
+	struct st_request *SRpnt;
+
+	memset(scmd, 0, MAX_COMMAND_SIZE);
+	scmd[0] = FORMAT_UNIT;
+	scmd[2] = format;
+	if (STp->immediate) {
+		scmd[1] |= 1;		/* Don't wait for completion */
+		timeout = STp->device->request_queue->rq_timeout;
+	}
+	DEBC_printk(STp, "Sending FORMAT MEDIUM\n");
+	SRpnt = st_do_scsi(NULL, STp, scmd, 0, DMA_NONE,
+			   timeout, MAX_RETRIES, 1);
+	if (!SRpnt)
+		result = STp->buffer->syscall_result;
+	return result;
+}
+
+
 /* Partition the tape into two partitions if size > 0 or one partition if
    size == 0.
 
@@ -3340,11 +3366,16 @@ static int nbr_partitions(struct scsi_tape *STp)
    and 10 when 1 partition is defined (information from Eric Lee Green). This is
    is acceptable also to some other old drives and enforced if the first partition
    size field is used for the first additional partition size.
+
+   For drives that advertize SCSI-3 or newer, use the SSC-3 methods.
  */
 static int partition_tape(struct scsi_tape *STp, int size)
 {
 	int result;
+	int target_partition;
+	bool scsi3 = STp->device->scsi_level >= SCSI_3, needs_format = false;
 	int pgo, psd_cnt, psdo;
+	int psum = PP_MSK_PSUM_MB, units = 0;
 	unsigned char *bp;
 
 	result = read_mode_page(STp, PART_PAGE, 0);
@@ -3352,6 +3383,12 @@ static int partition_tape(struct scsi_tape *STp, int size)
 		DEBC_printk(STp, "Can't read partition mode page.\n");
 		return result;
 	}
+	target_partition = 1;
+	if (size < 0) {
+		target_partition = 0;
+		size = -size;
+	}
+
 	/* The mode page is in the buffer. Let's modify it and write it. */
 	bp = (STp->buffer)->b_data;
 	pgo = MODE_HEADER_LENGTH + bp[MH_OFF_BDESCS_LENGTH];
@@ -3359,9 +3396,52 @@ static int partition_tape(struct scsi_tape *STp, int size)
 		    bp[pgo + MP_OFF_PAGE_LENGTH] + 2);
 
 	psd_cnt = (bp[pgo + MP_OFF_PAGE_LENGTH] + 2 - PART_PAGE_FIXED_LENGTH) / 2;
+
+	if (scsi3) {
+		needs_format = (bp[pgo + PP_OFF_FLAGS] & PP_MSK_POFM) != 0;
+		if (needs_format && size == 0) {
+			/* No need to write the mode page when clearing
+			 *  partitioning
+			 */
+			DEBC_printk(STp, "Formatting tape with one partition.\n");
+			result = format_medium(STp, 0);
+			goto out;
+		}
+		if (needs_format)  /* Leave the old value for HP DATs claiming SCSI_3 */
+			psd_cnt = 2;
+		if ((bp[pgo + PP_OFF_FLAGS] & PP_MSK_PSUM_UNITS) == PP_MSK_PSUM_UNITS) {
+			/* Use units scaling for large partitions if the device
+			 * suggests it and no precision lost. Required for IBM
+			 * TS1140/50 drives that don't support MB units.
+			 */
+			if (size >= 1000 && (size % 1000) == 0) {
+				size /= 1000;
+				psum = PP_MSK_PSUM_UNITS;
+				units = 9; /* GB */
+			}
+		}
+		/* Try it anyway if too large to specify in MB */
+		if (psum == PP_MSK_PSUM_MB && size >= 65534) {
+			size /= 1000;
+			psum = PP_MSK_PSUM_UNITS;
+			units = 9;  /* GB */
+		}
+	}
+
+	if (size >= 65535 ||  /* Does not fit into two bytes */
+	    (target_partition == 0 && psd_cnt < 2)) {
+		result = -EINVAL;
+		goto out;
+	}
+
 	psdo = pgo + PART_PAGE_FIXED_LENGTH;
-	if (psd_cnt > bp[pgo + PP_OFF_MAX_ADD_PARTS]) {
-		bp[psdo] = bp[psdo + 1] = 0xff;  /* Rest of the tape */
+	/* The second condition is for HP DDS which use only one partition size
+	 * descriptor
+	 */
+	if (target_partition > 0 &&
+	    (psd_cnt > bp[pgo + PP_OFF_MAX_ADD_PARTS] ||
+	     bp[pgo + PP_OFF_MAX_ADD_PARTS] != 1)) {
+		bp[psdo] = bp[psdo + 1] = 0xff;  /* Rest to partition 0 */
 		psdo += 2;
 	}
 	memset(bp + psdo, 0, bp[pgo + PP_OFF_NBR_ADD_PARTS] * 2);
@@ -3370,7 +3450,7 @@ static int partition_tape(struct scsi_tape *STp, int size)
 		    psd_cnt, bp[pgo + PP_OFF_MAX_ADD_PARTS],
 		    bp[pgo + PP_OFF_NBR_ADD_PARTS]);
 
-	if (size <= 0) {
+	if (size == 0) {
 		bp[pgo + PP_OFF_NBR_ADD_PARTS] = 0;
 		if (psd_cnt <= bp[pgo + PP_OFF_MAX_ADD_PARTS])
 		    bp[pgo + MP_OFF_PAGE_LENGTH] = 6;
@@ -3378,22 +3458,37 @@ static int partition_tape(struct scsi_tape *STp, int size)
 	} else {
 		bp[psdo] = (size >> 8) & 0xff;
 		bp[psdo + 1] = size & 0xff;
+		if (target_partition == 0)
+			bp[psdo + 2] = bp[psdo + 3] = 0xff;
 		bp[pgo + 3] = 1;
 		if (bp[pgo + MP_OFF_PAGE_LENGTH] < 8)
 		    bp[pgo + MP_OFF_PAGE_LENGTH] = 8;
-		DEBC_printk(STp, "Formatting tape with two partitions "
-			    "(1 = %d MB).\n", size);
+		DEBC_printk(STp,
+			    "Formatting tape with two partitions (%i = %d MB).\n",
+			    target_partition, units > 0 ? size * 1000 : size);
 	}
 	bp[pgo + PP_OFF_PART_UNITS] = 0;
 	bp[pgo + PP_OFF_RESERVED] = 0;
-	bp[pgo + PP_OFF_FLAGS] = PP_BIT_IDP | PP_MSK_PSUM_MB;
+	if (size != 1 || units != 0) {
+		bp[pgo + PP_OFF_FLAGS] = PP_BIT_IDP | psum |
+			(bp[pgo + PP_OFF_FLAGS] & 0x07);
+		bp[pgo + PP_OFF_PART_UNITS] = units;
+	} else
+		bp[pgo + PP_OFF_FLAGS] = PP_BIT_FDP |
+			(bp[pgo + PP_OFF_FLAGS] & 0x1f);
+	bp[pgo + MP_OFF_PAGE_LENGTH] = 6 + psd_cnt * 2;
 
 	result = write_mode_page(STp, PART_PAGE, 1);
+
+	if (!result && needs_format)
+		result = format_medium(STp, 1);
+
 	if (result) {
 		st_printk(KERN_INFO, STp, "Partitioning of tape failed.\n");
 		result = (-EIO);
 	}
 
+out:
 	return result;
 }
 
@@ -3570,8 +3665,13 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 				retval = (-EINVAL);
 				goto out;
 			}
-			if ((i = st_int_ioctl(STp, MTREW, 0)) < 0 ||
-			    (i = partition_tape(STp, mtc.mt_count)) < 0) {
+			i = do_load_unload(STp, file, 1);
+			if (i < 0) {
+				retval = i;
+				goto out;
+			}
+			i = partition_tape(STp, mtc.mt_count);
+			if (i < 0) {
 				retval = i;
 				goto out;
 			}
@@ -3581,7 +3681,7 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 				STp->ps[i].last_block_valid = 0;
 			}
 			STp->partition = STp->new_partition = 0;
-			STp->nbr_partitions = 1;	/* Bad guess ?-) */
+			STp->nbr_partitions = mtc.mt_count != 0 ? 2 : 1;
 			STps->drv_block = STps->drv_file = 0;
 			retval = 0;
 			goto out;
@@ -4817,8 +4917,6 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
         /* Try to fault in all of the necessary pages */
         /* rw==READ means read from drive, write into memory area */
 	res = get_user_pages_unlocked(
-		current,
-		current->mm,
 		uaddr,
 		nr_pages,
 		rw == READ,

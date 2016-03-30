@@ -16,10 +16,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #include <linux/kernel.h>
@@ -264,8 +260,9 @@ static struct notifier_block vt_notifier_block = {
 	.notifier_call = vt_notifier_call,
 };
 
-static unsigned char get_attributes(u16 *pos)
+static unsigned char get_attributes(struct vc_data *vc, u16 *pos)
 {
+	pos = screen_pos(vc, pos - (u16 *)vc->vc_origin, 1);
 	return (u_char) (scr_readw(pos) >> 8);
 }
 
@@ -275,7 +272,7 @@ static void speakup_date(struct vc_data *vc)
 	spk_y = spk_cy = vc->vc_y;
 	spk_pos = spk_cp = vc->vc_pos;
 	spk_old_attr = spk_attr;
-	spk_attr = get_attributes((u_short *) spk_pos);
+	spk_attr = get_attributes(vc, (u_short *)spk_pos);
 }
 
 static void bleep(u_short val)
@@ -469,8 +466,12 @@ static u16 get_char(struct vc_data *vc, u16 *pos, u_char *attribs)
 	u16 ch = ' ';
 
 	if (vc && pos) {
-		u16 w = scr_readw(pos);
-		u16 c = w & 0xff;
+		u16 w;
+		u16 c;
+
+		pos = screen_pos(vc, pos - (u16 *)vc->vc_origin, 1);
+		w = scr_readw(pos);
+		c = w & 0xff;
 
 		if (w & vc->vc_hi_font_mask)
 			c |= 0x100;
@@ -746,7 +747,7 @@ static int get_line(struct vc_data *vc)
 	u_char tmp2;
 
 	spk_old_attr = spk_attr;
-	spk_attr = get_attributes((u_short *) spk_pos);
+	spk_attr = get_attributes(vc, (u_short *)spk_pos);
 	for (i = 0; i < vc->vc_cols; i++) {
 		buf[i] = (u_char) get_char(vc, (u_short *) tmp, &tmp2);
 		tmp += 2;
@@ -811,7 +812,7 @@ static int say_from_to(struct vc_data *vc, u_long from, u_long to,
 	u_short saved_punc_mask = spk_punc_mask;
 
 	spk_old_attr = spk_attr;
-	spk_attr = get_attributes((u_short *) from);
+	spk_attr = get_attributes(vc, (u_short *)from);
 	while (from < to) {
 		buf[i++] = (char)get_char(vc, (u_short *) from, &tmp);
 		from += 2;
@@ -886,7 +887,7 @@ static int get_sentence_buf(struct vc_data *vc, int read_punc)
 	sentmarks[bn][0] = &sentbuf[bn][0];
 	i = 0;
 	spk_old_attr = spk_attr;
-	spk_attr = get_attributes((u_short *) start);
+	spk_attr = get_attributes(vc, (u_short *)start);
 
 	while (start < end) {
 		sentbuf[bn][i] = (char)get_char(vc, (u_short *) start, &tmp);
@@ -1187,7 +1188,8 @@ static void do_handle_latin(struct vc_data *vc, u_char value, char up_flag)
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	if (up_flag) {
-		spk_lastkey = spk_keydown = 0;
+		spk_lastkey = 0;
+		spk_keydown = 0;
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		return;
 	}
@@ -1585,7 +1587,7 @@ static int count_highlight_color(struct vc_data *vc)
 		u16 *ptr;
 
 		for (ptr = start; ptr < end; ptr++) {
-			ch = get_attributes(ptr);
+			ch = get_attributes(vc, ptr);
 			bg = (ch & 0x70) >> 4;
 			speakup_console[vc_num]->ht.bgcount[bg]++;
 		}
@@ -1661,7 +1663,8 @@ static void cursor_done(u_long data)
 	if (win_enabled) {
 		if (vc->vc_x >= win_left && vc->vc_x <= win_right &&
 		    vc->vc_y >= win_top && vc->vc_y <= win_bottom) {
-			spk_keydown = is_cursor = 0;
+			spk_keydown = 0;
+			is_cursor = 0;
 			goto out;
 		}
 	}
@@ -1671,7 +1674,8 @@ static void cursor_done(u_long data)
 	}
 	if (cursor_track == CT_Highlight) {
 		if (speak_highlight(vc)) {
-			spk_keydown = is_cursor = 0;
+			spk_keydown = 0;
+			is_cursor = 0;
 			goto out;
 		}
 	}
@@ -1681,7 +1685,8 @@ static void cursor_done(u_long data)
 		say_line_from_to(vc, 0, vc->vc_cols, 0);
 	else
 		say_char(vc);
-	spk_keydown = is_cursor = 0;
+	spk_keydown = 0;
+	is_cursor = 0;
 out:
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
@@ -1861,8 +1866,10 @@ static void speakup_win_set(struct vc_data *vc)
 
 static void speakup_win_clear(struct vc_data *vc)
 {
-	win_top = win_bottom = 0;
-	win_left = win_right = 0;
+	win_top = 0;
+	win_bottom = 0;
+	win_left = 0;
+	win_right = 0;
 	win_start = 0;
 	synth_printf("%s\n", spk_msg_get(MSG_WINDOW_CLEARED));
 }
@@ -1997,10 +2004,13 @@ static u_char key_speakup, spk_key_locked;
 
 static void speakup_lock(struct vc_data *vc)
 {
-	if (!spk_key_locked)
-		spk_key_locked = key_speakup = 16;
-	else
-		spk_key_locked = key_speakup = 0;
+	if (!spk_key_locked) {
+		spk_key_locked = 16;
+		key_speakup = 16;
+	} else {
+		spk_key_locked = 0;
+		key_speakup = 0;
+	}
 }
 
 typedef void (*spkup_hand) (struct vc_data *);
@@ -2264,7 +2274,7 @@ static void __exit speakup_exit(void)
 	unregister_vt_notifier(&vt_notifier_block);
 	speakup_unregister_devsynth();
 	speakup_cancel_paste();
-	del_timer(&cursor_timer);
+	del_timer_sync(&cursor_timer);
 	kthread_stop(speakup_task);
 	speakup_task = NULL;
 	mutex_lock(&spk_mutex);

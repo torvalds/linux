@@ -1502,16 +1502,18 @@ static int cx24120_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int cx24120_get_frontend(struct dvb_frontend *fe)
+static int cx24120_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *c)
 {
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24120_state *state = fe->demodulator_priv;
 	u8 freq1, freq2, freq3;
+	int status;
 
 	dev_dbg(&state->i2c->dev, "\n");
 
 	/* don't return empty data if we're not tuned in */
-	if ((state->fe_status & FE_HAS_LOCK) == 0)
+	status = cx24120_readreg(state, CX24120_REG_STATUS);
+	if (!(status & CX24120_HAS_LOCK))
 		return 0;
 
 	/* Get frequency */

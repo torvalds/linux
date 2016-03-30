@@ -30,7 +30,7 @@
 struct trace_kprobe {
 	struct list_head	list;
 	struct kretprobe	rp;	/* Use rp.kp for kprobe use */
-	unsigned long 		nhit;
+	unsigned long __percpu *nhit;
 	const char		*symbol;	/* symbol name */
 	struct trace_probe	tp;
 };
@@ -274,6 +274,10 @@ static struct trace_kprobe *alloc_trace_kprobe(const char *group,
 	if (!tk)
 		return ERR_PTR(ret);
 
+	tk->nhit = alloc_percpu(unsigned long);
+	if (!tk->nhit)
+		goto error;
+
 	if (symbol) {
 		tk->symbol = kstrdup(symbol, GFP_KERNEL);
 		if (!tk->symbol)
@@ -313,6 +317,7 @@ static struct trace_kprobe *alloc_trace_kprobe(const char *group,
 error:
 	kfree(tk->tp.call.name);
 	kfree(tk->symbol);
+	free_percpu(tk->nhit);
 	kfree(tk);
 	return ERR_PTR(ret);
 }
@@ -327,6 +332,7 @@ static void free_trace_kprobe(struct trace_kprobe *tk)
 	kfree(tk->tp.call.class->system);
 	kfree(tk->tp.call.name);
 	kfree(tk->symbol);
+	free_percpu(tk->nhit);
 	kfree(tk);
 }
 
@@ -453,16 +459,14 @@ static int __register_trace_kprobe(struct trace_kprobe *tk)
 	if (ret == 0)
 		tk->tp.flags |= TP_FLAG_REGISTERED;
 	else {
-		pr_warning("Could not insert probe at %s+%lu: %d\n",
-			   trace_kprobe_symbol(tk), trace_kprobe_offset(tk), ret);
+		pr_warn("Could not insert probe at %s+%lu: %d\n",
+			trace_kprobe_symbol(tk), trace_kprobe_offset(tk), ret);
 		if (ret == -ENOENT && trace_kprobe_is_on_module(tk)) {
-			pr_warning("This probe might be able to register after"
-				   "target module is loaded. Continue.\n");
+			pr_warn("This probe might be able to register after target module is loaded. Continue.\n");
 			ret = 0;
 		} else if (ret == -EILSEQ) {
-			pr_warning("Probing address(0x%p) is not an "
-				   "instruction boundary.\n",
-				   tk->rp.kp.addr);
+			pr_warn("Probing address(0x%p) is not an instruction boundary.\n",
+				tk->rp.kp.addr);
 			ret = -EINVAL;
 		}
 	}
@@ -523,7 +527,7 @@ static int register_trace_kprobe(struct trace_kprobe *tk)
 	/* Register new event */
 	ret = register_kprobe_event(tk);
 	if (ret) {
-		pr_warning("Failed to register probe event(%d)\n", ret);
+		pr_warn("Failed to register probe event(%d)\n", ret);
 		goto end;
 	}
 
@@ -558,10 +562,9 @@ static int trace_kprobe_module_callback(struct notifier_block *nb,
 			__unregister_trace_kprobe(tk);
 			ret = __register_trace_kprobe(tk);
 			if (ret)
-				pr_warning("Failed to re-register probe %s on"
-					   "%s: %d\n",
-					   trace_event_name(&tk->tp.call),
-					   mod->name, ret);
+				pr_warn("Failed to re-register probe %s on %s: %d\n",
+					trace_event_name(&tk->tp.call),
+					mod->name, ret);
 		}
 	}
 	mutex_unlock(&probe_lock);
@@ -874,9 +877,14 @@ static const struct file_operations kprobe_events_ops = {
 static int probes_profile_seq_show(struct seq_file *m, void *v)
 {
 	struct trace_kprobe *tk = v;
+	unsigned long nhit = 0;
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		nhit += *per_cpu_ptr(tk->nhit, cpu);
 
 	seq_printf(m, "  %-44s %15lu %15lu\n",
-		   trace_event_name(&tk->tp.call), tk->nhit,
+		   trace_event_name(&tk->tp.call), nhit,
 		   tk->rp.kp.nmissed);
 
 	return 0;
@@ -1225,7 +1233,7 @@ static int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs)
 {
 	struct trace_kprobe *tk = container_of(kp, struct trace_kprobe, rp.kp);
 
-	tk->nhit++;
+	raw_cpu_inc(*tk->nhit);
 
 	if (tk->tp.flags & TP_FLAG_TRACE)
 		kprobe_trace_func(tk, regs);
@@ -1242,7 +1250,7 @@ kretprobe_dispatcher(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct trace_kprobe *tk = container_of(ri->rp, struct trace_kprobe, rp);
 
-	tk->nhit++;
+	raw_cpu_inc(*tk->nhit);
 
 	if (tk->tp.flags & TP_FLAG_TRACE)
 		kretprobe_trace_func(tk, ri, regs);
@@ -1325,16 +1333,14 @@ static __init int init_kprobe_trace(void)
 
 	/* Event list interface */
 	if (!entry)
-		pr_warning("Could not create tracefs "
-			   "'kprobe_events' entry\n");
+		pr_warn("Could not create tracefs 'kprobe_events' entry\n");
 
 	/* Profile interface */
 	entry = tracefs_create_file("kprobe_profile", 0444, d_tracer,
 				    NULL, &kprobe_profile_ops);
 
 	if (!entry)
-		pr_warning("Could not create tracefs "
-			   "'kprobe_profile' entry\n");
+		pr_warn("Could not create tracefs 'kprobe_profile' entry\n");
 	return 0;
 }
 fs_initcall(init_kprobe_trace);

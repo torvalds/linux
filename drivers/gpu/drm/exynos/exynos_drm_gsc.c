@@ -1723,7 +1723,7 @@ static int gsc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	DRM_DEBUG_KMS("id[%d]ippdrv[0x%x]\n", ctx->id, (int)ippdrv);
+	DRM_DEBUG_KMS("id[%d]ippdrv[%p]\n", ctx->id, ippdrv);
 
 	mutex_init(&ctx->lock);
 	platform_set_drvdata(pdev, ctx);
