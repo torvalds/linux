@@ -96,7 +96,6 @@ SECTIONS
 		_text = .;
 		HEAD_TEXT
 	}
-	ALIGN_DEBUG_RO_MIN(PAGE_SIZE)
 	.text : {			/* Real text segment		*/
 		_stext = .;		/* Text and read-only data	*/
 			__exception_text_start = .;
