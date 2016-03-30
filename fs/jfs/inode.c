@@ -102,8 +102,8 @@ int jfs_commit_inode(struct inode *inode, int wait)
 		 * partitions and may think inode is dirty
 		 */
 		if (!special_file(inode->i_mode) && noisy) {
-			jfs_err("jfs_commit_inode(0x%p) called on "
-				   "read-only volume", inode);
+			jfs_err("jfs_commit_inode(0x%p) called on read-only volume",
+				inode);
 			jfs_err("Is remount racy?");
 			noisy--;
 		}

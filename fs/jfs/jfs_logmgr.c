@@ -1333,9 +1333,8 @@ int lmLogInit(struct jfs_log * log)
 				rc = -EINVAL;
 				goto errout20;
 			}
-			jfs_info("lmLogInit: inline log:0x%p base:0x%Lx "
-				 "size:0x%x", log,
-				 (unsigned long long) log->base, log->size);
+			jfs_info("lmLogInit: inline log:0x%p base:0x%Lx size:0x%x",
+				 log, (unsigned long long)log->base, log->size);
 		} else {
 			if (memcmp(logsuper->uuid, log->uuid, 16)) {
 				jfs_warn("wrong uuid on JFS log device");
@@ -1343,9 +1342,8 @@ int lmLogInit(struct jfs_log * log)
 			}
 			log->size = le32_to_cpu(logsuper->size);
 			log->l2bsize = le32_to_cpu(logsuper->l2bsize);
-			jfs_info("lmLogInit: external log:0x%p base:0x%Lx "
-				 "size:0x%x", log,
-				 (unsigned long long) log->base, log->size);
+			jfs_info("lmLogInit: external log:0x%p base:0x%Lx size:0x%x",
+				 log, (unsigned long long)log->base, log->size);
 		}
 
 		log->page = le32_to_cpu(logsuper->end) / LOGPSIZE;

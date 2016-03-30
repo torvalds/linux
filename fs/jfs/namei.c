@@ -1225,8 +1225,8 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		rc = dtSearch(new_dir, &new_dname, &ino, &btstack,
 			      JFS_CREATE);
 		if (rc) {
-			jfs_err("jfs_rename didn't expect dtSearch to fail "
-				"w/rc = %d", rc);
+			jfs_err("jfs_rename didn't expect dtSearch to fail w/rc = %d",
+				rc);
 			goto out_tx;
 		}
 
