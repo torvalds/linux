@@ -13,6 +13,7 @@
  */
 
 #include <linux/bug.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -65,6 +66,7 @@ enum r8a7795_clk_types {
 	CLK_TYPE_GEN3_PLL3,
 	CLK_TYPE_GEN3_PLL4,
 	CLK_TYPE_GEN3_SD,
+	CLK_TYPE_GEN3_R,
 };
 
 #define DEF_GEN3_SD(_name, _id, _parent, _offset)	\
@@ -121,6 +123,8 @@ static const struct cpg_core_clk r8a7795_core_clks[] __initconst = {
 
 	DEF_DIV6_RO("osc",      R8A7795_CLK_OSC,   CLK_EXTAL, CPG_RCKCR, 8),
 	DEF_DIV6_RO("r_int",    CLK_RINT,          CLK_EXTAL, CPG_RCKCR, 32),
+
+	DEF_BASE("r",           R8A7795_CLK_R, CLK_TYPE_GEN3_R, CLK_RINT),
 };
 
 static const struct mssr_mod_clk r8a7795_mod_clks[] __initconst = {
@@ -586,6 +590,18 @@ struct clk * __init r8a7795_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN3_SD:
 		return cpg_sd_clk_register(core, base, __clk_get_name(parent));
+
+	case CLK_TYPE_GEN3_R:
+		/* RINT is default. Only if EXTALR is populated, we switch to it */
+		value = readl(base + CPG_RCKCR) & 0x3f;
+
+		if (clk_get_rate(clks[CLK_EXTALR])) {
+			parent = clks[CLK_EXTALR];
+			value |= BIT(15);
+		}
+
+		writel(value, base + CPG_RCKCR);
+		break;
 
 	default:
 		return ERR_PTR(-EINVAL);
