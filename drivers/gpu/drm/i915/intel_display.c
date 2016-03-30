@@ -12569,6 +12569,11 @@ intel_pipe_config_compare(struct drm_device *dev,
 		ret = false; \
 	}
 
+/* This is required for BDW+ where there is only one set of registers for
+ * switching between high and low RR.
+ * This macro can be used whenever a comparison has to be made between one
+ * hw state and multiple sw state variables.
+ */
 #define PIPE_CONF_CHECK_M_N_ALT(name, alt_name) \
 	if (!intel_compare_link_m_n(&current_config->name, \
 				    &pipe_config->name, adjust) && \
@@ -12594,22 +12599,6 @@ intel_pipe_config_compare(struct drm_device *dev,
 			  pipe_config->name.link_m, \
 			  pipe_config->name.link_n); \
 		ret = false; \
-	}
-
-/* This is required for BDW+ where there is only one set of registers for
- * switching between high and low RR.
- * This macro can be used whenever a comparison has to be made between one
- * hw state and multiple sw state variables.
- */
-#define PIPE_CONF_CHECK_I_ALT(name, alt_name) \
-	if ((current_config->name != pipe_config->name) && \
-		(current_config->alt_name != pipe_config->name)) { \
-			INTEL_ERR_OR_DBG_KMS("mismatch in " #name " " \
-				  "(expected %i or %i, found %i)\n", \
-				  current_config->name, \
-				  current_config->alt_name, \
-				  pipe_config->name); \
-			ret = false; \
 	}
 
 #define PIPE_CONF_CHECK_FLAGS(name, mask)	\
@@ -12736,7 +12725,6 @@ intel_pipe_config_compare(struct drm_device *dev,
 #undef PIPE_CONF_CHECK_X
 #undef PIPE_CONF_CHECK_I
 #undef PIPE_CONF_CHECK_P
-#undef PIPE_CONF_CHECK_I_ALT
 #undef PIPE_CONF_CHECK_FLAGS
 #undef PIPE_CONF_CHECK_CLOCK_FUZZY
 #undef PIPE_CONF_QUIRK
