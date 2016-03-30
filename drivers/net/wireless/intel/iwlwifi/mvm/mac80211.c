@@ -442,6 +442,9 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (iwl_mvm_has_new_rx_api(mvm))
 		ieee80211_hw_set(hw, SUPPORTS_REORDERING_BUFFER);
 
+	if (mvm->trans->num_rx_queues > 1)
+		ieee80211_hw_set(hw, USES_RSS);
+
 	if (mvm->trans->max_skb_frags)
 		hw->netdev_features = NETIF_F_HIGHDMA | NETIF_F_SG;
 
