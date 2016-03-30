@@ -112,7 +112,11 @@ static int of_parse_display_timing(const struct device_node *np,
 	if (!of_property_read_u32(np, "out-face", &val))
 		dt->face = val;
 	if (!of_property_read_u32(np, "color-mode", &val))
-		dt->color_mode = val;
+                dt->color_mode = val;
+	if (!of_property_read_u32(np, "screen-width", &val))
+                dt->screen_widt = val;
+	if (!of_property_read_u32(np, "screen-hight", &val))
+                dt->screen_hight = val;
 	prop = of_find_property(np, "dsp-lut", &length);
 	if (prop) {
 		dt->dsp_lut = kzalloc(length, GFP_KERNEL);

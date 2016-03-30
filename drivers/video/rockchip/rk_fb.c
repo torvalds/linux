@@ -495,6 +495,8 @@ int rk_fb_video_mode_from_timing(const struct display_timing *dt,
 	screen->lvds_format = dt->lvds_format;
 	screen->face = dt->face;
 	screen->color_mode = dt->color_mode;
+	screen->width = dt->screen_widt;
+	screen->height = dt->screen_hight;
 	screen->dsp_lut = dt->dsp_lut;
 	screen->cabc_lut = dt->cabc_lut;
 	screen->cabc_gamma_base = dt->cabc_gamma_base;
@@ -4174,6 +4176,8 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		fbi->fix = def_fix;
 		sprintf(fbi->fix.id, "fb%d", rk_fb->num_fb);
 		fb_videomode_to_var(&fbi->var, &dev_drv->cur_screen->mode);
+		fbi->var.width = dev_drv->cur_screen->width;
+		fbi->var.height = dev_drv->cur_screen->height;
 		fbi->var.grayscale |=
 		    (fbi->var.xres << 8) + (fbi->var.yres << 20);
 #if defined(CONFIG_LOGO_LINUX_BMP)
