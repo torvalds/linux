@@ -1722,7 +1722,6 @@ static int tegra_dc_init(struct host1x_client *client)
 	if (err < 0)
 		goto cleanup;
 
-	drm_mode_crtc_set_gamma_size(&dc->base, 256);
 	drm_crtc_helper_add(&dc->base, &tegra_crtc_helper_funcs);
 
 	/*
