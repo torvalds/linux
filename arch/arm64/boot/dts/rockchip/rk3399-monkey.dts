@@ -130,10 +130,6 @@
 	};
 };
 
-&gt9xx {
-	status = "okay";
-};
-
 &fb {
 	status = "okay";
 };

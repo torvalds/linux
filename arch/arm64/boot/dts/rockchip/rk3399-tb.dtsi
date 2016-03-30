@@ -460,7 +460,6 @@
 		max-y = <1900>;
 		tp-size = <911>;
 		tp-supply = <&vcc3v0_tp>;
-		status = "disabled";
 	};
 };
 
