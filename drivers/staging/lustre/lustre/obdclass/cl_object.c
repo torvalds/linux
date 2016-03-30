@@ -390,6 +390,8 @@ static int cache_stats_print(const struct cache_stats *cs,
 	return 0;
 }
 
+static void cl_env_percpu_refill(void);
+
 /**
  * Initialize client site.
  *
@@ -409,6 +411,7 @@ int cl_site_init(struct cl_site *s, struct cl_device *d)
 			atomic_set(&s->cs_pages_state[0], 0);
 		for (i = 0; i < ARRAY_SIZE(s->cs_locks_state); ++i)
 			atomic_set(&s->cs_locks_state[i], 0);
+		cl_env_percpu_refill();
 	}
 	return result;
 }
@@ -1001,6 +1004,104 @@ void cl_lvb2attr(struct cl_attr *attr, const struct ost_lvb *lvb)
 }
 EXPORT_SYMBOL(cl_lvb2attr);
 
+static struct cl_env cl_env_percpu[NR_CPUS];
+
+static int cl_env_percpu_init(void)
+{
+	struct cl_env *cle;
+	int tags = LCT_REMEMBER | LCT_NOREF;
+	int i, j;
+	int rc = 0;
+
+	for_each_possible_cpu(i) {
+		struct lu_env *env;
+
+		cle = &cl_env_percpu[i];
+		env = &cle->ce_lu;
+
+		INIT_LIST_HEAD(&cle->ce_linkage);
+		cle->ce_magic = &cl_env_init0;
+		rc = lu_env_init(env, LCT_CL_THREAD | tags);
+		if (rc == 0) {
+			rc = lu_context_init(&cle->ce_ses, LCT_SESSION | tags);
+			if (rc == 0) {
+				lu_context_enter(&cle->ce_ses);
+				env->le_ses = &cle->ce_ses;
+			} else {
+				lu_env_fini(env);
+			}
+		}
+		if (rc != 0)
+			break;
+	}
+	if (rc != 0) {
+		/* Indices 0 to i (excluding i) were correctly initialized,
+		 * thus we must uninitialize up to i, the rest are undefined.
+		 */
+		for (j = 0; j < i; j++) {
+			cle = &cl_env_percpu[i];
+			lu_context_exit(&cle->ce_ses);
+			lu_context_fini(&cle->ce_ses);
+			lu_env_fini(&cle->ce_lu);
+		}
+	}
+
+	return rc;
+}
+
+static void cl_env_percpu_fini(void)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct cl_env *cle = &cl_env_percpu[i];
+
+		lu_context_exit(&cle->ce_ses);
+		lu_context_fini(&cle->ce_ses);
+		lu_env_fini(&cle->ce_lu);
+	}
+}
+
+static void cl_env_percpu_refill(void)
+{
+	int i;
+
+	for_each_possible_cpu(i)
+		lu_env_refill(&cl_env_percpu[i].ce_lu);
+}
+
+void cl_env_percpu_put(struct lu_env *env)
+{
+	struct cl_env *cle;
+	int cpu;
+
+	cpu = smp_processor_id();
+	cle = cl_env_container(env);
+	LASSERT(cle == &cl_env_percpu[cpu]);
+
+	cle->ce_ref--;
+	LASSERT(cle->ce_ref == 0);
+
+	CL_ENV_DEC(busy);
+	cl_env_detach(cle);
+	cle->ce_debug = NULL;
+
+	put_cpu();
+}
+EXPORT_SYMBOL(cl_env_percpu_put);
+
+struct lu_env *cl_env_percpu_get()
+{
+	struct cl_env *cle;
+
+	cle = &cl_env_percpu[get_cpu()];
+	cl_env_init0(cle, __builtin_return_address(0));
+
+	cl_env_attach(cle);
+	return &cle->ce_lu;
+}
+EXPORT_SYMBOL(cl_env_percpu_get);
+
 /*****************************************************************************
  *
  * Temporary prototype thing: mirror obd-devices into cl devices.
@@ -1154,6 +1255,11 @@ int cl_global_init(void)
 	if (result)
 		goto out_lock;
 
+	result = cl_env_percpu_init();
+	if (result)
+		/* no cl_env_percpu_fini on error */
+		goto out_lock;
+
 	return 0;
 out_lock:
 	cl_lock_fini();
@@ -1171,6 +1277,7 @@ out_store:
  */
 void cl_global_fini(void)
 {
+	cl_env_percpu_fini();
 	cl_lock_fini();
 	cl_page_fini();
 	lu_context_key_degister(&cl_key);

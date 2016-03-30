@@ -255,7 +255,6 @@ static void cl_lock_free(const struct lu_env *env, struct cl_lock *lock)
 	LINVRNT(!cl_lock_is_mutexed(lock));
 
 	cl_lock_trace(D_DLMTRACE, env, "free lock", lock);
-	might_sleep();
 	while (!list_empty(&lock->cll_layers)) {
 		struct cl_lock_slice *slice;
 

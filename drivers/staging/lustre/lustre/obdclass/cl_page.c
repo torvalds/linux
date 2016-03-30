@@ -123,7 +123,6 @@ static void cl_page_free(const struct lu_env *env, struct cl_page *page)
 	PASSERT(env, page, !page->cp_parent);
 	PASSERT(env, page, page->cp_state == CPS_FREEING);
 
-	might_sleep();
 	while (!list_empty(&page->cp_layers)) {
 		struct cl_page_slice *slice;
 

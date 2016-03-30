@@ -107,12 +107,12 @@ static void ll_invalidatepage(struct page *vmpage, unsigned int offset,
 
 static int ll_releasepage(struct page *vmpage, gfp_t gfp_mask)
 {
-	struct cl_env_nest nest;
 	struct lu_env     *env;
+	void			*cookie;
 	struct cl_object  *obj;
 	struct cl_page    *page;
 	struct address_space *mapping;
-	int result;
+	int result = 0;
 
 	LASSERT(PageLocked(vmpage));
 	if (PageWriteback(vmpage) || PageDirty(vmpage))
@@ -126,30 +126,42 @@ static int ll_releasepage(struct page *vmpage, gfp_t gfp_mask)
 	if (!obj)
 		return 1;
 
-	/* 1 for page allocator, 1 for cl_page and 1 for page cache */
+	/* 1 for caller, 1 for cl_page and 1 for page cache */
 	if (page_count(vmpage) > 3)
 		return 0;
 
-	/* TODO: determine what gfp should be used by @gfp_mask. */
-	env = cl_env_nested_get(&nest);
-	if (IS_ERR(env))
-		/* If we can't allocate an env we won't call cl_page_put()
-		 * later on which further means it's impossible to drop
-		 * page refcount by cl_page, so ask kernel to not free
-		 * this page.
-		 */
-		return 0;
-
 	page = cl_vmpage_page(vmpage, obj);
-	result = !page;
-	if (page) {
-		if (!cl_page_in_use(page)) {
-			result = 1;
-			cl_page_delete(env, page);
-		}
-		cl_page_put(env, page);
+	if (!page)
+		return 1;
+
+	cookie = cl_env_reenter();
+	env = cl_env_percpu_get();
+	LASSERT(!IS_ERR(env));
+
+	if (!cl_page_in_use(page)) {
+		result = 1;
+		cl_page_delete(env, page);
 	}
-	cl_env_nested_put(&nest, env);
+
+	/* To use percpu env array, the call path can not be rescheduled;
+	 * otherwise percpu array will be messed if ll_releaspage() called
+	 * again on the same CPU.
+	 *
+	 * If this page holds the last refc of cl_object, the following
+	 * call path may cause reschedule:
+	 *   cl_page_put -> cl_page_free -> cl_object_put ->
+	 *     lu_object_put -> lu_object_free -> lov_delete_raid0 ->
+	 *     cl_locks_prune.
+	 *
+	 * However, the kernel can't get rid of this inode until all pages have
+	 * been cleaned up. Now that we hold page lock here, it's pretty safe
+	 * that we won't get into object delete path.
+	 */
+	LASSERT(cl_object_refc(obj) > 1);
+	cl_page_put(env, page);
+
+	cl_env_percpu_put(env);
+	cl_env_reexit(cookie);
 	return result;
 }
 

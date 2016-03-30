@@ -2773,6 +2773,16 @@ static inline void *cl_object_page_slice(struct cl_object *clob,
 	return (void *)((char *)page + clob->co_slice_off);
 }
 
+/**
+ * Return refcount of cl_object.
+ */
+static inline int cl_object_refc(struct cl_object *clob)
+{
+	struct lu_object_header *header = clob->co_lu.lo_header;
+
+	return atomic_read(&header->loh_ref);
+}
+
 /** @} cl_object */
 
 /** \defgroup cl_page cl_page
@@ -3226,6 +3236,8 @@ void cl_env_reexit(void *cookie);
 void cl_env_implant(struct lu_env *env, int *refcheck);
 void cl_env_unplant(struct lu_env *env, int *refcheck);
 unsigned int cl_env_cache_purge(unsigned int nr);
+struct lu_env *cl_env_percpu_get(void);
+void cl_env_percpu_put(struct lu_env *env);
 
 /** @} cl_env */
 
