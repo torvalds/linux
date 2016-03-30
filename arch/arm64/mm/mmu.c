@@ -471,8 +471,8 @@ void fixup_init(void)
 	unmap_kernel_range((u64)__init_begin, (u64)(__init_end - __init_begin));
 }
 
-static void __init map_kernel_chunk(pgd_t *pgd, void *va_start, void *va_end,
-				    pgprot_t prot, struct vm_struct *vma)
+static void __init map_kernel_segment(pgd_t *pgd, void *va_start, void *va_end,
+				      pgprot_t prot, struct vm_struct *vma)
 {
 	phys_addr_t pa_start = __pa(va_start);
 	unsigned long size = va_end - va_start;
@@ -499,11 +499,11 @@ static void __init map_kernel(pgd_t *pgd)
 {
 	static struct vm_struct vmlinux_text, vmlinux_rodata, vmlinux_init, vmlinux_data;
 
-	map_kernel_chunk(pgd, _stext, __start_rodata, PAGE_KERNEL_EXEC, &vmlinux_text);
-	map_kernel_chunk(pgd, __start_rodata, _etext, PAGE_KERNEL, &vmlinux_rodata);
-	map_kernel_chunk(pgd, __init_begin, __init_end, PAGE_KERNEL_EXEC,
-			 &vmlinux_init);
-	map_kernel_chunk(pgd, _data, _end, PAGE_KERNEL, &vmlinux_data);
+	map_kernel_segment(pgd, _stext, __start_rodata, PAGE_KERNEL_EXEC, &vmlinux_text);
+	map_kernel_segment(pgd, __start_rodata, _etext, PAGE_KERNEL, &vmlinux_rodata);
+	map_kernel_segment(pgd, __init_begin, __init_end, PAGE_KERNEL_EXEC,
+			   &vmlinux_init);
+	map_kernel_segment(pgd, _data, _end, PAGE_KERNEL, &vmlinux_data);
 
 	if (!pgd_val(*pgd_offset_raw(pgd, FIXADDR_START))) {
 		/*
