@@ -113,7 +113,13 @@ struct mipi_config {
 	u16 dual_link:2;
 	u16 lane_cnt:2;
 	u16 pixel_overlap:3;
-	u16 rsvd3:9;
+	u16 rgb_flip:1;
+#define DL_DCS_PORT_A			0x00
+#define DL_DCS_PORT_C			0x01
+#define DL_DCS_PORT_A_AND_C		0x02
+	u16 dl_dcs_cabc_ports:2;
+	u16 dl_dcs_backlight_ports:2;
+	u16 rsvd3:4;
 
 	u16 rsvd4;
 
