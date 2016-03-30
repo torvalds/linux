@@ -38,13 +38,6 @@
 #define XRES_MAX  8192
 #define YRES_MAX  8192
 
-static void virtio_gpu_crtc_gamma_set(struct drm_crtc *crtc,
-				      u16 *red, u16 *green, u16 *blue,
-				      uint32_t start, uint32_t size)
-{
-	/* TODO */
-}
-
 static void
 virtio_gpu_hide_cursor(struct virtio_gpu_device *vgdev,
 		       struct virtio_gpu_output *output)
@@ -173,7 +166,6 @@ static int virtio_gpu_page_flip(struct drm_crtc *crtc,
 static const struct drm_crtc_funcs virtio_gpu_crtc_funcs = {
 	.cursor_set2            = virtio_gpu_crtc_cursor_set,
 	.cursor_move            = virtio_gpu_crtc_cursor_move,
-	.gamma_set              = virtio_gpu_crtc_gamma_set,
 	.set_config             = drm_atomic_helper_set_config,
 	.destroy                = drm_crtc_cleanup,
 
@@ -416,7 +408,6 @@ static int vgdev_output_init(struct virtio_gpu_device *vgdev, int index)
 		return PTR_ERR(plane);
 	drm_crtc_init_with_planes(dev, crtc, plane, NULL,
 				  &virtio_gpu_crtc_funcs, NULL);
-	drm_mode_crtc_set_gamma_size(crtc, 256);
 	drm_crtc_helper_add(crtc, &virtio_gpu_crtc_helper_funcs);
 	plane->crtc = crtc;
 
