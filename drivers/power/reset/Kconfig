@@ -148,7 +148,8 @@ config POWER_RESET_XGENE
 
 config POWER_RESET_KEYSTONE
 	bool "Keystone reset driver"
-	depends on ARCH_KEYSTONE
+	depends on ARCH_KEYSTONE || COMPILE_TEST
+	depends on HAS_IOMEM
 	select MFD_SYSCON
 	help
 	  Reboot support for the KEYSTONE SoCs.
