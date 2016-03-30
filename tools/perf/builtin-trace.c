@@ -40,6 +40,10 @@
 #include <sys/mman.h>
 #include <linux/futex.h>
 #include <linux/err.h>
+#include <linux/seccomp.h>
+#include <linux/filter.h>
+#include <linux/audit.h>
+#include <sys/ptrace.h>
 
 /* For older distros: */
 #ifndef MAP_STACK
@@ -1001,6 +1005,46 @@ static const char *tioctls[] = {
 static DEFINE_STRARRAY_OFFSET(tioctls, 0x5401);
 #endif /* defined(__i386__) || defined(__x86_64__) */
 
+static size_t syscall_arg__scnprintf_seccomp_op(char *bf, size_t size, struct syscall_arg *arg)
+{
+	int op = arg->val;
+	size_t printed = 0;
+
+	switch (op) {
+#define	P_SECCOMP_SET_MODE_OP(n) case SECCOMP_SET_MODE_##n: printed = scnprintf(bf, size, #n); break
+	P_SECCOMP_SET_MODE_OP(STRICT);
+	P_SECCOMP_SET_MODE_OP(FILTER);
+#undef P_SECCOMP_SET_MODE_OP
+	default: printed = scnprintf(bf, size, "%#x", op);			  break;
+	}
+
+	return printed;
+}
+
+#define SCA_SECCOMP_OP  syscall_arg__scnprintf_seccomp_op
+
+static size_t syscall_arg__scnprintf_seccomp_flags(char *bf, size_t size,
+						   struct syscall_arg *arg)
+{
+	int printed = 0, flags = arg->val;
+
+#define	P_FLAG(n) \
+	if (flags & SECCOMP_FILTER_FLAG_##n) { \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		flags &= ~SECCOMP_FILTER_FLAG_##n; \
+	}
+
+	P_FLAG(TSYNC);
+#undef P_FLAG
+
+	if (flags)
+		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
+
+	return printed;
+}
+
+#define SCA_SECCOMP_FLAGS syscall_arg__scnprintf_seccomp_flags
+
 #define STRARRAY(arg, name, array) \
 	  .arg_scnprintf = { [arg] = SCA_STRARRAY, }, \
 	  .arg_parm	 = { [arg] = &strarray__##array, }
@@ -1234,6 +1278,9 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [1] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "rt_tgsigqueueinfo", .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_SIGNUM, /* sig */ }, },
+	{ .name	    = "seccomp", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_SECCOMP_OP, /* op */
+			     [1] = SCA_SECCOMP_FLAGS, /* flags */ }, },
 	{ .name	    = "select",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "sendmmsg",    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
