@@ -42,8 +42,8 @@
 #include "../include/obd.h"
 #include "../include/cl_object.h"
 
-#include "vvp_internal.h"
 #include "../include/lustre_lite.h"
+#include "llite_internal.h"
 
 /* Initialize the default and maximum LOV EA and cookie sizes.  This allows
  * us to make MDS RPCs with large enough reply buffers to hold the
@@ -126,7 +126,7 @@ int cl_ocd_update(struct obd_device *host,
 #define GROUPLOCK_SCOPE "grouplock"
 
 int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
-		     struct ccc_grouplock *cg)
+		     struct ll_grouplock *cg)
 {
 	struct lu_env	  *env;
 	struct cl_io	   *io;
@@ -172,25 +172,25 @@ int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
 		return rc;
 	}
 
-	cg->cg_env  = cl_env_get(&refcheck);
-	cg->cg_io   = io;
-	cg->cg_lock = lock;
-	cg->cg_gid  = gid;
-	LASSERT(cg->cg_env == env);
+	cg->lg_env  = cl_env_get(&refcheck);
+	cg->lg_io   = io;
+	cg->lg_lock = lock;
+	cg->lg_gid  = gid;
+	LASSERT(cg->lg_env == env);
 
 	cl_env_unplant(env, &refcheck);
 	return 0;
 }
 
-void cl_put_grouplock(struct ccc_grouplock *cg)
+void cl_put_grouplock(struct ll_grouplock *cg)
 {
-	struct lu_env  *env  = cg->cg_env;
-	struct cl_io   *io   = cg->cg_io;
-	struct cl_lock *lock = cg->cg_lock;
+	struct lu_env  *env  = cg->lg_env;
+	struct cl_io   *io   = cg->lg_io;
+	struct cl_lock *lock = cg->lg_lock;
 	int	     refcheck;
 
-	LASSERT(cg->cg_env);
-	LASSERT(cg->cg_gid);
+	LASSERT(cg->lg_env);
+	LASSERT(cg->lg_gid);
 
 	cl_env_implant(env, &refcheck);
 	cl_env_put(env, &refcheck);

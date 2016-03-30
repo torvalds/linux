@@ -99,6 +99,13 @@ struct ll_remote_perm {
 					     */
 };
 
+struct ll_grouplock {
+	struct lu_env	*lg_env;
+	struct cl_io	*lg_io;
+	struct cl_lock	*lg_lock;
+	unsigned long	 lg_gid;
+};
+
 enum lli_flags {
 	/* MDS has an authority for the Size-on-MDS attributes. */
 	LLIF_MDS_SIZE_LOCK      = (1 << 0),
@@ -612,7 +619,7 @@ extern struct kmem_cache *ll_file_data_slab;
 struct lustre_handle;
 struct ll_file_data {
 	struct ll_readahead_state fd_ras;
-	struct ccc_grouplock fd_grouplock;
+	struct ll_grouplock fd_grouplock;
 	__u64 lfd_pos;
 	__u32 fd_flags;
 	fmode_t fd_omode;
@@ -654,6 +661,11 @@ static inline int ll_need_32bit_api(struct ll_sb_info *sbi)
 }
 
 void ll_ras_enter(struct file *f);
+
+/* llite/lcommon_misc.c */
+int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
+		     struct ll_grouplock *cg);
+void cl_put_grouplock(struct ll_grouplock *cg);
 
 /* llite/lproc_llite.c */
 int ldebugfs_register_mountpoint(struct dentry *parent,

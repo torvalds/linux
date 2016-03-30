@@ -388,17 +388,6 @@ int cl_ocd_update(struct obd_device *host,
 		  struct obd_device *watched,
 		  enum obd_notify_event ev, void *owner, void *data);
 
-struct ccc_grouplock {
-	struct lu_env	*cg_env;
-	struct cl_io	*cg_io;
-	struct cl_lock	*cg_lock;
-	unsigned long	 cg_gid;
-};
-
-int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
-		     struct ccc_grouplock *cg);
-void cl_put_grouplock(struct ccc_grouplock *cg);
-
 /**
  * New interfaces to get and put lov_stripe_md from lov layer. This violates
  * layering because lov_stripe_md is supposed to be a private data in lov.
