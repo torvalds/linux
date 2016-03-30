@@ -106,7 +106,6 @@ enum {
  * @pwm: global index of the PWM device
  * @chip: PWM chip providing this PWM device
  * @chip_data: chip-private data associated with the PWM device
- * @lock: used to serialize accesses to the PWM device where necessary
  * @period: period of the PWM signal (in nanoseconds)
  * @duty_cycle: duty cycle of the PWM signal (in nanoseconds)
  * @polarity: polarity of the PWM signal
@@ -119,7 +118,6 @@ struct pwm_device {
 	unsigned int pwm;
 	struct pwm_chip *chip;
 	void *chip_data;
-	struct mutex lock;
 
 	unsigned int period;
 	unsigned int duty_cycle;
