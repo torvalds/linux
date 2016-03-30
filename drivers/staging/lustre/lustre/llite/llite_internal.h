@@ -161,7 +161,9 @@ struct ll_inode_info {
 	struct inode			lli_vfs_inode;
 
 	/* the most recent timestamps obtained from mds */
-	struct ost_lvb			lli_lvb;
+	s64				lli_atime;
+	s64				lli_mtime;
+	s64				lli_ctime;
 	spinlock_t			lli_agl_lock;
 
 	/* Try to make the d::member and f::member are aligned. Before using
@@ -752,7 +754,7 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 		     int *lmm_size, struct ptlrpc_request **request);
 int ll_fsync(struct file *file, loff_t start, loff_t end, int data);
-int ll_merge_lvb(const struct lu_env *env, struct inode *inode);
+int ll_merge_attr(const struct lu_env *env, struct inode *inode);
 int ll_fid2path(struct inode *inode, void __user *arg);
 int ll_data_version(struct inode *inode, __u64 *data_version, int extent_lock);
 int ll_hsm_release(struct inode *inode);
@@ -1318,11 +1320,6 @@ static inline void cl_isize_write(struct inode *inode, loff_t kms)
 }
 
 #define cl_isize_read(inode)	     i_size_read(inode)
-
-static inline int cl_merge_lvb(const struct lu_env *env, struct inode *inode)
-{
-	return ll_merge_lvb(env, inode);
-}
 
 #define cl_inode_atime(inode) LTIME_S((inode)->i_atime)
 #define cl_inode_ctime(inode) LTIME_S((inode)->i_ctime)

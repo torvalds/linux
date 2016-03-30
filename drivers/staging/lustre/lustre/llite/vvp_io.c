@@ -739,7 +739,7 @@ int vvp_io_write_commit(const struct lu_env *env, struct cl_io *io)
 	}
 
 	/* update inode size */
-	ll_merge_lvb(env, inode);
+	ll_merge_attr(env, inode);
 
 	/* Now the pages in queue were failed to commit, discard them
 	 * unless they were dirtied before.

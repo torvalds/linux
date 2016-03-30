@@ -1551,7 +1551,7 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 	if (body->valid & OBD_MD_FLATIME) {
 		if (body->atime > LTIME_S(inode->i_atime))
 			LTIME_S(inode->i_atime) = body->atime;
-		lli->lli_lvb.lvb_atime = body->atime;
+		lli->lli_atime = body->atime;
 	}
 	if (body->valid & OBD_MD_FLMTIME) {
 		if (body->mtime > LTIME_S(inode->i_mtime)) {
@@ -1560,12 +1560,12 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 			       body->mtime);
 			LTIME_S(inode->i_mtime) = body->mtime;
 		}
-		lli->lli_lvb.lvb_mtime = body->mtime;
+		lli->lli_mtime = body->mtime;
 	}
 	if (body->valid & OBD_MD_FLCTIME) {
 		if (body->ctime > LTIME_S(inode->i_ctime))
 			LTIME_S(inode->i_ctime) = body->ctime;
-		lli->lli_lvb.lvb_ctime = body->ctime;
+		lli->lli_ctime = body->ctime;
 	}
 	if (body->valid & OBD_MD_FLMODE)
 		inode->i_mode = (inode->i_mode & S_IFMT)|(body->mode & ~S_IFMT);

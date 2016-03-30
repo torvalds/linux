@@ -591,7 +591,7 @@ void ccc_lock_state(const struct lu_env *env,
 		 */
 		if (lock->cll_descr.cld_start == 0 &&
 		    lock->cll_descr.cld_end == CL_PAGE_EOF)
-			cl_merge_lvb(env, inode);
+			ll_merge_attr(env, inode);
 	}
 }
 
