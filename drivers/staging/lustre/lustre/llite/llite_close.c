@@ -46,21 +46,21 @@
 #include "llite_internal.h"
 
 /** records that a write is in flight */
-void vvp_write_pending(struct ccc_object *club, struct ccc_page *page)
+void vvp_write_pending(struct vvp_object *club, struct ccc_page *page)
 {
-	struct ll_inode_info *lli = ll_i2info(club->cob_inode);
+	struct ll_inode_info *lli = ll_i2info(club->vob_inode);
 
 	spin_lock(&lli->lli_lock);
 	lli->lli_flags |= LLIF_SOM_DIRTY;
 	if (page && list_empty(&page->cpg_pending_linkage))
-		list_add(&page->cpg_pending_linkage, &club->cob_pending_list);
+		list_add(&page->cpg_pending_linkage, &club->vob_pending_list);
 	spin_unlock(&lli->lli_lock);
 }
 
 /** records that a write has completed */
-void vvp_write_complete(struct ccc_object *club, struct ccc_page *page)
+void vvp_write_complete(struct vvp_object *club, struct ccc_page *page)
 {
-	struct ll_inode_info *lli = ll_i2info(club->cob_inode);
+	struct ll_inode_info *lli = ll_i2info(club->vob_inode);
 	int rc = 0;
 
 	spin_lock(&lli->lli_lock);
@@ -70,7 +70,7 @@ void vvp_write_complete(struct ccc_object *club, struct ccc_page *page)
 	}
 	spin_unlock(&lli->lli_lock);
 	if (rc)
-		ll_queue_done_writing(club->cob_inode, 0);
+		ll_queue_done_writing(club->vob_inode, 0);
 }
 
 /** Queues DONE_WRITING if
@@ -80,13 +80,13 @@ void vvp_write_complete(struct ccc_object *club, struct ccc_page *page)
 void ll_queue_done_writing(struct inode *inode, unsigned long flags)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
-	struct ccc_object *club = cl2ccc(ll_i2info(inode)->lli_clob);
+	struct vvp_object *club = cl2vvp(ll_i2info(inode)->lli_clob);
 
 	spin_lock(&lli->lli_lock);
 	lli->lli_flags |= flags;
 
 	if ((lli->lli_flags & LLIF_DONE_WRITING) &&
-	    list_empty(&club->cob_pending_list)) {
+	    list_empty(&club->vob_pending_list)) {
 		struct ll_close_queue *lcq = ll_i2sbi(inode)->ll_lcq;
 
 		if (lli->lli_flags & LLIF_MDS_SIZE_LOCK)
@@ -140,10 +140,10 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 		      struct obd_client_handle **och, unsigned long flags)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
-	struct ccc_object *club = cl2ccc(ll_i2info(inode)->lli_clob);
+	struct vvp_object *club = cl2vvp(ll_i2info(inode)->lli_clob);
 
 	spin_lock(&lli->lli_lock);
-	if (!(list_empty(&club->cob_pending_list))) {
+	if (!(list_empty(&club->vob_pending_list))) {
 		if (!(lli->lli_flags & LLIF_EPOCH_PENDING)) {
 			LASSERT(*och);
 			LASSERT(!lli->lli_pending_och);
@@ -198,7 +198,7 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 		}
 	}
 
-	LASSERT(list_empty(&club->cob_pending_list));
+	LASSERT(list_empty(&club->vob_pending_list));
 	lli->lli_flags &= ~LLIF_SOM_DIRTY;
 	spin_unlock(&lli->lli_lock);
 	ll_done_writing_attr(inode, op_data);

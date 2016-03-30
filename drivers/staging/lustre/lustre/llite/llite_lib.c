@@ -2270,7 +2270,7 @@ void ll_dirty_page_discard_warn(struct page *page, int ioret)
 {
 	char *buf, *path = NULL;
 	struct dentry *dentry = NULL;
-	struct ccc_object *obj = cl_inode2ccc(page->mapping->host);
+	struct vvp_object *obj = cl_inode2vvp(page->mapping->host);
 
 	/* this can be called inside spin lock so use GFP_ATOMIC. */
 	buf = (char *)__get_free_page(GFP_ATOMIC);
@@ -2284,7 +2284,7 @@ void ll_dirty_page_discard_warn(struct page *page, int ioret)
 	       "%s: dirty page discard: %s/fid: " DFID "/%s may get corrupted (rc %d)\n",
 	       ll_get_fsname(page->mapping->host->i_sb, NULL, 0),
 	       s2lsi(page->mapping->host->i_sb)->lsi_lmd->lmd_dev,
-	       PFID(&obj->cob_header.coh_lu.loh_fid),
+	       PFID(&obj->vob_header.coh_lu.loh_fid),
 	       (path && !IS_ERR(path)) ? path : "", ioret);
 
 	if (dentry)

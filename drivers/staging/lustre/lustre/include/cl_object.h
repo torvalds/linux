@@ -245,7 +245,7 @@ enum cl_attr_valid {
  *    be discarded from the memory, all its sub-objects are torn-down and
  *    destroyed too.
  *
- * \see ccc_object, lov_object, lovsub_object, osc_object
+ * \see vvp_object, lov_object, lovsub_object, osc_object
  */
 struct cl_object {
 	/** super class */
@@ -385,7 +385,7 @@ struct cl_object_operations {
 	 * object. Layers are supposed to fill parts of \a lvb that will be
 	 * shipped to the glimpse originator as a glimpse result.
 	 *
-	 * \see ccc_object_glimpse(), lovsub_object_glimpse(),
+	 * \see vvp_object_glimpse(), lovsub_object_glimpse(),
 	 * \see osc_object_glimpse()
 	 */
 	int (*coo_glimpse)(const struct lu_env *env,

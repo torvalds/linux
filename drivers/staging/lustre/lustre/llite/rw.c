@@ -343,7 +343,7 @@ static int ll_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 			      pgoff_t index, pgoff_t *max_index)
 {
 	struct cl_object *clob  = io->ci_obj;
-	struct inode     *inode = ccc_object_inode(clob);
+	struct inode     *inode = vvp_object_inode(clob);
 	struct page      *vmpage;
 	struct cl_page   *page;
 	enum ra_stat      which = _NR_RA_STAT; /* keep gcc happy */
@@ -558,7 +558,7 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	__u64 kms;
 
 	clob = io->ci_obj;
-	inode = ccc_object_inode(clob);
+	inode = vvp_object_inode(clob);
 
 	memset(ria, 0, sizeof(*ria));
 

@@ -68,7 +68,6 @@ static const struct cl_req_operations ccc_req_ops;
  */
 
 static struct kmem_cache *ccc_lock_kmem;
-static struct kmem_cache *ccc_object_kmem;
 static struct kmem_cache *ccc_thread_kmem;
 static struct kmem_cache *ccc_session_kmem;
 static struct kmem_cache *ccc_req_kmem;
@@ -78,11 +77,6 @@ static struct lu_kmem_descr ccc_caches[] = {
 		.ckd_cache = &ccc_lock_kmem,
 		.ckd_name  = "ccc_lock_kmem",
 		.ckd_size  = sizeof(struct ccc_lock)
-	},
-	{
-		.ckd_cache = &ccc_object_kmem,
-		.ckd_name  = "ccc_object_kmem",
-		.ckd_size  = sizeof(struct ccc_object)
 	},
 	{
 		.ckd_cache = &ccc_thread_kmem,
@@ -227,84 +221,6 @@ void ccc_global_fini(struct lu_device_type *device_type)
 	lu_kmem_fini(ccc_caches);
 }
 
-/*****************************************************************************
- *
- * Object operations.
- *
- */
-
-struct lu_object *ccc_object_alloc(const struct lu_env *env,
-				   const struct lu_object_header *unused,
-				   struct lu_device *dev,
-				   const struct cl_object_operations *clops,
-				   const struct lu_object_operations *luops)
-{
-	struct ccc_object *vob;
-	struct lu_object  *obj;
-
-	vob = kmem_cache_zalloc(ccc_object_kmem, GFP_NOFS);
-	if (vob) {
-		struct cl_object_header *hdr;
-
-		obj = ccc2lu(vob);
-		hdr = &vob->cob_header;
-		cl_object_header_init(hdr);
-		hdr->coh_page_bufsize = cfs_size_round(sizeof(struct cl_page));
-
-		lu_object_init(obj, &hdr->coh_lu, dev);
-		lu_object_add_top(&hdr->coh_lu, obj);
-
-		vob->cob_cl.co_ops = clops;
-		obj->lo_ops = luops;
-	} else {
-		obj = NULL;
-	}
-	return obj;
-}
-
-int ccc_object_init0(const struct lu_env *env,
-		     struct ccc_object *vob,
-		     const struct cl_object_conf *conf)
-{
-	vob->cob_inode = conf->coc_inode;
-	vob->cob_transient_pages = 0;
-	cl_object_page_init(&vob->cob_cl, sizeof(struct ccc_page));
-	return 0;
-}
-
-int ccc_object_init(const struct lu_env *env, struct lu_object *obj,
-		    const struct lu_object_conf *conf)
-{
-	struct vvp_device *dev = lu2vvp_dev(obj->lo_dev);
-	struct ccc_object *vob = lu2ccc(obj);
-	struct lu_object  *below;
-	struct lu_device  *under;
-	int result;
-
-	under = &dev->vdv_next->cd_lu_dev;
-	below = under->ld_ops->ldo_object_alloc(env, obj->lo_header, under);
-	if (below) {
-		const struct cl_object_conf *cconf;
-
-		cconf = lu2cl_conf(conf);
-		INIT_LIST_HEAD(&vob->cob_pending_list);
-		lu_object_add(obj, below);
-		result = ccc_object_init0(env, vob, cconf);
-	} else {
-		result = -ENOMEM;
-	}
-	return result;
-}
-
-void ccc_object_free(const struct lu_env *env, struct lu_object *obj)
-{
-	struct ccc_object *vob = lu2ccc(obj);
-
-	lu_object_fini(obj);
-	lu_object_header_fini(obj->lo_header);
-	kmem_cache_free(ccc_object_kmem, vob);
-}
-
 int ccc_lock_init(const struct lu_env *env,
 		  struct cl_object *obj, struct cl_lock *lock,
 		  const struct cl_io *unused,
@@ -313,7 +229,7 @@ int ccc_lock_init(const struct lu_env *env,
 	struct ccc_lock *clk;
 	int result;
 
-	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
+	CLOBINVRNT(env, obj, vvp_object_invariant(obj));
 
 	clk = kmem_cache_zalloc(ccc_lock_kmem, GFP_NOFS);
 	if (clk) {
@@ -325,35 +241,17 @@ int ccc_lock_init(const struct lu_env *env,
 	return result;
 }
 
-int ccc_object_glimpse(const struct lu_env *env,
-		       const struct cl_object *obj, struct ost_lvb *lvb)
+static void vvp_object_size_lock(struct cl_object *obj)
 {
-	struct inode *inode = ccc_object_inode(obj);
-
-	lvb->lvb_mtime = LTIME_S(inode->i_mtime);
-	lvb->lvb_atime = LTIME_S(inode->i_atime);
-	lvb->lvb_ctime = LTIME_S(inode->i_ctime);
-	/*
-	 * LU-417: Add dirty pages block count lest i_blocks reports 0, some
-	 * "cp" or "tar" on remote node may think it's a completely sparse file
-	 * and skip it.
-	 */
-	if (lvb->lvb_size > 0 && lvb->lvb_blocks == 0)
-		lvb->lvb_blocks = dirty_cnt(inode);
-	return 0;
-}
-
-static void ccc_object_size_lock(struct cl_object *obj)
-{
-	struct inode *inode = ccc_object_inode(obj);
+	struct inode *inode = vvp_object_inode(obj);
 
 	ll_inode_size_lock(inode);
 	cl_object_attr_lock(obj);
 }
 
-static void ccc_object_size_unlock(struct cl_object *obj)
+static void vvp_object_size_unlock(struct cl_object *obj)
 {
-	struct inode *inode = ccc_object_inode(obj);
+	struct inode *inode = vvp_object_inode(obj);
 
 	cl_object_attr_unlock(obj);
 	ll_inode_size_unlock(inode);
@@ -399,7 +297,7 @@ int ccc_lock_enqueue(const struct lu_env *env,
 		     const struct cl_lock_slice *slice,
 		     struct cl_io *unused, struct cl_sync_io *anchor)
 {
-	CLOBINVRNT(env, slice->cls_obj, ccc_object_invariant(slice->cls_obj));
+	CLOBINVRNT(env, slice->cls_obj, vvp_object_invariant(slice->cls_obj));
 	return 0;
 }
 
@@ -417,7 +315,7 @@ int ccc_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 	struct cl_lock_descr   *descr = &cio->cui_link.cill_descr;
 	struct cl_object       *obj   = io->ci_obj;
 
-	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
+	CLOBINVRNT(env, obj, vvp_object_invariant(obj));
 
 	CDEBUG(D_VFSTRACE, "lock: %d [%lu, %lu]\n", mode, start, end);
 
@@ -462,7 +360,7 @@ int ccc_io_one_lock(const struct lu_env *env, struct cl_io *io,
 void ccc_io_end(const struct lu_env *env, const struct cl_io_slice *ios)
 {
 	CLOBINVRNT(env, ios->cis_io->ci_obj,
-		   ccc_object_invariant(ios->cis_io->ci_obj));
+		   vvp_object_invariant(ios->cis_io->ci_obj));
 }
 
 void ccc_io_advance(const struct lu_env *env,
@@ -473,7 +371,7 @@ void ccc_io_advance(const struct lu_env *env,
 	struct cl_io     *io  = ios->cis_io;
 	struct cl_object *obj = ios->cis_io->ci_obj;
 
-	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
+	CLOBINVRNT(env, obj, vvp_object_invariant(obj));
 
 	if (!cl_is_normalio(env, io))
 		return;
@@ -496,7 +394,7 @@ int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_io *io, loff_t start, size_t count, int *exceed)
 {
 	struct cl_attr *attr  = ccc_env_thread_attr(env);
-	struct inode   *inode = ccc_object_inode(obj);
+	struct inode   *inode = vvp_object_inode(obj);
 	loff_t	  pos   = start + count - 1;
 	loff_t kms;
 	int result;
@@ -520,7 +418,7 @@ int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
 	 * ll_inode_size_lock(). This guarantees that short reads are handled
 	 * correctly in the face of concurrent writes and truncates.
 	 */
-	ccc_object_size_lock(obj);
+	vvp_object_size_lock(obj);
 	result = cl_object_attr_get(env, obj, attr);
 	if (result == 0) {
 		kms = attr->cat_kms;
@@ -530,7 +428,7 @@ int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
 			 * return a short read (B) or some zeroes at the end
 			 * of the buffer (C)
 			 */
-			ccc_object_size_unlock(obj);
+			vvp_object_size_unlock(obj);
 			result = cl_glimpse_lock(env, io, inode, obj, 0);
 			if (result == 0 && exceed) {
 				/* If objective page index exceed end-of-file
@@ -567,7 +465,9 @@ int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
 			       (__u64)i_size_read(inode));
 		}
 	}
-	ccc_object_size_unlock(obj);
+
+	vvp_object_size_unlock(obj);
+
 	return result;
 }
 
@@ -618,7 +518,7 @@ void ccc_req_attr_set(const struct lu_env *env,
 	u32	      valid_flags;
 
 	oa = attr->cra_oa;
-	inode = ccc_object_inode(obj);
+	inode = vvp_object_inode(obj);
 	valid_flags = OBD_MD_FLTYPE;
 
 	if (slice->crs_req->crq_type == CRT_WRITE) {
@@ -694,21 +594,6 @@ again:
  *
  */
 
-struct lu_object *ccc2lu(struct ccc_object *vob)
-{
-	return &vob->cob_cl.co_lu;
-}
-
-struct ccc_object *lu2ccc(const struct lu_object *obj)
-{
-	return container_of0(obj, struct ccc_object, cob_cl.co_lu);
-}
-
-struct ccc_object *cl2ccc(const struct cl_object *obj)
-{
-	return container_of0(obj, struct ccc_object, cob_cl);
-}
-
 struct ccc_lock *cl2ccc_lock(const struct cl_lock_slice *slice)
 {
 	return container_of(slice, struct ccc_lock, clk_cl);
@@ -732,25 +617,6 @@ struct ccc_req *cl2ccc_req(const struct cl_req_slice *slice)
 struct page *cl2vm_page(const struct cl_page_slice *slice)
 {
 	return cl2ccc_page(slice)->cpg_page;
-}
-
-/*****************************************************************************
- *
- * Accessors.
- *
- */
-int ccc_object_invariant(const struct cl_object *obj)
-{
-	struct inode	 *inode = ccc_object_inode(obj);
-	struct ll_inode_info	*lli	= ll_i2info(inode);
-
-	return (S_ISREG(inode->i_mode) || inode->i_mode == 0) &&
-	       lli->lli_clob == obj;
-}
-
-struct inode *ccc_object_inode(const struct cl_object *obj)
-{
-	return cl2ccc(obj)->cob_inode;
 }
 
 /**

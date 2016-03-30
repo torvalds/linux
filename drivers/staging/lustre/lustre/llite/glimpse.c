@@ -69,14 +69,14 @@ static const struct cl_lock_descr whole_file = {
 blkcnt_t dirty_cnt(struct inode *inode)
 {
 	blkcnt_t cnt = 0;
-	struct ccc_object *vob = cl_inode2ccc(inode);
+	struct vvp_object *vob = cl_inode2vvp(inode);
 	void	      *results[1];
 
 	if (inode->i_mapping)
 		cnt += radix_tree_gang_lookup_tag(&inode->i_mapping->page_tree,
 						  results, 0, 1,
 						  PAGECACHE_TAG_DIRTY);
-	if (cnt == 0 && atomic_read(&vob->cob_mmap_cnt) > 0)
+	if (cnt == 0 && atomic_read(&vob->vob_mmap_cnt) > 0)
 		cnt = 1;
 
 	return (cnt > 0) ? 1 : 0;

@@ -57,9 +57,15 @@
  * "llite_" (var. "ll_") prefix.
  */
 
+struct kmem_cache *vvp_object_kmem;
 static struct kmem_cache *vvp_thread_kmem;
 static struct kmem_cache *vvp_session_kmem;
 static struct lu_kmem_descr vvp_caches[] = {
+	{
+		.ckd_cache = &vvp_object_kmem,
+		.ckd_name  = "vvp_object_kmem",
+		.ckd_size  = sizeof(struct vvp_object),
+	},
 	{
 		.ckd_cache = &vvp_thread_kmem,
 		.ckd_name  = "vvp_thread_kmem",
@@ -431,7 +437,7 @@ static loff_t vvp_pgcache_find(const struct lu_env *env,
 			return ~0ULL;
 		clob = vvp_pgcache_obj(env, dev, &id);
 		if (clob) {
-			struct inode *inode = ccc_object_inode(clob);
+			struct inode *inode = vvp_object_inode(clob);
 			struct page *vmpage;
 			int nr;
 
@@ -512,7 +518,7 @@ static int vvp_pgcache_show(struct seq_file *f, void *v)
 		sbi = f->private;
 		clob = vvp_pgcache_obj(env, &sbi->ll_cl->cd_lu_dev, &id);
 		if (clob) {
-			struct inode *inode = ccc_object_inode(clob);
+			struct inode *inode = vvp_object_inode(clob);
 			struct cl_page *page = NULL;
 			struct page *vmpage;
 

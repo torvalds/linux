@@ -159,9 +159,9 @@ static void vvp_page_delete(const struct lu_env *env,
 
 	LASSERT(PageLocked(vmpage));
 	LASSERT((struct cl_page *)vmpage->private == page);
-	LASSERT(inode == ccc_object_inode(obj));
+	LASSERT(inode == vvp_object_inode(obj));
 
-	vvp_write_complete(cl2ccc(obj), cl2ccc_page(slice));
+	vvp_write_complete(cl2vvp(obj), cl2ccc_page(slice));
 
 	/* Drop the reference count held in vvp_page_init */
 	refc = atomic_dec_return(&page->cp_ref);
@@ -220,7 +220,7 @@ static int vvp_page_prep_write(const struct lu_env *env,
 	if (!pg->cp_sync_io)
 		set_page_writeback(vmpage);
 
-	vvp_write_pending(cl2ccc(slice->cpl_obj), cl2ccc_page(slice));
+	vvp_write_pending(cl2vvp(slice->cpl_obj), cl2ccc_page(slice));
 
 	return 0;
 }
@@ -233,11 +233,11 @@ static int vvp_page_prep_write(const struct lu_env *env,
  */
 static void vvp_vmpage_error(struct inode *inode, struct page *vmpage, int ioret)
 {
-	struct ccc_object *obj = cl_inode2ccc(inode);
+	struct vvp_object *obj = cl_inode2vvp(inode);
 
 	if (ioret == 0) {
 		ClearPageError(vmpage);
-		obj->cob_discard_page_warned = 0;
+		obj->vob_discard_page_warned = 0;
 	} else {
 		SetPageError(vmpage);
 		if (ioret == -ENOSPC)
@@ -246,8 +246,8 @@ static void vvp_vmpage_error(struct inode *inode, struct page *vmpage, int ioret
 			set_bit(AS_EIO, &inode->i_mapping->flags);
 
 		if ((ioret == -ESHUTDOWN || ioret == -EINTR) &&
-		    obj->cob_discard_page_warned == 0) {
-			obj->cob_discard_page_warned = 1;
+		     obj->vob_discard_page_warned == 0) {
+			obj->vob_discard_page_warned = 1;
 			ll_dirty_page_discard_warn(vmpage, ioret);
 		}
 	}
@@ -260,7 +260,7 @@ static void vvp_page_completion_read(const struct lu_env *env,
 	struct ccc_page *cp     = cl2ccc_page(slice);
 	struct page      *vmpage = cp->cpg_page;
 	struct cl_page  *page   = slice->cpl_page;
-	struct inode    *inode  = ccc_object_inode(page->cp_obj);
+	struct inode    *inode  = vvp_object_inode(page->cp_obj);
 
 	LASSERT(PageLocked(vmpage));
 	CL_PAGE_HEADER(D_PAGE, env, page, "completing READ with %d\n", ioret);
@@ -299,7 +299,7 @@ static void vvp_page_completion_write(const struct lu_env *env,
 	 */
 
 	cp->cpg_write_queued = 0;
-	vvp_write_complete(cl2ccc(slice->cpl_obj), cp);
+	vvp_write_complete(cl2vvp(slice->cpl_obj), cp);
 
 	if (pg->cp_sync_io) {
 		LASSERT(PageLocked(vmpage));
@@ -310,7 +310,7 @@ static void vvp_page_completion_write(const struct lu_env *env,
 		 * Only mark the page error only when it's an async write
 		 * because applications won't wait for IO to finish.
 		 */
-		vvp_vmpage_error(ccc_object_inode(pg->cp_obj), vmpage, ioret);
+		vvp_vmpage_error(vvp_object_inode(pg->cp_obj), vmpage, ioret);
 
 		end_page_writeback(vmpage);
 	}
@@ -342,7 +342,7 @@ static int vvp_page_make_ready(const struct lu_env *env,
 		LASSERT(pg->cp_state == CPS_CACHED);
 		/* This actually clears the dirty bit in the radix tree. */
 		set_page_writeback(vmpage);
-		vvp_write_pending(cl2ccc(slice->cpl_obj), cl2ccc_page(slice));
+		vvp_write_pending(cl2vvp(slice->cpl_obj), cl2ccc_page(slice));
 		CL_PAGE_HEADER(D_PAGE, env, pg, "readied\n");
 	} else if (pg->cp_state == CPS_PAGEOUT) {
 		/* is it possible for osc_flush_async_page() to already
@@ -421,7 +421,7 @@ static const struct cl_page_operations vvp_page_ops = {
 
 static void vvp_transient_page_verify(const struct cl_page *page)
 {
-	struct inode *inode = ccc_object_inode(page->cp_obj);
+	struct inode *inode = vvp_object_inode(page->cp_obj);
 
 	LASSERT(!inode_trylock(inode));
 }
@@ -472,7 +472,7 @@ static void vvp_transient_page_discard(const struct lu_env *env,
 static int vvp_transient_page_is_vmlocked(const struct lu_env *env,
 					  const struct cl_page_slice *slice)
 {
-	struct inode    *inode = ccc_object_inode(slice->cpl_obj);
+	struct inode    *inode = vvp_object_inode(slice->cpl_obj);
 	int	locked;
 
 	locked = !inode_trylock(inode);
@@ -494,11 +494,11 @@ static void vvp_transient_page_fini(const struct lu_env *env,
 {
 	struct ccc_page *cp = cl2ccc_page(slice);
 	struct cl_page *clp = slice->cpl_page;
-	struct ccc_object *clobj = cl2ccc(clp->cp_obj);
+	struct vvp_object *clobj = cl2vvp(clp->cp_obj);
 
 	vvp_page_fini_common(cp);
-	LASSERT(!inode_trylock(clobj->cob_inode));
-	clobj->cob_transient_pages--;
+	LASSERT(!inode_trylock(clobj->vob_inode));
+	clobj->vob_transient_pages--;
 }
 
 static const struct cl_page_operations vvp_transient_page_ops = {
@@ -529,7 +529,7 @@ int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
 	struct ccc_page *cpg = cl_object_page_slice(obj, page);
 	struct page     *vmpage = page->cp_vmpage;
 
-	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
+	CLOBINVRNT(env, obj, vvp_object_invariant(obj));
 
 	cpg->cpg_page = vmpage;
 	page_cache_get(vmpage);
@@ -543,12 +543,12 @@ int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
 		cl_page_slice_add(page, &cpg->cpg_cl, obj, index,
 				  &vvp_page_ops);
 	} else {
-		struct ccc_object *clobj = cl2ccc(obj);
+		struct vvp_object *clobj = cl2vvp(obj);
 
-		LASSERT(!inode_trylock(clobj->cob_inode));
+		LASSERT(!inode_trylock(clobj->vob_inode));
 		cl_page_slice_add(page, &cpg->cpg_cl, obj, index,
 				  &vvp_transient_page_ops);
-		clobj->cob_transient_pages++;
+		clobj->vob_transient_pages++;
 	}
 	return 0;
 }

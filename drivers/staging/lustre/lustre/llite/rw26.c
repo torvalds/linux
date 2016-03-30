@@ -350,7 +350,7 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 	struct cl_io *io;
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
-	struct ccc_object *obj = cl_inode2ccc(inode);
+	struct vvp_object *obj = cl_inode2vvp(inode);
 	ssize_t count = iov_iter_count(iter);
 	ssize_t tot_bytes = 0, result = 0;
 	struct ll_inode_info *lli = ll_i2info(inode);
@@ -386,7 +386,7 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 	if (iov_iter_rw(iter) == READ)
 		inode_lock(inode);
 
-	LASSERT(obj->cob_transient_pages == 0);
+	LASSERT(obj->vob_transient_pages == 0);
 	while (iov_iter_count(iter)) {
 		struct page **pages;
 		size_t offs;
@@ -434,7 +434,7 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 		file_offset += result;
 	}
 out:
-	LASSERT(obj->cob_transient_pages == 0);
+	LASSERT(obj->vob_transient_pages == 0);
 	if (iov_iter_rw(iter) == READ)
 		inode_unlock(inode);
 
