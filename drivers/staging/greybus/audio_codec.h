@@ -36,6 +36,21 @@ enum gbcodec_reg_index {
 	GBCODEC_REG_COUNT
 };
 
+/* device_type should be same as defined in audio.h (Android media layer) */
+enum {
+	GBAUDIO_DEVICE_NONE                     = 0x0,
+	/* reserved bits */
+	GBAUDIO_DEVICE_BIT_IN                   = 0x80000000,
+	GBAUDIO_DEVICE_BIT_DEFAULT              = 0x40000000,
+	/* output devices */
+	GBAUDIO_DEVICE_OUT_SPEAKER              = 0x2,
+	GBAUDIO_DEVICE_OUT_WIRED_HEADSET        = 0x4,
+	GBAUDIO_DEVICE_OUT_WIRED_HEADPHONE      = 0x8,
+	/* input devices */
+	GBAUDIO_DEVICE_IN_BUILTIN_MIC           = GBAUDIO_DEVICE_BIT_IN | 0x4,
+	GBAUDIO_DEVICE_IN_WIRED_HEADSET         = GBAUDIO_DEVICE_BIT_IN | 0x10,
+};
+
 /* bit 0-SPK, 1-HP, 2-DAC,
  * 4-MIC, 5-HSMIC, 6-MIC2
  */
@@ -144,6 +159,8 @@ struct gbaudio_module_info {
 	/* need to share this info to above user space */
 	int manager_id;
 	char name[NAME_SIZE];
+	unsigned int ip_devices;
+	unsigned int op_devices;
 
 	/* jack related */
 	char jack_name[NAME_SIZE];

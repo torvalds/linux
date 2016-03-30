@@ -665,15 +665,20 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 	case snd_soc_dapm_spk:
 		*dw = (struct snd_soc_dapm_widget)
 			SND_SOC_DAPM_SPK(w->name, gbcodec_event_spk);
+		module->op_devices |= GBAUDIO_DEVICE_OUT_SPEAKER;
 		break;
 	case snd_soc_dapm_hp:
 		*dw = (struct snd_soc_dapm_widget)
 			SND_SOC_DAPM_HP(w->name, gbcodec_event_hp);
 		module->num_jacks++;
+		module->op_devices |= (GBAUDIO_DEVICE_OUT_WIRED_HEADSET
+					| GBAUDIO_DEVICE_OUT_WIRED_HEADPHONE);
+		module->ip_devices |= GBAUDIO_DEVICE_IN_WIRED_HEADSET;
 		break;
 	case snd_soc_dapm_mic:
 		*dw = (struct snd_soc_dapm_widget)
 			SND_SOC_DAPM_MIC(w->name, gbcodec_event_int_mic);
+		module->ip_devices |= GBAUDIO_DEVICE_IN_BUILTIN_MIC;
 		break;
 	case snd_soc_dapm_output:
 		*dw = (struct snd_soc_dapm_widget)SND_SOC_DAPM_OUTPUT(w->name);

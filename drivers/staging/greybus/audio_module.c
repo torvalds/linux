@@ -353,8 +353,8 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 	desc.vid = 2; /* todo */
 	desc.pid = 3; /* todo */
 	desc.cport = gbmodule->dev_id;
-	desc.op_devices = 0x2; /* todo */
-	desc.ip_devices = 0x0; /* todo */
+	desc.op_devices = gbmodule->op_devices;
+	desc.ip_devices = gbmodule->ip_devices;
 	gbmodule->manager_id = gb_audio_manager_add(&desc);
 
 	dev_dbg(dev, "Add GB Audio device:%s\n", gbmodule->name);
