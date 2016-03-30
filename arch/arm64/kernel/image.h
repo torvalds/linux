@@ -71,7 +71,11 @@
 	DEFINE_IMAGE_LE64(_kernel_offset_le, TEXT_OFFSET);	\
 	DEFINE_IMAGE_LE64(_kernel_flags_le, __HEAD_FLAGS);
 
+kernel_img_size = _end - (_text - TEXT_OFFSET);
+
 #ifdef CONFIG_EFI
+
+__efistub_stext_offset = stext - _text;
 
 /*
  * Prevent the symbol aliases below from being emitted into the kallsyms

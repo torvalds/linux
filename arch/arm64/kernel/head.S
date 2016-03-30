@@ -102,8 +102,6 @@ _head:
 #endif
 
 #ifdef CONFIG_EFI
-	.globl	__efistub_stext_offset
-	.set	__efistub_stext_offset, stext - _head
 	.align 3
 pe_header:
 	.ascii	"PE"
@@ -123,11 +121,11 @@ optional_header:
 	.short	0x20b				// PE32+ format
 	.byte	0x02				// MajorLinkerVersion
 	.byte	0x14				// MinorLinkerVersion
-	.long	_end - stext			// SizeOfCode
+	.long	_end - efi_header_end		// SizeOfCode
 	.long	0				// SizeOfInitializedData
 	.long	0				// SizeOfUninitializedData
 	.long	__efistub_entry - _head		// AddressOfEntryPoint
-	.long	__efistub_stext_offset		// BaseOfCode
+	.long	efi_header_end - _head		// BaseOfCode
 
 extra_header_fields:
 	.quad	0				// ImageBase
@@ -144,7 +142,7 @@ extra_header_fields:
 	.long	_end - _head			// SizeOfImage
 
 	// Everything before the kernel image is considered part of the header
-	.long	__efistub_stext_offset		// SizeOfHeaders
+	.long	efi_header_end - _head		// SizeOfHeaders
 	.long	0				// CheckSum
 	.short	0xa				// Subsystem (EFI application)
 	.short	0				// DllCharacteristics
@@ -188,10 +186,10 @@ section_table:
 	.byte	0
 	.byte	0
 	.byte	0        		// end of 0 padding of section name
-	.long	_end - stext		// VirtualSize
-	.long	__efistub_stext_offset	// VirtualAddress
-	.long	_edata - stext		// SizeOfRawData
-	.long	__efistub_stext_offset	// PointerToRawData
+	.long	_end - efi_header_end	// VirtualSize
+	.long	efi_header_end - _head	// VirtualAddress
+	.long	_edata - efi_header_end	// SizeOfRawData
+	.long	efi_header_end - _head	// PointerToRawData
 
 	.long	0		// PointerToRelocations (0 for executables)
 	.long	0		// PointerToLineNumbers (0 for executables)
@@ -200,14 +198,17 @@ section_table:
 	.long	0xe0500020	// Characteristics (section flags)
 
 	/*
-	 * EFI will load stext onwards at the 4k section alignment
+	 * EFI will load .text onwards at the 4k section alignment
 	 * described in the PE/COFF header. To ensure that instruction
 	 * sequences using an adrp and a :lo12: immediate will function
-	 * correctly at this alignment, we must ensure that stext is
+	 * correctly at this alignment, we must ensure that .text is
 	 * placed at a 4k boundary in the Image to begin with.
 	 */
 	.align 12
+efi_header_end:
 #endif
+
+	__INIT
 
 ENTRY(stext)
 	bl	preserve_boot_args
@@ -223,12 +224,12 @@ ENTRY(stext)
 	 * the TCR will have been set.
 	 */
 	ldr	x27, 0f				// address to jump to after
-						// MMU has been enabled
+	neg	x27, x27			// MMU has been enabled
 	adr_l	lr, __enable_mmu		// return (PIC) address
 	b	__cpu_setup			// initialise processor
 ENDPROC(stext)
 	.align	3
-0:	.quad	__mmap_switched - (_head - TEXT_OFFSET) + KIMAGE_VADDR
+0:	.quad	(_text - TEXT_OFFSET) - __mmap_switched - KIMAGE_VADDR
 
 /*
  * Preserve the arguments passed by the bootloader in x0 .. x3
@@ -397,7 +398,7 @@ __create_page_tables:
 	ldr	x5, =KIMAGE_VADDR
 	add	x5, x5, x23			// add KASLR displacement
 	create_pgd_entry x0, x5, x3, x6
-	ldr	w6, kernel_img_size
+	ldr	w6, =kernel_img_size
 	add	x6, x6, x5
 	mov	x3, x24				// phys offset
 	create_block_map x0, x7, x3, x5, x6
@@ -414,9 +415,6 @@ __create_page_tables:
 
 	ret	x28
 ENDPROC(__create_page_tables)
-
-kernel_img_size:
-	.long	_end - (_head - TEXT_OFFSET)
 	.ltorg
 
 /*
