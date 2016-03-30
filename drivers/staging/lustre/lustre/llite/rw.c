@@ -442,7 +442,7 @@ static int cl_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 			cl_page_list_add(queue, page);
 			rc = 1;
 		} else {
-			cl_page_delete(env, page);
+			cl_page_discard(env, io, page);
 			rc = -ENOLCK;
 		}
 	} else {

@@ -36,6 +36,7 @@
  * cl_device and cl_device_type implementation for VVP layer.
  *
  *   Author: Nikita Danilov <nikita.danilov@sun.com>
+ *   Author: Jinshan Xiong <jinshan.xiong@intel.com>
  */
 
 #define DEBUG_SUBSYSTEM S_LLITE
@@ -356,23 +357,18 @@ static loff_t vvp_pgcache_find(const struct lu_env *env,
 			return ~0ULL;
 		clob = vvp_pgcache_obj(env, dev, &id);
 		if (clob) {
-			struct cl_object_header *hdr;
-			int		      nr;
-			struct cl_page	  *pg;
+			struct inode *inode = ccc_object_inode(clob);
+			struct page *vmpage;
+			int nr;
 
-			/* got an object. Find next page. */
-			hdr = cl_object_header(clob);
-
-			spin_lock(&hdr->coh_page_guard);
-			nr = radix_tree_gang_lookup(&hdr->coh_tree,
-						    (void **)&pg,
-						    id.vpi_index, 1);
+			nr = find_get_pages_contig(inode->i_mapping,
+						   id.vpi_index, 1, &vmpage);
 			if (nr > 0) {
-				id.vpi_index = pg->cp_index;
+				id.vpi_index = vmpage->index;
 				/* Cant support over 16T file */
-				nr = !(pg->cp_index > 0xffffffff);
+				nr = !(vmpage->index > 0xffffffff);
+				page_cache_release(vmpage);
 			}
-			spin_unlock(&hdr->coh_page_guard);
 
 			lu_object_ref_del(&clob->co_lu, "dump", current);
 			cl_object_put(env, clob);
@@ -431,8 +427,6 @@ static int vvp_pgcache_show(struct seq_file *f, void *v)
 	struct ll_sb_info       *sbi;
 	struct cl_object	*clob;
 	struct lu_env	   *env;
-	struct cl_page	  *page;
-	struct cl_object_header *hdr;
 	struct vvp_pgcache_id    id;
 	int		      refcheck;
 	int		      result;
@@ -444,14 +438,23 @@ static int vvp_pgcache_show(struct seq_file *f, void *v)
 		sbi = f->private;
 		clob = vvp_pgcache_obj(env, &sbi->ll_cl->cd_lu_dev, &id);
 		if (clob) {
-			hdr = cl_object_header(clob);
+			struct inode *inode = ccc_object_inode(clob);
+			struct cl_page *page = NULL;
+			struct page *vmpage;
 
-			spin_lock(&hdr->coh_page_guard);
-			page = cl_page_lookup(hdr, id.vpi_index);
-			spin_unlock(&hdr->coh_page_guard);
+			result = find_get_pages_contig(inode->i_mapping,
+						       id.vpi_index, 1,
+						       &vmpage);
+			if (result > 0) {
+				lock_page(vmpage);
+				page = cl_vmpage_page(vmpage, clob);
+				unlock_page(vmpage);
 
-			seq_printf(f, "%8x@"DFID": ",
-				   id.vpi_index, PFID(&hdr->coh_lu.loh_fid));
+				page_cache_release(vmpage);
+			}
+
+			seq_printf(f, "%8x@" DFID ": ", id.vpi_index,
+				   PFID(lu_object_fid(&clob->co_lu)));
 			if (page) {
 				vvp_pgcache_page_show(env, f, page);
 				cl_page_put(env, page);

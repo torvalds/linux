@@ -111,7 +111,12 @@ struct osc_thread_info {
 	struct lustre_handle    oti_handle;
 	struct cl_page_list     oti_plist;
 	struct cl_io		oti_io;
-	struct cl_page	       *oti_pvec[OTI_PVEC_SIZE];
+	void			*oti_pvec[OTI_PVEC_SIZE];
+	/**
+	 * Fields used by cl_lock_discard_pages().
+	 */
+	pgoff_t			oti_next_index;
+	pgoff_t			oti_fn_index; /* first non-overlapped index */
 };
 
 struct osc_object {
@@ -161,6 +166,13 @@ struct osc_object {
 	 * oo_{read|write}_pages soon.
 	 */
 	spinlock_t	    oo_lock;
+
+	/**
+	 * Radix tree for caching pages
+	 */
+	struct radix_tree_root	oo_tree;
+	spinlock_t		oo_tree_lock;
+	unsigned long		oo_npages;
 };
 
 static inline void osc_object_lock(struct osc_object *obj)
@@ -569,6 +581,11 @@ static inline struct osc_page *oap2osc_page(struct osc_async_page *oap)
 	return (struct osc_page *)container_of(oap, struct osc_page, ops_oap);
 }
 
+static inline pgoff_t osc_index(struct osc_page *opg)
+{
+	return opg->ops_cl.cpl_page->cp_index;
+}
+
 static inline struct osc_lock *cl2osc_lock(const struct cl_lock_slice *slice)
 {
 	LINVRNT(osc_is_object(&slice->cls_obj->co_lu));
@@ -690,6 +707,14 @@ struct osc_extent {
 int osc_extent_finish(const struct lu_env *env, struct osc_extent *ext,
 		      int sent, int rc);
 void osc_extent_release(const struct lu_env *env, struct osc_extent *ext);
+
+int osc_lock_discard_pages(const struct lu_env *env, struct osc_lock *lock);
+
+typedef int (*osc_page_gang_cbt)(const struct lu_env *, struct cl_io *,
+				 struct osc_page *, void *);
+int osc_page_gang_lookup(const struct lu_env *env, struct cl_io *io,
+			 struct osc_object *osc, pgoff_t start, pgoff_t end,
+			 osc_page_gang_cbt cb, void *cbdata);
 
 /** @} osc */
 

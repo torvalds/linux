@@ -388,6 +388,12 @@ struct cl_object_operations {
 	 */
 	int (*coo_glimpse)(const struct lu_env *env,
 			   const struct cl_object *obj, struct ost_lvb *lvb);
+	/**
+	 * Object prune method. Called when the layout is going to change on
+	 * this object, therefore each layer has to clean up their cache,
+	 * mainly pages and locks.
+	 */
+	int (*coo_prune)(const struct lu_env *env, struct cl_object *obj);
 };
 
 /**
@@ -403,15 +409,9 @@ struct cl_object_header {
 	 * mostly useless otherwise.
 	 */
 	/** @{ */
-	/** Lock protecting page tree. */
-	spinlock_t		 coh_page_guard;
 	/** Lock protecting lock list. */
 	spinlock_t		 coh_lock_guard;
 	/** @} locks */
-	/** Radix tree of cl_page's, cached for this object. */
-	struct radix_tree_root   coh_tree;
-	/** # of pages in radix tree. */
-	unsigned long	    coh_pages;
 	/** List of cl_lock's granted for this object. */
 	struct list_head	       coh_locks;
 
@@ -896,14 +896,6 @@ struct cl_page_operations {
 	 */
 	void  (*cpo_export)(const struct lu_env *env,
 			    const struct cl_page_slice *slice, int uptodate);
-	/**
-	 * Unmaps page from the user space (if it is mapped).
-	 *
-	 * \see cl_page_unmap()
-	 * \see vvp_page_unmap()
-	 */
-	int (*cpo_unmap)(const struct lu_env *env,
-			 const struct cl_page_slice *slice, struct cl_io *io);
 	/**
 	 * Checks whether underlying VM page is locked (in the suitable
 	 * sense). Used for assertions.
@@ -2794,19 +2786,13 @@ enum {
 };
 
 /* callback of cl_page_gang_lookup() */
-typedef int   (*cl_page_gang_cb_t)  (const struct lu_env *, struct cl_io *,
-				     struct cl_page *, void *);
-int cl_page_gang_lookup(const struct lu_env *env, struct cl_object *obj,
-			struct cl_io *io, pgoff_t start, pgoff_t end,
-			cl_page_gang_cb_t cb, void *cbdata);
-struct cl_page *cl_page_lookup(struct cl_object_header *hdr, pgoff_t index);
 struct cl_page *cl_page_find(const struct lu_env *env, struct cl_object *obj,
 			     pgoff_t idx, struct page *vmpage,
 			     enum cl_page_type type);
-struct cl_page *cl_page_find_sub(const struct lu_env *env,
-				 struct cl_object *obj,
-				 pgoff_t idx, struct page *vmpage,
-				     struct cl_page *parent);
+struct cl_page *cl_page_alloc(const struct lu_env *env,
+			      struct cl_object *o, pgoff_t ind,
+			      struct page *vmpage,
+			      enum cl_page_type type);
 void cl_page_get(struct cl_page *page);
 void cl_page_put(const struct lu_env *env, struct cl_page *page);
 void cl_page_print(const struct lu_env *env, void *cookie, lu_printer_t printer,
@@ -2872,8 +2858,6 @@ int cl_page_flush(const struct lu_env *env, struct cl_io *io,
 void cl_page_discard(const struct lu_env *env, struct cl_io *io,
 		     struct cl_page *pg);
 void cl_page_delete(const struct lu_env *env, struct cl_page *pg);
-int cl_page_unmap(const struct lu_env *env, struct cl_io *io,
-		  struct cl_page *pg);
 int cl_page_is_vmlocked(const struct lu_env *env, const struct cl_page *pg);
 void cl_page_export(const struct lu_env *env, struct cl_page *pg, int uptodate);
 int cl_page_is_under_lock(const struct lu_env *env, struct cl_io *io,

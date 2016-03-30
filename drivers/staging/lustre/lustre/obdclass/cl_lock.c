@@ -36,6 +36,7 @@
  * Client Extent Lock.
  *
  *   Author: Nikita Danilov <nikita.danilov@sun.com>
+ *   Author: Jinshan Xiong <jinshan.xiong@intel.com>
  */
 
 #define DEBUG_SUBSYSTEM S_CLASS
@@ -1816,128 +1817,6 @@ struct cl_lock *cl_lock_at_pgoff(const struct lu_env *env,
 EXPORT_SYMBOL(cl_lock_at_pgoff);
 
 /**
- * Calculate the page offset at the layer of @lock.
- * At the time of this writing, @page is top page and @lock is sub lock.
- */
-static pgoff_t pgoff_at_lock(struct cl_page *page, struct cl_lock *lock)
-{
-	struct lu_device_type *dtype;
-	const struct cl_page_slice *slice;
-
-	dtype = lock->cll_descr.cld_obj->co_lu.lo_dev->ld_type;
-	slice = cl_page_at(page, dtype);
-	return slice->cpl_page->cp_index;
-}
-
-/**
- * Check if page @page is covered by an extra lock or discard it.
- */
-static int check_and_discard_cb(const struct lu_env *env, struct cl_io *io,
-				struct cl_page *page, void *cbdata)
-{
-	struct cl_thread_info *info = cl_env_info(env);
-	struct cl_lock *lock = cbdata;
-	pgoff_t index = pgoff_at_lock(page, lock);
-
-	if (index >= info->clt_fn_index) {
-		struct cl_lock *tmp;
-
-		/* refresh non-overlapped index */
-		tmp = cl_lock_at_pgoff(env, lock->cll_descr.cld_obj, index,
-				       lock, 1, 0);
-		if (tmp) {
-			/* Cache the first-non-overlapped index so as to skip
-			 * all pages within [index, clt_fn_index). This
-			 * is safe because if tmp lock is canceled, it will
-			 * discard these pages.
-			 */
-			info->clt_fn_index = tmp->cll_descr.cld_end + 1;
-			if (tmp->cll_descr.cld_end == CL_PAGE_EOF)
-				info->clt_fn_index = CL_PAGE_EOF;
-			cl_lock_put(env, tmp);
-		} else if (cl_page_own(env, io, page) == 0) {
-			/* discard the page */
-			cl_page_unmap(env, io, page);
-			cl_page_discard(env, io, page);
-			cl_page_disown(env, io, page);
-		} else {
-			LASSERT(page->cp_state == CPS_FREEING);
-		}
-	}
-
-	info->clt_next_index = index + 1;
-	return CLP_GANG_OKAY;
-}
-
-static int discard_cb(const struct lu_env *env, struct cl_io *io,
-		      struct cl_page *page, void *cbdata)
-{
-	struct cl_thread_info *info = cl_env_info(env);
-	struct cl_lock *lock   = cbdata;
-
-	LASSERT(lock->cll_descr.cld_mode >= CLM_WRITE);
-	KLASSERT(ergo(page->cp_type == CPT_CACHEABLE,
-		      !PageWriteback(cl_page_vmpage(env, page))));
-	KLASSERT(ergo(page->cp_type == CPT_CACHEABLE,
-		      !PageDirty(cl_page_vmpage(env, page))));
-
-	info->clt_next_index = pgoff_at_lock(page, lock) + 1;
-	if (cl_page_own(env, io, page) == 0) {
-		/* discard the page */
-		cl_page_unmap(env, io, page);
-		cl_page_discard(env, io, page);
-		cl_page_disown(env, io, page);
-	} else {
-		LASSERT(page->cp_state == CPS_FREEING);
-	}
-
-	return CLP_GANG_OKAY;
-}
-
-/**
- * Discard pages protected by the given lock. This function traverses radix
- * tree to find all covering pages and discard them. If a page is being covered
- * by other locks, it should remain in cache.
- *
- * If error happens on any step, the process continues anyway (the reasoning
- * behind this being that lock cancellation cannot be delayed indefinitely).
- */
-int cl_lock_discard_pages(const struct lu_env *env, struct cl_lock *lock)
-{
-	struct cl_thread_info *info  = cl_env_info(env);
-	struct cl_io	  *io    = &info->clt_io;
-	struct cl_lock_descr  *descr = &lock->cll_descr;
-	cl_page_gang_cb_t      cb;
-	int res;
-	int result;
-
-	LINVRNT(cl_lock_invariant(env, lock));
-
-	io->ci_obj = cl_object_top(descr->cld_obj);
-	io->ci_ignore_layout = 1;
-	result = cl_io_init(env, io, CIT_MISC, io->ci_obj);
-	if (result != 0)
-		goto out;
-
-	cb = descr->cld_mode == CLM_READ ? check_and_discard_cb : discard_cb;
-	info->clt_fn_index = info->clt_next_index = descr->cld_start;
-	do {
-		res = cl_page_gang_lookup(env, descr->cld_obj, io,
-					  info->clt_next_index, descr->cld_end,
-					  cb, (void *)lock);
-		if (info->clt_next_index > descr->cld_end)
-			break;
-
-		if (res == CLP_GANG_RESCHED)
-			cond_resched();
-	} while (res != CLP_GANG_OKAY);
-out:
-	cl_io_fini(env, io);
-	return result;
-}
-EXPORT_SYMBOL(cl_lock_discard_pages);
-
-/**
  * Eliminate all locks for a given object.
  *
  * Caller has to guarantee that no lock is in active use.
@@ -1951,12 +1830,6 @@ void cl_locks_prune(const struct lu_env *env, struct cl_object *obj, int cancel)
 	struct cl_lock	  *lock;
 
 	head = cl_object_header(obj);
-	/*
-	 * If locks are destroyed without cancellation, all pages must be
-	 * already destroyed (as otherwise they will be left unprotected).
-	 */
-	LASSERT(ergo(!cancel,
-		     !head->coh_tree.rnode && head->coh_pages == 0));
 
 	spin_lock(&head->coh_lock_guard);
 	while (!list_empty(&head->coh_locks)) {
@@ -2095,8 +1968,8 @@ void cl_lock_hold_add(const struct lu_env *env, struct cl_lock *lock,
 	LINVRNT(cl_lock_invariant(env, lock));
 	LASSERT(lock->cll_state != CLS_FREEING);
 
-	cl_lock_hold_mod(env, lock, 1);
 	cl_lock_get(lock);
+	cl_lock_hold_mod(env, lock, 1);
 	lu_ref_add(&lock->cll_holders, scope, source);
 	lu_ref_add(&lock->cll_reference, scope, source);
 }

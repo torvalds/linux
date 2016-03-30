@@ -36,6 +36,7 @@
  * Implementation of cl_object for OSC layer.
  *
  *   Author: Nikita Danilov <nikita.danilov@sun.com>
+ *   Author: Jinshan Xiong <jinshan.xiong@intel.com>
  */
 
 #define DEBUG_SUBSYSTEM S_OSC
@@ -94,6 +95,7 @@ static int osc_object_init(const struct lu_env *env, struct lu_object *obj,
 	atomic_set(&osc->oo_nr_reads, 0);
 	atomic_set(&osc->oo_nr_writes, 0);
 	spin_lock_init(&osc->oo_lock);
+	spin_lock_init(&osc->oo_tree_lock);
 
 	cl_object_page_init(lu2cl(obj), sizeof(struct osc_page));
 

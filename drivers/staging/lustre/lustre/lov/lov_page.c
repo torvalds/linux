@@ -36,6 +36,7 @@
  * Implementation of cl_page for LOV layer.
  *
  *   Author: Nikita Danilov <nikita.danilov@sun.com>
+ *   Author: Jinshan Xiong <jinshan.xiong@intel.com>
  */
 
 #define DEBUG_SUBSYSTEM S_LOV
@@ -179,31 +180,21 @@ int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
 	cl_page_slice_add(page, &lpg->lps_cl, obj, &lov_page_ops);
 
 	sub = lov_sub_get(env, lio, stripe);
-	if (IS_ERR(sub)) {
-		rc = PTR_ERR(sub);
-		goto out;
-	}
+	if (IS_ERR(sub))
+		return PTR_ERR(sub);
 
 	subobj = lovsub2cl(r0->lo_sub[stripe]);
-	subpage = cl_page_find_sub(sub->sub_env, subobj,
-				   cl_index(subobj, suboff), vmpage, page);
-	lov_sub_put(sub);
-	if (IS_ERR(subpage)) {
-		rc = PTR_ERR(subpage);
-		goto out;
-	}
-
-	if (likely(subpage->cp_parent == page)) {
-		lu_ref_add(&subpage->cp_reference, "lov", page);
+	subpage = cl_page_alloc(sub->sub_env, subobj, cl_index(subobj, suboff),
+				vmpage, page->cp_type);
+	if (!IS_ERR(subpage)) {
+		subpage->cp_parent = page;
+		page->cp_child = subpage;
 		lpg->lps_invalid = 0;
-		rc = 0;
 	} else {
-		CL_PAGE_DEBUG(D_ERROR, env, page, "parent page\n");
-		CL_PAGE_DEBUG(D_ERROR, env, subpage, "child page\n");
-		LASSERT(0);
+		rc = PTR_ERR(subpage);
 	}
+	lov_sub_put(sub);
 
-out:
 	return rc;
 }
 

@@ -36,6 +36,7 @@
  * Client Lustre Object.
  *
  *   Author: Nikita Danilov <nikita.danilov@sun.com>
+ *   Author: Jinshan Xiong <jinshan.xiong@intel.com>
  */
 
 /*
@@ -43,7 +44,6 @@
  *
  *  i_mutex
  *      PG_locked
- *	  ->coh_page_guard
  *	  ->coh_lock_guard
  *	  ->coh_attr_guard
  *	  ->ls_guard
@@ -63,8 +63,6 @@
 
 static struct kmem_cache *cl_env_kmem;
 
-/** Lock class of cl_object_header::coh_page_guard */
-static struct lock_class_key cl_page_guard_class;
 /** Lock class of cl_object_header::coh_lock_guard */
 static struct lock_class_key cl_lock_guard_class;
 /** Lock class of cl_object_header::coh_attr_guard */
@@ -81,15 +79,10 @@ int cl_object_header_init(struct cl_object_header *h)
 
 	result = lu_object_header_init(&h->coh_lu);
 	if (result == 0) {
-		spin_lock_init(&h->coh_page_guard);
 		spin_lock_init(&h->coh_lock_guard);
 		spin_lock_init(&h->coh_attr_guard);
-		lockdep_set_class(&h->coh_page_guard, &cl_page_guard_class);
 		lockdep_set_class(&h->coh_lock_guard, &cl_lock_guard_class);
 		lockdep_set_class(&h->coh_attr_guard, &cl_attr_guard_class);
-		h->coh_pages = 0;
-		/* XXX hard coded GFP_* mask. */
-		INIT_RADIX_TREE(&h->coh_tree, GFP_ATOMIC);
 		INIT_LIST_HEAD(&h->coh_locks);
 		h->coh_page_bufsize = ALIGN(sizeof(struct cl_page), 8);
 	}
@@ -315,6 +308,32 @@ int cl_conf_set(const struct lu_env *env, struct cl_object *obj,
 EXPORT_SYMBOL(cl_conf_set);
 
 /**
+ * Prunes caches of pages and locks for this object.
+ */
+void cl_object_prune(const struct lu_env *env, struct cl_object *obj)
+{
+	struct lu_object_header *top;
+	struct cl_object *o;
+	int result;
+
+	top = obj->co_lu.lo_header;
+	result = 0;
+	list_for_each_entry(o, &top->loh_layers, co_lu.lo_linkage) {
+		if (o->co_ops->coo_prune) {
+			result = o->co_ops->coo_prune(env, o);
+			if (result != 0)
+				break;
+		}
+	}
+
+	/* TODO: pruning locks will be moved into layers after cl_lock
+	 * simplification is done
+	 */
+	cl_locks_prune(env, obj, 1);
+}
+EXPORT_SYMBOL(cl_object_prune);
+
+/**
  * Helper function removing all object locks, and marking object for
  * deletion. All object pages must have been deleted at this point.
  *
@@ -326,8 +345,6 @@ void cl_object_kill(const struct lu_env *env, struct cl_object *obj)
 	struct cl_object_header *hdr;
 
 	hdr = cl_object_header(obj);
-	LASSERT(!hdr->coh_tree.rnode);
-	LASSERT(hdr->coh_pages == 0);
 
 	set_bit(LU_OBJECT_HEARD_BANSHEE, &hdr->coh_lu.loh_flags);
 	/*
@@ -340,16 +357,6 @@ void cl_object_kill(const struct lu_env *env, struct cl_object *obj)
 	cl_locks_prune(env, obj, 0);
 }
 EXPORT_SYMBOL(cl_object_kill);
-
-/**
- * Prunes caches of pages and locks for this object.
- */
-void cl_object_prune(const struct lu_env *env, struct cl_object *obj)
-{
-	cl_pages_prune(env, obj);
-	cl_locks_prune(env, obj, 1);
-}
-EXPORT_SYMBOL(cl_object_prune);
 
 void cache_stats_init(struct cache_stats *cs, const char *name)
 {

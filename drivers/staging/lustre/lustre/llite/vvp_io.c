@@ -763,7 +763,6 @@ static int vvp_io_fault_start(const struct lu_env *env,
 
 			vmpage = NULL;
 			if (result < 0) {
-				cl_page_unmap(env, io, page);
 				cl_page_discard(env, io, page);
 				cl_page_disown(env, io, page);
 

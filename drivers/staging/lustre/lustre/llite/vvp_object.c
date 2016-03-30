@@ -165,6 +165,18 @@ static int vvp_conf_set(const struct lu_env *env, struct cl_object *obj,
 	return 0;
 }
 
+static int vvp_prune(const struct lu_env *env, struct cl_object *obj)
+{
+	struct inode *inode = ccc_object_inode(obj);
+	int rc;
+
+	rc = cl_sync_file_range(inode, 0, OBD_OBJECT_EOF, CL_FSYNC_ALL, 1);
+	if (rc == 0)
+		truncate_inode_pages(inode->i_mapping, 0);
+
+	return rc;
+}
+
 static const struct cl_object_operations vvp_ops = {
 	.coo_page_init = vvp_page_init,
 	.coo_lock_init = vvp_lock_init,
@@ -172,6 +184,7 @@ static const struct cl_object_operations vvp_ops = {
 	.coo_attr_get  = vvp_attr_get,
 	.coo_attr_set  = vvp_attr_set,
 	.coo_conf_set  = vvp_conf_set,
+	.coo_prune     = vvp_prune,
 	.coo_glimpse   = ccc_object_glimpse
 };
 
