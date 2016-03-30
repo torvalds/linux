@@ -753,7 +753,6 @@ qla2x00_issue_logo(struct file *filp, struct kobject *kobj,
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
 	int type;
-	int rval = 0;
 	port_id_t did;
 
 	type = simple_strtol(buf, NULL, 10);
@@ -767,7 +766,7 @@ qla2x00_issue_logo(struct file *filp, struct kobject *kobj,
 
 	ql_log(ql_log_info, vha, 0x70e4, "%s: %d\n", __func__, type);
 
-	rval = qla24xx_els_dcmd_iocb(vha, ELS_DCMD_LOGO, did);
+	qla24xx_els_dcmd_iocb(vha, ELS_DCMD_LOGO, did);
 	return count;
 }
 

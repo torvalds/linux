@@ -3110,6 +3110,9 @@ static void qlt_send_term_imm_notif(struct scsi_qla_host *vha,
 #if 0	/* Todo  */
 		if (rc == -ENOMEM)
 			qlt_alloc_qfull_cmd(vha, imm, 0, 0);
+#else
+		if (rc) {
+		}
 #endif
 		goto done;
 	}

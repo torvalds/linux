@@ -684,7 +684,6 @@ qla_set_exlogin_mem_cfg(scsi_qla_host_t *vha, dma_addr_t phys_addr)
 	mbx_cmd_t	mc;
 	mbx_cmd_t	*mcp = &mc;
 	struct qla_hw_data *ha = vha->hw;
-	int configured_count;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x111a,
 	    "Entered %s.\n", __func__);
@@ -707,7 +706,6 @@ qla_set_exlogin_mem_cfg(scsi_qla_host_t *vha, dma_addr_t phys_addr)
 		/*EMPTY*/
 		ql_dbg(ql_dbg_mbx, vha, 0x111b, "Failed=%x.\n", rval);
 	} else {
-		configured_count = mcp->mb[11];
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x118c,
 		    "Done %s.\n", __func__);
 	}
