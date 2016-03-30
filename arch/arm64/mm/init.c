@@ -207,6 +207,35 @@ void __init arm64_memblock_init(void)
 		memblock_add(__pa(_text), (u64)(_end - _text));
 	}
 
+	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD) && initrd_start) {
+		/*
+		 * Add back the memory we just removed if it results in the
+		 * initrd to become inaccessible via the linear mapping.
+		 * Otherwise, this is a no-op
+		 */
+		u64 base = initrd_start & PAGE_MASK;
+		u64 size = PAGE_ALIGN(initrd_end) - base;
+
+		/*
+		 * We can only add back the initrd memory if we don't end up
+		 * with more memory than we can address via the linear mapping.
+		 * It is up to the bootloader to position the kernel and the
+		 * initrd reasonably close to each other (i.e., within 32 GB of
+		 * each other) so that all granule/#levels combinations can
+		 * always access both.
+		 */
+		if (WARN(base < memblock_start_of_DRAM() ||
+			 base + size > memblock_start_of_DRAM() +
+				       linear_region_size,
+			"initrd not fully accessible via the linear mapping -- please check your bootloader ...\n")) {
+			initrd_start = 0;
+		} else {
+			memblock_remove(base, size); /* clear MEMBLOCK_ flags */
+			memblock_add(base, size);
+			memblock_reserve(base, size);
+		}
+	}
+
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
 		extern u16 memstart_offset_seed;
 		u64 range = linear_region_size -
