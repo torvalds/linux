@@ -77,6 +77,8 @@ struct osc_io {
 	 */
 	struct osc_extent *oi_trunc;
 
+	int oi_lru_reserved;
+
 	struct obd_info    oi_info;
 	struct obdo	oi_oa;
 	struct osc_async_cbargs {
@@ -100,7 +102,7 @@ struct osc_session {
 	struct osc_io       os_io;
 };
 
-#define OTI_PVEC_SIZE 64
+#define OTI_PVEC_SIZE 256
 struct osc_thread_info {
 	struct ldlm_res_id      oti_resname;
 	ldlm_policy_data_t      oti_policy;
@@ -369,18 +371,15 @@ struct osc_page {
 	 * Set if the page must be transferred with OBD_BRW_SRVLOCK.
 	 */
 			      ops_srvlock:1;
-	union {
-		/**
-		 * lru page list. ops_inflight and ops_lru are exclusive so
-		 * that they can share the same data.
-		 */
-		struct list_head	      ops_lru;
-		/**
-		 * Linkage into a per-osc_object list of pages in flight. For
-		 * debugging.
-		 */
-		struct list_head	    ops_inflight;
-	};
+	/**
+	 * lru page list. See osc_lru_{del|use}() in osc_page.c for usage.
+	 */
+	struct list_head	      ops_lru;
+	/**
+	 * Linkage into a per-osc_object list of pages in flight. For
+	 * debugging.
+	 */
+	struct list_head	    ops_inflight;
 	/**
 	 * Thread that submitted this page for transfer. For debugging.
 	 */
@@ -432,6 +431,7 @@ void osc_index2policy  (ldlm_policy_data_t *policy, const struct cl_object *obj,
 int  osc_lvb_print     (const struct lu_env *env, void *cookie,
 			lu_printer_t p, const struct ost_lvb *lvb);
 
+void osc_lru_add_batch(struct client_obd *cli, struct list_head *list);
 void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 		     enum cl_req_type crt, int brw_flags);
 int osc_cancel_async_page(const struct lu_env *env, struct osc_page *ops);

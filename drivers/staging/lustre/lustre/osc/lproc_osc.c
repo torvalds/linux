@@ -223,7 +223,7 @@ static ssize_t osc_cached_mb_seq_write(struct file *file,
 
 	rc = atomic_read(&cli->cl_lru_in_list) - pages_number;
 	if (rc > 0)
-		(void)osc_lru_shrink(cli, rc);
+		(void)osc_lru_shrink(cli, rc, true);
 
 	return count;
 }

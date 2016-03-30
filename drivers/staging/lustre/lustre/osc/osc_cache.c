@@ -856,6 +856,8 @@ int osc_extent_finish(const struct lu_env *env, struct osc_extent *ext,
 
 	ext->oe_rc = rc ?: ext->oe_nr_pages;
 	EASSERT(ergo(rc == 0, ext->oe_state == OES_RPC), ext);
+
+	osc_lru_add_batch(cli, &ext->oe_pages);
 	list_for_each_entry_safe(oap, tmp, &ext->oe_pages, oap_pending_item) {
 		list_del_init(&oap->oap_rpc_item);
 		list_del_init(&oap->oap_pending_item);

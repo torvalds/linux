@@ -308,6 +308,55 @@ static int osc_io_commit_write(const struct lu_env *env,
 	return 0;
 }
 
+static int osc_io_rw_iter_init(const struct lu_env *env,
+			       const struct cl_io_slice *ios)
+{
+	struct cl_io *io = ios->cis_io;
+	struct osc_io *oio = osc_env_io(env);
+	struct osc_object *osc = cl2osc(ios->cis_obj);
+	struct client_obd *cli = osc_cli(osc);
+	unsigned long c;
+	unsigned int npages;
+	unsigned int max_pages;
+
+	if (cl_io_is_append(io))
+		return 0;
+
+	npages = io->u.ci_rw.crw_count >> PAGE_CACHE_SHIFT;
+	if (io->u.ci_rw.crw_pos & ~PAGE_MASK)
+		++npages;
+
+	max_pages = cli->cl_max_pages_per_rpc * cli->cl_max_rpcs_in_flight;
+	if (npages > max_pages)
+		npages = max_pages;
+
+	c = atomic_read(cli->cl_lru_left);
+	if (c < npages && osc_lru_reclaim(cli) > 0)
+		c = atomic_read(cli->cl_lru_left);
+	while (c >= npages) {
+		if (c == atomic_cmpxchg(cli->cl_lru_left, c, c - npages)) {
+			oio->oi_lru_reserved = npages;
+			break;
+		}
+		c = atomic_read(cli->cl_lru_left);
+	}
+
+	return 0;
+}
+
+static void osc_io_rw_iter_fini(const struct lu_env *env,
+				const struct cl_io_slice *ios)
+{
+	struct osc_io *oio = osc_env_io(env);
+	struct osc_object *osc = cl2osc(ios->cis_obj);
+	struct client_obd *cli = osc_cli(osc);
+
+	if (oio->oi_lru_reserved > 0) {
+		atomic_add(oio->oi_lru_reserved, cli->cl_lru_left);
+		oio->oi_lru_reserved = 0;
+	}
+}
+
 static int osc_io_fault_start(const struct lu_env *env,
 			      const struct cl_io_slice *ios)
 {
@@ -650,6 +699,8 @@ static const struct cl_io_operations osc_io_ops = {
 			.cio_fini   = osc_io_fini
 		},
 		[CIT_WRITE] = {
+			.cio_iter_init = osc_io_rw_iter_init,
+			.cio_iter_fini = osc_io_rw_iter_fini,
 			.cio_start  = osc_io_write_start,
 			.cio_end    = osc_io_end,
 			.cio_fini   = osc_io_fini
