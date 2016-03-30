@@ -196,9 +196,11 @@ struct lock_list {
  * We record lock dependency chains, so that we can cache them:
  */
 struct lock_chain {
-	u8				irq_context;
-	u8				depth;
-	u16				base;
+	/* see BUILD_BUG_ON()s in lookup_chain_cache() */
+	unsigned int			irq_context :  2,
+					depth       :  6,
+					base	    : 24;
+	/* 4 byte hole */
 	struct hlist_node		entry;
 	u64				chain_key;
 };

@@ -2176,15 +2176,37 @@ cache_hit:
 	chain->irq_context = hlock->irq_context;
 	i = get_first_held_lock(curr, hlock);
 	chain->depth = curr->lockdep_depth + 1 - i;
+
+	BUILD_BUG_ON((1UL << 24) <= ARRAY_SIZE(chain_hlocks));
+	BUILD_BUG_ON((1UL << 6)  <= ARRAY_SIZE(curr->held_locks));
+	BUILD_BUG_ON((1UL << 8*sizeof(chain_hlocks[0])) <= ARRAY_SIZE(lock_classes));
+
 	if (likely(nr_chain_hlocks + chain->depth <= MAX_LOCKDEP_CHAIN_HLOCKS)) {
 		chain->base = nr_chain_hlocks;
-		nr_chain_hlocks += chain->depth;
 		for (j = 0; j < chain->depth - 1; j++, i++) {
 			int lock_id = curr->held_locks[i].class_idx - 1;
 			chain_hlocks[chain->base + j] = lock_id;
 		}
 		chain_hlocks[chain->base + j] = class - lock_classes;
 	}
+
+	if (nr_chain_hlocks < MAX_LOCKDEP_CHAIN_HLOCKS)
+		nr_chain_hlocks += chain->depth;
+
+#ifdef CONFIG_DEBUG_LOCKDEP
+	/*
+	 * Important for check_no_collision().
+	 */
+	if (unlikely(nr_chain_hlocks > MAX_LOCKDEP_CHAIN_HLOCKS)) {
+		if (debug_locks_off_graph_unlock())
+			return 0;
+
+		print_lockdep_off("BUG: MAX_LOCKDEP_CHAIN_HLOCKS too low!");
+		dump_stack();
+		return 0;
+	}
+#endif
+
 	hlist_add_head_rcu(&chain->entry, hash_head);
 	debug_atomic_inc(chain_lookup_misses);
 	inc_chains();
