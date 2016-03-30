@@ -152,7 +152,6 @@ struct visor_device {
 	uuid_le type;
 	uuid_le inst;
 	u8 *name;
-	u8 *description;
 	struct controlvm_message_header *pending_msg_hdr;
 	void *vbus_hdr_info;
 	uuid_le partition_uuid;
