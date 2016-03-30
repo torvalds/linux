@@ -164,6 +164,8 @@ struct vvp_io {
 	bool		vui_ra_valid;
 };
 
+extern struct lu_device_type vvp_device_type;
+
 extern struct lu_context_key vvp_session_key;
 extern struct lu_context_key vvp_thread_key;
 
@@ -324,8 +326,6 @@ void ccc_key_fini(const struct lu_context *ctx,
 		  struct lu_context_key *key, void *data);
 
 void ccc_umount(const struct lu_env *env, struct cl_device *dev);
-int ccc_global_init(struct lu_device_type *device_type);
-void ccc_global_fini(struct lu_device_type *device_type);
 
 static inline struct lu_device *vvp2lu_dev(struct vvp_device *vdv)
 {

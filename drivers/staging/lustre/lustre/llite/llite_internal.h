@@ -984,9 +984,6 @@ void free_rmtperm_hash(struct hlist_head *hash);
 int ll_update_remote_perm(struct inode *inode, struct mdt_remote_perm *perm);
 int lustre_check_remote_perm(struct inode *inode, int mask);
 
-/* llite/llite_cl.c */
-extern struct lu_device_type vvp_device_type;
-
 /**
  * Common IO arguments for various VFS I/O interfaces.
  */
@@ -1370,5 +1367,9 @@ void ll_xattr_fini(void);
 
 int ll_page_sync_io(const struct lu_env *env, struct cl_io *io,
 		    struct cl_page *page, enum cl_req_type crt);
+
+/* lcommon_cl.c */
+extern struct lu_env *cl_inode_fini_env;
+extern int cl_inode_fini_refcheck;
 
 #endif /* LLITE_INTERNAL_H */

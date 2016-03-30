@@ -72,49 +72,18 @@
  */
 
 /**
- * An `emergency' environment used by ccc_inode_fini() when cl_env_get()
- * fails. Access to this environment is serialized by ccc_inode_fini_guard
+ * An `emergency' environment used by cl_inode_fini() when cl_env_get()
+ * fails. Access to this environment is serialized by cl_inode_fini_guard
  * mutex.
  */
-static struct lu_env *ccc_inode_fini_env;
+struct lu_env *cl_inode_fini_env;
+int cl_inode_fini_refcheck;
 
 /**
  * A mutex serializing calls to slp_inode_fini() under extreme memory
  * pressure, when environments cannot be allocated.
  */
-static DEFINE_MUTEX(ccc_inode_fini_guard);
-static int dummy_refcheck;
-
-int ccc_global_init(struct lu_device_type *device_type)
-{
-	int result;
-
-	result = lu_device_type_init(device_type);
-	if (result)
-		return result;
-
-	ccc_inode_fini_env = cl_env_alloc(&dummy_refcheck,
-					  LCT_REMEMBER | LCT_NOREF);
-	if (IS_ERR(ccc_inode_fini_env)) {
-		result = PTR_ERR(ccc_inode_fini_env);
-		goto out_device;
-	}
-
-	ccc_inode_fini_env->le_ctx.lc_cookie = 0x4;
-	return 0;
-out_device:
-	lu_device_type_fini(device_type);
-	return result;
-}
-
-void ccc_global_fini(struct lu_device_type *device_type)
-{
-	if (ccc_inode_fini_env) {
-		cl_env_put(ccc_inode_fini_env, &dummy_refcheck);
-		ccc_inode_fini_env = NULL;
-	}
-	lu_device_type_fini(device_type);
-}
+static DEFINE_MUTEX(cl_inode_fini_guard);
 
 int cl_setattr_ost(struct inode *inode, const struct iattr *attr)
 {
@@ -286,10 +255,10 @@ void cl_inode_fini(struct inode *inode)
 		env = cl_env_get(&refcheck);
 		emergency = IS_ERR(env);
 		if (emergency) {
-			mutex_lock(&ccc_inode_fini_guard);
-			LASSERT(ccc_inode_fini_env);
-			cl_env_implant(ccc_inode_fini_env, &refcheck);
-			env = ccc_inode_fini_env;
+			mutex_lock(&cl_inode_fini_guard);
+			LASSERT(cl_inode_fini_env);
+			cl_env_implant(cl_inode_fini_env, &refcheck);
+			env = cl_inode_fini_env;
 		}
 		/*
 		 * cl_object cache is a slave to inode cache (which, in turn
@@ -301,8 +270,8 @@ void cl_inode_fini(struct inode *inode)
 		cl_object_put_last(env, clob);
 		lli->lli_clob = NULL;
 		if (emergency) {
-			cl_env_unplant(ccc_inode_fini_env, &refcheck);
-			mutex_unlock(&ccc_inode_fini_guard);
+			cl_env_unplant(cl_inode_fini_env, &refcheck);
+			mutex_unlock(&cl_inode_fini_guard);
 		} else {
 			cl_env_put(env, &refcheck);
 		}

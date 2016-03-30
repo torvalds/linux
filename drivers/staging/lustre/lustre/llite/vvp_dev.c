@@ -293,20 +293,27 @@ struct lu_device_type vvp_device_type = {
  */
 int vvp_global_init(void)
 {
-	int result;
+	int rc;
 
-	result = lu_kmem_init(vvp_caches);
-	if (result == 0) {
-		result = ccc_global_init(&vvp_device_type);
-		if (result != 0)
-			lu_kmem_fini(vvp_caches);
-	}
-	return result;
+	rc = lu_kmem_init(vvp_caches);
+	if (rc != 0)
+		return rc;
+
+	rc = lu_device_type_init(&vvp_device_type);
+	if (rc != 0)
+		goto out_kmem;
+
+	return 0;
+
+out_kmem:
+	lu_kmem_fini(vvp_caches);
+
+	return rc;
 }
 
 void vvp_global_fini(void)
 {
-	ccc_global_fini(&vvp_device_type);
+	lu_device_type_fini(&vvp_device_type);
 	lu_kmem_fini(vvp_caches);
 }
 
