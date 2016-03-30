@@ -258,38 +258,15 @@ static int index_in_window(unsigned long index, unsigned long point,
 	return start <= index && index <= end;
 }
 
-static struct ll_readahead_state *ll_ras_get(struct file *f)
+void ll_ras_enter(struct file *f)
 {
-	struct ll_file_data       *fd;
-
-	fd = LUSTRE_FPRIVATE(f);
-	return &fd->fd_ras;
-}
-
-void ll_ra_read_in(struct file *f, struct ll_ra_read *rar)
-{
-	struct ll_readahead_state *ras;
-
-	ras = ll_ras_get(f);
+	struct ll_file_data *fd = LUSTRE_FPRIVATE(f);
+	struct ll_readahead_state *ras = &fd->fd_ras;
 
 	spin_lock(&ras->ras_lock);
 	ras->ras_requests++;
 	ras->ras_request_index = 0;
 	ras->ras_consecutive_requests++;
-	rar->lrr_reader = current;
-
-	list_add(&rar->lrr_linkage, &ras->ras_read_beads);
-	spin_unlock(&ras->ras_lock);
-}
-
-void ll_ra_read_ex(struct file *f, struct ll_ra_read *rar)
-{
-	struct ll_readahead_state *ras;
-
-	ras = ll_ras_get(f);
-
-	spin_lock(&ras->ras_lock);
-	list_del_init(&rar->lrr_linkage);
 	spin_unlock(&ras->ras_lock);
 }
 
@@ -551,7 +528,6 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	unsigned long start = 0, end = 0, reserved;
 	unsigned long ra_end, len, mlen = 0;
 	struct inode *inode;
-	struct ll_ra_read *bead;
 	struct ra_io_arg *ria = &vti->vti_ria;
 	struct cl_object *clob;
 	int ret = 0;
@@ -575,17 +551,15 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	}
 
 	spin_lock(&ras->ras_lock);
-	if (vio->cui_ra_window_set)
-		bead = &vio->cui_bead;
-	else
-		bead = NULL;
 
 	/* Enlarge the RA window to encompass the full read */
-	if (bead && ras->ras_window_start + ras->ras_window_len <
-	    bead->lrr_start + bead->lrr_count) {
-		ras->ras_window_len = bead->lrr_start + bead->lrr_count -
+	if (vio->cui_ra_valid &&
+	    ras->ras_window_start + ras->ras_window_len <
+	    vio->cui_ra_start + vio->cui_ra_count) {
+		ras->ras_window_len = vio->cui_ra_start + vio->cui_ra_count -
 				      ras->ras_window_start;
 	}
+
 	/* Reserve a part of the read-ahead window that we'll be issuing */
 	if (ras->ras_window_len) {
 		start = ras->ras_next_readahead;
@@ -641,15 +615,15 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	CDEBUG(D_READA, DFID ": ria: %lu/%lu, bead: %lu/%lu, hit: %d\n",
 	       PFID(lu_object_fid(&clob->co_lu)),
 	       ria->ria_start, ria->ria_end,
-	       !bead ? 0 : bead->lrr_start,
-	       !bead ? 0 : bead->lrr_count,
+	       vio->cui_ra_valid ? vio->cui_ra_start : 0,
+	       vio->cui_ra_valid ? vio->cui_ra_count : 0,
 	       hit);
 
 	/* at least to extend the readahead window to cover current read */
-	if (!hit && bead &&
-	    bead->lrr_start + bead->lrr_count > ria->ria_start) {
+	if (!hit && vio->cui_ra_valid &&
+	    vio->cui_ra_start + vio->cui_ra_count > ria->ria_start) {
 		/* to the end of current read window. */
-		mlen = bead->lrr_start + bead->lrr_count - ria->ria_start;
+		mlen = vio->cui_ra_start + vio->cui_ra_count - ria->ria_start;
 		/* trim to RPC boundary */
 		start = ria->ria_start & (PTLRPC_MAX_BRW_PAGES - 1);
 		mlen = min(mlen, PTLRPC_MAX_BRW_PAGES - start);
@@ -730,7 +704,6 @@ void ll_readahead_init(struct inode *inode, struct ll_readahead_state *ras)
 	spin_lock_init(&ras->ras_lock);
 	ras_reset(inode, ras, 0);
 	ras->ras_requests = 0;
-	INIT_LIST_HEAD(&ras->ras_read_beads);
 }
 
 /*
