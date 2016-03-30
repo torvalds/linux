@@ -2296,6 +2296,25 @@ restore_page_0:
 	return ret;
 }
 
+static int mv88e6xxx_power_on_serdes(struct dsa_switch *ds)
+{
+	int ret;
+
+	ret = _mv88e6xxx_phy_page_read(ds, REG_FIBER_SERDES, PAGE_FIBER_SERDES,
+				       MII_BMCR);
+	if (ret < 0)
+		return ret;
+
+	if (ret & BMCR_PDOWN) {
+		ret &= ~BMCR_PDOWN;
+		ret = _mv88e6xxx_phy_page_write(ds, REG_FIBER_SERDES,
+						PAGE_FIBER_SERDES, MII_BMCR,
+						ret);
+	}
+
+	return ret;
+}
+
 static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
@@ -2397,6 +2416,23 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 					   PORT_CONTROL, reg);
 		if (ret)
 			goto abort;
+	}
+
+	/* If this port is connected to a SerDes, make sure the SerDes is not
+	 * powered down.
+	 */
+	if (mv88e6xxx_6352_family(ds)) {
+		ret = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_STATUS);
+		if (ret < 0)
+			goto abort;
+		ret &= PORT_STATUS_CMODE_MASK;
+		if ((ret == PORT_STATUS_CMODE_100BASE_X) ||
+		    (ret == PORT_STATUS_CMODE_1000BASE_X) ||
+		    (ret == PORT_STATUS_CMODE_SGMII)) {
+			ret = mv88e6xxx_power_on_serdes(ds);
+			if (ret < 0)
+				goto abort;
+		}
 	}
 
 	/* Port Control 2: don't force a good FCS, set the maximum frame size to
