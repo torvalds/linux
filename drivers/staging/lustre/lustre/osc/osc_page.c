@@ -67,10 +67,6 @@ static int osc_page_protected(const struct lu_env *env,
 static void osc_page_fini(const struct lu_env *env,
 			  struct cl_page_slice *slice)
 {
-	struct osc_page *opg = cl2osc_page(slice);
-
-	CDEBUG(D_TRACE, "%p\n", opg);
-	LASSERT(!opg->ops_lock);
 }
 
 static void osc_page_transfer_get(struct osc_page *opg, const char *label)
@@ -139,42 +135,6 @@ void osc_index2policy(ldlm_policy_data_t *policy, const struct cl_object *obj,
 	policy->l_extent.end = cl_offset(obj, end + 1) - 1;
 }
 
-static int osc_page_addref_lock(const struct lu_env *env,
-				struct osc_page *opg,
-				struct cl_lock *lock)
-{
-	struct osc_lock *olock;
-	int rc;
-
-	LASSERT(!opg->ops_lock);
-
-	olock = osc_lock_at(lock);
-	if (atomic_inc_return(&olock->ols_pageref) <= 0) {
-		atomic_dec(&olock->ols_pageref);
-		rc = -ENODATA;
-	} else {
-		cl_lock_get(lock);
-		opg->ops_lock = lock;
-		rc = 0;
-	}
-	return rc;
-}
-
-static void osc_page_putref_lock(const struct lu_env *env,
-				 struct osc_page *opg)
-{
-	struct cl_lock *lock = opg->ops_lock;
-	struct osc_lock *olock;
-
-	LASSERT(lock);
-	olock = osc_lock_at(lock);
-
-	atomic_dec(&olock->ols_pageref);
-	opg->ops_lock = NULL;
-
-	cl_lock_put(env, lock);
-}
-
 static int osc_page_is_under_lock(const struct lu_env *env,
 				  const struct cl_page_slice *slice,
 				  struct cl_io *unused)
@@ -185,37 +145,10 @@ static int osc_page_is_under_lock(const struct lu_env *env,
 	lock = cl_lock_at_page(env, slice->cpl_obj, slice->cpl_page,
 			       NULL, 1, 0);
 	if (lock) {
-		if (osc_page_addref_lock(env, cl2osc_page(slice), lock) == 0)
-			result = -EBUSY;
 		cl_lock_put(env, lock);
+		result = -EBUSY;
 	}
 	return result;
-}
-
-static void osc_page_disown(const struct lu_env *env,
-			    const struct cl_page_slice *slice,
-			    struct cl_io *io)
-{
-	struct osc_page *opg = cl2osc_page(slice);
-
-	if (unlikely(opg->ops_lock))
-		osc_page_putref_lock(env, opg);
-}
-
-static void osc_page_completion_read(const struct lu_env *env,
-				     const struct cl_page_slice *slice,
-				     int ioret)
-{
-	struct osc_page *opg = cl2osc_page(slice);
-
-	if (likely(opg->ops_lock))
-		osc_page_putref_lock(env, opg);
-}
-
-static void osc_page_completion_write(const struct lu_env *env,
-				      const struct cl_page_slice *slice,
-				      int ioret)
-{
 }
 
 static const char *osc_list(struct list_head *head)
@@ -366,15 +299,6 @@ static const struct cl_page_operations osc_page_ops = {
 	.cpo_print	 = osc_page_print,
 	.cpo_delete	= osc_page_delete,
 	.cpo_is_under_lock = osc_page_is_under_lock,
-	.cpo_disown	= osc_page_disown,
-	.io = {
-		[CRT_READ] = {
-			.cpo_completion = osc_page_completion_read
-		},
-		[CRT_WRITE] = {
-			.cpo_completion = osc_page_completion_write
-		}
-	},
 	.cpo_clip	   = osc_page_clip,
 	.cpo_cancel	 = osc_page_cancel,
 	.cpo_flush	  = osc_page_flush

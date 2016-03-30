@@ -275,16 +275,6 @@ struct osc_lock {
 	enum osc_lock_state      ols_state;
 
 	/**
-	 * How many pages are using this lock for io, currently only used by
-	 * read-ahead. If non-zero, the underlying dlm lock won't be cancelled
-	 * during recovery to avoid deadlock. see bz16774.
-	 *
-	 * \see osc_page::ops_lock
-	 * \see osc_page_addref_lock(), osc_page_putref_lock()
-	 */
-	atomic_t	     ols_pageref;
-
-	/**
 	 * true, if ldlm_lock_addref() was called against
 	 * osc_lock::ols_lock. This is used for sanity checking.
 	 *
@@ -400,16 +390,6 @@ struct osc_page {
 	 * Submit time - the time when the page is starting RPC. For debugging.
 	 */
 	unsigned long	    ops_submit_time;
-
-	/**
-	 * A lock of which we hold a reference covers this page. Only used by
-	 * read-ahead: for a readahead page, we hold it's covering lock to
-	 * prevent it from being canceled during recovery.
-	 *
-	 * \see osc_lock::ols_pageref
-	 * \see osc_page_addref_lock(), osc_page_putref_lock().
-	 */
-	struct cl_lock       *ops_lock;
 };
 
 extern struct kmem_cache *osc_lock_kmem;
