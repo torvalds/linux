@@ -169,6 +169,7 @@ extern struct lu_context_key vvp_session_key;
 
 extern struct kmem_cache *vvp_lock_kmem;
 extern struct kmem_cache *vvp_object_kmem;
+extern struct kmem_cache *vvp_req_kmem;
 
 struct ccc_thread_info {
 	struct cl_lock		cti_lock;
@@ -313,8 +314,8 @@ struct vvp_lock {
 	struct cl_lock_slice vlk_cl;
 };
 
-struct ccc_req {
-	struct cl_req_slice  crq_cl;
+struct vvp_req {
+	struct cl_req_slice  vrq_cl;
 };
 
 void *ccc_key_init(const struct lu_context *ctx,
@@ -322,18 +323,9 @@ void *ccc_key_init(const struct lu_context *ctx,
 void ccc_key_fini(const struct lu_context *ctx,
 		  struct lu_context_key *key, void *data);
 
-int ccc_req_init(const struct lu_env *env, struct cl_device *dev,
-		 struct cl_req *req);
 void ccc_umount(const struct lu_env *env, struct cl_device *dev);
 int ccc_global_init(struct lu_device_type *device_type);
 void ccc_global_fini(struct lu_device_type *device_type);
-
-void ccc_req_completion(const struct lu_env *env,
-			const struct cl_req_slice *slice, int ioret);
-void ccc_req_attr_set(const struct lu_env *env,
-		      const struct cl_req_slice *slice,
-		      const struct cl_object *obj,
-		      struct cl_req_attr *oa, u64 flags);
 
 static inline struct lu_device *vvp2lu_dev(struct vvp_device *vdv)
 {
@@ -377,8 +369,6 @@ static inline struct vvp_lock *cl2vvp_lock(const struct cl_lock_slice *slice)
 {
 	return container_of(slice, struct vvp_lock, vlk_cl);
 }
-
-struct ccc_req *cl2ccc_req(const struct cl_req_slice *slice);
 
 int cl_setattr_ost(struct inode *inode, const struct iattr *attr);
 
@@ -431,6 +421,8 @@ int vvp_lock_init(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_lock *lock, const struct cl_io *io);
 int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_page *page, pgoff_t index);
+int vvp_req_init(const struct lu_env *env, struct cl_device *dev,
+		 struct cl_req *req);
 struct lu_object *vvp_object_alloc(const struct lu_env *env,
 				   const struct lu_object_header *hdr,
 				   struct lu_device *dev);

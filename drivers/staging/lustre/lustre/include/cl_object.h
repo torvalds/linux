@@ -140,7 +140,7 @@ struct cl_device_operations {
 	 * cl_req_slice_add().
 	 *
 	 * \see osc_req_init(), lov_req_init(), lovsub_req_init()
-	 * \see ccc_req_init()
+	 * \see vvp_req_init()
 	 */
 	int (*cdo_req_init)(const struct lu_env *env, struct cl_device *dev,
 			    struct cl_req *req);

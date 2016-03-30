@@ -59,6 +59,7 @@
 
 struct kmem_cache *vvp_lock_kmem;
 struct kmem_cache *vvp_object_kmem;
+struct kmem_cache *vvp_req_kmem;
 static struct kmem_cache *vvp_thread_kmem;
 static struct kmem_cache *vvp_session_kmem;
 static struct lu_kmem_descr vvp_caches[] = {
@@ -71,6 +72,11 @@ static struct lu_kmem_descr vvp_caches[] = {
 		.ckd_cache = &vvp_object_kmem,
 		.ckd_name  = "vvp_object_kmem",
 		.ckd_size  = sizeof(struct vvp_object),
+	},
+	{
+		.ckd_cache = &vvp_req_kmem,
+		.ckd_name  = "vvp_req_kmem",
+		.ckd_size  = sizeof(struct vvp_req),
 	},
 	{
 		.ckd_cache = &vvp_thread_kmem,
@@ -145,7 +151,7 @@ static const struct lu_device_operations vvp_lu_ops = {
 };
 
 static const struct cl_device_operations vvp_cl_ops = {
-	.cdo_req_init = ccc_req_init
+	.cdo_req_init = vvp_req_init
 };
 
 static struct lu_device *vvp_device_free(const struct lu_env *env,
