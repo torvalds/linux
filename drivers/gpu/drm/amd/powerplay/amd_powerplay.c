@@ -37,6 +37,12 @@
 			return -EINVAL;					\
 	} while (0)
 
+#define PP_CHECK_HW(hwmgr)						\
+	do {								\
+		if ((hwmgr) == NULL || (hwmgr)->hwmgr_func == NULL)	\
+			return -EINVAL;					\
+	} while (0)
+
 static int pp_early_init(void *handle)
 {
 	return 0;
@@ -54,8 +60,9 @@ static int pp_sw_init(void *handle)
 	pp_handle = (struct pp_instance *)handle;
 	hwmgr = pp_handle->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->pptable_func == NULL ||
-	    hwmgr->hwmgr_func == NULL ||
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->pptable_func == NULL ||
 	    hwmgr->pptable_func->pptable_init == NULL ||
 	    hwmgr->hwmgr_func->backend_init == NULL)
 		return -EINVAL;
@@ -66,9 +73,9 @@ static int pp_sw_init(void *handle)
 		ret = hwmgr->hwmgr_func->backend_init(hwmgr);
 
 	if (ret)
-		printk("amdgpu: powerplay initialization failed\n");
+		printk(KERN_ERR "amdgpu: powerplay initialization failed\n");
 	else
-		printk("amdgpu: powerplay initialized\n");
+		printk(KERN_INFO "amdgpu: powerplay initialized\n");
 
 	return ret;
 }
@@ -85,8 +92,9 @@ static int pp_sw_fini(void *handle)
 	pp_handle = (struct pp_instance *)handle;
 	hwmgr = pp_handle->hwmgr;
 
-	if (hwmgr != NULL || hwmgr->hwmgr_func != NULL ||
-	    hwmgr->hwmgr_func->backend_fini != NULL)
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->backend_fini != NULL)
 		ret = hwmgr->hwmgr_func->backend_fini(hwmgr);
 
 	return ret;
@@ -188,11 +196,12 @@ static int pp_set_clockgating_state(void *handle,
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL)
-			return -EINVAL;
+	PP_CHECK_HW(hwmgr);
 
-	if (hwmgr->hwmgr_func->update_clock_gatings == NULL)
+	if (hwmgr->hwmgr_func->update_clock_gatings == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
 		return 0;
+	}
 
 	if (state == AMD_CG_STATE_UNGATE)
 		pp_state = 0;
@@ -276,9 +285,12 @@ static int pp_set_powergating_state(void *handle,
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-			hwmgr->hwmgr_func->enable_per_cu_power_gating == NULL)
-				return -EINVAL;
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->enable_per_cu_power_gating == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 
 	/* Enable/disable GFX per cu powergating through SMU */
 	return hwmgr->hwmgr_func->enable_per_cu_power_gating(hwmgr,
@@ -371,9 +383,12 @@ static int pp_dpm_force_performance_level(void *handle,
 
 	hwmgr = pp_handle->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-	    hwmgr->hwmgr_func->force_dpm_level == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->force_dpm_level == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 
 	hwmgr->hwmgr_func->force_dpm_level(hwmgr, level);
 
@@ -405,9 +420,12 @@ static int pp_dpm_get_sclk(void *handle, bool low)
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-	    hwmgr->hwmgr_func->get_sclk == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_sclk == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 
 	return hwmgr->hwmgr_func->get_sclk(hwmgr, low);
 }
@@ -421,9 +439,12 @@ static int pp_dpm_get_mclk(void *handle, bool low)
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-	    hwmgr->hwmgr_func->get_mclk == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_mclk == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 
 	return hwmgr->hwmgr_func->get_mclk(hwmgr, low);
 }
@@ -437,9 +458,12 @@ static int pp_dpm_powergate_vce(void *handle, bool gate)
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-	    hwmgr->hwmgr_func->powergate_vce == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->powergate_vce == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 
 	return hwmgr->hwmgr_func->powergate_vce(hwmgr, gate);
 }
@@ -453,9 +477,12 @@ static int pp_dpm_powergate_uvd(void *handle, bool gate)
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-	    hwmgr->hwmgr_func->powergate_uvd == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->powergate_uvd == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 
 	return hwmgr->hwmgr_func->powergate_uvd(hwmgr, gate);
 }
@@ -551,9 +578,13 @@ pp_debugfs_print_current_performance_level(void *handle,
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-	  hwmgr->hwmgr_func->print_current_perforce_level == NULL)
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL)
 		return;
+
+	if (hwmgr->hwmgr_func->print_current_perforce_level == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return;
+	}
 
 	hwmgr->hwmgr_func->print_current_perforce_level(hwmgr, m);
 }
@@ -567,9 +598,12 @@ static int pp_dpm_set_fan_control_mode(void *handle, uint32_t mode)
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-	  hwmgr->hwmgr_func->set_fan_control_mode == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->set_fan_control_mode == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 
 	return hwmgr->hwmgr_func->set_fan_control_mode(hwmgr, mode);
 }
@@ -583,9 +617,12 @@ static int pp_dpm_get_fan_control_mode(void *handle)
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-	  hwmgr->hwmgr_func->get_fan_control_mode == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_fan_control_mode == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 
 	return hwmgr->hwmgr_func->get_fan_control_mode(hwmgr);
 }
@@ -599,9 +636,12 @@ static int pp_dpm_set_fan_speed_percent(void *handle, uint32_t percent)
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-	  hwmgr->hwmgr_func->set_fan_speed_percent == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->set_fan_speed_percent == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 
 	return hwmgr->hwmgr_func->set_fan_speed_percent(hwmgr, percent);
 }
@@ -615,9 +655,12 @@ static int pp_dpm_get_fan_speed_percent(void *handle, uint32_t *speed)
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-	  hwmgr->hwmgr_func->get_fan_speed_percent == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_fan_speed_percent == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 
 	return hwmgr->hwmgr_func->get_fan_speed_percent(hwmgr, speed);
 }
@@ -631,9 +674,12 @@ static int pp_dpm_get_temperature(void *handle)
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-	  hwmgr->hwmgr_func->get_temperature == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_temperature == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 
 	return hwmgr->hwmgr_func->get_temperature(hwmgr);
 }
@@ -687,9 +733,12 @@ static int pp_dpm_get_pp_table(void *handle, char **table)
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-		hwmgr->hwmgr_func->get_pp_table == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_pp_table == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 
 	return hwmgr->hwmgr_func->get_pp_table(hwmgr, table);
 }
@@ -703,9 +752,12 @@ static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-		hwmgr->hwmgr_func->set_pp_table == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->set_pp_table == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 
 	return hwmgr->hwmgr_func->set_pp_table(hwmgr, buf, size);
 }
@@ -720,9 +772,12 @@ static int pp_dpm_force_clock_level(void *handle,
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-			hwmgr->hwmgr_func->force_clock_level == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->force_clock_level == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 
 	return hwmgr->hwmgr_func->force_clock_level(hwmgr, type, level);
 }
@@ -737,10 +792,12 @@ static int pp_dpm_print_clock_levels(void *handle,
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
-			hwmgr->hwmgr_func->print_clock_levels == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
 
+	if (hwmgr->hwmgr_func->print_clock_levels == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
 	return hwmgr->hwmgr_func->print_clock_levels(hwmgr, type, buf);
 }
 
