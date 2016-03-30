@@ -667,7 +667,6 @@ struct dwc3_scratchpad_array {
  * @regs: base address for our registers
  * @regs_size: address space size
  * @nr_scratch: number of scratch buffers
- * @num_event_buffers: calculated number of event buffers
  * @u1u2: only used on revisions <1.83a for workaround
  * @maximum_speed: maximum speed requested (mainly for testing purposes)
  * @revision: revision register contents
@@ -778,7 +777,6 @@ struct dwc3 {
 	u32			gctl;
 
 	u32			nr_scratch;
-	u32			num_event_buffers;
 	u32			u1u2;
 	u32			maximum_speed;
 
