@@ -1012,44 +1012,6 @@ int cl_page_make_ready(const struct lu_env *env, struct cl_page *pg,
 EXPORT_SYMBOL(cl_page_make_ready);
 
 /**
- * Notify layers that high level io decided to place this page into a cache
- * for future transfer.
- *
- * The layer implementing transfer engine (osc) has to register this page in
- * its queues.
- *
- * \pre  cl_page_is_owned(pg, io)
- * \post cl_page_is_owned(pg, io)
- *
- * \see cl_page_operations::cpo_cache_add()
- */
-int cl_page_cache_add(const struct lu_env *env, struct cl_io *io,
-		      struct cl_page *pg, enum cl_req_type crt)
-{
-	const struct cl_page_slice *scan;
-	int result = 0;
-
-	PINVRNT(env, pg, crt < CRT_NR);
-	PINVRNT(env, pg, cl_page_is_owned(pg, io));
-	PINVRNT(env, pg, cl_page_invariant(pg));
-
-	if (crt >= CRT_NR)
-		return -EINVAL;
-
-	list_for_each_entry(scan, &pg->cp_layers, cpl_linkage) {
-		if (!scan->cpl_ops->io[crt].cpo_cache_add)
-			continue;
-
-		result = scan->cpl_ops->io[crt].cpo_cache_add(env, scan, io);
-		if (result != 0)
-			break;
-	}
-	CL_PAGE_HEADER(D_TRACE, env, pg, "%d %d\n", crt, result);
-	return result;
-}
-EXPORT_SYMBOL(cl_page_cache_add);
-
-/**
  * Called if a pge is being written back by kernel's intention.
  *
  * \pre  cl_page_is_owned(pg, io)

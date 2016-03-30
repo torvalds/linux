@@ -101,6 +101,27 @@ static bool can_populate_pages(const struct lu_env *env, struct cl_io *io,
  *
  */
 
+static int vvp_io_write_iter_init(const struct lu_env *env,
+				  const struct cl_io_slice *ios)
+{
+	struct ccc_io *cio = cl2ccc_io(env, ios);
+
+	cl_page_list_init(&cio->u.write.cui_queue);
+	cio->u.write.cui_written = 0;
+	cio->u.write.cui_from = 0;
+	cio->u.write.cui_to = PAGE_SIZE;
+
+	return 0;
+}
+
+static void vvp_io_write_iter_fini(const struct lu_env *env,
+				   const struct cl_io_slice *ios)
+{
+	struct ccc_io *cio = cl2ccc_io(env, ios);
+
+	LASSERT(cio->u.write.cui_queue.pl_nr == 0);
+}
+
 static int vvp_io_fault_iter_init(const struct lu_env *env,
 				  const struct cl_io_slice *ios)
 {
@@ -563,6 +584,183 @@ static void vvp_io_read_fini(const struct lu_env *env, const struct cl_io_slice 
 	vvp_io_fini(env, ios);
 }
 
+static int vvp_io_commit_sync(const struct lu_env *env, struct cl_io *io,
+			      struct cl_page_list *plist, int from, int to)
+{
+	struct cl_2queue *queue = &io->ci_queue;
+	struct cl_page *page;
+	unsigned int bytes = 0;
+	int rc = 0;
+
+	if (plist->pl_nr == 0)
+		return 0;
+
+	if (from != 0) {
+		page = cl_page_list_first(plist);
+		cl_page_clip(env, page, from,
+			     plist->pl_nr == 1 ? to : PAGE_SIZE);
+	}
+	if (to != PAGE_SIZE && plist->pl_nr > 1) {
+		page = cl_page_list_last(plist);
+		cl_page_clip(env, page, 0, to);
+	}
+
+	cl_2queue_init(queue);
+	cl_page_list_splice(plist, &queue->c2_qin);
+	rc = cl_io_submit_sync(env, io, CRT_WRITE, queue, 0);
+
+	/* plist is not sorted any more */
+	cl_page_list_splice(&queue->c2_qin, plist);
+	cl_page_list_splice(&queue->c2_qout, plist);
+	cl_2queue_fini(env, queue);
+
+	if (rc == 0) {
+		/* calculate bytes */
+		bytes = plist->pl_nr << PAGE_SHIFT;
+		bytes -= from + PAGE_SIZE - to;
+
+		while (plist->pl_nr > 0) {
+			page = cl_page_list_first(plist);
+			cl_page_list_del(env, plist, page);
+
+			cl_page_clip(env, page, 0, PAGE_SIZE);
+
+			SetPageUptodate(cl_page_vmpage(env, page));
+			cl_page_disown(env, io, page);
+
+			/* held in ll_cl_init() */
+			lu_ref_del(&page->cp_reference, "cl_io", io);
+			cl_page_put(env, page);
+		}
+	}
+
+	return bytes > 0 ? bytes : rc;
+}
+
+static void write_commit_callback(const struct lu_env *env, struct cl_io *io,
+				  struct cl_page *page)
+{
+	const struct cl_page_slice *slice;
+	struct ccc_page *cp;
+	struct page *vmpage;
+
+	slice = cl_page_at(page, &vvp_device_type);
+	cp = cl2ccc_page(slice);
+	vmpage = cp->cpg_page;
+
+	SetPageUptodate(vmpage);
+	set_page_dirty(vmpage);
+	vvp_write_pending(cl2ccc(slice->cpl_obj), cp);
+
+	cl_page_disown(env, io, page);
+
+	/* held in ll_cl_init() */
+	lu_ref_del(&page->cp_reference, "cl_io", io);
+	cl_page_put(env, page);
+}
+
+/* make sure the page list is contiguous */
+static bool page_list_sanity_check(struct cl_page_list *plist)
+{
+	struct cl_page *page;
+	pgoff_t index = CL_PAGE_EOF;
+
+	cl_page_list_for_each(page, plist) {
+		if (index == CL_PAGE_EOF) {
+			index = page->cp_index;
+			continue;
+		}
+
+		++index;
+		if (index == page->cp_index)
+			continue;
+
+		return false;
+	}
+	return true;
+}
+
+/* Return how many bytes have queued or written */
+int vvp_io_write_commit(const struct lu_env *env, struct cl_io *io)
+{
+	struct cl_object *obj = io->ci_obj;
+	struct inode *inode = ccc_object_inode(obj);
+	struct ccc_io *cio = ccc_env_io(env);
+	struct cl_page_list *queue = &cio->u.write.cui_queue;
+	struct cl_page *page;
+	int rc = 0;
+	int bytes = 0;
+	unsigned int npages = cio->u.write.cui_queue.pl_nr;
+
+	if (npages == 0)
+		return 0;
+
+	CDEBUG(D_VFSTRACE, "commit async pages: %d, from %d, to %d\n",
+	       npages, cio->u.write.cui_from, cio->u.write.cui_to);
+
+	LASSERT(page_list_sanity_check(queue));
+
+	/* submit IO with async write */
+	rc = cl_io_commit_async(env, io, queue,
+				cio->u.write.cui_from, cio->u.write.cui_to,
+				write_commit_callback);
+	npages -= queue->pl_nr; /* already committed pages */
+	if (npages > 0) {
+		/* calculate how many bytes were written */
+		bytes = npages << PAGE_SHIFT;
+
+		/* first page */
+		bytes -= cio->u.write.cui_from;
+		if (queue->pl_nr == 0) /* last page */
+			bytes -= PAGE_SIZE - cio->u.write.cui_to;
+		LASSERTF(bytes > 0, "bytes = %d, pages = %d\n", bytes, npages);
+
+		cio->u.write.cui_written += bytes;
+
+		CDEBUG(D_VFSTRACE, "Committed %d pages %d bytes, tot: %ld\n",
+		       npages, bytes, cio->u.write.cui_written);
+
+		/* the first page must have been written. */
+		cio->u.write.cui_from = 0;
+	}
+	LASSERT(page_list_sanity_check(queue));
+	LASSERT(ergo(rc == 0, queue->pl_nr == 0));
+
+	/* out of quota, try sync write */
+	if (rc == -EDQUOT && !cl_io_is_mkwrite(io)) {
+		rc = vvp_io_commit_sync(env, io, queue,
+					cio->u.write.cui_from,
+					cio->u.write.cui_to);
+		if (rc > 0) {
+			cio->u.write.cui_written += rc;
+			rc = 0;
+		}
+	}
+
+	/* update inode size */
+	ll_merge_lvb(env, inode);
+
+	/* Now the pages in queue were failed to commit, discard them
+	 * unless they were dirtied before.
+	 */
+	while (queue->pl_nr > 0) {
+		page = cl_page_list_first(queue);
+		cl_page_list_del(env, queue, page);
+
+		if (!PageDirty(cl_page_vmpage(env, page)))
+			cl_page_discard(env, io, page);
+
+		cl_page_disown(env, io, page);
+
+		/* held in ll_cl_init() */
+		lu_ref_del(&page->cp_reference, "cl_io", io);
+		cl_page_put(env, page);
+	}
+	cl_page_list_fini(env, queue);
+
+	return rc;
+}
+
 static int vvp_io_write_start(const struct lu_env *env,
 			      const struct cl_io_slice *ios)
 {
@@ -596,9 +794,24 @@ static int vvp_io_write_start(const struct lu_env *env,
 		result = generic_file_write_iter(cio->cui_iocb, cio->cui_iter);
 
 	if (result > 0) {
+		result = vvp_io_write_commit(env, io);
+		if (cio->u.write.cui_written > 0) {
+			result = cio->u.write.cui_written;
+			io->ci_nob += result;
+
+			CDEBUG(D_VFSTRACE, "write: nob %zd, result: %zd\n",
+			       io->ci_nob, result);
+		}
+	}
+	if (result > 0) {
+		struct ll_inode_info *lli = ll_i2info(inode);
+
+		spin_lock(&lli->lli_lock);
+		lli->lli_flags |= LLIF_DATA_MODIFIED;
+		spin_unlock(&lli->lli_lock);
+
 		if (result < cnt)
 			io->ci_continue = 0;
-		io->ci_nob += result;
 		ll_rw_stats_tally(ll_i2sbi(inode), current->pid,
 				  cio->cui_fd, pos, result, WRITE);
 		result = 0;
@@ -645,6 +858,21 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 	return -EINVAL;
 }
 
+static void mkwrite_commit_callback(const struct lu_env *env, struct cl_io *io,
+				    struct cl_page *page)
+{
+	const struct cl_page_slice *slice;
+	struct ccc_page *cp;
+	struct page *vmpage;
+
+	slice = cl_page_at(page, &vvp_device_type);
+	cp = cl2ccc_page(slice);
+	vmpage = cp->cpg_page;
+
+	set_page_dirty(vmpage);
+	vvp_write_pending(cl2ccc(slice->cpl_obj), cp);
+}
+
 static int vvp_io_fault_start(const struct lu_env *env,
 			      const struct cl_io_slice *ios)
 {
@@ -659,7 +887,7 @@ static int vvp_io_fault_start(const struct lu_env *env,
 	struct page	  *vmpage  = NULL;
 	struct cl_page      *page;
 	loff_t	       size;
-	pgoff_t	      last; /* last page in a file data region */
+	pgoff_t		     last_index;
 
 	if (fio->ft_executable &&
 	    inode->i_mtime.tv_sec != vio->u.fault.ft_mtime)
@@ -705,15 +933,15 @@ static int vvp_io_fault_start(const struct lu_env *env,
 		goto out;
 	}
 
+	last_index = cl_index(obj, size - 1);
+
 	if (fio->ft_mkwrite) {
-		pgoff_t last_index;
 		/*
 		 * Capture the size while holding the lli_trunc_sem from above
 		 * we want to make sure that we complete the mkwrite action
 		 * while holding this lock. We need to make sure that we are
 		 * not past the end of the file.
 		 */
-		last_index = cl_index(obj, size - 1);
 		if (last_index < fio->ft_index) {
 			CDEBUG(D_PAGE,
 			       "llite: mkwrite and truncate race happened: %p: 0x%lx 0x%lx\n",
@@ -745,21 +973,28 @@ static int vvp_io_fault_start(const struct lu_env *env,
 	 */
 	if (fio->ft_mkwrite) {
 		wait_on_page_writeback(vmpage);
-		if (set_page_dirty(vmpage)) {
-			struct ccc_page *cp;
+		if (!PageDirty(vmpage)) {
+			struct cl_page_list *plist = &io->ci_queue.c2_qin;
+			int to = PAGE_SIZE;
 
 			/* vvp_page_assume() calls wait_on_page_writeback(). */
 			cl_page_assume(env, io, page);
 
-			cp = cl2ccc_page(cl_page_at(page, &vvp_device_type));
-			vvp_write_pending(cl2ccc(obj), cp);
+			cl_page_list_init(plist);
+			cl_page_list_add(plist, page);
+
+			/* size fixup */
+			if (last_index == page->cp_index)
+				to = size & ~PAGE_MASK;
 
 			/* Do not set Dirty bit here so that in case IO is
 			 * started before the page is really made dirty, we
 			 * still have chance to detect it.
 			 */
-			result = cl_page_cache_add(env, io, page, CRT_WRITE);
+			result = cl_io_commit_async(env, io, plist, 0, to,
+						    mkwrite_commit_callback);
 			LASSERT(cl_page_is_owned(page, io));
+			cl_page_list_fini(env, plist);
 
 			vmpage = NULL;
 			if (result < 0) {
@@ -777,15 +1012,14 @@ static int vvp_io_fault_start(const struct lu_env *env,
 		}
 	}
 
-	last = cl_index(obj, size - 1);
 	/*
 	 * The ft_index is only used in the case of
 	 * a mkwrite action. We need to check
 	 * our assertions are correct, since
 	 * we should have caught this above
 	 */
-	LASSERT(!fio->ft_mkwrite || fio->ft_index <= last);
-	if (fio->ft_index == last)
+	LASSERT(!fio->ft_mkwrite || fio->ft_index <= last_index);
+	if (fio->ft_index == last_index)
 		/*
 		 * Last page is mapped partially.
 		 */
@@ -865,234 +1099,6 @@ static int vvp_io_read_page(const struct lu_env *env,
 	return 0;
 }
 
-static int vvp_page_sync_io(const struct lu_env *env, struct cl_io *io,
-			    struct cl_page *page, struct ccc_page *cp,
-			    enum cl_req_type crt)
-{
-	struct cl_2queue  *queue;
-	int result;
-
-	LASSERT(io->ci_type == CIT_READ || io->ci_type == CIT_WRITE);
-
-	queue = &io->ci_queue;
-	cl_2queue_init_page(queue, page);
-
-	result = cl_io_submit_sync(env, io, crt, queue, 0);
-	LASSERT(cl_page_is_owned(page, io));
-
-	if (crt == CRT_READ)
-		/*
-		 * in CRT_WRITE case page is left locked even in case of
-		 * error.
-		 */
-		cl_page_list_disown(env, io, &queue->c2_qin);
-	cl_2queue_fini(env, queue);
-
-	return result;
-}
-
-/**
- * Prepare partially written-to page for a write.
- */
-static int vvp_io_prepare_partial(const struct lu_env *env, struct cl_io *io,
-				  struct cl_object *obj, struct cl_page *pg,
-				  struct ccc_page *cp,
-				  unsigned from, unsigned to)
-{
-	struct cl_attr *attr   = ccc_env_thread_attr(env);
-	loff_t	  offset = cl_offset(obj, pg->cp_index);
-	int	     result;
-
-	cl_object_attr_lock(obj);
-	result = cl_object_attr_get(env, obj, attr);
-	cl_object_attr_unlock(obj);
-	if (result == 0) {
-		/*
-		 * If are writing to a new page, no need to read old data.
-		 * The extent locking will have updated the KMS, and for our
-		 * purposes here we can treat it like i_size.
-		 */
-		if (attr->cat_kms <= offset) {
-			char *kaddr = kmap_atomic(cp->cpg_page);
-
-			memset(kaddr, 0, cl_page_size(obj));
-			kunmap_atomic(kaddr);
-		} else if (cp->cpg_defer_uptodate)
-			cp->cpg_ra_used = 1;
-		else
-			result = vvp_page_sync_io(env, io, pg, cp, CRT_READ);
-		/*
-		 * In older implementations, obdo_refresh_inode is called here
-		 * to update the inode because the write might modify the
-		 * object info at OST. However, this has been proven useless,
-		 * since LVB functions will be called when user space program
-		 * tries to retrieve inode attribute.  Also, see bug 15909 for
-		 * details. -jay
-		 */
-		if (result == 0)
-			cl_page_export(env, pg, 1);
-	}
-	return result;
-}
-
-static int vvp_io_prepare_write(const struct lu_env *env,
-				const struct cl_io_slice *ios,
-				const struct cl_page_slice *slice,
-				unsigned from, unsigned to)
-{
-	struct cl_object *obj    = slice->cpl_obj;
-	struct ccc_page  *cp     = cl2ccc_page(slice);
-	struct cl_page   *pg     = slice->cpl_page;
-	struct page       *vmpage = cp->cpg_page;
-
-	int result;
-
-	LINVRNT(cl_page_is_vmlocked(env, pg));
-	LASSERT(vmpage->mapping->host == ccc_object_inode(obj));
-
-	result = 0;
-
-	CL_PAGE_HEADER(D_PAGE, env, pg, "preparing: [%d, %d]\n", from, to);
-	if (!PageUptodate(vmpage)) {
-		/*
-		 * We're completely overwriting an existing page, so _don't_
-		 * set it up to date until commit_write
-		 */
-		if (from == 0 && to == PAGE_CACHE_SIZE) {
-			CL_PAGE_HEADER(D_PAGE, env, pg, "full page write\n");
-			POISON_PAGE(page, 0x11);
-		} else
-			result = vvp_io_prepare_partial(env, ios->cis_io, obj,
-							pg, cp, from, to);
-	} else
-		CL_PAGE_HEADER(D_PAGE, env, pg, "uptodate\n");
-	return result;
-}
-
-static int vvp_io_commit_write(const struct lu_env *env,
-			       const struct cl_io_slice *ios,
-			       const struct cl_page_slice *slice,
-			       unsigned from, unsigned to)
-{
-	struct cl_object  *obj    = slice->cpl_obj;
-	struct cl_io      *io     = ios->cis_io;
-	struct ccc_page   *cp     = cl2ccc_page(slice);
-	struct cl_page    *pg     = slice->cpl_page;
-	struct inode      *inode  = ccc_object_inode(obj);
-	struct ll_sb_info *sbi    = ll_i2sbi(inode);
-	struct ll_inode_info *lli = ll_i2info(inode);
-	struct page	*vmpage = cp->cpg_page;
-
-	int    result;
-	int    tallyop;
-	loff_t size;
-
-	LINVRNT(cl_page_is_vmlocked(env, pg));
-	LASSERT(vmpage->mapping->host == inode);
-
-	LU_OBJECT_HEADER(D_INODE, env, &obj->co_lu, "committing page write\n");
-	CL_PAGE_HEADER(D_PAGE, env, pg, "committing: [%d, %d]\n", from, to);
-
-	/*
-	 * queue a write for some time in the future the first time we
-	 * dirty the page.
-	 *
-	 * This is different from what other file systems do: they usually
-	 * just mark page (and some of its buffers) dirty and rely on
-	 * balance_dirty_pages() to start a write-back. Lustre wants write-back
-	 * to be started earlier for the following reasons:
-	 *
-	 *     (1) with a large number of clients we need to limit the amount
-	 *     of cached data on the clients a lot;
-	 *
-	 *     (2) large compute jobs generally want compute-only then io-only
-	 *     and the IO should complete as quickly as possible;
-	 *
-	 *     (3) IO is batched up to the RPC size and is async until the
-	 *     client max cache is hit
-	 *     (/sys/fs/lustre/osc/OSC.../max_dirty_mb)
-	 *
-	 */
-	if (!PageDirty(vmpage)) {
-		tallyop = LPROC_LL_DIRTY_MISSES;
-		result = cl_page_cache_add(env, io, pg, CRT_WRITE);
-		if (result == 0) {
-			/* page was added into cache successfully. */
-			set_page_dirty(vmpage);
-			vvp_write_pending(cl2ccc(obj), cp);
-		} else if (result == -EDQUOT) {
-			pgoff_t last_index = i_size_read(inode) >> PAGE_CACHE_SHIFT;
-			bool need_clip = true;
-
-			/*
-			 * Client ran out of disk space grant. Possible
-			 * strategies are:
-			 *
-			 *     (a) do a sync write, renewing grant;
-			 *
-			 *     (b) stop writing on this stripe, switch to the
-			 *     next one.
-			 *
-			 * (b) is a part of "parallel io" design that is the
-			 * ultimate goal. (a) is what "old" client did, and
-			 * what the new code continues to do for the time
-			 * being.
-			 */
-			if (last_index > pg->cp_index) {
-				to = PAGE_CACHE_SIZE;
-				need_clip = false;
-			} else if (last_index == pg->cp_index) {
-				int size_to = i_size_read(inode) & ~PAGE_MASK;
-
-				if (to < size_to)
-					to = size_to;
-			}
-			if (need_clip)
-				cl_page_clip(env, pg, 0, to);
-			result = vvp_page_sync_io(env, io, pg, cp, CRT_WRITE);
-			if (result)
-				CERROR("Write page %lu of inode %p failed %d\n",
-				       pg->cp_index, inode, result);
-		}
-	} else {
-		tallyop = LPROC_LL_DIRTY_HITS;
-		result = 0;
-	}
-	ll_stats_ops_tally(sbi, tallyop, 1);
-
-	/* Inode should be marked DIRTY even if no new page was marked DIRTY
-	 * because page could have been not flushed between 2 modifications.
-	 * It is important the file is marked DIRTY as soon as the I/O is done
-	 * Indeed, when cache is flushed, file could be already closed and it
-	 * is too late to warn the MDT.
-	 * It is acceptable that file is marked DIRTY even if I/O is dropped
-	 * for some reasons before being flushed to OST.
-	 */
-	if (result == 0) {
-		spin_lock(&lli->lli_lock);
-		lli->lli_flags |= LLIF_DATA_MODIFIED;
-		spin_unlock(&lli->lli_lock);
-	}
-
-	size = cl_offset(obj, pg->cp_index) + to;
-
-	ll_inode_size_lock(inode);
-	if (result == 0) {
-		if (size > i_size_read(inode)) {
-			cl_isize_write_nolock(inode, size);
-			CDEBUG(D_VFSTRACE, DFID" updating i_size %lu\n",
-			       PFID(lu_object_fid(&obj->co_lu)),
-			       (unsigned long)size);
-		}
-		cl_page_export(env, pg, 1);
-	} else {
-		if (size > i_size_read(inode))
-			cl_page_discard(env, io, pg);
-	}
-	ll_inode_size_unlock(inode);
-	return result;
-}
-
 static const struct cl_io_operations vvp_io_ops = {
 	.op = {
 		[CIT_READ] = {
@@ -1103,6 +1109,8 @@ static const struct cl_io_operations vvp_io_ops = {
 		},
 		[CIT_WRITE] = {
 			.cio_fini      = vvp_io_fini,
+			.cio_iter_init = vvp_io_write_iter_init,
+			.cio_iter_fini = vvp_io_write_iter_fini,
 			.cio_lock      = vvp_io_write_lock,
 			.cio_start     = vvp_io_write_start,
 			.cio_advance   = ccc_io_advance
@@ -1130,8 +1138,6 @@ static const struct cl_io_operations vvp_io_ops = {
 		}
 	},
 	.cio_read_page     = vvp_io_read_page,
-	.cio_prepare_write = vvp_io_prepare_write,
-	.cio_commit_write  = vvp_io_commit_write
 };
 
 int vvp_io_init(const struct lu_env *env, struct cl_object *obj,

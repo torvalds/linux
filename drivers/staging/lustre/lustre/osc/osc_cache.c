@@ -879,10 +879,9 @@ int osc_extent_finish(const struct lu_env *env, struct osc_extent *ext,
 		 * span a whole chunk on the OST side, or our accounting goes
 		 * wrong.  Should match the code in filter_grant_check.
 		 */
-		int offset = oap->oap_page_off & ~PAGE_MASK;
-		int count = oap->oap_count + (offset & (blocksize - 1));
-		int end = (offset + oap->oap_count) & (blocksize - 1);
-
+		int offset = last_off & ~PAGE_MASK;
+		int count = last_count + (offset & (blocksize - 1));
+		int end = (offset + last_count) & (blocksize - 1);
 		if (end)
 			count += blocksize - end;
 
@@ -3131,14 +3130,13 @@ static int discard_cb(const struct lu_env *env, struct cl_io *io,
 	struct cl_page *page = cl_page_top(ops->ops_cl.cpl_page);
 
 	LASSERT(lock->cll_descr.cld_mode >= CLM_WRITE);
-	KLASSERT(ergo(page->cp_type == CPT_CACHEABLE,
-		      !PageWriteback(cl_page_vmpage(env, page))));
-	KLASSERT(ergo(page->cp_type == CPT_CACHEABLE,
-		      !PageDirty(cl_page_vmpage(env, page))));
 
 	/* page is top page. */
 	info->oti_next_index = osc_index(ops) + 1;
 	if (cl_page_own(env, io, page) == 0) {
+		KLASSERT(ergo(page->cp_type == CPT_CACHEABLE,
+			      !PageDirty(cl_page_vmpage(env, page))));
+
 		/* discard the page */
 		cl_page_discard(env, io, page);
 		cl_page_disown(env, io, page);

@@ -1085,22 +1085,17 @@ static int cl_echo_cancel0(struct lu_env *env, struct echo_device *ed,
 	return 0;
 }
 
-static int cl_echo_async_brw(const struct lu_env *env, struct cl_io *io,
-			     enum cl_req_type unused, struct cl_2queue *queue)
+static void echo_commit_callback(const struct lu_env *env, struct cl_io *io,
+				 struct cl_page *page)
 {
-	struct cl_page *clp;
-	struct cl_page *temp;
-	int result = 0;
+	struct echo_thread_info *info;
+	struct cl_2queue *queue;
 
-	cl_page_list_for_each_safe(clp, temp, &queue->c2_qin) {
-		int rc;
+	info = echo_env_info(env);
+	LASSERT(io == &info->eti_io);
 
-		rc = cl_page_cache_add(env, io, clp, CRT_WRITE);
-		if (rc == 0)
-			continue;
-		result = result ?: rc;
-	}
-	return result;
+	queue = &info->eti_queue;
+	cl_page_list_add(&queue->c2_qout, page);
 }
 
 static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
@@ -1179,7 +1174,9 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 
 		async = async && (typ == CRT_WRITE);
 		if (async)
-			rc = cl_echo_async_brw(env, io, typ, queue);
+			rc = cl_io_commit_async(env, io, &queue->c2_qin,
+						0, PAGE_SIZE,
+						echo_commit_callback);
 		else
 			rc = cl_io_submit_sync(env, io, typ, queue, 0);
 		CDEBUG(D_INFO, "echo_client %s write returns %d\n",

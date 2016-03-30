@@ -63,7 +63,7 @@
  * Finalizes cl-data before exiting typical address_space operation. Dual to
  * ll_cl_init().
  */
-static void ll_cl_fini(struct ll_cl_context *lcc)
+void ll_cl_fini(struct ll_cl_context *lcc)
 {
 	struct lu_env  *env  = lcc->lcc_env;
 	struct cl_io   *io   = lcc->lcc_io;
@@ -84,8 +84,7 @@ static void ll_cl_fini(struct ll_cl_context *lcc)
  * Initializes common cl-data at the typical address_space operation entry
  * point.
  */
-static struct ll_cl_context *ll_cl_init(struct file *file,
-					struct page *vmpage, int create)
+struct ll_cl_context *ll_cl_init(struct file *file, struct page *vmpage)
 {
 	struct ll_cl_context *lcc;
 	struct lu_env    *env;
@@ -96,7 +95,7 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 	int refcheck;
 	int result = 0;
 
-	clob = ll_i2info(vmpage->mapping->host)->lli_clob;
+	clob = ll_i2info(file_inode(file))->lli_clob;
 	LASSERT(clob);
 
 	env = cl_env_get(&refcheck);
@@ -111,62 +110,18 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 
 	cio = ccc_env_io(env);
 	io = cio->cui_cl.cis_io;
-	if (!io && create) {
-		struct inode *inode = vmpage->mapping->host;
-		loff_t pos;
-
-		if (inode_trylock(inode)) {
-			inode_unlock((inode));
-
-			/* this is too bad. Someone is trying to write the
-			 * page w/o holding inode mutex. This means we can
-			 * add dirty pages into cache during truncate
-			 */
-			CERROR("Proc %s is dirtying page w/o inode lock, this will break truncate\n",
-			       current->comm);
-			dump_stack();
-			LBUG();
-			return ERR_PTR(-EIO);
-		}
-
-		/*
-		 * Loop-back driver calls ->prepare_write().
-		 * methods directly, bypassing file system ->write() operation,
-		 * so cl_io has to be created here.
-		 */
-		io = ccc_env_thread_io(env);
-		ll_io_init(io, file, 1);
-
-		/* No lock at all for this kind of IO - we can't do it because
-		 * we have held page lock, it would cause deadlock.
-		 * XXX: This causes poor performance to loop device - One page
-		 *      per RPC.
-		 *      In order to get better performance, users should use
-		 *      lloop driver instead.
-		 */
-		io->ci_lockreq = CILR_NEVER;
-
-		pos = vmpage->index << PAGE_CACHE_SHIFT;
-
-		/* Create a temp IO to serve write. */
-		result = cl_io_rw_init(env, io, CIT_WRITE, pos, PAGE_CACHE_SIZE);
-		if (result == 0) {
-			cio->cui_fd = LUSTRE_FPRIVATE(file);
-			cio->cui_iter = NULL;
-			result = cl_io_iter_init(env, io);
-			if (result == 0) {
-				result = cl_io_lock(env, io);
-				if (result == 0)
-					result = cl_io_start(env, io);
-			}
-		} else
-			result = io->ci_result;
-	}
-
 	lcc->lcc_io = io;
-	if (!io)
+	if (!io) {
+		struct inode *inode = file_inode(file);
+
+		CERROR("%s: " DFID " no active IO, please file a ticket.\n",
+		       ll_get_fsname(inode->i_sb, NULL, 0),
+		       PFID(ll_inode2fid(inode)));
+		dump_stack();
+
 		result = -EIO;
-	if (result == 0) {
+	}
+	if (result == 0 && vmpage) {
 		struct cl_page   *page;
 
 		LASSERT(io->ci_state == CIS_IO_GOING);
@@ -185,97 +140,7 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 		lcc = ERR_PTR(result);
 	}
 
-	CDEBUG(D_VFSTRACE, "%lu@"DFID" -> %d %p %p\n",
-	       vmpage->index, PFID(lu_object_fid(&clob->co_lu)), result,
-	       env, io);
 	return lcc;
-}
-
-static struct ll_cl_context *ll_cl_get(void)
-{
-	struct ll_cl_context *lcc;
-	struct lu_env *env;
-	int refcheck;
-
-	env = cl_env_get(&refcheck);
-	LASSERT(!IS_ERR(env));
-	lcc = &vvp_env_info(env)->vti_io_ctx;
-	LASSERT(env == lcc->lcc_env);
-	LASSERT(current == lcc->lcc_cookie);
-	cl_env_put(env, &refcheck);
-
-	/* env has got in ll_cl_init, so it is still usable. */
-	return lcc;
-}
-
-/**
- * ->prepare_write() address space operation called by generic_file_write()
- * for every page during write.
- */
-int ll_prepare_write(struct file *file, struct page *vmpage, unsigned from,
-		     unsigned to)
-{
-	struct ll_cl_context *lcc;
-	int result;
-
-	lcc = ll_cl_init(file, vmpage, 1);
-	if (!IS_ERR(lcc)) {
-		struct lu_env  *env = lcc->lcc_env;
-		struct cl_io   *io  = lcc->lcc_io;
-		struct cl_page *page = lcc->lcc_page;
-
-		cl_page_assume(env, io, page);
-
-		result = cl_io_prepare_write(env, io, page, from, to);
-		if (result == 0) {
-			/*
-			 * Add a reference, so that page is not evicted from
-			 * the cache until ->commit_write() is called.
-			 */
-			cl_page_get(page);
-			lu_ref_add(&page->cp_reference, "prepare_write",
-				   current);
-		} else {
-			cl_page_unassume(env, io, page);
-			ll_cl_fini(lcc);
-		}
-		/* returning 0 in prepare assumes commit must be called
-		 * afterwards
-		 */
-	} else {
-		result = PTR_ERR(lcc);
-	}
-	return result;
-}
-
-int ll_commit_write(struct file *file, struct page *vmpage, unsigned from,
-		    unsigned to)
-{
-	struct ll_cl_context *lcc;
-	struct lu_env    *env;
-	struct cl_io     *io;
-	struct cl_page   *page;
-	int result = 0;
-
-	lcc  = ll_cl_get();
-	env  = lcc->lcc_env;
-	page = lcc->lcc_page;
-	io   = lcc->lcc_io;
-
-	LASSERT(cl_page_is_owned(page, io));
-	LASSERT(from <= to);
-	if (from != to) /* handle short write case. */
-		result = cl_io_commit_write(env, io, page, from, to);
-	if (cl_page_is_owned(page, io))
-		cl_page_unassume(env, io, page);
-
-	/*
-	 * Release reference acquired by ll_prepare_write().
-	 */
-	lu_ref_del(&page->cp_reference, "prepare_write", current);
-	cl_page_put(env, page);
-	ll_cl_fini(lcc);
-	return result;
 }
 
 static void ll_ra_stats_inc_sbi(struct ll_sb_info *sbi, enum ra_stat which);
@@ -1251,7 +1116,7 @@ int ll_readpage(struct file *file, struct page *vmpage)
 	struct ll_cl_context *lcc;
 	int result;
 
-	lcc = ll_cl_init(file, vmpage, 0);
+	lcc = ll_cl_init(file, vmpage);
 	if (!IS_ERR(lcc)) {
 		struct lu_env  *env  = lcc->lcc_env;
 		struct cl_io   *io   = lcc->lcc_io;
@@ -1271,5 +1136,30 @@ int ll_readpage(struct file *file, struct page *vmpage)
 		unlock_page(vmpage);
 		result = PTR_ERR(lcc);
 	}
+	return result;
+}
+
+int ll_page_sync_io(const struct lu_env *env, struct cl_io *io,
+		    struct cl_page *page, enum cl_req_type crt)
+{
+	struct cl_2queue  *queue;
+	int result;
+
+	LASSERT(io->ci_type == CIT_READ || io->ci_type == CIT_WRITE);
+
+	queue = &io->ci_queue;
+	cl_2queue_init_page(queue, page);
+
+	result = cl_io_submit_sync(env, io, crt, queue, 0);
+	LASSERT(cl_page_is_owned(page, io));
+
+	if (crt == CRT_READ)
+		/*
+		 * in CRT_WRITE case page is left locked even in case of
+		 * error.
+		 */
+		cl_page_list_disown(env, io, &queue->c2_qin);
+	cl_2queue_fini(env, queue);
+
 	return result;
 }

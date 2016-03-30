@@ -89,8 +89,8 @@ static void osc_page_transfer_put(const struct lu_env *env,
 	struct cl_page *page = cl_page_top(opg->ops_cl.cpl_page);
 
 	if (opg->ops_transfer_pinned) {
-		lu_ref_del(&page->cp_reference, "transfer", page);
 		opg->ops_transfer_pinned = 0;
+		lu_ref_del(&page->cp_reference, "transfer", page);
 		cl_page_put(env, page);
 	}
 }
@@ -113,11 +113,9 @@ static void osc_page_transfer_add(const struct lu_env *env,
 	spin_unlock(&obj->oo_seatbelt);
 }
 
-static int osc_page_cache_add(const struct lu_env *env,
-			      const struct cl_page_slice *slice,
-			      struct cl_io *io)
+int osc_page_cache_add(const struct lu_env *env,
+		       const struct cl_page_slice *slice, struct cl_io *io)
 {
-	struct osc_io *oio = osc_env_io(env);
 	struct osc_page *opg = cl2osc_page(slice);
 	int result;
 
@@ -129,17 +127,6 @@ static int osc_page_cache_add(const struct lu_env *env,
 		osc_page_transfer_put(env, opg);
 	else
 		osc_page_transfer_add(env, opg, CRT_WRITE);
-
-	/* for sync write, kernel will wait for this page to be flushed before
-	 * osc_io_end() is called, so release it earlier.
-	 * for mkwrite(), it's known there is no further pages.
-	 */
-	if (cl_io_is_sync_write(io) || cl_io_is_mkwrite(io)) {
-		if (oio->oi_active) {
-			osc_extent_release(env, oio->oi_active);
-			oio->oi_active = NULL;
-		}
-	}
 
 	return result;
 }
@@ -229,17 +216,6 @@ static void osc_page_completion_write(const struct lu_env *env,
 				      const struct cl_page_slice *slice,
 				      int ioret)
 {
-}
-
-static int osc_page_fail(const struct lu_env *env,
-			 const struct cl_page_slice *slice,
-			 struct cl_io *unused)
-{
-	/*
-	 * Cached read?
-	 */
-	LBUG();
-	return 0;
 }
 
 static const char *osc_list(struct list_head *head)
@@ -393,11 +369,9 @@ static const struct cl_page_operations osc_page_ops = {
 	.cpo_disown	= osc_page_disown,
 	.io = {
 		[CRT_READ] = {
-			.cpo_cache_add  = osc_page_fail,
 			.cpo_completion = osc_page_completion_read
 		},
 		[CRT_WRITE] = {
-			.cpo_cache_add  = osc_page_cache_add,
 			.cpo_completion = osc_page_completion_write
 		}
 	},

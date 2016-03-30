@@ -1019,26 +1019,6 @@ struct cl_page_operations {
 		 */
 		int  (*cpo_make_ready)(const struct lu_env *env,
 				       const struct cl_page_slice *slice);
-		/**
-		 * Announce that this page is to be written out
-		 * opportunistically, that is, page is dirty, it is not
-		 * necessary to start write-out transfer right now, but
-		 * eventually page has to be written out.
-		 *
-		 * Main caller of this is the write path (see
-		 * vvp_io_commit_write()), using this method to build a
-		 * "transfer cache" from which large transfers are then
-		 * constructed by the req-formation engine.
-		 *
-		 * \todo XXX it would make sense to add page-age tracking
-		 * semantics here, and to oblige the req-formation engine to
-		 * send the page out not later than it is too old.
-		 *
-		 * \see cl_page_cache_add()
-		 */
-		int  (*cpo_cache_add)(const struct lu_env *env,
-				      const struct cl_page_slice *slice,
-				      struct cl_io *io);
 	} io[CRT_NR];
 	/**
 	 * Tell transfer engine that only [to, from] part of a page should be
@@ -2023,6 +2003,8 @@ struct cl_io_slice {
 	struct list_head		     cis_linkage;
 };
 
+typedef void (*cl_commit_cbt)(const struct lu_env *, struct cl_io *,
+			      struct cl_page *);
 /**
  * Per-layer io operations.
  * \see vvp_io_ops, lov_io_ops, lovsub_io_ops, osc_io_ops
@@ -2106,7 +2088,7 @@ struct cl_io_operations {
 		void (*cio_fini)(const struct lu_env *env,
 				 const struct cl_io_slice *slice);
 	} op[CIT_OP_NR];
-	struct {
+
 		/**
 		 * Submit pages from \a queue->c2_qin for IO, and move
 		 * successfully submitted pages into \a queue->c2_qout. Return
@@ -2119,7 +2101,15 @@ struct cl_io_operations {
 				   const struct cl_io_slice *slice,
 				   enum cl_req_type crt,
 				   struct cl_2queue *queue);
-	} req_op[CRT_NR];
+	/**
+	 * Queue async page for write.
+	 * The difference between cio_submit and cio_queue is that
+	 * cio_submit is for urgent request.
+	 */
+	int  (*cio_commit_async)(const struct lu_env *env,
+				 const struct cl_io_slice *slice,
+				 struct cl_page_list *queue, int from, int to,
+				 cl_commit_cbt cb);
 	/**
 	 * Read missing page.
 	 *
@@ -2131,31 +2121,6 @@ struct cl_io_operations {
 	int (*cio_read_page)(const struct lu_env *env,
 			     const struct cl_io_slice *slice,
 			     const struct cl_page_slice *page);
-	/**
-	 * Prepare write of a \a page. Called bottom-to-top by a top-level
-	 * cl_io_operations::op[CIT_WRITE]::cio_start() to prepare page for
-	 * get data from user-level buffer.
-	 *
-	 * \pre io->ci_type == CIT_WRITE
-	 *
-	 * \see vvp_io_prepare_write(), lov_io_prepare_write(),
-	 * osc_io_prepare_write().
-	 */
-	int (*cio_prepare_write)(const struct lu_env *env,
-				 const struct cl_io_slice *slice,
-				 const struct cl_page_slice *page,
-				 unsigned from, unsigned to);
-	/**
-	 *
-	 * \pre io->ci_type == CIT_WRITE
-	 *
-	 * \see vvp_io_commit_write(), lov_io_commit_write(),
-	 * osc_io_commit_write().
-	 */
-	int (*cio_commit_write)(const struct lu_env *env,
-				const struct cl_io_slice *slice,
-				const struct cl_page_slice *page,
-				unsigned from, unsigned to);
 	/**
 	 * Optional debugging helper. Print given io slice.
 	 */
@@ -3044,15 +3009,14 @@ int cl_io_lock_alloc_add(const struct lu_env *env, struct cl_io *io,
 			 struct cl_lock_descr *descr);
 int cl_io_read_page(const struct lu_env *env, struct cl_io *io,
 		    struct cl_page *page);
-int cl_io_prepare_write(const struct lu_env *env, struct cl_io *io,
-			struct cl_page *page, unsigned from, unsigned to);
-int cl_io_commit_write(const struct lu_env *env, struct cl_io *io,
-		       struct cl_page *page, unsigned from, unsigned to);
 int cl_io_submit_rw(const struct lu_env *env, struct cl_io *io,
 		    enum cl_req_type iot, struct cl_2queue *queue);
 int cl_io_submit_sync(const struct lu_env *env, struct cl_io *io,
 		      enum cl_req_type iot, struct cl_2queue *queue,
 		      long timeout);
+int cl_io_commit_async(const struct lu_env *env, struct cl_io *io,
+		       struct cl_page_list *queue, int from, int to,
+		       cl_commit_cbt cb);
 int cl_io_is_going(const struct lu_env *env);
 
 /**
@@ -3108,6 +3072,12 @@ static inline struct cl_page *cl_page_list_last(struct cl_page_list *plist)
 	return list_entry(plist->pl_pages.prev, struct cl_page, cp_batch);
 }
 
+static inline struct cl_page *cl_page_list_first(struct cl_page_list *plist)
+{
+	LASSERT(plist->pl_nr > 0);
+	return list_entry(plist->pl_pages.next, struct cl_page, cp_batch);
+}
+
 /**
  * Iterate over pages in a page list.
  */
@@ -3124,9 +3094,14 @@ void cl_page_list_init(struct cl_page_list *plist);
 void cl_page_list_add(struct cl_page_list *plist, struct cl_page *page);
 void cl_page_list_move(struct cl_page_list *dst, struct cl_page_list *src,
 		       struct cl_page *page);
+void cl_page_list_move_head(struct cl_page_list *dst, struct cl_page_list *src,
+			    struct cl_page *page);
 void cl_page_list_splice(struct cl_page_list *list, struct cl_page_list *head);
+void cl_page_list_del(const struct lu_env *env, struct cl_page_list *plist,
+		      struct cl_page *page);
 void cl_page_list_disown(const struct lu_env *env,
 			 struct cl_io *io, struct cl_page_list *plist);
+void cl_page_list_fini(const struct lu_env *env, struct cl_page_list *plist);
 
 void cl_2queue_init(struct cl_2queue *queue);
 void cl_2queue_disown(const struct lu_env *env,

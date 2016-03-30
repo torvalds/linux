@@ -1734,7 +1734,6 @@ static int brw_interpret(const struct lu_env *env,
 	struct osc_brw_async_args *aa = data;
 	struct osc_extent *ext;
 	struct osc_extent *tmp;
-	struct cl_object *obj = NULL;
 	struct client_obd *cli = aa->aa_cli;
 
 	rc = osc_brw_fini_request(req, rc);
@@ -1763,24 +1762,17 @@ static int brw_interpret(const struct lu_env *env,
 			rc = -EIO;
 	}
 
-	list_for_each_entry_safe(ext, tmp, &aa->aa_exts, oe_link) {
-		if (!obj && rc == 0) {
-			obj = osc2cl(ext->oe_obj);
-			cl_object_get(obj);
-		}
-
-		list_del_init(&ext->oe_link);
-		osc_extent_finish(env, ext, 1, rc);
-	}
-	LASSERT(list_empty(&aa->aa_exts));
-	LASSERT(list_empty(&aa->aa_oaps));
-
-	if (obj) {
+	if (rc == 0) {
 		struct obdo *oa = aa->aa_oa;
 		struct cl_attr *attr  = &osc_env_info(env)->oti_attr;
 		unsigned long valid = 0;
+		struct cl_object *obj;
+		struct osc_async_page *last;
 
-		LASSERT(rc == 0);
+		last = brw_page2oap(aa->aa_ppga[aa->aa_page_count - 1]);
+		obj = osc2cl(last->oap_obj);
+
+		cl_object_attr_lock(obj);
 		if (oa->o_valid & OBD_MD_FLBLOCKS) {
 			attr->cat_blocks = oa->o_blocks;
 			valid |= CAT_BLOCKS;
@@ -1797,14 +1789,38 @@ static int brw_interpret(const struct lu_env *env,
 			attr->cat_ctime = oa->o_ctime;
 			valid |= CAT_CTIME;
 		}
-		if (valid != 0) {
-			cl_object_attr_lock(obj);
-			cl_object_attr_set(env, obj, attr, valid);
-			cl_object_attr_unlock(obj);
+
+		if (lustre_msg_get_opc(req->rq_reqmsg) == OST_WRITE) {
+			struct lov_oinfo *loi = cl2osc(obj)->oo_oinfo;
+			loff_t last_off = last->oap_count + last->oap_obj_off;
+
+			/* Change file size if this is an out of quota or
+			 * direct IO write and it extends the file size
+			 */
+			if (loi->loi_lvb.lvb_size < last_off) {
+				attr->cat_size = last_off;
+				valid |= CAT_SIZE;
+			}
+			/* Extend KMS if it's not a lockless write */
+			if (loi->loi_kms < last_off &&
+			    oap2osc_page(last)->ops_srvlock == 0) {
+				attr->cat_kms = last_off;
+				valid |= CAT_KMS;
+			}
 		}
-		cl_object_put(env, obj);
+
+		if (valid != 0)
+			cl_object_attr_set(env, obj, attr, valid);
+		cl_object_attr_unlock(obj);
 	}
 	kmem_cache_free(obdo_cachep, aa->aa_oa);
+
+	list_for_each_entry_safe(ext, tmp, &aa->aa_exts, oe_link) {
+		list_del_init(&ext->oe_link);
+		osc_extent_finish(env, ext, 1, rc);
+	}
+	LASSERT(list_empty(&aa->aa_exts));
+	LASSERT(list_empty(&aa->aa_oaps));
 
 	cl_req_completion(env, aa->aa_clerq, rc < 0 ? rc :
 			  req->rq_bulk->bd_nob_transferred);

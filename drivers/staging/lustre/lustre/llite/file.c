@@ -1120,6 +1120,9 @@ ll_file_io_generic(const struct lu_env *env, struct vvp_io_args *args,
 	struct cl_io	 *io;
 	ssize_t	       result;
 
+	CDEBUG(D_VFSTRACE, "file: %s, type: %d ppos: %llu, count: %zd\n",
+	       file->f_path.dentry->d_name.name, iot, *ppos, count);
+
 restart:
 	io = ccc_env_thread_io(env);
 	ll_io_init(io, file, iot == CIT_WRITE);
@@ -1144,9 +1147,8 @@ restart:
 					goto out;
 				}
 				write_mutex_locked = 1;
-			} else if (iot == CIT_READ) {
-				down_read(&lli->lli_trunc_sem);
 			}
+			down_read(&lli->lli_trunc_sem);
 			break;
 		case IO_SPLICE:
 			vio->u.splice.cui_pipe = args->u.splice.via_pipe;
@@ -1157,10 +1159,10 @@ restart:
 			LBUG();
 		}
 		result = cl_io_loop(env, io);
+		if (args->via_io_subtype == IO_NORMAL)
+			up_read(&lli->lli_trunc_sem);
 		if (write_mutex_locked)
 			mutex_unlock(&lli->lli_write_mutex);
-		else if (args->via_io_subtype == IO_NORMAL && iot == CIT_READ)
-			up_read(&lli->lli_trunc_sem);
 	} else {
 		/* cl_io_rw_init() handled IO */
 		result = io->ci_result;
@@ -1197,6 +1199,7 @@ out:
 			fd->fd_write_failed = true;
 		}
 	}
+	CDEBUG(D_VFSTRACE, "iot: %d, result: %zd\n", iot, result);
 
 	return result;
 }

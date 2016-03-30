@@ -83,6 +83,12 @@ struct osc_async_page {
 #define oap_count       oap_brw_page.count
 #define oap_brw_flags   oap_brw_page.flag
 
+static inline struct osc_async_page *brw_page2oap(struct brw_page *pga)
+{
+	return (struct osc_async_page *)container_of(pga, struct osc_async_page,
+						     oap_brw_page);
+}
+
 struct osc_cache_waiter {
 	struct list_head	      ocw_entry;
 	wait_queue_head_t	     ocw_waitq;
