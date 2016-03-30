@@ -302,6 +302,7 @@ enum iwl_mvm_ref_type {
 	IWL_MVM_REF_FW_DBG_COLLECT,
 	IWL_MVM_REF_INIT_UCODE,
 	IWL_MVM_REF_SENDING_CMD,
+	IWL_MVM_REF_RX,
 
 	/* update debugfs.c when changing this */
 
