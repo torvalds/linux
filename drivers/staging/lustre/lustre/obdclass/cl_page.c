@@ -887,7 +887,7 @@ void cl_page_completion(const struct lu_env *env,
 	cl_page_put(env, pg);
 
 	if (anchor)
-		cl_sync_io_note(anchor, ioret);
+		cl_sync_io_note(env, anchor, ioret);
 }
 EXPORT_SYMBOL(cl_page_completion);
 
