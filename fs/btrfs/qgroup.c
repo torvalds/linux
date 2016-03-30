@@ -1463,6 +1463,7 @@ struct btrfs_qgroup_extent_record
 	u64 bytenr = record->bytenr;
 
 	assert_spin_locked(&delayed_refs->lock);
+	trace_btrfs_qgroup_insert_dirty_extent(record);
 
 	while (*p) {
 		parent_node = *p;
@@ -1594,6 +1595,9 @@ static int qgroup_update_counters(struct btrfs_fs_info *fs_info,
 		cur_old_count = btrfs_qgroup_get_old_refcnt(qg, seq);
 		cur_new_count = btrfs_qgroup_get_new_refcnt(qg, seq);
 
+		trace_qgroup_update_counters(qg->qgroupid, cur_old_count,
+					     cur_new_count);
+
 		/* Rfer update part */
 		if (cur_old_count == 0 && cur_new_count > 0) {
 			qg->rfer += num_bytes;
@@ -1683,6 +1687,9 @@ btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
 		goto out_free;
 	BUG_ON(!fs_info->quota_root);
 
+	trace_btrfs_qgroup_account_extent(bytenr, num_bytes, nr_old_roots,
+					  nr_new_roots);
+
 	qgroups = ulist_alloc(GFP_NOFS);
 	if (!qgroups) {
 		ret = -ENOMEM;
@@ -1751,6 +1758,8 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans,
 	while ((node = rb_first(&delayed_refs->dirty_extent_root))) {
 		record = rb_entry(node, struct btrfs_qgroup_extent_record,
 				  node);
+
+		trace_btrfs_qgroup_account_extents(record);
 
 		if (!ret) {
 			/*
