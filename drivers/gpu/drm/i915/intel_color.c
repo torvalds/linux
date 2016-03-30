@@ -487,10 +487,6 @@ void intel_color_load_luts(struct drm_crtc_state *crtc_state)
 	struct drm_device *dev = crtc_state->crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	/* The clocks have to be on to load the palette. */
-	if (!crtc_state->active)
-		return;
-
 	dev_priv->display.load_luts(crtc_state);
 }
 
