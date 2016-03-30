@@ -65,6 +65,9 @@ struct snd_efw {
 	struct mutex mutex;
 	spinlock_t lock;
 
+	bool registered;
+	struct delayed_work dwork;
+
 	/* for transaction */
 	u32 seqnum;
 	bool resp_addr_changable;
