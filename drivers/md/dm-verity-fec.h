@@ -12,6 +12,8 @@
 #ifndef DM_VERITY_FEC_H
 #define DM_VERITY_FEC_H
 
+#include "dm.h"
+#include "dm-core.h"
 #include "dm-verity.h"
 #include <linux/rslib.h>
 
@@ -48,6 +50,8 @@ struct dm_verity_fec {
 	mempool_t *extra_pool;	/* mempool for extra buffers */
 	mempool_t *output_pool;	/* mempool for output */
 	struct kmem_cache *cache;	/* cache for buffers */
+	atomic_t corrected;		/* corrected errors */
+	struct dm_kobject_holder kobj_holder;	/* for sysfs attributes */
 };
 
 /* per-bio data */
