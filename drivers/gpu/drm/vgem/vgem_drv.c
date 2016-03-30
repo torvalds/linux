@@ -208,11 +208,9 @@ int vgem_gem_dumb_map(struct drm_file *file, struct drm_device *dev,
 		goto unlock;
 	}
 
-	if (!drm_vma_node_has_offset(&obj->vma_node)) {
-		ret = drm_gem_create_mmap_offset(obj);
-		if (ret)
-			goto unref;
-	}
+	ret = drm_gem_create_mmap_offset(obj);
+	if (ret)
+		goto unref;
 
 	BUG_ON(!obj->filp);
 
