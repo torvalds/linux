@@ -1216,6 +1216,8 @@ static const struct file_operations amdgpu_ttm_vram_fops = {
 	.llseek = default_llseek
 };
 
+#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
+
 static ssize_t amdgpu_ttm_gtt_read(struct file *f, char __user *buf,
 				   size_t size, loff_t *pos)
 {
@@ -1263,6 +1265,8 @@ static const struct file_operations amdgpu_ttm_gtt_fops = {
 
 #endif
 
+#endif
+
 static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
@@ -1278,6 +1282,7 @@ static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 	i_size_write(ent->d_inode, adev->mc.mc_vram_size);
 	adev->mman.vram = ent;
 
+#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
 	ent = debugfs_create_file("amdgpu_gtt", S_IFREG | S_IRUGO, root,
 				  adev, &amdgpu_ttm_gtt_fops);
 	if (IS_ERR(ent))
@@ -1285,6 +1290,7 @@ static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 	i_size_write(ent->d_inode, adev->mc.gtt_size);
 	adev->mman.gtt = ent;
 
+#endif
 	count = ARRAY_SIZE(amdgpu_ttm_debugfs_list);
 
 #ifdef CONFIG_SWIOTLB
@@ -1306,7 +1312,10 @@ static void amdgpu_ttm_debugfs_fini(struct amdgpu_device *adev)
 	debugfs_remove(adev->mman.vram);
 	adev->mman.vram = NULL;
 
+#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
 	debugfs_remove(adev->mman.gtt);
 	adev->mman.gtt = NULL;
+#endif
+
 #endif
 }
