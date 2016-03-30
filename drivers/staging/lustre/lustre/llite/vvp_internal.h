@@ -128,6 +128,7 @@ int cl_is_normalio(const struct lu_env *env, const struct cl_io *io);
 extern struct lu_context_key ccc_key;
 extern struct lu_context_key ccc_session_key;
 
+extern struct kmem_cache *vvp_lock_kmem;
 extern struct kmem_cache *vvp_object_kmem;
 
 struct ccc_thread_info {
@@ -269,8 +270,8 @@ struct vvp_device {
 	struct cl_device   *vdv_next;
 };
 
-struct ccc_lock {
-	struct cl_lock_slice clk_cl;
+struct vvp_lock {
+	struct cl_lock_slice vlk_cl;
 };
 
 struct ccc_req {
@@ -291,15 +292,6 @@ int ccc_req_init(const struct lu_env *env, struct cl_device *dev,
 void ccc_umount(const struct lu_env *env, struct cl_device *dev);
 int ccc_global_init(struct lu_device_type *device_type);
 void ccc_global_fini(struct lu_device_type *device_type);
-int ccc_lock_init(const struct lu_env *env, struct cl_object *obj,
-		  struct cl_lock *lock, const struct cl_io *io,
-		  const struct cl_lock_operations *lkops);
-void ccc_lock_delete(const struct lu_env *env,
-		     const struct cl_lock_slice *slice);
-void ccc_lock_fini(const struct lu_env *env, struct cl_lock_slice *slice);
-int ccc_lock_enqueue(const struct lu_env *env,
-		     const struct cl_lock_slice *slice,
-		     struct cl_io *io, struct cl_sync_io *anchor);
 
 int ccc_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 			  __u32 enqflags, enum cl_lock_mode mode,
@@ -359,7 +351,11 @@ static inline struct page *cl2vm_page(const struct cl_page_slice *slice)
 	return cl2vvp_page(slice)->vpg_page;
 }
 
-struct ccc_lock *cl2ccc_lock(const struct cl_lock_slice *slice);
+static inline struct vvp_lock *cl2vvp_lock(const struct cl_lock_slice *slice)
+{
+	return container_of(slice, struct vvp_lock, vlk_cl);
+}
+
 struct ccc_io *cl2ccc_io(const struct lu_env *env,
 			 const struct cl_io_slice *slice);
 struct ccc_req *cl2ccc_req(const struct cl_req_slice *slice);

@@ -67,17 +67,11 @@ static const struct cl_req_operations ccc_req_ops;
  * ccc_ prefix stands for "Common Client Code".
  */
 
-static struct kmem_cache *ccc_lock_kmem;
 static struct kmem_cache *ccc_thread_kmem;
 static struct kmem_cache *ccc_session_kmem;
 static struct kmem_cache *ccc_req_kmem;
 
 static struct lu_kmem_descr ccc_caches[] = {
-	{
-		.ckd_cache = &ccc_lock_kmem,
-		.ckd_name  = "ccc_lock_kmem",
-		.ckd_size  = sizeof(struct ccc_lock)
-	},
 	{
 		.ckd_cache = &ccc_thread_kmem,
 		.ckd_name  = "ccc_thread_kmem",
@@ -221,26 +215,6 @@ void ccc_global_fini(struct lu_device_type *device_type)
 	lu_kmem_fini(ccc_caches);
 }
 
-int ccc_lock_init(const struct lu_env *env,
-		  struct cl_object *obj, struct cl_lock *lock,
-		  const struct cl_io *unused,
-		  const struct cl_lock_operations *lkops)
-{
-	struct ccc_lock *clk;
-	int result;
-
-	CLOBINVRNT(env, obj, vvp_object_invariant(obj));
-
-	clk = kmem_cache_zalloc(ccc_lock_kmem, GFP_NOFS);
-	if (clk) {
-		cl_lock_slice_add(lock, &clk->clk_cl, obj, lkops);
-		result = 0;
-	} else {
-		result = -ENOMEM;
-	}
-	return result;
-}
-
 static void vvp_object_size_lock(struct cl_object *obj)
 {
 	struct inode *inode = vvp_object_inode(obj);
@@ -255,27 +229,6 @@ static void vvp_object_size_unlock(struct cl_object *obj)
 
 	cl_object_attr_unlock(obj);
 	ll_inode_size_unlock(inode);
-}
-
-/*****************************************************************************
- *
- * Lock operations.
- *
- */
-
-void ccc_lock_fini(const struct lu_env *env, struct cl_lock_slice *slice)
-{
-	struct ccc_lock *clk = cl2ccc_lock(slice);
-
-	kmem_cache_free(ccc_lock_kmem, clk);
-}
-
-int ccc_lock_enqueue(const struct lu_env *env,
-		     const struct cl_lock_slice *slice,
-		     struct cl_io *unused, struct cl_sync_io *anchor)
-{
-	CLOBINVRNT(env, slice->cls_obj, vvp_object_invariant(slice->cls_obj));
-	return 0;
 }
 
 /*****************************************************************************
@@ -570,11 +523,6 @@ again:
  * Type conversions.
  *
  */
-
-struct ccc_lock *cl2ccc_lock(const struct cl_lock_slice *slice)
-{
-	return container_of(slice, struct ccc_lock, clk_cl);
-}
 
 struct ccc_io *cl2ccc_io(const struct lu_env *env,
 			 const struct cl_io_slice *slice)
