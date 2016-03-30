@@ -124,7 +124,6 @@ struct visor_device {
 	 */
 	struct visorchannel *visorchannel;
 	uuid_le channel_type_guid;
-	u64 channel_bytes;
 
 	/** These fields are for private use by the bus driver only.
 	 *  A notable exception is that the visor driver can use
