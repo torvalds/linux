@@ -15,9 +15,6 @@
 #include <asm/mcip.h>
 #include <asm/setup.h>
 
-#define IPI_IRQ		19
-#define SOFTIRQ_IRQ	21
-
 static char smp_cpuinfo_buf[128];
 static int idu_detected;
 

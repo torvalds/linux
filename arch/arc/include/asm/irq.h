@@ -12,6 +12,12 @@
 #define NR_CPU_IRQS	32  /* number of interrupt lines of ARC770 CPU */
 #define NR_IRQS		128 /* allow some CPU external IRQ handling */
 
+/* Platform Independent IRQs */
+#ifdef CONFIG_ISA_ARCV2
+#define IPI_IRQ		19
+#define SOFTIRQ_IRQ	21
+#endif
+
 #include <linux/interrupt.h>
 #include <asm-generic/irq.h>
 
