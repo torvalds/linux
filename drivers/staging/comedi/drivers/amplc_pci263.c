@@ -36,14 +36,18 @@
 
 #include "../comedi_pci.h"
 
+/* PCI263 registers */
+#define PCI263_DO_0_7_REG	0x00
+#define PCI263_DO_8_15_REG	0x01
+
 static int pci263_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data)) {
-		outb(s->state & 0xff, dev->iobase);
-		outb((s->state >> 8) & 0xff, dev->iobase + 1);
+		outb(s->state & 0xff, dev->iobase + PCI263_DO_0_7_REG);
+		outb((s->state >> 8) & 0xff, dev->iobase + PCI263_DO_8_15_REG);
 	}
 
 	data[1] = s->state;
@@ -77,7 +81,8 @@ static int pci263_auto_attach(struct comedi_device *dev,
 	s->insn_bits	= pci263_do_insn_bits;
 
 	/* read initial relay state */
-	s->state = inb(dev->iobase) | (inb(dev->iobase + 1) << 8);
+	s->state = inb(dev->iobase + PCI263_DO_0_7_REG) |
+		   (inb(dev->iobase + PCI263_DO_8_15_REG) << 8);
 
 	return 0;
 }
