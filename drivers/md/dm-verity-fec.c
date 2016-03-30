@@ -11,6 +11,7 @@
 
 #include "dm-verity-fec.h"
 #include <linux/math64.h>
+#include <linux/sysfs.h>
 
 #define DM_MSG_PREFIX	"verity-fec"
 
@@ -175,9 +176,11 @@ error:
 	if (r < 0 && neras)
 		DMERR_LIMIT("%s: FEC %llu: failed to correct: %d",
 			    v->data_dev->name, (unsigned long long)rsb, r);
-	else if (r > 0)
+	else if (r > 0) {
 		DMWARN_LIMIT("%s: FEC %llu: corrected %d errors",
 			     v->data_dev->name, (unsigned long long)rsb, r);
+		atomic_add_unless(&v->fec->corrected, 1, INT_MAX);
+	}
 
 	return r;
 }
@@ -548,6 +551,7 @@ unsigned verity_fec_status_table(struct dm_verity *v, unsigned sz,
 void verity_fec_dtr(struct dm_verity *v)
 {
 	struct dm_verity_fec *f = v->fec;
+	struct kobject *kobj = &f->kobj_holder.kobj;
 
 	if (!verity_fec_is_enabled(v))
 		goto out;
@@ -564,6 +568,12 @@ void verity_fec_dtr(struct dm_verity *v)
 
 	if (f->dev)
 		dm_put_device(v->ti, f->dev);
+
+	if (kobj->state_initialized) {
+		kobject_put(kobj);
+		wait_for_completion(dm_get_completion_from_kobject(kobj));
+	}
+
 out:
 	kfree(f);
 	v->fec = NULL;
@@ -652,6 +662,27 @@ int verity_fec_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 	return 0;
 }
 
+static ssize_t corrected_show(struct kobject *kobj, struct kobj_attribute *attr,
+			      char *buf)
+{
+	struct dm_verity_fec *f = container_of(kobj, struct dm_verity_fec,
+					       kobj_holder.kobj);
+
+	return sprintf(buf, "%d\n", atomic_read(&f->corrected));
+}
+
+static struct kobj_attribute attr_corrected = __ATTR_RO(corrected);
+
+static struct attribute *fec_attrs[] = {
+	&attr_corrected.attr,
+	NULL
+};
+
+static struct kobj_type fec_ktype = {
+	.sysfs_ops = &kobj_sysfs_ops,
+	.default_attrs = fec_attrs
+};
+
 /*
  * Allocate dm_verity_fec for v->fec. Must be called before verity_fec_ctr.
  */
@@ -675,13 +706,25 @@ int verity_fec_ctr_alloc(struct dm_verity *v)
  */
 int verity_fec_ctr(struct dm_verity *v)
 {
+	int r;
 	struct dm_verity_fec *f = v->fec;
 	struct dm_target *ti = v->ti;
+	struct mapped_device *md = dm_table_get_md(ti->table);
 	u64 hash_blocks;
 
 	if (!verity_fec_is_enabled(v)) {
 		verity_fec_dtr(v);
 		return 0;
+	}
+
+	/* Create a kobject and sysfs attributes */
+	init_completion(&f->kobj_holder.completion);
+
+	r = kobject_init_and_add(&f->kobj_holder.kobj, &fec_ktype,
+				 &disk_to_dev(dm_disk(md))->kobj, "%s", "fec");
+	if (r) {
+		ti->error = "Cannot create kobject";
+		return r;
 	}
 
 	/*
