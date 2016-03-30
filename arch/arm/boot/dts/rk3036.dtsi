@@ -63,11 +63,6 @@
 		spi = &spi;
 	};
 
-	memory {
-		device_type = "memory";
-		reg = <0x60000000 0x40000000>;
-	};
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
