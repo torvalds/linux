@@ -3241,6 +3241,7 @@ void *cl_env_reenter(void);
 void cl_env_reexit(void *cookie);
 void cl_env_implant(struct lu_env *env, int *refcheck);
 void cl_env_unplant(struct lu_env *env, int *refcheck);
+unsigned int cl_env_cache_purge(unsigned int nr);
 
 /** @} cl_env */
 

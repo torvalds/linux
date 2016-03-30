@@ -492,6 +492,13 @@ EXPORT_SYMBOL(cl_site_stats_print);
  * bz20044, bz22683.
  */
 
+static LIST_HEAD(cl_envs);
+static unsigned int cl_envs_cached_nr;
+static unsigned int cl_envs_cached_max = 128; /* XXX: prototype: arbitrary limit
+					       * for now.
+					       */
+static DEFINE_SPINLOCK(cl_envs_guard);
+
 struct cl_env {
 	void	     *ce_magic;
 	struct lu_env     ce_lu;
@@ -697,6 +704,39 @@ static void cl_env_fini(struct cl_env *cle)
 	kmem_cache_free(cl_env_kmem, cle);
 }
 
+static struct lu_env *cl_env_obtain(void *debug)
+{
+	struct cl_env *cle;
+	struct lu_env *env;
+
+	spin_lock(&cl_envs_guard);
+	LASSERT(equi(cl_envs_cached_nr == 0, list_empty(&cl_envs)));
+	if (cl_envs_cached_nr > 0) {
+		int rc;
+
+		cle = container_of(cl_envs.next, struct cl_env, ce_linkage);
+		list_del_init(&cle->ce_linkage);
+		cl_envs_cached_nr--;
+		spin_unlock(&cl_envs_guard);
+
+		env = &cle->ce_lu;
+		rc = lu_env_refill(env);
+		if (rc == 0) {
+			cl_env_init0(cle, debug);
+			lu_context_enter(&env->le_ctx);
+			lu_context_enter(&cle->ce_ses);
+		} else {
+			cl_env_fini(cle);
+			env = ERR_PTR(rc);
+		}
+	} else {
+		spin_unlock(&cl_envs_guard);
+		env = cl_env_new(lu_context_tags_default,
+				 lu_session_tags_default, debug);
+	}
+	return env;
+}
+
 static inline struct cl_env *cl_env_container(struct lu_env *env)
 {
 	return container_of(env, struct cl_env, ce_lu);
@@ -727,6 +767,8 @@ static struct lu_env *cl_env_peek(int *refcheck)
  * Returns lu_env: if there already is an environment associated with the
  * current thread, it is returned, otherwise, new environment is allocated.
  *
+ * Allocations are amortized through the global cache of environments.
+ *
  * \param refcheck pointer to a counter used to detect environment leaks. In
  * the usual case cl_env_get() and cl_env_put() are called in the same lexical
  * scope and pointer to the same integer is passed as \a refcheck. This is
@@ -740,10 +782,7 @@ struct lu_env *cl_env_get(int *refcheck)
 
 	env = cl_env_peek(refcheck);
 	if (!env) {
-		env = cl_env_new(lu_context_tags_default,
-				 lu_session_tags_default,
-				 __builtin_return_address(0));
-
+		env = cl_env_obtain(__builtin_return_address(0));
 		if (!IS_ERR(env)) {
 			struct cl_env *cle;
 
@@ -787,6 +826,32 @@ static void cl_env_exit(struct cl_env *cle)
 }
 
 /**
+ * Finalizes and frees a given number of cached environments. This is done to
+ * (1) free some memory (not currently hooked into VM), or (2) release
+ * references to modules.
+ */
+unsigned int cl_env_cache_purge(unsigned int nr)
+{
+	struct cl_env *cle;
+
+	spin_lock(&cl_envs_guard);
+	for (; !list_empty(&cl_envs) && nr > 0; --nr) {
+		cle = container_of(cl_envs.next, struct cl_env, ce_linkage);
+		list_del_init(&cle->ce_linkage);
+		LASSERT(cl_envs_cached_nr > 0);
+		cl_envs_cached_nr--;
+		spin_unlock(&cl_envs_guard);
+
+		cl_env_fini(cle);
+		spin_lock(&cl_envs_guard);
+	}
+	LASSERT(equi(cl_envs_cached_nr == 0, list_empty(&cl_envs)));
+	spin_unlock(&cl_envs_guard);
+	return nr;
+}
+EXPORT_SYMBOL(cl_env_cache_purge);
+
+/**
  * Release an environment.
  *
  * Decrement \a env reference counter. When counter drops to 0, nothing in
@@ -808,7 +873,22 @@ void cl_env_put(struct lu_env *env, int *refcheck)
 		cl_env_detach(cle);
 		cle->ce_debug = NULL;
 		cl_env_exit(cle);
-		cl_env_fini(cle);
+		/*
+		 * Don't bother to take a lock here.
+		 *
+		 * Return environment to the cache only when it was allocated
+		 * with the standard tags.
+		 */
+		if (cl_envs_cached_nr < cl_envs_cached_max &&
+		    (env->le_ctx.lc_tags & ~LCT_HAS_EXIT) == LCT_CL_THREAD &&
+		    (env->le_ses->lc_tags & ~LCT_HAS_EXIT) == LCT_SESSION) {
+			spin_lock(&cl_envs_guard);
+			list_add(&cle->ce_linkage, &cl_envs);
+			cl_envs_cached_nr++;
+			spin_unlock(&cl_envs_guard);
+		} else {
+			cl_env_fini(cle);
+		}
 	}
 }
 EXPORT_SYMBOL(cl_env_put);

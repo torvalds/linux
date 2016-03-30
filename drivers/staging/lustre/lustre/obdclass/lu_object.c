@@ -55,6 +55,7 @@
 #include "../include/lustre_disk.h"
 #include "../include/lustre_fid.h"
 #include "../include/lu_object.h"
+#include "../include/cl_object.h"
 #include "../include/lu_ref.h"
 #include <linux/list.h>
 
@@ -1468,6 +1469,7 @@ void lu_context_key_quiesce(struct lu_context_key *key)
 		/*
 		 * XXX layering violation.
 		 */
+		cl_env_cache_purge(~0);
 		key->lct_tags |= LCT_QUIESCENT;
 		/*
 		 * XXX memory barrier has to go here.
