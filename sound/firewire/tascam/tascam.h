@@ -51,6 +51,8 @@ struct snd_tscm {
 	struct mutex mutex;
 	spinlock_t lock;
 
+	bool registered;
+	struct delayed_work dwork;
 	const struct snd_tscm_spec *spec;
 
 	struct fw_iso_resources tx_resources;
