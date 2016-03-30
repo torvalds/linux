@@ -95,12 +95,16 @@ struct rk_iommu {
 
 static inline void rk_table_flush(u32 *va, unsigned int count)
 {
+#if defined(CONFIG_ARM)
 	phys_addr_t pa_start = virt_to_phys(va);
 	phys_addr_t pa_end = virt_to_phys(va + count);
 	size_t size = pa_end - pa_start;
 
 	__cpuc_flush_dcache_area(va, size);
 	outer_flush_range(pa_start, pa_end);
+#elif defined(CONFIG_ARM64)
+	__dma_flush_range(va, va + count);
+#endif
 }
 
 static struct rk_iommu_domain *to_rk_domain(struct iommu_domain *dom)
