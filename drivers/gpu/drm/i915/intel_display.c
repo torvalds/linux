@@ -6295,7 +6295,7 @@ void intel_encoder_destroy(struct drm_encoder *encoder)
 
 /* Cross check the actual hw state with our own modeset state tracking (and it's
  * internal consistency). */
-static void intel_connector_check_state(struct intel_connector *connector)
+static void intel_connector_verify_state(struct intel_connector *connector)
 {
 	struct drm_crtc *crtc = connector->base.state->crtc;
 
@@ -12756,8 +12756,8 @@ static void intel_pipe_config_sanity_check(struct drm_i915_private *dev_priv,
 	}
 }
 
-static void check_wm_state(struct drm_crtc *crtc,
-			   struct drm_crtc_state *new_state)
+static void verify_wm_state(struct drm_crtc *crtc,
+			    struct drm_crtc_state *new_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -12802,7 +12802,7 @@ static void check_wm_state(struct drm_crtc *crtc,
 }
 
 static void
-check_connector_state(struct drm_device *dev, struct drm_crtc *crtc)
+verify_connector_state(struct drm_device *dev, struct drm_crtc *crtc)
 {
 	struct drm_connector *connector;
 
@@ -12813,7 +12813,7 @@ check_connector_state(struct drm_device *dev, struct drm_crtc *crtc)
 		if (state->crtc != crtc)
 			continue;
 
-		intel_connector_check_state(to_intel_connector(connector));
+		intel_connector_verify_state(to_intel_connector(connector));
 
 		I915_STATE_WARN(state->best_encoder != encoder,
 		     "connector's atomic encoder doesn't match legacy encoder\n");
@@ -12821,7 +12821,7 @@ check_connector_state(struct drm_device *dev, struct drm_crtc *crtc)
 }
 
 static void
-check_encoder_state(struct drm_device *dev)
+verify_encoder_state(struct drm_device *dev)
 {
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
@@ -12861,9 +12861,9 @@ check_encoder_state(struct drm_device *dev)
 }
 
 static void
-check_crtc_state(struct drm_crtc *crtc,
-		 struct drm_crtc_state *old_crtc_state,
-		 struct drm_crtc_state *new_crtc_state)
+verify_crtc_state(struct drm_crtc *crtc,
+		  struct drm_crtc_state *old_crtc_state,
+		  struct drm_crtc_state *new_crtc_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -12930,10 +12930,10 @@ check_crtc_state(struct drm_crtc *crtc,
 }
 
 static void
-check_single_dpll_state(struct drm_i915_private *dev_priv,
-			struct intel_shared_dpll *pll,
-			struct drm_crtc *crtc,
-			struct drm_crtc_state *new_state)
+verify_single_dpll_state(struct drm_i915_private *dev_priv,
+			 struct intel_shared_dpll *pll,
+			 struct drm_crtc *crtc,
+			 struct drm_crtc_state *new_state)
 {
 	struct intel_dpll_hw_state dpll_hw_state;
 	unsigned crtc_mask;
@@ -12985,16 +12985,16 @@ check_single_dpll_state(struct drm_i915_private *dev_priv,
 }
 
 static void
-check_shared_dpll_state(struct drm_device *dev, struct drm_crtc *crtc,
-			struct drm_crtc_state *old_crtc_state,
-			struct drm_crtc_state *new_crtc_state)
+verify_shared_dpll_state(struct drm_device *dev, struct drm_crtc *crtc,
+			 struct drm_crtc_state *old_crtc_state,
+			 struct drm_crtc_state *new_crtc_state)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc_state *old_state = to_intel_crtc_state(old_crtc_state);
 	struct intel_crtc_state *new_state = to_intel_crtc_state(new_crtc_state);
 
 	if (new_state->shared_dpll)
-		check_single_dpll_state(dev_priv, new_state->shared_dpll, crtc, new_crtc_state);
+		verify_single_dpll_state(dev_priv, new_state->shared_dpll, crtc, new_crtc_state);
 
 	if (old_state->shared_dpll &&
 	    old_state->shared_dpll != new_state->shared_dpll) {
@@ -13011,7 +13011,7 @@ check_shared_dpll_state(struct drm_device *dev, struct drm_crtc *crtc,
 }
 
 static void
-intel_modeset_check_crtc(struct drm_crtc *crtc,
+intel_modeset_verify_crtc(struct drm_crtc *crtc,
 			 struct drm_crtc_state *old_state,
 			 struct drm_crtc_state *new_state)
 {
@@ -13019,28 +13019,28 @@ intel_modeset_check_crtc(struct drm_crtc *crtc,
 	    !to_intel_crtc_state(new_state)->update_pipe)
 		return;
 
-	check_wm_state(crtc, new_state);
-	check_connector_state(crtc->dev, crtc);
-	check_crtc_state(crtc, old_state, new_state);
-	check_shared_dpll_state(crtc->dev, crtc, old_state, new_state);
+	verify_wm_state(crtc, new_state);
+	verify_connector_state(crtc->dev, crtc);
+	verify_crtc_state(crtc, old_state, new_state);
+	verify_shared_dpll_state(crtc->dev, crtc, old_state, new_state);
 }
 
 static void
-check_disabled_dpll_state(struct drm_device *dev)
+verify_disabled_dpll_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
 	for (i = 0; i < dev_priv->num_shared_dpll; i++)
-		check_single_dpll_state(dev_priv, &dev_priv->shared_dplls[i], NULL, NULL);
+		verify_single_dpll_state(dev_priv, &dev_priv->shared_dplls[i], NULL, NULL);
 }
 
 static void
-intel_modeset_check_disabled(struct drm_device *dev)
+intel_modeset_verify_disabled(struct drm_device *dev)
 {
-	check_encoder_state(dev);
-	check_connector_state(dev, NULL);
-	check_disabled_dpll_state(dev);
+	verify_encoder_state(dev);
+	verify_connector_state(dev, NULL);
+	verify_disabled_dpll_state(dev);
 }
 
 static void update_scanline_offset(struct intel_crtc *crtc)
@@ -13611,7 +13611,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 		    intel_state->dev_cdclk != dev_priv->cdclk_freq)
 			dev_priv->display.modeset_commit_cdclk(state);
 
-		intel_modeset_check_disabled(dev);
+		intel_modeset_verify_disabled(dev);
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
@@ -13667,7 +13667,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 		if (put_domains[i])
 			modeset_put_power_domains(dev_priv, put_domains[i]);
 
-		intel_modeset_check_crtc(crtc, old_crtc_state, crtc->state);
+		intel_modeset_verify_crtc(crtc, old_crtc_state, crtc->state);
 	}
 
 	if (intel_state->modeset)
