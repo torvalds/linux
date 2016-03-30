@@ -67,14 +67,15 @@ static int pci263_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* Digital Output subdevice */
 	s = &dev->subdevices[0];
-	/* digital output subdevice */
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = pci263_do_insn_bits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pci263_do_insn_bits;
+
 	/* read initial relay state */
 	s->state = inb(dev->iobase) | (inb(dev->iobase + 1) << 8);
 
