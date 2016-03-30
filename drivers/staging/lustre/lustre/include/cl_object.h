@@ -935,7 +935,7 @@ struct cl_page_operations {
 	 */
 	int (*cpo_is_under_lock)(const struct lu_env *env,
 				 const struct cl_page_slice *slice,
-				 struct cl_io *io);
+				 struct cl_io *io, pgoff_t *max);
 
 	/**
 	 * Optional debugging helper. Prints given page slice.
@@ -2674,7 +2674,7 @@ static inline void cl_device_fini(struct cl_device *d)
 }
 
 void cl_page_slice_add(struct cl_page *page, struct cl_page_slice *slice,
-		       struct cl_object *obj,
+		       struct cl_object *obj, pgoff_t index,
 		       const struct cl_page_operations *ops);
 void cl_lock_slice_add(struct cl_lock *lock, struct cl_lock_slice *slice,
 		       struct cl_object *obj,
@@ -2826,7 +2826,7 @@ void cl_page_delete(const struct lu_env *env, struct cl_page *pg);
 int cl_page_is_vmlocked(const struct lu_env *env, const struct cl_page *pg);
 void cl_page_export(const struct lu_env *env, struct cl_page *pg, int uptodate);
 int cl_page_is_under_lock(const struct lu_env *env, struct cl_io *io,
-			  struct cl_page *page);
+			  struct cl_page *page, pgoff_t *max_index);
 loff_t cl_offset(const struct cl_object *obj, pgoff_t idx);
 pgoff_t cl_index(const struct cl_object *obj, loff_t offset);
 int cl_page_size(const struct cl_object *obj);

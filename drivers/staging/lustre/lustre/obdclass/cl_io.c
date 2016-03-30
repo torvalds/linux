@@ -733,7 +733,7 @@ int cl_io_read_page(const struct lu_env *env, struct cl_io *io,
 				break;
 		}
 	}
-	if (result == 0)
+	if (result == 0 && queue->c2_qin.pl_nr > 0)
 		result = cl_io_submit_rw(env, io, CRT_READ, queue);
 	/*
 	 * Unlock unsent pages in case of error.

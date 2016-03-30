@@ -299,8 +299,6 @@ int ccc_lock_init(const struct lu_env *env, struct cl_object *obj,
 		  const struct cl_lock_operations *lkops);
 int ccc_object_glimpse(const struct lu_env *env,
 		       const struct cl_object *obj, struct ost_lvb *lvb);
-int ccc_page_is_under_lock(const struct lu_env *env,
-			   const struct cl_page_slice *slice, struct cl_io *io);
 int ccc_fail(const struct lu_env *env, const struct cl_page_slice *slice);
 int ccc_transient_page_prep(const struct lu_env *env,
 			    const struct cl_page_slice *slice,

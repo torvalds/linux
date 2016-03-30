@@ -401,6 +401,30 @@ EXPORT_SYMBOL(cl_page_at);
 	__result;						       \
 })
 
+#define CL_PAGE_INVOKE_REVERSE(_env, _page, _op, _proto, ...)		\
+({									\
+	const struct lu_env        *__env  = (_env);			\
+	struct cl_page             *__page = (_page);			\
+	const struct cl_page_slice *__scan;				\
+	int                         __result;				\
+	ptrdiff_t                   __op   = (_op);			\
+	int                       (*__method)_proto;			\
+									\
+	__result = 0;							\
+	list_for_each_entry_reverse(__scan, &__page->cp_layers,		\
+					cpl_linkage) {			\
+		__method = *(void **)((char *)__scan->cpl_ops +  __op);	\
+		if (__method) {						\
+			__result = (*__method)(__env, __scan, ## __VA_ARGS__); \
+			if (__result != 0)				\
+				break;					\
+		}							\
+	}								\
+	if (__result > 0)						\
+		__result = 0;						\
+	__result;							\
+})
+
 #define CL_PAGE_INVOID(_env, _page, _op, _proto, ...)		   \
 do {								    \
 	const struct lu_env	*__env  = (_env);		    \
@@ -928,17 +952,17 @@ EXPORT_SYMBOL(cl_page_flush);
  * \see cl_page_operations::cpo_is_under_lock()
  */
 int cl_page_is_under_lock(const struct lu_env *env, struct cl_io *io,
-			  struct cl_page *page)
+			  struct cl_page *page, pgoff_t *max_index)
 {
 	int rc;
 
 	PINVRNT(env, page, cl_page_invariant(page));
 
-	rc = CL_PAGE_INVOKE(env, page, CL_PAGE_OP(cpo_is_under_lock),
-			    (const struct lu_env *,
-			     const struct cl_page_slice *, struct cl_io *),
-			    io);
-	PASSERT(env, page, rc != 0);
+	rc = CL_PAGE_INVOKE_REVERSE(env, page, CL_PAGE_OP(cpo_is_under_lock),
+				    (const struct lu_env *,
+				     const struct cl_page_slice *,
+				      struct cl_io *, pgoff_t *),
+				    io, max_index);
 	return rc;
 }
 EXPORT_SYMBOL(cl_page_is_under_lock);
@@ -1041,11 +1065,12 @@ EXPORT_SYMBOL(cl_page_size);
  * \see cl_lock_slice_add(), cl_req_slice_add(), cl_io_slice_add()
  */
 void cl_page_slice_add(struct cl_page *page, struct cl_page_slice *slice,
-		       struct cl_object *obj,
+		       struct cl_object *obj, pgoff_t index,
 		       const struct cl_page_operations *ops)
 {
 	list_add_tail(&slice->cpl_linkage, &page->cp_layers);
 	slice->cpl_obj  = obj;
+	slice->cpl_index = index;
 	slice->cpl_ops  = ops;
 	slice->cpl_page = page;
 }

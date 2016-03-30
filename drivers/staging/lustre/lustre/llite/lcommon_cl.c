@@ -452,34 +452,6 @@ static void ccc_object_size_unlock(struct cl_object *obj)
  *
  */
 
-int ccc_page_is_under_lock(const struct lu_env *env,
-			   const struct cl_page_slice *slice,
-			   struct cl_io *io)
-{
-	struct ccc_io	*cio  = ccc_env_io(env);
-	struct cl_lock_descr *desc = &ccc_env_info(env)->cti_descr;
-	struct cl_page       *page = slice->cpl_page;
-
-	int result;
-
-	if (io->ci_type == CIT_READ || io->ci_type == CIT_WRITE ||
-	    io->ci_type == CIT_FAULT) {
-		if (cio->cui_fd->fd_flags & LL_FILE_GROUP_LOCKED) {
-			result = -EBUSY;
-		} else {
-			desc->cld_start = ccc_index(cl2ccc_page(slice));
-			desc->cld_end   = ccc_index(cl2ccc_page(slice));
-			desc->cld_obj   = page->cp_obj;
-			desc->cld_mode  = CLM_READ;
-			result = cl_queue_match(&io->ci_lockset.cls_done,
-						desc) ? -EBUSY : 0;
-		}
-	} else {
-		result = 0;
-	}
-	return result;
-}
-
 int ccc_fail(const struct lu_env *env, const struct cl_page_slice *slice)
 {
 	/*

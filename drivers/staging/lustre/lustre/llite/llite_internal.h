@@ -328,6 +328,7 @@ enum ra_stat {
 	RA_STAT_EOF,
 	RA_STAT_MAX_IN_FLIGHT,
 	RA_STAT_WRONG_GRAB_PAGE,
+	RA_STAT_FAILED_REACH_END,
 	_NR_RA_STAT,
 };
 
@@ -702,8 +703,8 @@ int ll_writepages(struct address_space *, struct writeback_control *wbc);
 int ll_readpage(struct file *file, struct page *page);
 void ll_readahead_init(struct inode *inode, struct ll_readahead_state *ras);
 int ll_readahead(const struct lu_env *env, struct cl_io *io,
-		 struct ll_readahead_state *ras, struct address_space *mapping,
-		 struct cl_page_list *queue, int flags);
+		 struct cl_page_list *queue, struct ll_readahead_state *ras,
+		 bool hit);
 int vvp_io_write_commit(const struct lu_env *env, struct cl_io *io);
 struct ll_cl_context *ll_cl_init(struct file *file, struct page *vmpage);
 void ll_cl_fini(struct ll_cl_context *lcc);
@@ -1074,7 +1075,7 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 		struct ll_readahead_state *ras, unsigned long index,
 		unsigned hit);
 void ll_ra_count_put(struct ll_sb_info *sbi, unsigned long len);
-void ll_ra_stats_inc(struct address_space *mapping, enum ra_stat which);
+void ll_ra_stats_inc(struct inode *inode, enum ra_stat which);
 
 /* llite/llite_rmtacl.c */
 #ifdef CONFIG_FS_POSIX_ACL

@@ -1052,34 +1052,18 @@ static int vvp_io_read_page(const struct lu_env *env,
 			    const struct cl_page_slice *slice)
 {
 	struct cl_io	      *io     = ios->cis_io;
-	struct cl_object	  *obj    = slice->cpl_obj;
 	struct ccc_page	   *cp     = cl2ccc_page(slice);
 	struct cl_page	    *page   = slice->cpl_page;
-	struct inode	      *inode  = ccc_object_inode(obj);
+	struct inode	      *inode  = ccc_object_inode(slice->cpl_obj);
 	struct ll_sb_info	 *sbi    = ll_i2sbi(inode);
 	struct ll_file_data       *fd     = cl2ccc_io(env, ios)->cui_fd;
 	struct ll_readahead_state *ras    = &fd->fd_ras;
-	struct page		*vmpage = cp->cpg_page;
 	struct cl_2queue	  *queue  = &io->ci_queue;
-	int rc;
-
-	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
-	LASSERT(slice->cpl_obj == obj);
 
 	if (sbi->ll_ra_info.ra_max_pages_per_file &&
 	    sbi->ll_ra_info.ra_max_pages)
 		ras_update(sbi, inode, ras, ccc_index(cp),
 			   cp->cpg_defer_uptodate);
-
-	/* Sanity check whether the page is protected by a lock. */
-	rc = cl_page_is_under_lock(env, io, page);
-	if (rc != -EBUSY) {
-		CL_PAGE_HEADER(D_WARNING, env, page, "%s: %d\n",
-			       rc == -ENODATA ? "without a lock" :
-			       "match failed", rc);
-		if (rc != -ENODATA)
-			return rc;
-	}
 
 	if (cp->cpg_defer_uptodate) {
 		cp->cpg_ra_used = 1;
@@ -1089,11 +1073,12 @@ static int vvp_io_read_page(const struct lu_env *env,
 	 * Add page into the queue even when it is marked uptodate above.
 	 * this will unlock it automatically as part of cl_page_list_disown().
 	 */
+
 	cl_page_list_add(&queue->c2_qin, page);
 	if (sbi->ll_ra_info.ra_max_pages_per_file &&
 	    sbi->ll_ra_info.ra_max_pages)
-		ll_readahead(env, io, ras,
-			     vmpage->mapping, &queue->c2_qin, fd->fd_flags);
+		ll_readahead(env, io, &queue->c2_qin, ras,
+			     cp->cpg_defer_uptodate);
 
 	return 0;
 }

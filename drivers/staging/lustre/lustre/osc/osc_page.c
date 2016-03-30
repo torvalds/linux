@@ -132,17 +132,19 @@ void osc_index2policy(ldlm_policy_data_t *policy, const struct cl_object *obj,
 
 static int osc_page_is_under_lock(const struct lu_env *env,
 				  const struct cl_page_slice *slice,
-				  struct cl_io *unused)
+				  struct cl_io *unused, pgoff_t *max_index)
 {
 	struct osc_page *opg = cl2osc_page(slice);
 	struct cl_lock *lock;
 	int result = -ENODATA;
 
+	*max_index = 0;
 	lock = cl_lock_at_pgoff(env, slice->cpl_obj, osc_index(opg),
 				NULL, 1, 0);
 	if (lock) {
+		*max_index = lock->cll_descr.cld_end;
 		cl_lock_put(env, lock);
-		result = -EBUSY;
+		result = 0;
 	}
 	return result;
 }
@@ -308,7 +310,6 @@ int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 
 	opg->ops_from = 0;
 	opg->ops_to = PAGE_CACHE_SIZE;
-	opg->ops_cl.cpl_index = index;
 
 	result = osc_prep_async_page(osc, opg, page->cp_vmpage,
 				     cl_offset(obj, index));
@@ -316,7 +317,8 @@ int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 		struct osc_io *oio = osc_env_io(env);
 
 		opg->ops_srvlock = osc_io_srvlock(oio);
-		cl_page_slice_add(page, &opg->ops_cl, obj, &osc_page_ops);
+		cl_page_slice_add(page, &opg->ops_cl, obj, index,
+				  &osc_page_ops);
 	}
 	/*
 	 * Cannot assert osc_page_protected() here as read-ahead

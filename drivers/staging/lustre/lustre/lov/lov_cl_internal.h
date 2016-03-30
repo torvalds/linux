@@ -632,6 +632,7 @@ struct lov_lock_link *lov_lock_link_find(const struct lu_env *env,
 					 struct lovsub_lock *sub);
 struct lov_io_sub *lov_page_subio(const struct lu_env *env, struct lov_io *lio,
 				  const struct cl_page_slice *slice);
+int lov_page_stripe(const struct cl_page *page);
 
 #define lov_foreach_target(lov, var)		    \
 	for (var = 0; var < lov_targets_nr(lov); ++var)

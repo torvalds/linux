@@ -960,6 +960,7 @@ static const char *ra_stat_string[] = {
 	[RA_STAT_EOF] = "read-ahead to EOF",
 	[RA_STAT_MAX_IN_FLIGHT] = "hit max r-a issue",
 	[RA_STAT_WRONG_GRAB_PAGE] = "wrong page from grab_cache_page",
+	[RA_STAT_FAILED_REACH_END] = "failed to reach end"
 };
 
 int ldebugfs_register_mountpoint(struct dentry *parent,
