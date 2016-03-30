@@ -1039,17 +1039,6 @@ static inline __u32 tcp_max_tso_deferred_mss(const struct tcp_sock *tp)
 	return 3;
 }
 
-/* Slow start with delack produces 3 packets of burst, so that
- * it is safe "de facto".  This will be the default - same as
- * the default reordering threshold - but if reordering increases,
- * we must be able to allow cwnd to burst at least this much in order
- * to not pull it back when holes are filled.
- */
-static __inline__ __u32 tcp_max_burst(const struct tcp_sock *tp)
-{
-	return tp->reordering;
-}
-
 /* Returns end sequence number of the receiver's advertised window */
 static inline u32 tcp_wnd_end(const struct tcp_sock *tp)
 {
