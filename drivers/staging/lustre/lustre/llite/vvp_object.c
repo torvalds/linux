@@ -226,7 +226,7 @@ static int vvp_object_init0(const struct lu_env *env,
 {
 	vob->vob_inode = conf->coc_inode;
 	vob->vob_transient_pages = 0;
-	cl_object_page_init(&vob->vob_cl, sizeof(struct ccc_page));
+	cl_object_page_init(&vob->vob_cl, sizeof(struct vvp_page));
 	return 0;
 }
 

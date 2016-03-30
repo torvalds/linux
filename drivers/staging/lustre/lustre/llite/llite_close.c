@@ -46,26 +46,26 @@
 #include "llite_internal.h"
 
 /** records that a write is in flight */
-void vvp_write_pending(struct vvp_object *club, struct ccc_page *page)
+void vvp_write_pending(struct vvp_object *club, struct vvp_page *page)
 {
 	struct ll_inode_info *lli = ll_i2info(club->vob_inode);
 
 	spin_lock(&lli->lli_lock);
 	lli->lli_flags |= LLIF_SOM_DIRTY;
-	if (page && list_empty(&page->cpg_pending_linkage))
-		list_add(&page->cpg_pending_linkage, &club->vob_pending_list);
+	if (page && list_empty(&page->vpg_pending_linkage))
+		list_add(&page->vpg_pending_linkage, &club->vob_pending_list);
 	spin_unlock(&lli->lli_lock);
 }
 
 /** records that a write has completed */
-void vvp_write_complete(struct vvp_object *club, struct ccc_page *page)
+void vvp_write_complete(struct vvp_object *club, struct vvp_page *page)
 {
 	struct ll_inode_info *lli = ll_i2info(club->vob_inode);
 	int rc = 0;
 
 	spin_lock(&lli->lli_lock);
-	if (page && !list_empty(&page->cpg_pending_linkage)) {
-		list_del_init(&page->cpg_pending_linkage);
+	if (page && !list_empty(&page->vpg_pending_linkage)) {
+		list_del_init(&page->vpg_pending_linkage);
 		rc = 1;
 	}
 	spin_unlock(&lli->lli_lock);

@@ -769,7 +769,7 @@ struct cl_page {
 /**
  * Per-layer part of cl_page.
  *
- * \see ccc_page, lov_page, osc_page
+ * \see vvp_page, lov_page, osc_page
  */
 struct cl_page_slice {
 	struct cl_page		  *cpl_page;

@@ -298,21 +298,21 @@ static int cl_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 			      struct cl_object *clob, pgoff_t *max_index)
 {
 	struct page *vmpage = page->cp_vmpage;
-	struct ccc_page *cp;
+	struct vvp_page *vpg;
 	int	      rc;
 
 	rc = 0;
 	cl_page_assume(env, io, page);
 	lu_ref_add(&page->cp_reference, "ra", current);
-	cp = cl2ccc_page(cl_object_page_slice(clob, page));
-	if (!cp->cpg_defer_uptodate && !PageUptodate(vmpage)) {
+	vpg = cl2vvp_page(cl_object_page_slice(clob, page));
+	if (!vpg->vpg_defer_uptodate && !PageUptodate(vmpage)) {
 		CDEBUG(D_READA, "page index %lu, max_index: %lu\n",
-		       ccc_index(cp), *max_index);
-		if (*max_index == 0 || ccc_index(cp) > *max_index)
+		       vvp_index(vpg), *max_index);
+		if (*max_index == 0 || vvp_index(vpg) > *max_index)
 			rc = cl_page_is_under_lock(env, io, page, max_index);
 		if (rc == 0) {
-			cp->cpg_defer_uptodate = 1;
-			cp->cpg_ra_used = 0;
+			vpg->vpg_defer_uptodate = 1;
+			vpg->vpg_ra_used = 0;
 			cl_page_list_add(queue, page);
 			rc = 1;
 		} else {

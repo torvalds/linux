@@ -259,29 +259,6 @@ static void vvp_object_size_unlock(struct cl_object *obj)
 
 /*****************************************************************************
  *
- * Page operations.
- *
- */
-
-int ccc_fail(const struct lu_env *env, const struct cl_page_slice *slice)
-{
-	/*
-	 * Cached read?
-	 */
-	LBUG();
-	return 0;
-}
-
-int ccc_transient_page_prep(const struct lu_env *env,
-			    const struct cl_page_slice *slice,
-			    struct cl_io *unused)
-{
-	/* transient page should always be sent. */
-	return 0;
-}
-
-/*****************************************************************************
- *
  * Lock operations.
  *
  */
@@ -612,11 +589,6 @@ struct ccc_io *cl2ccc_io(const struct lu_env *env,
 struct ccc_req *cl2ccc_req(const struct cl_req_slice *slice)
 {
 	return container_of0(slice, struct ccc_req, crq_cl);
-}
-
-struct page *cl2vm_page(const struct cl_page_slice *slice)
-{
-	return cl2ccc_page(slice)->cpg_page;
 }
 
 /**

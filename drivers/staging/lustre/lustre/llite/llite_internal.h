@@ -828,8 +828,8 @@ struct ll_close_queue {
 	atomic_t		lcq_stop;
 };
 
-void vvp_write_pending(struct vvp_object *club, struct ccc_page *page);
-void vvp_write_complete(struct vvp_object *club, struct ccc_page *page);
+void vvp_write_pending(struct vvp_object *club, struct vvp_page *page);
+void vvp_write_complete(struct vvp_object *club, struct vvp_page *page);
 
 /* specific architecture can implement only part of this list */
 enum vvp_io_subtype {

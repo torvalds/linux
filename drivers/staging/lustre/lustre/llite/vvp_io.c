@@ -645,15 +645,15 @@ static int vvp_io_commit_sync(const struct lu_env *env, struct cl_io *io,
 static void write_commit_callback(const struct lu_env *env, struct cl_io *io,
 				  struct cl_page *page)
 {
-	struct ccc_page *cp;
+	struct vvp_page *vpg;
 	struct page *vmpage = page->cp_vmpage;
 	struct cl_object *clob = cl_io_top(io)->ci_obj;
 
 	SetPageUptodate(vmpage);
 	set_page_dirty(vmpage);
 
-	cp = cl2ccc_page(cl_object_page_slice(clob, page));
-	vvp_write_pending(cl2vvp(clob), cp);
+	vpg = cl2vvp_page(cl_object_page_slice(clob, page));
+	vvp_write_pending(cl2vvp(clob), vpg);
 
 	cl_page_disown(env, io, page);
 
@@ -670,15 +670,15 @@ static bool page_list_sanity_check(struct cl_object *obj,
 	pgoff_t index = CL_PAGE_EOF;
 
 	cl_page_list_for_each(page, plist) {
-		struct ccc_page *cp = cl_object_page_slice(obj, page);
+		struct vvp_page *vpg = cl_object_page_slice(obj, page);
 
 		if (index == CL_PAGE_EOF) {
-			index = ccc_index(cp);
+			index = vvp_index(vpg);
 			continue;
 		}
 
 		++index;
-		if (index == ccc_index(cp))
+		if (index == vvp_index(vpg))
 			continue;
 
 		return false;
@@ -868,13 +868,13 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 static void mkwrite_commit_callback(const struct lu_env *env, struct cl_io *io,
 				    struct cl_page *page)
 {
-	struct ccc_page *cp;
+	struct vvp_page *vpg;
 	struct cl_object *clob = cl_io_top(io)->ci_obj;
 
 	set_page_dirty(page->cp_vmpage);
 
-	cp = cl2ccc_page(cl_object_page_slice(clob, page));
-	vvp_write_pending(cl2vvp(clob), cp);
+	vpg = cl2vvp_page(cl_object_page_slice(clob, page));
+	vvp_write_pending(cl2vvp(clob), vpg);
 }
 
 static int vvp_io_fault_start(const struct lu_env *env,
@@ -979,7 +979,7 @@ static int vvp_io_fault_start(const struct lu_env *env,
 		wait_on_page_writeback(vmpage);
 		if (!PageDirty(vmpage)) {
 			struct cl_page_list *plist = &io->ci_queue.c2_qin;
-			struct ccc_page *cp = cl_object_page_slice(obj, page);
+			struct vvp_page *vpg = cl_object_page_slice(obj, page);
 			int to = PAGE_SIZE;
 
 			/* vvp_page_assume() calls wait_on_page_writeback(). */
@@ -989,7 +989,7 @@ static int vvp_io_fault_start(const struct lu_env *env,
 			cl_page_list_add(plist, page);
 
 			/* size fixup */
-			if (last_index == ccc_index(cp))
+			if (last_index == vvp_index(vpg))
 				to = size & ~PAGE_MASK;
 
 			/* Do not set Dirty bit here so that in case IO is
@@ -1058,7 +1058,7 @@ static int vvp_io_read_page(const struct lu_env *env,
 			    const struct cl_page_slice *slice)
 {
 	struct cl_io	      *io     = ios->cis_io;
-	struct ccc_page	   *cp     = cl2ccc_page(slice);
+	struct vvp_page           *vpg    = cl2vvp_page(slice);
 	struct cl_page	    *page   = slice->cpl_page;
 	struct inode              *inode  = vvp_object_inode(slice->cpl_obj);
 	struct ll_sb_info	 *sbi    = ll_i2sbi(inode);
@@ -1068,11 +1068,11 @@ static int vvp_io_read_page(const struct lu_env *env,
 
 	if (sbi->ll_ra_info.ra_max_pages_per_file &&
 	    sbi->ll_ra_info.ra_max_pages)
-		ras_update(sbi, inode, ras, ccc_index(cp),
-			   cp->cpg_defer_uptodate);
+		ras_update(sbi, inode, ras, vvp_index(vpg),
+			   vpg->vpg_defer_uptodate);
 
-	if (cp->cpg_defer_uptodate) {
-		cp->cpg_ra_used = 1;
+	if (vpg->vpg_defer_uptodate) {
+		vpg->vpg_ra_used = 1;
 		cl_page_export(env, page, 1);
 	}
 	/*
@@ -1084,7 +1084,7 @@ static int vvp_io_read_page(const struct lu_env *env,
 	if (sbi->ll_ra_info.ra_max_pages_per_file &&
 	    sbi->ll_ra_info.ra_max_pages)
 		ll_readahead(env, io, &queue->c2_qin, ras,
-			     cp->cpg_defer_uptodate);
+			     vpg->vpg_defer_uptodate);
 
 	return 0;
 }

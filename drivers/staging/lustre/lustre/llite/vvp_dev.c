@@ -474,18 +474,18 @@ static loff_t vvp_pgcache_find(const struct lu_env *env,
 static void vvp_pgcache_page_show(const struct lu_env *env,
 				  struct seq_file *seq, struct cl_page *page)
 {
-	struct ccc_page *cpg;
+	struct vvp_page *vpg;
 	struct page      *vmpage;
 	int	      has_flags;
 
-	cpg = cl2ccc_page(cl_page_at(page, &vvp_device_type));
-	vmpage = cpg->cpg_page;
+	vpg = cl2vvp_page(cl_page_at(page, &vvp_device_type));
+	vmpage = vpg->vpg_page;
 	seq_printf(seq, " %5i | %p %p %s %s %s %s | %p %lu/%u(%p) %lu %u [",
 		   0 /* gen */,
-		   cpg, page,
+		   vpg, page,
 		   "none",
-		   cpg->cpg_write_queued ? "wq" : "- ",
-		   cpg->cpg_defer_uptodate ? "du" : "- ",
+		   vpg->vpg_write_queued ? "wq" : "- ",
+		   vpg->vpg_defer_uptodate ? "du" : "- ",
 		   PageWriteback(vmpage) ? "wb" : "-",
 		   vmpage, vmpage->mapping->host->i_ino,
 		   vmpage->mapping->host->i_generation,

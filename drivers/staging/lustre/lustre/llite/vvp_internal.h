@@ -204,7 +204,7 @@ struct vvp_object {
 	 * A list of dirty pages pending IO in the cache. Used by
 	 * SOM. Protected by ll_inode_info::lli_lock.
 	 *
-	 * \see ccc_page::cpg_pending_linkage
+	 * \see vvp_page::vpg_pending_linkage
 	 */
 	struct list_head	vob_pending_list;
 
@@ -235,35 +235,33 @@ struct vvp_object {
 };
 
 /**
- * ccc-private page state.
+ * VVP-private page state.
  */
-struct ccc_page {
-	struct cl_page_slice cpg_cl;
-	int		  cpg_defer_uptodate;
-	int		  cpg_ra_used;
-	int		  cpg_write_queued;
+struct vvp_page {
+	struct cl_page_slice vpg_cl;
+	int		  vpg_defer_uptodate;
+	int		  vpg_ra_used;
+	int		  vpg_write_queued;
 	/**
 	 * Non-empty iff this page is already counted in
 	 * vvp_object::vob_pending_list. This list is only used as a flag,
 	 * that is, never iterated through, only checked for list_empty(), but
 	 * having a list is useful for debugging.
 	 */
-	struct list_head	   cpg_pending_linkage;
+	struct list_head	   vpg_pending_linkage;
 	/** VM page */
-	struct page	  *cpg_page;
+	struct page	  *vpg_page;
 };
 
-static inline struct ccc_page *cl2ccc_page(const struct cl_page_slice *slice)
+static inline struct vvp_page *cl2vvp_page(const struct cl_page_slice *slice)
 {
-	return container_of(slice, struct ccc_page, cpg_cl);
+	return container_of(slice, struct vvp_page, vpg_cl);
 }
 
-static inline pgoff_t ccc_index(struct ccc_page *ccc)
+static inline pgoff_t vvp_index(struct vvp_page *vvp)
 {
-	return ccc->cpg_cl.cpl_index;
+	return vvp->vpg_cl.cpl_index;
 }
-
-struct cl_page *ccc_vmpage_page_transient(struct page *vmpage);
 
 struct vvp_device {
 	struct cl_device    vdv_cl;
@@ -296,10 +294,6 @@ void ccc_global_fini(struct lu_device_type *device_type);
 int ccc_lock_init(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_lock *lock, const struct cl_io *io,
 		  const struct cl_lock_operations *lkops);
-int ccc_fail(const struct lu_env *env, const struct cl_page_slice *slice);
-int ccc_transient_page_prep(const struct lu_env *env,
-			    const struct cl_page_slice *slice,
-			    struct cl_io *io);
 void ccc_lock_delete(const struct lu_env *env,
 		     const struct cl_lock_slice *slice);
 void ccc_lock_fini(const struct lu_env *env, struct cl_lock_slice *slice);
@@ -360,11 +354,15 @@ static inline struct inode *vvp_object_inode(const struct cl_object *obj)
 int vvp_object_invariant(const struct cl_object *obj);
 struct vvp_object *cl_inode2vvp(struct inode *inode);
 
+static inline struct page *cl2vm_page(const struct cl_page_slice *slice)
+{
+	return cl2vvp_page(slice)->vpg_page;
+}
+
 struct ccc_lock *cl2ccc_lock(const struct cl_lock_slice *slice);
 struct ccc_io *cl2ccc_io(const struct lu_env *env,
 			 const struct cl_io_slice *slice);
 struct ccc_req *cl2ccc_req(const struct cl_req_slice *slice);
-struct page *cl2vm_page(const struct cl_page_slice *slice);
 
 int cl_setattr_ost(struct inode *inode, const struct iattr *attr);
 
