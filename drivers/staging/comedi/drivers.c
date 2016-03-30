@@ -564,7 +564,7 @@ unsigned int comedi_handle_events(struct comedi_device *dev,
 	if (events == 0)
 		return events;
 
-	if (events & COMEDI_CB_CANCEL_MASK)
+	if ((events & COMEDI_CB_CANCEL_MASK) && s->cancel)
 		s->cancel(dev, s);
 
 	comedi_event(dev, s);
@@ -625,6 +625,9 @@ static int __comedi_device_postconfig_async(struct comedi_device *dev,
 			 "async subdevices must have a do_cmdtest() function\n");
 		return -EINVAL;
 	}
+	if (!s->cancel)
+		dev_warn(dev->class_dev,
+			 "async subdevices should have a cancel() function\n");
 
 	async = kzalloc(sizeof(*async), GFP_KERNEL);
 	if (!async)
