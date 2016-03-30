@@ -2609,7 +2609,7 @@ static irqreturn_t dwc3_process_event_buf(struct dwc3 *dwc)
 	int left;
 	u32 reg;
 
-	evt = dwc->ev_buffs[0];
+	evt = dwc->ev_buf;
 	left = evt->count;
 
 	if (!(evt->flags & DWC3_EVENT_PENDING))
@@ -2668,7 +2668,7 @@ static irqreturn_t dwc3_check_event_buf(struct dwc3 *dwc)
 	u32 count;
 	u32 reg;
 
-	evt = dwc->ev_buffs[0];
+	evt = dwc->ev_buf;
 
 	count = dwc3_readl(dwc->regs, DWC3_GEVNTCOUNT(0));
 	count &= DWC3_GEVNTCOUNT_MASK;

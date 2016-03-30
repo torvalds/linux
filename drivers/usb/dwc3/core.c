@@ -204,7 +204,7 @@ static void dwc3_free_event_buffers(struct dwc3 *dwc)
 {
 	struct dwc3_event_buffer	*evt;
 
-	evt = dwc->ev_buffs[0];
+	evt = dwc->ev_buf;
 	if (evt)
 		dwc3_free_one_event_buffer(dwc, evt);
 }
@@ -221,17 +221,12 @@ static int dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
 {
 	struct dwc3_event_buffer *evt;
 
-	dwc->ev_buffs = devm_kzalloc(dwc->dev, sizeof(*dwc->ev_buffs),
-			GFP_KERNEL);
-	if (!dwc->ev_buffs)
-		return -ENOMEM;
-
 	evt = dwc3_alloc_one_event_buffer(dwc, length);
 	if (IS_ERR(evt)) {
 		dev_err(dwc->dev, "can't allocate event buffer\n");
 		return PTR_ERR(evt);
 	}
-	dwc->ev_buffs[0] = evt;
+	dwc->ev_buf = evt;
 
 	return 0;
 }
@@ -246,7 +241,7 @@ static int dwc3_event_buffers_setup(struct dwc3 *dwc)
 {
 	struct dwc3_event_buffer	*evt;
 
-	evt = dwc->ev_buffs[0];
+	evt = dwc->ev_buf;
 	dwc3_trace(trace_dwc3_core,
 			"Event buf %p dma %08llx length %d\n",
 			evt->buf, (unsigned long long) evt->dma,
@@ -269,7 +264,7 @@ static void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
 {
 	struct dwc3_event_buffer	*evt;
 
-	evt = dwc->ev_buffs[0];
+	evt = dwc->ev_buf;
 
 	evt->lpos = 0;
 
