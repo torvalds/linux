@@ -136,12 +136,6 @@ struct visor_device {
 	struct periodic_work *periodic_work;
 	bool being_removed;
 	bool responded_to_device_create;
-	struct {
-		int major, minor;
-		void *attr;	/* private use by devmajorminor_attr.c you can
-				 * change this constant to whatever you want
-				 */
-	} devnodes[5];
 	/* the code will detect and behave appropriately) */
 	struct semaphore visordriver_callback_lock;
 	bool pausing;
