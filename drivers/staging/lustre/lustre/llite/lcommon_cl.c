@@ -123,7 +123,7 @@ void *ccc_key_init(const struct lu_context *ctx, struct lu_context_key *key)
 }
 
 void ccc_key_fini(const struct lu_context *ctx,
-			 struct lu_context_key *key, void *data)
+		  struct lu_context_key *key, void *data)
 {
 	struct ccc_thread_info *info = data;
 
@@ -131,7 +131,7 @@ void ccc_key_fini(const struct lu_context *ctx,
 }
 
 void *ccc_session_key_init(const struct lu_context *ctx,
-				  struct lu_context_key *key)
+			   struct lu_context_key *key)
 {
 	struct ccc_session *session;
 
@@ -142,7 +142,7 @@ void *ccc_session_key_init(const struct lu_context *ctx,
 }
 
 void ccc_session_key_fini(const struct lu_context *ctx,
-				 struct lu_context_key *key, void *data)
+			  struct lu_context_key *key, void *data)
 {
 	struct ccc_session *session = data;
 
@@ -165,7 +165,7 @@ struct lu_context_key ccc_session_key = {
 /* LU_TYPE_INIT_FINI(ccc, &ccc_key, &ccc_session_key); */
 
 int ccc_device_init(const struct lu_env *env, struct lu_device *d,
-			   const char *name, struct lu_device *next)
+		    const char *name, struct lu_device *next)
 {
 	struct ccc_device  *vdv;
 	int rc;
@@ -185,7 +185,7 @@ int ccc_device_init(const struct lu_env *env, struct lu_device *d,
 }
 
 struct lu_device *ccc_device_fini(const struct lu_env *env,
-					 struct lu_device *d)
+				  struct lu_device *d)
 {
 	return cl2lu_dev(lu2ccc_dev(d)->cdv_next);
 }
@@ -213,15 +213,16 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 	site = kzalloc(sizeof(*site), GFP_NOFS);
 	if (site) {
 		rc = cl_site_init(site, &vdv->cdv_cl);
-		if (rc == 0)
+		if (rc == 0) {
 			rc = lu_site_init_finish(&site->cs_lu);
-		else {
+		} else {
 			LASSERT(!lud->ld_site);
 			CERROR("Cannot init lu_site, rc %d.\n", rc);
 			kfree(site);
 		}
-	} else
+	} else {
 		rc = -ENOMEM;
+	}
 	if (rc != 0) {
 		ccc_device_free(env, lud);
 		lud = ERR_PTR(rc);
@@ -230,7 +231,7 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 }
 
 struct lu_device *ccc_device_free(const struct lu_env *env,
-					 struct lu_device *d)
+				  struct lu_device *d)
 {
 	struct ccc_device *vdv  = lu2ccc_dev(d);
 	struct cl_site    *site = lu2cl_site(d->ld_site);
@@ -246,7 +247,7 @@ struct lu_device *ccc_device_free(const struct lu_env *env,
 }
 
 int ccc_req_init(const struct lu_env *env, struct cl_device *dev,
-			struct cl_req *req)
+		 struct cl_req *req)
 {
 	struct ccc_req *vrq;
 	int result;
@@ -255,8 +256,9 @@ int ccc_req_init(const struct lu_env *env, struct cl_device *dev,
 	if (vrq) {
 		cl_req_slice_add(req, &vrq->crq_cl, dev, &ccc_req_ops);
 		result = 0;
-	} else
+	} else {
 		result = -ENOMEM;
+	}
 	return result;
 }
 
@@ -287,7 +289,7 @@ int ccc_global_init(struct lu_device_type *device_type)
 		goto out_kmem;
 
 	ccc_inode_fini_env = cl_env_alloc(&dummy_refcheck,
-					  LCT_REMEMBER|LCT_NOREF);
+					  LCT_REMEMBER | LCT_NOREF);
 	if (IS_ERR(ccc_inode_fini_env)) {
 		result = PTR_ERR(ccc_inode_fini_env);
 		goto out_device;
@@ -339,14 +341,15 @@ struct lu_object *ccc_object_alloc(const struct lu_env *env,
 
 		vob->cob_cl.co_ops = clops;
 		obj->lo_ops = luops;
-	} else
+	} else {
 		obj = NULL;
+	}
 	return obj;
 }
 
 int ccc_object_init0(const struct lu_env *env,
-			    struct ccc_object *vob,
-			    const struct cl_object_conf *conf)
+		     struct ccc_object *vob,
+		     const struct cl_object_conf *conf)
 {
 	vob->cob_inode = conf->coc_inode;
 	vob->cob_transient_pages = 0;
@@ -355,7 +358,7 @@ int ccc_object_init0(const struct lu_env *env,
 }
 
 int ccc_object_init(const struct lu_env *env, struct lu_object *obj,
-			   const struct lu_object_conf *conf)
+		    const struct lu_object_conf *conf)
 {
 	struct ccc_device *dev = lu2ccc_dev(obj->lo_dev);
 	struct ccc_object *vob = lu2ccc(obj);
@@ -372,8 +375,9 @@ int ccc_object_init(const struct lu_env *env, struct lu_object *obj,
 		INIT_LIST_HEAD(&vob->cob_pending_list);
 		lu_object_add(obj, below);
 		result = ccc_object_init0(env, vob, cconf);
-	} else
+	} else {
 		result = -ENOMEM;
+	}
 	return result;
 }
 
@@ -400,8 +404,9 @@ int ccc_lock_init(const struct lu_env *env,
 	if (clk) {
 		cl_lock_slice_add(lock, &clk->clk_cl, obj, lkops);
 		result = 0;
-	} else
+	} else {
 		result = -ENOMEM;
+	}
 	return result;
 }
 
@@ -446,7 +451,7 @@ static void ccc_object_size_unlock(struct cl_object *obj)
  */
 
 struct page *ccc_page_vmpage(const struct lu_env *env,
-			    const struct cl_page_slice *slice)
+			     const struct cl_page_slice *slice)
 {
 	return cl2vm_page(slice);
 }
@@ -463,9 +468,9 @@ int ccc_page_is_under_lock(const struct lu_env *env,
 
 	if (io->ci_type == CIT_READ || io->ci_type == CIT_WRITE ||
 	    io->ci_type == CIT_FAULT) {
-		if (cio->cui_fd->fd_flags & LL_FILE_GROUP_LOCKED)
+		if (cio->cui_fd->fd_flags & LL_FILE_GROUP_LOCKED) {
 			result = -EBUSY;
-		else {
+		} else {
 			desc->cld_start = page->cp_index;
 			desc->cld_end   = page->cp_index;
 			desc->cld_obj   = page->cp_obj;
@@ -473,8 +478,9 @@ int ccc_page_is_under_lock(const struct lu_env *env,
 			result = cl_queue_match(&io->ci_lockset.cls_done,
 						desc) ? -EBUSY : 0;
 		}
-	} else
+	} else {
 		result = 0;
+	}
 	return result;
 }
 
@@ -488,8 +494,8 @@ int ccc_fail(const struct lu_env *env, const struct cl_page_slice *slice)
 }
 
 int ccc_transient_page_prep(const struct lu_env *env,
-				   const struct cl_page_slice *slice,
-				   struct cl_io *unused)
+			    const struct cl_page_slice *slice,
+			    struct cl_io *unused)
 {
 	/* transient page should always be sent. */
 	return 0;
@@ -780,11 +786,9 @@ int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
 		 */
 		if (cl_isize_read(inode) < kms) {
 			cl_isize_write_nolock(inode, kms);
-			CDEBUG(D_VFSTRACE,
-					DFID" updating i_size %llu\n",
-					PFID(lu_object_fid(&obj->co_lu)),
-					(__u64)cl_isize_read(inode));
-
+			CDEBUG(D_VFSTRACE, DFID " updating i_size %llu\n",
+			       PFID(lu_object_fid(&obj->co_lu)),
+			       (__u64)cl_isize_read(inode));
 		}
 	}
 	ccc_object_size_unlock(obj);
@@ -1044,8 +1048,9 @@ int cl_file_inode_init(struct inode *inode, struct lustre_md *md)
 			lli->lli_clob = clob;
 			lli->lli_has_smd = lsm_has_objects(md->lsm);
 			lu_object_ref_add(&clob->co_lu, "inode", inode);
-		} else
+		} else {
 			result = PTR_ERR(clob);
+		}
 	} else {
 		result = cl_conf_set(env, lli->lli_clob, &conf);
 	}
@@ -1053,7 +1058,7 @@ int cl_file_inode_init(struct inode *inode, struct lustre_md *md)
 	cl_env_put(env, &refcheck);
 
 	if (result != 0)
-		CERROR("Failure to initialize cl object "DFID": %d\n",
+		CERROR("Failure to initialize cl object " DFID ": %d\n",
 		       PFID(fid), result);
 	return result;
 }
@@ -1127,8 +1132,9 @@ void cl_inode_fini(struct inode *inode)
 		if (emergency) {
 			cl_env_unplant(ccc_inode_fini_env, &refcheck);
 			mutex_unlock(&ccc_inode_fini_guard);
-		} else
+		} else {
 			cl_env_put(env, &refcheck);
+		}
 		cl_env_reexit(cookie);
 	}
 }
@@ -1145,7 +1151,7 @@ __u16 ll_dirent_type_get(struct lu_dirent *ent)
 	int len = 0;
 
 	if (le32_to_cpu(ent->lde_attrs) & LUDA_TYPE) {
-		const unsigned align = sizeof(struct luda_type) - 1;
+		const unsigned int align = sizeof(struct luda_type) - 1;
 
 		len = le16_to_cpu(ent->lde_namelen);
 		len = (len + align) & ~align;

@@ -95,7 +95,7 @@ int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
 
 	result = 0;
 	if (!(lli->lli_flags & LLIF_MDS_SIZE_LOCK)) {
-		CDEBUG(D_DLMTRACE, "Glimpsing inode "DFID"\n", PFID(fid));
+		CDEBUG(D_DLMTRACE, "Glimpsing inode " DFID "\n", PFID(fid));
 		if (lli->lli_has_smd) {
 			/* NOTE: this looks like DLM lock request, but it may
 			 *       not be one. Due to CEF_ASYNC flag (translated
@@ -179,10 +179,12 @@ static int cl_io_get(struct inode *inode, struct lu_env **envout,
 			*envout = env;
 			*ioout  = io;
 			result = 1;
-		} else
+		} else {
 			result = PTR_ERR(env);
-	} else
+		}
+	} else {
 		result = 0;
+	}
 	return result;
 }
 
@@ -247,9 +249,9 @@ int cl_local_size(struct inode *inode)
 
 	clob = io->ci_obj;
 	result = cl_io_init(env, io, CIT_MISC, clob);
-	if (result > 0)
+	if (result > 0) {
 		result = io->ci_result;
-	else if (result == 0) {
+	} else if (result == 0) {
 		cti = ccc_env_info(env);
 		descr = &cti->cti_descr;
 
@@ -261,8 +263,9 @@ int cl_local_size(struct inode *inode)
 			cl_unuse(env, lock);
 			cl_lock_release(env, lock, "localsize", current);
 			result = 0;
-		} else
+		} else {
 			result = -ENODATA;
+		}
 	}
 	cl_io_fini(env, io);
 	cl_env_put(env, &refcheck);
