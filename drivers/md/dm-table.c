@@ -1506,7 +1506,7 @@ static bool dm_table_supports_discards(struct dm_table *t)
 void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			       struct queue_limits *limits)
 {
-	unsigned flush = 0;
+	bool wc = false, fua = false;
 
 	/*
 	 * Copy table's limits to the DM device's request_queue
@@ -1519,11 +1519,11 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
 
 	if (dm_table_supports_flush(t, REQ_FLUSH)) {
-		flush |= REQ_FLUSH;
+		wc = true;
 		if (dm_table_supports_flush(t, REQ_FUA))
-			flush |= REQ_FUA;
+			fua = true;
 	}
-	blk_queue_flush(q, flush);
+	blk_queue_write_cache(q, wc, fua);
 
 	if (!dm_table_discard_zeroes_data(t))
 		q->limits.discard_zeroes_data = 0;
