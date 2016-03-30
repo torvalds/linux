@@ -144,8 +144,8 @@ typedef struct iep_service_info {
 
 #ifdef CONFIG_IEP_IOMMU
 	struct ion_client *ion_client;
-	struct device *iommu_dev;
 #endif
+	struct device *iommu_dev;
 } iep_service_info;
 
 struct iep_reg {
