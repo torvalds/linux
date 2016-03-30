@@ -112,7 +112,7 @@ static int vvp_attr_set(const struct lu_env *env, struct cl_object *obj,
 	if (valid & CAT_CTIME)
 		inode->i_ctime.tv_sec = attr->cat_ctime;
 	if (0 && valid & CAT_SIZE)
-		cl_isize_write_nolock(inode, attr->cat_size);
+		i_size_write(inode, attr->cat_size);
 	/* not currently necessary */
 	if (0 && valid & (CAT_UID|CAT_GID|CAT_SIZE))
 		mark_inode_dirty(inode);
@@ -196,7 +196,7 @@ static const struct lu_object_operations vvp_lu_obj_ops = {
 
 struct ccc_object *cl_inode2ccc(struct inode *inode)
 {
-	struct cl_inode_info *lli = cl_i2info(inode);
+	struct ll_inode_info *lli = ll_i2info(inode);
 	struct cl_object     *obj = lli->lli_clob;
 	struct lu_object     *lu;
 

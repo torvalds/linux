@@ -87,7 +87,7 @@ int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
 		    struct inode *inode, struct cl_object *clob, int agl)
 {
 	struct cl_lock_descr *descr = &ccc_env_info(env)->cti_descr;
-	struct cl_inode_info *lli   = cl_i2info(inode);
+	struct ll_inode_info *lli   = ll_i2info(inode);
 	const struct lu_fid  *fid   = lu_object_fid(&clob->co_lu);
 	struct ccc_io	*cio   = ccc_env_io(env);
 	struct cl_lock       *lock;
@@ -140,7 +140,7 @@ int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
 			result = cl_wait(env, lock);
 			if (result == 0) {
 				ll_merge_attr(env, inode);
-				if (cl_isize_read(inode) > 0 &&
+				if (i_size_read(inode) > 0 &&
 				    inode->i_blocks == 0) {
 					/*
 					 * LU-417: Add dirty pages block count
@@ -167,11 +167,11 @@ static int cl_io_get(struct inode *inode, struct lu_env **envout,
 {
 	struct lu_env	  *env;
 	struct cl_io	   *io;
-	struct cl_inode_info   *lli = cl_i2info(inode);
+	struct ll_inode_info	*lli = ll_i2info(inode);
 	struct cl_object       *clob = lli->lli_clob;
 	int result;
 
-	if (S_ISREG(cl_inode_mode(inode))) {
+	if (S_ISREG(inode->i_mode)) {
 		env = cl_env_get(refcheck);
 		if (!IS_ERR(env)) {
 			io = ccc_env_thread_io(env);
@@ -240,7 +240,7 @@ int cl_local_size(struct inode *inode)
 	int		      result;
 	int		      refcheck;
 
-	if (!cl_i2info(inode)->lli_has_smd)
+	if (!ll_i2info(inode)->lli_has_smd)
 		return 0;
 
 	result = cl_io_get(inode, &env, &io, &refcheck);

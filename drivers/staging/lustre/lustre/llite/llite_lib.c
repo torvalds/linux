@@ -1698,7 +1698,7 @@ void ll_read_inode2(struct inode *inode, void *opaque)
 
 void ll_delete_inode(struct inode *inode)
 {
-	struct cl_inode_info *lli = cl_i2info(inode);
+	struct ll_inode_info *lli = ll_i2info(inode);
 
 	if (S_ISREG(inode->i_mode) && lli->lli_clob)
 		/* discard all dirty pages before truncating them, required by

@@ -1293,38 +1293,6 @@ typedef enum llioc_iter (*llioc_callback_t)(struct inode *inode,
 void *ll_iocontrol_register(llioc_callback_t cb, int count, unsigned int *cmd);
 void ll_iocontrol_unregister(void *magic);
 
-/* lclient compat stuff */
-#define cl_inode_info ll_inode_info
-#define cl_i2info(info) ll_i2info(info)
-#define cl_inode_mode(inode) ((inode)->i_mode)
-#define cl_i2sbi ll_i2sbi
-
-static inline struct ll_file_data *cl_iattr2fd(struct inode *inode,
-					       const struct iattr *attr)
-{
-	LASSERT(attr->ia_valid & ATTR_FILE);
-	return LUSTRE_FPRIVATE(attr->ia_file);
-}
-
-static inline void cl_isize_write_nolock(struct inode *inode, loff_t kms)
-{
-	LASSERT(mutex_is_locked(&ll_i2info(inode)->lli_size_mutex));
-	i_size_write(inode, kms);
-}
-
-static inline void cl_isize_write(struct inode *inode, loff_t kms)
-{
-	ll_inode_size_lock(inode);
-	i_size_write(inode, kms);
-	ll_inode_size_unlock(inode);
-}
-
-#define cl_isize_read(inode)	     i_size_read(inode)
-
-#define cl_inode_atime(inode) LTIME_S((inode)->i_atime)
-#define cl_inode_ctime(inode) LTIME_S((inode)->i_ctime)
-#define cl_inode_mtime(inode) LTIME_S((inode)->i_mtime)
-
 int cl_sync_file_range(struct inode *inode, loff_t start, loff_t end,
 		       enum cl_fsync_mode mode, int ignore_layout);
 
