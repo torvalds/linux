@@ -232,12 +232,8 @@ static void __init exynos_cpufreq_init(void)
 	const struct of_device_id *match;
 
 	match = of_match_node(exynos_cpufreq_matches, root);
-	if (!match) {
-		platform_device_register_simple("exynos-cpufreq", -1, NULL, 0);
-		return;
-	}
-
-	platform_device_register_simple(match->data, -1, NULL, 0);
+	if (match)
+		platform_device_register_simple(match->data, -1, NULL, 0);
 }
 
 static void __init exynos_dt_machine_init(void)
