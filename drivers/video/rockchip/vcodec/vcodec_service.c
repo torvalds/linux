@@ -47,11 +47,8 @@
 #include <linux/rockchip_ion.h>
 #endif
 
-#if defined(CONFIG_RK_IOMMU) & defined(CONFIG_ION_ROCKCHIP)
-#define CONFIG_VCODEC_MMU
 #include <linux/rockchip-iovmm.h>
 #include <linux/dma-buf.h>
-#endif
 
 #include "vcodec_hw_info.h"
 #include "vcodec_hw_vpu.h"
@@ -466,11 +463,9 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 	int bits;
 	u32 raw = 0;
 	struct vpu_service_info *pservice = data->pservice;
-#if defined(CONFIG_VCODEC_MMU)
 	struct vpu_subdev_data *subdata, *n;
-#endif
+
 	if (pservice->subcnt < 2) {
-#if defined(CONFIG_VCODEC_MMU)
 		if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
 			set_bit(MMU_ACTIVATED, &data->state);
 			if (atomic_read(&pservice->enabled))
@@ -478,7 +473,6 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 			else
 				BUG_ON(!atomic_read(&pservice->enabled));
 		}
-#endif
 		return;
 	}
 
@@ -486,7 +480,6 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 		return;
 
 	vpu_debug(DEBUG_IOMMU, "vcodec enter mode %d\n", data->mode);
-#if defined(CONFIG_VCODEC_MMU)
 	list_for_each_entry_safe(subdata, n,
 				 &pservice->subdev_list, lnk_service) {
 		if (data != subdata && subdata->mmu_dev &&
@@ -495,7 +488,6 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 			rockchip_iovmm_deactivate(subdata->dev);
 		}
 	}
-#endif
 	bits = 1 << pservice->mode_bit;
 #ifdef CONFIG_MFD_SYSCON
 	if (pservice->grf) {
@@ -537,7 +529,6 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 		return;
 	}
 #endif
-#if defined(CONFIG_VCODEC_MMU)
 	if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
 		set_bit(MMU_ACTIVATED, &data->state);
 		if (atomic_read(&pservice->enabled))
@@ -545,7 +536,7 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 		else
 			BUG_ON(!atomic_read(&pservice->enabled));
 	}
-#endif
+
 	pservice->prev_mode = pservice->curr_mode;
 	pservice->curr_mode = data->mode;
 }
@@ -554,9 +545,7 @@ static void vcodec_exit_mode(struct vpu_subdev_data *data)
 {
 	if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
 		clear_bit(MMU_ACTIVATED, &data->state);
-#if defined(CONFIG_VCODEC_MMU)
 		rockchip_iovmm_deactivate(data->dev);
-#endif
 		data->pservice->curr_mode = VCODEC_RUNNING_MODE_NONE;
 	}
 }
@@ -694,7 +683,6 @@ static void vpu_reset(struct vpu_subdev_data *data)
 	}
 #endif
 
-#if defined(CONFIG_VCODEC_MMU)
 	if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
 		clear_bit(MMU_ACTIVATED, &data->state);
 		if (atomic_read(&pservice->enabled))
@@ -702,7 +690,7 @@ static void vpu_reset(struct vpu_subdev_data *data)
 		else
 			BUG_ON(!atomic_read(&pservice->enabled));
 	}
-#endif
+
 	atomic_set(&pservice->reset_request, 0);
 	pr_info("done\n");
 }
@@ -751,7 +739,6 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
 
 	udelay(5);
 
-#if defined(CONFIG_VCODEC_MMU)
 	list_for_each_entry_safe(data, n, &pservice->subdev_list, lnk_service) {
 		if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
 			clear_bit(MMU_ACTIVATED, &data->state);
@@ -759,7 +746,6 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
 		}
 	}
 	pservice->curr_mode = VCODEC_RUNNING_MODE_NONE;
-#endif
 
 #if VCODEC_CLOCK_ENABLE
 		if (pservice->pd_video)
