@@ -637,10 +637,10 @@ static void pci230_release_all_resources(struct comedi_device *dev,
 	pci230_release_shared(dev, (unsigned char)~0, owner);
 }
 
-static unsigned int pci230_divide_ns(uint64_t ns, unsigned int timebase,
+static unsigned int pci230_divide_ns(u64 ns, unsigned int timebase,
 				     unsigned int flags)
 {
-	uint64_t div;
+	u64 div;
 	unsigned int rem;
 
 	div = ns;
@@ -663,7 +663,7 @@ static unsigned int pci230_divide_ns(uint64_t ns, unsigned int timebase,
  * Given desired period in ns, returns the required internal clock source
  * and gets the initial count.
  */
-static unsigned int pci230_choose_clk_count(uint64_t ns, unsigned int *count,
+static unsigned int pci230_choose_clk_count(u64 ns, unsigned int *count,
 					    unsigned int flags)
 {
 	unsigned int clk_src, cnt;
@@ -687,7 +687,7 @@ static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int flags)
 }
 
 static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
-				    unsigned int mode, uint64_t ns,
+				    unsigned int mode, u64 ns,
 				    unsigned int flags)
 {
 	unsigned int clk_src;
@@ -2250,7 +2250,7 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			zgat = pci230_gat_config(0, GAT_VCC);
 			outb(zgat, dev->iobase + PCI230_ZGAT_SCE);
 			pci230_ct_setup_ns_mode(dev, 0, I8254_MODE1,
-						((uint64_t)cmd->convert_arg *
+						((u64)cmd->convert_arg *
 						 cmd->scan_end_arg),
 						CMDF_ROUND_UP);
 			if (cmd->scan_begin_src == TRIG_TIMER) {
