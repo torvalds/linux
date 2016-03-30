@@ -164,50 +164,50 @@ struct vvp_io {
 	bool		vui_ra_valid;
 };
 
-extern struct lu_context_key ccc_key;
 extern struct lu_context_key vvp_session_key;
+extern struct lu_context_key vvp_thread_key;
 
 extern struct kmem_cache *vvp_lock_kmem;
 extern struct kmem_cache *vvp_object_kmem;
 extern struct kmem_cache *vvp_req_kmem;
 
-struct ccc_thread_info {
-	struct cl_lock		cti_lock;
-	struct cl_lock_descr	cti_descr;
-	struct cl_io		cti_io;
-	struct cl_attr		cti_attr;
+struct vvp_thread_info {
+	struct cl_lock		vti_lock;
+	struct cl_lock_descr	vti_descr;
+	struct cl_io		vti_io;
+	struct cl_attr		vti_attr;
 };
 
-static inline struct ccc_thread_info *ccc_env_info(const struct lu_env *env)
+static inline struct vvp_thread_info *vvp_env_info(const struct lu_env *env)
 {
-	struct ccc_thread_info      *info;
+	struct vvp_thread_info      *vti;
 
-	info = lu_context_key_get(&env->le_ctx, &ccc_key);
-	LASSERT(info);
+	vti = lu_context_key_get(&env->le_ctx, &vvp_thread_key);
+	LASSERT(vti);
 
-	return info;
+	return vti;
 }
 
-static inline struct cl_lock *ccc_env_lock(const struct lu_env *env)
+static inline struct cl_lock *vvp_env_lock(const struct lu_env *env)
 {
-	struct cl_lock *lock = &ccc_env_info(env)->cti_lock;
+	struct cl_lock *lock = &vvp_env_info(env)->vti_lock;
 
 	memset(lock, 0, sizeof(*lock));
 	return lock;
 }
 
-static inline struct cl_attr *ccc_env_thread_attr(const struct lu_env *env)
+static inline struct cl_attr *vvp_env_thread_attr(const struct lu_env *env)
 {
-	struct cl_attr *attr = &ccc_env_info(env)->cti_attr;
+	struct cl_attr *attr = &vvp_env_info(env)->vti_attr;
 
 	memset(attr, 0, sizeof(*attr));
 
 	return attr;
 }
 
-static inline struct cl_io *ccc_env_thread_io(const struct lu_env *env)
+static inline struct cl_io *vvp_env_thread_io(const struct lu_env *env)
 {
-	struct cl_io *io = &ccc_env_info(env)->cti_io;
+	struct cl_io *io = &vvp_env_info(env)->vti_io;
 
 	memset(io, 0, sizeof(*io));
 

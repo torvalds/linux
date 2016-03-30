@@ -65,48 +65,11 @@
  * ccc_ prefix stands for "Common Client Code".
  */
 
-static struct kmem_cache *ccc_thread_kmem;
-
-static struct lu_kmem_descr ccc_caches[] = {
-	{
-		.ckd_cache = &ccc_thread_kmem,
-		.ckd_name  = "ccc_thread_kmem",
-		.ckd_size  = sizeof(struct ccc_thread_info),
-	},
-	{
-		.ckd_cache = NULL
-	}
-};
-
 /*****************************************************************************
  *
  * Vvp device and device type functions.
  *
  */
-
-void *ccc_key_init(const struct lu_context *ctx, struct lu_context_key *key)
-{
-	struct ccc_thread_info *info;
-
-	info = kmem_cache_zalloc(ccc_thread_kmem, GFP_NOFS);
-	if (!info)
-		info = ERR_PTR(-ENOMEM);
-	return info;
-}
-
-void ccc_key_fini(const struct lu_context *ctx,
-		  struct lu_context_key *key, void *data)
-{
-	struct ccc_thread_info *info = data;
-
-	kmem_cache_free(ccc_thread_kmem, info);
-}
-
-struct lu_context_key ccc_key = {
-	.lct_tags = LCT_CL_THREAD,
-	.lct_init = ccc_key_init,
-	.lct_fini = ccc_key_fini
-};
 
 /**
  * An `emergency' environment used by ccc_inode_fini() when cl_env_get()
@@ -126,13 +89,9 @@ int ccc_global_init(struct lu_device_type *device_type)
 {
 	int result;
 
-	result = lu_kmem_init(ccc_caches);
-	if (result)
-		return result;
-
 	result = lu_device_type_init(device_type);
 	if (result)
-		goto out_kmem;
+		return result;
 
 	ccc_inode_fini_env = cl_env_alloc(&dummy_refcheck,
 					  LCT_REMEMBER | LCT_NOREF);
@@ -145,8 +104,6 @@ int ccc_global_init(struct lu_device_type *device_type)
 	return 0;
 out_device:
 	lu_device_type_fini(device_type);
-out_kmem:
-	lu_kmem_fini(ccc_caches);
 	return result;
 }
 
@@ -157,7 +114,6 @@ void ccc_global_fini(struct lu_device_type *device_type)
 		ccc_inode_fini_env = NULL;
 	}
 	lu_device_type_fini(device_type);
-	lu_kmem_fini(ccc_caches);
 }
 
 int cl_setattr_ost(struct inode *inode, const struct iattr *attr)
@@ -171,7 +127,7 @@ int cl_setattr_ost(struct inode *inode, const struct iattr *attr)
 	if (IS_ERR(env))
 		return PTR_ERR(env);
 
-	io = ccc_env_thread_io(env);
+	io = vvp_env_thread_io(env);
 	io->ci_obj = ll_i2info(inode)->lli_clob;
 
 	io->u.ci_setattr.sa_attr.lvb_atime = LTIME_S(attr->ia_atime);

@@ -93,7 +93,7 @@ int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
 	if (!(lli->lli_flags & LLIF_MDS_SIZE_LOCK)) {
 		CDEBUG(D_DLMTRACE, "Glimpsing inode " DFID "\n", PFID(fid));
 		if (lli->lli_has_smd) {
-			struct cl_lock *lock = ccc_env_lock(env);
+			struct cl_lock *lock = vvp_env_lock(env);
 			struct cl_lock_descr *descr = &lock->cll_descr;
 
 			/* NOTE: this looks like DLM lock request, but it may
@@ -163,7 +163,7 @@ static int cl_io_get(struct inode *inode, struct lu_env **envout,
 	if (S_ISREG(inode->i_mode)) {
 		env = cl_env_get(refcheck);
 		if (!IS_ERR(env)) {
-			io = ccc_env_thread_io(env);
+			io = vvp_env_thread_io(env);
 			io->ci_obj = clob;
 			*envout = env;
 			*ioout  = io;
@@ -238,7 +238,7 @@ int cl_local_size(struct inode *inode)
 	if (result > 0) {
 		result = io->ci_result;
 	} else if (result == 0) {
-		struct cl_lock *lock = ccc_env_lock(env);
+		struct cl_lock *lock = vvp_env_lock(env);
 
 		lock->cll_descr = whole_file;
 		lock->cll_descr.cld_enq_flags = CEF_PEEK;

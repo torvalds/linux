@@ -524,7 +524,7 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 {
 	struct vvp_io *vio = vvp_env_io(env);
 	struct ll_thread_info *lti = ll_env_info(env);
-	struct cl_attr *attr = ccc_env_thread_attr(env);
+	struct cl_attr *attr = vvp_env_thread_attr(env);
 	unsigned long start = 0, end = 0, reserved;
 	unsigned long ra_end, len, mlen = 0;
 	struct inode *inode;
@@ -999,7 +999,7 @@ int ll_writepage(struct page *vmpage, struct writeback_control *wbc)
 	clob  = ll_i2info(inode)->lli_clob;
 	LASSERT(clob);
 
-	io = ccc_env_thread_io(env);
+	io = vvp_env_thread_io(env);
 	io->ci_obj = clob;
 	io->ci_ignore_layout = 1;
 	result = cl_io_init(env, io, CIT_MISC, clob);

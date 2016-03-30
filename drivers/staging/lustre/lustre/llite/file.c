@@ -998,7 +998,7 @@ int ll_merge_attr(const struct lu_env *env, struct inode *inode)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct cl_object *obj = lli->lli_clob;
-	struct cl_attr *attr = ccc_env_thread_attr(env);
+	struct cl_attr *attr = vvp_env_thread_attr(env);
 	s64 atime;
 	s64 mtime;
 	s64 ctime;
@@ -1131,7 +1131,7 @@ ll_file_io_generic(const struct lu_env *env, struct vvp_io_args *args,
 	       file->f_path.dentry->d_name.name, iot, *ppos, count);
 
 restart:
-	io = ccc_env_thread_io(env);
+	io = vvp_env_thread_io(env);
 	ll_io_init(io, file, iot == CIT_WRITE);
 
 	if (cl_io_rw_init(env, io, iot, *ppos, count) == 0) {
@@ -2612,7 +2612,7 @@ int cl_sync_file_range(struct inode *inode, loff_t start, loff_t end,
 	if (IS_ERR(env))
 		return PTR_ERR(env);
 
-	io = ccc_env_thread_io(env);
+	io = vvp_env_thread_io(env);
 	io->ci_obj = ll_i2info(inode)->lli_clob;
 	io->ci_ignore_layout = ignore_layout;
 
