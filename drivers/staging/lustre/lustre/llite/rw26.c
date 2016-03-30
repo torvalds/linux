@@ -376,7 +376,7 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 
 	env = cl_env_get(&refcheck);
 	LASSERT(!IS_ERR(env));
-	io = vvp_env_io(env)->cui_cl.cis_io;
+	io = vvp_env_io(env)->vui_cl.cis_io;
 	LASSERT(io);
 
 	/* 0. Need locking between buffered and direct access. and race with
@@ -439,10 +439,10 @@ out:
 		inode_unlock(inode);
 
 	if (tot_bytes > 0) {
-		struct vvp_io *cio = vvp_env_io(env);
+		struct vvp_io *vio = vvp_env_io(env);
 
 		/* no commit async for direct IO */
-		cio->u.write.cui_written += tot_bytes;
+		vio->u.write.vui_written += tot_bytes;
 	}
 
 	cl_env_put(env, &refcheck);
@@ -513,8 +513,8 @@ static int ll_write_begin(struct file *file, struct address_space *mapping,
 	/* To avoid deadlock, try to lock page first. */
 	vmpage = grab_cache_page_nowait(mapping, index);
 	if (unlikely(!vmpage || PageDirty(vmpage) || PageWriteback(vmpage))) {
-		struct vvp_io *cio = vvp_env_io(env);
-		struct cl_page_list *plist = &cio->u.write.cui_queue;
+		struct vvp_io *vio = vvp_env_io(env);
+		struct cl_page_list *plist = &vio->u.write.vui_queue;
 
 		/* if the page is already in dirty cache, we have to commit
 		 * the pages right now; otherwise, it may cause deadlock
@@ -595,7 +595,7 @@ static int ll_write_end(struct file *file, struct address_space *mapping,
 	struct ll_cl_context *lcc = fsdata;
 	struct lu_env *env;
 	struct cl_io *io;
-	struct vvp_io *cio;
+	struct vvp_io *vio;
 	struct cl_page *page;
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
 	bool unplug = false;
@@ -606,21 +606,21 @@ static int ll_write_end(struct file *file, struct address_space *mapping,
 	env  = lcc->lcc_env;
 	page = lcc->lcc_page;
 	io   = lcc->lcc_io;
-	cio  = vvp_env_io(env);
+	vio  = vvp_env_io(env);
 
 	LASSERT(cl_page_is_owned(page, io));
 	if (copied > 0) {
-		struct cl_page_list *plist = &cio->u.write.cui_queue;
+		struct cl_page_list *plist = &vio->u.write.vui_queue;
 
 		lcc->lcc_page = NULL; /* page will be queued */
 
 		/* Add it into write queue */
 		cl_page_list_add(plist, page);
 		if (plist->pl_nr == 1) /* first page */
-			cio->u.write.cui_from = from;
+			vio->u.write.vui_from = from;
 		else
 			LASSERT(from == 0);
-		cio->u.write.cui_to = from + copied;
+		vio->u.write.vui_to = from + copied;
 
 		/* We may have one full RPC, commit it soon */
 		if (plist->pl_nr >= PTLRPC_MAX_BRW_PAGES)

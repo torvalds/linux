@@ -372,9 +372,9 @@ static int vvp_page_is_under_lock(const struct lu_env *env,
 {
 	if (io->ci_type == CIT_READ || io->ci_type == CIT_WRITE ||
 	    io->ci_type == CIT_FAULT) {
-		struct vvp_io *cio = vvp_env_io(env);
+		struct vvp_io *vio = vvp_env_io(env);
 
-		if (unlikely(cio->cui_fd->fd_flags & LL_FILE_GROUP_LOCKED))
+		if (unlikely(vio->vui_fd->fd_flags & LL_FILE_GROUP_LOCKED))
 			*max_index = CL_PAGE_EOF;
 	}
 	return 0;

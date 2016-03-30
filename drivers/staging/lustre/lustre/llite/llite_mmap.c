@@ -146,14 +146,14 @@ ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
 
 	rc = cl_io_init(env, io, CIT_FAULT, io->ci_obj);
 	if (rc == 0) {
-		struct vvp_io *cio = vvp_env_io(env);
+		struct vvp_io *vio = vvp_env_io(env);
 		struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
 
-		LASSERT(cio->cui_cl.cis_io == io);
+		LASSERT(vio->vui_cl.cis_io == io);
 
 		/* mmap lock must be MANDATORY it has to cache pages. */
 		io->ci_lockreq = CILR_MANDATORY;
-		cio->cui_fd = fd;
+		vio->vui_fd = fd;
 	} else {
 		LASSERT(rc < 0);
 		cl_io_fini(env, io);
