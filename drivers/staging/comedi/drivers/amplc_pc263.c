@@ -1,37 +1,37 @@
 /*
-    comedi/drivers/amplc_pc263.c
-    Driver for Amplicon PC263 and PCI263 relay boards.
+ * Driver for Amplicon PC263 relay board.
+ *
+ * Copyright (C) 2002 MEV Ltd. <http://www.mev.co.uk/>
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    Copyright (C) 2002 MEV Ltd. <http://www.mev.co.uk/>
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: amplc_pc263
-Description: Amplicon PC263
-Author: Ian Abbott <abbotti@mev.co.uk>
-Devices: [Amplicon] PC263 (pc263)
-Updated: Fri, 12 Apr 2013 15:19:36 +0100
-Status: works
-
-Configuration options:
-  [0] - I/O port base address
-
-The board appears as one subdevice, with 16 digital outputs, each
-connected to a reed-relay. Relay contacts are closed when output is 1.
-The state of the outputs can be read.
-*/
+ * Driver: amplc_pc263
+ * Description: Amplicon PC263
+ * Author: Ian Abbott <abbotti@mev.co.uk>
+ * Devices: [Amplicon] PC263 (pc263)
+ * Updated: Fri, 12 Apr 2013 15:19:36 +0100
+ * Status: works
+ *
+ * Configuration options:
+ *   [0] - I/O port base address
+ *
+ * The board appears as one subdevice, with 16 digital outputs, each
+ * connected to a reed-relay. Relay contacts are closed when output is 1.
+ * The state of the outputs can be read.
+ */
 
 #include <linux/module.h>
 #include "../comedidev.h"
