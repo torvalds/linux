@@ -53,15 +53,6 @@ struct obd_device;
 struct obd_export;
 struct page;
 
-enum ccc_setattr_lock_type {
-	/** Locking is done by server */
-	SETATTR_NOLOCK,
-	/** Extent lock is enqueued */
-	SETATTR_EXTENT_LOCK,
-	/** Existing local extent lock is used */
-	SETATTR_MATCH_LOCK
-};
-
 /* specific architecture can implement only part of this list */
 enum vvp_io_subtype {
 	/** normal IO */
@@ -111,9 +102,6 @@ struct vvp_io {
 			 */
 			bool		ft_flags_valid;
 		} fault;
-		struct {
-			enum ccc_setattr_lock_type vui_local_lock;
-		} setattr;
 		struct {
 			struct pipe_inode_info	*vui_pipe;
 			unsigned int		 vui_flags;

@@ -567,7 +567,6 @@ static int vvp_io_setattr_iter_init(const struct lu_env *env,
 static int vvp_io_setattr_lock(const struct lu_env *env,
 			       const struct cl_io_slice *ios)
 {
-	struct vvp_io *vio = vvp_env_io(env);
 	struct cl_io  *io  = ios->cis_io;
 	__u64 new_size;
 	__u32 enqflags = 0;
@@ -584,8 +583,6 @@ static int vvp_io_setattr_lock(const struct lu_env *env,
 			return 0;
 		new_size = 0;
 	}
-
-	vio->u.setattr.vui_local_lock = SETATTR_EXTENT_LOCK;
 
 	return vvp_io_one_lock(env, io, enqflags, CLM_WRITE,
 			       new_size, OBD_OBJECT_EOF);
