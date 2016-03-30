@@ -203,7 +203,19 @@ void __init efi_init(void)
 
 	reserve_regions();
 	early_memunmap(memmap.map, params.mmap_size);
-	memblock_mark_nomap(params.mmap & PAGE_MASK,
-			    PAGE_ALIGN(params.mmap_size +
-				       (params.mmap & ~PAGE_MASK)));
+
+	if (IS_ENABLED(CONFIG_ARM)) {
+		/*
+		 * ARM currently does not allow ioremap_cache() to be called on
+		 * memory regions that are covered by struct page. So remove the
+		 * UEFI memory map from the linear mapping.
+		 */
+		memblock_mark_nomap(params.mmap & PAGE_MASK,
+				    PAGE_ALIGN(params.mmap_size +
+					       (params.mmap & ~PAGE_MASK)));
+	} else {
+		memblock_reserve(params.mmap & PAGE_MASK,
+				 PAGE_ALIGN(params.mmap_size +
+					    (params.mmap & ~PAGE_MASK)));
+	}
 }
