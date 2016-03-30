@@ -229,15 +229,25 @@ int ldlm_lock_remove_from_lru_nolock(struct ldlm_lock *lock)
 
 /**
  * Removes LDLM lock \a lock from LRU. Obtains the LRU lock first.
+ *
+ * If \a last_use is non-zero, it will remove the lock from LRU only if
+ * it matches lock's l_last_used.
+ *
+ * \retval 0 if \a last_use is set, the lock is not in LRU list or \a last_use
+ *           doesn't match lock's l_last_used;
+ *           otherwise, the lock hasn't been in the LRU list.
+ * \retval 1 the lock was in LRU list and removed.
  */
-int ldlm_lock_remove_from_lru(struct ldlm_lock *lock)
+int ldlm_lock_remove_from_lru_check(struct ldlm_lock *lock, time_t last_use)
 {
 	struct ldlm_namespace *ns = ldlm_lock_to_ns(lock);
-	int rc;
+	int rc = 0;
 
 	spin_lock(&ns->ns_lock);
-	rc = ldlm_lock_remove_from_lru_nolock(lock);
+	if (last_use == 0 || last_use == lock->l_last_used)
+		rc = ldlm_lock_remove_from_lru_nolock(lock);
 	spin_unlock(&ns->ns_lock);
+
 	return rc;
 }
 
