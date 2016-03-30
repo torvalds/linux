@@ -2264,6 +2264,38 @@ static void mv88e6xxx_bridge_work(struct work_struct *work)
 	mutex_unlock(&ps->smi_mutex);
 }
 
+static int _mv88e6xxx_phy_page_write(struct dsa_switch *ds, int port, int page,
+				     int reg, int val)
+{
+	int ret;
+
+	ret = _mv88e6xxx_phy_write_indirect(ds, port, 0x16, page);
+	if (ret < 0)
+		goto restore_page_0;
+
+	ret = _mv88e6xxx_phy_write_indirect(ds, port, reg, val);
+restore_page_0:
+	_mv88e6xxx_phy_write_indirect(ds, port, 0x16, 0x0);
+
+	return ret;
+}
+
+static int _mv88e6xxx_phy_page_read(struct dsa_switch *ds, int port, int page,
+				    int reg)
+{
+	int ret;
+
+	ret = _mv88e6xxx_phy_write_indirect(ds, port, 0x16, page);
+	if (ret < 0)
+		goto restore_page_0;
+
+	ret = _mv88e6xxx_phy_read_indirect(ds, port, reg);
+restore_page_0:
+	_mv88e6xxx_phy_write_indirect(ds, port, 0x16, 0x0);
+
+	return ret;
+}
+
 static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
@@ -2714,13 +2746,9 @@ int mv88e6xxx_phy_page_read(struct dsa_switch *ds, int port, int page, int reg)
 	int ret;
 
 	mutex_lock(&ps->smi_mutex);
-	ret = _mv88e6xxx_phy_write_indirect(ds, port, 0x16, page);
-	if (ret < 0)
-		goto error;
-	ret = _mv88e6xxx_phy_read_indirect(ds, port, reg);
-error:
-	_mv88e6xxx_phy_write_indirect(ds, port, 0x16, 0x0);
+	ret = _mv88e6xxx_phy_page_read(ds, port, page, reg);
 	mutex_unlock(&ps->smi_mutex);
+
 	return ret;
 }
 
@@ -2731,14 +2759,9 @@ int mv88e6xxx_phy_page_write(struct dsa_switch *ds, int port, int page,
 	int ret;
 
 	mutex_lock(&ps->smi_mutex);
-	ret = _mv88e6xxx_phy_write_indirect(ds, port, 0x16, page);
-	if (ret < 0)
-		goto error;
-
-	ret = _mv88e6xxx_phy_write_indirect(ds, port, reg, val);
-error:
-	_mv88e6xxx_phy_write_indirect(ds, port, 0x16, 0x0);
+	ret = _mv88e6xxx_phy_page_write(ds, port, page, reg, val);
 	mutex_unlock(&ps->smi_mutex);
+
 	return ret;
 }
 
