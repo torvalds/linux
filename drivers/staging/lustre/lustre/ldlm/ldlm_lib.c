@@ -314,7 +314,7 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	INIT_LIST_HEAD(&cli->cl_loi_hp_ready_list);
 	INIT_LIST_HEAD(&cli->cl_loi_write_list);
 	INIT_LIST_HEAD(&cli->cl_loi_read_list);
-	client_obd_list_lock_init(&cli->cl_loi_list_lock);
+	spin_lock_init(&cli->cl_loi_list_lock);
 	atomic_set(&cli->cl_pending_w_pages, 0);
 	atomic_set(&cli->cl_pending_r_pages, 0);
 	cli->cl_r_in_flight = 0;
@@ -333,7 +333,7 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	atomic_set(&cli->cl_lru_busy, 0);
 	atomic_set(&cli->cl_lru_in_list, 0);
 	INIT_LIST_HEAD(&cli->cl_lru_list);
-	client_obd_list_lock_init(&cli->cl_lru_list_lock);
+	spin_lock_init(&cli->cl_lru_list_lock);
 
 	init_waitqueue_head(&cli->cl_destroy_waitq);
 	atomic_set(&cli->cl_destroy_in_flight, 0);

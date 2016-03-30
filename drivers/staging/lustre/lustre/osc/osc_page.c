@@ -456,11 +456,11 @@ void osc_lru_add_batch(struct client_obd *cli, struct list_head *plist)
 	}
 
 	if (npages > 0) {
-		client_obd_list_lock(&cli->cl_lru_list_lock);
+		spin_lock(&cli->cl_lru_list_lock);
 		list_splice_tail(&lru, &cli->cl_lru_list);
 		atomic_sub(npages, &cli->cl_lru_busy);
 		atomic_add(npages, &cli->cl_lru_in_list);
-		client_obd_list_unlock(&cli->cl_lru_list_lock);
+		spin_unlock(&cli->cl_lru_list_lock);
 
 		/* XXX: May set force to be true for better performance */
 		if (osc_cache_too_much(cli))
@@ -482,14 +482,14 @@ static void __osc_lru_del(struct client_obd *cli, struct osc_page *opg)
 static void osc_lru_del(struct client_obd *cli, struct osc_page *opg)
 {
 	if (opg->ops_in_lru) {
-		client_obd_list_lock(&cli->cl_lru_list_lock);
+		spin_lock(&cli->cl_lru_list_lock);
 		if (!list_empty(&opg->ops_lru)) {
 			__osc_lru_del(cli, opg);
 		} else {
 			LASSERT(atomic_read(&cli->cl_lru_busy) > 0);
 			atomic_dec(&cli->cl_lru_busy);
 		}
-		client_obd_list_unlock(&cli->cl_lru_list_lock);
+		spin_unlock(&cli->cl_lru_list_lock);
 
 		atomic_inc(cli->cl_lru_left);
 		/* this is a great place to release more LRU pages if
@@ -513,9 +513,9 @@ static void osc_lru_use(struct client_obd *cli, struct osc_page *opg)
 	 * ops_lru should be empty
 	 */
 	if (opg->ops_in_lru && !list_empty(&opg->ops_lru)) {
-		client_obd_list_lock(&cli->cl_lru_list_lock);
+		spin_lock(&cli->cl_lru_list_lock);
 		__osc_lru_del(cli, opg);
-		client_obd_list_unlock(&cli->cl_lru_list_lock);
+		spin_unlock(&cli->cl_lru_list_lock);
 		atomic_inc(&cli->cl_lru_busy);
 	}
 }
@@ -572,7 +572,7 @@ int osc_lru_shrink(const struct lu_env *env, struct client_obd *cli,
 	pvec = (struct cl_page **)osc_env_info(env)->oti_pvec;
 	io = &osc_env_info(env)->oti_io;
 
-	client_obd_list_lock(&cli->cl_lru_list_lock);
+	spin_lock(&cli->cl_lru_list_lock);
 	maxscan = min(target << 1, atomic_read(&cli->cl_lru_in_list));
 	list_for_each_entry_safe(opg, temp, &cli->cl_lru_list, ops_lru) {
 		struct cl_page *page;
@@ -592,7 +592,7 @@ int osc_lru_shrink(const struct lu_env *env, struct client_obd *cli,
 			struct cl_object *tmp = page->cp_obj;
 
 			cl_object_get(tmp);
-			client_obd_list_unlock(&cli->cl_lru_list_lock);
+			spin_unlock(&cli->cl_lru_list_lock);
 
 			if (clobj) {
 				discard_pagevec(env, io, pvec, index);
@@ -608,7 +608,7 @@ int osc_lru_shrink(const struct lu_env *env, struct client_obd *cli,
 			io->ci_ignore_layout = 1;
 			rc = cl_io_init(env, io, CIT_MISC, clobj);
 
-			client_obd_list_lock(&cli->cl_lru_list_lock);
+			spin_lock(&cli->cl_lru_list_lock);
 
 			if (rc != 0)
 				break;
@@ -640,17 +640,17 @@ int osc_lru_shrink(const struct lu_env *env, struct client_obd *cli,
 		/* Don't discard and free the page with cl_lru_list held */
 		pvec[index++] = page;
 		if (unlikely(index == OTI_PVEC_SIZE)) {
-			client_obd_list_unlock(&cli->cl_lru_list_lock);
+			spin_unlock(&cli->cl_lru_list_lock);
 			discard_pagevec(env, io, pvec, index);
 			index = 0;
 
-			client_obd_list_lock(&cli->cl_lru_list_lock);
+			spin_lock(&cli->cl_lru_list_lock);
 		}
 
 		if (++count >= target)
 			break;
 	}
-	client_obd_list_unlock(&cli->cl_lru_list_lock);
+	spin_unlock(&cli->cl_lru_list_lock);
 
 	if (clobj) {
 		discard_pagevec(env, io, pvec, index);

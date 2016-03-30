@@ -64,9 +64,9 @@ static int fld_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
 {
 	int rc;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	rc = list_empty(&mcw->mcw_entry);
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 	return rc;
 };
 
@@ -75,15 +75,15 @@ static void fld_enter_request(struct client_obd *cli)
 	struct mdc_cache_waiter mcw;
 	struct l_wait_info lwi = { 0 };
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	if (cli->cl_r_in_flight >= cli->cl_max_rpcs_in_flight) {
 		list_add_tail(&mcw.mcw_entry, &cli->cl_cache_waiters);
 		init_waitqueue_head(&mcw.mcw_waitq);
-		client_obd_list_unlock(&cli->cl_loi_list_lock);
+		spin_unlock(&cli->cl_loi_list_lock);
 		l_wait_event(mcw.mcw_waitq, fld_req_avail(cli, &mcw), &lwi);
 	} else {
 		cli->cl_r_in_flight++;
-		client_obd_list_unlock(&cli->cl_loi_list_lock);
+		spin_unlock(&cli->cl_loi_list_lock);
 	}
 }
 
@@ -92,7 +92,7 @@ static void fld_exit_request(struct client_obd *cli)
 	struct list_head *l, *tmp;
 	struct mdc_cache_waiter *mcw;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	cli->cl_r_in_flight--;
 	list_for_each_safe(l, tmp, &cli->cl_cache_waiters) {
 
@@ -106,7 +106,7 @@ static void fld_exit_request(struct client_obd *cli)
 		cli->cl_r_in_flight++;
 		wake_up(&mcw->mcw_waitq);
 	}
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 }
 
 static int fld_rrb_hash(struct lu_client_fld *fld, u64 seq)

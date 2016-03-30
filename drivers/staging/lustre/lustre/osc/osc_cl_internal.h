@@ -608,7 +608,7 @@ enum osc_extent_state {
  *
  * LOCKING ORDER
  * =============
- * page lock -> client_obd_list_lock -> object lock(osc_object::oo_lock)
+ * page lock -> cl_loi_list_lock -> object lock(osc_object::oo_lock)
  */
 struct osc_extent {
 	/** red-black tree node */
