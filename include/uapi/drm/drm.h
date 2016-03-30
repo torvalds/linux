@@ -36,7 +36,13 @@
 #ifndef _DRM_H_
 #define _DRM_H_
 
-#if defined(__KERNEL__) || defined(__linux__)
+#if defined(__KERNEL__)
+
+#include <linux/types.h>
+#include <asm/ioctl.h>
+typedef unsigned int drm_handle_t;
+
+#elif defined(__linux__)
 
 #include <linux/types.h>
 #include <asm/ioctl.h>
