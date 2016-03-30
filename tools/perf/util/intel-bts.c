@@ -279,6 +279,7 @@ static int intel_bts_synth_branch_sample(struct intel_bts_queue *btsq,
 	event.sample.header.misc = PERF_RECORD_MISC_USER;
 	event.sample.header.size = sizeof(struct perf_event_header);
 
+	sample.cpumode = PERF_RECORD_MISC_USER;
 	sample.ip = le64_to_cpu(branch->from);
 	sample.pid = btsq->pid;
 	sample.tid = btsq->tid;
