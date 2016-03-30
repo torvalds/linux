@@ -102,7 +102,7 @@ struct ll_cl_context *ll_cl_init(struct file *file, struct page *vmpage)
 	if (IS_ERR(env))
 		return ERR_CAST(env);
 
-	lcc = &vvp_env_info(env)->vti_io_ctx;
+	lcc = &ll_env_info(env)->lti_io_ctx;
 	memset(lcc, 0, sizeof(*lcc));
 	lcc->lcc_env = env;
 	lcc->lcc_refcheck = refcheck;
@@ -523,12 +523,12 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 		 bool hit)
 {
 	struct vvp_io *vio = vvp_env_io(env);
-	struct vvp_thread_info *vti = vvp_env_info(env);
+	struct ll_thread_info *lti = ll_env_info(env);
 	struct cl_attr *attr = ccc_env_thread_attr(env);
 	unsigned long start = 0, end = 0, reserved;
 	unsigned long ra_end, len, mlen = 0;
 	struct inode *inode;
-	struct ra_io_arg *ria = &vti->vti_ria;
+	struct ra_io_arg *ria = &lti->lti_ria;
 	struct cl_object *clob;
 	int ret = 0;
 	__u64 kms;

@@ -855,30 +855,30 @@ struct ll_cl_context {
 	int	     lcc_refcheck;
 };
 
-struct vvp_thread_info {
-	struct vvp_io_args   vti_args;
-	struct ra_io_arg     vti_ria;
-	struct ll_cl_context vti_io_ctx;
+struct ll_thread_info {
+	struct vvp_io_args   lti_args;
+	struct ra_io_arg     lti_ria;
+	struct ll_cl_context lti_io_ctx;
 };
 
-static inline struct vvp_thread_info *vvp_env_info(const struct lu_env *env)
+extern struct lu_context_key ll_thread_key;
+static inline struct ll_thread_info *ll_env_info(const struct lu_env *env)
 {
-	extern struct lu_context_key vvp_key;
-	struct vvp_thread_info      *info;
+	struct ll_thread_info *lti;
 
-	info = lu_context_key_get(&env->le_ctx, &vvp_key);
-	LASSERT(info);
-	return info;
+	lti = lu_context_key_get(&env->le_ctx, &ll_thread_key);
+	LASSERT(lti);
+	return lti;
 }
 
-static inline struct vvp_io_args *vvp_env_args(const struct lu_env *env,
-					       enum vvp_io_subtype type)
+static inline struct vvp_io_args *ll_env_args(const struct lu_env *env,
+					      enum vvp_io_subtype type)
 {
-	struct vvp_io_args *ret = &vvp_env_info(env)->vti_args;
+	struct vvp_io_args *via = &ll_env_info(env)->lti_args;
 
-	ret->via_io_subtype = type;
+	via->via_io_subtype = type;
 
-	return ret;
+	return via;
 }
 
 int vvp_global_init(void);
