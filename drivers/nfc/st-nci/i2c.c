@@ -416,7 +416,6 @@ MODULE_DEVICE_TABLE(of, of_st_nci_i2c_match);
 
 static struct i2c_driver st_nci_i2c_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = ST_NCI_I2C_DRIVER_NAME,
 		.of_match_table = of_match_ptr(of_st_nci_i2c_match),
 		.acpi_match_table = ACPI_PTR(st_nci_i2c_acpi_match),
