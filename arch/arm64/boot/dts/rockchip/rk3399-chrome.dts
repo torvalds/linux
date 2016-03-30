@@ -57,6 +57,16 @@
 	};
 };
 
+&mipi_dsi {
+	status = "okay";
+	panel {
+		compatible ="boe,tv080wum-nl0";
+		reg = <0>;
+		backlight = <&backlight>;
+		status = "okay";
+	};
+};
+
 &vopb {
 	status = "okay";
 };
