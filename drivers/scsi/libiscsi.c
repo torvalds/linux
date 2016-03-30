@@ -2127,7 +2127,7 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 	struct iscsi_conn *conn;
 	struct iscsi_task *task;
 	struct iscsi_tm *hdr;
-	int rc, age;
+	int age;
 
 	cls_session = starget_to_session(scsi_target(sc->device));
 	session = cls_session->dd_data;
@@ -2188,10 +2188,8 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 	hdr = &conn->tmhdr;
 	iscsi_prep_abort_task_pdu(task, hdr);
 
-	if (iscsi_exec_task_mgmt_fn(conn, hdr, age, session->abort_timeout)) {
-		rc = FAILED;
+	if (iscsi_exec_task_mgmt_fn(conn, hdr, age, session->abort_timeout))
 		goto failed;
-	}
 
 	switch (conn->tmf_state) {
 	case TMF_SUCCESS:
