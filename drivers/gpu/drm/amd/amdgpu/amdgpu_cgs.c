@@ -735,42 +735,44 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 		const uint8_t *src;
 		const struct smc_firmware_header_v1_0 *hdr;
 
-		switch (adev->asic_type) {
-		case CHIP_TONGA:
-			strcpy(fw_name, "amdgpu/tonga_smc.bin");
-			break;
-		case CHIP_FIJI:
-			strcpy(fw_name, "amdgpu/fiji_smc.bin");
-			break;
-		case CHIP_POLARIS11:
-			if (type == CGS_UCODE_ID_SMU)
-				strcpy(fw_name, "amdgpu/polaris11_smc.bin");
-			else if (type == CGS_UCODE_ID_SMU_SK)
-				strcpy(fw_name, "amdgpu/polaris11_smc_sk.bin");
-			break;
-		case CHIP_POLARIS10:
-			if (type == CGS_UCODE_ID_SMU)
-				strcpy(fw_name, "amdgpu/polaris10_smc.bin");
-			else if (type == CGS_UCODE_ID_SMU_SK)
-				strcpy(fw_name, "amdgpu/polaris10_smc_sk.bin");
-			break;
-		default:
-			DRM_ERROR("SMC firmware not supported\n");
-			return -EINVAL;
-		}
+		if (!adev->pm.fw) {
+			switch (adev->asic_type) {
+			case CHIP_TONGA:
+				strcpy(fw_name, "amdgpu/tonga_smc.bin");
+				break;
+			case CHIP_FIJI:
+				strcpy(fw_name, "amdgpu/fiji_smc.bin");
+				break;
+			case CHIP_POLARIS11:
+				if (type == CGS_UCODE_ID_SMU)
+					strcpy(fw_name, "amdgpu/polaris11_smc.bin");
+				else if (type == CGS_UCODE_ID_SMU_SK)
+					strcpy(fw_name, "amdgpu/polaris11_smc_sk.bin");
+				break;
+			case CHIP_POLARIS10:
+				if (type == CGS_UCODE_ID_SMU)
+					strcpy(fw_name, "amdgpu/polaris10_smc.bin");
+				else if (type == CGS_UCODE_ID_SMU_SK)
+					strcpy(fw_name, "amdgpu/polaris10_smc_sk.bin");
+				break;
+			default:
+				DRM_ERROR("SMC firmware not supported\n");
+				return -EINVAL;
+			}
 
-		err = request_firmware(&adev->pm.fw, fw_name, adev->dev);
-		if (err) {
-			DRM_ERROR("Failed to request firmware\n");
-			return err;
-		}
+			err = request_firmware(&adev->pm.fw, fw_name, adev->dev);
+			if (err) {
+				DRM_ERROR("Failed to request firmware\n");
+				return err;
+			}
 
-		err = amdgpu_ucode_validate(adev->pm.fw);
-		if (err) {
-			DRM_ERROR("Failed to load firmware \"%s\"", fw_name);
-			release_firmware(adev->pm.fw);
-			adev->pm.fw = NULL;
-			return err;
+			err = amdgpu_ucode_validate(adev->pm.fw);
+			if (err) {
+				DRM_ERROR("Failed to load firmware \"%s\"", fw_name);
+				release_firmware(adev->pm.fw);
+				adev->pm.fw = NULL;
+				return err;
+			}
 		}
 
 		hdr = (const struct smc_firmware_header_v1_0 *)	adev->pm.fw->data;
