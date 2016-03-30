@@ -159,91 +159,6 @@ struct lu_context_key ccc_session_key = {
 	.lct_fini = ccc_session_key_fini
 };
 
-/* type constructor/destructor: ccc_type_{init,fini,start,stop}(). */
-/* LU_TYPE_INIT_FINI(ccc, &ccc_key, &ccc_session_key); */
-
-int ccc_device_init(const struct lu_env *env, struct lu_device *d,
-		    const char *name, struct lu_device *next)
-{
-	struct ccc_device  *vdv;
-	int rc;
-
-	vdv = lu2ccc_dev(d);
-	vdv->cdv_next = lu2cl_dev(next);
-
-	LASSERT(d->ld_site && next->ld_type);
-	next->ld_site = d->ld_site;
-	rc = next->ld_type->ldt_ops->ldto_device_init(
-			env, next, next->ld_type->ldt_name, NULL);
-	if (rc == 0) {
-		lu_device_get(next);
-		lu_ref_add(&next->ld_reference, "lu-stack", &lu_site_init);
-	}
-	return rc;
-}
-
-struct lu_device *ccc_device_fini(const struct lu_env *env,
-				  struct lu_device *d)
-{
-	return cl2lu_dev(lu2ccc_dev(d)->cdv_next);
-}
-
-struct lu_device *ccc_device_alloc(const struct lu_env *env,
-				   struct lu_device_type *t,
-				   struct lustre_cfg *cfg,
-				   const struct lu_device_operations *luops,
-				   const struct cl_device_operations *clops)
-{
-	struct ccc_device *vdv;
-	struct lu_device  *lud;
-	struct cl_site    *site;
-	int rc;
-
-	vdv = kzalloc(sizeof(*vdv), GFP_NOFS);
-	if (!vdv)
-		return ERR_PTR(-ENOMEM);
-
-	lud = &vdv->cdv_cl.cd_lu_dev;
-	cl_device_init(&vdv->cdv_cl, t);
-	ccc2lu_dev(vdv)->ld_ops = luops;
-	vdv->cdv_cl.cd_ops = clops;
-
-	site = kzalloc(sizeof(*site), GFP_NOFS);
-	if (site) {
-		rc = cl_site_init(site, &vdv->cdv_cl);
-		if (rc == 0) {
-			rc = lu_site_init_finish(&site->cs_lu);
-		} else {
-			LASSERT(!lud->ld_site);
-			CERROR("Cannot init lu_site, rc %d.\n", rc);
-			kfree(site);
-		}
-	} else {
-		rc = -ENOMEM;
-	}
-	if (rc != 0) {
-		ccc_device_free(env, lud);
-		lud = ERR_PTR(rc);
-	}
-	return lud;
-}
-
-struct lu_device *ccc_device_free(const struct lu_env *env,
-				  struct lu_device *d)
-{
-	struct ccc_device *vdv  = lu2ccc_dev(d);
-	struct cl_site    *site = lu2cl_site(d->ld_site);
-	struct lu_device  *next = cl2lu_dev(vdv->cdv_next);
-
-	if (d->ld_site) {
-		cl_site_fini(site);
-		kfree(site);
-	}
-	cl_device_fini(lu2cl_dev(d));
-	kfree(vdv);
-	return next;
-}
-
 int ccc_req_init(const struct lu_env *env, struct cl_device *dev,
 		 struct cl_req *req)
 {
@@ -360,13 +275,13 @@ int ccc_object_init0(const struct lu_env *env,
 int ccc_object_init(const struct lu_env *env, struct lu_object *obj,
 		    const struct lu_object_conf *conf)
 {
-	struct ccc_device *dev = lu2ccc_dev(obj->lo_dev);
+	struct vvp_device *dev = lu2vvp_dev(obj->lo_dev);
 	struct ccc_object *vob = lu2ccc(obj);
 	struct lu_object  *below;
 	struct lu_device  *under;
 	int result;
 
-	under = &dev->cdv_next->cd_lu_dev;
+	under = &dev->vdv_next->cd_lu_dev;
 	below = under->ld_ops->ldo_object_alloc(env, obj->lo_header, under);
 	if (below) {
 		const struct cl_object_conf *cconf;
@@ -778,21 +693,6 @@ again:
  * Type conversions.
  *
  */
-
-struct lu_device *ccc2lu_dev(struct ccc_device *vdv)
-{
-	return &vdv->cdv_cl.cd_lu_dev;
-}
-
-struct ccc_device *lu2ccc_dev(const struct lu_device *d)
-{
-	return container_of0(d, struct ccc_device, cdv_cl.cd_lu_dev);
-}
-
-struct ccc_device *cl2ccc_dev(const struct cl_device *d)
-{
-	return container_of0(d, struct ccc_device, cdv_cl);
-}
 
 struct lu_object *ccc2lu(struct ccc_object *vob)
 {

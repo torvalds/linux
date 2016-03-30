@@ -149,7 +149,7 @@ struct cl_device_operations {
 /**
  * Device in the client stack.
  *
- * \see ccc_device, lov_device, lovsub_device, osc_device
+ * \see vvp_device, lov_device, lovsub_device, osc_device
  */
 struct cl_device {
 	/** Super-class. */

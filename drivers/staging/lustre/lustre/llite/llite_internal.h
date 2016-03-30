@@ -1321,7 +1321,7 @@ static inline void cl_stats_tally(struct cl_device *dev, enum cl_req_type crt,
 	int opc = (crt == CRT_READ) ? LPROC_LL_OSC_READ :
 				      LPROC_LL_OSC_WRITE;
 
-	ll_stats_ops_tally(ll_s2sbi(cl2ccc_dev(dev)->cdv_sb), opc, rc);
+	ll_stats_ops_tally(ll_s2sbi(cl2vvp_dev(dev)->vdv_sb), opc, rc);
 }
 
 ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,

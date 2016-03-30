@@ -264,10 +264,10 @@ static inline pgoff_t ccc_index(struct ccc_page *ccc)
 
 struct cl_page *ccc_vmpage_page_transient(struct page *vmpage);
 
-struct ccc_device {
-	struct cl_device    cdv_cl;
-	struct super_block *cdv_sb;
-	struct cl_device   *cdv_next;
+struct vvp_device {
+	struct cl_device    vdv_cl;
+	struct super_block *vdv_sb;
+	struct cl_device   *vdv_next;
 };
 
 struct ccc_lock {
@@ -287,18 +287,6 @@ void *ccc_session_key_init(const struct lu_context *ctx,
 void  ccc_session_key_fini(const struct lu_context *ctx,
 			   struct lu_context_key *key, void *data);
 
-int ccc_device_init(const struct lu_env *env,
-		    struct lu_device *d,
-		    const char *name, struct lu_device *next);
-struct lu_device *ccc_device_fini(const struct lu_env *env,
-				  struct lu_device *d);
-struct lu_device *ccc_device_alloc(const struct lu_env *env,
-				   struct lu_device_type *t,
-				   struct lustre_cfg *cfg,
-				   const struct lu_device_operations *luops,
-				   const struct cl_device_operations *clops);
-struct lu_device *ccc_device_free(const struct lu_env *env,
-				  struct lu_device *d);
 struct lu_object *ccc_object_alloc(const struct lu_env *env,
 				   const struct lu_object_header *hdr,
 				   struct lu_device *dev,
@@ -351,10 +339,22 @@ void ccc_req_attr_set(const struct lu_env *env,
 		      const struct cl_object *obj,
 		      struct cl_req_attr *oa, u64 flags);
 
-struct lu_device *ccc2lu_dev(struct ccc_device *vdv);
+static inline struct lu_device *vvp2lu_dev(struct vvp_device *vdv)
+{
+	return &vdv->vdv_cl.cd_lu_dev;
+}
+
+static inline struct vvp_device *lu2vvp_dev(const struct lu_device *d)
+{
+	return container_of0(d, struct vvp_device, vdv_cl.cd_lu_dev);
+}
+
+static inline struct vvp_device *cl2vvp_dev(const struct cl_device *d)
+{
+	return container_of0(d, struct vvp_device, vdv_cl);
+}
+
 struct lu_object *ccc2lu(struct ccc_object *vob);
-struct ccc_device *lu2ccc_dev(const struct lu_device *d);
-struct ccc_device *cl2ccc_dev(const struct cl_device *d);
 struct ccc_object *lu2ccc(const struct lu_object *obj);
 struct ccc_object *cl2ccc(const struct cl_object *obj);
 struct ccc_lock *cl2ccc_lock(const struct cl_lock_slice *slice);
