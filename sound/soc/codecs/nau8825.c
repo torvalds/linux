@@ -946,6 +946,11 @@ static void nau8825_init_regs(struct nau8825 *nau8825)
 		NAU8825_RDAC_CLK_DELAY_MASK | NAU8825_RDAC_VREF_MASK,
 		(0x2 << NAU8825_RDAC_CLK_DELAY_SFT) |
 		(0x3 << NAU8825_RDAC_VREF_SFT));
+	/* Config L/R channel */
+	regmap_update_bits(nau8825->regmap, NAU8825_REG_DACL_CTRL,
+		NAU8825_DACL_CH_SEL_MASK, NAU8825_DACL_CH_SEL_L);
+	regmap_update_bits(nau8825->regmap, NAU8825_REG_DACR_CTRL,
+		NAU8825_DACL_CH_SEL_MASK, NAU8825_DACL_CH_SEL_R);
 }
 
 static const struct regmap_config nau8825_regmap_config = {
