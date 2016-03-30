@@ -130,7 +130,7 @@ static void hw_writel(struct macb *bp, int offset, u32 value)
 }
 
 /* Find the CPU endianness by using the loopback bit of NCR register. When the
- * CPU is in big endian we need to program swaped mode for management
+ * CPU is in big endian we need to program swapped mode for management
  * descriptor access.
  */
 static bool hw_is_native_io(void __iomem *addr)
