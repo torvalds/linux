@@ -388,16 +388,12 @@ int exynos_gem_map_sgt_with_dma(struct drm_device *drm_dev,
 {
 	int nents;
 
-	mutex_lock(&drm_dev->struct_mutex);
-
 	nents = dma_map_sg(to_dma_dev(drm_dev), sgt->sgl, sgt->nents, dir);
 	if (!nents) {
 		DRM_ERROR("failed to map sgl with dma.\n");
-		mutex_unlock(&drm_dev->struct_mutex);
 		return nents;
 	}
 
-	mutex_unlock(&drm_dev->struct_mutex);
 	return 0;
 }
 
