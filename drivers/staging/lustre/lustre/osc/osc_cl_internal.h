@@ -403,20 +403,20 @@ extern struct lu_context_key osc_session_key;
 int osc_lock_init(const struct lu_env *env,
 		  struct cl_object *obj, struct cl_lock *lock,
 		  const struct cl_io *io);
-int osc_io_init  (const struct lu_env *env,
-		  struct cl_object *obj, struct cl_io *io);
-int osc_req_init (const struct lu_env *env, struct cl_device *dev,
-		  struct cl_req *req);
+int osc_io_init(const struct lu_env *env,
+		struct cl_object *obj, struct cl_io *io);
+int osc_req_init(const struct lu_env *env, struct cl_device *dev,
+		 struct cl_req *req);
 struct lu_object *osc_object_alloc(const struct lu_env *env,
 				   const struct lu_object_header *hdr,
 				   struct lu_device *dev);
 int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_page *page, pgoff_t ind);
 
-void osc_index2policy  (ldlm_policy_data_t *policy, const struct cl_object *obj,
-			pgoff_t start, pgoff_t end);
-int  osc_lvb_print     (const struct lu_env *env, void *cookie,
-			lu_printer_t p, const struct ost_lvb *lvb);
+void osc_index2policy(ldlm_policy_data_t *policy, const struct cl_object *obj,
+		      pgoff_t start, pgoff_t end);
+int osc_lvb_print(const struct lu_env *env, void *cookie,
+		  lu_printer_t p, const struct ost_lvb *lvb);
 
 void osc_lru_add_batch(struct client_obd *cli, struct list_head *list);
 void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
@@ -448,11 +448,11 @@ void osc_io_unplug(const struct lu_env *env, struct client_obd *cli,
 		   struct osc_object *osc);
 int lru_queue_work(const struct lu_env *env, void *data);
 
-void osc_object_set_contended  (struct osc_object *obj);
+void osc_object_set_contended(struct osc_object *obj);
 void osc_object_clear_contended(struct osc_object *obj);
-int  osc_object_is_contended   (struct osc_object *obj);
+int  osc_object_is_contended(struct osc_object *obj);
 
-int  osc_lock_is_lockless      (const struct osc_lock *olck);
+int  osc_lock_is_lockless(const struct osc_lock *olck);
 
 /*****************************************************************************
  *

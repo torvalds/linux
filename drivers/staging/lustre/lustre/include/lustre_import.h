@@ -109,7 +109,7 @@ static inline char *ptlrpc_import_state_name(enum lustre_imp_state state)
 		"RECOVER", "FULL", "EVICTED",
 	};
 
-	LASSERT (state <= LUSTRE_IMP_EVICTED);
+	LASSERT(state <= LUSTRE_IMP_EVICTED);
 	return import_state_names[state];
 }
 
