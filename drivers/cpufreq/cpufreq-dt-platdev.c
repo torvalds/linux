@@ -12,6 +12,15 @@
 #include <linux/platform_device.h>
 
 static const struct of_device_id machines[] = {
+	{ .compatible = "samsung,exynos3250", },
+	{ .compatible = "samsung,exynos4210", },
+	{ .compatible = "samsung,exynos4212", },
+	{ .compatible = "samsung,exynos4412", },
+	{ .compatible = "samsung,exynos5250", },
+#ifndef CONFIG_BL_SWITCHER
+	{ .compatible = "samsung,exynos5420", },
+	{ .compatible = "samsung,exynos5800", },
+#endif
 };
 
 static int __init cpufreq_dt_platdev_init(void)
