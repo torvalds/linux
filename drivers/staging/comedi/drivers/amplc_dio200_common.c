@@ -101,7 +101,7 @@ struct dio200_subdev_8255 {
 };
 
 struct dio200_subdev_intr {
-	spinlock_t spinlock;
+	spinlock_t spinlock;	/* protects the 'active' flag */
 	unsigned int ofs;
 	unsigned int valid_isns;
 	unsigned int enabled_isns;
