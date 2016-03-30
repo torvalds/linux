@@ -201,6 +201,10 @@ static void do_registration(struct work_struct *work)
 
 	dice_card_strings(dice);
 
+	err = snd_dice_stream_init_duplex(dice);
+	if (err < 0)
+		goto error;
+
 	snd_dice_create_proc(dice);
 
 	err = snd_dice_create_pcm(dice);
@@ -229,6 +233,7 @@ static void do_registration(struct work_struct *work)
 
 	return;
 error:
+	snd_dice_stream_destroy_duplex(dice);
 	snd_dice_transaction_destroy(dice);
 	snd_card_free(dice->card);
 	dev_info(&dice->unit->device,
@@ -272,12 +277,6 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	mutex_init(&dice->mutex);
 	init_completion(&dice->clock_accepted);
 	init_waitqueue_head(&dice->hwdep_wait);
-
-	err = snd_dice_stream_init_duplex(dice);
-	if (err < 0) {
-		dice_free(dice);
-		return err;
-	}
 
 	/* Allocate and register this sound card later. */
 	INIT_DEFERRABLE_WORK(&dice->dwork, do_registration);
