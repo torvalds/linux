@@ -917,8 +917,8 @@
 		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
 		dmas = <&dmac_bus 7>;
 		dma-names = "tx";
-		clock-names = "hclk", "mclk";
-		clocks = <&cru HCLK_SPDIF>, <&cru SCLK_SPDIF_8CH>;
+		clock-names = "mclk", "hclk";
+		clocks = <&cru SCLK_SPDIF_8CH>, <&cru HCLK_SPDIF>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&spdif_bus>;
 		status = "disabled";
@@ -932,8 +932,8 @@
 		#size-cells = <0>;
 		dmas = <&dmac_bus 0>, <&dmac_bus 1>;
 		dma-names = "tx", "rx";
-		clock-names = "i2s_hclk", "i2s_clk";
-		clocks = <&cru HCLK_I2S0_8CH>, <&cru SCLK_I2S0_8CH>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		clocks = <&cru SCLK_I2S0_8CH>, <&cru HCLK_I2S0_8CH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_8ch_bus>;
 		status = "disabled";
@@ -947,8 +947,8 @@
 		#size-cells = <0>;
 		dmas = <&dmac_bus 2>, <&dmac_bus 3>;
 		dma-names = "tx", "rx";
-		clock-names = "i2s_hclk", "i2s_clk";
-		clocks = <&cru HCLK_I2S1_8CH>, <&cru SCLK_I2S1_8CH>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		clocks = <&cru SCLK_I2S1_8CH>, <&cru HCLK_I2S1_8CH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s1_2ch_bus>;
 		status = "disabled";
@@ -962,8 +962,8 @@
 		#size-cells = <0>;
 		dmas = <&dmac_bus 4>, <&dmac_bus 5>;
 		dma-names = "tx", "rx";
-		clock-names = "i2s_hclk", "i2s_clk";
-		clocks = <&cru HCLK_I2S2_8CH>, <&cru SCLK_I2S2_8CH>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		clocks = <&cru SCLK_I2S2_8CH>, <&cru HCLK_I2S2_8CH>;
 		status = "disabled";
 	};
 
