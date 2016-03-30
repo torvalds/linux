@@ -821,6 +821,16 @@ config SENSORS_MAX197
 	  This driver can also be built as a module. If so, the module
 	  will be called max197.
 
+config SENSORS_MAX31722
+tristate "MAX31722 temperature sensor"
+	depends on SPI
+	help
+	  Support for the Maxim Integrated MAX31722/MAX31723 digital
+	  thermometers/thermostats operating over an SPI interface.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max31722.
+
 config SENSORS_MAX6639
 	tristate "Maxim MAX6639 sensor chip"
 	depends on I2C
