@@ -580,8 +580,6 @@
 		reg = <0x0 0x7000e400 0x0 0x400>;
 		clocks = <&tegra_car TEGRA210_CLK_PCLK>, <&clk32k_in>;
 		clock-names = "pclk", "clk32k_in";
-
-		#power-domain-cells = <1>;
 	};
 
 	fuse@7000f800 {
