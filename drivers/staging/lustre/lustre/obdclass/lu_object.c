@@ -935,7 +935,7 @@ static void lu_dev_add_linkage(struct lu_site *s, struct lu_device *d)
  * Initialize site \a s, with \a d as the top level device.
  */
 #define LU_SITE_BITS_MIN    12
-#define LU_SITE_BITS_MAX    24
+#define LU_SITE_BITS_MAX    19
 /**
  * total 256 buckets, we don't want too many buckets because:
  * - consume too much memory
