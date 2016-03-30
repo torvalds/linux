@@ -37,10 +37,8 @@ The state of the outputs can be read.
 #include "../comedidev.h"
 
 /* PC263 registers */
-
-/*
- * Board descriptions for Amplicon PC263.
- */
+#define PC263_DO_0_7_REG	0x00
+#define PC263_DO_8_15_REG	0x01
 
 struct pc263_board {
 	const char *name;
@@ -58,8 +56,8 @@ static int pc263_do_insn_bits(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data)) {
-		outb(s->state & 0xff, dev->iobase);
-		outb((s->state >> 8) & 0xff, dev->iobase + 1);
+		outb(s->state & 0xff, dev->iobase + PC263_DO_0_7_REG);
+		outb((s->state >> 8) & 0xff, dev->iobase + PC263_DO_8_15_REG);
 	}
 
 	data[1] = s->state;
@@ -90,7 +88,8 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_bits	= pc263_do_insn_bits;
 
 	/* read initial relay state */
-	s->state = inb(dev->iobase) | (inb(dev->iobase + 1) << 8);
+	s->state = inb(dev->iobase + PC263_DO_0_7_REG) |
+		   (inb(dev->iobase + PC263_DO_8_15_REG) << 8);
 
 	return 0;
 }
