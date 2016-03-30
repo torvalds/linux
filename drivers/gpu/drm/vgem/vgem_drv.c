@@ -154,6 +154,10 @@ static struct drm_gem_object *vgem_gem_create(struct drm_device *dev,
 	if (err)
 		goto out;
 
+	err = vgem_gem_get_pages(obj);
+	if (err)
+		goto out;
+
 	err = drm_gem_handle_create(file, gem_object, handle);
 	if (err)
 		goto handle_out;
@@ -216,16 +220,8 @@ int vgem_gem_dumb_map(struct drm_file *file, struct drm_device *dev,
 
 	obj->filp->private_data = obj;
 
-	ret = vgem_gem_get_pages(to_vgem_bo(obj));
-	if (ret)
-		goto fail_get_pages;
-
 	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 
-	goto unref;
-
-fail_get_pages:
-	drm_gem_free_mmap_offset(obj);
 unref:
 	drm_gem_object_unreference(obj);
 unlock:
