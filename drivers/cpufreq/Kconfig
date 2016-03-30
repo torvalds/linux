@@ -225,11 +225,21 @@ config CPUFREQ_DT
 	depends on HAVE_CLK && OF
 	# if CPU_THERMAL is on and THERMAL=m, CPUFREQ_DT cannot be =y:
 	depends on !CPU_THERMAL || THERMAL
+	select CPUFREQ_DT_PLATDEV
 	select PM_OPP
 	help
 	  This adds a generic DT based cpufreq driver for frequency management.
 	  It supports both uniprocessor (UP) and symmetric multiprocessor (SMP)
 	  systems which share clock and voltage across all CPUs.
+
+	  If in doubt, say N.
+
+config CPUFREQ_DT_PLATDEV
+	bool
+	help
+	  This adds a generic DT based cpufreq platdev driver for frequency
+	  management.  This creates a 'cpufreq-dt' platform device, on the
+	  supported platforms.
 
 	  If in doubt, say N.
 
