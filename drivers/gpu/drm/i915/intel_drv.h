@@ -1669,7 +1669,7 @@ extern const struct drm_plane_helper_funcs intel_plane_helper_funcs;
 /* intel_color.c */
 void intel_color_init(struct drm_crtc *crtc);
 int intel_color_check(struct drm_crtc *crtc, struct drm_crtc_state *state);
-void intel_color_set_csc(struct drm_crtc *crtc);
-void intel_color_load_luts(struct drm_crtc *crtc);
+void intel_color_set_csc(struct drm_crtc_state *crtc_state);
+void intel_color_load_luts(struct drm_crtc_state *crtc_state);
 
 #endif /* __INTEL_DRV_H__ */

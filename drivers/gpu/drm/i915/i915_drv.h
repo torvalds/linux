@@ -612,8 +612,8 @@ struct drm_i915_display_funcs {
 	/* display clock increase/decrease */
 	/* pll clock increase/decrease */
 
-	void (*load_csc_matrix)(struct drm_crtc *crtc);
-	void (*load_luts)(struct drm_crtc *crtc);
+	void (*load_csc_matrix)(struct drm_crtc_state *crtc_state);
+	void (*load_luts)(struct drm_crtc_state *crtc_state);
 };
 
 enum forcewake_domain_id {

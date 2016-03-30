@@ -3223,7 +3223,7 @@ static void intel_update_pipe_config(struct intel_crtc *crtc,
 		      pipe_config->pipe_src_w, pipe_config->pipe_src_h);
 
 	if (HAS_DDI(dev))
-		intel_color_set_csc(&crtc->base);
+		intel_color_set_csc(&pipe_config->base);
 
 	/*
 	 * Update pipe size and adjust fitter if needed: the reason for this is
@@ -4723,6 +4723,8 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
+	struct intel_crtc_state *pipe_config =
+		to_intel_crtc_state(crtc->state);
 
 	if (WARN_ON(intel_crtc->active))
 		return;
@@ -4770,7 +4772,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	 * On ILK+ LUT must be loaded before the pipe is running but with
 	 * clocks enabled
 	 */
-	intel_color_load_luts(crtc);
+	intel_color_load_luts(&pipe_config->base);
 
 	if (dev_priv->display.initial_watermarks != NULL)
 		dev_priv->display.initial_watermarks(intel_crtc->config);
@@ -4845,7 +4847,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	haswell_set_pipemisc(crtc);
 
-	intel_color_set_csc(crtc);
+	intel_color_set_csc(&pipe_config->base);
 
 	intel_crtc->active = true;
 
@@ -4874,7 +4876,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	 * On ILK+ LUT must be loaded before the pipe is running but with
 	 * clocks enabled
 	 */
-	intel_color_load_luts(crtc);
+	intel_color_load_luts(&pipe_config->base);
 
 	intel_ddi_set_pipe_settings(crtc);
 	if (!intel_crtc->config->has_dsi_encoder)
@@ -6035,6 +6037,8 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
+	struct intel_crtc_state *pipe_config =
+		to_intel_crtc_state(crtc->state);
 	int pipe = intel_crtc->pipe;
 
 	if (WARN_ON(intel_crtc->active))
@@ -6079,7 +6083,7 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	i9xx_pfit_enable(intel_crtc);
 
-	intel_color_load_luts(crtc);
+	intel_color_load_luts(&pipe_config->base);
 
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
@@ -6106,6 +6110,8 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
+	struct intel_crtc_state *pipe_config =
+		to_intel_crtc_state(crtc->state);
 	int pipe = intel_crtc->pipe;
 
 	if (WARN_ON(intel_crtc->active))
@@ -6134,7 +6140,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	i9xx_pfit_enable(intel_crtc);
 
-	intel_color_load_luts(crtc);
+	intel_color_load_luts(&pipe_config->base);
 
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
@@ -13593,8 +13599,8 @@ static int intel_atomic_commit(struct drm_device *dev,
 			 * a modeset as this will be done by
 			 * crtc_enable already.
 			 */
-			intel_color_set_csc(crtc);
-			intel_color_load_luts(crtc);
+			intel_color_set_csc(crtc->state);
+			intel_color_load_luts(crtc->state);
 		}
 
 		if (!modeset)
