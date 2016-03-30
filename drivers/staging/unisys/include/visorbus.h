@@ -155,8 +155,6 @@ struct visor_device {
 	u8 *description;
 	struct controlvm_message_header *pending_msg_hdr;
 	void *vbus_hdr_info;
-	u32 switch_no;
-	u32 internal_port_no;
 	uuid_le partition_uuid;
 };
 
