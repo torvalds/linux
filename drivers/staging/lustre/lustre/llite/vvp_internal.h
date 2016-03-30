@@ -53,25 +53,6 @@ struct obd_device;
 struct obd_export;
 struct page;
 
-blkcnt_t dirty_cnt(struct inode *inode);
-
-int cl_glimpse_size0(struct inode *inode, int agl);
-int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
-		    struct inode *inode, struct cl_object *clob, int agl);
-
-static inline int cl_glimpse_size(struct inode *inode)
-{
-	return cl_glimpse_size0(inode, 0);
-}
-
-static inline int cl_agl(struct inode *inode)
-{
-	return cl_glimpse_size0(inode, 1);
-}
-
-/**
- * Locking policy for setattr.
- */
 enum ccc_setattr_lock_type {
 	/** Locking is done by server */
 	SETATTR_NOLOCK,
@@ -370,22 +351,8 @@ static inline struct vvp_lock *cl2vvp_lock(const struct cl_lock_slice *slice)
 	return container_of(slice, struct vvp_lock, vlk_cl);
 }
 
-int cl_setattr_ost(struct inode *inode, const struct iattr *attr);
-
-int cl_file_inode_init(struct inode *inode, struct lustre_md *md);
-void cl_inode_fini(struct inode *inode);
-int cl_local_size(struct inode *inode);
-
-__u64 cl_fid_build_ino(const struct lu_fid *fid, int api32);
-__u32 cl_fid_build_gen(const struct lu_fid *fid);
-
 # define CLOBINVRNT(env, clob, expr)					\
 	((void)sizeof(env), (void)sizeof(clob), (void)sizeof(!!(expr)))
-
-int cl_init_ea_size(struct obd_export *md_exp, struct obd_export *dt_exp);
-int cl_ocd_update(struct obd_device *host,
-		  struct obd_device *watched,
-		  enum obd_notify_event ev, void *owner, void *data);
 
 /**
  * New interfaces to get and put lov_stripe_md from lov layer. This violates
@@ -414,6 +381,9 @@ int vvp_req_init(const struct lu_env *env, struct cl_device *dev,
 struct lu_object *vvp_object_alloc(const struct lu_env *env,
 				   const struct lu_object_header *hdr,
 				   struct lu_device *dev);
+
+int vvp_global_init(void);
+void vvp_global_fini(void);
 
 extern const struct file_operations vvp_dump_pgcache_file_ops;
 

@@ -663,6 +663,10 @@ static inline int ll_need_32bit_api(struct ll_sb_info *sbi)
 void ll_ras_enter(struct file *f);
 
 /* llite/lcommon_misc.c */
+int cl_init_ea_size(struct obd_export *md_exp, struct obd_export *dt_exp);
+int cl_ocd_update(struct obd_device *host,
+		  struct obd_device *watched,
+		  enum obd_notify_event ev, void *owner, void *data);
 int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
 		     struct ll_grouplock *cg);
 void cl_put_grouplock(struct ll_grouplock *cg);
@@ -881,9 +885,6 @@ static inline struct vvp_io_args *ll_env_args(const struct lu_env *env,
 	return via;
 }
 
-int vvp_global_init(void);
-void vvp_global_fini(void);
-
 void ll_queue_done_writing(struct inode *inode, unsigned long flags);
 void ll_close_thread_shutdown(struct ll_close_queue *lcq);
 int ll_close_thread_start(struct ll_close_queue **lcq_ret);
@@ -1088,6 +1089,22 @@ struct ll_statahead_info {
 int do_statahead_enter(struct inode *dir, struct dentry **dentry,
 		       int only_unplug);
 void ll_stop_statahead(struct inode *dir, void *key);
+
+blkcnt_t dirty_cnt(struct inode *inode);
+
+int cl_glimpse_size0(struct inode *inode, int agl);
+int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
+		    struct inode *inode, struct cl_object *clob, int agl);
+
+static inline int cl_glimpse_size(struct inode *inode)
+{
+	return cl_glimpse_size0(inode, 0);
+}
+
+static inline int cl_agl(struct inode *inode)
+{
+	return cl_glimpse_size0(inode, 1);
+}
 
 static inline int ll_glimpse_size(struct inode *inode)
 {
@@ -1369,7 +1386,16 @@ int ll_page_sync_io(const struct lu_env *env, struct cl_io *io,
 		    struct cl_page *page, enum cl_req_type crt);
 
 /* lcommon_cl.c */
+int cl_setattr_ost(struct inode *inode, const struct iattr *attr);
+
 extern struct lu_env *cl_inode_fini_env;
 extern int cl_inode_fini_refcheck;
+
+int cl_file_inode_init(struct inode *inode, struct lustre_md *md);
+void cl_inode_fini(struct inode *inode);
+int cl_local_size(struct inode *inode);
+
+__u64 cl_fid_build_ino(const struct lu_fid *fid, int api32);
+__u32 cl_fid_build_gen(const struct lu_fid *fid);
 
 #endif /* LLITE_INTERNAL_H */
