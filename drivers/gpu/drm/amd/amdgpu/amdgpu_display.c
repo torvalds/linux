@@ -131,12 +131,17 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 				 vblank->framedur_ns / 1000,
 				 vblank->linedur_ns / 1000, stat, vpos, hpos);
 
-	/* set the flip status */
+	/* Do the flip (mmio) */
+	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base);
+
+	/* Set the flip status */
 	amdgpuCrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
-	/* Do the flip (mmio) */
-	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base);
+
+	DRM_DEBUG_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_SUBMITTED, work: %p,\n",
+					 amdgpuCrtc->crtc_id, amdgpuCrtc, work);
+
 }
 
 /*
@@ -252,6 +257,9 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 	amdgpu_crtc->pflip_status = AMDGPU_FLIP_PENDING;
 	amdgpu_crtc->pflip_works = work;
 
+
+	DRM_DEBUG_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_PENDING, work: %p,\n",
+					 amdgpu_crtc->crtc_id, amdgpu_crtc, work);
 	/* update crtc fb */
 	crtc->primary->fb = fb;
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
