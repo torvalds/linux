@@ -1771,7 +1771,7 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 		if (IS_ERR(op_data))
 			return PTR_ERR(op_data);
 
-		((struct ll_iattr *)&op_data->op_attr)->ia_attr_flags = flags;
+		op_data->op_attr_flags = flags;
 		op_data->op_attr.ia_valid |= ATTR_ATTR_FLAG;
 		rc = md_setattr(sbi->ll_md_exp, op_data,
 				NULL, 0, NULL, 0, &req, NULL);

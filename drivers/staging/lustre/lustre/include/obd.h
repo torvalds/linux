@@ -38,7 +38,6 @@
 #define __OBD_H
 
 #include <linux/spinlock.h>
-#include "linux/obd.h"
 
 #define IOC_OSC_TYPE	 'h'
 #define IOC_OSC_MIN_NR       20
@@ -55,6 +54,7 @@
 #include "lustre_export.h"
 #include "lustre_fid.h"
 #include "lustre_fld.h"
+#include "lustre_intent.h"
 
 #define MAX_OBD_DEVICES 8192
 
