@@ -649,8 +649,6 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata, const u8 *bssid,
 		return NULL;
 	}
 
-	sta->rx_stats.last_rx = jiffies;
-
 	/* make sure mandatory rates are always added */
 	sband = local->hw.wiphy->bands[band];
 	sta->sta.supp_rates[band] = supp_rates |
@@ -1235,8 +1233,6 @@ void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 	sta = sta_info_alloc(sdata, addr, GFP_ATOMIC);
 	if (!sta)
 		return;
-
-	sta->rx_stats.last_rx = jiffies;
 
 	/* make sure mandatory rates are always added */
 	sband = local->hw.wiphy->bands[band];
