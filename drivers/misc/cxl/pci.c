@@ -21,6 +21,7 @@
 #include <asm/msi_bitmap.h>
 #include <asm/pnv-pci.h>
 #include <asm/io.h>
+#include <asm/reg.h>
 
 #include "cxl.h"
 #include <misc/cxl.h>
@@ -321,12 +322,43 @@ static void dump_afu_descriptor(struct cxl_afu *afu)
 #undef show_reg
 }
 
+#define CAPP_UNIT0_ID 0xBA
+#define CAPP_UNIT1_ID 0XBE
+
+static u64 get_capp_unit_id(struct device_node *np)
+{
+	u32 phb_index;
+
+	/*
+	 * For chips other than POWER8NVL, we only have CAPP 0,
+	 * irrespective of which PHB is used.
+	 */
+	if (!pvr_version_is(PVR_POWER8NVL))
+		return CAPP_UNIT0_ID;
+
+	/*
+	 * For POWER8NVL, assume CAPP 0 is attached to PHB0 and
+	 * CAPP 1 is attached to PHB1.
+	 */
+	if (of_property_read_u32(np, "ibm,phb-index", &phb_index))
+		return 0;
+
+	if (phb_index == 0)
+		return CAPP_UNIT0_ID;
+
+	if (phb_index == 1)
+		return CAPP_UNIT1_ID;
+
+	return 0;
+}
+
 static int init_implementation_adapter_regs(struct cxl *adapter, struct pci_dev *dev)
 {
 	struct device_node *np;
 	const __be32 *prop;
 	u64 psl_dsnctl;
 	u64 chipid;
+	u64 capp_unit_id;
 
 	if (!(np = pnv_pci_get_phb_node(dev)))
 		return -ENODEV;
@@ -336,10 +368,17 @@ static int init_implementation_adapter_regs(struct cxl *adapter, struct pci_dev 
 	if (!np)
 		return -ENODEV;
 	chipid = be32_to_cpup(prop);
+	capp_unit_id = get_capp_unit_id(np);
 	of_node_put(np);
+	if (!capp_unit_id) {
+		pr_err("cxl: invalid capp unit id\n");
+		return -ENODEV;
+	}
 
 	/* Tell PSL where to route data to */
-	psl_dsnctl = 0x02E8900002000000ULL | (chipid << (63-5));
+	psl_dsnctl = 0x0000900002000000ULL | (chipid << (63-5));
+	psl_dsnctl |= (capp_unit_id << (63-13));
+
 	cxl_p1_write(adapter, CXL_PSL_DSNDCTL, psl_dsnctl);
 	cxl_p1_write(adapter, CXL_PSL_RESLCKTO, 0x20000000200ULL);
 	/* snoop write mask */
