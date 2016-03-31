@@ -1827,6 +1827,7 @@ struct amdgpu_asic_funcs {
 	bool (*read_disabled_bios)(struct amdgpu_device *adev);
 	bool (*read_bios_from_rom)(struct amdgpu_device *adev,
 				   u8 *bios, u32 length_bytes);
+	void (*detect_hw_virtualization) (struct amdgpu_device *adev);
 	int (*read_register)(struct amdgpu_device *adev, u32 se_num,
 			     u32 sh_num, u32 reg_offset, u32 *value);
 	void (*set_vga_state)(struct amdgpu_device *adev, bool state);
@@ -1836,8 +1837,6 @@ struct amdgpu_asic_funcs {
 	/* MM block clocks */
 	int (*set_uvd_clocks)(struct amdgpu_device *adev, u32 vclk, u32 dclk);
 	int (*set_vce_clocks)(struct amdgpu_device *adev, u32 evclk, u32 ecclk);
-	/* query virtual capabilities */
-	u32 (*get_virtual_caps)(struct amdgpu_device *adev);
 	/* static power management */
 	int (*get_pcie_lanes)(struct amdgpu_device *adev);
 	void (*set_pcie_lanes)(struct amdgpu_device *adev, int lanes);
@@ -1934,14 +1933,35 @@ struct cgs_device *amdgpu_cgs_create_device(struct amdgpu_device *adev);
 void amdgpu_cgs_destroy_device(struct cgs_device *cgs_device);
 
 
+#define AMDGPU_SRIOV_CAPS_SRIOV_VBIOS  (1 << 0) /* vBIOS is sr-iov ready */
+#define AMDGPU_SRIOV_CAPS_ENABLE_IOV   (1 << 1) /* sr-iov is enabled on this GPU */
+#define AMDGPU_SRIOV_CAPS_IS_VF        (1 << 2) /* this GPU is a virtual function */
+#define AMDGPU_PASSTHROUGH_MODE        (1 << 3) /* thw whole GPU is pass through for VM */
 /* GPU virtualization */
-#define AMDGPU_VIRT_CAPS_SRIOV_EN       (1 << 0)
-#define AMDGPU_VIRT_CAPS_IS_VF          (1 << 1)
 struct amdgpu_virtualization {
-	bool supports_sr_iov;
-	bool is_virtual;
-	u32 caps;
+	uint32_t virtual_caps;
 };
+
+#define amdgpu_sriov_enabled(adev) \
+((adev)->virtualization.virtual_caps & AMDGPU_SRIOV_CAPS_ENABLE_IOV)
+
+#define amdgpu_sriov_vf(adev) \
+((adev)->virtualization.virtual_caps & AMDGPU_SRIOV_CAPS_IS_VF)
+
+#define amdgpu_sriov_bios(adev) \
+((adev)->virtualization.virtual_caps & AMDGPU_SRIOV_CAPS_SRIOV_VBIOS)
+
+#define amdgpu_passthrough(adev) \
+((adev)->virtualization.virtual_caps & AMDGPU_PASSTHROUGH_MODE)
+
+static inline bool is_virtual_machine(void)
+{
+#ifdef CONFIG_X86
+	return boot_cpu_has(X86_FEATURE_HYPERVISOR);
+#else
+	return false;
+#endif
+}
 
 /*
  * Core structure, functions and helpers.
@@ -2260,12 +2280,12 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_asic_get_xclk(adev) (adev)->asic_funcs->get_xclk((adev))
 #define amdgpu_asic_set_uvd_clocks(adev, v, d) (adev)->asic_funcs->set_uvd_clocks((adev), (v), (d))
 #define amdgpu_asic_set_vce_clocks(adev, ev, ec) (adev)->asic_funcs->set_vce_clocks((adev), (ev), (ec))
-#define amdgpu_asic_get_virtual_caps(adev) ((adev)->asic_funcs->get_virtual_caps((adev)))
 #define amdgpu_get_pcie_lanes(adev) (adev)->asic_funcs->get_pcie_lanes((adev))
 #define amdgpu_set_pcie_lanes(adev, l) (adev)->asic_funcs->set_pcie_lanes((adev), (l))
 #define amdgpu_asic_get_gpu_clock_counter(adev) (adev)->asic_funcs->get_gpu_clock_counter((adev))
 #define amdgpu_asic_read_disabled_bios(adev) (adev)->asic_funcs->read_disabled_bios((adev))
 #define amdgpu_asic_read_bios_from_rom(adev, b, l) (adev)->asic_funcs->read_bios_from_rom((adev), (b), (l))
+#define amdgpu_asic_detect_hw_virtualization(adev) (adev)->asic_funcs->detect_hw_virtualization((adev))
 #define amdgpu_asic_read_register(adev, se, sh, offset, v)((adev)->asic_funcs->read_register((adev), (se), (sh), (offset), (v)))
 #define amdgpu_gart_flush_gpu_tlb(adev, vmid) (adev)->gart.gart_funcs->flush_gpu_tlb((adev), (vmid))
 #define amdgpu_gart_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gart.gart_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))

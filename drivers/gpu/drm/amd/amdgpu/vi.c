@@ -445,18 +445,21 @@ static bool vi_read_bios_from_rom(struct amdgpu_device *adev,
 	return true;
 }
 
-static u32 vi_get_virtual_caps(struct amdgpu_device *adev)
+static void vi_detect_hw_virtualization(struct amdgpu_device *adev)
 {
-	u32 caps = 0;
-	u32 reg = RREG32(mmBIF_IOV_FUNC_IDENTIFIER);
+	uint32_t reg = RREG32(mmBIF_IOV_FUNC_IDENTIFIER);
+	/* bit0: 0 means pf and 1 means vf */
+	/* bit31: 0 means disable IOV and 1 means enable */
+	if (reg & 1)
+		adev->virtualization.virtual_caps |= AMDGPU_SRIOV_CAPS_IS_VF;
 
-	if (REG_GET_FIELD(reg, BIF_IOV_FUNC_IDENTIFIER, IOV_ENABLE))
-		caps |= AMDGPU_VIRT_CAPS_SRIOV_EN;
+	if (reg & 0x80000000)
+		adev->virtualization.virtual_caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
 
-	if (REG_GET_FIELD(reg, BIF_IOV_FUNC_IDENTIFIER, FUNC_IDENTIFIER))
-		caps |= AMDGPU_VIRT_CAPS_IS_VF;
-
-	return caps;
+	if (reg == 0) {
+		if (is_virtual_machine()) /* passthrough mode exclus sr-iov mode */
+			adev->virtualization.virtual_caps |= AMDGPU_PASSTHROUGH_MODE;
+	}
 }
 
 static const struct amdgpu_allowed_register_entry tonga_allowed_read_registers[] = {
@@ -1521,13 +1524,13 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 {
 	.read_disabled_bios = &vi_read_disabled_bios,
 	.read_bios_from_rom = &vi_read_bios_from_rom,
+	.detect_hw_virtualization = vi_detect_hw_virtualization,
 	.read_register = &vi_read_register,
 	.reset = &vi_asic_reset,
 	.set_vga_state = &vi_vga_set_state,
 	.get_xclk = &vi_get_xclk,
 	.set_uvd_clocks = &vi_set_uvd_clocks,
 	.set_vce_clocks = &vi_set_vce_clocks,
-	.get_virtual_caps = &vi_get_virtual_caps,
 };
 
 static int vi_common_early_init(void *handle)
@@ -1656,6 +1659,10 @@ static int vi_common_early_init(void *handle)
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	/* in early init stage, vbios code won't work */
+	if (adev->asic_funcs->detect_hw_virtualization)
+		amdgpu_asic_detect_hw_virtualization(adev);
 
 	if (amdgpu_smc_load_fw && smc_enabled)
 		adev->firmware.smu_load = true;

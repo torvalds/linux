@@ -282,7 +282,7 @@ static int iceland_smu_upload_firmware_image(struct amdgpu_device *adev)
 	/* Skip SMC ucode loading on SR-IOV capable boards.
 	 * vbios does this for us in asic_init in that case.
 	 */
-	if (adev->virtualization.supports_sr_iov)
+	if (amdgpu_sriov_bios(adev))
 		return 0;
 
 	hdr = (const struct smc_firmware_header_v1_0 *)adev->pm.fw->data;

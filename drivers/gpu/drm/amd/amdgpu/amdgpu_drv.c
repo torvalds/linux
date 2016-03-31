@@ -485,7 +485,7 @@ amdgpu_pci_shutdown(struct pci_dev *pdev)
 	/* if we are running in a VM, make sure the device
 	 * torn down properly on reboot/shutdown
 	 */
-	if (adev->virtualization.is_virtual)
+	if (amdgpu_passthrough(adev))
 		amdgpu_pci_remove(pdev);
 }
 
