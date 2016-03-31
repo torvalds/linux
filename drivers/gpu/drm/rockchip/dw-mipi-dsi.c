@@ -291,6 +291,7 @@ struct dw_mipi_dsi {
 
 	struct clk *pllref_clk;
 	struct clk *pclk;
+	struct clk *phy_cfg_clk;
 
 	unsigned int lane_mbps; /* per lane */
 	u32 channel;
@@ -412,6 +413,14 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 
 	dsi_write(dsi, DSI_PWR_UP, POWERUP);
 
+	if (!IS_ERR(dsi->phy_cfg_clk)) {
+		ret = clk_prepare_enable(dsi->phy_cfg_clk);
+		if (ret) {
+			dev_err(dsi->dev, "Failed to enable phy_cfg_clk\n");
+			return ret;
+		}
+	}
+
 	dw_mipi_dsi_phy_write(dsi, 0x10, BYPASS_VCO_RANGE |
 					 VCO_RANGE_CON_SEL(vco) |
 					 VCO_IN_CAP_CON_LOW |
@@ -456,17 +465,19 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 				 val, val & LOCK, 1000, PHY_STATUS_TIMEOUT_US);
 	if (ret < 0) {
 		dev_err(dsi->dev, "failed to wait for phy lock state\n");
-		return ret;
+		goto phy_init_end;
 	}
 
 	ret = readx_poll_timeout(readl, dsi->base + DSI_PHY_STATUS,
 				 val, val & STOP_STATE_CLK_LANE, 1000,
 				 PHY_STATUS_TIMEOUT_US);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(dsi->dev,
 			"failed to wait for phy clk lane stop state\n");
-		return ret;
-	}
+
+phy_init_end:
+	if (!IS_ERR(dsi->phy_cfg_clk))
+		clk_disable_unprepare(dsi->phy_cfg_clk);
 
 	return ret;
 }
@@ -1161,6 +1172,10 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 		dev_err(dev, "Unable to get pclk: %d\n", ret);
 		return ret;
 	}
+
+	dsi->phy_cfg_clk = devm_clk_get(dev, "phy_cfg");
+	if (IS_ERR(dsi->phy_cfg_clk))
+		dev_dbg(dev, "have not phy_cfg_clk\n");
 
 	ret = clk_prepare_enable(dsi->pllref_clk);
 	if (ret) {
