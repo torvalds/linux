@@ -6196,6 +6196,7 @@ enum skl_disp_power_wells {
 /* digital port hotplug */
 #define PCH_PORT_HOTPLUG		_MMIO(0xc4030)	/* SHOTPLUG_CTL */
 #define  PORTA_HOTPLUG_ENABLE		(1 << 28) /* LPT:LP+ & BXT */
+#define  BXT_DDIA_HPD_INVERT            (1 << 27)
 #define  PORTA_HOTPLUG_STATUS_MASK	(3 << 24) /* SPT+ & BXT */
 #define  PORTA_HOTPLUG_NO_DETECT	(0 << 24) /* SPT+ & BXT */
 #define  PORTA_HOTPLUG_SHORT_DETECT	(1 << 24) /* SPT+ & BXT */
@@ -6211,6 +6212,7 @@ enum skl_disp_power_wells {
 #define  PORTD_HOTPLUG_SHORT_DETECT	(1 << 16)
 #define  PORTD_HOTPLUG_LONG_DETECT	(2 << 16)
 #define  PORTC_HOTPLUG_ENABLE		(1 << 12)
+#define  BXT_DDIC_HPD_INVERT            (1 << 11)
 #define  PORTC_PULSE_DURATION_2ms	(0 << 10) /* pre-LPT */
 #define  PORTC_PULSE_DURATION_4_5ms	(1 << 10) /* pre-LPT */
 #define  PORTC_PULSE_DURATION_6ms	(2 << 10) /* pre-LPT */
@@ -6221,6 +6223,7 @@ enum skl_disp_power_wells {
 #define  PORTC_HOTPLUG_SHORT_DETECT	(1 << 8)
 #define  PORTC_HOTPLUG_LONG_DETECT	(2 << 8)
 #define  PORTB_HOTPLUG_ENABLE		(1 << 4)
+#define  BXT_DDIB_HPD_INVERT            (1 << 3)
 #define  PORTB_PULSE_DURATION_2ms	(0 << 2) /* pre-LPT */
 #define  PORTB_PULSE_DURATION_4_5ms	(1 << 2) /* pre-LPT */
 #define  PORTB_PULSE_DURATION_6ms	(2 << 2) /* pre-LPT */
@@ -6230,6 +6233,9 @@ enum skl_disp_power_wells {
 #define  PORTB_HOTPLUG_NO_DETECT	(0 << 0)
 #define  PORTB_HOTPLUG_SHORT_DETECT	(1 << 0)
 #define  PORTB_HOTPLUG_LONG_DETECT	(2 << 0)
+#define  BXT_DDI_HPD_INVERT_MASK	(BXT_DDIA_HPD_INVERT | \
+					BXT_DDIB_HPD_INVERT | \
+					BXT_DDIC_HPD_INVERT)
 
 #define PCH_PORT_HOTPLUG2		_MMIO(0xc403C)	/* SHOTPLUG_CTL2 SPT+ */
 #define  PORTE_HOTPLUG_ENABLE		(1 << 4)
