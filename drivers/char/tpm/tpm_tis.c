@@ -650,15 +650,13 @@ MODULE_PARM_DESC(interrupts, "Enable interrupts");
 
 static void tpm_tis_remove(struct tpm_chip *chip)
 {
+	void __iomem *reg = chip->vendor.iobase +
+		TPM_INT_ENABLE(chip->vendor.locality);
+
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		tpm2_shutdown(chip, TPM2_SU_CLEAR);
 
-	iowrite32(~TPM_GLOBAL_INT_ENABLE &
-		  ioread32(chip->vendor.iobase +
-			   TPM_INT_ENABLE(chip->vendor.
-					  locality)),
-		  chip->vendor.iobase +
-		  TPM_INT_ENABLE(chip->vendor.locality));
+	iowrite32(~TPM_GLOBAL_INT_ENABLE & ioread32(reg), reg);
 	release_locality(chip, chip->vendor.locality, 1);
 }
 
