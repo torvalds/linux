@@ -482,6 +482,16 @@ static bool mv88e6xxx_6352_family(struct dsa_switch *ds)
 	return false;
 }
 
+static bool mv88e6xxx_has_stu(struct dsa_switch *ds)
+{
+	/* Does the device have STU and dedicated SID registers for VTU ops? */
+	if (mv88e6xxx_6097_family(ds) || mv88e6xxx_6165_family(ds) ||
+	    mv88e6xxx_6351_family(ds) || mv88e6xxx_6352_family(ds))
+		return true;
+
+	return false;
+}
+
 /* We expect the switch to perform auto negotiation if there is a real
  * phy. However, in the case of a fixed link phy, we force the port
  * settings from the fixed link settings.
@@ -1329,7 +1339,9 @@ static int _mv88e6xxx_vtu_getnext(struct dsa_switch *ds,
 				return ret;
 
 			next.fid = ret & GLOBAL_VTU_FID_MASK;
+		}
 
+		if (mv88e6xxx_has_stu(ds)) {
 			ret = _mv88e6xxx_reg_read(ds, REG_GLOBAL,
 						  GLOBAL_VTU_SID);
 			if (ret < 0)
@@ -1412,8 +1424,7 @@ static int _mv88e6xxx_vtu_loadpurge(struct dsa_switch *ds,
 	if (ret < 0)
 		return ret;
 
-	if (mv88e6xxx_6097_family(ds) || mv88e6xxx_6165_family(ds) ||
-	    mv88e6xxx_6351_family(ds) || mv88e6xxx_6352_family(ds)) {
+	if (mv88e6xxx_has_stu(ds)) {
 		reg = entry->sid & GLOBAL_VTU_SID_MASK;
 		ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_VTU_SID, reg);
 		if (ret < 0)
