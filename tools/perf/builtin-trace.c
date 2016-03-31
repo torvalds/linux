@@ -2400,6 +2400,14 @@ static bool skip_sample(struct trace *trace, struct perf_sample *sample)
 	return false;
 }
 
+static void trace__set_base_time(struct trace *trace,
+				 struct perf_evsel *evsel __maybe_unused,
+				 struct perf_sample *sample)
+{
+	if (trace->base_time == 0 && !trace->full_time)
+		trace->base_time = sample->time;
+}
+
 static int trace__process_sample(struct perf_tool *tool,
 				 union perf_event *event,
 				 struct perf_sample *sample,
@@ -2414,8 +2422,7 @@ static int trace__process_sample(struct perf_tool *tool,
 	if (skip_sample(trace, sample))
 		return 0;
 
-	if (!trace->full_time && trace->base_time == 0)
-		trace->base_time = sample->time;
+	trace__set_base_time(trace, evsel, sample);
 
 	if (handler) {
 		++trace->nr_events;
@@ -2553,9 +2560,6 @@ static void trace__handle_event(struct trace *trace, union perf_event *event, st
 	const u32 type = event->header.type;
 	struct perf_evsel *evsel;
 
-	if (!trace->full_time && trace->base_time == 0)
-		trace->base_time = sample->time;
-
 	if (type != PERF_RECORD_SAMPLE) {
 		trace__process_event(trace, trace->host, event, sample);
 		return;
@@ -2566,6 +2570,8 @@ static void trace__handle_event(struct trace *trace, union perf_event *event, st
 		fprintf(trace->output, "Unknown tp ID %" PRIu64 ", skipping...\n", sample->id);
 		return;
 	}
+
+	trace__set_base_time(trace, evsel, sample);
 
 	if (evsel->attr.type == PERF_TYPE_TRACEPOINT &&
 	    sample->raw_data == NULL) {
