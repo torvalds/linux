@@ -862,6 +862,8 @@ static int gmc_v8_0_late_init(void *handle)
 	return amdgpu_irq_get(adev, &adev->mc.vm_fault, 0);
 }
 
+#define mmMC_SEQ_MISC0_FIJI 0xA71
+
 static int gmc_v8_0_sw_init(void *handle)
 {
 	int r;
@@ -875,7 +877,12 @@ static int gmc_v8_0_sw_init(void *handle)
 	if (adev->flags & AMD_IS_APU) {
 		adev->mc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
 	} else {
-		u32 tmp = RREG32(mmMC_SEQ_MISC0);
+		u32 tmp;
+
+		if (adev->asic_type == CHIP_FIJI)
+			tmp = RREG32(mmMC_SEQ_MISC0_FIJI);
+		else
+			tmp = RREG32(mmMC_SEQ_MISC0);
 		tmp &= MC_SEQ_MISC0__MT__MASK;
 		adev->mc.vram_type = gmc_v8_0_convert_vram_type(tmp);
 	}
