@@ -464,7 +464,7 @@ struct rtl8xxxu_txdesc40 {
 #define TXDESC40_SPE_RPT		BIT(19)
 #define TXDESC_AMPDU_DENSITY_SHIFT	20
 #define TXDESC40_BT_INT			BIT(23)
-#define TXDESC40_GID			BIT(24)
+#define TXDESC40_GID_SHIFT		24
 
 /* Word 3 */
 #define TXDESC40_USE_DRIVER_RATE	BIT(8)
