@@ -18,6 +18,7 @@
 #include <linux/average.h>
 #include <linux/etherdevice.h>
 #include <linux/rhashtable.h>
+#include <linux/u64_stats_sync.h>
 #include "key.h"
 
 /**
@@ -444,7 +445,6 @@ struct sta_info {
 	/* Updated from RX path only, no locking requirements */
 	struct {
 		unsigned long packets;
-		u64 bytes;
 		unsigned long last_rx;
 		unsigned long num_duplicates;
 		unsigned long fragments;
@@ -453,6 +453,9 @@ struct sta_info {
 		u8 chains;
 		s8 chain_signal_last[IEEE80211_MAX_CHAINS];
 		u16 last_rate;
+
+		struct u64_stats_sync syncp;
+		u64 bytes;
 		u64 msdu[IEEE80211_NUM_TIDS + 1];
 	} rx_stats;
 	struct {

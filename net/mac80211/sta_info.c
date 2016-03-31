@@ -335,6 +335,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->sdata = sdata;
 	sta->rx_stats.last_rx = jiffies;
 
+	u64_stats_init(&sta->rx_stats.syncp);
+
 	sta->sta_state = IEEE80211_STA_NONE;
 
 	/* Mark TID as unreserved */
@@ -1971,6 +1973,41 @@ static void sta_set_rate_info_rx(struct sta_info *sta, struct rate_info *rinfo)
 		sta_stats_decode_rate(sta->local, rate, rinfo);
 }
 
+static void sta_set_tidstats(struct sta_info *sta,
+			     struct cfg80211_tid_stats *tidstats,
+			     int tid)
+{
+	struct ieee80211_local *local = sta->local;
+
+	if (!(tidstats->filled & BIT(NL80211_TID_STATS_RX_MSDU))) {
+		unsigned int start;
+
+		do {
+			start = u64_stats_fetch_begin(&sta->rx_stats.syncp);
+			tidstats->rx_msdu = sta->rx_stats.msdu[tid];
+		} while (u64_stats_fetch_retry(&sta->rx_stats.syncp, start));
+
+		tidstats->filled |= BIT(NL80211_TID_STATS_RX_MSDU);
+	}
+
+	if (!(tidstats->filled & BIT(NL80211_TID_STATS_TX_MSDU))) {
+		tidstats->filled |= BIT(NL80211_TID_STATS_TX_MSDU);
+		tidstats->tx_msdu = sta->tx_stats.msdu[tid];
+	}
+
+	if (!(tidstats->filled & BIT(NL80211_TID_STATS_TX_MSDU_RETRIES)) &&
+	    ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
+		tidstats->filled |= BIT(NL80211_TID_STATS_TX_MSDU_RETRIES);
+		tidstats->tx_msdu_retries = sta->status_stats.msdu_retries[tid];
+	}
+
+	if (!(tidstats->filled & BIT(NL80211_TID_STATS_TX_MSDU_FAILED)) &&
+	    ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
+		tidstats->filled |= BIT(NL80211_TID_STATS_TX_MSDU_FAILED);
+		tidstats->tx_msdu_failed = sta->status_stats.msdu_failed[tid];
+	}
+}
+
 void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -2025,7 +2062,12 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 
 	if (!(sinfo->filled & (BIT(NL80211_STA_INFO_RX_BYTES64) |
 			       BIT(NL80211_STA_INFO_RX_BYTES)))) {
-		sinfo->rx_bytes = sta->rx_stats.bytes;
+		unsigned int start;
+
+		do {
+			start = u64_stats_fetch_begin(&sta->rx_stats.syncp);
+			sinfo->rx_bytes = sta->rx_stats.bytes;
+		} while (u64_stats_fetch_retry(&sta->rx_stats.syncp, start));
 		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES64);
 	}
 
@@ -2097,33 +2139,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++) {
 		struct cfg80211_tid_stats *tidstats = &sinfo->pertid[i];
 
-		if (!(tidstats->filled & BIT(NL80211_TID_STATS_RX_MSDU))) {
-			tidstats->filled |= BIT(NL80211_TID_STATS_RX_MSDU);
-			tidstats->rx_msdu = sta->rx_stats.msdu[i];
-		}
-
-		if (!(tidstats->filled & BIT(NL80211_TID_STATS_TX_MSDU))) {
-			tidstats->filled |= BIT(NL80211_TID_STATS_TX_MSDU);
-			tidstats->tx_msdu = sta->tx_stats.msdu[i];
-		}
-
-		if (!(tidstats->filled &
-				BIT(NL80211_TID_STATS_TX_MSDU_RETRIES)) &&
-		    ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
-			tidstats->filled |=
-				BIT(NL80211_TID_STATS_TX_MSDU_RETRIES);
-			tidstats->tx_msdu_retries =
-				sta->status_stats.msdu_retries[i];
-		}
-
-		if (!(tidstats->filled &
-				BIT(NL80211_TID_STATS_TX_MSDU_FAILED)) &&
-		    ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
-			tidstats->filled |=
-				BIT(NL80211_TID_STATS_TX_MSDU_FAILED);
-			tidstats->tx_msdu_failed =
-				sta->status_stats.msdu_failed[i];
-		}
+		sta_set_tidstats(sta, tidstats, i);
 	}
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {

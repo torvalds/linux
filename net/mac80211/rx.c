@@ -1441,7 +1441,11 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 		ieee80211_sta_rx_notify(rx->sdata, hdr);
 
 	sta->rx_stats.fragments++;
+
+	u64_stats_update_begin(&rx->sta->rx_stats.syncp);
 	sta->rx_stats.bytes += rx->skb->len;
+	u64_stats_update_end(&rx->sta->rx_stats.syncp);
+
 	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
 		sta->rx_stats.last_signal = status->signal;
 		ewma_signal_add(&sta->rx_stats_avg.signal, -status->signal);
@@ -2124,7 +2128,9 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 		 * for non-QoS-data frames. Here we know it's a data
 		 * frame, so count MSDUs.
 		 */
+		u64_stats_update_begin(&rx->sta->rx_stats.syncp);
 		rx->sta->rx_stats.msdu[rx->seqno_idx]++;
+		u64_stats_update_end(&rx->sta->rx_stats.syncp);
 	}
 
 	if ((sdata->vif.type == NL80211_IFTYPE_AP ||
