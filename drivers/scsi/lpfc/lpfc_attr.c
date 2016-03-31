@@ -5150,7 +5150,6 @@ lpfc_free_sysfs_attr(struct lpfc_vport *vport)
 	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_ctlreg_attr);
 }
 
-
 /*
  * Dynamic FC Host Attributes Support
  */

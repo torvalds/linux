@@ -694,6 +694,7 @@ struct lpfc_hba {
 	uint8_t  wwnn[8];
 	uint8_t  wwpn[8];
 	uint32_t RandomData[7];
+	uint32_t fcp_embed_io;
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;

@@ -2865,6 +2865,9 @@ struct lpfc_sli4_parameters {
 	uint32_t word17;
 	uint32_t word18;
 	uint32_t word19;
+#define cfg_ext_embed_cb_SHIFT			0
+#define cfg_ext_embed_cb_MASK			0x00000001
+#define cfg_ext_embed_cb_WORD			word19
 };
 
 struct lpfc_mbx_get_sli4_parameters {
@@ -3919,6 +3922,9 @@ union lpfc_wqe {
 union lpfc_wqe128 {
 	uint32_t words[32];
 	struct lpfc_wqe_generic generic;
+	struct fcp_icmnd64_wqe fcp_icmd;
+	struct fcp_iread64_wqe fcp_iread;
+	struct fcp_iwrite64_wqe fcp_iwrite;
 	struct xmit_seq64_wqe xmit_sequence;
 	struct gen_req64_wqe gen_req;
 };
