@@ -768,10 +768,6 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	    struct vc_data *vc;
 	    struct vt_notifier_param param;
 
-	    /* prevent users from taking too much memory */
-	    if (currcons >= MAX_NR_USER_CONSOLES && !capable(CAP_SYS_RESOURCE))
-	      return -EPERM;
-
 	    /* due to the granularity of kmalloc, we waste some memory here */
 	    /* the alloc is done in two steps, to optimize the common situation
 	       of a 25x80 console (structsize=216, screenbuf_size=4000) */
