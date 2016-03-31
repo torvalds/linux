@@ -477,9 +477,18 @@ static void __init bootmem_init(void)
 	 */
 	if (__pa_symbol(_text) > __pa_symbol(VMLINUX_LOAD_ADDRESS)) {
 		unsigned long offset;
+		extern void show_kernel_relocation(const char *level);
 
 		offset = __pa_symbol(_text) - __pa_symbol(VMLINUX_LOAD_ADDRESS);
 		free_bootmem(__pa_symbol(VMLINUX_LOAD_ADDRESS), offset);
+
+#if defined(CONFIG_DEBUG_KERNEL) && defined(CONFIG_DEBUG_INFO)
+		/*
+		 * This information is necessary when debugging the kernel
+		 * But is a security vulnerability otherwise!
+		 */
+		show_kernel_relocation(KERN_INFO);
+#endif
 	}
 #endif
 
