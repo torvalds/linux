@@ -26,13 +26,6 @@ struct dw_mci_rockchip_priv_data {
 	int			default_sample_phase;
 };
 
-static int dw_mci_rk3288_setup_clock(struct dw_mci *host)
-{
-	host->bus_hz /= RK3288_CLKGEN_DIV;
-
-	return 0;
-}
-
 static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 {
 	struct dw_mci_rockchip_priv_data *priv = host->priv;
@@ -231,6 +224,10 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 	/* It needs this quirk on all Rockchip SoCs */
 	host->pdata->quirks |= DW_MCI_QUIRK_BROKEN_DTO;
 
+	if (of_device_is_compatible(host->dev->of_node,
+				    "rockchip,rk3288-dw-mshc"))
+		host->bus_hz /= RK3288_CLKGEN_DIV;
+
 	return 0;
 }
 
@@ -251,7 +248,6 @@ static const struct dw_mci_drv_data rk3288_drv_data = {
 	.set_ios		= dw_mci_rk3288_set_ios,
 	.execute_tuning		= dw_mci_rk3288_execute_tuning,
 	.parse_dt		= dw_mci_rk3288_parse_dt,
-	.setup_clock    = dw_mci_rk3288_setup_clock,
 	.init			= dw_mci_rockchip_init,
 };
 
