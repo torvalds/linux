@@ -332,10 +332,12 @@ static void hns_ppe_init_hw(struct hns_ppe_cb *ppe_cb)
 	/* clr and msk except irq*/
 	hns_ppe_exc_irq_en(ppe_cb, 0);
 
-	if (ppe_common_cb->ppe_mode == PPE_COMMON_MODE_DEBUG)
+	if (ppe_common_cb->ppe_mode == PPE_COMMON_MODE_DEBUG) {
 		hns_ppe_set_port_mode(ppe_cb, PPE_MODE_GE);
-	else
+		dsaf_write_dev(ppe_cb, PPE_CFG_PAUSE_IDLE_CNT_REG, 0);
+	} else {
 		hns_ppe_set_port_mode(ppe_cb, PPE_MODE_XGE);
+	}
 
 	hns_ppe_checksum_hw(ppe_cb, 0xffffffff);
 	hns_ppe_cnt_clr_ce(ppe_cb);
