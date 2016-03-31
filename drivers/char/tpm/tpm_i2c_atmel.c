@@ -169,10 +169,10 @@ static int i2c_atmel_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	/* Default timeouts */
-	chip->vendor.timeout_a = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
-	chip->vendor.timeout_b = msecs_to_jiffies(TPM_I2C_LONG_TIMEOUT);
-	chip->vendor.timeout_c = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
-	chip->vendor.timeout_d = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
+	chip->timeout_a = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
+	chip->timeout_b = msecs_to_jiffies(TPM_I2C_LONG_TIMEOUT);
+	chip->timeout_c = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
+	chip->timeout_d = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
 
 	/* There is no known way to probe for this device, and all version
 	 * information seems to be read via TPM commands. Thus we rely on the

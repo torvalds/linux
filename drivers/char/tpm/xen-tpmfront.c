@@ -89,7 +89,7 @@ static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 		return -EINVAL;
 
 	/* Wait for completion of any existing command or cancellation */
-	if (wait_for_tpm_stat(chip, VTPM_STATUS_IDLE, chip->vendor.timeout_c,
+	if (wait_for_tpm_stat(chip, VTPM_STATUS_IDLE, chip->timeout_c,
 			&priv->read_queue, true) < 0) {
 		vtpm_cancel(chip);
 		return -ETIME;
@@ -126,7 +126,7 @@ static int vtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		return -ECANCELED;
 
 	/* In theory the wait at the end of _send makes this one unnecessary */
-	if (wait_for_tpm_stat(chip, VTPM_STATUS_RESULT, chip->vendor.timeout_c,
+	if (wait_for_tpm_stat(chip, VTPM_STATUS_RESULT, chip->timeout_c,
 			&priv->read_queue, true) < 0) {
 		vtpm_cancel(chip);
 		return -ETIME;

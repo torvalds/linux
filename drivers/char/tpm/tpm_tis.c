@@ -133,7 +133,7 @@ static inline int is_itpm(struct acpi_device *dev)
 static int wait_startup(struct tpm_chip *chip, int l)
 {
 	struct priv_data *priv = chip->vendor.priv;
-	unsigned long stop = jiffies + chip->vendor.timeout_a;
+	unsigned long stop = jiffies + chip->timeout_a;
 	do {
 		if (ioread8(priv->iobase + TPM_ACCESS(l)) &
 		    TPM_ACCESS_VALID)
@@ -178,7 +178,7 @@ static int request_locality(struct tpm_chip *chip, int l)
 	iowrite8(TPM_ACCESS_REQUEST_USE,
 		 priv->iobase + TPM_ACCESS(l));
 
-	stop = jiffies + chip->vendor.timeout_a;
+	stop = jiffies + chip->timeout_a;
 
 	if (chip->flags & TPM_CHIP_FLAG_IRQ) {
 again:
@@ -232,7 +232,7 @@ static int get_burstcount(struct tpm_chip *chip)
 
 	/* wait for burstcount */
 	/* which timeout value, spec has 2 answers (c & d) */
-	stop = jiffies + chip->vendor.timeout_d;
+	stop = jiffies + chip->timeout_d;
 	do {
 		burstcnt = ioread8(priv->iobase +
 				   TPM_STS(priv->locality) + 1);
@@ -253,7 +253,7 @@ static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 	while (size < count &&
 	       wait_for_tpm_stat(chip,
 				 TPM_STS_DATA_AVAIL | TPM_STS_VALID,
-				 chip->vendor.timeout_c,
+				 chip->timeout_c,
 				 &priv->read_queue, true)
 	       == 0) {
 		burstcnt = get_burstcount(chip);
@@ -296,7 +296,7 @@ static int tpm_tis_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		goto out;
 	}
 
-	wait_for_tpm_stat(chip, TPM_STS_VALID, chip->vendor.timeout_c,
+	wait_for_tpm_stat(chip, TPM_STS_VALID, chip->timeout_c,
 			  &priv->int_queue, false);
 	status = tpm_tis_status(chip);
 	if (status & TPM_STS_DATA_AVAIL) {	/* retry? */
@@ -333,7 +333,7 @@ static int tpm_tis_send_data(struct tpm_chip *chip, u8 *buf, size_t len)
 	if ((status & TPM_STS_COMMAND_READY) == 0) {
 		tpm_tis_ready(chip);
 		if (wait_for_tpm_stat
-		    (chip, TPM_STS_COMMAND_READY, chip->vendor.timeout_b,
+		    (chip, TPM_STS_COMMAND_READY, chip->timeout_b,
 		     &priv->int_queue, false) < 0) {
 			rc = -ETIME;
 			goto out_err;
@@ -348,7 +348,7 @@ static int tpm_tis_send_data(struct tpm_chip *chip, u8 *buf, size_t len)
 			count++;
 		}
 
-		wait_for_tpm_stat(chip, TPM_STS_VALID, chip->vendor.timeout_c,
+		wait_for_tpm_stat(chip, TPM_STS_VALID, chip->timeout_c,
 				  &priv->int_queue, false);
 		status = tpm_tis_status(chip);
 		if (!itpm && (status & TPM_STS_DATA_EXPECT) == 0) {
@@ -360,7 +360,7 @@ static int tpm_tis_send_data(struct tpm_chip *chip, u8 *buf, size_t len)
 	/* write last byte */
 	iowrite8(buf[count],
 		 priv->iobase + TPM_DATA_FIFO(priv->locality));
-	wait_for_tpm_stat(chip, TPM_STS_VALID, chip->vendor.timeout_c,
+	wait_for_tpm_stat(chip, TPM_STS_VALID, chip->timeout_c,
 			  &priv->int_queue, false);
 	status = tpm_tis_status(chip);
 	if ((status & TPM_STS_DATA_EXPECT) != 0) {
@@ -711,10 +711,10 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 		return PTR_ERR(priv->iobase);
 
 	/* Maximum timeouts */
-	chip->vendor.timeout_a = TIS_TIMEOUT_A_MAX;
-	chip->vendor.timeout_b = TIS_TIMEOUT_B_MAX;
-	chip->vendor.timeout_c = TIS_TIMEOUT_C_MAX;
-	chip->vendor.timeout_d = TIS_TIMEOUT_D_MAX;
+	chip->timeout_a = TIS_TIMEOUT_A_MAX;
+	chip->timeout_b = TIS_TIMEOUT_B_MAX;
+	chip->timeout_c = TIS_TIMEOUT_C_MAX;
+	chip->timeout_d = TIS_TIMEOUT_D_MAX;
 
 	if (wait_startup(chip, 0) != 0) {
 		rc = -ENODEV;

@@ -236,14 +236,14 @@ static ssize_t durations_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
-	if (chip->vendor.duration[TPM_LONG] == 0)
+	if (chip->duration[TPM_LONG] == 0)
 		return 0;
 
 	return sprintf(buf, "%d %d %d [%s]\n",
-		       jiffies_to_usecs(chip->vendor.duration[TPM_SHORT]),
-		       jiffies_to_usecs(chip->vendor.duration[TPM_MEDIUM]),
-		       jiffies_to_usecs(chip->vendor.duration[TPM_LONG]),
-		       chip->vendor.duration_adjusted
+		       jiffies_to_usecs(chip->duration[TPM_SHORT]),
+		       jiffies_to_usecs(chip->duration[TPM_MEDIUM]),
+		       jiffies_to_usecs(chip->duration[TPM_LONG]),
+		       chip->duration_adjusted
 		       ? "adjusted" : "original");
 }
 static DEVICE_ATTR_RO(durations);
@@ -254,11 +254,11 @@ static ssize_t timeouts_show(struct device *dev, struct device_attribute *attr,
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%d %d %d %d [%s]\n",
-		       jiffies_to_usecs(chip->vendor.timeout_a),
-		       jiffies_to_usecs(chip->vendor.timeout_b),
-		       jiffies_to_usecs(chip->vendor.timeout_c),
-		       jiffies_to_usecs(chip->vendor.timeout_d),
-		       chip->vendor.timeout_adjusted
+		       jiffies_to_usecs(chip->timeout_a),
+		       jiffies_to_usecs(chip->timeout_b),
+		       jiffies_to_usecs(chip->timeout_c),
+		       jiffies_to_usecs(chip->timeout_d),
+		       chip->timeout_adjusted
 		       ? "adjusted" : "original");
 }
 static DEVICE_ATTR_RO(timeouts);

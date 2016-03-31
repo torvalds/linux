@@ -144,7 +144,7 @@ static void i2c_nuvoton_ready(struct tpm_chip *chip)
 static int i2c_nuvoton_get_burstcount(struct i2c_client *client,
 				      struct tpm_chip *chip)
 {
-	unsigned long stop = jiffies + chip->vendor.timeout_d;
+	unsigned long stop = jiffies + chip->timeout_d;
 	s32 status;
 	int burst_count = -1;
 	u8 data;
@@ -239,7 +239,7 @@ static int i2c_nuvoton_recv_data(struct i2c_client *client,
 
 	while (size < count &&
 	       i2c_nuvoton_wait_for_data_avail(chip,
-					       chip->vendor.timeout_c,
+					       chip->timeout_c,
 					       &priv->read_queue) == 0) {
 		burst_count = i2c_nuvoton_get_burstcount(client, chip);
 		if (burst_count < 0) {
@@ -289,7 +289,7 @@ static int i2c_nuvoton_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		 * tag, paramsize, and result
 		 */
 		status = i2c_nuvoton_wait_for_data_avail(
-			chip, chip->vendor.timeout_c, &priv->read_queue);
+			chip, chip->timeout_c, &priv->read_queue);
 		if (status != 0) {
 			dev_err(dev, "%s() timeout on dataAvail\n", __func__);
 			size = -ETIMEDOUT;
@@ -329,7 +329,7 @@ static int i2c_nuvoton_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		}
 		if (i2c_nuvoton_wait_for_stat(
 			    chip, TPM_STS_VALID | TPM_STS_DATA_AVAIL,
-			    TPM_STS_VALID, chip->vendor.timeout_c,
+			    TPM_STS_VALID, chip->timeout_c,
 			    NULL)) {
 			dev_err(dev, "%s() error left over data\n", __func__);
 			size = -ETIMEDOUT;
@@ -362,7 +362,7 @@ static int i2c_nuvoton_send(struct tpm_chip *chip, u8 *buf, size_t len)
 		i2c_nuvoton_ready(chip);
 		if (i2c_nuvoton_wait_for_stat(chip, TPM_STS_COMMAND_READY,
 					      TPM_STS_COMMAND_READY,
-					      chip->vendor.timeout_b, NULL)) {
+					      chip->timeout_b, NULL)) {
 			dev_err(dev, "%s() timeout on commandReady\n",
 				__func__);
 			rc = -EIO;
@@ -394,7 +394,7 @@ static int i2c_nuvoton_send(struct tpm_chip *chip, u8 *buf, size_t len)
 						       TPM_STS_EXPECT,
 						       TPM_STS_VALID |
 						       TPM_STS_EXPECT,
-						       chip->vendor.timeout_c,
+						       chip->timeout_c,
 						       NULL);
 			if (rc < 0) {
 				dev_err(dev, "%s() timeout on Expect\n",
@@ -419,7 +419,7 @@ static int i2c_nuvoton_send(struct tpm_chip *chip, u8 *buf, size_t len)
 		rc = i2c_nuvoton_wait_for_stat(chip,
 					       TPM_STS_VALID | TPM_STS_EXPECT,
 					       TPM_STS_VALID,
-					       chip->vendor.timeout_c, NULL);
+					       chip->timeout_c, NULL);
 		if (rc) {
 			dev_err(dev, "%s() timeout on Expect to clear\n",
 				__func__);
@@ -548,10 +548,10 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 	init_waitqueue_head(&priv->read_queue);
 
 	/* Default timeouts */
-	chip->vendor.timeout_a = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
-	chip->vendor.timeout_b = msecs_to_jiffies(TPM_I2C_LONG_TIMEOUT);
-	chip->vendor.timeout_c = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
-	chip->vendor.timeout_d = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
+	chip->timeout_a = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
+	chip->timeout_b = msecs_to_jiffies(TPM_I2C_LONG_TIMEOUT);
+	chip->timeout_c = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
+	chip->timeout_d = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
 
 	/*
 	 * I2C intfcaps (interrupt capabilitieis) in the chip are hard coded to:
@@ -580,7 +580,7 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 			rc = i2c_nuvoton_wait_for_stat(chip,
 						       TPM_STS_COMMAND_READY,
 						       TPM_STS_COMMAND_READY,
-						       chip->vendor.timeout_b,
+						       chip->timeout_b,
 						       NULL);
 			if (rc == 0) {
 				/*

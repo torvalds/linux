@@ -319,7 +319,7 @@ unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip,
 		duration_idx = tpm_ordinal_duration[ordinal];
 
 	if (duration_idx != TPM_UNDEFINED)
-		duration = chip->vendor.duration[duration_idx];
+		duration = chip->duration[duration_idx];
 	if (duration <= 0)
 		return 2 * 60 * HZ;
 	else
@@ -505,15 +505,15 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
 		/* Fixed timeouts for TPM2 */
-		chip->vendor.timeout_a = msecs_to_jiffies(TPM2_TIMEOUT_A);
-		chip->vendor.timeout_b = msecs_to_jiffies(TPM2_TIMEOUT_B);
-		chip->vendor.timeout_c = msecs_to_jiffies(TPM2_TIMEOUT_C);
-		chip->vendor.timeout_d = msecs_to_jiffies(TPM2_TIMEOUT_D);
-		chip->vendor.duration[TPM_SHORT] =
+		chip->timeout_a = msecs_to_jiffies(TPM2_TIMEOUT_A);
+		chip->timeout_b = msecs_to_jiffies(TPM2_TIMEOUT_B);
+		chip->timeout_c = msecs_to_jiffies(TPM2_TIMEOUT_C);
+		chip->timeout_d = msecs_to_jiffies(TPM2_TIMEOUT_D);
+		chip->duration[TPM_SHORT] =
 		    msecs_to_jiffies(TPM2_DURATION_SHORT);
-		chip->vendor.duration[TPM_MEDIUM] =
+		chip->duration[TPM_MEDIUM] =
 		    msecs_to_jiffies(TPM2_DURATION_MEDIUM);
-		chip->vendor.duration[TPM_LONG] =
+		chip->duration[TPM_LONG] =
 		    msecs_to_jiffies(TPM2_DURATION_LONG);
 		return 0;
 	}
@@ -561,10 +561,10 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 	 * of misreporting.
 	 */
 	if (chip->ops->update_timeouts != NULL)
-		chip->vendor.timeout_adjusted =
+		chip->timeout_adjusted =
 			chip->ops->update_timeouts(chip, new_timeout);
 
-	if (!chip->vendor.timeout_adjusted) {
+	if (!chip->timeout_adjusted) {
 		/* Don't overwrite default if value is 0 */
 		if (new_timeout[0] != 0 && new_timeout[0] < 1000) {
 			int i;
@@ -572,12 +572,12 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 			/* timeouts in msec rather usec */
 			for (i = 0; i != ARRAY_SIZE(new_timeout); i++)
 				new_timeout[i] *= 1000;
-			chip->vendor.timeout_adjusted = true;
+			chip->timeout_adjusted = true;
 		}
 	}
 
 	/* Report adjusted timeouts */
-	if (chip->vendor.timeout_adjusted) {
+	if (chip->timeout_adjusted) {
 		dev_info(&chip->dev,
 			 HW_ERR "Adjusting reported timeouts: A %lu->%luus B %lu->%luus C %lu->%luus D %lu->%luus\n",
 			 old_timeout[0], new_timeout[0],
@@ -586,10 +586,10 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 			 old_timeout[3], new_timeout[3]);
 	}
 
-	chip->vendor.timeout_a = usecs_to_jiffies(new_timeout[0]);
-	chip->vendor.timeout_b = usecs_to_jiffies(new_timeout[1]);
-	chip->vendor.timeout_c = usecs_to_jiffies(new_timeout[2]);
-	chip->vendor.timeout_d = usecs_to_jiffies(new_timeout[3]);
+	chip->timeout_a = usecs_to_jiffies(new_timeout[0]);
+	chip->timeout_b = usecs_to_jiffies(new_timeout[1]);
+	chip->timeout_c = usecs_to_jiffies(new_timeout[2]);
+	chip->timeout_d = usecs_to_jiffies(new_timeout[3]);
 
 duration:
 	tpm_cmd.header.in = tpm_getcap_header;
@@ -608,11 +608,11 @@ duration:
 		return -EINVAL;
 
 	duration_cap = &tpm_cmd.params.getcap_out.cap.duration;
-	chip->vendor.duration[TPM_SHORT] =
+	chip->duration[TPM_SHORT] =
 	    usecs_to_jiffies(be32_to_cpu(duration_cap->tpm_short));
-	chip->vendor.duration[TPM_MEDIUM] =
+	chip->duration[TPM_MEDIUM] =
 	    usecs_to_jiffies(be32_to_cpu(duration_cap->tpm_medium));
-	chip->vendor.duration[TPM_LONG] =
+	chip->duration[TPM_LONG] =
 	    usecs_to_jiffies(be32_to_cpu(duration_cap->tpm_long));
 
 	/* The Broadcom BCM0102 chipset in a Dell Latitude D820 gets the above
@@ -620,11 +620,11 @@ duration:
 	 * fix up the resulting too-small TPM_SHORT value to make things work.
 	 * We also scale the TPM_MEDIUM and -_LONG values by 1000.
 	 */
-	if (chip->vendor.duration[TPM_SHORT] < (HZ / 100)) {
-		chip->vendor.duration[TPM_SHORT] = HZ;
-		chip->vendor.duration[TPM_MEDIUM] *= 1000;
-		chip->vendor.duration[TPM_LONG] *= 1000;
-		chip->vendor.duration_adjusted = true;
+	if (chip->duration[TPM_SHORT] < (HZ / 100)) {
+		chip->duration[TPM_SHORT] = HZ;
+		chip->duration[TPM_MEDIUM] *= 1000;
+		chip->duration[TPM_LONG] *= 1000;
+		chip->duration_adjusted = true;
 		dev_info(&chip->dev, "Adjusting TPM timeout parameters.");
 	}
 	return 0;

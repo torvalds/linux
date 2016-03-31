@@ -792,7 +792,7 @@ unsigned long tpm2_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
 		index = tpm2_ordinal_duration[ordinal - TPM2_CC_FIRST];
 
 	if (index != TPM_UNDEFINED)
-		duration = chip->vendor.duration[index];
+		duration = chip->duration[index];
 
 	if (duration <= 0)
 		duration = 2 * 60 * HZ;
