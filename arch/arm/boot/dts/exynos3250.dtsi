@@ -43,6 +43,7 @@
 		i2c7 = &i2c_7;
 		serial0 = &serial_0;
 		serial1 = &serial_1;
+		serial2 = &serial_2;
 	};
 
 	cpus {
@@ -449,6 +450,17 @@
 			clock-names = "uart", "clk_uart_baud0";
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart1_data>;
+			status = "disabled";
+		};
+
+		serial_2: serial@13820000 {
+			compatible = "samsung,exynos4210-uart";
+			reg = <0x13820000 0x100>;
+			interrupts = <0 111 0>;
+			clocks = <&cmu CLK_UART2>, <&cmu CLK_SCLK_UART2>;
+			clock-names = "uart", "clk_uart_baud0";
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart2_data>;
 			status = "disabled";
 		};
 
