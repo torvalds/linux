@@ -1094,10 +1094,12 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 	mutex_lock(&local->sta_mtx);
 
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
+		unsigned long last_active = ieee80211_sta_last_active(sta);
+
 		if (sdata != sta->sdata)
 			continue;
 
-		if (time_after(jiffies, sta->rx_stats.last_rx + exp_time)) {
+		if (time_is_before_jiffies(last_active + exp_time)) {
 			sta_dbg(sta->sdata, "expiring inactive STA %pM\n",
 				sta->sta.addr);
 
@@ -2000,7 +2002,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 
 	sinfo->connected_time = ktime_get_seconds() - sta->last_connected;
 	sinfo->inactive_time =
-		jiffies_to_msecs(jiffies - sta->rx_stats.last_rx);
+		jiffies_to_msecs(jiffies - ieee80211_sta_last_active(sta));
 
 	if (!(sinfo->filled & (BIT(NL80211_STA_INFO_TX_BYTES64) |
 			       BIT(NL80211_STA_INFO_TX_BYTES)))) {
@@ -2185,4 +2187,11 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		sinfo->filled |= BIT(NL80211_STA_INFO_EXPECTED_THROUGHPUT);
 		sinfo->expected_throughput = thr;
 	}
+}
+
+unsigned long ieee80211_sta_last_active(struct sta_info *sta)
+{
+	if (time_after(sta->rx_stats.last_rx, sta->status_stats.last_ack))
+		return sta->rx_stats.last_rx;
+	return sta->status_stats.last_ack;
 }

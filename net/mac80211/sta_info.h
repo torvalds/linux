@@ -474,6 +474,7 @@ struct sta_info {
 		unsigned long last_tdls_pkt_time;
 		u64 msdu_retries[IEEE80211_NUM_TIDS + 1];
 		u64 msdu_failed[IEEE80211_NUM_TIDS + 1];
+		unsigned long last_ack;
 	} status_stats;
 
 	/* Updated from TX path only, no locking requirements */
@@ -679,5 +680,7 @@ u8 sta_info_tx_streams(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_uapsd(struct sta_info *sta);
+
+unsigned long ieee80211_sta_last_active(struct sta_info *sta);
 
 #endif /* STA_INFO_H */

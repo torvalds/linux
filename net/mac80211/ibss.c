@@ -668,10 +668,11 @@ static int ieee80211_sta_active_ibss(struct ieee80211_sub_if_data *sdata)
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		unsigned long last_active = ieee80211_sta_last_active(sta);
+
 		if (sta->sdata == sdata &&
-		    time_after(sta->rx_stats.last_rx +
-			       IEEE80211_IBSS_MERGE_INTERVAL,
-			       jiffies)) {
+		    time_is_after_jiffies(last_active +
+					  IEEE80211_IBSS_MERGE_INTERVAL)) {
 			active++;
 			break;
 		}
@@ -1255,11 +1256,13 @@ static void ieee80211_ibss_sta_expire(struct ieee80211_sub_if_data *sdata)
 	mutex_lock(&local->sta_mtx);
 
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
+		unsigned long last_active = ieee80211_sta_last_active(sta);
+
 		if (sdata != sta->sdata)
 			continue;
 
-		if (time_after(jiffies, sta->rx_stats.last_rx + exp_time) ||
-		    (time_after(jiffies, sta->rx_stats.last_rx + exp_rsn) &&
+		if (time_is_before_jiffies(last_active + exp_time) ||
+		    (time_is_before_jiffies(last_active + exp_rsn) &&
 		     sta->sta_state != IEEE80211_STA_AUTHORIZED)) {
 			sta_dbg(sta->sdata, "expiring inactive %sSTA %pM\n",
 				sta->sta_state != IEEE80211_STA_AUTHORIZED ?
