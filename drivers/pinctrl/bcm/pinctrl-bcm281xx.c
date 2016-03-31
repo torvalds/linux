@@ -1024,7 +1024,7 @@ static struct pinctrl_ops bcm281xx_pinctrl_ops = {
 	.get_group_pins = bcm281xx_pinctrl_get_group_pins,
 	.pin_dbg_show = bcm281xx_pinctrl_pin_dbg_show,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int bcm281xx_pinctrl_get_fcns_count(struct pinctrl_dev *pctldev)

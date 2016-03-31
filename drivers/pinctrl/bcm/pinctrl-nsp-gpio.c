@@ -363,7 +363,7 @@ static const struct pinctrl_ops nsp_pctrl_ops = {
 	.get_groups_count = nsp_get_groups_count,
 	.get_group_name = nsp_get_group_name,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int nsp_gpio_set_slew(struct nsp_gpio *chip, unsigned gpio, u16 slew)

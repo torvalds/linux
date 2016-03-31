@@ -579,7 +579,7 @@ static int atmel_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	}
 
 	if (ret < 0) {
-		pinctrl_utils_dt_free_map(pctldev, *map, *num_maps);
+		pinctrl_utils_free_map(pctldev, *map, *num_maps);
 		dev_err(pctldev->dev, "can't create maps for node %s\n",
 			np_config->full_name);
 	}
@@ -592,7 +592,7 @@ static const struct pinctrl_ops atmel_pctlops = {
 	.get_group_name		= atmel_pctl_get_group_name,
 	.get_group_pins		= atmel_pctl_get_group_pins,
 	.dt_node_to_map		= atmel_pctl_dt_node_to_map,
-	.dt_free_map		= pinctrl_utils_dt_free_map,
+	.dt_free_map		= pinctrl_utils_free_map,
 };
 
 static int atmel_pmx_get_functions_count(struct pinctrl_dev *pctldev)

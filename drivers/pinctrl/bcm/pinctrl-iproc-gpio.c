@@ -379,7 +379,7 @@ static const struct pinctrl_ops iproc_pctrl_ops = {
 	.get_groups_count = iproc_get_groups_count,
 	.get_group_name = iproc_get_group_name,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int iproc_gpio_set_pull(struct iproc_gpio *chip, unsigned gpio,

@@ -212,7 +212,7 @@ static const struct pinctrl_ops pmic_gpio_pinctrl_ops = {
 	.get_group_name		= pmic_gpio_get_group_name,
 	.get_group_pins		= pmic_gpio_get_group_pins,
 	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
-	.dt_free_map		= pinctrl_utils_dt_free_map,
+	.dt_free_map		= pinctrl_utils_free_map,
 };
 
 static int pmic_gpio_get_functions_count(struct pinctrl_dev *pctldev)
