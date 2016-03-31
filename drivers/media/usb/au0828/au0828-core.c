@@ -144,6 +144,7 @@ static void au0828_unregister_media_device(struct au0828_dev *dev)
 
 		media_device_unregister(dev->media_dev);
 		media_device_cleanup(dev->media_dev);
+		kfree(dev->media_dev);
 		dev->media_dev = NULL;
 	}
 #endif
@@ -197,7 +198,7 @@ static int au0828_media_device_init(struct au0828_dev *dev,
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev;
 
-	mdev = media_device_get_devres(&udev->dev);
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
 		return -ENOMEM;
 
