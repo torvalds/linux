@@ -150,6 +150,11 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 	while (ctx->pos < inode->i_size) {
 		struct ext4_map_blocks map;
 
+		if (fatal_signal_pending(current)) {
+			err = -ERESTARTSYS;
+			goto errout;
+		}
+		cond_resched();
 		map.m_lblk = ctx->pos >> EXT4_BLOCK_SIZE_BITS(sb);
 		map.m_len = 1;
 		err = ext4_map_blocks(NULL, inode, &map, 0);
