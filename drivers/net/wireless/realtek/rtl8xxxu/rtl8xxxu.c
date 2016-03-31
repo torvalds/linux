@@ -3283,7 +3283,7 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 		rtl8xxxu_write32(priv, REG_MAC_PHY_CTRL, val32);
 	}
 
-	if (priv->rtl_chip != RTL8723B) {
+	if (priv->rtl_chip != RTL8723B && priv->rtl_chip != RTL8192E) {
 		ldoa15 = LDOA15_ENABLE | LDOA15_OBUF;
 		ldov12d = LDOV12D_ENABLE | BIT(2) | (2 << LDOV12D_VADJ_SHIFT);
 		ldohci12 = 0x57;
