@@ -1512,6 +1512,7 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 	if ((mb = phba->sli.mbox_active)) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
+			ndlp->nlp_flag &= ~NLP_REG_LOGIN_SEND;
 			lpfc_nlp_put(ndlp);
 			mb->context2 = NULL;
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
@@ -1527,6 +1528,7 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 				__lpfc_mbuf_free(phba, mp->virt, mp->phys);
 				kfree(mp);
 			}
+			ndlp->nlp_flag &= ~NLP_REG_LOGIN_SEND;
 			lpfc_nlp_put(ndlp);
 			list_del(&mb->list);
 			phba->sli.mboxq_cnt--;
