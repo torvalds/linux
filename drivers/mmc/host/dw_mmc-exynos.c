@@ -91,10 +91,14 @@ static inline u8 dw_mci_exynos_get_ciu_div(struct dw_mci *host)
 		return SDMMC_CLKSEL_GET_DIV(mci_readl(host, CLKSEL)) + 1;
 }
 
-static int dw_mci_exynos_priv_init(struct dw_mci *host)
+static void dw_mci_exynos_config_smu(struct dw_mci *host)
 {
 	struct dw_mci_exynos_priv_data *priv = host->priv;
 
+	/*
+	 * If Exynos is provided the Security management,
+	 * set for non-ecryption mode at this time.
+	 */
 	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS5420_SMU ||
 		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU) {
 		mci_writel(host, MPSBEGIN0, 0);
@@ -104,6 +108,13 @@ static int dw_mci_exynos_priv_init(struct dw_mci *host)
 			   SDMMC_MPSCTRL_VALID |
 			   SDMMC_MPSCTRL_NON_SECURE_WRITE_BIT);
 	}
+}
+
+static int dw_mci_exynos_priv_init(struct dw_mci *host)
+{
+	struct dw_mci_exynos_priv_data *priv = host->priv;
+
+	dw_mci_exynos_config_smu(host);
 
 	if (priv->ctrl_type >= DW_MCI_TYPE_EXYNOS5420) {
 		priv->saved_strobe_ctrl = mci_readl(host, HS400_DLINE_CTRL);
@@ -169,7 +180,7 @@ static int dw_mci_exynos_resume(struct device *dev)
 {
 	struct dw_mci *host = dev_get_drvdata(dev);
 
-	dw_mci_exynos_priv_init(host);
+	dw_mci_exynos_config_smu(host);
 	return dw_mci_resume(host);
 }
 
