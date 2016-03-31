@@ -40,8 +40,6 @@
 #ifndef __LIBCFS_PRIM_H__
 #define __LIBCFS_PRIM_H__
 
-void add_wait_queue_exclusive_head(wait_queue_head_t *, wait_queue_t *);
-
 /*
  * Memory
  */

@@ -522,6 +522,28 @@ struct l_wait_info {
 			   sigmask(SIGTERM) | sigmask(SIGQUIT) |	\
 			   sigmask(SIGALRM))
 
+/**
+ * wait_queue_t of Linux (version < 2.6.34) is a FIFO list for exclusively
+ * waiting threads, which is not always desirable because all threads will
+ * be waken up again and again, even user only needs a few of them to be
+ * active most time. This is not good for performance because cache can
+ * be polluted by different threads.
+ *
+ * LIFO list can resolve this problem because we always wakeup the most
+ * recent active thread by default.
+ *
+ * NB: please don't call non-exclusive & exclusive wait on the same
+ * waitq if add_wait_queue_exclusive_head is used.
+ */
+#define add_wait_queue_exclusive_head(waitq, link)		\
+{								\
+	unsigned long flags;					\
+								\
+	spin_lock_irqsave(&((waitq)->lock), flags);		\
+	__add_wait_queue_exclusive(waitq, link);		\
+	spin_unlock_irqrestore(&((waitq)->lock), flags);	\
+}
+
 /*
  * wait for @condition to become true, but no longer than timeout, specified
  * by @info.
