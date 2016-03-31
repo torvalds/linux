@@ -65,9 +65,4 @@
 #define NUM_CACHEPAGES totalram_pages
 #endif
 
-#define DECL_MMSPACE		mm_segment_t __oldfs
-#define MMSPACE_OPEN \
-	do { __oldfs = get_fs(); set_fs(get_ds()); } while (0)
-#define MMSPACE_CLOSE	       set_fs(__oldfs)
-
 #endif /* __LINUX_CFS_MEM_H__ */
