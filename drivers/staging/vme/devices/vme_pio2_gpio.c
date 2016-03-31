@@ -97,7 +97,7 @@ static void pio2_gpio_set(struct gpio_chip *chip,
 }
 
 /* Directionality configured at board build - send appropriate response */
-static int pio2_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
+static int pio2_gpio_dir_in(struct gpio_chip *chip, unsigned int offset)
 {
 	int data;
 	struct pio2_card *card = gpio_to_pio2_card(chip);
@@ -116,7 +116,8 @@ static int pio2_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
 }
 
 /* Directionality configured at board build - send appropriate response */
-static int pio2_gpio_dir_out(struct gpio_chip *chip, unsigned offset, int value)
+static int pio2_gpio_dir_out(struct gpio_chip *chip,
+			     unsigned int offset, int value)
 {
 	int data;
 	struct pio2_card *card = gpio_to_pio2_card(chip);
