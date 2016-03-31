@@ -121,7 +121,7 @@ static const struct pinctrl_ops uniphier_pctlops = {
 	.pin_dbg_show = uniphier_pctl_pin_dbg_show,
 #endif
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int uniphier_conf_pin_bias_get(struct pinctrl_dev *pctldev,

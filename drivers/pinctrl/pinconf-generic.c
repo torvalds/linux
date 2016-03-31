@@ -385,7 +385,7 @@ int pinconf_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
 	return 0;
 
 exit:
-	pinctrl_utils_dt_free_map(pctldev, *map, *num_maps);
+	pinctrl_utils_free_map(pctldev, *map, *num_maps);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pinconf_generic_dt_node_to_map);

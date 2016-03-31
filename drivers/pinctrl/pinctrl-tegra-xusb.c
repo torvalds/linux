@@ -265,7 +265,7 @@ static const struct pinctrl_ops tegra_xusb_padctl_pinctrl_ops = {
 	.get_group_name = tegra_xusb_padctl_get_group_name,
 	.get_group_pins = tegra_xusb_padctl_get_group_pins,
 	.dt_node_to_map = tegra_xusb_padctl_dt_node_to_map,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int tegra_xusb_padctl_get_functions_count(struct pinctrl_dev *pinctrl)

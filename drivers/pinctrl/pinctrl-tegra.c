@@ -215,7 +215,7 @@ static int tegra_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		ret = tegra_pinctrl_dt_subnode_to_map(pctldev, np, map,
 						      &reserved_maps, num_maps);
 		if (ret < 0) {
-			pinctrl_utils_dt_free_map(pctldev, *map,
+			pinctrl_utils_free_map(pctldev, *map,
 				*num_maps);
 			return ret;
 		}
@@ -232,7 +232,7 @@ static const struct pinctrl_ops tegra_pinctrl_ops = {
 	.pin_dbg_show = tegra_pinctrl_pin_dbg_show,
 #endif
 	.dt_node_to_map = tegra_pinctrl_dt_node_to_map,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int tegra_pinctrl_get_funcs_count(struct pinctrl_dev *pctldev)

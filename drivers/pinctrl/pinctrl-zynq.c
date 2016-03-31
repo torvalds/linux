@@ -862,7 +862,7 @@ static const struct pinctrl_ops zynq_pctrl_ops = {
 	.get_group_name = zynq_pctrl_get_group_name,
 	.get_group_pins = zynq_pctrl_get_group_pins,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 /* pinmux */
