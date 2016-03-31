@@ -648,6 +648,26 @@ static ssize_t altr_edac_device_trig(struct file *file,
 	return count;
 }
 
+/*
+ *  Test for memory's ECC dependencies upon entry because platform specific
+ *  startup should have initialized the memory and enabled the ECC.
+ *  Can't turn on ECC here because accessing un-initialized memory will
+ *  cause CE/UE errors possibly causing an ABORT.
+ */
+static int altr_check_ecc_deps(struct altr_edac_device_dev *device)
+{
+	void __iomem  *base = device->base;
+	const struct edac_device_prv_data *prv = device->data;
+
+	if (readl(base + prv->ecc_en_ofst) & prv->ecc_enable_mask)
+		return 0;
+
+	edac_printk(KERN_ERR, EDAC_DEVICE,
+		    "%s: No ECC present or ECC disabled.\n",
+		    device->edac_dev_name);
+	return -ENODEV;
+}
+
 static const struct file_operations altr_edac_device_inject_fops = {
 	.open = simple_open,
 	.write = altr_edac_device_trig,
@@ -853,29 +873,8 @@ static void ocram_free_mem(void *p, size_t size, void *other)
 	gen_pool_free((struct gen_pool *)other, (u32)p, size);
 }
 
-/*
- * altr_ocram_check_deps()
- *	Test for OCRAM cache ECC dependencies upon entry because
- *	platform specific startup should have initialized the
- *	On-Chip RAM memory and enabled the ECC.
- *	Can't turn on ECC here because accessing un-initialized
- *	memory will cause CE/UE errors possibly causing an ABORT.
- */
-static int altr_ocram_check_deps(struct altr_edac_device_dev *device)
-{
-	void __iomem  *base = device->base;
-	const struct edac_device_prv_data *prv = device->data;
-
-	if (readl(base + prv->ecc_en_ofst) & prv->ecc_enable_mask)
-		return 0;
-
-	edac_printk(KERN_ERR, EDAC_DEVICE,
-		    "OCRAM: No ECC present or ECC disabled.\n");
-	return -ENODEV;
-}
-
 const struct edac_device_prv_data ocramecc_data = {
-	.setup = altr_ocram_check_deps,
+	.setup = altr_check_ecc_deps,
 	.ce_clear_mask = (ALTR_OCR_ECC_EN | ALTR_OCR_ECC_SERR),
 	.ue_clear_mask = (ALTR_OCR_ECC_EN | ALTR_OCR_ECC_DERR),
 	.dbgfs_name = "altr_ocram_trigger",
