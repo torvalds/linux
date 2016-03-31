@@ -102,6 +102,10 @@ EXPORT_SYMBOL(amdtp_stream_init);
  */
 void amdtp_stream_destroy(struct amdtp_stream *s)
 {
+	/* Not initialized. */
+	if (s->protocol == NULL)
+		return;
+
 	WARN_ON(amdtp_stream_running(s));
 	kfree(s->protocol);
 	mutex_destroy(&s->mutex);

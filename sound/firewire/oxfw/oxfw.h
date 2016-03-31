@@ -39,6 +39,9 @@ struct snd_oxfw {
 	struct mutex mutex;
 	spinlock_t lock;
 
+	bool registered;
+	struct delayed_work dwork;
+
 	bool wrong_dbs;
 	bool has_output;
 	u8 *tx_stream_formats[SND_OXFW_STREAM_FORMAT_ENTRIES];
