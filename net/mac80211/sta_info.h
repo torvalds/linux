@@ -1,7 +1,7 @@
 /*
  * Copyright 2002-2005, Devicescape Software, Inc.
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2015-2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -452,10 +452,7 @@ struct sta_info {
 		int last_signal;
 		u8 chains;
 		s8 chain_signal_last[IEEE80211_MAX_CHAINS];
-		int last_rate_idx;
-		u32 last_rate_flag;
-		u32 last_rate_vht_flag;
-		u8 last_rate_vht_nss;
+		u16 last_rate;
 		u64 msdu[IEEE80211_NUM_TIDS + 1];
 	} rx_stats;
 	struct {
@@ -682,5 +679,43 @@ void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_uapsd(struct sta_info *sta);
 
 unsigned long ieee80211_sta_last_active(struct sta_info *sta);
+
+#define STA_STATS_RATE_INVALID		0
+#define STA_STATS_RATE_VHT		0x8000
+#define STA_STATS_RATE_HT		0x4000
+#define STA_STATS_RATE_LEGACY		0x2000
+#define STA_STATS_RATE_SGI		0x1000
+#define STA_STATS_RATE_BW_SHIFT		9
+#define STA_STATS_RATE_BW_MASK		(0x7 << STA_STATS_RATE_BW_SHIFT)
+
+static inline u16 sta_stats_encode_rate(struct ieee80211_rx_status *s)
+{
+	u16 r = s->rate_idx;
+
+	if (s->vht_flag & RX_VHT_FLAG_80MHZ)
+		r |= RATE_INFO_BW_80 << STA_STATS_RATE_BW_SHIFT;
+	else if (s->vht_flag & RX_VHT_FLAG_160MHZ)
+		r |= RATE_INFO_BW_160 << STA_STATS_RATE_BW_SHIFT;
+	else if (s->flag & RX_FLAG_40MHZ)
+		r |= RATE_INFO_BW_40 << STA_STATS_RATE_BW_SHIFT;
+	else if (s->flag & RX_FLAG_10MHZ)
+		r |= RATE_INFO_BW_10 << STA_STATS_RATE_BW_SHIFT;
+	else if (s->flag & RX_FLAG_5MHZ)
+		r |= RATE_INFO_BW_5 << STA_STATS_RATE_BW_SHIFT;
+	else
+		r |= RATE_INFO_BW_20 << STA_STATS_RATE_BW_SHIFT;
+
+	if (s->flag & RX_FLAG_SHORT_GI)
+		r |= STA_STATS_RATE_SGI;
+
+	if (s->flag & RX_FLAG_VHT)
+		r |= STA_STATS_RATE_VHT | (s->vht_nss << 4);
+	else if (s->flag & RX_FLAG_HT)
+		r |= STA_STATS_RATE_HT;
+	else
+		r |= STA_STATS_RATE_LEGACY | (s->band << 4);
+
+	return r;
+}
 
 #endif /* STA_INFO_H */
