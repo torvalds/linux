@@ -475,6 +475,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_SMARTMIPS
 	select SYS_SUPPORTS_ZBOOT
+	select SYS_SUPPORTS_RELOCATABLE
 	select USE_OF
 	select ZONE_DMA32 if 64BIT
 	select BUILTIN_DTB
@@ -519,6 +520,7 @@ config MIPS_SEAD3
 	select SYS_SUPPORTS_SMARTMIPS
 	select SYS_SUPPORTS_MICROMIPS
 	select SYS_SUPPORTS_MIPS16
+	select SYS_SUPPORTS_RELOCATABLE
 	select USB_EHCI_BIG_ENDIAN_DESC
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	select USE_OF
@@ -1157,6 +1159,13 @@ config ISA_DMA_API
 
 config HOLES_IN_ZONE
 	bool
+
+config SYS_SUPPORTS_RELOCATABLE
+	bool
+	help
+	 Selected if the platform supports relocating the kernel.
+	 The platform must provide plat_get_fdt() if it selects CONFIG_USE_OF
+	 to allow access to command line and entropy sources.
 
 #
 # Endianness selection.  Sufficiently obscure so many users don't know what to
@@ -2472,6 +2481,15 @@ config NUMA
 
 config SYS_SUPPORTS_NUMA
 	bool
+
+config RELOCATABLE
+	bool "Relocatable kernel"
+	depends on SYS_SUPPORTS_RELOCATABLE && (CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_MIPS32_R6 || CPU_MIPS64_R6)
+	help
+	  This builds a kernel image that retains relocation information
+	  so it can be loaded someplace besides the default 1MB.
+	  The relocations make the kernel binary about 15% larger,
+	  but are discarded at runtime
 
 config RELOCATION_TABLE_SIZE
 	hex "Relocation table size"
