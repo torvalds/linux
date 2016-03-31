@@ -613,20 +613,12 @@ visordriver_remove_device(struct device *xdev)
 	drv = to_visor_driver(xdev->driver);
 	down(&dev->visordriver_callback_lock);
 	dev->being_removed = true;
-	/*
-	 * ensure that the dev->being_removed flag is set before we start the
-	 * actual removal
-	 */
-	wmb();
-	if (drv) {
-		if (drv->remove)
-			drv->remove(dev);
-	}
+	if (drv->remove)
+		drv->remove(dev);
 	up(&dev->visordriver_callback_lock);
 	dev_stop_periodic_work(dev);
 
 	put_device(&dev->device);
-
 	return 0;
 }
 
