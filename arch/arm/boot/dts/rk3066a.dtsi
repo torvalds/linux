@@ -169,7 +169,7 @@
 		clocks = <&cru PCLK_EFUSE>;
 		clock-names = "pclk_efuse";
 
-		cpu_leakage: cpu_leakage {
+		cpu_leakage: cpu_leakage@17 {
 			reg = <0x17 0x1>;
 		};
 	};
