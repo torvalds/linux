@@ -8,15 +8,20 @@
  * Copyright (C) 2015, Imagination Technologies Ltd.
  * Authors: Matt Redfearn (matt.redfearn@imgtec.com)
  */
+#include <asm/bootinfo.h>
 #include <asm/cacheflush.h>
+#include <asm/fw/fw.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/timex.h>
 #include <linux/elf.h>
 #include <linux/kernel.h>
+#include <linux/libfdt.h>
+#include <linux/of_fdt.h>
 #include <linux/sched.h>
 #include <linux/start_kernel.h>
 #include <linux/string.h>
+#include <linux/printk.h>
 
 #define RELOCATED(x) ((void *)((long)x + offset))
 
@@ -165,6 +170,94 @@ static int __init relocate_exception_table(long offset)
 	return 0;
 }
 
+#ifdef CONFIG_RANDOMIZE_BASE
+
+static inline __init unsigned long rotate_xor(unsigned long hash,
+					      const void *area, size_t size)
+{
+	size_t i;
+	unsigned long *ptr = (unsigned long *)area;
+
+	for (i = 0; i < size / sizeof(hash); i++) {
+		/* Rotate by odd number of bits and XOR. */
+		hash = (hash << ((sizeof(hash) * 8) - 7)) | (hash >> 7);
+		hash ^= ptr[i];
+	}
+
+	return hash;
+}
+
+static inline __init unsigned long get_random_boot(void)
+{
+	unsigned long entropy = random_get_entropy();
+	unsigned long hash = 0;
+
+	/* Attempt to create a simple but unpredictable starting entropy. */
+	hash = rotate_xor(hash, linux_banner, strlen(linux_banner));
+
+	/* Add in any runtime entropy we can get */
+	hash = rotate_xor(hash, &entropy, sizeof(entropy));
+
+#if defined(CONFIG_USE_OF)
+	/* Get any additional entropy passed in device tree */
+	{
+		int node, len;
+		u64 *prop;
+
+		node = fdt_path_offset(initial_boot_params, "/chosen");
+		if (node >= 0) {
+			prop = fdt_getprop_w(initial_boot_params, node,
+					     "kaslr-seed", &len);
+			if (prop && (len == sizeof(u64)))
+				hash = rotate_xor(hash, prop, sizeof(*prop));
+		}
+	}
+#endif /* CONFIG_USE_OF */
+
+	return hash;
+}
+
+static inline __init bool kaslr_disabled(void)
+{
+	char *str;
+
+#if defined(CONFIG_CMDLINE_BOOL)
+	const char *builtin_cmdline = CONFIG_CMDLINE;
+
+	str = strstr(builtin_cmdline, "nokaslr");
+	if (str == builtin_cmdline ||
+	    (str > builtin_cmdline && *(str - 1) == ' '))
+		return true;
+#endif
+	str = strstr(arcs_cmdline, "nokaslr");
+	if (str == arcs_cmdline || (str > arcs_cmdline && *(str - 1) == ' '))
+		return true;
+
+	return false;
+}
+
+static inline void __init *determine_relocation_address(void)
+{
+	/* Choose a new address for the kernel */
+	unsigned long kernel_length;
+	void *dest = &_text;
+	unsigned long offset;
+
+	if (kaslr_disabled())
+		return dest;
+
+	kernel_length = (long)_end - (long)(&_text);
+
+	offset = get_random_boot() << 16;
+	offset &= (CONFIG_RANDOMIZE_BASE_MAX_OFFSET - 1);
+	if (offset < kernel_length)
+		offset += ALIGN(kernel_length, 0xffff);
+
+	return RELOCATED(dest);
+}
+
+#else
+
 static inline void __init *determine_relocation_address(void)
 {
 	/*
@@ -173,6 +266,8 @@ static inline void __init *determine_relocation_address(void)
 	 */
 	return (void *)0xffffffff81000000;
 }
+
+#endif
 
 static inline int __init relocation_addr_valid(void *loc_new)
 {
@@ -197,6 +292,17 @@ void *__init relocate_kernel(void)
 	/* Default to original kernel entry point */
 	void *kernel_entry = start_kernel;
 
+	/* Get the command line */
+	fw_init_cmdline();
+#if defined(CONFIG_USE_OF)
+	/* Deal with the device tree */
+	early_init_dt_scan(plat_get_fdt());
+	if (boot_command_line[0]) {
+		/* Boot command line was passed in device tree */
+		strlcpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);
+	}
+#endif /* CONFIG_USE_OF */
+
 	kernel_length = (long)(&_relocation_start) - (long)(&_text);
 	bss_length = (long)&__bss_stop - (long)&__bss_start;
 
@@ -205,6 +311,9 @@ void *__init relocate_kernel(void)
 	/* Sanity check relocation address */
 	if (relocation_addr_valid(loc_new))
 		offset = (unsigned long)loc_new - (unsigned long)(&_text);
+
+	/* Reset the command line now so we don't end up with a duplicate */
+	arcs_cmdline[0] = '\0';
 
 	if (offset) {
 		/* Copy the kernel to it's new location */
@@ -238,3 +347,40 @@ void *__init relocate_kernel(void)
 out:
 	return kernel_entry;
 }
+
+/*
+ * Show relocation information on panic.
+ */
+void show_kernel_relocation(const char *level)
+{
+	unsigned long offset;
+
+	offset = __pa_symbol(_text) - __pa_symbol(VMLINUX_LOAD_ADDRESS);
+
+	if (IS_ENABLED(CONFIG_RELOCATABLE) && offset > 0) {
+		printk(level);
+		pr_cont("Kernel relocated by 0x%pK\n", (void *)offset);
+		pr_cont(" .text @ 0x%pK\n", _text);
+		pr_cont(" .data @ 0x%pK\n", _sdata);
+		pr_cont(" .bss  @ 0x%pK\n", __bss_start);
+	}
+}
+
+static int kernel_location_notifier_fn(struct notifier_block *self,
+				       unsigned long v, void *p)
+{
+	show_kernel_relocation(KERN_EMERG);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block kernel_location_notifier = {
+	.notifier_call = kernel_location_notifier_fn
+};
+
+static int __init register_kernel_offset_dumper(void)
+{
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &kernel_location_notifier);
+	return 0;
+}
+__initcall(register_kernel_offset_dumper);

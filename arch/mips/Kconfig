@@ -2507,6 +2507,36 @@ config RELOCATION_TABLE_SIZE
 
 	  If unsure, leave at the default value.
 
+config RANDOMIZE_BASE
+	bool "Randomize the address of the kernel image"
+	depends on RELOCATABLE
+	---help---
+	   Randomizes the physical and virtual address at which the
+	   kernel image is loaded, as a security feature that
+	   deters exploit attempts relying on knowledge of the location
+	   of kernel internals.
+
+	   Entropy is generated using any coprocessor 0 registers available.
+
+	   The kernel will be offset by up to RANDOMIZE_BASE_MAX_OFFSET.
+
+	   If unsure, say N.
+
+config RANDOMIZE_BASE_MAX_OFFSET
+	hex "Maximum kASLR offset" if EXPERT
+	depends on RANDOMIZE_BASE
+	range 0x0 0x40000000 if EVA || 64BIT
+	range 0x0 0x08000000
+	default "0x01000000"
+	---help---
+	  When kASLR is active, this provides the maximum offset that will
+	  be applied to the kernel image. It should be set according to the
+	  amount of physical RAM available in the target system minus
+	  PHYSICAL_START and must be a power of 2.
+
+	  This is limited by the size of KSEG0, 256Mb on 32-bit or 1Gb with
+	  EVA or 64-bit. The default is 16Mb.
+
 config NODES_SHIFT
 	int
 	default "6"
