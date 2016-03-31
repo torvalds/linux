@@ -25,6 +25,7 @@ struct st33zp24_dev {
 	struct tpm_chip *chip;
 	void *phy_id;
 	const struct st33zp24_phy_ops *ops;
+	int locality;
 	int irq;
 	u32 intrs;
 	int io_lpcpd;

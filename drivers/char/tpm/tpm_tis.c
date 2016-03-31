@@ -96,6 +96,7 @@ struct tpm_info {
 struct priv_data {
 	void __iomem *iobase;
 	u16 manufacturer_id;
+	int locality;
 	int irq;
 	bool irq_tested;
 	wait_queue_head_t int_queue;
@@ -149,7 +150,7 @@ static int check_locality(struct tpm_chip *chip, int l)
 	if ((ioread8(priv->iobase + TPM_ACCESS(l)) &
 	     (TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID)) ==
 	    (TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID))
-		return chip->vendor.locality = l;
+		return priv->locality = l;
 
 	return -1;
 }
@@ -211,7 +212,7 @@ static u8 tpm_tis_status(struct tpm_chip *chip)
 	struct priv_data *priv = chip->vendor.priv;
 
 	return ioread8(priv->iobase +
-		       TPM_STS(chip->vendor.locality));
+		       TPM_STS(priv->locality));
 }
 
 static void tpm_tis_ready(struct tpm_chip *chip)
@@ -220,7 +221,7 @@ static void tpm_tis_ready(struct tpm_chip *chip)
 
 	/* this causes the current command to be aborted */
 	iowrite8(TPM_STS_COMMAND_READY,
-		 priv->iobase + TPM_STS(chip->vendor.locality));
+		 priv->iobase + TPM_STS(priv->locality));
 }
 
 static int get_burstcount(struct tpm_chip *chip)
@@ -234,9 +235,9 @@ static int get_burstcount(struct tpm_chip *chip)
 	stop = jiffies + chip->vendor.timeout_d;
 	do {
 		burstcnt = ioread8(priv->iobase +
-				   TPM_STS(chip->vendor.locality) + 1);
+				   TPM_STS(priv->locality) + 1);
 		burstcnt += ioread8(priv->iobase +
-				    TPM_STS(chip->vendor.locality) +
+				    TPM_STS(priv->locality) +
 				    2) << 8;
 		if (burstcnt)
 			return burstcnt;
@@ -258,8 +259,7 @@ static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 		burstcnt = get_burstcount(chip);
 		for (; burstcnt > 0 && size < count; burstcnt--)
 			buf[size++] = ioread8(priv->iobase +
-					      TPM_DATA_FIFO(chip->vendor.
-							    locality));
+					      TPM_DATA_FIFO(priv->locality));
 	}
 	return size;
 }
@@ -307,7 +307,7 @@ static int tpm_tis_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 
 out:
 	tpm_tis_ready(chip);
-	release_locality(chip, chip->vendor.locality, 0);
+	release_locality(chip, priv->locality, 0);
 	return size;
 }
 
@@ -344,7 +344,7 @@ static int tpm_tis_send_data(struct tpm_chip *chip, u8 *buf, size_t len)
 		burstcnt = get_burstcount(chip);
 		for (; burstcnt > 0 && count < len - 1; burstcnt--) {
 			iowrite8(buf[count], priv->iobase +
-				 TPM_DATA_FIFO(chip->vendor.locality));
+				 TPM_DATA_FIFO(priv->locality));
 			count++;
 		}
 
@@ -359,7 +359,7 @@ static int tpm_tis_send_data(struct tpm_chip *chip, u8 *buf, size_t len)
 
 	/* write last byte */
 	iowrite8(buf[count],
-		 priv->iobase + TPM_DATA_FIFO(chip->vendor.locality));
+		 priv->iobase + TPM_DATA_FIFO(priv->locality));
 	wait_for_tpm_stat(chip, TPM_STS_VALID, chip->vendor.timeout_c,
 			  &priv->int_queue, false);
 	status = tpm_tis_status(chip);
@@ -372,7 +372,7 @@ static int tpm_tis_send_data(struct tpm_chip *chip, u8 *buf, size_t len)
 
 out_err:
 	tpm_tis_ready(chip);
-	release_locality(chip, chip->vendor.locality, 0);
+	release_locality(chip, priv->locality, 0);
 	return rc;
 }
 
@@ -383,10 +383,10 @@ static void disable_interrupts(struct tpm_chip *chip)
 
 	intmask =
 	    ioread32(priv->iobase +
-		     TPM_INT_ENABLE(chip->vendor.locality));
+		     TPM_INT_ENABLE(priv->locality));
 	intmask &= ~TPM_GLOBAL_INT_ENABLE;
 	iowrite32(intmask,
-		  priv->iobase + TPM_INT_ENABLE(chip->vendor.locality));
+		  priv->iobase + TPM_INT_ENABLE(priv->locality));
 	devm_free_irq(&chip->dev, priv->irq, chip);
 	priv->irq = 0;
 	chip->flags &= ~TPM_CHIP_FLAG_IRQ;
@@ -410,7 +410,7 @@ static int tpm_tis_send_main(struct tpm_chip *chip, u8 *buf, size_t len)
 
 	/* go and do it */
 	iowrite8(TPM_STS_GO,
-		 priv->iobase + TPM_STS(chip->vendor.locality));
+		 priv->iobase + TPM_STS(priv->locality));
 
 	if (chip->flags & TPM_CHIP_FLAG_IRQ) {
 		ordinal = be32_to_cpu(*((__be32 *) (buf + 6)));
@@ -430,7 +430,7 @@ static int tpm_tis_send_main(struct tpm_chip *chip, u8 *buf, size_t len)
 	return len;
 out_err:
 	tpm_tis_ready(chip);
-	release_locality(chip, chip->vendor.locality, 0);
+	release_locality(chip, priv->locality, 0);
 	return rc;
 }
 
@@ -516,7 +516,7 @@ static int probe_itpm(struct tpm_chip *chip)
 		goto out;
 
 	tpm_tis_ready(chip);
-	release_locality(chip, chip->vendor.locality, 0);
+	release_locality(chip, priv->locality, 0);
 
 	itpm = true;
 
@@ -530,7 +530,7 @@ static int probe_itpm(struct tpm_chip *chip)
 out:
 	itpm = rem_itpm;
 	tpm_tis_ready(chip);
-	release_locality(chip, chip->vendor.locality, 0);
+	release_locality(chip, priv->locality, 0);
 
 	return rc;
 }
@@ -569,7 +569,7 @@ static irqreturn_t tis_int_handler(int dummy, void *dev_id)
 	int i;
 
 	interrupt = ioread32(priv->iobase +
-			     TPM_INT_STATUS(chip->vendor.locality));
+			     TPM_INT_STATUS(priv->locality));
 
 	if (interrupt == 0)
 		return IRQ_NONE;
@@ -589,8 +589,8 @@ static irqreturn_t tis_int_handler(int dummy, void *dev_id)
 	/* Clear interrupts handled with TPM_EOI */
 	iowrite32(interrupt,
 		  priv->iobase +
-		  TPM_INT_STATUS(chip->vendor.locality));
-	ioread32(priv->iobase + TPM_INT_STATUS(chip->vendor.locality));
+		  TPM_INT_STATUS(priv->locality));
+	ioread32(priv->iobase + TPM_INT_STATUS(priv->locality));
 	return IRQ_HANDLED;
 }
 
@@ -613,18 +613,18 @@ static int tpm_tis_probe_irq_single(struct tpm_chip *chip, u32 intmask,
 	priv->irq = irq;
 
 	original_int_vec = ioread8(priv->iobase +
-				   TPM_INT_VECTOR(chip->vendor.locality));
+				   TPM_INT_VECTOR(priv->locality));
 	iowrite8(irq,
-		 priv->iobase + TPM_INT_VECTOR(chip->vendor.locality));
+		 priv->iobase + TPM_INT_VECTOR(priv->locality));
 
 	/* Clear all existing */
 	iowrite32(ioread32(priv->iobase +
-			   TPM_INT_STATUS(chip->vendor.locality)),
-		  priv->iobase + TPM_INT_STATUS(chip->vendor.locality));
+			   TPM_INT_STATUS(priv->locality)),
+		  priv->iobase + TPM_INT_STATUS(priv->locality));
 
 	/* Turn on */
 	iowrite32(intmask | TPM_GLOBAL_INT_ENABLE,
-		  priv->iobase + TPM_INT_ENABLE(chip->vendor.locality));
+		  priv->iobase + TPM_INT_ENABLE(priv->locality));
 
 	priv->irq_tested = false;
 
@@ -641,7 +641,7 @@ static int tpm_tis_probe_irq_single(struct tpm_chip *chip, u32 intmask,
 	 */
 	if (!(chip->flags & TPM_CHIP_FLAG_IRQ)) {
 		iowrite8(original_int_vec,
-			 priv->iobase + TPM_INT_VECTOR(chip->vendor.locality));
+			 priv->iobase + TPM_INT_VECTOR(priv->locality));
 		return 1;
 	}
 
@@ -659,7 +659,7 @@ static void tpm_tis_probe_irq(struct tpm_chip *chip, u32 intmask)
 	int i;
 
 	original_int_vec = ioread8(priv->iobase +
-				   TPM_INT_VECTOR(chip->vendor.locality));
+				   TPM_INT_VECTOR(priv->locality));
 
 	if (!original_int_vec) {
 		if (IS_ENABLED(CONFIG_X86))
@@ -679,11 +679,10 @@ MODULE_PARM_DESC(interrupts, "Enable interrupts");
 static void tpm_tis_remove(struct tpm_chip *chip)
 {
 	struct priv_data *priv = chip->vendor.priv;
-	void __iomem *reg = priv->iobase +
-		TPM_INT_ENABLE(chip->vendor.locality);
+	void __iomem *reg = priv->iobase + TPM_INT_ENABLE(priv->locality);
 
 	iowrite32(~TPM_GLOBAL_INT_ENABLE & ioread32(reg), reg);
-	release_locality(chip, chip->vendor.locality, 1);
+	release_locality(chip, priv->locality, 1);
 }
 
 static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
@@ -724,12 +723,12 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 
 	/* Take control of the TPM's interrupt hardware and shut it off */
 	intmask = ioread32(priv->iobase +
-			   TPM_INT_ENABLE(chip->vendor.locality));
+			   TPM_INT_ENABLE(priv->locality));
 	intmask |= TPM_INTF_CMD_READY_INT | TPM_INTF_LOCALITY_CHANGE_INT |
 		   TPM_INTF_DATA_AVAIL_INT | TPM_INTF_STS_VALID_INT;
 	intmask &= ~TPM_GLOBAL_INT_ENABLE;
 	iowrite32(intmask,
-		  priv->iobase + TPM_INT_ENABLE(chip->vendor.locality));
+		  priv->iobase + TPM_INT_ENABLE(priv->locality));
 
 	if (request_locality(chip, 0) != 0) {
 		rc = -ENODEV;
@@ -763,7 +762,7 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 	/* Figure out the capabilities */
 	intfcaps =
 	    ioread32(priv->iobase +
-		     TPM_INTF_CAPS(chip->vendor.locality));
+		     TPM_INTF_CAPS(priv->locality));
 	dev_dbg(dev, "TPM interface capabilities (0x%x):\n",
 		intfcaps);
 	if (intfcaps & TPM_INTF_BURST_COUNT_STATIC)
@@ -847,17 +846,17 @@ static void tpm_tis_reenable_interrupts(struct tpm_chip *chip)
 	/* reenable interrupts that device may have lost or
 	   BIOS/firmware may have disabled */
 	iowrite8(priv->irq, priv->iobase +
-		 TPM_INT_VECTOR(chip->vendor.locality));
+		 TPM_INT_VECTOR(priv->locality));
 
 	intmask =
-	    ioread32(priv->iobase + TPM_INT_ENABLE(chip->vendor.locality));
+	    ioread32(priv->iobase + TPM_INT_ENABLE(priv->locality));
 
 	intmask |= TPM_INTF_CMD_READY_INT
 	    | TPM_INTF_LOCALITY_CHANGE_INT | TPM_INTF_DATA_AVAIL_INT
 	    | TPM_INTF_STS_VALID_INT | TPM_GLOBAL_INT_ENABLE;
 
 	iowrite32(intmask,
-		  priv->iobase + TPM_INT_ENABLE(chip->vendor.locality));
+		  priv->iobase + TPM_INT_ENABLE(priv->locality));
 }
 
 static int tpm_tis_resume(struct device *dev)

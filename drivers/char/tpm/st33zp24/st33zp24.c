@@ -136,7 +136,7 @@ static int check_locality(struct tpm_chip *chip)
 	if (status && (data &
 		(TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID)) ==
 		(TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID))
-		return chip->vendor.locality;
+		return tpm_dev->locality;
 
 	return -EACCES;
 } /* check_locality() */
@@ -153,10 +153,10 @@ static int request_locality(struct tpm_chip *chip)
 	struct st33zp24_dev *tpm_dev;
 	u8 data;
 
-	if (check_locality(chip) == chip->vendor.locality)
-		return chip->vendor.locality;
-
 	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
+
+	if (check_locality(chip) == tpm_dev->locality)
+		return tpm_dev->locality;
 
 	data = TPM_ACCESS_REQUEST_USE;
 	ret = tpm_dev->ops->send(tpm_dev->phy_id, TPM_ACCESS, &data, 1);
@@ -168,7 +168,7 @@ static int request_locality(struct tpm_chip *chip)
 	/* Request locality is usually effective after the request */
 	do {
 		if (check_locality(chip) >= 0)
-			return chip->vendor.locality;
+			return tpm_dev->locality;
 		msleep(TPM_TIMEOUT);
 	} while (time_before(jiffies, stop));
 
@@ -566,7 +566,7 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 	chip->vendor.timeout_c = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
 	chip->vendor.timeout_d = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
 
-	chip->vendor.locality = LOCALITY0;
+	tpm_dev->locality = LOCALITY0;
 
 	if (irq) {
 		/* INTERRUPT Setup */

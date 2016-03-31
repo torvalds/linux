@@ -66,6 +66,7 @@ enum i2c_chip_type {
 /* Structure to store I2C TPM specific stuff */
 struct tpm_inf_dev {
 	struct i2c_client *client;
+	int locality;
 	u8 buf[TPM_BUFSIZE + sizeof(u8)]; /* max. buffer size + addr */
 	struct tpm_chip *chip;
 	enum i2c_chip_type chip_type;
@@ -288,7 +289,7 @@ static int check_locality(struct tpm_chip *chip, int loc)
 
 	if ((buf & (TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID)) ==
 	    (TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID)) {
-		chip->vendor.locality = loc;
+		tpm_dev.locality = loc;
 		return loc;
 	}
 
@@ -337,7 +338,7 @@ static u8 tpm_tis_i2c_status(struct tpm_chip *chip)
 	u8 i = 0;
 
 	do {
-		if (iic_tpm_read(TPM_STS(chip->vendor.locality), &buf, 1) < 0)
+		if (iic_tpm_read(TPM_STS(tpm_dev.locality), &buf, 1) < 0)
 			return 0;
 
 		i++;
@@ -351,7 +352,7 @@ static void tpm_tis_i2c_ready(struct tpm_chip *chip)
 {
 	/* this causes the current command to be aborted */
 	u8 buf = TPM_STS_COMMAND_READY;
-	iic_tpm_write_long(TPM_STS(chip->vendor.locality), &buf, 1);
+	iic_tpm_write_long(TPM_STS(tpm_dev.locality), &buf, 1);
 }
 
 static ssize_t get_burstcount(struct tpm_chip *chip)
@@ -365,7 +366,7 @@ static ssize_t get_burstcount(struct tpm_chip *chip)
 	stop = jiffies + chip->vendor.timeout_d;
 	do {
 		/* Note: STS is little endian */
-		if (iic_tpm_read(TPM_STS(chip->vendor.locality)+1, buf, 3) < 0)
+		if (iic_tpm_read(TPM_STS(tpm_dev.locality)+1, buf, 3) < 0)
 			burstcnt = 0;
 		else
 			burstcnt = (buf[2] << 16) + (buf[1] << 8) + buf[0];
@@ -419,7 +420,7 @@ static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 		if (burstcnt > (count - size))
 			burstcnt = count - size;
 
-		rc = iic_tpm_read(TPM_DATA_FIFO(chip->vendor.locality),
+		rc = iic_tpm_read(TPM_DATA_FIFO(tpm_dev.locality),
 				  &(buf[size]), burstcnt);
 		if (rc == 0)
 			size += burstcnt;
@@ -477,7 +478,7 @@ out:
 	 * so we sleep rather than keeping the bus busy
 	 */
 	usleep_range(SLEEP_DURATION_RESET_LOW, SLEEP_DURATION_RESET_HI);
-	release_locality(chip, chip->vendor.locality, 0);
+	release_locality(chip, tpm_dev.locality, 0);
 	return size;
 }
 
@@ -516,7 +517,7 @@ static int tpm_tis_i2c_send(struct tpm_chip *chip, u8 *buf, size_t len)
 		if (burstcnt > (len - 1 - count))
 			burstcnt = len - 1 - count;
 
-		rc = iic_tpm_write(TPM_DATA_FIFO(chip->vendor.locality),
+		rc = iic_tpm_write(TPM_DATA_FIFO(tpm_dev.locality),
 				   &(buf[count]), burstcnt);
 		if (rc == 0)
 			count += burstcnt;
@@ -539,7 +540,7 @@ static int tpm_tis_i2c_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	}
 
 	/* write last byte */
-	iic_tpm_write(TPM_DATA_FIFO(chip->vendor.locality), &(buf[count]), 1);
+	iic_tpm_write(TPM_DATA_FIFO(tpm_dev.locality), &(buf[count]), 1);
 	wait_for_stat(chip, TPM_STS_VALID, chip->vendor.timeout_c, &status);
 	if ((status & TPM_STS_DATA_EXPECT) != 0) {
 		rc = -EIO;
@@ -547,7 +548,7 @@ static int tpm_tis_i2c_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	}
 
 	/* go and do it */
-	iic_tpm_write(TPM_STS(chip->vendor.locality), &sts, 1);
+	iic_tpm_write(TPM_STS(tpm_dev.locality), &sts, 1);
 
 	return len;
 out_err:
@@ -556,7 +557,7 @@ out_err:
 	 * so we sleep rather than keeping the bus busy
 	 */
 	usleep_range(SLEEP_DURATION_RESET_LOW, SLEEP_DURATION_RESET_HI);
-	release_locality(chip, chip->vendor.locality, 0);
+	release_locality(chip, tpm_dev.locality, 0);
 	return rc;
 }
 
@@ -623,7 +624,7 @@ static int tpm_tis_i2c_init(struct device *dev)
 
 	return tpm_chip_register(chip);
 out_release:
-	release_locality(chip, chip->vendor.locality, 1);
+	release_locality(chip, tpm_dev.locality, 1);
 	tpm_dev.client = NULL;
 out_err:
 	return rc;
@@ -695,7 +696,7 @@ static int tpm_tis_i2c_remove(struct i2c_client *client)
 	struct tpm_chip *chip = tpm_dev.chip;
 
 	tpm_chip_unregister(chip);
-	release_locality(chip, chip->vendor.locality, 1);
+	release_locality(chip, tpm_dev.locality, 1);
 	tpm_dev.client = NULL;
 
 	return 0;

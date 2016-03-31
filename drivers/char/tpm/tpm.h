@@ -131,7 +131,6 @@ enum tpm2_startup_types {
 struct tpm_chip;
 
 struct tpm_vendor_specific {
-	int locality;
 	unsigned long timeout_a, timeout_b, timeout_c, timeout_d; /* jiffies */
 	bool timeout_adjusted;
 	unsigned long duration[3]; /* jiffies */
