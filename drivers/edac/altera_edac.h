@@ -256,6 +256,7 @@ struct edac_device_prv_data {
 	void * (*alloc_mem)(size_t size, void **other);
 	void (*free_mem)(void *p, size_t size, void *other);
 	int ecc_enable_mask;
+	int ecc_en_ofst;
 	int ce_set_mask;
 	int ue_set_mask;
 	int set_err_ofst;

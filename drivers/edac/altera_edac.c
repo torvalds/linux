@@ -866,7 +866,7 @@ static int altr_ocram_check_deps(struct altr_edac_device_dev *device)
 	void __iomem  *base = device->base;
 	const struct edac_device_prv_data *prv = device->data;
 
-	if (readl(base) & prv->ecc_enable_mask)
+	if (readl(base + prv->ecc_en_ofst) & prv->ecc_enable_mask)
 		return 0;
 
 	edac_printk(KERN_ERR, EDAC_DEVICE,
@@ -882,6 +882,7 @@ const struct edac_device_prv_data ocramecc_data = {
 	.alloc_mem = ocram_alloc_mem,
 	.free_mem = ocram_free_mem,
 	.ecc_enable_mask = ALTR_OCR_ECC_EN,
+	.ecc_en_ofst = ALTR_OCR_ECC_REG_OFFSET,
 	.ce_set_mask = (ALTR_OCR_ECC_EN | ALTR_OCR_ECC_INJS),
 	.ue_set_mask = (ALTR_OCR_ECC_EN | ALTR_OCR_ECC_INJD),
 	.set_err_ofst = ALTR_OCR_ECC_REG_OFFSET,
