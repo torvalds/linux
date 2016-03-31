@@ -171,9 +171,6 @@ config DRM_AMDGPU
 	  If M is selected, the module will be called amdgpu.
 
 source "drivers/gpu/drm/amd/amdgpu/Kconfig"
-source "drivers/gpu/drm/amd/powerplay/Kconfig"
-
-source "drivers/gpu/drm/amd/acp/Kconfig"
 
 source "drivers/gpu/drm/nouveau/Kconfig"
 

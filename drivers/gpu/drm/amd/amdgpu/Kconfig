@@ -25,3 +25,5 @@ config DRM_AMDGPU_GART_DEBUGFS
 	  Selecting this option creates a debugfs file to inspect the mapped
 	  pages. Uses more memory for housekeeping, enable only for debugging.
 
+source "drivers/gpu/drm/amd/powerplay/Kconfig"
+source "drivers/gpu/drm/amd/acp/Kconfig"
