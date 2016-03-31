@@ -43,15 +43,20 @@
 /*
  * Memory
  */
-#ifndef memory_pressure_get
-#define memory_pressure_get() (0)
-#endif
-#ifndef memory_pressure_set
-#define memory_pressure_set() do {} while (0)
-#endif
-#ifndef memory_pressure_clr
-#define memory_pressure_clr() do {} while (0)
-#endif
+static inline unsigned int memory_pressure_get(void)
+{
+	return current->flags & PF_MEMALLOC;
+}
+
+static inline void memory_pressure_set(void)
+{
+	current->flags |= PF_MEMALLOC;
+}
+
+static inline void memory_pressure_clr(void)
+{
+	current->flags &= ~PF_MEMALLOC;
+}
 
 static inline int cfs_memory_pressure_get_and_set(void)
 {

@@ -59,10 +59,6 @@
 
 #define page_index(p)       ((p)->index)
 
-#define memory_pressure_get() (current->flags & PF_MEMALLOC)
-#define memory_pressure_set() do { current->flags |= PF_MEMALLOC; } while (0)
-#define memory_pressure_clr() do { current->flags &= ~PF_MEMALLOC; } while (0)
-
 #if BITS_PER_LONG == 32
 /* limit to lowmem on 32-bit systems */
 #define NUM_CACHEPAGES \
