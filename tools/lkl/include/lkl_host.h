@@ -53,14 +53,59 @@ struct lkl_netdev {
 };
 
 struct lkl_dev_net_ops {
+	/* Writes a L2 packet into the net device.
+	 *
+	 * The data buffer can only hold 0 or 1 complete packets.
+	 *
+	 * @nd - pointer to the network device
+	 * @data - pointer to the buffer
+	 * @len - size of the buffer in bytes
+	 * @returns 0 for success and -1 for failure.
+	 */ 
 	int (*tx)(struct lkl_netdev *nd, void *data, int len);
+	/* Reads a packet from the net device.
+	 *
+	 * It must only read one complete packet if present.
+	 *
+	 * If the buffer is too small for the packet, the implementation may
+	 * decide to drop it or trim it.
+	 *
+	 * @nd - pointer to the network device
+	 * @data - pointer to the buffer to store the packet
+	 * @len - pointer to the maximum size of the buffer. Also stores the
+	 * real number of bytes read after return.
+	 * @returns 0 for success and -1 if nothing is read.
+	 */ 
 	int (*rx)(struct lkl_netdev *nd, void *data, int *len);
 #define LKL_DEV_NET_POLL_RX		1
 #define LKL_DEV_NET_POLL_TX		2
+	/* Polls a net device (level-triggered).
+	 *
+	 * Supports two events of LKL_DEV_NET_POLL_RX (readable) and
+	 * LKL_DEV_NET_POLL_TX (writable). Blocks until at least one event is
+	 * available.
+	 * Must be level-triggered which means the events are always triggered
+	 * as long as it's readable or writable.
+	 *
+	 * @nd - pointer to the network device
+	 * @events - a bit mask specifying the events to poll on. Current
+	 * implementation can assume only one of LKL_DEV_NET_POLL_RX or
+	 * LKL_DEV_NET_POLL_TX is set.
+	 * @returns the events triggered for success. -1 for failure.
+	 */
 	int (*poll)(struct lkl_netdev *nd, int events);
-	/* Release all resources acquired --- in particular, kill the
-	 * polling threads and close any open handles. Not implemented
-	 * by all netdev types. 0 for success, -1 for failure. */
+	/* Closes a net device.
+	 *
+	 * Implementation can choose to release any resources releated to it. In
+	 * particular, the polling threads are to be killed in this function.
+	 *
+	 * Implemenation must guarantee it's safe to call free_mem() after this
+	 * function call.
+	 *
+	 * Not implemented by all netdev types.
+	 *
+	 * @returns 0 for success. -1 for failure.
+	 */
 	int (*close)(struct lkl_netdev *nd);
 };
 
