@@ -31,7 +31,6 @@ struct kbtab {
 	unsigned char *data;
 	dma_addr_t data_dma;
 	struct input_dev *dev;
-	struct usb_device *usbdev;
 	struct usb_interface *intf;
 	struct urb *irq;
 	char phys[32];
@@ -99,8 +98,9 @@ MODULE_DEVICE_TABLE(usb, kbtab_ids);
 static int kbtab_open(struct input_dev *dev)
 {
 	struct kbtab *kbtab = input_get_drvdata(dev);
+	struct usb_device *udev = interface_to_usbdev(kbtab->intf);
 
-	kbtab->irq->dev = kbtab->usbdev;
+	kbtab->irq->dev = udev;
 	if (usb_submit_urb(kbtab->irq, GFP_KERNEL))
 		return -EIO;
 
@@ -135,7 +135,6 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (!kbtab->irq)
 		goto fail2;
 
-	kbtab->usbdev = dev;
 	kbtab->intf = intf;
 	kbtab->dev = input_dev;
 
@@ -188,12 +187,13 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 static void kbtab_disconnect(struct usb_interface *intf)
 {
 	struct kbtab *kbtab = usb_get_intfdata(intf);
+	struct usb_device *udev = interface_to_usbdev(intf);
 
 	usb_set_intfdata(intf, NULL);
 
 	input_unregister_device(kbtab->dev);
 	usb_free_urb(kbtab->irq);
-	usb_free_coherent(kbtab->usbdev, 8, kbtab->data, kbtab->data_dma);
+	usb_free_coherent(udev, 8, kbtab->data, kbtab->data_dma);
 	kfree(kbtab);
 }
 
