@@ -532,6 +532,10 @@
 	status = "okay";
 };
 
+&usb2phy {
+	vbus_drv-gpio = <&gpio4 25 GPIO_ACTIVE_HIGH>;
+};
+
 &usb_host0_echi {
 	status = "okay";
 };

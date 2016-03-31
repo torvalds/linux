@@ -322,10 +322,9 @@
 		status = "disabled";
 	};
 
-	usb2phy {
+	usb2phy: usb2phy {
 		compatible = "rockchip,rk3399-usb-phy";
 		rockchip,grf = <&grf>;
-		vbus_drv-gpio = <&gpio4 25 GPIO_ACTIVE_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
