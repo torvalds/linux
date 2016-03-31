@@ -311,7 +311,6 @@ void register_handler_proc(unsigned int irq, struct irqaction *action)
 					!name_unique(irq, action))
 		return;
 
-	memset(name, 0, MAX_NAMELEN);
 	snprintf(name, MAX_NAMELEN, "%s", action->name);
 
 	/* create /proc/irq/1234/handler/ */
@@ -340,7 +339,6 @@ void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 	if (desc->dir)
 		goto out_unlock;
 
-	memset(name, 0, MAX_NAMELEN);
 	sprintf(name, "%d", irq);
 
 	/* create /proc/irq/1234 */
@@ -386,7 +384,6 @@ void unregister_irq_proc(unsigned int irq, struct irq_desc *desc)
 #endif
 	remove_proc_entry("spurious", desc->dir);
 
-	memset(name, 0, MAX_NAMELEN);
 	sprintf(name, "%u", irq);
 	remove_proc_entry(name, root_irq_dir);
 }
