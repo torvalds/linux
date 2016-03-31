@@ -190,15 +190,16 @@ static ssize_t kernfs_file_direct_read(struct kernfs_open_file *of,
 	char *buf;
 
 	buf = of->prealloc_buf;
-	if (!buf)
+	if (buf)
+		mutex_lock(&of->prealloc_mutex);
+	else
 		buf = kmalloc(len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	/*
 	 * @of->mutex nests outside active ref and is used both to ensure that
-	 * the ops aren't called concurrently for the same open file, and
-	 * to provide exclusive access to ->prealloc_buf (when that exists).
+	 * the ops aren't called concurrently for the same open file.
 	 */
 	mutex_lock(&of->mutex);
 	if (!kernfs_get_active(of->kn)) {
@@ -214,21 +215,23 @@ static ssize_t kernfs_file_direct_read(struct kernfs_open_file *of,
 	else
 		len = -EINVAL;
 
+	kernfs_put_active(of->kn);
+	mutex_unlock(&of->mutex);
+
 	if (len < 0)
-		goto out_unlock;
+		goto out_free;
 
 	if (copy_to_user(user_buf, buf, len)) {
 		len = -EFAULT;
-		goto out_unlock;
+		goto out_free;
 	}
 
 	*ppos += len;
 
- out_unlock:
-	kernfs_put_active(of->kn);
-	mutex_unlock(&of->mutex);
  out_free:
-	if (buf != of->prealloc_buf)
+	if (buf == of->prealloc_buf)
+		mutex_unlock(&of->prealloc_mutex);
+	else
 		kfree(buf);
 	return len;
 }
@@ -284,15 +287,22 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 	}
 
 	buf = of->prealloc_buf;
-	if (!buf)
+	if (buf)
+		mutex_lock(&of->prealloc_mutex);
+	else
 		buf = kmalloc(len + 1, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
+	if (copy_from_user(buf, user_buf, len)) {
+		len = -EFAULT;
+		goto out_free;
+	}
+	buf[len] = '\0';	/* guarantee string termination */
+
 	/*
 	 * @of->mutex nests outside active ref and is used both to ensure that
-	 * the ops aren't called concurrently for the same open file, and
-	 * to provide exclusive access to ->prealloc_buf (when that exists).
+	 * the ops aren't called concurrently for the same open file.
 	 */
 	mutex_lock(&of->mutex);
 	if (!kernfs_get_active(of->kn)) {
@@ -301,26 +311,22 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 		goto out_free;
 	}
 
-	if (copy_from_user(buf, user_buf, len)) {
-		len = -EFAULT;
-		goto out_unlock;
-	}
-	buf[len] = '\0';	/* guarantee string termination */
-
 	ops = kernfs_ops(of->kn);
 	if (ops->write)
 		len = ops->write(of, buf, len, *ppos);
 	else
 		len = -EINVAL;
 
+	kernfs_put_active(of->kn);
+	mutex_unlock(&of->mutex);
+
 	if (len > 0)
 		*ppos += len;
 
-out_unlock:
-	kernfs_put_active(of->kn);
-	mutex_unlock(&of->mutex);
 out_free:
-	if (buf != of->prealloc_buf)
+	if (buf == of->prealloc_buf)
+		mutex_unlock(&of->prealloc_mutex);
+	else
 		kfree(buf);
 	return len;
 }
@@ -687,6 +693,7 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 		error = -ENOMEM;
 		if (!of->prealloc_buf)
 			goto err_free;
+		mutex_init(&of->prealloc_mutex);
 	}
 
 	/*
