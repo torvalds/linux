@@ -341,9 +341,9 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->reserved_tid = IEEE80211_TID_UNRESERVED;
 
 	sta->last_connected = ktime_get_seconds();
-	ewma_signal_init(&sta->rx_stats.avg_signal);
-	for (i = 0; i < ARRAY_SIZE(sta->rx_stats.chain_signal_avg); i++)
-		ewma_signal_init(&sta->rx_stats.chain_signal_avg[i]);
+	ewma_signal_init(&sta->rx_stats_avg.signal);
+	for (i = 0; i < ARRAY_SIZE(sta->rx_stats_avg.chain_signal); i++)
+		ewma_signal_init(&sta->rx_stats_avg.chain_signal[i]);
 
 	if (local->ops->wake_tx_queue) {
 		void *txq_data;
@@ -2056,7 +2056,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 
 		if (!(sinfo->filled & BIT(NL80211_STA_INFO_SIGNAL_AVG))) {
 			sinfo->signal_avg =
-				-ewma_signal_read(&sta->rx_stats.avg_signal);
+				-ewma_signal_read(&sta->rx_stats_avg.signal);
 			sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL_AVG);
 		}
 	}
@@ -2072,7 +2072,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 			sinfo->chain_signal[i] =
 				sta->rx_stats.chain_signal_last[i];
 			sinfo->chain_signal_avg[i] =
-				-ewma_signal_read(&sta->rx_stats.chain_signal_avg[i]);
+				-ewma_signal_read(&sta->rx_stats_avg.chain_signal[i]);
 		}
 	}
 

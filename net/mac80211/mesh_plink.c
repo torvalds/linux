@@ -61,7 +61,7 @@ static bool rssi_threshold_check(struct ieee80211_sub_if_data *sdata,
 	s32 rssi_threshold = sdata->u.mesh.mshcfg.rssi_threshold;
 	return rssi_threshold == 0 ||
 	       (sta &&
-		(s8)-ewma_signal_read(&sta->rx_stats.avg_signal) >
+		(s8)-ewma_signal_read(&sta->rx_stats_avg.signal) >
 						rssi_threshold);
 }
 

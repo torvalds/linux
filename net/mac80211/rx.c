@@ -1455,7 +1455,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	sta->rx_stats.bytes += rx->skb->len;
 	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
 		sta->rx_stats.last_signal = status->signal;
-		ewma_signal_add(&sta->rx_stats.avg_signal, -status->signal);
+		ewma_signal_add(&sta->rx_stats_avg.signal, -status->signal);
 	}
 
 	if (status->chains) {
@@ -1467,7 +1467,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 				continue;
 
 			sta->rx_stats.chain_signal_last[i] = signal;
-			ewma_signal_add(&sta->rx_stats.chain_signal_avg[i],
+			ewma_signal_add(&sta->rx_stats_avg.chain_signal[i],
 					-signal);
 		}
 	}

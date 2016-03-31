@@ -450,16 +450,18 @@ struct sta_info {
 		unsigned long fragments;
 		unsigned long dropped;
 		int last_signal;
-		struct ewma_signal avg_signal;
 		u8 chains;
 		s8 chain_signal_last[IEEE80211_MAX_CHAINS];
-		struct ewma_signal chain_signal_avg[IEEE80211_MAX_CHAINS];
 		int last_rate_idx;
 		u32 last_rate_flag;
 		u32 last_rate_vht_flag;
 		u8 last_rate_vht_nss;
 		u64 msdu[IEEE80211_NUM_TIDS + 1];
 	} rx_stats;
+	struct {
+		struct ewma_signal signal;
+		struct ewma_signal chain_signal[IEEE80211_MAX_CHAINS];
+	} rx_stats_avg;
 
 	/* Plus 1 for non-QoS frames */
 	__le16 last_seq_ctrl[IEEE80211_NUM_TIDS + 1];
