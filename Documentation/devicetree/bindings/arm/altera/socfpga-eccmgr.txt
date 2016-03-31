@@ -71,6 +71,11 @@ Required Properties:
 - compatible : Should be "altr,socfpga-a10-l2-ecc"
 - reg : Address and size for ECC error interrupt clear registers.
 
+On-Chip RAM ECC
+Required Properties:
+- compatible : Should be "altr,socfpga-a10-ocram-ecc"
+- reg        : Address and size for ECC block registers.
+
 Example:
 
 	eccmgr: eccmgr@ffd06000 {
@@ -85,5 +90,10 @@ Example:
 		l2-ecc@ffd06010 {
 			compatible = "altr,socfpga-a10-l2-ecc";
 			reg = <0xffd06010 0x4>;
+		};
+
+		ocram-ecc@ff8c3000 {
+			compatible = "altr,socfpga-a10-ocram-ecc";
+			reg = <0xff8c3000 0x90>;
 		};
 	};
