@@ -212,6 +212,7 @@ static const struct regmap_bus regmap_mmio = {
 	.reg_write = regmap_mmio_write,
 	.reg_read = regmap_mmio_read,
 	.free_context = regmap_mmio_free_context,
+	.val_format_endian_default = REGMAP_ENDIAN_LITTLE,
 };
 
 static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
