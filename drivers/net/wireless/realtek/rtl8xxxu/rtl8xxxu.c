@@ -7295,7 +7295,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 		    (ieee80211_is_data_qos(hdr->frame_control) &&
 		     sta && sta->ht_cap.cap &
 		     (IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_SGI_20))) {
-			tx_desc->txdw5 |= cpu_to_le32(TXDESC_SHORT_GI);
+			tx_desc->txdw5 |= cpu_to_le32(TXDESC32_SHORT_GI);
 		}
 
 		if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {

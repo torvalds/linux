@@ -501,7 +501,7 @@ struct rtl8xxxu_txdesc40 {
 
 /* Word 5 */
 #define TXDESC40_SHORT_PREAMBLE		BIT(4)
-#define TXDESC_SHORT_GI			BIT(6)
+#define TXDESC32_SHORT_GI		BIT(6)
 #define TXDESC_CCX_TAG			BIT(7)
 #define TXDESC32_RETRY_LIMIT_ENABLE	BIT(17)
 #define TXDESC32_RETRY_LIMIT_SHIFT	18
