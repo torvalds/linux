@@ -131,8 +131,6 @@ enum tpm2_startup_types {
 struct tpm_chip;
 
 struct tpm_vendor_specific {
-	void __iomem *iobase;		/* ioremapped address */
-
 	int irq;
 
 	int locality;

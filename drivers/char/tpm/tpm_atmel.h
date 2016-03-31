@@ -26,6 +26,7 @@ struct tpm_atmel_priv {
 	int region_size;
 	int have_region;
 	unsigned long base;
+	void __iomem *iobase;
 };
 
 static inline struct tpm_atmel_priv *atmel_get_priv(struct tpm_chip *chip)
@@ -37,8 +38,8 @@ static inline struct tpm_atmel_priv *atmel_get_priv(struct tpm_chip *chip)
 
 #include <asm/prom.h>
 
-#define atmel_getb(chip, offset) readb(chip->vendor->iobase + offset);
-#define atmel_putb(val, chip, offset) writeb(val, chip->vendor->iobase + offset)
+#define atmel_getb(priv, offset) readb(priv->iobase + offset)
+#define atmel_putb(val, priv, offset) writeb(val, priv->iobase + offset)
 #define atmel_request_region request_mem_region
 #define atmel_release_region release_mem_region
 
