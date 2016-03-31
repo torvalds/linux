@@ -286,8 +286,6 @@ int dgnc_tty_register(struct dgnc_board *brd)
 	}
 
 	dgnc_BoardsByMajor[brd->serial_driver.major] = brd;
-	brd->dgnc_serial_major = brd->serial_driver.major;
-	brd->dgnc_transparent_print_major = brd->print_driver.major;
 
 	return rc;
 }
@@ -409,7 +407,6 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
 
 	if (brd->dgnc_major_serial_registered) {
 		dgnc_BoardsByMajor[brd->serial_driver.major] = NULL;
-		brd->dgnc_serial_major = 0;
 		for (i = 0; i < brd->nasync; i++) {
 			if (brd->channels[i])
 				dgnc_remove_tty_sysfs(brd->channels[i]->
@@ -422,7 +419,6 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
 
 	if (brd->dgnc_major_transparent_print_registered) {
 		dgnc_BoardsByMajor[brd->print_driver.major] = NULL;
-		brd->dgnc_transparent_print_major = 0;
 		for (i = 0; i < brd->nasync; i++) {
 			if (brd->channels[i])
 				dgnc_remove_tty_sysfs(brd->channels[i]->

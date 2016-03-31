@@ -210,9 +210,6 @@ struct dgnc_board {
 	bool		dgnc_major_serial_registered;
 	bool		dgnc_major_transparent_print_registered;
 
-	uint		dgnc_serial_major;
-	uint		dgnc_transparent_print_major;
-
 	u16		dpatype;	/* The board "type",
 					 * as defined by DPA
 					 */
