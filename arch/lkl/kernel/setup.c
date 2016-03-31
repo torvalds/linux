@@ -168,7 +168,8 @@ void arch_cpu_idle(void)
 
 void wakeup_cpu(void)
 {
-	lkl_ops->sem_up(idle_sem);
+        if (!halt)
+                lkl_ops->sem_up(idle_sem);
 }
 
 /* skip mounting the "real" rootfs. ramfs is good enough. */
