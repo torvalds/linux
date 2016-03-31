@@ -3969,6 +3969,55 @@ static int pci_quirk_intel_pch_acs(struct pci_dev *dev, u16 acs_flags)
 	return acs_flags & ~flags ? 0 : 1;
 }
 
+/*
+ * Sunrise Point PCH root ports implement ACS, but unfortunately as shown in
+ * the datasheet (Intel 100 Series Chipset Family PCH Datasheet, Vol. 2,
+ * 12.1.46, 12.1.47)[1] this chipset uses dwords for the ACS capability and
+ * control registers whereas the PCIe spec packs them into words (Rev 3.0,
+ * 7.16 ACS Extended Capability).  The bit definitions are correct, but the
+ * control register is at offset 8 instead of 6 and we should probably use
+ * dword accesses to them.  This applies to the following PCI Device IDs, as
+ * found in volume 1 of the datasheet[2]:
+ *
+ * 0xa110-0xa11f Sunrise Point-H PCI Express Root Port #{0-16}
+ * 0xa167-0xa16a Sunrise Point-H PCI Express Root Port #{17-20}
+ *
+ * N.B. This doesn't fix what lspci shows.
+ *
+ * [1] http://www.intel.com/content/www/us/en/chipsets/100-series-chipset-datasheet-vol-2.html
+ * [2] http://www.intel.com/content/www/us/en/chipsets/100-series-chipset-datasheet-vol-1.html
+ */
+static bool pci_quirk_intel_spt_pch_acs_match(struct pci_dev *dev)
+{
+	return pci_is_pcie(dev) &&
+		pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT &&
+		((dev->device & ~0xf) == 0xa110 ||
+		 (dev->device >= 0xa167 && dev->device <= 0xa16a));
+}
+
+#define INTEL_SPT_ACS_CTRL (PCI_ACS_CAP + 4)
+
+static int pci_quirk_intel_spt_pch_acs(struct pci_dev *dev, u16 acs_flags)
+{
+	int pos;
+	u32 cap, ctrl;
+
+	if (!pci_quirk_intel_spt_pch_acs_match(dev))
+		return -ENOTTY;
+
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ACS);
+	if (!pos)
+		return -ENOTTY;
+
+	/* see pci_acs_flags_enabled() */
+	pci_read_config_dword(dev, pos + PCI_ACS_CAP, &cap);
+	acs_flags &= (cap | PCI_ACS_EC);
+
+	pci_read_config_dword(dev, pos + INTEL_SPT_ACS_CTRL, &ctrl);
+
+	return acs_flags & ~ctrl ? 0 : 1;
+}
+
 static int pci_quirk_mf_endpoint_acs(struct pci_dev *dev, u16 acs_flags)
 {
 	/*
@@ -4057,6 +4106,7 @@ static const struct pci_dev_acs_enabled {
 	{ PCI_VENDOR_ID_INTEL, 0x15b8, pci_quirk_mf_endpoint_acs },
 	/* Intel PCH root ports */
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_quirk_intel_pch_acs },
+	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_quirk_intel_spt_pch_acs },
 	{ 0x19a2, 0x710, pci_quirk_mf_endpoint_acs }, /* Emulex BE3-R */
 	{ 0x10df, 0x720, pci_quirk_mf_endpoint_acs }, /* Emulex Skyhawk-R */
 	/* Cavium ThunderX */
@@ -4192,12 +4242,40 @@ static int pci_quirk_enable_intel_pch_acs(struct pci_dev *dev)
 	return 0;
 }
 
+static int pci_quirk_enable_intel_spt_pch_acs(struct pci_dev *dev)
+{
+	int pos;
+	u32 cap, ctrl;
+
+	if (!pci_quirk_intel_spt_pch_acs_match(dev))
+		return -ENOTTY;
+
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ACS);
+	if (!pos)
+		return -ENOTTY;
+
+	pci_read_config_dword(dev, pos + PCI_ACS_CAP, &cap);
+	pci_read_config_dword(dev, pos + INTEL_SPT_ACS_CTRL, &ctrl);
+
+	ctrl |= (cap & PCI_ACS_SV);
+	ctrl |= (cap & PCI_ACS_RR);
+	ctrl |= (cap & PCI_ACS_CR);
+	ctrl |= (cap & PCI_ACS_UF);
+
+	pci_write_config_dword(dev, pos + INTEL_SPT_ACS_CTRL, ctrl);
+
+	dev_info(&dev->dev, "Intel SPT PCH root port ACS workaround enabled\n");
+
+	return 0;
+}
+
 static const struct pci_dev_enable_acs {
 	u16 vendor;
 	u16 device;
 	int (*enable_acs)(struct pci_dev *dev);
 } pci_dev_enable_acs[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_quirk_enable_intel_pch_acs },
+	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_quirk_enable_intel_spt_pch_acs },
 	{ 0 }
 };
 
