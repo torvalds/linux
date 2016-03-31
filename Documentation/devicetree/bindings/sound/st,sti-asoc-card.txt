@@ -65,7 +65,7 @@ Example:
 		reg = <0x8D82000 0x158>;
 		interrupts = <GIC_SPI 86 IRQ_TYPE_NONE>;
 		dmas = <&fdma0 4 0 1>;
-		dai-name = "Uni Player #1 (DAC)";
+		dai-name = "Uni Player #2 (DAC)";
 		dma-names = "tx";
 		uniperiph-id = <2>;
 		version = <5>;
@@ -82,7 +82,7 @@ Example:
 		interrupts = <GIC_SPI 89 IRQ_TYPE_NONE>;
 		dmas = <&fdma0 7 0 1>;
 		dma-names = "tx";
-		dai-name = "Uni Player #1 (PIO)";
+		dai-name = "Uni Player #3 (SPDIF)";
 		uniperiph-id = <3>;
 		version = <5>;
 		mode = "SPDIF";
