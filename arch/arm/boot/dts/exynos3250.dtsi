@@ -31,6 +31,7 @@
 		pinctrl1 = &pinctrl_1;
 		mshc0 = &mshc_0;
 		mshc1 = &mshc_1;
+		mshc2 = &mshc_2;
 		spi0 = &spi_0;
 		spi1 = &spi_1;
 		i2c0 = &i2c_0;
@@ -351,6 +352,18 @@
 			reg = <0x12520000 0x1000>;
 			interrupts = <0 143 0>;
 			clocks = <&cmu CLK_SDMMC1>, <&cmu CLK_SCLK_MMC1>;
+			clock-names = "biu", "ciu";
+			fifo-depth = <0x80>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		mshc_2: mshc@12530000 {
+			compatible = "samsung,exynos5250-dw-mshc";
+			reg = <0x12530000 0x1000>;
+			interrupts = <0 144 0>;
+			clocks = <&cmu CLK_SDMMC2>, <&cmu CLK_SCLK_MMC2>;
 			clock-names = "biu", "ciu";
 			fifo-depth = <0x80>;
 			#address-cells = <1>;
