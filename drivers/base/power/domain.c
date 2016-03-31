@@ -382,7 +382,7 @@ static void genpd_power_off_work_fn(struct work_struct *work)
 static int pm_genpd_runtime_suspend(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
-	bool (*stop_ok)(struct device *__dev);
+	bool (*suspend_ok)(struct device *__dev);
 	struct gpd_timing_data *td = &dev_gpd_data(dev)->td;
 	bool runtime_pm = pm_runtime_enabled(dev);
 	ktime_t time_start;
@@ -401,8 +401,8 @@ static int pm_genpd_runtime_suspend(struct device *dev)
 	 * runtime PM is disabled. Under these circumstances, we shall skip
 	 * validating/measuring the PM QoS latency.
 	 */
-	stop_ok = genpd->gov ? genpd->gov->stop_ok : NULL;
-	if (runtime_pm && stop_ok && !stop_ok(dev))
+	suspend_ok = genpd->gov ? genpd->gov->suspend_ok : NULL;
+	if (runtime_pm && suspend_ok && !suspend_ok(dev))
 		return -EBUSY;
 
 	/* Measure suspend latency. */
