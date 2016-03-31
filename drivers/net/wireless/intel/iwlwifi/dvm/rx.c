@@ -686,7 +686,7 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
 
-	ieee80211_rx_napi(priv->hw, skb, priv->napi);
+	ieee80211_rx_napi(priv->hw, NULL, skb, priv->napi);
 }
 
 static u32 iwlagn_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)

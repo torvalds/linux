@@ -210,7 +210,7 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 	if (iwl_mvm_check_pn(mvm, skb, queue, sta))
 		kfree_skb(skb);
 	else
-		ieee80211_rx_napi(mvm->hw, skb, napi);
+		ieee80211_rx_napi(mvm->hw, NULL, skb, napi);
 }
 
 static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,

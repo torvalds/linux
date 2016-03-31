@@ -131,7 +131,7 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 				fraglen, rxb->truesize);
 	}
 
-	ieee80211_rx_napi(mvm->hw, skb, napi);
+	ieee80211_rx_napi(mvm->hw, NULL, skb, napi);
 }
 
 /*
