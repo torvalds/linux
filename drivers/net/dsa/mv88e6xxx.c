@@ -482,6 +482,30 @@ static bool mv88e6xxx_6352_family(struct dsa_switch *ds)
 	return false;
 }
 
+static unsigned int mv88e6xxx_num_databases(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	/* The following devices have 4-bit identifiers for 16 databases */
+	if (ps->id == PORT_SWITCH_ID_6061)
+		return 16;
+
+	/* The following devices have 6-bit identifiers for 64 databases */
+	if (ps->id == PORT_SWITCH_ID_6065)
+		return 64;
+
+	/* The following devices have 8-bit identifiers for 256 databases */
+	if (mv88e6xxx_6095_family(ds) || mv88e6xxx_6185_family(ds))
+		return 256;
+
+	/* The following devices have 12-bit identifiers for 4096 databases */
+	if (mv88e6xxx_6097_family(ds) || mv88e6xxx_6165_family(ds) ||
+	    mv88e6xxx_6351_family(ds) || mv88e6xxx_6352_family(ds))
+		return 4096;
+
+	return 0;
+}
+
 static bool mv88e6xxx_has_fid_reg(struct dsa_switch *ds)
 {
 	/* Does the device have dedicated FID registers for ATU and VTU ops? */
@@ -1534,8 +1558,14 @@ loadpurge:
 static int _mv88e6xxx_port_fid(struct dsa_switch *ds, int port, u16 *new,
 			       u16 *old)
 {
+	u16 upper_mask;
 	u16 fid;
 	int ret;
+
+	if (mv88e6xxx_num_databases(ds) == 4096)
+		upper_mask = 0xff;
+	else
+		return -EOPNOTSUPP;
 
 	/* Port's default FID bits 3:0 are located in reg 0x06, offset 12 */
 	ret = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_BASE_VLAN);
@@ -1559,11 +1589,11 @@ static int _mv88e6xxx_port_fid(struct dsa_switch *ds, int port, u16 *new,
 	if (ret < 0)
 		return ret;
 
-	fid |= (ret & PORT_CONTROL_1_FID_11_4_MASK) << 4;
+	fid |= (ret & upper_mask) << 4;
 
 	if (new) {
-		ret &= ~PORT_CONTROL_1_FID_11_4_MASK;
-		ret |= (*new >> 4) & PORT_CONTROL_1_FID_11_4_MASK;
+		ret &= ~upper_mask;
+		ret |= (*new >> 4) & upper_mask;
 
 		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_CONTROL_1,
 					   ret);
@@ -1627,7 +1657,7 @@ static int _mv88e6xxx_fid_new(struct dsa_switch *ds, u16 *fid)
 	 * databases are not needed. Return the next positive available.
 	 */
 	*fid = find_next_zero_bit(fid_bitmap, MV88E6XXX_N_FID, 1);
-	if (unlikely(*fid == MV88E6XXX_N_FID))
+	if (unlikely(*fid >= mv88e6xxx_num_databases(ds)))
 		return -ENOSPC;
 
 	/* Clear the database */
