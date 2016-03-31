@@ -262,6 +262,7 @@ struct edac_device_prv_data {
 	irqreturn_t (*ecc_irq_handler)(struct altr_edac_device_dev *dci,
 				       bool sb);
 	int trig_alloc_sz;
+	const struct file_operations *inject_fops;
 };
 
 struct altr_edac_device_dev {

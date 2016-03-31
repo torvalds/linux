@@ -668,7 +668,7 @@ static void altr_create_edacdev_dbgfs(struct edac_device_ctl_info *edac_dci,
 
 	if (!edac_debugfs_create_file(priv->dbgfs_name, S_IWUSR,
 				      drvdata->debugfs_dir, edac_dci,
-				      &altr_edac_device_inject_fops))
+				      priv->inject_fops))
 		debugfs_remove_recursive(drvdata->debugfs_dir);
 }
 
@@ -886,6 +886,7 @@ const struct edac_device_prv_data ocramecc_data = {
 	.ue_set_mask = (ALTR_OCR_ECC_EN | ALTR_OCR_ECC_INJD),
 	.set_err_ofst = ALTR_OCR_ECC_REG_OFFSET,
 	.trig_alloc_sz = ALTR_TRIG_OCRAM_BYTE_SIZE,
+	.inject_fops = &altr_edac_device_inject_fops,
 };
 
 #endif	/* CONFIG_EDAC_ALTERA_OCRAM */
@@ -975,6 +976,7 @@ const struct edac_device_prv_data l2ecc_data = {
 	.ue_set_mask = (ALTR_L2_ECC_EN | ALTR_L2_ECC_INJD),
 	.set_err_ofst = ALTR_L2_ECC_REG_OFFSET,
 	.trig_alloc_sz = ALTR_TRIG_L2C_BYTE_SIZE,
+	.inject_fops = &altr_edac_device_inject_fops,
 };
 
 const struct edac_device_prv_data a10_l2ecc_data = {
@@ -991,6 +993,7 @@ const struct edac_device_prv_data a10_l2ecc_data = {
 	.set_err_ofst = ALTR_A10_L2_ECC_INJ_OFST,
 	.ecc_irq_handler = altr_edac_a10_l2_irq,
 	.trig_alloc_sz = ALTR_TRIG_L2C_BYTE_SIZE,
+	.inject_fops = &altr_edac_device_inject_fops,
 };
 
 #endif	/* CONFIG_EDAC_ALTERA_L2C */
