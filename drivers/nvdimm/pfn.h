@@ -33,7 +33,9 @@ struct nd_pfn_sb {
 	/* minor-version-1 additions for section alignment */
 	__le32 start_pad;
 	__le32 end_trunc;
-	u8 padding[4004];
+	/* minor-version-2 record the base alignment of the mapping */
+	__le32 align;
+	u8 padding[4000];
 	__le64 checksum;
 };
 
