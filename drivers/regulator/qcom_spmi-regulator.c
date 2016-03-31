@@ -255,13 +255,6 @@ enum spmi_common_control_register_index {
 #define SPMI_FTSMPS_STEP_MARGIN_NUM	4
 #define SPMI_FTSMPS_STEP_MARGIN_DEN	5
 
-/*
- * This voltage in uV is returned by get_voltage functions when there is no way
- * to determine the current voltage level.  It is needed because the regulator
- * framework treats a 0 uV voltage as an error.
- */
-#define VOLTAGE_UNKNOWN 1
-
 /* VSET value to decide the range of ULT SMPS */
 #define ULT_SMPS_RANGE_SPLIT 0x60
 
@@ -540,12 +533,12 @@ static int spmi_regulator_common_disable(struct regulator_dev *rdev)
 }
 
 static int spmi_regulator_select_voltage(struct spmi_regulator *vreg,
-		int min_uV, int max_uV, u8 *range_sel, u8 *voltage_sel,
-		unsigned *selector)
+					 int min_uV, int max_uV)
 {
 	const struct spmi_voltage_range *range;
 	int uV = min_uV;
 	int lim_min_uV, lim_max_uV, i, range_id, range_max_uV;
+	int selector, voltage_sel;
 
 	/* Check if request voltage is outside of physically settable range. */
 	lim_min_uV = vreg->set_points->range[0].set_point_min_uV;
@@ -571,14 +564,13 @@ static int spmi_regulator_select_voltage(struct spmi_regulator *vreg,
 
 	range_id = i;
 	range = &vreg->set_points->range[range_id];
-	*range_sel = range->range_sel;
 
 	/*
 	 * Force uV to be an allowed set point by applying a ceiling function to
 	 * the uV value.
 	 */
-	*voltage_sel = DIV_ROUND_UP(uV - range->min_uV, range->step_uV);
-	uV = *voltage_sel * range->step_uV + range->min_uV;
+	voltage_sel = DIV_ROUND_UP(uV - range->min_uV, range->step_uV);
+	uV = voltage_sel * range->step_uV + range->min_uV;
 
 	if (uV > max_uV) {
 		dev_err(vreg->dev,
@@ -588,12 +580,48 @@ static int spmi_regulator_select_voltage(struct spmi_regulator *vreg,
 		return -EINVAL;
 	}
 
-	*selector = 0;
+	selector = 0;
 	for (i = 0; i < range_id; i++)
-		*selector += vreg->set_points->range[i].n_voltages;
-	*selector += (uV - range->set_point_min_uV) / range->step_uV;
+		selector += vreg->set_points->range[i].n_voltages;
+	selector += (uV - range->set_point_min_uV) / range->step_uV;
 
-	return 0;
+	return selector;
+}
+
+static int spmi_sw_selector_to_hw(struct spmi_regulator *vreg,
+				  unsigned selector, u8 *range_sel,
+				  u8 *voltage_sel)
+{
+	const struct spmi_voltage_range *range, *end;
+
+	range = vreg->set_points->range;
+	end = range + vreg->set_points->count;
+
+	for (; range < end; range++) {
+		if (selector < range->n_voltages) {
+			*voltage_sel = selector;
+			*range_sel = range->range_sel;
+			return 0;
+		}
+
+		selector -= range->n_voltages;
+	}
+
+	return -EINVAL;
+}
+
+static int spmi_hw_selector_to_sw(struct spmi_regulator *vreg, u8 hw_sel,
+				  const struct spmi_voltage_range *range)
+{
+	int sw_sel = hw_sel;
+	const struct spmi_voltage_range *r = vreg->set_points->range;
+
+	while (r != range) {
+		sw_sel += r->n_voltages;
+		r++;
+	}
+
+	return sw_sel;
 }
 
 static const struct spmi_voltage_range *
@@ -615,12 +643,11 @@ spmi_regulator_find_range(struct spmi_regulator *vreg)
 }
 
 static int spmi_regulator_select_voltage_same_range(struct spmi_regulator *vreg,
-		int min_uV, int max_uV, u8 *range_sel, u8 *voltage_sel,
-		unsigned *selector)
+		int min_uV, int max_uV)
 {
 	const struct spmi_voltage_range *range;
 	int uV = min_uV;
-	int i;
+	int i, selector;
 
 	range = spmi_regulator_find_range(vreg);
 	if (!range)
@@ -638,8 +665,8 @@ static int spmi_regulator_select_voltage_same_range(struct spmi_regulator *vreg,
 	 * Force uV to be an allowed set point by applying a ceiling function to
 	 * the uV value.
 	 */
-	*voltage_sel = DIV_ROUND_UP(uV - range->min_uV, range->step_uV);
-	uV = *voltage_sel * range->step_uV + range->min_uV;
+	uV = DIV_ROUND_UP(uV - range->min_uV, range->step_uV);
+	uV = uV * range->step_uV + range->min_uV;
 
 	if (uV > max_uV) {
 		/*
@@ -649,43 +676,49 @@ static int spmi_regulator_select_voltage_same_range(struct spmi_regulator *vreg,
 		goto different_range;
 	}
 
-	*selector = 0;
+	selector = 0;
 	for (i = 0; i < vreg->set_points->count; i++) {
 		if (uV >= vreg->set_points->range[i].set_point_min_uV
 		    && uV <= vreg->set_points->range[i].set_point_max_uV) {
-			*selector +=
+			selector +=
 			    (uV - vreg->set_points->range[i].set_point_min_uV)
 				/ vreg->set_points->range[i].step_uV;
 			break;
 		}
 
-		*selector += vreg->set_points->range[i].n_voltages;
+		selector += vreg->set_points->range[i].n_voltages;
 	}
 
-	if (*selector >= vreg->set_points->n_voltages)
+	if (selector >= vreg->set_points->n_voltages)
 		goto different_range;
 
 	return 0;
 
 different_range:
-	return spmi_regulator_select_voltage(vreg, min_uV, max_uV,
-			range_sel, voltage_sel, selector);
+	return spmi_regulator_select_voltage(vreg, min_uV, max_uV);
 }
 
-static int spmi_regulator_common_set_voltage(struct regulator_dev *rdev,
-		int min_uV, int max_uV, unsigned *selector)
+static int spmi_regulator_common_map_voltage(struct regulator_dev *rdev,
+					     int min_uV, int max_uV)
+{
+	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
+
+	/*
+	 * Favor staying in the current voltage range if possible.  This avoids
+	 * voltage spikes that occur when changing the voltage range.
+	 */
+	return spmi_regulator_select_voltage_same_range(vreg, min_uV, max_uV);
+}
+
+static int
+spmi_regulator_common_set_voltage(struct regulator_dev *rdev, unsigned selector)
 {
 	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
 	int ret;
 	u8 buf[2];
 	u8 range_sel, voltage_sel;
 
-	/*
-	 * Favor staying in the current voltage range if possible.  This avoids
-	 * voltage spikes that occur when changing the voltage range.
-	 */
-	ret = spmi_regulator_select_voltage_same_range(vreg, min_uV, max_uV,
-		&range_sel, &voltage_sel, selector);
+	ret = spmi_sw_selector_to_hw(vreg, selector, &range_sel, &voltage_sel);
 	if (ret)
 		return ret;
 
@@ -720,24 +753,24 @@ static int spmi_regulator_common_get_voltage(struct regulator_dev *rdev)
 
 	range = spmi_regulator_find_range(vreg);
 	if (!range)
-		return VOLTAGE_UNKNOWN;
+		return -EINVAL;
 
-	return range->step_uV * voltage_sel + range->min_uV;
+	return spmi_hw_selector_to_sw(vreg, voltage_sel, range);
+}
+
+static int spmi_regulator_single_map_voltage(struct regulator_dev *rdev,
+		int min_uV, int max_uV)
+{
+	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
+
+	return spmi_regulator_select_voltage(vreg, min_uV, max_uV);
 }
 
 static int spmi_regulator_single_range_set_voltage(struct regulator_dev *rdev,
-		int min_uV, int max_uV, unsigned *selector)
+						   unsigned selector)
 {
 	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
-	int ret;
-	u8 range_sel, sel;
-
-	ret = spmi_regulator_select_voltage(vreg, min_uV, max_uV, &range_sel,
-		&sel, selector);
-	if (ret) {
-		dev_err(vreg->dev, "could not set voltage, ret=%d\n", ret);
-		return ret;
-	}
+	u8 sel = selector;
 
 	/*
 	 * Certain types of regulators do not have a range select register so
@@ -749,27 +782,24 @@ static int spmi_regulator_single_range_set_voltage(struct regulator_dev *rdev,
 static int spmi_regulator_single_range_get_voltage(struct regulator_dev *rdev)
 {
 	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
-	const struct spmi_voltage_range *range = vreg->set_points->range;
-	u8 voltage_sel;
+	u8 selector;
+	int ret;
 
-	spmi_vreg_read(vreg, SPMI_COMMON_REG_VOLTAGE_SET, &voltage_sel, 1);
+	ret = spmi_vreg_read(vreg, SPMI_COMMON_REG_VOLTAGE_SET, &selector, 1);
+	if (ret)
+		return ret;
 
-	return range->step_uV * voltage_sel + range->min_uV;
+	return selector;
 }
 
 static int spmi_regulator_ult_lo_smps_set_voltage(struct regulator_dev *rdev,
-		int min_uV, int max_uV, unsigned *selector)
+						  unsigned selector)
 {
 	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
 	int ret;
 	u8 range_sel, voltage_sel;
 
-	/*
-	 * Favor staying in the current voltage range if possible. This avoids
-	 * voltage spikes that occur when changing the voltage range.
-	 */
-	ret = spmi_regulator_select_voltage_same_range(vreg, min_uV, max_uV,
-		&range_sel, &voltage_sel, selector);
+	ret = spmi_sw_selector_to_hw(vreg, selector, &range_sel, &voltage_sel);
 	if (ret)
 		return ret;
 
@@ -784,7 +814,7 @@ static int spmi_regulator_ult_lo_smps_set_voltage(struct regulator_dev *rdev,
 		voltage_sel |= ULT_SMPS_RANGE_SPLIT;
 
 	return spmi_vreg_update_bits(vreg, SPMI_COMMON_REG_VOLTAGE_SET,
-	       voltage_sel, 0xff);
+				     voltage_sel, 0xff);
 }
 
 static int spmi_regulator_ult_lo_smps_get_voltage(struct regulator_dev *rdev)
@@ -797,12 +827,12 @@ static int spmi_regulator_ult_lo_smps_get_voltage(struct regulator_dev *rdev)
 
 	range = spmi_regulator_find_range(vreg);
 	if (!range)
-		return VOLTAGE_UNKNOWN;
+		return -EINVAL;
 
 	if (range->range_sel == 1)
 		voltage_sel &= ~ULT_SMPS_RANGE_SPLIT;
 
-	return range->step_uV * voltage_sel + range->min_uV;
+	return spmi_hw_selector_to_sw(vreg, voltage_sel, range);
 }
 
 static int spmi_regulator_common_list_voltage(struct regulator_dev *rdev,
@@ -1008,9 +1038,10 @@ static struct regulator_ops spmi_smps_ops = {
 	.enable			= spmi_regulator_common_enable,
 	.disable		= spmi_regulator_common_disable,
 	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_common_set_voltage,
+	.set_voltage_sel	= spmi_regulator_common_set_voltage,
 	.set_voltage_time_sel	= spmi_regulator_set_voltage_time_sel,
-	.get_voltage		= spmi_regulator_common_get_voltage,
+	.get_voltage_sel	= spmi_regulator_common_get_voltage,
+	.map_voltage		= spmi_regulator_common_map_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_mode		= spmi_regulator_common_set_mode,
 	.get_mode		= spmi_regulator_common_get_mode,
@@ -1022,8 +1053,9 @@ static struct regulator_ops spmi_ldo_ops = {
 	.enable			= spmi_regulator_common_enable,
 	.disable		= spmi_regulator_common_disable,
 	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_common_set_voltage,
-	.get_voltage		= spmi_regulator_common_get_voltage,
+	.set_voltage_sel	= spmi_regulator_common_set_voltage,
+	.get_voltage_sel	= spmi_regulator_common_get_voltage,
+	.map_voltage		= spmi_regulator_common_map_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_mode		= spmi_regulator_common_set_mode,
 	.get_mode		= spmi_regulator_common_get_mode,
@@ -1038,8 +1070,9 @@ static struct regulator_ops spmi_ln_ldo_ops = {
 	.enable			= spmi_regulator_common_enable,
 	.disable		= spmi_regulator_common_disable,
 	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_common_set_voltage,
-	.get_voltage		= spmi_regulator_common_get_voltage,
+	.set_voltage_sel	= spmi_regulator_common_set_voltage,
+	.get_voltage_sel	= spmi_regulator_common_get_voltage,
+	.map_voltage		= spmi_regulator_common_map_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_bypass		= spmi_regulator_common_set_bypass,
 	.get_bypass		= spmi_regulator_common_get_bypass,
@@ -1058,8 +1091,9 @@ static struct regulator_ops spmi_boost_ops = {
 	.enable			= spmi_regulator_common_enable,
 	.disable		= spmi_regulator_common_disable,
 	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_single_range_set_voltage,
-	.get_voltage		= spmi_regulator_single_range_get_voltage,
+	.set_voltage_sel	= spmi_regulator_single_range_set_voltage,
+	.get_voltage_sel	= spmi_regulator_single_range_get_voltage,
+	.map_voltage		= spmi_regulator_single_map_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_input_current_limit = spmi_regulator_set_ilim,
 };
@@ -1068,9 +1102,10 @@ static struct regulator_ops spmi_ftsmps_ops = {
 	.enable			= spmi_regulator_common_enable,
 	.disable		= spmi_regulator_common_disable,
 	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_common_set_voltage,
+	.set_voltage_sel	= spmi_regulator_common_set_voltage,
 	.set_voltage_time_sel	= spmi_regulator_set_voltage_time_sel,
-	.get_voltage		= spmi_regulator_common_get_voltage,
+	.get_voltage_sel	= spmi_regulator_common_get_voltage,
+	.map_voltage		= spmi_regulator_common_map_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_mode		= spmi_regulator_common_set_mode,
 	.get_mode		= spmi_regulator_common_get_mode,
@@ -1082,9 +1117,9 @@ static struct regulator_ops spmi_ult_lo_smps_ops = {
 	.enable			= spmi_regulator_common_enable,
 	.disable		= spmi_regulator_common_disable,
 	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_ult_lo_smps_set_voltage,
+	.set_voltage_sel	= spmi_regulator_ult_lo_smps_set_voltage,
 	.set_voltage_time_sel	= spmi_regulator_set_voltage_time_sel,
-	.get_voltage		= spmi_regulator_ult_lo_smps_get_voltage,
+	.get_voltage_sel	= spmi_regulator_ult_lo_smps_get_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_mode		= spmi_regulator_common_set_mode,
 	.get_mode		= spmi_regulator_common_get_mode,
@@ -1096,9 +1131,10 @@ static struct regulator_ops spmi_ult_ho_smps_ops = {
 	.enable			= spmi_regulator_common_enable,
 	.disable		= spmi_regulator_common_disable,
 	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_single_range_set_voltage,
+	.set_voltage_sel	= spmi_regulator_single_range_set_voltage,
 	.set_voltage_time_sel	= spmi_regulator_set_voltage_time_sel,
-	.get_voltage		= spmi_regulator_single_range_get_voltage,
+	.get_voltage_sel	= spmi_regulator_single_range_get_voltage,
+	.map_voltage		= spmi_regulator_single_map_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_mode		= spmi_regulator_common_set_mode,
 	.get_mode		= spmi_regulator_common_get_mode,
@@ -1110,8 +1146,9 @@ static struct regulator_ops spmi_ult_ldo_ops = {
 	.enable			= spmi_regulator_common_enable,
 	.disable		= spmi_regulator_common_disable,
 	.is_enabled		= spmi_regulator_common_is_enabled,
-	.set_voltage		= spmi_regulator_single_range_set_voltage,
-	.get_voltage		= spmi_regulator_single_range_get_voltage,
+	.set_voltage_sel	= spmi_regulator_single_range_set_voltage,
+	.get_voltage_sel	= spmi_regulator_single_range_get_voltage,
+	.map_voltage		= spmi_regulator_single_map_voltage,
 	.list_voltage		= spmi_regulator_common_list_voltage,
 	.set_mode		= spmi_regulator_common_set_mode,
 	.get_mode		= spmi_regulator_common_get_mode,
