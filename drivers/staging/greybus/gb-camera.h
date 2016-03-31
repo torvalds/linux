@@ -36,14 +36,14 @@ struct gb_camera_ops {
 
 struct gb_camera_module {
 	void *priv;
-	struct gb_camera_ops ops;
+	const struct gb_camera_ops *ops;
 
 	struct list_head list; /* Global list */
 };
 
 #define gb_camera_call(f, op, args...)      \
-	((!(f) ? -ENODEV : ((f)->ops.op) ?  \
-	(f)->ops.op((f)->priv, ##args) : -ENOIOCTLCMD))
+	(!(f) ? -ENODEV : (((f)->ops->op) ?  \
+	(f)->ops->op((f)->priv, ##args) : -ENOIOCTLCMD))
 
 int gb_camera_register(struct gb_camera_module *module);
 int gb_camera_unregister(struct gb_camera_module *module);
