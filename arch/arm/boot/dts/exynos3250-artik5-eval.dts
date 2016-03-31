@@ -21,6 +21,23 @@
 			"samsung,exynos3250", "samsung,exynos3";
 };
 
+&mshc_2 {
+	num-slots = <1>;
+	cap-sd-highspeed;
+	disable-wp;
+	vqmmc-supply = <&ldo3_reg>;
+	card-detect-delay = <200>;
+	clock-frequency = <100000000>;
+	clock-freq-min-max = <400000 100000000>;
+	samsung,dw-mshc-ciu-div = <1>;
+	samsung,dw-mshc-sdr-timing = <0 1>;
+	samsung,dw-mshc-ddr-timing = <1 2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd2_cmd &sd2_clk &sd2_cd &sd2_bus1 &sd2_bus4>;
+	bus-width = <4>;
+	status = "okay";
+};
+
 &serial_2 {
 	status = "okay";
 };
