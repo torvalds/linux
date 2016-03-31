@@ -126,13 +126,6 @@ static int dw_mci_exynos_priv_init(struct dw_mci *host)
 				DQS_CTRL_GET_RD_DELAY(priv->saved_strobe_ctrl);
 	}
 
-	return 0;
-}
-
-static int dw_mci_exynos_setup_clock(struct dw_mci *host)
-{
-	struct dw_mci_exynos_priv_data *priv = host->priv;
-
 	host->bus_hz /= (priv->ciu_div + 1);
 
 	return 0;
@@ -500,7 +493,6 @@ static unsigned long exynos_dwmmc_caps[4] = {
 static const struct dw_mci_drv_data exynos_drv_data = {
 	.caps			= exynos_dwmmc_caps,
 	.init			= dw_mci_exynos_priv_init,
-	.setup_clock		= dw_mci_exynos_setup_clock,
 	.set_ios		= dw_mci_exynos_set_ios,
 	.parse_dt		= dw_mci_exynos_parse_dt,
 	.execute_tuning		= dw_mci_exynos_execute_tuning,
