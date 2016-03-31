@@ -1103,7 +1103,6 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 	intel_pstate_sample(cpu, 0);
 
 	cpu->update_util.func = intel_pstate_update_util;
-	cpufreq_set_update_util_data(cpunum, &cpu->update_util);
 
 	pr_debug("intel_pstate: controlling: cpu %d\n", cpunum);
 
@@ -1122,18 +1121,29 @@ static unsigned int intel_pstate_get(unsigned int cpu_num)
 	return get_avg_frequency(cpu);
 }
 
+static void intel_pstate_set_update_util_hook(unsigned int cpu)
+{
+	cpufreq_set_update_util_data(cpu, &all_cpu_data[cpu]->update_util);
+}
+
+static void intel_pstate_clear_update_util_hook(unsigned int cpu)
+{
+	cpufreq_set_update_util_data(cpu, NULL);
+	synchronize_sched();
+}
+
 static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 {
 	if (!policy->cpuinfo.max_freq)
 		return -ENODEV;
 
+	intel_pstate_clear_update_util_hook(policy->cpu);
+
 	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE &&
 	    policy->max >= policy->cpuinfo.max_freq) {
 		pr_debug("intel_pstate: set performance\n");
 		limits = &performance_limits;
-		if (hwp_active)
-			intel_pstate_hwp_set(policy->cpus);
-		return 0;
+		goto out;
 	}
 
 	pr_debug("intel_pstate: set powersave\n");
@@ -1163,6 +1173,9 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	limits->max_perf = div_fp(int_tofp(limits->max_perf_pct),
 				  int_tofp(100));
 
+ out:
+	intel_pstate_set_update_util_hook(policy->cpu);
+
 	if (hwp_active)
 		intel_pstate_hwp_set(policy->cpus);
 
@@ -1187,8 +1200,7 @@ static void intel_pstate_stop_cpu(struct cpufreq_policy *policy)
 
 	pr_debug("intel_pstate: CPU %d exiting\n", cpu_num);
 
-	cpufreq_set_update_util_data(cpu_num, NULL);
-	synchronize_sched();
+	intel_pstate_clear_update_util_hook(cpu_num);
 
 	if (hwp_active)
 		return;
@@ -1455,8 +1467,7 @@ out:
 	get_online_cpus();
 	for_each_online_cpu(cpu) {
 		if (all_cpu_data[cpu]) {
-			cpufreq_set_update_util_data(cpu, NULL);
-			synchronize_sched();
+			intel_pstate_clear_update_util_hook(cpu);
 			kfree(all_cpu_data[cpu]);
 		}
 	}
