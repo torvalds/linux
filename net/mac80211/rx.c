@@ -3528,6 +3528,8 @@ void ieee80211_check_fast_rx(struct sta_info *sta)
 	ether_addr_copy(fastrx.rfc1042_hdr, rfc1042_header);
 	ether_addr_copy(fastrx.vif_addr, sdata->vif.addr);
 
+	fastrx.uses_rss = ieee80211_hw_check(&local->hw, USES_RSS);
+
 	/* fast-rx doesn't do reordering */
 	if (ieee80211_hw_check(&local->hw, AMPDU_AGGREGATION) &&
 	    !ieee80211_hw_check(&local->hw, SUPPORTS_REORDERING_BUFFER))
@@ -3678,6 +3680,10 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 		u8 da[ETH_ALEN];
 		u8 sa[ETH_ALEN];
 	} addrs __aligned(2);
+	struct ieee80211_sta_rx_stats *stats = &sta->rx_stats;
+
+	if (fast_rx->uses_rss)
+		stats = this_cpu_ptr(sta->pcpu_rx_stats);
 
 	/* for parallel-rx, we need to have DUP_VALIDATED, otherwise we write
 	 * to a common data structure; drivers can implement that per queue
@@ -3759,29 +3765,32 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	}
 
 	/* statistics part of ieee80211_rx_h_sta_process() */
-	sta->rx_stats.last_rx = jiffies;
-	sta->rx_stats.last_rate = sta_stats_encode_rate(status);
+	stats->last_rx = jiffies;
+	stats->last_rate = sta_stats_encode_rate(status);
 
-	sta->rx_stats.fragments++;
+	stats->fragments++;
 
 	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
-		sta->rx_stats.last_signal = status->signal;
-		ewma_signal_add(&sta->rx_stats_avg.signal, -status->signal);
+		stats->last_signal = status->signal;
+		if (!fast_rx->uses_rss)
+			ewma_signal_add(&sta->rx_stats_avg.signal,
+					-status->signal);
 	}
 
 	if (status->chains) {
 		int i;
 
-		sta->rx_stats.chains = status->chains;
+		stats->chains = status->chains;
 		for (i = 0; i < ARRAY_SIZE(status->chain_signal); i++) {
 			int signal = status->chain_signal[i];
 
 			if (!(status->chains & BIT(i)))
 				continue;
 
-			sta->rx_stats.chain_signal_last[i] = signal;
-			ewma_signal_add(&sta->rx_stats_avg.chain_signal[i],
-					-signal);
+			stats->chain_signal_last[i] = signal;
+			if (!fast_rx->uses_rss)
+				ewma_signal_add(&sta->rx_stats_avg.chain_signal[i],
+						-signal);
 		}
 	}
 	/* end of statistics */
@@ -3806,10 +3815,10 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	 * for non-QoS-data frames. Here we know it's a data
 	 * frame, so count MSDUs.
 	 */
-	u64_stats_update_begin(&sta->rx_stats.syncp);
-	sta->rx_stats.msdu[rx->seqno_idx]++;
-	sta->rx_stats.bytes += orig_len;
-	u64_stats_update_end(&sta->rx_stats.syncp);
+	u64_stats_update_begin(&stats->syncp);
+	stats->msdu[rx->seqno_idx]++;
+	stats->bytes += orig_len;
+	u64_stats_update_end(&stats->syncp);
 
 	if (fast_rx->internal_forward) {
 		struct sta_info *dsta = sta_info_get(rx->sdata, skb->data);
@@ -3840,7 +3849,7 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	return true;
  drop:
 	dev_kfree_skb(skb);
-	sta->rx_stats.dropped++;
+	stats->dropped++;
 	return true;
 }
 

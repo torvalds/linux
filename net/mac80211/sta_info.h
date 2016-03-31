@@ -297,6 +297,7 @@ struct ieee80211_fast_tx {
  * @key: bool indicating encryption is expected (key is set)
  * @sta_notify: notify the MLME code (once)
  * @internal_forward: forward froms internally on AP/VLAN type interfaces
+ * @uses_rss: copy of USES_RSS hw flag
  * @da_offs: offset of the DA in the header (for header conversion)
  * @sa_offs: offset of the SA in the header (for header conversion)
  * @rcu_head: RCU head for freeing this structure
@@ -311,7 +312,8 @@ struct ieee80211_fast_rx {
 	u8 icv_len;
 	u8 key:1,
 	   sta_notify:1,
-	   internal_forward:1;
+	   internal_forward:1,
+	   uses_rss:1;
 	u8 da_offs, sa_offs;
 
 	struct rcu_head rcu_head;
@@ -366,6 +368,21 @@ struct mesh_sta {
 };
 
 DECLARE_EWMA(signal, 1024, 8)
+
+struct ieee80211_sta_rx_stats {
+	unsigned long packets;
+	unsigned long last_rx;
+	unsigned long num_duplicates;
+	unsigned long fragments;
+	unsigned long dropped;
+	int last_signal;
+	u8 chains;
+	s8 chain_signal_last[IEEE80211_MAX_CHAINS];
+	u16 last_rate;
+	struct u64_stats_sync syncp;
+	u64 bytes;
+	u64 msdu[IEEE80211_NUM_TIDS + 1];
+};
 
 /**
  * struct sta_info - STA information
@@ -428,6 +445,8 @@ DECLARE_EWMA(signal, 1024, 8)
  *	the BSS one.
  * @tx_stats: TX statistics
  * @rx_stats: RX statistics
+ * @pcpu_rx_stats: per-CPU RX statistics, assigned only if the driver needs
+ *	this (by advertising the USES_RSS hw flag)
  * @status_stats: TX status statistics
  */
 struct sta_info {
@@ -448,6 +467,7 @@ struct sta_info {
 
 	struct ieee80211_fast_tx __rcu *fast_tx;
 	struct ieee80211_fast_rx __rcu *fast_rx;
+	struct ieee80211_sta_rx_stats __percpu *pcpu_rx_stats;
 
 #ifdef CONFIG_MAC80211_MESH
 	struct mesh_sta *mesh;
@@ -477,21 +497,7 @@ struct sta_info {
 	long last_connected;
 
 	/* Updated from RX path only, no locking requirements */
-	struct {
-		unsigned long packets;
-		unsigned long last_rx;
-		unsigned long num_duplicates;
-		unsigned long fragments;
-		unsigned long dropped;
-		int last_signal;
-		u8 chains;
-		s8 chain_signal_last[IEEE80211_MAX_CHAINS];
-		u16 last_rate;
-
-		struct u64_stats_sync syncp;
-		u64 bytes;
-		u64 msdu[IEEE80211_NUM_TIDS + 1];
-	} rx_stats;
+	struct ieee80211_sta_rx_stats rx_stats;
 	struct {
 		struct ewma_signal signal;
 		struct ewma_signal chain_signal[IEEE80211_MAX_CHAINS];
