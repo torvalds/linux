@@ -29,11 +29,6 @@ struct tpm_atmel_priv {
 	void __iomem *iobase;
 };
 
-static inline struct tpm_atmel_priv *atmel_get_priv(struct tpm_chip *chip)
-{
-	return chip->vendor.priv;
-}
-
 #ifdef CONFIG_PPC64
 
 #include <asm/prom.h>

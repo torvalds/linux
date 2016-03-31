@@ -87,7 +87,7 @@ static SIMPLE_DEV_PM_OPS(crb_pm, tpm_pm_suspend, tpm_pm_resume);
 
 static u8 crb_status(struct tpm_chip *chip)
 {
-	struct crb_priv *priv = chip->vendor.priv;
+	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
 	u8 sts = 0;
 
 	if ((ioread32(&priv->cca->start) & CRB_START_INVOKE) !=
@@ -99,7 +99,7 @@ static u8 crb_status(struct tpm_chip *chip)
 
 static int crb_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
-	struct crb_priv *priv = chip->vendor.priv;
+	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
 	unsigned int expected;
 
 	/* sanity check */
@@ -139,7 +139,7 @@ static int crb_do_acpi_start(struct tpm_chip *chip)
 
 static int crb_send(struct tpm_chip *chip, u8 *buf, size_t len)
 {
-	struct crb_priv *priv = chip->vendor.priv;
+	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
 	int rc = 0;
 
 	if (len > ioread32(&priv->cca->cmd_size)) {
@@ -166,7 +166,7 @@ static int crb_send(struct tpm_chip *chip, u8 *buf, size_t len)
 
 static void crb_cancel(struct tpm_chip *chip)
 {
-	struct crb_priv *priv = chip->vendor.priv;
+	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
 
 	iowrite32(cpu_to_le32(CRB_CANCEL_INVOKE), &priv->cca->cancel);
 
@@ -181,7 +181,7 @@ static void crb_cancel(struct tpm_chip *chip)
 
 static bool crb_req_canceled(struct tpm_chip *chip, u8 status)
 {
-	struct crb_priv *priv = chip->vendor.priv;
+	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
 	u32 cancel = ioread32(&priv->cca->cancel);
 
 	return (cancel & CRB_CANCEL_INVOKE) == CRB_CANCEL_INVOKE;
@@ -206,7 +206,7 @@ static int crb_init(struct acpi_device *device, struct crb_priv *priv)
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 
-	chip->vendor.priv = priv;
+	dev_set_drvdata(&chip->dev, priv);
 	chip->acpi_dev_handle = device->handle;
 	chip->flags = TPM_CHIP_FLAG_TPM2;
 

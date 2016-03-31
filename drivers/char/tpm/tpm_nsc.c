@@ -69,20 +69,16 @@ struct tpm_nsc_priv {
 	unsigned long base;
 };
 
-static inline struct tpm_nsc_priv *nsc_get_priv(struct tpm_chip *chip)
-{
-	return chip->vendor.priv;
-}
-
 /*
  * Wait for a certain status to appear
  */
 static int wait_for_stat(struct tpm_chip *chip, u8 mask, u8 val, u8 * data)
 {
+	struct tpm_nsc_priv *priv = dev_get_drvdata(&chip->dev);
 	unsigned long stop;
 
 	/* status immediately available check */
-	*data = inb(nsc_get_priv(chip)->base + NSC_STATUS);
+	*data = inb(priv->base + NSC_STATUS);
 	if ((*data & mask) == val)
 		return 0;
 
@@ -90,7 +86,7 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, u8 val, u8 * data)
 	stop = jiffies + 10 * HZ;
 	do {
 		msleep(TPM_TIMEOUT);
-		*data = inb(nsc_get_priv(chip)->base + 1);
+		*data = inb(priv->base + 1);
 		if ((*data & mask) == val)
 			return 0;
 	}
@@ -101,13 +97,14 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, u8 val, u8 * data)
 
 static int nsc_wait_for_ready(struct tpm_chip *chip)
 {
+	struct tpm_nsc_priv *priv = dev_get_drvdata(&chip->dev);
 	int status;
 	unsigned long stop;
 
 	/* status immediately available check */
-	status = inb(nsc_get_priv(chip)->base + NSC_STATUS);
+	status = inb(priv->base + NSC_STATUS);
 	if (status & NSC_STATUS_OBF)
-		status = inb(nsc_get_priv(chip)->base + NSC_DATA);
+		status = inb(priv->base + NSC_DATA);
 	if (status & NSC_STATUS_RDY)
 		return 0;
 
@@ -115,9 +112,9 @@ static int nsc_wait_for_ready(struct tpm_chip *chip)
 	stop = jiffies + 100;
 	do {
 		msleep(TPM_TIMEOUT);
-		status = inb(nsc_get_priv(chip)->base + NSC_STATUS);
+		status = inb(priv->base + NSC_STATUS);
 		if (status & NSC_STATUS_OBF)
-			status = inb(nsc_get_priv(chip)->base + NSC_DATA);
+			status = inb(priv->base + NSC_DATA);
 		if (status & NSC_STATUS_RDY)
 			return 0;
 	}
@@ -130,6 +127,7 @@ static int nsc_wait_for_ready(struct tpm_chip *chip)
 
 static int tpm_nsc_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 {
+	struct tpm_nsc_priv *priv = dev_get_drvdata(&chip->dev);
 	u8 *buffer = buf;
 	u8 data, *p;
 	u32 size;
@@ -143,7 +141,7 @@ static int tpm_nsc_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 		return -EIO;
 	}
 
-	data = inb(nsc_get_priv(chip)->base + NSC_DATA);
+	data = inb(priv->base + NSC_DATA);
 	if (data != NSC_COMMAND_NORMAL) {
 		dev_err(&chip->dev, "not in normal mode (0x%x)\n",
 			data);
@@ -160,7 +158,7 @@ static int tpm_nsc_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 		}
 		if (data & NSC_STATUS_F0)
 			break;
-		*p = inb(nsc_get_priv(chip)->base + NSC_DATA);
+		*p = inb(priv->base + NSC_DATA);
 	}
 
 	if ((data & NSC_STATUS_F0) == 0 &&
@@ -169,7 +167,7 @@ static int tpm_nsc_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 		return -EIO;
 	}
 
-	data = inb(nsc_get_priv(chip)->base + NSC_DATA);
+	data = inb(priv->base + NSC_DATA);
 	if (data != NSC_COMMAND_EOC) {
 		dev_err(&chip->dev,
 			"expected end of command(0x%x)\n", data);
@@ -187,6 +185,7 @@ static int tpm_nsc_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 
 static int tpm_nsc_send(struct tpm_chip *chip, u8 * buf, size_t count)
 {
+	struct tpm_nsc_priv *priv = dev_get_drvdata(&chip->dev);
 	u8 data;
 	int i;
 
@@ -196,7 +195,7 @@ static int tpm_nsc_send(struct tpm_chip *chip, u8 * buf, size_t count)
 	 * fix it. Not sure why this is needed, we followed the flow
 	 * chart in the manual to the letter.
 	 */
-	outb(NSC_COMMAND_CANCEL, nsc_get_priv(chip)->base + NSC_COMMAND);
+	outb(NSC_COMMAND_CANCEL, priv->base + NSC_COMMAND);
 
 	if (nsc_wait_for_ready(chip) != 0)
 		return -EIO;
@@ -206,7 +205,7 @@ static int tpm_nsc_send(struct tpm_chip *chip, u8 * buf, size_t count)
 		return -EIO;
 	}
 
-	outb(NSC_COMMAND_NORMAL, nsc_get_priv(chip)->base + NSC_COMMAND);
+	outb(NSC_COMMAND_NORMAL, priv->base + NSC_COMMAND);
 	if (wait_for_stat(chip, NSC_STATUS_IBR, NSC_STATUS_IBR, &data) < 0) {
 		dev_err(&chip->dev, "IBR timeout\n");
 		return -EIO;
@@ -218,26 +217,30 @@ static int tpm_nsc_send(struct tpm_chip *chip, u8 * buf, size_t count)
 				"IBF timeout (while writing data)\n");
 			return -EIO;
 		}
-		outb(buf[i], nsc_get_priv(chip)->base + NSC_DATA);
+		outb(buf[i], priv->base + NSC_DATA);
 	}
 
 	if (wait_for_stat(chip, NSC_STATUS_IBF, 0, &data) < 0) {
 		dev_err(&chip->dev, "IBF timeout\n");
 		return -EIO;
 	}
-	outb(NSC_COMMAND_EOC, nsc_get_priv(chip)->base + NSC_COMMAND);
+	outb(NSC_COMMAND_EOC, priv->base + NSC_COMMAND);
 
 	return count;
 }
 
 static void tpm_nsc_cancel(struct tpm_chip *chip)
 {
-	outb(NSC_COMMAND_CANCEL, nsc_get_priv(chip)->base + NSC_COMMAND);
+	struct tpm_nsc_priv *priv = dev_get_drvdata(&chip->dev);
+
+	outb(NSC_COMMAND_CANCEL, priv->base + NSC_COMMAND);
 }
 
 static u8 tpm_nsc_status(struct tpm_chip *chip)
 {
-	return inb(nsc_get_priv(chip)->base + NSC_STATUS);
+	struct tpm_nsc_priv *priv = dev_get_drvdata(&chip->dev);
+
+	return inb(priv->base + NSC_STATUS);
 }
 
 static bool tpm_nsc_req_canceled(struct tpm_chip *chip, u8 status)
@@ -260,9 +263,10 @@ static struct platform_device *pdev = NULL;
 static void tpm_nsc_remove(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
+	struct tpm_nsc_priv *priv = dev_get_drvdata(&chip->dev);
 
 	tpm_chip_unregister(chip);
-	release_region(nsc_get_priv(chip)->base, 2);
+	release_region(priv->base, 2);
 }
 
 static SIMPLE_DEV_PM_OPS(tpm_nsc_pm, tpm_pm_suspend, tpm_pm_resume);
@@ -334,7 +338,7 @@ static int __init init_nsc(void)
 		goto err_rel_reg;
 	}
 
-	chip->vendor.priv = priv;
+	dev_set_drvdata(&chip->dev, priv);
 
 	rc = tpm_chip_register(chip);
 	if (rc)

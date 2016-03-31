@@ -180,7 +180,7 @@ static int i2c_nuvoton_wait_for_stat(struct tpm_chip *chip, u8 mask, u8 value,
 {
 	if ((chip->flags & TPM_CHIP_FLAG_IRQ) && queue) {
 		s32 rc;
-		struct priv_data *priv = chip->vendor.priv;
+		struct priv_data *priv = dev_get_drvdata(&chip->dev);
 		unsigned int cur_intrs = priv->intrs;
 
 		enable_irq(priv->irq);
@@ -233,7 +233,7 @@ static int i2c_nuvoton_wait_for_data_avail(struct tpm_chip *chip, u32 timeout,
 static int i2c_nuvoton_recv_data(struct i2c_client *client,
 				 struct tpm_chip *chip, u8 *buf, size_t count)
 {
-	struct priv_data *priv = chip->vendor.priv;
+	struct priv_data *priv = dev_get_drvdata(&chip->dev);
 	s32 rc;
 	int burst_count, bytes2read, size = 0;
 
@@ -267,7 +267,7 @@ static int i2c_nuvoton_recv_data(struct i2c_client *client,
 /* Read TPM command results */
 static int i2c_nuvoton_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
-	struct priv_data *priv = chip->vendor.priv;
+	struct priv_data *priv = dev_get_drvdata(&chip->dev);
 	struct device *dev = chip->dev.parent;
 	struct i2c_client *client = to_i2c_client(dev);
 	s32 rc;
@@ -351,7 +351,7 @@ static int i2c_nuvoton_recv(struct tpm_chip *chip, u8 *buf, size_t count)
  */
 static int i2c_nuvoton_send(struct tpm_chip *chip, u8 *buf, size_t len)
 {
-	struct priv_data *priv = chip->vendor.priv;
+	struct priv_data *priv = dev_get_drvdata(&chip->dev);
 	struct device *dev = chip->dev.parent;
 	struct i2c_client *client = to_i2c_client(dev);
 	u32 ordinal;
@@ -478,7 +478,7 @@ static const struct tpm_class_ops tpm_i2c = {
 static irqreturn_t i2c_nuvoton_int_handler(int dummy, void *dev_id)
 {
 	struct tpm_chip *chip = dev_id;
-	struct priv_data *priv = chip->vendor.priv;
+	struct priv_data *priv = dev_get_drvdata(&chip->dev);
 
 	priv->intrs++;
 	wake_up(&priv->read_queue);
@@ -543,7 +543,6 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 	priv = devm_kzalloc(dev, sizeof(struct priv_data), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-	chip->vendor.priv = priv;
 
 	init_waitqueue_head(&priv->read_queue);
 
@@ -552,6 +551,8 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 	chip->timeout_b = msecs_to_jiffies(TPM_I2C_LONG_TIMEOUT);
 	chip->timeout_c = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
 	chip->timeout_d = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
+
+	dev_set_drvdata(&chip->dev, priv);
 
 	/*
 	 * I2C intfcaps (interrupt capabilitieis) in the chip are hard coded to:
@@ -619,8 +620,8 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 
 static int i2c_nuvoton_remove(struct i2c_client *client)
 {
-	struct device *dev = &(client->dev);
-	struct tpm_chip *chip = dev_get_drvdata(dev);
+	struct tpm_chip *chip = i2c_get_clientdata(client);
+
 	tpm_chip_unregister(chip);
 	return 0;
 }

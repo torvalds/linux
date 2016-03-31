@@ -94,10 +94,8 @@ static u8 clear_interruption(struct st33zp24_dev *tpm_dev)
  */
 static void st33zp24_cancel(struct tpm_chip *chip)
 {
-	struct st33zp24_dev *tpm_dev;
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	u8 data;
-
-	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
 
 	data = TPM_STS_COMMAND_READY;
 	tpm_dev->ops->send(tpm_dev->phy_id, TPM_STS, &data, 1);
@@ -110,10 +108,8 @@ static void st33zp24_cancel(struct tpm_chip *chip)
  */
 static u8 st33zp24_status(struct tpm_chip *chip)
 {
-	struct st33zp24_dev *tpm_dev;
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	u8 data;
-
-	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
 
 	tpm_dev->ops->recv(tpm_dev->phy_id, TPM_STS, &data, 1);
 	return data;
@@ -126,11 +122,9 @@ static u8 st33zp24_status(struct tpm_chip *chip)
  */
 static int check_locality(struct tpm_chip *chip)
 {
-	struct st33zp24_dev *tpm_dev;
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	u8 data;
 	u8 status;
-
-	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
 
 	status = tpm_dev->ops->recv(tpm_dev->phy_id, TPM_ACCESS, &data, 1);
 	if (status && (data &
@@ -148,12 +142,10 @@ static int check_locality(struct tpm_chip *chip)
  */
 static int request_locality(struct tpm_chip *chip)
 {
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	unsigned long stop;
 	long ret;
-	struct st33zp24_dev *tpm_dev;
 	u8 data;
-
-	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
 
 	if (check_locality(chip) == tpm_dev->locality)
 		return tpm_dev->locality;
@@ -182,10 +174,9 @@ static int request_locality(struct tpm_chip *chip)
  */
 static void release_locality(struct tpm_chip *chip)
 {
-	struct st33zp24_dev *tpm_dev;
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	u8 data;
 
-	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
 	data = TPM_ACCESS_ACTIVE_LOCALITY;
 
 	tpm_dev->ops->send(tpm_dev->phy_id, TPM_ACCESS, &data, 1);
@@ -198,12 +189,10 @@ static void release_locality(struct tpm_chip *chip)
  */
 static int get_burstcount(struct tpm_chip *chip)
 {
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	unsigned long stop;
 	int burstcnt, status;
 	u8 temp;
-	struct st33zp24_dev *tpm_dev;
-
-	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
 
 	stop = jiffies + chip->timeout_d;
 	do {
@@ -263,15 +252,13 @@ static bool wait_for_tpm_stat_cond(struct tpm_chip *chip, u8 mask,
 static int wait_for_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 			wait_queue_head_t *queue, bool check_cancel)
 {
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	unsigned long stop;
 	int ret = 0;
 	bool canceled = false;
 	bool condition;
 	u32 cur_intrs;
 	u8 status;
-	struct st33zp24_dev *tpm_dev;
-
-	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
 
 	/* check current status */
 	status = st33zp24_status(chip);
@@ -329,10 +316,8 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
  */
 static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 {
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	int size = 0, burstcnt, len, ret;
-	struct st33zp24_dev *tpm_dev;
-
-	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
 
 	while (size < count &&
 	       wait_for_stat(chip,
@@ -362,9 +347,7 @@ static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 static irqreturn_t tpm_ioserirq_handler(int irq, void *dev_id)
 {
 	struct tpm_chip *chip = dev_id;
-	struct st33zp24_dev *tpm_dev;
-
-	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 
 	tpm_dev->intrs++;
 	wake_up_interruptible(&tpm_dev->read_queue);
@@ -385,18 +368,16 @@ static irqreturn_t tpm_ioserirq_handler(int irq, void *dev_id)
 static int st33zp24_send(struct tpm_chip *chip, unsigned char *buf,
 			 size_t len)
 {
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	u32 status, i, size, ordinal;
 	int burstcnt = 0;
 	int ret;
 	u8 data;
-	struct st33zp24_dev *tpm_dev;
 
 	if (!chip)
 		return -EBUSY;
 	if (len < TPM_HEADER_SIZE)
 		return -EBUSY;
-
-	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
 
 	ret = request_locality(chip);
 	if (ret < 0)
@@ -557,9 +538,9 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 	if (!tpm_dev)
 		return -ENOMEM;
 
-	TPM_VPRIV(chip) = tpm_dev;
 	tpm_dev->phy_id = phy_id;
 	tpm_dev->ops = ops;
+	dev_set_drvdata(&chip->dev, tpm_dev);
 
 	chip->timeout_a = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
 	chip->timeout_b = msecs_to_jiffies(TIS_LONG_TIMEOUT);
@@ -643,10 +624,9 @@ EXPORT_SYMBOL(st33zp24_remove);
 int st33zp24_pm_suspend(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
-	struct st33zp24_dev *tpm_dev;
-	int ret = 0;
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 
-	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
+	int ret = 0;
 
 	if (gpio_is_valid(tpm_dev->io_lpcpd))
 		gpio_set_value(tpm_dev->io_lpcpd, 0);
@@ -665,10 +645,8 @@ EXPORT_SYMBOL(st33zp24_pm_suspend);
 int st33zp24_pm_resume(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
-	struct st33zp24_dev *tpm_dev;
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	int ret = 0;
-
-	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
 
 	if (gpio_is_valid(tpm_dev->io_lpcpd)) {
 		gpio_set_value(tpm_dev->io_lpcpd, 1);

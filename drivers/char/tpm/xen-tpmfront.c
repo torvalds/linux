@@ -41,7 +41,7 @@ enum status_bits {
 
 static u8 vtpm_status(struct tpm_chip *chip)
 {
-	struct tpm_private *priv = TPM_VPRIV(chip);
+	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	switch (priv->shr->state) {
 	case VTPM_STATE_IDLE:
 		return VTPM_STATUS_IDLE | VTPM_STATUS_CANCELED;
@@ -62,7 +62,7 @@ static bool vtpm_req_canceled(struct tpm_chip *chip, u8 status)
 
 static void vtpm_cancel(struct tpm_chip *chip)
 {
-	struct tpm_private *priv = TPM_VPRIV(chip);
+	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	priv->shr->state = VTPM_STATE_CANCEL;
 	wmb();
 	notify_remote_via_evtchn(priv->evtchn);
@@ -75,7 +75,7 @@ static unsigned int shr_data_offset(struct vtpm_shared_page *shr)
 
 static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 {
-	struct tpm_private *priv = TPM_VPRIV(chip);
+	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	struct vtpm_shared_page *shr = priv->shr;
 	unsigned int offset = shr_data_offset(shr);
 
@@ -117,7 +117,7 @@ static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 
 static int vtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
-	struct tpm_private *priv = TPM_VPRIV(chip);
+	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	struct vtpm_shared_page *shr = priv->shr;
 	unsigned int offset = shr_data_offset(shr);
 	size_t length = shr->length;
@@ -184,7 +184,7 @@ static int setup_chip(struct device *dev, struct tpm_private *priv)
 	init_waitqueue_head(&priv->read_queue);
 
 	priv->chip = chip;
-	TPM_VPRIV(chip) = priv;
+	dev_set_drvdata(&chip->dev, priv);
 
 	return 0;
 }
@@ -320,10 +320,10 @@ static int tpmfront_probe(struct xenbus_device *dev,
 static int tpmfront_remove(struct xenbus_device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(&dev->dev);
-	struct tpm_private *priv = TPM_VPRIV(chip);
+	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	tpm_chip_unregister(chip);
 	ring_free(priv);
-	TPM_VPRIV(chip) = NULL;
+	dev_set_drvdata(&chip->dev, NULL);
 	return 0;
 }
 

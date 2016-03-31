@@ -37,7 +37,7 @@ enum tpm_atmel_read_status {
 
 static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
-	struct tpm_atmel_priv *priv = chip->vendor.priv;
+	struct tpm_atmel_priv *priv = dev_get_drvdata(&chip->dev);
 	u8 status, *hdr = buf;
 	u32 size;
 	int i;
@@ -96,7 +96,7 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 
 static int tpm_atml_send(struct tpm_chip *chip, u8 *buf, size_t count)
 {
-	struct tpm_atmel_priv *priv = chip->vendor.priv;
+	struct tpm_atmel_priv *priv = dev_get_drvdata(&chip->dev);
 	int i;
 
 	dev_dbg(&chip->dev, "tpm_atml_send:\n");
@@ -110,14 +110,14 @@ static int tpm_atml_send(struct tpm_chip *chip, u8 *buf, size_t count)
 
 static void tpm_atml_cancel(struct tpm_chip *chip)
 {
-	struct tpm_atmel_priv *priv = chip->vendor.priv;
+	struct tpm_atmel_priv *priv = dev_get_drvdata(&chip->dev);
 
 	iowrite8(ATML_STATUS_ABORT, priv->iobase + 1);
 }
 
 static u8 tpm_atml_status(struct tpm_chip *chip)
 {
-	struct tpm_atmel_priv *priv = chip->vendor.priv;
+	struct tpm_atmel_priv *priv = dev_get_drvdata(&chip->dev);
 
 	return ioread8(priv->iobase + 1);
 }
@@ -142,7 +142,7 @@ static struct platform_device *pdev;
 static void atml_plat_remove(void)
 {
 	struct tpm_chip *chip = dev_get_drvdata(&pdev->dev);
-	struct tpm_atmel_priv *priv = chip->vendor.priv;
+	struct tpm_atmel_priv *priv = dev_get_drvdata(&chip->dev);
 
 	if (chip) {
 		tpm_chip_unregister(chip);
@@ -207,7 +207,7 @@ static int __init init_atmel(void)
 		goto err_unreg_dev;
 	}
 
-	chip->vendor.priv = priv;
+	dev_set_drvdata(&chip->dev, priv);
 
 	rc = tpm_chip_register(chip);
 	if (rc)

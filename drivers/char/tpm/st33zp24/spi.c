@@ -26,6 +26,7 @@
 #include <linux/tpm.h>
 #include <linux/platform_data/st33zp24.h>
 
+#include "../tpm.h"
 #include "st33zp24.h"
 
 #define TPM_DATA_FIFO           0x24
@@ -231,7 +232,9 @@ static const struct st33zp24_phy_ops spi_phy_ops = {
 
 static int st33zp24_spi_acpi_request_resources(struct spi_device *spi_dev)
 {
-	struct st33zp24_spi_phy *phy = spi_get_drvdata(spi_dev);
+	struct tpm_chip *chip = spi_get_drvdata(spi_dev);
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
+	struct st33zp24_spi_phy *phy = tpm_dev->phy_id;
 	struct gpio_desc *gpiod_lpcpd;
 	struct device *dev = &spi_dev->dev;
 
@@ -256,7 +259,9 @@ static int st33zp24_spi_acpi_request_resources(struct spi_device *spi_dev)
 
 static int st33zp24_spi_of_request_resources(struct spi_device *spi_dev)
 {
-	struct st33zp24_spi_phy *phy = spi_get_drvdata(spi_dev);
+	struct tpm_chip *chip = spi_get_drvdata(spi_dev);
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
+	struct st33zp24_spi_phy *phy = tpm_dev->phy_id;
 	struct device_node *pp;
 	int gpio;
 	int ret;
@@ -294,7 +299,9 @@ static int st33zp24_spi_of_request_resources(struct spi_device *spi_dev)
 
 static int st33zp24_spi_request_resources(struct spi_device *dev)
 {
-	struct st33zp24_spi_phy *phy = spi_get_drvdata(dev);
+	struct tpm_chip *chip = spi_get_drvdata(dev);
+	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
+	struct st33zp24_spi_phy *phy = tpm_dev->phy_id;
 	struct st33zp24_platform_data *pdata;
 	int ret;
 
@@ -346,8 +353,6 @@ static int st33zp24_spi_probe(struct spi_device *dev)
 		return -ENOMEM;
 
 	phy->spi_device = dev;
-
-	spi_set_drvdata(dev, phy);
 
 	pdata = dev->dev.platform_data;
 	if (!pdata && dev->dev.of_node) {
