@@ -2221,7 +2221,7 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 	} else if (val32 & SYS_CFG_TYPE_ID) {
 		bonding = rtl8xxxu_read32(priv, REG_HPON_FSM);
 		bonding &= HPON_FSM_BONDING_MASK;
-		if (priv->chip_cut >= 3) {
+		if (priv->fops->has_s0s1) {
 			if (bonding == HPON_FSM_BONDING_1T2R) {
 				sprintf(priv->chip_name, "8191EU");
 				priv->rf_paths = 2;
