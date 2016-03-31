@@ -1123,7 +1123,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	}
 
 	/* Parse the I_boost config for SKL and above */
-	if (bdb->version >= 196 && (child->common.flags_1 & IBOOST_ENABLE)) {
+	if (bdb->version >= 196 && child->common.iboost) {
 		info->dp_boost_level = translate_iboost(child->common.iboost_level & 0xF);
 		DRM_DEBUG_KMS("VBT (e)DP boost level for port %c: %d\n",
 			      port_name(port), info->dp_boost_level);
@@ -1241,6 +1241,19 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		 */
 		memcpy(child_dev_ptr, p_child,
 		       min_t(size_t, p_defs->child_dev_size, sizeof(*p_child)));
+
+		/*
+		 * copied full block, now init values when they are not
+		 * available in current version
+		 */
+		if (bdb->version < 196) {
+			/* Set default values for bits added from v196 */
+			child_dev_ptr->common.iboost = 0;
+			child_dev_ptr->common.hpd_invert = 0;
+		}
+
+		if (bdb->version < 192)
+			child_dev_ptr->common.lspcon = 0;
 	}
 	return;
 }
