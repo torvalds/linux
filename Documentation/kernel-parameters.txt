@@ -131,6 +131,7 @@ parameter is applicable:
 			More X86-64 boot options can be found in
 			Documentation/x86/x86_64/boot-options.txt .
 	X86	Either 32-bit or 64-bit x86 (same as X86-32+X86-64)
+	X86_UV	SGI UV support is enabled.
 	XEN	Xen support is enabled
 
 In addition, the following text indicates that the option:
@@ -541,6 +542,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	audit_backlog_limit= [KNL] Set the audit queue size limit.
 			Format: <int> (must be >=0)
 			Default: 64
+
+	bau=		[X86_UV] Enable the BAU on SGI UV.  The default
+			behavior is to disable the BAU (i.e. bau=0).
+			Format: { "0" | "1" }
+			0 - Disable the BAU.
+			1 - Enable the BAU.
+			unset - Disable the BAU.
 
 	baycom_epp=	[HW,AX25]
 			Format: <io>,<mode>
