@@ -92,7 +92,7 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 {
 	static const char *hwcap_str[] = {
 		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp",
-		"edat", "etf3eh", "highgprs", "te", "vx"
+		"edat", "etf3eh", "highgprs", "te", "vx", "vxd", "vxe"
 	};
 	static const char * const int_hwcap_str[] = {
 		"sie"
