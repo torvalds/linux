@@ -28,6 +28,7 @@ config NVMEM_IMX_OCOTP
 config NVMEM_LPC18XX_EEPROM
 	tristate "NXP LPC18XX EEPROM Memory Support"
 	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Say Y here to include support for NXP LPC18xx EEPROM memory found in
 	  NXP LPC185x/3x and LPC435x/3x/2x/1x devices.
@@ -49,6 +50,7 @@ config NVMEM_MXS_OCOTP
 config MTK_EFUSE
 	tristate "Mediatek SoCs EFUSE support"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_IOMEM
 	select REGMAP_MMIO
 	help
 	  This is a driver to access hardware related data like sensor
