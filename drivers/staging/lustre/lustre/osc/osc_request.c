@@ -1934,7 +1934,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 		pga[i] = &oap->oap_brw_page;
 		pga[i]->off = oap->oap_obj_off + oap->oap_page_off;
 		CDEBUG(0, "put page %p index %lu oap %p flg %x to pga\n",
-		       pga[i]->pg, page_index(oap->oap_page), oap,
+		       pga[i]->pg, oap->oap_page->index, oap,
 		       pga[i]->flag);
 		i++;
 		cl_req_page_add(env, clerq, page);

@@ -394,7 +394,7 @@ static int vvp_page_print(const struct lu_env *env,
 		(*printer)(env, cookie, "%lx %d:%d %lx %lu %slru",
 			   (long)vmpage->flags, page_count(vmpage),
 			   page_mapcount(vmpage), vmpage->private,
-			   page_index(vmpage),
+			   vmpage->index,
 			   list_empty(&vmpage->lru) ? "not-" : "");
 	}
 

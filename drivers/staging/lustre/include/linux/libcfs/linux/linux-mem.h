@@ -57,8 +57,6 @@
 #include "../libcfs_cpu.h"
 #endif
 
-#define page_index(p)       ((p)->index)
-
 #if BITS_PER_LONG == 32
 /* limit to lowmem on 32-bit systems */
 #define NUM_CACHEPAGES \
