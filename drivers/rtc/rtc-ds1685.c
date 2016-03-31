@@ -32,8 +32,6 @@
 #include <linux/proc_fs.h>
 #endif
 
-#define DRV_VERSION	"0.42.0"
-
 
 /* ----------------------------------------------------------------------- */
 /* Standard read/write functions if platform does not provide overrides */
@@ -2224,5 +2222,4 @@ MODULE_AUTHOR("Joshua Kinard <kumba@gentoo.org>");
 MODULE_AUTHOR("Matthias Fuchs <matthias.fuchs@esd-electronics.com>");
 MODULE_DESCRIPTION("Dallas/Maxim DS1685/DS1687-series RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:rtc-ds1685");

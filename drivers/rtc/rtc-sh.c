@@ -30,7 +30,6 @@
 #include <asm/rtc.h>
 
 #define DRV_NAME	"sh-rtc"
-#define DRV_VERSION	"0.2.3"
 
 #define RTC_REG(r)	((r) * rtc_reg_size)
 
@@ -790,7 +789,6 @@ static struct platform_driver sh_rtc_platform_driver = {
 module_platform_driver_probe(sh_rtc_platform_driver, sh_rtc_probe);
 
 MODULE_DESCRIPTION("SuperH on-chip RTC driver");
-MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>, "
 	      "Jamie Lenehan <lenehan@twibble.org>, "
 	      "Angelo Castello <angelo.castello@st.com>");

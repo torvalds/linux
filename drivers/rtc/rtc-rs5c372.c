@@ -16,9 +16,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
-#define DRV_VERSION "0.6"
-
-
 /*
  * Ricoh has a family of I2C based RTCs, which differ only slightly from
  * each other.  Differences center on pinout (e.g. how many interrupts,
@@ -640,7 +637,7 @@ static int rs5c372_probe(struct i2c_client *client,
 	if (rs5c372_get_datetime(client, &tm) < 0)
 		dev_warn(&client->dev, "clock needs to be set\n");
 
-	dev_info(&client->dev, "%s found, %s, driver version " DRV_VERSION "\n",
+	dev_info(&client->dev, "%s found, %s\n",
 			({ char *s; switch (rs5c372->type) {
 			case rtc_r2025sd:	s = "r2025sd"; break;
 			case rtc_r2221tl:	s = "r2221tl"; break;
@@ -696,4 +693,3 @@ MODULE_AUTHOR(
 		"Paul Mundt <lethal@linux-sh.org>");
 MODULE_DESCRIPTION("Ricoh RS5C372 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

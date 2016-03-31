@@ -19,7 +19,6 @@
 #include <linux/spi/spi.h>
 
 #define DRV_NAME	"rtc-ds1302"
-#define DRV_VERSION	"1.0.0"
 
 #define	RTC_CMD_READ	0x81		/* Read command */
 #define	RTC_CMD_WRITE	0x80		/* Write command */
@@ -216,6 +215,5 @@ static struct spi_driver ds1302_driver = {
 module_spi_driver(ds1302_driver);
 
 MODULE_DESCRIPTION("Dallas DS1302 RTC driver");
-MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR("Paul Mundt, David McCullough");
 MODULE_LICENSE("GPL v2");
