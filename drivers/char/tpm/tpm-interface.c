@@ -359,7 +359,7 @@ ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		goto out;
 	}
 
-	if (chip->vendor.irq)
+	if (chip->flags & TPM_CHIP_FLAG_IRQ)
 		goto out_recv;
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
@@ -890,7 +890,7 @@ int wait_for_tpm_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 
 	stop = jiffies + timeout;
 
-	if (chip->vendor.irq) {
+	if (chip->flags & TPM_CHIP_FLAG_IRQ) {
 again:
 		timeout = stop - jiffies;
 		if ((long)timeout <= 0)

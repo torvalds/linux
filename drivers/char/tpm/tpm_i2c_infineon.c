@@ -585,9 +585,6 @@ static int tpm_tis_i2c_init(struct device *dev)
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 
-	/* Disable interrupts */
-	chip->vendor.irq = 0;
-
 	/* Default timeouts */
 	chip->vendor.timeout_a = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
 	chip->vendor.timeout_b = msecs_to_jiffies(TIS_LONG_TIMEOUT);

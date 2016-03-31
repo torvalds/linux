@@ -28,6 +28,7 @@ struct tpm_private {
 	unsigned int evtchn;
 	int ring_ref;
 	domid_t backend_id;
+	int irq;
 };
 
 enum status_bits {
@@ -217,7 +218,7 @@ static int setup_ring(struct xenbus_device *dev, struct tpm_private *priv)
 		xenbus_dev_fatal(dev, rv, "allocating TPM irq");
 		return rv;
 	}
-	priv->chip->vendor.irq = rv;
+	priv->irq = rv;
 
  again:
 	rv = xenbus_transaction_start(&xbt);
@@ -277,8 +278,8 @@ static void ring_free(struct tpm_private *priv)
 	else
 		free_page((unsigned long)priv->shr);
 
-	if (priv->chip && priv->chip->vendor.irq)
-		unbind_from_irqhandler(priv->chip->vendor.irq, priv);
+	if (priv->irq)
+		unbind_from_irqhandler(priv->irq, priv);
 
 	kfree(priv);
 }

@@ -131,8 +131,6 @@ enum tpm2_startup_types {
 struct tpm_chip;
 
 struct tpm_vendor_specific {
-	int irq;
-
 	int locality;
 	unsigned long timeout_a, timeout_b, timeout_c, timeout_d; /* jiffies */
 	bool timeout_adjusted;
@@ -154,6 +152,7 @@ struct tpm_vendor_specific {
 enum tpm_chip_flags {
 	TPM_CHIP_FLAG_REGISTERED	= BIT(0),
 	TPM_CHIP_FLAG_TPM2		= BIT(1),
+	TPM_CHIP_FLAG_IRQ		= BIT(2),
 };
 
 struct tpm_chip {

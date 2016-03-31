@@ -21,6 +21,16 @@
 #define TPM_WRITE_DIRECTION             0x80
 #define TPM_BUFSIZE                     2048
 
+struct st33zp24_dev {
+	struct tpm_chip *chip;
+	void *phy_id;
+	const struct st33zp24_phy_ops *ops;
+	int irq;
+	u32 intrs;
+	int io_lpcpd;
+};
+
+
 struct st33zp24_phy_ops {
 	int (*send)(void *phy_id, u8 tpm_register, u8 *tpm_data, int tpm_size);
 	int (*recv)(void *phy_id, u8 tpm_register, u8 *tpm_data, int tpm_size);

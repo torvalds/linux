@@ -73,14 +73,6 @@ enum tis_defaults {
 	TIS_LONG_TIMEOUT = 2000,
 };
 
-struct st33zp24_dev {
-	struct tpm_chip *chip;
-	void *phy_id;
-	const struct st33zp24_phy_ops *ops;
-	u32 intrs;
-	int io_lpcpd;
-};
-
 /*
  * clear_interruption clear the pending interrupt.
  * @param: tpm_dev, the tpm device device.
@@ -288,10 +280,10 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 
 	stop = jiffies + timeout;
 
-	if (chip->vendor.irq) {
+	if (chip->flags & TPM_CHIP_FLAG_IRQ) {
 		cur_intrs = tpm_dev->intrs;
 		clear_interruption(tpm_dev);
-		enable_irq(chip->vendor.irq);
+		enable_irq(tpm_dev->irq);
 
 		do {
 			if (ret == -ERESTARTSYS && freezing(current))
@@ -314,7 +306,7 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 			}
 		} while (ret == -ERESTARTSYS && freezing(current));
 
-		disable_irq_nosync(chip->vendor.irq);
+		disable_irq_nosync(tpm_dev->irq);
 
 	} else {
 		do {
@@ -376,7 +368,7 @@ static irqreturn_t tpm_ioserirq_handler(int irq, void *dev_id)
 
 	tpm_dev->intrs++;
 	wake_up_interruptible(&chip->vendor.read_queue);
-	disable_irq_nosync(chip->vendor.irq);
+	disable_irq_nosync(tpm_dev->irq);
 
 	return IRQ_HANDLED;
 } /* tpm_ioserirq_handler() */
@@ -456,7 +448,7 @@ static int st33zp24_send(struct tpm_chip *chip, unsigned char *buf,
 	if (ret < 0)
 		goto out_err;
 
-	if (chip->vendor.irq) {
+	if (chip->flags & TPM_CHIP_FLAG_IRQ) {
 		ordinal = be32_to_cpu(*((__be32 *) (buf + 6)));
 
 		ret = wait_for_stat(chip, TPM_STS_DATA_AVAIL | TPM_STS_VALID,
@@ -611,9 +603,10 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 		if (ret < 0)
 			goto _tpm_clean_answer;
 
-		chip->vendor.irq = irq;
+		tpm_dev->irq = irq;
+		chip->flags |= TPM_CHIP_FLAG_IRQ;
 
-		disable_irq_nosync(chip->vendor.irq);
+		disable_irq_nosync(tpm_dev->irq);
 
 		tpm_gen_interrupt(chip);
 	}

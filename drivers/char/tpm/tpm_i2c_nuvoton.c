@@ -55,6 +55,7 @@
 #define I2C_DRIVER_NAME "tpm_i2c_nuvoton"
 
 struct priv_data {
+	int irq;
 	unsigned int intrs;
 };
 
@@ -176,12 +177,12 @@ static bool i2c_nuvoton_check_status(struct tpm_chip *chip, u8 mask, u8 value)
 static int i2c_nuvoton_wait_for_stat(struct tpm_chip *chip, u8 mask, u8 value,
 				     u32 timeout, wait_queue_head_t *queue)
 {
-	if (chip->vendor.irq && queue) {
+	if ((chip->flags & TPM_CHIP_FLAG_IRQ) && queue) {
 		s32 rc;
 		struct priv_data *priv = chip->vendor.priv;
 		unsigned int cur_intrs = priv->intrs;
 
-		enable_irq(chip->vendor.irq);
+		enable_irq(priv->irq);
 		rc = wait_event_interruptible_timeout(*queue,
 						      cur_intrs != priv->intrs,
 						      timeout);
@@ -477,7 +478,7 @@ static irqreturn_t i2c_nuvoton_int_handler(int dummy, void *dev_id)
 
 	priv->intrs++;
 	wake_up(&chip->vendor.read_queue);
-	disable_irq_nosync(chip->vendor.irq);
+	disable_irq_nosync(priv->irq);
 	return IRQ_HANDLED;
 }
 
@@ -521,6 +522,7 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 	int rc;
 	struct tpm_chip *chip;
 	struct device *dev = &client->dev;
+	struct priv_data *priv;
 	u32 vid = 0;
 
 	rc = get_vid(client, &vid);
@@ -534,10 +536,10 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 
-	chip->vendor.priv = devm_kzalloc(dev, sizeof(struct priv_data),
-					 GFP_KERNEL);
-	if (!chip->vendor.priv)
+	priv = devm_kzalloc(dev, sizeof(struct priv_data), GFP_KERNEL);
+	if (!priv)
 		return -ENOMEM;
+	chip->vendor.priv = priv;
 
 	init_waitqueue_head(&chip->vendor.read_queue);
 
@@ -552,19 +554,21 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 	 *   TPM_INTF_INT_LEVEL_LOW | TPM_INTF_DATA_AVAIL_INT
 	 * The IRQ should be set in the i2c_board_info (which is done
 	 * automatically in of_i2c_register_devices, for device tree users */
-	chip->vendor.irq = client->irq;
+	chip->flags |= TPM_CHIP_FLAG_IRQ;
+	priv->irq = client->irq;
 
-	if (chip->vendor.irq) {
-		dev_dbg(dev, "%s() chip-vendor.irq\n", __func__);
-		rc = devm_request_irq(dev, chip->vendor.irq,
+	if (chip->flags & TPM_CHIP_FLAG_IRQ) {
+		dev_dbg(dev, "%s() priv->irq\n", __func__);
+		rc = devm_request_irq(dev, client->irq,
 				      i2c_nuvoton_int_handler,
 				      IRQF_TRIGGER_LOW,
 				      dev_name(&chip->dev),
 				      chip);
 		if (rc) {
 			dev_err(dev, "%s() Unable to request irq: %d for use\n",
-				__func__, chip->vendor.irq);
-			chip->vendor.irq = 0;
+				__func__, priv->irq);
+			chip->flags &= ~TPM_CHIP_FLAG_IRQ;
+			priv->irq = 0;
 		} else {
 			/* Clear any pending interrupt */
 			i2c_nuvoton_ready(chip);
