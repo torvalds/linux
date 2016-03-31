@@ -128,29 +128,63 @@ static void spicc_set_clk(struct spicc *spicc, int speed)
 
 static int spicc_hw_xfer(struct spicc *spicc, u8 *txp, u8 *rxp, int len)
 {
-	u8 dat;
-	int i, num,retry;
-	
+	unsigned int	dat, i, num, retry, count;
+
 	spicc_dbg("length = %d\n", len);
-	while (len > 0) {
-		num = (len > SPICC_FIFO_SIZE) ? SPICC_FIFO_SIZE : len;
-		for (i=0; i<num; i++) {
-			dat = txp ? (*txp++) : 0;
-			spicc->regs->txdata = dat;
-			//spicc_dbg("txdata[%d] = 0x%x\n", i, dat);
+
+	if (len) 	count = (len * 8) / spicc->cur_bits_per_word;
+	else		count = 0;
+
+	while (count > 0) {
+		num = (count > SPICC_FIFO_SIZE) ? SPICC_FIFO_SIZE : count;
+
+		retry = 100;
+		while (!spicc->regs->statreg.tx_empty && retry--)
+			udelay(1);
+
+		if (!retry) {
+			pr_err("error: spicc tx_empty timeout\n");
+			return -ETIMEDOUT;
 		}
-		for (i=0; i<num; i++) {
-			retry = 100;
-			while (!spicc->regs->statreg.rx_ready && retry--) {udelay(1);}
-			dat = spicc->regs->rxdata;
-			if (rxp) *rxp++ = dat;
-			//spicc_dbg("rxdata[%d] = 0x%x\n", i, dat);
-			if (!retry) {
-			  printk("error: spicc timeout\n");
-			  return -ETIMEDOUT;
+
+		for (i = 0; i < num; i++) {
+			dat = 0;
+			switch(spicc->cur_bits_per_word) {
+				case	32:
+					dat |= txp ? ((*txp++) << 24) : 0;
+					dat |= txp ? ((*txp++) << 16) : 0;
+				case	16:
+					dat |= txp ? ((*txp++) << 8) : 0;
+				case	8:
+					dat |= txp ? (*txp++) : 0;
+					break;
+				default	:
+					pr_err("error: unsupport bits/word!\n");
+					return -1;
 			}
+			spicc->regs->txdata = dat;
+			spicc_dbg("bits_per_word = %d, txdata[%d] = 0x%x\n",
+					spicc->cur_bits_per_word,
+					i,
+					dat);
 		}
-		len -= num;
+		for (i=0; i<num; i++) {
+
+			retry = 100;
+			while (!spicc->regs->statreg.rx_ready && retry--)
+				 udelay(1);
+
+			if (!retry) {
+				pr_err("error: spicc rx timeout\n");
+				return -ETIMEDOUT;
+			}
+
+			dat = spicc->regs->rxdata;
+			if (rxp)	*rxp++ = (unsigned char)dat;
+
+			spicc_dbg("rxdata[%d] = 0x%x\n", i, dat);
+		}
+		count -= num;
 	}
 	return 0;
 }
