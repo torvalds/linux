@@ -194,15 +194,15 @@
        simple---most of the complexity (other than talking to the
        hardware) involves managing network packets in memory".
        
-     * Title: "Writing Linux Device Drivers"
+     * Title: "Linux Kernel Hackers' Guide"
        Author: Michael K. Johnson.
-       URL: http://users.evitech.fi/~tk/rtos/writing_linux_device_d.html
-       Keywords: files, VFS, file operations, kernel interface, character
-       vs block devices, I/O access, hardware interrupts, DMA, access to
-       user memory, memory allocation, timers.
-       Description: Introductory 50-minutes (sic) tutorial on writing
-       device drivers. 12 pages written by the same author of the "Kernel
-       Hackers' Guide" which give a very good overview of the topic.
+       URL: http://www.tldp.org/LDP/khg/HyperNews/get/khg.html
+       Keywords: device drivers, files, VFS, kernel interface, character vs
+       block devices, hardware interrupts, scsi, DMA, access to user memory,
+       memory allocation, timers.
+       Description: A guide designed to help you get up to speed on the
+       concepts that are not intuitevly obvious, and to document the internal
+       structures of Linux.
        
      * Title: "The Venus kernel interface"
        Author: Peter J. Braam.
