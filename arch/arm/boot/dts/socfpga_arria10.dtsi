@@ -616,6 +616,11 @@
 				compatible = "altr,socfpga-a10-l2-ecc";
 				reg = <0xffd06010 0x4>;
 			};
+
+			ocram-ecc@ff8c3000 {
+				compatible = "altr,socfpga-a10-ocram-ecc";
+				reg = <0xff8c3000 0x400>;
+			};
 		};
 
 		rst: rstmgr@ffd05000 {
