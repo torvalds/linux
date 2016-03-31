@@ -65,6 +65,14 @@ startup_64:
 	 * tables and then reload them.
 	 */
 
+	/*
+	 * Setup stack for verify_cpu(). "-8" because stack_start is defined
+	 * this way, see below. Our best guess is a NULL ptr for stack
+	 * termination heuristics and we don't want to break anything which
+	 * might depend on it (kgdb, ...).
+	 */
+	leaq	(__end_init_task - 8)(%rip), %rsp
+
 	/* Sanitize CPU configuration */
 	call verify_cpu
 
