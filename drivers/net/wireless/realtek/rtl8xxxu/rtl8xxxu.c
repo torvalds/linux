@@ -7267,31 +7267,29 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 			tx_desc->txdw5 |= cpu_to_le32(0x0001ff00);
 
 		tx_desc->txdw3 =
-			cpu_to_le32((u32)seq_number << TXDESC_SEQ_SHIFT_8723A);
+			cpu_to_le32((u32)seq_number << TXDESC32_SEQ_SHIFT);
 
 		if (ampdu_enable)
-			tx_desc->txdw1 |= cpu_to_le32(TXDESC_AGG_ENABLE_8723A);
+			tx_desc->txdw1 |= cpu_to_le32(TXDESC32_AGG_ENABLE);
 		else
-			tx_desc->txdw1 |= cpu_to_le32(TXDESC_AGG_BREAK_8723A);
+			tx_desc->txdw1 |= cpu_to_le32(TXDESC32_AGG_BREAK);
 
 		if (ieee80211_is_mgmt(hdr->frame_control)) {
 			tx_desc->txdw5 = cpu_to_le32(tx_rate->hw_value);
 			tx_desc->txdw4 |=
-				cpu_to_le32(TXDESC_USE_DRIVER_RATE_8723A);
+				cpu_to_le32(TXDESC32_USE_DRIVER_RATE);
 			tx_desc->txdw5 |=
-				cpu_to_le32(6 <<
-					    TXDESC_RETRY_LIMIT_SHIFT_8723A);
+				cpu_to_le32(6 << TXDESC32_RETRY_LIMIT_SHIFT);
 			tx_desc->txdw5 |=
-				cpu_to_le32(TXDESC_RETRY_LIMIT_ENABLE_8723A);
+				cpu_to_le32(TXDESC32_RETRY_LIMIT_ENABLE);
 		}
 
 		if (ieee80211_is_data_qos(hdr->frame_control))
-			tx_desc->txdw4 |= cpu_to_le32(TXDESC_QOS_8723A);
+			tx_desc->txdw4 |= cpu_to_le32(TXDESC32_QOS);
 
 		if (rate_flag & IEEE80211_TX_RC_USE_SHORT_PREAMBLE ||
 		    (sta && vif && vif->bss_conf.use_short_preamble))
-			tx_desc->txdw4 |=
-				cpu_to_le32(TXDESC_SHORT_PREAMBLE_8723A);
+			tx_desc->txdw4 |= cpu_to_le32(TXDESC32_SHORT_PREAMBLE);
 
 		if (rate_flag & IEEE80211_TX_RC_SHORT_GI ||
 		    (ieee80211_is_data_qos(hdr->frame_control) &&
@@ -7307,11 +7305,10 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 			 */
 			tx_desc->txdw4 |=
 				cpu_to_le32(DESC_RATE_24M <<
-					    TXDESC_RTS_RATE_SHIFT_8723A);
+					    TXDESC32_RTS_RATE_SHIFT);
 			tx_desc->txdw4 |=
-				cpu_to_le32(TXDESC_RTS_CTS_ENABLE_8723A);
-			tx_desc->txdw4 |=
-				cpu_to_le32(TXDESC_HW_RTS_ENABLE_8723A);
+				cpu_to_le32(TXDESC32_RTS_CTS_ENABLE);
+			tx_desc->txdw4 |= cpu_to_le32(TXDESC32_HW_RTS_ENABLE);
 		}
 	} else {
 		tx_desc40 = (struct rtl8xxxu_txdesc40 *)tx_desc;
@@ -7320,33 +7317,31 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 		if (ieee80211_is_data(hdr->frame_control)) {
 			tx_desc->txdw4 |=
 				cpu_to_le32(0x1f <<
-					    TXDESC_DATA_RATE_FB_SHIFT_8723B);
+					    TXDESC40_DATA_RATE_FB_SHIFT);
 		}
 
 		tx_desc40->txdw9 =
-			cpu_to_le32((u32)seq_number << TXDESC_SEQ_SHIFT_8723B);
+			cpu_to_le32((u32)seq_number << TXDESC40_SEQ_SHIFT);
 
 		if (ampdu_enable)
-			tx_desc40->txdw2 |=
-				cpu_to_le32(TXDESC_AGG_ENABLE_8723B);
+			tx_desc40->txdw2 |= cpu_to_le32(TXDESC40_AGG_ENABLE);
 		else
-			tx_desc40->txdw2 |= cpu_to_le32(TXDESC_AGG_BREAK_8723B);
+			tx_desc40->txdw2 |= cpu_to_le32(TXDESC40_AGG_BREAK);
 
 		if (ieee80211_is_mgmt(hdr->frame_control)) {
 			tx_desc40->txdw4 = cpu_to_le32(tx_rate->hw_value);
 			tx_desc40->txdw3 |=
-				cpu_to_le32(TXDESC_USE_DRIVER_RATE_8723B);
+				cpu_to_le32(TXDESC40_USE_DRIVER_RATE);
 			tx_desc40->txdw4 |=
-				cpu_to_le32(6 <<
-					    TXDESC_RETRY_LIMIT_SHIFT_8723B);
+				cpu_to_le32(6 << TXDESC40_RETRY_LIMIT_SHIFT);
 			tx_desc40->txdw4 |=
-				cpu_to_le32(TXDESC_RETRY_LIMIT_ENABLE_8723B);
+				cpu_to_le32(TXDESC40_RETRY_LIMIT_ENABLE);
 		}
 
 		if (rate_flag & IEEE80211_TX_RC_USE_SHORT_PREAMBLE ||
 		    (sta && vif && vif->bss_conf.use_short_preamble))
 			tx_desc40->txdw5 |=
-				cpu_to_le32(TXDESC_SHORT_PREAMBLE_8723B);
+				cpu_to_le32(TXDESC40_SHORT_PREAMBLE);
 
 		if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {
 			/*
@@ -7355,11 +7350,9 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 			 */
 			tx_desc->txdw4 |=
 				cpu_to_le32(DESC_RATE_24M <<
-					    TXDESC_RTS_RATE_SHIFT_8723B);
-			tx_desc->txdw3 |=
-				cpu_to_le32(TXDESC_RTS_CTS_ENABLE_8723B);
-			tx_desc->txdw3 |=
-				cpu_to_le32(TXDESC_HW_RTS_ENABLE_8723B);
+					    TXDESC40_RTS_RATE_SHIFT);
+			tx_desc->txdw3 |= cpu_to_le32(TXDESC40_RTS_CTS_ENABLE);
+			tx_desc->txdw3 |= cpu_to_le32(TXDESC40_HW_RTS_ENABLE);
 		}
 	}
 
