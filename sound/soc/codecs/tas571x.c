@@ -57,6 +57,10 @@ static int tas571x_register_size(struct tas571x_private *priv, unsigned int reg)
 	case TAS571X_CH1_VOL_REG:
 	case TAS571X_CH2_VOL_REG:
 		return priv->chip->vol_reg_size;
+	case TAS571X_INPUT_MUX_REG:
+	case TAS571X_CH4_SRC_SELECT_REG:
+	case TAS571X_PWM_MUX_REG:
+		return 4;
 	default:
 		return 1;
 	}
@@ -259,6 +263,26 @@ static const struct snd_kcontrol_new tas5711_controls[] = {
 		   1, 1),
 };
 
+static const struct regmap_range tas571x_readonly_regs_range[] = {
+	regmap_reg_range(TAS571X_CLK_CTRL_REG,  TAS571X_DEV_ID_REG),
+};
+
+static const struct regmap_range tas571x_volatile_regs_range[] = {
+	regmap_reg_range(TAS571X_CLK_CTRL_REG,  TAS571X_ERR_STATUS_REG),
+	regmap_reg_range(TAS571X_OSC_TRIM_REG,  TAS571X_OSC_TRIM_REG),
+};
+
+static const struct regmap_access_table tas571x_write_regs = {
+	.no_ranges =	tas571x_readonly_regs_range,
+	.n_no_ranges =	ARRAY_SIZE(tas571x_readonly_regs_range),
+};
+
+static const struct regmap_access_table tas571x_volatile_regs = {
+	.yes_ranges =	tas571x_volatile_regs_range,
+	.n_yes_ranges =	ARRAY_SIZE(tas571x_volatile_regs_range),
+
+};
+
 static const struct reg_default tas5711_reg_defaults[] = {
 	{ 0x04, 0x05 },
 	{ 0x05, 0x40 },
@@ -278,6 +302,8 @@ static const struct regmap_config tas5711_regmap_config = {
 	.reg_defaults			= tas5711_reg_defaults,
 	.num_reg_defaults		= ARRAY_SIZE(tas5711_reg_defaults),
 	.cache_type			= REGCACHE_RBTREE,
+	.wr_table			= &tas571x_write_regs,
+	.volatile_table			= &tas571x_volatile_regs,
 };
 
 static const struct tas571x_chip tas5711_chip = {
@@ -332,6 +358,8 @@ static const struct regmap_config tas5717_regmap_config = {
 	.reg_defaults			= tas5717_reg_defaults,
 	.num_reg_defaults		= ARRAY_SIZE(tas5717_reg_defaults),
 	.cache_type			= REGCACHE_RBTREE,
+	.wr_table			= &tas571x_write_regs,
+	.volatile_table			= &tas571x_volatile_regs,
 };
 
 /* This entry is reused for tas5719 as the software interface is identical. */
