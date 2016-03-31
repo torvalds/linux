@@ -6158,11 +6158,12 @@ lpfc_create_shost(struct lpfc_hba *phba)
 	 * any initial discovery should be completed.
 	 */
 	vport->load_flag |= FC_ALLOW_FDMI;
-	if (phba->cfg_fdmi_on > LPFC_FDMI_NO_SUPPORT) {
+	if (phba->cfg_enable_SmartSAN ||
+	    (phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT)) {
 
 		/* Setup appropriate attribute masks */
 		vport->fdmi_hba_mask = LPFC_FDMI2_HBA_ATTR;
-		if (phba->cfg_fdmi_on == LPFC_FDMI_SMART_SAN)
+		if (phba->cfg_enable_SmartSAN)
 			vport->fdmi_port_mask = LPFC_FDMI2_SMART_ATTR;
 		else
 			vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;

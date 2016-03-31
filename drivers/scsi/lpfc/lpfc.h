@@ -758,7 +758,6 @@ struct lpfc_hba {
 	uint32_t cfg_fdmi_on;
 #define LPFC_FDMI_NO_SUPPORT	0	/* FDMI not supported */
 #define LPFC_FDMI_SUPPORT	1	/* FDMI supported? */
-#define LPFC_FDMI_SMART_SAN	2	/* SmartSAN supported */
 	uint32_t cfg_enable_SmartSAN;
 	lpfc_vpd_t vpd;		/* vital product data */
 

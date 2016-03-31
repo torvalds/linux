@@ -4584,15 +4584,14 @@ LPFC_ATTR_R(enable_SmartSAN, 0, 0, 1, "Enable SmartSAN functionality");
 # lpfc_fdmi_on: Controls FDMI support.
 #       0       No FDMI support (default)
 #       1       Traditional FDMI support
-#       2       Smart SAN support
-# If lpfc_enable_SmartSAN is set 1, the driver sets lpfc_fdmi_on to value 2
-# overwriting the current value.  If lpfc_enable_SmartSAN is set 0, the
-# driver uses the current value of lpfc_fdmi_on provided it has value 0 or 1.
-# A value of 2 with lpfc_enable_SmartSAN set to 0 causes the driver to
-# set lpfc_fdmi_on back to 1.
-# Value range [0,2]. Default value is 0.
+# Traditional FDMI support means the driver will assume FDMI-2 support;
+# however, if that fails, it will fallback to FDMI-1.
+# If lpfc_enable_SmartSAN is set to 1, the driver ignores lpfc_fdmi_on.
+# If lpfc_enable_SmartSAN is set 0, the driver uses the current value of
+# lpfc_fdmi_on.
+# Value range [0,1]. Default value is 0.
 */
-LPFC_ATTR_R(fdmi_on, 0, 0, 2, "Enable FDMI support");
+LPFC_ATTR_R(fdmi_on, 0, 0, 1, "Enable FDMI support");
 
 /*
 # Specifies the maximum number of ELS cmds we can have outstanding (for
@@ -5855,14 +5854,6 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 		phba->cfg_poll = 0;
 	else
 		phba->cfg_poll = lpfc_poll;
-
-	/* Ensure fdmi_on and enable_SmartSAN don't conflict */
-	if (phba->cfg_enable_SmartSAN) {
-		phba->cfg_fdmi_on = LPFC_FDMI_SMART_SAN;
-	} else {
-		if (phba->cfg_fdmi_on == LPFC_FDMI_SMART_SAN)
-			phba->cfg_fdmi_on = LPFC_FDMI_SUPPORT;
-	}
 
 	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;

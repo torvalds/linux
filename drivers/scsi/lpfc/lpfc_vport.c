@@ -395,7 +395,8 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 
 	/* At this point we are fully registered with SCSI Layer.  */
 	vport->load_flag |= FC_ALLOW_FDMI;
-	if (phba->cfg_fdmi_on > LPFC_FDMI_NO_SUPPORT) {
+	if (phba->cfg_enable_SmartSAN ||
+	    (phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT)) {
 		/* Setup appropriate attribute masks */
 		vport->fdmi_hba_mask = phba->pport->fdmi_hba_mask;
 		vport->fdmi_port_mask = phba->pport->fdmi_port_mask;

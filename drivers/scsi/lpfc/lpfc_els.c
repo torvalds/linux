@@ -690,16 +690,17 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	fabric_param_changed = lpfc_check_clean_addr_bit(vport, sp);
 	if (fabric_param_changed) {
 		/* Reset FDMI attribute masks based on config parameter */
-		if (phba->cfg_fdmi_on == LPFC_FDMI_NO_SUPPORT) {
-			vport->fdmi_hba_mask = 0;
-			vport->fdmi_port_mask = 0;
-		} else {
+		if (phba->cfg_enable_SmartSAN ||
+		    (phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT)) {
 			/* Setup appropriate attribute masks */
 			vport->fdmi_hba_mask = LPFC_FDMI2_HBA_ATTR;
-			if (phba->cfg_fdmi_on == LPFC_FDMI_SMART_SAN)
+			if (phba->cfg_enable_SmartSAN)
 				vport->fdmi_port_mask = LPFC_FDMI2_SMART_ATTR;
 			else
 				vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
+		} else {
+			vport->fdmi_hba_mask = 0;
+			vport->fdmi_port_mask = 0;
 		}
 
 	}
@@ -8005,8 +8006,9 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 		return;
 	}
 
-	if ((phba->cfg_fdmi_on > LPFC_FDMI_NO_SUPPORT) &&
-	    (vport->load_flag & FC_ALLOW_FDMI))
+	if ((phba->cfg_enable_SmartSAN ||
+	     (phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT)) &&
+	     (vport->load_flag & FC_ALLOW_FDMI))
 		lpfc_start_fdmi(vport);
 }
 
