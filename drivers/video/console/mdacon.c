@@ -481,7 +481,7 @@ static int mdacon_switch(struct vc_data *c)
 	return 1;	/* redrawing needed */
 }
 
-static int mdacon_set_palette(struct vc_data *c, unsigned char *table)
+static int mdacon_set_palette(struct vc_data *c, const unsigned char *table)
 {
 	return -EINVAL;
 }

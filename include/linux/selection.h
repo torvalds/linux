@@ -24,7 +24,7 @@ extern void mouse_report(struct tty_struct * tty, int butt, int mrx, int mry);
 
 extern int console_blanked;
 
-extern unsigned char color_table[];
+extern const unsigned char color_table[];
 extern int default_red[];
 extern int default_grn[];
 extern int default_blu[];
