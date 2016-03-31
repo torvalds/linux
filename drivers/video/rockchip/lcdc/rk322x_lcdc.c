@@ -638,7 +638,8 @@ static int rk3399_vop_win_csc_cfg(struct rk_lcdc_driver *dev_drv)
 
 		if (!win->state)
 			continue;
-		if (output_color == COLOR_RGB && !IS_YUV(win->area[0].fmt_cfg))
+		if (output_color == COLOR_RGB &&
+		    !(IS_YUV(win->area[0].fmt_cfg) || win->area[0].yuyv_fmt))
 			goto post;
 
 		if (output_color == COLOR_RGB) {
@@ -659,7 +660,8 @@ static int rk3399_vop_win_csc_cfg(struct rk_lcdc_driver *dev_drv)
 			}
 		} else if (output_color == COLOR_YCBCR ||
 				output_color == COLOR_YCBCR_BT709) {
-			if (!IS_YUV(win->area[0].fmt_cfg)) {
+			if (!(IS_YUV(win->area[0].fmt_cfg) ||
+			      win->area[0].yuyv_fmt)) {
 				val |= V_WIN0_YUV2YUV_R2Y_EN(1);
 				LOAD_CSC(vop_dev, R2Y, csc_r2y_bt709_full, i);
 			} else if (win->colorspace == CSC_BT2020) {
@@ -671,7 +673,8 @@ static int rk3399_vop_win_csc_cfg(struct rk_lcdc_driver *dev_drv)
 				LOAD_CSC(vop_dev, R2Y, csc_r2y_bt709_full, i);
 			}
 		} else if (output_color == COLOR_YCBCR_BT2020) {
-			if (!IS_YUV(win->area[0].fmt_cfg)) {
+			if (!(IS_YUV(win->area[0].fmt_cfg) ||
+			      win->area[0].yuyv_fmt)) {
 				val |= V_WIN0_YUV2YUV_R2Y_EN(1) |
 					V_WIN0_YUV2YUV_EN(1);
 				LOAD_CSC(vop_dev, R2Y, csc_r2r_bt709to2020, i);
@@ -1212,7 +1215,14 @@ static int vop_axi_gather_cfg(struct vop_device *vop_dev,
 	case YUV422_A:
 	case YUV444_A:
 	case YUV420_NV21:
+	case YUYV420:
+	case UYVY420:
 		yrgb_gather_num = 1;
+		cbcr_gather_num = 2;
+		break;
+	case YUYV422:
+	case UYVY422:
+		yrgb_gather_num = 2;
 		cbcr_gather_num = 2;
 		break;
 	default:
@@ -1340,6 +1350,8 @@ static int vop_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 			V_WIN0_X_MIR_EN(win->xmirror) |
 			V_WIN0_Y_MIR_EN(win->ymirror) |
 			V_WIN0_UV_SWAP(win->area[0].swap_uv);
+		if (VOP_CHIP(vop_dev) == VOP_RK3399)
+			val |= V_WIN0_YUYV(win->area[0].yuyv_fmt);
 		vop_msk_reg(vop_dev, WIN0_CTRL0 + off, val);
 		val = V_WIN0_BIC_COE_SEL(win->bic_coe_el) |
 		    V_WIN0_VSD_YRGB_GT4(win->vsd_yrgb_gt4) |
@@ -2286,6 +2298,8 @@ static int vop_cal_scl_fac(struct rk_lcdc_win *win, struct rk_screen *screen)
 	/*cbcr scl mode */
 	switch (win->area[0].format) {
 	case YUV422:
+	case YUYV422:
+	case UYVY422:
 	case YUV422_A:
 		cbcr_srcW = srcW / 2;
 		cbcr_dstW = dstW;
@@ -2294,6 +2308,8 @@ static int vop_cal_scl_fac(struct rk_lcdc_win *win, struct rk_screen *screen)
 		yuv_fmt = 1;
 		break;
 	case YUV420:
+	case YUYV420:
+	case UYVY420:
 	case YUV420_A:
 	case YUV420_NV21:
 		cbcr_srcW = srcW / 2;
@@ -2344,6 +2360,10 @@ static int vop_cal_scl_fac(struct rk_lcdc_win *win, struct rk_screen *screen)
 	/* line buffer mode */
 	if ((win->area[0].format == YUV422) ||
 	    (win->area[0].format == YUV420) ||
+	    (win->area[0].format == YUYV422) ||
+	    (win->area[0].format == YUYV420) ||
+	    (win->area[0].format == UYVY422) ||
+	    (win->area[0].format == UYVY420) ||
 	    (win->area[0].format == YUV420_NV21) ||
 	    (win->area[0].format == YUV422_A) ||
 	    (win->area[0].format == YUV420_A)) {
@@ -2400,6 +2420,66 @@ static int vop_cal_scl_fac(struct rk_lcdc_win *win, struct rk_screen *screen)
 	win->cbr_hsd_mode = SCALE_DOWN_BIL;	/*not to specify */
 	win->yrgb_vsd_mode = SCALE_DOWN_BIL;	/*not to specify */
 	win->cbr_vsd_mode = SCALE_DOWN_BIL;	/*not to specify */
+
+	/* if (VOP_CHIP(vop_dev) == VOP_RK3399) { */
+	if ((win->area[0].format == YUYV422) ||
+	    (win->area[0].format == YUYV420) ||
+	    (win->area[0].format == UYVY422) ||
+	    (win->area[0].format == UYVY420)) {
+		yrgb_vscalednmult =
+			vop_get_hard_ware_vskiplines(yrgb_srcH, yrgb_dstH);
+		if (yrgb_vscalednmult == 4) {
+			yrgb_vsd_bil_gt4 = 1;
+			yrgb_vsd_bil_gt2 = 0;
+		} else if (yrgb_vscalednmult == 2) {
+			yrgb_vsd_bil_gt4 = 0;
+			yrgb_vsd_bil_gt2 = 1;
+		} else {
+			yrgb_vsd_bil_gt4 = 0;
+			yrgb_vsd_bil_gt2 = 0;
+		}
+		if ((win->area[0].format == YUYV420) ||
+		    (win->area[0].format == UYVY420)) {
+			if ((yrgb_vsd_bil_gt4 == 1) || (yrgb_vsd_bil_gt2 == 1))
+				win->yrgb_vsd_mode = SCALE_DOWN_AVG;
+		}
+
+		cbcr_vscalednmult =
+			vop_get_hard_ware_vskiplines(cbcr_srcH, cbcr_dstH);
+		if (cbcr_vscalednmult == 4) {
+			cbcr_vsd_bil_gt4 = 1;
+			cbcr_vsd_bil_gt2 = 0;
+		} else if (cbcr_vscalednmult == 2) {
+			cbcr_vsd_bil_gt4 = 0;
+			cbcr_vsd_bil_gt2 = 1;
+		} else {
+			cbcr_vsd_bil_gt4 = 0;
+			cbcr_vsd_bil_gt2 = 0;
+		}
+		if ((win->area[0].format == YUYV420) ||
+		    (win->area[0].format == UYVY420)) {
+			if ((cbcr_vsd_bil_gt4 == 1) || (cbcr_vsd_bil_gt2 == 1))
+				win->cbr_vsd_mode = SCALE_DOWN_AVG;
+		}
+		/* CBCR vsd_mode must same to YRGB for YUYV when gt2 or gt4 */
+		if ((cbcr_vsd_bil_gt4 == 1) || (cbcr_vsd_bil_gt2 == 1)) {
+			if (win->yrgb_vsd_mode != win->cbr_vsd_mode)
+				win->cbr_vsd_mode = win->yrgb_vsd_mode;
+		}
+	}
+	/* 3399 yuyv support*/
+	if (win->ymirror == 1) {
+		if (win->yrgb_vsd_mode == SCALE_DOWN_AVG)
+			pr_info("y_mirror enable, y-vsd AVG mode unsupprot\n");
+		win->yrgb_vsd_mode = SCALE_DOWN_BIL;
+	}
+	if (screen->mode.vmode & FB_VMODE_INTERLACED) {
+		if (win->yrgb_vsd_mode == SCALE_DOWN_AVG)
+			pr_info("interlace mode, y-vsd AVG mode unsupprot\n");
+		/* interlace mode must bill */
+		win->yrgb_vsd_mode = SCALE_DOWN_BIL;
+		win->cbr_vsd_mode = SCALE_DOWN_BIL;
+	}
 	switch (win->win_lb_mode) {
 	case LB_YUV_3840X5:
 	case LB_YUV_2560X8:
@@ -2424,13 +2504,6 @@ static int vop_cal_scl_fac(struct rk_lcdc_win *win, struct rk_screen *screen)
 		break;
 	}
 
-	if (win->ymirror == 1)
-		win->yrgb_vsd_mode = SCALE_DOWN_BIL;
-	if (screen->mode.vmode & FB_VMODE_INTERLACED) {
-		/* interlace mode must bill */
-		win->yrgb_vsd_mode = SCALE_DOWN_BIL;
-		win->cbr_vsd_mode = SCALE_DOWN_BIL;
-	}
 	if ((win->yrgb_ver_scl_mode == SCALE_DOWN) &&
 	    (win->area[0].fbdc_en == 1)) {
 		/* in this pattern,use bil mode,not support souble scd,
@@ -2792,6 +2865,30 @@ static int win_0_1_set_par(struct vop_device *vop_dev,
 			fmt_cfg = 6;
 			swap_rb = 0;
 			win->fmt_10 = 1;
+			break;
+		case YUYV422:
+			fmt_cfg = 0;
+			swap_rb = 0;
+			win->fmt_10 = 0;
+			win->area[0].yuyv_fmt = 1;
+			break;
+		case YUYV420:
+			fmt_cfg = 1;
+			swap_rb = 0;
+			win->fmt_10 = 0;
+			win->area[0].yuyv_fmt = 1;
+			break;
+		case UYVY422:
+			fmt_cfg = 2;
+			swap_rb = 0;
+			win->fmt_10 = 0;
+			win->area[0].yuyv_fmt = 1;
+			break;
+		case UYVY420:
+			fmt_cfg = 3;
+			swap_rb = 0;
+			win->fmt_10 = 0;
+			win->area[0].yuyv_fmt = 1;
 			break;
 		default:
 			dev_err(vop_dev->dev, "%s:unsupport format[%d]!\n",
