@@ -278,12 +278,11 @@ no_kprobe:
  * 	- When the probed function returns, this probe
  * 		causes the handlers to fire
  */
-static void __used kretprobe_trampoline_holder(void)
-{
-	asm volatile(".global kretprobe_trampoline\n"
-			"kretprobe_trampoline:\n"
-			"nop\n");
-}
+asm(".global kretprobe_trampoline\n"
+	".type kretprobe_trampoline, @function\n"
+	"kretprobe_trampoline:\n"
+	"nop\n"
+	".size kretprobe_trampoline, .-kretprobe_trampoline\n");
 
 /*
  * Called when the probe at kretprobe trampoline is hit
