@@ -967,7 +967,7 @@
 		#size-cells = <0>;
 		status = "disabled";
 
-		usbphy0: usb-phy0 {
+		usbphy0: usb-phy@320 {
 			#phy-cells = <0>;
 			reg = <0x320>;
 			clocks = <&cru SCLK_OTGPHY0>;
@@ -975,7 +975,7 @@
 			#clock-cells = <0>;
 		};
 
-		usbphy1: usb-phy1 {
+		usbphy1: usb-phy@334 {
 			#phy-cells = <0>;
 			reg = <0x334>;
 			clocks = <&cru SCLK_OTGPHY1>;
@@ -983,7 +983,7 @@
 			#clock-cells = <0>;
 		};
 
-		usbphy2: usb-phy2 {
+		usbphy2: usb-phy@348 {
 			#phy-cells = <0>;
 			reg = <0x348>;
 			clocks = <&cru SCLK_OTGPHY2>;
