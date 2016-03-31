@@ -4545,7 +4545,8 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				    (!(vport->load_flag & FC_UNLOADING)) &&
 				    (bf_get(lpfc_sli_intf_if_type,
 				     &phba->sli4_hba.sli_intf) ==
-				      LPFC_SLI_INTF_IF_TYPE_2)) {
+				      LPFC_SLI_INTF_IF_TYPE_2) &&
+				    (atomic_read(&ndlp->kref.refcount) > 0)) {
 					mbox->context1 = lpfc_nlp_get(ndlp);
 					mbox->mbox_cmpl =
 						lpfc_sli4_unreg_rpi_cmpl_clr;
