@@ -92,6 +92,8 @@
 
 		user_led: user {
 			label = "Heartbeat";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_user_led>;
 			gpios = <&gpio2 20 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
@@ -332,7 +334,6 @@
 
 	pinctrl_hog: hoggrp {
 		fsl,pins = <
-			MX6QDL_PAD_EIM_A18__GPIO2_IO20		0x1b0b1 /* LED */
 			MX6QDL_PAD_SD3_DAT2__GPIO7_IO06		0x1b0b1 /* ETN PHY RESET */
 			MX6QDL_PAD_SD3_DAT4__GPIO7_IO01		0x1b0b1 /* ETN PHY INT */
 			MX6QDL_PAD_EIM_A25__GPIO5_IO02		0x1b0b1 /* PWR BTN */
@@ -636,6 +637,12 @@
 			MX6QDL_PAD_SD2_DAT2__SD2_DATA2		0x070b1
 			MX6QDL_PAD_SD2_DAT3__SD2_DATA3		0x070b1
 			MX6QDL_PAD_SD3_CLK__GPIO7_IO03		0x170b0 /* SD2 CD */
+		>;
+	};
+
+	pinctrl_user_led: user-ledgrp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_A18__GPIO2_IO20		0x1b0b1 /* LED */
 		>;
 	};
 };
