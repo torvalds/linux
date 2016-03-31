@@ -65,6 +65,30 @@
 #define EFUSE_BT_MAP_LEN_8723A		1024
 #define EFUSE_MAX_WORD_UNIT		4
 
+enum rtl8xxxu_rtl_chip {
+	RTL8192S = 0x81920,
+	RTL8191S = 0x81910,
+	RTL8192C = 0x8192c,
+	RTL8191C = 0x8191c,
+	RTL8188C = 0x8188c,
+	RTL8188R = 0x81889,
+	RTL8192D = 0x8192d,
+	RTL8723A = 0x8723a,
+	RTL8188E = 0x8188e,
+	RTL8812  = 0x88120,
+	RTL8821  = 0x88210,
+	RTL8192E = 0x8192e,
+	RTL8191E = 0x8191e,
+	RTL8723B = 0x8723b,
+	RTL8814A = 0x8814a,
+	RTL8881A = 0x8881a,
+	RTL8821B = 0x8821b,
+	RTL8822B = 0x8822b,
+	RTL8703B = 0x8703b,
+	RTL8195A = 0x8195a,
+	RTL8188F = 0x8188f
+};
+
 enum rtl8xxxu_rx_type {
 	RX_TYPE_DATA_PKT = 0,
 	RX_TYPE_C2H = 1,
@@ -1236,7 +1260,7 @@ struct rtl8xxxu_priv {
 	u32 mac_backup[RTL8XXXU_MAC_REGS];
 	u32 bb_backup[RTL8XXXU_BB_REGS];
 	u32 bb_recovery_backup[RTL8XXXU_BB_REGS];
-	u32 rtlchip;
+	enum rtl8xxxu_rtl_chip rtl_chip;
 	u8 pi_enabled:1;
 	u8 int_buf[USB_INTR_CONTENT_LENGTH];
 };
