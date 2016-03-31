@@ -1324,6 +1324,7 @@ enum skl_disp_power_wells {
 #define _PORT_CL1CM_DW0_A		0x162000
 #define _PORT_CL1CM_DW0_BC		0x6C000
 #define   PHY_POWER_GOOD		(1 << 16)
+#define   PHY_RESERVED			(1 << 7)
 #define BXT_PORT_CL1CM_DW0(phy)		_BXT_PHY((phy), _PORT_CL1CM_DW0_BC, \
 							_PORT_CL1CM_DW0_A)
 
