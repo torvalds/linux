@@ -173,7 +173,10 @@
 		regulator-name = "ppvar_bigcpu";
 		status = "okay";
 
-		pwms = <&pwm1 0 1000>;
+		pwms = <&pwm1 0 1000>;	// TODO: schematics say "FSW 600KHz".  Change these???
+
+		// TODO: where's the mapping of duty cycle to voltage???
+		// TODO: we probably need in-flight PWM regulator series?
 
 		/* EC turns on w/ ap_core_en; always on for AP */
 		regulator-always-on;
@@ -330,7 +333,7 @@
 		regulator-min-microvolt = <1500000>;
 		regulator-max-microvolt = <1500000>;
 
-		vin-supply = <&pp1800>;
+		vin-supply = <&pp1800>;			// TODO: DNS for 3.3??
 	};
 
 	pp1800_audio: pp1800-audio {
@@ -351,9 +354,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&wlan_module_pd_l>;
 
-		regulator-always-on;
-		regulator-boot-on;
-
+		regulator-always-on;			// TODO: for bringup???
+		regulator-boot-on;			// TODO: for bringup???
 		enable-active-high;
 		gpio = <&gpio0 8 GPIO_ACTIVE_HIGH>;
 
@@ -374,8 +376,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&sd_slot_pwr_en>;
 
-		regulator-always-on;
-		regulator-boot-on;
+//		regulator-always-on;	// TODO: for bringup???
+//		regulator-boot-on;	// TODO: for bringup???
 
 		enable-active-high;
 		gpio = <&gpio4 29 GPIO_ACTIVE_HIGH>;
@@ -389,8 +391,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&sd_io_pwr_en &sd_pwr_1800_sel>;
 
-		regulator-always-on;
-		regulator-boot-on;
+//		regulator-always-on;	// TODO: for bringup???
+//		regulator-boot-on;	// TODO: for bringup???
 
 		enable-active-high;
 		enable-gpio = <&gpio2 2 GPIO_ACTIVE_HIGH>;
@@ -400,6 +402,9 @@
 
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3000000>;
+
+		// TODO: add support in driver for input supplies.
+		// ...and specify pp3000 and pp1800.
 	};
 
 	/* pp3300 aliases; these are always on for AP so just use alias */
@@ -431,10 +436,12 @@
 		regulator-name = "pp3300_wifi_bt";
 		/* NOTE: wlan_module_pd_l pinctrl in pp1800_pcie */
 
-		regulator-always-on;
-		regulator-boot-on;
+		regulator-always-on;			// TODO: for bringup???
+		regulator-boot-on;			// TODO: for bringup???
 		enable-active-high;
 
+		// TODO: I _think_ it's OK to specify the same GPIO in two
+		// regulator-fixed regulators.  See pp1800_pcie
 		gpio = <&gpio0 8 GPIO_ACTIVE_HIGH>;
 
 		vin-supply = <&pp3300>;
@@ -492,6 +499,14 @@
 ap_i2c_mic: &i2c1 {
 	status = "okay";
 
+	// TODO: bus speed
+	//       ...with no speed, it should just use 100kHz
+	// TODO: rise / fall times?
+
+	// TODO: This is in mainline, but not the Rockchip private kernel
+	// TODO: Need to hook this into the rest of audio stuff...
+
+	// TODO: any pinctrl needed for this codec???
 	headsetcodec: rt5514@57 {
 		compatible = "realtek,rt5514";
 		reg = <0x57>;
@@ -509,6 +524,15 @@ ap_i2c_mic: &i2c1 {
 
 ap_i2c_ts: &i2c3 {
 	status = "okay";
+
+	// TODO: bus speed
+	//       ...with no speed, it should just use 100kHz
+	// TODO: rise / fall times?
+
+	// TODO: Add the proper touchscreen reference...
+
+
+	// TODO: Might need to go in sub boards????
 };
 
 ap_i2c_tp: &i2c5 {
@@ -521,11 +545,23 @@ ap_i2c_tp: &i2c5 {
 	pinctrl-0 = <&i2c5_xfer &ap_i2c_tp_pu_en>;
 
 	status = "okay";
+
+	// TODO: bus speed
+	//       ...with no speed, it should just use 100kHz
+	// TODO: rise / fall times?
+
+	// TODO: Add the proper touchpanel reference...
 };
 
 ap_i2c_audio: &i2c8 {
 	status = "okay";
 
+	// TODO: bus speed
+	//       ...with no speed, it should just use 100kHz
+	// TODO: rise / fall times?
+	// ...on gru-gru this is on a sub board, so expect bad rise/fall times
+
+	// TODO: copied from sample.  Double-check...
 	codec: da7219@1a {
 		compatible = "dlg,da7219";
 		reg = <0x1a>;
@@ -539,9 +575,30 @@ ap_i2c_audio: &i2c8 {
 		VDDMIC-supply = <&pp3300>;
 		VDDIO-supply = <&pp1800>;
 
+		// TODO: I THINK this is right, but it's a bit of a guess.
 		clocks = <&cru SCLK_I2S_8CH_OUT>;
 		clock-names = "mclk";
 
+// Below is from bindings; we need to adjust for our SoC / board.
+// 		dlg,ldo-lvl = <1200>;
+// 		dlg,micbias-lvl = <2600>;
+// 		dlg,mic-amp-in-sel = "diff";
+//
+// 		da7219_aad {
+// 			dlg,btn-cfg = <50>;
+// 			dlg,mic-det-thr = <500>;
+// 			dlg,jack-ins-deb = <20>;
+// 			dlg,jack-det-rate = "32ms_64ms";
+// 			dlg,jack-rem-deb = <1>;
+//
+// 			dlg,a-d-btn-thr = <0xa>;
+// 			dlg,d-b-btn-thr = <0x16>;
+// 			dlg,b-c-btn-thr = <0x21>;
+// 			dlg,c-mic-btn-thr = <0x3E>;
+//
+// 			dlg,btn-avg = <4>;
+// 			dlg,adc-1bit-rpt = <1>;
+// 		};
 	};
 };
 
@@ -568,7 +625,16 @@ ap_i2c_audio: &i2c8 {
 &sdhci {
 	status = "okay";
 
+	// HACK: supports-emmc is not mainline.
 	supports-emmc;
+
+	// HACK: limit to 50MHz to avoid tuning during bringup.
+	max-frequency = <50000000>;
+
+	// TODO: add caps?
+	//cap-mmc-highspeed;
+	//mmc-hs200-1_8v;
+	//mmc-hs400-1_8v;
 
 	bus-width = <8>;
 	non-removable;
@@ -579,22 +645,42 @@ ap_i2c_audio: &i2c8 {
 
 &sdmmc {
 	status = "okay";
+
+	/*
+	 * Note: configure "sdmmc_cd" as card detect even though it's actually
+	 * hooked to ground.  Because we specified "cd-gpios" below dw_mmc
+	 * should be ignoring card detect anyway.  Specifying the pin as
+	 * sdmmc_cd means that even if you've got GRF_SOC_CON7[12] (force_jtag)
+	 * turned on that the system will still make sure the port is
+	 * configured as SDMMC and not JTAG.
+	 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_cd_gpio
-			&sdmmc_bus4>;
+		     &sdmmc_bus4>;
 
+	// HACK: supports-sd is not in mainline.
 	supports-sd;
 
-	/* HACK: Limit freq for now */
+	// HACK: Limit freq for now
+	// ...as of 160330 confirmed that things break if you remove this.
 	clock-frequency = <37500000>;
 	clock-freq-min-max = <400000 37500000>;
 
 	bus-width = <4>;
 	cd-gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
 	disable-wp;
+	rockchip,default-sample-phase = <90>;
 
-	broken-cd;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
 
+	// TODO: enable once tested...
+	//sd-uhs-sdr12;
+	//sd-uhs-sdr25;
+	//sd-uhs-sdr50;
+	//sd-uhs-sdr104;
+
+	// Comment out until we turn on gpio-regulator config
 	vmmc-supply = <&pp3000_sd_slot>;
 	vqmmc-supply = <&ppvar_sd_card_io>;
 };
@@ -602,22 +688,23 @@ ap_i2c_audio: &i2c8 {
 &spi0 {
 	status = "okay";
 
-	/* TODO: more properly.  Hacky spidev for now???
-	 * A few notes:
-	 * - We either have a Haven here or a Infineon SLB9670.  The SLB9670
-	 *   is supposed to be a fallback if Haven is broken.
-	 * - Either TPM is supposed to be TPM 2.0 hooked up to SPI.  I see some
-	 *   kernel support for TPM 2.0 on x86 (hooked up with ACPI) but no
-	 *   generic way to say "we have a SPI TPM 2.0".  We'll need to add
-	 *   a driver for whichever way we go.
-	 * - wfrichar@ says that for Haven if it has gone to sleep we might
-	 *   need to add a delay after asserting chip select.  Presumably
-	 *   haven-specific driver will need to handle this logic (keeping
-	 *   track when we last talked and adding an extra delay if it's been
-	 *   a while).
-         */
+	// TODO: more properly.  Hacky spidev for now???
+	// A few notes:
+	// - We either have a Haven here or a Infineon SLB9670.  The SLB9670
+	//   is supposed to be a fallback if Haven is broken.
+	// - Either TPM is supposed to be TPM 2.0 hooked up to SPI.  I see some
+	//   kernel support for TPM 2.0 on x86 (hooked up with ACPI) but no
+	//   generic way to say "we have a SPI TPM 2.0".  We'll need to add
+	//   a driver for whichever way we go.
+	// - wfrichar@ says that for Haven if it has gone to sleep we might
+	//   need to add a delay after asserting chip select.  Presumably
+	//   haven-specific driver will need to handle this logic (keeping
+	//   track when we last talked and adding an extra delay if it's been
+	//   a while).
 	tpm@0 {
 		compatible = "spidev";
+		// TODO: can run faster once verified.
+		// TODO: add rx-sample-delay-ns.
 		spi-max-frequency = <10000000>;
 		reg = <0>;
 	};
@@ -626,8 +713,13 @@ ap_i2c_audio: &i2c8 {
 &spi1 {
 	status = "okay";
 
+	// TODO: Ideally we want to use MTD for this, but presumably
+	// we'll wait until we can test it and also bring it up in our
+	// kernel tree.
 	spiflash@0 {
 		compatible = "spidev";
+		// TODO: can run faster once verified.
+		// TODO: add rx-sample-delay-ns.
 		spi-max-frequency = <10000000>;
 		reg = <0>;
 	};
@@ -636,8 +728,12 @@ ap_i2c_audio: &i2c8 {
 &spi2 {
 	status = "okay";
 
+	// TODO: more properly.  Hacky spidev for now???
 	wacky_spi_audio@0 {
 		compatible = "spidev";
+
+		// TODO: can run faster once verified.
+		// TODO: add rx-sample-delay-ns.
 		spi-max-frequency = <10000000>;
 		reg = <0>;
 	};
@@ -652,10 +748,10 @@ ap_i2c_audio: &i2c8 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&ec_ap_int_l>;
 
-		google,cros-ec-spi-pre-delay = <30>;
+		google,cros-ec-spi-pre-delay = <30>;	// TODO: check
 		interrupt-parent = <&gpio0>;
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
-		spi-max-frequency = <3000000>;
+		spi-max-frequency = <3000000>;		// TODO: check; TODO: rx-sample-delay-ns?
 
 		i2c_tunnel: i2c-tunnel {
 			compatible = "google,cros-ec-i2c-tunnel";
@@ -666,6 +762,9 @@ ap_i2c_audio: &i2c8 {
 	};
 };
 
+// TODO:
+// - double-check that hw-tshut-mode is same as EVB
+// - double check that hw-tshut-polarity is the same as EVB
 &tsadc {
 	status = "okay";
 
@@ -699,7 +798,7 @@ ap_i2c_audio: &i2c8 {
 
 &usbdrd_dwc3_0 {
 	status = "okay";
-	dr_mode = "host";
+	dr_mode = "host";	// TODO: needed?
 };
 
 &usbdrd3_1 {
@@ -708,17 +807,12 @@ ap_i2c_audio: &i2c8 {
 
 &usbdrd_dwc3_1 {
 	status = "okay";
-	dr_mode = "host";
+	dr_mode = "host";	// TODO: needed?
 };
 
 /* PINCTRL: always below everything else */
 
 &pinctrl {
-	pcfg_pull_none_drv_8ma: pcfg-pull-none-drv-8ma {
-		bias-disable;
-		drive-strength = <8>;
-	};
-
 	pcfg_output_high: pcfg-output-high {
 		output-high;
 	};
@@ -772,11 +866,12 @@ ap_i2c_audio: &i2c8 {
 	};
 
 	codec {
-		/* Has external pullup; could use internal? */
+		/* Has external pullup */
 		headset_int_l: headset-int-l {
 			rockchip,pins = <1 23 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
+		// TODO: check pull.  From signal name assume active high.
 		mic_int: mic-int {
 			rockchip,pins = <1 13 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
@@ -784,13 +879,45 @@ ap_i2c_audio: &i2c8 {
 
 	sdmmc {
 		/*
-		 * We run sdmmc at max speed; bump up drive strength.
-		 * We also have external pulls, so disable the internal ones.
+		 * We have external pulls on SDMMC, so diable internals
 		 *
-		 * TODO: should this just use 12ma?  That's in the main dts...
+		 * TODO:
+		 * - On veyron we found that we needed to drive at 8mA.  Do we
+		 *   need to that here?  If so, 8mA or 12mA?
 		 */
+		sdmmc_bus4: sdmmc-bus4 {
+			rockchip,pins =
+				<4 8 RK_FUNC_1 &pcfg_pull_none>,
+				<4 9 RK_FUNC_1 &pcfg_pull_none>,
+				<4 10 RK_FUNC_1 &pcfg_pull_none>,
+				<4 11 RK_FUNC_1 &pcfg_pull_none>;
+		};
 
-		/* This is where we actually hook up CD; has external pull; could use internal? */
+		sdmmc_clk: sdmmc-clk {
+			rockchip,pins =
+				<4 12 RK_FUNC_1 &pcfg_pull_none>;
+		};
+
+		sdmmc_cmd: sdmmc-cmd {
+			rockchip,pins =
+				<4 13 RK_FUNC_1 &pcfg_pull_none>;
+		};
+
+		/*
+		 * In our case the official card detect is hooked to ground
+		 * to avoid getting access to JTAG just by sticking something
+		 * in the SD card slot (see the force_jtag bit in the TRM).
+		 *
+		 * We still configure it as card detect because it doesn't
+		 * hurt and dw_mmc will ignore it.  We make sure to disable
+		 * the pull though so we don't burn needless power.
+		 */
+		sdmmc_cd: sdmcc-cd {
+			rockchip,pins =
+				<0 7 RK_FUNC_1 &pcfg_pull_none>;
+		};
+
+		/* This is where we actually hook up CD; has external pull */
 		sdmmc_cd_gpio: sdmmc-cd-gpio {
 			rockchip,pins = <4 26 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
@@ -802,3 +929,8 @@ ap_i2c_audio: &i2c8 {
 		};
 	};
 };
+
+/* DON'T PUT ANYTHING BELOW HERE.  PUT IT ABOVE PINCTRL */
+/* DON'T PUT ANYTHING BELOW HERE.  PUT IT ABOVE PINCTRL */
+/* DON'T PUT ANYTHING BELOW HERE.  PUT IT ABOVE PINCTRL */
+

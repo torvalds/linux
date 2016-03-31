@@ -57,6 +57,11 @@
 		     "google,gru-rev1", "google,gru-rev0",
 		     "google,gru", "google,veyron", "rockchip,rk3399";
 
+	// TODO: Model:
+	// - pp1200_mipi_cam
+	// - pp1800_mipi_cam
+	// - pp2800_mipi_cam
+
 	/* pp1800 children */
 
 	pp1800_fp: pp1800-fp {
@@ -68,8 +73,8 @@
 		enable-active-high;
 		gpio = <&gpio1 1 GPIO_ACTIVE_HIGH>;
 
-		regulator-always-on;
-		regulator-boot-on;
+		regulator-always-on;		// For bringup???
+		regulator-boot-on;		// For bringup???
 
 		vin-supply = <&pp1800>;
 	};
@@ -84,8 +89,8 @@
 		enable-active-high;
 		gpio = <&gpio1 1 GPIO_ACTIVE_HIGH>;
 
-		regulator-always-on;
-		regulator-boot-on;
+		regulator-always-on;		// For bringup???
+		regulator-boot-on;		// For bringup???
 
 		vin-supply = <&pp3300>;
 	};
@@ -103,9 +108,11 @@ ap_i2c_dvs: &i2c0 {
 		compatible = "ti,lp8556";
 		reg = <0x2c>;
 
+		// TODO: Where do we specify AP_BL_EN???
+
 		bl-name = "lcd-bl";
-		dev-ctrl = /bits/ 8 <0x85>;
-		init-brt = /bits/ 8 <0x10>;
+		dev-ctrl = /bits/ 8 <0x85>;  // TODO: It depends on the device.
+		init-brt = /bits/ 8 <0x10>;  // TODO: What should it be?
 
 		power-supply = <&pp3300_disp>;
 	};
@@ -113,15 +120,28 @@ ap_i2c_dvs: &i2c0 {
 
 ap_i2c_cam: &i2c2 {
 	status = "okay";
+
+	// TODO: bus speed
+	//       ...with no speed, it should just use 100kHz
+	// TODO: rise / fall times?
+
+	// TODO: I belive this is for the MIPI camera.
 };
 
 ap_i2c_nfc: &i2c7 {
 	status = "okay";
+
+	// TODO: bus speed
+	//       ...with no speed, it should just use 100kHz
+	// TODO: rise / fall times?
+
+	// TODO: Add the proper NFC reference...
 };
 
 &spi4 {
 	status = "okay";
 
+	// TODO: more properly.  Hacky spidev for now???
 	fingerprint@0 {
 		compatible = "spidev";
 		spi-max-frequency = <10000000>;
@@ -139,3 +159,7 @@ ap_i2c_nfc: &i2c7 {
 		};
 	};
 };
+
+/* DON'T PUT ANYTHING BELOW HERE.  PUT IT ABOVE PINCTRL */
+/* DON'T PUT ANYTHING BELOW HERE.  PUT IT ABOVE PINCTRL */
+/* DON'T PUT ANYTHING BELOW HERE.  PUT IT ABOVE PINCTRL */
