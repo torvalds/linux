@@ -3522,6 +3522,17 @@ static char *vop_format_to_string(int format, char *fmt)
 		break;
 	case 6:
 		strcpy(fmt, "YCbCr444");
+	case 8:
+		strcpy(fmt, "YUYV422");
+		break;
+	case 9:
+		strcpy(fmt, "YUYV420");
+		break;
+	case 10:
+		strcpy(fmt, "UYVY422");
+		break;
+	case 11:
+		strcpy(fmt, "UYVY420");
 		break;
 	default:
 		strcpy(fmt, "invalid\n");
@@ -3545,11 +3556,21 @@ static ssize_t vop_get_disp_info(struct rk_lcdc_driver *dev_drv,
 	u32 fmt_id;
 	char format_w0[9] = "NULL";
 	char format_w1[9] = "NULL";
+	char format_w2_0[9] = "NULL";
+	char format_w2_1[9] = "NULL";
+	char format_w2_2[9] = "NULL";
+	char format_w2_3[9] = "NULL";
+	char format_w3_0[9] = "NULL";
+	char format_w3_1[9] = "NULL";
+	char format_w3_2[9] = "NULL";
+	char format_w3_3[9] = "NULL";
 	char dsp_buf[100];
 	u32 win_ctrl, zorder, vir_info, act_info, dsp_info, dsp_st;
 	u32 y_factor, uv_factor;
-	u8 layer0_sel, layer1_sel;
-	u8 w0_state, w1_state;
+	u8 layer0_sel, layer1_sel, layer2_sel, layer3_sel;
+	u8 w0_state, w1_state, w2_state, w3_state;
+	u8 w2_0_state, w2_1_state, w2_2_state, w2_3_state;
+	u8 w3_0_state, w3_1_state, w3_2_state, w3_3_state;
 
 	u32 w0_vir_y, w0_vir_uv, w0_act_x, w0_act_y, w0_dsp_x, w0_dsp_y;
 	u32 w0_st_x = h_pw_bp, w0_st_y = v_pw_bp;
@@ -3558,6 +3579,21 @@ static ssize_t vop_get_disp_info(struct rk_lcdc_driver *dev_drv,
 	u32 w0_y_h_fac, w0_y_v_fac, w0_uv_h_fac, w0_uv_v_fac;
 	u32 w1_y_h_fac, w1_y_v_fac, w1_uv_h_fac, w1_uv_v_fac;
 
+	u32 w2_0_vir_y, w2_1_vir_y, w2_2_vir_y, w2_3_vir_y;
+	u32 w2_0_dsp_x, w2_1_dsp_x, w2_2_dsp_x, w2_3_dsp_x;
+	u32 w2_0_dsp_y, w2_1_dsp_y, w2_2_dsp_y, w2_3_dsp_y;
+	u32 w2_0_st_x = h_pw_bp, w2_1_st_x = h_pw_bp;
+	u32 w2_2_st_x = h_pw_bp, w2_3_st_x = h_pw_bp;
+	u32 w2_0_st_y = v_pw_bp, w2_1_st_y = v_pw_bp;
+	u32 w2_2_st_y = v_pw_bp, w2_3_st_y = v_pw_bp;
+
+	u32 w3_0_vir_y, w3_1_vir_y, w3_2_vir_y, w3_3_vir_y;
+	u32 w3_0_dsp_x, w3_1_dsp_x, w3_2_dsp_x, w3_3_dsp_x;
+	u32 w3_0_dsp_y, w3_1_dsp_y, w3_2_dsp_y, w3_3_dsp_y;
+	u32 w3_0_st_x = h_pw_bp, w3_1_st_x = h_pw_bp;
+	u32 w3_2_st_x = h_pw_bp, w3_3_st_x = h_pw_bp;
+	u32 w3_0_st_y = v_pw_bp, w3_1_st_y = v_pw_bp;
+	u32 w3_2_st_y = v_pw_bp, w3_3_st_y = v_pw_bp;
 	u32 dclk_freq;
 	int size = 0;
 
@@ -3569,10 +3605,13 @@ static ssize_t vop_get_disp_info(struct rk_lcdc_driver *dev_drv,
 		zorder = vop_readl(vop_dev, DSP_CTRL1);
 		layer0_sel = (zorder & MASK(DSP_LAYER0_SEL)) >> 8;
 		layer1_sel = (zorder & MASK(DSP_LAYER1_SEL)) >> 10;
+		layer2_sel = (zorder & MASK(DSP_LAYER2_SEL)) >> 12;
+		layer3_sel = (zorder & MASK(DSP_LAYER3_SEL)) >> 14;
 		/* WIN0 */
 		win_ctrl = vop_readl(vop_dev, WIN0_CTRL0);
 		w0_state = win_ctrl & MASK(WIN0_EN);
 		fmt_id = (win_ctrl & MASK(WIN0_DATA_FMT)) >> 1;
+		fmt_id |= (win_ctrl & MASK(WIN0_YUYV)) >> 14; /* yuyv*/
 		vop_format_to_string(fmt_id, format_w0);
 		vir_info = vop_readl(vop_dev, WIN0_VIR);
 		act_info = vop_readl(vop_dev, WIN0_ACT_INFO);
@@ -3599,6 +3638,7 @@ static ssize_t vop_get_disp_info(struct rk_lcdc_driver *dev_drv,
 		win_ctrl = vop_readl(vop_dev, WIN1_CTRL0);
 		w1_state = win_ctrl & MASK(WIN1_EN);
 		fmt_id = (win_ctrl & MASK(WIN1_DATA_FMT)) >> 1;
+		fmt_id |= (win_ctrl & MASK(WIN1_YUYV)) >> 14; /* yuyv*/
 		vop_format_to_string(fmt_id, format_w1);
 		vir_info = vop_readl(vop_dev, WIN1_VIR);
 		act_info = vop_readl(vop_dev, WIN1_ACT_INFO);
@@ -3620,14 +3660,126 @@ static ssize_t vop_get_disp_info(struct rk_lcdc_driver *dev_drv,
 		w1_y_v_fac = (y_factor & MASK(WIN1_VS_FACTOR_YRGB)) >> 16;
 		w1_uv_h_fac = uv_factor & MASK(WIN1_HS_FACTOR_CBR);
 		w1_uv_v_fac = (uv_factor & MASK(WIN1_VS_FACTOR_CBR)) >> 16;
+
+		/*WIN2 */
+		win_ctrl = vop_readl(vop_dev, WIN2_CTRL0);
+		w2_state = win_ctrl & MASK(WIN2_EN);
+		w2_0_state = (win_ctrl & 0x10) >> 4;
+		w2_1_state = (win_ctrl & 0x100) >> 8;
+		w2_2_state = (win_ctrl & 0x1000) >> 12;
+		w2_3_state = (win_ctrl & 0x10000) >> 16;
+		vir_info = vop_readl(vop_dev, WIN2_VIR0_1);
+		w2_0_vir_y = vir_info & MASK(WIN2_VIR_STRIDE0);
+		w2_1_vir_y = (vir_info & MASK(WIN2_VIR_STRIDE1)) >> 16;
+		vir_info = vop_readl(vop_dev, WIN2_VIR2_3);
+		w2_2_vir_y = vir_info & MASK(WIN2_VIR_STRIDE2);
+		w2_3_vir_y = (vir_info & MASK(WIN2_VIR_STRIDE3)) >> 16;
+
+		fmt_id = (win_ctrl & MASK(WIN2_DATA_FMT0)) >> 5;
+		vop_format_to_string(fmt_id, format_w2_0);
+		fmt_id = (win_ctrl & MASK(WIN2_DATA_FMT1)) >> 9;
+		vop_format_to_string(fmt_id, format_w2_1);
+		fmt_id = (win_ctrl & MASK(WIN2_DATA_FMT2)) >> 13;
+		vop_format_to_string(fmt_id, format_w2_2);
+		fmt_id = (win_ctrl & MASK(WIN2_DATA_FMT3)) >> 17;
+		vop_format_to_string(fmt_id, format_w2_3);
+
+		dsp_info = vop_readl(vop_dev, WIN2_DSP_INFO0);
+		dsp_st = vop_readl(vop_dev, WIN2_DSP_ST0);
+		w2_0_dsp_x = (dsp_info & MASK(WIN2_DSP_WIDTH0)) + 1;
+		w2_0_dsp_y = ((dsp_info & MASK(WIN2_DSP_HEIGHT0)) >> 16) + 1;
+		if (w2_0_state) {
+			w2_0_st_x = dsp_st & MASK(WIN2_DSP_XST0);
+			w2_0_st_y = (dsp_st & MASK(WIN2_DSP_YST0)) >> 16;
+		}
+		dsp_info = vop_readl(vop_dev, WIN2_DSP_INFO1);
+		dsp_st = vop_readl(vop_dev, WIN2_DSP_ST1);
+		w2_1_dsp_x = (dsp_info & MASK(WIN2_DSP_WIDTH1)) + 1;
+		w2_1_dsp_y = ((dsp_info & MASK(WIN2_DSP_HEIGHT1)) >> 16) + 1;
+		if (w2_1_state) {
+			w2_1_st_x = dsp_st & MASK(WIN2_DSP_XST1);
+			w2_1_st_y = (dsp_st & MASK(WIN2_DSP_YST1)) >> 16;
+		}
+		dsp_info = vop_readl(vop_dev, WIN2_DSP_INFO2);
+		dsp_st = vop_readl(vop_dev, WIN2_DSP_ST2);
+		w2_2_dsp_x = (dsp_info & MASK(WIN2_DSP_WIDTH2)) + 1;
+		w2_2_dsp_y = ((dsp_info & MASK(WIN2_DSP_HEIGHT2)) >> 16) + 1;
+		if (w2_2_state) {
+			w2_2_st_x = dsp_st & MASK(WIN2_DSP_XST2);
+			w2_2_st_y = (dsp_st & MASK(WIN2_DSP_YST2)) >> 16;
+		}
+		dsp_info = vop_readl(vop_dev, WIN2_DSP_INFO3);
+		dsp_st = vop_readl(vop_dev, WIN2_DSP_ST3);
+		w2_3_dsp_x = (dsp_info & MASK(WIN2_DSP_WIDTH3)) + 1;
+		w2_3_dsp_y = ((dsp_info & MASK(WIN2_DSP_HEIGHT3)) >> 16) + 1;
+		if (w2_3_state) {
+			w2_3_st_x = dsp_st & MASK(WIN2_DSP_XST3);
+			w2_3_st_y = (dsp_st & MASK(WIN2_DSP_YST3)) >> 16;
+		}
+
+		/*WIN3 */
+		win_ctrl = vop_readl(vop_dev, WIN3_CTRL0);
+		w3_state = win_ctrl & MASK(WIN3_EN);
+		w3_0_state = (win_ctrl & 0x10) >> 4;
+		w3_1_state = (win_ctrl & 0x100) >> 8;
+		w3_2_state = (win_ctrl & 0x1000) >> 12;
+		w3_3_state = (win_ctrl & 0x10000) >> 16;
+		vir_info = vop_readl(vop_dev, WIN3_VIR0_1);
+		w3_0_vir_y = vir_info & MASK(WIN3_VIR_STRIDE0);
+		w3_1_vir_y = (vir_info & MASK(WIN3_VIR_STRIDE1)) >> 16;
+		vir_info = vop_readl(vop_dev, WIN3_VIR2_3);
+		w3_2_vir_y = vir_info & MASK(WIN3_VIR_STRIDE2);
+		w3_3_vir_y = (vir_info & MASK(WIN3_VIR_STRIDE3)) >> 16;
+
+		fmt_id = (win_ctrl & MASK(WIN3_DATA_FMT0)) >> 5;
+		vop_format_to_string(fmt_id, format_w3_0);
+		fmt_id = (win_ctrl & MASK(WIN3_DATA_FMT1)) >> 9;
+		vop_format_to_string(fmt_id, format_w3_1);
+		fmt_id = (win_ctrl & MASK(WIN3_DATA_FMT2)) >> 13;
+		vop_format_to_string(fmt_id, format_w3_2);
+		fmt_id = (win_ctrl & MASK(WIN3_DATA_FMT3)) >> 17;
+		vop_format_to_string(fmt_id, format_w3_3);
+
+		dsp_info = vop_readl(vop_dev, WIN3_DSP_INFO0);
+		dsp_st = vop_readl(vop_dev, WIN3_DSP_ST0);
+		w3_0_dsp_x = (dsp_info & MASK(WIN3_DSP_WIDTH0)) + 1;
+		w3_0_dsp_y = ((dsp_info & MASK(WIN3_DSP_HEIGHT0)) >> 16) + 1;
+		if (w3_0_state) {
+			w3_0_st_x = dsp_st & MASK(WIN3_DSP_XST0);
+			w3_0_st_y = (dsp_st & MASK(WIN3_DSP_YST0)) >> 16;
+		}
+		dsp_info = vop_readl(vop_dev, WIN3_DSP_INFO1);
+		dsp_st = vop_readl(vop_dev, WIN3_DSP_ST1);
+		w3_1_dsp_x = (dsp_info & MASK(WIN3_DSP_WIDTH1)) + 1;
+		w3_1_dsp_y = ((dsp_info & MASK(WIN3_DSP_HEIGHT1)) >> 16) + 1;
+		if (w3_1_state) {
+			w3_1_st_x = dsp_st & MASK(WIN3_DSP_XST1);
+			w3_1_st_y = (dsp_st & MASK(WIN3_DSP_YST1)) >> 16;
+		}
+		dsp_info = vop_readl(vop_dev, WIN3_DSP_INFO2);
+		dsp_st = vop_readl(vop_dev, WIN3_DSP_ST2);
+		w3_2_dsp_x = (dsp_info & MASK(WIN3_DSP_WIDTH2)) + 1;
+		w3_2_dsp_y = ((dsp_info & MASK(WIN3_DSP_HEIGHT2)) >> 16) + 1;
+		if (w3_2_state) {
+			w3_2_st_x = dsp_st & MASK(WIN3_DSP_XST2);
+			w3_2_st_y = (dsp_st & MASK(WIN3_DSP_YST2)) >> 16;
+		}
+		dsp_info = vop_readl(vop_dev, WIN3_DSP_INFO3);
+		dsp_st = vop_readl(vop_dev, WIN3_DSP_ST3);
+		w3_3_dsp_x = (dsp_info & MASK(WIN3_DSP_WIDTH3)) + 1;
+		w3_3_dsp_y = ((dsp_info & MASK(WIN3_DSP_HEIGHT3)) >> 16) + 1;
+		if (w3_3_state) {
+			w3_3_st_x = dsp_st & MASK(WIN3_DSP_XST3);
+			w3_3_st_y = (dsp_st & MASK(WIN3_DSP_YST3)) >> 16;
+		}
 	} else {
 		spin_unlock(&vop_dev->reg_lock);
 		return -EPERM;
 	}
 	spin_unlock(&vop_dev->reg_lock);
 	size += snprintf(dsp_buf, 80,
-		"z-order:\n  win[%d]\n  win[%d]\n",
-		layer1_sel, layer0_sel);
+		"z-order:\n  win[%d]\n  win[%d]\n  win[%d]\n  win[%d]\n",
+		layer1_sel, layer0_sel, layer2_sel, layer3_sel);
 	strcat(buf, dsp_buf);
 	memset(dsp_buf, 0, sizeof(dsp_buf));
 	/* win0 */
@@ -3679,6 +3831,122 @@ static ssize_t vop_get_disp_info(struct rk_lcdc_driver *dev_drv,
 		 "uv_h_fac:%5d, uv_v_fac:%5d\n  y_addr:0x%08x,    uv_addr:0x%08x\n",
 		 w1_uv_h_fac, w1_uv_v_fac, vop_readl(vop_dev, WIN1_YRGB_MST),
 		 vop_readl(vop_dev, WIN1_CBR_MST));
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+
+	/*win2*/
+	size += snprintf(dsp_buf, 80,
+		 "win2:\n  state:%d\n",
+		 w2_state);
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+	/*area 0*/
+	size += snprintf(dsp_buf, 80,
+		 "  area0: state:%d, fmt:%7s, dsp_x:%4d, dsp_y:%4d,",
+		 w2_0_state, format_w2_0, w2_0_dsp_x, w2_0_dsp_y);
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+	size += snprintf(dsp_buf, 80,
+		 " x_st:%4d, y_st:%4d, y_addr:0x%08x\n",
+		 w2_0_st_x - h_pw_bp, w2_0_st_y - v_pw_bp,
+		 vop_readl(vop_dev, WIN2_MST0));
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+
+	/*area 1*/
+	size += snprintf(dsp_buf, 80,
+		 "  area1: state:%d, fmt:%7s, dsp_x:%4d, dsp_y:%4d,",
+		 w2_1_state, format_w2_1, w2_1_dsp_x, w2_1_dsp_y);
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+	size += snprintf(dsp_buf, 80,
+		 " x_st:%4d, y_st:%4d, y_addr:0x%08x\n",
+		 w2_1_st_x - h_pw_bp, w2_1_st_y - v_pw_bp,
+		 vop_readl(vop_dev, WIN2_MST1));
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+
+	/*area 2*/
+	size += snprintf(dsp_buf, 80,
+		 "  area2: state:%d, fmt:%7s, dsp_x:%4d, dsp_y:%4d,",
+		 w2_2_state, format_w2_2, w2_2_dsp_x, w2_2_dsp_y);
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+	size += snprintf(dsp_buf, 80,
+		 " x_st:%4d, y_st:%4d, y_addr:0x%08x\n",
+		 w2_2_st_x - h_pw_bp, w2_2_st_y - v_pw_bp,
+		 vop_readl(vop_dev, WIN2_MST2));
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+
+	/*area 3*/
+	size += snprintf(dsp_buf, 80,
+		 "  area3: state:%d, fmt:%7s, dsp_x:%4d, dsp_y:%4d,",
+		 w2_3_state, format_w2_3, w2_3_dsp_x, w2_3_dsp_y);
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+	size += snprintf(dsp_buf, 80,
+		 " x_st:%4d, y_st:%4d, y_addr:0x%08x\n",
+		 w2_3_st_x - h_pw_bp, w2_3_st_y - v_pw_bp,
+		 vop_readl(vop_dev, WIN2_MST3));
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+
+	/*win3*/
+	size += snprintf(dsp_buf, 80,
+		 "win3:\n  state:%d\n",
+		 w3_state);
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+	/*area 0*/
+	size += snprintf(dsp_buf, 80,
+		 "  area0: state:%d, fmt:%7s, dsp_x:%4d, dsp_y:%4d,",
+		 w3_0_state, format_w3_0, w3_0_dsp_x, w3_0_dsp_y);
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+	size += snprintf(dsp_buf, 80,
+		 " x_st:%4d, y_st:%4d, y_addr:0x%08x\n",
+		 w3_0_st_x - h_pw_bp, w3_0_st_y - v_pw_bp,
+		 vop_readl(vop_dev, WIN3_MST0));
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+
+	/*area 1*/
+	size += snprintf(dsp_buf, 80,
+		 "  area1: state:%d, fmt:%7s, dsp_x:%4d, dsp_y:%4d,",
+		 w3_1_state, format_w3_1, w3_1_dsp_x, w3_1_dsp_y);
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+	size += snprintf(dsp_buf, 80,
+		 " x_st:%4d, y_st:%4d, y_addr:0x%08x\n",
+		 w3_1_st_x - h_pw_bp, w3_1_st_y - v_pw_bp,
+		 vop_readl(vop_dev, WIN3_MST1));
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+
+	/*area 2*/
+	size += snprintf(dsp_buf, 80,
+		 "  area2: state:%d, fmt:%7s, dsp_x:%4d, dsp_y:%4d,",
+		 w3_2_state, format_w3_2, w3_2_dsp_x, w3_2_dsp_y);
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+	size += snprintf(dsp_buf, 80,
+		 " x_st:%4d, y_st:%4d, y_addr:0x%08x\n",
+		 w3_2_st_x - h_pw_bp, w3_2_st_y - v_pw_bp,
+		 vop_readl(vop_dev, WIN3_MST2));
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+
+	/*area 3*/
+	size += snprintf(dsp_buf, 80,
+		 "  area3: state:%d, fmt:%7s, dsp_x:%4d, dsp_y:%4d,",
+		 w3_3_state, format_w3_3, w3_3_dsp_x, w3_3_dsp_y);
+	strcat(buf, dsp_buf);
+	memset(dsp_buf, 0, sizeof(dsp_buf));
+	size += snprintf(dsp_buf, 80,
+		 " x_st:%4d, y_st:%4d, y_addr:0x%08x\n",
+		 w3_3_st_x - h_pw_bp, w3_3_st_y - v_pw_bp,
+		 vop_readl(vop_dev, WIN3_MST3));
 	strcat(buf, dsp_buf);
 	memset(dsp_buf, 0, sizeof(dsp_buf));
 
