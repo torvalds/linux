@@ -49,7 +49,7 @@
 	compatible = "rockchip,android", "rockchip,rk3399";
 
 	chosen {
-		bootargs = "console=uart,mmio32,0xff1a0000 clk_ignore_unused";
+		bootargs = "console=uart,mmio32,0xff1a0000";
 	};
 
 	reserved-memory {
