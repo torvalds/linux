@@ -1295,8 +1295,9 @@ static int hists__hierarchy_insert_entry(struct hists *hists,
 	return ret;
 }
 
-int hists__collapse_insert_entry(struct hists *hists, struct rb_root *root,
-				 struct hist_entry *he)
+static int hists__collapse_insert_entry(struct hists *hists,
+					struct rb_root *root,
+					struct hist_entry *he)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;

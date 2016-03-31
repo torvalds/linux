@@ -33,7 +33,7 @@ OPTIONS
 
 -f::
 --force::
-        Don't complain, do it.
+        Don't do ownership validation.
 
 -v::
 --verbose::

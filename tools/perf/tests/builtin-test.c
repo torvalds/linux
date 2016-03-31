@@ -204,6 +204,10 @@ static struct test generic_tests[] = {
 		.func = test__event_update,
 	},
 	{
+		.desc = "Test events times",
+		.func = test__event_times,
+	},
+	{
 		.func = NULL,
 	},
 };

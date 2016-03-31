@@ -7,6 +7,7 @@
 		d	create a debug log
 		g	synthesize a call chain (use with i or x)
 		l	synthesize last branch entries (use with i or x)
+		s       skip initial number of events
 
 	The default is all events i.e. the same as --itrace=ibxe
 
@@ -24,3 +25,10 @@
 
 	Also the number of last branch entries (default 64, max. 1024) for
 	instructions or transactions events can be specified.
+
+	It is also possible to skip events generated (instructions, branches, transactions)
+	at the beginning. This is useful to ignore initialization code.
+
+	--itrace=i0nss1000000
+
+	skips the first million instructions.
