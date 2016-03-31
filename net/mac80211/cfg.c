@@ -65,11 +65,13 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 		return ret;
 
 	if (type == NL80211_IFTYPE_AP_VLAN &&
-	    params && params->use_4addr == 0)
+	    params && params->use_4addr == 0) {
 		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
-	else if (type == NL80211_IFTYPE_STATION &&
-		 params && params->use_4addr >= 0)
+		ieee80211_check_fast_rx_iface(sdata);
+	} else if (type == NL80211_IFTYPE_STATION &&
+		   params && params->use_4addr >= 0) {
 		sdata->u.mgd.use_4addr = params->use_4addr;
+	}
 
 	if (sdata->vif.type == NL80211_IFTYPE_MONITOR && flags) {
 		struct ieee80211_local *local = sdata->local;
@@ -1367,6 +1369,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 
 			rcu_assign_pointer(vlansdata->u.vlan.sta, sta);
 			new_4addr = true;
+			__ieee80211_check_fast_rx_iface(vlansdata);
 		}
 
 		if (sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
@@ -1889,6 +1892,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 			sdata->flags |= IEEE80211_SDATA_DONT_BRIDGE_PACKETS;
 		else
 			sdata->flags &= ~IEEE80211_SDATA_DONT_BRIDGE_PACKETS;
+		ieee80211_check_fast_rx_iface(sdata);
 	}
 
 	if (params->ht_opmode >= 0) {

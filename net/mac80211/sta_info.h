@@ -286,6 +286,38 @@ struct ieee80211_fast_tx {
 };
 
 /**
+ * struct ieee80211_fast_rx - RX fastpath information
+ * @dev: netdevice for reporting the SKB
+ * @vif_type: (P2P-less) interface type of the original sdata (sdata->vif.type)
+ * @vif_addr: interface address
+ * @rfc1042_hdr: copy of the RFC 1042 SNAP header (to have in cache)
+ * @control_port_protocol: control port protocol copied from sdata
+ * @expected_ds_bits: from/to DS bits expected
+ * @icv_len: length of the MIC if present
+ * @key: bool indicating encryption is expected (key is set)
+ * @sta_notify: notify the MLME code (once)
+ * @internal_forward: forward froms internally on AP/VLAN type interfaces
+ * @da_offs: offset of the DA in the header (for header conversion)
+ * @sa_offs: offset of the SA in the header (for header conversion)
+ * @rcu_head: RCU head for freeing this structure
+ */
+struct ieee80211_fast_rx {
+	struct net_device *dev;
+	enum nl80211_iftype vif_type;
+	u8 vif_addr[ETH_ALEN] __aligned(2);
+	u8 rfc1042_hdr[6] __aligned(2);
+	__be16 control_port_protocol;
+	__le16 expected_ds_bits;
+	u8 icv_len;
+	u8 key:1,
+	   sta_notify:1,
+	   internal_forward:1;
+	u8 da_offs, sa_offs;
+
+	struct rcu_head rcu_head;
+};
+
+/**
  * struct mesh_sta - mesh STA information
  * @plink_lock: serialize access to plink fields
  * @llid: Local link ID
@@ -391,6 +423,7 @@ DECLARE_EWMA(signal, 1024, 8)
  * @cipher_scheme: optional cipher scheme for this station
  * @reserved_tid: reserved TID (if any, otherwise IEEE80211_TID_UNRESERVED)
  * @fast_tx: TX fastpath information
+ * @fast_rx: RX fastpath information
  * @tdls_chandef: a TDLS peer can have a wider chandef that is compatible to
  *	the BSS one.
  * @tx_stats: TX statistics
@@ -414,6 +447,7 @@ struct sta_info {
 	spinlock_t lock;
 
 	struct ieee80211_fast_tx __rcu *fast_tx;
+	struct ieee80211_fast_rx __rcu *fast_rx;
 
 #ifdef CONFIG_MAC80211_MESH
 	struct mesh_sta *mesh;

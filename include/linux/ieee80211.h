@@ -638,6 +638,16 @@ static inline bool ieee80211_is_first_frag(__le16 seq_ctrl)
 	return (seq_ctrl & cpu_to_le16(IEEE80211_SCTL_FRAG)) == 0;
 }
 
+/**
+ * ieee80211_is_frag - check if a frame is a fragment
+ * @hdr: 802.11 header of the frame
+ */
+static inline bool ieee80211_is_frag(struct ieee80211_hdr *hdr)
+{
+	return ieee80211_has_morefrags(hdr->frame_control) ||
+	       hdr->seq_ctrl & cpu_to_le16(IEEE80211_SCTL_FRAG);
+}
+
 struct ieee80211s_hdr {
 	u8 flags;
 	u8 ttl;

@@ -2217,6 +2217,7 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 	const u8 *ssid;
 	u8 *dst = ifmgd->associated->bssid;
 	u8 unicast_limit = max(1, max_probe_tries - 3);
+	struct sta_info *sta;
 
 	/*
 	 * Try sending broadcast probe requests for the last three
@@ -2234,6 +2235,14 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 	 * the AP.
 	 */
 	ifmgd->probe_send_count++;
+
+	if (dst) {
+		mutex_lock(&sdata->local->sta_mtx);
+		sta = sta_info_get(sdata, dst);
+		if (!WARN_ON(!sta))
+			ieee80211_check_fast_rx(sta);
+		mutex_unlock(&sdata->local->sta_mtx);
+	}
 
 	if (ieee80211_hw_check(&sdata->local->hw, REPORTS_TX_ACK_STATUS)) {
 		ifmgd->nullfunc_failed = false;

@@ -3508,6 +3508,342 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 	return false;
 }
 
+void ieee80211_check_fast_rx(struct sta_info *sta)
+{
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_key *key;
+	struct ieee80211_fast_rx fastrx = {
+		.dev = sdata->dev,
+		.vif_type = sdata->vif.type,
+		.control_port_protocol = sdata->control_port_protocol,
+	}, *old, *new = NULL;
+	bool assign = false;
+
+	/* use sparse to check that we don't return without updating */
+	__acquire(check_fast_rx);
+
+	BUILD_BUG_ON(sizeof(fastrx.rfc1042_hdr) != sizeof(rfc1042_header));
+	BUILD_BUG_ON(sizeof(fastrx.rfc1042_hdr) != ETH_ALEN);
+	ether_addr_copy(fastrx.rfc1042_hdr, rfc1042_header);
+	ether_addr_copy(fastrx.vif_addr, sdata->vif.addr);
+
+	/* fast-rx doesn't do reordering */
+	if (ieee80211_hw_check(&local->hw, AMPDU_AGGREGATION) &&
+	    !ieee80211_hw_check(&local->hw, SUPPORTS_REORDERING_BUFFER))
+		goto clear;
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_STATION:
+		/* 4-addr is harder to deal with, later maybe */
+		if (sdata->u.mgd.use_4addr)
+			goto clear;
+		/* software powersave is a huge mess, avoid all of it */
+		if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK))
+			goto clear;
+		if (ieee80211_hw_check(&local->hw, SUPPORTS_PS) &&
+		    !ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS))
+			goto clear;
+		if (sta->sta.tdls) {
+			fastrx.da_offs = offsetof(struct ieee80211_hdr, addr1);
+			fastrx.sa_offs = offsetof(struct ieee80211_hdr, addr2);
+			fastrx.expected_ds_bits = 0;
+		} else {
+			fastrx.sta_notify = sdata->u.mgd.probe_send_count > 0;
+			fastrx.da_offs = offsetof(struct ieee80211_hdr, addr1);
+			fastrx.sa_offs = offsetof(struct ieee80211_hdr, addr3);
+			fastrx.expected_ds_bits =
+				cpu_to_le16(IEEE80211_FCTL_FROMDS);
+		}
+		break;
+	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_AP:
+		/* parallel-rx requires this, at least with calls to
+		 * ieee80211_sta_ps_transition()
+		 */
+		if (!ieee80211_hw_check(&local->hw, AP_LINK_PS))
+			goto clear;
+		fastrx.da_offs = offsetof(struct ieee80211_hdr, addr3);
+		fastrx.sa_offs = offsetof(struct ieee80211_hdr, addr2);
+		fastrx.expected_ds_bits = cpu_to_le16(IEEE80211_FCTL_TODS);
+
+		fastrx.internal_forward =
+			!(sdata->flags & IEEE80211_SDATA_DONT_BRIDGE_PACKETS) &&
+			(sdata->vif.type != NL80211_IFTYPE_AP_VLAN ||
+			 !sdata->u.vlan.sta);
+		break;
+	default:
+		goto clear;
+	}
+
+	if (!test_sta_flag(sta, WLAN_STA_AUTHORIZED))
+		goto clear;
+
+	rcu_read_lock();
+	key = rcu_dereference(sta->ptk[sta->ptk_idx]);
+	if (key) {
+		switch (key->conf.cipher) {
+		case WLAN_CIPHER_SUITE_TKIP:
+			/* we don't want to deal with MMIC in fast-rx */
+			goto clear_rcu;
+		case WLAN_CIPHER_SUITE_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP_256:
+		case WLAN_CIPHER_SUITE_GCMP:
+		case WLAN_CIPHER_SUITE_GCMP_256:
+			break;
+		default:
+			/* we also don't want to deal with WEP or cipher scheme
+			 * since those require looking up the key idx in the
+			 * frame, rather than assuming the PTK is used
+			 * (we need to revisit this once we implement the real
+			 * PTK index, which is now valid in the spec, but we
+			 * haven't implemented that part yet)
+			 */
+			goto clear_rcu;
+		}
+
+		fastrx.key = true;
+		fastrx.icv_len = key->conf.icv_len;
+	}
+
+	assign = true;
+ clear_rcu:
+	rcu_read_unlock();
+ clear:
+	__release(check_fast_rx);
+
+	if (assign)
+		new = kmemdup(&fastrx, sizeof(fastrx), GFP_KERNEL);
+
+	spin_lock_bh(&sta->lock);
+	old = rcu_dereference_protected(sta->fast_rx, true);
+	rcu_assign_pointer(sta->fast_rx, new);
+	spin_unlock_bh(&sta->lock);
+
+	if (old)
+		kfree_rcu(old, rcu_head);
+}
+
+void ieee80211_clear_fast_rx(struct sta_info *sta)
+{
+	struct ieee80211_fast_rx *old;
+
+	spin_lock_bh(&sta->lock);
+	old = rcu_dereference_protected(sta->fast_rx, true);
+	RCU_INIT_POINTER(sta->fast_rx, NULL);
+	spin_unlock_bh(&sta->lock);
+
+	if (old)
+		kfree_rcu(old, rcu_head);
+}
+
+void __ieee80211_check_fast_rx_iface(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta;
+
+	lockdep_assert_held(&local->sta_mtx);
+
+	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (sdata != sta->sdata &&
+		    (!sta->sdata->bss || sta->sdata->bss != sdata->bss))
+			continue;
+		ieee80211_check_fast_rx(sta);
+	}
+}
+
+void ieee80211_check_fast_rx_iface(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+
+	mutex_lock(&local->sta_mtx);
+	__ieee80211_check_fast_rx_iface(sdata);
+	mutex_unlock(&local->sta_mtx);
+}
+
+static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
+				     struct ieee80211_fast_rx *fast_rx)
+{
+	struct sk_buff *skb = rx->skb;
+	struct ieee80211_hdr *hdr = (void *)skb->data;
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	struct sta_info *sta = rx->sta;
+	int orig_len = skb->len;
+	int snap_offs = ieee80211_hdrlen(hdr->frame_control);
+	struct {
+		u8 snap[sizeof(rfc1042_header)];
+		__be16 proto;
+	} *payload __aligned(2);
+	struct {
+		u8 da[ETH_ALEN];
+		u8 sa[ETH_ALEN];
+	} addrs __aligned(2);
+
+	/* for parallel-rx, we need to have DUP_VALIDATED, otherwise we write
+	 * to a common data structure; drivers can implement that per queue
+	 * but we don't have that information in mac80211
+	 */
+	if (!(status->flag & RX_FLAG_DUP_VALIDATED))
+		return false;
+
+#define FAST_RX_CRYPT_FLAGS	(RX_FLAG_PN_VALIDATED | RX_FLAG_DECRYPTED)
+
+	/* If using encryption, we also need to have:
+	 *  - PN_VALIDATED: similar, but the implementation is tricky
+	 *  - DECRYPTED: necessary for PN_VALIDATED
+	 */
+	if (fast_rx->key &&
+	    (status->flag & FAST_RX_CRYPT_FLAGS) != FAST_RX_CRYPT_FLAGS)
+		return false;
+
+	/* we don't deal with A-MSDU deaggregation here */
+	if (status->rx_flags & IEEE80211_RX_AMSDU)
+		return false;
+
+	if (unlikely(!ieee80211_is_data_present(hdr->frame_control)))
+		return false;
+
+	if (unlikely(ieee80211_is_frag(hdr)))
+		return false;
+
+	/* Since our interface address cannot be multicast, this
+	 * implicitly also rejects multicast frames without the
+	 * explicit check.
+	 *
+	 * We shouldn't get any *data* frames not addressed to us
+	 * (AP mode will accept multicast *management* frames), but
+	 * punting here will make it go through the full checks in
+	 * ieee80211_accept_frame().
+	 */
+	if (!ether_addr_equal(fast_rx->vif_addr, hdr->addr1))
+		return false;
+
+	if ((hdr->frame_control & cpu_to_le16(IEEE80211_FCTL_FROMDS |
+					      IEEE80211_FCTL_TODS)) !=
+	    fast_rx->expected_ds_bits)
+		goto drop;
+
+	/* assign the key to drop unencrypted frames (later)
+	 * and strip the IV/MIC if necessary
+	 */
+	if (fast_rx->key && !(status->flag & RX_FLAG_IV_STRIPPED)) {
+		/* GCMP header length is the same */
+		snap_offs += IEEE80211_CCMP_HDR_LEN;
+	}
+
+	if (!pskb_may_pull(skb, snap_offs + sizeof(*payload)))
+		goto drop;
+	payload = (void *)(skb->data + snap_offs);
+
+	if (!ether_addr_equal(payload->snap, fast_rx->rfc1042_hdr))
+		return false;
+
+	/* Don't handle these here since they require special code.
+	 * Accept AARP and IPX even though they should come with a
+	 * bridge-tunnel header - but if we get them this way then
+	 * there's little point in discarding them.
+	 */
+	if (unlikely(payload->proto == cpu_to_be16(ETH_P_TDLS) ||
+		     payload->proto == fast_rx->control_port_protocol))
+		return false;
+
+	/* after this point, don't punt to the slowpath! */
+
+	if (rx->key && !(status->flag & RX_FLAG_MIC_STRIPPED) &&
+	    pskb_trim(skb, skb->len - fast_rx->icv_len))
+		goto drop;
+
+	if (unlikely(fast_rx->sta_notify)) {
+		ieee80211_sta_rx_notify(rx->sdata, hdr);
+		fast_rx->sta_notify = false;
+	}
+
+	/* statistics part of ieee80211_rx_h_sta_process() */
+	sta->rx_stats.last_rx = jiffies;
+	sta->rx_stats.last_rate = sta_stats_encode_rate(status);
+
+	sta->rx_stats.fragments++;
+
+	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
+		sta->rx_stats.last_signal = status->signal;
+		ewma_signal_add(&sta->rx_stats_avg.signal, -status->signal);
+	}
+
+	if (status->chains) {
+		int i;
+
+		sta->rx_stats.chains = status->chains;
+		for (i = 0; i < ARRAY_SIZE(status->chain_signal); i++) {
+			int signal = status->chain_signal[i];
+
+			if (!(status->chains & BIT(i)))
+				continue;
+
+			sta->rx_stats.chain_signal_last[i] = signal;
+			ewma_signal_add(&sta->rx_stats_avg.chain_signal[i],
+					-signal);
+		}
+	}
+	/* end of statistics */
+
+	if (rx->key && !ieee80211_has_protected(hdr->frame_control))
+		goto drop;
+
+	/* do the header conversion - first grab the addresses */
+	ether_addr_copy(addrs.da, skb->data + fast_rx->da_offs);
+	ether_addr_copy(addrs.sa, skb->data + fast_rx->sa_offs);
+	/* remove the SNAP but leave the ethertype */
+	skb_pull(skb, snap_offs + sizeof(rfc1042_header));
+	/* push the addresses in front */
+	memcpy(skb_push(skb, sizeof(addrs)), &addrs, sizeof(addrs));
+
+	skb->dev = fast_rx->dev;
+
+	ieee80211_rx_stats(fast_rx->dev, skb->len);
+
+	/* The seqno index has the same property as needed
+	 * for the rx_msdu field, i.e. it is IEEE80211_NUM_TIDS
+	 * for non-QoS-data frames. Here we know it's a data
+	 * frame, so count MSDUs.
+	 */
+	u64_stats_update_begin(&sta->rx_stats.syncp);
+	sta->rx_stats.msdu[rx->seqno_idx]++;
+	sta->rx_stats.bytes += orig_len;
+	u64_stats_update_end(&sta->rx_stats.syncp);
+
+	if (fast_rx->internal_forward) {
+		struct sta_info *dsta = sta_info_get(rx->sdata, skb->data);
+
+		if (dsta) {
+			/*
+			 * Send to wireless media and increase priority by 256
+			 * to keep the received priority instead of
+			 * reclassifying the frame (see cfg80211_classify8021d).
+			 */
+			skb->priority += 256;
+			skb->protocol = htons(ETH_P_802_3);
+			skb_reset_network_header(skb);
+			skb_reset_mac_header(skb);
+			dev_queue_xmit(skb);
+			return true;
+		}
+	}
+
+	/* deliver to local stack */
+	skb->protocol = eth_type_trans(skb, fast_rx->dev);
+	memset(skb->cb, 0, sizeof(skb->cb));
+	if (rx->napi)
+		napi_gro_receive(rx->napi, skb);
+	else
+		netif_receive_skb(skb);
+
+	return true;
+ drop:
+	dev_kfree_skb(skb);
+	sta->rx_stats.dropped++;
+	return true;
+}
+
 /*
  * This function returns whether or not the SKB
  * was destined for RX processing or not, which,
@@ -3521,6 +3857,21 @@ static bool ieee80211_prepare_and_rx_handle(struct ieee80211_rx_data *rx,
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
 
 	rx->skb = skb;
+
+	/* See if we can do fast-rx; if we have to copy we already lost,
+	 * so punt in that case. We should never have to deliver a data
+	 * frame to multiple interfaces anyway.
+	 *
+	 * We skip the ieee80211_accept_frame() call and do the necessary
+	 * checking inside ieee80211_invoke_fast_rx().
+	 */
+	if (consume && rx->sta) {
+		struct ieee80211_fast_rx *fast_rx;
+
+		fast_rx = rcu_dereference(rx->sta->fast_rx);
+		if (fast_rx && ieee80211_invoke_fast_rx(rx, fast_rx))
+			return true;
+	}
 
 	if (!ieee80211_accept_frame(rx))
 		return false;

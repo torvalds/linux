@@ -1494,6 +1494,11 @@ u64 ieee80211_mgmt_tx_cookie(struct ieee80211_local *local);
 int ieee80211_attach_ack_skb(struct ieee80211_local *local, struct sk_buff *skb,
 			     u64 *cookie, gfp_t gfp);
 
+void ieee80211_check_fast_rx(struct sta_info *sta);
+void __ieee80211_check_fast_rx_iface(struct ieee80211_sub_if_data *sdata);
+void ieee80211_check_fast_rx_iface(struct ieee80211_sub_if_data *sdata);
+void ieee80211_clear_fast_rx(struct sta_info *sta);
+
 /* STA code */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata);
 int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
