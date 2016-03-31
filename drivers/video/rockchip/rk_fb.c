@@ -192,6 +192,12 @@ int rk_fb_pixel_width(int data_format)
 	case YUV444_A:
 		pixel_width = 8;
 		break;
+	case YUYV422:
+	case UYVY422:
+	case YUYV420:
+	case UYVY420:
+		pixel_width = 16;
+		break;
 	default:
 		pr_warn("%s: unsupported format: 0x%x\n",
 			__func__, data_format);
@@ -262,6 +268,18 @@ static int rk_fb_data_fmt(int data_format, int bits_per_pixel)
 			break;
 		case HAL_PIXEL_FORMAT_FBDC_U8U8U8:	/* fbdc rgb888 */
 			fb_data_fmt = FBDC_RGBX_888;
+			break;
+		case HAL_PIXEL_FORMAT_YUYV422:		/* yuyv422 */
+			fb_data_fmt = YUYV422;
+			break;
+		case HAL_PIXEL_FORMAT_YUYV420:		/* yuyv420 */
+			fb_data_fmt = YUYV420;
+			break;
+		case HAL_PIXEL_FORMAT_UYVY422:		/* uyvy422 */
+			fb_data_fmt = UYVY422;
+			break;
+		case HAL_PIXEL_FORMAT_UYVY420:		/* uyvy420 */
+			fb_data_fmt = UYVY420;
 			break;
 		default:
 			pr_warn("%s: unsupported format: 0x%x\n",
@@ -601,6 +619,18 @@ char *get_format_string(enum data_format format, char *fmt)
 		break;
 	case FBDC_RGBX_888:
 		strcpy(fmt, "FBDC_RGBX_888");
+		break;
+	case YUYV422:
+		strcpy(fmt, "YUYV422");
+		break;
+	case YUYV420:
+		strcpy(fmt, "YUYV420");
+		break;
+	case UYVY422:
+		strcpy(fmt, "UYVY422");
+		break;
+	case UYVY420:
+		strcpy(fmt, "UYVY420");
 		break;
 	default:
 		strcpy(fmt, "invalid");
