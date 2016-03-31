@@ -440,6 +440,8 @@ static void gpiodevice_release(struct device *dev)
 	cdev_del(&gdev->chrdev);
 	list_del(&gdev->list);
 	ida_simple_remove(&gpio_ida, gdev->id);
+	kfree(gdev->label);
+	kfree(gdev->descs);
 	kfree(gdev);
 }
 
@@ -504,8 +506,7 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 	else
 		gdev->owner = THIS_MODULE;
 
-	gdev->descs = devm_kcalloc(&gdev->dev, chip->ngpio,
-				   sizeof(gdev->descs[0]), GFP_KERNEL);
+	gdev->descs = kcalloc(chip->ngpio, sizeof(gdev->descs[0]), GFP_KERNEL);
 	if (!gdev->descs) {
 		status = -ENOMEM;
 		goto err_free_gdev;
@@ -518,12 +519,12 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 	}
 
 	if (chip->label)
-		gdev->label = devm_kstrdup(&gdev->dev, chip->label, GFP_KERNEL);
+		gdev->label = kstrdup(chip->label, GFP_KERNEL);
 	else
-		gdev->label = devm_kstrdup(&gdev->dev, "unknown", GFP_KERNEL);
+		gdev->label = kstrdup("unknown", GFP_KERNEL);
 	if (!gdev->label) {
 		status = -ENOMEM;
-		goto err_free_gdev;
+		goto err_free_descs;
 	}
 
 	gdev->ngpio = chip->ngpio;
@@ -543,7 +544,7 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 		if (base < 0) {
 			status = base;
 			spin_unlock_irqrestore(&gpio_lock, flags);
-			goto err_free_gdev;
+			goto err_free_label;
 		}
 		/*
 		 * TODO: it should not be necessary to reflect the assigned
@@ -558,7 +559,7 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 	status = gpiodev_add_to_list(gdev);
 	if (status) {
 		spin_unlock_irqrestore(&gpio_lock, flags);
-		goto err_free_gdev;
+		goto err_free_label;
 	}
 
 	for (i = 0; i < chip->ngpio; i++) {
@@ -637,6 +638,10 @@ err_remove_from_list:
 	spin_lock_irqsave(&gpio_lock, flags);
 	list_del(&gdev->list);
 	spin_unlock_irqrestore(&gpio_lock, flags);
+err_free_label:
+	kfree(gdev->label);
+err_free_descs:
+	kfree(gdev->descs);
 err_free_gdev:
 	ida_simple_remove(&gpio_ida, gdev->id);
 	/* failures here can mean systems won't boot... */
