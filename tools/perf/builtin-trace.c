@@ -2401,10 +2401,19 @@ static bool skip_sample(struct trace *trace, struct perf_sample *sample)
 }
 
 static void trace__set_base_time(struct trace *trace,
-				 struct perf_evsel *evsel __maybe_unused,
+				 struct perf_evsel *evsel,
 				 struct perf_sample *sample)
 {
-	if (trace->base_time == 0 && !trace->full_time)
+	/*
+	 * BPF events were not setting PERF_SAMPLE_TIME, so be more robust
+	 * and don't use sample->time unconditionally, we may end up having
+	 * some other event in the future without PERF_SAMPLE_TIME for good
+	 * reason, i.e. we may not be interested in its timestamps, just in
+	 * it taking place, picking some piece of information when it
+	 * appears in our event stream (vfs_getname comes to mind).
+	 */
+	if (trace->base_time == 0 && !trace->full_time &&
+	    (evsel->attr.sample_type & PERF_SAMPLE_TIME))
 		trace->base_time = sample->time;
 }
 
