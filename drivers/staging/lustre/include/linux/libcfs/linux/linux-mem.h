@@ -57,12 +57,4 @@
 #include "../libcfs_cpu.h"
 #endif
 
-#if BITS_PER_LONG == 32
-/* limit to lowmem on 32-bit systems */
-#define NUM_CACHEPAGES \
-	min(totalram_pages, 1UL << (30 - PAGE_CACHE_SHIFT) * 3 / 4)
-#else
-#define NUM_CACHEPAGES totalram_pages
-#endif
-
 #endif /* __LINUX_CFS_MEM_H__ */
