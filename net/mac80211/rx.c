@@ -2129,6 +2129,15 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 
 	ieee80211_rx_stats(dev, skb->len);
 
+	if (rx->sta) {
+		/* The seqno index has the same property as needed
+		 * for the rx_msdu field, i.e. it is IEEE80211_NUM_TIDS
+		 * for non-QoS-data frames. Here we know it's a data
+		 * frame, so count MSDUs.
+		 */
+		rx->sta->rx_stats.msdu[rx->seqno_idx]++;
+	}
+
 	if ((sdata->vif.type == NL80211_IFTYPE_AP ||
 	     sdata->vif.type == NL80211_IFTYPE_AP_VLAN) &&
 	    !(sdata->flags & IEEE80211_SDATA_DONT_BRIDGE_PACKETS) &&
@@ -2414,15 +2423,6 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 
 	if (unlikely(!ieee80211_is_data_present(hdr->frame_control)))
 		return RX_DROP_MONITOR;
-
-	if (rx->sta) {
-		/* The seqno index has the same property as needed
-		 * for the rx_msdu field, i.e. it is IEEE80211_NUM_TIDS
-		 * for non-QoS-data frames. Here we know it's a data
-		 * frame, so count MSDUs.
-		 */
-		rx->sta->rx_stats.msdu[rx->seqno_idx]++;
-	}
 
 	/*
 	 * Send unexpected-4addr-frame event to hostapd. For older versions,
