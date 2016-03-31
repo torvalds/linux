@@ -1868,16 +1868,9 @@ controlvm_periodic_work(struct work_struct *work)
 	struct controlvm_message inmsg;
 	bool got_command = false;
 	bool handle_command_failed = false;
-	static u64 poll_count;
 
 	/* make sure visorbus server is registered for controlvm callbacks */
 	if (visorchipset_visorbusregwait && !visorbusregistered)
-		goto cleanup;
-
-	poll_count++;
-	if (poll_count >= 250)
-		;	/* keep going */
-	else
 		goto cleanup;
 
 	/* Check events to determine if response to CHIPSET_READY
