@@ -90,7 +90,6 @@ __ppc4xx_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 static void
 ppc4xx_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct ppc4xx_gpio_chip *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 
