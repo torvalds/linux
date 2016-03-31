@@ -332,7 +332,7 @@ struct rtl8723bu_rx_desc {
 	__le32 tsfl;
 };
 
-struct rtl8723au_tx_desc {
+struct rtl8xxxu_txdesc32 {
 	__le16 pkt_size;
 	u8 pkt_offset;
 	u8 txdw0;
@@ -346,7 +346,7 @@ struct rtl8723au_tx_desc {
 	__le16 txdw7;
 };
 
-struct rtl8723bu_tx_desc {
+struct rtl8xxxu_txdesc40 {
 	__le16 pkt_size;
 	u8 pkt_offset;
 	u8 txdw0;
