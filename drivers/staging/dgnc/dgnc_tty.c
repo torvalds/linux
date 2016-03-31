@@ -602,6 +602,8 @@ void dgnc_input(struct channel_t *ch)
 	 * or the amount of data the card actually has pending...
 	 */
 	while (n) {
+		unsigned char *ch_pos = ch->ch_equeue + tail;
+
 		s = ((head >= tail) ? head : RQUEUESIZE) - tail;
 		s = min(s, n);
 
@@ -616,29 +618,20 @@ void dgnc_input(struct channel_t *ch)
 		 */
 		if (I_PARMRK(tp) || I_BRKINT(tp) || I_INPCK(tp)) {
 			for (i = 0; i < s; i++) {
-				if (*(ch->ch_equeue + tail + i) & UART_LSR_BI)
-					tty_insert_flip_char(tp->port,
-						*(ch->ch_rqueue + tail + i),
-						TTY_BREAK);
-				else if (*(ch->ch_equeue + tail + i) &
-						UART_LSR_PE)
-					tty_insert_flip_char(tp->port,
-						*(ch->ch_rqueue + tail + i),
-						TTY_PARITY);
-				else if (*(ch->ch_equeue + tail + i) &
-						UART_LSR_FE)
-					tty_insert_flip_char(tp->port,
-						*(ch->ch_rqueue + tail + i),
-						TTY_FRAME);
-				else
-					tty_insert_flip_char(tp->port,
-						*(ch->ch_rqueue + tail + i),
-						TTY_NORMAL);
+				unsigned char ch = *(ch_pos + i);
+				char flag = TTY_NORMAL;
+
+				if (ch & UART_LSR_BI)
+					flag = TTY_BREAK;
+				else if (ch & UART_LSR_PE)
+					flag = TTY_PARITY;
+				else if (ch & UART_LSR_FE)
+					flag = TTY_FRAME;
+
+				tty_insert_flip_char(tp->port, ch, flag);
 			}
 		} else {
-			tty_insert_flip_string(tp->port,
-					       ch->ch_rqueue + tail,
-					       s);
+			tty_insert_flip_string(tp->port, ch_pos, s);
 		}
 
 		tail += s;
