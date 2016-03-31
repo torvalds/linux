@@ -4786,8 +4786,19 @@ static int vop_probe(struct platform_device *pdev)
 			vop_dev->irq, ret);
 		return ret;
 	}
-	if (dev_drv->iommu_enabled)
-		strcpy(dev_drv->mmu_dts_name, VOP_IOMMU_COMPATIBLE_NAME);
+	if (dev_drv->iommu_enabled) {
+		if (VOP_CHIP(vop_dev) == VOP_RK322X) {
+			strcpy(dev_drv->mmu_dts_name,
+			       VOP_IOMMU_COMPATIBLE_NAME);
+		} else {
+			if (vop_dev->id == 0)
+				strcpy(dev_drv->mmu_dts_name,
+				       VOPB_IOMMU_COMPATIBLE_NAME);
+			else
+				strcpy(dev_drv->mmu_dts_name,
+				       VOPL_IOMMU_COMPATIBLE_NAME);
+		}
+	}
 	ret = rk_fb_register(dev_drv, vop_dev->data->win, vop_dev->id);
 	if (ret < 0) {
 		dev_err(dev, "register fb for lcdc%d failed!\n", vop_dev->id);
