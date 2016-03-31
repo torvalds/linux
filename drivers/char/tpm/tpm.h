@@ -137,8 +137,6 @@ struct tpm_vendor_specific {
 	unsigned long duration[3]; /* jiffies */
 	bool duration_adjusted;
 	void *priv;
-
-	wait_queue_head_t read_queue;
 };
 
 #define TPM_VPRIV(c)     ((c)->vendor.priv)

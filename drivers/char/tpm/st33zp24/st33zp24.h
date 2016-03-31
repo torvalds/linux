@@ -28,6 +28,7 @@ struct st33zp24_dev {
 	int irq;
 	u32 intrs;
 	int io_lpcpd;
+	wait_queue_head_t read_queue;
 };
 
 

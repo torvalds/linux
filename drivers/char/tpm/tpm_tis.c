@@ -99,6 +99,7 @@ struct priv_data {
 	int irq;
 	bool irq_tested;
 	wait_queue_head_t int_queue;
+	wait_queue_head_t read_queue;
 };
 
 #if defined(CONFIG_PNP) && defined(CONFIG_ACPI)
@@ -252,7 +253,7 @@ static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 	       wait_for_tpm_stat(chip,
 				 TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 				 chip->vendor.timeout_c,
-				 &chip->vendor.read_queue, true)
+				 &priv->read_queue, true)
 	       == 0) {
 		burstcnt = get_burstcount(chip);
 		for (; burstcnt > 0 && size < count; burstcnt--)
@@ -421,7 +422,7 @@ static int tpm_tis_send_main(struct tpm_chip *chip, u8 *buf, size_t len)
 
 		if (wait_for_tpm_stat
 		    (chip, TPM_STS_DATA_AVAIL | TPM_STS_VALID, dur,
-		     &chip->vendor.read_queue, false) < 0) {
+		     &priv->read_queue, false) < 0) {
 			rc = -ETIME;
 			goto out_err;
 		}
@@ -575,7 +576,7 @@ static irqreturn_t tis_int_handler(int dummy, void *dev_id)
 
 	((struct priv_data *)chip->vendor.priv)->irq_tested = true;
 	if (interrupt & TPM_INTF_DATA_AVAIL_INT)
-		wake_up_interruptible(&chip->vendor.read_queue);
+		wake_up_interruptible(&priv->read_queue);
 	if (interrupt & TPM_INTF_LOCALITY_CHANGE_INT)
 		for (i = 0; i < 5; i++)
 			if (check_locality(chip, i) >= 0)
@@ -795,7 +796,7 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 	}
 
 	/* INTERRUPT Setup */
-	init_waitqueue_head(&chip->vendor.read_queue);
+	init_waitqueue_head(&priv->read_queue);
 	init_waitqueue_head(&priv->int_queue);
 	if (interrupts && tpm_info->irq != -1) {
 		if (tpm_info->irq) {

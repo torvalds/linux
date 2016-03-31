@@ -57,6 +57,7 @@
 struct priv_data {
 	int irq;
 	unsigned int intrs;
+	wait_queue_head_t read_queue;
 };
 
 static s32 i2c_nuvoton_read_buf(struct i2c_client *client, u8 offset, u8 size,
@@ -232,13 +233,14 @@ static int i2c_nuvoton_wait_for_data_avail(struct tpm_chip *chip, u32 timeout,
 static int i2c_nuvoton_recv_data(struct i2c_client *client,
 				 struct tpm_chip *chip, u8 *buf, size_t count)
 {
+	struct priv_data *priv = chip->vendor.priv;
 	s32 rc;
 	int burst_count, bytes2read, size = 0;
 
 	while (size < count &&
 	       i2c_nuvoton_wait_for_data_avail(chip,
 					       chip->vendor.timeout_c,
-					       &chip->vendor.read_queue) == 0) {
+					       &priv->read_queue) == 0) {
 		burst_count = i2c_nuvoton_get_burstcount(client, chip);
 		if (burst_count < 0) {
 			dev_err(&chip->dev,
@@ -265,6 +267,7 @@ static int i2c_nuvoton_recv_data(struct i2c_client *client,
 /* Read TPM command results */
 static int i2c_nuvoton_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
+	struct priv_data *priv = chip->vendor.priv;
 	struct device *dev = chip->dev.parent;
 	struct i2c_client *client = to_i2c_client(dev);
 	s32 rc;
@@ -286,7 +289,7 @@ static int i2c_nuvoton_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		 * tag, paramsize, and result
 		 */
 		status = i2c_nuvoton_wait_for_data_avail(
-			chip, chip->vendor.timeout_c, &chip->vendor.read_queue);
+			chip, chip->vendor.timeout_c, &priv->read_queue);
 		if (status != 0) {
 			dev_err(dev, "%s() timeout on dataAvail\n", __func__);
 			size = -ETIMEDOUT;
@@ -348,6 +351,7 @@ static int i2c_nuvoton_recv(struct tpm_chip *chip, u8 *buf, size_t count)
  */
 static int i2c_nuvoton_send(struct tpm_chip *chip, u8 *buf, size_t len)
 {
+	struct priv_data *priv = chip->vendor.priv;
 	struct device *dev = chip->dev.parent;
 	struct i2c_client *client = to_i2c_client(dev);
 	u32 ordinal;
@@ -440,7 +444,7 @@ static int i2c_nuvoton_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	rc = i2c_nuvoton_wait_for_data_avail(chip,
 					     tpm_calc_ordinal_duration(chip,
 								       ordinal),
-					     &chip->vendor.read_queue);
+					     &priv->read_queue);
 	if (rc) {
 		dev_err(dev, "%s() timeout command duration\n", __func__);
 		i2c_nuvoton_ready(chip);
@@ -477,7 +481,7 @@ static irqreturn_t i2c_nuvoton_int_handler(int dummy, void *dev_id)
 	struct priv_data *priv = chip->vendor.priv;
 
 	priv->intrs++;
-	wake_up(&chip->vendor.read_queue);
+	wake_up(&priv->read_queue);
 	disable_irq_nosync(priv->irq);
 	return IRQ_HANDLED;
 }
@@ -541,7 +545,7 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 		return -ENOMEM;
 	chip->vendor.priv = priv;
 
-	init_waitqueue_head(&chip->vendor.read_queue);
+	init_waitqueue_head(&priv->read_queue);
 
 	/* Default timeouts */
 	chip->vendor.timeout_a = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);

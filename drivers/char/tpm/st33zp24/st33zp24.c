@@ -338,7 +338,7 @@ static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 	       wait_for_stat(chip,
 			     TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 			     chip->vendor.timeout_c,
-			     &chip->vendor.read_queue, true) == 0) {
+			     &tpm_dev->read_queue, true) == 0) {
 		burstcnt = get_burstcount(chip);
 		if (burstcnt < 0)
 			return burstcnt;
@@ -367,7 +367,7 @@ static irqreturn_t tpm_ioserirq_handler(int irq, void *dev_id)
 	tpm_dev = (struct st33zp24_dev *)TPM_VPRIV(chip);
 
 	tpm_dev->intrs++;
-	wake_up_interruptible(&chip->vendor.read_queue);
+	wake_up_interruptible(&tpm_dev->read_queue);
 	disable_irq_nosync(tpm_dev->irq);
 
 	return IRQ_HANDLED;
@@ -407,7 +407,7 @@ static int st33zp24_send(struct tpm_chip *chip, unsigned char *buf,
 		st33zp24_cancel(chip);
 		if (wait_for_stat
 		    (chip, TPM_STS_COMMAND_READY, chip->vendor.timeout_b,
-		     &chip->vendor.read_queue, false) < 0) {
+		     &tpm_dev->read_queue, false) < 0) {
 			ret = -ETIME;
 			goto out_err;
 		}
@@ -453,7 +453,7 @@ static int st33zp24_send(struct tpm_chip *chip, unsigned char *buf,
 
 		ret = wait_for_stat(chip, TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 				tpm_calc_ordinal_duration(chip, ordinal),
-				&chip->vendor.read_queue, false);
+				&tpm_dev->read_queue, false);
 		if (ret < 0)
 			goto out_err;
 	}
@@ -570,7 +570,7 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 
 	if (irq) {
 		/* INTERRUPT Setup */
-		init_waitqueue_head(&chip->vendor.read_queue);
+		init_waitqueue_head(&tpm_dev->read_queue);
 		tpm_dev->intrs = 0;
 
 		if (request_locality(chip) != LOCALITY0) {
@@ -674,7 +674,7 @@ int st33zp24_pm_resume(struct device *dev)
 		gpio_set_value(tpm_dev->io_lpcpd, 1);
 		ret = wait_for_stat(chip,
 				TPM_STS_VALID, chip->vendor.timeout_b,
-				&chip->vendor.read_queue, false);
+				&tpm_dev->read_queue, false);
 	} else {
 		ret = tpm_pm_resume(dev);
 		if (!ret)

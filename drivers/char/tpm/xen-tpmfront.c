@@ -29,6 +29,7 @@ struct tpm_private {
 	int ring_ref;
 	domid_t backend_id;
 	int irq;
+	wait_queue_head_t read_queue;
 };
 
 enum status_bits {
@@ -89,7 +90,7 @@ static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 
 	/* Wait for completion of any existing command or cancellation */
 	if (wait_for_tpm_stat(chip, VTPM_STATUS_IDLE, chip->vendor.timeout_c,
-			&chip->vendor.read_queue, true) < 0) {
+			&priv->read_queue, true) < 0) {
 		vtpm_cancel(chip);
 		return -ETIME;
 	}
@@ -105,7 +106,7 @@ static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 	duration = tpm_calc_ordinal_duration(chip, ordinal);
 
 	if (wait_for_tpm_stat(chip, VTPM_STATUS_IDLE, duration,
-			&chip->vendor.read_queue, true) < 0) {
+			&priv->read_queue, true) < 0) {
 		/* got a signal or timeout, try to cancel */
 		vtpm_cancel(chip);
 		return -ETIME;
@@ -126,7 +127,7 @@ static int vtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 
 	/* In theory the wait at the end of _send makes this one unnecessary */
 	if (wait_for_tpm_stat(chip, VTPM_STATUS_RESULT, chip->vendor.timeout_c,
-			&chip->vendor.read_queue, true) < 0) {
+			&priv->read_queue, true) < 0) {
 		vtpm_cancel(chip);
 		return -ETIME;
 	}
@@ -162,7 +163,7 @@ static irqreturn_t tpmif_interrupt(int dummy, void *dev_id)
 	switch (priv->shr->state) {
 	case VTPM_STATE_IDLE:
 	case VTPM_STATE_FINISH:
-		wake_up_interruptible(&priv->chip->vendor.read_queue);
+		wake_up_interruptible(&priv->read_queue);
 		break;
 	case VTPM_STATE_SUBMIT:
 	case VTPM_STATE_CANCEL:
@@ -180,7 +181,7 @@ static int setup_chip(struct device *dev, struct tpm_private *priv)
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 
-	init_waitqueue_head(&chip->vendor.read_queue);
+	init_waitqueue_head(&priv->read_queue);
 
 	priv->chip = chip;
 	TPM_VPRIV(chip) = priv;
