@@ -329,7 +329,7 @@ void tcp_req_err(struct sock *sk, u32 seq, bool abort)
 		 * errors returned from accept().
 		 */
 		inet_csk_reqsk_queue_drop(req->rsk_listener, req);
-		NET_INC_STATS_BH(net, LINUX_MIB_LISTENDROPS);
+		tcp_listendrop(req->rsk_listener);
 	}
 	reqsk_put(req);
 }
@@ -1246,7 +1246,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 				&tcp_request_sock_ipv4_ops, sk, skb);
 
 drop:
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
+	tcp_listendrop(sk);
 	return 0;
 }
 EXPORT_SYMBOL(tcp_v4_conn_request);
@@ -1348,7 +1348,7 @@ exit_overflow:
 exit_nonewsk:
 	dst_release(dst);
 exit:
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
+	tcp_listendrop(sk);
 	return NULL;
 put_and_exit:
 	inet_csk_prepare_forced_close(newsk);

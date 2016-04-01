@@ -6339,8 +6339,10 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 			inet_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
 		af_ops->send_synack(sk, dst, &fl, req,
 				    &foc, !want_cookie);
-		if (want_cookie)
-			goto drop_and_free;
+		if (want_cookie) {
+			reqsk_free(req);
+			return 0;
+		}
 	}
 	reqsk_put(req);
 	return 0;
@@ -6350,7 +6352,7 @@ drop_and_release:
 drop_and_free:
 	reqsk_free(req);
 drop:
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
+	tcp_listendrop(sk);
 	return 0;
 }
 EXPORT_SYMBOL(tcp_conn_request);
