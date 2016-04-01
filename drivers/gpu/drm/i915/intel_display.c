@@ -5448,21 +5448,6 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int frequency)
 
 void broxton_init_cdclk(struct drm_i915_private *dev_priv)
 {
-	uint32_t val;
-
-	/*
-	 * NDE_RSTWRN_OPT RST PCH Handshake En must always be 0b on BXT
-	 * or else the reset will hang because there is no PCH to respond.
-	 * Move the handshake programming to initialization sequence.
-	 * Previously was left up to BIOS.
-	 */
-	val = I915_READ(HSW_NDE_RSTWRN_OPT);
-	val &= ~RESET_PCH_HANDSHAKE_ENABLE;
-	I915_WRITE(HSW_NDE_RSTWRN_OPT, val);
-
-	/* Enable PG1 for cdclk */
-	intel_display_power_get(dev_priv, POWER_DOMAIN_PLLS);
-
 	/* check if cd clock is enabled */
 	if (I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_PLL_ENABLE) {
 		DRM_DEBUG_KMS("Display already initialized\n");
@@ -5499,8 +5484,6 @@ void broxton_uninit_cdclk(struct drm_i915_private *dev_priv)
 
 	/* Set minimum (bypass) frequency, in effect turning off the DE PLL */
 	broxton_set_cdclk(dev_priv, 19200);
-
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
 }
 
 static const struct skl_cdclk_entry {

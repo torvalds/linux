@@ -1080,10 +1080,7 @@ static int hsw_suspend_complete(struct drm_i915_private *dev_priv)
 
 static int bxt_suspend_complete(struct drm_i915_private *dev_priv)
 {
-	/* TODO: when DC5 support is added disable DC5 here. */
-
-	broxton_ddi_phy_uninit(dev_priv);
-	broxton_uninit_cdclk(dev_priv);
+	bxt_display_core_uninit(dev_priv);
 	bxt_enable_dc9(dev_priv);
 
 	return 0;
@@ -1091,16 +1088,8 @@ static int bxt_suspend_complete(struct drm_i915_private *dev_priv)
 
 static int bxt_resume_prepare(struct drm_i915_private *dev_priv)
 {
-	/* TODO: when CSR FW support is added make sure the FW is loaded */
-
 	bxt_disable_dc9(dev_priv);
-
-	/*
-	 * TODO: when DC5 support is added enable DC5 here if the CSR FW
-	 * is available.
-	 */
-	broxton_init_cdclk(dev_priv);
-	broxton_ddi_phy_init(dev_priv);
+	bxt_display_core_init(dev_priv, true);
 
 	return 0;
 }

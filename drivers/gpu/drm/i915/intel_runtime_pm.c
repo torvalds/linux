@@ -419,25 +419,13 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_VGA) |				\
 	BIT(POWER_DOMAIN_GMBUS) |			\
 	BIT(POWER_DOMAIN_INIT))
-#define BXT_DISPLAY_POWERWELL_1_POWER_DOMAINS (		\
-	BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
-	BIT(POWER_DOMAIN_PIPE_A) |			\
-	BIT(POWER_DOMAIN_TRANSCODER_EDP) |		\
-	BIT(POWER_DOMAIN_TRANSCODER_DSI_A) |		\
-	BIT(POWER_DOMAIN_TRANSCODER_DSI_C) |		\
-	BIT(POWER_DOMAIN_PIPE_A_PANEL_FITTER) |		\
-	BIT(POWER_DOMAIN_PORT_DDI_A_LANES) |		\
-	BIT(POWER_DOMAIN_PORT_DSI) |			\
-	BIT(POWER_DOMAIN_AUX_A) |			\
-	BIT(POWER_DOMAIN_PLLS) |			\
-	BIT(POWER_DOMAIN_INIT))
 #define BXT_DISPLAY_DC_OFF_POWER_DOMAINS (		\
 	BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
 	BIT(POWER_DOMAIN_MODESET) |			\
 	BIT(POWER_DOMAIN_AUX_A) |			\
 	BIT(POWER_DOMAIN_INIT))
 #define BXT_DISPLAY_ALWAYS_ON_POWER_DOMAINS (		\
-	(POWER_DOMAIN_MASK & ~(BXT_DISPLAY_POWERWELL_1_POWER_DOMAINS |	\
+	(POWER_DOMAIN_MASK & ~(				\
 	BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS)) |	\
 	BIT(POWER_DOMAIN_INIT))
 
@@ -1945,7 +1933,7 @@ static struct i915_power_well bxt_power_wells[] = {
 	},
 	{
 		.name = "power well 1",
-		.domains = BXT_DISPLAY_POWERWELL_1_POWER_DOMAINS,
+		.domains = 0,
 		.ops = &skl_power_well_ops,
 		.data = SKL_DISP_PW_1,
 	},
@@ -2181,6 +2169,61 @@ static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 	mutex_unlock(&power_domains->lock);
 }
 
+void bxt_display_core_init(struct drm_i915_private *dev_priv,
+			   bool resume)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *well;
+	uint32_t val;
+
+	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+
+	/*
+	 * NDE_RSTWRN_OPT RST PCH Handshake En must always be 0b on BXT
+	 * or else the reset will hang because there is no PCH to respond.
+	 * Move the handshake programming to initialization sequence.
+	 * Previously was left up to BIOS.
+	 */
+	val = I915_READ(HSW_NDE_RSTWRN_OPT);
+	val &= ~RESET_PCH_HANDSHAKE_ENABLE;
+	I915_WRITE(HSW_NDE_RSTWRN_OPT, val);
+
+	/* Enable PG1 */
+	mutex_lock(&power_domains->lock);
+
+	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
+	intel_power_well_enable(dev_priv, well);
+
+	mutex_unlock(&power_domains->lock);
+
+	broxton_init_cdclk(dev_priv);
+	broxton_ddi_phy_init(dev_priv);
+
+	if (resume && dev_priv->csr.dmc_payload)
+		intel_csr_load_program(dev_priv);
+}
+
+void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *well;
+
+	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+
+	broxton_ddi_phy_uninit(dev_priv);
+	broxton_uninit_cdclk(dev_priv);
+
+	/* The spec doesn't call for removing the reset handshake flag */
+
+	/* Disable PG1 */
+	mutex_lock(&power_domains->lock);
+
+	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
+	intel_power_well_disable(dev_priv, well);
+
+	mutex_unlock(&power_domains->lock);
+}
+
 static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_well *cmn_bc =
@@ -2312,6 +2355,8 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 
 	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
 		skl_display_core_init(dev_priv, resume);
+	} else if (IS_BROXTON(dev)) {
+		bxt_display_core_init(dev_priv, resume);
 	} else if (IS_CHERRYVIEW(dev)) {
 		mutex_lock(&power_domains->lock);
 		chv_phy_control_init(dev_priv);
@@ -2349,6 +2394,8 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
 
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		skl_display_core_uninit(dev_priv);
+	else if (IS_BROXTON(dev_priv))
+		bxt_display_core_uninit(dev_priv);
 }
 
 /**
