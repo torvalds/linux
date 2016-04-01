@@ -280,11 +280,8 @@ static inline struct sock *inet_lookup_listener(struct net *net,
 	 net_eq(sock_net(__sk), (__net)))
 #endif /* 64-bit arch */
 
-/*
- * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so we need
+/* Sockets in TCP_CLOSE state are _always_ taken out of the hash, so we need
  * not check it for lookups anymore, thanks Alexey. -DaveM
- *
- * Local BH must be disabled here.
  */
 struct sock *__inet_lookup_established(struct net *net,
 				       struct inet_hashinfo *hashinfo,
@@ -326,10 +323,8 @@ static inline struct sock *inet_lookup(struct net *net,
 {
 	struct sock *sk;
 
-	local_bh_disable();
 	sk = __inet_lookup(net, hashinfo, skb, doff, saddr, sport, daddr,
 			   dport, dif);
-	local_bh_enable();
 
 	return sk;
 }
