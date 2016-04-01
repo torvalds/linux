@@ -1722,11 +1722,51 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 	}
 }
 
+static bool broxton_phy_is_enabled(struct drm_i915_private *dev_priv,
+				   enum dpio_phy phy)
+{
+	if (!(I915_READ(BXT_P_CR_GT_DISP_PWRON) & GT_DISPLAY_POWER_ON(phy)))
+		return false;
+
+	if ((I915_READ(BXT_PORT_CL1CM_DW0(phy)) &
+	     (PHY_POWER_GOOD | PHY_RESERVED)) != PHY_POWER_GOOD) {
+		DRM_DEBUG_DRIVER("DDI PHY %d powered, but power hasn't settled\n",
+				 phy);
+
+		return false;
+	}
+
+	if (phy == DPIO_PHY1 &&
+	    !(I915_READ(BXT_PORT_REF_DW3(DPIO_PHY1)) & GRC_DONE)) {
+		DRM_DEBUG_DRIVER("DDI PHY 1 powered, but GRC isn't done\n");
+
+		return false;
+	}
+
+	if (!(I915_READ(BXT_PHY_CTL_FAMILY(phy)) & COMMON_RESET_DIS)) {
+		DRM_DEBUG_DRIVER("DDI PHY %d powered, but still in reset\n",
+				 phy);
+
+		return false;
+	}
+
+	return true;
+}
+
 static void broxton_phy_init(struct drm_i915_private *dev_priv,
 			     enum dpio_phy phy)
 {
 	enum port port;
 	u32 ports, val;
+
+	if (broxton_phy_is_enabled(dev_priv, phy)) {
+		DRM_DEBUG_DRIVER("DDI PHY %d already enabled, "
+				 "won't reprogram it\n", phy);
+
+		return;
+	}
+
+	DRM_DEBUG_DRIVER("DDI PHY %d not enabled, enabling it\n", phy);
 
 	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
 	val |= GT_DISPLAY_POWER_ON(phy);
