@@ -4088,12 +4088,6 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	I915_WRITE(FDI_RX_TUSIZE1(pipe),
 		   I915_READ(PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
 
-	/*
-	 * Sometimes spurious CPU pipe underruns happen during FDI
-	 * training, at least with VGA+HDMI cloning. Suppress them.
-	 */
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
-
 	/* For PCH output, training FDI link */
 	dev_priv->display.fdi_link_train(crtc);
 
@@ -4127,8 +4121,6 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	ironlake_pch_transcoder_set_timings(intel_crtc, pipe);
 
 	intel_fdi_normal_train(crtc);
-
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	/* For PCH DP, enable TRANS_DP_CTL */
 	if (HAS_PCH_CPT(dev) && intel_crtc->config->has_dp_encoder) {
@@ -4732,6 +4724,18 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	if (WARN_ON(intel_crtc->active))
 		return;
 
+	/*
+	 * Sometimes spurious CPU pipe underruns happen during FDI
+	 * training, at least with VGA+HDMI cloning. Suppress them.
+	 *
+	 * On ILK we get an occasional spurious CPU pipe underruns
+	 * between eDP port A enable and vdd enable. Also PCH port
+	 * enable seems to result in the occasional CPU pipe underrun.
+	 *
+	 * Spurious PCH underruns also occur during PCH enabling.
+	 */
+	if (intel_crtc->config->has_pch_encoder || IS_GEN5(dev_priv))
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 	if (intel_crtc->config->has_pch_encoder)
 		intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
 
@@ -4752,8 +4756,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	ironlake_set_pipeconf(crtc);
 
 	intel_crtc->active = true;
-
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
@@ -4796,6 +4798,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	/* Must wait for vblank to avoid spurious PCH FIFO underruns */
 	if (intel_crtc->config->has_pch_encoder)
 		intel_wait_for_vblank(dev, pipe);
+	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
 }
 
@@ -4948,8 +4951,15 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 
-	if (intel_crtc->config->has_pch_encoder)
+	/*
+	 * Sometimes spurious CPU pipe underruns happen when the
+	 * pipe is already disabled, but FDI RX/TX is still enabled.
+	 * Happens at least with VGA+HDMI cloning. Suppress them.
+	 */
+	if (intel_crtc->config->has_pch_encoder) {
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 		intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
+	}
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->disable(encoder);
@@ -4957,22 +4967,12 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	drm_crtc_vblank_off(crtc);
 	assert_vblank_disabled(crtc);
 
-	/*
-	 * Sometimes spurious CPU pipe underruns happen when the
-	 * pipe is already disabled, but FDI RX/TX is still enabled.
-	 * Happens at least with VGA+HDMI cloning. Suppress them.
-	 */
-	if (intel_crtc->config->has_pch_encoder)
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
-
 	intel_disable_pipe(intel_crtc);
 
 	ironlake_pfit_disable(intel_crtc, false);
 
-	if (intel_crtc->config->has_pch_encoder) {
+	if (intel_crtc->config->has_pch_encoder)
 		ironlake_fdi_disable(crtc);
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
-	}
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->post_disable)
@@ -5002,6 +5002,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 		ironlake_fdi_pll_disable(intel_crtc);
 	}
 
+	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
 }
 
