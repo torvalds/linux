@@ -169,6 +169,9 @@ struct stmmac_extra_stats {
 	unsigned long mtl_rx_fifo_ctrl_active;
 	unsigned long mac_rx_frame_ctrl_fifo;
 	unsigned long mac_gmii_rx_proto_engine;
+	/* TSO */
+	unsigned long tx_tso_frames;
+	unsigned long tx_tso_nfrags;
 };
 
 /* CSR Frequency Access Defines*/
@@ -545,6 +548,7 @@ void stmmac_dwmac4_set_mac(void __iomem *ioaddr, bool enable);
 void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr);
 extern const struct stmmac_mode_ops ring_mode_ops;
 extern const struct stmmac_mode_ops chain_mode_ops;
+extern const struct stmmac_desc_ops dwmac4_desc_ops;
 
 /**
  * stmmac_get_synopsys_id - return the SYINID.
