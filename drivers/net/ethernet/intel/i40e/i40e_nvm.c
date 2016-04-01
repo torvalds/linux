@@ -1030,6 +1030,37 @@ retry:
 }
 
 /**
+ * i40e_nvmupd_check_wait_event - handle NVM update operation events
+ * @hw: pointer to the hardware structure
+ * @opcode: the event that just happened
+ **/
+void i40e_nvmupd_check_wait_event(struct i40e_hw *hw, u16 opcode)
+{
+	if (opcode == i40e_aqc_opc_nvm_erase ||
+	    opcode == i40e_aqc_opc_nvm_update) {
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "NVMUPD: clearing wait on opcode 0x%04x\n", opcode);
+		if (hw->nvm_release_on_done) {
+			i40e_release_nvm(hw);
+			hw->nvm_release_on_done = false;
+		}
+
+		switch (hw->nvmupd_state) {
+		case I40E_NVMUPD_STATE_INIT_WAIT:
+			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+			break;
+
+		case I40E_NVMUPD_STATE_WRITE_WAIT:
+			hw->nvmupd_state = I40E_NVMUPD_STATE_WRITING;
+			break;
+
+		default:
+			break;
+		}
+	}
+}
+
+/**
  * i40e_nvmupd_validate_command - Validate given command
  * @hw: pointer to hardware structure
  * @cmd: pointer to nvm update command buffer
