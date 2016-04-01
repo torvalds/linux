@@ -291,6 +291,8 @@ static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 		hw->phy.type = ixgbe_phy_x550em_kx4;
 		break;
 	case IXGBE_DEV_ID_X550EM_X_KR:
+	case IXGBE_DEV_ID_X550EM_A_KR:
+	case IXGBE_DEV_ID_X550EM_A_KR_L:
 		hw->phy.type = ixgbe_phy_x550em_kr;
 		break;
 	case IXGBE_DEV_ID_X550EM_X_1G_T:
@@ -1984,13 +1986,17 @@ static s32 ixgbe_setup_kx4_x550em(struct ixgbe_hw *hw)
 	return status;
 }
 
-/**  ixgbe_setup_kr_x550em - Configure the KR PHY.
- *   @hw: pointer to hardware structure
+/**
+ * ixgbe_setup_kr_x550em - Configure the KR PHY
+ * @hw: pointer to hardware structure
  *
- *   Configures the integrated KR PHY.
+ * Configures the integrated KR PHY for X550EM_x.
  **/
 static s32 ixgbe_setup_kr_x550em(struct ixgbe_hw *hw)
 {
+	if (hw->mac.type != ixgbe_mac_X550EM_x)
+		return 0;
+
 	return ixgbe_setup_kr_speed_x550em(hw, hw->phy.autoneg_advertised);
 }
 
@@ -2196,7 +2202,9 @@ static s32 ixgbe_setup_fc_x550em(struct ixgbe_hw *hw)
 		return IXGBE_ERR_CONFIG;
 	}
 
-	if (hw->device_id != IXGBE_DEV_ID_X550EM_X_KR)
+	if (hw->device_id != IXGBE_DEV_ID_X550EM_X_KR &&
+	    hw->device_id != IXGBE_DEV_ID_X550EM_A_KR &&
+	    hw->device_id != IXGBE_DEV_ID_X550EM_A_KR_L)
 		return 0;
 
 	rc = hw->mac.ops.read_iosf_sb_reg(hw,
@@ -2437,6 +2445,8 @@ static enum ixgbe_media_type ixgbe_get_media_type_X550em(struct ixgbe_hw *hw)
 		/* Fallthrough */
 	case IXGBE_DEV_ID_X550EM_X_KR:
 	case IXGBE_DEV_ID_X550EM_X_KX4:
+	case IXGBE_DEV_ID_X550EM_A_KR:
+	case IXGBE_DEV_ID_X550EM_A_KR_L:
 		media_type = ixgbe_media_type_backplane;
 		break;
 	case IXGBE_DEV_ID_X550EM_X_SFP:
