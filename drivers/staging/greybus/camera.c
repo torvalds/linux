@@ -91,6 +91,10 @@ static const struct gb_camera_fmt_map mbus_to_gbus_format[] = {
 	{
 		.mbus_code = V4L2_MBUS_FMT_JPEG_1X8,
 		.gb_format = 0x40,
+	},
+	{
+		.mbus_code = V4L2_MBUS_FMT_ARA_METADATA_1X8,
+		.gb_format = 0x41,
 	}
 };
 
