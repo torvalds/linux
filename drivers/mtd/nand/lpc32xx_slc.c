@@ -35,7 +35,6 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
-#include <linux/of_mtd.h>
 #include <linux/of_gpio.h>
 #include <linux/mtd/lpc32xx_slc.h>
 
@@ -219,7 +218,6 @@ struct lpc32xx_nand_cfg_slc {
 	uint32_t rwidth;
 	uint32_t rhold;
 	uint32_t rsetup;
-	bool use_bbt;
 	int wp_gpio;
 	struct mtd_partition *parts;
 	unsigned num_parts;
@@ -783,7 +781,6 @@ static struct lpc32xx_nand_cfg_slc *lpc32xx_parse_dt(struct device *dev)
 		return NULL;
 	}
 
-	ncfg->use_bbt = of_get_nand_on_flash_bbt(np);
 	ncfg->wp_gpio = of_get_named_gpio(np, "gpios", 0);
 
 	return ncfg;
@@ -918,19 +915,15 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	chip->ecc.bytes = LPC32XX_SLC_DEV_ECC_BYTES;
 	chip->ecc.prepad = chip->ecc.postpad = 0;
 
-	/* Avoid extra scan if using BBT, setup BBT support */
-	if (host->ncfg->use_bbt) {
-		chip->bbt_options |= NAND_BBT_USE_FLASH;
-
-		/*
-		 * Use a custom BBT marker setup for small page FLASH that
-		 * won't interfere with the ECC layout. Large and huge page
-		 * FLASH use the standard layout.
-		 */
-		if (mtd->writesize <= 512) {
-			chip->bbt_td = &bbt_smallpage_main_descr;
-			chip->bbt_md = &bbt_smallpage_mirror_descr;
-		}
+	/*
+	 * Use a custom BBT marker setup for small page FLASH that
+	 * won't interfere with the ECC layout. Large and huge page
+	 * FLASH use the standard layout.
+	 */
+	if ((chip->bbt_options & NAND_BBT_USE_FLASH) &&
+	    mtd->writesize <= 512) {
+		chip->bbt_td = &bbt_smallpage_main_descr;
+		chip->bbt_md = &bbt_smallpage_mirror_descr;
 	}
 
 	/*
