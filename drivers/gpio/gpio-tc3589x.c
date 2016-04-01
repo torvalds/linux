@@ -6,7 +6,6 @@
  * Author: Rabin Vincent <rabin.vincent@stericsson.com> for ST-Ericsson
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -353,13 +352,3 @@ static int __init tc3589x_gpio_init(void)
 	return platform_driver_register(&tc3589x_gpio_driver);
 }
 subsys_initcall(tc3589x_gpio_init);
-
-static void __exit tc3589x_gpio_exit(void)
-{
-	platform_driver_unregister(&tc3589x_gpio_driver);
-}
-module_exit(tc3589x_gpio_exit);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("TC3589x GPIO driver");
-MODULE_AUTHOR("Hanumath Prasad, Rabin Vincent");
