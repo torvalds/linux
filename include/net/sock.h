@@ -178,7 +178,7 @@ struct sock_common {
 	int			skc_bound_dev_if;
 	union {
 		struct hlist_node	skc_bind_node;
-		struct hlist_nulls_node skc_portaddr_node;
+		struct hlist_node	skc_portaddr_node;
 	};
 	struct proto		*skc_prot;
 	possible_net_t		skc_net;
@@ -670,18 +670,18 @@ static inline void sk_add_bind_node(struct sock *sk,
 	hlist_for_each_entry(__sk, list, sk_bind_node)
 
 /**
- * sk_nulls_for_each_entry_offset - iterate over a list at a given struct offset
+ * sk_for_each_entry_offset_rcu - iterate over a list at a given struct offset
  * @tpos:	the type * to use as a loop cursor.
  * @pos:	the &struct hlist_node to use as a loop cursor.
  * @head:	the head for your list.
  * @offset:	offset of hlist_node within the struct.
  *
  */
-#define sk_nulls_for_each_entry_offset(tpos, pos, head, offset)		       \
-	for (pos = (head)->first;					       \
-	     (!is_a_nulls(pos)) &&					       \
+#define sk_for_each_entry_offset_rcu(tpos, pos, head, offset)		       \
+	for (pos = rcu_dereference((head)->first);			       \
+	     pos != NULL &&						       \
 		({ tpos = (typeof(*tpos) *)((void *)pos - offset); 1;});       \
-	     pos = pos->next)
+	     pos = rcu_dereference(pos->next))
 
 static inline struct user_namespace *sk_user_ns(struct sock *sk)
 {
