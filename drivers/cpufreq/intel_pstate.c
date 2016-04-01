@@ -910,7 +910,14 @@ static inline bool intel_pstate_sample(struct cpudata *cpu, u64 time)
 	cpu->prev_aperf = aperf;
 	cpu->prev_mperf = mperf;
 	cpu->prev_tsc = tsc;
-	return true;
+	/*
+	 * First time this function is invoked in a given cycle, all of the
+	 * previous sample data fields are equal to zero or stale and they must
+	 * be populated with meaningful numbers for things to work, so assume
+	 * that sample.time will always be reset before setting the utilization
+	 * update hook and make the caller skip the sample then.
+	 */
+	return !!cpu->last_sample_time;
 }
 
 static inline int32_t get_avg_frequency(struct cpudata *cpu)
@@ -984,8 +991,7 @@ static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu)
 	 * enough period of time to adjust our busyness.
 	 */
 	duration_ns = cpu->sample.time - cpu->last_sample_time;
-	if ((s64)duration_ns > pid_params.sample_rate_ns * 3
-	    && cpu->last_sample_time > 0) {
+	if ((s64)duration_ns > pid_params.sample_rate_ns * 3) {
 		sample_ratio = div_fp(int_tofp(pid_params.sample_rate_ns),
 				      int_tofp(duration_ns));
 		core_busy = mul_fp(core_busy, sample_ratio);
@@ -1100,7 +1106,6 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 	intel_pstate_get_cpu_pstates(cpu);
 
 	intel_pstate_busy_pid_reset(cpu);
-	intel_pstate_sample(cpu, 0);
 
 	cpu->update_util.func = intel_pstate_update_util;
 
@@ -1121,9 +1126,13 @@ static unsigned int intel_pstate_get(unsigned int cpu_num)
 	return get_avg_frequency(cpu);
 }
 
-static void intel_pstate_set_update_util_hook(unsigned int cpu)
+static void intel_pstate_set_update_util_hook(unsigned int cpu_num)
 {
-	cpufreq_set_update_util_data(cpu, &all_cpu_data[cpu]->update_util);
+	struct cpudata *cpu = all_cpu_data[cpu_num];
+
+	/* Prevent intel_pstate_update_util() from using stale data. */
+	cpu->sample.time = 0;
+	cpufreq_set_update_util_data(cpu_num, &cpu->update_util);
 }
 
 static void intel_pstate_clear_update_util_hook(unsigned int cpu)
