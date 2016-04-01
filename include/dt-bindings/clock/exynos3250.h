@@ -79,6 +79,8 @@
 #define CLK_MOUT_CORE			58
 #define CLK_MOUT_APLL			59
 #define CLK_MOUT_ACLK_266_SUB		60
+#define CLK_MOUT_UART2			61
+#define CLK_MOUT_MMC2			62
 
 /* Dividers */
 #define CLK_DIV_GPL			64
@@ -127,6 +129,9 @@
 #define CLK_DIV_CORE			107
 #define CLK_DIV_HPM			108
 #define CLK_DIV_COPY			109
+#define CLK_DIV_UART2			110
+#define CLK_DIV_MMC2_PRE		111
+#define CLK_DIV_MMC2			112
 
 /* Gates */
 #define CLK_ASYNC_G3D			128
@@ -223,6 +228,8 @@
 #define CLK_BLOCK_MFC			219
 #define CLK_BLOCK_CAM			220
 #define CLK_SMIES			221
+#define CLK_UART2			222
+#define CLK_SDMMC2			223
 
 /* Special clocks */
 #define CLK_SCLK_JPEG			224
@@ -249,12 +256,14 @@
 #define CLK_SCLK_SPI0			245
 #define CLK_SCLK_UART1			246
 #define CLK_SCLK_UART0			247
+#define CLK_SCLK_UART2			248
+#define CLK_SCLK_MMC2			249
 
 /*
  * Total number of clocks of main CMU.
  * NOTE: Must be equal to last clock ID increased by one.
  */
-#define CLK_NR_CLKS			248
+#define CLK_NR_CLKS			250
 
 /*
  * CMU DMC
