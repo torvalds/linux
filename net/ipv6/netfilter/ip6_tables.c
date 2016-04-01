@@ -1500,7 +1500,8 @@ check_compat_entry_size_and_hooks(struct compat_ip6t_entry *e,
 	if (!ip6_checkentry(&e->ipv6))
 		return -EINVAL;
 
-	ret = xt_check_entry_offsets(e, e->target_offset, e->next_offset);
+	ret = xt_compat_check_entry_offsets(e,
+					    e->target_offset, e->next_offset);
 	if (ret)
 		return ret;
 

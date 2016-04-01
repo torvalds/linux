@@ -558,6 +558,27 @@ int xt_compat_match_to_user(const struct xt_entry_match *m,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xt_compat_match_to_user);
+
+int xt_compat_check_entry_offsets(const void *base,
+				  unsigned int target_offset,
+				  unsigned int next_offset)
+{
+	const struct compat_xt_entry_target *t;
+	const char *e = base;
+
+	if (target_offset + sizeof(*t) > next_offset)
+		return -EINVAL;
+
+	t = (void *)(e + target_offset);
+	if (t->u.target_size < sizeof(*t))
+		return -EINVAL;
+
+	if (target_offset + t->u.target_size > next_offset)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(xt_compat_check_entry_offsets);
 #endif /* CONFIG_COMPAT */
 
 /**
@@ -568,6 +589,7 @@ EXPORT_SYMBOL_GPL(xt_compat_match_to_user);
  * @next_offset: the arp/ip/ip6_t->next_offset
  *
  * validates that target_offset and next_offset are sane.
+ * Also see xt_compat_check_entry_offsets for CONFIG_COMPAT version.
  *
  * The arp/ip/ip6t_entry structure @base must have passed following tests:
  * - it must point to a valid memory location
