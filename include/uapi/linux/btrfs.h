@@ -34,9 +34,6 @@ struct btrfs_ioctl_vol_args {
 
 #define BTRFS_DEVICE_PATH_NAME_MAX 1024
 
-#define BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
-#define BTRFS_SUBVOL_RDONLY		(1ULL << 1)
-#define BTRFS_SUBVOL_QGROUP_INHERIT	(1ULL << 2)
 #define BTRFS_FSID_SIZE 16
 #define BTRFS_UUID_SIZE 16
 #define BTRFS_UUID_UNPARSED_SIZE	37
@@ -84,6 +81,20 @@ struct btrfs_ioctl_qgroup_limit_args {
 	__u64	qgroupid;
 	struct btrfs_qgroup_limit lim;
 };
+
+/*
+ * flags for subvolumes
+ *
+ * Used by:
+ * struct btrfs_ioctl_vol_args_v2.flags
+ *
+ * BTRFS_SUBVOL_RDONLY is also provided/consumed by the following ioctls:
+ * - BTRFS_IOC_SUBVOL_GETFLAGS
+ * - BTRFS_IOC_SUBVOL_SETFLAGS
+ */
+#define BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
+#define BTRFS_SUBVOL_RDONLY		(1ULL << 1)
+#define BTRFS_SUBVOL_QGROUP_INHERIT	(1ULL << 2)
 
 #define BTRFS_SUBVOL_NAME_MAX 4039
 struct btrfs_ioctl_vol_args_v2 {
