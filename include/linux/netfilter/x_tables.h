@@ -239,7 +239,7 @@ extern void xt_unregister_match(struct xt_match *target);
 extern int xt_register_matches(struct xt_match *match, unsigned int n);
 extern void xt_unregister_matches(struct xt_match *match, unsigned int n);
 
-int xt_check_entry_offsets(const void *base,
+int xt_check_entry_offsets(const void *base, const char *elems,
                            unsigned int target_offset,
                            unsigned int next_offset);
 
@@ -437,7 +437,7 @@ extern void xt_compat_target_from_user(struct xt_entry_target *t,
 				       void **dstptr, unsigned int *size);
 extern int xt_compat_target_to_user(const struct xt_entry_target *t,
 				    void __user **dstptr, unsigned int *size);
-int xt_compat_check_entry_offsets(const void *base,
+int xt_compat_check_entry_offsets(const void *base, const char *elems,
                                   unsigned int target_offset,
                                   unsigned int next_offset);
 
