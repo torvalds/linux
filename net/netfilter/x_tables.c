@@ -533,6 +533,7 @@ void xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
 	struct compat_xt_entry_match *cm = (struct compat_xt_entry_match *)m;
 	int pad, off = xt_compat_match_offset(match);
 	u_int16_t msize = cm->u.user.match_size;
+	char name[sizeof(m->u.user.name)];
 
 	m = *dstptr;
 	memcpy(m, cm, sizeof(*cm));
@@ -546,6 +547,9 @@ void xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
 
 	msize += off;
 	m->u.user.match_size = msize;
+	strlcpy(name, match->name, sizeof(name));
+	module_put(match->me);
+	strncpy(m->u.user.name, name, sizeof(m->u.user.name));
 
 	*size += off;
 	*dstptr += msize;
@@ -763,6 +767,7 @@ void xt_compat_target_from_user(struct xt_entry_target *t, void **dstptr,
 	struct compat_xt_entry_target *ct = (struct compat_xt_entry_target *)t;
 	int pad, off = xt_compat_target_offset(target);
 	u_int16_t tsize = ct->u.user.target_size;
+	char name[sizeof(t->u.user.name)];
 
 	t = *dstptr;
 	memcpy(t, ct, sizeof(*ct));
@@ -776,6 +781,9 @@ void xt_compat_target_from_user(struct xt_entry_target *t, void **dstptr,
 
 	tsize += off;
 	t->u.user.target_size = tsize;
+	strlcpy(name, target->name, sizeof(name));
+	module_put(target->me);
+	strncpy(t->u.user.name, name, sizeof(t->u.user.name));
 
 	*size += off;
 	*dstptr += tsize;
