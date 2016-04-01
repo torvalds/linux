@@ -283,8 +283,9 @@ static int lov_init_raid0(const struct lu_env *env,
 		}
 		if (result == 0)
 			cl_object_header(&lov->lo_cl)->coh_page_bufsize += psz;
-	} else
+	} else {
 		result = -ENOMEM;
+	}
 out:
 	return result;
 }
@@ -935,8 +936,9 @@ struct lu_object *lov_object_alloc(const struct lu_env *env,
 		 * for object with different layouts.
 		 */
 		obj->lo_ops = &lov_lu_obj_ops;
-	} else
+	} else {
 		obj = NULL;
+	}
 	return obj;
 }
 

@@ -595,9 +595,9 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 	struct obd_import *imp = request->rq_import;
 	int rc;
 
-	if (unlikely(ctx))
+	if (unlikely(ctx)) {
 		request->rq_cli_ctx = sptlrpc_cli_ctx_get(ctx);
-	else {
+	} else {
 		rc = sptlrpc_req_get_ctx(request);
 		if (rc)
 			goto out_free;

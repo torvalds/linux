@@ -1496,8 +1496,9 @@ free_lmv:
 					       cmd == LL_IOC_MDC_GETINFO)) {
 				rc = 0;
 				goto skip_lmm;
-			} else
+			} else {
 				goto out_req;
+			}
 		}
 
 		if (cmd == IOC_MDC_GETFILESTRIPE ||
@@ -1710,15 +1711,16 @@ out_quotactl:
 		return ll_flush_ctx(inode);
 #ifdef CONFIG_FS_POSIX_ACL
 	case LL_IOC_RMTACL: {
-	    if (sbi->ll_flags & LL_SBI_RMT_CLIENT && is_root_inode(inode)) {
-		struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
+		if (sbi->ll_flags & LL_SBI_RMT_CLIENT && is_root_inode(inode)) {
+			struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
 
-		rc = rct_add(&sbi->ll_rct, current_pid(), arg);
-		if (!rc)
-			fd->fd_flags |= LL_FILE_RMTACL;
-		return rc;
-	    } else
-		return 0;
+			rc = rct_add(&sbi->ll_rct, current_pid(), arg);
+			if (!rc)
+				fd->fd_flags |= LL_FILE_RMTACL;
+			return rc;
+		} else {
+			return 0;
+		}
 	}
 #endif
 	case LL_IOC_GETOBDCOUNT: {

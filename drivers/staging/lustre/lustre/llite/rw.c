@@ -132,8 +132,9 @@ struct ll_cl_context *ll_cl_init(struct file *file, struct page *vmpage)
 			lcc->lcc_page = page;
 			lu_ref_add(&page->cp_reference, "cl_io", io);
 			result = 0;
-		} else
+		} else {
 			result = PTR_ERR(page);
+		}
 	}
 	if (result) {
 		ll_cl_fini(lcc);
@@ -488,8 +489,9 @@ static int ll_read_ahead_pages(const struct lu_env *env,
 			if (rc == 1) {
 				(*reserved_pages)--;
 				count++;
-			} else if (rc == -ENOLCK)
+			} else if (rc == -ENOLCK) {
 				break;
+			}
 		} else if (stride_ria) {
 			/* If it is not in the read-ahead window, and it is
 			 * read-ahead mode, then check whether it should skip

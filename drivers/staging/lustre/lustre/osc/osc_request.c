@@ -3065,8 +3065,9 @@ static int osc_import_event(struct obd_device *obd,
 
 			ldlm_namespace_cleanup(ns, LDLM_FL_LOCAL_ONLY);
 			cl_env_put(env, &refcheck);
-		} else
+		} else {
 			rc = PTR_ERR(env);
+		}
 		break;
 	}
 	case IMP_EVENT_ACTIVE: {

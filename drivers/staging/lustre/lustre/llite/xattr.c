@@ -181,8 +181,9 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 			size = rc;
 
 			pv = (const char *)new_value;
-		} else
+		} else {
 			return -EOPNOTSUPP;
+		}
 
 		valid |= rce_ops2valid(rce->rce_ops);
 	}

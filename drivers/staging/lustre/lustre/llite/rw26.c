@@ -98,8 +98,9 @@ static void ll_invalidatepage(struct page *vmpage, unsigned int offset,
 					cl_page_delete(env, page);
 					cl_page_put(env, page);
 				}
-			} else
+			} else {
 				LASSERT(vmpage->private == 0);
+			}
 			cl_env_put(env, &refcheck);
 		}
 	}

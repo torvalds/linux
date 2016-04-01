@@ -624,8 +624,9 @@ static int osc_ldlm_glimpse_ast(struct ldlm_lock *dlmlock, void *data)
 			result = -ELDLM_NO_LOCK_DATA;
 		}
 		cl_env_nested_put(&nest, env);
-	} else
+	} else {
 		result = PTR_ERR(env);
+	}
 	req->rq_status = result;
 	return result;
 }

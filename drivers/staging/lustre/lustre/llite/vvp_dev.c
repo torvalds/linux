@@ -342,8 +342,9 @@ int cl_sb_init(struct super_block *sb)
 			sbi->ll_site = cl2lu_dev(cl)->ld_site;
 		}
 		cl_env_put(env, &refcheck);
-	} else
+	} else {
 		rc = PTR_ERR(env);
+	}
 	return rc;
 }
 
@@ -588,16 +589,19 @@ static int vvp_pgcache_show(struct seq_file *f, void *v)
 			if (page) {
 				vvp_pgcache_page_show(env, f, page);
 				cl_page_put(env, page);
-			} else
+			} else {
 				seq_puts(f, "missing\n");
+			}
 			lu_object_ref_del(&clob->co_lu, "dump", current);
 			cl_object_put(env, clob);
-		} else
+		} else {
 			seq_printf(f, "%llx missing\n", pos);
+		}
 		cl_env_put(env, &refcheck);
 		result = 0;
-	} else
+	} else {
 		result = PTR_ERR(env);
+	}
 	return result;
 }
 

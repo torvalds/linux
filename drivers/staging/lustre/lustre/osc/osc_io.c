@@ -842,8 +842,9 @@ int osc_req_init(const struct lu_env *env, struct cl_device *dev,
 	if (or) {
 		cl_req_slice_add(req, &or->or_cl, dev, &osc_req_ops);
 		result = 0;
-	} else
+	} else {
 		result = -ENOMEM;
+	}
 	return result;
 }
 

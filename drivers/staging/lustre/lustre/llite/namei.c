@@ -128,10 +128,12 @@ struct inode *ll_iget(struct super_block *sb, ino_t hash,
 			if (rc != 0) {
 				iget_failed(inode);
 				inode = NULL;
-			} else
+			} else {
 				unlock_new_inode(inode);
-		} else if (!(inode->i_state & (I_FREEING | I_CLEAR)))
+			}
+		} else if (!(inode->i_state & (I_FREEING | I_CLEAR))) {
 			ll_update_inode(inode, md);
+		}
 		CDEBUG(D_VFSTRACE, "got inode: %p for "DFID"\n",
 		       inode, PFID(&md->body->fid1));
 	}

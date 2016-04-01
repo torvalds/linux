@@ -225,8 +225,9 @@ struct lov_io_sub *lov_sub_get(const struct lu_env *env,
 	if (!sub->sub_io_initialized) {
 		sub->sub_stripe = stripe;
 		rc = lov_io_sub_init(env, lio, sub);
-	} else
+	} else {
 		rc = 0;
+	}
 	if (rc == 0)
 		lov_sub_enter(sub);
 	else
@@ -294,8 +295,9 @@ static int lov_io_subio_init(const struct lu_env *env, struct lov_io *lio,
 		lio->lis_single_subio_index = -1;
 		lio->lis_active_subios = 0;
 		result = 0;
-	} else
+	} else {
 		result = -ENOMEM;
+	}
 	return result;
 }
 
@@ -413,8 +415,9 @@ static int lov_io_iter_init(const struct lu_env *env,
 			lov_sub_put(sub);
 			CDEBUG(D_VFSTRACE, "shrink: %d [%llu, %llu)\n",
 			       stripe, start, end);
-		} else
+		} else {
 			rc = PTR_ERR(sub);
+		}
 
 		if (!rc)
 			list_add_tail(&sub->sub_linkage, &lio->lis_active);

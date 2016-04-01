@@ -1122,8 +1122,9 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 					if (!rc)
 						rc = err;
 				}
-			} else
+			} else {
 				set = 1;
+			}
 		}
 		if (!set && !rc)
 			rc = -EIO;

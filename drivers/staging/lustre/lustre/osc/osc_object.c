@@ -292,8 +292,9 @@ struct lu_object *osc_object_alloc(const struct lu_env *env,
 		lu_object_init(obj, NULL, dev);
 		osc->oo_cl.co_ops = &osc_ops;
 		obj->lo_ops = &osc_lu_obj_ops;
-	} else
+	} else {
 		obj = NULL;
+	}
 	return obj;
 }
 

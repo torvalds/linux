@@ -1596,8 +1596,9 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 				 " to the "DFID", inode %lu/%u(%p)\n",
 				 PFID(&lli->lli_fid), PFID(&body->fid1),
 				 inode->i_ino, inode->i_generation, inode);
-		} else
+		} else {
 			lli->lli_fid = body->fid1;
+		}
 	}
 
 	LASSERT(fid_seq(&lli->lli_fid) != 0);
@@ -2065,11 +2066,11 @@ int ll_obd_statfs(struct inode *inode, void __user *arg)
 	}
 
 	memcpy(&type, data->ioc_inlbuf1, sizeof(__u32));
-	if (type & LL_STATFS_LMV)
+	if (type & LL_STATFS_LMV) {
 		exp = sbi->ll_md_exp;
-	else if (type & LL_STATFS_LOV)
+	} else if (type & LL_STATFS_LOV) {
 		exp = sbi->ll_dt_exp;
-	else {
+	} else {
 		rc = -ENODEV;
 		goto out_statfs;
 	}

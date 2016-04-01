@@ -262,8 +262,9 @@ static int lov_req_init(const struct lu_env *env, struct cl_device *dev,
 	if (lr) {
 		cl_req_slice_add(req, &lr->lr_cl, dev, &lov_req_ops);
 		result = 0;
-	} else
+	} else {
 		result = -ENOMEM;
+	}
 	return result;
 }
 
@@ -332,14 +333,15 @@ static struct lov_device_emerg **lov_emerg_alloc(int nr)
 			cl_page_list_init(&em->emrg_page_list);
 			em->emrg_env = cl_env_alloc(&em->emrg_refcheck,
 						    LCT_REMEMBER | LCT_NOREF);
-			if (!IS_ERR(em->emrg_env))
+			if (!IS_ERR(em->emrg_env)) {
 				em->emrg_env->le_ctx.lc_cookie = 0x2;
-			else {
+			} else {
 				result = PTR_ERR(em->emrg_env);
 				em->emrg_env = NULL;
 			}
-		} else
+		} else {
 			result = -ENOMEM;
+		}
 	}
 	if (result != 0) {
 		lov_emerg_free(emerg, nr);

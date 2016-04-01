@@ -654,8 +654,9 @@ static struct lu_env *cl_env_new(__u32 ctx_tags, __u32 ses_tags, void *debug)
 				lu_context_enter(&cle->ce_ses);
 				env->le_ses = &cle->ce_ses;
 				cl_env_init0(cle, debug);
-			} else
+			} else {
 				lu_env_fini(env);
+			}
 		}
 		if (rc != 0) {
 			kmem_cache_free(cl_env_kmem, cle);
@@ -664,8 +665,9 @@ static struct lu_env *cl_env_new(__u32 ctx_tags, __u32 ses_tags, void *debug)
 			CL_ENV_INC(create);
 			CL_ENV_INC(total);
 		}
-	} else
+	} else {
 		env = ERR_PTR(-ENOMEM);
+	}
 	return env;
 }
 
@@ -1095,8 +1097,9 @@ struct cl_device *cl_type_setup(const struct lu_env *env, struct lu_site *site,
 			CERROR("can't init device '%s', %d\n", typename, rc);
 			d = ERR_PTR(rc);
 		}
-	} else
+	} else {
 		CERROR("Cannot allocate device: '%s'\n", typename);
+	}
 	return lu2cl_dev(d);
 }
 EXPORT_SYMBOL(cl_type_setup);

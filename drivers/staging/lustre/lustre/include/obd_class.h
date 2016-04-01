@@ -490,8 +490,9 @@ static inline int obd_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 				obd->obd_lu_dev = d;
 				d->ld_obd = obd;
 				rc = 0;
-			} else
+			} else {
 				rc = PTR_ERR(d);
+			}
 		}
 		lu_context_exit(&session_ctx);
 		lu_context_fini(&session_ctx);

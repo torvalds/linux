@@ -1178,8 +1178,9 @@ static int vvp_io_fault_start(const struct lu_env *env,
 				if (result == -EDQUOT)
 					result = -ENOSPC;
 				goto out;
-			} else
+			} else {
 				cl_page_disown(env, io, page);
+			}
 		}
 	}
 

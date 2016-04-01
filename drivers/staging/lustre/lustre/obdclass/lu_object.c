@@ -716,8 +716,9 @@ struct lu_object *lu_object_find_slice(const struct lu_env *env,
 		obj = lu_object_locate(top->lo_header, dev->ld_type);
 		if (!obj)
 			lu_object_put(env, top);
-	} else
+	} else {
 		obj = top;
+	}
 	return obj;
 }
 EXPORT_SYMBOL(lu_object_find_slice);

@@ -504,9 +504,9 @@ int cl_io_lock_add(const struct lu_env *env, struct cl_io *io,
 {
 	int result;
 
-	if (cl_lockset_merge(&io->ci_lockset, &link->cill_descr))
+	if (cl_lockset_merge(&io->ci_lockset, &link->cill_descr)) {
 		result = 1;
-	else {
+	} else {
 		list_add(&link->cill_linkage, &io->ci_lockset.cls_todo);
 		result = 0;
 	}
@@ -536,8 +536,9 @@ int cl_io_lock_alloc_add(const struct lu_env *env, struct cl_io *io,
 		result = cl_io_lock_add(env, io, link);
 		if (result) /* lock match */
 			link->cill_fini(env, link);
-	} else
+	} else {
 		result = -ENOMEM;
+	}
 
 	return result;
 }
@@ -1202,14 +1203,16 @@ struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
 		if (req->crq_o) {
 			req->crq_nrobjs = nr_objects;
 			result = cl_req_init(env, req, page);
-		} else
+		} else {
 			result = -ENOMEM;
+		}
 		if (result != 0) {
 			cl_req_completion(env, req, result);
 			req = ERR_PTR(result);
 		}
-	} else
+	} else {
 		req = ERR_PTR(-ENOMEM);
+	}
 	return req;
 }
 EXPORT_SYMBOL(cl_req_alloc);

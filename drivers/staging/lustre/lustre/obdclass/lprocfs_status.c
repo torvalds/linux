@@ -694,8 +694,9 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 
 		do_div(sum, ret.lc_count);
 		ret.lc_sum = sum;
-	} else
+	} else {
 		ret.lc_sum = 0;
+	}
 	seq_printf(m,
 		   "    rpcs:\n"
 		   "       inflight: %u\n"
