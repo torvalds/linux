@@ -2207,8 +2207,6 @@ static pci_ers_result_t fm10k_io_error_detected(struct pci_dev *pdev,
 
 	rtnl_unlock();
 
-	pci_disable_device(pdev);
-
 	/* Request a slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;
 }
