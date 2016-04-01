@@ -1798,6 +1798,9 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 	 * enabled.
 	 * TODO: port C is only connected on BXT-P, so on BXT0/1 we should
 	 * power down the second channel on PHY0 as well.
+	 *
+	 * FIXME: Clarify programming of the following, the register is
+	 * read-only with bit 6 fixed at 0 at least in stepping A.
 	 */
 	if (phy == DPIO_PHY1)
 		val |= OCL2_LDOFUSE_PWR_DIS;
