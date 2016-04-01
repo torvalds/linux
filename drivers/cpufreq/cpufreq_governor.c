@@ -258,43 +258,6 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 }
 EXPORT_SYMBOL_GPL(dbs_update);
 
-static void gov_set_update_util(struct policy_dbs_info *policy_dbs,
-				unsigned int delay_us)
-{
-	struct cpufreq_policy *policy = policy_dbs->policy;
-	int cpu;
-
-	gov_update_sample_delay(policy_dbs, delay_us);
-	policy_dbs->last_sample_time = 0;
-
-	for_each_cpu(cpu, policy->cpus) {
-		struct cpu_dbs_info *cdbs = &per_cpu(cpu_dbs, cpu);
-
-		cpufreq_set_update_util_data(cpu, &cdbs->update_util);
-	}
-}
-
-static inline void gov_clear_update_util(struct cpufreq_policy *policy)
-{
-	int i;
-
-	for_each_cpu(i, policy->cpus)
-		cpufreq_set_update_util_data(i, NULL);
-
-	synchronize_sched();
-}
-
-static void gov_cancel_work(struct cpufreq_policy *policy)
-{
-	struct policy_dbs_info *policy_dbs = policy->governor_data;
-
-	gov_clear_update_util(policy_dbs->policy);
-	irq_work_sync(&policy_dbs->irq_work);
-	cancel_work_sync(&policy_dbs->work);
-	atomic_set(&policy_dbs->work_count, 0);
-	policy_dbs->work_in_progress = false;
-}
-
 static void dbs_work_handler(struct work_struct *work)
 {
 	struct policy_dbs_info *policy_dbs;
@@ -382,6 +345,44 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 	irq_work_queue(&policy_dbs->irq_work);
 }
 
+static void gov_set_update_util(struct policy_dbs_info *policy_dbs,
+				unsigned int delay_us)
+{
+	struct cpufreq_policy *policy = policy_dbs->policy;
+	int cpu;
+
+	gov_update_sample_delay(policy_dbs, delay_us);
+	policy_dbs->last_sample_time = 0;
+
+	for_each_cpu(cpu, policy->cpus) {
+		struct cpu_dbs_info *cdbs = &per_cpu(cpu_dbs, cpu);
+
+		cpufreq_add_update_util_hook(cpu, &cdbs->update_util,
+					     dbs_update_util_handler);
+	}
+}
+
+static inline void gov_clear_update_util(struct cpufreq_policy *policy)
+{
+	int i;
+
+	for_each_cpu(i, policy->cpus)
+		cpufreq_remove_update_util_hook(i);
+
+	synchronize_sched();
+}
+
+static void gov_cancel_work(struct cpufreq_policy *policy)
+{
+	struct policy_dbs_info *policy_dbs = policy->governor_data;
+
+	gov_clear_update_util(policy_dbs->policy);
+	irq_work_sync(&policy_dbs->irq_work);
+	cancel_work_sync(&policy_dbs->work);
+	atomic_set(&policy_dbs->work_count, 0);
+	policy_dbs->work_in_progress = false;
+}
+
 static struct policy_dbs_info *alloc_policy_dbs_info(struct cpufreq_policy *policy,
 						     struct dbs_governor *gov)
 {
@@ -404,7 +405,6 @@ static struct policy_dbs_info *alloc_policy_dbs_info(struct cpufreq_policy *poli
 		struct cpu_dbs_info *j_cdbs = &per_cpu(cpu_dbs, j);
 
 		j_cdbs->policy_dbs = policy_dbs;
-		j_cdbs->update_util.func = dbs_update_util_handler;
 	}
 	return policy_dbs;
 }
