@@ -47,6 +47,8 @@ static int hdmi_card_index = SNDRV_DEFAULT_IDX1;
 static char *hdmi_card_id = SNDRV_DEFAULT_STR1;
 static struct snd_intelhad *had_data;
 
+struct platform_device *gpdev;
+
 module_param(hdmi_card_index, int, 0444);
 MODULE_PARM_DESC(hdmi_card_index,
 		"Index value for INTEL Intel HDMI Audio controller.");
@@ -1481,9 +1483,9 @@ static int snd_intelhad_pcm_prepare(struct snd_pcm_substream *substream)
 	}
 
 	pr_debug("period_size=%d\n",
-				frames_to_bytes(runtime, runtime->period_size));
+				(int)frames_to_bytes(runtime, runtime->period_size));
 	pr_debug("periods=%d\n", runtime->periods);
-	pr_debug("buffer_size=%d\n", snd_pcm_lib_buffer_bytes(substream));
+	pr_debug("buffer_size=%d\n", (int)snd_pcm_lib_buffer_bytes(substream));
 	pr_debug("rate=%d\n", runtime->rate);
 	pr_debug("channels=%d\n", runtime->channels);
 
@@ -1997,8 +1999,14 @@ static struct platform_driver had_driver = {
 #ifdef CONFIG_PM
 		.pm	= &had_pm_ops,
 #endif
-		.acpi_match_table = ACPI_PTR(had_acpi_ids),
+		//.acpi_match_table = ACPI_PTR(had_acpi_ids),
 	},
+};
+
+static const struct platform_device_info hdmi_audio_dev_info = {
+	.name = HDMI_AUDIO_DRIVER,
+	.id = -1,
+	.dma_mask = DMA_BIT_MASK(32),
 };
 
 /*
@@ -2020,6 +2028,13 @@ static int __init alsa_card_intelhad_init(void)
 		return retval;
 	}
 
+	//gpdev = platform_device_register_simple(HDMI_AUDIO_DRIVER, -1, NULL, 0);
+	gpdev = platform_device_register_full(&hdmi_audio_dev_info);
+	if (!gpdev) {
+		pr_err("[jerome] Failed to register platform device \n");
+		return -1;
+	}
+
 	pr_debug("init complete\n");
 	return retval;
 }
@@ -2032,6 +2047,7 @@ static void __exit alsa_card_intelhad_exit(void)
 {
 	pr_debug("had_exit called\n");
 	platform_driver_unregister(&had_driver);
+	platform_device_unregister(gpdev);
 }
 late_initcall(alsa_card_intelhad_init);
 module_exit(alsa_card_intelhad_exit);
