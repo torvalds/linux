@@ -2627,6 +2627,20 @@ enum ixgbe_fdir_pballoc_type {
 #define FW_MAX_READ_BUFFER_SIZE		1024
 #define FW_DISABLE_RXEN_CMD		0xDE
 #define FW_DISABLE_RXEN_LEN		0x1
+#define FW_PHY_MGMT_REQ_CMD		0x20
+#define FW_PHY_TOKEN_REQ_CMD		0x0A
+#define FW_PHY_TOKEN_REQ_LEN		2
+#define FW_PHY_TOKEN_REQ		0
+#define FW_PHY_TOKEN_REL		1
+#define FW_PHY_TOKEN_OK			1
+#define FW_PHY_TOKEN_RETRY		0x80
+#define FW_PHY_TOKEN_DELAY		5	/* milliseconds */
+#define FW_PHY_TOKEN_WAIT		5	/* seconds */
+#define FW_PHY_TOKEN_RETRIES ((FW_PHY_TOKEN_WAIT * 1000) / FW_PHY_TOKEN_DELAY)
+#define FW_INT_PHY_REQ_CMD		0xB
+#define FW_INT_PHY_REQ_LEN		10
+#define FW_INT_PHY_REQ_READ		0
+#define FW_INT_PHY_REQ_WRITE		1
 
 /* Host Interface Command Structures */
 struct ixgbe_hic_hdr {
@@ -2693,6 +2707,28 @@ struct ixgbe_hic_disable_rxen {
 	u8  port_number;
 	u8  pad2;
 	u16 pad3;
+};
+
+struct ixgbe_hic_phy_token_req {
+	struct ixgbe_hic_hdr hdr;
+	u8 port_number;
+	u8 command_type;
+	u16 pad;
+};
+
+struct ixgbe_hic_internal_phy_req {
+	struct ixgbe_hic_hdr hdr;
+	u8 port_number;
+	u8 command_type;
+	__be16 address;
+	u16 rsv1;
+	__be32 write_data;
+	u16 pad;
+} __packed;
+
+struct ixgbe_hic_internal_phy_resp {
+	struct ixgbe_hic_hdr hdr;
+	__be32 read_data;
 };
 
 /* Transmit Descriptor - Advanced */
@@ -3528,6 +3564,8 @@ struct ixgbe_info {
 #define IXGBE_ERR_INVALID_ARGUMENT              -32
 #define IXGBE_ERR_HOST_INTERFACE_COMMAND        -33
 #define IXGBE_ERR_FDIR_CMD_INCOMPLETE		-38
+#define IXGBE_ERR_FW_RESP_INVALID		-39
+#define IXGBE_ERR_TOKEN_RETRY			-40
 #define IXGBE_NOT_IMPLEMENTED                   0x7FFFFFFF
 
 #define IXGBE_FUSES0_GROUP(_i)		(0x11158 + ((_i) * 4))

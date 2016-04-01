@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2014 Intel Corporation.
+  Copyright(c) 1999 - 2016 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -293,6 +293,7 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_x550em_a:
 		return ixgbe_dcb_hw_config_82599(hw, pfc_en, refill, max,
 						 bwgid, ptype, prio_tc);
 	default:
@@ -311,6 +312,7 @@ s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en, u8 *prio_tc)
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_x550em_a:
 		return ixgbe_dcb_config_pfc_82599(hw, pfc_en, prio_tc);
 	default:
 		break;
@@ -368,6 +370,7 @@ s32 ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw,
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_x550em_a:
 		ixgbe_dcb_config_rx_arbiter_82599(hw, refill, max,
 						  bwg_id, prio_type, prio_tc);
 		ixgbe_dcb_config_tx_desc_arbiter_82599(hw, refill, max,
@@ -398,6 +401,7 @@ void ixgbe_dcb_read_rtrup2tc(struct ixgbe_hw *hw, u8 *map)
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_x550em_a:
 		ixgbe_dcb_read_rtrup2tc_82599(hw, map);
 		break;
 	default:
