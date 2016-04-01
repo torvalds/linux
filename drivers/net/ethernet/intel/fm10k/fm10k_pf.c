@@ -1620,6 +1620,8 @@ out:
 
 /* This structure defines the attibutes to be parsed below */
 const struct fm10k_tlv_attr fm10k_lport_map_msg_attr[] = {
+	FM10K_TLV_ATTR_LE_STRUCT(FM10K_PF_ATTR_ID_ERR,
+				 sizeof(struct fm10k_swapi_error)),
 	FM10K_TLV_ATTR_U32(FM10K_PF_ATTR_ID_LPORT_MAP),
 	FM10K_TLV_ATTR_LAST
 };

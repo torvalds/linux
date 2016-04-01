@@ -1263,11 +1263,40 @@ static s32 fm10k_lport_map(struct fm10k_hw *hw, u32 **results,
 	u32 dglort_map = hw->mac.dglort_map;
 	s32 err;
 
+	interface = container_of(hw, struct fm10k_intfc, hw);
+
+	err = fm10k_msg_err_pf(hw, results, mbx);
+	if (!err && hw->swapi.status) {
+		/* force link down for a reasonable delay */
+		interface->link_down_event = jiffies + (2 * HZ);
+		set_bit(__FM10K_LINK_DOWN, &interface->state);
+
+		/* reset dglort_map back to no config */
+		hw->mac.dglort_map = FM10K_DGLORTMAP_NONE;
+
+		fm10k_service_event_schedule(interface);
+
+		/* prevent overloading kernel message buffer */
+		if (interface->lport_map_failed)
+			return 0;
+
+		interface->lport_map_failed = true;
+
+		if (hw->swapi.status == FM10K_MSG_ERR_PEP_NOT_SCHEDULED)
+			dev_warn(&interface->pdev->dev,
+				 "cannot obtain link because the host interface is configured for a PCIe host interface bandwidth of zero\n");
+		dev_warn(&interface->pdev->dev,
+			 "request logical port map failed: %d\n",
+			 hw->swapi.status);
+
+		return 0;
+	}
+
 	err = fm10k_msg_lport_map_pf(hw, results, mbx);
 	if (err)
 		return err;
 
-	interface = container_of(hw, struct fm10k_intfc, hw);
+	interface->lport_map_failed = false;
 
 	/* we need to reset if port count was just updated */
 	if (dglort_map != hw->mac.dglort_map)

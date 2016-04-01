@@ -71,6 +71,8 @@ enum fm10k_pf_tlv_attr_id_v1 {
 #define FM10K_MSG_UPDATE_PVID_PVID_SHIFT	16
 #define FM10K_MSG_UPDATE_PVID_PVID_SIZE		16
 
+#define FM10K_MSG_ERR_PEP_NOT_SCHEDULED	280
+
 /* The following data structures are overlayed directly onto TLV mailbox
  * messages, and must not break 4 byte alignment. Ensure the structures line
  * up correctly as per their TLV definition.

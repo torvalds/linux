@@ -330,6 +330,7 @@ struct fm10k_intfc {
 	unsigned long last_reset;
 	unsigned long link_down_event;
 	bool host_ready;
+	bool lport_map_failed;
 
 	u32 reta[FM10K_RETA_SIZE];
 	u32 rssrk[FM10K_RSSRK_SIZE];
