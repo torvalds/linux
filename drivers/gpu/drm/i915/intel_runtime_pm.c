@@ -443,15 +443,13 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 
 static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
-
-	WARN(!IS_BROXTON(dev), "Platform doesn't support DC9.\n");
-	WARN((I915_READ(DC_STATE_EN) & DC_STATE_EN_DC9),
-		"DC9 already programmed to be enabled.\n");
-	WARN(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
-		"DC5 still not disabled to enable DC9.\n");
-	WARN(I915_READ(HSW_PWR_WELL_DRIVER), "Power well on.\n");
-	WARN(intel_irqs_enabled(dev_priv), "Interrupts not disabled yet.\n");
+	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_DC9),
+		  "DC9 already programmed to be enabled.\n");
+	WARN_ONCE(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
+		  "DC5 still not disabled to enable DC9.\n");
+	WARN_ONCE(I915_READ(HSW_PWR_WELL_DRIVER), "Power well on.\n");
+	WARN_ONCE(intel_irqs_enabled(dev_priv),
+		  "Interrupts not disabled yet.\n");
 
 	 /*
 	  * TODO: check for the following to verify the conditions to enter DC9
@@ -464,9 +462,10 @@ static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
 
 static void assert_can_disable_dc9(struct drm_i915_private *dev_priv)
 {
-	WARN(intel_irqs_enabled(dev_priv), "Interrupts not disabled yet.\n");
-	WARN(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
-		"DC5 still not disabled.\n");
+	WARN_ONCE(intel_irqs_enabled(dev_priv),
+		  "Interrupts not disabled yet.\n");
+	WARN_ONCE(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
+		  "DC5 still not disabled.\n");
 
 	 /*
 	  * TODO: check for the following to verify DC9 state was indeed
@@ -573,13 +572,9 @@ static void assert_csr_loaded(struct drm_i915_private *dev_priv)
 
 static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
 	bool pg2_enabled = intel_display_power_well_is_enabled(dev_priv,
 					SKL_DISP_PW_2);
 
-	WARN_ONCE(!IS_SKYLAKE(dev) && !IS_KABYLAKE(dev),
-		  "Platform doesn't support DC5.\n");
-	WARN_ONCE(!HAS_RUNTIME_PM(dev), "Runtime PM not enabled.\n");
 	WARN_ONCE(pg2_enabled, "PG2 not disabled to enable DC5.\n");
 
 	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5),
@@ -600,11 +595,6 @@ static void gen9_enable_dc5(struct drm_i915_private *dev_priv)
 
 static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
-
-	WARN_ONCE(!IS_SKYLAKE(dev) && !IS_KABYLAKE(dev),
-		  "Platform doesn't support DC6.\n");
-	WARN_ONCE(!HAS_RUNTIME_PM(dev), "Runtime PM not enabled.\n");
 	WARN_ONCE(I915_READ(UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
 		  "Backlight is not disabled.\n");
 	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
