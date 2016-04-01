@@ -173,13 +173,16 @@
 		regulator-name = "ppvar_bigcpu";
 		status = "okay";
 
-		pwms = <&pwm1 0 1000>;	// TODO: schematics say "FSW 600KHz".  Change these???
+		// TODO: schematics say 600kHz so period of 1667 ns
+		// Rockchip has 25000 (40kHz) for these though.
+		pwms = <&pwm1 0 1667 0>;
 
 		// TODO: where's the mapping of duty cycle to voltage???
 		// TODO: we probably need in-flight PWM regulator series?
 
 		/* EC turns on w/ ap_core_en; always on for AP */
 		regulator-always-on;
+		regulator-boot-on;
 
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1500000>;
@@ -192,10 +195,13 @@
 		regulator-name = "ppvar_litcpu";
 		status = "okay";
 
-		pwms = <&pwm2 0 1000>;
+		// TODO: schematics say 600kHz so period of 1667 ns
+		// Rockchip has 25000 (40kHz) for these though.
+		pwms = <&pwm2 0 1667 0>;
 
 		/* EC turns on w/ ap_core_en; always on for AP */
 		regulator-always-on;
+		regulator-boot-on;
 
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1500000>;
@@ -208,10 +214,13 @@
 		regulator-name = "ppvar_gpu";
 		status = "okay";
 
-		pwms = <&pwm0 0 1000>;
+		// TODO: schematics say 600kHz so period of 1667 ns
+		// Rockchip has 25000 (40kHz) for these though.
+		pwms = <&pwm0 0 1667 0>;
 
 		/* EC turns on w/ ap_core_en; always on for AP */
 		regulator-always-on;
+		regulator-boot-on;
 
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1500000>;
@@ -224,10 +233,13 @@
 		regulator-name = "ppvar_centerlogic";
 		status = "okay";
 
-		pwms = <&pwm3 0 1000>;
+		// TODO: schematics say 600kHz so period of 1667 ns
+		// Rockchip has 25000 (40kHz) for these though.
+		pwms = <&pwm3 0 1667 0>;
 
 		/* EC turns on w/ ppvar_centerlogic_en; always on for AP */
 		regulator-always-on;
+		regulator-boot-on;
 
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1500000>;
