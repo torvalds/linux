@@ -10,7 +10,7 @@
  *  - Gunze AHL61
  *  - DMC TSC-10/25
  *  - IRTOUCHSYSTEMS/UNITOP
- *  - IdealTEK URTC1000
+ *  - IdealTEK URTC1000/2000
  *  - General Touch
  *  - GoTop Super_Q2/GogoPen/PenPower tablets
  *  - JASTEC USB touch controller/DigiTech DTR-02U
@@ -204,6 +204,7 @@ static const struct usb_device_id usbtouch_devices[] = {
 
 #ifdef CONFIG_TOUCHSCREEN_USB_IDEALTEK
 	{USB_DEVICE(0x1391, 0x1000), .driver_info = DEVTYPE_IDEALTEK},
+	{USB_DEVICE(0x1391, 0x2000), .driver_info = DEVTYPE_IDEALTEK},
 #endif
 
 #ifdef CONFIG_TOUCHSCREEN_USB_GENERAL_TOUCH
