@@ -243,6 +243,7 @@ enum rx_frame_status {
 	csum_none = 0x2,
 	llc_snap = 0x4,
 	dma_own = 0x8,
+	rx_not_ls = 0x10,
 };
 
 /* Tx status */
@@ -348,6 +349,10 @@ struct stmmac_desc_ops {
 	void (*prepare_tx_desc) (struct dma_desc *p, int is_fs, int len,
 				 bool csum_flag, int mode, bool tx_own,
 				 bool ls);
+	void (*prepare_tso_tx_desc)(struct dma_desc *p, int is_fs, int len1,
+				    int len2, bool tx_own, bool ls,
+				    unsigned int tcphdrlen,
+				    unsigned int tcppayloadlen);
 	/* Set/get the owner of the descriptor */
 	void (*set_tx_owner) (struct dma_desc *p);
 	int (*get_tx_owner) (struct dma_desc *p);
@@ -382,6 +387,8 @@ struct stmmac_desc_ops {
 	int (*get_rx_timestamp_status) (void *desc, u32 ats);
 	/* Display ring */
 	void (*display_ring)(void *head, unsigned int size, bool rx);
+	/* set MSS via context descriptor */
+	void (*set_mss)(struct dma_desc *p, unsigned int mss);
 };
 
 extern const struct stmmac_desc_ops enh_desc_ops;
