@@ -41,6 +41,8 @@
 /* Synopsys Core versions */
 #define	DWMAC_CORE_3_40	0x34
 #define	DWMAC_CORE_3_50	0x35
+#define	DWMAC_CORE_4_00	0x40
+#define STMMAC_CHAN0	0	/* Always supported and default for all chips */
 
 #define DMA_TX_SIZE 512
 #define DMA_RX_SIZE 512
@@ -270,6 +272,7 @@ enum dma_irq_status {
 #define	CORE_PCS_ANE_COMPLETE		(1 << 5)
 #define	CORE_PCS_LINK_STATUS		(1 << 6)
 #define	CORE_RGMII_IRQ			(1 << 7)
+#define CORE_IRQ_MTL_RX_OVERFLOW	BIT(8)
 
 /* Physical Coding Sublayer */
 struct rgmii_adv {
@@ -301,8 +304,10 @@ struct dma_features {
 	/* 802.3az - Energy-Efficient Ethernet (EEE) */
 	unsigned int eee;
 	unsigned int av;
+	unsigned int tsoen;
 	/* TX and RX csum */
 	unsigned int tx_coe;
+	unsigned int rx_coe;
 	unsigned int rx_coe_type1;
 	unsigned int rx_coe_type2;
 	unsigned int rxfifo_over_2048;
@@ -425,6 +430,11 @@ struct stmmac_dma_ops {
 			       struct dma_features *dma_cap);
 	/* Program the HW RX Watchdog */
 	void (*rx_watchdog) (void __iomem *ioaddr, u32 riwt);
+	void (*set_tx_ring_len)(void __iomem *ioaddr, u32 len);
+	void (*set_rx_ring_len)(void __iomem *ioaddr, u32 len);
+	void (*set_rx_tail_ptr)(void __iomem *ioaddr, u32 tail_ptr, u32 chan);
+	void (*set_tx_tail_ptr)(void __iomem *ioaddr, u32 tail_ptr, u32 chan);
+	void (*enable_tso)(void __iomem *ioaddr, bool en, u32 chan);
 };
 
 struct mac_device_info;
@@ -473,6 +483,7 @@ struct stmmac_hwtimestamp {
 };
 
 extern const struct stmmac_hwtimestamp stmmac_ptp;
+extern const struct stmmac_mode_ops dwmac4_ring_mode_ops;
 
 struct mac_link {
 	int port;
