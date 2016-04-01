@@ -3498,7 +3498,6 @@ int wilc_deinit(struct wilc_vif *vif)
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	if (clients_count == 1)	{
-		del_timer_sync(&periodic_rssi);
 		msg.id = HOST_IF_MSG_EXIT;
 		msg.vif = vif;
 
