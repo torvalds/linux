@@ -34,7 +34,6 @@
 #include <linux/slab.h>
 #include <linux/of_device.h>
 #include <linux/of.h>
-#include <linux/of_mtd.h>
 
 #include <linux/platform_data/mtd-davinci.h>
 #include <linux/platform_data/mtd-davinci-aemif.h>
@@ -559,8 +558,6 @@ static struct davinci_nand_pdata
 			"ti,davinci-mask-chipsel", &prop))
 			pdata->mask_chipsel = prop;
 		if (!of_property_read_string(pdev->dev.of_node,
-			"nand-ecc-mode", &mode) ||
-		    !of_property_read_string(pdev->dev.of_node,
 			"ti,davinci-ecc-mode", &mode)) {
 			if (!strncmp("none", mode, 4))
 				pdata->ecc_mode = NAND_ECC_NONE;
@@ -573,14 +570,11 @@ static struct davinci_nand_pdata
 			"ti,davinci-ecc-bits", &prop))
 			pdata->ecc_bits = prop;
 
-		prop = of_get_nand_bus_width(pdev->dev.of_node);
-		if (0 < prop || !of_property_read_u32(pdev->dev.of_node,
-			"ti,davinci-nand-buswidth", &prop))
-			if (prop == 16)
-				pdata->options |= NAND_BUSWIDTH_16;
+		if (!of_property_read_u32(pdev->dev.of_node,
+			"ti,davinci-nand-buswidth", &prop) && prop == 16)
+			pdata->options |= NAND_BUSWIDTH_16;
+
 		if (of_property_read_bool(pdev->dev.of_node,
-			"nand-on-flash-bbt") ||
-		    of_property_read_bool(pdev->dev.of_node,
 			"ti,davinci-nand-use-bbt"))
 			pdata->bbt_options = NAND_BBT_USE_FLASH;
 
@@ -610,7 +604,6 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	void __iomem			*base;
 	int				ret;
 	uint32_t			val;
-	nand_ecc_modes_t		ecc_mode;
 	struct mtd_info			*mtd;
 
 	pdata = nand_davinci_get_pdata(pdev);
@@ -694,10 +687,41 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	info->chip.write_buf    = nand_davinci_write_buf;
 
 	/* Use board-specific ECC config */
-	ecc_mode		= pdata->ecc_mode;
+	info->chip.ecc.mode	= pdata->ecc_mode;
 
 	ret = -EINVAL;
-	switch (ecc_mode) {
+
+	info->clk = devm_clk_get(&pdev->dev, "aemif");
+	if (IS_ERR(info->clk)) {
+		ret = PTR_ERR(info->clk);
+		dev_dbg(&pdev->dev, "unable to get AEMIF clock, err %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(info->clk);
+	if (ret < 0) {
+		dev_dbg(&pdev->dev, "unable to enable AEMIF clock, err %d\n",
+			ret);
+		goto err_clk_enable;
+	}
+
+	spin_lock_irq(&davinci_nand_lock);
+
+	/* put CSxNAND into NAND mode */
+	val = davinci_nand_readl(info, NANDFCR_OFFSET);
+	val |= BIT(info->core_chipsel);
+	davinci_nand_writel(info, NANDFCR_OFFSET, val);
+
+	spin_unlock_irq(&davinci_nand_lock);
+
+	/* Scan to find existence of the device(s) */
+	ret = nand_scan_ident(mtd, pdata->mask_chipsel ? 2 : 1, NULL);
+	if (ret < 0) {
+		dev_dbg(&pdev->dev, "no NAND chip(s) found\n");
+		goto err;
+	}
+
+	switch (info->chip.ecc.mode) {
 	case NAND_ECC_NONE:
 	case NAND_ECC_SOFT:
 		pdata->ecc_bits = 0;
@@ -735,37 +759,6 @@ static int nand_davinci_probe(struct platform_device *pdev)
 		break;
 	default:
 		return -EINVAL;
-	}
-	info->chip.ecc.mode = ecc_mode;
-
-	info->clk = devm_clk_get(&pdev->dev, "aemif");
-	if (IS_ERR(info->clk)) {
-		ret = PTR_ERR(info->clk);
-		dev_dbg(&pdev->dev, "unable to get AEMIF clock, err %d\n", ret);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(info->clk);
-	if (ret < 0) {
-		dev_dbg(&pdev->dev, "unable to enable AEMIF clock, err %d\n",
-			ret);
-		goto err_clk_enable;
-	}
-
-	spin_lock_irq(&davinci_nand_lock);
-
-	/* put CSxNAND into NAND mode */
-	val = davinci_nand_readl(info, NANDFCR_OFFSET);
-	val |= BIT(info->core_chipsel);
-	davinci_nand_writel(info, NANDFCR_OFFSET, val);
-
-	spin_unlock_irq(&davinci_nand_lock);
-
-	/* Scan to find existence of the device(s) */
-	ret = nand_scan_ident(mtd, pdata->mask_chipsel ? 2 : 1, NULL);
-	if (ret < 0) {
-		dev_dbg(&pdev->dev, "no NAND chip(s) found\n");
-		goto err;
 	}
 
 	/* Update ECC layout if needed ... for 1-bit HW ECC, the default
@@ -820,7 +813,7 @@ err:
 
 err_clk_enable:
 	spin_lock_irq(&davinci_nand_lock);
-	if (ecc_mode == NAND_ECC_HW_SYNDROME)
+	if (info->chip.ecc.mode == NAND_ECC_HW_SYNDROME)
 		ecc4_busy = false;
 	spin_unlock_irq(&davinci_nand_lock);
 	return ret;
