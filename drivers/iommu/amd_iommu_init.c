@@ -398,6 +398,22 @@ static void __init iommu_unmap_mmio_space(struct amd_iommu *iommu)
 	release_mem_region(iommu->mmio_phys, iommu->mmio_phys_end);
 }
 
+static inline u32 get_ivhd_header_size(struct ivhd_header *h)
+{
+	u32 size = 0;
+
+	switch (h->type) {
+	case 0x10:
+		size = 24;
+		break;
+	case 0x11:
+	case 0x40:
+		size = 40;
+		break;
+	}
+	return size;
+}
+
 /****************************************************************************
  *
  * The functions below belong to the first pass of AMD IOMMU ACPI table
@@ -424,7 +440,14 @@ static int __init find_last_devid_from_ivhd(struct ivhd_header *h)
 	u8 *p = (void *)h, *end = (void *)h;
 	struct ivhd_entry *dev;
 
-	p += sizeof(*h);
+	u32 ivhd_size = get_ivhd_header_size(h);
+
+	if (!ivhd_size) {
+		pr_err("AMD-Vi: Unsupported IVHD type %#x\n", h->type);
+		return -EINVAL;
+	}
+
+	p += ivhd_size;
 	end += h->length;
 
 	while (p < end) {
@@ -789,6 +812,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 	u32 dev_i, ext_flags = 0;
 	bool alias = false;
 	struct ivhd_entry *e;
+	u32 ivhd_size;
 	int ret;
 
 
@@ -804,7 +828,14 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 	/*
 	 * Done. Now parse the device entries
 	 */
-	p += sizeof(struct ivhd_header);
+	ivhd_size = get_ivhd_header_size(h);
+	if (!ivhd_size) {
+		pr_err("AMD-Vi: Unsupported IVHD type %#x\n", h->type);
+		return -EINVAL;
+	}
+
+	p += ivhd_size;
+
 	end += h->length;
 
 
