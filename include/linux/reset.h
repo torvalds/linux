@@ -56,6 +56,12 @@ static inline void reset_control_put(struct reset_control *rstc)
 	WARN_ON(1);
 }
 
+static inline int __must_check device_reset(struct device *dev)
+{
+	WARN_ON(1);
+	return -ENOTSUPP;
+}
+
 static inline int device_reset_optional(struct device *dev)
 {
 	return -ENOTSUPP;
