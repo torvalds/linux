@@ -16,14 +16,14 @@
 	compatible = "enbw,cmc", "ti,da850";
 	model = "EnBW CMC";
 
-	soc {
-		serial0: serial@1c42000 {
+	soc@1c00000 {
+		serial0: serial@42000 {
 			status = "okay";
 		};
-		serial1: serial@1d0c000 {
+		serial1: serial@10c000 {
 			status = "okay";
 		};
-		serial2: serial@1d0d000 {
+		serial2: serial@10d000 {
 			status = "okay";
 		};
 	};
