@@ -2306,6 +2306,26 @@ static s32 ixgbe_init_ext_t_x550em(struct ixgbe_hw *hw)
 	return status;
 }
 
+/**
+ * ixgbe_set_mdio_speed - Set MDIO clock speed
+ * @hw: pointer to hardware structure
+ */
+static void ixgbe_set_mdio_speed(struct ixgbe_hw *hw)
+{
+	u32 hlreg0;
+
+	switch (hw->device_id) {
+	case IXGBE_DEV_ID_X550EM_X_10G_T:
+		/* Config MDIO clock speed before the first MDIO PHY access */
+		hlreg0 = IXGBE_READ_REG(hw, IXGBE_HLREG0);
+		hlreg0 &= ~IXGBE_HLREG0_MDCSPD;
+		IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg0);
+		break;
+	default:
+		break;
+	}
+}
+
 /**  ixgbe_reset_hw_X550em - Perform hardware reset
  **  @hw: pointer to hardware structure
  **
@@ -2319,7 +2339,6 @@ static s32 ixgbe_reset_hw_X550em(struct ixgbe_hw *hw)
 	s32 status;
 	u32 ctrl = 0;
 	u32 i;
-	u32 hlreg0;
 	bool link_up = false;
 
 	/* Call adapter stop to disable Tx/Rx and clear interrupts */
@@ -2405,11 +2424,7 @@ mac_reset_top:
 	hw->mac.num_rar_entries = 128;
 	hw->mac.ops.init_rx_addrs(hw);
 
-	if (hw->device_id == IXGBE_DEV_ID_X550EM_X_10G_T) {
-		hlreg0 = IXGBE_READ_REG(hw, IXGBE_HLREG0);
-		hlreg0 &= ~IXGBE_HLREG0_MDCSPD;
-		IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg0);
-	}
+	ixgbe_set_mdio_speed(hw);
 
 	if (hw->device_id == IXGBE_DEV_ID_X550EM_X_SFP)
 		ixgbe_setup_mux_ctl(hw);
