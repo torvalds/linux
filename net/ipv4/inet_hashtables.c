@@ -220,7 +220,6 @@ struct sock *__inet_lookup_listener(struct net *net,
 	bool select_ok = true;
 	u32 phash = 0;
 
-	rcu_read_lock();
 begin:
 	result = NULL;
 	hiscore = 0;
@@ -269,7 +268,6 @@ found:
 			goto begin;
 		}
 	}
-	rcu_read_unlock();
 	return result;
 }
 EXPORT_SYMBOL_GPL(__inet_lookup_listener);
@@ -312,7 +310,6 @@ struct sock *__inet_lookup_established(struct net *net,
 	unsigned int slot = hash & hashinfo->ehash_mask;
 	struct inet_ehash_bucket *head = &hashinfo->ehash[slot];
 
-	rcu_read_lock();
 begin:
 	sk_nulls_for_each_rcu(sk, node, &head->chain) {
 		if (sk->sk_hash != hash)
@@ -339,7 +336,6 @@ begin:
 out:
 	sk = NULL;
 found:
-	rcu_read_unlock();
 	return sk;
 }
 EXPORT_SYMBOL_GPL(__inet_lookup_established);

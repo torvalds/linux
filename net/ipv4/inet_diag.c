@@ -356,6 +356,7 @@ struct sock *inet_diag_find_one_icsk(struct net *net,
 {
 	struct sock *sk;
 
+	rcu_read_lock();
 	if (req->sdiag_family == AF_INET)
 		sk = inet_lookup(net, hashinfo, NULL, 0, req->id.idiag_dst[0],
 				 req->id.idiag_dport, req->id.idiag_src[0],
@@ -376,9 +377,11 @@ struct sock *inet_diag_find_one_icsk(struct net *net,
 					  req->id.idiag_if);
 	}
 #endif
-	else
+	else {
+		rcu_read_unlock();
 		return ERR_PTR(-EINVAL);
-
+	}
+	rcu_read_unlock();
 	if (!sk)
 		return ERR_PTR(-ENOENT);
 
