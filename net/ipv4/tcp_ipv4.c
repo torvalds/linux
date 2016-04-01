@@ -2384,6 +2384,7 @@ static int __net_init tcp_sk_init(struct net *net)
 					   IPPROTO_TCP, net);
 		if (res)
 			goto fail;
+		sock_set_flag(sk, SOCK_USE_WRITE_QUEUE);
 		*per_cpu_ptr(net->ipv4.tcp_sk, cpu) = sk;
 	}
 
