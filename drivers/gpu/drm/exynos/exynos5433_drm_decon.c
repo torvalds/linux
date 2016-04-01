@@ -631,7 +631,6 @@ MODULE_DEVICE_TABLE(of, exynos5433_decon_driver_dt_match);
 
 static int exynos5433_decon_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct decon_context *ctx;
 	struct resource *res;
@@ -644,9 +643,7 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 
 	__set_bit(BIT_SUSPENDED, &ctx->flags);
 	ctx->dev = dev;
-
-	of_id = of_match_device(exynos5433_decon_driver_dt_match, &pdev->dev);
-	ctx->out_type = (enum decon_iftype)of_id->data;
+	ctx->out_type = (enum decon_iftype)of_device_get_match_data(dev);
 
 	if (ctx->out_type == IFTYPE_HDMI)
 		ctx->first_win = 1;
