@@ -112,6 +112,7 @@ typedef unsigned long u64;
 
 //iomux
 #define OLD_RK_IOMUX 0
+#define CMD_LEN_MAX 0x100
 
 struct spi_t {
 	u32 cs;
@@ -252,11 +253,11 @@ struct mipi_dsi_screen {
 struct dcs_cmd {
 	u8 type;
 	u8 dtype;
-    u8 dsi_id;
-    u8 cmd_len;
-	int cmds[32];
+	u8 dsi_id;
+	u8 cmd_len;
+	int *cmds;
 	int delay;
-    char name[32];
+	char name[32];
 };
 
 struct mipi_dcs_cmd_ctr_list {

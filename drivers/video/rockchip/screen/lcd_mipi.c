@@ -146,6 +146,8 @@ static void rk_mipi_screen_cmd_init(struct mipi_screen *screen)
 			msleep(dcs_cmd->dcs_cmd.delay);
 		} else
 			MIPI_SCREEN_DBG("cmd type err.\n");
+		kfree(dcs_cmd->dcs_cmd.cmds);
+		dcs_cmd->dcs_cmd.cmds = NULL;
 	}
 
 #ifdef CONFIG_RK_3288_DSI_UBOOT
@@ -286,7 +288,6 @@ static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 	struct property *prop;
 	enum of_gpio_flags flags;
 	u32 value, i, debug, gpio, ret, length;
-	u32 cmds[sizeof(dcs_cmd->dcs_cmd.cmds) / sizeof(u32)];
 
 	memset(screen, 0, sizeof(*screen));
 
@@ -421,32 +422,40 @@ static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 			dcs_cmd = kmalloc(sizeof(struct mipi_dcs_cmd_ctr_list), GFP_KERNEL);
 			strcpy(dcs_cmd->dcs_cmd.name, childnode->name);
 
+			dcs_cmd->dcs_cmd.cmds =
+				kzalloc(CMD_LEN_MAX, GFP_KERNEL);
+			if (!dcs_cmd->dcs_cmd.cmds) {
+				pr_err("malloc cmds fail!\n");
+				return -ENOMEM;
+			}
+
 			prop = of_find_property(childnode, "rockchip,cmd", &length);
 			if (!prop) {
 				MIPI_SCREEN_DBG("Can not read property: cmds\n");
+				kfree(dcs_cmd->dcs_cmd.cmds);
+				dcs_cmd->dcs_cmd.cmds = NULL;
 				return -EINVAL;
 			}
 
-			if (length > sizeof(dcs_cmd->dcs_cmd.cmds)) {
+			if ((length / sizeof(u32)) > CMD_LEN_MAX) {
 				/* the length can not longer than the cmds arrary in struct dcs_cmds */
 				MIPI_SCREEN_DBG("error: the dcs cmd length is %d, but the max length supported is %d\n",
-						length / sizeof(u32), sizeof(dcs_cmd->dcs_cmd.cmds) / sizeof(32));
+						length / sizeof(u32),
+						CMD_LEN_MAX);
 			}
 			MIPI_SCREEN_DBG("\n childnode->name =%s:length=%d\n", childnode->name, (length / sizeof(u32)));
 
-			ret = of_property_read_u32_array(childnode,  "rockchip,cmd", cmds, (length / sizeof(u32)));
+			ret = of_property_read_u32_array(childnode,
+							 "rockchip,cmd",
+							 dcs_cmd->dcs_cmd.cmds,
+							 length / sizeof(u32));
 			if (ret < 0) {
 				MIPI_SCREEN_DBG("%s: Can not read property: %s--->cmds\n", __func__, childnode->name);
+				kfree(dcs_cmd->dcs_cmd.cmds);
+				dcs_cmd->dcs_cmd.cmds = NULL;
 				return ret;
 			} else {
 				dcs_cmd->dcs_cmd.cmd_len =  length / sizeof(u32);
-				for (i = 0; (i < (length / sizeof(u32))) && (i < (sizeof(dcs_cmd->dcs_cmd.cmds) / sizeof(u32))); i++) {
-					/* avoid the array out of range */
-					MIPI_SCREEN_DBG("cmd[%d]=%02x£¬", i+1, cmds[i]);
-					dcs_cmd->dcs_cmd.cmds[i] = cmds[i];
-				}
-
-				MIPI_SCREEN_DBG("dcs_cmd->dcs_cmd.cmd_len=%d\n", dcs_cmd->dcs_cmd.cmd_len);
 			}
 			ret = of_property_read_u32(childnode, "rockchip,dsi_id", &value);
 			if (ret) {
@@ -537,7 +546,7 @@ EXPORT_SYMBOL(rk_mipi_get_dsi_clk);
 static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 {
 	struct mipi_dcs_cmd_ctr_list *dcs_cmd;
-	u32 i, cmds[20];
+	u32 i;
 	int length;
 	int err;
 	int node;
@@ -686,13 +695,17 @@ static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 			MIPI_SCREEN_DBG("dcs_cmd.dsi_id=%02x\n", dcs_cmd->dcs_cmd.dsi_id);
 			fdt_getprop(blob, noffset, "rockchip,cmd", &length);
 			dcs_cmd->dcs_cmd.cmd_len = length / sizeof(u32) ;
-			err = fdtdec_get_int_array(blob, noffset, "rockchip,cmd", cmds, dcs_cmd->dcs_cmd.cmd_len);
-			MIPI_SCREEN_DBG("length=%d,cmd_len = %d  err = %d\n", length, dcs_cmd->dcs_cmd.cmd_len, err);
-			for (i = 0; i < (length / sizeof(u32)); i++) {
-				MIPI_SCREEN_DBG("cmd[%d]=0x%08x, ", i+1, cmds[i]);
-				dcs_cmd->dcs_cmd.cmds[i] = cmds[i];
+
+			dcs_cmd->dcs_cmd.cmds = calloc(1, CMD_LEN_MAX);
+			if (!dcs_cmd->dcs_cmd.cmds) {
+				pr_err("calloc cmds fail!\n");
+				return -1;
 			}
-			MIPI_SCREEN_DBG("\n");
+
+			err = fdtdec_get_int_array(blob, noffset,
+						   "rockchip,cmd",
+						   dcs_cmd->dcs_cmd.cmds,
+						   dcs_cmd->dcs_cmd.cmd_len);
 			dcs_cmd->dcs_cmd.delay = fdtdec_get_int(blob, noffset, "rockchip,cmd_delay", -1);
 			MIPI_SCREEN_DBG("dcs_cmd.delay=%d\n", dcs_cmd->dcs_cmd.delay);
 			list_add_tail(&dcs_cmd->list, &screen->cmdlist_head);
