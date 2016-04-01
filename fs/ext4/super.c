@@ -1113,6 +1113,7 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 static int ext4_quota_enable(struct super_block *sb, int type, int format_id,
 			     unsigned int flags);
 static int ext4_enable_quotas(struct super_block *sb);
+static int ext4_get_next_id(struct super_block *sb, struct kqid *qid);
 
 static struct dquot **ext4_get_dquots(struct inode *inode)
 {
@@ -1129,7 +1130,7 @@ static const struct dquot_operations ext4_quota_operations = {
 	.alloc_dquot	= dquot_alloc,
 	.destroy_dquot	= dquot_destroy,
 	.get_projid	= ext4_get_projid,
-	.get_next_id	= dquot_get_next_id,
+	.get_next_id	= ext4_get_next_id,
 };
 
 static const struct quotactl_ops ext4_qctl_operations = {
@@ -5274,6 +5275,17 @@ out:
 	return len;
 }
 
+static int ext4_get_next_id(struct super_block *sb, struct kqid *qid)
+{
+	const struct quota_format_ops	*ops;
+
+	if (!sb_has_quota_loaded(sb, qid->type))
+		return -ESRCH;
+	ops = sb_dqopt(sb)->ops[qid->type];
+	if (!ops || !ops->get_next_id)
+		return -ENOSYS;
+	return dquot_get_next_id(sb, qid);
+}
 #endif
 
 static struct dentry *ext4_mount(struct file_system_type *fs_type, int flags,
