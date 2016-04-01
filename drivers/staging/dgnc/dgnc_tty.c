@@ -2931,7 +2931,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		 * Figure out how much data the RealPort Server believes should
 		 * be in our TX queue.
 		 */
-		tdist = (buf.tIn - buf.tOut) & 0xffff;
+		tdist = (buf.tx_in - buf.tx_out) & 0xffff;
 
 		/*
 		 * If we have more data than the RealPort Server believes we
