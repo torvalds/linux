@@ -540,6 +540,13 @@ int xt_compat_match_to_user(const struct xt_entry_match *m,
 }
 EXPORT_SYMBOL_GPL(xt_compat_match_to_user);
 
+/* non-compat version may have padding after verdict */
+struct compat_xt_standard_target {
+	struct compat_xt_entry_target t;
+	compat_uint_t verdict;
+};
+
+/* see xt_check_entry_offsets */
 int xt_compat_check_entry_offsets(const void *base,
 				  unsigned int target_offset,
 				  unsigned int next_offset)
@@ -555,6 +562,10 @@ int xt_compat_check_entry_offsets(const void *base,
 		return -EINVAL;
 
 	if (target_offset + t->u.target_size > next_offset)
+		return -EINVAL;
+
+	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) == 0 &&
+	    target_offset + sizeof(struct compat_xt_standard_target) != next_offset)
 		return -EINVAL;
 
 	return 0;
@@ -594,6 +605,10 @@ int xt_check_entry_offsets(const void *base,
 		return -EINVAL;
 
 	if (target_offset + t->u.target_size > next_offset)
+		return -EINVAL;
+
+	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) == 0 &&
+	    target_offset + sizeof(struct xt_standard_target) != next_offset)
 		return -EINVAL;
 
 	return 0;
