@@ -1,5 +1,9 @@
 /* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
  *
+ * Driver for Semtech SX150X I2C GPIO Expanders
+ *
+ * Author: Gregory Bean <gbean@codeaurora.org>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -19,7 +23,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/i2c/sx150x.h>
@@ -718,13 +721,3 @@ static int __init sx150x_init(void)
 	return i2c_add_driver(&sx150x_driver);
 }
 subsys_initcall(sx150x_init);
-
-static void __exit sx150x_exit(void)
-{
-	return i2c_del_driver(&sx150x_driver);
-}
-module_exit(sx150x_exit);
-
-MODULE_AUTHOR("Gregory Bean <gbean@codeaurora.org>");
-MODULE_DESCRIPTION("Driver for Semtech SX150X I2C GPIO Expanders");
-MODULE_LICENSE("GPL v2");
