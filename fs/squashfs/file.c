@@ -382,7 +382,7 @@ void squashfs_copy_cache(struct page *page, struct squashfs_cache_entry *buffer,
 
 	/*
 	 * Loop copying datablock into pages.  As the datablock likely covers
-	 * many PAGE_CACHE_SIZE pages (default block size is 128 KiB) explicitly
+	 * many PAGE_SIZE pages (default block size is 128 KiB) explicitly
 	 * grab the pages from the page cache, except for the page that we've
 	 * been called to fill.
 	 */

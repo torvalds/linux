@@ -3264,13 +3264,11 @@ static noinline_for_stack int writepage_delalloc(struct inode *inode,
 			goto done;
 		}
 		/*
-		 * delalloc_end is already one less than the total
-		 * length, so we don't subtract one from
-		 * PAGE_CACHE_SIZE
+		 * delalloc_end is already one less than the total length, so
+		 * we don't subtract one from PAGE_SIZE
 		 */
 		delalloc_to_write += (delalloc_end - delalloc_start +
-				      PAGE_SIZE) >>
-				      PAGE_SHIFT;
+				      PAGE_SIZE) >> PAGE_SHIFT;
 		delalloc_start = delalloc_end + 1;
 	}
 	if (wbc->nr_to_write < delalloc_to_write) {

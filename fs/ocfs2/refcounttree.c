@@ -2956,7 +2956,7 @@ int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 		}
 
 		/*
-		 * In case PAGE_CACHE_SIZE <= CLUSTER_SIZE, This page
+		 * In case PAGE_SIZE <= CLUSTER_SIZE, This page
 		 * can't be dirtied before we CoW it out.
 		 */
 		if (PAGE_SIZE <= OCFS2_SB(sb)->s_clustersize)

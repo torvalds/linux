@@ -698,7 +698,7 @@ void lru_add_drain_all(void)
 }
 
 /**
- * release_pages - batched page_cache_release()
+ * release_pages - batched put_page()
  * @pages: array of pages to release
  * @nr: number of pages
  * @cold: whether the pages are cache cold

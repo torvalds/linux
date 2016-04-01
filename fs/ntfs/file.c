@@ -573,7 +573,7 @@ static inline int ntfs_submit_bh_for_read(struct buffer_head *bh)
  * only partially being written to.
  *
  * If @nr_pages is greater than one, we are guaranteed that the cluster size is
- * greater than PAGE_CACHE_SIZE, that all pages in @pages are entirely inside
+ * greater than PAGE_SIZE, that all pages in @pages are entirely inside
  * the same cluster and that they are the entirety of that cluster, and that
  * the cluster is sparse, i.e. we need to allocate a cluster to fill the hole.
  *

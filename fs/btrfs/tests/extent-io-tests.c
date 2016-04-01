@@ -239,7 +239,7 @@ static int test_find_delalloc(void)
 	end = 0;
 	/*
 	 * Currently if we fail to find dirty pages in the delalloc range we
-	 * will adjust max_bytes down to PAGE_CACHE_SIZE and then re-search.  If
+	 * will adjust max_bytes down to PAGE_SIZE and then re-search.  If
 	 * this changes at any point in the future we will need to fix this
 	 * tests expected behavior.
 	 */

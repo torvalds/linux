@@ -1094,7 +1094,7 @@ EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
  * you are truncating a file, the helper function dax_truncate_page() may be
  * more convenient.
  *
- * We work in terms of PAGE_CACHE_SIZE here for commonality with
+ * We work in terms of PAGE_SIZE here for commonality with
  * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
  * took care of disposing of the unnecessary blocks.  Even if the filesystem
  * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
@@ -1146,7 +1146,7 @@ EXPORT_SYMBOL_GPL(dax_zero_page_range);
  * Similar to block_truncate_page(), this function can be called by a
  * filesystem when it is truncating a DAX file to handle the partial page.
  *
- * We work in terms of PAGE_CACHE_SIZE here for commonality with
+ * We work in terms of PAGE_SIZE here for commonality with
  * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
  * took care of disposing of the unnecessary blocks.  Even if the filesystem
  * block size is smaller than PAGE_SIZE, we have to zero the rest of the page

@@ -823,12 +823,12 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 	ntfs_debug("vol->mft_record_size_bits = %i (0x%x)",
 			vol->mft_record_size_bits, vol->mft_record_size_bits);
 	/*
-	 * We cannot support mft record sizes above the PAGE_CACHE_SIZE since
+	 * We cannot support mft record sizes above the PAGE_SIZE since
 	 * we store $MFT/$DATA, the table of mft records in the page cache.
 	 */
 	if (vol->mft_record_size > PAGE_SIZE) {
 		ntfs_error(vol->sb, "Mft record size (%i) exceeds the "
-				"PAGE_CACHE_SIZE on your system (%lu).  "
+				"PAGE_SIZE on your system (%lu).  "
 				"This is not supported.  Sorry.",
 				vol->mft_record_size, PAGE_SIZE);
 		return false;
@@ -2471,12 +2471,12 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 	down_read(&vol->lcnbmp_lock);
 	/*
 	 * Convert the number of bits into bytes rounded up, then convert into
-	 * multiples of PAGE_CACHE_SIZE, rounding up so that if we have one
+	 * multiples of PAGE_SIZE, rounding up so that if we have one
 	 * full and one partial page max_index = 2.
 	 */
 	max_index = (((vol->nr_clusters + 7) >> 3) + PAGE_SIZE - 1) >>
 			PAGE_SHIFT;
-	/* Use multiples of 4 bytes, thus max_size is PAGE_CACHE_SIZE / 4. */
+	/* Use multiples of 4 bytes, thus max_size is PAGE_SIZE / 4. */
 	ntfs_debug("Reading $Bitmap, max_index = 0x%lx, max_size = 0x%lx.",
 			max_index, PAGE_SIZE / 4);
 	for (index = 0; index < max_index; index++) {
@@ -2547,7 +2547,7 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 	pgoff_t index;
 
 	ntfs_debug("Entering.");
-	/* Use multiples of 4 bytes, thus max_size is PAGE_CACHE_SIZE / 4. */
+	/* Use multiples of 4 bytes, thus max_size is PAGE_SIZE / 4. */
 	ntfs_debug("Reading $MFT/$BITMAP, max_index = 0x%lx, max_size = "
 			"0x%lx.", max_index, PAGE_SIZE / 4);
 	for (index = 0; index < max_index; index++) {
@@ -2639,7 +2639,7 @@ static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 	size = i_size_read(vol->mft_ino) >> vol->mft_record_size_bits;
 	/*
 	 * Convert the maximum number of set bits into bytes rounded up, then
-	 * convert into multiples of PAGE_CACHE_SIZE, rounding up so that if we
+	 * convert into multiples of PAGE_SIZE, rounding up so that if we
 	 * have one full and one partial page max_index = 2.
 	 */
 	max_index = ((((mft_ni->initialized_size >> vol->mft_record_size_bits)
@@ -2765,7 +2765,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	if (!parse_options(vol, (char*)opt))
 		goto err_out_now;
 
-	/* We support sector sizes up to the PAGE_CACHE_SIZE. */
+	/* We support sector sizes up to the PAGE_SIZE. */
 	if (bdev_logical_block_size(sb->s_bdev) > PAGE_SIZE) {
 		if (!silent)
 			ntfs_error(sb, "Device has unsupported sector size "

@@ -105,10 +105,6 @@ static void zero_partial_compressed_page(struct page *page,
 
 	ntfs_debug("Zeroing page region outside initialized size.");
 	if (((s64)page->index << PAGE_SHIFT) >= initialized_size) {
-		/*
-		 * FIXME: Using clear_page() will become wrong when we get
-		 * PAGE_CACHE_SIZE != PAGE_SIZE but for now there is no problem.
-		 */
 		clear_page(kp);
 		return;
 	}
@@ -160,7 +156,7 @@ static inline void handle_bounds_compressed_page(struct page *page,
  * @xpage_done indicates whether the target page (@dest_pages[@xpage]) was
  * completed during the decompression of the compression block (@cb_start).
  *
- * Warning: This function *REQUIRES* PAGE_CACHE_SIZE >= 4096 or it will blow up
+ * Warning: This function *REQUIRES* PAGE_SIZE >= 4096 or it will blow up
  * unpredicatbly! You have been warned!
  *
  * Note to hackers: This function may not sleep until it has finished accessing
@@ -462,7 +458,7 @@ return_overflow:
  * have been written to so that we would lose data if we were to just overwrite
  * them with the out-of-date uncompressed data.
  *
- * FIXME: For PAGE_CACHE_SIZE > cb_size we are not doing the Right Thing(TM) at
+ * FIXME: For PAGE_SIZE > cb_size we are not doing the Right Thing(TM) at
  * the end of the file I think. We need to detect this case and zero the out
  * of bounds remainder of the page in question and mark it as handled. At the
  * moment we would just return -EIO on such a page. This bug will only become
@@ -470,7 +466,7 @@ return_overflow:
  * clusters so is probably not going to be seen by anyone. Still this should
  * be fixed. (AIA)
  *
- * FIXME: Again for PAGE_CACHE_SIZE > cb_size we are screwing up both in
+ * FIXME: Again for PAGE_SIZE > cb_size we are screwing up both in
  * handling sparse and compressed cbs. (AIA)
  *
  * FIXME: At the moment we don't do any zeroing out in the case that
@@ -497,12 +493,12 @@ int ntfs_read_compressed_block(struct page *page)
 	u64 cb_size_mask = cb_size - 1UL;
 	VCN vcn;
 	LCN lcn;
-	/* The first wanted vcn (minimum alignment is PAGE_CACHE_SIZE). */
+	/* The first wanted vcn (minimum alignment is PAGE_SIZE). */
 	VCN start_vcn = (((s64)index << PAGE_SHIFT) & ~cb_size_mask) >>
 			vol->cluster_size_bits;
 	/*
 	 * The first vcn after the last wanted vcn (minimum alignment is again
-	 * PAGE_CACHE_SIZE.
+	 * PAGE_SIZE.
 	 */
 	VCN end_vcn = ((((s64)(index + 1UL) << PAGE_SHIFT) + cb_size - 1)
 			& ~cb_size_mask) >> vol->cluster_size_bits;
@@ -753,11 +749,6 @@ lock_retry_remap:
 		for (; cur_page < cb_max_page; cur_page++) {
 			page = pages[cur_page];
 			if (page) {
-				/*
-				 * FIXME: Using clear_page() will become wrong
-				 * when we get PAGE_CACHE_SIZE != PAGE_SIZE but
-				 * for now there is no problem.
-				 */
 				if (likely(!cur_ofs))
 					clear_page(page_address(page));
 				else
@@ -807,7 +798,7 @@ lock_retry_remap:
 		 * synchronous io for the majority of pages.
 		 * Or if we choose not to do the read-ahead/-behind stuff, we
 		 * could just return block_read_full_page(pages[xpage]) as long
-		 * as PAGE_CACHE_SIZE <= cb_size.
+		 * as PAGE_SIZE <= cb_size.
 		 */
 		if (cb_max_ofs)
 			cb_max_page--;

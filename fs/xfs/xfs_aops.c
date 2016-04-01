@@ -1563,7 +1563,7 @@ xfs_vm_write_begin(
 	int			status;
 	struct xfs_mount	*mp = XFS_I(mapping->host)->i_mount;
 
-	ASSERT(len <= PAGE_CACHE_SIZE);
+	ASSERT(len <= PAGE_SIZE);
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
@@ -1620,7 +1620,7 @@ xfs_vm_write_end(
 {
 	int			ret;
 
-	ASSERT(len <= PAGE_CACHE_SIZE);
+	ASSERT(len <= PAGE_SIZE);
 
 	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
 	if (unlikely(ret < len)) {

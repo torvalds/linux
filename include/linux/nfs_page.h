@@ -41,8 +41,8 @@ struct nfs_page {
 	struct page		*wb_page;	/* page to read in/write out */
 	struct nfs_open_context	*wb_context;	/* File state context info */
 	struct nfs_lock_context	*wb_lock_context;	/* lock context info */
-	pgoff_t			wb_index;	/* Offset >> PAGE_CACHE_SHIFT */
-	unsigned int		wb_offset,	/* Offset & ~PAGE_CACHE_MASK */
+	pgoff_t			wb_index;	/* Offset >> PAGE_SHIFT */
+	unsigned int		wb_offset,	/* Offset & ~PAGE_MASK */
 				wb_pgbase,	/* Start of page data */
 				wb_bytes;	/* Length of request */
 	struct kref		wb_kref;	/* reference count */

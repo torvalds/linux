@@ -119,7 +119,7 @@ MODULE_PARM_DESC(mballoc_debug, "Debugging level for ext4's mballoc");
  *
  *
  * one block each for bitmap and buddy information.  So for each group we
- * take up 2 blocks. A page can contain blocks_per_page (PAGE_CACHE_SIZE /
+ * take up 2 blocks. A page can contain blocks_per_page (PAGE_SIZE /
  * blocksize) blocks.  So it can have information regarding groups_per_page
  * which is blocks_per_page/2
  *
@@ -807,7 +807,7 @@ static void mb_regenerate_buddy(struct ext4_buddy *e4b)
  *
  * one block each for bitmap and buddy information.
  * So for each group we take up 2 blocks. A page can
- * contain blocks_per_page (PAGE_CACHE_SIZE / blocksize)  blocks.
+ * contain blocks_per_page (PAGE_SIZE / blocksize)  blocks.
  * So it can have information regarding groups_per_page which
  * is blocks_per_page/2
  *

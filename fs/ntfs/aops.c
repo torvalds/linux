@@ -674,7 +674,7 @@ static int ntfs_write_block(struct page *page, struct writeback_control *wbc)
 				// in the inode.
 				// Again, for each page do:
 				//	__set_page_dirty_buffers();
-				// page_cache_release()
+				// put_page()
 				// We don't need to wait on the writes.
 				// Update iblock.
 			}

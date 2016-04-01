@@ -30,7 +30,7 @@
  * access the metadata and fragment caches.
  *
  * To avoid out of memory and fragmentation issues with vmalloc the cache
- * uses sequences of kmalloced PAGE_CACHE_SIZE buffers.
+ * uses sequences of kmalloced PAGE_SIZE buffers.
  *
  * It should be noted that the cache is not used for file datablocks, these
  * are decompressed and cached in the page-cache in the normal way.  The
@@ -231,7 +231,7 @@ void squashfs_cache_delete(struct squashfs_cache *cache)
 /*
  * Initialise cache allocating the specified number of entries, each of
  * size block_size.  To avoid vmalloc fragmentation issues each entry
- * is allocated as a sequence of kmalloced PAGE_CACHE_SIZE buffers.
+ * is allocated as a sequence of kmalloced PAGE_SIZE buffers.
  */
 struct squashfs_cache *squashfs_cache_init(char *name, int entries,
 	int block_size)

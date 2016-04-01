@@ -554,7 +554,7 @@ static int ubifs_write_end(struct file *file, struct address_space *mapping,
 		 * VFS copied less data to the page that it intended and
 		 * declared in its '->write_begin()' call via the @len
 		 * argument. If the page was not up-to-date, and @len was
-		 * @PAGE_CACHE_SIZE, the 'ubifs_write_begin()' function did
+		 * @PAGE_SIZE, the 'ubifs_write_begin()' function did
 		 * not load it from the media (for optimization reasons). This
 		 * means that part of the page contains garbage. So read the
 		 * page now.

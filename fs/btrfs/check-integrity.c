@@ -3039,13 +3039,13 @@ int btrfsic_mount(struct btrfs_root *root,
 
 	if (root->nodesize & ((u64)PAGE_SIZE - 1)) {
 		printk(KERN_INFO
-		       "btrfsic: cannot handle nodesize %d not being a multiple of PAGE_CACHE_SIZE %ld!\n",
+		       "btrfsic: cannot handle nodesize %d not being a multiple of PAGE_SIZE %ld!\n",
 		       root->nodesize, PAGE_SIZE);
 		return -1;
 	}
 	if (root->sectorsize & ((u64)PAGE_SIZE - 1)) {
 		printk(KERN_INFO
-		       "btrfsic: cannot handle sectorsize %d not being a multiple of PAGE_CACHE_SIZE %ld!\n",
+		       "btrfsic: cannot handle sectorsize %d not being a multiple of PAGE_SIZE %ld!\n",
 		       root->sectorsize, PAGE_SIZE);
 		return -1;
 	}

@@ -870,7 +870,7 @@ skip_attr_list_load:
 		}
 		if (ni->itype.index.block_size > PAGE_SIZE) {
 			ntfs_error(vi->i_sb, "Index block size (%u) > "
-					"PAGE_CACHE_SIZE (%ld) is not "
+					"PAGE_SIZE (%ld) is not "
 					"supported.  Sorry.",
 					ni->itype.index.block_size,
 					PAGE_SIZE);
@@ -1586,7 +1586,7 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 		goto unm_err_out;
 	}
 	if (ni->itype.index.block_size > PAGE_SIZE) {
-		ntfs_error(vi->i_sb, "Index block size (%u) > PAGE_CACHE_SIZE "
+		ntfs_error(vi->i_sb, "Index block size (%u) > PAGE_SIZE "
 				"(%ld) is not supported.  Sorry.",
 				ni->itype.index.block_size, PAGE_SIZE);
 		err = -EOPNOTSUPP;

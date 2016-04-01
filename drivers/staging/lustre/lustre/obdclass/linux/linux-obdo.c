@@ -47,7 +47,6 @@
 #include "../../include/lustre/lustre_idl.h"
 
 #include <linux/fs.h>
-#include <linux/pagemap.h> /* for PAGE_CACHE_SIZE */
 
 void obdo_refresh_inode(struct inode *dst, struct obdo *src, u32 valid)
 {

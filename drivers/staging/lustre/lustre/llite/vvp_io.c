@@ -512,7 +512,7 @@ static int vvp_io_read_start(const struct lu_env *env,
 		vio->cui_ra_window_set = 1;
 		bead->lrr_start = cl_index(obj, pos);
 		/*
-		 * XXX: explicit PAGE_CACHE_SIZE
+		 * XXX: explicit PAGE_SIZE
 		 */
 		bead->lrr_count = cl_index(obj, tot + PAGE_SIZE - 1);
 		ll_ra_read_in(file, bead);

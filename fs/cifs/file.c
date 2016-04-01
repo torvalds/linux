@@ -1902,7 +1902,7 @@ wdata_alloc_and_fillpages(pgoff_t tofind, struct address_space *mapping,
 	 * find_get_pages_tag seems to return a max of 256 on each
 	 * iteration, so we must call it several times in order to
 	 * fill the array or the wsize is effectively limited to
-	 * 256 * PAGE_CACHE_SIZE.
+	 * 256 * PAGE_SIZE.
 	 */
 	*found_pages = 0;
 	pages = wdata->pages;

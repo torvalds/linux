@@ -535,8 +535,7 @@ extern void add_page_wait_queue(struct page *page, wait_queue_t *waiter);
 /*
  * Fault a userspace page into pagetables.  Return non-zero on a fault.
  *
- * This assumes that two userspace pages are always sufficient.  That's
- * not true if PAGE_CACHE_SIZE > PAGE_SIZE.
+ * This assumes that two userspace pages are always sufficient.
  */
 static inline int fault_in_pages_writeable(char __user *uaddr, int size)
 {

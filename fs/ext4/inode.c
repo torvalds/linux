@@ -4894,7 +4894,7 @@ static void ext4_wait_for_tail_page_commit(struct inode *inode)
 	offset = inode->i_size & (PAGE_SIZE - 1);
 	/*
 	 * All buffers in the last page remain valid? Then there's nothing to
-	 * do. We do the check mainly to optimize the common PAGE_CACHE_SIZE ==
+	 * do. We do the check mainly to optimize the common PAGE_SIZE ==
 	 * blocksize case
 	 */
 	if (offset > PAGE_SIZE - (1 << inode->i_blkbits))

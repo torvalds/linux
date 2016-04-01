@@ -164,7 +164,7 @@ EXPORT_SYMBOL_GPL(xdr_inline_pages);
  * Note: the addresses pgto_base and pgfrom_base are both calculated in
  *       the same way:
  *            if a memory area starts at byte 'base' in page 'pages[i]',
- *            then its address is given as (i << PAGE_CACHE_SHIFT) + base
+ *            then its address is given as (i << PAGE_SHIFT) + base
  * Also note: pgfrom_base must be < pgto_base, but the memory areas
  * 	they point to may overlap.
  */
