@@ -2483,7 +2483,7 @@ static void ilk_wm_merge(struct drm_device *dev,
 	/* ILK/SNB/IVB: LP1+ watermarks only w/ single pipe */
 	if ((INTEL_INFO(dev)->gen <= 6 || IS_IVYBRIDGE(dev)) &&
 	    config->num_pipes_active > 1)
-		return;
+		last_enabled_level = 0;
 
 	/* ILK: FBC WM must be disabled always */
 	merged->fbc_wm_enabled = INTEL_INFO(dev)->gen >= 6;
