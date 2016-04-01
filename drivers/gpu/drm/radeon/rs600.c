@@ -110,7 +110,7 @@ void avivo_wait_for_vblank(struct radeon_device *rdev, int crtc)
 	}
 }
 
-void rs600_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
+void rs600_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base, bool async)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
 	u32 tmp = RREG32(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset);
@@ -121,6 +121,8 @@ void rs600_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 	WREG32(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset, tmp);
 
 	/* update the scanout addresses */
+	WREG32(AVIVO_D1GRPH_FLIP_CONTROL + radeon_crtc->crtc_offset,
+	       async ? AVIVO_D1GRPH_SURFACE_UPDATE_H_RETRACE_EN : 0);
 	WREG32(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
 	       (u32)crtc_base);
 	WREG32(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset,

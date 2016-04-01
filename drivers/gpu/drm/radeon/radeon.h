@@ -746,6 +746,7 @@ struct radeon_flip_work {
 	struct drm_pending_vblank_event *event;
 	struct radeon_bo		*old_rbo;
 	struct fence			*fence;
+	bool				async;
 };
 
 struct r500_irq_stat_regs {
@@ -2000,7 +2001,7 @@ struct radeon_asic {
 	} dpm;
 	/* pageflipping */
 	struct {
-		void (*page_flip)(struct radeon_device *rdev, int crtc, u64 crtc_base);
+		void (*page_flip)(struct radeon_device *rdev, int crtc, u64 crtc_base, bool async);
 		bool (*page_flip_pending)(struct radeon_device *rdev, int crtc);
 	} pflip;
 };
@@ -2777,7 +2778,7 @@ static inline void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 #define radeon_pm_finish(rdev) (rdev)->asic->pm.finish((rdev))
 #define radeon_pm_init_profile(rdev) (rdev)->asic->pm.init_profile((rdev))
 #define radeon_pm_get_dynpm_state(rdev) (rdev)->asic->pm.get_dynpm_state((rdev))
-#define radeon_page_flip(rdev, crtc, base) (rdev)->asic->pflip.page_flip((rdev), (crtc), (base))
+#define radeon_page_flip(rdev, crtc, base, async) (rdev)->asic->pflip.page_flip((rdev), (crtc), (base), (async))
 #define radeon_page_flip_pending(rdev, crtc) (rdev)->asic->pflip.page_flip_pending((rdev), (crtc))
 #define radeon_wait_for_vblank(rdev, crtc) (rdev)->asic->display.wait_for_vblank((rdev), (crtc))
 #define radeon_mc_wait_for_idle(rdev) (rdev)->asic->mc_wait_for_idle((rdev))

@@ -1407,11 +1407,14 @@ void dce4_wait_for_vblank(struct radeon_device *rdev, int crtc)
  * Triggers the actual pageflip by updating the primary
  * surface base address (evergreen+).
  */
-void evergreen_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
+void evergreen_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base,
+			 bool async)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
 
 	/* update the scanout addresses */
+	WREG32(EVERGREEN_GRPH_FLIP_CONTROL + radeon_crtc->crtc_offset,
+	       async ? EVERGREEN_GRPH_SURFACE_UPDATE_H_RETRACE_EN : 0);
 	WREG32(EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH + radeon_crtc->crtc_offset,
 	       upper_32_bits(crtc_base));
 	WREG32(EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset,

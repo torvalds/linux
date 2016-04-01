@@ -153,7 +153,7 @@ void r100_wait_for_vblank(struct radeon_device *rdev, int crtc)
  * bit to go high, when it does, we release the lock, and allow the
  * double buffered update to take place.
  */
-void r100_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
+void r100_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base, bool async)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
 	u32 tmp = ((u32)crtc_base) | RADEON_CRTC_OFFSET__OFFSET_LOCK;
