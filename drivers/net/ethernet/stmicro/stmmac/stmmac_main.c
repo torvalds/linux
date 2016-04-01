@@ -877,53 +877,22 @@ static int stmmac_init_phy(struct net_device *dev)
 	return 0;
 }
 
-/**
- * stmmac_display_ring - display ring
- * @head: pointer to the head of the ring passed.
- * @size: size of the ring.
- * @extend_desc: to verify if extended descriptors are used.
- * Description: display the control/status and buffer descriptors.
- */
-static void stmmac_display_ring(void *head, int size, int extend_desc)
-{
-	int i;
-	struct dma_extended_desc *ep = (struct dma_extended_desc *)head;
-	struct dma_desc *p = (struct dma_desc *)head;
-
-	for (i = 0; i < size; i++) {
-		u64 x;
-		if (extend_desc) {
-			x = *(u64 *) ep;
-			pr_info("%d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
-				i, (unsigned int)virt_to_phys(ep),
-				(unsigned int)x, (unsigned int)(x >> 32),
-				ep->basic.des2, ep->basic.des3);
-			ep++;
-		} else {
-			x = *(u64 *) p;
-			pr_info("%d [0x%x]: 0x%x 0x%x 0x%x 0x%x",
-				i, (unsigned int)virt_to_phys(p),
-				(unsigned int)x, (unsigned int)(x >> 32),
-				p->des2, p->des3);
-			p++;
-		}
-		pr_info("\n");
-	}
-}
-
 static void stmmac_display_rings(struct stmmac_priv *priv)
 {
+	void *head_rx, *head_tx;
+
 	if (priv->extend_desc) {
-		pr_info("Extended RX descriptor ring:\n");
-		stmmac_display_ring((void *)priv->dma_erx, DMA_RX_SIZE, 1);
-		pr_info("Extended TX descriptor ring:\n");
-		stmmac_display_ring((void *)priv->dma_etx, DMA_TX_SIZE, 1);
+		head_rx = (void *)priv->dma_erx;
+		head_tx = (void *)priv->dma_etx;
 	} else {
-		pr_info("RX descriptor ring:\n");
-		stmmac_display_ring((void *)priv->dma_rx, DMA_RX_SIZE, 0);
-		pr_info("TX descriptor ring:\n");
-		stmmac_display_ring((void *)priv->dma_tx, DMA_TX_SIZE, 0);
+		head_rx = (void *)priv->dma_rx;
+		head_tx = (void *)priv->dma_tx;
 	}
+
+	/* Display Rx ring */
+	priv->hw->desc->display_ring(head_rx, DMA_RX_SIZE, true);
+	/* Display Tx ring */
+	priv->hw->desc->display_ring(head_tx, DMA_TX_SIZE, false);
 }
 
 static int stmmac_set_bfsize(int mtu, int bufsize)
@@ -1990,16 +1959,18 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	priv->cur_tx = entry;
 
 	if (netif_msg_pktdata(priv)) {
+		void *tx_head;
+
 		pr_debug("%s: curr=%d dirty=%d f=%d, e=%d, first=%p, nfrags=%d",
 			 __func__, priv->cur_tx, priv->dirty_tx, first_entry,
 			 entry, first, nfrags);
 
 		if (priv->extend_desc)
-			stmmac_display_ring((void *)priv->dma_etx,
-					    DMA_TX_SIZE, 1);
+			tx_head = (void *)priv->dma_etx;
 		else
-			stmmac_display_ring((void *)priv->dma_tx,
-					    DMA_TX_SIZE, 0);
+			tx_head = (void *)priv->dma_tx;
+
+		priv->hw->desc->display_ring(tx_head, DMA_TX_SIZE, false);
 
 		pr_debug(">>> frame to be transmitted: ");
 		print_pkt(skb->data, skb->len);
@@ -2184,13 +2155,15 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 	int coe = priv->hw->rx_csum;
 
 	if (netif_msg_rx_status(priv)) {
+		void *rx_head;
+
 		pr_debug("%s: descriptor ring:\n", __func__);
 		if (priv->extend_desc)
-			stmmac_display_ring((void *)priv->dma_erx,
-					    DMA_RX_SIZE, 1);
+			rx_head = (void *)priv->dma_erx;
 		else
-			stmmac_display_ring((void *)priv->dma_rx,
-					    DMA_RX_SIZE, 0);
+			rx_head = (void *)priv->dma_rx;
+
+		priv->hw->desc->display_ring(rx_head, DMA_RX_SIZE, true);
 	}
 	while (count < limit) {
 		int status;

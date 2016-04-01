@@ -380,6 +380,8 @@ struct stmmac_desc_ops {
 	 u64(*get_timestamp) (void *desc, u32 ats);
 	/* get rx timestamp status */
 	int (*get_rx_timestamp_status) (void *desc, u32 ats);
+	/* Display ring */
+	void (*display_ring)(void *head, unsigned int size, bool rx);
 };
 
 extern const struct stmmac_desc_ops enh_desc_ops;
