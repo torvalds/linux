@@ -5446,13 +5446,37 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int frequency)
 	intel_update_cdclk(dev_priv->dev);
 }
 
+static bool broxton_cdclk_is_enabled(struct drm_i915_private *dev_priv)
+{
+	if (!(I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_PLL_ENABLE))
+		return false;
+
+	/* TODO: Check for a valid CDCLK rate */
+
+	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_REQUEST)) {
+		DRM_DEBUG_DRIVER("CDCLK enabled, but DBUF power not requested\n");
+
+		return false;
+	}
+
+	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_STATE)) {
+		DRM_DEBUG_DRIVER("CDCLK enabled, but DBUF power hasn't settled\n");
+
+		return false;
+	}
+
+	return true;
+}
+
 void broxton_init_cdclk(struct drm_i915_private *dev_priv)
 {
 	/* check if cd clock is enabled */
-	if (I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_PLL_ENABLE) {
-		DRM_DEBUG_KMS("Display already initialized\n");
+	if (broxton_cdclk_is_enabled(dev_priv)) {
+		DRM_DEBUG_KMS("CDCLK already enabled, won't reprogram it\n");
 		return;
 	}
+
+	DRM_DEBUG_KMS("CDCLK not enabled, enabling it\n");
 
 	/*
 	 * FIXME:
