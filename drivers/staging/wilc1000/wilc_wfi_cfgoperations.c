@@ -1122,9 +1122,12 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 	}
 
 	if (key_index >= 0 && key_index <= 3) {
-		memset(priv->WILC_WFI_wep_key[key_index], 0, priv->WILC_WFI_wep_key_len[key_index]);
-		priv->WILC_WFI_wep_key_len[key_index] = 0;
-		wilc_remove_wep_key(vif, key_index);
+		if (priv->WILC_WFI_wep_key_len[key_index]) {
+			memset(priv->WILC_WFI_wep_key[key_index], 0,
+			       priv->WILC_WFI_wep_key_len[key_index]);
+			priv->WILC_WFI_wep_key_len[key_index] = 0;
+			wilc_remove_wep_key(vif, key_index);
+		}
 	} else {
 		wilc_remove_key(priv->hif_drv, mac_addr);
 	}
