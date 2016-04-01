@@ -2548,6 +2548,57 @@ static void ixgbe_release_swfw_sync_x550em_a(struct ixgbe_hw *hw, u32 mask)
 		ixgbe_release_swfw_sync_X540(hw, hmask);
 }
 
+/**
+ * ixgbe_read_phy_reg_x550a - Reads specified PHY register
+ * @hw: pointer to hardware structure
+ * @reg_addr: 32 bit address of PHY register to read
+ * @phy_data: Pointer to read data from PHY register
+ *
+ * Reads a value from a specified PHY register using the SWFW lock and PHY
+ * Token. The PHY Token is needed since the MDIO is shared between to MAC
+ * instances.
+ */
+static s32 ixgbe_read_phy_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
+				    u32 device_type, u16 *phy_data)
+{
+	u32 mask = hw->phy.phy_semaphore_mask | IXGBE_GSSR_TOKEN_SM;
+	s32 status;
+
+	if (hw->mac.ops.acquire_swfw_sync(hw, mask))
+		return IXGBE_ERR_SWFW_SYNC;
+
+	status = hw->phy.ops.read_reg_mdi(hw, reg_addr, device_type, phy_data);
+
+	hw->mac.ops.release_swfw_sync(hw, mask);
+
+	return status;
+}
+
+/**
+ * ixgbe_write_phy_reg_x550a - Writes specified PHY register
+ * @hw: pointer to hardware structure
+ * @reg_addr: 32 bit PHY register to write
+ * @device_type: 5 bit device type
+ * @phy_data: Data to write to the PHY register
+ *
+ * Writes a value to specified PHY register using the SWFW lock and PHY Token.
+ * The PHY Token is needed since the MDIO is shared between to MAC instances.
+ */
+static s32 ixgbe_write_phy_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
+				     u32 device_type, u16 phy_data)
+{
+	u32 mask = hw->phy.phy_semaphore_mask | IXGBE_GSSR_TOKEN_SM;
+	s32 status;
+
+	if (hw->mac.ops.acquire_swfw_sync(hw, mask))
+		return IXGBE_ERR_SWFW_SYNC;
+
+	status = ixgbe_write_phy_reg_mdi(hw, reg_addr, device_type, phy_data);
+	hw->mac.ops.release_swfw_sync(hw, mask);
+
+	return status;
+}
+
 #define X550_COMMON_MAC \
 	.init_hw			= &ixgbe_init_hw_generic, \
 	.start_hw			= &ixgbe_start_hw_X540, \
@@ -2673,8 +2724,6 @@ static const struct ixgbe_eeprom_operations eeprom_ops_X550EM_x = {
 	.read_i2c_sff8472	= &ixgbe_read_i2c_sff8472_generic, \
 	.read_i2c_eeprom	= &ixgbe_read_i2c_eeprom_generic, \
 	.write_i2c_eeprom	= &ixgbe_write_i2c_eeprom_generic, \
-	.read_reg		= &ixgbe_read_phy_reg_generic, \
-	.write_reg		= &ixgbe_write_phy_reg_generic, \
 	.setup_link		= &ixgbe_setup_phy_link_generic, \
 	.set_phy_power		= NULL, \
 	.check_overtemp		= &ixgbe_tn_check_overtemp, \
@@ -2684,17 +2733,29 @@ static const struct ixgbe_phy_operations phy_ops_X550 = {
 	X550_COMMON_PHY
 	.init			= NULL,
 	.identify		= &ixgbe_identify_phy_generic,
+	.read_reg		= &ixgbe_read_phy_reg_generic,
+	.write_reg		= &ixgbe_write_phy_reg_generic,
 };
 
 static const struct ixgbe_phy_operations phy_ops_X550EM_x = {
 	X550_COMMON_PHY
 	.init			= &ixgbe_init_phy_ops_X550em,
 	.identify		= &ixgbe_identify_phy_x550em,
+	.read_reg		= &ixgbe_read_phy_reg_generic,
+	.write_reg		= &ixgbe_write_phy_reg_generic,
 	.read_i2c_combined	= &ixgbe_read_i2c_combined_generic,
 	.write_i2c_combined	= &ixgbe_write_i2c_combined_generic,
 	.read_i2c_combined_unlocked = &ixgbe_read_i2c_combined_generic_unlocked,
 	.write_i2c_combined_unlocked =
 				     &ixgbe_write_i2c_combined_generic_unlocked,
+};
+
+static const struct ixgbe_phy_operations phy_ops_x550em_a = {
+	X550_COMMON_PHY
+	.init			= &ixgbe_init_phy_ops_X550em,
+	.identify		= &ixgbe_identify_phy_x550em,
+	.read_reg		= &ixgbe_read_phy_reg_x550a,
+	.write_reg		= &ixgbe_write_phy_reg_x550a,
 };
 
 static const u32 ixgbe_mvals_X550[IXGBE_MVALS_IDX_LIMIT] = {
@@ -2734,7 +2795,7 @@ const struct ixgbe_info ixgbe_x550em_a_info = {
 	.get_invariants		= &ixgbe_get_invariants_X550_x,
 	.mac_ops		= &mac_ops_x550em_a,
 	.eeprom_ops		= &eeprom_ops_X550EM_x,
-	.phy_ops		= &phy_ops_X550EM_x,
+	.phy_ops		= &phy_ops_x550em_a,
 	.mbx_ops		= &mbx_ops_generic,
 	.mvals			= ixgbe_mvals_x550em_a,
 };
