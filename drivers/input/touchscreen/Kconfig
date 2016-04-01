@@ -1037,6 +1037,19 @@ config TOUCHSCREEN_PCAP
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcap_ts.
 
+config TOUCHSCREEN_RM_TS
+	tristate "Raydium I2C Touchscreen"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y here if you have Raydium series I2C touchscreen,
+	  such as RM32380, connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called raydium_i2c_ts.
+
 config TOUCHSCREEN_ST1232
 	tristate "Sitronix ST1232 touchscreen controllers"
 	depends on I2C
