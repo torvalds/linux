@@ -31,6 +31,7 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/component.h>
 
 #include <drm/exynos_drm.h>
@@ -1235,7 +1236,7 @@ static const struct component_ops mixer_component_ops = {
 static int mixer_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct mixer_drv_data *drv;
+	const struct mixer_drv_data *drv;
 	struct mixer_context *ctx;
 	int ret;
 
@@ -1245,12 +1246,7 @@ static int mixer_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	if (dev->of_node) {
-		const struct of_device_id *match;
-
-		match = of_match_node(mixer_match_types, dev->of_node);
-		drv = (struct mixer_drv_data *)match->data;
-	}
+	drv = of_device_get_match_data(dev);
 
 	ctx->pdev = pdev;
 	ctx->dev = dev;
