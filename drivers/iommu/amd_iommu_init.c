@@ -2477,10 +2477,43 @@ static int __init parse_ivrs_hpet(char *str)
 	return 1;
 }
 
+static int __init parse_ivrs_acpihid(char *str)
+{
+	u32 bus, dev, fn;
+	char *hid, *uid, *p;
+	char acpiid[ACPIHID_UID_LEN + ACPIHID_HID_LEN] = {0};
+	int ret, i;
+
+	ret = sscanf(str, "[%x:%x.%x]=%s", &bus, &dev, &fn, acpiid);
+	if (ret != 4) {
+		pr_err("AMD-Vi: Invalid command line: ivrs_acpihid(%s)\n", str);
+		return 1;
+	}
+
+	p = acpiid;
+	hid = strsep(&p, ":");
+	uid = p;
+
+	if (!hid || !(*hid) || !uid) {
+		pr_err("AMD-Vi: Invalid command line: hid or uid\n");
+		return 1;
+	}
+
+	i = early_acpihid_map_size++;
+	memcpy(early_acpihid_map[i].hid, hid, strlen(hid));
+	memcpy(early_acpihid_map[i].uid, uid, strlen(uid));
+	early_acpihid_map[i].devid =
+		((bus & 0xff) << 8) | ((dev & 0x1f) << 3) | (fn & 0x7);
+	early_acpihid_map[i].cmd_line	= true;
+
+	return 1;
+}
+
 __setup("amd_iommu_dump",	parse_amd_iommu_dump);
 __setup("amd_iommu=",		parse_amd_iommu_options);
 __setup("ivrs_ioapic",		parse_ivrs_ioapic);
 __setup("ivrs_hpet",		parse_ivrs_hpet);
+__setup("ivrs_acpihid",		parse_ivrs_acpihid);
 
 IOMMU_INIT_FINISH(amd_iommu_detect,
 		  gart_iommu_hole_init,
