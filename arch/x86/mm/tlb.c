@@ -106,8 +106,6 @@ static void flush_tlb_func(void *info)
 
 	if (f->flush_mm != this_cpu_read(cpu_tlbstate.active_mm))
 		return;
-	if (!f->flush_end)
-		f->flush_end = f->flush_start + PAGE_SIZE;
 
 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
@@ -135,12 +133,20 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 				 unsigned long end)
 {
 	struct flush_tlb_info info;
+
+	if (end == 0)
+		end = start + PAGE_SIZE;
 	info.flush_mm = mm;
 	info.flush_start = start;
 	info.flush_end = end;
 
 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);
-	trace_tlb_flush(TLB_REMOTE_SEND_IPI, end - start);
+	if (end == TLB_FLUSH_ALL)
+		trace_tlb_flush(TLB_REMOTE_SEND_IPI, TLB_FLUSH_ALL);
+	else
+		trace_tlb_flush(TLB_REMOTE_SEND_IPI,
+				(end - start) >> PAGE_SHIFT);
+
 	if (is_uv_system()) {
 		unsigned int cpu;
 
