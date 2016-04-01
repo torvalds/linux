@@ -34,7 +34,6 @@
 #include <linux/completion.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_mtd.h>
 
 #include <asm/mach/flash.h>
 #include <linux/platform_data/mtd-mxc_nand.h>
@@ -1460,24 +1459,11 @@ MODULE_DEVICE_TABLE(of, mxcnd_dt_ids);
 static int __init mxcnd_probe_dt(struct mxc_nand_host *host)
 {
 	struct device_node *np = host->dev->of_node;
-	struct mxc_nand_platform_data *pdata = &host->pdata;
 	const struct of_device_id *of_id =
 		of_match_device(mxcnd_dt_ids, host->dev);
-	int buswidth;
 
 	if (!np)
 		return 1;
-
-	if (of_get_nand_ecc_mode(np) >= 0)
-		pdata->hw_ecc = 1;
-
-	pdata->flash_bbt = of_get_nand_on_flash_bbt(np);
-
-	buswidth = of_get_nand_bus_width(np);
-	if (buswidth < 0)
-		return buswidth;
-
-	pdata->width = buswidth / 8;
 
 	host->devtype_data = of_id->data;
 
@@ -1578,9 +1564,6 @@ static int mxcnd_probe(struct platform_device *pdev)
 	mtd_set_ooblayout(mtd, host->devtype_data->ooblayout);
 
 	if (host->pdata.hw_ecc) {
-		this->ecc.calculate = mxc_nand_calculate_ecc;
-		this->ecc.hwctl = mxc_nand_enable_hwecc;
-		this->ecc.correct = host->devtype_data->correct_data;
 		this->ecc.mode = NAND_ECC_HW;
 	} else {
 		this->ecc.mode = NAND_ECC_SOFT;
@@ -1591,12 +1574,9 @@ static int mxcnd_probe(struct platform_device *pdev)
 	if (host->pdata.width == 2)
 		this->options |= NAND_BUSWIDTH_16;
 
-	if (host->pdata.flash_bbt) {
-		this->bbt_td = &bbt_main_descr;
-		this->bbt_md = &bbt_mirror_descr;
-		/* update flash based bbt */
+	/* update flash based bbt */
+	if (host->pdata.flash_bbt)
 		this->bbt_options |= NAND_BBT_USE_FLASH;
-	}
 
 	init_completion(&host->op_completion);
 
@@ -1635,6 +1615,27 @@ static int mxcnd_probe(struct platform_device *pdev)
 	if (nand_scan_ident(mtd, is_imx25_nfc(host) ? 4 : 1, NULL)) {
 		err = -ENXIO;
 		goto escan;
+	}
+
+	switch (this->ecc.mode) {
+	case NAND_ECC_HW:
+		this->ecc.calculate = mxc_nand_calculate_ecc;
+		this->ecc.hwctl = mxc_nand_enable_hwecc;
+		this->ecc.correct = host->devtype_data->correct_data;
+		break;
+
+	case NAND_ECC_SOFT:
+	case NAND_ECC_SOFT_BCH:
+		break;
+
+	default:
+		err = -EINVAL;
+		goto escan;
+	}
+
+	if (this->bbt_options & NAND_BBT_USE_FLASH) {
+		this->bbt_td = &bbt_main_descr;
+		this->bbt_md = &bbt_mirror_descr;
 	}
 
 	/* allocate the right size buffer now */
