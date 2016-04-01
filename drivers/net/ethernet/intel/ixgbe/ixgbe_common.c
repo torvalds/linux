@@ -682,6 +682,7 @@ s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw)
 void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw)
 {
 	struct ixgbe_bus_info *bus = &hw->bus;
+	u16 ee_ctrl_4;
 	u32 reg;
 
 	reg = IXGBE_READ_REG(hw, IXGBE_STATUS);
@@ -692,6 +693,13 @@ void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw)
 	reg = IXGBE_READ_REG(hw, IXGBE_FACTPS(hw));
 	if (reg & IXGBE_FACTPS_LFS)
 		bus->func ^= 0x1;
+
+	/* Get MAC instance from EEPROM for configuring CS4227 */
+	if (hw->device_id == IXGBE_DEV_ID_X550EM_A_SFP) {
+		hw->eeprom.ops.read(hw, IXGBE_EEPROM_CTRL_4, &ee_ctrl_4);
+		bus->instance_id = (ee_ctrl_4 & IXGBE_EE_CTRL_4_INST_ID) >>
+				   IXGBE_EE_CTRL_4_INST_ID_SHIFT;
+	}
 }
 
 /**

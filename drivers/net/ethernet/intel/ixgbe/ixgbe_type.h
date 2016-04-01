@@ -82,6 +82,7 @@
 #define IXGBE_DEV_ID_X550EM_X_10G_T	0x15AD
 #define IXGBE_DEV_ID_X550EM_X_1G_T	0x15AE
 #define IXGBE_DEV_ID_X550EM_A_SFP_N	0x15C4
+#define IXGBE_DEV_ID_X550EM_A_SFP	0x15CE
 
 /* VF Device IDs */
 #define IXGBE_DEV_ID_X550_VF_HV	0x1564
@@ -2000,6 +2001,9 @@ enum {
 #define IXGBE_PBANUM_PTR_GUARD		0xFAFA
 #define IXGBE_EEPROM_CHECKSUM		0x3F
 #define IXGBE_EEPROM_SUM		0xBABA
+#define IXGBE_EEPROM_CTRL_4		0x45
+#define IXGBE_EE_CTRL_4_INST_ID		0x10
+#define IXGBE_EE_CTRL_4_INST_ID_SHIFT	4
 #define IXGBE_PCIE_ANALOG_PTR		0x03
 #define IXGBE_ATLAS0_CONFIG_PTR		0x04
 #define IXGBE_PHY_PTR			0x04
@@ -3175,6 +3179,7 @@ struct ixgbe_bus_info {
 
 	u8 func;
 	u8 lan_id;
+	u8 instance_id;
 };
 
 /* Flow control parameters */
