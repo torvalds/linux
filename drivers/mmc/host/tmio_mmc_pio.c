@@ -166,25 +166,39 @@ static void tmio_mmc_clk_start(struct tmio_mmc_host *host)
 	}
 }
 
+static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
+{
+	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG) {
+		sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0000);
+		msleep(10);
+	}
+
+	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
+		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
+	msleep(host->pdata->flags & TMIO_MMC_FAST_CLK_CHG ? 5 : 10);
+}
+
 static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
 				unsigned int new_clock)
 {
 	u32 clk = 0, clock;
 
-	if (new_clock) {
-		if (host->clk_update)
-			clock = host->clk_update(host, new_clock) / 512;
-		else
-			clock = host->mmc->f_min;
-
-		for (clk = 0x80000080; new_clock >= (clock << 1); clk >>= 1)
-			clock <<= 1;
-
-		/* 1/1 clock is option */
-		if ((host->pdata->flags & TMIO_MMC_CLK_ACTUAL) &&
-		   ((clk >> 22) & 0x1))
-			clk |= 0xff;
+	if (new_clock == 0) {
+		tmio_mmc_clk_stop(host);
+		return;
 	}
+
+	if (host->clk_update)
+		clock = host->clk_update(host, new_clock) / 512;
+	else
+		clock = host->mmc->f_min;
+
+	for (clk = 0x80000080; new_clock >= (clock << 1); clk >>= 1)
+		clock <<= 1;
+
+	/* 1/1 clock is option */
+	if ((host->pdata->flags & TMIO_MMC_CLK_ACTUAL) && ((clk >> 22) & 0x1))
+		clk |= 0xff;
 
 	if (host->set_clk_div)
 		host->set_clk_div(host->pdev, (clk >> 22) & 1);
@@ -196,18 +210,6 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
 		msleep(10);
 
 	tmio_mmc_clk_start(host);
-}
-
-static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
-{
-	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG) {
-		sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0000);
-		msleep(10);
-	}
-
-	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
-		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
-	msleep(host->pdata->flags & TMIO_MMC_FAST_CLK_CHG ? 5 : 10);
 }
 
 static void tmio_mmc_reset(struct tmio_mmc_host *host)
