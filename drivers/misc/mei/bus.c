@@ -580,6 +580,7 @@ static int mei_cl_device_probe(struct device *dev)
 	struct mei_cl_device *cldev;
 	struct mei_cl_driver *cldrv;
 	const struct mei_cl_device_id *id;
+	int ret;
 
 	cldev = to_mei_cl_device(dev);
 	cldrv = to_mei_cl_driver(dev->driver);
@@ -594,9 +595,12 @@ static int mei_cl_device_probe(struct device *dev)
 	if (!id)
 		return -ENODEV;
 
-	__module_get(THIS_MODULE);
+	ret = cldrv->probe(cldev, id);
+	if (ret)
+		return ret;
 
-	return cldrv->probe(cldev, id);
+	__module_get(THIS_MODULE);
+	return 0;
 }
 
 /**
