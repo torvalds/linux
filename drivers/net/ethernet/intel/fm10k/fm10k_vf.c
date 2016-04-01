@@ -188,7 +188,7 @@ static s32 fm10k_update_vlan_vf(struct fm10k_hw *hw, u32 vid, u8 vsi, bool set)
 	if (vsi)
 		return FM10K_ERR_PARAM;
 
-	/* verify upper 4 bits of vid and length are 0 */
+	/* clever trick to verify reserved bits in both vid and length */
 	if ((vid << 16 | vid) >> 28)
 		return FM10K_ERR_PARAM;
 
