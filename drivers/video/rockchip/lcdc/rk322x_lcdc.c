@@ -656,36 +656,36 @@ static int rk3399_vop_win_csc_cfg(struct rk_lcdc_driver *dev_drv)
 			} else if (win->colorspace == CSC_BT2020) {
 				val |= V_WIN0_YUV2YUV_EN(1);
 				LOAD_CSC(vop_dev, Y2R, csc_y2r_bt2020, i);
-				LOAD_CSC(vop_dev, 3x3, csc_r2r_bt2020to709, i);
+				LOAD_CSC(vop_dev, R2R, csc_r2r_bt2020to709, i);
 			}
 		} else if (output_color == COLOR_YCBCR ||
 				output_color == COLOR_YCBCR_BT709) {
 			if (!(IS_YUV(win->area[0].fmt_cfg) ||
 			      win->area[0].yuyv_fmt)) {
 				val |= V_WIN0_YUV2YUV_R2Y_EN(1);
-				LOAD_CSC(vop_dev, R2Y, csc_r2y_bt709_full, i);
+				LOAD_CSC(vop_dev, R2Y, csc_r2y_bt709_full_10, i);
 			} else if (win->colorspace == CSC_BT2020) {
 				val |= V_WIN0_YUV2YUV_EN(1) |
 					V_WIN0_YUV2YUV_Y2R_EN(1) |
 					V_WIN0_YUV2YUV_R2Y_EN(1);
-				LOAD_CSC(vop_dev, R2Y, csc_y2r_bt2020, i);
-				LOAD_CSC(vop_dev, R2Y, csc_r2r_bt2020to709, i);
-				LOAD_CSC(vop_dev, R2Y, csc_r2y_bt709_full, i);
+				LOAD_CSC(vop_dev, Y2R, csc_y2r_bt2020, i);
+				LOAD_CSC(vop_dev, R2R, csc_r2r_bt2020to709, i);
+				LOAD_CSC(vop_dev, R2Y, csc_r2y_bt709_full_10, i);
 			}
 		} else if (output_color == COLOR_YCBCR_BT2020) {
 			if (!(IS_YUV(win->area[0].fmt_cfg) ||
 			      win->area[0].yuyv_fmt)) {
 				val |= V_WIN0_YUV2YUV_R2Y_EN(1) |
 					V_WIN0_YUV2YUV_EN(1);
-				LOAD_CSC(vop_dev, R2Y, csc_r2r_bt709to2020, i);
+				LOAD_CSC(vop_dev, R2R, csc_r2r_bt709to2020, i);
 				LOAD_CSC(vop_dev, R2Y, csc_r2y_bt2020, i);
 			} else if (win->colorspace == CSC_BT601 ||
 					win->colorspace == CSC_BT709) {
 				val |= V_WIN0_YUV2YUV_Y2R_EN(1) |
 					V_WIN0_YUV2YUV_R2Y_EN(1) |
 					V_WIN0_YUV2YUV_EN(1);
-				LOAD_CSC(vop_dev, R2Y, csc_y2r_bt709_full, i);
-				LOAD_CSC(vop_dev, R2Y, csc_r2r_bt709to2020, i);
+				LOAD_CSC(vop_dev, Y2R, csc_y2r_bt709_full_10, i);
+				LOAD_CSC(vop_dev, R2R, csc_r2r_bt709to2020, i);
 				LOAD_CSC(vop_dev, R2Y, csc_r2y_bt2020, i);
 			}
 		}
@@ -1934,6 +1934,9 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			vop_msk_reg(vop_dev, SYS_CTRL, val);
 			break;
 		case SCREEN_HDMI:
+			if ((screen->face == OUT_P888) ||
+			    (screen->face == OUT_P101010))
+				face = OUT_P101010; /*RGB 101010 output*/
 			val = V_HDMI_OUT_EN(1) | V_SW_UV_OFFSET_EN(0);
 			vop_msk_reg(vop_dev, SYS_CTRL, val);
 			break;
