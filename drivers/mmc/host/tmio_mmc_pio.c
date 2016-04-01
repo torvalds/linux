@@ -160,9 +160,12 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
 	u32 clk = 0, clock;
 
 	if (new_clock) {
-		for (clock = host->mmc->f_min, clk = 0x80000080;
-		     new_clock >= (clock << 1);
-		     clk >>= 1)
+		if (host->clk_update)
+			clock = host->clk_update(host, new_clock) / 512;
+		else
+			clock = host->mmc->f_min;
+
+		for (clk = 0x80000080; new_clock >= (clock << 1); clk >>= 1)
 			clock <<= 1;
 
 		/* 1/1 clock is option */
@@ -837,19 +840,12 @@ fail:
 	pm_runtime_put_autosuspend(mmc_dev(mmc));
 }
 
-static int tmio_mmc_clk_update(struct tmio_mmc_host *host)
+static int tmio_mmc_clk_enable(struct tmio_mmc_host *host)
 {
-	struct mmc_host *mmc = host->mmc;
-	int ret;
-
 	if (!host->clk_enable)
 		return -ENOTSUPP;
 
-	ret = host->clk_enable(host);
-	if (!ret)
-		mmc->f_min = mmc->f_max / 512;
-
-	return ret;
+	return host->clk_enable(host);
 }
 
 static void tmio_mmc_power_on(struct tmio_mmc_host *host, unsigned short vdd)
@@ -1135,7 +1131,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 				  mmc->caps & MMC_CAP_NONREMOVABLE ||
 				  mmc->slot.cd_irq >= 0);
 
-	if (tmio_mmc_clk_update(_host) < 0) {
+	if (tmio_mmc_clk_enable(_host) < 0) {
 		mmc->f_max = pdata->hclk;
 		mmc->f_min = mmc->f_max / 512;
 	}
@@ -1263,7 +1259,7 @@ int tmio_mmc_host_runtime_resume(struct device *dev)
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 
 	tmio_mmc_reset(host);
-	tmio_mmc_clk_update(host);
+	tmio_mmc_clk_enable(host);
 
 	if (host->clk_cache) {
 		tmio_mmc_set_clock(host, host->clk_cache);

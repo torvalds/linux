@@ -139,12 +139,63 @@ static int sh_mobile_sdhi_clk_enable(struct tmio_mmc_host *host)
 	if (ret < 0)
 		return ret;
 
-	mmc->f_max = clk_get_rate(priv->clk);
+	/*
+	 * The clock driver may not know what maximum frequency
+	 * actually works, so it should be set with the max-frequency
+	 * property which will already have been read to f_max.  If it
+	 * was missing, assume the current frequency is the maximum.
+	 */
+	if (!mmc->f_max)
+		mmc->f_max = clk_get_rate(priv->clk);
+
+	/*
+	 * Minimum frequency is the minimum input clock frequency
+	 * divided by our maximum divider.
+	 */
+	mmc->f_min = max(clk_round_rate(priv->clk, 1) / 512, 1L);
 
 	/* enable 16bit data access on SDBUF as default */
 	sh_mobile_sdhi_sdbuf_width(host, 16);
 
 	return 0;
+}
+
+static unsigned int sh_mobile_sdhi_clk_update(struct tmio_mmc_host *host,
+					      unsigned int new_clock)
+{
+	struct sh_mobile_sdhi *priv = host_to_priv(host);
+	unsigned int freq, best_freq, diff_min, diff;
+	int i;
+
+	diff_min = ~0;
+	best_freq = 0;
+
+	/*
+	 * We want the bus clock to be as close as possible to, but no
+	 * greater than, new_clock.  As we can divide by 1 << i for
+	 * any i in [0, 9] we want the input clock to be as close as
+	 * possible, but no greater than, new_clock << i.
+	 */
+	for (i = min(9, ilog2(UINT_MAX / new_clock)); i >= 0; i--) {
+		freq = clk_round_rate(priv->clk, new_clock << i);
+		if (freq > (new_clock << i)) {
+			/* Too fast; look for a slightly slower option */
+			freq = clk_round_rate(priv->clk,
+					      (new_clock << i) / 4 * 3);
+			if (freq > (new_clock << i))
+				continue;
+		}
+
+		diff = new_clock - (freq >> i);
+		if (diff <= diff_min) {
+			best_freq = freq;
+			diff_min = diff;
+		}
+	}
+
+	clk_set_rate(priv->clk, best_freq);
+
+	return best_freq;
 }
 
 static void sh_mobile_sdhi_clk_disable(struct tmio_mmc_host *host)
@@ -265,6 +316,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	host->dma		= dma_priv;
 	host->write16_hook	= sh_mobile_sdhi_write16_hook;
 	host->clk_enable	= sh_mobile_sdhi_clk_enable;
+	host->clk_update	= sh_mobile_sdhi_clk_update;
 	host->clk_disable	= sh_mobile_sdhi_clk_disable;
 	host->multi_io_quirk	= sh_mobile_sdhi_multi_io_quirk;
 
@@ -362,7 +414,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		}
 	}
 
-	dev_info(&pdev->dev, "%s base at 0x%08lx clock rate %u MHz\n",
+	dev_info(&pdev->dev, "%s base at 0x%08lx max clock rate %u MHz\n",
 		 mmc_hostname(host->mmc), (unsigned long)
 		 (platform_get_resource(pdev, IORESOURCE_MEM, 0)->start),
 		 host->mmc->f_max / 1000000);
