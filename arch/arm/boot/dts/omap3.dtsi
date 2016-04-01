@@ -43,7 +43,7 @@
 		};
 	};
 
-	pmu {
+	pmu@54000000 {
 		compatible = "arm,cortex-a8-pmu";
 		reg = <0x54000000 0x800000>;
 		interrupts = <3>;
