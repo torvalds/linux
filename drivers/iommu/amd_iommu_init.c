@@ -99,7 +99,11 @@ struct ivhd_header {
 	u64 mmio_phys;
 	u16 pci_seg;
 	u16 info;
-	u32 efr;
+	u32 efr_attr;
+
+	/* Following only valid on IVHD type 11h and 40h */
+	u64 efr_reg; /* Exact copy of MMIO_EXT_FEATURES */
+	u64 res;
 } __attribute__((packed));
 
 /*
@@ -1078,13 +1082,25 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	iommu->pci_seg = h->pci_seg;
 	iommu->mmio_phys = h->mmio_phys;
 
-	/* Check if IVHD EFR contains proper max banks/counters */
-	if ((h->efr != 0) &&
-	    ((h->efr & (0xF << 13)) != 0) &&
-	    ((h->efr & (0x3F << 17)) != 0)) {
-		iommu->mmio_phys_end = MMIO_REG_END_OFFSET;
-	} else {
-		iommu->mmio_phys_end = MMIO_CNTR_CONF_OFFSET;
+	switch (h->type) {
+	case 0x10:
+		/* Check if IVHD EFR contains proper max banks/counters */
+		if ((h->efr_attr != 0) &&
+		    ((h->efr_attr & (0xF << 13)) != 0) &&
+		    ((h->efr_attr & (0x3F << 17)) != 0))
+			iommu->mmio_phys_end = MMIO_REG_END_OFFSET;
+		else
+			iommu->mmio_phys_end = MMIO_CNTR_CONF_OFFSET;
+		break;
+	case 0x11:
+	case 0x40:
+		if (h->efr_reg & (1 << 9))
+			iommu->mmio_phys_end = MMIO_REG_END_OFFSET;
+		else
+			iommu->mmio_phys_end = MMIO_CNTR_CONF_OFFSET;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	iommu->mmio_base = iommu_map_mmio_space(iommu->mmio_phys,
