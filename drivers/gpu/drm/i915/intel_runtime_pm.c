@@ -722,10 +722,6 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 
 		if (!is_enabled) {
 			DRM_DEBUG_KMS("Enabling %s\n", power_well->name);
-			if (wait_for((I915_READ(HSW_PWR_WELL_DRIVER) &
-				state_mask), 1))
-				DRM_ERROR("%s enable timeout\n",
-					power_well->name);
 			check_fuse_status = true;
 		}
 	} else {
@@ -738,6 +734,11 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 		if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
 			gen9_sanitize_power_well_requests(dev_priv, power_well);
 	}
+
+	if (wait_for(!!(I915_READ(HSW_PWR_WELL_DRIVER) & state_mask) == enable,
+		     1))
+		DRM_ERROR("%s %s timeout\n",
+			  power_well->name, enable ? "enable" : "disable");
 
 	if (check_fuse_status) {
 		if (power_well->data == SKL_DISP_PW_1) {
