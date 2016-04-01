@@ -677,7 +677,7 @@ static int __init cstate_pmu_init(void)
 {
 	int err;
 
-	if (cpu_has_hypervisor)
+	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
 		return -ENODEV;
 
 	err = cstate_init();
