@@ -19,6 +19,7 @@
 
 #include <linux/ratelimit.h>
 #include <linux/pci.h>
+#include <linux/acpi.h>
 #include <linux/pci-ats.h>
 #include <linux/bitmap.h>
 #include <linux/slab.h>
@@ -216,11 +217,58 @@ static struct iommu_dev_data *find_dev_data(u16 devid)
 	return dev_data;
 }
 
-static inline u16 get_device_id(struct device *dev)
+static inline int match_hid_uid(struct device *dev,
+				struct acpihid_map_entry *entry)
+{
+	const char *hid, *uid;
+
+	hid = acpi_device_hid(ACPI_COMPANION(dev));
+	uid = acpi_device_uid(ACPI_COMPANION(dev));
+
+	if (!hid || !(*hid))
+		return -ENODEV;
+
+	if (!uid || !(*uid))
+		return strcmp(hid, entry->hid);
+
+	if (!(*entry->uid))
+		return strcmp(hid, entry->hid);
+
+	return (strcmp(hid, entry->hid) || strcmp(uid, entry->uid));
+}
+
+static inline u16 get_pci_device_id(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 
 	return PCI_DEVID(pdev->bus->number, pdev->devfn);
+}
+
+static inline int get_acpihid_device_id(struct device *dev,
+					struct acpihid_map_entry **entry)
+{
+	struct acpihid_map_entry *p;
+
+	list_for_each_entry(p, &acpihid_map, list) {
+		if (!match_hid_uid(dev, p)) {
+			if (entry)
+				*entry = p;
+			return p->devid;
+		}
+	}
+	return -EINVAL;
+}
+
+static inline int get_device_id(struct device *dev)
+{
+	int devid;
+
+	if (dev_is_pci(dev))
+		devid = get_pci_device_id(dev);
+	else
+		devid = get_acpihid_device_id(dev, NULL);
+
+	return devid;
 }
 
 static struct iommu_dev_data *get_dev_data(struct device *dev)
@@ -303,10 +351,6 @@ static bool check_device(struct device *dev)
 	if (!dev || !dev->dma_mask)
 		return false;
 
-	/* No PCI device */
-	if (!dev_is_pci(dev))
-		return false;
-
 	devid = get_device_id(dev);
 	if (IS_ERR_VALUE(devid))
 		return false;
@@ -344,7 +388,6 @@ out:
 
 static int iommu_init_device(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
 	struct iommu_dev_data *dev_data;
 	int devid;
 
@@ -359,10 +402,10 @@ static int iommu_init_device(struct device *dev)
 	if (!dev_data)
 		return -ENOMEM;
 
-	if (pci_iommuv2_capable(pdev)) {
+	if (dev_is_pci(dev) && pci_iommuv2_capable(to_pci_dev(dev))) {
 		struct amd_iommu *iommu;
 
-		iommu              = amd_iommu_rlookup_table[dev_data->devid];
+		iommu = amd_iommu_rlookup_table[dev_data->devid];
 		dev_data->iommu_v2 = iommu->is_iommu_v2;
 	}
 
@@ -2239,13 +2282,17 @@ static bool pci_pri_tlp_required(struct pci_dev *pdev)
 static int attach_device(struct device *dev,
 			 struct protection_domain *domain)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_dev *pdev;
 	struct iommu_dev_data *dev_data;
 	unsigned long flags;
 	int ret;
 
 	dev_data = get_dev_data(dev);
 
+	if (!dev_is_pci(dev))
+		goto skip_ats_check;
+
+	pdev = to_pci_dev(dev);
 	if (domain->flags & PD_IOMMUV2_MASK) {
 		if (!dev_data->passthrough)
 			return -EINVAL;
@@ -2264,6 +2311,7 @@ static int attach_device(struct device *dev,
 		dev_data->ats.qdep    = pci_ats_queue_depth(pdev);
 	}
 
+skip_ats_check:
 	write_lock_irqsave(&amd_iommu_devtable_lock, flags);
 	ret = __attach_device(dev_data, domain);
 	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
@@ -2319,6 +2367,9 @@ static void detach_device(struct device *dev)
 	write_lock_irqsave(&amd_iommu_devtable_lock, flags);
 	__detach_device(dev_data);
 	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
+
+	if (!dev_is_pci(dev))
+		return;
 
 	if (domain->flags & PD_IOMMUV2_MASK && dev_data->iommu_v2)
 		pdev_iommuv2_disable(to_pci_dev(dev));
