@@ -63,6 +63,12 @@
 					0x10 0x00002200 0x0000ff00
 				>;
 			};
+			i2c1_pins: pinmux_i2c1_pins {
+				pinctrl-single,bits = <
+					/* I2C1_SDA, I2C1_SCL */
+					0x10 0x00440000 0x00ff0000
+				>;
+			};
 			mmc0_pins: pinmux_mmc_pins {
 				pinctrl-single,bits = <
 					/* MMCSD0_DAT[3] MMCSD0_DAT[2]
@@ -222,6 +228,14 @@
 			compatible = "ti,davinci-i2c";
 			reg = <0x22000 0x1000>;
 			interrupts = <15>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+		i2c1: i2c@228000 {
+			compatible = "ti,davinci-i2c";
+			reg = <0x228000 0x1000>;
+			interrupts = <51>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
