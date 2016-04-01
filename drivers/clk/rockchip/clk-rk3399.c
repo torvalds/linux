@@ -1437,22 +1437,66 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 };
 
 static const char *const rk3399_cru_critical_clocks[] __initconst = {
+	/*
+	 * We need to declare that we enable all NOCs which are critical clocks
+	 * always and clearly and explicitly show that we have enabled them at
+	 * clk_summary.
+	 */
+	"aclk_usb3_noc",
+	"aclk_gmac_noc",
+	"pclk_gmac_noc",
+	"pclk_center_main_noc",
+	"aclk_cci_noc0",
+	"aclk_cci_noc1",
+	"clk_dbg_noc",
+	"hclk_vcodec_noc",
+	"aclk_vcodec_noc",
+	"hclk_vdu_noc",
+	"aclk_vdu_noc",
+	"hclk_iep_noc",
+	"aclk_iep_noc",
+	"hclk_rga_noc",
+	"aclk_rga_noc",
+	"aclk_center_main_noc",
+	"aclk_center_peri_noc",
+	"aclk_perihp_noc",
+	"hclk_perihp_noc",
+	"pclk_perihp_noc",
+	"hclk_sdmmc_noc",
+	"aclk_emmc_noc",
+	"aclk_perilp0_noc",
+	"hclk_perilp0_noc",
+	"hclk_m0_perilp_noc",
+	"hclk_perilp1_noc",
+	"hclk_sdio_noc",
+	"hclk_sdioaudio_noc",
+	"pclk_perilp1_noc",
+	"aclk_vio_noc",
+	"aclk_hdcp_noc",
+	"hclk_hdcp_noc",
+	"pclk_hdcp_noc",
+	"pclk_edp_noc",
+	"aclk_vop0_noc",
+	"hclk_vop0_noc",
+	"aclk_vop1_noc",
+	"hclk_vop1_noc",
+	"aclk_isp0_noc",
+	"hclk_isp0_noc",
+	"aclk_isp1_noc",
+	"hclk_isp1_noc",
+	"aclk_gic_noc",
+
+	/* other critical clocks */
 	"aclk_cci_pre",
 	"pclk_perilp0",
 	"pclk_perilp0",
 	"hclk_perilp0",
-	"hclk_perilp0_noc",
 	"pclk_perilp1",
-	"pclk_perilp1_noc",
 	"pclk_perihp",
-	"pclk_perihp_noc",
 	"hclk_perihp",
 	"aclk_perihp",
-	"aclk_perihp_noc",
 	"aclk_perilp0",
-	"aclk_perilp0_noc",
 	"hclk_perilp1",
-	"hclk_perilp1_noc",
 	"aclk_dmac1_perilp",
 	"gpll_hclk_perilp1_src",
 	"gpll_aclk_perilp0_src",
@@ -1460,6 +1504,15 @@ static const char *const rk3399_cru_critical_clocks[] __initconst = {
 };
 
 static const char *const rk3399_pmucru_critical_clocks[] __initconst = {
+	/*
+	 * We need to declare that we enable all NOCs which are critical clocks
+	 * always and clearly and explicitly show that we have enabled them at
+	 * clk_summary.
+	 */
+	"pclk_noc_pmu",
+	"hclk_noc_pmu",
+
+	/* other critical clocks */
 	"ppll",
 	"pclk_pmu_src",
 	"fclk_cm0s_src_pmu",
