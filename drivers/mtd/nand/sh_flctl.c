@@ -31,7 +31,6 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_mtd.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/sh_dma.h>
@@ -1092,8 +1091,6 @@ static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 	const struct of_device_id *match;
 	struct flctl_soc_config *config;
 	struct sh_flctl_platform_data *pdata;
-	struct device_node *dn = dev->of_node;
-	int ret;
 
 	match = of_match_device(of_flctl_match, dev);
 	if (match)
@@ -1112,15 +1109,6 @@ static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 	pdata->flcmncr_val = config->flcmncr_val;
 	pdata->has_hwecc = config->has_hwecc;
 	pdata->use_holden = config->use_holden;
-
-	/* parse user defined options */
-	ret = of_get_nand_bus_width(dn);
-	if (ret == 16)
-		pdata->flcmncr_val |= SEL_16BIT;
-	else if (ret != 8) {
-		dev_err(dev, "%s: invalid bus width\n", __func__);
-		return NULL;
-	}
 
 	return pdata;
 }
@@ -1184,15 +1172,14 @@ static int flctl_probe(struct platform_device *pdev)
 	nand->chip_delay = 20;
 
 	nand->read_byte = flctl_read_byte;
+	nand->read_word = flctl_read_word;
 	nand->write_buf = flctl_write_buf;
 	nand->read_buf = flctl_read_buf;
 	nand->select_chip = flctl_select_chip;
 	nand->cmdfunc = flctl_cmdfunc;
 
-	if (pdata->flcmncr_val & SEL_16BIT) {
+	if (pdata->flcmncr_val & SEL_16BIT)
 		nand->options |= NAND_BUSWIDTH_16;
-		nand->read_word = flctl_read_word;
-	}
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_resume(&pdev->dev);
@@ -1202,6 +1189,16 @@ static int flctl_probe(struct platform_device *pdev)
 	ret = nand_scan_ident(flctl_mtd, 1, NULL);
 	if (ret)
 		goto err_chip;
+
+	if (nand->options & NAND_BUSWIDTH_16) {
+		/*
+		 * NAND_BUSWIDTH_16 may have been set by nand_scan_ident().
+		 * Add the SEL_16BIT flag in pdata->flcmncr_val and re-assign
+		 * flctl->flcmncr_base to pdata->flcmncr_val.
+		 */
+		pdata->flcmncr_val |= SEL_16BIT;
+		flctl->flcmncr_base = pdata->flcmncr_val;
+	}
 
 	ret = flctl_chip_init_tail(flctl_mtd);
 	if (ret)
