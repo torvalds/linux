@@ -1355,6 +1355,15 @@ W:	http://www.digriz.org.uk/ts78xx/kernel
 S:	Maintained
 F:	arch/arm/mach-orion5x/ts78xx-*
 
+ARM/OXNAS platform support
+M:	Neil Armstrong <narmstrong@baylibre.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-oxnas/
+F:	arch/arm/boot/dts/oxnas*
+F:	arch/arm/boot/dts/wd-mbwe.dts
+N:	oxnas
+
 ARM/Mediatek RTC DRIVER
 M:	Eddie Huang <eddie.huang@mediatek.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
