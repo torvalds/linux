@@ -1726,7 +1726,7 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 			     enum dpio_phy phy)
 {
 	enum port port;
-	uint32_t val;
+	u32 ports, val;
 
 	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
 	val |= GT_DISPLAY_POWER_ON(phy);
@@ -1745,8 +1745,12 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 		DRM_ERROR("timeout during PHY%d power on\n", phy);
 	}
 
-	for (port =  (phy == DPIO_PHY0 ? PORT_B : PORT_A);
-	     port <= (phy == DPIO_PHY0 ? PORT_C : PORT_A); port++) {
+	if (phy == DPIO_PHY0)
+		ports = BIT(PORT_B) | BIT(PORT_C);
+	else
+		ports = BIT(PORT_A);
+
+	for_each_port_masked(port, ports) {
 		int lane;
 
 		for (lane = 0; lane < 4; lane++) {
