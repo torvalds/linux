@@ -95,8 +95,8 @@ struct tmio_mmc_host {
 	bool			sdio_irq_enabled;
 
 	int (*write16_hook)(struct tmio_mmc_host *host, int addr);
-	int (*clk_enable)(struct platform_device *pdev, unsigned int *f);
-	void (*clk_disable)(struct platform_device *pdev);
+	int (*clk_enable)(struct tmio_mmc_host *host);
+	void (*clk_disable)(struct tmio_mmc_host *host);
 	int (*multi_io_quirk)(struct mmc_card *card,
 			      unsigned int direction, int blk_size);
 };

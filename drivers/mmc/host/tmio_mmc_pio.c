@@ -845,7 +845,7 @@ static int tmio_mmc_clk_update(struct tmio_mmc_host *host)
 	if (!host->clk_enable)
 		return -ENOTSUPP;
 
-	ret = host->clk_enable(host->pdev, &mmc->f_max);
+	ret = host->clk_enable(host);
 	if (!ret)
 		mmc->f_min = mmc->f_max / 512;
 
@@ -1251,7 +1251,7 @@ int tmio_mmc_host_runtime_suspend(struct device *dev)
 		tmio_mmc_clk_stop(host);
 
 	if (host->clk_disable)
-		host->clk_disable(host->pdev);
+		host->clk_disable(host);
 
 	return 0;
 }
