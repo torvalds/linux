@@ -545,8 +545,8 @@ int xt_compat_match_offset(const struct xt_match *match)
 }
 EXPORT_SYMBOL_GPL(xt_compat_match_offset);
 
-int xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
-			      unsigned int *size)
+void xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
+			       unsigned int *size)
 {
 	const struct xt_match *match = m->u.kernel.match;
 	struct compat_xt_entry_match *cm = (struct compat_xt_entry_match *)m;
@@ -568,7 +568,6 @@ int xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
 
 	*size += off;
 	*dstptr += msize;
-	return 0;
 }
 EXPORT_SYMBOL_GPL(xt_compat_match_from_user);
 

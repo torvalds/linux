@@ -1556,7 +1556,7 @@ release_matches:
 	return ret;
 }
 
-static int
+static void
 compat_copy_entry_from_user(struct compat_ip6t_entry *e, void **dstptr,
 			    unsigned int *size,
 			    struct xt_table_info *newinfo, unsigned char *base)
@@ -1564,10 +1564,9 @@ compat_copy_entry_from_user(struct compat_ip6t_entry *e, void **dstptr,
 	struct xt_entry_target *t;
 	struct ip6t_entry *de;
 	unsigned int origsize;
-	int ret, h;
+	int h;
 	struct xt_entry_match *ematch;
 
-	ret = 0;
 	origsize = *size;
 	de = (struct ip6t_entry *)*dstptr;
 	memcpy(de, e, sizeof(struct ip6t_entry));
@@ -1576,11 +1575,9 @@ compat_copy_entry_from_user(struct compat_ip6t_entry *e, void **dstptr,
 	*dstptr += sizeof(struct ip6t_entry);
 	*size += sizeof(struct ip6t_entry) - sizeof(struct compat_ip6t_entry);
 
-	xt_ematch_foreach(ematch, e) {
-		ret = xt_compat_match_from_user(ematch, dstptr, size);
-		if (ret != 0)
-			return ret;
-	}
+	xt_ematch_foreach(ematch, e)
+		xt_compat_match_from_user(ematch, dstptr, size);
+
 	de->target_offset = e->target_offset - (origsize - *size);
 	t = compat_ip6t_get_target(e);
 	xt_compat_target_from_user(t, dstptr, size);
@@ -1592,7 +1589,6 @@ compat_copy_entry_from_user(struct compat_ip6t_entry *e, void **dstptr,
 		if ((unsigned char *)de - base < newinfo->underflow[h])
 			newinfo->underflow[h] -= origsize - *size;
 	}
-	return ret;
 }
 
 static int compat_check_entry(struct ip6t_entry *e, struct net *net,
@@ -1707,17 +1703,12 @@ translate_compat_table(struct net *net,
 	}
 	entry1 = newinfo->entries[raw_smp_processor_id()];
 	pos = entry1;
-	size = compatr->size;
-	xt_entry_foreach(iter0, entry0, compatr->size) {
-		ret = compat_copy_entry_from_user(iter0, &pos, &size,
-						  newinfo, entry1);
-		if (ret != 0)
-			break;
-	}
+	xt_entry_foreach(iter0, entry0, compatr->size)
+		compat_copy_entry_from_user(iter0, &pos, &size,
+					    newinfo, entry1);
+
 	xt_compat_flush_offsets(AF_INET6);
 	xt_compat_unlock(AF_INET6);
-	if (ret)
-		goto free_newinfo;
 
 	ret = -ELOOP;
 	if (!mark_source_chains(newinfo, compatr->valid_hooks, entry1))
