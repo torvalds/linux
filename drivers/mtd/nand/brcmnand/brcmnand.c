@@ -32,7 +32,6 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/of.h>
-#include <linux/of_mtd.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/list.h>
@@ -2001,8 +2000,8 @@ static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 	 */
 	chip->options |= NAND_USE_BOUNCE_BUFFER;
 
-	if (of_get_nand_on_flash_bbt(dn))
-		chip->bbt_options |= NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;
+	if (chip->bbt_options & NAND_BBT_USE_FLASH)
+		chip->bbt_options |= NAND_BBT_NO_OOB;
 
 	if (brcmnand_setup_dev(host))
 		return -ENXIO;
