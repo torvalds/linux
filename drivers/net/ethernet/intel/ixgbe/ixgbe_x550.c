@@ -2137,6 +2137,36 @@ static s32 ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
 	return status;
 }
 
+/**
+ * ixgbe_read_mng_if_sel_x550em - Read NW_MNG_IF_SEL register
+ * @hw: pointer to hardware structure
+ *
+ * Read NW_MNG_IF_SEL register and save field values.
+ */
+static void ixgbe_read_mng_if_sel_x550em(struct ixgbe_hw *hw)
+{
+	/* Save NW management interface connected on board. This is used
+	 * to determine internal PHY mode.
+	 */
+	hw->phy.nw_mng_if_sel = IXGBE_READ_REG(hw, IXGBE_NW_MNG_IF_SEL);
+
+	/* If X552 (X550EM_a) and MDIO is connected to external PHY, then set
+	 * PHY address. This register field was has only been used for X552.
+	 */
+	if (!hw->phy.nw_mng_if_sel) {
+		if (hw->mac.type == ixgbe_mac_x550em_a) {
+			struct ixgbe_adapter *adapter = hw->back;
+
+			e_warn(drv, "nw_mng_if_sel not set\n");
+		}
+		return;
+	}
+
+	hw->phy.mdio.prtad = (hw->phy.nw_mng_if_sel &
+			      IXGBE_NW_MNG_IF_SEL_MDIO_PHY_ADD) >>
+			     IXGBE_NW_MNG_IF_SEL_MDIO_PHY_ADD_SHIFT;
+}
+
 /** ixgbe_init_phy_ops_X550em - PHY/SFP specific init
  *  @hw: pointer to hardware structure
  *
@@ -2151,14 +2181,11 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 
 	hw->mac.ops.set_lan_id(hw);
 
+	ixgbe_read_mng_if_sel_x550em(hw);
+
 	if (hw->mac.ops.get_media_type(hw) == ixgbe_media_type_fiber) {
 		phy->phy_semaphore_mask = IXGBE_GSSR_SHARED_I2C_SM;
 		ixgbe_setup_mux_ctl(hw);
-
-		/* Save NW management interface connected on board. This is used
-		 * to determine internal PHY mode.
-		 */
-		phy->nw_mng_if_sel = IXGBE_READ_REG(hw, IXGBE_NW_MNG_IF_SEL);
 	}
 
 	/* Identify the PHY or SFP module */
