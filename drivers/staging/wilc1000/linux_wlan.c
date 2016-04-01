@@ -1234,8 +1234,10 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 			vif[i] = netdev_priv(wilc->vif[i]->ndev);
 	}
 
-	if (wilc && wilc->firmware)
+	if (wilc && wilc->firmware) {
 		release_firmware(wilc->firmware);
+		wilc->firmware = NULL;
+	}
 
 	if (wilc && (wilc->vif[0]->ndev || wilc->vif[1]->ndev)) {
 		wilc_lock_timeout(wilc, &close_exit_sync, 5 * 1000);
