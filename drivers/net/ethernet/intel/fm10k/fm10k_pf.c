@@ -488,6 +488,10 @@ static s32 fm10k_update_lport_state_pf(struct fm10k_hw *hw, u16 glort,
 	if (!fm10k_glort_valid_pf(hw, glort))
 		return FM10K_ERR_PARAM;
 
+	/* reset multicast mode if deleting lport */
+	if (!enable)
+		fm10k_update_xcast_mode_pf(hw, glort, FM10K_XCAST_MODE_NONE);
+
 	/* construct the lport message from the 2 pieces of data we have */
 	lport_msg = ((u32)count << 16) | glort;
 
