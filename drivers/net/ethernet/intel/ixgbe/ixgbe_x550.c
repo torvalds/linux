@@ -273,6 +273,12 @@ out:
 static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 {
 	switch (hw->device_id) {
+	case IXGBE_DEV_ID_X550EM_A_SFP:
+		if (hw->bus.lan_id)
+			hw->phy.phy_semaphore_mask = IXGBE_GSSR_PHY1_SM;
+		else
+			hw->phy.phy_semaphore_mask = IXGBE_GSSR_PHY0_SM;
+		return ixgbe_identify_module_generic(hw);
 	case IXGBE_DEV_ID_X550EM_X_SFP:
 		/* set up for CS4227 usage */
 		hw->phy.phy_semaphore_mask = IXGBE_GSSR_SHARED_I2C_SM;
@@ -1363,6 +1369,117 @@ i2c_err:
 }
 
 /**
+ * ixgbe_setup_mac_link_sfp_n - Setup internal PHY for native SFP
+ * @hw: pointer to hardware structure
+ *
+ * Configure the the integrated PHY for native SFP support.
+ */
+static s32
+ixgbe_setup_mac_link_sfp_n(struct ixgbe_hw *hw, ixgbe_link_speed speed,
+			   __always_unused bool autoneg_wait_to_complete)
+{
+	bool setup_linear = false;
+	u32 reg_phy_int;
+	s32 rc;
+
+	/* Check if SFP module is supported and linear */
+	rc = ixgbe_supported_sfp_modules_X550em(hw, &setup_linear);
+
+	/* If no SFP module present, then return success. Return success since
+	 * SFP not present error is not excepted in the setup MAC link flow.
+	 */
+	if (rc == IXGBE_ERR_SFP_NOT_PRESENT)
+		return 0;
+
+	if (!rc)
+		return rc;
+
+	/* Configure internal PHY for native SFI */
+	rc = hw->mac.ops.read_iosf_sb_reg(hw,
+					  IXGBE_KRM_AN_CNTL_8(hw->bus.lan_id),
+					  IXGBE_SB_IOSF_TARGET_KR_PHY,
+					  &reg_phy_int);
+	if (rc)
+		return rc;
+
+	if (setup_linear) {
+		reg_phy_int &= ~IXGBE_KRM_AN_CNTL_8_LIMITING;
+		reg_phy_int |= IXGBE_KRM_AN_CNTL_8_LINEAR;
+	} else {
+		reg_phy_int |= IXGBE_KRM_AN_CNTL_8_LIMITING;
+		reg_phy_int &= ~IXGBE_KRM_AN_CNTL_8_LINEAR;
+	}
+
+	rc = hw->mac.ops.write_iosf_sb_reg(hw,
+					   IXGBE_KRM_AN_CNTL_8(hw->bus.lan_id),
+					   IXGBE_SB_IOSF_TARGET_KR_PHY,
+					   reg_phy_int);
+	if (rc)
+		return rc;
+
+	/* Setup XFI/SFI internal link */
+	return ixgbe_setup_ixfi_x550em(hw, &speed);
+}
+
+/**
+ * ixgbe_setup_mac_link_sfp_x550a - Setup internal PHY for SFP
+ * @hw: pointer to hardware structure
+ *
+ * Configure the the integrated PHY for SFP support.
+ */
+static s32
+ixgbe_setup_mac_link_sfp_x550a(struct ixgbe_hw *hw, ixgbe_link_speed speed,
+			       __always_unused bool autoneg_wait_to_complete)
+{
+	u32 reg_slice, slice_offset;
+	bool setup_linear = false;
+	u16 reg_phy_ext;
+	s32 rc;
+
+	/* Check if SFP module is supported and linear */
+	rc = ixgbe_supported_sfp_modules_X550em(hw, &setup_linear);
+
+	/* If no SFP module present, then return success. Return success since
+	 * SFP not present error is not excepted in the setup MAC link flow.
+	 */
+	if (rc == IXGBE_ERR_SFP_NOT_PRESENT)
+		return 0;
+
+	if (!rc)
+		return rc;
+
+	/* Configure internal PHY for KR/KX. */
+	ixgbe_setup_kr_speed_x550em(hw, speed);
+
+	if (!hw->phy.mdio.prtad || hw->phy.mdio.prtad == 0xFFFF)
+		return IXGBE_ERR_PHY_ADDR_INVALID;
+
+	/* Get external PHY device id */
+	rc = hw->phy.ops.read_reg(hw, IXGBE_CS4227_GLOBAL_ID_MSB,
+				  IXGBE_MDIO_ZERO_DEV_TYPE, &reg_phy_ext);
+	if (rc)
+		return rc;
+
+	/* When configuring quad port CS4223, the MAC instance is part
+	 * of the slice offset.
+	 */
+	if (reg_phy_ext == IXGBE_CS4223_PHY_ID)
+		slice_offset = (hw->bus.lan_id +
+				(hw->bus.instance_id << 1)) << 12;
+	else
+		slice_offset = hw->bus.lan_id << 12;
+
+	/* Configure CS4227/CS4223 LINE side to proper mode. */
+	reg_slice = IXGBE_CS4227_LINE_SPARE24_LSB + slice_offset;
+	if (setup_linear)
+		reg_phy_ext = (IXGBE_CS4227_EDC_MODE_CX1 << 1) | 1;
+	else
+		reg_phy_ext = (IXGBE_CS4227_EDC_MODE_SR << 1) | 1;
+	return hw->phy.ops.write_reg(hw, reg_slice, IXGBE_MDIO_ZERO_DEV_TYPE,
+				     reg_phy_ext);
+}
+
+/**
  * ixgbe_setup_mac_link_t_X550em - Sets the auto advertised link speed
  * @hw: pointer to hardware structure
  * @speed: new link speed
@@ -1456,9 +1573,21 @@ static void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
 		mac->ops.disable_tx_laser = NULL;
 		mac->ops.enable_tx_laser = NULL;
 		mac->ops.flap_tx_laser = NULL;
-		mac->ops.setup_mac_link = ixgbe_setup_mac_link_sfp_x550em;
 		mac->ops.setup_link = ixgbe_setup_mac_link_multispeed_fiber;
 		mac->ops.setup_fc = ixgbe_setup_fc_x550em;
+		switch (hw->device_id) {
+		case IXGBE_DEV_ID_X550EM_A_SFP_N:
+			mac->ops.setup_mac_link = ixgbe_setup_mac_link_sfp_n;
+			break;
+		case IXGBE_DEV_ID_X550EM_A_SFP:
+			mac->ops.setup_mac_link =
+						ixgbe_setup_mac_link_sfp_x550a;
+			break;
+		default:
+			mac->ops.setup_mac_link =
+						ixgbe_setup_mac_link_sfp_x550em;
+			break;
+		}
 		mac->ops.set_rate_select_speed =
 					ixgbe_set_soft_rate_select_speed;
 		break;
@@ -2253,6 +2382,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_X550em(struct ixgbe_hw *hw)
 		media_type = ixgbe_media_type_backplane;
 		break;
 	case IXGBE_DEV_ID_X550EM_X_SFP:
+	case IXGBE_DEV_ID_X550EM_A_SFP:
 	case IXGBE_DEV_ID_X550EM_A_SFP_N:
 		media_type = ixgbe_media_type_fiber;
 		break;
@@ -2316,6 +2446,7 @@ static void ixgbe_set_mdio_speed(struct ixgbe_hw *hw)
 
 	switch (hw->device_id) {
 	case IXGBE_DEV_ID_X550EM_X_10G_T:
+	case IXGBE_DEV_ID_X550EM_A_SFP:
 		/* Config MDIO clock speed before the first MDIO PHY access */
 		hlreg0 = IXGBE_READ_REG(hw, IXGBE_HLREG0);
 		hlreg0 &= ~IXGBE_HLREG0_MDCSPD;
