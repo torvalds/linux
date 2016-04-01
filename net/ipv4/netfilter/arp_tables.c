@@ -1310,7 +1310,7 @@ out:
 	return ret;
 }
 
-static int
+static void
 compat_copy_entry_from_user(struct compat_arpt_entry *e, void **dstptr,
 			    unsigned int *size,
 			    struct xt_table_info *newinfo, unsigned char *base)
@@ -1319,9 +1319,8 @@ compat_copy_entry_from_user(struct compat_arpt_entry *e, void **dstptr,
 	struct xt_target *target;
 	struct arpt_entry *de;
 	unsigned int origsize;
-	int ret, h;
+	int h;
 
-	ret = 0;
 	origsize = *size;
 	de = (struct arpt_entry *)*dstptr;
 	memcpy(de, e, sizeof(struct arpt_entry));
@@ -1342,7 +1341,6 @@ compat_copy_entry_from_user(struct compat_arpt_entry *e, void **dstptr,
 		if ((unsigned char *)de - base < newinfo->underflow[h])
 			newinfo->underflow[h] -= origsize - *size;
 	}
-	return ret;
 }
 
 static int translate_compat_table(struct xt_table_info **pinfo,
@@ -1421,16 +1419,11 @@ static int translate_compat_table(struct xt_table_info **pinfo,
 	entry1 = newinfo->entries;
 	pos = entry1;
 	size = compatr->size;
-	xt_entry_foreach(iter0, entry0, compatr->size) {
-		ret = compat_copy_entry_from_user(iter0, &pos, &size,
-						  newinfo, entry1);
-		if (ret != 0)
-			break;
-	}
+	xt_entry_foreach(iter0, entry0, compatr->size)
+		compat_copy_entry_from_user(iter0, &pos, &size,
+					    newinfo, entry1);
 	xt_compat_flush_offsets(NFPROTO_ARP);
 	xt_compat_unlock(NFPROTO_ARP);
-	if (ret)
-		goto free_newinfo;
 
 	ret = -ELOOP;
 	if (!mark_source_chains(newinfo, compatr->valid_hooks, entry1))

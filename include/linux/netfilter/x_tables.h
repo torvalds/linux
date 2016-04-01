@@ -484,7 +484,7 @@ void xt_compat_init_offsets(u_int8_t af, unsigned int number);
 int xt_compat_calc_jump(u_int8_t af, unsigned int offset);
 
 int xt_compat_match_offset(const struct xt_match *match);
-int xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
+void xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
 			      unsigned int *size);
 int xt_compat_match_to_user(const struct xt_entry_match *m,
 			    void __user **dstptr, unsigned int *size);
