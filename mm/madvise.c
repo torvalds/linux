@@ -170,7 +170,7 @@ static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
 		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
 								vma, index);
 		if (page)
-			page_cache_release(page);
+			put_page(page);
 	}
 
 	return 0;
@@ -204,14 +204,14 @@ static void force_shm_swapin_readahead(struct vm_area_struct *vma,
 		page = find_get_entry(mapping, index);
 		if (!radix_tree_exceptional_entry(page)) {
 			if (page)
-				page_cache_release(page);
+				put_page(page);
 			continue;
 		}
 		swap = radix_to_swp_entry(page);
 		page = read_swap_cache_async(swap, GFP_HIGHUSER_MOVABLE,
 								NULL, 0);
 		if (page)
-			page_cache_release(page);
+			put_page(page);
 	}
 
 	lru_add_drain();	/* Push any new pages onto the LRU now */

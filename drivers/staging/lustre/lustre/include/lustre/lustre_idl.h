@@ -1031,7 +1031,7 @@ static inline int lu_dirent_size(struct lu_dirent *ent)
 #define LU_PAGE_SIZE  (1UL << LU_PAGE_SHIFT)
 #define LU_PAGE_MASK  (~(LU_PAGE_SIZE - 1))
 
-#define LU_PAGE_COUNT (1 << (PAGE_CACHE_SHIFT - LU_PAGE_SHIFT))
+#define LU_PAGE_COUNT (1 << (PAGE_SHIFT - LU_PAGE_SHIFT))
 
 /** @} lu_dir */
 

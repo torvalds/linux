@@ -765,8 +765,8 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 		 * in which ia->ia_size is located. Fill in the end of
 		 * that page from (ia->ia_size & ~PAGE_CACHE_MASK) to
 		 * PAGE_CACHE_SIZE with zeros. */
-		size_t num_zeros = (PAGE_CACHE_SIZE
-				    - (ia->ia_size & ~PAGE_CACHE_MASK));
+		size_t num_zeros = (PAGE_SIZE
+				    - (ia->ia_size & ~PAGE_MASK));
 
 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
 			truncate_setsize(inode, ia->ia_size);

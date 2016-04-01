@@ -40,7 +40,7 @@
 static inline void ntfs_unmap_page(struct page *page)
 {
 	kunmap(page);
-	page_cache_release(page);
+	put_page(page);
 }
 
 /**

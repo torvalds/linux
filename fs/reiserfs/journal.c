@@ -605,12 +605,12 @@ static void release_buffer_page(struct buffer_head *bh)
 {
 	struct page *page = bh->b_page;
 	if (!page->mapping && trylock_page(page)) {
-		page_cache_get(page);
+		get_page(page);
 		put_bh(bh);
 		if (!page->mapping)
 			try_to_free_buffers(page);
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 	} else {
 		put_bh(bh);
 	}

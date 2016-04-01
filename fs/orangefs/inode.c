@@ -18,8 +18,8 @@ static int read_one_page(struct page *page)
 	int max_block;
 	ssize_t bytes_read = 0;
 	struct inode *inode = page->mapping->host;
-	const __u32 blocksize = PAGE_CACHE_SIZE;	/* inode->i_blksize */
-	const __u32 blockbits = PAGE_CACHE_SHIFT;	/* inode->i_blkbits */
+	const __u32 blocksize = PAGE_SIZE;	/* inode->i_blksize */
+	const __u32 blockbits = PAGE_SHIFT;	/* inode->i_blkbits */
 	struct iov_iter to;
 	struct bio_vec bv = {.bv_page = page, .bv_len = PAGE_SIZE};
 
@@ -86,7 +86,7 @@ static int orangefs_readpages(struct file *file,
 				"failure adding page to cache, read_one_page returned: %d\n",
 				ret);
 	      } else {
-			page_cache_release(page);
+			put_page(page);
 	      }
 	}
 	BUG_ON(!list_empty(pages));
@@ -328,7 +328,7 @@ static int orangefs_init_iops(struct inode *inode)
 	case S_IFREG:
 		inode->i_op = &orangefs_file_inode_operations;
 		inode->i_fop = &orangefs_file_operations;
-		inode->i_blkbits = PAGE_CACHE_SHIFT;
+		inode->i_blkbits = PAGE_SHIFT;
 		break;
 	case S_IFLNK:
 		inode->i_op = &orangefs_symlink_inode_operations;
@@ -456,7 +456,7 @@ struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-	inode->i_size = PAGE_CACHE_SIZE;
+	inode->i_size = PAGE_SIZE;
 	inode->i_rdev = dev;
 
 	error = insert_inode_locked4(inode, hash, orangefs_test_inode, ref);

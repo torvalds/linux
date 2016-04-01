@@ -390,13 +390,13 @@ static inline pgoff_t page_to_pgoff(struct page *page)
 		return page->index << compound_order(page);
 
 	if (likely(!PageTransTail(page)))
-		return page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+		return page->index;
 
 	/*
 	 *  We don't initialize ->index for tail pages: calculate based on
 	 *  head page
 	 */
-	pgoff = compound_head(page)->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+	pgoff = compound_head(page)->index;
 	pgoff += page - compound_head(page);
 	return pgoff;
 }
@@ -406,12 +406,12 @@ static inline pgoff_t page_to_pgoff(struct page *page)
  */
 static inline loff_t page_offset(struct page *page)
 {
-	return ((loff_t)page->index) << PAGE_CACHE_SHIFT;
+	return ((loff_t)page->index) << PAGE_SHIFT;
 }
 
 static inline loff_t page_file_offset(struct page *page)
 {
-	return ((loff_t)page_file_index(page)) << PAGE_CACHE_SHIFT;
+	return ((loff_t)page_file_index(page)) << PAGE_SHIFT;
 }
 
 extern pgoff_t linear_hugepage_index(struct vm_area_struct *vma,
@@ -425,7 +425,7 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
 		return linear_hugepage_index(vma, address);
 	pgoff = (address - vma->vm_start) >> PAGE_SHIFT;
 	pgoff += vma->vm_pgoff;
-	return pgoff >> (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+	return pgoff;
 }
 
 extern void __lock_page(struct page *page);
@@ -671,8 +671,8 @@ static inline int add_to_page_cache(struct page *page,
 
 static inline unsigned long dir_pages(struct inode *inode)
 {
-	return (unsigned long)(inode->i_size + PAGE_CACHE_SIZE - 1) >>
-			       PAGE_CACHE_SHIFT;
+	return (unsigned long)(inode->i_size + PAGE_SIZE - 1) >>
+			       PAGE_SHIFT;
 }
 
 #endif /* _LINUX_PAGEMAP_H */

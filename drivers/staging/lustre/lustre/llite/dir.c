@@ -153,7 +153,7 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 	struct page **page_pool;
 	struct page *page;
 	struct lu_dirpage *dp;
-	int max_pages = ll_i2sbi(inode)->ll_md_brw_size >> PAGE_CACHE_SHIFT;
+	int max_pages = ll_i2sbi(inode)->ll_md_brw_size >> PAGE_SHIFT;
 	int nrdpgs = 0; /* number of pages read actually */
 	int npages;
 	int i;
@@ -193,8 +193,8 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 		if (body->valid & OBD_MD_FLSIZE)
 			cl_isize_write(inode, body->size);
 
-		nrdpgs = (request->rq_bulk->bd_nob_transferred+PAGE_CACHE_SIZE-1)
-			 >> PAGE_CACHE_SHIFT;
+		nrdpgs = (request->rq_bulk->bd_nob_transferred+PAGE_SIZE-1)
+			 >> PAGE_SHIFT;
 		SetPageUptodate(page0);
 	}
 	unlock_page(page0);
@@ -209,7 +209,7 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 		page = page_pool[i];
 
 		if (rc < 0 || i >= nrdpgs) {
-			page_cache_release(page);
+			put_page(page);
 			continue;
 		}
 
@@ -230,7 +230,7 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 			CDEBUG(D_VFSTRACE, "page %lu add to page cache failed: %d\n",
 			       offset, ret);
 		}
-		page_cache_release(page);
+		put_page(page);
 	}
 
 	if (page_pool != &page0)
@@ -247,7 +247,7 @@ void ll_release_page(struct page *page, int remove)
 			truncate_complete_page(page->mapping, page);
 		unlock_page(page);
 	}
-	page_cache_release(page);
+	put_page(page);
 }
 
 /*
@@ -273,7 +273,7 @@ static struct page *ll_dir_page_locate(struct inode *dir, __u64 *hash,
 	if (found > 0 && !radix_tree_exceptional_entry(page)) {
 		struct lu_dirpage *dp;
 
-		page_cache_get(page);
+		get_page(page);
 		spin_unlock_irq(&mapping->tree_lock);
 		/*
 		 * In contrast to find_lock_page() we are sure that directory
@@ -313,7 +313,7 @@ static struct page *ll_dir_page_locate(struct inode *dir, __u64 *hash,
 				page = NULL;
 			}
 		} else {
-			page_cache_release(page);
+			put_page(page);
 			page = ERR_PTR(-EIO);
 		}
 
@@ -1507,7 +1507,7 @@ skip_lmm:
 			st.st_gid     = body->gid;
 			st.st_rdev    = body->rdev;
 			st.st_size    = body->size;
-			st.st_blksize = PAGE_CACHE_SIZE;
+			st.st_blksize = PAGE_SIZE;
 			st.st_blocks  = body->blocks;
 			st.st_atime   = body->atime;
 			st.st_mtime   = body->mtime;

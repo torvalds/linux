@@ -90,7 +90,7 @@ void srpc_set_counters(const srpc_counters_t *cnt)
 static int
 srpc_add_bulk_page(srpc_bulk_t *bk, struct page *pg, int i, int nob)
 {
-	nob = min_t(int, nob, PAGE_CACHE_SIZE);
+	nob = min_t(int, nob, PAGE_SIZE);
 
 	LASSERT(nob > 0);
 	LASSERT(i >= 0 && i < bk->bk_niov);

@@ -1318,7 +1318,7 @@ bad_format:
 
 static inline int cli_brw_size(struct obd_device *obd)
 {
-	return obd->u.cli.cl_max_pages_per_rpc << PAGE_CACHE_SHIFT;
+	return obd->u.cli.cl_max_pages_per_rpc << PAGE_SHIFT;
 }
 
 #endif /* __OBD_H */
