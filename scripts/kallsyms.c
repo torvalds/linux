@@ -223,6 +223,8 @@ static int symbol_valid(struct sym_entry *s)
 
 	static char *special_suffixes[] = {
 		"_veneer",		/* arm */
+		"_from_arm",		/* arm */
+		"_from_thumb",		/* arm */
 		NULL };
 
 	int i;
