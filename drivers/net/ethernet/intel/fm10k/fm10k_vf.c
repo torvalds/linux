@@ -228,7 +228,7 @@ s32 fm10k_msg_mac_vlan_vf(struct fm10k_hw *hw, u32 **results,
 
 	ether_addr_copy(hw->mac.perm_addr, perm_addr);
 	hw->mac.default_vid = vid & (FM10K_VLAN_TABLE_VID_MAX - 1);
-	hw->mac.vlan_override = !!(vid & FM10K_VLAN_CLEAR);
+	hw->mac.vlan_override = !!(vid & FM10K_VLAN_OVERRIDE);
 
 	return 0;
 }
