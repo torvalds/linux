@@ -825,7 +825,7 @@ struct ixgbe_fdir_filter {
 	struct hlist_node fdir_node;
 	union ixgbe_atr_input filter;
 	u16 sw_idx;
-	u16 action;
+	u64 action;
 };
 
 enum ixgbe_state_t {
