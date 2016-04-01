@@ -2049,14 +2049,13 @@ static struct tty_struct *tty_open_by_driver(dev_t device, struct inode *inode,
 	if (tty) {
 		mutex_unlock(&tty_mutex);
 		retval = tty_lock_interruptible(tty);
+		tty_kref_put(tty);  /* drop kref from tty_driver_lookup_tty() */
 		if (retval) {
 			if (retval == -EINTR)
 				retval = -ERESTARTSYS;
 			tty = ERR_PTR(retval);
 			goto out;
 		}
-		/* safe to drop the kref from tty_driver_lookup_tty() */
-		tty_kref_put(tty);
 		retval = tty_reopen(tty);
 		if (retval < 0) {
 			tty_unlock(tty);
