@@ -21,7 +21,6 @@
 #include <linux/mtd/partitions.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_mtd.h>
 #include <linux/delay.h>
 
 /* NANDc reg offsets */

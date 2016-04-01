@@ -35,7 +35,6 @@
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
-#include <linux/of_mtd.h>
 #include <linux/of_gpio.h>
 #include <linux/mtd/lpc32xx_mlc.h>
 #include <linux/io.h>
