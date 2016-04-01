@@ -2600,9 +2600,6 @@ int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_DynamicUVDState);
 
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_SclkThrottleLowNotification);
-
 	/* power tune caps Assume disabled */
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_SQRamping);
@@ -2930,7 +2927,7 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	data->dll_default_on = false;
 	data->sram_end = SMC_RAM_END;
-
+	data->mclk_dpm0_activity_target = 0xa;
 	data->disable_dpm_mask = 0xFF;
 	data->static_screen_threshold = PPPOLARIS10_STATICSCREENTHRESHOLD_DFLT;
 	data->static_screen_threshold_unit = PPPOLARIS10_STATICSCREENTHRESHOLD_DFLT;
