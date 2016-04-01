@@ -1558,6 +1558,57 @@ static s32 ixgbe_check_link_t_X550em(struct ixgbe_hw *hw,
 	return 0;
 }
 
+/**
+ * ixgbe_setup_sgmii - Set up link for sgmii
+ * @hw: pointer to hardware structure
+ */
+static s32
+ixgbe_setup_sgmii(struct ixgbe_hw *hw, __always_unused ixgbe_link_speed speed,
+		  __always_unused bool autoneg_wait_to_complete)
+{
+	struct ixgbe_mac_info *mac = &hw->mac;
+	u32 lval, sval;
+	s32 rc;
+
+	rc = mac->ops.read_iosf_sb_reg(hw,
+				       IXGBE_KRM_LINK_CTRL_1(hw->bus.lan_id),
+				       IXGBE_SB_IOSF_TARGET_KR_PHY, &lval);
+	if (rc)
+		return rc;
+
+	lval &= ~IXGBE_KRM_LINK_CTRL_1_TETH_AN_ENABLE;
+	lval &= ~IXGBE_KRM_LINK_CTRL_1_TETH_FORCE_SPEED_MASK;
+	lval |= IXGBE_KRM_LINK_CTRL_1_TETH_AN_SGMII_EN;
+	lval |= IXGBE_KRM_LINK_CTRL_1_TETH_AN_CLAUSE_37_EN;
+	lval |= IXGBE_KRM_LINK_CTRL_1_TETH_FORCE_SPEED_1G;
+	rc = mac->ops.write_iosf_sb_reg(hw,
+					IXGBE_KRM_LINK_CTRL_1(hw->bus.lan_id),
+					IXGBE_SB_IOSF_TARGET_KR_PHY, lval);
+	if (rc)
+		return rc;
+
+	rc = mac->ops.read_iosf_sb_reg(hw,
+				       IXGBE_KRM_SGMII_CTRL(hw->bus.lan_id),
+				       IXGBE_SB_IOSF_TARGET_KR_PHY, &sval);
+	if (rc)
+		return rc;
+
+	sval |= IXGBE_KRM_SGMII_CTRL_MAC_TAR_FORCE_10_D;
+	sval |= IXGBE_KRM_SGMII_CTRL_MAC_TAR_FORCE_100_D;
+	rc = mac->ops.write_iosf_sb_reg(hw,
+					IXGBE_KRM_SGMII_CTRL(hw->bus.lan_id),
+					IXGBE_SB_IOSF_TARGET_KR_PHY, sval);
+	if (rc)
+		return rc;
+
+	lval |= IXGBE_KRM_LINK_CTRL_1_TETH_AN_RESTART;
+	rc = mac->ops.write_iosf_sb_reg(hw,
+					IXGBE_KRM_LINK_CTRL_1(hw->bus.lan_id),
+					IXGBE_SB_IOSF_TARGET_KR_PHY, lval);
+
+	return rc;
+}
+
 /** ixgbe_init_mac_link_ops_X550em - init mac link function pointers
  *  @hw: pointer to hardware structure
  **/
@@ -1597,6 +1648,9 @@ static void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
 		mac->ops.check_link = ixgbe_check_link_t_X550em;
 		return;
 	case ixgbe_media_type_backplane:
+		if (hw->device_id == IXGBE_DEV_ID_X550EM_A_SGMII ||
+		    hw->device_id == IXGBE_DEV_ID_X550EM_A_SGMII_L)
+			mac->ops.setup_link = ixgbe_setup_sgmii;
 		break;
 	default:
 		mac->ops.setup_fc = ixgbe_setup_fc_x550em;
@@ -2377,6 +2431,10 @@ static enum ixgbe_media_type ixgbe_get_media_type_X550em(struct ixgbe_hw *hw)
 
 	/* Detect if there is a copper PHY attached. */
 	switch (hw->device_id) {
+	case IXGBE_DEV_ID_X550EM_A_SGMII:
+	case IXGBE_DEV_ID_X550EM_A_SGMII_L:
+		hw->phy.type = ixgbe_phy_sgmii;
+		/* Fallthrough */
 	case IXGBE_DEV_ID_X550EM_X_KR:
 	case IXGBE_DEV_ID_X550EM_X_KX4:
 		media_type = ixgbe_media_type_backplane;
