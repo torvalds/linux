@@ -60,6 +60,10 @@
 #define IVHD_DEV_SPECIAL		0x48
 #define IVHD_DEV_ACPI_HID		0xf0
 
+#define UID_NOT_PRESENT                 0
+#define UID_IS_INTEGER                  1
+#define UID_IS_CHARACTER                2
+
 #define IVHD_SPECIAL_IOAPIC		1
 #define IVHD_SPECIAL_HPET		2
 
@@ -116,6 +120,11 @@ struct ivhd_entry {
 	u16 devid;
 	u8 flags;
 	u32 ext;
+	u32 hidh;
+	u64 cid;
+	u8 uidf;
+	u8 uidl;
+	u8 uid;
 } __attribute__((packed));
 
 /*
@@ -224,8 +233,12 @@ enum iommu_init_state {
 #define EARLY_MAP_SIZE		4
 static struct devid_map __initdata early_ioapic_map[EARLY_MAP_SIZE];
 static struct devid_map __initdata early_hpet_map[EARLY_MAP_SIZE];
+static struct acpihid_map_entry __initdata early_acpihid_map[EARLY_MAP_SIZE];
+
 static int __initdata early_ioapic_map_size;
 static int __initdata early_hpet_map_size;
+static int __initdata early_acpihid_map_size;
+
 static bool __initdata cmdline_maps;
 
 static enum iommu_init_state init_state = IOMMU_START_STATE;
@@ -765,6 +778,42 @@ static int __init add_special_device(u8 type, u8 id, u16 *devid, bool cmd_line)
 	return 0;
 }
 
+static int __init add_acpi_hid_device(u8 *hid, u8 *uid, u16 *devid,
+				      bool cmd_line)
+{
+	struct acpihid_map_entry *entry;
+	struct list_head *list = &acpihid_map;
+
+	list_for_each_entry(entry, list, list) {
+		if (strcmp(entry->hid, hid) ||
+		    (*uid && *entry->uid && strcmp(entry->uid, uid)) ||
+		    !entry->cmd_line)
+			continue;
+
+		pr_info("AMD-Vi: Command-line override for hid:%s uid:%s\n",
+			hid, uid);
+		*devid = entry->devid;
+		return 0;
+	}
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	memcpy(entry->uid, uid, strlen(uid));
+	memcpy(entry->hid, hid, strlen(hid));
+	entry->devid = *devid;
+	entry->cmd_line	= cmd_line;
+	entry->root_devid = (entry->devid & (~0x7));
+
+	pr_info("AMD-Vi:%s, add hid:%s, uid:%s, rdevid:%d\n",
+		entry->cmd_line ? "cmd" : "ivrs",
+		entry->hid, entry->uid, entry->root_devid);
+
+	list_add_tail(&entry->list, list);
+	return 0;
+}
+
 static int __init add_early_maps(void)
 {
 	int i, ret;
@@ -783,6 +832,15 @@ static int __init add_early_maps(void)
 					 early_hpet_map[i].id,
 					 &early_hpet_map[i].devid,
 					 early_hpet_map[i].cmd_line);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < early_acpihid_map_size; ++i) {
+		ret = add_acpi_hid_device(early_acpihid_map[i].hid,
+					  early_acpihid_map[i].uid,
+					  &early_acpihid_map[i].devid,
+					  early_acpihid_map[i].cmd_line);
 		if (ret)
 			return ret;
 	}
@@ -995,6 +1053,70 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 				    PCI_FUNC(devid));
 
 			ret = add_special_device(type, handle, &devid, false);
+			if (ret)
+				return ret;
+
+			/*
+			 * add_special_device might update the devid in case a
+			 * command-line override is present. So call
+			 * set_dev_entry_from_acpi after add_special_device.
+			 */
+			set_dev_entry_from_acpi(iommu, devid, e->flags, 0);
+
+			break;
+		}
+		case IVHD_DEV_ACPI_HID: {
+			u16 devid;
+			u8 hid[ACPIHID_HID_LEN] = {0};
+			u8 uid[ACPIHID_UID_LEN] = {0};
+			int ret;
+
+			if (h->type != 0x40) {
+				pr_err(FW_BUG "Invalid IVHD device type %#x\n",
+				       e->type);
+				break;
+			}
+
+			memcpy(hid, (u8 *)(&e->ext), ACPIHID_HID_LEN - 1);
+			hid[ACPIHID_HID_LEN - 1] = '\0';
+
+			if (!(*hid)) {
+				pr_err(FW_BUG "Invalid HID.\n");
+				break;
+			}
+
+			switch (e->uidf) {
+			case UID_NOT_PRESENT:
+
+				if (e->uidl != 0)
+					pr_warn(FW_BUG "Invalid UID length.\n");
+
+				break;
+			case UID_IS_INTEGER:
+
+				sprintf(uid, "%d", e->uid);
+
+				break;
+			case UID_IS_CHARACTER:
+
+				memcpy(uid, (u8 *)(&e->uid), ACPIHID_UID_LEN - 1);
+				uid[ACPIHID_UID_LEN - 1] = '\0';
+
+				break;
+			default:
+				break;
+			}
+
+			DUMP_printk("  DEV_ACPI_HID(%s[%s])\t\tdevid: %02x:%02x.%x\n",
+				    hid, uid,
+				    PCI_BUS_NUM(devid),
+				    PCI_SLOT(devid),
+				    PCI_FUNC(devid));
+
+			devid  = e->devid;
+			flags = e->flags;
+
+			ret = add_acpi_hid_device(hid, uid, &devid, false);
 			if (ret)
 				return ret;
 

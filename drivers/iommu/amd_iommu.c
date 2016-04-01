@@ -72,6 +72,7 @@ static DEFINE_SPINLOCK(dev_data_list_lock);
 
 LIST_HEAD(ioapic_map);
 LIST_HEAD(hpet_map);
+LIST_HEAD(acpihid_map);
 
 /*
  * Domain for untranslated devices - only allocated
