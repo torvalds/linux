@@ -424,7 +424,6 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 				       struct wilc_vif *vif)
 {
 	unsigned char c_val[64];
-	unsigned char mac_add[] = {0x00, 0x80, 0xC2, 0x5E, 0xa2, 0xff};
 	struct wilc *wilc = vif->wilc;
 	struct wilc_priv *priv;
 	struct host_if_drv *hif_drv;
@@ -433,9 +432,6 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
 	hif_drv = (struct host_if_drv *)priv->hif_drv;
 	netdev_dbg(dev, "Host = %p\n", hif_drv);
-	wilc_get_mac_address(vif, mac_add);
-
-	netdev_dbg(dev, "MAC address is : %pM\n", mac_add);
 	wilc_get_chipid(wilc, false);
 
 	*(int *)c_val = 1;
@@ -595,11 +591,6 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 	c_val[0] = 1;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_TXOP_PROT_DISABLE, c_val, 1, 0,
 			       0))
-		goto _fail_;
-
-	memcpy(c_val, mac_add, 6);
-
-	if (!wilc_wlan_cfg_set(vif, 0, WID_MAC_ADDR, c_val, 6, 0, 0))
 		goto _fail_;
 
 	c_val[0] = DETECT_PROTECT_REPORT;
