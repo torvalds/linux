@@ -317,6 +317,70 @@ struct btrfs_balance_progress {
 	__u64 completed;	/* # of chunks relocated so far */
 };
 
+/*
+ * flags definition for balance
+ *
+ * Restriper's general type filter
+ *
+ * Used by:
+ * btrfs_ioctl_balance_args.flags
+ * btrfs_balance_control.flags (internal)
+ */
+#define BTRFS_BALANCE_DATA		(1ULL << 0)
+#define BTRFS_BALANCE_SYSTEM		(1ULL << 1)
+#define BTRFS_BALANCE_METADATA		(1ULL << 2)
+
+#define BTRFS_BALANCE_TYPE_MASK		(BTRFS_BALANCE_DATA |	    \
+					 BTRFS_BALANCE_SYSTEM |	    \
+					 BTRFS_BALANCE_METADATA)
+
+#define BTRFS_BALANCE_FORCE		(1ULL << 3)
+#define BTRFS_BALANCE_RESUME		(1ULL << 4)
+
+/*
+ * flags definitions for per-type balance args
+ *
+ * Balance filters
+ *
+ * Used by:
+ * struct btrfs_balance_args
+ */
+#define BTRFS_BALANCE_ARGS_PROFILES	(1ULL << 0)
+#define BTRFS_BALANCE_ARGS_USAGE	(1ULL << 1)
+#define BTRFS_BALANCE_ARGS_DEVID	(1ULL << 2)
+#define BTRFS_BALANCE_ARGS_DRANGE	(1ULL << 3)
+#define BTRFS_BALANCE_ARGS_VRANGE	(1ULL << 4)
+#define BTRFS_BALANCE_ARGS_LIMIT	(1ULL << 5)
+#define BTRFS_BALANCE_ARGS_LIMIT_RANGE	(1ULL << 6)
+#define BTRFS_BALANCE_ARGS_STRIPES_RANGE (1ULL << 7)
+#define BTRFS_BALANCE_ARGS_USAGE_RANGE	(1ULL << 10)
+
+#define BTRFS_BALANCE_ARGS_MASK			\
+	(BTRFS_BALANCE_ARGS_PROFILES |		\
+	 BTRFS_BALANCE_ARGS_USAGE |		\
+	 BTRFS_BALANCE_ARGS_DEVID | 		\
+	 BTRFS_BALANCE_ARGS_DRANGE |		\
+	 BTRFS_BALANCE_ARGS_VRANGE |		\
+	 BTRFS_BALANCE_ARGS_LIMIT |		\
+	 BTRFS_BALANCE_ARGS_LIMIT_RANGE |	\
+	 BTRFS_BALANCE_ARGS_STRIPES_RANGE |	\
+	 BTRFS_BALANCE_ARGS_USAGE_RANGE)
+
+/*
+ * Profile changing flags.  When SOFT is set we won't relocate chunk if
+ * it already has the target profile (even though it may be
+ * half-filled).
+ */
+#define BTRFS_BALANCE_ARGS_CONVERT	(1ULL << 8)
+#define BTRFS_BALANCE_ARGS_SOFT		(1ULL << 9)
+
+
+/*
+ * flags definition for balance state
+ *
+ * Used by:
+ * struct btrfs_ioctl_balance_args.state
+ */
 #define BTRFS_BALANCE_STATE_RUNNING	(1ULL << 0)
 #define BTRFS_BALANCE_STATE_PAUSE_REQ	(1ULL << 1)
 #define BTRFS_BALANCE_STATE_CANCEL_REQ	(1ULL << 2)
