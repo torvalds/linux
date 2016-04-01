@@ -24,7 +24,7 @@
 #include <linux/errno.h>
 #include <linux/gpio.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/mfd/tps6586x.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -140,14 +140,3 @@ static int __init tps6586x_gpio_init(void)
 	return platform_driver_register(&tps6586x_gpio_driver);
 }
 subsys_initcall(tps6586x_gpio_init);
-
-static void __exit tps6586x_gpio_exit(void)
-{
-	platform_driver_unregister(&tps6586x_gpio_driver);
-}
-module_exit(tps6586x_gpio_exit);
-
-MODULE_ALIAS("platform:tps6586x-gpio");
-MODULE_DESCRIPTION("GPIO interface for TPS6586X PMIC");
-MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
-MODULE_LICENSE("GPL");
