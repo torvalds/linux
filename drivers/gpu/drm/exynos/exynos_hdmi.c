@@ -1760,7 +1760,6 @@ static struct device_node *hdmi_legacy_phy_dt_binding(struct device *dev)
 static int hdmi_probe(struct platform_device *pdev)
 {
 	struct device_node *ddc_node, *phy_node;
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct hdmi_context *hdata;
 	struct resource *res;
@@ -1770,11 +1769,7 @@ static int hdmi_probe(struct platform_device *pdev)
 	if (!hdata)
 		return -ENOMEM;
 
-	match = of_match_device(hdmi_match_types, dev);
-	if (!match)
-		return -ENODEV;
-
-	hdata->drv_data = match->data;
+	hdata->drv_data = of_device_get_match_data(dev);
 
 	platform_set_drvdata(pdev, hdata);
 
