@@ -141,109 +141,82 @@ static inline bool idma_is_set(struct ipu_soc *ipu, uint32_t reg, uint32_t dma)
 
 static int ipu_clk_setup_enable(struct ipu_soc *ipu)
 {
-	char pixel_clk_0[] = "ipu1_pclk_0";
-	char pixel_clk_1[] = "ipu1_pclk_1";
-	char pixel_clk_0_sel[] = "ipu1_pclk0_sel";
-	char pixel_clk_1_sel[] = "ipu1_pclk1_sel";
-	char pixel_clk_0_div[] = "ipu1_pclk0_div";
-	char pixel_clk_1_div[] = "ipu1_pclk1_div";
-	char *ipu_pixel_clk_sel[] = { "ipu1", "ipu1_di0", "ipu1_di1", };
-	char *pclk_sel;
+	char pixel_clk[11];
+	char pixel_clk_sel[15];
+	char pixel_clk_div[15];
+	char pixel_clk_parent0[5];
+	char pixel_clk_parent1[9];
+	char *pixel_clk_parents[2];
+	char di_clk[4];
+	char di_clk_sel[8];
 	struct clk *clk;
+	unsigned int di;
+	unsigned int ipu_id;	/* for clk naming */
 	int ret;
-	int i;
 
-	pixel_clk_0[3] += ipu->id;
-	pixel_clk_1[3] += ipu->id;
-	pixel_clk_0_sel[3] += ipu->id;
-	pixel_clk_1_sel[3] += ipu->id;
-	pixel_clk_0_div[3] += ipu->id;
-	pixel_clk_1_div[3] += ipu->id;
-	for (i = 0; i < ARRAY_SIZE(ipu_pixel_clk_sel); i++) {
-		pclk_sel = ipu_pixel_clk_sel[i];
-		pclk_sel[3] += ipu->id;
-	}
 	dev_dbg(ipu->dev, "ipu_clk = %lu\n", clk_get_rate(ipu->ipu_clk));
 
-	clk = clk_register_mux_pix_clk(ipu->dev, pixel_clk_0_sel,
-			(const char **)ipu_pixel_clk_sel,
-			ARRAY_SIZE(ipu_pixel_clk_sel),
-			0, ipu->id, 0, 0);
-	if (IS_ERR(clk)) {
-		dev_err(ipu->dev, "clk_register mux di0 failed");
-		return PTR_ERR(clk);
-	}
-	ipu->pixel_clk_sel[0] = clk;
-	clk = clk_register_mux_pix_clk(ipu->dev, pixel_clk_1_sel,
-			(const char **)ipu_pixel_clk_sel,
-			ARRAY_SIZE(ipu_pixel_clk_sel),
-			0, ipu->id, 1, 0);
-	if (IS_ERR(clk)) {
-		dev_err(ipu->dev, "clk_register mux di1 failed");
-		return PTR_ERR(clk);
-	}
-	ipu->pixel_clk_sel[1] = clk;
+	ipu_id = ipu->id + 1;
 
-	clk = clk_register_div_pix_clk(ipu->dev, pixel_clk_0_div,
-				pixel_clk_0_sel, 0, ipu->id, 0, 0);
-	if (IS_ERR(clk)) {
-		dev_err(ipu->dev, "clk register di0 div failed");
-		return PTR_ERR(clk);
-	}
-	clk = clk_register_div_pix_clk(ipu->dev, pixel_clk_1_div,
-			pixel_clk_1_sel, CLK_SET_RATE_PARENT, ipu->id, 1, 0);
-	if (IS_ERR(clk)) {
-		dev_err(ipu->dev, "clk register di1 div failed");
-		return PTR_ERR(clk);
-	}
+	pixel_clk_parents[0] = pixel_clk_parent0;
+	pixel_clk_parents[1] = pixel_clk_parent1;
 
-	ipu->pixel_clk[0] = clk_register_gate_pix_clk(ipu->dev, pixel_clk_0,
-				pixel_clk_0_div, CLK_SET_RATE_PARENT,
-				ipu->id, 0, 0);
-	if (IS_ERR(ipu->pixel_clk[0])) {
-		dev_err(ipu->dev, "clk register di0 gate failed");
-		return PTR_ERR(ipu->pixel_clk[0]);
-	}
-	ipu->pixel_clk[1] = clk_register_gate_pix_clk(ipu->dev, pixel_clk_1,
-				pixel_clk_1_div, CLK_SET_RATE_PARENT,
-				ipu->id, 1, 0);
-	if (IS_ERR(ipu->pixel_clk[1])) {
-		dev_err(ipu->dev, "clk register di1 gate failed");
-		return PTR_ERR(ipu->pixel_clk[1]);
-	}
+	for (di = 0; di < 2; di++) {
+		snprintf(pixel_clk_sel, sizeof(pixel_clk_sel),
+				"ipu%u_pclk%u_sel", ipu_id, di);
+		snprintf(pixel_clk_parent0, sizeof(pixel_clk_parent0),
+				"ipu%u", ipu_id);
+		snprintf(pixel_clk_parent1, sizeof(pixel_clk_parent1),
+				"ipu%u_di%u", ipu_id, di);
+		clk = clk_register_mux_pix_clk(ipu->dev, pixel_clk_sel,
+				(const char **)pixel_clk_parents,
+				ARRAY_SIZE(pixel_clk_parents),
+				0, ipu->id, di, 0);
+		if (IS_ERR(clk)) {
+			dev_err(ipu->dev, "di%u mux clk register failed\n", di);
+			return PTR_ERR(clk);
+		}
+		ipu->pixel_clk_sel[di] = clk;
 
-	ret = clk_set_parent(ipu->pixel_clk_sel[0], ipu->ipu_clk);
-	if (ret) {
-		dev_err(ipu->dev, "clk set parent failed");
-		return ret;
-	}
+		snprintf(pixel_clk_div, sizeof(pixel_clk_div),
+				"ipu%u_pclk%u_div", ipu_id, di);
+		clk = clk_register_div_pix_clk(ipu->dev, pixel_clk_div,
+					pixel_clk_sel, 0, ipu->id, di, 0);
+		if (IS_ERR(clk)) {
+			dev_err(ipu->dev, "di%u div clk register failed\n", di);
+			return PTR_ERR(clk);
+		}
 
-	ret = clk_set_parent(ipu->pixel_clk_sel[1], ipu->ipu_clk);
-	if (ret) {
-		dev_err(ipu->dev, "clk set parent failed");
-		return ret;
-	}
+		snprintf(pixel_clk, sizeof(pixel_clk),
+				"ipu%u_pclk%u", ipu_id, di);
+		ipu->pixel_clk[di] = clk_register_gate_pix_clk(ipu->dev,
+					pixel_clk, pixel_clk_div,
+					CLK_SET_RATE_PARENT, ipu->id, di, 0);
+		if (IS_ERR(ipu->pixel_clk[di])) {
+			dev_err(ipu->dev,
+					"di%u gate clk register failed\n", di);
+			return PTR_ERR(ipu->pixel_clk[di]);
+		}
 
-	ipu->di_clk[0] = devm_clk_get(ipu->dev, "di0");
-	if (IS_ERR(ipu->di_clk[0])) {
-		dev_err(ipu->dev, "clk_get di0 failed");
-		return PTR_ERR(ipu->di_clk[0]);
-	}
-	ipu->di_clk[1] = devm_clk_get(ipu->dev, "di1");
-	if (IS_ERR(ipu->di_clk[1])) {
-		dev_err(ipu->dev, "clk_get di1 failed");
-		return PTR_ERR(ipu->di_clk[1]);
-	}
+		ret = clk_set_parent(ipu->pixel_clk_sel[di], ipu->ipu_clk);
+		if (ret) {
+			dev_err(ipu->dev, "pixel clk set parent failed\n");
+			return ret;
+		}
 
-	ipu->di_clk_sel[0] = devm_clk_get(ipu->dev, "di0_sel");
-	if (IS_ERR(ipu->di_clk_sel[0])) {
-		dev_err(ipu->dev, "clk_get di0_sel failed");
-		return PTR_ERR(ipu->di_clk_sel[0]);
-	}
-	ipu->di_clk_sel[1] = devm_clk_get(ipu->dev, "di1_sel");
-	if (IS_ERR(ipu->di_clk_sel[1])) {
-		dev_err(ipu->dev, "clk_get di1_sel failed");
-		return PTR_ERR(ipu->di_clk_sel[1]);
+		snprintf(di_clk, sizeof(di_clk), "di%u", di);
+		ipu->di_clk[di] = devm_clk_get(ipu->dev, di_clk);
+		if (IS_ERR(ipu->di_clk[di])) {
+			dev_err(ipu->dev, "di%u clk get failed\n", di);
+			return PTR_ERR(ipu->di_clk[di]);
+		}
+
+		snprintf(di_clk_sel, sizeof(di_clk_sel), "di%u_sel", di);
+		ipu->di_clk_sel[di] = devm_clk_get(ipu->dev, di_clk_sel);
+		if (IS_ERR(ipu->di_clk_sel[di])) {
+			dev_err(ipu->dev, "di%u sel clk get failed\n", di);
+			return PTR_ERR(ipu->di_clk_sel[di]);
+		}
 	}
 
 	return 0;
