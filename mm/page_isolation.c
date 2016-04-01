@@ -289,11 +289,11 @@ struct page *alloc_migrate_target(struct page *page, unsigned long private,
 	 * now as a simple work-around, we use the next node for destination.
 	 */
 	if (PageHuge(page)) {
-		nodemask_t src = nodemask_of_node(page_to_nid(page));
-		nodemask_t dst;
-		nodes_complement(dst, src);
+		int node = next_online_node(page_to_nid(page));
+		if (node == MAX_NUMNODES)
+			node = first_online_node;
 		return alloc_huge_page_node(page_hstate(compound_head(page)),
-					    next_node(page_to_nid(page), dst));
+					    node);
 	}
 
 	if (PageHighMem(page))
