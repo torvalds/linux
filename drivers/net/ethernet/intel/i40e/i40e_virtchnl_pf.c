@@ -2763,3 +2763,45 @@ int i40e_ndo_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool enable)
 out:
 	return ret;
 }
+
+/**
+ * i40e_ndo_set_vf_trust
+ * @netdev: network interface device structure of the pf
+ * @vf_id: VF identifier
+ * @setting: trust setting
+ *
+ * Enable or disable VF trust setting
+ **/
+int i40e_ndo_set_vf_trust(struct net_device *netdev, int vf_id, bool setting)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
+	struct i40e_vf *vf;
+	int ret = 0;
+
+	/* validate the request */
+	if (vf_id >= pf->num_alloc_vfs) {
+		dev_err(&pf->pdev->dev, "Invalid VF Identifier %d\n", vf_id);
+		return -EINVAL;
+	}
+
+	if (pf->flags & I40E_FLAG_MFP_ENABLED) {
+		dev_err(&pf->pdev->dev, "Trusted VF not supported in MFP mode.\n");
+		return -EINVAL;
+	}
+
+	vf = &pf->vf[vf_id];
+
+	if (!vf)
+		return -EINVAL;
+	if (setting == vf->trusted)
+		goto out;
+
+	vf->trusted = setting;
+	i40e_vc_notify_vf_reset(vf);
+	i40e_reset_vf(vf, false);
+	dev_info(&pf->pdev->dev, "VF %u is now %strusted\n",
+		 vf_id, setting ? "" : "un");
+out:
+	return ret;
+}
