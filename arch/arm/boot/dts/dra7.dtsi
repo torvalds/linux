@@ -123,7 +123,7 @@
 					#size-cells = <1>;
 					ranges = <0 0x0 0x1400>;
 
-					pbias_regulator: pbias_regulator {
+					pbias_regulator: pbias_regulator@e00 {
 						compatible = "ti,pbias-dra7", "ti,pbias-omap";
 						reg = <0xe00 0x4>;
 						syscon = <&scm_conf>;

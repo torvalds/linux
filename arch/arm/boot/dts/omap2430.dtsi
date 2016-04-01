@@ -63,7 +63,7 @@
 						#size-cells = <0>;
 					};
 
-					pbias_regulator: pbias_regulator {
+					pbias_regulator: pbias_regulator@230 {
 						compatible = "ti,pbias-omap2", "ti,pbias-omap";
 						reg = <0x230 0x4>;
 						syscon = <&scm_conf>;
