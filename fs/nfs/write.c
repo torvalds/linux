@@ -804,7 +804,7 @@ nfs_page_search_commits_for_head_request_locked(struct nfs_inode *nfsi,
  * number of outstanding requests requiring a commit as well as
  * the MM page stats.
  *
- * The caller must hold the cinfo->lock, and the nfs_page lock.
+ * The caller must hold cinfo->inode->i_lock, and the nfs_page lock.
  */
 void
 nfs_request_add_commit_list_locked(struct nfs_page *req, struct list_head *dst,
@@ -832,9 +832,9 @@ EXPORT_SYMBOL_GPL(nfs_request_add_commit_list_locked);
 void
 nfs_request_add_commit_list(struct nfs_page *req, struct nfs_commit_info *cinfo)
 {
-	spin_lock(cinfo->lock);
+	spin_lock(&cinfo->inode->i_lock);
 	nfs_request_add_commit_list_locked(req, &cinfo->mds->list, cinfo);
-	spin_unlock(cinfo->lock);
+	spin_unlock(&cinfo->inode->i_lock);
 	nfs_mark_page_unstable(req->wb_page, cinfo);
 }
 EXPORT_SYMBOL_GPL(nfs_request_add_commit_list);
@@ -864,7 +864,7 @@ EXPORT_SYMBOL_GPL(nfs_request_remove_commit_list);
 static void nfs_init_cinfo_from_inode(struct nfs_commit_info *cinfo,
 				      struct inode *inode)
 {
-	cinfo->lock = &inode->i_lock;
+	cinfo->inode = inode;
 	cinfo->mds = &NFS_I(inode)->commit_info;
 	cinfo->ds = pnfs_get_ds_info(inode);
 	cinfo->dreq = NULL;
@@ -967,7 +967,7 @@ nfs_reqs_to_commit(struct nfs_commit_info *cinfo)
 	return cinfo->mds->ncommit;
 }
 
-/* cinfo->lock held by caller */
+/* cinfo->inode->i_lock held by caller */
 int
 nfs_scan_commit_list(struct list_head *src, struct list_head *dst,
 		     struct nfs_commit_info *cinfo, int max)
@@ -979,7 +979,7 @@ nfs_scan_commit_list(struct list_head *src, struct list_head *dst,
 		if (!nfs_lock_request(req))
 			continue;
 		kref_get(&req->wb_kref);
-		if (cond_resched_lock(cinfo->lock))
+		if (cond_resched_lock(&cinfo->inode->i_lock))
 			list_safe_reset_next(req, tmp, wb_list);
 		nfs_request_remove_commit_list(req, cinfo);
 		nfs_list_add_request(req, dst);
@@ -1005,7 +1005,7 @@ nfs_scan_commit(struct inode *inode, struct list_head *dst,
 {
 	int ret = 0;
 
-	spin_lock(cinfo->lock);
+	spin_lock(&cinfo->inode->i_lock);
 	if (cinfo->mds->ncommit > 0) {
 		const int max = INT_MAX;
 
@@ -1013,7 +1013,7 @@ nfs_scan_commit(struct inode *inode, struct list_head *dst,
 					   cinfo, max);
 		ret += pnfs_scan_commit_lists(inode, cinfo, max - ret);
 	}
-	spin_unlock(cinfo->lock);
+	spin_unlock(&cinfo->inode->i_lock);
 	return ret;
 }
 

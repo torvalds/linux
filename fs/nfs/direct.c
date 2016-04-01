@@ -278,7 +278,7 @@ static void nfs_direct_release_pages(struct page **pages, unsigned int npages)
 void nfs_init_cinfo_from_dreq(struct nfs_commit_info *cinfo,
 			      struct nfs_direct_req *dreq)
 {
-	cinfo->lock = &dreq->inode->i_lock;
+	cinfo->inode = dreq->inode;
 	cinfo->mds = &dreq->mds_cinfo;
 	cinfo->ds = &dreq->ds_cinfo;
 	cinfo->dreq = dreq;
@@ -635,13 +635,13 @@ nfs_direct_write_scan_commit_list(struct inode *inode,
 				  struct list_head *list,
 				  struct nfs_commit_info *cinfo)
 {
-	spin_lock(cinfo->lock);
+	spin_lock(&cinfo->inode->i_lock);
 #ifdef CONFIG_NFS_V4_1
 	if (cinfo->ds != NULL && cinfo->ds->nwritten != 0)
 		NFS_SERVER(inode)->pnfs_curr_ld->recover_commit_reqs(list, cinfo);
 #endif
 	nfs_scan_commit_list(&cinfo->mds->list, list, cinfo, 0);
-	spin_unlock(cinfo->lock);
+	spin_unlock(&cinfo->inode->i_lock);
 }
 
 static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
@@ -676,13 +676,13 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 		if (!nfs_pageio_add_request(&desc, req)) {
 			nfs_list_remove_request(req);
 			nfs_list_add_request(req, &failed);
-			spin_lock(cinfo.lock);
+			spin_lock(&cinfo.inode->i_lock);
 			dreq->flags = 0;
 			if (desc.pg_error < 0)
 				dreq->error = desc.pg_error;
 			else
 				dreq->error = -EIO;
-			spin_unlock(cinfo.lock);
+			spin_unlock(&cinfo.inode->i_lock);
 		}
 		nfs_release_request(req);
 	}
