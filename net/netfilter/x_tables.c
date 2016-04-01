@@ -546,13 +546,16 @@ struct compat_xt_standard_target {
 	compat_uint_t verdict;
 };
 
-/* see xt_check_entry_offsets */
-int xt_compat_check_entry_offsets(const void *base,
+int xt_compat_check_entry_offsets(const void *base, const char *elems,
 				  unsigned int target_offset,
 				  unsigned int next_offset)
 {
+	long size_of_base_struct = elems - (const char *)base;
 	const struct compat_xt_entry_target *t;
 	const char *e = base;
+
+	if (target_offset < size_of_base_struct)
+		return -EINVAL;
 
 	if (target_offset + sizeof(*t) > next_offset)
 		return -EINVAL;
@@ -577,11 +580,15 @@ EXPORT_SYMBOL(xt_compat_check_entry_offsets);
  * xt_check_entry_offsets - validate arp/ip/ip6t_entry
  *
  * @base: pointer to arp/ip/ip6t_entry
+ * @elems: pointer to first xt_entry_match, i.e. ip(6)t_entry->elems
  * @target_offset: the arp/ip/ip6_t->target_offset
  * @next_offset: the arp/ip/ip6_t->next_offset
  *
  * validates that target_offset and next_offset are sane.
  * Also see xt_compat_check_entry_offsets for CONFIG_COMPAT version.
+ *
+ * This function does not validate the targets or matches themselves, it
+ * only tests that all the offsets and sizes are correct.
  *
  * The arp/ip/ip6t_entry structure @base must have passed following tests:
  * - it must point to a valid memory location
@@ -591,11 +598,17 @@ EXPORT_SYMBOL(xt_compat_check_entry_offsets);
  * Return: 0 on success, negative errno on failure.
  */
 int xt_check_entry_offsets(const void *base,
+			   const char *elems,
 			   unsigned int target_offset,
 			   unsigned int next_offset)
 {
+	long size_of_base_struct = elems - (const char *)base;
 	const struct xt_entry_target *t;
 	const char *e = base;
+
+	/* target start is within the ip/ip6/arpt_entry struct */
+	if (target_offset < size_of_base_struct)
+		return -EINVAL;
 
 	if (target_offset + sizeof(*t) > next_offset)
 		return -EINVAL;
