@@ -1160,7 +1160,9 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, const int budget)
 			 ? le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1)
 			 : 0;
 #ifdef I40E_FCOE
-		if (!i40e_fcoe_handle_offload(rx_ring, rx_desc, skb)) {
+		if (unlikely(
+		    i40e_rx_is_fcoe(rx_ptype) &&
+		    !i40e_fcoe_handle_offload(rx_ring, rx_desc, skb))) {
 			dev_kfree_skb_any(skb);
 			continue;
 		}
