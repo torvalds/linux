@@ -410,7 +410,6 @@ struct btrfs_header {
  * room to translate 14 chunks with 3 stripes each.
  */
 #define BTRFS_SYSTEM_CHUNK_ARRAY_SIZE 2048
-#define BTRFS_LABEL_SIZE 256
 
 /*
  * just in case we somehow lose the roots and are not able to mount,
