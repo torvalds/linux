@@ -1131,12 +1131,11 @@ EXPORT_SYMBOL(ldlm_cli_cancel_list_local);
  * dirty data, to close a file, ...) or waiting for any RPCs in-flight (e.g.
  * readahead requests, ...)
  */
-static ldlm_policy_res_t ldlm_cancel_no_wait_policy(struct ldlm_namespace *ns,
-						    struct ldlm_lock *lock,
-						    int unused, int added,
-						    int count)
+static enum ldlm_policy_res
+ldlm_cancel_no_wait_policy(struct ldlm_namespace *ns, struct ldlm_lock *lock,
+			   int unused, int added, int count)
 {
-	ldlm_policy_res_t result = LDLM_POLICY_CANCEL_LOCK;
+	enum ldlm_policy_res result = LDLM_POLICY_CANCEL_LOCK;
 
 	/* don't check added & count since we want to process all locks
 	 * from unused list.
@@ -1168,10 +1167,10 @@ static ldlm_policy_res_t ldlm_cancel_no_wait_policy(struct ldlm_namespace *ns,
  *
  * \retval LDLM_POLICY_CANCEL_LOCK cancel lock from LRU
  */
-static ldlm_policy_res_t ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
-						 struct ldlm_lock *lock,
-						 int unused, int added,
-						 int count)
+static enum ldlm_policy_res ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
+						    struct ldlm_lock *lock,
+						    int unused, int added,
+						    int count)
 {
 	unsigned long cur = cfs_time_current();
 	struct ldlm_pool *pl = &ns->ns_pool;
@@ -1214,10 +1213,10 @@ static ldlm_policy_res_t ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
  *
  * \retval LDLM_POLICY_CANCEL_LOCK cancel lock from LRU
  */
-static ldlm_policy_res_t ldlm_cancel_passed_policy(struct ldlm_namespace *ns,
-						   struct ldlm_lock *lock,
-						   int unused, int added,
-						   int count)
+static enum ldlm_policy_res ldlm_cancel_passed_policy(struct ldlm_namespace *ns,
+						      struct ldlm_lock *lock,
+						      int unused, int added,
+						      int count)
 {
 	/* Stop LRU processing when we reach past @count or have checked all
 	 * locks in LRU.
@@ -1235,10 +1234,10 @@ static ldlm_policy_res_t ldlm_cancel_passed_policy(struct ldlm_namespace *ns,
  *
  * \retval LDLM_POLICY_CANCEL_LOCK cancel lock from LRU
  */
-static ldlm_policy_res_t ldlm_cancel_aged_policy(struct ldlm_namespace *ns,
-						 struct ldlm_lock *lock,
-						 int unused, int added,
-						 int count)
+static enum ldlm_policy_res ldlm_cancel_aged_policy(struct ldlm_namespace *ns,
+						    struct ldlm_lock *lock,
+						    int unused, int added,
+						    int count)
 {
 	if ((added >= count) &&
 	    time_before(cfs_time_current(),
@@ -1251,13 +1250,13 @@ static ldlm_policy_res_t ldlm_cancel_aged_policy(struct ldlm_namespace *ns,
 	return LDLM_POLICY_CANCEL_LOCK;
 }
 
-static ldlm_policy_res_t
+static enum ldlm_policy_res
 ldlm_cancel_lrur_no_wait_policy(struct ldlm_namespace *ns,
 				struct ldlm_lock *lock,
 				int unused, int added,
 				int count)
 {
-	ldlm_policy_res_t result;
+	enum ldlm_policy_res result;
 
 	result = ldlm_cancel_lrur_policy(ns, lock, unused, added, count);
 	if (result == LDLM_POLICY_KEEP_LOCK)
@@ -1275,10 +1274,9 @@ ldlm_cancel_lrur_no_wait_policy(struct ldlm_namespace *ns,
  *
  * \retval LDLM_POLICY_CANCEL_LOCK cancel lock from LRU
  */
-static ldlm_policy_res_t ldlm_cancel_default_policy(struct ldlm_namespace *ns,
-						    struct ldlm_lock *lock,
-						    int unused, int added,
-						    int count)
+static enum ldlm_policy_res
+ldlm_cancel_default_policy(struct ldlm_namespace *ns, struct ldlm_lock *lock,
+			   int unused, int added, int count)
 {
 	/* Stop LRU processing when we reach past count or have checked all
 	 * locks in LRU.
@@ -1287,7 +1285,8 @@ static ldlm_policy_res_t ldlm_cancel_default_policy(struct ldlm_namespace *ns,
 		LDLM_POLICY_KEEP_LOCK : LDLM_POLICY_CANCEL_LOCK;
 }
 
-typedef ldlm_policy_res_t (*ldlm_cancel_lru_policy_t)(struct ldlm_namespace *,
+typedef enum ldlm_policy_res (*ldlm_cancel_lru_policy_t)(
+						      struct ldlm_namespace *,
 						      struct ldlm_lock *, int,
 						      int, int);
 
@@ -1368,7 +1367,7 @@ static int ldlm_prepare_lru_list(struct ldlm_namespace *ns,
 	LASSERT(pf);
 
 	while (!list_empty(&ns->ns_unused_list)) {
-		ldlm_policy_res_t result;
+		enum ldlm_policy_res result;
 		time_t last_use = 0;
 
 		/* all unused locks */

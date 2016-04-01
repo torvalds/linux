@@ -218,8 +218,6 @@ enum ldlm_policy_res {
 	LDLM_POLICY_SKIP_LOCK
 };
 
-typedef enum ldlm_policy_res ldlm_policy_res_t;
-
 #define LDLM_POOL_SYSFS_PRINT_int(v) sprintf(buf, "%d\n", v)
 #define LDLM_POOL_SYSFS_SET_int(a, b) { a = b; }
 #define LDLM_POOL_SYSFS_PRINT_u64(v) sprintf(buf, "%lld\n", v)
