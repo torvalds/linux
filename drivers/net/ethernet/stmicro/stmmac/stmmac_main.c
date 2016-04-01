@@ -1552,51 +1552,15 @@ static void stmmac_selec_desc_mode(struct stmmac_priv *priv)
  */
 static int stmmac_get_hw_features(struct stmmac_priv *priv)
 {
-	u32 hw_cap = 0;
+	u32 ret = 0;
 
 	if (priv->hw->dma->get_hw_feature) {
-		hw_cap = priv->hw->dma->get_hw_feature(priv->ioaddr);
-
-		priv->dma_cap.mbps_10_100 = (hw_cap & DMA_HW_FEAT_MIISEL);
-		priv->dma_cap.mbps_1000 = (hw_cap & DMA_HW_FEAT_GMIISEL) >> 1;
-		priv->dma_cap.half_duplex = (hw_cap & DMA_HW_FEAT_HDSEL) >> 2;
-		priv->dma_cap.hash_filter = (hw_cap & DMA_HW_FEAT_HASHSEL) >> 4;
-		priv->dma_cap.multi_addr = (hw_cap & DMA_HW_FEAT_ADDMAC) >> 5;
-		priv->dma_cap.pcs = (hw_cap & DMA_HW_FEAT_PCSSEL) >> 6;
-		priv->dma_cap.sma_mdio = (hw_cap & DMA_HW_FEAT_SMASEL) >> 8;
-		priv->dma_cap.pmt_remote_wake_up =
-		    (hw_cap & DMA_HW_FEAT_RWKSEL) >> 9;
-		priv->dma_cap.pmt_magic_frame =
-		    (hw_cap & DMA_HW_FEAT_MGKSEL) >> 10;
-		/* MMC */
-		priv->dma_cap.rmon = (hw_cap & DMA_HW_FEAT_MMCSEL) >> 11;
-		/* IEEE 1588-2002 */
-		priv->dma_cap.time_stamp =
-		    (hw_cap & DMA_HW_FEAT_TSVER1SEL) >> 12;
-		/* IEEE 1588-2008 */
-		priv->dma_cap.atime_stamp =
-		    (hw_cap & DMA_HW_FEAT_TSVER2SEL) >> 13;
-		/* 802.3az - Energy-Efficient Ethernet (EEE) */
-		priv->dma_cap.eee = (hw_cap & DMA_HW_FEAT_EEESEL) >> 14;
-		priv->dma_cap.av = (hw_cap & DMA_HW_FEAT_AVSEL) >> 15;
-		/* TX and RX csum */
-		priv->dma_cap.tx_coe = (hw_cap & DMA_HW_FEAT_TXCOESEL) >> 16;
-		priv->dma_cap.rx_coe_type1 =
-		    (hw_cap & DMA_HW_FEAT_RXTYP1COE) >> 17;
-		priv->dma_cap.rx_coe_type2 =
-		    (hw_cap & DMA_HW_FEAT_RXTYP2COE) >> 18;
-		priv->dma_cap.rxfifo_over_2048 =
-		    (hw_cap & DMA_HW_FEAT_RXFIFOSIZE) >> 19;
-		/* TX and RX number of channels */
-		priv->dma_cap.number_rx_channel =
-		    (hw_cap & DMA_HW_FEAT_RXCHCNT) >> 20;
-		priv->dma_cap.number_tx_channel =
-		    (hw_cap & DMA_HW_FEAT_TXCHCNT) >> 22;
-		/* Alternate (enhanced) DESC mode */
-		priv->dma_cap.enh_desc = (hw_cap & DMA_HW_FEAT_ENHDESSEL) >> 24;
+		priv->hw->dma->get_hw_feature(priv->ioaddr,
+					      &priv->dma_cap);
+		ret = 1;
 	}
 
-	return hw_cap;
+	return ret;
 }
 
 /**

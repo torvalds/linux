@@ -412,7 +412,8 @@ struct stmmac_dma_ops {
 	int (*dma_interrupt) (void __iomem *ioaddr,
 			      struct stmmac_extra_stats *x);
 	/* If supported then get the optional core features */
-	unsigned int (*get_hw_feature) (void __iomem *ioaddr);
+	void (*get_hw_feature)(void __iomem *ioaddr,
+			       struct dma_features *dma_cap);
 	/* Program the HW RX Watchdog */
 	void (*rx_watchdog) (void __iomem *ioaddr, u32 riwt);
 };
