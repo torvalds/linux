@@ -93,28 +93,39 @@ struct mmc_host_ops {
 	void	(*pre_req)(struct mmc_host *host, struct mmc_request *req,
 			   bool is_first_req);
 	void	(*request)(struct mmc_host *host, struct mmc_request *req);
+
 	/*
-	 * Avoid calling these three functions too often or in a "fast path",
-	 * since underlaying controller might implement them in an expensive
-	 * and/or slow way.
-	 *
-	 * Also note that these functions might sleep, so don't call them
-	 * in the atomic contexts!
-	 *
+	 * Avoid calling the next three functions too often or in a "fast
+	 * path", since underlaying controller might implement them in an
+	 * expensive and/or slow way. Also note that these functions might
+	 * sleep, so don't call them in the atomic contexts!
+	 */
+
+	/*
+	 * Notes to the set_ios callback:
+	 * ios->clock might be 0. For some controllers, setting 0Hz
+	 * as any other frequency works. However, some controllers
+	 * explicitly need to disable the clock. Otherwise e.g. voltage
+	 * switching might fail because the SDCLK is not really quiet.
+	 */
+	void	(*set_ios)(struct mmc_host *host, struct mmc_ios *ios);
+
+	/*
 	 * Return values for the get_ro callback should be:
 	 *   0 for a read/write card
 	 *   1 for a read-only card
 	 *   -ENOSYS when not supported (equal to NULL callback)
 	 *   or a negative errno value when something bad happened
-	 *
+	 */
+	int	(*get_ro)(struct mmc_host *host);
+
+	/*
 	 * Return values for the get_cd callback should be:
 	 *   0 for a absent card
 	 *   1 for a present card
 	 *   -ENOSYS when not supported (equal to NULL callback)
 	 *   or a negative errno value when something bad happened
 	 */
-	void	(*set_ios)(struct mmc_host *host, struct mmc_ios *ios);
-	int	(*get_ro)(struct mmc_host *host);
 	int	(*get_cd)(struct mmc_host *host);
 
 	void	(*enable_sdio_irq)(struct mmc_host *host, int enable);
