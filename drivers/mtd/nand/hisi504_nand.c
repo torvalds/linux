@@ -19,7 +19,6 @@
  * GNU General Public License for more details.
  */
 #include <linux/of.h>
-#include <linux/of_mtd.h>
 #include <linux/mtd/mtd.h>
 #include <linux/sizes.h>
 #include <linux/clk.h>
@@ -662,10 +661,9 @@ static int hisi_nfc_ecc_probe(struct hinfc_host *host)
 	struct device *dev = host->dev;
 	struct nand_chip *chip = &host->chip;
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct device_node *np = host->dev->of_node;
 
-	size = of_get_nand_ecc_step_size(np);
-	strength = of_get_nand_ecc_strength(np);
+	size = chip->ecc.size;
+	strength = chip->ecc.strength;
 	if (size != 1024) {
 		dev_err(dev, "error ecc size: %d\n", size);
 		return -EINVAL;
@@ -715,7 +713,7 @@ static int hisi_nfc_ecc_probe(struct hinfc_host *host)
 
 static int hisi_nfc_probe(struct platform_device *pdev)
 {
-	int ret = 0, irq, buswidth, flag, max_chips = HINFC504_MAX_CHIP;
+	int ret = 0, irq, flag, max_chips = HINFC504_MAX_CHIP;
 	struct device *dev = &pdev->dev;
 	struct hinfc_host *host;
 	struct nand_chip  *chip;
@@ -766,12 +764,6 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	chip->write_buf		= hisi_nfc_write_buf;
 	chip->read_buf		= hisi_nfc_read_buf;
 	chip->chip_delay	= HINFC504_CHIP_DELAY;
-
-	chip->ecc.mode = of_get_nand_ecc_mode(np);
-
-	buswidth = of_get_nand_bus_width(np);
-	if (buswidth == 16)
-		chip->options |= NAND_BUSWIDTH_16;
 
 	hisi_nfc_host_init(host);
 
