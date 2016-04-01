@@ -137,5 +137,7 @@ struct plat_stmmacenet_data {
 	void (*exit)(struct platform_device *pdev, void *priv);
 	void *bsp_priv;
 	struct stmmac_axi *axi;
+	int has_gmac4;
+	bool tso_en;
 };
 #endif

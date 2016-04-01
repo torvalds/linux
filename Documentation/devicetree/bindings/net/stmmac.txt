@@ -59,6 +59,8 @@ Optional properties:
 	- snps,fb: fixed-burst
 	- snps,mb: mixed-burst
 	- snps,rb: rebuild INCRx Burst
+	- snps,tso: this enables the TSO feature otherwise it will be managed by
+	    MAC HW capability register.
 - mdio: with compatible = "snps,dwmac-mdio", create and register mdio bus.
 
 Examples:
