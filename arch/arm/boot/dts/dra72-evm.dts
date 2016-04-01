@@ -104,7 +104,7 @@
 		};
 	};
 
-	sound0: sound@0 {
+	sound0: sound0 {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "DRA7xx-EVM";
 		simple-audio-card,widgets =

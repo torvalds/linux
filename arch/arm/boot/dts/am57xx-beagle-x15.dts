@@ -151,7 +151,7 @@
 		};
 	};
 
-	sound0: sound@0 {
+	sound0: sound0 {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "BeagleBoard-X15";
 		simple-audio-card,widgets =

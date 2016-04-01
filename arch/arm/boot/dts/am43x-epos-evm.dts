@@ -107,7 +107,7 @@
 		default-brightness-level = <8>;
 	};
 
-	sound0: sound@0 {
+	sound0: sound0 {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "AM43-EPOS-EVM";
 		simple-audio-card,widgets =

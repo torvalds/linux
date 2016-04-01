@@ -119,7 +119,7 @@
 		clock-frequency = <32768>;
 	};
 
-	sound0: sound@0 {
+	sound0: sound0 {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "AM437x-GP-EVM";
 		simple-audio-card,widgets =
