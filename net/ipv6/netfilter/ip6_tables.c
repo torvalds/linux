@@ -575,20 +575,10 @@ static void cleanup_match(struct xt_entry_match *m, struct net *net)
 static int
 check_entry(const struct ip6t_entry *e)
 {
-	const struct xt_entry_target *t;
-
 	if (!ip6_checkentry(&e->ipv6))
 		return -EINVAL;
 
-	if (e->target_offset + sizeof(struct xt_entry_target) >
-	    e->next_offset)
-		return -EINVAL;
-
-	t = ip6t_get_target_c(e);
-	if (e->target_offset + t->u.target_size > e->next_offset)
-		return -EINVAL;
-
-	return 0;
+	return xt_check_entry_offsets(e, e->target_offset, e->next_offset);
 }
 
 static int check_match(struct xt_entry_match *m, struct xt_mtchk_param *par)
