@@ -92,7 +92,7 @@ struct ttm_placement {
  */
 struct ttm_bus_placement {
 	void		*addr;
-	unsigned long	base;
+	phys_addr_t	base;
 	unsigned long	size;
 	unsigned long	offset;
 	bool		is_iomem;
