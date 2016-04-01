@@ -568,6 +568,9 @@ int xt_check_entry_offsets(const void *base,
 		return -EINVAL;
 
 	t = (void *)(e + target_offset);
+	if (t->u.target_size < sizeof(*t))
+		return -EINVAL;
+
 	if (target_offset + t->u.target_size > next_offset)
 		return -EINVAL;
 
