@@ -118,9 +118,9 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 };
 
 /* upper facilities limit for kvm */
-unsigned long kvm_s390_fac_list_mask[] = {
-	0xffe6ffffffffffffUL,
-	0x005effffffffffffUL,
+unsigned long kvm_s390_fac_list_mask[16] = {
+	0xffe6000000000000UL,
+	0x005e000000000000UL,
 };
 
 unsigned long kvm_s390_fac_list_mask_size(void)
@@ -2985,12 +2985,25 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	return;
 }
 
+static inline unsigned long nonhyp_mask(int i)
+{
+	unsigned int nonhyp_fai = (sclp.hmfai << i * 2) >> 30;
+
+	return 0x0000ffffffffffffUL >> (nonhyp_fai << 4);
+}
+
 static int __init kvm_s390_init(void)
 {
+	int i;
+
 	if (!sclp.has_sief2) {
 		pr_info("SIE not available\n");
 		return -ENODEV;
 	}
+
+	for (i = 0; i < 16; i++)
+		kvm_s390_fac_list_mask[i] |=
+			S390_lowcore.stfle_fac_list[i] & nonhyp_mask(i);
 
 	return kvm_init(NULL, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
 }
