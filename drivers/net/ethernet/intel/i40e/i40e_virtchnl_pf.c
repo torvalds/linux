@@ -941,6 +941,7 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 	reg_idx = (hw->func_caps.vf_base_id + vf->vf_id) / 32;
 	bit_idx = (hw->func_caps.vf_base_id + vf->vf_id) % 32;
 	wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
+	i40e_flush(hw);
 
 	if (i40e_quiesce_vf_pci(vf))
 		dev_err(&pf->pdev->dev, "VF %d PCI transactions stuck\n",
