@@ -1183,6 +1183,18 @@ static int do_add_counters(struct net *net, const void __user *user,
 }
 
 #ifdef CONFIG_COMPAT
+struct compat_arpt_replace {
+	char				name[XT_TABLE_MAXNAMELEN];
+	u32				valid_hooks;
+	u32				num_entries;
+	u32				size;
+	u32				hook_entry[NF_ARP_NUMHOOKS];
+	u32				underflow[NF_ARP_NUMHOOKS];
+	u32				num_counters;
+	compat_uptr_t			counters;
+	struct compat_arpt_entry	entries[0];
+};
+
 static inline void compat_release_entry(struct compat_arpt_entry *e)
 {
 	struct xt_entry_target *t;
@@ -1198,8 +1210,7 @@ check_compat_entry_size_and_hooks(struct compat_arpt_entry *e,
 				  const unsigned char *base,
 				  const unsigned char *limit,
 				  const unsigned int *hook_entries,
-				  const unsigned int *underflows,
-				  const char *name)
+				  const unsigned int *underflows)
 {
 	struct xt_entry_target *t;
 	struct xt_target *target;
@@ -1270,7 +1281,7 @@ out:
 
 static int
 compat_copy_entry_from_user(struct compat_arpt_entry *e, void **dstptr,
-			    unsigned int *size, const char *name,
+			    unsigned int *size,
 			    struct xt_table_info *newinfo, unsigned char *base)
 {
 	struct xt_entry_target *t;
@@ -1303,14 +1314,9 @@ compat_copy_entry_from_user(struct compat_arpt_entry *e, void **dstptr,
 	return ret;
 }
 
-static int translate_compat_table(const char *name,
-				  unsigned int valid_hooks,
-				  struct xt_table_info **pinfo,
+static int translate_compat_table(struct xt_table_info **pinfo,
 				  void **pentry0,
-				  unsigned int total_size,
-				  unsigned int number,
-				  unsigned int *hook_entries,
-				  unsigned int *underflows)
+				  const struct compat_arpt_replace *compatr)
 {
 	unsigned int i, j;
 	struct xt_table_info *newinfo, *info;
@@ -1322,8 +1328,8 @@ static int translate_compat_table(const char *name,
 
 	info = *pinfo;
 	entry0 = *pentry0;
-	size = total_size;
-	info->number = number;
+	size = compatr->size;
+	info->number = compatr->num_entries;
 
 	/* Init all hooks to impossible value. */
 	for (i = 0; i < NF_ARP_NUMHOOKS; i++) {
@@ -1334,40 +1340,39 @@ static int translate_compat_table(const char *name,
 	duprintf("translate_compat_table: size %u\n", info->size);
 	j = 0;
 	xt_compat_lock(NFPROTO_ARP);
-	xt_compat_init_offsets(NFPROTO_ARP, number);
+	xt_compat_init_offsets(NFPROTO_ARP, compatr->num_entries);
 	/* Walk through entries, checking offsets. */
-	xt_entry_foreach(iter0, entry0, total_size) {
+	xt_entry_foreach(iter0, entry0, compatr->size) {
 		ret = check_compat_entry_size_and_hooks(iter0, info, &size,
 							entry0,
-							entry0 + total_size,
-							hook_entries,
-							underflows,
-							name);
+							entry0 + compatr->size,
+							compatr->hook_entry,
+							compatr->underflow);
 		if (ret != 0)
 			goto out_unlock;
 		++j;
 	}
 
 	ret = -EINVAL;
-	if (j != number) {
+	if (j != compatr->num_entries) {
 		duprintf("translate_compat_table: %u not %u entries\n",
-			 j, number);
+			 j, compatr->num_entries);
 		goto out_unlock;
 	}
 
 	/* Check hooks all assigned */
 	for (i = 0; i < NF_ARP_NUMHOOKS; i++) {
 		/* Only hooks which are valid */
-		if (!(valid_hooks & (1 << i)))
+		if (!(compatr->valid_hooks & (1 << i)))
 			continue;
 		if (info->hook_entry[i] == 0xFFFFFFFF) {
 			duprintf("Invalid hook entry %u %u\n",
-				 i, hook_entries[i]);
+				 i, info->hook_entry[i]);
 			goto out_unlock;
 		}
 		if (info->underflow[i] == 0xFFFFFFFF) {
 			duprintf("Invalid underflow %u %u\n",
-				 i, underflows[i]);
+				 i, info->underflow[i]);
 			goto out_unlock;
 		}
 	}
@@ -1377,17 +1382,17 @@ static int translate_compat_table(const char *name,
 	if (!newinfo)
 		goto out_unlock;
 
-	newinfo->number = number;
+	newinfo->number = compatr->num_entries;
 	for (i = 0; i < NF_ARP_NUMHOOKS; i++) {
 		newinfo->hook_entry[i] = info->hook_entry[i];
 		newinfo->underflow[i] = info->underflow[i];
 	}
 	entry1 = newinfo->entries[raw_smp_processor_id()];
 	pos = entry1;
-	size = total_size;
-	xt_entry_foreach(iter0, entry0, total_size) {
+	size = compatr->size;
+	xt_entry_foreach(iter0, entry0, compatr->size) {
 		ret = compat_copy_entry_from_user(iter0, &pos, &size,
-						  name, newinfo, entry1);
+						  newinfo, entry1);
 		if (ret != 0)
 			break;
 	}
@@ -1397,12 +1402,12 @@ static int translate_compat_table(const char *name,
 		goto free_newinfo;
 
 	ret = -ELOOP;
-	if (!mark_source_chains(newinfo, valid_hooks, entry1))
+	if (!mark_source_chains(newinfo, compatr->valid_hooks, entry1))
 		goto free_newinfo;
 
 	i = 0;
 	xt_entry_foreach(iter1, entry1, newinfo->size) {
-		ret = check_target(iter1, name);
+		ret = check_target(iter1, compatr->name);
 		if (ret != 0)
 			break;
 		++i;
@@ -1447,7 +1452,7 @@ static int translate_compat_table(const char *name,
 free_newinfo:
 	xt_free_table_info(newinfo);
 out:
-	xt_entry_foreach(iter0, entry0, total_size) {
+	xt_entry_foreach(iter0, entry0, compatr->size) {
 		if (j-- == 0)
 			break;
 		compat_release_entry(iter0);
@@ -1458,18 +1463,6 @@ out_unlock:
 	xt_compat_unlock(NFPROTO_ARP);
 	goto out;
 }
-
-struct compat_arpt_replace {
-	char				name[XT_TABLE_MAXNAMELEN];
-	u32				valid_hooks;
-	u32				num_entries;
-	u32				size;
-	u32				hook_entry[NF_ARP_NUMHOOKS];
-	u32				underflow[NF_ARP_NUMHOOKS];
-	u32				num_counters;
-	compat_uptr_t			counters;
-	struct compat_arpt_entry	entries[0];
-};
 
 static int compat_do_replace(struct net *net, void __user *user,
 			     unsigned int len)
@@ -1501,10 +1494,7 @@ static int compat_do_replace(struct net *net, void __user *user,
 		goto free_newinfo;
 	}
 
-	ret = translate_compat_table(tmp.name, tmp.valid_hooks,
-				     &newinfo, &loc_cpu_entry, tmp.size,
-				     tmp.num_entries, tmp.hook_entry,
-				     tmp.underflow);
+	ret = translate_compat_table(&newinfo, &loc_cpu_entry, &tmp);
 	if (ret != 0)
 		goto free_newinfo;
 
