@@ -1375,14 +1375,10 @@ enum skl_disp_power_wells {
 
 #define _PORT_REF_DW6_A			0x162198
 #define _PORT_REF_DW6_BC		0x6C198
-/*
- * FIXME: BSpec/CHV ConfigDB disagrees on the following two fields, fix them
- * after testing.
- */
-#define   GRC_CODE_SHIFT		23
-#define   GRC_CODE_MASK			(0x1FF << GRC_CODE_SHIFT)
+#define   GRC_CODE_SHIFT		24
+#define   GRC_CODE_MASK			(0xFF << GRC_CODE_SHIFT)
 #define   GRC_CODE_FAST_SHIFT		16
-#define   GRC_CODE_FAST_MASK		(0x7F << GRC_CODE_FAST_SHIFT)
+#define   GRC_CODE_FAST_MASK		(0xFF << GRC_CODE_FAST_SHIFT)
 #define   GRC_CODE_SLOW_SHIFT		8
 #define   GRC_CODE_SLOW_MASK		(0xFF << GRC_CODE_SLOW_SHIFT)
 #define   GRC_CODE_NOM_MASK		0xFF
