@@ -2731,7 +2731,8 @@ int wilc_remove_wep_key(struct wilc_vif *vif, u8 index)
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
 		netdev_err(vif->ndev, "Request to remove WEP key\n");
-	wait_for_completion(&hif_drv->comp_test_key_block);
+	else
+		wait_for_completion(&hif_drv->comp_test_key_block);
 
 	return result;
 }
@@ -2759,7 +2760,8 @@ int wilc_set_wep_default_keyid(struct wilc_vif *vif, u8 index)
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
 		netdev_err(vif->ndev, "Default key index\n");
-	wait_for_completion(&hif_drv->comp_test_key_block);
+	else
+		wait_for_completion(&hif_drv->comp_test_key_block);
 
 	return result;
 }
@@ -2828,7 +2830,8 @@ int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
 
 	if (result)
 		netdev_err(vif->ndev, "AP - WEP Key\n");
-	wait_for_completion(&hif_drv->comp_test_key_block);
+	else
+		wait_for_completion(&hif_drv->comp_test_key_block);
 
 	return result;
 }
@@ -2883,8 +2886,8 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 
 	if (result)
 		netdev_err(vif->ndev, "PTK Key\n");
-
-	wait_for_completion(&hif_drv->comp_test_key_block);
+	else
+		wait_for_completion(&hif_drv->comp_test_key_block);
 
 	return result;
 }
@@ -2951,8 +2954,8 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
 		netdev_err(vif->ndev, "RX GTK\n");
-
-	wait_for_completion(&hif_drv->comp_test_key_block);
+	else
+		wait_for_completion(&hif_drv->comp_test_key_block);
 
 	return result;
 }
@@ -3098,8 +3101,8 @@ int wilc_disconnect(struct wilc_vif *vif, u16 reason_code)
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
 		netdev_err(vif->ndev, "Failed to send message: disconnect\n");
-
-	wait_for_completion(&hif_drv->comp_test_disconn_block);
+	else
+		wait_for_completion(&hif_drv->comp_test_disconn_block);
 
 	return result;
 }
@@ -3220,8 +3223,8 @@ s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac,
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
 		netdev_err(vif->ndev, "Failed to send get host ch param\n");
-
-	wait_for_completion(&hif_drv->comp_inactive_time);
+	else
+		wait_for_completion(&hif_drv->comp_inactive_time);
 
 	*pu32InactiveTime = inactive_time;
 
@@ -3502,8 +3505,8 @@ int wilc_deinit(struct wilc_vif *vif)
 		result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 		if (result != 0)
 			netdev_err(vif->ndev, "deinit : Error(%d)\n", result);
-
-		wait_for_completion(&hif_thread_comp);
+		else
+			wait_for_completion(&hif_thread_comp);
 
 		wilc_mq_destroy(&hif_msg_q);
 	}
@@ -3882,8 +3885,8 @@ int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 
 	if (result)
 		netdev_err(vif->ndev, "wilc_mq_send fail\n");
-
-	wait_for_completion(&hif_wait_response);
+	else
+		wait_for_completion(&hif_wait_response);
 
 	return result;
 }
