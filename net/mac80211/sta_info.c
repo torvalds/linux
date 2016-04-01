@@ -67,6 +67,7 @@
 
 static const struct rhashtable_params sta_rht_params = {
 	.nelem_hint = 3, /* start small */
+	.insecure_elasticity = true, /* Disable chain-length checks. */
 	.automatic_shrinking = true,
 	.head_offset = offsetof(struct sta_info, hash_node),
 	.key_offset = offsetof(struct sta_info, addr),
