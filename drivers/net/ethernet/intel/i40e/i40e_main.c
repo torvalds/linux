@@ -8438,7 +8438,6 @@ static int i40e_sw_init(struct i40e_pf *pf)
 
 	pf->msg_enable = netif_msg_init(I40E_DEFAULT_MSG_ENABLE,
 				(NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK));
-	pf->hw.debug_mask = pf->msg_enable | I40E_DEBUG_DIAG;
 	if (debug != -1 && debug != I40E_DEFAULT_MSG_ENABLE) {
 		if (I40E_DEBUG_USER & debug)
 			pf->hw.debug_mask = debug;
