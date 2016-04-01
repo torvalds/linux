@@ -1615,7 +1615,7 @@ static s32 ixgbe_setup_kr_speed_x550em(struct ixgbe_hw *hw,
 	s32 status;
 	u32 reg_val;
 
-	status = ixgbe_read_iosf_sb_reg_x550(hw,
+	status = hw->mac.ops.read_iosf_sb_reg(hw,
 					IXGBE_KRM_LINK_CTRL_1(hw->bus.lan_id),
 					IXGBE_SB_IOSF_TARGET_KR_PHY, &reg_val);
 	if (status)
@@ -1637,7 +1637,7 @@ static s32 ixgbe_setup_kr_speed_x550em(struct ixgbe_hw *hw,
 
 	/* Restart auto-negotiation. */
 	reg_val |= IXGBE_KRM_LINK_CTRL_1_TETH_AN_RESTART;
-	status = ixgbe_write_iosf_sb_reg_x550(hw,
+	status = hw->mac.ops.write_iosf_sb_reg(hw,
 					IXGBE_KRM_LINK_CTRL_1(hw->bus.lan_id),
 					IXGBE_SB_IOSF_TARGET_KR_PHY, reg_val);
 
@@ -1654,9 +1654,9 @@ static s32 ixgbe_setup_kx4_x550em(struct ixgbe_hw *hw)
 	s32 status;
 	u32 reg_val;
 
-	status = ixgbe_read_iosf_sb_reg_x550(hw, IXGBE_KX4_LINK_CNTL_1,
-					     IXGBE_SB_IOSF_TARGET_KX4_PCS0 +
-					     hw->bus.lan_id, &reg_val);
+	status = hw->mac.ops.read_iosf_sb_reg(hw, IXGBE_KX4_LINK_CNTL_1,
+					      IXGBE_SB_IOSF_TARGET_KX4_PCS0 +
+					      hw->bus.lan_id, &reg_val);
 	if (status)
 		return status;
 
@@ -1675,9 +1675,9 @@ static s32 ixgbe_setup_kx4_x550em(struct ixgbe_hw *hw)
 
 	/* Restart auto-negotiation. */
 	reg_val |= IXGBE_KX4_LINK_CNTL_1_TETH_AN_RESTART;
-	status = ixgbe_write_iosf_sb_reg_x550(hw, IXGBE_KX4_LINK_CNTL_1,
-					      IXGBE_SB_IOSF_TARGET_KX4_PCS0 +
-					      hw->bus.lan_id, reg_val);
+	status = hw->mac.ops.write_iosf_sb_reg(hw, IXGBE_KX4_LINK_CNTL_1,
+					       IXGBE_SB_IOSF_TARGET_KX4_PCS0 +
+					       hw->bus.lan_id, reg_val);
 
 	return status;
 }
@@ -1897,9 +1897,10 @@ static s32 ixgbe_setup_fc_x550em(struct ixgbe_hw *hw)
 	if (hw->device_id != IXGBE_DEV_ID_X550EM_X_KR)
 		return 0;
 
-	rc = ixgbe_read_iosf_sb_reg_x550(hw,
-					 IXGBE_KRM_AN_CNTL_1(hw->bus.lan_id),
-					 IXGBE_SB_IOSF_TARGET_KR_PHY, &reg_val);
+	rc = hw->mac.ops.read_iosf_sb_reg(hw,
+					  IXGBE_KRM_AN_CNTL_1(hw->bus.lan_id),
+					  IXGBE_SB_IOSF_TARGET_KR_PHY,
+					  &reg_val);
 	if (rc)
 		return rc;
 
@@ -1909,9 +1910,10 @@ static s32 ixgbe_setup_fc_x550em(struct ixgbe_hw *hw)
 		reg_val |= IXGBE_KRM_AN_CNTL_1_SYM_PAUSE;
 	if (asm_dir)
 		reg_val |= IXGBE_KRM_AN_CNTL_1_ASM_PAUSE;
-	rc = ixgbe_write_iosf_sb_reg_x550(hw,
-					  IXGBE_KRM_AN_CNTL_1(hw->bus.lan_id),
-					  IXGBE_SB_IOSF_TARGET_KR_PHY, reg_val);
+	rc = hw->mac.ops.write_iosf_sb_reg(hw,
+					   IXGBE_KRM_AN_CNTL_1(hw->bus.lan_id),
+					   IXGBE_SB_IOSF_TARGET_KR_PHY,
+					   reg_val);
 
 	/* This device does not fully support AN. */
 	hw->fc.disable_fc_autoneg = true;
@@ -2449,6 +2451,8 @@ static const struct ixgbe_mac_operations mac_ops_X550EM_x = {
 	.release_swfw_sync	= &ixgbe_release_swfw_sync_X550em,
 	.init_swfw_sync		= &ixgbe_init_swfw_sync_X540,
 	.setup_fc		= NULL, /* defined later */
+	.read_iosf_sb_reg	= ixgbe_read_iosf_sb_reg_x550,
+	.write_iosf_sb_reg	= ixgbe_write_iosf_sb_reg_x550,
 };
 
 #define X550_COMMON_EEP \
