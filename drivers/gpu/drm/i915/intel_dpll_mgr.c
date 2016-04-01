@@ -1653,8 +1653,8 @@ static void intel_ddi_pll_init(struct drm_device *dev)
 		if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE))
 			DRM_ERROR("LCPLL1 is disabled\n");
 	} else if (IS_BROXTON(dev)) {
-		broxton_init_cdclk(dev);
-		broxton_ddi_phy_init(dev);
+		broxton_init_cdclk(dev_priv);
+		broxton_ddi_phy_init(dev_priv);
 	} else {
 		/*
 		 * The LCPLL register should be turned on by the BIOS. For now

@@ -5328,9 +5328,8 @@ static void intel_update_cdclk(struct drm_device *dev)
 		intel_update_max_cdclk(dev);
 }
 
-static void broxton_set_cdclk(struct drm_device *dev, int frequency)
+static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int frequency)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t divider;
 	uint32_t ratio;
 	uint32_t current_freq;
@@ -5444,12 +5443,11 @@ static void broxton_set_cdclk(struct drm_device *dev, int frequency)
 		return;
 	}
 
-	intel_update_cdclk(dev);
+	intel_update_cdclk(dev_priv->dev);
 }
 
-void broxton_init_cdclk(struct drm_device *dev)
+void broxton_init_cdclk(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t val;
 
 	/*
@@ -5478,7 +5476,7 @@ void broxton_init_cdclk(struct drm_device *dev)
 	 * - check if setting the max (or any) cdclk freq is really necessary
 	 *   here, it belongs to modeset time
 	 */
-	broxton_set_cdclk(dev, 624000);
+	broxton_set_cdclk(dev_priv, 624000);
 
 	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) | DBUF_POWER_REQUEST);
 	POSTING_READ(DBUF_CTL);
@@ -5489,10 +5487,8 @@ void broxton_init_cdclk(struct drm_device *dev)
 		DRM_ERROR("DBuf power enable timeout!\n");
 }
 
-void broxton_uninit_cdclk(struct drm_device *dev)
+void broxton_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) & ~DBUF_POWER_REQUEST);
 	POSTING_READ(DBUF_CTL);
 
@@ -5502,7 +5498,7 @@ void broxton_uninit_cdclk(struct drm_device *dev)
 		DRM_ERROR("DBuf power disable timeout!\n");
 
 	/* Set minimum (bypass) frequency, in effect turning off the DE PLL */
-	broxton_set_cdclk(dev, 19200);
+	broxton_set_cdclk(dev_priv, 19200);
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
 }
@@ -9536,7 +9532,7 @@ static void broxton_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 		to_intel_atomic_state(old_state);
 	unsigned int req_cdclk = old_intel_state->dev_cdclk;
 
-	broxton_set_cdclk(dev, req_cdclk);
+	broxton_set_cdclk(to_i915(dev), req_cdclk);
 }
 
 /* compute the max rate for new configuration */
