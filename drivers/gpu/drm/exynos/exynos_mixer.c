@@ -1159,18 +1159,6 @@ static struct mixer_drv_data exynos4210_mxr_drv_data = {
 	.has_sclk = 1,
 };
 
-static const struct platform_device_id mixer_driver_types[] = {
-	{
-		.name		= "s5p-mixer",
-		.driver_data	= (unsigned long)&exynos4210_mxr_drv_data,
-	}, {
-		.name		= "exynos5-mixer",
-		.driver_data	= (unsigned long)&exynos5250_mxr_drv_data,
-	}, {
-		/* end node */
-	}
-};
-
 static struct of_device_id mixer_match_types[] = {
 	{
 		.compatible = "samsung,exynos4210-mixer",
@@ -1262,9 +1250,6 @@ static int mixer_probe(struct platform_device *pdev)
 
 		match = of_match_node(mixer_match_types, dev->of_node);
 		drv = (struct mixer_drv_data *)match->data;
-	} else {
-		drv = (struct mixer_drv_data *)
-			platform_get_device_id(pdev)->driver_data;
 	}
 
 	ctx->pdev = pdev;
@@ -1359,5 +1344,4 @@ struct platform_driver mixer_driver = {
 	},
 	.probe = mixer_probe,
 	.remove = mixer_remove,
-	.id_table	= mixer_driver_types,
 };
