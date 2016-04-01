@@ -50,6 +50,7 @@ MODULE_FIRMWARE(I915_CSR_SKL);
 MODULE_FIRMWARE(I915_CSR_BXT);
 
 #define SKL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 23)
+#define BXT_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
 
 #define CSR_MAX_FW_SIZE			0x2FFF
 #define CSR_DEFAULT_FW_OFFSET		0xFFFFFFFF
@@ -281,6 +282,7 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 	uint32_t dmc_offset = CSR_DEFAULT_FW_OFFSET, readcount = 0, nbytes;
 	uint32_t i;
 	uint32_t *dmc_payload;
+	uint32_t required_min_version;
 
 	if (!fw)
 		return NULL;
@@ -296,15 +298,23 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	csr->version = css_header->version;
 
-	if ((IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
-	    csr->version < SKL_CSR_VERSION_REQUIRED) {
-		DRM_INFO("Refusing to load old Skylake DMC firmware v%u.%u,"
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+		required_min_version = SKL_CSR_VERSION_REQUIRED;
+	} else if (IS_BROXTON(dev_priv)) {
+		required_min_version = BXT_CSR_VERSION_REQUIRED;
+	} else {
+		MISSING_CASE(INTEL_REVID(dev_priv));
+		required_min_version = 0;
+	}
+
+	if (csr->version < required_min_version) {
+		DRM_INFO("Refusing to load old DMC firmware v%u.%u,"
 			 " please upgrade to v%u.%u or later"
 			   " [" FIRMWARE_URL "].\n",
 			 CSR_VERSION_MAJOR(csr->version),
 			 CSR_VERSION_MINOR(csr->version),
-			 CSR_VERSION_MAJOR(SKL_CSR_VERSION_REQUIRED),
-			 CSR_VERSION_MINOR(SKL_CSR_VERSION_REQUIRED));
+			 CSR_VERSION_MAJOR(required_min_version),
+			 CSR_VERSION_MINOR(required_min_version));
 		return NULL;
 	}
 
