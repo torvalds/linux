@@ -22,6 +22,7 @@
 #include <linux/skbuff.h>
 
 #include <linux/semaphore.h>
+#include <linux/completion.h>
 
 static int dev_state_ev_handler(struct notifier_block *this,
 				unsigned long event, void *ptr);
@@ -313,12 +314,12 @@ static int linux_wlan_txq_task(void *vp)
 	vif = netdev_priv(dev);
 	wl = vif->wilc;
 
-	up(&wl->txq_thread_started);
+	complete(&wl->txq_thread_started);
 	while (1) {
 		down(&wl->txq_event);
 
 		if (wl->close) {
-			up(&wl->txq_thread_started);
+			complete(&wl->txq_thread_started);
 
 			while (!kthread_should_stop())
 				schedule();
@@ -693,8 +694,7 @@ static int wlan_init_locks(struct net_device *dev)
 
 	sema_init(&wl->cfg_event, 0);
 	sema_init(&wl->sync_event, 0);
-
-	sema_init(&wl->txq_thread_started, 0);
+	init_completion(&wl->txq_thread_started);
 
 	return 0;
 }
@@ -731,7 +731,7 @@ static int wlan_initialize_threads(struct net_device *dev)
 		wilc->close = 0;
 		return -ENOBUFS;
 	}
-	down(&wilc->txq_thread_started);
+	wait_for_completion(&wilc->txq_thread_started);
 
 	return 0;
 }

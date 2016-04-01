@@ -179,8 +179,7 @@ struct wilc {
 	struct semaphore cfg_event;
 	struct semaphore sync_event;
 	struct semaphore txq_event;
-
-	struct semaphore txq_thread_started;
+	struct completion txq_thread_started;
 
 	struct task_struct *txq_thread;
 
