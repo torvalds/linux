@@ -1462,29 +1462,6 @@ static void stmmac_mmc_setup(struct stmmac_priv *priv)
 }
 
 /**
- * stmmac_get_synopsys_id - return the SYINID.
- * @priv: driver private structure
- * Description: this simple function is to decode and return the SYINID
- * starting from the HW core register.
- */
-static u32 stmmac_get_synopsys_id(struct stmmac_priv *priv)
-{
-	u32 hwid = priv->hw->synopsys_uid;
-
-	/* Check Synopsys Id (not available on old chips) */
-	if (likely(hwid)) {
-		u32 uid = ((hwid & 0x0000ff00) >> 8);
-		u32 synid = (hwid & 0x000000ff);
-
-		pr_info("stmmac - user ID: 0x%x, Synopsys ID: 0x%x\n",
-			uid, synid);
-
-		return synid;
-	}
-	return 0;
-}
-
-/**
  * stmmac_selec_desc_mode - to select among: normal/alternate/extend descriptors
  * @priv: driver private structure
  * Description: select the Enhanced/Alternate or Normal descriptors.
@@ -2757,17 +2734,15 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		priv->dev->priv_flags |= IFF_UNICAST_FLT;
 		mac = dwmac1000_setup(priv->ioaddr,
 				      priv->plat->multicast_filter_bins,
-				      priv->plat->unicast_filter_entries);
+				      priv->plat->unicast_filter_entries,
+				      &priv->synopsys_id);
 	} else {
-		mac = dwmac100_setup(priv->ioaddr);
+		mac = dwmac100_setup(priv->ioaddr, &priv->synopsys_id);
 	}
 	if (!mac)
 		return -ENOMEM;
 
 	priv->hw = mac;
-
-	/* Get and dump the chip ID */
-	priv->synopsys_id = stmmac_get_synopsys_id(priv);
 
 	/* To use the chained or ring mode */
 	if (chain_mode) {
