@@ -589,6 +589,7 @@
 		clocks = <&mstp3_clks R8A7790_CLK_SDHI0>;
 		dmas = <&dmac1 0xcd>, <&dmac1 0xce>;
 		dma-names = "tx", "rx";
+		max-frequency = <156000000>;
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
@@ -600,6 +601,7 @@
 		clocks = <&mstp3_clks R8A7790_CLK_SDHI1>;
 		dmas = <&dmac1 0xc9>, <&dmac1 0xca>;
 		dma-names = "tx", "rx";
+		max-frequency = <156000000>;
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
@@ -611,6 +613,7 @@
 		clocks = <&mstp3_clks R8A7790_CLK_SDHI2>;
 		dmas = <&dmac1 0xc1>, <&dmac1 0xc2>;
 		dma-names = "tx", "rx";
+		max-frequency = <97500000>;
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
@@ -622,6 +625,7 @@
 		clocks = <&mstp3_clks R8A7790_CLK_SDHI3>;
 		dmas = <&dmac1 0xd3>, <&dmac1 0xd4>;
 		dma-names = "tx", "rx";
+		max-frequency = <97500000>;
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
