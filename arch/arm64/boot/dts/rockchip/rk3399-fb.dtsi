@@ -126,7 +126,7 @@
 		reg = <0x0 0xff8f3f00 0x0 0x100>;
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vopl_mmu";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vopb_rk_fb: vop-rk-fb@ff900000 {
@@ -171,7 +171,7 @@
 		reg = <0x0 0xff903f00 0x0 0x100>;
 		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vopb_mmu";
-		status = "disabled";
+		status = "okay";
 	};
 
 	hdmi_rk_fb: hdmi-rk-fb@ff940000 {

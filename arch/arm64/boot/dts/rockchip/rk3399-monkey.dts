@@ -150,7 +150,7 @@
 };
 
 &vopl_rk_fb {
-	status = "disabled";
+	status = "okay";
 };
 
 &vopb_rk_fb {
