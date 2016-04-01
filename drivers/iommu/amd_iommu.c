@@ -279,9 +279,11 @@ static void init_unity_mappings_for_device(struct device *dev,
 					   struct dma_ops_domain *dma_dom)
 {
 	struct unity_map_entry *e;
-	u16 devid;
+	int devid;
 
 	devid = get_device_id(dev);
+	if (IS_ERR_VALUE(devid))
+		return;
 
 	list_for_each_entry(e, &amd_iommu_unity_map, list) {
 		if (!(devid >= e->devid_start && devid <= e->devid_end))
@@ -296,7 +298,7 @@ static void init_unity_mappings_for_device(struct device *dev,
  */
 static bool check_device(struct device *dev)
 {
-	u16 devid;
+	int devid;
 
 	if (!dev || !dev->dma_mask)
 		return false;
@@ -306,6 +308,8 @@ static bool check_device(struct device *dev)
 		return false;
 
 	devid = get_device_id(dev);
+	if (IS_ERR_VALUE(devid))
+		return false;
 
 	/* Out of our scope? */
 	if (devid > amd_iommu_last_bdf)
@@ -342,11 +346,16 @@ static int iommu_init_device(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct iommu_dev_data *dev_data;
+	int devid;
 
 	if (dev->archdata.iommu)
 		return 0;
 
-	dev_data = find_dev_data(get_device_id(dev));
+	devid = get_device_id(dev);
+	if (IS_ERR_VALUE(devid))
+		return devid;
+
+	dev_data = find_dev_data(devid);
 	if (!dev_data)
 		return -ENOMEM;
 
@@ -367,9 +376,13 @@ static int iommu_init_device(struct device *dev)
 
 static void iommu_ignore_device(struct device *dev)
 {
-	u16 devid, alias;
+	u16 alias;
+	int devid;
 
 	devid = get_device_id(dev);
+	if (IS_ERR_VALUE(devid))
+		return;
+
 	alias = amd_iommu_alias_table[devid];
 
 	memset(&amd_iommu_dev_table[devid], 0, sizeof(struct dev_table_entry));
@@ -381,8 +394,14 @@ static void iommu_ignore_device(struct device *dev)
 
 static void iommu_uninit_device(struct device *dev)
 {
-	struct iommu_dev_data *dev_data = search_dev_data(get_device_id(dev));
+	int devid;
+	struct iommu_dev_data *dev_data;
 
+	devid = get_device_id(dev);
+	if (IS_ERR_VALUE(devid))
+		return;
+
+	dev_data = search_dev_data(devid);
 	if (!dev_data)
 		return;
 
@@ -2314,13 +2333,15 @@ static int amd_iommu_add_device(struct device *dev)
 	struct iommu_dev_data *dev_data;
 	struct iommu_domain *domain;
 	struct amd_iommu *iommu;
-	u16 devid;
-	int ret;
+	int ret, devid;
 
 	if (!check_device(dev) || get_dev_data(dev))
 		return 0;
 
 	devid = get_device_id(dev);
+	if (IS_ERR_VALUE(devid))
+		return devid;
+
 	iommu = amd_iommu_rlookup_table[devid];
 
 	ret = iommu_init_device(dev);
@@ -2358,12 +2379,15 @@ out:
 static void amd_iommu_remove_device(struct device *dev)
 {
 	struct amd_iommu *iommu;
-	u16 devid;
+	int devid;
 
 	if (!check_device(dev))
 		return;
 
 	devid = get_device_id(dev);
+	if (IS_ERR_VALUE(devid))
+		return;
+
 	iommu = amd_iommu_rlookup_table[devid];
 
 	iommu_uninit_device(dev);
@@ -3035,12 +3059,14 @@ static void amd_iommu_detach_device(struct iommu_domain *dom,
 {
 	struct iommu_dev_data *dev_data = dev->archdata.iommu;
 	struct amd_iommu *iommu;
-	u16 devid;
+	int devid;
 
 	if (!check_device(dev))
 		return;
 
 	devid = get_device_id(dev);
+	if (IS_ERR_VALUE(devid))
+		return;
 
 	if (dev_data->domain != NULL)
 		detach_device(dev);
@@ -3158,9 +3184,11 @@ static void amd_iommu_get_dm_regions(struct device *dev,
 				     struct list_head *head)
 {
 	struct unity_map_entry *entry;
-	u16 devid;
+	int devid;
 
 	devid = get_device_id(dev);
+	if (IS_ERR_VALUE(devid))
+		return;
 
 	list_for_each_entry(entry, &amd_iommu_unity_map, list) {
 		struct iommu_dm_region *region;
@@ -3862,6 +3890,9 @@ static struct irq_domain *get_irq_domain(struct irq_alloc_info *info)
 	case X86_IRQ_ALLOC_TYPE_MSI:
 	case X86_IRQ_ALLOC_TYPE_MSIX:
 		devid = get_device_id(&info->msi_dev->dev);
+		if (IS_ERR_VALUE(devid))
+			return NULL;
+
 		iommu = amd_iommu_rlookup_table[devid];
 		if (iommu)
 			return iommu->msi_domain;
