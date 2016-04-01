@@ -407,7 +407,7 @@ enum {
  * space. Zero signifies the upstream version of the kernel module.
  */
 #define ORANGEFS_KERNEL_PROTO_VERSION 0
-#define ORANGEFS_MINIMUM_USERSPACE_VERSION 20904
+#define ORANGEFS_MINIMUM_USERSPACE_VERSION 20903
 
 /*
  * describes memory regions to map in the ORANGEFS_DEV_MAP ioctl.
