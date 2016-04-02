@@ -152,24 +152,21 @@ static inline int paravirt_write_msr_safe(unsigned msr,
 	return PVOP_CALL3(int, pv_cpu_ops.write_msr_safe, msr, low, high);
 }
 
-/* These should all do BUG_ON(_err), but our headers are too tangled. */
 #define rdmsr(msr, val1, val2)			\
 do {						\
-	int _err;				\
-	u64 _l = paravirt_read_msr_safe(msr, &_err);	\
+	u64 _l = paravirt_read_msr(msr);	\
 	val1 = (u32)_l;				\
 	val2 = _l >> 32;			\
 } while (0)
 
 #define wrmsr(msr, val1, val2)			\
 do {						\
-	paravirt_write_msr_safe(msr, val1, val2);	\
+	paravirt_write_msr(msr, val1, val2);	\
 } while (0)
 
 #define rdmsrl(msr, val)			\
 do {						\
-	int _err;				\
-	val = paravirt_read_msr_safe(msr, &_err);	\
+	val = paravirt_read_msr(msr);		\
 } while (0)
 
 static inline void wrmsrl(unsigned msr, u64 val)
