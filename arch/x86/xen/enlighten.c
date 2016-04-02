@@ -1222,8 +1222,8 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 
 	.wbinvd = native_wbinvd,
 
-	.read_msr = xen_read_msr_safe,
-	.write_msr = xen_write_msr_safe,
+	.read_msr_safe = xen_read_msr_safe,
+	.write_msr_safe = xen_write_msr_safe,
 
 	.read_pmc = xen_read_pmc,
 
