@@ -351,9 +351,6 @@ early_idt_handler_common:
 	 */
 	cld
 
-	cmpl $2,(%rsp)		# X86_TRAP_NMI
-	je .Lis_nmi		# Ignore NMI
-
 	cmpl $2,early_recursion_flag(%rip)
 	jz  1f
 	incl early_recursion_flag(%rip)
@@ -422,9 +419,6 @@ early_idt_handler_common:
 20:	/* Exception table entry found or page table generated */
 	decl early_recursion_flag(%rip)
 	jmp restore_regs_and_iret
-.Lis_nmi:
-	addq $16,%rsp		# drop vector number and error code
-	INTERRUPT_RETURN
 ENDPROC(early_idt_handler_common)
 
 	__INITDATA

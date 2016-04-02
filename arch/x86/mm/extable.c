@@ -1,5 +1,6 @@
 #include <linux/module.h>
 #include <asm/uaccess.h>
+#include <asm/traps.h>
 
 typedef bool (*ex_handler_t)(const struct exception_table_entry *,
 			    struct pt_regs *, int);
@@ -88,6 +89,10 @@ int __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	const struct exception_table_entry *e;
 	unsigned long new_ip;
 	ex_handler_t handler;
+
+	/* Ignore early NMIs. */
+	if (trapnr == X86_TRAP_NMI)
+		return 1;
 
 	e = search_exception_tables(regs->ip);
 	if (!e)

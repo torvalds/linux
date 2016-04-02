@@ -561,9 +561,6 @@ early_idt_handler_common:
 	 */
 	cld
 
-	cmpl $2,(%esp)		# X86_TRAP_NMI
-	je .Lis_nmi		# Ignore NMI
-
 	cmpl $2,%ss:early_recursion_flag
 	je hlt_loop
 	incl %ss:early_recursion_flag
@@ -642,10 +639,6 @@ early_idt_handler_common:
 hlt_loop:
 	hlt
 	jmp hlt_loop
-
-.Lis_nmi:
-	addl $8,%esp		/* drop vector number and error code */
-	iret
 ENDPROC(early_idt_handler_common)
 
 /* This is the default interrupt "handler" :-) */
