@@ -798,7 +798,6 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_INTF_EJECT			0x11
 #define GB_SVC_TYPE_KEY_EVENT			0x12
 #define GB_SVC_TYPE_PING			0x13
-#define GB_SVC_TYPE_PWR_DOWN			0x1d
 
 /*
  * SVC version request/response has the same payload as

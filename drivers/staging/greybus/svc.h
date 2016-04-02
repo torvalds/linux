@@ -71,7 +71,6 @@ void gb_svc_watchdog_destroy(struct gb_svc *svc);
 bool gb_svc_watchdog_enabled(struct gb_svc *svc);
 int gb_svc_watchdog_enable(struct gb_svc *svc);
 int gb_svc_watchdog_disable(struct gb_svc *svc);
-int gb_svc_pwr_off(struct gb_svc *svc);
 
 int gb_svc_protocol_init(void);
 void gb_svc_protocol_exit(void);
