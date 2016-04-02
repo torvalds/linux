@@ -72,14 +72,40 @@ static unsigned long sun4i_dclk_recalc_rate(struct clk_hw *hw,
 static long sun4i_dclk_round_rate(struct clk_hw *hw, unsigned long rate,
 				  unsigned long *parent_rate)
 {
-	return *parent_rate / DIV_ROUND_CLOSEST(*parent_rate, rate);
+	unsigned long best_parent = 0;
+	u8 best_div = 1;
+	int i;
+
+	for (i = 6; i < 127; i++) {
+		unsigned long ideal = rate * i;
+		unsigned long rounded;
+
+		rounded = clk_hw_round_rate(clk_hw_get_parent(hw),
+					    ideal);
+
+		if (rounded == ideal) {
+			best_parent = rounded;
+			best_div = i;
+			goto out;
+		}
+
+		if ((rounded < ideal) && (rounded > best_parent)) {
+			best_parent = rounded;
+			best_div = i;
+		}
+	}
+
+out:
+	*parent_rate = best_parent;
+
+	return best_parent / best_div;
 }
 
 static int sun4i_dclk_set_rate(struct clk_hw *hw, unsigned long rate,
 			       unsigned long parent_rate)
 {
 	struct sun4i_dclk *dclk = hw_to_dclk(hw);
-	int div = DIV_ROUND_CLOSEST(parent_rate, rate);
+	u8 div = parent_rate / rate;
 
 	return regmap_update_bits(dclk->regmap, SUN4I_TCON0_DCLK_REG,
 				  GENMASK(6, 0), div);
@@ -144,6 +170,7 @@ int sun4i_dclk_create(struct device *dev, struct sun4i_tcon *tcon)
 	init.ops = &sun4i_dclk_ops;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
+	init.flags = CLK_SET_RATE_PARENT;
 
 	dclk->regmap = tcon->regs;
 	dclk->hw.init = &init;
