@@ -1564,7 +1564,10 @@ static int i40e_tso(struct sk_buff *skb, u8 *hdr_len, u64 *cd_type_cmd_tso_mss)
 		ip.v6->payload_len = 0;
 	}
 
-	if (skb_shinfo(skb)->gso_type & (SKB_GSO_UDP_TUNNEL | SKB_GSO_GRE |
+	if (skb_shinfo(skb)->gso_type & (SKB_GSO_GRE |
+					 SKB_GSO_IPIP |
+					 SKB_GSO_SIT |
+					 SKB_GSO_UDP_TUNNEL |
 					 SKB_GSO_UDP_TUNNEL_CSUM)) {
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL_CSUM) {
 			/* determine offset of outer transport header */
@@ -1665,13 +1668,6 @@ static int i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 						 &l4_proto, &frag_off);
 		}
 
-		/* compute outer L3 header size */
-		tunnel |= ((l4.hdr - ip.hdr) / 4) <<
-			  I40E_TXD_CTX_QW0_EXT_IPLEN_SHIFT;
-
-		/* switch IP header pointer from outer to inner header */
-		ip.hdr = skb_inner_network_header(skb);
-
 		/* define outer transport */
 		switch (l4_proto) {
 		case IPPROTO_UDP:
@@ -1682,6 +1678,11 @@ static int i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 			tunnel |= I40E_TXD_CTX_GRE_TUNNELING;
 			*tx_flags |= I40E_TX_FLAGS_VXLAN_TUNNEL;
 			break;
+		case IPPROTO_IPIP:
+		case IPPROTO_IPV6:
+			*tx_flags |= I40E_TX_FLAGS_VXLAN_TUNNEL;
+			l4.hdr = skb_inner_network_header(skb);
+			break;
 		default:
 			if (*tx_flags & I40E_TX_FLAGS_TSO)
 				return -1;
@@ -1689,6 +1690,13 @@ static int i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 			skb_checksum_help(skb);
 			return 0;
 		}
+
+		/* compute outer L3 header size */
+		tunnel |= ((l4.hdr - ip.hdr) / 4) <<
+			  I40E_TXD_CTX_QW0_EXT_IPLEN_SHIFT;
+
+		/* switch IP header pointer from outer to inner header */
+		ip.hdr = skb_inner_network_header(skb);
 
 		/* compute tunnel header size */
 		tunnel |= ((ip.hdr - l4.hdr) / 2) <<
