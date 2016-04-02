@@ -40,6 +40,11 @@
  */
 
 / {
+	aliases {
+		ethernet0 = &fec1;
+		ethernet1 = &fec0;
+	};
+
 	bl: backlight {
 		compatible = "pwm-backlight";
 		pinctrl-names = "default";
