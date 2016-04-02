@@ -492,7 +492,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 		data_page = ext4_encrypt(inode, page, gfp_flags);
 		if (IS_ERR(data_page)) {
 			ret = PTR_ERR(data_page);
-			if (ret == ENOMEM && wbc->sync_mode == WB_SYNC_ALL) {
+			if (ret == -ENOMEM && wbc->sync_mode == WB_SYNC_ALL) {
 				if (io->io_bio) {
 					ext4_io_submit(io);
 					congestion_wait(BLK_RW_ASYNC, HZ/50);
