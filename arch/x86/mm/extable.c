@@ -43,6 +43,33 @@ bool ex_handler_ext(const struct exception_table_entry *fixup,
 }
 EXPORT_SYMBOL(ex_handler_ext);
 
+bool ex_handler_rdmsr_unsafe(const struct exception_table_entry *fixup,
+			     struct pt_regs *regs, int trapnr)
+{
+	WARN_ONCE(1, "unchecked MSR access error: RDMSR from 0x%x\n",
+		  (unsigned int)regs->cx);
+
+	/* Pretend that the read succeeded and returned 0. */
+	regs->ip = ex_fixup_addr(fixup);
+	regs->ax = 0;
+	regs->dx = 0;
+	return true;
+}
+EXPORT_SYMBOL(ex_handler_rdmsr_unsafe);
+
+bool ex_handler_wrmsr_unsafe(const struct exception_table_entry *fixup,
+			     struct pt_regs *regs, int trapnr)
+{
+	WARN_ONCE(1, "unchecked MSR access error: WRMSR to 0x%x (tried to write 0x%08x%08x)\n",
+		  (unsigned int)regs->cx,
+		  (unsigned int)regs->dx, (unsigned int)regs->ax);
+
+	/* Pretend that the write succeeded. */
+	regs->ip = ex_fixup_addr(fixup);
+	return true;
+}
+EXPORT_SYMBOL(ex_handler_wrmsr_unsafe);
+
 bool ex_has_fault_handler(unsigned long ip)
 {
 	const struct exception_table_entry *e;

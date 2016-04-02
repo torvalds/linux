@@ -84,7 +84,10 @@ static inline unsigned long long native_read_msr(unsigned int msr)
 {
 	DECLARE_ARGS(val, low, high);
 
-	asm volatile("rdmsr" : EAX_EDX_RET(val, low, high) : "c" (msr));
+	asm volatile("1: rdmsr\n"
+		     "2:\n"
+		     _ASM_EXTABLE_HANDLE(1b, 2b, ex_handler_rdmsr_unsafe)
+		     : EAX_EDX_RET(val, low, high) : "c" (msr));
 	if (msr_tracepoint_active(__tracepoint_read_msr))
 		do_trace_read_msr(msr, EAX_EDX_VAL(val, low, high), 0);
 	return EAX_EDX_VAL(val, low, high);
@@ -111,7 +114,10 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 static inline void native_write_msr(unsigned int msr,
 				    unsigned low, unsigned high)
 {
-	asm volatile("wrmsr" : : "c" (msr), "a"(low), "d" (high) : "memory");
+	asm volatile("1: wrmsr\n"
+		     "2:\n"
+		     _ASM_EXTABLE_HANDLE(1b, 2b, ex_handler_wrmsr_unsafe)
+		     : : "c" (msr), "a"(low), "d" (high) : "memory");
 	if (msr_tracepoint_active(__tracepoint_read_msr))
 		do_trace_write_msr(msr, ((u64)high << 32 | low), 0);
 }
