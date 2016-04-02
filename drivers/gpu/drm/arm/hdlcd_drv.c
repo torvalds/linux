@@ -55,8 +55,9 @@ static int hdlcd_load(struct drm_device *drm, unsigned long flags)
 	hdlcd->mmio = devm_ioremap_resource(drm->dev, res);
 	if (IS_ERR(hdlcd->mmio)) {
 		DRM_ERROR("failed to map control registers area\n");
+		ret = PTR_ERR(hdlcd->mmio);
 		hdlcd->mmio = NULL;
-		return PTR_ERR(hdlcd->mmio);
+		return ret;
 	}
 
 	version = hdlcd_read(hdlcd, HDLCD_REG_VERSION);
