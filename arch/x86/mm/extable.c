@@ -83,13 +83,13 @@ int fixup_exception(struct pt_regs *regs, int trapnr)
 }
 
 /* Restricted version used during very early boot */
-int __init early_fixup_exception(unsigned long *ip)
+int __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 {
 	const struct exception_table_entry *e;
 	unsigned long new_ip;
 	ex_handler_t handler;
 
-	e = search_exception_tables(*ip);
+	e = search_exception_tables(regs->ip);
 	if (!e)
 		return 0;
 
@@ -100,6 +100,6 @@ int __init early_fixup_exception(unsigned long *ip)
 	if (handler != ex_handler_default)
 		return 0;
 
-	*ip = new_ip;
+	regs->ip = new_ip;
 	return 1;
 }

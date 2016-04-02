@@ -568,29 +568,64 @@ early_idt_handler_common:
 	je hlt_loop
 	incl %ss:early_recursion_flag
 
-	push %eax		# 16(%esp)
-	push %ecx		# 12(%esp)
-	push %edx		#  8(%esp)
-	push %ds		#  4(%esp)
-	push %es		#  0(%esp)
-	movl $(__KERNEL_DS),%eax
-	movl %eax,%ds
-	movl %eax,%es
+	/* The vector number is in pt_regs->gs */
 
-	cmpl $(__KERNEL_CS),32(%esp)
+	cld
+	pushl	%fs		/* pt_regs->fs */
+	movw	$0, 2(%esp)	/* clear high bits (some CPUs leave garbage) */
+	pushl	%es		/* pt_regs->es */
+	movw	$0, 2(%esp)	/* clear high bits (some CPUs leave garbage) */
+	pushl	%ds		/* pt_regs->ds */
+	movw	$0, 2(%esp)	/* clear high bits (some CPUs leave garbage) */
+	pushl	%eax		/* pt_regs->ax */
+	pushl	%ebp		/* pt_regs->bp */
+	pushl	%edi		/* pt_regs->di */
+	pushl	%esi		/* pt_regs->si */
+	pushl	%edx		/* pt_regs->dx */
+	pushl	%ecx		/* pt_regs->cx */
+	pushl	%ebx		/* pt_regs->bx */
+
+	/* Fix up DS and ES */
+	movl	$(__KERNEL_DS), %ecx
+	movl	%ecx, %ds
+	movl	%ecx, %es
+
+	/* Load the vector number into EDX */
+	movl	PT_GS(%esp), %edx
+
+	/* Load GS into pt_regs->gs and clear high bits */
+	movw	%gs, PT_GS(%esp)
+	movw	$0, PT_GS+2(%esp)
+
+	cmpl $(__KERNEL_CS),PT_CS(%esp)
 	jne 10f
 
-	leal 28(%esp),%eax	# Pointer to %eip
-	call early_fixup_exception
-	andl %eax,%eax
-	jnz ex_entry		/* found an exception entry */
+	movl	%esp, %eax	/* args are pt_regs (EAX), trapnr (EDX) */
+	call	early_fixup_exception
+	andl	%eax,%eax
+	jz	10f		/* Exception wasn't fixed up */
+
+	popl	%ebx		/* pt_regs->bx */
+	popl	%ecx		/* pt_regs->cx */
+	popl	%edx		/* pt_regs->dx */
+	popl	%esi		/* pt_regs->si */
+	popl	%edi		/* pt_regs->di */
+	popl	%ebp		/* pt_regs->bp */
+	popl	%eax		/* pt_regs->ax */
+	popl	%ds		/* pt_regs->ds */
+	popl	%es		/* pt_regs->es */
+	popl	%fs		/* pt_regs->fs */
+	popl	%gs		/* pt_regs->gs */
+	decl	%ss:early_recursion_flag
+	addl	$4, %esp	/* pop pt_regs->orig_ax */
+	iret
 
 10:
 #ifdef CONFIG_PRINTK
 	xorl %eax,%eax
-	movw %ax,2(%esp)	/* clean up the segment values on some cpus */
-	movw %ax,6(%esp)
-	movw %ax,34(%esp)
+	movw %ax,PT_FS+2(%esp)	/* clean up the segment values on some cpus */
+	movw %ax,PT_DS+2(%esp)
+	movw %ax,PT_ES+2(%esp)
 	leal  40(%esp),%eax
 	pushl %eax		/* %esp before the exception */
 	pushl %ebx
@@ -608,13 +643,6 @@ hlt_loop:
 	hlt
 	jmp hlt_loop
 
-ex_entry:
-	pop %es
-	pop %ds
-	pop %edx
-	pop %ecx
-	pop %eax
-	decl %ss:early_recursion_flag
 .Lis_nmi:
 	addl $8,%esp		/* drop vector number and error code */
 	iret
