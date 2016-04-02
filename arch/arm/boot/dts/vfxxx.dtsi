@@ -95,6 +95,7 @@
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
+			reg = <0x40000000 0x00070000>;
 			ranges;
 
 			mscm_cpucfg: cpucfg@40001000 {
@@ -481,6 +482,7 @@
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
+			reg = <0x40080000 0x0007f000>;
 			ranges;
 
 			edma1: dma-controller@40098000 {
