@@ -275,9 +275,13 @@ static s32 ds1307_native_smbus_write_block_data(const struct i2c_client *client,
 {
 	u8 suboffset = 0;
 
-	if (length <= I2C_SMBUS_BLOCK_MAX)
-		return i2c_smbus_write_i2c_block_data(client,
+	if (length <= I2C_SMBUS_BLOCK_MAX) {
+		s32 retval = i2c_smbus_write_i2c_block_data(client,
 					command, length, values);
+		if (retval < 0)
+			return retval;
+		return length;
+	}
 
 	while (suboffset < length) {
 		s32 retval = i2c_smbus_write_i2c_block_data(client,
