@@ -111,8 +111,9 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 	return EAX_EDX_VAL(val, low, high);
 }
 
-static inline void native_write_msr(unsigned int msr,
-				    unsigned low, unsigned high)
+/* Can be uninlined because referenced by paravirt */
+notrace static inline void native_write_msr(unsigned int msr,
+					    unsigned low, unsigned high)
 {
 	asm volatile("1: wrmsr\n"
 		     "2:\n"

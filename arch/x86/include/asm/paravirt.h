@@ -130,6 +130,17 @@ static inline void wbinvd(void)
 
 #define get_kernel_rpl()  (pv_info.kernel_rpl)
 
+static inline u64 paravirt_read_msr(unsigned msr)
+{
+	return PVOP_CALL1(u64, pv_cpu_ops.read_msr, msr);
+}
+
+static inline void paravirt_write_msr(unsigned msr,
+				      unsigned low, unsigned high)
+{
+	return PVOP_VCALL3(pv_cpu_ops.write_msr, msr, low, high);
+}
+
 static inline u64 paravirt_read_msr_safe(unsigned msr, int *err)
 {
 	return PVOP_CALL2(u64, pv_cpu_ops.read_msr_safe, msr, err);

@@ -339,6 +339,8 @@ __visible struct pv_cpu_ops pv_cpu_ops = {
 	.write_cr8 = native_write_cr8,
 #endif
 	.wbinvd = native_wbinvd,
+	.read_msr = native_read_msr,
+	.write_msr = native_write_msr,
 	.read_msr_safe = native_read_msr_safe,
 	.write_msr_safe = native_write_msr_safe,
 	.read_pmc = native_read_pmc,

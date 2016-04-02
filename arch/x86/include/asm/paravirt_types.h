@@ -155,8 +155,14 @@ struct pv_cpu_ops {
 	void (*cpuid)(unsigned int *eax, unsigned int *ebx,
 		      unsigned int *ecx, unsigned int *edx);
 
-	/* MSR operations.
-	   err = 0/-EIO.  wrmsr returns 0/-EIO. */
+	/* Unsafe MSR operations.  These will warn or panic on failure. */
+	u64 (*read_msr)(unsigned int msr);
+	void (*write_msr)(unsigned int msr, unsigned low, unsigned high);
+
+	/*
+	 * Safe MSR operations.
+	 * read sets err to 0 or -EIO.  write returns 0 or -EIO.
+	 */
 	u64 (*read_msr_safe)(unsigned int msr, int *err);
 	int (*write_msr_safe)(unsigned int msr, unsigned low, unsigned high);
 

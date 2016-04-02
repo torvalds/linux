@@ -1092,6 +1092,26 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 	return ret;
 }
 
+static u64 xen_read_msr(unsigned int msr)
+{
+	/*
+	 * This will silently swallow a #GP from RDMSR.  It may be worth
+	 * changing that.
+	 */
+	int err;
+
+	return xen_read_msr_safe(msr, &err);
+}
+
+static void xen_write_msr(unsigned int msr, unsigned low, unsigned high)
+{
+	/*
+	 * This will silently swallow a #GP from WRMSR.  It may be worth
+	 * changing that.
+	 */
+	xen_write_msr_safe(msr, low, high);
+}
+
 void xen_setup_shared_info(void)
 {
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
@@ -1221,6 +1241,9 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 #endif
 
 	.wbinvd = native_wbinvd,
+
+	.read_msr = xen_read_msr,
+	.write_msr = xen_write_msr,
 
 	.read_msr_safe = xen_read_msr_safe,
 	.write_msr_safe = xen_write_msr_safe,
