@@ -101,7 +101,10 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 	asm volatile("2: rdmsr ; xor %[err],%[err]\n"
 		     "1:\n\t"
 		     ".section .fixup,\"ax\"\n\t"
-		     "3:  mov %[fault],%[err] ; jmp 1b\n\t"
+		     "3: mov %[fault],%[err]\n\t"
+		     "xorl %%eax, %%eax\n\t"
+		     "xorl %%edx, %%edx\n\t"
+		     "jmp 1b\n\t"
 		     ".previous\n\t"
 		     _ASM_EXTABLE(2b, 3b)
 		     : [err] "=r" (*err), EAX_EDX_RET(val, low, high)
