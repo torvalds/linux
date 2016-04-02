@@ -561,8 +561,6 @@ early_idt_handler_common:
 	 */
 	cld
 
-	cmpl $2,%ss:early_recursion_flag
-	je hlt_loop
 	incl %ss:early_recursion_flag
 
 	/* The vector number is in pt_regs->gs */
@@ -594,13 +592,8 @@ early_idt_handler_common:
 	movw	%gs, PT_GS(%esp)
 	movw	$0, PT_GS+2(%esp)
 
-	cmpl $(__KERNEL_CS),PT_CS(%esp)
-	jne 10f
-
 	movl	%esp, %eax	/* args are pt_regs (EAX), trapnr (EDX) */
 	call	early_fixup_exception
-	andl	%eax,%eax
-	jz	10f		/* Exception wasn't fixed up */
 
 	popl	%ebx		/* pt_regs->bx */
 	popl	%ecx		/* pt_regs->cx */
@@ -616,29 +609,6 @@ early_idt_handler_common:
 	decl	%ss:early_recursion_flag
 	addl	$4, %esp	/* pop pt_regs->orig_ax */
 	iret
-
-10:
-#ifdef CONFIG_PRINTK
-	xorl %eax,%eax
-	movw %ax,PT_FS+2(%esp)	/* clean up the segment values on some cpus */
-	movw %ax,PT_DS+2(%esp)
-	movw %ax,PT_ES+2(%esp)
-	leal  40(%esp),%eax
-	pushl %eax		/* %esp before the exception */
-	pushl %ebx
-	pushl %ebp
-	pushl %esi
-	pushl %edi
-	movl %cr2,%eax
-	pushl %eax
-	pushl (20+6*4)(%esp)	/* trapno */
-	pushl $fault_msg
-	call printk
-#endif
-	call dump_stack
-hlt_loop:
-	hlt
-	jmp hlt_loop
 ENDPROC(early_idt_handler_common)
 
 /* This is the default interrupt "handler" :-) */
@@ -674,10 +644,14 @@ ignore_int:
 	popl %eax
 #endif
 	iret
+
+hlt_loop:
+	hlt
+	jmp hlt_loop
 ENDPROC(ignore_int)
 __INITDATA
 	.align 4
-early_recursion_flag:
+GLOBAL(early_recursion_flag)
 	.long 0
 
 __REFDATA
@@ -741,19 +715,6 @@ ENTRY(stack_start)
 __INITRODATA
 int_msg:
 	.asciz "Unknown interrupt or fault at: %p %p %p\n"
-
-fault_msg:
-/* fault info: */
-	.ascii "BUG: Int %d: CR2 %p\n"
-/* regs pushed in early_idt_handler: */
-	.ascii "     EDI %p  ESI %p  EBP %p  EBX %p\n"
-	.ascii "     ESP %p   ES %p   DS %p\n"
-	.ascii "     EDX %p  ECX %p  EAX %p\n"
-/* fault frame: */
-	.ascii "     vec %p  err %p  EIP %p   CS %p  flg %p\n"
-	.ascii "Stack: %p %p %p %p %p %p %p %p\n"
-	.ascii "       %p %p %p %p %p %p %p %p\n"
-	.asciz "       %p %p %p %p %p %p %p %p\n"
 
 #include "../../x86/xen/xen-head.S"
 

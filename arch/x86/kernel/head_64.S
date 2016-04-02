@@ -351,8 +351,6 @@ early_idt_handler_common:
 	 */
 	cld
 
-	cmpl $2,early_recursion_flag(%rip)
-	jz  1f
 	incl early_recursion_flag(%rip)
 
 	/* The vector number is currently in the pt_regs->di slot. */
@@ -373,9 +371,6 @@ early_idt_handler_common:
 	pushq %r14				/* pt_regs->r14 */
 	pushq %r15				/* pt_regs->r15 */
 
-	cmpl $__KERNEL_CS,CS(%rsp)
-	jne 11f
-
 	cmpq $14,%rsi		/* Page fault? */
 	jnz 10f
 	GET_CR2_INTO(%rdi)	/* Can clobber any volatile register if pv */
@@ -386,37 +381,8 @@ early_idt_handler_common:
 10:
 	movq %rsp,%rdi		/* RDI = pt_regs; RSI is already trapnr */
 	call early_fixup_exception
-	andl %eax,%eax
-	jnz 20f			# Found an exception entry
 
-11:
-#ifdef CONFIG_EARLY_PRINTK
-	/*
-	 * On paravirt kernels, GET_CR2_INTO clobbers callee-clobbered regs.
-	 * We only care about RSI, so we need to save it.
-	 */
-	movq %rsi,%rbx		/* Save vector number */
-	GET_CR2_INTO(%r9)
-	movq ORIG_RAX(%rsp),%r8	/* error code */
-	movq %rbx,%rsi		/* vector number */
-	movq CS(%rsp),%rdx
-	movq RIP(%rsp),%rcx
-	xorl %eax,%eax
-	leaq early_idt_msg(%rip),%rdi
-	call early_printk
-	cmpl $2,early_recursion_flag(%rip)
-	jz  1f
-	call dump_stack
-#ifdef CONFIG_KALLSYMS	
-	leaq early_idt_ripmsg(%rip),%rdi
-	movq RIP(%rsp),%rsi	# %rip again
-	call __print_symbol
-#endif
-#endif /* EARLY_PRINTK */
-1:	hlt
-	jmp 1b
-
-20:	/* Exception table entry found or page table generated */
+20:
 	decl early_recursion_flag(%rip)
 	jmp restore_regs_and_iret
 ENDPROC(early_idt_handler_common)
@@ -424,15 +390,8 @@ ENDPROC(early_idt_handler_common)
 	__INITDATA
 
 	.balign 4
-early_recursion_flag:
+GLOBAL(early_recursion_flag)
 	.long 0
-
-#ifdef CONFIG_EARLY_PRINTK
-early_idt_msg:
-	.asciz "PANIC: early exception %02lx rip %lx:%lx error %lx cr2 %lx\n"
-early_idt_ripmsg:
-	.asciz "RIP %s\n"
-#endif /* CONFIG_EARLY_PRINTK */
 
 #define NEXT_PAGE(name) \
 	.balign	PAGE_SIZE; \
