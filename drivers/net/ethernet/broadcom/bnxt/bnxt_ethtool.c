@@ -855,10 +855,8 @@ static void bnxt_get_pauseparam(struct net_device *dev,
 	if (BNXT_VF(bp))
 		return;
 	epause->autoneg = !!(link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL);
-	epause->rx_pause =
-		((link_info->auto_pause_setting & BNXT_LINK_PAUSE_RX) != 0);
-	epause->tx_pause =
-		((link_info->auto_pause_setting & BNXT_LINK_PAUSE_TX) != 0);
+	epause->rx_pause = !!(link_info->req_flow_ctrl & BNXT_LINK_PAUSE_RX);
+	epause->tx_pause = !!(link_info->req_flow_ctrl & BNXT_LINK_PAUSE_TX);
 }
 
 static int bnxt_set_pauseparam(struct net_device *dev,
