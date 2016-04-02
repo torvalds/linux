@@ -88,10 +88,6 @@ extern unsigned int early_recursion_flag;
 /* Restricted version used during very early boot */
 void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 {
-	const struct exception_table_entry *e;
-	unsigned long new_ip;
-	ex_handler_t handler;
-
 	/* Ignore early NMIs. */
 	if (trapnr == X86_TRAP_NMI)
 		return;
@@ -102,19 +98,8 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	if (regs->cs != __KERNEL_CS)
 		goto fail;
 
-	e = search_exception_tables(regs->ip);
-	if (!e)
-		goto fail;
-
-	new_ip  = ex_fixup_addr(e);
-	handler = ex_fixup_handler(e);
-
-	/* special handling not supported during early boot */
-	if (handler != ex_handler_default)
-		goto fail;
-
-	regs->ip = new_ip;
-	return;
+	if (fixup_exception(regs, trapnr))
+		return;
 
 fail:
 	early_printk("PANIC: early exception 0x%02x IP %lx:%lx error %lx cr2 0x%lx\n",
