@@ -7313,6 +7313,7 @@ F:	drivers/media/platform/vsp1/
 
 MEDIA DRIVERS FOR ASCOT2E
 M:	Sergey Kozlov <serjk@netup.ru>
+M:	Abylay Ospan <aospan@netup.ru>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 W:	http://netup.tv/
@@ -7322,6 +7323,7 @@ F:	drivers/media/dvb-frontends/ascot2e*
 
 MEDIA DRIVERS FOR CXD2841ER
 M:	Sergey Kozlov <serjk@netup.ru>
+M:	Abylay Ospan <aospan@netup.ru>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 W:	http://netup.tv/
@@ -7331,6 +7333,7 @@ F:	drivers/media/dvb-frontends/cxd2841er*
 
 MEDIA DRIVERS FOR HORUS3A
 M:	Sergey Kozlov <serjk@netup.ru>
+M:	Abylay Ospan <aospan@netup.ru>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 W:	http://netup.tv/
@@ -7340,6 +7343,7 @@ F:	drivers/media/dvb-frontends/horus3a*
 
 MEDIA DRIVERS FOR LNBH25
 M:	Sergey Kozlov <serjk@netup.ru>
+M:	Abylay Ospan <aospan@netup.ru>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 W:	http://netup.tv/
@@ -7349,6 +7353,7 @@ F:	drivers/media/dvb-frontends/lnbh25*
 
 MEDIA DRIVERS FOR NETUP PCI UNIVERSAL DVB devices
 M:	Sergey Kozlov <serjk@netup.ru>
+M:	Abylay Ospan <aospan@netup.ru>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 W:	http://netup.tv/
