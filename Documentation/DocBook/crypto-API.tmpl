@@ -1936,9 +1936,9 @@ static int test_skcipher(void)
 	}
 
 	req = skcipher_request_alloc(skcipher, GFP_KERNEL);
-	if (IS_ERR(req)) {
-		pr_info("could not allocate request queue\n");
-		ret = PTR_ERR(req);
+	if (!req) {
+		pr_info("could not allocate skcipher request\n");
+		ret = -ENOMEM;
 		goto out;
 	}
 
