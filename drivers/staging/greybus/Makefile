@@ -9,7 +9,7 @@ greybus-y :=	core.o		\
 		control.o	\
 		svc.o		\
 		svc_watchdog.o	\
-		firmware.o	\
+		bootrom.o	\
 		operation.o	\
 		legacy.o
 

@@ -10,7 +10,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define CREATE_TRACE_POINTS
-#include "firmware.h"
+#include "bootrom.h"
 #include "greybus.h"
 #include "greybus_trace.h"
 #include "legacy.h"
@@ -243,10 +243,10 @@ static int __init gb_init(void)
 		goto error_operation;
 	}
 
-	retval = gb_firmware_init();
+	retval = gb_bootrom_init();
 	if (retval) {
-		pr_err("gb_firmware_init failed\n");
-		goto error_firmware;
+		pr_err("gb_bootrom_init failed\n");
+		goto error_bootrom;
 	}
 
 	retval = gb_legacy_init();
@@ -258,8 +258,8 @@ static int __init gb_init(void)
 	return 0;	/* Success */
 
 error_legacy:
-	gb_firmware_exit();
-error_firmware:
+	gb_bootrom_exit();
+error_bootrom:
 	gb_operation_exit();
 error_operation:
 	gb_hd_exit();
@@ -275,7 +275,7 @@ module_init(gb_init);
 static void __exit gb_exit(void)
 {
 	gb_legacy_exit();
-	gb_firmware_exit();
+	gb_bootrom_exit();
 	gb_operation_exit();
 	gb_hd_exit();
 	bus_unregister(&greybus_bus_type);
