@@ -614,8 +614,7 @@ static int st_i2c_xfer_msg(struct st_i2c_dev *i2c_dev, struct i2c_msg *msg,
 	unsigned long timeout;
 	int ret;
 
-	c->addr		= (u8)(msg->addr << 1);
-	c->addr		|= (msg->flags & I2C_M_RD);
+	c->addr		= i2c_8bit_addr_from_msg(msg);
 	c->buf		= msg->buf;
 	c->count	= msg->len;
 	c->xfered	= 0;
