@@ -609,9 +609,11 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (WARN_ON_ONCE(tid >= IWL_MAX_TID_COUNT))
 		return -EINVAL;
 
+	dbg_max_amsdu_len = ACCESS_ONCE(mvm->max_amsdu_len);
+
 	if (!sta->max_amsdu_len ||
 	    !ieee80211_is_data_qos(hdr->frame_control) ||
-	    !mvmsta->tlc_amsdu) {
+	    (!mvmsta->tlc_amsdu && !dbg_max_amsdu_len)) {
 		num_subframes = 1;
 		pad = 0;
 		goto segment;
@@ -642,7 +644,6 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	}
 
 	max_amsdu_len = sta->max_amsdu_len;
-	dbg_max_amsdu_len = ACCESS_ONCE(mvm->max_amsdu_len);
 
 	/* the Tx FIFO to which this A-MSDU will be routed */
 	txf = iwl_mvm_ac_to_tx_fifo[tid_to_mac80211_ac[tid]];
@@ -656,7 +657,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	max_amsdu_len = min_t(unsigned int, max_amsdu_len,
 			      mvm->shared_mem_cfg.txfifo_size[txf] - 256);
 
-	if (dbg_max_amsdu_len)
+	if (unlikely(dbg_max_amsdu_len))
 		max_amsdu_len = min_t(unsigned int, max_amsdu_len,
 				      dbg_max_amsdu_len);
 
