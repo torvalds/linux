@@ -50,18 +50,16 @@
 
 #include "vmlinux.h"
 
-static unsigned long __init setup_memory(void)
+static void __init setup_memory(void)
 {
-	unsigned long bootmap_size;
 	unsigned long ram_start_pfn;
-	unsigned long free_ram_start_pfn;
 	unsigned long ram_end_pfn;
 	phys_addr_t memory_start, memory_end;
 	struct memblock_region *region;
 
 	memory_end = memory_start = 0;
 
-	/* Find main memory where is the kernel */
+	/* Find main memory where is the kernel, we assume its the only one */
 	for_each_memblock(memory, region) {
 		memory_start = region->base;
 		memory_end = region->base + region->size;
@@ -74,10 +72,11 @@ static unsigned long __init setup_memory(void)
 	}
 
 	ram_start_pfn = PFN_UP(memory_start);
-	/* free_ram_start_pfn is first page after kernel */
-	free_ram_start_pfn = PFN_UP(__pa(_end));
 	ram_end_pfn = PFN_DOWN(memblock_end_of_DRAM());
 
+	/* setup bootmem globals (we use no_bootmem, but mm still depends on this) */
+	min_low_pfn = ram_start_pfn;
+	max_low_pfn = ram_end_pfn;
 	max_pfn = ram_end_pfn;
 
 	/*
@@ -85,22 +84,13 @@ static unsigned long __init setup_memory(void)
 	 *
 	 * This makes the memory from the end of the kernel to the end of
 	 * RAM usable.
-	 * init_bootmem sets the global values min_low_pfn, max_low_pfn.
 	 */
-	bootmap_size = init_bootmem(free_ram_start_pfn,
-				    ram_end_pfn - ram_start_pfn);
-	free_bootmem(PFN_PHYS(free_ram_start_pfn),
-		     (ram_end_pfn - free_ram_start_pfn) << PAGE_SHIFT);
-	reserve_bootmem(PFN_PHYS(free_ram_start_pfn), bootmap_size,
-			BOOTMEM_DEFAULT);
+	memblock_reserve(__pa(_stext), _end - _stext);
 
-	for_each_memblock(reserved, region) {
-		printk(KERN_INFO "Reserved - 0x%08x-0x%08x\n",
-		       (u32) region->base, (u32) region->size);
-		reserve_bootmem(region->base, region->size, BOOTMEM_DEFAULT);
-	}
+	early_init_fdt_reserve_self();
+	early_init_fdt_scan_reserved_mem();
 
-	return ram_end_pfn;
+	memblock_dump_all();
 }
 
 struct cpuinfo cpuinfo;
@@ -272,8 +262,6 @@ void calibrate_delay(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-	unsigned long max_low_pfn;
-
 	unflatten_and_copy_device_tree();
 
 	setup_cpuinfo();
@@ -294,8 +282,8 @@ void __init setup_arch(char **cmdline_p)
 	initrd_below_start_ok = 1;
 #endif
 
-	/* setup bootmem allocator */
-	max_low_pfn = setup_memory();
+	/* setup memblock allocator */
+	setup_memory();
 
 	/* paging_init() sets up the MMU and marks all pages as reserved */
 	paging_init();
