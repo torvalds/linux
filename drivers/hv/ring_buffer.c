@@ -33,14 +33,14 @@
 void hv_begin_read(struct hv_ring_buffer_info *rbi)
 {
 	rbi->ring_buffer->interrupt_mask = 1;
-	mb();
+	virt_mb();
 }
 
 u32 hv_end_read(struct hv_ring_buffer_info *rbi)
 {
 
 	rbi->ring_buffer->interrupt_mask = 0;
-	mb();
+	virt_mb();
 
 	/*
 	 * Now check to see if the ring buffer is still empty.
@@ -68,12 +68,12 @@ u32 hv_end_read(struct hv_ring_buffer_info *rbi)
 
 static bool hv_need_to_signal(u32 old_write, struct hv_ring_buffer_info *rbi)
 {
-	mb();
+	virt_mb();
 	if (READ_ONCE(rbi->ring_buffer->interrupt_mask))
 		return false;
 
 	/* check interrupt_mask before read_index */
-	rmb();
+	virt_rmb();
 	/*
 	 * This is the only case we need to signal when the
 	 * ring transitions from being empty to non-empty.
@@ -115,7 +115,7 @@ static bool hv_need_to_signal_on_read(struct hv_ring_buffer_info *rbi)
 	 * read index, we could miss sending the interrupt. Issue a full
 	 * memory barrier to address this.
 	 */
-	mb();
+	virt_mb();
 
 	pending_sz = READ_ONCE(rbi->ring_buffer->pending_send_sz);
 	/* If the other end is not blocked on write don't bother. */
@@ -371,7 +371,7 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 					     sizeof(u64));
 
 	/* Issue a full memory barrier before updating the write index */
-	mb();
+	virt_mb();
 
 	/* Now, update the write location */
 	hv_set_next_write_location(outring_info, next_write_location);
@@ -447,7 +447,7 @@ int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info,
 	 * the writer may start writing to the read area once the read index
 	 * is updated.
 	 */
-	mb();
+	virt_mb();
 
 	/* Update the read index */
 	hv_set_next_read_location(inring_info, next_read_location);
