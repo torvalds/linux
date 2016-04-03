@@ -167,6 +167,22 @@
 			};
 		};
 
+		periphs: periphs@c8834000 {
+			compatible = "simple-bus";
+			reg = <0x0 0xc8834000 0x0 0x2000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0 0x0 0xc8834000 0x0 0x2000>;
+		};
+
+		hiubus: hiubus@c883c000 {
+			compatible = "simple-bus";
+			reg = <0x0 0xc883c000 0x0 0x2000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0 0x0 0xc883c000 0x0 0x2000>;
+		};
+
 		apb: apb@d0000000 {
 			compatible = "simple-bus";
 			reg = <0x0 0xd0000000 0x0 0x200000>;
