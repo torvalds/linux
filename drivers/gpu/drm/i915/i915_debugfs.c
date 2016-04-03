@@ -2694,10 +2694,8 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!HAS_RUNTIME_PM(dev)) {
-		seq_puts(m, "not supported\n");
-		return 0;
-	}
+	if (!HAS_RUNTIME_PM(dev_priv))
+		seq_puts(m, "Runtime power management not supported\n");
 
 	seq_printf(m, "GPU idle: %s\n", yesno(!dev_priv->mm.busy));
 	seq_printf(m, "IRQs disabled: %s\n",
@@ -2708,6 +2706,9 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 #else
 	seq_printf(m, "Device Power Management (CONFIG_PM) disabled\n");
 #endif
+	seq_printf(m, "PCI device power state: %s [%d]\n",
+		   pci_power_name(dev_priv->dev->pdev->current_state),
+		   dev_priv->dev->pdev->current_state);
 
 	return 0;
 }
