@@ -140,8 +140,8 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 	.vht_mu_mimo_supported = true,					\
 	.mac_addr_from_csr = true
 
-const struct iwl_cfg iwl9560_2ac_cfg = {
-		.name = "Intel(R) Dual Band Wireless AC 9560",
+const struct iwl_cfg iwl9260_2ac_cfg = {
+		.name = "Intel(R) Dual Band Wireless AC 9260",
 		.fw_name_pre = IWL9000_FW_PRE,
 		IWL_DEVICE_9000,
 		.ht_params = &iwl9000_ht_params,
