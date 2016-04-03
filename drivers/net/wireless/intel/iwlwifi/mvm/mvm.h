@@ -1127,7 +1127,8 @@ static inline bool iwl_mvm_bt_is_rrc_supported(struct iwl_mvm *mvm)
 static inline bool iwl_mvm_is_csum_supported(struct iwl_mvm *mvm)
 {
 	return fw_has_capa(&mvm->fw->ucode_capa,
-			   IWL_UCODE_TLV_CAPA_CSUM_SUPPORT);
+			   IWL_UCODE_TLV_CAPA_CSUM_SUPPORT) &&
+               !IWL_MVM_HW_CSUM_DISABLE;
 }
 
 static inline bool iwl_mvm_is_mplut_supported(struct iwl_mvm *mvm)
