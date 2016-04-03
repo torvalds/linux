@@ -132,6 +132,7 @@ hv_set_next_read_location(struct hv_ring_buffer_info *ring_info,
 		    u32 next_read_location)
 {
 	ring_info->ring_buffer->read_index = next_read_location;
+	ring_info->priv_read_index = next_read_location;
 }
 
 /* Get the size of the ring buffer. */
