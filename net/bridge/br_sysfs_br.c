@@ -870,6 +870,7 @@ int br_sysfs_addbr(struct net_device *dev)
 
 	br->ifobj = kobject_create_and_add(SYSFS_BRIDGE_PORT_SUBDIR, brobj);
 	if (!br->ifobj) {
+		err = -EINVAL;
 		pr_info("%s: can't add kobject (directory) %s/%s\n",
 			__func__, dev->name, SYSFS_BRIDGE_PORT_SUBDIR);
 		goto out3;
