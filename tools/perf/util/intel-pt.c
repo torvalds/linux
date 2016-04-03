@@ -979,6 +979,7 @@ static int intel_pt_synth_branch_sample(struct intel_pt_queue *ptq)
 	if (!pt->timeless_decoding)
 		sample.time = tsc_to_perf_time(ptq->timestamp, &pt->tc);
 
+	sample.cpumode = PERF_RECORD_MISC_USER;
 	sample.ip = ptq->state->from_ip;
 	sample.pid = ptq->pid;
 	sample.tid = ptq->tid;
@@ -1035,6 +1036,7 @@ static int intel_pt_synth_instruction_sample(struct intel_pt_queue *ptq)
 	if (!pt->timeless_decoding)
 		sample.time = tsc_to_perf_time(ptq->timestamp, &pt->tc);
 
+	sample.cpumode = PERF_RECORD_MISC_USER;
 	sample.ip = ptq->state->from_ip;
 	sample.pid = ptq->pid;
 	sample.tid = ptq->tid;
@@ -1092,6 +1094,7 @@ static int intel_pt_synth_transaction_sample(struct intel_pt_queue *ptq)
 	if (!pt->timeless_decoding)
 		sample.time = tsc_to_perf_time(ptq->timestamp, &pt->tc);
 
+	sample.cpumode = PERF_RECORD_MISC_USER;
 	sample.ip = ptq->state->from_ip;
 	sample.pid = ptq->pid;
 	sample.tid = ptq->tid;
