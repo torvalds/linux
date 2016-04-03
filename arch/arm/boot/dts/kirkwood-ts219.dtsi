@@ -94,7 +94,7 @@
 &mdio {
 	status = "okay";
 
-	ethphy0: ethernet-phy {
+	ethphy0: ethernet-phy@X {
                 /* overwrite reg property in board file */
 	};
 };
