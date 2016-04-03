@@ -492,6 +492,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	struct ip6_flowlabel *flowlabel = NULL;
 	struct dst_entry *dst = NULL;
 	struct flowi6 fl6;
+	struct sockcm_cookie sockc_unused = {0};
 	int addr_len = msg->msg_namelen;
 	int hlimit = -1;
 	int tclass = -1;
@@ -562,9 +563,10 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		memset(opt, 0, sizeof(struct ipv6_txoptions));
 		opt->tot_len = sizeof(struct ipv6_txoptions);
 
-		err = ip6_datagram_send_ctl(sock_net(sk), sk, msg, &fl6, opt,
-					    &hlimit, &tclass, &dontfrag);
-		if (err < 0) {
+                err = ip6_datagram_send_ctl(sock_net(sk), sk, msg, &fl6, opt,
+                                            &hlimit, &tclass, &dontfrag,
+                                            &sockc_unused);
+                if (err < 0) {
 			fl6_sock_release(flowlabel);
 			return err;
 		}

@@ -745,6 +745,7 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	struct dst_entry *dst = NULL;
 	struct raw6_frag_vec rfv;
 	struct flowi6 fl6;
+	struct sockcm_cookie sockc;
 	int addr_len = msg->msg_namelen;
 	int hlimit = -1;
 	int tclass = -1;
@@ -821,13 +822,16 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	if (fl6.flowi6_oif == 0)
 		fl6.flowi6_oif = sk->sk_bound_dev_if;
 
+	sockc.tsflags = 0;
+
 	if (msg->msg_controllen) {
 		opt = &opt_space;
 		memset(opt, 0, sizeof(struct ipv6_txoptions));
 		opt->tot_len = sizeof(struct ipv6_txoptions);
 
 		err = ip6_datagram_send_ctl(sock_net(sk), sk, msg, &fl6, opt,
-					    &hlimit, &tclass, &dontfrag);
+					    &hlimit, &tclass, &dontfrag,
+					    &sockc);
 		if (err < 0) {
 			fl6_sock_release(flowlabel);
 			return err;

@@ -1128,6 +1128,7 @@ int udpv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	int connected = 0;
 	int is_udplite = IS_UDPLITE(sk);
 	int (*getfrag)(void *, char *, int, int, int, struct sk_buff *);
+	struct sockcm_cookie sockc;
 
 	/* destination address check */
 	if (sin6) {
@@ -1247,6 +1248,7 @@ do_udp_sendmsg:
 		fl6.flowi6_oif = np->sticky_pktinfo.ipi6_ifindex;
 
 	fl6.flowi6_mark = sk->sk_mark;
+	sockc.tsflags = 0;
 
 	if (msg->msg_controllen) {
 		opt = &opt_space;
@@ -1254,7 +1256,8 @@ do_udp_sendmsg:
 		opt->tot_len = sizeof(*opt);
 
 		err = ip6_datagram_send_ctl(sock_net(sk), sk, msg, &fl6, opt,
-					    &hlimit, &tclass, &dontfrag);
+					    &hlimit, &tclass, &dontfrag,
+					    &sockc);
 		if (err < 0) {
 			fl6_sock_release(flowlabel);
 			return err;
