@@ -548,7 +548,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	ipc.oif = sk->sk_bound_dev_if;
 
 	if (msg->msg_controllen) {
-		err = ip_cmsg_send(net, msg, &ipc, false);
+		err = ip_cmsg_send(sk, msg, &ipc, false);
 		if (unlikely(err)) {
 			kfree(ipc.opt);
 			goto out;

@@ -219,11 +219,12 @@ void ip_cmsg_recv_offset(struct msghdr *msg, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(ip_cmsg_recv_offset);
 
-int ip_cmsg_send(struct net *net, struct msghdr *msg, struct ipcm_cookie *ipc,
+int ip_cmsg_send(struct sock *sk, struct msghdr *msg, struct ipcm_cookie *ipc,
 		 bool allow_ipv6)
 {
 	int err, val;
 	struct cmsghdr *cmsg;
+	struct net *net = sock_net(sk);
 
 	for_each_cmsghdr(cmsg, msg) {
 		if (!CMSG_OK(msg, cmsg))
@@ -244,6 +245,12 @@ int ip_cmsg_send(struct net *net, struct msghdr *msg, struct ipcm_cookie *ipc,
 			continue;
 		}
 #endif
+		if (cmsg->cmsg_level == SOL_SOCKET) {
+			if (__sock_cmsg_send(sk, msg, cmsg, &ipc->sockc))
+				return -EINVAL;
+			continue;
+		}
+
 		if (cmsg->cmsg_level != SOL_IP)
 			continue;
 		switch (cmsg->cmsg_type) {
