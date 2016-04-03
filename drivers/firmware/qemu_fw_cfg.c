@@ -727,12 +727,18 @@ device_param_cb(mmio, &fw_cfg_cmdline_param_ops, NULL, S_IRUSR);
 
 static int __init fw_cfg_sysfs_init(void)
 {
+	int ret;
+
 	/* create /sys/firmware/qemu_fw_cfg/ top level directory */
 	fw_cfg_top_ko = kobject_create_and_add("qemu_fw_cfg", firmware_kobj);
 	if (!fw_cfg_top_ko)
 		return -ENOMEM;
 
-	return platform_driver_register(&fw_cfg_sysfs_driver);
+	ret = platform_driver_register(&fw_cfg_sysfs_driver);
+	if (ret)
+		fw_cfg_kobj_cleanup(fw_cfg_top_ko);
+
+	return ret;
 }
 
 static void __exit fw_cfg_sysfs_exit(void)
