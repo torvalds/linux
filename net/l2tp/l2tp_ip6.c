@@ -627,7 +627,7 @@ back_from_confirm:
 	err = ip6_append_data(sk, ip_generic_getfrag, msg,
 			      ulen, transhdrlen, hlimit, tclass, opt,
 			      &fl6, (struct rt6_info *)dst,
-			      msg->msg_flags, dontfrag);
+			      msg->msg_flags, dontfrag, &sockc_unused);
 	if (err)
 		ip6_flush_pending_frames(sk);
 	else if (!(msg->msg_flags & MSG_MORE))

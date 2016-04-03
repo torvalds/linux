@@ -2057,19 +2057,21 @@ static inline void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
 		sk->sk_stamp = skb->tstamp;
 }
 
-void __sock_tx_timestamp(const struct sock *sk, __u8 *tx_flags);
+void __sock_tx_timestamp(__u16 tsflags, __u8 *tx_flags);
 
 /**
  * sock_tx_timestamp - checks whether the outgoing packet is to be time stamped
  * @sk:		socket sending this packet
+ * @tsflags:	timestamping flags to use
  * @tx_flags:	completed with instructions for time stamping
  *
  * Note : callers should take care of initial *tx_flags value (usually 0)
  */
-static inline void sock_tx_timestamp(const struct sock *sk, __u8 *tx_flags)
+static inline void sock_tx_timestamp(const struct sock *sk, __u16 tsflags,
+				     __u8 *tx_flags)
 {
-	if (unlikely(sk->sk_tsflags))
-		__sock_tx_timestamp(sk, tx_flags);
+	if (unlikely(tsflags))
+		__sock_tx_timestamp(tsflags, tx_flags);
 	if (unlikely(sock_flag(sk, SOCK_WIFI_STATUS)))
 		*tx_flags |= SKBTX_WIFI_STATUS;
 }

@@ -822,8 +822,7 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	if (fl6.flowi6_oif == 0)
 		fl6.flowi6_oif = sk->sk_bound_dev_if;
 
-	sockc.tsflags = 0;
-
+	sockc.tsflags = sk->sk_tsflags;
 	if (msg->msg_controllen) {
 		opt = &opt_space;
 		memset(opt, 0, sizeof(struct ipv6_txoptions));
@@ -901,7 +900,7 @@ back_from_confirm:
 		lock_sock(sk);
 		err = ip6_append_data(sk, raw6_getfrag, &rfv,
 			len, 0, hlimit, tclass, opt, &fl6, (struct rt6_info *)dst,
-			msg->msg_flags, dontfrag);
+			msg->msg_flags, dontfrag, &sockc);
 
 		if (err)
 			ip6_flush_pending_frames(sk);
