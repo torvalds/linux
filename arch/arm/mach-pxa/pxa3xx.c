@@ -438,9 +438,6 @@ static int __init pxa3xx_init(void)
 		 */
 		NDCR = (NDCR & ~NDCR_ND_ARB_EN) | NDCR_ND_ARB_CNTL;
 
-		if ((ret = pxa_init_dma(IRQ_DMA, 32)))
-			return ret;
-
 		pxa3xx_init_pm();
 
 		register_syscore_ops(&pxa_irq_syscore_ops);

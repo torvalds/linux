@@ -300,9 +300,6 @@ static int __init pxa27x_init(void)
 
 		reset_status = RCSR;
 
-		if ((ret = pxa_init_dma(IRQ_DMA, 32)))
-			return ret;
-
 		pxa27x_init_pm();
 
 		register_syscore_ops(&pxa_irq_syscore_ops);
