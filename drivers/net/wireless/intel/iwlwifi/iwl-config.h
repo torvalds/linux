@@ -314,6 +314,7 @@ struct iwl_pwr_tx_backoff {
  * @smem_len: the length of SMEM
  * @mq_rx_supported: multi-queue rx support
  * @vht_mu_mimo_supported: VHT MU-MIMO support
+ * @rf_id: need to read rf_id to determine the firmware image
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -367,6 +368,7 @@ struct iwl_cfg {
 	bool apmg_not_supported;
 	bool mq_rx_supported;
 	bool vht_mu_mimo_supported;
+	bool rf_id;
 };
 
 /*
@@ -440,6 +442,7 @@ extern const struct iwl_cfg iwl8260_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl8265_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl4165_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl9260_2ac_cfg;
+extern const struct iwl_cfg iwl9260lc_2ac_cfg;
 extern const struct iwl_cfg iwl5165_2ac_cfg;
 #endif /* CONFIG_IWLMVM */
 
