@@ -1418,6 +1418,7 @@ void sk_send_sigurg(struct sock *sk);
 
 struct sockcm_cookie {
 	u32 mark;
+	u16 tsflags;
 };
 
 int __sock_cmsg_send(struct sock *sk, struct msghdr *msg, struct cmsghdr *cmsg,
