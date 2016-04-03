@@ -315,6 +315,9 @@ static void ddi_get_encoder_port(struct intel_encoder *intel_encoder,
 		*dig_port = enc_to_mst(encoder)->primary;
 		*port = (*dig_port)->port;
 		break;
+	default:
+		WARN(1, "Invalid DDI encoder type %d\n", intel_encoder->type);
+		/* fallthrough and treat as unknown */
 	case INTEL_OUTPUT_DISPLAYPORT:
 	case INTEL_OUTPUT_EDP:
 	case INTEL_OUTPUT_HDMI:
@@ -325,9 +328,6 @@ static void ddi_get_encoder_port(struct intel_encoder *intel_encoder,
 	case INTEL_OUTPUT_ANALOG:
 		*dig_port = NULL;
 		*port = PORT_E;
-		break;
-	default:
-		WARN(1, "Invalid DDI encoder type %d\n", intel_encoder->type);
 		break;
 	}
 }
