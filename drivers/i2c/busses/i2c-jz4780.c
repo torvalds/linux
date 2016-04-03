@@ -770,7 +770,7 @@ static int jz4780_i2c_probe(struct platform_device *pdev)
 
 	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
 				   &clk_freq);
-	if (ret) {
+	if (ret || clk_freq == 0) {
 		dev_err(&pdev->dev, "clock-frequency not specified in DT");
 		goto err;
 	}
