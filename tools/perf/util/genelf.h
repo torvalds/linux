@@ -9,34 +9,30 @@ int jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_ent
 
 #if   defined(__arm__)
 #define GEN_ELF_ARCH	EM_ARM
-#define GEN_ELF_ENDIAN	ELFDATA2LSB
 #define GEN_ELF_CLASS	ELFCLASS32
 #elif defined(__aarch64__)
 #define GEN_ELF_ARCH	EM_AARCH64
-#define GEN_ELF_ENDIAN	ELFDATA2LSB
 #define GEN_ELF_CLASS	ELFCLASS64
 #elif defined(__x86_64__)
 #define GEN_ELF_ARCH	EM_X86_64
-#define GEN_ELF_ENDIAN	ELFDATA2LSB
 #define GEN_ELF_CLASS	ELFCLASS64
 #elif defined(__i386__)
 #define GEN_ELF_ARCH	EM_386
-#define GEN_ELF_ENDIAN	ELFDATA2LSB
 #define GEN_ELF_CLASS	ELFCLASS32
-#elif defined(__ppcle__)
-#define GEN_ELF_ARCH	EM_PPC
-#define GEN_ELF_ENDIAN	ELFDATA2LSB
+#elif defined(__powerpc64__)
+#define GEN_ELF_ARCH	EM_PPC64
 #define GEN_ELF_CLASS	ELFCLASS64
 #elif defined(__powerpc__)
-#define GEN_ELF_ARCH	EM_PPC64
-#define GEN_ELF_ENDIAN	ELFDATA2MSB
-#define GEN_ELF_CLASS	ELFCLASS64
-#elif defined(__powerpcle__)
-#define GEN_ELF_ARCH	EM_PPC64
-#define GEN_ELF_ENDIAN	ELFDATA2LSB
-#define GEN_ELF_CLASS	ELFCLASS64
+#define GEN_ELF_ARCH	EM_PPC
+#define GEN_ELF_CLASS	ELFCLASS32
 #else
 #error "unsupported architecture"
+#endif
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define GEN_ELF_ENDIAN	ELFDATA2MSB
+#else
+#define GEN_ELF_ENDIAN	ELFDATA2LSB
 #endif
 
 #if GEN_ELF_CLASS == ELFCLASS64
