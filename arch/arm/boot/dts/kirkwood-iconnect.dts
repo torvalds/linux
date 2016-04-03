@@ -19,16 +19,6 @@
 		linux,initrd-end   = <0x4800000>;
 	};
 
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
-	};
-
 	ocp@f1000000 {
 		pinctrl: pin-controller@10000 {
 			pmx_button_reset: pmx-button-reset {
@@ -193,4 +183,12 @@
 	ethernet0-port@0 {
 		phy-handle = <&ethphy0>;
 	};
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };

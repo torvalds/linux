@@ -31,16 +31,6 @@
 		stdout-path = &uart0;
 	};
 
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
-        };
-
 	ocp@f1000000 {
 		pin-controller@10000 {
 			pmx_usb_led: pmx-usb-led {
@@ -178,4 +168,12 @@
 		speed = <1000>;
 		duplex = <1>;
 	};
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };
