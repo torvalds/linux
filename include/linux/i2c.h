@@ -654,6 +654,11 @@ static inline int i2c_adapter_id(struct i2c_adapter *adap)
 	return adap->nr;
 }
 
+static inline u8 i2c_8bit_addr_from_msg(const struct i2c_msg *msg)
+{
+	return (msg->addr << 1) | (msg->flags & I2C_M_RD ? 1 : 0);
+}
+
 /**
  * module_i2c_driver() - Helper macro for registering a modular I2C driver
  * @__i2c_driver: i2c_driver struct
