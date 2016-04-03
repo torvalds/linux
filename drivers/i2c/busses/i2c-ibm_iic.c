@@ -269,7 +269,7 @@ static int iic_smbus_quick(struct ibm_iic_private* dev, const struct i2c_msg* p)
 	ndelay(t->hd_sta);
 
 	/* Send address */
-	v = (u8)((p->addr << 1) | ((p->flags & I2C_M_RD) ? 1 : 0));
+	v = i2c_8bit_addr_from_msg(p);
 	for (i = 0, mask = 0x80; i < 8; ++i, mask >>= 1){
 		out_8(&iic->directcntl, sda);
 		ndelay(t->low / 2);
