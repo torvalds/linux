@@ -2691,7 +2691,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 				ch->ch_w_head = ch->ch_w_tail;
 				ch_bd_ops->flush_uart_write(ch);
 
-				if (ch->ch_tun.un_flags & (UN_LOW|UN_EMPTY)) {
+				if (ch->ch_tun.un_flags & (UN_LOW | UN_EMPTY)) {
 					ch->ch_tun.un_flags &=
 						~(UN_LOW | UN_EMPTY);
 					wake_up_interruptible(&ch->ch_tun.un_flags_wait);
