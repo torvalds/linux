@@ -1095,6 +1095,30 @@ static int cxd2841er_get_carrier_offset_s_s2(struct cxd2841er_priv *priv,
 	return 0;
 }
 
+static int cxd2841er_get_carrier_offset_t(struct cxd2841er_priv *priv,
+					   u32 bandwidth, int *offset)
+{
+	u8 data[4];
+
+	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
+	if (priv->state != STATE_ACTIVE_TC) {
+		dev_dbg(&priv->i2c->dev, "%s(): invalid state %d\n",
+			__func__, priv->state);
+		return -EINVAL;
+	}
+	if (priv->system != SYS_DVBT) {
+		dev_dbg(&priv->i2c->dev, "%s(): invalid delivery system %d\n",
+			__func__, priv->system);
+		return -EINVAL;
+	}
+	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x10);
+	cxd2841er_read_regs(priv, I2C_SLVT, 0x4c, data, sizeof(data));
+	*offset = -1 * sign_extend32(
+		((u32)(data[0] & 0x1F) << 24) | ((u32)data[1] << 16) |
+		((u32)data[2] << 8) | (u32)data[3], 29);
+	return 0;
+}
+
 static int cxd2841er_get_carrier_offset_t2(struct cxd2841er_priv *priv,
 					   u32 bandwidth, int *offset)
 {
@@ -1560,6 +1584,10 @@ static u16 cxd2841er_read_agc_gain_t_t2(struct cxd2841er_priv *priv,
 	cxd2841er_write_reg(
 		priv, I2C_SLVT, 0x00, (delsys == SYS_DVBT ? 0x10 : 0x20));
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x26, data, 2);
+	dev_dbg(&priv->i2c->dev,
+			"%s(): AGC value=%u\n",
+			__func__, (((u16)data[0] & 0x0F) << 8) |
+			(u16)(data[1] & 0xFF));
 	return ((((u16)data[0] & 0x0F) << 8) | (u16)(data[1] & 0xFF)) << 4;
 }
 
@@ -2912,6 +2940,10 @@ static int cxd2841er_tune_tc(struct dvb_frontend *fe,
 		if (*status & FE_HAS_LOCK) {
 			switch (priv->system) {
 			case SYS_DVBT:
+				ret = cxd2841er_get_carrier_offset_t(
+					priv, p->bandwidth_hz,
+					&carrier_offset);
+				break;
 			case SYS_DVBT2:
 				ret = cxd2841er_get_carrier_offset_t2(
 					priv, p->bandwidth_hz,
