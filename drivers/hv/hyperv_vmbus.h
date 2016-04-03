@@ -667,8 +667,6 @@ void vmbus_disconnect(void);
 
 int vmbus_post_msg(void *buffer, size_t buflen);
 
-void vmbus_set_event(struct vmbus_channel *channel);
-
 void vmbus_on_event(unsigned long data);
 void vmbus_on_msg_dpc(unsigned long data);
 
