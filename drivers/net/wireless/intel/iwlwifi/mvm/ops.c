@@ -958,8 +958,6 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 
 	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD))
 		iwl_mvm_rx_mpdu_mq(mvm, napi, rxb, 0);
-	else if (pkt->hdr.cmd == REPLY_RX_PHY_CMD)
-		iwl_mvm_rx_phy_cmd_mq(mvm, rxb);
 	else if (unlikely(pkt->hdr.group_id == DATA_PATH_GROUP &&
 			  pkt->hdr.cmd == RX_QUEUES_NOTIFICATION))
 		iwl_mvm_rx_queue_notif(mvm, rxb, 0);

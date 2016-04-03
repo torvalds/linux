@@ -65,19 +65,6 @@
 #include "fw-api.h"
 #include "fw-dbg.h"
 
-void iwl_mvm_rx_phy_cmd_mq(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
-{
-	mvm->ampdu_ref++;
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (mvm->last_phy_info.phy_flags & cpu_to_le16(RX_RES_PHY_FLAGS_AGG)) {
-		spin_lock(&mvm->drv_stats_lock);
-		mvm->drv_rx_stats.ampdu_count++;
-		spin_unlock(&mvm->drv_stats_lock);
-	}
-#endif
-}
-
 static inline int iwl_mvm_check_pn(struct iwl_mvm *mvm, struct sk_buff *skb,
 				   int queue, struct ieee80211_sta *sta)
 {
