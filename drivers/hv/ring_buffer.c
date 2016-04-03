@@ -38,8 +38,6 @@ void hv_begin_read(struct hv_ring_buffer_info *rbi)
 
 u32 hv_end_read(struct hv_ring_buffer_info *rbi)
 {
-	u32 read;
-	u32 write;
 
 	rbi->ring_buffer->interrupt_mask = 0;
 	mb();
@@ -49,9 +47,7 @@ u32 hv_end_read(struct hv_ring_buffer_info *rbi)
 	 * If it is not, we raced and we need to process new
 	 * incoming messages.
 	 */
-	hv_get_ringbuffer_availbytes(rbi, &read, &write);
-
-	return read;
+	return hv_get_bytes_to_read(rbi);
 }
 
 /*
@@ -106,9 +102,6 @@ static bool hv_need_to_signal(u32 old_write, struct hv_ring_buffer_info *rbi)
 static bool hv_need_to_signal_on_read(struct hv_ring_buffer_info *rbi)
 {
 	u32 cur_write_sz;
-	u32 r_size;
-	u32 write_loc;
-	u32 read_loc = rbi->ring_buffer->read_index;
 	u32 pending_sz;
 
 	/*
@@ -125,14 +118,11 @@ static bool hv_need_to_signal_on_read(struct hv_ring_buffer_info *rbi)
 	mb();
 
 	pending_sz = rbi->ring_buffer->pending_send_sz;
-	write_loc = rbi->ring_buffer->write_index;
 	/* If the other end is not blocked on write don't bother. */
 	if (pending_sz == 0)
 		return false;
 
-	r_size = rbi->ring_datasize;
-	cur_write_sz = write_loc >= read_loc ? r_size - (write_loc - read_loc) :
-			read_loc - write_loc;
+	cur_write_sz = hv_get_bytes_to_write(rbi);
 
 	if (cur_write_sz >= pending_sz)
 		return true;
@@ -332,7 +322,6 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 {
 	int i = 0;
 	u32 bytes_avail_towrite;
-	u32 bytes_avail_toread;
 	u32 totalbytes_towrite = 0;
 
 	u32 next_write_location;
@@ -348,9 +337,7 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 	if (lock)
 		spin_lock_irqsave(&outring_info->ring_lock, flags);
 
-	hv_get_ringbuffer_availbytes(outring_info,
-				&bytes_avail_toread,
-				&bytes_avail_towrite);
+	bytes_avail_towrite = hv_get_bytes_to_write(outring_info);
 
 	/*
 	 * If there is only room for the packet, assume it is full.
@@ -401,7 +388,6 @@ int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info,
 		       void *buffer, u32 buflen, u32 *buffer_actual_len,
 		       u64 *requestid, bool *signal, bool raw)
 {
-	u32 bytes_avail_towrite;
 	u32 bytes_avail_toread;
 	u32 next_read_location = 0;
 	u64 prev_indices = 0;
@@ -417,10 +403,7 @@ int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info,
 	*buffer_actual_len = 0;
 	*requestid = 0;
 
-	hv_get_ringbuffer_availbytes(inring_info,
-				&bytes_avail_toread,
-				&bytes_avail_towrite);
-
+	bytes_avail_toread = hv_get_bytes_to_read(inring_info);
 	/* Make sure there is something to read */
 	if (bytes_avail_toread < sizeof(desc)) {
 		/*
