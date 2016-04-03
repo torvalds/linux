@@ -183,7 +183,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		usb3_regulator: usb3-regulator {
+		usb3_regulator: usb3-regulator@1 {
 			compatible = "regulator-fixed";
 			reg = <1>;
 			regulator-name = "USB 3.0 Power";
