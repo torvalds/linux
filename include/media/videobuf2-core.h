@@ -375,6 +375,9 @@ struct vb2_ops {
 /**
  * struct vb2_ops - driver-specific callbacks
  *
+ * @verify_planes_array: Verify that a given user space structure contains
+ *			enough planes for the buffer. This is called
+ *			for each dequeued buffer.
  * @fill_user_buffer:	given a vb2_buffer fill in the userspace structure.
  *			For V4L2 this is a struct v4l2_buffer.
  * @fill_vb2_buffer:	given a userspace structure, fill in the vb2_buffer.
@@ -384,6 +387,7 @@ struct vb2_ops {
  *			the vb2_buffer struct.
  */
 struct vb2_buf_ops {
+	int (*verify_planes_array)(struct vb2_buffer *vb, const void *pb);
 	void (*fill_user_buffer)(struct vb2_buffer *vb, void *pb);
 	int (*fill_vb2_buffer)(struct vb2_buffer *vb, const void *pb,
 				struct vb2_plane *planes);
