@@ -1298,7 +1298,7 @@ static inline void iwl_pcie_clear_irq(struct iwl_trans *trans,
 	 * write 1 clear (W1C) register, meaning that it's being clear
 	 * by writing 1 to the bit.
 	 */
-	iwl_write_direct32(trans, CSR_MSIX_AUTOMASK_ST_AD, BIT(entry->entry));
+	iwl_write32(trans, CSR_MSIX_AUTOMASK_ST_AD, BIT(entry->entry));
 }
 
 /*
@@ -1817,13 +1817,13 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	lock_map_acquire(&trans->sync_cmd_lockdep_map);
 
 	spin_lock(&trans_pcie->irq_lock);
-	inta_fh = iwl_read_direct32(trans, CSR_MSIX_FH_INT_CAUSES_AD);
-	inta_hw = iwl_read_direct32(trans, CSR_MSIX_HW_INT_CAUSES_AD);
+	inta_fh = iwl_read32(trans, CSR_MSIX_FH_INT_CAUSES_AD);
+	inta_hw = iwl_read32(trans, CSR_MSIX_HW_INT_CAUSES_AD);
 	/*
 	 * Clear causes registers to avoid being handling the same cause.
 	 */
-	iwl_write_direct32(trans, CSR_MSIX_FH_INT_CAUSES_AD, inta_fh);
-	iwl_write_direct32(trans, CSR_MSIX_HW_INT_CAUSES_AD, inta_hw);
+	iwl_write32(trans, CSR_MSIX_FH_INT_CAUSES_AD, inta_fh);
+	iwl_write32(trans, CSR_MSIX_HW_INT_CAUSES_AD, inta_hw);
 	spin_unlock(&trans_pcie->irq_lock);
 
 	if (unlikely(!(inta_fh | inta_hw))) {
