@@ -737,7 +737,7 @@ static s32 handle_scan(struct wilc_vif *vif, struct scan_attr *scan_info)
 	struct wid wid_list[5];
 	u32 index = 0;
 	u32 i;
-	u8 *pu8Buffer;
+	u8 *buffer;
 	u8 valuesize = 0;
 	u8 *pu8HdnNtwrksWidVal = NULL;
 	struct host_if_drv *hif_drv = vif->hif_drv;
@@ -768,14 +768,14 @@ static s32 handle_scan(struct wilc_vif *vif, struct scan_attr *scan_info)
 	pu8HdnNtwrksWidVal = kmalloc(valuesize + 1, GFP_KERNEL);
 	wid_list[index].val = pu8HdnNtwrksWidVal;
 	if (wid_list[index].val) {
-		pu8Buffer = wid_list[index].val;
+		buffer = wid_list[index].val;
 
-		*pu8Buffer++ = scan_info->hidden_network.n_ssids;
+		*buffer++ = scan_info->hidden_network.n_ssids;
 
 		for (i = 0; i < scan_info->hidden_network.n_ssids; i++) {
-			*pu8Buffer++ = scan_info->hidden_network.net_info[i].ssid_len;
-			memcpy(pu8Buffer, scan_info->hidden_network.net_info[i].ssid, scan_info->hidden_network.net_info[i].ssid_len);
-			pu8Buffer += scan_info->hidden_network.net_info[i].ssid_len;
+			*buffer++ = scan_info->hidden_network.net_info[i].ssid_len;
+			memcpy(buffer, scan_info->hidden_network.net_info[i].ssid, scan_info->hidden_network.net_info[i].ssid_len);
+			buffer += scan_info->hidden_network.net_info[i].ssid_len;
 		}
 
 		wid_list[index].size = (s32)(valuesize + 1);
