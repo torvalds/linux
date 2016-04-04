@@ -390,6 +390,7 @@ static inline int remote_hw_reprot_key(struct remote *remote_data)
 		}
 #ifdef CONFIG_AML_HDMI_TX
 #ifdef CONFIG_ARCH_MESON6
+#ifndef CONFIG_AML_HDMI_TX_NEW_CEC_DRIVER
 		//printk("last_scan_code:%x\n", last_scan_code);
 		if((((scan_code >> 16) & 0xff) == 0x1a) && (!cec_repeat)) {
             extern int rc_long_press_pwr_key;
@@ -399,6 +400,7 @@ static inline int remote_hw_reprot_key(struct remote *remote_data)
 		}
 		if(((scan_code >> 16) & 0xff) == 0x1a)
  		    cec_repeat--;
+#endif
 #endif
 #endif
 		if (remote_data->repeat_enable) {

@@ -21,6 +21,12 @@ config AML_HDMI_TX_CTS_DVI
         help
                 HDMI DVI output enable. By default, Tx will output HDMI mode signal, not DVI.
                 If you want to pass HDMI official CTS or compliance DVI device, enable it.
+
+config AML_HDMI_TX_NEW_CEC_DRIVER                                                                                                                 
+        bool "HDMI new CEC driver"                                                                                                                
+        default n                                                                                                                                 
+        help                                                                                                                                      
+                hdmitx uses new CEC driver
 endif
 
 endmenu

@@ -183,9 +183,9 @@ void cec_node_init(hdmitx_dev_t* hdmitx_device)
     struct vendor_info_data *vend_data = NULL;
     
     int i, bool = 0;
-    const enum _cec_log_dev_addr_e player_dev[3] = {CEC_PLAYBACK_DEVICE_1_ADDR,
-                                                    CEC_PLAYBACK_DEVICE_2_ADDR,
-                                                    CEC_PLAYBACK_DEVICE_3_ADDR,
+    const enum _cec_log_dev_addr_e player_dev[3] = {CEC_RECORDING_DEVICE_1_ADDR,
+                                                    CEC_RECORDING_DEVICE_2_ADDR,
+                                                    CEC_RECORDING_DEVICE_3_ADDR,
                                                    };
 
     unsigned long cec_phy_addr;
@@ -1245,8 +1245,28 @@ void cec_handle_message(cec_rx_message_t* pcec_message)
 	    }
 	    break;
         case CEC_OC_GET_MENU_LANGUAGE:
-        case CEC_OC_VENDOR_REMOTE_BUTTON_DOWN:
         case CEC_OC_VENDOR_REMOTE_BUTTON_UP:
+        case CEC_OC_VENDOR_REMOTE_BUTTON_DOWN:
+            hdmi_print(INF, CEC "CEC_OC_VENDOR_REMOTE_BUTTON_DOWN:0x%x\n",pcec_message->content.msg.operands[0]);
+            switch(pcec_message->content.msg.operands[0]){
+                case 0x91:
+                    input_event(cec_global_info.remote_cec_dev, EV_KEY, KEY_EXIT, 1);
+                    input_sync(cec_global_info.remote_cec_dev);
+                    input_event(cec_global_info.remote_cec_dev, EV_KEY, KEY_EXIT, 0);
+                    input_sync(cec_global_info.remote_cec_dev);
+                    hdmi_print(INF, CEC  ":key map:%d\n",KEY_EXIT);
+                    break;
+                case 0x96:
+                    input_event(cec_global_info.remote_cec_dev, EV_KEY, KEY_LIST, 1);
+                    input_sync(cec_global_info.remote_cec_dev);
+                    input_event(cec_global_info.remote_cec_dev, EV_KEY, KEY_LIST, 0);
+                    input_sync(cec_global_info.remote_cec_dev);
+                    hdmi_print(INF, CEC  ":key map:%d\n",KEY_LIST);
+                    break;
+                default:
+                    break;
+            }
+            break;
         case CEC_OC_CLEAR_ANALOGUE_TIMER:
         case CEC_OC_CLEAR_DIGITAL_TIMER:
         case CEC_OC_CLEAR_EXTERNAL_TIMER:
@@ -1608,7 +1628,7 @@ void cec_send_simplink_ack(cec_rx_message_t *pcec_message)
 static int __init cec_init(void)
 {
     int i;
-    extern __u16 cec_key_map[128];
+    extern __u16 cec_key_map[160];
     extern hdmitx_dev_t * get_hdmitx_device(void);
     hdmitx_device = get_hdmitx_device();
     init_waitqueue_head(&hdmitx_device->cec_wait_rx);
@@ -1659,7 +1679,7 @@ static int __init cec_init(void)
     cec_global_info.remote_cec_dev->id.product = 0x0cec;
     cec_global_info.remote_cec_dev->id.version = 0x0001;
 
-    for (i = 0; i < 128; i++){
+    for (i = 0; i < 160; i++){
           set_bit( cec_key_map[i], cec_global_info.remote_cec_dev->keybit);
       }
 

@@ -36,24 +36,28 @@
 #include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
 hdmitx_dev_t *hdmitx_device = NULL;
 
-__u16 cec_key_map[128] = {
+__u16 cec_key_map[160] = {
     KEY_ENTER, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, 0 , 0 , 0 ,//0x00
     0 , KEY_HOMEPAGE , KEY_MENU, 0, 0, KEY_BACK, 0, 0,
     0 , 0, 0, 0, 0, 0, 0, 0,//0x10
     0 , 0, 0, 0, 0, 0, 0, 0,
     KEY_0 , KEY_1, KEY_2, KEY_3,KEY_4, KEY_5, KEY_6, KEY_7,//0x20
     KEY_8 , KEY_9, KEY_DOT, 0, 0, 0, 0, 0,
-    0 , 0, 0, 0, 0, 0, 0, 0,//0x30
+    KEY_CHANNELUP , KEY_CHANNELDOWN, KEY_CHANNEL, 0, 0, 0, 0, 0,//0x30
     0 , 0, 0, 0, 0, 0, 0, 0,
     
     KEY_POWER , KEY_VOLUMEUP, KEY_VOLUMEDOWN, KEY_MUTE, KEY_PLAYPAUSE, KEY_STOP, KEY_PLAYPAUSE, KEY_RECORD,//0x40
     KEY_REWIND, KEY_FASTFORWARD, KEY_EJECTCD, KEY_NEXTSONG, KEY_PREVIOUSSONG, 0, 0, 0,
-    0 , 0, 0, 0, 0, 0, 0, 0,//0x50
+    0 , 0, 0, KEY_PROGRAM, 0, 0, 0, 0,//0x50
     0 , 0, 0, 0, 0, 0, 0, 0,
     KEY_PLAYCD, KEY_PLAYPAUSE, KEY_RECORD, KEY_PAUSECD, KEY_STOPCD, KEY_MUTE, 0, KEY_TUNER,//0x60
     0 , KEY_MEDIA, 0, 0, KEY_POWER, 0, 0, 0,
     0 , KEY_BLUE, KEY_RED, KEY_GREEN, KEY_YELLOW, 0, 0, 0,//0x70
     0 , 0, 0, 0, 0, 0, 0, 0x2fd,
+    0 , 0, 0, 0, 0, 0, 0, 0,//0x80
+    0 , 0, 0, 0, 0, 0, 0, 0,
+    0 , KEY_EXIT, 0, 0, 0, 0, KEY_PVR, 0,//0x90  //samsung vendor buttons return and channel_list
+    0 , 0, 0, 0, 0, 0, 0, 0,
 };
 
 void cec_send_event(cec_rx_message_t* pcec_message)
