@@ -189,7 +189,6 @@ struct rxrpc_local {
 	rwlock_t		services_lock;	/* lock for services list */
 	atomic_t		usage;
 	int			debug_id;	/* debug ID for printks */
-	volatile char		error_rcvd;	/* T if received ICMP error outstanding */
 	struct sockaddr_rxrpc	srx;		/* local address */
 };
 
@@ -203,14 +202,16 @@ struct rxrpc_peer {
 	unsigned long		hash_key;
 	struct hlist_node	hash_link;
 	struct rxrpc_local	*local;
-	struct list_head	error_targets;	/* targets for net error distribution */
+	struct hlist_head	error_targets;	/* targets for net error distribution */
+	struct work_struct	error_distributor;
 	spinlock_t		lock;		/* access lock */
 	unsigned int		if_mtu;		/* interface MTU for this peer */
 	unsigned int		mtu;		/* network MTU for this peer */
 	unsigned int		maxdata;	/* data size (MTU - hdrsize) */
 	unsigned short		hdrsize;	/* header size (IP + UDP + RxRPC) */
 	int			debug_id;	/* debug ID for printks */
-	int			net_error;	/* network error distributed */
+	int			error_report;	/* Net (+0) or local (+1000000) to distribute */
+#define RXRPC_LOCAL_ERROR_OFFSET 1000000
 	struct sockaddr_rxrpc	srx;		/* remote address */
 
 	/* calculated RTT cache */
@@ -229,12 +230,10 @@ struct rxrpc_peer {
 struct rxrpc_transport {
 	struct rxrpc_local	*local;		/* local transport endpoint */
 	struct rxrpc_peer	*peer;		/* remote transport endpoint */
-	struct work_struct	error_handler;	/* network error distributor */
 	struct rb_root		bundles;	/* client connection bundles on this transport */
 	struct rb_root		client_conns;	/* client connections on this transport */
 	struct rb_root		server_conns;	/* server connections on this transport */
 	struct list_head	link;		/* link in master session list */
-	struct sk_buff_head	error_queue;	/* error packets awaiting processing */
 	unsigned long		put_time;	/* time at which to reap */
 	spinlock_t		client_lock;	/* client connection allocation lock */
 	rwlock_t		conn_lock;	/* lock for active/dead connections */
@@ -393,7 +392,7 @@ struct rxrpc_call {
 	struct work_struct	destroyer;	/* call destroyer */
 	struct work_struct	processor;	/* packet processor and ACK generator */
 	struct list_head	link;		/* link in master call list */
-	struct list_head	error_link;	/* link in error distribution list */
+	struct hlist_node	error_link;	/* link in error distribution list */
 	struct list_head	accept_link;	/* calls awaiting acceptance */
 	struct rb_node		sock_node;	/* node in socket call tree */
 	struct rb_node		conn_node;	/* node in connection call tree */
@@ -411,7 +410,8 @@ struct rxrpc_call {
 	atomic_t		sequence;	/* Tx data packet sequence counter */
 	u32			local_abort;	/* local abort code */
 	u32			remote_abort;	/* remote abort code */
-	int			error;		/* local error incurred */
+	int			error_report;	/* Network error (ICMP/local transport) */
+	int			error;		/* Local error incurred */
 	enum rxrpc_call_state	state : 8;	/* current state of call */
 	int			debug_id;	/* debug ID for printks */
 	u8			channel;	/* connection channel occupied by this call */
@@ -609,7 +609,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *, struct msghdr *, size_t);
  * peer_event.c
  */
 void rxrpc_error_report(struct sock *);
-void rxrpc_UDP_error_handler(struct work_struct *);
+void rxrpc_peer_error_distributor(struct work_struct *);
 
 /*
  * peer_object.c

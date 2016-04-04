@@ -49,26 +49,11 @@ static struct rxrpc_transport *rxrpc_alloc_transport(struct rxrpc_local *local,
 		trans->bundles = RB_ROOT;
 		trans->client_conns = RB_ROOT;
 		trans->server_conns = RB_ROOT;
-		skb_queue_head_init(&trans->error_queue);
 		spin_lock_init(&trans->client_lock);
 		rwlock_init(&trans->conn_lock);
 		atomic_set(&trans->usage, 1);
 		trans->conn_idcounter = peer->srx.srx_service << 16;
 		trans->debug_id = atomic_inc_return(&rxrpc_debug_id);
-
-		if (peer->srx.transport.family == AF_INET) {
-			switch (peer->srx.transport_type) {
-			case SOCK_DGRAM:
-				INIT_WORK(&trans->error_handler,
-					  rxrpc_UDP_error_handler);
-				break;
-			default:
-				BUG();
-				break;
-			}
-		} else {
-			BUG();
-		}
 	}
 
 	_leave(" = %p", trans);
@@ -209,8 +194,6 @@ void rxrpc_put_transport(struct rxrpc_transport *trans)
 static void rxrpc_cleanup_transport(struct rxrpc_transport *trans)
 {
 	_net("DESTROY TRANS %d", trans->debug_id);
-
-	rxrpc_purge_queue(&trans->error_queue);
 
 	rxrpc_put_local(trans->local);
 	rxrpc_put_peer(trans->peer);

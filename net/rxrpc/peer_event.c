@@ -1,4 +1,4 @@
-/* Error message handling (ICMP)
+/* Peer event handling, typically ICMP messages.
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -21,6 +21,8 @@
 #include <net/af_rxrpc.h>
 #include <net/ip.h>
 #include "ar-internal.h"
+
+static void rxrpc_store_error(struct rxrpc_peer *, struct sock_exterr_skb *);
 
 /*
  * Find the peer associated with an ICMP packet.
@@ -111,12 +113,11 @@ static void rxrpc_adjust_mtu(struct rxrpc_peer *peer, struct sock_exterr_skb *se
 }
 
 /*
- * handle an error received on the local endpoint
+ * Handle an error received on the local endpoint.
  */
 void rxrpc_error_report(struct sock *sk)
 {
 	struct sock_exterr_skb *serr;
-	struct rxrpc_transport *trans;
 	struct rxrpc_local *local = sk->sk_user_data;
 	struct rxrpc_peer *peer;
 	struct sk_buff *skb;
@@ -148,57 +149,37 @@ void rxrpc_error_report(struct sock *sk)
 		return;
 	}
 
-	trans = rxrpc_find_transport(local, peer);
-	if (!trans) {
-		rcu_read_unlock();
-		rxrpc_put_peer(peer);
-		rxrpc_free_skb(skb);
-		_leave(" [no trans]");
-		return;
-	}
-
 	if ((serr->ee.ee_origin == SO_EE_ORIGIN_ICMP &&
 	     serr->ee.ee_type == ICMP_DEST_UNREACH &&
 	     serr->ee.ee_code == ICMP_FRAG_NEEDED)) {
 		rxrpc_adjust_mtu(peer, serr);
+		rcu_read_unlock();
 		rxrpc_free_skb(skb);
-		skb = NULL;
-		goto out;
+		rxrpc_put_peer(peer);
+		_leave(" [MTU update]");
+		return;
 	}
 
-out:
+	rxrpc_store_error(peer, serr);
 	rcu_read_unlock();
-	rxrpc_put_peer(peer);
+	rxrpc_free_skb(skb);
 
-	if (skb) {
-		/* pass the transport ref to error_handler to release */
-		skb_queue_tail(&trans->error_queue, skb);
-		rxrpc_queue_work(&trans->error_handler);
-	} else {
-		rxrpc_put_transport(trans);
-	}
+	/* The ref we obtained is passed off to the work item */
+	rxrpc_queue_work(&peer->error_distributor);
 	_leave("");
 }
 
 /*
- * deal with UDP error messages
+ * Map an error report to error codes on the peer record.
  */
-void rxrpc_UDP_error_handler(struct work_struct *work)
+static void rxrpc_store_error(struct rxrpc_peer *peer,
+			      struct sock_exterr_skb *serr)
 {
 	struct sock_extended_err *ee;
-	struct sock_exterr_skb *serr;
-	struct rxrpc_transport *trans =
-		container_of(work, struct rxrpc_transport, error_handler);
-	struct sk_buff *skb;
 	int err;
 
 	_enter("");
 
-	skb = skb_dequeue(&trans->error_queue);
-	if (!skb)
-		return;
-
-	serr = SKB_EXT_ERR(skb);
 	ee = &serr->ee;
 
 	_net("Rx Error o=%d t=%d c=%d e=%d",
@@ -244,47 +225,57 @@ void rxrpc_UDP_error_handler(struct work_struct *work)
 		}
 		break;
 
+	case SO_EE_ORIGIN_NONE:
 	case SO_EE_ORIGIN_LOCAL:
 		_proto("Rx Received local error { error=%d }", err);
+		err += RXRPC_LOCAL_ERROR_OFFSET;
 		break;
 
-	case SO_EE_ORIGIN_NONE:
 	case SO_EE_ORIGIN_ICMP6:
 	default:
 		_proto("Rx Received error report { orig=%u }", ee->ee_origin);
 		break;
 	}
 
-	/* terminate all the affected calls if there's an unrecoverable
-	 * error */
-	if (err) {
-		struct rxrpc_call *call, *_n;
+	peer->error_report = err;
+}
 
-		_debug("ISSUE ERROR %d", err);
+/*
+ * Distribute an error that occurred on a peer
+ */
+void rxrpc_peer_error_distributor(struct work_struct *work)
+{
+	struct rxrpc_peer *peer =
+		container_of(work, struct rxrpc_peer, error_distributor);
+	struct rxrpc_call *call;
+	int error_report;
 
-		spin_lock_bh(&trans->peer->lock);
-		trans->peer->net_error = err;
+	_enter("");
 
-		list_for_each_entry_safe(call, _n, &trans->peer->error_targets,
-					 error_link) {
-			write_lock(&call->state_lock);
-			if (call->state != RXRPC_CALL_COMPLETE &&
-			    call->state < RXRPC_CALL_NETWORK_ERROR) {
-				call->state = RXRPC_CALL_NETWORK_ERROR;
-				set_bit(RXRPC_CALL_EV_RCVD_ERROR, &call->events);
-				rxrpc_queue_call(call);
-			}
-			write_unlock(&call->state_lock);
-			list_del_init(&call->error_link);
+	error_report = READ_ONCE(peer->error_report);
+
+	_debug("ISSUE ERROR %d", error_report);
+
+	spin_lock_bh(&peer->lock);
+
+	while (!hlist_empty(&peer->error_targets)) {
+		call = hlist_entry(peer->error_targets.first,
+				   struct rxrpc_call, error_link);
+		hlist_del_init(&call->error_link);
+
+		write_lock(&call->state_lock);
+		if (call->state != RXRPC_CALL_COMPLETE &&
+		    call->state < RXRPC_CALL_NETWORK_ERROR) {
+			call->error_report = error_report;
+			call->state = RXRPC_CALL_NETWORK_ERROR;
+			set_bit(RXRPC_CALL_EV_RCVD_ERROR, &call->events);
+			rxrpc_queue_call(call);
 		}
-
-		spin_unlock_bh(&trans->peer->lock);
+		write_unlock(&call->state_lock);
 	}
 
-	if (!skb_queue_empty(&trans->error_queue))
-		rxrpc_queue_work(&trans->error_handler);
+	spin_unlock_bh(&peer->lock);
 
-	rxrpc_free_skb(skb);
-	rxrpc_put_transport(trans);
+	rxrpc_put_peer(peer);
 	_leave("");
 }

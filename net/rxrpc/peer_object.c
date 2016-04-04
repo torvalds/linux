@@ -182,7 +182,9 @@ struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp)
 	if (peer) {
 		atomic_set(&peer->usage, 1);
 		peer->local = local;
-		INIT_LIST_HEAD(&peer->error_targets);
+		INIT_HLIST_HEAD(&peer->error_targets);
+		INIT_WORK(&peer->error_distributor,
+			  &rxrpc_peer_error_distributor);
 		spin_lock_init(&peer->lock);
 		peer->debug_id = atomic_inc_return(&rxrpc_debug_id);
 	}
@@ -298,7 +300,7 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *local,
  */
 void __rxrpc_put_peer(struct rxrpc_peer *peer)
 {
-	ASSERT(list_empty(&peer->error_targets));
+	ASSERT(hlist_empty(&peer->error_targets));
 
 	spin_lock(&rxrpc_peer_hash_lock);
 	hash_del_rcu(&peer->hash_link);
