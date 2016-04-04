@@ -359,6 +359,9 @@ extern int of_phandle_iterator_init(struct of_phandle_iterator *it,
 				    int cell_count);
 
 extern int of_phandle_iterator_next(struct of_phandle_iterator *it);
+extern int of_phandle_iterator_args(struct of_phandle_iterator *it,
+				    uint32_t *args,
+				    int size);
 
 extern void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align));
 extern int of_alias_get_id(struct device_node *np, const char *stem);
@@ -646,6 +649,13 @@ static inline int of_phandle_iterator_init(struct of_phandle_iterator *it,
 static inline int of_phandle_iterator_next(struct of_phandle_iterator *it)
 {
 	return -ENOSYS;
+}
+
+static inline int of_phandle_iterator_args(struct of_phandle_iterator *it,
+					   uint32_t *args,
+					   int size)
+{
+	return 0;
 }
 
 static inline int of_alias_get_id(struct device_node *np, const char *stem)

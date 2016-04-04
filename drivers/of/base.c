@@ -1534,6 +1534,23 @@ err:
 	return -EINVAL;
 }
 
+int of_phandle_iterator_args(struct of_phandle_iterator *it,
+			     uint32_t *args,
+			     int size)
+{
+	int i, count;
+
+	count = it->cur_count;
+
+	if (WARN_ON(size < count))
+		count = size;
+
+	for (i = 0; i < count; i++)
+		args[i] = be32_to_cpup(it->cur++);
+
+	return count;
+}
+
 static int __of_parse_phandle_with_args(const struct device_node *np,
 					const char *list_name,
 					const char *cells_name,
@@ -1557,13 +1574,13 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 				goto err;
 
 			if (out_args) {
-				int i;
-				if (WARN_ON(it.cur_count > MAX_PHANDLE_ARGS))
-					it.cur_count = MAX_PHANDLE_ARGS;
+				int c;
+
+				c = of_phandle_iterator_args(&it,
+							     out_args->args,
+							     MAX_PHANDLE_ARGS);
 				out_args->np = it.node;
-				out_args->args_count = it.cur_count;
-				for (i = 0; i < it.cur_count; i++)
-					out_args->args[i] = be32_to_cpup(it.cur++);
+				out_args->args_count = c;
 			} else {
 				of_node_put(it.node);
 			}
