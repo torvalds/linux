@@ -1565,6 +1565,7 @@ static int polaris10_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 
 	for (count = 0; count < table->VceLevelCount; count++) {
 		table->VceLevel[count].Frequency = mm_table->entries[count].eclk;
+		table->VceLevel[count].MinVoltage = 0;
 		table->VceLevel[count].MinVoltage |=
 				(mm_table->entries[count].vddc * VOLTAGE_SCALE) << VDDC_SHIFT;
 		table->VceLevel[count].MinVoltage |=
@@ -1604,6 +1605,7 @@ static int polaris10_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
 
 	for (count = 0; count < table->SamuLevelCount; count++) {
 		/* not sure whether we need evclk or not */
+		table->SamuLevel[count].MinVoltage = 0;
 		table->SamuLevel[count].Frequency = mm_table->entries[count].samclock;
 		table->SamuLevel[count].MinVoltage |= (mm_table->entries[count].vddc *
 				VOLTAGE_SCALE) << VDDC_SHIFT;
@@ -1696,6 +1698,7 @@ static int polaris10_populate_smc_uvd_level(struct pp_hwmgr *hwmgr,
 	table->UvdBootLevel = 0;
 
 	for (count = 0; count < table->UvdLevelCount; count++) {
+		table->UvdLevel[count].MinVoltage = 0;
 		table->UvdLevel[count].VclkFrequency = mm_table->entries[count].vclk;
 		table->UvdLevel[count].DclkFrequency = mm_table->entries[count].dclk;
 		table->UvdLevel[count].MinVoltage |= (mm_table->entries[count].vddc *
@@ -2011,6 +2014,7 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 	if (POLARIS10_VOLTAGE_CONTROL_NONE != data->voltage_control)
 		polaris10_populate_smc_voltage_tables(hwmgr, table);
 
+	table->SystemFlags = 0;
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_AutomaticDCTransition))
 		table->SystemFlags |= PPSMC_SYSTEMFLAG_GPIO_DC;
@@ -2104,6 +2108,7 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 	table->MemoryThermThrottleEnable = 1;
 	table->PCIeBootLinkLevel = 0;
 	table->PCIeGenInterval = 1;
+	table->VRConfig = 0;
 
 	result = polaris10_populate_vr_config(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
