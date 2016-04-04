@@ -628,9 +628,11 @@ iopgtable_store_entry_core(struct omap_iommu *obj, struct iotlb_entry *e)
 		break;
 	default:
 		fn = NULL;
-		BUG();
 		break;
 	}
+
+	if (WARN_ON(!fn))
+		return -EINVAL;
 
 	prot = get_iopte_attr(e);
 
