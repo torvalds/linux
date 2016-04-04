@@ -36,7 +36,7 @@ static int __read_mostly tsc_unstable;
 
 /* native_sched_clock() is called before tsc_init(), so
    we must start with the TSC soft disabled to prevent
-   erroneous rdtsc usage on !cpu_has_tsc processors */
+   erroneous rdtsc usage on !boot_cpu_has(X86_FEATURE_TSC) processors */
 static int __read_mostly tsc_disabled = -1;
 
 static DEFINE_STATIC_KEY_FALSE(__use_tsc);
@@ -834,7 +834,7 @@ int recalibrate_cpu_khz(void)
 #ifndef CONFIG_SMP
 	unsigned long cpu_khz_old = cpu_khz;
 
-	if (cpu_has_tsc) {
+	if (boot_cpu_has(X86_FEATURE_TSC)) {
 		tsc_khz = x86_platform.calibrate_tsc();
 		cpu_khz = tsc_khz;
 		cpu_data(0).loops_per_jiffy =
@@ -956,7 +956,7 @@ static struct notifier_block time_cpufreq_notifier_block = {
 
 static int __init cpufreq_tsc(void)
 {
-	if (!cpu_has_tsc)
+	if (!boot_cpu_has(X86_FEATURE_TSC))
 		return 0;
 	if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
 		return 0;
@@ -1081,7 +1081,7 @@ static void __init check_system_tsc_reliable(void)
  */
 int unsynchronized_tsc(void)
 {
-	if (!cpu_has_tsc || tsc_unstable)
+	if (!boot_cpu_has(X86_FEATURE_TSC) || tsc_unstable)
 		return 1;
 
 #ifdef CONFIG_SMP
@@ -1205,7 +1205,7 @@ out:
 
 static int __init init_tsc_clocksource(void)
 {
-	if (!cpu_has_tsc || tsc_disabled > 0 || !tsc_khz)
+	if (!boot_cpu_has(X86_FEATURE_TSC) || tsc_disabled > 0 || !tsc_khz)
 		return 0;
 
 	if (tsc_clocksource_reliable)
@@ -1242,7 +1242,7 @@ void __init tsc_init(void)
 	u64 lpj;
 	int cpu;
 
-	if (!cpu_has_tsc) {
+	if (!boot_cpu_has(X86_FEATURE_TSC)) {
 		setup_clear_cpu_cap(X86_FEATURE_TSC_DEADLINE_TIMER);
 		return;
 	}

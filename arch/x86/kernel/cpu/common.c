@@ -1558,7 +1558,7 @@ void cpu_init(void)
 	pr_info("Initializing CPU#%d\n", cpu);
 
 	if (cpu_feature_enabled(X86_FEATURE_VME) ||
-	    cpu_has_tsc ||
+	    boot_cpu_has(X86_FEATURE_TSC) ||
 	    boot_cpu_has(X86_FEATURE_DE))
 		cr4_clear_bits(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
 

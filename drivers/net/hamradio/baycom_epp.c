@@ -635,10 +635,10 @@ static int receive(struct net_device *dev, int cnt)
 
 #ifdef __i386__
 #include <asm/msr.h>
-#define GETTICK(x)                                                \
-({                                                                \
-	if (cpu_has_tsc)                                          \
-		x = (unsigned int)rdtsc();		  \
+#define GETTICK(x)						\
+({								\
+	if (boot_cpu_has(X86_FEATURE_TSC))			\
+		x = (unsigned int)rdtsc();			\
 })
 #else /* __i386__ */
 #define GETTICK(x)
