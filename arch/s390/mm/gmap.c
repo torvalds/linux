@@ -23,7 +23,7 @@
 /**
  * gmap_alloc - allocate a guest address space
  * @mm: pointer to the parent mm_struct
- * @limit: maximum size of the gmap address space
+ * @limit: maximum address of the gmap address space
  *
  * Returns a guest address space structure.
  */
@@ -292,7 +292,7 @@ int gmap_map_segment(struct gmap *gmap, unsigned long from,
 	if ((from | to | len) & (PMD_SIZE - 1))
 		return -EINVAL;
 	if (len == 0 || from + len < from || to + len < to ||
-	    from + len > TASK_MAX_SIZE || to + len > gmap->asce_end)
+	    from + len - 1 > TASK_MAX_SIZE || to + len - 1 > gmap->asce_end)
 		return -EINVAL;
 
 	flush = 0;
