@@ -530,7 +530,7 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 	const u8 *target_addr, *orig_addr;
 	const u8 *da;
 	u8 target_flags, ttl, flags;
-	u32 orig_sn, target_sn, lifetime, target_metric;
+	u32 orig_sn, target_sn, lifetime, target_metric = 0;
 	bool reply = false;
 	bool forward = true;
 	bool root_is_gate;
