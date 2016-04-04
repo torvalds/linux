@@ -1837,6 +1837,18 @@ static const struct hda_pcm_ops generic_ops = {
 	.cleanup = generic_hdmi_playback_pcm_cleanup,
 };
 
+static int hdmi_get_spk_alloc(struct hdac_device *hdac, int pcm_idx)
+{
+	struct hda_codec *codec = container_of(hdac, struct hda_codec, core);
+	struct hdmi_spec *spec = codec->spec;
+	struct hdmi_spec_per_pin *per_pin = pcm_idx_to_pin(spec, pcm_idx);
+
+	if (!per_pin)
+		return 0;
+
+	return per_pin->sink_eld.info.spk_alloc;
+}
+
 static void hdmi_get_chmap(struct hdac_device *hdac, int pcm_idx,
 					unsigned char *chmap)
 {
@@ -2165,6 +2177,7 @@ static int alloc_generic_hdmi(struct hda_codec *codec)
 	spec->chmap.ops.get_chmap = hdmi_get_chmap;
 	spec->chmap.ops.set_chmap = hdmi_set_chmap;
 	spec->chmap.ops.is_pcm_attached = is_hdmi_pcm_attached;
+	spec->chmap.ops.get_spk_alloc = hdmi_get_spk_alloc,
 
 	codec->spec = spec;
 	hdmi_array_init(spec, 4);
