@@ -544,9 +544,10 @@ void __exit rxrpc_destroy_all_calls(void);
  */
 extern struct idr rxrpc_client_conn_ids;
 
-int rxrpc_get_client_connection_id(struct rxrpc_connection *, gfp_t);
 void rxrpc_put_client_connection_id(struct rxrpc_connection *);
 void rxrpc_destroy_client_conn_ids(void);
+int rxrpc_connect_call(struct rxrpc_call *, struct rxrpc_conn_parameters *,
+		       struct sockaddr_rxrpc *, gfp_t);
 
 /*
  * conn_event.c
@@ -562,8 +563,7 @@ extern unsigned int rxrpc_connection_expiry;
 extern struct list_head rxrpc_connections;
 extern rwlock_t rxrpc_connection_lock;
 
-int rxrpc_connect_call(struct rxrpc_call *, struct rxrpc_conn_parameters *,
-		       struct sockaddr_rxrpc *, gfp_t);
+struct rxrpc_connection *rxrpc_alloc_connection(gfp_t);
 struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_local *,
 					       struct rxrpc_peer *,
 					       struct sk_buff *);
