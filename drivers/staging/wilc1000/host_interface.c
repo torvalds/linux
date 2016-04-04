@@ -783,13 +783,11 @@ static s32 Handle_Scan(struct wilc_vif *vif,
 		u32WidsCount++;
 	}
 
-	{
-		strWIDList[u32WidsCount].id = WID_INFO_ELEMENT_PROBE;
-		strWIDList[u32WidsCount].type = WID_BIN_DATA;
-		strWIDList[u32WidsCount].val = pstrHostIFscanAttr->ies;
-		strWIDList[u32WidsCount].size = pstrHostIFscanAttr->ies_len;
-		u32WidsCount++;
-	}
+	strWIDList[u32WidsCount].id = WID_INFO_ELEMENT_PROBE;
+	strWIDList[u32WidsCount].type = WID_BIN_DATA;
+	strWIDList[u32WidsCount].val = pstrHostIFscanAttr->ies;
+	strWIDList[u32WidsCount].size = pstrHostIFscanAttr->ies_len;
+	u32WidsCount++;
 
 	strWIDList[u32WidsCount].id = WID_SCAN_TYPE;
 	strWIDList[u32WidsCount].type = WID_CHAR;
