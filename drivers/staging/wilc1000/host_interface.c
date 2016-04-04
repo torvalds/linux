@@ -456,7 +456,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "check value 6 over\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -472,7 +472,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "Impossible value\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -487,7 +487,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "Range(1 ~ 65535) over\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -501,7 +501,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "Invalid power mode\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -516,7 +516,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "Range(1~256) over\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -531,7 +531,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "Range(1~256) over\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -546,7 +546,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "Threshold Range fail\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -561,7 +561,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "Threshold Range fail\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -575,7 +575,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "Preamle Range(0~2) over\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -589,7 +589,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "Short slot(2) over\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -603,7 +603,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "TXOP prot disable\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -618,7 +618,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "Beacon interval(1~65535)fail\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -633,7 +633,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "DTIM range(1~255) fail\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -647,7 +647,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "Site survey disable\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -662,7 +662,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "Site scan time(1~65535) over\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -677,7 +677,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "Active time(1~65535) over\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -692,7 +692,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "Passive time(1~65535) over\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -714,7 +714,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		} else {
 			netdev_err(vif->ndev, "out of TX rate\n");
 			result = -EINVAL;
-			goto ERRORHANDLER;
+			goto unlock;
 		}
 		i++;
 	}
@@ -725,7 +725,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 	if (result)
 		netdev_err(vif->ndev, "Error in setting CFG params\n");
 
-ERRORHANDLER:
+unlock:
 	mutex_unlock(&hif_drv->cfg_values_lock);
 	return result;
 }
