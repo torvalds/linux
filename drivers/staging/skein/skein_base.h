@@ -32,7 +32,7 @@
 /* below two prototype assume we are handed aligned data */
 #define skein_put64_lsb_first(dst08, src64, b_cnt) memcpy(dst08, src64, b_cnt)
 #define skein_get64_lsb_first(dst64, src08, w_cnt) \
-		memcpy(dst64, src08, 8*(w_cnt))
+		memcpy(dst64, src08, 8 * (w_cnt))
 #define skein_swap64(w64)  (w64)
 
 enum {
@@ -48,17 +48,17 @@ enum {
 #define  SKEIN_1024_STATE_WORDS 16
 #define  SKEIN_MAX_STATE_WORDS	16
 
-#define  SKEIN_256_STATE_BYTES  (8*SKEIN_256_STATE_WORDS)
-#define  SKEIN_512_STATE_BYTES  (8*SKEIN_512_STATE_WORDS)
-#define  SKEIN_1024_STATE_BYTES  (8*SKEIN_1024_STATE_WORDS)
+#define  SKEIN_256_STATE_BYTES  (8 * SKEIN_256_STATE_WORDS)
+#define  SKEIN_512_STATE_BYTES  (8 * SKEIN_512_STATE_WORDS)
+#define  SKEIN_1024_STATE_BYTES (8 * SKEIN_1024_STATE_WORDS)
 
-#define  SKEIN_256_STATE_BITS  (64*SKEIN_256_STATE_WORDS)
-#define  SKEIN_512_STATE_BITS  (64*SKEIN_512_STATE_WORDS)
-#define  SKEIN_1024_STATE_BITS  (64*SKEIN_1024_STATE_WORDS)
+#define  SKEIN_256_STATE_BITS   (64 * SKEIN_256_STATE_WORDS)
+#define  SKEIN_512_STATE_BITS   (64 * SKEIN_512_STATE_WORDS)
+#define  SKEIN_1024_STATE_BITS  (64 * SKEIN_1024_STATE_WORDS)
 
-#define  SKEIN_256_BLOCK_BYTES  (8*SKEIN_256_STATE_WORDS)
-#define  SKEIN_512_BLOCK_BYTES  (8*SKEIN_512_STATE_WORDS)
-#define  SKEIN_1024_BLOCK_BYTES  (8*SKEIN_1024_STATE_WORDS)
+#define  SKEIN_256_BLOCK_BYTES  (8 * SKEIN_256_STATE_WORDS)
+#define  SKEIN_512_BLOCK_BYTES  (8 * SKEIN_512_STATE_WORDS)
+#define  SKEIN_1024_BLOCK_BYTES (8 * SKEIN_1024_STATE_WORDS)
 
 struct skein_ctx_hdr {
 	size_t hash_bit_len;		/* size of hash result, in bits */
@@ -203,7 +203,7 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 #define SKEIN_SCHEMA_VER        SKEIN_MK_64(SKEIN_VERSION, SKEIN_ID_STRING_LE)
 #define SKEIN_KS_PARITY         SKEIN_MK_64(0x1BD11BDA, 0xA9FC1A22)
 
-#define SKEIN_CFG_STR_LEN       (4*8)
+#define SKEIN_CFG_STR_LEN       (4 * 8)
 
 /* bit field definitions in config block tree_info word */
 #define SKEIN_CFG_TREE_LEAF_SIZE_POS  (0)
@@ -322,9 +322,9 @@ enum {
 #define SKEIN_512_ROUNDS_TOTAL (72)
 #define SKEIN_1024_ROUNDS_TOTAL (80)
 #else			/* allow command-line define in range 8*(5..14)   */
-#define SKEIN_256_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS/100) + 5) % 10) + 5))
-#define SKEIN_512_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS/10)  + 5) % 10) + 5))
-#define SKEIN_1024_ROUNDS_TOTAL (8*((((SKEIN_ROUNDS)     + 5) % 10) + 5))
+#define SKEIN_256_ROUNDS_TOTAL  (8 * ((((SKEIN_ROUNDS / 100) + 5) % 10) + 5))
+#define SKEIN_512_ROUNDS_TOTAL  (8 * ((((SKEIN_ROUNDS / 10)  + 5) % 10) + 5))
+#define SKEIN_1024_ROUNDS_TOTAL (8 * ((((SKEIN_ROUNDS)       + 5) % 10) + 5))
 #endif
 
 #endif  /* ifndef _SKEIN_H_ */
