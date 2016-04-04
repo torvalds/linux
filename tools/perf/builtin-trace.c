@@ -34,8 +34,9 @@
 #include "trace-event.h"
 #include "util/parse-events.h"
 #include "util/bpf-loader.h"
+#include "syscalltbl.h"
 
-#include <libaudit.h>
+#include <libaudit.h> /* FIXME: Still needed for audit_errno_to_name */
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <linux/futex.h>
@@ -114,10 +115,7 @@
 
 struct trace {
 	struct perf_tool	tool;
-	struct {
-		int		machine;
-		int		open_id;
-	}			audit;
+	struct syscalltbl	*sctbl;
 	struct {
 		int		max;
 		struct syscall  *table;
@@ -163,6 +161,7 @@ struct trace {
 	bool			force;
 	bool			vfs_getname;
 	int			trace_pgfaults;
+	int			open_id;
 };
 
 struct tp_field {
@@ -1780,7 +1779,7 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 {
 	char tp_name[128];
 	struct syscall *sc;
-	const char *name = audit_syscall_to_name(id, trace->audit.machine);
+	const char *name = syscalltbl__name(trace->sctbl, id);
 
 	if (name == NULL)
 		return -1;
@@ -1855,7 +1854,7 @@ static int trace__validate_ev_qualifier(struct trace *trace)
 
 	strlist__for_each(pos, trace->ev_qualifier) {
 		const char *sc = pos->s;
-		int id = audit_name_to_syscall(sc, trace->audit.machine);
+		int id = syscalltbl__id(trace->sctbl, sc);
 
 		if (id < 0) {
 			if (err == 0) {
@@ -2137,7 +2136,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 
 	ret = perf_evsel__sc_tp_uint(evsel, ret, sample);
 
-	if (id == trace->audit.open_id && ret >= 0 && ttrace->filename.pending_open) {
+	if (id == trace->open_id && ret >= 0 && ttrace->filename.pending_open) {
 		trace__set_fd_pathname(thread, ret, ttrace->filename.name);
 		ttrace->filename.pending_open = false;
 		++trace->stats.vfs_getname;
@@ -3189,10 +3188,6 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		NULL
 	};
 	struct trace trace = {
-		.audit = {
-			.machine = audit_detect_machine(),
-			.open_id = audit_name_to_syscall("open", trace.audit.machine),
-		},
 		.syscalls = {
 			. max = -1,
 		},
@@ -3267,8 +3262,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	signal(SIGFPE, sighandler_dump_stack);
 
 	trace.evlist = perf_evlist__new();
+	trace.sctbl = syscalltbl__new();
 
-	if (trace.evlist == NULL) {
+	if (trace.evlist == NULL || trace.sctbl == NULL) {
 		pr_err("Not enough memory to run!\n");
 		err = -ENOMEM;
 		goto out;
@@ -3305,6 +3301,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 			goto out;
 		}
 	}
+
+	trace.open_id = syscalltbl__id(trace.sctbl, "open");
 
 	if (ev_qualifier_str != NULL) {
 		const char *s = ev_qualifier_str;

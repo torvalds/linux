@@ -38,6 +38,7 @@ libperf-y += machine.o
 libperf-y += map.o
 libperf-y += pstack.o
 libperf-y += session.o
+libperf-$(CONFIG_AUDIT) += syscalltbl.o
 libperf-y += ordered-events.o
 libperf-y += comm.o
 libperf-y += thread.o
