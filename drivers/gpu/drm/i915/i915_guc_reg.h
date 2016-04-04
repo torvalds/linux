@@ -27,6 +27,7 @@
 /* Definitions of GuC H/W registers, bits, etc */
 
 #define GUC_STATUS			_MMIO(0xc000)
+#define   GS_MIA_IN_RESET		(1 << 0)
 #define   GS_BOOTROM_SHIFT		1
 #define   GS_BOOTROM_MASK		  (0x7F << GS_BOOTROM_SHIFT)
 #define   GS_BOOTROM_RSA_FAILED		  (0x50 << GS_BOOTROM_SHIFT)

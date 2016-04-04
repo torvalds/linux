@@ -1673,6 +1673,25 @@ bool intel_has_gpu_reset(struct drm_device *dev)
 	return intel_get_gpu_reset(dev) != NULL;
 }
 
+int intel_guc_reset(struct drm_i915_private *dev_priv)
+{
+	int ret;
+	unsigned long irqflags;
+
+	if (!i915.enable_guc_submission)
+		return -EINVAL;
+
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
+	ret = gen6_hw_domain_reset(dev_priv, GEN9_GRDOM_GUC);
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+
+	return ret;
+}
+
 bool intel_uncore_unclaimed_mmio(struct drm_i915_private *dev_priv)
 {
 	return check_for_unclaimed_mmio(dev_priv);
