@@ -694,14 +694,94 @@ static void kvm_apic_disabled_lapic_found(struct kvm *kvm)
 	}
 }
 
+/* If kvm_apic_map_get_dest_lapic returns true, then *bitmap encodes accessible
+ * elements in the *dst array.  Those are destinations for the interrupt.
+ */
+static inline bool kvm_apic_map_get_dest_lapic(struct kvm *kvm, struct kvm_lapic *src,
+		struct kvm_lapic_irq *irq, struct kvm_apic_map *map,
+		struct kvm_lapic ***dst, unsigned long *bitmap)
+{
+	int i, lowest;
+	bool x2apic_ipi;
+	u16 cid;
+
+	if (irq->shorthand == APIC_DEST_SELF) {
+		*dst = &src;
+		*bitmap = 1;
+		return true;
+	} else if (irq->shorthand)
+		return false;
+
+	x2apic_ipi = src && apic_x2apic_mode(src);
+	if (irq->dest_id == (x2apic_ipi ? X2APIC_BROADCAST : APIC_BROADCAST))
+		return false;
+
+	if (!map)
+		return false;
+
+	if (irq->dest_mode == APIC_DEST_PHYSICAL) {
+		if (irq->dest_id >= ARRAY_SIZE(map->phys_map)) {
+			*bitmap = 0;
+		} else {
+			*dst = &map->phys_map[irq->dest_id];
+			*bitmap = 1;
+		}
+		return true;
+	}
+
+	if (!kvm_apic_logical_map_valid(map))
+		return false;
+
+	apic_logical_id(map, irq->dest_id, &cid, (u16 *)bitmap);
+
+	if (cid >= ARRAY_SIZE(map->logical_map)) {
+		*bitmap = 0;
+		return true;
+	}
+
+	*dst = map->logical_map[cid];
+
+	if (!kvm_lowest_prio_delivery(irq))
+		return true;
+
+	if (!kvm_vector_hashing_enabled()) {
+		lowest = -1;
+		for_each_set_bit(i, bitmap, 16) {
+			if (!(*dst)[i])
+				continue;
+			if (lowest < 0)
+				lowest = i;
+			else if (kvm_apic_compare_prio((*dst)[i]->vcpu,
+						(*dst)[lowest]->vcpu) < 0)
+				lowest = i;
+		}
+	} else {
+		if (!*bitmap)
+			return true;
+
+		lowest = kvm_vector_to_index(irq->vector, hweight16(*bitmap),
+				bitmap, 16);
+
+		if (!(*dst)[lowest]) {
+			kvm_apic_disabled_lapic_found(kvm);
+			*bitmap = 0;
+			return true;
+		}
+	}
+
+	*bitmap = (lowest >= 0) ? 1 << lowest : 0;
+
+	return true;
+}
+
 bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 		struct kvm_lapic_irq *irq, int *r, struct dest_map *dest_map)
 {
 	struct kvm_apic_map *map;
-	unsigned long bitmap = 1;
-	struct kvm_lapic **dst;
+	unsigned long bitmap;
+	struct kvm_lapic **dst = NULL;
 	int i;
-	bool ret, x2apic_ipi;
+	bool ret;
 
 	*r = -1;
 
@@ -710,86 +790,19 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 		return true;
 	}
 
-	if (irq->shorthand)
-		return false;
-
-	x2apic_ipi = src && apic_x2apic_mode(src);
-	if (irq->dest_id == (x2apic_ipi ? X2APIC_BROADCAST : APIC_BROADCAST))
-		return false;
-
-	ret = true;
 	rcu_read_lock();
 	map = rcu_dereference(kvm->arch.apic_map);
 
-	if (!map) {
-		ret = false;
-		goto out;
-	}
-
-	if (irq->dest_mode == APIC_DEST_PHYSICAL) {
-		if (irq->dest_id >= ARRAY_SIZE(map->phys_map))
-			goto out;
-
-		dst = &map->phys_map[irq->dest_id];
-	} else {
-		u16 cid;
-
-		if (!kvm_apic_logical_map_valid(map)) {
-			ret = false;
-			goto out;
+	ret = kvm_apic_map_get_dest_lapic(kvm, src, irq, map, &dst, &bitmap);
+	if (ret)
+		for_each_set_bit(i, &bitmap, 16) {
+			if (!dst[i])
+				continue;
+			if (*r < 0)
+				*r = 0;
+			*r += kvm_apic_set_irq(dst[i]->vcpu, irq, dest_map);
 		}
 
-		apic_logical_id(map, irq->dest_id, &cid, (u16 *)&bitmap);
-
-		if (cid >= ARRAY_SIZE(map->logical_map))
-			goto out;
-
-		dst = map->logical_map[cid];
-
-		if (!kvm_lowest_prio_delivery(irq))
-			goto set_irq;
-
-		if (!kvm_vector_hashing_enabled()) {
-			int l = -1;
-			for_each_set_bit(i, &bitmap, 16) {
-				if (!dst[i])
-					continue;
-				if (l < 0)
-					l = i;
-				else if (kvm_apic_compare_prio(dst[i]->vcpu,
-							dst[l]->vcpu) < 0)
-					l = i;
-			}
-			bitmap = (l >= 0) ? 1 << l : 0;
-		} else {
-			int idx;
-			unsigned int dest_vcpus;
-
-			dest_vcpus = hweight16(bitmap);
-			if (dest_vcpus == 0)
-				goto out;
-
-			idx = kvm_vector_to_index(irq->vector,
-				dest_vcpus, &bitmap, 16);
-
-			if (!dst[idx]) {
-				kvm_apic_disabled_lapic_found(kvm);
-				goto out;
-			}
-
-			bitmap = (idx >= 0) ? 1 << idx : 0;
-		}
-	}
-
-set_irq:
-	for_each_set_bit(i, &bitmap, 16) {
-		if (!dst[i])
-			continue;
-		if (*r < 0)
-			*r = 0;
-		*r += kvm_apic_set_irq(dst[i]->vcpu, irq, dest_map);
-	}
-out:
 	rcu_read_unlock();
 	return ret;
 }
@@ -812,8 +825,9 @@ bool kvm_intr_is_single_vcpu_fast(struct kvm *kvm, struct kvm_lapic_irq *irq,
 			struct kvm_vcpu **dest_vcpu)
 {
 	struct kvm_apic_map *map;
+	unsigned long bitmap;
+	struct kvm_lapic **dst = NULL;
 	bool ret = false;
-	struct kvm_lapic *dst = NULL;
 
 	if (irq->shorthand)
 		return false;
@@ -821,69 +835,16 @@ bool kvm_intr_is_single_vcpu_fast(struct kvm *kvm, struct kvm_lapic_irq *irq,
 	rcu_read_lock();
 	map = rcu_dereference(kvm->arch.apic_map);
 
-	if (!map)
-		goto out;
+	if (kvm_apic_map_get_dest_lapic(kvm, NULL, irq, map, &dst, &bitmap) &&
+			hweight16(bitmap) == 1) {
+		unsigned long i = find_first_bit(&bitmap, 16);
 
-	if (irq->dest_mode == APIC_DEST_PHYSICAL) {
-		if (irq->dest_id == 0xFF)
-			goto out;
-
-		if (irq->dest_id >= ARRAY_SIZE(map->phys_map))
-			goto out;
-
-		dst = map->phys_map[irq->dest_id];
-		if (dst && kvm_apic_present(dst->vcpu))
-			*dest_vcpu = dst->vcpu;
-		else
-			goto out;
-	} else {
-		u16 cid;
-		unsigned long bitmap = 1;
-		int i, r = 0;
-
-		if (!kvm_apic_logical_map_valid(map))
-			goto out;
-
-		apic_logical_id(map, irq->dest_id, &cid, (u16 *)&bitmap);
-
-		if (cid >= ARRAY_SIZE(map->logical_map))
-			goto out;
-
-		if (kvm_vector_hashing_enabled() &&
-				kvm_lowest_prio_delivery(irq)) {
-			int idx;
-			unsigned int dest_vcpus;
-
-			dest_vcpus = hweight16(bitmap);
-			if (dest_vcpus == 0)
-				goto out;
-
-			idx = kvm_vector_to_index(irq->vector, dest_vcpus,
-						  &bitmap, 16);
-
-			dst = map->logical_map[cid][idx];
-			if (!dst) {
-				kvm_apic_disabled_lapic_found(kvm);
-				goto out;
-			}
-
-			*dest_vcpu = dst->vcpu;
-		} else {
-			for_each_set_bit(i, &bitmap, 16) {
-				dst = map->logical_map[cid][i];
-				if (++r == 2)
-					goto out;
-			}
-
-			if (dst && kvm_apic_present(dst->vcpu))
-				*dest_vcpu = dst->vcpu;
-			else
-				goto out;
+		if (dst[i]) {
+			*dest_vcpu = dst[i]->vcpu;
+			ret = true;
 		}
 	}
 
-	ret = true;
-out:
 	rcu_read_unlock();
 	return ret;
 }
