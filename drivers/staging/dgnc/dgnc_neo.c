@@ -1794,7 +1794,6 @@ static void neo_vpd(struct dgnc_board *brd)
 	if  (((brd->vpd[0x08] != 0x82) &&
 	      (brd->vpd[0x10] != 0x82)) ||
 	     (brd->vpd[0x7F] != 0x78)) {
-
 		memset(brd->vpd, '\0', NEO_VPD_IMAGESIZE);
 	} else {
 		/* Search for the serial number */
