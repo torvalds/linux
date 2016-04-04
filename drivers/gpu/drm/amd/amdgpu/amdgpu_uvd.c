@@ -243,7 +243,6 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 {
 	unsigned size;
 	void *ptr;
-	const struct common_firmware_header *hdr;
 	int i;
 
 	if (adev->uvd.vcpu_bo == NULL)
@@ -256,13 +255,8 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 	if (i == AMDGPU_MAX_UVD_HANDLES)
 		return 0;
 
-	hdr = (const struct common_firmware_header *)adev->uvd.fw->data;
-
 	size = amdgpu_bo_size(adev->uvd.vcpu_bo);
-	size -= le32_to_cpu(hdr->ucode_size_bytes);
-
 	ptr = adev->uvd.cpu_addr;
-	ptr += le32_to_cpu(hdr->ucode_size_bytes);
 
 	adev->uvd.saved_bo = kmalloc(size, GFP_KERNEL);
 	if (!adev->uvd.saved_bo)
@@ -277,28 +271,29 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 {
 	unsigned size;
 	void *ptr;
-	const struct common_firmware_header *hdr;
-	unsigned offset;
 
 	if (adev->uvd.vcpu_bo == NULL)
 		return -EINVAL;
 
-	hdr = (const struct common_firmware_header *)adev->uvd.fw->data;
-	offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
-	memcpy(adev->uvd.cpu_addr, (adev->uvd.fw->data) + offset,
-		(adev->uvd.fw->size) - offset);
-
 	size = amdgpu_bo_size(adev->uvd.vcpu_bo);
-	size -= le32_to_cpu(hdr->ucode_size_bytes);
 	ptr = adev->uvd.cpu_addr;
-	ptr += le32_to_cpu(hdr->ucode_size_bytes);
 
 	if (adev->uvd.saved_bo != NULL) {
 		memcpy(ptr, adev->uvd.saved_bo, size);
 		kfree(adev->uvd.saved_bo);
 		adev->uvd.saved_bo = NULL;
-	} else
+	} else {
+		const struct common_firmware_header *hdr;
+		unsigned offset;
+
+		hdr = (const struct common_firmware_header *)adev->uvd.fw->data;
+		offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
+		memcpy(adev->uvd.cpu_addr, (adev->uvd.fw->data) + offset,
+			(adev->uvd.fw->size) - offset);
+		size -= le32_to_cpu(hdr->ucode_size_bytes);
+		ptr += le32_to_cpu(hdr->ucode_size_bytes);
 		memset(ptr, 0, size);
+	}
 
 	return 0;
 }
