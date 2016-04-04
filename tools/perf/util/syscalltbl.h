@@ -4,6 +4,10 @@
 struct syscalltbl {
 	union {
 		int audit_machine;
+		struct {
+			int nr_entries;
+			void *entries;
+		} syscalls;
 	};
 };
 
