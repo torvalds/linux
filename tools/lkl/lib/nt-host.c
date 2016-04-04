@@ -314,5 +314,5 @@ struct lkl_dev_blk_ops lkl_dev_blk_ops = {
  * any network IO on Windows, anyway, so there's no loss here. */
 int lkl_netdevs_remove(void)
 {
-	return -1;
+	return 0;
 }
