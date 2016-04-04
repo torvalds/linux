@@ -121,10 +121,9 @@
 			};
 
 			ldo3_reg: LDO3 {
-				regulator-name = "vdd_ldo3";
+				regulator-name = "vddq_mmc0";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
 			};
 
 			ldo5_reg: LDO5 {
@@ -184,10 +183,9 @@
 			};
 
 			ldo13_reg: LDO13 {
-				regulator-name = "vdd_ldo13";
+				regulator-name = "vddq_mmc2";
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
-				regulator-always-on;
 			};
 
 			ldo15_reg: LDO15 {
@@ -211,11 +209,16 @@
 				regulator-always-on;
 			};
 
+			ldo18_reg: LDO18 {
+				regulator-name = "vdd_emmc_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
 			ldo19_reg: LDO19 {
 				regulator-name = "vdd_sd";
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
-				regulator-always-on;
 			};
 
 			ldo24_reg: LDO24 {
@@ -347,6 +350,8 @@
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
+	vmmc-supply = <&ldo18_reg>;
+	vqmmc-supply = <&ldo3_reg>;
 };
 
 &mmc_2 {
@@ -359,6 +364,8 @@
 	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus1 &sd2_bus4>;
 	bus-width = <4>;
 	cap-sd-highspeed;
+	vmmc-supply = <&ldo19_reg>;
+	vqmmc-supply = <&ldo13_reg>;
 };
 
 &pinctrl_0 {
