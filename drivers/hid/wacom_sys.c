@@ -1817,6 +1817,8 @@ static int wacom_probe(struct hid_device *hdev,
 		goto fail_type;
 	}
 
+	wacom_wac->hid_data.inputmode = -1;
+
 	wacom->usbdev = dev;
 	wacom->intf = intf;
 	mutex_init(&wacom->lock);
