@@ -233,7 +233,6 @@ struct rxrpc_transport {
 	struct rxrpc_local	*local;		/* local transport endpoint */
 	struct rxrpc_peer	*peer;		/* remote transport endpoint */
 	struct rb_root		bundles;	/* client connection bundles on this transport */
-	struct rb_root		client_conns;	/* client connections on this transport */
 	struct rb_root		server_conns;	/* server connections on this transport */
 	struct list_head	link;		/* link in master session list */
 	unsigned long		put_time;	/* time at which to reap */
@@ -241,7 +240,6 @@ struct rxrpc_transport {
 	rwlock_t		conn_lock;	/* lock for active/dead connections */
 	atomic_t		usage;
 	int			debug_id;	/* debug ID for printks */
-	unsigned int		conn_idcounter;	/* connection ID counter (client) */
 };
 
 /*
@@ -312,6 +310,8 @@ struct rxrpc_connection {
 	struct key		*server_key;	/* security for this service */
 	struct crypto_skcipher	*cipher;	/* encryption handle */
 	struct rxrpc_crypt	csum_iv;	/* packet checksum base */
+	unsigned long		flags;
+#define RXRPC_CONN_HAS_IDR	0		/* - Has a client conn ID assigned */
 	unsigned long		events;
 #define RXRPC_CONN_CHALLENGE	0		/* send challenge packet */
 	unsigned long		put_time;	/* time at which to reap */
@@ -549,6 +549,15 @@ void rxrpc_release_call(struct rxrpc_call *);
 void rxrpc_release_calls_on_socket(struct rxrpc_sock *);
 void __rxrpc_put_call(struct rxrpc_call *);
 void __exit rxrpc_destroy_all_calls(void);
+
+/*
+ * conn_client.c
+ */
+extern struct idr rxrpc_client_conn_ids;
+
+int rxrpc_get_client_connection_id(struct rxrpc_connection *,
+				   struct rxrpc_transport *, gfp_t);
+void rxrpc_put_client_connection_id(struct rxrpc_connection *);
 
 /*
  * conn_event.c

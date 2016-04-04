@@ -7,6 +7,7 @@ af-rxrpc-y := \
 	call_accept.o \
 	call_event.o \
 	call_object.o \
+	conn_client.o \
 	conn_event.o \
 	conn_object.o \
 	input.o \
