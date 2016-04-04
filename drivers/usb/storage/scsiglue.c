@@ -563,7 +563,7 @@ static const struct scsi_host_template usb_stor_host_template = {
 	.target_alloc =			target_alloc,
 
 	/* lots of sg segments can be handled */
-	.sg_tablesize =			SCSI_MAX_SG_CHAIN_SEGMENTS,
+	.sg_tablesize =			SG_MAX_SEGMENTS,
 
 	/* limit the total size of a transfer to 120 KB */
 	.max_sectors =                  240,

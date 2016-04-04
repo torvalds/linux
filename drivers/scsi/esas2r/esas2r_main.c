@@ -246,7 +246,7 @@ static struct scsi_host_template driver_template = {
 	.eh_target_reset_handler	= esas2r_target_reset,
 	.can_queue			= 128,
 	.this_id			= -1,
-	.sg_tablesize			= SCSI_MAX_SG_SEGMENTS,
+	.sg_tablesize			= SG_CHUNK_SIZE,
 	.cmd_per_lun			=
 		ESAS2R_DEFAULT_CMD_PER_LUN,
 	.present			= 0,
@@ -271,7 +271,7 @@ module_param(num_sg_lists, int, 0);
 MODULE_PARM_DESC(num_sg_lists,
 		 "Number of scatter/gather lists.  Default 1024.");
 
-int sg_tablesize = SCSI_MAX_SG_SEGMENTS;
+int sg_tablesize = SG_CHUNK_SIZE;
 module_param(sg_tablesize, int, 0);
 MODULE_PARM_DESC(sg_tablesize,
 		 "Maximum number of entries in a scatter/gather table.");

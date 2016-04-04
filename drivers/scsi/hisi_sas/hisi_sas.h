@@ -298,7 +298,7 @@ struct hisi_sas_command_table_stp {
 	u8	atapi_cdb[ATAPI_CDB_LEN];
 };
 
-#define HISI_SAS_SGE_PAGE_CNT SCSI_MAX_SG_SEGMENTS
+#define HISI_SAS_SGE_PAGE_CNT SG_CHUNK_SIZE
 struct hisi_sas_sge_page {
 	struct hisi_sas_sge sge[HISI_SAS_SGE_PAGE_CNT];
 };

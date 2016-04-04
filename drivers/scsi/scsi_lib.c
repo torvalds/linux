@@ -51,25 +51,25 @@ struct sg_pool {
 };
 
 #define SP(x) { .size = x, "sgpool-" __stringify(x) }
-#if (SCSI_MAX_SG_SEGMENTS < 32)
-#error SCSI_MAX_SG_SEGMENTS is too small (must be 32 or greater)
+#if (SG_CHUNK_SIZE < 32)
+#error SG_CHUNK_SIZE is too small (must be 32 or greater)
 #endif
 static struct sg_pool sg_pools[] = {
 	SP(8),
 	SP(16),
-#if (SCSI_MAX_SG_SEGMENTS > 32)
+#if (SG_CHUNK_SIZE > 32)
 	SP(32),
-#if (SCSI_MAX_SG_SEGMENTS > 64)
+#if (SG_CHUNK_SIZE > 64)
 	SP(64),
-#if (SCSI_MAX_SG_SEGMENTS > 128)
+#if (SG_CHUNK_SIZE > 128)
 	SP(128),
-#if (SCSI_MAX_SG_SEGMENTS > 256)
-#error SCSI_MAX_SG_SEGMENTS is too large (256 MAX)
+#if (SG_CHUNK_SIZE > 256)
+#error SG_CHUNK_SIZE is too large (256 MAX)
 #endif
 #endif
 #endif
 #endif
-	SP(SCSI_MAX_SG_SEGMENTS)
+	SP(SG_CHUNK_SIZE)
 };
 #undef SP
 
@@ -557,7 +557,7 @@ static inline unsigned int sg_pool_index(unsigned short nents)
 {
 	unsigned int index;
 
-	BUG_ON(nents > SCSI_MAX_SG_SEGMENTS);
+	BUG_ON(nents > SG_CHUNK_SIZE);
 
 	if (nents <= 8)
 		index = 0;
@@ -585,9 +585,9 @@ static struct scatterlist *sg_pool_alloc(unsigned int nents, gfp_t gfp_mask)
 
 static void sg_free_table_chained(struct sg_table *table, bool first_chunk)
 {
-	if (first_chunk && table->orig_nents <= SCSI_MAX_SG_SEGMENTS)
+	if (first_chunk && table->orig_nents <= SG_CHUNK_SIZE)
 		return;
-	__sg_free_table(table, SCSI_MAX_SG_SEGMENTS, first_chunk, sg_pool_free);
+	__sg_free_table(table, SG_CHUNK_SIZE, first_chunk, sg_pool_free);
 }
 
 static int sg_alloc_table_chained(struct sg_table *table, int nents,
@@ -598,14 +598,14 @@ static int sg_alloc_table_chained(struct sg_table *table, int nents,
 	BUG_ON(!nents);
 
 	if (first_chunk) {
-		if (nents <= SCSI_MAX_SG_SEGMENTS) {
+		if (nents <= SG_CHUNK_SIZE) {
 			table->nents = table->orig_nents = nents;
 			sg_init_table(table->sgl, nents);
 			return 0;
 		}
 	}
 
-	ret = __sg_alloc_table(table, nents, SCSI_MAX_SG_SEGMENTS,
+	ret = __sg_alloc_table(table, nents, SG_CHUNK_SIZE,
 			       first_chunk, GFP_ATOMIC, sg_pool_alloc);
 	if (unlikely(ret))
 		sg_free_table_chained(table, (bool)first_chunk);
@@ -1937,7 +1937,7 @@ static int scsi_mq_prep_fn(struct request *req)
 	if (scsi_host_get_prot(shost)) {
 		cmd->prot_sdb = (void *)sg +
 			min_t(unsigned int,
-			      shost->sg_tablesize, SCSI_MAX_SG_SEGMENTS) *
+			      shost->sg_tablesize, SG_CHUNK_SIZE) *
 			sizeof(struct scatterlist);
 		memset(cmd->prot_sdb, 0, sizeof(struct scsi_data_buffer));
 
@@ -2110,7 +2110,7 @@ static void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 	 * this limit is imposed by hardware restrictions
 	 */
 	blk_queue_max_segments(q, min_t(unsigned short, shost->sg_tablesize,
-					SCSI_MAX_SG_CHAIN_SEGMENTS));
+					SG_MAX_SEGMENTS));
 
 	if (scsi_host_prot_dma(shost)) {
 		shost->sg_prot_tablesize =
@@ -2192,8 +2192,8 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 	unsigned int cmd_size, sgl_size, tbl_size;
 
 	tbl_size = shost->sg_tablesize;
-	if (tbl_size > SCSI_MAX_SG_SEGMENTS)
-		tbl_size = SCSI_MAX_SG_SEGMENTS;
+	if (tbl_size > SG_CHUNK_SIZE)
+		tbl_size = SG_CHUNK_SIZE;
 	sgl_size = tbl_size * sizeof(struct scatterlist);
 	cmd_size = sizeof(struct scsi_cmnd) + shost->hostt->cmd_size + sgl_size;
 	if (scsi_host_get_prot(shost))

@@ -3207,10 +3207,10 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 		sg_tablesize = MPT_MIN_PHYS_SEGMENTS;
 	else if (sg_tablesize > MPT_MAX_PHYS_SEGMENTS) {
 		sg_tablesize = min_t(unsigned short, sg_tablesize,
-				      SCSI_MAX_SG_CHAIN_SEGMENTS);
+				      SG_MAX_SEGMENTS);
 		pr_warn(MPT3SAS_FMT
 		 "sg_tablesize(%u) is bigger than kernel"
-		 " defined SCSI_MAX_SG_SEGMENTS(%u)\n", ioc->name,
+		 " defined SG_CHUNK_SIZE(%u)\n", ioc->name,
 		 sg_tablesize, MPT_MAX_PHYS_SEGMENTS);
 	}
 	ioc->shost->sg_tablesize = sg_tablesize;
