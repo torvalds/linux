@@ -70,10 +70,10 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 		return 0;
 	}
 
-	trb = &dwc->ep0_trb[dep->free_slot];
+	trb = &dwc->ep0_trb[dep->trb_enqueue];
 
 	if (chain)
-		dep->free_slot++;
+		dep->trb_enqueue++;
 
 	trb->bpl = lower_32_bits(buf_dma);
 	trb->bph = upper_32_bits(buf_dma);
@@ -845,7 +845,7 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 			trb++;
 			length = trb->size & DWC3_TRB_SIZE_MASK;
 
-			ep0->free_slot = 0;
+			ep0->trb_enqueue = 0;
 		}
 
 		transfer_size = roundup((ur->length - transfer_size),
