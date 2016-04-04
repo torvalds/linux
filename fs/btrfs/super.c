@@ -1484,10 +1484,10 @@ static int setup_security_options(struct btrfs_fs_info *fs_info,
 		memcpy(&fs_info->security_opts, sec_opts, sizeof(*sec_opts));
 	} else {
 		/*
-		 * Since SELinux(the only one supports security_mnt_opts) does
-		 * NOT support changing context during remount/mount same sb,
-		 * This must be the same or part of the same security options,
-		 * just free it.
+		 * Since SELinux (the only one supporting security_mnt_opts)
+		 * does NOT support changing context during remount/mount of
+		 * the same sb, this must be the same or part of the same
+		 * security options, just free it.
 		 */
 		security_free_mnt_opts(sec_opts);
 	}
@@ -1665,8 +1665,8 @@ static inline void btrfs_remount_cleanup(struct btrfs_fs_info *fs_info,
 					 unsigned long old_opts)
 {
 	/*
-	 * We need cleanup all defragable inodes if the autodefragment is
-	 * close or the fs is R/O.
+	 * We need to cleanup all defragable inodes if the autodefragment is
+	 * close or the filesystem is read only.
 	 */
 	if (btrfs_raw_test_opt(old_opts, AUTO_DEFRAG) &&
 	    (!btrfs_raw_test_opt(fs_info->mount_opt, AUTO_DEFRAG) ||
@@ -2049,7 +2049,7 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	u64 thresh = 0;
 
 	/*
-	 * holding chunk_muext to avoid allocating new chunks, holding
+	 * holding chunk_mutex to avoid allocating new chunks, holding
 	 * device_list_mutex to avoid the device being removed
 	 */
 	rcu_read_lock();
