@@ -638,6 +638,7 @@ static int kvm_s390_get_tod(struct kvm *kvm, struct kvm_device_attr *attr)
 static int kvm_s390_set_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 {
 	struct kvm_s390_vm_cpu_processor *proc;
+	u16 lowest_ibc, unblocked_ibc;
 	int ret = 0;
 
 	mutex_lock(&kvm->lock);
@@ -653,7 +654,16 @@ static int kvm_s390_set_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 	if (!copy_from_user(proc, (void __user *)attr->addr,
 			    sizeof(*proc))) {
 		kvm->arch.model.cpuid = proc->cpuid;
-		kvm->arch.model.ibc = proc->ibc;
+		lowest_ibc = sclp.ibc >> 16 & 0xfff;
+		unblocked_ibc = sclp.ibc & 0xfff;
+		if (lowest_ibc) {
+			if (proc->ibc > unblocked_ibc)
+				kvm->arch.model.ibc = unblocked_ibc;
+			else if (proc->ibc < lowest_ibc)
+				kvm->arch.model.ibc = lowest_ibc;
+			else
+				kvm->arch.model.ibc = proc->ibc;
+		}
 		memcpy(kvm->arch.model.fac_list, proc->fac_list,
 		       S390_ARCH_FAC_LIST_SIZE_BYTE);
 	} else
