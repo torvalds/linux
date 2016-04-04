@@ -80,7 +80,11 @@ static int tng_setup(struct mid8250 *mid, struct uart_port *p)
 	struct pci_dev *pdev = to_pci_dev(p->dev);
 	int index = PCI_FUNC(pdev->devfn);
 
-	/* Currently no support for HSU port0 */
+	/*
+	 * Device 0000:00:04.0 is not a real HSU port. It provides a global
+	 * register set for all HSU ports, although it has the same PCI ID.
+	 * Skip it here.
+	 */
 	if (index-- == 0)
 		return -ENODEV;
 
