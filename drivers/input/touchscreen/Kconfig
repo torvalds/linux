@@ -561,6 +561,15 @@ config TOUCHSCREEN_MK712
 	  To compile this driver as a module, choose M here: the
 	  module will be called mk712.
 
+config TOUCHSCREEN_NINTENDO3DS
+	tristate "Nintendo 3DS touchscreen"
+	depends on ARCH_NINTENDO3DS
+	help
+	  Say Y here if you have a Nintendo 3DS and want to
+          support the built-in touchscreen.
+
+	  To compile this driver as a module, choose M here.
+
 config TOUCHSCREEN_HP600
 	tristate "HP Jornada 6xx touchscreen"
 	depends on SH_HP6XX && SH_ADC

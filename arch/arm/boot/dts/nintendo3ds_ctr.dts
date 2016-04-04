@@ -117,8 +117,11 @@
 			spi-max-frequency = <4000000>;
 			reg = <3>;
 
-			touchscreen-size-x = <320>;
-			touchscreen-size-y = <240>;
+			touchscreen-size-x = <4096>;
+			touchscreen-size-y = <4096>;
+
+			touchscreen-inverted-y;
+			touchscreen-swapped-x-y;
 		};
 	};
 
