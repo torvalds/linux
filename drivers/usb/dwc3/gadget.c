@@ -1361,21 +1361,15 @@ static int dwc3_gadget_get_frame(struct usb_gadget *g)
 	return DWC3_DSTS_SOFFN(reg);
 }
 
-static int dwc3_gadget_wakeup(struct usb_gadget *g)
+static int __dwc3_gadget_wakeup(struct dwc3 *dwc)
 {
-	struct dwc3		*dwc = gadget_to_dwc(g);
-
 	unsigned long		timeout;
-	unsigned long		flags;
 
+	int			ret;
 	u32			reg;
-
-	int			ret = 0;
 
 	u8			link_state;
 	u8			speed;
-
-	spin_lock_irqsave(&dwc->lock, flags);
 
 	/*
 	 * According to the Databook Remote wakeup request should
@@ -1389,8 +1383,7 @@ static int dwc3_gadget_wakeup(struct usb_gadget *g)
 	if ((speed == DWC3_DSTS_SUPERSPEED) ||
 	    (speed == DWC3_DSTS_SUPERSPEED_PLUS)) {
 		dwc3_trace(trace_dwc3_gadget, "no wakeup on SuperSpeed\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	link_state = DWC3_DSTS_USBLNKST(reg);
@@ -1403,14 +1396,13 @@ static int dwc3_gadget_wakeup(struct usb_gadget *g)
 		dwc3_trace(trace_dwc3_gadget,
 				"can't wakeup from '%s'\n",
 				dwc3_gadget_link_string(link_state));
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	ret = dwc3_gadget_set_link_state(dwc, DWC3_LINK_STATE_RECOV);
 	if (ret < 0) {
 		dev_err(dwc->dev, "failed to put link in Recovery\n");
-		goto out;
+		return ret;
 	}
 
 	/* Recent versions do this automatically */
@@ -1434,10 +1426,20 @@ static int dwc3_gadget_wakeup(struct usb_gadget *g)
 
 	if (DWC3_DSTS_USBLNKST(reg) != DWC3_LINK_STATE_U0) {
 		dev_err(dwc->dev, "failed to send remote wakeup\n");
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
-out:
+	return 0;
+}
+
+static int dwc3_gadget_wakeup(struct usb_gadget *g)
+{
+	struct dwc3		*dwc = gadget_to_dwc(g);
+	unsigned long		flags;
+	int			ret;
+
+	spin_lock_irqsave(&dwc->lock, flags);
+	ret = __dwc3_gadget_wakeup(dwc);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return ret;
