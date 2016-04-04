@@ -1856,6 +1856,8 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 		asc = (qc->result_tf.auxiliary >> 8) & 0xff;
 		ascq = qc->result_tf.auxiliary & 0xff;
 		ata_scsi_set_sense(qc->scsicmd, sense_key, asc, ascq);
+		ata_scsi_set_sense_information(dev, qc->scsicmd,
+					       &qc->result_tf);
 		qc->flags |= ATA_QCFLAG_SENSE_VALID;
 	}
 

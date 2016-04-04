@@ -280,6 +280,23 @@ void ata_scsi_set_sense(struct scsi_cmnd *cmd, u8 sk, u8 asc, u8 ascq)
 	scsi_build_sense_buffer(0, cmd->sense_buffer, sk, asc, ascq);
 }
 
+void ata_scsi_set_sense_information(struct ata_device *dev,
+				    struct scsi_cmnd *cmd,
+				    const struct ata_taskfile *tf)
+{
+	u64 information;
+
+	if (!cmd)
+		return;
+
+	information = ata_tf_read_block(tf, dev);
+	if (information == U64_MAX)
+		return;
+
+	scsi_set_sense_information(cmd->sense_buffer,
+				   SCSI_SENSE_BUFFERSIZE, information);
+}
+
 static ssize_t
 ata_scsi_em_message_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
