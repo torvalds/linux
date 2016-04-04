@@ -263,6 +263,7 @@ static struct wilc_vif *join_req_vif;
 
 static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo);
 static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx);
+static s32 Handle_ScanDone(struct wilc_vif *vif, enum scan_event enuEvent);
 
 /* The u8IfIdx starts from 0 to NUM_CONCURRENT_IFC -1, but 0 index used as
  * special purpose in wilc device, so we add 1 to the index to starts from 1.
@@ -729,9 +730,6 @@ unlock:
 	mutex_unlock(&hif_drv->cfg_values_lock);
 	return result;
 }
-
-static s32 Handle_ScanDone(struct wilc_vif *vif,
-			   enum scan_event enuEvent);
 
 static s32 Handle_Scan(struct wilc_vif *vif,
 		       struct scan_attr *pstrHostIFscanAttr)
