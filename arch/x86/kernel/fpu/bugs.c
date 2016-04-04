@@ -66,6 +66,6 @@ void __init fpu__init_check_bugs(void)
 	 * kernel_fpu_begin/end() in check_fpu() relies on the patched
 	 * alternative instructions.
 	 */
-	if (cpu_has_fpu)
+	if (boot_cpu_has(X86_FEATURE_FPU))
 		check_fpu();
 }

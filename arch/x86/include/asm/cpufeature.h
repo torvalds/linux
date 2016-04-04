@@ -118,7 +118,6 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 	set_bit(bit, (unsigned long *)cpu_caps_set);	\
 } while (0)
 
-#define cpu_has_fpu		boot_cpu_has(X86_FEATURE_FPU)
 #define cpu_has_tsc		boot_cpu_has(X86_FEATURE_TSC)
 #define cpu_has_apic		boot_cpu_has(X86_FEATURE_APIC)
 #define cpu_has_fxsr		boot_cpu_has(X86_FEATURE_FXSR)

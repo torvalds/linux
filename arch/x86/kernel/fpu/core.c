@@ -217,7 +217,7 @@ static inline void fpstate_init_fstate(struct fregs_state *fp)
 
 void fpstate_init(union fpregs_state *state)
 {
-	if (!cpu_has_fpu) {
+	if (!static_cpu_has(X86_FEATURE_FPU)) {
 		fpstate_init_soft(&state->soft);
 		return;
 	}
@@ -237,7 +237,7 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	dst_fpu->fpregs_active = 0;
 	dst_fpu->last_cpu = -1;
 
-	if (!src_fpu->fpstate_active || !cpu_has_fpu)
+	if (!src_fpu->fpstate_active || !static_cpu_has(X86_FEATURE_FPU))
 		return 0;
 
 	WARN_ON_FPU(src_fpu != &current->thread.fpu);

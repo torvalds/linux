@@ -38,13 +38,13 @@ static void fpu__init_cpu_generic(void)
 
 	cr0 = read_cr0();
 	cr0 &= ~(X86_CR0_TS|X86_CR0_EM); /* clear TS and EM */
-	if (!cpu_has_fpu)
+	if (!boot_cpu_has(X86_FEATURE_FPU))
 		cr0 |= X86_CR0_EM;
 	write_cr0(cr0);
 
 	/* Flush out any pending x87 state: */
 #ifdef CONFIG_MATH_EMULATION
-	if (!cpu_has_fpu)
+	if (!boot_cpu_has(X86_FEATURE_FPU))
 		fpstate_init_soft(&current->thread.fpu.state.soft);
 	else
 #endif
@@ -89,7 +89,7 @@ static void fpu__init_system_early_generic(struct cpuinfo_x86 *c)
 	}
 
 #ifndef CONFIG_MATH_EMULATION
-	if (!cpu_has_fpu) {
+	if (!boot_cpu_has(X86_FEATURE_FPU)) {
 		pr_emerg("x86/fpu: Giving up, no FPU found and no math emulation present\n");
 		for (;;)
 			asm volatile("hlt");
@@ -212,7 +212,7 @@ static void __init fpu__init_system_xstate_size_legacy(void)
 	 * fpu__init_system_xstate().
 	 */
 
-	if (!cpu_has_fpu) {
+	if (!boot_cpu_has(X86_FEATURE_FPU)) {
 		/*
 		 * Disable xsave as we do not support it if i387
 		 * emulation is enabled.
