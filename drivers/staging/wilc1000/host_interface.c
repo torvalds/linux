@@ -735,7 +735,7 @@ static s32 handle_scan(struct wilc_vif *vif, struct scan_attr *scan_info)
 {
 	s32 result = 0;
 	struct wid wid_list[5];
-	u32 u32WidsCount = 0;
+	u32 index = 0;
 	u32 i;
 	u8 *pu8Buffer;
 	u8 valuesize = 0;
@@ -760,15 +760,15 @@ static s32 handle_scan(struct wilc_vif *vif, struct scan_attr *scan_info)
 
 	hif_drv->usr_scan_req.rcvd_ch_cnt = 0;
 
-	wid_list[u32WidsCount].id = (u16)WID_SSID_PROBE_REQ;
-	wid_list[u32WidsCount].type = WID_STR;
+	wid_list[index].id = (u16)WID_SSID_PROBE_REQ;
+	wid_list[index].type = WID_STR;
 
 	for (i = 0; i < scan_info->hidden_network.n_ssids; i++)
 		valuesize += ((scan_info->hidden_network.net_info[i].ssid_len) + 1);
 	pu8HdnNtwrksWidVal = kmalloc(valuesize + 1, GFP_KERNEL);
-	wid_list[u32WidsCount].val = pu8HdnNtwrksWidVal;
-	if (wid_list[u32WidsCount].val) {
-		pu8Buffer = wid_list[u32WidsCount].val;
+	wid_list[index].val = pu8HdnNtwrksWidVal;
+	if (wid_list[index].val) {
+		pu8Buffer = wid_list[index].val;
 
 		*pu8Buffer++ = scan_info->hidden_network.n_ssids;
 
@@ -778,24 +778,24 @@ static s32 handle_scan(struct wilc_vif *vif, struct scan_attr *scan_info)
 			pu8Buffer += scan_info->hidden_network.net_info[i].ssid_len;
 		}
 
-		wid_list[u32WidsCount].size = (s32)(valuesize + 1);
-		u32WidsCount++;
+		wid_list[index].size = (s32)(valuesize + 1);
+		index++;
 	}
 
-	wid_list[u32WidsCount].id = WID_INFO_ELEMENT_PROBE;
-	wid_list[u32WidsCount].type = WID_BIN_DATA;
-	wid_list[u32WidsCount].val = scan_info->ies;
-	wid_list[u32WidsCount].size = scan_info->ies_len;
-	u32WidsCount++;
+	wid_list[index].id = WID_INFO_ELEMENT_PROBE;
+	wid_list[index].type = WID_BIN_DATA;
+	wid_list[index].val = scan_info->ies;
+	wid_list[index].size = scan_info->ies_len;
+	index++;
 
-	wid_list[u32WidsCount].id = WID_SCAN_TYPE;
-	wid_list[u32WidsCount].type = WID_CHAR;
-	wid_list[u32WidsCount].size = sizeof(char);
-	wid_list[u32WidsCount].val = (s8 *)&scan_info->type;
-	u32WidsCount++;
+	wid_list[index].id = WID_SCAN_TYPE;
+	wid_list[index].type = WID_CHAR;
+	wid_list[index].size = sizeof(char);
+	wid_list[index].val = (s8 *)&scan_info->type;
+	index++;
 
-	wid_list[u32WidsCount].id = WID_SCAN_CHANNEL_LIST;
-	wid_list[u32WidsCount].type = WID_BIN_DATA;
+	wid_list[index].id = WID_SCAN_CHANNEL_LIST;
+	wid_list[index].type = WID_BIN_DATA;
 
 	if (scan_info->ch_freq_list &&
 	    scan_info->ch_list_len > 0) {
@@ -807,15 +807,15 @@ static s32 handle_scan(struct wilc_vif *vif, struct scan_attr *scan_info)
 		}
 	}
 
-	wid_list[u32WidsCount].val = scan_info->ch_freq_list;
-	wid_list[u32WidsCount].size = scan_info->ch_list_len;
-	u32WidsCount++;
+	wid_list[index].val = scan_info->ch_freq_list;
+	wid_list[index].size = scan_info->ch_list_len;
+	index++;
 
-	wid_list[u32WidsCount].id = WID_START_SCAN_REQ;
-	wid_list[u32WidsCount].type = WID_CHAR;
-	wid_list[u32WidsCount].size = sizeof(char);
-	wid_list[u32WidsCount].val = (s8 *)&scan_info->src;
-	u32WidsCount++;
+	wid_list[index].id = WID_START_SCAN_REQ;
+	wid_list[index].type = WID_CHAR;
+	wid_list[index].size = sizeof(char);
+	wid_list[index].val = (s8 *)&scan_info->src;
+	index++;
 
 	if (hif_drv->hif_state == HOST_IF_CONNECTED)
 		scan_while_connected = true;
@@ -823,7 +823,7 @@ static s32 handle_scan(struct wilc_vif *vif, struct scan_attr *scan_info)
 		scan_while_connected = false;
 
 	result = wilc_send_config_pkt(vif, SET_CFG, wid_list,
-				      u32WidsCount,
+				      index,
 				      wilc_get_vif_idx(vif));
 
 	if (result)
