@@ -221,6 +221,8 @@ int dwc3_send_gadget_generic_command(struct dwc3 *dwc, unsigned cmd, u32 param)
 	} while (1);
 }
 
+static int __dwc3_gadget_wakeup(struct dwc3 *dwc);
+
 int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 		unsigned cmd, struct dwc3_gadget_ep_cmd_params *params)
 {
@@ -246,6 +248,20 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 		susphy = true;
 		reg &= ~DWC3_GUSB2PHYCFG_SUSPHY;
 		dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
+	}
+
+	if (cmd == DWC3_DEPCMD_STARTTRANSFER) {
+		int		needs_wakeup;
+
+		needs_wakeup = (dwc->link_state == DWC3_LINK_STATE_U1 ||
+				dwc->link_state == DWC3_LINK_STATE_U2 ||
+				dwc->link_state == DWC3_LINK_STATE_U3);
+
+		if (unlikely(needs_wakeup)) {
+			ret = __dwc3_gadget_wakeup(dwc);
+			dev_WARN_ONCE(dwc->dev, ret, "wakeup failed --> %d\n",
+					ret);
+		}
 	}
 
 	dwc3_writel(dwc->regs, DWC3_DEPCMDPAR0(ep), params->param0);
