@@ -118,7 +118,6 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 	set_bit(bit, (unsigned long *)cpu_caps_set);	\
 } while (0)
 
-#define cpu_has_xsave		boot_cpu_has(X86_FEATURE_XSAVE)
 #define cpu_has_xsaves		boot_cpu_has(X86_FEATURE_XSAVES)
 /*
  * Do not add any more of those clumsy macros - use static_cpu_has() for

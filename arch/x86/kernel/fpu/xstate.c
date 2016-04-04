@@ -190,7 +190,7 @@ void fpstate_sanitize_xstate(struct fpu *fpu)
  */
 void fpu__init_cpu_xstate(void)
 {
-	if (!cpu_has_xsave || !xfeatures_mask)
+	if (!boot_cpu_has(X86_FEATURE_XSAVE) || !xfeatures_mask)
 		return;
 
 	cr4_set_bits(X86_CR4_OSXSAVE);
@@ -316,7 +316,7 @@ static void __init setup_init_fpu_buf(void)
 	WARN_ON_FPU(!on_boot_cpu);
 	on_boot_cpu = 0;
 
-	if (!cpu_has_xsave)
+	if (!boot_cpu_has(X86_FEATURE_XSAVE))
 		return;
 
 	setup_xstate_features();
@@ -630,7 +630,7 @@ void __init fpu__init_system_xstate(void)
 	WARN_ON_FPU(!on_boot_cpu);
 	on_boot_cpu = 0;
 
-	if (!cpu_has_xsave) {
+	if (!boot_cpu_has(X86_FEATURE_XSAVE)) {
 		pr_info("x86/fpu: Legacy x87 FPU detected.\n");
 		return;
 	}
@@ -678,7 +678,7 @@ void fpu__resume_cpu(void)
 	/*
 	 * Restore XCR0 on xsave capable CPUs:
 	 */
-	if (cpu_has_xsave)
+	if (boot_cpu_has(X86_FEATURE_XSAVE))
 		xsetbv(XCR_XFEATURE_ENABLED_MASK, xfeatures_mask);
 }
 

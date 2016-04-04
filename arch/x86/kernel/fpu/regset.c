@@ -68,7 +68,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * update the header bits in the xsave header, indicating the
 	 * presence of FP and SSE state.
 	 */
-	if (cpu_has_xsave)
+	if (boot_cpu_has(X86_FEATURE_XSAVE))
 		fpu->state.xsave.header.xfeatures |= XFEATURE_MASK_FPSSE;
 
 	return ret;
@@ -82,7 +82,7 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 	struct xregs_state *xsave;
 	int ret;
 
-	if (!cpu_has_xsave)
+	if (!boot_cpu_has(X86_FEATURE_XSAVE))
 		return -ENODEV;
 
 	fpu__activate_fpstate_read(fpu);
@@ -111,7 +111,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	struct xregs_state *xsave;
 	int ret;
 
-	if (!cpu_has_xsave)
+	if (!boot_cpu_has(X86_FEATURE_XSAVE))
 		return -ENODEV;
 
 	fpu__activate_fpstate_write(fpu);
@@ -328,7 +328,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * update the header bit in the xsave header, indicating the
 	 * presence of FP.
 	 */
-	if (cpu_has_xsave)
+	if (boot_cpu_has(X86_FEATURE_XSAVE))
 		fpu->state.xsave.header.xfeatures |= XFEATURE_MASK_FP;
 	return ret;
 }
