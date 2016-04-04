@@ -1883,6 +1883,70 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			px_bcud_init(dev);
 		}
 		break;
+	case EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB:
+		{
+			struct i2c_adapter *adapter;
+			struct i2c_client *client;
+			struct i2c_board_info info;
+			struct si2168_config si2168_config;
+			struct si2157_config si2157_config;
+
+			/* attach demod */
+			memset(&si2168_config, 0, sizeof(si2168_config));
+			si2168_config.i2c_adapter = &adapter;
+			si2168_config.fe = &dvb->fe[0];
+			si2168_config.ts_mode = SI2168_TS_SERIAL;
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "si2168", I2C_NAME_SIZE);
+			info.addr = 0x64;
+			info.platform_data = &si2168_config;
+			request_module(info.type);
+			client = i2c_new_device(&dev->i2c_adap[dev->def_i2c_bus], &info);
+			if (client == NULL || client->dev.driver == NULL) {
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			dvb->i2c_client_demod = client;
+
+			/* attach tuner */
+			memset(&si2157_config, 0, sizeof(si2157_config));
+			si2157_config.fe = dvb->fe[0];
+			si2157_config.if_port = 1;
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+			si2157_config.mdev = dev->media_dev;
+#endif
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
+			info.addr = 0x60;
+			info.platform_data = &si2157_config;
+			request_module(info.type);
+			client = i2c_new_device(adapter, &info);
+			if (client == NULL || client->dev.driver == NULL) {
+				module_put(dvb->i2c_client_demod->dev.driver->owner);
+				i2c_unregister_device(dvb->i2c_client_demod);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				module_put(dvb->i2c_client_demod->dev.driver->owner);
+				i2c_unregister_device(dvb->i2c_client_demod);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			dvb->i2c_client_tuner = client;
+
+		}
+		break;
 	default:
 		em28xx_errdev("/2: The frontend of your DVB/ATSC card"
 				" isn't supported yet\n");
