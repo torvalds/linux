@@ -1936,34 +1936,6 @@ static struct i915_power_well skl_power_wells[] = {
 	},
 };
 
-void skl_pw1_misc_io_init(struct drm_i915_private *dev_priv)
-{
-	struct i915_power_well *well;
-
-	if (!(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)))
-		return;
-
-	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
-	intel_power_well_enable(dev_priv, well);
-
-	well = lookup_power_well(dev_priv, SKL_DISP_PW_MISC_IO);
-	intel_power_well_enable(dev_priv, well);
-}
-
-void skl_pw1_misc_io_fini(struct drm_i915_private *dev_priv)
-{
-	struct i915_power_well *well;
-
-	if (!(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)))
-		return;
-
-	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
-	intel_power_well_disable(dev_priv, well);
-
-	well = lookup_power_well(dev_priv, SKL_DISP_PW_MISC_IO);
-	intel_power_well_disable(dev_priv, well);
-}
-
 static struct i915_power_well bxt_power_wells[] = {
 	{
 		.name = "always-on",
@@ -2154,9 +2126,10 @@ static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
 }
 
 static void skl_display_core_init(struct drm_i915_private *dev_priv,
-				  bool resume)
+				   bool resume)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *well;
 	uint32_t val;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
@@ -2167,7 +2140,13 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 
 	/* enable PG1 and Misc I/O */
 	mutex_lock(&power_domains->lock);
-	skl_pw1_misc_io_init(dev_priv);
+
+	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
+	intel_power_well_enable(dev_priv, well);
+
+	well = lookup_power_well(dev_priv, SKL_DISP_PW_MISC_IO);
+	intel_power_well_enable(dev_priv, well);
+
 	mutex_unlock(&power_domains->lock);
 
 	if (!resume)
@@ -2182,6 +2161,7 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *well;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
@@ -2189,8 +2169,15 @@ static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 
 	/* The spec doesn't call for removing the reset handshake flag */
 	/* disable PG1 and Misc I/O */
+
 	mutex_lock(&power_domains->lock);
-	skl_pw1_misc_io_fini(dev_priv);
+
+	well = lookup_power_well(dev_priv, SKL_DISP_PW_MISC_IO);
+	intel_power_well_disable(dev_priv, well);
+
+	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
+	intel_power_well_disable(dev_priv, well);
+
 	mutex_unlock(&power_domains->lock);
 }
 
