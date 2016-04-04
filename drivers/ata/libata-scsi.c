@@ -270,14 +270,17 @@ DEVICE_ATTR(unload_heads, S_IRUGO | S_IWUSR,
 	    ata_scsi_park_show, ata_scsi_park_store);
 EXPORT_SYMBOL_GPL(dev_attr_unload_heads);
 
-void ata_scsi_set_sense(struct scsi_cmnd *cmd, u8 sk, u8 asc, u8 ascq)
+void ata_scsi_set_sense(struct ata_device *dev, struct scsi_cmnd *cmd,
+			u8 sk, u8 asc, u8 ascq)
 {
+	bool d_sense = (dev->flags & ATA_DFLAG_D_SENSE);
+
 	if (!cmd)
 		return;
 
 	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
 
-	scsi_build_sense_buffer(0, cmd->sense_buffer, sk, asc, ascq);
+	scsi_build_sense_buffer(d_sense, cmd->sense_buffer, sk, asc, ascq);
 }
 
 void ata_scsi_set_sense_information(struct ata_device *dev,
@@ -384,9 +387,10 @@ struct device_attribute *ata_common_sdev_attrs[] = {
 };
 EXPORT_SYMBOL_GPL(ata_common_sdev_attrs);
 
-static void ata_scsi_invalid_field(struct scsi_cmnd *cmd)
+static void ata_scsi_invalid_field(struct ata_device *dev,
+				   struct scsi_cmnd *cmd)
 {
-	ata_scsi_set_sense(cmd, ILLEGAL_REQUEST, 0x24, 0x0);
+	ata_scsi_set_sense(dev, cmd, ILLEGAL_REQUEST, 0x24, 0x0);
 	/* "Invalid field in cbd" */
 	cmd->scsi_done(cmd);
 }
@@ -1014,7 +1018,7 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
 	    tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
 		ata_to_sense_error(qc->ap->print_id, tf->command, tf->feature,
 				   &sense_key, &asc, &ascq, verbose);
-		ata_scsi_set_sense(cmd, sense_key, asc, ascq);
+		ata_scsi_set_sense(qc->dev, cmd, sense_key, asc, ascq);
 	} else {
 		/*
 		 * ATA PASS-THROUGH INFORMATION AVAILABLE
@@ -1112,12 +1116,12 @@ static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 	    tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
 		ata_to_sense_error(qc->ap->print_id, tf->command, tf->feature,
 				   &sense_key, &asc, &ascq, verbose);
-		ata_scsi_set_sense(cmd, sense_key, asc, ascq);
+		ata_scsi_set_sense(dev, cmd, sense_key, asc, ascq);
 	} else {
 		/* Could not decode error */
 		ata_dev_warn(dev, "could not decode error status 0x%x err_mask 0x%x\n",
 			     tf->command, qc->err_mask);
-		ata_scsi_set_sense(cmd, ABORTED_COMMAND, 0, 0);
+		ata_scsi_set_sense(dev, cmd, ABORTED_COMMAND, 0, 0);
 		return;
 	}
 
@@ -1440,7 +1444,7 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 	return 0;
 
  invalid_fld:
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x24, 0x0);
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x24, 0x0);
 	/* "Invalid field in cbd" */
 	return 1;
  skip:
@@ -1679,12 +1683,12 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc)
 	return 0;
 
 invalid_fld:
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x24, 0x0);
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x24, 0x0);
 	/* "Invalid field in cbd" */
 	return 1;
 
 out_of_range:
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x21, 0x0);
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x21, 0x0);
 	/* "Logical Block Address out of range" */
 	return 1;
 
@@ -1781,12 +1785,12 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 		goto out_of_range;
 	/* treat all other errors as -EINVAL, fall through */
 invalid_fld:
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x24, 0x0);
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x24, 0x0);
 	/* "Invalid field in cbd" */
 	return 1;
 
 out_of_range:
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x21, 0x0);
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x21, 0x0);
 	/* "Logical Block Address out of range" */
 	return 1;
 
@@ -2358,6 +2362,7 @@ static unsigned int ata_msense_caching(u16 *id, u8 *buf, bool changeable)
 
 /**
  *	ata_msense_ctl_mode - Simulate MODE SENSE control mode page
+ *	@dev: ATA device of interest
  *	@buf: output buffer
  *	@changeable: whether changeable parameters are requested
  *
@@ -2366,9 +2371,12 @@ static unsigned int ata_msense_caching(u16 *id, u8 *buf, bool changeable)
  *	LOCKING:
  *	None.
  */
-static unsigned int ata_msense_ctl_mode(u8 *buf, bool changeable)
+static unsigned int ata_msense_ctl_mode(struct ata_device *dev, u8 *buf,
+					bool changeable)
 {
 	modecpy(buf, def_control_mpage, sizeof(def_control_mpage), changeable);
+	if (changeable && (dev->flags & ATA_DFLAG_D_SENSE))
+		buf[2] |= (1 << 2);	/* Descriptor sense requested */
 	return sizeof(def_control_mpage);
 }
 
@@ -2482,13 +2490,13 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 		break;
 
 	case CONTROL_MPAGE:
-		p += ata_msense_ctl_mode(p, page_control == 1);
+		p += ata_msense_ctl_mode(args->dev, p, page_control == 1);
 		break;
 
 	case ALL_MPAGES:
 		p += ata_msense_rw_recovery(p, page_control == 1);
 		p += ata_msense_caching(args->id, p, page_control == 1);
-		p += ata_msense_ctl_mode(p, page_control == 1);
+		p += ata_msense_ctl_mode(args->dev, p, page_control == 1);
 		break;
 
 	default:		/* invalid page code */
@@ -2521,12 +2529,12 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 	return 0;
 
 invalid_fld:
-	ata_scsi_set_sense(args->cmd, ILLEGAL_REQUEST, 0x24, 0x0);
+	ata_scsi_set_sense(dev, args->cmd, ILLEGAL_REQUEST, 0x24, 0x0);
 	/* "Invalid field in cbd" */
 	return 1;
 
 saving_not_supp:
-	ata_scsi_set_sense(args->cmd, ILLEGAL_REQUEST, 0x39, 0x0);
+	ata_scsi_set_sense(dev, args->cmd, ILLEGAL_REQUEST, 0x39, 0x0);
 	 /* "Saving parameters not supported" */
 	return 1;
 }
@@ -3163,7 +3171,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	return 0;
 
  invalid_fld:
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x24, 0x00);
+	ata_scsi_set_sense(dev, scmd, ILLEGAL_REQUEST, 0x24, 0x00);
 	/* "Invalid field in cdb" */
 	return 1;
 }
@@ -3228,7 +3236,7 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
 	return 0;
 
  invalid_fld:
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x24, 0x00);
+	ata_scsi_set_sense(dev, scmd, ILLEGAL_REQUEST, 0x24, 0x00);
 	/* "Invalid field in cdb" */
 	return 1;
 }
@@ -3276,6 +3284,51 @@ static int ata_mselect_caching(struct ata_queued_cmd *qc,
 	tf->nsect = 0;
 	tf->command = ATA_CMD_SET_FEATURES;
 	tf->feature = wce ? SETFEATURES_WC_ON : SETFEATURES_WC_OFF;
+	return 0;
+}
+
+/**
+ *	ata_mselect_control - Simulate MODE SELECT for control page
+ *	@qc: Storage for translated ATA taskfile
+ *	@buf: input buffer
+ *	@len: number of valid bytes in the input buffer
+ *
+ *	Prepare a taskfile to modify caching information for the device.
+ *
+ *	LOCKING:
+ *	None.
+ */
+static int ata_mselect_control(struct ata_queued_cmd *qc,
+			       const u8 *buf, int len)
+{
+	struct ata_device *dev = qc->dev;
+	char mpage[CONTROL_MPAGE_LEN];
+	u8 d_sense;
+
+	/*
+	 * The first two bytes of def_control_mpage are a header, so offsets
+	 * in mpage are off by 2 compared to buf.  Same for len.
+	 */
+
+	if (len != CONTROL_MPAGE_LEN - 2)
+		return -EINVAL;
+
+	d_sense = buf[0] & (1 << 2);
+
+	/*
+	 * Check that read-only bits are not modified.
+	 */
+	ata_msense_ctl_mode(dev, mpage, false);
+	mpage[2] &= ~(1 << 2);
+	mpage[2] |= d_sense;
+	if (memcmp(mpage + 2, buf, CONTROL_MPAGE_LEN - 2) != 0)
+		return -EINVAL;
+	if (d_sense & (1 << 2))
+		dev->flags |= ATA_DFLAG_D_SENSE;
+	else
+		dev->flags &= ~ATA_DFLAG_D_SENSE;
+	qc->scsicmd->result = SAM_STAT_GOOD;
+	qc->scsicmd->scsi_done(qc->scsicmd);
 	return 0;
 }
 
@@ -3381,7 +3434,10 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 		if (ata_mselect_caching(qc, p, pg_len) < 0)
 			goto invalid_param;
 		break;
-
+	case CONTROL_MPAGE:
+		if (ata_mselect_control(qc, p, pg_len) < 0)
+			goto invalid_param;
+		break;
 	default:		/* invalid page code */
 		goto invalid_param;
 	}
@@ -3397,17 +3453,17 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 
  invalid_fld:
 	/* "Invalid field in CDB" */
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x24, 0x0);
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x24, 0x0);
 	return 1;
 
  invalid_param:
 	/* "Invalid field in parameter list" */
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x26, 0x0);
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x26, 0x0);
 	return 1;
 
  invalid_param_len:
 	/* "Parameter list length error" */
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x1a, 0x0);
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x1a, 0x0);
 	return 1;
 
  skip:
@@ -3611,12 +3667,12 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 	switch(scsicmd[0]) {
 	/* TODO: worth improving? */
 	case FORMAT_UNIT:
-		ata_scsi_invalid_field(cmd);
+		ata_scsi_invalid_field(dev, cmd);
 		break;
 
 	case INQUIRY:
 		if (scsicmd[1] & 2)	           /* is CmdDt set?  */
-			ata_scsi_invalid_field(cmd);
+			ata_scsi_invalid_field(dev, cmd);
 		else if ((scsicmd[1] & 1) == 0)    /* is EVPD clear? */
 			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_std);
 		else switch (scsicmd[2]) {
@@ -3642,7 +3698,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b2);
 			break;
 		default:
-			ata_scsi_invalid_field(cmd);
+			ata_scsi_invalid_field(dev, cmd);
 			break;
 		}
 		break;
@@ -3660,7 +3716,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 		if ((scsicmd[1] & 0x1f) == SAI_READ_CAPACITY_16)
 			ata_scsi_rbuf_fill(&args, ata_scsiop_read_cap);
 		else
-			ata_scsi_invalid_field(cmd);
+			ata_scsi_invalid_field(dev, cmd);
 		break;
 
 	case REPORT_LUNS:
@@ -3668,7 +3724,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 		break;
 
 	case REQUEST_SENSE:
-		ata_scsi_set_sense(cmd, 0, 0, 0);
+		ata_scsi_set_sense(dev, cmd, 0, 0, 0);
 		cmd->result = (DRIVER_SENSE << 24);
 		cmd->scsi_done(cmd);
 		break;
@@ -3692,12 +3748,12 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 		if ((tmp8 == 0x4) && (!scsicmd[3]) && (!scsicmd[4]))
 			ata_scsi_rbuf_fill(&args, ata_scsiop_noop);
 		else
-			ata_scsi_invalid_field(cmd);
+			ata_scsi_invalid_field(dev, cmd);
 		break;
 
 	/* all other commands */
 	default:
-		ata_scsi_set_sense(cmd, ILLEGAL_REQUEST, 0x20, 0x0);
+		ata_scsi_set_sense(dev, cmd, ILLEGAL_REQUEST, 0x20, 0x0);
 		/* "Invalid command operation code" */
 		cmd->scsi_done(cmd);
 		break;

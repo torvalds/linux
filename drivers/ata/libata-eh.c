@@ -1679,7 +1679,7 @@ static void ata_eh_request_sense(struct ata_queued_cmd *qc,
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	/* Ignore err_mask; ATA_ERR might be set */
 	if (tf.command & ATA_SENSE) {
-		ata_scsi_set_sense(cmd, tf.lbah, tf.lbam, tf.lbal);
+		ata_scsi_set_sense(dev, cmd, tf.lbah, tf.lbam, tf.lbal);
 		qc->flags |= ATA_QCFLAG_SENSE_VALID;
 	} else {
 		ata_dev_warn(dev, "request sense failed stat %02x emask %x\n",
@@ -1855,7 +1855,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 		sense_key = (qc->result_tf.auxiliary >> 16) & 0xff;
 		asc = (qc->result_tf.auxiliary >> 8) & 0xff;
 		ascq = qc->result_tf.auxiliary & 0xff;
-		ata_scsi_set_sense(qc->scsicmd, sense_key, asc, ascq);
+		ata_scsi_set_sense(dev, qc->scsicmd, sense_key, asc, ascq);
 		ata_scsi_set_sense_information(dev, qc->scsicmd,
 					       &qc->result_tf);
 		qc->flags |= ATA_QCFLAG_SENSE_VALID;
