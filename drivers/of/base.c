@@ -1543,13 +1543,8 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 	struct of_phandle_iterator it;
 	int rc, cur_index = 0;
 
-	rc = of_phandle_iterator_init(&it, np, list_name,
-				      cells_name, cell_count);
-	if (rc)
-		return rc;
-
 	/* Loop over the phandles until all the requested entry is found */
-	while ((rc = of_phandle_iterator_next(&it)) == 0) {
+	of_for_each_phandle(&it, rc, np, list_name, cells_name, cell_count) {
 		/*
 		 * All of the error cases bail out of the loop, so at
 		 * this point, the parsing is successful. If the requested
