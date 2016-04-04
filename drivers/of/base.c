@@ -1465,6 +1465,75 @@ int of_phandle_iterator_init(struct of_phandle_iterator *it,
 	return 0;
 }
 
+int of_phandle_iterator_next(struct of_phandle_iterator *it)
+{
+	uint32_t count = 0;
+
+	if (it->node) {
+		of_node_put(it->node);
+		it->node = NULL;
+	}
+
+	if (!it->cur || it->phandle_end >= it->list_end)
+		return -ENOENT;
+
+	it->cur = it->phandle_end;
+
+	/* If phandle is 0, then it is an empty entry with no arguments. */
+	it->phandle = be32_to_cpup(it->cur++);
+
+	if (it->phandle) {
+
+		/*
+		 * Find the provider node and parse the #*-cells property to
+		 * determine the argument length.
+		 */
+		it->node = of_find_node_by_phandle(it->phandle);
+
+		if (it->cells_name) {
+			if (!it->node) {
+				pr_err("%s: could not find phandle\n",
+				       it->parent->full_name);
+				goto err;
+			}
+
+			if (of_property_read_u32(it->node, it->cells_name,
+						 &count)) {
+				pr_err("%s: could not get %s for %s\n",
+				       it->parent->full_name,
+				       it->cells_name,
+				       it->node->full_name);
+				goto err;
+			}
+		} else {
+			count = it->cell_count;
+		}
+
+		/*
+		 * Make sure that the arguments actually fit in the remaining
+		 * property data length
+		 */
+		if (it->cur + count > it->list_end) {
+			pr_err("%s: arguments longer than property\n",
+			       it->parent->full_name);
+			goto err;
+		}
+	}
+
+	it->phandle_end = it->cur + count;
+	it->cur_count = count;
+
+	return 0;
+
+err:
+	if (it->node) {
+		of_node_put(it->node);
+		it->node = NULL;
+	}
+
+	return -EINVAL;
+}
+
 static int __of_parse_phandle_with_args(const struct device_node *np,
 					const char *list_name,
 					const char *cells_name,
@@ -1480,59 +1549,9 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 		return rc;
 
 	/* Loop over the phandles until all the requested entry is found */
-	while (it.cur < it.list_end) {
-		rc = -EINVAL;
-		it.cur_count = 0;
-
+	while ((rc = of_phandle_iterator_next(&it)) == 0) {
 		/*
-		 * If phandle is 0, then it is an empty entry with no
-		 * arguments.  Skip forward to the next entry.
-		 */
-		it.phandle = be32_to_cpup(it.cur++);
-		if (it.phandle) {
-			/*
-			 * Find the provider node and parse the #*-cells
-			 * property to determine the argument length.
-			 *
-			 * This is not needed if the cell count is hard-coded
-			 * (i.e. cells_name not set, but cell_count is set),
-			 * except when we're going to return the found node
-			 * below.
-			 */
-			if (it.cells_name || cur_index == index) {
-				it.node = of_find_node_by_phandle(it.phandle);
-				if (!it.node) {
-					pr_err("%s: could not find phandle\n",
-						it.parent->full_name);
-					goto err;
-				}
-			}
-
-			if (it.cells_name) {
-				if (of_property_read_u32(it.node, it.cells_name,
-							 &it.cur_count)) {
-					pr_err("%s: could not get %s for %s\n",
-						it.parent->full_name, it.cells_name,
-						it.node->full_name);
-					goto err;
-				}
-			} else {
-				it.cur_count = it.cell_count;
-			}
-
-			/*
-			 * Make sure that the arguments actually fit in the
-			 * remaining property data length
-			 */
-			if (it.cur + it.cur_count > it.list_end) {
-				pr_err("%s: arguments longer than property\n",
-					 it.parent->full_name);
-				goto err;
-			}
-		}
-
-		/*
-		 * All of the error cases above bail out of the loop, so at
+		 * All of the error cases bail out of the loop, so at
 		 * this point, the parsing is successful. If the requested
 		 * index matches, then fill the out_args structure and return,
 		 * or return -ENOENT for an empty entry.
@@ -1558,9 +1577,6 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 			return 0;
 		}
 
-		of_node_put(it.node);
-		it.node = NULL;
-		it.cur += it.cur_count;
 		cur_index++;
 	}
 
@@ -1570,7 +1586,9 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 	 * -EINVAL : parsing error on data
 	 * [1..n]  : Number of phandle (count mode; when index = -1)
 	 */
-	rc = index < 0 ? cur_index : -ENOENT;
+	if (rc == -ENOENT && index < 0)
+		rc = cur_index;
+
  err:
 	if (it.node)
 		of_node_put(it.node);
