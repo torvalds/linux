@@ -425,9 +425,10 @@ error:
 	rxrpc_put_call(call);
 
 	write_lock_bh(&rxrpc_call_lock);
-	list_del(&call->link);
+	list_del_init(&call->link);
 	write_unlock_bh(&rxrpc_call_lock);
 
+	call->state = RXRPC_CALL_DEAD;
 	rxrpc_put_call(call);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
@@ -439,6 +440,7 @@ error:
 	 */
 found_user_ID_now_present:
 	write_unlock(&rx->call_lock);
+	call->state = RXRPC_CALL_DEAD;
 	rxrpc_put_call(call);
 	_leave(" = -EEXIST [%p]", call);
 	return ERR_PTR(-EEXIST);
