@@ -21,7 +21,6 @@
 
 #include <mach/board.h>
 #include <linux/platform_device.h>
-#include <linux/reboot.h>
 
 /*
  * Other arch specific structures and functions
