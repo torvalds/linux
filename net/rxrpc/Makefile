@@ -12,6 +12,7 @@ af-rxrpc-y := \
 	input.o \
 	insecure.o \
 	key.o \
+	local_event.o \
 	local_object.o \
 	misc.o \
 	output.o \

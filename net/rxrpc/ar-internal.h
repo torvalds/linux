@@ -573,6 +573,11 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *, const void *, time_t,
 			      u32);
 
 /*
+ * local_event.c
+ */
+extern void rxrpc_process_local_events(struct work_struct *);
+
+/*
  * local_object.c
  */
 extern rwlock_t rxrpc_local_lock;
