@@ -263,6 +263,7 @@ static const struct attribute_group *amd_uncore_attr_groups[] = {
 };
 
 static struct pmu amd_nb_pmu = {
+	.task_ctx_nr	= perf_invalid_context,
 	.attr_groups	= amd_uncore_attr_groups,
 	.name		= "amd_nb",
 	.event_init	= amd_uncore_event_init,
@@ -274,6 +275,7 @@ static struct pmu amd_nb_pmu = {
 };
 
 static struct pmu amd_l2_pmu = {
+	.task_ctx_nr	= perf_invalid_context,
 	.attr_groups	= amd_uncore_attr_groups,
 	.name		= "amd_l2",
 	.event_init	= amd_uncore_event_init,
