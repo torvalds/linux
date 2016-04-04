@@ -695,7 +695,7 @@ static int ata_rwcmd_protocol(struct ata_taskfile *tf, struct ata_device *dev)
  *	RETURNS:
  *	Block address read from @tf.
  */
-u64 ata_tf_read_block(struct ata_taskfile *tf, struct ata_device *dev)
+u64 ata_tf_read_block(const struct ata_taskfile *tf, struct ata_device *dev)
 {
 	u64 block = 0;
 
@@ -720,7 +720,7 @@ u64 ata_tf_read_block(struct ata_taskfile *tf, struct ata_device *dev)
 		if (!sect) {
 			ata_dev_warn(dev,
 				     "device reported invalid CHS sector 0\n");
-			sect = 1; /* oh well */
+			return U64_MAX;
 		}
 
 		block = (cyl * dev->heads + head) * dev->sectors + sect - 1;

@@ -1083,6 +1083,8 @@ static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 	}
 
 	block = ata_tf_read_block(&qc->result_tf, dev);
+	if (block == U64_MAX)
+		return;
 
 	/* information sense data descriptor */
 	sb[7] = 12;
