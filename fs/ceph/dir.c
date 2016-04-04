@@ -129,7 +129,7 @@ static int __dcache_readdir(struct file *file,  struct dir_context *ctx,
 	struct inode *dir = d_inode(parent);
 	struct dentry *dentry, *last = NULL;
 	struct ceph_dentry_info *di;
-	unsigned nsize = PAGE_CACHE_SIZE / sizeof(struct dentry *);
+	unsigned nsize = PAGE_SIZE / sizeof(struct dentry *);
 	int err = 0;
 	loff_t ptr_pos = 0;
 	struct ceph_readdir_cache_control cache_ctl = {};
@@ -154,7 +154,7 @@ static int __dcache_readdir(struct file *file,  struct dir_context *ctx,
 		}
 
 		err = -EAGAIN;
-		pgoff = ptr_pos >> PAGE_CACHE_SHIFT;
+		pgoff = ptr_pos >> PAGE_SHIFT;
 		if (!cache_ctl.page || pgoff != page_index(cache_ctl.page)) {
 			ceph_readdir_cache_release(&cache_ctl);
 			cache_ctl.page = find_lock_page(&dir->i_data, pgoff);

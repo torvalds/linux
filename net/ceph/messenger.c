@@ -269,7 +269,7 @@ static void _ceph_msgr_exit(void)
 	}
 
 	BUG_ON(zero_page == NULL);
-	page_cache_release(zero_page);
+	put_page(zero_page);
 	zero_page = NULL;
 
 	ceph_msgr_slab_exit();
@@ -282,7 +282,7 @@ int ceph_msgr_init(void)
 
 	BUG_ON(zero_page != NULL);
 	zero_page = ZERO_PAGE(0);
-	page_cache_get(zero_page);
+	get_page(zero_page);
 
 	/*
 	 * The number of active work items is limited by the number of
@@ -1602,7 +1602,7 @@ static int write_partial_skip(struct ceph_connection *con)
 
 	dout("%s %p %d left\n", __func__, con, con->out_skip);
 	while (con->out_skip > 0) {
-		size_t size = min(con->out_skip, (int) PAGE_CACHE_SIZE);
+		size_t size = min(con->out_skip, (int) PAGE_SIZE);
 
 		ret = ceph_tcp_sendpage(con->sock, zero_page, 0, size, true);
 		if (ret <= 0)

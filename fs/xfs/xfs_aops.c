@@ -704,7 +704,7 @@ next_buffer:
 
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 out_invalidate:
-	xfs_vm_invalidatepage(page, 0, PAGE_CACHE_SIZE);
+	xfs_vm_invalidatepage(page, 0, PAGE_SIZE);
 	return;
 }
 
@@ -925,9 +925,9 @@ xfs_do_writepage(
 	 * ---------------------------------^------------------|
 	 */
 	offset = i_size_read(inode);
-	end_index = offset >> PAGE_CACHE_SHIFT;
+	end_index = offset >> PAGE_SHIFT;
 	if (page->index < end_index)
-		end_offset = (xfs_off_t)(page->index + 1) << PAGE_CACHE_SHIFT;
+		end_offset = (xfs_off_t)(page->index + 1) << PAGE_SHIFT;
 	else {
 		/*
 		 * Check whether the page to write out is beyond or straddles
@@ -940,7 +940,7 @@ xfs_do_writepage(
 		 * |				    |      Straddles     |
 		 * ---------------------------------^-----------|--------|
 		 */
-		unsigned offset_into_page = offset & (PAGE_CACHE_SIZE - 1);
+		unsigned offset_into_page = offset & (PAGE_SIZE - 1);
 
 		/*
 		 * Skip the page if it is fully outside i_size, e.g. due to a
@@ -971,7 +971,7 @@ xfs_do_writepage(
 		 * memory is zeroed when mapped, and writes to that region are
 		 * not written out to the file."
 		 */
-		zero_user_segment(page, offset_into_page, PAGE_CACHE_SIZE);
+		zero_user_segment(page, offset_into_page, PAGE_SIZE);
 
 		/* Adjust the end_offset to the end of file */
 		end_offset = offset;
@@ -1475,7 +1475,7 @@ xfs_vm_write_failed(
 	loff_t			block_offset;
 	loff_t			block_start;
 	loff_t			block_end;
-	loff_t			from = pos & (PAGE_CACHE_SIZE - 1);
+	loff_t			from = pos & (PAGE_SIZE - 1);
 	loff_t			to = from + len;
 	struct buffer_head	*bh, *head;
 	struct xfs_mount	*mp = XFS_I(inode)->i_mount;
@@ -1491,7 +1491,7 @@ xfs_vm_write_failed(
 	 * start of the page by using shifts rather than masks the mismatch
 	 * problem.
 	 */
-	block_offset = (pos >> PAGE_CACHE_SHIFT) << PAGE_CACHE_SHIFT;
+	block_offset = (pos >> PAGE_SHIFT) << PAGE_SHIFT;
 
 	ASSERT(block_offset + from == pos);
 
@@ -1558,12 +1558,12 @@ xfs_vm_write_begin(
 	struct page		**pagep,
 	void			**fsdata)
 {
-	pgoff_t			index = pos >> PAGE_CACHE_SHIFT;
+	pgoff_t			index = pos >> PAGE_SHIFT;
 	struct page		*page;
 	int			status;
 	struct xfs_mount	*mp = XFS_I(mapping->host)->i_mount;
 
-	ASSERT(len <= PAGE_CACHE_SIZE);
+	ASSERT(len <= PAGE_SIZE);
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
@@ -1592,7 +1592,7 @@ xfs_vm_write_begin(
 			truncate_pagecache_range(inode, start, pos + len);
 		}
 
-		page_cache_release(page);
+		put_page(page);
 		page = NULL;
 	}
 
@@ -1620,7 +1620,7 @@ xfs_vm_write_end(
 {
 	int			ret;
 
-	ASSERT(len <= PAGE_CACHE_SIZE);
+	ASSERT(len <= PAGE_SIZE);
 
 	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
 	if (unlikely(ret < len)) {

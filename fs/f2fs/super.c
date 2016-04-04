@@ -1070,10 +1070,10 @@ static int sanity_check_raw_super(struct super_block *sb,
 	}
 
 	/* Currently, support only 4KB page cache size */
-	if (F2FS_BLKSIZE != PAGE_CACHE_SIZE) {
+	if (F2FS_BLKSIZE != PAGE_SIZE) {
 		f2fs_msg(sb, KERN_INFO,
 			"Invalid page_cache_size (%lu), supports only 4KB\n",
-			PAGE_CACHE_SIZE);
+			PAGE_SIZE);
 		return 1;
 	}
 

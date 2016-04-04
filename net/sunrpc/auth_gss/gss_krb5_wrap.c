@@ -79,9 +79,9 @@ gss_krb5_remove_padding(struct xdr_buf *buf, int blocksize)
 		len -= buf->head[0].iov_len;
 	if (len <= buf->page_len) {
 		unsigned int last = (buf->page_base + len - 1)
-					>>PAGE_CACHE_SHIFT;
+					>>PAGE_SHIFT;
 		unsigned int offset = (buf->page_base + len - 1)
-					& (PAGE_CACHE_SIZE - 1);
+					& (PAGE_SIZE - 1);
 		ptr = kmap_atomic(buf->pages[last]);
 		pad = *(ptr + offset);
 		kunmap_atomic(ptr);

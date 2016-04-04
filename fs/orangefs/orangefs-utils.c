@@ -303,7 +303,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int size)
 		}
 		break;
 	case S_IFDIR:
-		inode->i_size = PAGE_CACHE_SIZE;
+		inode->i_size = PAGE_SIZE;
 		orangefs_inode->blksize = (1 << inode->i_blkbits);
 		spin_lock(&inode->i_lock);
 		inode_set_bytes(inode, inode->i_size);
