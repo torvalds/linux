@@ -526,7 +526,7 @@ static inline unsigned short get_fpu_swd(struct fpu *fpu)
 
 static inline unsigned short get_fpu_mxcsr(struct fpu *fpu)
 {
-	if (cpu_has_xmm) {
+	if (boot_cpu_has(X86_FEATURE_XMM)) {
 		return fpu->state.fxsave.mxcsr;
 	} else {
 		return MXCSR_DEFAULT;

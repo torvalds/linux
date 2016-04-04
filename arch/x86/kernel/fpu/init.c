@@ -31,7 +31,7 @@ static void fpu__init_cpu_generic(void)
 
 	if (cpu_has_fxsr)
 		cr4_mask |= X86_CR4_OSFXSR;
-	if (cpu_has_xmm)
+	if (boot_cpu_has(X86_FEATURE_XMM))
 		cr4_mask |= X86_CR4_OSXMMEXCPT;
 	if (cr4_mask)
 		cr4_set_bits(cr4_mask);
