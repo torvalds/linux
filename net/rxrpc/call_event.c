@@ -545,7 +545,7 @@ static void rxrpc_extract_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
 
 	mtu = min(ntohl(ackinfo.rxMTU), ntohl(ackinfo.maxMTU));
 
-	peer = call->conn->trans->peer;
+	peer = call->conn->params.peer;
 	if (mtu < peer->maxdata) {
 		spin_lock_bh(&peer->lock);
 		peer->maxdata = mtu;
@@ -836,8 +836,8 @@ void rxrpc_process_call(struct work_struct *work)
 
 	/* there's a good chance we're going to have to send a message, so set
 	 * one up in advance */
-	msg.msg_name	= &call->conn->trans->peer->srx.transport;
-	msg.msg_namelen	= call->conn->trans->peer->srx.transport_len;
+	msg.msg_name	= &call->conn->params.peer->srx.transport;
+	msg.msg_namelen	= call->conn->params.peer->srx.transport_len;
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
@@ -1151,8 +1151,8 @@ send_ACK_with_skew:
 	ack.maxSkew = htons(atomic_read(&call->conn->hi_serial) -
 			    ntohl(ack.serial));
 send_ACK:
-	mtu = call->conn->trans->peer->if_mtu;
-	mtu -= call->conn->trans->peer->hdrsize;
+	mtu = call->conn->params.peer->if_mtu;
+	mtu -= call->conn->params.peer->hdrsize;
 	ackinfo.maxMTU	= htonl(mtu);
 	ackinfo.rwind	= htonl(rxrpc_rx_window_size);
 
@@ -1206,7 +1206,7 @@ send_message_2:
 		len += iov[1].iov_len;
 	}
 
-	ret = kernel_sendmsg(call->conn->trans->local->socket,
+	ret = kernel_sendmsg(call->conn->params.local->socket,
 			     &msg, iov, ioc, len);
 	if (ret < 0) {
 		_debug("sendmsg failed: %d", ret);

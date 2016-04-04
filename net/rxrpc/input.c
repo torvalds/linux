@@ -560,7 +560,7 @@ static void rxrpc_post_packet_to_call(struct rxrpc_call *call,
 dead_call:
 	if (sp->hdr.type != RXRPC_PACKET_TYPE_ABORT) {
 		skb->priority = RX_CALL_DEAD;
-		rxrpc_reject_packet(call->conn->trans->local, skb);
+		rxrpc_reject_packet(call->conn->params.local, skb);
 		goto unlock;
 	}
 free_unlock:

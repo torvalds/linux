@@ -113,7 +113,7 @@ int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
 {
 	const struct rxrpc_security *sec;
-	struct rxrpc_local *local = conn->trans->local;
+	struct rxrpc_local *local = conn->params.local;
 	struct rxrpc_sock *rx;
 	struct key *key;
 	key_ref_t kref;

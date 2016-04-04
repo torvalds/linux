@@ -147,9 +147,9 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		if (!continue_call) {
 			if (msg->msg_name) {
 				size_t len =
-					sizeof(call->conn->trans->peer->srx);
+					sizeof(call->conn->params.peer->srx);
 				memcpy(msg->msg_name,
-				       &call->conn->trans->peer->srx, len);
+				       &call->conn->params.peer->srx, len);
 				msg->msg_namelen = len;
 			}
 			sock_recv_timestamp(msg, &rx->sk, skb);

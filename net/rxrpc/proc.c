@@ -46,7 +46,7 @@ static void rxrpc_call_seq_stop(struct seq_file *seq, void *v)
 
 static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 {
-	struct rxrpc_transport *trans;
+	struct rxrpc_connection *conn;
 	struct rxrpc_call *call;
 	char lbuff[4 + 4 + 4 + 4 + 5 + 1], rbuff[4 + 4 + 4 + 4 + 5 + 1];
 
@@ -59,15 +59,15 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	}
 
 	call = list_entry(v, struct rxrpc_call, link);
-	trans = call->conn->trans;
+	conn = call->conn;
 
 	sprintf(lbuff, "%pI4:%u",
-		&trans->local->srx.transport.sin.sin_addr,
-		ntohs(trans->local->srx.transport.sin.sin_port));
+		&conn->params.local->srx.transport.sin.sin_addr,
+		ntohs(conn->params.local->srx.transport.sin.sin_port));
 
 	sprintf(rbuff, "%pI4:%u",
-		&trans->peer->srx.transport.sin.sin_addr,
-		ntohs(trans->peer->srx.transport.sin.sin_port));
+		&conn->params.peer->srx.transport.sin.sin_addr,
+		ntohs(conn->params.peer->srx.transport.sin.sin_port));
 
 	seq_printf(seq,
 		   "UDP   %-22.22s %-22.22s %4x %08x %08x %s %3u"
@@ -129,7 +129,6 @@ static void rxrpc_connection_seq_stop(struct seq_file *seq, void *v)
 static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 {
 	struct rxrpc_connection *conn;
-	struct rxrpc_transport *trans;
 	char lbuff[4 + 4 + 4 + 4 + 5 + 1], rbuff[4 + 4 + 4 + 4 + 5 + 1];
 
 	if (v == &rxrpc_connections) {
@@ -142,15 +141,14 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 	}
 
 	conn = list_entry(v, struct rxrpc_connection, link);
-	trans = conn->trans;
 
 	sprintf(lbuff, "%pI4:%u",
-		&trans->local->srx.transport.sin.sin_addr,
-		ntohs(trans->local->srx.transport.sin.sin_port));
+		&conn->params.local->srx.transport.sin.sin_addr,
+		ntohs(conn->params.local->srx.transport.sin.sin_port));
 
 	sprintf(rbuff, "%pI4:%u",
-		&trans->peer->srx.transport.sin.sin_addr,
-		ntohs(trans->peer->srx.transport.sin.sin_port));
+		&conn->params.peer->srx.transport.sin.sin_addr,
+		ntohs(conn->params.peer->srx.transport.sin.sin_port));
 
 	seq_printf(seq,
 		   "UDP   %-22.22s %-22.22s %4x %08x %08x %s %3u"

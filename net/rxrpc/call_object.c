@@ -122,7 +122,7 @@ static void rxrpc_call_hash_add(struct rxrpc_call *call)
 	key = rxrpc_call_hashfunc(call->in_clientflag, call->cid,
 				  call->call_id, call->epoch,
 				  call->service_id, call->family,
-				  call->conn->trans->local, addr_size,
+				  call->conn->params.local, addr_size,
 				  call->peer_ip.ipv6_addr);
 	/* Store the full key in the call */
 	call->hash_key = key;
@@ -320,11 +320,11 @@ static struct rxrpc_call *rxrpc_alloc_client_call(
 	switch (call->family) {
 	case AF_INET:
 		call->peer_ip.ipv4_addr =
-			trans->peer->srx.transport.sin.sin_addr.s_addr;
+			call->conn->params.peer->srx.transport.sin.sin_addr.s_addr;
 		break;
 	case AF_INET6:
 		memcpy(call->peer_ip.ipv6_addr,
-		       trans->peer->srx.transport.sin6.sin6_addr.in6_u.u6_addr8,
+		       call->conn->params.peer->srx.transport.sin6.sin6_addr.in6_u.u6_addr8,
 		       sizeof(call->peer_ip.ipv6_addr));
 		break;
 	}
@@ -334,9 +334,9 @@ static struct rxrpc_call *rxrpc_alloc_client_call(
 	/* Add the new call to the hashtable */
 	rxrpc_call_hash_add(call);
 
-	spin_lock(&call->conn->trans->peer->lock);
-	hlist_add_head(&call->error_link, &call->conn->trans->peer->error_targets);
-	spin_unlock(&call->conn->trans->peer->lock);
+	spin_lock(&call->conn->params.peer->lock);
+	hlist_add_head(&call->error_link, &call->conn->params.peer->error_targets);
+	spin_unlock(&call->conn->params.peer->lock);
 
 	call->lifetimer.expires = jiffies + rxrpc_max_call_lifetime;
 	add_timer(&call->lifetimer);
@@ -517,9 +517,9 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	atomic_inc(&conn->usage);
 	write_unlock_bh(&conn->lock);
 
-	spin_lock(&conn->trans->peer->lock);
-	hlist_add_head(&call->error_link, &conn->trans->peer->error_targets);
-	spin_unlock(&conn->trans->peer->lock);
+	spin_lock(&conn->params.peer->lock);
+	hlist_add_head(&call->error_link, &conn->params.peer->error_targets);
+	spin_unlock(&conn->params.peer->lock);
 
 	write_lock_bh(&rxrpc_call_lock);
 	list_add_tail(&call->link, &rxrpc_calls);
@@ -527,15 +527,15 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 
 	/* Record copies of information for hashtable lookup */
 	call->family = rx->family;
-	call->local = conn->trans->local;
+	call->local = conn->params.local;
 	switch (call->family) {
 	case AF_INET:
 		call->peer_ip.ipv4_addr =
-			conn->trans->peer->srx.transport.sin.sin_addr.s_addr;
+			conn->params.peer->srx.transport.sin.sin_addr.s_addr;
 		break;
 	case AF_INET6:
 		memcpy(call->peer_ip.ipv6_addr,
-		       conn->trans->peer->srx.transport.sin6.sin6_addr.in6_u.u6_addr8,
+		       conn->params.peer->srx.transport.sin6.sin6_addr.in6_u.u6_addr8,
 		       sizeof(call->peer_ip.ipv6_addr));
 		break;
 	default:
@@ -813,9 +813,9 @@ static void rxrpc_cleanup_call(struct rxrpc_call *call)
 	}
 
 	if (call->conn) {
-		spin_lock(&call->conn->trans->peer->lock);
+		spin_lock(&call->conn->params.peer->lock);
 		hlist_del_init(&call->error_link);
-		spin_unlock(&call->conn->trans->peer->lock);
+		spin_unlock(&call->conn->params.peer->lock);
 
 		write_lock_bh(&call->conn->lock);
 		rb_erase(&call->conn_node, &call->conn->calls);

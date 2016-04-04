@@ -602,8 +602,8 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 	challenge.min_level	= htonl(0);
 	challenge.__padding	= 0;
 
-	msg.msg_name	= &conn->trans->peer->srx.transport.sin;
-	msg.msg_namelen	= sizeof(conn->trans->peer->srx.transport.sin);
+	msg.msg_name	= &conn->params.peer->srx.transport.sin;
+	msg.msg_namelen	= sizeof(conn->params.peer->srx.transport.sin);
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
@@ -630,7 +630,7 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 	whdr.serial = htonl(serial);
 	_proto("Tx CHALLENGE %%%u", serial);
 
-	ret = kernel_sendmsg(conn->trans->local->socket, &msg, iov, 2, len);
+	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 	if (ret < 0) {
 		_debug("sendmsg failed: %d", ret);
 		return -EAGAIN;
@@ -657,8 +657,8 @@ static int rxkad_send_response(struct rxrpc_connection *conn,
 
 	_enter("");
 
-	msg.msg_name	= &conn->trans->peer->srx.transport.sin;
-	msg.msg_namelen	= sizeof(conn->trans->peer->srx.transport.sin);
+	msg.msg_name	= &conn->params.peer->srx.transport.sin;
+	msg.msg_namelen	= sizeof(conn->params.peer->srx.transport.sin);
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
@@ -684,7 +684,7 @@ static int rxkad_send_response(struct rxrpc_connection *conn,
 	whdr.serial = htonl(serial);
 	_proto("Tx RESPONSE %%%u", serial);
 
-	ret = kernel_sendmsg(conn->trans->local->socket, &msg, iov, 3, len);
+	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 3, len);
 	if (ret < 0) {
 		_debug("sendmsg failed: %d", ret);
 		return -EAGAIN;
