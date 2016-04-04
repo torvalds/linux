@@ -987,7 +987,6 @@ static int omap_iommu_remove(struct platform_device *pdev)
 {
 	struct omap_iommu *obj = platform_get_drvdata(pdev);
 
-	iopgtable_clear_entry_all(obj);
 	omap_iommu_debugfs_remove(obj);
 
 	pm_runtime_disable(obj->dev);
