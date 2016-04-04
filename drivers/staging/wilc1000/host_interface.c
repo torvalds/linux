@@ -731,7 +731,7 @@ unlock:
 	return result;
 }
 
-static s32 Handle_Scan(struct wilc_vif *vif,
+static s32 handle_scan(struct wilc_vif *vif,
 		       struct scan_attr *pstrHostIFscanAttr)
 {
 	s32 result = 0;
@@ -2515,7 +2515,7 @@ static int hostIFthread(void *pvArg)
 
 		switch (msg.id) {
 		case HOST_IF_MSG_SCAN:
-			Handle_Scan(msg.vif, &msg.body.scan_info);
+			handle_scan(msg.vif, &msg.body.scan_info);
 			break;
 
 		case HOST_IF_MSG_CONNECT:
