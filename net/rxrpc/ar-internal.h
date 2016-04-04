@@ -606,9 +606,9 @@ int rxrpc_send_packet(struct rxrpc_transport *, struct sk_buff *);
 int rxrpc_do_sendmsg(struct rxrpc_sock *, struct msghdr *, size_t);
 
 /*
- * peer_error.c
+ * peer_event.c
  */
-void rxrpc_UDP_error_report(struct sock *);
+void rxrpc_error_report(struct sock *);
 void rxrpc_UDP_error_handler(struct work_struct *);
 
 /*

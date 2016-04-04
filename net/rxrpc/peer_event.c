@@ -74,7 +74,7 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 /*
  * handle an error received on the local endpoint
  */
-void rxrpc_UDP_error_report(struct sock *sk)
+void rxrpc_error_report(struct sock *sk)
 {
 	struct sock_exterr_skb *serr;
 	struct rxrpc_transport *trans;

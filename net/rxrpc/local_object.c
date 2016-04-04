@@ -120,7 +120,7 @@ static int rxrpc_create_local(struct rxrpc_local *local)
 	sock = local->socket->sk;
 	sock->sk_user_data	= local;
 	sock->sk_data_ready	= rxrpc_data_ready;
-	sock->sk_error_report	= rxrpc_UDP_error_report;
+	sock->sk_error_report	= rxrpc_error_report;
 	_leave(" = 0");
 	return 0;
 
