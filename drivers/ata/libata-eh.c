@@ -1638,6 +1638,56 @@ unsigned int atapi_eh_tur(struct ata_device *dev, u8 *r_sense_key)
 }
 
 /**
+ *	ata_eh_request_sense - perform REQUEST_SENSE_DATA_EXT
+ *	@dev: device to perform REQUEST_SENSE_SENSE_DATA_EXT to
+ *	@cmd: scsi command for which the sense code should be set
+ *
+ *	Perform REQUEST_SENSE_DATA_EXT after the device reported CHECK
+ *	SENSE.  This function is an EH helper.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ */
+static void ata_eh_request_sense(struct ata_queued_cmd *qc,
+				 struct scsi_cmnd *cmd)
+{
+	struct ata_device *dev = qc->dev;
+	struct ata_taskfile tf;
+	unsigned int err_mask;
+
+	if (qc->ap->pflags & ATA_PFLAG_FROZEN) {
+		ata_dev_warn(dev, "sense data available but port frozen\n");
+		return;
+	}
+
+	if (!cmd)
+		return;
+
+	if (!ata_id_sense_reporting_enabled(dev->id)) {
+		ata_dev_warn(qc->dev, "sense data reporting disabled\n");
+		return;
+	}
+
+	DPRINTK("ATA request sense\n");
+
+	ata_tf_init(dev, &tf);
+	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	tf.flags |= ATA_TFLAG_LBA | ATA_TFLAG_LBA48;
+	tf.command = ATA_CMD_REQ_SENSE_DATA;
+	tf.protocol = ATA_PROT_NODATA;
+
+	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
+	/* Ignore err_mask; ATA_ERR might be set */
+	if (tf.command & ATA_SENSE) {
+		ata_scsi_set_sense(cmd, tf.lbah, tf.lbam, tf.lbal);
+		qc->flags |= ATA_QCFLAG_SENSE_VALID;
+	} else {
+		ata_dev_warn(dev, "request sense failed stat %02x emask %x\n",
+			     tf.command, err_mask);
+	}
+}
+
+/**
  *	atapi_eh_request_sense - perform ATAPI REQUEST_SENSE
  *	@dev: device to perform REQUEST_SENSE to
  *	@sense_buf: result sense data buffer (SCSI_SENSE_BUFFERSIZE bytes long)
@@ -1838,14 +1888,23 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 		return ATA_EH_RESET;
 	}
 
-	if (stat & (ATA_ERR | ATA_DF))
+	if (stat & (ATA_ERR | ATA_DF)) {
 		qc->err_mask |= AC_ERR_DEV;
-	else
+		/*
+		 * Sense data reporting does not work if the
+		 * device fault bit is set.
+		 */
+		if (stat & ATA_DF)
+			stat &= ~ATA_SENSE;
+	} else {
 		return 0;
+	}
 
 	switch (qc->dev->class) {
 	case ATA_DEV_ATA:
 	case ATA_DEV_ZAC:
+		if (stat & ATA_SENSE)
+			ata_eh_request_sense(qc, qc->scsicmd);
 		if (err & ATA_ICRC)
 			qc->err_mask |= AC_ERR_ATA_BUS;
 		if (err & (ATA_UNC | ATA_AMNF))
@@ -2581,14 +2640,15 @@ static void ata_eh_link_report(struct ata_link *link)
 
 #ifdef CONFIG_ATA_VERBOSE_ERROR
 		if (res->command & (ATA_BUSY | ATA_DRDY | ATA_DF | ATA_DRQ |
-				    ATA_ERR)) {
+				    ATA_SENSE | ATA_ERR)) {
 			if (res->command & ATA_BUSY)
 				ata_dev_err(qc->dev, "status: { Busy }\n");
 			else
-				ata_dev_err(qc->dev, "status: { %s%s%s%s}\n",
+				ata_dev_err(qc->dev, "status: { %s%s%s%s%s}\n",
 				  res->command & ATA_DRDY ? "DRDY " : "",
 				  res->command & ATA_DF ? "DF " : "",
 				  res->command & ATA_DRQ ? "DRQ " : "",
+				  res->command & ATA_SENSE ? "SENSE " : "",
 				  res->command & ATA_ERR ? "ERR " : "");
 		}
 
