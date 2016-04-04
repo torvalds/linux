@@ -1924,6 +1924,7 @@ struct drm_i915_private {
 	 * crappiness (can't read out DPLL_MD for pipes B & C).
 	 */
 	u32 chv_dpll_md[I915_MAX_PIPES];
+	u32 bxt_phy_grc;
 
 	u32 suspend_count;
 	bool suspended_to_idle;

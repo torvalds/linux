@@ -5468,6 +5468,11 @@ static bool broxton_cdclk_is_enabled(struct drm_i915_private *dev_priv)
 	return true;
 }
 
+bool broxton_cdclk_verify_state(struct drm_i915_private *dev_priv)
+{
+	return broxton_cdclk_is_enabled(dev_priv);
+}
+
 void broxton_init_cdclk(struct drm_i915_private *dev_priv)
 {
 	/* check if cd clock is enabled */
