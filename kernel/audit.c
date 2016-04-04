@@ -430,7 +430,6 @@ restart:
 					attempts, audit_pid);
 				set_current_state(TASK_INTERRUPTIBLE);
 				schedule();
-				__set_current_state(TASK_RUNNING);
 				goto restart;
 			}
 		}
@@ -1324,15 +1323,14 @@ static inline void audit_get_stamp(struct audit_context *ctx,
 static long wait_for_auditd(long sleep_time)
 {
 	DECLARE_WAITQUEUE(wait, current);
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	add_wait_queue_exclusive(&audit_backlog_wait, &wait);
 
 	if (audit_backlog_limit &&
-	    skb_queue_len(&audit_skb_queue) > audit_backlog_limit)
+	    skb_queue_len(&audit_skb_queue) > audit_backlog_limit) {
+		add_wait_queue_exclusive(&audit_backlog_wait, &wait);
+		set_current_state(TASK_UNINTERRUPTIBLE);
 		sleep_time = schedule_timeout(sleep_time);
-
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&audit_backlog_wait, &wait);
+		remove_wait_queue(&audit_backlog_wait, &wait);
+	}
 
 	return sleep_time;
 }
