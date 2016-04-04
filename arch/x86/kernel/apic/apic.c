@@ -1085,7 +1085,7 @@ void lapic_shutdown(void)
 {
 	unsigned long flags;
 
-	if (!cpu_has_apic && !apic_from_smp_config())
+	if (!boot_cpu_has(X86_FEATURE_APIC) && !apic_from_smp_config())
 		return;
 
 	local_irq_save(flags);
@@ -1134,7 +1134,7 @@ void __init init_bsp_APIC(void)
 	 * Don't do the setup now if we have a SMP BIOS as the
 	 * through-I/O-APIC virtual wire mode might be active.
 	 */
-	if (smp_found_config || !cpu_has_apic)
+	if (smp_found_config || !boot_cpu_has(X86_FEATURE_APIC))
 		return;
 
 	/*
@@ -1445,7 +1445,7 @@ static void __x2apic_disable(void)
 {
 	u64 msr;
 
-	if (!cpu_has_apic)
+	if (!boot_cpu_has(X86_FEATURE_APIC))
 		return;
 
 	rdmsrl(MSR_IA32_APICBASE, msr);
@@ -1632,7 +1632,7 @@ void __init enable_IR_x2apic(void)
  */
 static int __init detect_init_APIC(void)
 {
-	if (!cpu_has_apic) {
+	if (!boot_cpu_has(X86_FEATURE_APIC)) {
 		pr_info("No local APIC present\n");
 		return -1;
 	}
@@ -1711,14 +1711,14 @@ static int __init detect_init_APIC(void)
 		goto no_apic;
 	case X86_VENDOR_INTEL:
 		if (boot_cpu_data.x86 == 6 || boot_cpu_data.x86 == 15 ||
-		    (boot_cpu_data.x86 == 5 && cpu_has_apic))
+		    (boot_cpu_data.x86 == 5 && boot_cpu_has(X86_FEATURE_APIC)))
 			break;
 		goto no_apic;
 	default:
 		goto no_apic;
 	}
 
-	if (!cpu_has_apic) {
+	if (!boot_cpu_has(X86_FEATURE_APIC)) {
 		/*
 		 * Over-ride BIOS and try to enable the local APIC only if
 		 * "lapic" specified.
@@ -2233,19 +2233,19 @@ int __init APIC_init_uniprocessor(void)
 		return -1;
 	}
 #ifdef CONFIG_X86_64
-	if (!cpu_has_apic) {
+	if (!boot_cpu_has(X86_FEATURE_APIC)) {
 		disable_apic = 1;
 		pr_info("Apic disabled by BIOS\n");
 		return -1;
 	}
 #else
-	if (!smp_found_config && !cpu_has_apic)
+	if (!smp_found_config && !boot_cpu_has(X86_FEATURE_APIC))
 		return -1;
 
 	/*
 	 * Complain if the BIOS pretends there is one.
 	 */
-	if (!cpu_has_apic &&
+	if (!boot_cpu_has(X86_FEATURE_APIC) &&
 	    APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid])) {
 		pr_err("BIOS bug, local APIC 0x%x not detected!...\n",
 			boot_cpu_physical_apicid);
@@ -2426,7 +2426,7 @@ static void apic_pm_activate(void)
 static int __init init_lapic_sysfs(void)
 {
 	/* XXX: remove suspend/resume procs if !apic_pm_state.active? */
-	if (cpu_has_apic)
+	if (boot_cpu_has(X86_FEATURE_APIC))
 		register_syscore_ops(&lapic_syscore_ops);
 
 	return 0;

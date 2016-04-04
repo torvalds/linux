@@ -1454,7 +1454,7 @@ void native_disable_io_apic(void)
 		ioapic_write_entry(ioapic_i8259.apic, ioapic_i8259.pin, entry);
 	}
 
-	if (cpu_has_apic || apic_from_smp_config())
+	if (boot_cpu_has(X86_FEATURE_APIC) || apic_from_smp_config())
 		disconnect_bsp_APIC(ioapic_i8259.pin != -1);
 }
 
