@@ -1074,6 +1074,12 @@ static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 		ata_to_sense_error(qc->ap->print_id, tf->command, tf->feature,
 				   &sb[1], &sb[2], &sb[3], verbose);
 		sb[1] &= 0x0f;
+	} else {
+		/* Could not decode error */
+		ata_dev_warn(dev, "could not decode error status 0x%x err_mask 0x%x\n",
+			     tf->command, qc->err_mask);
+		ata_scsi_set_sense(cmd, ABORTED_COMMAND, 0, 0);
+		return;
 	}
 
 	block = ata_tf_read_block(&qc->result_tf, dev);
