@@ -9,7 +9,9 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/atomic.h>
 #include <net/sock.h>
+#include <net/af_rxrpc.h>
 #include <rxrpc/packet.h>
 
 #if 0
@@ -193,15 +195,16 @@ struct rxrpc_local {
 
 /*
  * RxRPC remote transport endpoint definition
- * - matched by remote port, address and protocol type
- * - holds the connection ID counter for connections between the two endpoints
+ * - matched by local endpoint, remote port, address and protocol type
  */
 struct rxrpc_peer {
-	struct work_struct	destroyer;	/* peer destroyer */
-	struct list_head	link;		/* link in master peer list */
+	struct rcu_head		rcu;		/* This must be first */
+	atomic_t		usage;
+	unsigned long		hash_key;
+	struct hlist_node	hash_link;
+	struct rxrpc_local	*local;
 	struct list_head	error_targets;	/* targets for net error distribution */
 	spinlock_t		lock;		/* access lock */
-	atomic_t		usage;
 	unsigned int		if_mtu;		/* interface MTU for this peer */
 	unsigned int		mtu;		/* network MTU for this peer */
 	unsigned int		maxdata;	/* data size (MTU - hdrsize) */
@@ -611,10 +614,29 @@ void rxrpc_UDP_error_handler(struct work_struct *);
 /*
  * peer_object.c
  */
-struct rxrpc_peer *rxrpc_get_peer(struct sockaddr_rxrpc *, gfp_t);
-void rxrpc_put_peer(struct rxrpc_peer *);
-struct rxrpc_peer *rxrpc_find_peer(struct rxrpc_local *, __be32, __be16);
-void __exit rxrpc_destroy_all_peers(void);
+struct rxrpc_peer *rxrpc_lookup_peer_rcu(struct rxrpc_local *,
+					 const struct sockaddr_rxrpc *);
+struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *,
+				     struct sockaddr_rxrpc *, gfp_t);
+struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *, gfp_t);
+
+static inline void rxrpc_get_peer(struct rxrpc_peer *peer)
+{
+	atomic_inc(&peer->usage);
+}
+
+static inline
+struct rxrpc_peer *rxrpc_get_peer_maybe(struct rxrpc_peer *peer)
+{
+	return atomic_inc_not_zero(&peer->usage) ? peer : NULL;
+}
+
+extern void __rxrpc_put_peer(struct rxrpc_peer *peer);
+static inline void rxrpc_put_peer(struct rxrpc_peer *peer)
+{
+	if (atomic_dec_and_test(&peer->usage))
+		__rxrpc_put_peer(peer);
+}
 
 /*
  * proc.c
@@ -671,6 +693,12 @@ void rxrpc_put_transport(struct rxrpc_transport *);
 void __exit rxrpc_destroy_all_transports(void);
 struct rxrpc_transport *rxrpc_find_transport(struct rxrpc_local *,
 					     struct rxrpc_peer *);
+
+/*
+ * utils.c
+ */
+void rxrpc_get_addr_from_skb(struct rxrpc_local *, const struct sk_buff *,
+			     struct sockaddr_rxrpc *);
 
 /*
  * debug tracing

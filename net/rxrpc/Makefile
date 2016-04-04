@@ -20,7 +20,8 @@ af-rxrpc-y := \
 	recvmsg.o \
 	security.o \
 	skbuff.o \
-	transport.o
+	transport.o \
+	utils.o
 
 af-rxrpc-$(CONFIG_PROC_FS) += proc.o
 af-rxrpc-$(CONFIG_RXKAD) += rxkad.o

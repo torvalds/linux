@@ -635,14 +635,16 @@ static struct rxrpc_connection *rxrpc_conn_from_local(struct rxrpc_local *local,
 	struct rxrpc_peer *peer;
 	struct rxrpc_transport *trans;
 	struct rxrpc_connection *conn;
+	struct sockaddr_rxrpc srx;
 
-	peer = rxrpc_find_peer(local, ip_hdr(skb)->saddr,
-				udp_hdr(skb)->source);
+	rxrpc_get_addr_from_skb(local, skb, &srx);
+	rcu_read_lock();
+	peer = rxrpc_lookup_peer_rcu(local, &srx);
 	if (IS_ERR(peer))
-		goto cant_find_conn;
+		goto cant_find_peer;
 
 	trans = rxrpc_find_transport(local, peer);
-	rxrpc_put_peer(peer);
+	rcu_read_unlock();
 	if (!trans)
 		goto cant_find_conn;
 
@@ -652,6 +654,9 @@ static struct rxrpc_connection *rxrpc_conn_from_local(struct rxrpc_local *local,
 		goto cant_find_conn;
 
 	return conn;
+
+cant_find_peer:
+	rcu_read_unlock();
 cant_find_conn:
 	return NULL;
 }

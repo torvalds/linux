@@ -95,7 +95,7 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 	rxrpc_new_skb(notification);
 	notification->mark = RXRPC_SKB_MARK_NEW_CALL;
 
-	peer = rxrpc_get_peer(srx, GFP_NOIO);
+	peer = rxrpc_lookup_peer(local, srx, GFP_NOIO);
 	if (IS_ERR(peer)) {
 		_debug("no peer");
 		ret = -EBUSY;

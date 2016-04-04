@@ -121,7 +121,7 @@ struct rxrpc_transport *rxrpc_get_transport(struct rxrpc_local *local,
 	usage = atomic_read(&trans->usage);
 
 	rxrpc_get_local(trans->local);
-	atomic_inc(&trans->peer->usage);
+	rxrpc_get_peer(trans->peer);
 	list_add_tail(&trans->link, &rxrpc_transports);
 	write_unlock_bh(&rxrpc_transport_lock);
 	new = "new";

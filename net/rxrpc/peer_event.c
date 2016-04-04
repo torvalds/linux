@@ -23,6 +23,55 @@
 #include "ar-internal.h"
 
 /*
+ * Find the peer associated with an ICMP packet.
+ */
+static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
+						     const struct sk_buff *skb)
+{
+	struct sock_exterr_skb *serr = SKB_EXT_ERR(skb);
+	struct sockaddr_rxrpc srx;
+
+	_enter("");
+
+	memset(&srx, 0, sizeof(srx));
+	srx.transport_type = local->srx.transport_type;
+	srx.transport.family = local->srx.transport.family;
+
+	/* Can we see an ICMP4 packet on an ICMP6 listening socket?  and vice
+	 * versa?
+	 */
+	switch (srx.transport.family) {
+	case AF_INET:
+		srx.transport.sin.sin_port = serr->port;
+		srx.transport_len = sizeof(struct sockaddr_in);
+		switch (serr->ee.ee_origin) {
+		case SO_EE_ORIGIN_ICMP:
+			_net("Rx ICMP");
+			memcpy(&srx.transport.sin.sin_addr,
+			       skb_network_header(skb) + serr->addr_offset,
+			       sizeof(struct in_addr));
+			break;
+		case SO_EE_ORIGIN_ICMP6:
+			_net("Rx ICMP6 on v4 sock");
+			memcpy(&srx.transport.sin.sin_addr,
+			       skb_network_header(skb) + serr->addr_offset + 12,
+			       sizeof(struct in_addr));
+			break;
+		default:
+			memcpy(&srx.transport.sin.sin_addr, &ip_hdr(skb)->saddr,
+			       sizeof(struct in_addr));
+			break;
+		}
+		break;
+
+	default:
+		BUG();
+	}
+
+	return rxrpc_lookup_peer_rcu(local, &srx);
+}
+
+/*
  * handle an error received on the local endpoint
  */
 void rxrpc_UDP_error_report(struct sock *sk)
@@ -57,8 +106,12 @@ void rxrpc_UDP_error_report(struct sock *sk)
 	_net("Rx UDP Error from %pI4:%hu", &addr, ntohs(port));
 	_debug("Msg l:%d d:%d", skb->len, skb->data_len);
 
-	peer = rxrpc_find_peer(local, addr, port);
-	if (IS_ERR(peer)) {
+	rcu_read_lock();
+	peer = rxrpc_lookup_peer_icmp_rcu(local, skb);
+	if (peer && !rxrpc_get_peer_maybe(peer))
+		peer = NULL;
+	if (!peer) {
+		rcu_read_unlock();
 		rxrpc_free_skb(skb);
 		_leave(" [no peer]");
 		return;
@@ -66,6 +119,7 @@ void rxrpc_UDP_error_report(struct sock *sk)
 
 	trans = rxrpc_find_transport(local, peer);
 	if (!trans) {
+		rcu_read_unlock();
 		rxrpc_put_peer(peer);
 		rxrpc_free_skb(skb);
 		_leave(" [no trans]");
@@ -110,6 +164,7 @@ void rxrpc_UDP_error_report(struct sock *sk)
 		}
 	}
 
+	rcu_read_unlock();
 	rxrpc_put_peer(peer);
 
 	/* pass the transport ref to error_handler to release */

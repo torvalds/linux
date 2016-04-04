@@ -244,7 +244,7 @@ struct rxrpc_transport *rxrpc_name_to_transport(struct rxrpc_sock *rx,
 		return ERR_PTR(-EAFNOSUPPORT);
 
 	/* find a remote transport endpoint from the local one */
-	peer = rxrpc_get_peer(srx, gfp);
+	peer = rxrpc_lookup_peer(rx->local, srx, gfp);
 	if (IS_ERR(peer))
 		return ERR_CAST(peer);
 
@@ -835,7 +835,6 @@ static void __exit af_rxrpc_exit(void)
 	rxrpc_destroy_all_calls();
 	rxrpc_destroy_all_connections();
 	rxrpc_destroy_all_transports();
-	rxrpc_destroy_all_peers();
 	rxrpc_destroy_all_locals();
 
 	ASSERTCMP(atomic_read(&rxrpc_n_skbs), ==, 0);
