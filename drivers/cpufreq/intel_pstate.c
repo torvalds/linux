@@ -1141,6 +1141,20 @@ static void intel_pstate_clear_update_util_hook(unsigned int cpu)
 	synchronize_sched();
 }
 
+static void intel_pstate_set_performance_limits(struct perf_limits *limits)
+{
+	limits->no_turbo = 0;
+	limits->turbo_disabled = 0;
+	limits->max_perf_pct = 100;
+	limits->max_perf = int_tofp(1);
+	limits->min_perf_pct = 100;
+	limits->min_perf = int_tofp(1);
+	limits->max_policy_pct = 100;
+	limits->max_sysfs_pct = 100;
+	limits->min_policy_pct = 0;
+	limits->min_sysfs_pct = 0;
+}
+
 static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 {
 	if (!policy->cpuinfo.max_freq)
@@ -1148,15 +1162,18 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 
 	intel_pstate_clear_update_util_hook(policy->cpu);
 
-	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE &&
-	    policy->max >= policy->cpuinfo.max_freq) {
-		pr_debug("intel_pstate: set performance\n");
+	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		limits = &performance_limits;
-		goto out;
+		if (policy->max >= policy->cpuinfo.max_freq) {
+			pr_debug("intel_pstate: set performance\n");
+			intel_pstate_set_performance_limits(limits);
+			goto out;
+		}
+	} else {
+		pr_debug("intel_pstate: set powersave\n");
+		limits = &powersave_limits;
 	}
 
-	pr_debug("intel_pstate: set powersave\n");
-	limits = &powersave_limits;
 	limits->min_policy_pct = (policy->min * 100) / policy->cpuinfo.max_freq;
 	limits->min_policy_pct = clamp_t(int, limits->min_policy_pct, 0 , 100);
 	limits->max_policy_pct = DIV_ROUND_UP(policy->max * 100,
