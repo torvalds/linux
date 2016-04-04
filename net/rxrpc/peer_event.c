@@ -120,8 +120,6 @@ void rxrpc_error_report(struct sock *sk)
 	struct rxrpc_local *local = sk->sk_user_data;
 	struct rxrpc_peer *peer;
 	struct sk_buff *skb;
-	__be32 addr;
-	__be16 port;
 
 	_enter("%p{%d}", sk, local->debug_id);
 
@@ -138,12 +136,6 @@ void rxrpc_error_report(struct sock *sk)
 	}
 
 	rxrpc_new_skb(skb);
-
-	addr = *(__be32 *)(skb_network_header(skb) + serr->addr_offset);
-	port = serr->port;
-
-	_net("Rx UDP Error from %pI4:%hu", &addr, ntohs(port));
-	_debug("Msg l:%d d:%d", skb->len, skb->data_len);
 
 	rcu_read_lock();
 	peer = rxrpc_lookup_peer_icmp_rcu(local, skb);
