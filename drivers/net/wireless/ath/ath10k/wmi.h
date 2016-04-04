@@ -4635,6 +4635,7 @@ struct wmi_vdev_param_map {
 	u32 meru_vc;
 	u32 rx_decap_type;
 	u32 bw_nss_ratemask;
+	u32 set_tsf;
 };
 
 #define WMI_VDEV_PARAM_UNSUPPORTED 0
@@ -4891,6 +4892,7 @@ enum wmi_10x_vdev_param {
 	WMI_10X_VDEV_PARAM_RTS_FIXED_RATE,
 	WMI_10X_VDEV_PARAM_VHT_SGIMASK,
 	WMI_10X_VDEV_PARAM_VHT80_RATEMASK,
+	WMI_10X_VDEV_PARAM_TSF_INCREMENT,
 };
 
 enum wmi_10_4_vdev_param {

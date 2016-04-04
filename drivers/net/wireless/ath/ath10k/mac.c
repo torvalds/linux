@@ -6796,6 +6796,32 @@ static u64 ath10k_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	return 0;
 }
 
+static void ath10k_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		    u64 tsf)
+{
+	struct ath10k *ar = hw->priv;
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	u32 tsf_offset, vdev_param = ar->wmi.vdev_param->set_tsf;
+	int ret;
+
+	/* Workaround:
+	 *
+	 * Given tsf argument is entire TSF value, but firmware accepts
+	 * only TSF offset to current TSF.
+	 *
+	 * get_tsf function is used to get offset value, however since
+	 * ath10k_get_tsf is not implemented properly, it will return 0 always.
+	 * Luckily all the caller functions to set_tsf, as of now, also rely on
+	 * get_tsf function to get entire tsf value such get_tsf() + tsf_delta,
+	 * final tsf offset value to firmware will be arithmetically correct.
+	 */
+	tsf_offset = tsf - ath10k_get_tsf(hw, vif);
+	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
+					vdev_param, tsf_offset);
+	if (ret && ret != -EOPNOTSUPP)
+		ath10k_warn(ar, "failed to set tsf offset: %d\n", ret);
+}
+
 static int ath10k_ampdu_action(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_ampdu_params *params)
@@ -7252,6 +7278,7 @@ static const struct ieee80211_ops ath10k_ops = {
 	.set_bitrate_mask		= ath10k_mac_op_set_bitrate_mask,
 	.sta_rc_update			= ath10k_sta_rc_update,
 	.get_tsf			= ath10k_get_tsf,
+	.set_tsf			= ath10k_set_tsf,
 	.ampdu_action			= ath10k_ampdu_action,
 	.get_et_sset_count		= ath10k_debug_get_et_sset_count,
 	.get_et_stats			= ath10k_debug_get_et_stats,
