@@ -213,6 +213,8 @@ const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 
 #if defined(CONFIG_ARCH_MULTIPLATFORM) || defined(CONFIG_ARM_SINGLE_ARMV7M)
 	DT_MACHINE_START(GENERIC_DT, "Generic DT based system")
+		.l2c_aux_val = 0x0,
+		.l2c_aux_mask = ~0x0,
 	MACHINE_END
 
 	mdesc_best = &__mach_desc_GENERIC_DT;
