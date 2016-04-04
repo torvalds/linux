@@ -398,8 +398,10 @@ config SERIAL_8250_INGENIC
 	  its UARTs, say Y to this option. If unsure, say N.
 
 config SERIAL_8250_MID
-	tristate "Support for serial ports on Intel MID platforms"
+	tristate "Support for serial ports on Intel MID platforms" if EXPERT
+	default SERIAL_8250
 	depends on SERIAL_8250 && PCI
+	depends on X86 || COMPILE_TEST
 	select HSU_DMA if SERIAL_8250_DMA
 	select HSU_DMA_PCI if (HSU_DMA && X86_INTEL_MID)
 	select RATIONAL
