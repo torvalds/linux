@@ -125,6 +125,20 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	if (regs->cs != __KERNEL_CS)
 		goto fail;
 
+	/*
+	 * The full exception fixup machinery is available as soon as
+	 * the early IDT is loaded.  This means that it is the
+	 * responsibility of extable users to either function correctly
+	 * when handlers are invoked early or to simply avoid causing
+	 * exceptions before they're ready to handle them.
+	 *
+	 * This is better than filtering which handlers can be used,
+	 * because refusing to call a handler here is guaranteed to
+	 * result in a hard-to-debug panic.
+	 *
+	 * Keep in mind that not all vectors actually get here.  Early
+	 * fage faults, for example, are special.
+	 */
 	if (fixup_exception(regs, trapnr))
 		return;
 
