@@ -266,7 +266,8 @@ struct  intel_engine_cs {
 	} semaphore;
 
 	/* Execlists */
-	spinlock_t execlist_lock;
+	struct tasklet_struct irq_tasklet;
+	spinlock_t execlist_lock; /* used inside tasklet, use spin_lock_bh */
 	struct list_head execlist_queue;
 	struct list_head execlist_retired_req_list;
 	unsigned int next_context_status_buffer;

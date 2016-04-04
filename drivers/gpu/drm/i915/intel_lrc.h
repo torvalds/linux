@@ -118,7 +118,6 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 			       struct drm_i915_gem_execbuffer2 *args,
 			       struct list_head *vmas);
 
-void intel_lrc_irq_handler(struct intel_engine_cs *engine);
 void intel_execlists_retire_requests(struct intel_engine_cs *engine);
 
 #endif /* _INTEL_LRC_H_ */

@@ -2100,7 +2100,6 @@ static int i915_execlists(struct seq_file *m, void *data)
 	for_each_engine(engine, dev_priv) {
 		struct drm_i915_gem_request *head_req = NULL;
 		int count = 0;
-		unsigned long flags;
 
 		seq_printf(m, "%s\n", engine->name);
 
@@ -2127,13 +2126,13 @@ static int i915_execlists(struct seq_file *m, void *data)
 				   i, status, ctx_id);
 		}
 
-		spin_lock_irqsave(&engine->execlist_lock, flags);
+		spin_lock_bh(&engine->execlist_lock);
 		list_for_each(cursor, &engine->execlist_queue)
 			count++;
 		head_req = list_first_entry_or_null(&engine->execlist_queue,
 						    struct drm_i915_gem_request,
 						    execlist_link);
-		spin_unlock_irqrestore(&engine->execlist_lock, flags);
+		spin_unlock_bh(&engine->execlist_lock);
 
 		seq_printf(m, "\t%d requests in queue\n", count);
 		if (head_req) {
