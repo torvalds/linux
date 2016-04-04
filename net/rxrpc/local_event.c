@@ -82,17 +82,15 @@ static void rxrpc_send_version_request(struct rxrpc_local *local,
 /*
  * Process event packets targetted at a local endpoint.
  */
-void rxrpc_process_local_events(struct work_struct *work)
+void rxrpc_process_local_events(struct rxrpc_local *local)
 {
-	struct rxrpc_local *local = container_of(work, struct rxrpc_local, event_processor);
 	struct sk_buff *skb;
 	char v;
 
 	_enter("");
 
-	atomic_inc(&local->usage);
-
-	while ((skb = skb_dequeue(&local->event_queue))) {
+	skb = skb_dequeue(&local->event_queue);
+	if (skb) {
 		struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 
 		_debug("{%d},{%u}", local->debug_id, sp->hdr.type);
@@ -111,10 +109,8 @@ void rxrpc_process_local_events(struct work_struct *work)
 			break;
 		}
 
-		rxrpc_put_local(local);
 		rxrpc_free_skb(skb);
 	}
 
-	rxrpc_put_local(local);
 	_leave("");
 }

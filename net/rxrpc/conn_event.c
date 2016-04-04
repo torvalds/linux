@@ -314,19 +314,14 @@ void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 {
 	CHECK_SLAB_OKAY(&local->usage);
 
-	if (!atomic_inc_not_zero(&local->usage)) {
-		printk("resurrected on reject\n");
-		BUG();
-	}
-
 	skb_queue_tail(&local->reject_queue, skb);
-	rxrpc_queue_work(&local->rejecter);
+	rxrpc_queue_work(&local->processor);
 }
 
 /*
  * reject packets through the local endpoint
  */
-void rxrpc_reject_packets(struct work_struct *work)
+void rxrpc_reject_packets(struct rxrpc_local *local)
 {
 	union {
 		struct sockaddr sa;
@@ -334,15 +329,11 @@ void rxrpc_reject_packets(struct work_struct *work)
 	} sa;
 	struct rxrpc_skb_priv *sp;
 	struct rxrpc_wire_header whdr;
-	struct rxrpc_local *local;
 	struct sk_buff *skb;
 	struct msghdr msg;
 	struct kvec iov[2];
 	size_t size;
 	__be32 code;
-
-	local = container_of(work, struct rxrpc_local, rejecter);
-	rxrpc_get_local(local);
 
 	_enter("%d", local->debug_id);
 
@@ -395,9 +386,7 @@ void rxrpc_reject_packets(struct work_struct *work)
 		}
 
 		rxrpc_free_skb(skb);
-		rxrpc_put_local(local);
 	}
 
-	rxrpc_put_local(local);
 	_leave("");
 }

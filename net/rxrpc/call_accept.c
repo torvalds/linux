@@ -202,10 +202,8 @@ error_nofree:
  * accept incoming calls that need peer, transport and/or connection setting up
  * - the packets we get are all incoming client DATA packets that have seq == 1
  */
-void rxrpc_accept_incoming_calls(struct work_struct *work)
+void rxrpc_accept_incoming_calls(struct rxrpc_local *local)
 {
-	struct rxrpc_local *local =
-		container_of(work, struct rxrpc_local, acceptor);
 	struct rxrpc_skb_priv *sp;
 	struct sockaddr_rxrpc srx;
 	struct rxrpc_sock *rx;
@@ -215,21 +213,8 @@ void rxrpc_accept_incoming_calls(struct work_struct *work)
 
 	_enter("%d", local->debug_id);
 
-	read_lock_bh(&rxrpc_local_lock);
-	if (atomic_read(&local->usage) > 0)
-		rxrpc_get_local(local);
-	else
-		local = NULL;
-	read_unlock_bh(&rxrpc_local_lock);
-	if (!local) {
-		_leave(" [local dead]");
-		return;
-	}
-
-process_next_packet:
 	skb = skb_dequeue(&local->accept_queue);
 	if (!skb) {
-		rxrpc_put_local(local);
 		_leave("\n");
 		return;
 	}
@@ -292,7 +277,7 @@ found_service:
 	case -ECONNRESET: /* old calls are ignored */
 	case -ECONNABORTED: /* aborted calls are reaborted or ignored */
 	case 0:
-		goto process_next_packet;
+		return;
 	case -ECONNREFUSED:
 		goto invalid_service;
 	case -EBUSY:
@@ -308,18 +293,18 @@ backlog_full:
 busy:
 	rxrpc_busy(local, &srx, &whdr);
 	rxrpc_free_skb(skb);
-	goto process_next_packet;
+	return;
 
 invalid_service:
 	skb->priority = RX_INVALID_OPERATION;
 	rxrpc_reject_packet(local, skb);
-	goto process_next_packet;
+	return;
 
 	/* can't change connection security type mid-flow */
 security_mismatch:
 	skb->priority = RX_PROTOCOL_ERROR;
 	rxrpc_reject_packet(local, skb);
-	goto process_next_packet;
+	return;
 }
 
 /*

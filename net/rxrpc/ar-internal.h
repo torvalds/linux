@@ -170,25 +170,26 @@ struct rxrpc_security {
 };
 
 /*
- * RxRPC local transport endpoint definition
- * - matched by local port, address and protocol type
+ * RxRPC local transport endpoint description
+ * - owned by a single AF_RXRPC socket
+ * - pointed to by transport socket struct sk_user_data
  */
 struct rxrpc_local {
+	struct rcu_head		rcu;
+	atomic_t		usage;
+	struct list_head	link;
 	struct socket		*socket;	/* my UDP socket */
-	struct work_struct	destroyer;	/* endpoint destroyer */
-	struct work_struct	acceptor;	/* incoming call processor */
-	struct work_struct	rejecter;	/* packet reject writer */
-	struct work_struct	event_processor; /* endpoint event processor */
+	struct work_struct	processor;
 	struct list_head	services;	/* services listening on this endpoint */
-	struct list_head	link;		/* link in endpoint list */
 	struct rw_semaphore	defrag_sem;	/* control re-enablement of IP DF bit */
 	struct sk_buff_head	accept_queue;	/* incoming calls awaiting acceptance */
 	struct sk_buff_head	reject_queue;	/* packets awaiting rejection */
 	struct sk_buff_head	event_queue;	/* endpoint event packets awaiting processing */
+	struct mutex		conn_lock;	/* Client connection creation lock */
 	spinlock_t		lock;		/* access lock */
 	rwlock_t		services_lock;	/* lock for services list */
-	atomic_t		usage;
 	int			debug_id;	/* debug ID for printks */
+	bool			dead;
 	struct sockaddr_rxrpc	srx;		/* local address */
 };
 
@@ -487,7 +488,7 @@ extern struct rxrpc_transport *rxrpc_name_to_transport(struct rxrpc_sock *,
 /*
  * call_accept.c
  */
-void rxrpc_accept_incoming_calls(struct work_struct *);
+void rxrpc_accept_incoming_calls(struct rxrpc_local *);
 struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *, unsigned long);
 int rxrpc_reject_call(struct rxrpc_sock *);
 
@@ -527,7 +528,7 @@ void __exit rxrpc_destroy_all_calls(void);
  */
 void rxrpc_process_connection(struct work_struct *);
 void rxrpc_reject_packet(struct rxrpc_local *, struct sk_buff *);
-void rxrpc_reject_packets(struct work_struct *);
+void rxrpc_reject_packets(struct rxrpc_local *);
 
 /*
  * conn_object.c
@@ -575,16 +576,31 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *, const void *, time_t,
 /*
  * local_event.c
  */
-extern void rxrpc_process_local_events(struct work_struct *);
+extern void rxrpc_process_local_events(struct rxrpc_local *);
 
 /*
  * local_object.c
  */
-extern rwlock_t rxrpc_local_lock;
-
-struct rxrpc_local *rxrpc_lookup_local(struct sockaddr_rxrpc *);
-void rxrpc_put_local(struct rxrpc_local *);
+struct rxrpc_local *rxrpc_lookup_local(const struct sockaddr_rxrpc *);
+void __rxrpc_put_local(struct rxrpc_local *);
 void __exit rxrpc_destroy_all_locals(void);
+
+static inline void rxrpc_get_local(struct rxrpc_local *local)
+{
+	atomic_inc(&local->usage);
+}
+
+static inline
+struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local)
+{
+	return atomic_inc_not_zero(&local->usage) ? local : NULL;
+}
+
+static inline void rxrpc_put_local(struct rxrpc_local *local)
+{
+	if (atomic_dec_and_test(&local->usage))
+		__rxrpc_put_local(local);
+}
 
 /*
  * misc.c
@@ -873,15 +889,6 @@ static inline void rxrpc_purge_queue(struct sk_buff_head *list)
 	while ((skb = skb_dequeue((list))) != NULL)
 		rxrpc_free_skb(skb);
 }
-
-static inline void __rxrpc_get_local(struct rxrpc_local *local, const char *f)
-{
-	CHECK_SLAB_OKAY(&local->usage);
-	if (atomic_inc_return(&local->usage) == 1)
-		printk("resurrected (%s)\n", f);
-}
-
-#define rxrpc_get_local(LOCAL) __rxrpc_get_local((LOCAL), __func__)
 
 #define rxrpc_get_call(CALL)				\
 do {							\

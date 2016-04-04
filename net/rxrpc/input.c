@@ -594,9 +594,8 @@ static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
 {
 	_enter("%p,%p", local, skb);
 
-	atomic_inc(&local->usage);
 	skb_queue_tail(&local->event_queue, skb);
-	rxrpc_queue_work(&local->event_processor);
+	rxrpc_queue_work(&local->processor);
 }
 
 /*
@@ -664,11 +663,15 @@ cant_find_conn:
 /*
  * handle data received on the local endpoint
  * - may be called in interrupt context
+ *
+ * The socket is locked by the caller and this prevents the socket from being
+ * shut down and the local endpoint from going away, thus sk_user_data will not
+ * be cleared until this function returns.
  */
 void rxrpc_data_ready(struct sock *sk)
 {
 	struct rxrpc_skb_priv *sp;
-	struct rxrpc_local *local;
+	struct rxrpc_local *local = sk->sk_user_data;
 	struct sk_buff *skb;
 	int ret;
 
@@ -676,21 +679,8 @@ void rxrpc_data_ready(struct sock *sk)
 
 	ASSERT(!irqs_disabled());
 
-	read_lock_bh(&rxrpc_local_lock);
-	local = sk->sk_user_data;
-	if (local && atomic_read(&local->usage) > 0)
-		rxrpc_get_local(local);
-	else
-		local = NULL;
-	read_unlock_bh(&rxrpc_local_lock);
-	if (!local) {
-		_leave(" [local dead]");
-		return;
-	}
-
 	skb = skb_recv_datagram(sk, 0, 1, &ret);
 	if (!skb) {
-		rxrpc_put_local(local);
 		if (ret == -EAGAIN)
 			return;
 		_debug("UDP socket error %d", ret);
@@ -704,7 +694,6 @@ void rxrpc_data_ready(struct sock *sk)
 	/* we'll probably need to checksum it (didn't call sock_recvmsg) */
 	if (skb_checksum_complete(skb)) {
 		rxrpc_free_skb(skb);
-		rxrpc_put_local(local);
 		__UDP_INC_STATS(&init_net, UDP_MIB_INERRORS, 0);
 		_leave(" [CSUM failed]");
 		return;
@@ -769,7 +758,6 @@ void rxrpc_data_ready(struct sock *sk)
 	}
 
 out:
-	rxrpc_put_local(local);
 	return;
 
 cant_route_call:
@@ -779,8 +767,7 @@ cant_route_call:
 		if (sp->hdr.seq == 1) {
 			_debug("first packet");
 			skb_queue_tail(&local->accept_queue, skb);
-			rxrpc_queue_work(&local->acceptor);
-			rxrpc_put_local(local);
+			rxrpc_queue_work(&local->processor);
 			_leave(" [incoming]");
 			return;
 		}
@@ -793,13 +780,11 @@ cant_route_call:
 		_debug("reject type %d",sp->hdr.type);
 		rxrpc_reject_packet(local, skb);
 	}
-	rxrpc_put_local(local);
 	_leave(" [no call]");
 	return;
 
 bad_message:
 	skb->priority = RX_PROTOCOL_ERROR;
 	rxrpc_reject_packet(local, skb);
-	rxrpc_put_local(local);
 	_leave(" [badmsg]");
 }
