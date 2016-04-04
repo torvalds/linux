@@ -540,11 +540,19 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
 
 	_enter("%d,%d", conn->debug_id, call->channel);
 
+	spin_lock(&conn->channel_lock);
+
 	if (conn->channels[chan] == call) {
 		rcu_assign_pointer(conn->channels[chan], NULL);
 		atomic_inc(&conn->avail_chans);
 		wake_up(&conn->channel_wq);
 	}
+
+	spin_unlock(&conn->channel_lock);
+
+	call->conn = NULL;
+	rxrpc_put_connection(conn);
+	_leave("");
 }
 
 /*

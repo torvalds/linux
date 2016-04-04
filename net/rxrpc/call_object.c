@@ -628,6 +628,10 @@ void rxrpc_release_call(struct rxrpc_call *call)
 	 */
 	_debug("RELEASE CALL %p (%d CONN %p)", call, call->debug_id, conn);
 
+	spin_lock(&conn->params.peer->lock);
+	hlist_del_init(&call->error_link);
+	spin_unlock(&conn->params.peer->lock);
+
 	write_lock_bh(&rx->call_lock);
 	if (!list_empty(&call->accept_link)) {
 		_debug("unlinking once-pending call %p { e=%lx f=%lx }",
@@ -643,24 +647,21 @@ void rxrpc_release_call(struct rxrpc_call *call)
 	write_unlock_bh(&rx->call_lock);
 
 	/* free up the channel for reuse */
-	spin_lock(&conn->channel_lock);
 	write_lock_bh(&conn->lock);
 	write_lock(&call->state_lock);
-
-	rxrpc_disconnect_call(call);
-
-	spin_unlock(&conn->channel_lock);
 
 	if (call->state < RXRPC_CALL_COMPLETE &&
 	    call->state != RXRPC_CALL_CLIENT_FINAL_ACK) {
 		_debug("+++ ABORTING STATE %d +++\n", call->state);
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
 		call->local_abort = RX_CALL_DEAD;
-		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
-		rxrpc_queue_call(call);
 	}
 	write_unlock(&call->state_lock);
+
+	rb_erase(&call->conn_node, &conn->calls);
 	write_unlock_bh(&conn->lock);
+
+	rxrpc_disconnect_call(call);
 
 	/* clean up the Rx queue */
 	if (!skb_queue_empty(&call->rx_queue) ||
@@ -817,16 +818,7 @@ static void rxrpc_cleanup_call(struct rxrpc_call *call)
 		return;
 	}
 
-	if (call->conn) {
-		spin_lock(&call->conn->params.peer->lock);
-		hlist_del_init(&call->error_link);
-		spin_unlock(&call->conn->params.peer->lock);
-
-		write_lock_bh(&call->conn->lock);
-		rb_erase(&call->conn_node, &call->conn->calls);
-		write_unlock_bh(&call->conn->lock);
-		rxrpc_put_connection(call->conn);
-	}
+	ASSERTCMP(call->conn, ==, NULL);
 
 	/* Remove the call from the hash */
 	rxrpc_call_hash_del(call);
