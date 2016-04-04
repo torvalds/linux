@@ -538,7 +538,7 @@ static int delete_from_lru_cache(struct page *p)
 		/*
 		 * drop the page count elevated by isolate_lru_page()
 		 */
-		page_cache_release(p);
+		put_page(p);
 		return 0;
 	}
 	return -EIO;

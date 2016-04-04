@@ -172,8 +172,8 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 	   beginning of a page and runs to the end of the file, or if
 	   it's a hole node, mark it REF_PRISTINE, else REF_NORMAL.
 	*/
-	if ((je32_to_cpu(ri->dsize) >= PAGE_CACHE_SIZE) ||
-	    ( ((je32_to_cpu(ri->offset)&(PAGE_CACHE_SIZE-1))==0) &&
+	if ((je32_to_cpu(ri->dsize) >= PAGE_SIZE) ||
+	    ( ((je32_to_cpu(ri->offset)&(PAGE_SIZE-1))==0) &&
 	      (je32_to_cpu(ri->dsize)+je32_to_cpu(ri->offset) ==  je32_to_cpu(ri->isize)))) {
 		flash_ofs |= REF_PRISTINE;
 	} else {
@@ -366,7 +366,8 @@ int jffs2_write_inode_range(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 			break;
 		}
 		mutex_lock(&f->sem);
-		datalen = min_t(uint32_t, writelen, PAGE_CACHE_SIZE - (offset & (PAGE_CACHE_SIZE-1)));
+		datalen = min_t(uint32_t, writelen,
+				PAGE_SIZE - (offset & (PAGE_SIZE-1)));
 		cdatalen = min_t(uint32_t, alloclen - sizeof(*ri), datalen);
 
 		comprtype = jffs2_compress(c, f, buf, &comprbuf, &datalen, &cdatalen);

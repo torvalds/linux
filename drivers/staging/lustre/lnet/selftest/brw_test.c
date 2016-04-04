@@ -90,7 +90,7 @@ brw_client_init(sfw_test_instance_t *tsi)
 		 * NB: this is not going to work for variable page size,
 		 * but we have to keep it for compatibility
 		 */
-		len = npg * PAGE_CACHE_SIZE;
+		len = npg * PAGE_SIZE;
 
 	} else {
 		test_bulk_req_v1_t *breq = &tsi->tsi_u.bulk_v1;
@@ -104,7 +104,7 @@ brw_client_init(sfw_test_instance_t *tsi)
 		opc = breq->blk_opc;
 		flags = breq->blk_flags;
 		len = breq->blk_len;
-		npg = (len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+		npg = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	}
 
 	if (npg > LNET_MAX_IOV || npg <= 0)
@@ -167,13 +167,13 @@ brw_fill_page(struct page *pg, int pattern, __u64 magic)
 
 	if (pattern == LST_BRW_CHECK_SIMPLE) {
 		memcpy(addr, &magic, BRW_MSIZE);
-		addr += PAGE_CACHE_SIZE - BRW_MSIZE;
+		addr += PAGE_SIZE - BRW_MSIZE;
 		memcpy(addr, &magic, BRW_MSIZE);
 		return;
 	}
 
 	if (pattern == LST_BRW_CHECK_FULL) {
-		for (i = 0; i < PAGE_CACHE_SIZE / BRW_MSIZE; i++)
+		for (i = 0; i < PAGE_SIZE / BRW_MSIZE; i++)
 			memcpy(addr + i * BRW_MSIZE, &magic, BRW_MSIZE);
 		return;
 	}
@@ -198,7 +198,7 @@ brw_check_page(struct page *pg, int pattern, __u64 magic)
 		if (data != magic)
 			goto bad_data;
 
-		addr += PAGE_CACHE_SIZE - BRW_MSIZE;
+		addr += PAGE_SIZE - BRW_MSIZE;
 		data = *((__u64 *)addr);
 		if (data != magic)
 			goto bad_data;
@@ -207,7 +207,7 @@ brw_check_page(struct page *pg, int pattern, __u64 magic)
 	}
 
 	if (pattern == LST_BRW_CHECK_FULL) {
-		for (i = 0; i < PAGE_CACHE_SIZE / BRW_MSIZE; i++) {
+		for (i = 0; i < PAGE_SIZE / BRW_MSIZE; i++) {
 			data = *(((__u64 *)addr) + i);
 			if (data != magic)
 				goto bad_data;
@@ -278,7 +278,7 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 		opc = breq->blk_opc;
 		flags = breq->blk_flags;
 		npg = breq->blk_npg;
-		len = npg * PAGE_CACHE_SIZE;
+		len = npg * PAGE_SIZE;
 
 	} else {
 		test_bulk_req_v1_t *breq = &tsi->tsi_u.bulk_v1;
@@ -292,7 +292,7 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 		opc = breq->blk_opc;
 		flags = breq->blk_flags;
 		len = breq->blk_len;
-		npg = (len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+		npg = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	}
 
 	rc = sfw_create_test_rpc(tsu, dest, sn->sn_features, npg, len, &rpc);
@@ -463,10 +463,10 @@ brw_server_handle(struct srpc_server_rpc *rpc)
 			reply->brw_status = EINVAL;
 			return 0;
 		}
-		npg = reqst->brw_len >> PAGE_CACHE_SHIFT;
+		npg = reqst->brw_len >> PAGE_SHIFT;
 
 	} else {
-		npg = (reqst->brw_len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+		npg = (reqst->brw_len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	}
 
 	replymsg->msg_ses_feats = reqstmsg->msg_ses_feats;

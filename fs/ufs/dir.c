@@ -62,7 +62,7 @@ static int ufs_commit_chunk(struct page *page, loff_t pos, unsigned len)
 static inline void ufs_put_page(struct page *page)
 {
 	kunmap(page);
-	page_cache_release(page);
+	put_page(page);
 }
 
 ino_t ufs_inode_by_name(struct inode *dir, const struct qstr *qstr)
@@ -111,13 +111,13 @@ static void ufs_check_page(struct page *page)
 	struct super_block *sb = dir->i_sb;
 	char *kaddr = page_address(page);
 	unsigned offs, rec_len;
-	unsigned limit = PAGE_CACHE_SIZE;
+	unsigned limit = PAGE_SIZE;
 	const unsigned chunk_mask = UFS_SB(sb)->s_uspi->s_dirblksize - 1;
 	struct ufs_dir_entry *p;
 	char *error;
 
-	if ((dir->i_size >> PAGE_CACHE_SHIFT) == page->index) {
-		limit = dir->i_size & ~PAGE_CACHE_MASK;
+	if ((dir->i_size >> PAGE_SHIFT) == page->index) {
+		limit = dir->i_size & ~PAGE_MASK;
 		if (limit & chunk_mask)
 			goto Ebadsize;
 		if (!limit)
@@ -170,7 +170,7 @@ Einumber:
 bad_entry:
 	ufs_error (sb, "ufs_check_page", "bad entry in directory #%lu: %s - "
 		   "offset=%lu, rec_len=%d, name_len=%d",
-		   dir->i_ino, error, (page->index<<PAGE_CACHE_SHIFT)+offs,
+		   dir->i_ino, error, (page->index<<PAGE_SHIFT)+offs,
 		   rec_len, ufs_get_de_namlen(sb, p));
 	goto fail;
 Eend:
@@ -178,7 +178,7 @@ Eend:
 	ufs_error(sb, __func__,
 		   "entry in directory #%lu spans the page boundary"
 		   "offset=%lu",
-		   dir->i_ino, (page->index<<PAGE_CACHE_SHIFT)+offs);
+		   dir->i_ino, (page->index<<PAGE_SHIFT)+offs);
 fail:
 	SetPageChecked(page);
 	SetPageError(page);
@@ -211,9 +211,9 @@ ufs_last_byte(struct inode *inode, unsigned long page_nr)
 {
 	unsigned last_byte = inode->i_size;
 
-	last_byte -= page_nr << PAGE_CACHE_SHIFT;
-	if (last_byte > PAGE_CACHE_SIZE)
-		last_byte = PAGE_CACHE_SIZE;
+	last_byte -= page_nr << PAGE_SHIFT;
+	if (last_byte > PAGE_SIZE)
+		last_byte = PAGE_SIZE;
 	return last_byte;
 }
 
@@ -341,7 +341,7 @@ int ufs_add_link(struct dentry *dentry, struct inode *inode)
 		kaddr = page_address(page);
 		dir_end = kaddr + ufs_last_byte(dir, n);
 		de = (struct ufs_dir_entry *)kaddr;
-		kaddr += PAGE_CACHE_SIZE - reclen;
+		kaddr += PAGE_SIZE - reclen;
 		while ((char *)de <= kaddr) {
 			if ((char *)de == dir_end) {
 				/* We hit i_size */
@@ -432,8 +432,8 @@ ufs_readdir(struct file *file, struct dir_context *ctx)
 	loff_t pos = ctx->pos;
 	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
-	unsigned int offset = pos & ~PAGE_CACHE_MASK;
-	unsigned long n = pos >> PAGE_CACHE_SHIFT;
+	unsigned int offset = pos & ~PAGE_MASK;
+	unsigned long n = pos >> PAGE_SHIFT;
 	unsigned long npages = dir_pages(inode);
 	unsigned chunk_mask = ~(UFS_SB(sb)->s_uspi->s_dirblksize - 1);
 	int need_revalidate = file->f_version != inode->i_version;
@@ -454,14 +454,14 @@ ufs_readdir(struct file *file, struct dir_context *ctx)
 			ufs_error(sb, __func__,
 				  "bad page in #%lu",
 				  inode->i_ino);
-			ctx->pos += PAGE_CACHE_SIZE - offset;
+			ctx->pos += PAGE_SIZE - offset;
 			return -EIO;
 		}
 		kaddr = page_address(page);
 		if (unlikely(need_revalidate)) {
 			if (offset) {
 				offset = ufs_validate_entry(sb, kaddr, offset, chunk_mask);
-				ctx->pos = (n<<PAGE_CACHE_SHIFT) + offset;
+				ctx->pos = (n<<PAGE_SHIFT) + offset;
 			}
 			file->f_version = inode->i_version;
 			need_revalidate = 0;
@@ -574,7 +574,7 @@ int ufs_make_empty(struct inode * inode, struct inode *dir)
 
 	kmap(page);
 	base = (char*)page_address(page);
-	memset(base, 0, PAGE_CACHE_SIZE);
+	memset(base, 0, PAGE_SIZE);
 
 	de = (struct ufs_dir_entry *) base;
 
@@ -594,7 +594,7 @@ int ufs_make_empty(struct inode * inode, struct inode *dir)
 
 	err = ufs_commit_chunk(page, 0, chunk_size);
 fail:
-	page_cache_release(page);
+	put_page(page);
 	return err;
 }
 
