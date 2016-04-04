@@ -9,9 +9,10 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/rational.h>
+#include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/rational.h>
 
 #include <linux/dma/hsu.h>
 #include <linux/8250_pci.h>
