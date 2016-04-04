@@ -35,7 +35,8 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
 			      unsigned long *user_call_ID,
 			      enum rxrpc_command *command,
-			      u32 *abort_code)
+			      u32 *abort_code,
+			      bool *_exclusive)
 {
 	struct cmsghdr *cmsg;
 	bool got_user_ID = false;
@@ -93,6 +94,11 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
 				return -EINVAL;
 			break;
 
+		case RXRPC_EXCLUSIVE_CALL:
+			*_exclusive = true;
+			if (len != 0)
+				return -EINVAL;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -131,7 +137,7 @@ static void rxrpc_send_abort(struct rxrpc_call *call, u32 abort_code)
  */
 static struct rxrpc_call *
 rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
-				  unsigned long user_call_ID)
+				  unsigned long user_call_ID, bool exclusive)
 {
 	struct rxrpc_conn_parameters cp;
 	struct rxrpc_conn_bundle *bundle;
@@ -155,7 +161,7 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 	cp.local		= rx->local;
 	cp.key			= rx->key;
 	cp.security_level	= rx->min_sec_level;
-	cp.exclusive		= test_bit(RXRPC_SOCK_EXCLUSIVE_CONN, &rx->flags);
+	cp.exclusive		= rx->exclusive | exclusive;
 	cp.service_id		= srx->srx_service;
 	trans = rxrpc_name_to_transport(&cp, msg->msg_name, msg->msg_namelen,
 					GFP_KERNEL);
@@ -201,12 +207,14 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	enum rxrpc_command cmd;
 	struct rxrpc_call *call;
 	unsigned long user_call_ID = 0;
+	bool exclusive = false;
 	u32 abort_code = 0;
 	int ret;
 
 	_enter("");
 
-	ret = rxrpc_sendmsg_cmsg(msg, &user_call_ID, &cmd, &abort_code);
+	ret = rxrpc_sendmsg_cmsg(msg, &user_call_ID, &cmd, &abort_code,
+				 &exclusive);
 	if (ret < 0)
 		return ret;
 
@@ -224,7 +232,8 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	if (!call) {
 		if (cmd != RXRPC_CMD_SEND_DATA)
 			return -EBADSLT;
-		call = rxrpc_new_client_call_for_sendmsg(rx, msg, user_call_ID);
+		call = rxrpc_new_client_call_for_sendmsg(rx, msg, user_call_ID,
+							 exclusive);
 		if (IS_ERR(call))
 			return PTR_ERR(call);
 	}

@@ -37,6 +37,8 @@ struct rxrpc_crypt {
 #define rxrpc_queue_call(CALL)	rxrpc_queue_work(&(CALL)->processor)
 #define rxrpc_queue_conn(CONN)	rxrpc_queue_work(&(CONN)->processor)
 
+struct rxrpc_connection;
+
 /*
  * sk_state for RxRPC sockets
  */
@@ -57,7 +59,6 @@ struct rxrpc_sock {
 	struct sock		sk;
 	rxrpc_interceptor_t	interceptor;	/* kernel service Rx interceptor function */
 	struct rxrpc_local	*local;		/* local endpoint */
-	struct rxrpc_connection	*conn;		/* exclusive virtual connection */
 	struct list_head	listen_link;	/* link in the local endpoint's listen list */
 	struct list_head	secureq;	/* calls awaiting connection security clearance */
 	struct list_head	acceptq;	/* calls awaiting acceptance */
@@ -66,13 +67,13 @@ struct rxrpc_sock {
 	struct rb_root		calls;		/* outstanding calls on this socket */
 	unsigned long		flags;
 #define RXRPC_SOCK_CONNECTED		0	/* connect_srx is set */
-#define RXRPC_SOCK_EXCLUSIVE_CONN	1	/* exclusive connection for a client socket */
 	rwlock_t		call_lock;	/* lock for calls */
 	u32			min_sec_level;	/* minimum security level */
 #define RXRPC_SECURITY_MAX	RXRPC_SECURITY_ENCRYPT
+	bool			exclusive;	/* Exclusive connection for a client socket */
+	sa_family_t		family;		/* Protocol family created with */
 	struct sockaddr_rxrpc	srx;		/* local address */
 	struct sockaddr_rxrpc	connect_srx;	/* Default client address from connect() */
-	sa_family_t		family;		/* protocol family created with */
 };
 
 #define rxrpc_sk(__sk) container_of((__sk), struct rxrpc_sock, sk)

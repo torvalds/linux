@@ -328,71 +328,57 @@ static int rxrpc_connect_exclusive(struct rxrpc_sock *rx,
 
 	_enter("");
 
-	conn = rx->conn;
+	conn = rxrpc_alloc_connection(gfp);
 	if (!conn) {
-		/* not yet present - create a candidate for a new connection
-		 * and then redo the check */
-		conn = rxrpc_alloc_connection(gfp);
-		if (!conn) {
-			_leave(" = -ENOMEM");
-			return -ENOMEM;
-		}
-
-		conn->trans = trans;
-		conn->bundle = NULL;
-		conn->params = *cp;
-		conn->proto.local = cp->local;
-		conn->proto.epoch = rxrpc_epoch;
-		conn->proto.cid = 0;
-		conn->proto.in_clientflag = 0;
-		conn->proto.family = cp->peer->srx.transport.family;
-		conn->out_clientflag = RXRPC_CLIENT_INITIATED;
-		conn->state = RXRPC_CONN_CLIENT;
-		conn->avail_calls = RXRPC_MAXCALLS - 1;
-
-		key_get(conn->params.key);
-
-		ret = rxrpc_init_client_conn_security(conn);
-		if (ret < 0) {
-			key_put(conn->params.key);
-			kfree(conn);
-			_leave(" = %d [key]", ret);
-			return ret;
-		}
-
-		write_lock_bh(&rxrpc_connection_lock);
-		list_add_tail(&conn->link, &rxrpc_connections);
-		write_unlock_bh(&rxrpc_connection_lock);
-
-		spin_lock(&trans->client_lock);
-		atomic_inc(&trans->usage);
-
-		_net("CONNECT EXCL new %d on TRANS %d",
-		     conn->debug_id, conn->trans->debug_id);
-
-		rxrpc_assign_connection_id(conn);
-		rx->conn = conn;
-	} else {
-		spin_lock(&trans->client_lock);
+		_leave(" = -ENOMEM");
+		return -ENOMEM;
 	}
 
-	/* we've got a connection with a free channel and we can now attach the
-	 * call to it
-	 * - we're holding the transport's client lock
-	 * - we're holding a reference on the connection
-	 */
-	for (chan = 0; chan < RXRPC_MAXCALLS; chan++)
-		if (!conn->channels[chan])
-			goto found_channel;
-	goto no_free_channels;
+	conn->trans		= trans;
+	conn->bundle		= NULL;
+	conn->params		= *cp;
+	conn->proto.local	= cp->local;
+	conn->proto.epoch	= rxrpc_epoch;
+	conn->proto.cid		= 0;
+	conn->proto.in_clientflag = 0;
+	conn->proto.family	= cp->peer->srx.transport.family;
+	conn->out_clientflag	= RXRPC_CLIENT_INITIATED;
+	conn->state		= RXRPC_CONN_CLIENT;
+	conn->avail_calls	= RXRPC_MAXCALLS - 1;
 
-found_channel:
+	key_get(conn->params.key);
+
+	ret = rxrpc_init_client_conn_security(conn);
+	if (ret < 0) {
+		key_put(conn->params.key);
+		kfree(conn);
+		_leave(" = %d [key]", ret);
+		return ret;
+	}
+
+	write_lock_bh(&rxrpc_connection_lock);
+	list_add_tail(&conn->link, &rxrpc_connections);
+	write_unlock_bh(&rxrpc_connection_lock);
+
+	spin_lock(&trans->client_lock);
+	atomic_inc(&trans->usage);
+
+	_net("CONNECT EXCL new %d on TRANS %d",
+	     conn->debug_id, conn->trans->debug_id);
+
+	rxrpc_assign_connection_id(conn);
+
+	/* Since no one else can use the connection, we just use the first
+	 * channel.
+	 */
+	chan = 0;
 	atomic_inc(&conn->usage);
 	conn->channels[chan] = call;
+	conn->call_counter = 1;
 	call->conn = conn;
 	call->channel = chan;
 	call->cid = conn->proto.cid | chan;
-	call->call_id = ++conn->call_counter;
+	call->call_id = 1;
 
 	_net("CONNECT client on conn %d chan %d as call %x",
 	     conn->debug_id, chan, call->call_id);
@@ -402,11 +388,6 @@ found_channel:
 	rxrpc_add_call_ID_to_conn(conn, call);
 	_leave(" = 0");
 	return 0;
-
-no_free_channels:
-	spin_unlock(&trans->client_lock);
-	_leave(" = -ENOSR");
-	return -ENOSR;
 }
 
 /*
@@ -427,7 +408,7 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 
 	_enter("%p,%lx,", rx, call->user_call_ID);
 
-	if (test_bit(RXRPC_SOCK_EXCLUSIVE_CONN, &rx->flags))
+	if (cp->exclusive)
 		return rxrpc_connect_exclusive(rx, cp, trans, call, gfp);
 
 	spin_lock(&trans->client_lock);

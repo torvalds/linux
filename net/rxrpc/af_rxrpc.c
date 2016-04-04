@@ -494,7 +494,7 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 			ret = -EISCONN;
 			if (rx->sk.sk_state != RXRPC_UNBOUND)
 				goto error;
-			set_bit(RXRPC_SOCK_EXCLUSIVE_CONN, &rx->flags);
+			rx->exclusive = true;
 			goto success;
 
 		case RXRPC_SECURITY_KEY:
@@ -668,11 +668,6 @@ static int rxrpc_release_sock(struct sock *sk)
 	rxrpc_release_calls_on_socket(rx);
 	flush_workqueue(rxrpc_workqueue);
 	rxrpc_purge_queue(&sk->sk_receive_queue);
-
-	if (rx->conn) {
-		rxrpc_put_connection(rx->conn);
-		rx->conn = NULL;
-	}
 
 	if (rx->local) {
 		rxrpc_put_local(rx->local);
