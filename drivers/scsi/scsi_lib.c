@@ -14,8 +14,6 @@
 #include <linux/completion.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
-#include <linux/mempool.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -39,39 +37,6 @@
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
-
-#define SG_MEMPOOL_NR		ARRAY_SIZE(sg_pools)
-#define SG_MEMPOOL_SIZE		2
-
-struct sg_pool {
-	size_t		size;
-	char		*name;
-	struct kmem_cache	*slab;
-	mempool_t	*pool;
-};
-
-#define SP(x) { .size = x, "sgpool-" __stringify(x) }
-#if (SG_CHUNK_SIZE < 32)
-#error SG_CHUNK_SIZE is too small (must be 32 or greater)
-#endif
-static struct sg_pool sg_pools[] = {
-	SP(8),
-	SP(16),
-#if (SG_CHUNK_SIZE > 32)
-	SP(32),
-#if (SG_CHUNK_SIZE > 64)
-	SP(64),
-#if (SG_CHUNK_SIZE > 128)
-	SP(128),
-#if (SG_CHUNK_SIZE > 256)
-#error SG_CHUNK_SIZE is too large (256 MAX)
-#endif
-#endif
-#endif
-#endif
-	SP(SG_CHUNK_SIZE)
-};
-#undef SP
 
 struct kmem_cache *scsi_sdb_cache;
 
@@ -551,65 +516,6 @@ void scsi_run_host_queues(struct Scsi_Host *shost)
 
 	shost_for_each_device(sdev, shost)
 		scsi_run_queue(sdev->request_queue);
-}
-
-static inline unsigned int sg_pool_index(unsigned short nents)
-{
-	unsigned int index;
-
-	BUG_ON(nents > SG_CHUNK_SIZE);
-
-	if (nents <= 8)
-		index = 0;
-	else
-		index = get_count_order(nents) - 3;
-
-	return index;
-}
-
-static void sg_pool_free(struct scatterlist *sgl, unsigned int nents)
-{
-	struct sg_pool *sgp;
-
-	sgp = sg_pools + sg_pool_index(nents);
-	mempool_free(sgl, sgp->pool);
-}
-
-static struct scatterlist *sg_pool_alloc(unsigned int nents, gfp_t gfp_mask)
-{
-	struct sg_pool *sgp;
-
-	sgp = sg_pools + sg_pool_index(nents);
-	return mempool_alloc(sgp->pool, gfp_mask);
-}
-
-static void sg_free_table_chained(struct sg_table *table, bool first_chunk)
-{
-	if (first_chunk && table->orig_nents <= SG_CHUNK_SIZE)
-		return;
-	__sg_free_table(table, SG_CHUNK_SIZE, first_chunk, sg_pool_free);
-}
-
-static int sg_alloc_table_chained(struct sg_table *table, int nents,
-		struct scatterlist *first_chunk)
-{
-	int ret;
-
-	BUG_ON(!nents);
-
-	if (first_chunk) {
-		if (nents <= SG_CHUNK_SIZE) {
-			table->nents = table->orig_nents = nents;
-			sg_init_table(table->sgl, nents);
-			return 0;
-		}
-	}
-
-	ret = __sg_alloc_table(table, nents, SG_CHUNK_SIZE,
-			       first_chunk, GFP_ATOMIC, sg_pool_alloc);
-	if (unlikely(ret))
-		sg_free_table_chained(table, (bool)first_chunk);
-	return ret;
 }
 
 static void scsi_uninit_cmd(struct scsi_cmnd *cmd)
@@ -2269,8 +2175,6 @@ EXPORT_SYMBOL(scsi_unblock_requests);
 
 int __init scsi_init_queue(void)
 {
-	int i;
-
 	scsi_sdb_cache = kmem_cache_create("scsi_data_buffer",
 					   sizeof(struct scsi_data_buffer),
 					   0, 0, NULL);
@@ -2279,53 +2183,12 @@ int __init scsi_init_queue(void)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < SG_MEMPOOL_NR; i++) {
-		struct sg_pool *sgp = sg_pools + i;
-		int size = sgp->size * sizeof(struct scatterlist);
-
-		sgp->slab = kmem_cache_create(sgp->name, size, 0,
-				SLAB_HWCACHE_ALIGN, NULL);
-		if (!sgp->slab) {
-			printk(KERN_ERR "SCSI: can't init sg slab %s\n",
-					sgp->name);
-			goto cleanup_sdb;
-		}
-
-		sgp->pool = mempool_create_slab_pool(SG_MEMPOOL_SIZE,
-						     sgp->slab);
-		if (!sgp->pool) {
-			printk(KERN_ERR "SCSI: can't init sg mempool %s\n",
-					sgp->name);
-			goto cleanup_sdb;
-		}
-	}
-
 	return 0;
-
-cleanup_sdb:
-	for (i = 0; i < SG_MEMPOOL_NR; i++) {
-		struct sg_pool *sgp = sg_pools + i;
-		if (sgp->pool)
-			mempool_destroy(sgp->pool);
-		if (sgp->slab)
-			kmem_cache_destroy(sgp->slab);
-	}
-	kmem_cache_destroy(scsi_sdb_cache);
-
-	return -ENOMEM;
 }
 
 void scsi_exit_queue(void)
 {
-	int i;
-
 	kmem_cache_destroy(scsi_sdb_cache);
-
-	for (i = 0; i < SG_MEMPOOL_NR; i++) {
-		struct sg_pool *sgp = sg_pools + i;
-		mempool_destroy(sgp->pool);
-		kmem_cache_destroy(sgp->slab);
-	}
 }
 
 /**
