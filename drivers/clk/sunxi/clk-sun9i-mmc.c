@@ -83,7 +83,7 @@ static int sun9i_mmc_reset_deassert(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
-static struct reset_control_ops sun9i_mmc_reset_ops = {
+static const struct reset_control_ops sun9i_mmc_reset_ops = {
 	.assert		= sun9i_mmc_reset_assert,
 	.deassert	= sun9i_mmc_reset_deassert,
 };

@@ -417,6 +417,7 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 	 * use first address as sample address
 	 */
 	memset(&sample, 0, sizeof(sample));
+	sample.cpumode = PERF_RECORD_MISC_USER;
 	sample.pid  = pid;
 	sample.tid  = tid;
 	sample.time = id->time;
@@ -505,6 +506,7 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 	 * use first address as sample address
 	 */
 	memset(&sample, 0, sizeof(sample));
+	sample.cpumode = PERF_RECORD_MISC_USER;
 	sample.pid  = pid;
 	sample.tid  = tid;
 	sample.time = id->time;
