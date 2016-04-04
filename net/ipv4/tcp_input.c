@@ -3082,7 +3082,7 @@ static void tcp_ack_tstamp(struct sock *sk, struct sk_buff *skb,
 	const struct skb_shared_info *shinfo;
 
 	/* Avoid cache line misses to get skb_shinfo() and shinfo->tx_flags */
-	if (likely(!(sk->sk_tsflags & SOF_TIMESTAMPING_TX_ACK)))
+	if (likely(!TCP_SKB_CB(skb)->txstamp_ack))
 		return;
 
 	shinfo = skb_shinfo(skb);

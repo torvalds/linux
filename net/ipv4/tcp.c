@@ -428,14 +428,16 @@ void tcp_init_sock(struct sock *sk)
 }
 EXPORT_SYMBOL(tcp_init_sock);
 
-static void tcp_tx_timestamp(struct sock *sk, struct sk_buff *skb)
+static void tcp_tx_timestamp(struct sock *sk, u16 tsflags, struct sk_buff *skb)
 {
-	if (sk->sk_tsflags) {
+	if (sk->sk_tsflags || tsflags) {
 		struct skb_shared_info *shinfo = skb_shinfo(skb);
+		struct tcp_skb_cb *tcb = TCP_SKB_CB(skb);
 
-		sock_tx_timestamp(sk, &shinfo->tx_flags);
+		sock_tx_timestamp(sk, tsflags, &shinfo->tx_flags);
 		if (shinfo->tx_flags & SKBTX_ANY_TSTAMP)
 			shinfo->tskey = TCP_SKB_CB(skb)->seq + skb->len - 1;
+		tcb->txstamp_ack = !!(shinfo->tx_flags & SKBTX_ACK_TSTAMP);
 	}
 }
 
@@ -957,7 +959,7 @@ new_segment:
 		offset += copy;
 		size -= copy;
 		if (!size) {
-			tcp_tx_timestamp(sk, skb);
+			tcp_tx_timestamp(sk, sk->sk_tsflags, skb);
 			goto out;
 		}
 
@@ -1077,6 +1079,7 @@ int tcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
+	struct sockcm_cookie sockc;
 	int flags, err, copied = 0;
 	int mss_now = 0, size_goal, copied_syn = 0;
 	bool sg;
@@ -1117,6 +1120,15 @@ int tcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 			goto out_err;
 
 		/* 'common' sending to sendq */
+	}
+
+	sockc.tsflags = sk->sk_tsflags;
+	if (msg->msg_controllen) {
+		err = sock_cmsg_send(sk, msg, &sockc);
+		if (unlikely(err)) {
+			err = -EINVAL;
+			goto out_err;
+		}
 	}
 
 	/* This should be in poll */
@@ -1237,7 +1249,7 @@ new_segment:
 
 		copied += copy;
 		if (!msg_data_left(msg)) {
-			tcp_tx_timestamp(sk, skb);
+			tcp_tx_timestamp(sk, sockc.tsflags, skb);
 			goto out;
 		}
 

@@ -1027,15 +1027,13 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		 */
 		connected = 1;
 	}
-	ipc.addr = inet->inet_saddr;
 
+	ipc.sockc.tsflags = sk->sk_tsflags;
+	ipc.addr = inet->inet_saddr;
 	ipc.oif = sk->sk_bound_dev_if;
 
-	sock_tx_timestamp(sk, &ipc.tx_flags);
-
 	if (msg->msg_controllen) {
-		err = ip_cmsg_send(sock_net(sk), msg, &ipc,
-				   sk->sk_family == AF_INET6);
+		err = ip_cmsg_send(sk, msg, &ipc, sk->sk_family == AF_INET6);
 		if (unlikely(err)) {
 			kfree(ipc.opt);
 			return err;
@@ -1059,6 +1057,8 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	saddr = ipc.addr;
 	ipc.addr = faddr = daddr;
+
+	sock_tx_timestamp(sk, ipc.sockc.tsflags, &ipc.tx_flags);
 
 	if (ipc.opt && ipc.opt->opt.srr) {
 		if (!daddr)

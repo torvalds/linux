@@ -861,7 +861,8 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto drop;
 
 	if (skb->sk && sk_fullsock(skb->sk)) {
-		sock_tx_timestamp(skb->sk, &skb_shinfo(skb)->tx_flags);
+		sock_tx_timestamp(skb->sk, skb->sk->sk_tsflags,
+				  &skb_shinfo(skb)->tx_flags);
 		sw_tx_timestamp(skb);
 	}
 

@@ -1258,7 +1258,8 @@ static int __ip6_append_data(struct sock *sk,
 			     int getfrag(void *from, char *to, int offset,
 					 int len, int odd, struct sk_buff *skb),
 			     void *from, int length, int transhdrlen,
-			     unsigned int flags, int dontfrag)
+			     unsigned int flags, int dontfrag,
+			     const struct sockcm_cookie *sockc)
 {
 	struct sk_buff *skb, *skb_prev = NULL;
 	unsigned int maxfraglen, fragheaderlen, mtu, orig_mtu;
@@ -1329,7 +1330,7 @@ emsgsize:
 		csummode = CHECKSUM_PARTIAL;
 
 	if (sk->sk_type == SOCK_DGRAM || sk->sk_type == SOCK_RAW) {
-		sock_tx_timestamp(sk, &tx_flags);
+		sock_tx_timestamp(sk, sockc->tsflags, &tx_flags);
 		if (tx_flags & SKBTX_ANY_SW_TSTAMP &&
 		    sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID)
 			tskey = sk->sk_tskey++;
@@ -1565,7 +1566,8 @@ int ip6_append_data(struct sock *sk,
 				int odd, struct sk_buff *skb),
 		    void *from, int length, int transhdrlen, int hlimit,
 		    int tclass, struct ipv6_txoptions *opt, struct flowi6 *fl6,
-		    struct rt6_info *rt, unsigned int flags, int dontfrag)
+		    struct rt6_info *rt, unsigned int flags, int dontfrag,
+		    const struct sockcm_cookie *sockc)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -1593,7 +1595,8 @@ int ip6_append_data(struct sock *sk,
 
 	return __ip6_append_data(sk, fl6, &sk->sk_write_queue, &inet->cork.base,
 				 &np->cork, sk_page_frag(sk), getfrag,
-				 from, length, transhdrlen, flags, dontfrag);
+				 from, length, transhdrlen, flags, dontfrag,
+				 sockc);
 }
 EXPORT_SYMBOL_GPL(ip6_append_data);
 
@@ -1752,7 +1755,7 @@ struct sk_buff *ip6_make_skb(struct sock *sk,
 			     int hlimit, int tclass,
 			     struct ipv6_txoptions *opt, struct flowi6 *fl6,
 			     struct rt6_info *rt, unsigned int flags,
-			     int dontfrag)
+			     int dontfrag, const struct sockcm_cookie *sockc)
 {
 	struct inet_cork_full cork;
 	struct inet6_cork v6_cork;
@@ -1779,7 +1782,7 @@ struct sk_buff *ip6_make_skb(struct sock *sk,
 	err = __ip6_append_data(sk, fl6, &queue, &cork.base, &v6_cork,
 				&current->task_frag, getfrag, from,
 				length + exthdrlen, transhdrlen + exthdrlen,
-				flags, dontfrag);
+				flags, dontfrag, sockc);
 	if (err) {
 		__ip6_flush_pending_frames(sk, &queue, &cork, &v6_cork);
 		return ERR_PTR(err);

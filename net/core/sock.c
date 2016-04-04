@@ -832,7 +832,8 @@ set_rcvbuf:
 		    !(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID)) {
 			if (sk->sk_protocol == IPPROTO_TCP &&
 			    sk->sk_type == SOCK_STREAM) {
-				if (sk->sk_state != TCP_ESTABLISHED) {
+				if ((1 << sk->sk_state) &
+				    (TCPF_CLOSE | TCPF_LISTEN)) {
 					ret = -EINVAL;
 					break;
 				}
@@ -1866,27 +1867,51 @@ struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
 }
 EXPORT_SYMBOL(sock_alloc_send_skb);
 
+int __sock_cmsg_send(struct sock *sk, struct msghdr *msg, struct cmsghdr *cmsg,
+		     struct sockcm_cookie *sockc)
+{
+	u32 tsflags;
+
+	switch (cmsg->cmsg_type) {
+	case SO_MARK:
+		if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
+			return -EPERM;
+		if (cmsg->cmsg_len != CMSG_LEN(sizeof(u32)))
+			return -EINVAL;
+		sockc->mark = *(u32 *)CMSG_DATA(cmsg);
+		break;
+	case SO_TIMESTAMPING:
+		if (cmsg->cmsg_len != CMSG_LEN(sizeof(u32)))
+			return -EINVAL;
+
+		tsflags = *(u32 *)CMSG_DATA(cmsg);
+		if (tsflags & ~SOF_TIMESTAMPING_TX_RECORD_MASK)
+			return -EINVAL;
+
+		sockc->tsflags &= ~SOF_TIMESTAMPING_TX_RECORD_MASK;
+		sockc->tsflags |= tsflags;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(__sock_cmsg_send);
+
 int sock_cmsg_send(struct sock *sk, struct msghdr *msg,
 		   struct sockcm_cookie *sockc)
 {
 	struct cmsghdr *cmsg;
+	int ret;
 
 	for_each_cmsghdr(cmsg, msg) {
 		if (!CMSG_OK(msg, cmsg))
 			return -EINVAL;
 		if (cmsg->cmsg_level != SOL_SOCKET)
 			continue;
-		switch (cmsg->cmsg_type) {
-		case SO_MARK:
-			if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
-				return -EPERM;
-			if (cmsg->cmsg_len != CMSG_LEN(sizeof(u32)))
-				return -EINVAL;
-			sockc->mark = *(u32 *)CMSG_DATA(cmsg);
-			break;
-		default:
-			return -EINVAL;
-		}
+		ret = __sock_cmsg_send(sk, msg, cmsg, sockc);
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
