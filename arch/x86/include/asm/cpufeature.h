@@ -118,12 +118,6 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 	set_bit(bit, (unsigned long *)cpu_caps_set);	\
 } while (0)
 
-#define cpu_has_xsaves		boot_cpu_has(X86_FEATURE_XSAVES)
-/*
- * Do not add any more of those clumsy macros - use static_cpu_has() for
- * fast paths and boot_cpu_has() otherwise!
- */
-
 #if defined(CC_HAVE_ASM_GOTO) && defined(CONFIG_X86_FAST_FEATURE_TESTS)
 /*
  * Static testing of CPU features.  Used the same as boot_cpu_has().

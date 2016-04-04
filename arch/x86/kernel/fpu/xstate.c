@@ -280,7 +280,7 @@ static void __init setup_xstate_comp(void)
 	xstate_comp_offsets[0] = 0;
 	xstate_comp_offsets[1] = offsetof(struct fxregs_state, xmm_space);
 
-	if (!cpu_has_xsaves) {
+	if (!boot_cpu_has(X86_FEATURE_XSAVES)) {
 		for (i = FIRST_EXTENDED_XFEATURE; i < XFEATURE_MAX; i++) {
 			if (xfeature_enabled(i)) {
 				xstate_comp_offsets[i] = xstate_offsets[i];
@@ -322,7 +322,7 @@ static void __init setup_init_fpu_buf(void)
 	setup_xstate_features();
 	print_xstate_features();
 
-	if (cpu_has_xsaves) {
+	if (boot_cpu_has(X86_FEATURE_XSAVES)) {
 		init_fpstate.xsave.header.xcomp_bv = (u64)1 << 63 | xfeatures_mask;
 		init_fpstate.xsave.header.xfeatures = xfeatures_mask;
 	}
@@ -417,7 +417,7 @@ static int xfeature_size(int xfeature_nr)
  */
 static int using_compacted_format(void)
 {
-	return cpu_has_xsaves;
+	return boot_cpu_has(X86_FEATURE_XSAVES);
 }
 
 static void __xstate_dump_leaves(void)
@@ -549,7 +549,7 @@ static unsigned int __init calculate_xstate_size(void)
 	unsigned int eax, ebx, ecx, edx;
 	unsigned int calculated_xstate_size;
 
-	if (!cpu_has_xsaves) {
+	if (!boot_cpu_has(X86_FEATURE_XSAVES)) {
 		/*
 		 * - CPUID function 0DH, sub-function 0:
 		 *    EBX enumerates the size (in bytes) required by
@@ -667,7 +667,7 @@ void __init fpu__init_system_xstate(void)
 	pr_info("x86/fpu: Enabled xstate features 0x%llx, context size is %d bytes, using '%s' format.\n",
 		xfeatures_mask,
 		xstate_size,
-		cpu_has_xsaves ? "compacted" : "standard");
+		boot_cpu_has(X86_FEATURE_XSAVES) ? "compacted" : "standard");
 }
 
 /*
