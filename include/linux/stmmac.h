@@ -108,7 +108,6 @@ struct stmmac_axi {
 };
 
 struct plat_stmmacenet_data {
-	char *phy_bus_name;
 	int bus_id;
 	int phy_addr;
 	int interface;

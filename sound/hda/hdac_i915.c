@@ -287,6 +287,18 @@ int snd_hdac_i915_register_notifier(const struct i915_audio_component_audio_ops 
 }
 EXPORT_SYMBOL_GPL(snd_hdac_i915_register_notifier);
 
+/* check whether intel graphics is present */
+static bool i915_gfx_present(void)
+{
+	static struct pci_device_id ids[] = {
+		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_ANY_ID),
+		  .class = PCI_BASE_CLASS_DISPLAY << 16,
+		  .class_mask = 0xff << 16 },
+		{}
+	};
+	return pci_dev_present(ids);
+}
+
 /**
  * snd_hdac_i915_init - Initialize i915 audio component
  * @bus: HDA core bus
@@ -308,6 +320,9 @@ int snd_hdac_i915_init(struct hdac_bus *bus)
 
 	if (WARN_ON(hdac_acomp))
 		return -EBUSY;
+
+	if (!i915_gfx_present())
+		return -ENODEV;
 
 	acomp = kzalloc(sizeof(*acomp), GFP_KERNEL);
 	if (!acomp)

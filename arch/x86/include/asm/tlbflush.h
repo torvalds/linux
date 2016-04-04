@@ -319,12 +319,6 @@ static inline void reset_lazy_tlbstate(void)
 
 #endif	/* SMP */
 
-/* Not inlined due to inc_irq_stat not being defined yet */
-#define flush_tlb_local() {		\
-	inc_irq_stat(irq_tlb_count);	\
-	local_flush_tlb();		\
-}
-
 #ifndef CONFIG_PARAVIRT
 #define flush_tlb_others(mask, mm, start, end)	\
 	native_flush_tlb_others(mask, mm, start, end)
