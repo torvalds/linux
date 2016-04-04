@@ -153,7 +153,6 @@ static int orangefs_readdir(struct file *file, struct dir_context *ctx)
 	struct dentry *dentry = file->f_path.dentry;
 	struct orangefs_kernel_op_s *new_op = NULL;
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(dentry->d_inode);
-	int buffer_full = 0;
 	struct orangefs_readdir_response_s readdir_response;
 	void *dents_buf;
 	int i = 0;
@@ -350,8 +349,7 @@ get_new_buffer_index:
 	/*
 	 * Did we hit the end of the directory?
 	 */
-	if (readdir_response.token == ORANGEFS_READDIR_END &&
-	    !buffer_full) {
+	if (readdir_response.token == ORANGEFS_READDIR_END) {
 		gossip_debug(GOSSIP_DIR_DEBUG,
 		"End of dir detected; setting ctx->pos to ORANGEFS_READDIR_END.\n");
 		ctx->pos = ORANGEFS_READDIR_END;
