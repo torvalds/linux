@@ -307,7 +307,6 @@ static void meson_uart_change_speed(struct meson_uart_port *mup, unsigned long n
 	while (!(readl(&uart->status) & UART_TXEMPTY))
 		msleep(10);
 
-	printk(KERN_INFO "Changing %s baud from %d to %d\n", mup->name,mup->baud, (int)newbaud);
 	value = ((clk_get_rate(clk81) * 10 / (newbaud * 4) + 5) / 10) - 1;
 	mup->baud = (int)newbaud;
 #if MESON_CPU_TYPE < MESON_CPU_TYPE_MESON6
@@ -334,25 +333,20 @@ am_uart_set_termios(struct uart_port *port, struct ktermios *termios,
     tmp = readl(&uart->mode);
     switch (termios->c_cflag & CSIZE) {
     case CS8:
-        printk(KERN_DEBUG "config %s: Character length 8bits/char\n", mup->name);
         tmp &= ~(0x3 << 20);
         break;
     case CS7:
-        printk(KERN_DEBUG "config %s: Character length 7bits/char\n", mup->name);
         tmp &= ~(0x1 << 21);
         tmp |= (0x1 << 20);
         break;
     case CS6:
-        printk(KERN_DEBUG "config %s: Character length 6bits/char\n", mup->name);
         tmp |= 0x1 << 21;
         tmp &= ~(0x1 << 20);
         break;
     case CS5:
-        printk(KERN_DEBUG "config %s: Character length 5bits/char\n", mup->name);
         tmp |= 0x3 << 20;
         break;
     default:
-        printk(KERN_DEBUG "default config %s: Character length 8bits/char\n", mup->name);
         tmp &= ~(0x3 << 20);
         break;
     }
