@@ -652,8 +652,7 @@ static int kvm_s390_set_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 	}
 	if (!copy_from_user(proc, (void __user *)attr->addr,
 			    sizeof(*proc))) {
-		memcpy(&kvm->arch.model.cpu_id, &proc->cpuid,
-		       sizeof(struct cpuid));
+		kvm->arch.model.cpuid = proc->cpuid;
 		kvm->arch.model.ibc = proc->ibc;
 		memcpy(kvm->arch.model.fac_list, proc->fac_list,
 		       S390_ARCH_FAC_LIST_SIZE_BYTE);
@@ -687,7 +686,7 @@ static int kvm_s390_get_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 		ret = -ENOMEM;
 		goto out;
 	}
-	memcpy(&proc->cpuid, &kvm->arch.model.cpu_id, sizeof(struct cpuid));
+	proc->cpuid = kvm->arch.model.cpuid;
 	proc->ibc = kvm->arch.model.ibc;
 	memcpy(&proc->fac_list, kvm->arch.model.fac_list,
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
@@ -1081,10 +1080,13 @@ static void kvm_s390_set_crycb_format(struct kvm *kvm)
 		kvm->arch.crypto.crycbd |= CRYCB_FORMAT1;
 }
 
-static void kvm_s390_get_cpu_id(struct cpuid *cpu_id)
+static u64 kvm_s390_get_initial_cpuid(void)
 {
-	get_cpu_id(cpu_id);
-	cpu_id->version = 0xff;
+	struct cpuid cpuid;
+
+	get_cpu_id(&cpuid);
+	cpuid.version = 0xff;
+	return *((u64 *) &cpuid);
 }
 
 static void kvm_s390_crypto_init(struct kvm *kvm)
@@ -1175,7 +1177,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	memcpy(kvm->arch.model.fac_list, kvm->arch.model.fac_mask,
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 
-	kvm_s390_get_cpu_id(&kvm->arch.model.cpu_id);
+	kvm->arch.model.cpuid = kvm_s390_get_initial_cpuid();
 	kvm->arch.model.ibc = sclp.ibc & 0x0fff;
 
 	kvm_s390_crypto_init(kvm);
@@ -1624,7 +1626,6 @@ static void kvm_s390_vcpu_setup_model(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_cpu_model *model = &vcpu->kvm->arch.model;
 
-	vcpu->arch.cpu_id = model->cpu_id;
 	vcpu->arch.sie_block->ibc = model->ibc;
 	if (test_kvm_facility(vcpu->kvm, 7))
 		vcpu->arch.sie_block->fac = (u32)(u64) model->fac_list;
