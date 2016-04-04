@@ -1055,7 +1055,6 @@ static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	struct ata_taskfile *tf = &qc->result_tf;
 	unsigned char *sb = cmd->sense_buffer;
-	unsigned char *desc = sb + 8;
 	int verbose = qc->ap->ops->error_handler == NULL;
 	u64 block;
 
@@ -1086,18 +1085,7 @@ static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 	if (block == U64_MAX)
 		return;
 
-	/* information sense data descriptor */
-	sb[7] = 12;
-	desc[0] = 0x00;
-	desc[1] = 10;
-
-	desc[2] |= 0x80;	/* valid */
-	desc[6] = block >> 40;
-	desc[7] = block >> 32;
-	desc[8] = block >> 24;
-	desc[9] = block >> 16;
-	desc[10] = block >> 8;
-	desc[11] = block;
+	scsi_set_sense_information(sb, SCSI_SENSE_BUFFERSIZE, block);
 }
 
 static void ata_scsi_sdev_config(struct scsi_device *sdev)
