@@ -311,6 +311,15 @@
 		#size-cells = <1>;
 		ranges;
 
+		ephy: ethernet-phy@01c00030 {
+			compatible = "allwinner,sun8i-h3-ephy";
+			reg = <0x01c00030 0x4>;
+			clocks = <&bus_gates 128>;
+			resets = <&ahb_rst 66>;
+			#clock-cells = <0>;
+			clock-output-names = "emac_tx";
+		};
+
 		dma: dma-controller@01c02000 {
 			compatible = "allwinner,sun8i-h3-dma";
 			reg = <0x01c02000 0x1000>;
