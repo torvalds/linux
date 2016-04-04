@@ -563,6 +563,9 @@ extern unsigned int rxrpc_connection_expiry;
 extern struct list_head rxrpc_connections;
 extern rwlock_t rxrpc_connection_lock;
 
+void rxrpc_conn_hash_proto_key(struct rxrpc_conn_proto *);
+void rxrpc_extract_conn_params(struct rxrpc_conn_proto *,
+			       struct rxrpc_local *, struct sk_buff *);
 struct rxrpc_connection *rxrpc_alloc_connection(gfp_t);
 struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_local *,
 					       struct rxrpc_peer *,
@@ -571,9 +574,6 @@ void __rxrpc_disconnect_call(struct rxrpc_call *);
 void rxrpc_disconnect_call(struct rxrpc_call *);
 void rxrpc_put_connection(struct rxrpc_connection *);
 void __exit rxrpc_destroy_all_connections(void);
-struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *,
-						   struct rxrpc_peer *,
-						   struct sk_buff *);
 
 static inline bool rxrpc_conn_is_client(const struct rxrpc_connection *conn)
 {
@@ -602,6 +602,13 @@ static inline void rxrpc_queue_conn(struct rxrpc_connection *conn)
 	    !rxrpc_queue_work(&conn->processor))
 		rxrpc_put_connection(conn);
 }
+
+/*
+ * conn_service.c
+ */
+struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *,
+						   struct rxrpc_peer *,
+						   struct sk_buff *);
 
 /*
  * input.c
