@@ -857,9 +857,8 @@ static int smp_core99_cpu_notify(struct notifier_block *self,
 {
 	int rc;
 
-	switch(action) {
+	switch(action & ~CPU_TASKS_FROZEN) {
 	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
 		/* Open i2c bus if it was used for tb sync */
 		if (pmac_tb_clock_chip_host) {
 			rc = pmac_i2c_open(pmac_tb_clock_chip_host, 1);
