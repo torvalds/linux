@@ -94,8 +94,8 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
 
-	whdr.epoch	= htonl(conn->epoch);
-	whdr.cid	= htonl(conn->cid);
+	whdr.epoch	= htonl(conn->proto.epoch);
+	whdr.cid	= htonl(conn->proto.cid);
 	whdr.callNumber	= 0;
 	whdr.seq	= 0;
 	whdr.type	= RXRPC_PACKET_TYPE_ABORT;
@@ -103,7 +103,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	whdr.userStatus	= 0;
 	whdr.securityIndex = conn->security_ix;
 	whdr._rsvd	= 0;
-	whdr.serviceId	= htons(conn->service_id);
+	whdr.serviceId	= htons(conn->params.service_id);
 
 	word		= htonl(conn->local_abort);
 
@@ -220,7 +220,7 @@ static void rxrpc_secure_connection(struct rxrpc_connection *conn)
 
 	ASSERT(conn->security_ix != 0);
 
-	if (!conn->key) {
+	if (!conn->params.key) {
 		_debug("set up security");
 		ret = rxrpc_init_server_conn_security(conn);
 		switch (ret) {

@@ -842,7 +842,7 @@ void rxrpc_process_call(struct work_struct *work)
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
 
-	whdr.epoch	= htonl(call->conn->epoch);
+	whdr.epoch	= htonl(call->conn->proto.epoch);
 	whdr.cid	= htonl(call->cid);
 	whdr.callNumber	= htonl(call->call_id);
 	whdr.seq	= 0;
@@ -1264,7 +1264,7 @@ maybe_reschedule:
 	if (call->state >= RXRPC_CALL_COMPLETE &&
 	    !list_empty(&call->accept_link)) {
 		_debug("X unlinking once-pending call %p { e=%lx f=%lx c=%x }",
-		       call, call->events, call->flags, call->conn->cid);
+		       call, call->events, call->flags, call->conn->proto.cid);
 
 		read_lock_bh(&call->state_lock);
 		if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
@@ -1282,7 +1282,7 @@ error:
 	 * this means there's a race between clearing the flag and setting the
 	 * work pending bit and the work item being processed again */
 	if (call->events && !work_pending(&call->processor)) {
-		_debug("jumpstart %x", call->conn->cid);
+		_debug("jumpstart %x", call->conn->proto.cid);
 		rxrpc_queue_call(call);
 	}
 

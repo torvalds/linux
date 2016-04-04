@@ -133,6 +133,7 @@ static struct rxrpc_call *
 rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 				  unsigned long user_call_ID)
 {
+	struct rxrpc_conn_parameters cp;
 	struct rxrpc_conn_bundle *bundle;
 	struct rxrpc_transport *trans;
 	struct rxrpc_call *call;
@@ -146,23 +147,32 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 	if (!msg->msg_name)
 		return ERR_PTR(-EDESTADDRREQ);
 
-	trans = rxrpc_name_to_transport(rx, msg->msg_name, msg->msg_namelen, 0,
+	key = rx->key;
+	if (key && !rx->key->payload.data[0])
+		key = NULL;
+
+	memset(&cp, 0, sizeof(cp));
+	cp.local		= rx->local;
+	cp.key			= rx->key;
+	cp.security_level	= rx->min_sec_level;
+	cp.exclusive		= test_bit(RXRPC_SOCK_EXCLUSIVE_CONN, &rx->flags);
+	cp.service_id		= srx->srx_service;
+	trans = rxrpc_name_to_transport(&cp, msg->msg_name, msg->msg_namelen,
 					GFP_KERNEL);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
 		goto out;
 	}
+	cp.peer = trans->peer;
 
-	key = rx->key;
-	if (key && !rx->key->payload.data[0])
-		key = NULL;
-	bundle = rxrpc_get_bundle(rx, trans, key, srx->srx_service, GFP_KERNEL);
+	bundle = rxrpc_get_bundle(rx, trans, cp.key, srx->srx_service,
+				  GFP_KERNEL);
 	if (IS_ERR(bundle)) {
 		ret = PTR_ERR(bundle);
 		goto out_trans;
 	}
 
-	call = rxrpc_new_client_call(rx, trans, bundle, user_call_ID,
+	call = rxrpc_new_client_call(rx, &cp, trans, bundle, user_call_ID,
 				     GFP_KERNEL);
 	rxrpc_put_bundle(trans, bundle);
 	rxrpc_put_transport(trans);
@@ -664,7 +674,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 			seq = atomic_inc_return(&call->sequence);
 
-			sp->hdr.epoch	= conn->epoch;
+			sp->hdr.epoch	= conn->proto.epoch;
 			sp->hdr.cid	= call->cid;
 			sp->hdr.callNumber = call->call_id;
 			sp->hdr.seq	= seq;

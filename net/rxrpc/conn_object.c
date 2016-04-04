@@ -220,7 +220,7 @@ static void rxrpc_assign_connection_id(struct rxrpc_connection *conn)
 
 	_enter("");
 
-	epoch = conn->epoch;
+	epoch = conn->proto.epoch;
 
 	write_lock_bh(&conn->trans->conn_lock);
 
@@ -237,13 +237,13 @@ attempt_insertion:
 		parent = *p;
 		xconn = rb_entry(parent, struct rxrpc_connection, node);
 
-		if (epoch < xconn->epoch)
+		if (epoch < xconn->proto.epoch)
 			p = &(*p)->rb_left;
-		else if (epoch > xconn->epoch)
+		else if (epoch > xconn->proto.epoch)
 			p = &(*p)->rb_right;
-		else if (cid < xconn->cid)
+		else if (cid < xconn->proto.cid)
 			p = &(*p)->rb_left;
-		else if (cid > xconn->cid)
+		else if (cid > xconn->proto.cid)
 			p = &(*p)->rb_right;
 		else
 			goto id_exists;
@@ -254,7 +254,7 @@ attempt_insertion:
 	rb_link_node(&conn->node, parent, p);
 	rb_insert_color(&conn->node, &conn->trans->client_conns);
 
-	conn->cid = cid;
+	conn->proto.cid = cid;
 	write_unlock_bh(&conn->trans->conn_lock);
 	_leave(" [CID %x]", cid);
 	return;
@@ -275,8 +275,8 @@ id_exists:
 			goto attempt_insertion;
 
 		xconn = rb_entry(parent, struct rxrpc_connection, node);
-		if (epoch < xconn->epoch ||
-		    cid < xconn->cid)
+		if (epoch < xconn->proto.epoch ||
+		    cid < xconn->proto.cid)
 			goto attempt_insertion;
 	}
 }
@@ -318,8 +318,8 @@ static void rxrpc_add_call_ID_to_conn(struct rxrpc_connection *conn,
  * connect a call on an exclusive connection
  */
 static int rxrpc_connect_exclusive(struct rxrpc_sock *rx,
+				   struct rxrpc_conn_parameters *cp,
 				   struct rxrpc_transport *trans,
-				   u16 service_id,
 				   struct rxrpc_call *call,
 				   gfp_t gfp)
 {
@@ -340,19 +340,21 @@ static int rxrpc_connect_exclusive(struct rxrpc_sock *rx,
 
 		conn->trans = trans;
 		conn->bundle = NULL;
-		conn->service_id = service_id;
-		conn->epoch = rxrpc_epoch;
-		conn->in_clientflag = 0;
+		conn->params = *cp;
+		conn->proto.local = cp->local;
+		conn->proto.epoch = rxrpc_epoch;
+		conn->proto.cid = 0;
+		conn->proto.in_clientflag = 0;
+		conn->proto.family = cp->peer->srx.transport.family;
 		conn->out_clientflag = RXRPC_CLIENT_INITIATED;
-		conn->cid = 0;
 		conn->state = RXRPC_CONN_CLIENT;
 		conn->avail_calls = RXRPC_MAXCALLS - 1;
-		conn->security_level = rx->min_sec_level;
-		conn->key = key_get(rx->key);
+
+		key_get(conn->params.key);
 
 		ret = rxrpc_init_client_conn_security(conn);
 		if (ret < 0) {
-			key_put(conn->key);
+			key_put(conn->params.key);
 			kfree(conn);
 			_leave(" = %d [key]", ret);
 			return ret;
@@ -389,7 +391,7 @@ found_channel:
 	conn->channels[chan] = call;
 	call->conn = conn;
 	call->channel = chan;
-	call->cid = conn->cid | chan;
+	call->cid = conn->proto.cid | chan;
 	call->call_id = ++conn->call_counter;
 
 	_net("CONNECT client on conn %d chan %d as call %x",
@@ -412,6 +414,7 @@ no_free_channels:
  * - called in process context with IRQs enabled
  */
 int rxrpc_connect_call(struct rxrpc_sock *rx,
+		       struct rxrpc_conn_parameters *cp,
 		       struct rxrpc_transport *trans,
 		       struct rxrpc_conn_bundle *bundle,
 		       struct rxrpc_call *call,
@@ -425,8 +428,7 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 	_enter("%p,%lx,", rx, call->user_call_ID);
 
 	if (test_bit(RXRPC_SOCK_EXCLUSIVE_CONN, &rx->flags))
-		return rxrpc_connect_exclusive(rx, trans, bundle->service_id,
-					       call, gfp);
+		return rxrpc_connect_exclusive(rx, cp, trans, call, gfp);
 
 	spin_lock(&trans->client_lock);
 	for (;;) {
@@ -517,19 +519,21 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 
 		candidate->trans = trans;
 		candidate->bundle = bundle;
-		candidate->service_id = bundle->service_id;
-		candidate->epoch = rxrpc_epoch;
-		candidate->in_clientflag = 0;
+		candidate->params = *cp;
+		candidate->proto.local = cp->local;
+		candidate->proto.epoch = rxrpc_epoch;
+		candidate->proto.cid = 0;
+		candidate->proto.in_clientflag = 0;
+		candidate->proto.family = cp->peer->srx.transport.family;
 		candidate->out_clientflag = RXRPC_CLIENT_INITIATED;
-		candidate->cid = 0;
 		candidate->state = RXRPC_CONN_CLIENT;
 		candidate->avail_calls = RXRPC_MAXCALLS;
-		candidate->security_level = rx->min_sec_level;
-		candidate->key = key_get(bundle->key);
+
+		key_get(candidate->params.key);
 
 		ret = rxrpc_init_client_conn_security(candidate);
 		if (ret < 0) {
-			key_put(candidate->key);
+			key_put(candidate->params.key);
 			kfree(candidate);
 			_leave(" = %d [key]", ret);
 			return ret;
@@ -577,7 +581,7 @@ found_channel:
 	conn->channels[chan] = call;
 	call->conn = conn;
 	call->channel = chan;
-	call->cid = conn->cid | chan;
+	call->cid = conn->proto.cid | chan;
 	call->call_id = ++conn->call_counter;
 
 	_net("CONNECT client on conn %d chan %d as call %x",
@@ -626,15 +630,15 @@ rxrpc_incoming_connection(struct rxrpc_transport *trans,
 	while (p) {
 		conn = rb_entry(p, struct rxrpc_connection, node);
 
-		_debug("maybe %x", conn->cid);
+		_debug("maybe %x", conn->proto.cid);
 
-		if (epoch < conn->epoch)
+		if (epoch < conn->proto.epoch)
 			p = p->rb_left;
-		else if (epoch > conn->epoch)
+		else if (epoch > conn->proto.epoch)
 			p = p->rb_right;
-		else if (cid < conn->cid)
+		else if (cid < conn->proto.cid)
 			p = p->rb_left;
-		else if (cid > conn->cid)
+		else if (cid > conn->proto.cid)
 			p = p->rb_right;
 		else
 			goto found_extant_connection;
@@ -650,14 +654,17 @@ rxrpc_incoming_connection(struct rxrpc_transport *trans,
 	}
 
 	candidate->trans = trans;
-	candidate->epoch = hdr->epoch;
-	candidate->cid = hdr->cid & RXRPC_CIDMASK;
-	candidate->service_id = hdr->serviceId;
+	candidate->proto.local = trans->local;
+	candidate->proto.epoch = hdr->epoch;
+	candidate->proto.cid = hdr->cid & RXRPC_CIDMASK;
+	candidate->proto.in_clientflag = RXRPC_CLIENT_INITIATED;
+	candidate->params.local = trans->local;
+	candidate->params.peer = trans->peer;
+	candidate->params.service_id = hdr->serviceId;
 	candidate->security_ix = hdr->securityIndex;
-	candidate->in_clientflag = RXRPC_CLIENT_INITIATED;
 	candidate->out_clientflag = 0;
 	candidate->state = RXRPC_CONN_SERVER;
-	if (candidate->service_id)
+	if (candidate->params.service_id)
 		candidate->state = RXRPC_CONN_SERVER_UNSECURED;
 
 	write_lock_bh(&trans->conn_lock);
@@ -668,13 +675,13 @@ rxrpc_incoming_connection(struct rxrpc_transport *trans,
 		p = *pp;
 		conn = rb_entry(p, struct rxrpc_connection, node);
 
-		if (epoch < conn->epoch)
+		if (epoch < conn->proto.epoch)
 			pp = &(*pp)->rb_left;
-		else if (epoch > conn->epoch)
+		else if (epoch > conn->proto.epoch)
 			pp = &(*pp)->rb_right;
-		else if (cid < conn->cid)
+		else if (cid < conn->proto.cid)
 			pp = &(*pp)->rb_left;
-		else if (cid > conn->cid)
+		else if (cid > conn->proto.cid)
 			pp = &(*pp)->rb_right;
 		else
 			goto found_extant_second;
@@ -696,7 +703,7 @@ rxrpc_incoming_connection(struct rxrpc_transport *trans,
 	new = "new";
 
 success:
-	_net("CONNECTION %s %d {%x}", new, conn->debug_id, conn->cid);
+	_net("CONNECTION %s %d {%x}", new, conn->debug_id, conn->proto.cid);
 
 	_leave(" = %p {u=%d}", conn, atomic_read(&conn->usage));
 	return conn;
@@ -754,15 +761,15 @@ struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *trans,
 	while (p) {
 		conn = rb_entry(p, struct rxrpc_connection, node);
 
-		_debug("maybe %x", conn->cid);
+		_debug("maybe %x", conn->proto.cid);
 
-		if (epoch < conn->epoch)
+		if (epoch < conn->proto.epoch)
 			p = p->rb_left;
-		else if (epoch > conn->epoch)
+		else if (epoch > conn->proto.epoch)
 			p = p->rb_right;
-		else if (cid < conn->cid)
+		else if (cid < conn->proto.cid)
 			p = p->rb_left;
-		else if (cid > conn->cid)
+		else if (cid > conn->proto.cid)
 			p = p->rb_right;
 		else
 			goto found;
@@ -816,7 +823,7 @@ static void rxrpc_destroy_connection(struct rxrpc_connection *conn)
 	rxrpc_purge_queue(&conn->rx_queue);
 
 	conn->security->clear(conn);
-	key_put(conn->key);
+	key_put(conn->params.key);
 	key_put(conn->server_key);
 
 	rxrpc_put_transport(conn->trans);

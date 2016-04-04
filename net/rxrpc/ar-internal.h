@@ -72,7 +72,7 @@ struct rxrpc_sock {
 #define RXRPC_SECURITY_MAX	RXRPC_SECURITY_ENCRYPT
 	struct sockaddr_rxrpc	srx;		/* local address */
 	struct sockaddr_rxrpc	connect_srx;	/* Default client address from connect() */
-	sa_family_t		proto;		/* protocol created with */
+	sa_family_t		family;		/* protocol family created with */
 };
 
 #define rxrpc_sk(__sk) container_of((__sk), struct rxrpc_sock, sk)
@@ -262,6 +262,34 @@ struct rxrpc_conn_bundle {
 };
 
 /*
+ * Keys for matching a connection.
+ */
+struct rxrpc_conn_proto {
+	unsigned long		hash_key;
+	struct rxrpc_local	*local;		/* Representation of local endpoint */
+	u32			epoch;		/* epoch of this connection */
+	u32			cid;		/* connection ID */
+	u8			in_clientflag;	/* RXRPC_CLIENT_INITIATED if we are server */
+	u8			addr_size;	/* Size of the address */
+	sa_family_t		family;		/* Transport protocol */
+	__be16			port;		/* Peer UDP/UDP6 port */
+	union {					/* Peer address */
+		struct in_addr	ipv4_addr;
+		struct in6_addr	ipv6_addr;
+		u32		raw_addr[0];
+	};
+};
+
+struct rxrpc_conn_parameters {
+	struct rxrpc_local	*local;		/* Representation of local endpoint */
+	struct rxrpc_peer	*peer;		/* Remote endpoint */
+	struct key		*key;		/* Security details */
+	bool			exclusive;	/* T if conn is exclusive */
+	u16			service_id;	/* Service ID for this connection */
+	u32			security_level;	/* Security level selected */
+};
+
+/*
  * RxRPC connection definition
  * - matched by { transport, service_id, conn_id, direction, key }
  * - each connection can only handle four simultaneous calls
@@ -269,6 +297,9 @@ struct rxrpc_conn_bundle {
 struct rxrpc_connection {
 	struct rxrpc_transport	*trans;		/* transport session */
 	struct rxrpc_conn_bundle *bundle;	/* connection bundle (client) */
+	struct rxrpc_conn_proto	proto;
+	struct rxrpc_conn_parameters params;
+
 	struct work_struct	processor;	/* connection event processor */
 	struct rb_node		node;		/* node in transport's lookup tree */
 	struct list_head	link;		/* link in master connection list */
@@ -277,7 +308,6 @@ struct rxrpc_connection {
 	struct sk_buff_head	rx_queue;	/* received conn-level packets */
 	struct rxrpc_call	*channels[RXRPC_MAXCALLS]; /* channels (active calls) */
 	const struct rxrpc_security *security;	/* applied security module */
-	struct key		*key;		/* security for this connection (client) */
 	struct key		*server_key;	/* security for this service */
 	struct crypto_skcipher	*cipher;	/* encryption handle */
 	struct rxrpc_crypt	csum_iv;	/* packet checksum base */
@@ -308,13 +338,8 @@ struct rxrpc_connection {
 	u8			size_align;	/* data size alignment (for security) */
 	u8			header_size;	/* rxrpc + security header size */
 	u8			security_size;	/* security header size */
-	u32			security_level;	/* security level negotiated */
 	u32			security_nonce;	/* response re-use preventer */
-	u32			epoch;		/* epoch of this connection */
-	u32			cid;		/* connection ID */
-	u16			service_id;	/* service ID for this connection */
 	u8			security_ix;	/* security type */
-	u8			in_clientflag;	/* RXRPC_CLIENT_INITIATED if we are server */
 	u8			out_clientflag;	/* RXRPC_CLIENT_INITIATED if we are client */
 };
 
@@ -448,7 +473,7 @@ struct rxrpc_call {
 	unsigned long		hash_key;	/* Full hash key */
 	u8			in_clientflag;	/* Copy of conn->in_clientflag for hashing */
 	struct rxrpc_local	*local;		/* Local endpoint. Used for hashing. */
-	sa_family_t		proto;		/* Frame protocol */
+	sa_family_t		family;		/* Frame protocol */
 	u32			call_id;	/* call ID on connection  */
 	u32			cid;		/* connection ID plus channel index */
 	u32			epoch;		/* epoch of this connection */
@@ -481,9 +506,9 @@ extern u32 rxrpc_epoch;
 extern atomic_t rxrpc_debug_id;
 extern struct workqueue_struct *rxrpc_workqueue;
 
-extern struct rxrpc_transport *rxrpc_name_to_transport(struct rxrpc_sock *,
+extern struct rxrpc_transport *rxrpc_name_to_transport(struct rxrpc_conn_parameters *,
 						       struct sockaddr *,
-						       int, int, gfp_t);
+						       int, gfp_t);
 
 /*
  * call_accept.c
@@ -512,6 +537,7 @@ struct rxrpc_call *rxrpc_find_call_hash(struct rxrpc_host_header *,
 					void *, sa_family_t, const void *);
 struct rxrpc_call *rxrpc_find_call_by_user_ID(struct rxrpc_sock *, unsigned long);
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *,
+					 struct rxrpc_conn_parameters *,
 					 struct rxrpc_transport *,
 					 struct rxrpc_conn_bundle *,
 					 unsigned long, gfp_t);
@@ -541,14 +567,25 @@ struct rxrpc_conn_bundle *rxrpc_get_bundle(struct rxrpc_sock *,
 					   struct rxrpc_transport *,
 					   struct key *, u16, gfp_t);
 void rxrpc_put_bundle(struct rxrpc_transport *, struct rxrpc_conn_bundle *);
-int rxrpc_connect_call(struct rxrpc_sock *, struct rxrpc_transport *,
-		       struct rxrpc_conn_bundle *, struct rxrpc_call *, gfp_t);
+int rxrpc_connect_call(struct rxrpc_sock *, struct rxrpc_conn_parameters *,
+		       struct rxrpc_transport *, struct rxrpc_conn_bundle *,
+		       struct rxrpc_call *, gfp_t);
 void rxrpc_put_connection(struct rxrpc_connection *);
 void __exit rxrpc_destroy_all_connections(void);
 struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *,
 					       struct rxrpc_host_header *);
 extern struct rxrpc_connection *
 rxrpc_incoming_connection(struct rxrpc_transport *, struct rxrpc_host_header *);
+
+static inline bool rxrpc_conn_is_client(const struct rxrpc_connection *conn)
+{
+	return conn->out_clientflag;
+}
+
+static inline bool rxrpc_conn_is_service(const struct rxrpc_connection *conn)
+{
+	return conn->proto.in_clientflag;
+}
 
 /*
  * input.c

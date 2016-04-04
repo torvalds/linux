@@ -205,7 +205,7 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		/* we transferred the whole data packet */
 		if (sp->hdr.flags & RXRPC_LAST_PACKET) {
 			_debug("last");
-			if (call->conn->out_clientflag) {
+			if (rxrpc_conn_is_client(call->conn)) {
 				 /* last byte of reply received */
 				ret = copied;
 				goto terminal_message;

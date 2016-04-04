@@ -71,7 +71,7 @@ static unsigned long rxrpc_call_hashfunc(
 	u32		call_id,
 	u32		epoch,
 	u16		service_id,
-	sa_family_t	proto,
+	sa_family_t	family,
 	void		*localptr,
 	unsigned int	addr_size,
 	const u8	*peer_addr)
@@ -92,7 +92,7 @@ static unsigned long rxrpc_call_hashfunc(
 	key += (cid & RXRPC_CIDMASK) >> RXRPC_CIDSHIFT;
 	key += cid & RXRPC_CHANNELMASK;
 	key += in_clientflag;
-	key += proto;
+	key += family;
 	/* Step through the peer address in 16-bit portions for speed */
 	for (i = 0, p = (const u16 *)peer_addr; i < addr_size >> 1; i++, p++)
 		key += *p;
@@ -109,7 +109,7 @@ static void rxrpc_call_hash_add(struct rxrpc_call *call)
 	unsigned int addr_size = 0;
 
 	_enter("");
-	switch (call->proto) {
+	switch (call->family) {
 	case AF_INET:
 		addr_size = sizeof(call->peer_ip.ipv4_addr);
 		break;
@@ -121,7 +121,7 @@ static void rxrpc_call_hash_add(struct rxrpc_call *call)
 	}
 	key = rxrpc_call_hashfunc(call->in_clientflag, call->cid,
 				  call->call_id, call->epoch,
-				  call->service_id, call->proto,
+				  call->service_id, call->family,
 				  call->conn->trans->local, addr_size,
 				  call->peer_ip.ipv6_addr);
 	/* Store the full key in the call */
@@ -151,7 +151,7 @@ static void rxrpc_call_hash_del(struct rxrpc_call *call)
 struct rxrpc_call *rxrpc_find_call_hash(
 	struct rxrpc_host_header *hdr,
 	void		*localptr,
-	sa_family_t	proto,
+	sa_family_t	family,
 	const void	*peer_addr)
 {
 	unsigned long key;
@@ -161,7 +161,7 @@ struct rxrpc_call *rxrpc_find_call_hash(
 	u8 in_clientflag = hdr->flags & RXRPC_CLIENT_INITIATED;
 
 	_enter("");
-	switch (proto) {
+	switch (family) {
 	case AF_INET:
 		addr_size = sizeof(call->peer_ip.ipv4_addr);
 		break;
@@ -174,7 +174,7 @@ struct rxrpc_call *rxrpc_find_call_hash(
 
 	key = rxrpc_call_hashfunc(in_clientflag, hdr->cid, hdr->callNumber,
 				  hdr->epoch, hdr->serviceId,
-				  proto, localptr, addr_size,
+				  family, localptr, addr_size,
 				  peer_addr);
 	hash_for_each_possible_rcu(rxrpc_call_hash, call, hash_node, key) {
 		if (call->hash_key == key &&
@@ -182,7 +182,7 @@ struct rxrpc_call *rxrpc_find_call_hash(
 		    call->cid == hdr->cid &&
 		    call->in_clientflag == in_clientflag &&
 		    call->service_id == hdr->serviceId &&
-		    call->proto == proto &&
+		    call->family == family &&
 		    call->local == localptr &&
 		    memcmp(call->peer_ip.ipv6_addr, peer_addr,
 			   addr_size) == 0 &&
@@ -286,6 +286,7 @@ static struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
  */
 static struct rxrpc_call *rxrpc_alloc_client_call(
 	struct rxrpc_sock *rx,
+	struct rxrpc_conn_parameters *cp,
 	struct rxrpc_transport *trans,
 	struct rxrpc_conn_bundle *bundle,
 	gfp_t gfp)
@@ -307,16 +308,16 @@ static struct rxrpc_call *rxrpc_alloc_client_call(
 	call->socket = rx;
 	call->rx_data_post = 1;
 
-	ret = rxrpc_connect_call(rx, trans, bundle, call, gfp);
+	ret = rxrpc_connect_call(rx, cp, trans, bundle, call, gfp);
 	if (ret < 0) {
 		kmem_cache_free(rxrpc_call_jar, call);
 		return ERR_PTR(ret);
 	}
 
 	/* Record copies of information for hashtable lookup */
-	call->proto = rx->proto;
-	call->local = trans->local;
-	switch (call->proto) {
+	call->family = rx->family;
+	call->local = call->conn->params.local;
+	switch (call->family) {
 	case AF_INET:
 		call->peer_ip.ipv4_addr =
 			trans->peer->srx.transport.sin.sin_addr.s_addr;
@@ -327,9 +328,9 @@ static struct rxrpc_call *rxrpc_alloc_client_call(
 		       sizeof(call->peer_ip.ipv6_addr));
 		break;
 	}
-	call->epoch = call->conn->epoch;
-	call->service_id = call->conn->service_id;
-	call->in_clientflag = call->conn->in_clientflag;
+	call->epoch = call->conn->proto.epoch;
+	call->service_id = call->conn->params.service_id;
+	call->in_clientflag = call->conn->proto.in_clientflag;
 	/* Add the new call to the hashtable */
 	rxrpc_call_hash_add(call);
 
@@ -349,6 +350,7 @@ static struct rxrpc_call *rxrpc_alloc_client_call(
  * - called in process context with IRQs enabled
  */
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
+					 struct rxrpc_conn_parameters *cp,
 					 struct rxrpc_transport *trans,
 					 struct rxrpc_conn_bundle *bundle,
 					 unsigned long user_call_ID,
@@ -361,7 +363,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	       rx, trans->debug_id, bundle ? bundle->debug_id : -1,
 	       user_call_ID);
 
-	call = rxrpc_alloc_client_call(rx, trans, bundle, gfp);
+	call = rxrpc_alloc_client_call(rx, cp, trans, bundle, gfp);
 	if (IS_ERR(call)) {
 		_leave(" = %ld", PTR_ERR(call));
 		return call;
@@ -524,9 +526,9 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	write_unlock_bh(&rxrpc_call_lock);
 
 	/* Record copies of information for hashtable lookup */
-	call->proto = rx->proto;
+	call->family = rx->family;
 	call->local = conn->trans->local;
-	switch (call->proto) {
+	switch (call->family) {
 	case AF_INET:
 		call->peer_ip.ipv4_addr =
 			conn->trans->peer->srx.transport.sin.sin_addr.s_addr;
@@ -539,9 +541,9 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	default:
 		break;
 	}
-	call->epoch = conn->epoch;
-	call->service_id = conn->service_id;
-	call->in_clientflag = conn->in_clientflag;
+	call->epoch = conn->proto.epoch;
+	call->service_id = conn->params.service_id;
+	call->in_clientflag = conn->proto.in_clientflag;
 	/* Add the new call to the hashtable */
 	rxrpc_call_hash_add(call);
 

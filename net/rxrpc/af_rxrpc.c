@@ -97,7 +97,7 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 	    srx->transport_len > len)
 		return -EINVAL;
 
-	if (srx->transport.family != rx->proto)
+	if (srx->transport.family != rx->family)
 		return -EAFNOSUPPORT;
 
 	switch (srx->transport.family) {
@@ -227,32 +227,30 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 /*
  * find a transport by address
  */
-struct rxrpc_transport *rxrpc_name_to_transport(struct rxrpc_sock *rx,
-						struct sockaddr *addr,
-						int addr_len, int flags,
-						gfp_t gfp)
+struct rxrpc_transport *
+rxrpc_name_to_transport(struct rxrpc_conn_parameters *cp,
+			struct sockaddr *addr,
+			int addr_len,
+			gfp_t gfp)
 {
 	struct sockaddr_rxrpc *srx = (struct sockaddr_rxrpc *) addr;
 	struct rxrpc_transport *trans;
-	struct rxrpc_peer *peer;
 
-	_enter("%p,%p,%d,%d", rx, addr, addr_len, flags);
+	_enter("%p,%d", addr, addr_len);
 
-	ASSERT(rx->local != NULL);
-
-	if (rx->srx.transport_type != srx->transport_type)
+	if (cp->local->srx.transport_type != srx->transport_type)
 		return ERR_PTR(-ESOCKTNOSUPPORT);
-	if (rx->srx.transport.family != srx->transport.family)
+	if (cp->local->srx.transport.family != srx->transport.family)
 		return ERR_PTR(-EAFNOSUPPORT);
 
 	/* find a remote transport endpoint from the local one */
-	peer = rxrpc_lookup_peer(rx->local, srx, gfp);
-	if (!peer)
+	cp->peer = rxrpc_lookup_peer(cp->local, srx, gfp);
+	if (!cp->peer)
 		return ERR_PTR(-ENOMEM);
 
 	/* find a transport */
-	trans = rxrpc_get_transport(rx->local, peer, gfp);
-	rxrpc_put_peer(peer);
+	trans = rxrpc_get_transport(cp->local, cp->peer, gfp);
+	rxrpc_put_peer(cp->peer);
 	_leave(" = %p", trans);
 	return trans;
 }
@@ -277,6 +275,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   unsigned long user_call_ID,
 					   gfp_t gfp)
 {
+	struct rxrpc_conn_parameters cp;
 	struct rxrpc_conn_bundle *bundle;
 	struct rxrpc_transport *trans;
 	struct rxrpc_call *call;
@@ -286,18 +285,26 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 
 	lock_sock(&rx->sk);
 
-	trans = rxrpc_name_to_transport(rx, (struct sockaddr *)srx,
-					sizeof(*srx), 0, gfp);
+	if (!key)
+		key = rx->key;
+	if (key && !key->payload.data[0])
+		key = NULL; /* a no-security key */
+
+	memset(&cp, 0, sizeof(cp));
+	cp.local		= rx->local;
+	cp.key			= key;
+	cp.security_level	= 0;
+	cp.exclusive		= false;
+	cp.service_id		= srx->srx_service;
+
+	trans = rxrpc_name_to_transport(&cp, (struct sockaddr *)srx,
+					sizeof(*srx), gfp);
 	if (IS_ERR(trans)) {
 		call = ERR_CAST(trans);
 		trans = NULL;
 		goto out_notrans;
 	}
-
-	if (!key)
-		key = rx->key;
-	if (key && !key->payload.data[0])
-		key = NULL; /* a no-security key */
+	cp.peer = trans->peer;
 
 	bundle = rxrpc_get_bundle(rx, trans, key, srx->srx_service, gfp);
 	if (IS_ERR(bundle)) {
@@ -305,7 +312,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 		goto out;
 	}
 
-	call = rxrpc_new_client_call(rx, trans, bundle, user_call_ID, gfp);
+	call = rxrpc_new_client_call(rx, &cp, trans, bundle, user_call_ID, gfp);
 	rxrpc_put_bundle(trans, bundle);
 out:
 	rxrpc_put_transport(trans);
@@ -600,7 +607,7 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 	sk->sk_destruct		= rxrpc_sock_destructor;
 
 	rx = rxrpc_sk(sk);
-	rx->proto = protocol;
+	rx->family = protocol;
 	rx->calls = RB_ROOT;
 
 	INIT_LIST_HEAD(&rx->listen_link);

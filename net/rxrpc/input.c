@@ -360,7 +360,7 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 	case RXRPC_PACKET_TYPE_BUSY:
 		_proto("Rx BUSY %%%u", sp->hdr.serial);
 
-		if (call->conn->out_clientflag)
+		if (rxrpc_conn_is_service(call->conn))
 			goto protocol_error;
 
 		write_lock_bh(&call->state_lock);
@@ -533,7 +533,7 @@ static void rxrpc_post_packet_to_call(struct rxrpc_call *call,
 	case RXRPC_CALL_COMPLETE:
 	case RXRPC_CALL_CLIENT_FINAL_ACK:
 		/* complete server call */
-		if (call->conn->in_clientflag)
+		if (rxrpc_conn_is_service(call->conn))
 			goto dead_call;
 		/* resend last packet of a completed call */
 		_debug("final ack again");
