@@ -2750,7 +2750,7 @@ void qed_int_igu_enable_int(struct qed_hwfn *p_hwfn,
 int qed_int_igu_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		       enum qed_int_mode int_mode)
 {
-	int rc;
+	int rc = 0;
 
 	/* Configure AEU signal change to produce attentions */
 	qed_wr(p_hwfn, p_ptt, IGU_REG_ATTENTION_ENABLE, 0);

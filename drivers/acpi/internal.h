@@ -145,6 +145,12 @@ void acpi_early_processor_set_pdc(void);
 static inline void acpi_early_processor_set_pdc(void) {}
 #endif
 
+#ifdef CONFIG_X86
+void acpi_early_processor_osc(void);
+#else
+static inline void acpi_early_processor_osc(void) {}
+#endif
+
 /* --------------------------------------------------------------------------
                                   Embedded Controller
    -------------------------------------------------------------------------- */

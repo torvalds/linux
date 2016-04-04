@@ -178,6 +178,8 @@ int pkcs7_validate_trust(struct pkcs7_message *pkcs7,
 	int cached_ret = -ENOKEY;
 	int ret;
 
+	*_trusted = false;
+
 	for (p = pkcs7->certs; p; p = p->next)
 		p->seen = false;
 

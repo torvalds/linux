@@ -5042,6 +5042,7 @@ F:	include/linux/hw_random.h
 HARDWARE SPINLOCK CORE
 M:	Ohad Ben-Cohen <ohad@wizery.com>
 M:	Bjorn Andersson <bjorn.andersson@linaro.org>
+L:	linux-remoteproc@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ohad/hwspinlock.git
 F:	Documentation/hwspinlock.txt
@@ -6402,7 +6403,7 @@ KPROBES
 M:	Ananth N Mavinakayanahalli <ananth@in.ibm.com>
 M:	Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
 M:	"David S. Miller" <davem@davemloft.net>
-M:	Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
+M:	Masami Hiramatsu <mhiramat@kernel.org>
 S:	Maintained
 F:	Documentation/kprobes.txt
 F:	include/linux/kprobes.h
@@ -8253,7 +8254,7 @@ F:	Documentation/filesystems/overlayfs.txt
 
 ORANGEFS FILESYSTEM
 M:	Mike Marshall <hubcap@omnibond.com>
-L:	pvfs2-developers@beowulf-underground.org
+L:	pvfs2-developers@beowulf-underground.org (subscribers-only)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hubcap/linux.git
 S:	Supported
 F:	fs/orangefs/
@@ -9314,6 +9315,7 @@ F:	include/linux/regmap.h
 REMOTE PROCESSOR (REMOTEPROC) SUBSYSTEM
 M:	Ohad Ben-Cohen <ohad@wizery.com>
 M:	Bjorn Andersson <bjorn.andersson@linaro.org>
+L:	linux-remoteproc@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ohad/remoteproc.git
 S:	Maintained
 F:	drivers/remoteproc/
@@ -9323,6 +9325,7 @@ F:	include/linux/remoteproc.h
 REMOTE PROCESSOR MESSAGING (RPMSG) SUBSYSTEM
 M:	Ohad Ben-Cohen <ohad@wizery.com>
 M:	Bjorn Andersson <bjorn.andersson@linaro.org>
+L:	linux-remoteproc@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ohad/rpmsg.git
 S:	Maintained
 F:	drivers/rpmsg/
@@ -11137,8 +11140,8 @@ F:	include/uapi/linux/tipc*.h
 F:	net/tipc/
 
 TILE ARCHITECTURE
-M:	Chris Metcalf <cmetcalf@ezchip.com>
-W:	http://www.ezchip.com/scm/
+M:	Chris Metcalf <cmetcalf@mellanox.com>
+W:	http://www.mellanox.com/repository/solutions/tile-scm/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cmetcalf/linux-tile.git
 S:	Supported
 F:	arch/tile/

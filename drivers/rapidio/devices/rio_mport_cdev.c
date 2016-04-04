@@ -886,7 +886,7 @@ rio_dma_transfer(struct file *filp, uint32_t transfer_mode,
 		}
 
 		down_read(&current->mm->mmap_sem);
-		pinned = get_user_pages(current, current->mm,
+		pinned = get_user_pages(
 				(unsigned long)xfer->loc_addr & PAGE_MASK,
 				nr_pages, dir == DMA_FROM_DEVICE, 0,
 				page_list, NULL);
