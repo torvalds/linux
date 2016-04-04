@@ -1162,7 +1162,8 @@ static struct iommu_domain *omap_iommu_domain_alloc(unsigned type)
 	 * should never fail, but please keep this around to ensure
 	 * we keep the hardware happy
 	 */
-	BUG_ON(!IS_ALIGNED((long)omap_domain->pgtable, IOPGD_TABLE_SIZE));
+	if (WARN_ON(!IS_ALIGNED((long)omap_domain->pgtable, IOPGD_TABLE_SIZE)))
+		goto fail_align;
 
 	clean_dcache_area(omap_domain->pgtable, IOPGD_TABLE_SIZE);
 	spin_lock_init(&omap_domain->lock);
@@ -1173,6 +1174,8 @@ static struct iommu_domain *omap_iommu_domain_alloc(unsigned type)
 
 	return &omap_domain->domain;
 
+fail_align:
+	kfree(omap_domain->pgtable);
 fail_nomem:
 	kfree(omap_domain);
 out:
