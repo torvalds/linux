@@ -1,4 +1,6 @@
 /dts-v1/;
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
 / {
 	model = "Nintendo 3DS (CTR)";
 	compatible = "nintendo3ds,ctr";
@@ -89,6 +91,48 @@
 		};*/
 	};
 
+	spi0: spi@10160000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "nintendo3ds,nintendo3ds-spi";
+		reg = <0x10160000 0x1000>;
+		interrupts =
+			<GIC_SPI 0x56 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 0x57 IRQ_TYPE_EDGE_RISING>;
+		interrupt-parent = <&gic>;
+	};
+
+	spi1: spi@10142000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "nintendo3ds,nintendo3ds-spi";
+		reg = <0x10142000 0x1000>;
+		interrupts =
+			<GIC_SPI 0x56 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 0x57 IRQ_TYPE_EDGE_RISING>;
+		interrupt-parent = <&gic>;
+
+		touchscreen@3 {
+			compatible = "nintendo3ds,spi-touchscreen";
+			spi-max-frequency = <4000000>;
+			reg = <3>;
+
+			touchscreen-size-x = <320>;
+			touchscreen-size-y = <240>;
+		};
+	};
+
+	spi2: spi@10143000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "nintendo3ds,nintendo3ds-spi";
+		reg = <0x10143000 0x1000>;
+		interrupts =
+			<GIC_SPI 0x56 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 0x57 IRQ_TYPE_EDGE_RISING>;
+		interrupt-parent = <&gic>;
+	};
+
 	nintendo3ds_refclk144mhz: refclk144mkhz {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -99,14 +143,14 @@
 	twd-timer@17E00600 {
 		compatible = "arm,arm11mp-twd-timer";
 		reg = <0x17E00600 0x20>;
-		interrupts = <1 13 0xf01>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_RAW(0xF) | IRQ_TYPE_EDGE_RISING)>;
 		clocks = <&nintendo3ds_refclk144mhz>;
 	};
 
 	twd-watchdog@17E00620 {
 		compatible = "arm,arm11mp-twd-wdt";
 		reg = <0x17E00620 0x20>;
-		interrupts = <1 14 0xf01>;
+		interrupts = <GIC_PPI 14 (GIC_CPU_MASK_RAW(0xF) | IRQ_TYPE_EDGE_RISING)>;
 	};
 
 	gic: interrupt-controller@17E01000 {
@@ -114,9 +158,7 @@
 		#interrupt-cells = <3>;
 		#address-cells = <1>;
 		interrupt-controller;
-		arm,routable-irqs = <128>;
 		reg = <0x17E01000 0x1000>, //GIC distributor register
 		      <0x17E00100 0x100>;  //GIC cpu interface register
 	};
-
 } ;
