@@ -200,6 +200,7 @@ dtb-$(CONFIG_MACH_KIRKWOOD) += \
 	kirkwood-linkstation-lswsxl.dtb \
 	kirkwood-linkstation-lswvl.dtb \
 	kirkwood-linkstation-lswxl.dtb \
+	kirkwood-linksys-viper.dtb \
 	kirkwood-lschlv2.dtb \
 	kirkwood-lsxhl.dtb \
 	kirkwood-mplcec4.dtb \
