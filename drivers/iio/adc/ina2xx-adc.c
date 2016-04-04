@@ -185,9 +185,9 @@ static int ina2xx_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->address) {
 		case INA2XX_SHUNT_VOLTAGE:
-			/* processed (mV) = raw*1000/shunt_div */
+			/* processed (mV) = raw/shunt_div */
 			*val2 = chip->config->shunt_div;
-			*val = 1000;
+			*val = 1;
 			return IIO_VAL_FRACTIONAL;
 
 		case INA2XX_BUS_VOLTAGE:
@@ -350,6 +350,23 @@ static ssize_t ina2xx_allow_async_readout_store(struct device *dev,
 	return len;
 }
 
+/*
+ * Set current LSB to 1mA, shunt is in uOhms
+ * (equation 13 in datasheet). We hardcode a Current_LSB
+ * of 1.0 x10-6. The only remaining parameter is RShunt.
+ * There is no need to expose the CALIBRATION register
+ * to the user for now. But we need to reset this register
+ * if the user updates RShunt after driver init, e.g upon
+ * reading an EEPROM/Probe-type value.
+ */
+static int ina2xx_set_calibration(struct ina2xx_chip_info *chip)
+{
+	u16 regval = DIV_ROUND_CLOSEST(chip->config->calibration_factor,
+				   chip->shunt_resistor);
+
+	return regmap_write(chip->regmap, INA2XX_CALIBRATION, regval);
+}
+
 static int set_shunt_resistor(struct ina2xx_chip_info *chip, unsigned int val)
 {
 	if (val <= 0 || val > chip->config->calibration_factor)
@@ -382,6 +399,11 @@ static ssize_t ina2xx_shunt_resistor_store(struct device *dev,
 		return ret;
 
 	ret = set_shunt_resistor(chip, val);
+	if (ret)
+		return ret;
+
+	/* Update the Calibration register */
+	ret = ina2xx_set_calibration(chip);
 	if (ret)
 		return ret;
 
@@ -602,24 +624,11 @@ static const struct iio_info ina2xx_info = {
 /* Initialize the configuration and calibration registers. */
 static int ina2xx_init(struct ina2xx_chip_info *chip, unsigned int config)
 {
-	u16 regval;
-	int ret;
-
-	ret = regmap_write(chip->regmap, INA2XX_CONFIG, config);
+	int ret = regmap_write(chip->regmap, INA2XX_CONFIG, config);
 	if (ret)
 		return ret;
 
-	/*
-	 * Set current LSB to 1mA, shunt is in uOhms
-	 * (equation 13 in datasheet). We hardcode a Current_LSB
-	 * of 1.0 x10-6. The only remaining parameter is RShunt.
-	 * There is no need to expose the CALIBRATION register
-	 * to the user for now.
-	 */
-	regval = DIV_ROUND_CLOSEST(chip->config->calibration_factor,
-				   chip->shunt_resistor);
-
-	return regmap_write(chip->regmap, INA2XX_CALIBRATION, regval);
+	return ina2xx_set_calibration(chip);
 }
 
 static int ina2xx_probe(struct i2c_client *client,

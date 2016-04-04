@@ -12,9 +12,9 @@
 #define _AD2S1210_H
 
 struct ad2s1210_platform_data {
-	unsigned sample;
-	unsigned a[2];
-	unsigned res[2];
-	bool gpioin;
+	unsigned int		sample;
+	unsigned int		a[2];
+	unsigned int		res[2];
+	bool			gpioin;
 };
 #endif /* _AD2S1210_H */

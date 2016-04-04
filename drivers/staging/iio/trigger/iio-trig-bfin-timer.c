@@ -55,12 +55,12 @@ static struct bfin_timer iio_bfin_timer_code[MAX_BLACKFIN_GPTIMERS] = {
 };
 
 struct bfin_tmr_state {
-	struct iio_trigger *trig;
-	struct bfin_timer *t;
-	unsigned timer_num;
-	bool output_enable;
-	unsigned int duty;
-	int irq;
+	struct iio_trigger	*trig;
+	struct bfin_timer	*t;
+	unsigned int		timer_num;
+	bool			output_enable;
+	unsigned int		duty;
+	int			irq;
 };
 
 static int iio_bfin_tmr_set_state(struct iio_trigger *trig, bool state)

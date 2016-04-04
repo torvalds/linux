@@ -46,6 +46,7 @@ static int inv_mpu_probe(struct spi_device *spi)
 	struct regmap *regmap;
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	const char *name = id ? id->name : NULL;
+	const int chip_type = id ? id->driver_data : 0;
 
 	regmap = devm_regmap_init_spi(spi, &inv_mpu_regmap_config);
 	if (IS_ERR(regmap)) {
@@ -55,7 +56,7 @@ static int inv_mpu_probe(struct spi_device *spi)
 	}
 
 	return inv_mpu_core_probe(regmap, spi->irq, name,
-				  inv_mpu_i2c_disable, id->driver_data);
+				  inv_mpu_i2c_disable, chip_type);
 }
 
 static int inv_mpu_remove(struct spi_device *spi)

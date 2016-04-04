@@ -76,6 +76,10 @@ static const struct of_device_id st_accel_of_match[] = {
 		.compatible = "st,lis2dh12-accel",
 		.data = LIS2DH12_ACCEL_DEV_NAME,
 	},
+	{
+		.compatible = "st,h3lis331dl-accel",
+		.data = H3LIS331DL_DRIVER_NAME,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_accel_of_match);

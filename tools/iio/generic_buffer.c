@@ -304,7 +304,19 @@ int main(int argc, char **argv)
 			}
 		}
 
-		/* Verify the trigger exists */
+		/* Look for this "-devN" trigger */
+		trig_num = find_type_by_name(trigger_name, "trigger");
+		if (trig_num < 0) {
+			/* OK try the simpler "-trigger" suffix instead */
+			free(trigger_name);
+			ret = asprintf(&trigger_name,
+				       "%s-trigger", device_name);
+			if (ret < 0) {
+				ret = -ENOMEM;
+				goto error_free_dev_dir_name;
+			}
+		}
+
 		trig_num = find_type_by_name(trigger_name, "trigger");
 		if (trig_num < 0) {
 			fprintf(stderr, "Failed to find the trigger %s\n",

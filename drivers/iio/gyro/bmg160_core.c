@@ -17,7 +17,6 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
-#include <linux/gpio/consumer.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/iio/iio.h>
@@ -31,7 +30,6 @@
 #include "bmg160.h"
 
 #define BMG160_IRQ_NAME		"bmg160_event"
-#define BMG160_GPIO_NAME		"gpio_int"
 
 #define BMG160_REG_CHIP_ID		0x00
 #define BMG160_CHIP_ID_VAL		0x0F
@@ -116,6 +114,7 @@ enum bmg160_axis {
 	AXIS_X,
 	AXIS_Y,
 	AXIS_Z,
+	AXIS_MAX,
 };
 
 static const struct {
@@ -733,6 +732,7 @@ static const struct iio_event_spec bmg160_event = {
 		.sign = 's',						\
 		.realbits = 16,					\
 		.storagebits = 16,					\
+		.endianness = IIO_LE,					\
 	},								\
 	.event_spec = &bmg160_event,					\
 	.num_event_specs = 1						\
@@ -763,26 +763,23 @@ static const struct iio_info bmg160_info = {
 	.driver_module		= THIS_MODULE,
 };
 
+static const unsigned long bmg160_accel_scan_masks[] = {
+					BIT(AXIS_X) | BIT(AXIS_Y) | BIT(AXIS_Z),
+					0};
+
 static irqreturn_t bmg160_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmg160_data *data = iio_priv(indio_dev);
-	int bit, ret, i = 0;
-	unsigned int val;
+	int ret;
 
 	mutex_lock(&data->mutex);
-	for_each_set_bit(bit, indio_dev->active_scan_mask,
-			 indio_dev->masklength) {
-		ret = regmap_bulk_read(data->regmap, BMG160_AXIS_TO_REG(bit),
-				       &val, 2);
-		if (ret < 0) {
-			mutex_unlock(&data->mutex);
-			goto err;
-		}
-		data->buffer[i++] = ret;
-	}
+	ret = regmap_bulk_read(data->regmap, BMG160_REG_XOUT_L,
+			       data->buffer, AXIS_MAX * 2);
 	mutex_unlock(&data->mutex);
+	if (ret < 0)
+		goto err;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 					   pf->timestamp);
@@ -955,29 +952,6 @@ static const struct iio_buffer_setup_ops bmg160_buffer_setup_ops = {
 	.postdisable = bmg160_buffer_postdisable,
 };
 
-static int bmg160_gpio_probe(struct bmg160_data *data)
-
-{
-	struct device *dev;
-	struct gpio_desc *gpio;
-
-	dev = data->dev;
-
-	/* data ready gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, BMG160_GPIO_NAME, 0, GPIOD_IN);
-	if (IS_ERR(gpio)) {
-		dev_err(dev, "acpi gpio get index failed\n");
-		return PTR_ERR(gpio);
-	}
-
-	data->irq = gpiod_to_irq(gpio);
-
-	dev_dbg(dev, "GPIO resource, no:%d irq:%d\n", desc_to_gpio(gpio),
-		data->irq);
-
-	return 0;
-}
-
 static const char *bmg160_match_acpi_device(struct device *dev)
 {
 	const struct acpi_device_id *id;
@@ -1019,11 +993,9 @@ int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	indio_dev->channels = bmg160_channels;
 	indio_dev->num_channels = ARRAY_SIZE(bmg160_channels);
 	indio_dev->name = name;
+	indio_dev->available_scan_masks = bmg160_accel_scan_masks;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &bmg160_info;
-
-	if (data->irq <= 0)
-		bmg160_gpio_probe(data);
 
 	if (data->irq > 0) {
 		ret = devm_request_threaded_irq(dev,

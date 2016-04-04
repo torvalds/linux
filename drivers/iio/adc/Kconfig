@@ -134,6 +134,7 @@ config AT91_ADC
 config AT91_SAMA5D2_ADC
 	tristate "Atmel AT91 SAMA5D2 ADC"
 	depends on ARCH_AT91 || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Say yes here to build support for Atmel SAMA5D2 ADC which is
 	  available on SAMA5D2 SoC family.
@@ -240,6 +241,16 @@ config LP8788_ADC
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called lp8788_adc.
+
+config LPC18XX_ADC
+	tristate "NXP LPC18xx ADC driver"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	help
+	  Say yes here to build support for NXP LPC18XX ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called lpc18xx_adc.
 
 config MAX1027
 	tristate "Maxim max1027 ADC driver"

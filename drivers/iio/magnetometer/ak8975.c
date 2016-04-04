@@ -32,6 +32,7 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/acpi.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -361,7 +362,6 @@ static const struct ak_def ak_def_array[AK_MAX_TYPE] = {
 struct ak8975_data {
 	struct i2c_client	*client;
 	const struct ak_def	*def;
-	struct attribute_group	attrs;
 	struct mutex		lock;
 	u8			asa[3];
 	long			raw_to_gauss[3];
@@ -370,7 +370,39 @@ struct ak8975_data {
 	wait_queue_head_t	data_ready_queue;
 	unsigned long		flags;
 	u8			cntl_cache;
+	struct regulator	*vdd;
 };
+
+/* Enable attached power regulator if any. */
+static int ak8975_power_on(struct i2c_client *client)
+{
+	const struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct ak8975_data *data = iio_priv(indio_dev);
+	int ret;
+
+	data->vdd = devm_regulator_get(&client->dev, "vdd");
+	if (IS_ERR_OR_NULL(data->vdd)) {
+		ret = PTR_ERR(data->vdd);
+		if (ret == -ENODEV)
+			ret = 0;
+	} else {
+		ret = regulator_enable(data->vdd);
+	}
+
+	if (ret)
+		dev_err(&client->dev, "failed to enable Vdd supply: %d\n", ret);
+	return ret;
+}
+
+/* Disable attached power regulator if any. */
+static void ak8975_power_off(const struct i2c_client *client)
+{
+	const struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	const struct ak8975_data *data = iio_priv(indio_dev);
+
+	if (!IS_ERR_OR_NULL(data->vdd))
+		regulator_disable(data->vdd);
+}
 
 /*
  * Return 0 if the i2c device is the one we expect.
@@ -774,8 +806,11 @@ static int ak8975_probe(struct i2c_client *client,
 	if (id) {
 		chipset = (enum asahi_compass_chipset)(id->driver_data);
 		name = id->name;
-	} else if (ACPI_HANDLE(&client->dev))
+	} else if (ACPI_HANDLE(&client->dev)) {
 		name = ak8975_match_acpi_device(&client->dev, &chipset);
+		if (!name)
+			return -ENODEV;
+	}
 	else
 		return -ENOSYS;
 
@@ -786,10 +821,15 @@ static int ak8975_probe(struct i2c_client *client,
 	}
 
 	data->def = &ak_def_array[chipset];
+
+	err = ak8975_power_on(client);
+	if (err)
+		return err;
+
 	err = ak8975_who_i_am(client, data->def->type);
 	if (err < 0) {
 		dev_err(&client->dev, "Unexpected device\n");
-		return err;
+		goto power_off;
 	}
 	dev_dbg(&client->dev, "Asahi compass chip %s\n", name);
 
@@ -797,7 +837,7 @@ static int ak8975_probe(struct i2c_client *client,
 	err = ak8975_setup(client);
 	if (err < 0) {
 		dev_err(&client->dev, "%s initialization fails\n", name);
-		return err;
+		goto power_off;
 	}
 
 	mutex_init(&data->lock);
@@ -807,7 +847,26 @@ static int ak8975_probe(struct i2c_client *client,
 	indio_dev->info = &ak8975_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->name = name;
-	return devm_iio_device_register(&client->dev, indio_dev);
+
+	err = iio_device_register(indio_dev);
+	if (err)
+		goto power_off;
+
+	return 0;
+
+power_off:
+	ak8975_power_off(client);
+	return err;
+}
+
+static int ak8975_remove(struct i2c_client *client)
+{
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+
+	iio_device_unregister(indio_dev);
+	ak8975_power_off(client);
+
+	return 0;
 }
 
 static const struct i2c_device_id ak8975_id[] = {
@@ -841,6 +900,7 @@ static struct i2c_driver ak8975_driver = {
 		.acpi_match_table = ACPI_PTR(ak_acpi_match),
 	},
 	.probe		= ak8975_probe,
+	.remove		= ak8975_remove,
 	.id_table	= ak8975_id,
 };
 module_i2c_driver(ak8975_driver);
