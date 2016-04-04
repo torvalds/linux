@@ -224,7 +224,7 @@ void fpstate_init(union fpregs_state *state)
 
 	memset(state, 0, xstate_size);
 
-	if (cpu_has_fxsr)
+	if (static_cpu_has(X86_FEATURE_FXSR))
 		fpstate_init_fxstate(&state->fxsave);
 	else
 		fpstate_init_fstate(&state->fsave);
@@ -508,7 +508,7 @@ void fpu__clear(struct fpu *fpu)
 
 static inline unsigned short get_fpu_cwd(struct fpu *fpu)
 {
-	if (cpu_has_fxsr) {
+	if (boot_cpu_has(X86_FEATURE_FXSR)) {
 		return fpu->state.fxsave.cwd;
 	} else {
 		return (unsigned short)fpu->state.fsave.cwd;
@@ -517,7 +517,7 @@ static inline unsigned short get_fpu_cwd(struct fpu *fpu)
 
 static inline unsigned short get_fpu_swd(struct fpu *fpu)
 {
-	if (cpu_has_fxsr) {
+	if (boot_cpu_has(X86_FEATURE_FXSR)) {
 		return fpu->state.fxsave.swd;
 	} else {
 		return (unsigned short)fpu->state.fsave.swd;

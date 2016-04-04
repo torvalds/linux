@@ -29,7 +29,7 @@ static void fpu__init_cpu_generic(void)
 	unsigned long cr0;
 	unsigned long cr4_mask = 0;
 
-	if (cpu_has_fxsr)
+	if (boot_cpu_has(X86_FEATURE_FXSR))
 		cr4_mask |= X86_CR4_OSFXSR;
 	if (boot_cpu_has(X86_FEATURE_XMM))
 		cr4_mask |= X86_CR4_OSXMMEXCPT;
@@ -106,7 +106,7 @@ static void __init fpu__init_system_mxcsr(void)
 {
 	unsigned int mask = 0;
 
-	if (cpu_has_fxsr) {
+	if (boot_cpu_has(X86_FEATURE_FXSR)) {
 		/* Static because GCC does not get 16-byte stack alignment right: */
 		static struct fxregs_state fxregs __initdata;
 
@@ -221,7 +221,7 @@ static void __init fpu__init_system_xstate_size_legacy(void)
 		setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
 		xstate_size = sizeof(struct swregs_state);
 	} else {
-		if (cpu_has_fxsr)
+		if (boot_cpu_has(X86_FEATURE_FXSR))
 			xstate_size = sizeof(struct fxregs_state);
 		else
 			xstate_size = sizeof(struct fregs_state);

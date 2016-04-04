@@ -21,7 +21,10 @@ int regset_xregset_fpregs_active(struct task_struct *target, const struct user_r
 {
 	struct fpu *target_fpu = &target->thread.fpu;
 
-	return (cpu_has_fxsr && target_fpu->fpstate_active) ? regset->n : 0;
+	if (boot_cpu_has(X86_FEATURE_FXSR) && target_fpu->fpstate_active)
+		return regset->n;
+	else
+		return 0;
 }
 
 int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
@@ -30,7 +33,7 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 {
 	struct fpu *fpu = &target->thread.fpu;
 
-	if (!cpu_has_fxsr)
+	if (!boot_cpu_has(X86_FEATURE_FXSR))
 		return -ENODEV;
 
 	fpu__activate_fpstate_read(fpu);
@@ -47,7 +50,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	struct fpu *fpu = &target->thread.fpu;
 	int ret;
 
-	if (!cpu_has_fxsr)
+	if (!boot_cpu_has(X86_FEATURE_FXSR))
 		return -ENODEV;
 
 	fpu__activate_fpstate_write(fpu);
@@ -278,7 +281,7 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (!static_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_get(target, regset, pos, count, kbuf, ubuf);
 
-	if (!cpu_has_fxsr)
+	if (!boot_cpu_has(X86_FEATURE_FXSR))
 		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 					   &fpu->state.fsave, 0,
 					   -1);
@@ -309,7 +312,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!static_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_set(target, regset, pos, count, kbuf, ubuf);
 
-	if (!cpu_has_fxsr)
+	if (!boot_cpu_has(X86_FEATURE_FXSR))
 		return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 					  &fpu->state.fsave, 0,
 					  -1);
