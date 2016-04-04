@@ -301,12 +301,12 @@ void ata_scsi_set_sense_information(struct ata_device *dev,
 }
 
 static void ata_scsi_set_invalid_field(struct ata_device *dev,
-				       struct scsi_cmnd *cmd, u16 field)
+				       struct scsi_cmnd *cmd, u16 field, u8 bit)
 {
 	ata_scsi_set_sense(dev, cmd, ILLEGAL_REQUEST, 0x24, 0x0);
 	/* "Invalid field in cbd" */
 	scsi_set_sense_field_pointer(cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE,
-				     field, 0xff, 1);
+				     field, bit, 1);
 }
 
 static ssize_t
@@ -399,7 +399,7 @@ EXPORT_SYMBOL_GPL(ata_common_sdev_attrs);
 static void ata_scsi_invalid_field(struct ata_device *dev,
 				   struct scsi_cmnd *cmd, u16 field)
 {
-	ata_scsi_set_invalid_field(dev, cmd, field);
+	ata_scsi_set_invalid_field(dev, cmd, field, 0xff);
 	cmd->scsi_done(cmd);
 }
 
@@ -1395,6 +1395,7 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 	struct ata_taskfile *tf = &qc->tf;
 	const u8 *cdb = scmd->cmnd;
 	u16 fp;
+	u8 bp = 0xff;
 
 	if (scmd->cmd_len < 5) {
 		fp = 4;
@@ -1408,10 +1409,12 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 	}
 	if (cdb[4] & 0x2) {
 		fp = 4;
+		bp = 1;
 		goto invalid_fld;       /* LOEJ bit set not supported */
 	}
 	if (((cdb[4] >> 4) & 0xf) != 0) {
 		fp = 4;
+		bp = 3;
 		goto invalid_fld;       /* power conditions not supported */
 	}
 
@@ -1459,7 +1462,7 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 	return 0;
 
  invalid_fld:
-	ata_scsi_set_invalid_field(qc->dev, scmd, fp);
+	ata_scsi_set_invalid_field(qc->dev, scmd, fp, bp);
 	return 1;
  skip:
 	scmd->result = SAM_STAT_GOOD;
@@ -1704,7 +1707,7 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc)
 	return 0;
 
 invalid_fld:
-	ata_scsi_set_invalid_field(qc->dev, scmd, fp);
+	ata_scsi_set_invalid_field(qc->dev, scmd, fp, 0xff);
 	return 1;
 
 out_of_range:
@@ -1813,7 +1816,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 		goto out_of_range;
 	/* treat all other errors as -EINVAL, fall through */
 invalid_fld:
-	ata_scsi_set_invalid_field(qc->dev, scmd, fp);
+	ata_scsi_set_invalid_field(qc->dev, scmd, fp, 0xff);
 	return 1;
 
 out_of_range:
@@ -2471,7 +2474,7 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 	};
 	u8 pg, spg;
 	unsigned int ebd, page_control, six_byte;
-	u8 dpofua;
+	u8 dpofua, bp = 0xff;
 	u16 fp;
 
 	VPRINTK("ENTER\n");
@@ -2492,6 +2495,7 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 		goto saving_not_supp;
 	default:
 		fp = 2;
+		bp = 6;
 		goto invalid_fld;
 	}
 
@@ -2561,7 +2565,7 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 	return 0;
 
 invalid_fld:
-	ata_scsi_set_invalid_field(dev, args->cmd, fp);
+	ata_scsi_set_invalid_field(dev, args->cmd, fp, bp);
 	return 1;
 
 saving_not_supp:
@@ -3215,7 +3219,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	return 0;
 
  invalid_fld:
-	ata_scsi_set_invalid_field(dev, scmd, fp);
+	ata_scsi_set_invalid_field(dev, scmd, fp, 0xff);
 	return 1;
 }
 
@@ -3230,6 +3234,7 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
 	u32 size;
 	void *buf;
 	u16 fp;
+	u8 bp = 0xff;
 
 	/* we may not issue DMA commands if no DMA mode is set */
 	if (unlikely(!dev->dma_mode))
@@ -3244,6 +3249,7 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
 	/* for now we only support WRITE SAME with the unmap bit set */
 	if (unlikely(!(cdb[1] & 0x8))) {
 		fp = 1;
+		bp = 3;
 		goto invalid_fld;
 	}
 
@@ -3284,7 +3290,7 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
 	return 0;
 
 invalid_fld:
-	ata_scsi_set_invalid_field(dev, scmd, fp);
+	ata_scsi_set_invalid_field(dev, scmd, fp, bp);
 	return 1;
 invalid_param_len:
 	/* "Parameter list length error" */
@@ -3407,6 +3413,7 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	unsigned six_byte, pg_len, hdr_len, bd_len;
 	int len;
 	u16 fp;
+	u8 bp;
 
 	VPRINTK("ENTER\n");
 
@@ -3432,6 +3439,7 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	/* We only support PF=1, SP=0.  */
 	if ((cdb[1] & 0x11) != 0x10) {
 		fp = 1;
+		bp = (cdb[1] & 0x01) ? 1 : 5;
 		goto invalid_fld;
 	}
 
@@ -3514,7 +3522,7 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	return 0;
 
  invalid_fld:
-	ata_scsi_set_invalid_field(qc->dev, scmd, fp);
+	ata_scsi_set_invalid_field(qc->dev, scmd, fp, bp);
 	return 1;
 
  invalid_param:
