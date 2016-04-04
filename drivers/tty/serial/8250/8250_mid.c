@@ -25,6 +25,7 @@
 #define PCI_DEVICE_ID_INTEL_DNV_UART	0x19d8
 
 /* Intel MID Specific registers */
+#define INTEL_MID_UART_DNV_FISR		0x08
 #define INTEL_MID_UART_PS		0x30
 #define INTEL_MID_UART_MUL		0x34
 #define INTEL_MID_UART_DIV		0x38
@@ -90,16 +91,16 @@ static int tng_setup(struct mid8250 *mid, struct uart_port *p)
 static int dnv_handle_irq(struct uart_port *p)
 {
 	struct mid8250 *mid = p->private_data;
-	int ret;
+	unsigned int fisr = serial_port_in(p, INTEL_MID_UART_DNV_FISR);
+	int ret = IRQ_NONE;
 
-	ret = hsu_dma_irq(&mid->dma_chip, 0);
-	ret |= hsu_dma_irq(&mid->dma_chip, 1);
-
-	/* For now, letting the HW generate separate interrupt for the UART */
-	if (ret)
-		return ret;
-
-	return serial8250_handle_irq(p, serial_port_in(p, UART_IIR));
+	if (fisr & BIT(2))
+		ret |= hsu_dma_irq(&mid->dma_chip, 1);
+	if (fisr & BIT(1))
+		ret |= hsu_dma_irq(&mid->dma_chip, 0);
+	if (fisr & BIT(0))
+		ret |= serial8250_handle_irq(p, serial_port_in(p, UART_IIR));
+	return ret;
 }
 
 #define DNV_DMA_CHAN_OFFSET 0x80
