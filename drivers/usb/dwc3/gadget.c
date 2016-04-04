@@ -227,6 +227,7 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 	struct dwc3_ep		*dep = dwc->eps[ep];
 	u32			timeout = 500;
 	u32			reg;
+	int			ret = -EINVAL;
 
 	trace_dwc3_gadget_ep_cmd(dep, cmd, params);
 
@@ -242,8 +243,9 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 					"Command Complete --> %d",
 					DWC3_DEPCMD_STATUS(reg));
 			if (DWC3_DEPCMD_STATUS(reg))
-				return -EINVAL;
-			return 0;
+				break;
+			ret = 0;
+			break;
 		}
 
 		/*
@@ -254,11 +256,14 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 		if (!timeout) {
 			dwc3_trace(trace_dwc3_gadget,
 					"Command Timed Out");
-			return -ETIMEDOUT;
+			ret = -ETIMEDOUT;
+			break;
 		}
 
 		udelay(1);
 	} while (1);
+
+	return ret;
 }
 
 static dma_addr_t dwc3_trb_dma_offset(struct dwc3_ep *dep,
