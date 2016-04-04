@@ -309,6 +309,15 @@ static void ata_scsi_set_invalid_field(struct ata_device *dev,
 				     field, bit, 1);
 }
 
+static void ata_scsi_set_invalid_parameter(struct ata_device *dev,
+					   struct scsi_cmnd *cmd, u16 field)
+{
+	/* "Invalid field in parameter list" */
+	ata_scsi_set_sense(dev, cmd, ILLEGAL_REQUEST, 0x26, 0x0);
+	scsi_set_sense_field_pointer(cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE,
+				     field, 0xff, 0);
+}
+
 static ssize_t
 ata_scsi_em_message_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
@@ -3307,6 +3316,7 @@ invalid_opcode:
  *	@qc: Storage for translated ATA taskfile
  *	@buf: input buffer
  *	@len: number of valid bytes in the input buffer
+ *	@fp: out parameter for the failed field on error
  *
  *	Prepare a taskfile to modify caching information for the device.
  *
@@ -3314,20 +3324,26 @@ invalid_opcode:
  *	None.
  */
 static int ata_mselect_caching(struct ata_queued_cmd *qc,
-			       const u8 *buf, int len)
+			       const u8 *buf, int len, u16 *fp)
 {
 	struct ata_taskfile *tf = &qc->tf;
 	struct ata_device *dev = qc->dev;
 	char mpage[CACHE_MPAGE_LEN];
 	u8 wce;
+	int i;
 
 	/*
 	 * The first two bytes of def_cache_mpage are a header, so offsets
 	 * in mpage are off by 2 compared to buf.  Same for len.
 	 */
 
-	if (len != CACHE_MPAGE_LEN - 2)
+	if (len != CACHE_MPAGE_LEN - 2) {
+		if (len < CACHE_MPAGE_LEN - 2)
+			*fp = len;
+		else
+			*fp = CACHE_MPAGE_LEN - 2;
 		return -EINVAL;
+	}
 
 	wce = buf[0] & (1 << 2);
 
@@ -3335,10 +3351,14 @@ static int ata_mselect_caching(struct ata_queued_cmd *qc,
 	 * Check that read-only bits are not modified.
 	 */
 	ata_msense_caching(dev->id, mpage, false);
-	mpage[2] &= ~(1 << 2);
-	mpage[2] |= wce;
-	if (memcmp(mpage + 2, buf, CACHE_MPAGE_LEN - 2) != 0)
-		return -EINVAL;
+	for (i = 0; i < CACHE_MPAGE_LEN - 2; i++) {
+		if (i == 0)
+			continue;
+		if (mpage[i + 2] != buf[i]) {
+			*fp = i;
+			return -EINVAL;
+		}
+	}
 
 	tf->flags |= ATA_TFLAG_DEVICE | ATA_TFLAG_ISADDR;
 	tf->protocol = ATA_PROT_NODATA;
@@ -3353,6 +3373,7 @@ static int ata_mselect_caching(struct ata_queued_cmd *qc,
  *	@qc: Storage for translated ATA taskfile
  *	@buf: input buffer
  *	@len: number of valid bytes in the input buffer
+ *	@fp: out parameter for the failed field on error
  *
  *	Prepare a taskfile to modify caching information for the device.
  *
@@ -3360,19 +3381,25 @@ static int ata_mselect_caching(struct ata_queued_cmd *qc,
  *	None.
  */
 static int ata_mselect_control(struct ata_queued_cmd *qc,
-			       const u8 *buf, int len)
+			       const u8 *buf, int len, u16 *fp)
 {
 	struct ata_device *dev = qc->dev;
 	char mpage[CONTROL_MPAGE_LEN];
 	u8 d_sense;
+	int i;
 
 	/*
 	 * The first two bytes of def_control_mpage are a header, so offsets
 	 * in mpage are off by 2 compared to buf.  Same for len.
 	 */
 
-	if (len != CONTROL_MPAGE_LEN - 2)
+	if (len != CONTROL_MPAGE_LEN - 2) {
+		if (len < CONTROL_MPAGE_LEN - 2)
+			*fp = len;
+		else
+			*fp = CONTROL_MPAGE_LEN - 2;
 		return -EINVAL;
+	}
 
 	d_sense = buf[0] & (1 << 2);
 
@@ -3380,10 +3407,14 @@ static int ata_mselect_control(struct ata_queued_cmd *qc,
 	 * Check that read-only bits are not modified.
 	 */
 	ata_msense_ctl_mode(dev, mpage, false);
-	mpage[2] &= ~(1 << 2);
-	mpage[2] |= d_sense;
-	if (memcmp(mpage + 2, buf, CONTROL_MPAGE_LEN - 2) != 0)
-		return -EINVAL;
+	for (i = 0; i < CONTROL_MPAGE_LEN - 2; i++) {
+		if (i == 0)
+			continue;
+		if (mpage[2 + i] != buf[i]) {
+			*fp = i;
+			return -EINVAL;
+		}
+	}
 	if (d_sense & (1 << 2))
 		dev->flags |= ATA_DFLAG_D_SENSE;
 	else
@@ -3412,8 +3443,8 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	u8 pg, spg;
 	unsigned six_byte, pg_len, hdr_len, bd_len;
 	int len;
-	u16 fp;
-	u8 bp;
+	u16 fp = (u16)-1;
+	u8 bp = 0xff;
 
 	VPRINTK("ENTER\n");
 
@@ -3462,8 +3493,11 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	p += hdr_len;
 	if (len < bd_len)
 		goto invalid_param_len;
-	if (bd_len != 0 && bd_len != 8)
+	if (bd_len != 0 && bd_len != 8) {
+		fp = (six_byte) ? 3 : 6;
+		fp += bd_len + hdr_len;
 		goto invalid_param;
+	}
 
 	len -= bd_len;
 	p += bd_len;
@@ -3494,21 +3528,29 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	 * No mode subpages supported (yet) but asking for _all_
 	 * subpages may be valid
 	 */
-	if (spg && (spg != ALL_SUB_MPAGES))
+	if (spg && (spg != ALL_SUB_MPAGES)) {
+		fp = (p[0] & 0x40) ? 1 : 0;
+		fp += hdr_len + bd_len;
 		goto invalid_param;
+	}
 	if (pg_len > len)
 		goto invalid_param_len;
 
 	switch (pg) {
 	case CACHE_MPAGE:
-		if (ata_mselect_caching(qc, p, pg_len) < 0)
+		if (ata_mselect_caching(qc, p, pg_len, &fp) < 0) {
+			fp += hdr_len + bd_len;
 			goto invalid_param;
+		}
 		break;
 	case CONTROL_MPAGE:
-		if (ata_mselect_control(qc, p, pg_len) < 0)
+		if (ata_mselect_control(qc, p, pg_len, &fp) < 0) {
+			fp += hdr_len + bd_len;
 			goto invalid_param;
+		}
 		break;
 	default:		/* invalid page code */
+		fp = bd_len + hdr_len;
 		goto invalid_param;
 	}
 
@@ -3526,8 +3568,7 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	return 1;
 
  invalid_param:
-	/* "Invalid field in parameter list" */
-	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x26, 0x0);
+	ata_scsi_set_invalid_parameter(qc->dev, scmd, fp);
 	return 1;
 
  invalid_param_len:
