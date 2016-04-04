@@ -141,7 +141,7 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 			_debug("await conn sec");
 			list_add_tail(&call->accept_link, &rx->secureq);
 			call->conn->state = RXRPC_CONN_SERVER_CHALLENGING;
-			atomic_inc(&call->conn->usage);
+			rxrpc_get_connection(call->conn);
 			set_bit(RXRPC_CONN_CHALLENGE, &call->conn->events);
 			rxrpc_queue_conn(call->conn);
 		} else {

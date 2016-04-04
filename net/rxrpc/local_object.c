@@ -209,7 +209,7 @@ struct rxrpc_local *rxrpc_lookup_local(const struct sockaddr_rxrpc *srx)
 		 * bind the transport socket may still fail if we're attempting
 		 * to use a local address that the dying object is still using.
 		 */
-		if (!atomic_inc_not_zero(&local->usage)) {
+		if (!rxrpc_get_local_maybe(local)) {
 			cursor = cursor->next;
 			list_del_init(&local->link);
 			break;

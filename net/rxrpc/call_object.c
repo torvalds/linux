@@ -515,7 +515,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	rb_insert_color(&call->conn_node, &conn->calls);
 	conn->channels[call->channel] = call;
 	sock_hold(&rx->sk);
-	atomic_inc(&conn->usage);
+	rxrpc_get_connection(conn);
 	write_unlock_bh(&conn->lock);
 
 	spin_lock(&conn->params.peer->lock);

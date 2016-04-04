@@ -674,11 +674,8 @@ static int rxrpc_release_sock(struct sock *sk)
 	flush_workqueue(rxrpc_workqueue);
 	rxrpc_purge_queue(&sk->sk_receive_queue);
 
-	if (rx->local) {
-		rxrpc_put_local(rx->local);
-		rx->local = NULL;
-	}
-
+	rxrpc_put_local(rx->local);
+	rx->local = NULL;
 	key_put(rx->key);
 	rx->key = NULL;
 	key_put(rx->securities);

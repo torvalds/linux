@@ -597,6 +597,17 @@ static inline bool rxrpc_conn_is_service(const struct rxrpc_connection *conn)
 	return conn->proto.in_clientflag;
 }
 
+static inline void rxrpc_get_connection(struct rxrpc_connection *conn)
+{
+	atomic_inc(&conn->usage);
+}
+
+static inline
+struct rxrpc_connection *rxrpc_get_connection_maybe(struct rxrpc_connection *conn)
+{
+	return atomic_inc_not_zero(&conn->usage) ? conn : NULL;
+}
+
 /*
  * input.c
  */
@@ -645,7 +656,7 @@ struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local)
 
 static inline void rxrpc_put_local(struct rxrpc_local *local)
 {
-	if (atomic_dec_and_test(&local->usage))
+	if (local && atomic_dec_and_test(&local->usage))
 		__rxrpc_put_local(local);
 }
 
@@ -702,7 +713,7 @@ struct rxrpc_peer *rxrpc_get_peer_maybe(struct rxrpc_peer *peer)
 extern void __rxrpc_put_peer(struct rxrpc_peer *peer);
 static inline void rxrpc_put_peer(struct rxrpc_peer *peer)
 {
-	if (atomic_dec_and_test(&peer->usage))
+	if (peer && atomic_dec_and_test(&peer->usage))
 		__rxrpc_put_peer(peer);
 }
 

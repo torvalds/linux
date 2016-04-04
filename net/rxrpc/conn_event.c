@@ -263,7 +263,7 @@ void rxrpc_process_connection(struct work_struct *work)
 
 	_enter("{%d}", conn->debug_id);
 
-	atomic_inc(&conn->usage);
+	rxrpc_get_connection(conn);
 
 	if (test_and_clear_bit(RXRPC_CONN_CHALLENGE, &conn->events)) {
 		rxrpc_secure_connection(conn);

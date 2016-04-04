@@ -333,7 +333,7 @@ static int rxrpc_connect_exclusive(struct rxrpc_sock *rx,
 	 * channel.
 	 */
 	chan = 0;
-	atomic_inc(&conn->usage);
+	rxrpc_get_connection(conn);
 	conn->avail_calls = RXRPC_MAXCALLS - 1;
 	conn->channels[chan] = call;
 	conn->call_counter = 1;
@@ -392,7 +392,7 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 			       conn->channels[1] == NULL ||
 			       conn->channels[2] == NULL ||
 			       conn->channels[3] == NULL);
-			atomic_inc(&conn->usage);
+			rxrpc_get_connection(conn);
 			break;
 		}
 
@@ -412,7 +412,7 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 			       conn->channels[1] == NULL &&
 			       conn->channels[2] == NULL &&
 			       conn->channels[3] == NULL);
-			atomic_inc(&conn->usage);
+			rxrpc_get_connection(conn);
 			list_move(&conn->bundle_link, &bundle->avail_conns);
 			break;
 		}
@@ -629,7 +629,7 @@ found_extant_connection:
 		read_unlock_bh(&trans->conn_lock);
 		goto security_mismatch;
 	}
-	atomic_inc(&conn->usage);
+	rxrpc_get_connection(conn);
 	read_unlock_bh(&trans->conn_lock);
 	goto success;
 
@@ -639,7 +639,7 @@ found_extant_second:
 		write_unlock_bh(&trans->conn_lock);
 		goto security_mismatch;
 	}
-	atomic_inc(&conn->usage);
+	rxrpc_get_connection(conn);
 	write_unlock_bh(&trans->conn_lock);
 	kfree(candidate);
 	goto success;
@@ -698,7 +698,7 @@ struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *trans,
 	return NULL;
 
 found:
-	atomic_inc(&conn->usage);
+	rxrpc_get_connection(conn);
 	read_unlock_bh(&trans->conn_lock);
 	_leave(" = %p", conn);
 	return conn;
