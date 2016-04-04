@@ -1920,20 +1920,31 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 			tmp = atapi_eh_request_sense(qc->dev,
 						qc->scsicmd->sense_buffer,
 						qc->result_tf.feature >> 4);
-			if (!tmp) {
-				/* ATA_QCFLAG_SENSE_VALID is used to
-				 * tell atapi_qc_complete() that sense
-				 * data is already valid.
-				 *
-				 * TODO: interpret sense data and set
-				 * appropriate err_mask.
-				 */
+			if (!tmp)
 				qc->flags |= ATA_QCFLAG_SENSE_VALID;
-			} else
+			else
 				qc->err_mask |= tmp;
 		}
 	}
 
+	if (qc->flags & ATA_QCFLAG_SENSE_VALID) {
+		int ret = scsi_check_sense(qc->scsicmd);
+		/*
+		 * SUCCESS here means that the sense code could
+		 * evaluated and should be passed to the upper layers
+		 * for correct evaluation.
+		 * FAILED means the sense code could not interpreted
+		 * and the device would need to be reset.
+		 * NEEDS_RETRY and ADD_TO_MLQUEUE means that the
+		 * command would need to be retried.
+		 */
+		if (ret == NEEDS_RETRY || ret == ADD_TO_MLQUEUE) {
+			qc->flags |= ATA_QCFLAG_RETRY;
+			qc->err_mask |= AC_ERR_OTHER;
+		} else if (ret != SUCCESS) {
+			qc->err_mask |= AC_ERR_HSM;
+		}
+	}
 	if (qc->err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT | AC_ERR_ATA_BUS))
 		action |= ATA_EH_RESET;
 
