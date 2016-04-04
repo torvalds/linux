@@ -1440,35 +1440,56 @@ void of_print_phandle_args(const char *msg, const struct of_phandle_args *args)
 	printk("\n");
 }
 
+int of_phandle_iterator_init(struct of_phandle_iterator *it,
+		const struct device_node *np,
+		const char *list_name,
+		const char *cells_name,
+		int cell_count)
+{
+	const __be32 *list;
+	int size;
+
+	memset(it, 0, sizeof(*it));
+
+	list = of_get_property(np, list_name, &size);
+	if (!list)
+		return -ENOENT;
+
+	it->cells_name = cells_name;
+	it->cell_count = cell_count;
+	it->parent = np;
+	it->list_end = list + size / sizeof(*list);
+	it->phandle_end = list;
+	it->cur = list;
+
+	return 0;
+}
+
 static int __of_parse_phandle_with_args(const struct device_node *np,
 					const char *list_name,
 					const char *cells_name,
 					int cell_count, int index,
 					struct of_phandle_args *out_args)
 {
-	const __be32 *list, *list_end;
-	int rc = 0, size, cur_index = 0;
-	uint32_t count = 0;
-	struct device_node *node = NULL;
-	phandle phandle;
+	struct of_phandle_iterator it;
+	int rc, cur_index = 0;
 
-	/* Retrieve the phandle list property */
-	list = of_get_property(np, list_name, &size);
-	if (!list)
-		return -ENOENT;
-	list_end = list + size / sizeof(*list);
+	rc = of_phandle_iterator_init(&it, np, list_name,
+				      cells_name, cell_count);
+	if (rc)
+		return rc;
 
 	/* Loop over the phandles until all the requested entry is found */
-	while (list < list_end) {
+	while (it.cur < it.list_end) {
 		rc = -EINVAL;
-		count = 0;
+		it.cur_count = 0;
 
 		/*
 		 * If phandle is 0, then it is an empty entry with no
 		 * arguments.  Skip forward to the next entry.
 		 */
-		phandle = be32_to_cpup(list++);
-		if (phandle) {
+		it.phandle = be32_to_cpup(it.cur++);
+		if (it.phandle) {
 			/*
 			 * Find the provider node and parse the #*-cells
 			 * property to determine the argument length.
@@ -1478,34 +1499,34 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 			 * except when we're going to return the found node
 			 * below.
 			 */
-			if (cells_name || cur_index == index) {
-				node = of_find_node_by_phandle(phandle);
-				if (!node) {
+			if (it.cells_name || cur_index == index) {
+				it.node = of_find_node_by_phandle(it.phandle);
+				if (!it.node) {
 					pr_err("%s: could not find phandle\n",
-						np->full_name);
+						it.parent->full_name);
 					goto err;
 				}
 			}
 
-			if (cells_name) {
-				if (of_property_read_u32(node, cells_name,
-							 &count)) {
+			if (it.cells_name) {
+				if (of_property_read_u32(it.node, it.cells_name,
+							 &it.cur_count)) {
 					pr_err("%s: could not get %s for %s\n",
-						np->full_name, cells_name,
-						node->full_name);
+						it.parent->full_name, it.cells_name,
+						it.node->full_name);
 					goto err;
 				}
 			} else {
-				count = cell_count;
+				it.cur_count = it.cell_count;
 			}
 
 			/*
 			 * Make sure that the arguments actually fit in the
 			 * remaining property data length
 			 */
-			if (list + count > list_end) {
+			if (it.cur + it.cur_count > it.list_end) {
 				pr_err("%s: arguments longer than property\n",
-					 np->full_name);
+					 it.parent->full_name);
 				goto err;
 			}
 		}
@@ -1518,28 +1539,28 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 		 */
 		rc = -ENOENT;
 		if (cur_index == index) {
-			if (!phandle)
+			if (!it.phandle)
 				goto err;
 
 			if (out_args) {
 				int i;
-				if (WARN_ON(count > MAX_PHANDLE_ARGS))
-					count = MAX_PHANDLE_ARGS;
-				out_args->np = node;
-				out_args->args_count = count;
-				for (i = 0; i < count; i++)
-					out_args->args[i] = be32_to_cpup(list++);
+				if (WARN_ON(it.cur_count > MAX_PHANDLE_ARGS))
+					it.cur_count = MAX_PHANDLE_ARGS;
+				out_args->np = it.node;
+				out_args->args_count = it.cur_count;
+				for (i = 0; i < it.cur_count; i++)
+					out_args->args[i] = be32_to_cpup(it.cur++);
 			} else {
-				of_node_put(node);
+				of_node_put(it.node);
 			}
 
 			/* Found it! return success */
 			return 0;
 		}
 
-		of_node_put(node);
-		node = NULL;
-		list += count;
+		of_node_put(it.node);
+		it.node = NULL;
+		it.cur += it.cur_count;
 		cur_index++;
 	}
 
@@ -1551,8 +1572,8 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 	 */
 	rc = index < 0 ? cur_index : -ENOENT;
  err:
-	if (node)
-		of_node_put(node);
+	if (it.node)
+		of_node_put(it.node);
 	return rc;
 }
 
