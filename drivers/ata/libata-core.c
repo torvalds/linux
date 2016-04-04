@@ -4528,6 +4528,7 @@ unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable, u8 feature)
 {
 	struct ata_taskfile tf;
 	unsigned int err_mask;
+	unsigned long timeout = 0;
 
 	/* set up set-features taskfile */
 	DPRINTK("set features - SATA features\n");
@@ -4539,7 +4540,10 @@ unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable, u8 feature)
 	tf.protocol = ATA_PROT_NODATA;
 	tf.nsect = feature;
 
-	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
+	if (enable == SETFEATURES_SPINUP)
+		timeout = ata_probe_timeout ?
+			  ata_probe_timeout * 1000 : SETFEATURES_SPINUP_TIMEOUT;
+	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, timeout);
 
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;

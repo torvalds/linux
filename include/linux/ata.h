@@ -371,7 +371,8 @@ enum {
 	SETFEATURES_AAM_ON	= 0x42,
 	SETFEATURES_AAM_OFF	= 0xC2,
 
-	SETFEATURES_SPINUP	= 0x07, /* Spin-up drive */
+	SETFEATURES_SPINUP		= 0x07, /* Spin-up drive */
+	SETFEATURES_SPINUP_TIMEOUT	= 30000, /* 30s timeout for drive spin-up from PUIS */
 
 	SETFEATURES_SATA_ENABLE = 0x10, /* Enable use of SATA feature */
 	SETFEATURES_SATA_DISABLE = 0x90, /* Disable use of SATA feature */
