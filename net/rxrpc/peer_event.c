@@ -245,15 +245,13 @@ void rxrpc_UDP_error_handler(struct work_struct *work)
 		break;
 
 	case SO_EE_ORIGIN_LOCAL:
-		_proto("Rx Received local error { error=%d }",
-		       ee->ee_errno);
+		_proto("Rx Received local error { error=%d }", err);
 		break;
 
 	case SO_EE_ORIGIN_NONE:
 	case SO_EE_ORIGIN_ICMP6:
 	default:
-		_proto("Rx Received error report { orig=%u }",
-		       ee->ee_origin);
+		_proto("Rx Received error report { orig=%u }", ee->ee_origin);
 		break;
 	}
 
