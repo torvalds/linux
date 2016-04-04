@@ -276,3 +276,11 @@ endif # PHYLIB
 config MICREL_KS8995MA
 	tristate "Micrel KS8995MA 5-ports 10/100 managed Ethernet switch"
 	depends on SPI
+
+config SUN8I_H3_EPHY
+	tristate "Allwinner sun8i H3 Ethernet PHY"
+	depends on OF && HAS_IOMEM && COMMON_CLK && RESET_CONTROLLER
+	depends on MACH_SUN8I || COMPILE_TEST
+	help
+	  This modules provides a driver for the internal Ethernet PHY
+	  and Ethernet MAC controls found in the Allwinner H3 SoC.
