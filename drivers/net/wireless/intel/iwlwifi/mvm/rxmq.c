@@ -737,6 +737,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct ieee80211_hdr *hdr = (void *)(pkt->data + sizeof(*desc));
 	u32 len = le16_to_cpu(desc->mpdu_len);
 	u32 rate_n_flags = le32_to_cpu(desc->rate_n_flags);
+	u16 phy_info = le16_to_cpu(desc->phy_info);
 	struct ieee80211_sta *sta = NULL;
 	struct sk_buff *skb;
 	u8 crypt_len = 0;
@@ -767,16 +768,34 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			     le16_to_cpu(desc->status));
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 	}
+	/* set the preamble flag if appropriate */
+	if (phy_info & IWL_RX_MPDU_PHY_SHORT_PREAMBLE)
+		rx_status->flag |= RX_FLAG_SHORTPRE;
 
-	rx_status->mactime = le64_to_cpu(desc->tsf_on_air_rise);
+	if (likely(!(phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD))) {
+		rx_status->mactime = le64_to_cpu(desc->tsf_on_air_rise);
+		/* TSF as indicated by the firmware is at INA time */
+		rx_status->flag |= RX_FLAG_MACTIME_PLCP_START;
+	}
 	rx_status->device_timestamp = le32_to_cpu(desc->gp2_on_air_rise);
 	rx_status->band = desc->channel > 14 ? NL80211_BAND_5GHZ :
 					       NL80211_BAND_2GHZ;
 	rx_status->freq = ieee80211_channel_to_frequency(desc->channel,
 							 rx_status->band);
 	iwl_mvm_get_signal_strength(mvm, desc, rx_status);
-	/* TSF as indicated by the firmware is at INA time */
-	rx_status->flag |= RX_FLAG_MACTIME_PLCP_START;
+
+	/* update aggregation data for monitor sake on default queue */
+	if (!queue && (phy_info & IWL_RX_MPDU_PHY_AMPDU)) {
+		bool toggle_bit = phy_info & IWL_RX_MPDU_PHY_AMPDU_TOGGLE;
+
+		rx_status->flag |= RX_FLAG_AMPDU_DETAILS;
+		rx_status->ampdu_reference = mvm->ampdu_ref;
+		/* toggle is switched whenever new aggregation starts */
+		if (toggle_bit != mvm->ampdu_toggle) {
+			mvm->ampdu_ref++;
+			mvm->ampdu_toggle = toggle_bit;
+		}
+	}
 
 	rcu_read_lock();
 
@@ -831,8 +850,6 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 				iwl_mvm_fw_dbg_collect_trig(mvm, trig, NULL);
 		}
 
-		/* TODO: multi queue TCM */
-
 		if (ieee80211_is_data(hdr->frame_control))
 			iwl_mvm_rx_csum(sta, skb, desc);
 
@@ -856,14 +873,6 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		if (baid != IWL_RX_REORDER_DATA_INVALID_BAID)
 			iwl_mvm_agg_rx_received(mvm, baid);
 	}
-
-	/*
-	 * TODO: PHY info.
-	 * Verify we don't have the information in the MPDU descriptor and
-	 * that it is not needed.
-	 * Make sure for monitor mode that we are on default queue, update
-	 * ampdu_ref and the rest of phy info then
-	 */
 
 	/* Set up the HT phy flags */
 	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) {
@@ -908,8 +917,18 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 							    rx_status->band);
 	}
 
-	/* TODO: PHY info - update ampdu queue statistics (for debugfs) */
-	/* TODO: PHY info - gscan */
+	/* management stuff on default queue */
+	if (!queue) {
+		if (unlikely((ieee80211_is_beacon(hdr->frame_control) ||
+			      ieee80211_is_probe_resp(hdr->frame_control)) &&
+			     mvm->sched_scan_pass_all ==
+			     SCHED_SCAN_PASS_ALL_ENABLED))
+			mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_FOUND;
+
+		if (unlikely(ieee80211_is_beacon(hdr->frame_control) ||
+			     ieee80211_is_probe_resp(hdr->frame_control)))
+			rx_status->boottime_ns = ktime_get_boot_ns();
+	}
 
 	iwl_mvm_create_skb(skb, hdr, len, crypt_len, rxb);
 	if (!iwl_mvm_reorder(mvm, napi, queue, sta, skb, desc))

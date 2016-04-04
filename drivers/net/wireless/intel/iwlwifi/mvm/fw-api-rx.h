@@ -336,6 +336,18 @@ enum iwl_rx_mpdu_reorder_data {
 	IWL_RX_MPDU_REORDER_BA_OLD_SN		= 0x80000000,
 };
 
+enum iwl_rx_mpdu_phy_info {
+	IWL_RX_MPDU_PHY_AMPDU		= BIT(5),
+	IWL_RX_MPDU_PHY_AMPDU_TOGGLE	= BIT(6),
+	IWL_RX_MPDU_PHY_SHORT_PREAMBLE	= BIT(7),
+	IWL_RX_MPDU_PHY_TSF_OVERLOAD	= BIT(8),
+};
+
+enum iwl_rx_mpdu_mac_info {
+	IWL_RX_MPDU_PHY_MAC_INDEX_MASK		= 0x0f,
+	IWL_RX_MPDU_PHY_PHY_INDEX_MASK		= 0xf0,
+};
+
 struct iwl_rx_mpdu_desc {
 	/* DW2 */
 	__le16 mpdu_len;
@@ -343,9 +355,9 @@ struct iwl_rx_mpdu_desc {
 	u8 mac_flags2;
 	/* DW3 */
 	u8 amsdu_info;
-	__le16 reserved_for_software;
+	__le16 phy_info;
 	u8 mac_phy_idx;
-	/* DW4 */
+	/* DW4 - carries csum data only when rpa_en == 1 */
 	__le16 raw_csum; /* alledgedly unreliable */
 	__le16 l3l4_flags;
 	/* DW5 */
@@ -354,17 +366,17 @@ struct iwl_rx_mpdu_desc {
 	u8 sta_id_flags;
 	/* DW6 */
 	__le32 reorder_data;
-	/* DW7 */
+	/* DW7 - carries rss_hash only when rpa_en == 1 */
 	__le32 rss_hash;
-	/* DW8 */
+	/* DW8 - carries filter_match only when rpa_en == 1 */
 	__le32 filter_match;
 	/* DW9 */
 	__le32 rate_n_flags;
 	/* DW10 */
-	u8 energy_a, energy_b, channel, reserved;
+	u8 energy_a, energy_b, channel, mac_context;
 	/* DW11 */
 	__le32 gp2_on_air_rise;
-	/* DW12 & DW13 */
+	/* DW12 & DW13 - carries TSF only TSF_OVERLOAD bit == 0 */
 	__le64 tsf_on_air_rise;
 } __packed;
 

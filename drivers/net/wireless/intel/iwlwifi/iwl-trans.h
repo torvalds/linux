@@ -211,6 +211,7 @@ struct iwl_cmd_header_wide {
 #define FH_RSCSR_FRAME_SIZE_MSK		0x00003FFF	/* bits 0-13 */
 #define FH_RSCSR_FRAME_INVALID		0x55550000
 #define FH_RSCSR_FRAME_ALIGN		0x40
+#define FH_RSCSR_RPA_EN			BIT(25)
 
 struct iwl_rx_packet {
 	/*
@@ -220,7 +221,9 @@ struct iwl_rx_packet {
 	 * 31:    flag flush RB request
 	 * 30:    flag ignore TC (terminal counter) request
 	 * 29:    flag fast IRQ request
-	 * 28-14: Reserved
+	 * 28-26: Reserved
+	 * 25:    Offload enabled
+	 * 24-14: Reserved
 	 * 13-00: RX frame size
 	 */
 	__le32 len_n_flags;
