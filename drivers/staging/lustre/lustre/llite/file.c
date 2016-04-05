@@ -929,7 +929,7 @@ static int ll_lease_close(struct obd_client_handle *och, struct inode *inode,
 
 /* Fills the obdo with the attributes for the lsm */
 static int ll_lsm_getattr(struct lov_stripe_md *lsm, struct obd_export *exp,
-			  struct obdo *obdo, __u64 ioepoch, int sync)
+			  struct obdo *obdo, __u64 ioepoch, int dv_flags)
 {
 	struct ptlrpc_request_set *set;
 	struct obd_info	    oinfo = { };
@@ -948,9 +948,11 @@ static int ll_lsm_getattr(struct lov_stripe_md *lsm, struct obd_export *exp,
 			       OBD_MD_FLMTIME | OBD_MD_FLCTIME |
 			       OBD_MD_FLGROUP | OBD_MD_FLEPOCH |
 			       OBD_MD_FLDATAVERSION;
-	if (sync) {
+	if (dv_flags & (LL_DV_WR_FLUSH | LL_DV_RD_FLUSH)) {
 		oinfo.oi_oa->o_valid |= OBD_MD_FLFLAGS;
 		oinfo.oi_oa->o_flags |= OBD_FL_SRVLOCK;
+		if (dv_flags & LL_DV_WR_FLUSH)
+			oinfo.oi_oa->o_flags |= OBD_FL_FLUSH;
 	}
 
 	set = ptlrpc_prep_set();
@@ -963,11 +965,16 @@ static int ll_lsm_getattr(struct lov_stripe_md *lsm, struct obd_export *exp,
 			rc = ptlrpc_set_wait(set);
 		ptlrpc_set_destroy(set);
 	}
-	if (rc == 0)
+	if (rc == 0) {
 		oinfo.oi_oa->o_valid &= (OBD_MD_FLBLOCKS | OBD_MD_FLBLKSZ |
 					 OBD_MD_FLATIME | OBD_MD_FLMTIME |
 					 OBD_MD_FLCTIME | OBD_MD_FLSIZE |
-					 OBD_MD_FLDATAVERSION);
+					 OBD_MD_FLDATAVERSION | OBD_MD_FLFLAGS);
+		if (dv_flags & LL_DV_WR_FLUSH &&
+		    !(oinfo.oi_oa->o_valid & OBD_MD_FLFLAGS &&
+		      oinfo.oi_oa->o_flags & OBD_FL_FLUSH))
+			return -ENOTSUPP;
+	}
 	return rc;
 }
 
@@ -983,7 +990,7 @@ int ll_inode_getattr(struct inode *inode, struct obdo *obdo,
 
 	lsm = ccc_inode_lsm_get(inode);
 	rc = ll_lsm_getattr(lsm, ll_i2dtexp(inode),
-			    obdo, ioepoch, sync);
+			    obdo, ioepoch, sync ? LL_DV_RD_FLUSH : 0);
 	if (rc == 0) {
 		struct ost_id *oi = lsm ? &lsm->lsm_oi : &obdo->o_oi;
 
@@ -1874,11 +1881,12 @@ error:
  * This value is computed using stripe object version on OST.
  * Version is computed using server side locking.
  *
- * @param extent_lock  Take extent lock. Not needed if a process is already
- *		       holding the OST object group locks.
+ * @param sync  if do sync on the OST side;
+ *		0: no sync
+ *		LL_DV_RD_FLUSH: flush dirty pages, LCK_PR on OSTs
+ *		LL_DV_WR_FLUSH: drop all caching pages, LCK_PW on OSTs
  */
-int ll_data_version(struct inode *inode, __u64 *data_version,
-		    int extent_lock)
+int ll_data_version(struct inode *inode, __u64 *data_version, int flags)
 {
 	struct lov_stripe_md	*lsm = NULL;
 	struct ll_sb_info	*sbi = ll_i2sbi(inode);
@@ -1900,7 +1908,7 @@ int ll_data_version(struct inode *inode, __u64 *data_version,
 		goto out;
 	}
 
-	rc = ll_lsm_getattr(lsm, sbi->ll_dt_exp, obdo, 0, extent_lock);
+	rc = ll_lsm_getattr(lsm, sbi->ll_dt_exp, obdo, 0, flags);
 	if (rc == 0) {
 		if (!(obdo->o_valid & OBD_MD_FLDATAVERSION))
 			rc = -EOPNOTSUPP;
@@ -1936,7 +1944,7 @@ int ll_hsm_release(struct inode *inode)
 	}
 
 	/* Grab latest data_version and [am]time values */
-	rc = ll_data_version(inode, &data_version, 1);
+	rc = ll_data_version(inode, &data_version, LL_DV_WR_FLUSH);
 	if (rc != 0)
 		goto out;
 
@@ -2344,9 +2352,8 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&idv, (char __user *)arg, sizeof(idv)))
 			return -EFAULT;
 
-		rc = ll_data_version(inode, &idv.idv_version,
-				     !(idv.idv_flags & LL_DV_NOFLUSH));
-
+		idv.idv_flags &= LL_DV_RD_FLUSH | LL_DV_WR_FLUSH;
+		rc = ll_data_version(inode, &idv.idv_version, idv.idv_flags);
 		if (rc == 0 && copy_to_user((char __user *)arg, &idv,
 					    sizeof(idv)))
 			return -EFAULT;

@@ -757,7 +757,7 @@ int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 int ll_fsync(struct file *file, loff_t start, loff_t end, int data);
 int ll_merge_attr(const struct lu_env *env, struct inode *inode);
 int ll_fid2path(struct inode *inode, void __user *arg);
-int ll_data_version(struct inode *inode, __u64 *data_version, int extent_lock);
+int ll_data_version(struct inode *inode, __u64 *data_version, int flags);
 int ll_hsm_release(struct inode *inode);
 
 /* llite/dcache.c */

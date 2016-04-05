@@ -154,6 +154,7 @@ void lov_merge_attrs(struct obdo *tgt, struct obdo *src, u64 valid,
 	valid &= src->o_valid;
 
 	if (*set) {
+		tgt->o_valid &= valid;
 		if (valid & OBD_MD_FLSIZE) {
 			/* this handles sparse files properly */
 			u64 lov_size;
@@ -172,12 +173,22 @@ void lov_merge_attrs(struct obdo *tgt, struct obdo *src, u64 valid,
 			tgt->o_mtime = src->o_mtime;
 		if (valid & OBD_MD_FLDATAVERSION)
 			tgt->o_data_version += src->o_data_version;
+
+		/* handle flags */
+		if (valid & OBD_MD_FLFLAGS)
+			tgt->o_flags &= src->o_flags;
+		else
+			tgt->o_flags = 0;
 	} else {
 		memcpy(tgt, src, sizeof(*tgt));
 		tgt->o_oi = lsm->lsm_oi;
+		tgt->o_valid = valid;
 		if (valid & OBD_MD_FLSIZE)
 			tgt->o_size = lov_stripe_size(lsm, src->o_size,
 						      stripeno);
+		tgt->o_flags = 0;
+		if (valid & OBD_MD_FLFLAGS)
+			tgt->o_flags = src->o_flags;
 	}
 
 	/* data_version needs to be valid on all stripes to be correct! */
