@@ -59,11 +59,8 @@ static LIST_HEAD(dvfs_info_list);
 static struct mtk_cpu_dvfs_info *mtk_cpu_dvfs_info_lookup(int cpu)
 {
 	struct mtk_cpu_dvfs_info *info;
-	struct list_head *list;
 
-	list_for_each(list, &dvfs_info_list) {
-		info = list_entry(list, struct mtk_cpu_dvfs_info, list_head);
-
+	list_for_each_entry(info, &dvfs_info_list, list_head) {
 		if (cpumask_test_cpu(cpu, &info->cpus))
 			return info;
 	}
@@ -524,8 +521,7 @@ static struct cpufreq_driver mt8173_cpufreq_driver = {
 
 static int mt8173_cpufreq_probe(struct platform_device *pdev)
 {
-	struct mtk_cpu_dvfs_info *info;
-	struct list_head *list, *tmp;
+	struct mtk_cpu_dvfs_info *info, *tmp;
 	int cpu, ret;
 
 	for_each_possible_cpu(cpu) {
@@ -559,11 +555,9 @@ static int mt8173_cpufreq_probe(struct platform_device *pdev)
 	return 0;
 
 release_dvfs_info_list:
-	list_for_each_safe(list, tmp, &dvfs_info_list) {
-		info = list_entry(list, struct mtk_cpu_dvfs_info, list_head);
-
+	list_for_each_entry_safe(info, tmp, &dvfs_info_list, list_head) {
 		mtk_cpu_dvfs_info_release(info);
-		list_del(list);
+		list_del(&info->list_head);
 	}
 
 	return ret;
