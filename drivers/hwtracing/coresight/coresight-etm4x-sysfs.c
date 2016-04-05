@@ -1972,6 +1972,8 @@ coresight_simple_func(trcoslsr, TRCOSLSR);
 coresight_simple_func(trcpdcr, TRCPDCR);
 coresight_simple_func(trcpdsr, TRCPDSR);
 coresight_simple_func(trclsr, TRCLSR);
+coresight_simple_func(trcconfig, TRCCONFIGR);
+coresight_simple_func(trctraceid, TRCTRACEIDR);
 coresight_simple_func(trcauthstatus, TRCAUTHSTATUS);
 coresight_simple_func(trcdevid, TRCDEVID);
 coresight_simple_func(trcdevtype, TRCDEVTYPE);
@@ -1985,6 +1987,8 @@ static struct attribute *coresight_etmv4_mgmt_attrs[] = {
 	&dev_attr_trcpdcr.attr,
 	&dev_attr_trcpdsr.attr,
 	&dev_attr_trclsr.attr,
+	&dev_attr_trcconfig.attr,
+	&dev_attr_trctraceid.attr,
 	&dev_attr_trcauthstatus.attr,
 	&dev_attr_trcdevid.attr,
 	&dev_attr_trcdevtype.attr,
