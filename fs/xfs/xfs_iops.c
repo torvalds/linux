@@ -446,6 +446,16 @@ xfs_vn_get_link(
 	return ERR_PTR(error);
 }
 
+STATIC const char *
+xfs_vn_get_link_inline(
+	struct dentry		*dentry,
+	struct inode		*inode,
+	struct delayed_call	*done)
+{
+	ASSERT(XFS_I(inode)->i_df.if_flags & XFS_IFINLINE);
+	return XFS_I(inode)->i_df.if_u1.if_data;
+}
+
 STATIC int
 xfs_vn_getattr(
 	struct vfsmount		*mnt,
@@ -1171,6 +1181,18 @@ static const struct inode_operations xfs_symlink_inode_operations = {
 	.update_time		= xfs_vn_update_time,
 };
 
+static const struct inode_operations xfs_inline_symlink_inode_operations = {
+	.readlink		= generic_readlink,
+	.get_link		= xfs_vn_get_link_inline,
+	.getattr		= xfs_vn_getattr,
+	.setattr		= xfs_vn_setattr,
+	.setxattr		= generic_setxattr,
+	.getxattr		= generic_getxattr,
+	.removexattr		= generic_removexattr,
+	.listxattr		= xfs_vn_listxattr,
+	.update_time		= xfs_vn_update_time,
+};
+
 STATIC void
 xfs_diflags_to_iflags(
 	struct inode		*inode,
@@ -1282,9 +1304,10 @@ xfs_setup_iops(
 		inode->i_fop = &xfs_dir_file_operations;
 		break;
 	case S_IFLNK:
-		inode->i_op = &xfs_symlink_inode_operations;
-		if (!(ip->i_df.if_flags & XFS_IFINLINE))
-			inode->i_mapping->a_ops = &xfs_address_space_operations;
+		if (ip->i_df.if_flags & XFS_IFINLINE)
+			inode->i_op = &xfs_inline_symlink_inode_operations;
+		else
+			inode->i_op = &xfs_symlink_inode_operations;
 		break;
 	default:
 		inode->i_op = &xfs_inode_operations;
