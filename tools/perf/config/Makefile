@@ -268,6 +268,12 @@ else
     ifneq ($(feature-dwarf), 1)
       msg := $(warning No libdw.h found or old libdw.h found or elfutils is older than 0.138, disables dwarf support. Please install new elfutils-devel/libdw-dev);
       NO_DWARF := 1
+    else
+      ifneq ($(feature-dwarf_getlocations), 1)
+        msg := $(warning Old libdw.h, finding variables at given 'perf probe' point will not work, install elfutils-devel/libdw-dev >= 0.157);
+      else
+        CFLAGS += -DHAVE_DWARF_GETLOCATIONS
+      endif # dwarf_getlocations
     endif # Dwarf support
   endif # libelf support
 endif # NO_LIBELF

@@ -41,6 +41,10 @@
 # include "test-dwarf.c"
 #undef main
 
+#define main main_test_dwarf_getlocations
+# include "test-dwarf_getlocations.c"
+#undef main
+
 #define main main_test_libelf_getphdrnum
 # include "test-libelf-getphdrnum.c"
 #undef main
@@ -143,6 +147,7 @@ int main(int argc, char *argv[])
 	main_test_libelf_mmap();
 	main_test_glibc();
 	main_test_dwarf();
+	main_test_dwarf_getlocations();
 	main_test_libelf_getphdrnum();
 	main_test_libunwind();
 	main_test_libaudit();
