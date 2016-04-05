@@ -1994,7 +1994,7 @@ static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 	u32 size = sizeof(struct ieee80211_qos_parameters);
 	int set_qos_param = 0;
 
-	if ((priv == NULL) || (network == NULL))
+	if (!priv || !network)
 		return 0;
 
 	if (priv->ieee80211->state != IEEE80211_LINKED)
@@ -4938,7 +4938,7 @@ static int rtl8192_usb_probe(struct usb_interface *intf,
 	RT_TRACE(COMP_INIT, "Oops: i'm coming\n");
 
 	dev = alloc_ieee80211(sizeof(struct r8192_priv));
-	if (dev == NULL)
+	if (!dev)
 		return -ENOMEM;
 
 	usb_set_intfdata(intf, dev);
@@ -5157,7 +5157,7 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 			write_nic_dword(dev, RWCAM, TargetCommand);
 		} else {
 			/* Key Material */
-			if (KeyContent != NULL) {
+			if (KeyContent) {
 				write_nic_dword(dev, WCAMI, (u32)(*(KeyContent + i - 2)));
 				write_nic_dword(dev, RWCAM, TargetCommand);
 			}
