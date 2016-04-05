@@ -95,6 +95,7 @@
 #include <linux/genhd.h>
 #include <linux/blkdev.h>
 #include <linux/vmalloc.h>
+#include <linux/string.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "hash.h"
@@ -105,6 +106,7 @@
 #include "locking.h"
 #include "check-integrity.h"
 #include "rcu-string.h"
+#include "compression.h"
 
 #define BTRFSIC_BLOCK_HASHTABLE_SIZE 0x10000
 #define BTRFSIC_BLOCK_LINK_HASHTABLE_SIZE 0x10000
@@ -176,7 +178,7 @@ struct btrfsic_block {
  * Elements of this type are allocated dynamically and required because
  * each block object can refer to and can be ref from multiple blocks.
  * The key to lookup them in the hashtable is the dev_bytenr of
- * the block ref to plus the one from the block refered from.
+ * the block ref to plus the one from the block referred from.
  * The fact that they are searchable via a hashtable and that a
  * ref_cnt is maintained is not required for the btrfs integrity
  * check algorithm itself, it is only used to make the output more
@@ -3076,7 +3078,7 @@ int btrfsic_mount(struct btrfs_root *root,
 
 	list_for_each_entry(device, dev_head, dev_list) {
 		struct btrfsic_dev_state *ds;
-		char *p;
+		const char *p;
 
 		if (!device->bdev || !device->name)
 			continue;
@@ -3092,11 +3094,7 @@ int btrfsic_mount(struct btrfs_root *root,
 		ds->state = state;
 		bdevname(ds->bdev, ds->name);
 		ds->name[BDEVNAME_SIZE - 1] = '\0';
-		for (p = ds->name; *p != '\0'; p++);
-		while (p > ds->name && *p != '/')
-			p--;
-		if (*p == '/')
-			p++;
+		p = kbasename(ds->name);
 		strlcpy(ds->name, p, sizeof(ds->name));
 		btrfsic_dev_state_hashtable_add(ds,
 						&btrfsic_dev_state_hashtable);

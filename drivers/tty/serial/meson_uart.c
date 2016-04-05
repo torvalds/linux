@@ -78,6 +78,7 @@
 /* AML_UART_REG5 bits */
 #define AML_UART_BAUD_MASK		0x7fffff
 #define AML_UART_BAUD_USE		BIT(23)
+#define AML_UART_BAUD_XTAL		BIT(24)
 
 #define AML_UART_PORT_NUM		6
 #define AML_UART_DEV_NAME		"ttyAML"
@@ -299,7 +300,12 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 
 	val = readl(port->membase + AML_UART_REG5);
 	val &= ~AML_UART_BAUD_MASK;
-	val = ((port->uartclk * 10 / (baud * 4) + 5) / 10) - 1;
+	if (port->uartclk == 24000000) {
+		val = ((port->uartclk / 3) / baud) - 1;
+		val |= AML_UART_BAUD_XTAL;
+	} else {
+		val = ((port->uartclk * 10 / (baud * 4) + 5) / 10) - 1;
+	}
 	val |= AML_UART_BAUD_USE;
 	writel(val, port->membase + AML_UART_REG5);
 }

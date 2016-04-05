@@ -24,6 +24,7 @@
 #include <net/tcp_states.h>
 #include <net/xfrm.h>
 #include <net/tcp.h>
+#include <net/sock_reuseport.h>
 
 #ifdef INET_CSK_DEBUG
 const char inet_csk_timer_bug_msg[] = "inet_csk BUG: unknown timer value\n";
@@ -67,7 +68,8 @@ int inet_csk_bind_conflict(const struct sock *sk,
 			if ((!reuse || !sk2->sk_reuse ||
 			    sk2->sk_state == TCP_LISTEN) &&
 			    (!reuseport || !sk2->sk_reuseport ||
-			    (sk2->sk_state != TCP_TIME_WAIT &&
+			     rcu_access_pointer(sk->sk_reuseport_cb) ||
+			     (sk2->sk_state != TCP_TIME_WAIT &&
 			     !uid_eq(uid, sock_i_uid(sk2))))) {
 
 				if (!sk2->sk_rcv_saddr || !sk->sk_rcv_saddr ||
@@ -89,161 +91,154 @@ EXPORT_SYMBOL_GPL(inet_csk_bind_conflict);
 
 /* Obtain a reference to a local port for the given sock,
  * if snum is zero it means select any available local port.
+ * We try to allocate an odd port (and leave even ports for connect())
  */
 int inet_csk_get_port(struct sock *sk, unsigned short snum)
 {
-	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
+	bool reuse = sk->sk_reuse && sk->sk_state != TCP_LISTEN;
+	struct inet_hashinfo *hinfo = sk->sk_prot->h.hashinfo;
+	int ret = 1, attempts = 5, port = snum;
+	int smallest_size = -1, smallest_port;
 	struct inet_bind_hashbucket *head;
-	struct inet_bind_bucket *tb;
-	int ret, attempts = 5;
 	struct net *net = sock_net(sk);
-	int smallest_size = -1, smallest_rover;
+	int i, low, high, attempt_half;
+	struct inet_bind_bucket *tb;
 	kuid_t uid = sock_i_uid(sk);
-	int attempt_half = (sk->sk_reuse == SK_CAN_REUSE) ? 1 : 0;
+	u32 remaining, offset;
 
-	local_bh_disable();
-	if (!snum) {
-		int remaining, rover, low, high;
-
-again:
-		inet_get_local_port_range(net, &low, &high);
-		if (attempt_half) {
-			int half = low + ((high - low) >> 1);
-
-			if (attempt_half == 1)
-				high = half;
-			else
-				low = half;
-		}
-		remaining = (high - low) + 1;
-		smallest_rover = rover = prandom_u32() % remaining + low;
-
-		smallest_size = -1;
-		do {
-			if (inet_is_local_reserved_port(net, rover))
-				goto next_nolock;
-			head = &hashinfo->bhash[inet_bhashfn(net, rover,
-					hashinfo->bhash_size)];
-			spin_lock(&head->lock);
-			inet_bind_bucket_for_each(tb, &head->chain)
-				if (net_eq(ib_net(tb), net) && tb->port == rover) {
-					if (((tb->fastreuse > 0 &&
-					      sk->sk_reuse &&
-					      sk->sk_state != TCP_LISTEN) ||
-					     (tb->fastreuseport > 0 &&
-					      sk->sk_reuseport &&
-					      uid_eq(tb->fastuid, uid))) &&
-					    (tb->num_owners < smallest_size || smallest_size == -1)) {
-						smallest_size = tb->num_owners;
-						smallest_rover = rover;
-					}
-					if (!inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb, false)) {
-						snum = rover;
-						goto tb_found;
-					}
-					goto next;
-				}
-			break;
-		next:
-			spin_unlock(&head->lock);
-		next_nolock:
-			if (++rover > high)
-				rover = low;
-		} while (--remaining > 0);
-
-		/* Exhausted local port range during search?  It is not
-		 * possible for us to be holding one of the bind hash
-		 * locks if this test triggers, because if 'remaining'
-		 * drops to zero, we broke out of the do/while loop at
-		 * the top level, not from the 'break;' statement.
-		 */
-		ret = 1;
-		if (remaining <= 0) {
-			if (smallest_size != -1) {
-				snum = smallest_rover;
-				goto have_snum;
-			}
-			if (attempt_half == 1) {
-				/* OK we now try the upper half of the range */
-				attempt_half = 2;
-				goto again;
-			}
-			goto fail;
-		}
-		/* OK, here is the one we will use.  HEAD is
-		 * non-NULL and we hold it's mutex.
-		 */
-		snum = rover;
-	} else {
-have_snum:
-		head = &hashinfo->bhash[inet_bhashfn(net, snum,
-				hashinfo->bhash_size)];
-		spin_lock(&head->lock);
+	if (port) {
+have_port:
+		head = &hinfo->bhash[inet_bhashfn(net, port,
+						  hinfo->bhash_size)];
+		spin_lock_bh(&head->lock);
 		inet_bind_bucket_for_each(tb, &head->chain)
-			if (net_eq(ib_net(tb), net) && tb->port == snum)
+			if (net_eq(ib_net(tb), net) && tb->port == port)
 				goto tb_found;
+
+		goto tb_not_found;
 	}
-	tb = NULL;
-	goto tb_not_found;
+again:
+	attempt_half = (sk->sk_reuse == SK_CAN_REUSE) ? 1 : 0;
+other_half_scan:
+	inet_get_local_port_range(net, &low, &high);
+	high++; /* [32768, 60999] -> [32768, 61000[ */
+	if (high - low < 4)
+		attempt_half = 0;
+	if (attempt_half) {
+		int half = low + (((high - low) >> 2) << 1);
+
+		if (attempt_half == 1)
+			high = half;
+		else
+			low = half;
+	}
+	remaining = high - low;
+	if (likely(remaining > 1))
+		remaining &= ~1U;
+
+	offset = prandom_u32() % remaining;
+	/* __inet_hash_connect() favors ports having @low parity
+	 * We do the opposite to not pollute connect() users.
+	 */
+	offset |= 1U;
+	smallest_size = -1;
+	smallest_port = low; /* avoid compiler warning */
+
+other_parity_scan:
+	port = low + offset;
+	for (i = 0; i < remaining; i += 2, port += 2) {
+		if (unlikely(port >= high))
+			port -= remaining;
+		if (inet_is_local_reserved_port(net, port))
+			continue;
+		head = &hinfo->bhash[inet_bhashfn(net, port,
+						  hinfo->bhash_size)];
+		spin_lock_bh(&head->lock);
+		inet_bind_bucket_for_each(tb, &head->chain)
+			if (net_eq(ib_net(tb), net) && tb->port == port) {
+				if (((tb->fastreuse > 0 && reuse) ||
+				     (tb->fastreuseport > 0 &&
+				      sk->sk_reuseport &&
+				      !rcu_access_pointer(sk->sk_reuseport_cb) &&
+				      uid_eq(tb->fastuid, uid))) &&
+				    (tb->num_owners < smallest_size || smallest_size == -1)) {
+					smallest_size = tb->num_owners;
+					smallest_port = port;
+				}
+				if (!inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb, false))
+					goto tb_found;
+				goto next_port;
+			}
+		goto tb_not_found;
+next_port:
+		spin_unlock_bh(&head->lock);
+		cond_resched();
+	}
+
+	if (smallest_size != -1) {
+		port = smallest_port;
+		goto have_port;
+	}
+	offset--;
+	if (!(offset & 1))
+		goto other_parity_scan;
+
+	if (attempt_half == 1) {
+		/* OK we now try the upper half of the range */
+		attempt_half = 2;
+		goto other_half_scan;
+	}
+	return ret;
+
+tb_not_found:
+	tb = inet_bind_bucket_create(hinfo->bind_bucket_cachep,
+				     net, head, port);
+	if (!tb)
+		goto fail_unlock;
 tb_found:
 	if (!hlist_empty(&tb->owners)) {
 		if (sk->sk_reuse == SK_FORCE_REUSE)
 			goto success;
 
-		if (((tb->fastreuse > 0 &&
-		      sk->sk_reuse && sk->sk_state != TCP_LISTEN) ||
+		if (((tb->fastreuse > 0 && reuse) ||
 		     (tb->fastreuseport > 0 &&
+		      !rcu_access_pointer(sk->sk_reuseport_cb) &&
 		      sk->sk_reuseport && uid_eq(tb->fastuid, uid))) &&
-		    smallest_size == -1) {
+		    smallest_size == -1)
 			goto success;
-		} else {
-			ret = 1;
-			if (inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb, true)) {
-				if (((sk->sk_reuse && sk->sk_state != TCP_LISTEN) ||
-				     (tb->fastreuseport > 0 &&
-				      sk->sk_reuseport && uid_eq(tb->fastuid, uid))) &&
-				    smallest_size != -1 && --attempts >= 0) {
-					spin_unlock(&head->lock);
-					goto again;
-				}
-
-				goto fail_unlock;
+		if (inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb, true)) {
+			if ((reuse ||
+			     (tb->fastreuseport > 0 &&
+			      sk->sk_reuseport &&
+			      !rcu_access_pointer(sk->sk_reuseport_cb) &&
+			      uid_eq(tb->fastuid, uid))) &&
+			    smallest_size != -1 && --attempts >= 0) {
+				spin_unlock_bh(&head->lock);
+				goto again;
 			}
+			goto fail_unlock;
 		}
-	}
-tb_not_found:
-	ret = 1;
-	if (!tb && (tb = inet_bind_bucket_create(hashinfo->bind_bucket_cachep,
-					net, head, snum)) == NULL)
-		goto fail_unlock;
-	if (hlist_empty(&tb->owners)) {
-		if (sk->sk_reuse && sk->sk_state != TCP_LISTEN)
-			tb->fastreuse = 1;
-		else
+		if (!reuse)
 			tb->fastreuse = 0;
+		if (!sk->sk_reuseport || !uid_eq(tb->fastuid, uid))
+			tb->fastreuseport = 0;
+	} else {
+		tb->fastreuse = reuse;
 		if (sk->sk_reuseport) {
 			tb->fastreuseport = 1;
 			tb->fastuid = uid;
-		} else
+		} else {
 			tb->fastreuseport = 0;
-	} else {
-		if (tb->fastreuse &&
-		    (!sk->sk_reuse || sk->sk_state == TCP_LISTEN))
-			tb->fastreuse = 0;
-		if (tb->fastreuseport &&
-		    (!sk->sk_reuseport || !uid_eq(tb->fastuid, uid)))
-			tb->fastreuseport = 0;
+		}
 	}
 success:
 	if (!inet_csk(sk)->icsk_bind_hash)
-		inet_bind_hash(sk, tb, snum);
+		inet_bind_hash(sk, tb, port);
 	WARN_ON(inet_csk(sk)->icsk_bind_hash != tb);
 	ret = 0;
 
 fail_unlock:
-	spin_unlock(&head->lock);
-fail:
-	local_bh_enable();
+	spin_unlock_bh(&head->lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(inet_csk_get_port);
@@ -482,10 +477,6 @@ EXPORT_SYMBOL_GPL(inet_csk_route_child_sock);
 #define AF_INET_FAMILY(fam) true
 #endif
 
-/* Only thing we need from tcp.h */
-extern int sysctl_tcp_synack_retries;
-
-
 /* Decide when to expire the request and when to resend SYN-ACK */
 static inline void syn_ack_recalc(struct request_sock *req, const int thresh,
 				  const int max_retries,
@@ -557,6 +548,7 @@ static void reqsk_timer_handler(unsigned long data)
 {
 	struct request_sock *req = (struct request_sock *)data;
 	struct sock *sk_listener = req->rsk_listener;
+	struct net *net = sock_net(sk_listener);
 	struct inet_connection_sock *icsk = inet_csk(sk_listener);
 	struct request_sock_queue *queue = &icsk->icsk_accept_queue;
 	int qlen, expire = 0, resend = 0;
@@ -566,7 +558,7 @@ static void reqsk_timer_handler(unsigned long data)
 	if (sk_state_load(sk_listener) != TCP_LISTEN)
 		goto drop;
 
-	max_retries = icsk->icsk_syn_retries ? : sysctl_tcp_synack_retries;
+	max_retries = icsk->icsk_syn_retries ? : net->ipv4.sysctl_tcp_synack_retries;
 	thresh = max_retries;
 	/* Normally all the openreqs are young and become mature
 	 * (i.e. converted to established socket) for first timeout.
@@ -737,6 +729,7 @@ int inet_csk_listen_start(struct sock *sk, int backlog)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct inet_sock *inet = inet_sk(sk);
+	int err = -EADDRINUSE;
 
 	reqsk_queue_alloc(&icsk->icsk_accept_queue);
 
@@ -754,13 +747,14 @@ int inet_csk_listen_start(struct sock *sk, int backlog)
 		inet->inet_sport = htons(inet->inet_num);
 
 		sk_dst_reset(sk);
-		sk->sk_prot->hash(sk);
+		err = sk->sk_prot->hash(sk);
 
-		return 0;
+		if (likely(!err))
+			return 0;
 	}
 
 	sk->sk_state = TCP_CLOSE;
-	return -EADDRINUSE;
+	return err;
 }
 EXPORT_SYMBOL_GPL(inet_csk_listen_start);
 

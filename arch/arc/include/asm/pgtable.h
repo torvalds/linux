@@ -12,7 +12,7 @@
  *  - Utilise some unused free bits to confine PTE flags to 12 bits
  *     This is a must for 4k pg-sz
  *
- * vineetg: Mar 2011 - changes to accomodate MMU TLB Page Descriptor mods
+ * vineetg: Mar 2011 - changes to accommodate MMU TLB Page Descriptor mods
  *  -TLB Locking never really existed, except for initial specs
  *  -SILENT_xxx not needed for our port
  *  -Per my request, MMU V3 changes the layout of some of the bits
@@ -278,15 +278,14 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 #define pmd_present(x)			(pmd_val(x))
 #define pmd_clear(xp)			do { pmd_val(*(xp)) = 0; } while (0)
 
-#define pte_page(x) (mem_map + \
-		(unsigned long)(((pte_val(x) - CONFIG_LINUX_LINK_BASE) >> \
-				PAGE_SHIFT)))
+#define pte_page(pte)	\
+	(mem_map + virt_to_pfn(pte_val(pte) - CONFIG_LINUX_LINK_BASE))
 
 #define mk_pte(page, prot)	pfn_pte(page_to_pfn(page), prot)
-#define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
+#define pte_pfn(pte)		virt_to_pfn(pte_val(pte))
 #define pfn_pte(pfn, prot)	(__pte(((pte_t)(pfn) << PAGE_SHIFT) | \
 				 pgprot_val(prot)))
-#define __pte_index(addr)	(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
+#define __pte_index(addr)	(virt_to_pfn(addr) & (PTRS_PER_PTE - 1))
 
 /*
  * pte_offset gets a @ptr to PMD entry (PGD in our 2-tier paging system)

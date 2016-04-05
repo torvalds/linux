@@ -104,21 +104,17 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_connector *connector;
-	int i;
+	int i, ret;
 
 	if (!drm_fbdev_emulation)
 		return 0;
 
 	mutex_lock(&dev->mode_config.mutex);
 	drm_for_each_connector(connector, dev) {
-		struct drm_fb_helper_connector *fb_helper_connector;
+		ret = drm_fb_helper_add_one_connector(fb_helper, connector);
 
-		fb_helper_connector = kzalloc(sizeof(struct drm_fb_helper_connector), GFP_KERNEL);
-		if (!fb_helper_connector)
+		if (ret)
 			goto fail;
-
-		fb_helper_connector->connector = connector;
-		fb_helper->connector_info[fb_helper->connector_count++] = fb_helper_connector;
 	}
 	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
@@ -130,7 +126,7 @@ fail:
 	fb_helper->connector_count = 0;
 	mutex_unlock(&dev->mode_config.mutex);
 
-	return -ENOMEM;
+	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_single_add_all_connectors);
 
@@ -1989,13 +1985,13 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 	width = dev->mode_config.max_width;
 	height = dev->mode_config.max_height;
 
-	crtcs = kcalloc(dev->mode_config.num_connector,
+	crtcs = kcalloc(fb_helper->connector_count,
 			sizeof(struct drm_fb_helper_crtc *), GFP_KERNEL);
-	modes = kcalloc(dev->mode_config.num_connector,
+	modes = kcalloc(fb_helper->connector_count,
 			sizeof(struct drm_display_mode *), GFP_KERNEL);
-	offsets = kcalloc(dev->mode_config.num_connector,
+	offsets = kcalloc(fb_helper->connector_count,
 			  sizeof(struct drm_fb_offset), GFP_KERNEL);
-	enabled = kcalloc(dev->mode_config.num_connector,
+	enabled = kcalloc(fb_helper->connector_count,
 			  sizeof(bool), GFP_KERNEL);
 	if (!crtcs || !modes || !enabled || !offsets) {
 		DRM_ERROR("Memory allocation failed\n");
@@ -2009,9 +2005,9 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 	      fb_helper->funcs->initial_config(fb_helper, crtcs, modes,
 					       offsets,
 					       enabled, width, height))) {
-		memset(modes, 0, dev->mode_config.num_connector*sizeof(modes[0]));
-		memset(crtcs, 0, dev->mode_config.num_connector*sizeof(crtcs[0]));
-		memset(offsets, 0, dev->mode_config.num_connector*sizeof(offsets[0]));
+		memset(modes, 0, fb_helper->connector_count*sizeof(modes[0]));
+		memset(crtcs, 0, fb_helper->connector_count*sizeof(crtcs[0]));
+		memset(offsets, 0, fb_helper->connector_count*sizeof(offsets[0]));
 
 		if (!drm_target_cloned(fb_helper, modes, offsets,
 				       enabled, width, height) &&
@@ -2090,6 +2086,27 @@ out:
  * framebuffer used to back the fbdev. drm_fb_helper_fill_var() and
  * drm_fb_helper_fill_fix() are provided as helpers to setup simple default
  * values for the fbdev info structure.
+ *
+ * HANG DEBUGGING:
+ *
+ * When you have fbcon support built-in or already loaded, this function will do
+ * a full modeset to setup the fbdev console. Due to locking misdesign in the
+ * VT/fbdev subsystem that entire modeset sequence has to be done while holding
+ * console_lock. Until console_unlock is called no dmesg lines will be sent out
+ * to consoles, not even serial console. This means when your driver crashes,
+ * you will see absolutely nothing else but a system stuck in this function,
+ * with no further output. Any kind of printk() you place within your own driver
+ * or in the drm core modeset code will also never show up.
+ *
+ * Standard debug practice is to run the fbcon setup without taking the
+ * console_lock as a hack, to be able to see backtraces and crashes on the
+ * serial line. This can be done by setting the fb.lockless_register_fb=1 kernel
+ * cmdline option.
+ *
+ * The other option is to just disable fbdev emulation since very likely the
+ * first modest from userspace will crash in the same way, and is even easier to
+ * debug. This can be done by setting the drm_kms_helper.fbdev_emulation=0
+ * kernel cmdline option.
  *
  * RETURNS:
  * Zero if everything went ok, nonzero otherwise.
@@ -2175,9 +2192,9 @@ EXPORT_SYMBOL(drm_fb_helper_hotplug_event);
  * but the module doesn't depend on any fb console symbols.  At least
  * attempt to load fbcon to avoid leaving the system without a usable console.
  */
-#if defined(CONFIG_FRAMEBUFFER_CONSOLE_MODULE) && !defined(CONFIG_EXPERT)
-static int __init drm_fb_helper_modinit(void)
+int __init drm_fb_helper_modinit(void)
 {
+#if defined(CONFIG_FRAMEBUFFER_CONSOLE_MODULE) && !defined(CONFIG_EXPERT)
 	const char *name = "fbcon";
 	struct module *fbcon;
 
@@ -2187,8 +2204,7 @@ static int __init drm_fb_helper_modinit(void)
 
 	if (!fbcon)
 		request_module_nowait(name);
+#endif
 	return 0;
 }
-
-module_init(drm_fb_helper_modinit);
-#endif
+EXPORT_SYMBOL(drm_fb_helper_modinit);

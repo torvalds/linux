@@ -18,6 +18,8 @@
 #include <linux/delay.h>
 #include <linux/of_address.h>
 
+#include "common.h"
+
 static void __init shmobile_setup_delay_hz(unsigned int max_cpu_core_hz,
 					   unsigned int mult, unsigned int div)
 {

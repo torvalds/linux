@@ -132,6 +132,8 @@ static irqreturn_t da9210_irq_handler(int irq, void *data)
 	if (error < 0)
 		goto error_i2c;
 
+	mutex_lock(&chip->rdev->mutex);
+
 	if (val & DA9210_E_OVCURR) {
 		regulator_notifier_call_chain(chip->rdev,
 					      REGULATOR_EVENT_OVER_CURRENT,
@@ -155,6 +157,9 @@ static irqreturn_t da9210_irq_handler(int irq, void *data)
 					      NULL);
 		handled |= DA9210_E_VMAX;
 	}
+
+	mutex_unlock(&chip->rdev->mutex);
+
 	if (handled) {
 		/* Clear handled events */
 		error = regmap_write(chip->regmap, DA9210_REG_EVENT_B, handled);

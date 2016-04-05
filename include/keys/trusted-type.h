@@ -38,7 +38,7 @@ struct trusted_key_options {
 	unsigned char pcrinfo[MAX_PCRINFO_SIZE];
 	int pcrlock;
 	uint32_t hash;
-	uint32_t digest_len;
+	uint32_t policydigest_len;
 	unsigned char policydigest[MAX_DIGEST_SIZE];
 	uint32_t policyhandle;
 };

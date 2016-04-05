@@ -371,8 +371,8 @@ static int mt8173_nor_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 	return ret;
 }
 
-static int __init mtk_nor_init(struct mt8173_nor *mt8173_nor,
-			       struct device_node *flash_node)
+static int mtk_nor_init(struct mt8173_nor *mt8173_nor,
+			struct device_node *flash_node)
 {
 	int ret;
 	struct spi_nor *nor;

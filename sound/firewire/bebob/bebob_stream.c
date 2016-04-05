@@ -549,8 +549,7 @@ int snd_bebob_stream_init_duplex(struct snd_bebob *bebob)
 		destroy_both_connections(bebob);
 		goto end;
 	}
-	/* See comments in next function */
-	init_completion(&bebob->bus_reset);
+
 	bebob->tx_stream.flags |= CIP_SKIP_INIT_DBC_CHECK;
 
 	/*
@@ -588,29 +587,10 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 	struct amdtp_stream *master, *slave;
 	enum cip_flags sync_mode;
 	unsigned int curr_rate;
-	bool updated = false;
 	int err = 0;
 
-	/*
-	 * Normal BeBoB firmware has a quirk at bus reset to transmits packets
-	 * with discontinuous value in dbc field.
-	 *
-	 * This 'struct completion' is used to call .update() at first to update
-	 * connections/streams. Next following codes handle streaming error.
-	 */
-	if (amdtp_streaming_error(&bebob->tx_stream)) {
-		if (completion_done(&bebob->bus_reset))
-			reinit_completion(&bebob->bus_reset);
-
-		updated = (wait_for_completion_interruptible_timeout(
-				&bebob->bus_reset,
-				msecs_to_jiffies(FW_ISO_RESOURCE_DELAY)) > 0);
-	}
-
-	mutex_lock(&bebob->mutex);
-
 	/* Need no substreams */
-	if (atomic_read(&bebob->substreams_counter) == 0)
+	if (bebob->substreams_counter == 0)
 		goto end;
 
 	err = get_sync_mode(bebob, &sync_mode);
@@ -642,8 +622,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 		amdtp_stream_stop(master);
 	if (amdtp_streaming_error(slave))
 		amdtp_stream_stop(slave);
-	if (!updated &&
-	    !amdtp_stream_running(master) && !amdtp_stream_running(slave))
+	if (!amdtp_stream_running(master) && !amdtp_stream_running(slave))
 		break_both_connections(bebob);
 
 	/* stop streams if rate is different */
@@ -741,7 +720,6 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 		}
 	}
 end:
-	mutex_unlock(&bebob->mutex);
 	return err;
 }
 
@@ -757,9 +735,7 @@ void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob)
 		master = &bebob->tx_stream;
 	}
 
-	mutex_lock(&bebob->mutex);
-
-	if (atomic_read(&bebob->substreams_counter) == 0) {
+	if (bebob->substreams_counter == 0) {
 		amdtp_stream_pcm_abort(master);
 		amdtp_stream_stop(master);
 
@@ -768,32 +744,6 @@ void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob)
 
 		break_both_connections(bebob);
 	}
-
-	mutex_unlock(&bebob->mutex);
-}
-
-void snd_bebob_stream_update_duplex(struct snd_bebob *bebob)
-{
-	/* vs. XRUN recovery due to discontinuity at bus reset */
-	mutex_lock(&bebob->mutex);
-
-	if ((cmp_connection_update(&bebob->in_conn) < 0) ||
-	    (cmp_connection_update(&bebob->out_conn) < 0)) {
-		amdtp_stream_pcm_abort(&bebob->rx_stream);
-		amdtp_stream_pcm_abort(&bebob->tx_stream);
-		amdtp_stream_stop(&bebob->rx_stream);
-		amdtp_stream_stop(&bebob->tx_stream);
-		break_both_connections(bebob);
-	} else {
-		amdtp_stream_update(&bebob->rx_stream);
-		amdtp_stream_update(&bebob->tx_stream);
-	}
-
-	/* wake up stream_start_duplex() */
-	if (!completion_done(&bebob->bus_reset))
-		complete_all(&bebob->bus_reset);
-
-	mutex_unlock(&bebob->mutex);
 }
 
 /*

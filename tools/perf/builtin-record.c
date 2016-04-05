@@ -32,6 +32,8 @@
 #include "util/parse-branch-options.h"
 #include "util/parse-regs-options.h"
 #include "util/llvm-utils.h"
+#include "util/bpf-loader.h"
+#include "asm/bug.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -49,7 +51,9 @@ struct record {
 	const char		*progname;
 	int			realtime_prio;
 	bool			no_buildid;
+	bool			no_buildid_set;
 	bool			no_buildid_cache;
+	bool			no_buildid_cache_set;
 	bool			buildid_all;
 	unsigned long long	samples;
 };
@@ -320,7 +324,10 @@ try_again:
 		} else {
 			pr_err("failed to mmap with %d (%s)\n", errno,
 				strerror_r(errno, msg, sizeof(msg)));
-			rc = -errno;
+			if (errno)
+				rc = -errno;
+			else
+				rc = -EINVAL;
 		}
 		goto out;
 	}
@@ -464,6 +471,29 @@ static void record__init_features(struct record *rec)
 	perf_header__clear_feat(&session->header, HEADER_STAT);
 }
 
+static void
+record__finish_output(struct record *rec)
+{
+	struct perf_data_file *file = &rec->file;
+	int fd = perf_data_file__fd(file);
+
+	if (file->is_pipe)
+		return;
+
+	rec->session->header.data_size += rec->bytes_written;
+	file->size = lseek(perf_data_file__fd(file), 0, SEEK_CUR);
+
+	if (!rec->no_buildid) {
+		process_buildids(rec);
+
+		if (rec->buildid_all)
+			dsos__hit_all(rec->session);
+	}
+	perf_session__write_header(rec->session, rec->evlist, fd, true);
+
+	return;
+}
+
 static volatile int workload_exec_errno;
 
 /*
@@ -481,6 +511,74 @@ static void workload_exec_failed_signal(int signo __maybe_unused,
 }
 
 static void snapshot_sig_handler(int sig);
+
+static int record__synthesize(struct record *rec)
+{
+	struct perf_session *session = rec->session;
+	struct machine *machine = &session->machines.host;
+	struct perf_data_file *file = &rec->file;
+	struct record_opts *opts = &rec->opts;
+	struct perf_tool *tool = &rec->tool;
+	int fd = perf_data_file__fd(file);
+	int err = 0;
+
+	if (file->is_pipe) {
+		err = perf_event__synthesize_attrs(tool, session,
+						   process_synthesized_event);
+		if (err < 0) {
+			pr_err("Couldn't synthesize attrs.\n");
+			goto out;
+		}
+
+		if (have_tracepoints(&rec->evlist->entries)) {
+			/*
+			 * FIXME err <= 0 here actually means that
+			 * there were no tracepoints so its not really
+			 * an error, just that we don't need to
+			 * synthesize anything.  We really have to
+			 * return this more properly and also
+			 * propagate errors that now are calling die()
+			 */
+			err = perf_event__synthesize_tracing_data(tool,	fd, rec->evlist,
+								  process_synthesized_event);
+			if (err <= 0) {
+				pr_err("Couldn't record tracing data.\n");
+				goto out;
+			}
+			rec->bytes_written += err;
+		}
+	}
+
+	if (rec->opts.full_auxtrace) {
+		err = perf_event__synthesize_auxtrace_info(rec->itr, tool,
+					session, process_synthesized_event);
+		if (err)
+			goto out;
+	}
+
+	err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
+						 machine);
+	WARN_ONCE(err < 0, "Couldn't record kernel reference relocation symbol\n"
+			   "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
+			   "Check /proc/kallsyms permission or run as root.\n");
+
+	err = perf_event__synthesize_modules(tool, process_synthesized_event,
+					     machine);
+	WARN_ONCE(err < 0, "Couldn't record kernel module information.\n"
+			   "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
+			   "Check /proc/modules permission or run as root.\n");
+
+	if (perf_guest) {
+		machines__process_guests(&session->machines,
+					 perf_event__synthesize_guest_os, tool);
+	}
+
+	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->threads,
+					    process_synthesized_event, opts->sample_address,
+					    opts->proc_map_timeout);
+out:
+	return err;
+}
 
 static int __cmd_record(struct record *rec, int argc, const char **argv)
 {
@@ -534,6 +632,16 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		goto out_child;
 	}
 
+	err = bpf__apply_obj_config();
+	if (err) {
+		char errbuf[BUFSIZ];
+
+		bpf__strerror_apply_obj_config(err, errbuf, sizeof(errbuf));
+		pr_err("ERROR: Apply config to BPF failed: %s\n",
+			 errbuf);
+		goto out_child;
+	}
+
 	/*
 	 * Normally perf_session__new would do this, but it doesn't have the
 	 * evlist.
@@ -566,63 +674,8 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	machine = &session->machines.host;
 
-	if (file->is_pipe) {
-		err = perf_event__synthesize_attrs(tool, session,
-						   process_synthesized_event);
-		if (err < 0) {
-			pr_err("Couldn't synthesize attrs.\n");
-			goto out_child;
-		}
-
-		if (have_tracepoints(&rec->evlist->entries)) {
-			/*
-			 * FIXME err <= 0 here actually means that
-			 * there were no tracepoints so its not really
-			 * an error, just that we don't need to
-			 * synthesize anything.  We really have to
-			 * return this more properly and also
-			 * propagate errors that now are calling die()
-			 */
-			err = perf_event__synthesize_tracing_data(tool,	fd, rec->evlist,
-								  process_synthesized_event);
-			if (err <= 0) {
-				pr_err("Couldn't record tracing data.\n");
-				goto out_child;
-			}
-			rec->bytes_written += err;
-		}
-	}
-
-	if (rec->opts.full_auxtrace) {
-		err = perf_event__synthesize_auxtrace_info(rec->itr, tool,
-					session, process_synthesized_event);
-		if (err)
-			goto out_delete_session;
-	}
-
-	err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
-						 machine);
+	err = record__synthesize(rec);
 	if (err < 0)
-		pr_err("Couldn't record kernel reference relocation symbol\n"
-		       "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
-		       "Check /proc/kallsyms permission or run as root.\n");
-
-	err = perf_event__synthesize_modules(tool, process_synthesized_event,
-					     machine);
-	if (err < 0)
-		pr_err("Couldn't record kernel module information.\n"
-		       "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
-		       "Check /proc/modules permission or run as root.\n");
-
-	if (perf_guest) {
-		machines__process_guests(&session->machines,
-					 perf_event__synthesize_guest_os, tool);
-	}
-
-	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->threads,
-					    process_synthesized_event, opts->sample_address,
-					    opts->proc_map_timeout);
-	if (err != 0)
 		goto out_child;
 
 	if (rec->realtime_prio) {
@@ -758,18 +811,8 @@ out_child:
 	/* this will be recalculated during process_buildids() */
 	rec->samples = 0;
 
-	if (!err && !file->is_pipe) {
-		rec->session->header.data_size += rec->bytes_written;
-		file->size = lseek(perf_data_file__fd(file), 0, SEEK_CUR);
-
-		if (!rec->no_buildid) {
-			process_buildids(rec);
-
-			if (rec->buildid_all)
-				dsos__hit_all(rec->session);
-		}
-		perf_session__write_header(rec->session, rec->evlist, fd, true);
-	}
+	if (!err)
+		record__finish_output(rec);
 
 	if (!err && !quiet) {
 		char samples[128];
@@ -1097,10 +1140,12 @@ struct option __record_options[] = {
 	OPT_BOOLEAN('P', "period", &record.opts.period, "Record the sample period"),
 	OPT_BOOLEAN('n', "no-samples", &record.opts.no_samples,
 		    "don't sample"),
-	OPT_BOOLEAN('N', "no-buildid-cache", &record.no_buildid_cache,
-		    "do not update the buildid cache"),
-	OPT_BOOLEAN('B', "no-buildid", &record.no_buildid,
-		    "do not collect buildids in perf.data"),
+	OPT_BOOLEAN_SET('N', "no-buildid-cache", &record.no_buildid_cache,
+			&record.no_buildid_cache_set,
+			"do not update the buildid cache"),
+	OPT_BOOLEAN_SET('B', "no-buildid", &record.no_buildid,
+			&record.no_buildid_set,
+			"do not collect buildids in perf.data"),
 	OPT_CALLBACK('G', "cgroup", &record.evlist, "name",
 		     "monitor event in cgroup name only",
 		     parse_cgroups),
@@ -1136,6 +1181,12 @@ struct option __record_options[] = {
 			"per thread proc mmap processing timeout in ms"),
 	OPT_BOOLEAN(0, "switch-events", &record.opts.record_switch_events,
 		    "Record context switch events"),
+	OPT_BOOLEAN_FLAG(0, "all-kernel", &record.opts.all_kernel,
+			 "Configure all used events to run in kernel space.",
+			 PARSE_OPT_EXCLUSIVE),
+	OPT_BOOLEAN_FLAG(0, "all-user", &record.opts.all_user,
+			 "Configure all used events to run in user space.",
+			 PARSE_OPT_EXCLUSIVE),
 	OPT_STRING(0, "clang-path", &llvm_param.clang_path, "clang path",
 		   "clang binary to use for compiling BPF scriptlets"),
 	OPT_STRING(0, "clang-opt", &llvm_param.clang_opt, "clang options",

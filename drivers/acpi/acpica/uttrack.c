@@ -712,7 +712,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 	/* Print summary */
 
 	if (!num_outstanding) {
-		ACPI_INFO((AE_INFO, "No outstanding allocations"));
+		ACPI_INFO(("No outstanding allocations"));
 	} else {
 		ACPI_ERROR((AE_INFO, "%u(0x%X) Outstanding allocations",
 			    num_outstanding, num_outstanding));

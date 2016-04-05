@@ -972,8 +972,7 @@ static void __init tegra114_fixed_clk_init(void __iomem *clk_base)
 	struct clk *clk;
 
 	/* clk_32k */
-	clk = clk_register_fixed_rate(NULL, "clk_32k", NULL, CLK_IS_ROOT,
-				      32768);
+	clk = clk_register_fixed_rate(NULL, "clk_32k", NULL, 0, 32768);
 	clks[TEGRA114_CLK_CLK_32K] = clk;
 
 	/* clk_m_div2 */

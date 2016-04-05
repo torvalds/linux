@@ -4275,7 +4275,6 @@ static int fiji_populate_and_upload_sclk_mclk_dpm_levels(
 	if (data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK) {
 		dpm_table->mclk_table.dpm_levels
 			[dpm_table->mclk_table.count - 1].value = mclk;
-
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_OD6PlusinACSupport) ||
 			phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -4886,6 +4885,10 @@ static void fiji_print_current_perforce_level(
 	activity_percent >>= 8;
 
 	seq_printf(m, "\n [GPU load]: %u%%\n\n", activity_percent > 100 ? 100 : activity_percent);
+
+	seq_printf(m, "uvd    %sabled\n", data->uvd_power_gated ? "dis" : "en");
+
+	seq_printf(m, "vce    %sabled\n", data->vce_power_gated ? "dis" : "en");
 }
 
 static int fiji_program_display_gap(struct pp_hwmgr *hwmgr)
@@ -5073,6 +5076,125 @@ static int fiji_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 				CG_FDO_CTRL2, FDO_PWM_MODE);
 }
 
+static int fiji_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+
+	*table = (char *)&data->smc_state_table;
+
+	return sizeof(struct SMU73_Discrete_DpmTable);
+}
+
+static int fiji_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t size)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+
+	void *table = (void *)&data->smc_state_table;
+
+	memcpy(table, buf, size);
+
+	return 0;
+}
+
+static int fiji_force_clock_level(struct pp_hwmgr *hwmgr,
+		enum pp_clock_type type, int level)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+
+	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
+		return -EINVAL;
+
+	switch (type) {
+	case PP_SCLK:
+		if (!data->sclk_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_SCLKDPM_SetEnabledMask,
+					(1 << level));
+		break;
+	case PP_MCLK:
+		if (!data->mclk_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_MCLKDPM_SetEnabledMask,
+					(1 << level));
+		break;
+	case PP_PCIE:
+		if (!data->pcie_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_PCIeDPM_ForceLevel,
+					(1 << level));
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int fiji_print_clock_levels(struct pp_hwmgr *hwmgr,
+		enum pp_clock_type type, char *buf)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	struct fiji_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
+	struct fiji_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
+	struct fiji_single_dpm_table *pcie_table = &(data->dpm_table.pcie_speed_table);
+	int i, now, size = 0;
+	uint32_t clock, pcie_speed;
+
+	switch (type) {
+	case PP_SCLK:
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetSclkFrequency);
+		clock = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+
+		for (i = 0; i < sclk_table->count; i++) {
+			if (clock > sclk_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < sclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, sclk_table->dpm_levels[i].value / 100,
+					(i == now) ? "*" : "");
+		break;
+	case PP_MCLK:
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetMclkFrequency);
+		clock = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+
+		for (i = 0; i < mclk_table->count; i++) {
+			if (clock > mclk_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < mclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, mclk_table->dpm_levels[i].value / 100,
+					(i == now) ? "*" : "");
+		break;
+	case PP_PCIE:
+		pcie_speed = fiji_get_current_pcie_speed(hwmgr);
+		for (i = 0; i < pcie_table->count; i++) {
+			if (pcie_speed != pcie_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < pcie_table->count; i++)
+			size += sprintf(buf + size, "%d: %s %s\n", i,
+					(pcie_table->dpm_levels[i].value == 0) ? "2.5GB, x1" :
+					(pcie_table->dpm_levels[i].value == 1) ? "5.0GB, x16" :
+					(pcie_table->dpm_levels[i].value == 2) ? "8.0GB, x16" : "",
+					(i == now) ? "*" : "");
+		break;
+	default:
+		break;
+	}
+	return size;
+}
+
 static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.backend_init = &fiji_hwmgr_backend_init,
 	.backend_fini = &tonga_hwmgr_backend_fini,
@@ -5108,6 +5230,10 @@ static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.register_internal_thermal_interrupt = fiji_register_internal_thermal_interrupt,
 	.set_fan_control_mode = fiji_set_fan_control_mode,
 	.get_fan_control_mode = fiji_get_fan_control_mode,
+	.get_pp_table = fiji_get_pp_table,
+	.set_pp_table = fiji_set_pp_table,
+	.force_clock_level = fiji_force_clock_level,
+	.print_clock_levels = fiji_print_clock_levels,
 };
 
 int fiji_hwmgr_init(struct pp_hwmgr *hwmgr)

@@ -77,7 +77,7 @@ void amdgpu_connector_hotplug(struct drm_connector *connector)
 			} else if (amdgpu_atombios_dp_needs_link_train(amdgpu_connector)) {
 				/* Don't try to start link training before we
 				 * have the dpcd */
-				if (!amdgpu_atombios_dp_get_dpcd(amdgpu_connector))
+				if (amdgpu_atombios_dp_get_dpcd(amdgpu_connector))
 					return;
 
 				/* set it to OFF so that drm_helper_connector_dpms()

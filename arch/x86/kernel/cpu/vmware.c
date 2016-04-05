@@ -62,7 +62,7 @@ static unsigned long vmware_get_tsc_khz(void)
 	tsc_hz = eax | (((uint64_t)ebx) << 32);
 	do_div(tsc_hz, 1000);
 	BUG_ON(tsc_hz >> 32);
-	printk(KERN_INFO "TSC freq read from hypervisor : %lu.%03lu MHz\n",
+	pr_info("TSC freq read from hypervisor : %lu.%03lu MHz\n",
 			 (unsigned long) tsc_hz / 1000,
 			 (unsigned long) tsc_hz % 1000);
 
@@ -84,8 +84,7 @@ static void __init vmware_platform_setup(void)
 	if (ebx != UINT_MAX)
 		x86_platform.calibrate_tsc = vmware_get_tsc_khz;
 	else
-		printk(KERN_WARNING
-		       "Failed to get TSC freq from the hypervisor\n");
+		pr_warn("Failed to get TSC freq from the hypervisor\n");
 }
 
 /*

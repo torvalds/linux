@@ -664,7 +664,7 @@ struct uinput_ff_upload_compat {
 static int uinput_ff_upload_to_user(char __user *buffer,
 				    const struct uinput_ff_upload *ff_up)
 {
-	if (INPUT_COMPAT_TEST) {
+	if (in_compat_syscall()) {
 		struct uinput_ff_upload_compat ff_up_compat;
 
 		ff_up_compat.request_id = ff_up->request_id;
@@ -695,7 +695,7 @@ static int uinput_ff_upload_to_user(char __user *buffer,
 static int uinput_ff_upload_from_user(const char __user *buffer,
 				      struct uinput_ff_upload *ff_up)
 {
-	if (INPUT_COMPAT_TEST) {
+	if (in_compat_syscall()) {
 		struct uinput_ff_upload_compat ff_up_compat;
 
 		if (copy_from_user(&ff_up_compat, buffer,

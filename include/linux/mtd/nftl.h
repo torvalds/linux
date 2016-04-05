@@ -50,7 +50,6 @@ struct NFTLrecord {
         unsigned int nb_blocks;		/* number of physical blocks */
         unsigned int nb_boot_blocks;	/* number of blocks used by the bios */
         struct erase_info instr;
-	struct nand_ecclayout oobinfo;
 };
 
 int NFTL_mount(struct NFTLrecord *s);

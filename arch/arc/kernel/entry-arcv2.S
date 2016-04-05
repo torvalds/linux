@@ -45,11 +45,12 @@ VECTOR	reserved		; Reserved slots
 VECTOR	handle_interrupt	; (16) Timer0
 VECTOR	handle_interrupt	; unused (Timer1)
 VECTOR	handle_interrupt	; unused (WDT)
-VECTOR	handle_interrupt	; (19) ICI (inter core interrupt)
-VECTOR	handle_interrupt
-VECTOR	handle_interrupt
-VECTOR	handle_interrupt
-VECTOR	handle_interrupt	; (23) End of fixed IRQs
+VECTOR	handle_interrupt	; (19) Inter core Interrupt (IPI)
+VECTOR	handle_interrupt	; (20) perf Interrupt
+VECTOR	handle_interrupt	; (21) Software Triggered Intr (Self IPI)
+VECTOR	handle_interrupt	; unused
+VECTOR	handle_interrupt	; (23) unused
+# End of fixed IRQs
 
 .rept CONFIG_ARC_NUMBER_OF_INTERRUPTS - 8
 	VECTOR	handle_interrupt

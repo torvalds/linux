@@ -674,29 +674,17 @@ static const struct drm_mode_config_funcs psb_mode_funcs = {
 	.output_poll_changed = psbfb_output_poll_changed,
 };
 
-static int psb_create_backlight_property(struct drm_device *dev)
-{
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct drm_property *backlight;
-
-	if (dev_priv->backlight_property)
-		return 0;
-
-	backlight = drm_property_create_range(dev, 0, "backlight", 0, 100);
-
-	dev_priv->backlight_property = backlight;
-
-	return 0;
-}
-
 static void psb_setup_outputs(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_connector *connector;
 
 	drm_mode_create_scaling_mode_property(dev);
-	psb_create_backlight_property(dev);
 
+	/* It is ok for this to fail - we just don't get backlight control */
+	if (!dev_priv->backlight_property)
+		dev_priv->backlight_property = drm_property_create_range(dev, 0,
+							"backlight", 0, 100);
 	dev_priv->ops->output_init(dev);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list,

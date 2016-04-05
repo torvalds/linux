@@ -87,5 +87,5 @@ extern const struct nv50_disp_dmac_oclass gk110_disp_base_oclass;
 
 extern const struct nv50_disp_dmac_oclass gm107_disp_core_oclass;
 
-extern const struct nv50_disp_dmac_oclass gm204_disp_core_oclass;
+extern const struct nv50_disp_dmac_oclass gm200_disp_core_oclass;
 #endif

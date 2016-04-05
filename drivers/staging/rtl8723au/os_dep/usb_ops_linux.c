@@ -210,22 +210,21 @@ exit:
 void rtl8723au_write_port_cancel(struct rtw_adapter *padapter)
 {
 	struct xmit_buf *pxmitbuf;
-	struct list_head *plist;
 	int j;
 
 	DBG_8723A("%s\n", __func__);
 
 	padapter->bWritePortCancel = true;
 
-	list_for_each(plist, &padapter->xmitpriv.xmitbuf_list) {
-		pxmitbuf = container_of(plist, struct xmit_buf, list2);
+	list_for_each_entry(pxmitbuf, &padapter->xmitpriv.xmitbuf_list,
+			    list2) {
 		for (j = 0; j < 8; j++) {
 			if (pxmitbuf->pxmit_urb[j])
 				usb_kill_urb(pxmitbuf->pxmit_urb[j]);
 		}
 	}
-	list_for_each(plist, &padapter->xmitpriv.xmitextbuf_list) {
-		pxmitbuf = container_of(plist, struct xmit_buf, list2);
+	list_for_each_entry(pxmitbuf, &padapter->xmitpriv.xmitextbuf_list,
+			    list2) {
 		for (j = 0; j < 8; j++) {
 			if (pxmitbuf->pxmit_urb[j])
 				usb_kill_urb(pxmitbuf->pxmit_urb[j]);

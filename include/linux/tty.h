@@ -302,6 +302,7 @@ struct tty_struct {
 	struct work_struct hangup_work;
 	void *disc_data;
 	void *driver_data;
+	spinlock_t files_lock;		/* protects tty_files list */
 	struct list_head tty_files;
 
 #define N_TTY_BUF_SIZE 4096
@@ -336,7 +337,6 @@ struct tty_file_private {
 #define TTY_IO_ERROR 		1	/* Cause an I/O error (may be no ldisc too) */
 #define TTY_OTHER_CLOSED 	2	/* Other side (if any) has closed */
 #define TTY_EXCLUSIVE 		3	/* Exclusive open mode */
-#define TTY_DEBUG 		4	/* Debugging */
 #define TTY_DO_WRITE_WAKEUP 	5	/* Call write_wakeup after queuing new */
 #define TTY_OTHER_DONE		6	/* Closed pty has completed input processing */
 #define TTY_LDISC_OPEN	 	11	/* Line discipline is open */
@@ -433,8 +433,6 @@ extern struct device *tty_register_device_attr(struct tty_driver *driver,
 				void *drvdata,
 				const struct attribute_group **attr_grp);
 extern void tty_unregister_device(struct tty_driver *driver, unsigned index);
-extern int tty_read_raw_data(struct tty_struct *tty, unsigned char *bufp,
-			     int buflen);
 extern void tty_write_message(struct tty_struct *tty, char *msg);
 extern int tty_send_xchar(struct tty_struct *tty, char ch);
 extern int tty_put_char(struct tty_struct *tty, unsigned char c);
@@ -446,12 +444,7 @@ extern void tty_unthrottle(struct tty_struct *tty);
 extern int tty_throttle_safe(struct tty_struct *tty);
 extern int tty_unthrottle_safe(struct tty_struct *tty);
 extern int tty_do_resize(struct tty_struct *tty, struct winsize *ws);
-extern void tty_driver_remove_tty(struct tty_driver *driver,
-				  struct tty_struct *tty);
-extern void tty_free_termios(struct tty_struct *tty);
 extern int is_current_pgrp_orphaned(void);
-extern int is_ignored(int sig);
-extern int tty_signal(int sig, struct tty_struct *tty);
 extern void tty_hangup(struct tty_struct *tty);
 extern void tty_vhangup(struct tty_struct *tty);
 extern int tty_hung_up_p(struct file *filp);
@@ -493,7 +486,8 @@ extern int tty_set_termios(struct tty_struct *tty, struct ktermios *kt);
 extern struct tty_ldisc *tty_ldisc_ref(struct tty_struct *);
 extern void tty_ldisc_deref(struct tty_ldisc *);
 extern struct tty_ldisc *tty_ldisc_ref_wait(struct tty_struct *);
-extern void tty_ldisc_hangup(struct tty_struct *tty);
+extern void tty_ldisc_hangup(struct tty_struct *tty, bool reset);
+extern int tty_ldisc_reinit(struct tty_struct *tty, int disc);
 extern const struct file_operations tty_ldiscs_proc_fops;
 
 extern void tty_wakeup(struct tty_struct *tty);
@@ -508,16 +502,13 @@ extern struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx);
 extern int tty_alloc_file(struct file *file);
 extern void tty_add_file(struct tty_struct *tty, struct file *file);
 extern void tty_free_file(struct file *file);
-extern void free_tty_struct(struct tty_struct *tty);
-extern void deinitialize_tty_struct(struct tty_struct *tty);
 extern struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx);
 extern int tty_release(struct inode *inode, struct file *filp);
-extern int tty_init_termios(struct tty_struct *tty);
+extern void tty_init_termios(struct tty_struct *tty);
 extern int tty_standard_install(struct tty_driver *driver,
 		struct tty_struct *tty);
 
 extern struct mutex tty_mutex;
-extern spinlock_t tty_files_lock;
 
 #define tty_is_writelocked(tty)  (mutex_is_locked(&tty->atomic_write_lock))
 
@@ -575,43 +566,29 @@ static inline int tty_port_users(struct tty_port *port)
 
 extern int tty_register_ldisc(int disc, struct tty_ldisc_ops *new_ldisc);
 extern int tty_unregister_ldisc(int disc);
-extern int tty_set_ldisc(struct tty_struct *tty, int ldisc);
+extern int tty_set_ldisc(struct tty_struct *tty, int disc);
 extern int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty);
 extern void tty_ldisc_release(struct tty_struct *tty);
 extern void tty_ldisc_init(struct tty_struct *tty);
 extern void tty_ldisc_deinit(struct tty_struct *tty);
-extern void tty_ldisc_begin(void);
-
-static inline int tty_ldisc_receive_buf(struct tty_ldisc *ld, unsigned char *p,
-					char *f, int count)
-{
-	if (ld->ops->receive_buf2)
-		count = ld->ops->receive_buf2(ld->tty, p, f, count);
-	else {
-		count = min_t(int, count, ld->tty->receive_room);
-		if (count)
-			ld->ops->receive_buf(ld->tty, p, f, count);
-	}
-	return count;
-}
-
+extern int tty_ldisc_receive_buf(struct tty_ldisc *ld, unsigned char *p,
+				 char *f, int count);
 
 /* n_tty.c */
-extern struct tty_ldisc_ops tty_ldisc_N_TTY;
 extern void n_tty_inherit_ops(struct tty_ldisc_ops *ops);
+extern void __init n_tty_init(void);
 
 /* tty_audit.c */
 #ifdef CONFIG_AUDIT
 extern void tty_audit_add_data(struct tty_struct *tty, const void *data,
-			       size_t size, unsigned icanon);
+			       size_t size);
 extern void tty_audit_exit(void);
 extern void tty_audit_fork(struct signal_struct *sig);
 extern void tty_audit_tiocsti(struct tty_struct *tty, char ch);
-extern void tty_audit_push(struct tty_struct *tty);
-extern int tty_audit_push_current(void);
+extern int tty_audit_push(void);
 #else
 static inline void tty_audit_add_data(struct tty_struct *tty, const void *data,
-				      size_t size, unsigned icanon)
+				      size_t size)
 {
 }
 static inline void tty_audit_tiocsti(struct tty_struct *tty, char ch)
@@ -623,10 +600,7 @@ static inline void tty_audit_exit(void)
 static inline void tty_audit_fork(struct signal_struct *sig)
 {
 }
-static inline void tty_audit_push(struct tty_struct *tty)
-{
-}
-static inline int tty_audit_push_current(void)
+static inline int tty_audit_push(void)
 {
 	return 0;
 }
@@ -648,11 +622,11 @@ extern long vt_compat_ioctl(struct tty_struct *tty,
 
 /* tty_mutex.c */
 /* functions for preparation of BKL removal */
-extern void __lockfunc tty_lock(struct tty_struct *tty);
+extern void tty_lock(struct tty_struct *tty);
 extern int  tty_lock_interruptible(struct tty_struct *tty);
-extern void __lockfunc tty_unlock(struct tty_struct *tty);
-extern void __lockfunc tty_lock_slave(struct tty_struct *tty);
-extern void __lockfunc tty_unlock_slave(struct tty_struct *tty);
+extern void tty_unlock(struct tty_struct *tty);
+extern void tty_lock_slave(struct tty_struct *tty);
+extern void tty_unlock_slave(struct tty_struct *tty);
 extern void tty_set_lock_subclass(struct tty_struct *tty);
 
 #ifdef CONFIG_PROC_FS

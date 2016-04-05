@@ -894,10 +894,8 @@ PNAME(mout_phyclk_usbdrd300_udrd30_pipe_pclk_user_p)	= { "fin_pll",
 
 /* fixed rate clocks used in the FSYS0 block */
 static struct samsung_fixed_rate_clock fixed_rate_clks_fsys0[] __initdata = {
-	FRATE(0, "phyclk_usbdrd300_udrd30_phyclock", NULL,
-		CLK_IS_ROOT, 60000000),
-	FRATE(0, "phyclk_usbdrd300_udrd30_pipe_pclk", NULL,
-		CLK_IS_ROOT, 125000000),
+	FRATE(0, "phyclk_usbdrd300_udrd30_phyclock", NULL, 0, 60000000),
+	FRATE(0, "phyclk_usbdrd300_udrd30_pipe_pclk", NULL, 0, 125000000),
 };
 
 static unsigned long fsys0_clk_regs[] __initdata = {
@@ -1009,11 +1007,11 @@ PNAME(mout_phyclk_ufs20_rx1_user_p) = { "fin_pll", "phyclk_ufs20_rx1_symbol" };
 /* fixed rate clocks used in the FSYS1 block */
 static struct samsung_fixed_rate_clock fixed_rate_clks_fsys1[] __initdata = {
 	FRATE(PHYCLK_UFS20_TX0_SYMBOL, "phyclk_ufs20_tx0_symbol", NULL,
-			CLK_IS_ROOT, 300000000),
+			0, 300000000),
 	FRATE(PHYCLK_UFS20_RX0_SYMBOL, "phyclk_ufs20_rx0_symbol", NULL,
-			CLK_IS_ROOT, 300000000),
+			0, 300000000),
 	FRATE(PHYCLK_UFS20_RX1_SYMBOL, "phyclk_ufs20_rx1_symbol", NULL,
-			CLK_IS_ROOT, 300000000),
+			0, 300000000),
 };
 
 static unsigned long fsys1_clk_regs[] __initdata = {

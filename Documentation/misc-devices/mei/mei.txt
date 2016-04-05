@@ -231,15 +231,15 @@ IT knows when a platform crashes even when there is a hard failure on the host.
 The Intel AMT Watchdog is composed of two parts:
 	1) Firmware feature - receives the heartbeats
 	   and sends an event when the heartbeats stop.
-	2) Intel MEI driver - connects to the watchdog feature, configures the
-	   watchdog and sends the heartbeats.
+	2) Intel MEI iAMT watchdog driver - connects to the watchdog feature,
+	   configures the watchdog and sends the heartbeats.
 
-The Intel MEI driver uses the kernel watchdog API to configure the Intel AMT
-Watchdog and to send heartbeats to it. The default timeout of the
+The Intel iAMT watchdog MEI driver uses the kernel watchdog API to configure
+the Intel AMT Watchdog and to send heartbeats to it. The default timeout of the
 watchdog is 120 seconds.
 
-If the Intel AMT Watchdog feature does not exist (i.e. the connection failed),
-the Intel MEI driver will disable the sending of heartbeats.
+If the Intel AMT is not enabled in the firmware then the watchdog client won't enumerate
+on the me client bus and watchdog devices won't be exposed.
 
 
 Supported Chipsets

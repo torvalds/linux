@@ -33,6 +33,7 @@
 #include "util/stat.h"
 #include "trace-event.h"
 #include "util/parse-events.h"
+#include "util/bpf-loader.h"
 
 #include <libaudit.h>
 #include <stdlib.h>
@@ -1724,8 +1725,12 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 
 	sc->args = sc->tp_format->format.fields;
 	sc->nr_args = sc->tp_format->format.nr_fields;
-	/* drop nr field - not relevant here; does not exist on older kernels */
-	if (sc->args && strcmp(sc->args->name, "nr") == 0) {
+	/*
+	 * We need to check and discard the first variable '__syscall_nr'
+	 * or 'nr' that mean the syscall number. It is needless here.
+	 * So drop '__syscall_nr' or 'nr' field but does not exist on older kernels.
+	 */
+	if (sc->args && (!strcmp(sc->args->name, "__syscall_nr") || !strcmp(sc->args->name, "nr"))) {
 		sc->args = sc->args->next;
 		--sc->nr_args;
 	}
@@ -2177,6 +2182,37 @@ out_dump:
 	return 0;
 }
 
+static void bpf_output__printer(enum binary_printer_ops op,
+				unsigned int val, void *extra)
+{
+	FILE *output = extra;
+	unsigned char ch = (unsigned char)val;
+
+	switch (op) {
+	case BINARY_PRINT_CHAR_DATA:
+		fprintf(output, "%c", isprint(ch) ? ch : '.');
+		break;
+	case BINARY_PRINT_DATA_BEGIN:
+	case BINARY_PRINT_LINE_BEGIN:
+	case BINARY_PRINT_ADDR:
+	case BINARY_PRINT_NUM_DATA:
+	case BINARY_PRINT_NUM_PAD:
+	case BINARY_PRINT_SEP:
+	case BINARY_PRINT_CHAR_PAD:
+	case BINARY_PRINT_LINE_END:
+	case BINARY_PRINT_DATA_END:
+	default:
+		break;
+	}
+}
+
+static void bpf_output__fprintf(struct trace *trace,
+				struct perf_sample *sample)
+{
+	print_binary(sample->raw_data, sample->raw_size, 8,
+		     bpf_output__printer, trace->output);
+}
+
 static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 				union perf_event *event __maybe_unused,
 				struct perf_sample *sample)
@@ -2189,7 +2225,9 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 
 	fprintf(trace->output, "%s:", evsel->name);
 
-	if (evsel->tp_format) {
+	if (perf_evsel__is_bpf_output(evsel)) {
+		bpf_output__fprintf(trace, sample);
+	} else if (evsel->tp_format) {
 		event_format__fprintf(evsel->tp_format, sample->cpu,
 				      sample->raw_data, sample->raw_size,
 				      trace->output);
@@ -2218,11 +2256,10 @@ static void print_location(FILE *f, struct perf_sample *sample,
 
 static int trace__pgfault(struct trace *trace,
 			  struct perf_evsel *evsel,
-			  union perf_event *event,
+			  union perf_event *event __maybe_unused,
 			  struct perf_sample *sample)
 {
 	struct thread *thread;
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct addr_location al;
 	char map_type = 'd';
 	struct thread_trace *ttrace;
@@ -2241,7 +2278,7 @@ static int trace__pgfault(struct trace *trace,
 	if (trace->summary_only)
 		goto out;
 
-	thread__find_addr_location(thread, cpumode, MAP__FUNCTION,
+	thread__find_addr_location(thread, sample->cpumode, MAP__FUNCTION,
 			      sample->ip, &al);
 
 	trace__fprintf_entry_head(trace, thread, 0, sample->time, trace->output);
@@ -2254,11 +2291,11 @@ static int trace__pgfault(struct trace *trace,
 
 	fprintf(trace->output, "] => ");
 
-	thread__find_addr_location(thread, cpumode, MAP__VARIABLE,
+	thread__find_addr_location(thread, sample->cpumode, MAP__VARIABLE,
 				   sample->addr, &al);
 
 	if (!al.map) {
-		thread__find_addr_location(thread, cpumode,
+		thread__find_addr_location(thread, sample->cpumode,
 					   MAP__FUNCTION, sample->addr, &al);
 
 		if (al.map)
@@ -2585,6 +2622,16 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	err = perf_evlist__open(evlist);
 	if (err < 0)
 		goto out_error_open;
+
+	err = bpf__apply_obj_config();
+	if (err) {
+		char errbuf[BUFSIZ];
+
+		bpf__strerror_apply_obj_config(err, errbuf, sizeof(errbuf));
+		pr_err("ERROR: Apply config to BPF failed: %s\n",
+			 errbuf);
+		goto out_error_open;
+	}
 
 	/*
 	 * Better not use !target__has_task() here because we need to cover the

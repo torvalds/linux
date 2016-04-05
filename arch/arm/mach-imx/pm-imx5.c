@@ -153,15 +153,15 @@ static void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode)
 	int stop_mode = 0;
 
 	/* always allow platform to issue a deep sleep mode request */
-	plat_lpc = __raw_readl(cortex_base + MXC_CORTEXA8_PLAT_LPC) &
+	plat_lpc = imx_readl(cortex_base + MXC_CORTEXA8_PLAT_LPC) &
 	    ~(MXC_CORTEXA8_PLAT_LPC_DSM);
-	ccm_clpcr = __raw_readl(ccm_base + MXC_CCM_CLPCR) &
+	ccm_clpcr = imx_readl(ccm_base + MXC_CCM_CLPCR) &
 		    ~(MXC_CCM_CLPCR_LPM_MASK);
-	arm_srpgcr = __raw_readl(gpc_base + MXC_SRPG_ARM_SRPGCR) &
+	arm_srpgcr = imx_readl(gpc_base + MXC_SRPG_ARM_SRPGCR) &
 		     ~(MXC_SRPGCR_PCR);
-	empgc0 = __raw_readl(gpc_base + MXC_SRPG_EMPGC0_SRPGCR) &
+	empgc0 = imx_readl(gpc_base + MXC_SRPG_EMPGC0_SRPGCR) &
 		 ~(MXC_SRPGCR_PCR);
-	empgc1 = __raw_readl(gpc_base + MXC_SRPG_EMPGC1_SRPGCR) &
+	empgc1 = imx_readl(gpc_base + MXC_SRPG_EMPGC1_SRPGCR) &
 		 ~(MXC_SRPGCR_PCR);
 
 	switch (mode) {
@@ -196,17 +196,17 @@ static void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode)
 		return;
 	}
 
-	__raw_writel(plat_lpc, cortex_base + MXC_CORTEXA8_PLAT_LPC);
-	__raw_writel(ccm_clpcr, ccm_base + MXC_CCM_CLPCR);
-	__raw_writel(arm_srpgcr, gpc_base + MXC_SRPG_ARM_SRPGCR);
-	__raw_writel(arm_srpgcr, gpc_base + MXC_SRPG_NEON_SRPGCR);
+	imx_writel(plat_lpc, cortex_base + MXC_CORTEXA8_PLAT_LPC);
+	imx_writel(ccm_clpcr, ccm_base + MXC_CCM_CLPCR);
+	imx_writel(arm_srpgcr, gpc_base + MXC_SRPG_ARM_SRPGCR);
+	imx_writel(arm_srpgcr, gpc_base + MXC_SRPG_NEON_SRPGCR);
 
 	if (stop_mode) {
 		empgc0 |= MXC_SRPGCR_PCR;
 		empgc1 |= MXC_SRPGCR_PCR;
 
-		__raw_writel(empgc0, gpc_base + MXC_SRPG_EMPGC0_SRPGCR);
-		__raw_writel(empgc1, gpc_base + MXC_SRPG_EMPGC1_SRPGCR);
+		imx_writel(empgc0, gpc_base + MXC_SRPG_EMPGC0_SRPGCR);
+		imx_writel(empgc1, gpc_base + MXC_SRPG_EMPGC1_SRPGCR);
 	}
 }
 
@@ -228,8 +228,8 @@ static int mx5_suspend_enter(suspend_state_t state)
 		flush_cache_all();
 
 		/*clear the EMPGC0/1 bits */
-		__raw_writel(0, gpc_base + MXC_SRPG_EMPGC0_SRPGCR);
-		__raw_writel(0, gpc_base + MXC_SRPG_EMPGC1_SRPGCR);
+		imx_writel(0, gpc_base + MXC_SRPG_EMPGC0_SRPGCR);
+		imx_writel(0, gpc_base + MXC_SRPG_EMPGC1_SRPGCR);
 
 		if (imx5_suspend_in_ocram_fn)
 			imx5_suspend_in_ocram_fn(suspend_ocram_base);

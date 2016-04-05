@@ -381,7 +381,7 @@ static int osc_checksum_type_seq_show(struct seq_file *m, void *v)
 
 	DECLARE_CKSUM_NAME;
 
-	if (obd == NULL)
+	if (!obd)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(cksum_name); i++) {
@@ -397,8 +397,8 @@ static int osc_checksum_type_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t osc_checksum_type_seq_write(struct file *file,
-				const char __user *buffer,
-				size_t count, loff_t *off)
+					   const char __user *buffer,
+					   size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	int i;
@@ -406,7 +406,7 @@ static ssize_t osc_checksum_type_seq_write(struct file *file,
 	DECLARE_CKSUM_NAME;
 	char kernbuf[10];
 
-	if (obd == NULL)
+	if (!obd)
 		return 0;
 
 	if (count > sizeof(kernbuf) - 1)
@@ -422,8 +422,8 @@ static ssize_t osc_checksum_type_seq_write(struct file *file,
 		if (((1 << i) & obd->u.cli.cl_supp_cksum_types) == 0)
 			continue;
 		if (!strcmp(kernbuf, cksum_name[i])) {
-		       obd->u.cli.cl_cksum_type = 1 << i;
-		       return count;
+			obd->u.cli.cl_cksum_type = 1 << i;
+			return count;
 		}
 	}
 	return -EINVAL;
@@ -480,9 +480,19 @@ static ssize_t contention_seconds_store(struct kobject *kobj,
 	struct obd_device *obd = container_of(kobj, struct obd_device,
 					      obd_kobj);
 	struct osc_device *od  = obd2osc_dev(obd);
+	int rc;
+	int val;
 
-	return lprocfs_write_helper(buffer, count, &od->od_contention_time) ?:
-		count;
+	rc = kstrtoint(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	if (val < 0)
+		return -EINVAL;
+
+	od->od_contention_time = val;
+
+	return count;
 }
 LUSTRE_RW_ATTR(contention_seconds);
 
@@ -505,9 +515,16 @@ static ssize_t lockless_truncate_store(struct kobject *kobj,
 	struct obd_device *obd = container_of(kobj, struct obd_device,
 					      obd_kobj);
 	struct osc_device *od  = obd2osc_dev(obd);
+	int rc;
+	unsigned int val;
 
-	return lprocfs_write_helper(buffer, count, &od->od_lockless_truncate) ?:
-		count;
+	rc = kstrtouint(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	od->od_lockless_truncate = val;
+
+	return count;
 }
 LUSTRE_RW_ATTR(lockless_truncate);
 
@@ -635,10 +652,10 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 		read_cum += r;
 		write_cum += w;
 		seq_printf(seq, "%d:\t\t%10lu %3lu %3lu   | %10lu %3lu %3lu\n",
-				 1 << i, r, pct(r, read_tot),
-				 pct(read_cum, read_tot), w,
-				 pct(w, write_tot),
-				 pct(write_cum, write_tot));
+			   1 << i, r, pct(r, read_tot),
+			   pct(read_cum, read_tot), w,
+			   pct(w, write_tot),
+			   pct(write_cum, write_tot));
 		if (read_cum == read_tot && write_cum == write_tot)
 			break;
 	}
@@ -659,10 +676,10 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 		read_cum += r;
 		write_cum += w;
 		seq_printf(seq, "%d:\t\t%10lu %3lu %3lu   | %10lu %3lu %3lu\n",
-				 i, r, pct(r, read_tot),
-				 pct(read_cum, read_tot), w,
-				 pct(w, write_tot),
-				 pct(write_cum, write_tot));
+			   i, r, pct(r, read_tot),
+			   pct(read_cum, read_tot), w,
+			   pct(w, write_tot),
+			   pct(write_cum, write_tot));
 		if (read_cum == read_tot && write_cum == write_tot)
 			break;
 	}

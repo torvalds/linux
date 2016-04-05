@@ -235,20 +235,10 @@ struct dw_mci_dma_ops {
 };
 
 /* IP Quirks/flags. */
-/* Unreliable card detection */
-#define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(0)
 /* Timer for broken data transfer over scheme */
-#define DW_MCI_QUIRK_BROKEN_DTO			BIT(1)
+#define DW_MCI_QUIRK_BROKEN_DTO			BIT(0)
 
 struct dma_pdata;
-
-struct block_settings {
-	unsigned short	max_segs;	/* see blk_queue_max_segments */
-	unsigned int	max_blk_size;	/* maximum size of one mmc block */
-	unsigned int	max_blk_count;	/* maximum number of blocks in one req*/
-	unsigned int	max_req_size;	/* maximum number of bytes in one req*/
-	unsigned int	max_seg_size;	/* see blk_queue_max_segment_size */
-};
 
 /* Board platform data */
 struct dw_mci_board {

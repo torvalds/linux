@@ -166,7 +166,7 @@ int radeon_vce_init(struct radeon_device *rdev)
 	for (i = 0; i < RADEON_MAX_VCE_HANDLES; ++i) {
 		atomic_set(&rdev->vce.handles[i], 0);
 		rdev->vce.filp[i] = NULL;
-        }
+	}
 
 	return 0;
 }
@@ -389,7 +389,7 @@ int radeon_vce_get_create_msg(struct radeon_device *rdev, int ring,
 
 	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
-	        DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
+		DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
 	}
 
 	if (fence)
@@ -446,7 +446,7 @@ int radeon_vce_get_destroy_msg(struct radeon_device *rdev, int ring,
 
 	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
-	        DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
+		DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
 	}
 
 	if (fence)
@@ -769,18 +769,18 @@ int radeon_vce_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	radeon_ring_unlock_commit(rdev, ring, false);
 
 	for (i = 0; i < rdev->usec_timeout; i++) {
-	        if (vce_v1_0_get_rptr(rdev, ring) != rptr)
-	                break;
-	        DRM_UDELAY(1);
+		if (vce_v1_0_get_rptr(rdev, ring) != rptr)
+			break;
+		DRM_UDELAY(1);
 	}
 
 	if (i < rdev->usec_timeout) {
-	        DRM_INFO("ring test on %d succeeded in %d usecs\n",
-	                 ring->idx, i);
+		DRM_INFO("ring test on %d succeeded in %d usecs\n",
+			 ring->idx, i);
 	} else {
-	        DRM_ERROR("radeon: ring %d test failed\n",
-	                  ring->idx);
-	        r = -ETIMEDOUT;
+		DRM_ERROR("radeon: ring %d test failed\n",
+			 ring->idx);
+		r = -ETIMEDOUT;
 	}
 
 	return r;
@@ -810,11 +810,16 @@ int radeon_vce_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		goto error;
 	}
 
-	r = radeon_fence_wait(fence, false);
-	if (r) {
+	r = radeon_fence_wait_timeout(fence, false, usecs_to_jiffies(
+		RADEON_USEC_IB_TEST_TIMEOUT));
+	if (r < 0) {
 		DRM_ERROR("radeon: fence wait failed (%d).\n", r);
+	} else if (r == 0) {
+		DRM_ERROR("radeon: fence wait timed out.\n");
+		r = -ETIMEDOUT;
 	} else {
-	        DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		r = 0;
 	}
 error:
 	radeon_fence_unref(&fence);

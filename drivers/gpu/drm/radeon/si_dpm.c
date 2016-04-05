@@ -499,7 +499,7 @@ static const struct si_cac_config_reg lcac_pitcairn[] =
 
 static const struct si_cac_config_reg cac_override_pitcairn[] =
 {
-    { 0xFFFFFFFF }
+	{ 0xFFFFFFFF }
 };
 
 static const struct si_powertune_data powertune_data_pitcairn =
@@ -991,7 +991,7 @@ static const struct si_cac_config_reg lcac_cape_verde[] =
 
 static const struct si_cac_config_reg cac_override_cape_verde[] =
 {
-    { 0xFFFFFFFF }
+	{ 0xFFFFFFFF }
 };
 
 static const struct si_powertune_data powertune_data_cape_verde =
@@ -1762,9 +1762,9 @@ static void si_fan_ctrl_set_default_mode(struct radeon_device *rdev);
 
 static struct si_power_info *si_get_pi(struct radeon_device *rdev)
 {
-        struct si_power_info *pi = rdev->pm.dpm.priv;
+	struct si_power_info *pi = rdev->pm.dpm.priv;
 
-        return pi;
+	return pi;
 }
 
 static void si_calculate_leakage_for_v_and_t_formula(const struct ni_leakage_coeffients *coeff,
@@ -3150,9 +3150,9 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 		}
 	}
 
-        for (i = 0; i < ps->performance_level_count; i++)
-                btc_adjust_clock_combinations(rdev, max_limits,
-                                              &ps->performance_levels[i]);
+	for (i = 0; i < ps->performance_level_count; i++)
+		btc_adjust_clock_combinations(rdev, max_limits,
+					      &ps->performance_levels[i]);
 
 	for (i = 0; i < ps->performance_level_count; i++) {
 		if (ps->performance_levels[i].vddc < min_vce_voltage)
@@ -3291,7 +3291,7 @@ static void si_set_dpm_event_sources(struct radeon_device *rdev, u32 sources)
 	case 0:
 	default:
 		want_thermal_protection = false;
-                break;
+		break;
 	case (1 << RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL):
 		want_thermal_protection = true;
 		dpm_event_src = RADEON_DPM_EVENT_SRC_DIGITAL;
@@ -3493,7 +3493,7 @@ static int si_process_firmware_header(struct radeon_device *rdev)
 	if (ret)
 		return ret;
 
-        si_pi->state_table_start = tmp;
+	si_pi->state_table_start = tmp;
 
 	ret = si_read_smc_sram_dword(rdev,
 				     SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
@@ -3652,7 +3652,7 @@ static void si_program_response_times(struct radeon_device *rdev)
 	si_write_smc_soft_register(rdev, SI_SMC_SOFT_REGISTER_mvdd_chg_time, 1);
 
 	voltage_response_time = (u32)rdev->pm.dpm.voltage_response_time;
-        backbias_response_time = (u32)rdev->pm.dpm.backbias_response_time;
+	backbias_response_time = (u32)rdev->pm.dpm.backbias_response_time;
 
 	if (voltage_response_time == 0)
 		voltage_response_time = 1000;
@@ -3760,7 +3760,7 @@ static void si_setup_bsp(struct radeon_device *rdev)
 			       &pi->pbsu);
 
 
-        pi->dsp = BSP(pi->bsp) | BSU(pi->bsu);
+	pi->dsp = BSP(pi->bsp) | BSU(pi->bsu);
 	pi->psp = BSP(pi->pbsp) | BSU(pi->pbsu);
 
 	WREG32(CG_BSP, pi->dsp);
@@ -4308,7 +4308,7 @@ static int si_populate_memory_timing_parameters(struct radeon_device *rdev,
 
 	radeon_atom_set_engine_dram_timings(rdev,
 					    pl->sclk,
-                                            pl->mclk);
+					    pl->mclk);
 
 	dram_timing  = RREG32(MC_ARB_DRAM_TIMING);
 	dram_timing2 = RREG32(MC_ARB_DRAM_TIMING2);
@@ -4343,7 +4343,7 @@ static int si_do_program_memory_timing_parameters(struct radeon_device *rdev,
 					   si_pi->sram_end);
 		if (ret)
 			break;
-        }
+	}
 
 	return ret;
 }
@@ -4821,9 +4821,9 @@ static int si_calculate_sclk_params(struct radeon_device *rdev,
 	spll_func_cntl_2 &= ~SCLK_MUX_SEL_MASK;
 	spll_func_cntl_2 |= SCLK_MUX_SEL(2);
 
-        spll_func_cntl_3 &= ~SPLL_FB_DIV_MASK;
-        spll_func_cntl_3 |= SPLL_FB_DIV(fbdiv);
-        spll_func_cntl_3 |= SPLL_DITHEN;
+	spll_func_cntl_3 &= ~SPLL_FB_DIV_MASK;
+	spll_func_cntl_3 |= SPLL_FB_DIV(fbdiv);
+	spll_func_cntl_3 |= SPLL_DITHEN;
 
 	if (pi->sclk_ss) {
 		struct radeon_atom_ss ss;
@@ -4930,15 +4930,15 @@ static int si_populate_mclk_value(struct radeon_device *rdev,
 		tmp = freq_nom / reference_clock;
 		tmp = tmp * tmp;
 		if (radeon_atombios_get_asic_ss_info(rdev, &ss,
-                                                     ASIC_INTERNAL_MEMORY_SS, freq_nom)) {
+						     ASIC_INTERNAL_MEMORY_SS, freq_nom)) {
 			u32 clks = reference_clock * 5 / ss.rate;
 			u32 clkv = (u32)((((131 * ss.percentage * ss.rate) / 100) * tmp) / freq_nom);
 
-                        mpll_ss1 &= ~CLKV_MASK;
-                        mpll_ss1 |= CLKV(clkv);
+			mpll_ss1 &= ~CLKV_MASK;
+			mpll_ss1 |= CLKV(clkv);
 
-                        mpll_ss2 &= ~CLKS_MASK;
-                        mpll_ss2 |= CLKS(clks);
+			mpll_ss2 &= ~CLKS_MASK;
+			mpll_ss2 |= CLKS(clks);
 		}
 	}
 
@@ -5265,7 +5265,7 @@ static int si_convert_power_state_to_smc(struct radeon_device *rdev,
 		ni_pi->enable_power_containment = false;
 
 	ret = si_populate_sq_ramping_values(rdev, radeon_state, smc_state);
-        if (ret)
+	if (ret)
 		ni_pi->enable_sq_ramping = false;
 
 	return si_populate_smc_t(rdev, radeon_state, smc_state);
@@ -5436,46 +5436,46 @@ static bool si_check_s0_mc_reg_index(u16 in_reg, u16 *out_reg)
 	case  MC_SEQ_RAS_TIMING >> 2:
 		*out_reg = MC_SEQ_RAS_TIMING_LP >> 2;
 		break;
-        case MC_SEQ_CAS_TIMING >> 2:
+	case MC_SEQ_CAS_TIMING >> 2:
 		*out_reg = MC_SEQ_CAS_TIMING_LP >> 2;
 		break;
-        case MC_SEQ_MISC_TIMING >> 2:
+	case MC_SEQ_MISC_TIMING >> 2:
 		*out_reg = MC_SEQ_MISC_TIMING_LP >> 2;
 		break;
-        case MC_SEQ_MISC_TIMING2 >> 2:
+	case MC_SEQ_MISC_TIMING2 >> 2:
 		*out_reg = MC_SEQ_MISC_TIMING2_LP >> 2;
 		break;
-        case MC_SEQ_RD_CTL_D0 >> 2:
+	case MC_SEQ_RD_CTL_D0 >> 2:
 		*out_reg = MC_SEQ_RD_CTL_D0_LP >> 2;
 		break;
-        case MC_SEQ_RD_CTL_D1 >> 2:
+	case MC_SEQ_RD_CTL_D1 >> 2:
 		*out_reg = MC_SEQ_RD_CTL_D1_LP >> 2;
 		break;
-        case MC_SEQ_WR_CTL_D0 >> 2:
+	case MC_SEQ_WR_CTL_D0 >> 2:
 		*out_reg = MC_SEQ_WR_CTL_D0_LP >> 2;
 		break;
-        case MC_SEQ_WR_CTL_D1 >> 2:
+	case MC_SEQ_WR_CTL_D1 >> 2:
 		*out_reg = MC_SEQ_WR_CTL_D1_LP >> 2;
 		break;
-        case MC_PMG_CMD_EMRS >> 2:
+	case MC_PMG_CMD_EMRS >> 2:
 		*out_reg = MC_SEQ_PMG_CMD_EMRS_LP >> 2;
 		break;
-        case MC_PMG_CMD_MRS >> 2:
+	case MC_PMG_CMD_MRS >> 2:
 		*out_reg = MC_SEQ_PMG_CMD_MRS_LP >> 2;
 		break;
-        case MC_PMG_CMD_MRS1 >> 2:
+	case MC_PMG_CMD_MRS1 >> 2:
 		*out_reg = MC_SEQ_PMG_CMD_MRS1_LP >> 2;
 		break;
-        case MC_SEQ_PMG_TIMING >> 2:
+	case MC_SEQ_PMG_TIMING >> 2:
 		*out_reg = MC_SEQ_PMG_TIMING_LP >> 2;
 		break;
-        case MC_PMG_CMD_MRS2 >> 2:
+	case MC_PMG_CMD_MRS2 >> 2:
 		*out_reg = MC_SEQ_PMG_CMD_MRS2_LP >> 2;
 		break;
-        case MC_SEQ_WR_CTL_2 >> 2:
+	case MC_SEQ_WR_CTL_2 >> 2:
 		*out_reg = MC_SEQ_WR_CTL_2_LP >> 2;
 		break;
-        default:
+	default:
 		result = false;
 		break;
 	}
@@ -5562,19 +5562,19 @@ static int si_initialize_mc_reg_table(struct radeon_device *rdev)
 	WREG32(MC_SEQ_PMG_CMD_MRS2_LP, RREG32(MC_PMG_CMD_MRS2));
 	WREG32(MC_SEQ_WR_CTL_2_LP, RREG32(MC_SEQ_WR_CTL_2));
 
-        ret = radeon_atom_init_mc_reg_table(rdev, module_index, table);
-        if (ret)
-                goto init_mc_done;
+	ret = radeon_atom_init_mc_reg_table(rdev, module_index, table);
+	if (ret)
+		goto init_mc_done;
 
-        ret = si_copy_vbios_mc_reg_table(table, si_table);
-        if (ret)
-                goto init_mc_done;
+	ret = si_copy_vbios_mc_reg_table(table, si_table);
+	if (ret)
+		goto init_mc_done;
 
 	si_set_s0_mc_reg_index(si_table);
 
 	ret = si_set_mc_special_registers(rdev, si_table);
-        if (ret)
-                goto init_mc_done;
+	if (ret)
+		goto init_mc_done;
 
 	si_set_valid_flag(si_table);
 
@@ -5715,10 +5715,10 @@ static int si_upload_mc_reg_table(struct radeon_device *rdev,
 
 static void si_enable_voltage_control(struct radeon_device *rdev, bool enable)
 {
-        if (enable)
-                WREG32_P(GENERAL_PWRMGT, VOLT_PWRMGT_EN, ~VOLT_PWRMGT_EN);
-        else
-                WREG32_P(GENERAL_PWRMGT, 0, ~VOLT_PWRMGT_EN);
+	if (enable)
+		WREG32_P(GENERAL_PWRMGT, VOLT_PWRMGT_EN, ~VOLT_PWRMGT_EN);
+	else
+		WREG32_P(GENERAL_PWRMGT, 0, ~VOLT_PWRMGT_EN);
 }
 
 static enum radeon_pcie_gen si_get_maximum_link_speed(struct radeon_device *rdev,
@@ -6820,7 +6820,7 @@ static int si_parse_power_table(struct radeon_device *rdev)
 	struct _NonClockInfoArray *non_clock_info_array;
 	union power_info *power_info;
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
-        u16 data_offset;
+	u16 data_offset;
 	u8 frev, crev;
 	u8 *power_state_offset;
 	struct ni_ps *ps;

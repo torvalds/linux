@@ -153,7 +153,7 @@ int main(void)
 
 		alarmcount = 0;
 		if (timer_create(alarm_clock_id, &se, &tm1) == -1) {
-			printf("timer_create failled, %s unspported?\n",
+			printf("timer_create failed, %s unsupported?\n",
 					clockstring(alarm_clock_id));
 			break;
 		}

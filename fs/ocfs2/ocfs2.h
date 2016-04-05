@@ -464,6 +464,14 @@ struct ocfs2_super
 	struct ocfs2_refcount_tree *osb_ref_tree_lru;
 
 	struct mutex system_file_mutex;
+
+	/*
+	 * OCFS2 needs to schedule several different types of work which
+	 * require cluster locking, disk I/O, recovery waits, etc. Since these
+	 * types of work tend to be heavy we avoid using the kernel events
+	 * workqueue and schedule on our own.
+	 */
+	struct workqueue_struct *ocfs2_wq;
 };
 
 #define OCFS2_SB(sb)	    ((struct ocfs2_super *)(sb)->s_fs_info)

@@ -51,6 +51,8 @@
 #include <linux/prefetch.h>
 #include <scsi/fc/fc_fcoe.h>
 #include <net/vxlan.h>
+#include <net/pkt_cls.h>
+#include <net/tc_act/tc_gact.h>
 
 #ifdef CONFIG_OF
 #include <linux/of_net.h>
@@ -65,6 +67,7 @@
 #include "ixgbe_common.h"
 #include "ixgbe_dcb_82599.h"
 #include "ixgbe_sriov.h"
+#include "ixgbe_model.h"
 
 char ixgbe_driver_name[] = "ixgbe";
 static const char ixgbe_driver_string[] =
@@ -1089,7 +1092,7 @@ static void ixgbe_tx_timeout_reset(struct ixgbe_adapter *adapter)
  * @tx_ring: tx ring to clean
  **/
 static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
-			       struct ixgbe_ring *tx_ring)
+			       struct ixgbe_ring *tx_ring, int napi_budget)
 {
 	struct ixgbe_adapter *adapter = q_vector->adapter;
 	struct ixgbe_tx_buffer *tx_buffer;
@@ -1127,7 +1130,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		total_packets += tx_buffer->gso_segs;
 
 		/* free the skb */
-		dev_consume_skb_any(tx_buffer->skb);
+		napi_consume_skb(tx_buffer->skb, napi_budget);
 
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
@@ -1942,7 +1945,7 @@ static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
 	/* Even if we own the page, we are not allowed to use atomic_set()
 	 * This would break get_page_unless_zero() users.
 	 */
-	atomic_inc(&page->_count);
+	page_ref_inc(page);
 
 	return true;
 }
@@ -2784,7 +2787,7 @@ int ixgbe_poll(struct napi_struct *napi, int budget)
 #endif
 
 	ixgbe_for_each_ring(ring, q_vector->tx)
-		clean_complete &= !!ixgbe_clean_tx_irq(q_vector, ring);
+		clean_complete &= !!ixgbe_clean_tx_irq(q_vector, ring, budget);
 
 	/* Exit if we are called by netpoll or busy polling is active */
 	if ((budget <= 0) || !ixgbe_qv_lock_napi(q_vector))
@@ -5545,6 +5548,9 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 #endif /* CONFIG_IXGBE_DCB */
 #endif /* IXGBE_FCOE */
 
+	/* initialize static ixgbe jump table entries */
+	adapter->jump_tables[0] = ixgbe_ipv4_fields;
+
 	adapter->mac_table = kzalloc(sizeof(struct ixgbe_mac_addr) *
 				     hw->mac.num_rar_entries,
 				     GFP_ATOMIC);
@@ -8200,6 +8206,225 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 	return 0;
 }
 
+static int ixgbe_delete_clsu32(struct ixgbe_adapter *adapter,
+			       struct tc_cls_u32_offload *cls)
+{
+	int err;
+
+	spin_lock(&adapter->fdir_perfect_lock);
+	err = ixgbe_update_ethtool_fdir_entry(adapter, NULL, cls->knode.handle);
+	spin_unlock(&adapter->fdir_perfect_lock);
+	return err;
+}
+
+static int ixgbe_configure_clsu32_add_hnode(struct ixgbe_adapter *adapter,
+					    __be16 protocol,
+					    struct tc_cls_u32_offload *cls)
+{
+	/* This ixgbe devices do not support hash tables at the moment
+	 * so abort when given hash tables.
+	 */
+	if (cls->hnode.divisor > 0)
+		return -EINVAL;
+
+	set_bit(TC_U32_USERHTID(cls->hnode.handle), &adapter->tables);
+	return 0;
+}
+
+static int ixgbe_configure_clsu32_del_hnode(struct ixgbe_adapter *adapter,
+					    struct tc_cls_u32_offload *cls)
+{
+	clear_bit(TC_U32_USERHTID(cls->hnode.handle), &adapter->tables);
+	return 0;
+}
+
+static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
+				  __be16 protocol,
+				  struct tc_cls_u32_offload *cls)
+{
+	u32 loc = cls->knode.handle & 0xfffff;
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbe_mat_field *field_ptr;
+	struct ixgbe_fdir_filter *input;
+	union ixgbe_atr_input mask;
+#ifdef CONFIG_NET_CLS_ACT
+	const struct tc_action *a;
+#endif
+	int i, err = 0;
+	u8 queue;
+	u32 handle;
+
+	memset(&mask, 0, sizeof(union ixgbe_atr_input));
+	handle = cls->knode.handle;
+
+	/* At the moment cls_u32 jumps to transport layer and skips past
+	 * L2 headers. The canonical method to match L2 frames is to use
+	 * negative values. However this is error prone at best but really
+	 * just broken because there is no way to "know" what sort of hdr
+	 * is in front of the transport layer. Fix cls_u32 to support L2
+	 * headers when needed.
+	 */
+	if (protocol != htons(ETH_P_IP))
+		return -EINVAL;
+
+	if (cls->knode.link_handle ||
+	    cls->knode.link_handle >= IXGBE_MAX_LINK_HANDLE) {
+		struct ixgbe_nexthdr *nexthdr = ixgbe_ipv4_jumps;
+		u32 uhtid = TC_U32_USERHTID(cls->knode.link_handle);
+
+		if (!test_bit(uhtid, &adapter->tables))
+			return -EINVAL;
+
+		for (i = 0; nexthdr[i].jump; i++) {
+			if (nexthdr->o != cls->knode.sel->offoff ||
+			    nexthdr->s != cls->knode.sel->offshift ||
+			    nexthdr->m != cls->knode.sel->offmask ||
+			    /* do not support multiple key jumps its just mad */
+			    cls->knode.sel->nkeys > 1)
+				return -EINVAL;
+
+			if (nexthdr->off != cls->knode.sel->keys[0].off ||
+			    nexthdr->val != cls->knode.sel->keys[0].val ||
+			    nexthdr->mask != cls->knode.sel->keys[0].mask)
+				return -EINVAL;
+
+			if (uhtid >= IXGBE_MAX_LINK_HANDLE)
+				return -EINVAL;
+
+			adapter->jump_tables[uhtid] = nexthdr->jump;
+		}
+		return 0;
+	}
+
+	if (loc >= ((1024 << adapter->fdir_pballoc) - 2)) {
+		e_err(drv, "Location out of range\n");
+		return -EINVAL;
+	}
+
+	/* cls u32 is a graph starting at root node 0x800. The driver tracks
+	 * links and also the fields used to advance the parser across each
+	 * link (e.g. nexthdr/eat parameters from 'tc'). This way we can map
+	 * the u32 graph onto the hardware parse graph denoted in ixgbe_model.h
+	 * To add support for new nodes update ixgbe_model.h parse structures
+	 * this function _should_ be generic try not to hardcode values here.
+	 */
+	if (TC_U32_USERHTID(handle) == 0x800) {
+		field_ptr = adapter->jump_tables[0];
+	} else {
+		if (TC_U32_USERHTID(handle) >= ARRAY_SIZE(adapter->jump_tables))
+			return -EINVAL;
+
+		field_ptr = adapter->jump_tables[TC_U32_USERHTID(handle)];
+	}
+
+	if (!field_ptr)
+		return -EINVAL;
+
+	input = kzalloc(sizeof(*input), GFP_KERNEL);
+	if (!input)
+		return -ENOMEM;
+
+	for (i = 0; i < cls->knode.sel->nkeys; i++) {
+		int off = cls->knode.sel->keys[i].off;
+		__be32 val = cls->knode.sel->keys[i].val;
+		__be32 m = cls->knode.sel->keys[i].mask;
+		bool found_entry = false;
+		int j;
+
+		for (j = 0; field_ptr[j].val; j++) {
+			if (field_ptr[j].off == off &&
+			    field_ptr[j].mask == m) {
+				field_ptr[j].val(input, &mask, val, m);
+				input->filter.formatted.flow_type |=
+					field_ptr[j].type;
+				found_entry = true;
+				break;
+			}
+		}
+
+		if (!found_entry)
+			goto err_out;
+	}
+
+	mask.formatted.flow_type = IXGBE_ATR_L4TYPE_IPV6_MASK |
+				   IXGBE_ATR_L4TYPE_MASK;
+
+	if (input->filter.formatted.flow_type == IXGBE_ATR_FLOW_TYPE_IPV4)
+		mask.formatted.flow_type &= IXGBE_ATR_L4TYPE_IPV6_MASK;
+
+#ifdef CONFIG_NET_CLS_ACT
+	if (list_empty(&cls->knode.exts->actions))
+		goto err_out;
+
+	list_for_each_entry(a, &cls->knode.exts->actions, list) {
+		if (!is_tcf_gact_shot(a))
+			goto err_out;
+	}
+#endif
+
+	input->action = IXGBE_FDIR_DROP_QUEUE;
+	queue = IXGBE_FDIR_DROP_QUEUE;
+	input->sw_idx = loc;
+
+	spin_lock(&adapter->fdir_perfect_lock);
+
+	if (hlist_empty(&adapter->fdir_filter_list)) {
+		memcpy(&adapter->fdir_mask, &mask, sizeof(mask));
+		err = ixgbe_fdir_set_input_mask_82599(hw, &mask);
+		if (err)
+			goto err_out_w_lock;
+	} else if (memcmp(&adapter->fdir_mask, &mask, sizeof(mask))) {
+		err = -EINVAL;
+		goto err_out_w_lock;
+	}
+
+	ixgbe_atr_compute_perfect_hash_82599(&input->filter, &mask);
+	err = ixgbe_fdir_write_perfect_filter_82599(hw, &input->filter,
+						    input->sw_idx, queue);
+	if (!err)
+		ixgbe_update_ethtool_fdir_entry(adapter, input, input->sw_idx);
+	spin_unlock(&adapter->fdir_perfect_lock);
+
+	return err;
+err_out_w_lock:
+	spin_unlock(&adapter->fdir_perfect_lock);
+err_out:
+	kfree(input);
+	return -EINVAL;
+}
+
+int __ixgbe_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
+		     struct tc_to_netdev *tc)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+
+	if (TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS) &&
+	    tc->type == TC_SETUP_CLSU32) {
+		switch (tc->cls_u32->command) {
+		case TC_CLSU32_NEW_KNODE:
+		case TC_CLSU32_REPLACE_KNODE:
+			return ixgbe_configure_clsu32(adapter,
+						      proto, tc->cls_u32);
+		case TC_CLSU32_DELETE_KNODE:
+			return ixgbe_delete_clsu32(adapter, tc->cls_u32);
+		case TC_CLSU32_NEW_HNODE:
+		case TC_CLSU32_REPLACE_HNODE:
+			return ixgbe_configure_clsu32_add_hnode(adapter, proto,
+								tc->cls_u32);
+		case TC_CLSU32_DELETE_HNODE:
+			return ixgbe_configure_clsu32_del_hnode(adapter,
+								tc->cls_u32);
+		default:
+			return -EINVAL;
+		}
+	}
+
+	if (tc->type != TC_SETUP_MQPRIO)
+		return -EINVAL;
+
+	return ixgbe_setup_tc(dev, tc->tc);
+}
+
 #ifdef CONFIG_PCI_IOV
 void ixgbe_sriov_reinit(struct ixgbe_adapter *adapter)
 {
@@ -8262,19 +8487,17 @@ static int ixgbe_set_features(struct net_device *netdev,
 	}
 
 	/*
-	 * Check if Flow Director n-tuple support was enabled or disabled.  If
-	 * the state changed, we need to reset.
+	 * Check if Flow Director n-tuple support or hw_tc support was
+	 * enabled or disabled.  If the state changed, we need to reset.
 	 */
-	switch (features & NETIF_F_NTUPLE) {
-	case NETIF_F_NTUPLE:
+	if ((features & NETIF_F_NTUPLE) || (features & NETIF_F_HW_TC)) {
 		/* turn off ATR, enable perfect filters and reset */
 		if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
 			need_reset = true;
 
 		adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 		adapter->flags |= IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
-		break;
-	default:
+	} else {
 		/* turn off perfect filters, enable ATR and reset */
 		if (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)
 			need_reset = true;
@@ -8282,23 +8505,16 @@ static int ixgbe_set_features(struct net_device *netdev,
 		adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
 
 		/* We cannot enable ATR if SR-IOV is enabled */
-		if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
-			break;
-
-		/* We cannot enable ATR if we have 2 or more traffic classes */
-		if (netdev_get_num_tc(netdev) > 1)
-			break;
-
-		/* We cannot enable ATR if RSS is disabled */
-		if (adapter->ring_feature[RING_F_RSS].limit <= 1)
-			break;
-
-		/* A sample rate of 0 indicates ATR disabled */
-		if (!adapter->atr_sample_rate)
-			break;
-
-		adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
-		break;
+		if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED ||
+		    /* We cannot enable ATR if we have 2 or more tcs */
+		    (netdev_get_num_tc(netdev) > 1) ||
+		    /* We cannot enable ATR if RSS is disabled */
+		    (adapter->ring_feature[RING_F_RSS].limit <= 1) ||
+		    /* A sample rate of 0 indicates ATR disabled */
+		    (!adapter->atr_sample_rate))
+			; /* do nothing not supported */
+		else /* otherwise supported and set the flag */
+			adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
 	}
 
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -8657,9 +8873,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_set_vf_trust	= ixgbe_ndo_set_vf_trust,
 	.ndo_get_vf_config	= ixgbe_ndo_get_vf_config,
 	.ndo_get_stats64	= ixgbe_get_stats64,
-#ifdef CONFIG_IXGBE_DCB
-	.ndo_setup_tc		= ixgbe_setup_tc,
-#endif
+	.ndo_setup_tc		= __ixgbe_setup_tc,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ixgbe_netpoll,
 #endif
@@ -9030,7 +9244,8 @@ skip_sriov:
 	case ixgbe_mac_X550EM_x:
 		netdev->features |= NETIF_F_SCTP_CRC;
 		netdev->hw_features |= NETIF_F_SCTP_CRC |
-				       NETIF_F_NTUPLE;
+				       NETIF_F_NTUPLE |
+				       NETIF_F_HW_TC;
 		break;
 	default:
 		break;

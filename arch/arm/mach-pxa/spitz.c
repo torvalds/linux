@@ -201,7 +201,7 @@ static void __init spitz_scoop_init(void)
 }
 
 /* Power control is shared with between one of the CF slots and SD */
-static void spitz_card_pwr_ctrl(uint8_t enable, uint8_t new_cpr)
+static void __maybe_unused spitz_card_pwr_ctrl(uint8_t enable, uint8_t new_cpr)
 {
 	unsigned short cpr;
 	unsigned long flags;

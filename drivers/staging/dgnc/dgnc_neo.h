@@ -65,7 +65,6 @@ struct neo_uart_struct {
 #define NEO_EEDO  0x80		/* Data Out is an Input Pin */
 #define NEO_EEREG 0x8E		/* offset to EEPROM control reg */
 
-
 #define NEO_VPD_IMAGESIZE 0x40	/* size of image to read from EEPROM in words */
 #define NEO_VPD_IMAGEBYTES (NEO_VPD_IMAGESIZE * 2)
 

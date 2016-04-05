@@ -238,8 +238,6 @@ typedef struct cb_desc {
 
 #define ieee80211_tkip_null		ieee80211_tkip_null_rsl
 
-#define ieee80211_wep_null		ieee80211_wep_null_rsl
-
 #define free_ieee80211			free_ieee80211_rsl
 #define alloc_ieee80211			alloc_ieee80211_rsl
 
@@ -329,9 +327,6 @@ typedef struct ieee_param {
 
 
 // linux under 2.6.9 release may not support it, so modify it for common use
-#define MSECS(t) msecs_to_jiffies(t)
-#define msleep_interruptible_rsl  msleep_interruptible
-
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
    6.2.1.1.2.
@@ -2260,7 +2255,6 @@ void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee);
 
 /* ieee80211_crypt_ccmp&tkip&wep.c */
 void ieee80211_tkip_null(void);
-void ieee80211_wep_null(void);
 void ieee80211_ccmp_null(void);
 
 int ieee80211_crypto_init(void);

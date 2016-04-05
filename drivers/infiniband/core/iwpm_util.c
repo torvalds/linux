@@ -254,9 +254,9 @@ void iwpm_add_remote_info(struct iwpm_remote_info *rem_info)
 }
 
 int iwpm_get_remote_info(struct sockaddr_storage *mapped_loc_addr,
-				struct sockaddr_storage *mapped_rem_addr,
-				struct sockaddr_storage *remote_addr,
-				u8 nl_client)
+			 struct sockaddr_storage *mapped_rem_addr,
+			 struct sockaddr_storage *remote_addr,
+			 u8 nl_client)
 {
 	struct hlist_node *tmp_hlist_node;
 	struct hlist_head *hash_bucket_head;
@@ -322,6 +322,8 @@ struct iwpm_nlmsg_request *iwpm_get_nlmsg_request(__u32 nlmsg_seq,
 	nlmsg_request->nl_client = nl_client;
 	nlmsg_request->request_done = 0;
 	nlmsg_request->err_code = 0;
+	sema_init(&nlmsg_request->sem, 1);
+	down(&nlmsg_request->sem);
 	return nlmsg_request;
 }
 
@@ -364,11 +366,9 @@ struct iwpm_nlmsg_request *iwpm_find_nlmsg_request(__u32 echo_seq)
 int iwpm_wait_complete_req(struct iwpm_nlmsg_request *nlmsg_request)
 {
 	int ret;
-	init_waitqueue_head(&nlmsg_request->waitq);
 
-	ret = wait_event_timeout(nlmsg_request->waitq,
-			(nlmsg_request->request_done != 0), IWPM_NL_TIMEOUT);
-	if (!ret) {
+	ret = down_timeout(&nlmsg_request->sem, IWPM_NL_TIMEOUT);
+	if (ret) {
 		ret = -EINVAL;
 		pr_info("%s: Timeout %d sec for netlink request (seq = %u)\n",
 			__func__, (IWPM_NL_TIMEOUT/HZ), nlmsg_request->nlmsg_seq);

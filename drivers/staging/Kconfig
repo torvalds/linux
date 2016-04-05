@@ -30,10 +30,6 @@ source "drivers/staging/wlan-ng/Kconfig"
 
 source "drivers/staging/comedi/Kconfig"
 
-source "drivers/staging/olpc_dcon/Kconfig"
-
-source "drivers/staging/panel/Kconfig"
-
 source "drivers/staging/rtl8192u/Kconfig"
 
 source "drivers/staging/rtl8192e/Kconfig"
@@ -64,8 +60,6 @@ source "drivers/staging/emxx_udc/Kconfig"
 
 source "drivers/staging/speakup/Kconfig"
 
-source "drivers/staging/ste_rmi4/Kconfig"
-
 source "drivers/staging/nvec/Kconfig"
 
 source "drivers/staging/media/Kconfig"
@@ -75,8 +69,6 @@ source "drivers/staging/rdma/Kconfig"
 source "drivers/staging/android/Kconfig"
 
 source "drivers/staging/board/Kconfig"
-
-source "drivers/staging/gdm72xx/Kconfig"
 
 source "drivers/staging/gdm724x/Kconfig"
 
@@ -91,8 +83,6 @@ source "drivers/staging/mt29f_spinand/Kconfig"
 source "drivers/staging/lustre/Kconfig"
 
 source "drivers/staging/dgnc/Kconfig"
-
-source "drivers/staging/dgap/Kconfig"
 
 source "drivers/staging/gs_fpgaboot/Kconfig"
 
@@ -109,5 +99,7 @@ source "drivers/staging/fsl-mc/Kconfig"
 source "drivers/staging/wilc1000/Kconfig"
 
 source "drivers/staging/most/Kconfig"
+
+source "drivers/staging/i4l/Kconfig"
 
 endif # STAGING

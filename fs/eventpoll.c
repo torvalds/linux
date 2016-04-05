@@ -1616,7 +1616,7 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 {
 	int res = 0, eavail, timed_out = 0;
 	unsigned long flags;
-	long slack = 0;
+	u64 slack = 0;
 	wait_queue_t wait;
 	ktime_t expires, *to = NULL;
 

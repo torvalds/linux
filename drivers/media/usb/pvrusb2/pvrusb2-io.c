@@ -473,7 +473,7 @@ static void buffer_complete(struct urb *urb)
 	}
 	spin_unlock_irqrestore(&sp->list_lock,irq_flags);
 	pvr2_buffer_set_ready(bp);
-	if (sp && sp->callback_func) {
+	if (sp->callback_func) {
 		sp->callback_func(sp->callback_data);
 	}
 }

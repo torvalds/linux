@@ -13,6 +13,11 @@ config UBSAN_SANITIZE_ALL
 	bool "Enable instrumentation for the entire kernel"
 	depends on UBSAN
 	depends on ARCH_HAS_UBSAN_SANITIZE_ALL
+
+	# We build with -Wno-maybe-uninitilzed, but we still want to
+	# use -Wmaybe-uninitilized in allmodconfig builds.
+	# So dependsy bellow used to disable this option in allmodconfig
+	depends on !COMPILE_TEST
 	default y
 	help
 	  This option activates instrumentation for the entire kernel.

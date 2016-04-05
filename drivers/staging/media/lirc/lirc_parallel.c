@@ -193,7 +193,7 @@ static int lirc_claim(void)
 			return 0;
 		}
 	}
-	out(LIRC_LP_CONTROL, LP_PSELECP|LP_PINITP);
+	out(LIRC_LP_CONTROL, LP_PSELECP | LP_PINITP);
 	is_claimed = 1;
 	return 1;
 }
@@ -264,7 +264,7 @@ static void lirc_lirc_irq_handler(void *blah)
 		init = 1;
 	}
 
-	timeout = timer/10;	/* timeout after 1/10 sec. */
+	timeout = timer / 10;	/* timeout after 1/10 sec. */
 	signal = 1;
 	level = lirc_get_timer();
 	do {
@@ -286,15 +286,15 @@ static void lirc_lirc_irq_handler(void *blah)
 		/* adjust value to usecs */
 		__u64 helper;
 
-		helper = ((__u64) signal)*1000000;
+		helper = ((__u64)signal) * 1000000;
 		do_div(helper, timer);
-		signal = (long) helper;
+		signal = (long)helper;
 
 		if (signal > LIRC_SFH506_DELAY)
 			data = signal - LIRC_SFH506_DELAY;
 		else
 			data = 1;
-		rbuf_write(PULSE_BIT|data); /* pulse */
+		rbuf_write(PULSE_BIT | data); /* pulse */
 	}
 	lastkt = ktime_get();
 #else
@@ -331,7 +331,7 @@ static ssize_t lirc_read(struct file *filep, char __user *buf, size_t n,
 	set_current_state(TASK_INTERRUPTIBLE);
 	while (count < n) {
 		if (rptr != wptr) {
-			if (copy_to_user(buf+count, &rbuf[rptr],
+			if (copy_to_user(buf + count, &rbuf[rptr],
 					 sizeof(int))) {
 				result = -EFAULT;
 				break;
@@ -393,9 +393,9 @@ static ssize_t lirc_write(struct file *filep, const char __user *buf, size_t n,
 	for (i = 0; i < count; i++) {
 		__u64 helper;
 
-		helper = ((__u64) wbuf[i])*timer;
+		helper = ((__u64)wbuf[i]) * timer;
 		do_div(helper, 1000000);
-		wbuf[i] = (int) helper;
+		wbuf[i] = (int)helper;
 	}
 
 	local_irq_save(flags);
@@ -647,7 +647,7 @@ static int __init lirc_parallel_init(void)
 		goto exit_device_put;
 
 	pport = parport_find_base(io);
-	if (pport == NULL) {
+	if (!pport) {
 		pr_notice("no port at %x found\n", io);
 		result = -ENXIO;
 		goto exit_device_put;
@@ -656,7 +656,7 @@ static int __init lirc_parallel_init(void)
 					   pf, kf, lirc_lirc_irq_handler, 0,
 					   NULL);
 	parport_put_port(pport);
-	if (ppdevice == NULL) {
+	if (!ppdevice) {
 		pr_notice("parport_register_device() failed\n");
 		result = -ENXIO;
 		goto exit_device_put;
@@ -664,7 +664,7 @@ static int __init lirc_parallel_init(void)
 	if (parport_claim(ppdevice) != 0)
 		goto skip_init;
 	is_claimed = 1;
-	out(LIRC_LP_CONTROL, LP_PSELECP|LP_PINITP);
+	out(LIRC_LP_CONTROL, LP_PSELECP | LP_PINITP);
 
 #ifdef LIRC_TIMER
 	if (debug)
@@ -730,7 +730,7 @@ module_param(irq, int, S_IRUGO);
 MODULE_PARM_DESC(irq, "Interrupt (7 or 5)");
 
 module_param(tx_mask, int, S_IRUGO);
-MODULE_PARM_DESC(tx_maxk, "Transmitter mask (default: 0x01)");
+MODULE_PARM_DESC(tx_mask, "Transmitter mask (default: 0x01)");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Enable debugging messages");

@@ -3,6 +3,7 @@
 
 #include <asm/cpu.h>
 #include <linux/earlycpio.h>
+#include <linux/initrd.h>
 
 #define native_rdmsr(msr, val1, val2)			\
 do {							\
@@ -143,4 +144,29 @@ static inline void reload_early_microcode(void)			{ }
 static inline bool
 get_builtin_firmware(struct cpio_data *cd, const char *name)	{ return false; }
 #endif
+
+static inline unsigned long get_initrd_start(void)
+{
+#ifdef CONFIG_BLK_DEV_INITRD
+	return initrd_start;
+#else
+	return 0;
+#endif
+}
+
+static inline unsigned long get_initrd_start_addr(void)
+{
+#ifdef CONFIG_BLK_DEV_INITRD
+#ifdef CONFIG_X86_32
+	unsigned long *initrd_start_p = (unsigned long *)__pa_nodebug(&initrd_start);
+
+	return (unsigned long)__pa_nodebug(*initrd_start_p);
+#else
+	return get_initrd_start();
+#endif
+#else /* CONFIG_BLK_DEV_INITRD */
+	return 0;
+#endif
+}
+
 #endif /* _ASM_X86_MICROCODE_H */

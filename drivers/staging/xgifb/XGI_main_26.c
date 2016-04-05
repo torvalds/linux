@@ -226,7 +226,6 @@ void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 	XGI_Pr->Part4Port = BaseAddr + SIS_CRT2_PORT_14;
 	/* 301 palette address port registers */
 	XGI_Pr->Part5Port = BaseAddr + SIS_CRT2_PORT_14 + 2;
-
 }
 
 /* ------------------ Internal helper routines ----------------- */
@@ -315,10 +314,8 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 				if (XGIbios_mode[myindex].bpp > 8)
 					return -1;
 			}
-
 		}
 		goto check_memory;
-
 	}
 
 	/* FIXME: for now, all is valid on XG27 */
@@ -518,7 +515,6 @@ check_memory:
 	if (required_mem > xgifb_info->video_size)
 		return -1;
 	return myindex;
-
 }
 
 static void XGIfb_search_crt2type(const char *name)
@@ -655,26 +651,26 @@ static void XGIfb_pre_setmode(struct xgifb_video_info *xgifb_info)
 
 	switch (xgifb_info->display2) {
 	case XGIFB_DISP_CRT:
-		cr30 = (SIS_VB_OUTPUT_CRT2 | SIS_SIMULTANEOUS_VIEW_ENABLE);
+		cr30 = SIS_VB_OUTPUT_CRT2 | SIS_SIMULTANEOUS_VIEW_ENABLE;
 		cr31 |= SIS_DRIVER_MODE;
 		break;
 	case XGIFB_DISP_LCD:
-		cr30 = (SIS_VB_OUTPUT_LCD | SIS_SIMULTANEOUS_VIEW_ENABLE);
+		cr30 = SIS_VB_OUTPUT_LCD | SIS_SIMULTANEOUS_VIEW_ENABLE;
 		cr31 |= SIS_DRIVER_MODE;
 		break;
 	case XGIFB_DISP_TV:
 		if (xgifb_info->TV_type == TVMODE_HIVISION)
-			cr30 = (SIS_VB_OUTPUT_HIVISION
-					| SIS_SIMULTANEOUS_VIEW_ENABLE);
+			cr30 = SIS_VB_OUTPUT_HIVISION
+					| SIS_SIMULTANEOUS_VIEW_ENABLE;
 		else if (xgifb_info->TV_plug == TVPLUG_SVIDEO)
-			cr30 = (SIS_VB_OUTPUT_SVIDEO
-					| SIS_SIMULTANEOUS_VIEW_ENABLE);
+			cr30 = SIS_VB_OUTPUT_SVIDEO
+					| SIS_SIMULTANEOUS_VIEW_ENABLE;
 		else if (xgifb_info->TV_plug == TVPLUG_COMPOSITE)
-			cr30 = (SIS_VB_OUTPUT_COMPOSITE
-					| SIS_SIMULTANEOUS_VIEW_ENABLE);
+			cr30 = SIS_VB_OUTPUT_COMPOSITE
+					| SIS_SIMULTANEOUS_VIEW_ENABLE;
 		else if (xgifb_info->TV_plug == TVPLUG_SCART)
-			cr30 = (SIS_VB_OUTPUT_SCART
-					| SIS_SIMULTANEOUS_VIEW_ENABLE);
+			cr30 = SIS_VB_OUTPUT_SCART
+					| SIS_SIMULTANEOUS_VIEW_ENABLE;
 		cr31 |= SIS_DRIVER_MODE;
 
 		if (XGIfb_tvmode == 1 || xgifb_info->TV_type == TVMODE_PAL)
@@ -2063,8 +2059,6 @@ static struct pci_driver xgifb_driver = {
 	.probe = xgifb_probe,
 	.remove = xgifb_remove
 };
-
-
 
 /*****************************************************/
 /*                      MODULE                       */

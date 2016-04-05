@@ -80,23 +80,6 @@ static int ext2_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
 	return ret;
 }
 
-static int ext2_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-{
-	struct inode *inode = file_inode(vma->vm_file);
-	struct ext2_inode_info *ei = EXT2_I(inode);
-	int ret;
-
-	sb_start_pagefault(inode->i_sb);
-	file_update_time(vma->vm_file);
-	down_read(&ei->dax_sem);
-
-	ret = __dax_mkwrite(vma, vmf, ext2_get_block, NULL);
-
-	up_read(&ei->dax_sem);
-	sb_end_pagefault(inode->i_sb);
-	return ret;
-}
-
 static int ext2_dax_pfn_mkwrite(struct vm_area_struct *vma,
 		struct vm_fault *vmf)
 {
@@ -124,7 +107,7 @@ static int ext2_dax_pfn_mkwrite(struct vm_area_struct *vma,
 static const struct vm_operations_struct ext2_dax_vm_ops = {
 	.fault		= ext2_dax_fault,
 	.pmd_fault	= ext2_dax_pmd_fault,
-	.page_mkwrite	= ext2_dax_mkwrite,
+	.page_mkwrite	= ext2_dax_fault,
 	.pfn_mkwrite	= ext2_dax_pfn_mkwrite,
 };
 

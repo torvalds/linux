@@ -2154,8 +2154,7 @@ OnAction23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 	category = mgmt->u.action.category;
 
-	for (i = 0;
-	     i < sizeof(OnAction23a_tbl) / sizeof(struct action_handler); i++) {
+	for (i = 0; i < ARRAY_SIZE(OnAction23a_tbl); i++) {
 		ptable = &OnAction23a_tbl[i];
 
 		if (category == ptable->num)
@@ -2656,8 +2655,6 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da)
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
 	dump_mgntframe23a(padapter, pmgntframe);
-
-	return;
 }
 
 static int _issue_probereq(struct rtw_adapter *padapter,
@@ -2957,8 +2954,6 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 	rtw_wep_encrypt23a(padapter, pmgntframe);
 	DBG_8723A("%s\n", __func__);
 	dump_mgntframe23a(padapter, pmgntframe);
-
-	return;
 }
 
 #ifdef CONFIG_8723AU_AP_MODE
@@ -3338,8 +3333,6 @@ exit:
 		}
 	} else
 		kfree(pmlmepriv->assoc_req);
-
-	return;
 }
 
 /* when wait_ack is true, this function should be called at process context */
@@ -4102,8 +4095,6 @@ static void rtw_site_survey(struct rtw_adapter *padapter)
 		pmlmeext->chan_scan_time = SURVEY_TO;
 		pmlmeext->sitesurvey_res.state = SCAN_DISABLE;
 	}
-
-	return;
 }
 
 /* collect bss info from Beacon and Probe request/response frames. */
@@ -4759,8 +4750,6 @@ void report_survey_event23a(struct rtw_adapter *padapter,
 	rtw_enqueue_cmd23a(pcmdpriv, pcmd_obj);
 
 	pmlmeext->sitesurvey_res.bss_cnt++;
-
-	return;
 }
 
 void report_surveydone_event23a(struct rtw_adapter *padapter)
@@ -4802,8 +4791,6 @@ void report_surveydone_event23a(struct rtw_adapter *padapter)
 	DBG_8723A("survey done event(%x)\n", psurveydone_evt->bss_cnt);
 
 	rtw_enqueue_cmd23a(pcmdpriv, pcmd_obj);
-
-	return;
 }
 
 void report_join_res23a(struct rtw_adapter *padapter, int res)
@@ -4850,8 +4837,6 @@ void report_join_res23a(struct rtw_adapter *padapter, int res)
 	rtw_joinbss_event_prehandle23a(padapter, (u8 *)&pjoinbss_evt->network);
 
 	rtw_enqueue_cmd23a(pcmdpriv, pcmd_obj);
-
-	return;
 }
 
 void report_del_sta_event23a(struct rtw_adapter *padapter,
@@ -4906,8 +4891,6 @@ void report_del_sta_event23a(struct rtw_adapter *padapter,
 	DBG_8723A("report_del_sta_event23a: delete STA, mac_id =%d\n", mac_id);
 
 	rtw_enqueue_cmd23a(pcmdpriv, pcmd_obj);
-
-	return;
 }
 
 void report_add_sta_event23a(struct rtw_adapter *padapter,
@@ -4951,8 +4934,6 @@ void report_add_sta_event23a(struct rtw_adapter *padapter,
 	DBG_8723A("report_add_sta_event23a: add STA\n");
 
 	rtw_enqueue_cmd23a(pcmdpriv, pcmd_obj);
-
-	return;
 }
 
 /****************************************************************************
@@ -5394,8 +5375,6 @@ static void link_timer_hdl(unsigned long data)
 		issue_assocreq(padapter);
 		set_link_timer(pmlmeext, REASSOC_TO);
 	}
-
-	return;
 }
 
 static void addba_timer_hdl(unsigned long data)
@@ -6082,10 +6061,10 @@ int tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 #ifdef CONFIG_8723AU_AP_MODE
 	else { /* tx bc/mc frames after update TIM */
 		struct sta_info *psta_bmc;
-		struct list_head *plist, *phead, *ptmp;
-		struct xmit_frame *pxmitframe;
+		struct list_head *phead;
+		struct xmit_frame *pxmitframe, *ptmp;
 		struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
-		struct sta_priv  *pstapriv = &padapter->stapriv;
+		struct sta_priv *pstapriv = &padapter->stapriv;
 
 		/* for BC/MC Frames */
 		psta_bmc = rtw_get_bcmc_stainfo23a(padapter);
@@ -6099,10 +6078,8 @@ int tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 			phead = get_list_head(&psta_bmc->sleep_q);
 
-			list_for_each_safe(plist, ptmp, phead) {
-				pxmitframe = container_of(plist,
-							  struct xmit_frame,
-							  list);
+			list_for_each_entry_safe(pxmitframe, ptmp,
+						 phead, list) {
 
 				list_del_init(&pxmitframe->list);
 
@@ -6119,7 +6096,6 @@ int tx_beacon_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 				rtl8723au_hal_xmitframe_enqueue(padapter,
 								pxmitframe);
 			}
-
 			/* spin_unlock_bh(&psta_bmc->sleep_q.lock); */
 			spin_unlock_bh(&pxmitpriv->lock);
 		}

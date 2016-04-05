@@ -31,16 +31,16 @@ PNAME(mout_spi_p)	= { "div125", "div200" };
 
 /* fixed rate clocks generated outside the soc */
 static struct samsung_fixed_rate_clock exynos5440_fixed_rate_ext_clks[] __initdata = {
-	FRATE(0, "xtal", NULL, CLK_IS_ROOT, 0),
+	FRATE(0, "xtal", NULL, 0, 0),
 };
 
 /* fixed rate clocks */
 static struct samsung_fixed_rate_clock exynos5440_fixed_rate_clks[] __initdata = {
-	FRATE(0, "ppll", NULL, CLK_IS_ROOT, 1000000000),
-	FRATE(0, "usb_phy0", NULL, CLK_IS_ROOT, 60000000),
-	FRATE(0, "usb_phy1", NULL, CLK_IS_ROOT, 60000000),
-	FRATE(0, "usb_ohci12", NULL, CLK_IS_ROOT, 12000000),
-	FRATE(0, "usb_ohci48", NULL, CLK_IS_ROOT, 48000000),
+	FRATE(0, "ppll", NULL, 0, 1000000000),
+	FRATE(0, "usb_phy0", NULL, 0, 60000000),
+	FRATE(0, "usb_phy1", NULL, 0, 60000000),
+	FRATE(0, "usb_ohci12", NULL, 0, 12000000),
+	FRATE(0, "usb_ohci48", NULL, 0, 48000000),
 };
 
 /* fixed factor clocks */

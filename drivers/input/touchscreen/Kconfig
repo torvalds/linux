@@ -334,7 +334,7 @@ config TOUCHSCREEN_FUJITSU
 config TOUCHSCREEN_GOODIX
 	tristate "Goodix I2C touchscreen"
 	depends on I2C
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here if you have the Goodix touchscreen (such as one
 	  installed in Onda v975w tablets) connected to your
@@ -490,6 +490,17 @@ config TOUCHSCREEN_MMS114
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mms114.
+
+config TOUCHSCREEN_MELFAS_MIP4
+	tristate "MELFAS MIP4 Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have a MELFAS MIP4 Touchscreen device.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called melfas_mip4.
 
 config TOUCHSCREEN_MTOUCH
 	tristate "MicroTouch serial touchscreens"
@@ -822,6 +833,15 @@ config TOUCHSCREEN_USB_COMPOSITE
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbtouchscreen.
 
+config TOUCHSCREEN_MX25
+	tristate "Freescale i.MX25 touchscreen input driver"
+	depends on MFD_MX25_TSADC
+	help
+	  Enable support for touchscreen connected to your i.MX25.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fsl-imx25-tcq.
+
 config TOUCHSCREEN_MC13783
 	tristate "Freescale MC13783 touchscreen input driver"
 	depends on MFD_MC13XXX
@@ -941,6 +961,7 @@ config TOUCHSCREEN_TOUCHIT213
 config TOUCHSCREEN_TS4800
 	tristate "TS-4800 touchscreen"
 	depends on HAS_IOMEM && OF
+	depends on SOC_IMX51 || COMPILE_TEST
 	select MFD_SYSCON
 	select INPUT_POLLDEV
 	help
@@ -1112,7 +1133,8 @@ config TOUCHSCREEN_ZFORCE
 
 config TOUCHSCREEN_COLIBRI_VF50
 	tristate "Toradex Colibri on board touchscreen driver"
-	depends on GPIOLIB && IIO && VF610_ADC
+	depends on IIO && VF610_ADC
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here if you have a Colibri VF50 and plan to use
 	  the on-board provided 4-wire touchscreen driver.

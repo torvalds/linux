@@ -101,6 +101,8 @@ extern void pfault_fini(void);
 #define pfault_fini()		do { } while (0)
 #endif /* CONFIG_PFAULT */
 
+void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault);
+
 extern void cmma_init(void);
 
 extern void (*_machine_restart)(char *command);

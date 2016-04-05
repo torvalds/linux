@@ -423,7 +423,7 @@
 	samsung,keypad-num-rows = <3>;
 	samsung,keypad-num-columns = <2>;
 	linux,keypad-no-autorepeat;
-	linux,keypad-wakeup;
+	wakeup-source;
 	pinctrl-0 = <&keypad_rows &keypad_cols>;
 	pinctrl-names = "default";
 	status = "okay";

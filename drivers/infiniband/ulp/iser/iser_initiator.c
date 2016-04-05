@@ -729,13 +729,6 @@ void iser_dataout_comp(struct ib_cq *cq, struct ib_wc *wc)
 	kmem_cache_free(ig.desc_cache, desc);
 }
 
-void iser_last_comp(struct ib_cq *cq, struct ib_wc *wc)
-{
-	struct ib_conn *ib_conn = wc->qp->qp_context;
-
-	complete(&ib_conn->last_comp);
-}
-
 void iser_task_rdma_init(struct iscsi_iser_task *iser_task)
 
 {

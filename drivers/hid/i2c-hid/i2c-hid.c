@@ -283,17 +283,21 @@ static int i2c_hid_set_or_send_report(struct i2c_client *client, u8 reportType,
 	u16 dataRegister = le16_to_cpu(ihid->hdesc.wDataRegister);
 	u16 outputRegister = le16_to_cpu(ihid->hdesc.wOutputRegister);
 	u16 maxOutputLength = le16_to_cpu(ihid->hdesc.wMaxOutputLength);
-
-	/* hid_hw_* already checked that data_len < HID_MAX_BUFFER_SIZE */
-	u16 size =	2			/* size */ +
-			(reportID ? 1 : 0)	/* reportID */ +
-			data_len		/* buf */;
-	int args_len =	(reportID >= 0x0F ? 1 : 0) /* optional third byte */ +
-			2			/* dataRegister */ +
-			size			/* args */;
+	u16 size;
+	int args_len;
 	int index = 0;
 
 	i2c_hid_dbg(ihid, "%s\n", __func__);
+
+	if (data_len > ihid->bufsize)
+		return -EINVAL;
+
+	size =		2			/* size */ +
+			(reportID ? 1 : 0)	/* reportID */ +
+			data_len		/* buf */;
+	args_len =	(reportID >= 0x0F ? 1 : 0) /* optional third byte */ +
+			2			/* dataRegister */ +
+			size			/* args */;
 
 	if (!use_data && maxOutputLength == 0)
 		return -ENOSYS;
@@ -1108,13 +1112,30 @@ static int i2c_hid_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
 	struct hid_device *hid = ihid->hid;
-	int ret = 0;
+	int ret;
 	int wake_status;
 
-	if (hid->driver && hid->driver->suspend)
-		ret = hid->driver->suspend(hid, PMSG_SUSPEND);
+	if (hid->driver && hid->driver->suspend) {
+		/*
+		 * Wake up the device so that IO issues in
+		 * HID driver's suspend code can succeed.
+		 */
+		ret = pm_runtime_resume(dev);
+		if (ret < 0)
+			return ret;
 
-	disable_irq(ihid->irq);
+		ret = hid->driver->suspend(hid, PMSG_SUSPEND);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (!pm_runtime_suspended(dev)) {
+		/* Save some power */
+		i2c_hid_set_power(client, I2C_HID_PWR_SLEEP);
+
+		disable_irq(ihid->irq);
+	}
+
 	if (device_may_wakeup(&client->dev)) {
 		wake_status = enable_irq_wake(ihid->irq);
 		if (!wake_status)
@@ -1124,10 +1145,7 @@ static int i2c_hid_suspend(struct device *dev)
 				wake_status);
 	}
 
-	/* Save some power */
-	i2c_hid_set_power(client, I2C_HID_PWR_SLEEP);
-
-	return ret;
+	return 0;
 }
 
 static int i2c_hid_resume(struct device *dev)
@@ -1138,11 +1156,6 @@ static int i2c_hid_resume(struct device *dev)
 	struct hid_device *hid = ihid->hid;
 	int wake_status;
 
-	enable_irq(ihid->irq);
-	ret = i2c_hid_hwreset(client);
-	if (ret)
-		return ret;
-
 	if (device_may_wakeup(&client->dev) && ihid->irq_wake_enabled) {
 		wake_status = disable_irq_wake(ihid->irq);
 		if (!wake_status)
@@ -1151,6 +1164,16 @@ static int i2c_hid_resume(struct device *dev)
 			hid_warn(hid, "Failed to disable irq wake: %d\n",
 				wake_status);
 	}
+
+	/* We'll resume to full power */
+	pm_runtime_disable(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
+	enable_irq(ihid->irq);
+	ret = i2c_hid_hwreset(client);
+	if (ret)
+		return ret;
 
 	if (hid->driver && hid->driver->reset_resume) {
 		ret = hid->driver->reset_resume(hid);
@@ -1191,6 +1214,7 @@ static const struct dev_pm_ops i2c_hid_pm = {
 
 static const struct i2c_device_id i2c_hid_id_table[] = {
 	{ "hid", 0 },
+	{ "hid-over-i2c", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, i2c_hid_id_table);

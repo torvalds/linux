@@ -358,7 +358,7 @@ LEAF(_restore_msa_all_upper)
 
 	.set	reorder
 
-	.type	fault@function
+	.type	fault, @function
 	.ent	fault
 fault:	li	v0, -EFAULT				# failure
 	jr	ra

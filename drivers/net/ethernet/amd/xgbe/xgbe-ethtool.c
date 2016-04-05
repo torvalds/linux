@@ -6,7 +6,7 @@
  *
  * License 1: GPLv2
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  *
  * This file is free software; you may copy, redistribute and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@
  *
  * License 2: Modified BSD
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -318,8 +318,20 @@ static int xgbe_set_settings(struct net_device *netdev,
 	if (cmd->autoneg == AUTONEG_DISABLE) {
 		switch (speed) {
 		case SPEED_10000:
+			break;
 		case SPEED_2500:
+			if (pdata->speed_set != XGBE_SPEEDSET_2500_10000) {
+				netdev_err(netdev, "unsupported speed %u\n",
+					   speed);
+				return -EINVAL;
+			}
+			break;
 		case SPEED_1000:
+			if (pdata->speed_set != XGBE_SPEEDSET_1000_10000) {
+				netdev_err(netdev, "unsupported speed %u\n",
+					   speed);
+				return -EINVAL;
+			}
 			break;
 		default:
 			netdev_err(netdev, "unsupported speed %u\n", speed);

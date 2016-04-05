@@ -1828,17 +1828,14 @@ static int bcm2048_deinit(struct bcm2048_device *bdev)
 
 	err = bcm2048_set_audio_route(bdev, 0);
 	if (err < 0)
-		goto exit;
+		return err;
 
 	err = bcm2048_set_dac_output(bdev, 0);
 	if (err < 0)
-		goto exit;
+		return err;
 
 	err = bcm2048_set_power_state(bdev, BCM2048_POWER_OFF);
-	if (err < 0)
-		goto exit;
 
-exit:
 	return err;
 }
 

@@ -65,10 +65,9 @@
 		};
 
 		eth0: ethernet@f0003000 {
-			compatible = "snps,oscilan";
+			compatible = "ezchip,nps-mgt-enet";
 			reg = <0xf0003000 0x44>;
-			interrupts = <25>, <26>;
-			interrupt-names = "rx", "tx";
+			interrupts = <25>;
 		};
 
 		arcpct0: pct {

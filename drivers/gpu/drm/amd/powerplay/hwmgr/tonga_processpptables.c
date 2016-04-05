@@ -512,8 +512,10 @@ static int get_cac_tdp_table(
 
 	hwmgr->dyn_state.cac_dtp_table = kzalloc(table_size, GFP_KERNEL);
 
-	if (NULL == hwmgr->dyn_state.cac_dtp_table)
+	if (NULL == hwmgr->dyn_state.cac_dtp_table) {
+		kfree(tdp_table);
 		return -ENOMEM;
+	}
 
 	memset(hwmgr->dyn_state.cac_dtp_table, 0x00, table_size);
 

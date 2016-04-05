@@ -4176,7 +4176,7 @@ static int rt5659_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-void rt5659_i2c_shutdown(struct i2c_client *client)
+static void rt5659_i2c_shutdown(struct i2c_client *client)
 {
 	struct rt5659_priv *rt5659 = i2c_get_clientdata(client);
 

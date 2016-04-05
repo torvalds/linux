@@ -60,15 +60,15 @@ static int cs42l51_get_chan_mix(struct snd_kcontrol *kcontrol,
 	switch (value) {
 	default:
 	case 0:
-		ucontrol->value.integer.value[0] = 0;
+		ucontrol->value.enumerated.item[0] = 0;
 		break;
 	/* same value : (L+R)/2 and (R+L)/2 */
 	case 1:
 	case 2:
-		ucontrol->value.integer.value[0] = 1;
+		ucontrol->value.enumerated.item[0] = 1;
 		break;
 	case 3:
-		ucontrol->value.integer.value[0] = 2;
+		ucontrol->value.enumerated.item[0] = 2;
 		break;
 	}
 
@@ -85,7 +85,7 @@ static int cs42l51_set_chan_mix(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	unsigned char val;
 
-	switch (ucontrol->value.integer.value[0]) {
+	switch (ucontrol->value.enumerated.item[0]) {
 	default:
 	case 0:
 		val = CHAN_MIX_NORMAL;

@@ -269,8 +269,8 @@ u8 EFUSE_Read1Byte23a(struct rtw_adapter *Adapter, u16 Address)
 		}
 		data = rtl8723au_read8(Adapter, EFUSE_CTRL);
 		return data;
-	} else
-		return 0xFF;
+	}
+	return 0xFF;
 }
 
 /* Read one byte from real Efuse. */

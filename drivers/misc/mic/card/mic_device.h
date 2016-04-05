@@ -32,6 +32,7 @@
 #include <linux/interrupt.h>
 #include <linux/mic_bus.h>
 #include "../bus/scif_bus.h"
+#include "../bus/vop_bus.h"
 
 /**
  * struct mic_intr_info - Contains h/w specific interrupt sources info
@@ -76,6 +77,7 @@ struct mic_device {
  * @dma_ch - Array of DMA channels
  * @num_dma_ch - Number of DMA channels available
  * @scdev: SCIF device on the SCIF virtual bus.
+ * @vpdev: Virtio over PCIe device on the VOP virtual bus.
  */
 struct mic_driver {
 	char name[20];
@@ -90,6 +92,7 @@ struct mic_driver {
 	struct dma_chan *dma_ch[MIC_MAX_DMA_CHAN];
 	int num_dma_ch;
 	struct scif_hw_dev *scdev;
+	struct vop_device *vpdev;
 };
 
 /**

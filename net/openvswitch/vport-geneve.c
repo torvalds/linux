@@ -132,6 +132,6 @@ static void __exit ovs_geneve_tnl_exit(void)
 module_init(ovs_geneve_tnl_init);
 module_exit(ovs_geneve_tnl_exit);
 
-MODULE_DESCRIPTION("OVS: Geneve swiching port");
+MODULE_DESCRIPTION("OVS: Geneve switching port");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("vport-type-5");

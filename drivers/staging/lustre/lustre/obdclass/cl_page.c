@@ -69,7 +69,7 @@ static void cl_page_delete0(const struct lu_env *env, struct cl_page *pg,
  */
 static struct cl_page *cl_page_top_trusted(struct cl_page *page)
 {
-	while (page->cp_parent != NULL)
+	while (page->cp_parent)
 		page = page->cp_parent;
 	return page;
 }
@@ -110,7 +110,7 @@ cl_page_at_trusted(const struct cl_page *page,
 				return slice;
 		}
 		page = page->cp_child;
-	} while (page != NULL);
+	} while (page);
 	return NULL;
 }
 
@@ -127,7 +127,7 @@ struct cl_page *cl_page_lookup(struct cl_object_header *hdr, pgoff_t index)
 	assert_spin_locked(&hdr->coh_page_guard);
 
 	page = radix_tree_lookup(&hdr->coh_tree, index);
-	if (page != NULL)
+	if (page)
 		cl_page_get_trust(page);
 	return page;
 }
@@ -188,7 +188,7 @@ int cl_page_gang_lookup(const struct lu_env *env, struct cl_object *obj,
 			 * Pages for lsm-less file has no underneath sub-page
 			 * for osc, in case of ...
 			 */
-			PASSERT(env, page, slice != NULL);
+			PASSERT(env, page, slice);
 
 			page = slice->cpl_page;
 			/*
@@ -245,9 +245,9 @@ static void cl_page_free(const struct lu_env *env, struct cl_page *page)
 	struct cl_object *obj  = page->cp_obj;
 
 	PASSERT(env, page, list_empty(&page->cp_batch));
-	PASSERT(env, page, page->cp_owner == NULL);
-	PASSERT(env, page, page->cp_req == NULL);
-	PASSERT(env, page, page->cp_parent == NULL);
+	PASSERT(env, page, !page->cp_owner);
+	PASSERT(env, page, !page->cp_req);
+	PASSERT(env, page, !page->cp_parent);
 	PASSERT(env, page, page->cp_state == CPS_FREEING);
 
 	might_sleep();
@@ -255,7 +255,7 @@ static void cl_page_free(const struct lu_env *env, struct cl_page *page)
 		struct cl_page_slice *slice;
 
 		slice = list_entry(page->cp_layers.next,
-				       struct cl_page_slice, cpl_linkage);
+				   struct cl_page_slice, cpl_linkage);
 		list_del_init(page->cp_layers.next);
 		slice->cpl_ops->cpo_fini(env, slice);
 	}
@@ -277,14 +277,15 @@ static inline void cl_page_state_set_trust(struct cl_page *page,
 }
 
 static struct cl_page *cl_page_alloc(const struct lu_env *env,
-		struct cl_object *o, pgoff_t ind, struct page *vmpage,
-		enum cl_page_type type)
+				     struct cl_object *o, pgoff_t ind,
+				     struct page *vmpage,
+				     enum cl_page_type type)
 {
 	struct cl_page	  *page;
 	struct lu_object_header *head;
 
 	page = kzalloc(cl_object_header(o)->coh_page_bufsize, GFP_NOFS);
-	if (page != NULL) {
+	if (page) {
 		int result = 0;
 
 		atomic_set(&page->cp_ref, 1);
@@ -303,9 +304,8 @@ static struct cl_page *cl_page_alloc(const struct lu_env *env,
 		mutex_init(&page->cp_mutex);
 		lu_ref_init(&page->cp_reference);
 		head = o->co_lu.lo_header;
-		list_for_each_entry(o, &head->loh_layers,
-					co_lu.lo_linkage) {
-			if (o->co_ops->coo_page_init != NULL) {
+		list_for_each_entry(o, &head->loh_layers, co_lu.lo_linkage) {
+			if (o->co_ops->coo_page_init) {
 				result = o->co_ops->coo_page_init(env, o,
 								  page, vmpage);
 				if (result != 0) {
@@ -369,13 +369,13 @@ static struct cl_page *cl_page_find0(const struct lu_env *env,
 		 */
 		page = cl_vmpage_page(vmpage, o);
 		PINVRNT(env, page,
-			ergo(page != NULL,
+			ergo(page,
 			     cl_page_vmpage(env, page) == vmpage &&
 			     (void *)radix_tree_lookup(&hdr->coh_tree,
 						       idx) == page));
 	}
 
-	if (page != NULL)
+	if (page)
 		return page;
 
 	/* allocate and initialize cl_page */
@@ -385,7 +385,7 @@ static struct cl_page *cl_page_find0(const struct lu_env *env,
 
 	if (type == CPT_TRANSIENT) {
 		if (parent) {
-			LASSERT(page->cp_parent == NULL);
+			LASSERT(!page->cp_parent);
 			page->cp_parent = parent;
 			parent->cp_child = page;
 		}
@@ -418,7 +418,7 @@ static struct cl_page *cl_page_find0(const struct lu_env *env,
 			      "fail to insert into radix tree: %d\n", err);
 	} else {
 		if (parent) {
-			LASSERT(page->cp_parent == NULL);
+			LASSERT(!page->cp_parent);
 			page->cp_parent = parent;
 			parent->cp_child = page;
 		}
@@ -426,7 +426,7 @@ static struct cl_page *cl_page_find0(const struct lu_env *env,
 	}
 	spin_unlock(&hdr->coh_page_guard);
 
-	if (unlikely(ghost != NULL)) {
+	if (unlikely(ghost)) {
 		cl_page_delete0(env, ghost, 0);
 		cl_page_free(env, ghost);
 	}
@@ -467,14 +467,13 @@ static inline int cl_page_invariant(const struct cl_page *pg)
 	owner  = pg->cp_owner;
 
 	return cl_page_in_use(pg) &&
-		ergo(parent != NULL, parent->cp_child == pg) &&
-		ergo(child != NULL, child->cp_parent == pg) &&
-		ergo(child != NULL, pg->cp_obj != child->cp_obj) &&
-		ergo(parent != NULL, pg->cp_obj != parent->cp_obj) &&
-		ergo(owner != NULL && parent != NULL,
+		ergo(parent, parent->cp_child == pg) &&
+		ergo(child, child->cp_parent == pg) &&
+		ergo(child, pg->cp_obj != child->cp_obj) &&
+		ergo(parent, pg->cp_obj != parent->cp_obj) &&
+		ergo(owner && parent,
 		     parent->cp_owner == pg->cp_owner->ci_parent) &&
-		ergo(owner != NULL && child != NULL,
-		     child->cp_owner->ci_parent == owner) &&
+		ergo(owner && child, child->cp_owner->ci_parent == owner) &&
 		/*
 		 * Either page is early in initialization (has neither child
 		 * nor parent yet), or it is in the object radix tree.
@@ -482,7 +481,7 @@ static inline int cl_page_invariant(const struct cl_page *pg)
 		ergo(pg->cp_state < CPS_FREEING && pg->cp_type == CPT_CACHEABLE,
 		     (void *)radix_tree_lookup(&header->coh_tree,
 					       pg->cp_index) == pg ||
-		     (child == NULL && parent == NULL));
+		     (!child && !parent));
 }
 
 static void cl_page_state_set0(const struct lu_env *env,
@@ -535,10 +534,10 @@ static void cl_page_state_set0(const struct lu_env *env,
 	old = page->cp_state;
 	PASSERT(env, page, allowed_transitions[old][state]);
 	CL_PAGE_HEADER(D_TRACE, env, page, "%d -> %d\n", old, state);
-	for (; page != NULL; page = page->cp_child) {
+	for (; page; page = page->cp_child) {
 		PASSERT(env, page, page->cp_state == old);
 		PASSERT(env, page,
-			equi(state == CPS_OWNED, page->cp_owner != NULL));
+			equi(state == CPS_OWNED, page->cp_owner));
 
 		cl_page_state_set_trust(page, state);
 	}
@@ -584,7 +583,7 @@ void cl_page_put(const struct lu_env *env, struct cl_page *page)
 		LASSERT(page->cp_state == CPS_FREEING);
 
 		LASSERT(atomic_read(&page->cp_ref) == 0);
-		PASSERT(env, page, page->cp_owner == NULL);
+		PASSERT(env, page, !page->cp_owner);
 		PASSERT(env, page, list_empty(&page->cp_batch));
 		/*
 		 * Page is no longer reachable by other threads. Tear
@@ -609,11 +608,11 @@ struct page *cl_page_vmpage(const struct lu_env *env, struct cl_page *page)
 	page = cl_page_top(page);
 	do {
 		list_for_each_entry(slice, &page->cp_layers, cpl_linkage) {
-			if (slice->cpl_ops->cpo_vmpage != NULL)
+			if (slice->cpl_ops->cpo_vmpage)
 				return slice->cpl_ops->cpo_vmpage(env, slice);
 		}
 		page = page->cp_child;
-	} while (page != NULL);
+	} while (page);
 	LBUG(); /* ->cpo_vmpage() has to be defined somewhere in the stack */
 }
 EXPORT_SYMBOL(cl_page_vmpage);
@@ -639,10 +638,10 @@ struct cl_page *cl_vmpage_page(struct page *vmpage, struct cl_object *obj)
 	 * can be rectified easily.
 	 */
 	top = (struct cl_page *)vmpage->private;
-	if (top == NULL)
+	if (!top)
 		return NULL;
 
-	for (page = top; page != NULL; page = page->cp_child) {
+	for (page = top; page; page = page->cp_child) {
 		if (cl_object_same(page->cp_obj, obj)) {
 			cl_page_get_trust(page);
 			break;
@@ -689,7 +688,7 @@ EXPORT_SYMBOL(cl_page_at);
 					cpl_linkage) {		  \
 			__method = *(void **)((char *)__scan->cpl_ops + \
 					      __op);		    \
-			if (__method != NULL) {			 \
+			if (__method) {					\
 				__result = (*__method)(__env, __scan,   \
 						       ## __VA_ARGS__); \
 				if (__result != 0)		      \
@@ -697,7 +696,7 @@ EXPORT_SYMBOL(cl_page_at);
 			}					       \
 		}						       \
 		__page = __page->cp_child;			      \
-	} while (__page != NULL && __result == 0);		      \
+	} while (__page && __result == 0);			      \
 	if (__result > 0)					       \
 		__result = 0;					   \
 	__result;						       \
@@ -717,12 +716,12 @@ do {								    \
 					cpl_linkage) {		  \
 			__method = *(void **)((char *)__scan->cpl_ops + \
 					      __op);		    \
-			if (__method != NULL)			   \
+			if (__method)				   \
 				(*__method)(__env, __scan,	      \
 					    ## __VA_ARGS__);	    \
 		}						       \
 		__page = __page->cp_child;			      \
-	} while (__page != NULL);				       \
+	} while (__page);					       \
 } while (0)
 
 #define CL_PAGE_INVOID_REVERSE(_env, _page, _op, _proto, ...)	       \
@@ -734,19 +733,19 @@ do {									\
 	void		      (*__method)_proto;			\
 									    \
 	/* get to the bottom page. */				       \
-	while (__page->cp_child != NULL)				    \
+	while (__page->cp_child)					    \
 		__page = __page->cp_child;				  \
 	do {								\
 		list_for_each_entry_reverse(__scan, &__page->cp_layers, \
 						cpl_linkage) {	      \
 			__method = *(void **)((char *)__scan->cpl_ops +     \
 					      __op);			\
-			if (__method != NULL)			       \
+			if (__method)				       \
 				(*__method)(__env, __scan,		  \
 					    ## __VA_ARGS__);		\
 		}							   \
 		__page = __page->cp_parent;				 \
-	} while (__page != NULL);					   \
+	} while (__page);						   \
 } while (0)
 
 static int cl_page_invoke(const struct lu_env *env,
@@ -772,8 +771,8 @@ static void cl_page_invoid(const struct lu_env *env,
 
 static void cl_page_owner_clear(struct cl_page *page)
 {
-	for (page = cl_page_top(page); page != NULL; page = page->cp_child) {
-		if (page->cp_owner != NULL) {
+	for (page = cl_page_top(page); page; page = page->cp_child) {
+		if (page->cp_owner) {
 			LASSERT(page->cp_owner->ci_owned_nr > 0);
 			page->cp_owner->ci_owned_nr--;
 			page->cp_owner = NULL;
@@ -784,10 +783,8 @@ static void cl_page_owner_clear(struct cl_page *page)
 
 static void cl_page_owner_set(struct cl_page *page)
 {
-	for (page = cl_page_top(page); page != NULL; page = page->cp_child) {
-		LASSERT(page->cp_owner != NULL);
+	for (page = cl_page_top(page); page; page = page->cp_child)
 		page->cp_owner->ci_owned_nr++;
-	}
 }
 
 void cl_page_disown0(const struct lu_env *env,
@@ -862,8 +859,8 @@ static int cl_page_own0(const struct lu_env *env, struct cl_io *io,
 					 struct cl_io *, int),
 					io, nonblock);
 		if (result == 0) {
-			PASSERT(env, pg, pg->cp_owner == NULL);
-			PASSERT(env, pg, pg->cp_req == NULL);
+			PASSERT(env, pg, !pg->cp_owner);
+			PASSERT(env, pg, !pg->cp_req);
 			pg->cp_owner = io;
 			pg->cp_task  = current;
 			cl_page_owner_set(pg);
@@ -921,7 +918,7 @@ void cl_page_assume(const struct lu_env *env,
 	io = cl_io_top(io);
 
 	cl_page_invoid(env, io, pg, CL_PAGE_OP(cpo_assume));
-	PASSERT(env, pg, pg->cp_owner == NULL);
+	PASSERT(env, pg, !pg->cp_owner);
 	pg->cp_owner = io;
 	pg->cp_task = current;
 	cl_page_owner_set(pg);
@@ -1037,7 +1034,7 @@ static void cl_page_delete0(const struct lu_env *env, struct cl_page *pg,
 			 * skip removing it.
 			 */
 			tmp = pg->cp_child;
-		for (; tmp != NULL; tmp = tmp->cp_child) {
+		for (; tmp; tmp = tmp->cp_child) {
 			void		    *value;
 			struct cl_object_header *hdr;
 
@@ -1135,7 +1132,7 @@ int cl_page_is_vmlocked(const struct lu_env *env, const struct cl_page *pg)
 	pg = cl_page_top_trusted((struct cl_page *)pg);
 	slice = container_of(pg->cp_layers.next,
 			     const struct cl_page_slice, cpl_linkage);
-	PASSERT(env, pg, slice->cpl_ops->cpo_is_vmlocked != NULL);
+	PASSERT(env, pg, slice->cpl_ops->cpo_is_vmlocked);
 	/*
 	 * Call ->cpo_is_vmlocked() directly instead of going through
 	 * CL_PAGE_INVOKE(), because cl_page_is_vmlocked() is used by
@@ -1216,7 +1213,7 @@ void cl_page_completion(const struct lu_env *env,
 
 	PASSERT(env, pg, crt < CRT_NR);
 	/* cl_page::cp_req already cleared by the caller (osc_completion()) */
-	PASSERT(env, pg, pg->cp_req == NULL);
+	PASSERT(env, pg, !pg->cp_req);
 	PASSERT(env, pg, pg->cp_state == cl_req_type_state(crt));
 
 	CL_PAGE_HEADER(D_TRACE, env, pg, "%d %d\n", crt, ioret);
@@ -1304,7 +1301,7 @@ int cl_page_cache_add(const struct lu_env *env, struct cl_io *io,
 		return -EINVAL;
 
 	list_for_each_entry(scan, &pg->cp_layers, cpl_linkage) {
-		if (scan->cpl_ops->io[crt].cpo_cache_add == NULL)
+		if (!scan->cpl_ops->io[crt].cpo_cache_add)
 			continue;
 
 		result = scan->cpl_ops->io[crt].cpo_cache_add(env, scan, io);
@@ -1450,8 +1447,8 @@ void cl_page_print(const struct lu_env *env, void *cookie,
 {
 	struct cl_page *scan;
 
-	for (scan = cl_page_top((struct cl_page *)pg);
-	     scan != NULL; scan = scan->cp_child)
+	for (scan = cl_page_top((struct cl_page *)pg); scan;
+	     scan = scan->cp_child)
 		cl_page_header_print(env, cookie, printer, scan);
 	CL_PAGE_INVOKE(env, (struct cl_page *)pg, CL_PAGE_OP(cpo_print),
 		       (const struct lu_env *env,

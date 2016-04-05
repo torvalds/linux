@@ -347,6 +347,8 @@ int paste_selection(struct tty_struct *tty)
 	console_unlock();
 
 	ld = tty_ldisc_ref_wait(tty);
+	if (!ld)
+		return -EIO;	/* ldisc was hung up */
 	tty_buffer_lock_exclusive(&vc->port);
 
 	add_wait_queue(&vc->paste_wait, &wait);

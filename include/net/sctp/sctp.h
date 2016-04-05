@@ -82,6 +82,11 @@
 #define SCTP_PROTOSW_FLAG INET_PROTOSW_PERMANENT
 #endif
 
+/* Round an int up to the next multiple of 4.  */
+#define WORD_ROUND(s) (((s)+3)&~3)
+/* Truncate to the previous multiple of 4.  */
+#define WORD_TRUNC(s) ((s)&~3)
+
 /*
  * Function declarations.
  */
@@ -426,7 +431,7 @@ static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
 	if (asoc->user_frag)
 		frag = min_t(int, frag, asoc->user_frag);
 
-	frag = min_t(int, frag, SCTP_MAX_CHUNK_LEN);
+	frag = WORD_TRUNC(min_t(int, frag, SCTP_MAX_CHUNK_LEN));
 
 	return frag;
 }
@@ -474,9 +479,6 @@ _sctp_walk_fwdtsn((pos), (chunk), ntohs((chunk)->chunk_hdr->length) - sizeof(str
 for (pos = chunk->subh.fwdtsn_hdr->skip;\
      (void *)pos <= (void *)chunk->subh.fwdtsn_hdr->skip + end - sizeof(struct sctp_fwdtsn_skip);\
      pos++)
-
-/* Round an int up to the next multiple of 4.  */
-#define WORD_ROUND(s) (((s)+3)&~3)
 
 /* External references. */
 

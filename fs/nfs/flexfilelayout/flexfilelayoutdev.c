@@ -418,6 +418,8 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
 				pnfs_error_mark_layout_for_return(ino, lseg);
 		} else
 			pnfs_error_mark_layout_for_return(ino, lseg);
+		ds = NULL;
+		goto out;
 	}
 out_update_creds:
 	if (ff_layout_update_mirror_cred(mirror, ds))

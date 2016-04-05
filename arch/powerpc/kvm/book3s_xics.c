@@ -432,7 +432,7 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 * the whole masked_pending business which is about not
 	 * losing interrupts that occur while masked.
 	 *
-	 * I don't differenciate normal deliveries and resends, this
+	 * I don't differentiate normal deliveries and resends, this
 	 * implementation will differ from PAPR and not lose such
 	 * interrupts.
 	 */

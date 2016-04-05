@@ -79,18 +79,12 @@ struct exception_table_entry
 	int insn, fixup;
 };
 
-static inline unsigned long extable_insn(const struct exception_table_entry *x)
-{
-	return (unsigned long)&x->insn + x->insn;
-}
-
 static inline unsigned long extable_fixup(const struct exception_table_entry *x)
 {
 	return (unsigned long)&x->fixup + x->fixup;
 }
 
-#define ARCH_HAS_SORT_EXTABLE
-#define ARCH_HAS_SEARCH_EXTABLE
+#define ARCH_HAS_RELATIVE_EXTABLE
 
 /**
  * __copy_from_user: - Copy a block of data from user space, with less checking.

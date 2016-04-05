@@ -1265,7 +1265,6 @@ static int ethoc_remove(struct platform_device *pdev)
 
 		if (priv->mdio) {
 			mdiobus_unregister(priv->mdio);
-			kfree(priv->mdio->irq);
 			mdiobus_free(priv->mdio);
 		}
 		if (priv->clk)

@@ -337,5 +337,6 @@
 #define __NR_userfaultfd	322
 #define __NR_membarrier		323
 #define __NR_mlock2		324
+#define __NR_copy_file_range    325
 
 #endif /* _UAPI__ASM_AVR32_UNISTD_H */

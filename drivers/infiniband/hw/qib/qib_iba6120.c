@@ -2956,13 +2956,13 @@ static void pma_6120_timer(unsigned long data)
 	struct qib_ibport *ibp = &ppd->ibport_data;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ibp->lock, flags);
+	spin_lock_irqsave(&ibp->rvp.lock, flags);
 	if (cs->pma_sample_status == IB_PMA_SAMPLE_STATUS_STARTED) {
 		cs->pma_sample_status = IB_PMA_SAMPLE_STATUS_RUNNING;
 		qib_snapshot_counters(ppd, &cs->sword, &cs->rword,
 				      &cs->spkts, &cs->rpkts, &cs->xmit_wait);
 		mod_timer(&cs->pma_timer,
-			  jiffies + usecs_to_jiffies(ibp->pma_sample_interval));
+		      jiffies + usecs_to_jiffies(ibp->rvp.pma_sample_interval));
 	} else if (cs->pma_sample_status == IB_PMA_SAMPLE_STATUS_RUNNING) {
 		u64 ta, tb, tc, td, te;
 
@@ -2975,11 +2975,11 @@ static void pma_6120_timer(unsigned long data)
 		cs->rpkts = td - cs->rpkts;
 		cs->xmit_wait = te - cs->xmit_wait;
 	}
-	spin_unlock_irqrestore(&ibp->lock, flags);
+	spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 }
 
 /*
- * Note that the caller has the ibp->lock held.
+ * Note that the caller has the ibp->rvp.lock held.
  */
 static void qib_set_cntr_6120_sample(struct qib_pportdata *ppd, u32 intv,
 				     u32 start)

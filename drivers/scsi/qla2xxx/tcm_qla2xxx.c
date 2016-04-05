@@ -1406,6 +1406,39 @@ static void tcm_qla2xxx_free_session(struct qla_tgt_sess *sess)
 	transport_deregister_session(sess->se_sess);
 }
 
+static int tcm_qla2xxx_session_cb(struct se_portal_group *se_tpg,
+				  struct se_session *se_sess, void *p)
+{
+	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
+				struct tcm_qla2xxx_tpg, se_tpg);
+	struct tcm_qla2xxx_lport *lport = tpg->lport;
+	struct qla_hw_data *ha = lport->qla_vha->hw;
+	struct se_node_acl *se_nacl = se_sess->se_node_acl;
+	struct tcm_qla2xxx_nacl *nacl = container_of(se_nacl,
+				struct tcm_qla2xxx_nacl, se_node_acl);
+	struct qla_tgt_sess *qlat_sess = p;
+	uint16_t loop_id = qlat_sess->loop_id;
+	unsigned long flags;
+	unsigned char be_sid[3];
+
+	be_sid[0] = qlat_sess->s_id.b.domain;
+	be_sid[1] = qlat_sess->s_id.b.area;
+	be_sid[2] = qlat_sess->s_id.b.al_pa;
+
+	/*
+	 * And now setup se_nacl and session pointers into HW lport internal
+	 * mappings for fabric S_ID and LOOP_ID.
+	 */
+	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
+	tcm_qla2xxx_set_sess_by_s_id(lport, se_nacl, nacl,
+				     se_sess, qlat_sess, be_sid);
+	tcm_qla2xxx_set_sess_by_loop_id(lport, se_nacl, nacl,
+					se_sess, qlat_sess, loop_id);
+	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
+
+	return 0;
+}
+
 /*
  * Called via qlt_create_sess():ha->qla2x_tmpl->check_initiator_node_acl()
  * to locate struct se_node_acl
@@ -1413,20 +1446,13 @@ static void tcm_qla2xxx_free_session(struct qla_tgt_sess *sess)
 static int tcm_qla2xxx_check_initiator_node_acl(
 	scsi_qla_host_t *vha,
 	unsigned char *fc_wwpn,
-	void *qla_tgt_sess,
-	uint8_t *s_id,
-	uint16_t loop_id)
+	struct qla_tgt_sess *qlat_sess)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct tcm_qla2xxx_lport *lport;
 	struct tcm_qla2xxx_tpg *tpg;
-	struct tcm_qla2xxx_nacl *nacl;
-	struct se_portal_group *se_tpg;
-	struct se_node_acl *se_nacl;
 	struct se_session *se_sess;
-	struct qla_tgt_sess *sess = qla_tgt_sess;
 	unsigned char port_name[36];
-	unsigned long flags;
 	int num_tags = (ha->cur_fw_xcb_count) ? ha->cur_fw_xcb_count :
 		       TCM_QLA2XXX_DEFAULT_TAGS;
 
@@ -1444,15 +1470,6 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 		pr_err("Unable to lcoate struct tcm_qla2xxx_lport->tpg_1\n");
 		return -EINVAL;
 	}
-	se_tpg = &tpg->se_tpg;
-
-	se_sess = transport_init_session_tags(num_tags,
-					      sizeof(struct qla_tgt_cmd),
-					      TARGET_PROT_ALL);
-	if (IS_ERR(se_sess)) {
-		pr_err("Unable to initialize struct se_session\n");
-		return PTR_ERR(se_sess);
-	}
 	/*
 	 * Format the FCP Initiator port_name into colon seperated values to
 	 * match the format by tcm_qla2xxx explict ConfigFS NodeACLs.
@@ -1463,28 +1480,12 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 	 * Locate our struct se_node_acl either from an explict NodeACL created
 	 * via ConfigFS, or via running in TPG demo mode.
 	 */
-	se_sess->se_node_acl = core_tpg_check_initiator_node_acl(se_tpg,
-					port_name);
-	if (!se_sess->se_node_acl) {
-		transport_free_session(se_sess);
-		return -EINVAL;
-	}
-	se_nacl = se_sess->se_node_acl;
-	nacl = container_of(se_nacl, struct tcm_qla2xxx_nacl, se_node_acl);
-	/*
-	 * And now setup the new se_nacl and session pointers into our HW lport
-	 * mappings for fabric S_ID and LOOP_ID.
-	 */
-	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
-	tcm_qla2xxx_set_sess_by_s_id(lport, se_nacl, nacl, se_sess,
-			qla_tgt_sess, s_id);
-	tcm_qla2xxx_set_sess_by_loop_id(lport, se_nacl, nacl, se_sess,
-			qla_tgt_sess, loop_id);
-	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
-	/*
-	 * Finally register the new FC Nexus with TCM
-	 */
-	transport_register_session(se_nacl->se_tpg, se_nacl, se_sess, sess);
+	se_sess = target_alloc_session(&tpg->se_tpg, num_tags,
+				       sizeof(struct qla_tgt_cmd),
+				       TARGET_PROT_ALL, port_name,
+				       qlat_sess, tcm_qla2xxx_session_cb);
+	if (IS_ERR(se_sess))
+		return PTR_ERR(se_sess);
 
 	return 0;
 }

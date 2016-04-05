@@ -742,10 +742,11 @@ static int null_add_dev(void)
 
 	add_disk(disk);
 
+done:
 	mutex_lock(&lock);
 	list_add_tail(&nullb->list, &nullb_list);
 	mutex_unlock(&lock);
-done:
+
 	return 0;
 
 out_cleanup_lightnvm:

@@ -187,7 +187,7 @@ static const u16 pl011_zte_offsets[REG_ARRAY_SIZE] = {
 	[REG_DMACR] = ZX_UART011_DMACR,
 };
 
-static struct vendor_data vendor_zte = {
+static struct vendor_data vendor_zte __maybe_unused = {
 	.reg_offset		= pl011_zte_offsets,
 	.access_32b		= true,
 	.ifls			= UART011_IFLS_RX4_8|UART011_IFLS_TX4_8,
@@ -420,7 +420,7 @@ static void pl011_dma_probe(struct uart_amba_port *uap)
 	/* Optionally make use of an RX channel as well */
 	chan = dma_request_slave_channel(dev, "rx");
 
-	if (!chan && plat->dma_rx_param) {
+	if (!chan && plat && plat->dma_rx_param) {
 		chan = dma_request_channel(mask, plat->dma_filter, plat->dma_rx_param);
 
 		if (!chan) {
@@ -1167,7 +1167,7 @@ static void pl011_dma_shutdown(struct uart_amba_port *uap)
 
 	/* Disable RX and TX DMA */
 	while (pl011_read(uap, REG_FR) & UART01x_FR_BUSY)
-		barrier();
+		cpu_relax();
 
 	spin_lock_irq(&uap->port.lock);
 	uap->dmacr &= ~(UART011_DMAONERR | UART011_RXDMAE | UART011_TXDMAE);
@@ -1611,7 +1611,7 @@ static void pl011_put_poll_char(struct uart_port *port,
 	    container_of(port, struct uart_amba_port, port);
 
 	while (pl011_read(uap, REG_FR) & UART01x_FR_TXFF)
-		barrier();
+		cpu_relax();
 
 	pl011_write(ch, uap, REG_DR);
 }
@@ -1947,6 +1947,8 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 		lcr_h |= UART01x_LCRH_PEN;
 		if (!(termios->c_cflag & PARODD))
 			lcr_h |= UART01x_LCRH_EPS;
+		if (termios->c_cflag & CMSPAR)
+			lcr_h |= UART011_LCRH_SPS;
 	}
 	if (uap->fifosize > 1)
 		lcr_h |= UART01x_LCRH_FEN;
@@ -2150,7 +2152,7 @@ static void pl011_console_putchar(struct uart_port *port, int ch)
 	    container_of(port, struct uart_amba_port, port);
 
 	while (pl011_read(uap, REG_FR) & UART01x_FR_TXFF)
-		barrier();
+		cpu_relax();
 	pl011_write(ch, uap, REG_DR);
 }
 
@@ -2158,7 +2160,7 @@ static void
 pl011_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct uart_amba_port *uap = amba_ports[co->index];
-	unsigned int status, old_cr = 0, new_cr;
+	unsigned int old_cr = 0, new_cr;
 	unsigned long flags;
 	int locked = 1;
 
@@ -2188,9 +2190,8 @@ pl011_console_write(struct console *co, const char *s, unsigned int count)
 	 *	Finally, wait for transmitter to become empty
 	 *	and restore the TCR
 	 */
-	do {
-		status = pl011_read(uap, REG_FR);
-	} while (status & UART01x_FR_BUSY);
+	while (pl011_read(uap, REG_FR) & UART01x_FR_BUSY)
+		cpu_relax();
 	if (!uap->vendor->always_enabled)
 		pl011_write(old_cr, uap, REG_CR);
 
@@ -2302,13 +2303,13 @@ static struct console amba_console = {
 static void pl011_putc(struct uart_port *port, int c)
 {
 	while (readl(port->membase + UART01x_FR) & UART01x_FR_TXFF)
-		;
+		cpu_relax();
 	if (port->iotype == UPIO_MEM32)
 		writel(c, port->membase + UART01x_DR);
 	else
 		writeb(c, port->membase + UART01x_DR);
 	while (readl(port->membase + UART01x_FR) & UART01x_FR_BUSY)
-		;
+		cpu_relax();
 }
 
 static void pl011_early_write(struct console *con, const char *s, unsigned n)
@@ -2327,7 +2328,6 @@ static int __init pl011_early_console_setup(struct earlycon_device *device,
 	device->con->write = pl011_early_write;
 	return 0;
 }
-EARLYCON_DECLARE(pl011, pl011_early_console_setup);
 OF_EARLYCON_DECLARE(pl011, "arm,pl011", pl011_early_console_setup);
 
 #else

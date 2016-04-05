@@ -28,12 +28,127 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/completion.h>
+#include <linux/delay.h>
 #include <linux/hyperv.h>
 
 #include "hyperv_vmbus.h"
 
-static void init_vp_index(struct vmbus_channel *channel,
-			  const uuid_le *type_guid);
+static void init_vp_index(struct vmbus_channel *channel, u16 dev_type);
+
+static const struct vmbus_device vmbus_devs[] = {
+	/* IDE */
+	{ .dev_type = HV_IDE,
+	  HV_IDE_GUID,
+	  .perf_device = true,
+	},
+
+	/* SCSI */
+	{ .dev_type = HV_SCSI,
+	  HV_SCSI_GUID,
+	  .perf_device = true,
+	},
+
+	/* Fibre Channel */
+	{ .dev_type = HV_FC,
+	  HV_SYNTHFC_GUID,
+	  .perf_device = true,
+	},
+
+	/* Synthetic NIC */
+	{ .dev_type = HV_NIC,
+	  HV_NIC_GUID,
+	  .perf_device = true,
+	},
+
+	/* Network Direct */
+	{ .dev_type = HV_ND,
+	  HV_ND_GUID,
+	  .perf_device = true,
+	},
+
+	/* PCIE */
+	{ .dev_type = HV_PCIE,
+	  HV_PCIE_GUID,
+	  .perf_device = true,
+	},
+
+	/* Synthetic Frame Buffer */
+	{ .dev_type = HV_FB,
+	  HV_SYNTHVID_GUID,
+	  .perf_device = false,
+	},
+
+	/* Synthetic Keyboard */
+	{ .dev_type = HV_KBD,
+	  HV_KBD_GUID,
+	  .perf_device = false,
+	},
+
+	/* Synthetic MOUSE */
+	{ .dev_type = HV_MOUSE,
+	  HV_MOUSE_GUID,
+	  .perf_device = false,
+	},
+
+	/* KVP */
+	{ .dev_type = HV_KVP,
+	  HV_KVP_GUID,
+	  .perf_device = false,
+	},
+
+	/* Time Synch */
+	{ .dev_type = HV_TS,
+	  HV_TS_GUID,
+	  .perf_device = false,
+	},
+
+	/* Heartbeat */
+	{ .dev_type = HV_HB,
+	  HV_HEART_BEAT_GUID,
+	  .perf_device = false,
+	},
+
+	/* Shutdown */
+	{ .dev_type = HV_SHUTDOWN,
+	  HV_SHUTDOWN_GUID,
+	  .perf_device = false,
+	},
+
+	/* File copy */
+	{ .dev_type = HV_FCOPY,
+	  HV_FCOPY_GUID,
+	  .perf_device = false,
+	},
+
+	/* Backup */
+	{ .dev_type = HV_BACKUP,
+	  HV_VSS_GUID,
+	  .perf_device = false,
+	},
+
+	/* Dynamic Memory */
+	{ .dev_type = HV_DM,
+	  HV_DM_GUID,
+	  .perf_device = false,
+	},
+
+	/* Unknown GUID */
+	{ .dev_type = HV_UNKOWN,
+	  .perf_device = false,
+	},
+};
+
+static u16 hv_get_dev_type(const uuid_le *guid)
+{
+	u16 i;
+
+	for (i = HV_IDE; i < HV_UNKOWN; i++) {
+		if (!uuid_le_cmp(*guid, vmbus_devs[i].guid))
+			return i;
+	}
+	pr_info("Unknown GUID: %pUl\n", guid);
+	return i;
+}
 
 /**
  * vmbus_prep_negotiate_resp() - Create default response for Hyper-V Negotiate message
@@ -144,6 +259,7 @@ static struct vmbus_channel *alloc_channel(void)
 		return NULL;
 
 	channel->id = atomic_inc_return(&chan_num);
+	channel->acquire_ring_lock = true;
 	spin_lock_init(&channel->inbound_lock);
 	spin_lock_init(&channel->lock);
 
@@ -195,6 +311,7 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 	vmbus_release_relid(relid);
 
 	BUG_ON(!channel->rescind);
+	BUG_ON(!mutex_is_locked(&vmbus_connection.channel_mutex));
 
 	if (channel->target_cpu != get_cpu()) {
 		put_cpu();
@@ -206,9 +323,7 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 	}
 
 	if (channel->primary_channel == NULL) {
-		mutex_lock(&vmbus_connection.channel_mutex);
 		list_del(&channel->listentry);
-		mutex_unlock(&vmbus_connection.channel_mutex);
 
 		primary_channel = channel;
 	} else {
@@ -251,6 +366,8 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	struct vmbus_channel *channel;
 	bool fnew = true;
 	unsigned long flags;
+	u16 dev_type;
+	int ret;
 
 	/* Make sure this is a new offer */
 	mutex_lock(&vmbus_connection.channel_mutex);
@@ -288,7 +405,9 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 			goto err_free_chan;
 	}
 
-	init_vp_index(newchannel, &newchannel->offermsg.offer.if_type);
+	dev_type = hv_get_dev_type(&newchannel->offermsg.offer.if_type);
+
+	init_vp_index(newchannel, dev_type);
 
 	if (newchannel->target_cpu != get_cpu()) {
 		put_cpu();
@@ -325,12 +444,17 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	if (!newchannel->device_obj)
 		goto err_deq_chan;
 
+	newchannel->device_obj->device_id = dev_type;
 	/*
 	 * Add the new device to the bus. This will kick off device-driver
 	 * binding which eventually invokes the device driver's AddDevice()
 	 * method.
 	 */
-	if (vmbus_device_register(newchannel->device_obj) != 0) {
+	mutex_lock(&vmbus_connection.channel_mutex);
+	ret = vmbus_device_register(newchannel->device_obj);
+	mutex_unlock(&vmbus_connection.channel_mutex);
+
+	if (ret != 0) {
 		pr_err("unable to add child device object (relid %d)\n",
 			newchannel->offermsg.child_relid);
 		kfree(newchannel->device_obj);
@@ -358,37 +482,6 @@ err_free_chan:
 	free_channel(newchannel);
 }
 
-enum {
-	IDE = 0,
-	SCSI,
-	FC,
-	NIC,
-	ND_NIC,
-	PCIE,
-	MAX_PERF_CHN,
-};
-
-/*
- * This is an array of device_ids (device types) that are performance critical.
- * We attempt to distribute the interrupt load for these devices across
- * all available CPUs.
- */
-static const struct hv_vmbus_device_id hp_devs[] = {
-	/* IDE */
-	{ HV_IDE_GUID, },
-	/* Storage - SCSI */
-	{ HV_SCSI_GUID, },
-	/* Storage - FC */
-	{ HV_SYNTHFC_GUID, },
-	/* Network */
-	{ HV_NIC_GUID, },
-	/* NetworkDirect Guest RDMA */
-	{ HV_ND_GUID, },
-	/* PCI Express Pass Through */
-	{ HV_PCIE_GUID, },
-};
-
-
 /*
  * We use this state to statically distribute the channel interrupt load.
  */
@@ -405,22 +498,15 @@ static int next_numa_node_id;
  * For pre-win8 hosts or non-performance critical channels we assign the
  * first CPU in the first NUMA node.
  */
-static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_guid)
+static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 {
 	u32 cur_cpu;
-	int i;
-	bool perf_chn = false;
+	bool perf_chn = vmbus_devs[dev_type].perf_device;
 	struct vmbus_channel *primary = channel->primary_channel;
 	int next_node;
 	struct cpumask available_mask;
 	struct cpumask *alloced_mask;
 
-	for (i = IDE; i < MAX_PERF_CHN; i++) {
-		if (!uuid_le_cmp(*type_guid, hp_devs[i].guid)) {
-			perf_chn = true;
-			break;
-		}
-	}
 	if ((vmbus_proto_version == VERSION_WS2008) ||
 	    (vmbus_proto_version == VERSION_WIN7) || (!perf_chn)) {
 		/*
@@ -469,6 +555,17 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 		    cpumask_of_node(primary->numa_node));
 
 	cur_cpu = -1;
+
+	/*
+	 * Normally Hyper-V host doesn't create more subchannels than there
+	 * are VCPUs on the node but it is possible when not all present VCPUs
+	 * on the node are initialized by guest. Clear the alloced_cpus_in_node
+	 * to start over.
+	 */
+	if (cpumask_equal(&primary->alloced_cpus_in_node,
+			  cpumask_of_node(primary->numa_node)))
+		cpumask_clear(&primary->alloced_cpus_in_node);
+
 	while (true) {
 		cur_cpu = cpumask_next(cur_cpu, &available_mask);
 		if (cur_cpu >= nr_cpu_ids) {
@@ -498,6 +595,32 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 	channel->target_vp = hv_context.vp_index[cur_cpu];
 }
 
+static void vmbus_wait_for_unload(void)
+{
+	int cpu = smp_processor_id();
+	void *page_addr = hv_context.synic_message_page[cpu];
+	struct hv_message *msg = (struct hv_message *)page_addr +
+				  VMBUS_MESSAGE_SINT;
+	struct vmbus_channel_message_header *hdr;
+	bool unloaded = false;
+
+	while (1) {
+		if (READ_ONCE(msg->header.message_type) == HVMSG_NONE) {
+			mdelay(10);
+			continue;
+		}
+
+		hdr = (struct vmbus_channel_message_header *)msg->u.payload;
+		if (hdr->msgtype == CHANNELMSG_UNLOAD_RESPONSE)
+			unloaded = true;
+
+		vmbus_signal_eom(msg);
+
+		if (unloaded)
+			break;
+	}
+}
+
 /*
  * vmbus_unload_response - Handler for the unload response.
  */
@@ -510,7 +633,7 @@ static void vmbus_unload_response(struct vmbus_channel_message_header *hdr)
 	complete(&vmbus_connection.unload_event);
 }
 
-void vmbus_initiate_unload(void)
+void vmbus_initiate_unload(bool crash)
 {
 	struct vmbus_channel_message_header hdr;
 
@@ -523,7 +646,14 @@ void vmbus_initiate_unload(void)
 	hdr.msgtype = CHANNELMSG_UNLOAD;
 	vmbus_post_msg(&hdr, sizeof(struct vmbus_channel_message_header));
 
-	wait_for_completion(&vmbus_connection.unload_event);
+	/*
+	 * vmbus_initiate_unload() is also called on crash and the crash can be
+	 * happening in an interrupt context, where scheduling is impossible.
+	 */
+	if (!crash)
+		wait_for_completion(&vmbus_connection.unload_event);
+	else
+		vmbus_wait_for_unload();
 }
 
 /*
@@ -592,6 +722,8 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 	struct device *dev;
 
 	rescind = (struct vmbus_channel_rescind_offer *)hdr;
+
+	mutex_lock(&vmbus_connection.channel_mutex);
 	channel = relid2channel(rescind->child_relid);
 
 	if (channel == NULL) {
@@ -600,7 +732,7 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 		 * vmbus_process_offer(), we have already invoked
 		 * vmbus_release_relid() on error.
 		 */
-		return;
+		goto out;
 	}
 
 	spin_lock_irqsave(&channel->lock, flags);
@@ -608,6 +740,10 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 	spin_unlock_irqrestore(&channel->lock, flags);
 
 	if (channel->device_obj) {
+		if (channel->chn_rescind_callback) {
+			channel->chn_rescind_callback(channel);
+			goto out;
+		}
 		/*
 		 * We will have to unregister this device from the
 		 * driver core.
@@ -621,7 +757,24 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 		hv_process_channel_removal(channel,
 			channel->offermsg.child_relid);
 	}
+
+out:
+	mutex_unlock(&vmbus_connection.channel_mutex);
 }
+
+void vmbus_hvsock_device_unregister(struct vmbus_channel *channel)
+{
+	mutex_lock(&vmbus_connection.channel_mutex);
+
+	BUG_ON(!is_hvsock_channel(channel));
+
+	channel->rescind = true;
+	vmbus_device_unregister(channel->device_obj);
+
+	mutex_unlock(&vmbus_connection.channel_mutex);
+}
+EXPORT_SYMBOL_GPL(vmbus_hvsock_device_unregister);
+
 
 /*
  * vmbus_onoffers_delivered -
@@ -825,6 +978,10 @@ struct vmbus_channel_message_table_entry
 	{CHANNELMSG_VERSION_RESPONSE,		1, vmbus_onversion_response},
 	{CHANNELMSG_UNLOAD,			0, NULL},
 	{CHANNELMSG_UNLOAD_RESPONSE,		1, vmbus_unload_response},
+	{CHANNELMSG_18,				0, NULL},
+	{CHANNELMSG_19,				0, NULL},
+	{CHANNELMSG_20,				0, NULL},
+	{CHANNELMSG_TL_CONNECT_REQUEST,		0, NULL},
 };
 
 /*
@@ -973,3 +1130,10 @@ bool vmbus_are_subchannels_present(struct vmbus_channel *primary)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(vmbus_are_subchannels_present);
+
+void vmbus_set_chn_rescind_callback(struct vmbus_channel *channel,
+		void (*chn_rescind_cb)(struct vmbus_channel *))
+{
+	channel->chn_rescind_callback = chn_rescind_cb;
+}
+EXPORT_SYMBOL_GPL(vmbus_set_chn_rescind_callback);

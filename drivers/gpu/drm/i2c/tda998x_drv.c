@@ -856,14 +856,6 @@ static void tda998x_encoder_dpms(struct drm_encoder *encoder, int mode)
 	priv->dpms = mode;
 }
 
-static bool
-tda998x_encoder_mode_fixup(struct drm_encoder *encoder,
-			  const struct drm_display_mode *mode,
-			  struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static int tda998x_connector_mode_valid(struct drm_connector *connector,
 					struct drm_display_mode *mode)
 {
@@ -1343,7 +1335,6 @@ static void tda998x_encoder_commit(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs tda998x_encoder_helper_funcs = {
 	.dpms = tda998x_encoder_dpms,
-	.mode_fixup = tda998x_encoder_mode_fixup,
 	.prepare = tda998x_encoder_prepare,
 	.commit = tda998x_encoder_commit,
 	.mode_set = tda998x_encoder_mode_set,
@@ -1382,8 +1373,16 @@ static void tda998x_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
+static int tda998x_connector_dpms(struct drm_connector *connector, int mode)
+{
+	if (drm_core_check_feature(connector->dev, DRIVER_ATOMIC))
+		return drm_atomic_helper_connector_dpms(connector, mode);
+	else
+		return drm_helper_connector_dpms(connector, mode);
+}
+
 static const struct drm_connector_funcs tda998x_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
+	.dpms = tda998x_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = tda998x_connector_detect,

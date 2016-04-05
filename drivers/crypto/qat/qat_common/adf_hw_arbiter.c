@@ -49,7 +49,6 @@
 #include "adf_transport_internal.h"
 
 #define ADF_ARB_NUM 4
-#define ADF_ARB_REQ_RING_NUM 8
 #define ADF_ARB_REG_SIZE 0x4
 #define ADF_ARB_WTR_SIZE 0x20
 #define ADF_ARB_OFFSET 0x30000
@@ -63,15 +62,6 @@
 #define WRITE_CSR_ARB_RINGSRVARBEN(csr_addr, index, value) \
 	ADF_CSR_WR(csr_addr, ADF_ARB_RINGSRVARBEN_OFFSET + \
 	(ADF_ARB_REG_SLOT * index), value)
-
-#define WRITE_CSR_ARB_RESPORDERING(csr_addr, index, value) \
-	ADF_CSR_WR(csr_addr, (ADF_ARB_OFFSET + \
-	ADF_ARB_RO_EN_OFFSET) + (ADF_ARB_REG_SIZE * index), value)
-
-#define WRITE_CSR_ARB_WEIGHT(csr_addr, arb, index, value) \
-	ADF_CSR_WR(csr_addr, (ADF_ARB_OFFSET + \
-	ADF_ARB_WTR_OFFSET) + (ADF_ARB_WTR_SIZE * arb) + \
-	(ADF_ARB_REG_SIZE * index), value)
 
 #define WRITE_CSR_ARB_SARCONFIG(csr_addr, index, value) \
 	ADF_CSR_WR(csr_addr, ADF_ARB_OFFSET + \
@@ -98,15 +88,6 @@ int adf_init_arb(struct adf_accel_dev *accel_dev)
 	 * ring flow control check enabled. */
 	for (arb = 0; arb < ADF_ARB_NUM; arb++)
 		WRITE_CSR_ARB_SARCONFIG(csr, arb, arb_cfg);
-
-	/* Setup service weighting */
-	for (arb = 0; arb < ADF_ARB_NUM; arb++)
-		for (i = 0; i < ADF_ARB_REQ_RING_NUM; i++)
-			WRITE_CSR_ARB_WEIGHT(csr, arb, i, 0xFFFFFFFF);
-
-	/* Setup ring response ordering */
-	for (i = 0; i < ADF_ARB_REQ_RING_NUM; i++)
-		WRITE_CSR_ARB_RESPORDERING(csr, i, 0xFFFFFFFF);
 
 	/* Setup worker queue registers */
 	for (i = 0; i < hw_data->num_engines; i++)

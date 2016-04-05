@@ -1,0 +1,10 @@
+menu "ACP Configuration"
+
+config DRM_AMD_ACP
+       bool "Enable ACP IP support"
+       select MFD_CORE
+       select PM_GENERIC_DOMAINS if PM
+       help
+	Choose this option to enable ACP IP support for AMD SOCs.
+
+endmenu

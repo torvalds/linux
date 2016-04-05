@@ -149,6 +149,16 @@ config BNX2X_VXLAN
 	  Say Y here if you want to enable hardware offload support for
 	  Virtual eXtensible Local Area Network (VXLAN) in the driver.
 
+config BNX2X_GENEVE
+	bool "Generic Network Virtualization Encapsulation (GENEVE) support"
+	depends on BNX2X && GENEVE && !(BNX2X=y && GENEVE=m)
+	---help---
+          This allows one to create GENEVE virtual interfaces that provide
+          Layer 2 Networks over Layer 3 Networks. GENEVE is often used
+          to tunnel virtual network infrastructure in virtualized environments.
+	  Say Y here if you want to enable hardware offload support for
+	  Generic Network Virtualization Encapsulation (GENEVE) in the driver.
+
 config BGMAC
 	tristate "BCMA bus GBit core support"
 	depends on BCMA && BCMA_HOST_SOC

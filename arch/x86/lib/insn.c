@@ -374,7 +374,7 @@ void insn_get_displacement(struct insn *insn)
 		if (mod == 3)
 			goto out;
 		if (mod == 1) {
-			insn->displacement.value = get_next(char, insn);
+			insn->displacement.value = get_next(signed char, insn);
 			insn->displacement.nbytes = 1;
 		} else if (insn->addr_bytes == 2) {
 			if ((mod == 0 && rm == 6) || mod == 2) {
@@ -532,7 +532,7 @@ void insn_get_immediate(struct insn *insn)
 
 	switch (inat_immediate_size(insn->attr)) {
 	case INAT_IMM_BYTE:
-		insn->immediate.value = get_next(char, insn);
+		insn->immediate.value = get_next(signed char, insn);
 		insn->immediate.nbytes = 1;
 		break;
 	case INAT_IMM_WORD:
@@ -566,7 +566,7 @@ void insn_get_immediate(struct insn *insn)
 		goto err_out;
 	}
 	if (inat_has_second_immediate(insn->attr)) {
-		insn->immediate2.value = get_next(char, insn);
+		insn->immediate2.value = get_next(signed char, insn);
 		insn->immediate2.nbytes = 1;
 	}
 done:

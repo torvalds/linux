@@ -108,7 +108,6 @@ struct cxlflash_cfg {
 	atomic_t scan_host_needed;
 
 	struct cxl_afu *cxl_afu;
-	struct pci_dev *parent_dev;
 
 	atomic_t recovery_threads;
 	struct mutex ctx_recovery_mutex;

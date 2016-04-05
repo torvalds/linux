@@ -84,12 +84,30 @@ config NFSD_V4
 	  If unsure, say N.
 
 config NFSD_PNFS
-	bool "NFSv4.1 server support for Parallel NFS (pNFS)"
-	depends on NFSD_V4
+	bool
+
+config NFSD_BLOCKLAYOUT
+	bool "NFSv4.1 server support for pNFS block layouts"
+	depends on NFSD_V4 && BLOCK
+	select NFSD_PNFS
 	help
-	  This option enables support for the parallel NFS features of the
-	  minor version 1 of the NFSv4 protocol (RFC5661) in the kernel's NFS
-	  server.
+	  This option enables support for the exporting pNFS block layouts
+	  in the kernel's NFS server. The pNFS block layout enables NFS
+	  clients to directly perform I/O to block devices accesible to both
+	  the server and the clients.  See RFC 5663 for more details.
+
+	  If unsure, say N.
+
+config NFSD_SCSILAYOUT
+	bool "NFSv4.1 server support for pNFS SCSI layouts"
+	depends on NFSD_V4 && BLOCK
+	select NFSD_PNFS
+	help
+	  This option enables support for the exporting pNFS SCSI layouts
+	  in the kernel's NFS server. The pNFS SCSI layout enables NFS
+	  clients to directly perform I/O to SCSI devices accesible to both
+	  the server and the clients.  See draft-ietf-nfsv4-scsi-layout for
+	  more details.
 
 	  If unsure, say N.
 

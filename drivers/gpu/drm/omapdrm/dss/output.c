@@ -169,24 +169,6 @@ struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device 
 }
 EXPORT_SYMBOL(omapdss_find_output_from_display);
 
-struct omap_overlay_manager *omapdss_find_mgr_from_display(struct omap_dss_device *dssdev)
-{
-	struct omap_dss_device *out;
-	struct omap_overlay_manager *mgr;
-
-	out = omapdss_find_output_from_display(dssdev);
-
-	if (out == NULL)
-		return NULL;
-
-	mgr = out->manager;
-
-	omap_dss_put_device(out);
-
-	return mgr;
-}
-EXPORT_SYMBOL(omapdss_find_mgr_from_display);
-
 static const struct dss_mgr_ops *dss_mgr_ops;
 
 int dss_install_mgr_ops(const struct dss_mgr_ops *mgr_ops)
@@ -206,62 +188,62 @@ void dss_uninstall_mgr_ops(void)
 }
 EXPORT_SYMBOL(dss_uninstall_mgr_ops);
 
-int dss_mgr_connect(struct omap_overlay_manager *mgr,
+int dss_mgr_connect(enum omap_channel channel,
 		struct omap_dss_device *dst)
 {
-	return dss_mgr_ops->connect(mgr, dst);
+	return dss_mgr_ops->connect(channel, dst);
 }
 EXPORT_SYMBOL(dss_mgr_connect);
 
-void dss_mgr_disconnect(struct omap_overlay_manager *mgr,
+void dss_mgr_disconnect(enum omap_channel channel,
 		struct omap_dss_device *dst)
 {
-	dss_mgr_ops->disconnect(mgr, dst);
+	dss_mgr_ops->disconnect(channel, dst);
 }
 EXPORT_SYMBOL(dss_mgr_disconnect);
 
-void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
+void dss_mgr_set_timings(enum omap_channel channel,
 		const struct omap_video_timings *timings)
 {
-	dss_mgr_ops->set_timings(mgr, timings);
+	dss_mgr_ops->set_timings(channel, timings);
 }
 EXPORT_SYMBOL(dss_mgr_set_timings);
 
-void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
+void dss_mgr_set_lcd_config(enum omap_channel channel,
 		const struct dss_lcd_mgr_config *config)
 {
-	dss_mgr_ops->set_lcd_config(mgr, config);
+	dss_mgr_ops->set_lcd_config(channel, config);
 }
 EXPORT_SYMBOL(dss_mgr_set_lcd_config);
 
-int dss_mgr_enable(struct omap_overlay_manager *mgr)
+int dss_mgr_enable(enum omap_channel channel)
 {
-	return dss_mgr_ops->enable(mgr);
+	return dss_mgr_ops->enable(channel);
 }
 EXPORT_SYMBOL(dss_mgr_enable);
 
-void dss_mgr_disable(struct omap_overlay_manager *mgr)
+void dss_mgr_disable(enum omap_channel channel)
 {
-	dss_mgr_ops->disable(mgr);
+	dss_mgr_ops->disable(channel);
 }
 EXPORT_SYMBOL(dss_mgr_disable);
 
-void dss_mgr_start_update(struct omap_overlay_manager *mgr)
+void dss_mgr_start_update(enum omap_channel channel)
 {
-	dss_mgr_ops->start_update(mgr);
+	dss_mgr_ops->start_update(channel);
 }
 EXPORT_SYMBOL(dss_mgr_start_update);
 
-int dss_mgr_register_framedone_handler(struct omap_overlay_manager *mgr,
+int dss_mgr_register_framedone_handler(enum omap_channel channel,
 		void (*handler)(void *), void *data)
 {
-	return dss_mgr_ops->register_framedone_handler(mgr, handler, data);
+	return dss_mgr_ops->register_framedone_handler(channel, handler, data);
 }
 EXPORT_SYMBOL(dss_mgr_register_framedone_handler);
 
-void dss_mgr_unregister_framedone_handler(struct omap_overlay_manager *mgr,
+void dss_mgr_unregister_framedone_handler(enum omap_channel channel,
 		void (*handler)(void *), void *data)
 {
-	dss_mgr_ops->unregister_framedone_handler(mgr, handler, data);
+	dss_mgr_ops->unregister_framedone_handler(channel, handler, data);
 }
 EXPORT_SYMBOL(dss_mgr_unregister_framedone_handler);

@@ -487,7 +487,7 @@ __errata_finish:
 
 	.align	2
 __v7_setup_stack_ptr:
-	.word	__v7_setup_stack - .
+	.word	PHYS_RELATIVE(__v7_setup_stack, .)
 ENDPROC(__v7_setup)
 
 	.bss

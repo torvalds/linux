@@ -47,12 +47,12 @@
  * of times)
  */
 
-#include <linux/latencytop.h>
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
 #include <linux/proc_fs.h>
+#include <linux/latencytop.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/list.h>
@@ -288,5 +288,17 @@ static int __init init_lstats_procfs(void)
 {
 	proc_create("latency_stats", 0644, NULL, &lstats_fops);
 	return 0;
+}
+
+int sysctl_latencytop(struct ctl_table *table, int write,
+			void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int err;
+
+	err = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (latencytop_enabled)
+		force_schedstat_enabled();
+
+	return err;
 }
 device_initcall(init_lstats_procfs);

@@ -614,22 +614,6 @@ int xxxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 }
 
 /**
- *	xxxfb_rotate -  NOT a required function. If your hardware
- *			supports rotation the whole screen then 
- *			you would provide a hook for this. 
- *
- *      @info: frame buffer structure that represents a single frame buffer
- *	@angle: The angle we rotate the screen.   
- *
- *      This operation is used to set or alter the properities of the
- *	cursor.
- */
-void xxxfb_rotate(struct fb_info *info, int angle)
-{
-/* Will be deprecated */
-}
-
-/**
  *	xxxfb_sync - NOT a required function. Normally the accel engine 
  *		     for a graphics card take a specific amount of time.
  *		     Often we have to wait for the accelerator to finish
@@ -665,7 +649,6 @@ static struct fb_ops xxxfb_ops = {
 	.fb_copyarea	= xxxfb_copyarea,	/* Needed !!! */
 	.fb_imageblit	= xxxfb_imageblit,	/* Needed !!! */
 	.fb_cursor	= xxxfb_cursor,		/* Optional !!! */
-	.fb_rotate	= xxxfb_rotate,
 	.fb_sync	= xxxfb_sync,
 	.fb_ioctl	= xxxfb_ioctl,
 	.fb_mmap	= xxxfb_mmap,

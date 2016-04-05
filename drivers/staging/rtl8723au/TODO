@@ -9,5 +9,8 @@ TODO:
 - merge Realtek's bugfixes and new features into the driver
 - switch to use MAC80211
 
-Please send any patches to Greg Kroah-Hartman <gregkh@linux.com>,
+A mac80211 driver for this hardware already was integrated at
+drivers/net/wireless/realtek/rtl8xxxu/
+
+Please send any patches to Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
 Jes Sorensen <Jes.Sorensen@redhat.com>, and Larry Finger <Larry.Finger@lwfinger.net>.

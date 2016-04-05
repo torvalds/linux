@@ -79,7 +79,9 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98090 if I2C
 	select SND_SOC_MAX98095 if I2C
 	select SND_SOC_MAX98357A if GPIOLIB
+	select SND_SOC_MAX9867 if I2C
 	select SND_SOC_MAX98925 if I2C
+	select SND_SOC_MAX98926 if I2C
 	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9768 if I2C
 	select SND_SOC_MAX9877 if I2C
@@ -87,7 +89,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ML26124 if I2C
 	select SND_SOC_NAU8825 if I2C
 	select SND_SOC_PCM1681 if I2C
-	select SND_SOC_PCM179X if SPI_MASTER
+	select SND_SOC_PCM179X_I2C if I2C
+	select SND_SOC_PCM179X_SPI if SPI_MASTER
 	select SND_SOC_PCM3008
 	select SND_SOC_PCM3168A_I2C if I2C
 	select SND_SOC_PCM3168A_SPI if SPI_MASTER
@@ -95,6 +98,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM512x_SPI if SPI_MASTER
 	select SND_SOC_RT286 if I2C
 	select SND_SOC_RT298 if I2C
+	select SND_SOC_RT5514 if I2C
 	select SND_SOC_RT5616 if I2C
 	select SND_SOC_RT5631 if I2C
 	select SND_SOC_RT5640 if I2C
@@ -490,6 +494,7 @@ config SND_SOC_GTM601
 config SND_SOC_HDAC_HDMI
 	tristate
 	select SND_HDA_EXT_CORE
+	select SND_PCM_ELD
 	select HDMI
 
 config SND_SOC_ICS43432
@@ -497,6 +502,7 @@ config SND_SOC_ICS43432
 
 config SND_SOC_INNO_RK3036
 	tristate "Inno codec driver for RK3036 SoC"
+	select REGMAP_MMIO
 
 config SND_SOC_ISABELLE
         tristate
@@ -516,8 +522,14 @@ config SND_SOC_MAX98095
 config SND_SOC_MAX98357A
        tristate
 
+config SND_SOC_MAX9867
+	tristate
+
 config SND_SOC_MAX98925
        tristate
+
+config SND_SOC_MAX98926
+	tristate
 
 config SND_SOC_MAX9850
 	tristate
@@ -527,8 +539,23 @@ config SND_SOC_PCM1681
 	depends on I2C
 
 config SND_SOC_PCM179X
-	tristate "Texas Instruments PCM179X CODEC"
+	tristate
+
+config SND_SOC_PCM179X_I2C
+	tristate "Texas Instruments PCM179X CODEC (I2C)"
+	depends on I2C
+	select SND_SOC_PCM179X
+	help
+	  Enable support for Texas Instruments PCM179x CODEC.
+	  Select this if your PCM179x is connected via an I2C bus.
+
+config SND_SOC_PCM179X_SPI
+	tristate "Texas Instruments PCM179X CODEC (SPI)"
 	depends on SPI_MASTER
+	select SND_SOC_PCM179X
+	help
+	  Enable support for Texas Instruments PCM179x CODEC.
+	  Select this if your PCM179x is connected via an SPI bus.
 
 config SND_SOC_PCM3008
        tristate
@@ -565,6 +592,7 @@ config SND_SOC_PCM512x_SPI
 
 config SND_SOC_RL6231
 	tristate
+	default y if SND_SOC_RT5514=y
 	default y if SND_SOC_RT5616=y
 	default y if SND_SOC_RT5640=y
 	default y if SND_SOC_RT5645=y
@@ -572,6 +600,7 @@ config SND_SOC_RL6231
 	default y if SND_SOC_RT5659=y
 	default y if SND_SOC_RT5670=y
 	default y if SND_SOC_RT5677=y
+	default m if SND_SOC_RT5514=m
 	default m if SND_SOC_RT5616=m
 	default m if SND_SOC_RT5640=m
 	default m if SND_SOC_RT5645=m
@@ -595,8 +624,11 @@ config SND_SOC_RT298
 	tristate
 	depends on I2C
 
-config SND_SOC_RT5616
+config SND_SOC_RT5514
 	tristate
+
+config SND_SOC_RT5616
+	tristate "Realtek RT5616 CODEC"
 
 config SND_SOC_RT5631
 	tristate "Realtek ALC5631/RT5631 CODEC"

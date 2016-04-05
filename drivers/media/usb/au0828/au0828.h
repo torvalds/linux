@@ -76,7 +76,6 @@ enum au0828_itype {
 	AU0828_VMUX_CABLE,
 	AU0828_VMUX_TELEVISION,
 	AU0828_VMUX_DVB,
-	AU0828_VMUX_DEBUG
 };
 
 struct au0828_input {
@@ -283,6 +282,12 @@ struct au0828_dev {
 	struct media_entity *decoder;
 	struct media_entity input_ent[AU0828_MAX_INPUT];
 	struct media_pad input_pad[AU0828_MAX_INPUT];
+	struct media_entity_notify entity_notify;
+	struct media_entity *tuner;
+	struct media_link *active_link;
+	struct media_entity *active_link_owner;
+	struct media_entity *active_source;
+	struct media_entity *active_sink;
 #endif
 };
 
@@ -301,6 +306,7 @@ struct au0828_dev {
 /* au0828-core.c */
 extern u32 au0828_read(struct au0828_dev *dev, u16 reg);
 extern u32 au0828_write(struct au0828_dev *dev, u16 reg, u32 val);
+extern void au0828_usb_release(struct au0828_dev *dev);
 extern int au0828_debug;
 
 /* ----------------------------------------------------------- */
@@ -319,16 +325,29 @@ extern int au0828_i2c_unregister(struct au0828_dev *dev);
 
 /* ----------------------------------------------------------- */
 /* au0828-video.c */
-extern int au0828_analog_register(struct au0828_dev *dev,
-			   struct usb_interface *interface);
-extern void au0828_analog_unregister(struct au0828_dev *dev);
 extern int au0828_start_analog_streaming(struct vb2_queue *vq,
 						unsigned int count);
 extern void au0828_stop_vbi_streaming(struct vb2_queue *vq);
 #ifdef CONFIG_VIDEO_AU0828_V4L2
+extern int au0828_v4l2_device_register(struct usb_interface *interface,
+				      struct au0828_dev *dev);
+
+extern int au0828_analog_register(struct au0828_dev *dev,
+			   struct usb_interface *interface);
+extern int au0828_analog_unregister(struct au0828_dev *dev);
+extern void au0828_usb_v4l2_media_release(struct au0828_dev *dev);
 extern void au0828_v4l2_suspend(struct au0828_dev *dev);
 extern void au0828_v4l2_resume(struct au0828_dev *dev);
 #else
+static inline int au0828_v4l2_device_register(struct usb_interface *interface,
+					      struct au0828_dev *dev)
+{ return 0; };
+static inline int au0828_analog_register(struct au0828_dev *dev,
+				     struct usb_interface *interface)
+{ return 0; };
+static inline int au0828_analog_unregister(struct au0828_dev *dev)
+{ return 0; };
+static inline void au0828_usb_v4l2_media_release(struct au0828_dev *dev) { };
 static inline void au0828_v4l2_suspend(struct au0828_dev *dev) { };
 static inline void au0828_v4l2_resume(struct au0828_dev *dev) { };
 #endif

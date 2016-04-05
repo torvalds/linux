@@ -159,7 +159,7 @@ Description:    read only
                 Decimal value of the Per Process MMIO space length.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:           /sys/class/cxl/<afu>m/pp_mmio_off
+What:           /sys/class/cxl/<afu>m/pp_mmio_off (not in a guest)
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
@@ -183,7 +183,7 @@ Description:    read only
                 Identifies the revision level of the PSL.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:           /sys/class/cxl/<card>/base_image
+What:           /sys/class/cxl/<card>/base_image (not in a guest)
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
@@ -193,7 +193,7 @@ Description:    read only
                 during the initial program load.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:           /sys/class/cxl/<card>/image_loaded
+What:           /sys/class/cxl/<card>/image_loaded (not in a guest)
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
@@ -201,7 +201,7 @@ Description:    read only
                 onto the card.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:           /sys/class/cxl/<card>/load_image_on_perst
+What:           /sys/class/cxl/<card>/load_image_on_perst (not in a guest)
 Date:           December 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read/write
@@ -224,7 +224,7 @@ Description:    write only
                 to reload the FPGA depending on load_image_on_perst.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:		/sys/class/cxl/<card>/perst_reloads_same_image
+What:		/sys/class/cxl/<card>/perst_reloads_same_image (not in a guest)
 Date:		July 2015
 Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	read/write

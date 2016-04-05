@@ -85,14 +85,17 @@ socklnd_init_msg(ksock_msg_t *msg, int type)
 {
 	msg->ksm_csum = 0;
 	msg->ksm_type = type;
-	msg->ksm_zc_cookies[0] = msg->ksm_zc_cookies[1]  = 0;
+	msg->ksm_zc_cookies[0] = 0;
+	msg->ksm_zc_cookies[1] = 0;
 }
 
 #define KSOCK_MSG_NOOP	0xC0	/* ksm_u empty */
 #define KSOCK_MSG_LNET	0xC1	/* lnet msg */
 
-/* We need to know this number to parse hello msg from ksocklnd in
- * other LND (usocklnd, for example) */
+/*
+ * We need to know this number to parse hello msg from ksocklnd in
+ * other LND (usocklnd, for example)
+ */
 #define KSOCK_PROTO_V2	2
 #define KSOCK_PROTO_V3	3
 

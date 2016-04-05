@@ -85,8 +85,6 @@ struct ad7606_bus_ops {
 	int (*read_block)(struct device *, int, void *);
 };
 
-void ad7606_suspend(struct iio_dev *indio_dev);
-void ad7606_resume(struct iio_dev *indio_dev);
 struct iio_dev *ad7606_probe(struct device *dev, int irq,
 			      void __iomem *base_address, unsigned id,
 			      const struct ad7606_bus_ops *bops);
@@ -101,4 +99,12 @@ enum ad7606_supported_device_ids {
 
 int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev);
 void ad7606_ring_cleanup(struct iio_dev *indio_dev);
+
+#ifdef CONFIG_PM_SLEEP
+extern const struct dev_pm_ops ad7606_pm_ops;
+#define AD7606_PM_OPS (&ad7606_pm_ops)
+#else
+#define AD7606_PM_OPS NULL
+#endif
+
 #endif /* IIO_ADC_AD7606_H_ */

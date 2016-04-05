@@ -208,6 +208,8 @@ static void rk_crypto_tasklet_cb(unsigned long data)
 
 	if (crypto_tfm_alg_type(async_req->tfm) == CRYPTO_ALG_TYPE_ABLKCIPHER)
 		dev->ablk_req = ablkcipher_request_cast(async_req);
+	else
+		dev->ahash_req = ahash_request_cast(async_req);
 	err = dev->start(dev);
 	if (err)
 		dev->complete(dev, err);
@@ -220,6 +222,9 @@ static struct rk_crypto_tmp *rk_cipher_algs[] = {
 	&rk_cbc_des_alg,
 	&rk_ecb_des3_ede_alg,
 	&rk_cbc_des3_ede_alg,
+	&rk_ahash_sha1,
+	&rk_ahash_sha256,
+	&rk_ahash_md5,
 };
 
 static int rk_crypto_register(struct rk_crypto_info *crypto_info)
@@ -229,15 +234,24 @@ static int rk_crypto_register(struct rk_crypto_info *crypto_info)
 
 	for (i = 0; i < ARRAY_SIZE(rk_cipher_algs); i++) {
 		rk_cipher_algs[i]->dev = crypto_info;
-		err = crypto_register_alg(&rk_cipher_algs[i]->alg);
+		if (rk_cipher_algs[i]->type == ALG_TYPE_CIPHER)
+			err = crypto_register_alg(
+					&rk_cipher_algs[i]->alg.crypto);
+		else
+			err = crypto_register_ahash(
+					&rk_cipher_algs[i]->alg.hash);
 		if (err)
 			goto err_cipher_algs;
 	}
 	return 0;
 
 err_cipher_algs:
-	for (k = 0; k < i; k++)
-		crypto_unregister_alg(&rk_cipher_algs[k]->alg);
+	for (k = 0; k < i; k++) {
+		if (rk_cipher_algs[i]->type == ALG_TYPE_CIPHER)
+			crypto_unregister_alg(&rk_cipher_algs[k]->alg.crypto);
+		else
+			crypto_unregister_ahash(&rk_cipher_algs[i]->alg.hash);
+	}
 	return err;
 }
 
@@ -245,8 +259,12 @@ static void rk_crypto_unregister(void)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(rk_cipher_algs); i++)
-		crypto_unregister_alg(&rk_cipher_algs[i]->alg);
+	for (i = 0; i < ARRAY_SIZE(rk_cipher_algs); i++) {
+		if (rk_cipher_algs[i]->type == ALG_TYPE_CIPHER)
+			crypto_unregister_alg(&rk_cipher_algs[i]->alg.crypto);
+		else
+			crypto_unregister_ahash(&rk_cipher_algs[i]->alg.hash);
+	}
 }
 
 static void rk_crypto_action(void *data)

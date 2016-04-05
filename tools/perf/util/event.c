@@ -282,7 +282,7 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 		strcpy(execname, "");
 
 		/* 00400000-0040c000 r-xp 00000000 fd:01 41038  /bin/cat */
-		n = sscanf(bf, "%"PRIx64"-%"PRIx64" %s %"PRIx64" %x:%x %u %s\n",
+		n = sscanf(bf, "%"PRIx64"-%"PRIx64" %s %"PRIx64" %x:%x %u %[^\n]\n",
 		       &event->mmap2.start, &event->mmap2.len, prot,
 		       &event->mmap2.pgoff, &event->mmap2.maj,
 		       &event->mmap2.min,
@@ -1295,12 +1295,9 @@ void thread__find_addr_location(struct thread *thread,
  * Callers need to drop the reference to al->thread, obtained in
  * machine__findnew_thread()
  */
-int perf_event__preprocess_sample(const union perf_event *event,
-				  struct machine *machine,
-				  struct addr_location *al,
-				  struct perf_sample *sample)
+int machine__resolve(struct machine *machine, struct addr_location *al,
+		     struct perf_sample *sample)
 {
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct thread *thread = machine__findnew_thread(machine, sample->pid,
 							sample->tid);
 
@@ -1315,11 +1312,11 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	 * events, but for older perf.data files there was no such thing, so do
 	 * it now.
 	 */
-	if (cpumode == PERF_RECORD_MISC_KERNEL &&
+	if (sample->cpumode == PERF_RECORD_MISC_KERNEL &&
 	    machine__kernel_map(machine) == NULL)
 		machine__create_kernel_maps(machine);
 
-	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->ip, al);
+	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->ip, al);
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");
@@ -1395,16 +1392,12 @@ bool sample_addr_correlates_sym(struct perf_event_attr *attr)
 	return false;
 }
 
-void perf_event__preprocess_sample_addr(union perf_event *event,
-					struct perf_sample *sample,
-					struct thread *thread,
-					struct addr_location *al)
+void thread__resolve(struct thread *thread, struct addr_location *al,
+		     struct perf_sample *sample)
 {
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-
-	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->addr, al);
+	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->addr, al);
 	if (!al->map)
-		thread__find_addr_map(thread, cpumode, MAP__VARIABLE,
+		thread__find_addr_map(thread, sample->cpumode, MAP__VARIABLE,
 				      sample->addr, al);
 
 	al->cpu = sample->cpu;

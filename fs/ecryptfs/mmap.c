@@ -30,7 +30,6 @@
 #include <linux/page-flags.h>
 #include <linux/mount.h>
 #include <linux/file.h>
-#include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>

@@ -240,8 +240,11 @@ struct map_info {
 	   If there is no cache to care about this can be set to NULL. */
 	void (*inval_cache)(struct map_info *, unsigned long, ssize_t);
 
-	/* set_vpp() must handle being reentered -- enable, enable, disable
-	   must leave it enabled. */
+	/* This will be called with 1 as parameter when the first map user
+	 * needs VPP, and called with 0 when the last user exits. The map
+	 * core maintains a reference counter, and assumes that VPP is a
+	 * global resource applying to all mapped flash chips on the system.
+	 */
 	void (*set_vpp)(struct map_info *, int);
 
 	unsigned long pfow_base;

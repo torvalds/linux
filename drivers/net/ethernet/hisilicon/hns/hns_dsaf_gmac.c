@@ -290,6 +290,24 @@ static int hns_gmac_adjust_link(void *mac_drv, enum mac_speed speed,
 	return 0;
 }
 
+static void hns_gmac_set_uc_match(void *mac_drv, u16 en)
+{
+	struct mac_driver *drv = mac_drv;
+
+	dsaf_set_dev_bit(drv, GMAC_REC_FILT_CONTROL_REG,
+			 GMAC_UC_MATCH_EN_B, !en);
+	dsaf_set_dev_bit(drv, GMAC_STATION_ADDR_HIGH_2_REG,
+			 GMAC_ADDR_EN_B, !en);
+}
+
+static void hns_gmac_set_promisc(void *mac_drv, u8 en)
+{
+	struct mac_driver *drv = mac_drv;
+
+	if (drv->mac_cb->mac_type == HNAE_PORT_DEBUG)
+		hns_gmac_set_uc_match(mac_drv, en);
+}
+
 static void hns_gmac_init(void *mac_drv)
 {
 	u32 port;
@@ -305,6 +323,8 @@ static void hns_gmac_init(void *mac_drv)
 	mdelay(10);
 	hns_gmac_disable(mac_drv, MAC_COMM_MODE_RX_AND_TX);
 	hns_gmac_tx_loop_pkt_dis(mac_drv);
+	if (drv->mac_cb->mac_type == HNAE_PORT_DEBUG)
+		hns_gmac_set_uc_match(mac_drv, 0);
 }
 
 void hns_gmac_update_stats(void *mac_drv)
@@ -402,14 +422,17 @@ static void hns_gmac_set_mac_addr(void *mac_drv, char *mac_addr)
 {
 	struct mac_driver *drv = (struct mac_driver *)mac_drv;
 
-	if (drv->mac_id >= DSAF_SERVICE_NW_NUM) {
-		u32 high_val = mac_addr[1] | (mac_addr[0] << 8);
+	u32 high_val = mac_addr[1] | (mac_addr[0] << 8);
 
-		u32 low_val = mac_addr[5] | (mac_addr[4] << 8)
-			| (mac_addr[3] << 16) | (mac_addr[2] << 24);
-		dsaf_write_dev(drv, GMAC_STATION_ADDR_LOW_2_REG, low_val);
-		dsaf_write_dev(drv, GMAC_STATION_ADDR_HIGH_2_REG, high_val);
-	}
+	u32 low_val = mac_addr[5] | (mac_addr[4] << 8)
+		| (mac_addr[3] << 16) | (mac_addr[2] << 24);
+
+	u32 val = dsaf_read_dev(drv, GMAC_STATION_ADDR_HIGH_2_REG);
+	u32 sta_addr_en = dsaf_get_bit(val, GMAC_ADDR_EN_B);
+
+	dsaf_write_dev(drv, GMAC_STATION_ADDR_LOW_2_REG, low_val);
+	dsaf_write_dev(drv, GMAC_STATION_ADDR_HIGH_2_REG,
+		       high_val | (sta_addr_en << GMAC_ADDR_EN_B));
 }
 
 static int hns_gmac_config_loopback(void *mac_drv, enum hnae_loop loop_mode,
@@ -699,6 +722,7 @@ void *hns_gmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 	mac_drv->get_sset_count = hns_gmac_get_sset_count;
 	mac_drv->get_strings = hns_gmac_get_strings;
 	mac_drv->update_stats = hns_gmac_update_stats;
+	mac_drv->set_promiscuous = hns_gmac_set_promisc;
 
 	return (void *)mac_drv;
 }

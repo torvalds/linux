@@ -253,8 +253,13 @@ static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret,
 	if (ret == 0)
 		ret = transferred;
 
-	if (dio->end_io && dio->result)
-		dio->end_io(dio->iocb, offset, transferred, dio->private);
+	if (dio->end_io) {
+		int err;
+
+		err = dio->end_io(dio->iocb, offset, ret, dio->private);
+		if (err)
+			ret = err;
+	}
 
 	if (!(dio->flags & DIO_SKIP_DIO_COUNT))
 		inode_dio_end(dio->inode);
@@ -445,7 +450,8 @@ static struct bio *dio_await_one(struct dio *dio)
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		dio->waiter = current;
 		spin_unlock_irqrestore(&dio->bio_lock, flags);
-		if (!blk_poll(bdev_get_queue(dio->bio_bdev), dio->bio_cookie))
+		if (!(dio->iocb->ki_flags & IOCB_HIPRI) ||
+		    !blk_poll(bdev_get_queue(dio->bio_bdev), dio->bio_cookie))
 			io_schedule();
 		/* wake up sets us TASK_RUNNING */
 		spin_lock_irqsave(&dio->bio_lock, flags);

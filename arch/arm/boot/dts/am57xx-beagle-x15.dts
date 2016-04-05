@@ -24,7 +24,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x80000000 0x80000000>;
+		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
 	vdd_3v3: fixedregulator-vdd_3v3 {
@@ -173,6 +173,8 @@
 
 		sound0_master: simple-audio-card,codec {
 			sound-dai = <&tlv320aic3104>;
+			assigned-clocks = <&clkoutmux2_clk_mux>;
+			assigned-clock-parents = <&sys_clk2_dclk_div>;
 			clocks = <&clkout2_clk>;
 		};
 	};
@@ -560,8 +562,7 @@
 		extcon_usb2: tps659038_usb {
 			compatible = "ti,palmas-usb-vid";
 			ti,enable-vbus-detection;
-			ti,enable-id-detection;
-			id-gpios = <&gpio7 24 GPIO_ACTIVE_HIGH>;
+			vbus-gpio = <&gpio4 21 GPIO_ACTIVE_HIGH>;
 		};
 
 	};
@@ -590,6 +591,11 @@
 		IOVDD-supply = <&vdd_3v3>;
 		DRVDD-supply = <&vdd_3v3>;
 		DVDD-supply = <&aic_dvdd>;
+	};
+
+	eeprom: eeprom@50 {
+		compatible = "at,24c32";
+		reg = <0x50>;
 	};
 };
 
@@ -796,6 +802,8 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&mcasp3_pins_default>;
 	pinctrl-1 = <&mcasp3_pins_sleep>;
+	assigned-clocks = <&mcasp3_ahclkx_mux>;
+	assigned-clock-parents = <&sys_clkin2>;
 	status = "okay";
 
 	op-mode = <0>;	/* MCASP_IIS_MODE */

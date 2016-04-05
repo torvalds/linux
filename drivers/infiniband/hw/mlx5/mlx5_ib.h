@@ -43,6 +43,7 @@
 #include <linux/mlx5/srq.h>
 #include <linux/types.h>
 #include <linux/mlx5/transobj.h>
+#include <rdma/ib_user_verbs.h>
 
 #define mlx5_ib_dbg(dev, format, arg...)				\
 pr_debug("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
@@ -126,7 +127,7 @@ struct mlx5_ib_pd {
 };
 
 #define MLX5_IB_FLOW_MCAST_PRIO		(MLX5_BY_PASS_NUM_PRIOS - 1)
-#define MLX5_IB_FLOW_LAST_PRIO		(MLX5_IB_FLOW_MCAST_PRIO - 1)
+#define MLX5_IB_FLOW_LAST_PRIO		(MLX5_BY_PASS_NUM_REGULAR_PRIOS - 1)
 #if (MLX5_IB_FLOW_LAST_PRIO <= 0)
 #error "Invalid number of bypass priorities"
 #endif
@@ -162,8 +163,30 @@ struct mlx5_ib_flow_db {
 #define MLX5_IB_SEND_UMR_UNREG	IB_SEND_RESERVED_START
 #define MLX5_IB_SEND_UMR_FAIL_IF_FREE (IB_SEND_RESERVED_START << 1)
 #define MLX5_IB_SEND_UMR_UPDATE_MTT (IB_SEND_RESERVED_START << 2)
+
+#define MLX5_IB_SEND_UMR_UPDATE_TRANSLATION	(IB_SEND_RESERVED_START << 3)
+#define MLX5_IB_SEND_UMR_UPDATE_PD		(IB_SEND_RESERVED_START << 4)
+#define MLX5_IB_SEND_UMR_UPDATE_ACCESS		IB_SEND_RESERVED_END
+
 #define MLX5_IB_QPT_REG_UMR	IB_QPT_RESERVED1
+/*
+ * IB_QPT_GSI creates the software wrapper around GSI, and MLX5_IB_QPT_HW_GSI
+ * creates the actual hardware QP.
+ */
+#define MLX5_IB_QPT_HW_GSI	IB_QPT_RESERVED2
 #define MLX5_IB_WR_UMR		IB_WR_RESERVED1
+
+/* Private QP creation flags to be passed in ib_qp_init_attr.create_flags.
+ *
+ * These flags are intended for internal use by the mlx5_ib driver, and they
+ * rely on the range reserved for that use in the ib_qp_create_flags enum.
+ */
+
+/* Create a UD QP whose source QP number is 1 */
+static inline enum ib_qp_create_flags mlx5_ib_create_qp_sqpn_qp1(void)
+{
+	return IB_QP_CREATE_RESERVED_START;
+}
 
 struct wr_list {
 	u16	opcode;
@@ -325,11 +348,14 @@ struct mlx5_ib_cq_buf {
 };
 
 enum mlx5_ib_qp_flags {
-	MLX5_IB_QP_BLOCK_MULTICAST_LOOPBACK     = 1 << 0,
-	MLX5_IB_QP_SIGNATURE_HANDLING           = 1 << 1,
-	MLX5_IB_QP_CROSS_CHANNEL		= 1 << 2,
-	MLX5_IB_QP_MANAGED_SEND			= 1 << 3,
-	MLX5_IB_QP_MANAGED_RECV			= 1 << 4,
+	MLX5_IB_QP_LSO                          = IB_QP_CREATE_IPOIB_UD_LSO,
+	MLX5_IB_QP_BLOCK_MULTICAST_LOOPBACK     = IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK,
+	MLX5_IB_QP_CROSS_CHANNEL            = IB_QP_CREATE_CROSS_CHANNEL,
+	MLX5_IB_QP_MANAGED_SEND             = IB_QP_CREATE_MANAGED_SEND,
+	MLX5_IB_QP_MANAGED_RECV             = IB_QP_CREATE_MANAGED_RECV,
+	MLX5_IB_QP_SIGNATURE_HANDLING           = 1 << 5,
+	/* QP uses 1 as its source QP number */
+	MLX5_IB_QP_SQPN_QP1			= 1 << 6,
 };
 
 struct mlx5_umr_wr {
@@ -373,6 +399,14 @@ struct mlx5_ib_cq {
 	struct ib_umem	       *resize_umem;
 	int			cqe_size;
 	u32			create_flags;
+	struct list_head	wc_list;
+	enum ib_cq_notify_flags notify_flags;
+	struct work_struct	notify_work;
+};
+
+struct mlx5_ib_wc {
+	struct ib_wc wc;
+	struct list_head list;
 };
 
 struct mlx5_ib_srq {
@@ -413,7 +447,8 @@ struct mlx5_ib_mr {
 	int			ndescs;
 	int			max_descs;
 	int			desc_size;
-	struct mlx5_core_mr	mmr;
+	int			access_mode;
+	struct mlx5_core_mkey	mmkey;
 	struct ib_umem	       *umem;
 	struct mlx5_shared_mr_info	*smr_info;
 	struct list_head	list;
@@ -425,18 +460,19 @@ struct mlx5_ib_mr {
 	struct mlx5_core_sig_ctx    *sig;
 	int			live;
 	void			*descs_alloc;
+	int			access_flags; /* Needed for rereg MR */
+};
+
+struct mlx5_ib_mw {
+	struct ib_mw		ibmw;
+	struct mlx5_core_mkey	mmkey;
 };
 
 struct mlx5_ib_umr_context {
+	struct ib_cqe		cqe;
 	enum ib_wc_status	status;
 	struct completion	done;
 };
-
-static inline void mlx5_ib_init_umr_context(struct mlx5_ib_umr_context *context)
-{
-	context->status = -1;
-	init_completion(&context->done);
-}
 
 struct umr_common {
 	struct ib_pd	*pd;
@@ -487,6 +523,14 @@ struct mlx5_mr_cache {
 	unsigned long		last_add;
 };
 
+struct mlx5_ib_gsi_qp;
+
+struct mlx5_ib_port_resources {
+	struct mlx5_ib_resources *devr;
+	struct mlx5_ib_gsi_qp *gsi;
+	struct work_struct pkey_change_work;
+};
+
 struct mlx5_ib_resources {
 	struct ib_cq	*c0;
 	struct ib_xrcd	*x0;
@@ -494,6 +538,9 @@ struct mlx5_ib_resources {
 	struct ib_pd	*p0;
 	struct ib_srq	*s0;
 	struct ib_srq	*s1;
+	struct mlx5_ib_port_resources ports[2];
+	/* Protects changes to the port resources */
+	struct mutex	mutex;
 };
 
 struct mlx5_roce {
@@ -558,9 +605,9 @@ static inline struct mlx5_ib_qp *to_mibqp(struct mlx5_core_qp *mqp)
 	return container_of(mqp, struct mlx5_ib_qp_base, mqp)->container_mibqp;
 }
 
-static inline struct mlx5_ib_mr *to_mibmr(struct mlx5_core_mr *mmr)
+static inline struct mlx5_ib_mr *to_mibmr(struct mlx5_core_mkey *mmkey)
 {
-	return container_of(mmr, struct mlx5_ib_mr, mmr);
+	return container_of(mmkey, struct mlx5_ib_mr, mmkey);
 }
 
 static inline struct mlx5_ib_pd *to_mpd(struct ib_pd *ibpd)
@@ -586,6 +633,11 @@ static inline struct mlx5_ib_srq *to_mibsrq(struct mlx5_core_srq *msrq)
 static inline struct mlx5_ib_mr *to_mmr(struct ib_mr *ibmr)
 {
 	return container_of(ibmr, struct mlx5_ib_mr, ibmr);
+}
+
+static inline struct mlx5_ib_mw *to_mmw(struct ib_mw *ibmw)
+{
+	return container_of(ibmw, struct mlx5_ib_mw, ibmw);
 }
 
 struct mlx5_ib_ah {
@@ -648,8 +700,14 @@ struct ib_mr *mlx5_ib_get_dma_mr(struct ib_pd *pd, int acc);
 struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int access_flags,
 				  struct ib_udata *udata);
+struct ib_mw *mlx5_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
+			       struct ib_udata *udata);
+int mlx5_ib_dealloc_mw(struct ib_mw *mw);
 int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index,
 		       int npages, int zap);
+int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
+			  u64 length, u64 virt_addr, int access_flags,
+			  struct ib_pd *pd, struct ib_udata *udata);
 int mlx5_ib_dereg_mr(struct ib_mr *ibmr);
 struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 			       enum ib_mr_type mr_type,
@@ -700,7 +758,6 @@ int mlx5_ib_get_cqe_size(struct mlx5_ib_dev *dev, struct ib_cq *ibcq);
 int mlx5_mr_cache_init(struct mlx5_ib_dev *dev);
 int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev);
 int mlx5_mr_ib_cont_pages(struct ib_umem *umem, u64 addr, int *count, int *shift);
-void mlx5_umr_cq_handler(struct ib_cq *cq, void *cq_context);
 int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
 			    struct ib_mr_status *mr_status);
 
@@ -719,6 +776,14 @@ void mlx5_ib_qp_disable_pagefaults(struct mlx5_ib_qp *qp);
 void mlx5_ib_qp_enable_pagefaults(struct mlx5_ib_qp *qp);
 void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
 			      unsigned long end);
+int mlx5_ib_get_vf_config(struct ib_device *device, int vf,
+			  u8 port, struct ifla_vf_info *info);
+int mlx5_ib_set_vf_link_state(struct ib_device *device, int vf,
+			      u8 port, int state);
+int mlx5_ib_get_vf_stats(struct ib_device *device, int vf,
+			 u8 port, struct ifla_vf_stats *stats);
+int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u8 port,
+			u64 guid, int type);
 
 #else /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 static inline void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
@@ -739,6 +804,23 @@ static inline void mlx5_ib_qp_enable_pagefaults(struct mlx5_ib_qp *qp)  {}
 __be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev, u8 port_num,
 			       int index);
 
+/* GSI QP helper functions */
+struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
+				    struct ib_qp_init_attr *init_attr);
+int mlx5_ib_gsi_destroy_qp(struct ib_qp *qp);
+int mlx5_ib_gsi_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
+			  int attr_mask);
+int mlx5_ib_gsi_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
+			 int qp_attr_mask,
+			 struct ib_qp_init_attr *qp_init_attr);
+int mlx5_ib_gsi_post_send(struct ib_qp *qp, struct ib_send_wr *wr,
+			  struct ib_send_wr **bad_wr);
+int mlx5_ib_gsi_post_recv(struct ib_qp *qp, struct ib_recv_wr *wr,
+			  struct ib_recv_wr **bad_wr);
+void mlx5_ib_gsi_pkey_change(struct mlx5_ib_gsi_qp *gsi);
+
+int mlx5_ib_generate_wc(struct ib_cq *ibcq, struct ib_wc *wc);
+
 static inline void init_query_mad(struct ib_smp *mad)
 {
 	mad->base_version  = 1;
@@ -758,7 +840,7 @@ static inline u8 convert_access(int acc)
 
 static inline int is_qp1(enum ib_qp_type qp_type)
 {
-	return qp_type == IB_QPT_GSI;
+	return qp_type == MLX5_IB_QPT_HW_GSI;
 }
 
 #define MLX5_MAX_UMR_SHIFT 16

@@ -123,7 +123,10 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 	priv->cmd_timed_out = 0;
 
 	if (respcmd == CMD_RET(CMD_802_11_PS_MODE)) {
-		struct cmd_ds_802_11_ps_mode *psmode = (void *) &resp[1];
+		/* struct cmd_ds_802_11_ps_mode also contains
+		 * the header
+		 */
+		struct cmd_ds_802_11_ps_mode *psmode = (void *)resp;
 		u16 action = le16_to_cpu(psmode->action);
 
 		lbs_deb_host(
@@ -252,6 +255,10 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 		if (priv->psstate == PS_STATE_FULL_POWER) {
 			lbs_deb_cmd(
 			       "EVENT: in FULL POWER mode, ignoring PS_SLEEP\n");
+			break;
+		}
+		if (!list_empty(&priv->cmdpendingq)) {
+			lbs_deb_cmd("EVENT: commands in queue, do not sleep\n");
 			break;
 		}
 		priv->psstate = PS_STATE_PRE_SLEEP;

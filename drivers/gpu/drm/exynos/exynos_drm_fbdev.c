@@ -50,7 +50,7 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 	if (vm_size > exynos_gem->size)
 		return -EINVAL;
 
-	ret = dma_mmap_attrs(helper->dev->dev, vma, exynos_gem->cookie,
+	ret = dma_mmap_attrs(to_dma_dev(helper->dev), vma, exynos_gem->cookie,
 			     exynos_gem->dma_addr, exynos_gem->size,
 			     &exynos_gem->dma_attrs);
 	if (ret < 0) {

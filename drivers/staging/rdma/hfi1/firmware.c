@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -77,7 +74,13 @@ static uint fw_8051_load = 1;
 static uint fw_fabric_serdes_load = 1;
 static uint fw_pcie_serdes_load = 1;
 static uint fw_sbus_load = 1;
-static uint platform_config_load = 1;
+
+/*
+ * Access required in platform.c
+ * Maintains state of whether the platform config was fetched via the
+ * fallback option
+ */
+uint platform_config_load;
 
 /* Firmware file names get set in hfi1_firmware_init() based on the above */
 static char *fw_8051_name;
@@ -107,6 +110,7 @@ struct css_header {
 	u32 exponent_size;	/* in DWORDs */
 	u32 reserved[22];
 };
+
 /* expected field values */
 #define CSS_MODULE_TYPE	   0x00000006
 #define CSS_HEADER_LEN	   0x000000a1
@@ -166,6 +170,7 @@ enum fw_state {
 	FW_FINAL,
 	FW_ERR
 };
+
 static enum fw_state fw_state = FW_EMPTY;
 static int fw_err;
 static struct firmware_details fw_8051;
@@ -193,7 +198,7 @@ static const struct firmware *platform_config;
 #define RSA_ENGINE_TIMEOUT 100 /* ms */
 
 /* hardware mutex timeout, in ms */
-#define HM_TIMEOUT 4000 /* 4 s */
+#define HM_TIMEOUT 10 /* ms */
 
 /* 8051 memory access timeout, in us */
 #define DC8051_ACCESS_TIMEOUT 100 /* us */
@@ -233,6 +238,8 @@ static const u8 all_pcie_serdes_broadcast = 0xe0;
 
 /* forwards */
 static void dispose_one_firmware(struct firmware_details *fdet);
+static int load_fabric_serdes_firmware(struct hfi1_devdata *dd,
+				       struct firmware_details *fdet);
 
 /*
  * Read a single 64-bit value from 8051 data memory.
@@ -372,8 +379,8 @@ static int invalid_header(struct hfi1_devdata *dd, const char *what,
 		return 0;
 
 	dd_dev_err(dd,
-		"invalid firmware header field %s: expected 0x%x, actual 0x%x\n",
-		what, expected, actual);
+		   "invalid firmware header field %s: expected 0x%x, actual 0x%x\n",
+		   what, expected, actual);
 	return 1;
 }
 
@@ -383,19 +390,19 @@ static int invalid_header(struct hfi1_devdata *dd, const char *what,
 static int verify_css_header(struct hfi1_devdata *dd, struct css_header *css)
 {
 	/* verify CSS header fields (most sizes are in DW, so add /4) */
-	if (invalid_header(dd, "module_type", css->module_type, CSS_MODULE_TYPE)
-			|| invalid_header(dd, "header_len", css->header_len,
-					(sizeof(struct firmware_file)/4))
-			|| invalid_header(dd, "header_version",
-					css->header_version, CSS_HEADER_VERSION)
-			|| invalid_header(dd, "module_vendor",
-					css->module_vendor, CSS_MODULE_VENDOR)
-			|| invalid_header(dd, "key_size",
-					css->key_size, KEY_SIZE/4)
-			|| invalid_header(dd, "modulus_size",
-					css->modulus_size, KEY_SIZE/4)
-			|| invalid_header(dd, "exponent_size",
-					css->exponent_size, EXPONENT_SIZE/4)) {
+	if (invalid_header(dd, "module_type", css->module_type,
+			   CSS_MODULE_TYPE) ||
+	    invalid_header(dd, "header_len", css->header_len,
+			   (sizeof(struct firmware_file) / 4)) ||
+	    invalid_header(dd, "header_version", css->header_version,
+			   CSS_HEADER_VERSION) ||
+	    invalid_header(dd, "module_vendor", css->module_vendor,
+			   CSS_MODULE_VENDOR) ||
+	    invalid_header(dd, "key_size", css->key_size, KEY_SIZE / 4) ||
+	    invalid_header(dd, "modulus_size", css->modulus_size,
+			   KEY_SIZE / 4) ||
+	    invalid_header(dd, "exponent_size", css->exponent_size,
+			   EXPONENT_SIZE / 4)) {
 		return -EINVAL;
 	}
 	return 0;
@@ -410,8 +417,8 @@ static int payload_check(struct hfi1_devdata *dd, const char *name,
 	/* make sure we have some payload */
 	if (prefix_size >= file_size) {
 		dd_dev_err(dd,
-			"firmware \"%s\", size %ld, must be larger than %ld bytes\n",
-			name, file_size, prefix_size);
+			   "firmware \"%s\", size %ld, must be larger than %ld bytes\n",
+			   name, file_size, prefix_size);
 		return -EINVAL;
 	}
 
@@ -433,8 +440,8 @@ static int obtain_one_firmware(struct hfi1_devdata *dd, const char *name,
 
 	ret = request_firmware(&fdet->fw, name, &dd->pcidev->dev);
 	if (ret) {
-		dd_dev_err(dd, "cannot find firmware \"%s\", err %d\n",
-			   name, ret);
+		dd_dev_warn(dd, "cannot find firmware \"%s\", err %d\n",
+			    name, ret);
 		return ret;
 	}
 
@@ -480,14 +487,14 @@ static int obtain_one_firmware(struct hfi1_devdata *dd, const char *name,
 	ret = verify_css_header(dd, css);
 	if (ret) {
 		dd_dev_info(dd, "Invalid CSS header for \"%s\"\n", name);
-	} else if ((css->size*4) == fdet->fw->size) {
+	} else if ((css->size * 4) == fdet->fw->size) {
 		/* non-augmented firmware file */
 		struct firmware_file *ff = (struct firmware_file *)
 							fdet->fw->data;
 
 		/* make sure there are bytes in the payload */
 		ret = payload_check(dd, name, fdet->fw->size,
-						sizeof(struct firmware_file));
+				    sizeof(struct firmware_file));
 		if (ret == 0) {
 			fdet->css_header = css;
 			fdet->modulus = ff->modulus;
@@ -505,14 +512,14 @@ static int obtain_one_firmware(struct hfi1_devdata *dd, const char *name,
 			dd_dev_err(dd, "driver is unable to validate firmware without r2 and mu (not in firmware file)\n");
 			ret = -EINVAL;
 		}
-	} else if ((css->size*4) + AUGMENT_SIZE == fdet->fw->size) {
+	} else if ((css->size * 4) + AUGMENT_SIZE == fdet->fw->size) {
 		/* augmented firmware file */
 		struct augmented_firmware_file *aff =
 			(struct augmented_firmware_file *)fdet->fw->data;
 
 		/* make sure there are bytes in the payload */
 		ret = payload_check(dd, name, fdet->fw->size,
-					sizeof(struct augmented_firmware_file));
+				    sizeof(struct augmented_firmware_file));
 		if (ret == 0) {
 			fdet->css_header = css;
 			fdet->modulus = aff->modulus;
@@ -527,9 +534,10 @@ static int obtain_one_firmware(struct hfi1_devdata *dd, const char *name,
 	} else {
 		/* css->size check failed */
 		dd_dev_err(dd,
-			"invalid firmware header field size: expected 0x%lx or 0x%lx, actual 0x%x\n",
-			fdet->fw->size/4, (fdet->fw->size - AUGMENT_SIZE)/4,
-			css->size);
+			   "invalid firmware header field size: expected 0x%lx or 0x%lx, actual 0x%x\n",
+			   fdet->fw->size / 4,
+			   (fdet->fw->size - AUGMENT_SIZE) / 4,
+			   css->size);
 
 		ret = -EINVAL;
 	}
@@ -572,7 +580,7 @@ retry:
 		 * We tried the original and it failed.  Move to the
 		 * alternate.
 		 */
-		dd_dev_info(dd, "using alternate firmware names\n");
+		dd_dev_warn(dd, "using alternate firmware names\n");
 		/*
 		 * Let others run.  Some systems, when missing firmware, does
 		 * something that holds for 30 seconds.  If we do that twice
@@ -593,19 +601,6 @@ retry:
 		fw_pcie_serdes_name = ALT_FW_PCIE_NAME;
 	}
 
-	if (fw_8051_load) {
-		err = obtain_one_firmware(dd, fw_8051_name, &fw_8051);
-		if (err)
-			goto done;
-	}
-
-	if (fw_fabric_serdes_load) {
-		err = obtain_one_firmware(dd, fw_fabric_serdes_name,
-			&fw_fabric);
-		if (err)
-			goto done;
-	}
-
 	if (fw_sbus_load) {
 		err = obtain_one_firmware(dd, fw_sbus_name, &fw_sbus);
 		if (err)
@@ -618,19 +613,34 @@ retry:
 			goto done;
 	}
 
+	if (fw_fabric_serdes_load) {
+		err = obtain_one_firmware(dd, fw_fabric_serdes_name,
+					  &fw_fabric);
+		if (err)
+			goto done;
+	}
+
+	if (fw_8051_load) {
+		err = obtain_one_firmware(dd, fw_8051_name, &fw_8051);
+		if (err)
+			goto done;
+	}
+
 done:
 	if (err) {
 		/* oops, had problems obtaining a firmware */
-		if (fw_state == FW_EMPTY) {
-			/* retry with alternate */
+		if (fw_state == FW_EMPTY && dd->icode == ICODE_RTL_SILICON) {
+			/* retry with alternate (RTL only) */
 			fw_state = FW_TRY;
 			goto retry;
 		}
+		dd_dev_err(dd, "unable to obtain working firmware\n");
 		fw_state = FW_ERR;
 		fw_err = -ENOENT;
 	} else {
 		/* success */
-		if (fw_state == FW_EMPTY)
+		if (fw_state == FW_EMPTY &&
+		    dd->icode != ICODE_FUNCTIONAL_SIMULATOR)
 			fw_state = FW_TRY;	/* may retry later */
 		else
 			fw_state = FW_FINAL;	/* cannot try again */
@@ -673,10 +683,15 @@ static int obtain_firmware(struct hfi1_devdata *dd)
 	}
 	/* not in FW_TRY state */
 
-	if (fw_state == FW_FINAL)
+	if (fw_state == FW_FINAL) {
+		if (platform_config) {
+			dd->platform_config.data = platform_config->data;
+			dd->platform_config.size = platform_config->size;
+		}
 		goto done;	/* already acquired */
-	else if (fw_state == FW_ERR)
+	} else if (fw_state == FW_ERR) {
 		goto done;	/* already tried and failed */
+	}
 	/* fw_state is FW_EMPTY */
 
 	/* set fw_state to FW_TRY, FW_FINAL, or FW_ERR, and fw_err */
@@ -685,9 +700,13 @@ static int obtain_firmware(struct hfi1_devdata *dd)
 	if (platform_config_load) {
 		platform_config = NULL;
 		err = request_firmware(&platform_config, platform_config_name,
-						&dd->pcidev->dev);
-		if (err)
+				       &dd->pcidev->dev);
+		if (err) {
 			platform_config = NULL;
+			goto done;
+		}
+		dd->platform_config.data = platform_config->data;
+		dd->platform_config.size = platform_config->size;
 	}
 
 done:
@@ -761,7 +780,7 @@ static int retry_firmware(struct hfi1_devdata *dd, int load_result)
 static void write_rsa_data(struct hfi1_devdata *dd, int what,
 			   const u8 *data, int nbytes)
 {
-	int qw_size = nbytes/8;
+	int qw_size = nbytes / 8;
 	int i;
 
 	if (((unsigned long)data & 0x7) == 0) {
@@ -769,14 +788,14 @@ static void write_rsa_data(struct hfi1_devdata *dd, int what,
 		u64 *ptr = (u64 *)data;
 
 		for (i = 0; i < qw_size; i++, ptr++)
-			write_csr(dd, what + (8*i), *ptr);
+			write_csr(dd, what + (8 * i), *ptr);
 	} else {
 		/* not aligned */
 		for (i = 0; i < qw_size; i++, data += 8) {
 			u64 value;
 
 			memcpy(&value, data, 8);
-			write_csr(dd, what + (8*i), value);
+			write_csr(dd, what + (8 * i), value);
 		}
 	}
 }
@@ -789,7 +808,7 @@ static void write_streamed_rsa_data(struct hfi1_devdata *dd, int what,
 				    const u8 *data, int nbytes)
 {
 	u64 *ptr = (u64 *)data;
-	int qw_size = nbytes/8;
+	int qw_size = nbytes / 8;
 
 	for (; qw_size > 0; qw_size--, ptr++)
 		write_csr(dd, what, *ptr);
@@ -822,7 +841,7 @@ static int run_rsa(struct hfi1_devdata *dd, const char *who,
 			     >> MISC_CFG_FW_CTRL_RSA_STATUS_SHIFT;
 	if (status != RSA_STATUS_IDLE) {
 		dd_dev_err(dd, "%s security engine not idle - giving up\n",
-			who);
+			   who);
 		return -EBUSY;
 	}
 
@@ -859,7 +878,7 @@ static int run_rsa(struct hfi1_devdata *dd, const char *who,
 		if (status == RSA_STATUS_IDLE) {
 			/* should not happen */
 			dd_dev_err(dd, "%s firmware security bad idle state\n",
-				who);
+				   who);
 			ret = -EINVAL;
 			break;
 		} else if (status == RSA_STATUS_DONE) {
@@ -893,19 +912,20 @@ static int run_rsa(struct hfi1_devdata *dd, const char *who,
 	 * is not keeping the error high.
 	 */
 	write_csr(dd, MISC_ERR_CLEAR,
-			MISC_ERR_STATUS_MISC_FW_AUTH_FAILED_ERR_SMASK
-			| MISC_ERR_STATUS_MISC_KEY_MISMATCH_ERR_SMASK);
+		  MISC_ERR_STATUS_MISC_FW_AUTH_FAILED_ERR_SMASK |
+		  MISC_ERR_STATUS_MISC_KEY_MISMATCH_ERR_SMASK);
 	/*
-	 * All that is left are the current errors.  Print failure details,
-	 * if any.
+	 * All that is left are the current errors.  Print warnings on
+	 * authorization failure details, if any.  Firmware authorization
+	 * can be retried, so these are only warnings.
 	 */
 	reg = read_csr(dd, MISC_ERR_STATUS);
 	if (ret) {
 		if (reg & MISC_ERR_STATUS_MISC_FW_AUTH_FAILED_ERR_SMASK)
-			dd_dev_err(dd, "%s firmware authorization failed\n",
-				who);
+			dd_dev_warn(dd, "%s firmware authorization failed\n",
+				    who);
 		if (reg & MISC_ERR_STATUS_MISC_KEY_MISMATCH_ERR_SMASK)
-			dd_dev_err(dd, "%s firmware key mismatch\n", who);
+			dd_dev_warn(dd, "%s firmware key mismatch\n", who);
 	}
 
 	return ret;
@@ -922,7 +942,8 @@ static void load_security_variables(struct hfi1_devdata *dd,
 	write_rsa_data(dd, MISC_CFG_RSA_MU, fdet->mu, MU_SIZE);
 	/* Security variables d.  Write the header */
 	write_streamed_rsa_data(dd, MISC_CFG_SHA_PRELOAD,
-			(u8 *)fdet->css_header, sizeof(struct css_header));
+				(u8 *)fdet->css_header,
+				sizeof(struct css_header));
 }
 
 /* return the 8051 firmware state */
@@ -1002,7 +1023,7 @@ static int load_8051_firmware(struct hfi1_devdata *dd,
 
 	/* Firmware load steps 3-5 */
 	ret = write_8051(dd, 1/*code*/, 0, fdet->firmware_ptr,
-							fdet->firmware_len);
+			 fdet->firmware_len);
 	if (ret)
 		return ret;
 
@@ -1029,13 +1050,13 @@ static int load_8051_firmware(struct hfi1_devdata *dd,
 	ret = wait_fm_ready(dd, TIMEOUT_8051_START);
 	if (ret) { /* timed out */
 		dd_dev_err(dd, "8051 start timeout, current state 0x%x\n",
-			get_firmware_state(dd));
+			   get_firmware_state(dd));
 		return -ETIMEDOUT;
 	}
 
 	read_misc_status(dd, &ver_a, &ver_b);
 	dd_dev_info(dd, "8051 firmware version %d.%d\n",
-		(int)ver_b, (int)ver_a);
+		    (int)ver_b, (int)ver_a);
 	dd->dc8051_ver = dc8051_ver(ver_b, ver_a);
 
 	return 0;
@@ -1050,11 +1071,11 @@ void sbus_request(struct hfi1_devdata *dd,
 		  u8 receiver_addr, u8 data_addr, u8 command, u32 data_in)
 {
 	write_csr(dd, ASIC_CFG_SBUS_REQUEST,
-		((u64)data_in << ASIC_CFG_SBUS_REQUEST_DATA_IN_SHIFT)
-		| ((u64)command << ASIC_CFG_SBUS_REQUEST_COMMAND_SHIFT)
-		| ((u64)data_addr << ASIC_CFG_SBUS_REQUEST_DATA_ADDR_SHIFT)
-		| ((u64)receiver_addr
-			<< ASIC_CFG_SBUS_REQUEST_RECEIVER_ADDR_SHIFT));
+		  ((u64)data_in << ASIC_CFG_SBUS_REQUEST_DATA_IN_SHIFT) |
+		  ((u64)command << ASIC_CFG_SBUS_REQUEST_COMMAND_SHIFT) |
+		  ((u64)data_addr << ASIC_CFG_SBUS_REQUEST_DATA_ADDR_SHIFT) |
+		  ((u64)receiver_addr <<
+		   ASIC_CFG_SBUS_REQUEST_RECEIVER_ADDR_SHIFT));
 }
 
 /*
@@ -1072,14 +1093,14 @@ static void turn_off_spicos(struct hfi1_devdata *dd, int flags)
 		return;
 
 	dd_dev_info(dd, "Turning off spicos:%s%s\n",
-		flags & SPICO_SBUS ? " SBus" : "",
-		flags & SPICO_FABRIC ? " fabric" : "");
+		    flags & SPICO_SBUS ? " SBus" : "",
+		    flags & SPICO_FABRIC ? " fabric" : "");
 
 	write_csr(dd, MISC_CFG_FW_CTRL, ENABLE_SPICO_SMASK);
 	/* disable SBus spico */
 	if (flags & SPICO_SBUS)
 		sbus_request(dd, SBUS_MASTER_BROADCAST, 0x01,
-			WRITE_SBUS_RECEIVER, 0x00000040);
+			     WRITE_SBUS_RECEIVER, 0x00000040);
 
 	/* disable the fabric serdes spicos */
 	if (flags & SPICO_FABRIC)
@@ -1089,29 +1110,60 @@ static void turn_off_spicos(struct hfi1_devdata *dd, int flags)
 }
 
 /*
- *  Reset all of the fabric serdes for our HFI.
+ * Reset all of the fabric serdes for this HFI in preparation to take the
+ * link to Polling.
+ *
+ * To do a reset, we need to write to to the serdes registers.  Unfortunately,
+ * the fabric serdes download to the other HFI on the ASIC will have turned
+ * off the firmware validation on this HFI.  This means we can't write to the
+ * registers to reset the serdes.  Work around this by performing a complete
+ * re-download and validation of the fabric serdes firmware.  This, as a
+ * by-product, will reset the serdes.  NOTE: the re-download requires that
+ * the 8051 be in the Offline state.  I.e. not actively trying to use the
+ * serdes.  This routine is called at the point where the link is Offline and
+ * is getting ready to go to Polling.
  */
 void fabric_serdes_reset(struct hfi1_devdata *dd)
 {
-	u8 ra;
+	int ret;
 
-	if (dd->icode != ICODE_RTL_SILICON) /* only for RTL */
+	if (!fw_fabric_serdes_load)
 		return;
 
-	ra = fabric_serdes_broadcast[dd->hfi1_id];
-
-	acquire_hw_mutex(dd);
+	ret = acquire_chip_resource(dd, CR_SBUS, SBUS_TIMEOUT);
+	if (ret) {
+		dd_dev_err(dd,
+			   "Cannot acquire SBus resource to reset fabric SerDes - perhaps you should reboot\n");
+		return;
+	}
 	set_sbus_fast_mode(dd);
-	/* place SerDes in reset and disable SPICO */
-	sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000011);
-	/* wait 100 refclk cycles @ 156.25MHz => 640ns */
-	udelay(1);
-	/* remove SerDes reset */
-	sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000010);
-	/* turn SPICO enable on */
-	sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000002);
+
+	if (is_ax(dd)) {
+		/* A0 serdes do not work with a re-download */
+		u8 ra = fabric_serdes_broadcast[dd->hfi1_id];
+
+		/* place SerDes in reset and disable SPICO */
+		sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000011);
+		/* wait 100 refclk cycles @ 156.25MHz => 640ns */
+		udelay(1);
+		/* remove SerDes reset */
+		sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000010);
+		/* turn SPICO enable on */
+		sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000002);
+	} else {
+		turn_off_spicos(dd, SPICO_FABRIC);
+		/*
+		 * No need for firmware retry - what to download has already
+		 * been decided.
+		 * No need to pay attention to the load return - the only
+		 * failure is a validation failure, which has already been
+		 * checked by the initial download.
+		 */
+		(void)load_fabric_serdes_firmware(dd, &fw_fabric);
+	}
+
 	clear_sbus_fast_mode(dd);
-	release_hw_mutex(dd);
+	release_chip_resource(dd, CR_SBUS);
 }
 
 /* Access to the SBus in this routine should probably be serialized */
@@ -1119,6 +1171,9 @@ int sbus_request_slow(struct hfi1_devdata *dd,
 		      u8 receiver_addr, u8 data_addr, u8 command, u32 data_in)
 {
 	u64 reg, count = 0;
+
+	/* make sure fast mode is clear */
+	clear_sbus_fast_mode(dd);
 
 	sbus_request(dd, receiver_addr, data_addr, command, data_in);
 	write_csr(dd, ASIC_CFG_SBUS_EXECUTE,
@@ -1177,7 +1232,7 @@ static int load_fabric_serdes_firmware(struct hfi1_devdata *dd,
 	/* step 5: download SerDes machine code */
 	for (i = 0; i < fdet->firmware_len; i += 4) {
 		sbus_request(dd, ra, 0x0a, WRITE_SBUS_RECEIVER,
-					*(u32 *)&fdet->firmware_ptr[i]);
+			     *(u32 *)&fdet->firmware_ptr[i]);
 	}
 	/* step 6: IMEM override off */
 	sbus_request(dd, ra, 0x00, WRITE_SBUS_RECEIVER, 0x00000000);
@@ -1216,7 +1271,7 @@ static int load_sbus_firmware(struct hfi1_devdata *dd,
 	/* step 5: download the SBus Master machine code */
 	for (i = 0; i < fdet->firmware_len; i += 4) {
 		sbus_request(dd, ra, 0x14, WRITE_SBUS_RECEIVER,
-					*(u32 *)&fdet->firmware_ptr[i]);
+			     *(u32 *)&fdet->firmware_ptr[i]);
 	}
 	/* step 6: set IMEM_CNTL_EN off */
 	sbus_request(dd, ra, 0x01, WRITE_SBUS_RECEIVER, 0x00000040);
@@ -1249,19 +1304,23 @@ static int load_pcie_serdes_firmware(struct hfi1_devdata *dd,
 	/* step 3: enable XDMEM access */
 	sbus_request(dd, ra, 0x01, WRITE_SBUS_RECEIVER, 0x00000d40);
 	/* step 4: load firmware into SBus Master XDMEM */
-	/* NOTE: the dmem address, write_en, and wdata are all pre-packed,
-	   we only need to pick up the bytes and write them */
+	/*
+	 * NOTE: the dmem address, write_en, and wdata are all pre-packed,
+	 * we only need to pick up the bytes and write them
+	 */
 	for (i = 0; i < fdet->firmware_len; i += 4) {
 		sbus_request(dd, ra, 0x04, WRITE_SBUS_RECEIVER,
-					*(u32 *)&fdet->firmware_ptr[i]);
+			     *(u32 *)&fdet->firmware_ptr[i]);
 	}
 	/* step 5: disable XDMEM access */
 	sbus_request(dd, ra, 0x01, WRITE_SBUS_RECEIVER, 0x00000140);
 	/* step 6: allow SBus Spico to run */
 	sbus_request(dd, ra, 0x05, WRITE_SBUS_RECEIVER, 0x00000000);
 
-	/* steps 7-11: run RSA, if it succeeds, firmware is available to
-	   be swapped */
+	/*
+	 * steps 7-11: run RSA, if it succeeds, firmware is available to
+	 * be swapped
+	 */
 	return run_rsa(dd, "PCIe serdes", fdet->signature);
 }
 
@@ -1285,7 +1344,7 @@ static void set_serdes_broadcast(struct hfi1_devdata *dd, u8 bg1, u8 bg2,
 		 *	23:16	BROADCAST_GROUP_2 (default 0xff)
 		 */
 		sbus_request(dd, addrs[count], 0xfd, WRITE_SBUS_RECEIVER,
-				(u32)bg1 << 4 | (u32)bg2 << 16);
+			     (u32)bg1 << 4 | (u32)bg2 << 16);
 	}
 }
 
@@ -1310,8 +1369,8 @@ retry:
 
 	/* timed out */
 	dd_dev_err(dd,
-		"Unable to acquire hardware mutex, mutex mask %u, my mask %u (%s)\n",
-		(u32)user, (u32)mask, (try == 0) ? "retrying" : "giving up");
+		   "Unable to acquire hardware mutex, mutex mask %u, my mask %u (%s)\n",
+		   (u32)user, (u32)mask, (try == 0) ? "retrying" : "giving up");
 
 	if (try == 0) {
 		/* break mutex and retry */
@@ -1328,10 +1387,197 @@ void release_hw_mutex(struct hfi1_devdata *dd)
 	write_csr(dd, ASIC_CFG_MUTEX, 0);
 }
 
+/* return the given resource bit(s) as a mask for the given HFI */
+static inline u64 resource_mask(u32 hfi1_id, u32 resource)
+{
+	return ((u64)resource) << (hfi1_id ? CR_DYN_SHIFT : 0);
+}
+
+static void fail_mutex_acquire_message(struct hfi1_devdata *dd,
+				       const char *func)
+{
+	dd_dev_err(dd,
+		   "%s: hardware mutex stuck - suggest rebooting the machine\n",
+		   func);
+}
+
+/*
+ * Acquire access to a chip resource.
+ *
+ * Return 0 on success, -EBUSY if resource busy, -EIO if mutex acquire failed.
+ */
+static int __acquire_chip_resource(struct hfi1_devdata *dd, u32 resource)
+{
+	u64 scratch0, all_bits, my_bit;
+	int ret;
+
+	if (resource & CR_DYN_MASK) {
+		/* a dynamic resource is in use if either HFI has set the bit */
+		all_bits = resource_mask(0, resource) |
+						resource_mask(1, resource);
+		my_bit = resource_mask(dd->hfi1_id, resource);
+	} else {
+		/* non-dynamic resources are not split between HFIs */
+		all_bits = resource;
+		my_bit = resource;
+	}
+
+	/* lock against other callers within the driver wanting a resource */
+	mutex_lock(&dd->asic_data->asic_resource_mutex);
+
+	ret = acquire_hw_mutex(dd);
+	if (ret) {
+		fail_mutex_acquire_message(dd, __func__);
+		ret = -EIO;
+		goto done;
+	}
+
+	scratch0 = read_csr(dd, ASIC_CFG_SCRATCH);
+	if (scratch0 & all_bits) {
+		ret = -EBUSY;
+	} else {
+		write_csr(dd, ASIC_CFG_SCRATCH, scratch0 | my_bit);
+		/* force write to be visible to other HFI on another OS */
+		(void)read_csr(dd, ASIC_CFG_SCRATCH);
+	}
+
+	release_hw_mutex(dd);
+
+done:
+	mutex_unlock(&dd->asic_data->asic_resource_mutex);
+	return ret;
+}
+
+/*
+ * Acquire access to a chip resource, wait up to mswait milliseconds for
+ * the resource to become available.
+ *
+ * Return 0 on success, -EBUSY if busy (even after wait), -EIO if mutex
+ * acquire failed.
+ */
+int acquire_chip_resource(struct hfi1_devdata *dd, u32 resource, u32 mswait)
+{
+	unsigned long timeout;
+	int ret;
+
+	timeout = jiffies + msecs_to_jiffies(mswait);
+	while (1) {
+		ret = __acquire_chip_resource(dd, resource);
+		if (ret != -EBUSY)
+			return ret;
+		/* resource is busy, check our timeout */
+		if (time_after_eq(jiffies, timeout))
+			return -EBUSY;
+		usleep_range(80, 120);	/* arbitrary delay */
+	}
+}
+
+/*
+ * Release access to a chip resource
+ */
+void release_chip_resource(struct hfi1_devdata *dd, u32 resource)
+{
+	u64 scratch0, bit;
+
+	/* only dynamic resources should ever be cleared */
+	if (!(resource & CR_DYN_MASK)) {
+		dd_dev_err(dd, "%s: invalid resource 0x%x\n", __func__,
+			   resource);
+		return;
+	}
+	bit = resource_mask(dd->hfi1_id, resource);
+
+	/* lock against other callers within the driver wanting a resource */
+	mutex_lock(&dd->asic_data->asic_resource_mutex);
+
+	if (acquire_hw_mutex(dd)) {
+		fail_mutex_acquire_message(dd, __func__);
+		goto done;
+	}
+
+	scratch0 = read_csr(dd, ASIC_CFG_SCRATCH);
+	if ((scratch0 & bit) != 0) {
+		scratch0 &= ~bit;
+		write_csr(dd, ASIC_CFG_SCRATCH, scratch0);
+		/* force write to be visible to other HFI on another OS */
+		(void)read_csr(dd, ASIC_CFG_SCRATCH);
+	} else {
+		dd_dev_warn(dd, "%s: id %d, resource 0x%x: bit not set\n",
+			    __func__, dd->hfi1_id, resource);
+	}
+
+	release_hw_mutex(dd);
+
+done:
+	mutex_unlock(&dd->asic_data->asic_resource_mutex);
+}
+
+/*
+ * Return true if resource is set, false otherwise.  Print a warning
+ * if not set and a function is supplied.
+ */
+bool check_chip_resource(struct hfi1_devdata *dd, u32 resource,
+			 const char *func)
+{
+	u64 scratch0, bit;
+
+	if (resource & CR_DYN_MASK)
+		bit = resource_mask(dd->hfi1_id, resource);
+	else
+		bit = resource;
+
+	scratch0 = read_csr(dd, ASIC_CFG_SCRATCH);
+	if ((scratch0 & bit) == 0) {
+		if (func)
+			dd_dev_warn(dd,
+				    "%s: id %d, resource 0x%x, not acquired!\n",
+				    func, dd->hfi1_id, resource);
+		return false;
+	}
+	return true;
+}
+
+static void clear_chip_resources(struct hfi1_devdata *dd, const char *func)
+{
+	u64 scratch0;
+
+	/* lock against other callers within the driver wanting a resource */
+	mutex_lock(&dd->asic_data->asic_resource_mutex);
+
+	if (acquire_hw_mutex(dd)) {
+		fail_mutex_acquire_message(dd, func);
+		goto done;
+	}
+
+	/* clear all dynamic access bits for this HFI */
+	scratch0 = read_csr(dd, ASIC_CFG_SCRATCH);
+	scratch0 &= ~resource_mask(dd->hfi1_id, CR_DYN_MASK);
+	write_csr(dd, ASIC_CFG_SCRATCH, scratch0);
+	/* force write to be visible to other HFI on another OS */
+	(void)read_csr(dd, ASIC_CFG_SCRATCH);
+
+	release_hw_mutex(dd);
+
+done:
+	mutex_unlock(&dd->asic_data->asic_resource_mutex);
+}
+
+void init_chip_resources(struct hfi1_devdata *dd)
+{
+	/* clear any holds left by us */
+	clear_chip_resources(dd, __func__);
+}
+
+void finish_chip_resources(struct hfi1_devdata *dd)
+{
+	/* clear any holds left by us */
+	clear_chip_resources(dd, __func__);
+}
+
 void set_sbus_fast_mode(struct hfi1_devdata *dd)
 {
 	write_csr(dd, ASIC_CFG_SBUS_EXECUTE,
-				ASIC_CFG_SBUS_EXECUTE_FAST_MODE_SMASK);
+		  ASIC_CFG_SBUS_EXECUTE_FAST_MODE_SMASK);
 }
 
 void clear_sbus_fast_mode(struct hfi1_devdata *dd)
@@ -1354,23 +1600,23 @@ int load_firmware(struct hfi1_devdata *dd)
 	int ret;
 
 	if (fw_fabric_serdes_load) {
-		ret = acquire_hw_mutex(dd);
+		ret = acquire_chip_resource(dd, CR_SBUS, SBUS_TIMEOUT);
 		if (ret)
 			return ret;
 
 		set_sbus_fast_mode(dd);
 
 		set_serdes_broadcast(dd, all_fabric_serdes_broadcast,
-				fabric_serdes_broadcast[dd->hfi1_id],
-				fabric_serdes_addrs[dd->hfi1_id],
-				NUM_FABRIC_SERDES);
+				     fabric_serdes_broadcast[dd->hfi1_id],
+				     fabric_serdes_addrs[dd->hfi1_id],
+				     NUM_FABRIC_SERDES);
 		turn_off_spicos(dd, SPICO_FABRIC);
 		do {
 			ret = load_fabric_serdes_firmware(dd, &fw_fabric);
 		} while (retry_firmware(dd, ret));
 
 		clear_sbus_fast_mode(dd);
-		release_hw_mutex(dd);
+		release_chip_resource(dd, CR_SBUS);
 		if (ret)
 			return ret;
 	}
@@ -1419,18 +1665,57 @@ int hfi1_firmware_init(struct hfi1_devdata *dd)
 	return obtain_firmware(dd);
 }
 
+/*
+ * This function is a helper function for parse_platform_config(...) and
+ * does not check for validity of the platform configuration cache
+ * (because we know it is invalid as we are building up the cache).
+ * As such, this should not be called from anywhere other than
+ * parse_platform_config
+ */
+static int check_meta_version(struct hfi1_devdata *dd, u32 *system_table)
+{
+	u32 meta_ver, meta_ver_meta, ver_start, ver_len, mask;
+	struct platform_config_cache *pcfgcache = &dd->pcfg_cache;
+
+	if (!system_table)
+		return -EINVAL;
+
+	meta_ver_meta =
+	*(pcfgcache->config_tables[PLATFORM_CONFIG_SYSTEM_TABLE].table_metadata
+	+ SYSTEM_TABLE_META_VERSION);
+
+	mask = ((1 << METADATA_TABLE_FIELD_START_LEN_BITS) - 1);
+	ver_start = meta_ver_meta & mask;
+
+	meta_ver_meta >>= METADATA_TABLE_FIELD_LEN_SHIFT;
+
+	mask = ((1 << METADATA_TABLE_FIELD_LEN_LEN_BITS) - 1);
+	ver_len = meta_ver_meta & mask;
+
+	ver_start /= 8;
+	meta_ver = *((u8 *)system_table + ver_start) & ((1 << ver_len) - 1);
+
+	if (meta_ver < 5) {
+		dd_dev_info(
+			dd, "%s:Please update platform config\n", __func__);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 int parse_platform_config(struct hfi1_devdata *dd)
 {
 	struct platform_config_cache *pcfgcache = &dd->pcfg_cache;
 	u32 *ptr = NULL;
-	u32 header1 = 0, header2 = 0, magic_num = 0, crc = 0;
+	u32 header1 = 0, header2 = 0, magic_num = 0, crc = 0, file_length = 0;
 	u32 record_idx = 0, table_type = 0, table_length_dwords = 0;
+	int ret = -EINVAL; /* assume failure */
 
-	if (platform_config == NULL) {
+	if (!dd->platform_config.data) {
 		dd_dev_info(dd, "%s: Missing config file\n", __func__);
 		goto bail;
 	}
-	ptr = (u32 *)platform_config->data;
+	ptr = (u32 *)dd->platform_config.data;
 
 	magic_num = *ptr;
 	ptr++;
@@ -1439,12 +1724,32 @@ int parse_platform_config(struct hfi1_devdata *dd)
 		goto bail;
 	}
 
-	while (ptr < (u32 *)(platform_config->data + platform_config->size)) {
+	/* Field is file size in DWORDs */
+	file_length = (*ptr) * 4;
+	ptr++;
+
+	if (file_length > dd->platform_config.size) {
+		dd_dev_info(dd, "%s:File claims to be larger than read size\n",
+			    __func__);
+		goto bail;
+	} else if (file_length < dd->platform_config.size) {
+		dd_dev_info(dd,
+			    "%s:File claims to be smaller than read size, continuing\n",
+			    __func__);
+	}
+	/* exactly equal, perfection */
+
+	/*
+	 * In both cases where we proceed, using the self-reported file length
+	 * is the safer option
+	 */
+	while (ptr < (u32 *)(dd->platform_config.data + file_length)) {
 		header1 = *ptr;
 		header2 = *(ptr + 1);
 		if (header1 != ~header2) {
 			dd_dev_info(dd, "%s: Failed validation at offset %ld\n",
-				__func__, (ptr - (u32 *)platform_config->data));
+				    __func__, (ptr - (u32 *)
+					       dd->platform_config.data));
 			goto bail;
 		}
 
@@ -1467,6 +1772,9 @@ int parse_platform_config(struct hfi1_devdata *dd)
 			case PLATFORM_CONFIG_SYSTEM_TABLE:
 				pcfgcache->config_tables[table_type].num_table =
 									1;
+				ret = check_meta_version(dd, ptr);
+				if (ret)
+					goto bail;
 				break;
 			case PLATFORM_CONFIG_PORT_TABLE:
 				pcfgcache->config_tables[table_type].num_table =
@@ -1484,9 +1792,10 @@ int parse_platform_config(struct hfi1_devdata *dd)
 				break;
 			default:
 				dd_dev_info(dd,
-				      "%s: Unknown data table %d, offset %ld\n",
-					__func__, table_type,
-				       (ptr - (u32 *)platform_config->data));
+					    "%s: Unknown data table %d, offset %ld\n",
+					    __func__, table_type,
+					    (ptr - (u32 *)
+					     dd->platform_config.data));
 				goto bail; /* We don't trust this file now */
 			}
 			pcfgcache->config_tables[table_type].table = ptr;
@@ -1507,9 +1816,10 @@ int parse_platform_config(struct hfi1_devdata *dd)
 				break;
 			default:
 				dd_dev_info(dd,
-				  "%s: Unknown metadata table %d, offset %ld\n",
-				  __func__, table_type,
-				  (ptr - (u32 *)platform_config->data));
+					    "%s: Unknown meta table %d, offset %ld\n",
+					    __func__, table_type,
+					    (ptr -
+					     (u32 *)dd->platform_config.data));
 				goto bail; /* We don't trust this file now */
 			}
 			pcfgcache->config_tables[table_type].table_metadata =
@@ -1518,14 +1828,16 @@ int parse_platform_config(struct hfi1_devdata *dd)
 
 		/* Calculate and check table crc */
 		crc = crc32_le(~(u32)0, (unsigned char const *)ptr,
-				(table_length_dwords * 4));
+			       (table_length_dwords * 4));
 		crc ^= ~(u32)0;
 
 		/* Jump the table */
 		ptr += table_length_dwords;
 		if (crc != *ptr) {
 			dd_dev_info(dd, "%s: Failed CRC check at offset %ld\n",
-				__func__, (ptr - (u32 *)platform_config->data));
+				    __func__, (ptr -
+					       (u32 *)
+					       dd->platform_config.data));
 			goto bail;
 		}
 		/* Jump the CRC DWORD */
@@ -1536,11 +1848,12 @@ int parse_platform_config(struct hfi1_devdata *dd)
 	return 0;
 bail:
 	memset(pcfgcache, 0, sizeof(struct platform_config_cache));
-	return -EINVAL;
+	return ret;
 }
 
 static int get_platform_fw_field_metadata(struct hfi1_devdata *dd, int table,
-		int field, u32 *field_len_bits, u32 *field_start_bits)
+					  int field, u32 *field_len_bits,
+					  u32 *field_start_bits)
 {
 	struct platform_config_cache *pcfgcache = &dd->pcfg_cache;
 	u32 *src_ptr = NULL;
@@ -1600,8 +1913,9 @@ static int get_platform_fw_field_metadata(struct hfi1_devdata *dd, int table,
  * @len: length of memory pointed by @data in bytes.
  */
 int get_platform_config_field(struct hfi1_devdata *dd,
-			enum platform_config_table_type_encoding table_type,
-			int table_index, int field_index, u32 *data, u32 len)
+			      enum platform_config_table_type_encoding
+			      table_type, int table_index, int field_index,
+			      u32 *data, u32 len)
 {
 	int ret = 0, wlen = 0, seek = 0;
 	u32 field_len_bits = 0, field_start_bits = 0, *src_ptr = NULL;
@@ -1613,7 +1927,8 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 		return -EINVAL;
 
 	ret = get_platform_fw_field_metadata(dd, table_type, field_index,
-					&field_len_bits, &field_start_bits);
+					     &field_len_bits,
+					     &field_start_bits);
 	if (ret)
 		return -EINVAL;
 
@@ -1629,19 +1944,21 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 			if (len < field_len_bits)
 				return -EINVAL;
 
-			seek = field_start_bits/8;
-			wlen = field_len_bits/8;
+			seek = field_start_bits / 8;
+			wlen = field_len_bits / 8;
 
 			src_ptr = (u32 *)((u8 *)src_ptr + seek);
 
-			/* We expect the field to be byte aligned and whole byte
-			 * lengths if we are here */
+			/*
+			 * We expect the field to be byte aligned and whole byte
+			 * lengths if we are here
+			 */
 			memcpy(data, src_ptr, wlen);
 			return 0;
 		}
 		break;
 	case PLATFORM_CONFIG_PORT_TABLE:
-		/* Port table is 4 DWORDS in META_VERSION 0 */
+		/* Port table is 4 DWORDS */
 		src_ptr = dd->hfi1_id ?
 			pcfgcache->config_tables[table_type].table + 4 :
 			pcfgcache->config_tables[table_type].table;
@@ -1669,7 +1986,7 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 	if (!src_ptr || len < field_len_bits)
 		return -EINVAL;
 
-	src_ptr += (field_start_bits/32);
+	src_ptr += (field_start_bits / 32);
 	*data = (*src_ptr >> (field_start_bits % 32)) &
 			((1 << field_len_bits) - 1);
 
@@ -1680,7 +1997,7 @@ int get_platform_config_field(struct hfi1_devdata *dd,
  * Download the firmware needed for the Gen3 PCIe SerDes.  An update
  * to the SBus firmware is needed before updating the PCIe firmware.
  *
- * Note: caller must be holding the HW mutex.
+ * Note: caller must be holding the SBus resource.
  */
 int load_pcie_firmware(struct hfi1_devdata *dd)
 {
@@ -1701,9 +2018,9 @@ int load_pcie_firmware(struct hfi1_devdata *dd)
 	if (fw_pcie_serdes_load) {
 		dd_dev_info(dd, "Setting PCIe SerDes broadcast\n");
 		set_serdes_broadcast(dd, all_pcie_serdes_broadcast,
-					pcie_serdes_broadcast[dd->hfi1_id],
-					pcie_serdes_addrs[dd->hfi1_id],
-					NUM_PCIE_SERDES);
+				     pcie_serdes_broadcast[dd->hfi1_id],
+				     pcie_serdes_addrs[dd->hfi1_id],
+				     NUM_PCIE_SERDES);
 		do {
 			ret = load_pcie_serdes_firmware(dd, &fw_pcie);
 		} while (retry_firmware(dd, ret));
@@ -1724,9 +2041,9 @@ void read_guid(struct hfi1_devdata *dd)
 {
 	/* Take the DC out of reset to get a valid GUID value */
 	write_csr(dd, CCE_DC_CTRL, 0);
-	(void) read_csr(dd, CCE_DC_CTRL);
+	(void)read_csr(dd, CCE_DC_CTRL);
 
 	dd->base_guid = read_csr(dd, DC_DC8051_CFG_LOCAL_GUID);
 	dd_dev_info(dd, "GUID %llx",
-		(unsigned long long)dd->base_guid);
+		    (unsigned long long)dd->base_guid);
 }

@@ -88,5 +88,7 @@
 #define SO_ATTACH_REUSEPORT_CBPF	51
 #define SO_ATTACH_REUSEPORT_EBPF	52
 
+#define SO_CNX_ADVICE		53
+
 #endif /* _ASM_SOCKET_H */
 

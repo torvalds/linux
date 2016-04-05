@@ -1611,7 +1611,7 @@ void __init enable_IR_x2apic(void)
 	legacy_pic->mask_all();
 	mask_ioapic_entries();
 
-	/* If irq_remapping_prepare() succeded, try to enable it */
+	/* If irq_remapping_prepare() succeeded, try to enable it */
 	if (ir_stat >= 0)
 		ir_stat = try_to_enable_IR();
 	/* ir_stat contains the remap mode or an error code */
@@ -2076,6 +2076,20 @@ int generic_processor_info(int apicid, int version)
 		cpu = 0;
 	} else
 		cpu = cpumask_next_zero(-1, cpu_present_mask);
+
+	/*
+	 * This can happen on physical hotplug. The sanity check at boot time
+	 * is done from native_smp_prepare_cpus() after num_possible_cpus() is
+	 * established.
+	 */
+	if (topology_update_package_map(apicid, cpu) < 0) {
+		int thiscpu = max + disabled_cpus;
+
+		pr_warning("ACPI: Package limit reached. Processor %d/0x%x ignored.\n",
+			   thiscpu, apicid);
+		disabled_cpus++;
+		return -ENOSPC;
+	}
 
 	/*
 	 * Validate version

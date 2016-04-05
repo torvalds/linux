@@ -240,16 +240,12 @@ static inline int inet_is_local_reserved_port(struct net *net, int port)
 }
 #endif
 
+__be32 inet_current_timestamp(void);
+
 /* From inetpeer.c */
 extern int inet_peer_threshold;
 extern int inet_peer_minttl;
 extern int inet_peer_maxttl;
-
-/* From ip_input.c */
-extern int sysctl_ip_early_demux;
-
-/* From ip_output.c */
-extern int sysctl_ip_dynaddr;
 
 void ipfrag_init(void);
 

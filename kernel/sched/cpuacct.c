@@ -145,13 +145,16 @@ static u64 cpuusage_read(struct cgroup_subsys_state *css, struct cftype *cft)
 }
 
 static int cpuusage_write(struct cgroup_subsys_state *css, struct cftype *cft,
-			  u64 reset)
+			  u64 val)
 {
 	struct cpuacct *ca = css_ca(css);
 	int err = 0;
 	int i;
 
-	if (reset) {
+	/*
+	 * Only allow '0' here to do a reset.
+	 */
+	if (val) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -235,23 +238,10 @@ static struct cftype files[] = {
 void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 {
 	struct cpuacct *ca;
-	int cpu;
-
-	cpu = task_cpu(tsk);
 
 	rcu_read_lock();
-
-	ca = task_ca(tsk);
-
-	while (true) {
-		u64 *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
-		*cpuusage += cputime;
-
-		ca = parent_ca(ca);
-		if (!ca)
-			break;
-	}
-
+	for (ca = task_ca(tsk); ca; ca = parent_ca(ca))
+		*this_cpu_ptr(ca->cpuusage) += cputime;
 	rcu_read_unlock();
 }
 
@@ -260,18 +250,13 @@ void cpuacct_charge(struct task_struct *tsk, u64 cputime)
  *
  * Note: it's the caller that updates the account of the root cgroup.
  */
-void cpuacct_account_field(struct task_struct *p, int index, u64 val)
+void cpuacct_account_field(struct task_struct *tsk, int index, u64 val)
 {
-	struct kernel_cpustat *kcpustat;
 	struct cpuacct *ca;
 
 	rcu_read_lock();
-	ca = task_ca(p);
-	while (ca != &root_cpuacct) {
-		kcpustat = this_cpu_ptr(ca->cpustat);
-		kcpustat->cpustat[index] += val;
-		ca = parent_ca(ca);
-	}
+	for (ca = task_ca(tsk); ca != &root_cpuacct; ca = parent_ca(ca))
+		this_cpu_ptr(ca->cpustat)->cpustat[index] += val;
 	rcu_read_unlock();
 }
 
@@ -279,5 +264,5 @@ struct cgroup_subsys cpuacct_cgrp_subsys = {
 	.css_alloc	= cpuacct_css_alloc,
 	.css_free	= cpuacct_css_free,
 	.legacy_cftypes	= files,
-	.early_init	= 1,
+	.early_init	= true,
 };

@@ -27,7 +27,7 @@ void hns_ppe_set_tso_enable(struct hns_ppe_cb *ppe_cb, u32 value)
 void hns_ppe_set_rss_key(struct hns_ppe_cb *ppe_cb,
 			 const u32 rss_key[HNS_PPEV2_RSS_KEY_NUM])
 {
-	int key_item = 0;
+	u32 key_item;
 
 	for (key_item = 0; key_item < HNS_PPEV2_RSS_KEY_NUM; key_item++)
 		dsaf_write_dev(ppe_cb, PPEV2_RSS_KEY_REG + key_item * 0x4,
@@ -342,6 +342,9 @@ static void hns_ppe_init_hw(struct hns_ppe_cb *ppe_cb)
 
 	if (!AE_IS_VER1(dsaf_dev->dsaf_ver)) {
 		hns_ppe_set_vlan_strip(ppe_cb, 0);
+
+		dsaf_write_dev(ppe_cb, PPE_CFG_MAX_FRAME_LEN_REG,
+			       HNS_PPEV2_MAX_FRAME_LEN);
 
 		/* set default RSS key in h/w */
 		hns_ppe_set_rss_key(ppe_cb, ppe_cb->rss_key);

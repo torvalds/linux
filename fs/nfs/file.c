@@ -233,7 +233,7 @@ EXPORT_SYMBOL_GPL(nfs_file_mmap);
  * nfs_file_write() that a write error occurred, and hence cause it to
  * fall back to doing a synchronous write.
  */
-int
+static int
 nfs_file_fsync_commit(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
@@ -263,9 +263,8 @@ nfs_file_fsync_commit(struct file *file, loff_t start, loff_t end, int datasync)
 out:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nfs_file_fsync_commit);
 
-static int
+int
 nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	int ret;
@@ -273,13 +272,15 @@ nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 
 	trace_nfs_fsync_enter(inode);
 
-	nfs_inode_dio_wait(inode);
+	inode_dio_wait(inode);
 	do {
 		ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
 		if (ret != 0)
 			break;
 		inode_lock(inode);
 		ret = nfs_file_fsync_commit(file, start, end, datasync);
+		if (!ret)
+			ret = pnfs_sync_inode(inode, !!datasync);
 		inode_unlock(inode);
 		/*
 		 * If nfs_file_fsync_commit detected a server reboot, then
@@ -293,6 +294,7 @@ nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	trace_nfs_fsync_exit(inode, ret);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nfs_file_fsync);
 
 /*
  * Decide whether a read/modify/write cycle may be more efficient
@@ -368,7 +370,7 @@ start:
 	/*
 	 * Wait for O_DIRECT to complete
 	 */
-	nfs_inode_dio_wait(mapping->host);
+	inode_dio_wait(mapping->host);
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)

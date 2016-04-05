@@ -23,7 +23,7 @@
  */
 
 #include <linux/kthread.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
@@ -122,18 +122,7 @@ free_out:
 	debugfs_remove_recursive(rcudir);
 	return 1;
 }
-
-static void __exit rcutiny_trace_cleanup(void)
-{
-	debugfs_remove_recursive(rcudir);
-}
-
-module_init(rcutiny_trace_init);
-module_exit(rcutiny_trace_cleanup);
-
-MODULE_AUTHOR("Paul E. McKenney");
-MODULE_DESCRIPTION("Read-Copy Update tracing for tiny implementation");
-MODULE_LICENSE("GPL");
+device_initcall(rcutiny_trace_init);
 
 static void check_cpu_stall(struct rcu_ctrlblk *rcp)
 {

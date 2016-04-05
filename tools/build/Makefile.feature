@@ -27,7 +27,7 @@ endef
 #   the rule that uses them - an example for that is the 'bionic'
 #   feature check. ]
 #
-FEATURE_TESTS ?=			\
+FEATURE_TESTS_BASIC :=			\
 	backtrace			\
 	dwarf				\
 	fortify-source			\
@@ -46,6 +46,7 @@ FEATURE_TESTS ?=			\
 	libpython			\
 	libpython-version		\
 	libslang			\
+	libcrypto			\
 	libunwind			\
 	pthread-attr-setaffinity-np	\
 	stackprotector-all		\
@@ -55,6 +56,25 @@ FEATURE_TESTS ?=			\
 	lzma				\
 	get_cpuid			\
 	bpf
+
+# FEATURE_TESTS_BASIC + FEATURE_TESTS_EXTRA is the complete list
+# of all feature tests
+FEATURE_TESTS_EXTRA :=			\
+	bionic				\
+	compile-32			\
+	compile-x32			\
+	cplus-demangle			\
+	hello				\
+	libbabeltrace			\
+	liberty				\
+	liberty-z			\
+	libunwind-debug-frame
+
+FEATURE_TESTS ?= $(FEATURE_TESTS_BASIC)
+
+ifeq ($(FEATURE_TESTS),all)
+  FEATURE_TESTS := $(FEATURE_TESTS_BASIC) $(FEATURE_TESTS_EXTRA)
+endif
 
 FEATURE_DISPLAY ?=			\
 	dwarf				\
@@ -68,6 +88,7 @@ FEATURE_DISPLAY ?=			\
 	libperl				\
 	libpython			\
 	libslang			\
+	libcrypto			\
 	libunwind			\
 	libdw-dwarf-unwind		\
 	zlib				\
@@ -100,6 +121,14 @@ ifeq ($(feature-all), 1)
   # test-all.c passed - just set all the core feature flags to 1:
   #
   $(foreach feat,$(FEATURE_TESTS),$(call feature_set,$(feat)))
+  #
+  # test-all.c does not comprise these tests, so we need to
+  # for this case to get features proper values
+  #
+  $(call feature_check,compile-32)
+  $(call feature_check,compile-x32)
+  $(call feature_check,bionic)
+  $(call feature_check,libbabeltrace)
 else
   $(foreach feat,$(FEATURE_TESTS),$(call feature_check,$(feat)))
 endif
