@@ -14,18 +14,6 @@
 #include <net/udp.h>
 #include <net/protocol.h>
 
-static DEFINE_SPINLOCK(udp_offload_lock);
-static struct udp_offload_priv __rcu *udp_offload_base __read_mostly;
-
-#define udp_deref_protected(X) rcu_dereference_protected(X, lockdep_is_held(&udp_offload_lock))
-
-struct udp_offload_priv {
-	struct udp_offload	*offload;
-	possible_net_t	net;
-	struct rcu_head		rcu;
-	struct udp_offload_priv __rcu *next;
-};
-
 static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 	netdev_features_t features,
 	struct sk_buff *(*gso_inner_segment)(struct sk_buff *skb,
@@ -254,56 +242,6 @@ out:
 	return segs;
 }
 
-int udp_add_offload(struct net *net, struct udp_offload *uo)
-{
-	struct udp_offload_priv *new_offload = kzalloc(sizeof(*new_offload), GFP_ATOMIC);
-
-	if (!new_offload)
-		return -ENOMEM;
-
-	write_pnet(&new_offload->net, net);
-	new_offload->offload = uo;
-
-	spin_lock(&udp_offload_lock);
-	new_offload->next = udp_offload_base;
-	rcu_assign_pointer(udp_offload_base, new_offload);
-	spin_unlock(&udp_offload_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL(udp_add_offload);
-
-static void udp_offload_free_routine(struct rcu_head *head)
-{
-	struct udp_offload_priv *ou_priv = container_of(head, struct udp_offload_priv, rcu);
-	kfree(ou_priv);
-}
-
-void udp_del_offload(struct udp_offload *uo)
-{
-	struct udp_offload_priv __rcu **head = &udp_offload_base;
-	struct udp_offload_priv *uo_priv;
-
-	spin_lock(&udp_offload_lock);
-
-	uo_priv = udp_deref_protected(*head);
-	for (; uo_priv != NULL;
-	     uo_priv = udp_deref_protected(*head)) {
-		if (uo_priv->offload == uo) {
-			rcu_assign_pointer(*head,
-					   udp_deref_protected(uo_priv->next));
-			goto unlock;
-		}
-		head = &uo_priv->next;
-	}
-	pr_warn("udp_del_offload: didn't find offload for port %d\n", ntohs(uo->port));
-unlock:
-	spin_unlock(&udp_offload_lock);
-	if (uo_priv)
-		call_rcu(&uo_priv->rcu, udp_offload_free_routine);
-}
-EXPORT_SYMBOL(udp_del_offload);
-
 struct sk_buff **udp_gro_receive(struct sk_buff **head, struct sk_buff *skb,
 				 struct udphdr *uh, udp_lookup_t lookup)
 {
@@ -327,7 +265,6 @@ struct sk_buff **udp_gro_receive(struct sk_buff **head, struct sk_buff *skb,
 
 	if (sk && udp_sk(sk)->gro_receive)
 		goto unflush;
-
 	goto out_unlock;
 
 unflush:

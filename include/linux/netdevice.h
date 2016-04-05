@@ -2159,23 +2159,6 @@ struct packet_offload {
 	struct list_head	 list;
 };
 
-struct udp_offload;
-
-struct udp_offload_callbacks {
-	struct sk_buff		**(*gro_receive)(struct sk_buff **head,
-						 struct sk_buff *skb,
-						 struct udp_offload *uoff);
-	int			(*gro_complete)(struct sk_buff *skb,
-						int nhoff,
-						struct udp_offload *uoff);
-};
-
-struct udp_offload {
-	__be16			 port;
-	u8			 ipproto;
-	struct udp_offload_callbacks callbacks;
-};
-
 /* often modified stats are per-CPU, other are shared (netdev->stats) */
 struct pcpu_sw_netstats {
 	u64     rx_packets;
