@@ -4,8 +4,8 @@ This PCIe host controller is based on the Synopsis Designware PCIe IP
 and thus inherits all the common properties defined in designware-pcie.txt.
 
 Required properties:
-- compatible: "fsl,imx6q-pcie"
-- reg: base addresse and length of the pcie controller
+- compatible: "fsl,imx6q-pcie", "fsl,imx6sx-pcie"
+- reg: base address and length of the PCIe controller
 - interrupts: A list of interrupt outputs of the controller. Must contain an
   entry for each entry in the interrupt-names property.
 - interrupt-names: Must include the following entries:
@@ -19,6 +19,10 @@ Optional properties:
 - fsl,tx-deemph-gen2-6db: Gen2 (6db) De-emphasis value. Default: 20
 - fsl,tx-swing-full: Gen2 TX SWING FULL value. Default: 127
 - fsl,tx-swing-low: TX launch amplitude swing_low value. Default: 127
+
+Additional required properties for imx6sx-pcie:
+- clock names: Must include the following additional entries:
+	- "pcie_inbound_axi"
 
 Example:
 

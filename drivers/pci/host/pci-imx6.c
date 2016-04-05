@@ -35,9 +35,11 @@ struct imx6_pcie {
 	int			reset_gpio;
 	struct clk		*pcie_bus;
 	struct clk		*pcie_phy;
+	struct clk		*pcie_inbound_axi;
 	struct clk		*pcie;
 	struct pcie_port	pp;
 	struct regmap		*iomuxc_gpr;
+	bool			is_imx6sx;
 	void __iomem		*mem_base;
 	u32			tx_deemph_gen1;
 	u32			tx_deemph_gen2_3p5db;
@@ -236,6 +238,17 @@ static int imx6_pcie_assert_core_reset(struct pcie_port *pp)
 	struct imx6_pcie *imx6_pcie = to_imx6_pcie(pp);
 	u32 val, gpr1, gpr12;
 
+	if (imx6_pcie->is_imx6sx) {
+		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
+				   IMX6SX_GPR12_PCIE_TEST_POWERDOWN,
+				   IMX6SX_GPR12_PCIE_TEST_POWERDOWN);
+		/* Force PCIe PHY reset */
+		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR5,
+				   IMX6SX_GPR5_PCIE_BTNRST_RESET,
+				   IMX6SX_GPR5_PCIE_BTNRST_RESET);
+		return 0;
+	}
+
 	/*
 	 * If the bootloader already enabled the link we need some special
 	 * handling to get the core back into a state where it is safe to
@@ -271,6 +284,21 @@ static int imx6_pcie_assert_core_reset(struct pcie_port *pp)
 
 static int imx6_pcie_enable_ref_clk(struct imx6_pcie *imx6_pcie)
 {
+	struct pcie_port *pp = &imx6_pcie->pp;
+	int ret;
+
+	if (imx6_pcie->is_imx6sx) {
+		ret = clk_prepare_enable(imx6_pcie->pcie_inbound_axi);
+		if (ret) {
+			dev_err(pp->dev, "unable to enable pcie_axi clock\n");
+			return ret;
+		}
+
+		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
+				   IMX6SX_GPR12_PCIE_TEST_POWERDOWN, 0);
+		return ret;
+	}
+
 	/* power up core phy and enable ref clock */
 	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1,
 			IMX6Q_GPR1_PCIE_TEST_PD, 0 << 18);
@@ -324,6 +352,11 @@ static int imx6_pcie_deassert_core_reset(struct pcie_port *pp)
 		msleep(100);
 		gpio_set_value_cansleep(imx6_pcie->reset_gpio, 1);
 	}
+
+	if (imx6_pcie->is_imx6sx)
+		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR5,
+				   IMX6SX_GPR5_PCIE_BTNRST_RESET, 0);
+
 	return 0;
 
 err_ref_clk:
@@ -340,6 +373,12 @@ err_pcie_phy:
 static void imx6_pcie_init_phy(struct pcie_port *pp)
 {
 	struct imx6_pcie *imx6_pcie = to_imx6_pcie(pp);
+
+	if (imx6_pcie->is_imx6sx) {
+		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
+				   IMX6SX_GPR12_PCIE_RX_EQ_MASK,
+				   IMX6SX_GPR12_PCIE_RX_EQ_2);
+	}
 
 	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
 			IMX6Q_GPR12_PCIE_CTL_2, 0 << 10);
@@ -547,6 +586,9 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 	pp = &imx6_pcie->pp;
 	pp->dev = &pdev->dev;
 
+	imx6_pcie->is_imx6sx = of_device_is_compatible(pp->dev->of_node,
+						       "fsl,imx6sx-pcie");
+
 	/* Added for PCI abort handling */
 	hook_fault_code(16 + 6, imx6q_pcie_abort_handler, SIGBUS, 0,
 		"imprecise external abort");
@@ -587,6 +629,16 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"pcie clock source missing or invalid\n");
 		return PTR_ERR(imx6_pcie->pcie);
+	}
+
+	if (imx6_pcie->is_imx6sx) {
+		imx6_pcie->pcie_inbound_axi = devm_clk_get(&pdev->dev,
+							   "pcie_inbound_axi");
+		if (IS_ERR(imx6_pcie->pcie_inbound_axi)) {
+			dev_err(&pdev->dev,
+				"pcie_incbound_axi clock missing or invalid\n");
+			return PTR_ERR(imx6_pcie->pcie_inbound_axi);
+		}
 	}
 
 	/* Grab GPR config register range */
@@ -636,6 +688,7 @@ static void imx6_pcie_shutdown(struct platform_device *pdev)
 
 static const struct of_device_id imx6_pcie_of_match[] = {
 	{ .compatible = "fsl,imx6q-pcie", },
+	{ .compatible = "fsl,imx6sx-pcie", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, imx6_pcie_of_match);
