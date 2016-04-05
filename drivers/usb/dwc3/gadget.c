@@ -160,8 +160,8 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 			 * DWC3_TRBCTL_LINK_TRB because it points the TRB we
 			 * just completed (not the LINK TRB).
 			 */
-			if (((dep->trb_dequeue & DWC3_TRB_MASK) ==
-				DWC3_TRB_NUM- 1) &&
+			if (((dep->trb_dequeue % DWC3_TRB_NUM) ==
+				DWC3_TRB_NUM - 1) &&
 				usb_endpoint_xfer_isoc(dep->endpoint.desc))
 				dep->trb_dequeue++;
 		} while(++i < req->request.num_mapped_sgs);
@@ -741,18 +741,18 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 			chain ? " chain" : "");
 
 
-	trb = &dep->trb_pool[dep->trb_enqueue & DWC3_TRB_MASK];
+	trb = &dep->trb_pool[dep->trb_enqueue % DWC3_TRB_NUM];
 
 	if (!req->trb) {
 		dwc3_gadget_move_started_request(req);
 		req->trb = trb;
 		req->trb_dma = dwc3_trb_dma_offset(dep, trb);
-		req->first_trb_index = dep->trb_enqueue & DWC3_TRB_MASK;
+		req->first_trb_index = dep->trb_enqueue % DWC3_TRB_NUM;
 	}
 
 	dep->trb_enqueue++;
 	/* Skip the LINK-TRB on ISOC */
-	if (((dep->trb_enqueue & DWC3_TRB_MASK) == DWC3_TRB_NUM - 1) &&
+	if (((dep->trb_enqueue % DWC3_TRB_NUM) == DWC3_TRB_NUM - 1) &&
 			usb_endpoint_xfer_isoc(dep->endpoint.desc))
 		dep->trb_enqueue++;
 
@@ -826,11 +826,11 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep, bool starting)
 	BUILD_BUG_ON_NOT_POWER_OF_2(DWC3_TRB_NUM);
 
 	/* the first request must not be queued */
-	trbs_left = (dep->trb_dequeue - dep->trb_enqueue) & DWC3_TRB_MASK;
+	trbs_left = (dep->trb_dequeue - dep->trb_enqueue) % DWC3_TRB_NUM;
 
 	/* Can't wrap around on a non-isoc EP since there's no link TRB */
 	if (!usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
-		max = DWC3_TRB_NUM - (dep->trb_enqueue & DWC3_TRB_MASK);
+		max = DWC3_TRB_NUM - (dep->trb_enqueue % DWC3_TRB_NUM);
 		if (trbs_left > max)
 			trbs_left = max;
 	}
