@@ -5,7 +5,7 @@
 config DVB_MAX_ADAPTERS
 	int "maximum number of DVB/ATSC adapters"
 	depends on DVB_CORE
-	default 8
+	default 16
 	range 1 255
 	help
 	  Maximum number of DVB/ATSC adapters. Increasing this number
@@ -13,7 +13,7 @@ config DVB_MAX_ADAPTERS
 	  if a much lower number of DVB/ATSC adapters is present.
 	  Only values in the range 4-32 are tested.
 
-	  If you are unsure about this, use the default value 8
+	  If you are unsure about this, use the default value 16
 
 config DVB_DYNAMIC_MINORS
 	bool "Dynamic DVB minor allocation"
