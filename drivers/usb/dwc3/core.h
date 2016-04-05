@@ -440,7 +440,6 @@ struct dwc3_event_buffer {
 #define DWC3_EP_DIRECTION_RX	false
 
 #define DWC3_TRB_NUM		256
-#define DWC3_TRB_MASK		(DWC3_TRB_NUM - 1)
 
 /**
  * struct dwc3_ep - device side endpoint representation
