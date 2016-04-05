@@ -2,7 +2,7 @@
  * max8997.c - Regulator driver for the Maxim 8997/8966
  *
  * Copyright (C) 2011 Samsung Electronics
- * MyungJoo Ham <myungjoo.ham@smasung.com>
+ * MyungJoo Ham <myungjoo.ham@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
