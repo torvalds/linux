@@ -1,6 +1,6 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
- * Copyright (c) 2014-2015 Broadcom Corporation
+ * Copyright (c) 2014-2016 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -2763,7 +2763,7 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 	 * only checks if it is non-zero to enable async event forwarding
 	 */
 	req.async_event_fwd[0] |= cpu_to_le32(1);
-	req.os_type = cpu_to_le16(1);
+	req.os_type = cpu_to_le16(FUNC_DRV_RGTR_REQ_OS_TYPE_LINUX);
 	req.ver_maj = DRV_VER_MAJ;
 	req.ver_min = DRV_VER_MIN;
 	req.ver_upd = DRV_VER_UPD;
@@ -3726,7 +3726,7 @@ int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 
 		pf->fw_fid = le16_to_cpu(resp->fid);
 		pf->port_id = le16_to_cpu(resp->port_id);
-		memcpy(pf->mac_addr, resp->perm_mac_address, ETH_ALEN);
+		memcpy(pf->mac_addr, resp->mac_address, ETH_ALEN);
 		memcpy(bp->dev->dev_addr, pf->mac_addr, ETH_ALEN);
 		pf->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
 		pf->max_cp_rings = le16_to_cpu(resp->max_cmpl_rings);
@@ -3751,7 +3751,7 @@ int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		struct bnxt_vf_info *vf = &bp->vf;
 
 		vf->fw_fid = le16_to_cpu(resp->fid);
-		memcpy(vf->mac_addr, resp->perm_mac_address, ETH_ALEN);
+		memcpy(vf->mac_addr, resp->mac_address, ETH_ALEN);
 		if (is_valid_ether_addr(vf->mac_addr))
 			/* overwrite netdev dev_adr with admin VF MAC */
 			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
@@ -3842,6 +3842,8 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 
 	memcpy(&bp->ver_resp, resp, sizeof(struct hwrm_ver_get_output));
 
+	bp->hwrm_spec_code = resp->hwrm_intf_maj << 16 |
+			     resp->hwrm_intf_min << 8 | resp->hwrm_intf_upd;
 	if (resp->hwrm_intf_maj < 1) {
 		netdev_warn(bp->dev, "HWRM interface %d.%d.%d is older than 1.0.0.\n",
 			    resp->hwrm_intf_maj, resp->hwrm_intf_min,
@@ -4523,7 +4525,6 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	else
 		link_info->link_speed = 0;
 	link_info->force_link_speed = le16_to_cpu(resp->force_link_speed);
-	link_info->auto_link_speed = le16_to_cpu(resp->auto_link_speed);
 	link_info->support_speeds = le16_to_cpu(resp->support_speeds);
 	link_info->auto_link_speeds = le16_to_cpu(resp->auto_link_speed_mask);
 	link_info->lp_auto_link_speeds =
@@ -4533,8 +4534,8 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	link_info->phy_ver[1] = resp->phy_min;
 	link_info->phy_ver[2] = resp->phy_bld;
 	link_info->media_type = resp->media_type;
-	link_info->transceiver = resp->transceiver_type;
-	link_info->phy_addr = resp->phy_addr;
+	link_info->transceiver = resp->xcvr_pkg_type;
+	link_info->phy_addr = resp->eee_config_phy_addr;
 
 	/* TODO: need to add more logic to report VF link */
 	if (chng_link_state) {
@@ -4581,7 +4582,7 @@ static void bnxt_hwrm_set_link_common(struct bnxt *bp,
 
 	if (autoneg & BNXT_AUTONEG_SPEED) {
 		req->auto_mode |=
-			PORT_PHY_CFG_REQ_AUTO_MODE_MASK;
+			PORT_PHY_CFG_REQ_AUTO_MODE_SPEED_MASK;
 
 		req->enables |= cpu_to_le32(
 			PORT_PHY_CFG_REQ_ENABLES_AUTO_LINK_SPEED_MASK);
@@ -4595,9 +4596,6 @@ static void bnxt_hwrm_set_link_common(struct bnxt *bp,
 		req->flags |= cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_FORCE);
 	}
 
-	/* currently don't support half duplex */
-	req->auto_duplex = PORT_PHY_CFG_REQ_AUTO_DUPLEX_FULL;
-	req->enables |= cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_AUTO_DUPLEX);
 	/* tell chimp that the setting takes effect immediately */
 	req->flags |= cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_RESET_PHY);
 }

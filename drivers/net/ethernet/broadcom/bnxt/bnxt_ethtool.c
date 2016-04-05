@@ -1,6 +1,6 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
- * Copyright (c) 2014-2015 Broadcom Corporation
+ * Copyright (c) 2014-2016 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -728,7 +728,7 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	ethtool_speed = bnxt_fw_to_ethtool_speed(link_info->link_speed);
 	ethtool_cmd_speed_set(cmd, ethtool_speed);
 	if (link_info->transceiver ==
-		PORT_PHY_QCFG_RESP_TRANSCEIVER_TYPE_XCVR_INTERNAL)
+	    PORT_PHY_QCFG_RESP_XCVR_PKG_TYPE_XCVR_INTERNAL)
 		cmd->transceiver = XCVR_INTERNAL;
 	else
 		cmd->transceiver = XCVR_EXTERNAL;
