@@ -198,14 +198,10 @@ xfs_growfs_data_private(
 			return error;
 	}
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_GROWFS);
-	tp->t_flags |= XFS_TRANS_RESERVE;
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_growdata,
-				  XFS_GROWFS_SPACE_RES(mp), 0);
-	if (error) {
-		xfs_trans_cancel(tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growdata,
+			XFS_GROWFS_SPACE_RES(mp), 0, XFS_TRANS_RESERVE, &tp);
+	if (error)
 		return error;
-	}
 
 	/*
 	 * Write new AG headers to disk. Non-transactional, but written

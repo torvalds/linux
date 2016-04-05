@@ -780,15 +780,14 @@ xfs_growfs_rt_alloc(
 	 * Allocate space to the file, as necessary.
 	 */
 	while (oblocks < nblocks) {
-		tp = xfs_trans_alloc(mp, XFS_TRANS_GROWFSRT_ALLOC);
 		resblks = XFS_GROWFSRT_SPACE_RES(mp, nblocks - oblocks);
 		/*
 		 * Reserve space & log for one extent added to the file.
 		 */
-		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_growrtalloc,
-					  resblks, 0);
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growrtalloc, resblks,
+				0, 0, &tp);
 		if (error)
-			goto out_trans_cancel;
+			return error;
 		/*
 		 * Lock the inode.
 		 */
@@ -823,14 +822,13 @@ xfs_growfs_rt_alloc(
 		for (bno = map.br_startoff, fsbno = map.br_startblock;
 		     bno < map.br_startoff + map.br_blockcount;
 		     bno++, fsbno++) {
-			tp = xfs_trans_alloc(mp, XFS_TRANS_GROWFSRT_ZERO);
 			/*
 			 * Reserve log for one block zeroing.
 			 */
-			error = xfs_trans_reserve(tp, &M_RES(mp)->tr_growrtzero,
-						  0, 0);
+			error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growrtzero,
+					0, 0, 0, &tp);
 			if (error)
-				goto out_trans_cancel;
+				return error;
 			/*
 			 * Lock the bitmap inode.
 			 */
@@ -994,11 +992,10 @@ xfs_growfs_rt(
 		/*
 		 * Start a transaction, get the log reservation.
 		 */
-		tp = xfs_trans_alloc(mp, XFS_TRANS_GROWFSRT_FREE);
-		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_growrtfree,
-					  0, 0);
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growrtfree, 0, 0, 0,
+				&tp);
 		if (error)
-			goto error_cancel;
+			break;
 		/*
 		 * Lock out other callers by grabbing the bitmap inode lock.
 		 */
