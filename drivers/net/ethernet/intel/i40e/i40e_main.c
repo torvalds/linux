@@ -45,8 +45,8 @@ static const char i40e_driver_string[] =
 #define DRV_KERN "-k"
 
 #define DRV_VERSION_MAJOR 1
-#define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 25
+#define DRV_VERSION_MINOR 5
+#define DRV_VERSION_BUILD 1
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -4164,7 +4164,7 @@ static void i40e_clear_interrupt_scheme(struct i40e_pf *pf)
 	int i;
 
 	i40e_stop_misc_vector(pf);
-	if (pf->flags & I40E_FLAG_MSIX_ENABLED) {
+	if (pf->flags & I40E_FLAG_MSIX_ENABLED && pf->msix_entries) {
 		synchronize_irq(pf->msix_entries[0].vector);
 		free_irq(pf->msix_entries[0].vector, pf);
 	}
@@ -5509,11 +5509,7 @@ static void i40e_fdir_filter_exit(struct i40e_pf *pf)
  *
  * Returns 0, this is not allowed to fail
  **/
-#ifdef I40E_FCOE
 int i40e_close(struct net_device *netdev)
-#else
-static int i40e_close(struct net_device *netdev)
-#endif
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
@@ -5538,8 +5534,6 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 
 	WARN_ON(in_interrupt());
 
-	if (i40e_check_asq_alive(&pf->hw))
-		i40e_vc_notify_reset(pf);
 
 	/* do the biggest reset indicated */
 	if (reset_flags & BIT_ULL(__I40E_GLOBAL_RESET_REQUESTED)) {
@@ -6377,7 +6371,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 			break;
 		default:
 			dev_info(&pf->pdev->dev,
-				 "ARQ Error: Unknown event 0x%04x received\n",
+				 "ARQ: Unknown event 0x%04x ignored\n",
 				 opcode);
 			break;
 		}
@@ -6742,6 +6736,8 @@ static void i40e_prep_for_reset(struct i40e_pf *pf)
 	clear_bit(__I40E_RESET_INTR_RECEIVED, &pf->state);
 	if (test_and_set_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state))
 		return;
+	if (i40e_check_asq_alive(&pf->hw))
+		i40e_vc_notify_reset(pf);
 
 	dev_dbg(&pf->pdev->dev, "Tearing down internal switch for reset\n");
 
@@ -10826,6 +10822,12 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->bus.func = PCI_FUNC(pdev->devfn);
 	pf->instance = pfs_found;
 
+	/* set up the locks for the AQ, do this only once in probe
+	 * and destroy them only once in remove
+	 */
+	mutex_init(&hw->aq.asq_mutex);
+	mutex_init(&hw->aq.arq_mutex);
+
 	if (debug != -1) {
 		pf->msg_enable = pf->hw.debug_mask;
 		pf->msg_enable = debug;
@@ -10870,12 +10872,6 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* set up a default setting for link flow control */
 	pf->hw.fc.requested_mode = I40E_FC_NONE;
-
-	/* set up the locks for the AQ, do this only once in probe
-	 * and destroy them only once in remove
-	 */
-	mutex_init(&hw->aq.asq_mutex);
-	mutex_init(&hw->aq.arq_mutex);
 
 	err = i40e_init_adminq(hw);
 	if (err) {
@@ -11269,7 +11265,6 @@ err_init_lan_hmc:
 	kfree(pf->qp_pile);
 err_sw_init:
 err_adminq_setup:
-	(void)i40e_shutdown_adminq(hw);
 err_pf_reset:
 	iounmap(hw->hw_addr);
 err_ioremap:
@@ -11311,8 +11306,10 @@ static void i40e_remove(struct pci_dev *pdev)
 	/* no more scheduling of any task */
 	set_bit(__I40E_SUSPENDED, &pf->state);
 	set_bit(__I40E_DOWN, &pf->state);
-	del_timer_sync(&pf->service_timer);
-	cancel_work_sync(&pf->service_task);
+	if (pf->service_timer.data)
+		del_timer_sync(&pf->service_timer);
+	if (pf->service_task.func)
+		cancel_work_sync(&pf->service_task);
 
 	if (pf->flags & I40E_FLAG_SRIOV_ENABLED) {
 		i40e_free_vfs(pf);

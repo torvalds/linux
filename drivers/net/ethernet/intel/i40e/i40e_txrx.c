@@ -636,19 +636,21 @@ u32 i40e_get_tx_pending(struct i40e_ring *ring, bool in_sw)
 
 /**
  * i40e_clean_tx_irq - Reclaim resources after transmit completes
- * @tx_ring:  tx ring to clean
- * @budget:   how many cleans we're allowed
+ * @vsi: the VSI we care about
+ * @tx_ring: Tx ring to clean
+ * @napi_budget: Used to determine if we are in netpoll
  *
  * Returns true if there's any budget left (e.g. the clean is finished)
  **/
-static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
+static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
+			      struct i40e_ring *tx_ring, int napi_budget)
 {
 	u16 i = tx_ring->next_to_clean;
 	struct i40e_tx_buffer *tx_buf;
 	struct i40e_tx_desc *tx_head;
 	struct i40e_tx_desc *tx_desc;
-	unsigned int total_packets = 0;
-	unsigned int total_bytes = 0;
+	unsigned int total_bytes = 0, total_packets = 0;
+	unsigned int budget = vsi->work_limit;
 
 	tx_buf = &tx_ring->tx_bi[i];
 	tx_desc = I40E_TX_DESC(tx_ring, i);
@@ -678,7 +680,7 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 		total_packets += tx_buf->gso_segs;
 
 		/* free the skb */
-		dev_consume_skb_any(tx_buf->skb);
+		napi_consume_skb(tx_buf->skb, napi_budget);
 
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
@@ -749,7 +751,7 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 
 		if (budget &&
 		    ((j / (WB_STRIDE + 1)) == 0) && (j != 0) &&
-		    !test_bit(__I40E_DOWN, &tx_ring->vsi->state) &&
+		    !test_bit(__I40E_DOWN, &vsi->state) &&
 		    (I40E_DESC_UNUSED(tx_ring) != tx_ring->count))
 			tx_ring->arm_wb = true;
 	}
@@ -767,7 +769,7 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 		smp_mb();
 		if (__netif_subqueue_stopped(tx_ring->netdev,
 					     tx_ring->queue_index) &&
-		   !test_bit(__I40E_DOWN, &tx_ring->vsi->state)) {
+		   !test_bit(__I40E_DOWN, &vsi->state)) {
 			netif_wake_subqueue(tx_ring->netdev,
 					    tx_ring->queue_index);
 			++tx_ring->tx_stats.restart_queue;
@@ -1975,9 +1977,11 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
 	i40e_for_each_ring(ring, q_vector->tx) {
-		clean_complete = clean_complete &&
-				 i40e_clean_tx_irq(ring, vsi->work_limit);
-		arm_wb = arm_wb || ring->arm_wb;
+		if (!i40e_clean_tx_irq(vsi, ring, budget)) {
+			clean_complete = false;
+			continue;
+		}
+		arm_wb |= ring->arm_wb;
 		ring->arm_wb = false;
 	}
 
@@ -1999,8 +2003,9 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 			cleaned = i40e_clean_rx_irq_1buf(ring, budget_per_ring);
 
 		work_done += cleaned;
-		/* if we didn't clean as many as budgeted, we must be done */
-		clean_complete = clean_complete && (budget_per_ring > cleaned);
+		/* if we clean as many as budgeted, we must not be done */
+		if (cleaned >= budget_per_ring)
+			clean_complete = false;
 	}
 
 	/* If work not completed, return budget and polling will return */
@@ -2300,7 +2305,8 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 			/* remove payload length from outer checksum */
 			paylen = (__force u16)l4.udp->check;
-			paylen += ntohs(1) * (u16)~(skb->len - l4_offset);
+			paylen += ntohs((__force __be16)1) *
+					(u16)~(skb->len - l4_offset);
 			l4.udp->check = ~csum_fold((__force __wsum)paylen);
 		}
 
@@ -2322,7 +2328,7 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	/* remove payload length from inner checksum */
 	paylen = (__force u16)l4.tcp->check;
-	paylen += ntohs(1) * (u16)~(skb->len - l4_offset);
+	paylen += ntohs((__force __be16)1) * (u16)~(skb->len - l4_offset);
 	l4.tcp->check = ~csum_fold((__force __wsum)paylen);
 
 	/* compute length of segmentation header */
@@ -2717,6 +2723,8 @@ static inline void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	tx_bi = first;
 
 	for (frag = &skb_shinfo(skb)->frags[0];; frag++) {
+		unsigned int max_data = I40E_MAX_DATA_PER_TXD_ALIGNED;
+
 		if (dma_mapping_error(tx_ring->dev, dma))
 			goto dma_error;
 
@@ -2724,12 +2732,14 @@ static inline void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		dma_unmap_len_set(tx_bi, len, size);
 		dma_unmap_addr_set(tx_bi, dma, dma);
 
+		/* align size to end of page */
+		max_data += -dma & (I40E_MAX_READ_REQ_SIZE - 1);
 		tx_desc->buffer_addr = cpu_to_le64(dma);
 
 		while (unlikely(size > I40E_MAX_DATA_PER_TXD)) {
 			tx_desc->cmd_type_offset_bsz =
 				build_ctob(td_cmd, td_offset,
-					   I40E_MAX_DATA_PER_TXD, td_tag);
+					   max_data, td_tag);
 
 			tx_desc++;
 			i++;
@@ -2740,9 +2750,10 @@ static inline void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 				i = 0;
 			}
 
-			dma += I40E_MAX_DATA_PER_TXD;
-			size -= I40E_MAX_DATA_PER_TXD;
+			dma += max_data;
+			size -= max_data;
 
+			max_data = I40E_MAX_DATA_PER_TXD_ALIGNED;
 			tx_desc->buffer_addr = cpu_to_le64(dma);
 		}
 
@@ -2892,7 +2903,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	if (i40e_chk_linearize(skb, count)) {
 		if (__skb_linearize(skb))
 			goto out_drop;
-		count = TXD_USE_COUNT(skb->len);
+		count = i40e_txd_use_count(skb->len);
 		tx_ring->tx_stats.tx_linearize++;
 	}
 

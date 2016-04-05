@@ -63,7 +63,7 @@ static void i40e_vc_vf_broadcast(struct i40e_pf *pf,
 }
 
 /**
- * i40e_vc_notify_link_state
+ * i40e_vc_notify_vf_link_state
  * @vf: pointer to the VF structure
  *
  * send a link status message to a single VF
@@ -917,9 +917,9 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 {
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_hw *hw = &pf->hw;
+	u32 reg, reg_idx, bit_idx;
 	bool rsd = false;
 	int i;
-	u32 reg;
 
 	if (test_and_set_bit(__I40E_VF_DISABLE, &pf->state))
 		return;
@@ -988,6 +988,11 @@ complete_reset:
 	}
 	/* tell the VF the reset is done */
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_id), I40E_VFR_VFACTIVE);
+
+	/* clear the VFLR bit in GLGEN_VFLRSTAT */
+	reg_idx = (hw->func_caps.vf_base_id + vf->vf_id) / 32;
+	bit_idx = (hw->func_caps.vf_base_id + vf->vf_id) % 32;
+	wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
 	i40e_flush(hw);
 	clear_bit(__I40E_VF_DISABLE, &pf->state);
 }
@@ -2293,9 +2298,7 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 		vf = &pf->vf[vf_id];
 		reg = rd32(hw, I40E_GLGEN_VFLRSTAT(reg_idx));
 		if (reg & BIT(bit_idx)) {
-			/* clear the bit in GLGEN_VFLRSTAT */
-			wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
-
+			/* i40e_reset_vf will clear the bit in GLGEN_VFLRSTAT */
 			if (!test_bit(__I40E_DOWN, &pf->state))
 				i40e_reset_vf(vf, true);
 		}
