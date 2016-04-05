@@ -49,6 +49,7 @@ struct i915_mmu_notifier {
 	struct hlist_node node;
 	struct mmu_notifier mn;
 	struct rb_root objects;
+	struct workqueue_struct *wq;
 };
 
 struct i915_mmu_object {
@@ -59,6 +60,40 @@ struct i915_mmu_object {
 	struct work_struct work;
 	bool attached;
 };
+
+static void wait_rendering(struct drm_i915_gem_object *obj)
+{
+	struct drm_device *dev = obj->base.dev;
+	struct drm_i915_gem_request *requests[I915_NUM_ENGINES];
+	unsigned reset_counter;
+	int i, n;
+
+	if (!obj->active)
+		return;
+
+	n = 0;
+	for (i = 0; i < I915_NUM_ENGINES; i++) {
+		struct drm_i915_gem_request *req;
+
+		req = obj->last_read_req[i];
+		if (req == NULL)
+			continue;
+
+		requests[n++] = i915_gem_request_reference(req);
+	}
+
+	reset_counter = atomic_read(&to_i915(dev)->gpu_error.reset_counter);
+	mutex_unlock(&dev->struct_mutex);
+
+	for (i = 0; i < n; i++)
+		__i915_wait_request(requests[i], reset_counter, false,
+				    NULL, NULL);
+
+	mutex_lock(&dev->struct_mutex);
+
+	for (i = 0; i < n; i++)
+		i915_gem_request_unreference(requests[i]);
+}
 
 static void cancel_userptr(struct work_struct *work)
 {
@@ -74,6 +109,8 @@ static void cancel_userptr(struct work_struct *work)
 		struct drm_i915_private *dev_priv = to_i915(dev);
 		struct i915_vma *vma, *tmp;
 		bool was_interruptible;
+
+		wait_rendering(obj);
 
 		was_interruptible = dev_priv->mm.interruptible;
 		dev_priv->mm.interruptible = false;
@@ -140,7 +177,7 @@ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 		 */
 		mo = container_of(it, struct i915_mmu_object, it);
 		if (kref_get_unless_zero(&mo->obj->base.refcount))
-			schedule_work(&mo->work);
+			queue_work(mn->wq, &mo->work);
 
 		list_add(&mo->link, &cancelled);
 		it = interval_tree_iter_next(it, start, end);
@@ -148,6 +185,8 @@ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 	list_for_each_entry(mo, &cancelled, link)
 		del_object(mo);
 	spin_unlock(&mn->lock);
+
+	flush_workqueue(mn->wq);
 }
 
 static const struct mmu_notifier_ops i915_gem_userptr_notifier = {
@@ -167,10 +206,16 @@ i915_mmu_notifier_create(struct mm_struct *mm)
 	spin_lock_init(&mn->lock);
 	mn->mn.ops = &i915_gem_userptr_notifier;
 	mn->objects = RB_ROOT;
+	mn->wq = alloc_workqueue("i915-userptr-release", WQ_UNBOUND, 0);
+	if (mn->wq == NULL) {
+		kfree(mn);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	 /* Protected by mmap_sem (write-lock) */
 	ret = __mmu_notifier_register(&mn->mn, mm);
 	if (ret) {
+		destroy_workqueue(mn->wq);
 		kfree(mn);
 		return ERR_PTR(ret);
 	}
@@ -256,6 +301,7 @@ i915_mmu_notifier_free(struct i915_mmu_notifier *mn,
 		return;
 
 	mmu_notifier_unregister(&mn->mn, mm);
+	destroy_workqueue(mn->wq);
 	kfree(mn);
 }
 
