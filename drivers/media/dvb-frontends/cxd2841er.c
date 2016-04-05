@@ -3133,6 +3133,18 @@ static int cxd2841er_init_s(struct dvb_frontend *fe)
 {
 	struct cxd2841er_priv *priv = fe->demodulator_priv;
 
+	/* sanity. force demod to SHUTDOWN state */
+	if (priv->state == STATE_SLEEP_S) {
+		dev_dbg(&priv->i2c->dev, "%s() forcing sleep->shutdown\n",
+				__func__);
+		cxd2841er_sleep_s_to_shutdown(priv);
+	} else if (priv->state == STATE_ACTIVE_S) {
+		dev_dbg(&priv->i2c->dev, "%s() forcing active->sleep->shutdown\n",
+				__func__);
+		cxd2841er_active_s_to_sleep_s(priv);
+		cxd2841er_sleep_s_to_shutdown(priv);
+	}
+
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	cxd2841er_shutdown_to_sleep_s(priv);
 	/* SONY_DEMOD_CONFIG_SAT_IFAGCNEG set to 1 */
