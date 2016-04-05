@@ -10,6 +10,8 @@
  * of the License.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
@@ -571,7 +573,7 @@ static ssize_t store_no_turbo(struct kobject *a, struct attribute *b,
 
 	update_turbo_state();
 	if (limits->turbo_disabled) {
-		pr_warn("intel_pstate: Turbo disabled by BIOS or unavailable on processor\n");
+		pr_warn("Turbo disabled by BIOS or unavailable on processor\n");
 		return -EPERM;
 	}
 
@@ -1239,7 +1241,7 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 
 	intel_pstate_busy_pid_reset(cpu);
 
-	pr_debug("intel_pstate: controlling: cpu %d\n", cpunum);
+	pr_debug("controlling: cpu %d\n", cpunum);
 
 	return 0;
 }
@@ -1296,12 +1298,12 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		limits = &performance_limits;
 		if (policy->max >= policy->cpuinfo.max_freq) {
-			pr_debug("intel_pstate: set performance\n");
+			pr_debug("set performance\n");
 			intel_pstate_set_performance_limits(limits);
 			goto out;
 		}
 	} else {
-		pr_debug("intel_pstate: set powersave\n");
+		pr_debug("set powersave\n");
 		limits = &powersave_limits;
 	}
 
@@ -1353,7 +1355,7 @@ static void intel_pstate_stop_cpu(struct cpufreq_policy *policy)
 	int cpu_num = policy->cpu;
 	struct cpudata *cpu = all_cpu_data[cpu_num];
 
-	pr_debug("intel_pstate: CPU %d exiting\n", cpu_num);
+	pr_debug("CPU %d exiting\n", cpu_num);
 
 	intel_pstate_clear_update_util_hook(cpu_num);
 
@@ -1598,7 +1600,7 @@ hwp_cpu_matched:
 	if (intel_pstate_platform_pwr_mgmt_exists())
 		return -ENODEV;
 
-	pr_info("Intel P-state driver initializing.\n");
+	pr_info("Intel P-state driver initializing\n");
 
 	all_cpu_data = vzalloc(sizeof(void *) * num_possible_cpus());
 	if (!all_cpu_data)
@@ -1615,7 +1617,7 @@ hwp_cpu_matched:
 	intel_pstate_sysfs_expose_params();
 
 	if (hwp_active)
-		pr_info("intel_pstate: HWP enabled\n");
+		pr_info("HWP enabled\n");
 
 	return rc;
 out:
@@ -1641,7 +1643,7 @@ static int __init intel_pstate_setup(char *str)
 	if (!strcmp(str, "disable"))
 		no_load = 1;
 	if (!strcmp(str, "no_hwp")) {
-		pr_info("intel_pstate: HWP disabled\n");
+		pr_info("HWP disabled\n");
 		no_hwp = 1;
 	}
 	if (!strcmp(str, "force"))
