@@ -104,8 +104,8 @@ static inline void dmadesc_set_addr(struct bcmgenet_priv *priv,
 static inline void dmadesc_set(struct bcmgenet_priv *priv,
 			       void __iomem *d, dma_addr_t addr, u32 val)
 {
-	dmadesc_set_length_status(priv, d, val);
 	dmadesc_set_addr(priv, d, addr);
+	dmadesc_set_length_status(priv, d, val);
 }
 
 static inline dma_addr_t dmadesc_get_addr(struct bcmgenet_priv *priv,
