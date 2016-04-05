@@ -630,6 +630,44 @@ void skl_disable_dc6(struct drm_i915_private *dev_priv)
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 }
 
+static void
+gen9_sanitize_power_well_requests(struct drm_i915_private *dev_priv,
+				  struct i915_power_well *power_well)
+{
+	enum skl_disp_power_wells power_well_id = power_well->data;
+	u32 val;
+	u32 mask;
+
+	mask = SKL_POWER_WELL_REQ(power_well_id);
+
+	val = I915_READ(HSW_PWR_WELL_KVMR);
+	if (WARN_ONCE(val & mask, "Clearing unexpected KVMR request for %s\n",
+		      power_well->name))
+		I915_WRITE(HSW_PWR_WELL_KVMR, val & ~mask);
+
+	val = I915_READ(HSW_PWR_WELL_BIOS);
+	val |= I915_READ(HSW_PWR_WELL_DEBUG);
+
+	if (!(val & mask))
+		return;
+
+	/*
+	 * DMC is known to force on the request bits for power well 1 on SKL
+	 * and BXT and the misc IO power well on SKL but we don't expect any
+	 * other request bits to be set, so WARN for those.
+	 */
+	if (power_well_id == SKL_DISP_PW_1 ||
+	    (IS_SKYLAKE(dev_priv) && power_well_id == SKL_DISP_PW_MISC_IO))
+		DRM_DEBUG_DRIVER("Clearing auxiliary requests for %s forced on "
+				 "by DMC\n", power_well->name);
+	else
+		WARN_ONCE(1, "Clearing unexpected auxiliary requests for %s\n",
+			  power_well->name);
+
+	I915_WRITE(HSW_PWR_WELL_BIOS, val & ~mask);
+	I915_WRITE(HSW_PWR_WELL_DEBUG, val & ~mask);
+}
+
 static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			struct i915_power_well *power_well, bool enable)
 {
@@ -696,6 +734,9 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			POSTING_READ(HSW_PWR_WELL_DRIVER);
 			DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
 		}
+
+		if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
+			gen9_sanitize_power_well_requests(dev_priv, power_well);
 	}
 
 	if (check_fuse_status) {
