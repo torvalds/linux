@@ -576,15 +576,15 @@ static int add_as_linear_device(struct dm_target *ti, char *dev)
 					DM_LINEAR_TARGET_OFFSET};
 	int err = 0;
 
-	android_verity_target.dtr = linear_target.dtr,
-	android_verity_target.map = linear_target.map,
-	android_verity_target.status = linear_target.status,
-	android_verity_target.ioctl = linear_target.ioctl,
-	android_verity_target.merge = linear_target.merge,
-	android_verity_target.iterate_devices = linear_target.iterate_devices,
+	android_verity_target.dtr = dm_linear_dtr,
+	android_verity_target.map = dm_linear_map,
+	android_verity_target.status = dm_linear_status,
+	android_verity_target.ioctl = dm_linear_ioctl,
+	android_verity_target.merge = dm_linear_merge,
+	android_verity_target.iterate_devices = dm_linear_iterate_devices,
 	android_verity_target.io_hints = NULL;
 
-	err = linear_target.ctr(ti, DM_LINEAR_ARGS, linear_table_args);
+	err = dm_linear_ctr(ti, DM_LINEAR_ARGS, linear_table_args);
 
 	if (!err) {
 		DMINFO("Added android-verity as a linear target");
