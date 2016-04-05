@@ -3124,6 +3124,8 @@ static int vop_set_writeback(struct rk_lcdc_driver *dev_drv)
 		return 0;
 	}
 	wb_data = &dev_drv->wb_data;
+	if ((wb_data->xsize == 0) || (wb_data->ysize == 0))
+		return 0;
 
 	xsize = wb_data->xsize;
 	ysize = wb_data->ysize;
@@ -3147,12 +3149,17 @@ static int vop_set_writeback(struct rk_lcdc_driver *dev_drv)
 
 	switch (wb_data->data_format) {
 	case ARGB888:
+	case ABGR888:
+	case XRGB888:
+	case XBGR888:
 		fmt_cfg = 0;
 		break;
 	case RGB888:
+	case BGR888:
 		fmt_cfg = 1;
 		break;
 	case RGB565:
+	case BGR565:
 		fmt_cfg = 2;
 		break;
 	case YUV420:
@@ -4577,13 +4584,14 @@ static irqreturn_t vop_isr(int irq, void *dev_id)
 
 	if (intr_status & INTR_FS) {
 		timestamp = ktime_get();
-		if (vop_dev->wb_on) {
+		if (vop_dev->driver.wb_data.state) {
 			u32 wb_status;
 
 			spin_lock_irqsave(&vop_dev->irq_lock, flags);
 			wb_status = vop_read_bit(vop_dev, WB_CTRL0, V_WB_EN(0));
+
 			if (wb_status)
-				vop_set_bit(vop_dev, WB_CTRL0, V_WB_EN(0));
+				vop_clr_bit(vop_dev, WB_CTRL0, V_WB_EN(0));
 
 			vop_cfg_done(vop_dev);
 			vop_dev->driver.wb_data.state = 0;
@@ -4802,6 +4810,7 @@ static int vop_probe(struct platform_device *pdev)
 				       VOPL_IOMMU_COMPATIBLE_NAME);
 		}
 	}
+	dev_drv->property.feature |= SUPPORT_WRITE_BACK;
 	ret = rk_fb_register(dev_drv, vop_dev->data->win, vop_dev->id);
 	if (ret < 0) {
 		dev_err(dev, "register fb for lcdc%d failed!\n", vop_dev->id);
