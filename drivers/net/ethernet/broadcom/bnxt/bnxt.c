@@ -4557,6 +4557,9 @@ static void
 bnxt_hwrm_set_pause_common(struct bnxt *bp, struct hwrm_port_phy_cfg_input *req)
 {
 	if (bp->link_info.autoneg & BNXT_AUTONEG_FLOW_CTRL) {
+		if (bp->hwrm_spec_code >= 0x10201)
+			req->auto_pause =
+				PORT_PHY_CFG_REQ_AUTO_PAUSE_AUTONEG_PAUSE;
 		if (bp->link_info.req_flow_ctrl & BNXT_LINK_PAUSE_RX)
 			req->auto_pause |= PORT_PHY_CFG_REQ_AUTO_PAUSE_RX;
 		if (bp->link_info.req_flow_ctrl & BNXT_LINK_PAUSE_TX)
@@ -4570,6 +4573,11 @@ bnxt_hwrm_set_pause_common(struct bnxt *bp, struct hwrm_port_phy_cfg_input *req)
 			req->force_pause |= PORT_PHY_CFG_REQ_FORCE_PAUSE_TX;
 		req->enables |=
 			cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_FORCE_PAUSE);
+		if (bp->hwrm_spec_code >= 0x10201) {
+			req->auto_pause = req->force_pause;
+			req->enables |= cpu_to_le32(
+				PORT_PHY_CFG_REQ_ENABLES_AUTO_PAUSE);
+		}
 	}
 }
 
@@ -4656,7 +4664,8 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 		return rc;
 	}
 	if ((link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL) &&
-	    link_info->auto_pause_setting != link_info->req_flow_ctrl)
+	    (link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) !=
+	    link_info->req_flow_ctrl)
 		update_pause = true;
 	if (!(link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL) &&
 	    link_info->force_pause_setting != link_info->req_flow_ctrl)
@@ -5825,15 +5834,24 @@ static int bnxt_probe_phy(struct bnxt *bp)
 
 	/*initialize the ethool setting copy with NVM settings */
 	if (BNXT_AUTO_MODE(link_info->auto_mode)) {
-		link_info->autoneg = BNXT_AUTONEG_SPEED |
-				     BNXT_AUTONEG_FLOW_CTRL;
+		link_info->autoneg = BNXT_AUTONEG_SPEED;
+		if (bp->hwrm_spec_code >= 0x10201) {
+			if (link_info->auto_pause_setting &
+			    PORT_PHY_CFG_REQ_AUTO_PAUSE_AUTONEG_PAUSE)
+				link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
+		} else {
+			link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
+		}
 		link_info->advertising = link_info->auto_link_speeds;
-		link_info->req_flow_ctrl = link_info->auto_pause_setting;
 	} else {
 		link_info->req_link_speed = link_info->force_link_speed;
 		link_info->req_duplex = link_info->duplex_setting;
-		link_info->req_flow_ctrl = link_info->force_pause_setting;
 	}
+	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
+		link_info->req_flow_ctrl =
+			link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH;
+	else
+		link_info->req_flow_ctrl = link_info->force_pause_setting;
 	return rc;
 }
 

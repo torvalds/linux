@@ -874,7 +874,9 @@ static int bnxt_set_pauseparam(struct net_device *dev,
 			return -EINVAL;
 
 		link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
-		link_info->req_flow_ctrl |= BNXT_LINK_PAUSE_BOTH;
+		if (bp->hwrm_spec_code >= 0x10201)
+			link_info->req_flow_ctrl =
+				PORT_PHY_CFG_REQ_AUTO_PAUSE_AUTONEG_PAUSE;
 	} else {
 		/* when transition from auto pause to force pause,
 		 * force a link change
@@ -882,17 +884,13 @@ static int bnxt_set_pauseparam(struct net_device *dev,
 		if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
 			link_info->force_link_chng = true;
 		link_info->autoneg &= ~BNXT_AUTONEG_FLOW_CTRL;
-		link_info->req_flow_ctrl &= ~BNXT_LINK_PAUSE_BOTH;
+		link_info->req_flow_ctrl = 0;
 	}
 	if (epause->rx_pause)
 		link_info->req_flow_ctrl |= BNXT_LINK_PAUSE_RX;
-	else
-		link_info->req_flow_ctrl &= ~BNXT_LINK_PAUSE_RX;
 
 	if (epause->tx_pause)
 		link_info->req_flow_ctrl |= BNXT_LINK_PAUSE_TX;
-	else
-		link_info->req_flow_ctrl &= ~BNXT_LINK_PAUSE_TX;
 
 	if (netif_running(dev))
 		rc = bnxt_hwrm_set_pause(bp);
