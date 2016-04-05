@@ -230,10 +230,24 @@ out:
 	return -ENOSPC;
 }
 
+int perf_output_begin_forward(struct perf_output_handle *handle,
+			     struct perf_event *event, unsigned int size)
+{
+	return __perf_output_begin(handle, event, size, false);
+}
+
+int perf_output_begin_backward(struct perf_output_handle *handle,
+			       struct perf_event *event, unsigned int size)
+{
+	return __perf_output_begin(handle, event, size, true);
+}
+
 int perf_output_begin(struct perf_output_handle *handle,
 		      struct perf_event *event, unsigned int size)
 {
-	return __perf_output_begin(handle, event, size, false);
+
+	return __perf_output_begin(handle, event, size,
+				   unlikely(is_write_backward(event)));
 }
 
 unsigned int perf_output_copy(struct perf_output_handle *handle,
