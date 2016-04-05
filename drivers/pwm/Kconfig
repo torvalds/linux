@@ -372,6 +372,13 @@ config PWM_STI
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-sti.
 
+config PWM_STMPE
+	bool "STMPE expander PWM export"
+	depends on MFD_STMPE
+	help
+	  This enables support for the PWMs found in the STMPE I/O
+	  expanders.
+
 config PWM_SUN4I
 	tristate "Allwinner PWM support"
 	depends on ARCH_SUNXI || COMPILE_TEST
