@@ -158,6 +158,15 @@ static inline __sum16 udp_v4_check(int len, __be32 saddr,
 void udp_set_csum(bool nocheck, struct sk_buff *skb,
 		  __be32 saddr, __be32 daddr, int len);
 
+static inline void udp_csum_pull_header(struct sk_buff *skb)
+{
+	if (skb->ip_summed == CHECKSUM_NONE)
+		skb->csum = csum_partial(udp_hdr(skb), sizeof(struct udphdr),
+					 skb->csum);
+	skb_pull_rcsum(skb, sizeof(struct udphdr));
+	UDP_SKB_CB(skb)->cscov -= sizeof(struct udphdr);
+}
+
 struct sk_buff **udp_gro_receive(struct sk_buff **head, struct sk_buff *skb,
 				 struct udphdr *uh);
 int udp_gro_complete(struct sk_buff *skb, int nhoff);
