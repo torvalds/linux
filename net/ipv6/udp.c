@@ -326,6 +326,19 @@ static struct sock *__udp6_lib_lookup_skb(struct sk_buff *skb,
 				 udptable, skb);
 }
 
+struct sock *udp6_lib_lookup_skb(struct sk_buff *skb,
+				 __be16 sport, __be16 dport)
+{
+	const struct ipv6hdr *iph = ipv6_hdr(skb);
+	const struct net_device *dev =
+	    skb_dst(skb) ? skb_dst(skb)->dev : skb->dev;
+
+	return __udp6_lib_lookup(dev_net(dev), &iph->saddr, sport,
+				 &iph->daddr, dport, inet6_iif(skb),
+				 &udp_table, skb);
+}
+EXPORT_SYMBOL_GPL(udp6_lib_lookup_skb);
+
 /* Must be called under rcu_read_lock().
  * Does increment socket refcount.
  */
