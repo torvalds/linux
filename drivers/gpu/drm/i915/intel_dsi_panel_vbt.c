@@ -187,13 +187,53 @@ static const u8 *mipi_exec_delay(struct intel_dsi *intel_dsi, const u8 *data)
 	return data;
 }
 
+static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
+			  u8 gpio_source, u8 gpio_index, bool value)
+{
+	u16 pconf0, padval;
+	u32 tmp;
+	u8 port;
+
+	if (gpio_index >= ARRAY_SIZE(vlv_gpio_table)) {
+		DRM_DEBUG_KMS("unknown gpio index %u\n", gpio_index);
+		return;
+	}
+
+	if (dev_priv->vbt.dsi.seq_version >= 3) {
+		DRM_DEBUG_KMS("GPIO element v3 not supported\n");
+		return;
+	} else {
+		if (gpio_source == 0) {
+			port = IOSF_PORT_GPIO_NC;
+		} else if (gpio_source == 1) {
+			port = IOSF_PORT_GPIO_SC;
+		} else {
+			DRM_DEBUG_KMS("unknown gpio source %u\n", gpio_source);
+			return;
+		}
+	}
+
+	pconf0 = VLV_GPIO_PCONF0(vlv_gpio_table[gpio_index].base_offset);
+	padval = VLV_GPIO_PAD_VAL(vlv_gpio_table[gpio_index].base_offset);
+
+	mutex_lock(&dev_priv->sb_lock);
+	if (!vlv_gpio_table[gpio_index].init) {
+		/* FIXME: remove constant below */
+		vlv_iosf_sb_write(dev_priv, port, pconf0, 0x2000CC00);
+		vlv_gpio_table[gpio_index].init = true;
+	}
+
+	tmp = 0x4 | value;
+	vlv_iosf_sb_write(dev_priv, port, padval, tmp);
+	mutex_unlock(&dev_priv->sb_lock);
+}
+
 static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 {
-	u8 gpio_source, gpio_index, action, port;
-	u16 pconf0, padval;
-	u32 val;
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u8 gpio_source, gpio_index;
+	bool value;
 
 	if (dev_priv->vbt.dsi.seq_version >= 3)
 		data++;
@@ -207,50 +247,13 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 		gpio_source = 0;
 
 	/* pull up/down */
-	action = *data++ & 1;
+	value = *data++ & 1;
 
-	if (gpio_index >= ARRAY_SIZE(vlv_gpio_table)) {
-		DRM_DEBUG_KMS("unknown gpio index %u\n", gpio_index);
-		goto out;
-	}
-
-	if (!IS_VALLEYVIEW(dev_priv)) {
+	if (IS_VALLEYVIEW(dev_priv))
+		vlv_exec_gpio(dev_priv, gpio_source, gpio_index, value);
+	else
 		DRM_DEBUG_KMS("GPIO element not supported on this platform\n");
-		goto out;
-	}
 
-	if (dev_priv->vbt.dsi.seq_version >= 3) {
-		DRM_DEBUG_KMS("GPIO element v3 not supported\n");
-		goto out;
-	} else {
-		if (gpio_source == 0) {
-			port = IOSF_PORT_GPIO_NC;
-		} else if (gpio_source == 1) {
-			port = IOSF_PORT_GPIO_SC;
-		} else {
-			DRM_DEBUG_KMS("unknown gpio source %u\n", gpio_source);
-			goto out;
-		}
-	}
-
-	pconf0 = VLV_GPIO_PCONF0(vlv_gpio_table[gpio_index].base_offset);
-	padval = VLV_GPIO_PAD_VAL(vlv_gpio_table[gpio_index].base_offset);
-
-	mutex_lock(&dev_priv->sb_lock);
-	if (!vlv_gpio_table[gpio_index].init) {
-		/* program the function */
-		/* FIXME: remove constant below */
-		vlv_iosf_sb_write(dev_priv, port, pconf0, 0x2000CC00);
-		vlv_gpio_table[gpio_index].init = true;
-	}
-
-	val = 0x4 | action;
-
-	/* pull up/down */
-	vlv_iosf_sb_write(dev_priv, port, padval, val);
-	mutex_unlock(&dev_priv->sb_lock);
-
-out:
 	return data;
 }
 
