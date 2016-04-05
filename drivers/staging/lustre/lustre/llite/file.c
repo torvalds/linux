@@ -908,7 +908,7 @@ static int ll_lease_close(struct obd_client_handle *och, struct inode *inode,
 		lock_res_and_lock(lock);
 		cancelled = ldlm_is_cancel(lock);
 		unlock_res_and_lock(lock);
-		ldlm_lock_put(lock);
+		LDLM_LOCK_PUT(lock);
 	}
 
 	CDEBUG(D_INODE, "lease for " DFID " broken? %d\n",
@@ -2509,7 +2509,7 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					rc = och->och_flags &
 						(FMODE_READ | FMODE_WRITE);
 				unlock_res_and_lock(lock);
-				ldlm_lock_put(lock);
+				LDLM_LOCK_PUT(lock);
 			}
 		}
 		mutex_unlock(&lli->lli_och_mutex);
