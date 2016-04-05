@@ -2444,6 +2444,22 @@ static struct bpf_test tests[] = {
 		{ { 0, 4294967295U } },
 	},
 	{
+		"ALU_ADD_X: 2 + 4294967294 = 0",
+		.u.insns_int = {
+			BPF_LD_IMM64(R0, 2),
+			BPF_LD_IMM64(R1, 4294967294U),
+			BPF_ALU32_REG(BPF_ADD, R0, R1),
+			BPF_JMP_IMM(BPF_JEQ, R0, 0, 2),
+			BPF_ALU32_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+			BPF_ALU32_IMM(BPF_MOV, R0, 1),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 1 } },
+	},
+	{
 		"ALU64_ADD_X: 1 + 2 = 3",
 		.u.insns_int = {
 			BPF_LD_IMM64(R0, 1),
@@ -2466,6 +2482,23 @@ static struct bpf_test tests[] = {
 		INTERNAL,
 		{ },
 		{ { 0, 4294967295U } },
+	},
+	{
+		"ALU64_ADD_X: 2 + 4294967294 = 4294967296",
+		.u.insns_int = {
+			BPF_LD_IMM64(R0, 2),
+			BPF_LD_IMM64(R1, 4294967294U),
+			BPF_LD_IMM64(R2, 4294967296ULL),
+			BPF_ALU64_REG(BPF_ADD, R0, R1),
+			BPF_JMP_REG(BPF_JEQ, R0, R2, 2),
+			BPF_MOV32_IMM(R0, 0),
+			BPF_EXIT_INSN(),
+			BPF_MOV32_IMM(R0, 1),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 1 } },
 	},
 	/* BPF_ALU | BPF_ADD | BPF_K */
 	{
@@ -2500,6 +2533,21 @@ static struct bpf_test tests[] = {
 		INTERNAL,
 		{ },
 		{ { 0, 4294967295U } },
+	},
+	{
+		"ALU_ADD_K: 4294967294 + 2 = 0",
+		.u.insns_int = {
+			BPF_LD_IMM64(R0, 4294967294U),
+			BPF_ALU32_IMM(BPF_ADD, R0, 2),
+			BPF_JMP_IMM(BPF_JEQ, R0, 0, 2),
+			BPF_ALU32_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+			BPF_ALU32_IMM(BPF_MOV, R0, 1),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 1 } },
 	},
 	{
 		"ALU_ADD_K: 0 + (-1) = 0x00000000ffffffff",
@@ -2549,6 +2597,22 @@ static struct bpf_test tests[] = {
 		INTERNAL,
 		{ },
 		{ { 0, 2147483647 } },
+	},
+	{
+		"ALU64_ADD_K: 4294967294 + 2 = 4294967296",
+		.u.insns_int = {
+			BPF_LD_IMM64(R0, 4294967294U),
+			BPF_LD_IMM64(R1, 4294967296ULL),
+			BPF_ALU64_IMM(BPF_ADD, R0, 2),
+			BPF_JMP_REG(BPF_JEQ, R0, R1, 2),
+			BPF_ALU32_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+			BPF_ALU32_IMM(BPF_MOV, R0, 1),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 1 } },
 	},
 	{
 		"ALU64_ADD_K: 2147483646 + -2147483647 = -1",
