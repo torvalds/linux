@@ -154,8 +154,7 @@ struct ptldebug_header {
 #define D_QUOTA		0x04000000
 #define D_SEC		0x08000000
 #define D_LFSCK		0x10000000 /* For both OI scrub and LFSCK */
-
-#define D_HSM	 D_TRACE
+#define D_HSM		0x20000000
 
 #define LIBCFS_DEBUG_MASKS_NAMES {					\
 	"trace", "inode", "super", "ext2", "malloc", "cache", "info",	\
