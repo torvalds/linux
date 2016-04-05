@@ -48,6 +48,7 @@ struct omap_chan {
 	unsigned dma_sig;
 	bool cyclic;
 	bool paused;
+	bool running;
 
 	int dma_ch;
 	struct omap_desc *desc;
@@ -294,6 +295,8 @@ static void omap_dma_start(struct omap_chan *c, struct omap_desc *d)
 
 	/* Enable channel */
 	omap_dma_chan_write(c, CCR, d->ccr | CCR_ENABLE);
+
+	c->running = true;
 }
 
 static void omap_dma_stop(struct omap_chan *c)
@@ -355,6 +358,8 @@ static void omap_dma_stop(struct omap_chan *c)
 
 		omap_dma_chan_write(c, CLNK_CTRL, val);
 	}
+
+	c->running = false;
 }
 
 static void omap_dma_start_sg(struct omap_chan *c, struct omap_desc *d,
@@ -673,15 +678,20 @@ static enum dma_status omap_dma_tx_status(struct dma_chan *chan,
 	struct omap_chan *c = to_omap_dma_chan(chan);
 	struct virt_dma_desc *vd;
 	enum dma_status ret;
-	uint32_t ccr;
 	unsigned long flags;
 
-	ccr = omap_dma_chan_read(c, CCR);
-	/* The channel is no longer active, handle the completion right away */
-	if (!(ccr & CCR_ENABLE))
-		omap_dma_callback(c->dma_ch, 0, c);
-
 	ret = dma_cookie_status(chan, cookie, txstate);
+
+	if (!c->paused && c->running) {
+		uint32_t ccr = omap_dma_chan_read(c, CCR);
+		/*
+		 * The channel is no longer active, set the return value
+		 * accordingly
+		 */
+		if (!(ccr & CCR_ENABLE))
+			ret = DMA_COMPLETE;
+	}
+
 	if (ret == DMA_COMPLETE || !txstate)
 		return ret;
 
