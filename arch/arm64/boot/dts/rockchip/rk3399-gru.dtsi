@@ -810,6 +810,30 @@ ap_i2c_audio: &i2c8 {
 	dr_mode = "host";	// TODO: needed?
 };
 
+&edp {
+	status = "okay";
+};
+
+&vopb {
+	status = "okay";
+};
+
+&vopb_mmu {
+	status = "okay";
+};
+
+&vopl {
+	status = "okay";
+};
+
+&vopl_mmu {
+	status = "okay";
+};
+
+&display_subsystem {
+	status = "okay";
+};
+
 /* PINCTRL: always below everything else */
 
 &pinctrl {
