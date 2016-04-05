@@ -297,6 +297,7 @@ int read_nic_byte_E(struct net_device *dev, int indx, u8 *data)
 
 	return 0;
 }
+
 /* as 92U has extend page from 4 to 16, so modify functions below. */
 void write_nic_byte(struct net_device *dev, int indx, u8 data)
 {
@@ -768,6 +769,7 @@ static u32 get_rxpacket_shiftbytes_819xusb(struct ieee80211_rx_stats *pstats)
 	return (sizeof(rx_desc_819x_usb) + pstats->RxDrvInfoSize
 		+ pstats->RxBufShift);
 }
+
 static int rtl8192_rx_initiate(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -864,6 +866,7 @@ void rtl8192_set_rxconf(struct net_device *dev)
 
 	write_nic_dword(dev, RCR, rxconf);
 }
+
 /* wait to be removed */
 void rtl8192_rx_enable(struct net_device *dev)
 {
@@ -935,6 +938,7 @@ inline u16 ieeerate2rtlrate(int rate)
 		return 3;
 	}
 }
+
 static u16 rtl_rate[] = {10, 20, 55, 110, 60, 90, 120, 180, 240, 360, 480, 540};
 inline u16 rtl8192_rate2rate(short rate)
 {
@@ -1261,6 +1265,7 @@ static void rtl8192_update_cap(struct net_device *dev, u16 cap)
 		write_nic_byte(dev, SLOT_TIME, slot_time);
 	}
 }
+
 static void rtl8192_net_update(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -1298,6 +1303,7 @@ void rtl819xusb_beacon_tx(struct net_device *dev, u16  tx_rate)
 {
 
 }
+
 inline u8 rtl8192_IsWirelessBMode(u16 rate)
 {
 	if (((rate <= 110) && (rate != 60) && (rate != 90)) || (rate == 220))
@@ -1765,6 +1771,7 @@ static short rtl8192_usb_initendpoints(struct net_device *dev)
 	netdev_dbg(dev, "End of initendpoints\n");
 	return 0;
 }
+
 #ifdef THOMAS_BEACON
 static void rtl8192_usb_deleteendpoints(struct net_device *dev)
 {
@@ -1868,6 +1875,7 @@ static void rtl8192_update_beacon(struct work_struct *work)
 		net->bssht.bdRT2RTLongSlotTime;
 	rtl8192_update_cap(dev, net->capability);
 }
+
 /*
 * background support to run QoS activate functionality
 */
@@ -2161,6 +2169,7 @@ static u8 rtl8192_getSupportedWireleeMode(struct net_device *dev)
 	}
 	return ret;
 }
+
 static void rtl8192_SetWirelessMode(struct net_device *dev, u8 wireless_mode)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -2203,6 +2212,7 @@ static void rtl8192_SetWirelessMode(struct net_device *dev, u8 wireless_mode)
 	RT_TRACE(COMP_INIT, "Current Wireless Mode is %x\n", wireless_mode);
 	rtl8192_refresh_supportrate(priv);
 }
+
 /* init priv variables here. only non_zero value should be initialized here. */
 static void rtl8192_init_priv_variable(struct net_device *dev)
 {
@@ -2410,6 +2420,7 @@ static inline u16 endian_swap(u16 *data)
 	*data = (tmp >> 8) | (tmp << 8);
 	return *data;
 }
+
 static void rtl8192_read_eeprom_info(struct net_device *dev)
 {
 	u16 wEPROM_ID = 0;
@@ -3268,6 +3279,7 @@ static void CamRestoreAllEntry(struct net_device *dev)
 			       CAM_CONST_ADDR[0], 0, NULL);
 	}
 }
+
 /* This function is used to fix Tx/Rx stop bug temporarily.
  * This function will do "system reset" to NIC when Tx or Rx is stuck.
  * The method checking Tx/Rx stuck of this function is supported by FW,
@@ -3485,6 +3497,7 @@ static void watch_dog_timer_callback(unsigned long data)
 	mod_timer(&priv->watch_dog_timer,
 		  jiffies + msecs_to_jiffies(IEEE80211_WATCH_DOG_TIME));
 }
+
 static int _rtl8192_up(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -4159,6 +4172,7 @@ static u8 rtl819x_evm_dbtopercentage(char value)
 		ret_val = 100;
 	return ret_val;
 }
+
 /* We want good-looking for signal strength/quality */
 static long rtl819x_signal_scale_mapping(long currsig)
 {
