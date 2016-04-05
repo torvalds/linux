@@ -2122,7 +2122,7 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 	struct ath10k *ar = file->private_data;
 	char buf[32];
 	size_t buf_size;
-	int ret = 0;
+	int ret;
 	bool val;
 
 	buf_size = min(count, (sizeof(buf) - 1));
@@ -2142,8 +2142,10 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 		goto exit;
 	}
 
-	if (!(test_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags) ^ val))
+	if (!(test_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags) ^ val)) {
+		ret = count;
 		goto exit;
+	}
 
 	if (val)
 		set_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags);
@@ -2189,7 +2191,7 @@ static ssize_t ath10k_write_peer_stats(struct file *file,
 	struct ath10k *ar = file->private_data;
 	char buf[32];
 	size_t buf_size;
-	int ret = 0;
+	int ret;
 	bool val;
 
 	buf_size = min(count, (sizeof(buf) - 1));
@@ -2209,8 +2211,10 @@ static ssize_t ath10k_write_peer_stats(struct file *file,
 		goto exit;
 	}
 
-	if (!(test_bit(ATH10K_FLAG_PEER_STATS, &ar->dev_flags) ^ val))
+	if (!(test_bit(ATH10K_FLAG_PEER_STATS, &ar->dev_flags) ^ val)) {
+		ret = count;
 		goto exit;
+	}
 
 	if (val)
 		set_bit(ATH10K_FLAG_PEER_STATS, &ar->dev_flags);
