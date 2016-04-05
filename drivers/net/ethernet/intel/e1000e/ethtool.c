@@ -201,6 +201,9 @@ static int e1000_get_settings(struct net_device *netdev,
 	else
 		ecmd->eth_tp_mdix_ctrl = hw->phy.mdix;
 
+	if (hw->phy.media_type != e1000_media_type_copper)
+		ecmd->eth_tp_mdix_ctrl = ETH_TP_MDI_INVALID;
+
 	return 0;
 }
 
@@ -236,8 +239,13 @@ static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u32 spd, u8 dplx)
 		mac->forced_speed_duplex = ADVERTISE_100_FULL;
 		break;
 	case SPEED_1000 + DUPLEX_FULL:
-		mac->autoneg = 1;
-		adapter->hw.phy.autoneg_advertised = ADVERTISE_1000_FULL;
+		if (adapter->hw.phy.media_type == e1000_media_type_copper) {
+			mac->autoneg = 1;
+			adapter->hw.phy.autoneg_advertised =
+				ADVERTISE_1000_FULL;
+		} else {
+			mac->forced_speed_duplex = ADVERTISE_1000_FULL;
+		}
 		break;
 	case SPEED_1000 + DUPLEX_HALF:	/* not supported */
 	default:
