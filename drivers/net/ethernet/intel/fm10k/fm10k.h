@@ -262,12 +262,12 @@ struct fm10k_intfc {
 	unsigned long state;
 
 	u32 flags;
-#define FM10K_FLAG_RESET_REQUESTED		(u32)(1 << 0)
-#define FM10K_FLAG_RSS_FIELD_IPV4_UDP		(u32)(1 << 1)
-#define FM10K_FLAG_RSS_FIELD_IPV6_UDP		(u32)(1 << 2)
-#define FM10K_FLAG_RX_TS_ENABLED		(u32)(1 << 3)
-#define FM10K_FLAG_SWPRI_CONFIG			(u32)(1 << 4)
-#define FM10K_FLAG_DEBUG_STATS			(u32)(1 << 5)
+#define FM10K_FLAG_RESET_REQUESTED		(u32)(BIT(0))
+#define FM10K_FLAG_RSS_FIELD_IPV4_UDP		(u32)(BIT(1))
+#define FM10K_FLAG_RSS_FIELD_IPV6_UDP		(u32)(BIT(2))
+#define FM10K_FLAG_RX_TS_ENABLED		(u32)(BIT(3))
+#define FM10K_FLAG_SWPRI_CONFIG			(u32)(BIT(4))
+#define FM10K_FLAG_DEBUG_STATS			(u32)(BIT(5))
 	int xcast_mode;
 
 	/* Tx fast path data */
@@ -510,6 +510,8 @@ int fm10k_close(struct net_device *netdev);
 
 /* Ethtool */
 void fm10k_set_ethtool_ops(struct net_device *dev);
+u32 fm10k_get_reta_size(struct net_device *netdev);
+void fm10k_write_reta(struct fm10k_intfc *interface, const u32 *indir);
 
 /* IOV */
 s32 fm10k_iov_event(struct fm10k_intfc *interface);

@@ -153,57 +153,51 @@ static const char fm10k_prv_flags[FM10K_PRV_FLAG_LEN][ETH_GSTRING_LEN] = {
 	"debug-statistics",
 };
 
+static void fm10k_add_stat_strings(char **p, const char *prefix,
+				   const struct fm10k_stats stats[],
+				   const unsigned int size)
+{
+	unsigned int i;
+
+	for (i = 0; i < size; i++) {
+		snprintf(*p, ETH_GSTRING_LEN, "%s%s",
+			 prefix, stats[i].stat_string);
+		*p += ETH_GSTRING_LEN;
+	}
+}
+
 static void fm10k_get_stat_strings(struct net_device *dev, u8 *data)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
 	struct fm10k_iov_data *iov_data = interface->iov_data;
 	char *p = (char *)data;
 	unsigned int i;
-	unsigned int j;
 
-	for (i = 0; i < FM10K_NETDEV_STATS_LEN; i++) {
-		memcpy(p, fm10k_gstrings_net_stats[i].stat_string,
-		       ETH_GSTRING_LEN);
-		p += ETH_GSTRING_LEN;
-	}
+	fm10k_add_stat_strings(&p, "", fm10k_gstrings_net_stats,
+			       FM10K_NETDEV_STATS_LEN);
 
-	for (i = 0; i < FM10K_GLOBAL_STATS_LEN; i++) {
-		memcpy(p, fm10k_gstrings_global_stats[i].stat_string,
-		       ETH_GSTRING_LEN);
-		p += ETH_GSTRING_LEN;
-	}
+	fm10k_add_stat_strings(&p, "", fm10k_gstrings_global_stats,
+			       FM10K_GLOBAL_STATS_LEN);
 
-	if (interface->flags & FM10K_FLAG_DEBUG_STATS) {
-		for (i = 0; i < FM10K_DEBUG_STATS_LEN; i++) {
-			memcpy(p, fm10k_gstrings_debug_stats[i].stat_string,
-			       ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
-		}
-	}
+	if (interface->flags & FM10K_FLAG_DEBUG_STATS)
+		fm10k_add_stat_strings(&p, "", fm10k_gstrings_debug_stats,
+				       FM10K_DEBUG_STATS_LEN);
 
-	for (i = 0; i < FM10K_MBX_STATS_LEN; i++) {
-		memcpy(p, fm10k_gstrings_mbx_stats[i].stat_string,
-		       ETH_GSTRING_LEN);
-		p += ETH_GSTRING_LEN;
-	}
+	fm10k_add_stat_strings(&p, "", fm10k_gstrings_mbx_stats,
+			       FM10K_MBX_STATS_LEN);
 
-	if (interface->hw.mac.type != fm10k_mac_vf) {
-		for (i = 0; i < FM10K_PF_STATS_LEN; i++) {
-			memcpy(p, fm10k_gstrings_pf_stats[i].stat_string,
-			       ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
-		}
-	}
+	if (interface->hw.mac.type != fm10k_mac_vf)
+		fm10k_add_stat_strings(&p, "", fm10k_gstrings_pf_stats,
+				       FM10K_PF_STATS_LEN);
 
 	if ((interface->flags & FM10K_FLAG_DEBUG_STATS) && iov_data) {
 		for (i = 0; i < iov_data->num_vfs; i++) {
-			for (j = 0; j < FM10K_MBX_STATS_LEN; j++) {
-				snprintf(p,
-					 ETH_GSTRING_LEN,
-					 "vf_%u_%s", i,
-					 fm10k_gstrings_mbx_stats[j].stat_string);
-				p += ETH_GSTRING_LEN;
-			}
+			char prefix[ETH_GSTRING_LEN];
+
+			snprintf(prefix, ETH_GSTRING_LEN, "vf_%u_", i);
+			fm10k_add_stat_strings(&p, prefix,
+					       fm10k_gstrings_mbx_stats,
+					       FM10K_MBX_STATS_LEN);
 		}
 	}
 
@@ -271,6 +265,41 @@ static int fm10k_get_sset_count(struct net_device *dev, int sset)
 	}
 }
 
+static void fm10k_add_ethtool_stats(u64 **data, void *pointer,
+				    const struct fm10k_stats stats[],
+				    const unsigned int size)
+{
+	unsigned int i;
+	char *p;
+
+	/* simply skip forward if we were not given a valid pointer */
+	if (!pointer) {
+		*data += size;
+		return;
+	}
+
+	for (i = 0; i < size; i++) {
+		p = (char *)pointer + stats[i].stat_offset;
+
+		switch (stats[i].sizeof_stat) {
+		case sizeof(u64):
+			*((*data)++) = *(u64 *)p;
+			break;
+		case sizeof(u32):
+			*((*data)++) = *(u32 *)p;
+			break;
+		case sizeof(u16):
+			*((*data)++) = *(u16 *)p;
+			break;
+		case sizeof(u8):
+			*((*data)++) = *(u8 *)p;
+			break;
+		default:
+			*((*data)++) = 0;
+		}
+	}
+}
+
 static void fm10k_get_ethtool_stats(struct net_device *netdev,
 				    struct ethtool_stats __always_unused *stats,
 				    u64 *data)
@@ -279,47 +308,29 @@ static void fm10k_get_ethtool_stats(struct net_device *netdev,
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 	struct fm10k_iov_data *iov_data = interface->iov_data;
 	struct net_device_stats *net_stats = &netdev->stats;
-	char *p;
 	int i, j;
 
 	fm10k_update_stats(interface);
 
-	for (i = 0; i < FM10K_NETDEV_STATS_LEN; i++) {
-		p = (char *)net_stats + fm10k_gstrings_net_stats[i].stat_offset;
-		*(data++) = (fm10k_gstrings_net_stats[i].sizeof_stat ==
-			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
-	}
+	fm10k_add_ethtool_stats(&data, net_stats, fm10k_gstrings_net_stats,
+				FM10K_NETDEV_STATS_LEN);
 
-	for (i = 0; i < FM10K_GLOBAL_STATS_LEN; i++) {
-		p = (char *)interface +
-		    fm10k_gstrings_global_stats[i].stat_offset;
-		*(data++) = (fm10k_gstrings_global_stats[i].sizeof_stat ==
-			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
-	}
+	fm10k_add_ethtool_stats(&data, interface, fm10k_gstrings_global_stats,
+				FM10K_GLOBAL_STATS_LEN);
 
-	if (interface->flags & FM10K_FLAG_DEBUG_STATS) {
-		for (i = 0; i < FM10K_DEBUG_STATS_LEN; i++) {
-			p = (char *)interface +
-				fm10k_gstrings_debug_stats[i].stat_offset;
-			*(data++) = (fm10k_gstrings_debug_stats[i].sizeof_stat ==
-				     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
-		}
-	}
+	if (interface->flags & FM10K_FLAG_DEBUG_STATS)
+		fm10k_add_ethtool_stats(&data, interface,
+					fm10k_gstrings_debug_stats,
+					FM10K_DEBUG_STATS_LEN);
 
-	for (i = 0; i < FM10K_MBX_STATS_LEN; i++) {
-		p = (char *)&interface->hw.mbx +
-			fm10k_gstrings_mbx_stats[i].stat_offset;
-		*(data++) = (fm10k_gstrings_mbx_stats[i].sizeof_stat ==
-			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
-	}
+	fm10k_add_ethtool_stats(&data, &interface->hw.mbx,
+				fm10k_gstrings_mbx_stats,
+				FM10K_MBX_STATS_LEN);
 
 	if (interface->hw.mac.type != fm10k_mac_vf) {
-		for (i = 0; i < FM10K_PF_STATS_LEN; i++) {
-			p = (char *)interface +
-			    fm10k_gstrings_pf_stats[i].stat_offset;
-			*(data++) = (fm10k_gstrings_pf_stats[i].sizeof_stat ==
-				     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
-		}
+		fm10k_add_ethtool_stats(&data, interface,
+					fm10k_gstrings_pf_stats,
+					FM10K_PF_STATS_LEN);
 	}
 
 	if ((interface->flags & FM10K_FLAG_DEBUG_STATS) && iov_data) {
@@ -328,18 +339,9 @@ static void fm10k_get_ethtool_stats(struct net_device *netdev,
 
 			vf_info = &iov_data->vf_info[i];
 
-			/* skip stats if we don't have a vf info */
-			if (!vf_info) {
-				data += FM10K_MBX_STATS_LEN;
-				continue;
-			}
-
-			for (j = 0; j < FM10K_MBX_STATS_LEN; j++) {
-				p = (char *)&vf_info->mbx +
-					fm10k_gstrings_mbx_stats[j].stat_offset;
-				*(data++) = (fm10k_gstrings_mbx_stats[j].sizeof_stat ==
-					     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
-			}
+			fm10k_add_ethtool_stats(&data, &vf_info->mbx,
+						fm10k_gstrings_mbx_stats,
+						FM10K_MBX_STATS_LEN);
 		}
 	}
 
@@ -425,7 +427,7 @@ static void fm10k_get_regs(struct net_device *netdev,
 	u32 *buff = p;
 	u16 i;
 
-	regs->version = (1 << 24) | (hw->revision_id << 16) | hw->device_id;
+	regs->version = BIT(24) | (hw->revision_id << 16) | hw->device_id;
 
 	switch (hw->mac.type) {
 	case fm10k_mac_pf:
@@ -935,15 +937,15 @@ static int fm10k_mbx_test(struct fm10k_intfc *interface, u64 *data)
 	struct fm10k_mbx_info *mbx = &hw->mbx;
 	u32 attr_flag, test_msg[6];
 	unsigned long timeout;
-	int err;
+	int err = -EINVAL;
 
 	/* For now this is a VF only feature */
 	if (hw->mac.type != fm10k_mac_vf)
 		return 0;
 
 	/* loop through both nested and unnested attribute types */
-	for (attr_flag = (1 << FM10K_TEST_MSG_UNSET);
-	     attr_flag < (1 << (2 * FM10K_TEST_MSG_NESTED));
+	for (attr_flag = BIT(FM10K_TEST_MSG_UNSET);
+	     attr_flag < BIT(2 * FM10K_TEST_MSG_NESTED);
 	     attr_flag += attr_flag) {
 		/* generate message to be tested */
 		fm10k_tlv_msg_test_create(test_msg, attr_flag);
@@ -1005,7 +1007,7 @@ static u32 fm10k_get_priv_flags(struct net_device *netdev)
 	u32 priv_flags = 0;
 
 	if (interface->flags & FM10K_FLAG_DEBUG_STATS)
-		priv_flags |= 1 << FM10K_PRV_FLAG_DEBUG_STATS;
+		priv_flags |= BIT(FM10K_PRV_FLAG_DEBUG_STATS);
 
 	return priv_flags;
 }
@@ -1014,10 +1016,10 @@ static int fm10k_set_priv_flags(struct net_device *netdev, u32 priv_flags)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 
-	if (priv_flags >= (1 << FM10K_PRV_FLAG_LEN))
+	if (priv_flags >= BIT(FM10K_PRV_FLAG_LEN))
 		return -EINVAL;
 
-	if (priv_flags & (1 << FM10K_PRV_FLAG_DEBUG_STATS))
+	if (priv_flags & BIT(FM10K_PRV_FLAG_DEBUG_STATS))
 		interface->flags |= FM10K_FLAG_DEBUG_STATS;
 	else
 		interface->flags &= ~FM10K_FLAG_DEBUG_STATS;
@@ -1025,9 +1027,29 @@ static int fm10k_set_priv_flags(struct net_device *netdev, u32 priv_flags)
 	return 0;
 }
 
-static u32 fm10k_get_reta_size(struct net_device __always_unused *netdev)
+u32 fm10k_get_reta_size(struct net_device __always_unused *netdev)
 {
 	return FM10K_RETA_SIZE * FM10K_RETA_ENTRIES_PER_REG;
+}
+
+void fm10k_write_reta(struct fm10k_intfc *interface, const u32 *indir)
+{
+	struct fm10k_hw *hw = &interface->hw;
+	int i;
+
+	/* record entries to reta table */
+	for (i = 0; i < FM10K_RETA_SIZE; i++, indir += 4) {
+		u32 reta = indir[0] |
+			   (indir[1] << 8) |
+			   (indir[2] << 16) |
+			   (indir[3] << 24);
+
+		if (interface->reta[i] == reta)
+			continue;
+
+		interface->reta[i] = reta;
+		fm10k_write_reg(hw, FM10K_RETA(0, i), reta);
+	}
 }
 
 static int fm10k_get_reta(struct net_device *netdev, u32 *indir)
@@ -1053,7 +1075,6 @@ static int fm10k_get_reta(struct net_device *netdev, u32 *indir)
 static int fm10k_set_reta(struct net_device *netdev, const u32 *indir)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
-	struct fm10k_hw *hw = &interface->hw;
 	int i;
 	u16 rss_i;
 
@@ -1068,19 +1089,7 @@ static int fm10k_set_reta(struct net_device *netdev, const u32 *indir)
 		return -EINVAL;
 	}
 
-	/* record entries to reta table */
-	for (i = 0; i < FM10K_RETA_SIZE; i++, indir += 4) {
-		u32 reta = indir[0] |
-			   (indir[1] << 8) |
-			   (indir[2] << 16) |
-			   (indir[3] << 24);
-
-		if (interface->reta[i] == reta)
-			continue;
-
-		interface->reta[i] = reta;
-		fm10k_write_reg(hw, FM10K_RETA(0, i), reta);
-	}
+	fm10k_write_reta(interface, indir);
 
 	return 0;
 }
@@ -1145,7 +1154,7 @@ static unsigned int fm10k_max_channels(struct net_device *dev)
 
 	/* For QoS report channels per traffic class */
 	if (tcs > 1)
-		max_combined = 1 << (fls(max_combined / tcs) - 1);
+		max_combined = BIT((fls(max_combined / tcs) - 1));
 
 	return max_combined;
 }
@@ -1210,11 +1219,9 @@ static int fm10k_get_ts_info(struct net_device *dev,
 	else
 		info->phc_index = -1;
 
-	info->tx_types = (1 << HWTSTAMP_TX_OFF) |
-			 (1 << HWTSTAMP_TX_ON);
+	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON);
 
-	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
-			   (1 << HWTSTAMP_FILTER_ALL);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) | BIT(HWTSTAMP_FILTER_ALL);
 
 	return 0;
 }

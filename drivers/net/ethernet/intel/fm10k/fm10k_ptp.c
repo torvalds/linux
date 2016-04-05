@@ -416,7 +416,7 @@ void fm10k_ptp_register(struct fm10k_intfc *interface)
 	/* This math is simply the inverse of the math in
 	 * fm10k_adjust_systime_pf applied to an adjustment value
 	 * of 2^30 - 1 which is the maximum value of the register:
-	 * 	max_ppb == ((2^30 - 1) * 5^9) / 2^31
+	 *	max_ppb == ((2^30 - 1) * 5^9) / 2^31
 	 */
 	ptp_caps->max_adj	= 976562;
 	ptp_caps->adjfreq	= fm10k_ptp_adjfreq;
