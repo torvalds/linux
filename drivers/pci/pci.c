@@ -2389,7 +2389,7 @@ out:
 	return offset + ent_size;
 }
 
-/* Enhanced Allocation Initalization */
+/* Enhanced Allocation Initialization */
 void pci_ea_init(struct pci_dev *dev)
 {
 	int ea;

@@ -819,7 +819,7 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 
 	err = nwl_pcie_bridge_init(pcie);
 	if (err) {
-		dev_err(pcie->dev, "HW Initalization failed\n");
+		dev_err(pcie->dev, "HW Initialization failed\n");
 		return err;
 	}
 
