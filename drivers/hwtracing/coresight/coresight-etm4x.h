@@ -391,4 +391,6 @@ enum etm_addr_type {
 	ETM_ADDR_TYPE_START,
 	ETM_ADDR_TYPE_STOP,
 };
+
+extern const struct attribute_group *coresight_etmv4_groups[];
 #endif
