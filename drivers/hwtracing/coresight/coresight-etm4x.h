@@ -178,6 +178,18 @@
 #define ETMv4_MODE_ALL			0xFFFFFFF
 
 #define TRCSTATR_IDLE_BIT		0
+#define ETM_DEFAULT_ADDR_COMP		0
+
+/* secure state access levels */
+#define ETM_EXLEVEL_S_APP		BIT(8)
+#define ETM_EXLEVEL_S_OS		BIT(9)
+#define ETM_EXLEVEL_S_NA		BIT(10)
+#define ETM_EXLEVEL_S_HYP		BIT(11)
+/* non-secure state access levels */
+#define ETM_EXLEVEL_NS_APP		BIT(12)
+#define ETM_EXLEVEL_NS_OS		BIT(13)
+#define ETM_EXLEVEL_NS_HYP		BIT(14)
+#define ETM_EXLEVEL_NS_NA		BIT(15)
 
 /**
  * struct etmv4_config - configuration information related to an ETMv4
