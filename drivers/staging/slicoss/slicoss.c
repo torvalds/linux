@@ -898,6 +898,7 @@ static void slic_upr_start(struct adapter *adapter)
 {
 	struct slic_upr *upr;
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
+
 	upr = adapter->upr_list;
 	if (!upr)
 		return;
