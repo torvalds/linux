@@ -73,6 +73,8 @@
 #define PCIE_SCRATCH_10_REG				0xCE8
 #define PCIE_SCRATCH_11_REG				0xCEC
 #define PCIE_SCRATCH_12_REG				0xCF0
+#define PCIE_SCRATCH_13_REG				0xCF8
+#define PCIE_SCRATCH_14_REG				0xCFC
 #define PCIE_RD_DATA_PTR_Q0_Q1                          0xC08C
 #define PCIE_WR_DATA_PTR_Q0_Q1                          0xC05C
 
