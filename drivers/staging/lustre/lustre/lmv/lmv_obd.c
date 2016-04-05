@@ -926,7 +926,7 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 		struct obd_quotactl *oqctl;
 
 		if (qctl->qc_valid == QC_MDTIDX) {
-			if (qctl->qc_idx < 0 || count <= qctl->qc_idx)
+			if (count <= qctl->qc_idx)
 				return -EINVAL;
 
 			tgt = lmv->tgts[qctl->qc_idx];
