@@ -1912,6 +1912,7 @@ int of_alias_max_index(const char *stem)
 
 	return max;
 }
+EXPORT_SYMBOL_GPL(of_alias_max_index);
 
 /**
  * of_alias_scan - Scan all properties of the 'aliases' node
