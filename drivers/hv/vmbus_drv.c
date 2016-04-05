@@ -1128,7 +1128,7 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 			resource_size_t size, resource_size_t align,
 			bool fb_overlap_ok)
 {
-	struct resource *iter;
+	struct resource *iter, *shadow;
 	resource_size_t range_min, range_max, start, local_min, local_max;
 	const char *dev_n = dev_name(&device_obj->device);
 	u32 fb_end = screen_info.lfb_base + (screen_info.lfb_size << 1);
@@ -1170,12 +1170,22 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 
 			start = (local_min + align - 1) & ~(align - 1);
 			for (; start + size - 1 <= local_max; start += align) {
+				shadow = __request_region(iter, start,
+							  size,
+							  NULL,
+							  IORESOURCE_BUSY);
+				if (!shadow)
+					continue;
+
 				*new = request_mem_region_exclusive(start, size,
 								    dev_n);
 				if (*new) {
+					shadow->name = (char *)*new;
 					retval = 0;
 					goto exit;
 				}
+
+				__release_region(iter, start, size);
 			}
 		}
 	}
@@ -1196,7 +1206,17 @@ EXPORT_SYMBOL_GPL(vmbus_allocate_mmio);
  */
 void vmbus_free_mmio(resource_size_t start, resource_size_t size)
 {
+	struct resource *iter;
+
+	down(&hyperv_mmio_lock);
+	for (iter = hyperv_mmio; iter; iter = iter->sibling) {
+		if ((iter->start >= start + size) || (iter->end <= start))
+			continue;
+
+		__release_region(iter, start, size);
+	}
 	release_mem_region(start, size);
+	up(&hyperv_mmio_lock);
 
 }
 EXPORT_SYMBOL_GPL(vmbus_free_mmio);
