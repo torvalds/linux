@@ -458,8 +458,10 @@ static void lkdtm_do_action(enum ctype which)
 			break;
 
 		val = kmalloc(len, GFP_KERNEL);
-		if (!val)
+		if (!val) {
+			kfree(base);
 			break;
+		}
 
 		*val = 0x12345678;
 		base[offset] = *val;
