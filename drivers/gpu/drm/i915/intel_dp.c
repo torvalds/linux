@@ -3747,7 +3747,6 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint8_t rev;
 
 	if (intel_dp_dpcd_read_wake(&intel_dp->aux, 0x000, intel_dp->dpcd,
 				    sizeof(intel_dp->dpcd)) < 0)
@@ -3804,6 +3803,15 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 			DRM_DEBUG_KMS("PSR2 %s on sink",
 				dev_priv->psr.psr2_support ? "supported" : "not supported");
 		}
+
+		/* Read the eDP Display control capabilities registers */
+		memset(intel_dp->edp_dpcd, 0, sizeof(intel_dp->edp_dpcd));
+		if ((intel_dp->dpcd[DP_EDP_CONFIGURATION_CAP] & DP_DPCD_DISPLAY_CONTROL_CAPABLE) &&
+				(intel_dp_dpcd_read_wake(&intel_dp->aux, DP_EDP_DPCD_REV,
+						intel_dp->edp_dpcd, sizeof(intel_dp->edp_dpcd)) ==
+								sizeof(intel_dp->edp_dpcd)))
+			DRM_DEBUG_KMS("EDP DPCD : %*ph\n", (int) sizeof(intel_dp->edp_dpcd),
+					intel_dp->edp_dpcd);
 	}
 
 	DRM_DEBUG_KMS("Display Port TPS3 support: source %s, sink %s\n",
@@ -3811,10 +3819,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 		      yesno(drm_dp_tps3_supported(intel_dp->dpcd)));
 
 	/* Intermediate frequency support */
-	if (is_edp(intel_dp) &&
-	    (intel_dp->dpcd[DP_EDP_CONFIGURATION_CAP] &	DP_DPCD_DISPLAY_CONTROL_CAPABLE) &&
-	    (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_EDP_DPCD_REV, &rev, 1) == 1) &&
-	    (rev >= 0x03)) { /* eDp v1.4 or higher */
+	if (is_edp(intel_dp) && (intel_dp->edp_dpcd[0] >= 0x03)) { /* eDp v1.4 or higher */
 		__le16 sink_rates[DP_MAX_SUPPORTED_RATES];
 		int i;
 
