@@ -436,8 +436,8 @@ post_skb(struct uiscmdrsp *cmdrsp,
 		cmdrsp->net.type = NET_RCV_POST;
 		cmdrsp->cmdtype = CMD_NET_TYPE;
 		if (visorchannel_signalinsert(devdata->dev->visorchannel,
-					  IOCHAN_TO_IOPART,
-					  cmdrsp)) {
+					      IOCHAN_TO_IOPART,
+					      cmdrsp)) {
 			atomic_inc(&devdata->num_rcvbuf_in_iovm);
 			devdata->chstat.sent_post++;
 		} else {
@@ -465,8 +465,8 @@ send_enbdis(struct net_device *netdev, int state,
 	devdata->cmdrsp_rcv->net.type = NET_RCV_ENBDIS;
 	devdata->cmdrsp_rcv->cmdtype = CMD_NET_TYPE;
 	if (visorchannel_signalinsert(devdata->dev->visorchannel,
-				  IOCHAN_TO_IOPART,
-				  devdata->cmdrsp_rcv))
+				      IOCHAN_TO_IOPART,
+				      devdata->cmdrsp_rcv))
 		devdata->chstat.sent_enbdis++;
 }
 
@@ -1647,8 +1647,9 @@ service_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
 				 * the lower watermark for
 				 * netif_wake_queue()
 				 */
-				if (vnic_hit_low_watermark(devdata,
-					devdata->lower_threshold_net_xmits)) {
+				if (vnic_hit_low_watermark
+				    (devdata,
+				     devdata->lower_threshold_net_xmits)) {
 					/* enough NET_XMITs completed
 					 * so can restart netif queue
 					 */
