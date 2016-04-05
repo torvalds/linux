@@ -1,7 +1,7 @@
 /*
  *  i2c-nintendo3ds.c
  *
- *  Copyright (C) 2015 Sergi Granell.
+ *  Copyright (C) 2016 Sergi Granell
  *  based on i2c-versatile.c and i2c-exynos5.c
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+
+#define NINTENDO3DS_I2C_NAME "nintendo3ds-i2c"
 
 /* I2C Registers */
 #define I2C_REG_DATA_OFF	0x00
@@ -37,7 +39,7 @@
 #define I2C_CNT_DATADIR_RD (1 << 5)
 
 /* CNT Register stat bit */
-#define I2C_CNT_STAT_READY (0 << 7)
+#define I2C_CNT_STAT_START (1 << 7)
 #define I2C_CNT_STAT_BUSY  (1 << 7)
 
 #define I2C_SET_DATA_REG(base,val)	(writeb(val, base + I2C_REG_DATA_OFF))
@@ -49,10 +51,10 @@
 #define I2C_SET_SCL_REG(base,val)	(writeb(val, base + I2C_REG_SCL_OFF))
 #define I2C_GET_SCL_REG(base)		(readb(base + I2C_REG_SCL_OFF))
 
-#define I2C_BUS_IS_BUSY(base)		((I2C_GET_CNT_REG(base) & I2C_CNT_STAT) == I2C_CNT_STAT_BUSY)
+#define I2C_BUS_IS_BUSY(base)		(I2C_GET_CNT_REG(base) & I2C_CNT_STAT_BUSY)
 
 
-struct i2c_nintendo3ds {
+struct nintendo3ds_i2c {
 	struct i2c_adapter	 adap;
 	void __iomem		 *base;
 };
@@ -63,30 +65,44 @@ static inline void i2c_wait_busy(void __iomem *base)
 		;
 }
 
-static int i2c_nintendo3ds_xfer_msg(struct i2c_nintendo3ds *i2c,
-			struct i2c_msg *msg)
+static inline void i2c_select_device(void __iomem *base, u8 addr)
+{
+	i2c_wait_busy(base);
+	I2C_SET_DATA_REG(base, addr);
+	I2C_SET_CNT_REG(base, I2C_CNT_STAT_START | I2C_CNT_START);
+}
+
+static inline void i2c_select_register(void __iomem *base, u8 reg)
+{
+	i2c_wait_busy(base);
+	I2C_SET_DATA_REG(base, reg);
+	I2C_SET_CNT_REG(base, I2C_CNT_STAT_START);
+}
+
+static int nintendo3ds_i2c_xfer_msg(struct nintendo3ds_i2c *i2c,
+			struct i2c_msg *msg, bool first)
 {
 	void __iomem *base = i2c->base;
 	int i;
 
-	i2c_wait_busy(base);
+	if (msg->len == 1 && first) {
+		/* Only select device register */
+		i2c_select_device(base, msg->addr & 0xFF);
+		i2c_select_register(base, msg->buf[0]);
+	} else if (msg->flags & I2C_M_RD) {
+		i2c_select_device(base, (msg->addr & 0xFF) | 1);
 
-	/* Select the device */
-	I2C_SET_DATA_REG(base, msg->addr & 0xFF);
-	I2C_SET_CNT_REG(base, I2C_CNT_STAT_BUSY);
-
-	if (msg->flags & I2C_M_RD) {
 		for (i = 0; i < msg->len - 1; i++) {
 			i2c_wait_busy(base);
-			I2C_SET_CNT_REG(base, I2C_CNT_STAT_BUSY
+			I2C_SET_CNT_REG(base, I2C_CNT_STAT_START
 				| I2C_CNT_INTEN | I2C_CNT_DATADIR_RD | I2C_CNT_ACK);
 			i2c_wait_busy(base);
 			msg->buf[i] = I2C_GET_DATA_REG(base);
 		}
 		/* Last byte */
 		i2c_wait_busy(base);
-		I2C_SET_CNT_REG(base, I2C_CNT_STOP | I2C_CNT_STAT_BUSY
-			| I2C_CNT_INTEN | I2C_CNT_DATADIR_RD | I2C_CNT_ACK);
+		I2C_SET_CNT_REG(base, I2C_CNT_STOP | I2C_CNT_STAT_START
+			| I2C_CNT_INTEN | I2C_CNT_DATADIR_RD);
 		i2c_wait_busy(base);
 		msg->buf[i] = I2C_GET_DATA_REG(base);
 	} else {
@@ -94,150 +110,112 @@ static int i2c_nintendo3ds_xfer_msg(struct i2c_nintendo3ds *i2c,
 			i2c_wait_busy(base);
 			I2C_SET_DATA_REG(base, msg->buf[i]);
 			i2c_wait_busy(base);
-			I2C_SET_CNT_REG(base, I2C_CNT_STAT_BUSY
-				| I2C_CNT_INTEN | I2C_CNT_DATADIR_WR | I2C_CNT_ACK);
+			I2C_SET_CNT_REG(base, I2C_CNT_STAT_START
+				| I2C_CNT_INTEN | I2C_CNT_DATADIR_WR);
 		}
 		/* Last byte */
 		i2c_wait_busy(base);
 		I2C_SET_DATA_REG(base, msg->buf[i]);
 		i2c_wait_busy(base);
-		I2C_SET_CNT_REG(base, I2C_CNT_STOP | I2C_CNT_STAT_BUSY
-			| I2C_CNT_INTEN | I2C_CNT_DATADIR_WR | I2C_CNT_ACK);
+		I2C_SET_CNT_REG(base, I2C_CNT_STOP | I2C_CNT_STAT_START
+			| I2C_CNT_INTEN | I2C_CNT_DATADIR_WR);
 	}
 
 	return 0;
 }
 
-static int i2c_nintendo3ds_xfer(struct i2c_adapter *adap,
+static int nintendo3ds_i2c_xfer(struct i2c_adapter *adap,
 			struct i2c_msg *msgs, int num)
 {
-	struct i2c_nintendo3ds *i2c = adap->algo_data;
+	struct nintendo3ds_i2c *i2c = adap->algo_data;
 	int i, ret = 0;
 
 	for (i = 0; i < num; i++, msgs++) {
-
-		ret = i2c_nintendo3ds_xfer_msg(i2c, msgs);
-
+		ret = nintendo3ds_i2c_xfer_msg(i2c, msgs, (i == 0));
 		if (ret < 0)
 			return ret;
 	}
 
-	return ret;
+	return i;
 }
 
-static u32 i2c_nintendo3ds_func(struct i2c_adapter *adap)
+static u32 nintendo3ds_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C;
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static const struct i2c_algorithm i2c_nintendo3ds_algorithm = {
-	.master_xfer	= i2c_nintendo3ds_xfer,
-	.functionality	= i2c_nintendo3ds_func,
+static const struct i2c_algorithm nintendo3ds_i2c_algorithm = {
+	.master_xfer	= nintendo3ds_i2c_xfer,
+	.functionality	= nintendo3ds_i2c_func,
 };
 
-static int i2c_nintendo3ds_probe(struct platform_device *dev)
+static int nintendo3ds_i2c_probe(struct platform_device *pdev)
 {
-	struct i2c_nintendo3ds *i2c;
-	struct resource *r;
+	struct nintendo3ds_i2c *i2c;
+	struct resource *mem;
 	int ret;
 
-	if (dev->dev.of_node) {
-		dev->id = of_alias_get_id(dev->dev.of_node, "i2c");
-		if (dev->id < 0) {
-			dev_err(&dev->dev, "nintendo3ds-i2c: alias is missing\n");
-			return -EINVAL;
-		}
-	}
+	i2c = devm_kzalloc(&pdev->dev, sizeof(struct nintendo3ds_i2c), GFP_KERNEL);
+	if (!i2c)
+		return -ENOMEM;
 
-	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (!r) {
-		ret = -EINVAL;
-		goto err_out;
-	}
+	platform_set_drvdata(pdev, i2c);
 
-	if (!request_mem_region(r->start, resource_size(r), "nintendo3ds-i2c")) {
-		ret = -EBUSY;
-		goto err_out;
-	}
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!mem)
+		return -EINVAL;
 
-	i2c = kzalloc(sizeof(struct i2c_nintendo3ds), GFP_KERNEL);
-	if (!i2c) {
-		ret = -ENOMEM;
-		goto err_release;
-	}
+	i2c->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(i2c->base))
+		return PTR_ERR(i2c->base);
 
-	i2c->base = ioremap(r->start, resource_size(r));
-	if (!i2c->base) {
-		ret = -ENOMEM;
-		goto err_free;
-	}
 
 	/* Disable any possibly running I2C xfer */
 	I2C_SET_CNT_REG(i2c->base, 0);
 
 	/* Setup the i2c_adapter */
 	i2c->adap.owner		= THIS_MODULE;
-	snprintf(i2c->adap.name, sizeof(i2c->adap.name), "Nintendo 3DS I2C adapter %d", dev->id);
-	i2c->adap.dev.parent 	= &dev->dev;
-	i2c->adap.dev.of_node	= dev->dev.of_node;
-	i2c->adap.algo		= &i2c_nintendo3ds_algorithm;
+	strlcpy(i2c->adap.name, "Nintendo 3DS I2C adapter",
+		sizeof(i2c->adap.name));
+	i2c->adap.dev.parent 	= &pdev->dev;
+	i2c->adap.dev.of_node	= pdev->dev.of_node;
+	i2c->adap.algo		= &nintendo3ds_i2c_algorithm;
 	i2c->adap.algo_data	= i2c;
-	i2c->adap.nr		= dev->id;
 
-	pr_info("Registering %s\n", i2c->adap.name);
+	ret = i2c_add_adapter(&i2c->adap);
+	if (ret < 0)
+		return ret;
 
-	ret = i2c_add_numbered_adapter(&i2c->adap);
-	if (ret >= 0) {
-		platform_set_drvdata(dev, i2c);
-		return 0;
-	}
-
-	iounmap(i2c->base);
- err_free:
-	kfree(i2c);
- err_release:
-	release_mem_region(r->start, resource_size(r));
- err_out:
-	return ret;
-}
-
-static int i2c_nintendo3ds_remove(struct platform_device *dev)
-{
-	struct i2c_nintendo3ds *i2c = platform_get_drvdata(dev);
-
-	i2c_del_adapter(&i2c->adap);
 	return 0;
 }
 
-static const struct of_device_id i2c_nintendo3ds_match[] = {
-	{ .compatible = "arm,nintendo3ds-i2c", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, i2c_nintendo3ds_match);
+static int nintendo3ds_i2c_remove(struct platform_device *pdev)
+{
+	struct nintendo3ds_i2c *i2c = platform_get_drvdata(pdev);
 
-static struct platform_driver i2c_nintendo3ds_driver = {
-	.probe		= i2c_nintendo3ds_probe,
-	.remove		= i2c_nintendo3ds_remove,
+	i2c_del_adapter(&i2c->adap);
+
+	return 0;
+}
+
+static const struct of_device_id nintendo3ds_i2c_match[] = {
+	{ .compatible = "nintendo3ds,nintendo3ds-i2c", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, nintendo3ds_i2c_match);
+
+static struct platform_driver nintendo3ds_i2c_driver = {
+	.probe		= nintendo3ds_i2c_probe,
+	.remove		= nintendo3ds_i2c_remove,
 	.driver		= {
-		.name	= "i2c-nintendo3ds",
-		.of_match_table = of_match_ptr(i2c_nintendo3ds_match),
+		.name	= NINTENDO3DS_I2C_NAME,
+		.of_match_table = of_match_ptr(nintendo3ds_i2c_match),
 	},
 };
 
-static int __init i2c_nintendo3ds_init(void)
-{
-	return platform_driver_register(&i2c_nintendo3ds_driver);
-}
+module_platform_driver(nintendo3ds_i2c_driver);
 
-static void __exit i2c_nintendo3ds_exit(void)
-{
-	platform_driver_unregister(&i2c_nintendo3ds_driver);
-}
-
-subsys_initcall(i2c_nintendo3ds_init);
-module_exit(i2c_nintendo3ds_exit);
-
-MODULE_DESCRIPTION("ARM Nintendo 3DS I2C bus driver");
+MODULE_DESCRIPTION("Nintendo 3DS I2C bus driver");
 MODULE_AUTHOR("Sergi Granell, <xerpi.g.12@gmail.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:i2c-nintendo3ds");
+MODULE_ALIAS("platform:" NINTENDO3DS_I2C_NAME);

@@ -37,12 +37,6 @@
 
 	};
 
-	aliases {
-		i2c1 = &i2c1;
-		i2c2 = &i2c2;
-		i2c3 = &i2c3;
-	};
-
 	memory {
 		device_type = "memory";
 
@@ -68,27 +62,27 @@
 	i2c1: i2c@10161000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "nintendo3ds-i2c";
-		reg = <0x10161000 0x04>;
+		compatible = "nintendo3ds,nintendo3ds-i2c";
+		reg = <0x10161000 0x06>;
 	};
 
 	i2c2: i2c@10144000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "nintendo3ds-i2c";
-		reg = <0x10144000 0x04>;
+		compatible = "nintendo3ds,nintendo3ds-i2c";
+		reg = <0x10144000 0x06>;
+
+		rtc@4A {
+			compatible = "nintendo3ds,nintendo3ds-rtc";
+			reg = <0x4A>;
+		};
 	};
 
 	i2c3: i2c@10148000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "nintendo3ds-i2c";
-		reg = <0x10148000 0x04>;
-
-		/*rtc@30 {
-			compatible = "nintendo3ds-rtc";
-			reg = <0x30>;
-		};*/
+		compatible = "nintendo3ds,nintendo3ds-i2c";
+		reg = <0x10148000 0x06>;
 	};
 
 	spi0: spi@10160000 {
