@@ -104,8 +104,6 @@ struct mixer_context {
 
 	struct mixer_resources	mixer_res;
 	enum mixer_version_id	mxr_ver;
-	wait_queue_head_t	wait_vsync_queue;
-	atomic_t		wait_vsync_event;
 };
 
 struct mixer_drv_data {
@@ -788,12 +786,6 @@ static irqreturn_t mixer_irq_handler(int irq, void *arg)
 
 			exynos_drm_crtc_finish_update(ctx->crtc, plane);
 		}
-
-		/* set wait vsync event to zero and wake up queue. */
-		if (atomic_read(&ctx->wait_vsync_event)) {
-			atomic_set(&ctx->wait_vsync_event, 0);
-			wake_up(&ctx->wait_vsync_queue);
-		}
 	}
 
 out:
@@ -1028,34 +1020,6 @@ static void mixer_atomic_flush(struct exynos_drm_crtc *crtc)
 	mixer_vsync_set_update(mixer_ctx, true);
 }
 
-static void mixer_wait_for_vblank(struct exynos_drm_crtc *crtc)
-{
-	struct mixer_context *mixer_ctx = crtc->ctx;
-	int err;
-
-	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
-		return;
-
-	err = drm_vblank_get(mixer_ctx->drm_dev, mixer_ctx->pipe);
-	if (err < 0) {
-		DRM_DEBUG_KMS("failed to acquire vblank counter\n");
-		return;
-	}
-
-	atomic_set(&mixer_ctx->wait_vsync_event, 1);
-
-	/*
-	 * wait for MIXER to signal VSYNC interrupt or return after
-	 * timeout which is set to 50ms (refresh rate of 20).
-	 */
-	if (!wait_event_timeout(mixer_ctx->wait_vsync_queue,
-				!atomic_read(&mixer_ctx->wait_vsync_event),
-				HZ/20))
-		DRM_DEBUG_KMS("vblank wait timed out.\n");
-
-	drm_vblank_put(mixer_ctx->drm_dev, mixer_ctx->pipe);
-}
-
 static void mixer_enable(struct exynos_drm_crtc *crtc)
 {
 	struct mixer_context *ctx = crtc->ctx;
@@ -1131,7 +1095,6 @@ static const struct exynos_drm_crtc_ops mixer_crtc_ops = {
 	.disable		= mixer_disable,
 	.enable_vblank		= mixer_enable_vblank,
 	.disable_vblank		= mixer_disable_vblank,
-	.wait_for_vblank	= mixer_wait_for_vblank,
 	.atomic_begin		= mixer_atomic_begin,
 	.update_plane		= mixer_update_plane,
 	.disable_plane		= mixer_disable_plane,
@@ -1253,8 +1216,6 @@ static int mixer_probe(struct platform_device *pdev)
 	ctx->vp_enabled = drv->is_vp_enabled;
 	ctx->has_sclk = drv->has_sclk;
 	ctx->mxr_ver = drv->version;
-	init_waitqueue_head(&ctx->wait_vsync_queue);
-	atomic_set(&ctx->wait_vsync_event, 0);
 
 	platform_set_drvdata(pdev, ctx);
 
