@@ -118,6 +118,11 @@ static const u16 bnxt_vf_req_snif[] = {
 	HWRM_CFA_L2_FILTER_ALLOC,
 };
 
+static const u16 bnxt_async_events_arr[] = {
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD,
+};
+
 static bool bnxt_vf_pciid(enum board_idx idx)
 {
 	return (idx == BCM57304_VF || idx == BCM57404_VF);
@@ -2751,6 +2756,8 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 {
 	struct hwrm_func_drv_rgtr_input req = {0};
 	int i;
+	DECLARE_BITMAP(async_events_bmap, 256);
+	u32 *events = (u32 *)async_events_bmap;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_DRV_RGTR, -1, -1);
 
@@ -2759,10 +2766,13 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 			    FUNC_DRV_RGTR_REQ_ENABLES_VER |
 			    FUNC_DRV_RGTR_REQ_ENABLES_ASYNC_EVENT_FWD);
 
-	/* TODO: current async event fwd bits are not defined and the firmware
-	 * only checks if it is non-zero to enable async event forwarding
-	 */
-	req.async_event_fwd[0] |= cpu_to_le32(1);
+	memset(async_events_bmap, 0, sizeof(async_events_bmap));
+	for (i = 0; i < ARRAY_SIZE(bnxt_async_events_arr); i++)
+		__set_bit(bnxt_async_events_arr[i], async_events_bmap);
+
+	for (i = 0; i < 8; i++)
+		req.async_event_fwd[i] |= cpu_to_le32(events[i]);
+
 	req.os_type = cpu_to_le16(FUNC_DRV_RGTR_REQ_OS_TYPE_LINUX);
 	req.ver_maj = DRV_VER_MAJ;
 	req.ver_min = DRV_VER_MIN;
