@@ -350,6 +350,7 @@ xfs_parseargs(
 		case Opt_pqnoenforce:
 			mp->m_qflags |= (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE);
 			mp->m_qflags &= ~XFS_PQUOTA_ENFD;
+			break;
 		case Opt_gquota:
 		case Opt_grpquota:
 			mp->m_qflags |= (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE |
