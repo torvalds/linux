@@ -44,12 +44,11 @@ module_param_named(boot_enable, boot_enable, int, S_IRUGO);
 static int etm4_count;
 static struct etmv4_drvdata *etmdrvdata[NR_CPUS];
 
-static void etm4_os_unlock(void *info)
+static void etm4_os_unlock(struct etmv4_drvdata *drvdata)
 {
-	struct etmv4_drvdata *drvdata = (struct etmv4_drvdata *)info;
-
 	/* Writing any value to ETMOSLAR unlocks the trace registers */
 	writel_relaxed(0x0, drvdata->base + TRCOSLAR);
+	drvdata->os_unlock = true;
 	isb();
 }
 
@@ -285,6 +284,9 @@ static void etm4_init_arch_data(void *info)
 	u32 etmidr4;
 	u32 etmidr5;
 	struct etmv4_drvdata *drvdata = info;
+
+	/* Make sure all registers are accessible */
+	etm4_os_unlock(drvdata);
 
 	CS_UNLOCK(drvdata->base);
 
@@ -602,9 +604,6 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 
 	get_online_cpus();
 	etmdrvdata[drvdata->cpu] = drvdata;
-
-	if (!smp_call_function_single(drvdata->cpu, etm4_os_unlock, drvdata, 1))
-		drvdata->os_unlock = true;
 
 	if (smp_call_function_single(drvdata->cpu,
 				etm4_init_arch_data,  drvdata, 1))
