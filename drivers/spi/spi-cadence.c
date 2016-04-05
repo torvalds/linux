@@ -527,7 +527,7 @@ static int cdns_spi_probe(struct platform_device *pdev)
 	if (irq <= 0) {
 		ret = -ENXIO;
 		dev_err(&pdev->dev, "irq number is invalid\n");
-		goto remove_master;
+		goto clk_dis_all;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, cdns_spi_irq,
@@ -535,7 +535,7 @@ static int cdns_spi_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		ret = -ENXIO;
 		dev_err(&pdev->dev, "request_irq failed\n");
-		goto remove_master;
+		goto clk_dis_all;
 	}
 
 	master->prepare_transfer_hardware = cdns_prepare_transfer_hardware;
