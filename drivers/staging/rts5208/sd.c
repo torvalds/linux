@@ -1928,9 +1928,9 @@ static int sd_tuning_rx(struct rtsx_chip *chip)
 			tuning_cmd = sd_sdr_tuning_rx_cmd;
 
 	} else {
-		if (CHK_MMC_DDR52(sd_card))
+		if (CHK_MMC_DDR52(sd_card)) {
 			tuning_cmd = mmc_ddr_tunning_rx_cmd;
-		else {
+		} else {
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}
@@ -2054,9 +2054,9 @@ static int sd_tuning_tx(struct rtsx_chip *chip)
 			tuning_cmd = sd_sdr_tuning_tx_cmd;
 
 	} else {
-		if (CHK_MMC_DDR52(sd_card))
+		if (CHK_MMC_DDR52(sd_card)) {
 			tuning_cmd = sd_ddr_tuning_tx_cmd;
-		else {
+		} else {
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}
@@ -2678,9 +2678,9 @@ RTY_SD_RST:
 			}
 
 			j++;
-			if (j < 3)
+			if (j < 3) {
 				goto RTY_SD_RST;
-			else {
+			} else {
 				rtsx_trace(chip);
 				return STATUS_FAIL;
 			}
@@ -2690,9 +2690,9 @@ RTY_SD_RST:
 					SD_RSP_TYPE_R3, rsp, 5);
 		if (retval != STATUS_SUCCESS) {
 			k++;
-			if (k < 3)
+			if (k < 3) {
 				goto RTY_SD_RST;
-			else {
+			} else {
 				rtsx_trace(chip);
 				return STATUS_FAIL;
 			}
