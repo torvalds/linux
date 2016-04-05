@@ -530,10 +530,11 @@ static ssize_t toolaction_store(struct device *dev,
 	if (kstrtou8(buf, 10, &tool_action))
 		return -EINVAL;
 
-	ret = visorchannel_write(controlvm_channel,
-		offsetof(struct spar_controlvm_channel_protocol,
-			 tool_action),
-		&tool_action, sizeof(u8));
+	ret = visorchannel_write
+		(controlvm_channel,
+		 offsetof(struct spar_controlvm_channel_protocol,
+			  tool_action),
+		 &tool_action, sizeof(u8));
 
 	if (ret)
 		return ret;
@@ -565,10 +566,11 @@ static ssize_t boottotool_store(struct device *dev,
 		return -EINVAL;
 
 	efi_spar_indication.boot_to_tool = val;
-	ret = visorchannel_write(controlvm_channel,
-			offsetof(struct spar_controlvm_channel_protocol,
-				 efi_spar_ind), &(efi_spar_indication),
-				 sizeof(struct efi_spar_indication));
+	ret = visorchannel_write
+		(controlvm_channel,
+		 offsetof(struct spar_controlvm_channel_protocol,
+			  efi_spar_ind), &(efi_spar_indication),
+		 sizeof(struct efi_spar_indication));
 
 	if (ret)
 		return ret;
@@ -596,10 +598,11 @@ static ssize_t error_store(struct device *dev, struct device_attribute *attr,
 	if (kstrtou32(buf, 10, &error))
 		return -EINVAL;
 
-	ret = visorchannel_write(controlvm_channel,
-		offsetof(struct spar_controlvm_channel_protocol,
-			 installation_error),
-		&error, sizeof(u32));
+	ret = visorchannel_write
+		(controlvm_channel,
+		 offsetof(struct spar_controlvm_channel_protocol,
+			  installation_error),
+		 &error, sizeof(u32));
 	if (ret)
 		return ret;
 	return count;
@@ -610,10 +613,11 @@ static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
 {
 	u32 text_id;
 
-	visorchannel_read(controlvm_channel,
-			  offsetof(struct spar_controlvm_channel_protocol,
-				   installation_text_id),
-			  &text_id, sizeof(u32));
+	visorchannel_read
+		(controlvm_channel,
+		 offsetof(struct spar_controlvm_channel_protocol,
+			  installation_text_id),
+		 &text_id, sizeof(u32));
 	return scnprintf(buf, PAGE_SIZE, "%i\n", text_id);
 }
 
@@ -626,10 +630,11 @@ static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
 	if (kstrtou32(buf, 10, &text_id))
 		return -EINVAL;
 
-	ret = visorchannel_write(controlvm_channel,
-		offsetof(struct spar_controlvm_channel_protocol,
-			 installation_text_id),
-		&text_id, sizeof(u32));
+	ret = visorchannel_write
+		(controlvm_channel,
+		 offsetof(struct spar_controlvm_channel_protocol,
+			  installation_text_id),
+		 &text_id, sizeof(u32));
 	if (ret)
 		return ret;
 	return count;
@@ -657,10 +662,11 @@ static ssize_t remaining_steps_store(struct device *dev,
 	if (kstrtou16(buf, 10, &remaining_steps))
 		return -EINVAL;
 
-	ret = visorchannel_write(controlvm_channel,
-		offsetof(struct spar_controlvm_channel_protocol,
-			 installation_remaining_steps),
-		&remaining_steps, sizeof(u16));
+	ret = visorchannel_write
+		(controlvm_channel,
+		 offsetof(struct spar_controlvm_channel_protocol,
+			  installation_remaining_steps),
+		 &remaining_steps, sizeof(u16));
 	if (ret)
 		return ret;
 	return count;
@@ -1226,8 +1232,9 @@ bus_configure(struct controlvm_message *inmsg,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
 	} else {
-		visorchannel_set_clientpartition(bus_info->visorchannel,
-				cmd->configure_bus.guest_handle);
+		visorchannel_set_clientpartition
+			(bus_info->visorchannel,
+			 cmd->configure_bus.guest_handle);
 		bus_info->partition_uuid = parser_id_get(parser_ctx);
 		parser_param_start(parser_ctx, PARSERSTRING_NAME);
 		bus_info->name = parser_string_get(parser_ctx);
@@ -1709,9 +1716,10 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 		* initialization.
 		*/
 		parahotplug_request_kickoff(req);
-		controlvm_respond_physdev_changestate(&inmsg->hdr,
-			CONTROLVM_RESP_SUCCESS,
-			inmsg->cmd.device_change_state.state);
+		controlvm_respond_physdev_changestate
+			(&inmsg->hdr,
+			 CONTROLVM_RESP_SUCCESS,
+			 inmsg->cmd.device_change_state.state);
 		parahotplug_request_destroy(req);
 	} else {
 		/* For disable messages, add the request to the
@@ -1823,8 +1831,9 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 		break;
 	default:
 		if (inmsg.hdr.flags.response_expected)
-			controlvm_respond(&inmsg.hdr,
-				-CONTROLVM_RESP_ERROR_MESSAGE_ID_UNKNOWN);
+			controlvm_respond
+				(&inmsg.hdr,
+				 -CONTROLVM_RESP_ERROR_MESSAGE_ID_UNKNOWN);
 		break;
 	}
 
@@ -2177,10 +2186,11 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 		if (!*file_controlvm_channel)
 			return -ENXIO;
 
-		visorchannel_read(*file_controlvm_channel,
-			offsetof(struct spar_controlvm_channel_protocol,
-				 gp_control_channel),
-			&addr, sizeof(addr));
+		visorchannel_read
+			(*file_controlvm_channel,
+			 offsetof(struct spar_controlvm_channel_protocol,
+				  gp_control_channel),
+			 &addr, sizeof(addr));
 		if (!addr)
 			return -ENXIO;
 
