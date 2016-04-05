@@ -965,7 +965,6 @@ bus_epilog(struct visor_device *bus_info,
 	   u32 cmd, struct controlvm_message_header *msg_hdr,
 	   int response, bool need_response)
 {
-	bool notified = false;
 	struct controlvm_message_header *pmsg_hdr = NULL;
 
 	down(&notifier_lock);
@@ -1003,32 +1002,20 @@ bus_epilog(struct visor_device *bus_info,
 		case CONTROLVM_BUS_CREATE:
 			if (busdev_notifiers.bus_create) {
 				(*busdev_notifiers.bus_create) (bus_info);
-				notified = true;
+				goto out_unlock;
 			}
 			break;
 		case CONTROLVM_BUS_DESTROY:
 			if (busdev_notifiers.bus_destroy) {
 				(*busdev_notifiers.bus_destroy) (bus_info);
-				notified = true;
+				goto out_unlock;
 			}
 			break;
 		}
 	}
 
 out_respond_and_unlock:
-	if (notified)
-		/* The callback function just called above is responsible
-		 * for calling the appropriate visorchipset_busdev_responders
-		 * function, which will call bus_responder()
-		 */
-		;
-	else
-		/*
-		 * Do not kfree(pmsg_hdr) as this is the failure path.
-		 * The success path ('notified') will call the responder
-		 * directly and kfree() there.
-		 */
-		bus_responder(cmd, pmsg_hdr, response);
+	bus_responder(cmd, pmsg_hdr, response);
 
 out_unlock:
 	up(&notifier_lock);
