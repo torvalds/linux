@@ -1309,7 +1309,7 @@ try_again:
 	if (!skb)
 		goto out;
 
-	ulen = skb->len - sizeof(struct udphdr);
+	ulen = skb->len;
 	copied = len;
 	if (copied > ulen)
 		copied = ulen;
@@ -1329,11 +1329,9 @@ try_again:
 	}
 
 	if (checksum_valid || skb_csum_unnecessary(skb))
-		err = skb_copy_datagram_msg(skb, sizeof(struct udphdr),
-					    msg, copied);
+		err = skb_copy_datagram_msg(skb, 0, msg, copied);
 	else {
-		err = skb_copy_and_csum_datagram_msg(skb, sizeof(struct udphdr),
-						     msg);
+		err = skb_copy_and_csum_datagram_msg(skb, 0, msg);
 
 		if (err == -EINVAL)
 			goto csum_copy_err;
@@ -1500,7 +1498,7 @@ static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		sk_incoming_cpu_update(sk);
 	}
 
-	rc = sock_queue_rcv_skb(sk, skb);
+	rc = __sock_queue_rcv_skb(sk, skb);
 	if (rc < 0) {
 		int is_udplite = IS_UDPLITE(sk);
 
@@ -1616,10 +1614,14 @@ int udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		}
 	}
 
-	if (rcu_access_pointer(sk->sk_filter) &&
-	    udp_lib_checksum_complete(skb))
-		goto csum_error;
+	if (rcu_access_pointer(sk->sk_filter)) {
+		if (udp_lib_checksum_complete(skb))
+			goto csum_error;
+		if (sk_filter(sk, skb))
+			goto drop;
+	}
 
+	udp_csum_pull_header(skb);
 	if (sk_rcvqueues_full(sk, sk->sk_rcvbuf)) {
 		UDP_INC_STATS_BH(sock_net(sk), UDP_MIB_RCVBUFERRORS,
 				 is_udplite);
