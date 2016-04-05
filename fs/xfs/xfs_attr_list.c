@@ -106,8 +106,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 					   sfe->flags,
 					   sfe->nameval,
 					   (int)sfe->namelen,
-					   (int)sfe->valuelen,
-					   &sfe->nameval[sfe->namelen]);
+					   (int)sfe->valuelen);
 			if (error)
 				return error;
 			/*
@@ -198,8 +197,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 					sbp->flags,
 					sbp->name,
 					sbp->namelen,
-					sbp->valuelen,
-					&sbp->name[sbp->namelen]);
+					sbp->valuelen);
 		if (error) {
 			kmem_free(sbuf);
 			return error;
@@ -430,8 +428,7 @@ xfs_attr3_leaf_list_int(
 						entry->flags,
 						name_loc->nameval,
 						(int)name_loc->namelen,
-						be16_to_cpu(name_loc->valuelen),
-						&name_loc->nameval[name_loc->namelen]);
+						be16_to_cpu(name_loc->valuelen));
 			if (retval)
 				return retval;
 		} else {
@@ -459,16 +456,14 @@ xfs_attr3_leaf_list_int(
 							entry->flags,
 							name_rmt->name,
 							(int)name_rmt->namelen,
-							valuelen,
-							args.value);
+							valuelen);
 				kmem_free(args.value);
 			} else {
 				retval = context->put_listent(context,
 						entry->flags,
 						name_rmt->name,
 						(int)name_rmt->namelen,
-						valuelen,
-						NULL);
+						valuelen);
 			}
 			if (retval)
 				return retval;
@@ -549,8 +544,7 @@ xfs_attr_put_listent(
 	int		flags,
 	unsigned char	*name,
 	int		namelen,
-	int		valuelen,
-	unsigned char	*value)
+	int		valuelen)
 {
 	struct attrlist *alist = (struct attrlist *)context->alist;
 	attrlist_ent_t *aep;

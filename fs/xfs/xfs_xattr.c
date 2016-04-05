@@ -166,8 +166,7 @@ xfs_xattr_put_listent(
 	int		flags,
 	unsigned char	*name,
 	int		namelen,
-	int		valuelen,
-	unsigned char	*value)
+	int		valuelen)
 {
 	char *prefix;
 	int prefix_len;
