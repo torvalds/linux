@@ -25,12 +25,6 @@
 #define	DA9063_REG_EVENT_B_OFFSET	1
 #define	DA9063_REG_EVENT_C_OFFSET	2
 #define	DA9063_REG_EVENT_D_OFFSET	3
-#define EVENTS_BUF_LEN			4
-
-struct da9063_irq_data {
-	u16 reg;
-	u8 mask;
-};
 
 static const struct regmap_irq da9063_irqs[] = {
 	/* DA9063 event A register */
