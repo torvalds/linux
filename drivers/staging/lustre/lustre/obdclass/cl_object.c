@@ -1055,7 +1055,7 @@ void cl_env_percpu_put(struct lu_env *env)
 }
 EXPORT_SYMBOL(cl_env_percpu_put);
 
-struct lu_env *cl_env_percpu_get()
+struct lu_env *cl_env_percpu_get(void)
 {
 	struct cl_env *cle;
 
