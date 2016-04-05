@@ -98,11 +98,11 @@ static inline bool udp_get_no_check6_rx(struct sock *sk)
 	return udp_sk(sk)->no_check6_rx;
 }
 
-#define udp_portaddr_for_each_entry(__sk, node, list) \
-	hlist_nulls_for_each_entry(__sk, node, list, __sk_common.skc_portaddr_node)
+#define udp_portaddr_for_each_entry(__sk, list) \
+	hlist_for_each_entry(__sk, list, __sk_common.skc_portaddr_node)
 
-#define udp_portaddr_for_each_entry_rcu(__sk, node, list) \
-	hlist_nulls_for_each_entry_rcu(__sk, node, list, __sk_common.skc_portaddr_node)
+#define udp_portaddr_for_each_entry_rcu(__sk, list) \
+	hlist_for_each_entry_rcu(__sk, list, __sk_common.skc_portaddr_node)
 
 #define IS_UDPLITE(__sk) (udp_sk(__sk)->pcflag)
 

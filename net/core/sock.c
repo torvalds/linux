@@ -1419,8 +1419,12 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 }
 EXPORT_SYMBOL(sk_alloc);
 
-void sk_destruct(struct sock *sk)
+/* Sockets having SOCK_RCU_FREE will call this function after one RCU
+ * grace period. This is the case for UDP sockets and TCP listeners.
+ */
+static void __sk_destruct(struct rcu_head *head)
 {
+	struct sock *sk = container_of(head, struct sock, sk_rcu);
 	struct sk_filter *filter;
 
 	if (sk->sk_destruct)
@@ -1447,6 +1451,14 @@ void sk_destruct(struct sock *sk)
 	if (likely(sk->sk_net_refcnt))
 		put_net(sock_net(sk));
 	sk_prot_free(sk->sk_prot_creator, sk);
+}
+
+void sk_destruct(struct sock *sk)
+{
+	if (sock_flag(sk, SOCK_RCU_FREE))
+		call_rcu(&sk->sk_rcu, __sk_destruct);
+	else
+		__sk_destruct(&sk->sk_rcu);
 }
 
 static void __sk_free(struct sock *sk)
@@ -1513,6 +1525,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		newsk->sk_dst_cache	= NULL;
 		newsk->sk_wmem_queued	= 0;
 		newsk->sk_forward_alloc = 0;
+		atomic_set(&newsk->sk_drops, 0);
 		newsk->sk_send_head	= NULL;
 		newsk->sk_userlocks	= sk->sk_userlocks & ~SOCK_BINDPORT_LOCK;
 

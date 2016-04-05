@@ -356,6 +356,7 @@ struct sock *inet_diag_find_one_icsk(struct net *net,
 {
 	struct sock *sk;
 
+	rcu_read_lock();
 	if (req->sdiag_family == AF_INET)
 		sk = inet_lookup(net, hashinfo, NULL, 0, req->id.idiag_dst[0],
 				 req->id.idiag_dport, req->id.idiag_src[0],
@@ -376,9 +377,11 @@ struct sock *inet_diag_find_one_icsk(struct net *net,
 					  req->id.idiag_if);
 	}
 #endif
-	else
+	else {
+		rcu_read_unlock();
 		return ERR_PTR(-EINVAL);
-
+	}
+	rcu_read_unlock();
 	if (!sk)
 		return ERR_PTR(-ENOENT);
 
@@ -772,13 +775,12 @@ void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
 
 		for (i = s_i; i < INET_LHTABLE_SIZE; i++) {
 			struct inet_listen_hashbucket *ilb;
-			struct hlist_nulls_node *node;
 			struct sock *sk;
 
 			num = 0;
 			ilb = &hashinfo->listening_hash[i];
 			spin_lock_bh(&ilb->lock);
-			sk_nulls_for_each(sk, node, &ilb->head) {
+			sk_for_each(sk, &ilb->head) {
 				struct inet_sock *inet = inet_sk(sk);
 
 				if (!net_eq(sock_net(sk), net))

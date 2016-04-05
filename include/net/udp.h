@@ -59,7 +59,7 @@ struct udp_skb_cb {
  *	@lock:	spinlock protecting changes to head/count
  */
 struct udp_hslot {
-	struct hlist_nulls_head	head;
+	struct hlist_head	head;
 	int			count;
 	spinlock_t		lock;
 } __attribute__((aligned(2 * sizeof(long))));
