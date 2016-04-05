@@ -325,8 +325,6 @@ static int __init ipv6_offload_init(void)
 
 	if (tcpv6_offload_init() < 0)
 		pr_crit("%s: Cannot add TCP protocol offload\n", __func__);
-	if (udp_offload_init() < 0)
-		pr_crit("%s: Cannot add UDP protocol offload\n", __func__);
 	if (ipv6_exthdrs_offload_init() < 0)
 		pr_crit("%s: Cannot add EXTHDRS protocol offload\n", __func__);
 
