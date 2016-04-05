@@ -283,18 +283,27 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 		if (!elem)
 			goto exit;
 
-		hv_stores(elem, "ip", newSVuv(node->ip));
+		if (!hv_stores(elem, "ip", newSVuv(node->ip))) {
+			hv_undef(elem);
+			goto exit;
+		}
 
 		if (node->sym) {
 			HV *sym = newHV();
-			if (!sym)
+			if (!sym) {
+				hv_undef(elem);
 				goto exit;
-			hv_stores(sym, "start",   newSVuv(node->sym->start));
-			hv_stores(sym, "end",     newSVuv(node->sym->end));
-			hv_stores(sym, "binding", newSVuv(node->sym->binding));
-			hv_stores(sym, "name",    newSVpvn(node->sym->name,
-							   node->sym->namelen));
-			hv_stores(elem, "sym",    newRV_noinc((SV*)sym));
+			}
+			if (!hv_stores(sym, "start",   newSVuv(node->sym->start)) ||
+			    !hv_stores(sym, "end",     newSVuv(node->sym->end)) ||
+			    !hv_stores(sym, "binding", newSVuv(node->sym->binding)) ||
+			    !hv_stores(sym, "name",    newSVpvn(node->sym->name,
+								node->sym->namelen)) ||
+			    !hv_stores(elem, "sym",    newRV_noinc((SV*)sym))) {
+				hv_undef(sym);
+				hv_undef(elem);
+				goto exit;
+			}
 		}
 
 		if (node->map) {
@@ -306,7 +315,10 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 				else if (map->dso->name)
 					dsoname = map->dso->name;
 			}
-			hv_stores(elem, "dso", newSVpv(dsoname,0));
+			if (!hv_stores(elem, "dso", newSVpv(dsoname,0))) {
+				hv_undef(elem);
+				goto exit;
+			}
 		}
 
 		callchain_cursor_advance(&callchain_cursor);
