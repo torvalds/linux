@@ -1053,10 +1053,12 @@ int drm_helper_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 
 	if (plane->funcs->atomic_duplicate_state)
 		plane_state = plane->funcs->atomic_duplicate_state(plane);
-	else if (plane->state)
+	else {
+		if (!plane->state)
+			drm_atomic_helper_plane_reset(plane);
+
 		plane_state = drm_atomic_helper_plane_duplicate_state(plane);
-	else
-		plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
+	}
 	if (!plane_state)
 		return -ENOMEM;
 	plane_state->plane = plane;
