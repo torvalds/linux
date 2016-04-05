@@ -86,15 +86,15 @@ void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(iptunnel_xmit);
 
-int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto,
-			 bool xnet)
+int __iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
+			   __be16 inner_proto, bool raw_proto, bool xnet)
 {
 	if (unlikely(!pskb_may_pull(skb, hdr_len)))
 		return -ENOMEM;
 
 	skb_pull_rcsum(skb, hdr_len);
 
-	if (inner_proto == htons(ETH_P_TEB)) {
+	if (!raw_proto && inner_proto == htons(ETH_P_TEB)) {
 		struct ethhdr *eh;
 
 		if (unlikely(!pskb_may_pull(skb, ETH_HLEN)))
@@ -117,7 +117,7 @@ int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto,
 
 	return iptunnel_pull_offloads(skb);
 }
-EXPORT_SYMBOL_GPL(iptunnel_pull_header);
+EXPORT_SYMBOL_GPL(__iptunnel_pull_header);
 
 struct metadata_dst *iptunnel_metadata_reply(struct metadata_dst *md,
 					     gfp_t flags)
