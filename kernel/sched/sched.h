@@ -56,18 +56,23 @@ static inline void cpu_load_update_active(struct rq *this_rq) { }
  * increase coverage and consistency always enable it on 64bit platforms.
  */
 #ifdef CONFIG_64BIT
-# define SCHED_LOAD_RESOLUTION	10
-# define scale_load(w)		((w) << SCHED_LOAD_RESOLUTION)
-# define scale_load_down(w)	((w) >> SCHED_LOAD_RESOLUTION)
+# define SCHED_LOAD_SHIFT	(SCHED_FIXEDPOINT_SHIFT + SCHED_FIXEDPOINT_SHIFT)
+# define scale_load(w)		((w) << SCHED_FIXEDPOINT_SHIFT)
+# define scale_load_down(w)	((w) >> SCHED_FIXEDPOINT_SHIFT)
 #else
-# define SCHED_LOAD_RESOLUTION	0
+# define SCHED_LOAD_SHIFT	(SCHED_FIXEDPOINT_SHIFT)
 # define scale_load(w)		(w)
 # define scale_load_down(w)	(w)
 #endif
 
-#define SCHED_LOAD_SHIFT	(10 + SCHED_LOAD_RESOLUTION)
 #define SCHED_LOAD_SCALE	(1L << SCHED_LOAD_SHIFT)
 
+/*
+ * NICE_0's weight (visible to users) and its load (invisible to users) have
+ * independent ranges, but they should be well calibrated. We use scale_load()
+ * and scale_load_down(w) to convert between them, and the following must be true:
+ * scale_load(sched_prio_to_weight[20]) == NICE_0_LOAD
+ */
 #define NICE_0_LOAD		SCHED_LOAD_SCALE
 #define NICE_0_SHIFT		SCHED_LOAD_SHIFT
 

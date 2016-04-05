@@ -937,9 +937,19 @@ enum cpu_idle_type {
 };
 
 /*
+ * Integer metrics need fixed point arithmetic, e.g., sched/fair
+ * has a few: load, load_avg, util_avg, freq, and capacity.
+ *
+ * We define a basic fixed point arithmetic range, and then formalize
+ * all these metrics based on that basic range.
+ */
+# define SCHED_FIXEDPOINT_SHIFT	10
+# define SCHED_FIXEDPOINT_SCALE	(1L << SCHED_FIXEDPOINT_SHIFT)
+
+/*
  * Increase resolution of cpu_capacity calculations
  */
-#define SCHED_CAPACITY_SHIFT	10
+#define SCHED_CAPACITY_SHIFT	SCHED_FIXEDPOINT_SHIFT
 #define SCHED_CAPACITY_SCALE	(1L << SCHED_CAPACITY_SHIFT)
 
 /*
@@ -1205,8 +1215,8 @@ struct load_weight {
  * 1) load_avg factors frequency scaling into the amount of time that a
  * sched_entity is runnable on a rq into its weight. For cfs_rq, it is the
  * aggregated such weights of all runnable and blocked sched_entities.
- * 2) util_avg factors frequency and cpu scaling into the amount of time
- * that a sched_entity is running on a CPU, in the range [0..SCHED_LOAD_SCALE].
+ * 2) util_avg factors frequency and cpu capacity scaling into the amount of time
+ * that a sched_entity is running on a CPU, in the range [0..SCHED_CAPACITY_SCALE].
  * For cfs_rq, it is the aggregated such times of all runnable and
  * blocked sched_entities.
  * The 64 bit load_sum can:
