@@ -277,7 +277,6 @@ xfs_readlink_by_handle(
 {
 	struct dentry		*dentry;
 	__u32			olen;
-	void			*link;
 	int			error;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -288,7 +287,7 @@ xfs_readlink_by_handle(
 		return PTR_ERR(dentry);
 
 	/* Restrict this handle operation to symlinks only. */
-	if (!d_is_symlink(dentry)) {
+	if (!d_inode(dentry)->i_op->readlink) {
 		error = -EINVAL;
 		goto out_dput;
 	}
@@ -298,21 +297,8 @@ xfs_readlink_by_handle(
 		goto out_dput;
 	}
 
-	link = kmalloc(MAXPATHLEN+1, GFP_KERNEL);
-	if (!link) {
-		error = -ENOMEM;
-		goto out_dput;
-	}
+	error = d_inode(dentry)->i_op->readlink(dentry, hreq->ohandle, olen);
 
-	error = xfs_readlink(XFS_I(d_inode(dentry)), link);
-	if (error)
-		goto out_kfree;
-	error = readlink_copy(hreq->ohandle, olen, link);
-	if (error)
-		goto out_kfree;
-
- out_kfree:
-	kfree(link);
  out_dput:
 	dput(dentry);
 	return error;
