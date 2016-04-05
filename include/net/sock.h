@@ -459,26 +459,28 @@ struct sock {
 
 static inline int sk_peek_offset(struct sock *sk, int flags)
 {
-	if ((flags & MSG_PEEK) && (sk->sk_peek_off >= 0))
-		return sk->sk_peek_off;
-	else
-		return 0;
+	if (unlikely(flags & MSG_PEEK)) {
+		s32 off = READ_ONCE(sk->sk_peek_off);
+		if (off >= 0)
+			return off;
+	}
+
+	return 0;
 }
 
 static inline void sk_peek_offset_bwd(struct sock *sk, int val)
 {
-	if (sk->sk_peek_off >= 0) {
-		if (sk->sk_peek_off >= val)
-			sk->sk_peek_off -= val;
-		else
-			sk->sk_peek_off = 0;
+	s32 off = READ_ONCE(sk->sk_peek_off);
+
+	if (unlikely(off >= 0)) {
+		off = max_t(s32, off - val, 0);
+		WRITE_ONCE(sk->sk_peek_off, off);
 	}
 }
 
 static inline void sk_peek_offset_fwd(struct sock *sk, int val)
 {
-	if (sk->sk_peek_off >= 0)
-		sk->sk_peek_off += val;
+	sk_peek_offset_bwd(sk, -val);
 }
 
 /*
