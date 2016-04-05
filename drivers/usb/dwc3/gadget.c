@@ -177,8 +177,7 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 			 * DWC3_TRBCTL_LINK_TRB because it points the TRB we
 			 * just completed (not the LINK TRB).
 			 */
-			if (dwc3_ep_is_last_trb(dep->trb_dequeue) &&
-				usb_endpoint_xfer_isoc(dep->endpoint.desc))
+			if (dwc3_ep_is_last_trb(dep->trb_dequeue))
 				dwc3_ep_inc_deq(dep);
 		} while(++i < req->request.num_mapped_sgs);
 		req->started = false;
@@ -541,10 +540,10 @@ static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep,
 		reg |= DWC3_DALEPENA_EP(dep->number);
 		dwc3_writel(dwc->regs, DWC3_DALEPENA, reg);
 
-		if (!usb_endpoint_xfer_isoc(desc))
+		if (usb_endpoint_xfer_control(desc))
 			goto out;
 
-		/* Link TRB for ISOC. The HWO bit is never reset */
+		/* Link TRB. The HWO bit is never reset */
 		trb_st_hw = &dep->trb_pool[0];
 
 		trb_link = &dep->trb_pool[DWC3_TRB_NUM - 1];
@@ -767,9 +766,8 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 	}
 
 	dwc3_ep_inc_enq(dep);
-	/* Skip the LINK-TRB on ISOC */
-	if (dwc3_ep_is_last_trb(dep->trb_enqueue) &&
-			usb_endpoint_xfer_isoc(dep->endpoint.desc))
+	/* Skip the LINK-TRB */
+	if (dwc3_ep_is_last_trb(dep->trb_enqueue))
 		dwc3_ep_inc_enq(dep);
 
 	trb->size = DWC3_TRB_SIZE_LENGTH(length);
@@ -836,52 +834,26 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep, bool starting)
 {
 	struct dwc3_request	*req, *n;
 	u32			trbs_left;
-	u32			max;
 	unsigned int		last_one = 0;
 
 	BUILD_BUG_ON_NOT_POWER_OF_2(DWC3_TRB_NUM);
 
-	/* the first request must not be queued */
 	trbs_left = dep->trb_dequeue - dep->trb_enqueue;
 
-	/* Can't wrap around on a non-isoc EP since there's no link TRB */
-	if (!usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
-		max = DWC3_TRB_NUM - dep->trb_enqueue;
-		if (trbs_left > max)
-			trbs_left = max;
-	}
-
 	/*
-	 * If busy & slot are equal than it is either full or empty. If we are
-	 * starting to process requests then we are empty. Otherwise we are
+	 * If enqueue & dequeue are equal than it is either full or empty. If we
+	 * are starting to process requests then we are empty. Otherwise we are
 	 * full and don't do anything
 	 */
 	if (!trbs_left) {
 		if (!starting)
 			return;
+
 		trbs_left = DWC3_TRB_NUM;
-		/*
-		 * In case we start from scratch, we queue the ISOC requests
-		 * starting from slot 1. This is done because we use ring
-		 * buffer and have no LST bit to stop us. Instead, we place
-		 * IOC bit every TRB_NUM/4. We try to avoid having an interrupt
-		 * after the first request so we start at slot 1 and have
-		 * 7 requests proceed before we hit the first IOC.
-		 * Other transfer types don't use the ring buffer and are
-		 * processed from the first TRB until the last one. Since we
-		 * don't wrap around we have to start at the beginning.
-		 */
-		if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
-			dep->trb_dequeue = 1;
-			dep->trb_enqueue = 1;
-		} else {
-			dep->trb_dequeue = 0;
-			dep->trb_enqueue = 0;
-		}
 	}
 
 	/* The last TRB is a link TRB, not used for xfer */
-	if ((trbs_left <= 1) && usb_endpoint_xfer_isoc(dep->endpoint.desc))
+	if (trbs_left <= 1)
 		return;
 
 	list_for_each_entry_safe(req, n, &dep->pending_list, list) {
@@ -1948,8 +1920,7 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		i = 0;
 		do {
 			slot = req->first_trb_index + i;
-			if ((slot == DWC3_TRB_NUM - 1) &&
-				usb_endpoint_xfer_isoc(dep->endpoint.desc))
+			if (slot == DWC3_TRB_NUM - 1)
 				slot++;
 			slot %= DWC3_TRB_NUM;
 			trb = &dep->trb_pool[slot];
