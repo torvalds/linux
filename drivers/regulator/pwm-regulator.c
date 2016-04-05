@@ -113,18 +113,6 @@ static int pwm_regulator_is_enabled(struct regulator_dev *dev)
 	return pwm_is_enabled(drvdata->pwm);
 }
 
-/**
- * Continuous voltage call-backs
- */
-static int pwm_voltage_to_duty_cycle_percentage(struct regulator_dev *rdev, int req_uV)
-{
-	int min_uV = rdev->constraints->min_uV;
-	int max_uV = rdev->constraints->max_uV;
-	int diff = max_uV - min_uV;
-
-	return ((req_uV * 100) - (min_uV * 100)) / diff;
-}
-
 static int pwm_regulator_get_voltage(struct regulator_dev *rdev)
 {
 	struct pwm_regulator_data *drvdata = rdev_get_drvdata(rdev);
@@ -139,12 +127,32 @@ static int pwm_regulator_set_voltage(struct regulator_dev *rdev,
 	struct pwm_regulator_data *drvdata = rdev_get_drvdata(rdev);
 	unsigned int ramp_delay = rdev->constraints->ramp_delay;
 	unsigned int period = pwm_get_period(drvdata->pwm);
-	int duty_cycle;
+	unsigned int req_diff = min_uV - rdev->constraints->min_uV;
+	unsigned int diff;
+	unsigned int duty_pulse;
+	u64 req_period;
+	u32 rem;
 	int ret;
 
-	duty_cycle = pwm_voltage_to_duty_cycle_percentage(rdev, min_uV);
+	diff = rdev->constraints->max_uV - rdev->constraints->min_uV;
 
-	ret = pwm_config(drvdata->pwm, (period / 100) * duty_cycle, period);
+	/* First try to find out if we get the iduty cycle time which is
+	 * factor of PWM period time. If (request_diff_to_min * pwm_period)
+	 * is perfect divided by voltage_range_diff then it is possible to
+	 * get duty cycle time which is factor of PWM period. This will help
+	 * to get output voltage nearer to requested value as there is no
+	 * calculation loss.
+	 */
+	req_period = req_diff * period;
+	div_u64_rem(req_period, diff, &rem);
+	if (!rem) {
+		do_div(req_period, diff);
+		duty_pulse = (unsigned int)req_period;
+	} else {
+		duty_pulse = (period / 100) * ((req_diff * 100) / diff);
+	}
+
+	ret = pwm_config(drvdata->pwm, duty_pulse, period);
 	if (ret) {
 		dev_err(&rdev->dev, "Failed to configure PWM: %d\n", ret);
 		return ret;
