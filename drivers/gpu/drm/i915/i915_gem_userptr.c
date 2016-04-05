@@ -34,7 +34,7 @@
 
 struct i915_mm_struct {
 	struct mm_struct *mm;
-	struct drm_device *dev;
+	struct drm_i915_private *i915;
 	struct i915_mmu_notifier *mn;
 	struct hlist_node node;
 	struct kref kref;
@@ -250,13 +250,13 @@ i915_mmu_notifier_find(struct i915_mm_struct *mm)
 		return mn;
 
 	down_write(&mm->mm->mmap_sem);
-	mutex_lock(&to_i915(mm->dev)->mm_lock);
+	mutex_lock(&mm->i915->mm_lock);
 	if ((mn = mm->mn) == NULL) {
 		mn = i915_mmu_notifier_create(mm->mm);
 		if (!IS_ERR(mn))
 			mm->mn = mn;
 	}
-	mutex_unlock(&to_i915(mm->dev)->mm_lock);
+	mutex_unlock(&mm->i915->mm_lock);
 	up_write(&mm->mm->mmap_sem);
 
 	return mn;
@@ -373,7 +373,7 @@ i915_gem_userptr_init__mm_struct(struct drm_i915_gem_object *obj)
 		}
 
 		kref_init(&mm->kref);
-		mm->dev = obj->base.dev;
+		mm->i915 = to_i915(obj->base.dev);
 
 		mm->mm = current->mm;
 		atomic_inc(&current->mm->mm_count);
@@ -408,7 +408,7 @@ __i915_mm_struct_free(struct kref *kref)
 
 	/* Protected by dev_priv->mm_lock */
 	hash_del(&mm->node);
-	mutex_unlock(&to_i915(mm->dev)->mm_lock);
+	mutex_unlock(&mm->i915->mm_lock);
 
 	INIT_WORK(&mm->work, __i915_mm_struct_free__worker);
 	schedule_work(&mm->work);
