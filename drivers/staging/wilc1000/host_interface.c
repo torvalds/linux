@@ -3924,12 +3924,6 @@ int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 	int result = 0;
 	struct host_if_msg msg;
 	struct power_mgmt_param *pwr_mgmt_info = &msg.body.pwr_mgmt_info;
-	struct host_if_drv *hif_drv = vif->hif_drv;
-
-	if (!hif_drv) {
-		netdev_err(vif->ndev, "driver is null\n");
-		return -EFAULT;
-	}
 
 	if (wilc_wlan_get_num_conn_ifcs(vif->wilc) == 2 && enabled)
 		return 0;
