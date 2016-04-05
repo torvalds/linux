@@ -41,6 +41,7 @@
 #include <linux/ptrace.h>
 #include <linux/screen_info.h>
 #include <linux/kdebug.h>
+#include <linux/efi.h>
 #include "hyperv_vmbus.h"
 
 static struct acpi_device  *hv_acpi_dev;
@@ -101,6 +102,8 @@ static struct notifier_block hyperv_panic_block = {
 	.notifier_call = hyperv_panic_event,
 };
 
+static const char *fb_mmio_name = "fb_range";
+static struct resource *fb_mmio;
 struct resource *hyperv_mmio;
 DEFINE_SEMAPHORE(hyperv_mmio_lock);
 
@@ -1091,6 +1094,12 @@ static int vmbus_acpi_remove(struct acpi_device *device)
 	struct resource *next_res;
 
 	if (hyperv_mmio) {
+		if (fb_mmio) {
+			__release_region(hyperv_mmio, fb_mmio->start,
+					 resource_size(fb_mmio));
+			fb_mmio = NULL;
+		}
+
 		for (cur_res = hyperv_mmio; cur_res; cur_res = next_res) {
 			next_res = cur_res->sibling;
 			kfree(cur_res);
@@ -1098,6 +1107,30 @@ static int vmbus_acpi_remove(struct acpi_device *device)
 	}
 
 	return 0;
+}
+
+static void vmbus_reserve_fb(void)
+{
+	int size;
+	/*
+	 * Make a claim for the frame buffer in the resource tree under the
+	 * first node, which will be the one below 4GB.  The length seems to
+	 * be underreported, particularly in a Generation 1 VM.  So start out
+	 * reserving a larger area and make it smaller until it succeeds.
+	 */
+
+	if (screen_info.lfb_base) {
+		if (efi_enabled(EFI_BOOT))
+			size = max_t(__u32, screen_info.lfb_size, 0x800000);
+		else
+			size = max_t(__u32, screen_info.lfb_size, 0x4000000);
+
+		for (; !fb_mmio && (size >= 0x100000); size >>= 1) {
+			fb_mmio = __request_region(hyperv_mmio,
+						   screen_info.lfb_base, size,
+						   fb_mmio_name, 0);
+		}
+	}
 }
 
 /**
@@ -1261,8 +1294,10 @@ static int vmbus_acpi_add(struct acpi_device *device)
 
 		if (ACPI_FAILURE(result))
 			continue;
-		if (hyperv_mmio)
+		if (hyperv_mmio) {
+			vmbus_reserve_fb();
 			break;
+		}
 	}
 	ret_val = 0;
 
