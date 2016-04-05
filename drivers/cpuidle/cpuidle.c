@@ -433,6 +433,8 @@ static void __cpuidle_unregister_device(struct cpuidle_device *dev)
 	list_del(&dev->device_list);
 	per_cpu(cpuidle_devices, dev->cpu) = NULL;
 	module_put(drv->owner);
+
+	dev->registered = 0;
 }
 
 static void __cpuidle_device_init(struct cpuidle_device *dev)
