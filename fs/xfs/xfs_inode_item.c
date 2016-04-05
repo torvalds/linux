@@ -479,6 +479,8 @@ STATIC uint
 xfs_inode_item_push(
 	struct xfs_log_item	*lip,
 	struct list_head	*buffer_list)
+		__releases(&lip->li_ailp->xa_lock)
+		__acquires(&lip->li_ailp->xa_lock)
 {
 	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
 	struct xfs_inode	*ip = iip->ili_inode;

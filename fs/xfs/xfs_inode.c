@@ -1030,7 +1030,7 @@ xfs_dir_ialloc(
 			tp->t_flags &= ~(XFS_TRANS_DQ_DIRTY);
 		}
 
-		code = xfs_trans_roll(&tp, 0);
+		code = xfs_trans_roll(&tp, NULL);
 		if (committed != NULL)
 			*committed = 1;
 
