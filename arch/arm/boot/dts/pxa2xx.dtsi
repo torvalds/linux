@@ -140,5 +140,13 @@
 			reg = <0x40900000 0x3c>;
 			interrupts = <30 31>;
 		};
+
+		lcd-controller@40500000 {
+			compatible = "marvell,pxa2xx-lcdc";
+			reg = <0x44000000 0x10000>;
+			interrupts = <17>;
+			clocks = <&clks CLK_LCD>;
+			status = "disabled";
+		};
 	};
 };
