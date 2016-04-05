@@ -940,42 +940,42 @@ repeat:
 		switch (rt) {
 		case tgei_op:
 			if ((long)regs->regs[rs] >= MIPSInst_SIMM(inst))
-				do_trap_or_bp(regs, 0, "TGEI");
+				do_trap_or_bp(regs, 0, 0, "TGEI");
 
 			MIPS_R2_STATS(traps);
 
 			break;
 		case tgeiu_op:
 			if (regs->regs[rs] >= MIPSInst_UIMM(inst))
-				do_trap_or_bp(regs, 0, "TGEIU");
+				do_trap_or_bp(regs, 0, 0, "TGEIU");
 
 			MIPS_R2_STATS(traps);
 
 			break;
 		case tlti_op:
 			if ((long)regs->regs[rs] < MIPSInst_SIMM(inst))
-				do_trap_or_bp(regs, 0, "TLTI");
+				do_trap_or_bp(regs, 0, 0, "TLTI");
 
 			MIPS_R2_STATS(traps);
 
 			break;
 		case tltiu_op:
 			if (regs->regs[rs] < MIPSInst_UIMM(inst))
-				do_trap_or_bp(regs, 0, "TLTIU");
+				do_trap_or_bp(regs, 0, 0, "TLTIU");
 
 			MIPS_R2_STATS(traps);
 
 			break;
 		case teqi_op:
 			if (regs->regs[rs] == MIPSInst_SIMM(inst))
-				do_trap_or_bp(regs, 0, "TEQI");
+				do_trap_or_bp(regs, 0, 0, "TEQI");
 
 			MIPS_R2_STATS(traps);
 
 			break;
 		case tnei_op:
 			if (regs->regs[rs] != MIPSInst_SIMM(inst))
-				do_trap_or_bp(regs, 0, "TNEI");
+				do_trap_or_bp(regs, 0, 0, "TNEI");
 
 			MIPS_R2_STATS(traps);
 
