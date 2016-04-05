@@ -980,7 +980,7 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 
 	/* WaForceContextSaveRestoreNonCoherent:skl,bxt */
 	tmp = HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT;
-	if (IS_SKL_REVID(dev, SKL_REVID_F0, SKL_REVID_F0) ||
+	if (IS_SKL_REVID(dev, SKL_REVID_F0, REVID_FOREVER) ||
 	    IS_BXT_REVID(dev, BXT_REVID_B0, REVID_FOREVER))
 		tmp |= HDC_FORCE_CSR_NON_COHERENT_OVR_DISABLE;
 	WA_SET_BIT_MASKED(HDC_CHICKEN0, tmp);
@@ -1097,7 +1097,8 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 		WA_SET_BIT_MASKED(HIZ_CHICKEN,
 				  BDW_HIZ_POWER_COMPILER_CLOCK_GATING_DISABLE);
 
-	if (IS_SKL_REVID(dev, 0, SKL_REVID_F0)) {
+	/* This is tied to WaForceContextSaveRestoreNonCoherent */
+	if (IS_SKL_REVID(dev, 0, REVID_FOREVER)) {
 		/*
 		 *Use Force Non-Coherent whenever executing a 3D context. This
 		 * is a workaround for a possible hang in the unlikely event
