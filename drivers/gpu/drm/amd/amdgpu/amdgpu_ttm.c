@@ -622,7 +622,7 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 			set_page_dirty(page);
 
 		mark_page_accessed(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 
 	sg_free_table(ttm->sg);

@@ -310,10 +310,10 @@ static inline struct ll_inode_info *ll_i2info(struct inode *inode)
 /* default to about 40meg of readahead on a given system.  That much tied
  * up in 512k readahead requests serviced at 40ms each is about 1GB/s.
  */
-#define SBI_DEFAULT_READAHEAD_MAX (40UL << (20 - PAGE_CACHE_SHIFT))
+#define SBI_DEFAULT_READAHEAD_MAX (40UL << (20 - PAGE_SHIFT))
 
 /* default to read-ahead full files smaller than 2MB on the second read */
-#define SBI_DEFAULT_READAHEAD_WHOLE_MAX (2UL << (20 - PAGE_CACHE_SHIFT))
+#define SBI_DEFAULT_READAHEAD_WHOLE_MAX (2UL << (20 - PAGE_SHIFT))
 
 enum ra_stat {
 	RA_STAT_HIT = 0,
@@ -975,13 +975,13 @@ struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,
 static inline void ll_invalidate_page(struct page *vmpage)
 {
 	struct address_space *mapping = vmpage->mapping;
-	loff_t offset = vmpage->index << PAGE_CACHE_SHIFT;
+	loff_t offset = vmpage->index << PAGE_SHIFT;
 
 	LASSERT(PageLocked(vmpage));
 	if (!mapping)
 		return;
 
-	ll_teardown_mmaps(mapping, offset, offset + PAGE_CACHE_SIZE);
+	ll_teardown_mmaps(mapping, offset, offset + PAGE_SIZE);
 	truncate_complete_page(mapping, vmpage);
 }
 

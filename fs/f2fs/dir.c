@@ -17,8 +17,8 @@
 
 static unsigned long dir_blocks(struct inode *inode)
 {
-	return ((unsigned long long) (i_size_read(inode) + PAGE_CACHE_SIZE - 1))
-							>> PAGE_CACHE_SHIFT;
+	return ((unsigned long long) (i_size_read(inode) + PAGE_SIZE - 1))
+							>> PAGE_SHIFT;
 }
 
 static unsigned int dir_buckets(unsigned int level, int dir_level)

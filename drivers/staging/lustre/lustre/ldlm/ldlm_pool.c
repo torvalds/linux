@@ -107,7 +107,7 @@
 /*
  * 50 ldlm locks for 1MB of RAM.
  */
-#define LDLM_POOL_HOST_L ((NUM_CACHEPAGES >> (20 - PAGE_CACHE_SHIFT)) * 50)
+#define LDLM_POOL_HOST_L ((NUM_CACHEPAGES >> (20 - PAGE_SHIFT)) * 50)
 
 /*
  * Maximal possible grant step plan in %.

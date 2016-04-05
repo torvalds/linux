@@ -1204,7 +1204,7 @@ static int btt_rw_page(struct block_device *bdev, sector_t sector,
 {
 	struct btt *btt = bdev->bd_disk->private_data;
 
-	btt_do_bvec(btt, NULL, page, PAGE_CACHE_SIZE, 0, rw, sector);
+	btt_do_bvec(btt, NULL, page, PAGE_SIZE, 0, rw, sector);
 	page_endio(page, rw & WRITE, 0);
 	return 0;
 }

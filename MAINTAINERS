@@ -12205,9 +12205,9 @@ S:	Maintained
 F:	drivers/media/tuners/tuner-xc2028.*
 
 XEN HYPERVISOR INTERFACE
-M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 M:	Boris Ostrovsky <boris.ostrovsky@oracle.com>
 M:	David Vrabel <david.vrabel@citrix.com>
+M:	Juergen Gross <jgross@suse.com>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/xen/tip.git
 S:	Supported
@@ -12219,16 +12219,16 @@ F:	include/xen/
 F:	include/uapi/xen/
 
 XEN HYPERVISOR ARM
-M:	Stefano Stabellini <stefano.stabellini@eu.citrix.com>
+M:	Stefano Stabellini <sstabellini@kernel.org>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
-S:	Supported
+S:	Maintained
 F:	arch/arm/xen/
 F:	arch/arm/include/asm/xen/
 
 XEN HYPERVISOR ARM64
-M:	Stefano Stabellini <stefano.stabellini@eu.citrix.com>
+M:	Stefano Stabellini <sstabellini@kernel.org>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
-S:	Supported
+S:	Maintained
 F:	arch/arm64/xen/
 F:	arch/arm64/include/asm/xen/
 

@@ -19,6 +19,7 @@
 #include <asm/cpu.h>
 #include <asm/cpu-type.h>
 #include <asm/bootinfo.h>
+#include <asm/hazards.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/tlb.h>
@@ -486,6 +487,10 @@ static void r4k_tlb_configure(void)
 	 *     be set to fixed-size pages.
 	 */
 	write_c0_pagemask(PM_DEFAULT_MASK);
+	back_to_back_c0_hazard();
+	if (read_c0_pagemask() != PM_DEFAULT_MASK)
+		panic("MMU doesn't support PAGE_SIZE=0x%lx", PAGE_SIZE);
+
 	write_c0_wired(0);
 	if (current_cpu_type() == CPU_R10000 ||
 	    current_cpu_type() == CPU_R12000 ||

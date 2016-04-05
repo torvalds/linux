@@ -85,7 +85,7 @@ int __add_to_swap_cache(struct page *page, swp_entry_t entry)
 	VM_BUG_ON_PAGE(PageSwapCache(page), page);
 	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
 
-	page_cache_get(page);
+	get_page(page);
 	SetPageSwapCache(page);
 	set_page_private(page, entry.val);
 
@@ -109,7 +109,7 @@ int __add_to_swap_cache(struct page *page, swp_entry_t entry)
 		VM_BUG_ON(error == -EEXIST);
 		set_page_private(page, 0UL);
 		ClearPageSwapCache(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 
 	return error;
@@ -226,7 +226,7 @@ void delete_from_swap_cache(struct page *page)
 	spin_unlock_irq(&address_space->tree_lock);
 
 	swapcache_free(entry);
-	page_cache_release(page);
+	put_page(page);
 }
 
 /* 
@@ -252,7 +252,7 @@ static inline void free_swap_cache(struct page *page)
 void free_page_and_swap_cache(struct page *page)
 {
 	free_swap_cache(page);
-	page_cache_release(page);
+	put_page(page);
 }
 
 /*
@@ -380,7 +380,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 	} while (err != -ENOMEM);
 
 	if (new_page)
-		page_cache_release(new_page);
+		put_page(new_page);
 	return found_page;
 }
 
@@ -495,7 +495,7 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
 			continue;
 		if (offset != entry_offset)
 			SetPageReadahead(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 	blk_finish_plug(&plug);
 

@@ -962,7 +962,7 @@ static int cifs_clone_file_range(struct file *src_file, loff_t off,
 	cifs_dbg(FYI, "about to flush pages\n");
 	/* should we flush first and last page first */
 	truncate_inode_pages_range(&target_inode->i_data, destoff,
-				   PAGE_CACHE_ALIGN(destoff + len)-1);
+				   PAGE_ALIGN(destoff + len)-1);
 
 	if (target_tcon->ses->server->ops->duplicate_extents)
 		rc = target_tcon->ses->server->ops->duplicate_extents(xid,

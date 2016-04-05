@@ -87,9 +87,9 @@ static int hfsplus_releasepage(struct page *page, gfp_t mask)
 	}
 	if (!tree)
 		return 0;
-	if (tree->node_size >= PAGE_CACHE_SIZE) {
+	if (tree->node_size >= PAGE_SIZE) {
 		nidx = page->index >>
-			(tree->node_size_shift - PAGE_CACHE_SHIFT);
+			(tree->node_size_shift - PAGE_SHIFT);
 		spin_lock(&tree->hash_lock);
 		node = hfs_bnode_findhash(tree, nidx);
 		if (!node)
@@ -103,8 +103,8 @@ static int hfsplus_releasepage(struct page *page, gfp_t mask)
 		spin_unlock(&tree->hash_lock);
 	} else {
 		nidx = page->index <<
-			(PAGE_CACHE_SHIFT - tree->node_size_shift);
-		i = 1 << (PAGE_CACHE_SHIFT - tree->node_size_shift);
+			(PAGE_SHIFT - tree->node_size_shift);
+		i = 1 << (PAGE_SHIFT - tree->node_size_shift);
 		spin_lock(&tree->hash_lock);
 		do {
 			node = hfs_bnode_findhash(tree, nidx++);

@@ -1342,7 +1342,7 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th,
 		 */
 
 		data = kmap_atomic(un_bh->b_page);
-		off = ((le_ih_k_offset(&s_ih) - 1) & (PAGE_CACHE_SIZE - 1));
+		off = ((le_ih_k_offset(&s_ih) - 1) & (PAGE_SIZE - 1));
 		memcpy(data + off,
 		       ih_item_body(PATH_PLAST_BUFFER(path), &s_ih),
 		       ret_value);
@@ -1511,7 +1511,7 @@ static void unmap_buffers(struct page *page, loff_t pos)
 
 	if (page) {
 		if (page_has_buffers(page)) {
-			tail_index = pos & (PAGE_CACHE_SIZE - 1);
+			tail_index = pos & (PAGE_SIZE - 1);
 			cur_index = 0;
 			head = page_buffers(page);
 			bh = head;

@@ -57,7 +57,7 @@
 #include "../libcfs_cpu.h"
 #endif
 
-#define CFS_PAGE_MASK		   (~((__u64)PAGE_CACHE_SIZE-1))
+#define CFS_PAGE_MASK		   (~((__u64)PAGE_SIZE-1))
 #define page_index(p)       ((p)->index)
 
 #define memory_pressure_get() (current->flags & PF_MEMALLOC)
@@ -67,7 +67,7 @@
 #if BITS_PER_LONG == 32
 /* limit to lowmem on 32-bit systems */
 #define NUM_CACHEPAGES \
-	min(totalram_pages, 1UL << (30 - PAGE_CACHE_SHIFT) * 3 / 4)
+	min(totalram_pages, 1UL << (30 - PAGE_SHIFT) * 3 / 4)
 #else
 #define NUM_CACHEPAGES totalram_pages
 #endif
