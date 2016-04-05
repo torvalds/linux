@@ -754,7 +754,6 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	if (ret)
 		goto err_misc_register;
 
-	dev_info(dev, "TMC initialized\n");
 	return 0;
 
 err_misc_register:
