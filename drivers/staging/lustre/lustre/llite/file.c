@@ -875,16 +875,19 @@ ll_lease_open(struct inode *inode, struct file *file, fmode_t fmode,
 	return och;
 
 out_close:
-	rc2 = ll_close_inode_openhandle(sbi->ll_md_exp, inode, och, NULL);
-	if (rc2)
-		CERROR("Close openhandle returned %d\n", rc2);
-
-	/* cancel open lock */
+	/* Cancel open lock */
 	if (it.d.lustre.it_lock_mode != 0) {
 		ldlm_lock_decref_and_cancel(&och->och_lease_handle,
 					    it.d.lustre.it_lock_mode);
 		it.d.lustre.it_lock_mode = 0;
+		och->och_lease_handle.cookie = 0ULL;
 	}
+	rc2 = ll_close_inode_openhandle(sbi->ll_md_exp, inode, och, NULL);
+	if (rc2 < 0)
+		CERROR("%s: error closing file "DFID": %d\n",
+		       ll_get_fsname(inode->i_sb, NULL, 0),
+		       PFID(&ll_i2info(inode)->lli_fid), rc2);
+	och = NULL; /* och has been freed in ll_close_inode_openhandle() */
 out_release_it:
 	ll_intent_release(&it);
 out:
