@@ -92,7 +92,7 @@
 			compatible = "marvell,pxa-ohci";
 			reg = <0x4c000000 0x10000>;
 			interrupts = <3>;
-			clocks = <&clks CLK_USBHOST>;
+			clocks = <&clks CLK_USBH>;
 			status = "disabled";
 		};
 
