@@ -13,6 +13,8 @@
 
 #undef DEBUG
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -174,7 +176,7 @@ static int __init maple_cpufreq_init(void)
 	/* Get first CPU node */
 	cpunode = of_cpu_device_node_get(0);
 	if (cpunode == NULL) {
-		pr_err("cpufreq: Can't find any CPU 0 node\n");
+		pr_err("Can't find any CPU 0 node\n");
 		goto bail_noprops;
 	}
 
@@ -182,7 +184,7 @@ static int __init maple_cpufreq_init(void)
 	/* we actually don't care on which CPU to access PVR */
 	pvr_hi = PVR_VER(mfspr(SPRN_PVR));
 	if (pvr_hi != 0x3c && pvr_hi != 0x44) {
-		pr_err("cpufreq: Unsupported CPU version (%x)\n", pvr_hi);
+		pr_err("Unsupported CPU version (%x)\n", pvr_hi);
 		goto bail_noprops;
 	}
 

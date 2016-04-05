@@ -8,6 +8,8 @@
  *  BIG FAT DISCLAIMER: Work in progress code. Possibly *dangerous*
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -453,7 +455,7 @@ unsigned int speedstep_get_freqs(enum speedstep_processor processor,
 		 */
 		if (*transition_latency > 10000000 ||
 		    *transition_latency < 50000) {
-			pr_warn(PFX "frequency transition measured seems out of range (%u nSec), falling back to a safe one of %u nSec\n",
+			pr_warn("frequency transition measured seems out of range (%u nSec), falling back to a safe one of %u nSec\n",
 				*transition_latency, 500000);
 			*transition_latency = 500000;
 		}

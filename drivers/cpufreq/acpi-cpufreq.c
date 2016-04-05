@@ -25,6 +25,8 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -49,8 +51,6 @@
 MODULE_AUTHOR("Paul Diefenbaugh, Dominik Brodowski");
 MODULE_DESCRIPTION("ACPI Processor P-States Driver");
 MODULE_LICENSE("GPL");
-
-#define PFX "acpi-cpufreq: "
 
 enum {
 	UNDEFINED_CAPABLE = 0,
@@ -648,7 +648,7 @@ static int acpi_cpufreq_blacklist(struct cpuinfo_x86 *c)
 		if ((c->x86 == 15) &&
 		    (c->x86_model == 6) &&
 		    (c->x86_mask == 8)) {
-			pr_info("acpi-cpufreq: Intel(R) Xeon(R) 7100 Errata AL30, processors may lock up on frequency changes: disabling acpi-cpufreq\n");
+			pr_info("Intel(R) Xeon(R) 7100 Errata AL30, processors may lock up on frequency changes: disabling acpi-cpufreq\n");
 			return -ENODEV;
 		    }
 		}
@@ -724,7 +724,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		cpumask_copy(data->freqdomain_cpus,
 			     topology_sibling_cpumask(cpu));
 		policy->shared_type = CPUFREQ_SHARED_TYPE_HW;
-		pr_info_once(PFX "overriding BIOS provided _PSD data\n");
+		pr_info_once("overriding BIOS provided _PSD data\n");
 	}
 #endif
 

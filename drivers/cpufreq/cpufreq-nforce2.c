@@ -7,6 +7,8 @@
  *  BIG FAT DISCLAIMER: Work in progress code. Possibly *dangerous*
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -55,8 +57,6 @@ module_param(min_fsb, int, 0444);
 MODULE_PARM_DESC(fid, "CPU multiplier to use (11.5 = 115)");
 MODULE_PARM_DESC(min_fsb,
 		"Minimum FSB to use, if not defined: current FSB - 50");
-
-#define PFX "cpufreq-nforce2: "
 
 /**
  * nforce2_calc_fsb - calculate FSB
@@ -174,13 +174,13 @@ static int nforce2_set_fsb(unsigned int fsb)
 	int pll = 0;
 
 	if ((fsb > max_fsb) || (fsb < NFORCE2_MIN_FSB)) {
-		pr_err(PFX "FSB %d is out of range!\n", fsb);
+		pr_err("FSB %d is out of range!\n", fsb);
 		return -EINVAL;
 	}
 
 	tfsb = nforce2_fsb_read(0);
 	if (!tfsb) {
-		pr_err(PFX "Error while reading the FSB\n");
+		pr_err("Error while reading the FSB\n");
 		return -EINVAL;
 	}
 
@@ -276,7 +276,7 @@ static int nforce2_target(struct cpufreq_policy *policy,
 	/* local_irq_save(flags); */
 
 	if (nforce2_set_fsb(target_fsb) < 0)
-		pr_err(PFX "Changing FSB to %d failed\n", target_fsb);
+		pr_err("Changing FSB to %d failed\n", target_fsb);
 	else
 		pr_debug("Changed FSB successfully to %d\n",
 			target_fsb);
@@ -324,7 +324,7 @@ static int nforce2_cpu_init(struct cpufreq_policy *policy)
 	/* FIX: Get FID from CPU */
 	if (!fid) {
 		if (!cpu_khz) {
-			pr_warn(PFX "cpu_khz not set, can't calculate multiplier!\n");
+			pr_warn("cpu_khz not set, can't calculate multiplier!\n");
 			return -ENODEV;
 		}
 
@@ -339,7 +339,7 @@ static int nforce2_cpu_init(struct cpufreq_policy *policy)
 		}
 	}
 
-	pr_info(PFX "FSB currently at %i MHz, FID %d.%d\n",
+	pr_info("FSB currently at %i MHz, FID %d.%d\n",
 		fsb, fid / 10, fid % 10);
 
 	/* Set maximum FSB to FSB at boot time */
@@ -399,9 +399,9 @@ static int nforce2_detect_chipset(void)
 	if (nforce2_dev == NULL)
 		return -ENODEV;
 
-	pr_info(PFX "Detected nForce2 chipset revision %X\n",
+	pr_info("Detected nForce2 chipset revision %X\n",
 		nforce2_dev->revision);
-	pr_info(PFX "FSB changing is maybe unstable and can lead to crashes and data loss\n");
+	pr_info("FSB changing is maybe unstable and can lead to crashes and data loss\n");
 
 	return 0;
 }
@@ -419,7 +419,7 @@ static int __init nforce2_init(void)
 
 	/* detect chipset */
 	if (nforce2_detect_chipset()) {
-		pr_info(PFX "No nForce2 chipset\n");
+		pr_info("No nForce2 chipset\n");
 		return -ENODEV;
 	}
 

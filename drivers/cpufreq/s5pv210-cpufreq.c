@@ -9,6 +9,8 @@
  * published by the Free Software Foundation.
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -635,13 +637,13 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 
 	arm_regulator = regulator_get(NULL, "vddarm");
 	if (IS_ERR(arm_regulator)) {
-		pr_err("failed to get regulator vddarm");
+		pr_err("failed to get regulator vddarm\n");
 		return PTR_ERR(arm_regulator);
 	}
 
 	int_regulator = regulator_get(NULL, "vddint");
 	if (IS_ERR(int_regulator)) {
-		pr_err("failed to get regulator vddint");
+		pr_err("failed to get regulator vddint\n");
 		regulator_put(arm_regulator);
 		return PTR_ERR(int_regulator);
 	}

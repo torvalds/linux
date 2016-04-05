@@ -10,6 +10,8 @@
  * published by the Free Software Foundation.
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -356,7 +358,7 @@ struct clk *s3c_cpufreq_clk_get(struct device *dev, const char *name)
 
 	clk = clk_get(dev, name);
 	if (IS_ERR(clk))
-		pr_err("cpufreq: failed to get clock '%s'\n", name);
+		pr_err("failed to get clock '%s'\n", name);
 
 	return clk;
 }
@@ -665,9 +667,9 @@ int s3c_plltab_register(struct cpufreq_frequency_table *plls,
 		vals += plls_no;
 		vals->frequency = CPUFREQ_TABLE_END;
 
-		pr_info("cpufreq: %d PLL entries\n", plls_no);
+		pr_info("%d PLL entries\n", plls_no);
 	} else
-		pr_err("cpufreq: no memory for PLL tables\n");
+		pr_err("no memory for PLL tables\n");
 
 	return vals ? 0 : -ENOMEM;
 }

@@ -21,6 +21,8 @@
  *  BIG FAT DISCLAIMER: Work in progress code. Possibly *dangerous*
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -39,8 +41,6 @@
 #include <acpi/processor.h>
 
 #include "longhaul.h"
-
-#define PFX "longhaul: "
 
 #define TYPE_LONGHAUL_V1	1
 #define TYPE_LONGHAUL_V2	2
@@ -347,13 +347,13 @@ retry_loop:
 	freqs.new = calc_speed(longhaul_get_cpu_mult());
 	/* Check if requested frequency is set. */
 	if (unlikely(freqs.new != speed)) {
-		pr_info(PFX "Failed to set requested frequency!\n");
+		pr_info("Failed to set requested frequency!\n");
 		/* Revision ID = 1 but processor is expecting revision key
 		 * equal to 0. Jumpers at the bottom of processor will change
 		 * multiplier and FSB, but will not change bits in Longhaul
 		 * MSR nor enable voltage scaling. */
 		if (!revid_errata) {
-			pr_info(PFX "Enabling \"Ignore Revision ID\" option\n");
+			pr_info("Enabling \"Ignore Revision ID\" option\n");
 			revid_errata = 1;
 			msleep(200);
 			goto retry_loop;
@@ -363,10 +363,10 @@ retry_loop:
 		 * but it doesn't change frequency. I tried poking various
 		 * bits in northbridge registers, but without success. */
 		if (longhaul_flags & USE_ACPI_C3) {
-			pr_info(PFX "Disabling ACPI C3 support\n");
+			pr_info("Disabling ACPI C3 support\n");
 			longhaul_flags &= ~USE_ACPI_C3;
 			if (revid_errata) {
-				pr_info(PFX "Disabling \"Ignore Revision ID\" option\n");
+				pr_info("Disabling \"Ignore Revision ID\" option\n");
 				revid_errata = 0;
 			}
 			msleep(200);
@@ -377,7 +377,7 @@ retry_loop:
 		 * RevID = 1. RevID errata will make things right. Just
 		 * to be 100% sure. */
 		if (longhaul_version == TYPE_LONGHAUL_V2) {
-			pr_info(PFX "Switching to Longhaul ver. 1\n");
+			pr_info("Switching to Longhaul ver. 1\n");
 			longhaul_version = TYPE_LONGHAUL_V1;
 			msleep(200);
 			goto retry_loop;
@@ -385,7 +385,7 @@ retry_loop:
 	}
 
 	if (!bm_timeout) {
-		pr_info(PFX "Warning: Timeout while waiting for idle PCI bus\n");
+		pr_info("Warning: Timeout while waiting for idle PCI bus\n");
 		return -EBUSY;
 	}
 
@@ -430,12 +430,12 @@ static int longhaul_get_ranges(void)
 	/* Get current frequency */
 	mult = longhaul_get_cpu_mult();
 	if (mult == -1) {
-		pr_info(PFX "Invalid (reserved) multiplier!\n");
+		pr_info("Invalid (reserved) multiplier!\n");
 		return -EINVAL;
 	}
 	fsb = guess_fsb(mult);
 	if (fsb == 0) {
-		pr_info(PFX "Invalid (reserved) FSB!\n");
+		pr_info("Invalid (reserved) FSB!\n");
 		return -EINVAL;
 	}
 	/* Get max multiplier - as we always did.
@@ -465,11 +465,11 @@ static int longhaul_get_ranges(void)
 		 print_speed(highest_speed/1000));
 
 	if (lowest_speed == highest_speed) {
-		pr_info(PFX "highestspeed == lowest, aborting\n");
+		pr_info("highestspeed == lowest, aborting\n");
 		return -EINVAL;
 	}
 	if (lowest_speed > highest_speed) {
-		pr_info(PFX "nonsense! lowest (%d > %d) !\n",
+		pr_info("nonsense! lowest (%d > %d) !\n",
 			lowest_speed, highest_speed);
 		return -EINVAL;
 	}
@@ -535,16 +535,16 @@ static void longhaul_setup_voltagescaling(void)
 
 	rdmsrl(MSR_VIA_LONGHAUL, longhaul.val);
 	if (!(longhaul.bits.RevisionID & 1)) {
-		pr_info(PFX "Voltage scaling not supported by CPU\n");
+		pr_info("Voltage scaling not supported by CPU\n");
 		return;
 	}
 
 	if (!longhaul.bits.VRMRev) {
-		pr_info(PFX "VRM 8.5\n");
+		pr_info("VRM 8.5\n");
 		vrm_mV_table = &vrm85_mV[0];
 		mV_vrm_table = &mV_vrm85[0];
 	} else {
-		pr_info(PFX "Mobile VRM\n");
+		pr_info("Mobile VRM\n");
 		if (cpu_model < CPU_NEHEMIAH)
 			return;
 		vrm_mV_table = &mobilevrm_mV[0];
@@ -555,21 +555,21 @@ static void longhaul_setup_voltagescaling(void)
 	maxvid = vrm_mV_table[longhaul.bits.MaximumVID];
 
 	if (minvid.mV == 0 || maxvid.mV == 0 || minvid.mV > maxvid.mV) {
-		pr_info(PFX "Bogus values Min:%d.%03d Max:%d.%03d - Voltage scaling disabled\n",
+		pr_info("Bogus values Min:%d.%03d Max:%d.%03d - Voltage scaling disabled\n",
 			minvid.mV/1000, minvid.mV%1000,
 			maxvid.mV/1000, maxvid.mV%1000);
 		return;
 	}
 
 	if (minvid.mV == maxvid.mV) {
-		pr_info(PFX "Claims to support voltage scaling but min & max are both %d.%03d - Voltage scaling disabled\n",
+		pr_info("Claims to support voltage scaling but min & max are both %d.%03d - Voltage scaling disabled\n",
 			maxvid.mV/1000, maxvid.mV%1000);
 		return;
 	}
 
 	/* How many voltage steps*/
 	numvscales = maxvid.pos - minvid.pos + 1;
-	pr_info(PFX "Max VID=%d.%03d  Min VID=%d.%03d, %d possible voltage scales\n",
+	pr_info("Max VID=%d.%03d  Min VID=%d.%03d, %d possible voltage scales\n",
 		maxvid.mV/1000, maxvid.mV%1000,
 		minvid.mV/1000, minvid.mV%1000,
 		numvscales);
@@ -608,12 +608,12 @@ static void longhaul_setup_voltagescaling(void)
 			pos = minvid.pos;
 		freq_pos->driver_data |= mV_vrm_table[pos] << 8;
 		vid = vrm_mV_table[mV_vrm_table[pos]];
-		pr_info(PFX "f: %d kHz, index: %d, vid: %d mV\n",
+		pr_info("f: %d kHz, index: %d, vid: %d mV\n",
 			speed, (int)(freq_pos - longhaul_table), vid.mV);
 	}
 
 	can_scale_voltage = 1;
-	pr_info(PFX "Voltage scaling enabled\n");
+	pr_info("Voltage scaling enabled\n");
 }
 
 
@@ -711,7 +711,7 @@ static int enable_arbiter_disable(void)
 			pci_write_config_byte(dev, reg, pci_cmd);
 			pci_read_config_byte(dev, reg, &pci_cmd);
 			if (!(pci_cmd & 1<<7)) {
-				pr_err(PFX "Can't enable access to port 0x22\n");
+				pr_err("Can't enable access to port 0x22\n");
 				status = 0;
 			}
 		}
@@ -748,7 +748,7 @@ static int longhaul_setup_southbridge(void)
 		if (pci_cmd & 1 << 7) {
 			pci_read_config_dword(dev, 0x88, &acpi_regs_addr);
 			acpi_regs_addr &= 0xff00;
-			pr_info(PFX "ACPI I/O at 0x%x\n", acpi_regs_addr);
+			pr_info("ACPI I/O at 0x%x\n", acpi_regs_addr);
 		}
 
 		pci_dev_put(dev);
@@ -842,7 +842,7 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 			longhaul_version = TYPE_LONGHAUL_V1;
 	}
 
-	pr_info(PFX "VIA %s CPU detected.  ", cpuname);
+	pr_info("VIA %s CPU detected.  ", cpuname);
 	switch (longhaul_version) {
 	case TYPE_LONGHAUL_V1:
 	case TYPE_LONGHAUL_V2:
@@ -878,14 +878,14 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 	if (!(longhaul_flags & USE_ACPI_C3
 	     || longhaul_flags & USE_NORTHBRIDGE)
 	    && ((pr == NULL) || !(pr->flags.bm_control))) {
-		pr_err(PFX "No ACPI support: Unsupported northbridge\n");
+		pr_err("No ACPI support: Unsupported northbridge\n");
 		return -ENODEV;
 	}
 
 	if (longhaul_flags & USE_NORTHBRIDGE)
-		pr_info(PFX "Using northbridge support\n");
+		pr_info("Using northbridge support\n");
 	if (longhaul_flags & USE_ACPI_C3)
-		pr_info(PFX "Using ACPI support\n");
+		pr_info("Using ACPI support\n");
 
 	ret = longhaul_get_ranges();
 	if (ret != 0)
@@ -922,18 +922,18 @@ static int __init longhaul_init(void)
 		return -ENODEV;
 
 	if (!enable) {
-		pr_err(PFX "Option \"enable\" not set - Aborting\n");
+		pr_err("Option \"enable\" not set - Aborting\n");
 		return -ENODEV;
 	}
 #ifdef CONFIG_SMP
 	if (num_online_cpus() > 1) {
-		pr_err(PFX "More than 1 CPU detected, longhaul disabled\n");
+		pr_err("More than 1 CPU detected, longhaul disabled\n");
 		return -ENODEV;
 	}
 #endif
 #ifdef CONFIG_X86_IO_APIC
 	if (cpu_has_apic) {
-		pr_err(PFX "APIC detected. Longhaul is currently broken in this configuration.\n");
+		pr_err("APIC detected. Longhaul is currently broken in this configuration.\n");
 		return -ENODEV;
 	}
 #endif
@@ -941,7 +941,7 @@ static int __init longhaul_init(void)
 	case 6 ... 9:
 		return cpufreq_register_driver(&longhaul_driver);
 	case 10:
-		pr_err(PFX "Use acpi-cpufreq driver for VIA C7\n");
+		pr_err("Use acpi-cpufreq driver for VIA C7\n");
 	default:
 		;
 	}

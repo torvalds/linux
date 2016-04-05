@@ -12,6 +12,8 @@
  *                        SPEEDSTEP - DEFINITIONS                    *
  *********************************************************************/
 
+#define pr_fmt(fmt) "cpufreq: " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -204,7 +206,7 @@ static void speedstep_set_state(unsigned int state)
 			(speedstep_freqs[new_state].frequency / 1000),
 			retry, result);
 	else
-		pr_err("cpufreq: change to state %u failed with new_state %u and result %u\n",
+		pr_err("change to state %u failed with new_state %u and result %u\n",
 		       state, new_state, result);
 
 	return;
