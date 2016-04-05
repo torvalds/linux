@@ -145,6 +145,21 @@ int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state)
 	return -ETIMEDOUT;
 }
 
+static void dwc3_ep_inc_enq(struct dwc3_ep *dep)
+{
+	dep->trb_enqueue++;
+}
+
+static void dwc3_ep_inc_deq(struct dwc3_ep *dep)
+{
+	dep->trb_dequeue++;
+}
+
+static int dwc3_ep_is_last_trb(unsigned int index)
+{
+	return (index % DWC3_TRB_NUM) == (DWC3_TRB_NUM - 1);
+}
+
 void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 		int status)
 {
@@ -154,16 +169,15 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 	if (req->started) {
 		i = 0;
 		do {
-			dep->trb_dequeue++;
+			dwc3_ep_inc_deq(dep);
 			/*
 			 * Skip LINK TRB. We can't use req->trb and check for
 			 * DWC3_TRBCTL_LINK_TRB because it points the TRB we
 			 * just completed (not the LINK TRB).
 			 */
-			if (((dep->trb_dequeue % DWC3_TRB_NUM) ==
-				DWC3_TRB_NUM - 1) &&
+			if (dwc3_ep_is_last_trb(dep->trb_dequeue) &&
 				usb_endpoint_xfer_isoc(dep->endpoint.desc))
-				dep->trb_dequeue++;
+				dwc3_ep_inc_deq(dep);
 		} while(++i < req->request.num_mapped_sgs);
 		req->started = false;
 	}
@@ -750,11 +764,11 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		req->first_trb_index = dep->trb_enqueue % DWC3_TRB_NUM;
 	}
 
-	dep->trb_enqueue++;
+	dwc3_ep_inc_enq(dep);
 	/* Skip the LINK-TRB on ISOC */
-	if (((dep->trb_enqueue % DWC3_TRB_NUM) == DWC3_TRB_NUM - 1) &&
+	if (dwc3_ep_is_last_trb(dep->trb_enqueue) &&
 			usb_endpoint_xfer_isoc(dep->endpoint.desc))
-		dep->trb_enqueue++;
+		dwc3_ep_inc_enq(dep);
 
 	trb->size = DWC3_TRB_SIZE_LENGTH(length);
 	trb->bpl = lower_32_bits(dma);
