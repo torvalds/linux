@@ -1188,6 +1188,21 @@ exit:
 EXPORT_SYMBOL_GPL(vmbus_allocate_mmio);
 
 /**
+ * vmbus_free_mmio() - Free a memory-mapped I/O range.
+ * @start:		Base address of region to release.
+ * @size:		Size of the range to be allocated
+ *
+ * This function releases anything requested by
+ * vmbus_mmio_allocate().
+ */
+void vmbus_free_mmio(resource_size_t start, resource_size_t size)
+{
+	release_mem_region(start, size);
+
+}
+EXPORT_SYMBOL_GPL(vmbus_free_mmio);
+
+/**
  * vmbus_cpu_number_to_vp_number() - Map CPU to VP.
  * @cpu_number: CPU number in Linux terms
  *
