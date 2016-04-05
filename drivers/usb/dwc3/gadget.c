@@ -1264,7 +1264,7 @@ int __dwc3_gadget_ep_set_halt(struct dwc3_ep *dep, int value, int protocol)
 				(!list_empty(&dep->started_list) ||
 				 !list_empty(&dep->pending_list)))) {
 			dwc3_trace(trace_dwc3_gadget,
-					"%s: pending request, cannot halt\n",
+					"%s: pending request, cannot halt",
 					dep->name);
 			return -EAGAIN;
 		}
