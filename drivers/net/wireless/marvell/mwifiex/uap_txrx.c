@@ -212,6 +212,8 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	atomic_inc(&adapter->tx_pending);
 	atomic_inc(&adapter->pending_bridged_pkts);
 
+	mwifiex_queue_main_work(priv->adapter);
+
 	return;
 }
 
