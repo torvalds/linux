@@ -305,9 +305,9 @@ mlxsw_sp_port_system_port_mapping_set(struct mlxsw_sp_port *mlxsw_sp_port)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sspr), sspr_pl);
 }
 
-static int mlxsw_sp_port_module_info_get(struct mlxsw_sp *mlxsw_sp,
-					 u8 local_port, u8 *p_module,
-					 u8 *p_width)
+static int __mlxsw_sp_port_module_info_get(struct mlxsw_sp *mlxsw_sp,
+					   u8 local_port, u8 *p_module,
+					   u8 *p_width, u8 *p_lane)
 {
 	char pmlp_pl[MLXSW_REG_PMLP_LEN];
 	int err;
@@ -318,7 +318,18 @@ static int mlxsw_sp_port_module_info_get(struct mlxsw_sp *mlxsw_sp,
 		return err;
 	*p_module = mlxsw_reg_pmlp_module_get(pmlp_pl, 0);
 	*p_width = mlxsw_reg_pmlp_width_get(pmlp_pl);
+	*p_lane = mlxsw_reg_pmlp_tx_lane_get(pmlp_pl, 0);
 	return 0;
+}
+
+static int mlxsw_sp_port_module_info_get(struct mlxsw_sp *mlxsw_sp,
+					 u8 local_port, u8 *p_module,
+					 u8 *p_width)
+{
+	u8 lane;
+
+	return __mlxsw_sp_port_module_info_get(mlxsw_sp, local_port, p_module,
+					       p_width, &lane);
 }
 
 static int mlxsw_sp_port_module_map(struct mlxsw_sp *mlxsw_sp, u8 local_port,
@@ -861,6 +872,33 @@ int mlxsw_sp_port_kill_vid(struct net_device *dev,
 	return 0;
 }
 
+static int mlxsw_sp_port_get_phys_port_name(struct net_device *dev, char *name,
+					    size_t len)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	u8 module, width, lane;
+	int err;
+
+	err = __mlxsw_sp_port_module_info_get(mlxsw_sp_port->mlxsw_sp,
+					      mlxsw_sp_port->local_port,
+					      &module, &width, &lane);
+	if (err) {
+		netdev_err(dev, "Failed to retrieve module information\n");
+		return err;
+	}
+
+	if (!mlxsw_sp_port->split)
+		err = snprintf(name, len, "p%d", module + 1);
+	else
+		err = snprintf(name, len, "p%ds%d", module + 1,
+			       lane / width);
+
+	if (err >= len)
+		return -EINVAL;
+
+	return 0;
+}
+
 static const struct net_device_ops mlxsw_sp_port_netdev_ops = {
 	.ndo_open		= mlxsw_sp_port_open,
 	.ndo_stop		= mlxsw_sp_port_stop,
@@ -877,6 +915,7 @@ static const struct net_device_ops mlxsw_sp_port_netdev_ops = {
 	.ndo_bridge_setlink	= switchdev_port_bridge_setlink,
 	.ndo_bridge_getlink	= switchdev_port_bridge_getlink,
 	.ndo_bridge_dellink	= switchdev_port_bridge_dellink,
+	.ndo_get_phys_port_name	= mlxsw_sp_port_get_phys_port_name,
 };
 
 static void mlxsw_sp_port_get_drvinfo(struct net_device *dev,
