@@ -58,50 +58,41 @@ static inline struct vbt_panel *to_vbt_panel(struct drm_panel *panel)
 
 #define NS_KHZ_RATIO 1000000
 
-#define GPI0_NC_0_HV_DDI0_HPD           0x4130
-#define GPIO_NC_0_HV_DDI0_PAD           0x4138
-#define GPIO_NC_1_HV_DDI0_DDC_SDA       0x4120
-#define GPIO_NC_1_HV_DDI0_DDC_SDA_PAD   0x4128
-#define GPIO_NC_2_HV_DDI0_DDC_SCL       0x4110
-#define GPIO_NC_2_HV_DDI0_DDC_SCL_PAD   0x4118
-#define GPIO_NC_3_PANEL0_VDDEN          0x4140
-#define GPIO_NC_3_PANEL0_VDDEN_PAD      0x4148
-#define GPIO_NC_4_PANEL0_BLKEN          0x4150
-#define GPIO_NC_4_PANEL0_BLKEN_PAD      0x4158
-#define GPIO_NC_5_PANEL0_BLKCTL         0x4160
-#define GPIO_NC_5_PANEL0_BLKCTL_PAD     0x4168
-#define GPIO_NC_6_PCONF0                0x4180
-#define GPIO_NC_6_PAD                   0x4188
-#define GPIO_NC_7_PCONF0                0x4190
-#define GPIO_NC_7_PAD                   0x4198
-#define GPIO_NC_8_PCONF0                0x4170
-#define GPIO_NC_8_PAD                   0x4178
-#define GPIO_NC_9_PCONF0                0x4100
-#define GPIO_NC_9_PAD                   0x4108
-#define GPIO_NC_10_PCONF0               0x40E0
-#define GPIO_NC_10_PAD                  0x40E8
-#define GPIO_NC_11_PCONF0               0x40F0
-#define GPIO_NC_11_PAD                  0x40F8
+/* base offsets for gpio pads */
+#define VLV_GPIO_NC_0_HV_DDI0_HPD	0x4130
+#define VLV_GPIO_NC_1_HV_DDI0_DDC_SDA	0x4120
+#define VLV_GPIO_NC_2_HV_DDI0_DDC_SCL	0x4110
+#define VLV_GPIO_NC_3_PANEL0_VDDEN	0x4140
+#define VLV_GPIO_NC_4_PANEL0_BKLTEN	0x4150
+#define VLV_GPIO_NC_5_PANEL0_BKLTCTL	0x4160
+#define VLV_GPIO_NC_6_HV_DDI1_HPD	0x4180
+#define VLV_GPIO_NC_7_HV_DDI1_DDC_SDA	0x4190
+#define VLV_GPIO_NC_8_HV_DDI1_DDC_SCL	0x4170
+#define VLV_GPIO_NC_9_PANEL1_VDDEN	0x4100
+#define VLV_GPIO_NC_10_PANEL1_BKLTEN	0x40E0
+#define VLV_GPIO_NC_11_PANEL1_BKLTCTL	0x40F0
+
+#define VLV_GPIO_PCONF0(base_offset)	(base_offset)
+#define VLV_GPIO_PAD_VAL(base_offset)	((base_offset) + 8)
 
 struct gpio_table {
-	u16 function_reg;
-	u16 pad_reg;
-	u8 init;
+	u16 base_offset;
+	bool init;
 };
 
-static struct gpio_table gtable[] = {
-	{ GPI0_NC_0_HV_DDI0_HPD, GPIO_NC_0_HV_DDI0_PAD, 0 },
-	{ GPIO_NC_1_HV_DDI0_DDC_SDA, GPIO_NC_1_HV_DDI0_DDC_SDA_PAD, 0 },
-	{ GPIO_NC_2_HV_DDI0_DDC_SCL, GPIO_NC_2_HV_DDI0_DDC_SCL_PAD, 0 },
-	{ GPIO_NC_3_PANEL0_VDDEN, GPIO_NC_3_PANEL0_VDDEN_PAD, 0 },
-	{ GPIO_NC_4_PANEL0_BLKEN, GPIO_NC_4_PANEL0_BLKEN_PAD, 0 },
-	{ GPIO_NC_5_PANEL0_BLKCTL, GPIO_NC_5_PANEL0_BLKCTL_PAD, 0 },
-	{ GPIO_NC_6_PCONF0, GPIO_NC_6_PAD, 0 },
-	{ GPIO_NC_7_PCONF0, GPIO_NC_7_PAD, 0 },
-	{ GPIO_NC_8_PCONF0, GPIO_NC_8_PAD, 0 },
-	{ GPIO_NC_9_PCONF0, GPIO_NC_9_PAD, 0 },
-	{ GPIO_NC_10_PCONF0, GPIO_NC_10_PAD, 0},
-	{ GPIO_NC_11_PCONF0, GPIO_NC_11_PAD, 0}
+static struct gpio_table vlv_gpio_table[] = {
+	{ VLV_GPIO_NC_0_HV_DDI0_HPD },
+	{ VLV_GPIO_NC_1_HV_DDI0_DDC_SDA },
+	{ VLV_GPIO_NC_2_HV_DDI0_DDC_SCL },
+	{ VLV_GPIO_NC_3_PANEL0_VDDEN },
+	{ VLV_GPIO_NC_4_PANEL0_BKLTEN },
+	{ VLV_GPIO_NC_5_PANEL0_BKLTCTL },
+	{ VLV_GPIO_NC_6_HV_DDI1_HPD },
+	{ VLV_GPIO_NC_7_HV_DDI1_DDC_SDA },
+	{ VLV_GPIO_NC_8_HV_DDI1_DDC_SCL },
+	{ VLV_GPIO_NC_9_PANEL1_VDDEN },
+	{ VLV_GPIO_NC_10_PANEL1_BKLTEN },
+	{ VLV_GPIO_NC_11_PANEL1_BKLTCTL },
 };
 
 static inline enum port intel_dsi_seq_port_to_port(u8 port)
@@ -199,7 +190,7 @@ static const u8 *mipi_exec_delay(struct intel_dsi *intel_dsi, const u8 *data)
 static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 {
 	u8 gpio_source, gpio_index, action, port;
-	u16 function, pad;
+	u16 pconf0, padval;
 	u32 val;
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -218,7 +209,7 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	/* pull up/down */
 	action = *data++ & 1;
 
-	if (gpio_index >= ARRAY_SIZE(gtable)) {
+	if (gpio_index >= ARRAY_SIZE(vlv_gpio_table)) {
 		DRM_DEBUG_KMS("unknown gpio index %u\n", gpio_index);
 		goto out;
 	}
@@ -242,21 +233,21 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 		}
 	}
 
-	function = gtable[gpio_index].function_reg;
-	pad = gtable[gpio_index].pad_reg;
+	pconf0 = VLV_GPIO_PCONF0(vlv_gpio_table[gpio_index].base_offset);
+	padval = VLV_GPIO_PAD_VAL(vlv_gpio_table[gpio_index].base_offset);
 
 	mutex_lock(&dev_priv->sb_lock);
-	if (!gtable[gpio_index].init) {
+	if (!vlv_gpio_table[gpio_index].init) {
 		/* program the function */
 		/* FIXME: remove constant below */
-		vlv_iosf_sb_write(dev_priv, port, function, 0x2000CC00);
-		gtable[gpio_index].init = 1;
+		vlv_iosf_sb_write(dev_priv, port, pconf0, 0x2000CC00);
+		vlv_gpio_table[gpio_index].init = true;
 	}
 
 	val = 0x4 | action;
 
 	/* pull up/down */
-	vlv_iosf_sb_write(dev_priv, port, pad, val);
+	vlv_iosf_sb_write(dev_priv, port, padval, val);
 	mutex_unlock(&dev_priv->sb_lock);
 
 out:
