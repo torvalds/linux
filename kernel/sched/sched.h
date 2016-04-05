@@ -56,25 +56,25 @@ static inline void cpu_load_update_active(struct rq *this_rq) { }
  * increase coverage and consistency always enable it on 64bit platforms.
  */
 #ifdef CONFIG_64BIT
-# define SCHED_LOAD_SHIFT	(SCHED_FIXEDPOINT_SHIFT + SCHED_FIXEDPOINT_SHIFT)
+# define NICE_0_LOAD_SHIFT	(SCHED_FIXEDPOINT_SHIFT + SCHED_FIXEDPOINT_SHIFT)
 # define scale_load(w)		((w) << SCHED_FIXEDPOINT_SHIFT)
 # define scale_load_down(w)	((w) >> SCHED_FIXEDPOINT_SHIFT)
 #else
-# define SCHED_LOAD_SHIFT	(SCHED_FIXEDPOINT_SHIFT)
+# define NICE_0_LOAD_SHIFT	(SCHED_FIXEDPOINT_SHIFT)
 # define scale_load(w)		(w)
 # define scale_load_down(w)	(w)
 #endif
 
-#define SCHED_LOAD_SCALE	(1L << SCHED_LOAD_SHIFT)
-
 /*
- * NICE_0's weight (visible to users) and its load (invisible to users) have
- * independent ranges, but they should be well calibrated. We use scale_load()
- * and scale_load_down(w) to convert between them, and the following must be true:
- * scale_load(sched_prio_to_weight[20]) == NICE_0_LOAD
+ * Task weight (visible to users) and its load (invisible to users) have
+ * independent resolution, but they should be well calibrated. We use
+ * scale_load() and scale_load_down(w) to convert between them. The
+ * following must be true:
+ *
+ *  scale_load(sched_prio_to_weight[USER_PRIO(NICE_TO_PRIO(0))]) == NICE_0_LOAD
+ *
  */
-#define NICE_0_LOAD		SCHED_LOAD_SCALE
-#define NICE_0_SHIFT		SCHED_LOAD_SHIFT
+#define NICE_0_LOAD		(1L << NICE_0_LOAD_SHIFT)
 
 /*
  * Single value that decides SCHED_DEADLINE internal math precision.
@@ -863,7 +863,7 @@ DECLARE_PER_CPU(struct sched_domain *, sd_asym);
 struct sched_group_capacity {
 	atomic_t ref;
 	/*
-	 * CPU capacity of this group, SCHED_LOAD_SCALE being max capacity
+	 * CPU capacity of this group, SCHED_CAPACITY_SCALE being max capacity
 	 * for a single CPU.
 	 */
 	unsigned int capacity;

@@ -719,7 +719,7 @@ void post_init_entity_util_avg(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 	struct sched_avg *sa = &se->avg;
-	long cap = (long)(scale_load_down(SCHED_LOAD_SCALE) - cfs_rq->avg.util_avg) / 2;
+	long cap = (long)(SCHED_CAPACITY_SCALE - cfs_rq->avg.util_avg) / 2;
 
 	if (cap > 0) {
 		if (cfs_rq->avg.util_avg != 0) {
@@ -7010,7 +7010,7 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
 	if (busiest->group_type == group_overloaded &&
 	    local->group_type   == group_overloaded) {
 		load_above_capacity = busiest->sum_nr_running *
-					SCHED_LOAD_SCALE;
+				      scale_load_down(NICE_0_LOAD);
 		if (load_above_capacity > busiest->group_capacity)
 			load_above_capacity -= busiest->group_capacity;
 		else
