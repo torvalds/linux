@@ -169,7 +169,7 @@ static void cdns_spi_init_hw(struct cdns_spi *xspi)
 /**
  * cdns_spi_chipselect - Select or deselect the chip select line
  * @spi:	Pointer to the spi_device structure
- * @is_on:	Select(0) or deselect (1) the chip select line
+ * @is_high:	Select(0) or deselect (1) the chip select line
  */
 static void cdns_spi_chipselect(struct spi_device *spi, bool is_high)
 {
