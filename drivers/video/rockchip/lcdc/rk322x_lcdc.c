@@ -49,17 +49,65 @@ module_param(dbg_thresd, int, S_IRUGO | S_IWUSR);
 	} while (0)
 
 static struct rk_lcdc_win rk322x_vop_win[] = {
-	{ .name = "win0", .id = VOP_WIN0},
-	{ .name = "win1", .id = VOP_WIN1},
-	{ .name = "hwc",  .id = VOP_HWC}
+	{ .name = "win0",
+	  .id = VOP_WIN0,
+	  .property.feature = SUPPORT_WIN_IDENTIFY | SUPPORT_HW_EXIST |
+				SUPPORT_SCALE | SUPPORT_YUV |
+				SUPPORT_YUV10BIT,
+	  .property.max_input_x = 4096,
+	  .property.max_input_y = 2304},
+	{ .name = "win1",
+	  .id = VOP_WIN1,
+	  .property.feature = SUPPORT_WIN_IDENTIFY | SUPPORT_HW_EXIST |
+				SUPPORT_SCALE | SUPPORT_YUV |
+				SUPPORT_YUV10BIT,
+	  .property.max_input_x = 4096,
+	  .property.max_input_y = 2304},
+	{
+	  .name = "hwc",
+	  .id = VOP_HWC,
+	  .property.feature = SUPPORT_WIN_IDENTIFY | SUPPORT_HW_EXIST |
+				SUPPORT_HWC_LAYER,
+	  .property.max_input_x = 128,
+	  .property.max_input_y = 128
+	}
 };
 
 static struct rk_lcdc_win rk3399_vop_win[] = {
-	{ .name = "win0", .id = VOP_WIN0},
-	{ .name = "win1", .id = VOP_WIN1},
-	{ .name = "win2", .id = VOP_WIN2},
-	{ .name = "win3", .id = VOP_WIN3},
-	{ .name = "hwc",  .id = VOP_HWC}
+	{ .name = "win0",
+	  .id = VOP_WIN0,
+	  .property.feature = SUPPORT_WIN_IDENTIFY | SUPPORT_HW_EXIST |
+				SUPPORT_SCALE | SUPPORT_YUV |
+				SUPPORT_YUV10BIT,
+	  .property.max_input_x = 4096,
+	  .property.max_input_y = 2304},
+	{ .name = "win1",
+	  .id = VOP_WIN1,
+	  .property.feature = SUPPORT_WIN_IDENTIFY | SUPPORT_HW_EXIST |
+				SUPPORT_SCALE | SUPPORT_YUV |
+				SUPPORT_YUV10BIT,
+	  .property.max_input_x = 4096,
+	  .property.max_input_y = 2304},
+	{ .name = "win2",
+	  .id = VOP_WIN2,
+	  .property.feature = SUPPORT_WIN_IDENTIFY | SUPPORT_HW_EXIST |
+				SUPPORT_MULTI_AREA,
+	  .property.max_input_x = 4096,
+	  .property.max_input_y = 2304},
+	{ .name = "win3",
+	  .id = VOP_WIN3,
+	  .property.feature = SUPPORT_WIN_IDENTIFY | SUPPORT_HW_EXIST |
+				SUPPORT_MULTI_AREA,
+	  .property.max_input_x = 4096,
+	  .property.max_input_y = 2304},
+	{
+	  .name = "hwc",
+	  .id = VOP_HWC,
+	  .property.feature = SUPPORT_WIN_IDENTIFY | SUPPORT_HW_EXIST |
+				SUPPORT_HWC_LAYER,
+	  .property.max_input_x = 128,
+	  .property.max_input_y = 128
+	}
 };
 
 static const struct vop_data rk322x_data = {
@@ -1298,10 +1346,17 @@ static int vop_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 	u64 val;
 	u32 off;
 	int format;
+	struct rk_win_property *win_property =
+				&dev_drv->win[win_id]->property;
 
 	off = win_id * 0x40;
 
 	if (win->state == 1) {
+		if (!(win_property->feature & SUPPORT_HW_EXIST)) {
+			pr_err("vop[%d] win[%d] hardware unsupport\n",
+			       vop_dev->id, win_id);
+			return 0;
+		}
 		vop_axi_gather_cfg(vop_dev, win);
 		if (win->area[0].fbdc_en)
 			vop_fbdc_reg_update(vop_dev, win_id);
@@ -1434,11 +1489,18 @@ static int vop_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 	struct rk_lcdc_win *win = dev_drv->win[win_id];
 	unsigned int off;
 	u64 val;
+	struct rk_win_property *win_property =
+				&dev_drv->win[win_id]->property;
 
 	off = (win_id - 2) * 0x50;
 	area_xst(win, win->area_num);
 
 	if (win->state == 1) {
+		if (!(win_property->feature & SUPPORT_HW_EXIST)) {
+			pr_err("vop[%d] win[%d] hardware unsupport\n",
+			       vop_dev->id, win_id);
+			return 0;
+		}
 		vop_axi_gather_cfg(vop_dev, win);
 		if (win->area[0].fbdc_en)
 			vop_fbdc_reg_update(vop_dev, win_id);
@@ -4810,7 +4872,18 @@ static int vop_probe(struct platform_device *pdev)
 				       VOPL_IOMMU_COMPATIBLE_NAME);
 		}
 	}
-	dev_drv->property.feature |= SUPPORT_WRITE_BACK;
+	if (VOP_CHIP(vop_dev) == VOP_RK3399)
+		dev_drv->property.feature |= SUPPORT_WRITE_BACK | SUPPORT_AFBDC;
+	dev_drv->property.feature |= SUPPORT_VOP_IDENTIFY |
+					SUPPORT_YUV420_OUTPUT;
+	dev_drv->property.max_output_x = 4096;
+	dev_drv->property.max_output_y = 2160;
+
+	if ((VOP_CHIP(vop_dev) == VOP_RK3399) && (vop_dev->id == 1)) {
+		vop_dev->data->win[1].property.feature &= ~SUPPORT_HW_EXIST;
+		vop_dev->data->win[3].property.feature &= ~SUPPORT_HW_EXIST;
+	}
+
 	ret = rk_fb_register(dev_drv, vop_dev->data->win, vop_dev->id);
 	if (ret < 0) {
 		dev_err(dev, "register fb for lcdc%d failed!\n", vop_dev->id);
