@@ -43,6 +43,15 @@
 			marvell,intc-nr-irqs = <56>;
 		};
 
+		pinctrl: pinctrl@40e10000 {
+			compatible = "pinconf-single";
+			reg = <0x40e10000 0xffff>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-single,register-width = <32>;
+			pinctrl-single,function-mask = <0x7>;
+		};
+
 		gpio: gpio@40e00000 {
 			compatible = "intel,pxa3xx-gpio";
 			reg = <0x40e00000 0x10000>;
