@@ -137,8 +137,14 @@ static void au0828_unregister_media_device(struct au0828_dev *dev)
 #ifdef CONFIG_MEDIA_CONTROLLER
 	if (dev->media_dev &&
 		media_devnode_is_registered(&dev->media_dev->devnode)) {
+		/* clear enable_source, disable_source */
+		dev->media_dev->source_priv = NULL;
+		dev->media_dev->enable_source = NULL;
+		dev->media_dev->disable_source = NULL;
+
 		media_device_unregister(dev->media_dev);
 		media_device_cleanup(dev->media_dev);
+		kfree(dev->media_dev);
 		dev->media_dev = NULL;
 	}
 #endif
@@ -166,7 +172,7 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	   Set the status so poll routines can check and avoid
 	   access after disconnect.
 	*/
-	dev->dev_state = DEV_DISCONNECTED;
+	set_bit(DEV_DISCONNECTED, &dev->dev_state);
 
 	au0828_rc_unregister(dev);
 	/* Digital TV */
@@ -192,7 +198,7 @@ static int au0828_media_device_init(struct au0828_dev *dev,
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev;
 
-	mdev = media_device_get_devres(&udev->dev);
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
 		return -ENOMEM;
 
@@ -456,7 +462,8 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
 	int ret;
-	struct media_entity *entity, *demod = NULL, *tuner = NULL;
+	struct media_entity *entity, *demod = NULL;
+	struct media_link *link;
 
 	if (!dev->media_dev)
 		return 0;
@@ -482,26 +489,37 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 	}
 
 	/*
-	 * Find tuner and demod to disable the link between
-	 * the two to avoid disable step when tuner is requested
-	 * by video or audio. Note that this step can't be done
-	 * until dvb graph is created during dvb register.
+	 * Find tuner, decoder and demod.
+	 *
+	 * The tuner and decoder should be cached, as they'll be used by
+	 *	au0828_enable_source.
+	 *
+	 * It also needs to disable the link between tuner and
+	 * decoder/demod, to avoid disable step when tuner is requested
+	 * by video or audio. Note that this step can't be done until dvb
+	 * graph is created during dvb register.
 	*/
 	media_device_for_each_entity(entity, dev->media_dev) {
-		if (entity->function == MEDIA_ENT_F_DTV_DEMOD)
+		switch (entity->function) {
+		case MEDIA_ENT_F_TUNER:
+			dev->tuner = entity;
+			break;
+		case MEDIA_ENT_F_ATV_DECODER:
+			dev->decoder = entity;
+			break;
+		case MEDIA_ENT_F_DTV_DEMOD:
 			demod = entity;
-		else if (entity->function == MEDIA_ENT_F_TUNER)
-			tuner = entity;
+			break;
+		}
 	}
-	/* Disable link between tuner and demod */
-	if (tuner && demod) {
-		struct media_link *link;
 
-		list_for_each_entry(link, &demod->links, list) {
-			if (link->sink->entity == demod &&
-			    link->source->entity == tuner) {
+	/* Disable link between tuner->demod and/or tuner->decoder */
+	if (dev->tuner) {
+		list_for_each_entry(link, &dev->tuner->links, list) {
+			if (demod && link->sink->entity == demod)
 				media_entity_setup_link(link, 0);
-			}
+			if (dev->decoder && link->sink->entity == dev->decoder)
+				media_entity_setup_link(link, 0);
 		}
 	}
 
