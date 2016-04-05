@@ -37,6 +37,16 @@
 #define ETM_MODE_EXCL_KERN	BIT(30)
 #define ETM_MODE_EXCL_USER	BIT(31)
 
+#define coresight_simple_func(type, name, offset)			\
+static ssize_t name##_show(struct device *_dev,				\
+			   struct device_attribute *attr, char *buf)	\
+{									\
+	type *drvdata = dev_get_drvdata(_dev->parent);			\
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n",			\
+			 readl_relaxed(drvdata->base + offset));	\
+}									\
+static DEVICE_ATTR_RO(name)
+
 enum cs_mode {
 	CS_MODE_DISABLED,
 	CS_MODE_SYSFS,
