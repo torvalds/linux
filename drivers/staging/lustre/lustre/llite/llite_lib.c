@@ -166,12 +166,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		return -ENOMEM;
 	}
 
-	if (llite_root) {
-		err = ldebugfs_register_mountpoint(llite_root, sb, dt, md);
-		if (err < 0)
-			CERROR("could not register mount in <debugfs>/lustre/llite\n");
-	}
-
 	/* indicate the features supported by this client */
 	data->ocd_connect_flags = OBD_CONNECT_IBITS    | OBD_CONNECT_NODEVOH  |
 				  OBD_CONNECT_ATTRFID  |
@@ -552,6 +546,15 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	kfree(data);
 	kfree(osfs);
 
+	if (llite_root) {
+		err = ldebugfs_register_mountpoint(llite_root, sb, dt, md);
+		if (err < 0) {
+			CERROR("%s: could not register mount in debugfs: "
+			       "rc = %d\n", ll_get_fsname(sb, NULL, 0), err);
+			err = 0;
+		}
+	}
+
 	return err;
 out_root:
 	iput(root);
@@ -570,7 +573,6 @@ out_md:
 out:
 	kfree(data);
 	kfree(osfs);
-	ldebugfs_unregister_mountpoint(sbi);
 	return err;
 }
 
