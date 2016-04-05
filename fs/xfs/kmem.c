@@ -93,19 +93,23 @@ kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
 }
 
 void *
-kmem_realloc(const void *ptr, size_t newsize, size_t oldsize,
-	     xfs_km_flags_t flags)
+kmem_realloc(const void *old, size_t newsize, xfs_km_flags_t flags)
 {
-	void	*new;
+	int	retries = 0;
+	gfp_t	lflags = kmem_flags_convert(flags);
+	void	*ptr;
 
-	new = kmem_alloc(newsize, flags);
-	if (ptr) {
-		if (new)
-			memcpy(new, ptr,
-				((oldsize < newsize) ? oldsize : newsize));
-		kmem_free(ptr);
-	}
-	return new;
+	do {
+		ptr = krealloc(old, newsize, lflags);
+		if (ptr || (flags & (KM_MAYFAIL|KM_NOSLEEP)))
+			return ptr;
+		if (!(++retries % 100))
+			xfs_err(NULL,
+	"%s(%u) possible memory allocation deadlock size %zu in %s (mode:0x%x)",
+				current->comm, current->pid,
+				newsize, __func__, lflags);
+		congestion_wait(BLK_RW_ASYNC, HZ/50);
+	} while (1);
 }
 
 void *
