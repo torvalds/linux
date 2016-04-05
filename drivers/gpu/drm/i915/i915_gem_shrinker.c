@@ -289,34 +289,55 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 	return freed;
 }
 
+struct shrinker_lock_uninterruptible {
+	bool was_interruptible;
+	bool unlock;
+};
+
+static bool
+i915_gem_shrinker_lock_uninterruptible(struct drm_i915_private *dev_priv,
+				       struct shrinker_lock_uninterruptible *slu,
+				       int timeout_ms)
+{
+	unsigned long timeout = msecs_to_jiffies(timeout_ms) + 1;
+
+	while (!i915_gem_shrinker_lock(dev_priv->dev, &slu->unlock)) {
+		schedule_timeout_killable(1);
+		if (fatal_signal_pending(current))
+			return false;
+		if (--timeout == 0) {
+			pr_err("Unable to lock GPU to purge memory.\n");
+			return false;
+		}
+	}
+
+	slu->was_interruptible = dev_priv->mm.interruptible;
+	dev_priv->mm.interruptible = false;
+	return true;
+}
+
+static void
+i915_gem_shrinker_unlock_uninterruptible(struct drm_i915_private *dev_priv,
+					 struct shrinker_lock_uninterruptible *slu)
+{
+	dev_priv->mm.interruptible = slu->was_interruptible;
+	if (slu->unlock)
+		mutex_unlock(&dev_priv->dev->struct_mutex);
+}
+
 static int
 i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(nb, struct drm_i915_private, mm.oom_notifier);
-	struct drm_device *dev = dev_priv->dev;
+	struct shrinker_lock_uninterruptible slu;
 	struct drm_i915_gem_object *obj;
-	unsigned long timeout = msecs_to_jiffies(5000) + 1;
 	unsigned long pinned, bound, unbound, freed_pages;
-	bool was_interruptible;
-	bool unlock;
 
-	while (!i915_gem_shrinker_lock(dev, &unlock) && --timeout) {
-		schedule_timeout_killable(1);
-		if (fatal_signal_pending(current))
-			return NOTIFY_DONE;
-	}
-	if (timeout == 0) {
-		pr_err("Unable to purge GPU memory due lock contention.\n");
+	if (!i915_gem_shrinker_lock_uninterruptible(dev_priv, &slu, 5000))
 		return NOTIFY_DONE;
-	}
-
-	was_interruptible = dev_priv->mm.interruptible;
-	dev_priv->mm.interruptible = false;
 
 	freed_pages = i915_gem_shrink_all(dev_priv);
-
-	dev_priv->mm.interruptible = was_interruptible;
 
 	/* Because we may be allocating inside our own driver, we cannot
 	 * assert that there are no objects with pinned pages that are not
@@ -342,8 +363,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 			bound += obj->base.size;
 	}
 
-	if (unlock)
-		mutex_unlock(&dev->struct_mutex);
+	i915_gem_shrinker_unlock_uninterruptible(dev_priv, &slu);
 
 	if (freed_pages || unbound || bound)
 		pr_info("Purging GPU memory, %lu bytes freed, %lu bytes still pinned.\n",
@@ -362,30 +382,15 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 {
 	struct drm_i915_private *dev_priv =
 		container_of(nb, struct drm_i915_private, mm.vmap_notifier);
-	struct drm_device *dev = dev_priv->dev;
-	unsigned long timeout = msecs_to_jiffies(5000) + 1;
+	struct shrinker_lock_uninterruptible slu;
 	unsigned long freed_pages;
-	bool was_interruptible;
-	bool unlock;
 
-	while (!i915_gem_shrinker_lock(dev, &unlock) && --timeout) {
-		schedule_timeout_killable(1);
-		if (fatal_signal_pending(current))
-			return NOTIFY_DONE;
-	}
-	if (timeout == 0) {
-		pr_err("Unable to purge GPU vmaps due to lock contention.\n");
+	if (!i915_gem_shrinker_lock_uninterruptible(dev_priv, &slu, 5000))
 		return NOTIFY_DONE;
-	}
-
-	was_interruptible = dev_priv->mm.interruptible;
-	dev_priv->mm.interruptible = false;
 
 	freed_pages = i915_gem_shrink_all(dev_priv);
 
-	dev_priv->mm.interruptible = was_interruptible;
-	if (unlock)
-		mutex_unlock(&dev->struct_mutex);
+	i915_gem_shrinker_unlock_uninterruptible(dev_priv, &slu);
 
 	*(unsigned long *)ptr += freed_pages;
 	return NOTIFY_DONE;
