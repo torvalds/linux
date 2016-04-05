@@ -655,6 +655,7 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 			if (!nfit_mem)
 				return -ENOMEM;
 			INIT_LIST_HEAD(&nfit_mem->list);
+			nfit_mem->acpi_desc = acpi_desc;
 			list_add(&nfit_mem->list, &acpi_desc->dimms);
 		}
 
@@ -838,6 +839,18 @@ static ssize_t device_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(device);
 
+static int num_nvdimm_formats(struct nvdimm *nvdimm)
+{
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+	int formats = 0;
+
+	if (nfit_mem->memdev_pmem)
+		formats++;
+	if (nfit_mem->memdev_bdw)
+		formats++;
+	return formats;
+}
+
 static ssize_t format_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -846,6 +859,55 @@ static ssize_t format_show(struct device *dev,
 	return sprintf(buf, "%#x\n", dcr->code);
 }
 static DEVICE_ATTR_RO(format);
+
+static ssize_t format1_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	u32 handle;
+	ssize_t rc = -ENXIO;
+	struct nfit_mem *nfit_mem;
+	struct nfit_memdev *nfit_memdev;
+	struct acpi_nfit_desc *acpi_desc;
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
+
+	nfit_mem = nvdimm_provider_data(nvdimm);
+	acpi_desc = nfit_mem->acpi_desc;
+	handle = to_nfit_memdev(dev)->device_handle;
+
+	/* assumes DIMMs have at most 2 published interface codes */
+	mutex_lock(&acpi_desc->init_mutex);
+	list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
+		struct acpi_nfit_memory_map *memdev = nfit_memdev->memdev;
+		struct nfit_dcr *nfit_dcr;
+
+		if (memdev->device_handle != handle)
+			continue;
+
+		list_for_each_entry(nfit_dcr, &acpi_desc->dcrs, list) {
+			if (nfit_dcr->dcr->region_index != memdev->region_index)
+				continue;
+			if (nfit_dcr->dcr->code == dcr->code)
+				continue;
+			rc = sprintf(buf, "%#x\n", nfit_dcr->dcr->code);
+			break;
+		}
+		if (rc != ENXIO)
+			break;
+	}
+	mutex_unlock(&acpi_desc->init_mutex);
+	return rc;
+}
+static DEVICE_ATTR_RO(format1);
+
+static ssize_t formats_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+
+	return sprintf(buf, "%d\n", num_nvdimm_formats(nvdimm));
+}
+static DEVICE_ATTR_RO(formats);
 
 static ssize_t serial_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -876,6 +938,8 @@ static struct attribute *acpi_nfit_dimm_attributes[] = {
 	&dev_attr_vendor.attr,
 	&dev_attr_device.attr,
 	&dev_attr_format.attr,
+	&dev_attr_formats.attr,
+	&dev_attr_format1.attr,
 	&dev_attr_serial.attr,
 	&dev_attr_rev_id.attr,
 	&dev_attr_flags.attr,
@@ -886,11 +950,13 @@ static umode_t acpi_nfit_dimm_attr_visible(struct kobject *kobj,
 		struct attribute *a, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
+	struct nvdimm *nvdimm = to_nvdimm(dev);
 
-	if (to_nfit_dcr(dev))
-		return a->mode;
-	else
+	if (!to_nfit_dcr(dev))
 		return 0;
+	if (a == &dev_attr_format1.attr && num_nvdimm_formats(nvdimm) <= 1)
+		return 0;
+	return a->mode;
 }
 
 static struct attribute_group acpi_nfit_dimm_attribute_group = {
