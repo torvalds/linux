@@ -50,7 +50,7 @@
 
 #define MLXSW_SP_VFID_BASE VLAN_N_VID
 #define MLXSW_SP_VFID_PORT_MAX 512	/* Non-bridged VLAN interfaces */
-#define MLXSW_SP_VFID_BR_MAX 8192	/* Bridged VLAN interfaces */
+#define MLXSW_SP_VFID_BR_MAX 6144	/* Bridged VLAN interfaces */
 #define MLXSW_SP_VFID_MAX (MLXSW_SP_VFID_PORT_MAX + MLXSW_SP_VFID_BR_MAX)
 
 #define MLXSW_SP_LAG_MAX 64
