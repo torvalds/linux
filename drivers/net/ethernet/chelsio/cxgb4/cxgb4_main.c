@@ -168,7 +168,8 @@ MODULE_PARM_DESC(force_init, "Forcibly become Master PF and initialize adapter,"
 static int dflt_msg_enable = DFLT_MSG_ENABLE;
 
 module_param(dflt_msg_enable, int, 0644);
-MODULE_PARM_DESC(dflt_msg_enable, "Chelsio T4 default message enable bitmap");
+MODULE_PARM_DESC(dflt_msg_enable, "Chelsio T4 default message enable bitmap, "
+		 "deprecated parameter");
 
 /*
  * The driver uses the best interrupt scheme available on a platform in the
