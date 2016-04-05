@@ -497,8 +497,9 @@
 			compatible = "fsl,ls1021a-dcu";
 			reg = <0x0 0x2ce0000 0x0 0x10000>;
 			interrupts = <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&platform_clk 0>;
-			clock-names = "dcu";
+			clocks = <&platform_clk 0>,
+				<&platform_clk 0>;
+			clock-names = "dcu", "pix";
 			big-endian;
 			status = "disabled";
 		};
