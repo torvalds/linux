@@ -261,6 +261,8 @@ static void vkb_input_poll_cb_arrow(struct vkb_ctx_t *vkb, int buttons, struct i
 		report_key_button(KEY_LEFT, BUTTON_LEFT);
 	} else if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_RIGHT)) {
 		report_key_button(KEY_RIGHT, BUTTON_RIGHT);
+	} else if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_START)) {
+		report_key_button(KEY_ENTER, BUTTON_START);
 	}
 }
 
