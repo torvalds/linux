@@ -257,15 +257,12 @@ xfs_dir2_block_to_sf(
 	 *
 	 * Convert the inode to local format and copy the data in.
 	 */
-	dp->i_df.if_flags &= ~XFS_IFEXTENTS;
-	dp->i_df.if_flags |= XFS_IFINLINE;
-	dp->i_d.di_format = XFS_DINODE_FMT_LOCAL;
 	ASSERT(dp->i_df.if_bytes == 0);
-	xfs_idata_realloc(dp, size, XFS_DATA_FORK);
+	xfs_init_local_fork(dp, XFS_DATA_FORK, dst, size);
+	dp->i_d.di_format = XFS_DINODE_FMT_LOCAL;
+	dp->i_d.di_size = size;
 
 	logflags |= XFS_ILOG_DDATA;
-	memcpy(dp->i_df.if_u1.if_data, dst, size);
-	dp->i_d.di_size = size;
 	xfs_dir2_sf_check(args);
 out:
 	xfs_trans_log_inode(args->trans, dp, logflags);
