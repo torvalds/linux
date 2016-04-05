@@ -127,7 +127,6 @@ typedef struct xfs_attr_list_context {
 	int				firstu;		/* first used byte in buffer */
 	int				flags;		/* from VOP call */
 	int				resynch;	/* T/F: resynch with cursor */
-	int				put_value;	/* T/F: need value for listent */
 	put_listent_func_t		put_listent;	/* list output fmt function */
 	int				index;		/* index into output buffer */
 } xfs_attr_list_context_t;

@@ -429,45 +429,20 @@ xfs_attr3_leaf_list_int(
 						name_loc->nameval,
 						(int)name_loc->namelen,
 						be16_to_cpu(name_loc->valuelen));
-			if (retval)
-				return retval;
 		} else {
 			xfs_attr_leaf_name_remote_t *name_rmt =
 				xfs_attr3_leaf_name_remote(leaf, i);
 
 			int valuelen = be32_to_cpu(name_rmt->valuelen);
 
-			if (context->put_value) {
-				xfs_da_args_t args;
-
-				memset((char *)&args, 0, sizeof(args));
-				args.geo = context->dp->i_mount->m_attr_geo;
-				args.dp = context->dp;
-				args.whichfork = XFS_ATTR_FORK;
-				args.valuelen = valuelen;
-				args.rmtvaluelen = valuelen;
-				args.value = kmem_alloc(valuelen, KM_SLEEP | KM_NOFS);
-				args.rmtblkno = be32_to_cpu(name_rmt->valueblk);
-				args.rmtblkcnt = xfs_attr3_rmt_blocks(
-							args.dp->i_mount, valuelen);
-				retval = xfs_attr_rmtval_get(&args);
-				if (!retval)
-					retval = context->put_listent(context,
-							entry->flags,
-							name_rmt->name,
-							(int)name_rmt->namelen,
-							valuelen);
-				kmem_free(args.value);
-			} else {
-				retval = context->put_listent(context,
+			retval = context->put_listent(context,
 						entry->flags,
 						name_rmt->name,
 						(int)name_rmt->namelen,
 						valuelen);
-			}
-			if (retval)
-				return retval;
 		}
+		if (retval)
+			break;
 		if (context->seen_enough)
 			break;
 		cursor->offset++;
