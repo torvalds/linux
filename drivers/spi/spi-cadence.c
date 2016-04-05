@@ -615,16 +615,14 @@ static int cdns_spi_remove(struct platform_device *pdev)
  * This function disables the SPI controller and
  * changes the driver state to "suspend"
  *
- * Return:	Always 0
+ * Return:	0 on success and error value on error
  */
 static int __maybe_unused cdns_spi_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct spi_master *master = platform_get_drvdata(pdev);
 
-	spi_master_suspend(master);
-
-	return 0;
+	return spi_master_suspend(master);
 }
 
 /**
@@ -640,9 +638,7 @@ static int __maybe_unused cdns_spi_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct spi_master *master = platform_get_drvdata(pdev);
 
-	spi_master_resume(master);
-
-	return 0;
+	return spi_master_resume(master);
 }
 
 /**
