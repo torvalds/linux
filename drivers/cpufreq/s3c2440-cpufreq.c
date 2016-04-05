@@ -66,7 +66,7 @@ static int s3c2440_cpufreq_calcdivs(struct s3c_cpufreq_config *cfg)
 		     __func__, fclk, armclk, hclk_max);
 
 	if (armclk > fclk) {
-		printk(KERN_WARNING "%s: armclk > fclk\n", __func__);
+		pr_warn("%s: armclk > fclk\n", __func__);
 		armclk = fclk;
 	}
 
@@ -273,7 +273,7 @@ static int s3c2440_cpufreq_add(struct device *dev,
 	armclk = s3c_cpufreq_clk_get(NULL, "armclk");
 
 	if (IS_ERR(xtal) || IS_ERR(hclk) || IS_ERR(fclk) || IS_ERR(armclk)) {
-		printk(KERN_ERR "%s: failed to get clocks\n", __func__);
+		pr_err("%s: failed to get clocks\n", __func__);
 		return -ENOENT;
 	}
 

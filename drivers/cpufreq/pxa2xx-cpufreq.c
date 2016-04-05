@@ -233,9 +233,8 @@ static void pxa27x_guess_max_freq(void)
 {
 	if (!pxa27x_maxfreq) {
 		pxa27x_maxfreq = 416000;
-		printk(KERN_INFO "PXA CPU 27x max frequency not defined "
-		       "(pxa27x_maxfreq), assuming pxa271 with %dkHz maxfreq\n",
-		       pxa27x_maxfreq);
+		pr_info("PXA CPU 27x max frequency not defined (pxa27x_maxfreq), assuming pxa271 with %dkHz maxfreq\n",
+			pxa27x_maxfreq);
 	} else {
 		pxa27x_maxfreq *= 1000;
 	}
@@ -417,7 +416,7 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 		cpufreq_table_validate_and_show(policy, pxa27x_freq_table);
 	}
 
-	printk(KERN_INFO "PXA CPU frequency change support initialized\n");
+	pr_info("PXA CPU frequency change support initialized\n");
 
 	return 0;
 }

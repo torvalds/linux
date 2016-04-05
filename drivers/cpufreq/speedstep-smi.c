@@ -204,9 +204,8 @@ static void speedstep_set_state(unsigned int state)
 			(speedstep_freqs[new_state].frequency / 1000),
 			retry, result);
 	else
-		printk(KERN_ERR "cpufreq: change to state %u "
-			"failed with new_state %u and result %u\n",
-			state, new_state, result);
+		pr_err("cpufreq: change to state %u failed with new_state %u and result %u\n",
+		       state, new_state, result);
 
 	return;
 }

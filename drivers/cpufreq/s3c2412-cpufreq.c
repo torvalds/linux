@@ -197,21 +197,20 @@ static int s3c2412_cpufreq_add(struct device *dev,
 
 	hclk = clk_get(NULL, "hclk");
 	if (IS_ERR(hclk)) {
-		printk(KERN_ERR "%s: cannot find hclk clock\n", __func__);
+		pr_err("%s: cannot find hclk clock\n", __func__);
 		return -ENOENT;
 	}
 
 	fclk = clk_get(NULL, "fclk");
 	if (IS_ERR(fclk)) {
-		printk(KERN_ERR "%s: cannot find fclk clock\n", __func__);
+		pr_err("%s: cannot find fclk clock\n", __func__);
 		goto err_fclk;
 	}
 
 	fclk_rate = clk_get_rate(fclk);
 	if (fclk_rate > 200000000) {
-		printk(KERN_INFO
-		       "%s: fclk %ld MHz, assuming 266MHz capable part\n",
-		       __func__, fclk_rate / 1000000);
+		pr_info("%s: fclk %ld MHz, assuming 266MHz capable part\n",
+			__func__, fclk_rate / 1000000);
 		s3c2412_cpufreq_info.max.fclk = 266000000;
 		s3c2412_cpufreq_info.max.hclk = 133000000;
 		s3c2412_cpufreq_info.max.pclk =  66000000;
@@ -219,13 +218,13 @@ static int s3c2412_cpufreq_add(struct device *dev,
 
 	armclk = clk_get(NULL, "armclk");
 	if (IS_ERR(armclk)) {
-		printk(KERN_ERR "%s: cannot find arm clock\n", __func__);
+		pr_err("%s: cannot find arm clock\n", __func__);
 		goto err_armclk;
 	}
 
 	xtal = clk_get(NULL, "xtal");
 	if (IS_ERR(xtal)) {
-		printk(KERN_ERR "%s: cannot find xtal clock\n", __func__);
+		pr_err("%s: cannot find xtal clock\n", __func__);
 		goto err_xtal;
 	}
 

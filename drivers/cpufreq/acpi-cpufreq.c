@@ -648,10 +648,7 @@ static int acpi_cpufreq_blacklist(struct cpuinfo_x86 *c)
 		if ((c->x86 == 15) &&
 		    (c->x86_model == 6) &&
 		    (c->x86_mask == 8)) {
-			printk(KERN_INFO "acpi-cpufreq: Intel(R) "
-			    "Xeon(R) 7100 Errata AL30, processors may "
-			    "lock up on frequency changes: disabling "
-			    "acpi-cpufreq.\n");
+			pr_info("acpi-cpufreq: Intel(R) Xeon(R) 7100 Errata AL30, processors may lock up on frequency changes: disabling acpi-cpufreq\n");
 			return -ENODEV;
 		    }
 		}
@@ -799,8 +796,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	if (perf->control_register.space_id == ACPI_ADR_SPACE_FIXED_HARDWARE &&
 	    policy->cpuinfo.transition_latency > 20 * 1000) {
 		policy->cpuinfo.transition_latency = 20 * 1000;
-		printk_once(KERN_INFO
-			    "P-state transition latency capped at 20 uS\n");
+		pr_info_once("P-state transition latency capped at 20 uS\n");
 	}
 
 	/* table init */
@@ -822,7 +818,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		goto err_freqfree;
 
 	if (perf->states[0].core_frequency * 1000 != policy->cpuinfo.max_freq)
-		printk(KERN_WARNING FW_WARN "P-state 0 is not max freq\n");
+		pr_warn(FW_WARN "P-state 0 is not max freq\n");
 
 	switch (perf->control_register.space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:

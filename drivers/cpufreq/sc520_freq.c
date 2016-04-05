@@ -44,8 +44,8 @@ static unsigned int sc520_freq_get_cpu_frequency(unsigned int cpu)
 
 	switch (clockspeed_reg & 0x03) {
 	default:
-		printk(KERN_ERR PFX "error: cpuctl register has unexpected "
-				"value %02x\n", clockspeed_reg);
+		pr_err(PFX "error: cpuctl register has unexpected value %02x\n",
+		       clockspeed_reg);
 	case 0x01:
 		return 100000;
 	case 0x02:
@@ -112,7 +112,7 @@ static int __init sc520_freq_init(void)
 
 	cpuctl = ioremap((unsigned long)(MMCR_BASE + OFFS_CPUCTL), 1);
 	if (!cpuctl) {
-		printk(KERN_ERR "sc520_freq: error: failed to remap memory\n");
+		pr_err("sc520_freq: error: failed to remap memory\n");
 		return -ENOMEM;
 	}
 

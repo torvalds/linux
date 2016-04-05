@@ -141,7 +141,7 @@ static int powernow_k6_target(struct cpufreq_policy *policy,
 {
 
 	if (clock_ratio[best_i].driver_data > max_multiplier) {
-		printk(KERN_ERR PFX "invalid target frequency\n");
+		pr_err(PFX "invalid target frequency\n");
 		return -EINVAL;
 	}
 
@@ -175,13 +175,14 @@ static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
 				max_multiplier = param_max_multiplier;
 				goto have_max_multiplier;
 			}
-		printk(KERN_ERR "powernow-k6: invalid max_multiplier parameter, valid parameters 20, 30, 35, 40, 45, 50, 55, 60\n");
+		pr_err("powernow-k6: invalid max_multiplier parameter, valid parameters 20, 30, 35, 40, 45, 50, 55, 60\n");
 		return -EINVAL;
 	}
 
 	if (!max_multiplier) {
-		printk(KERN_WARNING "powernow-k6: unknown frequency %u, cannot determine current multiplier\n", khz);
-		printk(KERN_WARNING "powernow-k6: use module parameters max_multiplier and bus_frequency\n");
+		pr_warn("powernow-k6: unknown frequency %u, cannot determine current multiplier\n",
+			khz);
+		pr_warn("powernow-k6: use module parameters max_multiplier and bus_frequency\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -193,7 +194,7 @@ have_max_multiplier:
 			busfreq = param_busfreq / 10;
 			goto have_busfreq;
 		}
-		printk(KERN_ERR "powernow-k6: invalid bus_frequency parameter, allowed range 50000 - 150000 kHz\n");
+		pr_err("powernow-k6: invalid bus_frequency parameter, allowed range 50000 - 150000 kHz\n");
 		return -EINVAL;
 	}
 
@@ -275,7 +276,7 @@ static int __init powernow_k6_init(void)
 		return -ENODEV;
 
 	if (!request_region(POWERNOW_IOPORT, 16, "PowerNow!")) {
-		printk(KERN_INFO PFX "PowerNow IOPORT region already used.\n");
+		pr_info(PFX "PowerNow IOPORT region already used\n");
 		return -EIO;
 	}
 
