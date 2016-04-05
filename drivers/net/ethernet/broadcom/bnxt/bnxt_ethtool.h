@@ -12,6 +12,7 @@
 
 extern const struct ethtool_ops bnxt_ethtool_ops;
 
+u32 _bnxt_fw_to_ethtool_adv_spds(u16, u8);
 u32 bnxt_fw_to_ethtool_speed(u16);
 
 #endif

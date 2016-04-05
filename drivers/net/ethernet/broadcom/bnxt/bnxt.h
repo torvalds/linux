@@ -874,6 +874,7 @@ struct bnxt {
 	#define BNXT_FLAG_RFS		0x100
 	#define BNXT_FLAG_SHARED_RINGS	0x200
 	#define BNXT_FLAG_PORT_STATS	0x400
+	#define BNXT_FLAG_EEE_CAP	0x1000
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
 					    BNXT_FLAG_RFS |		\
@@ -1011,6 +1012,9 @@ struct bnxt {
 	int			ntp_fltr_count;
 
 	struct bnxt_link_info	link_info;
+	struct ethtool_eee	eee;
+	u32			lpi_tmr_lo;
+	u32			lpi_tmr_hi;
 };
 
 #ifdef CONFIG_NET_RX_BUSY_POLL

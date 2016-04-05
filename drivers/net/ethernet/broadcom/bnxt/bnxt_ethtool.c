@@ -597,7 +597,7 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 	kfree(pkglog);
 }
 
-static u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
+u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
 {
 	u32 speed_mask = 0;
 
