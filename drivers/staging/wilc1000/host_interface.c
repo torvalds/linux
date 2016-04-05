@@ -3744,12 +3744,6 @@ int wilc_del_beacon(struct wilc_vif *vif)
 {
 	int result = 0;
 	struct host_if_msg msg;
-	struct host_if_drv *hif_drv = vif->hif_drv;
-
-	if (!hif_drv) {
-		netdev_err(vif->ndev, "driver is null\n");
-		return -EFAULT;
-	}
 
 	msg.id = HOST_IF_MSG_DEL_BEACON;
 	msg.vif = vif;
