@@ -278,7 +278,7 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 
 	fpu__activate_fpstate_read(fpu);
 
-	if (!static_cpu_has(X86_FEATURE_FPU))
+	if (!boot_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_get(target, regset, pos, count, kbuf, ubuf);
 
 	if (!boot_cpu_has(X86_FEATURE_FXSR))
@@ -309,7 +309,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	fpu__activate_fpstate_write(fpu);
 	fpstate_sanitize_xstate(fpu);
 
-	if (!static_cpu_has(X86_FEATURE_FPU))
+	if (!boot_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_set(target, regset, pos, count, kbuf, ubuf);
 
 	if (!boot_cpu_has(X86_FEATURE_FXSR))
