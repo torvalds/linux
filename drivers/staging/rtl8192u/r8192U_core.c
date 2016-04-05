@@ -235,7 +235,6 @@ static void CamResetAllEntry(struct net_device *dev)
 	 */
 	ulcommand |= BIT(31) | BIT(30);
 	write_nic_dword(dev, RWCAM, ulcommand);
-
 }
 
 
@@ -319,8 +318,6 @@ void write_nic_byte(struct net_device *dev, int indx, u8 data)
 
 	if (status < 0)
 		netdev_err(dev, "write_nic_byte TimeOut! status: %d\n", status);
-
-
 }
 
 
@@ -345,7 +342,6 @@ void write_nic_word(struct net_device *dev, int indx, u16 data)
 
 	if (status < 0)
 		netdev_err(dev, "write_nic_word TimeOut! status: %d\n", status);
-
 }
 
 
@@ -372,7 +368,6 @@ void write_nic_dword(struct net_device *dev, int indx, u32 data)
 	if (status < 0)
 		netdev_err(dev, "write_nic_dword TimeOut! status: %d\n",
 			   status);
-
 }
 
 
@@ -776,7 +771,6 @@ static u32 get_rxpacket_shiftbytes_819xusb(struct ieee80211_rx_stats *pstats)
 
 	return (sizeof(rx_desc_819x_usb) + pstats->RxDrvInfoSize
 		+ pstats->RxBufShift);
-
 }
 static int rtl8192_rx_initiate(struct net_device *dev)
 {
@@ -943,7 +937,6 @@ inline u16 ieeerate2rtlrate(int rate)
 		return 11;
 	default:
 		return 3;
-
 	}
 }
 static u16 rtl_rate[] = {10, 20, 55, 110, 60, 90, 120, 180, 240, 360, 480, 540};
@@ -1149,7 +1142,6 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 			return; /* avoid further processing AMSDU */
 		}
 	}
-
 }
 
 static void rtl8192_config_rate(struct net_device *dev, u16 *rate_config)
@@ -1272,7 +1264,6 @@ static void rtl8192_update_cap(struct net_device *dev, u16 cap)
 		priv->slot_time = slot_time;
 		write_nic_byte(dev, SLOT_TIME, slot_time);
 	}
-
 }
 static void rtl8192_net_update(struct net_device *dev)
 {
@@ -1303,9 +1294,6 @@ static void rtl8192_net_update(struct net_device *dev)
 
 		write_nic_word(dev, BCN_TCFG, BcnTimeCfg);
 	}
-
-
-
 }
 
 /* temporary hw beacon is not used any more.
@@ -1782,7 +1770,6 @@ static short rtl8192_usb_initendpoints(struct net_device *dev)
 
 	netdev_dbg(dev, "End of initendpoints\n");
 	return 0;
-
 }
 #ifdef THOMAS_BEACON
 static void rtl8192_usb_deleteendpoints(struct net_device *dev)
@@ -1820,7 +1807,6 @@ void rtl8192_usb_deleteendpoints(struct net_device *dev)
 		}
 		kfree(priv->rx_urb);
 		priv->rx_urb = NULL;
-
 	}
 #else
 	kfree(priv->rx_urb);
@@ -1992,7 +1978,6 @@ static int rtl8192_handle_beacon(struct net_device *dev,
 	rtl8192_qos_handle_probe_response(priv, 1, network);
 	schedule_delayed_work(&priv->update_beacon_wq, 0);
 	return 0;
-
 }
 
 /*
@@ -2223,7 +2208,6 @@ static void rtl8192_SetWirelessMode(struct net_device *dev, u8 wireless_mode)
 		priv->ieee80211->pHTInfo->bEnableHT = 0;
 	RT_TRACE(COMP_INIT, "Current Wireless Mode is %x\n", wireless_mode);
 	rtl8192_refresh_supportrate(priv);
-
 }
 /* init priv variables here. only non_zero value should be initialized here. */
 static void rtl8192_init_priv_variable(struct net_device *dev)
@@ -2627,7 +2611,6 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	default:
 		priv->CustomerID = RT_CID_DEFAULT;
 		break;
-
 	}
 
 	switch (priv->CustomerID) {
@@ -2642,7 +2625,6 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	default:
 		priv->LedStrategy = SW_LED_MODE0;
 		break;
-
 	}
 
 
@@ -2797,8 +2779,6 @@ static void rtl8192_hwconfig(struct net_device *dev)
 	/* Set Tx Antenna including Feedback control */
 
 	/* Set Auto Rate fallback control */
-
-
 }
 
 
@@ -3037,7 +3017,6 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 			priv->cck_present_attentuation_difference = 0;
 			priv->cck_present_attentuation =
 				priv->cck_present_attentuation_20Mdefault;
-
 		}
 	}
 	write_nic_byte(dev, 0x87, 0x0);
@@ -3222,7 +3201,6 @@ static RESET_TYPE rtl819x_ifcheck_resetornot(struct net_device *dev)
 	} else {
 		return RESET_TYPE_NORESET;
 	}
-
 }
 
 static void rtl8192_cancel_deferred_work(struct r8192_priv *priv);
@@ -3485,7 +3463,6 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 			priv->ieee80211->link_change(dev);
 			queue_work(priv->ieee80211->wq,
 				   &priv->ieee80211->associate_procedure_wq);
-
 		}
 	}
 	priv->ieee80211->LinkDetectInfo.NumRecvBcnInPeriod = 0;
@@ -3510,7 +3487,6 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 	priv->bForcedSilentReset = false;
 	priv->bResetInProgress = false;
 	RT_TRACE(COMP_TRACE, " <==RtUsbCheckForHangWorkItemCallback()\n");
-
 }
 
 static void watch_dog_timer_callback(unsigned long data)
@@ -3560,7 +3536,6 @@ static int rtl8192_open(struct net_device *dev)
 	ret = rtl8192_up(dev);
 	up(&priv->wx_sem);
 	return ret;
-
 }
 
 
@@ -3587,7 +3562,6 @@ static int rtl8192_close(struct net_device *dev)
 	up(&priv->wx_sem);
 
 	return ret;
-
 }
 
 int rtl8192_down(struct net_device *dev)
@@ -3649,7 +3623,6 @@ void rtl8192_commit(struct net_device *dev)
 
 	rtl8192_rtx_disable(dev);
 	reset_status = _rtl8192_up(dev);
-
 }
 
 static void rtl8192_restart(struct work_struct *work)
@@ -4111,7 +4084,6 @@ static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 				(((priv->undecorated_smoothed_pwdb) * (Rx_Smooth_Factor - 1)) +
 				 (pprevious_stats->RxPWDBAll)) / (Rx_Smooth_Factor);
 		}
-
 	}
 
 	/* Check EVM */
@@ -4159,8 +4131,6 @@ static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 			}
 		}
 	}
-
-
 }
 
 /*-----------------------------------------------------------------------------
@@ -4542,7 +4512,6 @@ static void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 				  bpacket_match_bssid, bpacket_toself,
 				  bPacketBeacon, bToSelfBA);
 	rtl8192_record_rxdesc_forlateruse(pstats, &previous_stats);
-
 }
 
 /**
@@ -4758,7 +4727,6 @@ static void query_rxdesc_status(struct sk_buff *skb,
 			RT_TRACE(COMP_RXDESC,
 				"driver_info->FirstAGGR = %d, driver_info->PartAggr = %d\n",
 				 driver_info->FirstAGGR, driver_info->PartAggr);
-
 	}
 
 	skb_pull(skb, sizeof(rx_desc_819x_usb));
@@ -4822,7 +4790,6 @@ static void rtl8192_rx_nomal(struct sk_buff *skb)
 		netdev_dbg(dev, "actual_length: %d\n", skb->len);
 		dev_kfree_skb_any(skb);
 	}
-
 }
 
 static void rtl819xusb_process_received_packet(
@@ -4937,7 +4904,6 @@ static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 				 info->out_pipe);
 			dev_kfree_skb(skb);
 			break;
-
 		}
 	}
 }
@@ -5197,7 +5163,6 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 			}
 		}
 	}
-
 }
 
 /***************************************************************************
