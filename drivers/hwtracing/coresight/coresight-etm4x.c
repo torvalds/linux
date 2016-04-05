@@ -95,6 +95,7 @@ static void etm4_enable_hw(void *info)
 {
 	int i;
 	struct etmv4_drvdata *drvdata = info;
+	struct etmv4_config *config = &drvdata->config;
 
 	CS_UNLOCK(drvdata->base);
 
@@ -109,69 +110,69 @@ static void etm4_enable_hw(void *info)
 			"timeout observed when probing at offset %#x\n",
 			TRCSTATR);
 
-	writel_relaxed(drvdata->pe_sel, drvdata->base + TRCPROCSELR);
-	writel_relaxed(drvdata->cfg, drvdata->base + TRCCONFIGR);
+	writel_relaxed(config->pe_sel, drvdata->base + TRCPROCSELR);
+	writel_relaxed(config->cfg, drvdata->base + TRCCONFIGR);
 	/* nothing specific implemented */
 	writel_relaxed(0x0, drvdata->base + TRCAUXCTLR);
-	writel_relaxed(drvdata->eventctrl0, drvdata->base + TRCEVENTCTL0R);
-	writel_relaxed(drvdata->eventctrl1, drvdata->base + TRCEVENTCTL1R);
-	writel_relaxed(drvdata->stall_ctrl, drvdata->base + TRCSTALLCTLR);
-	writel_relaxed(drvdata->ts_ctrl, drvdata->base + TRCTSCTLR);
-	writel_relaxed(drvdata->syncfreq, drvdata->base + TRCSYNCPR);
-	writel_relaxed(drvdata->ccctlr, drvdata->base + TRCCCCTLR);
-	writel_relaxed(drvdata->bb_ctrl, drvdata->base + TRCBBCTLR);
+	writel_relaxed(config->eventctrl0, drvdata->base + TRCEVENTCTL0R);
+	writel_relaxed(config->eventctrl1, drvdata->base + TRCEVENTCTL1R);
+	writel_relaxed(config->stall_ctrl, drvdata->base + TRCSTALLCTLR);
+	writel_relaxed(config->ts_ctrl, drvdata->base + TRCTSCTLR);
+	writel_relaxed(config->syncfreq, drvdata->base + TRCSYNCPR);
+	writel_relaxed(config->ccctlr, drvdata->base + TRCCCCTLR);
+	writel_relaxed(config->bb_ctrl, drvdata->base + TRCBBCTLR);
 	writel_relaxed(drvdata->trcid, drvdata->base + TRCTRACEIDR);
-	writel_relaxed(drvdata->vinst_ctrl, drvdata->base + TRCVICTLR);
-	writel_relaxed(drvdata->viiectlr, drvdata->base + TRCVIIECTLR);
-	writel_relaxed(drvdata->vissctlr,
+	writel_relaxed(config->vinst_ctrl, drvdata->base + TRCVICTLR);
+	writel_relaxed(config->viiectlr, drvdata->base + TRCVIIECTLR);
+	writel_relaxed(config->vissctlr,
 		       drvdata->base + TRCVISSCTLR);
-	writel_relaxed(drvdata->vipcssctlr,
+	writel_relaxed(config->vipcssctlr,
 		       drvdata->base + TRCVIPCSSCTLR);
 	for (i = 0; i < drvdata->nrseqstate - 1; i++)
-		writel_relaxed(drvdata->seq_ctrl[i],
+		writel_relaxed(config->seq_ctrl[i],
 			       drvdata->base + TRCSEQEVRn(i));
-	writel_relaxed(drvdata->seq_rst, drvdata->base + TRCSEQRSTEVR);
-	writel_relaxed(drvdata->seq_state, drvdata->base + TRCSEQSTR);
-	writel_relaxed(drvdata->ext_inp, drvdata->base + TRCEXTINSELR);
+	writel_relaxed(config->seq_rst, drvdata->base + TRCSEQRSTEVR);
+	writel_relaxed(config->seq_state, drvdata->base + TRCSEQSTR);
+	writel_relaxed(config->ext_inp, drvdata->base + TRCEXTINSELR);
 	for (i = 0; i < drvdata->nr_cntr; i++) {
-		writel_relaxed(drvdata->cntrldvr[i],
+		writel_relaxed(config->cntrldvr[i],
 			       drvdata->base + TRCCNTRLDVRn(i));
-		writel_relaxed(drvdata->cntr_ctrl[i],
+		writel_relaxed(config->cntr_ctrl[i],
 			       drvdata->base + TRCCNTCTLRn(i));
-		writel_relaxed(drvdata->cntr_val[i],
+		writel_relaxed(config->cntr_val[i],
 			       drvdata->base + TRCCNTVRn(i));
 	}
 
 	/* Resource selector pair 0 is always implemented and reserved */
-	for (i = 2; i < drvdata->nr_resource * 2; i++)
-		writel_relaxed(drvdata->res_ctrl[i],
+	for (i = 0; i < drvdata->nr_resource * 2; i++)
+		writel_relaxed(config->res_ctrl[i],
 			       drvdata->base + TRCRSCTLRn(i));
 
 	for (i = 0; i < drvdata->nr_ss_cmp; i++) {
-		writel_relaxed(drvdata->ss_ctrl[i],
+		writel_relaxed(config->ss_ctrl[i],
 			       drvdata->base + TRCSSCCRn(i));
-		writel_relaxed(drvdata->ss_status[i],
+		writel_relaxed(config->ss_status[i],
 			       drvdata->base + TRCSSCSRn(i));
-		writel_relaxed(drvdata->ss_pe_cmp[i],
+		writel_relaxed(config->ss_pe_cmp[i],
 			       drvdata->base + TRCSSPCICRn(i));
 	}
 	for (i = 0; i < drvdata->nr_addr_cmp; i++) {
-		writeq_relaxed(drvdata->addr_val[i],
+		writeq_relaxed(config->addr_val[i],
 			       drvdata->base + TRCACVRn(i));
-		writeq_relaxed(drvdata->addr_acc[i],
+		writeq_relaxed(config->addr_acc[i],
 			       drvdata->base + TRCACATRn(i));
 	}
 	for (i = 0; i < drvdata->numcidc; i++)
-		writeq_relaxed(drvdata->ctxid_pid[i],
+		writeq_relaxed(config->ctxid_pid[i],
 			       drvdata->base + TRCCIDCVRn(i));
-	writel_relaxed(drvdata->ctxid_mask0, drvdata->base + TRCCIDCCTLR0);
-	writel_relaxed(drvdata->ctxid_mask1, drvdata->base + TRCCIDCCTLR1);
+	writel_relaxed(config->ctxid_mask0, drvdata->base + TRCCIDCCTLR0);
+	writel_relaxed(config->ctxid_mask1, drvdata->base + TRCCIDCCTLR1);
 
 	for (i = 0; i < drvdata->numvmidc; i++)
-		writeq_relaxed(drvdata->vmid_val[i],
+		writeq_relaxed(config->vmid_val[i],
 			       drvdata->base + TRCVMIDCVRn(i));
-	writel_relaxed(drvdata->vmid_mask0, drvdata->base + TRCVMIDCCTLR0);
-	writel_relaxed(drvdata->vmid_mask1, drvdata->base + TRCVMIDCCTLR1);
+	writel_relaxed(config->vmid_mask0, drvdata->base + TRCVMIDCCTLR0);
+	writel_relaxed(config->vmid_mask1, drvdata->base + TRCVMIDCCTLR1);
 
 	/* Enable the trace unit */
 	writel_relaxed(1, drvdata->base + TRCPRGCTLR);
@@ -438,83 +439,84 @@ static void etm4_init_arch_data(void *info)
 static void etm4_init_default_data(struct etmv4_drvdata *drvdata)
 {
 	int i;
+	struct etmv4_config *config = &drvdata->config;
 
-	drvdata->pe_sel = 0x0;
-	drvdata->cfg = (ETMv4_MODE_CTXID | ETM_MODE_VMID |
+	config->pe_sel = 0x0;
+	config->cfg = (ETMv4_MODE_CTXID | ETM_MODE_VMID |
 			ETMv4_MODE_TIMESTAMP | ETM_MODE_RETURNSTACK);
 
 	/* disable all events tracing */
-	drvdata->eventctrl0 = 0x0;
-	drvdata->eventctrl1 = 0x0;
+	config->eventctrl0 = 0x0;
+	config->eventctrl1 = 0x0;
 
 	/* disable stalling */
-	drvdata->stall_ctrl = 0x0;
+	config->stall_ctrl = 0x0;
 
 	/* disable timestamp event */
-	drvdata->ts_ctrl = 0x0;
+	config->ts_ctrl = 0x0;
 
 	/* enable trace synchronization every 4096 bytes for trace */
 	if (drvdata->syncpr == false)
-		drvdata->syncfreq = 0xC;
+		config->syncfreq = 0xC;
 
 	/*
 	 *  enable viewInst to trace everything with start-stop logic in
 	 *  started state
 	 */
-	drvdata->vinst_ctrl |= BIT(0);
+	config->vinst_ctrl |= BIT(0);
 	/* set initial state of start-stop logic */
 	if (drvdata->nr_addr_cmp)
-		drvdata->vinst_ctrl |= BIT(9);
+		config->vinst_ctrl |= BIT(9);
 
 	/* no address range filtering for ViewInst */
-	drvdata->viiectlr = 0x0;
+	config->viiectlr = 0x0;
 	/* no start-stop filtering for ViewInst */
-	drvdata->vissctlr = 0x0;
+	config->vissctlr = 0x0;
 
 	/* disable seq events */
 	for (i = 0; i < drvdata->nrseqstate-1; i++)
-		drvdata->seq_ctrl[i] = 0x0;
-	drvdata->seq_rst = 0x0;
-	drvdata->seq_state = 0x0;
+		config->seq_ctrl[i] = 0x0;
+	config->seq_rst = 0x0;
+	config->seq_state = 0x0;
 
 	/* disable external input events */
-	drvdata->ext_inp = 0x0;
+	config->ext_inp = 0x0;
 
 	for (i = 0; i < drvdata->nr_cntr; i++) {
-		drvdata->cntrldvr[i] = 0x0;
-		drvdata->cntr_ctrl[i] = 0x0;
-		drvdata->cntr_val[i] = 0x0;
+		config->cntrldvr[i] = 0x0;
+		config->cntr_ctrl[i] = 0x0;
+		config->cntr_val[i] = 0x0;
 	}
 
 	/* Resource selector pair 0 is always implemented and reserved */
-	drvdata->res_idx = 0x2;
+	config->res_idx = 0x2;
 	for (i = 2; i < drvdata->nr_resource * 2; i++)
-		drvdata->res_ctrl[i] = 0x0;
+		config->res_ctrl[i] = 0x0;
 
 	for (i = 0; i < drvdata->nr_ss_cmp; i++) {
-		drvdata->ss_ctrl[i] = 0x0;
-		drvdata->ss_pe_cmp[i] = 0x0;
+		config->ss_ctrl[i] = 0x0;
+		config->ss_pe_cmp[i] = 0x0;
 	}
 
 	if (drvdata->nr_addr_cmp >= 1) {
-		drvdata->addr_val[0] = (unsigned long)_stext;
-		drvdata->addr_val[1] = (unsigned long)_etext;
-		drvdata->addr_type[0] = ETM_ADDR_TYPE_RANGE;
-		drvdata->addr_type[1] = ETM_ADDR_TYPE_RANGE;
+		config->addr_val[0] = (unsigned long)_stext;
+		config->addr_val[1] = (unsigned long)_etext;
+		config->addr_type[0] = ETM_ADDR_TYPE_RANGE;
+		config->addr_type[1] = ETM_ADDR_TYPE_RANGE;
 	}
 
 	for (i = 0; i < drvdata->numcidc; i++) {
-		drvdata->ctxid_pid[i] = 0x0;
-		drvdata->ctxid_vpid[i] = 0x0;
+		config->ctxid_pid[i] = 0x0;
+		config->ctxid_vpid[i] = 0x0;
 	}
 
-	drvdata->ctxid_mask0 = 0x0;
-	drvdata->ctxid_mask1 = 0x0;
+	config->ctxid_mask0 = 0x0;
+	config->ctxid_mask1 = 0x0;
 
 	for (i = 0; i < drvdata->numvmidc; i++)
-		drvdata->vmid_val[i] = 0x0;
-	drvdata->vmid_mask0 = 0x0;
-	drvdata->vmid_mask1 = 0x0;
+		config->vmid_val[i] = 0x0;
+	config->vmid_mask0 = 0x0;
+	config->vmid_mask1 = 0x0;
 
 	/*
 	 * A trace ID value of 0 is invalid, so let's start at some
