@@ -64,9 +64,27 @@ struct obd_export;
 struct ptlrpc_request;
 struct obd_device;
 
+/**
+ * Serializes in-flight MDT-modifying RPC requests to preserve idempotency.
+ *
+ * This mutex is used to implement execute-once semantics on the MDT.
+ * The MDT stores the last transaction ID and result for every client in
+ * its last_rcvd file. If the client doesn't get a reply, it can safely
+ * resend the request and the MDT will reconstruct the reply being aware
+ * that the request has already been executed. Without this lock,
+ * execution status of concurrent in-flight requests would be
+ * overwritten.
+ *
+ * This design limits the extent to which we can keep a full pipeline of
+ * in-flight requests from a single client.  This limitation could be
+ * overcome by allowing multiple slots per client in the last_rcvd file.
+ */
 struct mdc_rpc_lock {
+	/** Lock protecting in-flight RPC concurrency. */
 	struct mutex		rpcl_mutex;
+	/** Intent associated with currently executing request. */
 	struct lookup_intent	*rpcl_it;
+	/** Used for MDS/RPC load testing purposes. */
 	int			rpcl_fakes;
 };
 
