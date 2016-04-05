@@ -498,12 +498,13 @@ static void lkdtm_do_action(enum ctype which)
 	}
 	case CT_READ_BUDDY_AFTER_FREE: {
 		unsigned long p = __get_free_page(GFP_KERNEL);
-		int saw, *val = kmalloc(1024, GFP_KERNEL);
+		int saw, *val;
 		int *base;
 
 		if (!p)
 			break;
 
+		val = kmalloc(1024, GFP_KERNEL);
 		if (!val)
 			break;
 
