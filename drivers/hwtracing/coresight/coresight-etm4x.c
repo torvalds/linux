@@ -566,6 +566,41 @@ static void etm4_set_default(struct etmv4_config *config)
 	config->vissctlr = 0x0;
 }
 
+void etm4_config_trace_mode(struct etmv4_config *config)
+{
+	u32 addr_acc, mode;
+
+	mode = config->mode;
+	mode &= (ETM_MODE_EXCL_KERN | ETM_MODE_EXCL_USER);
+
+	/* excluding kernel AND user space doesn't make sense */
+	WARN_ON_ONCE(mode == (ETM_MODE_EXCL_KERN | ETM_MODE_EXCL_USER));
+
+	/* nothing to do if neither flags are set */
+	if (!(mode & ETM_MODE_EXCL_KERN) && !(mode & ETM_MODE_EXCL_USER))
+		return;
+
+	addr_acc = config->addr_acc[ETM_DEFAULT_ADDR_COMP];
+	/* clear default config */
+	addr_acc &= ~(ETM_EXLEVEL_NS_APP | ETM_EXLEVEL_NS_OS);
+
+	/*
+	 * EXLEVEL_NS, bits[15:12]
+	 * The Exception levels are:
+	 *   Bit[12] Exception level 0 - Application
+	 *   Bit[13] Exception level 1 - OS
+	 *   Bit[14] Exception level 2 - Hypervisor
+	 *   Bit[15] Never implemented
+	 */
+	if (mode & ETM_MODE_EXCL_KERN)
+		addr_acc |= ETM_EXLEVEL_NS_OS;
+	else
+		addr_acc |= ETM_EXLEVEL_NS_APP;
+
+	config->addr_acc[ETM_DEFAULT_ADDR_COMP] = addr_acc;
+	config->addr_acc[ETM_DEFAULT_ADDR_COMP + 1] = addr_acc;
+}
+
 static int etm4_cpu_callback(struct notifier_block *nfb, unsigned long action,
 			    void *hcpu)
 {

@@ -176,7 +176,9 @@
 #define ETM_MODE_TRACE_RESET		BIT(25)
 #define ETM_MODE_TRACE_ERR		BIT(26)
 #define ETM_MODE_VIEWINST_STARTSTOP	BIT(27)
-#define ETMv4_MODE_ALL			0xFFFFFFF
+#define ETMv4_MODE_ALL			(GENMASK(27, 0) | \
+					 ETM_MODE_EXCL_KERN | \
+					 ETM_MODE_EXCL_USER)
 
 #define TRCSTATR_IDLE_BIT		0
 #define ETM_DEFAULT_ADDR_COMP		0
@@ -414,4 +416,5 @@ enum etm_addr_type {
 };
 
 extern const struct attribute_group *coresight_etmv4_groups[];
+void etm4_config_trace_mode(struct etmv4_config *config);
 #endif
