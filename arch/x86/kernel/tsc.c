@@ -922,9 +922,6 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 	struct cpufreq_freqs *freq = data;
 	unsigned long *lpj;
 
-	if (cpu_has(&cpu_data(freq->cpu), X86_FEATURE_CONSTANT_TSC))
-		return 0;
-
 	lpj = &boot_cpu_data.loops_per_jiffy;
 #ifdef CONFIG_SMP
 	if (!(freq->flags & CPUFREQ_CONST_LOOPS))
@@ -954,7 +951,7 @@ static struct notifier_block time_cpufreq_notifier_block = {
 	.notifier_call  = time_cpufreq_notifier
 };
 
-static int __init cpufreq_tsc(void)
+static int __init cpufreq_register_tsc_scaling(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_TSC))
 		return 0;
@@ -965,7 +962,7 @@ static int __init cpufreq_tsc(void)
 	return 0;
 }
 
-core_initcall(cpufreq_tsc);
+core_initcall(cpufreq_register_tsc_scaling);
 
 #endif /* CONFIG_CPU_FREQ */
 
