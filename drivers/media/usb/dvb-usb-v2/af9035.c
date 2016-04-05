@@ -367,10 +367,25 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 				memcpy(&buf[3], msg[0].buf, msg[0].len);
 			} else {
 				buf[1] = msg[0].addr << 1;
-				buf[2] = 0x00; /* reg addr len */
 				buf[3] = 0x00; /* reg addr MSB */
 				buf[4] = 0x00; /* reg addr LSB */
-				memcpy(&buf[5], msg[0].buf, msg[0].len);
+
+				/* Keep prev behavior for write req len > 2*/
+				if (msg[0].len > 2) {
+					buf[2] = 0x00; /* reg addr len */
+					memcpy(&buf[5], msg[0].buf, msg[0].len);
+
+				/* Use reg addr fields if write req len <= 2 */
+				} else {
+					req.wlen = 5;
+					buf[2] = msg[0].len;
+					if (msg[0].len == 2) {
+						buf[3] = msg[0].buf[0];
+						buf[4] = msg[0].buf[1];
+					} else if (msg[0].len == 1) {
+						buf[4] = msg[0].buf[0];
+					}
+				}
 			}
 			ret = af9035_ctrl_msg(d, &req);
 		}
