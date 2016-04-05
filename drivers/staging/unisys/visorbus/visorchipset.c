@@ -2290,16 +2290,25 @@ visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
 	return 0;
 }
 
+static void
+visorchipset_file_cleanup(dev_t major_dev)
+{
+	if (file_cdev.ops)
+		cdev_del(&file_cdev);
+	file_cdev.ops = NULL;
+	unregister_chrdev_region(major_dev, 1);
+}
+
 static int
 visorchipset_init(struct acpi_device *acpi_device)
 {
-	int rc = 0;
+	int err = -ENODEV;
 	u64 addr;
 	uuid_le uuid = SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID;
 
 	addr = controlvm_get_channel_address();
 	if (!addr)
-		return -ENODEV;
+		goto error;
 
 	memset(&busdev_notifiers, 0, sizeof(busdev_notifiers));
 	memset(&controlvm_payload_info, 0, sizeof(controlvm_payload_info));
@@ -2307,22 +2316,19 @@ visorchipset_init(struct acpi_device *acpi_device)
 	controlvm_channel = visorchannel_create_with_lock(addr, 0,
 							  GFP_KERNEL, uuid);
 	if (!controlvm_channel)
-		return -ENODEV;
+		goto error;
+
 	if (SPAR_CONTROLVM_CHANNEL_OK_CLIENT(
 		    visorchannel_get_header(controlvm_channel))) {
 		initialize_controlvm_payload();
 	} else {
-		visorchannel_destroy(controlvm_channel);
-		controlvm_channel = NULL;
-		return -ENODEV;
+		goto error_destroy_channel;
 	}
 
 	major_dev = MKDEV(visorchipset_major, 0);
-	rc = visorchipset_file_init(major_dev, &controlvm_channel);
-	if (rc < 0) {
-		POSTCODE_LINUX_2(CHIPSET_INIT_FAILURE_PC, DIAG_SEVERITY_ERR);
-		goto cleanup;
-	}
+	err = visorchipset_file_init(major_dev, &controlvm_channel);
+	if (err < 0)
+		goto error_destroy_payload;
 
 	memset(&g_chipset_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
@@ -2341,27 +2347,33 @@ visorchipset_init(struct acpi_device *acpi_device)
 	visorchipset_platform_device.dev.devt = major_dev;
 	if (platform_device_register(&visorchipset_platform_device) < 0) {
 		POSTCODE_LINUX_2(DEVICE_REGISTER_FAILURE_PC, DIAG_SEVERITY_ERR);
-		rc = -ENODEV;
-		goto cleanup;
+		err = -ENODEV;
+		goto error_cancel_work;
 	}
 	POSTCODE_LINUX_2(CHIPSET_INIT_SUCCESS_PC, POSTCODE_SEVERITY_INFO);
 
-	rc = visorbus_init();
-cleanup:
-	if (rc) {
-		POSTCODE_LINUX_3(CHIPSET_INIT_FAILURE_PC, rc,
-				 POSTCODE_SEVERITY_ERR);
-	}
-	return rc;
-}
+	err = visorbus_init();
+	if (err < 0)
+		goto error_unregister;
 
-static void
-visorchipset_file_cleanup(dev_t major_dev)
-{
-	if (file_cdev.ops)
-		cdev_del(&file_cdev);
-	file_cdev.ops = NULL;
-	unregister_chrdev_region(major_dev, 1);
+	return 0;
+
+error_unregister:
+	platform_device_unregister(&visorchipset_platform_device);
+
+error_cancel_work:
+	cancel_delayed_work_sync(&periodic_controlvm_work);
+	visorchipset_file_cleanup(major_dev);
+
+error_destroy_payload:
+	destroy_controlvm_payload_info(&controlvm_payload_info);
+
+error_destroy_channel:
+	visorchannel_destroy(controlvm_channel);
+
+error:
+	POSTCODE_LINUX_3(CHIPSET_INIT_FAILURE_PC, err, POSTCODE_SEVERITY_ERR);
+	return err;
 }
 
 static int
