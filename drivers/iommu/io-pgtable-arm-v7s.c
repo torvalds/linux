@@ -260,9 +260,10 @@ static arm_v7s_iopte arm_v7s_prot_to_pte(int prot, int lvl,
 					 struct io_pgtable_cfg *cfg)
 {
 	bool ap = !(cfg->quirks & IO_PGTABLE_QUIRK_NO_PERMS);
-	arm_v7s_iopte pte = ARM_V7S_ATTR_NG | ARM_V7S_ATTR_S |
-			    ARM_V7S_ATTR_TEX(1);
+	arm_v7s_iopte pte = ARM_V7S_ATTR_NG | ARM_V7S_ATTR_S;
 
+	if (!(prot & IOMMU_MMIO))
+		pte |= ARM_V7S_ATTR_TEX(1);
 	if (ap) {
 		pte |= ARM_V7S_PTE_AF | ARM_V7S_PTE_AP_UNPRIV;
 		if (!(prot & IOMMU_WRITE))
@@ -272,7 +273,9 @@ static arm_v7s_iopte arm_v7s_prot_to_pte(int prot, int lvl,
 
 	if ((prot & IOMMU_NOEXEC) && ap)
 		pte |= ARM_V7S_ATTR_XN(lvl);
-	if (prot & IOMMU_CACHE)
+	if (prot & IOMMU_MMIO)
+		pte |= ARM_V7S_ATTR_B;
+	else if (prot & IOMMU_CACHE)
 		pte |= ARM_V7S_ATTR_B | ARM_V7S_ATTR_C;
 
 	return pte;
@@ -281,10 +284,13 @@ static arm_v7s_iopte arm_v7s_prot_to_pte(int prot, int lvl,
 static int arm_v7s_pte_to_prot(arm_v7s_iopte pte, int lvl)
 {
 	int prot = IOMMU_READ;
+	arm_v7s_iopte attr = pte >> ARM_V7S_ATTR_SHIFT(lvl);
 
-	if (pte & (ARM_V7S_PTE_AP_RDONLY << ARM_V7S_ATTR_SHIFT(lvl)))
+	if (attr & ARM_V7S_PTE_AP_RDONLY)
 		prot |= IOMMU_WRITE;
-	if (pte & ARM_V7S_ATTR_C)
+	if ((attr & (ARM_V7S_TEX_MASK << ARM_V7S_TEX_SHIFT)) == 0)
+		prot |= IOMMU_MMIO;
+	else if (pte & ARM_V7S_ATTR_C)
 		prot |= IOMMU_CACHE;
 
 	return prot;
