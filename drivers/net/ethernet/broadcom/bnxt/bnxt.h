@@ -825,6 +825,8 @@ struct bnxt_link_info {
 	u16			req_link_speed;
 	u32			advertising;
 	bool			force_link_chng;
+
+	u8			last_port_module_event;
 	/* a copy of phy_qcfg output used to report link
 	 * info to VF
 	 */
@@ -992,6 +994,7 @@ struct bnxt {
 #define BNXT_RST_RING_SP_EVENT		7
 #define BNXT_HWRM_PF_UNLOAD_SP_EVENT	8
 #define BNXT_PERIODIC_STATS_SP_EVENT	9
+#define BNXT_HWRM_PORT_MODULE_SP_EVENT	10
 
 	struct bnxt_pf_info	pf;
 #ifdef CONFIG_BNXT_SRIOV
