@@ -3378,7 +3378,7 @@ xfs_log_force(
 {
 	int	error;
 
-	trace_xfs_log_force(mp, 0);
+	trace_xfs_log_force(mp, 0, _RET_IP_);
 	error = _xfs_log_force(mp, flags, NULL);
 	if (error)
 		xfs_warn(mp, "%s: error %d returned.", __func__, error);
@@ -3527,7 +3527,7 @@ xfs_log_force_lsn(
 {
 	int	error;
 
-	trace_xfs_log_force(mp, lsn);
+	trace_xfs_log_force(mp, lsn, _RET_IP_);
 	error = _xfs_log_force_lsn(mp, lsn, flags, NULL);
 	if (error)
 		xfs_warn(mp, "%s: error %d returned.", __func__, error);
