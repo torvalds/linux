@@ -530,12 +530,6 @@ granted:
 		return -EIO;
 	}
 
-	if (rc) {
-		LDLM_DEBUG(lock, "client-side enqueue waking up: failed (%d)",
-			   rc);
-		return rc;
-	}
-
 	LDLM_DEBUG(lock, "client-side enqueue granted");
 
 	lock_res_and_lock(lock);
