@@ -5268,6 +5268,8 @@ static void intel_update_max_cdclk(struct drm_device *dev)
 			dev_priv->max_cdclk_freq = 450000;
 		else
 			dev_priv->max_cdclk_freq = 337500;
+	} else if (IS_BROXTON(dev)) {
+		dev_priv->max_cdclk_freq = 624000;
 	} else if (IS_BROADWELL(dev))  {
 		/*
 		 * FIXME with extra cooling we can allow
