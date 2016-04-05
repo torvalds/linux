@@ -621,13 +621,8 @@ static int __maybe_unused cdns_spi_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct spi_master *master = platform_get_drvdata(pdev);
-	struct cdns_spi *xspi = spi_master_get_devdata(master);
 
 	spi_master_suspend(master);
-
-	clk_disable_unprepare(xspi->ref_clk);
-
-	clk_disable_unprepare(xspi->pclk);
 
 	return 0;
 }
@@ -644,21 +639,7 @@ static int __maybe_unused cdns_spi_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct spi_master *master = platform_get_drvdata(pdev);
-	struct cdns_spi *xspi = spi_master_get_devdata(master);
-	int ret = 0;
 
-	ret = clk_prepare_enable(xspi->pclk);
-	if (ret) {
-		dev_err(dev, "Cannot enable APB clock.\n");
-		return ret;
-	}
-
-	ret = clk_prepare_enable(xspi->ref_clk);
-	if (ret) {
-		dev_err(dev, "Cannot enable device clock.\n");
-		clk_disable(xspi->pclk);
-		return ret;
-	}
 	spi_master_resume(master);
 
 	return 0;
