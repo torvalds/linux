@@ -1592,7 +1592,13 @@ static void nvme_del_cq_end(struct request *req, int error)
 	if (!error) {
 		unsigned long flags;
 
-		spin_lock_irqsave(&nvmeq->q_lock, flags);
+		/*
+		 * We might be called with the AQ q_lock held
+		 * and the I/O queue q_lock should always
+		 * nest inside the AQ one.
+		 */
+		spin_lock_irqsave_nested(&nvmeq->q_lock, flags,
+					SINGLE_DEPTH_NESTING);
 		nvme_process_cq(nvmeq);
 		spin_unlock_irqrestore(&nvmeq->q_lock, flags);
 	}
