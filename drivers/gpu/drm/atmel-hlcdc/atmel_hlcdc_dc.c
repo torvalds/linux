@@ -615,7 +615,7 @@ err:
 static void atmel_hlcdc_dc_connector_unplug_all(struct drm_device *dev)
 {
 	mutex_lock(&dev->mode_config.mutex);
-	drm_connector_unplug_all(dev);
+	drm_connector_unregister_all(dev);
 	mutex_unlock(&dev->mode_config.mutex);
 }
 

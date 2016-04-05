@@ -42,10 +42,8 @@ module_param_named(modeset, virtio_gpu_modeset, int, 0400);
 
 static int virtio_gpu_probe(struct virtio_device *vdev)
 {
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && virtio_gpu_modeset == -1)
 		return -EINVAL;
-#endif
 
 	if (virtio_gpu_modeset == 0)
 		return -EINVAL;

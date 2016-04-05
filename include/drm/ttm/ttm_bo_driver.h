@@ -1030,8 +1030,7 @@ extern pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
 
 extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
 
-#if (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
-#define TTM_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 #include <linux/agp_backend.h>
 
 /**

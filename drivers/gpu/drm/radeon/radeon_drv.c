@@ -566,12 +566,10 @@ static struct pci_driver radeon_kms_pci_driver = {
 
 static int __init radeon_init(void)
 {
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && radeon_modeset == -1) {
 		DRM_INFO("VGACON disable radeon kernel modesetting.\n");
 		radeon_modeset = 0;
 	}
-#endif
 	/* set to modesetting by default if not nomodeset */
 	if (radeon_modeset == -1)
 		radeon_modeset = 1;

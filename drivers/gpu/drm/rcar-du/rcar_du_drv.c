@@ -278,10 +278,7 @@ static int rcar_du_remove(struct platform_device *pdev)
 	struct rcar_du_device *rcdu = platform_get_drvdata(pdev);
 	struct drm_device *ddev = rcdu->ddev;
 
-	mutex_lock(&ddev->mode_config.mutex);
-	drm_connector_unplug_all(ddev);
-	mutex_unlock(&ddev->mode_config.mutex);
-
+	drm_connector_unregister_all(ddev);
 	drm_dev_unregister(ddev);
 
 	if (rcdu->fbdev)

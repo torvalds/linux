@@ -556,12 +556,10 @@ static struct pci_driver amdgpu_kms_pci_driver = {
 static int __init amdgpu_init(void)
 {
 	amdgpu_sync_init();
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force()) {
 		DRM_ERROR("VGACON disables amdgpu kernel modesetting.\n");
 		return -EINVAL;
 	}
-#endif
 	DRM_INFO("amdgpu kernel modesetting enabled.\n");
 	driver = &kms_driver;
 	pdriver = &amdgpu_kms_pci_driver;

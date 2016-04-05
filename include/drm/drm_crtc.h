@@ -45,16 +45,6 @@ struct drm_clip_rect;
 struct device_node;
 struct fence;
 
-#define DRM_MODE_OBJECT_CRTC 0xcccccccc
-#define DRM_MODE_OBJECT_CONNECTOR 0xc0c0c0c0
-#define DRM_MODE_OBJECT_ENCODER 0xe0e0e0e0
-#define DRM_MODE_OBJECT_MODE 0xdededede
-#define DRM_MODE_OBJECT_PROPERTY 0xb0b0b0b0
-#define DRM_MODE_OBJECT_FB 0xfbfbfbfb
-#define DRM_MODE_OBJECT_BLOB 0xbbbbbbbb
-#define DRM_MODE_OBJECT_PLANE 0xeeeeeeee
-#define DRM_MODE_OBJECT_ANY 0
-
 struct drm_mode_object {
 	uint32_t id;
 	uint32_t type;
@@ -2259,8 +2249,8 @@ static inline unsigned drm_connector_index(struct drm_connector *connector)
 	return connector->connector_id;
 }
 
-/* helper to unplug all connectors from sysfs for device */
-extern void drm_connector_unplug_all(struct drm_device *dev);
+/* helper to unregister all connectors from sysfs for device */
+extern void drm_connector_unregister_all(struct drm_device *dev);
 
 extern int drm_bridge_add(struct drm_bridge *bridge);
 extern void drm_bridge_remove(struct drm_bridge *bridge);
