@@ -2187,6 +2187,15 @@ void __sk_mem_reclaim(struct sock *sk, int amount)
 }
 EXPORT_SYMBOL(__sk_mem_reclaim);
 
+int sk_set_peek_off(struct sock *sk, int val)
+{
+	if (val < 0)
+		return -EINVAL;
+
+	sk->sk_peek_off = val;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sk_set_peek_off);
 
 /*
  * Set of default routines for initialising struct proto_ops when
