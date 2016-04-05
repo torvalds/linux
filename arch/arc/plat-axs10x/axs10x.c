@@ -389,6 +389,8 @@ axs103_set_freq(unsigned int id, unsigned int fd, unsigned int od)
 
 static void __init axs103_early_init(void)
 {
+	u32 freq = arc_get_core_freq(), orig = freq;
+
 	/*
 	 * AXS103 configurations for SMP/QUAD configurations share device tree
 	 * which defaults to 90 MHz. However recent failures of Quad config
@@ -401,12 +403,12 @@ static void __init axs103_early_init(void)
 #ifdef CONFIG_ARC_MCIP
 	unsigned int num_cores = (read_aux_reg(ARC_REG_MCIP_BCR) >> 16) & 0x3F;
 	if (num_cores > 2)
-		arc_set_core_freq(50 * 1000000);
+		freq = 50;
 	else if (num_cores == 2)
-		arc_set_core_freq(75 * 1000000);
+		freq = 75;
 #endif
 
-	switch (arc_get_core_freq()/1000000) {
+	switch (freq) {
 	case 33:
 		axs103_set_freq(1, 1, 1);
 		break;
@@ -431,11 +433,14 @@ static void __init axs103_early_init(void)
 		 * DT "clock-frequency" might not match with board value.
 		 * Hence update it to match the board value.
 		 */
-		arc_set_core_freq(axs103_get_freq() * 1000000);
+		freq = axs103_get_freq();
 		break;
 	}
 
-	pr_info("Freq is %dMHz\n", axs103_get_freq());
+	pr_info("Freq is %dMHz\n", freq);
+	if (freq != orig ) {
+		arc_set_core_freq(freq * 1000000);
+	}
 
 	/* Memory maps already config in pre-bootloader */
 
