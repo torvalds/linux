@@ -1379,6 +1379,80 @@ static int bnxt_set_eeprom(struct net_device *dev,
 				eeprom->len);
 }
 
+static int bnxt_set_eee(struct net_device *dev, struct ethtool_eee *edata)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct ethtool_eee *eee = &bp->eee;
+	struct bnxt_link_info *link_info = &bp->link_info;
+	u32 advertising =
+		 _bnxt_fw_to_ethtool_adv_spds(link_info->advertising, 0);
+	int rc = 0;
+
+	if (BNXT_VF(bp))
+		return 0;
+
+	if (!(bp->flags & BNXT_FLAG_EEE_CAP))
+		return -EOPNOTSUPP;
+
+	if (!edata->eee_enabled)
+		goto eee_ok;
+
+	if (!(link_info->autoneg & BNXT_AUTONEG_SPEED)) {
+		netdev_warn(dev, "EEE requires autoneg\n");
+		return -EINVAL;
+	}
+	if (edata->tx_lpi_enabled) {
+		if (bp->lpi_tmr_hi && (edata->tx_lpi_timer > bp->lpi_tmr_hi ||
+				       edata->tx_lpi_timer < bp->lpi_tmr_lo)) {
+			netdev_warn(dev, "Valid LPI timer range is %d and %d microsecs\n",
+				    bp->lpi_tmr_lo, bp->lpi_tmr_hi);
+			return -EINVAL;
+		} else if (!bp->lpi_tmr_hi) {
+			edata->tx_lpi_timer = eee->tx_lpi_timer;
+		}
+	}
+	if (!edata->advertised) {
+		edata->advertised = advertising & eee->supported;
+	} else if (edata->advertised & ~advertising) {
+		netdev_warn(dev, "EEE advertised %x must be a subset of autoneg advertised speeds %x\n",
+			    edata->advertised, advertising);
+		return -EINVAL;
+	}
+
+	eee->advertised = edata->advertised;
+	eee->tx_lpi_enabled = edata->tx_lpi_enabled;
+	eee->tx_lpi_timer = edata->tx_lpi_timer;
+eee_ok:
+	eee->eee_enabled = edata->eee_enabled;
+
+	if (netif_running(dev))
+		rc = bnxt_hwrm_set_link_setting(bp, false, true);
+
+	return rc;
+}
+
+static int bnxt_get_eee(struct net_device *dev, struct ethtool_eee *edata)
+{
+	struct bnxt *bp = netdev_priv(dev);
+
+	if (!(bp->flags & BNXT_FLAG_EEE_CAP))
+		return -EOPNOTSUPP;
+
+	*edata = bp->eee;
+	if (!bp->eee.eee_enabled) {
+		/* Preserve tx_lpi_timer so that the last value will be used
+		 * by default when it is re-enabled.
+		 */
+		edata->advertised = 0;
+		edata->tx_lpi_enabled = 0;
+	}
+
+	if (!bp->eee.eee_active)
+		edata->lp_advertised = 0;
+
+	return 0;
+}
+
 const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_settings		= bnxt_get_settings,
 	.set_settings		= bnxt_set_settings,
@@ -1407,4 +1481,6 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_eeprom             = bnxt_get_eeprom,
 	.set_eeprom		= bnxt_set_eeprom,
 	.get_link		= bnxt_get_link,
+	.get_eee		= bnxt_get_eee,
+	.set_eee		= bnxt_set_eee,
 };
