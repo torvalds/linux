@@ -295,9 +295,6 @@ ifndef NO_LIBELF
     CFLAGS += -DHAVE_ELF_GETPHDRNUM_SUPPORT
   endif
 
-  # include ARCH specific config
-  -include $(src-perf)/arch/$(ARCH)/Makefile
-
   ifndef NO_DWARF
     ifeq ($(origin PERF_HAVE_DWARF_REGS), undefined)
       msg := $(warning DWARF register mappings have not been defined for architecture $(ARCH), DWARF support disabled);

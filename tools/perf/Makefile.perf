@@ -297,8 +297,6 @@ endif
 # because maintaining the nesting to match is a pain.  If
 # we had "elif" things would have been much nicer...
 
--include arch/$(ARCH)/Makefile
-
 ifneq ($(OUTPUT),)
   CFLAGS += -I$(OUTPUT)
 endif
