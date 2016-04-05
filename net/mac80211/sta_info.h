@@ -371,7 +371,7 @@ DECLARE_EWMA(signal, 1024, 8)
  * @ampdu_mlme: A-MPDU state machine state
  * @timer_to_tid: identity mapping to ID timers
  * @mesh: mesh STA information
- * @debugfs: debug filesystem info
+ * @debugfs_dir: debug filesystem directory dentry
  * @dead: set to true when sta is unlinked
  * @removed: set to true when sta is being removed from sta_list
  * @uploaded: set to true when sta is uploaded to the driver
@@ -486,9 +486,7 @@ struct sta_info {
 	u8 timer_to_tid[IEEE80211_NUM_TIDS];
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-	struct sta_info_debugfsdentries {
-		struct dentry *dir;
-	} debugfs;
+	struct dentry *debugfs_dir;
 #endif
 
 	enum ieee80211_sta_rx_bandwidth cur_max_bandwidth;

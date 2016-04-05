@@ -335,14 +335,14 @@ STA_OPS(vht_capa);
 
 #define DEBUGFS_ADD(name) \
 	debugfs_create_file(#name, 0400, \
-		sta->debugfs.dir, sta, &sta_ ##name## _ops);
+		sta->debugfs_dir, sta, &sta_ ##name## _ops);
 
 #define DEBUGFS_ADD_COUNTER(name, field)				\
 	if (sizeof(sta->field) == sizeof(u32))				\
-		debugfs_create_u32(#name, 0400, sta->debugfs.dir,	\
+		debugfs_create_u32(#name, 0400, sta->debugfs_dir,	\
 			(u32 *) &sta->field);				\
 	else								\
-		debugfs_create_u64(#name, 0400, sta->debugfs.dir,	\
+		debugfs_create_u64(#name, 0400, sta->debugfs_dir,	\
 			(u64 *) &sta->field);
 
 void ieee80211_sta_debugfs_add(struct sta_info *sta)
@@ -366,8 +366,8 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	 * destroyed quickly enough the old station's debugfs
 	 * dir might still be around.
 	 */
-	sta->debugfs.dir = debugfs_create_dir(mac, stations_dir);
-	if (!sta->debugfs.dir)
+	sta->debugfs_dir = debugfs_create_dir(mac, stations_dir);
+	if (!sta->debugfs_dir)
 		return;
 
 	DEBUGFS_ADD(flags);
@@ -383,14 +383,14 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 
 	if (sizeof(sta->driver_buffered_tids) == sizeof(u32))
 		debugfs_create_x32("driver_buffered_tids", 0400,
-				   sta->debugfs.dir,
+				   sta->debugfs_dir,
 				   (u32 *)&sta->driver_buffered_tids);
 	else
 		debugfs_create_x64("driver_buffered_tids", 0400,
-				   sta->debugfs.dir,
+				   sta->debugfs_dir,
 				   (u64 *)&sta->driver_buffered_tids);
 
-	drv_sta_add_debugfs(local, sdata, &sta->sta, sta->debugfs.dir);
+	drv_sta_add_debugfs(local, sdata, &sta->sta, sta->debugfs_dir);
 }
 
 void ieee80211_sta_debugfs_remove(struct sta_info *sta)
@@ -398,7 +398,7 @@ void ieee80211_sta_debugfs_remove(struct sta_info *sta)
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 
-	drv_sta_remove_debugfs(local, sdata, &sta->sta, sta->debugfs.dir);
-	debugfs_remove_recursive(sta->debugfs.dir);
-	sta->debugfs.dir = NULL;
+	drv_sta_remove_debugfs(local, sdata, &sta->sta, sta->debugfs_dir);
+	debugfs_remove_recursive(sta->debugfs_dir);
+	sta->debugfs_dir = NULL;
 }
