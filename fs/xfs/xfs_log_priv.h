@@ -175,7 +175,6 @@ typedef struct xlog_ticket {
 	char		   t_cnt;	 /* current count		 : 1  */
 	char		   t_clientid;	 /* who does this belong to;	 : 1  */
 	char		   t_flags;	 /* properties of reservation	 : 1  */
-	uint		   t_trans_type; /* transaction type             : 4  */
 
         /* reservation array fields */
 	uint		   t_res_num;                    /* num in array : 4 */

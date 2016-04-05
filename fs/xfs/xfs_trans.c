@@ -177,7 +177,7 @@ xfs_trans_reserve(
 						resp->tr_logres,
 						resp->tr_logcount,
 						&tp->t_ticket, XFS_TRANSACTION,
-						permanent, 0);
+						permanent);
 		}
 
 		if (error)
