@@ -1162,13 +1162,32 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 			bool fb_overlap_ok)
 {
 	struct resource *iter, *shadow;
-	resource_size_t range_min, range_max, start, local_min, local_max;
+	resource_size_t range_min, range_max, start;
 	const char *dev_n = dev_name(&device_obj->device);
-	u32 fb_end = screen_info.lfb_base + (screen_info.lfb_size << 1);
-	int i, retval;
+	int retval;
 
 	retval = -ENXIO;
 	down(&hyperv_mmio_lock);
+
+	/*
+	 * If overlaps with frame buffers are allowed, then first attempt to
+	 * make the allocation from within the reserved region.  Because it
+	 * is already reserved, no shadow allocation is necessary.
+	 */
+	if (fb_overlap_ok && fb_mmio && !(min > fb_mmio->end) &&
+	    !(max < fb_mmio->start)) {
+
+		range_min = fb_mmio->start;
+		range_max = fb_mmio->end;
+		start = (range_min + align - 1) & ~(align - 1);
+		for (; start + size - 1 <= range_max; start += align) {
+			*new = request_mem_region_exclusive(start, size, dev_n);
+			if (*new) {
+				retval = 0;
+				goto exit;
+			}
+		}
+	}
 
 	for (iter = hyperv_mmio; iter; iter = iter->sibling) {
 		if ((iter->start >= max) || (iter->end <= min))
@@ -1176,50 +1195,21 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 
 		range_min = iter->start;
 		range_max = iter->end;
+		start = (range_min + align - 1) & ~(align - 1);
+		for (; start + size - 1 <= range_max; start += align) {
+			shadow = __request_region(iter, start, size, NULL,
+						  IORESOURCE_BUSY);
+			if (!shadow)
+				continue;
 
-		/* If this range overlaps the frame buffer, split it into
-		   two tries. */
-		for (i = 0; i < 2; i++) {
-			local_min = range_min;
-			local_max = range_max;
-			if (fb_overlap_ok || (range_min >= fb_end) ||
-			    (range_max <= screen_info.lfb_base)) {
-				i++;
-			} else {
-				if ((range_min <= screen_info.lfb_base) &&
-				    (range_max >= screen_info.lfb_base)) {
-					/*
-					 * The frame buffer is in this window,
-					 * so trim this into the part that
-					 * preceeds the frame buffer.
-					 */
-					local_max = screen_info.lfb_base - 1;
-					range_min = fb_end;
-				} else {
-					range_min = fb_end;
-					continue;
-				}
+			*new = request_mem_region_exclusive(start, size, dev_n);
+			if (*new) {
+				shadow->name = (char *)*new;
+				retval = 0;
+				goto exit;
 			}
 
-			start = (local_min + align - 1) & ~(align - 1);
-			for (; start + size - 1 <= local_max; start += align) {
-				shadow = __request_region(iter, start,
-							  size,
-							  NULL,
-							  IORESOURCE_BUSY);
-				if (!shadow)
-					continue;
-
-				*new = request_mem_region_exclusive(start, size,
-								    dev_n);
-				if (*new) {
-					shadow->name = (char *)*new;
-					retval = 0;
-					goto exit;
-				}
-
-				__release_region(iter, start, size);
-			}
+			__release_region(iter, start, size);
 		}
 	}
 
