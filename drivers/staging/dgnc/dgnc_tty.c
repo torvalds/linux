@@ -1536,19 +1536,8 @@ static int dgnc_tty_chars_in_buffer(struct tty_struct *tty)
  */
 static int dgnc_maxcps_room(struct tty_struct *tty, int bytes_available)
 {
-	struct channel_t *ch = NULL;
-	struct un_t *un = NULL;
-
-	if (!tty)
-		return bytes_available;
-
-	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return bytes_available;
-
-	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return bytes_available;
+	struct un_t *un = tty->driver_data;
+	struct channel_t *ch = un->un_ch;
 
 	/*
 	 * If its not the Transparent print device, return
