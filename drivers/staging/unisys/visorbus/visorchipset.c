@@ -66,7 +66,7 @@ static u32 dump_vhba_bus;
 static int
 visorchipset_open(struct inode *inode, struct file *file)
 {
-	unsigned minor_number = iminor(inode);
+	unsigned int minor_number = iminor(inode);
 
 	if (minor_number)
 		return -ENODEV;
