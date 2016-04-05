@@ -676,7 +676,12 @@ static inline const char *changelog_type2str(int type)
 #define CLF_UNLINK_HSM_EXISTS 0x0002 /* File has something in HSM */
 				     /* HSM cleaning needed */
 /* Flags for rename */
-#define CLF_RENAME_LAST       0x0001 /* rename unlink last hardlink of target */
+#define CLF_RENAME_LAST		0x0001	/* rename unlink last hardlink of
+					 * target
+					 */
+#define CLF_RENAME_LAST_EXISTS	0x0002	/* rename unlink last hardlink of target
+					 * has an archive in backend
+					 */
 
 /* Flags for HSM */
 /* 12b used (from high weight to low weight):
