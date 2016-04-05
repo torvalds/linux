@@ -506,33 +506,6 @@ void fpu__clear(struct fpu *fpu)
  * x87 math exception handling:
  */
 
-static inline unsigned short get_fpu_cwd(struct fpu *fpu)
-{
-	if (boot_cpu_has(X86_FEATURE_FXSR)) {
-		return fpu->state.fxsave.cwd;
-	} else {
-		return (unsigned short)fpu->state.fsave.cwd;
-	}
-}
-
-static inline unsigned short get_fpu_swd(struct fpu *fpu)
-{
-	if (boot_cpu_has(X86_FEATURE_FXSR)) {
-		return fpu->state.fxsave.swd;
-	} else {
-		return (unsigned short)fpu->state.fsave.swd;
-	}
-}
-
-static inline unsigned short get_fpu_mxcsr(struct fpu *fpu)
-{
-	if (boot_cpu_has(X86_FEATURE_XMM)) {
-		return fpu->state.fxsave.mxcsr;
-	} else {
-		return MXCSR_DEFAULT;
-	}
-}
-
 int fpu__exception_code(struct fpu *fpu, int trap_nr)
 {
 	int err;
@@ -547,10 +520,15 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
 		 * so if this combination doesn't produce any single exception,
 		 * then we have a bad program that isn't synchronizing its FPU usage
 		 * and it will suffer the consequences since we won't be able to
-		 * fully reproduce the context of the exception
+		 * fully reproduce the context of the exception.
 		 */
-		cwd = get_fpu_cwd(fpu);
-		swd = get_fpu_swd(fpu);
+		if (boot_cpu_has(X86_FEATURE_FXSR)) {
+			cwd = fpu->state.fxsave.cwd;
+			swd = fpu->state.fxsave.swd;
+		} else {
+			cwd = (unsigned short)fpu->state.fsave.cwd;
+			swd = (unsigned short)fpu->state.fsave.swd;
+		}
 
 		err = swd & ~cwd;
 	} else {
@@ -560,7 +538,11 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
 		 * unmasked exception was caught we must mask the exception mask bits
 		 * at 0x1f80, and then use these to mask the exception bits at 0x3f.
 		 */
-		unsigned short mxcsr = get_fpu_mxcsr(fpu);
+		unsigned short mxcsr = MXCSR_DEFAULT;
+
+		if (boot_cpu_has(X86_FEATURE_XMM))
+			mxcsr = fpu->state.fxsave.mxcsr;
+
 		err = ~(mxcsr >> 7) & mxcsr;
 	}
 
