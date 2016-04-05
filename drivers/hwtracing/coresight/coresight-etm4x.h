@@ -13,6 +13,7 @@
 #ifndef _CORESIGHT_CORESIGHT_ETM_H
 #define _CORESIGHT_CORESIGHT_ETM_H
 
+#include <asm/local.h>
 #include <linux/spinlock.h>
 #include "coresight-priv.h"
 
@@ -290,6 +291,7 @@ struct etmv4_config {
  * @dev:        The device entity associated to this component.
  * @csdev:      Component vitals needed by the framework.
  * @spinlock:   Only one at a time pls.
+ * @mode:	This tracer's mode, i.e sysFS, Perf or disabled.
  * @cpu:        The cpu this component is affined to.
  * @arch:       ETM version number.
  * @nr_pe:	The number of processing entity available for tracing.
@@ -316,7 +318,6 @@ struct etmv4_config {
  *		supported for the corresponding Exception level.
  * @ns_ex_level:In non-secure state, indicates whether instruction tracing is
  *		supported for the corresponding Exception level.
- * @enable:	Is this ETM currently tracing.
  * @sticky_enable: true if ETM base configuration has been done.
  * @boot_enable:True if we should start tracing at boot time.
  * @os_unlock:  True if access to management registers is allowed.
@@ -346,6 +347,7 @@ struct etmv4_drvdata {
 	struct device			*dev;
 	struct coresight_device		*csdev;
 	spinlock_t			spinlock;
+	local_t				mode;
 	int				cpu;
 	u8				arch;
 	u8				nr_pe;
@@ -368,7 +370,6 @@ struct etmv4_drvdata {
 	u8				ccitmin;
 	u8				s_ex_level;
 	u8				ns_ex_level;
-	bool				enable;
 	bool				sticky_enable;
 	bool				boot_enable;
 	bool				os_unlock;
