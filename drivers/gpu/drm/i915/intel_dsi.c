@@ -268,6 +268,7 @@ static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
 static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *pipe_config)
 {
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
@@ -283,6 +284,14 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 
 	/* DSI uses short packets for sync events, so clear mode flags for DSI */
 	adjusted_mode->flags = 0;
+
+	if (IS_BROXTON(dev_priv)) {
+		/* Dual link goes to DSI transcoder A. */
+		if (intel_dsi->ports == BIT(PORT_C))
+			pipe_config->cpu_transcoder = TRANSCODER_DSI_C;
+		else
+			pipe_config->cpu_transcoder = TRANSCODER_DSI_A;
+	}
 
 	return true;
 }
@@ -403,7 +412,7 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder)
 		temp &= ~LANE_CONFIGURATION_MASK;
 		temp &= ~DUAL_LINK_MODE_MASK;
 
-		if (intel_dsi->ports == ((1 << PORT_A) | (1 << PORT_C))) {
+		if (intel_dsi->ports == (BIT(PORT_A) | BIT(PORT_C))) {
 			temp |= (intel_dsi->dual_link - 1)
 						<< DUAL_LINK_MODE_SHIFT;
 			temp |= intel_crtc->pipe ?
@@ -667,7 +676,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	enum intel_display_power_domain power_domain;
 	enum port port;
-	bool ret;
+	bool active = false;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -675,38 +684,60 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret = false;
+	/*
+	 * On Broxton the PLL needs to be enabled with a valid divider
+	 * configuration, otherwise accessing DSI registers will hang the
+	 * machine. See BSpec North Display Engine registers/MIPI[BXT].
+	 */
+	if (IS_BROXTON(dev_priv) && !intel_dsi_pll_is_enabled(dev_priv))
+		goto out_put_power;
 
 	/* XXX: this only works for one DSI output */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		i915_reg_t ctrl_reg = IS_BROXTON(dev) ?
 			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(port);
-		u32 dpi_enabled, func;
-
-		func = I915_READ(MIPI_DSI_FUNC_PRG(port));
-		dpi_enabled = I915_READ(ctrl_reg) & DPI_ENABLE;
+		bool enabled = I915_READ(ctrl_reg) & DPI_ENABLE;
 
 		/* Due to some hardware limitations on BYT, MIPI Port C DPI
 		 * Enable bit does not get set. To check whether DSI Port C
 		 * was enabled in BIOS, check the Pipe B enable bit
 		 */
 		if (IS_VALLEYVIEW(dev) && port == PORT_C)
-			dpi_enabled = I915_READ(PIPECONF(PIPE_B)) &
-							PIPECONF_ENABLE;
+			enabled = I915_READ(PIPECONF(PIPE_B)) & PIPECONF_ENABLE;
 
-		if (dpi_enabled || (func & CMD_MODE_DATA_WIDTH_MASK)) {
-			if (I915_READ(MIPI_DEVICE_READY(port)) & DEVICE_READY) {
-				*pipe = port == PORT_A ? PIPE_A : PIPE_B;
-				ret = true;
-
-				goto out;
-			}
+		/* Try command mode if video mode not enabled */
+		if (!enabled) {
+			u32 tmp = I915_READ(MIPI_DSI_FUNC_PRG(port));
+			enabled = tmp & CMD_MODE_DATA_WIDTH_MASK;
 		}
+
+		if (!enabled)
+			continue;
+
+		if (!(I915_READ(MIPI_DEVICE_READY(port)) & DEVICE_READY))
+			continue;
+
+		if (IS_BROXTON(dev_priv)) {
+			u32 tmp = I915_READ(MIPI_CTRL(port));
+			tmp &= BXT_PIPE_SELECT_MASK;
+			tmp >>= BXT_PIPE_SELECT_SHIFT;
+
+			if (WARN_ON(tmp > PIPE_C))
+				continue;
+
+			*pipe = tmp;
+		} else {
+			*pipe = port == PORT_A ? PIPE_A : PIPE_B;
+		}
+
+		active = true;
+		break;
 	}
-out:
+
+out_put_power:
 	intel_display_power_put(dev_priv, power_domain);
 
-	return ret;
+	return active;
 }
 
 static void intel_dsi_get_config(struct intel_encoder *encoder,
@@ -787,7 +818,7 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
-	unsigned int bpp = dsi_pixel_format_bpp(intel_dsi->pixel_format);
+	unsigned int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 	unsigned int lane_count = intel_dsi->lane_count;
 
 	u16 hactive, hfp, hsync, hbp, vfp, vsync, vbp;
@@ -849,6 +880,23 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 	}
 }
 
+static u32 pixel_format_to_reg(enum mipi_dsi_pixel_format fmt)
+{
+	switch (fmt) {
+	case MIPI_DSI_FMT_RGB888:
+		return VID_MODE_FORMAT_RGB888;
+	case MIPI_DSI_FMT_RGB666:
+		return VID_MODE_FORMAT_RGB666;
+	case MIPI_DSI_FMT_RGB666_PACKED:
+		return VID_MODE_FORMAT_RGB666_PACKED;
+	case MIPI_DSI_FMT_RGB565:
+		return VID_MODE_FORMAT_RGB565;
+	default:
+		MISSING_CASE(fmt);
+		return VID_MODE_FORMAT_RGB666;
+	}
+}
+
 static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
@@ -858,7 +906,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	const struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
 	enum port port;
-	unsigned int bpp = dsi_pixel_format_bpp(intel_dsi->pixel_format);
+	unsigned int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 	u32 val, tmp;
 	u16 mode_hdisplay;
 
@@ -917,9 +965,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 		val |= CMD_MODE_DATA_WIDTH_8_BIT; /* XXX */
 	} else {
 		val |= intel_dsi->channel << VID_MODE_CHANNEL_NUMBER_SHIFT;
-
-		/* XXX: cross-check bpp vs. pixel format? */
-		val |= intel_dsi->pixel_format;
+		val |= pixel_format_to_reg(intel_dsi->pixel_format);
 	}
 
 	tmp = 0;
@@ -1121,11 +1167,13 @@ void intel_dsi_init(struct drm_device *dev)
 	DRM_DEBUG_KMS("\n");
 
 	/* There is no detection method for MIPI so rely on VBT */
-	if (!dev_priv->vbt.has_mipi)
+	if (!intel_bios_is_dsi_present(dev_priv, &port))
 		return;
 
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		dev_priv->mipi_mmio_base = VLV_MIPI_BASE;
+	} else if (IS_BROXTON(dev)) {
+		dev_priv->mipi_mmio_base = BXT_MIPI_BASE;
 	} else {
 		DRM_ERROR("Unsupported Mipi device to reg base");
 		return;
@@ -1161,17 +1209,21 @@ void intel_dsi_init(struct drm_device *dev)
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 	intel_connector->unregister = intel_connector_unregister;
 
-	/* Pipe A maps to MIPI DSI port A, pipe B maps to MIPI DSI port C */
-	if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIA) {
-		intel_encoder->crtc_mask = (1 << PIPE_A);
-		intel_dsi->ports = (1 << PORT_A);
-	} else if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIC) {
-		intel_encoder->crtc_mask = (1 << PIPE_B);
-		intel_dsi->ports = (1 << PORT_C);
-	}
+	/*
+	 * On BYT/CHV, pipe A maps to MIPI DSI port A, pipe B maps to MIPI DSI
+	 * port C. BXT isn't limited like this.
+	 */
+	if (IS_BROXTON(dev_priv))
+		intel_encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
+	else if (port == PORT_A)
+		intel_encoder->crtc_mask = BIT(PIPE_A);
+	else
+		intel_encoder->crtc_mask = BIT(PIPE_B);
 
 	if (dev_priv->vbt.dsi.config->dual_link)
-		intel_dsi->ports = ((1 << PORT_A) | (1 << PORT_C));
+		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_C);
+	else
+		intel_dsi->ports = BIT(port);
 
 	/* Create a DSI host (and a device) for each port. */
 	for_each_dsi_port(port, intel_dsi->ports) {

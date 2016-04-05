@@ -74,7 +74,7 @@ int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
 {
 	return i915_gem_stolen_insert_node_in_range(dev_priv, node, size,
 					alignment, 0,
-					dev_priv->gtt.stolen_usable_size);
+					dev_priv->ggtt.stolen_usable_size);
 }
 
 void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
@@ -134,7 +134,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 					 I85X_DRB3, &tmp);
 		tom = tmp * MB(32);
 
-		base = tom - tseg_size - dev_priv->gtt.stolen_size;
+		base = tom - tseg_size - dev_priv->ggtt.stolen_size;
 	} else if (IS_845G(dev)) {
 		u32 tseg_size = 0;
 		u32 tom;
@@ -158,7 +158,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 					 I830_DRB3, &tmp);
 		tom = tmp * MB(32);
 
-		base = tom - tseg_size - dev_priv->gtt.stolen_size;
+		base = tom - tseg_size - dev_priv->ggtt.stolen_size;
 	} else if (IS_I830(dev)) {
 		u32 tseg_size = 0;
 		u32 tom;
@@ -178,7 +178,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 					 I830_DRB3, &tmp);
 		tom = tmp * MB(32);
 
-		base = tom - tseg_size - dev_priv->gtt.stolen_size;
+		base = tom - tseg_size - dev_priv->ggtt.stolen_size;
 	}
 
 	if (base == 0)
@@ -189,8 +189,8 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		struct {
 			u32 start, end;
 		} stolen[2] = {
-			{ .start = base, .end = base + dev_priv->gtt.stolen_size, },
-			{ .start = base, .end = base + dev_priv->gtt.stolen_size, },
+			{ .start = base, .end = base + dev_priv->ggtt.stolen_size, },
+			{ .start = base, .end = base + dev_priv->ggtt.stolen_size, },
 		};
 		u64 gtt_start, gtt_end;
 
@@ -200,7 +200,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 				(gtt_start & PGTBL_ADDRESS_HI_MASK) << 28;
 		else
 			gtt_start &= PGTBL_ADDRESS_LO_MASK;
-		gtt_end = gtt_start + gtt_total_entries(dev_priv->gtt) * 4;
+		gtt_end = gtt_start + gtt_total_entries(dev_priv->ggtt) * 4;
 
 		if (gtt_start >= stolen[0].start && gtt_start < stolen[0].end)
 			stolen[0].end = gtt_start;
@@ -211,10 +211,10 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		if (stolen[0].end - stolen[0].start >
 		    stolen[1].end - stolen[1].start) {
 			base = stolen[0].start;
-			dev_priv->gtt.stolen_size = stolen[0].end - stolen[0].start;
+			dev_priv->ggtt.stolen_size = stolen[0].end - stolen[0].start;
 		} else {
 			base = stolen[1].start;
-			dev_priv->gtt.stolen_size = stolen[1].end - stolen[1].start;
+			dev_priv->ggtt.stolen_size = stolen[1].end - stolen[1].start;
 		}
 
 		if (stolen[0].start != stolen[1].start ||
@@ -223,7 +223,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 				      (unsigned long long) gtt_start,
 				      (unsigned long long) gtt_end - 1);
 			DRM_DEBUG_KMS("Stolen memory adjusted to 0x%x-0x%x\n",
-				      base, base + (u32) dev_priv->gtt.stolen_size - 1);
+				      base, base + (u32) dev_priv->ggtt.stolen_size - 1);
 		}
 	}
 
@@ -233,7 +233,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	 * kernel. So if the region is already marked as busy, something
 	 * is seriously wrong.
 	 */
-	r = devm_request_mem_region(dev->dev, base, dev_priv->gtt.stolen_size,
+	r = devm_request_mem_region(dev->dev, base, dev_priv->ggtt.stolen_size,
 				    "Graphics Stolen Memory");
 	if (r == NULL) {
 		/*
@@ -245,7 +245,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		 * reservation starting from 1 instead of 0.
 		 */
 		r = devm_request_mem_region(dev->dev, base + 1,
-					    dev_priv->gtt.stolen_size - 1,
+					    dev_priv->ggtt.stolen_size - 1,
 					    "Graphics Stolen Memory");
 		/*
 		 * GEN3 firmware likes to smash pci bridges into the stolen
@@ -253,7 +253,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		 */
 		if (r == NULL && !IS_GEN3(dev)) {
 			DRM_ERROR("conflict detected with stolen region: [0x%08x - 0x%08x]\n",
-				  base, base + (uint32_t)dev_priv->gtt.stolen_size);
+				  base, base + (uint32_t)dev_priv->ggtt.stolen_size);
 			base = 0;
 		}
 	}
@@ -278,7 +278,7 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
 				     CTG_STOLEN_RESERVED :
 				     ELK_STOLEN_RESERVED);
 	unsigned long stolen_top = dev_priv->mm.stolen_base +
-		dev_priv->gtt.stolen_size;
+		dev_priv->ggtt.stolen_size;
 
 	*base = (reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK) << 16;
 
@@ -372,7 +372,7 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 	unsigned long stolen_top;
 
-	stolen_top = dev_priv->mm.stolen_base + dev_priv->gtt.stolen_size;
+	stolen_top = dev_priv->mm.stolen_base + dev_priv->ggtt.stolen_size;
 
 	*base = reg_val & GEN6_STOLEN_RESERVED_ADDR_MASK;
 
@@ -401,14 +401,14 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	}
 #endif
 
-	if (dev_priv->gtt.stolen_size == 0)
+	if (dev_priv->ggtt.stolen_size == 0)
 		return 0;
 
 	dev_priv->mm.stolen_base = i915_stolen_to_physical(dev);
 	if (dev_priv->mm.stolen_base == 0)
 		return 0;
 
-	stolen_top = dev_priv->mm.stolen_base + dev_priv->gtt.stolen_size;
+	stolen_top = dev_priv->mm.stolen_base + dev_priv->ggtt.stolen_size;
 
 	switch (INTEL_INFO(dev_priv)->gen) {
 	case 2:
@@ -458,18 +458,18 @@ int i915_gem_init_stolen(struct drm_device *dev)
 		return 0;
 	}
 
-	dev_priv->gtt.stolen_reserved_base = reserved_base;
-	dev_priv->gtt.stolen_reserved_size = reserved_size;
+	dev_priv->ggtt.stolen_reserved_base = reserved_base;
+	dev_priv->ggtt.stolen_reserved_size = reserved_size;
 
 	/* It is possible for the reserved area to end before the end of stolen
 	 * memory, so just consider the start. */
 	reserved_total = stolen_top - reserved_base;
 
 	DRM_DEBUG_KMS("Memory reserved for graphics device: %zuK, usable: %luK\n",
-		      dev_priv->gtt.stolen_size >> 10,
-		      (dev_priv->gtt.stolen_size - reserved_total) >> 10);
+		      dev_priv->ggtt.stolen_size >> 10,
+		      (dev_priv->ggtt.stolen_size - reserved_total) >> 10);
 
-	dev_priv->gtt.stolen_usable_size = dev_priv->gtt.stolen_size -
+	dev_priv->ggtt.stolen_usable_size = dev_priv->ggtt.stolen_size -
 					   reserved_total;
 
 	/*
@@ -483,7 +483,7 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	 * i915_gem_stolen_insert_node_in_range(). We may want to fix the fbcon
 	 * problem later.
 	 */
-	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->gtt.stolen_usable_size);
+	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->ggtt.stolen_usable_size);
 
 	return 0;
 }
@@ -497,7 +497,7 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	struct scatterlist *sg;
 
 	DRM_DEBUG_DRIVER("offset=0x%x, size=%d\n", offset, size);
-	BUG_ON(offset > dev_priv->gtt.stolen_size - size);
+	BUG_ON(offset > dev_priv->ggtt.stolen_size - size);
 
 	/* We hide that we have no struct page backing our stolen object
 	 * by wrapping the contiguous physical allocation with a fake
@@ -629,7 +629,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 					       u32 size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_address_space *ggtt = &dev_priv->gtt.base;
+	struct i915_address_space *ggtt = &dev_priv->ggtt.base;
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
 	struct i915_vma *vma;

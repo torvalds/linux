@@ -188,28 +188,49 @@ static const struct stepping_info bxt_stepping_info[] = {
 	{'B', '0'}, {'B', '1'}, {'B', '2'}
 };
 
-static const struct stepping_info *intel_get_stepping_info(struct drm_device *dev)
+static const struct stepping_info no_stepping_info = { '*', '*' };
+
+static const struct stepping_info *
+intel_get_stepping_info(struct drm_i915_private *dev_priv)
 {
 	const struct stepping_info *si;
 	unsigned int size;
 
-	if (IS_KABYLAKE(dev)) {
+	if (IS_KABYLAKE(dev_priv)) {
 		size = ARRAY_SIZE(kbl_stepping_info);
 		si = kbl_stepping_info;
-	} else if (IS_SKYLAKE(dev)) {
+	} else if (IS_SKYLAKE(dev_priv)) {
 		size = ARRAY_SIZE(skl_stepping_info);
 		si = skl_stepping_info;
-	} else if (IS_BROXTON(dev)) {
+	} else if (IS_BROXTON(dev_priv)) {
 		size = ARRAY_SIZE(bxt_stepping_info);
 		si = bxt_stepping_info;
 	} else {
-		return NULL;
+		size = 0;
 	}
 
-	if (INTEL_REVID(dev) < size)
-		return si + INTEL_REVID(dev);
+	if (INTEL_REVID(dev_priv) < size)
+		return si + INTEL_REVID(dev_priv);
 
-	return NULL;
+	return &no_stepping_info;
+}
+
+static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
+{
+	uint32_t val, mask;
+
+	mask = DC_STATE_DEBUG_MASK_MEMORY_UP;
+
+	if (IS_BROXTON(dev_priv))
+		mask |= DC_STATE_DEBUG_MASK_CORES;
+
+	/* The below bit doesn't need to be cleared ever afterwards */
+	val = I915_READ(DC_STATE_DEBUG);
+	if ((val & mask) != mask) {
+		val |= mask;
+		I915_WRITE(DC_STATE_DEBUG, val);
+		POSTING_READ(DC_STATE_DEBUG);
+	}
 }
 
 /**
@@ -220,19 +241,19 @@ static const struct stepping_info *intel_get_stepping_info(struct drm_device *de
  * Everytime display comes back from low power state this function is called to
  * copy the firmware from internal memory to registers.
  */
-bool intel_csr_load_program(struct drm_i915_private *dev_priv)
+void intel_csr_load_program(struct drm_i915_private *dev_priv)
 {
 	u32 *payload = dev_priv->csr.dmc_payload;
 	uint32_t i, fw_size;
 
 	if (!IS_GEN9(dev_priv)) {
 		DRM_ERROR("No CSR support available for this platform\n");
-		return false;
+		return;
 	}
 
 	if (!dev_priv->csr.dmc_payload) {
 		DRM_ERROR("Tried to program CSR with empty payload\n");
-		return false;
+		return;
 	}
 
 	fw_size = dev_priv->csr.dmc_fw_size;
@@ -246,33 +267,23 @@ bool intel_csr_load_program(struct drm_i915_private *dev_priv)
 
 	dev_priv->csr.dc_state = 0;
 
-	return true;
+	gen9_set_dc_state_debugmask(dev_priv);
 }
 
 static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 			      const struct firmware *fw)
 {
-	struct drm_device *dev = dev_priv->dev;
 	struct intel_css_header *css_header;
 	struct intel_package_header *package_header;
 	struct intel_dmc_header *dmc_header;
 	struct intel_csr *csr = &dev_priv->csr;
-	const struct stepping_info *stepping_info = intel_get_stepping_info(dev);
-	char stepping, substepping;
+	const struct stepping_info *si = intel_get_stepping_info(dev_priv);
 	uint32_t dmc_offset = CSR_DEFAULT_FW_OFFSET, readcount = 0, nbytes;
 	uint32_t i;
 	uint32_t *dmc_payload;
 
 	if (!fw)
 		return NULL;
-
-	if (!stepping_info) {
-		DRM_ERROR("Unknown stepping info, firmware loading failed\n");
-		return NULL;
-	}
-
-	stepping = stepping_info->stepping;
-	substepping = stepping_info->substepping;
 
 	/* Extract CSS Header information*/
 	css_header = (struct intel_css_header *)fw->data;
@@ -285,7 +296,7 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	csr->version = css_header->version;
 
-	if ((IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) &&
+	if ((IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
 	    csr->version < SKL_CSR_VERSION_REQUIRED) {
 		DRM_INFO("Refusing to load old Skylake DMC firmware v%u.%u,"
 			 " please upgrade to v%u.%u or later"
@@ -313,11 +324,11 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 	/* Search for dmc_offset to find firware binary. */
 	for (i = 0; i < package_header->num_entries; i++) {
 		if (package_header->fw_info[i].substepping == '*' &&
-		    stepping == package_header->fw_info[i].stepping) {
+		    si->stepping == package_header->fw_info[i].stepping) {
 			dmc_offset = package_header->fw_info[i].offset;
 			break;
-		} else if (stepping == package_header->fw_info[i].stepping &&
-			substepping == package_header->fw_info[i].substepping) {
+		} else if (si->stepping == package_header->fw_info[i].stepping &&
+			   si->substepping == package_header->fw_info[i].substepping) {
 			dmc_offset = package_header->fw_info[i].offset;
 			break;
 		} else if (package_header->fw_info[i].stepping == '*' &&
@@ -325,7 +336,8 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 			dmc_offset = package_header->fw_info[i].offset;
 	}
 	if (dmc_offset == CSR_DEFAULT_FW_OFFSET) {
-		DRM_ERROR("Firmware not supported for %c stepping\n", stepping);
+		DRM_ERROR("Firmware not supported for %c stepping\n",
+			  si->stepping);
 		return NULL;
 	}
 	readcount += dmc_offset;
@@ -371,9 +383,7 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 		return NULL;
 	}
 
-	memcpy(dmc_payload, &fw->data[readcount], nbytes);
-
-	return dmc_payload;
+	return memcpy(dmc_payload, &fw->data[readcount], nbytes);
 }
 
 static void csr_load_work_fn(struct work_struct *work)
@@ -388,18 +398,12 @@ static void csr_load_work_fn(struct work_struct *work)
 
 	ret = request_firmware(&fw, dev_priv->csr.fw_path,
 			       &dev_priv->dev->pdev->dev);
-	if (!fw)
-		goto out;
+	if (fw)
+		dev_priv->csr.dmc_payload = parse_csr_fw(dev_priv, fw);
 
-	dev_priv->csr.dmc_payload = parse_csr_fw(dev_priv, fw);
-	if (!dev_priv->csr.dmc_payload)
-		goto out;
-
-	/* load csr program during system boot, as needed for DC states */
-	intel_csr_load_program(dev_priv);
-
-out:
 	if (dev_priv->csr.dmc_payload) {
+		intel_csr_load_program(dev_priv);
+
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
 		DRM_INFO("Finished loading %s (v%u.%u)\n",

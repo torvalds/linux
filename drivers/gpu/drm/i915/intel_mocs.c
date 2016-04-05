@@ -159,7 +159,7 @@ static bool get_mocs_settings(struct drm_device *dev,
 	return result;
 }
 
-static i915_reg_t mocs_register(enum intel_ring_id ring, int index)
+static i915_reg_t mocs_register(enum intel_engine_id ring, int index)
 {
 	switch (ring) {
 	case RCS:
@@ -191,7 +191,7 @@ static i915_reg_t mocs_register(enum intel_ring_id ring, int index)
  */
 static int emit_mocs_control_table(struct drm_i915_gem_request *req,
 				   const struct drm_i915_mocs_table *table,
-				   enum intel_ring_id ring)
+				   enum intel_engine_id ring)
 {
 	struct intel_ringbuffer *ringbuf = req->ringbuf;
 	unsigned int index;
@@ -322,14 +322,14 @@ int intel_rcs_context_init_mocs(struct drm_i915_gem_request *req)
 	struct drm_i915_mocs_table t;
 	int ret;
 
-	if (get_mocs_settings(req->ring->dev, &t)) {
+	if (get_mocs_settings(req->engine->dev, &t)) {
 		struct drm_i915_private *dev_priv = req->i915;
-		struct intel_engine_cs *ring;
-		enum intel_ring_id ring_id;
+		struct intel_engine_cs *engine;
+		enum intel_engine_id id;
 
 		/* Program the control registers */
-		for_each_ring(ring, dev_priv, ring_id) {
-			ret = emit_mocs_control_table(req, &t, ring_id);
+		for_each_engine_id(engine, dev_priv, id) {
+			ret = emit_mocs_control_table(req, &t, id);
 			if (ret)
 				return ret;
 		}

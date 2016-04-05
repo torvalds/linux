@@ -30,27 +30,6 @@
 #include "i915_drv.h"
 #include "intel_dsi.h"
 
-int dsi_pixel_format_bpp(int pixel_format)
-{
-	int bpp;
-
-	switch (pixel_format) {
-	default:
-	case VID_MODE_FORMAT_RGB888:
-	case VID_MODE_FORMAT_RGB666_LOOSE:
-		bpp = 24;
-		break;
-	case VID_MODE_FORMAT_RGB666:
-		bpp = 18;
-		break;
-	case VID_MODE_FORMAT_RGB565:
-		bpp = 16;
-		break;
-	}
-
-	return bpp;
-}
-
 struct dsi_mnp {
 	u32 dsi_pll_ctrl;
 	u32 dsi_pll_div;
@@ -64,10 +43,11 @@ static const u32 lfsr_converts[] = {
 };
 
 /* Get DSI clock from pixel clock */
-static u32 dsi_clk_from_pclk(u32 pclk, int pixel_format, int lane_count)
+static u32 dsi_clk_from_pclk(u32 pclk, enum mipi_dsi_pixel_format fmt,
+			     int lane_count)
 {
 	u32 dsi_clk_khz;
-	u32 bpp = dsi_pixel_format_bpp(pixel_format);
+	u32 bpp = mipi_dsi_pixel_format_to_bpp(fmt);
 
 	/* DSI data rate = pixel clock * bits per pixel / lane count
 	   pixel clock is converted from KHz to Hz */
@@ -212,6 +192,36 @@ static void vlv_disable_dsi_pll(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
+static bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
+{
+	bool enabled;
+	u32 val;
+	u32 mask;
+
+	mask = BXT_DSI_PLL_DO_ENABLE | BXT_DSI_PLL_LOCKED;
+	val = I915_READ(BXT_DSI_PLL_ENABLE);
+	enabled = (val & mask) == mask;
+
+	if (!enabled)
+		return false;
+
+	/*
+	 * Both dividers must be programmed with valid values even if only one
+	 * of the PLL is used, see BSpec/Broxton Clocks. Check this here for
+	 * paranoia, since BIOS is known to misconfigure PLLs in this way at
+	 * times, and since accessing DSI registers with invalid dividers
+	 * causes a system hang.
+	 */
+	val = I915_READ(BXT_DSI_PLL_CTL);
+	if (!(val & BXT_DSIA_16X_MASK) || !(val & BXT_DSIC_16X_MASK)) {
+		DRM_DEBUG_DRIVER("PLL is enabled with invalid divider settings (%08x)\n",
+				 val);
+		enabled = false;
+	}
+
+	return enabled;
+}
+
 static void bxt_disable_dsi_pll(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
@@ -232,9 +242,9 @@ static void bxt_disable_dsi_pll(struct intel_encoder *encoder)
 		DRM_ERROR("Timeout waiting for PLL lock deassertion\n");
 }
 
-static void assert_bpp_mismatch(int pixel_format, int pipe_bpp)
+static void assert_bpp_mismatch(enum mipi_dsi_pixel_format fmt, int pipe_bpp)
 {
-	int bpp = dsi_pixel_format_bpp(pixel_format);
+	int bpp = mipi_dsi_pixel_format_to_bpp(fmt);
 
 	WARN(bpp != pipe_bpp,
 	     "bpp match assertion failure (expected %d, current %d)\n",
@@ -362,35 +372,57 @@ static void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 /* Program BXT Mipi clocks and dividers */
 static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port)
 {
-	u32 tmp;
-	u32 divider;
-	u32 dsi_rate;
-	u32 pll_ratio;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 tmp;
+	u32 dsi_rate = 0;
+	u32 pll_ratio = 0;
+	u32 rx_div;
+	u32 tx_div;
+	u32 rx_div_upper;
+	u32 rx_div_lower;
+	u32 mipi_8by3_divider;
 
 	/* Clear old configurations */
 	tmp = I915_READ(BXT_MIPI_CLOCK_CTL);
 	tmp &= ~(BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port));
-	tmp &= ~(BXT_MIPI_RX_ESCLK_FIXDIV_MASK(port));
-	tmp &= ~(BXT_MIPI_ESCLK_VAR_DIV_MASK(port));
-	tmp &= ~(BXT_MIPI_DPHY_DIVIDER_MASK(port));
+	tmp &= ~(BXT_MIPI_RX_ESCLK_UPPER_FIXDIV_MASK(port));
+	tmp &= ~(BXT_MIPI_8X_BY3_DIVIDER_MASK(port));
+	tmp &= ~(BXT_MIPI_RX_ESCLK_LOWER_FIXDIV_MASK(port));
 
 	/* Get the current DSI rate(actual) */
 	pll_ratio = I915_READ(BXT_DSI_PLL_CTL) &
 				BXT_DSI_PLL_RATIO_MASK;
 	dsi_rate = (BXT_REF_CLOCK_KHZ * pll_ratio) / 2;
 
-	/* Max possible output of clock is 39.5 MHz, program value -1 */
-	divider = (dsi_rate / BXT_MAX_VAR_OUTPUT_KHZ) - 1;
-	tmp |= BXT_MIPI_ESCLK_VAR_DIV(port, divider);
+	/*
+	 * tx clock should be <= 20MHz and the div value must be
+	 * subtracted by 1 as per bspec
+	 */
+	tx_div = DIV_ROUND_UP(dsi_rate, 20000) - 1;
+	/*
+	 * rx clock should be <= 150MHz and the div value must be
+	 * subtracted by 1 as per bspec
+	 */
+	rx_div = DIV_ROUND_UP(dsi_rate, 150000) - 1;
 
 	/*
-	 * Tx escape clock must be as close to 20MHz possible, but should
-	 * not exceed it. Hence select divide by 2
+	 * rx divider value needs to be updated in the
+	 * two differnt bit fields in the register hence splitting the
+	 * rx divider value accordingly
 	 */
-	tmp |= BXT_MIPI_TX_ESCLK_8XDIV_BY2(port);
+	rx_div_lower = rx_div & RX_DIVIDER_BIT_1_2;
+	rx_div_upper = (rx_div & RX_DIVIDER_BIT_3_4) >> 2;
 
-	tmp |= BXT_MIPI_RX_ESCLK_8X_BY3(port);
+	/* As per bpsec program the 8/3X clock divider to the below value */
+	if (dev_priv->vbt.dsi.config->is_cmd_mode)
+		mipi_8by3_divider = 0x2;
+	else
+		mipi_8by3_divider = 0x3;
+
+	tmp |= BXT_MIPI_8X_BY3_DIVIDER(port, mipi_8by3_divider);
+	tmp |= BXT_MIPI_TX_ESCLK_DIVIDER(port, tx_div);
+	tmp |= BXT_MIPI_RX_ESCLK_LOWER_DIVIDER(port, rx_div_lower);
+	tmp |= BXT_MIPI_RX_ESCLK_UPPER_DIVIDER(port, rx_div_upper);
 
 	I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
 }
@@ -484,6 +516,16 @@ static void bxt_enable_dsi_pll(struct intel_encoder *encoder)
 	DRM_DEBUG_KMS("DSI PLL locked\n");
 }
 
+bool intel_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
+{
+	if (IS_BROXTON(dev_priv))
+		return bxt_dsi_pll_is_enabled(dev_priv);
+
+	MISSING_CASE(INTEL_DEVID(dev_priv));
+
+	return false;
+}
+
 void intel_enable_dsi_pll(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
@@ -513,9 +555,9 @@ static void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 	/* Clear old configurations */
 	tmp = I915_READ(BXT_MIPI_CLOCK_CTL);
 	tmp &= ~(BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port));
-	tmp &= ~(BXT_MIPI_RX_ESCLK_FIXDIV_MASK(port));
-	tmp &= ~(BXT_MIPI_ESCLK_VAR_DIV_MASK(port));
-	tmp &= ~(BXT_MIPI_DPHY_DIVIDER_MASK(port));
+	tmp &= ~(BXT_MIPI_RX_ESCLK_UPPER_FIXDIV_MASK(port));
+	tmp &= ~(BXT_MIPI_8X_BY3_DIVIDER_MASK(port));
+	tmp &= ~(BXT_MIPI_RX_ESCLK_LOWER_FIXDIV_MASK(port));
 	I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
 	I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
 }

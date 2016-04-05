@@ -164,6 +164,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define  GEN6_GRDOM_RENDER		(1 << 1)
 #define  GEN6_GRDOM_MEDIA		(1 << 2)
 #define  GEN6_GRDOM_BLT			(1 << 3)
+#define  GEN6_GRDOM_VECS		(1 << 4)
+#define  GEN8_GRDOM_MEDIA2		(1 << 7)
 
 #define RING_PP_DIR_BASE(ring)		_MMIO((ring)->mmio_base+0x228)
 #define RING_PP_DIR_BASE_READ(ring)	_MMIO((ring)->mmio_base+0x518)
@@ -586,6 +588,10 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define GEN7_GPGPU_DISPATCHDIMY         _MMIO(0x2504)
 #define GEN7_GPGPU_DISPATCHDIMZ         _MMIO(0x2508)
 
+/* There are the 16 64-bit CS General Purpose Registers */
+#define HSW_CS_GPR(n)                   _MMIO(0x2600 + (n) * 8)
+#define HSW_CS_GPR_UDW(n)               _MMIO(0x2600 + (n) * 8 + 4)
+
 #define OACONTROL _MMIO(0x2360)
 
 #define _GEN7_PIPEA_DE_LOAD_SL	0x70068
@@ -786,6 +792,7 @@ enum skl_disp_power_wells {
 #define  DSI_PLL_M1_DIV_MASK			(0x1ff << 0)
 #define CCK_CZ_CLOCK_CONTROL			0x62
 #define CCK_DISPLAY_CLOCK_CONTROL		0x6b
+#define CCK_DISPLAY_REF_CLOCK_CONTROL		0x6c
 #define  CCK_TRUNK_FORCE_ON			(1 << 17)
 #define  CCK_TRUNK_FORCE_OFF			(1 << 16)
 #define  CCK_FREQUENCY_STATUS			(0x1f << 8)
@@ -1795,6 +1802,7 @@ enum skl_disp_power_wells {
 
 #define VLV_DISPLAY_BASE 0x180000
 #define VLV_MIPI_BASE VLV_DISPLAY_BASE
+#define BXT_MIPI_BASE 0x60000
 
 #define VLV_GU_CTL0	_MMIO(VLV_DISPLAY_BASE + 0x2030)
 #define VLV_GU_CTL1	_MMIO(VLV_DISPLAY_BASE + 0x2034)
@@ -7102,6 +7110,7 @@ enum skl_disp_power_wells {
 #define   GEN9_CCS_TLB_PREFETCH_ENABLE	(1<<3)
 
 #define GEN8_ROW_CHICKEN		_MMIO(0xe4f0)
+#define   FLOW_CONTROL_ENABLE		(1<<15)
 #define   PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE	(1<<8)
 #define   STALL_DOP_GATING_DISABLE		(1<<5)
 
@@ -7362,9 +7371,11 @@ enum skl_disp_power_wells {
 /* SBI offsets */
 #define  SBI_SSCDIVINTPHASE			0x0200
 #define  SBI_SSCDIVINTPHASE6			0x0600
-#define   SBI_SSCDIVINTPHASE_DIVSEL_MASK	((0x7f)<<1)
+#define   SBI_SSCDIVINTPHASE_DIVSEL_SHIFT	1
+#define   SBI_SSCDIVINTPHASE_DIVSEL_MASK	(0x7f<<1)
 #define   SBI_SSCDIVINTPHASE_DIVSEL(x)		((x)<<1)
-#define   SBI_SSCDIVINTPHASE_INCVAL_MASK	((0x7f)<<8)
+#define   SBI_SSCDIVINTPHASE_INCVAL_SHIFT	8
+#define   SBI_SSCDIVINTPHASE_INCVAL_MASK	(0x7f<<8)
 #define   SBI_SSCDIVINTPHASE_INCVAL(x)		((x)<<8)
 #define   SBI_SSCDIVINTPHASE_DIR(x)		((x)<<15)
 #define   SBI_SSCDIVINTPHASE_PROPAGATE		(1<<0)
@@ -7374,6 +7385,8 @@ enum skl_disp_power_wells {
 #define   SBI_SSCCTL_PATHALT			(1<<3)
 #define   SBI_SSCCTL_DISABLE			(1<<0)
 #define  SBI_SSCAUXDIV6				0x0610
+#define   SBI_SSCAUXDIV_FINALDIV2SEL_SHIFT	4
+#define   SBI_SSCAUXDIV_FINALDIV2SEL_MASK	(1<<4)
 #define   SBI_SSCAUXDIV_FINALDIV2SEL(x)		((x)<<4)
 #define  SBI_DBUFF0				0x2a00
 #define  SBI_GEN0				0x1f00
@@ -7651,6 +7664,59 @@ enum skl_disp_power_wells {
 #define PIPE_CSC_POSTOFF_ME(pipe)	_MMIO_PIPE(pipe, _PIPE_A_CSC_POSTOFF_ME, _PIPE_B_CSC_POSTOFF_ME)
 #define PIPE_CSC_POSTOFF_LO(pipe)	_MMIO_PIPE(pipe, _PIPE_A_CSC_POSTOFF_LO, _PIPE_B_CSC_POSTOFF_LO)
 
+/* pipe degamma/gamma LUTs on IVB+ */
+#define _PAL_PREC_INDEX_A	0x4A400
+#define _PAL_PREC_INDEX_B	0x4AC00
+#define _PAL_PREC_INDEX_C	0x4B400
+#define   PAL_PREC_10_12_BIT		(0 << 31)
+#define   PAL_PREC_SPLIT_MODE		(1 << 31)
+#define   PAL_PREC_AUTO_INCREMENT	(1 << 15)
+#define _PAL_PREC_DATA_A	0x4A404
+#define _PAL_PREC_DATA_B	0x4AC04
+#define _PAL_PREC_DATA_C	0x4B404
+#define _PAL_PREC_GC_MAX_A	0x4A410
+#define _PAL_PREC_GC_MAX_B	0x4AC10
+#define _PAL_PREC_GC_MAX_C	0x4B410
+#define _PAL_PREC_EXT_GC_MAX_A	0x4A420
+#define _PAL_PREC_EXT_GC_MAX_B	0x4AC20
+#define _PAL_PREC_EXT_GC_MAX_C	0x4B420
+
+#define PREC_PAL_INDEX(pipe)		_MMIO_PIPE(pipe, _PAL_PREC_INDEX_A, _PAL_PREC_INDEX_B)
+#define PREC_PAL_DATA(pipe)		_MMIO_PIPE(pipe, _PAL_PREC_DATA_A, _PAL_PREC_DATA_B)
+#define PREC_PAL_GC_MAX(pipe, i)	_MMIO(_PIPE(pipe, _PAL_PREC_GC_MAX_A, _PAL_PREC_GC_MAX_B) + (i) * 4)
+#define PREC_PAL_EXT_GC_MAX(pipe, i)	_MMIO(_PIPE(pipe, _PAL_PREC_EXT_GC_MAX_A, _PAL_PREC_EXT_GC_MAX_B) + (i) * 4)
+
+/* pipe CSC & degamma/gamma LUTs on CHV */
+#define _CGM_PIPE_A_CSC_COEFF01	(VLV_DISPLAY_BASE + 0x67900)
+#define _CGM_PIPE_A_CSC_COEFF23	(VLV_DISPLAY_BASE + 0x67904)
+#define _CGM_PIPE_A_CSC_COEFF45	(VLV_DISPLAY_BASE + 0x67908)
+#define _CGM_PIPE_A_CSC_COEFF67	(VLV_DISPLAY_BASE + 0x6790C)
+#define _CGM_PIPE_A_CSC_COEFF8	(VLV_DISPLAY_BASE + 0x67910)
+#define _CGM_PIPE_A_DEGAMMA	(VLV_DISPLAY_BASE + 0x66000)
+#define _CGM_PIPE_A_GAMMA	(VLV_DISPLAY_BASE + 0x67000)
+#define _CGM_PIPE_A_MODE	(VLV_DISPLAY_BASE + 0x67A00)
+#define   CGM_PIPE_MODE_GAMMA	(1 << 2)
+#define   CGM_PIPE_MODE_CSC	(1 << 1)
+#define   CGM_PIPE_MODE_DEGAMMA	(1 << 0)
+
+#define _CGM_PIPE_B_CSC_COEFF01	(VLV_DISPLAY_BASE + 0x69900)
+#define _CGM_PIPE_B_CSC_COEFF23	(VLV_DISPLAY_BASE + 0x69904)
+#define _CGM_PIPE_B_CSC_COEFF45	(VLV_DISPLAY_BASE + 0x69908)
+#define _CGM_PIPE_B_CSC_COEFF67	(VLV_DISPLAY_BASE + 0x6990C)
+#define _CGM_PIPE_B_CSC_COEFF8	(VLV_DISPLAY_BASE + 0x69910)
+#define _CGM_PIPE_B_DEGAMMA	(VLV_DISPLAY_BASE + 0x68000)
+#define _CGM_PIPE_B_GAMMA	(VLV_DISPLAY_BASE + 0x69000)
+#define _CGM_PIPE_B_MODE	(VLV_DISPLAY_BASE + 0x69A00)
+
+#define CGM_PIPE_CSC_COEFF01(pipe)	_MMIO_PIPE(pipe, _CGM_PIPE_A_CSC_COEFF01, _CGM_PIPE_B_CSC_COEFF01)
+#define CGM_PIPE_CSC_COEFF23(pipe)	_MMIO_PIPE(pipe, _CGM_PIPE_A_CSC_COEFF23, _CGM_PIPE_B_CSC_COEFF23)
+#define CGM_PIPE_CSC_COEFF45(pipe)	_MMIO_PIPE(pipe, _CGM_PIPE_A_CSC_COEFF45, _CGM_PIPE_B_CSC_COEFF45)
+#define CGM_PIPE_CSC_COEFF67(pipe)	_MMIO_PIPE(pipe, _CGM_PIPE_A_CSC_COEFF67, _CGM_PIPE_B_CSC_COEFF67)
+#define CGM_PIPE_CSC_COEFF8(pipe)	_MMIO_PIPE(pipe, _CGM_PIPE_A_CSC_COEFF8, _CGM_PIPE_B_CSC_COEFF8)
+#define CGM_PIPE_DEGAMMA(pipe, i, w)	_MMIO(_PIPE(pipe, _CGM_PIPE_A_DEGAMMA, _CGM_PIPE_B_DEGAMMA) + (i) * 8 + (w) * 4)
+#define CGM_PIPE_GAMMA(pipe, i, w)	_MMIO(_PIPE(pipe, _CGM_PIPE_A_GAMMA, _CGM_PIPE_B_GAMMA) + (i) * 8 + (w) * 4)
+#define CGM_PIPE_MODE(pipe)		_MMIO_PIPE(pipe, _CGM_PIPE_A_MODE, _CGM_PIPE_B_MODE)
+
 /* MIPI DSI registers */
 
 #define _MIPI_PORT(port, a, c)	_PORT3(port, a, 0, c)	/* ports A and C only */
@@ -7665,58 +7731,62 @@ enum skl_disp_power_wells {
 #define  BXT_MIPI_DIV_SHIFT(port)		\
 			_MIPI_PORT(port, BXT_MIPI1_DIV_SHIFT, \
 					BXT_MIPI2_DIV_SHIFT)
-/* Var clock divider to generate TX source. Result must be < 39.5 M */
-#define  BXT_MIPI1_ESCLK_VAR_DIV_MASK		(0x3F << 26)
-#define  BXT_MIPI2_ESCLK_VAR_DIV_MASK		(0x3F << 10)
-#define  BXT_MIPI_ESCLK_VAR_DIV_MASK(port)	\
-			_MIPI_PORT(port, BXT_MIPI1_ESCLK_VAR_DIV_MASK, \
-						BXT_MIPI2_ESCLK_VAR_DIV_MASK)
 
-#define  BXT_MIPI_ESCLK_VAR_DIV(port, val)	\
-			(val << BXT_MIPI_DIV_SHIFT(port))
 /* TX control divider to select actual TX clock output from (8x/var) */
-#define  BXT_MIPI1_TX_ESCLK_SHIFT		21
-#define  BXT_MIPI2_TX_ESCLK_SHIFT		5
+#define  BXT_MIPI1_TX_ESCLK_SHIFT		26
+#define  BXT_MIPI2_TX_ESCLK_SHIFT		10
 #define  BXT_MIPI_TX_ESCLK_SHIFT(port)		\
 			_MIPI_PORT(port, BXT_MIPI1_TX_ESCLK_SHIFT, \
 					BXT_MIPI2_TX_ESCLK_SHIFT)
-#define  BXT_MIPI1_TX_ESCLK_FIXDIV_MASK		(3 << 21)
-#define  BXT_MIPI2_TX_ESCLK_FIXDIV_MASK		(3 << 5)
+#define  BXT_MIPI1_TX_ESCLK_FIXDIV_MASK		(0x3F << 26)
+#define  BXT_MIPI2_TX_ESCLK_FIXDIV_MASK		(0x3F << 10)
 #define  BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port)	\
 			_MIPI_PORT(port, BXT_MIPI1_TX_ESCLK_FIXDIV_MASK, \
-						BXT_MIPI2_TX_ESCLK_FIXDIV_MASK)
-#define  BXT_MIPI_TX_ESCLK_8XDIV_BY2(port)	\
-		(0x0 << BXT_MIPI_TX_ESCLK_SHIFT(port))
-#define  BXT_MIPI_TX_ESCLK_8XDIV_BY4(port)	\
-		(0x1 << BXT_MIPI_TX_ESCLK_SHIFT(port))
-#define  BXT_MIPI_TX_ESCLK_8XDIV_BY8(port)	\
-		(0x2 << BXT_MIPI_TX_ESCLK_SHIFT(port))
-/* RX control divider to select actual RX clock output from 8x*/
-#define  BXT_MIPI1_RX_ESCLK_SHIFT		19
-#define  BXT_MIPI2_RX_ESCLK_SHIFT		3
-#define  BXT_MIPI_RX_ESCLK_SHIFT(port)		\
-			_MIPI_PORT(port, BXT_MIPI1_RX_ESCLK_SHIFT, \
-					BXT_MIPI2_RX_ESCLK_SHIFT)
-#define  BXT_MIPI1_RX_ESCLK_FIXDIV_MASK		(3 << 19)
-#define  BXT_MIPI2_RX_ESCLK_FIXDIV_MASK		(3 << 3)
-#define  BXT_MIPI_RX_ESCLK_FIXDIV_MASK(port)	\
-		(3 << BXT_MIPI_RX_ESCLK_SHIFT(port))
-#define  BXT_MIPI_RX_ESCLK_8X_BY2(port)	\
-		(1 << BXT_MIPI_RX_ESCLK_SHIFT(port))
-#define  BXT_MIPI_RX_ESCLK_8X_BY3(port)	\
-		(2 << BXT_MIPI_RX_ESCLK_SHIFT(port))
-#define  BXT_MIPI_RX_ESCLK_8X_BY4(port)	\
-		(3 << BXT_MIPI_RX_ESCLK_SHIFT(port))
-/* BXT-A WA: Always prog DPHY dividers to 00 */
-#define  BXT_MIPI1_DPHY_DIV_SHIFT		16
-#define  BXT_MIPI2_DPHY_DIV_SHIFT		0
-#define  BXT_MIPI_DPHY_DIV_SHIFT(port)		\
-			_MIPI_PORT(port, BXT_MIPI1_DPHY_DIV_SHIFT, \
-					BXT_MIPI2_DPHY_DIV_SHIFT)
-#define  BXT_MIPI_1_DPHY_DIVIDER_MASK		(3 << 16)
-#define  BXT_MIPI_2_DPHY_DIVIDER_MASK		(3 << 0)
-#define  BXT_MIPI_DPHY_DIVIDER_MASK(port)	\
-		(3 << BXT_MIPI_DPHY_DIV_SHIFT(port))
+					BXT_MIPI2_TX_ESCLK_FIXDIV_MASK)
+#define  BXT_MIPI_TX_ESCLK_DIVIDER(port, val)	\
+		((val & 0x3F) << BXT_MIPI_TX_ESCLK_SHIFT(port))
+/* RX upper control divider to select actual RX clock output from 8x */
+#define  BXT_MIPI1_RX_ESCLK_UPPER_SHIFT		21
+#define  BXT_MIPI2_RX_ESCLK_UPPER_SHIFT		5
+#define  BXT_MIPI_RX_ESCLK_UPPER_SHIFT(port)		\
+			_MIPI_PORT(port, BXT_MIPI1_RX_ESCLK_UPPER_SHIFT, \
+					BXT_MIPI2_RX_ESCLK_UPPER_SHIFT)
+#define  BXT_MIPI1_RX_ESCLK_UPPER_FIXDIV_MASK		(3 << 21)
+#define  BXT_MIPI2_RX_ESCLK_UPPER_FIXDIV_MASK		(3 << 5)
+#define  BXT_MIPI_RX_ESCLK_UPPER_FIXDIV_MASK(port)	\
+			_MIPI_PORT(port, BXT_MIPI1_RX_ESCLK_UPPER_FIXDIV_MASK, \
+					BXT_MIPI2_RX_ESCLK_UPPER_FIXDIV_MASK)
+#define  BXT_MIPI_RX_ESCLK_UPPER_DIVIDER(port, val)	\
+		((val & 3) << BXT_MIPI_RX_ESCLK_UPPER_SHIFT(port))
+/* 8/3X divider to select the actual 8/3X clock output from 8x */
+#define  BXT_MIPI1_8X_BY3_SHIFT                19
+#define  BXT_MIPI2_8X_BY3_SHIFT                3
+#define  BXT_MIPI_8X_BY3_SHIFT(port)          \
+			_MIPI_PORT(port, BXT_MIPI1_8X_BY3_SHIFT, \
+					BXT_MIPI2_8X_BY3_SHIFT)
+#define  BXT_MIPI1_8X_BY3_DIVIDER_MASK         (3 << 19)
+#define  BXT_MIPI2_8X_BY3_DIVIDER_MASK         (3 << 3)
+#define  BXT_MIPI_8X_BY3_DIVIDER_MASK(port)    \
+			_MIPI_PORT(port, BXT_MIPI1_8X_BY3_DIVIDER_MASK, \
+						BXT_MIPI2_8X_BY3_DIVIDER_MASK)
+#define  BXT_MIPI_8X_BY3_DIVIDER(port, val)    \
+			((val & 3) << BXT_MIPI_8X_BY3_SHIFT(port))
+/* RX lower control divider to select actual RX clock output from 8x */
+#define  BXT_MIPI1_RX_ESCLK_LOWER_SHIFT		16
+#define  BXT_MIPI2_RX_ESCLK_LOWER_SHIFT		0
+#define  BXT_MIPI_RX_ESCLK_LOWER_SHIFT(port)		\
+			_MIPI_PORT(port, BXT_MIPI1_RX_ESCLK_LOWER_SHIFT, \
+					BXT_MIPI2_RX_ESCLK_LOWER_SHIFT)
+#define  BXT_MIPI1_RX_ESCLK_LOWER_FIXDIV_MASK		(3 << 16)
+#define  BXT_MIPI2_RX_ESCLK_LOWER_FIXDIV_MASK		(3 << 0)
+#define  BXT_MIPI_RX_ESCLK_LOWER_FIXDIV_MASK(port)	\
+			_MIPI_PORT(port, BXT_MIPI1_RX_ESCLK_LOWER_FIXDIV_MASK, \
+					BXT_MIPI2_RX_ESCLK_LOWER_FIXDIV_MASK)
+#define  BXT_MIPI_RX_ESCLK_LOWER_DIVIDER(port, val)	\
+		((val & 3) << BXT_MIPI_RX_ESCLK_LOWER_SHIFT(port))
+
+#define RX_DIVIDER_BIT_1_2                     0x3
+#define RX_DIVIDER_BIT_3_4                     0xC
 
 /* BXT MIPI mode configure */
 #define  _BXT_MIPIA_TRANS_HACTIVE			0x6B0F8
@@ -7741,9 +7811,11 @@ enum skl_disp_power_wells {
 #define  BXT_DSIC_16X_BY2		(1 << 10)
 #define  BXT_DSIC_16X_BY3		(2 << 10)
 #define  BXT_DSIC_16X_BY4		(3 << 10)
+#define  BXT_DSIC_16X_MASK		(3 << 10)
 #define  BXT_DSIA_16X_BY2		(1 << 8)
 #define  BXT_DSIA_16X_BY3		(2 << 8)
 #define  BXT_DSIA_16X_BY4		(3 << 8)
+#define  BXT_DSIA_16X_MASK		(3 << 8)
 #define  BXT_DSI_FREQ_SEL_SHIFT		8
 #define  BXT_DSI_FREQ_SEL_MASK		(0xF << BXT_DSI_FREQ_SEL_SHIFT)
 
@@ -7878,8 +7950,8 @@ enum skl_disp_power_wells {
 #define  VID_MODE_FORMAT_MASK				(0xf << 7)
 #define  VID_MODE_NOT_SUPPORTED				(0 << 7)
 #define  VID_MODE_FORMAT_RGB565				(1 << 7)
-#define  VID_MODE_FORMAT_RGB666				(2 << 7)
-#define  VID_MODE_FORMAT_RGB666_LOOSE			(3 << 7)
+#define  VID_MODE_FORMAT_RGB666_PACKED			(2 << 7)
+#define  VID_MODE_FORMAT_RGB666				(3 << 7)
 #define  VID_MODE_FORMAT_RGB888				(4 << 7)
 #define  CMD_MODE_CHANNEL_NUMBER_SHIFT			5
 #define  CMD_MODE_CHANNEL_NUMBER_MASK			(3 << 5)
@@ -8135,6 +8207,7 @@ enum skl_disp_power_wells {
 #define  READ_REQUEST_PRIORITY_HIGH			(3 << 3)
 #define  RGB_FLIP_TO_BGR				(1 << 2)
 
+#define  BXT_PIPE_SELECT_SHIFT				7
 #define  BXT_PIPE_SELECT_MASK				(7 << 7)
 #define  BXT_PIPE_SELECT(pipe)				((pipe) << 7)
 

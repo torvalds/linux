@@ -57,8 +57,8 @@
 /* Logical Rings */
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request);
 int intel_logical_ring_reserve_space(struct drm_i915_gem_request *request);
-void intel_logical_ring_stop(struct intel_engine_cs *ring);
-void intel_logical_ring_cleanup(struct intel_engine_cs *ring);
+void intel_logical_ring_stop(struct intel_engine_cs *engine);
+void intel_logical_ring_cleanup(struct intel_engine_cs *engine);
 int intel_logical_rings_init(struct drm_device *dev);
 int intel_logical_ring_begin(struct drm_i915_gem_request *req, int num_dwords);
 
@@ -98,18 +98,18 @@ static inline void intel_logical_ring_emit_reg(struct intel_ringbuffer *ringbuf,
 #define LRC_STATE_PN	(LRC_PPHWSP_PN + 1)
 
 void intel_lr_context_free(struct intel_context *ctx);
-uint32_t intel_lr_context_size(struct intel_engine_cs *ring);
+uint32_t intel_lr_context_size(struct intel_engine_cs *engine);
 int intel_lr_context_deferred_alloc(struct intel_context *ctx,
-				    struct intel_engine_cs *ring);
+				    struct intel_engine_cs *engine);
 void intel_lr_context_unpin(struct intel_context *ctx,
 			    struct intel_engine_cs *engine);
 void intel_lr_context_reset(struct drm_device *dev,
 			struct intel_context *ctx);
 uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
-				     struct intel_engine_cs *ring);
+				     struct intel_engine_cs *engine);
 
 u32 intel_execlists_ctx_id(struct intel_context *ctx,
-			   struct intel_engine_cs *ring);
+			   struct intel_engine_cs *engine);
 
 /* Execlists */
 int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists);
@@ -118,7 +118,7 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 			       struct drm_i915_gem_execbuffer2 *args,
 			       struct list_head *vmas);
 
-void intel_lrc_irq_handler(struct intel_engine_cs *ring);
-void intel_execlists_retire_requests(struct intel_engine_cs *ring);
+void intel_lrc_irq_handler(struct intel_engine_cs *engine);
+void intel_execlists_retire_requests(struct intel_engine_cs *engine);
 
 #endif /* _INTEL_LRC_H_ */

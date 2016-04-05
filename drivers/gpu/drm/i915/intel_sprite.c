@@ -193,7 +193,7 @@ skl_update_plane(struct drm_plane *drm_plane,
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	u32 surf_addr;
 	u32 tile_height, plane_offset, plane_size;
-	unsigned int rotation;
+	unsigned int rotation = plane_state->base.rotation;
 	int x_offset, y_offset;
 	int crtc_x = plane_state->dst.x1;
 	int crtc_y = plane_state->dst.y1;
@@ -213,7 +213,6 @@ skl_update_plane(struct drm_plane *drm_plane,
 	plane_ctl |= skl_plane_ctl_format(fb->pixel_format);
 	plane_ctl |= skl_plane_ctl_tiling(fb->modifier[0]);
 
-	rotation = plane_state->base.rotation;
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
 
 	stride_div = intel_fb_stride_alignment(dev_priv, fb->modifier[0],
@@ -351,6 +350,7 @@ vlv_update_plane(struct drm_plane *dplane,
 	int plane = intel_plane->plane;
 	u32 sprctl;
 	u32 sprsurf_offset, linear_offset;
+	unsigned int rotation = dplane->state->rotation;
 	int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->dst.x1;
@@ -423,12 +423,11 @@ vlv_update_plane(struct drm_plane *dplane,
 	crtc_h--;
 
 	linear_offset = y * fb->pitches[0] + x * cpp;
-	sprsurf_offset = intel_compute_tile_offset(dev_priv, &x, &y,
-						   fb->modifier[0], cpp,
-						   fb->pitches[0]);
+	sprsurf_offset = intel_compute_tile_offset(&x, &y, fb, 0,
+						   fb->pitches[0], rotation);
 	linear_offset -= sprsurf_offset;
 
-	if (plane_state->base.rotation == BIT(DRM_ROTATE_180)) {
+	if (rotation == BIT(DRM_ROTATE_180)) {
 		sprctl |= SP_ROTATE_180;
 
 		x += src_w;
@@ -493,6 +492,7 @@ ivb_update_plane(struct drm_plane *plane,
 	enum pipe pipe = intel_plane->pipe;
 	u32 sprctl, sprscale = 0;
 	u32 sprsurf_offset, linear_offset;
+	unsigned int rotation = plane_state->base.rotation;
 	int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->dst.x1;
@@ -556,12 +556,11 @@ ivb_update_plane(struct drm_plane *plane,
 		sprscale = SPRITE_SCALE_ENABLE | (src_w << 16) | src_h;
 
 	linear_offset = y * fb->pitches[0] + x * cpp;
-	sprsurf_offset = intel_compute_tile_offset(dev_priv, &x, &y,
-						   fb->modifier[0], cpp,
-						   fb->pitches[0]);
+	sprsurf_offset = intel_compute_tile_offset(&x, &y, fb, 0,
+						   fb->pitches[0], rotation);
 	linear_offset -= sprsurf_offset;
 
-	if (plane_state->base.rotation == BIT(DRM_ROTATE_180)) {
+	if (rotation == BIT(DRM_ROTATE_180)) {
 		sprctl |= SPRITE_ROTATE_180;
 
 		/* HSW and BDW does this automagically in hardware */
@@ -634,6 +633,7 @@ ilk_update_plane(struct drm_plane *plane,
 	int pipe = intel_plane->pipe;
 	u32 dvscntr, dvsscale;
 	u32 dvssurf_offset, linear_offset;
+	unsigned int rotation = plane_state->base.rotation;
 	int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->dst.x1;
@@ -693,12 +693,11 @@ ilk_update_plane(struct drm_plane *plane,
 		dvsscale = DVS_SCALE_ENABLE | (src_w << 16) | src_h;
 
 	linear_offset = y * fb->pitches[0] + x * cpp;
-	dvssurf_offset = intel_compute_tile_offset(dev_priv, &x, &y,
-						   fb->modifier[0], cpp,
-						   fb->pitches[0]);
+	dvssurf_offset = intel_compute_tile_offset(&x, &y, fb, 0,
+						   fb->pitches[0], rotation);
 	linear_offset -= dvssurf_offset;
 
-	if (plane_state->base.rotation == BIT(DRM_ROTATE_180)) {
+	if (rotation == BIT(DRM_ROTATE_180)) {
 		dvscntr |= DVS_ROTATE_180;
 
 		x += src_w;

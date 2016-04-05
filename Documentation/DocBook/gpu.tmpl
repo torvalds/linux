@@ -2153,7 +2153,11 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >ENUM</td>
 	<td valign="top" >{ "Automatic", "Full", "Limited 16:235" }</td>
 	<td valign="top" >Connector</td>
-	<td valign="top" >TBD</td>
+	<td valign="top" >When this property is set to Limited 16:235
+		and CTM is set, the hardware will be programmed with the
+		result of the multiplication of CTM by the limited range
+		matrix to ensure the pixels normaly in the range 0..1.0 are
+		remapped to the range 16/255..235/255.</td>
 	</tr>
 	<tr>
 	<td valign="top" >“audio”</td>
@@ -3334,7 +3338,7 @@ int num_ioctls;</synopsis>
 	<title>Video BIOS Table (VBT)</title>
 !Pdrivers/gpu/drm/i915/intel_bios.c Video BIOS Table (VBT)
 !Idrivers/gpu/drm/i915/intel_bios.c
-!Idrivers/gpu/drm/i915/intel_bios.h
+!Idrivers/gpu/drm/i915/intel_vbt_defs.h
       </sect2>
     </sect1>
 
