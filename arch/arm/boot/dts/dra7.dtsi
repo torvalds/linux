@@ -821,6 +821,15 @@
 			ti,hwmods = "timer11";
 		};
 
+		timer12: timer@4ae20000 {
+			compatible = "ti,omap5430-timer";
+			reg = <0x4ae20000 0x80>;
+			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "timer12";
+			ti,timer-alwon;
+			ti,timer-secure;
+		};
+
 		timer13: timer@48828000 {
 			compatible = "ti,omap5430-timer";
 			reg = <0x48828000 0x80>;
