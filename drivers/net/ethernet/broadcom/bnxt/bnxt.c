@@ -4711,7 +4711,30 @@ int bnxt_hwrm_set_pause(struct bnxt *bp)
 	return rc;
 }
 
-int bnxt_hwrm_set_link_setting(struct bnxt *bp, bool set_pause)
+static void bnxt_hwrm_set_eee(struct bnxt *bp,
+			      struct hwrm_port_phy_cfg_input *req)
+{
+	struct ethtool_eee *eee = &bp->eee;
+
+	if (eee->eee_enabled) {
+		u16 eee_speeds;
+		u32 flags = PORT_PHY_CFG_REQ_FLAGS_EEE_ENABLE;
+
+		if (eee->tx_lpi_enabled)
+			flags |= PORT_PHY_CFG_REQ_FLAGS_EEE_TX_LPI_ENABLE;
+		else
+			flags |= PORT_PHY_CFG_REQ_FLAGS_EEE_TX_LPI_DISABLE;
+
+		req->flags |= cpu_to_le32(flags);
+		eee_speeds = bnxt_get_fw_auto_link_speeds(eee->advertised);
+		req->eee_link_speed_mask = cpu_to_le16(eee_speeds);
+		req->tx_lpi_timer = cpu_to_le32(eee->tx_lpi_timer);
+	} else {
+		req->flags |= cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_EEE_DISABLE);
+	}
+}
+
+int bnxt_hwrm_set_link_setting(struct bnxt *bp, bool set_pause, bool set_eee)
 {
 	struct hwrm_port_phy_cfg_input req = {0};
 
@@ -4720,7 +4743,34 @@ int bnxt_hwrm_set_link_setting(struct bnxt *bp, bool set_pause)
 		bnxt_hwrm_set_pause_common(bp, &req);
 
 	bnxt_hwrm_set_link_common(bp, &req);
+
+	if (set_eee)
+		bnxt_hwrm_set_eee(bp, &req);
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
+static bool bnxt_eee_config_ok(struct bnxt *bp)
+{
+	struct ethtool_eee *eee = &bp->eee;
+	struct bnxt_link_info *link_info = &bp->link_info;
+
+	if (!(bp->flags & BNXT_FLAG_EEE_CAP))
+		return true;
+
+	if (eee->eee_enabled) {
+		u32 advertising =
+			_bnxt_fw_to_ethtool_adv_spds(link_info->advertising, 0);
+
+		if (!(link_info->autoneg & BNXT_AUTONEG_SPEED)) {
+			eee->eee_enabled = 0;
+			return false;
+		}
+		if (eee->advertised & ~advertising) {
+			eee->advertised = advertising & eee->supported;
+			return false;
+		}
+	}
+	return true;
 }
 
 static int bnxt_update_phy_setting(struct bnxt *bp)
@@ -4728,6 +4778,7 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 	int rc;
 	bool update_link = false;
 	bool update_pause = false;
+	bool update_eee = false;
 	struct bnxt_link_info *link_info = &bp->link_info;
 
 	rc = bnxt_update_link(bp, true);
@@ -4757,8 +4808,11 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 			update_link = true;
 	}
 
+	if (!bnxt_eee_config_ok(bp))
+		update_eee = true;
+
 	if (update_link)
-		rc = bnxt_hwrm_set_link_setting(bp, update_pause);
+		rc = bnxt_hwrm_set_link_setting(bp, update_pause, update_eee);
 	else if (update_pause)
 		rc = bnxt_hwrm_set_pause(bp);
 	if (rc) {

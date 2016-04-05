@@ -763,7 +763,7 @@ static u32 bnxt_get_fw_speed(struct net_device *dev, u16 ethtool_speed)
 	return 0;
 }
 
-static u16 bnxt_get_fw_auto_link_speeds(u32 advertising)
+u16 bnxt_get_fw_auto_link_speeds(u32 advertising)
 {
 	u16 fw_speed_mask = 0;
 
@@ -840,7 +840,7 @@ static int bnxt_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	}
 
 	if (netif_running(dev))
-		rc = bnxt_hwrm_set_link_setting(bp, set_pause);
+		rc = bnxt_hwrm_set_link_setting(bp, set_pause, false);
 
 set_setting_exit:
 	return rc;
