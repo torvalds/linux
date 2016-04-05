@@ -1447,15 +1447,19 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 	else
 		index -= 1;
 
-	nr_frags = skb_shinfo(skb)->nr_frags;
 	ring = &priv->tx_rings[index];
 	txq = netdev_get_tx_queue(dev, ring->queue);
 
+	nr_frags = skb_shinfo(skb)->nr_frags;
+
 	spin_lock_irqsave(&ring->lock, flags);
-	if (ring->free_bds <= nr_frags + 1) {
-		netif_tx_stop_queue(txq);
-		netdev_err(dev, "%s: tx ring %d full when queue %d awake\n",
-			   __func__, index, ring->queue);
+	if (ring->free_bds <= (nr_frags + 1)) {
+		if (!netif_tx_queue_stopped(txq)) {
+			netif_tx_stop_queue(txq);
+			netdev_err(dev,
+				   "%s: tx ring %d full when queue %d awake\n",
+				   __func__, index, ring->queue);
+		}
 		ret = NETDEV_TX_BUSY;
 		goto out;
 	}
