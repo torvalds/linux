@@ -797,6 +797,7 @@ static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 
 	drm_dev->mode_config.allow_fb_modifiers = true;
 
+	arm_iommu_release_mapping(mapping);
 	return 0;
 err_vblank_cleanup:
 	drm_vblank_cleanup(drm_dev);
@@ -807,7 +808,7 @@ err_unbind:
 err_detach_device:
 	arm_iommu_detach_device(dev);
 err_release_mapping:
-	arm_iommu_release_mapping(dev->archdata.mapping);
+	arm_iommu_release_mapping(mapping);
 err_config_cleanup:
 	drm_mode_config_cleanup(drm_dev);
 	drm_dev->dev_private = NULL;
