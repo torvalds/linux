@@ -148,16 +148,18 @@ int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state)
 static void dwc3_ep_inc_enq(struct dwc3_ep *dep)
 {
 	dep->trb_enqueue++;
+	dep->trb_enqueue %= DWC3_TRB_NUM;
 }
 
 static void dwc3_ep_inc_deq(struct dwc3_ep *dep)
 {
 	dep->trb_dequeue++;
+	dep->trb_dequeue %= DWC3_TRB_NUM;
 }
 
 static int dwc3_ep_is_last_trb(unsigned int index)
 {
-	return (index % DWC3_TRB_NUM) == (DWC3_TRB_NUM - 1);
+	return index == DWC3_TRB_NUM - 1;
 }
 
 void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
@@ -755,13 +757,13 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 			chain ? " chain" : "");
 
 
-	trb = &dep->trb_pool[dep->trb_enqueue % DWC3_TRB_NUM];
+	trb = &dep->trb_pool[dep->trb_enqueue];
 
 	if (!req->trb) {
 		dwc3_gadget_move_started_request(req);
 		req->trb = trb;
 		req->trb_dma = dwc3_trb_dma_offset(dep, trb);
-		req->first_trb_index = dep->trb_enqueue % DWC3_TRB_NUM;
+		req->first_trb_index = dep->trb_enqueue;
 	}
 
 	dwc3_ep_inc_enq(dep);
@@ -840,11 +842,11 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep, bool starting)
 	BUILD_BUG_ON_NOT_POWER_OF_2(DWC3_TRB_NUM);
 
 	/* the first request must not be queued */
-	trbs_left = (dep->trb_dequeue - dep->trb_enqueue) % DWC3_TRB_NUM;
+	trbs_left = dep->trb_dequeue - dep->trb_enqueue;
 
 	/* Can't wrap around on a non-isoc EP since there's no link TRB */
 	if (!usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
-		max = DWC3_TRB_NUM - (dep->trb_enqueue % DWC3_TRB_NUM);
+		max = DWC3_TRB_NUM - dep->trb_enqueue;
 		if (trbs_left > max)
 			trbs_left = max;
 	}
