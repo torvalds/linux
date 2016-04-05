@@ -412,6 +412,9 @@ xfs_attr3_leaf_list_int(
 	 */
 	retval = 0;
 	for (; i < ichdr.count; entry++, i++) {
+		char *name;
+		int namelen, valuelen;
+
 		if (be32_to_cpu(entry->hashval) != cursor->hashval) {
 			cursor->hashval = be32_to_cpu(entry->hashval);
 			cursor->offset = 0;
@@ -421,26 +424,23 @@ xfs_attr3_leaf_list_int(
 			continue;		/* skip incomplete entries */
 
 		if (entry->flags & XFS_ATTR_LOCAL) {
-			xfs_attr_leaf_name_local_t *name_loc =
-				xfs_attr3_leaf_name_local(leaf, i);
+			xfs_attr_leaf_name_local_t *name_loc;
 
-			retval = context->put_listent(context,
-						entry->flags,
-						name_loc->nameval,
-						(int)name_loc->namelen,
-						be16_to_cpu(name_loc->valuelen));
+			name_loc = xfs_attr3_leaf_name_local(leaf, i);
+			name = name_loc->nameval;
+			namelen = name_loc->namelen;
+			valuelen = be16_to_cpu(name_loc->valuelen);
 		} else {
-			xfs_attr_leaf_name_remote_t *name_rmt =
-				xfs_attr3_leaf_name_remote(leaf, i);
+			xfs_attr_leaf_name_remote_t *name_rmt;
 
-			int valuelen = be32_to_cpu(name_rmt->valuelen);
-
-			retval = context->put_listent(context,
-						entry->flags,
-						name_rmt->name,
-						(int)name_rmt->namelen,
-						valuelen);
+			name_rmt = xfs_attr3_leaf_name_remote(leaf, i);
+			name = name_rmt->name;
+			namelen = name_rmt->namelen;
+			valuelen = be32_to_cpu(name_rmt->valuelen);
 		}
+
+		retval = context->put_listent(context, entry->flags,
+					      name, namelen, valuelen);
 		if (retval)
 			break;
 		if (context->seen_enough)
