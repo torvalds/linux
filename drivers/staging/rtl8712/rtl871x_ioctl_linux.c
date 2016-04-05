@@ -1060,8 +1060,8 @@ static int r8711_wx_set_wap(struct net_device *dev,
 	while (1) {
 		if (end_of_queue_search(phead, pmlmepriv->pscanned))
 			break;
-		pnetwork = LIST_CONTAINOR(pmlmepriv->pscanned,
-			   struct wlan_network, list);
+		pnetwork = container_of(pmlmepriv->pscanned,
+					struct wlan_network, list);
 		pmlmepriv->pscanned = pmlmepriv->pscanned->next;
 		dst_bssid = pnetwork->network.MacAddress;
 		if (!memcmp(dst_bssid, temp->sa_data, ETH_ALEN)) {
@@ -1216,7 +1216,7 @@ static int r8711_wx_get_scan(struct net_device *dev,
 			ret = -E2BIG;
 			break;
 		}
-		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
+		pnetwork = container_of(plist, struct wlan_network, list);
 		ev = translate_scan(padapter, a, pnetwork, ev, stop);
 		plist = plist->next;
 	}
@@ -1271,8 +1271,8 @@ static int r8711_wx_set_essid(struct net_device *dev,
 		while (1) {
 			if (end_of_queue_search(phead, pmlmepriv->pscanned))
 				break;
-			pnetwork = LIST_CONTAINOR(pmlmepriv->pscanned,
-				   struct wlan_network, list);
+			pnetwork = container_of(pmlmepriv->pscanned,
+						struct wlan_network, list);
 			pmlmepriv->pscanned = pmlmepriv->pscanned->next;
 			dst_ssid = pnetwork->network.Ssid.Ssid;
 			if ((!memcmp(dst_ssid, src_ssid, ndis_ssid.SsidLength))
@@ -1986,7 +1986,7 @@ static int r871x_get_ap_info(struct net_device *dev,
 	while (1) {
 		if (end_of_queue_search(phead, plist))
 			break;
-		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
+		pnetwork = container_of(plist, struct wlan_network, list);
 		if (!mac_pton(data, bssid)) {
 			netdev_info(dev, "r8712u: Invalid BSSID '%s'.\n",
 				    (u8 *)data);
