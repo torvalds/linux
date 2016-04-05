@@ -46,13 +46,14 @@ typedef struct xfs_ioend {
 	int			io_error;	/* I/O error code */
 	atomic_t		io_remaining;	/* hold count */
 	struct inode		*io_inode;	/* file being written to */
-	struct buffer_head	*io_buffer_head;/* buffer linked list head */
-	struct buffer_head	*io_buffer_tail;/* buffer linked list tail */
 	size_t			io_size;	/* size of the extent */
 	xfs_off_t		io_offset;	/* offset in the file */
 	struct work_struct	io_work;	/* xfsdatad work queue */
 	struct xfs_trans	*io_append_trans;/* xact. for size update */
 	struct bio		*io_bio;	/* bio being built */
+	struct bio		*io_bio_done;	/* bios completed */
+	struct bio		*io_bio_done_tail; /* bios completed */
+	spinlock_t		io_lock;	/* for bio completion list */
 } xfs_ioend_t;
 
 extern const struct address_space_operations xfs_address_space_operations;

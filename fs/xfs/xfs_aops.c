@@ -84,20 +84,64 @@ xfs_find_bdev_for_inode(
 }
 
 /*
- * We're now finished for good with this ioend structure.
- * Update the page state via the associated buffer_heads,
- * release holds on the inode and bio, and finally free
- * up memory.  Do not use the ioend after this.
+ * We're now finished for good with this page.  Update the page state via the
+ * associated buffer_heads, paying attention to the start and end offsets that
+ * we need to process on the page.
+ */
+static void
+xfs_finish_page_writeback(
+	struct inode		*inode,
+	struct bio_vec		*bvec,
+	int			error)
+{
+	unsigned int		blockmask = (1 << inode->i_blkbits) - 1;
+	unsigned int		end = bvec->bv_offset + bvec->bv_len - 1;
+	struct buffer_head	*head, *bh;
+	unsigned int		off = 0;
+
+	ASSERT(bvec->bv_offset < PAGE_SIZE);
+	ASSERT((bvec->bv_offset & blockmask) == 0);
+	ASSERT(end < PAGE_SIZE);
+	ASSERT((bvec->bv_len & blockmask) == 0);
+
+	bh = head = page_buffers(bvec->bv_page);
+
+	do {
+		if (off < bvec->bv_offset)
+			goto next_bh;
+		if (off > end)
+			break;
+		bh->b_end_io(bh, !error);
+next_bh:
+		off += bh->b_size;
+	} while ((bh = bh->b_this_page) != head);
+}
+
+/*
+ * We're now finished for good with this ioend structure.  Update the page
+ * state, release holds on bios, and finally free up memory.  Do not use the
+ * ioend after this.
  */
 STATIC void
 xfs_destroy_ioend(
-	xfs_ioend_t		*ioend)
+	struct xfs_ioend	*ioend)
 {
-	struct buffer_head	*bh, *next;
+	struct inode		*inode = ioend->io_inode;
+	int			error = ioend->io_error;
+	struct bio		*bio, *next;
 
-	for (bh = ioend->io_buffer_head; bh; bh = next) {
-		next = bh->b_private;
-		bh->b_end_io(bh, !ioend->io_error);
+	for (bio = ioend->io_bio_done; bio; bio = next) {
+		struct bio_vec	*bvec;
+		int		i;
+
+		next = bio->bi_private;
+		bio->bi_private = NULL;
+
+		/* walk each page on bio, ending page IO on them */
+		bio_for_each_segment_all(bvec, bio, i)
+			xfs_finish_page_writeback(inode, bvec, error);
+
+		bio_put(bio);
 	}
 
 	mempool_free(ioend, xfs_ioend_pool);
@@ -286,6 +330,7 @@ xfs_alloc_ioend(
 	ioend->io_type = type;
 	ioend->io_inode = inode;
 	INIT_WORK(&ioend->io_work, xfs_end_io);
+	spin_lock_init(&ioend->io_lock);
 	return ioend;
 }
 
@@ -365,15 +410,21 @@ STATIC void
 xfs_end_bio(
 	struct bio		*bio)
 {
-	xfs_ioend_t		*ioend = bio->bi_private;
+	struct xfs_ioend	*ioend = bio->bi_private;
+	unsigned long		flags;
 
-	if (!ioend->io_error)
-		ioend->io_error = bio->bi_error;
-
-	/* Toss bio and pass work off to an xfsdatad thread */
 	bio->bi_private = NULL;
 	bio->bi_end_io = NULL;
-	bio_put(bio);
+
+	spin_lock_irqsave(&ioend->io_lock, flags);
+	if (!ioend->io_error)
+	       ioend->io_error = bio->bi_error;
+	if (!ioend->io_bio_done)
+		ioend->io_bio_done = bio;
+	else
+		ioend->io_bio_done_tail->bi_private = bio;
+	ioend->io_bio_done_tail = bio;
+	spin_unlock_irqrestore(&ioend->io_lock, flags);
 
 	xfs_finish_ioend(ioend);
 }
@@ -511,21 +562,11 @@ xfs_add_to_ioend(
 	if (!wpc->ioend || wpc->io_type != wpc->ioend->io_type ||
 	    bh->b_blocknr != wpc->last_block + 1 ||
 	    offset != wpc->ioend->io_offset + wpc->ioend->io_size) {
-		struct xfs_ioend	*new;
-
 		if (wpc->ioend)
 			list_add(&wpc->ioend->io_list, iolist);
-
-		new = xfs_alloc_ioend(inode, wpc->io_type);
-		new->io_offset = offset;
-		new->io_buffer_head = bh;
-		new->io_buffer_tail = bh;
-		wpc->ioend = new;
-	} else {
-		wpc->ioend->io_buffer_tail->b_private = bh;
-		wpc->ioend->io_buffer_tail = bh;
+		wpc->ioend = xfs_alloc_ioend(inode, wpc->io_type);
+		wpc->ioend->io_offset = offset;
 	}
-	bh->b_private = NULL;
 
 retry:
 	if (!wpc->ioend->io_bio)
