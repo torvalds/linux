@@ -323,7 +323,6 @@ void write_nic_byte(struct net_device *dev, int indx, u8 data)
 
 void write_nic_word(struct net_device *dev, int indx, u16 data)
 {
-
 	int status;
 
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -347,7 +346,6 @@ void write_nic_word(struct net_device *dev, int indx, u16 data)
 
 void write_nic_dword(struct net_device *dev, int indx, u32 data)
 {
-
 	int status;
 
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -733,7 +731,6 @@ void rtl8192_update_msr(struct net_device *dev)
 	 * master (see the create BSS/IBSS func)
 	 */
 	if (priv->ieee80211->state == IEEE80211_LINKED) {
-
 		if (priv->ieee80211->iw_mode == IW_MODE_INFRA)
 			msr |= (MSR_LINK_MANAGED << MSR_LINK_SHIFT);
 		else if (priv->ieee80211->iw_mode == IW_MODE_ADHOC)
@@ -768,7 +765,6 @@ static void rtl8192_rx_isr(struct urb *urb);
 
 static u32 get_rxpacket_shiftbytes_819xusb(struct ieee80211_rx_stats *pstats)
 {
-
 	return (sizeof(rx_desc_819x_usb) + pstats->RxDrvInfoSize
 		+ pstats->RxBufShift);
 }
@@ -1267,7 +1263,6 @@ static void rtl8192_update_cap(struct net_device *dev, u16 cap)
 }
 static void rtl8192_net_update(struct net_device *dev)
 {
-
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_network *net;
 	u16 BcnTimeCfg = 0, BcnCW = 6, BcnIFS = 0xf;
@@ -1725,7 +1720,6 @@ static short rtl8192_usb_initendpoints(struct net_device *dev)
 
 #ifndef JACKSON_NEW_RX
 	for (i = 0; i < (MAX_RX_URB + 1); i++) {
-
 		priv->rx_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
 
 		priv->rx_urb[i]->transfer_buffer =
@@ -2658,7 +2652,6 @@ static short rtl8192_get_channel_map(struct net_device *dev)
 
 static short rtl8192_init(struct net_device *dev)
 {
-
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	memset(&(priv->stats), 0, sizeof(struct Stats));
@@ -3007,7 +3000,6 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 						     bMaskByte2);
 
 			for (i = 0; i < CCKTxBBGainTableLength; i++) {
-
 				if (TempCCk == priv->cck_txbbgain_table[i].ccktxbb_valuearray[0]) {
 					priv->cck_present_attentuation_20Mdefault = (u8)i;
 					break;
@@ -3228,7 +3220,6 @@ static void CamRestoreAllEntry(struct net_device *dev)
 
 	if ((priv->ieee80211->pairwise_key_type == KEY_TYPE_WEP40) ||
 	    (priv->ieee80211->pairwise_key_type == KEY_TYPE_WEP104)) {
-
 		for (EntryId = 0; EntryId < 4; EntryId++) {
 			MacAddr = CAM_CONST_ADDR[EntryId];
 			setKey(dev, EntryId, EntryId,
@@ -3237,7 +3228,6 @@ static void CamRestoreAllEntry(struct net_device *dev)
 		}
 
 	} else if (priv->ieee80211->pairwise_key_type == KEY_TYPE_TKIP) {
-
 		if (priv->ieee80211->iw_mode == IW_MODE_ADHOC)
 			setKey(dev, 4, 0, priv->ieee80211->pairwise_key_type,
 			       (u8 *)dev->dev_addr, 0, NULL);
@@ -3245,7 +3235,6 @@ static void CamRestoreAllEntry(struct net_device *dev)
 			setKey(dev, 4, 0, priv->ieee80211->pairwise_key_type,
 			       MacAddr, 0, NULL);
 	} else if (priv->ieee80211->pairwise_key_type == KEY_TYPE_CCMP) {
-
 		if (priv->ieee80211->iw_mode == IW_MODE_ADHOC)
 			setKey(dev, 4, 0, priv->ieee80211->pairwise_key_type,
 			       (u8 *)dev->dev_addr, 0, NULL);
@@ -3446,7 +3435,6 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 	/* for AP roaming */
 	if (priv->ieee80211->state == IEEE80211_LINKED &&
 	    priv->ieee80211->iw_mode == IW_MODE_INFRA) {
-
 		rtl819x_update_rxcounts(priv, &TotalRxBcnNum, &TotalRxDataNum);
 		if ((TotalRxBcnNum + TotalRxDataNum) == 0) {
 #ifdef TODO
@@ -4865,7 +4853,6 @@ static void rtl8192_rx_cmd(struct sk_buff *skb)
 	};
 
 	if ((skb->len >= (20 + sizeof(rx_desc_819x_usb))) && (skb->len < RX_URB_SIZE)) {
-
 		query_rx_cmdpkt_desc_status(skb, &stats);
 		/* prfd->queue_id = 1; */
 
@@ -5000,7 +4987,6 @@ fail:
  */
 static void rtl8192_cancel_deferred_work(struct r8192_priv *priv)
 {
-
 	cancel_work_sync(&priv->reset_wq);
 	cancel_delayed_work(&priv->watch_dog_wq);
 	cancel_delayed_work(&priv->update_beacon_wq);
