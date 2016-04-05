@@ -589,39 +589,39 @@ static void ixgbe_clear_vmvir(struct ixgbe_adapter *adapter, u32 vf)
 static void ixgbe_clear_vf_vlans(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 i;
+	u32 vlvfb_mask, pool_mask, i;
+
+	/* create mask for VF and other pools */
+	pool_mask = ~(1 << (VMDQ_P(0) % 32));
+	vlvfb_mask = 1 << (vf % 32);
 
 	/* post increment loop, covers VLVF_ENTRIES - 1 to 0 */
 	for (i = IXGBE_VLVF_ENTRIES; i--;) {
 		u32 bits[2], vlvfb, vid, vfta, vlvf;
 		u32 word = i * 2 + vf / 32;
-		u32 mask = 1 << (vf % 32);
+		u32 mask;
 
 		vlvfb = IXGBE_READ_REG(hw, IXGBE_VLVFB(word));
 
 		/* if our bit isn't set we can skip it */
-		if (!(vlvfb & mask))
+		if (!(vlvfb & vlvfb_mask))
 			continue;
 
 		/* clear our bit from vlvfb */
-		vlvfb ^= mask;
+		vlvfb ^= vlvfb_mask;
 
 		/* create 64b mask to chedk to see if we should clear VLVF */
 		bits[word % 2] = vlvfb;
 		bits[~word % 2] = IXGBE_READ_REG(hw, IXGBE_VLVFB(word ^ 1));
 
-		/* if promisc is enabled, PF will be present, leave VFTA */
-		if (adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC) {
-			bits[VMDQ_P(0) / 32] &= ~(1 << (VMDQ_P(0) % 32));
-
-			if (bits[0] || bits[1])
-				goto update_vlvfb;
-			goto update_vlvf;
-		}
-
 		/* if other pools are present, just remove ourselves */
-		if (bits[0] || bits[1])
+		if (bits[(VMDQ_P(0) / 32) ^ 1] ||
+		    (bits[VMDQ_P(0) / 32] & pool_mask))
 			goto update_vlvfb;
+
+		/* if PF is present, leave VFTA */
+		if (bits[0] || bits[1])
+			goto update_vlvf;
 
 		/* if we cannot determine VLAN just remove ourselves */
 		vlvf = IXGBE_READ_REG(hw, IXGBE_VLVF(i));
@@ -638,6 +638,9 @@ static void ixgbe_clear_vf_vlans(struct ixgbe_adapter *adapter, u32 vf)
 update_vlvf:
 		/* clear POOL selection enable */
 		IXGBE_WRITE_REG(hw, IXGBE_VLVF(i), 0);
+
+		if (!(adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC))
+			vlvfb = 0;
 update_vlvfb:
 		/* clear pool bits */
 		IXGBE_WRITE_REG(hw, IXGBE_VLVFB(word), vlvfb);
@@ -887,7 +890,7 @@ static int ixgbe_set_vf_mac_addr(struct ixgbe_adapter *adapter,
 		return -1;
 	}
 
-	if (adapter->vfinfo[vf].pf_set_mac &&
+	if (adapter->vfinfo[vf].pf_set_mac && !adapter->vfinfo[vf].trusted &&
 	    !ether_addr_equal(adapter->vfinfo[vf].vf_mac_addresses, new_mac)) {
 		e_warn(drv,
 		       "VF %d attempted to override administratively set MAC address\n"
@@ -1395,7 +1398,7 @@ out:
 	return err;
 }
 
-static int ixgbe_link_mbps(struct ixgbe_adapter *adapter)
+int ixgbe_link_mbps(struct ixgbe_adapter *adapter)
 {
 	switch (adapter->link_speed) {
 	case IXGBE_LINK_SPEED_100_FULL:

@@ -403,13 +403,6 @@ struct ixgbevf_adapter {
 	u32 alloc_rx_page_failed;
 	u32 alloc_rx_buff_failed;
 
-	/* Some features need tri-state capability,
-	 * thus the additional *_CAPABLE flags.
-	 */
-	u32 flags;
-#define IXGBEVF_FLAG_RESET_REQUESTED		(u32)(1)
-#define IXGBEVF_FLAG_QUEUE_RESET_REQUESTED	(u32)(1 << 2)
-
 	struct msix_entry *msix_entries;
 
 	/* OS defined structs */
@@ -461,6 +454,8 @@ enum ixbgevf_state_t {
 	__IXGBEVF_REMOVING,
 	__IXGBEVF_SERVICE_SCHED,
 	__IXGBEVF_SERVICE_INITED,
+	__IXGBEVF_RESET_REQUESTED,
+	__IXGBEVF_QUEUE_RESET_REQUESTED,
 };
 
 enum ixgbevf_boards {

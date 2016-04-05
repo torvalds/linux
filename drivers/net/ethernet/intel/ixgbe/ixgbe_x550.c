@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  *  Intel 10 Gigabit PCI Express Linux driver
- *  Copyright(c) 1999 - 2015 Intel Corporation.
+ *  Copyright(c) 1999 - 2016 Intel Corporation.
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms and conditions of the GNU General Public License,
@@ -27,6 +27,7 @@
 #include "ixgbe_phy.h"
 
 static s32 ixgbe_setup_kr_speed_x550em(struct ixgbe_hw *, ixgbe_link_speed);
+static s32 ixgbe_setup_fc_x550em(struct ixgbe_hw *);
 
 static s32 ixgbe_get_invariants_X550_x(struct ixgbe_hw *hw)
 {
@@ -1342,15 +1343,18 @@ static void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
 		mac->ops.enable_tx_laser = NULL;
 		mac->ops.flap_tx_laser = NULL;
 		mac->ops.setup_link = ixgbe_setup_mac_link_multispeed_fiber;
+		mac->ops.setup_fc = ixgbe_setup_fc_x550em;
 		mac->ops.setup_mac_link = ixgbe_setup_mac_link_sfp_x550em;
 		mac->ops.set_rate_select_speed =
 					ixgbe_set_soft_rate_select_speed;
 		break;
 	case ixgbe_media_type_copper:
 		mac->ops.setup_link = ixgbe_setup_mac_link_t_X550em;
+		mac->ops.setup_fc = ixgbe_setup_fc_generic;
 		mac->ops.check_link = ixgbe_check_link_t_X550em;
 		break;
 	default:
+		mac->ops.setup_fc = ixgbe_setup_fc_x550em;
 		break;
 	}
 }
@@ -1840,6 +1844,82 @@ static s32 ixgbe_get_lcd_t_x550em(struct ixgbe_hw *hw,
 	/* Link partner not capable of lower speeds, return 10G */
 	*lcd_speed = IXGBE_LINK_SPEED_10GB_FULL;
 	return status;
+}
+
+/**
+ * ixgbe_setup_fc_x550em - Set up flow control
+ * @hw: pointer to hardware structure
+ */
+static s32 ixgbe_setup_fc_x550em(struct ixgbe_hw *hw)
+{
+	bool pause, asm_dir;
+	u32 reg_val;
+	s32 rc;
+
+	/* Validate the requested mode */
+	if (hw->fc.strict_ieee && hw->fc.requested_mode == ixgbe_fc_rx_pause) {
+		hw_err(hw, "ixgbe_fc_rx_pause not valid in strict IEEE mode\n");
+		return IXGBE_ERR_INVALID_LINK_SETTINGS;
+	}
+
+	/* 10gig parts do not have a word in the EEPROM to determine the
+	 * default flow control setting, so we explicitly set it to full.
+	 */
+	if (hw->fc.requested_mode == ixgbe_fc_default)
+		hw->fc.requested_mode = ixgbe_fc_full;
+
+	/* Determine PAUSE and ASM_DIR bits. */
+	switch (hw->fc.requested_mode) {
+	case ixgbe_fc_none:
+		pause = false;
+		asm_dir = false;
+		break;
+	case ixgbe_fc_tx_pause:
+		pause = false;
+		asm_dir = true;
+		break;
+	case ixgbe_fc_rx_pause:
+		/* Rx Flow control is enabled and Tx Flow control is
+		 * disabled by software override. Since there really
+		 * isn't a way to advertise that we are capable of RX
+		 * Pause ONLY, we will advertise that we support both
+		 * symmetric and asymmetric Rx PAUSE, as such we fall
+		 * through to the fc_full statement.  Later, we will
+		 * disable the adapter's ability to send PAUSE frames.
+		 */
+		/* Fallthrough */
+	case ixgbe_fc_full:
+		pause = true;
+		asm_dir = true;
+		break;
+	default:
+		hw_err(hw, "Flow control param set incorrectly\n");
+		return IXGBE_ERR_CONFIG;
+	}
+
+	if (hw->device_id != IXGBE_DEV_ID_X550EM_X_KR)
+		return 0;
+
+	rc = ixgbe_read_iosf_sb_reg_x550(hw,
+					 IXGBE_KRM_AN_CNTL_1(hw->bus.lan_id),
+					 IXGBE_SB_IOSF_TARGET_KR_PHY, &reg_val);
+	if (rc)
+		return rc;
+
+	reg_val &= ~(IXGBE_KRM_AN_CNTL_1_SYM_PAUSE |
+		     IXGBE_KRM_AN_CNTL_1_ASM_PAUSE);
+	if (pause)
+		reg_val |= IXGBE_KRM_AN_CNTL_1_SYM_PAUSE;
+	if (asm_dir)
+		reg_val |= IXGBE_KRM_AN_CNTL_1_ASM_PAUSE;
+	rc = ixgbe_write_iosf_sb_reg_x550(hw,
+					  IXGBE_KRM_AN_CNTL_1(hw->bus.lan_id),
+					  IXGBE_SB_IOSF_TARGET_KR_PHY, reg_val);
+
+	/* This device does not fully support AN. */
+	hw->fc.disable_fc_autoneg = true;
+
+	return rc;
 }
 
 /** ixgbe_enter_lplu_x550em - Transition to low power states
@@ -2337,12 +2417,10 @@ static void ixgbe_release_swfw_sync_X550em(struct ixgbe_hw *hw, u32 mask)
 	.enable_rx_buff			= &ixgbe_enable_rx_buff_generic, \
 	.get_thermal_sensor_data	= NULL, \
 	.init_thermal_sensor_thresh	= NULL, \
-	.prot_autoc_read		= &prot_autoc_read_generic, \
-	.prot_autoc_write		= &prot_autoc_write_generic, \
 	.enable_rx			= &ixgbe_enable_rx_generic, \
 	.disable_rx			= &ixgbe_disable_rx_x550, \
 
-static struct ixgbe_mac_operations mac_ops_X550 = {
+static const struct ixgbe_mac_operations mac_ops_X550 = {
 	X550_COMMON_MAC
 	.reset_hw		= &ixgbe_reset_hw_X540,
 	.get_media_type		= &ixgbe_get_media_type_X540,
@@ -2354,9 +2432,13 @@ static struct ixgbe_mac_operations mac_ops_X550 = {
 	.setup_sfp		= NULL,
 	.acquire_swfw_sync	= &ixgbe_acquire_swfw_sync_X540,
 	.release_swfw_sync	= &ixgbe_release_swfw_sync_X540,
+	.init_swfw_sync		= &ixgbe_init_swfw_sync_X540,
+	.prot_autoc_read	= prot_autoc_read_generic,
+	.prot_autoc_write	= prot_autoc_write_generic,
+	.setup_fc		= ixgbe_setup_fc_generic,
 };
 
-static struct ixgbe_mac_operations mac_ops_X550EM_x = {
+static const struct ixgbe_mac_operations mac_ops_X550EM_x = {
 	X550_COMMON_MAC
 	.reset_hw		= &ixgbe_reset_hw_X550em,
 	.get_media_type		= &ixgbe_get_media_type_X550em,
@@ -2368,6 +2450,8 @@ static struct ixgbe_mac_operations mac_ops_X550EM_x = {
 	.setup_sfp		= ixgbe_setup_sfp_modules_X550em,
 	.acquire_swfw_sync	= &ixgbe_acquire_swfw_sync_X550em,
 	.release_swfw_sync	= &ixgbe_release_swfw_sync_X550em,
+	.init_swfw_sync		= &ixgbe_init_swfw_sync_X540,
+	.setup_fc		= NULL, /* defined later */
 };
 
 #define X550_COMMON_EEP \
@@ -2379,12 +2463,12 @@ static struct ixgbe_mac_operations mac_ops_X550EM_x = {
 	.update_checksum	= &ixgbe_update_eeprom_checksum_X550, \
 	.calc_checksum		= &ixgbe_calc_eeprom_checksum_X550, \
 
-static struct ixgbe_eeprom_operations eeprom_ops_X550 = {
+static const struct ixgbe_eeprom_operations eeprom_ops_X550 = {
 	X550_COMMON_EEP
 	.init_params		= &ixgbe_init_eeprom_params_X550,
 };
 
-static struct ixgbe_eeprom_operations eeprom_ops_X550EM_x = {
+static const struct ixgbe_eeprom_operations eeprom_ops_X550EM_x = {
 	X550_COMMON_EEP
 	.init_params		= &ixgbe_init_eeprom_params_X540,
 };
@@ -2405,13 +2489,13 @@ static struct ixgbe_eeprom_operations eeprom_ops_X550EM_x = {
 	.check_overtemp		= &ixgbe_tn_check_overtemp, \
 	.get_firmware_version	= &ixgbe_get_phy_firmware_version_generic,
 
-static struct ixgbe_phy_operations phy_ops_X550 = {
+static const struct ixgbe_phy_operations phy_ops_X550 = {
 	X550_COMMON_PHY
 	.init			= NULL,
 	.identify		= &ixgbe_identify_phy_generic,
 };
 
-static struct ixgbe_phy_operations phy_ops_X550EM_x = {
+static const struct ixgbe_phy_operations phy_ops_X550EM_x = {
 	X550_COMMON_PHY
 	.init			= &ixgbe_init_phy_ops_X550em,
 	.identify		= &ixgbe_identify_phy_x550em,
@@ -2430,7 +2514,7 @@ static const u32 ixgbe_mvals_X550EM_x[IXGBE_MVALS_IDX_LIMIT] = {
 	IXGBE_MVALS_INIT(X550EM_x)
 };
 
-struct ixgbe_info ixgbe_X550_info = {
+const struct ixgbe_info ixgbe_X550_info = {
 	.mac			= ixgbe_mac_X550,
 	.get_invariants		= &ixgbe_get_invariants_X540,
 	.mac_ops		= &mac_ops_X550,
@@ -2440,7 +2524,7 @@ struct ixgbe_info ixgbe_X550_info = {
 	.mvals			= ixgbe_mvals_X550,
 };
 
-struct ixgbe_info ixgbe_X550EM_x_info = {
+const struct ixgbe_info ixgbe_X550EM_x_info = {
 	.mac			= ixgbe_mac_X550EM_x,
 	.get_invariants		= &ixgbe_get_invariants_X550_x,
 	.mac_ops		= &mac_ops_X550EM_x,
