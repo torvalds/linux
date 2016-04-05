@@ -698,10 +698,23 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		if (link_info->phy_link_status == BNXT_LINK_LINK)
 			cmd->lp_advertising =
 				bnxt_fw_to_ethtool_lp_adv(link_info);
+		ethtool_speed = bnxt_fw_to_ethtool_speed(link_info->link_speed);
+		if (!netif_carrier_ok(dev))
+			cmd->duplex = DUPLEX_UNKNOWN;
+		else if (link_info->duplex & BNXT_LINK_DUPLEX_FULL)
+			cmd->duplex = DUPLEX_FULL;
+		else
+			cmd->duplex = DUPLEX_HALF;
 	} else {
 		cmd->autoneg = AUTONEG_DISABLE;
 		cmd->advertising = 0;
+		ethtool_speed =
+			bnxt_fw_to_ethtool_speed(link_info->req_link_speed);
+		cmd->duplex = DUPLEX_HALF;
+		if (link_info->req_duplex == BNXT_LINK_DUPLEX_FULL)
+			cmd->duplex = DUPLEX_FULL;
 	}
+	ethtool_cmd_speed_set(cmd, ethtool_speed);
 
 	cmd->port = PORT_NONE;
 	if (link_info->media_type == PORT_PHY_QCFG_RESP_MEDIA_TYPE_TP) {
@@ -719,14 +732,6 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			cmd->port = PORT_FIBRE;
 	}
 
-	if (link_info->phy_link_status == BNXT_LINK_LINK) {
-		if (link_info->duplex & BNXT_LINK_DUPLEX_FULL)
-			cmd->duplex = DUPLEX_FULL;
-	} else {
-		cmd->duplex = DUPLEX_UNKNOWN;
-	}
-	ethtool_speed = bnxt_fw_to_ethtool_speed(link_info->link_speed);
-	ethtool_cmd_speed_set(cmd, ethtool_speed);
 	if (link_info->transceiver ==
 	    PORT_PHY_QCFG_RESP_XCVR_PKG_TYPE_XCVR_INTERNAL)
 		cmd->transceiver = XCVR_INTERNAL;
