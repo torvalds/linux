@@ -85,6 +85,46 @@ static int tc3589x_gpio_direction_input(struct gpio_chip *chip,
 	return tc3589x_set_bits(tc3589x, reg, BIT(pos), 0);
 }
 
+static int tc3589x_gpio_single_ended(struct gpio_chip *chip,
+				     unsigned offset,
+				     enum single_ended_mode mode)
+{
+	struct tc3589x_gpio *tc3589x_gpio = gpiochip_get_data(chip);
+	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
+	/*
+	 * These registers are alterated at each second address
+	 * ODM bit 0 = drive to GND or Hi-Z (open drain)
+	 * ODM bit 1 = drive to VDD or Hi-Z (open source)
+	 */
+	u8 odmreg = TC3589x_GPIOODM0 + (offset / 8) * 2;
+	u8 odereg = TC3589x_GPIOODE0 + (offset / 8) * 2;
+	unsigned pos = offset % 8;
+	int ret;
+
+	switch(mode) {
+	case LINE_MODE_OPEN_DRAIN:
+		/* Set open drain mode */
+		ret = tc3589x_set_bits(tc3589x, odmreg, BIT(pos), 0);
+		if (ret)
+			return ret;
+		/* Enable open drain/source mode */
+		return tc3589x_set_bits(tc3589x, odereg, BIT(pos), BIT(pos));
+	case LINE_MODE_OPEN_SOURCE:
+		/* Set open source mode */
+		ret = tc3589x_set_bits(tc3589x, odmreg, BIT(pos), BIT(pos));
+		if (ret)
+			return ret;
+		/* Enable open drain/source mode */
+		return tc3589x_set_bits(tc3589x, odereg, BIT(pos), BIT(pos));
+	case LINE_MODE_PUSH_PULL:
+		/* Disable open drain/source mode */
+		return tc3589x_set_bits(tc3589x, odereg, BIT(pos), 0);
+	default:
+		break;
+	}
+	return -ENOTSUPP;
+}
+
 static struct gpio_chip template_chip = {
 	.label			= "tc3589x",
 	.owner			= THIS_MODULE,
@@ -92,6 +132,7 @@ static struct gpio_chip template_chip = {
 	.get			= tc3589x_gpio_get,
 	.direction_output	= tc3589x_gpio_direction_output,
 	.set			= tc3589x_gpio_set,
+	.set_single_ended	= tc3589x_gpio_single_ended,
 	.can_sleep		= true,
 };
 
