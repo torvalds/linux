@@ -52,6 +52,7 @@ typedef struct xfs_ioend {
 	xfs_off_t		io_offset;	/* offset in the file */
 	struct work_struct	io_work;	/* xfsdatad work queue */
 	struct xfs_trans	*io_append_trans;/* xact. for size update */
+	struct bio		*io_bio;	/* bio being built */
 } xfs_ioend_t;
 
 extern const struct address_space_operations xfs_address_space_operations;
