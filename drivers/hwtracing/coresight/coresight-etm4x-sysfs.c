@@ -440,6 +440,9 @@ static ssize_t mode_store(struct device *dev,
 	else
 		config->vinst_ctrl &= ~BIT(11);
 
+	if (config->mode & (ETM_MODE_EXCL_KERN | ETM_MODE_EXCL_USER))
+		etm4_config_trace_mode(config);
+
 	spin_unlock(&drvdata->spinlock);
 
 	return size;
