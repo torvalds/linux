@@ -53,6 +53,7 @@
 #include <net/vxlan.h>
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_gact.h>
+#include <net/tc_act/tc_mirred.h>
 
 #include "ixgbe.h"
 #include "ixgbe_common.h"
@@ -8319,6 +8320,85 @@ static int ixgbe_configure_clsu32_del_hnode(struct ixgbe_adapter *adapter,
 	return 0;
 }
 
+#ifdef CONFIG_NET_CLS_ACT
+static int handle_redirect_action(struct ixgbe_adapter *adapter, int ifindex,
+				  u8 *queue, u64 *action)
+{
+	unsigned int num_vfs = adapter->num_vfs, vf;
+	struct net_device *upper;
+	struct list_head *iter;
+
+	/* redirect to a SRIOV VF */
+	for (vf = 0; vf < num_vfs; ++vf) {
+		upper = pci_get_drvdata(adapter->vfinfo[vf].vfdev);
+		if (upper->ifindex == ifindex) {
+			if (adapter->num_rx_pools > 1)
+				*queue = vf * 2;
+			else
+				*queue = vf * adapter->num_rx_queues_per_pool;
+
+			*action = vf + 1;
+			*action <<= ETHTOOL_RX_FLOW_SPEC_RING_VF_OFF;
+			return 0;
+		}
+	}
+
+	/* redirect to a offloaded macvlan netdev */
+	netdev_for_each_all_upper_dev_rcu(adapter->netdev, upper, iter) {
+		if (netif_is_macvlan(upper)) {
+			struct macvlan_dev *dfwd = netdev_priv(upper);
+			struct ixgbe_fwd_adapter *vadapter = dfwd->fwd_priv;
+
+			if (vadapter && vadapter->netdev->ifindex == ifindex) {
+				*queue = adapter->rx_ring[vadapter->rx_base_queue]->reg_idx;
+				*action = *queue;
+				return 0;
+			}
+		}
+	}
+
+	return -EINVAL;
+}
+
+static int parse_tc_actions(struct ixgbe_adapter *adapter,
+			    struct tcf_exts *exts, u64 *action, u8 *queue)
+{
+	const struct tc_action *a;
+	int err;
+
+	if (tc_no_actions(exts))
+		return -EINVAL;
+
+	tc_for_each_action(a, exts) {
+
+		/* Drop action */
+		if (is_tcf_gact_shot(a)) {
+			*action = IXGBE_FDIR_DROP_QUEUE;
+			*queue = IXGBE_FDIR_DROP_QUEUE;
+			return 0;
+		}
+
+		/* Redirect to a VF or a offloaded macvlan */
+		if (is_tcf_mirred_redirect(a)) {
+			int ifindex = tcf_mirred_ifindex(a);
+
+			err = handle_redirect_action(adapter, ifindex, queue,
+						     action);
+			if (err == 0)
+				return err;
+		}
+	}
+
+	return -EINVAL;
+}
+#else
+static int parse_tc_actions(struct ixgbe_adapter *adapter,
+			    struct tcf_exts *exts, u64 *action, u8 *queue)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_NET_CLS_ACT */
+
 static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 				  __be16 protocol,
 				  struct tc_cls_u32_offload *cls)
@@ -8328,9 +8408,6 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 	struct ixgbe_mat_field *field_ptr;
 	struct ixgbe_fdir_filter *input;
 	union ixgbe_atr_input mask;
-#ifdef CONFIG_NET_CLS_ACT
-	const struct tc_action *a;
-#endif
 	int i, err = 0;
 	u8 queue;
 	u32 uhtid, link_uhtid;
@@ -8432,18 +8509,11 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 	if (input->filter.formatted.flow_type == IXGBE_ATR_FLOW_TYPE_IPV4)
 		mask.formatted.flow_type &= IXGBE_ATR_L4TYPE_IPV6_MASK;
 
-#ifdef CONFIG_NET_CLS_ACT
-	if (list_empty(&cls->knode.exts->actions))
+	err = parse_tc_actions(adapter, cls->knode.exts, &input->action,
+			       &queue);
+	if (err < 0)
 		goto err_out;
 
-	list_for_each_entry(a, &cls->knode.exts->actions, list) {
-		if (!is_tcf_gact_shot(a))
-			goto err_out;
-	}
-#endif
-
-	input->action = IXGBE_FDIR_DROP_QUEUE;
-	queue = IXGBE_FDIR_DROP_QUEUE;
 	input->sw_idx = loc;
 
 	spin_lock(&adapter->fdir_perfect_lock);
