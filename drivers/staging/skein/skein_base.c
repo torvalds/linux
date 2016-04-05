@@ -205,7 +205,7 @@ int skein_256_final(struct skein_256_ctx *ctx, u8 *hash_val)
 	/* zero pad b[] if necessary */
 	if (ctx->h.b_cnt < SKEIN_256_BLOCK_BYTES)
 		memset(&ctx->b[ctx->h.b_cnt], 0,
-			SKEIN_256_BLOCK_BYTES - ctx->h.b_cnt);
+		       SKEIN_256_BLOCK_BYTES - ctx->h.b_cnt);
 
 	/* process the final block */
 	skein_256_process_block(ctx, ctx->b, 1, ctx->h.b_cnt);
@@ -432,7 +432,7 @@ int skein_512_final(struct skein_512_ctx *ctx, u8 *hash_val)
 	/* zero pad b[] if necessary */
 	if (ctx->h.b_cnt < SKEIN_512_BLOCK_BYTES)
 		memset(&ctx->b[ctx->h.b_cnt], 0,
-			SKEIN_512_BLOCK_BYTES - ctx->h.b_cnt);
+		       SKEIN_512_BLOCK_BYTES - ctx->h.b_cnt);
 
 	/* process the final block */
 	skein_512_process_block(ctx, ctx->b, 1, ctx->h.b_cnt);
@@ -654,7 +654,7 @@ int skein_1024_final(struct skein_1024_ctx *ctx, u8 *hash_val)
 	/* zero pad b[] if necessary */
 	if (ctx->h.b_cnt < SKEIN_1024_BLOCK_BYTES)
 		memset(&ctx->b[ctx->h.b_cnt], 0,
-			SKEIN_1024_BLOCK_BYTES - ctx->h.b_cnt);
+		       SKEIN_1024_BLOCK_BYTES - ctx->h.b_cnt);
 
 	/* process the final block */
 	skein_1024_process_block(ctx, ctx->b, 1, ctx->h.b_cnt);
@@ -702,7 +702,7 @@ int skein_256_final_pad(struct skein_256_ctx *ctx, u8 *hash_val)
 	/* zero pad b[] if necessary */
 	if (ctx->h.b_cnt < SKEIN_256_BLOCK_BYTES)
 		memset(&ctx->b[ctx->h.b_cnt], 0,
-			SKEIN_256_BLOCK_BYTES - ctx->h.b_cnt);
+		       SKEIN_256_BLOCK_BYTES - ctx->h.b_cnt);
 	/* process the final block */
 	skein_256_process_block(ctx, ctx->b, 1, ctx->h.b_cnt);
 
@@ -724,7 +724,7 @@ int skein_512_final_pad(struct skein_512_ctx *ctx, u8 *hash_val)
 	/* zero pad b[] if necessary */
 	if (ctx->h.b_cnt < SKEIN_512_BLOCK_BYTES)
 		memset(&ctx->b[ctx->h.b_cnt], 0,
-			SKEIN_512_BLOCK_BYTES - ctx->h.b_cnt);
+		       SKEIN_512_BLOCK_BYTES - ctx->h.b_cnt);
 	/* process the final block */
 	skein_512_process_block(ctx, ctx->b, 1, ctx->h.b_cnt);
 
@@ -746,7 +746,7 @@ int skein_1024_final_pad(struct skein_1024_ctx *ctx, u8 *hash_val)
 	/* zero pad b[] if necessary */
 	if (ctx->h.b_cnt < SKEIN_1024_BLOCK_BYTES)
 		memset(&ctx->b[ctx->h.b_cnt], 0,
-			SKEIN_1024_BLOCK_BYTES - ctx->h.b_cnt);
+		       SKEIN_1024_BLOCK_BYTES - ctx->h.b_cnt);
 	/* process the final block */
 	skein_1024_process_block(ctx, ctx->b, 1, ctx->h.b_cnt);
 
@@ -861,7 +861,7 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val)
 			n  = SKEIN_1024_BLOCK_BYTES;
 		/* "output" the ctr mode bytes */
 		skein_put64_lsb_first(hash_val + i * SKEIN_1024_BLOCK_BYTES,
-				ctx->x, n);
+				      ctx->x, n);
 		/* restore the counter mode key for next time */
 		memcpy(ctx->x, x, sizeof(x));
 	}
