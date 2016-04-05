@@ -10,10 +10,11 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/of.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/tc3589x.h>
+#include <linux/bitops.h>
 
 /*
  * These registers are modified under the irq bus lock and cached to avoid
@@ -39,7 +40,7 @@ static int tc3589x_gpio_get(struct gpio_chip *chip, unsigned offset)
 	struct tc3589x_gpio *tc3589x_gpio = gpiochip_get_data(chip);
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
 	u8 reg = TC3589x_GPIODATA0 + (offset / 8) * 2;
-	u8 mask = 1 << (offset % 8);
+	u8 mask = BIT(offset % 8);
 	int ret;
 
 	ret = tc3589x_reg_read(tc3589x, reg);
@@ -55,7 +56,7 @@ static void tc3589x_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
 	u8 reg = TC3589x_GPIODATA0 + (offset / 8) * 2;
 	unsigned pos = offset % 8;
-	u8 data[] = {!!val << pos, 1 << pos};
+	u8 data[] = {val ? BIT(pos) : 0, BIT(pos)};
 
 	tc3589x_block_write(tc3589x, reg, ARRAY_SIZE(data), data);
 }
@@ -70,7 +71,7 @@ static int tc3589x_gpio_direction_output(struct gpio_chip *chip,
 
 	tc3589x_gpio_set(chip, offset, val);
 
-	return tc3589x_set_bits(tc3589x, reg, 1 << pos, 1 << pos);
+	return tc3589x_set_bits(tc3589x, reg, BIT(pos), BIT(pos));
 }
 
 static int tc3589x_gpio_direction_input(struct gpio_chip *chip,
@@ -81,7 +82,7 @@ static int tc3589x_gpio_direction_input(struct gpio_chip *chip,
 	u8 reg = TC3589x_GPIODIR0 + offset / 8;
 	unsigned pos = offset % 8;
 
-	return tc3589x_set_bits(tc3589x, reg, 1 << pos, 0);
+	return tc3589x_set_bits(tc3589x, reg, BIT(pos), 0);
 }
 
 static struct gpio_chip template_chip = {
@@ -100,7 +101,7 @@ static int tc3589x_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	struct tc3589x_gpio *tc3589x_gpio = gpiochip_get_data(gc);
 	int offset = d->hwirq;
 	int regoffset = offset / 8;
-	int mask = 1 << (offset % 8);
+	int mask = BIT(offset % 8);
 
 	if (type == IRQ_TYPE_EDGE_BOTH) {
 		tc3589x_gpio->regs[REG_IBE][regoffset] |= mask;
@@ -165,7 +166,7 @@ static void tc3589x_gpio_irq_mask(struct irq_data *d)
 	struct tc3589x_gpio *tc3589x_gpio = gpiochip_get_data(gc);
 	int offset = d->hwirq;
 	int regoffset = offset / 8;
-	int mask = 1 << (offset % 8);
+	int mask = BIT(offset % 8);
 
 	tc3589x_gpio->regs[REG_IE][regoffset] &= ~mask;
 }
@@ -176,7 +177,7 @@ static void tc3589x_gpio_irq_unmask(struct irq_data *d)
 	struct tc3589x_gpio *tc3589x_gpio = gpiochip_get_data(gc);
 	int offset = d->hwirq;
 	int regoffset = offset / 8;
-	int mask = 1 << (offset % 8);
+	int mask = BIT(offset % 8);
 
 	tc3589x_gpio->regs[REG_IE][regoffset] |= mask;
 }
