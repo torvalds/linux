@@ -481,7 +481,7 @@ static int cdns_spi_probe(struct platform_device *pdev)
 	u32 num_cs;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*xspi));
-	if (master == NULL)
+	if (!master)
 		return -ENOMEM;
 
 	xspi = spi_master_get_devdata(master);
