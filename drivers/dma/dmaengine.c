@@ -482,7 +482,8 @@ int dma_get_slave_caps(struct dma_chan *chan, struct dma_slave_caps *caps)
 	device = chan->device;
 
 	/* check if the channel supports slave transactions */
-	if (!test_bit(DMA_SLAVE, device->cap_mask.bits))
+	if ((!test_bit(DMA_SLAVE, device->cap_mask.bits)) ||
+			(!test_bit(DMA_CYCLIC, device->cap_mask.bits)))
 		return -ENXIO;
 
 	/*
