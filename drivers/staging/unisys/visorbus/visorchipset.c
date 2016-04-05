@@ -1041,30 +1041,30 @@ device_epilog(struct visor_device *dev_info,
 	      bool need_response, bool for_visorbus)
 {
 	struct visorchipset_busdev_notifiers *notifiers;
-	bool notified = false;
 	struct controlvm_message_header *pmsg_hdr = NULL;
 
 	notifiers = &busdev_notifiers;
 
+	down(&notifier_lock);
 	if (!dev_info) {
 		/* relying on a valid passed in response code */
 		/* be lazy and re-use msg_hdr for this failure, is this ok?? */
 		pmsg_hdr = msg_hdr;
-		goto away;
+		goto out_respond_and_unlock;
 	}
 
 	if (dev_info->pending_msg_hdr) {
 		/* only non-NULL if dev is still waiting on a response */
 		response = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
 		pmsg_hdr = dev_info->pending_msg_hdr;
-		goto away;
+		goto out_respond_and_unlock;
 	}
 
 	if (need_response) {
 		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr), GFP_KERNEL);
 		if (!pmsg_hdr) {
 			response = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
-			goto away;
+			goto out_respond_and_unlock;
 		}
 
 		memcpy(pmsg_hdr, msg_hdr,
@@ -1072,13 +1072,12 @@ device_epilog(struct visor_device *dev_info,
 		dev_info->pending_msg_hdr = pmsg_hdr;
 	}
 
-	down(&notifier_lock);
 	if (response >= 0) {
 		switch (cmd) {
 		case CONTROLVM_DEVICE_CREATE:
 			if (notifiers->device_create) {
 				(*notifiers->device_create) (dev_info);
-				notified = true;
+				goto out_unlock;
 			}
 			break;
 		case CONTROLVM_DEVICE_CHANGESTATE:
@@ -1088,7 +1087,7 @@ device_epilog(struct visor_device *dev_info,
 				segment_state_running.operating) {
 				if (notifiers->device_resume) {
 					(*notifiers->device_resume) (dev_info);
-					notified = true;
+					goto out_unlock;
 				}
 			}
 			/* ServerNotReady / ServerLost / SegmentStateStandby */
@@ -1100,32 +1099,23 @@ device_epilog(struct visor_device *dev_info,
 				 */
 				if (notifiers->device_pause) {
 					(*notifiers->device_pause) (dev_info);
-					notified = true;
+					goto out_unlock;
 				}
 			}
 			break;
 		case CONTROLVM_DEVICE_DESTROY:
 			if (notifiers->device_destroy) {
 				(*notifiers->device_destroy) (dev_info);
-				notified = true;
+				goto out_unlock;
 			}
 			break;
 		}
 	}
-away:
-	if (notified)
-		/* The callback function just called above is responsible
-		 * for calling the appropriate visorchipset_busdev_responders
-		 * function, which will call device_responder()
-		 */
-		;
-	else
-		/*
-		 * Do not kfree(pmsg_hdr) as this is the failure path.
-		 * The success path ('notified') will call the responder
-		 * directly and kfree() there.
-		 */
-		device_responder(cmd, pmsg_hdr, response);
+
+out_respond_and_unlock:
+	device_responder(cmd, pmsg_hdr, response);
+
+out_unlock:
 	up(&notifier_lock);
 }
 
