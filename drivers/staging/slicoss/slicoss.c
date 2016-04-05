@@ -1144,7 +1144,7 @@ static int slic_config_get(struct adapter *adapter, u32 config, u32 config_h)
 /*
  * Compute a checksum of the EEPROM according to RFC 1071.
  */
-static u16 slic_eeprom_cksum(void *eeprom, unsigned len)
+static u16 slic_eeprom_cksum(void *eeprom, unsigned int len)
 {
 	u16 *wp = eeprom;
 	u32 checksum = 0;
