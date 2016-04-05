@@ -15,7 +15,7 @@
 
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r9p0-05rel0"
+MALI_RELEASE_NAME ?= "r11p0-00rel0"
 
 # Paths required for build
 KBASE_PATH = $(src)
@@ -110,13 +110,11 @@ SRC := \
 	mali_kbase_debug_job_fault.c \
 	mali_kbase_smc.c \
 	mali_kbase_mem_pool.c \
-	mali_kbase_mem_pool_debugfs.c
+	mali_kbase_mem_pool_debugfs.c \
+	mali_kbase_tlstream.c
 
-ifeq ($(CONFIG_MALI_MIPE_ENABLED),y)
-	SRC += mali_kbase_tlstream.c
-	ifeq ($(MALI_UNIT_TEST),1)
-		SRC += mali_kbase_tlstream_test.c
-	endif
+ifeq ($(MALI_UNIT_TEST),1)
+	SRC += mali_kbase_tlstream_test.c
 endif
 
 ifeq ($(MALI_CUSTOMER_RELEASE),0)

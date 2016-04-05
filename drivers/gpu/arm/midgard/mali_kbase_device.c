@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -145,8 +145,32 @@ static void kbase_device_all_as_term(struct kbase_device *kbdev)
 int kbase_device_init(struct kbase_device * const kbdev)
 {
 	int i, err;
+#ifdef CONFIG_ARM64
+	struct device_node *np = NULL;
+#endif /* CONFIG_ARM64 */
 
 	spin_lock_init(&kbdev->mmu_mask_change);
+#ifdef CONFIG_ARM64
+	kbdev->cci_snoop_enabled = false;
+	np = kbdev->dev->of_node;
+	if (np != NULL) {
+		if (of_property_read_u32(np, "snoop_enable_smc",
+					&kbdev->snoop_enable_smc))
+			kbdev->snoop_enable_smc = 0;
+		if (of_property_read_u32(np, "snoop_disable_smc",
+					&kbdev->snoop_disable_smc))
+			kbdev->snoop_disable_smc = 0;
+		/* Either both or none of the calls should be provided. */
+		if (!((kbdev->snoop_disable_smc == 0
+			&& kbdev->snoop_enable_smc == 0)
+			|| (kbdev->snoop_disable_smc != 0
+			&& kbdev->snoop_enable_smc != 0))) {
+			WARN_ON(1);
+			err = -EINVAL;
+			goto fail;
+		}
+	}
+#endif /* CONFIG_ARM64 */
 	/* Get the list of workarounds for issues on the current HW
 	 * (identified by the GPU_ID register)
 	 */
@@ -220,7 +244,11 @@ int kbase_device_init(struct kbase_device * const kbdev)
 
 	kbdev->reset_timeout_ms = DEFAULT_RESET_TIMEOUT_MS;
 
+#ifdef CONFIG_MALI_GPU_MMU_AARCH64
+	kbdev->mmu_mode = kbase_mmu_mode_get_aarch64();
+#else
 	kbdev->mmu_mode = kbase_mmu_mode_get_lpae();
+#endif /* CONFIG_MALI_GPU_MMU_AARCH64 */
 
 #ifdef CONFIG_MALI_DEBUG
 	init_waitqueue_head(&kbdev->driver_inactive_wait);

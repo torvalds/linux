@@ -189,23 +189,23 @@ struct kbase_gator_hwcnt_handles *kbase_gator_hwcnt_init(struct kbase_gator_hwcn
 		}
 	/* If we are using any other device */
 	} else {
-		uint32_t nr_l2, nr_sc, j;
+		uint32_t nr_l2, nr_sc_bits, j;
 		uint64_t core_mask;
 
 		nr_l2 = hand->kbdev->gpu_props.props.l2_props.num_l2_slices;
 
 		core_mask = hand->kbdev->gpu_props.props.coherency_info.group[0].core_mask;
 
-		nr_sc = hand->kbdev->gpu_props.props.coherency_info.group[0].num_cores;
+		nr_sc_bits = fls64(core_mask);
 
 		/* The job manager and tiler sets of counters
 		 * are always present */
-		in_out_info->hwc_layout = kmalloc(sizeof(enum hwc_type) * (2 + nr_sc + nr_l2), GFP_KERNEL);
+		in_out_info->hwc_layout = kmalloc(sizeof(enum hwc_type) * (2 + nr_sc_bits + nr_l2), GFP_KERNEL);
 
 		if (!in_out_info->hwc_layout)
 			goto destroy_context;
 
-		dump_size = (2 + nr_sc + nr_l2) * MALI_COUNTERS_PER_BLOCK * MALI_BYTES_PER_COUNTER;
+		dump_size = (2 + nr_sc_bits + nr_l2) * MALI_COUNTERS_PER_BLOCK * MALI_BYTES_PER_COUNTER;
 
 		in_out_info->hwc_layout[i++] = JM_BLOCK;
 		in_out_info->hwc_layout[i++] = TILER_BLOCK;

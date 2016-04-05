@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010, 2012-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010, 2012-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -41,6 +41,72 @@ u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride, u64 nent
 int kbase_mem_flags_change(struct kbase_context *kctx, u64 gpu_addr, unsigned int flags, unsigned int mask);
 int kbase_mem_commit(struct kbase_context *kctx, u64 gpu_addr, u64 new_pages, enum base_backing_threshold_status *failure_reason);
 int kbase_mmap(struct file *file, struct vm_area_struct *vma);
+
+/**
+ * kbase_mem_evictable_init - Initialize the Ephemeral memory the eviction
+ * mechanism.
+ * @kctx: The kbase context to initialize.
+ *
+ * Return: Zero on success or -errno on failure.
+ */
+int kbase_mem_evictable_init(struct kbase_context *kctx);
+
+/**
+ * kbase_mem_evictable_deinit - De-initialize the Ephemeral memory eviction
+ * mechanism.
+ * @kctx: The kbase context to de-initialize.
+ */
+void kbase_mem_evictable_deinit(struct kbase_context *kctx);
+
+/**
+ * kbase_mem_grow_gpu_mapping - Grow the GPU mapping of an allocation
+ * @kctx:      Context the region belongs to
+ * @reg:       The GPU region
+ * @new_pages: The number of pages after the grow
+ * @old_pages: The number of pages before the grow
+ *
+ * Return: 0 on success, -errno on error.
+ *
+ * Expand the GPU mapping to encompass the new psychical pages which have
+ * been added to the allocation.
+ *
+ * Note: Caller must be holding the region lock.
+ */
+int kbase_mem_grow_gpu_mapping(struct kbase_context *kctx,
+		struct kbase_va_region *reg,
+		u64 new_pages, u64 old_pages);
+
+/**
+ * kbase_mem_evictable_make - Make a physical allocation eligible for eviction
+ * @gpu_alloc: The physical allocation to make evictable
+ *
+ * Return: 0 on success, -errno on error.
+ *
+ * Take the provided region and make all the physical pages within it
+ * reclaimable by the kernel, updating the per-process VM stats as well.
+ * Remove any CPU mappings (as these can't be removed in the shrinker callback
+ * as mmap_sem might already be taken) but leave the GPU mapping intact as
+ * and until the shrinker reclaims the allocation.
+ *
+ * Note: Must be called with the region lock of the containing context.
+ */
+int kbase_mem_evictable_make(struct kbase_mem_phy_alloc *gpu_alloc);
+
+/**
+ * kbase_mem_evictable_unmake - Remove a physical allocations eligibility for
+ * eviction.
+ * @alloc: The physical allocation to remove eviction eligibility from.
+ *
+ * Return: True if the allocation had its backing restored and false if
+ * it hasn't.
+ *
+ * Make the physical pages in the region no longer reclaimable and update the
+ * per-process stats, if the shrinker has already evicted the memory then
+ * re-allocate it if the region is still alive.
+ *
+ * Note: Must be called with the region lock of the containing context.
+ */
+bool kbase_mem_evictable_unmake(struct kbase_mem_phy_alloc *alloc);
 
 struct kbase_vmap_struct {
 	u64 gpu_addr;

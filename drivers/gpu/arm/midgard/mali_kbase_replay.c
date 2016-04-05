@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -27,15 +27,11 @@
 #include <mali_kbase_mem_linux.h>
 
 #define JOB_NOT_STARTED 0
-#define JOB_TYPE_MASK      0xfe
-#define JOB_TYPE_NULL      (1 << 1)
-#define JOB_TYPE_VERTEX    (5 << 1)
-#define JOB_TYPE_TILER     (7 << 1)
-#define JOB_TYPE_FUSED     (8 << 1)
-#define JOB_TYPE_FRAGMENT  (9 << 1)
-
-#define JOB_FLAG_DESC_SIZE           (1 << 0)
-#define JOB_FLAG_PERFORM_JOB_BARRIER (1 << 8)
+#define JOB_TYPE_NULL      (1)
+#define JOB_TYPE_VERTEX    (5)
+#define JOB_TYPE_TILER     (7)
+#define JOB_TYPE_FUSED     (8)
+#define JOB_TYPE_FRAGMENT  (9)
 
 #define JOB_HEADER_32_FBD_OFFSET (31*4)
 #define JOB_HEADER_64_FBD_OFFSET (44*4)
@@ -58,17 +54,9 @@
 #define JOB_SOURCE_ID(status)		(((status) >> 16) & 0xFFFF)
 #define JOB_POLYGON_LIST		(0x03)
 
-struct job_head {
-	u32 status;
-	u32 not_complete_index;
-	u64 fault_addr;
-	u16 flags;
-	u16 index;
-	u16 dependencies[2];
-	union {
-		u64 _64;
-		u32 _32;
-	} next;
+struct fragment_job {
+	struct job_descriptor_header header;
+
 	u32 x[2];
 	union {
 		u64 _64;
@@ -77,28 +65,43 @@ struct job_head {
 };
 
 static void dump_job_head(struct kbase_context *kctx, char *head_str,
-		struct job_head *job)
+		struct job_descriptor_header *job)
 {
 #ifdef CONFIG_MALI_DEBUG
 	dev_dbg(kctx->kbdev->dev, "%s\n", head_str);
-	dev_dbg(kctx->kbdev->dev, "addr               = %p\n"
-			"status             = %x\n"
-			"not_complete_index = %x\n"
-			"fault_addr         = %llx\n"
-			"flags              = %x\n"
-			"index              = %x\n"
-			"dependencies       = %x,%x\n",
-			job, job->status, job->not_complete_index,
-			job->fault_addr, job->flags, job->index,
-			job->dependencies[0],
-			job->dependencies[1]);
+	dev_dbg(kctx->kbdev->dev,
+			"addr                  = %p\n"
+			"exception_status      = %x (Source ID: 0x%x Access: 0x%x Exception: 0x%x)\n"
+			"first_incomplete_task = %x\n"
+			"fault_pointer         = %llx\n"
+			"job_descriptor_size   = %x\n"
+			"job_type              = %x\n"
+			"job_barrier           = %x\n"
+			"_reserved_01          = %x\n"
+			"_reserved_02          = %x\n"
+			"_reserved_03          = %x\n"
+			"_reserved_04/05       = %x,%x\n"
+			"job_index             = %x\n"
+			"dependencies          = %x,%x\n",
+			job, job->exception_status,
+			JOB_SOURCE_ID(job->exception_status),
+			(job->exception_status >> 8) & 0x3,
+			job->exception_status  & 0xFF,
+			job->first_incomplete_task,
+			job->fault_pointer, job->job_descriptor_size,
+			job->job_type, job->job_barrier, job->_reserved_01,
+			job->_reserved_02, job->_reserved_03,
+			job->_reserved_04, job->_reserved_05,
+			job->job_index,
+			job->job_dependency_index_1,
+			job->job_dependency_index_2);
 
-	if (job->flags & JOB_FLAG_DESC_SIZE)
+	if (job->job_descriptor_size)
 		dev_dbg(kctx->kbdev->dev, "next               = %llx\n",
-				job->next._64);
+				job->next_job._64);
 	else
 		dev_dbg(kctx->kbdev->dev, "next               = %x\n",
-				job->next._32);
+				job->next_job._32);
 #endif
 }
 
@@ -372,77 +375,81 @@ static int kbasep_replay_reset_job(struct kbase_context *kctx,
 		u32 default_weight, u16 hw_job_id_offset,
 		bool first_in_chain, bool fragment_chain)
 {
-	struct job_head *job;
+	struct fragment_job *frag_job;
+	struct job_descriptor_header *job;
 	u64 new_job_header;
 	struct kbase_vmap_struct map;
 
-	job = kbase_vmap(kctx, *job_header, sizeof(*job), &map);
-	if (!job) {
+	frag_job = kbase_vmap(kctx, *job_header, sizeof(*frag_job), &map);
+	if (!frag_job) {
 		dev_err(kctx->kbdev->dev,
 				 "kbasep_replay_parse_jc: failed to map jc\n");
 		return -EINVAL;
 	}
+	job = &frag_job->header;
 
 	dump_job_head(kctx, "Job header:", job);
 
-	if (job->status == JOB_NOT_STARTED && !fragment_chain) {
+	if (job->exception_status == JOB_NOT_STARTED && !fragment_chain) {
 		dev_err(kctx->kbdev->dev, "Job already not started\n");
 		goto out_unmap;
 	}
-	job->status = JOB_NOT_STARTED;
+	job->exception_status = JOB_NOT_STARTED;
 
-	if ((job->flags & JOB_TYPE_MASK) == JOB_TYPE_VERTEX)
-		job->flags = (job->flags & ~JOB_TYPE_MASK) | JOB_TYPE_NULL;
+	if (job->job_type == JOB_TYPE_VERTEX)
+		job->job_type = JOB_TYPE_NULL;
 
-	if ((job->flags & JOB_TYPE_MASK) == JOB_TYPE_FUSED) {
+	if (job->job_type == JOB_TYPE_FUSED) {
 		dev_err(kctx->kbdev->dev, "Fused jobs can not be replayed\n");
 		goto out_unmap;
 	}
 
 	if (first_in_chain)
-		job->flags |= JOB_FLAG_PERFORM_JOB_BARRIER;
+		job->job_barrier = 1;
 
-	if ((job->dependencies[0] + hw_job_id_offset) > JOB_HEADER_ID_MAX ||
-	    (job->dependencies[1] + hw_job_id_offset) > JOB_HEADER_ID_MAX ||
-	    (job->index + hw_job_id_offset) > JOB_HEADER_ID_MAX) {
+	if ((job->job_dependency_index_1 + hw_job_id_offset) >
+			JOB_HEADER_ID_MAX ||
+	    (job->job_dependency_index_2 + hw_job_id_offset) >
+			JOB_HEADER_ID_MAX ||
+	    (job->job_index + hw_job_id_offset) > JOB_HEADER_ID_MAX) {
 		dev_err(kctx->kbdev->dev,
 			     "Job indicies/dependencies out of valid range\n");
 		goto out_unmap;
 	}
 
-	if (job->dependencies[0])
-		job->dependencies[0] += hw_job_id_offset;
-	if (job->dependencies[1])
-		job->dependencies[1] += hw_job_id_offset;
+	if (job->job_dependency_index_1)
+		job->job_dependency_index_1 += hw_job_id_offset;
+	if (job->job_dependency_index_2)
+		job->job_dependency_index_2 += hw_job_id_offset;
 
-	job->index += hw_job_id_offset;
+	job->job_index += hw_job_id_offset;
 
-	if (job->flags & JOB_FLAG_DESC_SIZE) {
-		new_job_header = job->next._64;
-		if (!job->next._64)
-			job->next._64 = prev_jc;
+	if (job->job_descriptor_size) {
+		new_job_header = job->next_job._64;
+		if (!job->next_job._64)
+			job->next_job._64 = prev_jc;
 	} else {
-		new_job_header = job->next._32;
-		if (!job->next._32)
-			job->next._32 = prev_jc;
+		new_job_header = job->next_job._32;
+		if (!job->next_job._32)
+			job->next_job._32 = prev_jc;
 	}
 	dump_job_head(kctx, "Updated to:", job);
 
-	if ((job->flags & JOB_TYPE_MASK) == JOB_TYPE_TILER) {
-		bool job_64 = (job->flags & JOB_FLAG_DESC_SIZE) != 0;
+	if (job->job_type == JOB_TYPE_TILER) {
+		bool job_64 = job->job_descriptor_size != 0;
 
 		if (kbasep_replay_reset_tiler_job(kctx, *job_header,
 				tiler_heap_free, hierarchy_mask,
 				default_weight, job_64) != 0)
 			goto out_unmap;
 
-	} else if ((job->flags & JOB_TYPE_MASK) == JOB_TYPE_FRAGMENT) {
+	} else if (job->job_type == JOB_TYPE_FRAGMENT) {
 		u64 fbd_address;
 
-		if (job->flags & JOB_FLAG_DESC_SIZE)
-			fbd_address = job->fragment_fbd._64;
+		if (job->job_descriptor_size)
+			fbd_address = frag_job->fragment_fbd._64;
 		else
-			fbd_address = (u64)job->fragment_fbd._32;
+			fbd_address = (u64)frag_job->fragment_fbd._32;
 
 		if (fbd_address & FBD_TYPE) {
 			if (kbasep_replay_reset_mfbd(kctx,
@@ -485,7 +492,7 @@ static int kbasep_replay_find_hw_job_id(struct kbase_context *kctx,
 		u64 jc,	u16 *hw_job_id)
 {
 	while (jc) {
-		struct job_head *job;
+		struct job_descriptor_header *job;
 		struct kbase_vmap_struct map;
 
 		dev_dbg(kctx->kbdev->dev,
@@ -498,13 +505,13 @@ static int kbasep_replay_find_hw_job_id(struct kbase_context *kctx,
 			return -EINVAL;
 		}
 
-		if (job->index > *hw_job_id)
-			*hw_job_id = job->index;
+		if (job->job_index > *hw_job_id)
+			*hw_job_id = job->job_index;
 
-		if (job->flags & JOB_FLAG_DESC_SIZE)
-			jc = job->next._64;
+		if (job->job_descriptor_size)
+			jc = job->next_job._64;
 		else
-			jc = job->next._32;
+			jc = job->next_job._32;
 
 		kbase_vunmap(kctx, &map);
 	}
@@ -957,7 +964,7 @@ static bool kbase_replay_fault_check(struct kbase_jd_atom *katom)
 	base_jd_replay_payload *payload;
 	u64 job_header;
 	u64 job_loop_detect;
-	struct job_head *job;
+	struct job_descriptor_header *job;
 	struct kbase_vmap_struct job_map;
 	struct kbase_vmap_struct map;
 	bool err = false;
@@ -1012,41 +1019,22 @@ static bool kbase_replay_fault_check(struct kbase_jd_atom *katom)
 		}
 
 
-#ifdef CONFIG_MALI_DEBUG
-		dev_dbg(dev, "\njob_head structure:\n"
-			     "Source ID:0x%x Access:0x%x Exception:0x%x\n"
-			     "at job addr               = %p\n"
-			     "not_complete_index        = 0x%x\n"
-			     "fault_addr                = 0x%llx\n"
-			     "flags                     = 0x%x\n"
-			     "index                     = 0x%x\n"
-			     "dependencies              = 0x%x,0x%x\n",
-			     JOB_SOURCE_ID(job->status),
-			     ((job->status >> 8) & 0x3),
-			     (job->status  & 0xFF),
-			     job,
-			     job->not_complete_index,
-			     job->fault_addr,
-			     job->flags,
-			     job->index,
-			     job->dependencies[0],
-			     job->dependencies[1]);
-#endif
+		dump_job_head(kctx, "\njob_head structure:\n", job);
 
 		/* Replay only when the polygon list reader caused the
 		 * DATA_INVALID_FAULT */
 		if ((BASE_JD_EVENT_DATA_INVALID_FAULT == katom->event_code) &&
-		    (JOB_POLYGON_LIST == JOB_SOURCE_ID(job->status))) {
+		   (JOB_POLYGON_LIST == JOB_SOURCE_ID(job->exception_status))) {
 			err = true;
 			kbase_vunmap(kctx, &job_map);
 			break;
 		}
 
 		/* Move on to next fragment job in the list */
-		if (job->flags & JOB_FLAG_DESC_SIZE)
-			job_header = job->next._64;
+		if (job->job_descriptor_size)
+			job_header = job->next_job._64;
 		else
-			job_header = job->next._32;
+			job_header = job->next_job._32;
 
 		kbase_vunmap(kctx, &job_map);
 

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -219,9 +219,6 @@ union kbase_pm_ca_policy_data {
  *                              &struct kbase_pm_callback_conf
  * @callback_power_runtime_idle: Optional callback when the GPU may be idle. See
  *                              &struct kbase_pm_callback_conf
- * @callback_cci_snoop_ctrl: Callback when the GPU L2 power may transition.
- *                           If enable is set then snoops should be enabled
- *                           otherwise snoops should be disabled
  *
  * Note:
  * During an IRQ, @ca_current_policy or @pm_current_policy can be NULL when the
@@ -288,7 +285,6 @@ struct kbase_pm_backend_data {
 	int (*callback_power_runtime_on)(struct kbase_device *kbdev);
 	void (*callback_power_runtime_off)(struct kbase_device *kbdev);
 	int (*callback_power_runtime_idle)(struct kbase_device *kbdev);
-
 };
 
 

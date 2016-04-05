@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -19,4 +19,10 @@
 #include <backend/gpu/mali_kbase_pm_internal.h>
 #include <backend/gpu/mali_kbase_device_internal.h>
 
+void kbase_cache_set_coherency_mode(struct kbase_device *kbdev,
+		u32 mode)
+{
+	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_COHERENCY_REG))
+		kbase_reg_write(kbdev, COHERENCY_ENABLE, mode, NULL);
+}
 

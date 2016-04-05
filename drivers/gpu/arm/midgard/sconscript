@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -19,13 +19,11 @@ import re
 import sys
 Import('env')
 
+
 if Glob('tests/sconscript'):
 	SConscript( 'tests/sconscript' )
 
 mock_test = 0
-
-if env['v'] != '1':
-	env['MAKECOMSTR'] = '[MAKE] ${SOURCE.dir}'
 
 # Fake platform is a transient solution for GPL drivers running in kernel that does not provide configuration via platform data.
 # For such kernels fake_platform_device should be set to 1. For kernels providing platform data fake_platform_device should be set to 0.
@@ -129,6 +127,6 @@ if Glob('internal/sconsfrag'):
 	execfile('internal/sconsfrag')
 	get_internal(env)
 
-env.ProgTarget('kbase', cmd)
+env.KernelObjTarget('kbase', cmd)
 
 env.AppendUnique(BASE=['cutils_linked_list'])

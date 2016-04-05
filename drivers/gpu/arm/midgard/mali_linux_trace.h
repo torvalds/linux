@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -15,18 +15,14 @@
 
 
 
-
-
 #if !defined(_TRACE_MALI_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_MALI_H
 
-#include <linux/stringify.h>
-#include <linux/tracepoint.h>
-
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM mali
-#define TRACE_SYSTEM_STRING __stringify(TRACE_SYSTEM)
 #define TRACE_INCLUDE_FILE mali_linux_trace
+
+#include <linux/tracepoint.h>
 
 #define MALI_JOB_SLOTS_EVENT_CHANGED
 

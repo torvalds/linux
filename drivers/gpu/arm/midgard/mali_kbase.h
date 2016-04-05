@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -139,7 +139,6 @@ void kbase_jd_done_worker(struct work_struct *data);
 void kbase_jd_done(struct kbase_jd_atom *katom, int slot_nr, ktime_t *end_timestamp,
 		kbasep_js_atom_done_code done_code);
 void kbase_jd_cancel(struct kbase_device *kbdev, struct kbase_jd_atom *katom);
-void kbase_jd_evict(struct kbase_device *kbdev, struct kbase_jd_atom *katom);
 void kbase_jd_zap_context(struct kbase_context *kctx);
 bool jd_done_nolock(struct kbase_jd_atom *katom,
 		struct list_head *completed_jobs_ctx);
@@ -191,8 +190,16 @@ int kbase_prepare_soft_job(struct kbase_jd_atom *katom);
 void kbase_finish_soft_job(struct kbase_jd_atom *katom);
 void kbase_cancel_soft_job(struct kbase_jd_atom *katom);
 void kbase_resume_suspended_soft_jobs(struct kbase_device *kbdev);
+void kbasep_add_waiting_soft_job(struct kbase_jd_atom *katom);
 
 bool kbase_replay_process(struct kbase_jd_atom *katom);
+
+enum hrtimer_restart kbasep_soft_event_timeout_worker(struct hrtimer *timer);
+void kbasep_complete_triggered_soft_events(struct kbase_context *kctx, u64 evt);
+int kbasep_read_soft_event_status(
+		struct kbase_context *kctx, u64 evt, unsigned char *status);
+int kbasep_write_soft_event_status(
+		struct kbase_context *kctx, u64 evt, unsigned char new_status);
 
 /* api used internally for register access. Contains validation and tracing */
 void kbase_device_trace_register_access(struct kbase_context *kctx, enum kbase_reg_access_type type, u16 reg_offset, u32 reg_value);

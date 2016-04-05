@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -27,9 +27,7 @@
 #if defined(CONFIG_MALI_GATOR_SUPPORT)
 #include <mali_kbase_gator.h>
 #endif
-#if defined(CONFIG_MALI_MIPE_ENABLED)
 #include <mali_kbase_tlstream.h>
-#endif
 #include <mali_kbase_pm.h>
 #include <mali_kbase_cache_policy.h>
 #include <mali_kbase_config_defaults.h>
@@ -99,6 +97,39 @@ static u32 core_type_to_reg(enum kbase_pm_core_type core_type,
 	return (u32)core_type + (u32)action;
 }
 
+#ifdef CONFIG_ARM64
+static void mali_cci_flush_l2(struct kbase_device *kbdev)
+{
+	const u32 mask = CLEAN_CACHES_COMPLETED | RESET_COMPLETED;
+	u32 loops = KBASE_CLEAN_CACHE_MAX_LOOPS;
+	u32 raw;
+
+	/*
+	 * Note that we don't take the cache flush mutex here since
+	 * we expect to be the last user of the L2, all other L2 users
+	 * would have dropped their references, to initiate L2 power
+	 * down, L2 power down being the only valid place for this
+	 * to be called from.
+	 */
+
+	kbase_reg_write(kbdev,
+			GPU_CONTROL_REG(GPU_COMMAND),
+			GPU_COMMAND_CLEAN_INV_CACHES,
+			NULL);
+
+	raw = kbase_reg_read(kbdev,
+		GPU_CONTROL_REG(GPU_IRQ_RAWSTAT),
+		NULL);
+
+	/* Wait for cache flush to complete before continuing, exit on
+	 * gpu resets or loop expiry. */
+	while (((raw & mask) == 0) && --loops) {
+		raw = kbase_reg_read(kbdev,
+					GPU_CONTROL_REG(GPU_IRQ_RAWSTAT),
+					NULL);
+	}
+}
+#endif
 
 /**
  * kbase_pm_invoke - Invokes an action on a core set
@@ -134,7 +165,7 @@ static void kbase_pm_invoke(struct kbase_device *kbdev,
 			kbase_trace_mali_pm_power_off(core_type, cores);
 	}
 #endif
-#if defined(CONFIG_MALI_MIPE_ENABLED)
+
 	if (cores) {
 		u64 state = kbase_pm_get_state(kbdev, core_type, ACTION_READY);
 
@@ -144,7 +175,7 @@ static void kbase_pm_invoke(struct kbase_device *kbdev,
 			state &= ~cores;
 		kbase_tlstream_aux_pm_state(core_type, state);
 	}
-#endif
+
 	/* Tracing */
 	if (cores) {
 		if (action == ACTION_PWRON)
@@ -177,6 +208,8 @@ static void kbase_pm_invoke(struct kbase_device *kbdev,
 			case KBASE_PM_CORE_L2:
 				KBASE_TRACE_ADD(kbdev, PM_PWROFF_L2, NULL, NULL,
 									0u, lo);
+				/* disable snoops before L2 is turned off */
+				kbase_pm_cache_snoop_disable(kbdev);
 				break;
 			default:
 				break;
@@ -404,6 +437,12 @@ static bool kbase_pm_transition_core_type(struct kbase_device *kbdev,
 			/* All are ready, none will be turned off, and none are
 			 * transitioning */
 			kbdev->pm.backend.l2_powered = 1;
+			/*
+			 * Ensure snoops are enabled after L2 is powered up,
+			 * note that kbase keeps track of the snoop state, so
+			 * safe to repeatedly call.
+			 */
+			kbase_pm_cache_snoop_enable(kbdev);
 			if (kbdev->l2_users_count > 0) {
 				/* Notify any registered l2 cache users
 				 * (optimized out when no users waiting) */
@@ -665,7 +704,7 @@ MOCKABLE(kbase_pm_check_transitions_nolock) (struct kbase_device *kbdev)
 						kbase_pm_get_ready_cores(kbdev,
 							KBASE_PM_CORE_TILER));
 #endif
-#if defined(CONFIG_MALI_MIPE_ENABLED)
+
 		kbase_tlstream_aux_pm_state(
 				KBASE_PM_CORE_L2,
 				kbase_pm_get_ready_cores(
@@ -679,7 +718,6 @@ MOCKABLE(kbase_pm_check_transitions_nolock) (struct kbase_device *kbdev)
 				kbase_pm_get_ready_cores(
 					kbdev,
 					KBASE_PM_CORE_TILER));
-#endif
 
 		KBASE_TRACE_ADD(kbdev, PM_DESIRED_REACHED, NULL, NULL,
 				kbdev->pm.backend.gpu_in_desired_state,
@@ -976,6 +1014,7 @@ bool kbase_pm_clock_off(struct kbase_device *kbdev, bool is_suspend)
 		return false;
 	}
 
+	kbase_pm_cache_snoop_disable(kbdev);
 
 	/* The GPU power may be turned off from this point */
 	kbdev->pm.backend.gpu_powered = false;
@@ -1058,9 +1097,11 @@ static void kbase_pm_hw_issues_detect(struct kbase_device *kbdev)
 	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_10327))
 		kbdev->hw_quirks_sc |= SC_SDC_DISABLE_OQ_DISCARD;
 
+#ifdef CONFIG_MALI_PRFCNT_SET_SECONDARY
 	/* Enable alternative hardware counter selection if configured. */
-	if (DEFAULT_ALTERNATIVE_HWC)
+	if (!GPU_ID_IS_NEW_FORMAT(prod_id))
 		kbdev->hw_quirks_sc |= SC_ALT_COUNTERS;
+#endif
 
 	/* Needed due to MIDBASE-2795. ENABLE_TEXGRD_FLAGS. See PRLAM-10797. */
 	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_10797))
@@ -1094,6 +1135,12 @@ static void kbase_pm_hw_issues_detect(struct kbase_device *kbdev)
 	kbdev->hw_quirks_mmu |= (DEFAULT_AWID_LIMIT & 0x3) <<
 				L2_MMU_CONFIG_LIMIT_EXTERNAL_WRITES_SHIFT;
 
+	if (kbdev->system_coherency == COHERENCY_ACE) {
+		/* Allow memory configuration disparity to be ignored, we
+		 * optimize the use of shared memory and thus we expect
+		 * some disparity in the memory configuration */
+		kbdev->hw_quirks_mmu |= L2_MMU_CONFIG_ALLOW_SNOOP_DISPARITY;
+	}
 
 	/* Only for T86x/T88x-based products after r2p0 */
 	if (prod_id >= 0x860 && prod_id <= 0x880 && major >= 2) {
@@ -1158,6 +1205,33 @@ static void kbase_pm_hw_issues_apply(struct kbase_device *kbdev)
 
 }
 
+void kbase_pm_cache_snoop_enable(struct kbase_device *kbdev)
+{
+	if ((kbdev->system_coherency == COHERENCY_ACE) &&
+		!kbdev->cci_snoop_enabled) {
+#ifdef CONFIG_ARM64
+		if (kbdev->snoop_enable_smc != 0)
+			kbase_invoke_smc_fid(kbdev->snoop_enable_smc, 0, 0, 0);
+#endif /* CONFIG_ARM64 */
+		dev_dbg(kbdev->dev, "MALI - CCI Snoops - Enabled\n");
+		kbdev->cci_snoop_enabled = true;
+	}
+}
+
+void kbase_pm_cache_snoop_disable(struct kbase_device *kbdev)
+{
+	if ((kbdev->system_coherency == COHERENCY_ACE) &&
+		kbdev->cci_snoop_enabled) {
+#ifdef CONFIG_ARM64
+		if (kbdev->snoop_disable_smc != 0) {
+			mali_cci_flush_l2(kbdev);
+			kbase_invoke_smc_fid(kbdev->snoop_disable_smc, 0, 0, 0);
+		}
+#endif /* CONFIG_ARM64 */
+		dev_dbg(kbdev->dev, "MALI - CCI Snoops Disabled\n");
+		kbdev->cci_snoop_enabled = false;
+	}
+}
 
 int kbase_pm_init_hw(struct kbase_device *kbdev, unsigned int flags)
 {
@@ -1182,6 +1256,8 @@ int kbase_pm_init_hw(struct kbase_device *kbdev, unsigned int flags)
 	/* Ensure interrupts are off to begin with, this also clears any
 	 * outstanding interrupts */
 	kbase_pm_disable_interrupts(kbdev);
+	/* Ensure cache snoops are disabled before reset. */
+	kbase_pm_cache_snoop_disable(kbdev);
 	/* Prepare for the soft-reset */
 	kbdev->pm.backend.reset_done = false;
 
@@ -1200,9 +1276,9 @@ int kbase_pm_init_hw(struct kbase_device *kbdev, unsigned int flags)
 
 	/* Soft reset the GPU */
 	KBASE_TRACE_ADD(kbdev, CORE_GPU_SOFT_RESET, NULL, NULL, 0u, 0);
-#if defined(CONFIG_MALI_MIPE_ENABLED)
+
 	kbase_tlstream_jd_gpu_soft_reset(kbdev);
-#endif
+
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
 						GPU_COMMAND_SOFT_RESET, NULL);
 
@@ -1282,6 +1358,15 @@ out:
 
 	kbase_pm_hw_issues_apply(kbdev);
 
+	kbase_cache_set_coherency_mode(kbdev, kbdev->system_coherency);
+
+	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_PROTECTED_MODE)) {
+		u32 gpu_status = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(GPU_STATUS), NULL);
+
+		kbdev->secure_mode = (gpu_status &
+				GPU_STATUS_PROTECTED_MODE_ACTIVE) != 0;
+	}
 
 	/* If cycle counter was in use re-enable it, enable_irqs will only be
 	 * false when called from kbase_pm_powerup */

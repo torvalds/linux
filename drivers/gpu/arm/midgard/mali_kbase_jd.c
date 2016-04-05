@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,9 +25,6 @@
 #endif
 #include <mali_kbase.h>
 #include <mali_kbase_uku.h>
-#ifdef CONFIG_UMP
-#include <linux/ump.h>
-#endif				/* CONFIG_UMP */
 #include <linux/random.h>
 #include <linux/version.h>
 #include <linux/ratelimit.h>
@@ -35,10 +32,7 @@
 
 #include <mali_kbase_jm.h>
 #include <mali_kbase_hwaccess_jm.h>
-
-#if defined(CONFIG_MALI_MIPE_ENABLED)
 #include <mali_kbase_tlstream.h>
-#endif
 
 #define beenthere(kctx, f, a...)  dev_dbg(kctx->kbdev->dev, "%s:" f, __func__, ##a)
 
@@ -91,6 +85,10 @@ static int jd_run_atom(struct kbase_jd_atom *katom)
 		return 0;
 	} else if (katom->core_req & BASE_JD_REQ_SOFT_JOB) {
 		/* Soft-job */
+		if (katom->will_fail_event_code) {
+			katom->status = KBASE_JD_ATOM_STATE_COMPLETED;
+			return 0;
+		}
 		if ((katom->core_req & BASEP_JD_REQ_ATOM_TYPE)
 						  == BASE_JD_REQ_SOFT_REPLAY) {
 			if (!kbase_replay_process(katom))
@@ -98,9 +96,6 @@ static int jd_run_atom(struct kbase_jd_atom *katom)
 		} else if (kbase_process_soft_job(katom) == 0) {
 			kbase_finish_soft_job(katom);
 			katom->status = KBASE_JD_ATOM_STATE_COMPLETED;
-		} else {
-			/* The job has not completed */
-			list_add_tail(&katom->dep_item[0], &kctx->waiting_soft_jobs);
 		}
 		return 0;
 	}
@@ -199,208 +194,6 @@ static void kbase_cancel_kds_wait_job(struct kbase_jd_atom *katom)
 }
 #endif				/* CONFIG_KDS */
 
-static int kbase_jd_user_buf_map(struct kbase_context *kctx,
-		struct kbase_va_region *reg)
-{
-	long pinned_pages;
-	struct kbase_mem_phy_alloc *alloc;
-	struct page **pages;
-	phys_addr_t *pa;
-	long i;
-	int err = -ENOMEM;
-	unsigned long address;
-	struct task_struct *owner;
-	struct device *dev;
-	unsigned long offset;
-	unsigned long local_size;
-
-	alloc = reg->gpu_alloc;
-	pa = kbase_get_gpu_phy_pages(reg);
-	address = alloc->imported.user_buf.address;
-	owner = alloc->imported.user_buf.owner;
-
-	KBASE_DEBUG_ASSERT(alloc->type == KBASE_MEM_TYPE_IMPORTED_USER_BUF);
-
-	pages = alloc->imported.user_buf.pages;
-
-	down_read(&owner->mm->mmap_sem);
-	pinned_pages = get_user_pages(owner, owner->mm,
-			address,
-			alloc->imported.user_buf.nr_pages,
-			reg->flags & KBASE_REG_GPU_WR,
-			0, pages, NULL);
-	up_read(&owner->mm->mmap_sem);
-
-	if (pinned_pages <= 0)
-		return pinned_pages;
-
-	if (pinned_pages != alloc->imported.user_buf.nr_pages) {
-		for (i = 0; i < pinned_pages; i++)
-			put_page(pages[i]);
-		return -ENOMEM;
-	}
-
-	dev = kctx->kbdev->dev;
-	offset = address & ~PAGE_MASK;
-	local_size = alloc->imported.user_buf.size;
-
-	for (i = 0; i < pinned_pages; i++) {
-		dma_addr_t dma_addr;
-		unsigned long min;
-
-		min = MIN(PAGE_SIZE - offset, local_size);
-		dma_addr = dma_map_page(dev, pages[i],
-				offset, min,
-				DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(dev, dma_addr))
-			goto unwind;
-
-		alloc->imported.user_buf.dma_addrs[i] = dma_addr;
-		pa[i] = page_to_phys(pages[i]);
-
-		local_size -= min;
-		offset = 0;
-	}
-
-	alloc->nents = pinned_pages;
-
-	err = kbase_mmu_insert_pages(kctx, reg->start_pfn, pa,
-			kbase_reg_current_backed_size(reg),
-			reg->flags);
-	if (err == 0)
-		return 0;
-
-	alloc->nents = 0;
-	/* fall down */
-unwind:
-	while (i--) {
-		dma_unmap_page(kctx->kbdev->dev,
-				alloc->imported.user_buf.dma_addrs[i],
-				PAGE_SIZE, DMA_BIDIRECTIONAL);
-		put_page(pages[i]);
-		pages[i] = NULL;
-	}
-
-	return err;
-}
-
-static void kbase_jd_user_buf_unmap(struct kbase_context *kctx,
-		struct kbase_mem_phy_alloc *alloc, bool writeable)
-{
-	long i;
-	struct page **pages;
-	unsigned long size = alloc->imported.user_buf.size;
-
-	KBASE_DEBUG_ASSERT(alloc->type == KBASE_MEM_TYPE_IMPORTED_USER_BUF);
-	pages = alloc->imported.user_buf.pages;
-	for (i = 0; i < alloc->imported.user_buf.nr_pages; i++) {
-		unsigned long local_size;
-		dma_addr_t dma_addr = alloc->imported.user_buf.dma_addrs[i];
-
-		local_size = MIN(size, PAGE_SIZE - (dma_addr & ~PAGE_MASK));
-		dma_unmap_page(kctx->kbdev->dev, dma_addr, local_size,
-				DMA_BIDIRECTIONAL);
-		if (writeable)
-			set_page_dirty_lock(pages[i]);
-		put_page(pages[i]);
-		pages[i] = NULL;
-
-		size -= local_size;
-	}
-	alloc->nents = 0;
-}
-
-/* not to use sg_dma_len. */
-#define MALI_SG_DMA_LEN(sg)		((sg)->length)
-
-#ifdef CONFIG_DMA_SHARED_BUFFER
-static int kbase_jd_umm_map(struct kbase_context *kctx, struct kbase_va_region *reg)
-{
-	struct sg_table *sgt;	/* scatterlist_table */
-	struct scatterlist *s;
-	int i;
-	phys_addr_t *pa;
-	int err;
-	size_t count = 0;
-	struct kbase_mem_phy_alloc *alloc;
-
-	alloc = reg->gpu_alloc;
-
-	KBASE_DEBUG_ASSERT(alloc->type == KBASE_MEM_TYPE_IMPORTED_UMM);
-	KBASE_DEBUG_ASSERT(NULL == alloc->imported.umm.sgt);
-	sgt = dma_buf_map_attachment(alloc->imported.umm.dma_attachment, DMA_BIDIRECTIONAL);
-
-	if (IS_ERR_OR_NULL(sgt))
-		return -EINVAL;
-
-	/* save for later */
-	alloc->imported.umm.sgt = sgt;
-
-	pa = kbase_get_gpu_phy_pages(reg);
-	KBASE_DEBUG_ASSERT(pa);
-
-	for_each_sg(sgt->sgl, s, sgt->nents, i) {
-		int j;
-		/* size_t pages = PFN_UP(sg_dma_len(s)); */
-		size_t pages = PFN_UP(MALI_SG_DMA_LEN(s));
-
-		WARN_ONCE(MALI_SG_DMA_LEN(s) & (PAGE_SIZE-1),
-		"MALI_SG_DMA_LEN(s)=%u is not a multiple of PAGE_SIZE\n",
-		MALI_SG_DMA_LEN(s));
-		/*
-		WARN_ONCE(sg_dma_len(s) & (PAGE_SIZE-1),
-		"sg_dma_len(s)=%u is not a multiple of PAGE_SIZE\n",
-		sg_dma_len(s));
-		*/
-
-		WARN_ONCE(sg_dma_address(s) & (PAGE_SIZE-1),
-		"sg_dma_address(s)=%llx is not aligned to PAGE_SIZE\n",
-		(unsigned long long) sg_dma_address(s));
-
-		for (j = 0; (j < pages) && (count < reg->nr_pages); j++, count++)
-			*pa++ = sg_dma_address(s) + (j << PAGE_SHIFT);
-
-		WARN_ONCE(j < pages,
-		"sg list from dma_buf_map_attachment > dma_buf->size=%zu\n",
-		alloc->imported.umm.dma_buf->size);
-	}
-
-	if (WARN_ONCE(count < reg->nr_pages,
-			"sg list from dma_buf_map_attachment < dma_buf->size=%zu, count : %lu, reg->nr_pages : %lu. \n",
-			alloc->imported.umm.dma_buf->size,
-			count,
-			reg->nr_pages)) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	/* Update nents as we now have pages to map */
-	alloc->nents = count;
-
-	err = kbase_mmu_insert_pages(kctx, reg->start_pfn, kbase_get_gpu_phy_pages(reg), kbase_reg_current_backed_size(reg), reg->flags | KBASE_REG_GPU_WR | KBASE_REG_GPU_RD);
-
-out:
-	if (err) {
-		dma_buf_unmap_attachment(alloc->imported.umm.dma_attachment, alloc->imported.umm.sgt, DMA_BIDIRECTIONAL);
-		alloc->imported.umm.sgt = NULL;
-	}
-
-	return err;
-}
-
-static void kbase_jd_umm_unmap(struct kbase_context *kctx, struct kbase_mem_phy_alloc *alloc)
-{
-	KBASE_DEBUG_ASSERT(kctx);
-	KBASE_DEBUG_ASSERT(alloc);
-	KBASE_DEBUG_ASSERT(alloc->imported.umm.dma_attachment);
-	KBASE_DEBUG_ASSERT(alloc->imported.umm.sgt);
-	dma_buf_unmap_attachment(alloc->imported.umm.dma_attachment,
-	    alloc->imported.umm.sgt, DMA_BIDIRECTIONAL);
-	alloc->imported.umm.sgt = NULL;
-	alloc->nents = 0;
-}
-#endif				/* CONFIG_DMA_SHARED_BUFFER */
-
 void kbase_jd_free_external_resources(struct kbase_jd_atom *katom)
 {
 #ifdef CONFIG_KDS
@@ -441,80 +234,18 @@ static void kbase_jd_post_external_resources(struct kbase_jd_atom *katom)
 		res_no = katom->nr_extres;
 		while (res_no-- > 0) {
 			struct kbase_mem_phy_alloc *alloc = katom->extres[res_no].alloc;
+			struct kbase_va_region *reg;
 
-			switch (alloc->type) {
-#ifdef CONFIG_DMA_SHARED_BUFFER
-			case KBASE_MEM_TYPE_IMPORTED_UMM: {
-				alloc->imported.umm.current_mapping_usage_count--;
-
-				if (0 == alloc->imported.umm.current_mapping_usage_count) {
-					struct kbase_va_region *reg;
-
-					reg = kbase_region_tracker_find_region_base_address(
-							katom->kctx,
-							katom->extres[res_no].gpu_address);
-
-					if (reg && reg->gpu_alloc == alloc)
-						kbase_mmu_teardown_pages(
-								katom->kctx,
-								reg->start_pfn,
-								kbase_reg_current_backed_size(reg));
-
-					kbase_jd_umm_unmap(katom->kctx, alloc);
-				}
-			}
-			break;
-#endif /* CONFIG_DMA_SHARED_BUFFER */
-			case KBASE_MEM_TYPE_IMPORTED_USER_BUF: {
-				alloc->imported.user_buf.current_mapping_usage_count--;
-
-				if (0 == alloc->imported.user_buf.current_mapping_usage_count) {
-					struct kbase_va_region *reg;
-
-					reg = kbase_region_tracker_find_region_base_address(
-							katom->kctx,
-							katom->extres[res_no].gpu_address);
-
-					if (reg && reg->gpu_alloc == alloc)
-						kbase_mmu_teardown_pages(
-								katom->kctx,
-								reg->start_pfn,
-								kbase_reg_current_backed_size(reg));
-
-					kbase_jd_user_buf_unmap(katom->kctx,
-							alloc,
-							reg->flags & KBASE_REG_GPU_WR);
-				}
-			}
-			break;
-			default:
-			break;
-			}
-			kbase_mem_phy_alloc_put(katom->extres[res_no].alloc);
+			reg = kbase_region_tracker_find_region_base_address(
+					katom->kctx,
+					katom->extres[res_no].gpu_address);
+			kbase_unmap_external_resource(katom->kctx, reg, alloc);
 		}
 		kfree(katom->extres);
 		katom->extres = NULL;
 	}
 	kbase_gpu_vm_unlock(katom->kctx);
 }
-
-#if (defined(CONFIG_KDS) && defined(CONFIG_UMP)) || defined(CONFIG_DMA_SHARED_BUFFER_USES_KDS)
-static void add_kds_resource(struct kds_resource *kds_res, struct kds_resource **kds_resources, u32 *kds_res_count, unsigned long *kds_access_bitmap, bool exclusive)
-{
-	u32 i;
-
-	for (i = 0; i < *kds_res_count; i++) {
-		/* Duplicate resource, ignore */
-		if (kds_resources[i] == kds_res)
-			return;
-	}
-
-	kds_resources[*kds_res_count] = kds_res;
-	if (exclusive)
-		set_bit(*kds_res_count, kds_access_bitmap);
-	(*kds_res_count)++;
-}
-#endif
 
 /*
  * Set up external resources needed by this job.
@@ -580,13 +311,20 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 	}
 #endif				/* CONFIG_KDS */
 
+	/* Take the processes mmap lock */
+	down_read(&current->mm->mmap_sem);
+
 	/* need to keep the GPU VM locked while we set up UMM buffers */
 	kbase_gpu_vm_lock(katom->kctx);
 	for (res_no = 0; res_no < katom->nr_extres; res_no++) {
 		struct base_external_resource *res;
 		struct kbase_va_region *reg;
+		struct kbase_mem_phy_alloc *alloc;
+		bool exclusive;
 
 		res = &input_extres[res_no];
+		exclusive = (res->ext_resource & BASE_EXT_RES_ACCESS_EXCLUSIVE)
+				? true : false;
 		reg = kbase_region_tracker_find_region_enclosing_address(
 				katom->kctx,
 				res->ext_resource & ~BASE_EXT_RES_ACCESS_EXCLUSIVE);
@@ -599,76 +337,17 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 		if (!(katom->core_req & BASE_JD_REQ_SOFT_JOB) &&
 				(reg->flags & KBASE_REG_SECURE)) {
 			katom->atom_flags |= KBASE_KATOM_FLAG_SECURE;
-			if ((katom->core_req & BASE_JD_REQ_FS) == 0) {
-				WARN_RATELIMIT(1, "Secure non-fragment jobs not supported");
-				goto failed_loop;
-			}
 		}
 
-		/* decide what needs to happen for this resource */
-		switch (reg->gpu_alloc->type) {
-		case BASE_MEM_IMPORT_TYPE_USER_BUFFER: {
-			reg->gpu_alloc->imported.user_buf.current_mapping_usage_count++;
-			if (1 == reg->gpu_alloc->imported.user_buf.current_mapping_usage_count) {
-					/* use a local variable to not pollute
-					 * err_ret_val with a potential success
-					 * value as some other gotos depend on
-					 * the default error code stored in
-					 * err_ret_val */
-					int tmp;
-
-					tmp = kbase_jd_user_buf_map(katom->kctx,
-							reg);
-					if (0 != tmp) {
-						/* failed to map this buffer,
-						 * roll back */
-						err_ret_val = tmp;
-						reg->gpu_alloc->imported.user_buf.current_mapping_usage_count--;
-						goto failed_loop;
-					}
-			}
-		}
-		break;
-		case BASE_MEM_IMPORT_TYPE_UMP: {
-#if defined(CONFIG_KDS) && defined(CONFIG_UMP)
-				struct kds_resource *kds_res;
-
-				kds_res = ump_dd_kds_resource_get(reg->gpu_alloc->imported.ump_handle);
-				if (kds_res)
-					add_kds_resource(kds_res, kds_resources, &kds_res_count,
-							kds_access_bitmap,
-							res->ext_resource & BASE_EXT_RES_ACCESS_EXCLUSIVE);
-#endif				/*defined(CONFIG_KDS) && defined(CONFIG_UMP) */
-				break;
-		}
-#ifdef CONFIG_DMA_SHARED_BUFFER
-		case BASE_MEM_IMPORT_TYPE_UMM: {
-#ifdef CONFIG_DMA_SHARED_BUFFER_USES_KDS
-				struct kds_resource *kds_res;
-
-				kds_res = get_dma_buf_kds_resource(reg->gpu_alloc->imported.umm.dma_buf);
-				if (kds_res)
-					add_kds_resource(kds_res, kds_resources, &kds_res_count, kds_access_bitmap, res->ext_resource & BASE_EXT_RES_ACCESS_EXCLUSIVE);
+		alloc = kbase_map_external_resource(katom->kctx, reg,
+				current->mm
+#ifdef CONFIG_KDS
+				, &kds_res_count, kds_resources,
+				kds_access_bitmap, exclusive
 #endif
-				reg->gpu_alloc->imported.umm.current_mapping_usage_count++;
-				if (1 == reg->gpu_alloc->imported.umm.current_mapping_usage_count) {
-					/* use a local variable to not pollute err_ret_val
-					 * with a potential success value as some other gotos depend
-					 * on the default error code stored in err_ret_val */
-					int tmp;
-
-					tmp = kbase_jd_umm_map(katom->kctx, reg);
-					if (tmp) {
-						/* failed to map this buffer, roll back */
-						err_ret_val = tmp;
-						reg->gpu_alloc->imported.umm.current_mapping_usage_count--;
-						goto failed_loop;
-					}
-				}
-				break;
-		}
-#endif
-		default:
+				);
+		if (!alloc) {
+			err_ret_val = -EINVAL;
 			goto failed_loop;
 		}
 
@@ -679,11 +358,14 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 		 * until the last read for an element.
 		 * */
 		katom->extres[res_no].gpu_address = reg->start_pfn << PAGE_SHIFT; /* save the start_pfn (as an address, not pfn) to use fast lookup later */
-		katom->extres[res_no].alloc = kbase_mem_phy_alloc_get(reg->gpu_alloc);
+		katom->extres[res_no].alloc = alloc;
 	}
 	/* successfully parsed the extres array */
 	/* drop the vm lock before we call into kds */
 	kbase_gpu_vm_unlock(katom->kctx);
+
+	/* Release the processes mmap lock */
+	up_read(&current->mm->mmap_sem);
 
 #ifdef CONFIG_KDS
 	if (kds_res_count) {
@@ -716,6 +398,8 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 
 #ifdef CONFIG_KDS
  failed_kds_setup:
+	/* Lock the processes mmap lock */
+	down_read(&current->mm->mmap_sem);
 
 	/* lock before we unmap */
 	kbase_gpu_vm_lock(katom->kctx);
@@ -725,29 +409,13 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 	/* undo the loop work */
 	while (res_no-- > 0) {
 		struct kbase_mem_phy_alloc *alloc = katom->extres[res_no].alloc;
-#ifdef CONFIG_DMA_SHARED_BUFFER
-		if (alloc->type == KBASE_MEM_TYPE_IMPORTED_UMM) {
-			alloc->imported.umm.current_mapping_usage_count--;
 
-			if (0 == alloc->imported.umm.current_mapping_usage_count) {
-				struct kbase_va_region *reg;
-
-				reg = kbase_region_tracker_find_region_base_address(
-						katom->kctx,
-						katom->extres[res_no].gpu_address);
-
-				if (reg && reg->gpu_alloc == alloc)
-					kbase_mmu_teardown_pages(katom->kctx,
-							reg->start_pfn,
-							kbase_reg_current_backed_size(reg));
-
-				kbase_jd_umm_unmap(katom->kctx, alloc);
-			}
-		}
-#endif				/* CONFIG_DMA_SHARED_BUFFER */
-		kbase_mem_phy_alloc_put(alloc);
+		kbase_unmap_external_resource(katom->kctx, NULL, alloc);
 	}
 	kbase_gpu_vm_unlock(katom->kctx);
+
+	/* Release the processes mmap lock */
+	up_read(&current->mm->mmap_sem);
 
  early_err_out:
 	kfree(katom->extres);
@@ -761,8 +429,7 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 
 static inline void jd_resolve_dep(struct list_head *out_list,
 					struct kbase_jd_atom *katom,
-					u8 d,
-					bool ctx_is_dying)
+					u8 d)
 {
 	u8 other_d = !d;
 
@@ -779,12 +446,7 @@ static inline void jd_resolve_dep(struct list_head *out_list,
 		kbase_jd_katom_dep_clear(&dep_atom->dep[d]);
 
 		if (katom->event_code != BASE_JD_EVENT_DONE &&
-			(dep_type != BASE_JD_DEP_TYPE_ORDER || ctx_is_dying)) {
-			/* Atom failed, so remove the other dependencies and immediately fail the atom */
-			if (kbase_jd_katom_dep_atom(&dep_atom->dep[other_d])) {
-				list_del(&dep_atom->dep_item[other_d]);
-				kbase_jd_katom_dep_clear(&dep_atom->dep[other_d]);
-			}
+			(dep_type != BASE_JD_DEP_TYPE_ORDER)) {
 #ifdef CONFIG_KDS
 			if (!dep_atom->kds_dep_satisfied) {
 				/* Just set kds_dep_satisfied to true. If the callback happens after this then it will early out and
@@ -797,10 +459,17 @@ static inline void jd_resolve_dep(struct list_head *out_list,
 			dep_atom->event_code = katom->event_code;
 			KBASE_DEBUG_ASSERT(dep_atom->status !=
 						KBASE_JD_ATOM_STATE_UNUSED);
-			dep_atom->status = KBASE_JD_ATOM_STATE_COMPLETED;
 
-			list_add_tail(&dep_atom->dep_item[0], out_list);
-		} else if (!kbase_jd_katom_dep_atom(&dep_atom->dep[other_d])) {
+			if ((dep_atom->core_req & BASE_JD_REQ_SOFT_REPLAY)
+					!= BASE_JD_REQ_SOFT_REPLAY) {
+				dep_atom->will_fail_event_code =
+					dep_atom->event_code;
+			} else {
+				dep_atom->status =
+					KBASE_JD_ATOM_STATE_COMPLETED;
+			}
+		}
+		if (!kbase_jd_katom_dep_atom(&dep_atom->dep[other_d])) {
 #ifdef CONFIG_KDS
 			if (dep_atom->kds_dep_satisfied)
 #endif
@@ -873,7 +542,6 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 {
 	struct kbase_context *kctx = katom->kctx;
 	struct kbase_device *kbdev = kctx->kbdev;
-	struct kbasep_js_kctx_info *js_kctx_info = &kctx->jctx.sched_info;
 	struct list_head completed_jobs;
 	struct list_head runnable_jobs;
 	bool need_to_try_schedule_context = false;
@@ -887,7 +555,6 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 #if MALI_CUSTOMER_RELEASE == 0
 	jd_check_force_failure(katom);
 #endif
-
 
 	/* This is needed in case an atom is failed due to being invalid, this
 	 * can happen *before* the jobs that the atom depends on have completed */
@@ -924,8 +591,7 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 		KBASE_DEBUG_ASSERT(katom->status == KBASE_JD_ATOM_STATE_COMPLETED);
 
 		for (i = 0; i < 2; i++)
-			jd_resolve_dep(&runnable_jobs, katom, i,
-						js_kctx_info->ctx.is_dying);
+			jd_resolve_dep(&runnable_jobs, katom, i);
 
 		if (katom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES)
 			kbase_jd_post_external_resources(katom);
@@ -940,7 +606,8 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 
 			KBASE_DEBUG_ASSERT(node->status != KBASE_JD_ATOM_STATE_UNUSED);
 
-			if (node->status != KBASE_JD_ATOM_STATE_COMPLETED) {
+			if (node->status != KBASE_JD_ATOM_STATE_COMPLETED &&
+					!kctx->jctx.sched_info.ctx.is_dying) {
 				need_to_try_schedule_context |= jd_run_atom(node);
 			} else {
 				node->event_code = katom->event_code;
@@ -964,6 +631,12 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 			if (node->status == KBASE_JD_ATOM_STATE_COMPLETED)
 				list_add_tail(&node->dep_item[0], &completed_jobs);
 		}
+
+		/* Completing an atom might have freed up space
+		 * in the ringbuffer, but only on that slot. */
+		jsctx_ll_flush_to_rb(kctx,
+				katom->sched_priority,
+				katom->slot_nr);
 
 		/* Register a completed job as a disjoint event when the GPU
 		 * is in a disjoint state (ie. being reset or replaying jobs).
@@ -1052,6 +725,7 @@ bool jd_submit_atom(struct kbase_context *kctx,
 	int i;
 	int sched_prio;
 	bool ret;
+	bool will_fail = false;
 
 	/* Update the TOTAL number of jobs. This includes those not tracked by
 	 * the scheduler: 'not ready to run' and 'dependency-only' jobs. */
@@ -1075,6 +749,7 @@ bool jd_submit_atom(struct kbase_context *kctx,
 	katom->need_cache_flush_cores_retained = 0;
 	katom->x_pre_dep = NULL;
 	katom->x_post_dep = NULL;
+	katom->will_fail_event_code = 0;
 #ifdef CONFIG_KDS
 	/* Start by assuming that the KDS dependencies are satisfied,
 	 * kbase_jd_pre_external_resources will correct this if there are dependencies */
@@ -1096,7 +771,7 @@ bool jd_submit_atom(struct kbase_context *kctx,
 					dep_atom_type != BASE_JD_DEP_TYPE_DATA) {
 				katom->event_code = BASE_JD_EVENT_JOB_CONFIG_FAULT;
 				katom->status = KBASE_JD_ATOM_STATE_COMPLETED;
-#if defined(CONFIG_MALI_MIPE_ENABLED)
+
 				/* Wrong dependency setup. Atom will be sent
 				 * back to user space. Do not record any
 				 * dependencies. */
@@ -1105,7 +780,7 @@ bool jd_submit_atom(struct kbase_context *kctx,
 						kbase_jd_atom_id(kctx, katom));
 				kbase_tlstream_tl_ret_atom_ctx(
 						katom, kctx);
-#endif
+
 				ret = jd_done_nolock(katom, NULL);
 				goto out;
 			}
@@ -1138,16 +813,10 @@ bool jd_submit_atom(struct kbase_context *kctx,
 				continue;
 			}
 
-			if (i == 1 && kbase_jd_katom_dep_atom(&katom->dep[0])) {
-				/* Remove the previous dependency */
-				list_del(&katom->dep_item[0]);
-				kbase_jd_katom_dep_clear(&katom->dep[0]);
-			}
-
 			/* Atom has completed, propagate the error code if any */
 			katom->event_code = dep_atom->event_code;
 			katom->status = KBASE_JD_ATOM_STATE_QUEUED;
-#if defined(CONFIG_MALI_MIPE_ENABLED)
+
 			/* This atom is going through soft replay or
 			 * will be sent back to user space. Do not record any
 			 * dependencies. */
@@ -1155,7 +824,7 @@ bool jd_submit_atom(struct kbase_context *kctx,
 					katom,
 					kbase_jd_atom_id(kctx, katom));
 			kbase_tlstream_tl_ret_atom_ctx(katom, kctx);
-#endif
+
 			if ((katom->core_req & BASEP_JD_REQ_ATOM_TYPE)
 					 == BASE_JD_REQ_SOFT_REPLAY) {
 				if (kbase_replay_process(katom)) {
@@ -1163,9 +832,8 @@ bool jd_submit_atom(struct kbase_context *kctx,
 					goto out;
 				}
 			}
-			ret = jd_done_nolock(katom, NULL);
+			will_fail = true;
 
-			goto out;
 		} else {
 			/* Atom is in progress, add this atom to the list */
 			list_add_tail(&katom->dep_item[i], &dep_atom->dep_head[i]);
@@ -1174,12 +842,25 @@ bool jd_submit_atom(struct kbase_context *kctx,
 		}
 	}
 
-	/* These must occur after the above loop to ensure that an atom that
-	 * depends on a previous atom with the same number behaves as expected */
-	katom->event_code = BASE_JD_EVENT_DONE;
-	katom->status = KBASE_JD_ATOM_STATE_QUEUED;
+	if (will_fail) {
+		if (!queued) {
+			ret = jd_done_nolock(katom, NULL);
 
-#if defined(CONFIG_MALI_MIPE_ENABLED)
+			goto out;
+		} else {
+			katom->will_fail_event_code = katom->event_code;
+			ret = false;
+
+			goto out;
+		}
+	} else {
+		/* These must occur after the above loop to ensure that an atom
+		 * that depends on a previous atom with the same number behaves
+		 * as expected */
+		katom->event_code = BASE_JD_EVENT_DONE;
+		katom->status = KBASE_JD_ATOM_STATE_QUEUED;
+	}
+
 	/* Create a new atom recording all dependencies it was set up with. */
 	kbase_tlstream_tl_new_atom(
 			katom,
@@ -1192,7 +873,6 @@ bool jd_submit_atom(struct kbase_context *kctx,
 					(void *)kbase_jd_katom_dep_atom(
 						&katom->dep[i]),
 					(void *)katom);
-#endif
 
 	/* Reject atoms with job chain = NULL, as these cause issues with soft-stop */
 	if (!katom->jc && (katom->core_req & BASEP_JD_REQ_ATOM_TYPE) != BASE_JD_REQ_DEP) {
@@ -1283,8 +963,7 @@ bool jd_submit_atom(struct kbase_context *kctx,
 			ret = jd_done_nolock(katom, NULL);
 			goto out;
 		}
-		/* The job has not yet completed */
-		list_add_tail(&katom->dep_item[0], &kctx->waiting_soft_jobs);
+
 		ret = false;
 	} else if ((katom->core_req & BASEP_JD_REQ_ATOM_TYPE) != BASE_JD_REQ_DEP) {
 		katom->status = KBASE_JD_ATOM_STATE_IN_JS;
@@ -1522,7 +1201,6 @@ void kbase_jd_done_worker(struct work_struct *data)
 
 		mutex_unlock(&js_kctx_info->ctx.jsctx_mutex);
 		mutex_unlock(&js_devdata->queue_mutex);
-		mutex_unlock(&jctx->lock);
 
 		spin_lock_irqsave(&js_devdata->runpool_irq.lock, flags);
 
@@ -1530,6 +1208,7 @@ void kbase_jd_done_worker(struct work_struct *data)
 		kbase_js_unpull(kctx, katom);
 
 		spin_unlock_irqrestore(&js_devdata->runpool_irq.lock, flags);
+		mutex_unlock(&jctx->lock);
 
 		return;
 	}
@@ -1715,51 +1394,6 @@ static void jd_cancel_worker(struct work_struct *data)
 }
 
 /**
- * jd_evict_worker - Work queue job evict function
- * @data: a &struct work_struct
- *
- * Only called as part of evicting failed jobs. This is only called on jobs that
- * were never submitted to HW Access. Jobs that were submitted are handled
- * through kbase_jd_done_worker().
- * Operates serially with the kbase_jd_done_worker() on the work queue.
- *
- * We don't need to release most of the resources that would occur on
- * kbase_jd_done() or kbase_jd_done_worker(), because the atoms here must not be
- * running (by virtue of having not been submitted to HW Access).
- */
-static void jd_evict_worker(struct work_struct *data)
-{
-	struct kbase_jd_atom *katom = container_of(data, struct kbase_jd_atom,
-									work);
-	struct kbase_jd_context *jctx;
-	struct kbase_context *kctx;
-	struct kbasep_js_kctx_info *js_kctx_info;
-	struct kbase_device *kbdev;
-
-	/* Soft jobs should never reach this function */
-	KBASE_DEBUG_ASSERT((katom->core_req & BASE_JD_REQ_SOFT_JOB) == 0);
-
-	kctx = katom->kctx;
-	kbdev = kctx->kbdev;
-	jctx = &kctx->jctx;
-	js_kctx_info = &kctx->jctx.sched_info;
-
-	KBASE_TRACE_ADD(kbdev, JD_CANCEL_WORKER, kctx, katom, katom->jc, 0);
-
-	/* Scheduler: Remove the job from the system */
-	mutex_lock(&js_kctx_info->ctx.jsctx_mutex);
-	kbasep_js_remove_cancelled_job(kbdev, kctx, katom);
-	mutex_unlock(&js_kctx_info->ctx.jsctx_mutex);
-
-	mutex_lock(&jctx->lock);
-	jd_done_nolock(katom, NULL);
-	/* katom may have been freed now, do not use! */
-	mutex_unlock(&jctx->lock);
-
-	kbase_js_sched_all(kbdev);
-}
-
-/**
  * kbase_jd_done - Complete a job that has been removed from the Hardware
  * @katom: atom which has been completed
  * @slot_nr: slot the atom was on
@@ -1802,7 +1436,8 @@ void kbase_jd_done(struct kbase_jd_atom *katom, int slot_nr,
 
 #ifdef CONFIG_DEBUG_FS
 	/* a failed job happened and is waiting for dumping*/
-	if (kbase_debug_job_fault_process(katom, katom->event_code))
+	if (!katom->will_fail_event_code &&
+			kbase_debug_job_fault_process(katom, katom->event_code))
 		return;
 #endif
 
@@ -1840,30 +1475,6 @@ void kbase_jd_cancel(struct kbase_device *kbdev, struct kbase_jd_atom *katom)
 	queue_work(kctx->jctx.job_done_wq, &katom->work);
 }
 
-void kbase_jd_evict(struct kbase_device *kbdev, struct kbase_jd_atom *katom)
-{
-	struct kbase_context *kctx;
-	struct kbasep_js_kctx_info *js_kctx_info;
-
-	KBASE_DEBUG_ASSERT(NULL != kbdev);
-	KBASE_DEBUG_ASSERT(NULL != katom);
-	kctx = katom->kctx;
-	KBASE_DEBUG_ASSERT(NULL != kctx);
-
-	js_kctx_info = &kctx->jctx.sched_info;
-
-	KBASE_TRACE_ADD(kbdev, JD_CANCEL, kctx, katom, katom->jc, 0);
-
-	/* This should only be done from a context that is currently scheduled
-	 */
-	KBASE_DEBUG_ASSERT(js_kctx_info->ctx.is_scheduled);
-
-	WARN_ON(work_pending(&katom->work));
-
-	KBASE_DEBUG_ASSERT(0 == object_is_on_stack(&katom->work));
-	INIT_WORK(&katom->work, jd_evict_worker);
-	queue_work(kctx->jctx.job_done_wq, &katom->work);
-}
 
 void kbase_jd_zap_context(struct kbase_context *kctx)
 {
@@ -1886,6 +1497,7 @@ void kbase_jd_zap_context(struct kbase_context *kctx)
 	 * queued outside the job scheduler.
 	 */
 
+	hrtimer_cancel(&kctx->soft_event_timeout);
 	list_for_each_safe(entry, tmp, &kctx->waiting_soft_jobs) {
 		katom = list_entry(entry, struct kbase_jd_atom, dep_item[0]);
 		kbase_cancel_soft_job(katom);

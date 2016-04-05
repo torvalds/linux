@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -24,7 +24,7 @@
  * Attached value: number in kHz
  * Default value: NA
  */
-#define GPU_FREQ_KHZ_MAX (5000)
+#define GPU_FREQ_KHZ_MAX kbase_get_platform_max_freq()
 /**
  * Minimum frequency GPU will be clocked at. Given in kHz.
  * This must be specified as there is no default value.
@@ -32,16 +32,7 @@
  * Attached value: number in kHz
  * Default value: NA
  */
-#define GPU_FREQ_KHZ_MIN (5000)
-
-/**
- * Values used for determining the GPU frequency based on the LogicTile type
- * Used by the function kbase_get_platform_logic_tile_type
- */
-#define VE_VIRTEX6_GPU_FREQ_MIN 5000
-#define VE_VIRTEX6_GPU_FREQ_MAX 5000
-#define VE_VIRTEX7_GPU_FREQ_MIN 40000
-#define VE_VIRTEX7_GPU_FREQ_MAX 40000
+#define GPU_FREQ_KHZ_MIN kbase_get_platform_min_freq()
 
 /**
  * CPU_SPEED_FUNC - A pointer to a function that calculates the CPU clock
