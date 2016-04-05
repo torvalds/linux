@@ -1106,6 +1106,14 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 	if (!ch->ch_wqueue)
 		ch->ch_wqueue = kzalloc(WQUEUESIZE, GFP_KERNEL);
 
+	if (!ch->ch_rqueue || !ch->ch_equeue || !ch->ch_wqueue) {
+		kfree(ch->ch_rqueue);
+		kfree(ch->ch_equeue);
+		kfree(ch->ch_wqueue);
+
+		return -ENOMEM;
+	}
+
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
 	ch->ch_flags &= ~(CH_OPENING);
