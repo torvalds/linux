@@ -328,8 +328,8 @@ static void handle_set_wfi_drv_handler(struct wilc_vif *vif,
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
 }
 
-static s32 handle_set_operation_mode(struct wilc_vif *vif,
-				     struct op_mode *hif_op_mode)
+static void handle_set_operation_mode(struct wilc_vif *vif,
+				      struct op_mode *hif_op_mode)
 {
 	s32 result = 0;
 	struct wid wid;
@@ -345,12 +345,8 @@ static s32 handle_set_operation_mode(struct wilc_vif *vif,
 	if ((hif_op_mode->mode) == IDLE_MODE)
 		complete(&hif_driver_comp);
 
-	if (result) {
+	if (result)
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
-		return -EINVAL;
-	}
-
-	return result;
 }
 
 static s32 handle_set_ip_address(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
