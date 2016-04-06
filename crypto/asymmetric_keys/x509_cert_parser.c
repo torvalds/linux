@@ -48,14 +48,11 @@ void x509_free_certificate(struct x509_certificate *cert)
 {
 	if (cert) {
 		public_key_free(cert->pub);
+		public_key_signature_free(cert->sig);
 		kfree(cert->issuer);
 		kfree(cert->subject);
 		kfree(cert->id);
 		kfree(cert->skid);
-		kfree(cert->akid_id);
-		kfree(cert->akid_skid);
-		kfree(cert->sig.digest);
-		kfree(cert->sig.s);
 		kfree(cert);
 	}
 }
@@ -77,6 +74,9 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 		goto error_no_cert;
 	cert->pub = kzalloc(sizeof(struct public_key), GFP_KERNEL);
 	if (!cert->pub)
+		goto error_no_ctx;
+	cert->sig = kzalloc(sizeof(struct public_key_signature), GFP_KERNEL);
+	if (!cert->sig)
 		goto error_no_ctx;
 	ctx = kzalloc(sizeof(struct x509_parse_context), GFP_KERNEL);
 	if (!ctx)
@@ -188,33 +188,33 @@ int x509_note_pkey_algo(void *context, size_t hdrlen,
 		return -ENOPKG; /* Unsupported combination */
 
 	case OID_md4WithRSAEncryption:
-		ctx->cert->sig.hash_algo = "md4";
-		ctx->cert->sig.pkey_algo = "rsa";
+		ctx->cert->sig->hash_algo = "md4";
+		ctx->cert->sig->pkey_algo = "rsa";
 		break;
 
 	case OID_sha1WithRSAEncryption:
-		ctx->cert->sig.hash_algo = "sha1";
-		ctx->cert->sig.pkey_algo = "rsa";
+		ctx->cert->sig->hash_algo = "sha1";
+		ctx->cert->sig->pkey_algo = "rsa";
 		break;
 
 	case OID_sha256WithRSAEncryption:
-		ctx->cert->sig.hash_algo = "sha256";
-		ctx->cert->sig.pkey_algo = "rsa";
+		ctx->cert->sig->hash_algo = "sha256";
+		ctx->cert->sig->pkey_algo = "rsa";
 		break;
 
 	case OID_sha384WithRSAEncryption:
-		ctx->cert->sig.hash_algo = "sha384";
-		ctx->cert->sig.pkey_algo = "rsa";
+		ctx->cert->sig->hash_algo = "sha384";
+		ctx->cert->sig->pkey_algo = "rsa";
 		break;
 
 	case OID_sha512WithRSAEncryption:
-		ctx->cert->sig.hash_algo = "sha512";
-		ctx->cert->sig.pkey_algo = "rsa";
+		ctx->cert->sig->hash_algo = "sha512";
+		ctx->cert->sig->pkey_algo = "rsa";
 		break;
 
 	case OID_sha224WithRSAEncryption:
-		ctx->cert->sig.hash_algo = "sha224";
-		ctx->cert->sig.pkey_algo = "rsa";
+		ctx->cert->sig->hash_algo = "sha224";
+		ctx->cert->sig->pkey_algo = "rsa";
 		break;
 	}
 
@@ -572,14 +572,14 @@ int x509_akid_note_kid(void *context, size_t hdrlen,
 
 	pr_debug("AKID: keyid: %*phN\n", (int)vlen, value);
 
-	if (ctx->cert->akid_skid)
+	if (ctx->cert->sig->auth_ids[1])
 		return 0;
 
 	kid = asymmetric_key_generate_id(value, vlen, "", 0);
 	if (IS_ERR(kid))
 		return PTR_ERR(kid);
 	pr_debug("authkeyid %*phN\n", kid->len, kid->data);
-	ctx->cert->akid_skid = kid;
+	ctx->cert->sig->auth_ids[1] = kid;
 	return 0;
 }
 
@@ -611,7 +611,7 @@ int x509_akid_note_serial(void *context, size_t hdrlen,
 
 	pr_debug("AKID: serial: %*phN\n", (int)vlen, value);
 
-	if (!ctx->akid_raw_issuer || ctx->cert->akid_id)
+	if (!ctx->akid_raw_issuer || ctx->cert->sig->auth_ids[0])
 		return 0;
 
 	kid = asymmetric_key_generate_id(value,
@@ -622,6 +622,6 @@ int x509_akid_note_serial(void *context, size_t hdrlen,
 		return PTR_ERR(kid);
 
 	pr_debug("authkeyid %*phN\n", kid->len, kid->data);
-	ctx->cert->akid_id = kid;
+	ctx->cert->sig->auth_ids[0] = kid;
 	return 0;
 }

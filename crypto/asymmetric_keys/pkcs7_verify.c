@@ -174,6 +174,7 @@ static int pkcs7_find_key(struct pkcs7_message *pkcs7,
 static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 				  struct pkcs7_signed_info *sinfo)
 {
+	struct public_key_signature *sig;
 	struct x509_certificate *x509 = sinfo->signer, *p;
 	struct asymmetric_key_id *auth;
 	int ret;
@@ -193,14 +194,15 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 			goto maybe_missing_crypto_in_x509;
 
 		pr_debug("- issuer %s\n", x509->issuer);
-		if (x509->akid_id)
+		sig = x509->sig;
+		if (sig->auth_ids[0])
 			pr_debug("- authkeyid.id %*phN\n",
-				 x509->akid_id->len, x509->akid_id->data);
-		if (x509->akid_skid)
+				 sig->auth_ids[0]->len, sig->auth_ids[0]->data);
+		if (sig->auth_ids[1])
 			pr_debug("- authkeyid.skid %*phN\n",
-				 x509->akid_skid->len, x509->akid_skid->data);
+				 sig->auth_ids[1]->len, sig->auth_ids[1]->data);
 
-		if ((!x509->akid_id && !x509->akid_skid) ||
+		if ((!x509->sig->auth_ids[0] && !x509->sig->auth_ids[1]) ||
 		    strcmp(x509->subject, x509->issuer) == 0) {
 			/* If there's no authority certificate specified, then
 			 * the certificate must be self-signed and is the root
@@ -224,7 +226,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 		/* Look through the X.509 certificates in the PKCS#7 message's
 		 * list to see if the next one is there.
 		 */
-		auth = x509->akid_id;
+		auth = sig->auth_ids[0];
 		if (auth) {
 			pr_debug("- want %*phN\n", auth->len, auth->data);
 			for (p = pkcs7->certs; p; p = p->next) {
@@ -234,7 +236,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 					goto found_issuer_check_skid;
 			}
 		} else {
-			auth = x509->akid_skid;
+			auth = sig->auth_ids[1];
 			pr_debug("- want %*phN\n", auth->len, auth->data);
 			for (p = pkcs7->certs; p; p = p->next) {
 				if (!p->skid)
@@ -254,8 +256,8 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 		/* We matched issuer + serialNumber, but if there's an
 		 * authKeyId.keyId, that must match the CA subjKeyId also.
 		 */
-		if (x509->akid_skid &&
-		    !asymmetric_key_id_same(p->skid, x509->akid_skid)) {
+		if (sig->auth_ids[1] &&
+		    !asymmetric_key_id_same(p->skid, sig->auth_ids[1])) {
 			pr_warn("Sig %u: X.509 chain contains auth-skid nonmatch (%u->%u)\n",
 				sinfo->index, x509->index, p->index);
 			return -EKEYREJECTED;

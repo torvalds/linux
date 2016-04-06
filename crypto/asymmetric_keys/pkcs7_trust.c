@@ -80,16 +80,16 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 
 		might_sleep();
 		last = x509;
-		sig = &last->sig;
+		sig = last->sig;
 	}
 
 	/* No match - see if the root certificate has a signer amongst the
 	 * trusted keys.
 	 */
-	if (last && (last->akid_id || last->akid_skid)) {
+	if (last && (last->sig->auth_ids[0] || last->sig->auth_ids[1])) {
 		key = x509_request_asymmetric_key(trust_keyring,
-						  last->akid_id,
-						  last->akid_skid,
+						  last->sig->auth_ids[0],
+						  last->sig->auth_ids[1],
 						  false);
 		if (!IS_ERR(key)) {
 			x509 = last;

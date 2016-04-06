@@ -17,13 +17,11 @@ struct x509_certificate {
 	struct x509_certificate *next;
 	struct x509_certificate *signer;	/* Certificate that signed this one */
 	struct public_key *pub;			/* Public key details */
-	struct public_key_signature sig;	/* Signature parameters */
+	struct public_key_signature *sig;	/* Signature parameters */
 	char		*issuer;		/* Name of certificate issuer */
 	char		*subject;		/* Name of certificate subject */
 	struct asymmetric_key_id *id;		/* Issuer + Serial number */
 	struct asymmetric_key_id *skid;		/* Subject + subjectKeyId (optional) */
-	struct asymmetric_key_id *akid_id;	/* CA AuthKeyId matching ->id (optional) */
-	struct asymmetric_key_id *akid_skid;	/* CA AuthKeyId matching ->skid (optional) */
 	time64_t	valid_from;
 	time64_t	valid_to;
 	const void	*tbs;			/* Signed data */
