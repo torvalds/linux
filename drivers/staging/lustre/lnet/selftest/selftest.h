@@ -146,13 +146,13 @@ enum srpc_event_type {
 };
 
 /* RPC event */
-typedef struct {
+struct srpc_event {
 	enum srpc_event_type	ev_type;	/* what's up */
 	lnet_event_kind_t ev_lnet;   /* LNet event type */
 	int		  ev_fired;  /* LNet event fired? */
 	int		  ev_status; /* LNet event status */
 	void		  *ev_data;  /* owning server/client RPC */
-} srpc_event_t;
+};
 
 typedef struct {
 	int		 bk_len;     /* len of bulk data */
@@ -187,7 +187,7 @@ struct srpc_server_rpc {
 	struct list_head       srpc_list;
 	struct srpc_service_cd *srpc_scd;
 	swi_workitem_t	       srpc_wi;
-	srpc_event_t	       srpc_ev;      /* bulk/reply event */
+	struct srpc_event	srpc_ev;	/* bulk/reply event */
 	lnet_nid_t	       srpc_self;
 	lnet_process_id_t      srpc_peer;
 	srpc_msg_t	       srpc_replymsg;
@@ -221,9 +221,9 @@ typedef struct srpc_client_rpc {
 	unsigned int	  crpc_closed:1;  /* completed */
 
 	/* RPC events */
-	srpc_event_t	  crpc_bulkev;	  /* bulk event */
-	srpc_event_t	  crpc_reqstev;   /* request event */
-	srpc_event_t	  crpc_replyev;   /* reply event */
+	struct srpc_event	crpc_bulkev;	/* bulk event */
+	struct srpc_event	crpc_reqstev;	/* request event */
+	struct srpc_event	crpc_replyev;	/* reply event */
 
 	/* bulk, request(reqst), and reply exchanged on wire */
 	srpc_msg_t	  crpc_reqstmsg;
@@ -266,7 +266,7 @@ struct srpc_service_cd {
 	/** backref to service */
 	struct srpc_service	*scd_svc;
 	/** event buffer */
-	srpc_event_t		scd_ev;
+	struct srpc_event	scd_ev;
 	/** free RPC descriptors */
 	struct list_head	scd_rpc_free;
 	/** in-flight RPCs */
