@@ -310,7 +310,7 @@ static void handle_set_channel(struct wilc_vif *vif,
 static void handle_set_wfi_drv_handler(struct wilc_vif *vif,
 				       struct drv_handler *hif_drv_handler)
 {
-	s32 result = 0;
+	int result = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_SET_DRV_HANDLER;
