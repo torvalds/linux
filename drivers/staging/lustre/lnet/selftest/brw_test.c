@@ -69,7 +69,7 @@ brw_client_fini(sfw_test_instance_t *tsi)
 static int
 brw_client_init(sfw_test_instance_t *tsi)
 {
-	sfw_session_t *sn = tsi->tsi_batch->bat_session;
+	struct sfw_session *sn = tsi->tsi_batch->bat_session;
 	int flags;
 	int npg;
 	int len;
@@ -259,7 +259,7 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 {
 	struct srpc_bulk *bulk = tsu->tsu_private;
 	sfw_test_instance_t *tsi = tsu->tsu_instance;
-	sfw_session_t *sn = tsi->tsi_batch->bat_session;
+	struct sfw_session *sn = tsi->tsi_batch->bat_session;
 	struct srpc_client_rpc *rpc;
 	srpc_brw_reqst_t *req;
 	int flags;
@@ -317,7 +317,7 @@ brw_client_done_rpc(sfw_test_unit_t *tsu, struct srpc_client_rpc *rpc)
 {
 	__u64 magic = BRW_MAGIC;
 	sfw_test_instance_t *tsi = tsu->tsu_instance;
-	sfw_session_t *sn = tsi->tsi_batch->bat_session;
+	struct sfw_session *sn = tsi->tsi_batch->bat_session;
 	srpc_msg_t *msg = &rpc->crpc_replymsg;
 	srpc_brw_reply_t *reply = &msg->msg_body.brw_reply;
 	srpc_brw_reqst_t *reqst = &rpc->crpc_reqstmsg.msg_body.brw_reqst;

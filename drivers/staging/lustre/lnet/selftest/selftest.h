@@ -323,7 +323,7 @@ struct srpc_service {
 	int (*sv_bulk_ready)(struct srpc_server_rpc *, int);
 };
 
-typedef struct {
+struct sfw_session {
 	struct list_head sn_list;    /* chain on fw_zombie_sessions */
 	lst_sid_t	 sn_id;      /* unique identifier */
 	unsigned int	 sn_timeout; /* # seconds' inactivity to expire */
@@ -336,7 +336,7 @@ typedef struct {
 	atomic_t	 sn_brw_errors;
 	atomic_t	 sn_ping_errors;
 	unsigned long	 sn_started;
-} sfw_session_t;
+};
 
 #define sfw_sid_equal(sid0, sid1)     ((sid0).ses_nid == (sid1).ses_nid && \
 				       (sid0).ses_stamp == (sid1).ses_stamp)
@@ -345,7 +345,7 @@ typedef struct {
 	struct list_head bat_list;	/* chain on sn_batches */
 	lst_bid_t	 bat_id;	/* batch id */
 	int		 bat_error;	/* error code of batch */
-	sfw_session_t	 *bat_session;	/* batch's session */
+	struct sfw_session	*bat_session;	/* batch's session */
 	atomic_t	 bat_nactive;	/* # of active tests */
 	struct list_head bat_tests;	/* test instances */
 } sfw_batch_t;
