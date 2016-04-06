@@ -295,8 +295,15 @@ static inline u8 ip_tunnel_ecn_encap(u8 tos, const struct iphdr *iph,
 	return INET_ECN_encapsulate(tos, inner);
 }
 
-int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto,
-			 bool xnet);
+int __iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
+			   __be16 inner_proto, bool raw_proto, bool xnet);
+
+static inline int iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
+				       __be16 inner_proto, bool xnet)
+{
+	return __iptunnel_pull_header(skb, hdr_len, inner_proto, false, xnet);
+}
+
 void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 		   __be32 src, __be32 dst, u8 proto,
 		   u8 tos, u8 ttl, __be16 df, bool xnet);
