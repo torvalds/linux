@@ -1416,6 +1416,17 @@ static bool byt_dma_filter(struct dma_chan *chan, void *param)
 	return true;
 }
 
+static unsigned int
+byt_get_mctrl(struct uart_port *port)
+{
+	unsigned int ret = serial8250_do_get_mctrl(port);
+
+	/* Force DCD and DSR signals to permanently be reported as active. */
+	ret |= TIOCM_CAR | TIOCM_DSR;
+
+	return ret;
+}
+
 static int
 byt_serial_setup(struct serial_private *priv,
 		 const struct pciserial_board *board,
@@ -1480,6 +1491,7 @@ byt_serial_setup(struct serial_private *priv,
 	port->port.type = PORT_16550A;
 	port->port.flags = (port->port.flags | UPF_FIXED_PORT | UPF_FIXED_TYPE);
 	port->port.set_termios = byt_set_termios;
+	port->port.get_mctrl = byt_get_mctrl;
 	port->port.fifosize = 64;
 	port->tx_loadsz = 64;
 	port->dma = dma;
