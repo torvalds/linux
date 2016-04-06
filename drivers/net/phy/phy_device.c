@@ -512,10 +512,68 @@ phy_has_fixups_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(phy_has_fixups);
 
+static ssize_t
+phy_registers_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct phy_device *phydev = to_phy_device(dev);
+	int index;
+
+	for (index = 0; index < 32; index++)
+		sprintf(buf, "%s%2d: 0x%x\n", buf, index,
+			phy_read(phydev, index));
+
+	return strlen(buf);
+}
+
+static ssize_t
+phy_registers_store(struct device *dev,
+		    struct device_attribute *attr,
+		    const char *buf, size_t count)
+{
+	struct phy_device *phydev = to_phy_device(dev);
+	int index = 0, val = 0;
+	char tmp[32];
+	char *data;
+
+	if (count >= sizeof(tmp))
+		goto out;
+
+	memset(tmp, 0, sizeof(tmp));
+	memcpy(tmp, buf, count);
+
+	data = tmp;
+	data = strstr(data, " ");
+	if (!data)
+		goto out;
+	*data = 0;
+	data++;
+
+	if (kstrtoint(tmp, 0, &index) || index >= 32)
+		goto out;
+
+	if (kstrtoint(data, 0, &val) || val > 0xffff)
+		goto out;
+
+	pr_info("Set Ethernet PHY register %d to 0x%x\n", (int)index, (int)val);
+
+	phy_write(phydev, index, val);
+
+	return count;
+
+out:
+	pr_err("wrong register value input\n");
+	pr_err("usage: <reg index> <value>\n");
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(phy_registers);
+
 static struct attribute *phy_dev_attrs[] = {
 	&dev_attr_phy_id.attr,
 	&dev_attr_phy_interface.attr,
 	&dev_attr_phy_has_fixups.attr,
+	&dev_attr_phy_registers.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(phy_dev);

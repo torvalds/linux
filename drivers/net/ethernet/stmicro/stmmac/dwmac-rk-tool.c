@@ -969,17 +969,17 @@ static int dwmac_rk_alloc_dma_desc_resources(struct stmmac_priv *priv,
 	int ret = -ENOMEM;
 
 	/* desc dma map */
-	lb_priv->dma_rx = dma_zalloc_coherent(priv->device,
-					      sizeof(struct dma_desc),
-					      &lb_priv->dma_rx_phy,
-					      GFP_KERNEL);
+	lb_priv->dma_rx = dma_alloc_coherent(priv->device,
+					     sizeof(struct dma_desc),
+					     &lb_priv->dma_rx_phy,
+					     GFP_KERNEL);
 	if (!lb_priv->dma_rx)
 		return ret;
 
-	lb_priv->dma_tx = dma_zalloc_coherent(priv->device,
-					      sizeof(struct dma_desc),
-					      &lb_priv->dma_tx_phy,
-					      GFP_KERNEL);
+	lb_priv->dma_tx = dma_alloc_coherent(priv->device,
+					     sizeof(struct dma_desc),
+					     &lb_priv->dma_tx_phy,
+					     GFP_KERNEL);
 	if (!lb_priv->dma_tx) {
 		dma_free_coherent(priv->device,
 				  sizeof(struct dma_desc),
@@ -1150,7 +1150,7 @@ static int dwmac_rk_init(struct net_device *dev,
 		writel((mode & ~DMA_CONTROL_OSF), priv->ioaddr + DMA_CONTROL);
 	}
 
-	stmmac_enable_dma_irq(priv, priv->ioaddr, 0);
+	stmmac_enable_dma_irq(priv, priv->ioaddr, 0, 1, 1);
 
 	if (priv->hw->pcs)
 		stmmac_pcs_ctrl_ane(priv, priv->hw, 1, priv->hw->ps, 0);
@@ -1167,7 +1167,7 @@ static void dwmac_rk_release(struct net_device *dev,
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	stmmac_disable_dma_irq(priv, priv->ioaddr, 0);
+	stmmac_disable_dma_irq(priv, priv->ioaddr, 0, 0, 0);
 
 	/* Release and free the Rx/Tx resources */
 	dwmac_rk_free_dma_desc_resources(priv, lb_priv);
@@ -1216,7 +1216,9 @@ static int dwmac_rk_loopback_run(struct stmmac_priv *priv,
 	/* wait for phy and controller ready */
 	usleep_range(100000, 200000);
 
-	dwmac_rk_init(ndev, lb_priv);
+	ret = dwmac_rk_init(ndev, lb_priv);
+	if (ret)
+		goto exit_init;
 	dwmac_rk_set_loopback(priv, lb_priv->type, lb_priv->speed, true);
 
 	if (lb_priv->scan) {
@@ -1240,6 +1242,7 @@ out:
 	dwmac_rk_release(ndev, lb_priv);
 	dwmac_rk_set_loopback(priv, lb_priv->type, lb_priv->speed, false);
 
+exit_init:
 	if (ndev_up)
 		ndev->netdev_ops->ndo_open(ndev);
 
