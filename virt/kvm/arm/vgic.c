@@ -690,12 +690,11 @@ bool vgic_handle_cfg_reg(u32 *reg, struct kvm_exit_mmio *mmio,
  */
 void vgic_unqueue_irqs(struct kvm_vcpu *vcpu)
 {
-	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	u64 elrsr = vgic_get_elrsr(vcpu);
 	unsigned long *elrsr_ptr = u64_to_bitmask(&elrsr);
 	int i;
 
-	for_each_clear_bit(i, elrsr_ptr, vgic_cpu->nr_lr) {
+	for_each_clear_bit(i, elrsr_ptr, vgic->nr_lr) {
 		struct vgic_lr lr = vgic_get_lr(vcpu, i);
 
 		/*
@@ -1106,7 +1105,7 @@ bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, unsigned int virt_irq)
 {
 	int i;
 
-	for (i = 0; i < vcpu->arch.vgic_cpu.nr_lr; i++) {
+	for (i = 0; i < vgic->nr_lr; i++) {
 		struct vgic_lr vlr = vgic_get_lr(vcpu, i);
 
 		if (vlr.irq == virt_irq && vlr.state & LR_STATE_ACTIVE)
@@ -1865,13 +1864,6 @@ static int vgic_vcpu_init_maps(struct kvm_vcpu *vcpu, int nr_irqs)
 		kvm_vgic_vcpu_destroy(vcpu);
 		return -ENOMEM;
 	}
-
-	/*
-	 * Store the number of LRs per vcpu, so we don't have to go
-	 * all the way to the distributor structure to find out. Only
-	 * assembly code should use this one.
-	 */
-	vgic_cpu->nr_lr = vgic->nr_lr;
 
 	return 0;
 }
