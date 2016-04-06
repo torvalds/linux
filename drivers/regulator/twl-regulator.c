@@ -253,7 +253,7 @@ static int twl4030_send_pb_msg(unsigned msg)
 
 	/* Restore powerbus configuration */
 	return twl_i2c_write_u8(TWL_MODULE_PM_MASTER, val,
-				TWL_MODULE_PM_MASTER);
+				TWL4030_PM_MASTER_PB_CFG);
 }
 
 static int twl4030reg_enable(struct regulator_dev *rdev)
