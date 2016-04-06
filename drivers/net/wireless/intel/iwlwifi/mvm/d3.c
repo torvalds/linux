@@ -723,7 +723,7 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return -EIO;
 	}
 
-	ret = iwl_mvm_sta_send_to_fw(mvm, ap_sta, false);
+	ret = iwl_mvm_sta_send_to_fw(mvm, ap_sta, false, 0);
 	if (ret)
 		return ret;
 	rcu_assign_pointer(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id], ap_sta);

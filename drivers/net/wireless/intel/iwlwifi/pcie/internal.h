@@ -348,7 +348,7 @@ struct iwl_tso_hdr_page {
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
 	struct iwl_rx_mem_buffer rx_pool[RX_POOL_SIZE];
-	struct iwl_rx_mem_buffer *global_table[MQ_RX_TABLE_SIZE];
+	struct iwl_rx_mem_buffer *global_table[RX_POOL_SIZE];
 	struct iwl_rb_allocator rba;
 	struct iwl_trans *trans;
 	struct iwl_drv *drv;
@@ -402,10 +402,6 @@ struct iwl_trans_pcie {
 	spinlock_t reg_lock;
 	bool cmd_hold_nic_awake;
 	bool ref_cmd_in_flight;
-
-	/* protect ref counter */
-	spinlock_t ref_lock;
-	u32 ref_count;
 
 	dma_addr_t fw_mon_phys;
 	struct page *fw_mon_page;

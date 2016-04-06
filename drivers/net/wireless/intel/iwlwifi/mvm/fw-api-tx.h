@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -193,11 +194,41 @@ enum iwl_tx_pm_timeouts {
 #define IWL_BAR_DFAULT_RETRY_LIMIT		60
 #define IWL_LOW_RETRY_LIMIT			7
 
+/**
+ * enum iwl_tx_offload_assist_flags_pos -  set %iwl_tx_cmd offload_assist values
+ * @TX_CMD_OFFLD_IP_HDR_OFFSET: offset to start of IP header (in words)
+ *	from mac header end. For normal case it is 4 words for SNAP.
+ *	note: tx_cmd, mac header and pad are not counted in the offset.
+ *	This is used to help the offload in case there is tunneling such as
+ *	IPv6 in IPv4, in such case the ip header offset should point to the
+ *	inner ip header and IPv4 checksum of the external header should be
+ *	calculated by driver.
+ * @TX_CMD_OFFLD_L4_EN: enable TCP/UDP checksum
+ * @TX_CMD_OFFLD_L3_EN: enable IP header checksum
+ * @TX_CMD_OFFLD_MH_SIZE: size of the mac header in words. Includes the IV
+ *	field. Doesn't include the pad.
+ * @TX_CMD_OFFLD_PAD: mark 2-byte pad was inserted after the mac header for
+ *	alignment
+ * @TX_CMD_OFFLD_AMSDU: mark TX command is A-MSDU
+ */
+enum iwl_tx_offload_assist_flags_pos {
+	TX_CMD_OFFLD_IP_HDR =		0,
+	TX_CMD_OFFLD_L4_EN =		6,
+	TX_CMD_OFFLD_L3_EN =		7,
+	TX_CMD_OFFLD_MH_SIZE =		8,
+	TX_CMD_OFFLD_PAD =		13,
+	TX_CMD_OFFLD_AMSDU =		14,
+};
+
+#define IWL_TX_CMD_OFFLD_MH_MASK	0x1f
+#define IWL_TX_CMD_OFFLD_IP_HDR_MASK	0x3f
+
 /* TODO: complete documentation for try_cnt and btkill_cnt */
 /**
  * struct iwl_tx_cmd - TX command struct to FW
  * ( TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
+ * @offload_assist: TX offload configuration
  * @tx_flags: combination of TX_CMD_FLG_*
  * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
  *	cleared. Combination of RATE_MCS_*
@@ -231,7 +262,7 @@ enum iwl_tx_pm_timeouts {
  */
 struct iwl_tx_cmd {
 	__le16 len;
-	__le16 next_frame_len;
+	__le16 offload_assist;
 	__le32 tx_flags;
 	struct {
 		u8 try_cnt;
@@ -255,7 +286,7 @@ struct iwl_tx_cmd {
 	__le16 reserved4;
 	u8 payload[0];
 	struct ieee80211_hdr hdr[0];
-} __packed; /* TX_CMD_API_S_VER_3 */
+} __packed; /* TX_CMD_API_S_VER_6 */
 
 /*
  * TX response related data

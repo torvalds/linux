@@ -252,9 +252,13 @@ unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 		.exclude_vif = exclude_vif,
 		.used_hw_queues =
 			BIT(IWL_MVM_OFFCHANNEL_QUEUE) |
-			BIT(mvm->aux_queue) |
-			BIT(IWL_MVM_CMD_QUEUE),
+			BIT(mvm->aux_queue),
 	};
+
+	if (iwl_mvm_is_dqa_supported(mvm))
+		data.used_hw_queues |= BIT(IWL_MVM_DQA_CMD_QUEUE);
+	else
+		data.used_hw_queues |= BIT(IWL_MVM_CMD_QUEUE);
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -425,12 +429,17 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		return 0;
 	}
 
-	/* Find available queues, and allocate them to the ACs */
+	/*
+	 * Find available queues, and allocate them to the ACs. When in
+	 * DQA-mode they aren't really used, and this is done only so the
+	 * mac80211 ieee80211_check_queues() function won't fail
+	 */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		u8 queue = find_first_zero_bit(&used_hw_queues,
 					       mvm->first_agg_queue);
 
-		if (queue >= mvm->first_agg_queue) {
+		if (!iwl_mvm_is_dqa_supported(mvm) &&
+		    queue >= mvm->first_agg_queue) {
 			IWL_ERR(mvm, "Failed to allocate queue\n");
 			ret = -EIO;
 			goto exit_fail;
@@ -442,13 +451,19 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 
 	/* Allocate the CAB queue for softAP and GO interfaces */
 	if (vif->type == NL80211_IFTYPE_AP) {
-		u8 queue = find_first_zero_bit(&used_hw_queues,
-					       mvm->first_agg_queue);
+		u8 queue;
 
-		if (queue >= mvm->first_agg_queue) {
-			IWL_ERR(mvm, "Failed to allocate cab queue\n");
-			ret = -EIO;
-			goto exit_fail;
+		if (!iwl_mvm_is_dqa_supported(mvm)) {
+			queue = find_first_zero_bit(&used_hw_queues,
+						    mvm->first_agg_queue);
+
+			if (queue >= mvm->first_agg_queue) {
+				IWL_ERR(mvm, "Failed to allocate cab queue\n");
+				ret = -EIO;
+				goto exit_fail;
+			}
+		} else {
+			queue = IWL_MVM_DQA_GCAST_QUEUE;
 		}
 
 		vif->cab_queue = queue;
@@ -495,6 +510,10 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 				      IWL_MVM_TX_FIFO_MCAST, 0, wdg_timeout);
 		/* fall through */
 	default:
+		/* If DQA is supported - queues will be enabled when needed */
+		if (iwl_mvm_is_dqa_supported(mvm))
+			break;
+
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 			iwl_mvm_enable_ac_txq(mvm, vif->hw_queue[ac],
 					      vif->hw_queue[ac],
@@ -523,6 +542,14 @@ void iwl_mvm_mac_ctxt_release(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 				    IWL_MAX_TID_COUNT, 0);
 		/* fall through */
 	default:
+		/*
+		 * If DQA is supported - queues were already disabled, since in
+		 * DQA-mode the queues are a property of the STA and not of the
+		 * vif, and at this point the STA was already deleted
+		 */
+		if (iwl_mvm_is_dqa_supported(mvm))
+			break;
+
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 			iwl_mvm_disable_txq(mvm, vif->hw_queue[ac],
 					    vif->hw_queue[ac],
