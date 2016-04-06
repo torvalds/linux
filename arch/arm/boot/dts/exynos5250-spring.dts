@@ -383,7 +383,7 @@
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <66000>;
 
-	cros_ec: embedded-controller {
+	cros_ec: embedded-controller@1e {
 		compatible = "google,cros-ec-i2c";
 		reg = <0x1e>;
 		interrupts = <6 IRQ_TYPE_NONE>;

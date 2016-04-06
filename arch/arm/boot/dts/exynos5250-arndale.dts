@@ -133,7 +133,7 @@
 	display-timings {
 		native-mode = <&timing0>;
 
-		timing0: timing@0 {
+		timing0: timing {
 			/* 2560x1600 DP panel */
 			clock-frequency = <50000>;
 			hactive = <2560>;
