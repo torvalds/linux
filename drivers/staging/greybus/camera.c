@@ -203,7 +203,8 @@ struct ap_csi_config_request {
 static int gb_camera_configure_streams(struct gb_camera *gcam,
 				       unsigned int *num_streams,
 				       unsigned int *flags,
-				       struct gb_camera_stream_config *streams)
+				       struct gb_camera_stream_config *streams,
+				       struct gb_camera_csi_params *csi_params)
 {
 	struct gb_camera_configure_streams_request *req;
 	struct gb_camera_configure_streams_response *resp;
@@ -309,6 +310,12 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
 				   sizeof(csi_cfg),
 				   GB_APB_REQUEST_CSI_TX_CONTROL, false);
+		if (csi_params) {
+			csi_params->num_lanes = csi_cfg.num_lanes;
+			/* Transmitting two bits per cycle. (DDR clock) */
+			csi_params->clk_freq = csi_cfg.bus_freq / 2;
+			csi_params->lines_per_second = csi_cfg.lines_per_second;
+		}
 	} else {
 		csi_cfg.csi_id = 1;
 		ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
@@ -442,7 +449,8 @@ static ssize_t gb_camera_op_capabilities(void *priv, char *data, size_t len)
 }
 
 static int gb_camera_op_configure_streams(void *priv, unsigned int *nstreams,
-		unsigned int *flags, struct gb_camera_stream *streams)
+		unsigned int *flags, struct gb_camera_stream *streams,
+		struct gb_camera_csi_params *csi_params)
 {
 	struct gb_camera *gcam = priv;
 	struct gb_camera_stream_config *gb_streams;
@@ -469,7 +477,7 @@ static int gb_camera_op_configure_streams(void *priv, unsigned int *nstreams,
 		gb_flags |= GB_CAMERA_CONFIGURE_STREAMS_TEST_ONLY;
 
 	ret = gb_camera_configure_streams(gcam, &gb_nstreams,
-					  &gb_flags, gb_streams);
+					  &gb_flags, gb_streams, csi_params);
 	if (ret < 0)
 		goto done;
 	if (gb_nstreams > *nstreams) {
@@ -643,7 +651,8 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 			goto done;
 	}
 
-	ret = gb_camera_configure_streams(gcam, &nstreams, &flags, streams);
+	ret = gb_camera_configure_streams(gcam, &nstreams, &flags, streams,
+					  NULL);
 	if (ret < 0)
 		goto done;
 

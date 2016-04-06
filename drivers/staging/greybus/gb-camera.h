@@ -24,10 +24,24 @@ struct gb_camera_stream {
 	unsigned int max_size;
 };
 
+/**
+ * struct gb_camera_csi_params - CSI configuration parameters
+ * @num_lanes:		number of CSI data lanes
+ * @clk_freq:		CSI clock frequency in Hz
+ * @lines_per_second:	total number of lines in a second of transmission
+ *			(blanking included)
+ */
+struct gb_camera_csi_params {
+	unsigned int num_lanes;
+	unsigned int clk_freq;
+	unsigned int lines_per_second;
+};
+
 struct gb_camera_ops {
 	ssize_t (*capabilities)(void *priv, char *buf, size_t len);
 	int (*configure_streams)(void *priv, unsigned int *nstreams,
-			unsigned int *flags, struct gb_camera_stream *streams);
+			unsigned int *flags, struct gb_camera_stream *streams,
+			struct gb_camera_csi_params *csi_params);
 	int (*capture)(void *priv, u32 request_id,
 			unsigned int streams, unsigned int num_frames,
 			size_t settings_size, const void *settings);
