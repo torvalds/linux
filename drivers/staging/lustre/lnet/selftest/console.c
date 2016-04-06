@@ -1406,7 +1406,7 @@ lstcon_test_batch_query(char *name, int testidx, int client,
 	struct lstcon_rpc_trans *trans;
 	struct list_head *translist;
 	struct list_head *ndlist;
-	lstcon_tsb_hdr_t *hdr;
+	struct lstcon_tsb_hdr *hdr;
 	lstcon_batch_t *batch;
 	lstcon_test_t *test = NULL;
 	int transop;

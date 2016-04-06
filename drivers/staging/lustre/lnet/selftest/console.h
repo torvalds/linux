@@ -84,13 +84,13 @@ struct lstcon_group {
 #define LST_BATCH_IDLE	  0xB0	    /* idle batch */
 #define LST_BATCH_RUNNING 0xB1	    /* running batch */
 
-typedef struct lstcon_tsb_hdr {
+struct lstcon_tsb_hdr {
 	lst_bid_t	 tsb_id;	 /* batch ID */
 	int		 tsb_index;	 /* test index */
-} lstcon_tsb_hdr_t;
+};
 
 typedef struct {
-	lstcon_tsb_hdr_t bat_hdr;	  /* test_batch header */
+	struct lstcon_tsb_hdr	bat_hdr;	/* test_batch header */
 	struct list_head bat_link;	  /* chain on session's batches list */
 	int		 bat_ntest;	  /* # of test */
 	int		 bat_state;	  /* state of the batch */
@@ -109,7 +109,7 @@ typedef struct {
 } lstcon_batch_t; /* (tests ) batch descriptor */
 
 typedef struct lstcon_test {
-	lstcon_tsb_hdr_t tes_hdr;	 /* test batch header */
+	struct lstcon_tsb_hdr	tes_hdr;	/* test batch header */
 	struct list_head tes_link;	 /* chain on batch's tests list */
 	lstcon_batch_t	 *tes_batch;	 /* pointer to batch */
 

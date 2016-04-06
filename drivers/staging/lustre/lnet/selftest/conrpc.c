@@ -650,7 +650,7 @@ lstcon_dbgrpc_prep(struct lstcon_node *nd, unsigned feats, struct lstcon_rpc **c
 
 int
 lstcon_batrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
-		   lstcon_tsb_hdr_t *tsb, struct lstcon_rpc **crpc)
+		   struct lstcon_tsb_hdr *tsb, struct lstcon_rpc **crpc)
 {
 	lstcon_batch_t *batch;
 	srpc_batch_reqst_t *brq;
@@ -1135,7 +1135,8 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 		case LST_TRANS_TSBCLIQRY:
 		case LST_TRANS_TSBSRVQRY:
 			rc = lstcon_batrpc_prep(nd, transop, feats,
-						(lstcon_tsb_hdr_t *)arg, &rpc);
+						(struct lstcon_tsb_hdr *)arg,
+						&rpc);
 			break;
 		case LST_TRANS_STATQRY:
 			rc = lstcon_statrpc_prep(nd, feats, &rpc);
