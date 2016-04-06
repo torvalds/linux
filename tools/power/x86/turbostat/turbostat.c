@@ -189,7 +189,7 @@ struct pkg_data {
 	unsigned long long pkg_any_core_c0;
 	unsigned long long pkg_any_gfxe_c0;
 	unsigned long long pkg_both_core_gfxe_c0;
-	unsigned long long gfx_rc6_ms;
+	long long gfx_rc6_ms;
 	unsigned int gfx_mhz;
 	unsigned int package_id;
 	unsigned int energy_pkg;	/* MSR_PKG_ENERGY_STATUS */
@@ -623,8 +623,14 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		outp += sprintf(outp, "%8d", p->pkg_temp_c);
 
 	/* GFXrc6 */
-	if (do_gfx_rc6_ms)
-		outp += sprintf(outp, "%8.2f", 100.0 * p->gfx_rc6_ms / 1000.0 / interval_float);
+	if (do_gfx_rc6_ms) {
+		if (p->gfx_rc6_ms == -1) {	/* detect counter reset */
+			outp += sprintf(outp, "  ***.**");
+		} else {
+			outp += sprintf(outp, "%8.2f",
+				p->gfx_rc6_ms / 10.0 / interval_float);
+		}
+	}
 
 	/* GFXMHz */
 	if (do_gfx_mhz)
@@ -768,7 +774,12 @@ delta_package(struct pkg_data *new, struct pkg_data *old)
 	old->pc10 = new->pc10 - old->pc10;
 	old->pkg_temp_c = new->pkg_temp_c;
 
-	old->gfx_rc6_ms = new->gfx_rc6_ms - old->gfx_rc6_ms;
+	/* flag an error when rc6 counter resets/wraps */
+	if (old->gfx_rc6_ms >  new->gfx_rc6_ms)
+		old->gfx_rc6_ms = -1;
+	else
+		old->gfx_rc6_ms = new->gfx_rc6_ms - old->gfx_rc6_ms;
+
 	old->gfx_mhz = new->gfx_mhz;
 
 	DELTA_WRAP32(new->energy_pkg, old->energy_pkg);
