@@ -14,6 +14,8 @@
 #include <linux/of_net.h>
 #include <linux/slab.h>
 
+#include "hardware.h"
+
 unsigned long iram_tlb_base_addr;
 unsigned long iram_tlb_phys_addr;
 
@@ -37,7 +39,8 @@ void restore_ttbr1(unsigned long ttbr1)
 	);
 }
 
-#define OCOTP_MACn(n)	(0x00000620 + (n) * 0x10)
+#define OCOTP_MAC_OFF	(cpu_is_imx7d() ? 0x640 : 0x620)
+#define OCOTP_MACn(n)	(OCOTP_MAC_OFF + (n) * 0x10)
 void __init imx6_enet_mac_init(const char *enet_compat, const char *ocotp_compat)
 {
 	struct device_node *ocotp_np, *enet_np, *from = NULL;
@@ -47,7 +50,7 @@ void __init imx6_enet_mac_init(const char *enet_compat, const char *ocotp_compat
 	u32 macaddr_high = 0;
 	u32 macaddr1_high = 0;
 	u8 *macaddr;
-	int i;
+	int i, id;
 
 	for (i = 0; i < 2; i++) {
 		enet_np = of_find_compatible_node(from, NULL, enet_compat);
@@ -58,6 +61,10 @@ void __init imx6_enet_mac_init(const char *enet_compat, const char *ocotp_compat
 
 		if (of_get_mac_address(enet_np))
 			goto put_enet_node;
+
+		id = of_alias_get_id(enet_np, "ethernet");
+		if (id < 0)
+			id = i;
 
 		ocotp_np = of_find_compatible_node(NULL, NULL, ocotp_compat);
 		if (!ocotp_np) {
@@ -72,7 +79,7 @@ void __init imx6_enet_mac_init(const char *enet_compat, const char *ocotp_compat
 		}
 
 		macaddr_low = readl_relaxed(base + OCOTP_MACn(1));
-		if (i)
+		if (id)
 			macaddr1_high = readl_relaxed(base + OCOTP_MACn(2));
 		else
 			macaddr_high = readl_relaxed(base + OCOTP_MACn(0));
@@ -90,7 +97,7 @@ void __init imx6_enet_mac_init(const char *enet_compat, const char *ocotp_compat
 		}
 
 		macaddr = newmac->value;
-		if (i) {
+		if (id) {
 			macaddr[5] = (macaddr_low >> 16) & 0xff;
 			macaddr[4] = (macaddr_low >> 24) & 0xff;
 			macaddr[3] = macaddr1_high & 0xff;
