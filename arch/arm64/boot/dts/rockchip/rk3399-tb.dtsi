@@ -117,10 +117,10 @@
 		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 	};
 
-	ext_gmac: external-gmac-clock {
+	clkin_gmac: external-gmac-clock {
 		compatible = "fixed-clock";
 		clock-frequency = <125000000>;
-		clock-output-names = "ext_gmac";
+		clock-output-names = "clkin_gmac";
 		#clock-cells = <0>;
 	};
 
@@ -603,13 +603,13 @@
 	snps,reset-gpio = <&gpio3 15 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 50000>;
-	assigned-clocks = <&cru SCLK_MAC>;
-	assigned-clock-parents = <&ext_gmac>;
+	assigned-clocks = <&cru SCLK_RMII_SRC>;
+	assigned-clock-parents = <&clkin_gmac>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&rgmii_pins>;
 	tx_delay = <0x30>;
 	rx_delay = <0x10>;
-	status = "disabled";
+	status = "okay";
 };
 
 &gpu {
