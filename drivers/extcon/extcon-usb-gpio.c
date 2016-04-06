@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 
@@ -141,7 +142,8 @@ static int usb_extcon_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, info);
-	device_init_wakeup(dev, 1);
+	device_init_wakeup(dev, true);
+	dev_pm_set_wake_irq(dev, info->id_irq);
 
 	/* Perform initial detection */
 	usb_extcon_detect_cable(&info->wq_detcable.work);
@@ -155,6 +157,9 @@ static int usb_extcon_remove(struct platform_device *pdev)
 
 	cancel_delayed_work_sync(&info->wq_detcable);
 
+	dev_pm_clear_wake_irq(&pdev->dev);
+	device_init_wakeup(&pdev->dev, false);
+
 	return 0;
 }
 
@@ -163,12 +168,6 @@ static int usb_extcon_suspend(struct device *dev)
 {
 	struct usb_extcon_info *info = dev_get_drvdata(dev);
 	int ret = 0;
-
-	if (device_may_wakeup(dev)) {
-		ret = enable_irq_wake(info->id_irq);
-		if (ret)
-			return ret;
-	}
 
 	/*
 	 * We don't want to process any IRQs after this point
@@ -184,12 +183,6 @@ static int usb_extcon_resume(struct device *dev)
 {
 	struct usb_extcon_info *info = dev_get_drvdata(dev);
 	int ret = 0;
-
-	if (device_may_wakeup(dev)) {
-		ret = disable_irq_wake(info->id_irq);
-		if (ret)
-			return ret;
-	}
 
 	enable_irq(info->id_irq);
 
