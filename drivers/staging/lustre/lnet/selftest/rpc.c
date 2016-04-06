@@ -46,19 +46,19 @@
 
 #include "selftest.h"
 
-typedef enum {
+enum srpc_state {
 	SRPC_STATE_NONE,
 	SRPC_STATE_NI_INIT,
 	SRPC_STATE_EQ_INIT,
 	SRPC_STATE_RUNNING,
 	SRPC_STATE_STOPPING,
-} srpc_state_t;
+};
 
 static struct smoketest_rpc {
 	spinlock_t	 rpc_glock;	/* global lock */
 	struct srpc_service	*rpc_services[SRPC_SERVICE_MAX_ID + 1];
 	lnet_handle_eq_t rpc_lnet_eq;	/* _the_ LNet event queue */
-	srpc_state_t	 rpc_state;
+	enum srpc_state	 rpc_state;
 	srpc_counters_t	 rpc_counters;
 	__u64		 rpc_matchbits;	/* matchbits counter */
 } srpc_data;
