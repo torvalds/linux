@@ -34,6 +34,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/string.h>
+#include <linux/bitops.h>
 #include <net/dcbnl.h>
 
 #include "spectrum.h"
@@ -151,7 +152,8 @@ static int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	 * traffic is still directed to them.
 	 */
 	err = __mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu,
-					   ets->prio_tc, pause_en);
+					   ets->prio_tc, pause_en,
+					   mlxsw_sp_port->dcb.pfc);
 	if (err) {
 		netdev_err(dev, "Failed to configure port's headroom\n");
 		return err;
@@ -291,11 +293,101 @@ err_port_ets_maxrate_set:
 	return err;
 }
 
+static int mlxsw_sp_port_pfc_cnt_get(struct mlxsw_sp_port *mlxsw_sp_port,
+				     u8 prio)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct ieee_pfc *my_pfc = mlxsw_sp_port->dcb.pfc;
+	char ppcnt_pl[MLXSW_REG_PPCNT_LEN];
+	int err;
+
+	mlxsw_reg_ppcnt_pack(ppcnt_pl, mlxsw_sp_port->local_port,
+			     MLXSW_REG_PPCNT_PRIO_CNT, prio);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ppcnt), ppcnt_pl);
+	if (err)
+		return err;
+
+	my_pfc->requests[prio] = mlxsw_reg_ppcnt_tx_pause_get(ppcnt_pl);
+	my_pfc->indications[prio] = mlxsw_reg_ppcnt_rx_pause_get(ppcnt_pl);
+
+	return 0;
+}
+
+static int mlxsw_sp_dcbnl_ieee_getpfc(struct net_device *dev,
+				      struct ieee_pfc *pfc)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	int err, i;
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		err = mlxsw_sp_port_pfc_cnt_get(mlxsw_sp_port, i);
+		if (err) {
+			netdev_err(dev, "Failed to get PFC count for priority %d\n",
+				   i);
+			return err;
+		}
+	}
+
+	memcpy(pfc, mlxsw_sp_port->dcb.pfc, sizeof(*pfc));
+
+	return 0;
+}
+
+static int mlxsw_sp_port_pfc_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				 struct ieee_pfc *pfc)
+{
+	char pfcc_pl[MLXSW_REG_PFCC_LEN];
+
+	mlxsw_reg_pfcc_pack(pfcc_pl, mlxsw_sp_port->local_port);
+	mlxsw_reg_pfcc_prio_pack(pfcc_pl, pfc->pfc_en);
+
+	return mlxsw_reg_write(mlxsw_sp_port->mlxsw_sp->core, MLXSW_REG(pfcc),
+			       pfcc_pl);
+}
+
+static int mlxsw_sp_dcbnl_ieee_setpfc(struct net_device *dev,
+				      struct ieee_pfc *pfc)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	int err;
+
+	if (mlxsw_sp_port->link.tx_pause || mlxsw_sp_port->link.rx_pause) {
+		netdev_err(dev, "PAUSE frames already enabled on port\n");
+		return -EINVAL;
+	}
+
+	err = __mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu,
+					   mlxsw_sp_port->dcb.ets->prio_tc,
+					   false, pfc);
+	if (err) {
+		netdev_err(dev, "Failed to configure port's headroom for PFC\n");
+		return err;
+	}
+
+	err = mlxsw_sp_port_pfc_set(mlxsw_sp_port, pfc);
+	if (err) {
+		netdev_err(dev, "Failed to configure PFC\n");
+		goto err_port_pfc_set;
+	}
+
+	memcpy(mlxsw_sp_port->dcb.pfc, pfc, sizeof(*pfc));
+
+	return 0;
+
+err_port_pfc_set:
+	__mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu,
+				     mlxsw_sp_port->dcb.ets->prio_tc, false,
+				     mlxsw_sp_port->dcb.pfc);
+	return err;
+}
+
 static const struct dcbnl_rtnl_ops mlxsw_sp_dcbnl_ops = {
 	.ieee_getets		= mlxsw_sp_dcbnl_ieee_getets,
 	.ieee_setets		= mlxsw_sp_dcbnl_ieee_setets,
 	.ieee_getmaxrate	= mlxsw_sp_dcbnl_ieee_getmaxrate,
 	.ieee_setmaxrate	= mlxsw_sp_dcbnl_ieee_setmaxrate,
+	.ieee_getpfc		= mlxsw_sp_dcbnl_ieee_getpfc,
+	.ieee_setpfc		= mlxsw_sp_dcbnl_ieee_setpfc,
 
 	.getdcbx		= mlxsw_sp_dcbnl_getdcbx,
 	.setdcbx		= mlxsw_sp_dcbnl_setdcbx,
@@ -338,6 +430,23 @@ static void mlxsw_sp_port_maxrate_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 	kfree(mlxsw_sp_port->dcb.maxrate);
 }
 
+static int mlxsw_sp_port_pfc_init(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	mlxsw_sp_port->dcb.pfc = kzalloc(sizeof(*mlxsw_sp_port->dcb.pfc),
+					 GFP_KERNEL);
+	if (!mlxsw_sp_port->dcb.pfc)
+		return -ENOMEM;
+
+	mlxsw_sp_port->dcb.pfc->pfc_cap = IEEE_8021QAZ_MAX_TCS;
+
+	return 0;
+}
+
+static void mlxsw_sp_port_pfc_fini(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	kfree(mlxsw_sp_port->dcb.pfc);
+}
+
 int mlxsw_sp_port_dcb_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	int err;
@@ -348,11 +457,16 @@ int mlxsw_sp_port_dcb_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	err = mlxsw_sp_port_maxrate_init(mlxsw_sp_port);
 	if (err)
 		goto err_port_maxrate_init;
+	err = mlxsw_sp_port_pfc_init(mlxsw_sp_port);
+	if (err)
+		goto err_port_pfc_init;
 
 	mlxsw_sp_port->dev->dcbnl_ops = &mlxsw_sp_dcbnl_ops;
 
 	return 0;
 
+err_port_pfc_init:
+	mlxsw_sp_port_maxrate_fini(mlxsw_sp_port);
 err_port_maxrate_init:
 	mlxsw_sp_port_ets_fini(mlxsw_sp_port);
 	return err;
@@ -360,6 +474,7 @@ err_port_maxrate_init:
 
 void mlxsw_sp_port_dcb_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 {
+	mlxsw_sp_port_pfc_fini(mlxsw_sp_port);
 	mlxsw_sp_port_maxrate_fini(mlxsw_sp_port);
 	mlxsw_sp_port_ets_fini(mlxsw_sp_port);
 }

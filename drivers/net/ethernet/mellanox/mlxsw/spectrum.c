@@ -451,24 +451,27 @@ static int mlxsw_sp_port_set_mac_address(struct net_device *dev, void *p)
 }
 
 static void mlxsw_sp_pg_buf_pack(char *pbmc_pl, int pg_index, int mtu,
-				 bool pause_en)
+				 bool pause_en, bool pfc_en, u16 delay)
 {
 	u16 pg_size = 2 * MLXSW_SP_BYTES_TO_CELLS(mtu);
 
-	if (pause_en) {
-		u16 pg_pause_size = pg_size + MLXSW_SP_PAUSE_DELAY;
+	delay = pfc_en ? mlxsw_sp_pfc_delay_get(mtu, delay) :
+			 MLXSW_SP_PAUSE_DELAY;
 
+	if (pause_en || pfc_en)
 		mlxsw_reg_pbmc_lossless_buffer_pack(pbmc_pl, pg_index,
-						    pg_pause_size, pg_size);
-	} else {
+						    pg_size + delay, pg_size);
+	else
 		mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, pg_index, pg_size);
-	}
 }
 
 int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
-				 u8 *prio_tc, bool pause_en)
+				 u8 *prio_tc, bool pause_en,
+				 struct ieee_pfc *my_pfc)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 pfc_en = !!my_pfc ? my_pfc->pfc_en : 0;
+	u16 delay = !!my_pfc ? my_pfc->delay : 0;
 	char pbmc_pl[MLXSW_REG_PBMC_LEN];
 	int i, j, err;
 
@@ -479,9 +482,11 @@ int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
 
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
 		bool configure = false;
+		bool pfc = false;
 
 		for (j = 0; j < IEEE_8021QAZ_MAX_TCS; j++) {
 			if (prio_tc[j] == i) {
+				pfc = pfc_en & BIT(j);
 				configure = true;
 				break;
 			}
@@ -489,7 +494,7 @@ int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
 
 		if (!configure)
 			continue;
-		mlxsw_sp_pg_buf_pack(pbmc_pl, i, mtu, pause_en);
+		mlxsw_sp_pg_buf_pack(pbmc_pl, i, mtu, pause_en, pfc, delay);
 	}
 
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
@@ -500,12 +505,14 @@ static int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	u8 def_prio_tc[IEEE_8021QAZ_MAX_TCS] = {0};
 	bool dcb_en = !!mlxsw_sp_port->dcb.ets;
+	struct ieee_pfc *my_pfc;
 	u8 *prio_tc;
 
 	prio_tc = dcb_en ? mlxsw_sp_port->dcb.ets->prio_tc : def_prio_tc;
+	my_pfc = dcb_en ? mlxsw_sp_port->dcb.pfc : NULL;
 
 	return __mlxsw_sp_port_headroom_set(mlxsw_sp_port, mtu, prio_tc,
-					    pause_en);
+					    pause_en, my_pfc);
 }
 
 static int mlxsw_sp_port_change_mtu(struct net_device *dev, int mtu)
@@ -1031,6 +1038,11 @@ static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	bool pause_en = pause->tx_pause || pause->rx_pause;
 	int err;
+
+	if (mlxsw_sp_port->dcb.pfc && mlxsw_sp_port->dcb.pfc->pfc_en) {
+		netdev_err(dev, "PFC already enabled on port\n");
+		return -EINVAL;
+	}
 
 	if (pause->autoneg) {
 		netdev_err(dev, "PAUSE frames autonegotiation isn't supported\n");

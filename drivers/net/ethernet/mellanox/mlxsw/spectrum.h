@@ -72,6 +72,14 @@
  */
 #define MLXSW_SP_PAUSE_DELAY 612
 
+#define MLXSW_SP_CELL_FACTOR 2	/* 2 * cell_size / (IPG + cell_size + 1) */
+
+static inline u16 mlxsw_sp_pfc_delay_get(int mtu, u16 delay)
+{
+	delay = MLXSW_SP_BYTES_TO_CELLS(DIV_ROUND_UP(delay, BITS_PER_BYTE));
+	return MLXSW_SP_CELL_FACTOR * delay + MLXSW_SP_BYTES_TO_CELLS(mtu);
+}
+
 struct mlxsw_sp_port;
 
 struct mlxsw_sp_upper {
@@ -183,6 +191,7 @@ struct mlxsw_sp_port {
 	struct {
 		struct ieee_ets *ets;
 		struct ieee_maxrate *maxrate;
+		struct ieee_pfc *pfc;
 	} dcb;
 	/* 802.1Q bridge VLANs */
 	unsigned long *active_vlans;
@@ -295,7 +304,8 @@ int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 int mlxsw_sp_port_prio_tc_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			      u8 switch_prio, u8 tclass);
 int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
-				 u8 *prio_tc, bool pause_en);
+				 u8 *prio_tc, bool pause_en,
+				 struct ieee_pfc *my_pfc);
 int mlxsw_sp_port_ets_maxrate_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				  enum mlxsw_reg_qeec_hr hr, u8 index,
 				  u8 next_index, u32 maxrate);

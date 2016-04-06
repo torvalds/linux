@@ -2442,6 +2442,16 @@ MLXSW_ITEM32(reg, pfcc, aprx, 0x0C, 30, 1);
  */
 MLXSW_ITEM32(reg, pfcc, pfcrx, 0x0C, 16, 8);
 
+#define MLXSW_REG_PFCC_ALL_PRIO 0xFF
+
+static inline void mlxsw_reg_pfcc_prio_pack(char *payload, u8 pfc_en)
+{
+	mlxsw_reg_pfcc_prio_mask_tx_set(payload, MLXSW_REG_PFCC_ALL_PRIO);
+	mlxsw_reg_pfcc_prio_mask_rx_set(payload, MLXSW_REG_PFCC_ALL_PRIO);
+	mlxsw_reg_pfcc_pfctx_set(payload, pfc_en);
+	mlxsw_reg_pfcc_pfcrx_set(payload, pfc_en);
+}
+
 static inline void mlxsw_reg_pfcc_pack(char *payload, u8 local_port)
 {
 	MLXSW_REG_ZERO(pfcc, payload);
