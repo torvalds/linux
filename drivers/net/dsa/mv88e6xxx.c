@@ -1193,7 +1193,7 @@ static int _mv88e6xxx_port_based_vlan_map(struct dsa_switch *ds, int port)
 	return _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_BASE_VLAN, reg);
 }
 
-int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
+void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int stp_state;
@@ -1215,14 +1215,12 @@ int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
 		break;
 	}
 
-	/* mv88e6xxx_port_stp_update may be called with softirqs disabled,
+	/* mv88e6xxx_port_stp_state_set may be called with softirqs disabled,
 	 * so we can not update the port state directly but need to schedule it.
 	 */
 	ps->ports[port].state = stp_state;
 	set_bit(port, ps->port_state_update_mask);
 	schedule_work(&ps->bridge_work);
-
-	return 0;
 }
 
 static int _mv88e6xxx_port_pvid(struct dsa_switch *ds, int port, u16 *new,

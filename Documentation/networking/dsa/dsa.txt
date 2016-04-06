@@ -533,7 +533,7 @@ Bridge layer
   out at the switch hardware for the switch to (re) learn MAC addresses behind
   this port.
 
-- port_stp_update: bridge layer function invoked when a given switch port STP
+- port_stp_state_set: bridge layer function invoked when a given switch port STP
   state is computed by the bridge layer and should be propagated to switch
   hardware to forward/block/learn traffic. The switch driver is responsible for
   computing a STP state change based on current and asked parameters and perform
