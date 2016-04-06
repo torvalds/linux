@@ -55,6 +55,7 @@ struct tilcdc_crtc {
 
 	int sync_lost_count;
 	bool frame_intact;
+	struct work_struct recover_work;
 };
 #define to_tilcdc_crtc(x) container_of(x, struct tilcdc_crtc, base)
 
@@ -250,6 +251,25 @@ void tilcdc_crtc_shutdown(struct drm_crtc *crtc)
 static bool tilcdc_crtc_is_on(struct drm_crtc *crtc)
 {
 	return crtc->state && crtc->state->enable && crtc->state->active;
+}
+
+static void tilcdc_crtc_recover_work(struct work_struct *work)
+{
+	struct tilcdc_crtc *tilcdc_crtc =
+		container_of(work, struct tilcdc_crtc, recover_work);
+	struct drm_crtc *crtc = &tilcdc_crtc->base;
+
+	dev_info(crtc->dev->dev, "%s: Reset CRTC", __func__);
+
+	drm_modeset_lock_crtc(crtc, NULL);
+
+	if (!tilcdc_crtc_is_on(crtc))
+		goto out;
+
+	tilcdc_crtc_disable(crtc);
+	tilcdc_crtc_enable(crtc);
+out:
+	drm_modeset_unlock_crtc(crtc);
 }
 
 static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
@@ -838,9 +858,12 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 			tilcdc_crtc->frame_intact = false;
 			if (tilcdc_crtc->sync_lost_count++ >
 			    SYNC_LOST_COUNT_LIMIT) {
-				dev_err(dev->dev, "%s(0x%08x): Sync lost flood detected, disabling the interrupt", __func__, stat);
+				dev_err(dev->dev, "%s(0x%08x): Sync lost flood detected, recovering", __func__, stat);
+				queue_work(system_wq,
+					   &tilcdc_crtc->recover_work);
 				tilcdc_write(dev, LCDC_INT_ENABLE_CLR_REG,
 					     LCDC_SYNC_LOST);
+				tilcdc_crtc->sync_lost_count = 0;
 			}
 		}
 
@@ -880,6 +903,7 @@ struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 			"unref", unref_worker);
 
 	spin_lock_init(&tilcdc_crtc->irq_lock);
+	INIT_WORK(&tilcdc_crtc->recover_work, tilcdc_crtc_recover_work);
 
 	ret = drm_crtc_init_with_planes(dev, crtc,
 					&tilcdc_crtc->primary,
