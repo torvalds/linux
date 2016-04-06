@@ -697,7 +697,7 @@ srpc_finish_service(struct srpc_service *sv)
 
 /* called with sv->sv_lock held */
 static void
-srpc_service_recycle_buffer(struct srpc_service_cd *scd, srpc_buffer_t *buf)
+srpc_service_recycle_buffer(struct srpc_service_cd *scd, struct srpc_buffer *buf)
 __must_hold(&scd->scd_lock)
 {
 	if (!scd->scd_svc->sv_shuttingdown && scd->scd_buf_adjust >= 0) {
@@ -759,7 +759,7 @@ srpc_shutdown_service(srpc_service_t *sv)
 {
 	struct srpc_service_cd *scd;
 	struct srpc_server_rpc *rpc;
-	srpc_buffer_t *buf;
+	struct srpc_buffer *buf;
 	int i;
 
 	CDEBUG(D_NET, "Shutting down service: id %d, name %s\n",
@@ -903,7 +903,7 @@ srpc_server_rpc_done(struct srpc_server_rpc *rpc, int status)
 {
 	struct srpc_service_cd *scd = rpc->srpc_scd;
 	struct srpc_service *sv = scd->scd_svc;
-	srpc_buffer_t *buffer;
+	struct srpc_buffer *buffer;
 
 	LASSERT(status || rpc->srpc_wi.swi_state == SWI_STATE_DONE);
 
@@ -948,7 +948,7 @@ srpc_server_rpc_done(struct srpc_server_rpc *rpc, int status)
 
 	if (!sv->sv_shuttingdown && !list_empty(&scd->scd_buf_blocked)) {
 		buffer = list_entry(scd->scd_buf_blocked.next,
-				    srpc_buffer_t, buf_list);
+				    struct srpc_buffer, buf_list);
 		list_del(&buffer->buf_list);
 
 		srpc_init_server_rpc(rpc, scd, buffer);
@@ -1413,7 +1413,7 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 	struct srpc_event *rpcev = ev->md.user_ptr;
 	srpc_client_rpc_t *crpc;
 	struct srpc_server_rpc *srpc;
-	srpc_buffer_t *buffer;
+	struct srpc_buffer *buffer;
 	srpc_service_t *sv;
 	srpc_msg_t *msg;
 	srpc_msg_type_t type;
@@ -1486,7 +1486,7 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 		LASSERT(ev->type != LNET_EVENT_UNLINK ||
 			sv->sv_shuttingdown);
 
-		buffer = container_of(ev->md.start, srpc_buffer_t, buf_msg);
+		buffer = container_of(ev->md.start, struct srpc_buffer, buf_msg);
 		buffer->buf_peer = ev->initiator;
 		buffer->buf_self = ev->target.nid;
 

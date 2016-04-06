@@ -164,13 +164,13 @@ struct srpc_bulk {
 };
 
 /* message buffer descriptor */
-typedef struct srpc_buffer {
+struct srpc_buffer {
 	struct list_head  buf_list; /* chain on srpc_service::*_msgq */
 	srpc_msg_t	  buf_msg;
 	lnet_handle_md_t  buf_mdh;
 	lnet_nid_t	  buf_self;
 	lnet_process_id_t buf_peer;
-} srpc_buffer_t;
+};
 
 struct swi_workitem;
 typedef int (*swi_action_t) (struct swi_workitem *);
@@ -193,7 +193,7 @@ struct srpc_server_rpc {
 	lnet_process_id_t      srpc_peer;
 	srpc_msg_t	       srpc_replymsg;
 	lnet_handle_md_t       srpc_replymdh;
-	srpc_buffer_t	       *srpc_reqstbuf;
+	struct srpc_buffer	*srpc_reqstbuf;
 	struct srpc_bulk	*srpc_bulk;
 
 	unsigned int	       srpc_aborted; /* being given up */
