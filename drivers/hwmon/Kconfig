@@ -288,7 +288,7 @@ config SENSORS_K10TEMP
 
 config SENSORS_FAM15H_POWER
 	tristate "AMD Family 15h processor power"
-	depends on X86 && PCI
+	depends on X86 && PCI && CPU_SUP_AMD
 	help
 	  If you say yes here you get support for processor power
 	  information of your AMD family 15h CPU.
