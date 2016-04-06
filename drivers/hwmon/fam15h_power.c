@@ -1,7 +1,7 @@
 /*
  * fam15h_power.c - AMD Family 15h processor power monitoring
  *
- * Copyright (c) 2011 Advanced Micro Devices, Inc.
+ * Copyright (c) 2011-2016 Advanced Micro Devices, Inc.
  * Author: Andreas Herrmann <herrmann.der.user@googlemail.com>
  *
  *
