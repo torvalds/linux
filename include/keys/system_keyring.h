@@ -24,6 +24,15 @@ extern int restrict_link_by_builtin_trusted(struct key *keyring,
 #define restrict_link_by_builtin_trusted restrict_link_reject
 #endif
 
+#ifdef CONFIG_SECONDARY_TRUSTED_KEYRING
+extern int restrict_link_by_builtin_and_secondary_trusted(
+	struct key *keyring,
+	const struct key_type *type,
+	const union key_payload *payload);
+#else
+#define restrict_link_by_builtin_and_secondary_trusted restrict_link_by_builtin_trusted
+#endif
+
 #ifdef CONFIG_IMA_MOK_KEYRING
 extern struct key *ima_mok_keyring;
 extern struct key *ima_blacklist_keyring;
