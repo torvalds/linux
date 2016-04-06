@@ -62,6 +62,10 @@
 
 #define MLXSW_SP_PORT_BASE_SPEED 25000	/* Mb/s */
 
+#define MLXSW_SP_BYTES_PER_CELL 96
+
+#define MLXSW_SP_BYTES_TO_CELLS(b) DIV_ROUND_UP(b, MLXSW_SP_BYTES_PER_CELL)
+
 struct mlxsw_sp_port;
 
 struct mlxsw_sp_upper {
