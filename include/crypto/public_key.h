@@ -47,6 +47,13 @@ extern void public_key_signature_free(struct public_key_signature *sig);
 extern struct asymmetric_key_subtype public_key_subtype;
 
 struct key;
+struct key_type;
+union key_payload;
+
+extern int restrict_link_by_signature(struct key *trust_keyring,
+				      const struct key_type *type,
+				      const union key_payload *payload);
+
 extern int verify_signature(const struct key *key,
 			    const struct public_key_signature *sig);
 

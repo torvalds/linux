@@ -12,22 +12,17 @@
 #ifndef _KEYS_SYSTEM_KEYRING_H
 #define _KEYS_SYSTEM_KEYRING_H
 
+#include <linux/key.h>
+
 #ifdef CONFIG_SYSTEM_TRUSTED_KEYRING
 
-#include <linux/key.h>
-#include <linux/verification.h>
-#include <crypto/public_key.h>
+extern int restrict_link_by_builtin_trusted(struct key *keyring,
+					    const struct key_type *type,
+					    unsigned long flags,
+					    const union key_payload *payload);
 
-extern struct key *system_trusted_keyring;
-static inline struct key *get_system_trusted_keyring(void)
-{
-	return system_trusted_keyring;
-}
 #else
-static inline struct key *get_system_trusted_keyring(void)
-{
-	return NULL;
-}
+#define restrict_link_by_builtin_trusted restrict_link_reject
 #endif
 
 #ifdef CONFIG_IMA_MOK_KEYRING

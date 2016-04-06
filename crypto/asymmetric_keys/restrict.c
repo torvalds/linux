@@ -1,6 +1,6 @@
 /* Instantiate a public key crypto key from an X.509 Certificate
  *
- * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2012, 2016 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -9,20 +9,12 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
-#define pr_fmt(fmt) "X.509: "fmt
+#define pr_fmt(fmt) "ASYM: "fmt
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/err.h>
-#include <linux/mpi.h>
-#include <linux/asn1_decoder.h>
-#include <keys/asymmetric-subtype.h>
-#include <keys/asymmetric-parser.h>
-#include <keys/system_keyring.h>
-#include <crypto/hash.h>
 #include <crypto/public_key.h>
 #include "asymmetric_keys.h"
-#include "x509_parser.h"
 
 static bool use_builtin_keys;
 static struct asymmetric_key_id *ca_keyid;
@@ -62,45 +54,55 @@ static int __init ca_keys_setup(char *str)
 __setup("ca_keys=", ca_keys_setup);
 #endif
 
-/*
+/**
+ * restrict_link_by_signature - Restrict additions to a ring of public keys
+ * @trust_keyring: A ring of keys that can be used to vouch for the new cert.
+ * @type: The type of key being added.
+ * @payload: The payload of the new key.
+ *
  * Check the new certificate against the ones in the trust keyring.  If one of
  * those is the signing key and validates the new certificate, then mark the
  * new certificate as being trusted.
  *
- * Return 0 if the new certificate was successfully validated, 1 if we couldn't
- * find a matching parent certificate in the trusted list and an error if there
- * is a matching certificate but the signature check fails.
+ * Returns 0 if the new certificate was accepted, -ENOKEY if we couldn't find a
+ * matching parent certificate in the trusted list, -EKEYREJECTED if the
+ * signature check fails or the key is blacklisted and some other error if
+ * there is a matching certificate but the signature check cannot be performed.
  */
-int x509_validate_trust(struct x509_certificate *cert,
-			struct key *trust_keyring)
+int restrict_link_by_signature(struct key *trust_keyring,
+			       const struct key_type *type,
+			       const union key_payload *payload)
 {
-	struct public_key_signature *sig = cert->sig;
+	const struct public_key_signature *sig;
 	struct key *key;
-	int ret = 1;
+	int ret;
 
-	if (!sig->auth_ids[0] && !sig->auth_ids[1])
-		return 1;
+	pr_devel("==>%s()\n", __func__);
 
 	if (!trust_keyring)
+		return -ENOKEY;
+
+	if (type != &key_type_asymmetric)
 		return -EOPNOTSUPP;
+
+	sig = payload->data[asym_auth];
+	if (!sig->auth_ids[0] && !sig->auth_ids[1])
+		return 0;
+
 	if (ca_keyid && !asymmetric_key_id_partial(sig->auth_ids[1], ca_keyid))
 		return -EPERM;
-	if (cert->unsupported_sig)
-		return -ENOPKG;
 
+	/* See if we have a key that signed this one. */
 	key = find_asymmetric_key(trust_keyring,
 				  sig->auth_ids[0], sig->auth_ids[1],
 				  false);
 	if (IS_ERR(key))
-		return PTR_ERR(key);
+		return -ENOKEY;
 
-	if (!use_builtin_keys ||
-	    test_bit(KEY_FLAG_BUILTIN, &key->flags)) {
-		ret = verify_signature(key, cert->sig);
-		if (ret == -ENOPKG)
-			cert->unsupported_sig = true;
-	}
+	if (use_builtin_keys && !test_bit(KEY_FLAG_BUILTIN, &key->flags))
+		ret = -ENOKEY;
+	else
+		ret = verify_signature(key, sig);
 	key_put(key);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(x509_validate_trust);

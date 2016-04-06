@@ -18,11 +18,25 @@
 #include <keys/system_keyring.h>
 #include <crypto/pkcs7.h>
 
-struct key *system_trusted_keyring;
-EXPORT_SYMBOL_GPL(system_trusted_keyring);
+static struct key *system_trusted_keyring;
 
 extern __initconst const u8 system_certificate_list[];
 extern __initconst const unsigned long system_certificate_list_size;
+
+/**
+ * restrict_link_by_builtin_trusted - Restrict keyring addition by system CA
+ *
+ * Restrict the addition of keys into a keyring based on the key-to-be-added
+ * being vouched for by a key in the system keyring.
+ */
+int restrict_link_by_builtin_trusted(struct key *keyring,
+				     const struct key_type *type,
+				     unsigned long flags,
+				     const union key_payload *payload)
+{
+	return restrict_link_by_signature(system_trusted_keyring,
+					  type, payload);
+}
 
 /*
  * Load the compiled-in keys
@@ -37,7 +51,7 @@ static __init int system_trusted_keyring_init(void)
 			      ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
 			      KEY_USR_VIEW | KEY_USR_READ | KEY_USR_SEARCH),
 			      KEY_ALLOC_NOT_IN_QUOTA,
-			      keyring_restrict_trusted_only, NULL);
+			      restrict_link_by_builtin_trusted, NULL);
 	if (IS_ERR(system_trusted_keyring))
 		panic("Can't allocate system trusted keyring\n");
 	return 0;

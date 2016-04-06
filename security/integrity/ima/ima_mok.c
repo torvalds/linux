@@ -17,7 +17,7 @@
 #include <linux/cred.h>
 #include <linux/err.h>
 #include <linux/init.h>
-#include <keys/asymmetric-type.h>
+#include <keys/system_keyring.h>
 
 
 struct key *ima_mok_keyring;
@@ -36,7 +36,7 @@ __init int ima_mok_init(void)
 			      KEY_USR_VIEW | KEY_USR_READ |
 			      KEY_USR_WRITE | KEY_USR_SEARCH,
 			      KEY_ALLOC_NOT_IN_QUOTA,
-			      keyring_restrict_trusted_only, NULL);
+			      restrict_link_by_builtin_trusted, NULL);
 
 	ima_blacklist_keyring = keyring_alloc(".ima_blacklist",
 				KUIDT_INIT(0), KGIDT_INIT(0), current_cred(),
@@ -44,7 +44,7 @@ __init int ima_mok_init(void)
 				KEY_USR_VIEW | KEY_USR_READ |
 				KEY_USR_WRITE | KEY_USR_SEARCH,
 				KEY_ALLOC_NOT_IN_QUOTA,
-				keyring_restrict_trusted_only, NULL);
+				restrict_link_by_builtin_trusted, NULL);
 
 	if (IS_ERR(ima_mok_keyring) || IS_ERR(ima_blacklist_keyring))
 		panic("Can't allocate IMA MOK or blacklist keyrings.");
