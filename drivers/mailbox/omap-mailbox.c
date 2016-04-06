@@ -55,13 +55,6 @@
 #define MAILBOX_IRQ_NEWMSG(m)		(1 << (2 * (m)))
 #define MAILBOX_IRQ_NOTFULL(m)		(1 << (2 * (m) + 1))
 
-#define MBOX_REG_SIZE			0x120
-
-#define OMAP4_MBOX_REG_SIZE		0x130
-
-#define MBOX_NR_REGS			(MBOX_REG_SIZE / sizeof(u32))
-#define OMAP4_MBOX_NR_REGS		(OMAP4_MBOX_REG_SIZE / sizeof(u32))
-
 /* Interrupt register configuration types */
 #define MBOX_INTR_CFG_TYPE1		0
 #define MBOX_INTR_CFG_TYPE2		1
@@ -118,7 +111,6 @@ struct omap_mbox {
 	struct omap_mbox_device *parent;
 	struct omap_mbox_fifo	tx_fifo;
 	struct omap_mbox_fifo	rx_fifo;
-	u32			ctx[OMAP4_MBOX_NR_REGS];
 	u32			intr_type;
 	struct mbox_chan	*chan;
 	bool			send_no_irq;
@@ -208,49 +200,6 @@ static int is_mbox_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 
 	return (int)(enable & status & bit);
 }
-
-void omap_mbox_save_ctx(struct mbox_chan *chan)
-{
-	int i;
-	int nr_regs;
-	struct omap_mbox *mbox = mbox_chan_to_omap_mbox(chan);
-
-	if (WARN_ON(!mbox))
-		return;
-
-	if (mbox->intr_type)
-		nr_regs = OMAP4_MBOX_NR_REGS;
-	else
-		nr_regs = MBOX_NR_REGS;
-	for (i = 0; i < nr_regs; i++) {
-		mbox->ctx[i] = mbox_read_reg(mbox->parent, i * sizeof(u32));
-
-		dev_dbg(mbox->dev, "%s: [%02x] %08x\n", __func__,
-			i, mbox->ctx[i]);
-	}
-}
-EXPORT_SYMBOL(omap_mbox_save_ctx);
-
-void omap_mbox_restore_ctx(struct mbox_chan *chan)
-{
-	int i;
-	int nr_regs;
-	struct omap_mbox *mbox = mbox_chan_to_omap_mbox(chan);
-
-	if (WARN_ON(!mbox))
-		return;
-
-	if (mbox->intr_type)
-		nr_regs = OMAP4_MBOX_NR_REGS;
-	else
-		nr_regs = MBOX_NR_REGS;
-	for (i = 0; i < nr_regs; i++) {
-		mbox_write_reg(mbox->parent, mbox->ctx[i], i * sizeof(u32));
-		dev_dbg(mbox->dev, "%s: [%02x] %08x\n", __func__,
-			i, mbox->ctx[i]);
-	}
-}
-EXPORT_SYMBOL(omap_mbox_restore_ctx);
 
 static void _omap_mbox_enable_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 {
