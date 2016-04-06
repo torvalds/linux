@@ -1074,6 +1074,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 	  .arg_parm	 = { [arg] = &strarray__##array, }
 
 #include "trace/beauty/sched_policy.c"
+#include "trace/beauty/waitid_options.c"
 
 static struct syscall_fmt {
 	const char *name;
@@ -1364,6 +1365,10 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "vmsplice",  .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
+	{ .name	    = "wait4",	    .errmsg = true,
+	  .arg_scnprintf = { [2] = SCA_WAITID_OPTIONS, /* options */ }, },
+	{ .name	    = "waitid",	    .errmsg = true,
+	  .arg_scnprintf = { [3] = SCA_WAITID_OPTIONS, /* options */ }, },
 	{ .name	    = "write",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "writev",	    .errmsg = true,
