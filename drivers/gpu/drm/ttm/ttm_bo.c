@@ -998,13 +998,19 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	lockdep_assert_held(&bo->resv->lock.base);
 
 	/*
-	 * FIXME: It's possible to pipeline buffer moves.
-	 * Have the driver move function wait for idle when necessary,
-	 * instead of doing it here.
+	 * Don't wait for the BO on initial allocation. This is important when
+	 * the BO has an imported reservation object.
 	 */
-	ret = ttm_bo_wait(bo, false, interruptible, no_wait_gpu);
-	if (ret)
-		return ret;
+	if (bo->mem.mem_type != TTM_PL_SYSTEM || bo->ttm != NULL) {
+		/*
+		 * FIXME: It's possible to pipeline buffer moves.
+		 * Have the driver move function wait for idle when necessary,
+		 * instead of doing it here.
+		 */
+		ret = ttm_bo_wait(bo, false, interruptible, no_wait_gpu);
+		if (ret)
+			return ret;
+	}
 	mem.num_pages = bo->num_pages;
 	mem.size = mem.num_pages << PAGE_SHIFT;
 	mem.page_alignment = bo->mem.page_alignment;
