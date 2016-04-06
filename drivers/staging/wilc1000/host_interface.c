@@ -331,7 +331,7 @@ static void handle_set_wfi_drv_handler(struct wilc_vif *vif,
 static void handle_set_operation_mode(struct wilc_vif *vif,
 				      struct op_mode *hif_op_mode)
 {
-	s32 result = 0;
+	int result = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_SET_OPERATION_MODE;
