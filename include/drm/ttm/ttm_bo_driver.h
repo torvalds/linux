@@ -434,6 +434,12 @@ struct ttm_bo_driver {
 	 */
 	int (*io_mem_reserve)(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
 	void (*io_mem_free)(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
+
+	/**
+	 * Optional driver callback for when BO is removed from the LRU.
+	 * Called with LRU lock held immediately before the removal.
+	 */
+	void (*lru_removal)(struct ttm_buffer_object *bo);
 };
 
 /**
