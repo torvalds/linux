@@ -82,7 +82,7 @@
 		reg = <0x12570000 0x14>;
 	};
 
-	mipi_phy: video-phy@10020710 {
+	mipi_phy: video-phy {
 		compatible = "samsung,s5pv210-mipi-video-phy";
 		#phy-cells = <1>;
 		syscon = <&pmu_system_controller>;
