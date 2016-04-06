@@ -24,7 +24,11 @@
  */
 void public_key_signature_free(struct public_key_signature *sig)
 {
+	int i;
+
 	if (sig) {
+		for (i = 0; i < ARRAY_SIZE(sig->auth_ids); i++)
+			kfree(sig->auth_ids[i]);
 		kfree(sig->s);
 		kfree(sig->digest);
 		kfree(sig);
