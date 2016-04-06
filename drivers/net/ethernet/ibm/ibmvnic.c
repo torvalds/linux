@@ -800,11 +800,12 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 			ret = NETDEV_TX_BUSY;
 			goto out;
 		}
-		lpar_rc = send_subcrq_indirect(adapter, handle_array[0],
+		lpar_rc = send_subcrq_indirect(adapter, handle_array[queue_num],
 					       (u64)tx_buff->indir_dma,
 					       (u64)num_entries);
 	} else {
-		lpar_rc = send_subcrq(adapter, handle_array[0], &tx_crq);
+		lpar_rc = send_subcrq(adapter, handle_array[queue_num],
+				      &tx_crq);
 	}
 	if (lpar_rc != H_SUCCESS) {
 		dev_err(dev, "tx failed with code %ld\n", lpar_rc);
@@ -989,7 +990,7 @@ restart_poll:
 		netdev->stats.rx_bytes += length;
 		frames_processed++;
 	}
-	replenish_pools(adapter);
+	replenish_rx_pool(adapter, &adapter->rx_pool[scrq_num]);
 
 	if (frames_processed < budget) {
 		enable_scrq_irq(adapter, adapter->rx_scrq[scrq_num]);
@@ -1426,9 +1427,9 @@ static void init_sub_crqs(struct ibmvnic_adapter *adapter, int retry)
 		    entries_page : adapter->max_rx_add_entries_per_subcrq;
 
 		/* Choosing the maximum number of queues supported by firmware*/
-		adapter->req_tx_queues = adapter->min_tx_queues;
-		adapter->req_rx_queues = adapter->min_rx_queues;
-		adapter->req_rx_add_queues = adapter->min_rx_add_queues;
+		adapter->req_tx_queues = adapter->max_tx_queues;
+		adapter->req_rx_queues = adapter->max_rx_queues;
+		adapter->req_rx_add_queues = adapter->max_rx_add_queues;
 
 		adapter->req_mtu = adapter->max_mtu;
 	}
@@ -1776,13 +1777,11 @@ static void send_login(struct ibmvnic_adapter *adapter)
 		goto buf_map_failed;
 	}
 
-	rsp_buffer_size =
-	    sizeof(struct ibmvnic_login_rsp_buffer) +
-	    sizeof(u64) * (adapter->req_tx_queues +
-			   adapter->req_rx_queues *
-			   adapter->req_rx_add_queues + adapter->
-			   req_rx_add_queues) +
-	    sizeof(u8) * (IBMVNIC_TX_DESC_VERSIONS);
+	rsp_buffer_size = sizeof(struct ibmvnic_login_rsp_buffer) +
+			  sizeof(u64) * adapter->req_tx_queues +
+			  sizeof(u64) * adapter->req_rx_queues +
+			  sizeof(u64) * adapter->req_rx_queues +
+			  sizeof(u8) * IBMVNIC_TX_DESC_VERSIONS;
 
 	login_rsp_buffer = kmalloc(rsp_buffer_size, GFP_ATOMIC);
 	if (!login_rsp_buffer)
@@ -2400,6 +2399,16 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 			 DMA_BIDIRECTIONAL);
 	dma_unmap_single(dev, adapter->login_rsp_buf_token,
 			 adapter->login_rsp_buf_sz, DMA_BIDIRECTIONAL);
+
+	/* If the number of queues requested can't be allocated by the
+	 * server, the login response will return with code 1. We will need
+	 * to resend the login buffer with fewer queues requested.
+	 */
+	if (login_rsp_crq->generic.rc.code) {
+		adapter->renegotiate = true;
+		complete(&adapter->init_done);
+		return 0;
+	}
 
 	netdev_dbg(adapter->netdev, "Login Response Buffer:\n");
 	for (i = 0; i < (adapter->login_rsp_buf_sz - 1) / 8 + 1; i++) {
@@ -3628,14 +3637,21 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	init_completion(&adapter->init_done);
 	wait_for_completion(&adapter->init_done);
 
-	/* needed to pull init_sub_crqs outside of an interrupt context
-	 * because it creates IRQ mappings for the subCRQ queues, causing
-	 * a kernel warning
-	 */
-	init_sub_crqs(adapter, 0);
+	do {
+		adapter->renegotiate = false;
 
-	reinit_completion(&adapter->init_done);
-	wait_for_completion(&adapter->init_done);
+		init_sub_crqs(adapter, 0);
+		reinit_completion(&adapter->init_done);
+		wait_for_completion(&adapter->init_done);
+
+		if (adapter->renegotiate) {
+			release_sub_crqs(adapter);
+			send_cap_queries(adapter);
+
+			reinit_completion(&adapter->init_done);
+			wait_for_completion(&adapter->init_done);
+		}
+	} while (adapter->renegotiate);
 
 	/* if init_sub_crqs is partially successful, retry */
 	while (!adapter->tx_scrq || !adapter->rx_scrq) {

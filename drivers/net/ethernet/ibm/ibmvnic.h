@@ -980,6 +980,7 @@ struct ibmvnic_adapter {
 	struct ibmvnic_sub_crq_queue **tx_scrq;
 	struct ibmvnic_sub_crq_queue **rx_scrq;
 	int requested_caps;
+	bool renegotiate;
 
 	/* rx structs */
 	struct napi_struct *napi;
