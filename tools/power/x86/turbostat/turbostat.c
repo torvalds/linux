@@ -2188,6 +2188,7 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	case 0x56:	/* BDX-DE */
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x55:	/* SKX */
 		pkg_cstate_limits = hsw_pkg_cstate_limits;
 		break;
 	case 0x37:	/* BYT */
@@ -2295,6 +2296,7 @@ int has_config_tdp(unsigned int family, unsigned int model)
 	case 0x56:	/* BDX-DE */
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x55:	/* SKX */
 
 	case 0x57:	/* Knights Landing */
 		return 1;
@@ -2642,6 +2644,7 @@ void rapl_probe(unsigned int family, unsigned int model)
 	case 0x3F:	/* HSX */
 	case 0x4F:	/* BDX */
 	case 0x56:	/* BDX-DE */
+	case 0x55:	/* SKX */
 	case 0x57:	/* KNL */
 		do_rapl = RAPL_PKG | RAPL_DRAM | RAPL_DRAM_POWER_INFO | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_PKG_POWER_INFO;
 		break;
@@ -2921,6 +2924,7 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 	case 0x56:	/* BDX-DE */
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x55:	/* SKX */
 	case 0x5C:	/* BXT */
 		return 1;
 	}
@@ -3279,6 +3283,9 @@ void process_cpuid()
 				case 0x4E:	/* SKL */
 				case 0x5E:	/* SKL */
 					crystal_hz = 24000000;	/* 24.0 MHz */
+					break;
+				case 0x55:	/* SKX */
+					crystal_hz = 25000000;	/* 25.0 MHz */
 					break;
 				case 0x5C:	/* BXT */
 					crystal_hz = 19200000;	/* 19.2 MHz */
@@ -3694,7 +3701,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(outf, "turbostat version 4.11 27 Feb 2016"
+	fprintf(outf, "turbostat version 4.12 5 Apr 2016"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
