@@ -307,8 +307,8 @@ static void handle_set_channel(struct wilc_vif *vif,
 		netdev_err(vif->ndev, "Failed to set channel\n");
 }
 
-static s32 handle_set_wfi_drv_handler(struct wilc_vif *vif,
-				      struct drv_handler *hif_drv_handler)
+static void handle_set_wfi_drv_handler(struct wilc_vif *vif,
+				       struct drv_handler *hif_drv_handler)
 {
 	s32 result = 0;
 	struct wid wid;
@@ -324,12 +324,8 @@ static s32 handle_set_wfi_drv_handler(struct wilc_vif *vif,
 	if (!hif_drv_handler->handler)
 		complete(&hif_driver_comp);
 
-	if (result) {
+	if (result)
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
-		return -EINVAL;
-	}
-
-	return result;
 }
 
 static s32 handle_set_operation_mode(struct wilc_vif *vif,
