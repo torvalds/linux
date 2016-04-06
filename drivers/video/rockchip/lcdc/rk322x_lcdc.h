@@ -245,6 +245,7 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define SYS_CTRL			0x00000008
 #define  V_DIRECT_PATH_EN(x)			VAL_MASK(x, 1, 0)
 #define  V_DIRECT_PATH_LAYER_SEL(x)		VAL_MASK(x, 2, 1)
+#define  V_MIPI_DUAL_CHANNEL_EN(x)		VAL_MASK(x, 1, 3)
 #define  V_EDPI_HALT_EN(x)			VAL_MASK(x, 1, 8)
 #define  V_EDPI_WMS_MODE(x)			VAL_MASK(x, 1, 9)
 #define  V_EDPI_WMS_FS(x)			VAL_MASK(x, 1, 10)

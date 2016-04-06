@@ -1996,9 +1996,14 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			vop_msk_reg(vop_dev, SYS_CTRL, val);
 			break;
 		case SCREEN_HDMI:
-			if ((screen->face == OUT_P888) ||
-			    (screen->face == OUT_P101010))
-				face = OUT_P101010; /*RGB 101010 output*/
+			if ((VOP_CHIP(vop_dev) == VOP_RK3399) &&
+			    ((screen->face == OUT_P888) ||
+			     (screen->face == OUT_P101010))) {
+				if (vop_dev->id == 0)
+					face = OUT_P101010; /*RGB 10bit output*/
+				else
+					face = OUT_P888;
+			}
 			val = V_HDMI_OUT_EN(1) | V_SW_UV_OFFSET_EN(0);
 			vop_msk_reg(vop_dev, SYS_CTRL, val);
 			break;
@@ -2006,10 +2011,19 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		case SCREEN_LVDS:
 			val = V_RGB_OUT_EN(1);
 			vop_msk_reg(vop_dev, SYS_CTRL, val);
+			break;
 		case SCREEN_MIPI:
 			val = V_MIPI_OUT_EN(1);
 			vop_msk_reg(vop_dev, SYS_CTRL, val);
+			break;
+		case SCREEN_DUAL_MIPI:
+			val = V_MIPI_OUT_EN(1) | V_MIPI_DUAL_CHANNEL_EN(1);
+			vop_msk_reg(vop_dev, SYS_CTRL, val);
+			break;
 		case SCREEN_EDP:
+			if ((VOP_CHIP(vop_dev) == VOP_RK3399) &&
+			    (vop_dev->id == 0))
+				face = OUT_P101010;
 			val = V_EDP_OUT_EN(1);
 			vop_msk_reg(vop_dev, SYS_CTRL, val);
 			break;
