@@ -655,10 +655,18 @@ static const struct mbox_chan_ops omap_mbox_chan_ops = {
 static int omap_mbox_suspend(struct device *dev)
 {
 	struct omap_mbox_device *mdev = dev_get_drvdata(dev);
-	u32 usr, reg;
+	u32 usr, fifo, reg;
 
 	if (pm_runtime_status_suspended(dev))
 		return 0;
+
+	for (fifo = 0; fifo < mdev->num_fifos; fifo++) {
+		if (mbox_read_reg(mdev, MAILBOX_MSGSTATUS(fifo))) {
+			dev_err(mdev->dev, "fifo %d has unexpected unread messages\n",
+				fifo);
+			return -EBUSY;
+		}
+	}
 
 	for (usr = 0; usr < mdev->num_users; usr++) {
 		reg = MAILBOX_IRQENABLE(mdev->intr_type, usr);
