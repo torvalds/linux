@@ -230,6 +230,11 @@ int x509_check_for_self_signed(struct x509_certificate *cert)
 
 	pr_devel("==>%s()\n", __func__);
 
+	if (cert->raw_subject_size != cert->raw_issuer_size ||
+	    memcmp(cert->raw_subject, cert->raw_issuer,
+		   cert->raw_issuer_size) != 0)
+		goto not_self_signed;
+
 	if (cert->sig->auth_ids[0] || cert->sig->auth_ids[1]) {
 		/* If the AKID is present it may have one or two parts.  If
 		 * both are supplied, both must match.
@@ -245,6 +250,10 @@ int x509_check_for_self_signed(struct x509_certificate *cert)
 		    cert->sig->auth_ids[0] && cert->sig->auth_ids[1])
 			goto out;
 	}
+
+	ret = -EKEYREJECTED;
+	if (cert->pub->pkey_algo != cert->sig->pkey_algo)
+		goto out;
 
 	ret = public_key_verify_signature(cert->pub, cert->sig);
 	if (ret < 0) {
