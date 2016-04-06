@@ -1136,6 +1136,11 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 	else
 		video->color_space = COLOR_RGB;
 
+	if (dp->plat_data->dev_type == RK3288_DP) {
+		video->color_space = COLOR_RGB;
+		video->color_depth = COLOR_10;
+	}
+
 	/*
 	 * NOTE: those property parsing code is used for providing backward
 	 * compatibility for samsung platform.
