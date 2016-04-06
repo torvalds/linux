@@ -58,3 +58,9 @@ extern int x509_decode_time(time64_t *_t,  size_t hdrlen,
  */
 extern int x509_get_sig_params(struct x509_certificate *cert);
 extern int x509_check_for_self_signed(struct x509_certificate *cert);
+
+/*
+ * public_key_trust.c
+ */
+extern int x509_validate_trust(struct x509_certificate *cert,
+			       struct key *trust_keyring);
