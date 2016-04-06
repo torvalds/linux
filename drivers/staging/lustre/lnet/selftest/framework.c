@@ -528,7 +528,7 @@ sfw_debug_session(srpc_debug_reqst_t *request, srpc_debug_reply_t *reply)
 static void
 sfw_test_rpc_fini(struct srpc_client_rpc *rpc)
 {
-	sfw_test_unit_t *tsu = rpc->crpc_priv;
+	struct sfw_test_unit *tsu = rpc->crpc_priv;
 	struct sfw_test_instance *tsi = tsu->tsu_instance;
 
 	/* Called with hold of tsi->tsi_lock */
@@ -617,7 +617,7 @@ static void
 sfw_destroy_test_instance(struct sfw_test_instance *tsi)
 {
 	struct srpc_client_rpc *rpc;
-	sfw_test_unit_t *tsu;
+	struct sfw_test_unit *tsu;
 
 	if (!tsi->tsi_is_client)
 		goto clean;
@@ -630,7 +630,7 @@ sfw_destroy_test_instance(struct sfw_test_instance *tsi)
 
 	while (!list_empty(&tsi->tsi_units)) {
 		tsu = list_entry(tsi->tsi_units.next,
-				 sfw_test_unit_t, tsu_list);
+				 struct sfw_test_unit, tsu_list);
 		list_del(&tsu->tsu_list);
 		LIBCFS_FREE(tsu, sizeof(*tsu));
 	}
@@ -735,7 +735,7 @@ sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 	srpc_test_reqst_t *req = &msg->msg_body.tes_reqst;
 	struct srpc_bulk *bk = rpc->srpc_bulk;
 	int ndest = req->tsr_ndest;
-	sfw_test_unit_t *tsu;
+	struct sfw_test_unit *tsu;
 	struct sfw_test_instance *tsi;
 	int i;
 	int rc;
@@ -795,7 +795,7 @@ sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 			sfw_unpack_id(id);
 
 		for (j = 0; j < tsi->tsi_concur; j++) {
-			LIBCFS_ALLOC(tsu, sizeof(sfw_test_unit_t));
+			LIBCFS_ALLOC(tsu, sizeof(struct sfw_test_unit));
 			if (!tsu) {
 				rc = -ENOMEM;
 				CERROR("Can't allocate tsu for %d\n",
@@ -824,7 +824,7 @@ error:
 }
 
 static void
-sfw_test_unit_done(sfw_test_unit_t *tsu)
+sfw_test_unit_done(struct sfw_test_unit *tsu)
 {
 	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	struct sfw_batch *tsb = tsi->tsi_batch;
@@ -868,7 +868,7 @@ sfw_test_unit_done(sfw_test_unit_t *tsu)
 static void
 sfw_test_rpc_done(struct srpc_client_rpc *rpc)
 {
-	sfw_test_unit_t *tsu = rpc->crpc_priv;
+	struct sfw_test_unit *tsu = rpc->crpc_priv;
 	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	int done = 0;
 
@@ -900,7 +900,7 @@ sfw_test_rpc_done(struct srpc_client_rpc *rpc)
 }
 
 int
-sfw_create_test_rpc(sfw_test_unit_t *tsu, lnet_process_id_t peer,
+sfw_create_test_rpc(struct sfw_test_unit *tsu, lnet_process_id_t peer,
 		    unsigned features, int nblk, int blklen,
 		    struct srpc_client_rpc **rpcpp)
 {
@@ -944,7 +944,7 @@ sfw_create_test_rpc(sfw_test_unit_t *tsu, lnet_process_id_t peer,
 static int
 sfw_run_test(struct swi_workitem *wi)
 {
-	sfw_test_unit_t *tsu = wi->swi_workitem.wi_data;
+	struct sfw_test_unit *tsu = wi->swi_workitem.wi_data;
 	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	struct srpc_client_rpc *rpc = NULL;
 
@@ -994,7 +994,7 @@ static int
 sfw_run_batch(struct sfw_batch *tsb)
 {
 	struct swi_workitem *wi;
-	sfw_test_unit_t *tsu;
+	struct sfw_test_unit *tsu;
 	struct sfw_test_instance *tsi;
 
 	if (sfw_batch_active(tsb)) {

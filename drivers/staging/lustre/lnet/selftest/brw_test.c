@@ -52,7 +52,7 @@ static void
 brw_client_fini(struct sfw_test_instance *tsi)
 {
 	struct srpc_bulk *bulk;
-	sfw_test_unit_t	*tsu;
+	struct sfw_test_unit	*tsu;
 
 	LASSERT(tsi->tsi_is_client);
 
@@ -75,7 +75,7 @@ brw_client_init(struct sfw_test_instance *tsi)
 	int len;
 	int opc;
 	struct srpc_bulk *bulk;
-	sfw_test_unit_t *tsu;
+	struct sfw_test_unit *tsu;
 
 	LASSERT(sn);
 	LASSERT(tsi->tsi_is_client);
@@ -254,7 +254,7 @@ brw_check_bulk(struct srpc_bulk *bk, int pattern, __u64 magic)
 }
 
 static int
-brw_client_prep_rpc(sfw_test_unit_t *tsu,
+brw_client_prep_rpc(struct sfw_test_unit *tsu,
 		    lnet_process_id_t dest, struct srpc_client_rpc **rpcpp)
 {
 	struct srpc_bulk *bulk = tsu->tsu_private;
@@ -313,7 +313,7 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 }
 
 static void
-brw_client_done_rpc(sfw_test_unit_t *tsu, struct srpc_client_rpc *rpc)
+brw_client_done_rpc(struct sfw_test_unit *tsu, struct srpc_client_rpc *rpc)
 {
 	__u64 magic = BRW_MAGIC;
 	struct sfw_test_instance *tsi = tsu->tsu_instance;

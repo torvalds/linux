@@ -398,14 +398,14 @@ struct sfw_test_instance {
 #define SFW_MAX_NDESTS	   (LNET_MAX_IOV * SFW_ID_PER_PAGE)
 #define sfw_id_pages(n)    (((n) + SFW_ID_PER_PAGE - 1) / SFW_ID_PER_PAGE)
 
-typedef struct sfw_test_unit {
+struct sfw_test_unit {
 	struct list_head    tsu_list;	   /* chain on lst_test_instance */
 	lnet_process_id_t   tsu_dest;	   /* id of dest node */
 	int		    tsu_loop;	   /* loop count of the test */
 	struct sfw_test_instance	*tsu_instance; /* pointer to test instance */
 	void		    *tsu_private;  /* private data */
 	struct swi_workitem	tsu_worker;	/* workitem of the test unit */
-} sfw_test_unit_t;
+};
 
 typedef struct sfw_test_case {
 	struct list_head      tsc_list;		/* chain on fw_tests */
@@ -417,7 +417,7 @@ struct srpc_client_rpc *
 sfw_create_rpc(lnet_process_id_t peer, int service,
 	       unsigned features, int nbulkiov, int bulklen,
 	       void (*done)(struct srpc_client_rpc *), void *priv);
-int sfw_create_test_rpc(sfw_test_unit_t *tsu,
+int sfw_create_test_rpc(struct sfw_test_unit *tsu,
 			lnet_process_id_t peer, unsigned features,
 			int nblk, int blklen, struct srpc_client_rpc **rpc);
 void sfw_abort_rpc(struct srpc_client_rpc *rpc);

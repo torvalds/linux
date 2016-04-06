@@ -86,7 +86,7 @@ ping_client_fini(struct sfw_test_instance *tsi)
 }
 
 static int
-ping_client_prep_rpc(sfw_test_unit_t *tsu, lnet_process_id_t dest,
+ping_client_prep_rpc(struct sfw_test_unit *tsu, lnet_process_id_t dest,
 		     struct srpc_client_rpc **rpc)
 {
 	srpc_ping_reqst_t *req;
@@ -118,7 +118,7 @@ ping_client_prep_rpc(sfw_test_unit_t *tsu, lnet_process_id_t dest,
 }
 
 static void
-ping_client_done_rpc(sfw_test_unit_t *tsu, struct srpc_client_rpc *rpc)
+ping_client_done_rpc(struct sfw_test_unit *tsu, struct srpc_client_rpc *rpc)
 {
 	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	struct sfw_session *sn = tsi->tsi_batch->bat_session;
