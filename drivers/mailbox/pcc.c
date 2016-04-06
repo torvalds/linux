@@ -367,8 +367,6 @@ static int __init acpi_pcc_probe(void)
 		struct acpi_generic_address *db_reg;
 		struct acpi_pcct_hw_reduced *pcct_ss;
 		pcc_mbox_channels[i].con_priv = pcct_entry;
-		pcct_entry = (struct acpi_subtable_header *)
-			((unsigned long) pcct_entry + pcct_entry->length);
 
 		/* If doorbell is in system memory cache the virt address */
 		pcct_ss = (struct acpi_pcct_hw_reduced *)pcct_entry;
@@ -376,6 +374,8 @@ static int __init acpi_pcc_probe(void)
 		if (db_reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
 			pcc_doorbell_vaddr[i] = acpi_os_ioremap(db_reg->address,
 							db_reg->bit_width/8);
+		pcct_entry = (struct acpi_subtable_header *)
+			((unsigned long) pcct_entry + pcct_entry->length);
 	}
 
 	pcc_mbox_ctrl.num_chans = count;
