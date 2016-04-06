@@ -362,7 +362,7 @@ struct sfw_test_client_ops {
 			     struct srpc_client_rpc *rpc);	/* done a test rpc */
 };
 
-typedef struct sfw_test_instance {
+struct sfw_test_instance {
 	struct list_head	   tsi_list;		/* chain on batch */
 	int			   tsi_service;		/* test type */
 	struct sfw_batch		*tsi_batch;	/* batch */
@@ -389,7 +389,7 @@ typedef struct sfw_test_instance {
 		test_bulk_req_t    bulk_v0; /* bulk parameter */
 		test_bulk_req_v1_t bulk_v1; /* bulk v1 parameter */
 	} tsi_u;
-} sfw_test_instance_t;
+};
 
 /* XXX: trailing (PAGE_SIZE % sizeof(lnet_process_id_t)) bytes at the end of
  * pages are not used */
@@ -402,7 +402,7 @@ typedef struct sfw_test_unit {
 	struct list_head    tsu_list;	   /* chain on lst_test_instance */
 	lnet_process_id_t   tsu_dest;	   /* id of dest node */
 	int		    tsu_loop;	   /* loop count of the test */
-	sfw_test_instance_t *tsu_instance; /* pointer to test instance */
+	struct sfw_test_instance	*tsu_instance; /* pointer to test instance */
 	void		    *tsu_private;  /* private data */
 	struct swi_workitem	tsu_worker;	/* workitem of the test unit */
 } sfw_test_unit_t;

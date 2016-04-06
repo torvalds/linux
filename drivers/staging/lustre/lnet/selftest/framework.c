@@ -529,7 +529,7 @@ static void
 sfw_test_rpc_fini(struct srpc_client_rpc *rpc)
 {
 	sfw_test_unit_t *tsu = rpc->crpc_priv;
-	sfw_test_instance_t *tsi = tsu->tsu_instance;
+	struct sfw_test_instance *tsi = tsu->tsu_instance;
 
 	/* Called with hold of tsi->tsi_lock */
 	LASSERT(list_empty(&rpc->crpc_list));
@@ -537,7 +537,7 @@ sfw_test_rpc_fini(struct srpc_client_rpc *rpc)
 }
 
 static inline int
-sfw_test_buffers(sfw_test_instance_t *tsi)
+sfw_test_buffers(struct sfw_test_instance *tsi)
 {
 	struct sfw_test_case *tsc;
 	struct srpc_service *svc;
@@ -614,7 +614,7 @@ sfw_unload_test(struct sfw_test_instance *tsi)
 }
 
 static void
-sfw_destroy_test_instance(sfw_test_instance_t *tsi)
+sfw_destroy_test_instance(struct sfw_test_instance *tsi)
 {
 	struct srpc_client_rpc *rpc;
 	sfw_test_unit_t *tsu;
@@ -650,14 +650,14 @@ clean:
 static void
 sfw_destroy_batch(struct sfw_batch *tsb)
 {
-	sfw_test_instance_t *tsi;
+	struct sfw_test_instance *tsi;
 
 	LASSERT(!sfw_batch_active(tsb));
 	LASSERT(list_empty(&tsb->bat_list));
 
 	while (!list_empty(&tsb->bat_tests)) {
 		tsi = list_entry(tsb->bat_tests.next,
-				 sfw_test_instance_t, tsi_list);
+				 struct sfw_test_instance, tsi_list);
 		list_del_init(&tsi->tsi_list);
 		sfw_destroy_test_instance(tsi);
 	}
@@ -736,7 +736,7 @@ sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 	struct srpc_bulk *bk = rpc->srpc_bulk;
 	int ndest = req->tsr_ndest;
 	sfw_test_unit_t *tsu;
-	sfw_test_instance_t *tsi;
+	struct sfw_test_instance *tsi;
 	int i;
 	int rc;
 
@@ -826,7 +826,7 @@ error:
 static void
 sfw_test_unit_done(sfw_test_unit_t *tsu)
 {
-	sfw_test_instance_t *tsi = tsu->tsu_instance;
+	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	struct sfw_batch *tsb = tsi->tsi_batch;
 	struct sfw_session *sn = tsb->bat_session;
 
@@ -869,7 +869,7 @@ static void
 sfw_test_rpc_done(struct srpc_client_rpc *rpc)
 {
 	sfw_test_unit_t *tsu = rpc->crpc_priv;
-	sfw_test_instance_t *tsi = tsu->tsu_instance;
+	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	int done = 0;
 
 	tsi->tsi_ops->tso_done_rpc(tsu, rpc);
@@ -905,7 +905,7 @@ sfw_create_test_rpc(sfw_test_unit_t *tsu, lnet_process_id_t peer,
 		    struct srpc_client_rpc **rpcpp)
 {
 	struct srpc_client_rpc *rpc = NULL;
-	sfw_test_instance_t *tsi = tsu->tsu_instance;
+	struct sfw_test_instance *tsi = tsu->tsu_instance;
 
 	spin_lock(&tsi->tsi_lock);
 
@@ -945,7 +945,7 @@ static int
 sfw_run_test(struct swi_workitem *wi)
 {
 	sfw_test_unit_t *tsu = wi->swi_workitem.wi_data;
-	sfw_test_instance_t *tsi = tsu->tsu_instance;
+	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	struct srpc_client_rpc *rpc = NULL;
 
 	LASSERT(wi == &tsu->tsu_worker);
@@ -995,7 +995,7 @@ sfw_run_batch(struct sfw_batch *tsb)
 {
 	struct swi_workitem *wi;
 	sfw_test_unit_t *tsu;
-	sfw_test_instance_t *tsi;
+	struct sfw_test_instance *tsi;
 
 	if (sfw_batch_active(tsb)) {
 		CDEBUG(D_NET, "Batch already active: %llu (%d)\n",
@@ -1028,7 +1028,7 @@ sfw_run_batch(struct sfw_batch *tsb)
 int
 sfw_stop_batch(struct sfw_batch *tsb, int force)
 {
-	sfw_test_instance_t *tsi;
+	struct sfw_test_instance *tsi;
 	struct srpc_client_rpc *rpc;
 
 	if (!sfw_batch_active(tsb)) {
@@ -1070,7 +1070,7 @@ sfw_stop_batch(struct sfw_batch *tsb, int force)
 static int
 sfw_query_batch(struct sfw_batch *tsb, int testidx, srpc_batch_reply_t *reply)
 {
-	sfw_test_instance_t *tsi;
+	struct sfw_test_instance *tsi;
 
 	if (testidx < 0)
 		return -EINVAL;

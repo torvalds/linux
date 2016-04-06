@@ -49,7 +49,7 @@ module_param(brw_inject_errors, int, 0644);
 MODULE_PARM_DESC(brw_inject_errors, "# data errors to inject randomly, zero by default");
 
 static void
-brw_client_fini(sfw_test_instance_t *tsi)
+brw_client_fini(struct sfw_test_instance *tsi)
 {
 	struct srpc_bulk *bulk;
 	sfw_test_unit_t	*tsu;
@@ -67,7 +67,7 @@ brw_client_fini(sfw_test_instance_t *tsi)
 }
 
 static int
-brw_client_init(sfw_test_instance_t *tsi)
+brw_client_init(struct sfw_test_instance *tsi)
 {
 	struct sfw_session *sn = tsi->tsi_batch->bat_session;
 	int flags;
@@ -258,7 +258,7 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 		    lnet_process_id_t dest, struct srpc_client_rpc **rpcpp)
 {
 	struct srpc_bulk *bulk = tsu->tsu_private;
-	sfw_test_instance_t *tsi = tsu->tsu_instance;
+	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	struct sfw_session *sn = tsi->tsi_batch->bat_session;
 	struct srpc_client_rpc *rpc;
 	srpc_brw_reqst_t *req;
@@ -316,7 +316,7 @@ static void
 brw_client_done_rpc(sfw_test_unit_t *tsu, struct srpc_client_rpc *rpc)
 {
 	__u64 magic = BRW_MAGIC;
-	sfw_test_instance_t *tsi = tsu->tsu_instance;
+	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	struct sfw_session *sn = tsi->tsi_batch->bat_session;
 	srpc_msg_t *msg = &rpc->crpc_replymsg;
 	srpc_brw_reply_t *reply = &msg->msg_body.brw_reply;
