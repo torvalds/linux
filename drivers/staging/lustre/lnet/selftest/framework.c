@@ -118,10 +118,10 @@ static struct smoketest_framework {
 int sfw_stop_batch(struct sfw_batch *tsb, int force);
 void sfw_destroy_session(struct sfw_session *sn);
 
-static inline sfw_test_case_t *
+static inline struct sfw_test_case *
 sfw_find_test_case(int id)
 {
-	sfw_test_case_t *tsc;
+	struct sfw_test_case *tsc;
 
 	LASSERT(id <= SRPC_SERVICE_MAX_ID);
 	LASSERT(id > SRPC_FRAMEWORK_SERVICE_MAX_ID);
@@ -137,7 +137,7 @@ sfw_find_test_case(int id)
 static int
 sfw_register_test(struct srpc_service *service, struct sfw_test_client_ops *cliops)
 {
-	sfw_test_case_t *tsc;
+	struct sfw_test_case *tsc;
 
 	if (sfw_find_test_case(service->sv_id)) {
 		CERROR("Failed to register test %s (%d)\n",
@@ -145,7 +145,7 @@ sfw_register_test(struct srpc_service *service, struct sfw_test_client_ops *clio
 		return -EEXIST;
 	}
 
-	LIBCFS_ALLOC(tsc, sizeof(sfw_test_case_t));
+	LIBCFS_ALLOC(tsc, sizeof(struct sfw_test_case));
 	if (!tsc)
 		return -ENOMEM;
 
@@ -199,7 +199,7 @@ __must_hold(&sfw_data.fw_lock)
 	struct sfw_session *sn = sfw_data.fw_session;
 	int nactive = 0;
 	struct sfw_batch *tsb;
-	sfw_test_case_t *tsc;
+	struct sfw_test_case *tsc;
 
 	if (!sn)
 		return;
@@ -1629,7 +1629,7 @@ sfw_startup(void)
 	int rc;
 	int error;
 	struct srpc_service *sv;
-	sfw_test_case_t *tsc;
+	struct sfw_test_case *tsc;
 
 	if (session_timeout < 0) {
 		CERROR("Session timeout must be non-negative: %d\n",
@@ -1722,7 +1722,7 @@ void
 sfw_shutdown(void)
 {
 	struct srpc_service *sv;
-	sfw_test_case_t	*tsc;
+	struct sfw_test_case	*tsc;
 	int i;
 
 	spin_lock(&sfw_data.fw_lock);
@@ -1778,7 +1778,7 @@ sfw_shutdown(void)
 
 	while (!list_empty(&sfw_data.fw_tests)) {
 		tsc = list_entry(sfw_data.fw_tests.next,
-				 sfw_test_case_t, tsc_list);
+				 struct sfw_test_case, tsc_list);
 
 		srpc_wait_service_shutdown(tsc->tsc_srv_service);
 

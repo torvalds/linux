@@ -407,11 +407,11 @@ struct sfw_test_unit {
 	struct swi_workitem	tsu_worker;	/* workitem of the test unit */
 };
 
-typedef struct sfw_test_case {
+struct sfw_test_case {
 	struct list_head      tsc_list;		/* chain on fw_tests */
 	struct srpc_service		*tsc_srv_service;	/* test service */
 	struct sfw_test_client_ops	*tsc_cli_ops;	/* ops of test client */
-} sfw_test_case_t;
+};
 
 struct srpc_client_rpc *
 sfw_create_rpc(lnet_process_id_t peer, int service,
