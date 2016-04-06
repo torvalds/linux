@@ -220,8 +220,7 @@ static int x509_validate_trust(struct x509_certificate *cert,
 
 	if (!use_builtin_keys ||
 	    test_bit(KEY_FLAG_BUILTIN, &key->flags)) {
-		ret = public_key_verify_signature(
-			key->payload.data[asym_crypto], cert->sig);
+		ret = verify_signature(key, cert->sig);
 		if (ret == -ENOPKG)
 			cert->unsupported_sig = true;
 	}
