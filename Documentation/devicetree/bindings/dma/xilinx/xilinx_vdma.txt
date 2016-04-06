@@ -8,6 +8,8 @@ Required properties:
 - #dma-cells: Should be <1>, see "dmas" property below
 - reg: Should contain VDMA registers location and length.
 - xlnx,num-fstores: Should be the number of framebuffers as configured in h/w.
+- xlnx,addrwidth: Should be the vdma addressing size in bits(ex: 32 bits).
+- dma-ranges: Should be as the following <dma_addr cpu_addr max_len>.
 - dma-channel child node: Should have at least one channel and can have up to
 	two channels per device. This node specifies the properties of each
 	DMA channel (see child node properties below).
@@ -41,8 +43,10 @@ axi_vdma_0: axivdma@40030000 {
 	compatible = "xlnx,axi-vdma-1.00.a";
 	#dma_cells = <1>;
 	reg = < 0x40030000 0x10000 >;
+	dma-ranges = <0x00000000 0x00000000 0x40000000>;
 	xlnx,num-fstores = <0x8>;
 	xlnx,flush-fsync = <0x1>;
+	xlnx,addrwidth = <0x20>;
 	dma-channel@40030000 {
 		compatible = "xlnx,axi-vdma-mm2s-channel";
 		interrupts = < 0 54 4 >;
