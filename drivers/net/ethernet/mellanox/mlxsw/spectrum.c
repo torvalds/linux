@@ -450,20 +450,53 @@ static int mlxsw_sp_port_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-static int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				      int mtu)
+static void mlxsw_sp_pg_buf_pack(char *pbmc_pl, int pg_index, int mtu)
+{
+	u16 pg_size = 2 * MLXSW_SP_BYTES_TO_CELLS(mtu);
+
+	mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, pg_index, pg_size);
+}
+
+int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
+				 u8 *prio_tc)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	u16 pg_size = 2 * MLXSW_SP_BYTES_TO_CELLS(mtu);
 	char pbmc_pl[MLXSW_REG_PBMC_LEN];
-	int err;
+	int i, j, err;
 
 	mlxsw_reg_pbmc_pack(pbmc_pl, mlxsw_sp_port->local_port, 0, 0);
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
 	if (err)
 		return err;
-	mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, 0, pg_size);
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		bool configure = false;
+
+		for (j = 0; j < IEEE_8021QAZ_MAX_TCS; j++) {
+			if (prio_tc[j] == i) {
+				configure = true;
+				break;
+			}
+		}
+
+		if (!configure)
+			continue;
+		mlxsw_sp_pg_buf_pack(pbmc_pl, i, mtu);
+	}
+
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
+}
+
+static int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				      int mtu)
+{
+	u8 def_prio_tc[IEEE_8021QAZ_MAX_TCS] = {0};
+	bool dcb_en = !!mlxsw_sp_port->dcb.ets;
+	u8 *prio_tc;
+
+	prio_tc = dcb_en ? mlxsw_sp_port->dcb.ets->prio_tc : def_prio_tc;
+
+	return __mlxsw_sp_port_headroom_set(mlxsw_sp_port, mtu, prio_tc);
 }
 
 static int mlxsw_sp_port_change_mtu(struct net_device *dev, int mtu)
@@ -1465,9 +1498,9 @@ mlxsw_sp_port_speed_by_width_set(struct mlxsw_sp_port *mlxsw_sp_port, u8 width)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
 }
 
-static int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				 enum mlxsw_reg_qeec_hr hr, u8 index,
-				 u8 next_index, bool dwrr, u8 dwrr_weight)
+int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
+			  enum mlxsw_reg_qeec_hr hr, u8 index, u8 next_index,
+			  bool dwrr, u8 dwrr_weight)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char qeec_pl[MLXSW_REG_QEEC_LEN];
@@ -1494,8 +1527,8 @@ static int mlxsw_sp_port_ets_maxrate_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qeec), qeec_pl);
 }
 
-static int mlxsw_sp_port_prio_tc_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				     u8 switch_prio, u8 tclass)
+int mlxsw_sp_port_prio_tc_set(struct mlxsw_sp_port *mlxsw_sp_port,
+			      u8 switch_prio, u8 tclass)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char qtct_pl[MLXSW_REG_QTCT_LEN];

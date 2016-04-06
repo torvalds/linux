@@ -42,6 +42,7 @@
 #include <linux/bitops.h>
 #include <linux/if_vlan.h>
 #include <linux/list.h>
+#include <linux/dcbnl.h>
 #include <net/switchdev.h>
 #include <net/devlink.h>
 
@@ -170,6 +171,9 @@ struct mlxsw_sp_port {
 		struct mlxsw_sp_vfid *vfid;
 		u16 vid;
 	} vport;
+	struct {
+		struct ieee_ets *ets;
+	} dcb;
 	/* 802.1Q bridge VLANs */
 	unsigned long *active_vlans;
 	unsigned long *untagged_vlans;
@@ -269,6 +273,13 @@ int mlxsw_sp_vport_flood_set(struct mlxsw_sp_port *mlxsw_sp_vport, u16 vfid,
 			     bool set, bool only_uc);
 void mlxsw_sp_port_active_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port);
 int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid);
+int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
+			  enum mlxsw_reg_qeec_hr hr, u8 index, u8 next_index,
+			  bool dwrr, u8 dwrr_weight);
+int mlxsw_sp_port_prio_tc_set(struct mlxsw_sp_port *mlxsw_sp_port,
+			      u8 switch_prio, u8 tclass);
+int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
+				 u8 *prio_tc);
 
 #ifdef CONFIG_MLXSW_SPECTRUM_DCB
 
