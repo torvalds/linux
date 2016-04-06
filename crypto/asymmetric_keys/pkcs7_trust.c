@@ -30,7 +30,6 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 	struct public_key_signature *sig = sinfo->sig;
 	struct x509_certificate *x509, *last = NULL, *p;
 	struct key *key;
-	bool trusted;
 	int ret;
 
 	kenter(",%u,", sinfo->index);
@@ -42,10 +41,8 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 
 	for (x509 = sinfo->signer; x509; x509 = x509->signer) {
 		if (x509->seen) {
-			if (x509->verified) {
-				trusted = x509->trusted;
+			if (x509->verified)
 				goto verified;
-			}
 			kleave(" = -ENOKEY [cached]");
 			return -ENOKEY;
 		}
@@ -122,7 +119,6 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 
 matched:
 	ret = verify_signature(key, sig);
-	trusted = test_bit(KEY_FLAG_TRUSTED, &key->flags);
 	key_put(key);
 	if (ret < 0) {
 		if (ret == -ENOMEM)
@@ -134,12 +130,9 @@ matched:
 verified:
 	if (x509) {
 		x509->verified = true;
-		for (p = sinfo->signer; p != x509; p = p->signer) {
+		for (p = sinfo->signer; p != x509; p = p->signer)
 			p->verified = true;
-			p->trusted = trusted;
-		}
 	}
-	sinfo->trusted = trusted;
 	kleave(" = 0");
 	return 0;
 }
@@ -148,7 +141,6 @@ verified:
  * pkcs7_validate_trust - Validate PKCS#7 trust chain
  * @pkcs7: The PKCS#7 certificate to validate
  * @trust_keyring: Signing certificates to use as starting points
- * @_trusted: Set to true if trustworth, false otherwise
  *
  * Validate that the certificate chain inside the PKCS#7 message intersects
  * keys we already know and trust.
@@ -170,15 +162,12 @@ verified:
  * May also return -ENOMEM.
  */
 int pkcs7_validate_trust(struct pkcs7_message *pkcs7,
-			 struct key *trust_keyring,
-			 bool *_trusted)
+			 struct key *trust_keyring)
 {
 	struct pkcs7_signed_info *sinfo;
 	struct x509_certificate *p;
 	int cached_ret = -ENOKEY;
 	int ret;
-
-	*_trusted = false;
 
 	for (p = pkcs7->certs; p; p = p->next)
 		p->seen = false;
@@ -193,7 +182,6 @@ int pkcs7_validate_trust(struct pkcs7_message *pkcs7,
 				cached_ret = -ENOPKG;
 			continue;
 		case 0:
-			*_trusted |= sinfo->trusted;
 			cached_ret = 0;
 			continue;
 		default:

@@ -33,7 +33,6 @@ struct key;
 extern int verify_pkcs7_signature(const void *data, size_t len,
 				  const void *raw_pkcs7, size_t pkcs7_len,
 				  struct key *trusted_keys,
-				  int untrusted_error,
 				  enum key_being_used_for usage,
 				  int (*view_content)(void *ctx,
 						      const void *data, size_t len,

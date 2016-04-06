@@ -121,7 +121,6 @@ late_initcall(load_system_certificate_list);
 int verify_pkcs7_signature(const void *data, size_t len,
 			   const void *raw_pkcs7, size_t pkcs7_len,
 			   struct key *trusted_keys,
-			   int untrusted_error,
 			   enum key_being_used_for usage,
 			   int (*view_content)(void *ctx,
 					       const void *data, size_t len,
@@ -129,7 +128,6 @@ int verify_pkcs7_signature(const void *data, size_t len,
 			   void *ctx)
 {
 	struct pkcs7_message *pkcs7;
-	bool trusted;
 	int ret;
 
 	pkcs7 = pkcs7_parse_message(raw_pkcs7, pkcs7_len);
@@ -149,13 +147,10 @@ int verify_pkcs7_signature(const void *data, size_t len,
 
 	if (!trusted_keys)
 		trusted_keys = system_trusted_keyring;
-	ret = pkcs7_validate_trust(pkcs7, trusted_keys, &trusted);
-	if (ret < 0)
-		goto error;
-
-	if (!trusted && untrusted_error) {
-		pr_err("PKCS#7 signature not signed with a trusted key\n");
-		ret = untrusted_error;
+	ret = pkcs7_validate_trust(pkcs7, trusted_keys);
+	if (ret < 0) {
+		if (ret == -ENOKEY)
+			pr_err("PKCS#7 signature not signed with a trusted key\n");
 		goto error;
 	}
 

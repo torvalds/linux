@@ -436,7 +436,7 @@ int verify_pefile_signature(const void *pebuf, unsigned pelen,
 
 	ret = verify_pkcs7_signature(NULL, 0,
 				     pebuf + ctx.sig_offset, ctx.sig_len,
-				     trusted_keys, -EKEYREJECTED, usage,
+				     trusted_keys, usage,
 				     mscode_parse, &ctx);
 	if (ret < 0)
 		goto error;

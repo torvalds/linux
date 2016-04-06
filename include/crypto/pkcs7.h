@@ -33,8 +33,7 @@ extern int pkcs7_get_content_data(const struct pkcs7_message *pkcs7,
  * pkcs7_trust.c
  */
 extern int pkcs7_validate_trust(struct pkcs7_message *pkcs7,
-				struct key *trust_keyring,
-				bool *_trusted);
+				struct key *trust_keyring);
 
 /*
  * pkcs7_verify.c
