@@ -317,11 +317,9 @@
 			reg-names = "ahci", "top-ctrl";
 			reg = <0x181000 0xa9c>, <0x180020 0x1c>;
 			interrupt-parent = <&periph_intc>;
-			interrupts = <40>;
+			interrupts = <41>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			brcm,broken-ncq;
-			brcm,broken-phy;
 			status = "disabled";
 
 			sata0: sata-port@0 {
@@ -335,7 +333,7 @@
 			};
 		};
 
-		sata_phy: sata-phy@1800000 {
+		sata_phy: sata-phy@180100 {
 			compatible = "brcm,bcm7425-sata-phy", "brcm,phy-sata3";
 			reg = <0x180100 0x0eff>;
 			reg-names = "phy";
