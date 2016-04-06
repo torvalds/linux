@@ -40,6 +40,11 @@
 #include <sys/mman.h>
 #include <linux/futex.h>
 #include <linux/err.h>
+#include <linux/seccomp.h>
+#include <linux/filter.h>
+#include <linux/audit.h>
+#include <sys/ptrace.h>
+#include <linux/random.h>
 
 /* For older distros: */
 #ifndef MAP_STACK
@@ -1001,6 +1006,69 @@ static const char *tioctls[] = {
 static DEFINE_STRARRAY_OFFSET(tioctls, 0x5401);
 #endif /* defined(__i386__) || defined(__x86_64__) */
 
+static size_t syscall_arg__scnprintf_seccomp_op(char *bf, size_t size, struct syscall_arg *arg)
+{
+	int op = arg->val;
+	size_t printed = 0;
+
+	switch (op) {
+#define	P_SECCOMP_SET_MODE_OP(n) case SECCOMP_SET_MODE_##n: printed = scnprintf(bf, size, #n); break
+	P_SECCOMP_SET_MODE_OP(STRICT);
+	P_SECCOMP_SET_MODE_OP(FILTER);
+#undef P_SECCOMP_SET_MODE_OP
+	default: printed = scnprintf(bf, size, "%#x", op);			  break;
+	}
+
+	return printed;
+}
+
+#define SCA_SECCOMP_OP  syscall_arg__scnprintf_seccomp_op
+
+static size_t syscall_arg__scnprintf_seccomp_flags(char *bf, size_t size,
+						   struct syscall_arg *arg)
+{
+	int printed = 0, flags = arg->val;
+
+#define	P_FLAG(n) \
+	if (flags & SECCOMP_FILTER_FLAG_##n) { \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		flags &= ~SECCOMP_FILTER_FLAG_##n; \
+	}
+
+	P_FLAG(TSYNC);
+#undef P_FLAG
+
+	if (flags)
+		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
+
+	return printed;
+}
+
+#define SCA_SECCOMP_FLAGS syscall_arg__scnprintf_seccomp_flags
+
+static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
+						   struct syscall_arg *arg)
+{
+	int printed = 0, flags = arg->val;
+
+#define	P_FLAG(n) \
+	if (flags & GRND_##n) { \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		flags &= ~GRND_##n; \
+	}
+
+	P_FLAG(RANDOM);
+	P_FLAG(NONBLOCK);
+#undef P_FLAG
+
+	if (flags)
+		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
+
+	return printed;
+}
+
+#define SCA_GETRANDOM_FLAGS syscall_arg__scnprintf_getrandom_flags
+
 #define STRARRAY(arg, name, array) \
 	  .arg_scnprintf = { [arg] = SCA_STRARRAY, }, \
 	  .arg_parm	 = { [arg] = &strarray__##array, }
@@ -1093,6 +1161,8 @@ static struct syscall_fmt {
 	{ .name	    = "getdents64", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "getitimer",  .errmsg = true, STRARRAY(0, which, itimers), },
+	{ .name	    = "getrandom",  .errmsg = true,
+	  .arg_scnprintf = { [2] = SCA_GETRANDOM_FLAGS, /* flags */ }, },
 	{ .name	    = "getrlimit",  .errmsg = true, STRARRAY(0, resource, rlimit_resources), },
 	{ .name	    = "getxattr",    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
@@ -1234,6 +1304,9 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [1] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "rt_tgsigqueueinfo", .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_SIGNUM, /* sig */ }, },
+	{ .name	    = "seccomp", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_SECCOMP_OP, /* op */
+			     [1] = SCA_SECCOMP_FLAGS, /* flags */ }, },
 	{ .name	    = "select",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "sendmmsg",    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
@@ -1618,6 +1691,7 @@ static int trace__process_event(struct trace *trace, struct machine *machine,
 		color_fprintf(trace->output, PERF_COLOR_RED,
 			      "LOST %" PRIu64 " events!\n", event->lost.lost);
 		ret = machine__process_lost_event(machine, event, sample);
+		break;
 	default:
 		ret = machine__process_event(machine, event, sample);
 		break;
@@ -2326,6 +2400,23 @@ static bool skip_sample(struct trace *trace, struct perf_sample *sample)
 	return false;
 }
 
+static void trace__set_base_time(struct trace *trace,
+				 struct perf_evsel *evsel,
+				 struct perf_sample *sample)
+{
+	/*
+	 * BPF events were not setting PERF_SAMPLE_TIME, so be more robust
+	 * and don't use sample->time unconditionally, we may end up having
+	 * some other event in the future without PERF_SAMPLE_TIME for good
+	 * reason, i.e. we may not be interested in its timestamps, just in
+	 * it taking place, picking some piece of information when it
+	 * appears in our event stream (vfs_getname comes to mind).
+	 */
+	if (trace->base_time == 0 && !trace->full_time &&
+	    (evsel->attr.sample_type & PERF_SAMPLE_TIME))
+		trace->base_time = sample->time;
+}
+
 static int trace__process_sample(struct perf_tool *tool,
 				 union perf_event *event,
 				 struct perf_sample *sample,
@@ -2340,8 +2431,7 @@ static int trace__process_sample(struct perf_tool *tool,
 	if (skip_sample(trace, sample))
 		return 0;
 
-	if (!trace->full_time && trace->base_time == 0)
-		trace->base_time = sample->time;
+	trace__set_base_time(trace, evsel, sample);
 
 	if (handler) {
 		++trace->nr_events;
@@ -2479,9 +2569,6 @@ static void trace__handle_event(struct trace *trace, union perf_event *event, st
 	const u32 type = event->header.type;
 	struct perf_evsel *evsel;
 
-	if (!trace->full_time && trace->base_time == 0)
-		trace->base_time = sample->time;
-
 	if (type != PERF_RECORD_SAMPLE) {
 		trace__process_event(trace, trace->host, event, sample);
 		return;
@@ -2492,6 +2579,8 @@ static void trace__handle_event(struct trace *trace, union perf_event *event, st
 		fprintf(trace->output, "Unknown tp ID %" PRIu64 ", skipping...\n", sample->id);
 		return;
 	}
+
+	trace__set_base_time(trace, evsel, sample);
 
 	if (evsel->attr.type == PERF_TYPE_TRACEPOINT &&
 	    sample->raw_data == NULL) {

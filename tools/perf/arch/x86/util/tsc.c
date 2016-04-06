@@ -7,7 +7,6 @@
 #include <linux/types.h>
 #include "../../util/debug.h"
 #include "../../util/tsc.h"
-#include "tsc.h"
 
 int perf_read_tsc_conversion(const struct perf_event_mmap_page *pc,
 			     struct perf_tsc_conversion *tc)
@@ -45,4 +44,35 @@ u64 rdtsc(void)
 	asm volatile("rdtsc" : "=a" (low), "=d" (high));
 
 	return low | ((u64)high) << 32;
+}
+
+int perf_event__synth_time_conv(const struct perf_event_mmap_page *pc,
+				struct perf_tool *tool,
+				perf_event__handler_t process,
+				struct machine *machine)
+{
+	union perf_event event = {
+		.time_conv = {
+			.header = {
+				.type = PERF_RECORD_TIME_CONV,
+				.size = sizeof(struct time_conv_event),
+			},
+		},
+	};
+	struct perf_tsc_conversion tc;
+	int err;
+
+	err = perf_read_tsc_conversion(pc, &tc);
+	if (err == -EOPNOTSUPP)
+		return 0;
+	if (err)
+		return err;
+
+	pr_debug2("Synthesizing TSC conversion information\n");
+
+	event.time_conv.time_mult  = tc.time_mult;
+	event.time_conv.time_shift = tc.time_shift;
+	event.time_conv.time_zero  = tc.time_zero;
+
+	return process(tool, &event, NULL, machine);
 }
