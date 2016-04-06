@@ -71,7 +71,7 @@ srpc_serv_portal(int svc_id)
 }
 
 /* forward ref's */
-int srpc_handle_rpc(swi_workitem_t *wi);
+int srpc_handle_rpc(struct swi_workitem *wi);
 
 void srpc_get_counters(srpc_counters_t *cnt)
 {
@@ -963,7 +963,7 @@ srpc_server_rpc_done(struct srpc_server_rpc *rpc, int status)
 
 /* handles an incoming RPC */
 int
-srpc_handle_rpc(swi_workitem_t *wi)
+srpc_handle_rpc(struct swi_workitem *wi)
 {
 	struct srpc_server_rpc *rpc = wi->swi_workitem.wi_data;
 	struct srpc_service_cd *scd = rpc->srpc_scd;
@@ -1140,7 +1140,7 @@ srpc_del_client_rpc_timer(srpc_client_rpc_t *rpc)
 static void
 srpc_client_rpc_done(srpc_client_rpc_t *rpc, int status)
 {
-	swi_workitem_t *wi = &rpc->crpc_wi;
+	struct swi_workitem *wi = &rpc->crpc_wi;
 
 	LASSERT(status || wi->swi_state == SWI_STATE_DONE);
 
@@ -1175,7 +1175,7 @@ srpc_client_rpc_done(srpc_client_rpc_t *rpc, int status)
 
 /* sends an outgoing RPC */
 int
-srpc_send_rpc(swi_workitem_t *wi)
+srpc_send_rpc(struct swi_workitem *wi)
 {
 	int rc = 0;
 	srpc_client_rpc_t *rpc;

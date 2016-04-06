@@ -942,7 +942,7 @@ sfw_create_test_rpc(sfw_test_unit_t *tsu, lnet_process_id_t peer,
 }
 
 static int
-sfw_run_test(swi_workitem_t *wi)
+sfw_run_test(struct swi_workitem *wi)
 {
 	sfw_test_unit_t *tsu = wi->swi_workitem.wi_data;
 	sfw_test_instance_t *tsi = tsu->tsu_instance;
@@ -993,7 +993,7 @@ test_done:
 static int
 sfw_run_batch(sfw_batch_t *tsb)
 {
-	swi_workitem_t *wi;
+	struct swi_workitem *wi;
 	sfw_test_unit_t *tsu;
 	sfw_test_instance_t *tsi;
 
