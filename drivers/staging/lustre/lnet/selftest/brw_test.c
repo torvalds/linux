@@ -318,7 +318,7 @@ brw_client_done_rpc(struct sfw_test_unit *tsu, struct srpc_client_rpc *rpc)
 	__u64 magic = BRW_MAGIC;
 	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	struct sfw_session *sn = tsi->tsi_batch->bat_session;
-	srpc_msg_t *msg = &rpc->crpc_replymsg;
+	struct srpc_msg *msg = &rpc->crpc_replymsg;
 	srpc_brw_reply_t *reply = &msg->msg_body.brw_reply;
 	srpc_brw_reqst_t *reqst = &rpc->crpc_reqstmsg.msg_body.brw_reqst;
 
@@ -384,7 +384,7 @@ brw_bulk_ready(struct srpc_server_rpc *rpc, int status)
 	__u64 magic = BRW_MAGIC;
 	srpc_brw_reply_t *reply = &rpc->srpc_replymsg.msg_body.brw_reply;
 	srpc_brw_reqst_t *reqst;
-	srpc_msg_t *reqstmsg;
+	struct srpc_msg *reqstmsg;
 
 	LASSERT(rpc->srpc_bulk);
 	LASSERT(rpc->srpc_reqstbuf);
@@ -418,8 +418,8 @@ static int
 brw_server_handle(struct srpc_server_rpc *rpc)
 {
 	struct srpc_service *sv = rpc->srpc_scd->scd_svc;
-	srpc_msg_t *replymsg = &rpc->srpc_replymsg;
-	srpc_msg_t *reqstmsg = &rpc->srpc_reqstbuf->buf_msg;
+	struct srpc_msg *replymsg = &rpc->srpc_replymsg;
+	struct srpc_msg *reqstmsg = &rpc->srpc_reqstbuf->buf_msg;
 	srpc_brw_reply_t *reply = &replymsg->msg_body.brw_reply;
 	srpc_brw_reqst_t *reqst = &reqstmsg->msg_body.brw_reqst;
 	int npg;

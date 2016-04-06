@@ -405,7 +405,7 @@ int
 sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
-	srpc_msg_t *msg = container_of(request, srpc_msg_t,
+	struct srpc_msg *msg = container_of(request, struct srpc_msg,
 				       msg_body.mksn_reqst);
 	int cplen = 0;
 
@@ -438,7 +438,7 @@ sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply)
 	/*
 	 * reject the request if it requires unknown features
 	 * NB: old version will always accept all features because it's not
-	 * aware of srpc_msg_t::msg_ses_feats, it's a defect but it's also
+	 * aware of srpc_msg::msg_ses_feats, it's a defect but it's also
 	 * harmless because it will return zero feature to console, and it's
 	 * console's responsibility to make sure all nodes in a session have
 	 * same feature mask.
@@ -685,7 +685,7 @@ sfw_destroy_session(struct sfw_session *sn)
 }
 
 static void
-sfw_unpack_addtest_req(srpc_msg_t *msg)
+sfw_unpack_addtest_req(struct srpc_msg *msg)
 {
 	srpc_test_reqst_t *req = &msg->msg_body.tes_reqst;
 
@@ -731,7 +731,7 @@ sfw_unpack_addtest_req(srpc_msg_t *msg)
 static int
 sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 {
-	srpc_msg_t *msg = &rpc->srpc_reqstbuf->buf_msg;
+	struct srpc_msg *msg = &rpc->srpc_reqstbuf->buf_msg;
 	srpc_test_reqst_t *req = &msg->msg_body.tes_reqst;
 	struct srpc_bulk *bk = rpc->srpc_bulk;
 	int ndest = req->tsr_ndest;
@@ -1227,8 +1227,8 @@ static int
 sfw_handle_server_rpc(struct srpc_server_rpc *rpc)
 {
 	struct srpc_service *sv = rpc->srpc_scd->scd_svc;
-	srpc_msg_t *reply = &rpc->srpc_replymsg;
-	srpc_msg_t *request = &rpc->srpc_reqstbuf->buf_msg;
+	struct srpc_msg *reply = &rpc->srpc_replymsg;
+	struct srpc_msg *request = &rpc->srpc_reqstbuf->buf_msg;
 	unsigned features = LST_FEATS_MASK;
 	int rc = 0;
 
@@ -1415,7 +1415,7 @@ sfw_create_rpc(lnet_process_id_t peer, int service,
 }
 
 void
-sfw_unpack_message(srpc_msg_t *msg)
+sfw_unpack_message(struct srpc_msg *msg)
 {
 	if (msg->msg_magic == SRPC_MSG_MAGIC)
 		return; /* no flipping needed */

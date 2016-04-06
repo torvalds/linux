@@ -166,7 +166,7 @@ struct srpc_bulk {
 /* message buffer descriptor */
 struct srpc_buffer {
 	struct list_head  buf_list; /* chain on srpc_service::*_msgq */
-	srpc_msg_t	  buf_msg;
+	struct srpc_msg	  buf_msg;
 	lnet_handle_md_t  buf_mdh;
 	lnet_nid_t	  buf_self;
 	lnet_process_id_t buf_peer;
@@ -191,7 +191,7 @@ struct srpc_server_rpc {
 	struct srpc_event	srpc_ev;	/* bulk/reply event */
 	lnet_nid_t	       srpc_self;
 	lnet_process_id_t      srpc_peer;
-	srpc_msg_t	       srpc_replymsg;
+	struct srpc_msg		srpc_replymsg;
 	lnet_handle_md_t       srpc_replymdh;
 	struct srpc_buffer	*srpc_reqstbuf;
 	struct srpc_bulk	*srpc_bulk;
@@ -227,8 +227,8 @@ struct srpc_client_rpc {
 	struct srpc_event	crpc_replyev;	/* reply event */
 
 	/* bulk, request(reqst), and reply exchanged on wire */
-	srpc_msg_t	  crpc_reqstmsg;
-	srpc_msg_t	  crpc_replymsg;
+	struct srpc_msg		crpc_reqstmsg;
+	struct srpc_msg		crpc_replymsg;
 	lnet_handle_md_t  crpc_reqstmdh;
 	lnet_handle_md_t  crpc_replymdh;
 	struct srpc_bulk	crpc_bulk;
@@ -423,7 +423,7 @@ int sfw_create_test_rpc(struct sfw_test_unit *tsu,
 void sfw_abort_rpc(struct srpc_client_rpc *rpc);
 void sfw_post_rpc(struct srpc_client_rpc *rpc);
 void sfw_client_rpc_done(struct srpc_client_rpc *rpc);
-void sfw_unpack_message(srpc_msg_t *msg);
+void sfw_unpack_message(struct srpc_msg *msg);
 void sfw_free_pages(struct srpc_server_rpc *rpc);
 void sfw_add_bulk_page(struct srpc_bulk *bk, struct page *pg, int i);
 int sfw_alloc_pages(struct srpc_server_rpc *rpc, int cpt, int npages, int len,

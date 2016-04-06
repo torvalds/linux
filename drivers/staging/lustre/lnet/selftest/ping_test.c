@@ -171,8 +171,8 @@ static int
 ping_server_handle(struct srpc_server_rpc *rpc)
 {
 	struct srpc_service *sv = rpc->srpc_scd->scd_svc;
-	srpc_msg_t *reqstmsg = &rpc->srpc_reqstbuf->buf_msg;
-	srpc_msg_t *replymsg = &rpc->srpc_replymsg;
+	struct srpc_msg *reqstmsg = &rpc->srpc_reqstbuf->buf_msg;
+	struct srpc_msg *replymsg = &rpc->srpc_replymsg;
 	srpc_ping_reqst_t *req = &reqstmsg->msg_body.ping_reqst;
 	srpc_ping_reply_t *rep = &rpc->srpc_replymsg.msg_body.ping_reply;
 

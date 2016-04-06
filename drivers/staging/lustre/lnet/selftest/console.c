@@ -370,7 +370,7 @@ lstcon_sesrpc_condition(int transop, struct lstcon_node *nd, void *arg)
 }
 
 static int
-lstcon_sesrpc_readent(int transop, srpc_msg_t *msg,
+lstcon_sesrpc_readent(int transop, struct srpc_msg *msg,
 		      lstcon_rpc_ent_t __user *ent_up)
 {
 	srpc_debug_reply_t *rep;
@@ -1383,7 +1383,7 @@ lstcon_test_find(struct lstcon_batch *batch, int idx, lstcon_test_t **testpp)
 }
 
 static int
-lstcon_tsbrpc_readent(int transop, srpc_msg_t *msg,
+lstcon_tsbrpc_readent(int transop, struct srpc_msg *msg,
 		      lstcon_rpc_ent_t __user *ent_up)
 {
 	srpc_batch_reply_t *rep = &msg->msg_body.bat_reply;
@@ -1462,7 +1462,7 @@ lstcon_test_batch_query(char *name, int testidx, int client,
 }
 
 static int
-lstcon_statrpc_readent(int transop, srpc_msg_t *msg,
+lstcon_statrpc_readent(int transop, struct srpc_msg *msg,
 		       lstcon_rpc_ent_t __user *ent_up)
 {
 	srpc_stat_reply_t *rep = &msg->msg_body.stat_reply;
@@ -1905,8 +1905,8 @@ lstcon_session_feats_check(unsigned feats)
 static int
 lstcon_acceptor_handle(struct srpc_server_rpc *rpc)
 {
-	srpc_msg_t *rep	= &rpc->srpc_replymsg;
-	srpc_msg_t *req	= &rpc->srpc_reqstbuf->buf_msg;
+	struct srpc_msg *rep	= &rpc->srpc_replymsg;
+	struct srpc_msg *req	= &rpc->srpc_reqstbuf->buf_msg;
 	srpc_join_reqst_t *jreq = &req->msg_body.join_reqst;
 	srpc_join_reply_t *jrep = &rep->msg_body.join_reply;
 	struct lstcon_group *grp = NULL;

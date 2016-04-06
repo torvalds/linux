@@ -242,7 +242,7 @@ typedef struct {
 #define SRPC_MSG_MAGIC		0xeeb0f00d
 #define SRPC_MSG_VERSION	1
 
-typedef struct srpc_msg {
+struct srpc_msg {
 	__u32	msg_magic;     /* magic number */
 	__u32	msg_version;   /* message version number */
 	__u32	msg_type;      /* type of message body: srpc_msg_type_t */
@@ -273,10 +273,10 @@ typedef struct srpc_msg {
 		srpc_brw_reqst_t     brw_reqst;
 		srpc_brw_reply_t     brw_reply;
 	}     msg_body;
-} WIRE_ATTR srpc_msg_t;
+} WIRE_ATTR;
 
 static inline void
-srpc_unpack_msg_hdr(srpc_msg_t *msg)
+srpc_unpack_msg_hdr(struct srpc_msg *msg)
 {
 	if (msg->msg_magic == SRPC_MSG_MAGIC)
 		return; /* no flipping needed */

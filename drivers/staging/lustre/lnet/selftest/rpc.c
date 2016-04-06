@@ -803,7 +803,7 @@ srpc_send_request(struct srpc_client_rpc *rpc)
 
 	 rc = srpc_post_active_rdma(srpc_serv_portal(rpc->crpc_service),
 				    rpc->crpc_service, &rpc->crpc_reqstmsg,
-				    sizeof(srpc_msg_t), LNET_MD_OP_PUT,
+				    sizeof(struct srpc_msg), LNET_MD_OP_PUT,
 				    rpc->crpc_dest, LNET_NID_ANY,
 				    &rpc->crpc_reqstmdh, ev);
 	if (rc) {
@@ -827,7 +827,8 @@ srpc_prepare_reply(struct srpc_client_rpc *rpc)
 	*id = srpc_next_id();
 
 	rc = srpc_post_passive_rdma(SRPC_RDMA_PORTAL, 0, *id,
-				    &rpc->crpc_replymsg, sizeof(srpc_msg_t),
+				    &rpc->crpc_replymsg,
+				    sizeof(struct srpc_msg),
 				    LNET_MD_OP_PUT, rpc->crpc_dest,
 				    &rpc->crpc_replymdh, ev);
 	if (rc) {
@@ -995,7 +996,7 @@ srpc_handle_rpc(struct swi_workitem *wi)
 	default:
 		LBUG();
 	case SWI_STATE_NEWBORN: {
-		srpc_msg_t *msg;
+		struct srpc_msg *msg;
 		srpc_generic_reply_t *reply;
 
 		msg = &rpc->srpc_reqstbuf->buf_msg;
@@ -1179,7 +1180,7 @@ srpc_send_rpc(struct swi_workitem *wi)
 {
 	int rc = 0;
 	struct srpc_client_rpc *rpc;
-	srpc_msg_t *reply;
+	struct srpc_msg *reply;
 	int do_bulk;
 
 	LASSERT(wi);
@@ -1415,7 +1416,7 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 	struct srpc_server_rpc *srpc;
 	struct srpc_buffer *buffer;
 	struct srpc_service *sv;
-	srpc_msg_t *msg;
+	struct srpc_msg *msg;
 	srpc_msg_type_t type;
 
 	LASSERT(!in_interrupt());

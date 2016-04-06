@@ -46,7 +46,7 @@
 #include "conrpc.h"
 #include "console.h"
 
-void lstcon_rpc_stat_reply(struct lstcon_rpc_trans *, srpc_msg_t *,
+void lstcon_rpc_stat_reply(struct lstcon_rpc_trans *, struct srpc_msg *,
 			   struct lstcon_node *, lstcon_trans_stat_t *);
 
 static void
@@ -386,7 +386,7 @@ lstcon_rpc_trans_postwait(struct lstcon_rpc_trans *trans, int timeout)
 }
 
 static int
-lstcon_rpc_get_reply(struct lstcon_rpc *crpc, srpc_msg_t **msgpp)
+lstcon_rpc_get_reply(struct lstcon_rpc *crpc, struct srpc_msg **msgpp)
 {
 	struct lstcon_node *nd = crpc->crp_node;
 	struct srpc_client_rpc *rpc = crpc->crp_rpc;
@@ -426,7 +426,7 @@ void
 lstcon_rpc_trans_stat(struct lstcon_rpc_trans *trans, lstcon_trans_stat_t *stat)
 {
 	struct lstcon_rpc *crpc;
-	srpc_msg_t *rep;
+	struct srpc_msg *rep;
 	int error;
 
 	LASSERT(stat);
@@ -475,7 +475,7 @@ lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 	lstcon_rpc_ent_t *ent;
 	srpc_generic_reply_t *rep;
 	struct lstcon_rpc *crpc;
-	srpc_msg_t *msg;
+	struct srpc_msg *msg;
 	struct lstcon_node *nd;
 	long dur;
 	struct timeval tv;
@@ -916,7 +916,7 @@ lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
 
 static int
 lstcon_sesnew_stat_reply(struct lstcon_rpc_trans *trans,
-			 struct lstcon_node *nd, srpc_msg_t *reply)
+			 struct lstcon_node *nd, struct srpc_msg *reply)
 {
 	srpc_mksn_reply_t *mksn_rep = &reply->msg_body.mksn_reply;
 	int status = mksn_rep->mksn_status;
@@ -962,7 +962,7 @@ lstcon_sesnew_stat_reply(struct lstcon_rpc_trans *trans,
 }
 
 void
-lstcon_rpc_stat_reply(struct lstcon_rpc_trans *trans, srpc_msg_t *msg,
+lstcon_rpc_stat_reply(struct lstcon_rpc_trans *trans, struct srpc_msg *msg,
 		      struct lstcon_node *nd, lstcon_trans_stat_t *stat)
 {
 	srpc_rmsn_reply_t *rmsn_rep;
@@ -1171,7 +1171,7 @@ lstcon_rpc_pinger(void *arg)
 	struct stt_timer *ptimer = (struct stt_timer *)arg;
 	struct lstcon_rpc_trans *trans;
 	struct lstcon_rpc *crpc;
-	srpc_msg_t *rep;
+	struct srpc_msg *rep;
 	srpc_debug_reqst_t *drq;
 	struct lstcon_ndlink *ndl;
 	struct lstcon_node *nd;
