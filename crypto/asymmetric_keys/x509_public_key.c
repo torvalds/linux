@@ -88,7 +88,7 @@ struct key *x509_request_asymmetric_key(struct key *keyring,
 		lookup = skid->data;
 		len = skid->len;
 	}
-	
+
 	/* Construct an identifier "id:<keyid>". */
 	p = req = kmalloc(2 + 1 + len * 2 + 1, GFP_KERNEL);
 	if (!req)
@@ -137,7 +137,7 @@ struct key *x509_request_asymmetric_key(struct key *keyring,
 			goto reject;
 		}
 	}
-	
+
 	pr_devel("<==%s() = 0 [%x]\n", __func__, key_serial(key));
 	return key;
 
