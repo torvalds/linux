@@ -270,4 +270,21 @@ int mlxsw_sp_vport_flood_set(struct mlxsw_sp_port *mlxsw_sp_vport, u16 vfid,
 void mlxsw_sp_port_active_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port);
 int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid);
 
+#ifdef CONFIG_MLXSW_SPECTRUM_DCB
+
+int mlxsw_sp_port_dcb_init(struct mlxsw_sp_port *mlxsw_sp_port);
+void mlxsw_sp_port_dcb_fini(struct mlxsw_sp_port *mlxsw_sp_port);
+
+#else
+
+static inline int mlxsw_sp_port_dcb_init(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	return 0;
+}
+
+static inline void mlxsw_sp_port_dcb_fini(struct mlxsw_sp_port *mlxsw_sp_port)
+{}
+
+#endif
+
 #endif

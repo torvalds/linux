@@ -1681,6 +1681,14 @@ static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_ets_init;
 	}
 
+	/* ETS and buffers must be initialized before DCB. */
+	err = mlxsw_sp_port_dcb_init(mlxsw_sp_port);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to initialize DCB\n",
+			mlxsw_sp_port->local_port);
+		goto err_port_dcb_init;
+	}
+
 	mlxsw_sp_port_switchdev_init(mlxsw_sp_port);
 	err = register_netdev(dev);
 	if (err) {
@@ -1701,6 +1709,7 @@ static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 err_port_vlan_init:
 	unregister_netdev(dev);
 err_register_netdev:
+err_port_dcb_init:
 err_port_ets_init:
 err_port_buffers_init:
 err_port_admin_status_set:
@@ -1771,6 +1780,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	devlink_port = &mlxsw_sp_port->devlink_port;
 	devlink_port_type_clear(devlink_port);
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
+	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 	devlink_port_unregister(devlink_port);
 	mlxsw_sp_port_vports_fini(mlxsw_sp_port);
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
