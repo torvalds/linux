@@ -489,6 +489,42 @@ void iio_channel_release_all(struct iio_channel *channels)
 }
 EXPORT_SYMBOL_GPL(iio_channel_release_all);
 
+static void devm_iio_channel_free_all(struct device *dev, void *res)
+{
+	struct iio_channel *channels = *(struct iio_channel **)res;
+
+	iio_channel_release_all(channels);
+}
+
+struct iio_channel *devm_iio_channel_get_all(struct device *dev)
+{
+	struct iio_channel **ptr, *channels;
+
+	ptr = devres_alloc(devm_iio_channel_free_all, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	channels = iio_channel_get_all(dev);
+	if (IS_ERR(channels)) {
+		devres_free(ptr);
+		return channels;
+	}
+
+	*ptr = channels;
+	devres_add(dev, ptr);
+
+	return channels;
+}
+EXPORT_SYMBOL_GPL(devm_iio_channel_get_all);
+
+void devm_iio_channel_release_all(struct device *dev,
+				  struct iio_channel *channels)
+{
+	WARN_ON(devres_release(dev, devm_iio_channel_free_all,
+			       devm_iio_channel_match, channels));
+}
+EXPORT_SYMBOL_GPL(devm_iio_channel_release_all);
+
 static int iio_channel_read(struct iio_channel *chan, int *val, int *val2,
 	enum iio_chan_info_enum info)
 {

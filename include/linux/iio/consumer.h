@@ -92,6 +92,32 @@ struct iio_channel *iio_channel_get_all(struct device *dev);
  */
 void iio_channel_release_all(struct iio_channel *chan);
 
+/**
+ * devm_iio_channel_get_all() - Resource managed version of
+ *				iio_channel_get_all().
+ * @dev: Pointer to consumer device.
+ *
+ * Returns a pointer to negative errno if it is not able to get the iio channel
+ * otherwise returns an array of iio_channel structures terminated with one with
+ * null iio_dev pointer.
+ *
+ * This function is used by fairly generic consumers to get all the
+ * channels registered as having this consumer.
+ *
+ * The allocated iio channels are automatically released when the device is
+ * unbounded.
+ */
+struct iio_channel *devm_iio_channel_get_all(struct device *dev);
+
+/**
+ * devm_iio_channel_release_all() - Resource managed version of
+ *				    iio_channel_release_all().
+ * @dev:		Pointer to consumer device for which resource
+ *			is allocared.
+ * @chan:		Array channel to be released.
+ */
+void devm_iio_channel_release_all(struct device *dev, struct iio_channel *chan);
+
 struct iio_cb_buffer;
 /**
  * iio_channel_get_all_cb() - register callback for triggered capture
