@@ -310,7 +310,7 @@ struct dsa_switch_driver {
 	int	(*port_vlan_prepare)(struct dsa_switch *ds, int port,
 				     const struct switchdev_obj_port_vlan *vlan,
 				     struct switchdev_trans *trans);
-	int	(*port_vlan_add)(struct dsa_switch *ds, int port,
+	void	(*port_vlan_add)(struct dsa_switch *ds, int port,
 				 const struct switchdev_obj_port_vlan *vlan,
 				 struct switchdev_trans *trans);
 	int	(*port_vlan_del)(struct dsa_switch *ds, int port,

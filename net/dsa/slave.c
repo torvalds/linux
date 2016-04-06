@@ -207,20 +207,15 @@ static int dsa_slave_port_vlan_add(struct net_device *dev,
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
-	int err;
 
 	if (switchdev_trans_ph_prepare(trans)) {
 		if (!ds->drv->port_vlan_prepare || !ds->drv->port_vlan_add)
 			return -EOPNOTSUPP;
 
-		err = ds->drv->port_vlan_prepare(ds, p->port, vlan, trans);
-		if (err)
-			return err;
-	} else {
-		err = ds->drv->port_vlan_add(ds, p->port, vlan, trans);
-		if (err)
-			return err;
+		return ds->drv->port_vlan_prepare(ds, p->port, vlan, trans);
 	}
+
+	ds->drv->port_vlan_add(ds, p->port, vlan, trans);
 
 	return 0;
 }

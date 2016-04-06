@@ -503,9 +503,9 @@ int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
 int mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 				const struct switchdev_obj_port_vlan *vlan,
 				struct switchdev_trans *trans);
-int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_vlan *vlan,
-			    struct switchdev_trans *trans);
+void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
+			     const struct switchdev_obj_port_vlan *vlan,
+			     struct switchdev_trans *trans);
 int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 			    const struct switchdev_obj_port_vlan *vlan);
 int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,

@@ -1908,31 +1908,27 @@ static int _mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port, u16 vid,
 	return _mv88e6xxx_vtu_loadpurge(ds, &vlan);
 }
 
-int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_vlan *vlan,
-			    struct switchdev_trans *trans)
+void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
+			     const struct switchdev_obj_port_vlan *vlan,
+			     struct switchdev_trans *trans)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	u16 vid;
-	int err = 0;
 
 	mutex_lock(&ps->smi_mutex);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		err = _mv88e6xxx_port_vlan_add(ds, port, vid, untagged);
-		if (err)
-			goto unlock;
-	}
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid)
+		if (_mv88e6xxx_port_vlan_add(ds, port, vid, untagged))
+			netdev_err(ds->ports[port], "failed to add VLAN %d%c\n",
+				   vid, untagged ? 'u' : 't');
 
-	/* no PVID with ranges, otherwise it's a bug */
-	if (pvid)
-		err = _mv88e6xxx_port_pvid_set(ds, port, vlan->vid_end);
-unlock:
+	if (pvid && _mv88e6xxx_port_pvid_set(ds, port, vlan->vid_end))
+		netdev_err(ds->ports[port], "failed to set PVID %d\n",
+			   vlan->vid_end);
+
 	mutex_unlock(&ps->smi_mutex);
-
-	return err;
 }
 
 static int _mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
