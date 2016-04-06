@@ -310,7 +310,7 @@ static void handle_set_channel(struct wilc_vif *vif,
 static void handle_set_wfi_drv_handler(struct wilc_vif *vif,
 				       struct drv_handler *hif_drv_handler)
 {
-	int result = 0;
+	int ret = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_SET_DRV_HANDLER;
@@ -318,13 +318,13 @@ static void handle_set_wfi_drv_handler(struct wilc_vif *vif,
 	wid.val = (s8 *)hif_drv_handler;
 	wid.size = sizeof(*hif_drv_handler);
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
-				      hif_drv_handler->handler);
+	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+				   hif_drv_handler->handler);
 
 	if (!hif_drv_handler->handler)
 		complete(&hif_driver_comp);
 
-	if (result)
+	if (ret)
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
 }
 
