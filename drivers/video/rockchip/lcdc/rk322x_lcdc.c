@@ -4813,7 +4813,8 @@ static int vop_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	vop_dev->reg_phy_base = res->start;
 	vop_dev->len = resource_size(res);
-	vop_dev->regs = devm_ioremap_resource(dev, res);
+	vop_dev->regs = devm_ioremap(&pdev->dev, res->start,
+				     resource_size(res));
 	if (IS_ERR(vop_dev->regs))
 		return PTR_ERR(vop_dev->regs);
 

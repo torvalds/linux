@@ -866,8 +866,8 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_BCSH_R2Y_CSC_MODE(x)			VAL_MASK(x, 1, 6)
 #define CABC_CTRL0			0x000001c0
 #define  V_CABC_EN(x)				VAL_MASK(x, 1, 0)
-#define  V_PWM_CONFIG_MODE(x)			VAL_MASK(x, 2, 1)
-#define  V_CABC_HANDLE_EN(x)			VAL_MASK(x, 1, 3)
+#define  V_CABC_HANDLE_EN(x)			VAL_MASK(x, 1, 1)
+#define  V_PWM_CONFIG_MODE(x)			VAL_MASK(x, 2, 2)
 #define  V_CABC_CALC_PIXEL_NUM(x)		VAL_MASK(x, 23, 4)
 #define CABC_CTRL1			0x000001c4
 #define  V_CABC_LUT_EN(x)			VAL_MASK(x, 1, 0)
