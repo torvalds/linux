@@ -129,6 +129,7 @@
 #define SCLK_DPHY_TX0_CFG		163
 #define SCLK_DPHY_TX1RX1_CFG		164
 #define SCLK_DPHY_RX0_CFG		165
+#define SCLK_RMII_SRC			166
 
 #define DCLK_VOP0			180
 #define DCLK_VOP1			181

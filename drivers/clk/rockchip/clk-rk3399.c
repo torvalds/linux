@@ -536,7 +536,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKSEL_CON(20), 14, 2, MFLAGS, 8, 5, DFLAGS,
 			RK3399_CLKGATE_CON(5), 5, GFLAGS),
 
-	MUX(0, "clk_rmii_src", mux_rmii_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_RMII_SRC, "clk_rmii_src", mux_rmii_p, CLK_SET_RATE_PARENT,
 			RK3399_CLKSEL_CON(19), 4, 1, MFLAGS),
 	GATE(SCLK_MACREF_OUT, "clk_mac_refout", "clk_rmii_src", 0,
 			RK3399_CLKGATE_CON(5), 6, GFLAGS),
