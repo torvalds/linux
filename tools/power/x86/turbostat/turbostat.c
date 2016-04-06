@@ -66,6 +66,8 @@ unsigned int do_slm_cstates;
 unsigned int use_c1_residency_msr;
 unsigned int has_aperf;
 unsigned int has_epb;
+unsigned int do_irtl_snb;
+unsigned int do_irtl_hsw;
 unsigned int units = 1000000;	/* MHz etc */
 unsigned int genuine_intel;
 unsigned int has_invariant_tsc;
@@ -1579,6 +1581,47 @@ dump_config_tdp(void)
 	fprintf(outf, " lock=%d", (unsigned int)(msr >> 31) & 1);
 	fprintf(outf, ")\n");
 }
+
+unsigned int irtl_time_units[] = {1, 32, 1024, 32768, 1048576, 33554432, 0, 0 };
+
+void print_irtl(void)
+{
+	unsigned long long msr;
+
+	get_msr(base_cpu, MSR_PKGC3_IRTL, &msr);
+	fprintf(outf, "cpu%d: MSR_PKGC3_IRTL: 0x%08llx (", base_cpu, msr);
+	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+
+	get_msr(base_cpu, MSR_PKGC6_IRTL, &msr);
+	fprintf(outf, "cpu%d: MSR_PKGC6_IRTL: 0x%08llx (", base_cpu, msr);
+	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+
+	get_msr(base_cpu, MSR_PKGC7_IRTL, &msr);
+	fprintf(outf, "cpu%d: MSR_PKGC7_IRTL: 0x%08llx (", base_cpu, msr);
+	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+
+	if (!do_irtl_hsw)
+		return;
+
+	get_msr(base_cpu, MSR_PKGC8_IRTL, &msr);
+	fprintf(outf, "cpu%d: MSR_PKGC8_IRTL: 0x%08llx (", base_cpu, msr);
+	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+
+	get_msr(base_cpu, MSR_PKGC9_IRTL, &msr);
+	fprintf(outf, "cpu%d: MSR_PKGC9_IRTL: 0x%08llx (", base_cpu, msr);
+	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+
+	get_msr(base_cpu, MSR_PKGC10_IRTL, &msr);
+	fprintf(outf, "cpu%d: MSR_PKGC10_IRTL: 0x%08llx (", base_cpu, msr);
+	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+
+}
 void free_fd_percpu(void)
 {
 	int i;
@@ -2879,9 +2922,14 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 /*
  * HSW adds support for additional MSRs:
  *
- * MSR_PKG_C8_RESIDENCY            0x00000630
- * MSR_PKG_C9_RESIDENCY            0x00000631
- * MSR_PKG_C10_RESIDENCY           0x00000632
+ * MSR_PKG_C8_RESIDENCY		0x00000630
+ * MSR_PKG_C9_RESIDENCY		0x00000631
+ * MSR_PKG_C10_RESIDENCY	0x00000632
+ *
+ * MSR_PKGC8_IRTL		0x00000633
+ * MSR_PKGC9_IRTL		0x00000634
+ * MSR_PKGC10_IRTL		0x00000635
+ *
  */
 int has_hsw_msrs(unsigned int family, unsigned int model)
 {
@@ -3254,11 +3302,13 @@ void process_cpuid()
 
 	do_nhm_platform_info = do_nhm_cstates = do_smi = probe_nhm_msrs(family, model);
 	do_snb_cstates = has_snb_msrs(family, model);
+	do_irtl_snb = has_snb_msrs(family, model);
 	do_pc2 = do_snb_cstates && (pkg_cstate_limit >= PCL__2);
 	do_pc3 = (pkg_cstate_limit >= PCL__3);
 	do_pc6 = (pkg_cstate_limit >= PCL__6);
 	do_pc7 = do_snb_cstates && (pkg_cstate_limit >= PCL__7);
 	do_c8_c9_c10 = has_hsw_msrs(family, model);
+	do_irtl_hsw = has_hsw_msrs(family, model);
 	do_skl_residency = has_skl_msrs(family, model);
 	do_slm_cstates = is_slm(family, model);
 	do_knl_cstates  = is_knl(family, model);
@@ -3564,6 +3614,9 @@ void turbostat_init()
 
 	if (debug)
 		for_all_cpus(print_thermal, ODD_COUNTERS);
+
+	if (debug && do_irtl_snb)
+		print_irtl();
 }
 
 int fork_it(char **argv)
