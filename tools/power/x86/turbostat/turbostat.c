@@ -3278,7 +3278,10 @@ void process_cpuid()
 				switch(model) {
 				case 0x4E:	/* SKL */
 				case 0x5E:	/* SKL */
-					crystal_hz = 24000000;	/* 24 MHz */
+					crystal_hz = 24000000;	/* 24.0 MHz */
+					break;
+				case 0x5C:	/* BXT */
+					crystal_hz = 19200000;	/* 19.2 MHz */
 					break;
 				default:
 					crystal_hz = 0;
