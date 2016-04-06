@@ -330,6 +330,42 @@ static int nfit_test_cmd_clear_error(struct nd_cmd_clear_error *clear_err,
 	return 0;
 }
 
+static int nfit_test_cmd_smart(struct nd_cmd_smart *smart, unsigned int buf_len)
+{
+	static const struct nd_smart_payload smart_data = {
+		.flags = ND_SMART_HEALTH_VALID | ND_SMART_TEMP_VALID
+			| ND_SMART_SPARES_VALID | ND_SMART_ALARM_VALID
+			| ND_SMART_USED_VALID | ND_SMART_SHUTDOWN_VALID,
+		.health = ND_SMART_NON_CRITICAL_HEALTH,
+		.temperature = 23 * 16,
+		.spares = 75,
+		.alarm_flags = ND_SMART_SPARE_TRIP | ND_SMART_TEMP_TRIP,
+		.life_used = 5,
+		.shutdown_state = 0,
+		.vendor_size = 0,
+	};
+
+	if (buf_len < sizeof(*smart))
+		return -EINVAL;
+	memcpy(smart->data, &smart_data, sizeof(smart_data));
+	return 0;
+}
+
+static int nfit_test_cmd_smart_threshold(struct nd_cmd_smart_threshold *smart_t,
+		unsigned int buf_len)
+{
+	static const struct nd_smart_threshold_payload smart_t_data = {
+		.alarm_control = ND_SMART_SPARE_TRIP | ND_SMART_TEMP_TRIP,
+		.temperature = 40 * 16,
+		.spares = 5,
+	};
+
+	if (buf_len < sizeof(*smart_t))
+		return -EINVAL;
+	memcpy(smart_t->data, &smart_t_data, sizeof(smart_t_data));
+	return 0;
+}
+
 static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		unsigned int buf_len, int *cmd_rc)
@@ -367,6 +403,12 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		case ND_CMD_SET_CONFIG_DATA:
 			rc = nfit_test_cmd_set_config_data(buf, buf_len,
 				t->label[i]);
+			break;
+		case ND_CMD_SMART:
+			rc = nfit_test_cmd_smart(buf, buf_len);
+			break;
+		case ND_CMD_SMART_THRESHOLD:
+			rc = nfit_test_cmd_smart_threshold(buf, buf_len);
 			break;
 		default:
 			return -ENOTTY;
@@ -1254,10 +1296,12 @@ static void nfit_test0_setup(struct nfit_test *t)
 	set_bit(ND_CMD_GET_CONFIG_SIZE, &acpi_desc->dimm_dsm_force_en);
 	set_bit(ND_CMD_GET_CONFIG_DATA, &acpi_desc->dimm_dsm_force_en);
 	set_bit(ND_CMD_SET_CONFIG_DATA, &acpi_desc->dimm_dsm_force_en);
+	set_bit(ND_CMD_SMART, &acpi_desc->dimm_dsm_force_en);
 	set_bit(ND_CMD_ARS_CAP, &acpi_desc->bus_dsm_force_en);
 	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_dsm_force_en);
 	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_dsm_force_en);
 	set_bit(ND_CMD_CLEAR_ERROR, &acpi_desc->bus_dsm_force_en);
+	set_bit(ND_CMD_SMART_THRESHOLD, &acpi_desc->dimm_dsm_force_en);
 }
 
 static void nfit_test1_setup(struct nfit_test *t)

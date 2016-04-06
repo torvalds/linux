@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015, Intel Corporation.
+ * Copyright (c) 2014-2016, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU Lesser General Public License,
@@ -20,9 +20,43 @@ struct nd_cmd_smart {
 	__u8 data[128];
 } __packed;
 
+#define ND_SMART_HEALTH_VALID	(1 << 0)
+#define ND_SMART_TEMP_VALID 	(1 << 1)
+#define ND_SMART_SPARES_VALID	(1 << 2)
+#define ND_SMART_ALARM_VALID	(1 << 3)
+#define ND_SMART_USED_VALID	(1 << 4)
+#define ND_SMART_SHUTDOWN_VALID	(1 << 5)
+#define ND_SMART_VENDOR_VALID	(1 << 6)
+#define ND_SMART_TEMP_TRIP	(1 << 0)
+#define ND_SMART_SPARE_TRIP	(1 << 1)
+#define ND_SMART_NON_CRITICAL_HEALTH	(1 << 0)
+#define ND_SMART_CRITICAL_HEALTH	(1 << 1)
+#define ND_SMART_FATAL_HEALTH		(1 << 2)
+
+struct nd_smart_payload {
+	__u32 flags;
+	__u8 reserved0[4];
+	__u8 health;
+	__u16 temperature;
+	__u8 spares;
+	__u8 alarm_flags;
+	__u8 life_used;
+	__u8 shutdown_state;
+	__u8 reserved1;
+	__u32 vendor_size;
+	__u8 vendor_data[108];
+} __packed;
+
 struct nd_cmd_smart_threshold {
 	__u32 status;
 	__u8 data[8];
+} __packed;
+
+struct nd_smart_threshold_payload {
+	__u16 alarm_control;
+	__u16 temperature;
+	__u8 spares;
+	__u8 reserved[3];
 } __packed;
 
 struct nd_cmd_dimm_flags {
