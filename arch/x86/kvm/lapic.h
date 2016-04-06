@@ -167,7 +167,7 @@ static inline int kvm_lapic_latched_init(struct kvm_vcpu *vcpu)
 	return lapic_in_kernel(vcpu) && test_bit(KVM_APIC_INIT, &vcpu->arch.apic->pending_events);
 }
 
-static inline int kvm_apic_id(struct kvm_lapic *apic)
+static inline u32 kvm_apic_id(struct kvm_lapic *apic)
 {
 	return (kvm_apic_get_reg(apic, APIC_ID) >> 24) & 0xff;
 }
