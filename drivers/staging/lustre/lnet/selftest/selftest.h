@@ -341,14 +341,14 @@ struct sfw_session {
 #define sfw_sid_equal(sid0, sid1)     ((sid0).ses_nid == (sid1).ses_nid && \
 				       (sid0).ses_stamp == (sid1).ses_stamp)
 
-typedef struct {
+struct sfw_batch {
 	struct list_head bat_list;	/* chain on sn_batches */
 	lst_bid_t	 bat_id;	/* batch id */
 	int		 bat_error;	/* error code of batch */
 	struct sfw_session	*bat_session;	/* batch's session */
 	atomic_t	 bat_nactive;	/* # of active tests */
 	struct list_head bat_tests;	/* test instances */
-} sfw_batch_t;
+};
 
 typedef struct {
 	int  (*tso_init)(struct sfw_test_instance *tsi); /* initialize test
@@ -365,7 +365,7 @@ typedef struct {
 typedef struct sfw_test_instance {
 	struct list_head	   tsi_list;		/* chain on batch */
 	int			   tsi_service;		/* test type */
-	sfw_batch_t		   *tsi_batch;		/* batch */
+	struct sfw_batch		*tsi_batch;	/* batch */
 	sfw_test_client_ops_t	   *tsi_ops;		/* test client operation
 							 */
 
