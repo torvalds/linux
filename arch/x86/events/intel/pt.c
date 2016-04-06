@@ -1106,7 +1106,7 @@ static __init int pt_init(void)
 
 	BUILD_BUG_ON(sizeof(struct topa) > PAGE_SIZE);
 
-	if (!test_cpu_cap(&boot_cpu_data, X86_FEATURE_INTEL_PT))
+	if (!boot_cpu_has(X86_FEATURE_INTEL_PT))
 		return -ENODEV;
 
 	get_online_cpus();
