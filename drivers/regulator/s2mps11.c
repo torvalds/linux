@@ -1221,17 +1221,7 @@ static struct platform_driver s2mps11_pmic_driver = {
 	.id_table = s2mps11_pmic_id,
 };
 
-static int __init s2mps11_pmic_init(void)
-{
-	return platform_driver_register(&s2mps11_pmic_driver);
-}
-subsys_initcall(s2mps11_pmic_init);
-
-static void __exit s2mps11_pmic_exit(void)
-{
-	platform_driver_unregister(&s2mps11_pmic_driver);
-}
-module_exit(s2mps11_pmic_exit);
+module_platform_driver(s2mps11_pmic_driver);
 
 /* Module information */
 MODULE_AUTHOR("Sangbeom Kim <sbkim73@samsung.com>");
