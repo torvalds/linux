@@ -34,6 +34,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/dcbnl.h>
 
 #include "spectrum.h"
 #include "core.h"
@@ -80,6 +81,28 @@ static int mlxsw_sp_port_pb_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	}
 	return mlxsw_reg_write(mlxsw_sp_port->mlxsw_sp->core,
 			       MLXSW_REG(pbmc), pbmc_pl);
+}
+
+static int mlxsw_sp_port_pb_prio_init(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	char pptb_pl[MLXSW_REG_PPTB_LEN];
+	int i;
+
+	mlxsw_reg_pptb_pack(pptb_pl, mlxsw_sp_port->local_port);
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+		mlxsw_reg_pptb_prio_to_buff_set(pptb_pl, i, 0);
+	return mlxsw_reg_write(mlxsw_sp_port->mlxsw_sp->core, MLXSW_REG(pptb),
+			       pptb_pl);
+}
+
+static int mlxsw_sp_port_headroom_init(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	int err;
+
+	err = mlxsw_sp_port_pb_init(mlxsw_sp_port);
+	if (err)
+		return err;
+	return mlxsw_sp_port_pb_prio_init(mlxsw_sp_port);
 }
 
 #define MLXSW_SP_SB_BYTES_PER_CELL 96
@@ -410,7 +433,7 @@ int mlxsw_sp_port_buffers_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	int err;
 
-	err = mlxsw_sp_port_pb_init(mlxsw_sp_port);
+	err = mlxsw_sp_port_headroom_init(mlxsw_sp_port);
 	if (err)
 		return err;
 	err = mlxsw_sp_port_sb_cms_init(mlxsw_sp_port);
