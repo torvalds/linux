@@ -1195,7 +1195,8 @@ static void mlxsw_sp_port_get_stats(struct net_device *dev,
 	int i;
 	int err;
 
-	mlxsw_reg_ppcnt_pack(ppcnt_pl, mlxsw_sp_port->local_port);
+	mlxsw_reg_ppcnt_pack(ppcnt_pl, mlxsw_sp_port->local_port,
+			     MLXSW_REG_PPCNT_IEEE_8023_CNT, 0);
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ppcnt), ppcnt_pl);
 	for (i = 0; i < MLXSW_SP_PORT_HW_STATS_LEN; i++)
 		data[i] = !err ? mlxsw_sp_port_hw_stats[i].getter(ppcnt_pl) : 0;

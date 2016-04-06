@@ -2487,6 +2487,11 @@ MLXSW_ITEM32(reg, ppcnt, local_port, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, ppcnt, pnat, 0x00, 14, 2);
 
+enum mlxsw_reg_ppcnt_grp {
+	MLXSW_REG_PPCNT_IEEE_8023_CNT = 0x0,
+	MLXSW_REG_PPCNT_PRIO_CNT = 0x10,
+};
+
 /* reg_ppcnt_grp
  * Performance counter group.
  * Group 63 indicates all groups. Only valid on Set() operation with
@@ -2521,6 +2526,8 @@ MLXSW_ITEM32(reg, ppcnt, clr, 0x04, 31, 1);
  * Access: Index
  */
 MLXSW_ITEM32(reg, ppcnt, prio_tc, 0x04, 0, 5);
+
+/* Ethernet IEEE 802.3 Counter Group */
 
 /* reg_ppcnt_a_frames_transmitted_ok
  * Access: RO
@@ -2636,15 +2643,64 @@ MLXSW_ITEM64(reg, ppcnt, a_pause_mac_ctrl_frames_received,
 MLXSW_ITEM64(reg, ppcnt, a_pause_mac_ctrl_frames_transmitted,
 	     0x08 + 0x90, 0, 64);
 
-static inline void mlxsw_reg_ppcnt_pack(char *payload, u8 local_port)
+/* Ethernet Per Priority Group Counters */
+
+/* reg_ppcnt_rx_octets
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, rx_octets, 0x08 + 0x00, 0, 64);
+
+/* reg_ppcnt_rx_frames
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, rx_frames, 0x08 + 0x20, 0, 64);
+
+/* reg_ppcnt_tx_octets
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, tx_octets, 0x08 + 0x28, 0, 64);
+
+/* reg_ppcnt_tx_frames
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, tx_frames, 0x08 + 0x48, 0, 64);
+
+/* reg_ppcnt_rx_pause
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, rx_pause, 0x08 + 0x50, 0, 64);
+
+/* reg_ppcnt_rx_pause_duration
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, rx_pause_duration, 0x08 + 0x58, 0, 64);
+
+/* reg_ppcnt_tx_pause
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, tx_pause, 0x08 + 0x60, 0, 64);
+
+/* reg_ppcnt_tx_pause_duration
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, tx_pause_duration, 0x08 + 0x68, 0, 64);
+
+/* reg_ppcnt_rx_pause_transition
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, tx_pause_transition, 0x08 + 0x70, 0, 64);
+
+static inline void mlxsw_reg_ppcnt_pack(char *payload, u8 local_port,
+					enum mlxsw_reg_ppcnt_grp grp,
+					u8 prio_tc)
 {
 	MLXSW_REG_ZERO(ppcnt, payload);
 	mlxsw_reg_ppcnt_swid_set(payload, 0);
 	mlxsw_reg_ppcnt_local_port_set(payload, local_port);
 	mlxsw_reg_ppcnt_pnat_set(payload, 0);
-	mlxsw_reg_ppcnt_grp_set(payload, 0);
+	mlxsw_reg_ppcnt_grp_set(payload, grp);
 	mlxsw_reg_ppcnt_clr_set(payload, 0);
-	mlxsw_reg_ppcnt_prio_tc_set(payload, 0);
+	mlxsw_reg_ppcnt_prio_tc_set(payload, prio_tc);
 }
 
 /* PPTB - Port Prio To Buffer Register
