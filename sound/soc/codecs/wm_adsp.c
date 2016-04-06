@@ -2853,7 +2853,7 @@ int wm_adsp_compr_handle_irq(struct wm_adsp *dsp)
 
 	ret = wm_adsp_buffer_get_error(buf);
 	if (ret < 0)
-		goto out;
+		goto out_notify; /* Wake poll to report error */
 
 	ret = wm_adsp_buffer_read(buf, HOST_BUFFER_FIELD(irq_count),
 				  &buf->irq_count);
@@ -2868,6 +2868,7 @@ int wm_adsp_compr_handle_irq(struct wm_adsp *dsp)
 		goto out;
 	}
 
+out_notify:
 	if (compr && compr->stream)
 		snd_compr_fragment_elapsed(compr->stream);
 
@@ -2928,6 +2929,10 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 		 * DSP to inform us once a whole fragment is available.
 		 */
 		if (buf->avail < wm_adsp_compr_frag_words(compr)) {
+			ret = wm_adsp_buffer_get_error(buf);
+			if (ret < 0)
+				goto out;
+
 			ret = wm_adsp_buffer_reenable_irq(buf);
 			if (ret < 0) {
 				adsp_err(dsp,
