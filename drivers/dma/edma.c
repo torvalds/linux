@@ -1238,6 +1238,7 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 	struct edma_desc *edesc;
 	dma_addr_t src_addr, dst_addr;
 	enum dma_slave_buswidth dev_width;
+	bool use_intermediate = false;
 	u32 burst;
 	int i, ret, nslots;
 
@@ -1279,8 +1280,21 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 	 * but the synchronization is difficult to achieve with Cyclic and
 	 * cannot be guaranteed, so we error out early.
 	 */
-	if (nslots > MAX_NR_SG)
-		return NULL;
+	if (nslots > MAX_NR_SG) {
+		/*
+		 * If the burst and period sizes are the same, we can put
+		 * the full buffer into a single period and activate
+		 * intermediate interrupts. This will produce interrupts
+		 * after each burst, which is also after each desired period.
+		 */
+		if (burst == period_len) {
+			period_len = buf_len;
+			nslots = 2;
+			use_intermediate = true;
+		} else {
+			return NULL;
+		}
+	}
 
 	edesc = kzalloc(sizeof(*edesc) + nslots * sizeof(edesc->pset[0]),
 			GFP_ATOMIC);
@@ -1358,8 +1372,13 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 		/*
 		 * Enable period interrupt only if it is requested
 		 */
-		if (tx_flags & DMA_PREP_INTERRUPT)
+		if (tx_flags & DMA_PREP_INTERRUPT) {
 			edesc->pset[i].param.opt |= TCINTEN;
+
+			/* Also enable intermediate interrupts if necessary */
+			if (use_intermediate)
+				edesc->pset[i].param.opt |= ITCINTEN;
+		}
 	}
 
 	/* Place the cyclic channel to highest priority queue */
