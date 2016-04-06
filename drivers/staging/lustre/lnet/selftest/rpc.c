@@ -56,7 +56,7 @@ typedef enum {
 
 static struct smoketest_rpc {
 	spinlock_t	 rpc_glock;	/* global lock */
-	srpc_service_t	*rpc_services[SRPC_SERVICE_MAX_ID + 1];
+	struct srpc_service	*rpc_services[SRPC_SERVICE_MAX_ID + 1];
 	lnet_handle_eq_t rpc_lnet_eq;	/* _the_ LNet event queue */
 	srpc_state_t	 rpc_state;
 	srpc_counters_t	 rpc_counters;
@@ -338,7 +338,7 @@ srpc_add_service(struct srpc_service *sv)
 }
 
 int
-srpc_remove_service(srpc_service_t *sv)
+srpc_remove_service(struct srpc_service *sv)
 {
 	int id = sv->sv_id;
 
@@ -755,7 +755,7 @@ srpc_abort_service(struct srpc_service *sv)
 }
 
 void
-srpc_shutdown_service(srpc_service_t *sv)
+srpc_shutdown_service(struct srpc_service *sv)
 {
 	struct srpc_service_cd *scd;
 	struct srpc_server_rpc *rpc;
@@ -1414,7 +1414,7 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 	struct srpc_client_rpc *crpc;
 	struct srpc_server_rpc *srpc;
 	struct srpc_buffer *buffer;
-	srpc_service_t *sv;
+	struct srpc_service *sv;
 	srpc_msg_t *msg;
 	srpc_msg_type_t type;
 
@@ -1663,7 +1663,7 @@ srpc_shutdown(void)
 		spin_lock(&srpc_data.rpc_glock);
 
 		for (i = 0; i <= SRPC_SERVICE_MAX_ID; i++) {
-			srpc_service_t *sv = srpc_data.rpc_services[i];
+			struct srpc_service *sv = srpc_data.rpc_services[i];
 
 			LASSERTF(!sv, "service not empty: id %d, name %s\n",
 				 i, sv->sv_name);

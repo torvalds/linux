@@ -497,7 +497,8 @@ void brw_init_test_client(void)
 	brw_test_client.tso_done_rpc = brw_client_done_rpc;
 };
 
-srpc_service_t brw_test_service;
+struct srpc_service brw_test_service;
+
 void brw_init_test_service(void)
 {
 	brw_test_service.sv_id = SRPC_SERVICE_BRW;

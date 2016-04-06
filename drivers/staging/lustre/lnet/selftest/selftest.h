@@ -307,7 +307,7 @@ struct srpc_service_cd {
 #define SFW_FRWK_WI_MIN		16
 #define SFW_FRWK_WI_MAX		256
 
-typedef struct srpc_service {
+struct srpc_service {
 	int			sv_id;		/* service id */
 	const char		*sv_name;	/* human readable name */
 	int			sv_wi_total;	/* total server workitems */
@@ -321,7 +321,7 @@ typedef struct srpc_service {
 	 */
 	int (*sv_handler)(struct srpc_server_rpc *);
 	int (*sv_bulk_ready)(struct srpc_server_rpc *, int);
-} srpc_service_t;
+};
 
 typedef struct {
 	struct list_head sn_list;    /* chain on fw_zombie_sessions */
@@ -409,7 +409,7 @@ typedef struct sfw_test_unit {
 
 typedef struct sfw_test_case {
 	struct list_head      tsc_list;		/* chain on fw_tests */
-	srpc_service_t	      *tsc_srv_service; /* test service */
+	struct srpc_service	*tsc_srv_service;	/* test service */
 	sfw_test_client_ops_t *tsc_cli_ops;	/* ops of test client */
 } sfw_test_case_t;
 
@@ -442,13 +442,13 @@ struct srpc_bulk *srpc_alloc_bulk(int cpt, unsigned bulk_npg,
 				  unsigned bulk_len, int sink);
 int srpc_send_rpc(struct swi_workitem *wi);
 int srpc_send_reply(struct srpc_server_rpc *rpc);
-int srpc_add_service(srpc_service_t *sv);
-int srpc_remove_service(srpc_service_t *sv);
-void srpc_shutdown_service(srpc_service_t *sv);
-void srpc_abort_service(srpc_service_t *sv);
-int srpc_finish_service(srpc_service_t *sv);
-int srpc_service_add_buffers(srpc_service_t *sv, int nbuffer);
-void srpc_service_remove_buffers(srpc_service_t *sv, int nbuffer);
+int srpc_add_service(struct srpc_service *sv);
+int srpc_remove_service(struct srpc_service *sv);
+void srpc_shutdown_service(struct srpc_service *sv);
+void srpc_abort_service(struct srpc_service *sv);
+int srpc_finish_service(struct srpc_service *sv);
+int srpc_service_add_buffers(struct srpc_service *sv, int nbuffer);
+void srpc_service_remove_buffers(struct srpc_service *sv, int nbuffer);
 void srpc_get_counters(srpc_counters_t *cnt);
 void srpc_set_counters(const srpc_counters_t *cnt);
 
@@ -595,7 +595,7 @@ do {									\
 } while (0)
 
 static inline void
-srpc_wait_service_shutdown(srpc_service_t *sv)
+srpc_wait_service_shutdown(struct srpc_service *sv)
 {
 	int i = 2;
 
@@ -613,13 +613,13 @@ srpc_wait_service_shutdown(srpc_service_t *sv)
 extern sfw_test_client_ops_t brw_test_client;
 void brw_init_test_client(void);
 
-extern srpc_service_t brw_test_service;
+extern struct srpc_service brw_test_service;
 void brw_init_test_service(void);
 
 extern sfw_test_client_ops_t ping_test_client;
 void ping_init_test_client(void);
 
-extern srpc_service_t ping_test_service;
+extern struct srpc_service ping_test_service;
 void ping_init_test_service(void);
 
 #endif /* __SELFTEST_SELFTEST_H__ */

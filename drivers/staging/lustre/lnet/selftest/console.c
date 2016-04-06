@@ -1986,7 +1986,8 @@ out:
 	return rc;
 }
 
-static srpc_service_t lstcon_acceptor_service;
+static struct srpc_service lstcon_acceptor_service;
+
 static void lstcon_init_acceptor_service(void)
 {
 	/* initialize selftest console acceptor service table */

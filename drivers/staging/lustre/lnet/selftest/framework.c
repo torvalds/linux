@@ -135,7 +135,7 @@ sfw_find_test_case(int id)
 }
 
 static int
-sfw_register_test(srpc_service_t *service, sfw_test_client_ops_t *cliops)
+sfw_register_test(struct srpc_service *service, sfw_test_client_ops_t *cliops)
 {
 	sfw_test_case_t *tsc;
 
@@ -1584,7 +1584,7 @@ sfw_post_rpc(struct srpc_client_rpc *rpc)
 	spin_unlock(&rpc->crpc_lock);
 }
 
-static srpc_service_t sfw_services[] = {
+static struct srpc_service sfw_services[] = {
 	{
 		/* sv_id */    SRPC_SERVICE_DEBUG,
 		/* sv_name */  "debug",
@@ -1628,7 +1628,7 @@ sfw_startup(void)
 	int i;
 	int rc;
 	int error;
-	srpc_service_t *sv;
+	struct srpc_service *sv;
 	sfw_test_case_t *tsc;
 
 	if (session_timeout < 0) {
@@ -1721,7 +1721,7 @@ sfw_startup(void)
 void
 sfw_shutdown(void)
 {
-	srpc_service_t *sv;
+	struct srpc_service *sv;
 	sfw_test_case_t	*tsc;
 	int i;
 

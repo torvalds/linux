@@ -219,7 +219,8 @@ void ping_init_test_client(void)
 	ping_test_client.tso_done_rpc = ping_client_done_rpc;
 }
 
-srpc_service_t ping_test_service;
+struct srpc_service ping_test_service;
+
 void ping_init_test_service(void)
 {
 	ping_test_service.sv_id = SRPC_SERVICE_PING;
