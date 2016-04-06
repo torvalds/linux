@@ -1073,6 +1073,8 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 	  .arg_scnprintf = { [arg] = SCA_STRARRAY, }, \
 	  .arg_parm	 = { [arg] = &strarray__##array, }
 
+#include "trace/beauty/sched_policy.c"
+
 static struct syscall_fmt {
 	const char *name;
 	const char *alias;
@@ -1304,6 +1306,8 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [1] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "rt_tgsigqueueinfo", .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_SIGNUM, /* sig */ }, },
+	{ .name	    = "sched_setscheduler",   .errmsg = true,
+	  .arg_scnprintf = { [1] = SCA_SCHED_POLICY, /* policy */ }, },
 	{ .name	    = "seccomp", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_SECCOMP_OP, /* op */
 			     [1] = SCA_SECCOMP_FLAGS, /* flags */ }, },
