@@ -88,7 +88,7 @@ void srpc_set_counters(const srpc_counters_t *cnt)
 }
 
 static int
-srpc_add_bulk_page(srpc_bulk_t *bk, struct page *pg, int i, int nob)
+srpc_add_bulk_page(struct srpc_bulk *bk, struct page *pg, int i, int nob)
 {
 	nob = min_t(int, nob, PAGE_SIZE);
 
@@ -102,7 +102,7 @@ srpc_add_bulk_page(srpc_bulk_t *bk, struct page *pg, int i, int nob)
 }
 
 void
-srpc_free_bulk(srpc_bulk_t *bk)
+srpc_free_bulk(struct srpc_bulk *bk)
 {
 	int i;
 	struct page *pg;
@@ -117,25 +117,25 @@ srpc_free_bulk(srpc_bulk_t *bk)
 		__free_page(pg);
 	}
 
-	LIBCFS_FREE(bk, offsetof(srpc_bulk_t, bk_iovs[bk->bk_niov]));
+	LIBCFS_FREE(bk, offsetof(struct srpc_bulk, bk_iovs[bk->bk_niov]));
 }
 
-srpc_bulk_t *
+struct srpc_bulk *
 srpc_alloc_bulk(int cpt, unsigned bulk_npg, unsigned bulk_len, int sink)
 {
-	srpc_bulk_t *bk;
+	struct srpc_bulk *bk;
 	int i;
 
 	LASSERT(bulk_npg > 0 && bulk_npg <= LNET_MAX_IOV);
 
 	LIBCFS_CPT_ALLOC(bk, lnet_cpt_table(), cpt,
-			 offsetof(srpc_bulk_t, bk_iovs[bulk_npg]));
+			 offsetof(struct srpc_bulk, bk_iovs[bulk_npg]));
 	if (!bk) {
 		CERROR("Can't allocate descriptor for %d pages\n", bulk_npg);
 		return NULL;
 	}
 
-	memset(bk, 0, offsetof(srpc_bulk_t, bk_iovs[bulk_npg]));
+	memset(bk, 0, offsetof(struct srpc_bulk, bk_iovs[bulk_npg]));
 	bk->bk_sink = sink;
 	bk->bk_len = bulk_len;
 	bk->bk_niov = bulk_npg;
@@ -840,7 +840,7 @@ srpc_prepare_reply(srpc_client_rpc_t *rpc)
 static int
 srpc_prepare_bulk(srpc_client_rpc_t *rpc)
 {
-	srpc_bulk_t *bk = &rpc->crpc_bulk;
+	struct srpc_bulk *bk = &rpc->crpc_bulk;
 	struct srpc_event *ev = &rpc->crpc_bulkev;
 	__u64 *id = &rpc->crpc_reqstmsg.msg_body.reqst.bulkid;
 	int rc;
@@ -874,7 +874,7 @@ static int
 srpc_do_bulk(struct srpc_server_rpc *rpc)
 {
 	struct srpc_event *ev = &rpc->srpc_ev;
-	srpc_bulk_t *bk = rpc->srpc_bulk;
+	struct srpc_bulk *bk = rpc->srpc_bulk;
 	__u64 id = rpc->srpc_reqstbuf->buf_msg.msg_body.reqst.bulkid;
 	int rc;
 	int opt;

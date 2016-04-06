@@ -51,7 +51,7 @@ MODULE_PARM_DESC(brw_inject_errors, "# data errors to inject randomly, zero by d
 static void
 brw_client_fini(sfw_test_instance_t *tsi)
 {
-	srpc_bulk_t *bulk;
+	struct srpc_bulk *bulk;
 	sfw_test_unit_t	*tsu;
 
 	LASSERT(tsi->tsi_is_client);
@@ -74,7 +74,7 @@ brw_client_init(sfw_test_instance_t *tsi)
 	int npg;
 	int len;
 	int opc;
-	srpc_bulk_t *bulk;
+	struct srpc_bulk *bulk;
 	sfw_test_unit_t *tsu;
 
 	LASSERT(sn);
@@ -224,7 +224,7 @@ bad_data:
 }
 
 static void
-brw_fill_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
+brw_fill_bulk(struct srpc_bulk *bk, int pattern, __u64 magic)
 {
 	int i;
 	struct page *pg;
@@ -236,7 +236,7 @@ brw_fill_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
 }
 
 static int
-brw_check_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
+brw_check_bulk(struct srpc_bulk *bk, int pattern, __u64 magic)
 {
 	int i;
 	struct page *pg;
@@ -257,7 +257,7 @@ static int
 brw_client_prep_rpc(sfw_test_unit_t *tsu,
 		    lnet_process_id_t dest, srpc_client_rpc_t **rpcpp)
 {
-	srpc_bulk_t *bulk = tsu->tsu_private;
+	struct srpc_bulk *bulk = tsu->tsu_private;
 	sfw_test_instance_t *tsi = tsu->tsu_instance;
 	sfw_session_t *sn = tsi->tsi_batch->bat_session;
 	srpc_client_rpc_t *rpc;
@@ -297,7 +297,7 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 	if (rc)
 		return rc;
 
-	memcpy(&rpc->crpc_bulk, bulk, offsetof(srpc_bulk_t, bk_iovs[npg]));
+	memcpy(&rpc->crpc_bulk, bulk, offsetof(struct srpc_bulk, bk_iovs[npg]));
 	if (opc == LST_BRW_WRITE)
 		brw_fill_bulk(&rpc->crpc_bulk, flags, BRW_MAGIC);
 	else
@@ -361,7 +361,7 @@ brw_client_done_rpc(sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
 static void
 brw_server_rpc_done(struct srpc_server_rpc *rpc)
 {
-	srpc_bulk_t *blk = rpc->srpc_bulk;
+	struct srpc_bulk *blk = rpc->srpc_bulk;
 
 	if (!blk)
 		return;

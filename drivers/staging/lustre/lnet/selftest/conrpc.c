@@ -150,7 +150,7 @@ lstcon_rpc_prep(lstcon_node_t *nd, int service, unsigned feats,
 void
 lstcon_rpc_put(lstcon_rpc_t *crpc)
 {
-	srpc_bulk_t *bulk = &crpc->crp_rpc->crpc_bulk;
+	struct srpc_bulk *bulk = &crpc->crp_rpc->crpc_bulk;
 	int i;
 
 	LASSERT(list_empty(&crpc->crp_link));
@@ -812,7 +812,7 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 	lstcon_group_t *sgrp = test->tes_src_grp;
 	lstcon_group_t *dgrp = test->tes_dst_grp;
 	srpc_test_reqst_t *trq;
-	srpc_bulk_t *bulk;
+	struct srpc_bulk *bulk;
 	int i;
 	int npg = 0;
 	int nob = 0;

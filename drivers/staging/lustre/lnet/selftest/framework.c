@@ -733,7 +733,7 @@ sfw_add_test_instance(sfw_batch_t *tsb, struct srpc_server_rpc *rpc)
 {
 	srpc_msg_t *msg = &rpc->srpc_reqstbuf->buf_msg;
 	srpc_test_reqst_t *req = &msg->msg_body.tes_reqst;
-	srpc_bulk_t *bk = rpc->srpc_bulk;
+	struct srpc_bulk *bk = rpc->srpc_bulk;
 	int ndest = req->tsr_ndest;
 	sfw_test_unit_t *tsu;
 	sfw_test_instance_t *tsi;

@@ -154,13 +154,14 @@ struct srpc_event {
 	void		  *ev_data;  /* owning server/client RPC */
 };
 
-typedef struct {
+/* bulk descriptor */
+struct srpc_bulk {
 	int		 bk_len;     /* len of bulk data */
 	lnet_handle_md_t bk_mdh;
 	int		 bk_sink;    /* sink/source */
 	int		 bk_niov;    /* # iov in bk_iovs */
 	lnet_kiov_t	 bk_iovs[0];
-} srpc_bulk_t; /* bulk descriptor */
+};
 
 /* message buffer descriptor */
 typedef struct srpc_buffer {
@@ -193,7 +194,7 @@ struct srpc_server_rpc {
 	srpc_msg_t	       srpc_replymsg;
 	lnet_handle_md_t       srpc_replymdh;
 	srpc_buffer_t	       *srpc_reqstbuf;
-	srpc_bulk_t	       *srpc_bulk;
+	struct srpc_bulk	*srpc_bulk;
 
 	unsigned int	       srpc_aborted; /* being given up */
 	int		       srpc_status;
@@ -230,7 +231,7 @@ typedef struct srpc_client_rpc {
 	srpc_msg_t	  crpc_replymsg;
 	lnet_handle_md_t  crpc_reqstmdh;
 	lnet_handle_md_t  crpc_replymdh;
-	srpc_bulk_t	  crpc_bulk;
+	struct srpc_bulk	crpc_bulk;
 } srpc_client_rpc_t;
 
 #define srpc_client_rpc_size(rpc)					\
@@ -424,7 +425,7 @@ void sfw_post_rpc(srpc_client_rpc_t *rpc);
 void sfw_client_rpc_done(srpc_client_rpc_t *rpc);
 void sfw_unpack_message(srpc_msg_t *msg);
 void sfw_free_pages(struct srpc_server_rpc *rpc);
-void sfw_add_bulk_page(srpc_bulk_t *bk, struct page *pg, int i);
+void sfw_add_bulk_page(struct srpc_bulk *bk, struct page *pg, int i);
 int sfw_alloc_pages(struct srpc_server_rpc *rpc, int cpt, int npages, int len,
 		    int sink);
 int sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply);
@@ -436,9 +437,9 @@ srpc_create_client_rpc(lnet_process_id_t peer, int service,
 		       void (*rpc_fini)(srpc_client_rpc_t *), void *priv);
 void srpc_post_rpc(srpc_client_rpc_t *rpc);
 void srpc_abort_rpc(srpc_client_rpc_t *rpc, int why);
-void srpc_free_bulk(srpc_bulk_t *bk);
-srpc_bulk_t *srpc_alloc_bulk(int cpt, unsigned bulk_npg, unsigned bulk_len,
-			     int sink);
+void srpc_free_bulk(struct srpc_bulk *bk);
+struct srpc_bulk *srpc_alloc_bulk(int cpt, unsigned bulk_npg,
+				  unsigned bulk_len, int sink);
 int srpc_send_rpc(swi_workitem_t *wi);
 int srpc_send_reply(struct srpc_server_rpc *rpc);
 int srpc_add_service(srpc_service_t *sv);
