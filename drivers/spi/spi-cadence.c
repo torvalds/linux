@@ -209,7 +209,8 @@ static void cdns_spi_config_clock_mode(struct spi_device *spi)
 	struct cdns_spi *xspi = spi_master_get_devdata(spi->master);
 	u32 ctrl_reg, new_ctrl_reg;
 
-	new_ctrl_reg = ctrl_reg = cdns_spi_read(xspi, CDNS_SPI_CR);
+	new_ctrl_reg = cdns_spi_read(xspi, CDNS_SPI_CR);
+	ctrl_reg = new_ctrl_reg;
 
 	/* Set the SPI clock phase and clock polarity */
 	new_ctrl_reg &= ~(CDNS_SPI_CR_CPHA | CDNS_SPI_CR_CPOL);
@@ -246,7 +247,7 @@ static void cdns_spi_config_clock_mode(struct spi_device *spi)
  * controller.
  */
 static void cdns_spi_config_clock_freq(struct spi_device *spi,
-				  struct spi_transfer *transfer)
+				       struct spi_transfer *transfer)
 {
 	struct cdns_spi *xspi = spi_master_get_devdata(spi->master);
 	u32 ctrl_reg, baud_rate_val;
@@ -380,6 +381,7 @@ static irqreturn_t cdns_spi_irq(int irq, void *dev_id)
 
 	return status;
 }
+
 static int cdns_prepare_message(struct spi_master *master,
 				struct spi_message *msg)
 {
