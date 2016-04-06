@@ -90,6 +90,7 @@ struct omap_mbox_device {
 	void __iomem *mbox_base;
 	u32 num_users;
 	u32 num_fifos;
+	u32 intr_type;
 	struct omap_mbox **mboxes;
 	struct mbox_controller controller;
 	struct list_head elem;
@@ -828,6 +829,7 @@ static int omap_mbox_probe(struct platform_device *pdev)
 	mdev->dev = &pdev->dev;
 	mdev->num_users = num_users;
 	mdev->num_fifos = num_fifos;
+	mdev->intr_type = intr_type;
 	mdev->mboxes = list;
 
 	/* OMAP does not have a Tx-Done IRQ, but rather a Tx-Ready IRQ */
