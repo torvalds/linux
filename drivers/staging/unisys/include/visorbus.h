@@ -134,7 +134,6 @@ struct visor_device {
 	struct list_head list_all;
 	struct periodic_work *periodic_work;
 	bool being_removed;
-	bool responded_to_device_create;
 	/* the code will detect and behave appropriately) */
 	struct semaphore visordriver_callback_lock;
 	bool pausing;
