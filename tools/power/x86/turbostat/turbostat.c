@@ -2188,6 +2188,8 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	case 0x56:	/* BDX-DE */
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x8E:	/* KBL */
+	case 0x9E:	/* KBL */
 	case 0x55:	/* SKX */
 		pkg_cstate_limits = hsw_pkg_cstate_limits;
 		break;
@@ -2296,6 +2298,8 @@ int has_config_tdp(unsigned int family, unsigned int model)
 	case 0x56:	/* BDX-DE */
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x8E:	/* KBL */
+	case 0x9E:	/* KBL */
 	case 0x55:	/* SKX */
 
 	case 0x57:	/* Knights Landing */
@@ -2639,6 +2643,8 @@ void rapl_probe(unsigned int family, unsigned int model)
 		break;
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x8E:	/* KBL */
+	case 0x9E:	/* KBL */
 		do_rapl = RAPL_PKG | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_PKG_POWER_INFO;
 		break;
 	case 0x3F:	/* HSX */
@@ -2924,6 +2930,8 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 	case 0x56:	/* BDX-DE */
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x8E:	/* KBL */
+	case 0x9E:	/* KBL */
 	case 0x55:	/* SKX */
 	case 0x5C:	/* BXT */
 		return 1;
@@ -2953,6 +2961,8 @@ int has_hsw_msrs(unsigned int family, unsigned int model)
 	case 0x3D:	/* BDW */
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x8E:	/* KBL */
+	case 0x9E:	/* KBL */
 	case 0x5C:	/* BXT */
 		return 1;
 	}
@@ -2975,6 +2985,8 @@ int has_skl_msrs(unsigned int family, unsigned int model)
 	switch (model) {
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x8E:	/* KBL */
+	case 0x9E:	/* KBL */
 		return 1;
 	}
 	return 0;
@@ -3282,6 +3294,8 @@ void process_cpuid()
 				switch(model) {
 				case 0x4E:	/* SKL */
 				case 0x5E:	/* SKL */
+				case 0x8E:	/* KBL */
+				case 0x9E:	/* KBL */
 					crystal_hz = 24000000;	/* 24.0 MHz */
 					break;
 				case 0x55:	/* SKX */
