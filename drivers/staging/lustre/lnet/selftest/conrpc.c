@@ -652,7 +652,7 @@ int
 lstcon_batrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
 		   struct lstcon_tsb_hdr *tsb, struct lstcon_rpc **crpc)
 {
-	lstcon_batch_t *batch;
+	struct lstcon_batch *batch;
 	srpc_batch_reqst_t *brq;
 	int rc;
 
@@ -675,7 +675,7 @@ lstcon_batrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
 
 	LASSERT(!tsb->tsb_index);
 
-	batch = (lstcon_batch_t *)tsb;
+	batch = (struct lstcon_batch *)tsb;
 	brq->bar_arg = batch->bat_arg;
 
 	return 0;

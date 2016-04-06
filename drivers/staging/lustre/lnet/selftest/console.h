@@ -89,7 +89,8 @@ struct lstcon_tsb_hdr {
 	int		 tsb_index;	 /* test index */
 };
 
-typedef struct {
+/* (tests ) batch descriptor */
+struct lstcon_batch {
 	struct lstcon_tsb_hdr	bat_hdr;	/* test_batch header */
 	struct list_head bat_link;	  /* chain on session's batches list */
 	int		 bat_ntest;	  /* # of test */
@@ -106,12 +107,12 @@ typedef struct {
 	struct list_head *bat_cli_hash;   /* hash table of client nodes */
 	struct list_head bat_srv_list;	  /* list head of server nodes */
 	struct list_head *bat_srv_hash;   /* hash table of server nodes */
-} lstcon_batch_t; /* (tests ) batch descriptor */
+};
 
 typedef struct lstcon_test {
 	struct lstcon_tsb_hdr	tes_hdr;	/* test batch header */
 	struct list_head tes_link;	 /* chain on batch's tests list */
-	lstcon_batch_t	 *tes_batch;	 /* pointer to batch */
+	struct lstcon_batch	*tes_batch;	 /* pointer to batch */
 
 	int		 tes_type;	 /* type of the test, i.e: bulk, ping */
 	int		 tes_stop_onerr; /* stop on error */
