@@ -80,6 +80,8 @@ static int mlxsw_sp_port_pb_init(struct mlxsw_sp_port *mlxsw_sp_port)
 		pb = &mlxsw_sp_pbs[i];
 		mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, pb->index, pb->size);
 	}
+	mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl,
+					 MLXSW_REG_PBMC_PORT_SHARED_BUF_IDX, 0);
 	return mlxsw_reg_write(mlxsw_sp_port->mlxsw_sp->core,
 			       MLXSW_REG(pbmc), pbmc_pl);
 }

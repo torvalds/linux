@@ -2455,6 +2455,8 @@ MLXSW_ITEM32(reg, pbmc, xoff_timer_value, 0x04, 16, 16);
  */
 MLXSW_ITEM32(reg, pbmc, xoff_refresh, 0x04, 0, 16);
 
+#define MLXSW_REG_PBMC_PORT_SHARED_BUF_IDX 11
+
 /* reg_pbmc_buf_lossy
  * The field indicates if the buffer is lossy.
  * 0 - Lossless
