@@ -52,7 +52,7 @@ void lstcon_rpc_stat_reply(lstcon_rpc_trans_t *, srpc_msg_t *,
 static void
 lstcon_rpc_done(struct srpc_client_rpc *rpc)
 {
-	lstcon_rpc_t *crpc = (lstcon_rpc_t *)rpc->crpc_priv;
+	struct lstcon_rpc *crpc = (struct lstcon_rpc *)rpc->crpc_priv;
 
 	LASSERT(crpc && rpc == crpc->crp_rpc);
 	LASSERT(crpc->crp_posted && !crpc->crp_finished);
@@ -91,7 +91,7 @@ lstcon_rpc_done(struct srpc_client_rpc *rpc)
 
 static int
 lstcon_rpc_init(lstcon_node_t *nd, int service, unsigned feats,
-		int bulk_npg, int bulk_len, int embedded, lstcon_rpc_t *crpc)
+		int bulk_npg, int bulk_len, int embedded, struct lstcon_rpc *crpc)
 {
 	crpc->crp_rpc = sfw_create_rpc(nd->nd_id, service,
 				       feats, bulk_npg, bulk_len,
@@ -116,15 +116,15 @@ lstcon_rpc_init(lstcon_node_t *nd, int service, unsigned feats,
 
 static int
 lstcon_rpc_prep(lstcon_node_t *nd, int service, unsigned feats,
-		int bulk_npg, int bulk_len, lstcon_rpc_t **crpcpp)
+		int bulk_npg, int bulk_len, struct lstcon_rpc **crpcpp)
 {
-	lstcon_rpc_t *crpc = NULL;
+	struct lstcon_rpc *crpc = NULL;
 	int rc;
 
 	spin_lock(&console_session.ses_rpc_lock);
 
 	crpc = list_first_entry_or_null(&console_session.ses_rpc_freelist,
-					lstcon_rpc_t, crp_link);
+					struct lstcon_rpc, crp_link);
 	if (crpc)
 		list_del_init(&crpc->crp_link);
 
@@ -148,7 +148,7 @@ lstcon_rpc_prep(lstcon_node_t *nd, int service, unsigned feats,
 }
 
 void
-lstcon_rpc_put(lstcon_rpc_t *crpc)
+lstcon_rpc_put(struct lstcon_rpc *crpc)
 {
 	struct srpc_bulk *bulk = &crpc->crp_rpc->crpc_bulk;
 	int i;
@@ -183,7 +183,7 @@ lstcon_rpc_put(lstcon_rpc_t *crpc)
 }
 
 static void
-lstcon_rpc_post(lstcon_rpc_t *crpc)
+lstcon_rpc_post(struct lstcon_rpc *crpc)
 {
 	lstcon_rpc_trans_t *trans = crpc->crp_trans;
 
@@ -278,7 +278,7 @@ lstcon_rpc_trans_prep(struct list_head *translist, int transop,
 }
 
 void
-lstcon_rpc_trans_addreq(lstcon_rpc_trans_t *trans, lstcon_rpc_t *crpc)
+lstcon_rpc_trans_addreq(lstcon_rpc_trans_t *trans, struct lstcon_rpc *crpc)
 {
 	list_add_tail(&crpc->crp_link, &trans->tas_rpcs_list);
 	crpc->crp_trans = trans;
@@ -288,7 +288,7 @@ void
 lstcon_rpc_trans_abort(lstcon_rpc_trans_t *trans, int error)
 {
 	struct srpc_client_rpc *rpc;
-	lstcon_rpc_t *crpc;
+	struct lstcon_rpc *crpc;
 	lstcon_node_t *nd;
 
 	list_for_each_entry(crpc, &trans->tas_rpcs_list, crp_link) {
@@ -338,7 +338,7 @@ lstcon_rpc_trans_check(lstcon_rpc_trans_t *trans)
 int
 lstcon_rpc_trans_postwait(lstcon_rpc_trans_t *trans, int timeout)
 {
-	lstcon_rpc_t *crpc;
+	struct lstcon_rpc *crpc;
 	int rc;
 
 	if (list_empty(&trans->tas_rpcs_list))
@@ -386,7 +386,7 @@ lstcon_rpc_trans_postwait(lstcon_rpc_trans_t *trans, int timeout)
 }
 
 static int
-lstcon_rpc_get_reply(lstcon_rpc_t *crpc, srpc_msg_t **msgpp)
+lstcon_rpc_get_reply(struct lstcon_rpc *crpc, srpc_msg_t **msgpp)
 {
 	lstcon_node_t *nd = crpc->crp_node;
 	struct srpc_client_rpc *rpc = crpc->crp_rpc;
@@ -425,7 +425,7 @@ lstcon_rpc_get_reply(lstcon_rpc_t *crpc, srpc_msg_t **msgpp)
 void
 lstcon_rpc_trans_stat(lstcon_rpc_trans_t *trans, lstcon_trans_stat_t *stat)
 {
-	lstcon_rpc_t *crpc;
+	struct lstcon_rpc *crpc;
 	srpc_msg_t *rep;
 	int error;
 
@@ -474,7 +474,7 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 	struct list_head __user *next;
 	lstcon_rpc_ent_t *ent;
 	srpc_generic_reply_t *rep;
-	lstcon_rpc_t *crpc;
+	struct lstcon_rpc *crpc;
 	srpc_msg_t *msg;
 	lstcon_node_t *nd;
 	long dur;
@@ -542,8 +542,8 @@ void
 lstcon_rpc_trans_destroy(lstcon_rpc_trans_t *trans)
 {
 	struct srpc_client_rpc *rpc;
-	lstcon_rpc_t *crpc;
-	lstcon_rpc_t *tmp;
+	struct lstcon_rpc *crpc;
+	struct lstcon_rpc *tmp;
 	int count = 0;
 
 	list_for_each_entry_safe(crpc, tmp, &trans->tas_rpcs_list, crp_link) {
@@ -593,7 +593,7 @@ lstcon_rpc_trans_destroy(lstcon_rpc_trans_t *trans)
 
 int
 lstcon_sesrpc_prep(lstcon_node_t *nd, int transop,
-		   unsigned feats, lstcon_rpc_t **crpc)
+		   unsigned feats, struct lstcon_rpc **crpc)
 {
 	srpc_mksn_reqst_t *msrq;
 	srpc_rmsn_reqst_t *rsrq;
@@ -631,7 +631,7 @@ lstcon_sesrpc_prep(lstcon_node_t *nd, int transop,
 }
 
 int
-lstcon_dbgrpc_prep(lstcon_node_t *nd, unsigned feats, lstcon_rpc_t **crpc)
+lstcon_dbgrpc_prep(lstcon_node_t *nd, unsigned feats, struct lstcon_rpc **crpc)
 {
 	srpc_debug_reqst_t *drq;
 	int rc;
@@ -650,7 +650,7 @@ lstcon_dbgrpc_prep(lstcon_node_t *nd, unsigned feats, lstcon_rpc_t **crpc)
 
 int
 lstcon_batrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
-		   lstcon_tsb_hdr_t *tsb, lstcon_rpc_t **crpc)
+		   lstcon_tsb_hdr_t *tsb, struct lstcon_rpc **crpc)
 {
 	lstcon_batch_t *batch;
 	srpc_batch_reqst_t *brq;
@@ -682,7 +682,7 @@ lstcon_batrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 }
 
 int
-lstcon_statrpc_prep(lstcon_node_t *nd, unsigned feats, lstcon_rpc_t **crpc)
+lstcon_statrpc_prep(lstcon_node_t *nd, unsigned feats, struct lstcon_rpc **crpc)
 {
 	srpc_stat_reqst_t *srq;
 	int rc;
@@ -807,7 +807,7 @@ lstcon_bulkrpc_v1_prep(lst_test_bulk_param_t *param, srpc_test_reqst_t *req)
 
 int
 lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
-		    lstcon_test_t *test, lstcon_rpc_t **crpc)
+		    lstcon_test_t *test, struct lstcon_rpc **crpc)
 {
 	lstcon_group_t *sgrp = test->tes_src_grp;
 	lstcon_group_t *dgrp = test->tes_dst_grp;
@@ -1088,7 +1088,7 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 	lstcon_rpc_trans_t *trans;
 	lstcon_ndlink_t *ndl;
 	lstcon_node_t *nd;
-	lstcon_rpc_t *rpc;
+	struct lstcon_rpc *rpc;
 	unsigned feats;
 	int rc;
 
@@ -1169,7 +1169,7 @@ lstcon_rpc_pinger(void *arg)
 {
 	struct stt_timer *ptimer = (struct stt_timer *)arg;
 	lstcon_rpc_trans_t *trans;
-	lstcon_rpc_t *crpc;
+	struct lstcon_rpc *crpc;
 	srpc_msg_t *rep;
 	srpc_debug_reqst_t *drq;
 	lstcon_ndlink_t *ndl;
@@ -1326,8 +1326,8 @@ void
 lstcon_rpc_cleanup_wait(void)
 {
 	lstcon_rpc_trans_t *trans;
-	lstcon_rpc_t *crpc;
-	lstcon_rpc_t *temp;
+	struct lstcon_rpc *crpc;
+	struct lstcon_rpc *temp;
 	struct list_head *pacer;
 	struct list_head zlist;
 
@@ -1369,7 +1369,7 @@ lstcon_rpc_cleanup_wait(void)
 
 	list_for_each_entry_safe(crpc, temp, &zlist, crp_link) {
 		list_del(&crpc->crp_link);
-		LIBCFS_FREE(crpc, sizeof(lstcon_rpc_t));
+		LIBCFS_FREE(crpc, sizeof(struct lstcon_rpc));
 	}
 }
 

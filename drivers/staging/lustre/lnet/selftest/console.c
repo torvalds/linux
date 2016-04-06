@@ -103,7 +103,7 @@ lstcon_node_find(lnet_process_id_t id, lstcon_node_t **ndpp, int create)
 	ndl->ndl_node->nd_stamp = cfs_time_current();
 	ndl->ndl_node->nd_state = LST_NODE_UNKNOWN;
 	ndl->ndl_node->nd_timeout = 0;
-	memset(&ndl->ndl_node->nd_ping, 0, sizeof(lstcon_rpc_t));
+	memset(&ndl->ndl_node->nd_ping, 0, sizeof(struct lstcon_rpc));
 
 	/*
 	 * queued in global hash & list, no refcount is taken by

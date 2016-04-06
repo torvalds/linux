@@ -63,7 +63,7 @@ struct lstcon_tsb_hdr;
 struct lstcon_test;
 struct lstcon_node;
 
-typedef struct lstcon_rpc {
+struct lstcon_rpc {
 	struct list_head	 crp_link;	/* chain on rpc transaction */
 	struct srpc_client_rpc	*crp_rpc;	/* client rpc */
 	struct lstcon_node	*crp_node;	/* destination node */
@@ -76,7 +76,7 @@ typedef struct lstcon_rpc {
 	unsigned int		 crp_embedded:1;
 	int			 crp_status;	/* console rpc errors */
 	unsigned long		 crp_stamp;	/* replied time stamp */
-} lstcon_rpc_t;
+};
 
 typedef struct lstcon_rpc_trans {
 	struct list_head  tas_olink;	     /* link chain on owner list */
@@ -110,16 +110,16 @@ typedef int (*lstcon_rpc_readent_func_t)(int, srpc_msg_t *,
 					 lstcon_rpc_ent_t __user *);
 
 int  lstcon_sesrpc_prep(struct lstcon_node *nd, int transop,
-			unsigned version, lstcon_rpc_t **crpc);
+			unsigned version, struct lstcon_rpc **crpc);
 int  lstcon_dbgrpc_prep(struct lstcon_node *nd,
-			unsigned version, lstcon_rpc_t **crpc);
+			unsigned version, struct lstcon_rpc **crpc);
 int  lstcon_batrpc_prep(struct lstcon_node *nd, int transop, unsigned version,
-			struct lstcon_tsb_hdr *tsb, lstcon_rpc_t **crpc);
+			struct lstcon_tsb_hdr *tsb, struct lstcon_rpc **crpc);
 int  lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned version,
-			 struct lstcon_test *test, lstcon_rpc_t **crpc);
+			 struct lstcon_test *test, struct lstcon_rpc **crpc);
 int  lstcon_statrpc_prep(struct lstcon_node *nd, unsigned version,
-			 lstcon_rpc_t **crpc);
-void lstcon_rpc_put(lstcon_rpc_t *crpc);
+			 struct lstcon_rpc **crpc);
+void lstcon_rpc_put(struct lstcon_rpc *crpc);
 int  lstcon_rpc_trans_prep(struct list_head *translist,
 			   int transop, lstcon_rpc_trans_t **transpp);
 int  lstcon_rpc_trans_ndlist(struct list_head *ndlist,
@@ -133,7 +133,7 @@ int  lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 				  lstcon_rpc_readent_func_t readent);
 void lstcon_rpc_trans_abort(lstcon_rpc_trans_t *trans, int error);
 void lstcon_rpc_trans_destroy(lstcon_rpc_trans_t *trans);
-void lstcon_rpc_trans_addreq(lstcon_rpc_trans_t *trans, lstcon_rpc_t *req);
+void lstcon_rpc_trans_addreq(lstcon_rpc_trans_t *trans, struct lstcon_rpc *req);
 int  lstcon_rpc_trans_postwait(lstcon_rpc_trans_t *trans, int timeout);
 int  lstcon_rpc_pinger_start(void);
 void lstcon_rpc_pinger_stop(void);
