@@ -589,7 +589,6 @@ static struct se_wwn *ibmvscsis_make_tport(struct target_fabric_configfs *tf,
 	int ret;
 
 	tport = ibmvscsis_lookup_port(name);
-	
 	ret = -EINVAL;
 	if(!tport)
 		goto err;
@@ -1558,7 +1557,6 @@ static void crq_queue_destroy(struct ibmvscsis_adapter *adapter)
 
 	free_irq(vdev->irq, (void *)adapter);
 	tasklet_kill(&adapter->work_task);
-//	flush_workqueue(ibmvscsis_work);
 	h_free_crq(vdev->unit_address);
 	dma_unmap_single(&adapter->dma_dev->dev, queue->msg_token,
 			 queue->size * sizeof(*queue->msgs), DMA_BIDIRECTIONAL);
