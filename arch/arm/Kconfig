@@ -1186,6 +1186,32 @@ config ARM_ERRATA_773022
 	  loop buffer may deliver incorrect instructions. This
 	  workaround disables the loop buffer to avoid the erratum.
 
+config ARM_ERRATA_818325_852422
+	bool "ARM errata: A12: some seqs of opposed cond code instrs => deadlock or corruption"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for:
+	  - Cortex-A12 818325: Execution of an UNPREDICTABLE STR or STM
+	    instruction might deadlock.  Fixed in r0p1.
+	  - Cortex-A12 852422: Execution of a sequence of instructions might
+	    lead to either a data corruption or a CPU deadlock.  Not fixed in
+	    any Cortex-A12 cores yet.
+	  This workaround for all both errata involves setting bit[12] of the
+	  Feature Register. This bit disables an optimisation applied to a
+	  sequence of 2 instructions that use opposing condition codes.
+
+config ARM_ERRATA_852423
+	bool "ARM errata: A17: some seqs of opposed cond code instrs => deadlock or corruption"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for:
+	  - Cortex-A17 852423: Execution of a sequence of instructions might
+	    lead to either a data corruption or a CPU deadlock.  Not fixed in
+	    any Cortex-A17 cores yet.
+	  This is identical to Cortex-A12 erratum 852422.  It is a separate
+	  config option from the A12 erratum due to the way errata are checked
+	  for and handled.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
