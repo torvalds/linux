@@ -223,10 +223,7 @@ static int thermtrip_program(struct device *dev,
 	int temp;
 	u32 r;
 
-	if (!dev || !sg)
-		return -EINVAL;
-
-	if (!sg->thermtrip_threshold_mask)
+	if (!sg || !sg->thermtrip_threshold_mask)
 		return -EINVAL;
 
 	temp = enforce_temp_range(dev, trip_temp) / ts->soc->thresh_grain;
