@@ -108,6 +108,11 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 
 	cert->pub->keylen = ctx->key_size;
 
+	/* Grab the signature bits */
+	ret = x509_get_sig_params(cert);
+	if (ret < 0)
+		goto error_decode;
+
 	/* Generate cert issuer + serial number key ID */
 	kid = asymmetric_key_generate_id(cert->raw_serial,
 					 cert->raw_serial_size,
@@ -118,6 +123,11 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 		goto error_decode;
 	}
 	cert->id = kid;
+
+	/* Detect self-signed certificates */
+	ret = x509_check_for_self_signed(cert);
+	if (ret < 0)
+		goto error_decode;
 
 	kfree(ctx);
 	return cert;

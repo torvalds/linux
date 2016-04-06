@@ -161,10 +161,17 @@ int x509_get_sig_params(struct x509_certificate *cert)
 
 	pr_devel("==>%s()\n", __func__);
 
-	if (cert->unsupported_crypto)
-		return -ENOPKG;
-	if (sig->s)
+	if (!cert->pub->pkey_algo)
+		cert->unsupported_key = true;
+
+	if (!sig->pkey_algo)
+		cert->unsupported_sig = true;
+
+	/* We check the hash if we can - even if we can't then verify it */
+	if (!sig->hash_algo) {
+		cert->unsupported_sig = true;
 		return 0;
+	}
 
 	sig->s = kmemdup(cert->raw_sig, cert->raw_sig_size, GFP_KERNEL);
 	if (!sig->s)
@@ -178,8 +185,8 @@ int x509_get_sig_params(struct x509_certificate *cert)
 	tfm = crypto_alloc_shash(sig->hash_algo, 0, 0);
 	if (IS_ERR(tfm)) {
 		if (PTR_ERR(tfm) == -ENOENT) {
-			cert->unsupported_crypto = true;
-			return -ENOPKG;
+			cert->unsupported_sig = true;
+			return 0;
 		}
 		return PTR_ERR(tfm);
 	}
@@ -212,29 +219,53 @@ error:
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(x509_get_sig_params);
 
 /*
- * Check the signature on a certificate using the provided public key
+ * Check for self-signedness in an X.509 cert and if found, check the signature
+ * immediately if we can.
  */
-int x509_check_signature(const struct public_key *pub,
-			 struct x509_certificate *cert)
+int x509_check_for_self_signed(struct x509_certificate *cert)
 {
-	int ret;
+	int ret = 0;
 
 	pr_devel("==>%s()\n", __func__);
 
-	ret = x509_get_sig_params(cert);
-	if (ret < 0)
-		return ret;
+	if (cert->sig->auth_ids[0] || cert->sig->auth_ids[1]) {
+		/* If the AKID is present it may have one or two parts.  If
+		 * both are supplied, both must match.
+		 */
+		bool a = asymmetric_key_id_same(cert->skid, cert->sig->auth_ids[1]);
+		bool b = asymmetric_key_id_same(cert->id, cert->sig->auth_ids[0]);
 
-	ret = public_key_verify_signature(pub, cert->sig);
-	if (ret == -ENOPKG)
-		cert->unsupported_crypto = true;
-	pr_debug("Cert Verification: %d\n", ret);
+		if (!a && !b)
+			goto not_self_signed;
+
+		ret = -EKEYREJECTED;
+		if (((a && !b) || (b && !a)) &&
+		    cert->sig->auth_ids[0] && cert->sig->auth_ids[1])
+			goto out;
+	}
+
+	ret = public_key_verify_signature(cert->pub, cert->sig);
+	if (ret < 0) {
+		if (ret == -ENOPKG) {
+			cert->unsupported_sig = true;
+			ret = 0;
+		}
+		goto out;
+	}
+
+	pr_devel("Cert Self-signature verified");
+	cert->self_signed = true;
+
+out:
+	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
+
+not_self_signed:
+	pr_devel("<==%s() = 0 [not]\n", __func__);
+	return 0;
 }
-EXPORT_SYMBOL_GPL(x509_check_signature);
 
 /*
  * Check the new certificate against the ones in the trust keyring.  If one of
@@ -252,22 +283,30 @@ static int x509_validate_trust(struct x509_certificate *cert,
 	struct key *key;
 	int ret = 1;
 
+	if (!sig->auth_ids[0] && !sig->auth_ids[1])
+		return 1;
+
 	if (!trust_keyring)
 		return -EOPNOTSUPP;
-
 	if (ca_keyid && !asymmetric_key_id_partial(sig->auth_ids[1], ca_keyid))
 		return -EPERM;
+	if (cert->unsupported_sig)
+		return -ENOPKG;
 
 	key = x509_request_asymmetric_key(trust_keyring,
 					  sig->auth_ids[0], sig->auth_ids[1],
 					  false);
-	if (!IS_ERR(key))  {
-		if (!use_builtin_keys
-		    || test_bit(KEY_FLAG_BUILTIN, &key->flags))
-			ret = x509_check_signature(key->payload.data[asym_crypto],
-						   cert);
-		key_put(key);
+	if (IS_ERR(key))
+		return PTR_ERR(key);
+
+	if (!use_builtin_keys ||
+	    test_bit(KEY_FLAG_BUILTIN, &key->flags)) {
+		ret = public_key_verify_signature(
+			key->payload.data[asym_crypto], cert->sig);
+		if (ret == -ENOPKG)
+			cert->unsupported_sig = true;
 	}
+	key_put(key);
 	return ret;
 }
 
@@ -290,34 +329,41 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 	pr_devel("Cert Issuer: %s\n", cert->issuer);
 	pr_devel("Cert Subject: %s\n", cert->subject);
 
-	if (!cert->pub->pkey_algo ||
-	    !cert->sig->pkey_algo ||
-	    !cert->sig->hash_algo) {
+	if (cert->unsupported_key) {
 		ret = -ENOPKG;
 		goto error_free_cert;
 	}
 
 	pr_devel("Cert Key Algo: %s\n", cert->pub->pkey_algo);
 	pr_devel("Cert Valid period: %lld-%lld\n", cert->valid_from, cert->valid_to);
-	pr_devel("Cert Signature: %s + %s\n",
-		 cert->sig->pkey_algo,
-		 cert->sig->hash_algo);
 
 	cert->pub->id_type = "X509";
 
-	/* Check the signature on the key if it appears to be self-signed */
-	if ((!cert->sig->auth_ids[0] && !cert->sig->auth_ids[1]) ||
-	    asymmetric_key_id_same(cert->skid, cert->sig->auth_ids[1]) ||
-	    asymmetric_key_id_same(cert->id, cert->sig->auth_ids[0])) {
-		ret = x509_check_signature(cert->pub, cert); /* self-signed */
-		if (ret < 0)
-			goto error_free_cert;
-	} else if (!prep->trusted) {
+	/* See if we can derive the trustability of this certificate.
+	 *
+	 * When it comes to self-signed certificates, we cannot evaluate
+	 * trustedness except by the fact that we obtained it from a trusted
+	 * location.  So we just rely on x509_validate_trust() failing in this
+	 * case.
+	 *
+	 * Note that there's a possibility of a self-signed cert matching a
+	 * cert that we have (most likely a duplicate that we already trust) -
+	 * in which case it will be marked trusted.
+	 */
+	if (cert->unsupported_sig || cert->self_signed) {
+		public_key_signature_free(cert->sig);
+		cert->sig = NULL;
+	} else {
+		pr_devel("Cert Signature: %s + %s\n",
+			 cert->sig->pkey_algo, cert->sig->hash_algo);
+
 		ret = x509_validate_trust(cert, get_system_trusted_keyring());
 		if (ret)
 			ret = x509_validate_trust(cert, get_ima_mok_keyring());
+		if (ret == -EKEYREJECTED)
+			goto error_free_cert;
 		if (!ret)
-			prep->trusted = 1;
+			prep->trusted = true;
 	}
 
 	/* Propose a description */

@@ -190,9 +190,8 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 			 x509->subject,
 			 x509->raw_serial_size, x509->raw_serial);
 		x509->seen = true;
-		ret = x509_get_sig_params(x509);
-		if (ret < 0)
-			goto maybe_missing_crypto_in_x509;
+		if (x509->unsupported_key)
+			goto unsupported_crypto_in_x509;
 
 		pr_debug("- issuer %s\n", x509->issuer);
 		sig = x509->sig;
@@ -203,22 +202,14 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 			pr_debug("- authkeyid.skid %*phN\n",
 				 sig->auth_ids[1]->len, sig->auth_ids[1]->data);
 
-		if ((!x509->sig->auth_ids[0] && !x509->sig->auth_ids[1]) ||
-		    strcmp(x509->subject, x509->issuer) == 0) {
+		if (x509->self_signed) {
 			/* If there's no authority certificate specified, then
 			 * the certificate must be self-signed and is the root
 			 * of the chain.  Likewise if the cert is its own
 			 * authority.
 			 */
-			pr_debug("- no auth?\n");
-			if (x509->raw_subject_size != x509->raw_issuer_size ||
-			    memcmp(x509->raw_subject, x509->raw_issuer,
-				   x509->raw_issuer_size) != 0)
-				return 0;
-
-			ret = x509_check_signature(x509->pub, x509);
-			if (ret < 0)
-				goto maybe_missing_crypto_in_x509;
+			if (x509->unsupported_sig)
+				goto unsupported_crypto_in_x509;
 			x509->signer = x509;
 			pr_debug("- self-signed\n");
 			return 0;
@@ -270,7 +261,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 				sinfo->index);
 			return 0;
 		}
-		ret = x509_check_signature(p->pub, x509);
+		ret = public_key_verify_signature(p->pub, p->sig);
 		if (ret < 0)
 			return ret;
 		x509->signer = p;
@@ -282,16 +273,14 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 		might_sleep();
 	}
 
-maybe_missing_crypto_in_x509:
+unsupported_crypto_in_x509:
 	/* Just prune the certificate chain at this point if we lack some
 	 * crypto module to go further.  Note, however, we don't want to set
-	 * sinfo->missing_crypto as the signed info block may still be
+	 * sinfo->unsupported_crypto as the signed info block may still be
 	 * validatable against an X.509 cert lower in the chain that we have a
 	 * trusted copy of.
 	 */
-	if (ret == -ENOPKG)
-		return 0;
-	return ret;
+	return 0;
 }
 
 /*
@@ -378,9 +367,8 @@ int pkcs7_verify(struct pkcs7_message *pkcs7,
 		 enum key_being_used_for usage)
 {
 	struct pkcs7_signed_info *sinfo;
-	struct x509_certificate *x509;
 	int enopkg = -ENOPKG;
-	int ret, n;
+	int ret;
 
 	kenter("");
 
@@ -420,12 +408,6 @@ int pkcs7_verify(struct pkcs7_message *pkcs7,
 		break;
 	default:
 		return -EINVAL;
-	}
-
-	for (n = 0, x509 = pkcs7->certs; x509; x509 = x509->next, n++) {
-		ret = x509_get_sig_params(x509);
-		if (ret < 0)
-			return ret;
 	}
 
 	for (sinfo = pkcs7->signed_infos; sinfo; sinfo = sinfo->next) {
