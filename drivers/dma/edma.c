@@ -1570,32 +1570,6 @@ static irqreturn_t dma_ccerr_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void edma_tc_set_pm_state(struct edma_tc *tc, bool enable)
-{
-	struct platform_device *tc_pdev;
-	int ret;
-
-	if (!IS_ENABLED(CONFIG_OF) || !tc)
-		return;
-
-	tc_pdev = of_find_device_by_node(tc->node);
-	if (!tc_pdev) {
-		pr_err("%s: TPTC device is not found\n", __func__);
-		return;
-	}
-	if (!pm_runtime_enabled(&tc_pdev->dev))
-		pm_runtime_enable(&tc_pdev->dev);
-
-	if (enable)
-		ret = pm_runtime_get_sync(&tc_pdev->dev);
-	else
-		ret = pm_runtime_put_sync(&tc_pdev->dev);
-
-	if (ret < 0)
-		pr_err("%s: pm_runtime_%s_sync() failed for %s\n", __func__,
-		       enable ? "get" : "put", dev_name(&tc_pdev->dev));
-}
-
 /* Alloc channel resources */
 static int edma_alloc_chan_resources(struct dma_chan *chan)
 {
@@ -1631,8 +1605,6 @@ static int edma_alloc_chan_resources(struct dma_chan *chan)
 	dev_dbg(dev, "Got eDMA channel %d for virt channel %d (%s trigger)\n",
 		EDMA_CHAN_SLOT(echan->ch_num), chan->chan_id,
 		echan->hw_triggered ? "HW" : "SW");
-
-	edma_tc_set_pm_state(echan->tc, true);
 
 	return 0;
 
@@ -1670,7 +1642,6 @@ static void edma_free_chan_resources(struct dma_chan *chan)
 		echan->alloced = false;
 	}
 
-	edma_tc_set_pm_state(echan->tc, false);
 	echan->tc = NULL;
 	echan->hw_triggered = false;
 
@@ -2417,10 +2388,8 @@ static int edma_pm_suspend(struct device *dev)
 	int i;
 
 	for (i = 0; i < ecc->num_channels; i++) {
-		if (echan[i].alloced) {
+		if (echan[i].alloced)
 			edma_setup_interrupt(&echan[i], false);
-			edma_tc_set_pm_state(echan[i].tc, false);
-		}
 	}
 
 	return 0;
@@ -2450,8 +2419,6 @@ static int edma_pm_resume(struct device *dev)
 
 			/* Set up channel -> slot mapping for the entry slot */
 			edma_set_chmap(&echan[i], echan[i].slot[0]);
-
-			edma_tc_set_pm_state(echan[i].tc, true);
 		}
 	}
 
@@ -2475,7 +2442,8 @@ static struct platform_driver edma_driver = {
 
 static int edma_tptc_probe(struct platform_device *pdev)
 {
-	return 0;
+	pm_runtime_enable(&pdev->dev);
+	return pm_runtime_get_sync(&pdev->dev);
 }
 
 static struct platform_driver edma_tptc_driver = {
