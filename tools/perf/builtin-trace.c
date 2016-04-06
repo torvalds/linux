@@ -1166,6 +1166,8 @@ static struct syscall_fmt {
 	{ .name	    = "getdents64", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "getitimer",  .errmsg = true, STRARRAY(0, which, itimers), },
+	{ .name	    = "getpid",	    .errpid = true, },
+	{ .name	    = "getppid",    .errpid = true, },
 	{ .name	    = "getrandom",  .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_GETRANDOM_FLAGS, /* flags */ }, },
 	{ .name	    = "getrlimit",  .errmsg = true, STRARRAY(0, resource, rlimit_resources), },
@@ -1324,6 +1326,7 @@ static struct syscall_fmt {
 	{ .name	    = "sendto",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
 			     [3] = SCA_MSG_FLAGS, /* flags */ }, },
+	{ .name	    = "set_tid_address", .errpid = true, },
 	{ .name	    = "setitimer",  .errmsg = true, STRARRAY(0, which, itimers), },
 	{ .name	    = "setrlimit",  .errmsg = true, STRARRAY(0, resource, rlimit_resources), },
 	{ .name	    = "setxattr",   .errmsg = true,
