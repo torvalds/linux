@@ -5,6 +5,8 @@
  * Author: Ryo Nakamura <upa@wide.ad.jp>
  *         Hajime Tazaki <thehajime@gmail.com>
  *         Octavian Purdila <octavian.purdila@intel.com>
+ *
+ * Current implementation is linux-specific.
  */
 
 #include <stdio.h>
@@ -16,8 +18,8 @@
 #include <sys/uio.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/epoll.h>
 #include <fcntl.h>
-#include <poll.h>
 #include <net/if.h>
 #include <linux/if_tun.h>
 #include <sys/ioctl.h>
@@ -35,6 +37,9 @@ struct lkl_netdev_tap {
 	int fd;
 	/* Needed to initiate shutdown */
 	int eventfd;
+	/* epoll fds for rx and tx */
+	int epoll_rx_fd;
+	int epoll_tx_fd;
 };
 
 struct lkl_netdev_tap_ops lkl_netdev_tap_ops = {
@@ -70,75 +75,70 @@ static int net_rx(struct lkl_netdev *nd, void *data, int *len)
 	return 0;
 }
 
-static inline int pfds_should_close(struct pollfd *pfds, int closeable)
-{
-	if (pfds[0].revents & (POLLHUP | POLLNVAL))
-		return 1;
-
-	if (closeable && pfds[1].revents & POLLIN)
-		return 1;
-
-	return 0;
-}
-
-/* pfds must be zeroed out by the caller */
-static inline void config_pfds(struct pollfd *pfds, struct lkl_netdev_tap *nd_tap,
-			int events, int closeable)
-{
-	pfds[0].fd = nd_tap->fd;
-
-	if (events & LKL_DEV_NET_POLL_RX)
-		pfds[0].events |= POLLIN | POLLPRI;
-	if (events & LKL_DEV_NET_POLL_TX)
-		pfds[0].events |= POLLOUT;
-
-	if (closeable) {
-		pfds[1].fd = nd_tap->eventfd;
-		pfds[1].events = POLLIN;
-	}
-}
-
-static inline void poll_pfds(struct pollfd *pfds, int closeable)
-{
-	while (poll(pfds, closeable ? 2 : 1, -1) < 0 && errno == EINTR)
-		; 		/* spin */
-}
-
-static int net_poll(struct lkl_netdev *nd, int events, int closeable)
+static int net_poll(struct lkl_netdev *nd, int events)
 {
 	struct lkl_netdev_tap *nd_tap = container_of(nd, struct lkl_netdev_tap, dev);
-	struct pollfd pfds[2] = {{0}};
-	int ret = 0;
+	int epoll_fd = -1;
+	struct epoll_event ev[2];
+	int ret;
+	const int is_rx = events & LKL_DEV_NET_POLL_RX;
+	const int is_tx = events & LKL_DEV_NET_POLL_TX;
+	int i;
+	int ret_ev = 0;
+	unsigned int event;
 
-	config_pfds(pfds, nd_tap, events, closeable);
-
-	poll_pfds(pfds, closeable);
-
-	if (pfds_should_close(pfds, closeable))
+	if (is_rx && is_tx) {
+		fprintf(stderr, "both LKL_DEV_NET_POLL_RX and LKL_DEV_NET_POLL_TX"
+			"are set\n");
+		lkl_host_ops.panic();
 		return -1;
+	}
+	if (!is_rx && !is_tx) {
+		fprintf(stderr, "Neither LKL_DEV_NET_POLL_RX nor"
+			"LKL_DEV_NET_POLL_TX are set.\n");
+		lkl_host_ops.panic();
+		return -1;
+	}
 
-	if (pfds[0].revents & POLLIN)
-		ret |= LKL_DEV_NET_POLL_RX;
-	if (pfds[0].revents & POLLOUT)
-		ret |= LKL_DEV_NET_POLL_TX;
+	if (is_rx)
+		epoll_fd = nd_tap->epoll_rx_fd;
+	else if (is_tx)
+		epoll_fd = nd_tap->epoll_tx_fd;
 
-	return ret;
-}
+	do {
+		ret = epoll_wait(epoll_fd, ev, 2, -1);
+	} while (ret == -1 && errno == EINTR);
+	if (ret < 0) {
+		perror("epoll_wait");
+		return -1;
+	}
 
-static int net_poll_uncloseable(struct lkl_netdev *nd, int events)
-{
-	return net_poll(nd, events, 0);
-}
-
-static int net_poll_closeable(struct lkl_netdev *nd, int events)
-{
-	return net_poll(nd, events, 1);
+	for (i = 0; i < ret; ++i) {
+		if (ev[i].data.fd == nd_tap->eventfd) {
+			return -1;
+		}
+		if (ev[i].data.fd == nd_tap->fd) {
+			event = ev[i].events;
+			if(event & (EPOLLIN | EPOLLPRI))
+				ret_ev = LKL_DEV_NET_POLL_RX;
+			else if (event & EPOLLOUT)
+				ret_ev = LKL_DEV_NET_POLL_TX;
+			else
+				return -1;
+		}
+	}
+	return ret_ev;
 }
 
 static int net_close(struct lkl_netdev *nd)
 {
 	long buf = 1;
 	struct lkl_netdev_tap *nd_tap = container_of(nd, struct lkl_netdev_tap, dev);
+
+	if (nd_tap->eventfd == -1) {
+		// No eventfd support.
+		return 0;
+	}
 
 	if (write(nd_tap->eventfd, &buf, sizeof(buf)) < 0) {
 		perror("tap: failed to close tap");
@@ -152,7 +152,8 @@ static int net_close(struct lkl_netdev *nd)
 		return -1;
 
 	/* nor does the order that we close */
-	if (close(nd_tap->fd) || close(nd_tap->eventfd)) {
+	if (close(nd_tap->fd) || close(nd_tap->eventfd) ||
+		close(nd_tap->epoll_rx_fd) || close(nd_tap->epoll_tx_fd)) {
 		perror("tap net_close TAP fd");
 		return -1;
 	}
@@ -160,19 +161,39 @@ static int net_close(struct lkl_netdev *nd)
 	return 0;
 }
 
-struct lkl_dev_net_ops tap_net_ops_uncloseable = {
+struct lkl_dev_net_ops tap_net_ops =  {
 	.tx = net_tx,
 	.rx = net_rx,
-	.poll = net_poll_uncloseable,
-};
-
-
-struct lkl_dev_net_ops tap_net_ops_closeable = {
-	.tx = net_tx,
-	.rx = net_rx,
-	.poll = net_poll_closeable,
+	.poll = net_poll,
 	.close = net_close,
 };
+
+static int add_to_epoll(int epoll_fd, int fd, unsigned int events)
+{
+	struct epoll_event ev;
+	memset(&ev, 0, sizeof(ev));
+	ev.events = events;
+	ev.data.fd = fd;
+	int ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev);
+	if (ret) {
+		perror("EPOLL_CTL_ADD fails");
+		return -1;
+	}
+	return 0;
+}
+
+static int create_epoll_fd(int fd, unsigned int events) {
+	int ret = epoll_create1(0);
+	if (ret < 0) {
+		perror("epoll_create1");
+		return -1;
+	}
+	if (add_to_epoll(ret, fd, events)) {
+		close(ret);
+		return -1;
+	}
+	return ret;
+}
 
 struct lkl_netdev *lkl_netdev_tap_create(const char *ifname)
 {
@@ -207,25 +228,43 @@ struct lkl_netdev *lkl_netdev_tap_create(const char *ifname)
 		free(nd);
 		return NULL;
 	}
+	nd->epoll_rx_fd  = create_epoll_fd(nd->fd, EPOLLIN | EPOLLPRI);
+	// tx is event-triggered to save CPU.
+	nd->epoll_tx_fd  = create_epoll_fd(nd->fd, EPOLLOUT | EPOLLET);
+	if (nd->epoll_rx_fd < 0 || nd->epoll_tx_fd < 0) {
+		if (nd->epoll_rx_fd >= 0) close(nd->epoll_rx_fd);
+		if (nd->epoll_tx_fd >= 0) close(nd->epoll_tx_fd);
+		close(nd->fd);
+		free(nd);
+		return NULL;
+	}
 
+	nd->dev.ops = &tap_net_ops;
 	if (lkl_netdev_tap_ops.eventfd) {
 		/* eventfd is supported by the host, all is well */
-		nd->dev.ops = &tap_net_ops_closeable;
 		nd->eventfd = lkl_netdev_tap_ops.eventfd(
 			0, EFD_NONBLOCK | EFD_SEMAPHORE);
 
 		if (nd->eventfd < 0) {
 			perror("lkl_netdev_tap_create eventfd");
-			close(nd->fd);
-			free(nd);
-			return NULL;
+			goto fail;
+		}
+		if (add_to_epoll(nd->epoll_rx_fd, nd->eventfd, EPOLLIN) ||
+			add_to_epoll(nd->epoll_tx_fd, nd->eventfd, EPOLLIN)) {
+			close(nd->eventfd);
+			goto fail;
 		}
 	} else {
 		/* no host eventfd support */
-		nd->dev.ops = &tap_net_ops_uncloseable;
 		nd->eventfd = -1;
 	}
-
-
 	return (struct lkl_netdev *)nd;
+fail:
+	close(nd->epoll_rx_fd);
+	close(nd->epoll_tx_fd);
+	close(nd->fd);
+	free(nd);
+	return NULL;
+
+
 }
