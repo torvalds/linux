@@ -173,6 +173,7 @@ struct mlxsw_sp_port {
 	} vport;
 	struct {
 		struct ieee_ets *ets;
+		struct ieee_maxrate *maxrate;
 	} dcb;
 	/* 802.1Q bridge VLANs */
 	unsigned long *active_vlans;
@@ -280,6 +281,9 @@ int mlxsw_sp_port_prio_tc_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			      u8 switch_prio, u8 tclass);
 int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
 				 u8 *prio_tc);
+int mlxsw_sp_port_ets_maxrate_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				  enum mlxsw_reg_qeec_hr hr, u8 index,
+				  u8 next_index, u32 maxrate);
 
 #ifdef CONFIG_MLXSW_SPECTRUM_DCB
 

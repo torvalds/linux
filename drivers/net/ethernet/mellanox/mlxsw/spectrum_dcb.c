@@ -250,9 +250,51 @@ static int mlxsw_sp_dcbnl_ieee_setets(struct net_device *dev,
 	return 0;
 }
 
+static int mlxsw_sp_dcbnl_ieee_getmaxrate(struct net_device *dev,
+					  struct ieee_maxrate *maxrate)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+
+	memcpy(maxrate, mlxsw_sp_port->dcb.maxrate, sizeof(*maxrate));
+
+	return 0;
+}
+
+static int mlxsw_sp_dcbnl_ieee_setmaxrate(struct net_device *dev,
+					  struct ieee_maxrate *maxrate)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	struct ieee_maxrate *my_maxrate = mlxsw_sp_port->dcb.maxrate;
+	int err, i;
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		err = mlxsw_sp_port_ets_maxrate_set(mlxsw_sp_port,
+						    MLXSW_REG_QEEC_HIERARCY_SUBGROUP,
+						    i, 0,
+						    maxrate->tc_maxrate[i]);
+		if (err) {
+			netdev_err(dev, "Failed to set maxrate for TC %d\n", i);
+			goto err_port_ets_maxrate_set;
+		}
+	}
+
+	memcpy(mlxsw_sp_port->dcb.maxrate, maxrate, sizeof(*maxrate));
+
+	return 0;
+
+err_port_ets_maxrate_set:
+	for (i--; i >= 0; i--)
+		mlxsw_sp_port_ets_maxrate_set(mlxsw_sp_port,
+					      MLXSW_REG_QEEC_HIERARCY_SUBGROUP,
+					      i, 0, my_maxrate->tc_maxrate[i]);
+	return err;
+}
+
 static const struct dcbnl_rtnl_ops mlxsw_sp_dcbnl_ops = {
 	.ieee_getets		= mlxsw_sp_dcbnl_ieee_getets,
 	.ieee_setets		= mlxsw_sp_dcbnl_ieee_setets,
+	.ieee_getmaxrate	= mlxsw_sp_dcbnl_ieee_getmaxrate,
+	.ieee_setmaxrate	= mlxsw_sp_dcbnl_ieee_setmaxrate,
 
 	.getdcbx		= mlxsw_sp_dcbnl_getdcbx,
 	.setdcbx		= mlxsw_sp_dcbnl_setdcbx,
@@ -275,6 +317,26 @@ static void mlxsw_sp_port_ets_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 	kfree(mlxsw_sp_port->dcb.ets);
 }
 
+static int mlxsw_sp_port_maxrate_init(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	int i;
+
+	mlxsw_sp_port->dcb.maxrate = kmalloc(sizeof(*mlxsw_sp_port->dcb.maxrate),
+					     GFP_KERNEL);
+	if (!mlxsw_sp_port->dcb.maxrate)
+		return -ENOMEM;
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+		mlxsw_sp_port->dcb.maxrate->tc_maxrate[i] = MLXSW_REG_QEEC_MAS_DIS;
+
+	return 0;
+}
+
+static void mlxsw_sp_port_maxrate_fini(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	kfree(mlxsw_sp_port->dcb.maxrate);
+}
+
 int mlxsw_sp_port_dcb_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	int err;
@@ -282,13 +344,21 @@ int mlxsw_sp_port_dcb_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	err = mlxsw_sp_port_ets_init(mlxsw_sp_port);
 	if (err)
 		return err;
+	err = mlxsw_sp_port_maxrate_init(mlxsw_sp_port);
+	if (err)
+		goto err_port_maxrate_init;
 
 	mlxsw_sp_port->dev->dcbnl_ops = &mlxsw_sp_dcbnl_ops;
 
 	return 0;
+
+err_port_maxrate_init:
+	mlxsw_sp_port_ets_fini(mlxsw_sp_port);
+	return err;
 }
 
 void mlxsw_sp_port_dcb_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 {
+	mlxsw_sp_port_maxrate_fini(mlxsw_sp_port);
 	mlxsw_sp_port_ets_fini(mlxsw_sp_port);
 }
