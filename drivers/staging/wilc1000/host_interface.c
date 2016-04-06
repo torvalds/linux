@@ -331,7 +331,7 @@ static void handle_set_wfi_drv_handler(struct wilc_vif *vif,
 static void handle_set_operation_mode(struct wilc_vif *vif,
 				      struct op_mode *hif_op_mode)
 {
-	int result = 0;
+	int ret = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_SET_OPERATION_MODE;
@@ -339,13 +339,13 @@ static void handle_set_operation_mode(struct wilc_vif *vif,
 	wid.val = (s8 *)&hif_op_mode->mode;
 	wid.size = sizeof(u32);
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
+	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+				   wilc_get_vif_idx(vif));
 
 	if ((hif_op_mode->mode) == IDLE_MODE)
 		complete(&hif_driver_comp);
 
-	if (result)
+	if (ret)
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
 }
 
