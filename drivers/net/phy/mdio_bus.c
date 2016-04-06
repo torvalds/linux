@@ -656,10 +656,57 @@ phy_has_fixups_show(struct device *dev, struct device_attribute *attr, char *buf
 }
 static DEVICE_ATTR_RO(phy_has_fixups);
 
+static ssize_t
+phy_registers_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct phy_device *phydev = to_phy_device(dev);
+	int index;
+
+	for (index = 0; index < 32; index++)
+		sprintf(buf, "%s%2d: 0x%x\n", buf, index,
+			phy_read(phydev, index));
+
+	return strlen(buf);
+}
+
+static ssize_t
+phy_registers_store(struct device *dev,
+		    struct device_attribute *attr,
+		    const char *buf, size_t count)
+{
+	struct phy_device *phydev = to_phy_device(dev);
+	long long index, val;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		if (*(buf + i) == ' ')
+			break;
+	}
+
+	if (!kstrtoll(buf, 0, &index)) {
+		pr_err("Please input like1: <reg index> <value>\n");
+		return count;
+	}
+
+	if (!kstrtoll(buf + i + 1, 0, &val)) {
+		pr_err("Please input like2: <reg index> <value>\n");
+		return count;
+	}
+
+	pr_info("Set Ethernet PHY register %d to 0x%x\n", (int)index, (int)val);
+
+	phy_write(phydev, index, val);
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(phy_registers);
+
 static struct attribute *mdio_dev_attrs[] = {
 	&dev_attr_phy_id.attr,
 	&dev_attr_phy_interface.attr,
 	&dev_attr_phy_has_fixups.attr,
+	&dev_attr_phy_registers.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(mdio_dev);
