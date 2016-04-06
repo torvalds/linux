@@ -50,7 +50,7 @@ void lstcon_rpc_stat_reply(lstcon_rpc_trans_t *, srpc_msg_t *,
 			   lstcon_node_t *, lstcon_trans_stat_t *);
 
 static void
-lstcon_rpc_done(srpc_client_rpc_t *rpc)
+lstcon_rpc_done(struct srpc_client_rpc *rpc)
 {
 	lstcon_rpc_t *crpc = (lstcon_rpc_t *)rpc->crpc_priv;
 
@@ -287,7 +287,7 @@ lstcon_rpc_trans_addreq(lstcon_rpc_trans_t *trans, lstcon_rpc_t *crpc)
 void
 lstcon_rpc_trans_abort(lstcon_rpc_trans_t *trans, int error)
 {
-	srpc_client_rpc_t *rpc;
+	struct srpc_client_rpc *rpc;
 	lstcon_rpc_t *crpc;
 	lstcon_node_t *nd;
 
@@ -389,7 +389,7 @@ static int
 lstcon_rpc_get_reply(lstcon_rpc_t *crpc, srpc_msg_t **msgpp)
 {
 	lstcon_node_t *nd = crpc->crp_node;
-	srpc_client_rpc_t *rpc = crpc->crp_rpc;
+	struct srpc_client_rpc *rpc = crpc->crp_rpc;
 	srpc_generic_reply_t *rep;
 
 	LASSERT(nd && rpc);
@@ -541,7 +541,7 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 void
 lstcon_rpc_trans_destroy(lstcon_rpc_trans_t *trans)
 {
-	srpc_client_rpc_t *rpc;
+	struct srpc_client_rpc *rpc;
 	lstcon_rpc_t *crpc;
 	lstcon_rpc_t *tmp;
 	int count = 0;

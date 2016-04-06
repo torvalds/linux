@@ -65,7 +65,7 @@ struct lstcon_node;
 
 typedef struct lstcon_rpc {
 	struct list_head	 crp_link;	/* chain on rpc transaction */
-	srpc_client_rpc_t	*crp_rpc;	/* client rpc */
+	struct srpc_client_rpc	*crp_rpc;	/* client rpc */
 	struct lstcon_node	*crp_node;	/* destination node */
 	struct lstcon_rpc_trans *crp_trans;	/* conrpc transaction */
 

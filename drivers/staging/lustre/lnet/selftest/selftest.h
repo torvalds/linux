@@ -202,7 +202,7 @@ struct srpc_server_rpc {
 };
 
 /* client-side state of a RPC */
-typedef struct srpc_client_rpc {
+struct srpc_client_rpc {
 	struct list_head  crpc_list;	  /* chain on user's lists */
 	spinlock_t	  crpc_lock;	  /* serialize */
 	int		  crpc_service;
@@ -232,10 +232,10 @@ typedef struct srpc_client_rpc {
 	lnet_handle_md_t  crpc_reqstmdh;
 	lnet_handle_md_t  crpc_replymdh;
 	struct srpc_bulk	crpc_bulk;
-} srpc_client_rpc_t;
+};
 
 #define srpc_client_rpc_size(rpc)					\
-offsetof(srpc_client_rpc_t, crpc_bulk.bk_iovs[(rpc)->crpc_bulk.bk_niov])
+offsetof(struct srpc_client_rpc, crpc_bulk.bk_iovs[(rpc)->crpc_bulk.bk_niov])
 
 #define srpc_client_rpc_addref(rpc)					\
 do {									\
@@ -357,9 +357,9 @@ typedef struct {
 							  * client */
 	int  (*tso_prep_rpc)(struct sfw_test_unit *tsu,
 			     lnet_process_id_t dest,
-			     srpc_client_rpc_t **rpc);	 /* prep a tests rpc */
+			     struct srpc_client_rpc **rpc);	/* prep a tests rpc */
 	void (*tso_done_rpc)(struct sfw_test_unit *tsu,
-			     srpc_client_rpc_t *rpc);	 /* done a test rpc */
+			     struct srpc_client_rpc *rpc);	/* done a test rpc */
 } sfw_test_client_ops_t;
 
 typedef struct sfw_test_instance {
@@ -413,16 +413,16 @@ typedef struct sfw_test_case {
 	sfw_test_client_ops_t *tsc_cli_ops;	/* ops of test client */
 } sfw_test_case_t;
 
-srpc_client_rpc_t *
+struct srpc_client_rpc *
 sfw_create_rpc(lnet_process_id_t peer, int service,
 	       unsigned features, int nbulkiov, int bulklen,
-	       void (*done)(srpc_client_rpc_t *), void *priv);
+	       void (*done)(struct srpc_client_rpc *), void *priv);
 int sfw_create_test_rpc(sfw_test_unit_t *tsu,
 			lnet_process_id_t peer, unsigned features,
-			int nblk, int blklen, srpc_client_rpc_t **rpc);
-void sfw_abort_rpc(srpc_client_rpc_t *rpc);
-void sfw_post_rpc(srpc_client_rpc_t *rpc);
-void sfw_client_rpc_done(srpc_client_rpc_t *rpc);
+			int nblk, int blklen, struct srpc_client_rpc **rpc);
+void sfw_abort_rpc(struct srpc_client_rpc *rpc);
+void sfw_post_rpc(struct srpc_client_rpc *rpc);
+void sfw_client_rpc_done(struct srpc_client_rpc *rpc);
 void sfw_unpack_message(srpc_msg_t *msg);
 void sfw_free_pages(struct srpc_server_rpc *rpc);
 void sfw_add_bulk_page(struct srpc_bulk *bk, struct page *pg, int i);
@@ -430,13 +430,13 @@ int sfw_alloc_pages(struct srpc_server_rpc *rpc, int cpt, int npages, int len,
 		    int sink);
 int sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply);
 
-srpc_client_rpc_t *
+struct srpc_client_rpc *
 srpc_create_client_rpc(lnet_process_id_t peer, int service,
 		       int nbulkiov, int bulklen,
-		       void (*rpc_done)(srpc_client_rpc_t *),
-		       void (*rpc_fini)(srpc_client_rpc_t *), void *priv);
-void srpc_post_rpc(srpc_client_rpc_t *rpc);
-void srpc_abort_rpc(srpc_client_rpc_t *rpc, int why);
+		       void (*rpc_done)(struct srpc_client_rpc *),
+		       void (*rpc_fini)(struct srpc_client_rpc *), void *priv);
+void srpc_post_rpc(struct srpc_client_rpc *rpc);
+void srpc_abort_rpc(struct srpc_client_rpc *rpc, int why);
 void srpc_free_bulk(struct srpc_bulk *bk);
 struct srpc_bulk *srpc_alloc_bulk(int cpt, unsigned bulk_npg,
 				  unsigned bulk_len, int sink);
@@ -505,7 +505,7 @@ void sfw_shutdown(void);
 void srpc_shutdown(void);
 
 static inline void
-srpc_destroy_client_rpc(srpc_client_rpc_t *rpc)
+srpc_destroy_client_rpc(struct srpc_client_rpc *rpc)
 {
 	LASSERT(rpc);
 	LASSERT(!srpc_event_pending(rpc));
@@ -518,14 +518,14 @@ srpc_destroy_client_rpc(srpc_client_rpc_t *rpc)
 }
 
 static inline void
-srpc_init_client_rpc(srpc_client_rpc_t *rpc, lnet_process_id_t peer,
+srpc_init_client_rpc(struct srpc_client_rpc *rpc, lnet_process_id_t peer,
 		     int service, int nbulkiov, int bulklen,
-		     void (*rpc_done)(srpc_client_rpc_t *),
-		     void (*rpc_fini)(srpc_client_rpc_t *), void *priv)
+		     void (*rpc_done)(struct srpc_client_rpc *),
+		     void (*rpc_fini)(struct srpc_client_rpc *), void *priv)
 {
 	LASSERT(nbulkiov <= LNET_MAX_IOV);
 
-	memset(rpc, 0, offsetof(srpc_client_rpc_t,
+	memset(rpc, 0, offsetof(struct srpc_client_rpc,
 				crpc_bulk.bk_iovs[nbulkiov]));
 
 	INIT_LIST_HEAD(&rpc->crpc_list);

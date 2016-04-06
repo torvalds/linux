@@ -792,7 +792,7 @@ srpc_shutdown_service(srpc_service_t *sv)
 }
 
 static int
-srpc_send_request(srpc_client_rpc_t *rpc)
+srpc_send_request(struct srpc_client_rpc *rpc)
 {
 	struct srpc_event *ev = &rpc->crpc_reqstev;
 	int rc;
@@ -814,7 +814,7 @@ srpc_send_request(srpc_client_rpc_t *rpc)
 }
 
 static int
-srpc_prepare_reply(srpc_client_rpc_t *rpc)
+srpc_prepare_reply(struct srpc_client_rpc *rpc)
 {
 	struct srpc_event *ev = &rpc->crpc_replyev;
 	__u64 *id = &rpc->crpc_reqstmsg.msg_body.reqst.rpyid;
@@ -838,7 +838,7 @@ srpc_prepare_reply(srpc_client_rpc_t *rpc)
 }
 
 static int
-srpc_prepare_bulk(srpc_client_rpc_t *rpc)
+srpc_prepare_bulk(struct srpc_client_rpc *rpc)
 {
 	struct srpc_bulk *bk = &rpc->crpc_bulk;
 	struct srpc_event *ev = &rpc->crpc_bulkev;
@@ -1077,7 +1077,7 @@ srpc_handle_rpc(struct swi_workitem *wi)
 static void
 srpc_client_rpc_expired(void *data)
 {
-	srpc_client_rpc_t *rpc = data;
+	struct srpc_client_rpc *rpc = data;
 
 	CWARN("Client RPC expired: service %d, peer %s, timeout %d.\n",
 	      rpc->crpc_service, libcfs_id2str(rpc->crpc_dest),
@@ -1096,7 +1096,7 @@ srpc_client_rpc_expired(void *data)
 }
 
 static void
-srpc_add_client_rpc_timer(srpc_client_rpc_t *rpc)
+srpc_add_client_rpc_timer(struct srpc_client_rpc *rpc)
 {
 	struct stt_timer *timer = &rpc->crpc_timer;
 
@@ -1117,7 +1117,7 @@ srpc_add_client_rpc_timer(srpc_client_rpc_t *rpc)
  * running on any CPU.
  */
 static void
-srpc_del_client_rpc_timer(srpc_client_rpc_t *rpc)
+srpc_del_client_rpc_timer(struct srpc_client_rpc *rpc)
 {
 	/* timer not planted or already exploded */
 	if (!rpc->crpc_timeout)
@@ -1138,7 +1138,7 @@ srpc_del_client_rpc_timer(srpc_client_rpc_t *rpc)
 }
 
 static void
-srpc_client_rpc_done(srpc_client_rpc_t *rpc, int status)
+srpc_client_rpc_done(struct srpc_client_rpc *rpc, int status)
 {
 	struct swi_workitem *wi = &rpc->crpc_wi;
 
@@ -1178,7 +1178,7 @@ int
 srpc_send_rpc(struct swi_workitem *wi)
 {
 	int rc = 0;
-	srpc_client_rpc_t *rpc;
+	struct srpc_client_rpc *rpc;
 	srpc_msg_t *reply;
 	int do_bulk;
 
@@ -1308,15 +1308,15 @@ abort:
 	return 0;
 }
 
-srpc_client_rpc_t *
+struct srpc_client_rpc *
 srpc_create_client_rpc(lnet_process_id_t peer, int service,
 		       int nbulkiov, int bulklen,
-		       void (*rpc_done)(srpc_client_rpc_t *),
-		       void (*rpc_fini)(srpc_client_rpc_t *), void *priv)
+		       void (*rpc_done)(struct srpc_client_rpc *),
+		       void (*rpc_fini)(struct srpc_client_rpc *), void *priv)
 {
-	srpc_client_rpc_t *rpc;
+	struct srpc_client_rpc *rpc;
 
-	LIBCFS_ALLOC(rpc, offsetof(srpc_client_rpc_t,
+	LIBCFS_ALLOC(rpc, offsetof(struct srpc_client_rpc,
 				   crpc_bulk.bk_iovs[nbulkiov]));
 	if (!rpc)
 		return NULL;
@@ -1328,7 +1328,7 @@ srpc_create_client_rpc(lnet_process_id_t peer, int service,
 
 /* called with rpc->crpc_lock held */
 void
-srpc_abort_rpc(srpc_client_rpc_t *rpc, int why)
+srpc_abort_rpc(struct srpc_client_rpc *rpc, int why)
 {
 	LASSERT(why);
 
@@ -1347,7 +1347,7 @@ srpc_abort_rpc(srpc_client_rpc_t *rpc, int why)
 
 /* called with rpc->crpc_lock held */
 void
-srpc_post_rpc(srpc_client_rpc_t *rpc)
+srpc_post_rpc(struct srpc_client_rpc *rpc)
 {
 	LASSERT(!rpc->crpc_aborted);
 	LASSERT(srpc_data.rpc_state == SRPC_STATE_RUNNING);
@@ -1411,7 +1411,7 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 {
 	struct srpc_service_cd *scd;
 	struct srpc_event *rpcev = ev->md.user_ptr;
-	srpc_client_rpc_t *crpc;
+	struct srpc_client_rpc *crpc;
 	struct srpc_server_rpc *srpc;
 	struct srpc_buffer *buffer;
 	srpc_service_t *sv;

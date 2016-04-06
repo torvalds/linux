@@ -255,12 +255,12 @@ brw_check_bulk(struct srpc_bulk *bk, int pattern, __u64 magic)
 
 static int
 brw_client_prep_rpc(sfw_test_unit_t *tsu,
-		    lnet_process_id_t dest, srpc_client_rpc_t **rpcpp)
+		    lnet_process_id_t dest, struct srpc_client_rpc **rpcpp)
 {
 	struct srpc_bulk *bulk = tsu->tsu_private;
 	sfw_test_instance_t *tsi = tsu->tsu_instance;
 	sfw_session_t *sn = tsi->tsi_batch->bat_session;
-	srpc_client_rpc_t *rpc;
+	struct srpc_client_rpc *rpc;
 	srpc_brw_reqst_t *req;
 	int flags;
 	int npg;
@@ -313,7 +313,7 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 }
 
 static void
-brw_client_done_rpc(sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
+brw_client_done_rpc(sfw_test_unit_t *tsu, struct srpc_client_rpc *rpc)
 {
 	__u64 magic = BRW_MAGIC;
 	sfw_test_instance_t *tsi = tsu->tsu_instance;

@@ -298,7 +298,7 @@ sfw_server_rpc_done(struct srpc_server_rpc *rpc)
 }
 
 static void
-sfw_client_rpc_fini(srpc_client_rpc_t *rpc)
+sfw_client_rpc_fini(struct srpc_client_rpc *rpc)
 {
 	LASSERT(!rpc->crpc_bulk.bk_niov);
 	LASSERT(list_empty(&rpc->crpc_list));
@@ -526,7 +526,7 @@ sfw_debug_session(srpc_debug_reqst_t *request, srpc_debug_reply_t *reply)
 }
 
 static void
-sfw_test_rpc_fini(srpc_client_rpc_t *rpc)
+sfw_test_rpc_fini(struct srpc_client_rpc *rpc)
 {
 	sfw_test_unit_t *tsu = rpc->crpc_priv;
 	sfw_test_instance_t *tsi = tsu->tsu_instance;
@@ -616,7 +616,7 @@ sfw_unload_test(struct sfw_test_instance *tsi)
 static void
 sfw_destroy_test_instance(sfw_test_instance_t *tsi)
 {
-	srpc_client_rpc_t *rpc;
+	struct srpc_client_rpc *rpc;
 	sfw_test_unit_t *tsu;
 
 	if (!tsi->tsi_is_client)
@@ -637,7 +637,7 @@ sfw_destroy_test_instance(sfw_test_instance_t *tsi)
 
 	while (!list_empty(&tsi->tsi_free_rpcs)) {
 		rpc = list_entry(tsi->tsi_free_rpcs.next,
-				 srpc_client_rpc_t, crpc_list);
+				 struct srpc_client_rpc, crpc_list);
 		list_del(&rpc->crpc_list);
 		LIBCFS_FREE(rpc, srpc_client_rpc_size(rpc));
 	}
@@ -866,7 +866,7 @@ sfw_test_unit_done(sfw_test_unit_t *tsu)
 }
 
 static void
-sfw_test_rpc_done(srpc_client_rpc_t *rpc)
+sfw_test_rpc_done(struct srpc_client_rpc *rpc)
 {
 	sfw_test_unit_t *tsu = rpc->crpc_priv;
 	sfw_test_instance_t *tsi = tsu->tsu_instance;
@@ -902,9 +902,9 @@ sfw_test_rpc_done(srpc_client_rpc_t *rpc)
 int
 sfw_create_test_rpc(sfw_test_unit_t *tsu, lnet_process_id_t peer,
 		    unsigned features, int nblk, int blklen,
-		    srpc_client_rpc_t **rpcpp)
+		    struct srpc_client_rpc **rpcpp)
 {
-	srpc_client_rpc_t *rpc = NULL;
+	struct srpc_client_rpc *rpc = NULL;
 	sfw_test_instance_t *tsi = tsu->tsu_instance;
 
 	spin_lock(&tsi->tsi_lock);
@@ -912,7 +912,7 @@ sfw_create_test_rpc(sfw_test_unit_t *tsu, lnet_process_id_t peer,
 	LASSERT(sfw_test_active(tsi));
 		/* pick request from buffer */
 	rpc = list_first_entry_or_null(&tsi->tsi_free_rpcs,
-				       srpc_client_rpc_t, crpc_list);
+				       struct srpc_client_rpc, crpc_list);
 	if (rpc) {
 		LASSERT(nblk == rpc->crpc_bulk.bk_niov);
 		list_del_init(&rpc->crpc_list);
@@ -946,7 +946,7 @@ sfw_run_test(struct swi_workitem *wi)
 {
 	sfw_test_unit_t *tsu = wi->swi_workitem.wi_data;
 	sfw_test_instance_t *tsi = tsu->tsu_instance;
-	srpc_client_rpc_t *rpc = NULL;
+	struct srpc_client_rpc *rpc = NULL;
 
 	LASSERT(wi == &tsu->tsu_worker);
 
@@ -1029,7 +1029,7 @@ int
 sfw_stop_batch(sfw_batch_t *tsb, int force)
 {
 	sfw_test_instance_t *tsi;
-	srpc_client_rpc_t *rpc;
+	struct srpc_client_rpc *rpc;
 
 	if (!sfw_batch_active(tsb)) {
 		CDEBUG(D_NET, "Batch %llu inactive\n", tsb->bat_id.bat_id);
@@ -1377,12 +1377,12 @@ sfw_bulk_ready(struct srpc_server_rpc *rpc, int status)
 	return rc;
 }
 
-srpc_client_rpc_t *
+struct srpc_client_rpc *
 sfw_create_rpc(lnet_process_id_t peer, int service,
 	       unsigned features, int nbulkiov, int bulklen,
-	       void (*done)(srpc_client_rpc_t *), void *priv)
+	       void (*done)(struct srpc_client_rpc *), void *priv)
 {
-	srpc_client_rpc_t *rpc = NULL;
+	struct srpc_client_rpc *rpc = NULL;
 
 	spin_lock(&sfw_data.fw_lock);
 
@@ -1391,7 +1391,7 @@ sfw_create_rpc(lnet_process_id_t peer, int service,
 
 	if (!nbulkiov && !list_empty(&sfw_data.fw_zombie_rpcs)) {
 		rpc = list_entry(sfw_data.fw_zombie_rpcs.next,
-				 srpc_client_rpc_t, crpc_list);
+				 struct srpc_client_rpc, crpc_list);
 		list_del(&rpc->crpc_list);
 
 		srpc_init_client_rpc(rpc, peer, service, 0, 0,
@@ -1558,7 +1558,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 }
 
 void
-sfw_abort_rpc(srpc_client_rpc_t *rpc)
+sfw_abort_rpc(struct srpc_client_rpc *rpc)
 {
 	LASSERT(atomic_read(&rpc->crpc_refcount) > 0);
 	LASSERT(rpc->crpc_service <= SRPC_FRAMEWORK_SERVICE_MAX_ID);
@@ -1569,7 +1569,7 @@ sfw_abort_rpc(srpc_client_rpc_t *rpc)
 }
 
 void
-sfw_post_rpc(srpc_client_rpc_t *rpc)
+sfw_post_rpc(struct srpc_client_rpc *rpc)
 {
 	spin_lock(&rpc->crpc_lock);
 
@@ -1759,10 +1759,10 @@ sfw_shutdown(void)
 	}
 
 	while (!list_empty(&sfw_data.fw_zombie_rpcs)) {
-		srpc_client_rpc_t *rpc;
+		struct srpc_client_rpc *rpc;
 
 		rpc = list_entry(sfw_data.fw_zombie_rpcs.next,
-				 srpc_client_rpc_t, crpc_list);
+				 struct srpc_client_rpc, crpc_list);
 		list_del(&rpc->crpc_list);
 
 		LIBCFS_FREE(rpc, srpc_client_rpc_size(rpc));
