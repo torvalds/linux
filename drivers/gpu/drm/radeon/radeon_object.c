@@ -799,6 +799,10 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	if ((offset + size) <= rdev->mc.visible_vram_size)
 		return 0;
 
+	/* Can't move a pinned BO to visible VRAM */
+	if (rbo->pin_count > 0)
+		return -EINVAL;
+
 	/* hurrah the memory is not visible ! */
 	radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_VRAM);
 	lpfn =	rdev->mc.visible_vram_size >> PAGE_SHIFT;

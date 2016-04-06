@@ -1521,6 +1521,8 @@ static int do_ebt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	if (copy_from_user(&tmp, user, sizeof(tmp)))
 		return -EFAULT;
 
+	tmp.name[sizeof(tmp.name) - 1] = '\0';
+
 	t = find_table_lock(net, tmp.name, &ret, &ebt_mutex);
 	if (!t)
 		return ret;
@@ -2331,6 +2333,8 @@ static int compat_do_ebt_get_ctl(struct sock *sk, int cmd,
 
 	if (copy_from_user(&tmp, user, sizeof(tmp)))
 		return -EFAULT;
+
+	tmp.name[sizeof(tmp.name) - 1] = '\0';
 
 	t = find_table_lock(net, tmp.name, &ret, &ebt_mutex);
 	if (!t)

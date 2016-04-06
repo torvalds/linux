@@ -1149,7 +1149,8 @@ void bpf_prog_destroy(struct bpf_prog *fp)
 }
 EXPORT_SYMBOL_GPL(bpf_prog_destroy);
 
-static int __sk_attach_prog(struct bpf_prog *prog, struct sock *sk)
+static int __sk_attach_prog(struct bpf_prog *prog, struct sock *sk,
+			    bool locked)
 {
 	struct sk_filter *fp, *old_fp;
 
@@ -1165,10 +1166,8 @@ static int __sk_attach_prog(struct bpf_prog *prog, struct sock *sk)
 		return -ENOMEM;
 	}
 
-	old_fp = rcu_dereference_protected(sk->sk_filter,
-					   sock_owned_by_user(sk));
+	old_fp = rcu_dereference_protected(sk->sk_filter, locked);
 	rcu_assign_pointer(sk->sk_filter, fp);
-
 	if (old_fp)
 		sk_filter_uncharge(sk, old_fp);
 
@@ -1247,7 +1246,8 @@ struct bpf_prog *__get_filter(struct sock_fprog *fprog, struct sock *sk)
  * occurs or there is insufficient memory for the filter a negative
  * errno code is returned. On success the return is zero.
  */
-int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
+int __sk_attach_filter(struct sock_fprog *fprog, struct sock *sk,
+		       bool locked)
 {
 	struct bpf_prog *prog = __get_filter(fprog, sk);
 	int err;
@@ -1255,7 +1255,7 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 	if (IS_ERR(prog))
 		return PTR_ERR(prog);
 
-	err = __sk_attach_prog(prog, sk);
+	err = __sk_attach_prog(prog, sk, locked);
 	if (err < 0) {
 		__bpf_prog_release(prog);
 		return err;
@@ -1263,7 +1263,12 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(sk_attach_filter);
+EXPORT_SYMBOL_GPL(__sk_attach_filter);
+
+int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
+{
+	return __sk_attach_filter(fprog, sk, sock_owned_by_user(sk));
+}
 
 int sk_reuseport_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 {
@@ -1309,7 +1314,7 @@ int sk_attach_bpf(u32 ufd, struct sock *sk)
 	if (IS_ERR(prog))
 		return PTR_ERR(prog);
 
-	err = __sk_attach_prog(prog, sk);
+	err = __sk_attach_prog(prog, sk, sock_owned_by_user(sk));
 	if (err < 0) {
 		bpf_prog_put(prog);
 		return err;
@@ -1764,6 +1769,7 @@ static u64 bpf_skb_get_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 	if (unlikely(size != sizeof(struct bpf_tunnel_key))) {
 		switch (size) {
 		case offsetof(struct bpf_tunnel_key, tunnel_label):
+		case offsetof(struct bpf_tunnel_key, tunnel_ext):
 			goto set_compat;
 		case offsetof(struct bpf_tunnel_key, remote_ipv6[1]):
 			/* Fixup deprecated structure layouts here, so we have
@@ -1849,6 +1855,7 @@ static u64 bpf_skb_set_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 	if (unlikely(size != sizeof(struct bpf_tunnel_key))) {
 		switch (size) {
 		case offsetof(struct bpf_tunnel_key, tunnel_label):
+		case offsetof(struct bpf_tunnel_key, tunnel_ext):
 		case offsetof(struct bpf_tunnel_key, remote_ipv6[1]):
 			/* Fixup deprecated structure layouts here, so we have
 			 * a common path later on.
@@ -1861,7 +1868,8 @@ static u64 bpf_skb_set_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 			return -EINVAL;
 		}
 	}
-	if (unlikely(!(flags & BPF_F_TUNINFO_IPV6) && from->tunnel_label))
+	if (unlikely((!(flags & BPF_F_TUNINFO_IPV6) && from->tunnel_label) ||
+		     from->tunnel_ext))
 		return -EINVAL;
 
 	skb_dst_drop(skb);
@@ -2247,7 +2255,7 @@ static int __init register_sk_filter_ops(void)
 }
 late_initcall(register_sk_filter_ops);
 
-int sk_detach_filter(struct sock *sk)
+int __sk_detach_filter(struct sock *sk, bool locked)
 {
 	int ret = -ENOENT;
 	struct sk_filter *filter;
@@ -2255,8 +2263,7 @@ int sk_detach_filter(struct sock *sk)
 	if (sock_flag(sk, SOCK_FILTER_LOCKED))
 		return -EPERM;
 
-	filter = rcu_dereference_protected(sk->sk_filter,
-					   sock_owned_by_user(sk));
+	filter = rcu_dereference_protected(sk->sk_filter, locked);
 	if (filter) {
 		RCU_INIT_POINTER(sk->sk_filter, NULL);
 		sk_filter_uncharge(sk, filter);
@@ -2265,7 +2272,12 @@ int sk_detach_filter(struct sock *sk)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(sk_detach_filter);
+EXPORT_SYMBOL_GPL(__sk_detach_filter);
+
+int sk_detach_filter(struct sock *sk)
+{
+	return __sk_detach_filter(sk, sock_owned_by_user(sk));
+}
 
 int sk_get_filter(struct sock *sk, struct sock_filter __user *ubuf,
 		  unsigned int len)
