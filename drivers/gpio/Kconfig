@@ -511,6 +511,13 @@ config GPIO_ZX
 	help
 	  Say yes here to support the GPIO device on ZTE ZX SoCs.
 
+config GPIO_LOONGSON1
+	tristate "Loongson1 GPIO support"
+	depends on MACH_LOONGSON32
+	select GPIO_GENERIC
+	help
+	  Say Y or M here to support GPIO on Loongson1 SoCs.
+
 endmenu
 
 menu "Port-mapped I/O GPIO drivers"
