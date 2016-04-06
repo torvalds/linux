@@ -1,5 +1,5 @@
 menuconfig ASYMMETRIC_KEY_TYPE
-	tristate "Asymmetric (public-key cryptographic) key type"
+	bool "Asymmetric (public-key cryptographic) key type"
 	depends on KEYS
 	help
 	  This option provides support for a key type that holds the data for

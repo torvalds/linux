@@ -17,6 +17,7 @@ config MODULE_SIG_KEY
 config SYSTEM_TRUSTED_KEYRING
 	bool "Provide system-wide ring of trusted keys"
 	depends on KEYS
+	depends on ASYMMETRIC_KEY_TYPE
 	help
 	  Provide a system keyring to which trusted keys can be added.  Keys in
 	  the keyring are considered to be trusted.  Keys may be added at will
