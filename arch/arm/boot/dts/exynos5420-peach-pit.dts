@@ -165,7 +165,7 @@
 	samsung,hpd-gpio = <&gpx2 6 GPIO_ACTIVE_HIGH>;
 
 	ports {
-		port@0 {
+		port0 {
 			dp_out: endpoint {
 				remote-endpoint = <&bridge_in>;
 			};
@@ -633,13 +633,13 @@
 		use-external-pwm;
 
 		ports {
-			port@0 {
+			port0 {
 				bridge_out: endpoint {
 					remote-endpoint = <&panel_in>;
 				};
 			};
 
-			port@1 {
+			port1 {
 				bridge_in: endpoint {
 					remote-endpoint = <&dp_out>;
 				};
