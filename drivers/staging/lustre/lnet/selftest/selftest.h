@@ -134,7 +134,7 @@ srpc_service2reply(int service)
 	return srpc_service2request(service) + 1;
 }
 
-typedef enum {
+enum srpc_event_type {
 	SRPC_BULK_REQ_RCVD   = 1, /* passive bulk request(PUT sink/GET source)
 				   * received */
 	SRPC_BULK_PUT_SENT   = 2, /* active bulk PUT sent (source) */
@@ -143,11 +143,11 @@ typedef enum {
 	SRPC_REPLY_SENT      = 5, /* outgoing reply sent */
 	SRPC_REQUEST_RCVD    = 6, /* incoming request received */
 	SRPC_REQUEST_SENT    = 7, /* outgoing request sent */
-} srpc_event_type_t;
+};
 
 /* RPC event */
 typedef struct {
-	srpc_event_type_t ev_type;   /* what's up */
+	enum srpc_event_type	ev_type;	/* what's up */
 	lnet_event_kind_t ev_lnet;   /* LNet event type */
 	int		  ev_fired;  /* LNet event fired? */
 	int		  ev_status; /* LNet event status */
