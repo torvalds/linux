@@ -2788,6 +2788,30 @@ MLXSW_ITEM32_INDEXED(reg, pbmc, buf_epsb, 0x0C, 24, 1, 0x08, 0x00, false);
  */
 MLXSW_ITEM32_INDEXED(reg, pbmc, buf_size, 0x0C, 0, 16, 0x08, 0x00, false);
 
+/* reg_pbmc_buf_xoff_threshold
+ * Once the amount of data in the buffer goes above this value, device
+ * starts sending PFC frames for all priorities associated with the
+ * buffer. Units are represented in cells. Reserved in case of lossy
+ * buffer.
+ * Access: RW
+ *
+ * Note: In Spectrum, reserved for buffer[9].
+ */
+MLXSW_ITEM32_INDEXED(reg, pbmc, buf_xoff_threshold, 0x0C, 16, 16,
+		     0x08, 0x04, false);
+
+/* reg_pbmc_buf_xon_threshold
+ * When the amount of data in the buffer goes below this value, device
+ * stops sending PFC frames for the priorities associated with the
+ * buffer. Units are represented in cells. Reserved in case of lossy
+ * buffer.
+ * Access: RW
+ *
+ * Note: In Spectrum, reserved for buffer[9].
+ */
+MLXSW_ITEM32_INDEXED(reg, pbmc, buf_xon_threshold, 0x0C, 0, 16,
+		     0x08, 0x04, false);
+
 static inline void mlxsw_reg_pbmc_pack(char *payload, u8 local_port,
 				       u16 xoff_timer_value, u16 xoff_refresh)
 {
@@ -2804,6 +2828,17 @@ static inline void mlxsw_reg_pbmc_lossy_buffer_pack(char *payload,
 	mlxsw_reg_pbmc_buf_lossy_set(payload, buf_index, 1);
 	mlxsw_reg_pbmc_buf_epsb_set(payload, buf_index, 0);
 	mlxsw_reg_pbmc_buf_size_set(payload, buf_index, size);
+}
+
+static inline void mlxsw_reg_pbmc_lossless_buffer_pack(char *payload,
+						       int buf_index, u16 size,
+						       u16 threshold)
+{
+	mlxsw_reg_pbmc_buf_lossy_set(payload, buf_index, 0);
+	mlxsw_reg_pbmc_buf_epsb_set(payload, buf_index, 0);
+	mlxsw_reg_pbmc_buf_size_set(payload, buf_index, size);
+	mlxsw_reg_pbmc_buf_xoff_threshold_set(payload, buf_index, threshold);
+	mlxsw_reg_pbmc_buf_xon_threshold_set(payload, buf_index, threshold);
 }
 
 /* PSPA - Port Switch Partition Allocation
