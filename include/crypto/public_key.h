@@ -50,12 +50,6 @@ struct key;
 extern int verify_signature(const struct key *key,
 			    const struct public_key_signature *sig);
 
-struct asymmetric_key_id;
-extern struct key *x509_request_asymmetric_key(struct key *keyring,
-					       const struct asymmetric_key_id *id,
-					       const struct asymmetric_key_id *skid,
-					       bool partial);
-
 int public_key_verify_signature(const struct public_key *pkey,
 				const struct public_key_signature *sig);
 
