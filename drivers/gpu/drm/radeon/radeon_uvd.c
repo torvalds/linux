@@ -34,6 +34,7 @@
 #include <drm/drm.h>
 
 #include "radeon.h"
+#include "radeon_ucode.h"
 #include "r600d.h"
 
 /* 1 second timeout */
@@ -47,7 +48,8 @@
 #define FIRMWARE_CYPRESS	"radeon/CYPRESS_uvd.bin"
 #define FIRMWARE_SUMO		"radeon/SUMO_uvd.bin"
 #define FIRMWARE_TAHITI		"radeon/TAHITI_uvd.bin"
-#define FIRMWARE_BONAIRE	"radeon/BONAIRE_uvd.bin"
+#define FIRMWARE_BONAIRE_LEGACY	"radeon/BONAIRE_uvd.bin"
+#define FIRMWARE_BONAIRE	"radeon/bonaire_uvd.bin"
 
 MODULE_FIRMWARE(FIRMWARE_R600);
 MODULE_FIRMWARE(FIRMWARE_RS780);
@@ -56,6 +58,7 @@ MODULE_FIRMWARE(FIRMWARE_RV710);
 MODULE_FIRMWARE(FIRMWARE_CYPRESS);
 MODULE_FIRMWARE(FIRMWARE_SUMO);
 MODULE_FIRMWARE(FIRMWARE_TAHITI);
+MODULE_FIRMWARE(FIRMWARE_BONAIRE_LEGACY);
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);
 
 static void radeon_uvd_idle_work_handler(struct work_struct *work);
@@ -63,7 +66,7 @@ static void radeon_uvd_idle_work_handler(struct work_struct *work);
 int radeon_uvd_init(struct radeon_device *rdev)
 {
 	unsigned long bo_size;
-	const char *fw_name;
+	const char *fw_name = NULL, *legacy_fw_name = NULL;
 	int i, r;
 
 	INIT_DELAYED_WORK(&rdev->uvd.idle_work, radeon_uvd_idle_work_handler);
@@ -74,22 +77,22 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	case CHIP_RV670:
 	case CHIP_RV620:
 	case CHIP_RV635:
-		fw_name = FIRMWARE_R600;
+		legacy_fw_name = FIRMWARE_R600;
 		break;
 
 	case CHIP_RS780:
 	case CHIP_RS880:
-		fw_name = FIRMWARE_RS780;
+		legacy_fw_name = FIRMWARE_RS780;
 		break;
 
 	case CHIP_RV770:
-		fw_name = FIRMWARE_RV770;
+		legacy_fw_name = FIRMWARE_RV770;
 		break;
 
 	case CHIP_RV710:
 	case CHIP_RV730:
 	case CHIP_RV740:
-		fw_name = FIRMWARE_RV710;
+		legacy_fw_name = FIRMWARE_RV710;
 		break;
 
 	case CHIP_CYPRESS:
@@ -97,7 +100,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	case CHIP_JUNIPER:
 	case CHIP_REDWOOD:
 	case CHIP_CEDAR:
-		fw_name = FIRMWARE_CYPRESS;
+		legacy_fw_name = FIRMWARE_CYPRESS;
 		break;
 
 	case CHIP_SUMO:
@@ -107,7 +110,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	case CHIP_BARTS:
 	case CHIP_TURKS:
 	case CHIP_CAICOS:
-		fw_name = FIRMWARE_SUMO;
+		legacy_fw_name = FIRMWARE_SUMO;
 		break;
 
 	case CHIP_TAHITI:
@@ -115,7 +118,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	case CHIP_PITCAIRN:
 	case CHIP_ARUBA:
 	case CHIP_OLAND:
-		fw_name = FIRMWARE_TAHITI;
+		legacy_fw_name = FIRMWARE_TAHITI;
 		break;
 
 	case CHIP_BONAIRE:
@@ -123,6 +126,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	case CHIP_KAVERI:
 	case CHIP_HAWAII:
 	case CHIP_MULLINS:
+		legacy_fw_name = FIRMWARE_BONAIRE_LEGACY;
 		fw_name = FIRMWARE_BONAIRE;
 		break;
 
@@ -130,11 +134,34 @@ int radeon_uvd_init(struct radeon_device *rdev)
 		return -EINVAL;
 	}
 
-	r = request_firmware(&rdev->uvd_fw, fw_name, rdev->dev);
-	if (r) {
-		dev_err(rdev->dev, "radeon_uvd: Can't load firmware \"%s\"\n",
-			fw_name);
-		return r;
+	rdev->uvd.fw_header_present = false;
+	if (fw_name) {
+		/* Let's try to load the newer firmware first */
+		r = request_firmware(&rdev->uvd_fw, fw_name, rdev->dev);
+		if (r) {
+			dev_err(rdev->dev, "radeon_uvd: Can't load firmware \"%s\"\n",
+				fw_name);
+		} else {
+			r = radeon_ucode_validate(rdev->uvd_fw);
+			if (r)
+				return r;
+
+			rdev->uvd.fw_header_present = true;
+		}
+	}
+
+	/*
+	 * In case there is only legacy firmware, or we encounter an error
+	 * while loading the new firmware, we fall back to loading the legacy
+	 * firmware now.
+	 */
+	if (!fw_name || r) {
+		r = request_firmware(&rdev->uvd_fw, legacy_fw_name, rdev->dev);
+		if (r) {
+			dev_err(rdev->dev, "radeon_uvd: Can't load firmware \"%s\"\n",
+				legacy_fw_name);
+			return r;
+		}
 	}
 
 	bo_size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 8) +
