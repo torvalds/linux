@@ -452,7 +452,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	int ret;
 
 	spin_lock(&glob->lru_lock);
-	ret = __ttm_bo_reserve(bo, false, true, false, NULL);
+	ret = __ttm_bo_reserve(bo, false, true, NULL);
 
 	if (!ret) {
 		if (!ttm_bo_wait(bo, false, false, true)) {
@@ -526,7 +526,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 			return -EBUSY;
 
 		spin_lock(&glob->lru_lock);
-		ret = __ttm_bo_reserve(bo, false, true, false, NULL);
+		ret = __ttm_bo_reserve(bo, false, true, NULL);
 
 		/*
 		 * We raced, and lost, someone else holds the reservation now,
@@ -595,11 +595,10 @@ static int ttm_bo_delayed_delete(struct ttm_bo_device *bdev, bool remove_all)
 			kref_get(&nentry->list_kref);
 		}
 
-		ret = __ttm_bo_reserve(entry, false, true, false, NULL);
+		ret = __ttm_bo_reserve(entry, false, true, NULL);
 		if (remove_all && ret) {
 			spin_unlock(&glob->lru_lock);
-			ret = __ttm_bo_reserve(entry, false, false,
-					       false, NULL);
+			ret = __ttm_bo_reserve(entry, false, false, NULL);
 			spin_lock(&glob->lru_lock);
 		}
 
@@ -741,7 +740,7 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 
 	spin_lock(&glob->lru_lock);
 	list_for_each_entry(bo, &man->lru, lru) {
-		ret = __ttm_bo_reserve(bo, false, true, false, NULL);
+		ret = __ttm_bo_reserve(bo, false, true, NULL);
 		if (!ret) {
 			if (place && (place->fpfn || place->lpfn)) {
 				/* Don't evict this BO if it's outside of the
@@ -1623,7 +1622,7 @@ int ttm_bo_synccpu_write_grab(struct ttm_buffer_object *bo, bool no_wait)
 	 * Using ttm_bo_reserve makes sure the lru lists are updated.
 	 */
 
-	ret = ttm_bo_reserve(bo, true, no_wait, false, NULL);
+	ret = ttm_bo_reserve(bo, true, no_wait, NULL);
 	if (unlikely(ret != 0))
 		return ret;
 	ret = ttm_bo_wait(bo, false, true, no_wait);
@@ -1656,7 +1655,7 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 
 	spin_lock(&glob->lru_lock);
 	list_for_each_entry(bo, &glob->swap_lru, swap) {
-		ret = __ttm_bo_reserve(bo, false, true, false, NULL);
+		ret = __ttm_bo_reserve(bo, false, true, NULL);
 		if (!ret)
 			break;
 	}
@@ -1755,7 +1754,7 @@ int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo)
 		return -ERESTARTSYS;
 	if (!ww_mutex_is_locked(&bo->resv->lock))
 		goto out_unlock;
-	ret = __ttm_bo_reserve(bo, true, false, false, NULL);
+	ret = __ttm_bo_reserve(bo, true, false, NULL);
 	if (unlikely(ret != 0))
 		goto out_unlock;
 	__ttm_bo_unreserve(bo);

@@ -112,8 +112,7 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 	list_for_each_entry(entry, list, head) {
 		struct ttm_buffer_object *bo = entry->bo;
 
-		ret = __ttm_bo_reserve(bo, intr, (ticket == NULL), true,
-				       ticket);
+		ret = __ttm_bo_reserve(bo, intr, (ticket == NULL), ticket);
 		if (!ret && unlikely(atomic_read(&bo->cpu_writers) > 0)) {
 			__ttm_bo_unreserve(bo);
 

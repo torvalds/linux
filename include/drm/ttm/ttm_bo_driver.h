@@ -759,8 +759,7 @@ extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
  * @no_wait: Don't sleep while trying to reserve, rather return -EBUSY.
- * @use_ticket: If @bo is already reserved, Only sleep waiting for
- * it to become unreserved if @ticket->stamp is older.
+ * @ticket: ticket used to acquire the ww_mutex.
  *
  * Will not remove reserved buffers from the lru lists.
  * Otherwise identical to ttm_bo_reserve.
@@ -776,8 +775,7 @@ extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
  * be returned if @use_ticket is set to true.
  */
 static inline int __ttm_bo_reserve(struct ttm_buffer_object *bo,
-				   bool interruptible,
-				   bool no_wait, bool use_ticket,
+				   bool interruptible, bool no_wait,
 				   struct ww_acquire_ctx *ticket)
 {
 	int ret = 0;
@@ -806,8 +804,7 @@ static inline int __ttm_bo_reserve(struct ttm_buffer_object *bo,
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
  * @no_wait: Don't sleep while trying to reserve, rather return -EBUSY.
- * @use_ticket: If @bo is already reserved, Only sleep waiting for
- * it to become unreserved if @ticket->stamp is older.
+ * @ticket: ticket used to acquire the ww_mutex.
  *
  * Locks a buffer object for validation. (Or prevents other processes from
  * locking it for validation) and removes it from lru lists, while taking
@@ -846,15 +843,14 @@ static inline int __ttm_bo_reserve(struct ttm_buffer_object *bo,
  * be returned if @use_ticket is set to true.
  */
 static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
-				 bool interruptible,
-				 bool no_wait, bool use_ticket,
+				 bool interruptible, bool no_wait,
 				 struct ww_acquire_ctx *ticket)
 {
 	int ret;
 
 	WARN_ON(!atomic_read(&bo->kref.refcount));
 
-	ret = __ttm_bo_reserve(bo, interruptible, no_wait, use_ticket, ticket);
+	ret = __ttm_bo_reserve(bo, interruptible, no_wait, ticket);
 	if (likely(ret == 0))
 		ttm_bo_del_sub_from_lru(bo);
 

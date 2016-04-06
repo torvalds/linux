@@ -108,7 +108,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 * for reserve, and if it fails, retry the fault after waiting
 	 * for the buffer to become unreserved.
 	 */
-	ret = ttm_bo_reserve(bo, true, true, false, NULL);
+	ret = ttm_bo_reserve(bo, true, true, NULL);
 	if (unlikely(ret != 0)) {
 		if (ret != -EBUSY)
 			return VM_FAULT_NOPAGE;

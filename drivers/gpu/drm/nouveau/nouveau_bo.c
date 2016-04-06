@@ -312,7 +312,7 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype, bool contig)
 	bool force = false, evict = false;
 	int ret;
 
-	ret = ttm_bo_reserve(bo, false, false, false, NULL);
+	ret = ttm_bo_reserve(bo, false, false, NULL);
 	if (ret)
 		return ret;
 
@@ -385,7 +385,7 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 	struct ttm_buffer_object *bo = &nvbo->bo;
 	int ret, ref;
 
-	ret = ttm_bo_reserve(bo, false, false, false, NULL);
+	ret = ttm_bo_reserve(bo, false, false, NULL);
 	if (ret)
 		return ret;
 
@@ -420,7 +420,7 @@ nouveau_bo_map(struct nouveau_bo *nvbo)
 {
 	int ret;
 
-	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, NULL);
+	ret = ttm_bo_reserve(&nvbo->bo, false, false, NULL);
 	if (ret)
 		return ret;
 
