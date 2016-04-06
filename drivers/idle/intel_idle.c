@@ -1245,12 +1245,19 @@ static int __init intel_idle_init(void)
 
 static void __exit intel_idle_exit(void)
 {
+	struct cpuidle_device *dev;
+	int i;
+
 	cpu_notifier_register_begin();
 
 	if (lapic_timer_reliable_states != LAPIC_TIMER_ALWAYS_RELIABLE)
 		on_each_cpu(__setup_broadcast_timer, (void *)false, 1);
 	__unregister_cpu_notifier(&cpu_hotplug_notifier);
-	intel_idle_cpuidle_devices_uninit();
+
+	for_each_possible_cpu(i) {
+		dev = per_cpu_ptr(intel_idle_cpuidle_devices, i);
+		cpuidle_unregister_device(dev);
+	}
 
 	cpu_notifier_register_done();
 
