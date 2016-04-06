@@ -724,8 +724,7 @@ static void imx6_console_save(unsigned int *regs)
 	regs[6] = readl_relaxed(console_base + UART_UTIM);
 	regs[7] = readl_relaxed(console_base + UART_UBIR);
 	regs[8] = readl_relaxed(console_base + UART_UBMR);
-	regs[9] = readl_relaxed(console_base + UART_UBRC);
-	regs[10] = readl_relaxed(console_base + UART_UTS);
+	regs[9] = readl_relaxed(console_base + UART_UTS);
 }
 
 static void imx6_console_restore(unsigned int *regs)
@@ -738,8 +737,7 @@ static void imx6_console_restore(unsigned int *regs)
 	writel_relaxed(regs[6], console_base + UART_UTIM);
 	writel_relaxed(regs[7], console_base + UART_UBIR);
 	writel_relaxed(regs[8], console_base + UART_UBMR);
-	writel_relaxed(regs[9], console_base + UART_UBRC);
-	writel_relaxed(regs[10], console_base + UART_UTS);
+	writel_relaxed(regs[9], console_base + UART_UTS);
 	writel_relaxed(regs[0], console_base + UART_UCR1);
 	writel_relaxed(regs[1] | 0x1, console_base + UART_UCR2);
 	writel_relaxed(regs[2], console_base + UART_UCR3);
@@ -773,7 +771,7 @@ static void imx6_qspi_restore(struct qspi_regs *pregs, int reg_num)
 
 static int imx6q_pm_enter(suspend_state_t state)
 {
-	unsigned int console_saved_reg[11] = {0};
+	unsigned int console_saved_reg[10] = {0};
 	static unsigned int ccm_ccgr4, ccm_ccgr6;
 
 #ifdef CONFIG_SOC_IMX6SX
@@ -825,7 +823,8 @@ static int imx6q_pm_enter(suspend_state_t state)
 			imx6_enable_rbc(true);
 		imx_gpc_pre_suspend(true);
 		imx_anatop_pre_suspend();
-		imx6_console_save(console_saved_reg);
+		if (cpu_is_imx6ull() && imx_gpc_is_mf_mix_off())
+			imx6_console_save(console_saved_reg);
 		if (cpu_is_imx6sx() && imx_gpc_is_mf_mix_off()) {
 			ccm_ccgr4 = readl_relaxed(ccm_base + CCGR4);
 			ccm_ccgr6 = readl_relaxed(ccm_base + CCGR6);
@@ -864,9 +863,10 @@ static int imx6q_pm_enter(suspend_state_t state)
 					sizeof(qspi_regs_imx6sx) /
 					sizeof(struct qspi_regs));
 		}
+		if (cpu_is_imx6ull() && imx_gpc_is_mf_mix_off())
+			imx6_console_restore(console_saved_reg);
 		if (cpu_is_imx6q() || cpu_is_imx6dl())
 			imx_smp_prepare();
-		imx6_console_restore(console_saved_reg);
 		imx_anatop_post_resume();
 		imx_gpc_post_resume();
 		imx6_enable_rbc(false);
