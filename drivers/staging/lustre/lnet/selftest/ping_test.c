@@ -210,7 +210,8 @@ ping_server_handle(struct srpc_server_rpc *rpc)
 	return 0;
 }
 
-sfw_test_client_ops_t ping_test_client;
+struct sfw_test_client_ops ping_test_client;
+
 void ping_init_test_client(void)
 {
 	ping_test_client.tso_init = ping_client_init;

@@ -135,7 +135,7 @@ sfw_find_test_case(int id)
 }
 
 static int
-sfw_register_test(struct srpc_service *service, sfw_test_client_ops_t *cliops)
+sfw_register_test(struct srpc_service *service, struct sfw_test_client_ops *cliops)
 {
 	sfw_test_case_t *tsc;
 

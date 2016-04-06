@@ -488,7 +488,8 @@ brw_server_handle(struct srpc_server_rpc *rpc)
 	return 0;
 }
 
-sfw_test_client_ops_t brw_test_client;
+struct sfw_test_client_ops brw_test_client;
+
 void brw_init_test_client(void)
 {
 	brw_test_client.tso_init = brw_client_init;

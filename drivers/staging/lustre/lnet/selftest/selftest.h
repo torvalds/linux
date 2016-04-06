@@ -350,7 +350,7 @@ struct sfw_batch {
 	struct list_head bat_tests;	/* test instances */
 };
 
-typedef struct {
+struct sfw_test_client_ops {
 	int  (*tso_init)(struct sfw_test_instance *tsi); /* initialize test
 							  * client */
 	void (*tso_fini)(struct sfw_test_instance *tsi); /* finalize test
@@ -360,13 +360,13 @@ typedef struct {
 			     struct srpc_client_rpc **rpc);	/* prep a tests rpc */
 	void (*tso_done_rpc)(struct sfw_test_unit *tsu,
 			     struct srpc_client_rpc *rpc);	/* done a test rpc */
-} sfw_test_client_ops_t;
+};
 
 typedef struct sfw_test_instance {
 	struct list_head	   tsi_list;		/* chain on batch */
 	int			   tsi_service;		/* test type */
 	struct sfw_batch		*tsi_batch;	/* batch */
-	sfw_test_client_ops_t	   *tsi_ops;		/* test client operation
+	struct sfw_test_client_ops	*tsi_ops;	/* test client operation
 							 */
 
 	/* public parameter for all test units */
@@ -409,8 +409,8 @@ typedef struct sfw_test_unit {
 
 typedef struct sfw_test_case {
 	struct list_head      tsc_list;		/* chain on fw_tests */
-	struct srpc_service	*tsc_srv_service;	/* test service */
-	sfw_test_client_ops_t *tsc_cli_ops;	/* ops of test client */
+	struct srpc_service		*tsc_srv_service;	/* test service */
+	struct sfw_test_client_ops	*tsc_cli_ops;	/* ops of test client */
 } sfw_test_case_t;
 
 struct srpc_client_rpc *
@@ -610,13 +610,13 @@ srpc_wait_service_shutdown(struct srpc_service *sv)
 	}
 }
 
-extern sfw_test_client_ops_t brw_test_client;
+extern struct sfw_test_client_ops brw_test_client;
 void brw_init_test_client(void);
 
 extern struct srpc_service brw_test_service;
 void brw_init_test_service(void);
 
-extern sfw_test_client_ops_t ping_test_client;
+extern struct sfw_test_client_ops ping_test_client;
 void ping_init_test_client(void);
 
 extern struct srpc_service ping_test_service;
