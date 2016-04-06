@@ -49,6 +49,7 @@
 #include <linux/jiffies.h>
 #include <linux/bitops.h>
 #include <linux/list.h>
+#include <linux/dcbnl.h>
 #include <net/devlink.h>
 #include <net/switchdev.h>
 #include <generated/utsrelease.h>
@@ -449,16 +450,89 @@ static int mlxsw_sp_port_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
+static void mlxsw_sp_pg_buf_pack(char *pbmc_pl, int pg_index, int mtu,
+				 bool pause_en, bool pfc_en, u16 delay)
+{
+	u16 pg_size = 2 * MLXSW_SP_BYTES_TO_CELLS(mtu);
+
+	delay = pfc_en ? mlxsw_sp_pfc_delay_get(mtu, delay) :
+			 MLXSW_SP_PAUSE_DELAY;
+
+	if (pause_en || pfc_en)
+		mlxsw_reg_pbmc_lossless_buffer_pack(pbmc_pl, pg_index,
+						    pg_size + delay, pg_size);
+	else
+		mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, pg_index, pg_size);
+}
+
+int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
+				 u8 *prio_tc, bool pause_en,
+				 struct ieee_pfc *my_pfc)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 pfc_en = !!my_pfc ? my_pfc->pfc_en : 0;
+	u16 delay = !!my_pfc ? my_pfc->delay : 0;
+	char pbmc_pl[MLXSW_REG_PBMC_LEN];
+	int i, j, err;
+
+	mlxsw_reg_pbmc_pack(pbmc_pl, mlxsw_sp_port->local_port, 0, 0);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
+	if (err)
+		return err;
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		bool configure = false;
+		bool pfc = false;
+
+		for (j = 0; j < IEEE_8021QAZ_MAX_TCS; j++) {
+			if (prio_tc[j] == i) {
+				pfc = pfc_en & BIT(j);
+				configure = true;
+				break;
+			}
+		}
+
+		if (!configure)
+			continue;
+		mlxsw_sp_pg_buf_pack(pbmc_pl, i, mtu, pause_en, pfc, delay);
+	}
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
+}
+
+static int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				      int mtu, bool pause_en)
+{
+	u8 def_prio_tc[IEEE_8021QAZ_MAX_TCS] = {0};
+	bool dcb_en = !!mlxsw_sp_port->dcb.ets;
+	struct ieee_pfc *my_pfc;
+	u8 *prio_tc;
+
+	prio_tc = dcb_en ? mlxsw_sp_port->dcb.ets->prio_tc : def_prio_tc;
+	my_pfc = dcb_en ? mlxsw_sp_port->dcb.pfc : NULL;
+
+	return __mlxsw_sp_port_headroom_set(mlxsw_sp_port, mtu, prio_tc,
+					    pause_en, my_pfc);
+}
+
 static int mlxsw_sp_port_change_mtu(struct net_device *dev, int mtu)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	bool pause_en = mlxsw_sp_port_is_pause_en(mlxsw_sp_port);
 	int err;
 
-	err = mlxsw_sp_port_mtu_set(mlxsw_sp_port, mtu);
+	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, mtu, pause_en);
 	if (err)
 		return err;
+	err = mlxsw_sp_port_mtu_set(mlxsw_sp_port, mtu);
+	if (err)
+		goto err_port_mtu_set;
 	dev->mtu = mtu;
 	return 0;
+
+err_port_mtu_set:
+	mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu, pause_en);
+	return err;
 }
 
 static struct rtnl_link_stats64 *
@@ -936,6 +1010,68 @@ static void mlxsw_sp_port_get_drvinfo(struct net_device *dev,
 		sizeof(drvinfo->bus_info));
 }
 
+static void mlxsw_sp_port_get_pauseparam(struct net_device *dev,
+					 struct ethtool_pauseparam *pause)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+
+	pause->rx_pause = mlxsw_sp_port->link.rx_pause;
+	pause->tx_pause = mlxsw_sp_port->link.tx_pause;
+}
+
+static int mlxsw_sp_port_pause_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				   struct ethtool_pauseparam *pause)
+{
+	char pfcc_pl[MLXSW_REG_PFCC_LEN];
+
+	mlxsw_reg_pfcc_pack(pfcc_pl, mlxsw_sp_port->local_port);
+	mlxsw_reg_pfcc_pprx_set(pfcc_pl, pause->rx_pause);
+	mlxsw_reg_pfcc_pptx_set(pfcc_pl, pause->tx_pause);
+
+	return mlxsw_reg_write(mlxsw_sp_port->mlxsw_sp->core, MLXSW_REG(pfcc),
+			       pfcc_pl);
+}
+
+static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
+					struct ethtool_pauseparam *pause)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	bool pause_en = pause->tx_pause || pause->rx_pause;
+	int err;
+
+	if (mlxsw_sp_port->dcb.pfc && mlxsw_sp_port->dcb.pfc->pfc_en) {
+		netdev_err(dev, "PFC already enabled on port\n");
+		return -EINVAL;
+	}
+
+	if (pause->autoneg) {
+		netdev_err(dev, "PAUSE frames autonegotiation isn't supported\n");
+		return -EINVAL;
+	}
+
+	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu, pause_en);
+	if (err) {
+		netdev_err(dev, "Failed to configure port's headroom\n");
+		return err;
+	}
+
+	err = mlxsw_sp_port_pause_set(mlxsw_sp_port, pause);
+	if (err) {
+		netdev_err(dev, "Failed to set PAUSE parameters\n");
+		goto err_port_pause_configure;
+	}
+
+	mlxsw_sp_port->link.rx_pause = pause->rx_pause;
+	mlxsw_sp_port->link.tx_pause = pause->tx_pause;
+
+	return 0;
+
+err_port_pause_configure:
+	pause_en = mlxsw_sp_port_is_pause_en(mlxsw_sp_port);
+	mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu, pause_en);
+	return err;
+}
+
 struct mlxsw_sp_port_hw_stats {
 	char str[ETH_GSTRING_LEN];
 	u64 (*getter)(char *payload);
@@ -1071,7 +1207,8 @@ static void mlxsw_sp_port_get_stats(struct net_device *dev,
 	int i;
 	int err;
 
-	mlxsw_reg_ppcnt_pack(ppcnt_pl, mlxsw_sp_port->local_port);
+	mlxsw_reg_ppcnt_pack(ppcnt_pl, mlxsw_sp_port->local_port,
+			     MLXSW_REG_PPCNT_IEEE_8023_CNT, 0);
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ppcnt), ppcnt_pl);
 	for (i = 0; i < MLXSW_SP_PORT_HW_STATS_LEN; i++)
 		data[i] = !err ? mlxsw_sp_port_hw_stats[i].getter(ppcnt_pl) : 0;
@@ -1419,6 +1556,8 @@ static int mlxsw_sp_port_set_settings(struct net_device *dev,
 static const struct ethtool_ops mlxsw_sp_port_ethtool_ops = {
 	.get_drvinfo		= mlxsw_sp_port_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
+	.get_pauseparam		= mlxsw_sp_port_get_pauseparam,
+	.set_pauseparam		= mlxsw_sp_port_set_pauseparam,
 	.get_strings		= mlxsw_sp_port_get_strings,
 	.set_phys_id		= mlxsw_sp_port_set_phys_id,
 	.get_ethtool_stats	= mlxsw_sp_port_get_stats,
@@ -1439,6 +1578,108 @@ mlxsw_sp_port_speed_by_width_set(struct mlxsw_sp_port *mlxsw_sp_port, u8 width)
 	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sp_port->local_port,
 			    eth_proto_admin);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
+}
+
+int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
+			  enum mlxsw_reg_qeec_hr hr, u8 index, u8 next_index,
+			  bool dwrr, u8 dwrr_weight)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char qeec_pl[MLXSW_REG_QEEC_LEN];
+
+	mlxsw_reg_qeec_pack(qeec_pl, mlxsw_sp_port->local_port, hr, index,
+			    next_index);
+	mlxsw_reg_qeec_de_set(qeec_pl, true);
+	mlxsw_reg_qeec_dwrr_set(qeec_pl, dwrr);
+	mlxsw_reg_qeec_dwrr_weight_set(qeec_pl, dwrr_weight);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qeec), qeec_pl);
+}
+
+int mlxsw_sp_port_ets_maxrate_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				  enum mlxsw_reg_qeec_hr hr, u8 index,
+				  u8 next_index, u32 maxrate)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char qeec_pl[MLXSW_REG_QEEC_LEN];
+
+	mlxsw_reg_qeec_pack(qeec_pl, mlxsw_sp_port->local_port, hr, index,
+			    next_index);
+	mlxsw_reg_qeec_mase_set(qeec_pl, true);
+	mlxsw_reg_qeec_max_shaper_rate_set(qeec_pl, maxrate);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qeec), qeec_pl);
+}
+
+int mlxsw_sp_port_prio_tc_set(struct mlxsw_sp_port *mlxsw_sp_port,
+			      u8 switch_prio, u8 tclass)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char qtct_pl[MLXSW_REG_QTCT_LEN];
+
+	mlxsw_reg_qtct_pack(qtct_pl, mlxsw_sp_port->local_port, switch_prio,
+			    tclass);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qtct), qtct_pl);
+}
+
+static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	int err, i;
+
+	/* Setup the elements hierarcy, so that each TC is linked to
+	 * one subgroup, which are all member in the same group.
+	 */
+	err = mlxsw_sp_port_ets_set(mlxsw_sp_port,
+				    MLXSW_REG_QEEC_HIERARCY_GROUP, 0, 0, false,
+				    0);
+	if (err)
+		return err;
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		err = mlxsw_sp_port_ets_set(mlxsw_sp_port,
+					    MLXSW_REG_QEEC_HIERARCY_SUBGROUP, i,
+					    0, false, 0);
+		if (err)
+			return err;
+	}
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		err = mlxsw_sp_port_ets_set(mlxsw_sp_port,
+					    MLXSW_REG_QEEC_HIERARCY_TC, i, i,
+					    false, 0);
+		if (err)
+			return err;
+	}
+
+	/* Make sure the max shaper is disabled in all hierarcies that
+	 * support it.
+	 */
+	err = mlxsw_sp_port_ets_maxrate_set(mlxsw_sp_port,
+					    MLXSW_REG_QEEC_HIERARCY_PORT, 0, 0,
+					    MLXSW_REG_QEEC_MAS_DIS);
+	if (err)
+		return err;
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		err = mlxsw_sp_port_ets_maxrate_set(mlxsw_sp_port,
+						    MLXSW_REG_QEEC_HIERARCY_SUBGROUP,
+						    i, 0,
+						    MLXSW_REG_QEEC_MAS_DIS);
+		if (err)
+			return err;
+	}
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		err = mlxsw_sp_port_ets_maxrate_set(mlxsw_sp_port,
+						    MLXSW_REG_QEEC_HIERARCY_TC,
+						    i, i,
+						    MLXSW_REG_QEEC_MAS_DIS);
+		if (err)
+			return err;
+	}
+
+	/* Map all priorities to traffic class 0. */
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		err = mlxsw_sp_port_prio_tc_set(mlxsw_sp_port, i, 0);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
@@ -1548,6 +1789,21 @@ static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_buffers_init;
 	}
 
+	err = mlxsw_sp_port_ets_init(mlxsw_sp_port);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to initialize ETS\n",
+			mlxsw_sp_port->local_port);
+		goto err_port_ets_init;
+	}
+
+	/* ETS and buffers must be initialized before DCB. */
+	err = mlxsw_sp_port_dcb_init(mlxsw_sp_port);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to initialize DCB\n",
+			mlxsw_sp_port->local_port);
+		goto err_port_dcb_init;
+	}
+
 	mlxsw_sp_port_switchdev_init(mlxsw_sp_port);
 	err = register_netdev(dev);
 	if (err) {
@@ -1568,6 +1824,8 @@ static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 err_port_vlan_init:
 	unregister_netdev(dev);
 err_register_netdev:
+err_port_dcb_init:
+err_port_ets_init:
 err_port_buffers_init:
 err_port_admin_status_set:
 err_port_mtu_set:
@@ -1637,6 +1895,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	devlink_port = &mlxsw_sp_port->devlink_port;
 	devlink_port_type_clear(devlink_port);
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
+	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 	devlink_port_unregister(devlink_port);
 	mlxsw_sp_port_vports_fini(mlxsw_sp_port);
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
