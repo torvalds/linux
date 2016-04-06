@@ -507,8 +507,10 @@ static void lkdtm_do_action(enum ctype which)
 			break;
 
 		val = kmalloc(1024, GFP_KERNEL);
-		if (!val)
+		if (!val) {
+			free_page(p);
 			break;
+		}
 
 		base = (int *)p;
 
