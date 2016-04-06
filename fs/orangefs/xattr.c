@@ -142,8 +142,8 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *prefix,
 		goto out_release_op;
 	}
 
-	memset(buffer, 0, size);
 	memcpy(buffer, new_op->downcall.resp.getxattr.val, length);
+	memset(buffer + length, 0, size - length);
 	gossip_debug(GOSSIP_XATTR_DEBUG,
 	     "orangefs_inode_getxattr: inode %pU "
 	     "key %s key_sz %d, val_len %d\n",

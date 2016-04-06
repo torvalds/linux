@@ -74,8 +74,8 @@ static inline void ORANGEFS_khandle_to(const struct orangefs_khandle *kh,
 				   void *p, int size)
 {
 
-	memset(p, 0, size);
 	memcpy(p, kh->u, 16);
+	memset(p + 16, 0, size - 16);
 
 }
 
