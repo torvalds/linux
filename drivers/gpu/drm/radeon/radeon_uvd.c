@@ -135,6 +135,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	}
 
 	rdev->uvd.fw_header_present = false;
+	rdev->uvd.max_handles = RADEON_DEFAULT_UVD_HANDLES;
 	if (fw_name) {
 		/* Let's try to load the newer firmware first */
 		r = request_firmware(&rdev->uvd_fw, fw_name, rdev->dev);
@@ -142,11 +143,27 @@ int radeon_uvd_init(struct radeon_device *rdev)
 			dev_err(rdev->dev, "radeon_uvd: Can't load firmware \"%s\"\n",
 				fw_name);
 		} else {
+			struct common_firmware_header *hdr = (void *)rdev->uvd_fw->data;
+			unsigned version_major, version_minor, family_id;
+
 			r = radeon_ucode_validate(rdev->uvd_fw);
 			if (r)
 				return r;
 
 			rdev->uvd.fw_header_present = true;
+
+			family_id = le32_to_cpu(hdr->ucode_version) & 0xff;
+			version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
+			version_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
+			DRM_INFO("Found UVD firmware Version: %hu.%hu Family ID: %hu\n",
+				 version_major, version_minor, family_id);
+
+			/*
+			 * Limit the number of UVD handles depending on
+			 * microcode major and minor versions.
+			 */
+			if ((version_major >= 0x01) && (version_minor >= 0x37))
+				rdev->uvd.max_handles = RADEON_MAX_UVD_HANDLES;
 		}
 	}
 
@@ -166,7 +183,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 
 	bo_size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 8) +
 		  RADEON_UVD_STACK_SIZE + RADEON_UVD_HEAP_SIZE +
-		  RADEON_GPU_PAGE_SIZE;
+		  RADEON_UVD_SESSION_SIZE * rdev->uvd.max_handles;
 	r = radeon_bo_create(rdev, bo_size, PAGE_SIZE, true,
 			     RADEON_GEM_DOMAIN_VRAM, 0, NULL,
 			     NULL, &rdev->uvd.vcpu_bo);
@@ -199,7 +216,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 
 	radeon_bo_unreserve(rdev->uvd.vcpu_bo);
 
-	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
+	for (i = 0; i < rdev->uvd.max_handles; ++i) {
 		atomic_set(&rdev->uvd.handles[i], 0);
 		rdev->uvd.filp[i] = NULL;
 		rdev->uvd.img_size[i] = 0;
@@ -236,7 +253,7 @@ int radeon_uvd_suspend(struct radeon_device *rdev)
 	if (rdev->uvd.vcpu_bo == NULL)
 		return 0;
 
-	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
+	for (i = 0; i < rdev->uvd.max_handles; ++i) {
 		uint32_t handle = atomic_read(&rdev->uvd.handles[i]);
 		if (handle != 0) {
 			struct radeon_fence *fence;
@@ -311,7 +328,7 @@ void radeon_uvd_force_into_uvd_segment(struct radeon_bo *rbo,
 void radeon_uvd_free_handles(struct radeon_device *rdev, struct drm_file *filp)
 {
 	int i, r;
-	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
+	for (i = 0; i < rdev->uvd.max_handles; ++i) {
 		uint32_t handle = atomic_read(&rdev->uvd.handles[i]);
 		if (handle != 0 && rdev->uvd.filp[i] == filp) {
 			struct radeon_fence *fence;
@@ -496,7 +513,7 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 			return r;
 
 		/* try to alloc a new handle */
-		for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
+		for (i = 0; i < p->rdev->uvd.max_handles; ++i) {
 			if (atomic_read(&p->rdev->uvd.handles[i]) == handle) {
 				DRM_ERROR("Handle 0x%x already in use!\n", handle);
 				return -EINVAL;
@@ -522,7 +539,7 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 			return r;
 
 		/* validate the handle */
-		for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
+		for (i = 0; i < p->rdev->uvd.max_handles; ++i) {
 			if (atomic_read(&p->rdev->uvd.handles[i]) == handle) {
 				if (p->rdev->uvd.filp[i] != p->filp) {
 					DRM_ERROR("UVD handle collision detected!\n");
@@ -537,7 +554,7 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 
 	case 2:
 		/* it's a destroy msg, free the handle */
-		for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i)
+		for (i = 0; i < p->rdev->uvd.max_handles; ++i)
 			atomic_cmpxchg(&p->rdev->uvd.handles[i], handle, 0);
 		radeon_bo_kunmap(bo);
 		return 0;
@@ -836,7 +853,7 @@ static void radeon_uvd_count_handles(struct radeon_device *rdev,
 	*sd = 0;
 	*hd = 0;
 
-	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
+	for (i = 0; i < rdev->uvd.max_handles; ++i) {
 		if (!atomic_read(&rdev->uvd.handles[i]))
 			continue;
 

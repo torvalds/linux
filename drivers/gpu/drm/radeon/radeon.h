@@ -1674,15 +1674,18 @@ int radeon_pm_get_type_index(struct radeon_device *rdev,
 /*
  * UVD
  */
-#define RADEON_MAX_UVD_HANDLES	10
-#define RADEON_UVD_STACK_SIZE	(1024*1024)
-#define RADEON_UVD_HEAP_SIZE	(1024*1024)
+#define RADEON_DEFAULT_UVD_HANDLES	10
+#define RADEON_MAX_UVD_HANDLES		30
+#define RADEON_UVD_STACK_SIZE		(200*1024)
+#define RADEON_UVD_HEAP_SIZE		(256*1024)
+#define RADEON_UVD_SESSION_SIZE		(50*1024)
 
 struct radeon_uvd {
 	bool			fw_header_present;
 	struct radeon_bo	*vcpu_bo;
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
+	unsigned		max_handles;
 	atomic_t		handles[RADEON_MAX_UVD_HANDLES];
 	struct drm_file		*filp[RADEON_MAX_UVD_HANDLES];
 	unsigned		img_size[RADEON_MAX_UVD_HANDLES];
