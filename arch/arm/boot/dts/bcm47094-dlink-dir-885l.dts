@@ -17,7 +17,7 @@
 	model = "D-Link DIR-885L";
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
+		bootargs = "console=ttyS0,115200 earlycon";
 	};
 
 	memory {
