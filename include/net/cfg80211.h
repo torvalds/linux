@@ -1750,7 +1750,12 @@ enum cfg80211_assoc_req_flags {
  * @ie_len: Length of ie buffer in octets
  * @use_mfp: Use management frame protection (IEEE 802.11w) in this association
  * @crypto: crypto settings
- * @prev_bssid: previous BSSID, if not %NULL use reassociate frame
+ * @prev_bssid: previous BSSID, if not %NULL use reassociate frame. This is used
+ *	to indicate a request to reassociate within the ESS instead of a request
+ *	do the initial association with the ESS. When included, this is set to
+ *	the BSSID of the current association, i.e., to the value that is
+ *	included in the Current AP address field of the Reassociation Request
+ *	frame.
  * @flags:  See &enum cfg80211_assoc_req_flags
  * @ht_capa:  HT Capabilities over-rides.  Values set in ht_capa_mask
  *	will be used in ht_capa.  Un-supported values will be ignored.
@@ -1925,7 +1930,12 @@ struct cfg80211_bss_selection {
  * @pbss: if set, connect to a PCP instead of AP. Valid for DMG
  *	networks.
  * @bss_select: criteria to be used for BSS selection.
- * @prev_bssid: previous BSSID, if not %NULL use reassociate frame
+ * @prev_bssid: previous BSSID, if not %NULL use reassociate frame. This is used
+ *	to indicate a request to reassociate within the ESS instead of a request
+ *	do the initial association with the ESS. When included, this is set to
+ *	the BSSID of the current association, i.e., to the value that is
+ *	included in the Current AP address field of the Reassociation Request
+ *	frame.
  */
 struct cfg80211_connect_params {
 	struct ieee80211_channel *channel;
@@ -2377,7 +2387,17 @@ struct cfg80211_qos_map {
  * @connect: Connect to the ESS with the specified parameters. When connected,
  *	call cfg80211_connect_result() with status code %WLAN_STATUS_SUCCESS.
  *	If the connection fails for some reason, call cfg80211_connect_result()
- *	with the status from the AP.
+ *	with the status from the AP. The driver is allowed to roam to other
+ *	BSSes within the ESS when the other BSS matches the connect parameters.
+ *	When such roaming is initiated by the driver, the driver is expected to
+ *	verify that the target matches the configured security parameters and
+ *	to use Reassociation Request frame instead of Association Request frame.
+ *	The connect function can also be used to request the driver to perform
+ *	a specific roam when connected to an ESS. In that case, the prev_bssid
+ *	parameter is set to the BSSID of the currently associated BSS as an
+ *	indication of requesting reassociation. In both the driver-initiated and
+ *	new connect() call initiated roaming cases, the result of roaming is
+ *	indicated with a call to cfg80211_roamed() or cfg80211_roamed_bss().
  *	(invoked with the wireless_dev mutex held)
  * @disconnect: Disconnect from the BSS/ESS.
  *	(invoked with the wireless_dev mutex held)
