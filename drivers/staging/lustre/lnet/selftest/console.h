@@ -67,7 +67,8 @@ struct lstcon_ndlink {
 	struct lstcon_node	*ndl_node;	/* pointer to node */
 };
 
-typedef struct {
+/* (alias of nodes) group descriptor */
+struct lstcon_group {
 	struct list_head grp_link;		  /* chain on global group list
 						   */
 	int		 grp_ref;		  /* reference count */
@@ -78,7 +79,7 @@ typedef struct {
 	struct list_head grp_trans_list;	  /* transaction list */
 	struct list_head grp_ndl_list;		  /* nodes list */
 	struct list_head grp_ndl_hash[0];	  /* hash table for nodes */
-} lstcon_group_t; /* (alias of nodes) group descriptor */
+};
 
 #define LST_BATCH_IDLE	  0xB0	    /* idle batch */
 #define LST_BATCH_RUNNING 0xB1	    /* running batch */
@@ -122,8 +123,8 @@ typedef struct lstcon_test {
 	int		 tes_cliidx;	 /* client index, used for RPC creating */
 
 	struct list_head tes_trans_list; /* transaction list */
-	lstcon_group_t	 *tes_src_grp;	 /* group run the test */
-	lstcon_group_t	 *tes_dst_grp;	 /* target group */
+	struct lstcon_group	*tes_src_grp;	/* group run the test */
+	struct lstcon_group	*tes_dst_grp;	/* target group */
 
 	int		 tes_paramlen;	 /* test parameter length */
 	char		 tes_param[0];	 /* test parameter */

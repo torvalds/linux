@@ -715,7 +715,7 @@ lstcon_next_id(int idx, int nkiov, lnet_kiov_t *kiov)
 }
 
 static int
-lstcon_dstnodes_prep(lstcon_group_t *grp, int idx,
+lstcon_dstnodes_prep(struct lstcon_group *grp, int idx,
 		     int dist, int span, int nkiov, lnet_kiov_t *kiov)
 {
 	lnet_process_id_packed_t *pid;
@@ -809,8 +809,8 @@ int
 lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
 		    lstcon_test_t *test, struct lstcon_rpc **crpc)
 {
-	lstcon_group_t *sgrp = test->tes_src_grp;
-	lstcon_group_t *dgrp = test->tes_dst_grp;
+	struct lstcon_group *sgrp = test->tes_src_grp;
+	struct lstcon_group *dgrp = test->tes_dst_grp;
 	srpc_test_reqst_t *trq;
 	struct srpc_bulk *bulk;
 	int i;
