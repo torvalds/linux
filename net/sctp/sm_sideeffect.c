@@ -69,8 +69,6 @@ static int sctp_side_effects(sctp_event_t event_type, sctp_subtype_t subtype,
 			     sctp_cmd_seq_t *commands,
 			     gfp_t gfp);
 
-static void sctp_cmd_hb_timer_update(sctp_cmd_seq_t *cmds,
-				     struct sctp_transport *t);
 /********************************************************************
  * Helper functions
  ********************************************************************/
@@ -367,6 +365,7 @@ void sctp_generate_heartbeat_event(unsigned long data)
 	struct sctp_association *asoc = transport->asoc;
 	struct sock *sk = asoc->base.sk;
 	struct net *net = sock_net(sk);
+	u32 elapsed, timeout;
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
@@ -374,6 +373,16 @@ void sctp_generate_heartbeat_event(unsigned long data)
 
 		/* Try again later.  */
 		if (!mod_timer(&transport->hb_timer, jiffies + (HZ/20)))
+			sctp_transport_hold(transport);
+		goto out_unlock;
+	}
+
+	/* Check if we should still send the heartbeat or reschedule */
+	elapsed = jiffies - transport->last_time_sent;
+	timeout = sctp_transport_timeout(transport);
+	if (elapsed < timeout) {
+		elapsed = timeout - elapsed;
+		if (!mod_timer(&transport->hb_timer, jiffies + elapsed))
 			sctp_transport_hold(transport);
 		goto out_unlock;
 	}
@@ -507,7 +516,7 @@ static void sctp_do_8_2_transport_strike(sctp_cmd_seq_t *commands,
 					     0);
 
 		/* Update the hb timer to resend a heartbeat every rto */
-		sctp_cmd_hb_timer_update(commands, transport);
+		sctp_transport_reset_hb_timer(transport);
 	}
 
 	if (transport->state != SCTP_INACTIVE &&
@@ -634,11 +643,8 @@ static void sctp_cmd_hb_timers_start(sctp_cmd_seq_t *cmds,
 	 * hold a reference on the transport to make sure none of
 	 * the needed data structures go away.
 	 */
-	list_for_each_entry(t, &asoc->peer.transport_addr_list, transports) {
-
-		if (!mod_timer(&t->hb_timer, sctp_transport_timeout(t)))
-			sctp_transport_hold(t);
-	}
+	list_for_each_entry(t, &asoc->peer.transport_addr_list, transports)
+		sctp_transport_reset_hb_timer(t);
 }
 
 static void sctp_cmd_hb_timers_stop(sctp_cmd_seq_t *cmds,
@@ -668,15 +674,6 @@ static void sctp_cmd_t3_rtx_timers_stop(sctp_cmd_seq_t *cmds,
 	}
 }
 
-
-/* Helper function to update the heartbeat timer. */
-static void sctp_cmd_hb_timer_update(sctp_cmd_seq_t *cmds,
-				     struct sctp_transport *t)
-{
-	/* Update the heartbeat timer.  */
-	if (!mod_timer(&t->hb_timer, sctp_transport_timeout(t)))
-		sctp_transport_hold(t);
-}
 
 /* Helper function to handle the reception of an HEARTBEAT ACK.  */
 static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
@@ -742,8 +739,7 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 	sctp_transport_update_rto(t, (jiffies - hbinfo->sent_at));
 
 	/* Update the heartbeat timer.  */
-	if (!mod_timer(&t->hb_timer, sctp_transport_timeout(t)))
-		sctp_transport_hold(t);
+	sctp_transport_reset_hb_timer(t);
 
 	if (was_unconfirmed && asoc->peer.transport_count == 1)
 		sctp_transport_immediate_rtx(t);
@@ -1614,7 +1610,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 
 		case SCTP_CMD_HB_TIMER_UPDATE:
 			t = cmd->obj.transport;
-			sctp_cmd_hb_timer_update(commands, t);
+			sctp_transport_reset_hb_timer(t);
 			break;
 
 		case SCTP_CMD_HB_TIMERS_STOP:
