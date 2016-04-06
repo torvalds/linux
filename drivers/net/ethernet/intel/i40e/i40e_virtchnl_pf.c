@@ -937,6 +937,10 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 		wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_id), reg);
 		i40e_flush(hw);
 	}
+	/* clear the VFLR bit in GLGEN_VFLRSTAT */
+	reg_idx = (hw->func_caps.vf_base_id + vf->vf_id) / 32;
+	bit_idx = (hw->func_caps.vf_base_id + vf->vf_id) % 32;
+	wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
 
 	if (i40e_quiesce_vf_pci(vf))
 		dev_err(&pf->pdev->dev, "VF %d PCI transactions stuck\n",
@@ -989,10 +993,6 @@ complete_reset:
 	/* tell the VF the reset is done */
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_id), I40E_VFR_VFACTIVE);
 
-	/* clear the VFLR bit in GLGEN_VFLRSTAT */
-	reg_idx = (hw->func_caps.vf_base_id + vf->vf_id) / 32;
-	bit_idx = (hw->func_caps.vf_base_id + vf->vf_id) % 32;
-	wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
 	i40e_flush(hw);
 	clear_bit(__I40E_VF_DISABLE, &pf->state);
 }
@@ -1232,8 +1232,8 @@ static int i40e_vc_send_msg_to_vf(struct i40e_vf *vf, u32 v_opcode,
 	/* single place to detect unsuccessful return values */
 	if (v_retval) {
 		vf->num_invalid_msgs++;
-		dev_err(&pf->pdev->dev, "VF %d failed opcode %d, error: %d\n",
-			vf->vf_id, v_opcode, v_retval);
+		dev_info(&pf->pdev->dev, "VF %d failed opcode %d, retval: %d\n",
+			 vf->vf_id, v_opcode, v_retval);
 		if (vf->num_invalid_msgs >
 		    I40E_DEFAULT_NUM_INVALID_MSGS_ALLOWED) {
 			dev_err(&pf->pdev->dev,
@@ -1251,9 +1251,9 @@ static int i40e_vc_send_msg_to_vf(struct i40e_vf *vf, u32 v_opcode,
 	aq_ret = i40e_aq_send_msg_to_vf(hw, abs_vf_id,	v_opcode, v_retval,
 					msg, msglen, NULL);
 	if (aq_ret) {
-		dev_err(&pf->pdev->dev,
-			"Unable to send the message to VF %d aq_err %d\n",
-			vf->vf_id, pf->hw.aq.asq_last_status);
+		dev_info(&pf->pdev->dev,
+			 "Unable to send the message to VF %d aq_err %d\n",
+			 vf->vf_id, pf->hw.aq.asq_last_status);
 		return -EIO;
 	}
 
@@ -1311,8 +1311,8 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 	struct i40e_pf *pf = vf->pf;
 	i40e_status aq_ret = 0;
 	struct i40e_vsi *vsi;
-	int i = 0, len = 0;
 	int num_vsis = 1;
+	int len = 0;
 	int ret;
 
 	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states)) {
@@ -1374,15 +1374,14 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 	vfres->num_queue_pairs = vf->num_queue_pairs;
 	vfres->max_vectors = pf->hw.func_caps.num_msix_vectors_vf;
 	if (vf->lan_vsi_idx) {
-		vfres->vsi_res[i].vsi_id = vf->lan_vsi_id;
-		vfres->vsi_res[i].vsi_type = I40E_VSI_SRIOV;
-		vfres->vsi_res[i].num_queue_pairs = vsi->alloc_queue_pairs;
+		vfres->vsi_res[0].vsi_id = vf->lan_vsi_id;
+		vfres->vsi_res[0].vsi_type = I40E_VSI_SRIOV;
+		vfres->vsi_res[0].num_queue_pairs = vsi->alloc_queue_pairs;
 		/* VFs only use TC 0 */
-		vfres->vsi_res[i].qset_handle
+		vfres->vsi_res[0].qset_handle
 					  = le16_to_cpu(vsi->info.qs_handle[0]);
-		ether_addr_copy(vfres->vsi_res[i].default_mac_addr,
+		ether_addr_copy(vfres->vsi_res[0].default_mac_addr,
 				vf->default_lan_addr.addr);
-		i++;
 	}
 	set_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
 
@@ -2297,11 +2296,9 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 		/* read GLGEN_VFLRSTAT register to find out the flr VFs */
 		vf = &pf->vf[vf_id];
 		reg = rd32(hw, I40E_GLGEN_VFLRSTAT(reg_idx));
-		if (reg & BIT(bit_idx)) {
+		if (reg & BIT(bit_idx))
 			/* i40e_reset_vf will clear the bit in GLGEN_VFLRSTAT */
-			if (!test_bit(__I40E_DOWN, &pf->state))
-				i40e_reset_vf(vf, true);
-		}
+			i40e_reset_vf(vf, true);
 	}
 
 	return 0;

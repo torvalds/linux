@@ -313,6 +313,13 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 			ecmd->advertising |= ADVERTISED_10000baseT_Full;
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
 			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		/* adding 100baseT support for 10GBASET_PHY */
+		if (pf->flags & I40E_FLAG_HAVE_10GBASET_PHY) {
+			ecmd->supported |= SUPPORTED_100baseT_Full;
+			ecmd->advertising |= ADVERTISED_100baseT_Full |
+					     ADVERTISED_1000baseT_Full |
+					     ADVERTISED_10000baseT_Full;
+		}
 		break;
 	case I40E_PHY_TYPE_1000BASE_T_OPTICAL:
 		ecmd->supported = SUPPORTED_Autoneg |
@@ -325,6 +332,15 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 				  SUPPORTED_100baseT_Full;
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_100MB)
 			ecmd->advertising |= ADVERTISED_100baseT_Full;
+		/* firmware detects 10G phy as 100M phy at 100M speed */
+		if (pf->flags & I40E_FLAG_HAVE_10GBASET_PHY) {
+			ecmd->supported |= SUPPORTED_10000baseT_Full |
+					   SUPPORTED_1000baseT_Full;
+			ecmd->advertising |= ADVERTISED_Autoneg |
+					     ADVERTISED_100baseT_Full |
+					     ADVERTISED_1000baseT_Full |
+					     ADVERTISED_10000baseT_Full;
+		}
 		break;
 	case I40E_PHY_TYPE_10GBASE_CR1_CU:
 	case I40E_PHY_TYPE_10GBASE_CR1:
