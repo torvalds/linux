@@ -325,7 +325,7 @@ struct dsa_switch_driver {
 	int	(*port_fdb_prepare)(struct dsa_switch *ds, int port,
 				    const struct switchdev_obj_port_fdb *fdb,
 				    struct switchdev_trans *trans);
-	int	(*port_fdb_add)(struct dsa_switch *ds, int port,
+	void	(*port_fdb_add)(struct dsa_switch *ds, int port,
 				const struct switchdev_obj_port_fdb *fdb,
 				struct switchdev_trans *trans);
 	int	(*port_fdb_del)(struct dsa_switch *ds, int port,

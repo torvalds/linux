@@ -724,13 +724,14 @@ static int bcm_sf2_sw_fdb_prepare(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int bcm_sf2_sw_fdb_add(struct dsa_switch *ds, int port,
-			      const struct switchdev_obj_port_fdb *fdb,
-			      struct switchdev_trans *trans)
+static void bcm_sf2_sw_fdb_add(struct dsa_switch *ds, int port,
+			       const struct switchdev_obj_port_fdb *fdb,
+			       struct switchdev_trans *trans)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
 
-	return bcm_sf2_arl_op(priv, 0, port, fdb->addr, fdb->vid, true);
+	if (bcm_sf2_arl_op(priv, 0, port, fdb->addr, fdb->vid, true))
+		pr_err("%s: failed to add MAC address\n", __func__);
 }
 
 static int bcm_sf2_sw_fdb_del(struct dsa_switch *ds, int port,

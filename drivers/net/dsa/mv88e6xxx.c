@@ -2090,21 +2090,19 @@ int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
-			   const struct switchdev_obj_port_fdb *fdb,
-			   struct switchdev_trans *trans)
+void mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
+			    const struct switchdev_obj_port_fdb *fdb,
+			    struct switchdev_trans *trans)
 {
 	int state = is_multicast_ether_addr(fdb->addr) ?
 		GLOBAL_ATU_DATA_STATE_MC_STATIC :
 		GLOBAL_ATU_DATA_STATE_UC_STATIC;
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int ret;
 
 	mutex_lock(&ps->smi_mutex);
-	ret = _mv88e6xxx_port_fdb_load(ds, port, fdb->addr, fdb->vid, state);
+	if (_mv88e6xxx_port_fdb_load(ds, port, fdb->addr, fdb->vid, state))
+		netdev_err(ds->ports[port], "failed to load MAC address\n");
 	mutex_unlock(&ps->smi_mutex);
-
-	return ret;
 }
 
 int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
