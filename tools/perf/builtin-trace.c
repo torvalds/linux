@@ -112,6 +112,58 @@
 # define PERF_FLAG_FD_CLOEXEC		(1UL << 3) /* O_CLOEXEC */
 #endif
 
+struct trace {
+	struct perf_tool	tool;
+	struct {
+		int		machine;
+		int		open_id;
+	}			audit;
+	struct {
+		int		max;
+		struct syscall  *table;
+		struct {
+			struct perf_evsel *sys_enter,
+					  *sys_exit;
+		}		events;
+	} syscalls;
+	struct record_opts	opts;
+	struct perf_evlist	*evlist;
+	struct machine		*host;
+	struct thread		*current;
+	u64			base_time;
+	FILE			*output;
+	unsigned long		nr_events;
+	struct strlist		*ev_qualifier;
+	struct {
+		size_t		nr;
+		int		*entries;
+	}			ev_qualifier_ids;
+	struct intlist		*tid_list;
+	struct intlist		*pid_list;
+	struct {
+		size_t		nr;
+		pid_t		*entries;
+	}			filter_pids;
+	double			duration_filter;
+	double			runtime_ms;
+	struct {
+		u64		vfs_getname,
+				proc_getname;
+	} stats;
+	bool			not_ev_qualifier;
+	bool			live;
+	bool			full_time;
+	bool			sched;
+	bool			multiple_threads;
+	bool			summary;
+	bool			summary_only;
+	bool			show_comm;
+	bool			show_tool_stats;
+	bool			trace_syscalls;
+	bool			force;
+	bool			vfs_getname;
+	int			trace_pgfaults;
+};
 
 struct tp_field {
 	int offset;
@@ -1073,6 +1125,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 	  .arg_scnprintf = { [arg] = SCA_STRARRAY, }, \
 	  .arg_parm	 = { [arg] = &strarray__##array, }
 
+#include "trace/beauty/pid.c"
 #include "trace/beauty/sched_policy.c"
 #include "trace/beauty/waitid_options.c"
 
@@ -1167,6 +1220,7 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "getitimer",  .errmsg = true, STRARRAY(0, which, itimers), },
 	{ .name	    = "getpid",	    .errpid = true, },
+	{ .name	    = "getpgid",    .errpid = true, },
 	{ .name	    = "getppid",    .errpid = true, },
 	{ .name	    = "getrandom",  .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_GETRANDOM_FLAGS, /* flags */ }, },
@@ -1328,6 +1382,7 @@ static struct syscall_fmt {
 			     [3] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "set_tid_address", .errpid = true, },
 	{ .name	    = "setitimer",  .errmsg = true, STRARRAY(0, which, itimers), },
+	{ .name	    = "setpgid",    .errmsg = true, },
 	{ .name	    = "setrlimit",  .errmsg = true, STRARRAY(0, resource, rlimit_resources), },
 	{ .name	    = "setxattr",   .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
@@ -1484,59 +1539,6 @@ fail:
 #define TRACE_PFMIN		(1 << 1)
 
 static const size_t trace__entry_str_size = 2048;
-
-struct trace {
-	struct perf_tool	tool;
-	struct {
-		int		machine;
-		int		open_id;
-	}			audit;
-	struct {
-		int		max;
-		struct syscall  *table;
-		struct {
-			struct perf_evsel *sys_enter,
-					  *sys_exit;
-		}		events;
-	} syscalls;
-	struct record_opts	opts;
-	struct perf_evlist	*evlist;
-	struct machine		*host;
-	struct thread		*current;
-	u64			base_time;
-	FILE			*output;
-	unsigned long		nr_events;
-	struct strlist		*ev_qualifier;
-	struct {
-		size_t		nr;
-		int		*entries;
-	}			ev_qualifier_ids;
-	struct intlist		*tid_list;
-	struct intlist		*pid_list;
-	struct {
-		size_t		nr;
-		pid_t		*entries;
-	}			filter_pids;
-	double			duration_filter;
-	double			runtime_ms;
-	struct {
-		u64		vfs_getname,
-				proc_getname;
-	} stats;
-	bool			not_ev_qualifier;
-	bool			live;
-	bool			full_time;
-	bool			sched;
-	bool			multiple_threads;
-	bool			summary;
-	bool			summary_only;
-	bool			show_comm;
-	bool			show_tool_stats;
-	bool			trace_syscalls;
-	bool			force;
-	bool			vfs_getname;
-	int			trace_pgfaults;
-};
 
 static int trace__set_fd_pathname(struct thread *thread, int fd, const char *pathname)
 {
@@ -1763,6 +1765,8 @@ static int syscall__set_arg_fmts(struct syscall *sc)
 			sc->arg_scnprintf[idx] = sc->fmt->arg_scnprintf[idx];
 		else if (field->flags & FIELD_IS_POINTER)
 			sc->arg_scnprintf[idx] = syscall_arg__scnprintf_hex;
+		else if (strcmp(field->type, "pid_t") == 0)
+			sc->arg_scnprintf[idx] = SCA_PID;
 		++idx;
 	}
 
