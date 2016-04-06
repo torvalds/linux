@@ -358,6 +358,54 @@ void iio_channel_release(struct iio_channel *channel)
 }
 EXPORT_SYMBOL_GPL(iio_channel_release);
 
+static void devm_iio_channel_free(struct device *dev, void *res)
+{
+	struct iio_channel *channel = *(struct iio_channel **)res;
+
+	iio_channel_release(channel);
+}
+
+static int devm_iio_channel_match(struct device *dev, void *res, void *data)
+{
+	struct iio_channel **r = res;
+
+	if (!r || !*r) {
+		WARN_ON(!r || !*r);
+		return 0;
+	}
+
+	return *r == data;
+}
+
+struct iio_channel *devm_iio_channel_get(struct device *dev,
+					 const char *channel_name)
+{
+	struct iio_channel **ptr, *channel;
+
+	ptr = devres_alloc(devm_iio_channel_free, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	channel = iio_channel_get(dev, channel_name);
+	if (IS_ERR(channel)) {
+		devres_free(ptr);
+		return channel;
+	}
+
+	*ptr = channel;
+	devres_add(dev, ptr);
+
+	return channel;
+}
+EXPORT_SYMBOL_GPL(devm_iio_channel_get);
+
+void devm_iio_channel_release(struct device *dev, struct iio_channel *channel)
+{
+	WARN_ON(devres_release(dev, devm_iio_channel_free,
+			       devm_iio_channel_match, channel));
+}
+EXPORT_SYMBOL_GPL(devm_iio_channel_release);
+
 struct iio_channel *iio_channel_get_all(struct device *dev)
 {
 	const char *name;
