@@ -714,7 +714,7 @@ static void kvm_apic_disabled_lapic_found(struct kvm *kvm)
  */
 static inline bool kvm_apic_map_get_dest_lapic(struct kvm *kvm, struct kvm_lapic *src,
 		struct kvm_lapic_irq *irq, struct kvm_apic_map *map,
-		struct kvm_lapic ***dst, unsigned long *bitmap)
+		struct kvm_lapic ***dst, u16 *bitmap)
 {
 	int i, lowest;
 	bool x2apic_ipi;
@@ -743,9 +743,7 @@ static inline bool kvm_apic_map_get_dest_lapic(struct kvm *kvm, struct kvm_lapic
 		return true;
 	}
 
-	*bitmap = 0;
-	if (!kvm_apic_map_get_logical_dest(map, irq->dest_id, dst,
-				(u16 *)bitmap))
+	if (!kvm_apic_map_get_logical_dest(map, irq->dest_id, dst, bitmap))
 		return false;
 
 	if (!kvm_lowest_prio_delivery(irq))
@@ -753,7 +751,7 @@ static inline bool kvm_apic_map_get_dest_lapic(struct kvm *kvm, struct kvm_lapic
 
 	if (!kvm_vector_hashing_enabled()) {
 		lowest = -1;
-		for_each_set_bit(i, bitmap, 16) {
+		for_each_set_bit(i, (unsigned long *)bitmap, 16) {
 			if (!(*dst)[i])
 				continue;
 			if (lowest < 0)
@@ -767,7 +765,7 @@ static inline bool kvm_apic_map_get_dest_lapic(struct kvm *kvm, struct kvm_lapic
 			return true;
 
 		lowest = kvm_vector_to_index(irq->vector, hweight16(*bitmap),
-				bitmap, 16);
+				(unsigned long *)bitmap, 16);
 
 		if (!(*dst)[lowest]) {
 			kvm_apic_disabled_lapic_found(kvm);
@@ -785,7 +783,7 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 		struct kvm_lapic_irq *irq, int *r, struct dest_map *dest_map)
 {
 	struct kvm_apic_map *map;
-	unsigned long bitmap;
+	u16 bitmap;
 	struct kvm_lapic **dst = NULL;
 	int i;
 	bool ret;
@@ -802,7 +800,7 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 
 	ret = kvm_apic_map_get_dest_lapic(kvm, src, irq, map, &dst, &bitmap);
 	if (ret)
-		for_each_set_bit(i, &bitmap, 16) {
+		for_each_set_bit(i, (unsigned long *)&bitmap, 16) {
 			if (!dst[i])
 				continue;
 			if (*r < 0)
@@ -832,7 +830,7 @@ bool kvm_intr_is_single_vcpu_fast(struct kvm *kvm, struct kvm_lapic_irq *irq,
 			struct kvm_vcpu **dest_vcpu)
 {
 	struct kvm_apic_map *map;
-	unsigned long bitmap;
+	u16 bitmap;
 	struct kvm_lapic **dst = NULL;
 	bool ret = false;
 
@@ -844,7 +842,7 @@ bool kvm_intr_is_single_vcpu_fast(struct kvm *kvm, struct kvm_lapic_irq *irq,
 
 	if (kvm_apic_map_get_dest_lapic(kvm, NULL, irq, map, &dst, &bitmap) &&
 			hweight16(bitmap) == 1) {
-		unsigned long i = find_first_bit(&bitmap, 16);
+		unsigned long i = find_first_bit((unsigned long *)&bitmap, 16);
 
 		if (dst[i]) {
 			*dest_vcpu = dst[i]->vcpu;
