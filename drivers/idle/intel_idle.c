@@ -1111,7 +1111,7 @@ static void intel_idle_state_table_update(void)
  * intel_idle_cpuidle_driver_init()
  * allocate, initialize cpuidle_states
  */
-static int __init intel_idle_cpuidle_driver_init(void)
+static void __init intel_idle_cpuidle_driver_init(void)
 {
 	int cstate;
 	struct cpuidle_driver *drv = &intel_idle_driver;
@@ -1173,8 +1173,6 @@ static int __init intel_idle_cpuidle_driver_init(void)
 
 	if (icpu->disable_promotion_to_c1e)	/* each-cpu is redundant */
 		on_each_cpu(c1e_promotion_disable, NULL, 1);
-
-	return 0;
 }
 
 
