@@ -35,21 +35,20 @@ static LIST_HEAD(asymmetric_key_parsers);
 static DECLARE_RWSEM(asymmetric_key_parsers_sem);
 
 /**
- * x509_request_asymmetric_key - Request a key by X.509 certificate params.
+ * find_asymmetric_key - Find a key by ID.
  * @keyring: The keys to search.
- * @id: The issuer & serialNumber to look for or NULL.
- * @skid: The subjectKeyIdentifier to look for or NULL.
+ * @id_0: The first ID to look for or NULL.
+ * @id_1: The second ID to look for or NULL.
  * @partial: Use partial match if true, exact if false.
  *
  * Find a key in the given keyring by identifier.  The preferred identifier is
- * the issuer + serialNumber and the fallback identifier is the
- * subjectKeyIdentifier.  If both are given, the lookup is by the former, but
- * the latter must also match.
+ * the id_0 and the fallback identifier is the id_1.  If both are given, the
+ * lookup is by the former, but the latter must also match.
  */
-struct key *x509_request_asymmetric_key(struct key *keyring,
-					const struct asymmetric_key_id *id,
-					const struct asymmetric_key_id *skid,
-					bool partial)
+struct key *find_asymmetric_key(struct key *keyring,
+				const struct asymmetric_key_id *id_0,
+				const struct asymmetric_key_id *id_1,
+				bool partial)
 {
 	struct key *key;
 	key_ref_t ref;
@@ -57,12 +56,12 @@ struct key *x509_request_asymmetric_key(struct key *keyring,
 	char *req, *p;
 	int len;
 
-	if (id) {
-		lookup = id->data;
-		len = id->len;
+	if (id_0) {
+		lookup = id_0->data;
+		len = id_0->len;
 	} else {
-		lookup = skid->data;
-		len = skid->len;
+		lookup = id_1->data;
+		len = id_1->len;
 	}
 
 	/* Construct an identifier "id:<keyid>". */
@@ -102,14 +101,15 @@ struct key *x509_request_asymmetric_key(struct key *keyring,
 	}
 
 	key = key_ref_to_ptr(ref);
-	if (id && skid) {
+	if (id_0 && id_1) {
 		const struct asymmetric_key_ids *kids = asymmetric_key_ids(key);
-		if (!kids->id[1]) {
-			pr_debug("issuer+serial match, but expected SKID missing\n");
+
+		if (!kids->id[0]) {
+			pr_debug("First ID matches, but second is missing\n");
 			goto reject;
 		}
-		if (!asymmetric_key_id_same(skid, kids->id[1])) {
-			pr_debug("issuer+serial match, but SKID does not\n");
+		if (!asymmetric_key_id_same(id_1, kids->id[1])) {
+			pr_debug("First ID matches, but second does not\n");
 			goto reject;
 		}
 	}
@@ -121,7 +121,7 @@ reject:
 	key_put(key);
 	return ERR_PTR(-EKEYREJECTED);
 }
-EXPORT_SYMBOL_GPL(x509_request_asymmetric_key);
+EXPORT_SYMBOL_GPL(find_asymmetric_key);
 
 /**
  * asymmetric_key_generate_id: Construct an asymmetric key ID

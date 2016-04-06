@@ -76,10 +76,10 @@ const struct asymmetric_key_ids *asymmetric_key_ids(const struct key *key)
 	return key->payload.data[asym_key_ids];
 }
 
-extern struct key *x509_request_asymmetric_key(struct key *keyring,
-					       const struct asymmetric_key_id *id,
-					       const struct asymmetric_key_id *skid,
-					       bool partial);
+extern struct key *find_asymmetric_key(struct key *keyring,
+				       const struct asymmetric_key_id *id_0,
+				       const struct asymmetric_key_id *id_1,
+				       bool partial);
 
 /*
  * The payload is at the discretion of the subtype.

@@ -213,9 +213,8 @@ static int x509_validate_trust(struct x509_certificate *cert,
 	if (cert->unsupported_sig)
 		return -ENOPKG;
 
-	key = x509_request_asymmetric_key(trust_keyring,
-					  sig->auth_ids[0], sig->auth_ids[1],
-					  false);
+	key = find_asymmetric_key(trust_keyring,
+				  sig->auth_ids[0], sig->auth_ids[1], false);
 	if (IS_ERR(key))
 		return PTR_ERR(key);
 
