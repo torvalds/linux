@@ -267,6 +267,10 @@ IIO
   devm_iio_kfifo_free()
   devm_iio_trigger_alloc()
   devm_iio_trigger_free()
+  devm_iio_channel_get()
+  devm_iio_channel_release()
+  devm_iio_channel_get_all()
+  devm_iio_channel_release_all()
 
 IO region
   devm_release_mem_region()
