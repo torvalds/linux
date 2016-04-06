@@ -1361,8 +1361,7 @@ static void mgsl_isr_io_pin( struct mgsl_struct *info )
 				if (status & MISCSTATUS_CTS) {
 					if ( debug_level >= DEBUG_LEVEL_ISR )
 						printk("CTS tx start...");
-					if (info->port.tty)
-						info->port.tty->hw_stopped = 0;
+					info->port.tty->hw_stopped = 0;
 					usc_start_transmitter(info);
 					info->pending_bh |= BH_TRANSMIT;
 					return;
