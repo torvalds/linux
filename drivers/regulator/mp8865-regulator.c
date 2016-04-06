@@ -21,19 +21,21 @@
 #define MP8865_MAX_VSEL			0x7f
 #define VOL_MIN_IDX			0x00
 #define VOL_MAX_IDX			0x7f
+#define MP8865_ENABLE_TIME		100
 
 /* Register definitions */
 #define MP8865_VOUT_REG			0
 #define MP8865_SYSCNTL_REG		1
 #define MP8865_ID_REG			2
 #define MP8865_STATUS_REG		3
+#define MP8865_MAX_REG			4
 
 #define MP8865_VOUT_MASK		0x7f
 #define MP8865_VBOOT_MASK		0x80
 
 #define MP8865_ENABLE			0x80
 #define MP8865_GO_BIT			0x40
-#define MP8865_SLEW_RATE_MASK		0x1c
+#define MP8865_SLEW_RATE_MASK		0x38
 #define MP8865_SWITCH_FRE_MASK		0x06
 #define MP8865_PFM_MODE			0X01
 
@@ -67,9 +69,23 @@ static int mp8865_set_voltage(struct regulator_dev *rdev, unsigned sel)
 	return regmap_write(rdev->regmap, MP8865_VOUT_REG, sel);
 }
 
+static bool is_write_reg(struct device *dev, unsigned int reg)
+{
+	return (reg < MP8865_ID_REG) ? true : false;
+}
+
+static bool is_volatile_reg(struct device *dev, unsigned int reg)
+{
+	return (reg == MP8865_STATUS_REG) ? true : false;
+}
+
 static const struct regmap_config mp8865_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+	.writeable_reg = is_write_reg,
+	.volatile_reg = is_volatile_reg,
+	.max_register = MP8865_MAX_REG,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 static struct regulator_ops mp8865_dcdc_ops = {
@@ -136,6 +152,7 @@ static int mp8865_probe(struct i2c_client *client,
 	struct regulator_dev *sy_rdev;
 	struct regulator_config config;
 	struct regulator_desc *rdesc;
+	int ret;
 
 	mp8865 = devm_kzalloc(&client->dev, sizeof(struct mp8865_chip),
 			      GFP_KERNEL);
@@ -176,8 +193,25 @@ static int mp8865_probe(struct i2c_client *client,
 	rdesc->vsel_mask = MP8865_VOUT_MASK;
 	rdesc->enable_reg = MP8865_SYSCNTL_REG;
 	rdesc->enable_mask = MP8865_ENABLE;
+	rdesc->enable_time = MP8865_ENABLE_TIME;
 	rdesc->type = REGULATOR_VOLTAGE,
 	rdesc->owner = THIS_MODULE;
+
+	/* set slew_rate 16mV/uS */
+	ret = regmap_update_bits(mp8865->regmap, MP8865_SYSCNTL_REG,
+				 MP8865_SLEW_RATE_MASK, 0x10);
+	if (ret) {
+		dev_err(mp8865->dev, "failed to set slew_rate\n");
+		return ret;
+	}
+
+	/* set switch_frequency 1.1MHz */
+	ret = regmap_update_bits(mp8865->regmap, MP8865_SYSCNTL_REG,
+				 MP8865_SWITCH_FRE_MASK, 0x40);
+	if (ret) {
+		dev_err(mp8865->dev, "failed to set switch_frequency\n");
+		return ret;
+	}
 
 	sy_rdev = devm_regulator_register(mp8865->dev, &mp8865->desc,
 					  &config);
