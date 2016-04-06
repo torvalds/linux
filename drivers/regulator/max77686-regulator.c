@@ -553,17 +553,7 @@ static struct platform_driver max77686_pmic_driver = {
 	.id_table = max77686_pmic_id,
 };
 
-static int __init max77686_pmic_init(void)
-{
-	return platform_driver_register(&max77686_pmic_driver);
-}
-subsys_initcall(max77686_pmic_init);
-
-static void __exit max77686_pmic_cleanup(void)
-{
-	platform_driver_unregister(&max77686_pmic_driver);
-}
-module_exit(max77686_pmic_cleanup);
+module_platform_driver(max77686_pmic_driver);
 
 MODULE_DESCRIPTION("MAXIM 77686 Regulator Driver");
 MODULE_AUTHOR("Chiwoong Byun <woong.byun@samsung.com>");
