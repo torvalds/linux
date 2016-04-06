@@ -78,6 +78,11 @@ struct fam15h_power_data {
 	unsigned long power_period;
 };
 
+static bool is_carrizo_or_later(void)
+{
+	return boot_cpu_data.x86 == 0x15 && boot_cpu_data.x86_model >= 0x60;
+}
+
 static ssize_t show_power(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
@@ -94,7 +99,7 @@ static ssize_t show_power(struct device *dev,
 	 * On Carrizo and later platforms, TdpRunAvgAccCap bit field
 	 * is extended to 4:31 from 4:25.
 	 */
-	if (boot_cpu_data.x86 == 0x15 && boot_cpu_data.x86_model >= 0x60) {
+	if (is_carrizo_or_later()) {
 		running_avg_capture = val >> 4;
 		running_avg_capture = sign_extend32(running_avg_capture, 27);
 	} else {
@@ -111,7 +116,7 @@ static ssize_t show_power(struct device *dev,
 	 * On Carrizo and later platforms, ApmTdpLimit bit field
 	 * is extended to 16:31 from 16:28.
 	 */
-	if (boot_cpu_data.x86 == 0x15 && boot_cpu_data.x86_model >= 0x60)
+	if (is_carrizo_or_later())
 		tdp_limit = val >> 16;
 	else
 		tdp_limit = (val >> 16) & 0x1fff;
