@@ -1260,8 +1260,6 @@ static void __exit intel_idle_exit(void)
 	__unregister_cpu_notifier(&cpu_hotplug_notifier);
 
 	cpu_notifier_register_done();
-
-	return;
 }
 
 module_init(intel_idle_init);
