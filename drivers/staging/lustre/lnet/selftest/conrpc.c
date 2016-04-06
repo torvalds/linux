@@ -719,7 +719,7 @@ lstcon_dstnodes_prep(lstcon_group_t *grp, int idx,
 		     int dist, int span, int nkiov, lnet_kiov_t *kiov)
 {
 	lnet_process_id_packed_t *pid;
-	lstcon_ndlink_t *ndl;
+	struct lstcon_ndlink *ndl;
 	struct lstcon_node *nd;
 	int start;
 	int end;
@@ -1086,7 +1086,7 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 			struct lstcon_rpc_trans **transpp)
 {
 	struct lstcon_rpc_trans *trans;
-	lstcon_ndlink_t *ndl;
+	struct lstcon_ndlink *ndl;
 	struct lstcon_node *nd;
 	struct lstcon_rpc *rpc;
 	unsigned feats;
@@ -1172,7 +1172,7 @@ lstcon_rpc_pinger(void *arg)
 	struct lstcon_rpc *crpc;
 	srpc_msg_t *rep;
 	srpc_debug_reqst_t *drq;
-	lstcon_ndlink_t *ndl;
+	struct lstcon_ndlink *ndl;
 	struct lstcon_node *nd;
 	int intv;
 	int count = 0;

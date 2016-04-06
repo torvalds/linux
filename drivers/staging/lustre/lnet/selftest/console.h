@@ -60,11 +60,12 @@ struct lstcon_node {
 	struct lstcon_rpc nd_ping;    /* ping rpc */
 };
 
-typedef struct {
+/* node link descriptor */
+struct lstcon_ndlink {
 	struct list_head ndl_link;    /* chain on list */
 	struct list_head ndl_hlink;   /* chain on hash */
-	struct lstcon_node	 *ndl_node;   /* pointer to node */
-} lstcon_ndlink_t; /* node link descriptor */
+	struct lstcon_node	*ndl_node;	/* pointer to node */
+};
 
 typedef struct {
 	struct list_head grp_link;		  /* chain on global group list
