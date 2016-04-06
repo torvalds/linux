@@ -47,7 +47,7 @@
 #include "console.h"
 
 void lstcon_rpc_stat_reply(struct lstcon_rpc_trans *, srpc_msg_t *,
-			   lstcon_node_t *, lstcon_trans_stat_t *);
+			   struct lstcon_node *, lstcon_trans_stat_t *);
 
 static void
 lstcon_rpc_done(struct srpc_client_rpc *rpc)
@@ -90,7 +90,7 @@ lstcon_rpc_done(struct srpc_client_rpc *rpc)
 }
 
 static int
-lstcon_rpc_init(lstcon_node_t *nd, int service, unsigned feats,
+lstcon_rpc_init(struct lstcon_node *nd, int service, unsigned feats,
 		int bulk_npg, int bulk_len, int embedded, struct lstcon_rpc *crpc)
 {
 	crpc->crp_rpc = sfw_create_rpc(nd->nd_id, service,
@@ -115,7 +115,7 @@ lstcon_rpc_init(lstcon_node_t *nd, int service, unsigned feats,
 }
 
 static int
-lstcon_rpc_prep(lstcon_node_t *nd, int service, unsigned feats,
+lstcon_rpc_prep(struct lstcon_node *nd, int service, unsigned feats,
 		int bulk_npg, int bulk_len, struct lstcon_rpc **crpcpp)
 {
 	struct lstcon_rpc *crpc = NULL;
@@ -289,7 +289,7 @@ lstcon_rpc_trans_abort(struct lstcon_rpc_trans *trans, int error)
 {
 	struct srpc_client_rpc *rpc;
 	struct lstcon_rpc *crpc;
-	lstcon_node_t *nd;
+	struct lstcon_node *nd;
 
 	list_for_each_entry(crpc, &trans->tas_rpcs_list, crp_link) {
 		rpc = crpc->crp_rpc;
@@ -388,7 +388,7 @@ lstcon_rpc_trans_postwait(struct lstcon_rpc_trans *trans, int timeout)
 static int
 lstcon_rpc_get_reply(struct lstcon_rpc *crpc, srpc_msg_t **msgpp)
 {
-	lstcon_node_t *nd = crpc->crp_node;
+	struct lstcon_node *nd = crpc->crp_node;
 	struct srpc_client_rpc *rpc = crpc->crp_rpc;
 	srpc_generic_reply_t *rep;
 
@@ -476,7 +476,7 @@ lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 	srpc_generic_reply_t *rep;
 	struct lstcon_rpc *crpc;
 	srpc_msg_t *msg;
-	lstcon_node_t *nd;
+	struct lstcon_node *nd;
 	long dur;
 	struct timeval tv;
 	int error;
@@ -592,7 +592,7 @@ lstcon_rpc_trans_destroy(struct lstcon_rpc_trans *trans)
 }
 
 int
-lstcon_sesrpc_prep(lstcon_node_t *nd, int transop,
+lstcon_sesrpc_prep(struct lstcon_node *nd, int transop,
 		   unsigned feats, struct lstcon_rpc **crpc)
 {
 	srpc_mksn_reqst_t *msrq;
@@ -631,7 +631,7 @@ lstcon_sesrpc_prep(lstcon_node_t *nd, int transop,
 }
 
 int
-lstcon_dbgrpc_prep(lstcon_node_t *nd, unsigned feats, struct lstcon_rpc **crpc)
+lstcon_dbgrpc_prep(struct lstcon_node *nd, unsigned feats, struct lstcon_rpc **crpc)
 {
 	srpc_debug_reqst_t *drq;
 	int rc;
@@ -649,7 +649,7 @@ lstcon_dbgrpc_prep(lstcon_node_t *nd, unsigned feats, struct lstcon_rpc **crpc)
 }
 
 int
-lstcon_batrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
+lstcon_batrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
 		   lstcon_tsb_hdr_t *tsb, struct lstcon_rpc **crpc)
 {
 	lstcon_batch_t *batch;
@@ -682,7 +682,7 @@ lstcon_batrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 }
 
 int
-lstcon_statrpc_prep(lstcon_node_t *nd, unsigned feats, struct lstcon_rpc **crpc)
+lstcon_statrpc_prep(struct lstcon_node *nd, unsigned feats, struct lstcon_rpc **crpc)
 {
 	srpc_stat_reqst_t *srq;
 	int rc;
@@ -720,7 +720,7 @@ lstcon_dstnodes_prep(lstcon_group_t *grp, int idx,
 {
 	lnet_process_id_packed_t *pid;
 	lstcon_ndlink_t *ndl;
-	lstcon_node_t *nd;
+	struct lstcon_node *nd;
 	int start;
 	int end;
 	int i = 0;
@@ -806,7 +806,7 @@ lstcon_bulkrpc_v1_prep(lst_test_bulk_param_t *param, srpc_test_reqst_t *req)
 }
 
 int
-lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
+lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
 		    lstcon_test_t *test, struct lstcon_rpc **crpc)
 {
 	lstcon_group_t *sgrp = test->tes_src_grp;
@@ -916,7 +916,7 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 
 static int
 lstcon_sesnew_stat_reply(struct lstcon_rpc_trans *trans,
-			 lstcon_node_t *nd, srpc_msg_t *reply)
+			 struct lstcon_node *nd, srpc_msg_t *reply)
 {
 	srpc_mksn_reply_t *mksn_rep = &reply->msg_body.mksn_reply;
 	int status = mksn_rep->mksn_status;
@@ -963,7 +963,7 @@ lstcon_sesnew_stat_reply(struct lstcon_rpc_trans *trans,
 
 void
 lstcon_rpc_stat_reply(struct lstcon_rpc_trans *trans, srpc_msg_t *msg,
-		      lstcon_node_t *nd, lstcon_trans_stat_t *stat)
+		      struct lstcon_node *nd, lstcon_trans_stat_t *stat)
 {
 	srpc_rmsn_reply_t *rmsn_rep;
 	srpc_debug_reply_t *dbg_rep;
@@ -1087,7 +1087,7 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 {
 	struct lstcon_rpc_trans *trans;
 	lstcon_ndlink_t *ndl;
-	lstcon_node_t *nd;
+	struct lstcon_node *nd;
 	struct lstcon_rpc *rpc;
 	unsigned feats;
 	int rc;
@@ -1173,7 +1173,7 @@ lstcon_rpc_pinger(void *arg)
 	srpc_msg_t *rep;
 	srpc_debug_reqst_t *drq;
 	lstcon_ndlink_t *ndl;
-	lstcon_node_t *nd;
+	struct lstcon_node *nd;
 	int intv;
 	int count = 0;
 	int rc;

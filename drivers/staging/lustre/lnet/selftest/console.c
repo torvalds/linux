@@ -61,7 +61,7 @@ do {							\
 struct lstcon_session console_session;
 
 static void
-lstcon_node_get(lstcon_node_t *nd)
+lstcon_node_get(struct lstcon_node *nd)
 {
 	LASSERT(nd->nd_ref >= 1);
 
@@ -69,7 +69,7 @@ lstcon_node_get(lstcon_node_t *nd)
 }
 
 static int
-lstcon_node_find(lnet_process_id_t id, lstcon_node_t **ndpp, int create)
+lstcon_node_find(lnet_process_id_t id, struct lstcon_node **ndpp, int create)
 {
 	lstcon_ndlink_t	*ndl;
 	unsigned int idx = LNET_NIDADDR(id.nid) % LST_GLOBAL_HASHSIZE;
@@ -90,7 +90,7 @@ lstcon_node_find(lnet_process_id_t id, lstcon_node_t **ndpp, int create)
 	if (!create)
 		return -ENOENT;
 
-	LIBCFS_ALLOC(*ndpp, sizeof(lstcon_node_t) + sizeof(lstcon_ndlink_t));
+	LIBCFS_ALLOC(*ndpp, sizeof(struct lstcon_node) + sizeof(lstcon_ndlink_t));
 	if (!*ndpp)
 		return -ENOMEM;
 
@@ -117,7 +117,7 @@ lstcon_node_find(lnet_process_id_t id, lstcon_node_t **ndpp, int create)
 }
 
 static void
-lstcon_node_put(lstcon_node_t *nd)
+lstcon_node_put(struct lstcon_node *nd)
 {
 	lstcon_ndlink_t *ndl;
 
@@ -135,7 +135,7 @@ lstcon_node_put(lstcon_node_t *nd)
 	list_del(&ndl->ndl_link);
 	list_del(&ndl->ndl_hlink);
 
-	LIBCFS_FREE(nd, sizeof(lstcon_node_t) + sizeof(lstcon_ndlink_t));
+	LIBCFS_FREE(nd, sizeof(struct lstcon_node) + sizeof(lstcon_ndlink_t));
 }
 
 static int
@@ -144,7 +144,7 @@ lstcon_ndlink_find(struct list_head *hash,
 {
 	unsigned int idx = LNET_NIDADDR(id.nid) % LST_NODE_HASHSIZE;
 	lstcon_ndlink_t *ndl;
-	lstcon_node_t *nd;
+	struct lstcon_node *nd;
 	int rc;
 
 	if (id.nid == LNET_NID_ANY)
@@ -341,7 +341,7 @@ lstcon_group_move(lstcon_group_t *old, lstcon_group_t *new)
 }
 
 static int
-lstcon_sesrpc_condition(int transop, lstcon_node_t *nd, void *arg)
+lstcon_sesrpc_condition(int transop, struct lstcon_node *nd, void *arg)
 {
 	lstcon_group_t *grp = (lstcon_group_t *)arg;
 
@@ -745,7 +745,7 @@ lstcon_nodes_getent(struct list_head *head, int *index_p,
 		    int *count_p, lstcon_node_ent_t __user *dents_up)
 {
 	lstcon_ndlink_t *ndl;
-	lstcon_node_t *nd;
+	struct lstcon_node *nd;
 	int count = 0;
 	int index = 0;
 
@@ -998,7 +998,7 @@ lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
 }
 
 static int
-lstcon_batrpc_condition(int transop, lstcon_node_t *nd, void *arg)
+lstcon_batrpc_condition(int transop, struct lstcon_node *nd, void *arg)
 {
 	switch (transop) {
 	case LST_TRANS_TSBRUN:
@@ -1141,7 +1141,7 @@ lstcon_batch_destroy(lstcon_batch_t *bat)
 }
 
 static int
-lstcon_testrpc_condition(int transop, lstcon_node_t *nd, void *arg)
+lstcon_testrpc_condition(int transop, struct lstcon_node *nd, void *arg)
 {
 	lstcon_test_t *test;
 	lstcon_batch_t *batch;

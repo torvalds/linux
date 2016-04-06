@@ -50,19 +50,20 @@
 #include "selftest.h"
 #include "conrpc.h"
 
-typedef struct lstcon_node {
+/* node descriptor */
+struct lstcon_node {
 	lnet_process_id_t nd_id;      /* id of the node */
 	int		  nd_ref;     /* reference count */
 	int		  nd_state;   /* state of the node */
 	int		  nd_timeout; /* session timeout */
 	unsigned long	  nd_stamp;   /* timestamp of last replied RPC */
 	struct lstcon_rpc nd_ping;    /* ping rpc */
-} lstcon_node_t; /* node descriptor */
+};
 
 typedef struct {
 	struct list_head ndl_link;    /* chain on list */
 	struct list_head ndl_hlink;   /* chain on hash */
-	lstcon_node_t	 *ndl_node;   /* pointer to node */
+	struct lstcon_node	 *ndl_node;   /* pointer to node */
 } lstcon_ndlink_t; /* node link descriptor */
 
 typedef struct {
@@ -99,7 +100,7 @@ typedef struct {
 					   */
 	struct list_head bat_trans_list;  /* list head of transaction */
 	struct list_head bat_cli_list;	  /* list head of client nodes
-					   * (lstcon_node_t) */
+					   * (struct lstcon_node) */
 	struct list_head *bat_cli_hash;   /* hash table of client nodes */
 	struct list_head bat_srv_list;	  /* list head of server nodes */
 	struct list_head *bat_srv_hash;   /* hash table of server nodes */
