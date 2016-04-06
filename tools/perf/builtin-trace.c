@@ -1082,6 +1082,7 @@ static struct syscall_fmt {
 	size_t	   (*arg_scnprintf[6])(char *bf, size_t size, struct syscall_arg *arg);
 	void	   *arg_parm[6];
 	bool	   errmsg;
+	bool	   errpid;
 	bool	   timeout;
 	bool	   hexret;
 } syscall_fmts[] = {
@@ -1099,6 +1100,7 @@ static struct syscall_fmt {
 	{ .name	    = "chroot",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
 	{ .name     = "clock_gettime",  .errmsg = true, STRARRAY(0, clk_id, clockid), },
+	{ .name	    = "clone",	    .errpid = true, },
 	{ .name	    = "close",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_CLOSE_FD, /* fd */ }, },
 	{ .name	    = "connect",    .errmsg = true, },
@@ -1365,9 +1367,9 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "vmsplice",  .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
-	{ .name	    = "wait4",	    .errmsg = true,
+	{ .name	    = "wait4",	    .errpid = true,
 	  .arg_scnprintf = { [2] = SCA_WAITID_OPTIONS, /* options */ }, },
-	{ .name	    = "waitid",	    .errmsg = true,
+	{ .name	    = "waitid",	    .errpid = true,
 	  .arg_scnprintf = { [3] = SCA_WAITID_OPTIONS, /* options */ }, },
 	{ .name	    = "write",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
@@ -2156,7 +2158,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	if (sc->fmt == NULL) {
 signed_print:
 		fprintf(trace->output, ") = %ld", ret);
-	} else if (ret < 0 && sc->fmt->errmsg) {
+	} else if (ret < 0 && (sc->fmt->errmsg || sc->fmt->errpid)) {
 		char bf[STRERR_BUFSIZE];
 		const char *emsg = strerror_r(-ret, bf, sizeof(bf)),
 			   *e = audit_errno_to_name(-ret);
@@ -2166,7 +2168,16 @@ signed_print:
 		fprintf(trace->output, ") = 0 Timeout");
 	else if (sc->fmt->hexret)
 		fprintf(trace->output, ") = %#lx", ret);
-	else
+	else if (sc->fmt->errpid) {
+		struct thread *child = machine__find_thread(trace->host, ret, ret);
+
+		if (child != NULL) {
+			fprintf(trace->output, ") = %ld", ret);
+			if (child->comm_set)
+				fprintf(trace->output, " (%s)", thread__comm_str(child));
+			thread__put(child);
+		}
+	} else
 		goto signed_print;
 
 	fputc('\n', trace->output);
