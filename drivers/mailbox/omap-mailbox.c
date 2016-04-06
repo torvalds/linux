@@ -384,7 +384,7 @@ static struct omap_mbox_queue *mbox_queue_alloc(struct omap_mbox *mbox,
 	if (!work)
 		return NULL;
 
-	mq = kzalloc(sizeof(struct omap_mbox_queue), GFP_KERNEL);
+	mq = kzalloc(sizeof(*mq), GFP_KERNEL);
 	if (!mq)
 		return NULL;
 
