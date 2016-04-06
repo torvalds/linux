@@ -3187,7 +3187,7 @@ void process_cpuid()
 	if (debug)
 		decode_misc_enable_msr();
 
-	if (max_level >= 0x7) {
+	if (max_level >= 0x7 && debug) {
 		int has_sgx;
 
 		ecx = 0;
