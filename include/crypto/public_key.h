@@ -15,20 +15,6 @@
 #define _LINUX_PUBLIC_KEY_H
 
 /*
- * The use to which an asymmetric key is being put.
- */
-enum key_being_used_for {
-	VERIFYING_MODULE_SIGNATURE,
-	VERIFYING_FIRMWARE_SIGNATURE,
-	VERIFYING_KEXEC_PE_SIGNATURE,
-	VERIFYING_KEY_SIGNATURE,
-	VERIFYING_KEY_SELF_SIGNATURE,
-	VERIFYING_UNSPECIFIED_SIGNATURE,
-	NR__KEY_BEING_USED_FOR
-};
-extern const char *const key_being_used_for[NR__KEY_BEING_USED_FOR];
-
-/*
  * Cryptographic data for the public-key subtype of the asymmetric key type.
  *
  * Note that this may include private part of the key as well as the public

@@ -80,6 +80,7 @@ int mod_verify_sig(const void *mod, unsigned long *_modlen)
 		return -EBADMSG;
 	}
 
-	return system_verify_data(mod, modlen, mod + modlen, sig_len,
-				  VERIFYING_MODULE_SIGNATURE);
+	return verify_pkcs7_signature(mod, modlen, mod + modlen, sig_len,
+				      NULL, -ENOKEY, VERIFYING_MODULE_SIGNATURE,
+				      NULL, NULL);
 }

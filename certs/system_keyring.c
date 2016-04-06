@@ -108,16 +108,25 @@ late_initcall(load_system_certificate_list);
 #ifdef CONFIG_SYSTEM_DATA_VERIFICATION
 
 /**
- * Verify a PKCS#7-based signature on system data.
- * @data: The data to be verified.
+ * verify_pkcs7_signature - Verify a PKCS#7-based signature on system data.
+ * @data: The data to be verified (NULL if expecting internal data).
  * @len: Size of @data.
  * @raw_pkcs7: The PKCS#7 message that is the signature.
  * @pkcs7_len: The size of @raw_pkcs7.
+ * @trusted_keys: Trusted keys to use (NULL for system_trusted_keyring).
  * @usage: The use to which the key is being put.
+ * @view_content: Callback to gain access to content.
+ * @ctx: Context for callback.
  */
-int system_verify_data(const void *data, unsigned long len,
-		       const void *raw_pkcs7, size_t pkcs7_len,
-		       enum key_being_used_for usage)
+int verify_pkcs7_signature(const void *data, size_t len,
+			   const void *raw_pkcs7, size_t pkcs7_len,
+			   struct key *trusted_keys,
+			   int untrusted_error,
+			   enum key_being_used_for usage,
+			   int (*view_content)(void *ctx,
+					       const void *data, size_t len,
+					       size_t asn1hdrlen),
+			   void *ctx)
 {
 	struct pkcs7_message *pkcs7;
 	bool trusted;
@@ -128,7 +137,7 @@ int system_verify_data(const void *data, unsigned long len,
 		return PTR_ERR(pkcs7);
 
 	/* The data should be detached - so we need to supply it. */
-	if (pkcs7_supply_detached_data(pkcs7, data, len) < 0) {
+	if (data && pkcs7_supply_detached_data(pkcs7, data, len) < 0) {
 		pr_err("PKCS#7 signature with non-detached data\n");
 		ret = -EBADMSG;
 		goto error;
@@ -138,13 +147,29 @@ int system_verify_data(const void *data, unsigned long len,
 	if (ret < 0)
 		goto error;
 
-	ret = pkcs7_validate_trust(pkcs7, system_trusted_keyring, &trusted);
+	if (!trusted_keys)
+		trusted_keys = system_trusted_keyring;
+	ret = pkcs7_validate_trust(pkcs7, trusted_keys, &trusted);
 	if (ret < 0)
 		goto error;
 
-	if (!trusted) {
+	if (!trusted && untrusted_error) {
 		pr_err("PKCS#7 signature not signed with a trusted key\n");
-		ret = -ENOKEY;
+		ret = untrusted_error;
+		goto error;
+	}
+
+	if (view_content) {
+		size_t asn1hdrlen;
+
+		ret = pkcs7_get_content_data(pkcs7, &data, &len, &asn1hdrlen);
+		if (ret < 0) {
+			if (ret == -ENODATA)
+				pr_devel("PKCS#7 message does not contain data\n");
+			goto error;
+		}
+
+		ret = view_content(ctx, data, len, asn1hdrlen);
 	}
 
 error:
@@ -152,6 +177,6 @@ error:
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(system_verify_data);
+EXPORT_SYMBOL_GPL(verify_pkcs7_signature);
 
 #endif /* CONFIG_SYSTEM_DATA_VERIFICATION */
