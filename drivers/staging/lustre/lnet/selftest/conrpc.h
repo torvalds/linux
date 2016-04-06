@@ -78,7 +78,7 @@ struct lstcon_rpc {
 	unsigned long		 crp_stamp;	/* replied time stamp */
 };
 
-typedef struct lstcon_rpc_trans {
+struct lstcon_rpc_trans {
 	struct list_head  tas_olink;	     /* link chain on owner list */
 	struct list_head  tas_link;	     /* link chain on global list */
 	int		  tas_opc;	     /* operation code of transaction */
@@ -87,7 +87,7 @@ typedef struct lstcon_rpc_trans {
 	wait_queue_head_t tas_waitq;	     /* wait queue head */
 	atomic_t	  tas_remaining;     /* # of un-scheduled rpcs */
 	struct list_head  tas_rpcs_list;     /* queued requests */
-} lstcon_rpc_trans_t;
+};
 
 #define LST_TRANS_PRIVATE	0x1000
 
@@ -121,20 +121,20 @@ int  lstcon_statrpc_prep(struct lstcon_node *nd, unsigned version,
 			 struct lstcon_rpc **crpc);
 void lstcon_rpc_put(struct lstcon_rpc *crpc);
 int  lstcon_rpc_trans_prep(struct list_head *translist,
-			   int transop, lstcon_rpc_trans_t **transpp);
+			   int transop, struct lstcon_rpc_trans **transpp);
 int  lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 			     struct list_head *translist, int transop,
 			     void *arg, lstcon_rpc_cond_func_t condition,
-			     lstcon_rpc_trans_t **transpp);
-void lstcon_rpc_trans_stat(lstcon_rpc_trans_t *trans,
+			     struct lstcon_rpc_trans **transpp);
+void lstcon_rpc_trans_stat(struct lstcon_rpc_trans *trans,
 			   lstcon_trans_stat_t *stat);
-int  lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
+int  lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 				  struct list_head __user *head_up,
 				  lstcon_rpc_readent_func_t readent);
-void lstcon_rpc_trans_abort(lstcon_rpc_trans_t *trans, int error);
-void lstcon_rpc_trans_destroy(lstcon_rpc_trans_t *trans);
-void lstcon_rpc_trans_addreq(lstcon_rpc_trans_t *trans, struct lstcon_rpc *req);
-int  lstcon_rpc_trans_postwait(lstcon_rpc_trans_t *trans, int timeout);
+void lstcon_rpc_trans_abort(struct lstcon_rpc_trans *trans, int error);
+void lstcon_rpc_trans_destroy(struct lstcon_rpc_trans *trans);
+void lstcon_rpc_trans_addreq(struct lstcon_rpc_trans *trans, struct lstcon_rpc *req);
+int  lstcon_rpc_trans_postwait(struct lstcon_rpc_trans *trans, int timeout);
 int  lstcon_rpc_pinger_start(void);
 void lstcon_rpc_pinger_stop(void);
 void lstcon_rpc_cleanup_wait(void);

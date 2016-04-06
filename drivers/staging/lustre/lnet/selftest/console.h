@@ -152,7 +152,7 @@ struct lstcon_session {
 	unsigned	    ses_expired:1;    /* console is timedout */
 	__u64		    ses_id_cookie;    /* batch id cookie */
 	char		    ses_name[LST_NAME_SIZE];/* session name */
-	lstcon_rpc_trans_t  *ses_ping;	      /* session pinger */
+	struct lstcon_rpc_trans	*ses_ping;		/* session pinger */
 	struct stt_timer	 ses_ping_timer;   /* timer for pinger */
 	lstcon_trans_stat_t ses_trans_stat;   /* transaction stats */
 

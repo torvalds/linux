@@ -46,7 +46,7 @@
 #include "conrpc.h"
 #include "console.h"
 
-void lstcon_rpc_stat_reply(lstcon_rpc_trans_t *, srpc_msg_t *,
+void lstcon_rpc_stat_reply(struct lstcon_rpc_trans *, srpc_msg_t *,
 			   lstcon_node_t *, lstcon_trans_stat_t *);
 
 static void
@@ -185,7 +185,7 @@ lstcon_rpc_put(struct lstcon_rpc *crpc)
 static void
 lstcon_rpc_post(struct lstcon_rpc *crpc)
 {
-	lstcon_rpc_trans_t *trans = crpc->crp_trans;
+	struct lstcon_rpc_trans *trans = crpc->crp_trans;
 
 	LASSERT(trans);
 
@@ -236,9 +236,9 @@ lstcon_rpc_trans_name(int transop)
 
 int
 lstcon_rpc_trans_prep(struct list_head *translist, int transop,
-		      lstcon_rpc_trans_t **transpp)
+		      struct lstcon_rpc_trans **transpp)
 {
-	lstcon_rpc_trans_t *trans;
+	struct lstcon_rpc_trans *trans;
 
 	if (translist) {
 		list_for_each_entry(trans, translist, tas_link) {
@@ -278,14 +278,14 @@ lstcon_rpc_trans_prep(struct list_head *translist, int transop,
 }
 
 void
-lstcon_rpc_trans_addreq(lstcon_rpc_trans_t *trans, struct lstcon_rpc *crpc)
+lstcon_rpc_trans_addreq(struct lstcon_rpc_trans *trans, struct lstcon_rpc *crpc)
 {
 	list_add_tail(&crpc->crp_link, &trans->tas_rpcs_list);
 	crpc->crp_trans = trans;
 }
 
 void
-lstcon_rpc_trans_abort(lstcon_rpc_trans_t *trans, int error)
+lstcon_rpc_trans_abort(struct lstcon_rpc_trans *trans, int error)
 {
 	struct srpc_client_rpc *rpc;
 	struct lstcon_rpc *crpc;
@@ -326,7 +326,7 @@ lstcon_rpc_trans_abort(lstcon_rpc_trans_t *trans, int error)
 }
 
 static int
-lstcon_rpc_trans_check(lstcon_rpc_trans_t *trans)
+lstcon_rpc_trans_check(struct lstcon_rpc_trans *trans)
 {
 	if (console_session.ses_shutdown &&
 	    !list_empty(&trans->tas_olink)) /* Not an end session RPC */
@@ -336,7 +336,7 @@ lstcon_rpc_trans_check(lstcon_rpc_trans_t *trans)
 }
 
 int
-lstcon_rpc_trans_postwait(lstcon_rpc_trans_t *trans, int timeout)
+lstcon_rpc_trans_postwait(struct lstcon_rpc_trans *trans, int timeout)
 {
 	struct lstcon_rpc *crpc;
 	int rc;
@@ -423,7 +423,7 @@ lstcon_rpc_get_reply(struct lstcon_rpc *crpc, srpc_msg_t **msgpp)
 }
 
 void
-lstcon_rpc_trans_stat(lstcon_rpc_trans_t *trans, lstcon_trans_stat_t *stat)
+lstcon_rpc_trans_stat(struct lstcon_rpc_trans *trans, lstcon_trans_stat_t *stat)
 {
 	struct lstcon_rpc *crpc;
 	srpc_msg_t *rep;
@@ -466,7 +466,7 @@ lstcon_rpc_trans_stat(lstcon_rpc_trans_t *trans, lstcon_trans_stat_t *stat)
 }
 
 int
-lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
+lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 			     struct list_head __user *head_up,
 			     lstcon_rpc_readent_func_t readent)
 {
@@ -539,7 +539,7 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 }
 
 void
-lstcon_rpc_trans_destroy(lstcon_rpc_trans_t *trans)
+lstcon_rpc_trans_destroy(struct lstcon_rpc_trans *trans)
 {
 	struct srpc_client_rpc *rpc;
 	struct lstcon_rpc *crpc;
@@ -915,7 +915,7 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 }
 
 static int
-lstcon_sesnew_stat_reply(lstcon_rpc_trans_t *trans,
+lstcon_sesnew_stat_reply(struct lstcon_rpc_trans *trans,
 			 lstcon_node_t *nd, srpc_msg_t *reply)
 {
 	srpc_mksn_reply_t *mksn_rep = &reply->msg_body.mksn_reply;
@@ -962,7 +962,7 @@ lstcon_sesnew_stat_reply(lstcon_rpc_trans_t *trans,
 }
 
 void
-lstcon_rpc_stat_reply(lstcon_rpc_trans_t *trans, srpc_msg_t *msg,
+lstcon_rpc_stat_reply(struct lstcon_rpc_trans *trans, srpc_msg_t *msg,
 		      lstcon_node_t *nd, lstcon_trans_stat_t *stat)
 {
 	srpc_rmsn_reply_t *rmsn_rep;
@@ -1083,9 +1083,9 @@ int
 lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 			struct list_head *translist, int transop,
 			void *arg, lstcon_rpc_cond_func_t condition,
-			lstcon_rpc_trans_t **transpp)
+			struct lstcon_rpc_trans **transpp)
 {
-	lstcon_rpc_trans_t *trans;
+	struct lstcon_rpc_trans *trans;
 	lstcon_ndlink_t *ndl;
 	lstcon_node_t *nd;
 	struct lstcon_rpc *rpc;
@@ -1168,7 +1168,7 @@ static void
 lstcon_rpc_pinger(void *arg)
 {
 	struct stt_timer *ptimer = (struct stt_timer *)arg;
-	lstcon_rpc_trans_t *trans;
+	struct lstcon_rpc_trans *trans;
 	struct lstcon_rpc *crpc;
 	srpc_msg_t *rep;
 	srpc_debug_reqst_t *drq;
@@ -1325,7 +1325,7 @@ lstcon_rpc_pinger_stop(void)
 void
 lstcon_rpc_cleanup_wait(void)
 {
-	lstcon_rpc_trans_t *trans;
+	struct lstcon_rpc_trans *trans;
 	struct lstcon_rpc *crpc;
 	struct lstcon_rpc *temp;
 	struct list_head *pacer;
@@ -1337,7 +1337,7 @@ lstcon_rpc_cleanup_wait(void)
 
 	while (!list_empty(&console_session.ses_trans_list)) {
 		list_for_each(pacer, &console_session.ses_trans_list) {
-			trans = list_entry(pacer, lstcon_rpc_trans_t,
+			trans = list_entry(pacer, struct lstcon_rpc_trans,
 					   tas_link);
 
 			CDEBUG(D_NET, "Session closed, wakeup transaction %s\n",

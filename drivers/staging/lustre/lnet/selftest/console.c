@@ -403,7 +403,7 @@ lstcon_group_nodes_add(lstcon_group_t *grp,
 		       int count, lnet_process_id_t __user *ids_up,
 		       unsigned *featp, struct list_head __user *result_up)
 {
-	lstcon_rpc_trans_t *trans;
+	struct lstcon_rpc_trans *trans;
 	lstcon_ndlink_t	*ndl;
 	lstcon_group_t *tmp;
 	lnet_process_id_t id;
@@ -470,7 +470,7 @@ lstcon_group_nodes_remove(lstcon_group_t *grp,
 			  int count, lnet_process_id_t __user *ids_up,
 			  struct list_head __user *result_up)
 {
-	lstcon_rpc_trans_t *trans;
+	struct lstcon_rpc_trans *trans;
 	lstcon_ndlink_t *ndl;
 	lstcon_group_t *tmp;
 	lnet_process_id_t id;
@@ -578,7 +578,7 @@ lstcon_nodes_add(char *name, int count, lnet_process_id_t __user *ids_up,
 int
 lstcon_group_del(char *name)
 {
-	lstcon_rpc_trans_t *trans;
+	struct lstcon_rpc_trans *trans;
 	lstcon_group_t *grp;
 	int rc;
 
@@ -683,7 +683,7 @@ lstcon_nodes_remove(char *name, int count, lnet_process_id_t __user *ids_up,
 int
 lstcon_group_refresh(char *name, struct list_head __user *result_up)
 {
-	lstcon_rpc_trans_t *trans;
+	struct lstcon_rpc_trans *trans;
 	lstcon_group_t *grp;
 	int rc;
 
@@ -1023,7 +1023,7 @@ static int
 lstcon_batch_op(lstcon_batch_t *bat, int transop,
 		struct list_head __user *result_up)
 {
-	lstcon_rpc_trans_t *trans;
+	struct lstcon_rpc_trans *trans;
 	int rc;
 
 	rc = lstcon_rpc_trans_ndlist(&bat->bat_cli_list,
@@ -1187,7 +1187,7 @@ lstcon_testrpc_condition(int transop, lstcon_node_t *nd, void *arg)
 static int
 lstcon_test_nodes_add(lstcon_test_t *test, struct list_head __user *result_up)
 {
-	lstcon_rpc_trans_t *trans;
+	struct lstcon_rpc_trans *trans;
 	lstcon_group_t *grp;
 	int transop;
 	int rc;
@@ -1403,7 +1403,7 @@ int
 lstcon_test_batch_query(char *name, int testidx, int client,
 			int timeout, struct list_head __user *result_up)
 {
-	lstcon_rpc_trans_t *trans;
+	struct lstcon_rpc_trans *trans;
 	struct list_head *translist;
 	struct list_head *ndlist;
 	lstcon_tsb_hdr_t *hdr;
@@ -1490,7 +1490,7 @@ lstcon_ndlist_stat(struct list_head *ndlist,
 		   int timeout, struct list_head __user *result_up)
 {
 	struct list_head head;
-	lstcon_rpc_trans_t *trans;
+	struct lstcon_rpc_trans *trans;
 	int rc;
 
 	INIT_LIST_HEAD(&head);
@@ -1580,7 +1580,7 @@ lstcon_debug_ndlist(struct list_head *ndlist,
 		    struct list_head *translist,
 		    int timeout, struct list_head __user *result_up)
 {
-	lstcon_rpc_trans_t *trans;
+	struct lstcon_rpc_trans *trans;
 	int rc;
 
 	rc = lstcon_rpc_trans_ndlist(ndlist, translist, LST_TRANS_SESQRY,
@@ -1812,7 +1812,7 @@ lstcon_session_info(lst_sid_t __user *sid_up, int __user *key_up,
 int
 lstcon_session_end(void)
 {
-	lstcon_rpc_trans_t *trans;
+	struct lstcon_rpc_trans *trans;
 	lstcon_group_t *grp;
 	lstcon_batch_t *bat;
 	int rc = 0;
