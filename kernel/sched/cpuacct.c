@@ -316,12 +316,11 @@ static struct cftype files[] = {
 void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 {
 	struct cpuacct *ca;
-	int index;
+	int index = CPUACCT_USAGE_SYSTEM;
+	struct pt_regs *regs = task_pt_regs(tsk);
 
-	if (user_mode(task_pt_regs(tsk)))
+	if (regs && user_mode(regs))
 		index = CPUACCT_USAGE_USER;
-	else
-		index = CPUACCT_USAGE_SYSTEM;
 
 	rcu_read_lock();
 
