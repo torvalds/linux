@@ -455,7 +455,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	ret = __ttm_bo_reserve(bo, false, true, NULL);
 
 	if (!ret) {
-		if (!ttm_bo_wait(bo, false, false, true)) {
+		if (!ttm_bo_wait(bo, false, true)) {
 			put_count = ttm_bo_del_from_lru(bo);
 
 			spin_unlock(&glob->lru_lock);
@@ -508,7 +508,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 	int put_count;
 	int ret;
 
-	ret = ttm_bo_wait(bo, false, false, true);
+	ret = ttm_bo_wait(bo, false, true);
 
 	if (ret && !no_wait_gpu) {
 		long lret;
@@ -545,7 +545,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 		 * remove sync_obj with ttm_bo_wait, the wait should be
 		 * finished, and no new wait object should have been added.
 		 */
-		ret = ttm_bo_wait(bo, false, false, true);
+		ret = ttm_bo_wait(bo, false, true);
 		WARN_ON(ret);
 	}
 
@@ -684,7 +684,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 	struct ttm_placement placement;
 	int ret = 0;
 
-	ret = ttm_bo_wait(bo, false, interruptible, no_wait_gpu);
+	ret = ttm_bo_wait(bo, interruptible, no_wait_gpu);
 
 	if (unlikely(ret != 0)) {
 		if (ret != -ERESTARTSYS) {
@@ -1006,7 +1006,7 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 		 * Have the driver move function wait for idle when necessary,
 		 * instead of doing it here.
 		 */
-		ret = ttm_bo_wait(bo, false, interruptible, no_wait_gpu);
+		ret = ttm_bo_wait(bo, interruptible, no_wait_gpu);
 		if (ret)
 			return ret;
 	}
@@ -1567,7 +1567,7 @@ void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 
 int ttm_bo_wait(struct ttm_buffer_object *bo,
-		bool lazy, bool interruptible, bool no_wait)
+		bool interruptible, bool no_wait)
 {
 	struct reservation_object_list *fobj;
 	struct reservation_object *resv;
@@ -1625,7 +1625,7 @@ int ttm_bo_synccpu_write_grab(struct ttm_buffer_object *bo, bool no_wait)
 	ret = ttm_bo_reserve(bo, true, no_wait, NULL);
 	if (unlikely(ret != 0))
 		return ret;
-	ret = ttm_bo_wait(bo, false, true, no_wait);
+	ret = ttm_bo_wait(bo, true, no_wait);
 	if (likely(ret == 0))
 		atomic_inc(&bo->cpu_writers);
 	ttm_bo_unreserve(bo);
@@ -1682,7 +1682,7 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	 * Wait for GPU, then move to system cached.
 	 */
 
-	ret = ttm_bo_wait(bo, false, false, false);
+	ret = ttm_bo_wait(bo, false, false);
 
 	if (unlikely(ret != 0))
 		goto out;

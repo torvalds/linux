@@ -839,7 +839,7 @@ static void vmw_move_notify(struct ttm_buffer_object *bo,
  */
 static void vmw_swap_notify(struct ttm_buffer_object *bo)
 {
-	ttm_bo_wait(bo, false, false, false);
+	ttm_bo_wait(bo, false, false);
 }
 
 

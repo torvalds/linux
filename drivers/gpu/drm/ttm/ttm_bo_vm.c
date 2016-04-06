@@ -54,7 +54,7 @@ static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 	/*
 	 * Quick non-stalling check for idle.
 	 */
-	ret = ttm_bo_wait(bo, false, false, true);
+	ret = ttm_bo_wait(bo, false, true);
 	if (likely(ret == 0))
 		goto out_unlock;
 
@@ -68,14 +68,14 @@ static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 			goto out_unlock;
 
 		up_read(&vma->vm_mm->mmap_sem);
-		(void) ttm_bo_wait(bo, false, true, false);
+		(void) ttm_bo_wait(bo, true, false);
 		goto out_unlock;
 	}
 
 	/*
 	 * Ordinary wait.
 	 */
-	ret = ttm_bo_wait(bo, false, true, false);
+	ret = ttm_bo_wait(bo, true, false);
 	if (unlikely(ret != 0))
 		ret = (ret != -ERESTARTSYS) ? VM_FAULT_SIGBUS :
 			VM_FAULT_NOPAGE;

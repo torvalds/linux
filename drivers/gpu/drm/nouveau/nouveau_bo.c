@@ -1322,7 +1322,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	}
 
 	/* Fallback to software copy. */
-	ret = ttm_bo_wait(bo, true, intr, no_wait_gpu);
+	ret = ttm_bo_wait(bo, intr, no_wait_gpu);
 	if (ret == 0)
 		ret = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
 

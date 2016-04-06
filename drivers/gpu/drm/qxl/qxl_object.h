@@ -79,7 +79,7 @@ static inline int qxl_bo_wait(struct qxl_bo *bo, u32 *mem_type,
 	if (mem_type)
 		*mem_type = bo->tbo.mem.mem_type;
 
-	r = ttm_bo_wait(&bo->tbo, true, true, no_wait);
+	r = ttm_bo_wait(&bo->tbo, true, no_wait);
 	ttm_bo_unreserve(&bo->tbo);
 	return r;
 }
