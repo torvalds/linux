@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/dcbnl.h>
+#include <linux/if_ether.h>
 
 #include "spectrum.h"
 #include "core.h"
@@ -53,15 +54,15 @@ struct mlxsw_sp_pb {
 	}
 
 static const struct mlxsw_sp_pb mlxsw_sp_pbs[] = {
-	MLXSW_SP_PB(0, 208),
-	MLXSW_SP_PB(1, 208),
-	MLXSW_SP_PB(2, 208),
-	MLXSW_SP_PB(3, 208),
-	MLXSW_SP_PB(4, 208),
-	MLXSW_SP_PB(5, 208),
-	MLXSW_SP_PB(6, 208),
-	MLXSW_SP_PB(7, 208),
-	MLXSW_SP_PB(9, 208),
+	MLXSW_SP_PB(0, 2 * MLXSW_SP_BYTES_TO_CELLS(ETH_FRAME_LEN)),
+	MLXSW_SP_PB(1, 0),
+	MLXSW_SP_PB(2, 0),
+	MLXSW_SP_PB(3, 0),
+	MLXSW_SP_PB(4, 0),
+	MLXSW_SP_PB(5, 0),
+	MLXSW_SP_PB(6, 0),
+	MLXSW_SP_PB(7, 0),
+	MLXSW_SP_PB(9, 2 * MLXSW_SP_BYTES_TO_CELLS(MLXSW_PORT_MAX_MTU)),
 };
 
 #define MLXSW_SP_PBS_LEN ARRAY_SIZE(mlxsw_sp_pbs)

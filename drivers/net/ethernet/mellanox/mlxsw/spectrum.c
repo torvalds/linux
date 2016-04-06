@@ -449,16 +449,39 @@ static int mlxsw_sp_port_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
+static int mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				      int mtu)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u16 pg_size = 2 * MLXSW_SP_BYTES_TO_CELLS(mtu);
+	char pbmc_pl[MLXSW_REG_PBMC_LEN];
+	int err;
+
+	mlxsw_reg_pbmc_pack(pbmc_pl, mlxsw_sp_port->local_port, 0, 0);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
+	if (err)
+		return err;
+	mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, 0, pg_size);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
+}
+
 static int mlxsw_sp_port_change_mtu(struct net_device *dev, int mtu)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	int err;
 
-	err = mlxsw_sp_port_mtu_set(mlxsw_sp_port, mtu);
+	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, mtu);
 	if (err)
 		return err;
+	err = mlxsw_sp_port_mtu_set(mlxsw_sp_port, mtu);
+	if (err)
+		goto err_port_mtu_set;
 	dev->mtu = mtu;
 	return 0;
+
+err_port_mtu_set:
+	mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu);
+	return err;
 }
 
 static struct rtnl_link_stats64 *
