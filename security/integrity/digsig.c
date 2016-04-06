@@ -51,12 +51,11 @@ static bool init_keyring __initdata;
  */
 static int restrict_link_by_ima_mok(struct key *keyring,
 				    const struct key_type *type,
-				    unsigned long flags,
 				    const union key_payload *payload)
 {
 	int ret;
 
-	ret = restrict_link_by_builtin_trusted(keyring, type, flags, payload);
+	ret = restrict_link_by_builtin_trusted(keyring, type, payload);
 	if (ret != -ENOKEY)
 		return ret;
 

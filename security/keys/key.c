@@ -227,7 +227,6 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 		      key_perm_t perm, unsigned long flags,
 		      int (*restrict_link)(struct key *,
 					   const struct key_type *,
-					   unsigned long,
 					   const union key_payload *))
 {
 	struct key_user *user = NULL;
@@ -300,8 +299,6 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 
 	if (!(flags & KEY_ALLOC_NOT_IN_QUOTA))
 		key->flags |= 1 << KEY_FLAG_IN_QUOTA;
-	if (flags & KEY_ALLOC_TRUSTED)
-		key->flags |= 1 << KEY_FLAG_TRUSTED;
 	if (flags & KEY_ALLOC_BUILT_IN)
 		key->flags |= 1 << KEY_FLAG_BUILTIN;
 
@@ -504,7 +501,7 @@ int key_instantiate_and_link(struct key *key,
 	if (keyring) {
 		if (keyring->restrict_link) {
 			ret = keyring->restrict_link(keyring, key->type,
-						     key->flags, &prep.payload);
+						     &prep.payload);
 			if (ret < 0)
 				goto error;
 		}
@@ -811,7 +808,6 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	int ret;
 	int (*restrict_link)(struct key *,
 			     const struct key_type *,
-			     unsigned long,
 			     const union key_payload *) = NULL;
 
 	/* look up the key type to see if it's one of the registered kernel
@@ -843,7 +839,6 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	prep.data = payload;
 	prep.datalen = plen;
 	prep.quotalen = index_key.type->def_datalen;
-	prep.trusted = flags & KEY_ALLOC_TRUSTED;
 	prep.expiry = TIME_T_MAX;
 	if (index_key.type->preparse) {
 		ret = index_key.type->preparse(&prep);
@@ -860,9 +855,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	index_key.desc_len = strlen(index_key.description);
 
 	if (restrict_link) {
-		unsigned long kflags = prep.trusted ? KEY_FLAG_TRUSTED : 0;
-		ret = restrict_link(keyring,
-				    index_key.type, kflags, &prep.payload);
+		ret = restrict_link(keyring, index_key.type, &prep.payload);
 		if (ret < 0) {
 			key_ref = ERR_PTR(ret);
 			goto error_free_prep;

@@ -31,7 +31,6 @@ extern __initconst const unsigned long system_certificate_list_size;
  */
 int restrict_link_by_builtin_trusted(struct key *keyring,
 				     const struct key_type *type,
-				     unsigned long flags,
 				     const union key_payload *payload)
 {
 	return restrict_link_by_signature(system_trusted_keyring,
@@ -97,7 +96,6 @@ static __init int load_system_certificate_list(void)
 					   ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
 					   KEY_USR_VIEW | KEY_USR_READ),
 					   KEY_ALLOC_NOT_IN_QUOTA |
-					   KEY_ALLOC_TRUSTED |
 					   KEY_ALLOC_BUILT_IN |
 					   KEY_ALLOC_BYPASS_RESTRICTION);
 		if (IS_ERR(key)) {

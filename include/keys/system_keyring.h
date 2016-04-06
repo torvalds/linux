@@ -18,7 +18,6 @@
 
 extern int restrict_link_by_builtin_trusted(struct key *keyring,
 					    const struct key_type *type,
-					    unsigned long flags,
 					    const union key_payload *payload);
 
 #else

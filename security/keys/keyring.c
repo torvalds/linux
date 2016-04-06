@@ -494,7 +494,6 @@ struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid,
 			  unsigned long flags,
 			  int (*restrict_link)(struct key *,
 					       const struct key_type *,
-					       unsigned long,
 					       const union key_payload *),
 			  struct key *dest)
 {
@@ -516,33 +515,9 @@ struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid,
 EXPORT_SYMBOL(keyring_alloc);
 
 /**
- * keyring_restrict_trusted_only - Restrict additions to a keyring to trusted keys only
- * @keyring: The keyring being added to.
- * @type: The type of key being added.
- * @flags: The key flags.
- * @payload: The payload of the key intended to be added.
- *
- * Reject the addition of any links to a keyring that point to keys that aren't
- * marked as being trusted.  It can be overridden by passing
- * KEY_ALLOC_BYPASS_RESTRICTION to key_instantiate_and_link() when adding a key
- * to a keyring.
- *
- * This is meant to be passed as the restrict_link parameter to
- * keyring_alloc().
- */
-int keyring_restrict_trusted_only(struct key *keyring,
-				  const struct key_type *type,
-				  unsigned long flags,
-				  const union key_payload *payload)
-{
-	return flags & KEY_FLAG_TRUSTED ? 0 : -EPERM;
-}
-
-/**
  * restrict_link_reject - Give -EPERM to restrict link
  * @keyring: The keyring being added to.
  * @type: The type of key being added.
- * @flags: The key flags.
  * @payload: The payload of the key intended to be added.
  *
  * Reject the addition of any links to a keyring.  It can be overridden by
@@ -554,7 +529,6 @@ int keyring_restrict_trusted_only(struct key *keyring,
  */
 int restrict_link_reject(struct key *keyring,
 			 const struct key_type *type,
-			 unsigned long flags,
 			 const union key_payload *payload)
 {
 	return -EPERM;
@@ -1248,8 +1222,7 @@ static int __key_link_check_restriction(struct key *keyring, struct key *key)
 {
 	if (!keyring->restrict_link)
 		return 0;
-	return keyring->restrict_link(keyring,
-				      key->type, key->flags, &key->payload);
+	return keyring->restrict_link(keyring, key->type, &key->payload);
 }
 
 /**
