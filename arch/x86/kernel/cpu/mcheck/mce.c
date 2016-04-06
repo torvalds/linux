@@ -830,9 +830,9 @@ static int mce_start(int *no_way_out)
 
 	atomic_add(*no_way_out, &global_nwo);
 	/*
-	 * global_nwo should be updated before mce_callin
+	 * Rely on the implied barrier below, such that global_nwo
+	 * is updated before mce_callin.
 	 */
-	smp_wmb();
 	order = atomic_inc_return(&mce_callin);
 
 	/*
