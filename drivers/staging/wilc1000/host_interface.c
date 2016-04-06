@@ -2468,7 +2468,7 @@ static void handle_set_tx_pwr(struct wilc_vif *vif, u8 tx_pwr)
 
 static void handle_get_tx_pwr(struct wilc_vif *vif, u8 *tx_pwr)
 {
-	s32 ret = 0;
+	int ret = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_TX_POWER;
