@@ -1242,16 +1242,16 @@ static int __init intel_idle_init(void)
 
 static void __exit intel_idle_exit(void)
 {
-	intel_idle_cpuidle_devices_uninit();
-	cpuidle_unregister_driver(&intel_idle_driver);
-
 	cpu_notifier_register_begin();
 
 	if (lapic_timer_reliable_states != LAPIC_TIMER_ALWAYS_RELIABLE)
 		on_each_cpu(__setup_broadcast_timer, (void *)false, 1);
 	__unregister_cpu_notifier(&cpu_hotplug_notifier);
+	intel_idle_cpuidle_devices_uninit();
 
 	cpu_notifier_register_done();
+
+	cpuidle_unregister_driver(&intel_idle_driver);
 }
 
 module_init(intel_idle_init);
