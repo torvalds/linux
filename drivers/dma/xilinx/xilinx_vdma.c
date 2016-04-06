@@ -597,8 +597,6 @@ static void xilinx_vdma_halt(struct xilinx_vdma_chan *chan)
 			chan, vdma_ctrl_read(chan, XILINX_VDMA_REG_DMASR));
 		chan->err = true;
 	}
-
-	return;
 }
 
 /**
@@ -623,8 +621,6 @@ static void xilinx_vdma_start(struct xilinx_vdma_chan *chan)
 
 		chan->err = true;
 	}
-
-	return;
 }
 
 /**
@@ -874,6 +870,7 @@ static irqreturn_t xilinx_vdma_irq_handler(int irq, void *data)
 		 * make sure not to write to other error bits to 1.
 		 */
 		u32 errors = status & XILINX_VDMA_DMASR_ALL_ERR_MASK;
+
 		vdma_ctrl_write(chan, XILINX_VDMA_REG_DMASR,
 				errors & XILINX_VDMA_DMASR_ERR_RECOVER_MASK);
 
