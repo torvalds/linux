@@ -83,10 +83,9 @@ int __init integrity_init_keyring(const unsigned int id)
 				    ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
 				     KEY_USR_VIEW | KEY_USR_READ |
 				     KEY_USR_WRITE | KEY_USR_SEARCH),
-				    KEY_ALLOC_NOT_IN_QUOTA, NULL);
-	if (!IS_ERR(keyring[id]))
-		set_bit(KEY_FLAG_TRUSTED_ONLY, &keyring[id]->flags);
-	else {
+				    KEY_ALLOC_NOT_IN_QUOTA,
+				    NULL, NULL);
+	if (IS_ERR(keyring[id])) {
 		err = PTR_ERR(keyring[id]);
 		pr_info("Can't allocate %s keyring (%d)\n",
 			keyring_name[id], err);

@@ -36,11 +36,10 @@ static __init int system_trusted_keyring_init(void)
 			      KUIDT_INIT(0), KGIDT_INIT(0), current_cred(),
 			      ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
 			      KEY_USR_VIEW | KEY_USR_READ | KEY_USR_SEARCH),
-			      KEY_ALLOC_NOT_IN_QUOTA, NULL);
+			      KEY_ALLOC_NOT_IN_QUOTA,
+			      keyring_restrict_trusted_only, NULL);
 	if (IS_ERR(system_trusted_keyring))
 		panic("Can't allocate system trusted keyring\n");
-
-	set_bit(KEY_FLAG_TRUSTED_ONLY, &system_trusted_keyring->flags);
 	return 0;
 }
 
@@ -85,7 +84,8 @@ static __init int load_system_certificate_list(void)
 					   KEY_USR_VIEW | KEY_USR_READ),
 					   KEY_ALLOC_NOT_IN_QUOTA |
 					   KEY_ALLOC_TRUSTED |
-					   KEY_ALLOC_BUILT_IN);
+					   KEY_ALLOC_BUILT_IN |
+					   KEY_ALLOC_BYPASS_RESTRICTION);
 		if (IS_ERR(key)) {
 			pr_err("Problem loading in-kernel X.509 certificate (%ld)\n",
 			       PTR_ERR(key));
