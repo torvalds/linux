@@ -154,24 +154,28 @@ void mbox_write_reg(struct omap_mbox_device *mdev, u32 val, size_t ofs)
 static mbox_msg_t mbox_fifo_read(struct omap_mbox *mbox)
 {
 	struct omap_mbox_fifo *fifo = &mbox->rx_fifo;
-	return (mbox_msg_t) mbox_read_reg(mbox->parent, fifo->msg);
+
+	return (mbox_msg_t)mbox_read_reg(mbox->parent, fifo->msg);
 }
 
 static void mbox_fifo_write(struct omap_mbox *mbox, mbox_msg_t msg)
 {
 	struct omap_mbox_fifo *fifo = &mbox->tx_fifo;
+
 	mbox_write_reg(mbox->parent, msg, fifo->msg);
 }
 
 static int mbox_fifo_empty(struct omap_mbox *mbox)
 {
 	struct omap_mbox_fifo *fifo = &mbox->rx_fifo;
+
 	return (mbox_read_reg(mbox->parent, fifo->msg_stat) == 0);
 }
 
 static int mbox_fifo_full(struct omap_mbox *mbox)
 {
 	struct omap_mbox_fifo *fifo = &mbox->tx_fifo;
+
 	return mbox_read_reg(mbox->parent, fifo->fifo_stat);
 }
 
@@ -522,6 +526,7 @@ static int omap_mbox_register(struct omap_mbox_device *mdev)
 	mboxes = mdev->mboxes;
 	for (i = 0; mboxes[i]; i++) {
 		struct omap_mbox *mbox = mboxes[i];
+
 		mbox->dev = device_create(&omap_mbox_class, mdev->dev,
 					0, mbox, "%s", mbox->name);
 		if (IS_ERR(mbox->dev)) {
