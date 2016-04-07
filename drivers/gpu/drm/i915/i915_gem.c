@@ -2468,7 +2468,7 @@ i915_gem_init_seqno(struct drm_device *dev, u32 seqno)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
-	int ret, j;
+	int ret;
 
 	/* Carefully retire all requests without writing to the rings */
 	for_each_engine(engine, dev_priv) {
@@ -2479,12 +2479,8 @@ i915_gem_init_seqno(struct drm_device *dev, u32 seqno)
 	i915_gem_retire_requests(dev);
 
 	/* Finally reset hw state */
-	for_each_engine(engine, dev_priv) {
+	for_each_engine(engine, dev_priv)
 		intel_ring_init_seqno(engine, seqno);
-
-		for (j = 0; j < ARRAY_SIZE(engine->semaphore.sync_seqno); j++)
-			engine->semaphore.sync_seqno[j] = 0;
-	}
 
 	return 0;
 }
