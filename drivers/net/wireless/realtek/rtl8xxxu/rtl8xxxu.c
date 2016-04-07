@@ -6883,11 +6883,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		rtl8xxxu_write8(priv, 0xfe42, 0x80);
 	}
 
-	if (priv->rtl_chip == RTL8192E) {
-		rtl8xxxu_write32(priv, REG_HIMR0, 0x00);
-		rtl8xxxu_write32(priv, REG_HIMR1, 0x00);
-	}
-
 	if (priv->fops->phy_init_antenna_selection)
 		priv->fops->phy_init_antenna_selection(priv);
 
@@ -7053,11 +7048,16 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	 */
 	rtl8xxxu_write8(priv, REG_RX_DRVINFO_SZ, 4);
 
-	/*
-	 * Enable all interrupts - not obvious USB needs to do this
-	 */
-	rtl8xxxu_write32(priv, REG_HISR, 0xffffffff);
-	rtl8xxxu_write32(priv, REG_HIMR, 0xffffffff);
+	if (priv->rtl_chip == RTL8192E) {
+		rtl8xxxu_write32(priv, REG_HIMR0, 0x00);
+		rtl8xxxu_write32(priv, REG_HIMR1, 0x00);
+	} else {
+		/*
+		 * Enable all interrupts - not obvious USB needs to do this
+		 */
+		rtl8xxxu_write32(priv, REG_HISR, 0xffffffff);
+		rtl8xxxu_write32(priv, REG_HIMR, 0xffffffff);
+	}
 
 	rtl8xxxu_set_mac(priv);
 	rtl8xxxu_set_linktype(priv, NL80211_IFTYPE_STATION);
