@@ -378,7 +378,7 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 
 	if (data->vht160_supported)
 		vht_cap->cap |=
-			IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
+			IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ;
 
 	if (cfg->vht_mu_mimo_supported)
 		vht_cap->cap |= IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE;
