@@ -209,7 +209,8 @@ static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
 		if (gpio_source == 0) {
 			port = IOSF_PORT_GPIO_NC;
 		} else if (gpio_source == 1) {
-			port = IOSF_PORT_GPIO_SC;
+			DRM_DEBUG_KMS("SC gpio not supported\n");
+			return;
 		} else {
 			DRM_DEBUG_KMS("unknown gpio source %u\n", gpio_source);
 			return;
