@@ -995,15 +995,14 @@ static void xs_udp_data_read_skb(struct rpc_xprt *xprt,
 	u32 _xid;
 	__be32 *xp;
 
-	repsize = skb->len - sizeof(struct udphdr);
+	repsize = skb->len;
 	if (repsize < 4) {
 		dprintk("RPC:       impossible RPC reply size %d!\n", repsize);
 		return;
 	}
 
 	/* Copy the XID from the skb... */
-	xp = skb_header_pointer(skb, sizeof(struct udphdr),
-				sizeof(_xid), &_xid);
+	xp = skb_header_pointer(skb, 0, sizeof(_xid), &_xid);
 	if (xp == NULL)
 		return;
 
