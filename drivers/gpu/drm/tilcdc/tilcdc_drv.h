@@ -174,5 +174,9 @@ int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode)
 int tilcdc_crtc_max_width(struct drm_crtc *crtc);
 void tilcdc_crtc_dpms(struct drm_crtc *crtc, int mode);
 int tilcdc_crtc_current_dpms_state(struct drm_crtc *crtc);
+int tilcdc_crtc_page_flip(struct drm_crtc *crtc,
+		struct drm_framebuffer *fb,
+		struct drm_pending_vblank_event *event,
+		uint32_t page_flip_flags);
 
 #endif /* __TILCDC_DRV_H__ */

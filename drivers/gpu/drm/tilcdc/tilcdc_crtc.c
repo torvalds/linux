@@ -165,7 +165,7 @@ static int tilcdc_verify_fb(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 	return 0;
 }
 
-static int tilcdc_crtc_page_flip(struct drm_crtc *crtc,
+int tilcdc_crtc_page_flip(struct drm_crtc *crtc,
 		struct drm_framebuffer *fb,
 		struct drm_pending_vblank_event *event,
 		uint32_t page_flip_flags)
