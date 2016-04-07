@@ -1,0 +1,23 @@
+Fairchild FUSB301 Driver
+
+Required properties:
+- compatible: "fairchild,fusb302"
+- reg: I2C slave address
+- pinctrl-names: Musb be "default"
+- pinctrl-0: fusb1_int musb be set to pull up.
+- vbus-5v-gpios: enable/disable 5v vbus output
+- vbus-other-gpios: enable/disable other high-voltage vbus output
+- int-n-gpios: I2C int pin
+
+example:
+	fusb1: fusb30x@22 {
+		compatible = "fairchild,fusb302";
+		reg = <0x22>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fusb1_int>;
+		vbus-5v-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		vbus-other-gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
+		int-n-gpios = <&gpio1 24 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
