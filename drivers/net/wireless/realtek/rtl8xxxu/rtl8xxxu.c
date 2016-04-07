@@ -7197,6 +7197,20 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	if (priv->fops->init_statistics)
 		priv->fops->init_statistics(priv);
 
+	if (priv->rtl_chip == RTL8192E) {
+		/*
+		 * 0x4c6[3] 1: RTS BW = Data BW
+		 * 0: RTS BW depends on CCA / secondary CCA result.
+		 */
+		val8 = rtl8xxxu_read8(priv, REG_QUEUE_CTRL);
+		val8 &= ~BIT(3);
+		rtl8xxxu_write8(priv, REG_QUEUE_CTRL, val8);
+		/*
+		 * Reset USB mode switch setting
+		 */
+		rtl8xxxu_write8(priv, REG_ACLK_MON, 0x00);
+	}
+
 	rtl8723a_phy_lc_calibrate(priv);
 
 	priv->fops->phy_iq_calibrate(priv);
