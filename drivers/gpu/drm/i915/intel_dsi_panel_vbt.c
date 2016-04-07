@@ -75,12 +75,12 @@ static inline struct vbt_panel *to_vbt_panel(struct drm_panel *panel)
 #define VLV_GPIO_PCONF0(base_offset)	(base_offset)
 #define VLV_GPIO_PAD_VAL(base_offset)	((base_offset) + 8)
 
-struct gpio_table {
+struct gpio_map {
 	u16 base_offset;
 	bool init;
 };
 
-static struct gpio_table vlv_gpio_table[] = {
+static struct gpio_map vlv_gpio_table[] = {
 	{ VLV_GPIO_NC_0_HV_DDI0_HPD },
 	{ VLV_GPIO_NC_1_HV_DDI0_DDC_SDA },
 	{ VLV_GPIO_NC_2_HV_DDI0_DDC_SCL },
@@ -190,6 +190,7 @@ static const u8 *mipi_exec_delay(struct intel_dsi *intel_dsi, const u8 *data)
 static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
 			  u8 gpio_source, u8 gpio_index, bool value)
 {
+	struct gpio_map *map;
 	u16 pconf0, padval;
 	u32 tmp;
 	u8 port;
@@ -198,6 +199,8 @@ static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("unknown gpio index %u\n", gpio_index);
 		return;
 	}
+
+	map = &vlv_gpio_table[gpio_index];
 
 	if (dev_priv->vbt.dsi.seq_version >= 3) {
 		DRM_DEBUG_KMS("GPIO element v3 not supported\n");
@@ -213,14 +216,14 @@ static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
 		}
 	}
 
-	pconf0 = VLV_GPIO_PCONF0(vlv_gpio_table[gpio_index].base_offset);
-	padval = VLV_GPIO_PAD_VAL(vlv_gpio_table[gpio_index].base_offset);
+	pconf0 = VLV_GPIO_PCONF0(map->base_offset);
+	padval = VLV_GPIO_PAD_VAL(map->base_offset);
 
 	mutex_lock(&dev_priv->sb_lock);
-	if (!vlv_gpio_table[gpio_index].init) {
+	if (!map->init) {
 		/* FIXME: remove constant below */
 		vlv_iosf_sb_write(dev_priv, port, pconf0, 0x2000CC00);
-		vlv_gpio_table[gpio_index].init = true;
+		map->init = true;
 	}
 
 	tmp = 0x4 | value;
