@@ -254,6 +254,11 @@ int hex2u64(const char *ptr, u64 *val);
 char *ltrim(char *s);
 char *rtrim(char *s);
 
+static inline char *trim(char *s)
+{
+	return ltrim(rtrim(s));
+}
+
 void dump_stack(void);
 void sighandler_dump_stack(int sig);
 
