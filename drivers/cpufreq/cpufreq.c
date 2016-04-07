@@ -77,7 +77,11 @@ static inline bool has_target(void)
 static int cpufreq_governor(struct cpufreq_policy *policy, unsigned int event);
 static unsigned int __cpufreq_get(struct cpufreq_policy *policy);
 static int cpufreq_start_governor(struct cpufreq_policy *policy);
-static int cpufreq_exit_governor(struct cpufreq_policy *policy);
+
+static inline int cpufreq_exit_governor(struct cpufreq_policy *policy)
+{
+	return cpufreq_governor(policy, CPUFREQ_GOV_POLICY_EXIT);
+}
 
 /**
  * Two notifier lists: the "policy" list is involved in the
@@ -482,7 +486,11 @@ void cpufreq_enable_fast_switch(struct cpufreq_policy *policy)
 }
 EXPORT_SYMBOL_GPL(cpufreq_enable_fast_switch);
 
-static void cpufreq_disable_fast_switch(struct cpufreq_policy *policy)
+/**
+ * cpufreq_disable_fast_switch - Disable fast frequency switching for policy.
+ * @policy: cpufreq policy to disable fast frequency switching for.
+ */
+void cpufreq_disable_fast_switch(struct cpufreq_policy *policy)
 {
 	mutex_lock(&cpufreq_fast_switch_lock);
 	if (policy->fast_switch_enabled) {
@@ -492,6 +500,7 @@ static void cpufreq_disable_fast_switch(struct cpufreq_policy *policy)
 	}
 	mutex_unlock(&cpufreq_fast_switch_lock);
 }
+EXPORT_SYMBOL_GPL(cpufreq_disable_fast_switch);
 
 /*********************************************************************
  *                          SYSFS INTERFACE                          *
@@ -2058,12 +2067,6 @@ static int cpufreq_start_governor(struct cpufreq_policy *policy)
 
 	ret = cpufreq_governor(policy, CPUFREQ_GOV_START);
 	return ret ? ret : cpufreq_governor(policy, CPUFREQ_GOV_LIMITS);
-}
-
-static int cpufreq_exit_governor(struct cpufreq_policy *policy)
-{
-	cpufreq_disable_fast_switch(policy);
-	return cpufreq_governor(policy, CPUFREQ_GOV_POLICY_EXIT);
 }
 
 int cpufreq_register_governor(struct cpufreq_governor *governor)
