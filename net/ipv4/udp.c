@@ -1375,7 +1375,7 @@ try_again:
 		*addr_len = sizeof(*sin);
 	}
 	if (inet->cmsg_flags)
-		ip_cmsg_recv_offset(msg, skb, sizeof(struct udphdr));
+		ip_cmsg_recv_offset(msg, skb, sizeof(struct udphdr) + off);
 
 	err = copied;
 	if (flags & MSG_TRUNC)
