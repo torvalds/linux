@@ -106,6 +106,14 @@ ENTRY(call_rwsem_down_write_failed)
 	ret
 ENDPROC(call_rwsem_down_write_failed)
 
+ENTRY(call_rwsem_down_write_failed_killable)
+	save_common_regs
+	movq %rax,%rdi
+	call rwsem_down_write_failed_killable
+	restore_common_regs
+	ret
+ENDPROC(call_rwsem_down_write_failed_killable)
+
 ENTRY(call_rwsem_wake)
 	FRAME_BEGIN
 	/* do nothing if still outstanding active readers */
