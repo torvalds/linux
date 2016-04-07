@@ -7234,6 +7234,16 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/* ack for xmit mgmt frames. */
 	rtl8xxxu_write32(priv, REG_FWHW_TXQ_CTRL, val32);
 
+	if (priv->rtl_chip == RTL8192E) {
+		/*
+		 * Fix LDPC rx hang issue.
+		 */
+		val32 = rtl8xxxu_read32(priv, REG_AFE_MISC);
+		rtl8xxxu_write8(priv, REG_8192E_LDOV12_CTRL, 0x75);
+		val32 &= 0xfff00fff;
+		val32 |= 0x0007e000;
+		rtl8xxxu_write32(priv, REG_8192E_LDOV12_CTRL, val32);
+	}
 exit:
 	return ret;
 }
