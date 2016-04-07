@@ -3608,7 +3608,7 @@ rtl8xxxu_init_mac(struct rtl8xxxu_priv *priv)
 		}
 	}
 
-	if (priv->rtl_chip != RTL8723B)
+	if (priv->rtl_chip != RTL8723B && priv->rtl_chip != RTL8192E)
 		rtl8xxxu_write8(priv, REG_MAX_AGGR_NUM, 0x0a);
 
 	return 0;
@@ -3812,6 +3812,9 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 
 		rtl8xxxu_write32(priv, REG_LDOA15_CTRL, val32);
 	}
+
+	if (priv->rtl_chip == RTL8192E)
+		rtl8xxxu_write32(priv, REG_AFE_XTAL_CTRL, 0x000f81fb);
 
 	return 0;
 }
