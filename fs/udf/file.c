@@ -152,7 +152,7 @@ out:
 
 	if (retval > 0) {
 		mark_inode_dirty(inode);
-		err = generic_write_sync(file, iocb->ki_pos - retval, retval);
+		err = generic_write_sync(iocb, iocb->ki_pos - retval, retval);
 		if (err < 0)
 			retval = err;
 	}

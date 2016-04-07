@@ -323,6 +323,8 @@ struct writeback_control;
 #define IOCB_APPEND		(1 << 1)
 #define IOCB_DIRECT		(1 << 2)
 #define IOCB_HIPRI		(1 << 3)
+#define IOCB_DSYNC		(1 << 4)
+#define IOCB_SYNC		(1 << 5)
 
 struct kiocb {
 	struct file		*ki_filp;
@@ -2485,12 +2487,12 @@ extern int filemap_fdatawrite_range(struct address_space *mapping,
 extern int vfs_fsync_range(struct file *file, loff_t start, loff_t end,
 			   int datasync);
 extern int vfs_fsync(struct file *file, int datasync);
-static inline int generic_write_sync(struct file *file, loff_t pos, loff_t count)
+static inline int generic_write_sync(struct kiocb *iocb, loff_t pos, loff_t count)
 {
-	if (!(file->f_flags & O_DSYNC) && !IS_SYNC(file->f_mapping->host))
+	if (!(iocb->ki_flags & IOCB_DSYNC))
 		return 0;
-	return vfs_fsync_range(file, pos, pos + count - 1,
-			       (file->f_flags & __O_SYNC) ? 0 : 1);
+	return vfs_fsync_range(iocb->ki_filp, pos, pos + count - 1,
+			       (iocb->ki_flags & IOCB_SYNC) ? 0 : 1);
 }
 extern void emergency_sync(void);
 extern void emergency_remount(void);
@@ -2942,6 +2944,10 @@ static inline int iocb_flags(struct file *file)
 		res |= IOCB_APPEND;
 	if (io_is_direct(file))
 		res |= IOCB_DIRECT;
+	if ((file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host))
+		res |= IOCB_DSYNC;
+	if (file->f_flags & __O_SYNC)
+		res |= IOCB_SYNC;
 	return res;
 }
 

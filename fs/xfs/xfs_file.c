@@ -908,7 +908,7 @@ xfs_file_write_iter(
 		XFS_STATS_ADD(ip->i_mount, xs_write_bytes, ret);
 
 		/* Handle various SYNC-type writes */
-		err = generic_write_sync(file, iocb->ki_pos - ret, ret);
+		err = generic_write_sync(iocb, iocb->ki_pos - ret, ret);
 		if (err < 0)
 			ret = err;
 	}

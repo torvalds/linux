@@ -1953,7 +1953,7 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	current->backing_dev_info = NULL;
 	inode_unlock(vi);
 	if (likely(written > 0)) {
-		err = generic_write_sync(file, iocb->ki_pos, written);
+		err = generic_write_sync(iocb, iocb->ki_pos, written);
 		if (err < 0)
 			written = 0;
 	}

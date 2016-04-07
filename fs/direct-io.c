@@ -268,7 +268,7 @@ static ssize_t dio_complete(struct dio *dio, ssize_t ret, bool is_async)
 		if (dio->rw & WRITE) {
 			int err;
 
-			err = generic_write_sync(dio->iocb->ki_filp, offset,
+			err = generic_write_sync(dio->iocb, offset,
 						 transferred);
 			if (err < 0 && ret > 0)
 				ret = err;

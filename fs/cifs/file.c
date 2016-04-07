@@ -2688,7 +2688,7 @@ out:
 	inode_unlock(inode);
 
 	if (rc > 0) {
-		ssize_t err = generic_write_sync(file, iocb->ki_pos - rc, rc);
+		ssize_t err = generic_write_sync(iocb, iocb->ki_pos - rc, rc);
 		if (err < 0)
 			rc = err;
 	}

@@ -1852,7 +1852,7 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	BTRFS_I(inode)->last_sub_trans = root->log_transid;
 	spin_unlock(&BTRFS_I(inode)->lock);
 	if (num_written > 0) {
-		err = generic_write_sync(file, pos, num_written);
+		err = generic_write_sync(iocb, pos, num_written);
 		if (err < 0)
 			num_written = err;
 	}
