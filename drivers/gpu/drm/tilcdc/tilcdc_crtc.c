@@ -17,6 +17,7 @@
 
 #include "drm_flip_work.h"
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
@@ -293,12 +294,12 @@ static bool tilcdc_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-static void tilcdc_crtc_prepare(struct drm_crtc *crtc)
+static void tilcdc_crtc_disable(struct drm_crtc *crtc)
 {
 	tilcdc_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 }
 
-static void tilcdc_crtc_commit(struct drm_crtc *crtc)
+static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 {
 	tilcdc_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
@@ -704,18 +705,23 @@ static int tilcdc_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 }
 
 static const struct drm_crtc_funcs tilcdc_crtc_funcs = {
-		.destroy        = tilcdc_crtc_destroy,
-		.set_config     = drm_crtc_helper_set_config,
-		.page_flip      = tilcdc_crtc_page_flip,
+	.destroy        = tilcdc_crtc_destroy,
+	.set_config     = drm_atomic_helper_set_config,
+	.page_flip      = drm_atomic_helper_page_flip,
+	.reset		= drm_atomic_helper_crtc_reset,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
 static const struct drm_crtc_helper_funcs tilcdc_crtc_helper_funcs = {
 		.dpms           = tilcdc_crtc_dpms,
 		.mode_fixup     = tilcdc_crtc_mode_fixup,
-		.prepare        = tilcdc_crtc_prepare,
-		.commit         = tilcdc_crtc_commit,
+		.prepare        = tilcdc_crtc_disable,
+		.commit         = tilcdc_crtc_enable,
 		.mode_set       = tilcdc_crtc_mode_set,
 		.mode_set_base  = tilcdc_crtc_mode_set_base,
+		.enable		= tilcdc_crtc_enable,
+		.disable	= tilcdc_crtc_disable,
 		.atomic_check	= tilcdc_crtc_atomic_check,
 		.mode_set_nofb	= tilcdc_crtc_mode_set_nofb,
 };

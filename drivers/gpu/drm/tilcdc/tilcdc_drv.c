@@ -611,7 +611,7 @@ static const struct file_operations fops = {
 
 static struct drm_driver tilcdc_driver = {
 	.driver_features    = (DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET |
-			       DRIVER_PRIME),
+			       DRIVER_PRIME | DRIVER_ATOMIC),
 	.load               = tilcdc_load,
 	.unload             = tilcdc_unload,
 	.lastclose          = tilcdc_lastclose,
