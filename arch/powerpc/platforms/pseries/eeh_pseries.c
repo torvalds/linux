@@ -53,7 +53,6 @@ static int ibm_read_slot_reset_state2;
 static int ibm_slot_error_detail;
 static int ibm_get_config_addr_info;
 static int ibm_get_config_addr_info2;
-static int ibm_configure_bridge;
 static int ibm_configure_pe;
 
 /*
@@ -81,7 +80,14 @@ static int pseries_eeh_init(void)
 	ibm_get_config_addr_info2	= rtas_token("ibm,get-config-addr-info2");
 	ibm_get_config_addr_info	= rtas_token("ibm,get-config-addr-info");
 	ibm_configure_pe		= rtas_token("ibm,configure-pe");
-	ibm_configure_bridge		= rtas_token("ibm,configure-bridge");
+
+	/*
+	 * ibm,configure-pe and ibm,configure-bridge have the same semantics,
+	 * however ibm,configure-pe can be faster.  If we can't find
+	 * ibm,configure-pe then fall back to using ibm,configure-bridge.
+	 */
+	if (ibm_configure_pe == RTAS_UNKNOWN_SERVICE)
+		ibm_configure_pe 	= rtas_token("ibm,configure-bridge");
 
 	/*
 	 * Necessary sanity check. We needn't check "get-config-addr-info"
@@ -93,8 +99,7 @@ static int pseries_eeh_init(void)
 	    (ibm_read_slot_reset_state2 == RTAS_UNKNOWN_SERVICE &&
 	     ibm_read_slot_reset_state == RTAS_UNKNOWN_SERVICE)	||
 	    ibm_slot_error_detail == RTAS_UNKNOWN_SERVICE	||
-	    (ibm_configure_pe == RTAS_UNKNOWN_SERVICE		&&
-	     ibm_configure_bridge == RTAS_UNKNOWN_SERVICE)) {
+	    ibm_configure_pe == RTAS_UNKNOWN_SERVICE) {
 		pr_info("EEH functionality not supported\n");
 		return -EINVAL;
 	}
@@ -624,18 +629,9 @@ static int pseries_eeh_configure_bridge(struct eeh_pe *pe)
 		config_addr = pe->addr;
 
 	while (max_wait > 0) {
-		/* Use new configure-pe function, if supported */
-		if (ibm_configure_pe != RTAS_UNKNOWN_SERVICE) {
-			ret = rtas_call(ibm_configure_pe, 3, 1, NULL,
-					config_addr, BUID_HI(pe->phb->buid),
-					BUID_LO(pe->phb->buid));
-		} else if (ibm_configure_bridge != RTAS_UNKNOWN_SERVICE) {
-			ret = rtas_call(ibm_configure_bridge, 3, 1, NULL,
-					config_addr, BUID_HI(pe->phb->buid),
-					BUID_LO(pe->phb->buid));
-		} else {
-			return -EFAULT;
-		}
+		ret = rtas_call(ibm_configure_pe, 3, 1, NULL,
+				config_addr, BUID_HI(pe->phb->buid),
+				BUID_LO(pe->phb->buid));
 
 		if (!ret)
 			return ret;
