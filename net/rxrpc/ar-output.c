@@ -663,7 +663,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			size_t pad;
 
 			/* pad out if we're using security */
-			if (conn->security) {
+			if (conn->security_ix) {
 				pad = conn->security_size + skb->mark;
 				pad = conn->size_align - pad;
 				pad &= conn->size_align - 1;
@@ -695,7 +695,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			if (more && seq & 1)
 				sp->hdr.flags |= RXRPC_REQUEST_ACK;
 
-			ret = rxrpc_secure_packet(
+			ret = conn->security->secure_packet(
 				call, skb, skb->mark,
 				skb->head + sizeof(struct rxrpc_wire_header));
 			if (ret < 0)

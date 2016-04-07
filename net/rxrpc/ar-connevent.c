@@ -174,15 +174,10 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		return -ECONNABORTED;
 
 	case RXRPC_PACKET_TYPE_CHALLENGE:
-		if (conn->security)
-			return conn->security->respond_to_challenge(
-				conn, skb, _abort_code);
-		return -EPROTO;
+		return conn->security->respond_to_challenge(conn, skb,
+							    _abort_code);
 
 	case RXRPC_PACKET_TYPE_RESPONSE:
-		if (!conn->security)
-			return -EPROTO;
-
 		ret = conn->security->verify_response(conn, skb, _abort_code);
 		if (ret < 0)
 			return ret;
@@ -237,8 +232,6 @@ static void rxrpc_secure_connection(struct rxrpc_connection *conn)
 			goto abort;
 		}
 	}
-
-	ASSERT(conn->security != NULL);
 
 	if (conn->security->issue_challenge(conn) < 0) {
 		abort_code = RX_CALL_DEAD;

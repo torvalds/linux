@@ -588,7 +588,8 @@ process_further:
 		_proto("OOSQ DATA %%%u { #%u }", sp->hdr.serial, sp->hdr.seq);
 
 		/* secured packets must be verified and possibly decrypted */
-		if (rxrpc_verify_packet(call, skb, _abort_code) < 0)
+		if (call->conn->security->verify_packet(call, skb,
+							_abort_code) < 0)
 			goto protocol_error;
 
 		rxrpc_insert_oos_packet(call, skb);

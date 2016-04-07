@@ -9,6 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <net/sock.h>
 #include <rxrpc/packet.h>
 
 #if 0
@@ -612,10 +613,6 @@ int __init rxrpc_init_security(void);
 void rxrpc_exit_security(void);
 int rxrpc_init_client_conn_security(struct rxrpc_connection *);
 int rxrpc_init_server_conn_security(struct rxrpc_connection *);
-int rxrpc_secure_packet(const struct rxrpc_call *, struct sk_buff *, size_t,
-			void *);
-int rxrpc_verify_packet(const struct rxrpc_call *, struct sk_buff *, u32 *);
-void rxrpc_clear_conn_security(struct rxrpc_connection *);
 
 /*
  * ar-skbuff.c
@@ -633,6 +630,11 @@ void rxrpc_put_transport(struct rxrpc_transport *);
 void __exit rxrpc_destroy_all_transports(void);
 struct rxrpc_transport *rxrpc_find_transport(struct rxrpc_local *,
 					     struct rxrpc_peer *);
+
+/*
+ * insecure.c
+ */
+extern const struct rxrpc_security rxrpc_no_security;
 
 /*
  * misc.c

@@ -19,6 +19,7 @@ af-rxrpc-y := \
 	ar-security.o \
 	ar-skbuff.o \
 	ar-transport.o \
+	insecure.o \
 	misc.o
 
 af-rxrpc-$(CONFIG_PROC_FS) += ar-proc.o

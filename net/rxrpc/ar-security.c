@@ -23,6 +23,7 @@ static LIST_HEAD(rxrpc_security_methods);
 static DECLARE_RWSEM(rxrpc_security_sem);
 
 static const struct rxrpc_security *rxrpc_security_types[] = {
+	[RXRPC_SECURITY_NONE]	= &rxrpc_no_security,
 #ifdef CONFIG_RXKAD
 	[RXRPC_SECURITY_RXKAD]	= &rxkad,
 #endif
@@ -98,7 +99,7 @@ int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 
 	ret = conn->security->init_connection_security(conn);
 	if (ret < 0) {
-		conn->security = NULL;
+		conn->security = &rxrpc_no_security;
 		return ret;
 	}
 
@@ -164,44 +165,4 @@ found_service:
 
 	_leave(" = 0");
 	return 0;
-}
-
-/*
- * secure a packet prior to transmission
- */
-int rxrpc_secure_packet(const struct rxrpc_call *call,
-			struct sk_buff *skb,
-			size_t data_size,
-			void *sechdr)
-{
-	if (call->conn->security)
-		return call->conn->security->secure_packet(
-			call, skb, data_size, sechdr);
-	return 0;
-}
-
-/*
- * secure a packet prior to transmission
- */
-int rxrpc_verify_packet(const struct rxrpc_call *call, struct sk_buff *skb,
-			u32 *_abort_code)
-{
-	if (call->conn->security)
-		return call->conn->security->verify_packet(
-			call, skb, _abort_code);
-	return 0;
-}
-
-/*
- * clear connection security
- */
-void rxrpc_clear_conn_security(struct rxrpc_connection *conn)
-{
-	_enter("{%d}", conn->debug_id);
-
-	if (conn->security)
-		conn->security->clear(conn);
-
-	key_put(conn->key);
-	key_put(conn->server_key);
 }
