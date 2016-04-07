@@ -71,6 +71,14 @@ struct udp_sock {
 	 */
 	int (*encap_rcv)(struct sock *sk, struct sk_buff *skb);
 	void (*encap_destroy)(struct sock *sk);
+
+	/* GRO functions for UDP socket */
+	struct sk_buff **	(*gro_receive)(struct sock *sk,
+					       struct sk_buff **head,
+					       struct sk_buff *skb);
+	int			(*gro_complete)(struct sock *sk,
+						struct sk_buff *skb,
+						int nhoff);
 };
 
 static inline struct udp_sock *udp_sk(const struct sock *sk)

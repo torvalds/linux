@@ -551,16 +551,15 @@ static struct vxlanhdr *vxlan_gro_remcsum(struct sk_buff *skb,
 	return vh;
 }
 
-static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
-					  struct sk_buff *skb,
-					  struct udp_offload *uoff)
+static struct sk_buff **vxlan_gro_receive(struct sock *sk,
+					  struct sk_buff **head,
+					  struct sk_buff *skb)
 {
 	struct sk_buff *p, **pp = NULL;
 	struct vxlanhdr *vh, *vh2;
 	unsigned int hlen, off_vx;
 	int flush = 1;
-	struct vxlan_sock *vs = container_of(uoff, struct vxlan_sock,
-					     udp_offloads);
+	struct vxlan_sock *vs = rcu_dereference_sk_user_data(sk);
 	__be32 flags;
 	struct gro_remcsum grc;
 
@@ -613,8 +612,7 @@ out:
 	return pp;
 }
 
-static int vxlan_gro_complete(struct sk_buff *skb, int nhoff,
-			      struct udp_offload *uoff)
+static int vxlan_gro_complete(struct sock *sk, struct sk_buff *skb, int nhoff)
 {
 	udp_tunnel_gro_complete(skb, nhoff);
 
@@ -629,13 +627,6 @@ static void vxlan_notify_add_rx_port(struct vxlan_sock *vs)
 	struct net *net = sock_net(sk);
 	sa_family_t sa_family = vxlan_get_sk_family(vs);
 	__be16 port = inet_sk(sk)->inet_sport;
-	int err;
-
-	if (sa_family == AF_INET) {
-		err = udp_add_offload(net, &vs->udp_offloads);
-		if (err)
-			pr_warn("vxlan: udp_add_offload failed with status %d\n", err);
-	}
 
 	rcu_read_lock();
 	for_each_netdev_rcu(net, dev) {
@@ -662,9 +653,6 @@ static void vxlan_notify_del_rx_port(struct vxlan_sock *vs)
 							    port);
 	}
 	rcu_read_unlock();
-
-	if (sa_family == AF_INET)
-		udp_del_offload(&vs->udp_offloads);
 }
 
 /* Add new entry to forwarding table -- assumes lock held */
@@ -2752,21 +2740,19 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, bool ipv6,
 	atomic_set(&vs->refcnt, 1);
 	vs->flags = (flags & VXLAN_F_RCV_FLAGS);
 
-	/* Initialize the vxlan udp offloads structure */
-	vs->udp_offloads.port = port;
-	vs->udp_offloads.callbacks.gro_receive  = vxlan_gro_receive;
-	vs->udp_offloads.callbacks.gro_complete = vxlan_gro_complete;
-
 	spin_lock(&vn->sock_lock);
 	hlist_add_head_rcu(&vs->hlist, vs_head(net, port));
 	vxlan_notify_add_rx_port(vs);
 	spin_unlock(&vn->sock_lock);
 
 	/* Mark socket as an encapsulation socket. */
+	memset(&tunnel_cfg, 0, sizeof(tunnel_cfg));
 	tunnel_cfg.sk_user_data = vs;
 	tunnel_cfg.encap_type = 1;
 	tunnel_cfg.encap_rcv = vxlan_rcv;
 	tunnel_cfg.encap_destroy = NULL;
+	tunnel_cfg.gro_receive = vxlan_gro_receive;
+	tunnel_cfg.gro_complete = vxlan_gro_complete;
 
 	setup_udp_tunnel_sock(net, sock, &tunnel_cfg);
 
