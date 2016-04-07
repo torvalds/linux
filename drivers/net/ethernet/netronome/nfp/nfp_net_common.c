@@ -1488,91 +1488,40 @@ err_alloc:
 	return -ENOMEM;
 }
 
-static void __nfp_net_free_rings(struct nfp_net *nn, unsigned int n_free)
+static int
+nfp_net_prepare_vector(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
+		       int idx)
 {
-	struct nfp_net_r_vector *r_vec;
-	struct msix_entry *entry;
-
-	while (n_free--) {
-		r_vec = &nn->r_vecs[n_free];
-		entry = &nn->irq_entries[r_vec->irq_idx];
-
-		nfp_net_rx_ring_free(r_vec->rx_ring);
-		nfp_net_tx_ring_free(r_vec->tx_ring);
-
-		irq_set_affinity_hint(entry->vector, NULL);
-		free_irq(entry->vector, r_vec);
-
-		netif_napi_del(&r_vec->napi);
-	}
-}
-
-/**
- * nfp_net_free_rings() - Free all ring resources
- * @nn:      NFP Net device to reconfigure
- */
-static void nfp_net_free_rings(struct nfp_net *nn)
-{
-	__nfp_net_free_rings(nn, nn->num_r_vecs);
-}
-
-/**
- * nfp_net_alloc_rings() - Allocate resources for RX and TX rings
- * @nn:      NFP Net device to reconfigure
- *
- * Return: 0 on success or negative errno on error.
- */
-static int nfp_net_alloc_rings(struct nfp_net *nn)
-{
-	struct nfp_net_r_vector *r_vec;
-	struct msix_entry *entry;
+	struct msix_entry *entry = &nn->irq_entries[r_vec->irq_idx];
 	int err;
-	int r;
 
-	for (r = 0; r < nn->num_r_vecs; r++) {
-		r_vec = &nn->r_vecs[r];
-		entry = &nn->irq_entries[r_vec->irq_idx];
-
-		/* Setup NAPI */
-		netif_napi_add(nn->netdev, &r_vec->napi,
-			       nfp_net_poll, NAPI_POLL_WEIGHT);
-
-		snprintf(r_vec->name, sizeof(r_vec->name),
-			 "%s-rxtx-%d", nn->netdev->name, r);
-		err = request_irq(entry->vector, r_vec->handler, 0,
-				  r_vec->name, r_vec);
-		if (err) {
-			nn_dbg(nn, "Error requesting IRQ %d\n", entry->vector);
-			goto err_napi_del;
-		}
-
-		irq_set_affinity_hint(entry->vector, &r_vec->affinity_mask);
-
-		nn_dbg(nn, "RV%02d: irq=%03d/%03d\n",
-		       r, entry->vector, entry->entry);
-
-		/* Allocate TX ring resources */
-		err = nfp_net_tx_ring_alloc(r_vec->tx_ring);
-		if (err)
-			goto err_free_irq;
-
-		/* Allocate RX ring resources */
-		err = nfp_net_rx_ring_alloc(r_vec->rx_ring);
-		if (err)
-			goto err_free_tx;
+	snprintf(r_vec->name, sizeof(r_vec->name),
+		 "%s-rxtx-%d", nn->netdev->name, idx);
+	err = request_irq(entry->vector, r_vec->handler, 0, r_vec->name, r_vec);
+	if (err) {
+		nn_err(nn, "Error requesting IRQ %d\n", entry->vector);
+		return err;
 	}
+
+	/* Setup NAPI */
+	netif_napi_add(nn->netdev, &r_vec->napi,
+		       nfp_net_poll, NAPI_POLL_WEIGHT);
+
+	irq_set_affinity_hint(entry->vector, &r_vec->affinity_mask);
+
+	nn_dbg(nn, "RV%02d: irq=%03d/%03d\n", idx, entry->vector, entry->entry);
 
 	return 0;
+}
 
-err_free_tx:
-	nfp_net_tx_ring_free(r_vec->tx_ring);
-err_free_irq:
+static void
+nfp_net_cleanup_vector(struct nfp_net *nn, struct nfp_net_r_vector *r_vec)
+{
+	struct msix_entry *entry = &nn->irq_entries[r_vec->irq_idx];
+
 	irq_set_affinity_hint(entry->vector, NULL);
-	free_irq(entry->vector, r_vec);
-err_napi_del:
 	netif_napi_del(&r_vec->napi);
-	__nfp_net_free_rings(nn, r);
-	return err;
+	free_irq(entry->vector, r_vec);
 }
 
 /**
@@ -1736,9 +1685,19 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 		goto err_free_exn;
 	disable_irq(nn->irq_entries[NFP_NET_CFG_LSC].vector);
 
-	err = nfp_net_alloc_rings(nn);
-	if (err)
-		goto err_free_lsc;
+	for (r = 0; r < nn->num_r_vecs; r++) {
+		err = nfp_net_prepare_vector(nn, &nn->r_vecs[r], r);
+		if (err)
+			goto err_free_prev_vecs;
+
+		err = nfp_net_tx_ring_alloc(nn->r_vecs[r].tx_ring);
+		if (err)
+			goto err_cleanup_vec_p;
+
+		err = nfp_net_rx_ring_alloc(nn->r_vecs[r].rx_ring);
+		if (err)
+			goto err_free_tx_ring_p;
+	}
 
 	err = netif_set_real_num_tx_queues(netdev, nn->num_tx_rings);
 	if (err)
@@ -1831,8 +1790,15 @@ err_disable_napi:
 err_clear_config:
 	nfp_net_clear_config_and_disable(nn);
 err_free_rings:
-	nfp_net_free_rings(nn);
-err_free_lsc:
+	r = nn->num_r_vecs;
+err_free_prev_vecs:
+	while (r--) {
+		nfp_net_rx_ring_free(nn->r_vecs[r].rx_ring);
+err_free_tx_ring_p:
+		nfp_net_tx_ring_free(nn->r_vecs[r].tx_ring);
+err_cleanup_vec_p:
+		nfp_net_cleanup_vector(nn, &nn->r_vecs[r]);
+	}
 	nfp_net_aux_irq_free(nn, NFP_NET_CFG_LSC, NFP_NET_IRQ_LSC_IDX);
 err_free_exn:
 	nfp_net_aux_irq_free(nn, NFP_NET_CFG_EXN, NFP_NET_IRQ_EXN_IDX);
@@ -1873,9 +1839,11 @@ static int nfp_net_netdev_close(struct net_device *netdev)
 	for (r = 0; r < nn->num_r_vecs; r++) {
 		nfp_net_rx_flush(nn->r_vecs[r].rx_ring);
 		nfp_net_tx_flush(nn->r_vecs[r].tx_ring);
+		nfp_net_rx_ring_free(nn->r_vecs[r].rx_ring);
+		nfp_net_tx_ring_free(nn->r_vecs[r].tx_ring);
+		nfp_net_cleanup_vector(nn, &nn->r_vecs[r]);
 	}
 
-	nfp_net_free_rings(nn);
 	nfp_net_aux_irq_free(nn, NFP_NET_CFG_LSC, NFP_NET_IRQ_LSC_IDX);
 	nfp_net_aux_irq_free(nn, NFP_NET_CFG_EXN, NFP_NET_IRQ_EXN_IDX);
 
