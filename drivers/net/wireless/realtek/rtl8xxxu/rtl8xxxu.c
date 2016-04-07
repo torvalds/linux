@@ -3649,6 +3649,11 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 		rtl8xxxu_write16(priv, REG_SYS_FUNC, val16);
 
 		rtl8xxxu_write32(priv, REG_S0S1_PATH_SWITCH, 0x00);
+	} else if (priv->rtl_chip == RTL8192E) {
+		val16 = rtl8xxxu_read16(priv, REG_SYS_FUNC);
+		val16 |= SYS_FUNC_BB_GLB_RSTN | SYS_FUNC_BBRSTB |
+			SYS_FUNC_DIO_RF;
+		rtl8xxxu_write16(priv, REG_SYS_FUNC, val16);
 	} else {
 		val8 = rtl8xxxu_read8(priv, REG_AFE_PLL_CTRL);
 		udelay(2);
