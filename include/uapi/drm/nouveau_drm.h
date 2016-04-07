@@ -27,7 +27,7 @@
 
 #define DRM_NOUVEAU_EVENT_NVIF                                       0x80000000
 
-#include <drm/drm.h>
+#include "drm.h"
 
 #if defined(__cplusplus)
 extern "C" {
