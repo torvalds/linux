@@ -2039,6 +2039,8 @@ static void bnx2fc_ulp_init(struct cnic_dev *dev)
 		return;
 	}
 
+	pr_info(PFX "FCoE initialized for %s.\n", dev->netdev->name);
+
 	/* Add HBA to the adapter list */
 	mutex_lock(&bnx2fc_dev_lock);
 	list_add_tail(&hba->list, &adapter_list);
