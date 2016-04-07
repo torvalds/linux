@@ -1729,10 +1729,16 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 				      NFP_NET_IRQ_EXN_IDX, nn->exn_handler);
 	if (err)
 		return err;
+	err = nfp_net_aux_irq_request(nn, NFP_NET_CFG_LSC, "%s-lsc",
+				      nn->lsc_name, sizeof(nn->lsc_name),
+				      NFP_NET_IRQ_LSC_IDX, nn->lsc_handler);
+	if (err)
+		goto err_free_exn;
+	disable_irq(nn->irq_entries[NFP_NET_CFG_LSC].vector);
 
 	err = nfp_net_alloc_rings(nn);
 	if (err)
-		goto err_free_exn;
+		goto err_free_lsc;
 
 	err = netif_set_real_num_tx_queues(netdev, nn->num_tx_rings);
 	if (err)
@@ -1812,19 +1818,11 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 
 	netif_tx_wake_all_queues(netdev);
 
-	err = nfp_net_aux_irq_request(nn, NFP_NET_CFG_LSC, "%s-lsc",
-				      nn->lsc_name, sizeof(nn->lsc_name),
-				      NFP_NET_IRQ_LSC_IDX, nn->lsc_handler);
-	if (err)
-		goto err_stop_tx;
+	enable_irq(nn->irq_entries[NFP_NET_CFG_LSC].vector);
 	nfp_net_read_link_status(nn);
 
 	return 0;
 
-err_stop_tx:
-	netif_tx_disable(netdev);
-	for (r = 0; r < nn->num_r_vecs; r++)
-		nfp_net_tx_flush(nn->r_vecs[r].tx_ring);
 err_disable_napi:
 	while (r--) {
 		napi_disable(&nn->r_vecs[r].napi);
@@ -1834,6 +1832,8 @@ err_clear_config:
 	nfp_net_clear_config_and_disable(nn);
 err_free_rings:
 	nfp_net_free_rings(nn);
+err_free_lsc:
+	nfp_net_aux_irq_free(nn, NFP_NET_CFG_LSC, NFP_NET_IRQ_LSC_IDX);
 err_free_exn:
 	nfp_net_aux_irq_free(nn, NFP_NET_CFG_EXN, NFP_NET_IRQ_EXN_IDX);
 	return err;
@@ -1855,7 +1855,7 @@ static int nfp_net_netdev_close(struct net_device *netdev)
 
 	/* Step 1: Disable RX and TX rings from the Linux kernel perspective
 	 */
-	nfp_net_aux_irq_free(nn, NFP_NET_CFG_LSC, NFP_NET_IRQ_LSC_IDX);
+	disable_irq(nn->irq_entries[NFP_NET_CFG_LSC].vector);
 	netif_carrier_off(netdev);
 	nn->link_up = false;
 
@@ -1876,6 +1876,7 @@ static int nfp_net_netdev_close(struct net_device *netdev)
 	}
 
 	nfp_net_free_rings(nn);
+	nfp_net_aux_irq_free(nn, NFP_NET_CFG_LSC, NFP_NET_IRQ_LSC_IDX);
 	nfp_net_aux_irq_free(nn, NFP_NET_CFG_EXN, NFP_NET_IRQ_EXN_IDX);
 
 	nn_dbg(nn, "%s down", netdev->name);
