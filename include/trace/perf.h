@@ -34,6 +34,7 @@ perf_trace_##call(void *__data, proto)					\
 	struct trace_event_call *event_call = __data;			\
 	struct trace_event_data_offsets_##call __maybe_unused __data_offsets;\
 	struct trace_event_raw_##call *entry;				\
+	struct bpf_prog *prog = event_call->prog;			\
 	struct pt_regs *__regs;						\
 	u64 __count = 1;						\
 	struct task_struct *__task = NULL;				\
@@ -45,7 +46,7 @@ perf_trace_##call(void *__data, proto)					\
 	__data_size = trace_event_get_offsets_##call(&__data_offsets, args); \
 									\
 	head = this_cpu_ptr(event_call->perf_events);			\
-	if (__builtin_constant_p(!__task) && !__task &&			\
+	if (!prog && __builtin_constant_p(!__task) && !__task &&	\
 				hlist_empty(head))			\
 		return;							\
 									\
@@ -63,6 +64,13 @@ perf_trace_##call(void *__data, proto)					\
 									\
 	{ assign; }							\
 									\
+	if (prog) {							\
+		*(struct pt_regs **)entry = __regs;			\
+		if (!trace_call_bpf(prog, entry) || hlist_empty(head)) { \
+			perf_swevent_put_recursion_context(rctx);	\
+			return;						\
+		}							\
+	}								\
 	perf_trace_buf_submit(entry, __entry_size, rctx,		\
 			      event_call->event.type, __count, __regs,	\
 			      head, __task);				\

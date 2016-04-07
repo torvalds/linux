@@ -6725,12 +6725,13 @@ int perf_swevent_get_recursion_context(void)
 }
 EXPORT_SYMBOL_GPL(perf_swevent_get_recursion_context);
 
-inline void perf_swevent_put_recursion_context(int rctx)
+void perf_swevent_put_recursion_context(int rctx)
 {
 	struct swevent_htable *swhash = this_cpu_ptr(&swevent_htable);
 
 	put_recursion_context(swhash->recursion, rctx);
 }
+EXPORT_SYMBOL_GPL(perf_swevent_put_recursion_context);
 
 void ___perf_sw_event(u32 event_id, u64 nr, struct pt_regs *regs, u64 addr)
 {
@@ -7106,6 +7107,7 @@ static void perf_event_free_filter(struct perf_event *event)
 
 static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd)
 {
+	bool is_kprobe, is_tracepoint;
 	struct bpf_prog *prog;
 
 	if (event->attr.type != PERF_TYPE_TRACEPOINT)
@@ -7114,15 +7116,18 @@ static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd)
 	if (event->tp_event->prog)
 		return -EEXIST;
 
-	if (!(event->tp_event->flags & TRACE_EVENT_FL_UKPROBE))
-		/* bpf programs can only be attached to u/kprobes */
+	is_kprobe = event->tp_event->flags & TRACE_EVENT_FL_UKPROBE;
+	is_tracepoint = event->tp_event->flags & TRACE_EVENT_FL_TRACEPOINT;
+	if (!is_kprobe && !is_tracepoint)
+		/* bpf programs can only be attached to u/kprobe or tracepoint */
 		return -EINVAL;
 
 	prog = bpf_prog_get(prog_fd);
 	if (IS_ERR(prog))
 		return PTR_ERR(prog);
 
-	if (prog->type != BPF_PROG_TYPE_KPROBE) {
+	if ((is_kprobe && prog->type != BPF_PROG_TYPE_KPROBE) ||
+	    (is_tracepoint && prog->type != BPF_PROG_TYPE_TRACEPOINT)) {
 		/* valid fd, but invalid bpf program type */
 		bpf_prog_put(prog);
 		return -EINVAL;
