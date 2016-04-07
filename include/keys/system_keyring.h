@@ -33,28 +33,19 @@ extern int restrict_link_by_builtin_and_secondary_trusted(
 #define restrict_link_by_builtin_and_secondary_trusted restrict_link_by_builtin_trusted
 #endif
 
-#ifdef CONFIG_IMA_MOK_KEYRING
-extern struct key *ima_mok_keyring;
+#ifdef CONFIG_IMA_BLACKLIST_KEYRING
 extern struct key *ima_blacklist_keyring;
 
-static inline struct key *get_ima_mok_keyring(void)
-{
-	return ima_mok_keyring;
-}
 static inline struct key *get_ima_blacklist_keyring(void)
 {
 	return ima_blacklist_keyring;
 }
 #else
-static inline struct key *get_ima_mok_keyring(void)
-{
-	return NULL;
-}
 static inline struct key *get_ima_blacklist_keyring(void)
 {
 	return NULL;
 }
-#endif /* CONFIG_IMA_MOK_KEYRING */
+#endif /* CONFIG_IMA_BLACKLIST_KEYRING */
 
 
 #endif /* _KEYS_SYSTEM_KEYRING_H */

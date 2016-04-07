@@ -42,32 +42,10 @@ static bool init_keyring __initdata = true;
 static bool init_keyring __initdata;
 #endif
 
-#ifdef CONFIG_SYSTEM_TRUSTED_KEYRING
-/*
- * Restrict the addition of keys into the IMA keyring.
- *
- * Any key that needs to go in .ima keyring must be signed by CA in
- * either .system or .ima_mok keyrings.
- */
-static int restrict_link_by_ima_mok(struct key *keyring,
-				    const struct key_type *type,
-				    const union key_payload *payload)
-{
-	int ret;
-
-	ret = restrict_link_by_builtin_trusted(keyring, type, payload);
-	if (ret != -ENOKEY)
-		return ret;
-
-	return restrict_link_by_signature(get_ima_mok_keyring(),
-					  type, payload);
-}
+#ifdef CONFIG_IMA_KEYRINGS_PERMIT_SIGNED_BY_BUILTIN_OR_SECONDARY
+#define restrict_link_to_ima restrict_link_by_builtin_and_secondary_trusted
 #else
-/*
- * If there's no system trusted keyring, then keys cannot be loaded into
- * .ima_mok and added keys cannot be marked trusted.
- */
-#define restrict_link_by_ima_mok restrict_link_reject
+#define restrict_link_to_ima restrict_link_by_builtin_trusted
 #endif
 
 int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
@@ -114,7 +92,7 @@ int __init integrity_init_keyring(const unsigned int id)
 				     KEY_USR_VIEW | KEY_USR_READ |
 				     KEY_USR_WRITE | KEY_USR_SEARCH),
 				    KEY_ALLOC_NOT_IN_QUOTA,
-				    restrict_link_by_ima_mok, NULL);
+				    restrict_link_to_ima, NULL);
 	if (IS_ERR(keyring[id])) {
 		err = PTR_ERR(keyring[id]);
 		pr_info("Can't allocate %s keyring (%d)\n",
