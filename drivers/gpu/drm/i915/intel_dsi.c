@@ -758,13 +758,73 @@ out_put_power:
 	return active;
 }
 
+static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
+				 struct intel_crtc_state *pipe_config)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_display_mode *adjusted_mode =
+					&pipe_config->base.adjusted_mode;
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	unsigned int bpp, fmt;
+	enum port port;
+	u16 vfp, vsync, vbp;
+
+	/*
+	 * Atleast one port is active as encoder->get_config called only if
+	 * encoder->get_hw_state() returns true.
+	 */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		if (I915_READ(BXT_MIPI_PORT_CTRL(port)) & DPI_ENABLE)
+			break;
+	}
+
+	fmt = I915_READ(MIPI_DSI_FUNC_PRG(port)) & VID_MODE_FORMAT_MASK;
+	pipe_config->pipe_bpp =
+			mipi_dsi_pixel_format_to_bpp(
+				pixel_format_from_register_bits(fmt));
+	bpp = pipe_config->pipe_bpp;
+
+	/* In terms of pixels */
+	adjusted_mode->crtc_hdisplay =
+				I915_READ(BXT_MIPI_TRANS_HACTIVE(port));
+	adjusted_mode->crtc_vdisplay =
+				I915_READ(BXT_MIPI_TRANS_VACTIVE(port));
+	adjusted_mode->crtc_vtotal =
+				I915_READ(BXT_MIPI_TRANS_VTOTAL(port));
+
+	/*
+	 * TODO: Retrieve hfp, hsync and hbp. Adjust them for dual link and
+	 * calculate hsync_start, hsync_end, htotal and hblank_end
+	 */
+
+	/* vertical values are in terms of lines */
+	vfp = I915_READ(MIPI_VFP_COUNT(port));
+	vsync = I915_READ(MIPI_VSYNC_PADDING_COUNT(port));
+	vbp = I915_READ(MIPI_VBP_COUNT(port));
+
+	adjusted_mode->crtc_hblank_start = adjusted_mode->crtc_hdisplay;
+
+	adjusted_mode->crtc_vsync_start =
+				vfp + adjusted_mode->crtc_vdisplay;
+	adjusted_mode->crtc_vsync_end =
+				vsync + adjusted_mode->crtc_vsync_start;
+	adjusted_mode->crtc_vblank_start = adjusted_mode->crtc_vdisplay;
+	adjusted_mode->crtc_vblank_end = adjusted_mode->crtc_vtotal;
+}
+
+
 static void intel_dsi_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
+	struct drm_device *dev = encoder->base.dev;
 	u32 pclk;
 	DRM_DEBUG_KMS("\n");
 
 	pipe_config->has_dsi_encoder = true;
+
+	if (IS_BROXTON(dev))
+		bxt_dsi_get_pipe_config(encoder, pipe_config);
 
 	/*
 	 * DPLL_MD is not used in case of DSI, reading will get some default value
