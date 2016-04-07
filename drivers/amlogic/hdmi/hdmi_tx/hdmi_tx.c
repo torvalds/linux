@@ -565,6 +565,8 @@ static ssize_t store_amlogic_cec_debug_config(struct device *dev, struct device_
    return kstrtoul(buf, 16, &amlogic_cec_debug_flag) ? 0 : count;
 }
 
+#endif
+
 static ssize_t show_cec_lang_config(struct device * dev, struct device_attribute *attr, char * buf)
 {
     int pos=0;
@@ -572,7 +574,6 @@ static ssize_t show_cec_lang_config(struct device * dev, struct device_attribute
     pos+=snprintf(buf+pos, PAGE_SIZE, "%x\n",cec_global_info.cec_node_info[cec_global_info.my_node_index].menu_lang);
     return pos;
 }
-#endif
 
 /*aud_mode attr*/
 static ssize_t show_aud_mode(struct device * dev, struct device_attribute *attr, char * buf)
