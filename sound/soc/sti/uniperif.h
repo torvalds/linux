@@ -1219,6 +1219,15 @@
 #define UNIPERIF_FIFO_SIZE		70 /* FIFO is 70 cells deep */
 #define UNIPERIF_FIFO_FRAMES		4  /* FDMA trigger limit in frames */
 
+#define UNIPERIF_TYPE_IS_HDMI(p) \
+	((p)->info->type == SND_ST_UNIPERIF_TYPE_HDMI)
+#define UNIPERIF_TYPE_IS_PCM(p) \
+	((p)->info->type == SND_ST_UNIPERIF_TYPE_PCM)
+#define UNIPERIF_TYPE_IS_SPDIF(p) \
+	((p)->info->type == SND_ST_UNIPERIF_TYPE_SPDIF)
+#define UNIPERIF_TYPE_IS_IEC958(p) \
+	(UNIPERIF_TYPE_IS_HDMI(p) || \
+		UNIPERIF_TYPE_IS_SPDIF(p))
 /*
  * Uniperipheral IP revisions
  */
@@ -1237,10 +1246,10 @@ enum uniperif_version {
 };
 
 enum uniperif_type {
-	SND_ST_UNIPERIF_PLAYER_TYPE_NONE,
-	SND_ST_UNIPERIF_PLAYER_TYPE_HDMI,
-	SND_ST_UNIPERIF_PLAYER_TYPE_PCM,
-	SND_ST_UNIPERIF_PLAYER_TYPE_SPDIF
+	SND_ST_UNIPERIF_TYPE_NONE,
+	SND_ST_UNIPERIF_TYPE_HDMI,
+	SND_ST_UNIPERIF_TYPE_PCM,
+	SND_ST_UNIPERIF_TYPE_SPDIF
 };
 
 enum uniperif_state {
@@ -1259,7 +1268,7 @@ enum uniperif_iec958_encoding_mode {
 
 struct uniperif_info {
 	int id; /* instance value of the uniperipheral IP */
-	enum uniperif_type player_type;
+	enum uniperif_type type;
 	int underflow_enabled;		/* Underflow recovery mode */
 };
 

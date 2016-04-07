@@ -26,15 +26,6 @@
 /*
  * Driver specific types.
  */
-#define UNIPERIF_PLAYER_TYPE_IS_HDMI(p) \
-	((p)->info->player_type == SND_ST_UNIPERIF_PLAYER_TYPE_HDMI)
-#define UNIPERIF_PLAYER_TYPE_IS_PCM(p) \
-	((p)->info->player_type == SND_ST_UNIPERIF_PLAYER_TYPE_PCM)
-#define UNIPERIF_PLAYER_TYPE_IS_SPDIF(p) \
-	((p)->info->player_type == SND_ST_UNIPERIF_PLAYER_TYPE_SPDIF)
-#define UNIPERIF_PLAYER_TYPE_IS_IEC958(p) \
-	(UNIPERIF_PLAYER_TYPE_IS_HDMI(p) || \
-		UNIPERIF_PLAYER_TYPE_IS_SPDIF(p))
 
 #define UNIPERIF_PLAYER_CLK_ADJ_MIN  -999999
 #define UNIPERIF_PLAYER_CLK_ADJ_MAX  1000000
@@ -738,14 +729,14 @@ static int uni_player_prepare(struct snd_pcm_substream *substream,
 	SET_UNIPERIF_CONFIG_DMA_TRIG_LIMIT(player, trigger_limit);
 
 	/* Uniperipheral setup depends on player type */
-	switch (player->info->player_type) {
-	case SND_ST_UNIPERIF_PLAYER_TYPE_HDMI:
+	switch (player->info->type) {
+	case SND_ST_UNIPERIF_TYPE_HDMI:
 		ret = uni_player_prepare_iec958(player, runtime);
 		break;
-	case SND_ST_UNIPERIF_PLAYER_TYPE_PCM:
+	case SND_ST_UNIPERIF_TYPE_PCM:
 		ret = uni_player_prepare_pcm(player, runtime);
 		break;
-	case SND_ST_UNIPERIF_PLAYER_TYPE_SPDIF:
+	case SND_ST_UNIPERIF_TYPE_SPDIF:
 		ret = uni_player_prepare_iec958(player, runtime);
 		break;
 	default:
@@ -852,8 +843,8 @@ static int uni_player_start(struct uniperif *player)
 	 * will not take affect and hang the player.
 	 */
 	if (player->ver < SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0)
-		if (UNIPERIF_PLAYER_TYPE_IS_IEC958(player))
-				SET_UNIPERIF_CTRL_SPDIF_FMT_ON(player);
+		if (UNIPERIF_TYPE_IS_IEC958(player))
+			SET_UNIPERIF_CTRL_SPDIF_FMT_ON(player);
 
 	/* Force channel status update (no update if clk disable) */
 	if (player->ver < SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0)
@@ -1012,13 +1003,13 @@ static int uni_player_parse_dt(struct platform_device *pdev,
 	}
 
 	if (strcasecmp(mode, "hdmi") == 0)
-		info->player_type = SND_ST_UNIPERIF_PLAYER_TYPE_HDMI;
+		info->type = SND_ST_UNIPERIF_TYPE_HDMI;
 	else if (strcasecmp(mode, "pcm") == 0)
-		info->player_type = SND_ST_UNIPERIF_PLAYER_TYPE_PCM;
+		info->type = SND_ST_UNIPERIF_TYPE_PCM;
 	else if (strcasecmp(mode, "spdif") == 0)
-		info->player_type = SND_ST_UNIPERIF_PLAYER_TYPE_SPDIF;
+		info->type = SND_ST_UNIPERIF_TYPE_SPDIF;
 	else
-		info->player_type = SND_ST_UNIPERIF_PLAYER_TYPE_NONE;
+		info->type = SND_ST_UNIPERIF_TYPE_NONE;
 
 	/* Save the info structure */
 	player->info = info;
@@ -1087,7 +1078,7 @@ int uni_player_init(struct platform_device *pdev,
 	SET_UNIPERIF_CTRL_SPDIF_LAT_OFF(player);
 	SET_UNIPERIF_CONFIG_IDLE_MOD_DISABLE(player);
 
-	if (UNIPERIF_PLAYER_TYPE_IS_IEC958(player)) {
+	if (UNIPERIF_TYPE_IS_IEC958(player)) {
 		/* Set default iec958 status bits  */
 
 		/* Consumer, PCM, copyright, 2ch, mode 0 */
