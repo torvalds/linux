@@ -684,6 +684,28 @@ static inline int mtk_cal_txd_req(struct sk_buff *skb)
 	return nfrags;
 }
 
+static void mtk_wake_queue(struct mtk_eth *eth)
+{
+	int i;
+
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
+		netif_wake_queue(eth->netdev[i]);
+	}
+}
+
+static void mtk_stop_queue(struct mtk_eth *eth)
+{
+	int i;
+
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
+		netif_stop_queue(eth->netdev[i]);
+	}
+}
+
 static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
@@ -695,7 +717,7 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_num = mtk_cal_txd_req(skb);
 	if (unlikely(atomic_read(&ring->free_count) <= tx_num)) {
-		netif_stop_queue(dev);
+		mtk_stop_queue(eth);
 		netif_err(eth, tx_queued, dev,
 			  "Tx Ring full when queue awake!\n");
 		return NETDEV_TX_BUSY;
@@ -720,10 +742,10 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto drop;
 
 	if (unlikely(atomic_read(&ring->free_count) <= ring->thresh)) {
-		netif_stop_queue(dev);
+		mtk_stop_queue(eth);
 		if (unlikely(atomic_read(&ring->free_count) >
 			     ring->thresh))
-			netif_wake_queue(dev);
+			mtk_wake_queue(eth);
 	}
 
 	return NETDEV_TX_OK;
@@ -897,13 +919,8 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget, bool *tx_again)
 	if (!total)
 		return 0;
 
-	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		if (!eth->netdev[i] ||
-		    unlikely(!netif_queue_stopped(eth->netdev[i])))
-			continue;
-		if (atomic_read(&ring->free_count) > ring->thresh)
-			netif_wake_queue(eth->netdev[i]);
-	}
+	if (atomic_read(&ring->free_count) > ring->thresh)
+		mtk_wake_queue(eth);
 
 	return total;
 }
