@@ -1030,6 +1030,7 @@ static int adf7242_hw_init(struct adf7242_local *lp)
 	if (ret) {
 		dev_err(&lp->spi->dev,
 			"upload firmware failed with %d\n", ret);
+		release_firmware(fw);
 		return ret;
 	}
 
@@ -1037,6 +1038,7 @@ static int adf7242_hw_init(struct adf7242_local *lp)
 	if (ret) {
 		dev_err(&lp->spi->dev,
 			"verify firmware failed with %d\n", ret);
+		release_firmware(fw);
 		return ret;
 	}
 
