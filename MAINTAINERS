@@ -9142,6 +9142,13 @@ T:	git git://github.com/KrasnikovEugene/wcn36xx.git
 S:	Supported
 F:	drivers/net/wireless/ath/wcn36xx/
 
+QEMU MACHINE EMULATOR AND VIRTUALIZER SUPPORT
+M:	Gabriel Somlo <somlo@cmu.edu>
+M:	"Michael S. Tsirkin" <mst@redhat.com>
+L:	qemu-devel@nongnu.org
+S:	Maintained
+F:	drivers/firmware/qemu_fw_cfg.c
+
 RADOS BLOCK DEVICE (RBD)
 M:	Ilya Dryomov <idryomov@gmail.com>
 M:	Sage Weil <sage@redhat.com>
