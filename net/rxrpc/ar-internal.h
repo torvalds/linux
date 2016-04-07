@@ -124,10 +124,14 @@ enum rxrpc_command {
  * RxRPC security module interface
  */
 struct rxrpc_security {
-	struct module		*owner;		/* providing module */
-	struct list_head	link;		/* link in master list */
 	const char		*name;		/* name of this service */
 	u8			security_index;	/* security type provided */
+
+	/* Initialise a security service */
+	int (*init)(void);
+
+	/* Clean up a security service */
+	void (*exit)(void);
 
 	/* initialise a connection's security */
 	int (*init_connection_security)(struct rxrpc_connection *);
@@ -268,7 +272,7 @@ struct rxrpc_connection {
 	struct rb_root		calls;		/* calls on this connection */
 	struct sk_buff_head	rx_queue;	/* received conn-level packets */
 	struct rxrpc_call	*channels[RXRPC_MAXCALLS]; /* channels (active calls) */
-	struct rxrpc_security	*security;	/* applied security module */
+	const struct rxrpc_security *security;	/* applied security module */
 	struct key		*key;		/* security for this connection (client) */
 	struct key		*server_key;	/* security for this service */
 	struct crypto_skcipher	*cipher;	/* encryption handle */
@@ -604,8 +608,8 @@ int rxrpc_recvmsg(struct socket *, struct msghdr *, size_t, int);
 /*
  * ar-security.c
  */
-int rxrpc_register_security(struct rxrpc_security *);
-void rxrpc_unregister_security(struct rxrpc_security *);
+int __init rxrpc_init_security(void);
+void rxrpc_exit_security(void);
 int rxrpc_init_client_conn_security(struct rxrpc_connection *);
 int rxrpc_init_server_conn_security(struct rxrpc_connection *);
 int rxrpc_secure_packet(const struct rxrpc_call *, struct sk_buff *, size_t,
@@ -644,6 +648,13 @@ extern const char *const rxrpc_pkts[];
 extern const s8 rxrpc_ack_priority[];
 
 extern const char *rxrpc_acks(u8 reason);
+
+/*
+ * rxkad.c
+ */
+#ifdef CONFIG_RXKAD
+extern const struct rxrpc_security rxkad;
+#endif
 
 /*
  * sysctl.c

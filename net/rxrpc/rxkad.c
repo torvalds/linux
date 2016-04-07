@@ -20,7 +20,6 @@
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include <keys/rxrpc-type.h>
-#define rxrpc_debug rxkad_debug
 #include "ar-internal.h"
 
 #define RXKAD_VERSION			2
@@ -31,10 +30,6 @@
 #define REALM_SZ			40	/* size of principal's auth domain */
 #define SNAME_SZ			40	/* size of service name */
 
-unsigned int rxrpc_debug;
-module_param_named(debug, rxrpc_debug, uint, S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(debug, "rxkad debugging mask");
-
 struct rxkad_level1_hdr {
 	__be32	data_size;	/* true data size (excluding padding) */
 };
@@ -43,10 +38,6 @@ struct rxkad_level2_hdr {
 	__be32	data_size;	/* true data size (excluding padding) */
 	__be32	checksum;	/* decrypted data checksum */
 };
-
-MODULE_DESCRIPTION("RxRPC network protocol type-2 security (Kerberos 4)");
-MODULE_AUTHOR("Red Hat, Inc.");
-MODULE_LICENSE("GPL");
 
 /*
  * this holds a pinned cipher so that keventd doesn't get called by the cipher
@@ -1164,12 +1155,35 @@ static void rxkad_clear(struct rxrpc_connection *conn)
 }
 
 /*
+ * Initialise the rxkad security service.
+ */
+static int rxkad_init(void)
+{
+	/* pin the cipher we need so that the crypto layer doesn't invoke
+	 * keventd to go get it */
+	rxkad_ci = crypto_alloc_skcipher("pcbc(fcrypt)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(rxkad_ci))
+		return PTR_ERR(rxkad_ci);
+	return 0;
+}
+
+/*
+ * Clean up the rxkad security service.
+ */
+static void rxkad_exit(void)
+{
+	if (rxkad_ci)
+		crypto_free_skcipher(rxkad_ci);
+}
+
+/*
  * RxRPC Kerberos-based security
  */
-static struct rxrpc_security rxkad = {
-	.owner				= THIS_MODULE,
+const struct rxrpc_security rxkad = {
 	.name				= "rxkad",
 	.security_index			= RXRPC_SECURITY_RXKAD,
+	.init				= rxkad_init,
+	.exit				= rxkad_exit,
 	.init_connection_security	= rxkad_init_connection_security,
 	.prime_packet_security		= rxkad_prime_packet_security,
 	.secure_packet			= rxkad_secure_packet,
@@ -1179,28 +1193,3 @@ static struct rxrpc_security rxkad = {
 	.verify_response		= rxkad_verify_response,
 	.clear				= rxkad_clear,
 };
-
-static __init int rxkad_init(void)
-{
-	_enter("");
-
-	/* pin the cipher we need so that the crypto layer doesn't invoke
-	 * keventd to go get it */
-	rxkad_ci = crypto_alloc_skcipher("pcbc(fcrypt)", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(rxkad_ci))
-		return PTR_ERR(rxkad_ci);
-
-	return rxrpc_register_security(&rxkad);
-}
-
-module_init(rxkad_init);
-
-static __exit void rxkad_exit(void)
-{
-	_enter("");
-
-	rxrpc_unregister_security(&rxkad);
-	crypto_free_skcipher(rxkad_ci);
-}
-
-module_exit(rxkad_exit);
