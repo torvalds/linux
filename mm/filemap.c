@@ -2499,11 +2499,12 @@ int pagecache_write_end(struct file *file, struct address_space *mapping,
 EXPORT_SYMBOL(pagecache_write_end);
 
 ssize_t
-generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos)
+generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file	*file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
 	struct inode	*inode = mapping->host;
+	loff_t		pos = iocb->ki_pos;
 	ssize_t		written;
 	size_t		write_len;
 	pgoff_t		end;
@@ -2717,7 +2718,7 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		loff_t pos, endbyte;
 
-		written = generic_file_direct_write(iocb, from, iocb->ki_pos);
+		written = generic_file_direct_write(iocb, from);
 		/*
 		 * If the write stopped short of completing, fall back to
 		 * buffered writes.  Some filesystems do this for writes to

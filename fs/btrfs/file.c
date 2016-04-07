@@ -1703,18 +1703,17 @@ again:
 	return num_written ? num_written : ret;
 }
 
-static ssize_t __btrfs_direct_write(struct kiocb *iocb,
-				    struct iov_iter *from,
-				    loff_t pos)
+static ssize_t __btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
+	loff_t pos = iocb->ki_pos;
 	ssize_t written;
 	ssize_t written_buffered;
 	loff_t endbyte;
 	int err;
 
-	written = generic_file_direct_write(iocb, from, pos);
+	written = generic_file_direct_write(iocb, from);
 
 	if (written < 0 || !iov_iter_count(from))
 		return written;
@@ -1832,7 +1831,7 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 		atomic_inc(&BTRFS_I(inode)->sync_writers);
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
-		num_written = __btrfs_direct_write(iocb, from, pos);
+		num_written = __btrfs_direct_write(iocb, from);
 	} else {
 		num_written = __btrfs_buffered_write(file, from, pos);
 		if (num_written > 0)
