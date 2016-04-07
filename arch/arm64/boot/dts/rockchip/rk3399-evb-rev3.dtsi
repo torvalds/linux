@@ -227,6 +227,16 @@
 };
 
 &i2c0 {
+	fusb1: fusb30x@22 {
+		compatible = "fairchild,fusb302";
+		reg = <0x22>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fusb1_int>;
+		vbus-5v-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		int-n-gpios = <&gpio1 24 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
 	vdd_cpu_b: syr827@40 {
 		compatible = "silergy,syr827";
 		reg = <0x40>;
@@ -448,4 +458,17 @@
 
 &es8316 {
 	reg = <0x11>;
+};
+
+&i2c6 {
+	status = "okay";
+	fusb0: fusb30x@22 {
+		compatible = "fairchild,fusb302";
+		reg = <0x22>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fusb0_int>;
+		vbus-5v-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
 };
