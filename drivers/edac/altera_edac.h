@@ -220,9 +220,41 @@ struct altr_sdram_mc_data {
 #define ALTR_L2_ECC_INJD                BIT(2)
 
 /* Arria10 General ECC Block Module Defines */
+#define ALTR_A10_ECC_CTRL_OFST          0x08
+#define ALTR_A10_ECC_EN                 BIT(0)
+#define ALTR_A10_ECC_INITA              BIT(16)
+#define ALTR_A10_ECC_INITB              BIT(24)
+
+#define ALTR_A10_ECC_INITSTAT_OFST      0x0C
+#define ALTR_A10_ECC_INITCOMPLETEA      BIT(0)
+#define ALTR_A10_ECC_INITCOMPLETEB      BIT(8)
+
+#define ALTR_A10_ECC_ERRINTEN_OFST      0x10
+#define ALTR_A10_ECC_SERRINTEN          BIT(0)
+
+#define ALTR_A10_ECC_INTSTAT_OFST       0x20
+#define ALTR_A10_ECC_SERRPENA           BIT(0)
+#define ALTR_A10_ECC_DERRPENA           BIT(8)
+#define ALTR_A10_ECC_ERRPENA_MASK       (ALTR_A10_ECC_SERRPENA | \
+					 ALTR_A10_ECC_DERRPENA)
+#define ALTR_A10_ECC_SERRPENB           BIT(16)
+#define ALTR_A10_ECC_DERRPENB           BIT(24)
+#define ALTR_A10_ECC_ERRPENB_MASK       (ALTR_A10_ECC_SERRPENB | \
+					 ALTR_A10_ECC_DERRPENB)
+
+#define ALTR_A10_ECC_INTTEST_OFST       0x24
+#define ALTR_A10_ECC_TSERRA             BIT(0)
+#define ALTR_A10_ECC_TDERRA             BIT(8)
+
+/* ECC Manager Defines */
+#define A10_SYSMGR_ECC_INTMASK_SET_OFST   0x94
+#define A10_SYSMGR_ECC_INTMASK_CLR_OFST   0x98
+#define A10_SYSMGR_ECC_INTMASK_OCRAM      BIT(1)
+
 #define A10_SYSMGR_ECC_INTSTAT_SERR_OFST  0x9C
 #define A10_SYSMGR_ECC_INTSTAT_DERR_OFST  0xA0
 #define A10_SYSMGR_ECC_INTSTAT_L2         BIT(0)
+#define A10_SYSMGR_ECC_INTSTAT_OCRAM      BIT(1)
 
 #define A10_SYSGMR_MPU_CLEAR_L2_ECC_OFST  0xA8
 #define A10_SYSGMR_MPU_CLEAR_L2_ECC_SB    BIT(15)
@@ -244,6 +276,9 @@ struct altr_sdram_mc_data {
 #define ALTR_A10_L2_ECC_INJ_OFST        ALTR_A10_L2_ECC_CTL_OFST
 #define ALTR_A10_L2_ECC_CE_INJ_MASK     0x00000101
 #define ALTR_A10_L2_ECC_UE_INJ_MASK     0x00010101
+
+/* Arria 10 OCRAM ECC Management Group Defines */
+#define ALTR_A10_OCRAM_ECC_EN_CTL       (BIT(1) | BIT(0))
 
 struct altr_edac_device_dev;
 
