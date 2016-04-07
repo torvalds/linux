@@ -60,7 +60,11 @@ fw_domain_reset(const struct intel_uncore_forcewake_domain *d)
 static inline void
 fw_domain_arm_timer(struct intel_uncore_forcewake_domain *d)
 {
-	mod_timer_pinned(&d->timer, jiffies + 1);
+	d->wake_count++;
+	hrtimer_start_range_ns(&d->timer,
+			       ktime_set(0, NSEC_PER_MSEC),
+			       NSEC_PER_MSEC,
+			       HRTIMER_MODE_REL);
 }
 
 static inline void
@@ -224,9 +228,11 @@ static int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
-static void intel_uncore_fw_release_timer(unsigned long arg)
+static enum hrtimer_restart
+intel_uncore_fw_release_timer(struct hrtimer *timer)
 {
-	struct intel_uncore_forcewake_domain *domain = (void *)arg;
+	struct intel_uncore_forcewake_domain *domain =
+	       container_of(timer, struct intel_uncore_forcewake_domain, timer);
 	unsigned long irqflags;
 
 	assert_rpm_device_not_suspended(domain->i915);
@@ -240,6 +246,8 @@ static void intel_uncore_fw_release_timer(unsigned long arg)
 							  1 << domain->id);
 
 	spin_unlock_irqrestore(&domain->i915->uncore.lock, irqflags);
+
+	return HRTIMER_NORESTART;
 }
 
 void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
@@ -259,16 +267,16 @@ void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 		active_domains = 0;
 
 		for_each_fw_domain(domain, dev_priv, id) {
-			if (del_timer_sync(&domain->timer) == 0)
+			if (hrtimer_cancel(&domain->timer) == 0)
 				continue;
 
-			intel_uncore_fw_release_timer((unsigned long)domain);
+			intel_uncore_fw_release_timer(&domain->timer);
 		}
 
 		spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 		for_each_fw_domain(domain, dev_priv, id) {
-			if (timer_pending(&domain->timer))
+			if (hrtimer_active(&domain->timer))
 				active_domains |= (1 << id);
 		}
 
@@ -491,7 +499,6 @@ static void __intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
 		if (--domain->wake_count)
 			continue;
 
-		domain->wake_count++;
 		fw_domain_arm_timer(domain);
 	}
 }
@@ -732,7 +739,6 @@ static inline void __force_wake_auto(struct drm_i915_private *dev_priv,
 			continue;
 		}
 
-		domain->wake_count++;
 		fw_domain_arm_timer(domain);
 	}
 
@@ -1150,7 +1156,8 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 	d->i915 = dev_priv;
 	d->id = domain_id;
 
-	setup_timer(&d->timer, intel_uncore_fw_release_timer, (unsigned long)d);
+	hrtimer_init(&d->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	d->timer.function = intel_uncore_fw_release_timer;
 
 	dev_priv->uncore.fw_domains |= (1 << domain_id);
 
