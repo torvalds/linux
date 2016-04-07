@@ -619,8 +619,7 @@ interrupted:
  */
 struct rxrpc_connection *
 rxrpc_incoming_connection(struct rxrpc_transport *trans,
-			  struct rxrpc_host_header *hdr,
-			  gfp_t gfp)
+			  struct rxrpc_host_header *hdr)
 {
 	struct rxrpc_connection *conn, *candidate = NULL;
 	struct rb_node *p, **pp;
@@ -659,7 +658,7 @@ rxrpc_incoming_connection(struct rxrpc_transport *trans,
 
 	/* not yet present - create a candidate for a new record and then
 	 * redo the search */
-	candidate = rxrpc_alloc_connection(gfp);
+	candidate = rxrpc_alloc_connection(GFP_NOIO);
 	if (!candidate) {
 		_leave(" = -ENOMEM");
 		return ERR_PTR(-ENOMEM);

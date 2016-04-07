@@ -411,18 +411,17 @@ found_extant_second:
  */
 struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 				       struct rxrpc_connection *conn,
-				       struct rxrpc_host_header *hdr,
-				       gfp_t gfp)
+				       struct rxrpc_host_header *hdr)
 {
 	struct rxrpc_call *call, *candidate;
 	struct rb_node **p, *parent;
 	u32 call_id;
 
-	_enter(",%d,,%x", conn->debug_id, gfp);
+	_enter(",%d", conn->debug_id);
 
 	ASSERT(rx != NULL);
 
-	candidate = rxrpc_alloc_call(gfp);
+	candidate = rxrpc_alloc_call(GFP_NOIO);
 	if (!candidate)
 		return ERR_PTR(-EBUSY);
 

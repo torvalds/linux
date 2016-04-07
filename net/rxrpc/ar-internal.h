@@ -503,7 +503,7 @@ struct rxrpc_call *rxrpc_get_client_call(struct rxrpc_sock *,
 					 unsigned long, int, gfp_t);
 struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *,
 				       struct rxrpc_connection *,
-				       struct rxrpc_host_header *, gfp_t);
+				       struct rxrpc_host_header *);
 struct rxrpc_call *rxrpc_find_server_call(struct rxrpc_sock *, unsigned long);
 void rxrpc_release_call(struct rxrpc_call *);
 void rxrpc_release_calls_on_socket(struct rxrpc_sock *);
@@ -528,8 +528,7 @@ void __exit rxrpc_destroy_all_connections(void);
 struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *,
 					       struct rxrpc_host_header *);
 extern struct rxrpc_connection *
-rxrpc_incoming_connection(struct rxrpc_transport *, struct rxrpc_host_header *,
-			  gfp_t);
+rxrpc_incoming_connection(struct rxrpc_transport *, struct rxrpc_host_header *);
 
 /*
  * ar-connevent.c
