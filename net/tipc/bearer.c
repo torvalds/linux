@@ -205,6 +205,7 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 	struct tipc_bearer *b;
 	struct tipc_media *m;
 	struct tipc_bearer_names b_names;
+	struct sk_buff *skb;
 	char addr_string[16];
 	u32 bearer_id;
 	u32 with_this_prio;
@@ -301,7 +302,7 @@ restart:
 	b->net_plane = bearer_id + 'A';
 	b->priority = priority;
 
-	res = tipc_disc_create(net, b, &b->bcast_addr);
+	res = tipc_disc_create(net, b, &b->bcast_addr, &skb);
 	if (res) {
 		bearer_disable(net, b);
 		pr_warn("Bearer <%s> rejected, discovery object creation failed\n",
@@ -310,7 +311,8 @@ restart:
 	}
 
 	rcu_assign_pointer(tn->bearer_list[bearer_id], b);
-
+	if (skb)
+		tipc_bearer_xmit_skb(net, bearer_id, skb, &b->bcast_addr);
 	pr_info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
 		name,
 		tipc_addr_string_fill(addr_string, disc_domain), priority);
@@ -450,6 +452,8 @@ void tipc_bearer_xmit_skb(struct net *net, u32 bearer_id,
 	b = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
 	if (likely(b))
 		b->media->send_msg(net, skb, b, dest);
+	else
+		kfree_skb(skb);
 	rcu_read_unlock();
 }
 
@@ -468,11 +472,11 @@ void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 
 	rcu_read_lock();
 	b = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
-	if (likely(b)) {
-		skb_queue_walk_safe(xmitq, skb, tmp) {
-			__skb_dequeue(xmitq);
-			b->media->send_msg(net, skb, b, dst);
-		}
+	if (unlikely(!b))
+		__skb_queue_purge(xmitq);
+	skb_queue_walk_safe(xmitq, skb, tmp) {
+		__skb_dequeue(xmitq);
+		b->media->send_msg(net, skb, b, dst);
 	}
 	rcu_read_unlock();
 }
@@ -490,14 +494,14 @@ void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
 
 	rcu_read_lock();
 	b = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
-	if (likely(b)) {
-		skb_queue_walk_safe(xmitq, skb, tmp) {
-			hdr = buf_msg(skb);
-			msg_set_non_seq(hdr, 1);
-			msg_set_mc_netid(hdr, net_id);
-			__skb_dequeue(xmitq);
-			b->media->send_msg(net, skb, b, &b->bcast_addr);
-		}
+	if (unlikely(!b))
+		__skb_queue_purge(xmitq);
+	skb_queue_walk_safe(xmitq, skb, tmp) {
+		hdr = buf_msg(skb);
+		msg_set_non_seq(hdr, 1);
+		msg_set_mc_netid(hdr, net_id);
+		__skb_dequeue(xmitq);
+		b->media->send_msg(net, skb, b, &b->bcast_addr);
 	}
 	rcu_read_unlock();
 }
@@ -513,24 +517,21 @@ void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
  * ignores packets sent using interface multicast, and traffic sent to other
  * nodes (which can happen if interface is running in promiscuous mode).
  */
-static int tipc_l2_rcv_msg(struct sk_buff *buf, struct net_device *dev,
+static int tipc_l2_rcv_msg(struct sk_buff *skb, struct net_device *dev,
 			   struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct tipc_bearer *b;
 
 	rcu_read_lock();
 	b = rcu_dereference_rtnl(dev->tipc_ptr);
-	if (likely(b)) {
-		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {
-			buf->next = NULL;
-			tipc_rcv(dev_net(dev), buf, b);
-			rcu_read_unlock();
-			return NET_RX_SUCCESS;
-		}
+	if (likely(b && (skb->pkt_type <= PACKET_BROADCAST))) {
+		skb->next = NULL;
+		tipc_rcv(dev_net(dev), skb, b);
+		rcu_read_unlock();
+		return NET_RX_SUCCESS;
 	}
 	rcu_read_unlock();
-
-	kfree_skb(buf);
+	kfree_skb(skb);
 	return NET_RX_DROP;
 }
 
