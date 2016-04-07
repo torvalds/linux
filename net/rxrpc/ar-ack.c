@@ -426,7 +426,7 @@ static void rxrpc_rotate_tx_window(struct rxrpc_call *call, u32 hard)
 	int tail = call->acks_tail, old_tail;
 	int win = CIRC_CNT(call->acks_head, tail, call->acks_winsz);
 
-	kenter("{%u,%u},%u", call->acks_hard, win, hard);
+	_enter("{%u,%u},%u", call->acks_hard, win, hard);
 
 	ASSERTCMP(hard - call->acks_hard, <=, win);
 
