@@ -52,16 +52,15 @@ struct  intel_hw_status_page {
 /* seqno size is actually only a uint32, but since we plan to use MI_FLUSH_DW to
  * do the writes, and that must have qw aligned offsets, simply pretend it's 8b.
  */
-#define i915_semaphore_seqno_size sizeof(uint64_t)
+#define gen8_semaphore_seqno_size sizeof(uint64_t)
+#define GEN8_SEMAPHORE_OFFSET(__from, __to)			     \
+	(((__from) * I915_NUM_ENGINES  + (__to)) * gen8_semaphore_seqno_size)
 #define GEN8_SIGNAL_OFFSET(__ring, to)			     \
 	(i915_gem_obj_ggtt_offset(dev_priv->semaphore_obj) + \
-	((__ring)->id * I915_NUM_ENGINES * i915_semaphore_seqno_size) +	\
-	(i915_semaphore_seqno_size * (to)))
-
+	 GEN8_SEMAPHORE_OFFSET((__ring)->id, (to)))
 #define GEN8_WAIT_OFFSET(__ring, from)			     \
 	(i915_gem_obj_ggtt_offset(dev_priv->semaphore_obj) + \
-	((from) * I915_NUM_ENGINES * i915_semaphore_seqno_size) + \
-	(i915_semaphore_seqno_size * (__ring)->id))
+	 GEN8_SEMAPHORE_OFFSET(from, (__ring)->id))
 
 #define GEN8_RING_SEMAPHORE_INIT(e) do { \
 	if (!dev_priv->semaphore_obj) { \
