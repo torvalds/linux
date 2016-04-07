@@ -271,7 +271,7 @@ int scsi_execute_req_flags(struct scsi_device *sdev, const unsigned char *cmd,
 {
 	char *sense = NULL;
 	int result;
-	
+
 	if (sshdr) {
 		sense = kzalloc(SCSI_SENSE_BUFFERSIZE, GFP_NOIO);
 		if (!sense)
@@ -374,7 +374,7 @@ static void scsi_single_lun_run(struct scsi_device *current_sdev)
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		scsi_kick_queue(sdev->request_queue);
 		spin_lock_irqsave(shost->host_lock, flags);
-	
+
 		scsi_device_put(sdev);
 	}
  out:
@@ -666,7 +666,7 @@ static void scsi_mq_uninit_cmd(struct scsi_cmnd *cmd)
  *		the __init_io() function.  Primarily this would involve
  *		the scatter-gather table.
  */
-static void scsi_release_buffers(struct scsi_cmnd *cmd)
+void scsi_release_buffers(struct scsi_cmnd *cmd)
 {
 	if (cmd->sdb.table.nents)
 		scsi_free_sgtable(&cmd->sdb, false);
@@ -676,6 +676,7 @@ static void scsi_release_buffers(struct scsi_cmnd *cmd)
 	if (scsi_prot_sg_count(cmd))
 		scsi_free_sgtable(cmd->prot_sdb, false);
 }
+EXPORT_SYMBOL(scsi_release_buffers);
 
 static void scsi_release_bidi_buffers(struct scsi_cmnd *cmd)
 {
@@ -1089,7 +1090,7 @@ static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb)
 					req->mq_ctx != NULL)))
 		return BLKPREP_DEFER;
 
-	/* 
+	/*
 	 * Next, walk the list, and fill in the addresses and sizes of
 	 * each segment.
 	 */
@@ -1835,7 +1836,7 @@ static void scsi_request_fn(struct request_queue *q)
 
 		if (!scsi_host_queue_ready(q, shost, sdev))
 			goto host_not_ready;
-	
+
 		if (sdev->simple_tags)
 			cmd->flags |= SCMD_TAGGED;
 		else
@@ -2386,7 +2387,7 @@ scsi_mode_select(struct scsi_device *sdev, int pf, int sp, int modepage,
 		real_buffer[1] = data->medium_type;
 		real_buffer[2] = data->device_specific;
 		real_buffer[3] = data->block_descriptor_length;
-		
+
 
 		cmd[0] = MODE_SELECT;
 		cmd[4] = len;
@@ -2470,7 +2471,7 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 		if (scsi_sense_valid(sshdr)) {
 			if ((sshdr->sense_key == ILLEGAL_REQUEST) &&
 			    (sshdr->asc == 0x20) && (sshdr->ascq == 0)) {
-				/* 
+				/*
 				 * Invalid command operation code
 				 */
 				sdev->use_10_for_ms = 0;
@@ -2562,7 +2563,7 @@ EXPORT_SYMBOL(scsi_test_unit_ready);
  *	@sdev:	scsi device to change the state of.
  *	@state:	state to change to.
  *
- *	Returns zero if unsuccessful or an error if the requested 
+ *	Returns zero if unsuccessful or an error if the requested
  *	transition is illegal.
  */
 int
@@ -2582,7 +2583,7 @@ scsi_device_set_state(struct scsi_device *sdev, enum scsi_device_state state)
 			goto illegal;
 		}
 		break;
-			
+
 	case SDEV_RUNNING:
 		switch (oldstate) {
 		case SDEV_CREATED:
@@ -2859,7 +2860,7 @@ EXPORT_SYMBOL_GPL(sdev_evt_send_simple);
  *	(which must be a legal transition).  When the device is in this
  *	state, only special requests will be accepted, all others will
  *	be deferred.  Since special requests may also be requeued requests,
- *	a successful return doesn't guarantee the device will be 
+ *	a successful return doesn't guarantee the device will be
  *	totally quiescent.
  *
  *	Must be called with user context, may sleep.
@@ -2940,7 +2941,7 @@ EXPORT_SYMBOL(scsi_target_resume);
  *
  * Returns zero if successful or error if not
  *
- * Notes:       
+ * Notes:
  *	This routine transitions the device to the SDEV_BLOCK state
  *	(which must be a legal transition).  When the device is in this
  *	state, all commands are deferred until the scsi lld reenables
@@ -2961,10 +2962,10 @@ scsi_internal_device_block(struct scsi_device *sdev)
 			return err;
 	}
 
-	/* 
+	/*
 	 * The device has transitioned to SDEV_BLOCK.  Stop the
 	 * block layer from calling the midlayer with this device's
-	 * request queue. 
+	 * request queue.
 	 */
 	if (q->mq_ops) {
 		blk_mq_stop_hw_queues(q);
@@ -2977,7 +2978,7 @@ scsi_internal_device_block(struct scsi_device *sdev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(scsi_internal_device_block);
- 
+
 /**
  * scsi_internal_device_unblock - resume a device after a block request
  * @sdev:	device to resume
@@ -2989,7 +2990,7 @@ EXPORT_SYMBOL_GPL(scsi_internal_device_block);
  *
  * Returns zero if successful or error if not.
  *
- * Notes:       
+ * Notes:
  *	This routine transitions the device to the SDEV_RUNNING state
  *	or to one of the offline states (which must be a legal transition)
  *	allowing the midlayer to goose the queue for this device.
@@ -2998,7 +2999,7 @@ int
 scsi_internal_device_unblock(struct scsi_device *sdev,
 			     enum scsi_device_state new_state)
 {
-	struct request_queue *q = sdev->request_queue; 
+	struct request_queue *q = sdev->request_queue;
 	unsigned long flags;
 
 	/*
