@@ -4282,7 +4282,7 @@ static int gfx_v8_0_set_powergating_state(void *handle,
 }
 
 static void fiji_send_serdes_cmd(struct amdgpu_device *adev,
-		uint32_t reg_addr, uint32_t cmd)
+				     uint32_t reg_addr, uint32_t cmd)
 {
 	uint32_t data;
 
@@ -4312,23 +4312,29 @@ static void fiji_send_serdes_cmd(struct amdgpu_device *adev,
 }
 
 static void fiji_update_medium_grain_clock_gating(struct amdgpu_device *adev,
-		bool enable)
+						  bool enable)
 {
 	uint32_t temp, data;
 
 	/* It is disabled by HW by default */
-	if (enable) {
-		/* 1 - RLC memory Light sleep */
-		temp = data = RREG32(mmRLC_MEM_SLP_CNTL);
-		data |= RLC_MEM_SLP_CNTL__RLC_MEM_LS_EN_MASK;
-		if (temp != data)
-			WREG32(mmRLC_MEM_SLP_CNTL, data);
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG)) {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGLS) {
+			if (adev->cg_flags & AMD_CG_SUPPORT_GFX_RLC_LS) {
+				/* 1 - RLC memory Light sleep */
+				temp = data = RREG32(mmRLC_MEM_SLP_CNTL);
+				data |= RLC_MEM_SLP_CNTL__RLC_MEM_LS_EN_MASK;
+				if (temp != data)
+					WREG32(mmRLC_MEM_SLP_CNTL, data);
+			}
 
-		/* 2 - CP memory Light sleep */
-		temp = data = RREG32(mmCP_MEM_SLP_CNTL);
-		data |= CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK;
-		if (temp != data)
-			WREG32(mmCP_MEM_SLP_CNTL, data);
+			if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CP_LS) {
+				/* 2 - CP memory Light sleep */
+				temp = data = RREG32(mmCP_MEM_SLP_CNTL);
+				data |= CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK;
+				if (temp != data)
+					WREG32(mmCP_MEM_SLP_CNTL, data);
+			}
+		}
 
 		/* 3 - RLC_CGTT_MGCG_OVERRIDE */
 		temp = data = RREG32(mmRLC_CGTT_MGCG_OVERRIDE);
@@ -4346,17 +4352,21 @@ static void fiji_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 		/* 5 - clear mgcg override */
 		fiji_send_serdes_cmd(adev, BPM_REG_MGCG_OVERRIDE, CLE_BPM_SERDES_CMD);
 
-		/* 6 - Enable CGTS(Tree Shade) MGCG /MGLS */
-		temp = data = RREG32(mmCGTS_SM_CTRL_REG);
-		data &= ~(CGTS_SM_CTRL_REG__SM_MODE_MASK);
-		data |= (0x2 << CGTS_SM_CTRL_REG__SM_MODE__SHIFT);
-		data |= CGTS_SM_CTRL_REG__SM_MODE_ENABLE_MASK;
-		data &= ~CGTS_SM_CTRL_REG__OVERRIDE_MASK;
-		data &= ~CGTS_SM_CTRL_REG__LS_OVERRIDE_MASK;
-		data |= CGTS_SM_CTRL_REG__ON_MONITOR_ADD_EN_MASK;
-		data |= (0x96 << CGTS_SM_CTRL_REG__ON_MONITOR_ADD__SHIFT);
-		if (temp != data)
-			WREG32(mmCGTS_SM_CTRL_REG, data);
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGTS) {
+			/* 6 - Enable CGTS(Tree Shade) MGCG /MGLS */
+			temp = data = RREG32(mmCGTS_SM_CTRL_REG);
+			data &= ~(CGTS_SM_CTRL_REG__SM_MODE_MASK);
+			data |= (0x2 << CGTS_SM_CTRL_REG__SM_MODE__SHIFT);
+			data |= CGTS_SM_CTRL_REG__SM_MODE_ENABLE_MASK;
+			data &= ~CGTS_SM_CTRL_REG__OVERRIDE_MASK;
+			if ((adev->cg_flags & AMD_CG_SUPPORT_GFX_MGLS) &&
+			    (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGTS_LS))
+				data &= ~CGTS_SM_CTRL_REG__LS_OVERRIDE_MASK;
+			data |= CGTS_SM_CTRL_REG__ON_MONITOR_ADD_EN_MASK;
+			data |= (0x96 << CGTS_SM_CTRL_REG__ON_MONITOR_ADD__SHIFT);
+			if (temp != data)
+				WREG32(mmCGTS_SM_CTRL_REG, data);
+		}
 		udelay(50);
 
 		/* 7 - wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
@@ -4406,13 +4416,13 @@ static void fiji_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 }
 
 static void fiji_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
-		bool enable)
+						  bool enable)
 {
 	uint32_t temp, temp1, data, data1;
 
 	temp = data = RREG32(mmRLC_CGCG_CGLS_CTRL);
 
-	if (enable) {
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG)) {
 		/* 1 enable cntx_empty_int_enable/cntx_busy_int_enable/
 		 * Cmp_busy/GFX_Idle interrupts
 		 */
@@ -4438,14 +4448,18 @@ static void fiji_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
 		/* 5 - enable cgcg */
 		data |= RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK;
 
-		/* enable cgls*/
-		data |= RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK;
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGLS) {
+			/* enable cgls*/
+			data |= RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK;
 
-		temp1 = data1 =	RREG32(mmRLC_CGTT_MGCG_OVERRIDE);
-		data1 &= ~RLC_CGTT_MGCG_OVERRIDE__CGLS_MASK;
+			temp1 = data1 =	RREG32(mmRLC_CGTT_MGCG_OVERRIDE);
+			data1 &= ~RLC_CGTT_MGCG_OVERRIDE__CGLS_MASK;
 
-		if (temp1 != data1)
-			WREG32(mmRLC_CGTT_MGCG_OVERRIDE, data1);
+			if (temp1 != data1)
+				WREG32(mmRLC_CGTT_MGCG_OVERRIDE, data1);
+		} else {
+			data &= ~RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK;
+		}
 
 		if (temp != data)
 			WREG32(mmRLC_CGCG_CGLS_CTRL, data);
@@ -4480,13 +4494,13 @@ static void fiji_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
 
 		/* disable cgcg, cgls should be disabled too. */
 		data &= ~(RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK |
-				RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK);
+			  RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK);
 		if (temp != data)
 			WREG32(mmRLC_CGCG_CGLS_CTRL, data);
 	}
 }
 static int fiji_update_gfx_clock_gating(struct amdgpu_device *adev,
-		bool enable)
+					bool enable)
 {
 	if (enable) {
 		/* CGCG/CGLS should be enabled after MGCG/MGLS/TS(CG/LS)
