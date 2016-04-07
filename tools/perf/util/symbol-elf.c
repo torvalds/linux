@@ -709,17 +709,10 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	if (ss->opdshdr.sh_type != SHT_PROGBITS)
 		ss->opdsec = NULL;
 
-	if (dso->kernel == DSO_TYPE_USER) {
-		GElf_Shdr shdr;
-		ss->adjust_symbols = (ehdr.e_type == ET_EXEC ||
-				ehdr.e_type == ET_REL ||
-				dso__is_vdso(dso) ||
-				elf_section_by_name(elf, &ehdr, &shdr,
-						     ".gnu.prelink_undo",
-						     NULL) != NULL);
-	} else {
+	if (dso->kernel == DSO_TYPE_USER)
+		ss->adjust_symbols = true;
+	else
 		ss->adjust_symbols = elf__needs_adjust_symbols(ehdr);
-	}
 
 	ss->name   = strdup(name);
 	if (!ss->name) {
