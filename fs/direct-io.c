@@ -256,6 +256,7 @@ static ssize_t dio_complete(struct dio *dio, ssize_t ret, bool is_async)
 	if (dio->end_io) {
 		int err;
 
+		// XXX: ki_pos??
 		err = dio->end_io(dio->iocb, offset, ret, dio->private);
 		if (err)
 			ret = err;
@@ -265,15 +266,15 @@ static ssize_t dio_complete(struct dio *dio, ssize_t ret, bool is_async)
 		inode_dio_end(dio->inode);
 
 	if (is_async) {
-		if (dio->rw & WRITE) {
-			int err;
+		/*
+		 * generic_write_sync expects ki_pos to have been updated
+		 * already, but the submission path only does this for
+		 * synchronous I/O.
+		 */
+		dio->iocb->ki_pos += transferred;
 
-			err = generic_write_sync(dio->iocb, offset,
-						 transferred);
-			if (err < 0 && ret > 0)
-				ret = err;
-		}
-
+		if (dio->rw & WRITE)
+			ret = generic_write_sync(dio->iocb,  transferred);
 		dio->iocb->ki_complete(dio->iocb, ret, 0);
 	}
 

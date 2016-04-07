@@ -1851,11 +1851,8 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	spin_lock(&BTRFS_I(inode)->lock);
 	BTRFS_I(inode)->last_sub_trans = root->log_transid;
 	spin_unlock(&BTRFS_I(inode)->lock);
-	if (num_written > 0) {
-		err = generic_write_sync(iocb, pos, num_written);
-		if (err < 0)
-			num_written = err;
-	}
+	if (num_written > 0)
+		num_written = generic_write_sync(iocb, num_written);
 
 	if (sync)
 		atomic_dec(&BTRFS_I(inode)->sync_writers);

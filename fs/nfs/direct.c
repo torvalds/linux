@@ -1054,7 +1054,9 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter)
 			if (i_size_read(inode) < iocb->ki_pos)
 				i_size_write(inode, iocb->ki_pos);
 			spin_unlock(&inode->i_lock);
-			generic_write_sync(iocb, pos, result);
+
+			/* XXX: should check the generic_write_sync retval */
+			generic_write_sync(iocb, result);
 		}
 	}
 	nfs_direct_req_release(dreq);
