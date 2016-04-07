@@ -49,7 +49,7 @@ static int ms_parse_err_code(struct rtsx_chip *chip)
 }
 
 static int ms_transfer_tpc(struct rtsx_chip *chip, u8 trans_mode,
-			u8 tpc, u8 cnt, u8 cfg)
+			   u8 tpc, u8 cnt, u8 cfg)
 {
 	struct ms_info *ms_card = &chip->ms_card;
 	int retval;
