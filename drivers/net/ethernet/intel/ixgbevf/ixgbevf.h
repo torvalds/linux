@@ -422,16 +422,6 @@ struct ixgbevf_adapter {
 	unsigned int tx_ring_count;
 	unsigned int rx_ring_count;
 
-#ifdef BP_EXTENDED_STATS
-	u64 bp_rx_yields;
-	u64 bp_rx_cleaned;
-	u64 bp_rx_missed;
-
-	u64 bp_tx_yields;
-	u64 bp_tx_cleaned;
-	u64 bp_tx_missed;
-#endif
-
 	u8 __iomem *io_addr; /* Mainly for iounmap use */
 	u32 link_speed;
 	bool link_up;
