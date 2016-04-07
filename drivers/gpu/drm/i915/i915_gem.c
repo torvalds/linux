@@ -2575,6 +2575,28 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 		WARN(ret, "*_ring_flush_all_caches failed: %d!\n", ret);
 	}
 
+	trace_i915_gem_request_add(request);
+
+	request->head = request_start;
+
+	/* Whilst this request exists, batch_obj will be on the
+	 * active_list, and so will hold the active reference. Only when this
+	 * request is retired will the the batch_obj be moved onto the
+	 * inactive_list and lose its active reference. Hence we do not need
+	 * to explicitly hold another reference here.
+	 */
+	request->batch_obj = obj;
+
+	/* Seal the request and mark it as pending execution. Note that
+	 * we may inspect this state, without holding any locks, during
+	 * hangcheck. Hence we apply the barrier to ensure that we do not
+	 * see a more recent value in the hws than we are tracking.
+	 */
+	request->emitted_jiffies = jiffies;
+	request->previous_seqno = engine->last_submitted_seqno;
+	smp_store_mb(engine->last_submitted_seqno, request->seqno);
+	list_add_tail(&request->list, &engine->request_list);
+
 	/* Record the position of the start of the request so that
 	 * should we detect the updated seqno part-way through the
 	 * GPU processing the request, we never over-estimate the
@@ -2591,23 +2613,6 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	}
 	/* Not allowed to fail! */
 	WARN(ret, "emit|add_request failed: %d!\n", ret);
-
-	request->head = request_start;
-
-	/* Whilst this request exists, batch_obj will be on the
-	 * active_list, and so will hold the active reference. Only when this
-	 * request is retired will the the batch_obj be moved onto the
-	 * inactive_list and lose its active reference. Hence we do not need
-	 * to explicitly hold another reference here.
-	 */
-	request->batch_obj = obj;
-
-	request->emitted_jiffies = jiffies;
-	request->previous_seqno = engine->last_submitted_seqno;
-	engine->last_submitted_seqno = request->seqno;
-	list_add_tail(&request->list, &engine->request_list);
-
-	trace_i915_gem_request_add(request);
 
 	i915_queue_hangcheck(engine->dev);
 

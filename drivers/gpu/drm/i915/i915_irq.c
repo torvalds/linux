@@ -2806,7 +2806,8 @@ static bool
 ring_idle(struct intel_engine_cs *engine, u32 seqno)
 {
 	return (list_empty(&engine->request_list) ||
-		i915_seqno_passed(seqno, engine->last_submitted_seqno));
+		i915_seqno_passed(seqno,
+				  READ_ONCE(engine->last_submitted_seqno)));
 }
 
 static bool
