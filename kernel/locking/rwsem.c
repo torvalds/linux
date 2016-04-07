@@ -55,6 +55,25 @@ void __sched down_write(struct rw_semaphore *sem)
 EXPORT_SYMBOL(down_write);
 
 /*
+ * lock for writing
+ */
+int __sched down_write_killable(struct rw_semaphore *sem)
+{
+	might_sleep();
+	rwsem_acquire(&sem->dep_map, 0, 0, _RET_IP_);
+
+	if (LOCK_CONTENDED_RETURN(sem, __down_write_trylock, __down_write_killable)) {
+		rwsem_release(&sem->dep_map, 1, _RET_IP_);
+		return -EINTR;
+	}
+
+	rwsem_set_owner(sem);
+	return 0;
+}
+
+EXPORT_SYMBOL(down_write_killable);
+
+/*
  * trylock for writing -- returns 1 if successful, 0 if contention
  */
 int down_write_trylock(struct rw_semaphore *sem)

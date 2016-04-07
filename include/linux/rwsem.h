@@ -118,6 +118,7 @@ extern int down_read_trylock(struct rw_semaphore *sem);
  * lock for writing
  */
 extern void down_write(struct rw_semaphore *sem);
+extern int __must_check down_write_killable(struct rw_semaphore *sem);
 
 /*
  * trylock for writing -- returns 1 if successful, 0 if contention

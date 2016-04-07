@@ -102,9 +102,9 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 #define ____down_write(sem, slow_path)			\
 ({							\
 	long tmp;					\
-	struct rw_semaphore* ret = sem;			\
+	struct rw_semaphore* ret;			\
 	asm volatile("# beginning down_write\n\t"	\
-		     LOCK_PREFIX "  xadd      %1,(%2)\n\t"	\
+		     LOCK_PREFIX "  xadd      %1,(%3)\n\t"	\
 		     /* adds 0xffff0001, returns the old value */ \
 		     "  test " __ASM_SEL(%w1,%k1) "," __ASM_SEL(%w1,%k1) "\n\t" \
 		     /* was the active mask 0 before? */\
@@ -112,7 +112,7 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 		     "  call " slow_path "\n"		\
 		     "1:\n"				\
 		     "# ending down_write"		\
-		     : "+m" (sem->count), "=d" (tmp), "+a" (ret)	\
+		     : "+m" (sem->count), "=d" (tmp), "=a" (ret)	\
 		     : "a" (sem), "1" (RWSEM_ACTIVE_WRITE_BIAS) \
 		     : "memory", "cc");			\
 	ret;						\
