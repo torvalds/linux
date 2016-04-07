@@ -65,6 +65,12 @@ static void afs_async_workfn(struct work_struct *work)
 	call->async_workfn(call);
 }
 
+static int afs_wait_atomic_t(atomic_t *p)
+{
+	schedule();
+	return 0;
+}
+
 /*
  * open an RxRPC socket and bind it to be a server for callback notifications
  * - the socket is left in blocking mode and non-blocking ops use MSG_DONTWAIT
@@ -126,13 +132,16 @@ void afs_close_socket(void)
 {
 	_enter("");
 
+	wait_on_atomic_t(&afs_outstanding_calls, afs_wait_atomic_t,
+			 TASK_UNINTERRUPTIBLE);
+	_debug("no outstanding calls");
+
 	sock_release(afs_socket);
 
 	_debug("dework");
 	destroy_workqueue(afs_async_calls);
 
 	ASSERTCMP(atomic_read(&afs_outstanding_skbs), ==, 0);
-	ASSERTCMP(atomic_read(&afs_outstanding_calls), ==, 0);
 	_leave("");
 }
 
@@ -178,8 +187,6 @@ static void afs_free_call(struct afs_call *call)
 {
 	_debug("DONE %p{%s} [%d]",
 	       call, call->type->name, atomic_read(&afs_outstanding_calls));
-	if (atomic_dec_return(&afs_outstanding_calls) == -1)
-		BUG();
 
 	ASSERTCMP(call->rxcall, ==, NULL);
 	ASSERT(!work_pending(&call->async_work));
@@ -188,6 +195,9 @@ static void afs_free_call(struct afs_call *call)
 
 	kfree(call->request);
 	kfree(call);
+
+	if (atomic_dec_and_test(&afs_outstanding_calls))
+		wake_up_atomic_t(&afs_outstanding_calls);
 }
 
 /*
