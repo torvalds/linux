@@ -22,6 +22,7 @@ generic-y += mm-arch-hooks.h
 generic-y += percpu.h
 generic-y += preempt.h
 generic-y += resource.h
+generic-y += rwsem.h
 generic-y += sections.h
 generic-y += siginfo.h
 generic-y += statfs.h
