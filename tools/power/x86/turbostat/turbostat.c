@@ -423,8 +423,6 @@ void print_header(void)
 			outp += sprintf(outp, "   PKG_%%");
 		if (do_rapl & RAPL_DRAM_PERF_STATUS)
 			outp += sprintf(outp, "   RAM_%%");
-		outp += sprintf(outp, "   time");
-
 	}
     done:
 	outp += sprintf(outp, "\n");
@@ -665,7 +663,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (interval_float < rapl_joule_counter_range)
 		fmt8 = "%8.2f";
 	else
-		fmt8 = " %6.0f**";
+		fmt8 = "%6.0f**";
 
 	if (do_rapl && !rapl_joules) {
 		if (do_rapl & RAPL_PKG)
@@ -697,8 +695,6 @@ int format_counters(struct thread_data *t, struct core_data *c,
 			outp += sprintf(outp, fmt8, 100.0 * p->rapl_pkg_perf_status * rapl_time_units / interval_float);
 		if (do_rapl & RAPL_DRAM_PERF_STATUS)
 			outp += sprintf(outp, fmt8, 100.0 * p->rapl_dram_perf_status * rapl_time_units / interval_float);
-
-		outp += sprintf(outp, fmt8, interval_float);
 	}
 done:
 	outp += sprintf(outp, "\n");
