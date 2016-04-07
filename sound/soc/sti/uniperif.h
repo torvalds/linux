@@ -1228,6 +1228,9 @@
 #define UNIPERIF_TYPE_IS_IEC958(p) \
 	(UNIPERIF_TYPE_IS_HDMI(p) || \
 		UNIPERIF_TYPE_IS_SPDIF(p))
+#define UNIPERIF_TYPE_IS_TDM(p) \
+	((p)->info->type == SND_ST_UNIPERIF_TYPE_TDM)
+
 /*
  * Uniperipheral IP revisions
  */
@@ -1249,7 +1252,8 @@ enum uniperif_type {
 	SND_ST_UNIPERIF_TYPE_NONE,
 	SND_ST_UNIPERIF_TYPE_HDMI,
 	SND_ST_UNIPERIF_TYPE_PCM,
-	SND_ST_UNIPERIF_TYPE_SPDIF
+	SND_ST_UNIPERIF_TYPE_SPDIF,
+	SND_ST_UNIPERIF_TYPE_TDM
 };
 
 enum uniperif_state {
@@ -1328,6 +1332,28 @@ struct sti_uniperiph_data {
 	struct platform_device *pdev;
 	struct snd_soc_dai_driver *dai;
 	struct sti_uniperiph_dai dai_data;
+};
+
+static const struct snd_pcm_hardware uni_tdm_hw = {
+	.info = SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
+		SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_MMAP |
+		SNDRV_PCM_INFO_MMAP_VALID,
+
+	.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S16_LE,
+
+	.rates = SNDRV_PCM_RATE_CONTINUOUS,
+	.rate_min = 8000,
+	.rate_max = 48000,
+
+	.channels_min = 1,
+	.channels_max = 32,
+
+	.periods_min = 2,
+	.periods_max = 10,
+
+	.period_bytes_min = 128,
+	.period_bytes_max = 64 * PAGE_SIZE,
+	.buffer_bytes_max = 256 * PAGE_SIZE
 };
 
 /* uniperiph player*/
