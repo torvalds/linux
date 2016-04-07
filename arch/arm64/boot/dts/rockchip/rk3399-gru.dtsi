@@ -854,6 +854,11 @@ ap_i2c_audio: &i2c8 {
 	status = "okay";
 };
 
+&gpu {
+	mali-supply = <&ppvar_gpu>;
+	status = "okay";
+};
+
 /* PINCTRL: always below everything else */
 
 &pinctrl {
