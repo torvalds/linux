@@ -878,14 +878,12 @@ static int acpi_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 
 	pr_debug("acpi_cpufreq_cpu_exit\n");
 
-	if (data) {
-		policy->fast_switch_possible = false;
-		policy->driver_data = NULL;
-		acpi_processor_unregister_performance(data->acpi_perf_cpu);
-		free_cpumask_var(data->freqdomain_cpus);
-		kfree(data->freq_table);
-		kfree(data);
-	}
+	policy->fast_switch_possible = false;
+	policy->driver_data = NULL;
+	acpi_processor_unregister_performance(data->acpi_perf_cpu);
+	free_cpumask_var(data->freqdomain_cpus);
+	kfree(data->freq_table);
+	kfree(data);
 
 	return 0;
 }
