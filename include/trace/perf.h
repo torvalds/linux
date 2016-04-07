@@ -20,9 +20,6 @@
 #undef __get_bitmask
 #define __get_bitmask(field) (char *)__get_dynamic_array(field)
 
-#undef __perf_addr
-#define __perf_addr(a)	(__addr = (a))
-
 #undef __perf_count
 #define __perf_count(c)	(__count = (c))
 
@@ -38,7 +35,7 @@ perf_trace_##call(void *__data, proto)					\
 	struct trace_event_data_offsets_##call __maybe_unused __data_offsets;\
 	struct trace_event_raw_##call *entry;				\
 	struct pt_regs *__regs;						\
-	u64 __addr = 0, __count = 1;					\
+	u64 __count = 1;						\
 	struct task_struct *__task = NULL;				\
 	struct hlist_head *head;					\
 	int __entry_size;						\
@@ -67,7 +64,7 @@ perf_trace_##call(void *__data, proto)					\
 									\
 	{ assign; }							\
 									\
-	perf_trace_buf_submit(entry, __entry_size, rctx, __addr,	\
+	perf_trace_buf_submit(entry, __entry_size, rctx, 0,		\
 		__count, __regs, head, __task);				\
 }
 
