@@ -681,7 +681,7 @@ static inline int mtk_cal_txd_req(struct sk_buff *skb)
 		nfrags += skb_shinfo(skb)->nr_frags;
 	}
 
-	return DIV_ROUND_UP(nfrags, 2);
+	return nfrags;
 }
 
 static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
