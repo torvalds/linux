@@ -78,8 +78,8 @@ static int rn5t618_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	ret = mfd_add_devices(&i2c->dev, -1, rn5t618_cells,
-			      ARRAY_SIZE(rn5t618_cells), NULL, 0, NULL);
+	ret = devm_mfd_add_devices(&i2c->dev, -1, rn5t618_cells,
+				   ARRAY_SIZE(rn5t618_cells), NULL, 0, NULL);
 	if (ret) {
 		dev_err(&i2c->dev, "failed to add sub-devices: %d\n", ret);
 		return ret;
@@ -102,7 +102,6 @@ static int rn5t618_i2c_remove(struct i2c_client *i2c)
 		pm_power_off = NULL;
 	}
 
-	mfd_remove_devices(&i2c->dev);
 	return 0;
 }
 
