@@ -113,9 +113,25 @@ static void start(struct drm_crtc *crtc)
 
 static void stop(struct drm_crtc *crtc)
 {
+	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
+	struct tilcdc_drm_private *priv = dev->dev_private;
 
+	tilcdc_crtc->frame_done = false;
 	tilcdc_clear(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ENABLE);
+
+	/*
+	 * if necessary wait for framedone irq which will still come
+	 * before putting things to sleep..
+	 */
+	if (priv->rev == 2) {
+		int ret = wait_event_timeout(tilcdc_crtc->frame_done_wq,
+					     tilcdc_crtc->frame_done,
+					     msecs_to_jiffies(50));
+		if (ret == 0)
+			dev_err(dev->dev, "%s: timeout waiting for framedone\n",
+				__func__);
+	}
 }
 
 static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
@@ -212,22 +228,7 @@ void tilcdc_crtc_dpms(struct drm_crtc *crtc, int mode)
 		pm_runtime_get_sync(dev->dev);
 		start(crtc);
 	} else {
-		tilcdc_crtc->frame_done = false;
 		stop(crtc);
-
-		/*
-		 * if necessary wait for framedone irq which will still come
-		 * before putting things to sleep..
-		 */
-		if (priv->rev == 2) {
-			int ret = wait_event_timeout(
-					tilcdc_crtc->frame_done_wq,
-					tilcdc_crtc->frame_done,
-					msecs_to_jiffies(50));
-			if (ret == 0)
-				dev_err(dev->dev, "timeout waiting for framedone\n");
-		}
-
 		pm_runtime_put_sync(dev->dev);
 
 		if (tilcdc_crtc->next_fb) {
