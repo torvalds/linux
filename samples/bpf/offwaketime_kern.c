@@ -73,7 +73,7 @@ int waker(struct pt_regs *ctx)
 	return 0;
 }
 
-static inline int update_counts(struct pt_regs *ctx, u32 pid, u64 delta)
+static inline int update_counts(void *ctx, u32 pid, u64 delta)
 {
 	struct key_t key = {};
 	struct wokeby_t *woke;
@@ -100,15 +100,33 @@ static inline int update_counts(struct pt_regs *ctx, u32 pid, u64 delta)
 	return 0;
 }
 
+#if 1
+/* taken from /sys/kernel/debug/tracing/events/sched/sched_switch/format */
+struct sched_switch_args {
+	unsigned long long pad;
+	char prev_comm[16];
+	int prev_pid;
+	int prev_prio;
+	long long prev_state;
+	char next_comm[16];
+	int next_pid;
+	int next_prio;
+};
+SEC("tracepoint/sched/sched_switch")
+int oncpu(struct sched_switch_args *ctx)
+{
+	/* record previous thread sleep time */
+	u32 pid = ctx->prev_pid;
+#else
 SEC("kprobe/finish_task_switch")
 int oncpu(struct pt_regs *ctx)
 {
 	struct task_struct *p = (void *) PT_REGS_PARM1(ctx);
-	u64 delta, ts, *tsp;
-	u32 pid;
-
 	/* record previous thread sleep time */
-	pid = _(p->pid);
+	u32 pid = _(p->pid);
+#endif
+	u64 delta, ts, *tsp;
+
 	ts = bpf_ktime_get_ns();
 	bpf_map_update_elem(&start, &pid, &ts, BPF_ANY);
 
