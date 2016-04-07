@@ -142,7 +142,7 @@ struct reg_state {
 	enum bpf_reg_type type;
 	union {
 		/* valid when type == CONST_IMM | PTR_TO_STACK */
-		int imm;
+		long imm;
 
 		/* valid when type == CONST_PTR_TO_MAP | PTR_TO_MAP_VALUE |
 		 *   PTR_TO_MAP_VALUE_OR_NULL
@@ -263,7 +263,7 @@ static void print_verifier_state(struct verifier_env *env)
 			continue;
 		verbose(" R%d=%s", i, reg_type_str[t]);
 		if (t == CONST_IMM || t == PTR_TO_STACK)
-			verbose("%d", env->cur_state.regs[i].imm);
+			verbose("%ld", env->cur_state.regs[i].imm);
 		else if (t == CONST_PTR_TO_MAP || t == PTR_TO_MAP_VALUE ||
 			 t == PTR_TO_MAP_VALUE_OR_NULL)
 			verbose("(ks=%d,vs=%d)",
@@ -480,7 +480,6 @@ static void init_reg_state(struct reg_state *regs)
 	for (i = 0; i < MAX_BPF_REG; i++) {
 		regs[i].type = NOT_INIT;
 		regs[i].imm = 0;
-		regs[i].map_ptr = NULL;
 	}
 
 	/* frame pointer */
@@ -495,7 +494,6 @@ static void mark_reg_unknown_value(struct reg_state *regs, u32 regno)
 	BUG_ON(regno >= MAX_BPF_REG);
 	regs[regno].type = UNKNOWN_VALUE;
 	regs[regno].imm = 0;
-	regs[regno].map_ptr = NULL;
 }
 
 enum reg_arg_type {
