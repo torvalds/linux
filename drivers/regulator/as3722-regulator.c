@@ -372,7 +372,7 @@ static int as3722_ldo_set_current_limit(struct regulator_dev *rdev,
 			AS3722_LDO_ILIMIT_MASK, reg);
 }
 
-static struct regulator_ops as3722_ldo0_ops = {
+static const struct regulator_ops as3722_ldo0_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -383,7 +383,7 @@ static struct regulator_ops as3722_ldo0_ops = {
 	.set_current_limit = as3722_ldo_set_current_limit,
 };
 
-static struct regulator_ops as3722_ldo0_extcntrl_ops = {
+static const struct regulator_ops as3722_ldo0_extcntrl_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
@@ -415,7 +415,7 @@ static int as3722_ldo3_get_current_limit(struct regulator_dev *rdev)
 	return 150000;
 }
 
-static struct regulator_ops as3722_ldo3_ops = {
+static const struct regulator_ops as3722_ldo3_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -425,14 +425,14 @@ static struct regulator_ops as3722_ldo3_ops = {
 	.get_current_limit = as3722_ldo3_get_current_limit,
 };
 
-static struct regulator_ops as3722_ldo3_extcntrl_ops = {
+static const struct regulator_ops as3722_ldo3_extcntrl_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_current_limit = as3722_ldo3_get_current_limit,
 };
 
-static struct regulator_ops as3722_ldo6_ops = {
+static const struct regulator_ops as3722_ldo6_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -446,7 +446,7 @@ static struct regulator_ops as3722_ldo6_ops = {
 	.set_bypass = regulator_set_bypass_regmap,
 };
 
-static struct regulator_ops as3722_ldo6_extcntrl_ops = {
+static const struct regulator_ops as3722_ldo6_extcntrl_ops = {
 	.map_voltage = regulator_map_voltage_linear_range,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
@@ -463,7 +463,7 @@ static const struct regulator_linear_range as3722_ldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1725000, 0x40, 0x7F, 25000),
 };
 
-static struct regulator_ops as3722_ldo_ops = {
+static const struct regulator_ops as3722_ldo_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -475,7 +475,7 @@ static struct regulator_ops as3722_ldo_ops = {
 	.set_current_limit = as3722_ldo_set_current_limit,
 };
 
-static struct regulator_ops as3722_ldo_extcntrl_ops = {
+static const struct regulator_ops as3722_ldo_extcntrl_ops = {
 	.map_voltage = regulator_map_voltage_linear_range,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
@@ -641,7 +641,7 @@ static const struct regulator_linear_range as3722_sd2345_ranges[] = {
 	REGULATOR_LINEAR_RANGE(2650000, 0x71, 0x7F, 50000),
 };
 
-static struct regulator_ops as3722_sd016_ops = {
+static const struct regulator_ops as3722_sd016_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -655,7 +655,7 @@ static struct regulator_ops as3722_sd016_ops = {
 	.set_mode = as3722_sd_set_mode,
 };
 
-static struct regulator_ops as3722_sd016_extcntrl_ops = {
+static const struct regulator_ops as3722_sd016_extcntrl_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.map_voltage = regulator_map_voltage_linear,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
@@ -666,7 +666,7 @@ static struct regulator_ops as3722_sd016_extcntrl_ops = {
 	.set_mode = as3722_sd_set_mode,
 };
 
-static struct regulator_ops as3722_sd2345_ops = {
+static const struct regulator_ops as3722_sd2345_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -678,7 +678,7 @@ static struct regulator_ops as3722_sd2345_ops = {
 	.set_mode = as3722_sd_set_mode,
 };
 
-static struct regulator_ops as3722_sd2345_extcntrl_ops = {
+static const struct regulator_ops as3722_sd2345_extcntrl_ops = {
 	.list_voltage = regulator_list_voltage_linear_range,
 	.map_voltage = regulator_map_voltage_linear_range,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
@@ -785,7 +785,7 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 	struct as3722_regulator_config_data *reg_config;
 	struct regulator_dev *rdev;
 	struct regulator_config config = { };
-	struct regulator_ops *ops;
+	const struct regulator_ops *ops;
 	int id;
 	int ret;
 
