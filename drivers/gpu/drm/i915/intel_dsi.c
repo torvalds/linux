@@ -46,6 +46,24 @@ static const struct {
 	},
 };
 
+enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt)
+{
+	/* It just so happens the VBT matches register contents. */
+	switch (fmt) {
+	case VID_MODE_FORMAT_RGB888:
+		return MIPI_DSI_FMT_RGB888;
+	case VID_MODE_FORMAT_RGB666:
+		return MIPI_DSI_FMT_RGB666;
+	case VID_MODE_FORMAT_RGB666_PACKED:
+		return MIPI_DSI_FMT_RGB666_PACKED;
+	case VID_MODE_FORMAT_RGB565:
+		return MIPI_DSI_FMT_RGB565;
+	default:
+		MISSING_CASE(fmt);
+		return MIPI_DSI_FMT_RGB666;
+	}
+}
+
 static void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi, enum port port)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;

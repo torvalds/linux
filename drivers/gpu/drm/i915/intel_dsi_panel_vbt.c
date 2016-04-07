@@ -423,25 +423,6 @@ static const struct drm_panel_funcs vbt_panel_funcs = {
 	.get_modes = vbt_panel_get_modes,
 };
 
-/* XXX: This should be done when parsing the VBT in intel_bios.c */
-static enum mipi_dsi_pixel_format pixel_format_from_vbt(u32 fmt)
-{
-	/* It just so happens the VBT matches register contents. */
-	switch (fmt) {
-	case VID_MODE_FORMAT_RGB888:
-		return MIPI_DSI_FMT_RGB888;
-	case VID_MODE_FORMAT_RGB666:
-		return MIPI_DSI_FMT_RGB666;
-	case VID_MODE_FORMAT_RGB666_PACKED:
-		return MIPI_DSI_FMT_RGB666_PACKED;
-	case VID_MODE_FORMAT_RGB565:
-		return MIPI_DSI_FMT_RGB565;
-	default:
-		MISSING_CASE(fmt);
-		return MIPI_DSI_FMT_RGB666;
-	}
-}
-
 struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
@@ -466,7 +447,9 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->eotp_pkt = mipi_config->eot_pkt_disabled ? 0 : 1;
 	intel_dsi->clock_stop = mipi_config->enable_clk_stop ? 1 : 0;
 	intel_dsi->lane_count = mipi_config->lane_cnt + 1;
-	intel_dsi->pixel_format = pixel_format_from_vbt(mipi_config->videomode_color_format << 7);
+	intel_dsi->pixel_format =
+			pixel_format_from_register_bits(
+				mipi_config->videomode_color_format << 7);
 	bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 
 	intel_dsi->dual_link = mipi_config->dual_link;
