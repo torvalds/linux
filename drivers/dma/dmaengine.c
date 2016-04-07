@@ -664,7 +664,7 @@ struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
 	}
 	mutex_unlock(&dma_list_mutex);
 
-	dev_dbg(chan->device->dev, "%s: %s (%s)\n",
+	pr_debug("%s: %s (%s)\n",
 		 __func__,
 		 chan ? "success" : "fail",
 		 chan ? dma_chan_name(chan) : NULL);
