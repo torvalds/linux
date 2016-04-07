@@ -823,14 +823,14 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 	ntfs_debug("vol->mft_record_size_bits = %i (0x%x)",
 			vol->mft_record_size_bits, vol->mft_record_size_bits);
 	/*
-	 * We cannot support mft record sizes above the PAGE_CACHE_SIZE since
+	 * We cannot support mft record sizes above the PAGE_SIZE since
 	 * we store $MFT/$DATA, the table of mft records in the page cache.
 	 */
-	if (vol->mft_record_size > PAGE_CACHE_SIZE) {
+	if (vol->mft_record_size > PAGE_SIZE) {
 		ntfs_error(vol->sb, "Mft record size (%i) exceeds the "
-				"PAGE_CACHE_SIZE on your system (%lu).  "
+				"PAGE_SIZE on your system (%lu).  "
 				"This is not supported.  Sorry.",
-				vol->mft_record_size, PAGE_CACHE_SIZE);
+				vol->mft_record_size, PAGE_SIZE);
 		return false;
 	}
 	/* We cannot support mft record sizes below the sector size. */
@@ -1096,7 +1096,7 @@ static bool check_mft_mirror(ntfs_volume *vol)
 
 	ntfs_debug("Entering.");
 	/* Compare contents of $MFT and $MFTMirr. */
-	mrecs_per_page = PAGE_CACHE_SIZE / vol->mft_record_size;
+	mrecs_per_page = PAGE_SIZE / vol->mft_record_size;
 	BUG_ON(!mrecs_per_page);
 	BUG_ON(!vol->mftmirr_size);
 	mft_page = mirr_page = NULL;
@@ -1615,20 +1615,20 @@ static bool load_and_init_attrdef(ntfs_volume *vol)
 	if (!vol->attrdef)
 		goto iput_failed;
 	index = 0;
-	max_index = i_size >> PAGE_CACHE_SHIFT;
-	size = PAGE_CACHE_SIZE;
+	max_index = i_size >> PAGE_SHIFT;
+	size = PAGE_SIZE;
 	while (index < max_index) {
 		/* Read the attrdef table and copy it into the linear buffer. */
 read_partial_attrdef_page:
 		page = ntfs_map_page(ino->i_mapping, index);
 		if (IS_ERR(page))
 			goto free_iput_failed;
-		memcpy((u8*)vol->attrdef + (index++ << PAGE_CACHE_SHIFT),
+		memcpy((u8*)vol->attrdef + (index++ << PAGE_SHIFT),
 				page_address(page), size);
 		ntfs_unmap_page(page);
 	};
-	if (size == PAGE_CACHE_SIZE) {
-		size = i_size & ~PAGE_CACHE_MASK;
+	if (size == PAGE_SIZE) {
+		size = i_size & ~PAGE_MASK;
 		if (size)
 			goto read_partial_attrdef_page;
 	}
@@ -1684,20 +1684,20 @@ static bool load_and_init_upcase(ntfs_volume *vol)
 	if (!vol->upcase)
 		goto iput_upcase_failed;
 	index = 0;
-	max_index = i_size >> PAGE_CACHE_SHIFT;
-	size = PAGE_CACHE_SIZE;
+	max_index = i_size >> PAGE_SHIFT;
+	size = PAGE_SIZE;
 	while (index < max_index) {
 		/* Read the upcase table and copy it into the linear buffer. */
 read_partial_upcase_page:
 		page = ntfs_map_page(ino->i_mapping, index);
 		if (IS_ERR(page))
 			goto iput_upcase_failed;
-		memcpy((char*)vol->upcase + (index++ << PAGE_CACHE_SHIFT),
+		memcpy((char*)vol->upcase + (index++ << PAGE_SHIFT),
 				page_address(page), size);
 		ntfs_unmap_page(page);
 	};
-	if (size == PAGE_CACHE_SIZE) {
-		size = i_size & ~PAGE_CACHE_MASK;
+	if (size == PAGE_SIZE) {
+		size = i_size & ~PAGE_MASK;
 		if (size)
 			goto read_partial_upcase_page;
 	}
@@ -2471,14 +2471,14 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 	down_read(&vol->lcnbmp_lock);
 	/*
 	 * Convert the number of bits into bytes rounded up, then convert into
-	 * multiples of PAGE_CACHE_SIZE, rounding up so that if we have one
+	 * multiples of PAGE_SIZE, rounding up so that if we have one
 	 * full and one partial page max_index = 2.
 	 */
-	max_index = (((vol->nr_clusters + 7) >> 3) + PAGE_CACHE_SIZE - 1) >>
-			PAGE_CACHE_SHIFT;
-	/* Use multiples of 4 bytes, thus max_size is PAGE_CACHE_SIZE / 4. */
+	max_index = (((vol->nr_clusters + 7) >> 3) + PAGE_SIZE - 1) >>
+			PAGE_SHIFT;
+	/* Use multiples of 4 bytes, thus max_size is PAGE_SIZE / 4. */
 	ntfs_debug("Reading $Bitmap, max_index = 0x%lx, max_size = 0x%lx.",
-			max_index, PAGE_CACHE_SIZE / 4);
+			max_index, PAGE_SIZE / 4);
 	for (index = 0; index < max_index; index++) {
 		unsigned long *kaddr;
 
@@ -2491,7 +2491,7 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 		if (IS_ERR(page)) {
 			ntfs_debug("read_mapping_page() error. Skipping "
 					"page (index 0x%lx).", index);
-			nr_free -= PAGE_CACHE_SIZE * 8;
+			nr_free -= PAGE_SIZE * 8;
 			continue;
 		}
 		kaddr = kmap_atomic(page);
@@ -2503,9 +2503,9 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 		 * ntfs_readpage().
 		 */
 		nr_free -= bitmap_weight(kaddr,
-					PAGE_CACHE_SIZE * BITS_PER_BYTE);
+					PAGE_SIZE * BITS_PER_BYTE);
 		kunmap_atomic(kaddr);
-		page_cache_release(page);
+		put_page(page);
 	}
 	ntfs_debug("Finished reading $Bitmap, last index = 0x%lx.", index - 1);
 	/*
@@ -2547,9 +2547,9 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 	pgoff_t index;
 
 	ntfs_debug("Entering.");
-	/* Use multiples of 4 bytes, thus max_size is PAGE_CACHE_SIZE / 4. */
+	/* Use multiples of 4 bytes, thus max_size is PAGE_SIZE / 4. */
 	ntfs_debug("Reading $MFT/$BITMAP, max_index = 0x%lx, max_size = "
-			"0x%lx.", max_index, PAGE_CACHE_SIZE / 4);
+			"0x%lx.", max_index, PAGE_SIZE / 4);
 	for (index = 0; index < max_index; index++) {
 		unsigned long *kaddr;
 
@@ -2562,7 +2562,7 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 		if (IS_ERR(page)) {
 			ntfs_debug("read_mapping_page() error. Skipping "
 					"page (index 0x%lx).", index);
-			nr_free -= PAGE_CACHE_SIZE * 8;
+			nr_free -= PAGE_SIZE * 8;
 			continue;
 		}
 		kaddr = kmap_atomic(page);
@@ -2574,9 +2574,9 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 		 * ntfs_readpage().
 		 */
 		nr_free -= bitmap_weight(kaddr,
-					PAGE_CACHE_SIZE * BITS_PER_BYTE);
+					PAGE_SIZE * BITS_PER_BYTE);
 		kunmap_atomic(kaddr);
-		page_cache_release(page);
+		put_page(page);
 	}
 	ntfs_debug("Finished reading $MFT/$BITMAP, last index = 0x%lx.",
 			index - 1);
@@ -2618,17 +2618,17 @@ static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 	/* Type of filesystem. */
 	sfs->f_type   = NTFS_SB_MAGIC;
 	/* Optimal transfer block size. */
-	sfs->f_bsize  = PAGE_CACHE_SIZE;
+	sfs->f_bsize  = PAGE_SIZE;
 	/*
 	 * Total data blocks in filesystem in units of f_bsize and since
 	 * inodes are also stored in data blocs ($MFT is a file) this is just
 	 * the total clusters.
 	 */
 	sfs->f_blocks = vol->nr_clusters << vol->cluster_size_bits >>
-				PAGE_CACHE_SHIFT;
+				PAGE_SHIFT;
 	/* Free data blocks in filesystem in units of f_bsize. */
 	size	      = get_nr_free_clusters(vol) << vol->cluster_size_bits >>
-				PAGE_CACHE_SHIFT;
+				PAGE_SHIFT;
 	if (size < 0LL)
 		size = 0LL;
 	/* Free blocks avail to non-superuser, same as above on NTFS. */
@@ -2639,11 +2639,11 @@ static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 	size = i_size_read(vol->mft_ino) >> vol->mft_record_size_bits;
 	/*
 	 * Convert the maximum number of set bits into bytes rounded up, then
-	 * convert into multiples of PAGE_CACHE_SIZE, rounding up so that if we
+	 * convert into multiples of PAGE_SIZE, rounding up so that if we
 	 * have one full and one partial page max_index = 2.
 	 */
 	max_index = ((((mft_ni->initialized_size >> vol->mft_record_size_bits)
-			+ 7) >> 3) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+			+ 7) >> 3) + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	read_unlock_irqrestore(&mft_ni->size_lock, flags);
 	/* Number of inodes in filesystem (at this point in time). */
 	sfs->f_files = size;
@@ -2765,15 +2765,15 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	if (!parse_options(vol, (char*)opt))
 		goto err_out_now;
 
-	/* We support sector sizes up to the PAGE_CACHE_SIZE. */
-	if (bdev_logical_block_size(sb->s_bdev) > PAGE_CACHE_SIZE) {
+	/* We support sector sizes up to the PAGE_SIZE. */
+	if (bdev_logical_block_size(sb->s_bdev) > PAGE_SIZE) {
 		if (!silent)
 			ntfs_error(sb, "Device has unsupported sector size "
 					"(%i).  The maximum supported sector "
 					"size on this architecture is %lu "
 					"bytes.",
 					bdev_logical_block_size(sb->s_bdev),
-					PAGE_CACHE_SIZE);
+					PAGE_SIZE);
 		goto err_out_now;
 	}
 	/*

@@ -231,7 +231,7 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 	size_t bytes_left = header->args.count;
 	unsigned int pg_offset = header->args.pgbase, pg_len;
 	struct page **pages = header->args.pages;
-	int pg_index = header->args.pgbase >> PAGE_CACHE_SHIFT;
+	int pg_index = header->args.pgbase >> PAGE_SHIFT;
 	const bool is_dio = (header->dreq != NULL);
 	struct blk_plug plug;
 	int i;
@@ -263,13 +263,13 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 		}
 
 		if (is_dio) {
-			if (pg_offset + bytes_left > PAGE_CACHE_SIZE)
-				pg_len = PAGE_CACHE_SIZE - pg_offset;
+			if (pg_offset + bytes_left > PAGE_SIZE)
+				pg_len = PAGE_SIZE - pg_offset;
 			else
 				pg_len = bytes_left;
 		} else {
 			BUG_ON(pg_offset != 0);
-			pg_len = PAGE_CACHE_SIZE;
+			pg_len = PAGE_SIZE;
 		}
 
 		if (is_hole(&be)) {
@@ -339,9 +339,9 @@ static void bl_write_cleanup(struct work_struct *work)
 
 	if (likely(!hdr->pnfs_error)) {
 		struct pnfs_block_layout *bl = BLK_LSEG2EXT(hdr->lseg);
-		u64 start = hdr->args.offset & (loff_t)PAGE_CACHE_MASK;
+		u64 start = hdr->args.offset & (loff_t)PAGE_MASK;
 		u64 end = (hdr->args.offset + hdr->args.count +
-			PAGE_CACHE_SIZE - 1) & (loff_t)PAGE_CACHE_MASK;
+			PAGE_SIZE - 1) & (loff_t)PAGE_MASK;
 
 		ext_tree_mark_written(bl, start >> SECTOR_SHIFT,
 					(end - start) >> SECTOR_SHIFT);
@@ -373,7 +373,7 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 	loff_t offset = header->args.offset;
 	size_t count = header->args.count;
 	struct page **pages = header->args.pages;
-	int pg_index = header->args.pgbase >> PAGE_CACHE_SHIFT;
+	int pg_index = header->args.pgbase >> PAGE_SHIFT;
 	unsigned int pg_len;
 	struct blk_plug plug;
 	int i;
@@ -392,7 +392,7 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 	blk_start_plug(&plug);
 
 	/* we always write out the whole page */
-	offset = offset & (loff_t)PAGE_CACHE_MASK;
+	offset = offset & (loff_t)PAGE_MASK;
 	isect = offset >> SECTOR_SHIFT;
 
 	for (i = pg_index; i < header->page_array.npages; i++) {
@@ -408,7 +408,7 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 			extent_length = be.be_length - (isect - be.be_f_offset);
 		}
 
-		pg_len = PAGE_CACHE_SIZE;
+		pg_len = PAGE_SIZE;
 		bio = do_add_page_to_bio(bio, header->page_array.npages - i,
 					 WRITE, isect, pages[i], &map, &be,
 					 bl_end_io_write, par,
@@ -820,7 +820,7 @@ static u64 pnfs_num_cont_bytes(struct inode *inode, pgoff_t idx)
 	pgoff_t end;
 
 	/* Optimize common case that writes from 0 to end of file */
-	end = DIV_ROUND_UP(i_size_read(inode), PAGE_CACHE_SIZE);
+	end = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
 	if (end != inode->i_mapping->nrpages) {
 		rcu_read_lock();
 		end = page_cache_next_hole(mapping, idx + 1, ULONG_MAX);
@@ -828,9 +828,9 @@ static u64 pnfs_num_cont_bytes(struct inode *inode, pgoff_t idx)
 	}
 
 	if (!end)
-		return i_size_read(inode) - (idx << PAGE_CACHE_SHIFT);
+		return i_size_read(inode) - (idx << PAGE_SHIFT);
 	else
-		return (end - idx) << PAGE_CACHE_SHIFT;
+		return (end - idx) << PAGE_SHIFT;
 }
 
 static void

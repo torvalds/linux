@@ -283,7 +283,7 @@ extern struct page *ufs_get_locked_page(struct address_space *mapping,
 static inline void ufs_put_locked_page(struct page *page)
 {
        unlock_page(page);
-       page_cache_release(page);
+       put_page(page);
 }
 
 
