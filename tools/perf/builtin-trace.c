@@ -1126,6 +1126,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 	  .arg_parm	 = { [arg] = &strarray__##array, }
 
 #include "trace/beauty/pid.c"
+#include "trace/beauty/mode_t.c"
 #include "trace/beauty/sched_policy.c"
 #include "trace/beauty/waitid_options.c"
 
@@ -1767,6 +1768,8 @@ static int syscall__set_arg_fmts(struct syscall *sc)
 			sc->arg_scnprintf[idx] = syscall_arg__scnprintf_hex;
 		else if (strcmp(field->type, "pid_t") == 0)
 			sc->arg_scnprintf[idx] = SCA_PID;
+		else if (strcmp(field->type, "umode_t") == 0)
+			sc->arg_scnprintf[idx] = SCA_MODE_T;
 		++idx;
 	}
 
