@@ -3208,7 +3208,7 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 		rtl8xxxu_write16(priv, REG_SYS_FUNC, val16);
 	}
 
-	if (priv->rtl_chip != RTL8723B) {
+	if (priv->rtl_chip != RTL8723B && priv->rtl_chip != RTL8192E) {
 		/* AFE_XTAL_RF_GATE (bit 14) if addressing as 32 bit register */
 		val32 = rtl8xxxu_read32(priv, REG_AFE_XTAL_CTRL);
 		val32 &= ~AFE_XTAL_RF_GATE;
