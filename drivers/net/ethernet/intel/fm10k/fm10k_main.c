@@ -820,6 +820,8 @@ static void fm10k_tx_csum(struct fm10k_ring *tx_ring,
 		struct ipv6hdr *ipv6;
 		u8 *raw;
 	} network_hdr;
+	u8 *transport_hdr;
+	__be16 frag_off;
 	__be16 protocol;
 	u8 l4_hdr = 0;
 
@@ -837,9 +839,11 @@ static void fm10k_tx_csum(struct fm10k_ring *tx_ring,
 			goto no_csum;
 		}
 		network_hdr.raw = skb_inner_network_header(skb);
+		transport_hdr = skb_inner_transport_header(skb);
 	} else {
 		protocol = vlan_get_protocol(skb);
 		network_hdr.raw = skb_network_header(skb);
+		transport_hdr = skb_transport_header(skb);
 	}
 
 	switch (protocol) {
@@ -848,15 +852,17 @@ static void fm10k_tx_csum(struct fm10k_ring *tx_ring,
 		break;
 	case htons(ETH_P_IPV6):
 		l4_hdr = network_hdr.ipv6->nexthdr;
+		if (likely((transport_hdr - network_hdr.raw) ==
+			   sizeof(struct ipv6hdr)))
+			break;
+		ipv6_skip_exthdr(skb, network_hdr.raw - skb->data +
+				      sizeof(struct ipv6hdr),
+				 &l4_hdr, &frag_off);
+		if (unlikely(frag_off))
+			l4_hdr = NEXTHDR_FRAGMENT;
 		break;
 	default:
-		if (unlikely(net_ratelimit())) {
-			dev_warn(tx_ring->dev,
-				 "partial checksum but ip version=%x!\n",
-				 protocol);
-		}
-		tx_ring->tx_stats.csum_err++;
-		goto no_csum;
+		break;
 	}
 
 	switch (l4_hdr) {
@@ -869,9 +875,10 @@ static void fm10k_tx_csum(struct fm10k_ring *tx_ring,
 	default:
 		if (unlikely(net_ratelimit())) {
 			dev_warn(tx_ring->dev,
-				 "partial checksum but l4 proto=%x!\n",
-				 l4_hdr);
+				 "partial checksum, version=%d l4 proto=%x\n",
+				 protocol, l4_hdr);
 		}
+		skb_checksum_help(skb);
 		tx_ring->tx_stats.csum_err++;
 		goto no_csum;
 	}
