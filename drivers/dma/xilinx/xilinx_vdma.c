@@ -16,6 +16,11 @@
  * video device (S2MM). Initialization, status, interrupt and management
  * registers are accessed through an AXI4-Lite slave interface.
  *
+ * The AXI Direct Memory Access (AXI DMA) core is a soft Xilinx IP core that
+ * provides high-bandwidth one dimensional direct memory access between memory
+ * and AXI4-Stream target peripherals. It supports one receive and one
+ * transmit channel, both of them optional at synthesis time.
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
@@ -140,6 +145,19 @@
 /* Delay loop counter to prevent hardware failure */
 #define XILINX_DMA_LOOP_COUNT		1000000
 
+/* AXI DMA Specific Registers/Offsets */
+#define XILINX_DMA_REG_SRCDSTADDR	0x18
+#define XILINX_DMA_REG_BTT		0x28
+
+/* AXI DMA Specific Masks/Bit fields */
+#define XILINX_DMA_MAX_TRANS_LEN	GENMASK(22, 0)
+#define XILINX_DMA_CR_COALESCE_MAX	GENMASK(23, 16)
+#define XILINX_DMA_CR_COALESCE_SHIFT	16
+#define XILINX_DMA_BD_SOP		BIT(27)
+#define XILINX_DMA_BD_EOP		BIT(26)
+#define XILINX_DMA_COALESCE_MAX		255
+#define XILINX_DMA_NUM_APP_WORDS	5
+
 /**
  * struct xilinx_vdma_desc_hw - Hardware Descriptor
  * @next_desc: Next Descriptor Pointer @0x00
@@ -162,6 +180,30 @@ struct xilinx_vdma_desc_hw {
 } __aligned(64);
 
 /**
+ * struct xilinx_axidma_desc_hw - Hardware Descriptor for AXI DMA
+ * @next_desc: Next Descriptor Pointer @0x00
+ * @pad1: Reserved @0x04
+ * @buf_addr: Buffer address @0x08
+ * @pad2: Reserved @0x0C
+ * @pad3: Reserved @0x10
+ * @pad4: Reserved @0x14
+ * @control: Control field @0x18
+ * @status: Status field @0x1C
+ * @app: APP Fields @0x20 - 0x30
+ */
+struct xilinx_axidma_desc_hw {
+	u32 next_desc;
+	u32 pad1;
+	u32 buf_addr;
+	u32 pad2;
+	u32 pad3;
+	u32 pad4;
+	u32 control;
+	u32 status;
+	u32 app[XILINX_DMA_NUM_APP_WORDS];
+} __aligned(64);
+
+/**
  * struct xilinx_vdma_tx_segment - Descriptor segment
  * @hw: Hardware descriptor
  * @node: Node in the descriptor segments list
@@ -169,6 +211,18 @@ struct xilinx_vdma_desc_hw {
  */
 struct xilinx_vdma_tx_segment {
 	struct xilinx_vdma_desc_hw hw;
+	struct list_head node;
+	dma_addr_t phys;
+} __aligned(64);
+
+/**
+ * struct xilinx_axidma_tx_segment - Descriptor segment
+ * @hw: Hardware descriptor
+ * @node: Node in the descriptor segments list
+ * @phys: Physical address of segment
+ */
+struct xilinx_axidma_tx_segment {
+	struct xilinx_axidma_desc_hw hw;
 	struct list_head node;
 	dma_addr_t phys;
 } __aligned(64);
@@ -210,6 +264,9 @@ struct xilinx_dma_tx_descriptor {
  * @desc_pendingcount: Descriptor pending count
  * @ext_addr: Indicates 64 bit addressing is supported by dma channel
  * @desc_submitcount: Descriptor h/w submitted count
+ * @residue: Residue for AXI DMA
+ * @seg_v: Statically allocated segments base
+ * @start_transfer: Differentiate b/w DMA IP's transfer
  */
 struct xilinx_dma_chan {
 	struct xilinx_dma_device *xdev;
@@ -235,6 +292,9 @@ struct xilinx_dma_chan {
 	u32 desc_pendingcount;
 	bool ext_addr;
 	u32 desc_submitcount;
+	u32 residue;
+	struct xilinx_axidma_tx_segment *seg_v;
+	void (*start_transfer)(struct xilinx_dma_chan *chan);
 };
 
 /**
@@ -246,6 +306,7 @@ struct xilinx_dma_chan {
  * @has_sg: Specifies whether Scatter-Gather is present or not
  * @flush_on_fsync: Flush on frame sync
  * @ext_addr: Indicates 64 bit addressing is supported by dma device
+ * @dmatype: DMA ip type
  */
 struct xilinx_dma_device {
 	void __iomem *regs;
@@ -255,6 +316,7 @@ struct xilinx_dma_device {
 	bool has_sg;
 	u32 flush_on_fsync;
 	bool ext_addr;
+	enum xdma_ip_type dmatype;
 };
 
 /* Macros */
@@ -353,6 +415,39 @@ xilinx_vdma_alloc_tx_segment(struct xilinx_dma_chan *chan)
 }
 
 /**
+ * xilinx_axidma_alloc_tx_segment - Allocate transaction segment
+ * @chan: Driver specific DMA channel
+ *
+ * Return: The allocated segment on success and NULL on failure.
+ */
+static struct xilinx_axidma_tx_segment *
+xilinx_axidma_alloc_tx_segment(struct xilinx_dma_chan *chan)
+{
+	struct xilinx_axidma_tx_segment *segment;
+	dma_addr_t phys;
+
+	segment = dma_pool_alloc(chan->desc_pool, GFP_ATOMIC, &phys);
+	if (!segment)
+		return NULL;
+
+	memset(segment, 0, sizeof(*segment));
+	segment->phys = phys;
+
+	return segment;
+}
+
+/**
+ * xilinx_dma_free_tx_segment - Free transaction segment
+ * @chan: Driver specific DMA channel
+ * @segment: DMA transaction segment
+ */
+static void xilinx_dma_free_tx_segment(struct xilinx_dma_chan *chan,
+				struct xilinx_axidma_tx_segment *segment)
+{
+	dma_pool_free(chan->desc_pool, segment, segment->phys);
+}
+
+/**
  * xilinx_vdma_free_tx_segment - Free transaction segment
  * @chan: Driver specific DMA channel
  * @segment: DMA transaction segment
@@ -393,13 +488,22 @@ xilinx_dma_free_tx_descriptor(struct xilinx_dma_chan *chan,
 			       struct xilinx_dma_tx_descriptor *desc)
 {
 	struct xilinx_vdma_tx_segment *segment, *next;
+	struct xilinx_axidma_tx_segment *axidma_segment, *axidma_next;
 
 	if (!desc)
 		return;
 
-	list_for_each_entry_safe(segment, next, &desc->segments, node) {
-		list_del(&segment->node);
-		xilinx_vdma_free_tx_segment(chan, segment);
+	if (chan->xdev->dmatype == XDMA_TYPE_VDMA) {
+		list_for_each_entry_safe(segment, next, &desc->segments, node) {
+			list_del(&segment->node);
+			xilinx_vdma_free_tx_segment(chan, segment);
+		}
+	} else {
+		list_for_each_entry_safe(axidma_segment, axidma_next,
+					 &desc->segments, node) {
+			list_del(&axidma_segment->node);
+			xilinx_dma_free_tx_segment(chan, axidma_segment);
+		}
 	}
 
 	kfree(desc);
@@ -451,6 +555,8 @@ static void xilinx_dma_free_chan_resources(struct dma_chan *dchan)
 	dev_dbg(chan->dev, "Free all channel resources.\n");
 
 	xilinx_dma_free_descriptors(chan);
+	if (chan->xdev->dmatype == XDMA_TYPE_AXIDMA)
+		xilinx_dma_free_tx_segment(chan, chan->seg_v);
 	dma_pool_destroy(chan->desc_pool);
 	chan->desc_pool = NULL;
 }
@@ -519,10 +625,20 @@ static int xilinx_dma_alloc_chan_resources(struct dma_chan *dchan)
 	 * We need the descriptor to be aligned to 64bytes
 	 * for meeting Xilinx VDMA specification requirement.
 	 */
-	chan->desc_pool = dma_pool_create("xilinx_vdma_desc_pool",
-				chan->dev,
-				sizeof(struct xilinx_vdma_tx_segment),
-				__alignof__(struct xilinx_vdma_tx_segment), 0);
+	if (chan->xdev->dmatype == XDMA_TYPE_AXIDMA) {
+		chan->desc_pool = dma_pool_create("xilinx_dma_desc_pool",
+				   chan->dev,
+				   sizeof(struct xilinx_axidma_tx_segment),
+				   __alignof__(struct xilinx_axidma_tx_segment),
+				   0);
+	} else {
+		chan->desc_pool = dma_pool_create("xilinx_vdma_desc_pool",
+				     chan->dev,
+				     sizeof(struct xilinx_vdma_tx_segment),
+				     __alignof__(struct xilinx_vdma_tx_segment),
+				     0);
+	}
+
 	if (!chan->desc_pool) {
 		dev_err(chan->dev,
 			"unable to allocate channel %d descriptor pool\n",
@@ -530,7 +646,27 @@ static int xilinx_dma_alloc_chan_resources(struct dma_chan *dchan)
 		return -ENOMEM;
 	}
 
+	if (chan->xdev->dmatype == XDMA_TYPE_AXIDMA)
+		/*
+		 * For AXI DMA case after submitting a pending_list, keep
+		 * an extra segment allocated so that the "next descriptor"
+		 * pointer on the tail descriptor always points to a
+		 * valid descriptor, even when paused after reaching taildesc.
+		 * This way, it is possible to issue additional
+		 * transfers without halting and restarting the channel.
+		 */
+		chan->seg_v = xilinx_axidma_alloc_tx_segment(chan);
+
 	dma_cookie_init(dchan);
+
+	if (chan->xdev->dmatype == XDMA_TYPE_AXIDMA) {
+		/* For AXI DMA resetting once channel will reset the
+		 * other channel as well so enable the interrupts here.
+		 */
+		dma_ctrl_set(chan, XILINX_DMA_REG_DMACR,
+			      XILINX_DMA_DMAXR_ALL_IRQ_MASK);
+	}
+
 	return 0;
 }
 
@@ -546,7 +682,37 @@ static enum dma_status xilinx_dma_tx_status(struct dma_chan *dchan,
 					dma_cookie_t cookie,
 					struct dma_tx_state *txstate)
 {
-	return dma_cookie_status(dchan, cookie, txstate);
+	struct xilinx_dma_chan *chan = to_xilinx_chan(dchan);
+	struct xilinx_dma_tx_descriptor *desc;
+	struct xilinx_axidma_tx_segment *segment;
+	struct xilinx_axidma_desc_hw *hw;
+	enum dma_status ret;
+	unsigned long flags;
+	u32 residue = 0;
+
+	ret = dma_cookie_status(dchan, cookie, txstate);
+	if (ret == DMA_COMPLETE || !txstate)
+		return ret;
+
+	if (chan->xdev->dmatype == XDMA_TYPE_AXIDMA) {
+		spin_lock_irqsave(&chan->lock, flags);
+
+		desc = list_last_entry(&chan->active_list,
+				       struct xilinx_dma_tx_descriptor, node);
+		if (chan->has_sg) {
+			list_for_each_entry(segment, &desc->segments, node) {
+				hw = &segment->hw;
+				residue += (hw->control - hw->status) &
+					   XILINX_DMA_MAX_TRANS_LEN;
+			}
+		}
+		spin_unlock_irqrestore(&chan->lock, flags);
+
+		chan->residue = residue;
+		dma_set_residue(txstate, chan->residue);
+	}
+
+	return ret;
 }
 
 /**
@@ -754,6 +920,91 @@ static void xilinx_vdma_start_transfer(struct xilinx_dma_chan *chan)
 }
 
 /**
+ * xilinx_dma_start_transfer - Starts DMA transfer
+ * @chan: Driver specific channel struct pointer
+ */
+static void xilinx_dma_start_transfer(struct xilinx_dma_chan *chan)
+{
+	struct xilinx_dma_tx_descriptor *head_desc, *tail_desc;
+	struct xilinx_axidma_tx_segment *tail_segment, *old_head, *new_head;
+	u32 reg;
+
+	if (chan->err)
+		return;
+
+	if (list_empty(&chan->pending_list))
+		return;
+
+	/* If it is SG mode and hardware is busy, cannot submit */
+	if (chan->has_sg && xilinx_dma_is_running(chan) &&
+	    !xilinx_dma_is_idle(chan)) {
+		dev_dbg(chan->dev, "DMA controller still busy\n");
+		return;
+	}
+
+	head_desc = list_first_entry(&chan->pending_list,
+				     struct xilinx_dma_tx_descriptor, node);
+	tail_desc = list_last_entry(&chan->pending_list,
+				    struct xilinx_dma_tx_descriptor, node);
+	tail_segment = list_last_entry(&tail_desc->segments,
+				       struct xilinx_axidma_tx_segment, node);
+
+	old_head = list_first_entry(&head_desc->segments,
+				struct xilinx_axidma_tx_segment, node);
+	new_head = chan->seg_v;
+	/* Copy Buffer Descriptor fields. */
+	new_head->hw = old_head->hw;
+
+	/* Swap and save new reserve */
+	list_replace_init(&old_head->node, &new_head->node);
+	chan->seg_v = old_head;
+
+	tail_segment->hw.next_desc = chan->seg_v->phys;
+	head_desc->async_tx.phys = new_head->phys;
+
+	reg = dma_ctrl_read(chan, XILINX_DMA_REG_DMACR);
+
+	if (chan->desc_pendingcount <= XILINX_DMA_COALESCE_MAX) {
+		reg &= ~XILINX_DMA_CR_COALESCE_MAX;
+		reg |= chan->desc_pendingcount <<
+				  XILINX_DMA_CR_COALESCE_SHIFT;
+		dma_ctrl_write(chan, XILINX_DMA_REG_DMACR, reg);
+	}
+
+	if (chan->has_sg)
+		dma_ctrl_write(chan, XILINX_DMA_REG_CURDESC,
+			       head_desc->async_tx.phys);
+
+	xilinx_dma_start(chan);
+
+	if (chan->err)
+		return;
+
+	/* Start the transfer */
+	if (chan->has_sg) {
+		dma_ctrl_write(chan, XILINX_DMA_REG_TAILDESC,
+			       tail_segment->phys);
+	} else {
+		struct xilinx_axidma_tx_segment *segment;
+		struct xilinx_axidma_desc_hw *hw;
+
+		segment = list_first_entry(&head_desc->segments,
+					   struct xilinx_axidma_tx_segment,
+					   node);
+		hw = &segment->hw;
+
+		dma_ctrl_write(chan, XILINX_DMA_REG_SRCDSTADDR, hw->buf_addr);
+
+		/* Start the transfer */
+		dma_ctrl_write(chan, XILINX_DMA_REG_BTT,
+			       hw->control & XILINX_DMA_MAX_TRANS_LEN);
+	}
+
+	list_splice_tail_init(&chan->pending_list, &chan->active_list);
+	chan->desc_pendingcount = 0;
+}
+
+/**
  * xilinx_dma_issue_pending - Issue pending transactions
  * @dchan: DMA channel
  */
@@ -763,7 +1014,7 @@ static void xilinx_dma_issue_pending(struct dma_chan *dchan)
 	unsigned long flags;
 
 	spin_lock_irqsave(&chan->lock, flags);
-	xilinx_vdma_start_transfer(chan);
+	chan->start_transfer(chan);
 	spin_unlock_irqrestore(&chan->lock, flags);
 }
 
@@ -895,7 +1146,7 @@ static irqreturn_t xilinx_dma_irq_handler(int irq, void *data)
 	if (status & XILINX_DMA_DMASR_FRM_CNT_IRQ) {
 		spin_lock(&chan->lock);
 		xilinx_dma_complete_descriptor(chan);
-		xilinx_vdma_start_transfer(chan);
+		chan->start_transfer(chan);
 		spin_unlock(&chan->lock);
 	}
 
@@ -913,6 +1164,7 @@ static void append_desc_queue(struct xilinx_dma_chan *chan,
 {
 	struct xilinx_vdma_tx_segment *tail_segment;
 	struct xilinx_dma_tx_descriptor *tail_desc;
+	struct xilinx_axidma_tx_segment *axidma_tail_segment;
 
 	if (list_empty(&chan->pending_list))
 		goto append;
@@ -923,9 +1175,17 @@ static void append_desc_queue(struct xilinx_dma_chan *chan,
 	 */
 	tail_desc = list_last_entry(&chan->pending_list,
 				    struct xilinx_dma_tx_descriptor, node);
-	tail_segment = list_last_entry(&tail_desc->segments,
-				       struct xilinx_vdma_tx_segment, node);
-	tail_segment->hw.next_desc = (u32)desc->async_tx.phys;
+	if (chan->xdev->dmatype == XDMA_TYPE_VDMA) {
+		tail_segment = list_last_entry(&tail_desc->segments,
+					       struct xilinx_vdma_tx_segment,
+					       node);
+		tail_segment->hw.next_desc = (u32)desc->async_tx.phys;
+	} else {
+		axidma_tail_segment = list_last_entry(&tail_desc->segments,
+					       struct xilinx_axidma_tx_segment,
+					       node);
+		axidma_tail_segment->hw.next_desc = (u32)desc->async_tx.phys;
+	}
 
 	/*
 	 * Add the software descriptor and all children to the list
@@ -935,7 +1195,7 @@ append:
 	list_add_tail(&desc->node, &chan->pending_list);
 	chan->desc_pendingcount++;
 
-	if (chan->has_sg &&
+	if (chan->has_sg && (chan->xdev->dmatype == XDMA_TYPE_VDMA) &&
 	    unlikely(chan->desc_pendingcount > chan->num_frms)) {
 		dev_dbg(chan->dev, "desc pendingcount is too high\n");
 		chan->desc_pendingcount = chan->num_frms;
@@ -1054,6 +1314,109 @@ xilinx_vdma_dma_prep_interleaved(struct dma_chan *dchan,
 	segment = list_first_entry(&desc->segments,
 				   struct xilinx_vdma_tx_segment, node);
 	desc->async_tx.phys = segment->phys;
+
+	return &desc->async_tx;
+
+error:
+	xilinx_dma_free_tx_descriptor(chan, desc);
+	return NULL;
+}
+
+/**
+ * xilinx_dma_prep_slave_sg - prepare descriptors for a DMA_SLAVE transaction
+ * @dchan: DMA channel
+ * @sgl: scatterlist to transfer to/from
+ * @sg_len: number of entries in @scatterlist
+ * @direction: DMA direction
+ * @flags: transfer ack flags
+ * @context: APP words of the descriptor
+ *
+ * Return: Async transaction descriptor on success and NULL on failure
+ */
+static struct dma_async_tx_descriptor *xilinx_dma_prep_slave_sg(
+	struct dma_chan *dchan, struct scatterlist *sgl, unsigned int sg_len,
+	enum dma_transfer_direction direction, unsigned long flags,
+	void *context)
+{
+	struct xilinx_dma_chan *chan = to_xilinx_chan(dchan);
+	struct xilinx_dma_tx_descriptor *desc;
+	struct xilinx_axidma_tx_segment *segment = NULL, *prev = NULL;
+	u32 *app_w = (u32 *)context;
+	struct scatterlist *sg;
+	size_t copy;
+	size_t sg_used;
+	unsigned int i;
+
+	if (!is_slave_direction(direction))
+		return NULL;
+
+	/* Allocate a transaction descriptor. */
+	desc = xilinx_dma_alloc_tx_descriptor(chan);
+	if (!desc)
+		return NULL;
+
+	dma_async_tx_descriptor_init(&desc->async_tx, &chan->common);
+	desc->async_tx.tx_submit = xilinx_dma_tx_submit;
+
+	/* Build transactions using information in the scatter gather list */
+	for_each_sg(sgl, sg, sg_len, i) {
+		sg_used = 0;
+
+		/* Loop until the entire scatterlist entry is used */
+		while (sg_used < sg_dma_len(sg)) {
+			struct xilinx_axidma_desc_hw *hw;
+
+			/* Get a free segment */
+			segment = xilinx_axidma_alloc_tx_segment(chan);
+			if (!segment)
+				goto error;
+
+			/*
+			 * Calculate the maximum number of bytes to transfer,
+			 * making sure it is less than the hw limit
+			 */
+			copy = min_t(size_t, sg_dma_len(sg) - sg_used,
+				     XILINX_DMA_MAX_TRANS_LEN);
+			hw = &segment->hw;
+
+			/* Fill in the descriptor */
+			hw->buf_addr = sg_dma_address(sg) + sg_used;
+
+			hw->control = copy;
+
+			if (chan->direction == DMA_MEM_TO_DEV) {
+				if (app_w)
+					memcpy(hw->app, app_w, sizeof(u32) *
+					       XILINX_DMA_NUM_APP_WORDS);
+			}
+
+			if (prev)
+				prev->hw.next_desc = segment->phys;
+
+			prev = segment;
+			sg_used += copy;
+
+			/*
+			 * Insert the segment into the descriptor segments
+			 * list.
+			 */
+			list_add_tail(&segment->node, &desc->segments);
+		}
+	}
+
+	segment = list_first_entry(&desc->segments,
+				   struct xilinx_axidma_tx_segment, node);
+	desc->async_tx.phys = segment->phys;
+	prev->hw.next_desc = segment->phys;
+
+	/* For the last DMA_MEM_TO_DEV transfer, set EOP */
+	if (chan->direction == DMA_MEM_TO_DEV) {
+		segment->hw.control |= XILINX_DMA_BD_SOP;
+		segment = list_last_entry(&desc->segments,
+					  struct xilinx_axidma_tx_segment,
+					  node);
+		segment->hw.control |= XILINX_DMA_BD_EOP;
+	}
 
 	return &desc->async_tx;
 
@@ -1224,22 +1587,26 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 		chan->id = 0;
 
 		chan->ctrl_offset = XILINX_DMA_MM2S_CTRL_OFFSET;
-		chan->desc_offset = XILINX_VDMA_MM2S_DESC_OFFSET;
+		if (xdev->dmatype == XDMA_TYPE_VDMA) {
+			chan->desc_offset = XILINX_VDMA_MM2S_DESC_OFFSET;
 
-		if (xdev->flush_on_fsync == XILINX_DMA_FLUSH_BOTH ||
-		    xdev->flush_on_fsync == XILINX_DMA_FLUSH_MM2S)
-			chan->flush_on_fsync = true;
+			if (xdev->flush_on_fsync == XILINX_DMA_FLUSH_BOTH ||
+			    xdev->flush_on_fsync == XILINX_DMA_FLUSH_MM2S)
+				chan->flush_on_fsync = true;
+		}
 	} else if (of_device_is_compatible(node,
 					    "xlnx,axi-vdma-s2mm-channel")) {
 		chan->direction = DMA_DEV_TO_MEM;
 		chan->id = 1;
 
 		chan->ctrl_offset = XILINX_DMA_S2MM_CTRL_OFFSET;
-		chan->desc_offset = XILINX_VDMA_S2MM_DESC_OFFSET;
+		if (xdev->dmatype == XDMA_TYPE_VDMA) {
+			chan->desc_offset = XILINX_VDMA_S2MM_DESC_OFFSET;
 
-		if (xdev->flush_on_fsync == XILINX_DMA_FLUSH_BOTH ||
-		    xdev->flush_on_fsync == XILINX_DMA_FLUSH_S2MM)
-			chan->flush_on_fsync = true;
+			if (xdev->flush_on_fsync == XILINX_DMA_FLUSH_BOTH ||
+			    xdev->flush_on_fsync == XILINX_DMA_FLUSH_S2MM)
+				chan->flush_on_fsync = true;
+		}
 	} else {
 		dev_err(xdev->dev, "Invalid channel compatible node\n");
 		return -EINVAL;
@@ -1253,6 +1620,11 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 		dev_err(xdev->dev, "unable to request IRQ %d\n", chan->irq);
 		return err;
 	}
+
+	if (xdev->dmatype == XDMA_TYPE_AXIDMA)
+		chan->start_transfer = xilinx_dma_start_transfer;
+	else
+		chan->start_transfer = xilinx_vdma_start_transfer;
 
 	/* Initialize the tasklet */
 	tasklet_init(&chan->tasklet, xilinx_dma_do_tasklet,
@@ -1296,6 +1668,15 @@ static struct dma_chan *of_dma_xilinx_xlate(struct of_phandle_args *dma_spec,
 	return dma_get_slave_channel(&xdev->chan[chan_id]->common);
 }
 
+static const struct of_device_id xilinx_dma_of_ids[] = {
+	{ .compatible = "xlnx,axi-dma-1.00.a",
+	  .data = (void *)XDMA_TYPE_AXIDMA },
+	{ .compatible = "xlnx,axi-vdma-1.00.a",
+	  .data = (void *)XDMA_TYPE_VDMA },
+	{}
+};
+MODULE_DEVICE_TABLE(of, xilinx_dma_of_ids);
+
 /**
  * xilinx_dma_probe - Driver probe function
  * @pdev: Pointer to the platform_device structure
@@ -1317,6 +1698,7 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	xdev->dev = &pdev->dev;
+	xdev->dmatype = (enum xdma_ip_type)of_device_get_match_data(&pdev->dev);
 
 	/* Request and map I/O memory */
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1327,16 +1709,21 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 	/* Retrieve the DMA engine properties from the device tree */
 	xdev->has_sg = of_property_read_bool(node, "xlnx,include-sg");
 
-	err = of_property_read_u32(node, "xlnx,num-fstores", &num_frames);
-	if (err < 0) {
-		dev_err(xdev->dev, "missing xlnx,num-fstores property\n");
-		return err;
-	}
+	if (xdev->dmatype == XDMA_TYPE_VDMA) {
+		err = of_property_read_u32(node, "xlnx,num-fstores",
+					   &num_frames);
+		if (err < 0) {
+			dev_err(xdev->dev,
+				"missing xlnx,num-fstores property\n");
+			return err;
+		}
 
-	err = of_property_read_u32(node, "xlnx,flush-fsync",
-					&xdev->flush_on_fsync);
-	if (err < 0)
-		dev_warn(xdev->dev, "missing xlnx,flush-fsync property\n");
+		err = of_property_read_u32(node, "xlnx,flush-fsync",
+					   &xdev->flush_on_fsync);
+		if (err < 0)
+			dev_warn(xdev->dev,
+				 "missing xlnx,flush-fsync property\n");
+	}
 
 	err = of_property_read_u32(node, "xlnx,addrwidth", &addr_width);
 	if (err < 0)
@@ -1361,11 +1748,18 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 				xilinx_dma_alloc_chan_resources;
 	xdev->common.device_free_chan_resources =
 				xilinx_dma_free_chan_resources;
-	xdev->common.device_prep_interleaved_dma =
-				xilinx_vdma_dma_prep_interleaved;
 	xdev->common.device_terminate_all = xilinx_dma_terminate_all;
 	xdev->common.device_tx_status = xilinx_dma_tx_status;
 	xdev->common.device_issue_pending = xilinx_dma_issue_pending;
+	if (xdev->dmatype == XDMA_TYPE_AXIDMA) {
+		xdev->common.device_prep_slave_sg = xilinx_dma_prep_slave_sg;
+		/* Residue calculation is supported by only AXI DMA */
+		xdev->common.residue_granularity =
+					  DMA_RESIDUE_GRANULARITY_SEGMENT;
+	} else {
+		xdev->common.device_prep_interleaved_dma =
+				xilinx_vdma_dma_prep_interleaved;
+	}
 
 	platform_set_drvdata(pdev, xdev);
 
@@ -1376,9 +1770,11 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 			goto error;
 	}
 
-	for (i = 0; i < XILINX_DMA_MAX_CHANS_PER_DEVICE; i++)
-		if (xdev->chan[i])
-			xdev->chan[i]->num_frms = num_frames;
+	if (xdev->dmatype == XDMA_TYPE_VDMA) {
+		for (i = 0; i < XILINX_DMA_MAX_CHANS_PER_DEVICE; i++)
+			if (xdev->chan[i])
+				xdev->chan[i]->num_frms = num_frames;
+	}
 
 	/* Register the DMA engine with the core */
 	dma_async_device_register(&xdev->common);
@@ -1424,12 +1820,6 @@ static int xilinx_dma_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id xilinx_dma_of_ids[] = {
-	{ .compatible = "xlnx,axi-vdma-1.00.a",},
-	{}
-};
-MODULE_DEVICE_TABLE(of, xilinx_dma_of_ids);
 
 static struct platform_driver xilinx_vdma_driver = {
 	.driver = {
