@@ -224,12 +224,31 @@ static void tipc_publ_purge(struct net *net, struct publication *publ, u32 addr)
 	kfree_rcu(p, rcu);
 }
 
+/**
+ * tipc_dist_queue_purge - remove deferred updates from a node that went down
+ */
+static void tipc_dist_queue_purge(struct net *net, u32 addr)
+{
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct distr_queue_item *e, *tmp;
+
+	spin_lock_bh(&tn->nametbl_lock);
+	list_for_each_entry_safe(e, tmp, &tn->dist_queue, next) {
+		if (e->node != addr)
+			continue;
+		list_del(&e->next);
+		kfree(e);
+	}
+	spin_unlock_bh(&tn->nametbl_lock);
+}
+
 void tipc_publ_notify(struct net *net, struct list_head *nsub_list, u32 addr)
 {
 	struct publication *publ, *tmp;
 
 	list_for_each_entry_safe(publ, tmp, nsub_list, nodesub_list)
 		tipc_publ_purge(net, publ, addr);
+	tipc_dist_queue_purge(net, addr);
 }
 
 /**
