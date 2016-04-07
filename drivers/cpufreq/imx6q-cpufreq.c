@@ -64,7 +64,7 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 
 	new_freq = freq_table[index].frequency;
 	freq_hz = new_freq * 1000;
-	old_freq = clk_get_rate(arm_clk) / 1000;
+	old_freq = policy->cur;
 
 	rcu_read_lock();
 	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &freq_hz);
