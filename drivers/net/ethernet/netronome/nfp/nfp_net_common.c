@@ -1519,6 +1519,7 @@ nfp_net_prepare_vector(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 		nn_err(nn, "Error requesting IRQ %d\n", entry->vector);
 		return err;
 	}
+	disable_irq(entry->vector);
 
 	/* Setup NAPI */
 	netif_napi_add(nn->netdev, &r_vec->napi,
@@ -1647,13 +1648,14 @@ static void nfp_net_clear_config_and_disable(struct nfp_net *nn)
 
 	nn_writel(nn, NFP_NET_CFG_CTRL, new_ctrl);
 	err = nfp_net_reconfig(nn, update);
-	if (err) {
+	if (err)
 		nn_err(nn, "Could not disable device: %d\n", err);
-		return;
-	}
 
-	for (r = 0; r < nn->num_r_vecs; r++)
+	for (r = 0; r < nn->num_r_vecs; r++) {
+		nfp_net_rx_ring_reset(nn->r_vecs[r].rx_ring);
+		nfp_net_tx_ring_reset(nn, nn->r_vecs[r].tx_ring);
 		nfp_net_vec_clear_ring_data(nn, r);
+	}
 
 	nn->ctrl = new_ctrl;
 }
@@ -1721,6 +1723,9 @@ static int __nfp_net_set_config_and_enable(struct nfp_net *nn)
 
 	nn->ctrl = new_ctrl;
 
+	for (r = 0; r < nn->num_r_vecs; r++)
+		nfp_net_rx_ring_fill_freelist(nn->r_vecs[r].rx_ring);
+
 	/* Since reconfiguration requests while NFP is down are ignored we
 	 * have to wipe the entire VXLAN configuration and reinitialize it.
 	 */
@@ -1749,26 +1754,6 @@ static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 }
 
 /**
- * nfp_net_start_vec() - Start ring vector
- * @nn:      NFP Net device structure
- * @r_vec:   Ring vector to be started
- */
-static void
-nfp_net_start_vec(struct nfp_net *nn, struct nfp_net_r_vector *r_vec)
-{
-	unsigned int irq_vec;
-
-	irq_vec = nn->irq_entries[r_vec->irq_idx].vector;
-
-	disable_irq(irq_vec);
-
-	nfp_net_rx_ring_fill_freelist(r_vec->rx_ring);
-	napi_enable(&r_vec->napi);
-
-	enable_irq(irq_vec);
-}
-
-/**
  * nfp_net_open_stack() - Start the device from stack's perspective
  * @nn:      NFP Net device to reconfigure
  */
@@ -1776,8 +1761,10 @@ static void nfp_net_open_stack(struct nfp_net *nn)
 {
 	unsigned int r;
 
-	for (r = 0; r < nn->num_r_vecs; r++)
-		nfp_net_start_vec(nn, &nn->r_vecs[r]);
+	for (r = 0; r < nn->num_r_vecs; r++) {
+		napi_enable(&nn->r_vecs[r].napi);
+		enable_irq(nn->irq_entries[nn->r_vecs[r].irq_idx].vector);
+	}
 
 	netif_tx_wake_all_queues(nn->netdev);
 
@@ -1902,8 +1889,10 @@ static void nfp_net_close_stack(struct nfp_net *nn)
 	netif_carrier_off(nn->netdev);
 	nn->link_up = false;
 
-	for (r = 0; r < nn->num_r_vecs; r++)
+	for (r = 0; r < nn->num_r_vecs; r++) {
+		disable_irq(nn->irq_entries[nn->r_vecs[r].irq_idx].vector);
 		napi_disable(&nn->r_vecs[r].napi);
+	}
 
 	netif_tx_disable(nn->netdev);
 }
@@ -1917,9 +1906,7 @@ static void nfp_net_close_free_all(struct nfp_net *nn)
 	unsigned int r;
 
 	for (r = 0; r < nn->num_r_vecs; r++) {
-		nfp_net_rx_ring_reset(nn->r_vecs[r].rx_ring);
 		nfp_net_rx_ring_bufs_free(nn, nn->r_vecs[r].rx_ring);
-		nfp_net_tx_ring_reset(nn, nn->r_vecs[r].tx_ring);
 		nfp_net_rx_ring_free(nn->r_vecs[r].rx_ring);
 		nfp_net_tx_ring_free(nn->r_vecs[r].tx_ring);
 		nfp_net_cleanup_vector(nn, &nn->r_vecs[r]);
