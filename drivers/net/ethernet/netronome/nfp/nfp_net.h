@@ -472,6 +472,9 @@ struct nfp_net {
 
 	u32 rx_offset;
 
+	struct nfp_net_tx_ring *tx_rings;
+	struct nfp_net_rx_ring *rx_rings;
+
 #ifdef CONFIG_PCI_IOV
 	unsigned int num_vfs;
 	struct vf_data_storage *vfinfo;
@@ -503,9 +506,6 @@ struct nfp_net {
 
 	int txd_cnt;
 	int rxd_cnt;
-
-	struct nfp_net_tx_ring tx_rings[NFP_NET_MAX_TX_RINGS];
-	struct nfp_net_rx_ring rx_rings[NFP_NET_MAX_RX_RINGS];
 
 	u8 num_irqs;
 	u8 num_r_vecs;

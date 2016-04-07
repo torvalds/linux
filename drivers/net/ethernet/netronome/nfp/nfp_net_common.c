@@ -413,12 +413,6 @@ static void nfp_net_irqs_assign(struct net_device *netdev)
 		r_vec->irq_idx = NFP_NET_NON_Q_VECTORS + r;
 
 		cpumask_set_cpu(r, &r_vec->affinity_mask);
-
-		r_vec->tx_ring = &nn->tx_rings[r];
-		nfp_net_tx_ring_init(r_vec->tx_ring, r_vec, r);
-
-		r_vec->rx_ring = &nn->rx_rings[r];
-		nfp_net_rx_ring_init(r_vec->rx_ring, r_vec, r);
 	}
 }
 
@@ -1503,6 +1497,12 @@ nfp_net_prepare_vector(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 	struct msix_entry *entry = &nn->irq_entries[r_vec->irq_idx];
 	int err;
 
+	r_vec->tx_ring = &nn->tx_rings[idx];
+	nfp_net_tx_ring_init(r_vec->tx_ring, r_vec, idx);
+
+	r_vec->rx_ring = &nn->rx_rings[idx];
+	nfp_net_rx_ring_init(r_vec->rx_ring, r_vec, idx);
+
 	snprintf(r_vec->name, sizeof(r_vec->name),
 		 "%s-rxtx-%d", nn->netdev->name, idx);
 	err = request_irq(entry->vector, r_vec->handler, 0, r_vec->name, r_vec);
@@ -1693,6 +1693,15 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 		goto err_free_exn;
 	disable_irq(nn->irq_entries[NFP_NET_CFG_LSC].vector);
 
+	nn->rx_rings = kcalloc(nn->num_rx_rings, sizeof(*nn->rx_rings),
+			       GFP_KERNEL);
+	if (!nn->rx_rings)
+		goto err_free_lsc;
+	nn->tx_rings = kcalloc(nn->num_tx_rings, sizeof(*nn->tx_rings),
+			       GFP_KERNEL);
+	if (!nn->tx_rings)
+		goto err_free_rx_rings;
+
 	for (r = 0; r < nn->num_r_vecs; r++) {
 		err = nfp_net_prepare_vector(nn, &nn->r_vecs[r], r);
 		if (err)
@@ -1807,6 +1816,10 @@ err_free_tx_ring_p:
 err_cleanup_vec_p:
 		nfp_net_cleanup_vector(nn, &nn->r_vecs[r]);
 	}
+	kfree(nn->tx_rings);
+err_free_rx_rings:
+	kfree(nn->rx_rings);
+err_free_lsc:
 	nfp_net_aux_irq_free(nn, NFP_NET_CFG_LSC, NFP_NET_IRQ_LSC_IDX);
 err_free_exn:
 	nfp_net_aux_irq_free(nn, NFP_NET_CFG_EXN, NFP_NET_IRQ_EXN_IDX);
@@ -1851,6 +1864,9 @@ static int nfp_net_netdev_close(struct net_device *netdev)
 		nfp_net_tx_ring_free(nn->r_vecs[r].tx_ring);
 		nfp_net_cleanup_vector(nn, &nn->r_vecs[r]);
 	}
+
+	kfree(nn->rx_rings);
+	kfree(nn->tx_rings);
 
 	nfp_net_aux_irq_free(nn, NFP_NET_CFG_LSC, NFP_NET_IRQ_LSC_IDX);
 	nfp_net_aux_irq_free(nn, NFP_NET_CFG_EXN, NFP_NET_IRQ_EXN_IDX);
