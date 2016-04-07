@@ -30,6 +30,7 @@
 #include <linux/time64.h>
 #include <linux/timekeeping.h>
 #include <linux/timekeeper_internal.h>
+#include <linux/acpi.h>
 
 #include <linux/mm.h>
 
@@ -278,6 +279,35 @@ void __init xen_early_init(void)
 		add_preferred_console("hvc", 0, NULL);
 }
 
+static void __init xen_acpi_guest_init(void)
+{
+#ifdef CONFIG_ACPI
+	struct xen_hvm_param a;
+	int interrupt, trigger, polarity;
+
+	a.domid = DOMID_SELF;
+	a.index = HVM_PARAM_CALLBACK_IRQ;
+
+	if (HYPERVISOR_hvm_op(HVMOP_get_param, &a)
+	    || (a.value >> 56) != HVM_PARAM_CALLBACK_TYPE_PPI) {
+		xen_events_irq = 0;
+		return;
+	}
+
+	interrupt = a.value & 0xff;
+	trigger = ((a.value >> 8) & 0x1) ? ACPI_EDGE_SENSITIVE
+					 : ACPI_LEVEL_SENSITIVE;
+	polarity = ((a.value >> 8) & 0x2) ? ACPI_ACTIVE_LOW
+					  : ACPI_ACTIVE_HIGH;
+	xen_events_irq = acpi_register_gsi(NULL, interrupt, trigger, polarity);
+#endif
+}
+
+static void __init xen_dt_guest_init(void)
+{
+	xen_events_irq = irq_of_parse_and_map(xen_node, 0);
+}
+
 static int __init xen_guest_init(void)
 {
 	struct xen_add_to_physmap xatp;
@@ -286,7 +316,11 @@ static int __init xen_guest_init(void)
 	if (!xen_domain())
 		return 0;
 
-	xen_events_irq = irq_of_parse_and_map(xen_node, 0);
+	if (!acpi_disabled)
+		xen_acpi_guest_init();
+	else
+		xen_dt_guest_init();
+
 	if (!xen_events_irq) {
 		pr_err("Xen event channel interrupt not found\n");
 		return -ENODEV;
