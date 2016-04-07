@@ -2412,14 +2412,12 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 	struct ath10k_htt *htt = (struct ath10k_htt *)ptr;
 	struct ath10k *ar = htt->ar;
 	struct htt_tx_done tx_done = {};
-	struct sk_buff_head rx_q;
 	struct sk_buff_head rx_ind_q;
 	struct sk_buff_head tx_ind_q;
 	struct sk_buff *skb;
 	unsigned long flags;
 	int num_mpdus;
 
-	__skb_queue_head_init(&rx_q);
 	__skb_queue_head_init(&rx_ind_q);
 	__skb_queue_head_init(&tx_ind_q);
 
@@ -2447,11 +2445,13 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 	ath10k_mac_tx_push_pending(ar);
 
 	num_mpdus = atomic_read(&htt->num_mpdus_ready);
-	atomic_sub(num_mpdus, &htt->num_mpdus_ready);
 
-	while (num_mpdus--) {
+	while (num_mpdus) {
 		if (ath10k_htt_rx_handle_amsdu(htt))
 			break;
+
+		num_mpdus--;
+		atomic_dec(&htt->num_mpdus_ready);
 	}
 
 	while ((skb = __skb_dequeue(&rx_ind_q))) {
