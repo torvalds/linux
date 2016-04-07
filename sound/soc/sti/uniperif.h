@@ -1270,6 +1270,14 @@ enum uniperif_iec958_encoding_mode {
 	UNIPERIF_IEC958_ENCODING_MODE_ENCODED
 };
 
+enum uniperif_word_pos {
+	WORD_1_2,
+	WORD_3_4,
+	WORD_5_6,
+	WORD_7_8,
+	WORD_MAX
+};
+
 struct uniperif_info {
 	int id; /* instance value of the uniperipheral IP */
 	enum uniperif_type type;
@@ -1279,6 +1287,13 @@ struct uniperif_info {
 struct uniperif_iec958_settings {
 	enum uniperif_iec958_encoding_mode encoding_mode;
 	struct snd_aes_iec958 iec958;
+};
+
+struct dai_tdm_slot {
+	unsigned int mask;
+	int slots;
+	int slot_width;
+	unsigned int avail_slots;
 };
 
 struct uniperif {
@@ -1317,6 +1332,7 @@ struct uniperif {
 
 	/* dai properties */
 	unsigned int daifmt;
+	struct dai_tdm_slot tdm_slot;
 
 	/* DAI callbacks */
 	const struct snd_soc_dai_ops *dai_ops;
@@ -1372,5 +1388,12 @@ int sti_uniperiph_dai_set_fmt(struct snd_soc_dai *dai,
 int sti_uniperiph_dai_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai);
+
+int sti_uniperiph_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+			       unsigned int rx_mask, int slots,
+			       int slot_width);
+
+int sti_uniperiph_get_tdm_word_pos(struct uniperif *uni,
+				   unsigned int *word_pos);
 
 #endif
