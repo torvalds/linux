@@ -867,60 +867,58 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring)
 }
 
 /**
- * nfp_net_tx_flush() - Free any untransmitted buffers currently on the TX ring
- * @tx_ring:     TX ring structure
+ * nfp_net_tx_ring_reset() - Free any untransmitted buffers and reset pointers
+ * @nn:		NFP Net device
+ * @tx_ring:	TX ring structure
  *
  * Assumes that the device is stopped
  */
-static void nfp_net_tx_flush(struct nfp_net_tx_ring *tx_ring)
+static void
+nfp_net_tx_ring_reset(struct nfp_net *nn, struct nfp_net_tx_ring *tx_ring)
 {
-	struct nfp_net_r_vector *r_vec = tx_ring->r_vec;
-	struct nfp_net *nn = r_vec->nfp_net;
-	struct pci_dev *pdev = nn->pdev;
 	const struct skb_frag_struct *frag;
 	struct netdev_queue *nd_q;
-	struct sk_buff *skb;
-	int nr_frags;
-	int fidx;
-	int idx;
+	struct pci_dev *pdev = nn->pdev;
 
 	while (tx_ring->rd_p != tx_ring->wr_p) {
+		int nr_frags, fidx, idx;
+		struct sk_buff *skb;
+
 		idx = tx_ring->rd_p % tx_ring->cnt;
-
 		skb = tx_ring->txbufs[idx].skb;
-		if (skb) {
-			nr_frags = skb_shinfo(skb)->nr_frags;
-			fidx = tx_ring->txbufs[idx].fidx;
+		nr_frags = skb_shinfo(skb)->nr_frags;
+		fidx = tx_ring->txbufs[idx].fidx;
 
-			if (fidx == -1) {
-				/* unmap head */
-				dma_unmap_single(&pdev->dev,
-						 tx_ring->txbufs[idx].dma_addr,
-						 skb_headlen(skb),
-						 DMA_TO_DEVICE);
-			} else {
-				/* unmap fragment */
-				frag = &skb_shinfo(skb)->frags[fidx];
-				dma_unmap_page(&pdev->dev,
-					       tx_ring->txbufs[idx].dma_addr,
-					       skb_frag_size(frag),
-					       DMA_TO_DEVICE);
-			}
-
-			/* check for last gather fragment */
-			if (fidx == nr_frags - 1)
-				dev_kfree_skb_any(skb);
-
-			tx_ring->txbufs[idx].dma_addr = 0;
-			tx_ring->txbufs[idx].skb = NULL;
-			tx_ring->txbufs[idx].fidx = -2;
+		if (fidx == -1) {
+			/* unmap head */
+			dma_unmap_single(&pdev->dev,
+					 tx_ring->txbufs[idx].dma_addr,
+					 skb_headlen(skb), DMA_TO_DEVICE);
+		} else {
+			/* unmap fragment */
+			frag = &skb_shinfo(skb)->frags[fidx];
+			dma_unmap_page(&pdev->dev,
+				       tx_ring->txbufs[idx].dma_addr,
+				       skb_frag_size(frag), DMA_TO_DEVICE);
 		}
 
-		memset(&tx_ring->txds[idx], 0, sizeof(tx_ring->txds[idx]));
+		/* check for last gather fragment */
+		if (fidx == nr_frags - 1)
+			dev_kfree_skb_any(skb);
+
+		tx_ring->txbufs[idx].dma_addr = 0;
+		tx_ring->txbufs[idx].skb = NULL;
+		tx_ring->txbufs[idx].fidx = -2;
 
 		tx_ring->qcp_rd_p++;
 		tx_ring->rd_p++;
 	}
+
+	memset(tx_ring->txds, 0, sizeof(*tx_ring->txds) * tx_ring->cnt);
+	tx_ring->wr_p = 0;
+	tx_ring->rd_p = 0;
+	tx_ring->qcp_rd_p = 0;
+	tx_ring->wr_ptr_add = 0;
 
 	nd_q = netdev_get_tx_queue(nn->netdev, tx_ring->idx);
 	netdev_tx_reset_queue(nd_q);
@@ -1362,11 +1360,6 @@ static void nfp_net_tx_ring_free(struct nfp_net_tx_ring *tx_ring)
 				  tx_ring->txds, tx_ring->dma);
 
 	tx_ring->cnt = 0;
-	tx_ring->wr_p = 0;
-	tx_ring->rd_p = 0;
-	tx_ring->qcp_rd_p = 0;
-	tx_ring->wr_ptr_add = 0;
-
 	tx_ring->txbufs = NULL;
 	tx_ring->txds = NULL;
 	tx_ring->dma = 0;
@@ -1859,7 +1852,7 @@ static int nfp_net_netdev_close(struct net_device *netdev)
 	 */
 	for (r = 0; r < nn->num_r_vecs; r++) {
 		nfp_net_rx_flush(nn->r_vecs[r].rx_ring);
-		nfp_net_tx_flush(nn->r_vecs[r].tx_ring);
+		nfp_net_tx_ring_reset(nn, nn->r_vecs[r].tx_ring);
 		nfp_net_rx_ring_free(nn->r_vecs[r].rx_ring);
 		nfp_net_tx_ring_free(nn->r_vecs[r].tx_ring);
 		nfp_net_cleanup_vector(nn, &nn->r_vecs[r]);
