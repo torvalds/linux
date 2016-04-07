@@ -371,6 +371,27 @@ u32 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg)
 
 	if (ixgbe_removed(reg_addr))
 		return IXGBE_FAILED_READ_REG;
+	if (unlikely(hw->phy.nw_mng_if_sel &
+		     IXGBE_NW_MNG_IF_SEL_ENABLE_10_100M)) {
+		struct ixgbe_adapter *adapter;
+		int i;
+
+		for (i = 0; i < 200; ++i) {
+			value = readl(reg_addr + IXGBE_MAC_SGMII_BUSY);
+			if (likely(!value))
+				goto writes_completed;
+			if (value == IXGBE_FAILED_READ_REG) {
+				ixgbe_remove_adapter(hw);
+				return IXGBE_FAILED_READ_REG;
+			}
+			udelay(5);
+		}
+
+		adapter = hw->back;
+		e_warn(hw, "register writes incomplete %08x\n", value);
+	}
+
+writes_completed:
 	value = readl(reg_addr + reg);
 	if (unlikely(value == IXGBE_FAILED_READ_REG))
 		ixgbe_check_remove(hw, reg);
