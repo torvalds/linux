@@ -625,6 +625,22 @@ static struct pinctrl_desc tegra_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
+static void tegra_pinctrl_clear_parked_bits(struct tegra_pmx *pmx)
+{
+	int i = 0;
+	const struct tegra_pingroup *g;
+	u32 val;
+
+	for (i = 0; i < pmx->soc->ngroups; ++i) {
+		if (pmx->soc->groups[i].parked_reg >= 0) {
+			g = &pmx->soc->groups[i];
+			val = pmx_readl(pmx, g->parked_bank, g->parked_reg);
+			val &= ~(1 << g->parked_bit);
+			pmx_writel(pmx, val, g->parked_bank, g->parked_reg);
+		}
+	}
+}
+
 static bool gpio_node_has_range(void)
 {
 	struct device_node *np;
@@ -724,6 +740,8 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
 		return PTR_ERR(pmx->pctl);
 	}
+
+	tegra_pinctrl_clear_parked_bits(pmx);
 
 	if (!gpio_node_has_range())
 		pinctrl_add_gpio_range(pmx->pctl, &tegra_pinctrl_gpio_range);
