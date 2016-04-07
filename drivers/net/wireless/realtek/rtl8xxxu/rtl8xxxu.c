@@ -7093,6 +7093,41 @@ static int rtl8192cu_power_on(struct rtl8xxxu_priv *priv)
 
 #endif
 
+/*
+ * This is needed for 8723bu as well, presumable
+ */
+static void rtl8192e_crystal_afe_adjust(struct rtl8xxxu_priv *priv)
+{
+	u8 val8;
+	u32 val32;
+
+	/*
+	 * 40Mhz crystal source, MAC 0x28[2]=0
+	 */
+	val8 = rtl8xxxu_read8(priv, REG_AFE_PLL_CTRL);
+	val8 &= 0xfb;
+	rtl8xxxu_write8(priv, REG_AFE_PLL_CTRL, val8);
+
+	val32 = rtl8xxxu_read32(priv, REG_AFE_CTRL4);
+	val32 &= 0xfffffc7f;
+	rtl8xxxu_write32(priv, REG_AFE_CTRL4, val32);
+
+	/*
+	 * 92e AFE parameter
+	 * AFE PLL KVCO selection, MAC 0x28[6]=1
+	 */
+	val8 = rtl8xxxu_read8(priv, REG_AFE_PLL_CTRL);
+	val8 &= 0xbf;
+	rtl8xxxu_write8(priv, REG_AFE_PLL_CTRL, val8);
+
+	/*
+	 * AFE PLL KVCO selection, MAC 0x78[21]=0
+	 */
+	val32 = rtl8xxxu_read32(priv, REG_AFE_CTRL4);
+	val32 &= 0xffdfffff;
+	rtl8xxxu_write32(priv, REG_AFE_CTRL4, val32);
+}
+
 static int rtl8192eu_power_on(struct rtl8xxxu_priv *priv)
 {
 	u16 val16;
@@ -7115,6 +7150,10 @@ static int rtl8192eu_power_on(struct rtl8xxxu_priv *priv)
 		rtl8xxxu_write8(priv, REG_LDO_SW_CTRL, 0x83);
 	}
 
+	/*
+	 * Adjust AFE before enabling PLL
+	 */
+	rtl8192e_crystal_afe_adjust(priv);
 	rtl8192e_disabled_to_emu(priv);
 
 	ret = rtl8192e_emu_to_active(priv);

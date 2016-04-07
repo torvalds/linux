@@ -109,6 +109,9 @@
 #define  AFE_XTAL_GATE_DIG		BIT(17)
 #define  AFE_XTAL_BT_GATE		BIT(20)
 
+/*
+ * 0x0028 is also known as REG_AFE_CTRL2 on 8723bu/8192eu
+ */
 #define REG_AFE_PLL_CTRL		0x0028
 #define  AFE_PLL_ENABLE			BIT(0)
 #define  AFE_PLL_320_ENABLE		BIT(1)
@@ -192,6 +195,7 @@
 						   control */
 #define  MULTI_GPS_FUNC_EN		BIT(22)	/* GPS function enable */
 
+#define REG_AFE_CTRL4			0x0078	/* 8192eu/8723bu */
 #define REG_LDO_SW_CTRL			0x007c	/* 8192eu */
 
 #define REG_MCU_FW_DL			0x0080
