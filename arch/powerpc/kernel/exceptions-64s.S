@@ -726,11 +726,10 @@ kvmppc_skip_Hinterrupt:
 #endif
 
 /*
- * Code from here down to __end_handlers is invoked from the
- * exception prologs above.  Because the prologs assemble the
- * addresses of these handlers using the LOAD_HANDLER macro,
- * which uses an ori instruction, these handlers must be in
- * the first 64k of the kernel image.
+ * Ensure that any handlers that get invoked from the exception prologs
+ * above are below the first 64KB (0x10000) of the kernel image because
+ * the prologs assemble the addresses of these handlers using the
+ * LOAD_HANDLER macro, which uses an ori instruction.
  */
 
 /*** Common interrupt handlers ***/
@@ -1122,10 +1121,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 
 	STD_EXCEPTION_COMMON(0xf60, facility_unavailable, facility_unavailable_exception)
 	STD_EXCEPTION_COMMON(0xf80, hv_facility_unavailable, facility_unavailable_exception)
-
-	.align	7
-	.globl	__end_handlers
-__end_handlers:
 
 	/* Equivalents to the above handlers for relocation-on interrupt vectors */
 	STD_RELON_EXCEPTION_HV_OOL(0xe40, emulation_assist)
