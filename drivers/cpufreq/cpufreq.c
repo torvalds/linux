@@ -1320,26 +1320,24 @@ out_free_policy:
  */
 static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 {
+	struct cpufreq_policy *policy;
 	unsigned cpu = dev->id;
-	int ret;
 
 	dev_dbg(dev, "%s: adding CPU%u\n", __func__, cpu);
 
-	if (cpu_online(cpu)) {
-		ret = cpufreq_online(cpu);
-	} else {
-		/*
-		 * A hotplug notifier will follow and we will handle it as CPU
-		 * online then.  For now, just create the sysfs link, unless
-		 * there is no policy or the link is already present.
-		 */
-		struct cpufreq_policy *policy = per_cpu(cpufreq_cpu_data, cpu);
+	if (cpu_online(cpu))
+		return cpufreq_online(cpu);
 
-		ret = policy && !cpumask_test_and_set_cpu(cpu, policy->real_cpus)
-			? add_cpu_dev_symlink(policy, cpu) : 0;
-	}
+	/*
+	 * A hotplug notifier will follow and we will handle it as CPU online
+	 * then.  For now, just create the sysfs link, unless there is no policy
+	 * or the link is already present.
+	 */
+	policy = per_cpu(cpufreq_cpu_data, cpu);
+	if (!policy || cpumask_test_and_set_cpu(cpu, policy->real_cpus))
+		return 0;
 
-	return ret;
+	return add_cpu_dev_symlink(policy, cpu);
 }
 
 static void cpufreq_offline(unsigned int cpu)
