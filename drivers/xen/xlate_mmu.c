@@ -189,6 +189,18 @@ int xen_xlate_unmap_gfn_range(struct vm_area_struct *vma,
 }
 EXPORT_SYMBOL_GPL(xen_xlate_unmap_gfn_range);
 
+struct map_balloon_pages {
+	xen_pfn_t *pfns;
+	unsigned int idx;
+};
+
+static void setup_balloon_gfn(unsigned long gfn, void *data)
+{
+	struct map_balloon_pages *info = data;
+
+	info->pfns[info->idx++] = gfn;
+}
+
 /**
  * xen_xlate_map_ballooned_pages - map a new set of ballooned pages
  * @gfns: returns the array of corresponding GFNs
@@ -205,11 +217,13 @@ int __init xen_xlate_map_ballooned_pages(xen_pfn_t **gfns, void **virt,
 	struct page **pages;
 	xen_pfn_t *pfns;
 	void *vaddr;
+	struct map_balloon_pages data;
 	int rc;
-	unsigned int i;
+	unsigned long nr_pages;
 
 	BUG_ON(nr_grant_frames == 0);
-	pages = kcalloc(nr_grant_frames, sizeof(pages[0]), GFP_KERNEL);
+	nr_pages = DIV_ROUND_UP(nr_grant_frames, XEN_PFN_PER_PAGE);
+	pages = kcalloc(nr_pages, sizeof(pages[0]), GFP_KERNEL);
 	if (!pages)
 		return -ENOMEM;
 
@@ -218,22 +232,24 @@ int __init xen_xlate_map_ballooned_pages(xen_pfn_t **gfns, void **virt,
 		kfree(pages);
 		return -ENOMEM;
 	}
-	rc = alloc_xenballooned_pages(nr_grant_frames, pages);
+	rc = alloc_xenballooned_pages(nr_pages, pages);
 	if (rc) {
-		pr_warn("%s Couldn't balloon alloc %ld pfns rc:%d\n", __func__,
-			nr_grant_frames, rc);
+		pr_warn("%s Couldn't balloon alloc %ld pages rc:%d\n", __func__,
+			nr_pages, rc);
 		kfree(pages);
 		kfree(pfns);
 		return rc;
 	}
-	for (i = 0; i < nr_grant_frames; i++)
-		pfns[i] = page_to_pfn(pages[i]);
 
-	vaddr = vmap(pages, nr_grant_frames, 0, PAGE_KERNEL);
+	data.pfns = pfns;
+	data.idx = 0;
+	xen_for_each_gfn(pages, nr_grant_frames, setup_balloon_gfn, &data);
+
+	vaddr = vmap(pages, nr_pages, 0, PAGE_KERNEL);
 	if (!vaddr) {
-		pr_warn("%s Couldn't map %ld pfns rc:%d\n", __func__,
-			nr_grant_frames, rc);
-		free_xenballooned_pages(nr_grant_frames, pages);
+		pr_warn("%s Couldn't map %ld pages rc:%d\n", __func__,
+			nr_pages, rc);
+		free_xenballooned_pages(nr_pages, pages);
 		kfree(pages);
 		kfree(pfns);
 		return -ENOMEM;
