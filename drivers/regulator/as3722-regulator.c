@@ -432,6 +432,31 @@ static struct regulator_ops as3722_ldo3_extcntrl_ops = {
 	.get_current_limit = as3722_ldo3_get_current_limit,
 };
 
+static struct regulator_ops as3722_ldo6_ops = {
+	.is_enabled = regulator_is_enabled_regmap,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.map_voltage = regulator_map_voltage_linear_range,
+	.set_voltage_sel = regulator_set_voltage_sel_regmap,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+	.list_voltage = regulator_list_voltage_linear_range,
+	.get_current_limit = as3722_ldo_get_current_limit,
+	.set_current_limit = as3722_ldo_set_current_limit,
+	.get_bypass = regulator_get_bypass_regmap,
+	.set_bypass = regulator_set_bypass_regmap,
+};
+
+static struct regulator_ops as3722_ldo6_extcntrl_ops = {
+	.map_voltage = regulator_map_voltage_linear_range,
+	.set_voltage_sel = regulator_set_voltage_sel_regmap,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+	.list_voltage = regulator_list_voltage_linear_range,
+	.get_current_limit = as3722_ldo_get_current_limit,
+	.set_current_limit = as3722_ldo_set_current_limit,
+	.get_bypass = regulator_get_bypass_regmap,
+	.set_bypass = regulator_set_bypass_regmap,
+};
+
 static const struct regulator_linear_range as3722_ldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, 0x00, 0x00, 0),
 	REGULATOR_LINEAR_RANGE(825000, 0x01, 0x24, 25000),
@@ -828,6 +853,24 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 					return ret;
 				}
 			}
+			break;
+		case AS3722_REGULATOR_ID_LDO6:
+			if (reg_config->ext_control)
+				ops = &as3722_ldo6_extcntrl_ops;
+			else
+				ops = &as3722_ldo6_ops;
+			as3722_regs->desc[id].enable_time = 500;
+			as3722_regs->desc[id].bypass_reg =
+						AS3722_LDO6_VOLTAGE_REG;
+			as3722_regs->desc[id].bypass_mask =
+						AS3722_LDO_VSEL_MASK;
+			as3722_regs->desc[id].bypass_val_on =
+						AS3722_LDO6_VSEL_BYPASS;
+			as3722_regs->desc[id].bypass_val_off =
+						AS3722_LDO6_VSEL_BYPASS;
+			as3722_regs->desc[id].linear_ranges = as3722_ldo_ranges;
+			as3722_regs->desc[id].n_linear_ranges =
+						ARRAY_SIZE(as3722_ldo_ranges);
 			break;
 		case AS3722_REGULATOR_ID_SD0:
 		case AS3722_REGULATOR_ID_SD1:
