@@ -2578,6 +2578,7 @@ void intel_ring_init_seqno(struct intel_engine_cs *engine, u32 seqno)
 	       sizeof(engine->semaphore.sync_seqno));
 
 	engine->set_seqno(engine, seqno);
+	engine->last_submitted_seqno = seqno;
 
 	engine->hangcheck.seqno = seqno;
 }
