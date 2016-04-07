@@ -1396,4 +1396,10 @@ int sti_uniperiph_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 int sti_uniperiph_get_tdm_word_pos(struct uniperif *uni,
 				   unsigned int *word_pos);
 
+int sti_uniperiph_fix_tdm_chan(struct snd_pcm_hw_params *params,
+			       struct snd_pcm_hw_rule *rule);
+
+int sti_uniperiph_fix_tdm_format(struct snd_pcm_hw_params *params,
+				 struct snd_pcm_hw_rule *rule);
+
 #endif

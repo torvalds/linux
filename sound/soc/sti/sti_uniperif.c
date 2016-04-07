@@ -59,6 +59,52 @@ int sti_uniperiph_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	return 0;
 }
 
+int sti_uniperiph_fix_tdm_chan(struct snd_pcm_hw_params *params,
+			       struct snd_pcm_hw_rule *rule)
+{
+	struct uniperif *uni = rule->private;
+	struct snd_interval t;
+
+	t.min = uni->tdm_slot.avail_slots;
+	t.max = uni->tdm_slot.avail_slots;
+	t.openmin = 0;
+	t.openmax = 0;
+	t.integer = 0;
+
+	return snd_interval_refine(hw_param_interval(params, rule->var), &t);
+}
+
+int sti_uniperiph_fix_tdm_format(struct snd_pcm_hw_params *params,
+				 struct snd_pcm_hw_rule *rule)
+{
+	struct uniperif *uni = rule->private;
+	struct snd_mask *maskp = hw_param_mask(params, rule->var);
+	u64 format;
+
+	switch (uni->tdm_slot.slot_width) {
+	case 16:
+		format = SNDRV_PCM_FMTBIT_S16_LE;
+		break;
+	case 32:
+		format = SNDRV_PCM_FMTBIT_S32_LE;
+		break;
+	default:
+		dev_err(uni->dev, "format not supported: %d bits\n",
+			uni->tdm_slot.slot_width);
+		return -EINVAL;
+	}
+
+	maskp->bits[0] &= (u_int32_t)format;
+	maskp->bits[1] &= (u_int32_t)(format >> 32);
+	/* clear remaining indexes */
+	memset(maskp->bits + 2, 0, (SNDRV_MASK_MAX - 64) / 8);
+
+	if (!maskp->bits[0] && !maskp->bits[1])
+		return -EINVAL;
+
+	return 0;
+}
+
 int sti_uniperiph_get_tdm_word_pos(struct uniperif *uni,
 				   unsigned int *word_pos)
 {
