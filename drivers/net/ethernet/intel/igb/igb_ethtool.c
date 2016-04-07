@@ -2831,7 +2831,8 @@ static int igb_get_module_eeprom(struct net_device *netdev,
 
 	/* Read EEPROM block, SFF-8079/SFF-8472, word at a time */
 	for (i = 0; i < last_word - first_word + 1; i++) {
-		status = igb_read_phy_reg_i2c(hw, first_word + i, &dataword[i]);
+		status = igb_read_phy_reg_i2c(hw, (first_word + i) * 2,
+					      &dataword[i]);
 		if (status) {
 			/* Error occurred while reading module */
 			kfree(dataword);

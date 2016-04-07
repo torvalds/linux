@@ -50,6 +50,7 @@
 #include <linux/aer.h>
 #include <linux/prefetch.h>
 #include <linux/pm_runtime.h>
+#include <linux/etherdevice.h>
 #ifdef CONFIG_IGB_DCA
 #include <linux/dca.h>
 #endif
@@ -150,7 +151,7 @@ static void igb_update_dca(struct igb_q_vector *);
 static void igb_setup_dca(struct igb_adapter *);
 #endif /* CONFIG_IGB_DCA */
 static int igb_poll(struct napi_struct *, int);
-static bool igb_clean_tx_irq(struct igb_q_vector *);
+static bool igb_clean_tx_irq(struct igb_q_vector *, int);
 static int igb_clean_rx_irq(struct igb_q_vector *, int);
 static int igb_ioctl(struct net_device *, struct ifreq *, int cmd);
 static void igb_tx_timeout(struct net_device *);
@@ -2442,9 +2443,11 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
-	/* copy the MAC address out of the NVM */
-	if (hw->mac.ops.read_mac_addr(hw))
-		dev_err(&pdev->dev, "NVM Read Error\n");
+	if (eth_platform_get_mac_address(&pdev->dev, hw->mac.addr)) {
+		/* copy the MAC address out of the NVM */
+		if (hw->mac.ops.read_mac_addr(hw))
+			dev_err(&pdev->dev, "NVM Read Error\n");
+	}
 
 	memcpy(netdev->dev_addr, hw->mac.addr, netdev->addr_len);
 
@@ -6522,13 +6525,14 @@ static int igb_poll(struct napi_struct *napi, int budget)
 		igb_update_dca(q_vector);
 #endif
 	if (q_vector->tx.ring)
-		clean_complete = igb_clean_tx_irq(q_vector);
+		clean_complete = igb_clean_tx_irq(q_vector, budget);
 
 	if (q_vector->rx.ring) {
 		int cleaned = igb_clean_rx_irq(q_vector, budget);
 
 		work_done += cleaned;
-		clean_complete &= (cleaned < budget);
+		if (cleaned >= budget)
+			clean_complete = false;
 	}
 
 	/* If all work not completed, return budget and keep polling */
@@ -6545,10 +6549,11 @@ static int igb_poll(struct napi_struct *napi, int budget)
 /**
  *  igb_clean_tx_irq - Reclaim resources after transmit completes
  *  @q_vector: pointer to q_vector containing needed info
+ *  @napi_budget: Used to determine if we are in netpoll
  *
  *  returns true if ring is completely cleaned
  **/
-static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
+static bool igb_clean_tx_irq(struct igb_q_vector *q_vector, int napi_budget)
 {
 	struct igb_adapter *adapter = q_vector->adapter;
 	struct igb_ring *tx_ring = q_vector->tx.ring;
@@ -6587,7 +6592,7 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 		total_packets += tx_buffer->gso_segs;
 
 		/* free the skb */
-		dev_consume_skb_any(tx_buffer->skb);
+		napi_consume_skb(tx_buffer->skb, napi_budget);
 
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
@@ -7574,7 +7579,6 @@ static int igb_resume(struct device *dev)
 
 	if (igb_init_interrupt_scheme(adapter, true)) {
 		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
-		rtnl_unlock();
 		return -ENOMEM;
 	}
 
@@ -7845,11 +7849,13 @@ static void igb_rar_set_qsel(struct igb_adapter *adapter, u8 *addr, u32 index,
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rar_low, rar_high;
 
-	/* HW expects these in little endian so we reverse the byte order
-	 * from network order (big endian) to CPU endian
+	/* HW expects these to be in network order when they are plugged
+	 * into the registers which are little endian.  In order to guarantee
+	 * that ordering we need to do an leXX_to_cpup here in order to be
+	 * ready for the byteswap that occurs with writel
 	 */
-	rar_low = le32_to_cpup((__be32 *)(addr));
-	rar_high = le16_to_cpup((__be16 *)(addr + 4));
+	rar_low = le32_to_cpup((__le32 *)(addr));
+	rar_high = le16_to_cpup((__le16 *)(addr + 4));
 
 	/* Indicate to hardware the Address is Valid. */
 	rar_high |= E1000_RAH_AV;
