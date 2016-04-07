@@ -179,4 +179,6 @@ int tilcdc_crtc_page_flip(struct drm_crtc *crtc,
 		struct drm_pending_vblank_event *event,
 		uint32_t page_flip_flags);
 
+int tilcdc_plane_init(struct drm_device *dev, struct drm_plane *plane);
+
 #endif /* __TILCDC_DRV_H__ */
