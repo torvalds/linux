@@ -878,7 +878,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 			RK3399_CLKSEL_CON(17), 8, 3, MFLAGS, 0, 7, DFLAGS,
 			RK3399_CLKGATE_CON(6), 2, GFLAGS),
 
-	COMPOSITE_NOMUX(0, "clk_pciephy_ref100m", "npll", 0,
+	COMPOSITE_NOMUX(SCLK_PCIEPHY_REF100M, "clk_pciephy_ref100m", "npll", 0,
 			RK3399_CLKSEL_CON(18), 11, 5, DFLAGS,
 			RK3399_CLKGATE_CON(12), 6, GFLAGS),
 	MUX(SCLK_PCIEPHY_REF, "clk_pciephy_ref", mux_pll_src_24m_pciephy_p, CLK_SET_RATE_PARENT,
