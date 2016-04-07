@@ -6893,7 +6893,13 @@ ath10k_mac_update_rx_channel(struct ath10k *ar,
 			def = &vifs[0].new_ctx->def;
 
 		ar->rx_channel = def->chan;
-	} else if (ctx && ath10k_mac_num_chanctxs(ar) == 0) {
+	} else if ((ctx && ath10k_mac_num_chanctxs(ar) == 0) ||
+		   (ctx && (ar->state == ATH10K_STATE_RESTARTED))) {
+		/* During driver restart due to firmware assert, since mac80211
+		 * already has valid channel context for given radio, channel
+		 * context iteration return num_chanctx > 0. So fix rx_channel
+		 * when restart is in progress.
+		 */
 		ar->rx_channel = ctx->def.chan;
 	} else {
 		ar->rx_channel = NULL;
