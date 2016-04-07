@@ -150,7 +150,7 @@
 	pinctrl-0 = <&pinctrl_enet1>;
 	phy-mode = "rmii";
 	phy-handle = <&ethphy0>;
-	status = "disabled";
+	status = "okay";
 };
 
 &fec2 {
