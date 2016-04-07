@@ -305,7 +305,7 @@ static int nilfs_write_end(struct file *file, struct address_space *mapping,
 }
 
 static ssize_t
-nilfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
+nilfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
 
@@ -313,7 +313,7 @@ nilfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
 		return 0;
 
 	/* Needs synchronization with the cleaner */
-	return blockdev_direct_IO(iocb, inode, iter, offset, nilfs_get_block);
+	return blockdev_direct_IO(iocb, inode, iter, nilfs_get_block);
 }
 
 const struct address_space_operations nilfs_aops = {

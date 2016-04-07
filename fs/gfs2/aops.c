@@ -1042,13 +1042,13 @@ static int gfs2_ok_for_dio(struct gfs2_inode *ip, loff_t offset)
 
 
 
-static ssize_t gfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-			      loff_t offset)
+static ssize_t gfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	struct address_space *mapping = inode->i_mapping;
 	struct gfs2_inode *ip = GFS2_I(inode);
+	loff_t offset = iocb->ki_pos;
 	struct gfs2_holder gh;
 	int rv;
 
@@ -1099,7 +1099,7 @@ static ssize_t gfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	}
 
 	rv = __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev, iter,
-				  offset, gfs2_get_block_direct, NULL, NULL, 0);
+				  gfs2_get_block_direct, NULL, NULL, 0);
 out:
 	gfs2_glock_dq(&gh);
 	gfs2_holder_uninit(&gh);

@@ -1113,7 +1113,7 @@ static inline int drop_refcount(struct dio *dio)
 static inline ssize_t
 do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		      struct block_device *bdev, struct iov_iter *iter,
-		      loff_t offset, get_block_t get_block, dio_iodone_t end_io,
+		      get_block_t get_block, dio_iodone_t end_io,
 		      dio_submit_t submit_io, int flags)
 {
 	unsigned i_blkbits = ACCESS_ONCE(inode->i_blkbits);
@@ -1121,6 +1121,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	unsigned blocksize_mask = (1 << blkbits) - 1;
 	ssize_t retval = -EINVAL;
 	size_t count = iov_iter_count(iter);
+	loff_t offset = iocb->ki_pos;
 	loff_t end = offset + count;
 	struct dio *dio;
 	struct dio_submit sdio = { 0, };
@@ -1328,7 +1329,7 @@ out:
 
 ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 			     struct block_device *bdev, struct iov_iter *iter,
-			     loff_t offset, get_block_t get_block,
+			     get_block_t get_block,
 			     dio_iodone_t end_io, dio_submit_t submit_io,
 			     int flags)
 {
@@ -1344,7 +1345,7 @@ ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	prefetch(bdev->bd_queue);
 	prefetch((char *)bdev->bd_queue + SMP_CACHE_BYTES);
 
-	return do_blockdev_direct_IO(iocb, inode, bdev, iter, offset, get_block,
+	return do_blockdev_direct_IO(iocb, inode, bdev, iter, get_block,
 				     end_io, submit_io, flags);
 }
 

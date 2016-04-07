@@ -659,12 +659,12 @@ out:
  * crashes then stale disk data _may_ be exposed inside the file. But current
  * VFS code falls back into buffered path in that case so we are safe.
  */
-ssize_t ext4_ind_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-			   loff_t offset)
+ssize_t ext4_ind_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	struct ext4_inode_info *ei = EXT4_I(inode);
+	loff_t offset = iocb->ki_pos;
 	handle_t *handle;
 	ssize_t ret;
 	int orphan = 0;
@@ -707,21 +707,21 @@ retry:
 			goto locked;
 		}
 		if (IS_DAX(inode))
-			ret = dax_do_io(iocb, inode, iter, offset,
+			ret = dax_do_io(iocb, inode, iter,
 					ext4_dio_get_block, NULL, 0);
 		else
 			ret = __blockdev_direct_IO(iocb, inode,
 						   inode->i_sb->s_bdev, iter,
-						   offset, ext4_dio_get_block,
+						   ext4_dio_get_block,
 						   NULL, NULL, 0);
 		inode_dio_end(inode);
 	} else {
 locked:
 		if (IS_DAX(inode))
-			ret = dax_do_io(iocb, inode, iter, offset,
+			ret = dax_do_io(iocb, inode, iter,
 					ext4_dio_get_block, NULL, DIO_LOCKING);
 		else
-			ret = blockdev_direct_IO(iocb, inode, iter, offset,
+			ret = blockdev_direct_IO(iocb, inode, iter,
 						 ext4_dio_get_block);
 
 		if (unlikely(iov_iter_rw(iter) == WRITE && ret < 0)) {

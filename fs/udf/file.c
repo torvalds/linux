@@ -99,8 +99,7 @@ static int udf_adinicb_write_begin(struct file *file,
 	return 0;
 }
 
-static ssize_t udf_adinicb_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-				     loff_t offset)
+static ssize_t udf_adinicb_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	/* Fallback to buffered I/O. */
 	return 0;

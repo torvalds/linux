@@ -794,7 +794,7 @@ xfs_file_dio_aio_write(
 	trace_xfs_file_direct_write(ip, count, iocb->ki_pos, 0);
 
 	data = *from;
-	ret = mapping->a_ops->direct_IO(iocb, &data, iocb->ki_pos);
+	ret = mapping->a_ops->direct_IO(iocb, &data);
 
 	/* see generic_file_direct_write() for why this is necessary */
 	if (mapping->nrpages) {
