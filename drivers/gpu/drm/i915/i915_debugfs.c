@@ -2415,7 +2415,7 @@ static int i915_guc_load_status_info(struct seq_file *m, void *data)
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	u32 tmp, i;
 
-	if (!HAS_GUC_UCODE(dev_priv->dev))
+	if (!HAS_GUC_UCODE(dev_priv))
 		return 0;
 
 	seq_printf(m, "GuC firmware status:\n");
@@ -2489,7 +2489,7 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	struct intel_engine_cs *engine;
 	u64 total = 0;
 
-	if (!HAS_GUC_SCHED(dev_priv->dev))
+	if (!HAS_GUC_SCHED(dev_priv))
 		return 0;
 
 	if (mutex_lock_interruptible(&dev->struct_mutex))

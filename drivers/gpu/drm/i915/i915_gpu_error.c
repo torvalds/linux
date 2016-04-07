@@ -669,7 +669,8 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 	}
 
 	/* Cannot access snooped pages through the aperture */
-	if (use_ggtt && src->cache_level != I915_CACHE_NONE && !HAS_LLC(dev_priv->dev))
+	if (use_ggtt && src->cache_level != I915_CACHE_NONE &&
+	    !HAS_LLC(dev_priv))
 		goto unwind;
 
 	dst->page_count = num_pages;
@@ -884,7 +885,7 @@ static void gen6_record_semaphore_state(struct drm_i915_private *dev_priv,
 	ering->semaphore_seqno[0] = engine->semaphore.sync_seqno[0];
 	ering->semaphore_seqno[1] = engine->semaphore.sync_seqno[1];
 
-	if (HAS_VEBOX(dev_priv->dev)) {
+	if (HAS_VEBOX(dev_priv)) {
 		ering->semaphore_mboxes[2] =
 			I915_READ(RING_SYNC_2(engine->mmio_base));
 		ering->semaphore_seqno[2] = engine->semaphore.sync_seqno[2];
@@ -1051,7 +1052,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 							 request->batch_obj,
 							 vm);
 
-			if (HAS_BROKEN_CS_TLB(dev_priv->dev))
+			if (HAS_BROKEN_CS_TLB(dev_priv))
 				error->ring[i].wa_batchbuffer =
 					i915_error_ggtt_object_create(dev_priv,
 							     engine->scratch.obj);

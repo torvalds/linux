@@ -204,7 +204,7 @@ static int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 
 	/* On VLV, FIFO will be shared by both SW and HW.
 	 * So, we need to read the FREE_ENTRIES everytime */
-	if (IS_VALLEYVIEW(dev_priv->dev))
+	if (IS_VALLEYVIEW(dev_priv))
 		dev_priv->uncore.fifo_count = fifo_free_entries(dev_priv);
 
 	if (dev_priv->uncore.fifo_count < GT_FIFO_NUM_RESERVED_ENTRIES) {
@@ -1161,7 +1161,7 @@ static void intel_uncore_fw_domains_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (INTEL_INFO(dev_priv->dev)->gen <= 5)
+	if (INTEL_INFO(dev_priv)->gen <= 5)
 		return;
 
 	if (IS_GEN9(dev)) {

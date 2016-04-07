@@ -2306,7 +2306,7 @@ void i915_check_and_clear_faults(struct drm_device *dev)
 
 static void i915_ggtt_flush(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_INFO(dev_priv->dev)->gen < 6) {
+	if (INTEL_INFO(dev_priv)->gen < 6) {
 		intel_gtt_chipset_flush();
 	} else {
 		I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
@@ -2977,7 +2977,7 @@ static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv)
 	      GEN8_PPAT(6, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2)) |
 	      GEN8_PPAT(7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
 
-	if (!USES_PPGTT(dev_priv->dev))
+	if (!USES_PPGTT(dev_priv))
 		/* Spec: "For GGTT, there is NO pat_sel[2:0] from the entry,
 		 * so RTL will always use the value corresponding to
 		 * pat_sel = 000".

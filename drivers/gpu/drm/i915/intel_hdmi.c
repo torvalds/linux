@@ -638,7 +638,7 @@ static bool intel_hdmi_set_gcp_infoframe(struct drm_encoder *encoder)
 		reg = HSW_TVIDEO_DIP_GCP(crtc->config->cpu_transcoder);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		reg = VLV_TVIDEO_DIP_GCP(crtc->pipe);
-	else if (HAS_PCH_SPLIT(dev_priv->dev))
+	else if (HAS_PCH_SPLIT(dev_priv))
 		reg = TVIDEO_DIP_GCP(crtc->pipe);
 	else
 		return false;

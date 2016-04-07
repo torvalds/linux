@@ -4302,7 +4302,7 @@ static u32 intel_rps_limits(struct drm_i915_private *dev_priv, u8 val)
 	 * the hw runs at the minimal clock before selecting the desired
 	 * frequency, if the down threshold expires in that window we will not
 	 * receive a down interrupt. */
-	if (IS_GEN9(dev_priv->dev)) {
+	if (IS_GEN9(dev_priv)) {
 		limits = (dev_priv->rps.max_freq_softlimit) << 23;
 		if (val <= dev_priv->rps.min_freq_softlimit)
 			limits |= (dev_priv->rps.min_freq_softlimit) << 14;
@@ -7340,12 +7340,12 @@ static int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 
 int intel_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
-	if (IS_GEN9(dev_priv->dev))
+	if (IS_GEN9(dev_priv))
 		return DIV_ROUND_CLOSEST(val * GT_FREQUENCY_MULTIPLIER,
 					 GEN9_FREQ_SCALER);
-	else if (IS_CHERRYVIEW(dev_priv->dev))
+	else if (IS_CHERRYVIEW(dev_priv))
 		return chv_gpu_freq(dev_priv, val);
-	else if (IS_VALLEYVIEW(dev_priv->dev))
+	else if (IS_VALLEYVIEW(dev_priv))
 		return byt_gpu_freq(dev_priv, val);
 	else
 		return val * GT_FREQUENCY_MULTIPLIER;
@@ -7353,12 +7353,12 @@ int intel_gpu_freq(struct drm_i915_private *dev_priv, int val)
 
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
-	if (IS_GEN9(dev_priv->dev))
+	if (IS_GEN9(dev_priv))
 		return DIV_ROUND_CLOSEST(val * GEN9_FREQ_SCALER,
 					 GT_FREQUENCY_MULTIPLIER);
-	else if (IS_CHERRYVIEW(dev_priv->dev))
+	else if (IS_CHERRYVIEW(dev_priv))
 		return chv_freq_opcode(dev_priv, val);
-	else if (IS_VALLEYVIEW(dev_priv->dev))
+	else if (IS_VALLEYVIEW(dev_priv))
 		return byt_freq_opcode(dev_priv, val);
 	else
 		return DIV_ROUND_CLOSEST(val, GT_FREQUENCY_MULTIPLIER);
