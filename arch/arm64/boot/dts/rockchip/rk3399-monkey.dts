@@ -192,3 +192,11 @@
 &vdec_mmu {
 	status = "okay";
 };
+
+&iep {
+	status = "okay";
+};
+
+&iep_mmu {
+	status = "okay";
+};
