@@ -2497,6 +2497,7 @@ struct drm_i915_cmd_table {
 	__p; \
 })
 #define INTEL_INFO(p) 	(&__I915__(p)->info)
+#define INTEL_GEN(p)	(INTEL_INFO(p)->gen)
 #define INTEL_DEVID(p)	(INTEL_INFO(p)->device_id)
 #define INTEL_REVID(p)	(__I915__(p)->dev->pdev->revision)
 
