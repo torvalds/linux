@@ -788,55 +788,49 @@ struct rtl8192eu_efuse_tx_power {
 	u8 cck_base[6];
 	u8 ht40_base[5];
 	struct rtl8723au_idx ht20_ofdm_1s_diff;
-	struct rtl8723au_idx ht40_ht20_2s_diff;
-	struct rtl8723au_idx ofdm_cck_2s_diff; /* not used */
-	struct rtl8723au_idx ht40_ht20_3s_diff;
-	struct rtl8723au_idx ofdm_cck_3s_diff; /* not used */
-	struct rtl8723au_idx ht40_ht20_4s_diff;
-	struct rtl8723au_idx ofdm_cck_4s_diff; /* not used */
+	struct rtl8723bu_pwr_idx pwr_diff[3];
+	u8 dummy5g[24]; /* max channel group (14) + power diff offset (10) */
 };
 
 struct rtl8192eu_efuse {
 	__le16 rtl_id;
 	u8 res0[0x0e];
 	struct rtl8192eu_efuse_tx_power tx_power_index_A;	/* 0x10 */
-	struct rtl8192eu_efuse_tx_power tx_power_index_B;	/* 0x22 */
-	struct rtl8192eu_efuse_tx_power tx_power_index_C;	/* 0x34 */
-	struct rtl8192eu_efuse_tx_power tx_power_index_D;	/* 0x46 */
-	u8 res1[0x60];
+	struct rtl8192eu_efuse_tx_power tx_power_index_B;	/* 0x3a */
+	u8 res2[0x54];
 	u8 channel_plan;		/* 0xb8 */
 	u8 xtal_k;
 	u8 thermal_meter;
 	u8 iqk_lck;
 	u8 pa_type;			/* 0xbc */
 	u8 lna_type_2g;			/* 0xbd */
-	u8 res2[1];
+	u8 res3[1];
 	u8 lna_type_5g;			/* 0xbf */
-	u8 res13[1];
+	u8 res4[1];
 	u8 rf_board_option;
 	u8 rf_feature_option;
 	u8 rf_bt_setting;
 	u8 eeprom_version;
 	u8 eeprom_customer_id;
-	u8 res3[3];
+	u8 res5[3];
 	u8 rf_antenna_option;		/* 0xc9 */
-	u8 res4[6];
+	u8 res6[6];
 	u8 vid;				/* 0xd0 */
-	u8 res5[1];
+	u8 res7[1];
 	u8 pid;				/* 0xd2 */
-	u8 res6[1];
+	u8 res8[1];
 	u8 usb_optional_function;
-	u8 res7[2];
-	u8 mac_addr[ETH_ALEN];		/* 0xd7 */
-	u8 res8[2];
-	u8 vendor_name[7];
 	u8 res9[2];
-	u8 device_name[0x0b];		/* 0xe8 */
+	u8 mac_addr[ETH_ALEN];		/* 0xd7 */
 	u8 res10[2];
+	u8 vendor_name[7];
+	u8 res11[2];
+	u8 device_name[0x0b];		/* 0xe8 */
+	u8 res12[2];
 	u8 serial[0x0b];		/* 0xf5 */
-	u8 res11[0x30];
+	u8 res13[0x30];
 	u8 unknown[0x0d];		/* 0x130 */
-	u8 res12[0xc3];
+	u8 res14[0xc3];
 };
 
 struct rtl8xxxu_reg8val {
