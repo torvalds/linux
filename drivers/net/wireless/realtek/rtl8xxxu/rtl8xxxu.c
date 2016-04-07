@@ -3550,9 +3550,9 @@ static void rtl8723bu_phy_init_antenna_selection(struct rtl8xxxu_priv *priv)
 {
 	u32 val32;
 
-	val32 = rtl8xxxu_read32(priv, 0x64);
+	val32 = rtl8xxxu_read32(priv, REG_PAD_CTRL1);
 	val32 &= ~(BIT(20) | BIT(24));
-	rtl8xxxu_write32(priv, 0x64, val32);
+	rtl8xxxu_write32(priv, REG_PAD_CTRL1, val32);
 
 	val32 = rtl8xxxu_read32(priv, REG_GPIO_MUXCFG);
 	val32 &= ~BIT(4);
