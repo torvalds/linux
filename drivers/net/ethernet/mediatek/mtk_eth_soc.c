@@ -603,8 +603,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 			WRITE_ONCE(txd->txd1, mapped_addr);
 			WRITE_ONCE(txd->txd3, (TX_DMA_SWC |
 					       TX_DMA_PLEN0(frag_map_size) |
-					       last_frag * TX_DMA_LS0) |
-					       mac->id);
+					       last_frag * TX_DMA_LS0));
 			WRITE_ONCE(txd->txd4, 0);
 
 			tx_buf->skb = (struct sk_buff *)MTK_DMA_DUMMY_DESC;
