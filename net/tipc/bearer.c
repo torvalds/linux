@@ -337,23 +337,16 @@ static int tipc_reset_bearer(struct net *net, struct tipc_bearer *b)
  */
 static void bearer_disable(struct net *net, struct tipc_bearer *b)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	u32 i;
+	struct tipc_net *tn = tipc_net(net);
+	int bearer_id = b->identity;
 
 	pr_info("Disabling bearer <%s>\n", b->name);
 	b->media->disable_media(b);
-
-	tipc_node_delete_links(net, b->identity);
+	tipc_node_delete_links(net, bearer_id);
 	RCU_INIT_POINTER(b->media_ptr, NULL);
 	if (b->link_req)
 		tipc_disc_delete(b->link_req);
-
-	for (i = 0; i < MAX_BEARERS; i++) {
-		if (b == rtnl_dereference(tn->bearer_list[i])) {
-			RCU_INIT_POINTER(tn->bearer_list[i], NULL);
-			break;
-		}
-	}
+	RCU_INIT_POINTER(tn->bearer_list[bearer_id], NULL);
 	kfree_rcu(b, rcu);
 }
 
@@ -396,7 +389,7 @@ void tipc_disable_l2_media(struct tipc_bearer *b)
 
 /**
  * tipc_l2_send_msg - send a TIPC packet out over an L2 interface
- * @buf: the packet to be sent
+ * @skb: the packet to be sent
  * @b: the bearer through which the packet is to be sent
  * @dest: peer destination address
  */
@@ -405,17 +398,21 @@ int tipc_l2_send_msg(struct net *net, struct sk_buff *skb,
 {
 	struct net_device *dev;
 	int delta;
+	void *tipc_ptr;
 
 	dev = (struct net_device *)rcu_dereference_rtnl(b->media_ptr);
 	if (!dev)
 		return 0;
 
+	/* Send RESET message even if bearer is detached from device */
+	tipc_ptr = rtnl_dereference(dev->tipc_ptr);
+	if (unlikely(!tipc_ptr && !msg_is_reset(buf_msg(skb))))
+		goto drop;
+
 	delta = dev->hard_header_len - skb_headroom(skb);
 	if ((delta > 0) &&
-	    pskb_expand_head(skb, SKB_DATA_ALIGN(delta), 0, GFP_ATOMIC)) {
-		kfree_skb(skb);
-		return 0;
-	}
+	    pskb_expand_head(skb, SKB_DATA_ALIGN(delta), 0, GFP_ATOMIC))
+		goto drop;
 
 	skb_reset_network_header(skb);
 	skb->dev = dev;
@@ -423,6 +420,9 @@ int tipc_l2_send_msg(struct net *net, struct sk_buff *skb,
 	dev_hard_header(skb, dev, ETH_P_TIPC, dest->value,
 			dev->dev_addr, skb->len);
 	dev_queue_xmit(skb);
+	return 0;
+drop:
+	kfree_skb(skb);
 	return 0;
 }
 
@@ -549,9 +549,18 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
+	struct tipc_net *tn = tipc_net(net);
 	struct tipc_bearer *b;
+	int i;
 
 	b = rtnl_dereference(dev->tipc_ptr);
+	if (!b) {
+		for (i = 0; i < MAX_BEARERS; b = NULL, i++) {
+			b = rtnl_dereference(tn->bearer_list[i]);
+			if (b && (b->media_ptr == dev))
+				break;
+		}
+	}
 	if (!b)
 		return NOTIFY_DONE;
 
@@ -561,13 +570,20 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 	case NETDEV_CHANGE:
 		if (netif_carrier_ok(dev))
 			break;
+	case NETDEV_UP:
+		rcu_assign_pointer(dev->tipc_ptr, b);
+		break;
 	case NETDEV_GOING_DOWN:
+		RCU_INIT_POINTER(dev->tipc_ptr, NULL);
+		synchronize_net();
+		tipc_reset_bearer(net, b);
+		break;
 	case NETDEV_CHANGEMTU:
 		tipc_reset_bearer(net, b);
 		break;
 	case NETDEV_CHANGEADDR:
 		b->media->raw2addr(b, &b->addr,
-				       (char *)dev->dev_addr);
+				   (char *)dev->dev_addr);
 		tipc_reset_bearer(net, b);
 		break;
 	case NETDEV_UNREGISTER:

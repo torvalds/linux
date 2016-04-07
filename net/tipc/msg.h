@@ -779,6 +779,11 @@ static inline bool msg_peer_node_is_up(struct tipc_msg *m)
 	return msg_redundant_link(m);
 }
 
+static inline bool msg_is_reset(struct tipc_msg *hdr)
+{
+	return (msg_user(hdr) == LINK_PROTOCOL) && (msg_type(hdr) == RESET_MSG);
+}
+
 struct sk_buff *tipc_buf_acquire(u32 size);
 bool tipc_msg_validate(struct sk_buff *skb);
 bool tipc_msg_reverse(u32 own_addr, struct sk_buff **skb, int err);
