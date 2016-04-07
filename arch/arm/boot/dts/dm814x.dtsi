@@ -568,6 +568,8 @@
 			#size-cells = <1>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 	};
 };
