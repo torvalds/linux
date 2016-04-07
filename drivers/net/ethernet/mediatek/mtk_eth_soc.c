@@ -1193,7 +1193,7 @@ static void mtk_tx_timeout(struct net_device *dev)
 	eth->netdev[mac->id]->stats.tx_errors++;
 	netif_err(eth, tx_err, dev,
 		  "transmit timed out\n");
-	schedule_work(&mac->pending_work);
+	schedule_work(&eth->pending_work);
 }
 
 static irqreturn_t mtk_handle_irq(int irq, void *_eth)
@@ -1430,8 +1430,7 @@ static int mtk_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 static void mtk_pending_work(struct work_struct *work)
 {
-	struct mtk_mac *mac = container_of(work, struct mtk_mac, pending_work);
-	struct mtk_eth *eth = mac->hw;
+	struct mtk_eth *eth = container_of(work, struct mtk_eth, pending_work);
 	int err, i;
 	unsigned long restart = 0;
 
@@ -1439,7 +1438,7 @@ static void mtk_pending_work(struct work_struct *work)
 
 	/* stop all devices to make sure that dma is properly shut down */
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		if (!netif_oper_up(eth->netdev[i]))
+		if (!eth->netdev[i])
 			continue;
 		mtk_stop(eth->netdev[i]);
 		__set_bit(i, &restart);
@@ -1464,15 +1463,13 @@ static int mtk_cleanup(struct mtk_eth *eth)
 	int i;
 
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		struct mtk_mac *mac = netdev_priv(eth->netdev[i]);
-
 		if (!eth->netdev[i])
 			continue;
 
 		unregister_netdev(eth->netdev[i]);
 		free_netdev(eth->netdev[i]);
-		cancel_work_sync(&mac->pending_work);
 	}
+	cancel_work_sync(&eth->pending_work);
 
 	return 0;
 }
@@ -1660,7 +1657,6 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	mac->id = id;
 	mac->hw = eth;
 	mac->of_node = np;
-	INIT_WORK(&mac->pending_work, mtk_pending_work);
 
 	mac->hw_stats = devm_kzalloc(eth->dev,
 				     sizeof(*mac->hw_stats),
@@ -1762,6 +1758,7 @@ static int mtk_probe(struct platform_device *pdev)
 
 	eth->dev = &pdev->dev;
 	eth->msg_enable = netif_msg_init(mtk_msg_level, MTK_DEFAULT_MSG_ENABLE);
+	INIT_WORK(&eth->pending_work, mtk_pending_work);
 
 	err = mtk_hw_init(eth);
 	if (err)
