@@ -893,7 +893,6 @@ out:
 error_nodev:
 	return;
 
-	wusb_dev_sysfs_rm(wusb_dev);
 error_add_sysfs:
 	wusb_dev_bos_rm(wusb_dev);
 error_bos_add:
