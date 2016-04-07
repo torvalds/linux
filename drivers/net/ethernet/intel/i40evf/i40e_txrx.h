@@ -430,4 +430,14 @@ static inline bool i40e_chk_linearize(struct sk_buff *skb, int count)
 
 	return __i40evf_chk_linearize(skb);
 }
+
+/**
+ * i40e_rx_is_fcoe - returns true if the Rx packet type is FCoE
+ * @ptype: the packet type field from Rx descriptor write-back
+ **/
+static inline bool i40e_rx_is_fcoe(u16 ptype)
+{
+	return (ptype >= I40E_RX_PTYPE_L2_FCOE_PAY3) &&
+	       (ptype <= I40E_RX_PTYPE_L2_FCOE_VFT_FCOTHER);
+}
 #endif /* _I40E_TXRX_H_ */

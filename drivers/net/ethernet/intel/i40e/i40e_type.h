@@ -549,6 +549,7 @@ struct i40e_hw {
 	enum i40e_nvmupd_state nvmupd_state;
 	struct i40e_aq_desc nvm_wb_desc;
 	struct i40e_virt_mem nvm_buff;
+	bool nvm_release_on_done;
 
 	/* HMC info */
 	struct i40e_hmc_info hmc; /* HMC info struct */
@@ -1533,4 +1534,37 @@ struct i40e_lldp_variables {
 
 /* RSS Hash Table Size */
 #define I40E_PFQF_CTL_0_HASHLUTSIZE_512	0x00010000
+
+/* INPUT SET MASK for RSS, flow director, and flexible payload */
+#define I40E_L3_SRC_SHIFT		47
+#define I40E_L3_SRC_MASK		(0x3ULL << I40E_L3_SRC_SHIFT)
+#define I40E_L3_V6_SRC_SHIFT		43
+#define I40E_L3_V6_SRC_MASK		(0xFFULL << I40E_L3_V6_SRC_SHIFT)
+#define I40E_L3_DST_SHIFT		35
+#define I40E_L3_DST_MASK		(0x3ULL << I40E_L3_DST_SHIFT)
+#define I40E_L3_V6_DST_SHIFT		35
+#define I40E_L3_V6_DST_MASK		(0xFFULL << I40E_L3_V6_DST_SHIFT)
+#define I40E_L4_SRC_SHIFT		34
+#define I40E_L4_SRC_MASK		(0x1ULL << I40E_L4_SRC_SHIFT)
+#define I40E_L4_DST_SHIFT		33
+#define I40E_L4_DST_MASK		(0x1ULL << I40E_L4_DST_SHIFT)
+#define I40E_VERIFY_TAG_SHIFT		31
+#define I40E_VERIFY_TAG_MASK		(0x3ULL << I40E_VERIFY_TAG_SHIFT)
+
+#define I40E_FLEX_50_SHIFT		13
+#define I40E_FLEX_50_MASK		(0x1ULL << I40E_FLEX_50_SHIFT)
+#define I40E_FLEX_51_SHIFT		12
+#define I40E_FLEX_51_MASK		(0x1ULL << I40E_FLEX_51_SHIFT)
+#define I40E_FLEX_52_SHIFT		11
+#define I40E_FLEX_52_MASK		(0x1ULL << I40E_FLEX_52_SHIFT)
+#define I40E_FLEX_53_SHIFT		10
+#define I40E_FLEX_53_MASK		(0x1ULL << I40E_FLEX_53_SHIFT)
+#define I40E_FLEX_54_SHIFT		9
+#define I40E_FLEX_54_MASK		(0x1ULL << I40E_FLEX_54_SHIFT)
+#define I40E_FLEX_55_SHIFT		8
+#define I40E_FLEX_55_MASK		(0x1ULL << I40E_FLEX_55_SHIFT)
+#define I40E_FLEX_56_SHIFT		7
+#define I40E_FLEX_56_MASK		(0x1ULL << I40E_FLEX_56_SHIFT)
+#define I40E_FLEX_57_SHIFT		6
+#define I40E_FLEX_57_MASK		(0x1ULL << I40E_FLEX_57_SHIFT)
 #endif /* _I40E_TYPE_H_ */

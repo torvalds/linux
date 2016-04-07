@@ -1703,7 +1703,9 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, const int budget)
 			 ? le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1)
 			 : 0;
 #ifdef I40E_FCOE
-		if (!i40e_fcoe_handle_offload(rx_ring, rx_desc, skb)) {
+		if (unlikely(
+		    i40e_rx_is_fcoe(rx_ptype) &&
+		    !i40e_fcoe_handle_offload(rx_ring, rx_desc, skb))) {
 			dev_kfree_skb_any(skb);
 			continue;
 		}
@@ -1834,7 +1836,9 @@ static int i40e_clean_rx_irq_1buf(struct i40e_ring *rx_ring, int budget)
 			 ? le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1)
 			 : 0;
 #ifdef I40E_FCOE
-		if (!i40e_fcoe_handle_offload(rx_ring, rx_desc, skb)) {
+		if (unlikely(
+		    i40e_rx_is_fcoe(rx_ptype) &&
+		    !i40e_fcoe_handle_offload(rx_ring, rx_desc, skb))) {
 			dev_kfree_skb_any(skb);
 			continue;
 		}
@@ -2252,15 +2256,13 @@ out:
 
 /**
  * i40e_tso - set up the tso context descriptor
- * @tx_ring:  ptr to the ring to send
  * @skb:      ptr to the skb we're sending
  * @hdr_len:  ptr to the size of the packet header
  * @cd_type_cmd_tso_mss: Quad Word 1
  *
  * Returns 0 if no TSO can happen, 1 if tso is going, or error
  **/
-static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
-		    u8 *hdr_len, u64 *cd_type_cmd_tso_mss)
+static int i40e_tso(struct sk_buff *skb, u8 *hdr_len, u64 *cd_type_cmd_tso_mss)
 {
 	u64 cd_cmd, cd_tso_len, cd_mss;
 	union {
@@ -2408,7 +2410,7 @@ static int i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 		unsigned char *hdr;
 	} l4;
 	unsigned char *exthdr;
-	u32 offset, cmd = 0, tunnel = 0;
+	u32 offset, cmd = 0;
 	__be16 frag_off;
 	u8 l4_proto = 0;
 
@@ -2422,6 +2424,7 @@ static int i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 	offset = ((ip.hdr - skb->data) / 2) << I40E_TX_DESC_LENGTH_MACLEN_SHIFT;
 
 	if (skb->encapsulation) {
+		u32 tunnel = 0;
 		/* define outer network header type */
 		if (*tx_flags & I40E_TX_FLAGS_IPV4) {
 			tunnel |= (*tx_flags & I40E_TX_FLAGS_TSO) ?
@@ -2931,7 +2934,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	else if (protocol == htons(ETH_P_IPV6))
 		tx_flags |= I40E_TX_FLAGS_IPV6;
 
-	tso = i40e_tso(tx_ring, skb, &hdr_len, &cd_type_cmd_tso_mss);
+	tso = i40e_tso(skb, &hdr_len, &cd_type_cmd_tso_mss);
 
 	if (tso < 0)
 		goto out_drop;
