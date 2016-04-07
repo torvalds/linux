@@ -1,4 +1,4 @@
-/* Intel Ethernet Switch Host Interface Driver
+/* Intel(R) Ethernet Switch Host Interface Driver
  * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
