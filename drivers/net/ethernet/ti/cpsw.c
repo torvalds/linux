@@ -535,7 +535,7 @@ static const struct cpsw_stats cpsw_gstrings_stats[] = {
 				ALE_VLAN, slave->port_vlan, 0);		\
 		} else {						\
 			cpsw_ale_add_mcast(priv->ale, addr,		\
-				ALE_ALL_PORTS << priv->host_port,	\
+				ALE_ALL_PORTS,				\
 				0, 0, 0);				\
 		}							\
 	} while (0)
@@ -602,8 +602,7 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 			cpsw_ale_control_set(ale, 0, ALE_AGEOUT, 1);
 
 			/* Clear all mcast from ALE */
-			cpsw_ale_flush_multicast(ale, ALE_ALL_PORTS <<
-						 priv->host_port, -1);
+			cpsw_ale_flush_multicast(ale, ALE_ALL_PORTS, -1);
 
 			/* Flood All Unicast Packets to Host port */
 			cpsw_ale_control_set(ale, 0, ALE_P0_UNI_FLOOD, 1);
@@ -648,8 +647,7 @@ static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 	cpsw_ale_set_allmulti(priv->ale, priv->ndev->flags & IFF_ALLMULTI);
 
 	/* Clear all mcast from ALE */
-	cpsw_ale_flush_multicast(priv->ale, ALE_ALL_PORTS << priv->host_port,
-				 vid);
+	cpsw_ale_flush_multicast(priv->ale, ALE_ALL_PORTS, vid);
 
 	if (!netdev_mc_empty(ndev)) {
 		struct netdev_hw_addr *ha;
@@ -1172,7 +1170,6 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 static inline void cpsw_add_default_vlan(struct cpsw_priv *priv)
 {
 	const int vlan = priv->data.default_vlan;
-	const int port = priv->host_port;
 	u32 reg;
 	int i;
 	int unreg_mcast_mask;
@@ -1190,9 +1187,9 @@ static inline void cpsw_add_default_vlan(struct cpsw_priv *priv)
 	else
 		unreg_mcast_mask = ALE_PORT_1 | ALE_PORT_2;
 
-	cpsw_ale_add_vlan(priv->ale, vlan, ALE_ALL_PORTS << port,
-			  ALE_ALL_PORTS << port, ALE_ALL_PORTS << port,
-			  unreg_mcast_mask << port);
+	cpsw_ale_add_vlan(priv->ale, vlan, ALE_ALL_PORTS,
+			  ALE_ALL_PORTS, ALE_ALL_PORTS,
+			  unreg_mcast_mask);
 }
 
 static void cpsw_init_host_port(struct cpsw_priv *priv)
@@ -1273,8 +1270,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		cpsw_add_default_vlan(priv);
 	else
 		cpsw_ale_add_vlan(priv->ale, priv->data.default_vlan,
-				  ALE_ALL_PORTS << priv->host_port,
-				  ALE_ALL_PORTS << priv->host_port, 0, 0);
+				  ALE_ALL_PORTS, ALE_ALL_PORTS, 0, 0);
 
 	if (!cpsw_common_res_usage_state(priv)) {
 		struct cpsw_priv *priv_sl0 = cpsw_get_slave_priv(priv, 0);
@@ -1666,7 +1662,7 @@ static inline int cpsw_add_vlan_ale_entry(struct cpsw_priv *priv,
 	}
 
 	ret = cpsw_ale_add_vlan(priv->ale, vid, port_mask, 0, port_mask,
-				unreg_mcast_mask << priv->host_port);
+				unreg_mcast_mask);
 	if (ret != 0)
 		return ret;
 
@@ -1738,7 +1734,7 @@ static int cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
 		return ret;
 
 	ret = cpsw_ale_del_ucast(priv->ale, priv->mac_addr,
-				 priv->host_port, ALE_VLAN, vid);
+				 HOST_PORT_NUM, ALE_VLAN, vid);
 	if (ret != 0)
 		return ret;
 
