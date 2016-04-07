@@ -53,8 +53,7 @@ perf_trace_##call(void *__data, proto)					\
 			     sizeof(u64));				\
 	__entry_size -= sizeof(u32);					\
 									\
-	entry = perf_trace_buf_prepare(__entry_size,			\
-			event_call->event.type, &__regs, &rctx);	\
+	entry = perf_trace_buf_alloc(__entry_size, &__regs, &rctx);	\
 	if (!entry)							\
 		return;							\
 									\
@@ -64,8 +63,9 @@ perf_trace_##call(void *__data, proto)					\
 									\
 	{ assign; }							\
 									\
-	perf_trace_buf_submit(entry, __entry_size, rctx, 0,		\
-		__count, __regs, head, __task);				\
+	perf_trace_buf_submit(entry, __entry_size, rctx,		\
+			      event_call->event.type, __count, __regs,	\
+			      head, __task);				\
 }
 
 /*
