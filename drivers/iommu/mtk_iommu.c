@@ -264,7 +264,7 @@ static int mtk_iommu_domain_finalise(struct mtk_iommu_data *data)
 	}
 
 	/* Update our support page sizes bitmap */
-	mtk_iommu_ops.pgsize_bitmap = dom->cfg.pgsize_bitmap;
+	dom->domain.pgsize_bitmap = dom->cfg.pgsize_bitmap;
 
 	writel(data->m4u_dom->cfg.arm_v7s_cfg.ttbr[0],
 	       data->base + REG_MMU_PT_BASE_ADDR);
