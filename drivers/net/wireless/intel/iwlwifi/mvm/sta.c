@@ -2243,6 +2243,13 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 		key_flags |= cpu_to_le16(STA_KEY_FLG_WEP);
 		memcpy(cmd.key + 3, keyconf->key, keyconf->keylen);
 		break;
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		key_flags |= cpu_to_le16(STA_KEY_FLG_KEY_32BYTES);
+		/* fall through */
+	case WLAN_CIPHER_SUITE_GCMP:
+		key_flags |= cpu_to_le16(STA_KEY_FLG_GCMP);
+		memcpy(cmd.key, keyconf->key, keyconf->keylen);
+		break;
 	default:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_EXT);
 		memcpy(cmd.key, keyconf->key, keyconf->keylen);
@@ -2363,6 +2370,8 @@ static int __iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
 		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, mcast,
 					   0, NULL, 0, key_offset);
 		break;

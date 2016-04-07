@@ -707,6 +707,7 @@ enum iwl_mvm_queue_status {
 };
 
 #define IWL_MVM_DQA_QUEUE_TIMEOUT	(5 * HZ)
+#define IWL_MVM_NUM_CIPHERS             8
 
 struct iwl_mvm {
 	/* for logger access */
@@ -1015,7 +1016,7 @@ struct iwl_mvm {
 
 	struct iwl_mvm_shared_mem_cfg shared_mem_cfg;
 
-	u32 ciphers[6];
+	u32 ciphers[IWL_MVM_NUM_CIPHERS];
 	struct iwl_mvm_tof_data tof_data;
 
 	struct ieee80211_vif *nan_vif;

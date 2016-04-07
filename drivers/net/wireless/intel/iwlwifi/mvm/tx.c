@@ -388,6 +388,23 @@ void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
 	tx_cmd->rate_n_flags = cpu_to_le32((u32)rate_plcp | rate_flags);
 }
 
+static inline void iwl_mvm_set_tx_cmd_pn(struct ieee80211_tx_info *info,
+					 u8 *crypto_hdr)
+{
+	struct ieee80211_key_conf *keyconf = info->control.hw_key;
+	u64 pn;
+
+	pn = atomic64_inc_return(&keyconf->tx_pn);
+	crypto_hdr[0] = pn;
+	crypto_hdr[2] = 0;
+	crypto_hdr[3] = 0x20 | (keyconf->keyidx << 6);
+	crypto_hdr[1] = pn >> 8;
+	crypto_hdr[4] = pn >> 16;
+	crypto_hdr[5] = pn >> 24;
+	crypto_hdr[6] = pn >> 32;
+	crypto_hdr[7] = pn >> 40;
+}
+
 /*
  * Sets the fields in the Tx cmd that are crypto related
  */
@@ -405,15 +422,7 @@ static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
 		iwl_mvm_set_tx_cmd_ccmp(info, tx_cmd);
-		pn = atomic64_inc_return(&keyconf->tx_pn);
-		crypto_hdr[0] = pn;
-		crypto_hdr[2] = 0;
-		crypto_hdr[3] = 0x20 | (keyconf->keyidx << 6);
-		crypto_hdr[1] = pn >> 8;
-		crypto_hdr[4] = pn >> 16;
-		crypto_hdr[5] = pn >> 24;
-		crypto_hdr[6] = pn >> 32;
-		crypto_hdr[7] = pn >> 40;
+		iwl_mvm_set_tx_cmd_pn(info, crypto_hdr);
 		break;
 
 	case WLAN_CIPHER_SUITE_TKIP:
@@ -432,6 +441,18 @@ static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
 			  TX_CMD_SEC_WEP_KEY_IDX_MSK);
 
 		memcpy(&tx_cmd->key[3], keyconf->key, keyconf->keylen);
+		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		/* TODO: Taking the key from the table might introduce a race
+		 * when PTK rekeying is done, having an old packets with a PN
+		 * based on the old key but the message encrypted with a new
+		 * one.
+		 * Need to handle this.
+		 */
+		tx_cmd->sec_ctl |= TX_CMD_SEC_GCMP | TC_CMD_SEC_KEY_FROM_TABLE;
+		tx_cmd->key[0] = keyconf->hw_key_idx;
+		iwl_mvm_set_tx_cmd_pn(info, crypto_hdr);
 		break;
 	default:
 		tx_cmd->sec_ctl |= TX_CMD_SEC_EXT;
