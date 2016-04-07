@@ -275,6 +275,7 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	if (wil->platform_ops.uninit)
 		wil->platform_ops.uninit(wil->platform_handle);
+	wil_p2p_wdev_free(wil);
 	wil_if_free(wil);
 }
 

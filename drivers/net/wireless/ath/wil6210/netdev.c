@@ -60,11 +60,7 @@ static int wil_do_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 
-	int ret = wil_ioctl(wil, ifr->ifr_data, cmd);
-
-	wil_dbg_misc(wil, "ioctl(0x%04x) -> %d\n", cmd, ret);
-
-	return ret;
+	return wil_ioctl(wil, ifr->ifr_data, cmd);
 }
 
 static const struct net_device_ops wil_netdev_ops = {
@@ -149,6 +145,7 @@ void *wil_if_alloc(struct device *dev)
 
 	wil = wdev_to_wil(wdev);
 	wil->wdev = wdev;
+	wil->radio_wdev = wdev;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 

@@ -1337,11 +1337,11 @@ skip_ws_det:
 				chan->channel,
 				aniState->mrcCCK ? "on" : "off",
 				is_on ? "on" : "off");
-		if (is_on)
-			ah->stats.ast_ani_ccklow++;
-		else
-			ah->stats.ast_ani_cckhigh++;
-		aniState->mrcCCK = is_on;
+			if (is_on)
+				ah->stats.ast_ani_ccklow++;
+			else
+				ah->stats.ast_ani_cckhigh++;
+			aniState->mrcCCK = is_on;
 		}
 	break;
 	}
