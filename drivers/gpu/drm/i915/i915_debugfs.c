@@ -1363,8 +1363,10 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 
 	for_each_engine_id(engine, dev_priv, id) {
 		seq_printf(m, "%s:\n", engine->name);
-		seq_printf(m, "\tseqno = %x [current %x]\n",
-			   engine->hangcheck.seqno, seqno[id]);
+		seq_printf(m, "\tseqno = %x [current %x, last %x]\n",
+			   engine->hangcheck.seqno,
+			   seqno[id],
+			   engine->last_submitted_seqno);
 		seq_printf(m, "\tACTHD = 0x%08llx [current 0x%08llx]\n",
 			   (long long)engine->hangcheck.acthd,
 			   (long long)acthd[id]);

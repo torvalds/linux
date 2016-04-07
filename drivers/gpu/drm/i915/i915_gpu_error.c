@@ -296,6 +296,7 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 		}
 	}
 	err_printf(m, "  seqno: 0x%08x\n", ring->seqno);
+	err_printf(m, "  last_seqno: 0x%08x\n", ring->last_seqno);
 	err_printf(m, "  waiting: %s\n", yesno(ring->waiting));
 	err_printf(m, "  ring->head: 0x%08x\n", ring->cpu_ring_head);
 	err_printf(m, "  ring->tail: 0x%08x\n", ring->cpu_ring_tail);
@@ -932,6 +933,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 	ering->instpm = I915_READ(RING_INSTPM(engine->mmio_base));
 	ering->seqno = engine->get_seqno(engine, false);
 	ering->acthd = intel_ring_get_active_head(engine);
+	ering->last_seqno = engine->last_submitted_seqno;
 	ering->start = I915_READ_START(engine);
 	ering->head = I915_READ_HEAD(engine);
 	ering->tail = I915_READ_TAIL(engine);
