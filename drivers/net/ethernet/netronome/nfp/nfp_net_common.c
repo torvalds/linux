@@ -1444,6 +1444,59 @@ err_alloc:
 	return -ENOMEM;
 }
 
+static struct nfp_net_tx_ring *
+nfp_net_shadow_tx_rings_prepare(struct nfp_net *nn, u32 buf_cnt)
+{
+	struct nfp_net_tx_ring *rings;
+	unsigned int r;
+
+	rings = kcalloc(nn->num_tx_rings, sizeof(*rings), GFP_KERNEL);
+	if (!rings)
+		return NULL;
+
+	for (r = 0; r < nn->num_tx_rings; r++) {
+		nfp_net_tx_ring_init(&rings[r], nn->tx_rings[r].r_vec, r);
+
+		if (nfp_net_tx_ring_alloc(&rings[r], buf_cnt))
+			goto err_free_prev;
+	}
+
+	return rings;
+
+err_free_prev:
+	while (r--)
+		nfp_net_tx_ring_free(&rings[r]);
+	kfree(rings);
+	return NULL;
+}
+
+static struct nfp_net_tx_ring *
+nfp_net_shadow_tx_rings_swap(struct nfp_net *nn, struct nfp_net_tx_ring *rings)
+{
+	struct nfp_net_tx_ring *old = nn->tx_rings;
+	unsigned int r;
+
+	for (r = 0; r < nn->num_tx_rings; r++)
+		old[r].r_vec->tx_ring = &rings[r];
+
+	nn->tx_rings = rings;
+	return old;
+}
+
+static void
+nfp_net_shadow_tx_rings_free(struct nfp_net *nn, struct nfp_net_tx_ring *rings)
+{
+	unsigned int r;
+
+	if (!rings)
+		return;
+
+	for (r = 0; r < nn->num_tx_rings; r++)
+		nfp_net_tx_ring_free(&rings[r]);
+
+	kfree(rings);
+}
+
 /**
  * nfp_net_rx_ring_free() - Free resources allocated to a RX ring
  * @rx_ring:  RX ring to free
@@ -1559,6 +1612,9 @@ static void
 nfp_net_shadow_rx_rings_free(struct nfp_net *nn, struct nfp_net_rx_ring *rings)
 {
 	unsigned int r;
+
+	if (!rings)
+		return;
 
 	for (r = 0; r < nn->num_r_vecs; r++) {
 		nfp_net_rx_ring_bufs_free(nn, &rings[r]);
@@ -2098,6 +2154,76 @@ static int nfp_net_change_mtu(struct net_device *netdev, int new_mtu)
 	}
 
 	nfp_net_shadow_rx_rings_free(nn, tmp_rings);
+
+	nfp_net_open_stack(nn);
+
+	return err;
+}
+
+int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt)
+{
+	struct nfp_net_tx_ring *tx_rings = NULL;
+	struct nfp_net_rx_ring *rx_rings = NULL;
+	u32 old_rxd_cnt, old_txd_cnt;
+	int err;
+
+	if (!netif_running(nn->netdev)) {
+		nn->rxd_cnt = rxd_cnt;
+		nn->txd_cnt = txd_cnt;
+		return 0;
+	}
+
+	old_rxd_cnt = nn->rxd_cnt;
+	old_txd_cnt = nn->txd_cnt;
+
+	/* Prepare new rings */
+	if (nn->rxd_cnt != rxd_cnt) {
+		rx_rings = nfp_net_shadow_rx_rings_prepare(nn, nn->fl_bufsz,
+							   rxd_cnt);
+		if (!rx_rings)
+			return -ENOMEM;
+	}
+	if (nn->txd_cnt != txd_cnt) {
+		tx_rings = nfp_net_shadow_tx_rings_prepare(nn, txd_cnt);
+		if (!tx_rings) {
+			nfp_net_shadow_rx_rings_free(nn, rx_rings);
+			return -ENOMEM;
+		}
+	}
+
+	/* Stop device, swap in new rings, try to start the firmware */
+	nfp_net_close_stack(nn);
+	nfp_net_clear_config_and_disable(nn);
+
+	if (rx_rings)
+		rx_rings = nfp_net_shadow_rx_rings_swap(nn, rx_rings);
+	if (tx_rings)
+		tx_rings = nfp_net_shadow_tx_rings_swap(nn, tx_rings);
+
+	nn->rxd_cnt = rxd_cnt;
+	nn->txd_cnt = txd_cnt;
+
+	err = nfp_net_set_config_and_enable(nn);
+	if (err) {
+		const int err_new = err;
+
+		/* Try with old configuration and old rings */
+		if (rx_rings)
+			rx_rings = nfp_net_shadow_rx_rings_swap(nn, rx_rings);
+		if (tx_rings)
+			tx_rings = nfp_net_shadow_tx_rings_swap(nn, tx_rings);
+
+		nn->rxd_cnt = old_rxd_cnt;
+		nn->txd_cnt = old_txd_cnt;
+
+		err = __nfp_net_set_config_and_enable(nn);
+		if (err)
+			nn_err(nn, "Can't restore ring config - FW communication failed (%d,%d)\n",
+			       err_new, err);
+	}
+
+	nfp_net_shadow_rx_rings_free(nn, rx_rings);
+	nfp_net_shadow_tx_rings_free(nn, tx_rings);
 
 	nfp_net_open_stack(nn);
 
