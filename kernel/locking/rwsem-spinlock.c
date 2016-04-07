@@ -191,11 +191,12 @@ int __down_read_trylock(struct rw_semaphore *sem)
 /*
  * get a write lock on the semaphore
  */
-void __sched __down_write(struct rw_semaphore *sem)
+int __sched __down_write_common(struct rw_semaphore *sem, int state)
 {
 	struct rwsem_waiter waiter;
 	struct task_struct *tsk;
 	unsigned long flags;
+	int ret = 0;
 
 	raw_spin_lock_irqsave(&sem->wait_lock, flags);
 
@@ -215,16 +216,33 @@ void __sched __down_write(struct rw_semaphore *sem)
 		 */
 		if (sem->count == 0)
 			break;
-		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+		if (signal_pending_state(state, current)) {
+			ret = -EINTR;
+			goto out;
+		}
+		set_task_state(tsk, state);
 		raw_spin_unlock_irqrestore(&sem->wait_lock, flags);
 		schedule();
 		raw_spin_lock_irqsave(&sem->wait_lock, flags);
 	}
 	/* got the lock */
 	sem->count = -1;
+out:
 	list_del(&waiter.list);
 
 	raw_spin_unlock_irqrestore(&sem->wait_lock, flags);
+
+	return ret;
+}
+
+void __sched __down_write(struct rw_semaphore *sem)
+{
+	__down_write_common(sem, TASK_UNINTERRUPTIBLE);
+}
+
+int __sched __down_write_killable(struct rw_semaphore *sem)
+{
+	return __down_write_common(sem, TASK_KILLABLE);
 }
 
 /*
