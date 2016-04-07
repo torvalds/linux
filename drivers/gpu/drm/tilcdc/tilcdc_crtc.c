@@ -26,6 +26,7 @@
 struct tilcdc_crtc {
 	struct drm_crtc base;
 
+	struct drm_plane primary;
 	const struct tilcdc_panel_info *info;
 	struct drm_pending_vblank_event *event;
 	int dpms;
@@ -782,6 +783,10 @@ struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 
 	crtc = &tilcdc_crtc->base;
 
+	ret = tilcdc_plane_init(dev, &tilcdc_crtc->primary);
+	if (ret < 0)
+		goto fail;
+
 	tilcdc_crtc->dpms = DRM_MODE_DPMS_OFF;
 	init_waitqueue_head(&tilcdc_crtc->frame_done_wq);
 
@@ -790,7 +795,11 @@ struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 
 	spin_lock_init(&tilcdc_crtc->irq_lock);
 
-	ret = drm_crtc_init(dev, crtc, &tilcdc_crtc_funcs);
+	ret = drm_crtc_init_with_planes(dev, crtc,
+					&tilcdc_crtc->primary,
+					NULL,
+					&tilcdc_crtc_funcs,
+					"tilcdc crtc");
 	if (ret < 0)
 		goto fail;
 
