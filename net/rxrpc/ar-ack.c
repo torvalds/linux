@@ -833,8 +833,8 @@ void rxrpc_process_call(struct work_struct *work)
 
 	/* there's a good chance we're going to have to send a message, so set
 	 * one up in advance */
-	msg.msg_name	= &call->conn->trans->peer->srx.transport.sin;
-	msg.msg_namelen	= sizeof(call->conn->trans->peer->srx.transport.sin);
+	msg.msg_name	= &call->conn->trans->peer->srx.transport;
+	msg.msg_namelen	= call->conn->trans->peer->srx.transport_len;
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
