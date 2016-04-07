@@ -1043,6 +1043,7 @@
 #define  USB_HIMR_ROK			BIT(0)	/*  Receive DMA OK Interrupt */
 
 #define REG_USB_SPECIAL_OPTION		0xfe55
+#define REG_USB_HRPWM			0xfe58
 #define REG_USB_DMA_AGG_TO		0xfe5b
 #define REG_USB_AGG_TO			0xfe5c
 #define REG_USB_AGG_TH			0xfe5d
