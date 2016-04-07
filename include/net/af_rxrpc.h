@@ -12,6 +12,7 @@
 #ifndef _NET_RXRPC_H
 #define _NET_RXRPC_H
 
+#include <linux/skbuff.h>
 #include <linux/rxrpc.h>
 
 struct rxrpc_call;

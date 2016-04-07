@@ -478,13 +478,6 @@ int rxrpc_reject_call(struct rxrpc_sock *);
 /*
  * ar-ack.c
  */
-extern unsigned int rxrpc_requested_ack_delay;
-extern unsigned int rxrpc_soft_ack_delay;
-extern unsigned int rxrpc_idle_ack_delay;
-extern unsigned int rxrpc_rx_window_size;
-extern unsigned int rxrpc_rx_mtu;
-extern unsigned int rxrpc_rx_jumbo_max;
-
 void __rxrpc_propose_ACK(struct rxrpc_call *, u8, u32, bool);
 void rxrpc_propose_ACK(struct rxrpc_call *, u8, u32, bool);
 void rxrpc_process_call(struct work_struct *);
@@ -550,8 +543,6 @@ void rxrpc_UDP_error_handler(struct work_struct *);
 /*
  * ar-input.c
  */
-extern const char *rxrpc_pkts[];
-
 void rxrpc_data_ready(struct sock *);
 int rxrpc_queue_rcv_skb(struct rxrpc_call *, struct sk_buff *, bool, bool);
 void rxrpc_fast_process_packet(struct rxrpc_call *, struct sk_buff *);
@@ -635,6 +626,21 @@ void rxrpc_put_transport(struct rxrpc_transport *);
 void __exit rxrpc_destroy_all_transports(void);
 struct rxrpc_transport *rxrpc_find_transport(struct rxrpc_local *,
 					     struct rxrpc_peer *);
+
+/*
+ * misc.c
+ */
+extern unsigned int rxrpc_requested_ack_delay;
+extern unsigned int rxrpc_soft_ack_delay;
+extern unsigned int rxrpc_idle_ack_delay;
+extern unsigned int rxrpc_rx_window_size;
+extern unsigned int rxrpc_rx_mtu;
+extern unsigned int rxrpc_rx_jumbo_max;
+
+extern const char *rxrpc_pkts[];
+extern const s8 rxrpc_ack_priority[];
+
+extern const char *rxrpc_acks(u8 reason);
 
 /*
  * sysctl.c

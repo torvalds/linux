@@ -25,12 +25,6 @@
 #include <net/net_namespace.h>
 #include "ar-internal.h"
 
-const char *rxrpc_pkts[] = {
-	"?00",
-	"DATA", "ACK", "BUSY", "ABORT", "ACKALL", "CHALL", "RESP", "DEBUG",
-	"?09", "?10", "?11", "?12", "VERSION", "?14", "?15"
-};
-
 /*
  * queue a packet for recvmsg to pass to userspace
  * - the caller must hold a lock on call->lock
