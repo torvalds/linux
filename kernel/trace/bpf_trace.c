@@ -340,12 +340,52 @@ static struct bpf_prog_type_list kprobe_tl = {
 	.type	= BPF_PROG_TYPE_KPROBE,
 };
 
+static u64 bpf_perf_event_output_tp(u64 r1, u64 r2, u64 index, u64 r4, u64 size)
+{
+	/*
+	 * r1 points to perf tracepoint buffer where first 8 bytes are hidden
+	 * from bpf program and contain a pointer to 'struct pt_regs'. Fetch it
+	 * from there and call the same bpf_perf_event_output() helper
+	 */
+	u64 ctx = *(long *)r1;
+
+	return bpf_perf_event_output(ctx, r2, index, r4, size);
+}
+
+static const struct bpf_func_proto bpf_perf_event_output_proto_tp = {
+	.func		= bpf_perf_event_output_tp,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_CONST_MAP_PTR,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_PTR_TO_STACK,
+	.arg5_type	= ARG_CONST_STACK_SIZE,
+};
+
+static u64 bpf_get_stackid_tp(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+{
+	u64 ctx = *(long *)r1;
+
+	return bpf_get_stackid(ctx, r2, r3, r4, r5);
+}
+
+static const struct bpf_func_proto bpf_get_stackid_proto_tp = {
+	.func		= bpf_get_stackid_tp,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_CONST_MAP_PTR,
+	.arg3_type	= ARG_ANYTHING,
+};
+
 static const struct bpf_func_proto *tp_prog_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
 	case BPF_FUNC_perf_event_output:
+		return &bpf_perf_event_output_proto_tp;
 	case BPF_FUNC_get_stackid:
-		return NULL;
+		return &bpf_get_stackid_proto_tp;
 	default:
 		return tracing_func_proto(func_id);
 	}
