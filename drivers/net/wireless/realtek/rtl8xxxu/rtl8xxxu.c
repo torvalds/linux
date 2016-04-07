@@ -3637,11 +3637,7 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 	val8 = RF_ENABLE | RF_RSTB | RF_SDMRSTB;
 	rtl8xxxu_write8(priv, REG_RF_CTRL, val8);
 
-	if (priv->hi_pa)
-		rtl8xxxu_init_phy_regs(priv, rtl8188ru_phy_1t_highpa_table);
-	else if (priv->tx_paths == 2)
-		rtl8xxxu_init_phy_regs(priv, rtl8192cu_phy_2t_init_table);
-	else if (priv->rtl_chip == RTL8723B) {
+	if (priv->rtl_chip == RTL8723B) {
 		/*
 		 * Why?
 		 */
@@ -3656,9 +3652,12 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 		val8 = RF_ENABLE | RF_RSTB | RF_SDMRSTB;
 		rtl8xxxu_write8(priv, REG_RF_CTRL, val8);
 		rtl8xxxu_init_phy_regs(priv, rtl8192eu_phy_init_table);
-	} else
+	} else	if (priv->hi_pa)
+		rtl8xxxu_init_phy_regs(priv, rtl8188ru_phy_1t_highpa_table);
+	else if (priv->tx_paths == 2)
+		rtl8xxxu_init_phy_regs(priv, rtl8192cu_phy_2t_init_table);
+	else
 		rtl8xxxu_init_phy_regs(priv, rtl8723a_phy_1t_init_table);
-
 
 	if (priv->rtl_chip == RTL8188C && priv->hi_pa &&
 	    priv->vendor_umc && priv->chip_cut == 1)
