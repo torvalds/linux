@@ -121,6 +121,7 @@ struct ceph_dir_layout {
 
 /* client <-> mds */
 #define CEPH_MSG_MDS_MAP                21
+#define CEPH_MSG_FS_MAP_USER            103
 
 #define CEPH_MSG_CLIENT_SESSION         22
 #define CEPH_MSG_CLIENT_RECONNECT       23
