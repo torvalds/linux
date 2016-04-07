@@ -2309,15 +2309,12 @@ static int cpufreq_cpu_callback(struct notifier_block *nfb,
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
+	case CPU_DOWN_FAILED:
 		cpufreq_online(cpu);
 		break;
 
 	case CPU_DOWN_PREPARE:
 		cpufreq_offline(cpu);
-		break;
-
-	case CPU_DOWN_FAILED:
-		cpufreq_online(cpu);
 		break;
 	}
 	return NOTIFY_OK;
