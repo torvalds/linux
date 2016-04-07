@@ -971,15 +971,29 @@ u32 fm10k_get_reta_size(struct net_device __always_unused *netdev)
 
 void fm10k_write_reta(struct fm10k_intfc *interface, const u32 *indir)
 {
+	u16 rss_i = interface->ring_feature[RING_F_RSS].indices;
 	struct fm10k_hw *hw = &interface->hw;
-	int i;
+	u32 table[4];
+	int i, j;
 
 	/* record entries to reta table */
-	for (i = 0; i < FM10K_RETA_SIZE; i++, indir += 4) {
-		u32 reta = indir[0] |
-			   (indir[1] << 8) |
-			   (indir[2] << 16) |
-			   (indir[3] << 24);
+	for (i = 0; i < FM10K_RETA_SIZE; i++) {
+		u32 reta, n;
+
+		/* generate a new table if we weren't given one */
+		for (j = 0; j < 4; j++) {
+			if (indir)
+				n = indir[i + j];
+			else
+				n = ethtool_rxfh_indir_default(i + j, rss_i);
+
+			table[j] = n;
+		}
+
+		reta = table[0] |
+			(table[1] << 8) |
+			(table[2] << 16) |
+			(table[3] << 24);
 
 		if (interface->reta[i] == reta)
 			continue;
