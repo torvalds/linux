@@ -612,9 +612,9 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
 	struct rxrpc_wire_header whdr;
 
 	/* dig out the RxRPC connection details */
-	if (skb_copy_bits(skb, sizeof(struct udphdr), &whdr, sizeof(whdr)) < 0)
+	if (skb_copy_bits(skb, 0, &whdr, sizeof(whdr)) < 0)
 		return -EBADMSG;
-	if (!pskb_pull(skb, sizeof(struct udphdr) + sizeof(whdr)))
+	if (!pskb_pull(skb, sizeof(whdr)))
 		BUG();
 
 	memset(sp, 0, sizeof(*sp));
