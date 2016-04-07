@@ -147,8 +147,8 @@ PNAME(mux_pll_src_vpll_cpll_gpll_p)		= { "vpll", "cpll", "gpll" };
 PNAME(mux_pll_src_dmyvpll_cpll_gpll_npll_p)	= { "dummy_vpll", "cpll", "gpll", "npll" };
 PNAME(mux_pll_src_dmyvpll_cpll_gpll_24m_p)	= { "dummy_vpll", "cpll", "gpll", "xin24m" };
 
-PNAME(mux_dclk_vop0_p)				= { "dclk_vop0_div", "dclk_vop0_frac" };
-PNAME(mux_dclk_vop1_p)				= { "dclk_vop1_div", "dclk_vop1_frac" };
+PNAME(mux_dclk_vop0_p)				= { "dclk_vop0_div", "dummy_dclk_vop0_frac" };
+PNAME(mux_dclk_vop1_p)				= { "dclk_vop1_div", "dummy_dclk_vop1_frac" };
 
 PNAME(mux_clk_cif_p)				= { "clk_cifout_div", "xin24m" };
 
