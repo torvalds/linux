@@ -85,6 +85,8 @@ int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
 			      struct page **pages);
 int xen_xlate_unmap_gfn_range(struct vm_area_struct *vma,
 			      int nr, struct page **pages);
+int xen_xlate_map_ballooned_pages(xen_pfn_t **pfns, void **vaddr,
+				  unsigned long nr_grant_frames);
 
 bool xen_running_on_version_or_later(unsigned int major, unsigned int minor);
 
