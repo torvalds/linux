@@ -191,7 +191,7 @@ int __down_read_trylock(struct rw_semaphore *sem)
 /*
  * get a write lock on the semaphore
  */
-void __sched __down_write_nested(struct rw_semaphore *sem, int subclass)
+void __sched __down_write(struct rw_semaphore *sem)
 {
 	struct rwsem_waiter waiter;
 	struct task_struct *tsk;
@@ -225,11 +225,6 @@ void __sched __down_write_nested(struct rw_semaphore *sem, int subclass)
 	list_del(&waiter.list);
 
 	raw_spin_unlock_irqrestore(&sem->wait_lock, flags);
-}
-
-void __sched __down_write(struct rw_semaphore *sem)
-{
-	__down_write_nested(sem, 0);
 }
 
 /*

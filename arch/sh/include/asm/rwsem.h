@@ -114,11 +114,6 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 		rwsem_downgrade_wake(sem);
 }
 
-static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
-{
-	__down_write(sem);
-}
-
 /*
  * implement exchange and add functionality
  */
