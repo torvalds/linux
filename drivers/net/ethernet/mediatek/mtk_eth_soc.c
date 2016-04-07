@@ -536,7 +536,6 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	struct mtk_eth *eth = mac->hw;
 	struct mtk_tx_dma *itxd, *txd;
 	struct mtk_tx_buf *tx_buf;
-	unsigned long flags;
 	dma_addr_t mapped_addr;
 	unsigned int nr_frags;
 	int i, n_desc = 1;
@@ -568,11 +567,6 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	if (unlikely(dma_mapping_error(&dev->dev, mapped_addr)))
 		return -ENOMEM;
 
-	/* normally we can rely on the stack not calling this more than once,
-	 * however we have 2 queues running ont he same ring so we need to lock
-	 * the ring access
-	 */
-	spin_lock_irqsave(&eth->page_lock, flags);
 	WRITE_ONCE(itxd->txd1, mapped_addr);
 	tx_buf->flags |= MTK_TX_FLAGS_SINGLE0;
 	dma_unmap_addr_set(tx_buf, dma_addr0, mapped_addr);
@@ -632,8 +626,6 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	WRITE_ONCE(itxd->txd3, (TX_DMA_SWC | TX_DMA_PLEN0(skb_headlen(skb)) |
 				(!nr_frags * TX_DMA_LS0)));
 
-	spin_unlock_irqrestore(&eth->page_lock, flags);
-
 	netdev_sent_queue(dev, skb->len);
 	skb_tx_timestamp(skb);
 
@@ -660,8 +652,6 @@ err_dma:
 		itxd->txd3 = TX_DMA_LS0 | TX_DMA_OWNER_CPU;
 		itxd = mtk_qdma_phys_to_virt(ring, itxd->txd2);
 	} while (itxd != txd);
-
-	spin_unlock_irqrestore(&eth->page_lock, flags);
 
 	return -ENOMEM;
 }
@@ -712,14 +702,22 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mtk_eth *eth = mac->hw;
 	struct mtk_tx_ring *ring = &eth->tx_ring;
 	struct net_device_stats *stats = &dev->stats;
+	unsigned long flags;
 	bool gso = false;
 	int tx_num;
+
+	/* normally we can rely on the stack not calling this more than once,
+	 * however we have 2 queues running on the same ring so we need to lock
+	 * the ring access
+	 */
+	spin_lock_irqsave(&eth->page_lock, flags);
 
 	tx_num = mtk_cal_txd_req(skb);
 	if (unlikely(atomic_read(&ring->free_count) <= tx_num)) {
 		mtk_stop_queue(eth);
 		netif_err(eth, tx_queued, dev,
 			  "Tx Ring full when queue awake!\n");
+		spin_unlock_irqrestore(&eth->page_lock, flags);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -747,10 +745,12 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			     ring->thresh))
 			mtk_wake_queue(eth);
 	}
+	spin_unlock_irqrestore(&eth->page_lock, flags);
 
 	return NETDEV_TX_OK;
 
 drop:
+	spin_unlock_irqrestore(&eth->page_lock, flags);
 	stats->tx_dropped++;
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
