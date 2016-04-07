@@ -58,7 +58,7 @@ unsigned int rxrpc_rx_mtu = 5692;
  */
 unsigned int rxrpc_rx_jumbo_max = 4;
 
-const char *rxrpc_pkts[] = {
+const char *const rxrpc_pkts[] = {
 	"?00",
 	"DATA", "ACK", "BUSY", "ABORT", "ACKALL", "CHALL", "RESP", "DEBUG",
 	"?09", "?10", "?11", "?12", "VERSION", "?14", "?15"

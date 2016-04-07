@@ -637,7 +637,7 @@ extern unsigned int rxrpc_rx_window_size;
 extern unsigned int rxrpc_rx_mtu;
 extern unsigned int rxrpc_rx_jumbo_max;
 
-extern const char *rxrpc_pkts[];
+extern const char *const rxrpc_pkts[];
 extern const s8 rxrpc_ack_priority[];
 
 extern const char *rxrpc_acks(u8 reason);
