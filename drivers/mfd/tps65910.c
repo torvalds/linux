@@ -510,10 +510,10 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 		pm_power_off = tps65910_power_off;
 	}
 
-	ret = mfd_add_devices(tps65910->dev, -1,
-			      tps65910s, ARRAY_SIZE(tps65910s),
-			      NULL, 0,
-			      regmap_irq_get_domain(tps65910->irq_data));
+	ret = devm_mfd_add_devices(tps65910->dev, -1,
+				   tps65910s, ARRAY_SIZE(tps65910s),
+				   NULL, 0,
+				   regmap_irq_get_domain(tps65910->irq_data));
 	if (ret < 0) {
 		dev_err(&i2c->dev, "mfd_add_devices failed: %d\n", ret);
 		tps65910_irq_exit(tps65910);
@@ -528,7 +528,6 @@ static int tps65910_i2c_remove(struct i2c_client *i2c)
 	struct tps65910 *tps65910 = i2c_get_clientdata(i2c);
 
 	tps65910_irq_exit(tps65910);
-	mfd_remove_devices(tps65910->dev);
 
 	return 0;
 }
