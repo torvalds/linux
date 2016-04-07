@@ -370,6 +370,10 @@
 			ti,no-idle-on-init;
 			clocks = <&l3_div_ck>;
 			clock-names = "fck";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		uart1: serial@4806a000 {
