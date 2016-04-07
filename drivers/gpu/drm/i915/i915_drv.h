@@ -666,6 +666,7 @@ struct intel_uncore {
 	struct intel_uncore_forcewake_domain {
 		struct drm_i915_private *i915;
 		enum forcewake_domain_id id;
+		enum forcewake_domains mask;
 		unsigned wake_count;
 		struct hrtimer timer;
 		i915_reg_t reg_set;
@@ -680,14 +681,14 @@ struct intel_uncore {
 };
 
 /* Iterate over initialised fw domains */
-#define for_each_fw_domain_mask(domain__, mask__, dev_priv__, i__) \
-	for ((i__) = 0, (domain__) = &(dev_priv__)->uncore.fw_domain[0]; \
-	     (i__) < FW_DOMAIN_ID_COUNT; \
-	     (i__)++, (domain__) = &(dev_priv__)->uncore.fw_domain[i__]) \
-		for_each_if (((mask__) & (dev_priv__)->uncore.fw_domains) & (1 << (i__)))
+#define for_each_fw_domain_masked(domain__, mask__, dev_priv__) \
+	for ((domain__) = &(dev_priv__)->uncore.fw_domain[0]; \
+	     (domain__) < &(dev_priv__)->uncore.fw_domain[FW_DOMAIN_ID_COUNT]; \
+	     (domain__)++) \
+		for_each_if ((mask__) & (domain__)->mask)
 
-#define for_each_fw_domain(domain__, dev_priv__, i__) \
-	for_each_fw_domain_mask(domain__, FORCEWAKE_ALL, dev_priv__, i__)
+#define for_each_fw_domain(domain__, dev_priv__) \
+	for_each_fw_domain_masked(domain__, FORCEWAKE_ALL, dev_priv__)
 
 #define CSR_VERSION(major, minor)	((major) << 16 | (minor))
 #define CSR_VERSION_MAJOR(version)	((version) >> 16)
