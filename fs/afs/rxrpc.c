@@ -430,9 +430,11 @@ error_kill_call:
 }
 
 /*
- * handles intercepted messages that were arriving in the socket's Rx queue
- * - called with the socket receive queue lock held to ensure message ordering
- * - called with softirqs disabled
+ * Handles intercepted messages that were arriving in the socket's Rx queue.
+ *
+ * Called from the AF_RXRPC call processor in waitqueue process context.  For
+ * each call, it is guaranteed this will be called in order of packet to be
+ * delivered.
  */
 static void afs_rx_interceptor(struct sock *sk, unsigned long user_call_ID,
 			       struct sk_buff *skb)
@@ -522,6 +524,12 @@ static void afs_deliver_to_call(struct afs_call *call)
 			call->error = call->type->abort_to_error(abort_code);
 			call->state = AFS_CALL_ABORTED;
 			_debug("Rcv ABORT %u -> %d", abort_code, call->error);
+			break;
+		case RXRPC_SKB_MARK_LOCAL_ABORT:
+			abort_code = rxrpc_kernel_get_abort_code(skb);
+			call->error = call->type->abort_to_error(abort_code);
+			call->state = AFS_CALL_ABORTED;
+			_debug("Loc ABORT %u -> %d", abort_code, call->error);
 			break;
 		case RXRPC_SKB_MARK_NET_ERROR:
 			call->error = -rxrpc_kernel_get_error_number(skb);

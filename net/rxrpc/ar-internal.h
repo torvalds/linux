@@ -289,7 +289,9 @@ struct rxrpc_connection {
 		RXRPC_CONN_LOCALLY_ABORTED,	/* - conn aborted locally */
 		RXRPC_CONN_NETWORK_ERROR,	/* - conn terminated by network error */
 	} state;
-	int			error;		/* error code for local abort */
+	u32			local_abort;	/* local abort code */
+	u32			remote_abort;	/* remote abort code */
+	int			error;		/* local error incurred */
 	int			debug_id;	/* debug ID for printks */
 	unsigned int		call_counter;	/* call ID counter */
 	atomic_t		serial;		/* packet serial number counter */
@@ -399,7 +401,9 @@ struct rxrpc_call {
 	rwlock_t		state_lock;	/* lock for state transition */
 	atomic_t		usage;
 	atomic_t		sequence;	/* Tx data packet sequence counter */
-	u32			abort_code;	/* local/remote abort code */
+	u32			local_abort;	/* local abort code */
+	u32			remote_abort;	/* remote abort code */
+	int			error;		/* local error incurred */
 	enum rxrpc_call_state	state : 8;	/* current state of call */
 	int			debug_id;	/* debug ID for printks */
 	u8			channel;	/* connection channel occupied by this call */
@@ -453,7 +457,7 @@ static inline void rxrpc_abort_call(struct rxrpc_call *call, u32 abort_code)
 {
 	write_lock_bh(&call->state_lock);
 	if (call->state < RXRPC_CALL_COMPLETE) {
-		call->abort_code = abort_code;
+		call->local_abort = abort_code;
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 	}

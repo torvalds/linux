@@ -905,7 +905,7 @@ void rxrpc_process_call(struct work_struct *work)
 				       ECONNABORTED, true) < 0)
 			goto no_mem;
 		whdr.type = RXRPC_PACKET_TYPE_ABORT;
-		data = htonl(call->abort_code);
+		data = htonl(call->local_abort);
 		iov[1].iov_base = &data;
 		iov[1].iov_len = sizeof(data);
 		genbit = RXRPC_CALL_EV_ABORT;
@@ -968,7 +968,7 @@ void rxrpc_process_call(struct work_struct *work)
 		write_lock_bh(&call->state_lock);
 		if (call->state <= RXRPC_CALL_COMPLETE) {
 			call->state = RXRPC_CALL_LOCALLY_ABORTED;
-			call->abort_code = RX_CALL_TIMEOUT;
+			call->local_abort = RX_CALL_TIMEOUT;
 			set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		}
 		write_unlock_bh(&call->state_lock);

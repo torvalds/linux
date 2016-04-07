@@ -110,7 +110,7 @@ static void rxrpc_send_abort(struct rxrpc_call *call, u32 abort_code)
 
 	if (call->state <= RXRPC_CALL_COMPLETE) {
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
-		call->abort_code = abort_code;
+		call->local_abort = abort_code;
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		del_timer_sync(&call->resend_timer);
 		del_timer_sync(&call->ack_timer);

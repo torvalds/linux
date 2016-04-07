@@ -682,7 +682,7 @@ void rxrpc_release_call(struct rxrpc_call *call)
 	    call->state != RXRPC_CALL_CLIENT_FINAL_ACK) {
 		_debug("+++ ABORTING STATE %d +++\n", call->state);
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
-		call->abort_code = RX_CALL_DEAD;
+		call->local_abort = RX_CALL_DEAD;
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		rxrpc_queue_call(call);
 	}
@@ -758,7 +758,7 @@ static void rxrpc_mark_call_released(struct rxrpc_call *call)
 		if (call->state < RXRPC_CALL_COMPLETE) {
 			_debug("abort call %p", call);
 			call->state = RXRPC_CALL_LOCALLY_ABORTED;
-			call->abort_code = RX_CALL_DEAD;
+			call->local_abort = RX_CALL_DEAD;
 			if (!test_and_set_bit(RXRPC_CALL_EV_ABORT, &call->events))
 				sched = true;
 		}
