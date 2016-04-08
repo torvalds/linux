@@ -727,28 +727,6 @@ static int das1800_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-/* returns appropriate bits for control register a, depending on command */
-static int control_a_bits(const struct comedi_cmd *cmd)
-{
-	int control_a;
-
-	control_a = FFEN;	/* enable fifo */
-	if (cmd->stop_src == TRIG_EXT)
-		control_a |= ATEN;
-	switch (cmd->start_src) {
-	case TRIG_EXT:
-		control_a |= TGEN | CGSL;
-		break;
-	case TRIG_NOW:
-		control_a |= CGEN;
-		break;
-	default:
-		break;
-	}
-
-	return control_a;
-}
-
 static unsigned char das1800_ai_chanspec_bits(struct comedi_subdevice *s,
 					      unsigned int chanspec)
 {
@@ -885,8 +863,13 @@ static int das1800_ai_cmd(struct comedi_device *dev,
 
 	devpriv->ai_is_unipolar = comedi_range_is_unipolar(s, range0);
 
-	/*  determine proper bits for control registers */
-	control_a = control_a_bits(cmd);
+	control_a = FFEN;
+	if (cmd->stop_src == TRIG_EXT)
+		control_a |= ATEN;
+	if (cmd->start_src == TRIG_EXT)
+		control_a |= TGEN | CGSL;
+	else /* TRIG_NOW */
+		control_a |= CGEN;
 
 	control_c = das1800_ai_chanspec_bits(s, cmd->chanlist[0]);
 	/* set clock source to internal or external */
