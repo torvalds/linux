@@ -1253,6 +1253,7 @@ static const struct file_operations intel_th_msc_fops = {
 	.read		= intel_th_msc_read,
 	.mmap		= intel_th_msc_mmap,
 	.llseek		= no_llseek,
+	.owner		= THIS_MODULE,
 };
 
 static int intel_th_msc_init(struct msc *msc)
