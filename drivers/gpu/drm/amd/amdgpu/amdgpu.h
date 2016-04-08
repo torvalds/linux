@@ -1037,6 +1037,11 @@ void amdgpu_bo_list_free(struct amdgpu_bo_list *list);
  */
 #include "clearstate_defs.h"
 
+struct amdgpu_rlc_funcs {
+	void (*enter_safe_mode)(struct amdgpu_device *adev);
+	void (*exit_safe_mode)(struct amdgpu_device *adev);
+};
+
 struct amdgpu_rlc {
 	/* for power gating */
 	struct amdgpu_bo	*save_restore_obj;
@@ -1055,6 +1060,10 @@ struct amdgpu_rlc {
 	uint64_t		cp_table_gpu_addr;
 	volatile uint32_t	*cp_table_ptr;
 	u32                     cp_table_size;
+
+	/* safe mode for updating CG/PG state */
+	bool in_safe_mode;
+	const struct amdgpu_rlc_funcs *funcs;
 };
 
 struct amdgpu_mec {
