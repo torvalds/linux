@@ -1310,11 +1310,11 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 }
 
 static void fiji_update_mc_medium_grain_clock_gating(struct amdgpu_device *adev,
-		bool enable)
+						     bool enable)
 {
 	uint32_t data;
 
-	if (enable) {
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_MC_MGCG)) {
 		data = RREG32(mmMC_HUB_MISC_HUB_CG);
 		data |= MC_HUB_MISC_HUB_CG__ENABLE_MASK;
 		WREG32(mmMC_HUB_MISC_HUB_CG, data);
@@ -1390,11 +1390,11 @@ static void fiji_update_mc_medium_grain_clock_gating(struct amdgpu_device *adev,
 }
 
 static void fiji_update_mc_light_sleep(struct amdgpu_device *adev,
-		bool enable)
+				       bool enable)
 {
 	uint32_t data;
 
-	if (enable) {
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_MC_LS)) {
 		data = RREG32(mmMC_HUB_MISC_HUB_CG);
 		data |= MC_HUB_MISC_HUB_CG__MEM_LS_ENABLE_MASK;
 		WREG32(mmMC_HUB_MISC_HUB_CG, data);
