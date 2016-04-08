@@ -1483,6 +1483,7 @@ int bpf__setup_stdout(struct perf_evlist *evlist __maybe_unused)
 {
 	struct bpf_map_priv *tmpl_priv = NULL;
 	struct bpf_object *obj, *tmp;
+	struct perf_evsel *evsel = NULL;
 	struct bpf_map *map;
 	int err;
 	bool need_init = false;
@@ -1507,8 +1508,16 @@ int bpf__setup_stdout(struct perf_evlist *evlist __maybe_unused)
 	if (!need_init)
 		return 0;
 
-	if (!tmpl_priv)
-		return 0;
+	if (!tmpl_priv) {
+		err = parse_events(evlist, "bpf-output/no-inherit=1,name=__bpf_stdout__/",
+				   NULL);
+		if (err) {
+			pr_debug("ERROR: failed to create bpf-output event\n");
+			return -err;
+		}
+
+		evsel = perf_evlist__last(evlist);
+	}
 
 	bpf__for_each_stdout_map(map, obj, tmp) {
 		struct bpf_map_priv *priv;
@@ -1519,14 +1528,24 @@ int bpf__setup_stdout(struct perf_evlist *evlist __maybe_unused)
 		if (priv)
 			continue;
 
-		priv = bpf_map_priv__clone(tmpl_priv);
-		if (!priv)
-			return -ENOMEM;
+		if (tmpl_priv) {
+			priv = bpf_map_priv__clone(tmpl_priv);
+			if (!priv)
+				return -ENOMEM;
 
-		err = bpf_map__set_private(map, priv, bpf_map_priv__clear);
-		if (err) {
-			bpf_map_priv__clear(map, priv);
-			return err;
+			err = bpf_map__set_private(map, priv, bpf_map_priv__clear);
+			if (err) {
+				bpf_map_priv__clear(map, priv);
+				return err;
+			}
+		} else if (evsel) {
+			struct bpf_map_op *op;
+
+			op = bpf_map__add_newop(map, NULL);
+			if (IS_ERR(op))
+				return PTR_ERR(op);
+			op->op_type = BPF_MAP_OP_SET_EVSEL;
+			op->v.evsel = evsel;
 		}
 	}
 
