@@ -313,11 +313,11 @@ modkern_aflags := $(KBUILD_AFLAGS_KERNEL) $(AFLAGS_KERNEL)
 $(real-objs-m)      : modkern_aflags := $(KBUILD_AFLAGS_MODULE) $(AFLAGS_MODULE)
 $(real-objs-m:.o=.s): modkern_aflags := $(KBUILD_AFLAGS_MODULE) $(AFLAGS_MODULE)
 
-quiet_cmd_as_s_S = CPP $(quiet_modtag) $@
-cmd_as_s_S       = $(CPP) $(a_flags)   -o $@ $<
+quiet_cmd_cpp_s_S = CPP $(quiet_modtag) $@
+cmd_cpp_s_S       = $(CPP) $(a_flags) -o $@ $<
 
 $(obj)/%.s: $(src)/%.S FORCE
-	$(call if_changed_dep,as_s_S)
+	$(call if_changed_dep,cpp_s_S)
 
 quiet_cmd_as_o_S = AS $(quiet_modtag)  $@
 cmd_as_o_S       = $(CC) $(a_flags) -c -o $@ $<
