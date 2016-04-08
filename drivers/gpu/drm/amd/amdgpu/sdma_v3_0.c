@@ -1458,40 +1458,31 @@ static int sdma_v3_0_process_illegal_inst_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void fiji_update_sdma_medium_grain_clock_gating(
+static void sdma_v3_0_update_sdma_medium_grain_clock_gating(
 		struct amdgpu_device *adev,
 		bool enable)
 {
 	uint32_t temp, data;
+	int i;
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_MGCG)) {
-		temp = data = RREG32(mmSDMA0_CLK_CTRL);
-		data &= ~(SDMA0_CLK_CTRL__SOFT_OVERRIDE7_MASK |
-				SDMA0_CLK_CTRL__SOFT_OVERRIDE6_MASK |
-				SDMA0_CLK_CTRL__SOFT_OVERRIDE5_MASK |
-				SDMA0_CLK_CTRL__SOFT_OVERRIDE4_MASK |
-				SDMA0_CLK_CTRL__SOFT_OVERRIDE3_MASK |
-				SDMA0_CLK_CTRL__SOFT_OVERRIDE2_MASK |
-				SDMA0_CLK_CTRL__SOFT_OVERRIDE1_MASK |
-				SDMA0_CLK_CTRL__SOFT_OVERRIDE0_MASK);
-		if (data != temp)
-			WREG32(mmSDMA0_CLK_CTRL, data);
-
-		temp = data = RREG32(mmSDMA1_CLK_CTRL);
-		data &= ~(SDMA1_CLK_CTRL__SOFT_OVERRIDE7_MASK |
-				SDMA1_CLK_CTRL__SOFT_OVERRIDE6_MASK |
-				SDMA1_CLK_CTRL__SOFT_OVERRIDE5_MASK |
-				SDMA1_CLK_CTRL__SOFT_OVERRIDE4_MASK |
-				SDMA1_CLK_CTRL__SOFT_OVERRIDE3_MASK |
-				SDMA1_CLK_CTRL__SOFT_OVERRIDE2_MASK |
-				SDMA1_CLK_CTRL__SOFT_OVERRIDE1_MASK |
-				SDMA1_CLK_CTRL__SOFT_OVERRIDE0_MASK);
-
-		if (data != temp)
-			WREG32(mmSDMA1_CLK_CTRL, data);
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			temp = data = RREG32(mmSDMA0_CLK_CTRL + sdma_offsets[i]);
+			data &= ~(SDMA0_CLK_CTRL__SOFT_OVERRIDE7_MASK |
+				  SDMA0_CLK_CTRL__SOFT_OVERRIDE6_MASK |
+				  SDMA0_CLK_CTRL__SOFT_OVERRIDE5_MASK |
+				  SDMA0_CLK_CTRL__SOFT_OVERRIDE4_MASK |
+				  SDMA0_CLK_CTRL__SOFT_OVERRIDE3_MASK |
+				  SDMA0_CLK_CTRL__SOFT_OVERRIDE2_MASK |
+				  SDMA0_CLK_CTRL__SOFT_OVERRIDE1_MASK |
+				  SDMA0_CLK_CTRL__SOFT_OVERRIDE0_MASK);
+			if (data != temp)
+				WREG32(mmSDMA0_CLK_CTRL + sdma_offsets[i], data);
+		}
 	} else {
-		temp = data = RREG32(mmSDMA0_CLK_CTRL);
-		data |= SDMA0_CLK_CTRL__SOFT_OVERRIDE7_MASK |
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			temp = data = RREG32(mmSDMA0_CLK_CTRL + sdma_offsets[i]);
+			data |= SDMA0_CLK_CTRL__SOFT_OVERRIDE7_MASK |
 				SDMA0_CLK_CTRL__SOFT_OVERRIDE6_MASK |
 				SDMA0_CLK_CTRL__SOFT_OVERRIDE5_MASK |
 				SDMA0_CLK_CTRL__SOFT_OVERRIDE4_MASK |
@@ -1500,54 +1491,35 @@ static void fiji_update_sdma_medium_grain_clock_gating(
 				SDMA0_CLK_CTRL__SOFT_OVERRIDE1_MASK |
 				SDMA0_CLK_CTRL__SOFT_OVERRIDE0_MASK;
 
-		if (data != temp)
-			WREG32(mmSDMA0_CLK_CTRL, data);
-
-		temp = data = RREG32(mmSDMA1_CLK_CTRL);
-		data |= SDMA1_CLK_CTRL__SOFT_OVERRIDE7_MASK |
-				SDMA1_CLK_CTRL__SOFT_OVERRIDE6_MASK |
-				SDMA1_CLK_CTRL__SOFT_OVERRIDE5_MASK |
-				SDMA1_CLK_CTRL__SOFT_OVERRIDE4_MASK |
-				SDMA1_CLK_CTRL__SOFT_OVERRIDE3_MASK |
-				SDMA1_CLK_CTRL__SOFT_OVERRIDE2_MASK |
-				SDMA1_CLK_CTRL__SOFT_OVERRIDE1_MASK |
-				SDMA1_CLK_CTRL__SOFT_OVERRIDE0_MASK;
-
-		if (data != temp)
-			WREG32(mmSDMA1_CLK_CTRL, data);
+			if (data != temp)
+				WREG32(mmSDMA0_CLK_CTRL + sdma_offsets[i], data);
+		}
 	}
 }
 
-static void fiji_update_sdma_medium_grain_light_sleep(
+static void sdma_v3_0_update_sdma_medium_grain_light_sleep(
 		struct amdgpu_device *adev,
 		bool enable)
 {
 	uint32_t temp, data;
+	int i;
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_LS)) {
-		temp = data = RREG32(mmSDMA0_POWER_CNTL);
-		data |= SDMA0_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			temp = data = RREG32(mmSDMA0_POWER_CNTL + sdma_offsets[i]);
+			data |= SDMA0_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
 
-		if (temp != data)
-			WREG32(mmSDMA0_POWER_CNTL, data);
-
-		temp = data = RREG32(mmSDMA1_POWER_CNTL);
-		data |= SDMA1_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
-
-		if (temp != data)
-			WREG32(mmSDMA1_POWER_CNTL, data);
+			if (temp != data)
+				WREG32(mmSDMA0_POWER_CNTL + sdma_offsets[i], data);
+		}
 	} else {
-		temp = data = RREG32(mmSDMA0_POWER_CNTL);
-		data &= ~SDMA0_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			temp = data = RREG32(mmSDMA0_POWER_CNTL + sdma_offsets[i]);
+			data &= ~SDMA0_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
 
-		if (temp != data)
-			WREG32(mmSDMA0_POWER_CNTL, data);
-
-		temp = data = RREG32(mmSDMA1_POWER_CNTL);
-		data &= ~SDMA1_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
-
-		if (temp != data)
-			WREG32(mmSDMA1_POWER_CNTL, data);
+			if (temp != data)
+				WREG32(mmSDMA0_POWER_CNTL + sdma_offsets[i], data);
+		}
 	}
 }
 
@@ -1558,9 +1530,11 @@ static int sdma_v3_0_set_clockgating_state(void *handle,
 
 	switch (adev->asic_type) {
 	case CHIP_FIJI:
-		fiji_update_sdma_medium_grain_clock_gating(adev,
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+		sdma_v3_0_update_sdma_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
-		fiji_update_sdma_medium_grain_light_sleep(adev,
+		sdma_v3_0_update_sdma_medium_grain_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		break;
 	default:
