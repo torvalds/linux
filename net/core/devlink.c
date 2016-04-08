@@ -630,7 +630,6 @@ int devlink_port_register(struct devlink *devlink,
 	}
 	devlink_port->devlink = devlink;
 	devlink_port->index = port_index;
-	devlink_port->type = DEVLINK_PORT_TYPE_NOTSET;
 	devlink_port->registered = true;
 	list_add_tail(&devlink_port->list, &devlink->port_list);
 	mutex_unlock(&devlink_port_mutex);
