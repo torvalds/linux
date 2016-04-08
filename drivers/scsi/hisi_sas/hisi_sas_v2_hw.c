@@ -2003,12 +2003,10 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, ent_msk | 1 << phy_no);
 
 	ent_int = hisi_sas_read32(hisi_hba, ENT_INT_SRC1);
-	ent_tmp = ent_int;
+	ent_tmp = ent_int & (1 << (ENT_INT_SRC1_D2H_FIS_CH1_OFF * phy_no));
 	ent_int >>= ENT_INT_SRC1_D2H_FIS_CH1_OFF * (phy_no % 4);
 	if ((ent_int & ENT_INT_SRC1_D2H_FIS_CH0_MSK) == 0) {
 		dev_warn(dev, "sata int: phy%d did not receive FIS\n", phy_no);
-		hisi_sas_write32(hisi_hba, ENT_INT_SRC1, ent_tmp);
-		hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, ent_msk);
 		res = IRQ_NONE;
 		goto end;
 	}
