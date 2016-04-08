@@ -51,6 +51,9 @@
  * (convert_arg <= 64000). This limitation does not apply if scan_begin_src
  * is TRIG_FOLLOW.
  *
+ * The maximum conversion speeds are not always achievable depending on the
+ * board setup (see user manual).
+ *
  * NOTES:
  * Only the DAS-1801ST has been tested by me.
  * Unipolar and bipolar ranges cannot be mixed in the channel/gain list.
@@ -194,10 +197,6 @@ struct das1800_board {
 	unsigned int is_01_series:1;
 };
 
-/* Warning: the maximum conversion speeds listed below are
- * not always achievable depending on board setup (see
- * user manual.)
- */
 static const struct das1800_board das1800_boards[] = {
 	[BOARD_DAS1701ST] = {
 		.name		= "das-1701st",
