@@ -1,1 +1,1 @@
-#nvkm-y += nvkm/subdev/top/base.o
+nvkm-y += nvkm/subdev/top/base.o
