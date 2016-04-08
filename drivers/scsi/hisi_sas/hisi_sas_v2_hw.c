@@ -1993,17 +1993,20 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	u32 ent_tmp, ent_msk, ent_int, port_id, link_rate, hard_phy_linkrate;
 	irqreturn_t res = IRQ_HANDLED;
 	u8 attached_sas_addr[SAS_ADDR_SIZE] = {0};
-	int phy_no;
+	int phy_no, offset;
 
 	phy_no = sas_phy->id;
 	initial_fis = &hisi_hba->initial_fis[phy_no];
 	fis = &initial_fis->fis;
 
-	ent_msk = hisi_sas_read32(hisi_hba, ENT_INT_SRC_MSK1);
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, ent_msk | 1 << phy_no);
+	offset = 4 * (phy_no / 4);
+	ent_msk = hisi_sas_read32(hisi_hba, ENT_INT_SRC_MSK1 + offset);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1 + offset,
+			 ent_msk | 1 << ((phy_no % 4) * 8));
 
-	ent_int = hisi_sas_read32(hisi_hba, ENT_INT_SRC1);
-	ent_tmp = ent_int & (1 << (ENT_INT_SRC1_D2H_FIS_CH1_OFF * phy_no));
+	ent_int = hisi_sas_read32(hisi_hba, ENT_INT_SRC1 + offset);
+	ent_tmp = ent_int & (1 << (ENT_INT_SRC1_D2H_FIS_CH1_OFF *
+			     (phy_no % 4)));
 	ent_int >>= ENT_INT_SRC1_D2H_FIS_CH1_OFF * (phy_no % 4);
 	if ((ent_int & ENT_INT_SRC1_D2H_FIS_CH0_MSK) == 0) {
 		dev_warn(dev, "sata int: phy%d did not receive FIS\n", phy_no);
@@ -2054,8 +2057,8 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	queue_work(hisi_hba->wq, &phy->phyup_ws);
 
 end:
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC1, ent_tmp);
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, ent_msk);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC1 + offset, ent_tmp);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1 + offset, ent_msk);
 
 	return res;
 }
