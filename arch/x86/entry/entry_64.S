@@ -783,7 +783,7 @@ ENTRY(native_load_gs_index)
 	SWAPGS
 gs_change:
 	movl	%edi, %gs
-2:	mfence					/* workaround */
+2:	ALTERNATIVE "", "mfence", X86_BUG_SWAPGS_FENCE
 	SWAPGS
 	popfq
 	ret

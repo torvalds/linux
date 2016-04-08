@@ -632,6 +632,7 @@ static void init_amd_k8(struct cpuinfo_x86 *c)
 	 */
 	msr_set_bit(MSR_K7_HWCR, 6);
 #endif
+	set_cpu_bug(c, X86_BUG_SWAPGS_FENCE);
 }
 
 static void init_amd_gh(struct cpuinfo_x86 *c)

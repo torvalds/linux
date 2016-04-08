@@ -295,6 +295,8 @@
 #define X86_BUG_CLFLUSH_MONITOR	X86_BUG(7) /* AAI65, CLFLUSH required before MONITOR */
 #define X86_BUG_SYSRET_SS_ATTRS	X86_BUG(8) /* SYSRET doesn't fix up SS attrs */
 #define X86_BUG_NULL_SEG	X86_BUG(9) /* Nulling a selector preserves the base */
+#define X86_BUG_SWAPGS_FENCE	X86_BUG(10) /* SWAPGS without input dep on GS */
+
 
 #ifdef CONFIG_X86_32
 /*
