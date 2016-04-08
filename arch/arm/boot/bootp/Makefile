@@ -25,4 +25,4 @@ $(obj)/kernel.o: arch/arm/boot/zImage FORCE
 
 $(obj)/initrd.o: $(INITRD) FORCE
 
-PHONY += $(INITRD) FORCE
+PHONY += $(INITRD)
