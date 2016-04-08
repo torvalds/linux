@@ -100,7 +100,7 @@
 #define   DMA_CH5_CH6             0x5
 #define   DMA_CH6_CH7             0x6
 #define   DMA_CH7_CH5             0x7
-#define   DMA_ENABLED             0x3	/* mask used to determine if dma is enabled */
+#define   DMA_ENABLED             0x3
 #define   DMA_DUAL                0x4
 #define   IRQ3                    0x8
 #define   IRQ5                    0x10
@@ -118,22 +118,21 @@
 #define   SD                      0x40
 #define   UB                      0x80
 #define DAS1800_STATUS          0x7
-/* bits that prevent interrupt status bits (and CVEN) from being cleared on write */
-#define   CLEAR_INTR_MASK         (CVEN_MASK | 0x1f)
 #define   INT                     0x1
 #define   DMATC                   0x2
 #define   CT0TC                   0x8
 #define   OVF                     0x10
 #define   FHF                     0x20
 #define   FNE                     0x40
-#define   CVEN_MASK               0x40	/*  masks CVEN on write */
 #define   CVEN                    0x80
+#define   CVEN_MASK               0x40
+#define   CLEAR_INTR_MASK         (CVEN_MASK | 0x1f)
 #define DAS1800_BURST_LENGTH    0x8
 #define DAS1800_BURST_RATE      0x9
 #define DAS1800_QRAM_ADDRESS    0xa
 #define DAS1800_COUNTER         0xc
 
-#define IOBASE2                   0x400	/* offset of additional ioports used on 'ao' cards */
+#define IOBASE2                   0x400
 
 static const struct comedi_lrange das1801_ai_range = {
 	8, {
