@@ -67,17 +67,14 @@ static inline void pcie_pme_interrupt_enable(struct pci_dev *dev, bool en) {}
 #endif /* !CONFIG_PCIE_PME */
 
 #ifdef CONFIG_ACPI
-int pcie_port_acpi_setup(struct pci_dev *port, int *mask);
+void pcie_port_acpi_setup(struct pci_dev *port, int *mask);
 
-static inline int pcie_port_platform_notify(struct pci_dev *port, int *mask)
+static inline void pcie_port_platform_notify(struct pci_dev *port, int *mask)
 {
-	return pcie_port_acpi_setup(port, mask);
+	pcie_port_acpi_setup(port, mask);
 }
 #else /* !CONFIG_ACPI */
-static inline int pcie_port_platform_notify(struct pci_dev *port, int *mask)
-{
-	return 0;
-}
+static inline void pcie_port_platform_notify(struct pci_dev *port, int *mask){}
 #endif /* !CONFIG_ACPI */
 
 #endif /* _PORTDRV_H_ */

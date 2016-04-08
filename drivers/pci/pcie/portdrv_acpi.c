@@ -32,22 +32,22 @@
  * NOTE: It turns out that we cannot do that for individual port services
  * separately, because that would make some systems work incorrectly.
  */
-int pcie_port_acpi_setup(struct pci_dev *port, int *srv_mask)
+void pcie_port_acpi_setup(struct pci_dev *port, int *srv_mask)
 {
 	struct acpi_pci_root *root;
 	acpi_handle handle;
 	u32 flags;
 
 	if (acpi_pci_disabled)
-		return 0;
+		return;
 
 	handle = acpi_find_root_bridge_handle(port);
 	if (!handle)
-		return 0;
+		return;
 
 	root = acpi_pci_find_root(handle);
 	if (!root)
-		return 0;
+		return;
 
 	flags = root->osc_control_set;
 
@@ -58,6 +58,4 @@ int pcie_port_acpi_setup(struct pci_dev *port, int *srv_mask)
 		*srv_mask |= PCIE_PORT_SERVICE_PME;
 	if (flags & OSC_PCI_EXPRESS_AER_CONTROL)
 		*srv_mask |= PCIE_PORT_SERVICE_AER;
-
-	return 0;
 }

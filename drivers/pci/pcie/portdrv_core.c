@@ -256,7 +256,6 @@ static int get_port_device_capability(struct pci_dev *dev)
 	int services = 0;
 	u32 reg32;
 	int cap_mask = 0;
-	int err;
 
 	if (pcie_ports_disabled)
 		return 0;
@@ -266,11 +265,8 @@ static int get_port_device_capability(struct pci_dev *dev)
 	if (pci_aer_available())
 		cap_mask |= PCIE_PORT_SERVICE_AER;
 
-	if (pcie_ports_auto) {
-		err = pcie_port_platform_notify(dev, &cap_mask);
-		if (err)
-			return 0;
-	}
+	if (pcie_ports_auto)
+		pcie_port_platform_notify(dev, &cap_mask);
 
 	/* Hot-Plug Capable */
 	if ((cap_mask & PCIE_PORT_SERVICE_HP) &&
