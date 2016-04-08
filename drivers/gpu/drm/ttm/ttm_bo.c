@@ -1215,7 +1215,7 @@ size_t ttm_bo_acc_size(struct ttm_bo_device *bdev,
 	size_t size = 0;
 
 	size += ttm_round_pot(struct_size);
-	size += PAGE_ALIGN(npages * sizeof(void *));
+	size += ttm_round_pot(npages * sizeof(void *));
 	size += ttm_round_pot(sizeof(struct ttm_tt));
 	return size;
 }
@@ -1229,8 +1229,7 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
 	size_t size = 0;
 
 	size += ttm_round_pot(struct_size);
-	size += PAGE_ALIGN(npages * sizeof(void *));
-	size += PAGE_ALIGN(npages * sizeof(dma_addr_t));
+	size += ttm_round_pot(npages * (2*sizeof(void *) + sizeof(dma_addr_t)));
 	size += ttm_round_pot(sizeof(struct ttm_dma_tt));
 	return size;
 }
