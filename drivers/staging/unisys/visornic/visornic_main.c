@@ -356,28 +356,38 @@ visornic_serverdown(struct visornic_devdata *devdata,
 		    visorbus_state_complete_func complete_func)
 {
 	unsigned long flags;
+	int err;
 
 	spin_lock_irqsave(&devdata->priv_lock, flags);
-	if (!devdata->server_down && !devdata->server_change_state) {
-		if (devdata->going_away) {
-			spin_unlock_irqrestore(&devdata->priv_lock, flags);
-			dev_dbg(&devdata->dev->device,
-				"%s aborting because device removal pending\n",
-				__func__);
-			return -ENODEV;
-		}
-		devdata->server_change_state = true;
-		devdata->server_down_complete_func = complete_func;
-		spin_unlock_irqrestore(&devdata->priv_lock, flags);
-		visornic_serverdown_complete(devdata);
-	} else if (devdata->server_change_state) {
+	if (devdata->server_change_state) {
 		dev_dbg(&devdata->dev->device, "%s changing state\n",
 			__func__);
-		spin_unlock_irqrestore(&devdata->priv_lock, flags);
-		return -EINVAL;
+		err = -EINVAL;
+		goto err_unlock;
 	}
+	if (devdata->server_down) {
+		dev_dbg(&devdata->dev->device, "%s already down\n",
+			__func__);
+		err = -EINVAL;
+		goto err_unlock;
+	}
+	if (devdata->going_away) {
+		dev_dbg(&devdata->dev->device,
+			"%s aborting because device removal pending\n",
+			__func__);
+		err = -ENODEV;
+		goto err_unlock;
+	}
+	devdata->server_change_state = true;
+	devdata->server_down_complete_func = complete_func;
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
+
+	visornic_serverdown_complete(devdata);
 	return 0;
+
+err_unlock:
+	spin_unlock_irqrestore(&devdata->priv_lock, flags);
+	return err;
 }
 
 /**
