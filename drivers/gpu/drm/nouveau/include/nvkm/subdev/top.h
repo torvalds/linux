@@ -12,4 +12,6 @@ u32 nvkm_top_reset(struct nvkm_top *, enum nvkm_devidx);
 u32 nvkm_top_intr(struct nvkm_top *, u32 intr, u64 *subdevs);
 enum nvkm_devidx nvkm_top_fault(struct nvkm_top *, int fault);
 enum nvkm_devidx nvkm_top_engine(struct nvkm_top *, int, int *runl, int *engn);
+
+int gk104_top_new(struct nvkm_device *, int, struct nvkm_top **);
 #endif
