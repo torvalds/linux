@@ -1086,30 +1086,36 @@ static int das1800_ao_insn_write(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	const struct das1800_board *board = dev->board_ptr;
 	struct das1800_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
-/* int range = CR_RANGE(insn->chanspec); */
-	int update_chan = board->ao_n_chan - 1;
-	unsigned short output;
-	unsigned long irq_flags;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int update_chan = s->n_chan - 1;
+	unsigned long flags;
+	int i;
 
-	output = comedi_offset_munge(s, data[0]);
-	/*  if the write is to the 'update' channel, we need to remember its value */
-	if (chan == update_chan)
-		devpriv->ao_update_bits = output;
-	/*  write to channel */
-	spin_lock_irqsave(&dev->spinlock, irq_flags);
-	outb(DAC(chan), dev->iobase + DAS1800_SELECT);	/* select dac channel for baseAddress + 0x0 */
-	outw(output, dev->iobase + DAS1800_DAC);
-	/*  now we need to write to 'update' channel to update all dac channels */
-	if (chan != update_chan) {
-		outb(DAC(update_chan), dev->iobase + DAS1800_SELECT);	/* select 'update' channel for baseAddress + 0x0 */
-		outw(devpriv->ao_update_bits, dev->iobase + DAS1800_DAC);
+	/* protects the indirect addressing selected by DAS1800_SELECT */
+	spin_lock_irqsave(&dev->spinlock, flags);
+
+	for (i = 0; i < insn->n; i++) {
+		unsigned int val = data[i];
+
+		val = comedi_offset_munge(s, val);
+		if (chan == update_chan)
+			devpriv->ao_update_bits = val;
+
+		/* load this channel (and update if it's the last channel) */
+		outb(DAC(chan), dev->iobase + DAS1800_SELECT);
+		outw(val, dev->iobase + DAS1800_DAC);
+
+		/* update all channels */
+		if (chan != update_chan) {
+			outb(DAC(update_chan), dev->iobase + DAS1800_SELECT);
+			outw(devpriv->ao_update_bits,
+			     dev->iobase + DAS1800_DAC);
+		}
 	}
-	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	return 1;
+	return insn->n;
 }
 
 static int das1800_di_insn_bits(struct comedi_device *dev,
