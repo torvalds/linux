@@ -554,10 +554,11 @@ static void setup_itct_v2_hw(struct hisi_hba *hisi_hba,
 	itct->sas_addr = __swab64(itct->sas_addr);
 
 	/* qw2 */
-	itct->qw2 = cpu_to_le64((500ULL << ITCT_HDR_INLT_OFF) |
-				(0xff00ULL << ITCT_HDR_BITLT_OFF) |
-				(0xff00ULL << ITCT_HDR_MCTLT_OFF) |
-				(0xff00ULL << ITCT_HDR_RTOLT_OFF));
+	if (!dev_is_sata(device))
+		itct->qw2 = cpu_to_le64((500ULL << ITCT_HDR_INLT_OFF) |
+					(0x1ULL << ITCT_HDR_BITLT_OFF) |
+					(0x32ULL << ITCT_HDR_MCTLT_OFF) |
+					(0x1ULL << ITCT_HDR_RTOLT_OFF));
 }
 
 static void free_device_v2_hw(struct hisi_hba *hisi_hba,
@@ -715,7 +716,7 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, HGC_SAS_TX_OPEN_FAIL_RETRY_CTRL, 0x7FF);
 	hisi_sas_write32(hisi_hba, OPENA_WT_CONTI_TIME, 0x1);
 	hisi_sas_write32(hisi_hba, I_T_NEXUS_LOSS_TIME, 0x1F4);
-	hisi_sas_write32(hisi_hba, MAX_CON_TIME_LIMIT_TIME, 0x4E20);
+	hisi_sas_write32(hisi_hba, MAX_CON_TIME_LIMIT_TIME, 0x32);
 	hisi_sas_write32(hisi_hba, BUS_INACTIVE_LIMIT_TIME, 0x1);
 	hisi_sas_write32(hisi_hba, CFG_AGING_TIME, 0x1);
 	hisi_sas_write32(hisi_hba, HGC_ERR_STAT_EN, 0x1);
