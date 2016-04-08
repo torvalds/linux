@@ -95,14 +95,12 @@ static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(attachment->dmabuf);
 
-	mutex_lock(&obj->base.dev->struct_mutex);
-
 	dma_unmap_sg(attachment->dev, sg->sgl, sg->nents, dir);
 	sg_free_table(sg);
 	kfree(sg);
 
+	mutex_lock(&obj->base.dev->struct_mutex);
 	i915_gem_object_unpin_pages(obj);
-
 	mutex_unlock(&obj->base.dev->struct_mutex);
 }
 
