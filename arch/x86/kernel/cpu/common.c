@@ -889,6 +889,35 @@ static void detect_nopl(struct cpuinfo_x86 *c)
 #endif
 }
 
+static void detect_null_seg_behavior(struct cpuinfo_x86 *c)
+{
+#ifdef CONFIG_X86_64
+	/*
+	 * Empirically, writing zero to a segment selector on AMD does
+	 * not clear the base, whereas writing zero to a segment
+	 * selector on Intel does clear the base.  Intel's behavior
+	 * allows slightly faster context switches in the common case
+	 * where GS is unused by the prev and next threads.
+	 *
+	 * Since neither vendor documents this anywhere that I can see,
+	 * detect it directly instead of hardcoding the choice by
+	 * vendor.
+	 *
+	 * I've designated AMD's behavior as the "bug" because it's
+	 * counterintuitive and less friendly.
+	 */
+
+	unsigned long old_base, tmp;
+	rdmsrl(MSR_FS_BASE, old_base);
+	wrmsrl(MSR_FS_BASE, 1);
+	loadsegment(fs, 0);
+	rdmsrl(MSR_FS_BASE, tmp);
+	if (tmp != 0)
+		set_cpu_bug(c, X86_BUG_NULL_SEG);
+	wrmsrl(MSR_FS_BASE, old_base);
+#endif
+}
+
 static void generic_identify(struct cpuinfo_x86 *c)
 {
 	c->extended_cpuid_level = 0;
@@ -921,6 +950,8 @@ static void generic_identify(struct cpuinfo_x86 *c)
 	get_model_name(c); /* Default name */
 
 	detect_nopl(c);
+
+	detect_null_seg_behavior(c);
 }
 
 static void x86_init_cache_qos(struct cpuinfo_x86 *c)
