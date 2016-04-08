@@ -298,6 +298,8 @@ struct nfp_net_rx_buf {
  * @rxds:       Virtual address of FL/RX ring in host memory
  * @dma:        DMA address of the FL/RX ring
  * @size:       Size, in bytes, of the FL/RX ring (needed to free)
+ * @bufsz:	Buffer allocation size for convenience of management routines
+ *		(NOTE: this is in second cache line, do not use on fast path!)
  */
 struct nfp_net_rx_ring {
 	struct nfp_net_r_vector *r_vec;
@@ -319,6 +321,7 @@ struct nfp_net_rx_ring {
 
 	dma_addr_t dma;
 	unsigned int size;
+	unsigned int bufsz;
 } ____cacheline_aligned;
 
 /**
@@ -472,6 +475,9 @@ struct nfp_net {
 
 	u32 rx_offset;
 
+	struct nfp_net_tx_ring *tx_rings;
+	struct nfp_net_rx_ring *rx_rings;
+
 #ifdef CONFIG_PCI_IOV
 	unsigned int num_vfs;
 	struct vf_data_storage *vfinfo;
@@ -503,9 +509,6 @@ struct nfp_net {
 
 	int txd_cnt;
 	int rxd_cnt;
-
-	struct nfp_net_tx_ring tx_rings[NFP_NET_MAX_TX_RINGS];
-	struct nfp_net_rx_ring rx_rings[NFP_NET_MAX_RX_RINGS];
 
 	u8 num_irqs;
 	u8 num_r_vecs;
@@ -721,6 +724,7 @@ void nfp_net_rss_write_key(struct nfp_net *nn);
 void nfp_net_coalesce_write_cfg(struct nfp_net *nn);
 int nfp_net_irqs_alloc(struct nfp_net *nn);
 void nfp_net_irqs_disable(struct nfp_net *nn);
+int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt);
 
 #ifdef CONFIG_NFP_NET_DEBUG
 void nfp_net_debugfs_create(void);
