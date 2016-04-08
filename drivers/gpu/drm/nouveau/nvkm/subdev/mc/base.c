@@ -60,9 +60,18 @@ nvkm_mc_intr(struct nvkm_mc *mc, bool *handled)
 	struct nvkm_device *device = mc->subdev.device;
 	struct nvkm_subdev *subdev;
 	const struct nvkm_mc_map *map = mc->func->intr;
-	u32 stat, intr;
+	u32 stat, intr = nvkm_mc_intr_mask(mc);
+	u64 subdevs;
 
-	stat = intr = nvkm_mc_intr_mask(mc);
+	stat = nvkm_top_intr(device->top, intr, &subdevs);
+	while (subdevs) {
+		enum nvkm_devidx subidx = __ffs64(subdevs);
+		subdev = nvkm_device_subdev(device, subidx);
+		if (subdev)
+			nvkm_subdev_intr(subdev);
+		subdevs &= ~BIT_ULL(subidx);
+	}
+
 	while (map->stat) {
 		if (intr & map->stat) {
 			subdev = nvkm_device_subdev(device, map->unit);
