@@ -16,6 +16,7 @@ void nvkm_mc_unk260(struct nvkm_mc *, u32 data);
 int nv04_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
 int nv44_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
 int nv50_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
+int g84_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
 int g98_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
 int gt215_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
 int gf100_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
