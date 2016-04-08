@@ -227,7 +227,6 @@ struct das1800_board {
 	const char *name;
 	unsigned char id;
 	int ai_speed;		/* max conversion period in nanoseconds */
-	int resolution;		/* bits of ai resolution */
 	int qram_len;		/* length of card's channel / gain queue */
 	int do_n_chan;		/* number of digital output channels */
 	int ao_ability;		/* 0 == no analog out, 1 == basic analog out, 2 == waveform analog out */
@@ -244,7 +243,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1701st",
 		.id		= DAS1800_ID_ST,
 		.ai_speed	= 6250,
-		.resolution	= 12,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 0,
@@ -255,7 +253,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1701st-da",
 		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 6250,
-		.resolution	= 12,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 1,
@@ -266,7 +263,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1702st",
 		.id		= DAS1800_ID_ST,
 		.ai_speed	= 6250,
-		.resolution	= 12,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 0,
@@ -277,7 +273,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1702st-da",
 		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 6250,
-		.resolution	= 12,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 1,
@@ -288,7 +283,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1702hr",
 		.id		= DAS1800_ID_HR,
 		.ai_speed	= 20000,
-		.resolution	= 16,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 0,
@@ -299,7 +293,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1702hr-da",
 		.id		= DAS1800_ID_HR_DA,
 		.ai_speed	= 20000,
-		.resolution	= 16,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 1,
@@ -310,7 +303,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1701ao",
 		.id		= DAS1800_ID_AO,
 		.ai_speed	= 6250,
-		.resolution	= 12,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 2,
@@ -321,7 +313,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1702ao",
 		.id		= DAS1800_ID_AO,
 		.ai_speed	= 6250,
-		.resolution	= 12,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 2,
@@ -332,7 +323,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1801st",
 		.id		= DAS1800_ID_ST,
 		.ai_speed	= 3000,
-		.resolution	= 12,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 0,
@@ -343,7 +333,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1801st-da",
 		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 3000,
-		.resolution	= 12,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 1,
@@ -354,7 +343,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1802st",
 		.id		= DAS1800_ID_ST,
 		.ai_speed	= 3000,
-		.resolution	= 12,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 0,
@@ -365,7 +353,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1802st-da",
 		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 3000,
-		.resolution	= 12,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 1,
@@ -376,7 +363,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1802hr",
 		.id		= DAS1800_ID_HR,
 		.ai_speed	= 10000,
-		.resolution	= 16,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 0,
@@ -387,7 +373,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1802hr-da",
 		.id		= DAS1800_ID_HR_DA,
 		.ai_speed	= 10000,
-		.resolution	= 16,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 1,
@@ -398,7 +383,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1801hc",
 		.id		= DAS1800_ID_HC,
 		.ai_speed	= 3000,
-		.resolution	= 12,
 		.qram_len	= 64,
 		.do_n_chan	= 8,
 		.ao_ability	= 1,
@@ -409,7 +393,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1802hc",
 		.id		= DAS1800_ID_HC,
 		.ai_speed	= 3000,
-		.resolution	= 12,
 		.qram_len	= 64,
 		.do_n_chan	= 8,
 		.ao_ability	= 1,
@@ -420,7 +403,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1801ao",
 		.id		= DAS1800_ID_AO,
 		.ai_speed	= 3000,
-		.resolution	= 12,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 2,
@@ -431,7 +413,6 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1802ao",
 		.id		= DAS1800_ID_AO,
 		.ai_speed	= 3000,
-		.resolution	= 12,
 		.qram_len	= 256,
 		.do_n_chan	= 4,
 		.ao_ability	= 2,
@@ -1298,6 +1279,7 @@ static int das1800_attach(struct comedi_device *dev,
 	struct das1800_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int irq = it->options[1];
+	bool is_16bit;
 	int ret;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
@@ -1312,6 +1294,8 @@ static int das1800_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 	board = dev->board_ptr;
+
+	is_16bit = board->id == DAS1800_ID_HR || board->id == DAS1800_ID_HR_DA;
 
 	/*  if it is an 'ao' board with fancy analog out then we need extra io ports */
 	if (board->ao_ability == 2) {
@@ -1377,7 +1361,7 @@ static int das1800_attach(struct comedi_device *dev,
 	if (board->id != DAS1800_ID_HC)
 		s->subdev_flags	|= SDF_COMMON;
 	s->n_chan	= board->qram_len;
-	s->maxdata	= (1 << board->resolution) - 1;
+	s->maxdata	= is_16bit ? 0xffff : 0x0fff;
 	s->range_table	= board->range_ai;
 	s->insn_read	= das1800_ai_insn_read;
 	if (dev->irq) {
@@ -1397,7 +1381,7 @@ static int das1800_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= board->ao_n_chan;
-		s->maxdata	= (1 << board->resolution) - 1;
+		s->maxdata	= is_16bit ? 0xffff : 0x0fff;
 		s->range_table	= &range_bipolar10;
 		s->insn_write	= das1800_ao_insn_write;
 	} else {
