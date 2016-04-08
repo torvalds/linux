@@ -27,7 +27,7 @@ void zfcp_unit_scsi_scan(struct zfcp_unit *unit)
 
 	if (rport && rport->port_state == FC_PORTSTATE_ONLINE)
 		scsi_scan_target(&rport->dev, 0, rport->scsi_target_id, lun,
-				 SCSI_SCAN_RESCAN);
+				 SCSI_SCAN_MANUAL);
 }
 
 static void zfcp_unit_scsi_scan_work(struct work_struct *work)
