@@ -1085,7 +1085,11 @@ static int vi_common_early_init(void *handle)
 			AMD_CG_SUPPORT_GFX_CGCG |
 			AMD_CG_SUPPORT_GFX_CGLS |
 			AMD_CG_SUPPORT_SDMA_MGCG |
-			AMD_CG_SUPPORT_SDMA_LS;
+			AMD_CG_SUPPORT_SDMA_LS |
+			AMD_CG_SUPPORT_BIF_LS |
+			AMD_CG_SUPPORT_HDP_MGCG |
+			AMD_CG_SUPPORT_HDP_LS |
+			AMD_CG_SUPPORT_ROM_MGCG;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x3c;
 		break;
@@ -1188,13 +1192,13 @@ static int vi_common_soft_reset(void *handle)
 }
 
 static void fiji_update_bif_medium_grain_light_sleep(struct amdgpu_device *adev,
-		bool enable)
+						     bool enable)
 {
 	uint32_t temp, data;
 
 	temp = data = RREG32_PCIE(ixPCIE_CNTL2);
 
-	if (enable)
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_BIF_LS))
 		data |= PCIE_CNTL2__SLV_MEM_LS_EN_MASK |
 				PCIE_CNTL2__MST_MEM_LS_EN_MASK |
 				PCIE_CNTL2__REPLAY_MEM_LS_EN_MASK;
@@ -1208,13 +1212,13 @@ static void fiji_update_bif_medium_grain_light_sleep(struct amdgpu_device *adev,
 }
 
 static void fiji_update_hdp_medium_grain_clock_gating(struct amdgpu_device *adev,
-		bool enable)
+						      bool enable)
 {
 	uint32_t temp, data;
 
 	temp = data = RREG32(mmHDP_HOST_PATH_CNTL);
 
-	if (enable)
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_HDP_MGCG))
 		data &= ~HDP_HOST_PATH_CNTL__CLOCK_GATING_DIS_MASK;
 	else
 		data |= HDP_HOST_PATH_CNTL__CLOCK_GATING_DIS_MASK;
@@ -1230,7 +1234,7 @@ static void fiji_update_hdp_light_sleep(struct amdgpu_device *adev,
 
 	temp = data = RREG32(mmHDP_MEM_POWER_LS);
 
-	if (enable)
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_HDP_LS))
 		data |= HDP_MEM_POWER_LS__LS_ENABLE_MASK;
 	else
 		data &= ~HDP_MEM_POWER_LS__LS_ENABLE_MASK;
@@ -1240,13 +1244,13 @@ static void fiji_update_hdp_light_sleep(struct amdgpu_device *adev,
 }
 
 static void fiji_update_rom_medium_grain_clock_gating(struct amdgpu_device *adev,
-		bool enable)
+						      bool enable)
 {
 	uint32_t temp, data;
 
 	temp = data = RREG32_SMC(ixCGTT_ROM_CLK_CTRL0);
 
-	if (enable)
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_ROM_MGCG))
 		data &= ~(CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK |
 				CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE1_MASK);
 	else
@@ -1258,7 +1262,7 @@ static void fiji_update_rom_medium_grain_clock_gating(struct amdgpu_device *adev
 }
 
 static int vi_common_set_clockgating_state(void *handle,
-					    enum amd_clockgating_state state)
+					   enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
