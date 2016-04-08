@@ -545,7 +545,8 @@ static void das1800_handle_dma(struct comedi_device *dev,
 	}
 }
 
-static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
+static int das1800_ai_cancel(struct comedi_device *dev,
+			     struct comedi_subdevice *s)
 {
 	struct das1800_private *devpriv = dev->private;
 	struct comedi_isadma *dma = devpriv->dma;
@@ -709,10 +710,9 @@ static int das1800_ai_check_chanlist(struct comedi_device *dev,
 	return 0;
 }
 
-/* test analog input cmd */
-static int das1800_ai_do_cmdtest(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_cmd *cmd)
+static int das1800_ai_cmdtest(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_cmd *cmd)
 {
 	const struct das1800_board *board = dev->board_ptr;
 	int err = 0;
@@ -973,9 +973,8 @@ static void program_chanlist(struct comedi_device *dev,
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 }
 
-/* analog input do_cmd */
-static int das1800_ai_do_cmd(struct comedi_device *dev,
-			     struct comedi_subdevice *s)
+static int das1800_ai_cmd(struct comedi_device *dev,
+			  struct comedi_subdevice *s)
 {
 	struct das1800_private *devpriv = dev->private;
 	int control_a, control_c;
@@ -998,7 +997,7 @@ static int das1800_ai_do_cmd(struct comedi_device *dev,
 		devpriv->irq_dma_bits |= FIMD;
 	}
 
-	das1800_cancel(dev, s);
+	das1800_ai_cancel(dev, s);
 
 	devpriv->ai_is_unipolar = comedi_range_is_unipolar(s, range0);
 
@@ -1037,10 +1036,10 @@ static int das1800_ai_do_cmd(struct comedi_device *dev,
 	return 0;
 }
 
-/* read analog input */
-static int das1800_ai_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int das1800_ai_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
@@ -1353,25 +1352,25 @@ static int das1800_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	/* analog input subdevice */
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_DIFF | SDF_GROUND;
 	if (board->common)
-		s->subdev_flags |= SDF_COMMON;
-	s->n_chan = board->qram_len;
-	s->maxdata = (1 << board->resolution) - 1;
-	s->range_table = board->range_ai;
-	s->insn_read = das1800_ai_rinsn;
+		s->subdev_flags	|= SDF_COMMON;
+	s->n_chan	= board->qram_len;
+	s->maxdata	= (1 << board->resolution) - 1;
+	s->range_table	= board->range_ai;
+	s->insn_read	= das1800_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
-		s->subdev_flags |= SDF_CMD_READ;
-		s->len_chanlist = s->n_chan;
-		s->do_cmd = das1800_ai_do_cmd;
-		s->do_cmdtest = das1800_ai_do_cmdtest;
-		s->poll = das1800_ai_poll;
-		s->cancel = das1800_cancel;
-		s->munge = das1800_ai_munge;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= s->n_chan;
+		s->do_cmd	= das1800_ai_cmd;
+		s->do_cmdtest	= das1800_ai_cmdtest;
+		s->poll		= das1800_ai_poll;
+		s->cancel	= das1800_ai_cancel;
+		s->munge	= das1800_ai_munge;
 	}
 
 	/* Analog Output subdevice */
@@ -1405,7 +1404,7 @@ static int das1800_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= das1800_do_insn_bits;
 
-	das1800_cancel(dev, dev->read_subdev);
+	das1800_ai_cancel(dev, dev->read_subdev);
 
 	/*  initialize digital out channels */
 	outb(0, dev->iobase + DAS1800_DIGITAL);
