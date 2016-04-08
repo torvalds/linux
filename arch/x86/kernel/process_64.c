@@ -566,10 +566,10 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 		break;
 	case ARCH_GET_FS: {
 		unsigned long base;
-		if (task->thread.fsindex == FS_TLS_SEL)
-			base = read_32bit_tls(task, FS_TLS);
-		else if (doit)
+		if (doit)
 			rdmsrl(MSR_FS_BASE, base);
+		else if (task->thread.fsindex == FS_TLS_SEL)
+			base = read_32bit_tls(task, FS_TLS);
 		else
 			base = task->thread.fs;
 		ret = put_user(base, (unsigned long __user *)addr);
@@ -577,16 +577,11 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 	}
 	case ARCH_GET_GS: {
 		unsigned long base;
-		unsigned gsindex;
-		if (task->thread.gsindex == GS_TLS_SEL)
+		if (doit)
+			rdmsrl(MSR_KERNEL_GS_BASE, base);
+		else if (task->thread.gsindex == GS_TLS_SEL)
 			base = read_32bit_tls(task, GS_TLS);
-		else if (doit) {
-			savesegment(gs, gsindex);
-			if (gsindex)
-				rdmsrl(MSR_KERNEL_GS_BASE, base);
-			else
-				base = task->thread.gs;
-		} else
+		else
 			base = task->thread.gs;
 		ret = put_user(base, (unsigned long __user *)addr);
 		break;
