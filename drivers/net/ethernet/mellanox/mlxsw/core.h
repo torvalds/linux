@@ -43,6 +43,7 @@
 #include <linux/gfp.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
+#include <net/devlink.h>
 
 #include "trap.h"
 #include "reg.h"
@@ -61,6 +62,8 @@ struct mlxsw_driver;
 struct mlxsw_bus;
 struct mlxsw_bus_info;
 
+void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core);
+
 int mlxsw_core_driver_register(struct mlxsw_driver *mlxsw_driver);
 void mlxsw_core_driver_unregister(struct mlxsw_driver *mlxsw_driver);
 
@@ -74,10 +77,9 @@ struct mlxsw_tx_info {
 	bool is_emad;
 };
 
-bool mlxsw_core_skb_transmit_busy(void *driver_priv,
+bool mlxsw_core_skb_transmit_busy(struct mlxsw_core *mlxsw_core,
 				  const struct mlxsw_tx_info *tx_info);
-
-int mlxsw_core_skb_transmit(void *driver_priv, struct sk_buff *skb,
+int mlxsw_core_skb_transmit(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 			    const struct mlxsw_tx_info *tx_info);
 
 struct mlxsw_rx_listener {
@@ -131,6 +133,15 @@ u8 mlxsw_core_lag_mapping_get(struct mlxsw_core *mlxsw_core,
 void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
 				  u16 lag_id, u8 local_port);
 
+struct mlxsw_core_port {
+	struct devlink_port devlink_port;
+};
+
+int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core,
+			 struct mlxsw_core_port *mlxsw_core_port, u8 local_port,
+			 struct net_device *dev, bool split, u32 split_group);
+void mlxsw_core_port_fini(struct mlxsw_core_port *mlxsw_core_port);
+
 #define MLXSW_CONFIG_PROFILE_SWID_COUNT 8
 
 struct mlxsw_swid_config {
@@ -183,11 +194,12 @@ struct mlxsw_driver {
 	const char *kind;
 	struct module *owner;
 	size_t priv_size;
-	int (*init)(void *driver_priv, struct mlxsw_core *mlxsw_core,
+	int (*init)(struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_bus_info *mlxsw_bus_info);
-	void (*fini)(void *driver_priv);
-	int (*port_split)(void *driver_priv, u8 local_port, unsigned int count);
-	int (*port_unsplit)(void *driver_priv, u8 local_port);
+	void (*fini)(struct mlxsw_core *mlxsw_core);
+	int (*port_split)(struct mlxsw_core *mlxsw_core, u8 local_port,
+			  unsigned int count);
+	int (*port_unsplit)(struct mlxsw_core *mlxsw_core, u8 local_port);
 	void (*txhdr_construct)(struct sk_buff *skb,
 				const struct mlxsw_tx_info *tx_info);
 	u8 txhdr_len;
