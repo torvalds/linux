@@ -1948,9 +1948,10 @@ static u8 mlxsw_sp_cluster_base_port_get(u8 local_port)
 	return local_port - offset;
 }
 
-static int mlxsw_sp_port_split(void *priv, u8 local_port, unsigned int count)
+static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
+			       unsigned int count)
 {
-	struct mlxsw_sp *mlxsw_sp = priv;
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	u8 width = MLXSW_PORT_MODULE_MAX_WIDTH / count;
 	u8 module, cur_width, base_port;
@@ -2022,9 +2023,9 @@ err_port_create:
 	return err;
 }
 
-static int mlxsw_sp_port_unsplit(void *priv, u8 local_port)
+static int mlxsw_sp_port_unsplit(struct mlxsw_core *mlxsw_core, u8 local_port)
 {
-	struct mlxsw_sp *mlxsw_sp = priv;
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	u8 module, cur_width, base_port;
 	unsigned int count;
@@ -2369,10 +2370,10 @@ static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(slcr), slcr_pl);
 }
 
-static int mlxsw_sp_init(void *priv, struct mlxsw_core *mlxsw_core,
+static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 			 const struct mlxsw_bus_info *mlxsw_bus_info)
 {
-	struct mlxsw_sp *mlxsw_sp = priv;
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	int err;
 
 	mlxsw_sp->core = mlxsw_core;
@@ -2443,9 +2444,9 @@ err_event_register:
 	return err;
 }
 
-static void mlxsw_sp_fini(void *priv)
+static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 {
-	struct mlxsw_sp *mlxsw_sp = priv;
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
 	mlxsw_sp_switchdev_fini(mlxsw_sp);
 	mlxsw_sp_traps_fini(mlxsw_sp);

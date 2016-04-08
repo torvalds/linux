@@ -114,6 +114,12 @@ struct mlxsw_core {
 	/* driver_priv has to be always the last item */
 };
 
+void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core)
+{
+	return mlxsw_core->driver_priv;
+}
+EXPORT_SYMBOL(mlxsw_core_driver_priv);
+
 struct mlxsw_rx_listener_item {
 	struct list_head list;
 	struct mlxsw_rx_listener rxl;
@@ -795,8 +801,7 @@ static int mlxsw_devlink_port_split(struct devlink *devlink,
 		return -EINVAL;
 	if (!mlxsw_core->driver->port_split)
 		return -EOPNOTSUPP;
-	return mlxsw_core->driver->port_split(mlxsw_core->driver_priv,
-					      port_index, count);
+	return mlxsw_core->driver->port_split(mlxsw_core, port_index, count);
 }
 
 static int mlxsw_devlink_port_unsplit(struct devlink *devlink,
@@ -808,8 +813,7 @@ static int mlxsw_devlink_port_unsplit(struct devlink *devlink,
 		return -EINVAL;
 	if (!mlxsw_core->driver->port_unsplit)
 		return -EOPNOTSUPP;
-	return mlxsw_core->driver->port_unsplit(mlxsw_core->driver_priv,
-						port_index);
+	return mlxsw_core->driver->port_unsplit(mlxsw_core, port_index);
 }
 
 static const struct devlink_ops mlxsw_devlink_ops = {
@@ -880,8 +884,7 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_devlink_register;
 
-	err = mlxsw_driver->init(mlxsw_core->driver_priv, mlxsw_core,
-				 mlxsw_bus_info);
+	err = mlxsw_driver->init(mlxsw_core, mlxsw_bus_info);
 	if (err)
 		goto err_driver_init;
 
@@ -892,7 +895,7 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	return 0;
 
 err_debugfs_init:
-	mlxsw_core->driver->fini(mlxsw_core->driver_priv);
+	mlxsw_core->driver->fini(mlxsw_core);
 err_driver_init:
 	devlink_unregister(devlink);
 err_devlink_register:
@@ -918,7 +921,7 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core)
 	struct devlink *devlink = priv_to_devlink(mlxsw_core);
 
 	mlxsw_core_debugfs_fini(mlxsw_core);
-	mlxsw_core->driver->fini(mlxsw_core->driver_priv);
+	mlxsw_core->driver->fini(mlxsw_core);
 	devlink_unregister(devlink);
 	mlxsw_emad_fini(mlxsw_core);
 	mlxsw_core->bus->fini(mlxsw_core->bus_priv);

@@ -1447,10 +1447,10 @@ static int mlxsw_sx_flood_init(struct mlxsw_sx *mlxsw_sx)
 	return mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(sgcr), sgcr_pl);
 }
 
-static int mlxsw_sx_init(void *priv, struct mlxsw_core *mlxsw_core,
+static int mlxsw_sx_init(struct mlxsw_core *mlxsw_core,
 			 const struct mlxsw_bus_info *mlxsw_bus_info)
 {
-	struct mlxsw_sx *mlxsw_sx = priv;
+	struct mlxsw_sx *mlxsw_sx = mlxsw_core_driver_priv(mlxsw_core);
 	int err;
 
 	mlxsw_sx->core = mlxsw_core;
@@ -1497,9 +1497,9 @@ err_event_register:
 	return err;
 }
 
-static void mlxsw_sx_fini(void *priv)
+static void mlxsw_sx_fini(struct mlxsw_core *mlxsw_core)
 {
-	struct mlxsw_sx *mlxsw_sx = priv;
+	struct mlxsw_sx *mlxsw_sx = mlxsw_core_driver_priv(mlxsw_core);
 
 	mlxsw_sx_traps_fini(mlxsw_sx);
 	mlxsw_sx_event_unregister(mlxsw_sx, MLXSW_TRAP_ID_PUDE);

@@ -62,6 +62,8 @@ struct mlxsw_driver;
 struct mlxsw_bus;
 struct mlxsw_bus_info;
 
+void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core);
+
 int mlxsw_core_driver_register(struct mlxsw_driver *mlxsw_driver);
 void mlxsw_core_driver_unregister(struct mlxsw_driver *mlxsw_driver);
 
@@ -192,11 +194,12 @@ struct mlxsw_driver {
 	const char *kind;
 	struct module *owner;
 	size_t priv_size;
-	int (*init)(void *driver_priv, struct mlxsw_core *mlxsw_core,
+	int (*init)(struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_bus_info *mlxsw_bus_info);
-	void (*fini)(void *driver_priv);
-	int (*port_split)(void *driver_priv, u8 local_port, unsigned int count);
-	int (*port_unsplit)(void *driver_priv, u8 local_port);
+	void (*fini)(struct mlxsw_core *mlxsw_core);
+	int (*port_split)(struct mlxsw_core *mlxsw_core, u8 local_port,
+			  unsigned int count);
+	int (*port_unsplit)(struct mlxsw_core *mlxsw_core, u8 local_port);
 	void (*txhdr_construct)(struct sk_buff *skb,
 				const struct mlxsw_tx_info *tx_info);
 	u8 txhdr_len;
