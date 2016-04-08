@@ -81,8 +81,21 @@ static void
 nvkm_mc_reset_(struct nvkm_mc *mc, enum nvkm_devidx devidx)
 {
 	struct nvkm_device *device = mc->subdev.device;
-	struct nvkm_subdev *subdev = nvkm_device_subdev(device, devidx);
-	u64 pmc_enable = subdev->pmc_enable;
+	const struct nvkm_mc_map *map;
+	u64 pmc_enable = 0;
+
+	for (map = mc->func->reset; map && map->stat; map++) {
+		if (map->unit == devidx) {
+			pmc_enable = map->stat;
+			break;
+		}
+	}
+
+	if (!pmc_enable) {
+		struct nvkm_subdev *subdev = nvkm_device_subdev(device, devidx);
+		pmc_enable = subdev->pmc_enable;
+	}
+
 	if (pmc_enable) {
 		nvkm_mask(device, 0x000200, pmc_enable, 0x00000000);
 		nvkm_mask(device, 0x000200, pmc_enable, pmc_enable);

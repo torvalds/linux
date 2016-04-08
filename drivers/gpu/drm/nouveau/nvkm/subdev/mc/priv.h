@@ -20,6 +20,7 @@ struct nvkm_mc_func {
 	void (*intr_rearm)(struct nvkm_mc *);
 	/* retrieve pending interrupt mask (NV_PMC_INTR) */
 	u32 (*intr_mask)(struct nvkm_mc *);
+	const struct nvkm_mc_map *reset;
 	void (*unk260)(struct nvkm_mc *, u32);
 };
 
