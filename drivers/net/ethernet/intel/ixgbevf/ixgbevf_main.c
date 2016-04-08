@@ -288,9 +288,10 @@ static void ixgbevf_tx_timeout(struct net_device *netdev)
  * ixgbevf_clean_tx_irq - Reclaim resources after transmit completes
  * @q_vector: board private structure
  * @tx_ring: tx ring to clean
+ * @napi_budget: Used to determine if we are in netpoll
  **/
 static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
-				 struct ixgbevf_ring *tx_ring)
+				 struct ixgbevf_ring *tx_ring, int napi_budget)
 {
 	struct ixgbevf_adapter *adapter = q_vector->adapter;
 	struct ixgbevf_tx_buffer *tx_buffer;
@@ -328,7 +329,7 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 		total_packets += tx_buffer->gso_segs;
 
 		/* free the skb */
-		dev_kfree_skb_any(tx_buffer->skb);
+		napi_consume_skb(tx_buffer->skb, napi_budget);
 
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
@@ -1013,8 +1014,10 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 	int per_ring_budget, work_done = 0;
 	bool clean_complete = true;
 
-	ixgbevf_for_each_ring(ring, q_vector->tx)
-		clean_complete &= ixgbevf_clean_tx_irq(q_vector, ring);
+	ixgbevf_for_each_ring(ring, q_vector->tx) {
+		if (!ixgbevf_clean_tx_irq(q_vector, ring, budget))
+			clean_complete = false;
+	}
 
 	if (budget <= 0)
 		return budget;
@@ -1035,7 +1038,8 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 		int cleaned = ixgbevf_clean_rx_irq(q_vector, ring,
 						   per_ring_budget);
 		work_done += cleaned;
-		clean_complete &= (cleaned < per_ring_budget);
+		if (cleaned >= per_ring_budget)
+			clean_complete = false;
 	}
 
 #ifdef CONFIG_NET_RX_BUSY_POLL

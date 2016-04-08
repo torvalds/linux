@@ -817,6 +817,7 @@ static inline u8 ixgbe_max_rss_indices(struct ixgbe_adapter *adapter)
 		return IXGBE_MAX_RSS_INDICES;
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_x550em_a:
 		return IXGBE_MAX_RSS_INDICES_X550;
 	default:
 		return 0;
@@ -860,6 +861,7 @@ enum ixgbe_boards {
 	board_X540,
 	board_X550,
 	board_X550EM_x,
+	board_x550em_a,
 };
 
 extern const struct ixgbe_info ixgbe_82598_info;
@@ -867,6 +869,7 @@ extern const struct ixgbe_info ixgbe_82599_info;
 extern const struct ixgbe_info ixgbe_X540_info;
 extern const struct ixgbe_info ixgbe_X550_info;
 extern const struct ixgbe_info ixgbe_X550EM_x_info;
+extern const struct ixgbe_info ixgbe_x550em_a_info;
 #ifdef CONFIG_IXGBE_DCB
 extern const struct dcbnl_rtnl_ops dcbnl_ops;
 #endif

@@ -97,6 +97,7 @@ bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 		case IXGBE_DEV_ID_X540T:
 		case IXGBE_DEV_ID_X540T1:
 		case IXGBE_DEV_ID_X550T:
+		case IXGBE_DEV_ID_X550T1:
 		case IXGBE_DEV_ID_X550EM_X_10G_T:
 			supported = true;
 			break;
@@ -681,6 +682,7 @@ s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw)
 void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw)
 {
 	struct ixgbe_bus_info *bus = &hw->bus;
+	u16 ee_ctrl_4;
 	u32 reg;
 
 	reg = IXGBE_READ_REG(hw, IXGBE_STATUS);
@@ -691,6 +693,13 @@ void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw)
 	reg = IXGBE_READ_REG(hw, IXGBE_FACTPS(hw));
 	if (reg & IXGBE_FACTPS_LFS)
 		bus->func ^= 0x1;
+
+	/* Get MAC instance from EEPROM for configuring CS4227 */
+	if (hw->device_id == IXGBE_DEV_ID_X550EM_A_SFP) {
+		hw->eeprom.ops.read(hw, IXGBE_EEPROM_CTRL_4, &ee_ctrl_4);
+		bus->instance_id = (ee_ctrl_4 & IXGBE_EE_CTRL_4_INST_ID) >>
+				   IXGBE_EE_CTRL_4_INST_ID_SHIFT;
+	}
 }
 
 /**
@@ -2854,6 +2863,7 @@ u16 ixgbe_get_pcie_msix_count_generic(struct ixgbe_hw *hw)
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_x550em_a:
 		pcie_offset = IXGBE_PCIE_MSIX_82599_CAPS;
 		max_msix_count = IXGBE_MAX_MSIX_VECTORS_82599;
 		break;
@@ -3483,18 +3493,27 @@ static u8 ixgbe_calculate_checksum(u8 *buffer, u32 length)
  *  Communicates with the manageability block.  On success return 0
  *  else return IXGBE_ERR_HOST_INTERFACE_COMMAND.
  **/
-s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, u32 *buffer,
+s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, void *buffer,
 				 u32 length, u32 timeout,
 				 bool return_data)
 {
-	u32 hicr, i, bi, fwsts;
 	u32 hdr_size = sizeof(struct ixgbe_hic_hdr);
+	u32 hicr, i, bi, fwsts;
 	u16 buf_len, dword_len;
+	union {
+		struct ixgbe_hic_hdr hdr;
+		u32 u32arr[1];
+	} *bp = buffer;
+	s32 status;
 
-	if (length == 0 || length > IXGBE_HI_MAX_BLOCK_BYTE_LENGTH) {
+	if (!length || length > IXGBE_HI_MAX_BLOCK_BYTE_LENGTH) {
 		hw_dbg(hw, "Buffer length failure buffersize-%d.\n", length);
 		return IXGBE_ERR_HOST_INTERFACE_COMMAND;
 	}
+	/* Take management host interface semaphore */
+	status = hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_SW_MNG_SM);
+	if (status)
+		return status;
 
 	/* Set bit 9 of FWSTS clearing FW reset indication */
 	fwsts = IXGBE_READ_REG(hw, IXGBE_FWSTS);
@@ -3502,26 +3521,27 @@ s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, u32 *buffer,
 
 	/* Check that the host interface is enabled. */
 	hicr = IXGBE_READ_REG(hw, IXGBE_HICR);
-	if ((hicr & IXGBE_HICR_EN) == 0) {
+	if (!(hicr & IXGBE_HICR_EN)) {
 		hw_dbg(hw, "IXGBE_HOST_EN bit disabled.\n");
-		return IXGBE_ERR_HOST_INTERFACE_COMMAND;
+		status = IXGBE_ERR_HOST_INTERFACE_COMMAND;
+		goto rel_out;
 	}
 
 	/* Calculate length in DWORDs. We must be DWORD aligned */
-	if ((length % (sizeof(u32))) != 0) {
+	if (length % sizeof(u32)) {
 		hw_dbg(hw, "Buffer length failure, not aligned to dword");
-		return IXGBE_ERR_INVALID_ARGUMENT;
+		status = IXGBE_ERR_INVALID_ARGUMENT;
+		goto rel_out;
 	}
 
 	dword_len = length >> 2;
 
-	/*
-	 * The device driver writes the relevant command block
+	/* The device driver writes the relevant command block
 	 * into the ram area.
 	 */
 	for (i = 0; i < dword_len; i++)
 		IXGBE_WRITE_REG_ARRAY(hw, IXGBE_FLEX_MNG,
-				      i, cpu_to_le32(buffer[i]));
+				      i, cpu_to_le32(bp->u32arr[i]));
 
 	/* Setting this bit tells the ARC that a new command is pending. */
 	IXGBE_WRITE_REG(hw, IXGBE_HICR, hicr | IXGBE_HICR_C);
@@ -3534,44 +3554,49 @@ s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, u32 *buffer,
 	}
 
 	/* Check command successful completion. */
-	if ((timeout != 0 && i == timeout) ||
-	    (!(IXGBE_READ_REG(hw, IXGBE_HICR) & IXGBE_HICR_SV))) {
+	if ((timeout && i == timeout) ||
+	    !(IXGBE_READ_REG(hw, IXGBE_HICR) & IXGBE_HICR_SV)) {
 		hw_dbg(hw, "Command has failed with no status valid.\n");
-		return IXGBE_ERR_HOST_INTERFACE_COMMAND;
+		status = IXGBE_ERR_HOST_INTERFACE_COMMAND;
+		goto rel_out;
 	}
 
 	if (!return_data)
-		return 0;
+		goto rel_out;
 
 	/* Calculate length in DWORDs */
 	dword_len = hdr_size >> 2;
 
 	/* first pull in the header so we know the buffer length */
 	for (bi = 0; bi < dword_len; bi++) {
-		buffer[bi] = IXGBE_READ_REG_ARRAY(hw, IXGBE_FLEX_MNG, bi);
-		le32_to_cpus(&buffer[bi]);
+		bp->u32arr[bi] = IXGBE_READ_REG_ARRAY(hw, IXGBE_FLEX_MNG, bi);
+		le32_to_cpus(&bp->u32arr[bi]);
 	}
 
 	/* If there is any thing in data position pull it in */
-	buf_len = ((struct ixgbe_hic_hdr *)buffer)->buf_len;
-	if (buf_len == 0)
-		return 0;
+	buf_len = bp->hdr.buf_len;
+	if (!buf_len)
+		goto rel_out;
 
-	if (length < (buf_len + hdr_size)) {
+	if (length < round_up(buf_len, 4) + hdr_size) {
 		hw_dbg(hw, "Buffer not large enough for reply message.\n");
-		return IXGBE_ERR_HOST_INTERFACE_COMMAND;
+		status = IXGBE_ERR_HOST_INTERFACE_COMMAND;
+		goto rel_out;
 	}
 
 	/* Calculate length in DWORDs, add 3 for odd lengths */
 	dword_len = (buf_len + 3) >> 2;
 
-	/* Pull in the rest of the buffer (bi is where we left off)*/
+	/* Pull in the rest of the buffer (bi is where we left off) */
 	for (; bi <= dword_len; bi++) {
-		buffer[bi] = IXGBE_READ_REG_ARRAY(hw, IXGBE_FLEX_MNG, bi);
-		le32_to_cpus(&buffer[bi]);
+		bp->u32arr[bi] = IXGBE_READ_REG_ARRAY(hw, IXGBE_FLEX_MNG, bi);
+		le32_to_cpus(&bp->u32arr[bi]);
 	}
 
-	return 0;
+rel_out:
+	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_SW_MNG_SM);
+
+	return status;
 }
 
 /**
@@ -3594,13 +3619,10 @@ s32 ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
 	int i;
 	s32 ret_val;
 
-	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_SW_MNG_SM))
-		return IXGBE_ERR_SWFW_SYNC;
-
 	fw_cmd.hdr.cmd = FW_CEM_CMD_DRIVER_INFO;
 	fw_cmd.hdr.buf_len = FW_CEM_CMD_DRIVER_INFO_LEN;
 	fw_cmd.hdr.cmd_or_resp.cmd_resv = FW_CEM_CMD_RESERVED;
-	fw_cmd.port_num = (u8)hw->bus.func;
+	fw_cmd.port_num = hw->bus.func;
 	fw_cmd.ver_maj = maj;
 	fw_cmd.ver_min = min;
 	fw_cmd.ver_build = build;
@@ -3612,7 +3634,7 @@ s32 ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
 	fw_cmd.pad2 = 0;
 
 	for (i = 0; i <= FW_CEM_MAX_RETRIES; i++) {
-		ret_val = ixgbe_host_interface_command(hw, (u32 *)&fw_cmd,
+		ret_val = ixgbe_host_interface_command(hw, &fw_cmd,
 						       sizeof(fw_cmd),
 						       IXGBE_HI_COMMAND_TIMEOUT,
 						       true);
@@ -3628,7 +3650,6 @@ s32 ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
 		break;
 	}
 
-	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_SW_MNG_SM);
 	return ret_val;
 }
 
