@@ -452,15 +452,13 @@ static void das1800_ai_handler(struct comedi_device *dev)
 	/* select adc register (spinlock is already held) */
 	outb(ADC, dev->iobase + DAS1800_SELECT);
 
-	/*  dma buffer full */
-	if (devpriv->irq_dma_bits & DMA_ENABLED) {
-		/*  look for data from dma transfer even if dma terminal count hasn't happened yet */
+	/* get samples with dma, fifo, or polled as necessary */
+	if (devpriv->irq_dma_bits & DMA_ENABLED)
 		das1800_handle_dma(dev, s, status);
-	} else if (status & FHF) {	/*  if fifo half full */
+	else if (status & FHF)
 		das1800_handle_fifo_half_full(dev, s);
-	} else if (status & FNE) {	/*  if fifo not empty */
+	else if (status & FNE)
 		das1800_handle_fifo_not_empty(dev, s);
-	}
 
 	/* if the card's fifo has overflowed */
 	if (status & OVF) {
@@ -476,7 +474,7 @@ static void das1800_ai_handler(struct comedi_device *dev)
 	if (status & CT0TC) {
 		/*  clear CT0TC interrupt bit */
 		outb(CLEAR_INTR_MASK & ~CT0TC, dev->iobase + DAS1800_STATUS);
-		/*  make sure we get all remaining data from board before quitting */
+		/* get all remaining samples before quitting */
 		if (devpriv->irq_dma_bits & DMA_ENABLED)
 			das1800_flush_dma(dev, s);
 		else
