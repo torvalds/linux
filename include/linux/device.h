@@ -956,11 +956,6 @@ static inline bool device_async_suspend_enabled(struct device *dev)
 	return !!dev->power.async_suspend;
 }
 
-static inline void pm_suspend_ignore_children(struct device *dev, bool enable)
-{
-	dev->power.ignore_children = enable;
-}
-
 static inline void dev_pm_syscore_device(struct device *dev, bool val)
 {
 #ifdef CONFIG_PM_SLEEP
