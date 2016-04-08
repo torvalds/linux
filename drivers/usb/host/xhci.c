@@ -1103,8 +1103,8 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		/* Resume root hubs only when have pending events. */
 		status = readl(&xhci->op_regs->status);
 		if (status & STS_EINT) {
-			usb_hcd_resume_root_hub(hcd);
 			usb_hcd_resume_root_hub(xhci->shared_hcd);
+			usb_hcd_resume_root_hub(hcd);
 		}
 	}
 
@@ -1119,10 +1119,10 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 
 	/* Re-enable port polling. */
 	xhci_dbg(xhci, "%s: starting port polling.\n", __func__);
-	set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
-	usb_hcd_poll_rh_status(hcd);
 	set_bit(HCD_FLAG_POLL_RH, &xhci->shared_hcd->flags);
 	usb_hcd_poll_rh_status(xhci->shared_hcd);
+	set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
+	usb_hcd_poll_rh_status(hcd);
 
 	return retval;
 }
