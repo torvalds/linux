@@ -91,7 +91,6 @@ Unipolar and bipolar ranges cannot be mixed in the channel/gain list.
 TODO:
 	Make it automatically allocate irq and dma channels if they are not specified
 	Add support for analog out on 'ao' cards
-	read insn for analog out
 */
 
 #include <linux/module.h>
@@ -341,8 +340,6 @@ struct das1800_private {
 	int dma_bits;
 	uint16_t *fifo_buf;	/* bounce buffer for analog input FIFO */
 	unsigned long iobase2;	/* secondary io address used for analog out on 'ao' boards */
-	unsigned short ao_update_bits;	/* remembers the last write to the
-					 * 'update' dac */
 	bool ai_is_unipolar;
 };
 
@@ -1017,7 +1014,6 @@ static int das1800_ao_insn_write(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct das1800_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int update_chan = s->n_chan - 1;
 	unsigned long flags;
@@ -1029,9 +1025,9 @@ static int das1800_ao_insn_write(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		unsigned int val = data[i];
 
+		s->readback[chan] = val;
+
 		val = comedi_offset_munge(s, val);
-		if (chan == update_chan)
-			devpriv->ao_update_bits = val;
 
 		/* load this channel (and update if it's the last channel) */
 		outb(DAC(chan), dev->iobase + DAS1800_SELECT);
@@ -1039,9 +1035,10 @@ static int das1800_ao_insn_write(struct comedi_device *dev,
 
 		/* update all channels */
 		if (chan != update_chan) {
+			val = comedi_offset_munge(s, s->readback[update_chan]);
+
 			outb(DAC(update_chan), dev->iobase + DAS1800_SELECT);
-			outw(devpriv->ao_update_bits,
-			     dev->iobase + DAS1800_DAC);
+			outw(val, dev->iobase + DAS1800_DAC);
 		}
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
@@ -1317,6 +1314,10 @@ static int das1800_attach(struct comedi_device *dev,
 		s->maxdata	= is_16bit ? 0xffff : 0x0fff;
 		s->range_table	= &range_bipolar10;
 		s->insn_write	= das1800_ao_insn_write;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 
 		/* initialize all channels to 0V */
 		for (i = 0; i < s->n_chan; i++) {
