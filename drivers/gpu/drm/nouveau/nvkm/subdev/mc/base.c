@@ -58,7 +58,7 @@ nvkm_mc_intr(struct nvkm_mc *mc, bool *handled)
 {
 	struct nvkm_device *device = mc->subdev.device;
 	struct nvkm_subdev *subdev;
-	const struct nvkm_mc_intr *map = mc->func->intr;
+	const struct nvkm_mc_map *map = mc->func->intr;
 	u32 stat, intr;
 
 	stat = intr = nvkm_mc_intr_mask(mc);

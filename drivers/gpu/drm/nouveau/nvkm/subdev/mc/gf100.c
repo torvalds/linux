@@ -23,7 +23,7 @@
  */
 #include "priv.h"
 
-const struct nvkm_mc_intr
+const struct nvkm_mc_map
 gf100_mc_intr[] = {
 	{ 0x04000000, NVKM_ENGINE_DISP },  /* DISP first, so pageflip timestamps work. */
 	{ 0x00000001, NVKM_ENGINE_MSPPP },

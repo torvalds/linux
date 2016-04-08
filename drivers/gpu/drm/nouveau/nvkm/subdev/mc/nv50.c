@@ -23,7 +23,7 @@
  */
 #include "priv.h"
 
-const struct nvkm_mc_intr
+const struct nvkm_mc_map
 nv50_mc_intr[] = {
 	{ 0x04000000, NVKM_ENGINE_DISP },  /* DISP before FIFO, so pageflip-timestamping works! */
 	{ 0x00000001, NVKM_ENGINE_MPEG },

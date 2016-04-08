@@ -23,7 +23,7 @@
  */
 #include "priv.h"
 
-const struct nvkm_mc_intr
+const struct nvkm_mc_map
 nv04_mc_intr[] = {
 	{ 0x00000001, NVKM_ENGINE_MPEG },	/* NV17- MPEG/ME */
 	{ 0x00000100, NVKM_ENGINE_FIFO },
