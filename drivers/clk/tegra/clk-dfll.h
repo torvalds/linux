@@ -25,6 +25,7 @@
 /**
  * struct tegra_dfll_soc_data - SoC-specific hooks/integration for the DFLL driver
  * @dev: struct device * that holds the OPP table for the DFLL
+ * @max_freq: maximum frequency supported on this SoC
  * @cvb: CPU frequency table for this SoC
  * @init_clock_trimmers: callback to initialize clock trimmers
  * @set_clock_trimmers_high: callback to tune clock trimmers for high voltage
@@ -32,6 +33,7 @@
  */
 struct tegra_dfll_soc_data {
 	struct device *dev;
+	unsigned long max_freq;
 	const struct cvb_table *cvb;
 
 	void (*init_clock_trimmers)(void);

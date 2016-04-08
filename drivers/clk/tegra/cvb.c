@@ -130,3 +130,19 @@ tegra_cvb_add_opp_table(struct device *dev, const struct cvb_table *tables,
 
 	return ERR_PTR(-EINVAL);
 }
+
+void tegra_cvb_remove_opp_table(struct device *dev,
+				const struct cvb_table *table,
+				unsigned long max_freq)
+{
+	unsigned int i;
+
+	for (i = 0; i < MAX_DVFS_FREQS; i++) {
+		const struct cvb_table_freq_entry *entry = &table->entries[i];
+
+		if (!entry->freq || (entry->freq > max_freq))
+			break;
+
+		dev_pm_opp_remove(dev, entry->freq);
+	}
+}

@@ -61,5 +61,8 @@ const struct cvb_table *
 tegra_cvb_add_opp_table(struct device *dev, const struct cvb_table *cvb_tables,
 			size_t count, int process_id, int speedo_id,
 			int speedo_value, unsigned long max_freq);
+void tegra_cvb_remove_opp_table(struct device *dev,
+				const struct cvb_table *table,
+				unsigned long max_freq);
 
 #endif
