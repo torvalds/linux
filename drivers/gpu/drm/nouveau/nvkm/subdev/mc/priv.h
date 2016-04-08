@@ -29,6 +29,7 @@ extern const struct nvkm_mc_map nv04_mc_intr[];
 void nv04_mc_intr_unarm(struct nvkm_mc *);
 void nv04_mc_intr_rearm(struct nvkm_mc *);
 u32 nv04_mc_intr_mask(struct nvkm_mc *);
+extern const struct nvkm_mc_map nv04_mc_reset[];
 
 extern const struct nvkm_mc_map nv17_mc_intr[];
 extern const struct nvkm_mc_map nv17_mc_reset[];
