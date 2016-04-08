@@ -43,11 +43,11 @@ int pcie_port_acpi_setup(struct pci_dev *port, int *srv_mask)
 
 	handle = acpi_find_root_bridge_handle(port);
 	if (!handle)
-		return -EINVAL;
+		return 0;
 
 	root = acpi_pci_find_root(handle);
 	if (!root)
-		return -ENODEV;
+		return 0;
 
 	flags = root->osc_control_set;
 
