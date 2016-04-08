@@ -167,6 +167,10 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 			    obj->madv != I915_MADV_DONTNEED)
 				continue;
 
+			if (flags & I915_SHRINK_VMAPS &&
+			    !is_vmalloc_addr(obj->mapping))
+				continue;
+
 			if ((flags & I915_SHRINK_ACTIVE) == 0 && obj->active)
 				continue;
 
@@ -388,7 +392,11 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 	if (!i915_gem_shrinker_lock_uninterruptible(dev_priv, &slu, 5000))
 		return NOTIFY_DONE;
 
-	freed_pages = i915_gem_shrink_all(dev_priv);
+	freed_pages = i915_gem_shrink(dev_priv, -1UL,
+				      I915_SHRINK_BOUND |
+				      I915_SHRINK_UNBOUND |
+				      I915_SHRINK_ACTIVE |
+				      I915_SHRINK_VMAPS);
 
 	i915_gem_shrinker_unlock_uninterruptible(dev_priv, &slu);
 
