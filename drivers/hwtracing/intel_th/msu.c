@@ -1492,6 +1492,18 @@ static int intel_th_msc_probe(struct intel_th_device *thdev)
 
 static void intel_th_msc_remove(struct intel_th_device *thdev)
 {
+	struct msc *msc = dev_get_drvdata(&thdev->dev);
+	int ret;
+
+	intel_th_msc_deactivate(thdev);
+
+	/*
+	 * Buffers should not be used at this point except if the
+	 * output character device is still open and the parent
+	 * device gets detached from its bus, which is a FIXME.
+	 */
+	ret = msc_buffer_free_unless_used(msc);
+	WARN_ON_ONCE(ret);
 }
 
 static struct intel_th_driver intel_th_msc_driver = {
