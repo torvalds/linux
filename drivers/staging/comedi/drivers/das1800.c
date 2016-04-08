@@ -324,7 +324,7 @@ static const struct das1800_board das1800_boards[] = {
 	 .qram_len = 256,
 	 .common = 1,
 	 .do_n_chan = 4,
-	 .ao_ability = 0,
+	 .ao_ability = 1,
 	 .ao_n_chan = 4,
 	 .range_ai = &range_ai_das1801,
 	 },
