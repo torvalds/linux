@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 
@@ -1106,21 +1107,6 @@ static struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
 	return i2s;
 }
 
-static const struct of_device_id exynos_i2s_match[];
-
-static inline const struct samsung_i2s_dai_data *samsung_i2s_get_driver_data(
-						struct platform_device *pdev)
-{
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
-		const struct of_device_id *match;
-		match = of_match_node(exynos_i2s_match, pdev->dev.of_node);
-		return match ? match->data : NULL;
-	} else {
-		return (struct samsung_i2s_dai_data *)
-				platform_get_device_id(pdev)->driver_data;
-	}
-}
-
 #ifdef CONFIG_PM
 static int i2s_runtime_suspend(struct device *dev)
 {
@@ -1233,9 +1219,13 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 	const struct samsung_i2s_dai_data *i2s_dai_data;
 	int ret;
 
-	/* Call during Seconday interface registration */
-	i2s_dai_data = samsung_i2s_get_driver_data(pdev);
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node)
+		i2s_dai_data = of_device_get_match_data(&pdev->dev);
+	else
+		i2s_dai_data = (struct samsung_i2s_dai_data *)
+				platform_get_device_id(pdev)->driver_data;
 
+	/* Call during the secondary interface registration */
 	if (i2s_dai_data->dai_type == TYPE_SEC) {
 		sec_dai = dev_get_drvdata(&pdev->dev);
 		if (!sec_dai) {
