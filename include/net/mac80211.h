@@ -291,7 +291,7 @@ struct ieee80211_vif_chanctx_switch {
  * @BSS_CHANGED_PS: PS changed for this BSS (STA mode)
  * @BSS_CHANGED_TXPOWER: TX power setting changed for this interface
  * @BSS_CHANGED_P2P_PS: P2P powersave settings (CTWindow, opportunistic PS)
- *	changed (currently only in P2P client mode, GO mode will be later)
+ *	changed
  * @BSS_CHANGED_BEACON_INFO: Data from the AP's beacon became available:
  *	currently dtim_period only is under consideration.
  * @BSS_CHANGED_BANDWIDTH: The bandwidth used by this interface changed,
@@ -526,6 +526,9 @@ struct ieee80211_mu_group_data {
  *	userspace), whereas TPC is disabled if %txpower_type is set to
  *	NL80211_TX_POWER_FIXED (use value configured from userspace)
  * @p2p_noa_attr: P2P NoA attribute for P2P powersave
+ * @allow_p2p_go_ps: indication for AP or P2P GO interface, whether it's allowed
+ *	to use P2P PS mechanism or not. AP/P2P GO is not allowed to use P2P PS
+ *	if it has associated clients without P2P PS support.
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -563,6 +566,7 @@ struct ieee80211_bss_conf {
 	int txpower;
 	enum nl80211_tx_power_setting txpower_type;
 	struct ieee80211_p2p_noa_attr p2p_noa_attr;
+	bool allow_p2p_go_ps;
 };
 
 /**
@@ -709,6 +713,7 @@ enum mac80211_tx_info_flags {
  * @IEEE80211_TX_CTRL_PS_RESPONSE: This frame is a response to a poll
  *	frame (PS-Poll or uAPSD).
  * @IEEE80211_TX_CTRL_RATE_INJECT: This frame is injected with rate information
+ * @IEEE80211_TX_CTRL_AMSDU: This frame is an A-MSDU frame
  *
  * These flags are used in tx_info->control.flags.
  */
@@ -716,6 +721,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTRL_PORT_CTRL_PROTO	= BIT(0),
 	IEEE80211_TX_CTRL_PS_RESPONSE		= BIT(1),
 	IEEE80211_TX_CTRL_RATE_INJECT		= BIT(2),
+	IEEE80211_TX_CTRL_AMSDU			= BIT(3),
 };
 
 /*
@@ -1034,6 +1040,8 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	on this subframe
  * @RX_FLAG_AMPDU_DELIM_CRC_KNOWN: The delimiter CRC field is known (the CRC
  *	is stored in the @ampdu_delimiter_crc field)
+ * @RX_FLAG_MIC_STRIPPED: The mic was stripped of this packet. Decryption was
+ *	done by the hardware
  * @RX_FLAG_LDPC: LDPC was used
  * @RX_FLAG_ONLY_MONITOR: Report frame only to monitor interfaces without
  *	processing it in any regular way.
@@ -1091,6 +1099,7 @@ enum mac80211_rx_flags {
 	RX_FLAG_5MHZ			= BIT(29),
 	RX_FLAG_AMSDU_MORE		= BIT(30),
 	RX_FLAG_RADIOTAP_VENDOR_DATA	= BIT(31),
+	RX_FLAG_MIC_STRIPPED            = BIT_ULL(32),
 };
 
 #define RX_FLAG_STBC_SHIFT		26
@@ -1120,6 +1129,8 @@ enum mac80211_rx_vht_flags {
  *
  * @mactime: value in microseconds of the 64-bit Time Synchronization Function
  * 	(TSF) timer when the first data symbol (MPDU) arrived at the hardware.
+ * @boottime_ns: CLOCK_BOOTTIME timestamp the frame was received at, this is
+ *	needed only for beacons and probe responses that update the scan cache.
  * @device_timestamp: arbitrary timestamp for the device, mac80211 doesn't use
  *	it but can store it and pass it back to the driver for synchronisation
  * @band: the active band when this frame was received
@@ -1146,9 +1157,10 @@ enum mac80211_rx_vht_flags {
  */
 struct ieee80211_rx_status {
 	u64 mactime;
+	u64 boottime_ns;
 	u32 device_timestamp;
 	u32 ampdu_reference;
-	u32 flag;
+	u64 flag;
 	u16 freq;
 	u8 vht_flag;
 	u8 rate_idx;
@@ -1735,6 +1747,8 @@ struct ieee80211_sta_rates {
  *		  size is min(max_amsdu_len, 7935) bytes.
  *	Both additional HT limits must be enforced by the low level driver.
  *	This is defined by the spec (IEEE 802.11-2012 section 8.3.2.2 NOTE 2).
+ * @support_p2p_ps: indicates whether the STA supports P2P PS mechanism or not.
+ * @max_rc_amsdu_len: Maximum A-MSDU size in bytes recommended by rate control.
  * @txq: per-TID data TX queues (if driver uses the TXQ abstraction)
  */
 struct ieee80211_sta {
@@ -1755,6 +1769,8 @@ struct ieee80211_sta {
 	bool mfp;
 	u8 max_amsdu_subframes;
 	u16 max_amsdu_len;
+	bool support_p2p_ps;
+	u16 max_rc_amsdu_len;
 
 	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS];
 
@@ -1968,6 +1984,18 @@ struct ieee80211_txq {
  *	order and does not need to manage its own reorder buffer or BA session
  *	timeout.
  *
+ * @IEEE80211_HW_USES_RSS: The device uses RSS and thus requires parallel RX,
+ *	which implies using per-CPU station statistics.
+ *
+ * @IEEE80211_HW_TX_AMSDU: Hardware (or driver) supports software aggregated
+ *	A-MSDU frames. Requires software tx queueing and fast-xmit support.
+ *	When not using minstrel/minstrel_ht rate control, the driver must
+ *	limit the maximum A-MSDU size based on the current tx rate by setting
+ *	max_rc_amsdu_len in struct ieee80211_sta.
+ *
+ * @IEEE80211_HW_TX_FRAG_LIST: Hardware (or driver) supports sending frag_list
+ *	skbs, needed for zero-copy software A-MSDU.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -2005,6 +2033,9 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_BEACON_TX_STATUS,
 	IEEE80211_HW_NEEDS_UNIQUE_STA_ADDR,
 	IEEE80211_HW_SUPPORTS_REORDERING_BUFFER,
+	IEEE80211_HW_USES_RSS,
+	IEEE80211_HW_TX_AMSDU,
+	IEEE80211_HW_TX_FRAG_LIST,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
@@ -2077,6 +2108,9 @@ enum ieee80211_hw_flags {
  *	size is smaller (an example is LinkSys WRT120N with FW v1.0.07
  *	build 002 Jun 18 2012).
  *
+ * @max_tx_fragments: maximum number of tx buffers per (A)-MSDU, sum
+ *	of 1 + skb_shinfo(skb)->nr_frags for each skb in the frag_list.
+ *
  * @offchannel_tx_hw_queue: HW queue ID to use for offchannel TX
  *	(if %IEEE80211_HW_QUEUE_CONTROL is set)
  *
@@ -2131,6 +2165,7 @@ struct ieee80211_hw {
 	u8 max_rate_tries;
 	u8 max_rx_aggregation_subframes;
 	u8 max_tx_aggregation_subframes;
+	u8 max_tx_fragments;
 	u8 offchannel_tx_hw_queue;
 	u8 radiotap_mcs_details;
 	u16 radiotap_vht_details;
@@ -3348,6 +3383,10 @@ enum ieee80211_reconfig_type {
  *	the function call.
  *
  * @wake_tx_queue: Called when new packets have been added to the queue.
+ * @sync_rx_queues: Process all pending frames in RSS queues. This is a
+ *	synchronization which is needed in case driver has in its RSS queues
+ *	pending frames that were received prior to the control path action
+ *	currently taken (e.g. disassociation) but are not processed yet.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -3585,6 +3624,7 @@ struct ieee80211_ops {
 
 	void (*wake_tx_queue)(struct ieee80211_hw *hw,
 			      struct ieee80211_txq *txq);
+	void (*sync_rx_queues)(struct ieee80211_hw *hw);
 };
 
 /**
@@ -3838,11 +3878,12 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw);
  * This function must be called with BHs disabled.
  *
  * @hw: the hardware this frame came in on
+ * @sta: the station the frame was received from, or %NULL
  * @skb: the buffer to receive, owned by mac80211 after this call
  * @napi: the NAPI context
  */
-void ieee80211_rx_napi(struct ieee80211_hw *hw, struct sk_buff *skb,
-		       struct napi_struct *napi);
+void ieee80211_rx_napi(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+		       struct sk_buff *skb, struct napi_struct *napi);
 
 /**
  * ieee80211_rx - receive frame
@@ -3866,7 +3907,7 @@ void ieee80211_rx_napi(struct ieee80211_hw *hw, struct sk_buff *skb,
  */
 static inline void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
-	ieee80211_rx_napi(hw, skb, NULL);
+	ieee80211_rx_napi(hw, NULL, skb, NULL);
 }
 
 /**

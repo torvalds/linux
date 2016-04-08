@@ -399,7 +399,10 @@ static int __init wireless_nlevent_init(void)
 	if (err)
 		return err;
 
-	return register_netdevice_notifier(&wext_netdev_notifier);
+	err = register_netdevice_notifier(&wext_netdev_notifier);
+	if (err)
+		unregister_pernet_subsys(&wext_pernet_ops);
+	return err;
 }
 
 subsys_initcall(wireless_nlevent_init);

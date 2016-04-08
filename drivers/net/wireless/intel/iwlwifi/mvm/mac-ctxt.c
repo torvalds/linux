@@ -1499,5 +1499,5 @@ void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 
 	/* pass it as regular rx to mac80211 */
-	ieee80211_rx_napi(mvm->hw, skb, NULL);
+	ieee80211_rx_napi(mvm->hw, NULL, skb, NULL);
 }

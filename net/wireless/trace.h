@@ -1259,6 +1259,7 @@ TRACE_EVENT(rdev_connect,
 		__field(bool, privacy)
 		__field(u32, wpa_versions)
 		__field(u32, flags)
+		MAC_ENTRY(prev_bssid)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
@@ -1270,13 +1271,14 @@ TRACE_EVENT(rdev_connect,
 		__entry->privacy = sme->privacy;
 		__entry->wpa_versions = sme->crypto.wpa_versions;
 		__entry->flags = sme->flags;
+		MAC_ASSIGN(prev_bssid, sme->prev_bssid);
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", bssid: " MAC_PR_FMT
 		  ", ssid: %s, auth type: %d, privacy: %s, wpa versions: %u, "
-		  "flags: %u",
+		  "flags: %u, previous bssid: " MAC_PR_FMT,
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(bssid), __entry->ssid,
 		  __entry->auth_type, BOOL_TO_STR(__entry->privacy),
-		  __entry->wpa_versions, __entry->flags)
+		  __entry->wpa_versions, __entry->flags, MAC_PR_ARG(prev_bssid))
 );
 
 TRACE_EVENT(rdev_set_cqm_rssi_config,

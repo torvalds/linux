@@ -696,6 +696,11 @@ struct ieee80211_if_mesh {
 
 	/* offset from skb->data while building IE */
 	int meshconf_offset;
+
+	struct mesh_table *mesh_paths;
+	struct mesh_table *mpp_paths; /* Store paths for MPP&MAP */
+	int mesh_paths_generation;
+	int mpp_paths_generation;
 };
 
 #ifdef CONFIG_MAC80211_MESH
@@ -797,6 +802,7 @@ struct mac80211_qos_map {
 enum txq_info_flags {
 	IEEE80211_TXQ_STOP,
 	IEEE80211_TXQ_AMPDU,
+	IEEE80211_TXQ_NO_AMSDU,
 };
 
 struct txq_info {
@@ -1488,6 +1494,11 @@ u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata);
 u64 ieee80211_mgmt_tx_cookie(struct ieee80211_local *local);
 int ieee80211_attach_ack_skb(struct ieee80211_local *local, struct sk_buff *skb,
 			     u64 *cookie, gfp_t gfp);
+
+void ieee80211_check_fast_rx(struct sta_info *sta);
+void __ieee80211_check_fast_rx_iface(struct ieee80211_sub_if_data *sdata);
+void ieee80211_check_fast_rx_iface(struct ieee80211_sub_if_data *sdata);
+void ieee80211_clear_fast_rx(struct sta_info *sta);
 
 /* STA code */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata);

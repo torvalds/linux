@@ -319,7 +319,8 @@ static int sctp_transport_walk_start(struct seq_file *seq)
 	struct sctp_ht_iter *iter = seq->private;
 	int err;
 
-	err = rhashtable_walk_init(&sctp_transport_hashtable, &iter->hti);
+	err = rhashtable_walk_init(&sctp_transport_hashtable, &iter->hti,
+				   GFP_KERNEL);
 	if (err)
 		return err;
 
