@@ -544,7 +544,7 @@ static void setup_itct_v2_hw(struct hisi_hba *hisi_hba,
 	}
 
 	qw0 |= ((1 << ITCT_HDR_VALID_OFF) |
-		(device->max_linkrate << ITCT_HDR_MCR_OFF) |
+		(device->linkrate << ITCT_HDR_MCR_OFF) |
 		(1 << ITCT_HDR_VLN_OFF) |
 		(port->id << ITCT_HDR_PORT_ID_OFF));
 	itct->qw0 = cpu_to_le64(qw0);
