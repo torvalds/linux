@@ -300,7 +300,7 @@ gk104_fifo_intr_fault(struct gk104_fifo *fifo, int unit)
 	struct nvkm_engine *engine = NULL;
 	struct nvkm_fifo_chan *chan;
 	unsigned long flags;
-	char gpcid[8] = "";
+	char gpcid[8] = "", en[16] = "";
 
 	er = nvkm_enum_find(fifo->func->fault.reason, reason);
 	eu = nvkm_enum_find(fifo->func->fault.engine, unit);
@@ -328,13 +328,27 @@ gk104_fifo_intr_fault(struct gk104_fifo *fifo, int unit)
 		}
 	}
 
+	if (eu == NULL) {
+		enum nvkm_devidx engidx = nvkm_top_fault(device->top, unit);
+		if (engidx < NVKM_SUBDEV_NR) {
+			const char *src = nvkm_subdev_name[engidx];
+			char *dst = en;
+			do {
+				*dst++ = toupper(*src++);
+			} while(*src);
+			engine = nvkm_device_engine(device, engidx);
+		}
+	} else {
+		snprintf(en, sizeof(en), "%s", eu->name);
+	}
+
 	chan = nvkm_fifo_chan_inst(&fifo->base, (u64)inst << 12, &flags);
 
 	nvkm_error(subdev,
 		   "%s fault at %010llx engine %02x [%s] client %02x [%s%s] "
 		   "reason %02x [%s] on channel %d [%010llx %s]\n",
 		   write ? "write" : "read", (u64)vahi << 32 | valo,
-		   unit, eu ? eu->name : "", client, gpcid, ec ? ec->name : "",
+		   unit, en, client, gpcid, ec ? ec->name : "",
 		   reason, er ? er->name : "", chan ? chan->chid : -1,
 		   (u64)inst << 12,
 		   chan ? chan->object.client->name : "unknown");
