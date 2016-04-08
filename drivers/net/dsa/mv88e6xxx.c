@@ -1193,7 +1193,7 @@ static int _mv88e6xxx_port_based_vlan_map(struct dsa_switch *ds, int port)
 	return _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_BASE_VLAN, reg);
 }
 
-int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
+void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int stp_state;
@@ -1215,14 +1215,12 @@ int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
 		break;
 	}
 
-	/* mv88e6xxx_port_stp_update may be called with softirqs disabled,
+	/* mv88e6xxx_port_stp_state_set may be called with softirqs disabled,
 	 * so we can not update the port state directly but need to schedule it.
 	 */
 	ps->ports[port].state = stp_state;
 	set_bit(port, ps->port_state_update_mask);
 	schedule_work(&ps->bridge_work);
-
-	return 0;
 }
 
 static int _mv88e6xxx_port_pvid(struct dsa_switch *ds, int port, u16 *new,
@@ -1910,31 +1908,27 @@ static int _mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port, u16 vid,
 	return _mv88e6xxx_vtu_loadpurge(ds, &vlan);
 }
 
-int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_vlan *vlan,
-			    struct switchdev_trans *trans)
+void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
+			     const struct switchdev_obj_port_vlan *vlan,
+			     struct switchdev_trans *trans)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	u16 vid;
-	int err = 0;
 
 	mutex_lock(&ps->smi_mutex);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		err = _mv88e6xxx_port_vlan_add(ds, port, vid, untagged);
-		if (err)
-			goto unlock;
-	}
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid)
+		if (_mv88e6xxx_port_vlan_add(ds, port, vid, untagged))
+			netdev_err(ds->ports[port], "failed to add VLAN %d%c\n",
+				   vid, untagged ? 'u' : 't');
 
-	/* no PVID with ranges, otherwise it's a bug */
-	if (pvid)
-		err = _mv88e6xxx_port_pvid_set(ds, port, vlan->vid_end);
-unlock:
+	if (pvid && _mv88e6xxx_port_pvid_set(ds, port, vlan->vid_end))
+		netdev_err(ds->ports[port], "failed to set PVID %d\n",
+			   vlan->vid_end);
+
 	mutex_unlock(&ps->smi_mutex);
-
-	return err;
 }
 
 static int _mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
@@ -2092,21 +2086,19 @@ int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
-			   const struct switchdev_obj_port_fdb *fdb,
-			   struct switchdev_trans *trans)
+void mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
+			    const struct switchdev_obj_port_fdb *fdb,
+			    struct switchdev_trans *trans)
 {
 	int state = is_multicast_ether_addr(fdb->addr) ?
 		GLOBAL_ATU_DATA_STATE_MC_STATIC :
 		GLOBAL_ATU_DATA_STATE_UC_STATIC;
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int ret;
 
 	mutex_lock(&ps->smi_mutex);
-	ret = _mv88e6xxx_port_fdb_load(ds, port, fdb->addr, fdb->vid, state);
+	if (_mv88e6xxx_port_fdb_load(ds, port, fdb->addr, fdb->vid, state))
+		netdev_err(ds->ports[port], "failed to load MAC address\n");
 	mutex_unlock(&ps->smi_mutex);
-
-	return ret;
 }
 
 int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
