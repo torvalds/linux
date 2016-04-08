@@ -490,8 +490,9 @@ static void das1800_ai_handler(struct comedi_device *dev)
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int status = inb(dev->iobase + DAS1800_STATUS);
 
-	/*  select adc for base address + 0 */
+	/* select adc register (spinlock is already held) */
 	outb(ADC, dev->iobase + DAS1800_SELECT);
+
 	/*  dma buffer full */
 	if (devpriv->irq_dma_bits & DMA_ENABLED) {
 		/*  look for data from dma transfer even if dma terminal count hasn't happened yet */
@@ -535,9 +536,14 @@ static int das1800_ai_poll(struct comedi_device *dev,
 {
 	unsigned long flags;
 
-	/*  prevent race with interrupt handler */
+	/*
+	 * Protects the indirect addressing selected by DAS1800_SELECT
+	 * in das1800_ai_handler() also prevents race with das1800_interrupt().
+	 */
 	spin_lock_irqsave(&dev->spinlock, flags);
+
 	das1800_ai_handler(dev);
+
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return comedi_buf_n_bytes_ready(s);
@@ -553,9 +559,12 @@ static irqreturn_t das1800_interrupt(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	/* Prevent race with das1800_ai_poll() on multi processor systems.
-	 * Also protects indirect addressing in das1800_ai_handler */
+	/*
+	 * Protects the indirect addressing selected by DAS1800_SELECT
+	 * in das1800_ai_handler() also prevents race with das1800_ai_poll().
+	 */
 	spin_lock(&dev->spinlock);
+
 	status = inb(dev->iobase + DAS1800_STATUS);
 
 	/* if interrupt was not caused by das-1800 */
@@ -1289,6 +1298,7 @@ static int das1800_attach(struct comedi_device *dev,
 
 		/* initialize all channels to 0V */
 		for (i = 0; i < s->n_chan; i++) {
+			/* spinlock is not necessary during the attach */
 			outb(DAC(i), dev->iobase + DAS1800_SELECT);
 			outw(0, dev->iobase + DAS1800_DAC);
 		}
