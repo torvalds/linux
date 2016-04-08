@@ -1098,10 +1098,10 @@ exit:
 	return n;
 }
 
-/* writes to an analog output channel */
-static int das1800_ao_winsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int das1800_ao_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	const struct das1800_board *board = dev->board_ptr;
 	struct das1800_private *devpriv = dev->private;
@@ -1374,17 +1374,17 @@ static int das1800_attach(struct comedi_device *dev,
 		s->munge = das1800_ai_munge;
 	}
 
-	/* analog out */
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
 	if (board->ao_ability == 1) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITABLE;
-		s->n_chan = board->ao_n_chan;
-		s->maxdata = (1 << board->resolution) - 1;
-		s->range_table = &range_bipolar10;
-		s->insn_write = das1800_ao_winsn;
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITABLE;
+		s->n_chan	= board->ao_n_chan;
+		s->maxdata	= (1 << board->resolution) - 1;
+		s->range_table	= &range_bipolar10;
+		s->insn_write	= das1800_ao_insn_write;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	/* Digital Input subdevice */
