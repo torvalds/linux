@@ -336,17 +336,17 @@ static ssize_t group_addr_store(struct device *d,
 
 static DEVICE_ATTR_RW(group_addr);
 
+static int set_flush(struct net_bridge *br, unsigned long val)
+{
+	br_fdb_flush(br);
+	return 0;
+}
+
 static ssize_t flush_store(struct device *d,
 			   struct device_attribute *attr,
 			   const char *buf, size_t len)
 {
-	struct net_bridge *br = to_bridge(d);
-
-	if (!ns_capable(dev_net(br->dev)->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
-
-	br_fdb_flush(br);
-	return len;
+	return store_bridge_parm(d, buf, len, set_flush);
 }
 static DEVICE_ATTR_WO(flush);
 
