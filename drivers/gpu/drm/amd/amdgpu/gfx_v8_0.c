@@ -558,6 +558,7 @@ static const u32 stoney_mgcg_cgcg_init[] =
 static void gfx_v8_0_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v8_0_set_irq_funcs(struct amdgpu_device *adev);
 static void gfx_v8_0_set_gds_init(struct amdgpu_device *adev);
+static void gfx_v8_0_set_rlc_funcs(struct amdgpu_device *adev);
 
 static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 {
@@ -4250,6 +4251,7 @@ static int gfx_v8_0_early_init(void *handle)
 	gfx_v8_0_set_ring_funcs(adev);
 	gfx_v8_0_set_irq_funcs(adev);
 	gfx_v8_0_set_gds_init(adev);
+	gfx_v8_0_set_rlc_funcs(adev);
 
 	return 0;
 }
@@ -4322,10 +4324,165 @@ static void gfx_v8_0_send_serdes_cmd(struct amdgpu_device *adev,
 	WREG32(mmRLC_SERDES_WR_CTRL, data);
 }
 
-static void fiji_update_medium_grain_clock_gating(struct amdgpu_device *adev,
-						  bool enable)
+#define MSG_ENTER_RLC_SAFE_MODE     1
+#define MSG_EXIT_RLC_SAFE_MODE      0
+
+#define RLC_GPR_REG2__REQ_MASK           0x00000001
+#define RLC_GPR_REG2__MESSAGE__SHIFT     0x00000001
+#define RLC_GPR_REG2__MESSAGE_MASK       0x0000001e
+
+static void cz_enter_rlc_safe_mode(struct amdgpu_device *adev)
+{
+	u32 data = 0;
+	unsigned i;
+
+	data = RREG32(mmRLC_CNTL);
+	if ((data & RLC_CNTL__RLC_ENABLE_F32_MASK) == 0)
+		return;
+
+	if ((adev->cg_flags & (AMD_CG_SUPPORT_GFX_CGCG | AMD_CG_SUPPORT_GFX_MGCG)) ||
+	    (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG | AMD_PG_SUPPORT_GFX_SMG |
+			       AMD_PG_SUPPORT_GFX_DMG))) {
+		data |= RLC_GPR_REG2__REQ_MASK;
+		data &= ~RLC_GPR_REG2__MESSAGE_MASK;
+		data |= (MSG_ENTER_RLC_SAFE_MODE << RLC_GPR_REG2__MESSAGE__SHIFT);
+		WREG32(mmRLC_GPR_REG2, data);
+
+		for (i = 0; i < adev->usec_timeout; i++) {
+			if ((RREG32(mmRLC_GPM_STAT) &
+			     (RLC_GPM_STAT__GFX_CLOCK_STATUS_MASK |
+			      RLC_GPM_STAT__GFX_POWER_STATUS_MASK)) ==
+			    (RLC_GPM_STAT__GFX_CLOCK_STATUS_MASK |
+			     RLC_GPM_STAT__GFX_POWER_STATUS_MASK))
+				break;
+			udelay(1);
+		}
+
+		for (i = 0; i < adev->usec_timeout; i++) {
+			if ((RREG32(mmRLC_GPR_REG2) & RLC_GPR_REG2__REQ_MASK) == 0)
+				break;
+			udelay(1);
+		}
+		adev->gfx.rlc.in_safe_mode = true;
+	}
+}
+
+static void cz_exit_rlc_safe_mode(struct amdgpu_device *adev)
+{
+	u32 data;
+	unsigned i;
+
+	data = RREG32(mmRLC_CNTL);
+	if ((data & RLC_CNTL__RLC_ENABLE_F32_MASK) == 0)
+		return;
+
+	if ((adev->cg_flags & (AMD_CG_SUPPORT_GFX_CGCG | AMD_CG_SUPPORT_GFX_MGCG)) ||
+	    (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG | AMD_PG_SUPPORT_GFX_SMG |
+			       AMD_PG_SUPPORT_GFX_DMG))) {
+		data |= RLC_GPR_REG2__REQ_MASK;
+		data &= ~RLC_GPR_REG2__MESSAGE_MASK;
+		data |= (MSG_EXIT_RLC_SAFE_MODE << RLC_GPR_REG2__MESSAGE__SHIFT);
+		WREG32(mmRLC_GPR_REG2, data);
+		adev->gfx.rlc.in_safe_mode = false;
+	}
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if ((RREG32(mmRLC_GPR_REG2) & RLC_GPR_REG2__REQ_MASK) == 0)
+			break;
+		udelay(1);
+	}
+}
+
+static void iceland_enter_rlc_safe_mode(struct amdgpu_device *adev)
+{
+	u32 data;
+	unsigned i;
+
+	data = RREG32(mmRLC_CNTL);
+	if (!(data & RLC_CNTL__RLC_ENABLE_F32_MASK))
+		return;
+
+	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_CGCG | AMD_CG_SUPPORT_GFX_MGCG)) {
+		data |= RLC_SAFE_MODE__CMD_MASK;
+		data &= ~RLC_SAFE_MODE__MESSAGE_MASK;
+		data |= (1 << RLC_SAFE_MODE__MESSAGE__SHIFT);
+		WREG32(mmRLC_SAFE_MODE, data);
+
+		for (i = 0; i < adev->usec_timeout; i++) {
+			if ((RREG32(mmRLC_GPM_STAT) &
+			     (RLC_GPM_STAT__GFX_CLOCK_STATUS_MASK |
+			      RLC_GPM_STAT__GFX_POWER_STATUS_MASK)) ==
+			    (RLC_GPM_STAT__GFX_CLOCK_STATUS_MASK |
+			     RLC_GPM_STAT__GFX_POWER_STATUS_MASK))
+				break;
+			udelay(1);
+		}
+
+		for (i = 0; i < adev->usec_timeout; i++) {
+			if ((RREG32(mmRLC_SAFE_MODE) & RLC_SAFE_MODE__CMD_MASK) == 0)
+				break;
+			udelay(1);
+		}
+		adev->gfx.rlc.in_safe_mode = true;
+	}
+}
+
+static void iceland_exit_rlc_safe_mode(struct amdgpu_device *adev)
+{
+	u32 data = 0;
+	unsigned i;
+
+	data = RREG32(mmRLC_CNTL);
+	if (!(data & RLC_CNTL__RLC_ENABLE_F32_MASK))
+		return;
+
+	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_CGCG | AMD_CG_SUPPORT_GFX_MGCG)) {
+		if (adev->gfx.rlc.in_safe_mode) {
+			data |= RLC_SAFE_MODE__CMD_MASK;
+			data &= ~RLC_SAFE_MODE__MESSAGE_MASK;
+			WREG32(mmRLC_SAFE_MODE, data);
+			adev->gfx.rlc.in_safe_mode = false;
+		}
+	}
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if ((RREG32(mmRLC_SAFE_MODE) & RLC_SAFE_MODE__CMD_MASK) == 0)
+			break;
+		udelay(1);
+	}
+}
+
+static void gfx_v8_0_nop_enter_rlc_safe_mode(struct amdgpu_device *adev)
+{
+	adev->gfx.rlc.in_safe_mode = true;
+}
+
+static void gfx_v8_0_nop_exit_rlc_safe_mode(struct amdgpu_device *adev)
+{
+	adev->gfx.rlc.in_safe_mode = false;
+}
+
+static const struct amdgpu_rlc_funcs cz_rlc_funcs = {
+	.enter_safe_mode = cz_enter_rlc_safe_mode,
+	.exit_safe_mode = cz_exit_rlc_safe_mode
+};
+
+static const struct amdgpu_rlc_funcs iceland_rlc_funcs = {
+	.enter_safe_mode = iceland_enter_rlc_safe_mode,
+	.exit_safe_mode = iceland_exit_rlc_safe_mode
+};
+
+static const struct amdgpu_rlc_funcs gfx_v8_0_nop_rlc_funcs = {
+	.enter_safe_mode = gfx_v8_0_nop_enter_rlc_safe_mode,
+	.exit_safe_mode = gfx_v8_0_nop_exit_rlc_safe_mode
+};
+
+static void gfx_v8_0_update_medium_grain_clock_gating(struct amdgpu_device *adev,
+						      bool enable)
 {
 	uint32_t temp, data;
+
+	adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
 	/* It is disabled by HW by default */
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG)) {
@@ -4349,10 +4506,15 @@ static void fiji_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 
 		/* 3 - RLC_CGTT_MGCG_OVERRIDE */
 		temp = data = RREG32(mmRLC_CGTT_MGCG_OVERRIDE);
-		data &= ~(RLC_CGTT_MGCG_OVERRIDE__CPF_MASK |
-				RLC_CGTT_MGCG_OVERRIDE__RLC_MASK |
-				RLC_CGTT_MGCG_OVERRIDE__MGCG_MASK |
-				RLC_CGTT_MGCG_OVERRIDE__GRBM_MASK);
+		if (adev->flags & AMD_IS_APU)
+			data &= ~(RLC_CGTT_MGCG_OVERRIDE__CPF_MASK |
+				  RLC_CGTT_MGCG_OVERRIDE__RLC_MASK |
+				  RLC_CGTT_MGCG_OVERRIDE__MGCG_MASK);
+		else
+			data &= ~(RLC_CGTT_MGCG_OVERRIDE__CPF_MASK |
+				  RLC_CGTT_MGCG_OVERRIDE__RLC_MASK |
+				  RLC_CGTT_MGCG_OVERRIDE__MGCG_MASK |
+				  RLC_CGTT_MGCG_OVERRIDE__GRBM_MASK);
 
 		if (temp != data)
 			WREG32(mmRLC_CGTT_MGCG_OVERRIDE, data);
@@ -4424,14 +4586,18 @@ static void fiji_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 		/* 7- wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
 		gfx_v8_0_wait_for_rlc_serdes(adev);
 	}
+
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
 }
 
-static void fiji_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
-						  bool enable)
+static void gfx_v8_0_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
+						      bool enable)
 {
 	uint32_t temp, temp1, data, data1;
 
 	temp = data = RREG32(mmRLC_CGCG_CGLS_CTRL);
+
+	adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG)) {
 		/* 1 enable cntx_empty_int_enable/cntx_busy_int_enable/
@@ -4509,22 +4675,24 @@ static void fiji_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
 		if (temp != data)
 			WREG32(mmRLC_CGCG_CGLS_CTRL, data);
 	}
+
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
 }
-static int fiji_update_gfx_clock_gating(struct amdgpu_device *adev,
-					bool enable)
+static int gfx_v8_0_update_gfx_clock_gating(struct amdgpu_device *adev,
+					    bool enable)
 {
 	if (enable) {
 		/* CGCG/CGLS should be enabled after MGCG/MGLS/TS(CG/LS)
 		 * ===  MGCG + MGLS + TS(CG/LS) ===
 		 */
-		fiji_update_medium_grain_clock_gating(adev, enable);
-		fiji_update_coarse_grain_clock_gating(adev, enable);
+		gfx_v8_0_update_medium_grain_clock_gating(adev, enable);
+		gfx_v8_0_update_coarse_grain_clock_gating(adev, enable);
 	} else {
 		/* CGCG/CGLS should be disabled before MGCG/MGLS/TS(CG/LS)
 		 * ===  CGCG + CGLS ===
 		 */
-		fiji_update_coarse_grain_clock_gating(adev, enable);
-		fiji_update_medium_grain_clock_gating(adev, enable);
+		gfx_v8_0_update_coarse_grain_clock_gating(adev, enable);
+		gfx_v8_0_update_medium_grain_clock_gating(adev, enable);
 	}
 	return 0;
 }
@@ -4536,8 +4704,10 @@ static int gfx_v8_0_set_clockgating_state(void *handle,
 
 	switch (adev->asic_type) {
 	case CHIP_FIJI:
-		fiji_update_gfx_clock_gating(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+		gfx_v8_0_update_gfx_clock_gating(adev,
+						 state == AMD_CG_STATE_GATE ? true : false);
 		break;
 	default:
 		break;
@@ -5135,6 +5305,22 @@ static void gfx_v8_0_set_irq_funcs(struct amdgpu_device *adev)
 
 	adev->gfx.priv_inst_irq.num_types = 1;
 	adev->gfx.priv_inst_irq.funcs = &gfx_v8_0_priv_inst_irq_funcs;
+}
+
+static void gfx_v8_0_set_rlc_funcs(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_TOPAZ:
+	case CHIP_STONEY:
+		adev->gfx.rlc.funcs = &iceland_rlc_funcs;
+		break;
+	case CHIP_CARRIZO:
+		adev->gfx.rlc.funcs = &cz_rlc_funcs;
+		break;
+	default:
+		adev->gfx.rlc.funcs = &gfx_v8_0_nop_rlc_funcs;
+		break;
+	}
 }
 
 static void gfx_v8_0_set_gds_init(struct amdgpu_device *adev)
