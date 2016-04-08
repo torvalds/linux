@@ -2926,13 +2926,13 @@ static struct ixgbe_mac_operations mac_ops_x550em_a = {
 	.get_media_type		= ixgbe_get_media_type_X550em,
 	.get_san_mac_addr	= NULL,
 	.get_wwn_prefix		= NULL,
-	.setup_link		= &ixgbe_setup_mac_link_X540,
+	.setup_link		= NULL, /* defined later */
 	.get_link_capabilities	= ixgbe_get_link_capabilities_X550em,
 	.get_bus_info		= ixgbe_get_bus_info_X550em,
 	.setup_sfp		= ixgbe_setup_sfp_modules_X550em,
 	.acquire_swfw_sync	= ixgbe_acquire_swfw_sync_x550em_a,
 	.release_swfw_sync	= ixgbe_release_swfw_sync_x550em_a,
-	.setup_fc		= ixgbe_setup_fc_generic,
+	.setup_fc		= ixgbe_setup_fc_x550em,
 	.read_iosf_sb_reg	= ixgbe_read_iosf_sb_reg_x550a,
 	.write_iosf_sb_reg	= ixgbe_write_iosf_sb_reg_x550a,
 };
