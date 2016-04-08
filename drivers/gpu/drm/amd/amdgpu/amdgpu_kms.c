@@ -382,6 +382,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		struct drm_amdgpu_info_vram_gtt vram_gtt;
 
 		vram_gtt.vram_size = adev->mc.real_vram_size;
+		vram_gtt.vram_size -= adev->vram_pin_size;
 		vram_gtt.vram_cpu_accessible_size = adev->mc.visible_vram_size;
 		vram_gtt.vram_cpu_accessible_size -= adev->vram_pin_size;
 		vram_gtt.gtt_size  = adev->mc.gtt_size;
