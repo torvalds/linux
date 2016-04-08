@@ -40,4 +40,7 @@ void gf100_mc_intr_unarm(struct nvkm_mc *);
 void gf100_mc_intr_rearm(struct nvkm_mc *);
 u32 gf100_mc_intr_mask(struct nvkm_mc *);
 void gf100_mc_unk260(struct nvkm_mc *, u32);
+
+extern const struct nvkm_mc_map gk104_mc_intr[];
+extern const struct nvkm_mc_map gk104_mc_reset[];
 #endif
