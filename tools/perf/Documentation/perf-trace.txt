@@ -117,6 +117,12 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 --syscalls::
 	Trace system calls. This options is enabled by default.
 
+--call-graph [mode,type,min[,limit],order[,key][,branch]]::
+        Setup and enable call-graph (stack chain/backtrace) recording.
+        See `--call-graph` section in perf-record and perf-report
+        man pages for details. The ones that are most useful in 'perf trace'
+        are 'dwarf' and 'lbr', where available, try: 'perf trace --call-graph dwarf'.
+
 --event::
 	Trace other events, see 'perf list' for a complete list.
 
