@@ -1358,6 +1358,28 @@ void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
 }
 EXPORT_SYMBOL(mlxsw_core_lag_mapping_clear);
 
+int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core,
+			 struct mlxsw_core_port *mlxsw_core_port, u8 local_port,
+			 struct net_device *dev, bool split, u32 split_group)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_core);
+	struct devlink_port *devlink_port = &mlxsw_core_port->devlink_port;
+
+	if (split)
+		devlink_port_split_set(devlink_port, split_group);
+	devlink_port_type_eth_set(devlink_port, dev);
+	return devlink_port_register(devlink, devlink_port, local_port);
+}
+EXPORT_SYMBOL(mlxsw_core_port_init);
+
+void mlxsw_core_port_fini(struct mlxsw_core_port *mlxsw_core_port)
+{
+	struct devlink_port *devlink_port = &mlxsw_core_port->devlink_port;
+
+	devlink_port_unregister(devlink_port);
+}
+EXPORT_SYMBOL(mlxsw_core_port_fini);
+
 int mlxsw_cmd_exec(struct mlxsw_core *mlxsw_core, u16 opcode, u8 opcode_mod,
 		   u32 in_mod, bool out_mbox_direct,
 		   char *in_mbox, size_t in_mbox_size,

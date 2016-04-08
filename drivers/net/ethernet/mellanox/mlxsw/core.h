@@ -43,6 +43,7 @@
 #include <linux/gfp.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
+#include <net/devlink.h>
 
 #include "trap.h"
 #include "reg.h"
@@ -130,6 +131,15 @@ u8 mlxsw_core_lag_mapping_get(struct mlxsw_core *mlxsw_core,
 			      u16 lag_id, u8 port_index);
 void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
 				  u16 lag_id, u8 local_port);
+
+struct mlxsw_core_port {
+	struct devlink_port devlink_port;
+};
+
+int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core,
+			 struct mlxsw_core_port *mlxsw_core_port, u8 local_port,
+			 struct net_device *dev, bool split, u32 split_group);
+void mlxsw_core_port_fini(struct mlxsw_core_port *mlxsw_core_port);
 
 #define MLXSW_CONFIG_PROFILE_SWID_COUNT 8
 

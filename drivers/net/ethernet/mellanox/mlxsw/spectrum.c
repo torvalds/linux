@@ -50,7 +50,6 @@
 #include <linux/bitops.h>
 #include <linux/list.h>
 #include <linux/dcbnl.h>
-#include <net/devlink.h>
 #include <net/switchdev.h>
 #include <generated/utsrelease.h>
 
@@ -1685,9 +1684,7 @@ static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
 static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				  bool split, u8 module, u8 width)
 {
-	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	struct mlxsw_sp_port *mlxsw_sp_port;
-	struct devlink_port *devlink_port;
 	struct net_device *dev;
 	size_t bytes;
 	int err;
@@ -1739,16 +1736,6 @@ static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	 * headers.
 	 */
 	dev->hard_header_len += MLXSW_TXHDR_LEN;
-
-	devlink_port = &mlxsw_sp_port->devlink_port;
-	if (mlxsw_sp_port->split)
-		devlink_port_split_set(devlink_port, module);
-	err = devlink_port_register(devlink, devlink_port, local_port);
-	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to register devlink port\n",
-			mlxsw_sp_port->local_port);
-		goto err_devlink_port_register;
-	}
 
 	err = mlxsw_sp_port_system_port_mapping_set(mlxsw_sp_port);
 	if (err) {
@@ -1812,7 +1799,14 @@ static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_register_netdev;
 	}
 
-	devlink_port_type_eth_set(devlink_port, dev);
+	err = mlxsw_core_port_init(mlxsw_sp->core, &mlxsw_sp_port->core_port,
+				   mlxsw_sp_port->local_port, dev,
+				   mlxsw_sp_port->split, module);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to init core port\n",
+			mlxsw_sp_port->local_port);
+		goto err_core_port_init;
+	}
 
 	err = mlxsw_sp_port_vlan_init(mlxsw_sp_port);
 	if (err)
@@ -1822,6 +1816,8 @@ static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	return 0;
 
 err_port_vlan_init:
+	mlxsw_core_port_fini(&mlxsw_sp_port->core_port);
+err_core_port_init:
 	unregister_netdev(dev);
 err_register_netdev:
 err_port_dcb_init:
@@ -1832,8 +1828,6 @@ err_port_mtu_set:
 err_port_speed_by_width_set:
 err_port_swid_set:
 err_port_system_port_mapping_set:
-	devlink_port_unregister(&mlxsw_sp_port->devlink_port);
-err_devlink_port_register:
 err_dev_addr_init:
 	free_percpu(mlxsw_sp_port->pcpu_stats);
 err_alloc_stats:
@@ -1887,16 +1881,13 @@ static void mlxsw_sp_port_vports_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
-	struct devlink_port *devlink_port;
 
 	if (!mlxsw_sp_port)
 		return;
 	mlxsw_sp->ports[local_port] = NULL;
-	devlink_port = &mlxsw_sp_port->devlink_port;
-	devlink_port_type_clear(devlink_port);
+	mlxsw_core_port_fini(&mlxsw_sp_port->core_port);
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
-	devlink_port_unregister(devlink_port);
 	mlxsw_sp_port_vports_fini(mlxsw_sp_port);
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);

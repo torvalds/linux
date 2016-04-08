@@ -43,7 +43,6 @@
 #include <linux/device.h>
 #include <linux/skbuff.h>
 #include <linux/if_vlan.h>
-#include <net/devlink.h>
 #include <net/switchdev.h>
 #include <generated/utsrelease.h>
 
@@ -75,11 +74,11 @@ struct mlxsw_sx_port_pcpu_stats {
 };
 
 struct mlxsw_sx_port {
+	struct mlxsw_core_port core_port; /* must be first */
 	struct net_device *dev;
 	struct mlxsw_sx_port_pcpu_stats __percpu *pcpu_stats;
 	struct mlxsw_sx *mlxsw_sx;
 	u8 local_port;
-	struct devlink_port devlink_port;
 };
 
 /* tx_hdr_version
@@ -956,9 +955,7 @@ mlxsw_sx_port_mac_learning_mode_set(struct mlxsw_sx_port *mlxsw_sx_port,
 
 static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 {
-	struct devlink *devlink = priv_to_devlink(mlxsw_sx->core);
 	struct mlxsw_sx_port *mlxsw_sx_port;
-	struct devlink_port *devlink_port;
 	struct net_device *dev;
 	bool usable;
 	int err;
@@ -1010,14 +1007,6 @@ static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 		dev_dbg(mlxsw_sx->bus_info->dev, "Port %d: Not usable, skipping initialization\n",
 			mlxsw_sx_port->local_port);
 		goto port_not_usable;
-	}
-
-	devlink_port = &mlxsw_sx_port->devlink_port;
-	err = devlink_port_register(devlink, devlink_port, local_port);
-	if (err) {
-		dev_err(mlxsw_sx->bus_info->dev, "Port %d: Failed to register devlink port\n",
-			mlxsw_sx_port->local_port);
-		goto err_devlink_port_register;
 	}
 
 	err = mlxsw_sx_port_system_port_mapping_set(mlxsw_sx_port);
@@ -1077,11 +1066,19 @@ static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 		goto err_register_netdev;
 	}
 
-	devlink_port_type_eth_set(devlink_port, dev);
+	err = mlxsw_core_port_init(mlxsw_sx->core, &mlxsw_sx_port->core_port,
+				   mlxsw_sx_port->local_port, dev, false, 0);
+	if (err) {
+		dev_err(mlxsw_sx->bus_info->dev, "Port %d: Failed to init core port\n",
+			mlxsw_sx_port->local_port);
+		goto err_core_port_init;
+	}
 
 	mlxsw_sx->ports[local_port] = mlxsw_sx_port;
 	return 0;
 
+err_core_port_init:
+	unregister_netdev(dev);
 err_register_netdev:
 err_port_mac_learning_mode_set:
 err_port_stp_state_set:
@@ -1090,8 +1087,6 @@ err_port_mtu_set:
 err_port_speed_set:
 err_port_swid_set:
 err_port_system_port_mapping_set:
-	devlink_port_unregister(&mlxsw_sx_port->devlink_port);
-err_devlink_port_register:
 port_not_usable:
 err_port_module_check:
 err_dev_addr_get:
@@ -1104,15 +1099,12 @@ err_alloc_stats:
 static void mlxsw_sx_port_remove(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 {
 	struct mlxsw_sx_port *mlxsw_sx_port = mlxsw_sx->ports[local_port];
-	struct devlink_port *devlink_port;
 
 	if (!mlxsw_sx_port)
 		return;
-	devlink_port = &mlxsw_sx_port->devlink_port;
-	devlink_port_type_clear(devlink_port);
+	mlxsw_core_port_fini(&mlxsw_sx_port->core_port);
 	unregister_netdev(mlxsw_sx_port->dev); /* This calls ndo_stop */
 	mlxsw_sx_port_swid_set(mlxsw_sx_port, MLXSW_PORT_SWID_DISABLED_PORT);
-	devlink_port_unregister(devlink_port);
 	free_percpu(mlxsw_sx_port->pcpu_stats);
 	free_netdev(mlxsw_sx_port->dev);
 }
