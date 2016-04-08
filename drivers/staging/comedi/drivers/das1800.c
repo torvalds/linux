@@ -167,13 +167,6 @@ TODO:
 
 #define IOBASE2                   0x400	/* offset of additional ioports used on 'ao' cards */
 
-enum {
-	das1701st, das1701st_da, das1702st, das1702st_da, das1702hr,
-	das1702hr_da,
-	das1701ao, das1702ao, das1801st, das1801st_da, das1802st, das1802st_da,
-	das1802hr, das1802hr_da, das1801hc, das1802hc, das1801ao, das1802ao
-};
-
 /* analog input ranges */
 static const struct comedi_lrange range_ai_das1801 = {
 	8, {
@@ -201,8 +194,38 @@ static const struct comedi_lrange range_ai_das1802 = {
 	}
 };
 
+enum das1800_boardid {
+	BOARD_DAS1701ST,
+	BOARD_DAS1701ST_DA,
+	BOARD_DAS1702ST,
+	BOARD_DAS1702ST_DA,
+	BOARD_DAS1702HR,
+	BOARD_DAS1702HR_DA,
+	BOARD_DAS1701AO,
+	BOARD_DAS1702AO,
+	BOARD_DAS1801ST,
+	BOARD_DAS1801ST_DA,
+	BOARD_DAS1802ST,
+	BOARD_DAS1802ST_DA,
+	BOARD_DAS1802HR,
+	BOARD_DAS1802HR_DA,
+	BOARD_DAS1801HC,
+	BOARD_DAS1802HC,
+	BOARD_DAS1801AO,
+	BOARD_DAS1802AO
+};
+
+/* board probe id values (hi byte of the digital input register) */
+#define DAS1800_ID_ST_DA		0x3
+#define DAS1800_ID_HR_DA		0x4
+#define DAS1800_ID_AO			0x5
+#define DAS1800_ID_HR			0x6
+#define DAS1800_ID_ST			0x7
+#define DAS1800_ID_HC			0x8
+
 struct das1800_board {
 	const char *name;
+	unsigned char id;
 	int ai_speed;		/* max conversion period in nanoseconds */
 	int resolution;		/* bits of ai resolution */
 	int qram_len;		/* length of card's channel / gain queue */
@@ -218,8 +241,9 @@ struct das1800_board {
  * user manual.)
  */
 static const struct das1800_board das1800_boards[] = {
-	{
+	[BOARD_DAS1701ST] = {
 		.name		= "das-1701st",
+		.id		= DAS1800_ID_ST,
 		.ai_speed	= 6250,
 		.resolution	= 12,
 		.qram_len	= 256,
@@ -228,8 +252,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 0,
 		.ao_n_chan	= 0,
 		.range_ai	= &range_ai_das1801,
-	}, {
+	},
+	[BOARD_DAS1701ST_DA] = {
 		.name		= "das-1701st-da",
+		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 6250,
 		.resolution	= 12,
 		.qram_len	= 256,
@@ -238,8 +264,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 1,
 		.ao_n_chan	= 4,
 		.range_ai	= &range_ai_das1801,
-	}, {
+	},
+	[BOARD_DAS1702ST] = {
 		.name		= "das-1702st",
+		.id		= DAS1800_ID_ST,
 		.ai_speed	= 6250,
 		.resolution	= 12,
 		.qram_len	= 256,
@@ -248,8 +276,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 0,
 		.ao_n_chan	= 0,
 		.range_ai	= &range_ai_das1802,
-	}, {
+	},
+	[BOARD_DAS1702ST_DA] = {
 		.name		= "das-1702st-da",
+		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 6250,
 		.resolution	= 12,
 		.qram_len	= 256,
@@ -258,8 +288,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 1,
 		.ao_n_chan	= 4,
 		.range_ai	= &range_ai_das1802,
-	}, {
+	},
+	[BOARD_DAS1702HR] = {
 		.name		= "das-1702hr",
+		.id		= DAS1800_ID_HR,
 		.ai_speed	= 20000,
 		.resolution	= 16,
 		.qram_len	= 256,
@@ -268,8 +300,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 0,
 		.ao_n_chan	= 0,
 		.range_ai	= &range_ai_das1802,
-	}, {
+	},
+	[BOARD_DAS1702HR_DA] = {
 		.name		= "das-1702hr-da",
+		.id		= DAS1800_ID_HR_DA,
 		.ai_speed	= 20000,
 		.resolution	= 16,
 		.qram_len	= 256,
@@ -278,8 +312,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 1,
 		.ao_n_chan	= 2,
 		.range_ai	= &range_ai_das1802,
-	}, {
+	},
+	[BOARD_DAS1701AO] = {
 		.name		= "das-1701ao",
+		.id		= DAS1800_ID_AO,
 		.ai_speed	= 6250,
 		.resolution	= 12,
 		.qram_len	= 256,
@@ -288,8 +324,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 2,
 		.ao_n_chan	= 2,
 		.range_ai	= &range_ai_das1801,
-	}, {
+	},
+	[BOARD_DAS1702AO] = {
 		.name		= "das-1702ao",
+		.id		= DAS1800_ID_AO,
 		.ai_speed	= 6250,
 		.resolution	= 12,
 		.qram_len	= 256,
@@ -298,8 +336,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 2,
 		.ao_n_chan	= 2,
 		.range_ai	= &range_ai_das1802,
-	}, {
+	},
+	[BOARD_DAS1801ST] = {
 		.name		= "das-1801st",
+		.id		= DAS1800_ID_ST,
 		.ai_speed	= 3000,
 		.resolution	= 12,
 		.qram_len	= 256,
@@ -308,8 +348,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 0,
 		.ao_n_chan	= 0,
 		.range_ai	= &range_ai_das1801,
-	}, {
+	},
+	[BOARD_DAS1801ST_DA] = {
 		.name		= "das-1801st-da",
+		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 3000,
 		.resolution	= 12,
 		.qram_len	= 256,
@@ -318,8 +360,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 1,
 		.ao_n_chan	= 4,
 		.range_ai	= &range_ai_das1801,
-	}, {
+	},
+	[BOARD_DAS1802ST] = {
 		.name		= "das-1802st",
+		.id		= DAS1800_ID_ST,
 		.ai_speed	= 3000,
 		.resolution	= 12,
 		.qram_len	= 256,
@@ -328,8 +372,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 0,
 		.ao_n_chan	= 0,
 		.range_ai	= &range_ai_das1802,
-	}, {
+	},
+	[BOARD_DAS1802ST_DA] = {
 		.name		= "das-1802st-da",
+		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 3000,
 		.resolution	= 12,
 		.qram_len	= 256,
@@ -338,8 +384,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 1,
 		.ao_n_chan	= 4,
 		.range_ai	= &range_ai_das1802,
-	}, {
+	},
+	[BOARD_DAS1802HR] = {
 		.name		= "das-1802hr",
+		.id		= DAS1800_ID_HR,
 		.ai_speed	= 10000,
 		.resolution	= 16,
 		.qram_len	= 256,
@@ -348,8 +396,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 0,
 		.ao_n_chan	= 0,
 		.range_ai	= &range_ai_das1802,
-	}, {
+	},
+	[BOARD_DAS1802HR_DA] = {
 		.name		= "das-1802hr-da",
+		.id		= DAS1800_ID_HR_DA,
 		.ai_speed	= 10000,
 		.resolution	= 16,
 		.qram_len	= 256,
@@ -358,8 +408,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 1,
 		.ao_n_chan	= 2,
 		.range_ai	= &range_ai_das1802,
-	}, {
+	},
+	[BOARD_DAS1801HC] = {
 		.name		= "das-1801hc",
+		.id		= DAS1800_ID_HC,
 		.ai_speed	= 3000,
 		.resolution	= 12,
 		.qram_len	= 64,
@@ -368,8 +420,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 1,
 		.ao_n_chan	= 2,
 		.range_ai	= &range_ai_das1801,
-	}, {
+	},
+	[BOARD_DAS1802HC] = {
 		.name		= "das-1802hc",
+		.id		= DAS1800_ID_HC,
 		.ai_speed	= 3000,
 		.resolution	= 12,
 		.qram_len	= 64,
@@ -378,8 +432,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 1,
 		.ao_n_chan	= 2,
 		.range_ai	= &range_ai_das1802,
-	}, {
+	},
+	[BOARD_DAS1801AO] = {
 		.name		= "das-1801ao",
+		.id		= DAS1800_ID_AO,
 		.ai_speed	= 3000,
 		.resolution	= 12,
 		.qram_len	= 256,
@@ -388,8 +444,10 @@ static const struct das1800_board das1800_boards[] = {
 		.ao_ability	= 2,
 		.ao_n_chan	= 2,
 		.range_ai	= &range_ai_das1801,
-	}, {
+	},
+	[BOARD_DAS1802AO] = {
 		.name		= "das-1802ao",
+		.id		= DAS1800_ID_AO,
 		.ai_speed	= 3000,
 		.resolution	= 12,
 		.qram_len	= 256,
@@ -1189,68 +1247,68 @@ static void das1800_free_dma(struct comedi_device *dev)
 		comedi_isadma_free(devpriv->dma);
 }
 
-static const struct das1800_board *das1800_probe(struct comedi_device *dev)
+static int das1800_probe(struct comedi_device *dev)
 {
 	const struct das1800_board *board = dev->board_ptr;
-	int index = board ? board - das1800_boards : -EINVAL;
-	int id;
+	unsigned char id;
+
+	id = (inb(dev->iobase + DAS1800_DIGITAL) >> 4) & 0xf;
 
 	/*
 	 * The dev->board_ptr will be set by comedi_device_attach() if the
 	 * board name provided by the user matches a board->name in this
 	 * driver. If so, this function sanity checks the id to verify that
 	 * the board is correct.
-	 *
-	 * If the dev->board_ptr is not set, the user is trying to attach
-	 * an unspecified board to this driver. In this case the id is used
-	 * to 'probe' for the correct dev->board_ptr.
 	 */
-	id = (inb(dev->iobase + DAS1800_DIGITAL) >> 4) & 0xf;
+	if (board) {
+		if (board->id == id)
+			return 0;
+		dev_err(dev->class_dev,
+			"probed id does not match board id (0x%x != 0x%x)\n",
+			id, board->id);
+		return -ENODEV;
+	}
+
+	 /*
+	  * If the dev->board_ptr is not set, the user is trying to attach
+	  * an unspecified board to this driver. In this case the id is used
+	  * to 'probe' for the dev->board_ptr.
+	  */
 	switch (id) {
-	case 0x3:
-		if (index == das1801st_da || index == das1802st_da ||
-		    index == das1701st_da || index == das1702st_da)
-			return board;
-		index = das1801st;
+	case DAS1800_ID_ST_DA:
+		/* das-1701st-da, das-1702st-da, das-1801st-da, das-1802st-da */
+		board = &das1800_boards[BOARD_DAS1801ST_DA];
 		break;
-	case 0x4:
-		if (index == das1802hr_da || index == das1702hr_da)
-			return board;
-		index = das1802hr;
+	case DAS1800_ID_HR_DA:
+		/* das-1702hr-da, das-1802hr-da */
+		board = &das1800_boards[BOARD_DAS1802HR_DA];
 		break;
-	case 0x5:
-		if (index == das1801ao || index == das1802ao ||
-		    index == das1701ao || index == das1702ao)
-			return board;
-		index = das1801ao;
+	case DAS1800_ID_AO:
+		/* das-1701ao, das-1702ao, das-1801ao, das-1802ao */
+		board = &das1800_boards[BOARD_DAS1801AO];
 		break;
-	case 0x6:
-		if (index == das1802hr || index == das1702hr)
-			return board;
-		index = das1802hr;
+	case DAS1800_ID_HR:
+		/*  das-1702hr, das-1802hr */
+		board = &das1800_boards[BOARD_DAS1802HR];
 		break;
-	case 0x7:
-		if (index == das1801st || index == das1802st ||
-		    index == das1701st || index == das1702st)
-			return board;
-		index = das1801st;
+	case DAS1800_ID_ST:
+		/* das-1701st, das-1702st, das-1801st, das-1802st */
+		board = &das1800_boards[BOARD_DAS1801ST];
 		break;
-	case 0x8:
-		if (index == das1801hc || index == das1802hc)
-			return board;
-		index = das1801hc;
+	case DAS1800_ID_HC:
+		/* das-1801hc, das-1802hc */
+		board = &das1800_boards[BOARD_DAS1801HC];
 		break;
 	default:
-		dev_err(dev->class_dev,
-			"Board model: probe returned 0x%x (unknown, please report)\n",
-			id);
-		return NULL;
+		dev_err(dev->class_dev, "invalid probe id 0x%x\n", id);
+		return -ENODEV;
 	}
-	dev_err(dev->class_dev,
-		"Board model (probed, not recommended): %s series\n",
-		das1800_boards[index].name);
-
-	return &das1800_boards[index];
+	dev->board_ptr = board;
+	dev->board_name = board->name;
+	dev_warn(dev->class_dev,
+		 "probed id 0x%0x: %s series (not recommended)\n",
+		 id, board->name);
+	return 0;
 }
 
 static int das1800_attach(struct comedi_device *dev,
@@ -1270,13 +1328,10 @@ static int das1800_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	board = das1800_probe(dev);
-	if (!board) {
-		dev_err(dev->class_dev, "unable to determine board type\n");
-		return -ENODEV;
-	}
-	dev->board_ptr = board;
-	dev->board_name = board->name;
+	ret = das1800_probe(dev);
+	if (ret)
+		return ret;
+	board = dev->board_ptr;
 
 	/*  if it is an 'ao' board with fancy analog out then we need extra io ports */
 	if (board->ao_ability == 2) {
