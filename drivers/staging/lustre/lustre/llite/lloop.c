@@ -211,9 +211,8 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 		return io->ci_result;
 	io->ci_lockreq = CILR_NEVER;
 
-	LASSERT(head != NULL);
 	rw = head->bi_rw;
-	for (bio = head; bio != NULL; bio = bio->bi_next) {
+	for (bio = head; bio ; bio = bio->bi_next) {
 		LASSERT(rw == bio->bi_rw);
 
 		offset = (pgoff_t)(bio->bi_iter.bi_sector << 9) + lo->lo_offset;
@@ -297,7 +296,7 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 
 	spin_lock_irq(&lo->lo_lock);
 	first = lo->lo_bio;
-	if (unlikely(first == NULL)) {
+	if (unlikely(!first)) {
 		spin_unlock_irq(&lo->lo_lock);
 		return 0;
 	}
@@ -308,7 +307,7 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 	rw = first->bi_rw;
 	bio = &lo->lo_bio;
 	while (*bio && (*bio)->bi_rw == rw) {
-		CDEBUG(D_INFO, "bio sector %llu size %u count %u vcnt%u \n",
+		CDEBUG(D_INFO, "bio sector %llu size %u count %u vcnt%u\n",
 		       (unsigned long long)(*bio)->bi_iter.bi_sector,
 		       (*bio)->bi_iter.bi_size,
 		       page_count, (*bio)->bi_vcnt);
@@ -458,7 +457,7 @@ static int loop_thread(void *data)
 			       total_count, times, total_count / times);
 		}
 
-		LASSERT(bio != NULL);
+		LASSERT(bio);
 		LASSERT(count <= atomic_read(&lo->lo_pending));
 		loop_handle_bio(lo, bio);
 		atomic_sub(count, &lo->lo_pending);
@@ -560,7 +559,7 @@ static int loop_clr_fd(struct lloop_device *lo, struct block_device *bdev,
 	if (lo->lo_refcnt > count)	/* we needed one fd for the ioctl */
 		return -EBUSY;
 
-	if (filp == NULL)
+	if (!filp)
 		return -EINVAL;
 
 	spin_lock_irq(&lo->lo_lock);
@@ -625,18 +624,18 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 	case LL_IOC_LLOOP_INFO: {
 		struct lu_fid fid;
 
-		if (lo->lo_backing_file == NULL) {
+		if (!lo->lo_backing_file) {
 			err = -ENOENT;
 			break;
 		}
-		if (inode == NULL)
+		if (!inode)
 			inode = file_inode(lo->lo_backing_file);
 		if (lo->lo_state == LLOOP_BOUND)
 			fid = ll_i2info(inode)->lli_fid;
 		else
 			fid_zero(&fid);
 
-		if (copy_to_user((struct lu_fid *)arg, &fid, sizeof(fid)))
+		if (copy_to_user((void __user *)arg, &fid, sizeof(fid)))
 			err = -EFAULT;
 		break;
 	}
@@ -676,7 +675,7 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 	if (magic != ll_iocontrol_magic)
 		return LLIOC_CONT;
 
-	if (disks == NULL) {
+	if (!disks) {
 		err = -ENODEV;
 		goto out1;
 	}
@@ -708,7 +707,7 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 		dev = MKDEV(lloop_major, lo->lo_number);
 
 		/* quit if the used pointer is writable */
-		if (put_user((long)old_encode_dev(dev), (long *)arg)) {
+		if (put_user((long)old_encode_dev(dev), (long __user *)arg)) {
 			err = -EFAULT;
 			goto out;
 		}
@@ -793,7 +792,7 @@ static int __init lloop_init(void)
 	       lloop_major, max_loop);
 
 	ll_iocontrol_magic = ll_iocontrol_register(lloop_ioctl, 2, cmdlist);
-	if (ll_iocontrol_magic == NULL)
+	if (!ll_iocontrol_magic)
 		goto out_mem1;
 
 	loop_dev = kcalloc(max_loop, sizeof(*loop_dev), GFP_KERNEL);
@@ -872,11 +871,12 @@ static void lloop_exit(void)
 	kfree(loop_dev);
 }
 
-module_init(lloop_init);
-module_exit(lloop_exit);
-
 module_param(max_loop, int, 0444);
 MODULE_PARM_DESC(max_loop, "maximum of lloop_device");
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre virtual block device");
+MODULE_VERSION(LUSTRE_VERSION_STRING);
 MODULE_LICENSE("GPL");
+
+module_init(lloop_init);
+module_exit(lloop_exit);

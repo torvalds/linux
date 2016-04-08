@@ -375,15 +375,11 @@
 	wp-gpios = <&gpio3 18 0>;
 };
 
+#include "tps65217.dtsi"
+
 &tps {
-	compatible = "ti,tps65217";
-
 	regulators {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		dcdc1_reg: regulator@0 {
-			reg = <0>;
 			/* +1.5V voltage with ±4% tolerance */
 			regulator-min-microvolt = <1450000>;
 			regulator-max-microvolt = <1550000>;
@@ -392,7 +388,6 @@
 		};
 
 		dcdc2_reg: regulator@1 {
-			reg = <1>;
 			/* VDD_MPU voltage limits 0.95V - 1.1V with ±4% tolerance */
 			regulator-name = "vdd_mpu";
 			regulator-min-microvolt = <915000>;
@@ -402,7 +397,6 @@
 		};
 
 		dcdc3_reg: regulator@2 {
-			reg = <2>;
 			/* VDD_CORE voltage limits 0.95V - 1.1V with ±4% tolerance */
 			regulator-name = "vdd_core";
 			regulator-min-microvolt = <915000>;
@@ -412,7 +406,6 @@
 		};
 
 		ldo1_reg: regulator@3 {
-			reg = <3>;
 			/* +1.8V voltage with ±4% tolerance */
 			regulator-min-microvolt = <1750000>;
 			regulator-max-microvolt = <1870000>;
@@ -421,7 +414,6 @@
 		};
 
 		ldo2_reg: regulator@4 {
-			reg = <4>;
 			/* +3.3V voltage with ±4% tolerance */
 			regulator-min-microvolt = <3175000>;
 			regulator-max-microvolt = <3430000>;
@@ -430,7 +422,6 @@
 		};
 
 		ldo3_reg: regulator@5 {
-			reg = <5>;
 			/* +1.8V voltage with ±4% tolerance */
 			regulator-min-microvolt = <1750000>;
 			regulator-max-microvolt = <1870000>;
@@ -439,7 +430,6 @@
 		};
 
 		ldo4_reg: regulator@6 {
-			reg = <6>;
 			/* +3.3V voltage with ±4% tolerance */
 			regulator-min-microvolt = <3175000>;
 			regulator-max-microvolt = <3430000>;

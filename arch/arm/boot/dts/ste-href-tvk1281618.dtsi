@@ -37,7 +37,6 @@
 	};
 
 	soc {
-		/* Add Synaptics touch screen, TC35893 keypad etc here */
 		i2c@80004000 {
 			tc35893@44 {
 				compatible = "toshiba,tc35893";
@@ -159,6 +158,33 @@
 				vddio-supply = <&db8500_vsmps2_reg>;
 			};
 		};
+
+		i2c@80110000 {
+			synaptics@4b {
+				/* Synaptics RMI4 TM1217 touchscreen */
+				compatible = "syna,rmi4-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x4b>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&synaptics_tvk_mode>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <20 IRQ_TYPE_EDGE_FALLING>;
+
+				rmi-f01@1 {
+					reg = <0x1>;
+					syna,nosleep = <1>;
+				};
+				rmi-f11@11 {
+					reg = <0x11>;
+					touchscreen-inverted-x;
+					syna,sensor-type = <1>;
+				};
+			};
+		};
+
 		pinctrl {
 			/* Pull up this GPIO pin */
 			tc35893 {
@@ -209,6 +235,15 @@
 					tvk_cfg2 {
 						pins = "GPIO32_V2";
 						ste,config = <&gpio_in_pd>;
+					};
+				};
+			};
+			synaptics {
+				synaptics_tvk_mode: synaptics_tvk {
+					/* Touchscreen uses GPIO 84 */
+					tvk_cfg1 {
+						pins = "GPIO84_C2";
+						ste,config = <&gpio_in_pu>;
 					};
 				};
 			};

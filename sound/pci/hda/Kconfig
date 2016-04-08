@@ -4,7 +4,7 @@ config SND_HDA
 	tristate
 	select SND_PCM
 	select SND_VMASTER
-	select SND_JACK if INPUT=y || INPUT=SND
+	select SND_JACK
 	select SND_HDA_CORE
 
 config SND_HDA_INTEL

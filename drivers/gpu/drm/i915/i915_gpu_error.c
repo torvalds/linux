@@ -365,6 +365,10 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	err_printf(m, "Reset count: %u\n", error->reset_count);
 	err_printf(m, "Suspend count: %u\n", error->suspend_count);
 	err_printf(m, "PCI ID: 0x%04x\n", dev->pdev->device);
+	err_printf(m, "PCI Revision: 0x%02x\n", dev->pdev->revision);
+	err_printf(m, "PCI Subsystem: %04x:%04x\n",
+		   dev->pdev->subsystem_vendor,
+		   dev->pdev->subsystem_device);
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);
 
 	if (HAS_CSR(dev)) {
@@ -732,7 +736,7 @@ static u32 capture_active_bo(struct drm_i915_error_buffer *err,
 	struct i915_vma *vma;
 	int i = 0;
 
-	list_for_each_entry(vma, head, mm_list) {
+	list_for_each_entry(vma, head, vm_link) {
 		capture_bo(err++, vma);
 		if (++i == count)
 			break;
@@ -755,7 +759,7 @@ static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
 		if (err == last)
 			break;
 
-		list_for_each_entry(vma, &obj->vma_list, vma_link)
+		list_for_each_entry(vma, &obj->vma_list, obj_link)
 			if (vma->vm == vm && vma->pin_count > 0)
 				capture_bo(err++, vma);
 	}
@@ -1050,7 +1054,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			if (request)
 				rbuf = request->ctx->engine[ring->id].ringbuf;
 			else
-				rbuf = ring->default_context->engine[ring->id].ringbuf;
+				rbuf = dev_priv->kernel_context->engine[ring->id].ringbuf;
 		} else
 			rbuf = ring->buffer;
 
@@ -1123,12 +1127,12 @@ static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
 	int i;
 
 	i = 0;
-	list_for_each_entry(vma, &vm->active_list, mm_list)
+	list_for_each_entry(vma, &vm->active_list, vm_link)
 		i++;
 	error->active_bo_count[ndx] = i;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		list_for_each_entry(vma, &obj->vma_list, vma_link)
+		list_for_each_entry(vma, &obj->vma_list, obj_link)
 			if (vma->vm == vm && vma->pin_count > 0)
 				i++;
 	}

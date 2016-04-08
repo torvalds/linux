@@ -205,11 +205,67 @@ static ssize_t namespace_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(namespace);
 
+static ssize_t resource_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+	ssize_t rc;
+
+	device_lock(dev);
+	if (dev->driver) {
+		struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
+		u64 offset = __le64_to_cpu(pfn_sb->dataoff);
+		struct nd_namespace_common *ndns = nd_pfn->ndns;
+		u32 start_pad = __le32_to_cpu(pfn_sb->start_pad);
+		struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
+
+		rc = sprintf(buf, "%#llx\n", (unsigned long long) nsio->res.start
+				+ start_pad + offset);
+	} else {
+		/* no address to convey if the pfn instance is disabled */
+		rc = -ENXIO;
+	}
+	device_unlock(dev);
+
+	return rc;
+}
+static DEVICE_ATTR_RO(resource);
+
+static ssize_t size_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+	ssize_t rc;
+
+	device_lock(dev);
+	if (dev->driver) {
+		struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
+		u64 offset = __le64_to_cpu(pfn_sb->dataoff);
+		struct nd_namespace_common *ndns = nd_pfn->ndns;
+		u32 start_pad = __le32_to_cpu(pfn_sb->start_pad);
+		u32 end_trunc = __le32_to_cpu(pfn_sb->end_trunc);
+		struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
+
+		rc = sprintf(buf, "%llu\n", (unsigned long long)
+				resource_size(&nsio->res) - start_pad
+				- end_trunc - offset);
+	} else {
+		/* no size to convey if the pfn instance is disabled */
+		rc = -ENXIO;
+	}
+	device_unlock(dev);
+
+	return rc;
+}
+static DEVICE_ATTR_RO(size);
+
 static struct attribute *nd_pfn_attributes[] = {
 	&dev_attr_mode.attr,
 	&dev_attr_namespace.attr,
 	&dev_attr_uuid.attr,
 	&dev_attr_align.attr,
+	&dev_attr_resource.attr,
+	&dev_attr_size.attr,
 	NULL,
 };
 
@@ -298,6 +354,11 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 
 	if (memcmp(pfn_sb->parent_uuid, parent_uuid, 16) != 0)
 		return -ENODEV;
+
+	if (__le16_to_cpu(pfn_sb->version_minor) < 1) {
+		pfn_sb->start_pad = 0;
+		pfn_sb->end_trunc = 0;
+	}
 
 	switch (le32_to_cpu(pfn_sb->mode)) {
 	case PFN_MODE_RAM:

@@ -219,7 +219,7 @@ void ODM_ReadAndConfig_AGC_TAB_1T_8723A(struct dm_odm_t *pDM_Odm)
 	u32 i;
 	u8 platform = 0x04;
 	u8 board = pDM_Odm->BoardType;
-	u32 ArrayLen = sizeof(Array_AGC_TAB_1T_8723A)/sizeof(u32);
+	u32 ArrayLen = ARRAY_SIZE(Array_AGC_TAB_1T_8723A);
 	u32 *Array = Array_AGC_TAB_1T_8723A;
 
 	hex = board;
@@ -467,7 +467,7 @@ void ODM_ReadAndConfig_PHY_REG_1T_8723A(struct dm_odm_t *pDM_Odm)
 	u32 i = 0;
 	u8  platform = 0x04;
 	u8  board = pDM_Odm->BoardType;
-	u32 ArrayLen = sizeof(Array_PHY_REG_1T_8723A)/sizeof(u32);
+	u32 ArrayLen = ARRAY_SIZE(Array_PHY_REG_1T_8723A);
 	u32 *Array = Array_PHY_REG_1T_8723A;
 
 	hex += board;
@@ -523,7 +523,7 @@ void ODM_ReadAndConfig_PHY_REG_MP_8723A(struct dm_odm_t *pDM_Odm)
 	u32 i;
 	u8 platform = 0x04;
 	u8 board = pDM_Odm->BoardType;
-	u32 ArrayLen = sizeof(Array_PHY_REG_MP_8723A)/sizeof(u32);
+	u32 ArrayLen = ARRAY_SIZE(Array_PHY_REG_MP_8723A);
 	u32 *Array = Array_PHY_REG_MP_8723A;
 
 	hex += board;

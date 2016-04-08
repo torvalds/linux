@@ -28,6 +28,7 @@
 #define SCSI_TRANSPORT_FC_H
 
 #include <linux/sched.h>
+#include <asm/unaligned.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_netlink.h>
 
@@ -797,22 +798,12 @@ fc_remote_port_chkready(struct fc_rport *rport)
 
 static inline u64 wwn_to_u64(u8 *wwn)
 {
-	return (u64)wwn[0] << 56 | (u64)wwn[1] << 48 |
-	    (u64)wwn[2] << 40 | (u64)wwn[3] << 32 |
-	    (u64)wwn[4] << 24 | (u64)wwn[5] << 16 |
-	    (u64)wwn[6] <<  8 | (u64)wwn[7];
+	return get_unaligned_be64(wwn);
 }
 
 static inline void u64_to_wwn(u64 inm, u8 *wwn)
 {
-	wwn[0] = (inm >> 56) & 0xff;
-	wwn[1] = (inm >> 48) & 0xff;
-	wwn[2] = (inm >> 40) & 0xff;
-	wwn[3] = (inm >> 32) & 0xff;
-	wwn[4] = (inm >> 24) & 0xff;
-	wwn[5] = (inm >> 16) & 0xff;
-	wwn[6] = (inm >> 8) & 0xff;
-	wwn[7] = inm & 0xff;
+	put_unaligned_be64(inm, wwn);
 }
 
 /**

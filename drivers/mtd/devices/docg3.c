@@ -72,13 +72,11 @@ MODULE_PARM_DESC(reliable_mode, "Set the docg3 mode (0=normal MLC, 1=fast, "
  * @eccbytes: 8 bytes are used (1 for Hamming ECC, 7 for BCH ECC)
  * @eccpos: ecc positions (byte 7 is Hamming ECC, byte 8-14 are BCH ECC)
  * @oobfree: free pageinfo bytes (byte 0 until byte 6, byte 15
- * @oobavail: 8 available bytes remaining after ECC toll
  */
 static struct nand_ecclayout docg3_oobinfo = {
 	.eccbytes = 8,
 	.eccpos = {7, 8, 9, 10, 11, 12, 13, 14},
 	.oobfree = {{0, 7}, {15, 1} },
-	.oobavail = 8,
 };
 
 static inline u8 doc_readb(struct docg3 *docg3, u16 reg)
@@ -1438,7 +1436,7 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 		oobdelta = mtd->oobsize;
 		break;
 	case MTD_OPS_AUTO_OOB:
-		oobdelta = mtd->ecclayout->oobavail;
+		oobdelta = mtd->oobavail;
 		break;
 	default:
 		return -EINVAL;
@@ -1860,6 +1858,7 @@ static int __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 	mtd->_write_oob = doc_write_oob;
 	mtd->_block_isbad = doc_block_isbad;
 	mtd->ecclayout = &docg3_oobinfo;
+	mtd->oobavail = 8;
 	mtd->ecc_strength = DOC_ECC_BCH_T;
 
 	return 0;

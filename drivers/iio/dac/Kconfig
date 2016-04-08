@@ -10,8 +10,10 @@ config AD5064
 	depends on (SPI_MASTER && I2C!=m) || I2C
 	help
 	  Say yes here to build support for Analog Devices AD5024, AD5025, AD5044,
-	  AD5045, AD5064, AD5064-1, AD5065, AD5628, AD5629R, AD5648, AD5666, AD5668,
-	  AD5669R Digital to Analog Converter.
+	  AD5045, AD5064, AD5064-1, AD5065, AD5625, AD5625R, AD5627, AD5627R,
+	  AD5628, AD5629R, AD5645R, AD5647R, AD5648, AD5665, AD5665R, AD5666,
+	  AD5667, AD5667R, AD5668, AD5669R, LTC2606, LTC2607, LTC2609, LTC2616,
+	  LTC2617, LTC2619, LTC2626, LTC2627, LTC2629 Digital to Analog Converter.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5064.
@@ -111,6 +113,16 @@ config AD5755
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5755.
 
+config AD5761
+	tristate "Analog Devices AD5761/61R/21/21R DAC driver"
+	depends on SPI_MASTER
+	help
+	  Say yes here to build support for Analog Devices AD5761, AD5761R, AD5721,
+	  AD5721R Digital to Analog Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad5761.
+
 config AD5764
 	tristate "Analog Devices AD5764/64R/44/44R DAC driver"
 	depends on SPI_MASTER
@@ -176,11 +188,11 @@ config MAX5821
 	  10 bits DAC.
 
 config MCP4725
-	tristate "MCP4725 DAC driver"
+	tristate "MCP4725/6 DAC driver"
 	depends on I2C
 	---help---
 	  Say Y here if you want to build a driver for the Microchip
-	  MCP 4725 12-bit digital-to-analog converter (DAC) with I2C
+	  MCP 4725/6 12-bit digital-to-analog converter (DAC) with I2C
 	  interface.
 
 	  To compile this driver as a module, choose M here: the module
@@ -195,5 +207,24 @@ config MCP4922
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called mcp4922.
+
+config STX104
+	tristate "Apex Embedded Systems STX104 DAC driver"
+	depends on ISA
+	help
+	  Say yes here to build support for the 2-channel DAC on the Apex
+	  Embedded Systems STX104 integrated analog PC/104 card. The base port
+	  addresses for the devices may be configured via the "base" module
+	  parameter array.
+
+config VF610_DAC
+	tristate "Vybrid vf610 DAC driver"
+	depends on OF
+	depends on HAS_IOMEM
+	help
+	  Say yes here to support Vybrid board digital-to-analog converter.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called vf610_dac.
 
 endmenu

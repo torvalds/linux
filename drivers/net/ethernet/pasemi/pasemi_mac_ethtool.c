@@ -20,7 +20,6 @@
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/pci.h>
-#include <linux/inet_lro.h>
 
 #include <asm/pasemi_dma.h>
 #include "pasemi_mac.h"

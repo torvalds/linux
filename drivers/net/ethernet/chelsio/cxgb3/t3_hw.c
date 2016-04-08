@@ -681,6 +681,24 @@ int t3_seeprom_wp(struct adapter *adapter, int enable)
 	return t3_seeprom_write(adapter, EEPROM_STAT_ADDR, enable ? 0xc : 0);
 }
 
+static int vpdstrtouint(char *s, int len, unsigned int base, unsigned int *val)
+{
+	char tok[len + 1];
+
+	memcpy(tok, s, len);
+	tok[len] = 0;
+	return kstrtouint(strim(tok), base, val);
+}
+
+static int vpdstrtou16(char *s, int len, unsigned int base, u16 *val)
+{
+	char tok[len + 1];
+
+	memcpy(tok, s, len);
+	tok[len] = 0;
+	return kstrtou16(strim(tok), base, val);
+}
+
 /**
  *	get_vpd_params - read VPD parameters from VPD EEPROM
  *	@adapter: adapter to read
@@ -709,19 +727,19 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 			return ret;
 	}
 
-	ret = kstrtouint(vpd.cclk_data, 10, &p->cclk);
+	ret = vpdstrtouint(vpd.cclk_data, vpd.cclk_len, 10, &p->cclk);
 	if (ret)
 		return ret;
-	ret = kstrtouint(vpd.mclk_data, 10, &p->mclk);
+	ret = vpdstrtouint(vpd.mclk_data, vpd.mclk_len, 10, &p->mclk);
 	if (ret)
 		return ret;
-	ret = kstrtouint(vpd.uclk_data, 10, &p->uclk);
+	ret = vpdstrtouint(vpd.uclk_data, vpd.uclk_len, 10, &p->uclk);
 	if (ret)
 		return ret;
-	ret = kstrtouint(vpd.mdc_data, 10, &p->mdc);
+	ret = vpdstrtouint(vpd.mdc_data, vpd.mdc_len, 10, &p->mdc);
 	if (ret)
 		return ret;
-	ret = kstrtouint(vpd.mt_data, 10, &p->mem_timing);
+	ret = vpdstrtouint(vpd.mt_data, vpd.mt_len, 10, &p->mem_timing);
 	if (ret)
 		return ret;
 	memcpy(p->sn, vpd.sn_data, SERNUM_LEN);
@@ -733,10 +751,12 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	} else {
 		p->port_type[0] = hex_to_bin(vpd.port0_data[0]);
 		p->port_type[1] = hex_to_bin(vpd.port1_data[0]);
-		ret = kstrtou16(vpd.xaui0cfg_data, 16, &p->xauicfg[0]);
+		ret = vpdstrtou16(vpd.xaui0cfg_data, vpd.xaui0cfg_len, 16,
+				  &p->xauicfg[0]);
 		if (ret)
 			return ret;
-		ret = kstrtou16(vpd.xaui1cfg_data, 16, &p->xauicfg[1]);
+		ret = vpdstrtou16(vpd.xaui1cfg_data, vpd.xaui1cfg_len, 16,
+				  &p->xauicfg[1]);
 		if (ret)
 			return ret;
 	}

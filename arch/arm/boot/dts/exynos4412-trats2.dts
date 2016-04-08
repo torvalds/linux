@@ -119,7 +119,7 @@
 			linux,code = <116>;
 			label = "power";
 			debounce-interval = <10>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		key-ok {
@@ -127,7 +127,7 @@
 			linux,code = <139>;
 			label = "ok";
 			debounce-inteval = <10>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

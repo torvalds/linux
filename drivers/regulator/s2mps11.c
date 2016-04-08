@@ -38,7 +38,6 @@
 /* The highest number of possible regulators for supported devices. */
 #define S2MPS_REGULATOR_MAX		S2MPS13_REGULATOR_MAX
 struct s2mps11_info {
-	unsigned int rdev_num;
 	int ramp_delay2;
 	int ramp_delay34;
 	int ramp_delay5;
@@ -54,7 +53,10 @@ struct s2mps11_info {
 	 */
 	DECLARE_BITMAP(suspend_state, S2MPS_REGULATOR_MAX);
 
-	/* Array of size rdev_num with GPIO-s for external sleep control */
+	/*
+	 * Array (size: number of regulators) with GPIO-s for external
+	 * sleep control.
+	 */
 	int *ext_control_gpio;
 };
 
@@ -819,7 +821,8 @@ static void s2mps14_pmic_dt_parse_ext_control_gpio(struct platform_device *pdev,
 }
 
 static int s2mps11_pmic_dt_parse(struct platform_device *pdev,
-		struct of_regulator_match *rdata, struct s2mps11_info *s2mps11)
+		struct of_regulator_match *rdata, struct s2mps11_info *s2mps11,
+		unsigned int rdev_num)
 {
 	struct device_node *reg_np;
 
@@ -829,7 +832,7 @@ static int s2mps11_pmic_dt_parse(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	of_regulator_match(&pdev->dev, reg_np, rdata, s2mps11->rdev_num);
+	of_regulator_match(&pdev->dev, reg_np, rdata, rdev_num);
 	if (s2mps11->dev_type == S2MPS14X)
 		s2mps14_pmic_dt_parse_ext_control_gpio(pdev, rdata, s2mps11);
 
@@ -1077,6 +1080,7 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	struct of_regulator_match *rdata = NULL;
 	struct regulator_config config = { };
 	struct s2mps11_info *s2mps11;
+	unsigned int rdev_num = 0;
 	int i, ret = 0;
 	const struct regulator_desc *regulators;
 
@@ -1088,28 +1092,29 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	s2mps11->dev_type = platform_get_device_id(pdev)->driver_data;
 	switch (s2mps11->dev_type) {
 	case S2MPS11X:
-		s2mps11->rdev_num = ARRAY_SIZE(s2mps11_regulators);
+		rdev_num = ARRAY_SIZE(s2mps11_regulators);
 		regulators = s2mps11_regulators;
-		BUILD_BUG_ON(S2MPS_REGULATOR_MAX < s2mps11->rdev_num);
+		BUILD_BUG_ON(S2MPS_REGULATOR_MAX < ARRAY_SIZE(s2mps11_regulators));
 		break;
 	case S2MPS13X:
-		s2mps11->rdev_num = ARRAY_SIZE(s2mps13_regulators);
+		rdev_num = ARRAY_SIZE(s2mps13_regulators);
 		regulators = s2mps13_regulators;
-		BUILD_BUG_ON(S2MPS_REGULATOR_MAX < s2mps11->rdev_num);
+		BUILD_BUG_ON(S2MPS_REGULATOR_MAX < ARRAY_SIZE(s2mps13_regulators));
 		break;
 	case S2MPS14X:
-		s2mps11->rdev_num = ARRAY_SIZE(s2mps14_regulators);
+		rdev_num = ARRAY_SIZE(s2mps14_regulators);
 		regulators = s2mps14_regulators;
-		BUILD_BUG_ON(S2MPS_REGULATOR_MAX < s2mps11->rdev_num);
+		BUILD_BUG_ON(S2MPS_REGULATOR_MAX < ARRAY_SIZE(s2mps14_regulators));
 		break;
 	case S2MPS15X:
-		s2mps11->rdev_num = ARRAY_SIZE(s2mps15_regulators);
+		rdev_num = ARRAY_SIZE(s2mps15_regulators);
 		regulators = s2mps15_regulators;
+		BUILD_BUG_ON(S2MPS_REGULATOR_MAX < ARRAY_SIZE(s2mps15_regulators));
 		break;
 	case S2MPU02:
-		s2mps11->rdev_num = ARRAY_SIZE(s2mpu02_regulators);
+		rdev_num = ARRAY_SIZE(s2mpu02_regulators);
 		regulators = s2mpu02_regulators;
-		BUILD_BUG_ON(S2MPS_REGULATOR_MAX < s2mps11->rdev_num);
+		BUILD_BUG_ON(S2MPS_REGULATOR_MAX < ARRAY_SIZE(s2mpu02_regulators));
 		break;
 	default:
 		dev_err(&pdev->dev, "Invalid device type: %u\n",
@@ -1118,7 +1123,7 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	}
 
 	s2mps11->ext_control_gpio = devm_kmalloc(&pdev->dev,
-			sizeof(*s2mps11->ext_control_gpio) * s2mps11->rdev_num,
+			sizeof(*s2mps11->ext_control_gpio) * rdev_num,
 			GFP_KERNEL);
 	if (!s2mps11->ext_control_gpio)
 		return -ENOMEM;
@@ -1126,7 +1131,7 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	 * 0 is a valid GPIO so initialize all GPIO-s to negative value
 	 * to indicate that external control won't be used for this regulator.
 	 */
-	for (i = 0; i < s2mps11->rdev_num; i++)
+	for (i = 0; i < rdev_num; i++)
 		s2mps11->ext_control_gpio[i] = -EINVAL;
 
 	if (!iodev->dev->of_node) {
@@ -1140,14 +1145,14 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 		}
 	}
 
-	rdata = kzalloc(sizeof(*rdata) * s2mps11->rdev_num, GFP_KERNEL);
+	rdata = kzalloc(sizeof(*rdata) * rdev_num, GFP_KERNEL);
 	if (!rdata)
 		return -ENOMEM;
 
-	for (i = 0; i < s2mps11->rdev_num; i++)
+	for (i = 0; i < rdev_num; i++)
 		rdata[i].name = regulators[i].name;
 
-	ret = s2mps11_pmic_dt_parse(pdev, rdata, s2mps11);
+	ret = s2mps11_pmic_dt_parse(pdev, rdata, s2mps11, rdev_num);
 	if (ret)
 		goto out;
 
@@ -1159,7 +1164,7 @@ common_reg:
 	config.driver_data = s2mps11;
 	config.ena_gpio_flags = GPIOF_OUT_INIT_HIGH;
 	config.ena_gpio_initialized = true;
-	for (i = 0; i < s2mps11->rdev_num; i++) {
+	for (i = 0; i < rdev_num; i++) {
 		struct regulator_dev *regulator;
 
 		if (pdata) {

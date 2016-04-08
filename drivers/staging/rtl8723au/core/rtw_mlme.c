@@ -171,21 +171,15 @@ exit:
 
 void rtw_free_network_queue23a(struct rtw_adapter *padapter)
 {
-	struct list_head *phead, *plist, *ptmp;
-	struct wlan_network *pnetwork;
+	struct list_head *phead;
+	struct wlan_network *pnetwork, *ptmp;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct rtw_queue *scanned_queue = &pmlmepriv->scanned_queue;
 
 	spin_lock_bh(&scanned_queue->lock);
-
 	phead = get_list_head(scanned_queue);
-
-	list_for_each_safe(plist, ptmp, phead) {
-		pnetwork = container_of(plist, struct wlan_network, list);
-
+	list_for_each_entry_safe(pnetwork, ptmp, phead, list)
 		_rtw_free_network23a(pmlmepriv, pnetwork);
-	}
-
 	spin_unlock_bh(&scanned_queue->lock);
 }
 
@@ -329,15 +323,12 @@ int is_same_network23a(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst)
 struct wlan_network *
 rtw_get_oldest_wlan_network23a(struct rtw_queue *scanned_queue)
 {
-	struct list_head *plist, *phead;
+	struct list_head *phead;
 	struct wlan_network *pwlan;
 	struct wlan_network *oldest = NULL;
 
 	phead = get_list_head(scanned_queue);
-
-	list_for_each(plist, phead) {
-		pwlan = container_of(plist, struct wlan_network, list);
-
+	list_for_each_entry(pwlan, phead, list) {
 		if (pwlan->fixed != true) {
 			if (!oldest || time_after(oldest->last_scanned,
 						  pwlan->last_scanned))
@@ -445,7 +436,6 @@ static void rtw_update_scanned_network(struct rtw_adapter *adapter,
 
 	spin_lock_bh(&queue->lock);
 	phead = get_list_head(queue);
-
 	list_for_each(plist, phead) {
 		pnetwork = container_of(plist, struct wlan_network, list);
 
@@ -710,21 +700,17 @@ rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 
 static void free_scanqueue(struct mlme_priv *pmlmepriv)
 {
-	struct wlan_network *pnetwork;
+	struct wlan_network *pnetwork, *ptemp;
 	struct rtw_queue *scan_queue = &pmlmepriv->scanned_queue;
-	struct list_head *plist, *phead, *ptemp;
+	struct list_head *phead;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_, "+free_scanqueue\n");
 	spin_lock_bh(&scan_queue->lock);
-
 	phead = get_list_head(scan_queue);
-
-	list_for_each_safe(plist, ptemp, phead) {
-		pnetwork = container_of(plist, struct wlan_network, list);
+	list_for_each_entry_safe(pnetwork, ptemp, phead, list) {
 		pnetwork->fixed = false;
 		_rtw_free_network23a(pmlmepriv, pnetwork);
 	}
-
 	spin_unlock_bh(&scan_queue->lock);
 }
 
@@ -1625,27 +1611,16 @@ exit:
 static struct wlan_network *
 rtw_select_candidate_from_queue(struct mlme_priv *pmlmepriv)
 {
-	struct wlan_network *pnetwork, *candidate = NULL;
+	struct wlan_network *pnetwork, *ptmp, *candidate = NULL;
 	struct rtw_queue *queue = &pmlmepriv->scanned_queue;
-	struct list_head *phead, *plist, *ptmp;
+	struct list_head *phead;
 
 	spin_lock_bh(&pmlmepriv->scanned_queue.lock);
 	phead = get_list_head(queue);
-
-	list_for_each_safe(plist, ptmp, phead) {
-		pnetwork = container_of(plist, struct wlan_network, list);
-		if (!pnetwork) {
-			RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-				 "%s: return _FAIL:(pnetwork == NULL)\n",
-				 __func__);
-			goto exit;
-		}
-
+	list_for_each_entry_safe(pnetwork, ptmp, phead, list)
 		rtw_check_join_candidate(pmlmepriv, &candidate, pnetwork);
-	}
-
-exit:
 	spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
+
 	return candidate;
 }
 

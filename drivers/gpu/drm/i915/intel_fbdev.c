@@ -119,7 +119,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 {
 	struct intel_fbdev *ifbdev =
 		container_of(helper, struct intel_fbdev, helper);
-	struct drm_framebuffer *fb = NULL;
+	struct drm_framebuffer *fb;
 	struct drm_device *dev = helper->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_mode_fb_cmd2 mode_cmd = {};
@@ -171,8 +171,6 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 
 out:
 	mutex_unlock(&dev->struct_mutex);
-	if (!IS_ERR_OR_NULL(fb))
-		drm_framebuffer_unreference(fb);
 	return ret;
 }
 
@@ -408,8 +406,8 @@ retry:
 			continue;
 		}
 
-		encoder = connector->encoder;
-		if (!encoder || WARN_ON(!encoder->crtc)) {
+		encoder = connector->state->best_encoder;
+		if (!encoder || WARN_ON(!connector->state->crtc)) {
 			if (connector->force > DRM_FORCE_OFF)
 				goto bail;
 
@@ -422,7 +420,7 @@ retry:
 
 		num_connectors_enabled++;
 
-		new_crtc = intel_fb_helper_crtc(fb_helper, encoder->crtc);
+		new_crtc = intel_fb_helper_crtc(fb_helper, connector->state->crtc);
 
 		/*
 		 * Make sure we're not trying to drive multiple connectors
@@ -468,17 +466,22 @@ retry:
 			 * usually contains. But since our current
 			 * code puts a mode derived from the post-pfit timings
 			 * into crtc->mode this works out correctly.
+			 *
+			 * This is crtc->mode and not crtc->state->mode for the
+			 * fastboot check to work correctly. crtc_state->mode has
+			 * I915_MODE_FLAG_INHERITED, which we clear to force check
+			 * state.
 			 */
 			DRM_DEBUG_KMS("looking for current mode on connector %s\n",
 				      connector->name);
-			modes[i] = &encoder->crtc->mode;
+			modes[i] = &connector->state->crtc->mode;
 		}
 		crtcs[i] = new_crtc;
 
 		DRM_DEBUG_KMS("connector %s on pipe %c [CRTC:%d]: %dx%d%s\n",
 			      connector->name,
-			      pipe_name(to_intel_crtc(encoder->crtc)->pipe),
-			      encoder->crtc->base.id,
+			      pipe_name(to_intel_crtc(connector->state->crtc)->pipe),
+			      connector->state->crtc->base.id,
 			      modes[i]->hdisplay, modes[i]->vdisplay,
 			      modes[i]->flags & DRM_MODE_FLAG_INTERLACE ? "i" :"");
 

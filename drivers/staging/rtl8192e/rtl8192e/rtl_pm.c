@@ -27,7 +27,7 @@ int rtl92e_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	netdev_info(dev, "============> r8192E suspend call.\n");
 	del_timer_sync(&priv->gpio_polling_timer);
-	cancel_delayed_work(&priv->gpio_change_rf_wq);
+	cancel_delayed_work_sync(&priv->gpio_change_rf_wq);
 	priv->polling_timer_on = 0;
 
 	if (!netif_running(dev)) {

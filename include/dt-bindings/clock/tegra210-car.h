@@ -126,7 +126,7 @@
 /* 104 */
 /* 105 */
 #define TEGRA210_CLK_D_AUDIO 106
-/* 107 ( affects abp -> ape) */
+#define TEGRA210_CLK_APB2APE 107
 /* 108 */
 /* 109 */
 /* 110 */

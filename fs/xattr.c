@@ -940,7 +940,7 @@ ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
 	bool trusted = capable(CAP_SYS_ADMIN);
 	struct simple_xattr *xattr;
 	ssize_t remaining_size = size;
-	int err;
+	int err = 0;
 
 #ifdef CONFIG_FS_POSIX_ACL
 	if (inode->i_acl) {
@@ -965,11 +965,11 @@ ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
 
 		err = xattr_list_one(&buffer, &remaining_size, xattr->name);
 		if (err)
-			return err;
+			break;
 	}
 	spin_unlock(&xattrs->lock);
 
-	return size - remaining_size;
+	return err ? err : size - remaining_size;
 }
 
 /*

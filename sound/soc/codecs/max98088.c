@@ -1496,7 +1496,7 @@ static int max98088_put_eq_enum(struct snd_kcontrol *kcontrol,
        struct max98088_pdata *pdata = max98088->pdata;
        int channel = max98088_get_channel(codec, kcontrol->id.name);
        struct max98088_cdata *cdata;
-       int sel = ucontrol->value.integer.value[0];
+	int sel = ucontrol->value.enumerated.item[0];
 
        if (channel < 0)
 	       return channel;

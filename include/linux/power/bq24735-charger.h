@@ -32,6 +32,8 @@ struct bq24735_platform {
 	int status_gpio_active_low;
 	bool status_gpio_valid;
 
+	bool ext_control;
+
 	char **supplied_to;
 	size_t num_supplicants;
 };

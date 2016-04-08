@@ -68,7 +68,7 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp), &RQF_SEQ_QUERY,
 					LUSTRE_MDS_VERSION, SEQ_QUERY);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	/* Init operation code */
@@ -95,7 +95,8 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 		 * precreating objects on this OST), and it will send the
 		 * request to MDT0 here, so we can not keep resending the
 		 * request here, otherwise if MDT0 is failed(umounted),
-		 * it can not release the export of MDT0 */
+		 * it can not release the export of MDT0
+		 */
 		if (seq->lcs_type == LUSTRE_SEQ_DATA)
 			req->rq_no_delay = req->rq_no_resend = 1;
 		debug_mask = D_CONSOLE;
@@ -152,7 +153,8 @@ static int seq_client_alloc_meta(const struct lu_env *env,
 		/* If meta server return -EINPROGRESS or EAGAIN,
 		 * it means meta server might not be ready to
 		 * allocate super sequence from sequence controller
-		 * (MDT0)yet */
+		 * (MDT0)yet
+		 */
 		rc = seq_client_rpc(seq, &seq->lcs_space,
 				    SEQ_ALLOC_META, "meta");
 	} while (rc == -EINPROGRESS || rc == -EAGAIN);
@@ -226,8 +228,8 @@ int seq_client_alloc_fid(const struct lu_env *env,
 	wait_queue_t link;
 	int rc;
 
-	LASSERT(seq != NULL);
-	LASSERT(fid != NULL);
+	LASSERT(seq);
+	LASSERT(fid);
 
 	init_waitqueue_entry(&link, current);
 	mutex_lock(&seq->lcs_mutex);
@@ -292,7 +294,7 @@ void seq_client_flush(struct lu_client_seq *seq)
 {
 	wait_queue_t link;
 
-	LASSERT(seq != NULL);
+	LASSERT(seq);
 	init_waitqueue_entry(&link, current);
 	mutex_lock(&seq->lcs_mutex);
 
@@ -375,8 +377,8 @@ static int seq_client_init(struct lu_client_seq *seq,
 {
 	int rc;
 
-	LASSERT(seq != NULL);
-	LASSERT(prefix != NULL);
+	LASSERT(seq);
+	LASSERT(prefix);
 
 	seq->lcs_type = type;
 
@@ -438,7 +440,7 @@ int client_fid_fini(struct obd_device *obd)
 {
 	struct client_obd *cli = &obd->u.cli;
 
-	if (cli->cl_seq != NULL) {
+	if (cli->cl_seq) {
 		seq_client_fini(cli->cl_seq);
 		kfree(cli->cl_seq);
 		cli->cl_seq = NULL;
@@ -448,7 +450,7 @@ int client_fid_fini(struct obd_device *obd)
 }
 EXPORT_SYMBOL(client_fid_fini);
 
-static int __init fid_mod_init(void)
+static int __init fid_init(void)
 {
 	seq_debugfs_dir = ldebugfs_register(LUSTRE_SEQ_NAME,
 					    debugfs_lustre_root,
@@ -456,16 +458,16 @@ static int __init fid_mod_init(void)
 	return PTR_ERR_OR_ZERO(seq_debugfs_dir);
 }
 
-static void __exit fid_mod_exit(void)
+static void __exit fid_exit(void)
 {
 	if (!IS_ERR_OR_NULL(seq_debugfs_dir))
 		ldebugfs_remove(&seq_debugfs_dir);
 }
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
-MODULE_DESCRIPTION("Lustre FID Module");
+MODULE_DESCRIPTION("Lustre File IDentifier");
+MODULE_VERSION(LUSTRE_VERSION_STRING);
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.1.0");
 
-module_init(fid_mod_init);
-module_exit(fid_mod_exit);
+module_init(fid_init);
+module_exit(fid_exit);

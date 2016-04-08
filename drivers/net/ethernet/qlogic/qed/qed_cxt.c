@@ -448,7 +448,7 @@ int qed_cxt_mngr_alloc(struct qed_hwfn *p_hwfn)
 	struct qed_cxt_mngr *p_mngr;
 	u32 i;
 
-	p_mngr = kzalloc(sizeof(*p_mngr), GFP_ATOMIC);
+	p_mngr = kzalloc(sizeof(*p_mngr), GFP_KERNEL);
 	if (!p_mngr) {
 		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_cxt_mngr'\n");
 		return -ENOMEM;
@@ -581,7 +581,8 @@ void qed_qm_init_pf(struct qed_hwfn *p_hwfn)
 	params.num_pf_cids = iids.cids;
 	params.start_pq = qm_info->start_pq;
 	params.num_pf_pqs = qm_info->num_pqs;
-	params.start_vport = qm_info->num_vports;
+	params.start_vport = qm_info->start_vport;
+	params.num_vports = qm_info->num_vports;
 	params.pf_wfq = qm_info->pf_wfq;
 	params.pf_rl = qm_info->pf_rl;
 	params.pq_params = qm_info->qm_pq_params;

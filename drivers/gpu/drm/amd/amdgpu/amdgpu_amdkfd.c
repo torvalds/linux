@@ -30,25 +30,38 @@ const struct kfd2kgd_calls *kfd2kgd;
 const struct kgd2kfd_calls *kgd2kfd;
 bool (*kgd2kfd_init_p)(unsigned, const struct kgd2kfd_calls**);
 
-bool amdgpu_amdkfd_init(void)
+int amdgpu_amdkfd_init(void)
 {
+	int ret;
+
 #if defined(CONFIG_HSA_AMD_MODULE)
-	bool (*kgd2kfd_init_p)(unsigned, const struct kgd2kfd_calls**);
+	int (*kgd2kfd_init_p)(unsigned, const struct kgd2kfd_calls**);
 
 	kgd2kfd_init_p = symbol_request(kgd2kfd_init);
 
 	if (kgd2kfd_init_p == NULL)
-		return false;
+		return -ENOENT;
+
+	ret = kgd2kfd_init_p(KFD_INTERFACE_VERSION, &kgd2kfd);
+	if (ret) {
+		symbol_put(kgd2kfd_init);
+		kgd2kfd = NULL;
+	}
+
+#elif defined(CONFIG_HSA_AMD)
+	ret = kgd2kfd_init(KFD_INTERFACE_VERSION, &kgd2kfd);
+	if (ret)
+		kgd2kfd = NULL;
+
+#else
+	ret = -ENOENT;
 #endif
-	return true;
+
+	return ret;
 }
 
 bool amdgpu_amdkfd_load_interface(struct amdgpu_device *rdev)
 {
-#if defined(CONFIG_HSA_AMD_MODULE)
-	bool (*kgd2kfd_init_p)(unsigned, const struct kgd2kfd_calls**);
-#endif
-
 	switch (rdev->asic_type) {
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_KAVERI:
@@ -62,35 +75,7 @@ bool amdgpu_amdkfd_load_interface(struct amdgpu_device *rdev)
 		return false;
 	}
 
-#if defined(CONFIG_HSA_AMD_MODULE)
-	kgd2kfd_init_p = symbol_request(kgd2kfd_init);
-
-	if (kgd2kfd_init_p == NULL) {
-		kfd2kgd = NULL;
-		return false;
-	}
-
-	if (!kgd2kfd_init_p(KFD_INTERFACE_VERSION, &kgd2kfd)) {
-		symbol_put(kgd2kfd_init);
-		kfd2kgd = NULL;
-		kgd2kfd = NULL;
-
-		return false;
-	}
-
 	return true;
-#elif defined(CONFIG_HSA_AMD)
-	if (!kgd2kfd_init(KFD_INTERFACE_VERSION, &kgd2kfd)) {
-		kfd2kgd = NULL;
-		kgd2kfd = NULL;
-		return false;
-	}
-
-	return true;
-#else
-	kfd2kgd = NULL;
-	return false;
-#endif
 }
 
 void amdgpu_amdkfd_fini(void)

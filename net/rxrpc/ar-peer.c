@@ -92,7 +92,7 @@ static struct rxrpc_peer *rxrpc_alloc_peer(struct sockaddr_rxrpc *srx,
 			BUG();
 		}
 
-		peer->hdrsize += sizeof(struct rxrpc_header);
+		peer->hdrsize += sizeof(struct rxrpc_wire_header);
 		peer->maxdata = peer->mtu - peer->hdrsize;
 	}
 

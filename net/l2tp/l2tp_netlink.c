@@ -124,8 +124,13 @@ static int l2tp_tunnel_notify(struct genl_family *family,
 	ret = l2tp_nl_tunnel_send(msg, info->snd_portid, info->snd_seq,
 				  NLM_F_ACK, tunnel, cmd);
 
-	if (ret >= 0)
-		return genlmsg_multicast_allns(family, msg, 0,	0, GFP_ATOMIC);
+	if (ret >= 0) {
+		ret = genlmsg_multicast_allns(family, msg, 0, 0, GFP_ATOMIC);
+		/* We don't care if no one is listening */
+		if (ret == -ESRCH)
+			ret = 0;
+		return ret;
+	}
 
 	nlmsg_free(msg);
 
@@ -147,8 +152,13 @@ static int l2tp_session_notify(struct genl_family *family,
 	ret = l2tp_nl_session_send(msg, info->snd_portid, info->snd_seq,
 				   NLM_F_ACK, session, cmd);
 
-	if (ret >= 0)
-		return genlmsg_multicast_allns(family, msg, 0,	0, GFP_ATOMIC);
+	if (ret >= 0) {
+		ret = genlmsg_multicast_allns(family, msg, 0, 0, GFP_ATOMIC);
+		/* We don't care if no one is listening */
+		if (ret == -ESRCH)
+			ret = 0;
+		return ret;
+	}
 
 	nlmsg_free(msg);
 

@@ -214,10 +214,7 @@ static struct platform_driver hi6220_ion_driver = {
 
 static int __init hi6220_ion_init(void)
 {
-	int ret;
-
-	ret = platform_driver_register(&hi6220_ion_driver);
-	return ret;
+	return platform_driver_register(&hi6220_ion_driver);
 }
 
 subsys_initcall(hi6220_ion_init);

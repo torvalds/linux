@@ -78,6 +78,9 @@ static int vco_set(struct clk_icst *icst, struct icst_vco vco)
 	ret = regmap_read(icst->map, icst->vcoreg_off, &val);
 	if (ret)
 		return ret;
+
+	/* Mask the 18 bits used by the VCO */
+	val &= ~0x7ffff;
 	val |= vco.v | (vco.r << 9) | (vco.s << 16);
 
 	/* This magic unlocks the VCO so it can be controlled */
@@ -167,7 +170,7 @@ static struct clk *icst_clk_setup(struct device *dev,
 
 	init.name = name;
 	init.ops = &icst_ops;
-	init.flags = CLK_IS_ROOT;
+	init.flags = 0;
 	init.parent_names = (parent_name ? &parent_name : NULL);
 	init.num_parents = (parent_name ? 1 : 0);
 	icst->map = map;

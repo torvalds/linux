@@ -427,9 +427,6 @@ static int jz_nand_probe(struct platform_device *pdev)
 	chip->ecc.strength	= 4;
 	chip->ecc.options	= NAND_ECC_GENERIC_ERASED_CHECK;
 
-	if (pdata)
-		chip->ecc.layout = pdata->ecc_layout;
-
 	chip->chip_delay = 50;
 	chip->cmd_ctrl = jz_nand_cmd_ctrl;
 	chip->select_chip = jz_nand_select_chip;

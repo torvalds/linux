@@ -114,6 +114,7 @@ struct kmem_cache *amd_iommu_irq_cache;
 
 static void update_domain(struct protection_domain *domain);
 static int protection_domain_init(struct protection_domain *domain);
+static void detach_device(struct device *dev);
 
 /*
  * For dynamic growth the aperture size is split into ranges of 128MB of
@@ -383,6 +384,9 @@ static void iommu_uninit_device(struct device *dev)
 
 	if (!dev_data)
 		return;
+
+	if (dev_data->domain)
+		detach_device(dev);
 
 	iommu_device_unlink(amd_iommu_rlookup_table[dev_data->devid]->iommu_dev,
 			    dev);

@@ -10,6 +10,7 @@ Requires node properties:
 	"murata,ncp03wb473"
 	"murata,ncp15wl333"
 	"murata,ncp03wf104"
+	"murata,ncp15xh103"
 
 /* Usage of vendor name "ntc" is deprecated */
 <DEPRECATED>	"ntc,ncp15wb473"

@@ -63,7 +63,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "spansion,s25fl256s1";
+				compatible = "spansion,s25fl256s1", "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <20000000>; /* input clock */
 			};
@@ -77,7 +77,7 @@
 			flash@2 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "micron,m25p32";
+				compatible = "micron,m25p32", "jedec,spi-nor";
 				reg = <2>;
 				spi-max-frequency = <15000000>;
 			};

@@ -17,19 +17,11 @@ config SOC_CAMERA_PLATFORM
 	help
 	  This is a generic SoC camera platform driver, useful for testing
 
-config VIDEO_MX3
-	tristate "i.MX3x Camera Sensor Interface driver"
-	depends on VIDEO_DEV && MX3_IPU && SOC_CAMERA
-	depends on MX3_IPU || COMPILE_TEST
-	depends on HAS_DMA
-	select VIDEOBUF2_DMA_CONTIG
-	---help---
-	  This is a v4l2 driver for the i.MX3x Camera Sensor Interface
-
 config VIDEO_PXA27x
 	tristate "PXA27x Quick Capture Interface driver"
 	depends on VIDEO_DEV && PXA27x && SOC_CAMERA
 	select VIDEOBUF_DMA_SG
+	select SG_SPLIT
 	---help---
 	  This is a v4l2 driver for the PXA27x Quick Capture Interface
 
@@ -59,25 +51,6 @@ config VIDEO_SH_MOBILE_CEU
 	select SOC_CAMERA_SCALE_CROP
 	---help---
 	  This is a v4l2 driver for the SuperH Mobile CEU Interface
-
-config VIDEO_OMAP1
-	tristate "OMAP1 Camera Interface driver"
-	depends on VIDEO_DEV && SOC_CAMERA
-	depends on ARCH_OMAP1
-	depends on HAS_DMA
-	select VIDEOBUF_DMA_CONTIG
-	select VIDEOBUF_DMA_SG
-	---help---
-	  This is a v4l2 driver for the TI OMAP1 camera interface
-
-config VIDEO_MX2
-	tristate "i.MX27 Camera Sensor Interface driver"
-	depends on VIDEO_DEV && SOC_CAMERA
-	depends on SOC_IMX27 || COMPILE_TEST
-	depends on HAS_DMA
-	select VIDEOBUF2_DMA_CONTIG
-	---help---
-	  This is a v4l2 driver for the i.MX27 Camera Sensor Interface
 
 config VIDEO_ATMEL_ISI
 	tristate "ATMEL Image Sensor Interface (ISI) support"

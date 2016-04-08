@@ -609,17 +609,20 @@ xfs_trans_dqresv(
 	xfs_qcnt_t	total_count;
 	xfs_qcnt_t	*resbcountp;
 	xfs_quotainfo_t	*q = mp->m_quotainfo;
+	struct xfs_def_quota	*defq;
 
 
 	xfs_dqlock(dqp);
 
+	defq = xfs_get_defquota(dqp, q);
+
 	if (flags & XFS_TRANS_DQ_RES_BLKS) {
 		hardlimit = be64_to_cpu(dqp->q_core.d_blk_hardlimit);
 		if (!hardlimit)
-			hardlimit = q->qi_bhardlimit;
+			hardlimit = defq->bhardlimit;
 		softlimit = be64_to_cpu(dqp->q_core.d_blk_softlimit);
 		if (!softlimit)
-			softlimit = q->qi_bsoftlimit;
+			softlimit = defq->bsoftlimit;
 		timer = be32_to_cpu(dqp->q_core.d_btimer);
 		warns = be16_to_cpu(dqp->q_core.d_bwarns);
 		warnlimit = dqp->q_mount->m_quotainfo->qi_bwarnlimit;
@@ -628,10 +631,10 @@ xfs_trans_dqresv(
 		ASSERT(flags & XFS_TRANS_DQ_RES_RTBLKS);
 		hardlimit = be64_to_cpu(dqp->q_core.d_rtb_hardlimit);
 		if (!hardlimit)
-			hardlimit = q->qi_rtbhardlimit;
+			hardlimit = defq->rtbhardlimit;
 		softlimit = be64_to_cpu(dqp->q_core.d_rtb_softlimit);
 		if (!softlimit)
-			softlimit = q->qi_rtbsoftlimit;
+			softlimit = defq->rtbsoftlimit;
 		timer = be32_to_cpu(dqp->q_core.d_rtbtimer);
 		warns = be16_to_cpu(dqp->q_core.d_rtbwarns);
 		warnlimit = dqp->q_mount->m_quotainfo->qi_rtbwarnlimit;
@@ -672,10 +675,10 @@ xfs_trans_dqresv(
 			warnlimit = dqp->q_mount->m_quotainfo->qi_iwarnlimit;
 			hardlimit = be64_to_cpu(dqp->q_core.d_ino_hardlimit);
 			if (!hardlimit)
-				hardlimit = q->qi_ihardlimit;
+				hardlimit = defq->ihardlimit;
 			softlimit = be64_to_cpu(dqp->q_core.d_ino_softlimit);
 			if (!softlimit)
-				softlimit = q->qi_isoftlimit;
+				softlimit = defq->isoftlimit;
 
 			if (hardlimit && total_count > hardlimit) {
 				xfs_quota_warn(mp, dqp, QUOTA_NL_IHARDWARN);

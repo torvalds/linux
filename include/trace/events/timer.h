@@ -328,23 +328,49 @@ TRACE_EVENT(itimer_expire,
 );
 
 #ifdef CONFIG_NO_HZ_COMMON
+
+#define TICK_DEP_NAMES					\
+		tick_dep_name(NONE)			\
+		tick_dep_name(POSIX_TIMER)		\
+		tick_dep_name(PERF_EVENTS)		\
+		tick_dep_name(SCHED)			\
+		tick_dep_name_end(CLOCK_UNSTABLE)
+
+#undef tick_dep_name
+#undef tick_dep_name_end
+
+#define tick_dep_name(sdep) TRACE_DEFINE_ENUM(TICK_DEP_MASK_##sdep);
+#define tick_dep_name_end(sdep)  TRACE_DEFINE_ENUM(TICK_DEP_MASK_##sdep);
+
+TICK_DEP_NAMES
+
+#undef tick_dep_name
+#undef tick_dep_name_end
+
+#define tick_dep_name(sdep) { TICK_DEP_MASK_##sdep, #sdep },
+#define tick_dep_name_end(sdep) { TICK_DEP_MASK_##sdep, #sdep }
+
+#define show_tick_dep_name(val)				\
+	__print_symbolic(val, TICK_DEP_NAMES)
+
 TRACE_EVENT(tick_stop,
 
-	TP_PROTO(int success, char *error_msg),
+	TP_PROTO(int success, int dependency),
 
-	TP_ARGS(success, error_msg),
+	TP_ARGS(success, dependency),
 
 	TP_STRUCT__entry(
 		__field( int ,		success	)
-		__string( msg, 		error_msg )
+		__field( int ,		dependency )
 	),
 
 	TP_fast_assign(
 		__entry->success	= success;
-		__assign_str(msg, error_msg);
+		__entry->dependency	= dependency;
 	),
 
-	TP_printk("success=%s msg=%s",  __entry->success ? "yes" : "no", __get_str(msg))
+	TP_printk("success=%d dependency=%s",  __entry->success, \
+			show_tick_dep_name(__entry->dependency))
 );
 #endif
 

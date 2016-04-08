@@ -58,7 +58,8 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	} else {
 		context->sq_size_stride = ilog2(TXBB_SIZE) - 4;
 	}
-	context->usr_page = cpu_to_be32(mdev->priv_uar.index);
+	context->usr_page = cpu_to_be32(mlx4_to_hw_uar_index(mdev->dev,
+					mdev->priv_uar.index));
 	context->local_qpn = cpu_to_be32(qpn);
 	context->pri_path.ackto = 1 & 0x07;
 	context->pri_path.sched_queue = 0x83 | (priv->port - 1) << 6;

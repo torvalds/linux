@@ -13,9 +13,6 @@ struct vdso_image {
 	void *data;
 	unsigned long size;   /* Always a multiple of PAGE_SIZE */
 
-	/* text_mapping.pages is big enough for data/size page pointers */
-	struct vm_special_mapping text_mapping;
-
 	unsigned long alt, alt_len;
 
 	long sym_vvar_start;  /* Negative offset to the vvar area */

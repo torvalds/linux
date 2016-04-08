@@ -442,6 +442,11 @@ int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 }
 EXPORT_SYMBOL_GPL(mlx5_destroy_unmap_eq);
 
+u32 mlx5_get_msix_vec(struct mlx5_core_dev *dev, int vecidx)
+{
+	return dev->priv.msix_arr[MLX5_EQ_VEC_ASYNC].vector;
+}
+
 int mlx5_eq_init(struct mlx5_core_dev *dev)
 {
 	int err;

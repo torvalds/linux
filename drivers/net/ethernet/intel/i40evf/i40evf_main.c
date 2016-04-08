@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -32,13 +32,13 @@ static int i40evf_close(struct net_device *netdev);
 
 char i40evf_driver_name[] = "i40evf";
 static const char i40evf_driver_string[] =
-	"Intel(R) XL710/X710 Virtual Function Network Driver";
+	"Intel(R) 40-10 Gigabit Virtual Function Network Driver";
 
 #define DRV_KERN "-k"
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 4
+#define DRV_VERSION_BUILD 15
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD) \
@@ -68,6 +68,8 @@ MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION("Intel(R) XL710 X710 Virtual Function Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
+
+static struct workqueue_struct *i40evf_wq;
 
 /**
  * i40evf_allocate_dma_mem_d - OS specific memory alloc for shared code
@@ -171,6 +173,19 @@ void i40evf_debug_d(void *hw, u32 mask, char *fmt_str, ...)
 }
 
 /**
+ * i40evf_schedule_reset - Set the flags and schedule a reset event
+ * @adapter: board private structure
+ **/
+void i40evf_schedule_reset(struct i40evf_adapter *adapter)
+{
+	if (!(adapter->flags &
+	      (I40EVF_FLAG_RESET_PENDING | I40EVF_FLAG_RESET_NEEDED))) {
+		adapter->flags |= I40EVF_FLAG_RESET_NEEDED;
+		schedule_work(&adapter->reset_task);
+	}
+}
+
+/**
  * i40evf_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  **/
@@ -179,11 +194,7 @@ static void i40evf_tx_timeout(struct net_device *netdev)
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
 	adapter->tx_timeout_count++;
-	if (!(adapter->flags & (I40EVF_FLAG_RESET_PENDING |
-				I40EVF_FLAG_RESET_NEEDED))) {
-		adapter->flags |= I40EVF_FLAG_RESET_NEEDED;
-		schedule_work(&adapter->reset_task);
-	}
+	i40evf_schedule_reset(adapter);
 }
 
 /**
@@ -636,35 +647,22 @@ static void i40evf_configure_rx(struct i40evf_adapter *adapter)
 	int rx_buf_len;
 
 
-	adapter->flags &= ~I40EVF_FLAG_RX_PS_CAPABLE;
-	adapter->flags |= I40EVF_FLAG_RX_1BUF_CAPABLE;
-
-	/* Decide whether to use packet split mode or not */
-	if (netdev->mtu > ETH_DATA_LEN) {
-		if (adapter->flags & I40EVF_FLAG_RX_PS_CAPABLE)
-			adapter->flags |= I40EVF_FLAG_RX_PS_ENABLED;
-		else
-			adapter->flags &= ~I40EVF_FLAG_RX_PS_ENABLED;
-	} else {
-		if (adapter->flags & I40EVF_FLAG_RX_1BUF_CAPABLE)
-			adapter->flags &= ~I40EVF_FLAG_RX_PS_ENABLED;
-		else
-			adapter->flags |= I40EVF_FLAG_RX_PS_ENABLED;
-	}
-
 	/* Set the RX buffer length according to the mode */
-	if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED) {
-		rx_buf_len = I40E_RX_HDR_SIZE;
-	} else {
-		if (netdev->mtu <= ETH_DATA_LEN)
-			rx_buf_len = I40EVF_RXBUFFER_2048;
-		else
-			rx_buf_len = ALIGN(max_frame, 1024);
-	}
+	if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED ||
+	    netdev->mtu <= ETH_DATA_LEN)
+		rx_buf_len = I40EVF_RXBUFFER_2048;
+	else
+		rx_buf_len = ALIGN(max_frame, 1024);
 
 	for (i = 0; i < adapter->num_active_queues; i++) {
 		adapter->rx_rings[i].tail = hw->hw_addr + I40E_QRX_TAIL1(i);
 		adapter->rx_rings[i].rx_buf_len = rx_buf_len;
+		if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED) {
+			set_ring_ps_enabled(&adapter->rx_rings[i]);
+			adapter->rx_rings[i].rx_hdr_len = I40E_RX_HDR_SIZE;
+		} else {
+			clear_ring_ps_enabled(&adapter->rx_rings[i]);
+		}
 	}
 }
 
@@ -1001,7 +999,12 @@ static void i40evf_configure(struct i40evf_adapter *adapter)
 	for (i = 0; i < adapter->num_active_queues; i++) {
 		struct i40e_ring *ring = &adapter->rx_rings[i];
 
+	if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED) {
+		i40evf_alloc_rx_headers(ring);
+		i40evf_alloc_rx_buffers_ps(ring, ring->count);
+	} else {
 		i40evf_alloc_rx_buffers_1buf(ring, ring->count);
+	}
 		ring->next_to_use = ring->count - 1;
 		writel(ring->next_to_use, ring->tail);
 	}
@@ -1032,7 +1035,7 @@ void i40evf_down(struct i40evf_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct i40evf_mac_filter *f;
 
-	if (adapter->state == __I40EVF_DOWN)
+	if (adapter->state <= __I40EVF_DOWN_PENDING)
 		return;
 
 	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
@@ -1122,7 +1125,9 @@ static void i40evf_free_queues(struct i40evf_adapter *adapter)
 	if (!adapter->vsi_res)
 		return;
 	kfree(adapter->tx_rings);
+	adapter->tx_rings = NULL;
 	kfree(adapter->rx_rings);
+	adapter->rx_rings = NULL;
 }
 
 /**
@@ -1454,7 +1459,11 @@ static int i40evf_init_rss(struct i40evf_adapter *adapter)
 	int ret;
 
 	/* Enable PCTYPES for RSS, TCP/UDP with IPv4/IPv6 */
-	hena = I40E_DEFAULT_RSS_HENA;
+	if (adapter->vf_res->vf_offload_flags &
+					I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
+		hena = I40E_DEFAULT_RSS_HENA_EXPANDED;
+	else
+		hena = I40E_DEFAULT_RSS_HENA;
 	wr32(hw, I40E_VFQF_HENA(0), (u32)hena);
 	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
 
@@ -1829,6 +1838,7 @@ static void i40evf_reset_task(struct work_struct *work)
 			break;
 		msleep(I40EVF_RESET_WAIT_MS);
 	}
+	pci_set_master(adapter->pdev);
 	/* extra wait to make sure minimum wait is met */
 	msleep(I40EVF_RESET_WAIT_MS);
 	if (i == I40EVF_RESET_WAIT_COUNT) {
@@ -1873,6 +1883,7 @@ static void i40evf_reset_task(struct work_struct *work)
 		adapter->netdev->flags &= ~IFF_UP;
 		clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 		adapter->flags &= ~I40EVF_FLAG_RESET_PENDING;
+		adapter->state = __I40EVF_DOWN;
 		dev_info(&adapter->pdev->dev, "Reset task did not complete, VF disabled\n");
 		return; /* Do not attempt to reinit. It's dead, Jim. */
 	}
@@ -2142,7 +2153,8 @@ static int i40evf_open(struct net_device *netdev)
 		dev_err(&adapter->pdev->dev, "Unable to open device due to PF driver failure.\n");
 		return -EIO;
 	}
-	if (adapter->state != __I40EVF_DOWN || adapter->aq_required)
+
+	if (adapter->state != __I40EVF_DOWN)
 		return -EBUSY;
 
 	/* allocate transmit descriptors */
@@ -2197,14 +2209,14 @@ static int i40evf_close(struct net_device *netdev)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
-	if (adapter->state <= __I40EVF_DOWN)
+	if (adapter->state <= __I40EVF_DOWN_PENDING)
 		return 0;
 
 
 	set_bit(__I40E_DOWN, &adapter->vsi.state);
 
 	i40evf_down(adapter);
-	adapter->state = __I40EVF_DOWN;
+	adapter->state = __I40EVF_DOWN_PENDING;
 	i40evf_free_traffic_irqs(adapter);
 
 	return 0;
@@ -2325,8 +2337,23 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 			    NETIF_F_IPV6_CSUM |
 			    NETIF_F_TSO |
 			    NETIF_F_TSO6 |
+			    NETIF_F_TSO_ECN |
+			    NETIF_F_GSO_GRE	       |
+			    NETIF_F_GSO_UDP_TUNNEL |
 			    NETIF_F_RXCSUM |
 			    NETIF_F_GRO;
+
+	netdev->hw_enc_features |= NETIF_F_IP_CSUM	       |
+				   NETIF_F_IPV6_CSUM	       |
+				   NETIF_F_TSO		       |
+				   NETIF_F_TSO6		       |
+				   NETIF_F_TSO_ECN	       |
+				   NETIF_F_GSO_GRE	       |
+				   NETIF_F_GSO_UDP_TUNNEL      |
+				   NETIF_F_GSO_UDP_TUNNEL_CSUM;
+
+	if (adapter->flags & I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE)
+		netdev->features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= netdev->features;
@@ -2466,11 +2493,20 @@ static void i40evf_init_task(struct work_struct *work)
 	default:
 		goto err_alloc;
 	}
+
+	if (hw->mac.type == I40E_MAC_X722_VF)
+		adapter->flags |= I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE;
+
 	if (i40evf_process_config(adapter))
 		goto err_alloc;
 	adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
 
 	adapter->flags |= I40EVF_FLAG_RX_CSUM_ENABLED;
+	adapter->flags |= I40EVF_FLAG_RX_1BUF_CAPABLE;
+	adapter->flags |= I40EVF_FLAG_RX_PS_CAPABLE;
+
+	/* Default to single buffer rx, can be changed through ethtool. */
+	adapter->flags &= ~I40EVF_FLAG_RX_PS_ENABLED;
 
 	netdev->netdev_ops = &i40evf_netdev_ops;
 	i40evf_set_ethtool_ops(netdev);
@@ -2502,10 +2538,9 @@ static void i40evf_init_task(struct work_struct *work)
 		goto err_sw_init;
 	i40evf_map_rings_to_vectors(adapter);
 	if (adapter->vf_res->vf_offload_flags &
-		    I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
+	    I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
 		adapter->flags |= I40EVF_FLAG_WB_ON_ITR_CAPABLE;
-	if (!RSS_AQ(adapter))
-		i40evf_init_rss(adapter);
+
 	err = i40evf_request_misc_irq(adapter);
 	if (err)
 		goto err_sw_init;
@@ -2885,6 +2920,11 @@ static int __init i40evf_init_module(void)
 
 	pr_info("%s\n", i40evf_copyright);
 
+	i40evf_wq = create_singlethread_workqueue(i40evf_driver_name);
+	if (!i40evf_wq) {
+		pr_err("%s: Failed to create workqueue\n", i40evf_driver_name);
+		return -ENOMEM;
+	}
 	ret = pci_register_driver(&i40evf_driver);
 	return ret;
 }
@@ -2900,6 +2940,7 @@ module_init(i40evf_init_module);
 static void __exit i40evf_exit_module(void)
 {
 	pci_unregister_driver(&i40evf_driver);
+	destroy_workqueue(i40evf_wq);
 }
 
 module_exit(i40evf_exit_module);

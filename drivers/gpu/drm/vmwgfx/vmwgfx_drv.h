@@ -40,9 +40,9 @@
 #include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
 
-#define VMWGFX_DRIVER_DATE "20150810"
+#define VMWGFX_DRIVER_DATE "20160210"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 9
+#define VMWGFX_DRIVER_MINOR 10
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
@@ -80,7 +80,6 @@
 struct vmw_fpriv {
 	struct drm_master *locked_master;
 	struct ttm_object_file *tfile;
-	struct list_head fence_events;
 	bool gb_aware;
 };
 
@@ -408,8 +407,11 @@ struct vmw_private {
 	void *fb_info;
 	enum vmw_display_unit_type active_display_unit;
 	struct vmw_legacy_display *ldu_priv;
-	struct vmw_screen_object_display *sou_priv;
 	struct vmw_overlay *overlay_priv;
+	struct drm_property *hotplug_mode_update_property;
+	struct drm_property *implicit_placement_property;
+	unsigned num_implicit;
+	struct vmw_framebuffer *implicit_fb;
 
 	/*
 	 * Context and surface management.

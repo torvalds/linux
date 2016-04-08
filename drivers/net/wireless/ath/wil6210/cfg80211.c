@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -422,6 +422,11 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	if (sme->privacy && !rsn_eid)
 		wil_info(wil, "WSC connection\n");
 
+	if (sme->pbss) {
+		wil_err(wil, "connect - PBSS not yet supported\n");
+		return -EOPNOTSUPP;
+	}
+
 	bss = cfg80211_get_bss(wiphy, sme->channel, sme->bssid,
 			       sme->ssid, sme->ssid_len,
 			       IEEE80211_BSS_TYPE_ESS, IEEE80211_PRIVACY_ANY);
@@ -535,7 +540,18 @@ static int wil_cfg80211_disconnect(struct wiphy *wiphy,
 
 	wil_dbg_misc(wil, "%s(reason=%d)\n", __func__, reason_code);
 
-	rc = wmi_send(wil, WMI_DISCONNECT_CMDID, NULL, 0);
+	if (!(test_bit(wil_status_fwconnecting, wil->status) ||
+	      test_bit(wil_status_fwconnected, wil->status))) {
+		wil_err(wil, "%s: Disconnect was called while disconnected\n",
+			__func__);
+		return 0;
+	}
+
+	rc = wmi_call(wil, WMI_DISCONNECT_CMDID, NULL, 0,
+		      WMI_DISCONNECT_EVENTID, NULL, 0,
+		      WIL6210_DISCONNECT_TO_MS);
+	if (rc)
+		wil_err(wil, "%s: disconnect error %d\n", __func__, rc);
 
 	return rc;
 }
@@ -696,6 +712,79 @@ static int wil_cancel_remain_on_channel(struct wiphy *wiphy,
 	return rc;
 }
 
+/**
+ * find a specific IE in a list of IEs
+ * return a pointer to the beginning of IE in the list
+ * or NULL if not found
+ */
+static const u8 *_wil_cfg80211_find_ie(const u8 *ies, u16 ies_len, const u8 *ie,
+				       u16 ie_len)
+{
+	struct ieee80211_vendor_ie *vie;
+	u32 oui;
+
+	/* IE tag at offset 0, length at offset 1 */
+	if (ie_len < 2 || 2 + ie[1] > ie_len)
+		return NULL;
+
+	if (ie[0] != WLAN_EID_VENDOR_SPECIFIC)
+		return cfg80211_find_ie(ie[0], ies, ies_len);
+
+	/* make sure there is room for 3 bytes OUI + 1 byte OUI type */
+	if (ie[1] < 4)
+		return NULL;
+	vie = (struct ieee80211_vendor_ie *)ie;
+	oui = vie->oui[0] << 16 | vie->oui[1] << 8 | vie->oui[2];
+	return cfg80211_find_vendor_ie(oui, vie->oui_type, ies,
+				       ies_len);
+}
+
+/**
+ * merge the IEs in two lists into a single list.
+ * do not include IEs from the second list which exist in the first list.
+ * add only vendor specific IEs from second list to keep
+ * the merged list sorted (since vendor-specific IE has the
+ * highest tag number)
+ * caller must free the allocated memory for merged IEs
+ */
+static int _wil_cfg80211_merge_extra_ies(const u8 *ies1, u16 ies1_len,
+					 const u8 *ies2, u16 ies2_len,
+					 u8 **merged_ies, u16 *merged_len)
+{
+	u8 *buf, *dpos;
+	const u8 *spos;
+
+	if (ies1_len == 0 && ies2_len == 0) {
+		*merged_ies = NULL;
+		*merged_len = 0;
+		return 0;
+	}
+
+	buf = kmalloc(ies1_len + ies2_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	memcpy(buf, ies1, ies1_len);
+	dpos = buf + ies1_len;
+	spos = ies2;
+	while (spos + 1 < ies2 + ies2_len) {
+		/* IE tag at offset 0, length at offset 1 */
+		u16 ielen = 2 + spos[1];
+
+		if (spos + ielen > ies2 + ies2_len)
+			break;
+		if (spos[0] == WLAN_EID_VENDOR_SPECIFIC &&
+		    !_wil_cfg80211_find_ie(ies1, ies1_len, spos, ielen)) {
+			memcpy(dpos, spos, ielen);
+			dpos += ielen;
+		}
+		spos += ielen;
+	}
+
+	*merged_ies = buf;
+	*merged_len = dpos - buf;
+	return 0;
+}
+
 static void wil_print_bcon_data(struct cfg80211_beacon_data *b)
 {
 	print_hex_dump_bytes("head     ", DUMP_PREFIX_OFFSET,
@@ -712,49 +801,49 @@ static void wil_print_bcon_data(struct cfg80211_beacon_data *b)
 			     b->assocresp_ies, b->assocresp_ies_len);
 }
 
-static int wil_fix_bcon(struct wil6210_priv *wil,
-			struct cfg80211_beacon_data *bcon)
-{
-	struct ieee80211_mgmt *f = (struct ieee80211_mgmt *)bcon->probe_resp;
-	size_t hlen = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
-
-	if (bcon->probe_resp_len <= hlen)
-		return 0;
-
-/* always use IE's from full probe frame, they has more info
- * notable RSN
- */
-	bcon->proberesp_ies = f->u.probe_resp.variable;
-	bcon->proberesp_ies_len = bcon->probe_resp_len - hlen;
-	if (!bcon->assocresp_ies) {
-		bcon->assocresp_ies = bcon->proberesp_ies;
-		bcon->assocresp_ies_len = bcon->proberesp_ies_len;
-	}
-
-	return 1;
-}
-
 /* internal functions for device reset and starting AP */
 static int _wil_cfg80211_set_ies(struct wiphy *wiphy,
 				 struct cfg80211_beacon_data *bcon)
 {
 	int rc;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	u16 len = 0, proberesp_len = 0;
+	u8 *ies = NULL, *proberesp = NULL;
 
-	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_RESP, bcon->proberesp_ies_len,
-			bcon->proberesp_ies);
+	if (bcon->probe_resp) {
+		struct ieee80211_mgmt *f =
+			(struct ieee80211_mgmt *)bcon->probe_resp;
+		size_t hlen = offsetof(struct ieee80211_mgmt,
+				       u.probe_resp.variable);
+		proberesp = f->u.probe_resp.variable;
+		proberesp_len = bcon->probe_resp_len - hlen;
+	}
+	rc = _wil_cfg80211_merge_extra_ies(proberesp,
+					   proberesp_len,
+					   bcon->proberesp_ies,
+					   bcon->proberesp_ies_len,
+					   &ies, &len);
+
 	if (rc)
-		return rc;
+		goto out;
 
-	rc = wmi_set_ie(wil, WMI_FRAME_ASSOC_RESP, bcon->assocresp_ies_len,
-			bcon->assocresp_ies);
+	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_RESP, len, ies);
+	if (rc)
+		goto out;
+
+	if (bcon->assocresp_ies)
+		rc = wmi_set_ie(wil, WMI_FRAME_ASSOC_RESP,
+				bcon->assocresp_ies_len, bcon->assocresp_ies);
+	else
+		rc = wmi_set_ie(wil, WMI_FRAME_ASSOC_RESP, len, ies);
 #if 0 /* to use beacon IE's, remove this #if 0 */
 	if (rc)
-		return rc;
+		goto out;
 
 	rc = wmi_set_ie(wil, WMI_FRAME_BEACON, bcon->tail_len, bcon->tail);
 #endif
-
+out:
+	kfree(ies);
 	return rc;
 }
 
@@ -823,14 +912,9 @@ static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
 	wil_dbg_misc(wil, "%s()\n", __func__);
 	wil_print_bcon_data(bcon);
 
-	if (wil_fix_bcon(wil, bcon)) {
-		wil_dbg_misc(wil, "Fixed bcon\n");
-		wil_print_bcon_data(bcon);
-	}
-
-	if (bcon->proberesp_ies &&
-	    cfg80211_find_ie(WLAN_EID_RSN, bcon->proberesp_ies,
-			     bcon->proberesp_ies_len))
+	if (bcon->tail &&
+	    cfg80211_find_ie(WLAN_EID_RSN, bcon->tail,
+			     bcon->tail_len))
 		privacy = 1;
 
 	/* in case privacy has changed, need to restart the AP */
@@ -870,6 +954,11 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	if (info->pbss) {
+		wil_err(wil, "AP: PBSS not yet supported\n");
+		return -EOPNOTSUPP;
+	}
+
 	switch (info->hidden_ssid) {
 	case NL80211_HIDDEN_SSID_NOT_IN_USE:
 		hidden_ssid = WMI_HIDDEN_SSID_DISABLED;
@@ -899,11 +988,6 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 			     info->ssid, info->ssid_len);
 	wil_print_bcon_data(bcon);
 	wil_print_crypto(wil, crypto);
-
-	if (wil_fix_bcon(wil, bcon)) {
-		wil_dbg_misc(wil, "Fixed bcon\n");
-		wil_print_bcon_data(bcon);
-	}
 
 	rc = _wil_cfg80211_start_ap(wiphy, ndev,
 				    info->ssid, info->ssid_len, info->privacy,

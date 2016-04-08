@@ -1,5 +1,5 @@
 /*
- * platform_bma023.c: bma023 platform data initilization file
+ * platform_bma023.c: bma023 platform data initialization file
  *
  * (C) Copyright 2013 Intel Corporation
  *

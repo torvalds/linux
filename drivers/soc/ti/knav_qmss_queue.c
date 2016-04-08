@@ -1023,9 +1023,9 @@ static void knav_queue_setup_region(struct knav_device *kdev,
 	list_add(&pool->region_inst, &region->pools);
 
 	dev_dbg(kdev->dev,
-		"region %s (%d): size:%d, link:%d@%d, phys:%08x-%08x, virt:%p-%p\n",
+		"region %s (%d): size:%d, link:%d@%d, dma:%pad-%pad, virt:%p-%p\n",
 		region->name, id, region->desc_size, region->num_desc,
-		region->link_index, region->dma_start, region->dma_end,
+		region->link_index, &region->dma_start, &region->dma_end,
 		region->virt_start, region->virt_end);
 
 	hw_desc_size = (region->desc_size / 16) - 1;
@@ -1033,7 +1033,7 @@ static void knav_queue_setup_region(struct knav_device *kdev,
 
 	for_each_qmgr(kdev, qmgr) {
 		regs = qmgr->reg_region + id;
-		writel_relaxed(region->dma_start, &regs->base);
+		writel_relaxed((u32)region->dma_start, &regs->base);
 		writel_relaxed(region->link_index, &regs->start_index);
 		writel_relaxed(hw_desc_size << 16 | hw_num_desc,
 			       &regs->size_count);
@@ -1145,14 +1145,14 @@ static int knav_get_link_ram(struct knav_device *kdev,
 			 * queue_base specified => using internal or onchip
 			 * link ram WARNING - we do not "reserve" this block
 			 */
-			block->phys = (dma_addr_t)temp[0];
+			block->dma = (dma_addr_t)temp[0];
 			block->virt = NULL;
 			block->size = temp[1];
 		} else {
 			block->size = temp[1];
 			/* queue_base not specific => allocate requested size */
 			block->virt = dmam_alloc_coherent(kdev->dev,
-						  8 * block->size, &block->phys,
+						  8 * block->size, &block->dma,
 						  GFP_KERNEL);
 			if (!block->virt) {
 				dev_err(kdev->dev, "failed to alloc linkram\n");
@@ -1172,18 +1172,18 @@ static int knav_queue_setup_link_ram(struct knav_device *kdev)
 
 	for_each_qmgr(kdev, qmgr) {
 		block = &kdev->link_rams[0];
-		dev_dbg(kdev->dev, "linkram0: phys:%x, virt:%p, size:%x\n",
-			block->phys, block->virt, block->size);
-		writel_relaxed(block->phys, &qmgr->reg_config->link_ram_base0);
+		dev_dbg(kdev->dev, "linkram0: dma:%pad, virt:%p, size:%x\n",
+			&block->dma, block->virt, block->size);
+		writel_relaxed((u32)block->dma, &qmgr->reg_config->link_ram_base0);
 		writel_relaxed(block->size, &qmgr->reg_config->link_ram_size0);
 
 		block++;
 		if (!block->size)
 			continue;
 
-		dev_dbg(kdev->dev, "linkram1: phys:%x, virt:%p, size:%x\n",
-			block->phys, block->virt, block->size);
-		writel_relaxed(block->phys, &qmgr->reg_config->link_ram_base1);
+		dev_dbg(kdev->dev, "linkram1: dma:%pad, virt:%p, size:%x\n",
+			&block->dma, block->virt, block->size);
+		writel_relaxed(block->dma, &qmgr->reg_config->link_ram_base1);
 	}
 
 	return 0;

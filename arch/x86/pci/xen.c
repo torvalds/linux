@@ -196,7 +196,10 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	return 0;
 
 error:
-	dev_err(&dev->dev, "Xen PCI frontend has not registered MSI/MSI-X support!\n");
+	if (ret == -ENOSYS)
+		dev_err(&dev->dev, "Xen PCI frontend has not registered MSI/MSI-X support!\n");
+	else if (ret)
+		dev_err(&dev->dev, "Xen PCI frontend error: %d!\n", ret);
 free:
 	kfree(v);
 	return ret;

@@ -227,13 +227,6 @@ nv_crtc_dpms(struct drm_crtc *crtc, int mode)
 	NVWriteVgaCrtc(dev, nv_crtc->index, NV_CIO_CRE_RPC1_INDEX, crtc1A);
 }
 
-static bool
-nv_crtc_mode_fixup(struct drm_crtc *crtc, const struct drm_display_mode *mode,
-		   struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void
 nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 {
@@ -1093,7 +1086,6 @@ static const struct drm_crtc_helper_funcs nv04_crtc_helper_funcs = {
 	.dpms = nv_crtc_dpms,
 	.prepare = nv_crtc_prepare,
 	.commit = nv_crtc_commit,
-	.mode_fixup = nv_crtc_mode_fixup,
 	.mode_set = nv_crtc_mode_set,
 	.mode_set_base = nv04_crtc_mode_set_base,
 	.mode_set_base_atomic = nv04_crtc_mode_set_base_atomic,

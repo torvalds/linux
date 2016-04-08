@@ -377,26 +377,28 @@ static u32 cpu_power_to_freq(struct cpufreq_cooling_device *cpufreq_device,
  * get_load() - get load for a cpu since last updated
  * @cpufreq_device:	&struct cpufreq_cooling_device for this cpu
  * @cpu:	cpu number
+ * @cpu_idx:	index of the cpu in cpufreq_device->allowed_cpus
  *
  * Return: The average load of cpu @cpu in percentage since this
  * function was last called.
  */
-static u32 get_load(struct cpufreq_cooling_device *cpufreq_device, int cpu)
+static u32 get_load(struct cpufreq_cooling_device *cpufreq_device, int cpu,
+		    int cpu_idx)
 {
 	u32 load;
 	u64 now, now_idle, delta_time, delta_idle;
 
 	now_idle = get_cpu_idle_time(cpu, &now, 0);
-	delta_idle = now_idle - cpufreq_device->time_in_idle[cpu];
-	delta_time = now - cpufreq_device->time_in_idle_timestamp[cpu];
+	delta_idle = now_idle - cpufreq_device->time_in_idle[cpu_idx];
+	delta_time = now - cpufreq_device->time_in_idle_timestamp[cpu_idx];
 
 	if (delta_time <= delta_idle)
 		load = 0;
 	else
 		load = div64_u64(100 * (delta_time - delta_idle), delta_time);
 
-	cpufreq_device->time_in_idle[cpu] = now_idle;
-	cpufreq_device->time_in_idle_timestamp[cpu] = now;
+	cpufreq_device->time_in_idle[cpu_idx] = now_idle;
+	cpufreq_device->time_in_idle_timestamp[cpu_idx] = now;
 
 	return load;
 }
@@ -598,7 +600,7 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 		u32 load;
 
 		if (cpu_online(cpu))
-			load = get_load(cpufreq_device, cpu);
+			load = get_load(cpufreq_device, cpu, i);
 		else
 			load = 0;
 

@@ -319,10 +319,8 @@ struct ibmvnic_capability {
 	u8 first;
 	u8 cmd;
 	__be16 capability; /* one of ibmvnic_capabilities */
+	__be64 number;
 	struct ibmvnic_rc rc;
-	__be32 number; /*FIX: should be __be64, but I'm getting the least
-			* significant word first
-			*/
 } __packed __aligned(8);
 
 struct ibmvnic_login {

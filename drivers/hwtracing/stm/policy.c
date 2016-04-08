@@ -272,13 +272,17 @@ void stp_policy_unbind(struct stp_policy *policy)
 {
 	struct stm_device *stm = policy->stm;
 
+	/*
+	 * stp_policy_release() will not call here if the policy is already
+	 * unbound; other users should not either, as no link exists between
+	 * this policy and anything else in that case
+	 */
 	if (WARN_ON_ONCE(!policy->stm))
 		return;
 
-	mutex_lock(&stm->policy_mutex);
-	stm->policy = NULL;
-	mutex_unlock(&stm->policy_mutex);
+	lockdep_assert_held(&stm->policy_mutex);
 
+	stm->policy = NULL;
 	policy->stm = NULL;
 
 	stm_put_device(stm);
@@ -287,8 +291,16 @@ void stp_policy_unbind(struct stp_policy *policy)
 static void stp_policy_release(struct config_item *item)
 {
 	struct stp_policy *policy = to_stp_policy(item);
+	struct stm_device *stm = policy->stm;
 
+	/* a policy *can* be unbound and still exist in configfs tree */
+	if (!stm)
+		return;
+
+	mutex_lock(&stm->policy_mutex);
 	stp_policy_unbind(policy);
+	mutex_unlock(&stm->policy_mutex);
+
 	kfree(policy);
 }
 
@@ -320,10 +332,11 @@ stp_policies_make(struct config_group *group, const char *name)
 
 	/*
 	 * node must look like <device_name>.<policy_name>, where
-	 * <device_name> is the name of an existing stm device and
-	 * <policy_name> is an arbitrary string
+	 * <device_name> is the name of an existing stm device; may
+	 *               contain dots;
+	 * <policy_name> is an arbitrary string; may not contain dots
 	 */
-	p = strchr(devname, '.');
+	p = strrchr(devname, '.');
 	if (!p) {
 		kfree(devname);
 		return ERR_PTR(-EINVAL);

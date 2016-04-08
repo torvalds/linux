@@ -39,7 +39,10 @@ unsigned char sii164IsConnected(void);
 unsigned char sii164CheckInterrupt(void);
 void sii164ClearInterrupt(void);
 #endif
-/* below register definination is used for Silicon Image SiI164 DVI controller chip */
+/*
+ * below register definition is used for
+ * Silicon Image SiI164 DVI controller chip
+ */
 /*
  * Vendor ID registers
  */

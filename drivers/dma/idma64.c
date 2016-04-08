@@ -289,6 +289,9 @@ static void idma64_desc_fill(struct idma64_chan *idma64c,
 
 	/* Trigger an interrupt after the last block is transfered */
 	lli->ctllo |= IDMA64C_CTLL_INT_EN;
+
+	/* Disable LLP transfer in the last block */
+	lli->ctllo &= ~(IDMA64C_CTLL_LLP_S_EN | IDMA64C_CTLL_LLP_D_EN);
 }
 
 static struct dma_async_tx_descriptor *idma64_prep_slave_sg(

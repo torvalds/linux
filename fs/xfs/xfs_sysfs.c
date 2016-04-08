@@ -18,10 +18,13 @@
 
 #include "xfs.h"
 #include "xfs_sysfs.h"
+#include "xfs_format.h"
 #include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_log.h"
 #include "xfs_log_priv.h"
 #include "xfs_stats.h"
+#include "xfs_mount.h"
 
 struct xfs_sysfs_attr {
 	struct attribute attr;
@@ -44,16 +47,6 @@ to_attr(struct attribute *attr)
 	static struct xfs_sysfs_attr xfs_sysfs_attr_##name = __ATTR_WO(name)
 
 #define ATTR_LIST(name) &xfs_sysfs_attr_##name.attr
-
-/*
- * xfs_mount kobject. This currently has no attributes and thus no need for show
- * and store helpers. The mp kobject serves as the per-mount parent object that
- * is identified by the fsname under sysfs.
- */
-
-struct kobj_type xfs_mp_ktype = {
-	.release = xfs_sysfs_release,
-};
 
 STATIC ssize_t
 xfs_sysfs_object_show(
@@ -81,6 +74,71 @@ xfs_sysfs_object_store(
 static const struct sysfs_ops xfs_sysfs_ops = {
 	.show = xfs_sysfs_object_show,
 	.store = xfs_sysfs_object_store,
+};
+
+/*
+ * xfs_mount kobject. The mp kobject also serves as the per-mount parent object
+ * that is identified by the fsname under sysfs.
+ */
+
+static inline struct xfs_mount *
+to_mp(struct kobject *kobject)
+{
+	struct xfs_kobj *kobj = to_kobj(kobject);
+
+	return container_of(kobj, struct xfs_mount, m_kobj);
+}
+
+#ifdef DEBUG
+
+STATIC ssize_t
+fail_writes_store(
+	struct kobject		*kobject,
+	const char		*buf,
+	size_t			count)
+{
+	struct xfs_mount	*mp = to_mp(kobject);
+	int			ret;
+	int			val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val == 1)
+		mp->m_fail_writes = true;
+	else if (val == 0)
+		mp->m_fail_writes = false;
+	else
+		return -EINVAL;
+
+	return count;
+}
+
+STATIC ssize_t
+fail_writes_show(
+	struct kobject		*kobject,
+	char			*buf)
+{
+	struct xfs_mount	*mp = to_mp(kobject);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", mp->m_fail_writes ? 1 : 0);
+}
+XFS_SYSFS_ATTR_RW(fail_writes);
+
+#endif /* DEBUG */
+
+static struct attribute *xfs_mp_attrs[] = {
+#ifdef DEBUG
+	ATTR_LIST(fail_writes),
+#endif
+	NULL,
+};
+
+struct kobj_type xfs_mp_ktype = {
+	.release = xfs_sysfs_release,
+	.sysfs_ops = &xfs_sysfs_ops,
+	.default_attrs = xfs_mp_attrs,
 };
 
 #ifdef DEBUG

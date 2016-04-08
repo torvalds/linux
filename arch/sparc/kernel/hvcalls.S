@@ -338,8 +338,9 @@ ENTRY(sun4v_mach_set_watchdog)
 	mov	%o1, %o4
 	mov	HV_FAST_MACH_SET_WATCHDOG, %o5
 	ta	HV_FAST_TRAP
+	brnz,a,pn %o4, 0f
 	stx	%o1, [%o4]
-	retl
+0:	retl
 	 nop
 ENDPROC(sun4v_mach_set_watchdog)
 

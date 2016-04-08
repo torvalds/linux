@@ -31,7 +31,7 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev);
 int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 			      struct fence **fence);
 int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       struct fence **fence);
+			       bool direct, struct fence **fence);
 void amdgpu_uvd_free_handles(struct amdgpu_device *adev,
 			     struct drm_file *filp);
 int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx);

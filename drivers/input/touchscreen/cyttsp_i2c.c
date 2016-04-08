@@ -56,15 +56,6 @@ static int cyttsp_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int cyttsp_i2c_remove(struct i2c_client *client)
-{
-	struct cyttsp *ts = i2c_get_clientdata(client);
-
-	cyttsp_remove(ts);
-
-	return 0;
-}
-
 static const struct i2c_device_id cyttsp_i2c_id[] = {
 	{ CY_I2C_NAME, 0 },
 	{ }
@@ -77,7 +68,6 @@ static struct i2c_driver cyttsp_i2c_driver = {
 		.pm	= &cyttsp_pm_ops,
 	},
 	.probe		= cyttsp_i2c_probe,
-	.remove		= cyttsp_i2c_remove,
 	.id_table	= cyttsp_i2c_id,
 };
 

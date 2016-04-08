@@ -41,8 +41,7 @@ static const struct key_entry intel_hid_keymap[] = {
 	{ KE_KEY, 4, { KEY_HOME } },
 	{ KE_KEY, 5, { KEY_END } },
 	{ KE_KEY, 6, { KEY_PAGEUP } },
-	{ KE_KEY, 4, { KEY_PAGEDOWN } },
-	{ KE_KEY, 4, { KEY_HOME } },
+	{ KE_KEY, 7, { KEY_PAGEDOWN } },
 	{ KE_KEY, 8, { KEY_RFKILL } },
 	{ KE_KEY, 9, { KEY_POWER } },
 	{ KE_KEY, 11, { KEY_SLEEP } },
@@ -181,8 +180,7 @@ static int intel_hid_probe(struct platform_device *device)
 		return -ENODEV;
 	}
 
-	priv = devm_kzalloc(&device->dev,
-			    sizeof(struct intel_hid_priv *), GFP_KERNEL);
+	priv = devm_kzalloc(&device->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 	dev_set_drvdata(&device->dev, priv);

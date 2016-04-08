@@ -174,7 +174,7 @@ static int simplefb_parse_pd(struct platform_device *pdev,
 struct simplefb_par {
 	u32 palette[PSEUDO_PALETTE_SIZE];
 #if defined CONFIG_OF && defined CONFIG_COMMON_CLK
-	int clk_count;
+	unsigned int clk_count;
 	struct clk **clks;
 #endif
 #if defined CONFIG_OF && defined CONFIG_REGULATOR
@@ -213,7 +213,7 @@ static int simplefb_clocks_init(struct simplefb_par *par,
 		return 0;
 
 	par->clk_count = of_clk_get_parent_count(np);
-	if (par->clk_count <= 0)
+	if (!par->clk_count)
 		return 0;
 
 	par->clks = kcalloc(par->clk_count, sizeof(struct clk *), GFP_KERNEL);

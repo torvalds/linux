@@ -9,10 +9,12 @@
 
 #include <errno.h>
 #include <error.h>
+#include <fcntl.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
 #include <linux/unistd.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -169,9 +171,15 @@ static void build_recv_group(const struct test_params p, int fd[], uint16_t mod,
 		if (bind(fd[i], addr, sockaddr_size()))
 			error(1, errno, "failed to bind recv socket %d", i);
 
-		if (p.protocol == SOCK_STREAM)
+		if (p.protocol == SOCK_STREAM) {
+			opt = 4;
+			if (setsockopt(fd[i], SOL_TCP, TCP_FASTOPEN, &opt,
+				       sizeof(opt)))
+				error(1, errno,
+				      "failed to set TCP_FASTOPEN on %d", i);
 			if (listen(fd[i], p.recv_socks * 10))
 				error(1, errno, "failed to listen on socket");
+		}
 	}
 	free(addr);
 }
@@ -189,10 +197,8 @@ static void send_from(struct test_params p, uint16_t sport, char *buf,
 
 	if (bind(fd, saddr, sockaddr_size()))
 		error(1, errno, "failed to bind send socket");
-	if (connect(fd, daddr, sockaddr_size()))
-		error(1, errno, "failed to connect");
 
-	if (send(fd, buf, len, 0) < 0)
+	if (sendto(fd, buf, len, MSG_FASTOPEN, daddr, sockaddr_size()) < 0)
 		error(1, errno, "failed to send message");
 
 	close(fd);
@@ -260,7 +266,7 @@ static void test_recv_order(const struct test_params p, int fd[], int mod)
 	}
 }
 
-static void test_reuseport_ebpf(const struct test_params p)
+static void test_reuseport_ebpf(struct test_params p)
 {
 	int i, fd[p.recv_socks];
 
@@ -268,6 +274,7 @@ static void test_reuseport_ebpf(const struct test_params p)
 	build_recv_group(p, fd, p.recv_socks, attach_ebpf);
 	test_recv_order(p, fd, p.recv_socks);
 
+	p.send_port_min += p.recv_socks * 2;
 	fprintf(stderr, "Reprograming, testing mod %zd...\n", p.recv_socks / 2);
 	attach_ebpf(fd[0], p.recv_socks / 2);
 	test_recv_order(p, fd, p.recv_socks / 2);
@@ -276,7 +283,7 @@ static void test_reuseport_ebpf(const struct test_params p)
 		close(fd[i]);
 }
 
-static void test_reuseport_cbpf(const struct test_params p)
+static void test_reuseport_cbpf(struct test_params p)
 {
 	int i, fd[p.recv_socks];
 
@@ -284,6 +291,7 @@ static void test_reuseport_cbpf(const struct test_params p)
 	build_recv_group(p, fd, p.recv_socks, attach_cbpf);
 	test_recv_order(p, fd, p.recv_socks);
 
+	p.send_port_min += p.recv_socks * 2;
 	fprintf(stderr, "Reprograming, testing mod %zd...\n", p.recv_socks / 2);
 	attach_cbpf(fd[0], p.recv_socks / 2);
 	test_recv_order(p, fd, p.recv_socks / 2);
@@ -377,7 +385,7 @@ static void test_filter_no_reuseport(const struct test_params p)
 
 static void test_filter_without_bind(void)
 {
-	int fd1, fd2;
+	int fd1, fd2, opt = 1;
 
 	fprintf(stderr, "Testing filter add without bind...\n");
 	fd1 = socket(AF_INET, SOCK_DGRAM, 0);
@@ -386,6 +394,10 @@ static void test_filter_without_bind(void)
 	fd2 = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd2 < 0)
 		error(1, errno, "failed to create socket 2");
+	if (setsockopt(fd1, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)))
+		error(1, errno, "failed to set SO_REUSEPORT on socket 1");
+	if (setsockopt(fd2, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)))
+		error(1, errno, "failed to set SO_REUSEPORT on socket 2");
 
 	attach_ebpf(fd1, 10);
 	attach_cbpf(fd2, 10);
@@ -394,6 +406,32 @@ static void test_filter_without_bind(void)
 	close(fd2);
 }
 
+void enable_fastopen(void)
+{
+	int fd = open("/proc/sys/net/ipv4/tcp_fastopen", 0);
+	int rw_mask = 3;  /* bit 1: client side; bit-2 server side */
+	int val, size;
+	char buf[16];
+
+	if (fd < 0)
+		error(1, errno, "Unable to open tcp_fastopen sysctl");
+	if (read(fd, buf, sizeof(buf)) <= 0)
+		error(1, errno, "Unable to read tcp_fastopen sysctl");
+	val = atoi(buf);
+	close(fd);
+
+	if ((val & rw_mask) != rw_mask) {
+		fd = open("/proc/sys/net/ipv4/tcp_fastopen", O_RDWR);
+		if (fd < 0)
+			error(1, errno,
+			      "Unable to open tcp_fastopen sysctl for writing");
+		val |= rw_mask;
+		size = snprintf(buf, 16, "%d", val);
+		if (write(fd, buf, size) <= 0)
+			error(1, errno, "Unable to write tcp_fastopen sysctl");
+		close(fd);
+	}
+}
 
 int main(void)
 {
@@ -506,6 +544,71 @@ int main(void)
 		.recv_port = 8007,
 		.send_port_min = 9100});
 
+	/* TCP fastopen is required for the TCP tests */
+	enable_fastopen();
+	fprintf(stderr, "---- IPv4 TCP ----\n");
+	test_reuseport_ebpf((struct test_params) {
+		.recv_family = AF_INET,
+		.send_family = AF_INET,
+		.protocol = SOCK_STREAM,
+		.recv_socks = 10,
+		.recv_port = 8008,
+		.send_port_min = 9120});
+	test_reuseport_cbpf((struct test_params) {
+		.recv_family = AF_INET,
+		.send_family = AF_INET,
+		.protocol = SOCK_STREAM,
+		.recv_socks = 10,
+		.recv_port = 8009,
+		.send_port_min = 9160});
+	test_extra_filter((struct test_params) {
+		.recv_family = AF_INET,
+		.protocol = SOCK_STREAM,
+		.recv_port = 8010});
+	test_filter_no_reuseport((struct test_params) {
+		.recv_family = AF_INET,
+		.protocol = SOCK_STREAM,
+		.recv_port = 8011});
+
+	fprintf(stderr, "---- IPv6 TCP ----\n");
+	test_reuseport_ebpf((struct test_params) {
+		.recv_family = AF_INET6,
+		.send_family = AF_INET6,
+		.protocol = SOCK_STREAM,
+		.recv_socks = 10,
+		.recv_port = 8012,
+		.send_port_min = 9200});
+	test_reuseport_cbpf((struct test_params) {
+		.recv_family = AF_INET6,
+		.send_family = AF_INET6,
+		.protocol = SOCK_STREAM,
+		.recv_socks = 10,
+		.recv_port = 8013,
+		.send_port_min = 9240});
+	test_extra_filter((struct test_params) {
+		.recv_family = AF_INET6,
+		.protocol = SOCK_STREAM,
+		.recv_port = 8014});
+	test_filter_no_reuseport((struct test_params) {
+		.recv_family = AF_INET6,
+		.protocol = SOCK_STREAM,
+		.recv_port = 8015});
+
+	fprintf(stderr, "---- IPv6 TCP w/ mapped IPv4 ----\n");
+	test_reuseport_ebpf((struct test_params) {
+		.recv_family = AF_INET6,
+		.send_family = AF_INET,
+		.protocol = SOCK_STREAM,
+		.recv_socks = 10,
+		.recv_port = 8016,
+		.send_port_min = 9320});
+	test_reuseport_cbpf((struct test_params) {
+		.recv_family = AF_INET6,
+		.send_family = AF_INET,
+		.protocol = SOCK_STREAM,
+		.recv_socks = 10,
+		.recv_port = 8017,
+		.send_port_min = 9360});
 
 	test_filter_without_bind();
 

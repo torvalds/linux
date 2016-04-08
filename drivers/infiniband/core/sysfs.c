@@ -336,7 +336,6 @@ static ssize_t _show_port_gid_attr(struct ib_port *p,
 	union ib_gid gid;
 	struct ib_gid_attr gid_attr = {};
 	ssize_t ret;
-	va_list args;
 
 	ret = ib_query_gid(p->ibdev, p->port_num, tab_attr->index, &gid,
 			   &gid_attr);
@@ -348,7 +347,6 @@ static ssize_t _show_port_gid_attr(struct ib_port *p,
 err:
 	if (gid_attr.ndev)
 		dev_put(gid_attr.ndev);
-	va_end(args);
 	return ret;
 }
 
@@ -722,12 +720,11 @@ static struct attribute_group *get_counter_table(struct ib_device *dev,
 
 	if (get_perf_mad(dev, port_num, IB_PMA_CLASS_PORT_INFO,
 				&cpi, 40, sizeof(cpi)) >= 0) {
-
-		if (cpi.capability_mask && IB_PMA_CLASS_CAP_EXT_WIDTH)
+		if (cpi.capability_mask & IB_PMA_CLASS_CAP_EXT_WIDTH)
 			/* We have extended counters */
 			return &pma_group_ext;
 
-		if (cpi.capability_mask && IB_PMA_CLASS_CAP_EXT_WIDTH_NOIETF)
+		if (cpi.capability_mask & IB_PMA_CLASS_CAP_EXT_WIDTH_NOIETF)
 			/* But not the IETF ones */
 			return &pma_group_noietf;
 	}

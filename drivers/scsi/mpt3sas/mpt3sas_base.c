@@ -83,6 +83,10 @@ static int msix_disable = -1;
 module_param(msix_disable, int, 0);
 MODULE_PARM_DESC(msix_disable, " disable msix routed interrupts (default=0)");
 
+static int smp_affinity_enable = 1;
+module_param(smp_affinity_enable, int, S_IRUGO);
+MODULE_PARM_DESC(smp_affinity_enable, "SMP affinity feature enable/disbale Default: enable(1)");
+
 static int max_msix_vectors = -1;
 module_param(max_msix_vectors, int, 0);
 MODULE_PARM_DESC(max_msix_vectors,
@@ -394,6 +398,9 @@ _base_sas_ioc_info(struct MPT3SAS_ADAPTER *ioc, MPI2DefaultReply_t *mpi_reply,
 		break;
 	case MPI2_IOCSTATUS_INSUFFICIENT_RESOURCES:
 		desc = "insufficient resources";
+		break;
+	case MPI2_IOCSTATUS_INSUFFICIENT_POWER:
+		desc = "insufficient power";
 		break;
 	case MPI2_IOCSTATUS_INVALID_FIELD:
 		desc = "invalid field";
@@ -772,7 +779,7 @@ mpt3sas_base_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 
 	mpi_reply = mpt3sas_base_get_reply_virt_addr(ioc, reply);
 	if (mpi_reply && mpi_reply->Function == MPI2_FUNCTION_EVENT_ACK)
-		return 1;
+		return mpt3sas_check_for_pending_internal_cmds(ioc, smid);
 
 	if (ioc->base_cmds.status == MPT3_CMD_NOT_USED)
 		return 1;
@@ -803,6 +810,7 @@ _base_async_event(struct MPT3SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 	Mpi2EventNotificationReply_t *mpi_reply;
 	Mpi2EventAckRequest_t *ack_request;
 	u16 smid;
+	struct _event_ack_list *delayed_event_ack;
 
 	mpi_reply = mpt3sas_base_get_reply_virt_addr(ioc, reply);
 	if (!mpi_reply)
@@ -816,8 +824,18 @@ _base_async_event(struct MPT3SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 		goto out;
 	smid = mpt3sas_base_get_smid(ioc, ioc->base_cb_idx);
 	if (!smid) {
-		pr_err(MPT3SAS_FMT "%s: failed obtaining a smid\n",
-		    ioc->name, __func__);
+		delayed_event_ack = kzalloc(sizeof(*delayed_event_ack),
+					GFP_ATOMIC);
+		if (!delayed_event_ack)
+			goto out;
+		INIT_LIST_HEAD(&delayed_event_ack->list);
+		delayed_event_ack->Event = mpi_reply->Event;
+		delayed_event_ack->EventContext = mpi_reply->EventContext;
+		list_add_tail(&delayed_event_ack->list,
+				&ioc->delayed_event_ack_list);
+		dewtprintk(ioc, pr_info(MPT3SAS_FMT
+				"DELAYED: EVENT ACK: event (0x%04x)\n",
+				ioc->name, le16_to_cpu(mpi_reply->Event)));
 		goto out;
 	}
 
@@ -1348,6 +1366,7 @@ _base_build_zero_len_sge_ieee(struct MPT3SAS_ADAPTER *ioc, void *paddr)
 	u8 sgl_flags = (MPI2_IEEE_SGE_FLAGS_SIMPLE_ELEMENT |
 		MPI2_IEEE_SGE_FLAGS_SYSTEM_ADDR |
 		MPI25_IEEE_SGE_FLAGS_END_OF_LIST);
+
 	_base_add_sg_single_ieee(paddr, sgl_flags, 0, 0, -1);
 }
 
@@ -1797,9 +1816,10 @@ _base_free_irq(struct MPT3SAS_ADAPTER *ioc)
 
 	list_for_each_entry_safe(reply_q, next, &ioc->reply_queue_list, list) {
 		list_del(&reply_q->list);
-		irq_set_affinity_hint(reply_q->vector, NULL);
-		free_cpumask_var(reply_q->affinity_hint);
-		synchronize_irq(reply_q->vector);
+		if (smp_affinity_enable) {
+			irq_set_affinity_hint(reply_q->vector, NULL);
+			free_cpumask_var(reply_q->affinity_hint);
+		}
 		free_irq(reply_q->vector, reply_q);
 		kfree(reply_q);
 	}
@@ -1829,9 +1849,12 @@ _base_request_irq(struct MPT3SAS_ADAPTER *ioc, u8 index, u32 vector)
 	reply_q->msix_index = index;
 	reply_q->vector = vector;
 
-	if (!alloc_cpumask_var(&reply_q->affinity_hint, GFP_KERNEL))
-		return -ENOMEM;
-	cpumask_clear(reply_q->affinity_hint);
+	if (smp_affinity_enable) {
+		if (!zalloc_cpumask_var(&reply_q->affinity_hint, GFP_KERNEL)) {
+			kfree(reply_q);
+			return -ENOMEM;
+		}
+	}
 
 	atomic_set(&reply_q->busy, 0);
 	if (ioc->msix_enable)
@@ -1845,6 +1868,7 @@ _base_request_irq(struct MPT3SAS_ADAPTER *ioc, u8 index, u32 vector)
 	if (r) {
 		pr_err(MPT3SAS_FMT "unable to allocate interrupt %d!\n",
 		    reply_q->name, vector);
+		free_cpumask_var(reply_q->affinity_hint);
 		kfree(reply_q);
 		return -EBUSY;
 	}
@@ -1894,16 +1918,17 @@ _base_assign_reply_queues(struct MPT3SAS_ADAPTER *ioc)
 
 		for (i = 0 ; i < group ; i++) {
 			ioc->cpu_msix_table[cpu] = index;
-			cpumask_or(reply_q->affinity_hint,
+			if (smp_affinity_enable)
+				cpumask_or(reply_q->affinity_hint,
 				   reply_q->affinity_hint, get_cpu_mask(cpu));
 			cpu = cpumask_next(cpu, cpu_online_mask);
 		}
-
-		if (irq_set_affinity_hint(reply_q->vector,
+		if (smp_affinity_enable)
+			if (irq_set_affinity_hint(reply_q->vector,
 					   reply_q->affinity_hint))
-			dinitprintk(ioc, pr_info(MPT3SAS_FMT
-			    "error setting affinity hint for irq vector %d\n",
-			    ioc->name, reply_q->vector));
+				dinitprintk(ioc, pr_info(MPT3SAS_FMT
+				 "Err setting affinity hint to irq vector %d\n",
+				 ioc->name, reply_q->vector));
 		index++;
 	}
 }
@@ -1960,6 +1985,9 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 		ioc->msix_vector_count = ioc->reply_queue_count;
 	} else if (max_msix_vectors == 0)
 		goto try_ioapic;
+
+	if (ioc->msix_vector_count < ioc->cpu_count)
+		smp_affinity_enable = 0;
 
 	entries = kcalloc(ioc->reply_queue_count, sizeof(struct msix_entry),
 	    GFP_KERNEL);
@@ -2231,6 +2259,12 @@ mpt3sas_base_get_reply_virt_addr(struct MPT3SAS_ADAPTER *ioc, u32 phys_addr)
 	return ioc->reply + (phys_addr - (u32)ioc->reply_dma);
 }
 
+static inline u8
+_base_get_msix_index(struct MPT3SAS_ADAPTER *ioc)
+{
+	return ioc->cpu_msix_table[raw_smp_processor_id()];
+}
+
 /**
  * mpt3sas_base_get_smid - obtain a free smid from internal queue
  * @ioc: per adapter object
@@ -2291,6 +2325,7 @@ mpt3sas_base_get_smid_scsiio(struct MPT3SAS_ADAPTER *ioc, u8 cb_idx,
 	request->scmd = scmd;
 	request->cb_idx = cb_idx;
 	smid = request->smid;
+	request->msix_io = _base_get_msix_index(ioc);
 	list_del(&request->tracker_list);
 	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 	return smid;
@@ -2413,12 +2448,6 @@ _base_writeq(__u64 b, volatile void __iomem *addr, spinlock_t *writeq_lock)
 }
 #endif
 
-static inline u8
-_base_get_msix_index(struct MPT3SAS_ADAPTER *ioc)
-{
-	return ioc->cpu_msix_table[raw_smp_processor_id()];
-}
-
 /**
  * mpt3sas_base_put_smid_scsi_io - send SCSI_IO request to firmware
  * @ioc: per adapter object
@@ -2472,18 +2501,19 @@ mpt3sas_base_put_smid_fast_path(struct MPT3SAS_ADAPTER *ioc, u16 smid,
  * mpt3sas_base_put_smid_hi_priority - send Task Managment request to firmware
  * @ioc: per adapter object
  * @smid: system request message index
- *
+ * @msix_task: msix_task will be same as msix of IO incase of task abort else 0.
  * Return nothing.
  */
 void
-mpt3sas_base_put_smid_hi_priority(struct MPT3SAS_ADAPTER *ioc, u16 smid)
+mpt3sas_base_put_smid_hi_priority(struct MPT3SAS_ADAPTER *ioc, u16 smid,
+	u16 msix_task)
 {
 	Mpi2RequestDescriptorUnion_t descriptor;
 	u64 *request = (u64 *)&descriptor;
 
 	descriptor.HighPriority.RequestFlags =
 	    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
-	descriptor.HighPriority.MSIxIndex =  0;
+	descriptor.HighPriority.MSIxIndex =  msix_task;
 	descriptor.HighPriority.SMID = cpu_to_le16(smid);
 	descriptor.HighPriority.LMID = 0;
 	descriptor.HighPriority.Reserved1 = 0;
@@ -3185,26 +3215,54 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	}
 	ioc->shost->sg_tablesize = sg_tablesize;
 
-	ioc->hi_priority_depth = facts->HighPriorityCredit;
-	ioc->internal_depth = ioc->hi_priority_depth + (5);
+	ioc->internal_depth = min_t(int, (facts->HighPriorityCredit + (5)),
+		(facts->RequestCredit / 4));
+	if (ioc->internal_depth < INTERNAL_CMDS_COUNT) {
+		if (facts->RequestCredit <= (INTERNAL_CMDS_COUNT +
+				INTERNAL_SCSIIO_CMDS_COUNT)) {
+			pr_err(MPT3SAS_FMT "IOC doesn't have enough Request \
+			    Credits, it has just %d number of credits\n",
+			    ioc->name, facts->RequestCredit);
+			return -ENOMEM;
+		}
+		ioc->internal_depth = 10;
+	}
+
+	ioc->hi_priority_depth = ioc->internal_depth - (5);
 	/* command line tunables  for max controller queue depth */
 	if (max_queue_depth != -1 && max_queue_depth != 0) {
 		max_request_credit = min_t(u16, max_queue_depth +
-		    ioc->hi_priority_depth + ioc->internal_depth,
-		    facts->RequestCredit);
+			ioc->internal_depth, facts->RequestCredit);
 		if (max_request_credit > MAX_HBA_QUEUE_DEPTH)
 			max_request_credit =  MAX_HBA_QUEUE_DEPTH;
 	} else
 		max_request_credit = min_t(u16, facts->RequestCredit,
 		    MAX_HBA_QUEUE_DEPTH);
 
-	ioc->hba_queue_depth = max_request_credit;
+	/* Firmware maintains additional facts->HighPriorityCredit number of
+	 * credits for HiPriprity Request messages, so hba queue depth will be
+	 * sum of max_request_credit and high priority queue depth.
+	 */
+	ioc->hba_queue_depth = max_request_credit + ioc->hi_priority_depth;
 
 	/* request frame size */
 	ioc->request_sz = facts->IOCRequestFrameSize * 4;
 
 	/* reply frame size */
 	ioc->reply_sz = facts->ReplyFrameSize * 4;
+
+	/* chain segment size */
+	if (ioc->hba_mpi_version_belonged != MPI2_VERSION) {
+		if (facts->IOCMaxChainSegmentSize)
+			ioc->chain_segment_sz =
+					facts->IOCMaxChainSegmentSize *
+					MAX_CHAIN_ELEMT_SZ;
+		else
+		/* set to 128 bytes size if IOCMaxChainSegmentSize is zero */
+			ioc->chain_segment_sz = DEFAULT_NUM_FWCHAIN_ELEMTS *
+						    MAX_CHAIN_ELEMT_SZ;
+	} else
+		ioc->chain_segment_sz = ioc->request_sz;
 
 	/* calculate the max scatter element size */
 	sge_size = max_t(u16, ioc->sge_size, ioc->sge_size_ieee);
@@ -3217,7 +3275,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	ioc->max_sges_in_main_message = max_sge_elements/sge_size;
 
 	/* now do the same for a chain buffer */
-	max_sge_elements = ioc->request_sz - sge_size;
+	max_sge_elements = ioc->chain_segment_sz - sge_size;
 	ioc->max_sges_in_chain_message = max_sge_elements/sge_size;
 
 	/*
@@ -3244,7 +3302,6 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	if (ioc->reply_post_queue_depth % 16)
 		ioc->reply_post_queue_depth += 16 -
 		(ioc->reply_post_queue_depth % 16);
-
 
 	if (ioc->reply_post_queue_depth >
 	    facts->MaxReplyDescriptorPostQueueDepth) {
@@ -3327,7 +3384,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	/* set the scsi host can_queue depth
 	 * with some internal commands that could be outstanding
 	 */
-	ioc->shost->can_queue = ioc->scsiio_depth;
+	ioc->shost->can_queue = ioc->scsiio_depth - INTERNAL_SCSIIO_CMDS_COUNT;
 	dinitprintk(ioc, pr_info(MPT3SAS_FMT
 		"scsi host: can_queue depth (%d)\n",
 		ioc->name, ioc->shost->can_queue));
@@ -3354,8 +3411,9 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 		    ioc->chains_needed_per_io, ioc->request_sz, sz/1024);
 		if (ioc->scsiio_depth < MPT3SAS_SAS_QUEUE_DEPTH)
 			goto out;
-		retry_sz += 64;
-		ioc->hba_queue_depth = max_request_credit - retry_sz;
+		retry_sz = 64;
+		ioc->hba_queue_depth -= retry_sz;
+		_base_release_memory_pools(ioc);
 		goto retry_allocation;
 	}
 
@@ -3410,7 +3468,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 		goto out;
 	}
 	ioc->chain_dma_pool = pci_pool_create("chain pool", ioc->pdev,
-	    ioc->request_sz, 16, 0);
+	    ioc->chain_segment_sz, 16, 0);
 	if (!ioc->chain_dma_pool) {
 		pr_err(MPT3SAS_FMT "chain_dma_pool: pci_pool_create failed\n",
 			ioc->name);
@@ -3424,13 +3482,13 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 			ioc->chain_depth = i;
 			goto chain_done;
 		}
-		total_sz += ioc->request_sz;
+		total_sz += ioc->chain_segment_sz;
 	}
  chain_done:
 	dinitprintk(ioc, pr_info(MPT3SAS_FMT
 		"chain pool depth(%d), frame_size(%d), pool_size(%d kB)\n",
-		ioc->name, ioc->chain_depth, ioc->request_sz,
-		((ioc->chain_depth *  ioc->request_sz))/1024));
+		ioc->name, ioc->chain_depth, ioc->chain_segment_sz,
+		((ioc->chain_depth *  ioc->chain_segment_sz))/1024));
 
 	/* initialize hi-priority queue smid's */
 	ioc->hpr_lookup = kcalloc(ioc->hi_priority_depth,
@@ -4291,6 +4349,10 @@ _base_get_ioc_facts(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 	facts->FWVersion.Word = le32_to_cpu(mpi_reply.FWVersion.Word);
 	facts->IOCRequestFrameSize =
 	    le16_to_cpu(mpi_reply.IOCRequestFrameSize);
+	if (ioc->hba_mpi_version_belonged != MPI2_VERSION) {
+		facts->IOCMaxChainSegmentSize =
+			le16_to_cpu(mpi_reply.IOCMaxChainSegmentSize);
+	}
 	facts->MaxInitiators = le16_to_cpu(mpi_reply.MaxInitiators);
 	facts->MaxTargets = le16_to_cpu(mpi_reply.MaxTargets);
 	ioc->shost->max_id = -1;
@@ -4973,6 +5035,8 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 	u32 reply_address;
 	u16 smid;
 	struct _tr_list *delayed_tr, *delayed_tr_next;
+	struct _sc_list *delayed_sc, *delayed_sc_next;
+	struct _event_ack_list *delayed_event_ack, *delayed_event_ack_next;
 	u8 hide_flag;
 	struct adapter_reply_queue *reply_q;
 	long reply_post_free;
@@ -4993,6 +5057,18 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 	    &ioc->delayed_tr_volume_list, list) {
 		list_del(&delayed_tr->list);
 		kfree(delayed_tr);
+	}
+
+	list_for_each_entry_safe(delayed_sc, delayed_sc_next,
+	    &ioc->delayed_sc_list, list) {
+		list_del(&delayed_sc->list);
+		kfree(delayed_sc);
+	}
+
+	list_for_each_entry_safe(delayed_event_ack, delayed_event_ack_next,
+	    &ioc->delayed_event_ack_list, list) {
+		list_del(&delayed_event_ack->list);
+		kfree(delayed_event_ack);
 	}
 
 	/* initialize the scsi lookup free list */
@@ -5226,6 +5302,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 		ioc->build_zero_len_sge = &_base_build_zero_len_sge;
 		break;
 	case MPI25_VERSION:
+	case MPI26_VERSION:
 		/*
 		 * In SAS3.0,
 		 * SCSI_IO, SMP_PASSTHRU, SATA_PASSTHRU, Target Assist, and

@@ -283,7 +283,7 @@ static const struct smp_operations bcm_smp_ops __initconst = {
 CPU_METHOD_OF_DECLARE(bcm_smp_bcm281xx, "brcm,bcm11351-cpu-method",
 			&bcm_smp_ops);
 
-struct smp_operations nsp_smp_ops __initdata = {
+static const struct smp_operations nsp_smp_ops __initconst = {
 	.smp_prepare_cpus	= bcm_smp_prepare_cpus,
 	.smp_boot_secondary	= nsp_boot_secondary,
 };

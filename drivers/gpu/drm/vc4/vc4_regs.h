@@ -187,7 +187,7 @@
 # define PV_VCONTROL_CONTINUOUS			BIT(1)
 # define PV_VCONTROL_VIDEN			BIT(0)
 
-#define PV_VSYNCD				0x08
+#define PV_VSYNCD_EVEN				0x08
 
 #define PV_HORZA				0x0c
 # define PV_HORZA_HBP_MASK			VC4_MASK(31, 16)
@@ -350,6 +350,17 @@
 # define SCALER_DISPCTRLX_HEIGHT_SHIFT		0
 
 #define SCALER_DISPBKGND0                       0x00000044
+# define SCALER_DISPBKGND_AUTOHS		BIT(31)
+# define SCALER_DISPBKGND_INTERLACE		BIT(30)
+# define SCALER_DISPBKGND_GAMMA			BIT(29)
+# define SCALER_DISPBKGND_TESTMODE_MASK		VC4_MASK(28, 25)
+# define SCALER_DISPBKGND_TESTMODE_SHIFT	25
+/* Enables filling the scaler line with the RGB value in the low 24
+ * bits before compositing.  Costs cycles, so should be skipped if
+ * opaque display planes will cover everything.
+ */
+# define SCALER_DISPBKGND_FILL			BIT(24)
+
 #define SCALER_DISPSTAT0                        0x00000048
 #define SCALER_DISPBASE0                        0x0000004c
 # define SCALER_DISPSTATX_MODE_MASK		VC4_MASK(31, 30)
@@ -362,6 +373,9 @@
 # define SCALER_DISPSTATX_EMPTY			BIT(28)
 #define SCALER_DISPCTRL1                        0x00000050
 #define SCALER_DISPBKGND1                       0x00000054
+#define SCALER_DISPBKGNDX(x)			(SCALER_DISPBKGND0 +        \
+						 (x) * (SCALER_DISPBKGND1 - \
+							SCALER_DISPBKGND0))
 #define SCALER_DISPSTAT1                        0x00000058
 #define SCALER_DISPSTATX(x)			(SCALER_DISPSTAT0 +        \
 						 (x) * (SCALER_DISPSTAT1 - \
@@ -456,6 +470,8 @@
 #define VC4_HDMI_TX_PHY_RESET_CTL		0x2c0
 
 #define VC4_HD_M_CTL				0x00c
+# define VC4_HD_M_REGISTER_FILE_STANDBY		(3 << 6)
+# define VC4_HD_M_RAM_STANDBY			(3 << 4)
 # define VC4_HD_M_SW_RST			BIT(2)
 # define VC4_HD_M_ENABLE			BIT(0)
 
@@ -503,7 +519,12 @@ enum hvs_pixel_format {
 	HVS_PIXEL_FORMAT_RGB888 = 5,
 	HVS_PIXEL_FORMAT_RGBA6666 = 6,
 	/* 32bpp */
-	HVS_PIXEL_FORMAT_RGBA8888 = 7
+	HVS_PIXEL_FORMAT_RGBA8888 = 7,
+
+	HVS_PIXEL_FORMAT_YCBCR_YUV420_3PLANE = 8,
+	HVS_PIXEL_FORMAT_YCBCR_YUV420_2PLANE = 9,
+	HVS_PIXEL_FORMAT_YCBCR_YUV422_3PLANE = 10,
+	HVS_PIXEL_FORMAT_YCBCR_YUV422_2PLANE = 11,
 };
 
 /* Note: the LSB is the rightmost character shown.  Only valid for
@@ -536,6 +557,21 @@ enum hvs_pixel_format {
 #define SCALER_CTL0_ORDER_MASK			VC4_MASK(14, 13)
 #define SCALER_CTL0_ORDER_SHIFT			13
 
+#define SCALER_CTL0_SCL1_MASK			VC4_MASK(10, 8)
+#define SCALER_CTL0_SCL1_SHIFT			8
+
+#define SCALER_CTL0_SCL0_MASK			VC4_MASK(7, 5)
+#define SCALER_CTL0_SCL0_SHIFT			5
+
+#define SCALER_CTL0_SCL_H_PPF_V_PPF		0
+#define SCALER_CTL0_SCL_H_TPZ_V_PPF		1
+#define SCALER_CTL0_SCL_H_PPF_V_TPZ		2
+#define SCALER_CTL0_SCL_H_TPZ_V_TPZ		3
+#define SCALER_CTL0_SCL_H_PPF_V_NONE		4
+#define SCALER_CTL0_SCL_H_NONE_V_PPF		5
+#define SCALER_CTL0_SCL_H_NONE_V_TPZ		6
+#define SCALER_CTL0_SCL_H_TPZ_V_NONE		7
+
 /* Set to indicate no scaling. */
 #define SCALER_CTL0_UNITY			BIT(4)
 
@@ -551,6 +587,12 @@ enum hvs_pixel_format {
 #define SCALER_POS0_START_X_MASK		VC4_MASK(11, 0)
 #define SCALER_POS0_START_X_SHIFT		0
 
+#define SCALER_POS1_SCL_HEIGHT_MASK		VC4_MASK(27, 16)
+#define SCALER_POS1_SCL_HEIGHT_SHIFT		16
+
+#define SCALER_POS1_SCL_WIDTH_MASK		VC4_MASK(11, 0)
+#define SCALER_POS1_SCL_WIDTH_SHIFT		0
+
 #define SCALER_POS2_ALPHA_MODE_MASK		VC4_MASK(31, 30)
 #define SCALER_POS2_ALPHA_MODE_SHIFT		30
 #define SCALER_POS2_ALPHA_MODE_PIPELINE		0
@@ -563,6 +605,80 @@ enum hvs_pixel_format {
 
 #define SCALER_POS2_WIDTH_MASK			VC4_MASK(11, 0)
 #define SCALER_POS2_WIDTH_SHIFT			0
+
+/* Color Space Conversion words.  Some values are S2.8 signed
+ * integers, except that the 2 integer bits map as {0x0: 0, 0x1: 1,
+ * 0x2: 2, 0x3: -1}
+ */
+/* bottom 8 bits of S2.8 contribution of Cr to Blue */
+#define SCALER_CSC0_COEF_CR_BLU_MASK		VC4_MASK(31, 24)
+#define SCALER_CSC0_COEF_CR_BLU_SHIFT		24
+/* Signed offset to apply to Y before CSC. (Y' = Y + YY_OFS) */
+#define SCALER_CSC0_COEF_YY_OFS_MASK		VC4_MASK(23, 16)
+#define SCALER_CSC0_COEF_YY_OFS_SHIFT		16
+/* Signed offset to apply to CB before CSC (Cb' = Cb - 128 + CB_OFS). */
+#define SCALER_CSC0_COEF_CB_OFS_MASK		VC4_MASK(15, 8)
+#define SCALER_CSC0_COEF_CB_OFS_SHIFT		8
+/* Signed offset to apply to CB before CSC (Cr' = Cr - 128 + CR_OFS). */
+#define SCALER_CSC0_COEF_CR_OFS_MASK		VC4_MASK(7, 0)
+#define SCALER_CSC0_COEF_CR_OFS_SHIFT		0
+#define SCALER_CSC0_ITR_R_601_5			0x00f00000
+#define SCALER_CSC0_ITR_R_709_3			0x00f00000
+#define SCALER_CSC0_JPEG_JFIF			0x00000000
+
+/* S2.8 contribution of Cb to Green */
+#define SCALER_CSC1_COEF_CB_GRN_MASK		VC4_MASK(31, 22)
+#define SCALER_CSC1_COEF_CB_GRN_SHIFT		22
+/* S2.8 contribution of Cr to Green */
+#define SCALER_CSC1_COEF_CR_GRN_MASK		VC4_MASK(21, 12)
+#define SCALER_CSC1_COEF_CR_GRN_SHIFT		12
+/* S2.8 contribution of Y to all of RGB */
+#define SCALER_CSC1_COEF_YY_ALL_MASK		VC4_MASK(11, 2)
+#define SCALER_CSC1_COEF_YY_ALL_SHIFT		2
+/* top 2 bits of S2.8 contribution of Cr to Blue */
+#define SCALER_CSC1_COEF_CR_BLU_MASK		VC4_MASK(1, 0)
+#define SCALER_CSC1_COEF_CR_BLU_SHIFT		0
+#define SCALER_CSC1_ITR_R_601_5			0xe73304a8
+#define SCALER_CSC1_ITR_R_709_3			0xf2b784a8
+#define SCALER_CSC1_JPEG_JFIF			0xea34a400
+
+/* S2.8 contribution of Cb to Red */
+#define SCALER_CSC2_COEF_CB_RED_MASK		VC4_MASK(29, 20)
+#define SCALER_CSC2_COEF_CB_RED_SHIFT		20
+/* S2.8 contribution of Cr to Red */
+#define SCALER_CSC2_COEF_CR_RED_MASK		VC4_MASK(19, 10)
+#define SCALER_CSC2_COEF_CR_RED_SHIFT		10
+/* S2.8 contribution of Cb to Blue */
+#define SCALER_CSC2_COEF_CB_BLU_MASK		VC4_MASK(19, 10)
+#define SCALER_CSC2_COEF_CB_BLU_SHIFT		10
+#define SCALER_CSC2_ITR_R_601_5			0x00066204
+#define SCALER_CSC2_ITR_R_709_3			0x00072a1c
+#define SCALER_CSC2_JPEG_JFIF			0x000599c5
+
+#define SCALER_TPZ0_VERT_RECALC			BIT(31)
+#define SCALER_TPZ0_SCALE_MASK			VC4_MASK(28, 8)
+#define SCALER_TPZ0_SCALE_SHIFT			8
+#define SCALER_TPZ0_IPHASE_MASK			VC4_MASK(7, 0)
+#define SCALER_TPZ0_IPHASE_SHIFT		0
+#define SCALER_TPZ1_RECIP_MASK			VC4_MASK(15, 0)
+#define SCALER_TPZ1_RECIP_SHIFT			0
+
+/* Skips interpolating coefficients to 64 phases, so just 8 are used.
+ * Required for nearest neighbor.
+ */
+#define SCALER_PPF_NOINTERP			BIT(31)
+/* Replaes the highest valued coefficient with one that makes all 4
+ * sum to unity.
+ */
+#define SCALER_PPF_AGC				BIT(30)
+#define SCALER_PPF_SCALE_MASK			VC4_MASK(24, 8)
+#define SCALER_PPF_SCALE_SHIFT			8
+#define SCALER_PPF_IPHASE_MASK			VC4_MASK(6, 0)
+#define SCALER_PPF_IPHASE_SHIFT			0
+
+#define SCALER_PPF_KERNEL_OFFSET_MASK		VC4_MASK(13, 0)
+#define SCALER_PPF_KERNEL_OFFSET_SHIFT		0
+#define SCALER_PPF_KERNEL_UNCACHED		BIT(31)
 
 #define SCALER_SRC_PITCH_MASK			VC4_MASK(15, 0)
 #define SCALER_SRC_PITCH_SHIFT			0

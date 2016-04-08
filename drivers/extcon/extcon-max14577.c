@@ -150,6 +150,7 @@ enum max14577_muic_acc_type {
 
 static const unsigned int max14577_extcon_cable[] = {
 	EXTCON_USB,
+	EXTCON_CHG_USB_SDP,
 	EXTCON_CHG_USB_DCP,
 	EXTCON_CHG_USB_FAST,
 	EXTCON_CHG_USB_SLOW,
@@ -454,6 +455,8 @@ static int max14577_muic_chg_handler(struct max14577_muic_info *info)
 			return ret;
 
 		extcon_set_cable_state_(info->edev, EXTCON_USB, attached);
+		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SDP,
+					attached);
 		break;
 	case MAX14577_CHARGER_TYPE_DEDICATED_CHG:
 		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_DCP,

@@ -140,12 +140,8 @@ enum se_cmd_flags_table {
 	SCF_COMPARE_AND_WRITE		= 0x00080000,
 	SCF_COMPARE_AND_WRITE_POST	= 0x00100000,
 	SCF_PASSTHROUGH_PROT_SG_TO_MEM_NOALLOC = 0x00200000,
-};
-
-/* struct se_dev_entry->lun_flags and struct se_lun->lun_access */
-enum transport_lunflags_table {
-	TRANSPORT_LUNFLAGS_READ_ONLY		= 0x01,
-	TRANSPORT_LUNFLAGS_READ_WRITE		= 0x02,
+	SCF_ACK_KREF			= 0x00400000,
+	SCF_USE_CPUID			= 0x00800000,
 };
 
 /*
@@ -187,6 +183,7 @@ enum target_sc_flags_table {
 	TARGET_SCF_BIDI_OP		= 0x01,
 	TARGET_SCF_ACK_KREF		= 0x02,
 	TARGET_SCF_UNKNOWN_SIZE		= 0x04,
+	TARGET_SCF_USE_CPUID	= 0x08,
 };
 
 /* fabric independent task management function values */
@@ -490,8 +487,9 @@ struct se_cmd {
 #define CMD_T_SENT		(1 << 4)
 #define CMD_T_STOP		(1 << 5)
 #define CMD_T_DEV_ACTIVE	(1 << 7)
-#define CMD_T_REQUEST_STOP	(1 << 8)
 #define CMD_T_BUSY		(1 << 9)
+#define CMD_T_TAS		(1 << 10)
+#define CMD_T_FABRIC_STOP	(1 << 11)
 	spinlock_t		t_state_lock;
 	struct kref		cmd_kref;
 	struct completion	t_transport_stop_comp;
@@ -510,9 +508,6 @@ struct se_cmd {
 	int			lun_ref_active;
 
 	struct list_head	state_list;
-
-	/* old task stop completion, consider merging with some of the above */
-	struct completion	task_stop_comp;
 
 	/* backend private data */
 	void			*priv;
@@ -559,7 +554,6 @@ struct se_node_acl {
 	struct config_group	acl_auth_group;
 	struct config_group	acl_param_group;
 	struct config_group	acl_fabric_stat_group;
-	struct config_group	*acl_default_groups[5];
 	struct list_head	acl_list;
 	struct list_head	acl_sess_list;
 	struct completion	acl_free_comp;
@@ -633,11 +627,10 @@ struct se_lun_acl {
 };
 
 struct se_dev_entry {
-	/* See transport_lunflags_table */
 	u64			mapped_lun;
 	u64			pr_res_key;
 	u64			creation_time;
-	u32			lun_flags;
+	bool			lun_access_ro;
 	u32			attach_count;
 	atomic_long_t		total_cmds;
 	atomic_long_t		read_bytes;
@@ -711,7 +704,7 @@ struct se_lun {
 	u64			unpacked_lun;
 #define SE_LUN_LINK_MAGIC			0xffff7771
 	u32			lun_link_magic;
-	u32			lun_access;
+	bool			lun_access_ro;
 	u32			lun_index;
 
 	/* RELATIVE TARGET PORT IDENTIFER */
@@ -886,7 +879,6 @@ struct se_portal_group {
 	const struct target_core_fabric_ops *se_tpg_tfo;
 	struct se_wwn		*se_tpg_wwn;
 	struct config_group	tpg_group;
-	struct config_group	*tpg_default_groups[7];
 	struct config_group	tpg_lun_group;
 	struct config_group	tpg_np_group;
 	struct config_group	tpg_acl_group;
@@ -922,7 +914,6 @@ static inline struct se_portal_group *param_to_tpg(struct config_item *item)
 struct se_wwn {
 	struct target_fabric_configfs *wwn_tf;
 	struct config_group	wwn_group;
-	struct config_group	*wwn_default_groups[2];
 	struct config_group	fabric_stat_group;
 };
 

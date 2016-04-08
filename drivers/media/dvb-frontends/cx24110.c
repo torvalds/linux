@@ -550,9 +550,9 @@ static int cx24110_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int cx24110_get_frontend(struct dvb_frontend *fe)
+static int cx24110_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct cx24110_state *state = fe->demodulator_priv;
 	s32 afc; unsigned sclk;
 

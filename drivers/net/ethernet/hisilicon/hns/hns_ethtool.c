@@ -295,8 +295,10 @@ static int __lb_setup(struct net_device *ndev,
 
 	switch (loop) {
 	case MAC_INTERNALLOOP_PHY:
-		if ((phy_dev) && (!phy_dev->is_c45))
+		if ((phy_dev) && (!phy_dev->is_c45)) {
 			ret = hns_nic_config_phy_loopback(phy_dev, 0x1);
+			ret |= h->dev->ops->set_loopback(h, loop, 0x1);
+		}
 		break;
 	case MAC_INTERNALLOOP_MAC:
 		if ((h->dev->ops->set_loopback) &&
@@ -376,6 +378,7 @@ static void __lb_other_process(struct hns_nic_ring_data *ring_data,
 			       struct sk_buff *skb)
 {
 	struct net_device *ndev;
+	struct hns_nic_priv *priv;
 	struct hnae_ring *ring;
 	struct netdev_queue *dev_queue;
 	struct sk_buff *new_skb;
@@ -385,8 +388,17 @@ static void __lb_other_process(struct hns_nic_ring_data *ring_data,
 	char buff[33]; /* 32B data and the last character '\0' */
 
 	if (!ring_data) { /* Just for doing create frame*/
+		ndev = skb->dev;
+		priv = netdev_priv(ndev);
+
 		frame_size = skb->len;
 		memset(skb->data, 0xFF, frame_size);
+		if ((!AE_IS_VER1(priv->enet_ver)) &&
+		    (priv->ae_handle->port_type == HNAE_PORT_SERVICE)) {
+			memcpy(skb->data, ndev->dev_addr, 6);
+			skb->data[5] += 0x1f;
+		}
+
 		frame_size &= ~1ul;
 		memset(&skb->data[frame_size / 2], 0xAA, frame_size / 2 - 1);
 		memset(&skb->data[frame_size / 2 + 10], 0xBE,
@@ -486,6 +498,7 @@ static int __lb_run_test(struct net_device *ndev,
 
 	/* place data into test skb */
 	(void)skb_put(skb, size);
+	skb->dev = ndev;
 	__lb_other_process(NULL, skb);
 	skb->queue_mapping = NIC_LB_TEST_RING_ID;
 
@@ -1160,18 +1173,15 @@ hns_get_rss_key_size(struct net_device *netdev)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 	struct hnae_ae_ops *ops;
-	u32 ret;
 
 	if (AE_IS_VER1(priv->enet_ver)) {
 		netdev_err(netdev,
 			   "RSS feature is not supported on this hardware\n");
-		return -EOPNOTSUPP;
+		return 0;
 	}
 
 	ops = priv->ae_handle->dev->ops;
-	ret = ops->get_rss_key_size(priv->ae_handle);
-
-	return ret;
+	return ops->get_rss_key_size(priv->ae_handle);
 }
 
 static u32
@@ -1179,18 +1189,15 @@ hns_get_rss_indir_size(struct net_device *netdev)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 	struct hnae_ae_ops *ops;
-	u32 ret;
 
 	if (AE_IS_VER1(priv->enet_ver)) {
 		netdev_err(netdev,
 			   "RSS feature is not supported on this hardware\n");
-		return -EOPNOTSUPP;
+		return 0;
 	}
 
 	ops = priv->ae_handle->dev->ops;
-	ret = ops->get_rss_indir_size(priv->ae_handle);
-
-	return ret;
+	return ops->get_rss_indir_size(priv->ae_handle);
 }
 
 static int
@@ -1198,7 +1205,6 @@ hns_get_rss(struct net_device *netdev, u32 *indir, u8 *key, u8 *hfunc)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 	struct hnae_ae_ops *ops;
-	int ret;
 
 	if (AE_IS_VER1(priv->enet_ver)) {
 		netdev_err(netdev,
@@ -1211,9 +1217,7 @@ hns_get_rss(struct net_device *netdev, u32 *indir, u8 *key, u8 *hfunc)
 	if (!indir)
 		return 0;
 
-	ret = ops->get_rss(priv->ae_handle, indir, key, hfunc);
-
-	return 0;
+	return ops->get_rss(priv->ae_handle, indir, key, hfunc);
 }
 
 static int
@@ -1222,7 +1226,6 @@ hns_set_rss(struct net_device *netdev, const u32 *indir, const u8 *key,
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 	struct hnae_ae_ops *ops;
-	int ret;
 
 	if (AE_IS_VER1(priv->enet_ver)) {
 		netdev_err(netdev,
@@ -1239,7 +1242,22 @@ hns_set_rss(struct net_device *netdev, const u32 *indir, const u8 *key,
 	if (!indir)
 		return 0;
 
-	ret = ops->set_rss(priv->ae_handle, indir, key, hfunc);
+	return ops->set_rss(priv->ae_handle, indir, key, hfunc);
+}
+
+static int hns_get_rxnfc(struct net_device *netdev,
+			 struct ethtool_rxnfc *cmd,
+			 u32 *rule_locs)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXRINGS:
+		cmd->data = priv->ae_handle->q_num;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
 
 	return 0;
 }
@@ -1267,6 +1285,7 @@ static struct ethtool_ops hns_ethtool_ops = {
 	.get_rxfh_indir_size = hns_get_rss_indir_size,
 	.get_rxfh = hns_get_rss,
 	.set_rxfh = hns_set_rss,
+	.get_rxnfc = hns_get_rxnfc,
 };
 
 void hns_ethtool_set_ops(struct net_device *ndev)

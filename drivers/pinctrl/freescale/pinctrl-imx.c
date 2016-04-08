@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -24,6 +25,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/slab.h>
+#include <linux/regmap.h>
 
 #include "../core.h"
 #include "pinctrl-imx.h"
@@ -341,6 +343,31 @@ mux_pin:
 	return 0;
 }
 
+static void imx_pmx_gpio_disable_free(struct pinctrl_dev *pctldev,
+			struct pinctrl_gpio_range *range, unsigned offset)
+{
+	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
+	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	const struct imx_pin_reg *pin_reg;
+	u32 reg;
+
+	/*
+	 * Only Vybrid has the input/output buffer enable flags (IBE/OBE)
+	 * They are part of the shared mux/conf register.
+	 */
+	if (!(info->flags & SHARE_MUX_CONF_REG))
+		return;
+
+	pin_reg = &info->pin_regs[offset];
+	if (pin_reg->mux_reg == -1)
+		return;
+
+	/* Clear IBE/OBE/PUE to disable the pin (Hi-Z) */
+	reg = readl(ipctl->base + pin_reg->mux_reg);
+	reg &= ~0x7;
+	writel(reg, ipctl->base + pin_reg->mux_reg);
+}
+
 static int imx_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 	   struct pinctrl_gpio_range *range, unsigned offset, bool input)
 {
@@ -377,6 +404,7 @@ static const struct pinmux_ops imx_pmx_ops = {
 	.get_function_groups = imx_pmx_get_groups,
 	.set_mux = imx_pmx_set,
 	.gpio_request_enable = imx_pmx_gpio_request_enable,
+	.gpio_disable_free = imx_pmx_gpio_disable_free,
 	.gpio_set_direction = imx_pmx_gpio_set_direction,
 };
 
@@ -692,10 +720,12 @@ static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 int imx_pinctrl_probe(struct platform_device *pdev,
 		      struct imx_pinctrl_soc_info *info)
 {
+	struct regmap_config config = { .name = "gpr" };
 	struct device_node *dev_np = pdev->dev.of_node;
 	struct device_node *np;
 	struct imx_pinctrl *ipctl;
 	struct resource *res;
+	struct regmap *gpr;
 	int ret, i;
 
 	if (!info || !info->pins || !info->npins) {
@@ -703,6 +733,12 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 		return -EINVAL;
 	}
 	info->dev = &pdev->dev;
+
+	if (info->gpr_compatible) {
+		gpr = syscon_regmap_lookup_by_compatible(info->gpr_compatible);
+		if (!IS_ERR(gpr))
+			regmap_attach_dev(&pdev->dev, gpr, &config);
+	}
 
 	/* Create state holders etc for this driver */
 	ipctl = devm_kzalloc(&pdev->dev, sizeof(*ipctl), GFP_KERNEL);

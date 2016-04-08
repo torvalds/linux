@@ -12,6 +12,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -228,7 +229,8 @@ static int sch311x_gpio_probe(struct platform_device *pdev)
 	int err, i;
 
 	/* we can register all GPIO data registers at once */
-	if (!request_region(pdata->runtime_reg + GP1, 6, DRV_NAME)) {
+	if (!devm_request_region(&pdev->dev, pdata->runtime_reg + GP1, 6,
+		DRV_NAME)) {
 		dev_err(&pdev->dev, "Failed to request region 0x%04x-0x%04x.\n",
 			pdata->runtime_reg + GP1, pdata->runtime_reg + GP1 + 5);
 		return -EBUSY;
@@ -273,7 +275,6 @@ static int sch311x_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 exit_err:
-	release_region(pdata->runtime_reg + GP1, 6);
 	/* release already registered chips */
 	for (--i; i >= 0; i--)
 		gpiochip_remove(&priv->blocks[i].chip);
@@ -282,11 +283,8 @@ exit_err:
 
 static int sch311x_gpio_remove(struct platform_device *pdev)
 {
-	struct sch311x_pdev_data *pdata = dev_get_platdata(&pdev->dev);
 	struct sch311x_gpio_priv *priv = platform_get_drvdata(pdev);
 	int i;
-
-	release_region(pdata->runtime_reg + GP1, 6);
 
 	for (i = 0; i < ARRAY_SIZE(priv->blocks); i++) {
 		gpiochip_remove(&priv->blocks[i].chip);

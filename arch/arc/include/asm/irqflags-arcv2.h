@@ -22,6 +22,7 @@
 #define AUX_IRQ_CTRL		0x00E
 #define AUX_IRQ_ACT		0x043	/* Active Intr across all levels */
 #define AUX_IRQ_LVL_PEND	0x200	/* Pending Intr across all levels */
+#define AUX_IRQ_HINT		0x201	/* For generating Soft Interrupts */
 #define AUX_IRQ_PRIORITY	0x206
 #define ICAUSE			0x40a
 #define AUX_IRQ_SELECT		0x40b
@@ -30,8 +31,11 @@
 /* Was Intr taken in User Mode */
 #define AUX_IRQ_ACT_BIT_U	31
 
-/* 0 is highest level, but taken by FIRQs, if present in design */
-#define ARCV2_IRQ_DEF_PRIO		0
+/*
+ * User space should be interruptable even by lowest prio interrupt
+ * Safe even if actual interrupt priorities is fewer or even one
+ */
+#define ARCV2_IRQ_DEF_PRIO	15
 
 /* seed value for status register */
 #define ISA_INIT_STATUS_BITS	(STATUS_IE_MASK | STATUS_AD_MASK | \
@@ -110,6 +114,16 @@ static inline int arch_irqs_disabled_flags(unsigned long flags)
 static inline int arch_irqs_disabled(void)
 {
 	return arch_irqs_disabled_flags(arch_local_save_flags());
+}
+
+static inline void arc_softirq_trigger(int irq)
+{
+	write_aux_reg(AUX_IRQ_HINT, irq);
+}
+
+static inline void arc_softirq_clear(int irq)
+{
+	write_aux_reg(AUX_IRQ_HINT, 0);
 }
 
 #else

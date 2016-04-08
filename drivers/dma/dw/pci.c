@@ -108,6 +108,10 @@ static const struct pci_device_id dw_pci_id_table[] = {
 
 	/* Haswell */
 	{ PCI_VDEVICE(INTEL, 0x9c60) },
+
+	/* Broadwell */
+	{ PCI_VDEVICE(INTEL, 0x9ce0) },
+
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, dw_pci_id_table);

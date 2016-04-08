@@ -1,8 +1,10 @@
-* ARC EMAC 10/100 Ethernet platform driver for Rockchip Rk3066/RK3188 SoCs
+* ARC EMAC 10/100 Ethernet platform driver for Rockchip RK3036/RK3066/RK3188 SoCs
 
 Required properties:
-- compatible: Should be "rockchip,rk3066-emac" or "rockchip,rk3188-emac"
-  according to the target SoC.
+- compatible: should be "rockchip,<name>-emac"
+   "rockchip,rk3036-emac": found on RK3036 SoCs
+   "rockchip,rk3066-emac": found on RK3066 SoCs
+   "rockchip,rk3188-emac": found on RK3188 SoCs
 - reg: Address and length of the register set for the device
 - interrupts: Should contain the EMAC interrupts
 - rockchip,grf: phandle to the syscon grf used to control speed and mode

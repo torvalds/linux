@@ -28,6 +28,7 @@
 #include "ppatomctrl.h"
 #include "ppinterrupt.h"
 #include "tonga_powertune.h"
+#include "pp_endian.h"
 
 #define TONGA_MAX_HARDWARE_POWERLEVELS 2
 #define TONGA_DYNCLK_NUMBER_OF_TREND_COEFFICIENTS 15
@@ -385,17 +386,6 @@ typedef struct tonga_hwmgr tonga_hwmgr;
 #define TONGA_Q88_FORMAT_CONVERSION_UNIT             256 /*To convert to Q8.8 format for firmware */
 
 #define TONGA_UNUSED_GPIO_PIN                        0x7F
-
-#define PP_HOST_TO_SMC_UL(X) cpu_to_be32(X)
-#define PP_SMC_TO_HOST_UL(X) be32_to_cpu(X)
-
-#define PP_HOST_TO_SMC_US(X) cpu_to_be16(X)
-#define PP_SMC_TO_HOST_US(X) be16_to_cpu(X)
-
-#define CONVERT_FROM_HOST_TO_SMC_UL(X) ((X) = PP_HOST_TO_SMC_UL(X))
-#define CONVERT_FROM_SMC_TO_HOST_UL(X) ((X) = PP_SMC_TO_HOST_UL(X))
-
-#define CONVERT_FROM_HOST_TO_SMC_US(X) ((X) = PP_HOST_TO_SMC_US(X))
 
 int tonga_hwmgr_init(struct pp_hwmgr *hwmgr);
 int tonga_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input);

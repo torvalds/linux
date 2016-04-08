@@ -49,7 +49,7 @@ struct scu_ipc_data {
 
 static int scu_reg_access(u32 cmd, struct scu_ipc_data  *data)
 {
-	int count = data->count;
+	unsigned int count = data->count;
 
 	if (count == 0 || count == 3 || count > 4)
 		return -EINVAL;

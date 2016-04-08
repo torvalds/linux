@@ -9,6 +9,11 @@
 	aliases {
 		serial0 = &gsbi7_serial;
 		serial1 = &gsbi6_serial;
+		i2c0 = &gsbi1_i2c;
+		i2c1 = &gsbi2_i2c;
+		i2c2 = &gsbi3_i2c;
+		i2c3 = &gsbi4_i2c;
+		spi0 = &gsbi5_spi;
 	};
 
 	chosen {
@@ -157,7 +162,16 @@
 		gsbi3: gsbi@16200000 {
 			status = "okay";
 			qcom,mode = <GSBI_PROT_I2C>;
-			i2c3: i2c@16280000 {
+			i2c@16280000 {
+				status = "okay";
+			};
+		};
+
+		gsbi@16300000 {
+			status = "okay";
+			qcom,mode = <GSBI_PROT_I2C>;
+			/* CAM I2C MIPI-CSI connector */
+			i2c@16380000 {
 				status = "okay";
 			};
 		};
@@ -175,6 +189,16 @@
 					reg = <0x52>;
 					pagesize = <32>;
 				};
+			};
+		};
+
+		gsbi@1a200000 {
+			qcom,mode = <GSBI_PROT_SPI>;
+			status = "okay";
+			spi4: spi@1a280000 {
+				status = "okay";
+				num-cs = <1>;
+				cs-gpios = <&tlmm_pinmux 53 0>;
 			};
 		};
 

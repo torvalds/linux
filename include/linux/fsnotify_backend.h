@@ -220,10 +220,7 @@ struct fsnotify_mark {
 	/* List of marks by group->i_fsnotify_marks. Also reused for queueing
 	 * mark into destroy_list when it's waiting for the end of SRCU period
 	 * before it can be freed. [group->mark_mutex] */
-	union {
-		struct list_head g_list;
-		struct rcu_head g_rcu;
-	};
+	struct list_head g_list;
 	/* Protects inode / mnt pointers, flags, masks */
 	spinlock_t lock;
 	/* List of marks for inode / vfsmount [obj_lock] */
@@ -293,14 +290,9 @@ static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
 /*
  * fsnotify_d_instantiate - instantiate a dentry for inode
  */
-static inline void __fsnotify_d_instantiate(struct dentry *dentry, struct inode *inode)
+static inline void __fsnotify_d_instantiate(struct dentry *dentry)
 {
-	if (!inode)
-		return;
-
-	spin_lock(&dentry->d_lock);
 	__fsnotify_update_dcache_flags(dentry);
-	spin_unlock(&dentry->d_lock);
 }
 
 /* called from fsnotify listeners, such as fanotify or dnotify */
@@ -399,7 +391,7 @@ static inline void __fsnotify_vfsmount_delete(struct vfsmount *mnt)
 static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
 {}
 
-static inline void __fsnotify_d_instantiate(struct dentry *dentry, struct inode *inode)
+static inline void __fsnotify_d_instantiate(struct dentry *dentry)
 {}
 
 static inline u32 fsnotify_get_cookie(void)

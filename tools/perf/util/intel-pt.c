@@ -2068,6 +2068,15 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		err = -ENOMEM;
 		goto err_free_queues;
 	}
+
+	/*
+	 * Since this thread will not be kept in any rbtree not in a
+	 * list, initialize its list node so that at thread__put() the
+	 * current thread lifetime assuption is kept and we don't segfault
+	 * at list_del_init().
+	 */
+	INIT_LIST_HEAD(&pt->unknown_thread->node);
+
 	err = thread__set_comm(pt->unknown_thread, "unknown", 0);
 	if (err)
 		goto err_delete_thread;

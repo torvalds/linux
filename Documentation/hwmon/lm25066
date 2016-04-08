@@ -36,7 +36,7 @@ Author: Guenter Roeck <linux@roeck-us.net>
 Description
 -----------
 
-This driver supports hardware montoring for National Semiconductor / TI LM25056,
+This driver supports hardware monitoring for National Semiconductor / TI LM25056,
 LM25063, LM25066, LM5064, and LM5066 Power Management, Monitoring, Control, and
 Protection ICs.
 

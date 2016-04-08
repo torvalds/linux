@@ -6,6 +6,7 @@
 #include <inttypes.h>
 
 #include "symbol.h"
+#include "demangle-java.h"
 #include "machine.h"
 #include "vdso.h"
 #include <symbol/kallsyms.h>
@@ -792,6 +793,7 @@ int dso__load_sym(struct dso *dso, struct map *map,
 	uint32_t idx;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr;
+	GElf_Shdr tshdr;
 	Elf_Data *syms, *opddata = NULL;
 	GElf_Sym sym;
 	Elf_Scn *sec, *sec_strndx;
@@ -830,6 +832,9 @@ int dso__load_sym(struct dso *dso, struct map *map,
 	ehdr = syms_ss->ehdr;
 	sec = syms_ss->symtab;
 	shdr = syms_ss->symshdr;
+
+	if (elf_section_by_name(elf, &ehdr, &tshdr, ".text", NULL))
+		dso->text_offset = tshdr.sh_addr - tshdr.sh_offset;
 
 	if (runtime_ss->opdsec)
 		opddata = elf_rawdata(runtime_ss->opdsec, NULL);
@@ -879,12 +884,8 @@ int dso__load_sym(struct dso *dso, struct map *map,
 	 * Handle any relocation of vdso necessary because older kernels
 	 * attempted to prelink vdso to its virtual address.
 	 */
-	if (dso__is_vdso(dso)) {
-		GElf_Shdr tshdr;
-
-		if (elf_section_by_name(elf, &ehdr, &tshdr, ".text", NULL))
-			map->reloc = map->start - tshdr.sh_addr + tshdr.sh_offset;
-	}
+	if (dso__is_vdso(dso))
+		map->reloc = map->start - dso->text_offset;
 
 	dso->adjust_symbols = runtime_ss->adjust_symbols || ref_reloc(kmap);
 	/*
@@ -1077,6 +1078,8 @@ new_symbol:
 				demangle_flags = DMGL_PARAMS | DMGL_ANSI;
 
 			demangled = bfd_demangle(NULL, elf_name, demangle_flags);
+			if (demangled == NULL)
+				demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
 			if (demangled != NULL)
 				elf_name = demangled;
 		}

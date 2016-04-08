@@ -59,7 +59,6 @@
 #include <linux/highmem.h>
 #include <linux/io.h>
 #include <asm/ioctls.h>
-#include <linux/poll.h>
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/seq_file.h>
@@ -71,17 +70,16 @@
 #include "../../include/obd_class.h"
 #include "../../include/lprocfs_status.h"
 #include "../../include/lustre_ver.h"
-#include "../../include/lustre/lustre_build_version.h"
 
 /* buffer MUST be at least the size of obd_ioctl_hdr */
-int obd_ioctl_getdata(char **buf, int *len, void *arg)
+int obd_ioctl_getdata(char **buf, int *len, void __user *arg)
 {
 	struct obd_ioctl_hdr hdr;
 	struct obd_ioctl_data *data;
 	int err;
 	int offset = 0;
 
-	if (copy_from_user(&hdr, (void *)arg, sizeof(hdr)))
+	if (copy_from_user(&hdr, arg, sizeof(hdr)))
 		return -EFAULT;
 
 	if (hdr.ioc_version != OBD_IOCTL_VERSION) {
@@ -104,9 +102,10 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	/* When there are lots of processes calling vmalloc on multi-core
 	 * system, the high lock contention will hurt performance badly,
 	 * obdfilter-survey is an example, which relies on ioctl. So we'd
-	 * better avoid vmalloc on ioctl path. LU-66 */
+	 * better avoid vmalloc on ioctl path. LU-66
+	 */
 	*buf = libcfs_kvzalloc(hdr.ioc_len, GFP_NOFS);
-	if (*buf == NULL) {
+	if (!*buf) {
 		CERROR("Cannot allocate control buffer of len %d\n",
 		       hdr.ioc_len);
 		return -EINVAL;
@@ -114,7 +113,7 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	*len = hdr.ioc_len;
 	data = (struct obd_ioctl_data *)*buf;
 
-	if (copy_from_user(*buf, (void *)arg, hdr.ioc_len)) {
+	if (copy_from_user(*buf, arg, hdr.ioc_len)) {
 		err = -EFAULT;
 		goto free_buf;
 	}
@@ -144,9 +143,8 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 		offset += cfs_size_round(data->ioc_inllen3);
 	}
 
-	if (data->ioc_inllen4) {
+	if (data->ioc_inllen4)
 		data->ioc_inlbuf4 = &data->ioc_bulk[0] + offset;
-	}
 
 	return 0;
 
@@ -156,7 +154,7 @@ free_buf:
 }
 EXPORT_SYMBOL(obd_ioctl_getdata);
 
-int obd_ioctl_popdata(void *arg, void *data, int len)
+int obd_ioctl_popdata(void __user *arg, void *data, int len)
 {
 	int err;
 
@@ -240,7 +238,7 @@ static ssize_t health_show(struct kobject *kobj, struct attribute *attr,
 		struct obd_device *obd;
 
 		obd = class_num2obd(i);
-		if (obd == NULL || !obd->obd_attached || !obd->obd_set_up)
+		if (!obd || !obd->obd_attached || !obd->obd_set_up)
 			continue;
 
 		LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
@@ -250,9 +248,8 @@ static ssize_t health_show(struct kobject *kobj, struct attribute *attr,
 		class_incref(obd, __func__, current);
 		read_unlock(&obd_dev_lock);
 
-		if (obd_health_check(NULL, obd)) {
+		if (obd_health_check(NULL, obd))
 			healthy = false;
-		}
 		class_decref(obd, __func__, current);
 		read_lock(&obd_dev_lock);
 	}
@@ -360,7 +357,7 @@ static int obd_device_list_seq_show(struct seq_file *p, void *v)
 	struct obd_device *obd = class_num2obd((int)index);
 	char *status;
 
-	if (obd == NULL)
+	if (!obd)
 		return 0;
 
 	LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
@@ -424,7 +421,7 @@ int class_procfs_init(void)
 	struct dentry *file;
 
 	lustre_kobj = kobject_create_and_add("lustre", fs_kobj);
-	if (lustre_kobj == NULL)
+	if (!lustre_kobj)
 		goto out;
 
 	/* Create the files associated with this kobject */
@@ -456,8 +453,7 @@ out:
 
 int class_procfs_clean(void)
 {
-	if (debugfs_lustre_root != NULL)
-		debugfs_remove_recursive(debugfs_lustre_root);
+	debugfs_remove_recursive(debugfs_lustre_root);
 
 	debugfs_lustre_root = NULL;
 

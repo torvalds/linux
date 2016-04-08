@@ -21,7 +21,7 @@
 #define   NIC_PF_TCP_TIMER			(0x0060)
 #define   NIC_PF_BP_CFG				(0x0080)
 #define   NIC_PF_RRM_CFG			(0x0088)
-#define   NIC_PF_CQM_CF				(0x00A0)
+#define   NIC_PF_CQM_CFG			(0x00A0)
 #define   NIC_PF_CNM_CF				(0x00A8)
 #define   NIC_PF_CNM_STATUS			(0x00B0)
 #define   NIC_PF_CQ_AVG_CFG			(0x00C0)

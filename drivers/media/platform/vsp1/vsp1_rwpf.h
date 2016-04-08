@@ -19,19 +19,39 @@
 
 #include "vsp1.h"
 #include "vsp1_entity.h"
-#include "vsp1_video.h"
 
 #define RWPF_PAD_SINK				0
 #define RWPF_PAD_SOURCE				1
 
+struct v4l2_ctrl;
+struct vsp1_rwpf;
+struct vsp1_video;
+
+struct vsp1_rwpf_memory {
+	unsigned int num_planes;
+	dma_addr_t addr[3];
+	unsigned int length[3];
+};
+
+struct vsp1_rwpf_operations {
+	void (*set_memory)(struct vsp1_rwpf *rwpf,
+			   struct vsp1_rwpf_memory *mem);
+};
+
 struct vsp1_rwpf {
 	struct vsp1_entity entity;
-	struct vsp1_video video;
 	struct v4l2_ctrl_handler ctrls;
+	struct v4l2_ctrl *alpha;
+
+	struct vsp1_video *video;
+
+	const struct vsp1_rwpf_operations *ops;
 
 	unsigned int max_width;
 	unsigned int max_height;
 
+	struct v4l2_pix_format_mplane format;
+	const struct vsp1_format_info *fmtinfo;
 	struct {
 		unsigned int left;
 		unsigned int top;
@@ -49,11 +69,6 @@ static inline struct vsp1_rwpf *to_rwpf(struct v4l2_subdev *subdev)
 
 struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index);
 struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index);
-
-int vsp1_rpf_create_links(struct vsp1_device *vsp1,
-			       struct vsp1_entity *entity);
-int vsp1_wpf_create_links(struct vsp1_device *vsp1,
-			       struct vsp1_entity *entity);
 
 int vsp1_rwpf_enum_mbus_code(struct v4l2_subdev *subdev,
 			     struct v4l2_subdev_pad_config *cfg,

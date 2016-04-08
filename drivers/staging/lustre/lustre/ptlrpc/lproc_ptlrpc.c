@@ -131,7 +131,6 @@ static struct ll_rpc_opcode {
 	{ SEC_CTX_INIT_CONT, "sec_ctx_init_cont" },
 	{ SEC_CTX_FINI,     "sec_ctx_fini" },
 	{ FLD_QUERY,	"fld_query" },
-	{ UPDATE_OBJ,	    "update_obj" },
 };
 
 static struct ll_eopcode {
@@ -192,15 +191,15 @@ ptlrpc_ldebugfs_register(struct dentry *root, char *dir,
 	unsigned int svc_counter_config = LPROCFS_CNTR_AVGMINMAX |
 					  LPROCFS_CNTR_STDDEV;
 
-	LASSERT(*debugfs_root_ret == NULL);
-	LASSERT(*stats_ret == NULL);
+	LASSERT(!*debugfs_root_ret);
+	LASSERT(!*stats_ret);
 
 	svc_stats = lprocfs_alloc_stats(EXTRA_MAX_OPCODES+LUSTRE_MAX_OPCODES,
 					0);
-	if (svc_stats == NULL)
+	if (!svc_stats)
 		return;
 
-	if (dir != NULL) {
+	if (dir) {
 		svc_debugfs_entry = ldebugfs_register(dir, root, NULL, NULL);
 		if (IS_ERR(svc_debugfs_entry)) {
 			lprocfs_free_stats(&svc_stats);
@@ -246,11 +245,11 @@ ptlrpc_ldebugfs_register(struct dentry *root, char *dir,
 
 	rc = ldebugfs_register_stats(svc_debugfs_entry, name, svc_stats);
 	if (rc < 0) {
-		if (dir != NULL)
+		if (dir)
 			ldebugfs_remove(&svc_debugfs_entry);
 		lprocfs_free_stats(&svc_stats);
 	} else {
-		if (dir != NULL)
+		if (dir)
 			*debugfs_root_ret = svc_debugfs_entry;
 		*stats_ret = svc_stats;
 	}
@@ -307,7 +306,8 @@ ptlrpc_lprocfs_req_history_max_seq_write(struct file *file,
 
 	/* This sanity check is more of an insanity check; we can still
 	 * hose a kernel by allowing the request history to grow too
-	 * far. */
+	 * far.
+	 */
 	bufpages = (svc->srv_buf_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	if (val > totalram_pages / (2 * bufpages))
 		return -ERANGE;
@@ -454,10 +454,8 @@ static const char *nrs_state2str(enum ptlrpc_nrs_pol_state state)
  * \param[out] info  Holds returned status information
  */
 static void nrs_policy_get_info_locked(struct ptlrpc_nrs_policy *policy,
-				struct ptlrpc_nrs_pol_info *info)
+				       struct ptlrpc_nrs_pol_info *info)
 {
-	LASSERT(policy != NULL);
-	LASSERT(info != NULL);
 	assert_spin_locked(&policy->pol_nrs->nrs_lock);
 
 	memcpy(info->pi_name, policy->pol_desc->pd_name, NRS_POL_NAME_MAX);
@@ -508,7 +506,7 @@ static int ptlrpc_lprocfs_nrs_seq_show(struct seq_file *m, void *n)
 	spin_unlock(&nrs->nrs_lock);
 
 	infos = kcalloc(num_pols, sizeof(*infos), GFP_NOFS);
-	if (infos == NULL) {
+	if (!infos) {
 		rc = -ENOMEM;
 		goto unlock;
 	}
@@ -520,8 +518,7 @@ again:
 
 		pol_idx = 0;
 
-		list_for_each_entry(policy, &nrs->nrs_policy_list,
-					pol_list) {
+		list_for_each_entry(policy, &nrs->nrs_policy_list, pol_list) {
 			LASSERT(pol_idx < num_pols);
 
 			nrs_policy_get_info_locked(policy, &tmp);
@@ -592,7 +589,7 @@ again:
 	 *	    active: 0
 	 */
 	seq_printf(m, "%s\n",
-		      !hp ?  "\nregular_requests:" : "high_priority_requests:");
+		   !hp ?  "\nregular_requests:" : "high_priority_requests:");
 
 	for (pol_idx = 0; pol_idx < num_pols; pol_idx++) {
 		seq_printf(m,  "  - name: %s\n"
@@ -676,7 +673,7 @@ static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file,
 	/**
 	 * No [reg|hp] token has been specified
 	 */
-	if (cmd == NULL)
+	if (!cmd)
 		goto default_queue;
 
 	/**
@@ -733,15 +730,15 @@ ptlrpc_lprocfs_svc_req_history_seek(struct ptlrpc_service_part *svcpt,
 	struct list_head *e;
 	struct ptlrpc_request *req;
 
-	if (srhi->srhi_req != NULL &&
-	    srhi->srhi_seq > svcpt->scp_hist_seq_culled &&
+	if (srhi->srhi_req && srhi->srhi_seq > svcpt->scp_hist_seq_culled &&
 	    srhi->srhi_seq <= seq) {
 		/* If srhi_req was set previously, hasn't been culled and
 		 * we're searching for a seq on or after it (i.e. more
 		 * recent), search from it onwards.
 		 * Since the service history is LRU (i.e. culled reqs will
 		 * be near the head), we shouldn't have to do long
-		 * re-scans */
+		 * re-scans
+		 */
 		LASSERTF(srhi->srhi_seq == srhi->srhi_req->rq_history_seq,
 			 "%s:%d: seek seq %llu, request seq %llu\n",
 			 svcpt->scp_service->srv_name, svcpt->scp_cpt,
@@ -919,7 +916,8 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 		 * here.  The request could contain any old crap, so you
 		 * must be just as careful as the service's request
 		 * parser. Currently I only print stuff here I know is OK
-		 * to look at coz it was set up in request_in_callback()!!! */
+		 * to look at coz it was set up in request_in_callback()!!!
+		 */
 		seq_printf(s, "%lld:%s:%s:x%llu:%d:%s:%lld:%lds(%+lds) ",
 			   req->rq_history_seq, nidstr,
 			   libcfs_id2str(req->rq_peer), req->rq_xid,
@@ -927,7 +925,7 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 			   (s64)req->rq_arrival_time.tv_sec,
 			   (long)(req->rq_sent - req->rq_arrival_time.tv_sec),
 			   (long)(req->rq_sent - req->rq_deadline));
-		if (svc->srv_ops.so_req_printer == NULL)
+		if (!svc->srv_ops.so_req_printer)
 			seq_putc(s, '\n');
 		else
 			svc->srv_ops.so_req_printer(s, srhi->srhi_req);
@@ -971,7 +969,7 @@ static int ptlrpc_lprocfs_timeouts_seq_show(struct seq_file *m, void *n)
 
 	if (AT_OFF) {
 		seq_printf(m, "adaptive timeouts off, using obd_timeout %u\n",
-			       obd_timeout);
+			   obd_timeout);
 		return 0;
 	}
 
@@ -982,8 +980,8 @@ static int ptlrpc_lprocfs_timeouts_seq_show(struct seq_file *m, void *n)
 		s2dhms(&ts, ktime_get_real_seconds() - worstt);
 
 		seq_printf(m, "%10s : cur %3u  worst %3u (at %lld, "
-			      DHMS_FMT" ago) ", "service",
-			      cur, worst, (s64)worstt, DHMS_VARS(&ts));
+			   DHMS_FMT " ago) ", "service",
+			   cur, worst, (s64)worstt, DHMS_VARS(&ts));
 
 		lprocfs_at_hist_helper(m, &svcpt->scp_at_estimate);
 	}
@@ -1103,7 +1101,7 @@ void ptlrpc_ldebugfs_register_service(struct dentry *entry,
 				 "stats", &svc->srv_debugfs_entry,
 				 &svc->srv_stats);
 
-	if (svc->srv_debugfs_entry == NULL)
+	if (IS_ERR_OR_NULL(svc->srv_debugfs_entry))
 		return;
 
 	ldebugfs_add_vars(svc->srv_debugfs_entry, lproc_vars, NULL);
@@ -1129,7 +1127,7 @@ void ptlrpc_lprocfs_rpc_sent(struct ptlrpc_request *req, long amount)
 	int opc = opcode_offset(op);
 
 	svc_stats = req->rq_import->imp_obd->obd_svc_stats;
-	if (svc_stats == NULL || opc <= 0)
+	if (!svc_stats || opc <= 0)
 		return;
 	LASSERT(opc < LUSTRE_MAX_OPCODES);
 	if (!(op == LDLM_ENQUEUE || op == MDS_REINT))
@@ -1166,7 +1164,7 @@ EXPORT_SYMBOL(ptlrpc_lprocfs_brw);
 
 void ptlrpc_lprocfs_unregister_service(struct ptlrpc_service *svc)
 {
-	if (svc->srv_debugfs_entry != NULL)
+	if (!IS_ERR_OR_NULL(svc->srv_debugfs_entry))
 		ldebugfs_remove(&svc->srv_debugfs_entry);
 
 	if (svc->srv_stats)
@@ -1198,7 +1196,7 @@ int lprocfs_wr_ping(struct file *file, const char __user *buffer,
 
 	req = ptlrpc_prep_ping(obd->u.cli.cl_import);
 	up_read(&obd->u.cli.cl_sem);
-	if (req == NULL)
+	if (!req)
 		return -ENOMEM;
 
 	req->rq_send_state = LUSTRE_IMP_FULL;
@@ -1298,7 +1296,7 @@ int lprocfs_rd_pinger_recov(struct seq_file *m, void *n)
 EXPORT_SYMBOL(lprocfs_rd_pinger_recov);
 
 int lprocfs_wr_pinger_recov(struct file *file, const char __user *buffer,
-		      size_t count, loff_t *off)
+			    size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	struct client_obd *cli = &obd->u.cli;

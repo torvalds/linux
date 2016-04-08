@@ -89,8 +89,10 @@ static int ocrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
 			         struct ib_port_immutable *immutable)
 {
 	struct ib_port_attr attr;
+	struct ocrdma_dev *dev;
 	int err;
 
+	dev = get_ocrdma_dev(ibdev);
 	err = ocrdma_query_port(ibdev, port_num, &attr);
 	if (err)
 		return err;
@@ -98,6 +100,8 @@ static int ocrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
 	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
+	if (ocrdma_is_udp_encap_supported(dev))
+		immutable->core_cap_flags |= RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP;
 	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
 
 	return 0;
@@ -228,6 +232,11 @@ static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
 
 	ocrdma_alloc_pd_pool(dev);
 
+	if (!ocrdma_alloc_stats_resources(dev)) {
+		pr_err("%s: stats resource allocation failed\n", __func__);
+		goto alloc_err;
+	}
+
 	spin_lock_init(&dev->av_tbl.lock);
 	spin_lock_init(&dev->flush_q_lock);
 	return 0;
@@ -238,6 +247,7 @@ alloc_err:
 
 static void ocrdma_free_resources(struct ocrdma_dev *dev)
 {
+	ocrdma_release_stats_resources(dev);
 	kfree(dev->stag_arr);
 	kfree(dev->qp_tbl);
 	kfree(dev->cq_tbl);

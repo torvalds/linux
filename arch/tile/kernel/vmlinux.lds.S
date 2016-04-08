@@ -45,6 +45,7 @@ SECTIONS
     LOCK_TEXT
     KPROBES_TEXT
     IRQENTRY_TEXT
+    SOFTIRQENTRY_TEXT
     __fix_text_end = .;   /* tile-cpack won't rearrange before this */
     ALIGN_FUNCTION();
     *(.hottext*)

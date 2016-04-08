@@ -115,7 +115,7 @@ static int raise_local(void)
 	int cpu = m->extcpu;
 
 	if (m->inject_flags & MCJ_EXCEPTION) {
-		printk(KERN_INFO "Triggering MCE exception on CPU %d\n", cpu);
+		pr_info("Triggering MCE exception on CPU %d\n", cpu);
 		switch (context) {
 		case MCJ_CTX_IRQ:
 			/*
@@ -128,15 +128,15 @@ static int raise_local(void)
 			raise_exception(m, NULL);
 			break;
 		default:
-			printk(KERN_INFO "Invalid MCE context\n");
+			pr_info("Invalid MCE context\n");
 			ret = -EINVAL;
 		}
-		printk(KERN_INFO "MCE exception done on CPU %d\n", cpu);
+		pr_info("MCE exception done on CPU %d\n", cpu);
 	} else if (m->status) {
-		printk(KERN_INFO "Starting machine check poll CPU %d\n", cpu);
+		pr_info("Starting machine check poll CPU %d\n", cpu);
 		raise_poll(m);
 		mce_notify_irq();
-		printk(KERN_INFO "Machine check poll done on CPU %d\n", cpu);
+		pr_info("Machine check poll done on CPU %d\n", cpu);
 	} else
 		m->finished = 0;
 
@@ -183,8 +183,7 @@ static void raise_mce(struct mce *m)
 		start = jiffies;
 		while (!cpumask_empty(mce_inject_cpumask)) {
 			if (!time_before(jiffies, start + 2*HZ)) {
-				printk(KERN_ERR
-				"Timeout waiting for mce inject %lx\n",
+				pr_err("Timeout waiting for mce inject %lx\n",
 					*cpumask_bits(mce_inject_cpumask));
 				break;
 			}
@@ -241,7 +240,7 @@ static int inject_init(void)
 {
 	if (!alloc_cpumask_var(&mce_inject_cpumask, GFP_KERNEL))
 		return -ENOMEM;
-	printk(KERN_INFO "Machine check injector initialized\n");
+	pr_info("Machine check injector initialized\n");
 	register_mce_write_callback(mce_write);
 	register_nmi_handler(NMI_LOCAL, mce_raise_notify, 0,
 				"mce_notify");

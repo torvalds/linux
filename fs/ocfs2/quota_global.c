@@ -726,7 +726,7 @@ static int ocfs2_release_dquot(struct dquot *dquot)
 		dqgrab(dquot);
 		/* First entry on list -> queue work */
 		if (llist_add(&OCFS2_DQUOT(dquot)->list, &osb->dquot_drop_list))
-			queue_work(ocfs2_wq, &osb->dquot_drop_work);
+			queue_work(osb->ocfs2_wq, &osb->dquot_drop_work);
 		goto out;
 	}
 	status = ocfs2_lock_global_qf(oinfo, 1);
@@ -860,6 +860,30 @@ out:
 	return status;
 }
 
+static int ocfs2_get_next_id(struct super_block *sb, struct kqid *qid)
+{
+	int type = qid->type;
+	struct ocfs2_mem_dqinfo *info = sb_dqinfo(sb, type)->dqi_priv;
+	int status = 0;
+
+	trace_ocfs2_get_next_id(from_kqid(&init_user_ns, *qid), type);
+	status = ocfs2_lock_global_qf(info, 0);
+	if (status < 0)
+		goto out;
+	status = ocfs2_qinfo_lock(info, 0);
+	if (status < 0)
+		goto out_global;
+	status = qtree_get_next_id(&info->dqi_gi, qid);
+	ocfs2_qinfo_unlock(info, 0);
+out_global:
+	ocfs2_unlock_global_qf(info, 0);
+out:
+	/* Avoid logging ENOENT since it just means there isn't next ID */
+	if (status && status != -ENOENT)
+		mlog_errno(status);
+	return status;
+}
+
 static int ocfs2_mark_dquot_dirty(struct dquot *dquot)
 {
 	unsigned long mask = (1 << (DQ_LASTSET_B + QIF_ILIMITS_B)) |
@@ -968,4 +992,5 @@ const struct dquot_operations ocfs2_quota_operations = {
 	.write_info	= ocfs2_write_info,
 	.alloc_dquot	= ocfs2_alloc_dquot,
 	.destroy_dquot	= ocfs2_destroy_dquot,
+	.get_next_id	= ocfs2_get_next_id,
 };

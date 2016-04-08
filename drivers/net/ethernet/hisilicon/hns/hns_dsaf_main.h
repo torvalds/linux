@@ -417,5 +417,6 @@ void hns_dsaf_get_strings(int stringset, u8 *data, int port);
 void hns_dsaf_get_regs(struct dsaf_device *ddev, u32 port, void *data);
 int hns_dsaf_get_regs_count(void);
 void hns_dsaf_set_promisc_mode(struct dsaf_device *dsaf_dev, u32 en);
+void hns_dsaf_set_inner_lb(struct dsaf_device *dsaf_dev, u32 mac_id, u32 en);
 
 #endif /* __HNS_DSAF_MAIN_H__ */

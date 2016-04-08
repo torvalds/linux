@@ -52,10 +52,10 @@ static void midi_capture_trigger(struct snd_rawmidi_substream *substrm, int up)
 	spin_lock_irqsave(&dice->lock, flags);
 
 	if (up)
-		amdtp_am824_midi_trigger(&dice->tx_stream,
+		amdtp_am824_midi_trigger(&dice->tx_stream[0],
 					  substrm->number, substrm);
 	else
-		amdtp_am824_midi_trigger(&dice->tx_stream,
+		amdtp_am824_midi_trigger(&dice->tx_stream[0],
 					  substrm->number, NULL);
 
 	spin_unlock_irqrestore(&dice->lock, flags);
@@ -69,10 +69,10 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *substrm, int up)
 	spin_lock_irqsave(&dice->lock, flags);
 
 	if (up)
-		amdtp_am824_midi_trigger(&dice->rx_stream,
+		amdtp_am824_midi_trigger(&dice->rx_stream[0],
 					 substrm->number, substrm);
 	else
-		amdtp_am824_midi_trigger(&dice->rx_stream,
+		amdtp_am824_midi_trigger(&dice->rx_stream[0],
 					 substrm->number, NULL);
 
 	spin_unlock_irqrestore(&dice->lock, flags);
@@ -103,16 +103,27 @@ static void set_midi_substream_names(struct snd_dice *dice,
 
 int snd_dice_create_midi(struct snd_dice *dice)
 {
+	__be32 reg;
 	struct snd_rawmidi *rmidi;
 	struct snd_rawmidi_str *str;
-	unsigned int i, midi_in_ports, midi_out_ports;
+	unsigned int midi_in_ports, midi_out_ports;
 	int err;
 
-	midi_in_ports = midi_out_ports = 0;
-	for (i = 0; i < 3; i++) {
-		midi_in_ports = max(dice->tx_midi_ports[i], midi_in_ports);
-		midi_out_ports = max(dice->rx_midi_ports[i], midi_out_ports);
-	}
+	/*
+	 * Use the number of MIDI conformant data channel at current sampling
+	 * transfer frequency.
+	 */
+	err = snd_dice_transaction_read_tx(dice, TX_NUMBER_MIDI,
+					   &reg, sizeof(reg));
+	if (err < 0)
+		return err;
+	midi_in_ports = be32_to_cpu(reg);
+
+	err = snd_dice_transaction_read_rx(dice, RX_NUMBER_MIDI,
+					   &reg, sizeof(reg));
+	if (err < 0)
+		return err;
+	midi_out_ports = be32_to_cpu(reg);
 
 	if (midi_in_ports + midi_out_ports == 0)
 		return 0;

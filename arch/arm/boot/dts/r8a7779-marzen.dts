@@ -165,6 +165,9 @@
 };
 
 &pfc {
+	pinctrl-0 = <&scif_clk_pins>;
+	pinctrl-names = "default";
+
 	du_pins: du {
 		du0 {
 			renesas,groups = "du0_rgb888", "du0_sync_1", "du0_clk_out_0";
@@ -174,6 +177,11 @@
 			renesas,groups = "du1_rgb666", "du1_sync_1", "du1_clk_out";
 			renesas,function = "du1";
 		};
+	};
+
+	scif_clk_pins: scif_clk {
+		renesas,groups = "scif_clk_b";
+		renesas,function = "scif_clk";
 	};
 
 	ethernet_pins: ethernet {
@@ -219,6 +227,11 @@
 	pinctrl-0 = <&scif4_pins>;
 	pinctrl-names = "default";
 
+	status = "okay";
+};
+
+&scif_clk {
+	clock-frequency = <14745600>;
 	status = "okay";
 };
 

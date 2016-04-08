@@ -1166,7 +1166,10 @@ map_failed:
 	if (!firmware_has_feature(FW_FEATURE_CMO))
 		netdev_err(netdev, "tx: unable to map xmit buffer\n");
 	adapter->tx_map_failed++;
-	skb_linearize(skb);
+	if (skb_linearize(skb)) {
+		netdev->stats.tx_dropped++;
+		goto out;
+	}
 	force_bounce = 1;
 	goto retry_bounce;
 }

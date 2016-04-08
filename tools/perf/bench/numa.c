@@ -293,7 +293,7 @@ static void bind_to_memnode(int node)
 	if (node == -1)
 		return;
 
-	BUG_ON(g->p.nr_nodes > (int)sizeof(nodemask));
+	BUG_ON(g->p.nr_nodes > (int)sizeof(nodemask)*8);
 	nodemask = 1L << node;
 
 	ret = set_mempolicy(MPOL_BIND, &nodemask, sizeof(nodemask)*8);

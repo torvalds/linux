@@ -1207,6 +1207,9 @@ static int __init erst_init(void)
 		"Failed to allocate %lld bytes for persistent store error log.\n",
 		erst_erange.size);
 
+	/* Cleanup ERST Resources */
+	apei_resources_fini(&erst_resources);
+
 	return 0;
 
 err_release_erange:

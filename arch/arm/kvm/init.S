@@ -84,14 +84,6 @@ __do_hyp_init:
 	orr	r0, r0, r1
 	mcr	p15, 4, r0, c2, c0, 2	@ HTCR
 
-	mrc	p15, 4, r1, c2, c1, 2	@ VTCR
-	ldr	r2, =VTCR_MASK
-	bic	r1, r1, r2
-	bic	r0, r0, #(~VTCR_HTCR_SH)	@ clear non-reusable HTCR bits
-	orr	r1, r0, r1
-	orr	r1, r1, #(KVM_VTCR_SL0 | KVM_VTCR_T0SZ | KVM_VTCR_S)
-	mcr	p15, 4, r1, c2, c1, 2	@ VTCR
-
 	@ Use the same memory attributes for hyp. accesses as the kernel
 	@ (copy MAIRx ro HMAIRx).
 	mrc	p15, 0, r0, c10, c2, 0

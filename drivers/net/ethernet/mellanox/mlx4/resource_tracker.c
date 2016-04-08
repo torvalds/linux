@@ -915,11 +915,13 @@ static int handle_existing_counter(struct mlx4_dev *dev, u8 slave, int port,
 
 	spin_lock_irq(mlx4_tlock(dev));
 	r = find_res(dev, counter_index, RES_COUNTER);
-	if (!r || r->owner != slave)
+	if (!r || r->owner != slave) {
 		ret = -EINVAL;
-	counter = container_of(r, struct res_counter, com);
-	if (!counter->port)
-		counter->port = port;
+	} else {
+		counter = container_of(r, struct res_counter, com);
+		if (!counter->port)
+			counter->port = port;
+	}
 
 	spin_unlock_irq(mlx4_tlock(dev));
 	return ret;
@@ -3139,7 +3141,7 @@ static int verify_qp_parameters(struct mlx4_dev *dev,
 		case QP_TRANS_RTS2RTS:
 		case QP_TRANS_SQD2SQD:
 		case QP_TRANS_SQD2RTS:
-			if (slave != mlx4_master_func_num(dev))
+			if (slave != mlx4_master_func_num(dev)) {
 				if (optpar & MLX4_QP_OPTPAR_PRIMARY_ADDR_PATH) {
 					port = (qp_ctx->pri_path.sched_queue >> 6 & 1) + 1;
 					if (dev->caps.port_mask[port] != MLX4_PORT_TYPE_IB)
@@ -3158,6 +3160,7 @@ static int verify_qp_parameters(struct mlx4_dev *dev,
 					if (qp_ctx->alt_path.mgid_index >= num_gids)
 						return -EINVAL;
 				}
+			}
 			break;
 		default:
 			break;

@@ -795,6 +795,12 @@ static int amdgpu_cgs_query_system_info(void *cgs_device,
 	case CGS_SYSTEM_INFO_PCIE_MLW:
 		sys_info->value = adev->pm.pcie_mlw_mask;
 		break;
+	case CGS_SYSTEM_INFO_CG_FLAGS:
+		sys_info->value = adev->cg_flags;
+		break;
+	case CGS_SYSTEM_INFO_PG_FLAGS:
+		sys_info->value = adev->pg_flags;
+		break;
 	default:
 		return -ENODEV;
 	}

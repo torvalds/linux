@@ -17,8 +17,6 @@
 
 #include "rtllib.h"
 
-
-
 struct chnl_txpow_triple {
 	u8 FirstChnl;
 	u8  NumChnls;
@@ -42,7 +40,6 @@ enum dot11d_state {
  */
 
 struct rt_dot11d_info {
-
 	bool bEnabled;
 
 	u16 CountryIeLen;

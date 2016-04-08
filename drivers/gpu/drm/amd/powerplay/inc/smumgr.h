@@ -32,6 +32,27 @@ struct pp_instance;
 #define smu_lower_32_bits(n) ((uint32_t)(n))
 #define smu_upper_32_bits(n) ((uint32_t)(((n)>>16)>>16))
 
+enum AVFS_BTC_STATUS {
+	AVFS_BTC_BOOT = 0,
+	AVFS_BTC_BOOT_STARTEDSMU,
+	AVFS_LOAD_VIRUS,
+	AVFS_BTC_VIRUS_LOADED,
+	AVFS_BTC_VIRUS_FAIL,
+	AVFS_BTC_COMPLETED_PREVIOUSLY,
+	AVFS_BTC_ENABLEAVFS,
+	AVFS_BTC_STARTED,
+	AVFS_BTC_FAILED,
+	AVFS_BTC_RESTOREVFT_FAILED,
+	AVFS_BTC_SAVEVFT_FAILED,
+	AVFS_BTC_DPMTABLESETUP_FAILED,
+	AVFS_BTC_COMPLETED_UNSAVED,
+	AVFS_BTC_COMPLETED_SAVED,
+	AVFS_BTC_COMPLETED_RESTORED,
+	AVFS_BTC_DISABLED,
+	AVFS_BTC_NOTSUPPORTED,
+	AVFS_BTC_SMUMSG_ERROR
+};
+
 struct pp_smumgr_func {
 	int (*smu_init)(struct pp_smumgr *smumgr);
 	int (*smu_fini)(struct pp_smumgr *smumgr);

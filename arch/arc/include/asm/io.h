@@ -13,9 +13,18 @@
 #include <asm/byteorder.h>
 #include <asm/page.h>
 
-extern void __iomem *ioremap(unsigned long physaddr, unsigned long size);
-extern void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
+extern void __iomem *ioremap(phys_addr_t paddr, unsigned long size);
+extern void __iomem *ioremap_prot(phys_addr_t paddr, unsigned long size,
 				  unsigned long flags);
+static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
+{
+	return (void __iomem *)port;
+}
+
+static inline void ioport_unmap(void __iomem *addr)
+{
+}
+
 extern void iounmap(const void __iomem *addr);
 
 #define ioremap_nocache(phy, sz)	ioremap(phy, sz)
@@ -129,15 +138,23 @@ static inline void __raw_writel(u32 w, volatile void __iomem *addr)
 #define writel(v,c)		({ __iowmb(); writel_relaxed(v,c); })
 
 /*
- * Relaxed API for drivers which can handle any ordering themselves
+ * Relaxed API for drivers which can handle barrier ordering themselves
+ *
+ * Also these are defined to perform little endian accesses.
+ * To provide the typical device register semantics of fixed endian,
+ * swap the byte order for Big Endian
+ *
+ * http://lkml.kernel.org/r/201603100845.30602.arnd@arndb.de
  */
 #define readb_relaxed(c)	__raw_readb(c)
-#define readw_relaxed(c)	__raw_readw(c)
-#define readl_relaxed(c)	__raw_readl(c)
+#define readw_relaxed(c) ({ u16 __r = le16_to_cpu((__force __le16) \
+					__raw_readw(c)); __r; })
+#define readl_relaxed(c) ({ u32 __r = le32_to_cpu((__force __le32) \
+					__raw_readl(c)); __r; })
 
 #define writeb_relaxed(v,c)	__raw_writeb(v,c)
-#define writew_relaxed(v,c)	__raw_writew(v,c)
-#define writel_relaxed(v,c)	__raw_writel(v,c)
+#define writew_relaxed(v,c)	__raw_writew((__force u16) cpu_to_le16(v),c)
+#define writel_relaxed(v,c)	__raw_writel((__force u32) cpu_to_le32(v),c)
 
 #include <asm-generic/io.h>
 

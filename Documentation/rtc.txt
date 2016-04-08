@@ -157,6 +157,12 @@ wakealarm:	 The time at which the clock will generate a system wakeup
 		 the epoch by default, or if there's a leading +, seconds in the
 		 future, or if there is a leading +=, seconds ahead of the current
 		 alarm.
+offset:		 The amount which the rtc clock has been adjusted in firmware.
+		 Visible only if the driver supports clock offset adjustment.
+		 The unit is parts per billion, i.e. The number of clock ticks
+		 which are added to or removed from the rtc's base clock per
+		 billion ticks. A positive value makes a day pass more slowly,
+		 longer, and a negative value makes a day pass more quickly.
 
 IOCTL INTERFACE
 ---------------

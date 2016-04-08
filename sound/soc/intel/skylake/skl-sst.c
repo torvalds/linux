@@ -35,9 +35,6 @@
 #define SKL_ADSP_FW_STATUS	SKL_ADSP_SRAM0_BASE
 #define SKL_ADSP_ERROR_CODE	(SKL_ADSP_FW_STATUS + 0x4)
 
-#define SKL_INSTANCE_ID		0
-#define SKL_BASE_FW_MODULE_ID	0
-
 #define SKL_NUM_MODULES		1
 
 static bool skl_check_fw_status(struct sst_dsp *ctx, u32 status)

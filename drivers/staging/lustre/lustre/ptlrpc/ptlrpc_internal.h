@@ -101,8 +101,6 @@ struct nrs_core {
 	 * registration/unregistration, and NRS core lprocfs operations.
 	 */
 	struct mutex nrs_mutex;
-	/* XXX: This is just for liblustre. Remove the #if defined directive
-	 * when the * "cfs_" prefix is dropped from cfs_list_head. */
 	/**
 	 * List of all policy descriptors registered with NRS core; protected
 	 * by nrs_core::nrs_mutex.

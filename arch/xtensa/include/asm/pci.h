@@ -55,9 +55,6 @@ int pci_mmap_page_range(struct pci_dev *pdev, struct vm_area_struct *vma,
 
 #endif /* __KERNEL__ */
 
-/* Implement the pci_ DMA API in terms of the generic device dma_ one */
-#include <asm-generic/pci-dma-compat.h>
-
 /* Generic PCI */
 #include <asm-generic/pci.h>
 

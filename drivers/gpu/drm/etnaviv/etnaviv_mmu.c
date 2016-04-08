@@ -193,7 +193,7 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
 
 		/*
 		 * Unmap the blocks which need to be reaped from the MMU.
-		 * Clear the mmu pointer to prevent the get_iova finding
+		 * Clear the mmu pointer to prevent the mapping_get finding
 		 * this mapping.
 		 */
 		list_for_each_entry_safe(m, n, &list, scan_node) {

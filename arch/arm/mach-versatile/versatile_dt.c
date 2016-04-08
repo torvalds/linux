@@ -52,8 +52,6 @@
  *  Versatile Registers
  * ------------------------------------------------------------------------
  */
-#define VERSATILE_SYS_LOCK_OFFSET             0x20
-#define VERSATILE_SYS_RESETCTL_OFFSET         0x40
 #define VERSATILE_SYS_PCICTL_OFFSET           0x44
 #define VERSATILE_SYS_MCI_OFFSET              0x48
 #define VERSATILE_SYS_FLASH_OFFSET            0x4C
@@ -345,18 +343,6 @@ static void __init versatile_init_early(void)
 	       __io_address(VERSATILE_SCTL_BASE));
 }
 
-static void versatile_restart(enum reboot_mode mode, const char *cmd)
-{
-	u32 val;
-
-	val = readl(versatile_sys_base + VERSATILE_SYS_RESETCTL_OFFSET);
-	val |= 0x105;
-
-	writel(0xa05f, versatile_sys_base + VERSATILE_SYS_LOCK_OFFSET);
-	writel(val, versatile_sys_base + VERSATILE_SYS_RESETCTL_OFFSET);
-	writel(0, versatile_sys_base + VERSATILE_SYS_LOCK_OFFSET);
-}
-
 static void __init versatile_dt_pci_init(void)
 {
 	u32 val;
@@ -420,5 +406,4 @@ DT_MACHINE_START(VERSATILE_PB, "ARM-Versatile (Device Tree Support)")
 	.init_early	= versatile_init_early,
 	.init_machine	= versatile_dt_init,
 	.dt_compat	= versatile_dt_match,
-	.restart	= versatile_restart,
 MACHINE_END

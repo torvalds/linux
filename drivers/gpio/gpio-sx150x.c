@@ -687,7 +687,7 @@ static int sx150x_probe(struct i2c_client *client,
 	if (rc < 0)
 		return rc;
 
-	rc = gpiochip_add_data(&chip->gpio_chip, chip);
+	rc = devm_gpiochip_add_data(&client->dev, &chip->gpio_chip, chip);
 	if (rc)
 		return rc;
 
@@ -696,23 +696,10 @@ static int sx150x_probe(struct i2c_client *client,
 					pdata->irq_summary,
 					pdata->irq_base);
 		if (rc < 0)
-			goto probe_fail_post_gpiochip_add;
+			return rc;
 	}
 
 	i2c_set_clientdata(client, chip);
-
-	return 0;
-probe_fail_post_gpiochip_add:
-	gpiochip_remove(&chip->gpio_chip);
-	return rc;
-}
-
-static int sx150x_remove(struct i2c_client *client)
-{
-	struct sx150x_chip *chip;
-
-	chip = i2c_get_clientdata(client);
-	gpiochip_remove(&chip->gpio_chip);
 
 	return 0;
 }
@@ -723,7 +710,6 @@ static struct i2c_driver sx150x_driver = {
 		.of_match_table = of_match_ptr(sx150x_of_match),
 	},
 	.probe    = sx150x_probe,
-	.remove   = sx150x_remove,
 	.id_table = sx150x_id,
 };
 

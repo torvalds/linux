@@ -37,6 +37,7 @@ EXPORT_SYMBOL(sun4v_niagara_getperf);
 EXPORT_SYMBOL(sun4v_niagara_setperf);
 EXPORT_SYMBOL(sun4v_niagara2_getperf);
 EXPORT_SYMBOL(sun4v_niagara2_setperf);
+EXPORT_SYMBOL(sun4v_mach_set_watchdog);
 
 /* from hweight.S */
 EXPORT_SYMBOL(__arch_hweight8);

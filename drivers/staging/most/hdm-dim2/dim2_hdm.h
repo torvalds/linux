@@ -18,7 +18,7 @@ struct device;
 
 /* platform dependent data for dim2 interface */
 struct dim2_platform_data {
-	int (*init)(struct dim2_platform_data *pd, void *io_base,
+	int (*init)(struct dim2_platform_data *pd, void __iomem *io_base,
 		    int clk_speed);
 	void (*destroy)(struct dim2_platform_data *pd);
 	void *priv;

@@ -598,7 +598,8 @@ deliver:
 				if (unlikely(err != NET_XMIT_SUCCESS)) {
 					if (net_xmit_drop_count(err)) {
 						qdisc_qstats_drop(sch);
-						qdisc_tree_decrease_qlen(sch, 1);
+						qdisc_tree_reduce_backlog(sch, 1,
+									  qdisc_pkt_len(skb));
 					}
 				}
 				goto tfifo_dequeue;
@@ -1037,15 +1038,7 @@ static int netem_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
 
-	sch_tree_lock(sch);
-	*old = q->qdisc;
-	q->qdisc = new;
-	if (*old) {
-		qdisc_tree_decrease_qlen(*old, (*old)->q.qlen);
-		qdisc_reset(*old);
-	}
-	sch_tree_unlock(sch);
-
+	*old = qdisc_replace(sch, new, &q->qdisc);
 	return 0;
 }
 

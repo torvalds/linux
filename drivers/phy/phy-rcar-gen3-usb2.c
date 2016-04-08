@@ -74,20 +74,6 @@
 #define USB2_ADPCTRL_IDPULLUP		BIT(5)	/* 1 = ID sampling is enabled */
 #define USB2_ADPCTRL_DRVVBUS		BIT(4)
 
-/******* HSUSB registers (original offset is +0x100) *******/
-#define HSUSB_LPSTS			0x02
-#define HSUSB_UGCTRL2			0x84
-
-/* Low Power Status register (LPSTS) */
-#define HSUSB_LPSTS_SUSPM		0x4000
-
-/* USB General control register 2 (UGCTRL2) */
-#define HSUSB_UGCTRL2_MASK		0x00000031 /* bit[31:6] should be 0 */
-#define HSUSB_UGCTRL2_USB0SEL		0x00000030
-#define HSUSB_UGCTRL2_USB0SEL_HOST	0x00000010
-#define HSUSB_UGCTRL2_USB0SEL_HS_USB	0x00000020
-#define HSUSB_UGCTRL2_USB0SEL_OTG	0x00000030
-
 struct rcar_gen3_data {
 	void __iomem *base;
 	struct clk *clk;
@@ -95,8 +81,8 @@ struct rcar_gen3_data {
 
 struct rcar_gen3_chan {
 	struct rcar_gen3_data usb2;
-	struct rcar_gen3_data hsusb;
 	struct phy *phy;
+	bool has_otg;
 };
 
 static void rcar_gen3_set_host_mode(struct rcar_gen3_chan *ch, int host)
@@ -202,24 +188,15 @@ static int rcar_gen3_phy_usb2_init(struct phy *p)
 {
 	struct rcar_gen3_chan *channel = phy_get_drvdata(p);
 	void __iomem *usb2_base = channel->usb2.base;
-	void __iomem *hsusb_base = channel->hsusb.base;
-	u32 val;
 
 	/* Initialize USB2 part */
 	writel(USB2_INT_ENABLE_INIT, usb2_base + USB2_INT_ENABLE);
 	writel(USB2_SPD_RSM_TIMSET_INIT, usb2_base + USB2_SPD_RSM_TIMSET);
 	writel(USB2_OC_TIMSET_INIT, usb2_base + USB2_OC_TIMSET);
 
-	/* Initialize HSUSB part */
-	if (hsusb_base) {
-		val = readl(hsusb_base + HSUSB_UGCTRL2);
-		val = (val & ~HSUSB_UGCTRL2_USB0SEL) |
-		      HSUSB_UGCTRL2_USB0SEL_OTG;
-		writel(val & HSUSB_UGCTRL2_MASK, hsusb_base + HSUSB_UGCTRL2);
-
-		/* Initialize otg part */
+	/* Initialize otg part */
+	if (channel->has_otg)
 		rcar_gen3_init_otg(channel);
-	}
 
 	return 0;
 }
@@ -237,7 +214,6 @@ static int rcar_gen3_phy_usb2_power_on(struct phy *p)
 {
 	struct rcar_gen3_chan *channel = phy_get_drvdata(p);
 	void __iomem *usb2_base = channel->usb2.base;
-	void __iomem *hsusb_base = channel->hsusb.base;
 	u32 val;
 
 	val = readl(usb2_base + USB2_USBCTR);
@@ -246,33 +222,6 @@ static int rcar_gen3_phy_usb2_power_on(struct phy *p)
 	val &= ~USB2_USBCTR_PLL_RST;
 	writel(val, usb2_base + USB2_USBCTR);
 
-	/*
-	 * TODO: To reduce power consuming, this driver should set the SUSPM
-	 *	after the PHY detects ID pin as peripheral.
-	 */
-	if (hsusb_base) {
-		/* Power on HSUSB PHY */
-		val = readw(hsusb_base + HSUSB_LPSTS);
-		val |= HSUSB_LPSTS_SUSPM;
-		writew(val, hsusb_base + HSUSB_LPSTS);
-	}
-
-	return 0;
-}
-
-static int rcar_gen3_phy_usb2_power_off(struct phy *p)
-{
-	struct rcar_gen3_chan *channel = phy_get_drvdata(p);
-	void __iomem *hsusb_base = channel->hsusb.base;
-	u32 val;
-
-	if (hsusb_base) {
-		/* Power off HSUSB PHY */
-		val = readw(hsusb_base + HSUSB_LPSTS);
-		val &= ~HSUSB_LPSTS_SUSPM;
-		writew(val, hsusb_base + HSUSB_LPSTS);
-	}
-
 	return 0;
 }
 
@@ -280,7 +229,6 @@ static struct phy_ops rcar_gen3_phy_usb2_ops = {
 	.init		= rcar_gen3_phy_usb2_init,
 	.exit		= rcar_gen3_phy_usb2_exit,
 	.power_on	= rcar_gen3_phy_usb2_power_on,
-	.power_off	= rcar_gen3_phy_usb2_power_off,
 	.owner		= THIS_MODULE,
 };
 
@@ -313,6 +261,7 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	struct rcar_gen3_chan *channel;
 	struct phy_provider *provider;
 	struct resource *res;
+	int irq;
 
 	if (!dev->of_node) {
 		dev_err(dev, "This driver needs device tree\n");
@@ -323,29 +272,19 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	if (!channel)
 		return -ENOMEM;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "usb2_host");
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	channel->usb2.base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(channel->usb2.base))
 		return PTR_ERR(channel->usb2.base);
 
-	/* "hsusb" memory resource is optional */
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hsusb");
-
-	/* To avoid error message by devm_ioremap_resource() */
-	if (res) {
-		int irq;
-
-		channel->hsusb.base = devm_ioremap_resource(dev, res);
-		if (IS_ERR(channel->hsusb.base))
-			channel->hsusb.base = NULL;
-		/* call request_irq for OTG */
-		irq = platform_get_irq(pdev, 0);
-		if (irq >= 0)
-			irq = devm_request_irq(dev, irq, rcar_gen3_phy_usb2_irq,
-					       IRQF_SHARED, dev_name(dev),
-					       channel);
+	/* call request_irq for OTG */
+	irq = platform_get_irq(pdev, 0);
+	if (irq >= 0) {
+		irq = devm_request_irq(dev, irq, rcar_gen3_phy_usb2_irq,
+				       IRQF_SHARED, dev_name(dev), channel);
 		if (irq < 0)
 			dev_err(dev, "No irq handler (%d)\n", irq);
+		channel->has_otg = true;
 	}
 
 	/* devm_phy_create() will call pm_runtime_enable(dev); */

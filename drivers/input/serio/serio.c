@@ -134,7 +134,7 @@ static void serio_find_driver(struct serio *serio)
 	int error;
 
 	error = device_attach(&serio->dev);
-	if (error < 0)
+	if (error < 0 && error != -EPROBE_DEFER)
 		dev_warn(&serio->dev,
 			 "device_attach() failed for %s (%s), error: %d\n",
 			 serio->phys, serio->name, error);

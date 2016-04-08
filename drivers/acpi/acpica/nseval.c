@@ -378,8 +378,7 @@ void acpi_ns_exec_module_code_list(void)
 		acpi_ut_remove_reference(prev);
 	}
 
-	ACPI_INFO((AE_INFO,
-		   "Executed %u blocks of module-level executable AML code",
+	ACPI_INFO(("Executed %u blocks of module-level executable AML code",
 		   method_count));
 
 	ACPI_FREE(info);

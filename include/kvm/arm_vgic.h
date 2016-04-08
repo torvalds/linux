@@ -279,12 +279,6 @@ struct vgic_v2_cpu_if {
 	u32		vgic_lr[VGIC_V2_MAX_LRS];
 };
 
-/*
- * LRs are stored in reverse order in memory. make sure we index them
- * correctly.
- */
-#define VGIC_V3_LR_INDEX(lr)		(VGIC_V3_MAX_LRS - 1 - lr)
-
 struct vgic_v3_cpu_if {
 #ifdef CONFIG_KVM_ARM_VGIC_V3
 	u32		vgic_hcr;
@@ -321,6 +315,8 @@ struct vgic_cpu {
 
 	/* Protected by the distributor's irq_phys_map_lock */
 	struct list_head	irq_phys_map_list;
+
+	u64		live_lrs;
 };
 
 #define LR_EMPTY	0xff

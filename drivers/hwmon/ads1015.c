@@ -126,7 +126,7 @@ static int ads1015_reg_to_mv(struct i2c_client *client, unsigned int channel,
 	struct ads1015_data *data = i2c_get_clientdata(client);
 	unsigned int pga = data->channel_data[channel].pga;
 	int fullscale = fullscale_table[pga];
-	const unsigned mask = data->id == ads1115 ? 0x7fff : 0x7ff0;
+	const int mask = data->id == ads1115 ? 0x7fff : 0x7ff0;
 
 	return DIV_ROUND_CLOSEST(reg * fullscale, mask);
 }

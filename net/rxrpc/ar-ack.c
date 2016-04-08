@@ -23,7 +23,7 @@
  * How long to wait before scheduling ACK generation after seeing a
  * packet with RXRPC_REQUEST_ACK set (in jiffies).
  */
-unsigned rxrpc_requested_ack_delay = 1;
+unsigned int rxrpc_requested_ack_delay = 1;
 
 /*
  * How long to wait before scheduling an ACK with subtype DELAY (in jiffies).
@@ -32,7 +32,7 @@ unsigned rxrpc_requested_ack_delay = 1;
  * all consumed within this time we will send a DELAY ACK if an ACK was not
  * requested to let the sender know it doesn't need to resend.
  */
-unsigned rxrpc_soft_ack_delay = 1 * HZ;
+unsigned int rxrpc_soft_ack_delay = 1 * HZ;
 
 /*
  * How long to wait before scheduling an ACK with subtype IDLE (in jiffies).
@@ -41,7 +41,7 @@ unsigned rxrpc_soft_ack_delay = 1 * HZ;
  * further packets aren't immediately received to decide when to send an IDLE
  * ACK let the other end know that it can free up its Tx buffer space.
  */
-unsigned rxrpc_idle_ack_delay = 0.5 * HZ;
+unsigned int rxrpc_idle_ack_delay = 0.5 * HZ;
 
 /*
  * Receive window size in packets.  This indicates the maximum number of
@@ -49,19 +49,19 @@ unsigned rxrpc_idle_ack_delay = 0.5 * HZ;
  * limit is hit, we should generate an EXCEEDS_WINDOW ACK and discard further
  * packets.
  */
-unsigned rxrpc_rx_window_size = 32;
+unsigned int rxrpc_rx_window_size = 32;
 
 /*
  * Maximum Rx MTU size.  This indicates to the sender the size of jumbo packet
  * made by gluing normal packets together that we're willing to handle.
  */
-unsigned rxrpc_rx_mtu = 5692;
+unsigned int rxrpc_rx_mtu = 5692;
 
 /*
  * The maximum number of fragments in a received jumbo packet that we tell the
  * sender that we're willing to handle.
  */
-unsigned rxrpc_rx_jumbo_max = 4;
+unsigned int rxrpc_rx_jumbo_max = 4;
 
 static const char *rxrpc_acks(u8 reason)
 {
@@ -91,7 +91,7 @@ static const s8 rxrpc_ack_priority[] = {
  * propose an ACK be sent
  */
 void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
-			 __be32 serial, bool immediate)
+			 u32 serial, bool immediate)
 {
 	unsigned long expiry;
 	s8 prior = rxrpc_ack_priority[ack_reason];
@@ -99,8 +99,7 @@ void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 	ASSERTCMP(prior, >, 0);
 
 	_enter("{%d},%s,%%%x,%u",
-	       call->debug_id, rxrpc_acks(ack_reason), ntohl(serial),
-	       immediate);
+	       call->debug_id, rxrpc_acks(ack_reason), serial, immediate);
 
 	if (prior < rxrpc_ack_priority[call->ackr_reason]) {
 		if (immediate)
@@ -139,7 +138,7 @@ void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		expiry = rxrpc_requested_ack_delay;
 		if (!expiry)
 			goto cancel_timer;
-		if (!immediate || serial == cpu_to_be32(1)) {
+		if (!immediate || serial == 1) {
 			_debug("run defer timer");
 			goto run_timer;
 		}
@@ -157,11 +156,11 @@ run_timer:
 	return;
 
 cancel_timer:
-	_debug("cancel timer %%%u", ntohl(serial));
+	_debug("cancel timer %%%u", serial);
 	try_to_del_timer_sync(&call->ack_timer);
 	read_lock_bh(&call->state_lock);
 	if (call->state <= RXRPC_CALL_COMPLETE &&
-	    !test_and_set_bit(RXRPC_CALL_ACK, &call->events))
+	    !test_and_set_bit(RXRPC_CALL_EV_ACK, &call->events))
 		rxrpc_queue_call(call);
 	read_unlock_bh(&call->state_lock);
 }
@@ -170,7 +169,7 @@ cancel_timer:
  * propose an ACK be sent, locking the call structure
  */
 void rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
-		       __be32 serial, bool immediate)
+		       u32 serial, bool immediate)
 {
 	s8 prior = rxrpc_ack_priority[ack_reason];
 
@@ -193,7 +192,7 @@ static void rxrpc_set_resend(struct rxrpc_call *call, u8 resend,
 
 	if (resend & 1) {
 		_debug("SET RESEND");
-		set_bit(RXRPC_CALL_RESEND, &call->events);
+		set_bit(RXRPC_CALL_EV_RESEND, &call->events);
 	}
 
 	if (resend & 2) {
@@ -203,7 +202,7 @@ static void rxrpc_set_resend(struct rxrpc_call *call, u8 resend,
 	} else {
 		_debug("KILL RESEND TIMER");
 		del_timer_sync(&call->resend_timer);
-		clear_bit(RXRPC_CALL_RESEND_TIMER, &call->events);
+		clear_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events);
 		clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
 	}
 	read_unlock_bh(&call->state_lock);
@@ -214,8 +213,8 @@ static void rxrpc_set_resend(struct rxrpc_call *call, u8 resend,
  */
 static void rxrpc_resend(struct rxrpc_call *call)
 {
+	struct rxrpc_wire_header *whdr;
 	struct rxrpc_skb_priv *sp;
-	struct rxrpc_header *hdr;
 	struct sk_buff *txb;
 	unsigned long *p_txb, resend_at;
 	bool stop;
@@ -247,14 +246,13 @@ static void rxrpc_resend(struct rxrpc_call *call)
 			sp->need_resend = false;
 
 			/* each Tx packet has a new serial number */
-			sp->hdr.serial =
-				htonl(atomic_inc_return(&call->conn->serial));
+			sp->hdr.serial = atomic_inc_return(&call->conn->serial);
 
-			hdr = (struct rxrpc_header *) txb->head;
-			hdr->serial = sp->hdr.serial;
+			whdr = (struct rxrpc_wire_header *)txb->head;
+			whdr->serial = htonl(sp->hdr.serial);
 
 			_proto("Tx DATA %%%u { #%d }",
-			       ntohl(sp->hdr.serial), ntohl(sp->hdr.seq));
+			       sp->hdr.serial, sp->hdr.seq);
 			if (rxrpc_send_packet(call->conn->trans, txb) < 0) {
 				stop = true;
 				sp->resend_at = jiffies + 3;
@@ -428,7 +426,7 @@ static void rxrpc_rotate_tx_window(struct rxrpc_call *call, u32 hard)
 	int tail = call->acks_tail, old_tail;
 	int win = CIRC_CNT(call->acks_head, tail, call->acks_winsz);
 
-	_enter("{%u,%u},%u", call->acks_hard, win, hard);
+	kenter("{%u,%u},%u", call->acks_hard, win, hard);
 
 	ASSERTCMP(hard - call->acks_hard, <=, win);
 
@@ -478,11 +476,11 @@ static int rxrpc_drain_rx_oos_queue(struct rxrpc_call *call)
 		sp = rxrpc_skb(skb);
 
 		_debug("drain OOS packet %d [%d]",
-		       ntohl(sp->hdr.seq), call->rx_first_oos);
+		       sp->hdr.seq, call->rx_first_oos);
 
-		if (ntohl(sp->hdr.seq) != call->rx_first_oos) {
+		if (sp->hdr.seq != call->rx_first_oos) {
 			skb_queue_head(&call->rx_oos_queue, skb);
-			call->rx_first_oos = ntohl(rxrpc_skb(skb)->hdr.seq);
+			call->rx_first_oos = rxrpc_skb(skb)->hdr.seq;
 			_debug("requeue %p {%u}", skb, call->rx_first_oos);
 		} else {
 			skb->mark = RXRPC_SKB_MARK_DATA;
@@ -496,8 +494,7 @@ static int rxrpc_drain_rx_oos_queue(struct rxrpc_call *call)
 			/* find out what the next packet is */
 			skb = skb_peek(&call->rx_oos_queue);
 			if (skb)
-				call->rx_first_oos =
-					ntohl(rxrpc_skb(skb)->hdr.seq);
+				call->rx_first_oos = rxrpc_skb(skb)->hdr.seq;
 			else
 				call->rx_first_oos = 0;
 			_debug("peek %p {%u}", skb, call->rx_first_oos);
@@ -522,7 +519,7 @@ static void rxrpc_insert_oos_packet(struct rxrpc_call *call,
 	u32 seq;
 
 	sp = rxrpc_skb(skb);
-	seq = ntohl(sp->hdr.seq);
+	seq = sp->hdr.seq;
 	_enter(",,{%u}", seq);
 
 	skb->destructor = rxrpc_packet_destructor;
@@ -535,9 +532,8 @@ static void rxrpc_insert_oos_packet(struct rxrpc_call *call,
 
 	skb_queue_walk(&call->rx_oos_queue, p) {
 		psp = rxrpc_skb(p);
-		if (ntohl(psp->hdr.seq) > seq) {
-			_debug("insert oos #%u before #%u",
-			       seq, ntohl(psp->hdr.seq));
+		if (psp->hdr.seq > seq) {
+			_debug("insert oos #%u before #%u", seq, psp->hdr.seq);
 			skb_insert(p, skb, &call->rx_oos_queue);
 			goto inserted;
 		}
@@ -555,7 +551,7 @@ inserted:
 	if (call->state < RXRPC_CALL_COMPLETE &&
 	    call->rx_data_post == call->rx_first_oos) {
 		_debug("drain rx oos now");
-		set_bit(RXRPC_CALL_DRAIN_RX_OOS, &call->events);
+		set_bit(RXRPC_CALL_EV_DRAIN_RX_OOS, &call->events);
 	}
 	read_unlock(&call->state_lock);
 
@@ -586,7 +582,7 @@ static void rxrpc_zap_tx_window(struct rxrpc_call *call)
 
 		skb = (struct sk_buff *) _skb;
 		sp = rxrpc_skb(skb);
-		_debug("+++ clear Tx %u", ntohl(sp->hdr.seq));
+		_debug("+++ clear Tx %u", sp->hdr.seq);
 		rxrpc_free_skb(skb);
 	}
 
@@ -657,8 +653,7 @@ process_further:
 		/* data packets that wind up here have been received out of
 		 * order, need security processing or are jumbo packets */
 	case RXRPC_PACKET_TYPE_DATA:
-		_proto("OOSQ DATA %%%u { #%u }",
-		       ntohl(sp->hdr.serial), ntohl(sp->hdr.seq));
+		_proto("OOSQ DATA %%%u { #%u }", sp->hdr.serial, sp->hdr.seq);
 
 		/* secured packets must be verified and possibly decrypted */
 		if (rxrpc_verify_packet(call, skb, _abort_code) < 0)
@@ -676,7 +671,7 @@ process_further:
 		if (!skb_pull(skb, sizeof(ack)))
 			BUG();
 
-		latest = ntohl(sp->hdr.serial);
+		latest = sp->hdr.serial;
 		hard = ntohl(ack.firstPacket);
 		tx = atomic_read(&call->sequence);
 
@@ -793,7 +788,7 @@ all_acked:
 
 	del_timer_sync(&call->resend_timer);
 	clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
-	clear_bit(RXRPC_CALL_RESEND_TIMER, &call->events);
+	clear_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events);
 
 	if (call->acks_window)
 		rxrpc_zap_tx_window(call);
@@ -881,16 +876,17 @@ void rxrpc_process_call(struct work_struct *work)
 {
 	struct rxrpc_call *call =
 		container_of(work, struct rxrpc_call, processor);
+	struct rxrpc_wire_header whdr;
 	struct rxrpc_ackpacket ack;
 	struct rxrpc_ackinfo ackinfo;
-	struct rxrpc_header hdr;
 	struct msghdr msg;
 	struct kvec iov[5];
+	enum rxrpc_call_event genbit;
 	unsigned long bits;
 	__be32 data, pad;
 	size_t len;
-	int genbit, loop, nbit, ioc, ret, mtu;
-	u32 abort_code = RX_PROTOCOL_ERROR;
+	int loop, nbit, ioc, ret, mtu;
+	u32 serial, abort_code = RX_PROTOCOL_ERROR;
 	u8 *acks = NULL;
 
 	//printk("\n--------------------\n");
@@ -911,33 +907,33 @@ void rxrpc_process_call(struct work_struct *work)
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
 
-	hdr.epoch	= call->conn->epoch;
-	hdr.cid		= call->cid;
-	hdr.callNumber	= call->call_id;
-	hdr.seq		= 0;
-	hdr.type	= RXRPC_PACKET_TYPE_ACK;
-	hdr.flags	= call->conn->out_clientflag;
-	hdr.userStatus	= 0;
-	hdr.securityIndex = call->conn->security_ix;
-	hdr._rsvd	= 0;
-	hdr.serviceId	= call->conn->service_id;
+	whdr.epoch	= htonl(call->conn->epoch);
+	whdr.cid	= htonl(call->cid);
+	whdr.callNumber	= htonl(call->call_id);
+	whdr.seq	= 0;
+	whdr.type	= RXRPC_PACKET_TYPE_ACK;
+	whdr.flags	= call->conn->out_clientflag;
+	whdr.userStatus	= 0;
+	whdr.securityIndex = call->conn->security_ix;
+	whdr._rsvd	= 0;
+	whdr.serviceId	= htons(call->service_id);
 
 	memset(iov, 0, sizeof(iov));
-	iov[0].iov_base	= &hdr;
-	iov[0].iov_len	= sizeof(hdr);
+	iov[0].iov_base	= &whdr;
+	iov[0].iov_len	= sizeof(whdr);
 
 	/* deal with events of a final nature */
-	if (test_bit(RXRPC_CALL_RELEASE, &call->events)) {
+	if (test_bit(RXRPC_CALL_EV_RELEASE, &call->events)) {
 		rxrpc_release_call(call);
-		clear_bit(RXRPC_CALL_RELEASE, &call->events);
+		clear_bit(RXRPC_CALL_EV_RELEASE, &call->events);
 	}
 
-	if (test_bit(RXRPC_CALL_RCVD_ERROR, &call->events)) {
+	if (test_bit(RXRPC_CALL_EV_RCVD_ERROR, &call->events)) {
 		int error;
 
-		clear_bit(RXRPC_CALL_CONN_ABORT, &call->events);
-		clear_bit(RXRPC_CALL_REJECT_BUSY, &call->events);
-		clear_bit(RXRPC_CALL_ABORT, &call->events);
+		clear_bit(RXRPC_CALL_EV_CONN_ABORT, &call->events);
+		clear_bit(RXRPC_CALL_EV_REJECT_BUSY, &call->events);
+		clear_bit(RXRPC_CALL_EV_ABORT, &call->events);
 
 		error = call->conn->trans->peer->net_error;
 		_debug("post net error %d", error);
@@ -945,47 +941,47 @@ void rxrpc_process_call(struct work_struct *work)
 		if (rxrpc_post_message(call, RXRPC_SKB_MARK_NET_ERROR,
 				       error, true) < 0)
 			goto no_mem;
-		clear_bit(RXRPC_CALL_RCVD_ERROR, &call->events);
+		clear_bit(RXRPC_CALL_EV_RCVD_ERROR, &call->events);
 		goto kill_ACKs;
 	}
 
-	if (test_bit(RXRPC_CALL_CONN_ABORT, &call->events)) {
+	if (test_bit(RXRPC_CALL_EV_CONN_ABORT, &call->events)) {
 		ASSERTCMP(call->state, >, RXRPC_CALL_COMPLETE);
 
-		clear_bit(RXRPC_CALL_REJECT_BUSY, &call->events);
-		clear_bit(RXRPC_CALL_ABORT, &call->events);
+		clear_bit(RXRPC_CALL_EV_REJECT_BUSY, &call->events);
+		clear_bit(RXRPC_CALL_EV_ABORT, &call->events);
 
 		_debug("post conn abort");
 
 		if (rxrpc_post_message(call, RXRPC_SKB_MARK_LOCAL_ERROR,
 				       call->conn->error, true) < 0)
 			goto no_mem;
-		clear_bit(RXRPC_CALL_CONN_ABORT, &call->events);
+		clear_bit(RXRPC_CALL_EV_CONN_ABORT, &call->events);
 		goto kill_ACKs;
 	}
 
-	if (test_bit(RXRPC_CALL_REJECT_BUSY, &call->events)) {
-		hdr.type = RXRPC_PACKET_TYPE_BUSY;
-		genbit = RXRPC_CALL_REJECT_BUSY;
+	if (test_bit(RXRPC_CALL_EV_REJECT_BUSY, &call->events)) {
+		whdr.type = RXRPC_PACKET_TYPE_BUSY;
+		genbit = RXRPC_CALL_EV_REJECT_BUSY;
 		goto send_message;
 	}
 
-	if (test_bit(RXRPC_CALL_ABORT, &call->events)) {
+	if (test_bit(RXRPC_CALL_EV_ABORT, &call->events)) {
 		ASSERTCMP(call->state, >, RXRPC_CALL_COMPLETE);
 
 		if (rxrpc_post_message(call, RXRPC_SKB_MARK_LOCAL_ERROR,
 				       ECONNABORTED, true) < 0)
 			goto no_mem;
-		hdr.type = RXRPC_PACKET_TYPE_ABORT;
+		whdr.type = RXRPC_PACKET_TYPE_ABORT;
 		data = htonl(call->abort_code);
 		iov[1].iov_base = &data;
 		iov[1].iov_len = sizeof(data);
-		genbit = RXRPC_CALL_ABORT;
+		genbit = RXRPC_CALL_EV_ABORT;
 		goto send_message;
 	}
 
-	if (test_bit(RXRPC_CALL_ACK_FINAL, &call->events)) {
-		genbit = RXRPC_CALL_ACK_FINAL;
+	if (test_bit(RXRPC_CALL_EV_ACK_FINAL, &call->events)) {
+		genbit = RXRPC_CALL_EV_ACK_FINAL;
 
 		ack.bufferSpace	= htons(8);
 		ack.maxSkew	= 0;
@@ -995,9 +991,9 @@ void rxrpc_process_call(struct work_struct *work)
 		call->ackr_reason = 0;
 
 		spin_lock_bh(&call->lock);
-		ack.serial = call->ackr_serial;
-		ack.previousPacket = call->ackr_prev_seq;
-		ack.firstPacket = htonl(call->rx_data_eaten + 1);
+		ack.serial	= htonl(call->ackr_serial);
+		ack.previousPacket = htonl(call->ackr_prev_seq);
+		ack.firstPacket	= htonl(call->rx_data_eaten + 1);
 		spin_unlock_bh(&call->lock);
 
 		pad = 0;
@@ -1011,12 +1007,12 @@ void rxrpc_process_call(struct work_struct *work)
 		goto send_ACK;
 	}
 
-	if (call->events & ((1 << RXRPC_CALL_RCVD_BUSY) |
-			    (1 << RXRPC_CALL_RCVD_ABORT))
+	if (call->events & ((1 << RXRPC_CALL_EV_RCVD_BUSY) |
+			    (1 << RXRPC_CALL_EV_RCVD_ABORT))
 	    ) {
 		u32 mark;
 
-		if (test_bit(RXRPC_CALL_RCVD_ABORT, &call->events))
+		if (test_bit(RXRPC_CALL_EV_RCVD_ABORT, &call->events))
 			mark = RXRPC_SKB_MARK_REMOTE_ABORT;
 		else
 			mark = RXRPC_SKB_MARK_BUSY;
@@ -1026,22 +1022,22 @@ void rxrpc_process_call(struct work_struct *work)
 		if (rxrpc_post_message(call, mark, ECONNABORTED, true) < 0)
 			goto no_mem;
 
-		clear_bit(RXRPC_CALL_RCVD_BUSY, &call->events);
-		clear_bit(RXRPC_CALL_RCVD_ABORT, &call->events);
+		clear_bit(RXRPC_CALL_EV_RCVD_BUSY, &call->events);
+		clear_bit(RXRPC_CALL_EV_RCVD_ABORT, &call->events);
 		goto kill_ACKs;
 	}
 
-	if (test_and_clear_bit(RXRPC_CALL_RCVD_ACKALL, &call->events)) {
+	if (test_and_clear_bit(RXRPC_CALL_EV_RCVD_ACKALL, &call->events)) {
 		_debug("do implicit ackall");
 		rxrpc_clear_tx_window(call);
 	}
 
-	if (test_bit(RXRPC_CALL_LIFE_TIMER, &call->events)) {
+	if (test_bit(RXRPC_CALL_EV_LIFE_TIMER, &call->events)) {
 		write_lock_bh(&call->state_lock);
 		if (call->state <= RXRPC_CALL_COMPLETE) {
 			call->state = RXRPC_CALL_LOCALLY_ABORTED;
 			call->abort_code = RX_CALL_TIMEOUT;
-			set_bit(RXRPC_CALL_ABORT, &call->events);
+			set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		}
 		write_unlock_bh(&call->state_lock);
 
@@ -1050,7 +1046,7 @@ void rxrpc_process_call(struct work_struct *work)
 				       ETIME, true) < 0)
 			goto no_mem;
 
-		clear_bit(RXRPC_CALL_LIFE_TIMER, &call->events);
+		clear_bit(RXRPC_CALL_EV_LIFE_TIMER, &call->events);
 		goto kill_ACKs;
 	}
 
@@ -1071,13 +1067,13 @@ void rxrpc_process_call(struct work_struct *work)
 	}
 
 	/* handle resending */
-	if (test_and_clear_bit(RXRPC_CALL_RESEND_TIMER, &call->events))
+	if (test_and_clear_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events))
 		rxrpc_resend_timer(call);
-	if (test_and_clear_bit(RXRPC_CALL_RESEND, &call->events))
+	if (test_and_clear_bit(RXRPC_CALL_EV_RESEND, &call->events))
 		rxrpc_resend(call);
 
 	/* consider sending an ordinary ACK */
-	if (test_bit(RXRPC_CALL_ACK, &call->events)) {
+	if (test_bit(RXRPC_CALL_EV_ACK, &call->events)) {
 		_debug("send ACK: window: %d - %d { %lx }",
 		       call->rx_data_eaten, call->ackr_win_top,
 		       call->ackr_window[0]);
@@ -1085,11 +1081,11 @@ void rxrpc_process_call(struct work_struct *work)
 		if (call->state > RXRPC_CALL_SERVER_ACK_REQUEST &&
 		    call->ackr_reason != RXRPC_ACK_PING_RESPONSE) {
 			/* ACK by sending reply DATA packet in this state */
-			clear_bit(RXRPC_CALL_ACK, &call->events);
+			clear_bit(RXRPC_CALL_EV_ACK, &call->events);
 			goto maybe_reschedule;
 		}
 
-		genbit = RXRPC_CALL_ACK;
+		genbit = RXRPC_CALL_EV_ACK;
 
 		acks = kzalloc(call->ackr_win_top - call->rx_data_eaten,
 			       GFP_NOFS);
@@ -1099,13 +1095,11 @@ void rxrpc_process_call(struct work_struct *work)
 		//hdr.flags	= RXRPC_SLOW_START_OK;
 		ack.bufferSpace	= htons(8);
 		ack.maxSkew	= 0;
-		ack.serial	= 0;
-		ack.reason	= 0;
 
 		spin_lock_bh(&call->lock);
-		ack.reason = call->ackr_reason;
-		ack.serial = call->ackr_serial;
-		ack.previousPacket = call->ackr_prev_seq;
+		ack.reason	= call->ackr_reason;
+		ack.serial	= htonl(call->ackr_serial);
+		ack.previousPacket = htonl(call->ackr_prev_seq);
 		ack.firstPacket = htonl(call->rx_data_eaten + 1);
 
 		ack.nAcks = 0;
@@ -1152,7 +1146,7 @@ void rxrpc_process_call(struct work_struct *work)
 
 	/* handle completion of security negotiations on an incoming
 	 * connection */
-	if (test_and_clear_bit(RXRPC_CALL_SECURED, &call->events)) {
+	if (test_and_clear_bit(RXRPC_CALL_EV_SECURED, &call->events)) {
 		_debug("secured");
 		spin_lock_bh(&call->lock);
 
@@ -1160,7 +1154,7 @@ void rxrpc_process_call(struct work_struct *work)
 			_debug("securing");
 			write_lock(&call->conn->lock);
 			if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
-			    !test_bit(RXRPC_CALL_RELEASE, &call->events)) {
+			    !test_bit(RXRPC_CALL_EV_RELEASE, &call->events)) {
 				_debug("not released");
 				call->state = RXRPC_CALL_SERVER_ACCEPTING;
 				list_move_tail(&call->accept_link,
@@ -1169,39 +1163,39 @@ void rxrpc_process_call(struct work_struct *work)
 			write_unlock(&call->conn->lock);
 			read_lock(&call->state_lock);
 			if (call->state < RXRPC_CALL_COMPLETE)
-				set_bit(RXRPC_CALL_POST_ACCEPT, &call->events);
+				set_bit(RXRPC_CALL_EV_POST_ACCEPT, &call->events);
 			read_unlock(&call->state_lock);
 		}
 
 		spin_unlock_bh(&call->lock);
-		if (!test_bit(RXRPC_CALL_POST_ACCEPT, &call->events))
+		if (!test_bit(RXRPC_CALL_EV_POST_ACCEPT, &call->events))
 			goto maybe_reschedule;
 	}
 
 	/* post a notification of an acceptable connection to the app */
-	if (test_bit(RXRPC_CALL_POST_ACCEPT, &call->events)) {
+	if (test_bit(RXRPC_CALL_EV_POST_ACCEPT, &call->events)) {
 		_debug("post accept");
 		if (rxrpc_post_message(call, RXRPC_SKB_MARK_NEW_CALL,
 				       0, false) < 0)
 			goto no_mem;
-		clear_bit(RXRPC_CALL_POST_ACCEPT, &call->events);
+		clear_bit(RXRPC_CALL_EV_POST_ACCEPT, &call->events);
 		goto maybe_reschedule;
 	}
 
 	/* handle incoming call acceptance */
-	if (test_and_clear_bit(RXRPC_CALL_ACCEPTED, &call->events)) {
+	if (test_and_clear_bit(RXRPC_CALL_EV_ACCEPTED, &call->events)) {
 		_debug("accepted");
 		ASSERTCMP(call->rx_data_post, ==, 0);
 		call->rx_data_post = 1;
 		read_lock_bh(&call->state_lock);
 		if (call->state < RXRPC_CALL_COMPLETE)
-			set_bit(RXRPC_CALL_DRAIN_RX_OOS, &call->events);
+			set_bit(RXRPC_CALL_EV_DRAIN_RX_OOS, &call->events);
 		read_unlock_bh(&call->state_lock);
 	}
 
 	/* drain the out of sequence received packet queue into the packet Rx
 	 * queue */
-	if (test_and_clear_bit(RXRPC_CALL_DRAIN_RX_OOS, &call->events)) {
+	if (test_and_clear_bit(RXRPC_CALL_EV_DRAIN_RX_OOS, &call->events)) {
 		while (call->rx_data_post == call->rx_first_oos)
 			if (rxrpc_drain_rx_oos_queue(call) < 0)
 				break;
@@ -1224,9 +1218,10 @@ send_ACK:
 	ackinfo.rxMTU	= htonl(rxrpc_rx_mtu);
 	ackinfo.jumbo_max = htonl(rxrpc_rx_jumbo_max);
 
-	hdr.serial = htonl(atomic_inc_return(&call->conn->serial));
+	serial = atomic_inc_return(&call->conn->serial);
+	whdr.serial = htonl(serial);
 	_proto("Tx ACK %%%u { m=%hu f=#%u p=#%u s=%%%u r=%s n=%u }",
-	       ntohl(hdr.serial),
+	       serial,
 	       ntohs(ack.maxSkew),
 	       ntohl(ack.firstPacket),
 	       ntohl(ack.previousPacket),
@@ -1242,8 +1237,9 @@ send_ACK:
 send_message:
 	_debug("send message");
 
-	hdr.serial = htonl(atomic_inc_return(&call->conn->serial));
-	_proto("Tx %s %%%u", rxrpc_pkts[hdr.type], ntohl(hdr.serial));
+	serial = atomic_inc_return(&call->conn->serial);
+	whdr.serial = htonl(serial);
+	_proto("Tx %s %%%u", rxrpc_pkts[whdr.type], serial);
 send_message_2:
 
 	len = iov[0].iov_len;
@@ -1280,12 +1276,12 @@ send_message_2:
 	}
 
 	switch (genbit) {
-	case RXRPC_CALL_ABORT:
+	case RXRPC_CALL_EV_ABORT:
 		clear_bit(genbit, &call->events);
-		clear_bit(RXRPC_CALL_RCVD_ABORT, &call->events);
+		clear_bit(RXRPC_CALL_EV_RCVD_ABORT, &call->events);
 		goto kill_ACKs;
 
-	case RXRPC_CALL_ACK_FINAL:
+	case RXRPC_CALL_EV_ACK_FINAL:
 		write_lock_bh(&call->state_lock);
 		if (call->state == RXRPC_CALL_CLIENT_FINAL_ACK)
 			call->state = RXRPC_CALL_COMPLETE;
@@ -1310,9 +1306,9 @@ send_message_2:
 
 kill_ACKs:
 	del_timer_sync(&call->ack_timer);
-	if (test_and_clear_bit(RXRPC_CALL_ACK_FINAL, &call->events))
+	if (test_and_clear_bit(RXRPC_CALL_EV_ACK_FINAL, &call->events))
 		rxrpc_put_call(call);
-	clear_bit(RXRPC_CALL_ACK, &call->events);
+	clear_bit(RXRPC_CALL_EV_ACK, &call->events);
 
 maybe_reschedule:
 	if (call->events || !skb_queue_empty(&call->rx_queue)) {
@@ -1326,12 +1322,11 @@ maybe_reschedule:
 	if (call->state >= RXRPC_CALL_COMPLETE &&
 	    !list_empty(&call->accept_link)) {
 		_debug("X unlinking once-pending call %p { e=%lx f=%lx c=%x }",
-		       call, call->events, call->flags,
-		       ntohl(call->conn->cid));
+		       call, call->events, call->flags, call->conn->cid);
 
 		read_lock_bh(&call->state_lock);
 		if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
-		    !test_and_set_bit(RXRPC_CALL_RELEASE, &call->events))
+		    !test_and_set_bit(RXRPC_CALL_EV_RELEASE, &call->events))
 			rxrpc_queue_call(call);
 		read_unlock_bh(&call->state_lock);
 	}
@@ -1345,7 +1340,7 @@ error:
 	 * this means there's a race between clearing the flag and setting the
 	 * work pending bit and the work item being processed again */
 	if (call->events && !work_pending(&call->processor)) {
-		_debug("jumpstart %x", ntohl(call->conn->cid));
+		_debug("jumpstart %x", call->conn->cid);
 		rxrpc_queue_call(call);
 	}
 

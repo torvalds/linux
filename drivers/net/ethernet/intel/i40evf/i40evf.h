@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -173,6 +173,7 @@ enum i40evf_state_t {
 	__I40EVF_RESETTING,		/* in reset */
 	/* Below here, watchdog is running */
 	__I40EVF_DOWN,			/* ready, can be opened */
+	__I40EVF_DOWN_PENDING,		/* descending, waiting for watchdog */
 	__I40EVF_TESTING,		/* in ethtool self-test */
 	__I40EVF_RUNNING,		/* opened, working */
 };
@@ -273,6 +274,9 @@ struct i40evf_adapter {
 };
 
 
+/* Ethtool Private Flags */
+#define I40EVF_PRIV_FLAGS_PS		BIT(0)
+
 /* needed by i40evf_ethtool.c */
 extern char i40evf_driver_name[];
 extern const char i40evf_driver_version[];
@@ -280,6 +284,7 @@ extern const char i40evf_driver_version[];
 int i40evf_up(struct i40evf_adapter *adapter);
 void i40evf_down(struct i40evf_adapter *adapter);
 int i40evf_process_config(struct i40evf_adapter *adapter);
+void i40evf_schedule_reset(struct i40evf_adapter *adapter);
 void i40evf_reset(struct i40evf_adapter *adapter);
 void i40evf_set_ethtool_ops(struct net_device *netdev);
 void i40evf_update_stats(struct i40evf_adapter *adapter);

@@ -292,25 +292,36 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 {
 	DSSDBG("hdmi_core_init\n");
 
+	video_cfg->v_fc_config.timings = cfg->timings;
+
 	/* video core */
 	video_cfg->data_enable_pol = 1; /* It is always 1*/
-	video_cfg->v_fc_config.timings.hsync_level = cfg->timings.hsync_level;
-	video_cfg->v_fc_config.timings.x_res = cfg->timings.x_res;
-	video_cfg->v_fc_config.timings.hsw = cfg->timings.hsw - 1;
-	video_cfg->v_fc_config.timings.hbp = cfg->timings.hbp;
-	video_cfg->v_fc_config.timings.hfp = cfg->timings.hfp;
 	video_cfg->hblank = cfg->timings.hfp +
-				cfg->timings.hbp + cfg->timings.hsw - 1;
-	video_cfg->v_fc_config.timings.vsync_level = cfg->timings.vsync_level;
-	video_cfg->v_fc_config.timings.y_res = cfg->timings.y_res;
-	video_cfg->v_fc_config.timings.vsw = cfg->timings.vsw;
-	video_cfg->v_fc_config.timings.vfp = cfg->timings.vfp;
-	video_cfg->v_fc_config.timings.vbp = cfg->timings.vbp;
-	video_cfg->vblank_osc = 0; /* Always 0 - need to confirm */
+				cfg->timings.hbp + cfg->timings.hsw;
+	video_cfg->vblank_osc = 0;
 	video_cfg->vblank = cfg->timings.vsw +
 				cfg->timings.vfp + cfg->timings.vbp;
 	video_cfg->v_fc_config.hdmi_dvi_mode = cfg->hdmi_dvi_mode;
-	video_cfg->v_fc_config.timings.interlace = cfg->timings.interlace;
+
+	if (cfg->timings.interlace) {
+		/* set vblank_osc if vblank is fractional */
+		if (video_cfg->vblank % 2 != 0)
+			video_cfg->vblank_osc = 1;
+
+		video_cfg->v_fc_config.timings.y_res /= 2;
+		video_cfg->vblank /= 2;
+		video_cfg->v_fc_config.timings.vfp /= 2;
+		video_cfg->v_fc_config.timings.vsw /= 2;
+		video_cfg->v_fc_config.timings.vbp /= 2;
+	}
+
+	if (cfg->timings.double_pixel) {
+		video_cfg->v_fc_config.timings.x_res *= 2;
+		video_cfg->hblank *= 2;
+		video_cfg->v_fc_config.timings.hfp *= 2;
+		video_cfg->v_fc_config.timings.hsw *= 2;
+		video_cfg->v_fc_config.timings.hbp *= 2;
+	}
 }
 
 /* DSS_HDMI_CORE_VIDEO_CONFIG */
@@ -377,6 +388,11 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 	/* select DVI mode */
 	REG_FLD_MOD(base, HDMI_CORE_FC_INVIDCONF,
 			cfg->v_fc_config.hdmi_dvi_mode, 3, 3);
+
+	if (cfg->v_fc_config.timings.double_pixel)
+		REG_FLD_MOD(base, HDMI_CORE_FC_PRCONF, 2, 7, 4);
+	else
+		REG_FLD_MOD(base, HDMI_CORE_FC_PRCONF, 1, 7, 4);
 }
 
 static void hdmi_core_config_video_packetizer(struct hdmi_core_data *core)
