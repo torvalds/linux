@@ -51,6 +51,9 @@
 #include "bif/bif_5_0_d.h"
 #include "bif/bif_5_0_sh_mask.h"
 
+#include "dce/dce_10_0_d.h"
+#include "dce/dce_10_0_sh_mask.h"
+
 #include "cgs_linux.h"
 #include "eventmgr.h"
 #include "amd_pcie_helpers.h"
@@ -2037,14 +2040,11 @@ static int tonga_populate_single_memory_level(
 	data->display_timing.num_existing_displays = info.display_count;
 
 	if ((data->mclk_stutter_mode_threshold != 0) &&
-			(memory_clock <= data->mclk_stutter_mode_threshold) &&
-			(data->is_uvd_enabled == 0)
-#if defined(LINUX)
-			&& (PHM_READ_FIELD(hwmgr->device, DPG_PIPE_STUTTER_CONTROL, STUTTER_ENABLE) & 0x1)
-			&& (data->display_timing.num_existing_displays <= 2)
-			&& (data->display_timing.num_existing_displays != 0)
-#endif
-	)
+	    (memory_clock <= data->mclk_stutter_mode_threshold) &&
+	    (data->is_uvd_enabled == 0)
+	    && (PHM_READ_FIELD(hwmgr->device, DPG_PIPE_STUTTER_CONTROL, STUTTER_ENABLE) & 0x1)
+	    && (data->display_timing.num_existing_displays <= 2)
+	    && (data->display_timing.num_existing_displays != 0))
 		memory_level->StutterEnable = 1;
 
 	/* decide strobe mode*/
