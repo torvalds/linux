@@ -189,6 +189,9 @@ static int intel_th_output_activate(struct intel_th_device *thdev)
 	if (!thdrv)
 		return -ENODEV;
 
+	if (!try_module_get(thdrv->driver.owner))
+		return -ENODEV;
+
 	if (thdrv->activate)
 		return thdrv->activate(thdev);
 
@@ -209,6 +212,8 @@ static void intel_th_output_deactivate(struct intel_th_device *thdev)
 		thdrv->deactivate(thdev);
 	else
 		intel_th_trace_disable(thdev);
+
+	module_put(thdrv->driver.owner);
 }
 
 static ssize_t active_show(struct device *dev, struct device_attribute *attr,
