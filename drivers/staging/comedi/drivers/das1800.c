@@ -767,44 +767,6 @@ static unsigned char das1800_ai_chanspec_bits(struct comedi_subdevice *s,
 	return bits;
 }
 
-static int control_c_bits(struct comedi_subdevice *s,
-			  const struct comedi_cmd *cmd)
-{
-	int control_c;
-
-	control_c = das1800_ai_chanspec_bits(s, cmd->chanlist[0]);
-
-	/* set clock source to internal or external */
-	switch (cmd->scan_begin_src) {
-	case TRIG_FOLLOW:	/*  not in burst mode */
-		switch (cmd->convert_src) {
-		case TRIG_TIMER:
-			/* trig on cascaded counters */
-			control_c |= IPCLK;
-			break;
-		case TRIG_EXT:
-			/* trig on falling edge of external trigger */
-			control_c |= XPCLK;
-			break;
-		default:
-			break;
-		}
-		break;
-	case TRIG_TIMER:
-		/*  burst mode with internal pacer clock */
-		control_c |= BMDE | IPCLK;
-		break;
-	case TRIG_EXT:
-		/*  burst mode with external trigger */
-		control_c |= BMDE | XPCLK;
-		break;
-	default:
-		break;
-	}
-
-	return control_c;
-}
-
 static unsigned int das1800_ai_transfer_size(struct comedi_device *dev,
 					     struct comedi_subdevice *s,
 					     unsigned int maxbytes,
@@ -922,7 +884,25 @@ static int das1800_ai_cmd(struct comedi_device *dev,
 
 	/*  determine proper bits for control registers */
 	control_a = control_a_bits(cmd);
-	control_c = control_c_bits(s, cmd);
+
+	control_c = das1800_ai_chanspec_bits(s, cmd->chanlist[0]);
+	/* set clock source to internal or external */
+	if (cmd->scan_begin_src == TRIG_FOLLOW) {
+		/* not in burst mode */
+		if (cmd->convert_src == TRIG_TIMER) {
+			/* trig on cascaded counters */
+			control_c |= IPCLK;
+		} else { /* TRIG_EXT */
+			/* trig on falling edge of external trigger */
+			control_c |= XPCLK;
+		}
+	} else if (cmd->scan_begin_src == TRIG_TIMER) {
+		/* burst mode with internal pacer clock */
+		control_c |= BMDE | IPCLK;
+	} else { /* TRIG_EXT */
+		/* burst mode with external trigger */
+		control_c |= BMDE | XPCLK;
+	}
 
 	/* setup card and start */
 	program_chanlist(dev, cmd);
