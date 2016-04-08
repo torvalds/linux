@@ -1133,6 +1133,8 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		struct ceph_mds_client *mdsc =
 			ceph_sb_to_client(inode->i_sb)->mdsc;
 
+		ci->i_ceph_flags |= CEPH_I_CAP_DROPPED;
+
 		while (true) {
 			struct rb_node *n = rb_first(&ci->i_cap_flush_tree);
 			if (!n)
@@ -1181,7 +1183,9 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		list_del(&cf->list);
 		ceph_free_cap_flush(cf);
 	}
-	while (drop--)
+
+	wake_up_all(&ci->i_cap_wq);
+	if (drop)
 		iput(inode);
 	return 0;
 }

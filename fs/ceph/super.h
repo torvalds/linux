@@ -470,6 +470,7 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 #define CEPH_I_POOL_RD		(1 << 5)  /* can read from pool */
 #define CEPH_I_POOL_WR		(1 << 6)  /* can write to pool */
 #define CEPH_I_SEC_INITED	(1 << 7)  /* security initialized */
+#define CEPH_I_CAP_DROPPED	(1 << 8)  /* caps were forcibly dropped */
 
 static inline void __ceph_dir_set_complete(struct ceph_inode_info *ci,
 					   long long release_count,
@@ -932,6 +933,7 @@ extern void ceph_pool_perm_destroy(struct ceph_mds_client* mdsc);
 /* file.c */
 extern const struct file_operations ceph_file_fops;
 
+extern int ceph_renew_caps(struct inode *inode);
 extern int ceph_open(struct inode *inode, struct file *file);
 extern int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 			    struct file *file, unsigned flags, umode_t mode,

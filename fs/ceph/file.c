@@ -192,6 +192,59 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 }
 
 /*
+ * try renew caps after session gets killed.
+ */
+int ceph_renew_caps(struct inode *inode)
+{
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_mds_request *req;
+	int err, flags, wanted;
+
+	spin_lock(&ci->i_ceph_lock);
+	wanted = __ceph_caps_file_wanted(ci);
+	if (__ceph_is_any_real_caps(ci) &&
+	    (!(wanted & CEPH_CAP_ANY_WR) == 0 || ci->i_auth_cap)) {
+		int issued = __ceph_caps_issued(ci, NULL);
+		spin_unlock(&ci->i_ceph_lock);
+		dout("renew caps %p want %s issued %s updating mds_wanted\n",
+		     inode, ceph_cap_string(wanted), ceph_cap_string(issued));
+		ceph_check_caps(ci, 0, NULL);
+		return 0;
+	}
+	spin_unlock(&ci->i_ceph_lock);
+
+	flags = 0;
+	if ((wanted & CEPH_CAP_FILE_RD) && (wanted & CEPH_CAP_FILE_WR))
+		flags = O_RDWR;
+	else if (wanted & CEPH_CAP_FILE_RD)
+		flags = O_RDONLY;
+	else if (wanted & CEPH_CAP_FILE_WR)
+		flags = O_WRONLY;
+#ifdef O_LAZY
+	if (wanted & CEPH_CAP_FILE_LAZYIO)
+		flags |= O_LAZY;
+#endif
+
+	req = prepare_open_request(inode->i_sb, flags, 0);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto out;
+	}
+
+	req->r_inode = inode;
+	ihold(inode);
+	req->r_num_caps = 1;
+	req->r_fmode = -1;
+
+	err = ceph_mdsc_do_request(mdsc, NULL, req);
+	ceph_mdsc_put_request(req);
+out:
+	dout("renew caps %p open result=%d\n", inode, err);
+	return err < 0 ? err : 0;
+}
+
+/*
  * If we already have the requisite capabilities, we can satisfy
  * the open request locally (no need to request new caps from the
  * MDS).  We do, however, need to inform the MDS (asynchronously)

@@ -2317,7 +2317,7 @@ again:
 
 	/* make sure file is actually open */
 	file_wanted = __ceph_caps_file_wanted(ci);
-	if ((file_wanted & need) == 0) {
+	if ((file_wanted & need) != need) {
 		dout("try_get_cap_refs need %s file_wanted %s, EBADF\n",
 		     ceph_cap_string(need), ceph_cap_string(file_wanted));
 		*err = -EBADF;
@@ -2412,12 +2412,26 @@ again:
 			goto out_unlock;
 		}
 
-		if (!__ceph_is_any_caps(ci) &&
-		    ACCESS_ONCE(mdsc->fsc->mount_state) == CEPH_MOUNT_SHUTDOWN) {
-			dout("get_cap_refs %p forced umount\n", inode);
-			*err = -EIO;
-			ret = 1;
-			goto out_unlock;
+		if (ci->i_ceph_flags & CEPH_I_CAP_DROPPED) {
+			int mds_wanted;
+			if (ACCESS_ONCE(mdsc->fsc->mount_state) ==
+			    CEPH_MOUNT_SHUTDOWN) {
+				dout("get_cap_refs %p forced umount\n", inode);
+				*err = -EIO;
+				ret = 1;
+				goto out_unlock;
+			}
+			mds_wanted = __ceph_caps_mds_wanted(ci);
+			if ((mds_wanted & need) != need) {
+				dout("get_cap_refs %p caps were dropped"
+				     " (session killed?)\n", inode);
+				*err = -ESTALE;
+				ret = 1;
+				goto out_unlock;
+			}
+			if ((mds_wanted & file_wanted) ==
+			    (file_wanted & (CEPH_CAP_FILE_RD|CEPH_CAP_FILE_WR)))
+				ci->i_ceph_flags &= ~CEPH_I_CAP_DROPPED;
 		}
 
 		dout("get_cap_refs %p have %s needed %s\n", inode,
@@ -2487,7 +2501,7 @@ int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 			if (err == -EAGAIN)
 				continue;
 			if (err < 0)
-				return err;
+				ret = err;
 		} else {
 			ret = wait_event_interruptible(ci->i_cap_wq,
 					try_get_cap_refs(ci, need, want, endoff,
@@ -2496,8 +2510,15 @@ int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 				continue;
 			if (err < 0)
 				ret = err;
-			if (ret < 0)
-				return ret;
+		}
+		if (ret < 0) {
+			if (err == -ESTALE) {
+				/* session was killed, try renew caps */
+				ret = ceph_renew_caps(&ci->vfs_inode);
+				if (ret == 0)
+					continue;
+			}
+			return ret;
 		}
 
 		if (ci->i_inline_version != CEPH_INLINE_NONE &&
@@ -3226,6 +3247,8 @@ retry:
 
 	if (target < 0) {
 		__ceph_remove_cap(cap, false);
+		if (!ci->i_auth_cap)
+			ci->i_ceph_flags |= CEPH_I_CAP_DROPPED;
 		goto out_unlock;
 	}
 
