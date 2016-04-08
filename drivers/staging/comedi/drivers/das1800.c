@@ -1262,6 +1262,7 @@ static int das1800_attach(struct comedi_device *dev,
 	unsigned int irq = it->options[1];
 	bool is_16bit;
 	int ret;
+	int i;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -1365,6 +1366,12 @@ static int das1800_attach(struct comedi_device *dev,
 		s->maxdata	= is_16bit ? 0xffff : 0x0fff;
 		s->range_table	= &range_bipolar10;
 		s->insn_write	= das1800_ao_insn_write;
+
+		/* initialize all channels to 0V */
+		for (i = 0; i < s->n_chan; i++) {
+			outb(DAC(i), dev->iobase + DAS1800_SELECT);
+			outw(0, dev->iobase + DAS1800_DAC);
+		}
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
@@ -1391,14 +1398,6 @@ static int das1800_attach(struct comedi_device *dev,
 
 	/*  initialize digital out channels */
 	outb(0, dev->iobase + DAS1800_DIGITAL);
-
-	/*  initialize analog out channels */
-	if (board->ao_ability == 1) {
-		/*  select 'update' dac channel for baseAddress + 0x0 */
-		outb(DAC(board->ao_n_chan - 1),
-		     dev->iobase + DAS1800_SELECT);
-		outw(devpriv->ao_update_bits, dev->iobase + DAS1800_DAC);
-	}
 
 	return 0;
 };
