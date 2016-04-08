@@ -226,7 +226,6 @@ struct das1800_board {
 	const char *name;
 	unsigned char id;
 	int ai_speed;		/* max conversion period in nanoseconds */
-	int qram_len;		/* length of card's channel / gain queue */
 	unsigned int is_01_series:1;
 };
 
@@ -239,116 +238,98 @@ static const struct das1800_board das1800_boards[] = {
 		.name		= "das-1701st",
 		.id		= DAS1800_ID_ST,
 		.ai_speed	= 6250,
-		.qram_len	= 256,
 		.is_01_series	= 1,
 	},
 	[BOARD_DAS1701ST_DA] = {
 		.name		= "das-1701st-da",
 		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 6250,
-		.qram_len	= 256,
 		.is_01_series	= 1,
 	},
 	[BOARD_DAS1702ST] = {
 		.name		= "das-1702st",
 		.id		= DAS1800_ID_ST,
 		.ai_speed	= 6250,
-		.qram_len	= 256,
 	},
 	[BOARD_DAS1702ST_DA] = {
 		.name		= "das-1702st-da",
 		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 6250,
-		.qram_len	= 256,
 	},
 	[BOARD_DAS1702HR] = {
 		.name		= "das-1702hr",
 		.id		= DAS1800_ID_HR,
 		.ai_speed	= 20000,
-		.qram_len	= 256,
 	},
 	[BOARD_DAS1702HR_DA] = {
 		.name		= "das-1702hr-da",
 		.id		= DAS1800_ID_HR_DA,
 		.ai_speed	= 20000,
-		.qram_len	= 256,
 	},
 	[BOARD_DAS1701AO] = {
 		.name		= "das-1701ao",
 		.id		= DAS1800_ID_AO,
 		.ai_speed	= 6250,
-		.qram_len	= 256,
 		.is_01_series	= 1,
 	},
 	[BOARD_DAS1702AO] = {
 		.name		= "das-1702ao",
 		.id		= DAS1800_ID_AO,
 		.ai_speed	= 6250,
-		.qram_len	= 256,
 	},
 	[BOARD_DAS1801ST] = {
 		.name		= "das-1801st",
 		.id		= DAS1800_ID_ST,
 		.ai_speed	= 3000,
-		.qram_len	= 256,
 		.is_01_series	= 1,
 	},
 	[BOARD_DAS1801ST_DA] = {
 		.name		= "das-1801st-da",
 		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 3000,
-		.qram_len	= 256,
 		.is_01_series	= 1,
 	},
 	[BOARD_DAS1802ST] = {
 		.name		= "das-1802st",
 		.id		= DAS1800_ID_ST,
 		.ai_speed	= 3000,
-		.qram_len	= 256,
 	},
 	[BOARD_DAS1802ST_DA] = {
 		.name		= "das-1802st-da",
 		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 3000,
-		.qram_len	= 256,
 	},
 	[BOARD_DAS1802HR] = {
 		.name		= "das-1802hr",
 		.id		= DAS1800_ID_HR,
 		.ai_speed	= 10000,
-		.qram_len	= 256,
 	},
 	[BOARD_DAS1802HR_DA] = {
 		.name		= "das-1802hr-da",
 		.id		= DAS1800_ID_HR_DA,
 		.ai_speed	= 10000,
-		.qram_len	= 256,
 	},
 	[BOARD_DAS1801HC] = {
 		.name		= "das-1801hc",
 		.id		= DAS1800_ID_HC,
 		.ai_speed	= 3000,
-		.qram_len	= 64,
 		.is_01_series	= 1,
 	},
 	[BOARD_DAS1802HC] = {
 		.name		= "das-1802hc",
 		.id		= DAS1800_ID_HC,
 		.ai_speed	= 3000,
-		.qram_len	= 64,
 	},
 	[BOARD_DAS1801AO] = {
 		.name		= "das-1801ao",
 		.id		= DAS1800_ID_AO,
 		.ai_speed	= 3000,
-		.qram_len	= 256,
 		.is_01_series	= 1,
 	},
 	[BOARD_DAS1802AO] = {
 		.name		= "das-1802ao",
 		.id		= DAS1800_ID_AO,
 		.ai_speed	= 3000,
-		.qram_len	= 256,
 	},
 };
 
@@ -1292,13 +1273,26 @@ static int das1800_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	/* Analog Input subdevice */
+	/*
+	 * Analog Input subdevice
+	 *
+	 * The "hc" type boards have 64 analog input channels and a 64
+	 * entry QRAM fifo.
+	 *
+	 * All the other board types have 16 on-board channels. Each channel
+	 * can be expanded to 16 channels with the addition of an EXP-1800
+	 * expansion board for a total of 256 channels. The QRAM fifo on
+	 * these boards has 256 entries.
+	 *
+	 * From the datasheets it's not clear what the comedi channel to
+	 * actual physical channel mapping is when EXP-1800 boards are used.
+	 */
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_DIFF | SDF_GROUND;
 	if (board->id != DAS1800_ID_HC)
 		s->subdev_flags	|= SDF_COMMON;
-	s->n_chan	= board->qram_len;
+	s->n_chan	= (board->id == DAS1800_ID_HC) ? 64 : 256;
 	s->maxdata	= is_16bit ? 0xffff : 0x0fff;
 	s->range_table	= board->is_01_series ? &das1801_ai_range
 					      : &das1802_ai_range;
