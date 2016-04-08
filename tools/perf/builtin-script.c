@@ -1415,21 +1415,19 @@ static int is_directory(const char *base_path, const struct dirent *dent)
 	return S_ISDIR(st.st_mode);
 }
 
-#define for_each_lang(scripts_path, scripts_dir, lang_dirent, lang_next)\
-	while (!readdir_r(scripts_dir, &lang_dirent, &lang_next) &&	\
-	       lang_next)						\
-		if ((lang_dirent.d_type == DT_DIR ||			\
-		     (lang_dirent.d_type == DT_UNKNOWN &&		\
-		      is_directory(scripts_path, &lang_dirent))) &&	\
-		    (strcmp(lang_dirent.d_name, ".")) &&		\
-		    (strcmp(lang_dirent.d_name, "..")))
+#define for_each_lang(scripts_path, scripts_dir, lang_dirent)		\
+	while ((lang_dirent = readdir(scripts_dir)) != NULL)		\
+		if ((lang_dirent->d_type == DT_DIR ||			\
+		     (lang_dirent->d_type == DT_UNKNOWN &&		\
+		      is_directory(scripts_path, lang_dirent))) &&	\
+		    (strcmp(lang_dirent->d_name, ".")) &&		\
+		    (strcmp(lang_dirent->d_name, "..")))
 
-#define for_each_script(lang_path, lang_dir, script_dirent, script_next)\
-	while (!readdir_r(lang_dir, &script_dirent, &script_next) &&	\
-	       script_next)						\
-		if (script_dirent.d_type != DT_DIR &&			\
-		    (script_dirent.d_type != DT_UNKNOWN ||		\
-		     !is_directory(lang_path, &script_dirent)))
+#define for_each_script(lang_path, lang_dir, script_dirent)		\
+	while ((script_dirent = readdir(lang_dir)) != NULL)		\
+		if (script_dirent->d_type != DT_DIR &&			\
+		    (script_dirent->d_type != DT_UNKNOWN ||		\
+		     !is_directory(lang_path, script_dirent)))
 
 
 #define RECORD_SUFFIX			"-record"
@@ -1575,7 +1573,7 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
 				  const char *s __maybe_unused,
 				  int unset __maybe_unused)
 {
-	struct dirent *script_next, *lang_next, script_dirent, lang_dirent;
+	struct dirent *script_dirent, *lang_dirent;
 	char scripts_path[MAXPATHLEN];
 	DIR *scripts_dir, *lang_dir;
 	char script_path[MAXPATHLEN];
@@ -1590,19 +1588,19 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
 	if (!scripts_dir)
 		return -1;
 
-	for_each_lang(scripts_path, scripts_dir, lang_dirent, lang_next) {
+	for_each_lang(scripts_path, scripts_dir, lang_dirent) {
 		snprintf(lang_path, MAXPATHLEN, "%s/%s/bin", scripts_path,
-			 lang_dirent.d_name);
+			 lang_dirent->d_name);
 		lang_dir = opendir(lang_path);
 		if (!lang_dir)
 			continue;
 
-		for_each_script(lang_path, lang_dir, script_dirent, script_next) {
-			script_root = get_script_root(&script_dirent, REPORT_SUFFIX);
+		for_each_script(lang_path, lang_dir, script_dirent) {
+			script_root = get_script_root(script_dirent, REPORT_SUFFIX);
 			if (script_root) {
 				desc = script_desc__findnew(script_root);
 				snprintf(script_path, MAXPATHLEN, "%s/%s",
-					 lang_path, script_dirent.d_name);
+					 lang_path, script_dirent->d_name);
 				read_script_info(desc, script_path);
 				free(script_root);
 			}
@@ -1690,7 +1688,7 @@ static int check_ev_match(char *dir_name, char *scriptname,
  */
 int find_scripts(char **scripts_array, char **scripts_path_array)
 {
-	struct dirent *script_next, *lang_next, script_dirent, lang_dirent;
+	struct dirent *script_dirent, *lang_dirent;
 	char scripts_path[MAXPATHLEN], lang_path[MAXPATHLEN];
 	DIR *scripts_dir, *lang_dir;
 	struct perf_session *session;
@@ -1713,9 +1711,9 @@ int find_scripts(char **scripts_array, char **scripts_path_array)
 		return -1;
 	}
 
-	for_each_lang(scripts_path, scripts_dir, lang_dirent, lang_next) {
+	for_each_lang(scripts_path, scripts_dir, lang_dirent) {
 		snprintf(lang_path, MAXPATHLEN, "%s/%s", scripts_path,
-			 lang_dirent.d_name);
+			 lang_dirent->d_name);
 #ifdef NO_LIBPERL
 		if (strstr(lang_path, "perl"))
 			continue;
@@ -1729,16 +1727,16 @@ int find_scripts(char **scripts_array, char **scripts_path_array)
 		if (!lang_dir)
 			continue;
 
-		for_each_script(lang_path, lang_dir, script_dirent, script_next) {
+		for_each_script(lang_path, lang_dir, script_dirent) {
 			/* Skip those real time scripts: xxxtop.p[yl] */
-			if (strstr(script_dirent.d_name, "top."))
+			if (strstr(script_dirent->d_name, "top."))
 				continue;
 			sprintf(scripts_path_array[i], "%s/%s", lang_path,
-				script_dirent.d_name);
-			temp = strchr(script_dirent.d_name, '.');
+				script_dirent->d_name);
+			temp = strchr(script_dirent->d_name, '.');
 			snprintf(scripts_array[i],
-				(temp - script_dirent.d_name) + 1,
-				"%s", script_dirent.d_name);
+				(temp - script_dirent->d_name) + 1,
+				"%s", script_dirent->d_name);
 
 			if (check_ev_match(lang_path,
 					scripts_array[i], session))
@@ -1756,7 +1754,7 @@ int find_scripts(char **scripts_array, char **scripts_path_array)
 
 static char *get_script_path(const char *script_root, const char *suffix)
 {
-	struct dirent *script_next, *lang_next, script_dirent, lang_dirent;
+	struct dirent *script_dirent, *lang_dirent;
 	char scripts_path[MAXPATHLEN];
 	char script_path[MAXPATHLEN];
 	DIR *scripts_dir, *lang_dir;
@@ -1769,21 +1767,21 @@ static char *get_script_path(const char *script_root, const char *suffix)
 	if (!scripts_dir)
 		return NULL;
 
-	for_each_lang(scripts_path, scripts_dir, lang_dirent, lang_next) {
+	for_each_lang(scripts_path, scripts_dir, lang_dirent) {
 		snprintf(lang_path, MAXPATHLEN, "%s/%s/bin", scripts_path,
-			 lang_dirent.d_name);
+			 lang_dirent->d_name);
 		lang_dir = opendir(lang_path);
 		if (!lang_dir)
 			continue;
 
-		for_each_script(lang_path, lang_dir, script_dirent, script_next) {
-			__script_root = get_script_root(&script_dirent, suffix);
+		for_each_script(lang_path, lang_dir, script_dirent) {
+			__script_root = get_script_root(script_dirent, suffix);
 			if (__script_root && !strcmp(script_root, __script_root)) {
 				free(__script_root);
 				closedir(lang_dir);
 				closedir(scripts_dir);
 				snprintf(script_path, MAXPATHLEN, "%s/%s",
-					 lang_path, script_dirent.d_name);
+					 lang_path, script_dirent->d_name);
 				return strdup(script_path);
 			}
 			free(__script_root);
