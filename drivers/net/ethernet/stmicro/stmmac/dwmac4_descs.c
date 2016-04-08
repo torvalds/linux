@@ -254,14 +254,7 @@ static void dwmac4_rd_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 {
 	unsigned int tdes3 = p->des3;
 
-	if (unlikely(len > BUF_SIZE_16KiB)) {
-		p->des2 |= (((len - BUF_SIZE_16KiB) <<
-			     TDES2_BUFFER2_SIZE_MASK_SHIFT)
-			    & TDES2_BUFFER2_SIZE_MASK)
-			    | (BUF_SIZE_16KiB & TDES2_BUFFER1_SIZE_MASK);
-	} else {
-		p->des2 |= (len & TDES2_BUFFER1_SIZE_MASK);
-	}
+	p->des2 |= (len & TDES2_BUFFER1_SIZE_MASK);
 
 	if (is_fs)
 		tdes3 |= TDES3_FIRST_DESCRIPTOR;
