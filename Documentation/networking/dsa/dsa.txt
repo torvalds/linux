@@ -334,7 +334,7 @@ more specifically with its VLAN filtering portion when configuring VLANs on top
 of per-port slave network devices. Since DSA primarily deals with
 MDIO-connected switches, although not exclusively, SWITCHDEV's
 prepare/abort/commit phases are often simplified into a prepare phase which
-checks whether the operation is supporte by the DSA switch driver, and a commit
+checks whether the operation is supported by the DSA switch driver, and a commit
 phase which applies the changes.
 
 As of today, the only SWITCHDEV objects supported by DSA are the FDB and VLAN
