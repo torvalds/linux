@@ -30,3 +30,30 @@ nv17_mc_reset[] = {
 	{ 0x00000002, NVKM_ENGINE_MPEG },
 	{}
 };
+
+const struct nvkm_mc_map
+nv17_mc_intr[] = {
+	{ 0x03010000, NVKM_ENGINE_DISP },
+	{ 0x00001000, NVKM_ENGINE_GR },
+	{ 0x00000100, NVKM_ENGINE_FIFO },
+	{ 0x00000001, NVKM_ENGINE_MPEG },
+	{ 0x10000000, NVKM_SUBDEV_BUS },
+	{ 0x00100000, NVKM_SUBDEV_TIMER },
+	{}
+};
+
+static const struct nvkm_mc_func
+nv17_mc = {
+	.init = nv04_mc_init,
+	.intr = nv17_mc_intr,
+	.intr_unarm = nv04_mc_intr_unarm,
+	.intr_rearm = nv04_mc_intr_rearm,
+	.intr_mask = nv04_mc_intr_mask,
+	.reset = nv17_mc_reset,
+};
+
+int
+nv17_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+{
+	return nvkm_mc_new_(&nv17_mc, device, index, pmc);
+}

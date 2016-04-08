@@ -14,6 +14,7 @@ void nvkm_mc_reset(struct nvkm_mc *, enum nvkm_devidx);
 void nvkm_mc_unk260(struct nvkm_mc *, u32 data);
 
 int nv04_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
+int nv17_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
 int nv44_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
 int nv50_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
 int g84_mc_new(struct nvkm_device *, int, struct nvkm_mc **);

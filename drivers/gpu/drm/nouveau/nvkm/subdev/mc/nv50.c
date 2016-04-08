@@ -51,6 +51,7 @@ nv50_mc = {
 	.intr_unarm = nv04_mc_intr_unarm,
 	.intr_rearm = nv04_mc_intr_rearm,
 	.intr_mask = nv04_mc_intr_mask,
+	.reset = nv17_mc_reset,
 };
 
 int
