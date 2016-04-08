@@ -208,7 +208,7 @@ int security_syslog(int type)
 	return call_int_hook(syslog, 0, type);
 }
 
-int security_settime(const struct timespec *ts, const struct timezone *tz)
+int security_settime64(const struct timespec64 *ts, const struct timezone *tz)
 {
 	return call_int_hook(settime, 0, ts, tz);
 }

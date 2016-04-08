@@ -1190,7 +1190,8 @@
  *	Return 0 if permission is granted.
  * @settime:
  *	Check permission to change the system time.
- *	struct timespec and timezone are defined in include/linux/time.h
+ *	struct timespec64 is defined in include/linux/time64.h and timezone
+ *	is defined in include/linux/time.h
  *	@ts contains new time
  *	@tz contains new timezone
  *	Return 0 if permission is granted.
@@ -1327,7 +1328,7 @@ union security_list_options {
 	int (*quotactl)(int cmds, int type, int id, struct super_block *sb);
 	int (*quota_on)(struct dentry *dentry);
 	int (*syslog)(int type);
-	int (*settime)(const struct timespec *ts, const struct timezone *tz);
+	int (*settime)(const struct timespec64 *ts, const struct timezone *tz);
 	int (*vm_enough_memory)(struct mm_struct *mm, long pages);
 
 	int (*bprm_set_creds)(struct linux_binprm *bprm);
