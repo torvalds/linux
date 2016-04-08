@@ -1464,7 +1464,7 @@ static void fiji_update_sdma_medium_grain_clock_gating(
 {
 	uint32_t temp, data;
 
-	if (enable) {
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_MGCG)) {
 		temp = data = RREG32(mmSDMA0_CLK_CTRL);
 		data &= ~(SDMA0_CLK_CTRL__SOFT_OVERRIDE7_MASK |
 				SDMA0_CLK_CTRL__SOFT_OVERRIDE6_MASK |
@@ -1524,7 +1524,7 @@ static void fiji_update_sdma_medium_grain_light_sleep(
 {
 	uint32_t temp, data;
 
-	if (enable) {
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_LS)) {
 		temp = data = RREG32(mmSDMA0_POWER_CNTL);
 		data |= SDMA0_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
 
