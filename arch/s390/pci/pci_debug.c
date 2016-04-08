@@ -48,6 +48,10 @@ static char *pci_fmt2_names[] = {
 	"Maximum work units",
 };
 
+static char *pci_fmt3_names[] = {
+	"Transmitted bytes",
+};
+
 static char *pci_sw_names[] = {
 	"Allocated pages",
 	"Mapped pages",
@@ -111,6 +115,10 @@ static int pci_perf_show(struct seq_file *m, void *v)
 	case 2:
 		pci_fmb_show(m, pci_fmt2_names, ARRAY_SIZE(pci_fmt2_names),
 			     &zdev->fmb->fmt2.consumed_work_units);
+		break;
+	case 3:
+		pci_fmb_show(m, pci_fmt3_names, ARRAY_SIZE(pci_fmt3_names),
+			     &zdev->fmb->fmt3.tx_bytes);
 		break;
 	default:
 		seq_puts(m, "Unknown format\n");
