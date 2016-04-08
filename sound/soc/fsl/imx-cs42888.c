@@ -37,6 +37,7 @@ struct imx_priv {
 	struct platform_device *asrc_pdev;
 	u32 asrc_rate;
 	u32 asrc_format;
+	bool is_codec_master;
 };
 
 static struct imx_priv card_priv;
@@ -52,24 +53,47 @@ static int imx_cs42888_surround_hw_params(struct snd_pcm_substream *substream,
 	u32 dai_format = 0;
 	int ret = 0;
 
-	dai_format = SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF |
-		     SND_SOC_DAIFMT_CBS_CFS;
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		ret = snd_soc_dai_set_sysclk(cpu_dai, ESAI_HCKT_EXTAL,
-			       priv->mclk_freq, SND_SOC_CLOCK_OUT);
-	else
-		ret = snd_soc_dai_set_sysclk(cpu_dai, ESAI_HCKR_EXTAL,
-			       priv->mclk_freq, SND_SOC_CLOCK_OUT);
-	if (ret) {
-		dev_err(dev, "failed to set cpu sysclk: %d\n", ret);
-		return ret;
-	}
+	if (priv->is_codec_master) {
+		dai_format = SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF |
+			     SND_SOC_DAIFMT_CBM_CFM;
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			ret = snd_soc_dai_set_sysclk(cpu_dai, ESAI_HCKT_EXTAL,
+				       priv->mclk_freq, SND_SOC_CLOCK_IN);
+		else
+			ret = snd_soc_dai_set_sysclk(cpu_dai, ESAI_HCKR_EXTAL,
+				       priv->mclk_freq, SND_SOC_CLOCK_IN);
+		if (ret) {
+			dev_err(dev, "failed to set cpu sysclk: %d\n", ret);
+			return ret;
+		}
 
-	ret = snd_soc_dai_set_sysclk(codec_dai, 0,
-				priv->mclk_freq, SND_SOC_CLOCK_IN);
-	if (ret) {
-		dev_err(dev, "failed to set codec sysclk: %d\n", ret);
-		return ret;
+		ret = snd_soc_dai_set_sysclk(codec_dai, 0,
+					priv->mclk_freq, SND_SOC_CLOCK_OUT);
+		if (ret) {
+			dev_err(dev, "failed to set codec sysclk: %d\n", ret);
+			return ret;
+		}
+
+	} else {
+		dai_format = SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF |
+			     SND_SOC_DAIFMT_CBS_CFS;
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			ret = snd_soc_dai_set_sysclk(cpu_dai, ESAI_HCKT_EXTAL,
+				       priv->mclk_freq, SND_SOC_CLOCK_OUT);
+		else
+			ret = snd_soc_dai_set_sysclk(cpu_dai, ESAI_HCKR_EXTAL,
+				       priv->mclk_freq, SND_SOC_CLOCK_OUT);
+		if (ret) {
+			dev_err(dev, "failed to set cpu sysclk: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_sysclk(codec_dai, 0,
+					priv->mclk_freq, SND_SOC_CLOCK_IN);
+		if (ret) {
+			dev_err(dev, "failed to set codec sysclk: %d\n", ret);
+			return ret;
+		}
 	}
 
 	/* set cpu DAI configuration */
@@ -307,6 +331,9 @@ static int imx_cs42888_probe(struct platform_device *pdev)
 		goto fail;
 	}
 	priv->mclk_freq = clk_get_rate(codec_clk);
+
+	if (of_property_read_bool(pdev->dev.of_node, "codec-master"))
+		priv->is_codec_master = true;
 
 	snd_soc_card_imx_cs42888.dev = &pdev->dev;
 
