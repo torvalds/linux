@@ -1141,10 +1141,10 @@ static int das1800_di_rbits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int das1800_do_wbits(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn,
-			    unsigned int *data)
+static int das1800_do_insn_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
 		outb(s->state, dev->iobase + DAS1800_DIGITAL);
@@ -1396,14 +1396,14 @@ static int das1800_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = das1800_di_rbits;
 
-	/* do */
+	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = board->do_n_chan;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = das1800_do_wbits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= board->do_n_chan;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= das1800_do_insn_bits;
 
 	das1800_cancel(dev, dev->read_subdev);
 
