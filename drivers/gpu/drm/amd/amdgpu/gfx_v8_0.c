@@ -4281,7 +4281,7 @@ static int gfx_v8_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-static void fiji_send_serdes_cmd(struct amdgpu_device *adev,
+static void gfx_v8_0_send_serdes_cmd(struct amdgpu_device *adev,
 				     uint32_t reg_addr, uint32_t cmd)
 {
 	uint32_t data;
@@ -4350,7 +4350,7 @@ static void fiji_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 		gfx_v8_0_wait_for_rlc_serdes(adev);
 
 		/* 5 - clear mgcg override */
-		fiji_send_serdes_cmd(adev, BPM_REG_MGCG_OVERRIDE, CLE_BPM_SERDES_CMD);
+		gfx_v8_0_send_serdes_cmd(adev, BPM_REG_MGCG_OVERRIDE, CLE_BPM_SERDES_CMD);
 
 		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGTS) {
 			/* 6 - Enable CGTS(Tree Shade) MGCG /MGLS */
@@ -4406,7 +4406,7 @@ static void fiji_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 		gfx_v8_0_wait_for_rlc_serdes(adev);
 
 		/* 6 - set mgcg override */
-		fiji_send_serdes_cmd(adev, BPM_REG_MGCG_OVERRIDE, SET_BPM_SERDES_CMD);
+		gfx_v8_0_send_serdes_cmd(adev, BPM_REG_MGCG_OVERRIDE, SET_BPM_SERDES_CMD);
 
 		udelay(50);
 
@@ -4437,13 +4437,13 @@ static void fiji_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
 		gfx_v8_0_wait_for_rlc_serdes(adev);
 
 		/* 3 - clear cgcg override */
-		fiji_send_serdes_cmd(adev, BPM_REG_CGCG_OVERRIDE, CLE_BPM_SERDES_CMD);
+		gfx_v8_0_send_serdes_cmd(adev, BPM_REG_CGCG_OVERRIDE, CLE_BPM_SERDES_CMD);
 
 		/* wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
 		gfx_v8_0_wait_for_rlc_serdes(adev);
 
 		/* 4 - write cmd to set CGLS */
-		fiji_send_serdes_cmd(adev, BPM_REG_CGLS_EN, SET_BPM_SERDES_CMD);
+		gfx_v8_0_send_serdes_cmd(adev, BPM_REG_CGLS_EN, SET_BPM_SERDES_CMD);
 
 		/* 5 - enable cgcg */
 		data |= RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK;
@@ -4484,13 +4484,13 @@ static void fiji_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
 		gfx_v8_0_wait_for_rlc_serdes(adev);
 
 		/* write cmd to Set CGCG Overrride */
-		fiji_send_serdes_cmd(adev, BPM_REG_CGCG_OVERRIDE, SET_BPM_SERDES_CMD);
+		gfx_v8_0_send_serdes_cmd(adev, BPM_REG_CGCG_OVERRIDE, SET_BPM_SERDES_CMD);
 
 		/* wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
 		gfx_v8_0_wait_for_rlc_serdes(adev);
 
 		/* write cmd to Clear CGLS */
-		fiji_send_serdes_cmd(adev, BPM_REG_CGLS_EN, CLE_BPM_SERDES_CMD);
+		gfx_v8_0_send_serdes_cmd(adev, BPM_REG_CGLS_EN, CLE_BPM_SERDES_CMD);
 
 		/* disable cgcg, cgls should be disabled too. */
 		data &= ~(RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK |
