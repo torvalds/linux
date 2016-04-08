@@ -30,10 +30,11 @@ void nv04_mc_intr_unarm(struct nvkm_mc *);
 void nv04_mc_intr_rearm(struct nvkm_mc *);
 u32 nv04_mc_intr_mask(struct nvkm_mc *);
 
+extern const struct nvkm_mc_map nv17_mc_reset[];
+
 void nv44_mc_init(struct nvkm_mc *);
 
 void nv50_mc_init(struct nvkm_mc *);
-extern const struct nvkm_mc_map nv50_mc_intr[];
 
 void gf100_mc_intr_unarm(struct nvkm_mc *);
 void gf100_mc_intr_rearm(struct nvkm_mc *);

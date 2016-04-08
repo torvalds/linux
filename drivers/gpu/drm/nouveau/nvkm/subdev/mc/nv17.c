@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2016 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,42 +19,14 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "priv.h"
 
-static const struct nvkm_mc_map
-nv50_mc_intr[] = {
-	{ 0x04000000, NVKM_ENGINE_DISP },
+const struct nvkm_mc_map
+nv17_mc_reset[] = {
 	{ 0x00001000, NVKM_ENGINE_GR },
 	{ 0x00000100, NVKM_ENGINE_FIFO },
-	{ 0x00000001, NVKM_ENGINE_MPEG },
-	{ 0x00001101, NVKM_SUBDEV_FB },
-	{ 0x10000000, NVKM_SUBDEV_BUS },
-	{ 0x00200000, NVKM_SUBDEV_GPIO },
-	{ 0x00200000, NVKM_SUBDEV_I2C },
-	{ 0x00100000, NVKM_SUBDEV_TIMER },
-	{},
+	{ 0x00000002, NVKM_ENGINE_MPEG },
+	{}
 };
-
-void
-nv50_mc_init(struct nvkm_mc *mc)
-{
-	struct nvkm_device *device = mc->subdev.device;
-	nvkm_wr32(device, 0x000200, 0xffffffff); /* everything on */
-}
-
-static const struct nvkm_mc_func
-nv50_mc = {
-	.init = nv50_mc_init,
-	.intr = nv50_mc_intr,
-	.intr_unarm = nv04_mc_intr_unarm,
-	.intr_rearm = nv04_mc_intr_rearm,
-	.intr_mask = nv04_mc_intr_mask,
-};
-
-int
-nv50_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
-{
-	return nvkm_mc_new_(&nv50_mc, device, index, pmc);
-}
