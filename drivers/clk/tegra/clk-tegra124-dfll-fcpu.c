@@ -47,7 +47,7 @@ static const struct cvb_table tegra124_cpu_cvb_tables[] = {
 		},
 		.speedo_scale = 100,
 		.voltage_scale = 1000,
-		.cvb_table = {
+		.entries = {
 			{204000000UL,   {1112619, -29295, 402} },
 			{306000000UL,	{1150460, -30585, 402} },
 			{408000000UL,	{1190122, -31865, 402} },
@@ -107,11 +107,10 @@ static int tegra124_dfll_fcpu_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	soc->cvb = tegra_cvb_build_opp_table(tegra124_cpu_cvb_tables,
-					     ARRAY_SIZE(tegra124_cpu_cvb_tables),
-					     process_id, speedo_id, speedo_value,
-					     cpu_max_freq_table[speedo_id],
-					     soc->dev);
+	soc->cvb = tegra_cvb_add_opp_table(soc->dev, tegra124_cpu_cvb_tables,
+					   ARRAY_SIZE(tegra124_cpu_cvb_tables),
+					   process_id, speedo_id, speedo_value,
+					   cpu_max_freq_table[speedo_id]);
 	if (IS_ERR(soc->cvb)) {
 		dev_err(&pdev->dev, "couldn't add OPP table: %ld\n",
 			PTR_ERR(soc->cvb));
