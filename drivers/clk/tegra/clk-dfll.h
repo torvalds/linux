@@ -25,20 +25,14 @@
 /**
  * struct tegra_dfll_soc_data - SoC-specific hooks/integration for the DFLL driver
  * @dev: struct device * that holds the OPP table for the DFLL
- * @min_millivolts: minimum voltage (in mV) that the DFLL can operate
- * @tune0_low: DFLL tuning register 0 (low voltage range)
- * @tune0_high: DFLL tuning register 0 (high voltage range)
- * @tune1: DFLL tuning register 1
+ * @cvb: CPU frequency table for this SoC
  * @init_clock_trimmers: callback to initialize clock trimmers
  * @set_clock_trimmers_high: callback to tune clock trimmers for high voltage
  * @set_clock_trimmers_low: callback to tune clock trimmers for low voltage
  */
 struct tegra_dfll_soc_data {
 	struct device *dev;
-	unsigned int min_millivolts;
-	u32 tune0_low;
-	u32 tune0_high;
-	u32 tune1;
+	const struct cvb_table *cvb;
 
 	void (*init_clock_trimmers)(void);
 	void (*set_clock_trimmers_high)(void);

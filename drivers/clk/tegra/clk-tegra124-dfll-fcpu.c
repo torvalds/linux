@@ -86,7 +86,6 @@ static int tegra124_dfll_fcpu_probe(struct platform_device *pdev)
 {
 	int process_id, speedo_id, speedo_value;
 	struct tegra_dfll_soc_data *soc;
-	const struct cvb_table *cvb;
 
 	process_id = tegra_sku_info.cpu_process_id;
 	speedo_id = tegra_sku_info.cpu_speedo_id;
@@ -108,21 +107,17 @@ static int tegra124_dfll_fcpu_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	cvb = tegra_cvb_build_opp_table(tegra124_cpu_cvb_tables,
-					ARRAY_SIZE(tegra124_cpu_cvb_tables),
-					process_id, speedo_id, speedo_value,
-					cpu_max_freq_table[speedo_id],
-					soc->dev);
-	if (IS_ERR(cvb)) {
-		dev_err(&pdev->dev, "couldn't build OPP table: %ld\n",
-			PTR_ERR(cvb));
-		return PTR_ERR(cvb);
+	soc->cvb = tegra_cvb_build_opp_table(tegra124_cpu_cvb_tables,
+					     ARRAY_SIZE(tegra124_cpu_cvb_tables),
+					     process_id, speedo_id, speedo_value,
+					     cpu_max_freq_table[speedo_id],
+					     soc->dev);
+	if (IS_ERR(soc->cvb)) {
+		dev_err(&pdev->dev, "couldn't add OPP table: %ld\n",
+			PTR_ERR(soc->cvb));
+		return PTR_ERR(soc->cvb);
 	}
 
-	soc->min_millivolts = cvb->min_millivolts;
-	soc->tune0_low = cvb->cpu_dfll_data.tune0_low;
-	soc->tune0_high = cvb->cpu_dfll_data.tune0_high;
-	soc->tune1 = cvb->cpu_dfll_data.tune1;
 
 	return tegra_dfll_register(pdev, soc);
 }
