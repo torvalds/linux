@@ -39,19 +39,32 @@
  *   [3] - DMA1 (optional, requires irq and dma0)
  *
  * analog input cmd triggers supported:
- *   start_src:		TRIG_NOW | TRIG_EXT
- *   scan_begin_src:	TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT
- *   scan_end_src:	TRIG_COUNT
- *   convert_src:	TRIG_TIMER | TRIG_EXT
- *			(TRIG_EXT requires scan_begin_src == TRIG_FOLLOW)
- *   stop_src:		TRIG_COUNT | TRIG_EXT | TRIG_NONE
  *
- * scan_begin_src triggers TRIG_TIMER and TRIG_EXT use the card's
- * 'burst mode' which limits the valid conversion time to 64 microseconds
- * (convert_arg <= 64000). This limitation does not apply if scan_begin_src
- * is TRIG_FOLLOW.
+ *   start_src		TRIG_NOW	command starts immediately
+ *			TRIG_EXT	command starts on external pin TGIN
  *
- * The maximum conversion speeds are not always achievable depending on the
+ *   scan_begin_src	TRIG_FOLLOW	paced/external scans start immediately
+ *			TRIG_TIMER	burst scans start periodically
+ *			TRIG_EXT	burst scans start on external pin XPCLK
+ *
+ *   scan_end_src	TRIG_COUNT	scan ends after last channel
+ *
+ *   convert_src	TRIG_TIMER	paced/burst conversions are timed
+ *			TRIG_EXT	conversions on external pin XPCLK
+ *					(requires scan_begin_src == TRIG_FOLLOW)
+ *
+ *   stop_src		TRIG_COUNT	command stops after stop_arg scans
+ *			TRIG_EXT	command stops on external pin TGIN
+ *			TRIG_NONE	command runs until canceled
+ *
+ * If TRIG_EXT is used for both the start_src and stop_src, the first TGIN
+ * trigger starts the command, and the second trigger will stop it. If only
+ * one is TRIG_EXT, the first trigger will either stop or start the command.
+ *
+ * Minimum conversion speed is limited to 64 microseconds (convert_arg <= 64000)
+ * for 'burst' scans. This limitation does not apply for 'paced' scans. The
+ * maximum conversion speed is limited by the board (convert_arg >= ai_speed).
+ * Maximum conversion speeds are not always achievable depending on the
  * board setup (see user manual).
  *
  * NOTES:
@@ -653,6 +666,7 @@ static int das1800_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 2b : and mutually compatible */
 
+	/* burst scans must use timed conversions */
 	if (cmd->scan_begin_src != TRIG_FOLLOW &&
 	    cmd->convert_src != TRIG_TIMER)
 		err |= -EINVAL;
