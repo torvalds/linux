@@ -351,7 +351,7 @@ do {	*prog++ = BR_OPC | WDISP22(OFF);		\
  *
  * Sometimes we need to emit a branch earlier in the code
  * sequence.  And in these situations we adjust "destination"
- * to accomodate this difference.  For example, if we needed
+ * to accommodate this difference.  For example, if we needed
  * to emit a branch (and it's delay slot) right before the
  * final instruction emitted for a BPF opcode, we'd use
  * "destination + 4" instead of just plain "destination" above.

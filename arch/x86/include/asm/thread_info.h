@@ -276,11 +276,9 @@ static inline bool is_ia32_task(void)
  */
 #define force_iret() set_thread_flag(TIF_NOTIFY_RESUME)
 
-#endif	/* !__ASSEMBLY__ */
-
-#ifndef __ASSEMBLY__
 extern void arch_task_cache_init(void);
 extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 extern void arch_release_task_struct(struct task_struct *tsk);
-#endif
+#endif	/* !__ASSEMBLY__ */
+
 #endif /* _ASM_X86_THREAD_INFO_H */

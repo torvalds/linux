@@ -422,7 +422,7 @@ static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 
 		if (c->phys_proc_id == o->phys_proc_id &&
 		    per_cpu(cpu_llc_id, cpu1) == per_cpu(cpu_llc_id, cpu2) &&
-		    c->compute_unit_id == o->compute_unit_id)
+		    c->cpu_core_id == o->cpu_core_id)
 			return topology_sane(c, o, "smt");
 
 	} else if (c->phys_proc_id == o->phys_proc_id &&
