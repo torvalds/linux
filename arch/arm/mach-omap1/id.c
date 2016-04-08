@@ -65,6 +65,7 @@ static struct omap_id omap_ids[] __initdata = {
 
 unsigned int omap_rev(void)
 {
+	WARN_ON_ONCE(!omap_revision || omap_revision == -1);
 	return omap_revision;
 }
 EXPORT_SYMBOL(omap_rev);

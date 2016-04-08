@@ -386,7 +386,7 @@ used. First phase is to "prepare" anything needed, including various checks,
 memory allocation, etc. The goal is to handle the stuff that is not unlikely
 to fail here. The second phase is to "commit" the actual changes.
 
-Switchdev provides an inftrastructure for sharing items (for example memory
+Switchdev provides an infrastructure for sharing items (for example memory
 allocations) between the two phases.
 
 The object created by a driver in "prepare" phase and it is queued up by:

@@ -251,6 +251,27 @@ static int rockchip_drm_unload(struct drm_device *drm_dev)
 	return 0;
 }
 
+static void rockchip_drm_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
+						    struct drm_file *file_priv)
+{
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+
+	if (pipe < ROCKCHIP_MAX_CRTC &&
+	    priv->crtc_funcs[pipe] &&
+	    priv->crtc_funcs[pipe]->cancel_pending_vblank)
+		priv->crtc_funcs[pipe]->cancel_pending_vblank(crtc, file_priv);
+}
+
+static void rockchip_drm_preclose(struct drm_device *dev,
+				  struct drm_file *file_priv)
+{
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		rockchip_drm_crtc_cancel_pending_vblank(crtc, file_priv);
+}
+
 void rockchip_drm_lastclose(struct drm_device *dev)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
@@ -281,6 +302,7 @@ static struct drm_driver rockchip_drm_driver = {
 				  DRIVER_PRIME | DRIVER_ATOMIC,
 	.load			= rockchip_drm_load,
 	.unload			= rockchip_drm_unload,
+	.preclose		= rockchip_drm_preclose,
 	.lastclose		= rockchip_drm_lastclose,
 	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= rockchip_drm_crtc_enable_vblank,

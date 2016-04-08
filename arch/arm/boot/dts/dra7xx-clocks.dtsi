@@ -98,10 +98,18 @@
 		clock-frequency = <32768>;
 	};
 
-	sys_32k_ck: sys_32k_ck {
+	sys_clk32_crystal_ck: sys_clk32_crystal_ck {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
+	};
+
+	sys_clk32_pseudo_ck: sys_clk32_pseudo_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&sys_clkin1>;
+		clock-mult = <1>;
+		clock-div = <610>;
 	};
 
 	virt_12000000_ck: virt_12000000_ck {
@@ -2169,5 +2177,13 @@
 		clocks = <&l4_root_clk_div>;
 		ti,bit-shift = <22>;
 		reg = <0x0558>;
+	};
+
+	sys_32k_ck: sys_32k_ck {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&sys_clk32_crystal_ck>, <&sys_clk32_pseudo_ck>, <&sys_clk32_pseudo_ck>, <&sys_clk32_pseudo_ck>;
+		ti,bit-shift = <8>;
+		reg = <0x6c4>;
 	};
 };
