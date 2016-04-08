@@ -107,7 +107,6 @@ TODO:
 /* misc. defines */
 #define DAS1800_SIZE           16	/* uses 16 io addresses */
 #define FIFO_SIZE              1024	/*  1024 sample fifo */
-#define UNIPOLAR               0x4	/*  bit that determines whether input range is uni/bipolar */
 #define DMA_BUF_SIZE           0x1ff00	/*  size in bytes of dma buffers */
 
 /* Registers for the das1800 */
@@ -429,6 +428,7 @@ struct das1800_private {
 	unsigned long iobase2;	/* secondary io address used for analog out on 'ao' boards */
 	unsigned short ao_update_bits;	/* remembers the last write to the
 					 * 'update' dac */
+	bool ai_is_unipolar;
 };
 
 /* analog out range for 'ao' boards */
@@ -441,29 +441,21 @@ static const struct comedi_lrange range_ao_2 = {
 };
 */
 
-static inline uint16_t munge_bipolar_sample(const struct comedi_device *dev,
-					    uint16_t sample)
+static void das1800_ai_munge(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     void *data, unsigned int num_bytes,
+			     unsigned int start_chan_index)
 {
-	const struct das1800_board *board = dev->board_ptr;
-
-	sample += 1 << (board->resolution - 1);
-	return sample;
-}
-
-static void munge_data(struct comedi_device *dev, uint16_t *array,
-		       unsigned int num_elements)
-{
+	struct das1800_private *devpriv = dev->private;
+	unsigned short *array = data;
+	unsigned int num_samples = comedi_bytes_to_samples(s, num_bytes);
 	unsigned int i;
-	int unipolar;
 
-	/* see if card is using a unipolar or bipolar range so we can munge data correctly */
-	unipolar = inb(dev->iobase + DAS1800_CONTROL_C) & UB;
+	if (devpriv->ai_is_unipolar)
+		return;
 
-	/* convert to unsigned type if we are in a bipolar mode */
-	if (!unipolar) {
-		for (i = 0; i < num_elements; i++)
-			array[i] = munge_bipolar_sample(dev, array[i]);
-	}
+	for (i = 0; i < num_samples; i++)
+		array[i] = comedi_offset_munge(s, array[i]);
 }
 
 static void das1800_handle_fifo_half_full(struct comedi_device *dev,
@@ -473,7 +465,6 @@ static void das1800_handle_fifo_half_full(struct comedi_device *dev,
 	unsigned int nsamples = comedi_nsamples_left(s, FIFO_SIZE / 2);
 
 	insw(dev->iobase + DAS1800_FIFO, devpriv->fifo_buf, nsamples);
-	munge_data(dev, devpriv->fifo_buf, nsamples);
 	comedi_buf_write_samples(s, devpriv->fifo_buf, nsamples);
 }
 
@@ -482,14 +473,9 @@ static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned short dpnt;
-	int unipolar;
-
-	unipolar = inb(dev->iobase + DAS1800_CONTROL_C) & UB;
 
 	while (inb(dev->iobase + DAS1800_STATUS) & FNE) {
 		dpnt = inw(dev->iobase + DAS1800_FIFO);
-		/* convert to unsigned type */
-		dpnt = munge_bipolar_sample(dev, dpnt);
 		comedi_buf_write_samples(s, &dpnt, 1);
 
 		if (cmd->stop_src == TRIG_COUNT &&
@@ -511,7 +497,6 @@ static void das1800_flush_dma_channel(struct comedi_device *dev,
 	nsamples = comedi_bytes_to_samples(s, nbytes);
 	nsamples = comedi_nsamples_left(s, nsamples);
 
-	munge_data(dev, desc->virt_addr, nsamples);
 	comedi_buf_write_samples(s, desc->virt_addr, nsamples);
 }
 
@@ -707,13 +692,14 @@ static int das1800_ai_check_chanlist(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     struct comedi_cmd *cmd)
 {
-	unsigned int unipolar0 = CR_RANGE(cmd->chanlist[0]) & UNIPOLAR;
+	unsigned int range = CR_RANGE(cmd->chanlist[0]);
+	bool unipolar0 = comedi_range_is_unipolar(s, range);
 	int i;
 
 	for (i = 1; i < cmd->chanlist_len; i++) {
-		unsigned int unipolar = CR_RANGE(cmd->chanlist[i]) & UNIPOLAR;
+		range = CR_RANGE(cmd->chanlist[i]);
 
-		if (unipolar != unipolar0) {
+		if (unipolar0 != comedi_range_is_unipolar(s, range)) {
 			dev_dbg(dev->class_dev,
 				"unipolar and bipolar ranges cannot be mixed in the chanlist\n");
 			return -EINVAL;
@@ -852,23 +838,24 @@ static int control_a_bits(const struct comedi_cmd *cmd)
 }
 
 /* returns appropriate bits for control register c, depending on command */
-static int control_c_bits(const struct comedi_cmd *cmd)
+static int control_c_bits(struct comedi_subdevice *s,
+			  const struct comedi_cmd *cmd)
 {
+	unsigned int range = CR_RANGE(cmd->chanlist[0]);
+	unsigned int aref = CR_AREF(cmd->chanlist[0]);
 	int control_c;
-	int aref;
 
 	/* set clock source to internal or external, select analog reference,
 	 * select unipolar / bipolar
 	 */
-	aref = CR_AREF(cmd->chanlist[0]);
 	control_c = UQEN;	/* enable upper qram addresses */
 	if (aref != AREF_DIFF)
 		control_c |= SD;
 	if (aref == AREF_COMMON)
 		control_c |= CMEN;
-	/* if a unipolar range was selected */
-	if (CR_RANGE(cmd->chanlist[0]) & UNIPOLAR)
+	if (comedi_range_is_unipolar(s, range))
 		control_c |= UB;
+
 	switch (cmd->scan_begin_src) {
 	case TRIG_FOLLOW:	/*  not in burst mode */
 		switch (cmd->convert_src) {
@@ -994,6 +981,7 @@ static int das1800_ai_do_cmd(struct comedi_device *dev,
 	int control_a, control_c;
 	struct comedi_async *async = s->async;
 	const struct comedi_cmd *cmd = &async->cmd;
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
 
 	/* disable dma on CMDF_WAKE_EOS, or CMDF_PRIORITY
 	 * (because dma in handler is unsafe at hard real-time priority) */
@@ -1012,9 +1000,11 @@ static int das1800_ai_do_cmd(struct comedi_device *dev,
 
 	das1800_cancel(dev, s);
 
+	devpriv->ai_is_unipolar = comedi_range_is_unipolar(s, range0);
+
 	/*  determine proper bits for control registers */
 	control_a = control_a_bits(cmd);
-	control_c = control_c_bits(cmd);
+	control_c = control_c_bits(s, cmd);
 
 	/* setup card and start */
 	program_chanlist(dev, cmd);
@@ -1052,23 +1042,24 @@ static int das1800_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	const struct das1800_board *board = dev->board_ptr;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int aref = CR_AREF(insn->chanspec);
+	bool is_unipolar = comedi_range_is_unipolar(s, range);
 	int i, n;
-	int chan, range, aref, chan_range;
+	int chan_range;
 	int timeout = 1000;
 	unsigned short dpnt;
 	int conv_flags = 0;
 	unsigned long irq_flags;
 
 	/* set up analog reference and unipolar / bipolar mode */
-	aref = CR_AREF(insn->chanspec);
 	conv_flags |= UQEN;
 	if (aref != AREF_DIFF)
 		conv_flags |= SD;
 	if (aref == AREF_COMMON)
 		conv_flags |= CMEN;
-	/* if a unipolar range was selected */
-	if (CR_RANGE(insn->chanspec) & UNIPOLAR)
+	if (is_unipolar)
 		conv_flags |= UB;
 
 	outb(conv_flags, dev->iobase + DAS1800_CONTROL_C);	/* software conversion enabled */
@@ -1076,10 +1067,7 @@ static int das1800_ai_rinsn(struct comedi_device *dev,
 	outb(0x0, dev->iobase + DAS1800_CONTROL_A);	/* reset fifo */
 	outb(FFEN, dev->iobase + DAS1800_CONTROL_A);
 
-	chan = CR_CHAN(insn->chanspec);
-	/* mask of unipolar/bipolar bit from range */
-	range = CR_RANGE(insn->chanspec) & 0x3;
-	chan_range = chan | (range << 8);
+	chan_range = chan | ((range & 0x3) << 8);
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(QRAM, dev->iobase + DAS1800_SELECT);	/* select QRAM for baseAddress + 0x0 */
 	outb(0x0, dev->iobase + DAS1800_QRAM_ADDRESS);	/* set QRAM address start */
@@ -1100,9 +1088,8 @@ static int das1800_ai_rinsn(struct comedi_device *dev,
 			goto exit;
 		}
 		dpnt = inw(dev->iobase + DAS1800_FIFO);
-		/* shift data to offset binary for bipolar ranges */
-		if ((conv_flags & UB) == 0)
-			dpnt += 1 << (board->resolution - 1);
+		if (!is_unipolar)
+			dpnt = comedi_offset_munge(s, dpnt);
 		data[n] = dpnt;
 	}
 exit:
@@ -1384,6 +1371,7 @@ static int das1800_attach(struct comedi_device *dev,
 		s->do_cmdtest = das1800_ai_do_cmdtest;
 		s->poll = das1800_ai_poll;
 		s->cancel = das1800_cancel;
+		s->munge = das1800_ai_munge;
 	}
 
 	/* analog out */
