@@ -381,7 +381,7 @@ static int __mlxsw_emad_transmit(struct mlxsw_core *mlxsw_core,
 
 	mlxsw_core->emad.trans_active = true;
 
-	err = mlxsw_core_skb_transmit(mlxsw_core->driver_priv, skb, tx_info);
+	err = mlxsw_core_skb_transmit(mlxsw_core, skb, tx_info);
 	if (err) {
 		dev_err(mlxsw_core->bus_info->dev, "Failed to transmit EMAD (tid=%llx)\n",
 			mlxsw_core->emad.tid);
@@ -929,26 +929,17 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core)
 }
 EXPORT_SYMBOL(mlxsw_core_bus_device_unregister);
 
-static struct mlxsw_core *__mlxsw_core_get(void *driver_priv)
-{
-	return container_of(driver_priv, struct mlxsw_core, driver_priv);
-}
-
-bool mlxsw_core_skb_transmit_busy(void *driver_priv,
+bool mlxsw_core_skb_transmit_busy(struct mlxsw_core *mlxsw_core,
 				  const struct mlxsw_tx_info *tx_info)
 {
-	struct mlxsw_core *mlxsw_core = __mlxsw_core_get(driver_priv);
-
 	return mlxsw_core->bus->skb_transmit_busy(mlxsw_core->bus_priv,
 						  tx_info);
 }
 EXPORT_SYMBOL(mlxsw_core_skb_transmit_busy);
 
-int mlxsw_core_skb_transmit(void *driver_priv, struct sk_buff *skb,
+int mlxsw_core_skb_transmit(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 			    const struct mlxsw_tx_info *tx_info)
 {
-	struct mlxsw_core *mlxsw_core = __mlxsw_core_get(driver_priv);
-
 	return mlxsw_core->bus->skb_transmit(mlxsw_core->bus_priv, skb,
 					     tx_info);
 }

@@ -75,10 +75,9 @@ struct mlxsw_tx_info {
 	bool is_emad;
 };
 
-bool mlxsw_core_skb_transmit_busy(void *driver_priv,
+bool mlxsw_core_skb_transmit_busy(struct mlxsw_core *mlxsw_core,
 				  const struct mlxsw_tx_info *tx_info);
-
-int mlxsw_core_skb_transmit(void *driver_priv, struct sk_buff *skb,
+int mlxsw_core_skb_transmit(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 			    const struct mlxsw_tx_info *tx_info);
 
 struct mlxsw_rx_listener {
