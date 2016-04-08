@@ -3,6 +3,7 @@
 #define gk104_fifo(p) container_of((p), struct gk104_fifo, base)
 #include "priv.h"
 
+#include <core/enum.h>
 #include <subdev/mmu.h>
 
 struct gk104_fifo_chan;
@@ -41,7 +42,13 @@ struct gk104_fifo {
 };
 
 struct gk104_fifo_func {
-	int dummy;
+	struct {
+		const struct nvkm_enum *engine;
+		const struct nvkm_enum *reason;
+		const struct nvkm_enum *hubclient;
+		const struct nvkm_enum *gpcclient;
+	} fault;
+
 	const struct nvkm_fifo_chan_oclass *chan[];
 };
 
@@ -69,4 +76,9 @@ gk104_fifo_engine_subdev(int engine)
 		return 0;
 	}
 }
+
+extern const struct nvkm_enum gk104_fifo_fault_engine[];
+extern const struct nvkm_enum gk104_fifo_fault_reason[];
+extern const struct nvkm_enum gk104_fifo_fault_hubclient[];
+extern const struct nvkm_enum gk104_fifo_fault_gpcclient[];
 #endif
