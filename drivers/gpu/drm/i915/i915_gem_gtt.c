@@ -3401,8 +3401,9 @@ intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 	int ret = -ENOMEM;
 
 	/* Allocate a temporary list of source pages for random access. */
-	page_addr_list = drm_malloc_ab(obj->base.size / PAGE_SIZE,
-				       sizeof(dma_addr_t));
+	page_addr_list = drm_malloc_gfp(obj->base.size / PAGE_SIZE,
+					sizeof(dma_addr_t),
+					GFP_TEMPORARY);
 	if (!page_addr_list)
 		return ERR_PTR(ret);
 

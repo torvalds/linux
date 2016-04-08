@@ -2423,9 +2423,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj)
 		int n;
 
 		n = obj->base.size >> PAGE_SHIFT;
-		pages = kmalloc(n*sizeof(*pages), GFP_TEMPORARY | __GFP_NOWARN);
-		if (pages == NULL)
-			pages = drm_malloc_ab(n, sizeof(*pages));
+		pages = drm_malloc_gfp(n, sizeof(*pages), GFP_TEMPORARY);
 		if (pages != NULL) {
 			n = 0;
 			for_each_sg_page(obj->pages->sgl, &sg_iter,
