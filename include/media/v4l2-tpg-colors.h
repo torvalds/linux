@@ -1,5 +1,5 @@
 /*
- * vivid-color.h - Color definitions for the test pattern generator
+ * v4l2-tpg-colors.h - Color definitions for the test pattern generator
  *
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  *
@@ -17,8 +17,8 @@
  * SOFTWARE.
  */
 
-#ifndef _VIVID_COLORS_H_
-#define _VIVID_COLORS_H_
+#ifndef _V4L2_TPG_COLORS_H_
+#define _V4L2_TPG_COLORS_H_
 
 struct color {
 	unsigned char r, g, b;
