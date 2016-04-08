@@ -128,27 +128,21 @@ static ssize_t stp_state_show(struct device *d,
 }
 
 
-static ssize_t stp_state_store(struct device *d,
-			       struct device_attribute *attr, const char *buf,
-			       size_t len)
+static int set_stp_state(struct net_bridge *br, unsigned long val)
 {
-	struct net_bridge *br = to_bridge(d);
-	char *endp;
-	unsigned long val;
-
-	if (!ns_capable(dev_net(br->dev)->user_ns, CAP_NET_ADMIN))
-		return -EPERM;
-
-	val = simple_strtoul(buf, &endp, 0);
-	if (endp == buf)
-		return -EINVAL;
-
 	if (!rtnl_trylock())
 		return restart_syscall();
 	br_stp_set_enabled(br, val);
 	rtnl_unlock();
 
-	return len;
+	return 0;
+}
+
+static ssize_t stp_state_store(struct device *d,
+			       struct device_attribute *attr, const char *buf,
+			       size_t len)
+{
+	return store_bridge_parm(d, buf, len, set_stp_state);
 }
 static DEVICE_ATTR_RW(stp_state);
 
