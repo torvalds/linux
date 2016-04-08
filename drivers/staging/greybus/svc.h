@@ -48,6 +48,8 @@ int gb_svc_add(struct gb_svc *svc);
 void gb_svc_del(struct gb_svc *svc);
 void gb_svc_put(struct gb_svc *svc);
 
+int gb_svc_pwrmon_intf_sample_get(struct gb_svc *svc, u8 intf_id,
+				  u8 measurement_type, u32 *value);
 int gb_svc_intf_device_id(struct gb_svc *svc, u8 intf_id, u8 device_id);
 int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
 			       u8 intf2_id, u8 dev2_id);

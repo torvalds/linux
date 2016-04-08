@@ -263,6 +263,63 @@ static ssize_t version_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(version);
 
+static ssize_t voltage_now_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct gb_interface *intf = to_gb_interface(dev);
+	int ret;
+	u32 measurement;
+
+	ret = gb_svc_pwrmon_intf_sample_get(intf->hd->svc, intf->interface_id,
+					    GB_SVC_PWRMON_TYPE_VOL,
+					    &measurement);
+	if (ret) {
+		dev_err(&intf->dev, "failed to get voltage sample (%d)\n", ret);
+		return ret;
+	}
+
+	return sprintf(buf, "%u\n", measurement);
+}
+static DEVICE_ATTR_RO(voltage_now);
+
+static ssize_t current_now_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct gb_interface *intf = to_gb_interface(dev);
+	int ret;
+	u32 measurement;
+
+	ret = gb_svc_pwrmon_intf_sample_get(intf->hd->svc, intf->interface_id,
+					    GB_SVC_PWRMON_TYPE_CURR,
+					    &measurement);
+	if (ret) {
+		dev_err(&intf->dev, "failed to get current sample (%d)\n", ret);
+		return ret;
+	}
+
+	return sprintf(buf, "%u\n", measurement);
+}
+static DEVICE_ATTR_RO(current_now);
+
+static ssize_t power_now_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct gb_interface *intf = to_gb_interface(dev);
+	int ret;
+	u32 measurement;
+
+	ret = gb_svc_pwrmon_intf_sample_get(intf->hd->svc, intf->interface_id,
+					    GB_SVC_PWRMON_TYPE_PWR,
+					    &measurement);
+	if (ret) {
+		dev_err(&intf->dev, "failed to get power sample (%d)\n", ret);
+		return ret;
+	}
+
+	return sprintf(buf, "%u\n", measurement);
+}
+static DEVICE_ATTR_RO(power_now);
+
 static struct attribute *interface_attrs[] = {
 	&dev_attr_ddbl1_manufacturer_id.attr,
 	&dev_attr_ddbl1_product_id.attr,
@@ -273,6 +330,9 @@ static struct attribute *interface_attrs[] = {
 	&dev_attr_product_string.attr,
 	&dev_attr_serial_number.attr,
 	&dev_attr_version.attr,
+	&dev_attr_voltage_now.attr,
+	&dev_attr_current_now.attr,
+	&dev_attr_power_now.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(interface);

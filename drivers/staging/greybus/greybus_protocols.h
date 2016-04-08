@@ -798,6 +798,10 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_INTF_EJECT			0x11
 #define GB_SVC_TYPE_KEY_EVENT			0x12
 #define GB_SVC_TYPE_PING			0x13
+#define GB_SVC_TYPE_PWRMON_RAIL_COUNT_GET	0x14
+#define GB_SVC_TYPE_PWRMON_RAIL_NAMES_GET	0x15
+#define GB_SVC_TYPE_PWRMON_SAMPLE_GET		0x16
+#define GB_SVC_TYPE_PWRMON_INTF_SAMPLE_GET	0x17
 
 /*
  * SVC version request/response has the same payload as
@@ -961,6 +965,25 @@ struct gb_svc_key_event_request {
 	__u8    key_event;
 #define GB_SVC_KEY_RELEASED    0x00
 #define GB_SVC_KEY_PRESSED     0x01
+} __packed;
+
+#define GB_SVC_PWRMON_TYPE_CURR			0x01
+#define GB_SVC_PWRMON_TYPE_VOL			0x02
+#define GB_SVC_PWRMON_TYPE_PWR			0x03
+
+#define GB_SVC_PWRMON_GET_SAMPLE_OK		0x00
+#define GB_SVC_PWRMON_GET_SAMPLE_INVAL		0x01
+#define GB_SVC_PWRMON_GET_SAMPLE_NOSUPP		0x02
+#define GB_SVC_PWRMON_GET_SAMPLE_HWERR		0x03
+
+struct gb_svc_pwrmon_intf_sample_get_request {
+	__u8	intf_id;
+	__u8	measurement_type;
+} __packed;
+
+struct gb_svc_pwrmon_intf_sample_get_response {
+	__u8	result;
+	__le32	measurement;
 } __packed;
 
 /* RAW */

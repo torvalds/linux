@@ -99,6 +99,44 @@ static ssize_t watchdog_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(watchdog);
 
+int gb_svc_pwrmon_intf_sample_get(struct gb_svc *svc, u8 intf_id,
+				  u8 measurement_type, u32 *value)
+{
+	struct gb_svc_pwrmon_intf_sample_get_request request;
+	struct gb_svc_pwrmon_intf_sample_get_response response;
+	int ret;
+
+	request.intf_id = intf_id;
+	request.measurement_type = measurement_type;
+
+	ret = gb_operation_sync(svc->connection,
+				GB_SVC_TYPE_PWRMON_INTF_SAMPLE_GET,
+				&request, sizeof(request),
+				&response, sizeof(response));
+	if (ret) {
+		dev_err(&svc->dev, "failed to get intf sample (%d)\n", ret);
+		return ret;
+	}
+
+	if (response.result) {
+		dev_err(&svc->dev,
+			"UniPro error while getting intf power sample (%d %d): %d\n",
+			intf_id, measurement_type, response.result);
+		switch (response.result) {
+		case GB_SVC_PWRMON_GET_SAMPLE_INVAL:
+			return -EINVAL;
+		case GB_SVC_PWRMON_GET_SAMPLE_NOSUPP:
+			return -ENOSYS;
+		default:
+			return -EIO;
+		}
+	}
+
+	*value = le32_to_cpu(response.measurement);
+
+	return 0;
+}
+
 static struct attribute *svc_attrs[] = {
 	&dev_attr_endo_id.attr,
 	&dev_attr_ap_intf_id.attr,
