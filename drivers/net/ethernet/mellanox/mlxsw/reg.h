@@ -3598,8 +3598,8 @@ static inline void mlxsw_reg_sbcm_pack(char *payload, u8 local_port, u8 pg_buff,
 	mlxsw_reg_sbcm_pool_set(payload, pool);
 }
 
-/* SBPM - Shared Buffer Class Management Register
- * ----------------------------------------------
+/* SBPM - Shared Buffer Port Management Register
+ * ---------------------------------------------
  * The SBPM register configures and retrieves the shared buffer allocation
  * and configuration according to Port-Pool, including the definition
  * of the associated quota.
