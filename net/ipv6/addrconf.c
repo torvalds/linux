@@ -3448,6 +3448,12 @@ static void addrconf_type_change(struct net_device *dev, unsigned long event)
 		ipv6_mc_unmap(idev);
 }
 
+static bool addr_is_local(const struct in6_addr *addr)
+{
+	return ipv6_addr_type(addr) &
+		(IPV6_ADDR_LINKLOCAL | IPV6_ADDR_LOOPBACK);
+}
+
 static int addrconf_ifdown(struct net_device *dev, int how)
 {
 	struct net *net = dev_net(dev);
@@ -3505,7 +3511,8 @@ restart:
 				 * address is retained on a down event
 				 */
 				if (!keep_addr ||
-				    !(ifa->flags & IFA_F_PERMANENT)) {
+				    !(ifa->flags & IFA_F_PERMANENT) ||
+				    addr_is_local(&ifa->addr)) {
 					hlist_del_init_rcu(&ifa->addr_lst);
 					goto restart;
 				}
@@ -3554,7 +3561,8 @@ restart:
 		write_unlock_bh(&idev->lock);
 		spin_lock_bh(&ifa->lock);
 
-		if (keep_addr && (ifa->flags & IFA_F_PERMANENT)) {
+		if (keep_addr && (ifa->flags & IFA_F_PERMANENT) &&
+		    !addr_is_local(&ifa->addr)) {
 			/* set state to skip the notifier below */
 			state = INET6_IFADDR_STATE_DEAD;
 			ifa->state = 0;
