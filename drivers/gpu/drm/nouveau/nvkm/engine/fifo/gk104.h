@@ -7,6 +7,7 @@
 
 struct gk104_fifo_chan;
 struct gk104_fifo {
+	const struct gk104_fifo_func *func;
 	struct nvkm_fifo base;
 
 	struct {
@@ -39,15 +40,13 @@ struct gk104_fifo {
 	} user;
 };
 
-int gk104_fifo_new_(const struct nvkm_fifo_func *, struct nvkm_device *,
+struct gk104_fifo_func {
+	int dummy;
+	const struct nvkm_fifo_chan_oclass *chan[];
+};
+
+int gk104_fifo_new_(const struct gk104_fifo_func *, struct nvkm_device *,
 		    int index, int nr, struct nvkm_fifo **);
-void *gk104_fifo_dtor(struct nvkm_fifo *);
-int gk104_fifo_oneinit(struct nvkm_fifo *);
-void gk104_fifo_init(struct nvkm_fifo *);
-void gk104_fifo_fini(struct nvkm_fifo *);
-void gk104_fifo_intr(struct nvkm_fifo *);
-void gk104_fifo_uevent_init(struct nvkm_fifo *);
-void gk104_fifo_uevent_fini(struct nvkm_fifo *);
 void gk104_fifo_runlist_insert(struct gk104_fifo *, struct gk104_fifo_chan *);
 void gk104_fifo_runlist_remove(struct gk104_fifo *, struct gk104_fifo_chan *);
 void gk104_fifo_runlist_commit(struct gk104_fifo *, int runl);

@@ -33,14 +33,29 @@
 
 #include <nvif/class.h>
 
-void
+static int
+gk104_fifo_class_get(struct nvkm_fifo *base, int index,
+		     const struct nvkm_fifo_chan_oclass **psclass)
+{
+	struct gk104_fifo *fifo = gk104_fifo(base);
+	int c = 0;
+
+	while ((*psclass = fifo->func->chan[c])) {
+		if (c++ == index)
+			return 0;
+	}
+
+	return c;
+}
+
+static void
 gk104_fifo_uevent_fini(struct nvkm_fifo *fifo)
 {
 	struct nvkm_device *device = fifo->engine.subdev.device;
 	nvkm_mask(device, 0x002140, 0x80000000, 0x00000000);
 }
 
-void
+static void
 gk104_fifo_uevent_init(struct nvkm_fifo *fifo)
 {
 	struct nvkm_device *device = fifo->engine.subdev.device;
@@ -558,7 +573,7 @@ gk104_fifo_intr_engine(struct gk104_fifo *fifo)
 	nvkm_fifo_uevent(&fifo->base);
 }
 
-void
+static void
 gk104_fifo_intr(struct nvkm_fifo *base)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
@@ -650,7 +665,7 @@ gk104_fifo_intr(struct nvkm_fifo *base)
 	}
 }
 
-void
+static void
 gk104_fifo_fini(struct nvkm_fifo *base)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
@@ -660,7 +675,7 @@ gk104_fifo_fini(struct nvkm_fifo *base)
 	nvkm_mask(device, 0x002140, 0x10000000, 0x10000000);
 }
 
-int
+static int
 gk104_fifo_oneinit(struct nvkm_fifo *base)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
@@ -739,7 +754,7 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	return 0;
 }
 
-void
+static void
 gk104_fifo_init(struct nvkm_fifo *base)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
@@ -768,7 +783,7 @@ gk104_fifo_init(struct nvkm_fifo *base)
 	nvkm_wr32(device, 0x002140, 0x7fffffff);
 }
 
-void *
+static void *
 gk104_fifo_dtor(struct nvkm_fifo *base)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
@@ -785,22 +800,8 @@ gk104_fifo_dtor(struct nvkm_fifo *base)
 	return fifo;
 }
 
-int
-gk104_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
-		int index, int nr, struct nvkm_fifo **pfifo)
-{
-	struct gk104_fifo *fifo;
-
-	if (!(fifo = kzalloc(sizeof(*fifo), GFP_KERNEL)))
-		return -ENOMEM;
-	INIT_WORK(&fifo->recover.work, gk104_fifo_recover_work);
-	*pfifo = &fifo->base;
-
-	return nvkm_fifo_ctor(func, device, index, nr, &fifo->base);
-}
-
 static const struct nvkm_fifo_func
-gk104_fifo = {
+gk104_fifo_ = {
 	.dtor = gk104_fifo_dtor,
 	.oneinit = gk104_fifo_oneinit,
 	.init = gk104_fifo_init,
@@ -808,6 +809,26 @@ gk104_fifo = {
 	.intr = gk104_fifo_intr,
 	.uevent_init = gk104_fifo_uevent_init,
 	.uevent_fini = gk104_fifo_uevent_fini,
+	.class_get = gk104_fifo_class_get,
+};
+
+int
+gk104_fifo_new_(const struct gk104_fifo_func *func, struct nvkm_device *device,
+		int index, int nr, struct nvkm_fifo **pfifo)
+{
+	struct gk104_fifo *fifo;
+
+	if (!(fifo = kzalloc(sizeof(*fifo), GFP_KERNEL)))
+		return -ENOMEM;
+	fifo->func = func;
+	INIT_WORK(&fifo->recover.work, gk104_fifo_recover_work);
+	*pfifo = &fifo->base;
+
+	return nvkm_fifo_ctor(&gk104_fifo_, device, index, nr, &fifo->base);
+}
+
+static const struct gk104_fifo_func
+gk104_fifo = {
 	.chan = {
 		&gk104_fifo_gpfifo_oclass,
 		NULL

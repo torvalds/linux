@@ -178,6 +178,17 @@ nvkm_fifo_class_get(struct nvkm_oclass *oclass, int index,
 	const struct nvkm_fifo_chan_oclass *sclass;
 	int c = 0;
 
+	if (fifo->func->class_get) {
+		int ret = fifo->func->class_get(fifo, index, &sclass);
+		if (ret == 0) {
+			oclass->base = sclass->base;
+			oclass->engn = sclass;
+			*class = &nvkm_fifo_class;
+			return 0;
+		}
+		return ret;
+	}
+
 	while ((sclass = fifo->func->chan[c])) {
 		if (c++ == index) {
 			oclass->base = sclass->base;
