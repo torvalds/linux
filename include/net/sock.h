@@ -1360,6 +1360,7 @@ do {									\
 	lockdep_init_map(&(sk)->sk_lock.dep_map, (name), (key), 0);	\
 } while (0)
 
+#ifdef CONFIG_LOCKDEP
 static inline bool lockdep_sock_is_held(const struct sock *csk)
 {
 	struct sock *sk = (struct sock *)csk;
@@ -1367,6 +1368,7 @@ static inline bool lockdep_sock_is_held(const struct sock *csk)
 	return lockdep_is_held(&sk->sk_lock) ||
 	       lockdep_is_held(&sk->sk_lock.slock);
 }
+#endif
 
 void lock_sock_nested(struct sock *sk, int subclass);
 
