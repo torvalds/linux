@@ -160,6 +160,12 @@ static const struct comedi_lrange das1802_ai_range = {
 	}
 };
 
+/*
+ * The waveform analog outputs on the 'ao' boards are not currently
+ * supported. They have a comedi_lrange of:
+ * { 2, { BIP_RANGE(10), BIP_RANGE(5) } }
+ */
+
 enum das1800_boardid {
 	BOARD_DAS1701ST,
 	BOARD_DAS1701ST_DA,
@@ -304,16 +310,6 @@ struct das1800_private {
 	unsigned long iobase2;
 	bool ai_is_unipolar;
 };
-
-/* analog out range for 'ao' boards */
-/*
-static const struct comedi_lrange range_ao_2 = {
-	2, {
-		BIP_RANGE(10),
-		BIP_RANGE(5)
-	}
-};
-*/
 
 static void das1800_ai_munge(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
