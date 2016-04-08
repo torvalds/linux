@@ -833,8 +833,10 @@ static int das1800_ai_cmd(struct comedi_device *dev,
 	const struct comedi_cmd *cmd = &async->cmd;
 	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
 
-	/* disable dma on CMDF_WAKE_EOS, or CMDF_PRIORITY
-	 * (because dma in handler is unsafe at hard real-time priority) */
+	/*
+	 * Disable dma on CMDF_WAKE_EOS, or CMDF_PRIORITY (because dma in
+	 * handler is unsafe at hard real-time priority).
+	 */
 	if (cmd->flags & (CMDF_WAKE_EOS | CMDF_PRIORITY))
 		devpriv->irq_dma_bits &= ~DMA_ENABLED;
 	else
@@ -897,14 +899,15 @@ static int das1800_ai_cmd(struct comedi_device *dev,
 	outb(control_c, dev->iobase + DAS1800_CONTROL_C);
 	/*  set conversion rate and length for burst mode */
 	if (control_c & BMDE) {
-		/*  program conversion period with number of microseconds minus 1 */
-		outb(cmd->convert_arg / 1000 - 1,
+		outb(cmd->convert_arg / 1000 - 1,	/* microseconds - 1 */
 		     dev->iobase + DAS1800_BURST_RATE);
 		outb(cmd->chanlist_len - 1, dev->iobase + DAS1800_BURST_LENGTH);
 	}
-	outb(devpriv->irq_dma_bits, dev->iobase + DAS1800_CONTROL_B);	/*  enable irq/dma */
-	outb(control_a, dev->iobase + DAS1800_CONTROL_A);	/* enable fifo and triggering */
-	outb(CVEN, dev->iobase + DAS1800_STATUS);	/* enable conversions */
+
+	/* enable and start conversions */
+	outb(devpriv->irq_dma_bits, dev->iobase + DAS1800_CONTROL_B);
+	outb(control_a, dev->iobase + DAS1800_CONTROL_A);
+	outb(CVEN, dev->iobase + DAS1800_STATUS);
 
 	return 0;
 }
