@@ -225,7 +225,7 @@ enum das1800_boardid {
 struct das1800_board {
 	const char *name;
 	unsigned char id;
-	int ai_speed;		/* max conversion period in nanoseconds */
+	unsigned int ai_speed;
 	unsigned int is_01_series:1;
 };
 
