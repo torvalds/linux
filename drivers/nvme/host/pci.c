@@ -2014,11 +2014,10 @@ static void nvme_remove(struct pci_dev *pdev)
 {
 	struct nvme_dev *dev = pci_get_drvdata(pdev);
 
-	del_timer_sync(&dev->watchdog_timer);
-
 	nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_DELETING);
 
 	pci_set_drvdata(pdev, NULL);
+	flush_work(&dev->reset_work);
 	nvme_uninit_ctrl(&dev->ctrl);
 	nvme_dev_disable(dev, true);
 	flush_work(&dev->reset_work);
