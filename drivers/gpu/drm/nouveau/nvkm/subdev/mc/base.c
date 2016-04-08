@@ -24,6 +24,7 @@
 #include "priv.h"
 
 #include <core/option.h>
+#include <subdev/top.h>
 
 void
 nvkm_mc_unk260(struct nvkm_mc *mc, u32 data)
@@ -82,12 +83,14 @@ nvkm_mc_reset_(struct nvkm_mc *mc, enum nvkm_devidx devidx)
 {
 	struct nvkm_device *device = mc->subdev.device;
 	const struct nvkm_mc_map *map;
-	u64 pmc_enable = 0;
+	u64 pmc_enable;
 
-	for (map = mc->func->reset; map && map->stat; map++) {
-		if (map->unit == devidx) {
-			pmc_enable = map->stat;
-			break;
+	if (!(pmc_enable = nvkm_top_reset(device->top, devidx))) {
+		for (map = mc->func->reset; map && map->stat; map++) {
+			if (map->unit == devidx) {
+				pmc_enable = map->stat;
+				break;
+			}
 		}
 	}
 
