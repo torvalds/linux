@@ -60,6 +60,9 @@
  * If TRIG_EXT is used for both the start_src and stop_src, the first TGIN
  * trigger starts the command, and the second trigger will stop it. If only
  * one is TRIG_EXT, the first trigger will either stop or start the command.
+ * The external pin TGIN is normally set for negative edge triggering. It
+ * can be set to positive edge with the CR_INVERT flag. If TRIG_EXT is used
+ * for both the start_src and stop_src they must have the same polarity.
  *
  * Minimum conversion speed is limited to 64 microseconds (convert_arg <= 64000)
  * for 'burst' scans. This limitation does not apply for 'paced' scans. The
@@ -105,6 +108,7 @@
 #define   CGSL                    0x8
 #define   TGEN                    0x10
 #define   TGSL                    0x20
+#define   TGPL                    0x40
 #define   ATEN                    0x80
 #define DAS1800_CONTROL_B       0x5
 #define   DMA_CH5                 0x1
@@ -671,12 +675,18 @@ static int das1800_ai_cmdtest(struct comedi_device *dev,
 	    cmd->convert_src != TRIG_TIMER)
 		err |= -EINVAL;
 
+	/* the external pin TGIN must use the same polarity */
+	if (cmd->start_src == TRIG_EXT && cmd->stop_src == TRIG_EXT)
+		err |= comedi_check_trigger_arg_is(&cmd->start_arg,
+						   cmd->stop_arg);
+
 	if (err)
 		return 2;
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
+	if (cmd->start_arg == TRIG_NOW)
+		err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
@@ -868,6 +878,10 @@ static int das1800_ai_cmd(struct comedi_device *dev,
 		control_a |= TGEN | CGSL;
 	else /* TRIG_NOW */
 		control_a |= CGEN;
+	if (control_a & (ATEN | TGEN)) {
+		if ((cmd->start_arg & CR_INVERT) || (cmd->stop_arg & CR_INVERT))
+			control_a |= TGPL;
+	}
 
 	control_c = das1800_ai_chanspec_bits(s, cmd->chanlist[0]);
 	/* set clock source to internal or external */
