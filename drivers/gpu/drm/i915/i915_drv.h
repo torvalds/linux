@@ -2169,10 +2169,7 @@ struct drm_i915_gem_object {
 		struct scatterlist *sg;
 		int last;
 	} get_page;
-
-	/* prime dma-buf support */
-	void *dma_buf_vmapping;
-	int vmapping_count;
+	void *mapping;
 
 	/** Breadcrumb of last rendering to the buffer.
 	 * There can only be one writer, but we allow for multiple readers.
@@ -2988,10 +2985,42 @@ static inline void i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 	BUG_ON(obj->pages == NULL);
 	obj->pages_pin_count++;
 }
+
 static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 {
 	BUG_ON(obj->pages_pin_count == 0);
 	obj->pages_pin_count--;
+}
+
+/**
+ * i915_gem_object_pin_map - return a contiguous mapping of the entire object
+ * @obj - the object to map into kernel address space
+ *
+ * Calls i915_gem_object_pin_pages() to prevent reaping of the object's
+ * pages and then returns a contiguous mapping of the backing storage into
+ * the kernel address space.
+ *
+ * The caller must hold the struct_mutex.
+ *
+ * Returns the pointer through which to access the backing storage.
+ */
+void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj);
+
+/**
+ * i915_gem_object_unpin_map - releases an earlier mapping
+ * @obj - the object to unmap
+ *
+ * After pinning the object and mapping its pages, once you are finished
+ * with your access, call i915_gem_object_unpin_map() to release the pin
+ * upon the mapping. Once the pin count reaches zero, that mapping may be
+ * removed.
+ *
+ * The caller must hold the struct_mutex.
+ */
+static inline void i915_gem_object_unpin_map(struct drm_i915_gem_object *obj)
+{
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	i915_gem_object_unpin_pages(obj);
 }
 
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
