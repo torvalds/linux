@@ -1477,10 +1477,6 @@ static const struct samsung_i2s_dai_data i2sv5_dai_type_i2s1 = {
 	.i2s_variant_regs = &i2sv5_i2s1_regs,
 };
 
-static const struct samsung_i2s_dai_data samsung_dai_type_pri = {
-	.dai_type = TYPE_PRI,
-};
-
 static const struct samsung_i2s_dai_data samsung_dai_type_sec = {
 	.dai_type = TYPE_SEC,
 };
