@@ -327,6 +327,12 @@
 			status = "disabled";
 		};
 
+		lbc: localbus@80380000 {
+			compatible = "hisilicon,hisi-localbus", "simple-bus";
+			reg = <0x0 0x80380000 0x0 0x10000>;
+			status = "disabled";
+		};
+
 		peri_gpio0: gpio@802e0000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
