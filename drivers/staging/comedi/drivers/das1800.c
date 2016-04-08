@@ -1132,8 +1132,7 @@ static int das1800_ao_insn_write(struct comedi_device *dev,
 	unsigned short output;
 	unsigned long irq_flags;
 
-	/*   card expects two's complement data */
-	output = data[0] - (1 << (board->resolution - 1));
+	output = comedi_offset_munge(s, data[0]);
 	/*  if the write is to the 'update' channel, we need to remember its value */
 	if (chan == update_chan)
 		devpriv->ao_update_bits = output;
