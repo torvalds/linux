@@ -749,25 +749,32 @@ static int control_a_bits(const struct comedi_cmd *cmd)
 	return control_a;
 }
 
-/* returns appropriate bits for control register c, depending on command */
+static unsigned char das1800_ai_chanspec_bits(struct comedi_subdevice *s,
+					      unsigned int chanspec)
+{
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned int aref = CR_AREF(chanspec);
+	unsigned char bits;
+
+	bits = UQEN;
+	if (aref != AREF_DIFF)
+		bits |= SD;
+	if (aref == AREF_COMMON)
+		bits |= CMEN;
+	if (comedi_range_is_unipolar(s, range))
+		bits |= UB;
+
+	return bits;
+}
+
 static int control_c_bits(struct comedi_subdevice *s,
 			  const struct comedi_cmd *cmd)
 {
-	unsigned int range = CR_RANGE(cmd->chanlist[0]);
-	unsigned int aref = CR_AREF(cmd->chanlist[0]);
 	int control_c;
 
-	/* set clock source to internal or external, select analog reference,
-	 * select unipolar / bipolar
-	 */
-	control_c = UQEN;	/* enable upper qram addresses */
-	if (aref != AREF_DIFF)
-		control_c |= SD;
-	if (aref == AREF_COMMON)
-		control_c |= CMEN;
-	if (comedi_range_is_unipolar(s, range))
-		control_c |= UB;
+	control_c = das1800_ai_chanspec_bits(s, cmd->chanlist[0]);
 
+	/* set clock source to internal or external */
 	switch (cmd->scan_begin_src) {
 	case TRIG_FOLLOW:	/*  not in burst mode */
 		switch (cmd->convert_src) {
@@ -955,25 +962,15 @@ static int das1800_ai_insn_read(struct comedi_device *dev,
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
-	unsigned int aref = CR_AREF(insn->chanspec);
 	bool is_unipolar = comedi_range_is_unipolar(s, range);
 	int i, n;
 	int chan_range;
 	int timeout = 1000;
 	unsigned short dpnt;
-	int conv_flags = 0;
 	unsigned long irq_flags;
 
-	/* set up analog reference and unipolar / bipolar mode */
-	conv_flags |= UQEN;
-	if (aref != AREF_DIFF)
-		conv_flags |= SD;
-	if (aref == AREF_COMMON)
-		conv_flags |= CMEN;
-	if (is_unipolar)
-		conv_flags |= UB;
-
-	outb(conv_flags, dev->iobase + DAS1800_CONTROL_C);	/* software conversion enabled */
+	outb(das1800_ai_chanspec_bits(s, insn->chanspec),
+	     dev->iobase + DAS1800_CONTROL_C);		/* software pacer */
 	outb(CVEN, dev->iobase + DAS1800_STATUS);	/* enable conversions */
 	outb(0x0, dev->iobase + DAS1800_CONTROL_A);	/* reset fifo */
 	outb(FFEN, dev->iobase + DAS1800_CONTROL_A);
