@@ -359,7 +359,6 @@ static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
 	}
 }
 
-/* Utility function used by das1800_flush_dma() and das1800_handle_dma() */
 static void das1800_flush_dma_channel(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      struct comedi_isadma_desc *desc)
@@ -375,8 +374,6 @@ static void das1800_flush_dma_channel(struct comedi_device *dev,
 	comedi_buf_write_samples(s, desc->virt_addr, nsamples);
 }
 
-/* flushes remaining data from board when external trigger has stopped acquisition
- * and we are using dma transfers */
 static void das1800_flush_dma(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
@@ -444,7 +441,6 @@ static int das1800_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-/* the guts of the interrupt handler, that is shared with das1800_ai_poll */
 static void das1800_ai_handler(struct comedi_device *dev)
 {
 	struct das1800_private *devpriv = dev->private;
