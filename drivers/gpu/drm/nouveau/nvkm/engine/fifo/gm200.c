@@ -26,7 +26,7 @@
 
 static const struct gk104_fifo_func
 gm200_fifo = {
-	.fault.engine = gk104_fifo_fault_engine,
+	.fault.engine = gm107_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,

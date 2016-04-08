@@ -81,4 +81,6 @@ extern const struct nvkm_enum gk104_fifo_fault_engine[];
 extern const struct nvkm_enum gk104_fifo_fault_reason[];
 extern const struct nvkm_enum gk104_fifo_fault_hubclient[];
 extern const struct nvkm_enum gk104_fifo_fault_gpcclient[];
+
+extern const struct nvkm_enum gm107_fifo_fault_engine[];
 #endif
