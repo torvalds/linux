@@ -544,33 +544,73 @@ static irqreturn_t das1800_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-/* converts requested conversion timing to timing compatible with
- * hardware, used only when card is in 'burst mode'
- */
-static unsigned int burst_convert_arg(unsigned int convert_arg, int flags)
+static int das1800_ai_fixup_paced_timing(struct comedi_device *dev,
+					 struct comedi_cmd *cmd)
 {
-	unsigned int micro_sec;
+	unsigned int arg = cmd->convert_arg;
 
-	/*  in burst mode, the maximum conversion time is 64 microseconds */
-	if (convert_arg > 64000)
-		convert_arg = 64000;
+	/*
+	 * Paced mode:
+	 *	scan_begin_src is TRIG_FOLLOW
+	 *	convert_src is TRIG_TIMER
+	 *
+	 * The convert_arg sets the pacer sample acquisition time.
+	 * The max acquisition speed is limited to the boards
+	 * 'ai_speed' (this was already verified). The min speed is
+	 * limited by the cascaded 8254 timer.
+	 */
+	comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
+	return comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
+}
 
-	/*  the conversion time must be an integral number of microseconds */
-	switch (flags & CMDF_ROUND_MASK) {
+static int das1800_ai_fixup_burst_timing(struct comedi_device *dev,
+					 struct comedi_cmd *cmd)
+{
+	unsigned int arg = cmd->convert_arg;
+	int err = 0;
+
+	/*
+	 * Burst mode:
+	 *	scan_begin_src is TRIG_TIMER or TRIG_EXT
+	 *	convert_src is TRIG_TIMER
+	 *
+	 * The convert_arg sets burst sample acquisition time.
+	 * The max acquisition speed is limited to the boards
+	 * 'ai_speed' (this was already verified). The min speed is
+	 * limiited to 64 microseconds,
+	 */
+	err |= comedi_check_trigger_arg_max(&arg, 64000);
+
+	/* round to microseconds then verify */
+	switch (cmd->flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_NEAREST:
 	default:
-		micro_sec = (convert_arg + 500) / 1000;
+		arg = DIV_ROUND_CLOSEST(arg, 1000);
 		break;
 	case CMDF_ROUND_DOWN:
-		micro_sec = convert_arg / 1000;
+		arg = arg / 1000;
 		break;
 	case CMDF_ROUND_UP:
-		micro_sec = (convert_arg - 1) / 1000 + 1;
+		arg = DIV_ROUND_UP(arg, 1000);
 		break;
 	}
+	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg * 1000);
 
-	/*  return number of nanoseconds */
-	return micro_sec * 1000;
+	/*
+	 * The pacer can be used to set the scan sample rate. The max scan
+	 * speed is limited by the conversion speed and the number of channels
+	 * to convert. The min speed is limited by the cascaded 8254 timer.
+	 */
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		arg = cmd->convert_arg * cmd->chanlist_len;
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg, arg);
+
+		arg = cmd->scan_begin_arg;
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
+	}
+
+	return err;
 }
 
 static int das1800_ai_check_chanlist(struct comedi_device *dev,
@@ -600,7 +640,6 @@ static int das1800_ai_cmdtest(struct comedi_device *dev,
 {
 	const struct das1800_board *board = dev->board_ptr;
 	int err = 0;
-	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -659,31 +698,13 @@ static int das1800_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 3;
 
-	/* step 4: fix up any arguments */
+	/* Step 4: fix up any arguments */
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW &&
-	    cmd->convert_src == TRIG_TIMER) {
-		/* we are not in burst mode */
-		arg = cmd->convert_arg;
-		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
-		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
-	} else if (cmd->convert_src == TRIG_TIMER) {
-		/* we are in burst mode */
-		arg = burst_convert_arg(cmd->convert_arg, cmd->flags);
-		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
-
-		if (cmd->scan_begin_src == TRIG_TIMER) {
-			arg = cmd->convert_arg * cmd->chanlist_len;
-			err |= comedi_check_trigger_arg_max(&cmd->
-							    scan_begin_arg,
-							    arg);
-
-			arg = cmd->scan_begin_arg;
-			comedi_8254_cascade_ns_to_timer(dev->pacer, &arg,
-							cmd->flags);
-			err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg,
-							   arg);
-		}
+	if (cmd->convert_src == TRIG_TIMER) {
+		if (cmd->scan_begin_src == TRIG_FOLLOW)
+			err |= das1800_ai_fixup_paced_timing(dev, cmd);
+		else /* TRIG_TIMER or TRIG_EXT */
+			err |= das1800_ai_fixup_burst_timing(dev, cmd);
 	}
 
 	if (err)
