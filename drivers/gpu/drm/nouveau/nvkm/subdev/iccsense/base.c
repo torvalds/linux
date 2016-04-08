@@ -337,7 +337,7 @@ void
 nvkm_iccsense_ctor(struct nvkm_device *device, int index,
 		   struct nvkm_iccsense *iccsense)
 {
-	nvkm_subdev_ctor(&iccsense_func, device, index, 0, &iccsense->subdev);
+	nvkm_subdev_ctor(&iccsense_func, device, index, &iccsense->subdev);
 }
 
 int

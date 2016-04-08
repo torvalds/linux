@@ -103,11 +103,6 @@ nvkm_mc_reset_(struct nvkm_mc *mc, enum nvkm_devidx devidx)
 		}
 	}
 
-	if (!pmc_enable) {
-		struct nvkm_subdev *subdev = nvkm_device_subdev(device, devidx);
-		pmc_enable = subdev->pmc_enable;
-	}
-
 	if (pmc_enable) {
 		nvkm_mask(device, 0x000200, pmc_enable, 0x00000000);
 		nvkm_mask(device, 0x000200, pmc_enable, pmc_enable);
@@ -162,7 +157,7 @@ nvkm_mc_new_(const struct nvkm_mc_func *func, struct nvkm_device *device,
 	if (!(mc = *pmc = kzalloc(sizeof(*mc), GFP_KERNEL)))
 		return -ENOMEM;
 
-	nvkm_subdev_ctor(&nvkm_mc, device, index, 0, &mc->subdev);
+	nvkm_subdev_ctor(&nvkm_mc, device, index, &mc->subdev);
 	mc->func = func;
 	return 0;
 }

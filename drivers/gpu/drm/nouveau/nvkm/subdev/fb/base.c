@@ -156,7 +156,7 @@ void
 nvkm_fb_ctor(const struct nvkm_fb_func *func, struct nvkm_device *device,
 	     int index, struct nvkm_fb *fb)
 {
-	nvkm_subdev_ctor(&nvkm_fb, device, index, 0, &fb->subdev);
+	nvkm_subdev_ctor(&nvkm_fb, device, index, &fb->subdev);
 	fb->func = func;
 	fb->tile.regions = fb->func->tile.regions;
 }

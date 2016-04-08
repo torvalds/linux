@@ -120,6 +120,6 @@ gk104_ibus_new(struct nvkm_device *device, int index,
 	struct nvkm_subdev *ibus;
 	if (!(ibus = *pibus = kzalloc(sizeof(*ibus), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_subdev_ctor(&gk104_ibus, device, index, 0, ibus);
+	nvkm_subdev_ctor(&gk104_ibus, device, index, ibus);
 	return 0;
 }

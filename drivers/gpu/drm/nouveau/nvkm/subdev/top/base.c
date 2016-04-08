@@ -141,7 +141,7 @@ nvkm_top_new_(const struct nvkm_top_func *func, struct nvkm_device *device,
 	struct nvkm_top *top;
 	if (!(top = *ptop = kzalloc(sizeof(*top), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_subdev_ctor(&nvkm_top, device, index, 0, &top->subdev);
+	nvkm_subdev_ctor(&nvkm_top, device, index, &top->subdev);
 	top->func = func;
 	INIT_LIST_HEAD(&top->device);
 	return 0;

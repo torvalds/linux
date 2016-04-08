@@ -1776,7 +1776,7 @@ gf100_gr_ctor(const struct gf100_gr_func *func, struct nvkm_device *device,
 	gr->firmware = nvkm_boolopt(device->cfgopt, "NvGrUseFW",
 				    func->fecs.ucode == NULL);
 
-	ret = nvkm_gr_ctor(&gf100_gr_, device, index, 0x08001000,
+	ret = nvkm_gr_ctor(&gf100_gr_, device, index,
 			   gr->firmware || func->fecs.ucode != NULL,
 			   &gr->base);
 	if (ret)

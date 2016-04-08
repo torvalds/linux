@@ -190,14 +190,13 @@ nvkm_subdev_del(struct nvkm_subdev **psubdev)
 
 void
 nvkm_subdev_ctor(const struct nvkm_subdev_func *func,
-		 struct nvkm_device *device, int index, u32 pmc_enable,
+		 struct nvkm_device *device, int index,
 		 struct nvkm_subdev *subdev)
 {
 	const char *name = nvkm_subdev_name[index];
 	subdev->func = func;
 	subdev->device = device;
 	subdev->index = index;
-	subdev->pmc_enable = pmc_enable;
 
 	__mutex_init(&subdev->mutex, name, &nvkm_subdev_lock_class[index]);
 	subdev->debug = nvkm_dbgopt(device->dbgopt, name);
