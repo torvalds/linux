@@ -77,6 +77,26 @@ nvkm_mc_intr(struct nvkm_mc *mc, bool *handled)
 	*handled = intr != 0;
 }
 
+static void
+nvkm_mc_reset_(struct nvkm_mc *mc, enum nvkm_devidx devidx)
+{
+	struct nvkm_device *device = mc->subdev.device;
+	struct nvkm_subdev *subdev = nvkm_device_subdev(device, devidx);
+	u64 pmc_enable = subdev->pmc_enable;
+	if (pmc_enable) {
+		nvkm_mask(device, 0x000200, pmc_enable, 0x00000000);
+		nvkm_mask(device, 0x000200, pmc_enable, pmc_enable);
+		nvkm_rd32(device, 0x000200);
+	}
+}
+
+void
+nvkm_mc_reset(struct nvkm_mc *mc, enum nvkm_devidx devidx)
+{
+	if (likely(mc))
+		nvkm_mc_reset_(mc, devidx);
+}
+
 static int
 nvkm_mc_fini(struct nvkm_subdev *subdev, bool suspend)
 {

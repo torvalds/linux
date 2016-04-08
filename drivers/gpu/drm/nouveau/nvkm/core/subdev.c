@@ -24,6 +24,7 @@
 #include <core/subdev.h>
 #include <core/device.h>
 #include <core/option.h>
+#include <subdev/mc.h>
 
 static struct lock_class_key nvkm_subdev_lock_class[NVKM_SUBDEV_NR];
 
@@ -90,7 +91,6 @@ nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_device *device = subdev->device;
 	const char *action = suspend ? "suspend" : "fini";
-	u32 pmc_enable = subdev->pmc_enable;
 	s64 time;
 
 	nvkm_trace(subdev, "%s running...\n", action);
@@ -105,11 +105,7 @@ nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 		}
 	}
 
-	if (pmc_enable) {
-		nvkm_mask(device, 0x000200, pmc_enable, 0x00000000);
-		nvkm_mask(device, 0x000200, pmc_enable, pmc_enable);
-		nvkm_rd32(device, 0x000200);
-	}
+	nvkm_mc_reset(device->mc, subdev->index);
 
 	time = ktime_to_us(ktime_get()) - time;
 	nvkm_trace(subdev, "%s completed in %lldus\n", action, time);
