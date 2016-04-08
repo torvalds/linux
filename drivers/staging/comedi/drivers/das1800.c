@@ -167,30 +167,29 @@ TODO:
 
 #define IOBASE2                   0x400	/* offset of additional ioports used on 'ao' cards */
 
-/* analog input ranges */
-static const struct comedi_lrange range_ai_das1801 = {
+static const struct comedi_lrange das1801_ai_range = {
 	8, {
-		BIP_RANGE(5),
-		BIP_RANGE(1),
-		BIP_RANGE(0.1),
-		BIP_RANGE(0.02),
-		UNI_RANGE(5),
-		UNI_RANGE(1),
-		UNI_RANGE(0.1),
-		UNI_RANGE(0.02)
+		BIP_RANGE(5),		/* bipolar gain = 1 */
+		BIP_RANGE(1),		/* bipolar gain = 10 */
+		BIP_RANGE(0.1),		/* bipolar gain = 50 */
+		BIP_RANGE(0.02),	/* bipolar gain = 250 */
+		UNI_RANGE(5),		/* unipolar gain = 1 */
+		UNI_RANGE(1),		/* unipolar gain = 10 */
+		UNI_RANGE(0.1),		/* unipolar gain = 50 */
+		UNI_RANGE(0.02)		/* unipolar gain = 250 */
 	}
 };
 
-static const struct comedi_lrange range_ai_das1802 = {
+static const struct comedi_lrange das1802_ai_range = {
 	8, {
-		BIP_RANGE(10),
-		BIP_RANGE(5),
-		BIP_RANGE(2.5),
-		BIP_RANGE(1.25),
-		UNI_RANGE(10),
-		UNI_RANGE(5),
-		UNI_RANGE(2.5),
-		UNI_RANGE(1.25)
+		BIP_RANGE(10),		/* bipolar gain = 1 */
+		BIP_RANGE(5),		/* bipolar gain = 2 */
+		BIP_RANGE(2.5),		/* bipolar gain = 4 */
+		BIP_RANGE(1.25),	/* bipolar gain = 8 */
+		UNI_RANGE(10),		/* unipolar gain = 1 */
+		UNI_RANGE(5),		/* unipolar gain = 2 */
+		UNI_RANGE(2.5),		/* unipolar gain = 4 */
+		UNI_RANGE(1.25)		/* unipolar gain = 8 */
 	}
 };
 
@@ -228,7 +227,7 @@ struct das1800_board {
 	unsigned char id;
 	int ai_speed;		/* max conversion period in nanoseconds */
 	int qram_len;		/* length of card's channel / gain queue */
-	const struct comedi_lrange *range_ai;	/* available input ranges */
+	unsigned int is_01_series:1;
 };
 
 /* Warning: the maximum conversion speeds listed below are
@@ -241,126 +240,115 @@ static const struct das1800_board das1800_boards[] = {
 		.id		= DAS1800_ID_ST,
 		.ai_speed	= 6250,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1801,
+		.is_01_series	= 1,
 	},
 	[BOARD_DAS1701ST_DA] = {
 		.name		= "das-1701st-da",
 		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 6250,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1801,
+		.is_01_series	= 1,
 	},
 	[BOARD_DAS1702ST] = {
 		.name		= "das-1702st",
 		.id		= DAS1800_ID_ST,
 		.ai_speed	= 6250,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1802,
 	},
 	[BOARD_DAS1702ST_DA] = {
 		.name		= "das-1702st-da",
 		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 6250,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1802,
 	},
 	[BOARD_DAS1702HR] = {
 		.name		= "das-1702hr",
 		.id		= DAS1800_ID_HR,
 		.ai_speed	= 20000,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1802,
 	},
 	[BOARD_DAS1702HR_DA] = {
 		.name		= "das-1702hr-da",
 		.id		= DAS1800_ID_HR_DA,
 		.ai_speed	= 20000,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1802,
 	},
 	[BOARD_DAS1701AO] = {
 		.name		= "das-1701ao",
 		.id		= DAS1800_ID_AO,
 		.ai_speed	= 6250,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1801,
+		.is_01_series	= 1,
 	},
 	[BOARD_DAS1702AO] = {
 		.name		= "das-1702ao",
 		.id		= DAS1800_ID_AO,
 		.ai_speed	= 6250,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1802,
 	},
 	[BOARD_DAS1801ST] = {
 		.name		= "das-1801st",
 		.id		= DAS1800_ID_ST,
 		.ai_speed	= 3000,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1801,
+		.is_01_series	= 1,
 	},
 	[BOARD_DAS1801ST_DA] = {
 		.name		= "das-1801st-da",
 		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 3000,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1801,
+		.is_01_series	= 1,
 	},
 	[BOARD_DAS1802ST] = {
 		.name		= "das-1802st",
 		.id		= DAS1800_ID_ST,
 		.ai_speed	= 3000,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1802,
 	},
 	[BOARD_DAS1802ST_DA] = {
 		.name		= "das-1802st-da",
 		.id		= DAS1800_ID_ST_DA,
 		.ai_speed	= 3000,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1802,
 	},
 	[BOARD_DAS1802HR] = {
 		.name		= "das-1802hr",
 		.id		= DAS1800_ID_HR,
 		.ai_speed	= 10000,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1802,
 	},
 	[BOARD_DAS1802HR_DA] = {
 		.name		= "das-1802hr-da",
 		.id		= DAS1800_ID_HR_DA,
 		.ai_speed	= 10000,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1802,
 	},
 	[BOARD_DAS1801HC] = {
 		.name		= "das-1801hc",
 		.id		= DAS1800_ID_HC,
 		.ai_speed	= 3000,
 		.qram_len	= 64,
-		.range_ai	= &range_ai_das1801,
+		.is_01_series	= 1,
 	},
 	[BOARD_DAS1802HC] = {
 		.name		= "das-1802hc",
 		.id		= DAS1800_ID_HC,
 		.ai_speed	= 3000,
 		.qram_len	= 64,
-		.range_ai	= &range_ai_das1802,
 	},
 	[BOARD_DAS1801AO] = {
 		.name		= "das-1801ao",
 		.id		= DAS1800_ID_AO,
 		.ai_speed	= 3000,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1801,
+		.is_01_series	= 1,
 	},
 	[BOARD_DAS1802AO] = {
 		.name		= "das-1802ao",
 		.id		= DAS1800_ID_AO,
 		.ai_speed	= 3000,
 		.qram_len	= 256,
-		.range_ai	= &range_ai_das1802,
 	},
 };
 
@@ -1312,7 +1300,8 @@ static int das1800_attach(struct comedi_device *dev,
 		s->subdev_flags	|= SDF_COMMON;
 	s->n_chan	= board->qram_len;
 	s->maxdata	= is_16bit ? 0xffff : 0x0fff;
-	s->range_table	= board->range_ai;
+	s->range_table	= board->is_01_series ? &das1801_ai_range
+					      : &das1802_ai_range;
 	s->insn_read	= das1800_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
