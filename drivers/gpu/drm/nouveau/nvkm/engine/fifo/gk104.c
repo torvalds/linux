@@ -28,6 +28,7 @@
 #include <core/enum.h>
 #include <core/gpuobj.h>
 #include <subdev/bar.h>
+#include <subdev/top.h>
 #include <engine/sw.h>
 
 #include <nvif/class.h>
@@ -665,7 +666,9 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	struct gk104_fifo *fifo = gk104_fifo(base);
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	int ret, i;
+	struct nvkm_top *top = device->top;
+	int engn, runl, pbid, ret, i, j;
+	enum nvkm_devidx engidx;
 	u32 *map;
 
 	/* Determine number of PBDMAs by checking valid enable bits. */
@@ -680,86 +683,26 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	for (i = 0; i < fifo->pbdma_nr; i++)
 		map[i] = nvkm_rd32(device, 0x002390 + (i * 0x04));
 
-	/* Read device topology from HW. */
-	for (i = 0; i < 64; i++) {
-		int type = -1, pbid = -1, engidx = -1;
-		int engn = -1, runl = -1, intr = -1, mcen = -1;
-		int fault = -1, j;
-		u32 data, addr = 0;
-
-		do {
-			data = nvkm_rd32(device, 0x022700 + (i * 0x04));
-			nvkm_trace(subdev, "%02x: %08x\n", i, data);
-			switch (data & 0x00000003) {
-			case 0x00000000: /* NOT_VALID */
-				continue;
-			case 0x00000001: /* DATA */
-				addr  = (data & 0x00fff000);
-				fault = (data & 0x000000f8) >> 3;
-				break;
-			case 0x00000002: /* ENUM */
-				if (data & 0x00000020)
-					engn = (data & 0x3c000000) >> 26;
-				if (data & 0x00000010)
-					runl = (data & 0x01e00000) >> 21;
-				if (data & 0x00000008)
-					intr = (data & 0x000f8000) >> 15;
-				if (data & 0x00000004)
-					mcen = (data & 0x00003e00) >> 9;
-				break;
-			case 0x00000003: /* ENGINE_TYPE */
-				type = (data & 0x7ffffffc) >> 2;
-				break;
-			}
-		} while ((data & 0x80000000) && ++i < 64);
-
-		if (!data)
-			continue;
-
+	/* Determine runlist configuration from topology device info. */
+	i = 0;
+	while ((int)(engidx = nvkm_top_engine(top, i++, &runl, &engn)) >= 0) {
 		/* Determine which PBDMA handles requests for this engine. */
-		for (j = 0; runl >= 0 && j < fifo->pbdma_nr; j++) {
+		for (j = 0, pbid = -1; j < fifo->pbdma_nr; j++) {
 			if (map[j] & (1 << runl)) {
 				pbid = j;
 				break;
 			}
 		}
 
-		/* Translate engine type to NVKM engine identifier. */
-		switch (type) {
-		case 0x00000000: engidx = NVKM_ENGINE_GR; break;
-		case 0x00000001: engidx = NVKM_ENGINE_CE0; break;
-		case 0x00000002: engidx = NVKM_ENGINE_CE1; break;
-		case 0x00000003: engidx = NVKM_ENGINE_CE2; break;
-		case 0x00000008: engidx = NVKM_ENGINE_MSPDEC; break;
-		case 0x00000009: engidx = NVKM_ENGINE_MSPPP; break;
-		case 0x0000000a: engidx = NVKM_ENGINE_MSVLD; break;
-		case 0x0000000b: engidx = NVKM_ENGINE_MSENC; break;
-		case 0x0000000c: engidx = NVKM_ENGINE_VIC; break;
-		case 0x0000000d: engidx = NVKM_ENGINE_SEC; break;
-		case 0x0000000e: engidx = NVKM_ENGINE_NVENC0; break;
-		case 0x0000000f: engidx = NVKM_ENGINE_NVENC1; break;
-		case 0x00000010: engidx = NVKM_ENGINE_NVDEC; break;
-			break;
-		default:
-			break;
-		}
+		nvkm_debug(subdev, "engine %2d: runlist %2d pbdma %2d\n",
+			   engn, runl, pbid);
 
-		nvkm_debug(subdev, "%02x (%8s): engine %2d runlist %2d "
-				   "pbdma %2d intr %2d reset %2d "
-				   "fault %2d addr %06x\n", type,
-			   engidx < 0 ? NULL : nvkm_subdev_name[engidx],
-			   engn, runl, pbid, intr, mcen, fault, addr);
-
-		/* Mark the engine as supported if everything checks out. */
-		if (engn >= 0 && runl >= 0) {
-			fifo->engine[engn].engine = engidx < 0 ? NULL :
-				nvkm_device_engine(device, engidx);
-			fifo->engine[engn].runl = runl;
-			fifo->engine[engn].pbid = pbid;
-			fifo->engine_nr = max(fifo->engine_nr, engn + 1);
-			fifo->runlist[runl].engm |= 1 << engn;
-			fifo->runlist_nr = max(fifo->runlist_nr, runl + 1);
-		}
+		fifo->engine[engn].engine = nvkm_device_engine(device, engidx);
+		fifo->engine[engn].runl = runl;
+		fifo->engine[engn].pbid = pbid;
+		fifo->engine_nr = max(fifo->engine_nr, engn + 1);
+		fifo->runlist[runl].engm |= 1 << engn;
+		fifo->runlist_nr = max(fifo->runlist_nr, runl + 1);
 	}
 
 	kfree(map);
