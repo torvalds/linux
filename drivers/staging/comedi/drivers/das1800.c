@@ -937,6 +937,19 @@ static int das1800_ai_cmd(struct comedi_device *dev,
 	return 0;
 }
 
+static int das1800_ai_eoc(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned long context)
+{
+	unsigned char status;
+
+	status = inb(dev->iobase + DAS1800_STATUS);
+	if (status & FNE)
+		return 0;
+	return -EBUSY;
+}
+
 static int das1800_ai_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
@@ -944,8 +957,8 @@ static int das1800_ai_insn_read(struct comedi_device *dev,
 {
 	unsigned int range = CR_RANGE(insn->chanspec);
 	bool is_unipolar = comedi_range_is_unipolar(s, range);
-	int i, n;
-	int timeout = 1000;
+	int ret = 0;
+	int n;
 	unsigned short dpnt;
 	unsigned long flags;
 
@@ -966,24 +979,19 @@ static int das1800_ai_insn_read(struct comedi_device *dev,
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
 		outb(0, dev->iobase + DAS1800_FIFO);
-		for (i = 0; i < timeout; i++) {
-			if (inb(dev->iobase + DAS1800_STATUS) & FNE)
-				break;
-		}
-		if (i == timeout) {
-			dev_err(dev->class_dev, "timeout\n");
-			n = -ETIME;
-			goto exit;
-		}
+
+		ret = comedi_timeout(dev, s, insn, das1800_ai_eoc, 0);
+		if (ret)
+			break;
+
 		dpnt = inw(dev->iobase + DAS1800_FIFO);
 		if (!is_unipolar)
 			dpnt = comedi_offset_munge(s, dpnt);
 		data[n] = dpnt;
 	}
-exit:
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	return n;
+	return ret ? ret : insn->n;
 }
 
 static int das1800_ao_insn_write(struct comedi_device *dev,
