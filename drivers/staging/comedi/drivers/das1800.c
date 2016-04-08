@@ -304,7 +304,7 @@ struct das1800_private {
 	/* dma bits for control register b, stored so that dma can be
 	 * turned on and off */
 	int dma_bits;
-	uint16_t *fifo_buf;	/* bounce buffer for analog input FIFO */
+	unsigned short *fifo_buf;
 	unsigned long iobase2;	/* secondary io address used for analog out on 'ao' boards */
 	bool ai_is_unipolar;
 };
@@ -1200,7 +1200,9 @@ static int das1800_attach(struct comedi_device *dev,
 	if (dev->irq & it->options[2])
 		das1800_init_dma(dev, it);
 
-	devpriv->fifo_buf = kmalloc_array(FIFO_SIZE, sizeof(uint16_t), GFP_KERNEL);
+	devpriv->fifo_buf = kmalloc_array(FIFO_SIZE,
+					  sizeof(*devpriv->fifo_buf),
+					  GFP_KERNEL);
 	if (!devpriv->fifo_buf)
 		return -ENOMEM;
 
