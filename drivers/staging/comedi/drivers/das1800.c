@@ -828,30 +828,33 @@ static void das1800_ai_setup_dma(struct comedi_device *dev,
 	}
 }
 
-/* programs channel/gain list into card */
-static void program_chanlist(struct comedi_device *dev,
-			     const struct comedi_cmd *cmd)
+static void das1800_ai_set_chanlist(struct comedi_device *dev,
+				    unsigned int *chanlist, unsigned int len)
 {
-	int i, n, chan_range;
-	unsigned long irq_flags;
-	const int range_mask = 0x3;	/* masks unipolar/bipolar bit off range */
-	const int range_bitshift = 8;
+	unsigned long flags;
+	unsigned int i;
 
-	n = cmd->chanlist_len;
-	/*  spinlock protects indirect addressing */
-	spin_lock_irqsave(&dev->spinlock, irq_flags);
-	outb(QRAM, dev->iobase + DAS1800_SELECT);	/* select QRAM for baseAddress + 0x0 */
-	outb(n - 1, dev->iobase + DAS1800_QRAM_ADDRESS);	/*set QRAM address start */
+	/* protects the indirect addressing selected by DAS1800_SELECT */
+	spin_lock_irqsave(&dev->spinlock, flags);
+
+	/* select QRAM register and set start address */
+	outb(QRAM, dev->iobase + DAS1800_SELECT);
+	outb(len - 1, dev->iobase + DAS1800_QRAM_ADDRESS);
+
 	/* make channel / gain list */
-	for (i = 0; i < n; i++) {
-		chan_range =
-		    CR_CHAN(cmd->chanlist[i]) |
-		    ((CR_RANGE(cmd->chanlist[i]) & range_mask) <<
-		     range_bitshift);
-		outw(chan_range, dev->iobase + DAS1800_QRAM);
+	for (i = 0; i < len; i++) {
+		unsigned int chan = CR_CHAN(chanlist[i]);
+		unsigned int range = CR_RANGE(chanlist[i]);
+		unsigned short val;
+
+		val = chan | ((range & 0x3) << 8);
+		outw(val, dev->iobase + DAS1800_QRAM);
 	}
-	outb(n - 1, dev->iobase + DAS1800_QRAM_ADDRESS);	/*finish write to QRAM */
-	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+
+	/* finish write to QRAM */
+	outb(len - 1, dev->iobase + DAS1800_QRAM_ADDRESS);
+
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
 static int das1800_ai_cmd(struct comedi_device *dev,
@@ -904,8 +907,7 @@ static int das1800_ai_cmd(struct comedi_device *dev,
 		control_c |= BMDE | XPCLK;
 	}
 
-	/* setup card and start */
-	program_chanlist(dev, cmd);
+	das1800_ai_set_chanlist(dev, cmd->chanlist, cmd->chanlist_len);
 
 	/* setup cascaded counters for conversion/scan frequency */
 	if ((cmd->scan_begin_src == TRIG_FOLLOW ||
@@ -940,14 +942,12 @@ static int das1800_ai_insn_read(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
 	bool is_unipolar = comedi_range_is_unipolar(s, range);
 	int i, n;
-	int chan_range;
 	int timeout = 1000;
 	unsigned short dpnt;
-	unsigned long irq_flags;
+	unsigned long flags;
 
 	outb(das1800_ai_chanspec_bits(s, insn->chanspec),
 	     dev->iobase + DAS1800_CONTROL_C);		/* software pacer */
@@ -955,13 +955,13 @@ static int das1800_ai_insn_read(struct comedi_device *dev,
 	outb(0x0, dev->iobase + DAS1800_CONTROL_A);	/* reset fifo */
 	outb(FFEN, dev->iobase + DAS1800_CONTROL_A);
 
-	chan_range = chan | ((range & 0x3) << 8);
-	spin_lock_irqsave(&dev->spinlock, irq_flags);
-	outb(QRAM, dev->iobase + DAS1800_SELECT);	/* select QRAM for baseAddress + 0x0 */
-	outb(0x0, dev->iobase + DAS1800_QRAM_ADDRESS);	/* set QRAM address start */
-	outw(chan_range, dev->iobase + DAS1800_QRAM);
-	outb(0x0, dev->iobase + DAS1800_QRAM_ADDRESS);	/*finish write to QRAM */
-	outb(ADC, dev->iobase + DAS1800_SELECT);	/* select ADC for baseAddress + 0x0 */
+	das1800_ai_set_chanlist(dev, &insn->chanspec, 1);
+
+	/* protects the indirect addressing selected by DAS1800_SELECT */
+	spin_lock_irqsave(&dev->spinlock, flags);
+
+	/* select ai fifo register */
+	outb(ADC, dev->iobase + DAS1800_SELECT);
 
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
@@ -981,7 +981,7 @@ static int das1800_ai_insn_read(struct comedi_device *dev,
 		data[n] = dpnt;
 	}
 exit:
-	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return n;
 }
