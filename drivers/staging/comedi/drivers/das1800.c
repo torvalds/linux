@@ -1,97 +1,63 @@
 /*
-    comedi/drivers/das1800.c
-    Driver for Keitley das1700/das1800 series boards
-    Copyright (C) 2000 Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Comedi driver for Keithley DAS-1700/DAS-1800 series boards
+ * Copyright (C) 2000 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: das1800
-Description: Keithley Metrabyte DAS1800 (& compatibles)
-Author: Frank Mori Hess <fmhess@users.sourceforge.net>
-Devices: [Keithley Metrabyte] DAS-1701ST (das-1701st),
-  DAS-1701ST-DA (das-1701st-da), DAS-1701/AO (das-1701ao),
-  DAS-1702ST (das-1702st), DAS-1702ST-DA (das-1702st-da),
-  DAS-1702HR (das-1702hr), DAS-1702HR-DA (das-1702hr-da),
-  DAS-1702/AO (das-1702ao), DAS-1801ST (das-1801st),
-  DAS-1801ST-DA (das-1801st-da), DAS-1801HC (das-1801hc),
-  DAS-1801AO (das-1801ao), DAS-1802ST (das-1802st),
-  DAS-1802ST-DA (das-1802st-da), DAS-1802HR (das-1802hr),
-  DAS-1802HR-DA (das-1802hr-da), DAS-1802HC (das-1802hc),
-  DAS-1802AO (das-1802ao)
-Status: works
-
-The waveform analog output on the 'ao' cards is not supported.
-If you need it, send me (Frank Hess) an email.
-
-Configuration options:
-  [0] - I/O port base address
-  [1] - IRQ (optional, required for timed or externally triggered conversions)
-  [2] - DMA0 (optional, requires irq)
-  [3] - DMA1 (optional, requires irq and dma0)
-*/
-/*
-
-This driver supports the following Keithley boards:
-
-das-1701st
-das-1701st-da
-das-1701ao
-das-1702st
-das-1702st-da
-das-1702hr
-das-1702hr-da
-das-1702ao
-das-1801st
-das-1801st-da
-das-1801hc
-das-1801ao
-das-1802st
-das-1802st-da
-das-1802hr
-das-1802hr-da
-das-1802hc
-das-1802ao
-
-Options:
-	[0] - base io address
-	[1] - irq (optional, required for timed or externally triggered conversions)
-	[2] - dma0 (optional, requires irq)
-	[3] - dma1 (optional, requires irq and dma0)
-
-irq can be omitted, although the cmd interface will not work without it.
-
-analog input cmd triggers supported:
-	start_src:      TRIG_NOW | TRIG_EXT
-	scan_begin_src: TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT
-	scan_end_src:   TRIG_COUNT
-	convert_src:    TRIG_TIMER | TRIG_EXT (TRIG_EXT requires scan_begin_src == TRIG_FOLLOW)
-	stop_src:       TRIG_COUNT | TRIG_EXT | TRIG_NONE
-
-scan_begin_src triggers TRIG_TIMER and TRIG_EXT use the card's
-'burst mode' which limits the valid conversion time to 64 microseconds
-(convert_arg <= 64000).  This limitation does not apply if scan_begin_src
-is TRIG_FOLLOW.
-
-NOTES:
-Only the DAS-1801ST has been tested by me.
-Unipolar and bipolar ranges cannot be mixed in the channel/gain list.
-
-TODO:
-	Make it automatically allocate irq and dma channels if they are not specified
-	Add support for analog out on 'ao' cards
-*/
+ * Driver: das1800
+ * Description: Keithley Metrabyte DAS1800 (& compatibles)
+ * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Devices: [Keithley Metrabyte] DAS-1701ST (das-1701st),
+ *   DAS-1701ST-DA (das-1701st-da), DAS-1701/AO (das-1701ao),
+ *   DAS-1702ST (das-1702st), DAS-1702ST-DA (das-1702st-da),
+ *   DAS-1702HR (das-1702hr), DAS-1702HR-DA (das-1702hr-da),
+ *   DAS-1702/AO (das-1702ao), DAS-1801ST (das-1801st),
+ *   DAS-1801ST-DA (das-1801st-da), DAS-1801HC (das-1801hc),
+ *   DAS-1801AO (das-1801ao), DAS-1802ST (das-1802st),
+ *   DAS-1802ST-DA (das-1802st-da), DAS-1802HR (das-1802hr),
+ *   DAS-1802HR-DA (das-1802hr-da), DAS-1802HC (das-1802hc),
+ *   DAS-1802AO (das-1802ao)
+ * Status: works
+ *
+ * Configuration options:
+ *   [0] - I/O port base address
+ *   [1] - IRQ (optional, required for analog input cmd support)
+ *   [2] - DMA0 (optional, requires irq)
+ *   [3] - DMA1 (optional, requires irq and dma0)
+ *
+ * analog input cmd triggers supported:
+ *   start_src:		TRIG_NOW | TRIG_EXT
+ *   scan_begin_src:	TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT
+ *   scan_end_src:	TRIG_COUNT
+ *   convert_src:	TRIG_TIMER | TRIG_EXT
+ *			(TRIG_EXT requires scan_begin_src == TRIG_FOLLOW)
+ *   stop_src:		TRIG_COUNT | TRIG_EXT | TRIG_NONE
+ *
+ * scan_begin_src triggers TRIG_TIMER and TRIG_EXT use the card's
+ * 'burst mode' which limits the valid conversion time to 64 microseconds
+ * (convert_arg <= 64000). This limitation does not apply if scan_begin_src
+ * is TRIG_FOLLOW.
+ *
+ * NOTES:
+ * Only the DAS-1801ST has been tested by me.
+ * Unipolar and bipolar ranges cannot be mixed in the channel/gain list.
+ *
+ * The waveform analog output on the 'ao' cards is not supported.
+ * If you need it, send me (Frank Hess) an email.
+ */
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
