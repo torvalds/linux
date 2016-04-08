@@ -1369,5 +1369,5 @@ static struct comedi_driver das1800_driver = {
 module_comedi_driver(das1800_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for DAS1800 compatible ISA boards");
 MODULE_LICENSE("GPL");
