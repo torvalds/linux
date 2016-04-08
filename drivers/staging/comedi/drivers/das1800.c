@@ -299,12 +299,10 @@ static const struct das1800_board das1800_boards[] = {
 
 struct das1800_private {
 	struct comedi_isadma *dma;
-	int irq_dma_bits;	/* bits for control register b */
-	/* dma bits for control register b, stored so that dma can be
-	 * turned on and off */
+	int irq_dma_bits;
 	int dma_bits;
 	unsigned short *fifo_buf;
-	unsigned long iobase2;	/* secondary io address used for analog out on 'ao' boards */
+	unsigned long iobase2;
 	bool ai_is_unipolar;
 };
 
