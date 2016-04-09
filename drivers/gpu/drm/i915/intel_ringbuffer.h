@@ -385,8 +385,9 @@ intel_ring_sync_index(struct intel_engine_cs *engine,
 static inline void
 intel_flush_status_page(struct intel_engine_cs *engine, int reg)
 {
-	drm_clflush_virt_range(&engine->status_page.page_addr[reg],
-			       sizeof(uint32_t));
+	mb();
+	clflush(&engine->status_page.page_addr[reg]);
+	mb();
 }
 
 static inline u32
