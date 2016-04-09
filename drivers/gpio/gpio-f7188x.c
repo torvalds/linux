@@ -15,7 +15,8 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
+#include <linux/bitops.h>
 
 #define DRVNAME "gpio-f7188x"
 
@@ -217,7 +218,7 @@ static int f7188x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 	superio_select(sio->addr, SIO_LD_GPIO);
 
 	dir = superio_inb(sio->addr, gpio_dir(bank->regbase));
-	dir &= ~(1 << offset);
+	dir &= ~BIT(offset);
 	superio_outb(sio->addr, gpio_dir(bank->regbase), dir);
 
 	superio_exit(sio->addr);
@@ -238,7 +239,7 @@ static int f7188x_gpio_get(struct gpio_chip *chip, unsigned offset)
 	superio_select(sio->addr, SIO_LD_GPIO);
 
 	dir = superio_inb(sio->addr, gpio_dir(bank->regbase));
-	dir = !!(dir & (1 << offset));
+	dir = !!(dir & BIT(offset));
 	if (dir)
 		data = superio_inb(sio->addr, gpio_data_out(bank->regbase));
 	else
@@ -246,7 +247,7 @@ static int f7188x_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 	superio_exit(sio->addr);
 
-	return !!(data & 1 << offset);
+	return !!(data & BIT(offset));
 }
 
 static int f7188x_gpio_direction_out(struct gpio_chip *chip,
@@ -264,13 +265,13 @@ static int f7188x_gpio_direction_out(struct gpio_chip *chip,
 
 	data_out = superio_inb(sio->addr, gpio_data_out(bank->regbase));
 	if (value)
-		data_out |= (1 << offset);
+		data_out |= BIT(offset);
 	else
-		data_out &= ~(1 << offset);
+		data_out &= ~BIT(offset);
 	superio_outb(sio->addr, gpio_data_out(bank->regbase), data_out);
 
 	dir = superio_inb(sio->addr, gpio_dir(bank->regbase));
-	dir |= (1 << offset);
+	dir |= BIT(offset);
 	superio_outb(sio->addr, gpio_dir(bank->regbase), dir);
 
 	superio_exit(sio->addr);
@@ -292,9 +293,9 @@ static void f7188x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 	data_out = superio_inb(sio->addr, gpio_data_out(bank->regbase));
 	if (value)
-		data_out |= (1 << offset);
+		data_out |= BIT(offset);
 	else
-		data_out &= ~(1 << offset);
+		data_out &= ~BIT(offset);
 	superio_outb(sio->addr, gpio_data_out(bank->regbase), data_out);
 
 	superio_exit(sio->addr);
