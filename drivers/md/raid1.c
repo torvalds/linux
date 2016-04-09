@@ -570,7 +570,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 			if (best_dist_disk < 0) {
 				if (is_badblock(rdev, this_sector, sectors,
 						&first_bad, &bad_sectors)) {
-					if (first_bad < this_sector)
+					if (first_bad <= this_sector)
 						/* Cannot use this */
 						continue;
 					best_good_sectors = first_bad - this_sector;
