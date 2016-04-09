@@ -1852,7 +1852,7 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 	return 0;
 }
 
-static u32 gen8_get_seqno(struct intel_engine_cs *engine, bool lazy_coherency)
+static u32 gen8_get_seqno(struct intel_engine_cs *engine)
 {
 	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);
 }
@@ -1862,10 +1862,8 @@ static void gen8_set_seqno(struct intel_engine_cs *engine, u32 seqno)
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
 }
 
-static u32 bxt_a_get_seqno(struct intel_engine_cs *engine,
-			   bool lazy_coherency)
+static void bxt_a_seqno_barrier(struct intel_engine_cs *engine)
 {
-
 	/*
 	 * On BXT A steppings there is a HW coherency issue whereby the
 	 * MI_STORE_DATA_IMM storing the completed request's seqno
@@ -1876,11 +1874,7 @@ static u32 bxt_a_get_seqno(struct intel_engine_cs *engine,
 	 * bxt_a_set_seqno(), where we also do a clflush after the write. So
 	 * this clflush in practice becomes an invalidate operation.
 	 */
-
-	if (!lazy_coherency)
-		intel_flush_status_page(engine, I915_GEM_HWS_INDEX);
-
-	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);
+	intel_flush_status_page(engine, I915_GEM_HWS_INDEX);
 }
 
 static void bxt_a_set_seqno(struct intel_engine_cs *engine, u32 seqno)
@@ -2058,12 +2052,11 @@ logical_ring_default_vfuncs(struct drm_device *dev,
 	engine->irq_get = gen8_logical_ring_get_irq;
 	engine->irq_put = gen8_logical_ring_put_irq;
 	engine->emit_bb_start = gen8_emit_bb_start;
+	engine->get_seqno = gen8_get_seqno;
+	engine->set_seqno = gen8_set_seqno;
 	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
-		engine->get_seqno = bxt_a_get_seqno;
+		engine->irq_seqno_barrier = bxt_a_seqno_barrier;
 		engine->set_seqno = bxt_a_set_seqno;
-	} else {
-		engine->get_seqno = gen8_get_seqno;
-		engine->set_seqno = gen8_set_seqno;
 	}
 }
 

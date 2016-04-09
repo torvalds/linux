@@ -193,8 +193,8 @@ struct  intel_engine_cs {
 	 * seen value is good enough. Note that the seqno will always be
 	 * monotonic, even if not coherent.
 	 */
-	u32		(*get_seqno)(struct intel_engine_cs *ring,
-				     bool lazy_coherency);
+	void		(*irq_seqno_barrier)(struct intel_engine_cs *ring);
+	u32		(*get_seqno)(struct intel_engine_cs *ring);
 	void		(*set_seqno)(struct intel_engine_cs *ring,
 				     u32 seqno);
 	int		(*dispatch_execbuffer)(struct drm_i915_gem_request *req,

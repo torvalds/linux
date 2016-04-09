@@ -3017,15 +3017,19 @@ i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 static inline bool i915_gem_request_started(struct drm_i915_gem_request *req,
 					   bool lazy_coherency)
 {
-	u32 seqno = req->engine->get_seqno(req->engine, lazy_coherency);
-	return i915_seqno_passed(seqno, req->previous_seqno);
+	if (!lazy_coherency && req->engine->irq_seqno_barrier)
+		req->engine->irq_seqno_barrier(req->engine);
+	return i915_seqno_passed(req->engine->get_seqno(req->engine),
+				 req->previous_seqno);
 }
 
 static inline bool i915_gem_request_completed(struct drm_i915_gem_request *req,
 					      bool lazy_coherency)
 {
-	u32 seqno = req->engine->get_seqno(req->engine, lazy_coherency);
-	return i915_seqno_passed(seqno, req->seqno);
+	if (!lazy_coherency && req->engine->irq_seqno_barrier)
+		req->engine->irq_seqno_barrier(req->engine);
+	return i915_seqno_passed(req->engine->get_seqno(req->engine),
+				 req->seqno);
 }
 
 int __must_check i915_gem_get_seqno(struct drm_device *dev, u32 *seqno);
