@@ -137,7 +137,7 @@ struct sock *inet6_lookup_listener(struct net *net,
 	sk_for_each(sk, &ilb->head) {
 		score = compute_score(sk, net, hnum, daddr, dif);
 		if (score > hiscore) {
-			hiscore = score;
+			reuseport = sk->sk_reuseport;
 			if (reuseport) {
 				phash = inet6_ehashfn(net, daddr, hnum,
 						      saddr, sport);
@@ -148,7 +148,7 @@ struct sock *inet6_lookup_listener(struct net *net,
 				matches = 1;
 			}
 			result = sk;
-			reuseport = sk->sk_reuseport;
+			hiscore = score;
 		} else if (score == hiscore && reuseport) {
 			matches++;
 			if (reciprocal_scale(phash, matches) == 0)
