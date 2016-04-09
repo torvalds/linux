@@ -40,7 +40,7 @@ static inline long access_ok(int type, const void __user * addr,
 #define get_user __get_user
 
 #if !defined(CONFIG_64BIT)
-#define LDD_USER(ptr)		BUILD_BUG()
+#define LDD_USER(ptr)		__get_user_asm64(ptr)
 #define STD_USER(x, ptr)	__put_user_asm64(x, ptr)
 #else
 #define LDD_USER(ptr)		__get_user_asm("ldd", ptr)
@@ -113,6 +113,20 @@ struct exception_data {
 		: "=r"(__gu_val), "=r"(__gu_err)        \
 		: "r"(ptr), "1"(__gu_err)		\
 		: "r1");
+
+#if !defined(CONFIG_64BIT)
+
+#define __get_user_asm64(ptr) 				\
+	__asm__("\n1:\tldw 0(%%sr2,%2),%0"		\
+		"\n2:\tldw 4(%%sr2,%2),%R0\n\t"		\
+		ASM_EXCEPTIONTABLE_ENTRY(1b, fixup_get_user_skip_2)\
+		ASM_EXCEPTIONTABLE_ENTRY(2b, fixup_get_user_skip_1)\
+		: "=r"(__gu_val), "=r"(__gu_err)	\
+		: "r"(ptr), "1"(__gu_err)		\
+		: "r1");
+
+#endif /* !defined(CONFIG_64BIT) */
+
 
 #define __put_user(x, ptr)                                      \
 ({								\
