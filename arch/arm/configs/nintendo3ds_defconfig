@@ -1109,7 +1109,7 @@ CONFIG_BCMA_POSSIBLE=y
 #
 # Multifunction device drivers
 #
-# CONFIG_MFD_CORE is not set
+CONFIG_MFD_CORE=y
 # CONFIG_MFD_ACT8945A is not set
 # CONFIG_MFD_AS3711 is not set
 # CONFIG_MFD_AS3722 is not set
@@ -1130,6 +1130,7 @@ CONFIG_BCMA_POSSIBLE=y
 # CONFIG_MFD_DA9150 is not set
 # CONFIG_MFD_MC13XXX_SPI is not set
 # CONFIG_MFD_MC13XXX_I2C is not set
+CONFIG_MFD_NINTENDO3DS_MCU=y
 # CONFIG_MFD_HI6421_PMIC is not set
 # CONFIG_HTC_EGPIO is not set
 # CONFIG_HTC_PASIC3 is not set

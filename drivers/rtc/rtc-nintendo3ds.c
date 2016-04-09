@@ -9,47 +9,32 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/i2c.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
-#include <linux/module.h>
-#include <linux/of.h>
+#include <linux/mfd/nintendo3ds-mcu.h>
 
-#define NINTENDO3DS_RTC_REGISTER 0x30
+struct nintendo3ds_rtc {
+	struct nintendo3ds_mcu_dev *mcu;
+	struct rtc_device *rtc_dev;
+};
 
-static struct i2c_driver nintendo3ds_rtc_driver;
+static struct platform_driver nintendo3ds_rtc_driver;
 
 static int nintendo3ds_rtc_get_time(struct device *dev, struct rtc_time *tm)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	u8 buf[8];
-	u8 reg = NINTENDO3DS_RTC_REGISTER;
+	struct nintendo3ds_rtc *n3ds_rtc = dev_get_drvdata(dev);
+	struct nintendo3ds_mcu_dev *mcu = n3ds_rtc->mcu;
+	u8 buf[7];
 
-	struct i2c_msg msgs[] = {
-		{
-			.addr = client->addr,
-			.len = sizeof(reg),
-			.buf = &reg
-		},
-		{
-			.addr = client->addr,
-			.flags = I2C_M_RD,
-			.len = sizeof(buf),
-			.buf = buf
-		},
-	};
-
-	if ((i2c_transfer(client->adapter, &msgs[0], 2)) != 2) {
-		dev_err(&client->dev, "%s: read error\n", __func__);
-		return -EIO;
-	}
+	mcu->read_device(mcu, NINTENDO3DS_MCU_REG_RTC, sizeof(buf), buf);
 
 	tm->tm_sec	= bcd2bin(buf[0]);
 	tm->tm_min	= (bcd2bin(buf[1]) + 30) % 60;
 	tm->tm_hour	= (bcd2bin(buf[2]) + 5) % 24;
-	tm->tm_mday	= 1; /* Hardcoded for now :( */
-	tm->tm_wday	= bcd2bin(buf[5]);
-	tm->tm_mon	= 0; /* Hardcoded for now :( */
+	tm->tm_mday	= (bcd2bin(buf[4]) - 7) % 31;;
+	tm->tm_mon	= (bcd2bin(buf[5]) + 1) % 12;
 	tm->tm_year	= bcd2bin(buf[6]) + 110;
 
 	return 0;
@@ -59,49 +44,33 @@ static const struct rtc_class_ops nintendo3ds_rtc_ops = {
 	.read_time	= nintendo3ds_rtc_get_time
 };
 
-static int nintendo3ds_rtc_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int nintendo3ds_rtc_probe(struct platform_device *pdev)
 {
-	struct rtc_device *rtc;
+	struct nintendo3ds_rtc *n3ds_rtc;
+	struct nintendo3ds_mcu_dev *mcu_dev = dev_get_drvdata(pdev->dev.parent);
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+	n3ds_rtc = devm_kzalloc(&pdev->dev, sizeof(struct nintendo3ds_rtc),
+				GFP_KERNEL);
 
-	rtc = devm_rtc_device_register(&client->dev,
+	platform_set_drvdata(pdev, n3ds_rtc);
+
+	n3ds_rtc->mcu = mcu_dev;
+	n3ds_rtc->rtc_dev = devm_rtc_device_register(&pdev->dev,
 		nintendo3ds_rtc_driver.driver.name,
 		&nintendo3ds_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
-
-	i2c_set_clientdata(client, rtc);
+	if (IS_ERR(n3ds_rtc->rtc_dev))
+		return PTR_ERR(n3ds_rtc->rtc_dev);
 
 	return 0;
 }
 
-static struct i2c_device_id nintendo3ds_rtc_id[] = {
-	{ "nintendo3ds-rtc", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, nintendo3ds_rtc_id);
-
-#ifdef CONFIG_OF
-static const struct of_device_id nintendo3ds_rtc_of_match[] = {
-	{ .compatible = "nintendo3ds,nintendo3ds-rtc", },
-	{}
-};
-MODULE_DEVICE_TABLE(of, nintendo3ds_rtc_of_match);
-#endif
-
-static struct i2c_driver nintendo3ds_rtc_driver = {
+static struct platform_driver nintendo3ds_rtc_driver = {
 	.driver = {
-		.name = "rtc-nintendo3ds",
-		.of_match_table = of_match_ptr(nintendo3ds_rtc_of_match),
+		.name = "nintendo3ds-rtc",
 	},
-	.probe		= nintendo3ds_rtc_probe,
-	.id_table	= nintendo3ds_rtc_id,
+	.probe = nintendo3ds_rtc_probe,
 };
-
-module_i2c_driver(nintendo3ds_rtc_driver);
+module_platform_driver(nintendo3ds_rtc_driver);
 
 MODULE_DESCRIPTION("Nintendo 3DS I2C bus driver");
 MODULE_AUTHOR("Sergi Granell, <xerpi.g.12@gmail.com>");

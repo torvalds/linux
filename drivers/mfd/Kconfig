@@ -306,6 +306,13 @@ config MFD_MX25_TSADC
 	  i.MX25 processors. They consist of a conversion queue for general
 	  purpose ADC and a queue for Touchscreens.
 
+config MFD_NINTENDO3DS_MCU
+	tristate "Nintendo 3DS MCU"
+	depends on ARCH_NINTENDO3DS
+	select MFD_CORE
+	help
+	  Enable support for Nintendo 3DS MCU.
+
 config MFD_HI6421_PMIC
 	tristate "HiSilicon Hi6421 PMU/Codec IC"
 	depends on OF

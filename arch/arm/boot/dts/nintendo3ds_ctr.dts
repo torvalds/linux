@@ -72,9 +72,16 @@
 		compatible = "nintendo3ds,nintendo3ds-i2c";
 		reg = <0x10144000 0x06>;
 
-		rtc@4A {
-			compatible = "nintendo3ds,nintendo3ds-rtc";
+		mcu@4A {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "nintendo3ds,nintendo3ds-mcu";
 			reg = <0x4A>;
+
+			rtc@30 {
+				compatible = "nintendo3ds,nintendo3ds-rtc";
+				reg = <0x30>;
+			};
 		};
 	};
 
