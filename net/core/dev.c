@@ -2831,7 +2831,7 @@ netdev_features_t netif_skb_features(struct sk_buff *skb)
 	netdev_features_t features = dev->features;
 	u16 gso_segs = skb_shinfo(skb)->gso_segs;
 
-	if (gso_segs > dev->gso_max_segs || gso_segs < dev->gso_min_segs)
+	if (gso_segs > dev->gso_max_segs)
 		features &= ~NETIF_F_GSO_MASK;
 
 	/* If encapsulation offload request, verify we are testing
@@ -7429,7 +7429,6 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 	dev->gso_max_size = GSO_MAX_SIZE;
 	dev->gso_max_segs = GSO_MAX_SEGS;
-	dev->gso_min_segs = 0;
 
 	INIT_LIST_HEAD(&dev->napi_list);
 	INIT_LIST_HEAD(&dev->unreg_list);
