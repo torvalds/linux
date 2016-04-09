@@ -1037,14 +1037,14 @@ static bool vxlan_group_used(struct vxlan_net *vn, struct vxlan_dev *dev)
 	return false;
 }
 
-static void __vxlan_sock_release(struct vxlan_sock *vs)
+static bool __vxlan_sock_release_prep(struct vxlan_sock *vs)
 {
 	struct vxlan_net *vn;
 
 	if (!vs)
-		return;
+		return false;
 	if (!atomic_dec_and_test(&vs->refcnt))
-		return;
+		return false;
 
 	vn = net_generic(sock_net(vs->sock->sk), vxlan_net_id);
 	spin_lock(&vn->sock_lock);
@@ -1052,16 +1052,28 @@ static void __vxlan_sock_release(struct vxlan_sock *vs)
 	vxlan_notify_del_rx_port(vs);
 	spin_unlock(&vn->sock_lock);
 
-	synchronize_net();
-	udp_tunnel_sock_release(vs->sock);
-	kfree(vs);
+	return true;
 }
 
 static void vxlan_sock_release(struct vxlan_dev *vxlan)
 {
-	__vxlan_sock_release(vxlan->vn4_sock);
+	bool ipv4 = __vxlan_sock_release_prep(vxlan->vn4_sock);
 #if IS_ENABLED(CONFIG_IPV6)
-	__vxlan_sock_release(vxlan->vn6_sock);
+	bool ipv6 = __vxlan_sock_release_prep(vxlan->vn6_sock);
+#endif
+
+	synchronize_net();
+
+	if (ipv4) {
+		udp_tunnel_sock_release(vxlan->vn4_sock->sock);
+		kfree(vxlan->vn4_sock);
+	}
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (ipv6) {
+		udp_tunnel_sock_release(vxlan->vn6_sock->sock);
+		kfree(vxlan->vn6_sock);
+	}
 #endif
 }
 
