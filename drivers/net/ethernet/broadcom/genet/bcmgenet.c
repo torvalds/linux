@@ -1735,7 +1735,7 @@ static int bcmgenet_rx_poll(struct napi_struct *napi, int budget)
 	work_done = bcmgenet_desc_rx(ring, budget);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		ring->int_enable(ring);
 	}
 
