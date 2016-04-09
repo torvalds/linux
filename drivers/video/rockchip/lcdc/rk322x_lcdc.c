@@ -1516,8 +1516,8 @@ static int vop_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 			val = V_WIN2_VIR_STRIDE0(win->area[0].y_vir_stride);
 			vop_msk_reg(vop_dev, WIN2_VIR0_1 + off, val);
 
-			val = V_WIN2_DSP_WIDTH0(win->area[0].xsize) |
-			    V_WIN2_DSP_HEIGHT0(win->area[0].ysize);
+			val = V_WIN2_DSP_WIDTH0(win->area[0].xsize - 1) |
+			    V_WIN2_DSP_HEIGHT0(win->area[0].ysize - 1);
 			vop_writel(vop_dev, WIN2_DSP_INFO0 + off, val);
 			val = V_WIN2_DSP_XST0(win->area[0].dsp_stx) |
 			    V_WIN2_DSP_YST0(win->area[0].dsp_sty);
@@ -1536,8 +1536,8 @@ static int vop_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 			val = V_WIN2_VIR_STRIDE1(win->area[1].y_vir_stride);
 			vop_msk_reg(vop_dev, WIN2_VIR0_1 + off, val);
 
-			val = V_WIN2_DSP_WIDTH1(win->area[1].xsize) |
-			    V_WIN2_DSP_HEIGHT1(win->area[1].ysize);
+			val = V_WIN2_DSP_WIDTH1(win->area[1].xsize - 1) |
+			    V_WIN2_DSP_HEIGHT1(win->area[1].ysize - 1);
 			vop_writel(vop_dev, WIN2_DSP_INFO1 + off, val);
 			val = V_WIN2_DSP_XST1(win->area[1].dsp_stx) |
 			    V_WIN2_DSP_YST1(win->area[1].dsp_sty);
@@ -1556,8 +1556,8 @@ static int vop_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 			val = V_WIN2_VIR_STRIDE2(win->area[2].y_vir_stride);
 			vop_msk_reg(vop_dev, WIN2_VIR2_3 + off, val);
 
-			val = V_WIN2_DSP_WIDTH2(win->area[2].xsize) |
-			    V_WIN2_DSP_HEIGHT2(win->area[2].ysize);
+			val = V_WIN2_DSP_WIDTH2(win->area[2].xsize - 1) |
+			    V_WIN2_DSP_HEIGHT2(win->area[2].ysize - 1);
 			vop_writel(vop_dev, WIN2_DSP_INFO2 + off, val);
 			val = V_WIN2_DSP_XST2(win->area[2].dsp_stx) |
 			    V_WIN2_DSP_YST2(win->area[2].dsp_sty);
@@ -1576,8 +1576,8 @@ static int vop_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 			val = V_WIN2_VIR_STRIDE3(win->area[3].y_vir_stride);
 			vop_msk_reg(vop_dev, WIN2_VIR2_3 + off, val);
 
-			val = V_WIN2_DSP_WIDTH3(win->area[3].xsize) |
-			    V_WIN2_DSP_HEIGHT3(win->area[3].ysize);
+			val = V_WIN2_DSP_WIDTH3(win->area[3].xsize - 1) |
+			    V_WIN2_DSP_HEIGHT3(win->area[3].ysize - 1);
 			vop_writel(vop_dev, WIN2_DSP_INFO3 + off, val);
 			val = V_WIN2_DSP_XST3(win->area[3].dsp_stx) |
 			    V_WIN2_DSP_YST3(win->area[3].dsp_sty);
