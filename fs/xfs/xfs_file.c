@@ -106,8 +106,8 @@ xfs_iozero(
 		unsigned offset, bytes;
 		void *fsdata;
 
-		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
-		bytes = PAGE_CACHE_SIZE - offset;
+		offset = (pos & (PAGE_SIZE -1)); /* Within page */
+		bytes = PAGE_SIZE - offset;
 		if (bytes > count)
 			bytes = count;
 
@@ -799,8 +799,8 @@ xfs_file_dio_aio_write(
 	/* see generic_file_direct_write() for why this is necessary */
 	if (mapping->nrpages) {
 		invalidate_inode_pages2_range(mapping,
-					      pos >> PAGE_CACHE_SHIFT,
-					      end >> PAGE_CACHE_SHIFT);
+					      pos >> PAGE_SHIFT,
+					      end >> PAGE_SHIFT);
 	}
 
 	if (ret > 0) {
@@ -1207,9 +1207,9 @@ xfs_find_get_desired_pgoff(
 
 	pagevec_init(&pvec, 0);
 
-	index = startoff >> PAGE_CACHE_SHIFT;
+	index = startoff >> PAGE_SHIFT;
 	endoff = XFS_FSB_TO_B(mp, map->br_startoff + map->br_blockcount);
-	end = endoff >> PAGE_CACHE_SHIFT;
+	end = endoff >> PAGE_SHIFT;
 	do {
 		int		want;
 		unsigned	nr_pages;

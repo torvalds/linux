@@ -241,32 +241,28 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 
 int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 {
-	struct amdgpu_ring *ring = &adev->uvd.ring;
-	int i, r;
+	unsigned size;
+	void *ptr;
+	int i;
 
 	if (adev->uvd.vcpu_bo == NULL)
 		return 0;
 
-	for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
-		uint32_t handle = atomic_read(&adev->uvd.handles[i]);
-		if (handle != 0) {
-			struct fence *fence;
+	for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i)
+		if (atomic_read(&adev->uvd.handles[i]))
+			break;
 
-			amdgpu_uvd_note_usage(adev);
+	if (i == AMDGPU_MAX_UVD_HANDLES)
+		return 0;
 
-			r = amdgpu_uvd_get_destroy_msg(ring, handle, false, &fence);
-			if (r) {
-				DRM_ERROR("Error destroying UVD (%d)!\n", r);
-				continue;
-			}
+	size = amdgpu_bo_size(adev->uvd.vcpu_bo);
+	ptr = adev->uvd.cpu_addr;
 
-			fence_wait(fence, false);
-			fence_put(fence);
+	adev->uvd.saved_bo = kmalloc(size, GFP_KERNEL);
+	if (!adev->uvd.saved_bo)
+		return -ENOMEM;
 
-			adev->uvd.filp[i] = NULL;
-			atomic_set(&adev->uvd.handles[i], 0);
-		}
-	}
+	memcpy(adev->uvd.saved_bo, ptr, size);
 
 	return 0;
 }
@@ -275,23 +271,29 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 {
 	unsigned size;
 	void *ptr;
-	const struct common_firmware_header *hdr;
-	unsigned offset;
 
 	if (adev->uvd.vcpu_bo == NULL)
 		return -EINVAL;
 
-	hdr = (const struct common_firmware_header *)adev->uvd.fw->data;
-	offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
-	memcpy(adev->uvd.cpu_addr, (adev->uvd.fw->data) + offset,
-		(adev->uvd.fw->size) - offset);
-
 	size = amdgpu_bo_size(adev->uvd.vcpu_bo);
-	size -= le32_to_cpu(hdr->ucode_size_bytes);
 	ptr = adev->uvd.cpu_addr;
-	ptr += le32_to_cpu(hdr->ucode_size_bytes);
 
-	memset(ptr, 0, size);
+	if (adev->uvd.saved_bo != NULL) {
+		memcpy(ptr, adev->uvd.saved_bo, size);
+		kfree(adev->uvd.saved_bo);
+		adev->uvd.saved_bo = NULL;
+	} else {
+		const struct common_firmware_header *hdr;
+		unsigned offset;
+
+		hdr = (const struct common_firmware_header *)adev->uvd.fw->data;
+		offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
+		memcpy(adev->uvd.cpu_addr, (adev->uvd.fw->data) + offset,
+			(adev->uvd.fw->size) - offset);
+		size -= le32_to_cpu(hdr->ucode_size_bytes);
+		ptr += le32_to_cpu(hdr->ucode_size_bytes);
+		memset(ptr, 0, size);
+	}
 
 	return 0;
 }

@@ -381,7 +381,7 @@ static int ntfs_check_and_load_restart_page(struct inode *vi,
 	 * completely inside @rp, just copy it from there.  Otherwise map all
 	 * the required pages and copy the data from them.
 	 */
-	size = PAGE_CACHE_SIZE - (pos & ~PAGE_CACHE_MASK);
+	size = PAGE_SIZE - (pos & ~PAGE_MASK);
 	if (size >= le32_to_cpu(rp->system_page_size)) {
 		memcpy(trp, rp, le32_to_cpu(rp->system_page_size));
 	} else {
@@ -394,8 +394,8 @@ static int ntfs_check_and_load_restart_page(struct inode *vi,
 		/* Copy the remaining data one page at a time. */
 		have_read = size;
 		to_read = le32_to_cpu(rp->system_page_size) - size;
-		idx = (pos + size) >> PAGE_CACHE_SHIFT;
-		BUG_ON((pos + size) & ~PAGE_CACHE_MASK);
+		idx = (pos + size) >> PAGE_SHIFT;
+		BUG_ON((pos + size) & ~PAGE_MASK);
 		do {
 			page = ntfs_map_page(vi->i_mapping, idx);
 			if (IS_ERR(page)) {
@@ -406,7 +406,7 @@ static int ntfs_check_and_load_restart_page(struct inode *vi,
 					err = -EIO;
 				goto err_out;
 			}
-			size = min_t(int, to_read, PAGE_CACHE_SIZE);
+			size = min_t(int, to_read, PAGE_SIZE);
 			memcpy((u8*)trp + have_read, page_address(page), size);
 			ntfs_unmap_page(page);
 			have_read += size;
@@ -509,11 +509,11 @@ bool ntfs_check_logfile(struct inode *log_vi, RESTART_PAGE_HEADER **rp)
 	 * log page size if the page cache size is between the default log page
 	 * size and twice that.
 	 */
-	if (PAGE_CACHE_SIZE >= DefaultLogPageSize && PAGE_CACHE_SIZE <=
+	if (PAGE_SIZE >= DefaultLogPageSize && PAGE_SIZE <=
 			DefaultLogPageSize * 2)
 		log_page_size = DefaultLogPageSize;
 	else
-		log_page_size = PAGE_CACHE_SIZE;
+		log_page_size = PAGE_SIZE;
 	log_page_mask = log_page_size - 1;
 	/*
 	 * Use ntfs_ffs() instead of ffs() to enable the compiler to
@@ -539,7 +539,7 @@ bool ntfs_check_logfile(struct inode *log_vi, RESTART_PAGE_HEADER **rp)
 	 * to be empty.
 	 */
 	for (pos = 0; pos < size; pos <<= 1) {
-		pgoff_t idx = pos >> PAGE_CACHE_SHIFT;
+		pgoff_t idx = pos >> PAGE_SHIFT;
 		if (!page || page->index != idx) {
 			if (page)
 				ntfs_unmap_page(page);
@@ -550,7 +550,7 @@ bool ntfs_check_logfile(struct inode *log_vi, RESTART_PAGE_HEADER **rp)
 				goto err_out;
 			}
 		}
-		kaddr = (u8*)page_address(page) + (pos & ~PAGE_CACHE_MASK);
+		kaddr = (u8*)page_address(page) + (pos & ~PAGE_MASK);
 		/*
 		 * A non-empty block means the logfile is not empty while an
 		 * empty block after a non-empty block has been encountered

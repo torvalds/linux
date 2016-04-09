@@ -1237,7 +1237,7 @@ xfs_free_file_space(
 	/* wait for the completion of any pending DIOs */
 	inode_dio_wait(VFS_I(ip));
 
-	rounding = max_t(xfs_off_t, 1 << mp->m_sb.sb_blocklog, PAGE_CACHE_SIZE);
+	rounding = max_t(xfs_off_t, 1 << mp->m_sb.sb_blocklog, PAGE_SIZE);
 	ioffset = round_down(offset, rounding);
 	iendoffset = round_up(offset + len, rounding) - 1;
 	error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping, ioffset,
@@ -1466,7 +1466,7 @@ xfs_shift_file_space(
 	if (error)
 		return error;
 	error = invalidate_inode_pages2_range(VFS_I(ip)->i_mapping,
-					offset >> PAGE_CACHE_SHIFT, -1);
+					offset >> PAGE_SHIFT, -1);
 	if (error)
 		return error;
 

@@ -431,7 +431,6 @@ struct ieee80211_sta_rx_stats {
  * @uploaded: set to true when sta is uploaded to the driver
  * @sta: station information we share with the driver
  * @sta_state: duplicates information about station state (for debug)
- * @beacon_loss_count: number of times beacon loss has triggered
  * @rcu_head: RCU head used for freeing this station struct
  * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
  *	taken from HT/VHT capabilities or VHT operating mode notification
