@@ -1000,6 +1000,7 @@ static void notify_ring(struct intel_engine_cs *engine)
 		return;
 
 	trace_i915_gem_request_notify(engine);
+	engine->user_interrupts++;
 
 	wake_up_all(&engine->irq_queue);
 }
@@ -3054,6 +3055,24 @@ ring_stuck(struct intel_engine_cs *engine, u64 acthd)
 	return HANGCHECK_HUNG;
 }
 
+static unsigned kick_waiters(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *i915 = to_i915(engine->dev);
+	unsigned user_interrupts = READ_ONCE(engine->user_interrupts);
+
+	if (engine->hangcheck.user_interrupts == user_interrupts &&
+	    !test_and_set_bit(engine->id, &i915->gpu_error.missed_irq_rings)) {
+		if (!(i915->gpu_error.test_irq_rings & intel_engine_flag(engine)))
+			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
+				  engine->name);
+		else
+			DRM_INFO("Fake missed irq on %s\n",
+				 engine->name);
+		wake_up_all(&engine->irq_queue);
+	}
+
+	return user_interrupts;
+}
 /*
  * This is called when the chip hasn't reported back with completed
  * batchbuffers in a long time. We keep track per ring seqno progress and
@@ -3096,6 +3115,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	for_each_engine_id(engine, dev_priv, id) {
 		u64 acthd;
 		u32 seqno;
+		unsigned user_interrupts;
 		bool busy = true;
 
 		semaphore_clear_deadlocks(dev_priv);
@@ -3113,22 +3133,15 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		acthd = intel_ring_get_active_head(engine);
 		seqno = engine->get_seqno(engine);
 
+		/* Reset stuck interrupts between batch advances */
+		user_interrupts = 0;
+
 		if (engine->hangcheck.seqno == seqno) {
 			if (ring_idle(engine, seqno)) {
 				engine->hangcheck.action = HANGCHECK_IDLE;
-
 				if (waitqueue_active(&engine->irq_queue)) {
-					/* Issue a wake-up to catch stuck h/w. */
-					if (!test_and_set_bit(engine->id, &dev_priv->gpu_error.missed_irq_rings)) {
-						if (!(dev_priv->gpu_error.test_irq_rings & intel_engine_flag(engine)))
-							DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
-								  engine->name);
-						else
-							DRM_INFO("Fake missed irq on %s\n",
-								 engine->name);
-						wake_up_all(&engine->irq_queue);
-					}
 					/* Safeguard against driver failure */
+					user_interrupts = kick_waiters(engine);
 					engine->hangcheck.score += BUSY;
 				} else
 					busy = false;
@@ -3179,7 +3192,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 				engine->hangcheck.score = 0;
 
 			/* Clear head and subunit states on seqno movement */
-			engine->hangcheck.acthd = 0;
+			acthd = 0;
 
 			memset(engine->hangcheck.instdone, 0,
 			       sizeof(engine->hangcheck.instdone));
@@ -3187,6 +3200,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 
 		engine->hangcheck.seqno = seqno;
 		engine->hangcheck.acthd = acthd;
+		engine->hangcheck.user_interrupts = user_interrupts;
 		busy_count += busy;
 	}
 
