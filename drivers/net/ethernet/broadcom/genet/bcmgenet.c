@@ -2493,7 +2493,7 @@ static irqreturn_t bcmgenet_isr1(int irq, void *dev_id)
 
 		if (likely(napi_schedule_prep(&rx_ring->napi))) {
 			rx_ring->int_disable(rx_ring);
-			__napi_schedule(&rx_ring->napi);
+			__napi_schedule_irqoff(&rx_ring->napi);
 		}
 	}
 
@@ -2506,7 +2506,7 @@ static irqreturn_t bcmgenet_isr1(int irq, void *dev_id)
 
 		if (likely(napi_schedule_prep(&tx_ring->napi))) {
 			tx_ring->int_disable(tx_ring);
-			__napi_schedule(&tx_ring->napi);
+			__napi_schedule_irqoff(&tx_ring->napi);
 		}
 	}
 
@@ -2536,7 +2536,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 
 		if (likely(napi_schedule_prep(&rx_ring->napi))) {
 			rx_ring->int_disable(rx_ring);
-			__napi_schedule(&rx_ring->napi);
+			__napi_schedule_irqoff(&rx_ring->napi);
 		}
 	}
 
@@ -2545,7 +2545,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 
 		if (likely(napi_schedule_prep(&tx_ring->napi))) {
 			tx_ring->int_disable(tx_ring);
-			__napi_schedule(&tx_ring->napi);
+			__napi_schedule_irqoff(&tx_ring->napi);
 		}
 	}
 
