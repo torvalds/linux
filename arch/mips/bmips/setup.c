@@ -116,6 +116,7 @@ static const struct bmips_quirk bmips_quirk_list[] = {
 	{ "brcm,bcm6358",		&bcm6358_quirks			},
 	{ "brcm,bcm6368",		&bcm6368_quirks			},
 	{ "brcm,bcm63168",		&bcm6368_quirks			},
+	{ "brcm,bcm63268",		&bcm6368_quirks			},
 	{ },
 };
 
