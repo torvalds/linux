@@ -26,6 +26,10 @@ static const struct mfd_cell nintendo3ds_mcu_devs[] = {
 		.name = "nintendo3ds-rtc",
 		.of_compatible = "nintendo3ds,nintendo3ds-rtc"
 	},
+	{
+		.name = "nintendo3ds-powercontrol",
+		.of_compatible = "nintendo3ds,nintendo3ds-powercontrol"
+	},
 };
 
 static int nintendo3ds_mcu_i2c_read_device(struct nintendo3ds_mcu_dev *nintendo3ds_mcu, char reg,

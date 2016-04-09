@@ -78,6 +78,11 @@
 			compatible = "nintendo3ds,nintendo3ds-mcu";
 			reg = <0x4A>;
 
+			powercontrol@20 {
+				compatible = "nintendo3ds,nintendo3ds-powercontrol";
+				reg = <020>;
+			};
+
 			rtc@30 {
 				compatible = "nintendo3ds,nintendo3ds-rtc";
 				reg = <0x30>;

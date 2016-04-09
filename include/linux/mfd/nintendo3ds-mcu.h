@@ -16,6 +16,7 @@
 
 
 /* MCU register map */
+#define NINTENDO3DS_MCU_REG_PWRCTL	0x20
 #define NINTENDO3DS_MCU_REG_RTC		0x30
 
 

@@ -86,6 +86,12 @@ config POWER_RESET_MSM
 	help
 	  Power off and restart support for Qualcomm boards.
 
+config POWER_RESET_NINTENDO3DS
+	bool "Nintendo 3DS power-off driver"
+	depends on ARCH_NINTENDO3DS
+	help
+	  Power off and restart support for the Nintendo 3DS.
+
 config POWER_RESET_LTC2952
 	bool "LTC2952 PowerPath power-off driver"
 	depends on OF_GPIO
