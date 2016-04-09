@@ -73,10 +73,6 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *prefix,
 		     "%s: prefix %s name %s, buffer_size %zd\n",
 		     __func__, prefix, name, size);
 
-	if (name == NULL || (size > 0 && buffer == NULL)) {
-		gossip_err("orangefs_inode_getxattr: bogus NULL pointers\n");
-		return -EINVAL;
-	}
 	if ((strlen(name) + strlen(prefix)) >= ORANGEFS_MAX_XATTR_NAMELEN) {
 		gossip_err("Invalid key length (%d)\n",
 			   (int)(strlen(name) + strlen(prefix)));
@@ -146,8 +142,8 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *prefix,
 		goto out_release_op;
 	}
 
-	memset(buffer, 0, size);
 	memcpy(buffer, new_op->downcall.resp.getxattr.val, length);
+	memset(buffer + length, 0, size - length);
 	gossip_debug(GOSSIP_XATTR_DEBUG,
 	     "orangefs_inode_getxattr: inode %pU "
 	     "key %s key_sz %d, val_len %d\n",
@@ -239,18 +235,11 @@ int orangefs_inode_setxattr(struct inode *inode, const char *prefix,
 		     "%s: prefix %s, name %s, buffer_size %zd\n",
 		     __func__, prefix, name, size);
 
-	if (size < 0 ||
-	    size >= ORANGEFS_MAX_XATTR_VALUELEN ||
+	if (size >= ORANGEFS_MAX_XATTR_VALUELEN ||
 	    flags < 0) {
 		gossip_err("orangefs_inode_setxattr: bogus values of size(%d), flags(%d)\n",
 			   (int)size,
 			   flags);
-		return -EINVAL;
-	}
-
-	if (name == NULL ||
-	    (size > 0 && value == NULL)) {
-		gossip_err("orangefs_inode_setxattr: bogus NULL pointers!\n");
 		return -EINVAL;
 	}
 
@@ -351,10 +340,6 @@ ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 	if (size > 0 && buffer == NULL) {
 		gossip_err("%s: bogus NULL pointers\n", __func__);
-		return -EINVAL;
-	}
-	if (size < 0) {
-		gossip_err("Invalid size (%d)\n", (int)size);
 		return -EINVAL;
 	}
 

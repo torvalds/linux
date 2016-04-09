@@ -204,22 +204,8 @@ static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
 	if (ret != 0)
 		return ret;
 
-	/*
-	 * Only change the c/mtime if we are changing the size or we are
-	 * explicitly asked to change it.  This handles the semantic difference
-	 * between truncate() and ftruncate() as implemented in the VFS.
-	 *
-	 * The regular truncate() case without ATTR_CTIME and ATTR_MTIME is a
-	 * special case where we need to update the times despite not having
-	 * these flags set.  For all other operations the VFS set these flags
-	 * explicitly if it wants a timestamp update.
-	 */
-	if (orig_size != i_size_read(inode) &&
-	    !(iattr->ia_valid & (ATTR_CTIME | ATTR_MTIME))) {
-		iattr->ia_ctime = iattr->ia_mtime =
-			current_fs_time(inode->i_sb);
+	if (orig_size != i_size_read(inode))
 		iattr->ia_valid |= ATTR_CTIME | ATTR_MTIME;
-	}
 
 	return ret;
 }
