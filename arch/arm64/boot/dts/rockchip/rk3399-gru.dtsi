@@ -486,6 +486,25 @@
 		rockchip,i2s-controller = <&i2s0>;
 		rockchip,audio-codec = <&codec>;
 	};
+
+	backlight: backlight {
+		compatible = "gpio-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bl_en>;
+		gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
+	};
+
+	edp_panel: edp-panel {
+		compatible = "samsung,lsn122dl01-c01", "panel-simple";
+		backlight = <&backlight>;
+		power-supply = <&pp3300_disp>;
+
+		ports {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp_out_panel>;
+			};
+		};
+	};
 };
 
 &cpu_l0 {
@@ -832,6 +851,19 @@ ap_i2c_audio: &i2c8 {
 
 &edp {
 	status = "okay";
+
+	ports {
+		edp_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			edp_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_in_edp>;
+			};
+		};
+	};
 };
 
 &vopb {
@@ -1028,6 +1060,12 @@ ap_i2c_audio: &i2c8 {
 	touchpanel {
 		ap_i2c_tp_pu_en: ap-i2c-tp-pu-en {
 			rockchip,pins = <3 12 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+	};
+
+	backlight-enable {
+		bl_en: bl-en {
+			rockchip,pins = <1 17 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
