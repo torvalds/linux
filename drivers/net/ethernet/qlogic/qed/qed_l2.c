@@ -35,19 +35,6 @@
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
 
-enum qed_rss_caps {
-	QED_RSS_IPV4		= 0x1,
-	QED_RSS_IPV6		= 0x2,
-	QED_RSS_IPV4_TCP	= 0x4,
-	QED_RSS_IPV6_TCP	= 0x8,
-	QED_RSS_IPV4_UDP	= 0x10,
-	QED_RSS_IPV6_UDP	= 0x20,
-};
-
-/* Should be the same as ETH_RSS_IND_TABLE_ENTRIES_NUM */
-#define QED_RSS_IND_TABLE_SIZE 128
-#define QED_RSS_KEY_SIZE 10 /* size in 32b chunks */
-
 struct qed_rss_params {
 	u8	update_rss_config;
 	u8	rss_enable;
@@ -1744,9 +1731,7 @@ static int qed_update_vport(struct qed_dev *cdev,
 		sp_rss_params.update_rss_capabilities = 1;
 		sp_rss_params.update_rss_ind_table = 1;
 		sp_rss_params.update_rss_key = 1;
-		sp_rss_params.rss_caps = QED_RSS_IPV4 |
-					 QED_RSS_IPV6 |
-					 QED_RSS_IPV4_TCP | QED_RSS_IPV6_TCP;
+		sp_rss_params.rss_caps = params->rss_params.rss_caps;
 		sp_rss_params.rss_table_size_log = 7; /* 2^7 = 128 */
 		memcpy(sp_rss_params.rss_ind_table,
 		       params->rss_params.rss_ind_table,
