@@ -1334,7 +1334,7 @@ static int mxser_tiocmget(struct tty_struct *tty)
 
 	if (tty->index == MXSER_PORTS)
 		return -ENOIOCTLCMD;
-	if (test_bit(TTY_IO_ERROR, &tty->flags))
+	if (tty_io_error(tty))
 		return -EIO;
 
 	control = info->MCR;
@@ -1361,7 +1361,7 @@ static int mxser_tiocmset(struct tty_struct *tty,
 
 	if (tty->index == MXSER_PORTS)
 		return -ENOIOCTLCMD;
-	if (test_bit(TTY_IO_ERROR, &tty->flags))
+	if (tty_io_error(tty))
 		return -EIO;
 
 	spin_lock_irqsave(&info->slock, flags);
@@ -1715,8 +1715,7 @@ static int mxser_ioctl(struct tty_struct *tty,
 		return 0;
 	}
 
-	if (cmd != TIOCGSERIAL && cmd != TIOCMIWAIT &&
-			test_bit(TTY_IO_ERROR, &tty->flags))
+	if (cmd != TIOCGSERIAL && cmd != TIOCMIWAIT && tty_io_error(tty))
 		return -EIO;
 
 	switch (cmd) {

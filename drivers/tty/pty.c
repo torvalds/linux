@@ -44,7 +44,7 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	if (tty->driver->subtype == PTY_TYPE_MASTER)
 		WARN_ON(tty->count > 1);
 	else {
-		if (test_bit(TTY_IO_ERROR, &tty->flags))
+		if (tty_io_error(tty))
 			return;
 		if (tty->count > 2)
 			return;

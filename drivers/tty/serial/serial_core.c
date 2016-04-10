@@ -969,7 +969,7 @@ static int uart_tiocmget(struct tty_struct *tty)
 	int result = -EIO;
 
 	mutex_lock(&port->mutex);
-	if (!(tty->flags & (1 << TTY_IO_ERROR))) {
+	if (!tty_io_error(tty)) {
 		result = uport->mctrl;
 		spin_lock_irq(&uport->lock);
 		result |= uport->ops->get_mctrl(uport);
@@ -989,7 +989,7 @@ uart_tiocmset(struct tty_struct *tty, unsigned int set, unsigned int clear)
 	int ret = -EIO;
 
 	mutex_lock(&port->mutex);
-	if (!(tty->flags & (1 << TTY_IO_ERROR))) {
+	if (!tty_io_error(tty)) {
 		uart_update_mctrl(uport, set, clear);
 		ret = 0;
 	}
@@ -1238,7 +1238,7 @@ uart_ioctl(struct tty_struct *tty, unsigned int cmd,
 	if (ret != -ENOIOCTLCMD)
 		goto out;
 
-	if (tty->flags & (1 << TTY_IO_ERROR)) {
+	if (tty_io_error(tty)) {
 		ret = -EIO;
 		goto out;
 	}
@@ -1257,7 +1257,7 @@ uart_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 	mutex_lock(&port->mutex);
 
-	if (tty->flags & (1 << TTY_IO_ERROR)) {
+	if (tty_io_error(tty)) {
 		ret = -EIO;
 		goto out_up;
 	}

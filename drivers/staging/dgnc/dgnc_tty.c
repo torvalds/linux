@@ -1255,7 +1255,7 @@ static int dgnc_block_til_ready(struct tty_struct *tty,
 			if (file->f_flags & O_NONBLOCK)
 				break;
 
-			if (tty->flags & (1 << TTY_IO_ERROR)) {
+			if (tty_io_error(tty)) {
 				retval = -EIO;
 				break;
 			}

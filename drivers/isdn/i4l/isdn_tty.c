@@ -1351,7 +1351,7 @@ isdn_tty_tiocmget(struct tty_struct *tty)
 
 	if (isdn_tty_paranoia_check(info, tty->name, __func__))
 		return -ENODEV;
-	if (tty->flags & (1 << TTY_IO_ERROR))
+	if (tty_io_error(tty))
 		return -EIO;
 
 	mutex_lock(&modem_info_mutex);
@@ -1378,7 +1378,7 @@ isdn_tty_tiocmset(struct tty_struct *tty,
 
 	if (isdn_tty_paranoia_check(info, tty->name, __func__))
 		return -ENODEV;
-	if (tty->flags & (1 << TTY_IO_ERROR))
+	if (tty_io_error(tty))
 		return -EIO;
 
 #ifdef ISDN_DEBUG_MODEM_IOCTL
@@ -1419,7 +1419,7 @@ isdn_tty_ioctl(struct tty_struct *tty, uint cmd, ulong arg)
 
 	if (isdn_tty_paranoia_check(info, tty->name, "isdn_tty_ioctl"))
 		return -ENODEV;
-	if (tty->flags & (1 << TTY_IO_ERROR))
+	if (tty_io_error(tty))
 		return -EIO;
 	switch (cmd) {
 	case TCSBRK:   /* SVID version: non-zero arg --> no break */

@@ -280,7 +280,7 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 	 * If non-blocking mode is set, or the port is not enabled,
 	 * then make the check up front and then exit.
 	 */
-	if (test_bit(TTY_IO_ERROR, &tty->flags)) {
+	if (tty_io_error(tty)) {
 		port->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}

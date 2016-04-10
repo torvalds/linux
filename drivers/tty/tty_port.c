@@ -364,7 +364,7 @@ int tty_port_block_til_ready(struct tty_port *port,
 
 	/* if non-blocking mode is set we can pass directly to open unless
 	   the port has just hung up or is in another error state */
-	if (tty->flags & (1 << TTY_IO_ERROR)) {
+	if (tty_io_error(tty)) {
 		port->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}

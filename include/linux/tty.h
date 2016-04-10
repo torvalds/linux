@@ -360,6 +360,11 @@ static inline void tty_set_flow_change(struct tty_struct *tty, int val)
 	smp_mb();
 }
 
+static inline bool tty_io_error(struct tty_struct *tty)
+{
+	return test_bit(TTY_IO_ERROR, &tty->flags);
+}
+
 #ifdef CONFIG_TTY
 extern void console_init(void);
 extern void tty_kref_put(struct tty_struct *tty);
