@@ -754,9 +754,6 @@ static void __dma_rx_do_complete(struct uart_8250_port *p, bool error)
 	unsigned long		flags;
 	int			ret;
 
-	dma_sync_single_for_cpu(dma->rxchan->device->dev, dma->rx_addr,
-				dma->rx_size, DMA_FROM_DEVICE);
-
 	spin_lock_irqsave(&priv->rx_dma_lock, flags);
 
 	if (!dma->rx_running)
@@ -867,9 +864,6 @@ static int omap_8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 	desc->callback_param = p;
 
 	dma->rx_cookie = dmaengine_submit(desc);
-
-	dma_sync_single_for_device(dma->rxchan->device->dev, dma->rx_addr,
-				   dma->rx_size, DMA_FROM_DEVICE);
 
 	dma_async_issue_pending(dma->rxchan);
 out:
