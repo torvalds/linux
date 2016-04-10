@@ -2230,42 +2230,42 @@ static int uart_poll_init(struct tty_driver *driver, int line, char *options)
 {
 	struct uart_driver *drv = driver->driver_state;
 	struct uart_state *state = drv->state + line;
+	struct tty_port *tport;
 	struct uart_port *port;
 	int baud = 9600;
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
-	int ret;
+	int ret = 0;
 
-	if (!state || !state->uart_port)
+	if (!state)
 		return -1;
+
+	tport = &state->port;
+	mutex_lock(&tport->mutex);
 
 	port = state->uart_port;
-	if (!(port->ops->poll_get_char && port->ops->poll_put_char))
-		return -1;
+	if (!(port->ops->poll_get_char && port->ops->poll_put_char)) {
+		ret = -1;
+		goto out;
+	}
 
 	if (port->ops->poll_init) {
-		struct tty_port *tport = &state->port;
-
-		ret = 0;
-		mutex_lock(&tport->mutex);
 		/*
 		 * We don't set initialized as we only initialized the hw,
 		 * e.g. state->xmit is still uninitialized.
 		 */
 		if (!tty_port_initialized(tport))
 			ret = port->ops->poll_init(port);
-		mutex_unlock(&tport->mutex);
-		if (ret)
-			return ret;
 	}
 
-	if (options) {
+	if (!ret && options) {
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
-		return uart_set_options(port, NULL, baud, parity, bits, flow);
+		ret = uart_set_options(port, NULL, baud, parity, bits, flow);
 	}
-
-	return 0;
+out:
+	mutex_unlock(&tport->mutex);
+	return ret;
 }
 
 static int uart_poll_get_char(struct tty_driver *driver, int line)
