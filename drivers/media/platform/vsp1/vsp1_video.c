@@ -219,7 +219,7 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 
 	spin_unlock_irqrestore(&video->irqlock, flags);
 
-	done->buf.sequence = video->sequence++;
+	done->buf.sequence = pipe->sequence;
 	done->buf.vb2_buf.timestamp = ktime_get_ns();
 	for (i = 0; i < done->buf.vb2_buf.num_planes; ++i)
 		vb2_set_plane_payload(&done->buf.vb2_buf, i,
@@ -804,8 +804,6 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	if (video->queue.owner && video->queue.owner != file->private_data)
 		return -EBUSY;
-
-	video->sequence = 0;
 
 	/* Get a pipeline for the video node and start streaming on it. No link
 	 * touching an entity in the pipeline can be activated or deactivated

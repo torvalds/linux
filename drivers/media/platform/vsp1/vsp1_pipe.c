@@ -286,6 +286,8 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 
 	if (pipe->frame_end)
 		pipe->frame_end(pipe);
+
+	pipe->sequence++;
 }
 
 /*

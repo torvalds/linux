@@ -67,6 +67,7 @@ enum vsp1_pipeline_state {
  * @kref: pipeline reference count
  * @stream_count: number of streaming video nodes
  * @buffers_ready: bitmask of RPFs and WPFs with at least one buffer available
+ * @sequence: frame sequence number
  * @num_inputs: number of RPFs
  * @inputs: array of RPFs in the pipeline (indexed by RPF index)
  * @output: WPF at the output of the pipeline
@@ -90,6 +91,7 @@ struct vsp1_pipeline {
 	struct kref kref;
 	unsigned int stream_count;
 	unsigned int buffers_ready;
+	unsigned int sequence;
 
 	unsigned int num_inputs;
 	struct vsp1_rwpf *inputs[VSP1_MAX_RPF];
