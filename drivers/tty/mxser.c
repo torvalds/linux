@@ -2392,7 +2392,6 @@ static int mxser_initbrd(struct mxser_board *brd,
 		if (brd->chip_flag != MOXA_OTHER_UART)
 			mxser_enable_must_enchance_mode(info->ioaddr);
 
-		info->port.flags = ASYNC_SHARE_IRQ;
 		info->type = brd->uart_type;
 
 		process_txrx_fifo(info);
