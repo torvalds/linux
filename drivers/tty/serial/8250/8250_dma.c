@@ -201,6 +201,15 @@ int serial8250_request_dma(struct uart_8250_port *p)
 		goto release_rx;
 	}
 
+	/* 8250 tx dma requires dmaengine driver to support terminate */
+	ret = dma_get_slave_caps(dma->txchan, &caps);
+	if (ret)
+		goto err;
+	if (!caps.cmd_terminate) {
+		ret = -EINVAL;
+		goto err;
+	}
+
 	dmaengine_slave_config(dma->txchan, &dma->txconf);
 
 	/* RX buffer */
