@@ -1033,7 +1033,6 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 	unsigned char status;
 	unsigned long flags;
 	u8 iir;
-	int dma_err = 0;
 
 	serial8250_rpm_get(up);
 
@@ -1048,9 +1047,7 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 	status = serial_port_in(port, UART_LSR);
 
 	if (status & (UART_LSR_DR | UART_LSR_BI)) {
-
-		dma_err = omap_8250_rx_dma(up, iir);
-		if (dma_err) {
+		if (omap_8250_rx_dma(up, iir)) {
 			status = serial8250_rx_chars(up, status);
 			omap_8250_rx_dma(up, 0);
 		}
@@ -1066,8 +1063,7 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 			 * try again due to an earlier failer which
 			 * might have been resolved by now.
 			 */
-			dma_err = omap_8250_tx_dma(up);
-			if (dma_err)
+			if (omap_8250_tx_dma(up))
 				serial8250_tx_chars(up);
 		}
 	}
