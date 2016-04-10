@@ -302,7 +302,7 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 	if (full_path == NULL)
 		goto cdda_exit;
 
-	cifs_sb = CIFS_SB(d_inode(mntpt)->i_sb);
+	cifs_sb = CIFS_SB(mntpt->d_sb);
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink)) {
 		mnt = ERR_CAST(tlink);

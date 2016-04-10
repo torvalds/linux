@@ -2653,7 +2653,7 @@ struct dentry *lock_rename(struct dentry *p1, struct dentry *p2)
 		return NULL;
 	}
 
-	mutex_lock(&p1->d_inode->i_sb->s_vfs_rename_mutex);
+	mutex_lock(&p1->d_sb->s_vfs_rename_mutex);
 
 	p = d_ancestor(p2, p1);
 	if (p) {
@@ -2680,7 +2680,7 @@ void unlock_rename(struct dentry *p1, struct dentry *p2)
 	inode_unlock(p1->d_inode);
 	if (p1 != p2) {
 		inode_unlock(p2->d_inode);
-		mutex_unlock(&p1->d_inode->i_sb->s_vfs_rename_mutex);
+		mutex_unlock(&p1->d_sb->s_vfs_rename_mutex);
 	}
 }
 EXPORT_SYMBOL(unlock_rename);

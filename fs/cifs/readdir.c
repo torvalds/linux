@@ -78,7 +78,7 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 {
 	struct dentry *dentry, *alias;
 	struct inode *inode;
-	struct super_block *sb = d_inode(parent)->i_sb;
+	struct super_block *sb = parent->d_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 
 	cifs_dbg(FYI, "%s: for %s\n", __func__, name->name);

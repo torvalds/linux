@@ -1316,7 +1316,7 @@ static int selinux_genfs_get_sid(struct dentry *dentry,
 				 u32 *sid)
 {
 	int rc;
-	struct super_block *sb = dentry->d_inode->i_sb;
+	struct super_block *sb = dentry->d_sb;
 	char *buffer, *path;
 
 	buffer = (char *)__get_free_page(GFP_KERNEL);

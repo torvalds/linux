@@ -52,9 +52,7 @@ int cifs_removexattr(struct dentry *direntry, const char *ea_name)
 		return -EIO;
 	if (d_really_is_negative(direntry))
 		return -EIO;
-	sb = d_inode(direntry)->i_sb;
-	if (sb == NULL)
-		return -EIO;
+	sb = direntry->d_sb;
 
 	cifs_sb = CIFS_SB(sb);
 	tlink = cifs_sb_tlink(cifs_sb);
@@ -113,9 +111,7 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 		return -EIO;
 	if (d_really_is_negative(direntry))
 		return -EIO;
-	sb = d_inode(direntry)->i_sb;
-	if (sb == NULL)
-		return -EIO;
+	sb = direntry->d_sb;
 
 	cifs_sb = CIFS_SB(sb);
 	tlink = cifs_sb_tlink(cifs_sb);
@@ -248,9 +244,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 		return -EIO;
 	if (d_really_is_negative(direntry))
 		return -EIO;
-	sb = d_inode(direntry)->i_sb;
-	if (sb == NULL)
-		return -EIO;
+	sb = direntry->d_sb;
 
 	cifs_sb = CIFS_SB(sb);
 	tlink = cifs_sb_tlink(cifs_sb);
@@ -384,9 +378,7 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 		return -EIO;
 	if (d_really_is_negative(direntry))
 		return -EIO;
-	sb = d_inode(direntry)->i_sb;
-	if (sb == NULL)
-		return -EIO;
+	sb = direntry->d_sb;
 
 	cifs_sb = CIFS_SB(sb);
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)

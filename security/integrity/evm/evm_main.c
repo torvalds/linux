@@ -299,8 +299,8 @@ static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
 			return 0;
 
 		/* exception for pseudo filesystems */
-		if (dentry->d_inode->i_sb->s_magic == TMPFS_MAGIC
-		    || dentry->d_inode->i_sb->s_magic == SYSFS_MAGIC)
+		if (dentry->d_sb->s_magic == TMPFS_MAGIC
+		    || dentry->d_sb->s_magic == SYSFS_MAGIC)
 			return 0;
 
 		integrity_audit_msg(AUDIT_INTEGRITY_METADATA,

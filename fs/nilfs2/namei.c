@@ -457,7 +457,7 @@ static struct dentry *nilfs_get_parent(struct dentry *child)
 
 	root = NILFS_I(d_inode(child))->i_root;
 
-	inode = nilfs_iget(d_inode(child)->i_sb, root, ino);
+	inode = nilfs_iget(child->d_sb, root, ino);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 

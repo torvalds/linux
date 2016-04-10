@@ -1360,7 +1360,7 @@ static struct dentry *gfs2_mount_meta(struct file_system_type *fs_type,
 		return ERR_PTR(error);
 	}
 	s = sget(&gfs2_fs_type, test_gfs2_super, set_meta_super, flags,
-		 d_inode(path.dentry)->i_sb->s_bdev);
+		 path.dentry->d_sb->s_bdev);
 	path_put(&path);
 	if (IS_ERR(s)) {
 		pr_warn("gfs2 mount does not exist\n");

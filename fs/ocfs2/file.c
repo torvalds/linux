@@ -1290,7 +1290,7 @@ int ocfs2_getattr(struct vfsmount *mnt,
 		  struct kstat *stat)
 {
 	struct inode *inode = d_inode(dentry);
-	struct super_block *sb = d_inode(dentry)->i_sb;
+	struct super_block *sb = dentry->d_sb;
 	struct ocfs2_super *osb = sb->s_fs_info;
 	int err;
 

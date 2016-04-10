@@ -396,7 +396,7 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq, bool write)
 static void nfs_direct_readpage_release(struct nfs_page *req)
 {
 	dprintk("NFS: direct read done (%s/%llu %d@%lld)\n",
-		d_inode(req->wb_context->dentry)->i_sb->s_id,
+		req->wb_context->dentry->d_sb->s_id,
 		(unsigned long long)NFS_FILEID(d_inode(req->wb_context->dentry)),
 		req->wb_bytes,
 		(long long)req_offset(req));

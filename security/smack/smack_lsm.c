@@ -1444,7 +1444,7 @@ static int smack_inode_removexattr(struct dentry *dentry, const char *name)
 	 *	XATTR_NAME_SMACKIPOUT
 	 */
 	if (strcmp(name, XATTR_NAME_SMACK) == 0) {
-		struct super_block *sbp = d_backing_inode(dentry)->i_sb;
+		struct super_block *sbp = dentry->d_sb;
 		struct superblock_smack *sbsp = sbp->s_security;
 
 		isp->smk_inode = sbsp->smk_default;

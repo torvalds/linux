@@ -1250,7 +1250,7 @@ static struct dentry *udf_get_parent(struct dentry *child)
 	brelse(fibh.sbh);
 
 	tloc = lelb_to_cpu(cfi.icb.extLocation);
-	inode = udf_iget(d_inode(child)->i_sb, &tloc);
+	inode = udf_iget(child->d_sb, &tloc);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 
