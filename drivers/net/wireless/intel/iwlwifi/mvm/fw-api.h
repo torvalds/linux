@@ -129,9 +129,6 @@ enum iwl_mvm_tx_fifo {
 	IWL_MVM_TX_FIFO_CMD = 7,
 };
 
-#define IWL_MVM_STATION_COUNT	16
-
-#define IWL_MVM_TDLS_STA_COUNT	4
 
 /* commands */
 enum {

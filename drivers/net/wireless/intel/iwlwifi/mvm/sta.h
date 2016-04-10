@@ -438,6 +438,7 @@ struct iwl_mvm_sta {
 	bool tlc_amsdu;
 	u8 agg_tids;
 	u8 sleep_tx_count;
+	u8 avg_energy;
 };
 
 static inline struct iwl_mvm_sta *

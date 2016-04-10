@@ -498,6 +498,7 @@ struct iwl_mvm_stat_data {
 	__le32 mac_id;
 	u8 beacon_filter_average_energy;
 	struct mvm_statistics_general_v8 *general;
+	struct mvm_statistics_load *load;
 };
 
 static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
@@ -614,13 +615,15 @@ iwl_mvm_rx_stats_check_trigger(struct iwl_mvm *mvm, struct iwl_rx_packet *pkt)
 void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 				  struct iwl_rx_packet *pkt)
 {
-	struct iwl_notif_statistics_v10 *stats = (void *)&pkt->data;
+	struct iwl_notif_statistics_v11 *stats = (void *)&pkt->data;
 	struct iwl_mvm_stat_data data = {
 		.mvm = mvm,
 	};
+	int expected_size = iwl_mvm_has_new_rx_api(mvm) ? sizeof(*stats) :
+			    sizeof(struct iwl_notif_statistics_v10);
 	u32 temperature;
 
-	if (iwl_rx_packet_payload_len(pkt) != sizeof(*stats))
+	if (iwl_rx_packet_payload_len(pkt) != expected_size)
 		goto invalid;
 
 	temperature = le32_to_cpu(stats->general.radio_temperature);
@@ -638,6 +641,25 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 		le64_to_cpu(stats->general.on_time_scan);
 
 	data.general = &stats->general;
+	if (iwl_mvm_has_new_rx_api(mvm)) {
+		int i;
+
+		data.load = &stats->load_stats;
+
+		rcu_read_lock();
+		for (i = 0; i < IWL_MVM_STATION_COUNT; i++) {
+			struct iwl_mvm_sta *sta;
+
+			if (!data.load->avg_energy[i])
+				continue;
+
+			sta = iwl_mvm_sta_from_staid_rcu(mvm, i);
+			if (!sta)
+				continue;
+			sta->avg_energy = data.load->avg_energy[i];
+		}
+		rcu_read_unlock();
+	}
 
 	iwl_mvm_rx_stats_check_trigger(mvm, pkt);
 
