@@ -249,7 +249,7 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 	 * a DCD drop (hangup) at just the right time.  Clear suspended bit so
 	 * we don't try to resume a port that has been shutdown.
 	 */
-	clear_bit(ASYNCB_SUSPENDED, &port->flags);
+	tty_port_set_suspended(port, 0);
 
 	/*
 	 * Free the transmit buffer page.
@@ -2007,7 +2007,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 		const struct uart_ops *ops = uport->ops;
 		int tries;
 
-		set_bit(ASYNCB_SUSPENDED, &port->flags);
+		tty_port_set_suspended(port, 1);
 		clear_bit(ASYNCB_INITIALIZED, &port->flags);
 
 		spin_lock_irq(&uport->lock);
@@ -2088,7 +2088,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 			console_start(uport->cons);
 	}
 
-	if (port->flags & ASYNC_SUSPENDED) {
+	if (tty_port_suspended(port)) {
 		const struct uart_ops *ops = uport->ops;
 		int ret;
 
@@ -2118,7 +2118,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 			}
 		}
 
-		clear_bit(ASYNCB_SUSPENDED, &port->flags);
+		tty_port_set_suspended(port, 0);
 	}
 
 	mutex_unlock(&port->mutex);

@@ -289,7 +289,7 @@ static void raw3215_timeout(unsigned long __data)
 
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 	raw->flags &= ~RAW3215_TIMER_RUNS;
-	if (!(raw->port.flags & ASYNC_SUSPENDED)) {
+	if (!tty_port_suspended(&raw->port)) {
 		raw3215_mk_write_req(raw);
 		raw3215_start_io(raw);
 		if ((raw->queued_read || raw->queued_write) &&
@@ -312,7 +312,7 @@ static void raw3215_timeout(unsigned long __data)
 static inline void raw3215_try_io(struct raw3215_info *raw)
 {
 	if (!(raw->port.flags & ASYNC_INITIALIZED) ||
-			(raw->port.flags & ASYNC_SUSPENDED))
+	    tty_port_suspended(&raw->port))
 		return;
 	if (raw->queued_read != NULL)
 		raw3215_start_io(raw);
@@ -494,7 +494,7 @@ static void raw3215_make_room(struct raw3215_info *raw, unsigned int length)
 		/* While console is frozen for suspend we have no other
 		 * choice but to drop message from the buffer to make
 		 * room for even more messages. */
-		if (raw->port.flags & ASYNC_SUSPENDED) {
+		if (tty_port_suspended(&raw->port)) {
 			raw3215_drop_line(raw);
 			continue;
 		}
@@ -773,7 +773,7 @@ static int raw3215_pm_stop(struct ccw_device *cdev)
 	raw = dev_get_drvdata(&cdev->dev);
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 	raw3215_make_room(raw, RAW3215_BUFFER_SIZE);
-	raw->port.flags |= ASYNC_SUSPENDED;
+	tty_port_set_suspended(&raw->port, 1);
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
 	return 0;
 }
@@ -786,7 +786,7 @@ static int raw3215_pm_start(struct ccw_device *cdev)
 	/* Allow I/O again and flush output buffer. */
 	raw = dev_get_drvdata(&cdev->dev);
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
-	raw->port.flags &= ~ASYNC_SUSPENDED;
+	tty_port_set_suspended(&raw->port, 0);
 	raw->flags |= RAW3215_FLUSHING;
 	raw3215_try_io(raw);
 	raw->flags &= ~RAW3215_FLUSHING;
@@ -859,7 +859,7 @@ static void con3215_flush(void)
 	unsigned long flags;
 
 	raw = raw3215[0];  /* console 3215 is the first one */
-	if (raw->port.flags & ASYNC_SUSPENDED)
+	if (tty_port_suspended(&raw->port))
 		/* The console is still frozen for suspend. */
 		if (ccw_device_force_console(raw->cdev))
 			/* Forcing didn't work, no panic message .. */
