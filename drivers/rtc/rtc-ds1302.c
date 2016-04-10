@@ -53,7 +53,7 @@ static int ds1302_rtc_set_time(struct device *dev, struct rtc_time *time)
 
 	status = spi_write_then_read(spi, buf, 2,
 			NULL, 0);
-	if (!status)
+	if (status)
 		return status;
 
 	/* Write registers starting at the first time/date address. */
