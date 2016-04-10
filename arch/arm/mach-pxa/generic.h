@@ -27,6 +27,7 @@ extern void pxa_timer_init(void);
 
 #define pxa25x_handle_irq icip_handle_irq
 extern int __init pxa25x_clocks_init(void);
+extern void __init pxa25x_dt_init_irq(void);
 extern void __init pxa25x_init_irq(void);
 extern void __init pxa25x_map_io(void);
 extern void __init pxa26x_init_irq(void);

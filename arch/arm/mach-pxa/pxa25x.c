@@ -151,6 +151,12 @@ void __init pxa26x_init_irq(void)
 }
 #endif
 
+void __init pxa25x_dt_init_irq(void)
+{
+	if (IS_ENABLED(CONFIG_OF))
+		pxa_dt_irq_init(pxa25x_set_wake);
+}
+
 static struct map_desc pxa25x_io_desc[] __initdata = {
 	{	/* Mem Ctl */
 		.virtual	= (unsigned long)SMEMC_VIRT,
