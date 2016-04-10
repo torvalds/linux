@@ -230,9 +230,6 @@ static void tty_del_file(struct file *file)
 	tty_free_file(file);
 }
 
-
-#define TTY_NUMBER(tty) ((tty)->index + (tty)->driver->name_base)
-
 /**
  *	tty_name	-	return tty naming
  *	@tty: tty structure
