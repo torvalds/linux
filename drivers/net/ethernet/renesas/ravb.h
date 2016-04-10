@@ -1045,7 +1045,7 @@ void ravb_modify(struct net_device *ndev, enum ravb_reg reg, u32 clear,
 		 u32 set);
 int ravb_wait(struct net_device *ndev, enum ravb_reg reg, u32 mask, u32 value);
 
-irqreturn_t ravb_ptp_interrupt(struct net_device *ndev);
+void ravb_ptp_interrupt(struct net_device *ndev);
 void ravb_ptp_init(struct net_device *ndev, struct platform_device *pdev);
 void ravb_ptp_stop(struct net_device *ndev);
 

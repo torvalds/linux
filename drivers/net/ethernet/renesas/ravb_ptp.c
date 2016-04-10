@@ -296,7 +296,7 @@ static const struct ptp_clock_info ravb_ptp_info = {
 };
 
 /* Caller must hold the lock */
-irqreturn_t ravb_ptp_interrupt(struct net_device *ndev)
+void ravb_ptp_interrupt(struct net_device *ndev)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
 	u32 gis = ravb_read(ndev, GIS);
@@ -319,12 +319,7 @@ irqreturn_t ravb_ptp_interrupt(struct net_device *ndev)
 		}
 	}
 
-	if (gis) {
-		ravb_write(ndev, ~gis, GIS);
-		return IRQ_HANDLED;
-	}
-
-	return IRQ_NONE;
+	ravb_write(ndev, ~gis, GIS);
 }
 
 void ravb_ptp_init(struct net_device *ndev, struct platform_device *pdev)
