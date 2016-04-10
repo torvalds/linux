@@ -1042,9 +1042,10 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 		}
 	}
 	spin_lock_irq(&port->lock);
-	info->port.flags &= ~(ASYNC_INITIALIZED | ASYNC_NORMAL_ACTIVE);
+	port->flags &= ~ASYNC_INITIALIZED;
 	tty->closing = 0;
 	spin_unlock_irq(&port->lock);
+	tty_port_set_active(port, 0);
 	mutex_unlock(&port->mutex);
 	tty_port_tty_set(port, NULL);
 
@@ -1624,7 +1625,7 @@ static int rp_write(struct tty_struct *tty,
 	/*  Write remaining data into the port's xmit_buf */
 	while (1) {
 		/* Hung up ? */
-		if (!test_bit(ASYNCB_NORMAL_ACTIVE, &info->port.flags))
+		if (!tty_port_active(&info->port))
 			goto end;
 		c = min(count, XMIT_BUF_SIZE - info->xmit_cnt - 1);
 		c = min(c, XMIT_BUF_SIZE - info->xmit_head);

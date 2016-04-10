@@ -1418,12 +1418,12 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 		uart_change_pm(state, UART_PM_STATE_OFF);
 		spin_lock_irq(&port->lock);
 	}
+	spin_unlock_irq(&port->lock);
+	tty_port_set_active(port, 0);
 
 	/*
 	 * Wake up anyone trying to open this port.
 	 */
-	clear_bit(ASYNCB_NORMAL_ACTIVE, &port->flags);
-	spin_unlock_irq(&port->lock);
 	wake_up_interruptible(&port->open_wait);
 
 	mutex_unlock(&port->mutex);
@@ -1501,13 +1501,13 @@ static void uart_hangup(struct tty_struct *tty)
 	pr_debug("uart_hangup(%d)\n", tty->index);
 
 	mutex_lock(&port->mutex);
-	if (port->flags & ASYNC_NORMAL_ACTIVE) {
+	if (tty_port_active(port)) {
 		uart_flush_buffer(tty);
 		uart_shutdown(tty, state);
 		spin_lock_irqsave(&port->lock, flags);
 		port->count = 0;
-		clear_bit(ASYNCB_NORMAL_ACTIVE, &port->flags);
 		spin_unlock_irqrestore(&port->lock, flags);
+		tty_port_set_active(port, 0);
 		tty_port_tty_set(port, NULL);
 		if (!uart_console(state->uart_port))
 			uart_change_pm(state, UART_PM_STATE_OFF);

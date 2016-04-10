@@ -3648,8 +3648,8 @@ rs_close(struct tty_struct *tty, struct file * filp)
 			schedule_timeout_interruptible(info->port.close_delay);
 		wake_up_interruptible(&info->port.open_wait);
 	}
-	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
 	local_irq_restore(flags);
+	tty_port_set_active(&info->port, 0);
 
 	/* port closed */
 
@@ -3732,7 +3732,7 @@ rs_hangup(struct tty_struct *tty)
 	shutdown(info);
 	info->event = 0;
 	info->port.count = 0;
-	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
+	tty_port_set_active(&info->port, 0);
 	info->port.tty = NULL;
 	wake_up_interruptible(&info->port.open_wait);
 }
@@ -3756,7 +3756,7 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 	 * then make the check up front and then exit.
 	 */
 	if ((filp->f_flags & O_NONBLOCK) || tty_io_error(tty)) {
-		info->port.flags |= ASYNC_NORMAL_ACTIVE;
+		tty_port_set_active(&info->port, 1);
 		return 0;
 	}
 
@@ -3825,7 +3825,7 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 #endif
 	if (retval)
 		return retval;
-	info->port.flags |= ASYNC_NORMAL_ACTIVE;
+	tty_port_set_active(&info->port, 1);
 	return 0;
 }
 

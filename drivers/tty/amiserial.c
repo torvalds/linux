@@ -1493,7 +1493,7 @@ static void rs_hangup(struct tty_struct *tty)
 	rs_flush_buffer(tty);
 	shutdown(tty, info);
 	info->tport.count = 0;
-	info->tport.flags &= ~ASYNC_NORMAL_ACTIVE;
+	tty_port_set_active(&info->tport, 0);
 	info->tport.tty = NULL;
 	wake_up_interruptible(&info->tport.open_wait);
 }

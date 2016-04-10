@@ -281,7 +281,7 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 	 * then make the check up front and then exit.
 	 */
 	if (tty_io_error(tty)) {
-		port->flags |= ASYNC_NORMAL_ACTIVE;
+		tty_port_set_active(port, 1);
 		return 0;
 	}
 
@@ -289,7 +289,7 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 		/* nonblock mode is set */
 		if (C_BAUD(tty))
 			tty_port_raise_dtr_rts(port);
-		port->flags |= ASYNC_NORMAL_ACTIVE;
+		tty_port_set_active(port, 1);
 		pr_debug("%s(), O_NONBLOCK requested!\n", __func__);
 		return 0;
 	}
@@ -365,7 +365,7 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 		 __FILE__, __LINE__, tty->driver->name, port->count);
 
 	if (!retval)
-		port->flags |= ASYNC_NORMAL_ACTIVE;
+		tty_port_set_active(port, 1);
 
 	return retval;
 }
@@ -925,7 +925,6 @@ static void ircomm_tty_hangup(struct tty_struct *tty)
 	ircomm_tty_shutdown(self);
 
 	spin_lock_irqsave(&port->lock, flags);
-	port->flags &= ~ASYNC_NORMAL_ACTIVE;
 	if (port->tty) {
 		set_bit(TTY_IO_ERROR, &port->tty->flags);
 		tty_kref_put(port->tty);
@@ -933,6 +932,7 @@ static void ircomm_tty_hangup(struct tty_struct *tty)
 	port->tty = NULL;
 	port->count = 0;
 	spin_unlock_irqrestore(&port->lock, flags);
+	tty_port_set_active(port, 0);
 
 	wake_up_interruptible(&port->open_wait);
 }
@@ -1267,7 +1267,7 @@ static void ircomm_tty_line_info(struct ircomm_tty_cb *self, struct seq_file *m)
 		seq_printf(m, "%cASYNC_LOW_LATENCY", sep);
 		sep = '|';
 	}
-	if (self->port.flags & ASYNC_NORMAL_ACTIVE) {
+	if (tty_port_active(&self->port)) {
 		seq_printf(m, "%cASYNC_NORMAL_ACTIVE", sep);
 		sep = '|';
 	}

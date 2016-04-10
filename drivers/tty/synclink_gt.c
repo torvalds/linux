@@ -756,9 +756,9 @@ static void hangup(struct tty_struct *tty)
 
 	spin_lock_irqsave(&info->port.lock, flags);
 	info->port.count = 0;
-	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->port.tty = NULL;
 	spin_unlock_irqrestore(&info->port.lock, flags);
+	tty_port_set_active(&info->port, 0);
 	mutex_unlock(&info->port.mutex);
 
 	wake_up_interruptible(&info->port.open_wait);
@@ -3268,7 +3268,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 
 	if (filp->f_flags & O_NONBLOCK || tty_io_error(tty)) {
 		/* nonblock mode is set or port is not enabled */
-		port->flags |= ASYNC_NORMAL_ACTIVE;
+		tty_port_set_active(port, 1);
 		return 0;
 	}
 
@@ -3325,7 +3325,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	port->blocked_open--;
 
 	if (!retval)
-		port->flags |= ASYNC_NORMAL_ACTIVE;
+		tty_port_set_active(port, 1);
 
 	DBGINFO(("%s block_til_ready ready, rc=%d\n", tty->driver->name, retval));
 	return retval;

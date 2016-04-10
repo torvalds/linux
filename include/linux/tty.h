@@ -571,6 +571,18 @@ static inline void tty_port_set_cts_flow(struct tty_port *port, bool val)
 		clear_bit(TTY_PORT_CTS_FLOW, &port->iflags);
 }
 
+static inline bool tty_port_active(struct tty_port *port)
+{
+	return test_bit(TTY_PORT_ACTIVE, &port->iflags);
+}
+
+static inline void tty_port_set_active(struct tty_port *port, bool val)
+{
+	if (val)
+		set_bit(TTY_PORT_ACTIVE, &port->iflags);
+	else
+		clear_bit(TTY_PORT_ACTIVE, &port->iflags);
+}
 
 extern struct tty_struct *tty_port_tty_get(struct tty_port *port);
 extern void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty);

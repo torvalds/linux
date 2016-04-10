@@ -3201,7 +3201,7 @@ static void mgsl_hangup(struct tty_struct *tty)
 	shutdown(info);
 	
 	info->port.count = 0;	
-	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
+	tty_port_set_active(&info->port, 0);
 	info->port.tty = NULL;
 
 	wake_up_interruptible(&info->port.open_wait);
@@ -3269,7 +3269,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 
 	if (filp->f_flags & O_NONBLOCK || tty_io_error(tty)) {
 		/* nonblock mode is set or port is not enabled */
-		port->flags |= ASYNC_NORMAL_ACTIVE;
+		tty_port_set_active(port, 1);
 		return 0;
 	}
 
@@ -3338,7 +3338,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 			 __FILE__,__LINE__, tty->driver->name, port->count );
 			 
 	if (!retval)
-		port->flags |= ASYNC_NORMAL_ACTIVE;
+		tty_port_set_active(port, 1);
 		
 	return retval;
 	
