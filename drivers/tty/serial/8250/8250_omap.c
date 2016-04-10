@@ -1403,16 +1403,14 @@ static int omap8250_runtime_resume(struct device *dev)
 {
 	struct omap8250_priv *priv = dev_get_drvdata(dev);
 	struct uart_8250_port *up;
-	int loss_cntx;
 
 	/* In case runtime-pm tries this before we are setup */
 	if (!priv)
 		return 0;
 
 	up = serial8250_get_port(priv->line);
-	loss_cntx = omap8250_lost_context(up);
 
-	if (loss_cntx)
+	if (omap8250_lost_context(up))
 		omap8250_restore_regs(up);
 
 	if (up->dma && up->dma->rxchan)
