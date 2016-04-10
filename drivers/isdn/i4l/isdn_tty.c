@@ -1043,11 +1043,7 @@ isdn_tty_change_speed(modem_info *info)
 	if (!(cflag & PARODD))
 		cval |= UART_LCR_EPAR;
 
-	if (cflag & CLOCAL)
-		port->flags &= ~ASYNC_CHECK_CD;
-	else {
-		port->flags |= ASYNC_CHECK_CD;
-	}
+	tty_port_set_check_carrier(port, ~cflag & CLOCAL);
 }
 
 static int
@@ -2526,7 +2522,7 @@ isdn_tty_modem_result(int code, modem_info *info)
 		if (info->closing || (!info->port.tty))
 			return;
 
-		if (info->port.flags & ASYNC_CHECK_CD)
+		if (tty_port_check_carrier(&info->port))
 			tty_hangup(info->port.tty);
 	}
 }

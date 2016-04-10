@@ -999,7 +999,7 @@ void ircomm_tty_check_modem_status(struct ircomm_tty_cb *self)
 	if (status & IRCOMM_DCE_DELTA_ANY) {
 		/*wake_up_interruptible(&self->delta_msr_wait);*/
 	}
-	if ((self->port.flags & ASYNC_CHECK_CD) && (status & IRCOMM_DELTA_CD)) {
+	if (tty_port_check_carrier(&self->port) && (status & IRCOMM_DELTA_CD)) {
 		pr_debug("%s(), ircomm%d CD now %s...\n", __func__ , self->line,
 			 (status & IRCOMM_CD) ? "on" : "off");
 
@@ -1255,7 +1255,7 @@ static void ircomm_tty_line_info(struct ircomm_tty_cb *self, struct seq_file *m)
 		seq_printf(m, "%cASYNC_CTS_FLOW", sep);
 		sep = '|';
 	}
-	if (self->port.flags & ASYNC_CHECK_CD) {
+	if (tty_port_check_carrier(&self->port)) {
 		seq_printf(m, "%cASYNC_CHECK_CD", sep);
 		sep = '|';
 	}

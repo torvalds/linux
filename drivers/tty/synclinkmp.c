@@ -2463,7 +2463,7 @@ static void isr_io_pin( SLMP_INFO *info, u16 status )
 		wake_up_interruptible(&info->status_event_wait_q);
 		wake_up_interruptible(&info->event_wait_q);
 
-		if ( (info->port.flags & ASYNC_CHECK_CD) &&
+		if (tty_port_check_carrier(&info->port) &&
 		     (status & MISCSTATUS_DCD_LATCHED) ) {
 			if ( debug_level >= DEBUG_LEVEL_ISR )
 				printk("%s CD now %s...", info->device_name,
@@ -2814,11 +2814,7 @@ static void change_params(SLMP_INFO *info)
 	info->timeout += HZ/50;		/* Add .02 seconds of slop */
 
 	tty_port_set_cts_flow(&info->port, cflag & CRTSCTS);
-
-	if (cflag & CLOCAL)
-		info->port.flags &= ~ASYNC_CHECK_CD;
-	else
-		info->port.flags |= ASYNC_CHECK_CD;
+	tty_port_set_check_carrier(&info->port, ~cflag & CLOCAL);
 
 	/* process tty input control flags */
 

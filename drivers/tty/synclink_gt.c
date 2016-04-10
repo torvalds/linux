@@ -2080,7 +2080,7 @@ static void dcd_change(struct slgt_info *info, unsigned short status)
 	wake_up_interruptible(&info->event_wait_q);
 	info->pending_bh |= BH_STATUS;
 
-	if (info->port.flags & ASYNC_CHECK_CD) {
+	if (tty_port_check_carrier(&info->port)) {
 		if (info->signals & SerialSignal_DCD)
 			wake_up_interruptible(&info->port.open_wait);
 		else {
@@ -2577,11 +2577,7 @@ static void change_params(struct slgt_info *info)
 	info->timeout += HZ/50;		/* Add .02 seconds of slop */
 
 	tty_port_set_cts_flow(&info->port, cflag & CRTSCTS);
-
-	if (cflag & CLOCAL)
-		info->port.flags &= ~ASYNC_CHECK_CD;
-	else
-		info->port.flags |= ASYNC_CHECK_CD;
+	tty_port_set_check_carrier(&info->port, ~cflag & CLOCAL);
 
 	/* process tty input control flags */
 

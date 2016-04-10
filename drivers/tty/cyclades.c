@@ -714,7 +714,7 @@ static void cyy_chip_modem(struct cyclades_card *cinfo, int chip,
 		wake_up_interruptible(&info->port.delta_msr_wait);
 	}
 
-	if ((mdm_change & CyDCD) && (info->port.flags & ASYNC_CHECK_CD)) {
+	if ((mdm_change & CyDCD) && tty_port_check_carrier(&info->port)) {
 		if (mdm_status & CyDCD)
 			wake_up_interruptible(&info->port.open_wait);
 		else
@@ -1119,7 +1119,7 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 		case C_CM_MDCD:
 			info->icount.dcd++;
 			delta_count++;
-			if (info->port.flags & ASYNC_CHECK_CD) {
+			if (tty_port_check_carrier(&info->port)) {
 				u32 dcd = fw_ver > 241 ? param :
 					readl(&info->u.cyz.ch_ctrl->rs_status);
 				if (dcd & C_RS_DCD)
@@ -2088,10 +2088,7 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 			info->cor2 |= CyCtsAE;
 		else
 			info->cor2 &= ~CyCtsAE;
-		if (cflag & CLOCAL)
-			info->port.flags &= ~ASYNC_CHECK_CD;
-		else
-			info->port.flags |= ASYNC_CHECK_CD;
+		tty_port_set_check_carrier(&info->port, ~cflag & CLOCAL);
 
 	 /***********************************************
 	    The hardware option, CyRtsAO, presents RTS when
@@ -2250,10 +2247,7 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 		}
 
 		/* CD sensitivity */
-		if (cflag & CLOCAL)
-			info->port.flags &= ~ASYNC_CHECK_CD;
-		else
-			info->port.flags |= ASYNC_CHECK_CD;
+		tty_port_set_check_carrier(&info->port, ~cflag & CLOCAL);
 
 		if (baud == 0) {	/* baud rate is zero, turn off line */
 			cy_writel(&ch_ctrl->rs_control,

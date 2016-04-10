@@ -96,10 +96,7 @@ static void ircomm_tty_change_speed(struct ircomm_tty_cb *self,
 	} else {
 		self->settings.flow_control &= ~IRCOMM_RTS_CTS_IN;
 	}
-	if (cflag & CLOCAL)
-		self->port.flags &= ~ASYNC_CHECK_CD;
-	else
-		self->port.flags |= ASYNC_CHECK_CD;
+	tty_port_set_check_carrier(&self->port, ~cflag & CLOCAL);
 #if 0
 	/*
 	 * Set up parity check flag

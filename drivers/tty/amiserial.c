@@ -398,7 +398,7 @@ static void check_modem_status(struct serial_state *info)
 		wake_up_interruptible(&port->delta_msr_wait);
 	}
 
-	if ((port->flags & ASYNC_CHECK_CD) && (dstatus & SER_DCD)) {
+	if (tty_port_check_carrier(port) && (dstatus & SER_DCD)) {
 #if (defined(SERIAL_DEBUG_OPEN) || defined(SERIAL_DEBUG_INTR))
 		printk("ttyS%d CD now %s...", info->line,
 		       (!(status & SER_DCD)) ? "on" : "off");
@@ -730,12 +730,9 @@ static void change_speed(struct tty_struct *tty, struct serial_state *info,
 	tty_port_set_cts_flow(port, cflag & CRTSCTS);
 	if (cflag & CRTSCTS)
 		info->IER |= UART_IER_MSI;
-	if (cflag & CLOCAL)
-		port->flags &= ~ASYNC_CHECK_CD;
-	else {
-		port->flags |= ASYNC_CHECK_CD;
+	tty_port_set_check_carrier(port, ~cflag & CLOCAL);
+	if (~cflag & CLOCAL)
 		info->IER |= UART_IER_MSI;
-	}
 	/* TBD:
 	 * Does clearing IER_MSI imply that we should disable the VBL interrupt ?
 	 */

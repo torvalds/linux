@@ -746,12 +746,9 @@ static int mxser_change_speed(struct tty_struct *tty,
 		}
 	}
 	outb(info->MCR, info->ioaddr + UART_MCR);
-	if (cflag & CLOCAL) {
-		info->port.flags &= ~ASYNC_CHECK_CD;
-	} else {
-		info->port.flags |= ASYNC_CHECK_CD;
+	tty_port_set_check_carrier(&info->port, ~cflag & CLOCAL);
+	if (~cflag & CLOCAL)
 		info->IER |= UART_IER_MSI;
-	}
 	outb(info->IER, info->ioaddr + UART_IER);
 
 	/*
@@ -824,7 +821,7 @@ static void mxser_check_modem_status(struct tty_struct *tty,
 	port->mon_data.modem_status = status;
 	wake_up_interruptible(&port->port.delta_msr_wait);
 
-	if ((port->port.flags & ASYNC_CHECK_CD) && (status & UART_MSR_DDCD)) {
+	if (tty_port_check_carrier(&port->port) && (status & UART_MSR_DDCD)) {
 		if (status & UART_MSR_DCD)
 			wake_up_interruptible(&port->port.open_wait);
 	}
