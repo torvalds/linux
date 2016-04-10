@@ -1500,9 +1500,10 @@ static int mxs_lradc_hw_init(struct mxs_lradc *lradc)
 		mxs_lradc_reg_clear(lradc, LRADC_CTRL0_MX28_TOUCH_SCREEN_TYPE,
 				    LRADC_CTRL0);
 
-	if (lradc->use_touchscreen == MXS_LRADC_TOUCHSCREEN_5WIRE)
-		mxs_lradc_reg_set(lradc, LRADC_CTRL0_MX28_TOUCH_SCREEN_TYPE,
-				  LRADC_CTRL0);
+		if (lradc->use_touchscreen == MXS_LRADC_TOUCHSCREEN_5WIRE)
+			mxs_lradc_reg_set(lradc,
+					  LRADC_CTRL0_MX28_TOUCH_SCREEN_TYPE,
+					  LRADC_CTRL0);
 	}
 
 	/* Start internal temperature sensing. */
