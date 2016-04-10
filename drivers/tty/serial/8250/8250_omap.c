@@ -744,7 +744,7 @@ static void omap_8250_unthrottle(struct uart_port *port)
 #ifdef CONFIG_SERIAL_8250_DMA
 static int omap_8250_rx_dma(struct uart_8250_port *p, unsigned int iir);
 
-static void __dma_rx_do_complete(struct uart_8250_port *p, bool error)
+static void __dma_rx_do_complete(struct uart_8250_port *p)
 {
 	struct omap8250_priv	*priv = p->port.private_data;
 	struct uart_8250_dma    *dma = p->dma;
@@ -772,15 +772,13 @@ static void __dma_rx_do_complete(struct uart_8250_port *p, bool error)
 unlock:
 	spin_unlock_irqrestore(&priv->rx_dma_lock, flags);
 
-	if (!error)
-		omap_8250_rx_dma(p, 0);
-
 	tty_flip_buffer_push(tty_port);
 }
 
 static void __dma_rx_complete(void *param)
 {
-	__dma_rx_do_complete(param, false);
+	__dma_rx_do_complete(param);
+	omap_8250_rx_dma(param, 0);
 }
 
 static void omap_8250_rx_dma_flush(struct uart_8250_port *p)
@@ -803,7 +801,7 @@ static void omap_8250_rx_dma_flush(struct uart_8250_port *p)
 
 	spin_unlock_irqrestore(&priv->rx_dma_lock, flags);
 
-	__dma_rx_do_complete(p, true);
+	__dma_rx_do_complete(p);
 }
 
 static int omap_8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
