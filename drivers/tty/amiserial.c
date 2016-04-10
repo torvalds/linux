@@ -525,7 +525,7 @@ static int startup(struct tty_struct *tty, struct serial_state *info)
 
 	local_irq_save(flags);
 
-	if (port->flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(port)) {
 		free_page(page);
 		goto errout;
 	}
@@ -586,7 +586,7 @@ static int startup(struct tty_struct *tty, struct serial_state *info)
 	 */
 	change_speed(tty, info, NULL);
 
-	port->flags |= ASYNC_INITIALIZED;
+	tty_port_set_initialized(port, 1);
 	local_irq_restore(flags);
 	return 0;
 
@@ -604,7 +604,7 @@ static void shutdown(struct tty_struct *tty, struct serial_state *info)
 	unsigned long	flags;
 	struct serial_state *state;
 
-	if (!(info->tport.flags & ASYNC_INITIALIZED))
+	if (!tty_port_initialized(&info->tport))
 		return;
 
 	state = info;
@@ -645,7 +645,7 @@ static void shutdown(struct tty_struct *tty, struct serial_state *info)
 
 	set_bit(TTY_IO_ERROR, &tty->flags);
 
-	info->tport.flags &= ~ASYNC_INITIALIZED;
+	tty_port_set_initialized(&info->tport, 0);
 	local_irq_restore(flags);
 }
 
@@ -1084,7 +1084,7 @@ static int set_serial_info(struct tty_struct *tty, struct serial_state *state,
 	port->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 check_and_exit:
-	if (port->flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(port)) {
 		if (change_spd) {
 			if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
 				tty->alt_speed = 57600;
@@ -1390,7 +1390,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	 * line status register.
 	 */
 	state->read_status_mask &= ~UART_LSR_DR;
-	if (port->flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(port)) {
 	        /* disable receive interrupts */
 	        custom.intena = IF_RBF;
 		mb();
@@ -1538,7 +1538,7 @@ static inline void line_info(struct seq_file *m, int line,
 
 	local_irq_save(flags);
 	status = ciab.pra;
-	control = (state->tport.flags & ASYNC_INITIALIZED) ? state->MCR : status;
+	control = tty_port_initialized(&state->tport) ? state->MCR : status;
 	local_irq_restore(flags);
 
 	stat_buf[0] = 0;

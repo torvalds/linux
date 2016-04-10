@@ -1081,12 +1081,10 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	mutex_lock(&port->mutex);
 	mxser_close_port(port);
 	mxser_flush_buffer(tty);
-	if (test_bit(ASYNCB_INITIALIZED, &port->flags)) {
-		if (C_HUPCL(tty))
-			tty_port_lower_dtr_rts(port);
-	}
+	if (tty_port_initialized(port) && C_HUPCL(tty))
+		tty_port_lower_dtr_rts(port);
 	mxser_shutdown_port(port);
-	clear_bit(ASYNCB_INITIALIZED, &port->flags);
+	tty_port_set_initialized(port, 0);
 	mutex_unlock(&port->mutex);
 	info->closing = 0;
 	/* Right now the tty_port set is done outside of the close_end helper
@@ -1282,7 +1280,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 
 	process_txrx_fifo(info);
 
-	if (test_bit(ASYNCB_INITIALIZED, &port->flags)) {
+	if (tty_port_initialized(port)) {
 		if (flags != (port->flags & ASYNC_SPD_MASK)) {
 			spin_lock_irqsave(&info->slock, sl_flags);
 			mxser_change_speed(tty, NULL);
@@ -1291,7 +1289,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 	} else {
 		retval = mxser_activate(port, tty);
 		if (retval == 0)
-			set_bit(ASYNCB_INITIALIZED, &port->flags);
+			tty_port_set_initialized(port, 1);
 	}
 	return retval;
 }
@@ -2251,7 +2249,7 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 				iir &= MOXA_MUST_IIR_MASK;
 				tty = tty_port_tty_get(&port->port);
 				if (!tty || port->closing ||
-				    !(port->port.flags & ASYNC_INITIALIZED)) {
+				    !tty_port_initialized(&port->port)) {
 					status = inb(port->ioaddr + UART_LSR);
 					outb(0x27, port->ioaddr + UART_FCR);
 					inb(port->ioaddr + UART_MSR);

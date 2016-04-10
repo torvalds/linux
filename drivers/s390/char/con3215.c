@@ -311,8 +311,7 @@ static void raw3215_timeout(unsigned long __data)
  */
 static inline void raw3215_try_io(struct raw3215_info *raw)
 {
-	if (!(raw->port.flags & ASYNC_INITIALIZED) ||
-	    tty_port_suspended(&raw->port))
+	if (!tty_port_initialized(&raw->port) || tty_port_suspended(&raw->port))
 		return;
 	if (raw->queued_read != NULL)
 		raw3215_start_io(raw);
@@ -616,10 +615,10 @@ static int raw3215_startup(struct raw3215_info *raw)
 {
 	unsigned long flags;
 
-	if (raw->port.flags & ASYNC_INITIALIZED)
+	if (tty_port_initialized(&raw->port))
 		return 0;
 	raw->line_pos = 0;
-	raw->port.flags |= ASYNC_INITIALIZED;
+	tty_port_set_initialized(&raw->port, 1);
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 	raw3215_try_io(raw);
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
@@ -635,8 +634,7 @@ static void raw3215_shutdown(struct raw3215_info *raw)
 	DECLARE_WAITQUEUE(wait, current);
 	unsigned long flags;
 
-	if (!(raw->port.flags & ASYNC_INITIALIZED) ||
-	    (raw->flags & RAW3215_FIXED))
+	if (!tty_port_initialized(&raw->port) || (raw->flags & RAW3215_FIXED))
 		return;
 	/* Wait for outstanding requests, then free irq */
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
@@ -650,7 +648,7 @@ static void raw3215_shutdown(struct raw3215_info *raw)
 		spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 		remove_wait_queue(&raw->empty_wait, &wait);
 		set_current_state(TASK_RUNNING);
-		raw->port.flags &= ~ASYNC_INITIALIZED;
+		tty_port_set_initialized(&raw->port, 1);
 	}
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
 }

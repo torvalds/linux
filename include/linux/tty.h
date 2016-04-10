@@ -610,6 +610,19 @@ static inline void tty_port_set_suspended(struct tty_port *port, bool val)
 		clear_bit(TTY_PORT_SUSPENDED, &port->iflags);
 }
 
+static inline bool tty_port_initialized(struct tty_port *port)
+{
+	return test_bit(TTY_PORT_INITIALIZED, &port->iflags);
+}
+
+static inline void tty_port_set_initialized(struct tty_port *port, bool val)
+{
+	if (val)
+		set_bit(TTY_PORT_INITIALIZED, &port->iflags);
+	else
+		clear_bit(TTY_PORT_INITIALIZED, &port->iflags);
+}
+
 extern struct tty_struct *tty_port_tty_get(struct tty_port *port);
 extern void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty);
 extern int tty_port_carrier_raised(struct tty_port *port);

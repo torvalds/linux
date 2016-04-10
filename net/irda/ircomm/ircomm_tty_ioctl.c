@@ -324,7 +324,7 @@ static int ircomm_tty_set_serial_info(struct ircomm_tty_cb *self,
 
  check_and_exit:
 
-	if (self->flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(self)) {
 		if (((old_state.flags & ASYNC_SPD_MASK) !=
 		     (self->flags & ASYNC_SPD_MASK)) ||
 		    (old_driver.custom_divisor != driver->custom_divisor)) {

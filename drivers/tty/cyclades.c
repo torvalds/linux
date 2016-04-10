@@ -1279,7 +1279,7 @@ static int cy_startup(struct cyclades_port *info, struct tty_struct *tty)
 
 	spin_lock_irqsave(&card->card_lock, flags);
 
-	if (info->port.flags & ASYNC_INITIALIZED)
+	if (tty_port_initialized(&info->port))
 		goto errout;
 
 	if (!info->type) {
@@ -1364,7 +1364,7 @@ static int cy_startup(struct cyclades_port *info, struct tty_struct *tty)
 		/* enable send, recv, modem !!! */
 	}
 
-	info->port.flags |= ASYNC_INITIALIZED;
+	tty_port_set_initialized(&info->port, 1);
 
 	clear_bit(TTY_IO_ERROR, &tty->flags);
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
@@ -1424,7 +1424,7 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 	struct cyclades_card *card;
 	unsigned long flags;
 
-	if (!(info->port.flags & ASYNC_INITIALIZED))
+	if (!tty_port_initialized(&info->port))
 		return;
 
 	card = info->card;
@@ -1448,7 +1448,7 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 		   some later date (after testing)!!! */
 
 		set_bit(TTY_IO_ERROR, &tty->flags);
-		info->port.flags &= ~ASYNC_INITIALIZED;
+		tty_port_set_initialized(&info->port, 0);
 		spin_unlock_irqrestore(&card->card_lock, flags);
 	} else {
 #ifdef CY_DEBUG_OPEN
@@ -1473,7 +1473,7 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 			tty_port_lower_dtr_rts(&info->port);
 
 		set_bit(TTY_IO_ERROR, &tty->flags);
-		info->port.flags &= ~ASYNC_INITIALIZED;
+		tty_port_set_initialized(&info->port, 0);
 
 		spin_unlock_irqrestore(&card->card_lock, flags);
 	}
@@ -1711,7 +1711,7 @@ static void cy_do_close(struct tty_port *port)
 		/* Stop accepting input */
 		cyy_writeb(info, CyCAR, channel & 0x03);
 		cyy_writeb(info, CySRER, cyy_readb(info, CySRER) & ~CyRxData);
-		if (info->port.flags & ASYNC_INITIALIZED) {
+		if (tty_port_initialized(&info->port)) {
 			/* Waiting for on-board buffers to be empty before
 			   closing the port */
 			spin_unlock_irqrestore(&card->card_lock, flags);
@@ -2334,7 +2334,7 @@ cy_set_serial_info(struct cyclades_port *info, struct tty_struct *tty,
 	info->port.closing_wait = new_serial.closing_wait * HZ / 100;
 
 check_and_exit:
-	if (info->port.flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(&info->port)) {
 		cy_set_line_char(info, tty);
 		ret = 0;
 	} else {

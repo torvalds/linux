@@ -204,7 +204,8 @@ static void tty_port_shutdown(struct tty_port *port, struct tty_struct *tty)
 	if (port->console)
 		goto out;
 
-	if (test_and_clear_bit(ASYNCB_INITIALIZED, &port->flags)) {
+	if (tty_port_initialized(port)) {
+		tty_port_set_initialized(port, 0);
 		/*
 		 * Drop DTR/RTS if HUPCL is set. This causes any attached
 		 * modem to hang up the line.
@@ -393,13 +394,13 @@ int tty_port_block_til_ready(struct tty_port *port,
 
 	while (1) {
 		/* Indicate we are open */
-		if (C_BAUD(tty) && test_bit(ASYNCB_INITIALIZED, &port->flags))
+		if (C_BAUD(tty) && tty_port_initialized(port))
 			tty_port_raise_dtr_rts(port);
 
 		prepare_to_wait(&port->open_wait, &wait, TASK_INTERRUPTIBLE);
 		/* Check for a hangup or uninitialised port.
 							Return accordingly */
-		if (tty_hung_up_p(filp) || !(port->flags & ASYNC_INITIALIZED)) {
+		if (tty_hung_up_p(filp) || !tty_port_initialized(port)) {
 			if (port->flags & ASYNC_HUP_NOTIFY)
 				retval = -EAGAIN;
 			else
@@ -480,7 +481,7 @@ int tty_port_close_start(struct tty_port *port,
 
 	tty->closing = 1;
 
-	if (test_bit(ASYNCB_INITIALIZED, &port->flags)) {
+	if (tty_port_initialized(port)) {
 		/* Don't block on a stalled port, just pull the chain */
 		if (tty->flow_stopped)
 			tty_driver_flush_buffer(tty);
@@ -578,7 +579,7 @@ int tty_port_open(struct tty_port *port, struct tty_struct *tty,
 
 	mutex_lock(&port->mutex);
 
-	if (!test_bit(ASYNCB_INITIALIZED, &port->flags)) {
+	if (!tty_port_initialized(port)) {
 		clear_bit(TTY_IO_ERROR, &tty->flags);
 		if (port->ops->activate) {
 			int retval = port->ops->activate(port, tty);
@@ -587,7 +588,7 @@ int tty_port_open(struct tty_port *port, struct tty_struct *tty,
 				return retval;
 			}
 		}
-		set_bit(ASYNCB_INITIALIZED, &port->flags);
+		tty_port_set_initialized(port, 1);
 	}
 	mutex_unlock(&port->mutex);
 	return tty_port_block_til_ready(port, tty, filp);

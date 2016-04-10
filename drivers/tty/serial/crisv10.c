@@ -2599,7 +2599,7 @@ startup(struct e100_serial * info)
 
 	/* if it was already initialized, skip this */
 
-	if (info->port.flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(&info->port)) {
 		local_irq_restore(flags);
 		free_page(xmit_page);
 		return 0;
@@ -2703,7 +2703,7 @@ startup(struct e100_serial * info)
 	e100_rts(info, 1);
 	e100_dtr(info, 1);
 
-	info->port.flags |= ASYNC_INITIALIZED;
+	tty_port_set_initialized(&info->port, 1);
 
 	local_irq_restore(flags);
 	return 0;
@@ -2745,7 +2745,7 @@ shutdown(struct e100_serial * info)
 		info->tr_running = 0;
 	}
 
-	if (!(info->port.flags & ASYNC_INITIALIZED))
+	if (!tty_port_initialized(&info->port))
 		return;
 
 #ifdef SERIAL_DEBUG_OPEN
@@ -2776,7 +2776,7 @@ shutdown(struct e100_serial * info)
 	if (info->port.tty)
 		set_bit(TTY_IO_ERROR, &info->port.tty->flags);
 
-	info->port.flags &= ~ASYNC_INITIALIZED;
+	tty_port_set_initialized(&info->port, 0);
 	local_irq_restore(flags);
 }
 
@@ -3273,9 +3273,9 @@ set_serial_info(struct e100_serial *info,
 	info->port.low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
  check_and_exit:
-	if (info->port.flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(&info->port))
 		change_speed(info);
-	} else
+	else
 		retval = startup(info);
 	return retval;
 }
@@ -3628,7 +3628,7 @@ rs_close(struct tty_struct *tty, struct file * filp)
 	e100_disable_rx(info);
 	e100_disable_rx_irq(info);
 
-	if (info->port.flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(&info->port)) {
 		/*
 		 * Before we drop DTR, make sure the UART transmitter
 		 * has completely drained; this is especially
@@ -3787,8 +3787,7 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 		e100_dtr(info, 1);
 		local_irq_restore(flags);
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (tty_hung_up_p(filp) ||
-		    !(info->port.flags & ASYNC_INITIALIZED)) {
+		if (tty_hung_up_p(filp) || !tty_port_initialized(&info->port)) {
 #ifdef SERIAL_DO_RESTART
 			if (info->port.flags & ASYNC_HUP_NOTIFY)
 				retval = -EAGAIN;

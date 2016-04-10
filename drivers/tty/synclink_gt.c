@@ -726,7 +726,7 @@ static void close(struct tty_struct *tty, struct file *filp)
 		goto cleanup;
 
 	mutex_lock(&info->port.mutex);
- 	if (info->port.flags & ASYNC_INITIALIZED)
+	if (tty_port_initialized(&info->port))
  		wait_until_sent(tty, info->timeout);
 	flush_buffer(tty);
 	tty_ldisc_flush(tty);
@@ -893,7 +893,7 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 	if (sanity_check(info, tty->name, "wait_until_sent"))
 		return;
 	DBGINFO(("%s wait_until_sent entry\n", info->device_name));
-	if (!(info->port.flags & ASYNC_INITIALIZED))
+	if (!tty_port_initialized(&info->port))
 		goto exit;
 
 	orig_jiffies = jiffies;
@@ -2421,7 +2421,7 @@ static int startup(struct slgt_info *info)
 {
 	DBGINFO(("%s startup\n", info->device_name));
 
-	if (info->port.flags & ASYNC_INITIALIZED)
+	if (tty_port_initialized(&info->port))
 		return 0;
 
 	if (!info->tx_buf) {
@@ -2442,7 +2442,7 @@ static int startup(struct slgt_info *info)
 	if (info->port.tty)
 		clear_bit(TTY_IO_ERROR, &info->port.tty->flags);
 
-	info->port.flags |= ASYNC_INITIALIZED;
+	tty_port_set_initialized(&info->port, 1);
 
 	return 0;
 }
@@ -2454,7 +2454,7 @@ static void shutdown(struct slgt_info *info)
 {
 	unsigned long flags;
 
-	if (!(info->port.flags & ASYNC_INITIALIZED))
+	if (!tty_port_initialized(&info->port))
 		return;
 
 	DBGINFO(("%s shutdown\n", info->device_name));
@@ -2489,7 +2489,7 @@ static void shutdown(struct slgt_info *info)
 	if (info->port.tty)
 		set_bit(TTY_IO_ERROR, &info->port.tty->flags);
 
-	info->port.flags &= ~ASYNC_INITIALIZED;
+	tty_port_set_initialized(&info->port, 0);
 }
 
 static void program_hw(struct slgt_info *info)
@@ -3287,12 +3287,12 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	port->blocked_open++;
 
 	while (1) {
-		if (C_BAUD(tty) && test_bit(ASYNCB_INITIALIZED, &port->flags))
+		if (C_BAUD(tty) && tty_port_initialized(port))
 			tty_port_raise_dtr_rts(port);
 
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		if (tty_hung_up_p(filp) || !(port->flags & ASYNC_INITIALIZED)){
+		if (tty_hung_up_p(filp) || !tty_port_initialized(port)) {
 			retval = (port->flags & ASYNC_HUP_NOTIFY) ?
 					-EAGAIN : -ERESTARTSYS;
 			break;

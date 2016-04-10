@@ -1049,7 +1049,7 @@ isdn_tty_change_speed(modem_info *info)
 static int
 isdn_tty_startup(modem_info *info)
 {
-	if (info->port.flags & ASYNC_INITIALIZED)
+	if (tty_port_initialized(&info->port))
 		return 0;
 	isdn_lock_drivers();
 #ifdef ISDN_DEBUG_MODEM_OPEN
@@ -1066,7 +1066,7 @@ isdn_tty_startup(modem_info *info)
 	 */
 	isdn_tty_change_speed(info);
 
-	info->port.flags |= ASYNC_INITIALIZED;
+	tty_port_set_initialized(&info->port, 1);
 	info->msr |= (UART_MSR_DSR | UART_MSR_CTS);
 	info->send_outstanding = 0;
 	return 0;
@@ -1079,7 +1079,7 @@ isdn_tty_startup(modem_info *info)
 static void
 isdn_tty_shutdown(modem_info *info)
 {
-	if (!(info->port.flags & ASYNC_INITIALIZED))
+	if (!tty_port_initialized(&info->port))
 		return;
 #ifdef ISDN_DEBUG_MODEM_OPEN
 	printk(KERN_DEBUG "Shutting down isdnmodem port %d ....\n", info->line);
@@ -1099,7 +1099,7 @@ isdn_tty_shutdown(modem_info *info)
 	if (info->port.tty)
 		set_bit(TTY_IO_ERROR, &info->port.tty->flags);
 
-	info->port.flags &= ~ASYNC_INITIALIZED;
+	tty_port_set_initialized(&info->port, 0);
 }
 
 /* isdn_tty_write() is the main send-routine. It is called from the upper
@@ -1577,7 +1577,7 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 	 * interrupt driver to stop checking the data ready bit in the
 	 * line status register.
 	 */
-	if (port->flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(port)) {
 		tty_wait_until_sent(tty, 3000);	/* 30 seconds timeout */
 		/*
 		 * Before we drop DTR, make sure the UART transmitter

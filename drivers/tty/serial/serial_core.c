@@ -196,7 +196,7 @@ static int uart_startup(struct tty_struct *tty, struct uart_state *state,
 	struct tty_port *port = &state->port;
 	int retval;
 
-	if (port->flags & ASYNC_INITIALIZED)
+	if (tty_port_initialized(port))
 		return 0;
 
 	/*
@@ -207,7 +207,7 @@ static int uart_startup(struct tty_struct *tty, struct uart_state *state,
 
 	retval = uart_port_startup(tty, state, init_hw);
 	if (!retval) {
-		set_bit(ASYNCB_INITIALIZED, &port->flags);
+		tty_port_set_initialized(port, 1);
 		clear_bit(TTY_IO_ERROR, &tty->flags);
 	} else if (retval > 0)
 		retval = 0;
@@ -231,7 +231,9 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 	if (tty)
 		set_bit(TTY_IO_ERROR, &tty->flags);
 
-	if (test_and_clear_bit(ASYNCB_INITIALIZED, &port->flags)) {
+	if (tty_port_initialized(port)) {
+		tty_port_set_initialized(port, 0);
+
 		/*
 		 * Turn off DTR and RTS early.
 		 */
@@ -886,7 +888,7 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 	retval = 0;
 	if (uport->type == PORT_UNKNOWN)
 		goto exit;
-	if (port->flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(port)) {
 		if (((old_flags ^ uport->flags) & UPF_SPD_MASK) ||
 		    old_custom_divisor != uport->custom_divisor) {
 			/*
@@ -1390,7 +1392,7 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	 * At this point, we stop accepting input.  To do this, we
 	 * disable the receive line status interrupts.
 	 */
-	if (port->flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(port)) {
 		spin_lock_irq(&uport->lock);
 		uport->ops->stop_rx(uport);
 		spin_unlock_irq(&uport->lock);
@@ -2003,12 +2005,12 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 
 	uport->suspended = 1;
 
-	if (port->flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(port)) {
 		const struct uart_ops *ops = uport->ops;
 		int tries;
 
 		tty_port_set_suspended(port, 1);
-		clear_bit(ASYNCB_INITIALIZED, &port->flags);
+		tty_port_set_initialized(port, 0);
 
 		spin_lock_irq(&uport->lock);
 		ops->stop_tx(uport);
@@ -2107,7 +2109,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 				ops->set_mctrl(uport, uport->mctrl);
 				ops->start_tx(uport);
 				spin_unlock_irq(&uport->lock);
-				set_bit(ASYNCB_INITIALIZED, &port->flags);
+				tty_port_set_initialized(port, 1);
 			} else {
 				/*
 				 * Failed to resume - maybe hardware went away?
@@ -2248,10 +2250,10 @@ static int uart_poll_init(struct tty_driver *driver, int line, char *options)
 		ret = 0;
 		mutex_lock(&tport->mutex);
 		/*
-		 * We don't set ASYNCB_INITIALIZED as we only initialized the
-		 * hw, e.g. state->xmit is still uninitialized.
+		 * We don't set initialized as we only initialized the hw,
+		 * e.g. state->xmit is still uninitialized.
 		 */
-		if (!test_bit(ASYNCB_INITIALIZED, &tport->flags))
+		if (!tty_port_initialized(tport))
 			ret = port->ops->poll_init(port);
 		mutex_unlock(&tport->mutex);
 		if (ret)
