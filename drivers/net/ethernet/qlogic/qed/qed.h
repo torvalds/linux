@@ -507,6 +507,4 @@ u32 qed_unzip_data(struct qed_hwfn *p_hwfn,
 
 int qed_slowpath_irq_req(struct qed_hwfn *hwfn);
 
-#define QED_ETH_INTERFACE_VERSION       300
-
 #endif /* _QED_H */

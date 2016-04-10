@@ -32,8 +32,6 @@
 		__stringify(QEDE_REVISION_VERSION) "."		\
 		__stringify(QEDE_ENGINEERING_VERSION)
 
-#define QEDE_ETH_INTERFACE_VERSION	300
-
 #define DRV_MODULE_SYM		qede
 
 struct qede_stats {

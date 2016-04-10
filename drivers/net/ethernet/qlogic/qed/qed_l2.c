@@ -2043,14 +2043,8 @@ static const struct qed_eth_ops qed_eth_ops_pass = {
 	.get_vport_stats = &qed_get_vport_stats,
 };
 
-const struct qed_eth_ops *qed_get_eth_ops(u32 version)
+const struct qed_eth_ops *qed_get_eth_ops(void)
 {
-	if (version != QED_ETH_INTERFACE_VERSION) {
-		pr_notice("Cannot supply ethtool operations [%08x != %08x]\n",
-			  version, QED_ETH_INTERFACE_VERSION);
-		return NULL;
-	}
-
 	return &qed_eth_ops_pass;
 }
 EXPORT_SYMBOL(qed_get_eth_ops);

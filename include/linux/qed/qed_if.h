@@ -271,15 +271,6 @@ struct qed_common_ops {
 		       enum qed_led_mode mode);
 };
 
-/**
- * @brief qed_get_protocol_version
- *
- * @param protocol
- *
- * @return version supported by qed for given protocol driver
- */
-u32 qed_get_protocol_version(enum qed_protocol protocol);
-
 #define MASK_FIELD(_name, _value) \
 	((_value) &= (_name ## _MASK))
 

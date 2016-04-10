@@ -167,7 +167,7 @@ struct qed_eth_ops {
 				struct qed_eth_stats *stats);
 };
 
-const struct qed_eth_ops *qed_get_eth_ops(u32 version);
+const struct qed_eth_ops *qed_get_eth_ops(void);
 void qed_put_eth_ops(void);
 
 #endif
