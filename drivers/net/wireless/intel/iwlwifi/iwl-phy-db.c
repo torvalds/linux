@@ -221,8 +221,8 @@ void iwl_phy_db_free(struct iwl_phy_db *phy_db)
 }
 IWL_EXPORT_SYMBOL(iwl_phy_db_free);
 
-int iwl_phy_db_set_section(struct iwl_phy_db *phy_db, struct iwl_rx_packet *pkt,
-			   gfp_t alloc_ctx)
+int iwl_phy_db_set_section(struct iwl_phy_db *phy_db,
+			   struct iwl_rx_packet *pkt)
 {
 	struct iwl_calib_res_notif_phy_db *phy_db_notif =
 			(struct iwl_calib_res_notif_phy_db *)pkt->data;
@@ -269,7 +269,7 @@ int iwl_phy_db_set_section(struct iwl_phy_db *phy_db, struct iwl_rx_packet *pkt,
 		return -EINVAL;
 
 	kfree(entry->data);
-	entry->data = kmemdup(phy_db_notif->data, size, alloc_ctx);
+	entry->data = kmemdup(phy_db_notif->data, size, GFP_ATOMIC);
 	if (!entry->data) {
 		entry->size = 0;
 		return -ENOMEM;
