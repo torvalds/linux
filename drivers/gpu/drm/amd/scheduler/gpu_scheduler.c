@@ -530,7 +530,7 @@ static int amd_sched_main(void *param)
  * Return 0 on success, otherwise error code.
 */
 int amd_sched_init(struct amd_gpu_scheduler *sched,
-		   struct amd_sched_backend_ops *ops,
+		   const struct amd_sched_backend_ops *ops,
 		   unsigned hw_submission, long timeout, const char *name)
 {
 	int i;

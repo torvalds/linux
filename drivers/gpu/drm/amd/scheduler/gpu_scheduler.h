@@ -123,7 +123,7 @@ enum amd_sched_priority {
  * One scheduler is implemented for each hardware ring
 */
 struct amd_gpu_scheduler {
-	struct amd_sched_backend_ops	*ops;
+	const struct amd_sched_backend_ops	*ops;
 	uint32_t			hw_submission_limit;
 	long				timeout;
 	const char			*name;
@@ -137,7 +137,7 @@ struct amd_gpu_scheduler {
 };
 
 int amd_sched_init(struct amd_gpu_scheduler *sched,
-		   struct amd_sched_backend_ops *ops,
+		   const struct amd_sched_backend_ops *ops,
 		   uint32_t hw_submission, long timeout, const char *name);
 void amd_sched_fini(struct amd_gpu_scheduler *sched);
 

@@ -748,7 +748,7 @@ enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_VCE
 };
 
-extern struct amd_sched_backend_ops amdgpu_sched_ops;
+extern const struct amd_sched_backend_ops amdgpu_sched_ops;
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 		     struct amdgpu_job **job);

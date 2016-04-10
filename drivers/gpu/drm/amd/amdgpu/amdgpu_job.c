@@ -198,7 +198,7 @@ err:
 	return fence;
 }
 
-struct amd_sched_backend_ops amdgpu_sched_ops = {
+const struct amd_sched_backend_ops amdgpu_sched_ops = {
 	.dependency = amdgpu_job_dependency,
 	.run_job = amdgpu_job_run,
 	.begin_job = amd_sched_job_begin,
