@@ -146,6 +146,7 @@ struct rockchip_thermal_data {
  * TSADCV3_* are used for newer SoCs than RK3288. (e.g: RK3228, RK3399)
  *
  */
+#define TSADCV2_USER_CON			0x00
 #define TSADCV2_AUTO_CON			0x04
 #define TSADCV2_INT_EN				0x08
 #define TSADCV2_INT_PD				0x0c
@@ -181,6 +182,7 @@ struct rockchip_thermal_data {
 #define TSADCV2_HIGHT_TSHUT_DEBOUNCE_COUNT	4
 #define TSADCV2_AUTO_PERIOD_TIME		250 /* msec */
 #define TSADCV2_AUTO_PERIOD_HT_TIME		50  /* msec */
+#define TSADCV2_USER_INTER_PD_SOC		0x340 /* 13 clocks */
 
 #define GRF_SARADC_TESTBIT			0x0e644
 #define GRF_TSADC_TESTBIT_L			0x0e648
@@ -505,19 +507,20 @@ static void rk_tsadcv2_initialize(struct regmap *grf, void __iomem *regs,
 static void rk_tsadcv3_initialize(struct regmap *grf, void __iomem *regs,
 				  enum tshut_polarity tshut_polarity)
 {
-	if (IS_ERR(grf)) {
-		pr_warn("%s: Missing rockchip,grf property\n", __func__);
-		return;
-	}
-
 	/* The tsadc control power sequence */
-	regmap_write(grf, GRF_TSADC_TESTBIT_L, GRF_TSADC_TSEN_PD_ON);
-	mdelay(10);
-	regmap_write(grf, GRF_TSADC_TESTBIT_L, GRF_TSADC_TSEN_PD_OFF);
-	udelay(100); /* The spec note says at least 15 us */
-	regmap_write(grf, GRF_SARADC_TESTBIT, GRF_SARADC_TESTBIT_ON);
-	regmap_write(grf, GRF_TSADC_TESTBIT_H, GRF_TSADC_TESTBIT_H_ON);
-	udelay(200); /* The spec note says at least 90 us */
+	if (IS_ERR(grf)) {
+		/* Set interleave value to workround ic time sync issue */
+		writel_relaxed(TSADCV2_USER_INTER_PD_SOC, regs +
+			       TSADCV2_USER_CON);
+	} else {
+		regmap_write(grf, GRF_TSADC_TESTBIT_L, GRF_TSADC_TSEN_PD_ON);
+		mdelay(10);
+		regmap_write(grf, GRF_TSADC_TESTBIT_L, GRF_TSADC_TSEN_PD_OFF);
+		udelay(100); /* The spec note says at least 15 us */
+		regmap_write(grf, GRF_SARADC_TESTBIT, GRF_SARADC_TESTBIT_ON);
+		regmap_write(grf, GRF_TSADC_TESTBIT_H, GRF_TSADC_TESTBIT_H_ON);
+		udelay(200); /* The spec note says at least 90 us */
+	}
 
 	if (tshut_polarity == TSHUT_HIGH_ACTIVE)
 		writel_relaxed(0U | TSADCV2_AUTO_TSHUT_POLARITY_HIGH,
