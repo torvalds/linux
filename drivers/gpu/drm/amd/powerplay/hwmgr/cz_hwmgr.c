@@ -915,7 +915,7 @@ static int cz_tf_update_low_mem_pstate(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static struct phm_master_table_item cz_set_power_state_list[] = {
+static const struct phm_master_table_item cz_set_power_state_list[] = {
 	{NULL, cz_tf_update_sclk_limit},
 	{NULL, cz_tf_set_deep_sleep_sclk_threshold},
 	{NULL, cz_tf_set_watermark_threshold},
@@ -925,13 +925,13 @@ static struct phm_master_table_item cz_set_power_state_list[] = {
 	{NULL, NULL}
 };
 
-static struct phm_master_table_header cz_set_power_state_master = {
+static const struct phm_master_table_header cz_set_power_state_master = {
 	0,
 	PHM_MasterTableFlag_None,
 	cz_set_power_state_list
 };
 
-static struct phm_master_table_item cz_setup_asic_list[] = {
+static const struct phm_master_table_item cz_setup_asic_list[] = {
 	{NULL, cz_tf_reset_active_process_mask},
 	{NULL, cz_tf_upload_pptable_to_smu},
 	{NULL, cz_tf_init_sclk_limit},
@@ -943,7 +943,7 @@ static struct phm_master_table_item cz_setup_asic_list[] = {
 	{NULL, NULL}
 };
 
-static struct phm_master_table_header cz_setup_asic_master = {
+static const struct phm_master_table_header cz_setup_asic_master = {
 	0,
 	PHM_MasterTableFlag_None,
 	cz_setup_asic_list
@@ -984,14 +984,14 @@ static int cz_tf_reset_cc6_data(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static struct phm_master_table_item cz_power_down_asic_list[] = {
+static const struct phm_master_table_item cz_power_down_asic_list[] = {
 	{NULL, cz_tf_power_up_display_clock_sys_pll},
 	{NULL, cz_tf_clear_nb_dpm_flag},
 	{NULL, cz_tf_reset_cc6_data},
 	{NULL, NULL}
 };
 
-static struct phm_master_table_header cz_power_down_asic_master = {
+static const struct phm_master_table_header cz_power_down_asic_master = {
 	0,
 	PHM_MasterTableFlag_None,
 	cz_power_down_asic_list
@@ -1095,19 +1095,19 @@ static int cz_tf_check_for_dpm_enabled(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static struct phm_master_table_item cz_disable_dpm_list[] = {
+static const struct phm_master_table_item cz_disable_dpm_list[] = {
 	{ NULL, cz_tf_check_for_dpm_enabled},
 	{NULL, NULL},
 };
 
 
-static struct phm_master_table_header cz_disable_dpm_master = {
+static const struct phm_master_table_header cz_disable_dpm_master = {
 	0,
 	PHM_MasterTableFlag_None,
 	cz_disable_dpm_list
 };
 
-static struct phm_master_table_item cz_enable_dpm_list[] = {
+static const struct phm_master_table_item cz_enable_dpm_list[] = {
 	{ NULL, cz_tf_check_for_dpm_disabled },
 	{ NULL, cz_tf_program_voting_clients },
 	{ NULL, cz_tf_start_dpm},
@@ -1117,7 +1117,7 @@ static struct phm_master_table_item cz_enable_dpm_list[] = {
 	{NULL, NULL},
 };
 
-static struct phm_master_table_header cz_enable_dpm_master = {
+static const struct phm_master_table_header cz_enable_dpm_master = {
 	0,
 	PHM_MasterTableFlag_None,
 	cz_enable_dpm_list

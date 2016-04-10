@@ -141,7 +141,7 @@ enum phm_master_table_flag {
 struct phm_master_table_header {
 	uint32_t storage_size;
 	uint32_t flags;
-	struct phm_master_table_item *master_list;
+	const struct phm_master_table_item *master_list;
 };
 
 struct phm_runtime_table_header {
@@ -199,7 +199,7 @@ extern int phm_dispatch_table(struct pp_hwmgr *hwmgr,
 			      void *input, void *output);
 
 extern int phm_construct_table(struct pp_hwmgr *hwmgr,
-			       struct phm_master_table_header *master_table,
+			       const struct phm_master_table_header *master_table,
 			       struct phm_runtime_table_header *rt_table);
 
 extern int phm_destroy_table(struct pp_hwmgr *hwmgr,
