@@ -542,12 +542,8 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	buf[5] = 0;
 	buf[6] = 0;
 
-	/* optionally enable ALARM1 */
+	/* disable alarms */
 	buf[7] = control & ~(DS1337_BIT_A1IE | DS1337_BIT_A2IE);
-	if (t->enabled) {
-		dev_dbg(dev, "alarm IRQ armed\n");
-		buf[7] |= DS1337_BIT_A1IE;	/* only ALARM1 is used */
-	}
 	buf[8] = status & ~(DS1337_BIT_A1I | DS1337_BIT_A2I);
 
 	ret = ds1307->write_block_data(client,
@@ -555,6 +551,13 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	if (ret < 0) {
 		dev_err(dev, "can't set alarm time\n");
 		return ret;
+	}
+
+	/* optionally enable ALARM1 */
+	if (t->enabled) {
+		dev_dbg(dev, "alarm IRQ armed\n");
+		buf[7] |= DS1337_BIT_A1IE;	/* only ALARM1 is used */
+		i2c_smbus_write_byte_data(client, DS1337_REG_CONTROL, buf[7]);
 	}
 
 	return 0;
