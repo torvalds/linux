@@ -2285,6 +2285,20 @@ static struct omap_hwmod dra7xx_timer11_hwmod = {
 	},
 };
 
+/* timer12 */
+static struct omap_hwmod dra7xx_timer12_hwmod = {
+	.name		= "timer12",
+	.class		= &dra7xx_timer_hwmod_class,
+	.clkdm_name	= "wkupaon_clkdm",
+	.main_clk	= "secure_32k_clk_src_ck",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs = DRA7XX_CM_WKUPAON_TIMER12_CLKCTRL_OFFSET,
+			.context_offs = DRA7XX_RM_WKUPAON_TIMER12_CONTEXT_OFFSET,
+		},
+	},
+};
+
 /* timer13 */
 static struct omap_hwmod dra7xx_timer13_hwmod = {
 	.name		= "timer13",
@@ -3573,6 +3587,14 @@ static struct omap_hwmod_ocp_if dra7xx_l4_per1__timer11 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* l4_wkup -> timer12 */
+static struct omap_hwmod_ocp_if dra7xx_l4_wkup__timer12 = {
+	.master		= &dra7xx_l4_wkup_hwmod,
+	.slave		= &dra7xx_timer12_hwmod,
+	.clk		= "wkupaon_iclk_mux",
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 /* l4_per3 -> timer13 */
 static struct omap_hwmod_ocp_if dra7xx_l4_per3__timer13 = {
 	.master		= &dra7xx_l4_per3_hwmod,
@@ -3908,6 +3930,13 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	NULL,
 };
 
+/* GP-only hwmod links */
+static struct omap_hwmod_ocp_if *dra7xx_gp_hwmod_ocp_ifs[] __initdata = {
+	&dra7xx_l4_wkup__timer12,
+	NULL,
+};
+
+/* SoC variant specific hwmod links */
 static struct omap_hwmod_ocp_if *dra74x_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l4_per3__usb_otg_ss4,
 	NULL,
@@ -3925,9 +3954,12 @@ int __init dra7xx_hwmod_init(void)
 	ret = omap_hwmod_register_links(dra7xx_hwmod_ocp_ifs);
 
 	if (!ret && soc_is_dra74x())
-		return omap_hwmod_register_links(dra74x_hwmod_ocp_ifs);
+		ret = omap_hwmod_register_links(dra74x_hwmod_ocp_ifs);
 	else if (!ret && soc_is_dra72x())
-		return omap_hwmod_register_links(dra72x_hwmod_ocp_ifs);
+		ret = omap_hwmod_register_links(dra72x_hwmod_ocp_ifs);
+
+	if (!ret && omap_type() == OMAP2_DEVICE_TYPE_GP)
+		ret = omap_hwmod_register_links(dra7xx_gp_hwmod_ocp_ifs);
 
 	return ret;
 }
