@@ -5,6 +5,16 @@
 
 menu "Digital potentiometers"
 
+config DS1803
+	tristate "Maxim Integrated DS1803 Digital Potentiometer driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the Maxim Integrated DS1803
+	  digital potentiomenter chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ds1803.
+
 config MCP4131
 	tristate "Microchip MCP413X/414X/415X/416X/423X/424X/425X/426X Digital Potentiometer driver"
 	depends on SPI
