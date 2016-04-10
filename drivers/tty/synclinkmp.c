@@ -2813,10 +2813,7 @@ static void change_params(SLMP_INFO *info)
 	}
 	info->timeout += HZ/50;		/* Add .02 seconds of slop */
 
-	if (cflag & CRTSCTS)
-		info->port.flags |= ASYNC_CTS_FLOW;
-	else
-		info->port.flags &= ~ASYNC_CTS_FLOW;
+	tty_port_set_cts_flow(&info->port, cflag & CRTSCTS);
 
 	if (cflag & CLOCAL)
 		info->port.flags &= ~ASYNC_CHECK_CD;

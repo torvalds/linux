@@ -711,8 +711,8 @@ static int mxser_change_speed(struct tty_struct *tty,
 	/* CTS flow control flag and modem status interrupts */
 	info->IER &= ~UART_IER_MSI;
 	info->MCR &= ~UART_MCR_AFE;
+	tty_port_set_cts_flow(&info->port, cflag & CRTSCTS);
 	if (cflag & CRTSCTS) {
-		info->port.flags |= ASYNC_CTS_FLOW;
 		info->IER |= UART_IER_MSI;
 		if ((info->type == PORT_16550A) || (info->board->chip_flag)) {
 			info->MCR |= UART_MCR_AFE;
@@ -744,8 +744,6 @@ static int mxser_change_speed(struct tty_struct *tty,
 				}
 			}
 		}
-	} else {
-		info->port.flags &= ~ASYNC_CTS_FLOW;
 	}
 	outb(info->MCR, info->ioaddr + UART_MCR);
 	if (cflag & CLOCAL) {

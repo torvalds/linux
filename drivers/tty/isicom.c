@@ -765,11 +765,9 @@ static void isicom_config_port(struct tty_struct *tty)
 
 	/* flow control settings ...*/
 	flow_ctrl = 0;
-	port->port.flags &= ~ASYNC_CTS_FLOW;
-	if (C_CRTSCTS(tty)) {
-		port->port.flags |= ASYNC_CTS_FLOW;
+	tty_port_set_cts_flow(&port->port, C_CRTSCTS(tty));
+	if (C_CRTSCTS(tty))
 		flow_ctrl |= ISICOM_CTSRTS;
-	}
 	if (I_IXON(tty))
 		flow_ctrl |= ISICOM_RESPOND_XONXOFF;
 	if (I_IXOFF(tty))

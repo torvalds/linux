@@ -2083,13 +2083,11 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 			info->cor1 |= CyPARITY_NONE;
 
 		/* CTS flow control flag */
-		if (cflag & CRTSCTS) {
-			info->port.flags |= ASYNC_CTS_FLOW;
+		tty_port_set_cts_flow(&info->port, cflag & CRTSCTS);
+		if (cflag & CRTSCTS)
 			info->cor2 |= CyCtsAE;
-		} else {
-			info->port.flags &= ~ASYNC_CTS_FLOW;
+		else
 			info->cor2 &= ~CyCtsAE;
-		}
 		if (cflag & CLOCAL)
 			info->port.flags &= ~ASYNC_CHECK_CD;
 		else
@@ -2234,7 +2232,7 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 		}
 		/* As the HW flow control is done in firmware, the driver
 		   doesn't need to care about it */
-		info->port.flags &= ~ASYNC_CTS_FLOW;
+		tty_port_set_cts_flow(&info->port, 0);
 
 		/* XON/XOFF/XANY flow control flags */
 		sw_flow = 0;

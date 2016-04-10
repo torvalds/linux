@@ -727,11 +727,9 @@ static void change_speed(struct tty_struct *tty, struct serial_state *info,
 	info->IER &= ~UART_IER_MSI;
 	if (port->flags & ASYNC_HARDPPS_CD)
 		info->IER |= UART_IER_MSI;
-	if (cflag & CRTSCTS) {
-		port->flags |= ASYNC_CTS_FLOW;
+	tty_port_set_cts_flow(port, cflag & CRTSCTS);
+	if (cflag & CRTSCTS)
 		info->IER |= UART_IER_MSI;
-	} else
-		port->flags &= ~ASYNC_CTS_FLOW;
 	if (cflag & CLOCAL)
 		port->flags &= ~ASYNC_CHECK_CD;
 	else {

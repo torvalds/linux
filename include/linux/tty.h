@@ -255,7 +255,6 @@ struct tty_port {
 #define TTY_PORT_CTS_FLOW	3	/* h/w flow control enabled */
 #define TTY_PORT_CHECK_CD	4	/* carrier detect enabled */
 
-
 /*
  * Where all of the state associated with a tty is kept while the tty
  * is open.  Since the termios state should be kept even if the tty
@@ -561,8 +560,17 @@ static inline struct tty_port *tty_port_get(struct tty_port *port)
 /* If the cts flow control is enabled, return true. */
 static inline bool tty_port_cts_enabled(struct tty_port *port)
 {
-	return port->flags & ASYNC_CTS_FLOW;
+	return test_bit(TTY_PORT_CTS_FLOW, &port->iflags);
 }
+
+static inline void tty_port_set_cts_flow(struct tty_port *port, bool val)
+{
+	if (val)
+		set_bit(TTY_PORT_CTS_FLOW, &port->iflags);
+	else
+		clear_bit(TTY_PORT_CTS_FLOW, &port->iflags);
+}
+
 
 extern struct tty_struct *tty_port_tty_get(struct tty_port *port);
 extern void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty);
