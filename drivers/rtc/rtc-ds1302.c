@@ -65,7 +65,7 @@ static int ds1302_rtc_set_time(struct device *dev, struct rtc_time *time)
 	*bp++ = bin2bcd(time->tm_hour);
 	*bp++ = bin2bcd(time->tm_mday);
 	*bp++ = bin2bcd(time->tm_mon + 1);
-	*bp++ = time->tm_wday;
+	*bp++ = time->tm_wday + 1;
 	*bp++ = bin2bcd(time->tm_year % 100);
 	*bp++ = RTC_CMD_WRITE_DISABLE;
 
