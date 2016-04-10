@@ -42,19 +42,11 @@ int cifs_removexattr(struct dentry *direntry, const char *ea_name)
 	int rc = -EOPNOTSUPP;
 #ifdef CONFIG_CIFS_XATTR
 	unsigned int xid;
-	struct cifs_sb_info *cifs_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
-	struct super_block *sb;
 	char *full_path = NULL;
 
-	if (direntry == NULL)
-		return -EIO;
-	if (d_really_is_negative(direntry))
-		return -EIO;
-	sb = direntry->d_sb;
-
-	cifs_sb = CIFS_SB(sb);
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
@@ -101,19 +93,12 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 	int rc = -EOPNOTSUPP;
 #ifdef CONFIG_CIFS_XATTR
 	unsigned int xid;
-	struct cifs_sb_info *cifs_sb;
+	struct super_block *sb = direntry->d_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
-	struct super_block *sb;
 	char *full_path;
 
-	if (direntry == NULL)
-		return -EIO;
-	if (d_really_is_negative(direntry))
-		return -EIO;
-	sb = direntry->d_sb;
-
-	cifs_sb = CIFS_SB(sb);
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
@@ -234,19 +219,12 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 	ssize_t rc = -EOPNOTSUPP;
 #ifdef CONFIG_CIFS_XATTR
 	unsigned int xid;
-	struct cifs_sb_info *cifs_sb;
+	struct super_block *sb = direntry->d_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
-	struct super_block *sb;
 	char *full_path;
 
-	if (direntry == NULL)
-		return -EIO;
-	if (d_really_is_negative(direntry))
-		return -EIO;
-	sb = direntry->d_sb;
-
-	cifs_sb = CIFS_SB(sb);
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
@@ -368,19 +346,11 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 	ssize_t rc = -EOPNOTSUPP;
 #ifdef CONFIG_CIFS_XATTR
 	unsigned int xid;
-	struct cifs_sb_info *cifs_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
-	struct super_block *sb;
 	char *full_path;
 
-	if (direntry == NULL)
-		return -EIO;
-	if (d_really_is_negative(direntry))
-		return -EIO;
-	sb = direntry->d_sb;
-
-	cifs_sb = CIFS_SB(sb);
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
 		return -EOPNOTSUPP;
 
