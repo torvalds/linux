@@ -2316,7 +2316,7 @@ static void mgslpc_set_termios(struct tty_struct *tty, struct ktermios *old_term
 	/* Handle transition away from B0 status */
 	if (!(old_termios->c_cflag & CBAUD) && C_BAUD(tty)) {
 		info->serial_signals |= SerialSignal_DTR;
-		if (!C_CRTSCTS(tty) || !test_bit(TTY_THROTTLED, &tty->flags))
+		if (!C_CRTSCTS(tty) || !tty_throttled(tty))
 			info->serial_signals |= SerialSignal_RTS;
 		spin_lock_irqsave(&info->lock, flags);
 		set_signals(info);

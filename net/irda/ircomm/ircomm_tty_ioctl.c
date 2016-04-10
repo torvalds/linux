@@ -166,7 +166,7 @@ void ircomm_tty_set_termios(struct tty_struct *tty,
 	/* Handle transition away from B0 status */
 	if (!(old_termios->c_cflag & CBAUD) && (cflag & CBAUD)) {
 		self->settings.dte |= IRCOMM_DTR;
-		if (!C_CRTSCTS(tty) || !test_bit(TTY_THROTTLED, &tty->flags))
+		if (!C_CRTSCTS(tty) || !tty_throttled(tty))
 			self->settings.dte |= IRCOMM_RTS;
 		ircomm_param_request(self, IRCOMM_DTE, TRUE);
 	}

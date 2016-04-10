@@ -699,8 +699,7 @@ static void digi_set_termios(struct tty_struct *tty,
 			/* don't set RTS if using hardware flow control */
 			/* and throttling input */
 			modem_signals = TIOCM_DTR;
-			if (!C_CRTSCTS(tty) ||
-			    !test_bit(TTY_THROTTLED, &tty->flags))
+			if (!C_CRTSCTS(tty) || !tty_throttled(tty))
 				modem_signals |= TIOCM_RTS;
 			digi_set_modem_signals(port, modem_signals, 1);
 		}

@@ -1342,7 +1342,7 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	/* Handle transition away from B0 status */
 	if (!(old_termios->c_cflag & CBAUD) && (cflag & CBAUD)) {
 		info->MCR |= SER_DTR;
-		if (!C_CRTSCTS(tty) || !test_bit(TTY_THROTTLED, &tty->flags))
+		if (!C_CRTSCTS(tty) || !tty_throttled(tty))
 			info->MCR |= SER_RTS;
 		local_irq_save(flags);
 		rtsdtr_ctrl(info->MCR);

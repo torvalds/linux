@@ -1305,7 +1305,7 @@ static void fwtty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	if ((baud == 0) && (old->c_cflag & CBAUD)) {
 		port->mctrl &= ~(TIOCM_DTR | TIOCM_RTS);
 	} else if ((baud != 0) && !(old->c_cflag & CBAUD)) {
-		if (C_CRTSCTS(tty) || !test_bit(TTY_THROTTLED, &tty->flags))
+		if (C_CRTSCTS(tty) || !tty_throttled(tty))
 			port->mctrl |= TIOCM_DTR | TIOCM_RTS;
 		else
 			port->mctrl |= TIOCM_DTR;
