@@ -110,29 +110,10 @@ err:
 	return ret;
 }
 
-int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
+int serial8250_rx_dma(struct uart_8250_port *p)
 {
 	struct uart_8250_dma		*dma = p->dma;
 	struct dma_async_tx_descriptor	*desc;
-
-	switch (iir & 0x3f) {
-	case UART_IIR_RLSI:
-		/* 8250_core handles errors and break interrupts */
-		return -EIO;
-	case UART_IIR_RX_TIMEOUT:
-		/*
-		 * If RCVR FIFO trigger level was not reached, complete the
-		 * transfer and let 8250_core copy the remaining data.
-		 */
-		if (dma->rx_running) {
-			dmaengine_pause(dma->rxchan);
-			__dma_rx_complete(p);
-			dmaengine_terminate_all(dma->rxchan);
-		}
-		return -ETIMEDOUT;
-	default:
-		break;
-	}
 
 	if (dma->rx_running)
 		return 0;
@@ -152,6 +133,17 @@ int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 	dma_async_issue_pending(dma->rxchan);
 
 	return 0;
+}
+
+void serial8250_rx_dma_flush(struct uart_8250_port *p)
+{
+	struct uart_8250_dma *dma = p->dma;
+
+	if (dma->rx_running) {
+		dmaengine_pause(dma->rxchan);
+		__dma_rx_complete(p);
+		dmaengine_terminate_all(dma->rxchan);
+	}
 }
 
 int serial8250_request_dma(struct uart_8250_port *p)
