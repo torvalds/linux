@@ -1960,7 +1960,6 @@ static struct tty_struct *tty_open_current_tty(dev_t device, struct file *filp)
  *	tty_lookup_driver - lookup a tty driver for a given device file
  *	@device: device number
  *	@filp: file pointer to tty
- *	@noctty: set if the device should not become a controlling tty
  *	@index: index for the device in the @return driver
  *	@return: driver for this inode (with increased refcount)
  *
