@@ -281,6 +281,8 @@ struct uart_state {
 	enum uart_pm_state	pm_state;
 	struct circ_buf		xmit;
 
+	atomic_t		refcount;
+	wait_queue_head_t	remove_wait;
 	struct uart_port	*uart_port;
 };
 
