@@ -263,7 +263,7 @@ struct fiji_hwmgr {
 	bool                           enable_tdc_limit_feature;
 	bool                           enable_pkg_pwr_tracking_feature;
 	bool                           disable_uvd_power_tune_feature;
-	struct fiji_pt_defaults       *power_tune_defaults;
+	const struct fiji_pt_defaults  *power_tune_defaults;
 	struct SMU73_Discrete_PmFuses  power_tune_table;
 	uint32_t                       dte_tj_offset;
 	uint32_t                       fast_watermark_threshold;

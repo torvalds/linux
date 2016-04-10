@@ -89,17 +89,17 @@
 typedef uint32_t PECI_RegistryValue;
 
 /* [2.5%,~2.5%] Clock stretched is multiple of 2.5% vs not and [Fmin, Fmax, LDO_REFSEL, USE_FOR_LOW_FREQ] */
-uint16_t PP_ClockStretcherLookupTable[2][4] = {
+static const uint16_t PP_ClockStretcherLookupTable[2][4] = {
 	{600, 1050, 3, 0},
 	{600, 1050, 6, 1} };
 
 /* [FF, SS] type, [] 4 voltage ranges, and [Floor Freq, Boundary Freq, VID min , VID max] */
-uint32_t PP_ClockStretcherDDTTable[2][4][4] = {
+static const uint32_t PP_ClockStretcherDDTTable[2][4][4] = {
 	{ {265, 529, 120, 128}, {325, 650, 96, 119}, {430, 860, 32, 95}, {0, 0, 0, 31} },
 	{ {275, 550, 104, 112}, {319, 638, 96, 103}, {360, 720, 64, 95}, {384, 768, 32, 63} } };
 
 /* [Use_For_Low_freq] value, [0%, 5%, 10%, 7.14%, 14.28%, 20%] (coming from PWR_CKS_CNTL.stretch_amount reg spec) */
-uint8_t PP_ClockStretchAmountConversion[2][6] = {
+static const uint8_t PP_ClockStretchAmountConversion[2][6] = {
 	{0, 1, 3, 2, 4, 5},
 	{0, 2, 4, 5, 6, 5} };
 
@@ -113,7 +113,7 @@ enum DPM_EVENT_SRC {
 };
 typedef enum DPM_EVENT_SRC DPM_EVENT_SRC;
 
-const unsigned long PhwTonga_Magic = (unsigned long)(PHM_VIslands_Magic);
+static const unsigned long PhwTonga_Magic = (unsigned long)(PHM_VIslands_Magic);
 
 struct tonga_power_state *cast_phw_tonga_power_state(
 				  struct pp_hw_power_state *hw_ps)

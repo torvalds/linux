@@ -95,23 +95,23 @@ enum DPM_EVENT_SRC {
 /* [2.5%,~2.5%] Clock stretched is multiple of 2.5% vs
  * not and [Fmin, Fmax, LDO_REFSEL, USE_FOR_LOW_FREQ]
  */
-uint16_t fiji_clock_stretcher_lookup_table[2][4] = { {600, 1050, 3, 0},
-                                                {600, 1050, 6, 1} };
+static const uint16_t fiji_clock_stretcher_lookup_table[2][4] =
+{ {600, 1050, 3, 0}, {600, 1050, 6, 1} };
 
 /* [FF, SS] type, [] 4 voltage ranges, and
  * [Floor Freq, Boundary Freq, VID min , VID max]
  */
-uint32_t fiji_clock_stretcher_ddt_table[2][4][4] =
+static const uint32_t fiji_clock_stretcher_ddt_table[2][4][4] =
 { { {265, 529, 120, 128}, {325, 650, 96, 119}, {430, 860, 32, 95}, {0, 0, 0, 31} },
   { {275, 550, 104, 112}, {319, 638, 96, 103}, {360, 720, 64, 95}, {384, 768, 32, 63} } };
 
 /* [Use_For_Low_freq] value, [0%, 5%, 10%, 7.14%, 14.28%, 20%]
  * (coming from PWR_CKS_CNTL.stretch_amount reg spec)
  */
-uint8_t fiji_clock_stretch_amount_conversion[2][6] = { {0, 1, 3, 2, 4, 5},
-                                                  {0, 2, 4, 5, 6, 5} };
+static const uint8_t fiji_clock_stretch_amount_conversion[2][6] =
+{ {0, 1, 3, 2, 4, 5}, {0, 2, 4, 5, 6, 5} };
 
-const unsigned long PhwFiji_Magic = (unsigned long)(PHM_VIslands_Magic);
+static const unsigned long PhwFiji_Magic = (unsigned long)(PHM_VIslands_Magic);
 
 struct fiji_power_state *cast_phw_fiji_power_state(
 				  struct pp_hw_power_state *hw_ps)

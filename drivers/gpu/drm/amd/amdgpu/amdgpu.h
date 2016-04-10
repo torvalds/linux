@@ -2348,7 +2348,7 @@ static inline void amdgpu_unregister_atpx_handler(void) {}
  * KMS
  */
 extern const struct drm_ioctl_desc amdgpu_ioctls_kms[];
-extern int amdgpu_max_kms_ioctl;
+extern const int amdgpu_max_kms_ioctl;
 
 int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int amdgpu_driver_unload_kms(struct drm_device *dev);
