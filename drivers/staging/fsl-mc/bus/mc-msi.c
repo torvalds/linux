@@ -65,7 +65,7 @@ static void __fsl_mc_msi_write_msg(struct fsl_mc_device *mc_bus_dev,
 	irq_cfg.paddr = ((u64)msi_desc->msg.address_hi << 32) |
 			msi_desc->msg.address_lo;
 	irq_cfg.val = msi_desc->msg.data;
-	irq_cfg.user_irq_id = msi_desc->irq;
+	irq_cfg.irq_num = msi_desc->irq;
 
 	if (owner_mc_dev == mc_bus_dev) {
 		/*

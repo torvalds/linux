@@ -423,6 +423,7 @@ static irqreturn_t dprc_irq0_handler_thread(int irq_num, void *arg)
 	if (WARN_ON(!msi_desc || msi_desc->irq != (u32)irq_num))
 		goto out;
 
+	status = 0;
 	error = dprc_get_irq_status(mc_io, 0, mc_dev->mc_handle, 0,
 				    &status);
 	if (error < 0) {
