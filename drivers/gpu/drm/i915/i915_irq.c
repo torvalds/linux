@@ -3309,13 +3309,6 @@ static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 	u32 iir_mask;
 	enum pipe pipe;
 
-	pipestat_mask = PIPESTAT_INT_STATUS_MASK |
-			PIPE_FIFO_UNDERRUN_STATUS;
-
-	for_each_pipe(dev_priv, pipe)
-		I915_WRITE(PIPESTAT(pipe), pipestat_mask);
-	POSTING_READ(PIPESTAT(PIPE_A));
-
 	pipestat_mask = PLANE_FLIP_DONE_INT_STATUS_VLV |
 			PIPE_CRC_DONE_INTERRUPT_STATUS;
 
@@ -3699,8 +3692,10 @@ void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv)
 
 	dev_priv->display_irqs_enabled = true;
 
-	if (intel_irqs_enabled(dev_priv))
+	if (intel_irqs_enabled(dev_priv)) {
+		vlv_display_irq_reset(dev_priv);
 		vlv_display_irq_postinstall(dev_priv);
+	}
 }
 
 void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv)
