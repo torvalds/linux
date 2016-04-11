@@ -3306,7 +3306,7 @@ static void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	u32 pipestat_mask;
-	u32 iir_mask;
+	u32 enable_mask;
 	enum pipe pipe;
 
 	pipestat_mask = PLANE_FLIP_DONE_INT_STATUS_VLV |
@@ -3316,18 +3316,14 @@ static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 	for_each_pipe(dev_priv, pipe)
 		i915_enable_pipestat(dev_priv, pipe, pipestat_mask);
 
-	iir_mask = I915_DISPLAY_PORT_INTERRUPT |
-		   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		   I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
+	enable_mask = I915_DISPLAY_PORT_INTERRUPT |
+		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
+		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
 	if (IS_CHERRYVIEW(dev_priv))
-		iir_mask |= I915_DISPLAY_PIPE_C_EVENT_INTERRUPT;
-	dev_priv->irq_mask &= ~iir_mask;
+		enable_mask |= I915_DISPLAY_PIPE_C_EVENT_INTERRUPT;
+	dev_priv->irq_mask = ~enable_mask;
 
-	I915_WRITE(VLV_IIR, iir_mask);
-	I915_WRITE(VLV_IIR, iir_mask);
-	I915_WRITE(VLV_IER, ~dev_priv->irq_mask);
-	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
-	POSTING_READ(VLV_IMR);
+	GEN5_IRQ_INIT(VLV_, dev_priv->irq_mask, enable_mask);
 }
 
 /* drm_dma.h hooks
