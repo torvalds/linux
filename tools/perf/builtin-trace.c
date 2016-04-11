@@ -159,6 +159,7 @@ struct trace {
 	bool			show_comm;
 	bool			show_tool_stats;
 	bool			trace_syscalls;
+	bool			kernel_syscallchains;
 	bool			force;
 	bool			vfs_getname;
 	int			trace_pgfaults;
@@ -2661,6 +2662,15 @@ static int trace__add_syscall_newtp(struct trace *trace)
 	perf_evlist__add(evlist, sys_enter);
 	perf_evlist__add(evlist, sys_exit);
 
+	if (trace->opts.callgraph_set && !trace->kernel_syscallchains) {
+		/*
+		 * We're interested only in the user space callchain
+		 * leading to the syscall, allow overriding that for
+		 * debugging reasons using --kernel_syscall_callchains
+		 */
+		sys_exit->attr.exclude_callchain_kernel = 1;
+	}
+
 	trace->syscalls.events.sys_enter = sys_enter;
 	trace->syscalls.events.sys_exit  = sys_exit;
 
@@ -3221,6 +3231,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		.output = stderr,
 		.show_comm = true,
 		.trace_syscalls = true,
+		.kernel_syscallchains = false,
 	};
 	const char *output_name = NULL;
 	const char *ev_qualifier_str = NULL;
@@ -3269,6 +3280,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK(0, "call-graph", &trace.opts,
 		     "record_mode[,record_size]", record_callchain_help,
 		     &record_parse_callchain_opt),
+	OPT_BOOLEAN(0, "kernel-syscall-graph", &trace.kernel_syscallchains,
+		    "Show the kernel callchains on the syscall exit path"),
 	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_END()

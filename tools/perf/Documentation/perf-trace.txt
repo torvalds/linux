@@ -123,6 +123,9 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
         man pages for details. The ones that are most useful in 'perf trace'
         are 'dwarf' and 'lbr', where available, try: 'perf trace --call-graph dwarf'.
 
+--kernel-syscall-graph::
+	 Show the kernel callchains on the syscall exit path.
+
 --event::
 	Trace other events, see 'perf list' for a complete list.
 
