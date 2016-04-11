@@ -208,10 +208,6 @@ struct brcmf_if {
 	u8 ipv6addr_idx;
 };
 
-struct brcmf_skb_reorder_data {
-	u8 *reorder;
-};
-
 int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp);
 
 /* Return pointer to interface name */

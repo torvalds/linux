@@ -22,6 +22,9 @@ enum proto_addr_mode {
 	ADDR_DIRECT
 };
 
+struct brcmf_skb_reorder_data {
+	u8 *reorder;
+};
 
 struct brcmf_proto {
 	int (*hdrpull)(struct brcmf_pub *drvr, bool do_fws,
@@ -38,6 +41,7 @@ struct brcmf_proto {
 			    u8 peer[ETH_ALEN]);
 	void (*add_tdls_peer)(struct brcmf_pub *drvr, int ifidx,
 			      u8 peer[ETH_ALEN]);
+	void (*rxreorder)(struct brcmf_if *ifp, struct sk_buff *skb);
 	void *pd;
 };
 
@@ -91,6 +95,18 @@ brcmf_proto_add_tdls_peer(struct brcmf_pub *drvr, int ifidx, u8 peer[ETH_ALEN])
 {
 	drvr->proto->add_tdls_peer(drvr, ifidx, peer);
 }
+static inline bool brcmf_proto_is_reorder_skb(struct sk_buff *skb)
+{
+	struct brcmf_skb_reorder_data *rd;
 
+	rd = (struct brcmf_skb_reorder_data *)skb->cb;
+	return !!rd->reorder;
+}
+
+static inline void
+brcmf_proto_rxreorder(struct brcmf_if *ifp, struct sk_buff *skb)
+{
+	ifp->drvr->proto->rxreorder(ifp, skb);
+}
 
 #endif /* BRCMFMAC_PROTO_H */
