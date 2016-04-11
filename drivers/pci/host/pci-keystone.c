@@ -15,6 +15,7 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/module.h>
 #include <linux/msi.h>
@@ -226,6 +227,9 @@ static void ks_pcie_setup_interrupts(struct keystone_pcie *ks_pcie)
 							 ks_pcie);
 		}
 	}
+
+	if (ks_pcie->error_irq > 0)
+		ks_dw_pcie_enable_error_irq(ks_pcie->va_app_base);
 }
 
 /*
@@ -289,6 +293,14 @@ static struct pcie_host_ops keystone_pcie_host_ops = {
 	.scan_bus = ks_dw_pcie_v3_65_scan_bus,
 };
 
+static irqreturn_t pcie_err_irq_handler(int irq, void *priv)
+{
+	struct keystone_pcie *ks_pcie = priv;
+
+	return ks_dw_pcie_handle_error_irq(ks_pcie->pp.dev,
+					   ks_pcie->va_app_base);
+}
+
 static int __init ks_add_pcie_port(struct keystone_pcie *ks_pcie,
 			 struct platform_device *pdev)
 {
@@ -307,6 +319,22 @@ static int __init ks_add_pcie_port(struct keystone_pcie *ks_pcie,
 						&ks_pcie->num_msi_host_irqs);
 		if (ret)
 			return ret;
+	}
+
+	/*
+	 * Index 0 is the platform interrupt for error interrupt
+	 * from RC.  This is optional.
+	 */
+	ks_pcie->error_irq = irq_of_parse_and_map(ks_pcie->np, 0);
+	if (ks_pcie->error_irq <= 0)
+		dev_info(&pdev->dev, "no error IRQ defined\n");
+	else {
+		if (request_irq(ks_pcie->error_irq, pcie_err_irq_handler,
+				IRQF_SHARED, "pcie-error-irq", ks_pcie) < 0) {
+			dev_err(&pdev->dev, "failed to request error IRQ %d\n",
+				ks_pcie->error_irq);
+			return ret;
+		}
 	}
 
 	pp->root_bus_nr = -1;
@@ -376,6 +404,7 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	devm_release_mem_region(dev, res->start, resource_size(res));
 
 	pp->dev = dev;
+	ks_pcie->np = dev->of_node;
 	platform_set_drvdata(pdev, ks_pcie);
 	ks_pcie->clk = devm_clk_get(dev, "pcie");
 	if (IS_ERR(ks_pcie->clk)) {
