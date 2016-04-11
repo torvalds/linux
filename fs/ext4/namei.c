@@ -1107,11 +1107,6 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 	}
 
 	while (1) {
-		if (signal_pending(current)) {
-			err = -ERESTARTSYS;
-			goto errout;
-		}
-		cond_resched();
 		block = dx_get_block(frame->at);
 		ret = htree_dirblock_to_tree(dir_file, dir, block, &hinfo,
 					     start_hash, start_minor_hash);
