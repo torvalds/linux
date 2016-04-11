@@ -8,6 +8,6 @@ if SAMSUNG_MC
 
 config EXYNOS_SROM
 	bool "Exynos SROM controller driver" if COMPILE_TEST
-	depends on (ARM && ARCH_EXYNOS && PM) || (COMPILE_TEST && HAS_IOMEM)
+	depends on (ARM && ARCH_EXYNOS) || (COMPILE_TEST && HAS_IOMEM)
 
 endif

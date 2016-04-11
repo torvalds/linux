@@ -18,7 +18,7 @@ menuconfig ARCH_EXYNOS
 	select COMMON_CLK_SAMSUNG
 	select EXYNOS_THERMAL
 	select EXYNOS_PMU
-	select EXYNOS_SROM if PM
+	select EXYNOS_SROM
 	select HAVE_ARM_SCU if SMP
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
