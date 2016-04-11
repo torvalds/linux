@@ -21,6 +21,19 @@
 
 #include "irq-gic-common.h"
 
+static const struct gic_kvm_info *gic_kvm_info;
+
+const struct gic_kvm_info *gic_get_kvm_info(void)
+{
+	return gic_kvm_info;
+}
+
+void gic_set_kvm_info(const struct gic_kvm_info *info)
+{
+	BUG_ON(gic_kvm_info != NULL);
+	gic_kvm_info = info;
+}
+
 void gic_enable_quirks(u32 iidr, const struct gic_quirk *quirks,
 		void *data)
 {
