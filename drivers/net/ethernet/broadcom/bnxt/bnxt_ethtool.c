@@ -850,7 +850,15 @@ static int bnxt_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		set_pause = true;
 	} else {
 		u16 fw_speed;
+		u8 phy_type = link_info->phy_type;
 
+		if (phy_type == PORT_PHY_QCFG_RESP_PHY_TYPE_BASET  ||
+		    phy_type == PORT_PHY_QCFG_RESP_PHY_TYPE_BASETE ||
+		    link_info->media_type == PORT_PHY_QCFG_RESP_MEDIA_TYPE_TP) {
+			netdev_err(dev, "10GBase-T devices must autoneg\n");
+			rc = -EINVAL;
+			goto set_setting_exit;
+		}
 		/* TODO: currently don't support half duplex */
 		if (cmd->duplex == DUPLEX_HALF) {
 			netdev_err(dev, "HALF DUPLEX is not supported!\n");

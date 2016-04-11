@@ -759,6 +759,7 @@ struct bnxt_ntuple_filter {
 };
 
 struct bnxt_link_info {
+	u8			phy_type;
 	u8			media_type;
 	u8			transceiver;
 	u8			phy_addr;

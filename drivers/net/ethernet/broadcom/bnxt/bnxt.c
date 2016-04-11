@@ -122,6 +122,7 @@ static const u16 bnxt_async_events_arr[] = {
 	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE,
 	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD,
 	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE,
 };
 
 static bool bnxt_vf_pciid(enum board_idx idx)
@@ -1257,6 +1258,21 @@ static int bnxt_async_event_process(struct bnxt *bp,
 
 	/* TODO CHIMP_FW: Define event id's for link change, error etc */
 	switch (event_id) {
+	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE: {
+		u32 data1 = le32_to_cpu(cmpl->event_data1);
+		struct bnxt_link_info *link_info = &bp->link_info;
+
+		if (BNXT_VF(bp))
+			goto async_event_process_exit;
+		if (data1 & 0x20000) {
+			u16 fw_speed = link_info->force_link_speed;
+			u32 speed = bnxt_fw_to_ethtool_speed(fw_speed);
+
+			netdev_warn(bp->dev, "Link speed %d no longer supported\n",
+				    speed);
+		}
+		/* fall thru */
+	}
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE:
 		set_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event);
 		break;
@@ -4611,6 +4627,7 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	link_info->phy_ver[1] = resp->phy_min;
 	link_info->phy_ver[2] = resp->phy_bld;
 	link_info->media_type = resp->media_type;
+	link_info->phy_type = resp->phy_type;
 	link_info->transceiver = resp->xcvr_pkg_type;
 	link_info->phy_addr = resp->eee_config_phy_addr &
 			      PORT_PHY_QCFG_RESP_PHY_ADDR_MASK;
@@ -4786,6 +4803,21 @@ int bnxt_hwrm_set_link_setting(struct bnxt *bp, bool set_pause, bool set_eee)
 
 	if (set_eee)
 		bnxt_hwrm_set_eee(bp, &req);
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
+static int bnxt_hwrm_shutdown_link(struct bnxt *bp)
+{
+	struct hwrm_port_phy_cfg_input req = {0};
+
+	if (BNXT_VF(bp))
+		return 0;
+
+	if (pci_num_vf(bp->pdev))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_CFG, -1, -1);
+	req.flags = cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_FORCE_LINK_DOWN);
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
@@ -5043,6 +5075,7 @@ static int bnxt_close(struct net_device *dev)
 	struct bnxt *bp = netdev_priv(dev);
 
 	bnxt_close_nic(bp, true, true);
+	bnxt_hwrm_shutdown_link(bp);
 	return 0;
 }
 
@@ -5679,10 +5712,9 @@ static int bnxt_change_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-#ifdef CONFIG_BNXT_SRIOV
-	if (BNXT_VF(bp) && is_valid_ether_addr(bp->vf.mac_addr))
-		return -EADDRNOTAVAIL;
-#endif
+	rc = bnxt_approve_mac(bp, addr->sa_data);
+	if (rc)
+		return rc;
 
 	if (ether_addr_equal(addr->sa_data, dev->dev_addr))
 		return 0;
