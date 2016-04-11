@@ -1955,7 +1955,8 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 
 void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 			  struct addr_location *al,
-			  unsigned int print_opts, unsigned int stack_depth)
+			  unsigned int print_opts, unsigned int stack_depth,
+			  FILE *fp)
 {
 	struct callchain_cursor_node *node;
 	int print_ip = print_opts & PRINT_IP_OPT_IP;
@@ -1992,33 +1993,35 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 				goto next;
 
 			if (print_ip)
-				printf("%c%16" PRIx64, s, node->ip);
+				fprintf(fp, "%c%16" PRIx64, s, node->ip);
 
 			if (node->map)
 				addr = node->map->map_ip(node->map, node->ip);
 
 			if (print_sym) {
-				printf(" ");
+				fprintf(fp, " ");
 				if (print_symoffset) {
 					node_al.addr = addr;
 					node_al.map  = node->map;
-					symbol__fprintf_symname_offs(node->sym, &node_al, stdout);
+					symbol__fprintf_symname_offs(node->sym,
+								     &node_al,
+								     fp);
 				} else
-					symbol__fprintf_symname(node->sym, stdout);
+					symbol__fprintf_symname(node->sym, fp);
 			}
 
 			if (print_dso) {
-				printf(" (");
-				map__fprintf_dsoname(node->map, stdout);
-				printf(")");
+				fprintf(fp, " (");
+				map__fprintf_dsoname(node->map, fp);
+				fprintf(fp, ")");
 			}
 
 			if (print_srcline)
 				map__fprintf_srcline(node->map, addr, "\n  ",
-						     stdout);
+						     fp);
 
 			if (!print_oneline)
-				printf("\n");
+				fprintf(fp, "\n");
 
 			stack_depth--;
 next:
@@ -2030,25 +2033,25 @@ next:
 			return;
 
 		if (print_ip)
-			printf("%16" PRIx64, sample->ip);
+			fprintf(fp, "%16" PRIx64, sample->ip);
 
 		if (print_sym) {
-			printf(" ");
+			fprintf(fp, " ");
 			if (print_symoffset)
 				symbol__fprintf_symname_offs(al->sym, al,
-							     stdout);
+							     fp);
 			else
-				symbol__fprintf_symname(al->sym, stdout);
+				symbol__fprintf_symname(al->sym, fp);
 		}
 
 		if (print_dso) {
-			printf(" (");
-			map__fprintf_dsoname(al->map, stdout);
-			printf(")");
+			fprintf(fp, " (");
+			map__fprintf_dsoname(al->map, fp);
+			fprintf(fp, ")");
 		}
 
 		if (print_srcline)
-			map__fprintf_srcline(al->map, al->addr, "\n  ", stdout);
+			map__fprintf_srcline(al->map, al->addr, "\n  ", fp);
 	}
 }
 
