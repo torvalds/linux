@@ -690,7 +690,6 @@ ap_i2c_audio: &i2c8 {
 	bus-width = <4>;
 	cd-gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
 	disable-wp;
-	rockchip,default-sample-phase = <90>;
 
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
